@@ -69,7 +69,7 @@ impl Default for SimulateOptions {
             max_seconds: 600.0,
             countdown_seconds: 3,
             conditions: SessionConditions::DEFAULT,
-            tick_rate: 240,
+            tick_rate: crate::game_session::DEFAULT_TICK_RATE_HZ,
             record_hz: 60,
             seed: None,
         }
@@ -84,6 +84,21 @@ pub type FolderMap = HashMap<CarConfigId, String>;
 /// Every `car.toml` under `cars_dir` (`default/` then `custom/`, the first to
 /// claim an id kept, as the server loads them), keyed by id, with the folder
 /// each came from so a script can name a car the way the client's catalog does.
+/// Ticks between two recorded frames for a wanted frame rate: the nearest
+/// whole number. Truncating gave 400 / 60 = 6 (66.7 fps) and the header
+/// then claimed 60.
+pub fn frame_spacing(tick_rate: u16, frame_hz: u16) -> u32 {
+    let tick_rate = tick_rate.max(1);
+    (tick_rate as f32 / frame_hz.clamp(1, tick_rate) as f32)
+        .round()
+        .max(1.0) as u32
+}
+
+/// The frame rate a spacing really gives, for a header.
+pub fn frames_per_second(tick_rate: u16, every: u32) -> u16 {
+    (tick_rate.max(1) as f32 / every.max(1) as f32).round() as u16
+}
+
 pub fn load_car_folder(cars_dir: &Path) -> Result<(CarMap, FolderMap), String> {
     let mut cars = HashMap::new();
     let mut folders = HashMap::new();
@@ -270,7 +285,7 @@ pub fn simulate_race(opts: &SimulateOptions) -> Result<(ReplayMetadata, Vec<Repl
         })
         .collect();
 
-    let record_every = (opts.tick_rate / opts.record_hz.clamp(1, opts.tick_rate)).max(1) as u32;
+    let record_every = frame_spacing(opts.tick_rate, opts.record_hz);
     let max_ticks = (opts.max_seconds.max(1.0) * opts.tick_rate as f32) as u32
         + opts.countdown_seconds as u32 * opts.tick_rate as u32;
     // A few seconds past the flag, so the last clip has the winner crossing it.
@@ -1116,8 +1131,7 @@ pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
     encoder.observe(&race, &[]);
 
     let tick_rate = race_opts.tick_rate.max(1);
-    let frame_rate = race_opts.record_hz.clamp(1, tick_rate);
-    let record_every = (tick_rate / frame_rate).max(1) as u32;
+    let record_every = frame_spacing(tick_rate, race_opts.record_hz);
     let frame_dt = record_every as f32 / tick_rate as f32;
     let max_ticks = (race_opts.max_seconds.max(1.0) * tick_rate as f32) as u32
         + race_opts.countdown_seconds as u32 * tick_rate as u32;
@@ -1176,7 +1190,7 @@ pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
     };
     header.start_tick = first.0;
     header.end_tick = last.0;
-    header.frame_rate = (tick_rate as u32 / record_every) as u16;
+    header.frame_rate = frames_per_second(tick_rate, record_every);
     header.race_start_tick = race.session.race_start_tick;
     // What is being watched, not the countdown the stream opens in.
     header.game_mode = race.session.game_mode;
@@ -1245,7 +1259,18 @@ pub fn replay_to_stream(
         return Err("the replay holds no frames".to_string());
     };
     let tick_rate = metadata.tick_rate.max(1);
-    let every = (tick_rate / rate.clamp(1, tick_rate)).max(1) as u32;
+    // The replay holds a frame every telemetry tick, so the stream can only
+    // take every n-th of those; the header says the rate that gives.
+    let source_step = frames
+        .windows(2)
+        .map(|w| w[1].tick.saturating_sub(w[0].tick))
+        .filter(|&d| d > 0)
+        .min()
+        .unwrap_or(1);
+    let every = ((frame_spacing(tick_rate, rate) as f32 / source_step as f32)
+        .round()
+        .max(1.0) as u32)
+        * source_step;
     let index_of: HashMap<PlayerId, u8> = metadata
         .participants
         .iter()
@@ -1258,7 +1283,7 @@ pub fn replay_to_stream(
         version: crate::spectator::FORMAT_VERSION,
         stream_id: metadata.session_id,
         tick_rate,
-        frame_rate: (tick_rate as u32 / every) as u16,
+        frame_rate: frames_per_second(tick_rate, every),
         row_size: crate::spectator::ROW_SIZE as u8,
         track: StreamTrack {
             track_id: metadata.track_config_id,

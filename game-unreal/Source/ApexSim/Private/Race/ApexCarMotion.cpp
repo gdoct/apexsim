@@ -114,7 +114,7 @@ namespace ApexMotion
 	double FApexCarMotionBuffer::DelayTicks(const FSettings& Settings) const
 	{
 		// Before two frames have shown the spacing, assume the server default
-		// (240Hz ticks broadcast at 60Hz).
+		// (420 Hz ticks broadcast at 60 Hz).
 		const double Spacing = FrameSpacingTicks > 0 ? static_cast<double>(FrameSpacingTicks) : 4.0;
 		return FMath::Max(Settings.DelayFrames, 0.0f) * Spacing;
 	}

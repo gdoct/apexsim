@@ -21,6 +21,9 @@ use tokio::net::TcpStream;
 use tokio::time::{sleep, timeout};
 use uuid::Uuid;
 
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
 fn monza() -> TrackConfig {
     TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
         .expect("failed to load Monza")
@@ -115,7 +118,7 @@ fn going_out_puts_the_car_on_the_run_up_and_the_lap_starts_at_the_line() {
     // The server's own gentle driver takes it up the straight and over the
     // line (the straight is not straight enough for hands-off).
     let mut crossed_at = None;
-    for tick in 0..(240 * 30) {
+    for tick in 0..(HZ * 30) {
         let inputs: HashMap<PlayerId, PlayerInputData> =
             [(driver, gs.cooldown_input(&driver))].into();
         gs.tick(&inputs);
@@ -126,7 +129,7 @@ fn going_out_puts_the_car_on_the_run_up_and_the_lap_starts_at_the_line() {
         }
     }
     let (tick, station, speed) = crossed_at.expect("the car should reach the line");
-    assert!(tick > 240, "300 m takes more than a second from rest");
+    assert!(tick > HZ, "300 m takes more than a second from rest");
     assert!(
         station < 50.0,
         "lap 1 starts at the line, not part way round: station {station:.0}"
@@ -199,7 +202,7 @@ fn two_drivers_going_out_are_queued_not_stacked() {
     // by a car driving through its grid slot.
     let inputs: HashMap<PlayerId, PlayerInputData> =
         ids.iter().map(|id| (*id, full_throttle())).collect();
-    for _ in 0..240 {
+    for _ in 0..HZ {
         gs.tick(&inputs);
     }
     assert!(gs.session.participants.values().all(|s| !s.is_colliding));
@@ -445,7 +448,7 @@ fn generate_ghost_fixture() {
     let mut samples: Vec<GhostSample> = Vec::new();
     let mut lap_time_ms = None;
     let mut sampling = false;
-    for tick in 0..(240 * 60 * 6) {
+    for tick in 0..(HZ * 60 * 6) {
         let inputs: HashMap<PlayerId, PlayerInputData> =
             [(driver, gs.generate_ai_input(&driver))].into();
         gs.tick(&inputs);

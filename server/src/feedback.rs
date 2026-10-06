@@ -17,8 +17,8 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Steering-torque samples kept between two broadcasts. At the default 240 Hz
-/// tick and 60 Hz telemetry that is 4 per message; beyond this cap the oldest
+/// Steering-torque samples kept between two broadcasts. At the default 420 Hz
+/// tick and divisor 7 that is 7 per message; beyond this cap the oldest
 /// are dropped, which only a very slow telemetry rate would hit.
 pub const MAX_STEER_SAMPLES: usize = 32;
 

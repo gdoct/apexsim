@@ -1,4 +1,4 @@
-//! The authoritative game loop (240Hz by default), decomposed by phase:
+//! The authoritative game loop (420 Hz by default), decomposed by phase:
 //!
 //! - [`dispatch`]: inbound `TransportEvent` handling (per-message handlers)
 //! - [`tick`]: session ticking + replay recording

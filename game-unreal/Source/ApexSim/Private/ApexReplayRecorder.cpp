@@ -54,7 +54,7 @@ namespace
 	/** The usual server rates, so an estimate off by an arrival's jitter lands on the real one. */
 	int32 SnapTickRate(double Estimate)
 	{
-		static const int32 Rates[] = {30, 60, 120, 240, 480};
+		static const int32 Rates[] = {30, 60, 120, 240, 420, 480};
 		for (const int32 Rate : Rates)
 		{
 			if (FMath::Abs(Estimate - Rate) <= Rate * 0.12)
@@ -62,7 +62,7 @@ namespace
 				return Rate;
 			}
 		}
-		return Estimate > 1.0 ? FMath::RoundToInt(Estimate) : 240;
+		return Estimate > 1.0 ? FMath::RoundToInt(Estimate) : 420;
 	}
 
 	const TCHAR* ModeWord(EApexGameMode Mode)
@@ -127,7 +127,7 @@ int32 UApexReplayRecorder::EstimateTickRate() const
 {
 	// The wire does not say the server's rate: its ticks against the clock do.
 	const double Seconds = LastSeconds - FirstSeconds;
-	return Seconds > 1.0 ? SnapTickRate((LastSeenServerTick - FirstServerTick) / Seconds) : 240;
+	return Seconds > 1.0 ? SnapTickRate((LastSeenServerTick - FirstServerTick) / Seconds) : 420;
 }
 
 double UApexReplayRecorder::GetRecordedSeconds() const

@@ -80,7 +80,7 @@ namespace ApexMotion
 		 * The playhead's ticks per second until enough frames have arrived to
 		 * measure it. The server's default tick rate.
 		 */
-		double DefaultTicksPerSecond = 240.0;
+		double DefaultTicksPerSecond = 420.0;
 	};
 
 	enum class EPushResult : uint8

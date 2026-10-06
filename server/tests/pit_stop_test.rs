@@ -17,6 +17,9 @@ use apexsim_server::physics;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
 fn monza() -> TrackConfig {
     TrackLoader::load_from_file("../content/tracks/default/Monza.yaml").expect("Monza")
 }
@@ -90,10 +93,10 @@ fn the_limiter_holds_a_car_to_the_lane_limit() {
     };
     let inputs: HashMap<PlayerId, PlayerInputData> = [(player, flat_out)].into();
     let mut top = 0.0f32;
-    for k in 0..(240 * 8) {
+    for k in 0..(HZ * 8) {
         gs.tick(&inputs);
         let s = &gs.session.participants[&player];
-        if k > 240 * 3 && s.pit.limiter {
+        if k > HZ * 3 && s.pit.limiter {
             top = top.max(s.speed_mps);
         }
     }
@@ -142,7 +145,7 @@ fn a_car_stopped_at_its_box_gets_the_set_its_driver_chose() {
         seconds > apexsim_server::pit::TYRE_CHANGE_S,
         "the repairs take time too: {seconds}"
     );
-    for _ in 0..((seconds + 0.5) * 240.0) as usize {
+    for _ in 0..((seconds + 0.5) * HZ as f32) as usize {
         gs.tick(&inputs);
     }
     let s = &gs.session.participants[&player];
@@ -186,7 +189,7 @@ fn an_ai_on_worn_tyres_pits_and_races_on() {
 
     let (mut laps, mut off_ticks, mut in_box_ticks) = (Vec::new(), 0u32, 0u32);
     let mut stopped_at = None;
-    for _ in 0..(240 * 60 * 10) {
+    for _ in 0..(HZ * 60 * 10) {
         let inputs: HashMap<PlayerId, PlayerInputData> =
             [(driver, gs.generate_ai_input(&driver))].into();
         gs.tick(&inputs);
@@ -209,9 +212,9 @@ fn an_ai_on_worn_tyres_pits_and_races_on() {
     println!(
         "laps {laps:?}; stops {}, {:.1} s in the box on {} ; {:.1} s off the road",
         s.pit.stops,
-        in_box_ticks as f32 / 240.0,
+        in_box_ticks as f32 / HZ as f32,
         apexsim_server::tyre_thermal::COMPOUNDS[s.tyre_compound as usize].name,
-        off_ticks as f32 / 240.0
+        off_ticks as f32 / HZ as f32
     );
     assert_eq!(laps.len(), 3, "it races on");
     assert_eq!(s.pit.stops, 1, "one stop");
@@ -225,9 +228,9 @@ fn an_ai_on_worn_tyres_pits_and_races_on() {
         "fresh tyres"
     );
     assert!(
-        off_ticks < 240 * 3,
+        off_ticks < HZ as u32 * 3,
         "{:.1} s off the road",
-        off_ticks as f32 / 240.0
+        off_ticks as f32 / HZ as f32
     );
     // The stop lap costs the lane and the service, not a disaster.
     let clean = laps[2];
@@ -300,7 +303,7 @@ fn drive_a_trip(track: TrackConfig, car: CarConfig, limit_s: f32) -> Option<Trip
         physics::seed_track_progress(s, &gs.track_config);
     }
     let mut trip = Trip::default();
-    let dt = 1.0 / 240.0;
+    let dt = 1.0 / HZ as f32;
     let mut t = 0.0f32;
     let mut served = false;
     let trace = std::env::var("PIT_TRACE").is_ok();
@@ -449,7 +452,7 @@ fn the_autopilot_puts_the_drivers_aids_back() {
         s.pit.driving && s.auto_gearbox && !s.steering_assist,
         "the autopilot's aids"
     );
-    for _ in 0..(240 * 120) {
+    for _ in 0..(HZ * 120) {
         gs.tick(&inputs);
         if !gs.session.participants[&player].pit.driving {
             break;
@@ -566,7 +569,7 @@ fn ai_stop_on(track: TrackConfig, laps: usize) -> (Vec<f32>, u16, f32) {
     }
     let (mut times, mut off_ticks) = (Vec::new(), 0u32);
     let trace = std::env::var("PIT_TRACE").is_ok();
-    for _ in 0..(240 * 60 * 20) {
+    for _ in 0..(HZ * 60 * 20) {
         let inputs: HashMap<PlayerId, PlayerInputData> =
             [(driver, gs.generate_ai_input(&driver))].into();
         gs.tick(&inputs);
@@ -576,7 +579,7 @@ fn ai_stop_on(track: TrackConfig, laps: usize) -> (Vec<f32>, u16, f32) {
         {
             println!(
                 "  t {:6.1} prog {:7.1} lane {:6.1} in_lane {} driving {} wants {} served {} v {:5.1} on_track {} pos ({:.1},{:.1})",
-                gs.session.current_tick as f32 / 240.0, s.track_progress, s.pit.lane_station_m,
+                gs.session.current_tick as f32 / HZ as f32, s.track_progress, s.pit.lane_station_m,
                 s.pit.in_lane, s.pit.driving, s.pit.wants_stop, s.pit.serviced, s.speed_mps,
                 s.is_on_track, s.pos_x, s.pos_y
             );
@@ -591,7 +594,7 @@ fn ai_stop_on(track: TrackConfig, laps: usize) -> (Vec<f32>, u16, f32) {
         }
     }
     let stops = gs.session.participants[&driver].pit.stops;
-    (times, stops, off_ticks as f32 / 240.0)
+    (times, stops, off_ticks as f32 / HZ as f32)
 }
 
 /// Every circuit's lane in a race: an AI on worn tyres plans a stop,
@@ -665,7 +668,7 @@ fn every_car_in_a_race_has_its_own_box() {
     let mut gs = GameSession::with_ai_profiles(session, track, car_configs, profiles);
     gs.spawn_ai_drivers();
     gs.start_countdown_mode(1, GameMode::Race);
-    for _ in 0..(240 * 8) {
+    for _ in 0..(HZ * 8) {
         let inputs: HashMap<PlayerId, PlayerInputData> = gs
             .session
             .ai_player_ids
@@ -724,7 +727,7 @@ fn a_car_leaving_its_box_waits_at_a_red_exit_light() {
     };
     let inputs: HashMap<PlayerId, PlayerInputData> = HashMap::new();
     let mut held = false;
-    for tick in 0..(240 * 6) {
+    for tick in 0..(HZ * 6) {
         hold_other(&mut gs);
         gs.tick(&inputs);
         let s = &gs.session.participants[&player];
@@ -742,7 +745,7 @@ fn a_car_leaving_its_box_waits_at_a_red_exit_light() {
     }
     assert!(held, "held at the light");
     // The traffic passes: green, and it goes.
-    for _ in 0..(240 * 20) {
+    for _ in 0..(HZ * 20) {
         gs.tick(&inputs);
         if !gs.session.participants[&player].pit.driving {
             break;

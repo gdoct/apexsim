@@ -222,7 +222,7 @@ def gather() -> dict:
         "hud_components": sum(1 for p in HUD_DIR.glob("*/component.json")),
         "longest_km": round(longest["length"] / 1000.0, 1),
         "longest_relief": longest["elev"],
-        "tick_hz": 240,
+        "tick_hz": 420,
         "telemetry_hz": 60,
     }
     return {"cars": car_list, "tracks": track_list, "classes": classes, "n": n}

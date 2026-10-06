@@ -74,7 +74,7 @@ enum Command {
         /// Local time, hh:mm.
         #[arg(long, default_value = "13:00")]
         time: String,
-        #[arg(long, default_value_t = 240)]
+        #[arg(long, default_value_t = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ)]
         tick_rate: u16,
         /// Frames recorded per second of race.
         #[arg(long, default_value_t = 60)]
@@ -135,7 +135,7 @@ enum Command {
         /// Where the wind blows from, degrees from the start straight.
         #[arg(long)]
         wind_from: Option<u16>,
-        #[arg(long, default_value_t = 240)]
+        #[arg(long, default_value_t = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ)]
         tick_rate: u16,
         /// Frames per second of the stream.
         #[arg(long, default_value_t = 30)]

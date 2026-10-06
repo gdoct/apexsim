@@ -8,7 +8,7 @@
 //! **Track limits.** A lap is invalidated when all four wheels are off the
 //! track — past the curb band, not merely past the white line, since the
 //! curbs are what `curbs.rs` already calls track. One tick of it is noise
-//! (a wheel skimming a kerb edge at 240 Hz), so the car has to be fully off
+//! (a wheel skimming a kerb edge at 420 Hz), so the car has to be fully off
 //! for [`TRACK_LIMITS_SECONDS`] before the lap is struck. The lap still
 //! completes and is still timed — it just cannot become a best.
 //!

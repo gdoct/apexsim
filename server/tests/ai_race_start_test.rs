@@ -15,7 +15,7 @@ use apexsim_server::data::*;
 use apexsim_server::game_session::GameSession;
 use apexsim_server::track_loader::TrackLoader;
 
-const TICK_RATE: u16 = 240;
+const TICK_RATE: u16 = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ;
 /// The menu's demo field (`apexsim.demo.AiCount`).
 const DEMO_FIELD: u8 = 10;
 

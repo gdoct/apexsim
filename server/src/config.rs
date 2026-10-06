@@ -164,13 +164,13 @@ pub struct NetworkSettings {
     pub heartbeat_interval_ms: u64,
     pub heartbeat_timeout_ms: u64,
     /// Broadcast telemetry every N-th simulation tick (1 = every tick).
-    /// Default 4 → 60Hz snapshots of a 240Hz sim; clients interpolate.
+    /// Default 7 → 60 Hz snapshots of a 420 Hz sim; clients interpolate.
     #[serde(default = "default_telemetry_divisor")]
     pub telemetry_divisor: u16,
 }
 
 fn default_telemetry_divisor() -> u16 {
-    4
+    7
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -236,7 +236,7 @@ impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             server: ServerSettings {
-                tick_rate_hz: 240,
+                tick_rate_hz: 420,
                 max_sessions: 8,
                 session_timeout_seconds: 300,
             },
@@ -452,7 +452,7 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = ServerConfig::default();
-        assert_eq!(config.server.tick_rate_hz, 240);
+        assert_eq!(config.server.tick_rate_hz, 420);
         assert_eq!(config.server.max_sessions, 8);
         assert_eq!(config.network.tcp_bind, "127.0.0.1:9000");
     }

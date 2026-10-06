@@ -70,7 +70,7 @@ struct APEXSIMNET_API FApexStreamHeader
 	uint32 Epoch = 0;
 	uint8 Version = 0;
 	FString StreamId;
-	int32 TickRate = 240;
+	int32 TickRate = 420;
 	int32 FrameRate = 30;
 	int32 RowSize = ApexSpectator::RowSize;
 	FApexStreamTrack Track;

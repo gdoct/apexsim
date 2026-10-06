@@ -18,6 +18,9 @@ use apexsim_server::racing_line;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
 fn car(folder: &str) -> CarConfig {
     CarLoader::load_from_file(Path::new(&format!(
         "../content/cars/default/{folder}/car.toml"
@@ -149,9 +152,9 @@ fn down_the_straight(wind_kph: u8, from_deg: u16) -> f32 {
         ..Default::default()
     };
     let inputs: HashMap<PlayerId, PlayerInputData> = [(player, flat_out)].into();
-    for k in 0..(240 * 4) {
+    for k in 0..(HZ * 4) {
         gs.tick(&inputs);
-        if std::env::var("AIR_DBG").is_ok() && k % 240 == 0 {
+        if std::env::var("AIR_DBG").is_ok() && k % HZ == 0 {
             let s = &gs.session.participants[&player];
             eprintln!(
                 "  wind {:?} speed {:.1} drag {:.0} gear {} rpm {:.0}",
@@ -209,7 +212,7 @@ fn the_ai_gets_round_in_a_gale() {
     gs.spawn_ai_drivers();
     gs.start_countdown_mode(1, GameMode::Race);
     let (mut laps, mut off_ticks, mut min_share) = (0, 0u32, 1.0f32);
-    for _ in 0..(240 * 60 * 6) {
+    for _ in 0..(HZ * 60 * 6) {
         let inputs: HashMap<PlayerId, PlayerInputData> =
             [(driver, gs.generate_ai_input(&driver))].into();
         gs.tick(&inputs);
@@ -229,9 +232,13 @@ fn the_ai_gets_round_in_a_gale() {
     }
     println!(
         "a gale at Monza: {laps} laps, {:.1} s off the road, the lowest aero load share {min_share:.3}",
-        off_ticks as f32 / 240.0
+        off_ticks as f32 / HZ as f32
     );
     assert_eq!(laps, 2);
     assert!(min_share < 1.0, "a tailwind somewhere took load away");
-    assert!(off_ticks < 240 * 5, "{} s off", off_ticks as f32 / 240.0);
+    assert!(
+        off_ticks < HZ as u32 * 5,
+        "{} s off",
+        off_ticks as f32 / HZ as f32
+    );
 }

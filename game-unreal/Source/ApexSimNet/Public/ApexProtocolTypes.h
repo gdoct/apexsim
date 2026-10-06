@@ -1710,7 +1710,7 @@ struct APEXSIMNET_API FApexDriverFeedback
 
 	/**
 	 * Steering-column torque for every physics tick since the previous
-	 * message, oldest first (4 at the default 240 Hz sim and 60 Hz telemetry).
+	 * message, oldest first (7 at the default 420 Hz sim and 60 Hz telemetry).
 	 * SERVER sign: positive turns the wheel LEFT. 1.0 is the car's reference,
 	 * the front axle at its static grip limit; downforce takes it past 1.
 	 */

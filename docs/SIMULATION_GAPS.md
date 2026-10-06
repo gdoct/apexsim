@@ -128,11 +128,12 @@ Covered by automation tests only; each needs a look on screen.
 - HUD: the PIT badge lit, the ERS badge and keys, a punctured tyre, OUT in the standings.
 - Race: a flat spot through a real wheel or pad, a towed car parked in its box, an AI pit stop as the client draws it, damage steam and sparks.
 - Replays: SAVE REPLAY from the pause menu and garage, Keep and Delete, the watch view on a pad, a watched race finishing, replay speeds other than 2x, the session browser's Watch button clicked.
+- The 420 Hz server (2026-10-06) through a real client: car motion, force feedback and the replay recorder's rate snap were tuned on 240 Hz ticks and 60 Hz telemetry; the divisor is 7 for the same 60 Hz. Not measured: tick jitter at 2.4 ms against the 1 ms Windows timer (only the mean rate is tested), and the AI survey at 420 against the 240 baseline (the AI's consistency noise is seeded from the tick number, so every race differs between the two rates by design, not by error).
 
 ## Before picking one up
 
 Every change must keep the sim deterministic (`tests/determinism_test.rs`),
 teach the AI and the racing line anything that moves grip over time, append
 (never insert) wire fields with golden bytes on both sides, and stay off
-allocations in the 240 Hz loop. Judge physics changes with the AI survey
+allocations in the 420 Hz loop. Judge physics changes with the AI survey
 against the commit before the work, as totals.

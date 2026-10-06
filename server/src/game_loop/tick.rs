@@ -63,8 +63,8 @@ pub(crate) struct TickOutput {
 }
 
 /// Advance all sessions one tick and return the payloads to broadcast.
-/// Telemetry is only serialized every `telemetry_divisor` ticks (e.g. 60Hz
-/// snapshots of a 240Hz sim); replay recording still captures every tick.
+/// Telemetry is only serialized every `telemetry_divisor` ticks (60 Hz
+/// snapshots of a 420 Hz sim by default); the replay records on those ticks.
 pub(crate) async fn tick_sessions(
     ctx: &GameLoopCtx,
     player_inputs: &HashMap<PlayerId, PlayerInputData>,

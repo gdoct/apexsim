@@ -17,6 +17,9 @@ use apexsim_server::physics;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
 fn f1() -> CarConfig {
     CarLoader::load_from_file(Path::new("../content/cars/default/fugazzi-sf26/car.toml"))
         .expect("car loads")
@@ -77,7 +80,7 @@ fn the_car_squats_at_speed_and_dives_under_braking() {
     let slow = gs.session.participants[&player].clone();
     // Flat out until near the end of the straight.
     let mut heights = Vec::new();
-    for _ in 0..(240 * 5) {
+    for _ in 0..(HZ * 5) {
         drive(&mut gs, player, flat_out, 1);
         let s = &gs.session.participants[&player];
         heights.push(s.ride_height_front_m);
@@ -104,7 +107,7 @@ fn the_car_squats_at_speed_and_dives_under_braking() {
     );
     // No ride-height oscillation: over the last second, the front moves
     // only as the speed does.
-    let last = &heights[heights.len() - 240..];
+    let last = &heights[heights.len() - HZ..];
     let wobble = last
         .windows(2)
         .map(|w| (w[1] - w[0]).abs())

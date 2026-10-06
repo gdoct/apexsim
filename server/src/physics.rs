@@ -212,6 +212,10 @@ struct MeshHit {
 }
 
 /// Update car physics for one simulation tick - main 3D physics function
+/// Fastest a damper shaft is allowed to move, m/s. A real damper rarely
+/// sees 3; this only trims the geometric spikes described at its use.
+const MAX_DAMPER_SPEED_MPS: f32 = 6.0;
+
 pub fn update_car_3d(
     state: &mut CarState,
     config: &CarConfig,
@@ -400,7 +404,7 @@ pub fn update_car_3d(
     // Deliberately uses the PREVIOUS tick's accelerations (g_forces are
     // written at the end of each tick): loads depend on forces which depend
     // on loads, so a same-tick solution would need fixed-point iteration.
-    // At 240Hz the one-tick (4.2ms) lag is a stable, standard approximation.
+    // At 420 Hz the one-tick (2.4 ms) lag is a stable, standard approximation.
     let longitudinal_accel = state.g_forces.longitudinal_g * GRAVITY;
     let lateral_accel = state.g_forces.lateral_g * GRAVITY;
 
@@ -525,7 +529,12 @@ pub fn update_car_3d(
         let compression =
             (suspension_rest_length_m - wheel_extension).clamp(0.0, config.suspension.max_travel_m);
 
-        let compression_velocity = (compression - previous_compression) / dt.max(1e-4);
+        // The compression is set by geometry (no wheel mass), so a step in the
+        // surface (a kerb edge, a landing) is a spike of step/dt: capped at a
+        // damper shaft speed so the load it makes does not grow with the tick
+        // rate.
+        let compression_velocity = ((compression - previous_compression) / dt.max(1e-4))
+            .clamp(-MAX_DAMPER_SPEED_MPS, MAX_DAMPER_SPEED_MPS);
         let damping_coeff = if compression_velocity >= 0.0 {
             damper_compression
         } else {
@@ -1158,7 +1167,7 @@ pub fn update_car_3d(
     state.angular_vel_yaw += angular_accel_yaw * dt;
 
     // Apply angular damping, scaled by dt so behavior is tick-rate
-    // independent (0.995/tick at 240Hz ⇒ decay rate ln(0.995)·240 ≈ 1.2/s).
+    // independent (it was 0.995/tick at 240 Hz ⇒ decay rate ln(0.995)·240 ≈ 1.2/s).
     const YAW_DAMPING_RATE_PER_SEC: f32 = 1.2029;
     state.angular_vel_yaw *= (-YAW_DAMPING_RATE_PER_SEC * dt).exp();
 
@@ -1215,7 +1224,10 @@ pub fn update_car_3d(
     // being considered launched (crest handling). Suspension keeps wheels in
     // contact over ordinary elevation changes; only a genuine drop-off (or
     // enough upward velocity) makes the car airborne.
-    const GROUND_FOLLOW_MAX_DROP_M: f32 = 0.35;
+    // A rate, not a distance per tick: as 0.35 m/tick at 240 Hz it launched
+    // less often the faster the sim ticked.
+    const GROUND_FOLLOW_MAX_DROP_MPS: f32 = 84.0;
+    let ground_follow_max_drop_m = GROUND_FOLLOW_MAX_DROP_MPS * dt;
 
     if can_query_post_surface {
         if is_airborne {
@@ -1226,7 +1238,7 @@ pub fn update_car_3d(
             }
         } else {
             let gap = state.pos_z - ground_z;
-            if gap <= GROUND_FOLLOW_MAX_DROP_M {
+            if gap <= ground_follow_max_drop_m {
                 // Stay glued to the surface: snap down as well as up, so
                 // cresting a hill doesn't flag the car airborne and bounce
                 // the wheel loads every tick.
@@ -2519,7 +2531,7 @@ pub fn auto_gear_selection(
 }
 
 /// Half-width of the windowed nearest-point search around a previous tick's
-/// index. At 240Hz a car at 100 m/s moves ~0.4m per tick, a small fraction
+/// index. At 420 Hz a car at 100 m/s moves 0.24 m per tick, a small fraction
 /// of the window at typical centerline point spacing.
 const CENTERLINE_SEARCH_WINDOW: usize = 32;
 
@@ -3228,8 +3240,11 @@ pub fn check_collisions_refs(
                     // side by side at 250 km/h that touch lightly have a
                     // closing speed near zero; using travel speed bricked
                     // whole packs from incidental contact.
+                    // Only while closing: two cars left overlapping after
+                    // the push-out took damage on every tick of the overlap,
+                    // so a scrape cost more the faster the sim ticked.
                     let impact_speed = rel_vel_normal.abs().min(50.0);
-                    if impact_speed > 1.0 {
+                    if rel_vel_normal < 0.0 && impact_speed > 1.0 {
                         let damage_amount = crate::damage::impact_damage(impact_speed);
 
                         let angle_i = (ny.atan2(nx) - states[i].yaw_rad).rem_euclid(2.0 * PI);
@@ -3588,7 +3603,7 @@ pub const VIRTUAL_CHECKPOINT_COUNT: usize = 3;
 /// Maximum forward track-progress delta (m) in a single tick that still
 /// advances checkpoints. Larger jumps are treated as teleports/nearest-point
 /// discontinuities (e.g. corner cutting across a hairpin) and do not credit
-/// checkpoints. Physically a car moves <0.5 m/tick at 240Hz; the windowed
+/// checkpoints. Physically a car moves <0.5 m/tick at any sane rate; the windowed
 /// nearest-point search moves at most ~32 m/tick.
 const MAX_CHECKPOINT_ADVANCE_PER_TICK_M: f32 = 50.0;
 

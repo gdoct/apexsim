@@ -15,6 +15,9 @@ use apexsim_server::game_session::GameSession;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
 fn monza() -> TrackConfig {
     TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
         .expect("failed to load Monza")
@@ -97,7 +100,7 @@ fn ai_race(folder: &str, laps: u8, conditions: SessionConditions) -> (CarConfig,
 
     let mut logs = Vec::new();
     let (mut min_grip, mut max_tread, mut brake_peak) = (1.0f32, f32::MIN, f32::MIN);
-    for _ in 0..(240 * 60 * 3 * laps as usize) {
+    for _ in 0..(HZ * 60 * 3 * laps as usize) {
         let inputs: HashMap<PlayerId, PlayerInputData> =
             [(driver, gs.generate_ai_input(&driver))].into();
         gs.tick(&inputs);
@@ -220,7 +223,7 @@ fn a_lap_of_fast_corners_keeps_the_surface_near_the_bulk() {
     let mut laps = 0;
     let mut hottest = f32::MIN;
     let mut widest_lead = f32::MIN;
-    for _ in 0..(240 * 60 * 6) {
+    for _ in 0..(HZ * 60 * 6) {
         let inputs: HashMap<PlayerId, PlayerInputData> =
             [(driver, gs.generate_ai_input(&driver))].into();
         gs.tick(&inputs);

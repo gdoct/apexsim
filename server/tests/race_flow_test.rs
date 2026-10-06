@@ -14,6 +14,9 @@ use apexsim_server::game_session::GameSession;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
 fn fixed_uuid(n: u128) -> Uuid {
     Uuid::from_u128(n)
 }
@@ -69,7 +72,7 @@ fn test_grid_order_holds_at_the_green_light_monza() {
     };
 
     let mut green = false;
-    for _ in 0..(240 * 20) {
+    for _ in 0..(HZ * 20) {
         let inputs: HashMap<PlayerId, PlayerInputData> = ai_ids
             .iter()
             .map(|id| (*id, gs.generate_ai_input(id)))

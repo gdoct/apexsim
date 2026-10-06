@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ApexSim is a source-available, proprietary simracing platform with a high-frequency authoritative Rust server (240Hz) and an Unreal Engine 5.8 client. The server owns physics simulation and distributes telemetry while handling lobby/session management over TCP+TLS with MessagePack serialization. Protocol v2: after a token handshake binds the client's UDP address, telemetry (compact positional encoding, session-scoped car indices announced via a reliable `SessionRoster` message) and player input flow over UDP, with TCP fallback for un-handshaken clients.
+ApexSim is a source-available, proprietary simracing platform with a high-frequency authoritative Rust server (420 Hz) and an Unreal Engine 5.8 client. The server owns physics simulation and distributes telemetry while handling lobby/session management over TCP+TLS with MessagePack serialization. Protocol v2: after a token handshake binds the client's UDP address, telemetry (compact positional encoding, session-scoped car indices announced via a reliable `SessionRoster` message) and player input flow over UDP, with TCP fallback for un-handshaken clients.
 
 ## Build Commands
 
@@ -1399,9 +1399,9 @@ you left off" car, track and mode.
 ## Architecture
 
 ### Server (`server/`)
-- **240Hz authoritative physics loop** using tokio async runtime
+- **420 Hz authoritative physics loop** using tokio async runtime (240 Hz until 2026-10-06; `tick_rate_hz`, 30-1000, everything in the sim is dt-scaled or counts `tick_rate` ticks, and the tests read `DEFAULT_TICK_RATE_HZ` rather than a literal)
 - **TCP+TLS** for auth, lobby, session management, rosters (port 9000). TLS is fail-closed by default (`require_tls = true`); dev opt-out in server.toml
-- **UDP** (port 9001) for telemetry out / player input in, bound per connection via `UdpHandshake` with the token issued in `AuthSuccess`; telemetry broadcast rate is `tick_rate / network.telemetry_divisor` (default 60Hz)
+- **UDP** (port 9001) for telemetry out / player input in, bound per connection via `UdpHandshake` with the token issued in `AuthSuccess`; telemetry broadcast rate is `tick_rate / network.telemetry_divisor` (default 7 -> 60 Hz)
 - **HTTP endpoints** on port 9002: `/health`, `/ready`, `/metrics` (Prometheus text format)
 - Key modules:
   - `server.rs` — `run_server()` entry point, `ServerState`, `ServerHandle` (used by binary and tests)
@@ -1519,7 +1519,7 @@ crossed the short way), and steering, speed and revs blended the same way
 for the cockpit wheel and the dials. The playhead's clock is in **server
 ticks**, which are exact where arrival times are not; its ticks-per-second
 is a least-squares fit of tick against arrival time over the last two
-seconds of frames (240 assumed until a second has been seen; a surprise of
+seconds of frames (420 assumed until a second has been seen; a surprise of
 more than 10% re-seats the playhead once), trimmed by a critically damped
 loop (0.4 s error filter, 1.6 s correction) that holds the delay. Past the
 newest sample the pose is dead-reckoned from the last two for up to 250 ms
@@ -1596,7 +1596,7 @@ Tests: `game_session::tests::test_timed_race_*`, `race_flow_test`
 `ApexSim.Net.Udp.GoldenDecode`.
 
 **Long sessions and the server's replay**: the live recorder used to keep a
-full telemetry frame for every car on every 240 Hz tick in memory until the
+full telemetry frame for every car on every sim tick in memory until the
 race ended (about 2.7 GB an hour for 20 cars). It now records on the
 telemetry ticks and streams each frame over a bounded channel to a writer
 thread that zlib-compresses it into `replays/.recording_<session>.frames`
@@ -1625,7 +1625,7 @@ to the clock the driver saw.
 
 **Track limits** strike a lap when all four wheels are off the track — past
 the curb band, since `curbs.rs` already calls the curbs track — for
-`laps::TRACK_LIMITS_SECONDS` (0.2 s; one tick of it at 240 Hz is a wheel
+`laps::TRACK_LIMITS_SECONDS` (0.2 s; one tick of it at 420 Hz is a wheel
 skimming a kerb edge). Physics sets `CarState::wheels_off_track` from the same
 per-wheel surfaces the force feedback uses. A struck lap is still timed and
 still counts as a lap; it just cannot become a best, and reaching the line
@@ -2183,7 +2183,7 @@ a first-difference "rasp" on it survives only open pipes, `Openness^8`) and
 the piston's long, eased-in **swell** (nearly all the weight), both a fixed
 share of the cycle, sized by throttle. Each bank is a weakly reflecting
 quarter-wave header (a delay line reflected inverted); the banks meet in a
-collector and go through the **silencer** (two poles, 400 Hz to 8 kHz by
+collector and go through the **silencer** (two poles, 420 Hz to 8 kHz by
 `muffling`), a half-wave **tailpipe** resonance and the outlet's low-end
 boom. The first version had only the blow-down, a ringing header and
 *random* firing-to-firing variation at idle, and the user heard it at once:
@@ -3670,7 +3670,7 @@ field is filled from a shift delta, not an absolute gear).
 - **Serialization**: MessagePack via `rmp-serde` (Rust) and custom serializer (C#)
 - **Physics**: 4-wheel 3D model with per-wheel loads and suspension; fixed timestep dt = 1/tick_rate (plumbed from config, not hardcoded)
 - **Determinism**: `participants` is a `BTreeMap` (ordered iteration); AI noise is hash-based; no env/wall-clock reads in the sim path. Guarded by `tests/determinism_test.rs`
-- **Tick timing on Windows**: the game loop sleeps between ticks on a tokio `interval`, and a Windows sleep is only as fine as the process's timer resolution (15.6 ms by default, per process since Windows 10 2004). `timer_resolution::HighResolutionTimer` holds 1 ms for the loop's lifetime; without it 240 Hz ran at 64 and the sim at 27% of real time. The loop warns when the achieved rate over 5 s drops below 90%; `test_session_ticks_at_the_configured_rate` guards it end to end
+- **Tick timing on Windows**: the game loop sleeps between ticks on a tokio `interval`, and a Windows sleep is only as fine as the process's timer resolution (15.6 ms by default, per process since Windows 10 2004). `timer_resolution::HighResolutionTimer` holds 1 ms for the loop's lifetime; without it 240 Hz ran at 64 and the sim at 27% of real time; 420 Hz and 1 kHz both hold with it. The loop warns when the achieved rate over 5 s drops below 90%; `test_session_ticks_at_the_configured_rate` guards it end to end
 - **Hot loop**: nearest-centerline queries use a windowed search seeded by each car's cached index (`CarState::nearest_centerline_idx`) — keep new per-tick track queries on this path
 - **AI Drivers**: deterministic synthetic input per tick from line look-ahead. The field races in the host car's `class` from `car.toml` (`game_session::class_field`: every car of that class, dealt round-robin by id starting after the host's; a car with no class races only against itself), and each `RosterEntry` carries `CarConfigId` so the client's race director draws every car with its own catalog mesh (an older server's roster falls back to the local player's car)
 - **Bounded queues**: Network channels use bounded MPSC to prevent OOM; droppable messages (telemetry) may be dropped for slow clients
@@ -3678,7 +3678,7 @@ field is filled from a shift delta, not an absolute gear).
 ## Configuration
 
 Server config in `server.toml` (validated at startup; the server refuses to start on a present-but-invalid file):
-- `[server]`: `tick_rate_hz` (default 240), `max_sessions`, `session_timeout_seconds`
+- `[server]`: `tick_rate_hz` (default 420), `max_sessions`, `session_timeout_seconds`
 - `[network]`: TCP/UDP/health bind addresses, TLS cert paths (`require_tls` fail-closed default), heartbeat settings
 - `[content]`: paths to car/track manifests
 - `[logging]`: level, `console_enabled`, optional `file_enabled`/`file_dir` (JSON-lines, daily rotation)

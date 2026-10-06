@@ -96,7 +96,7 @@ private:
 	FString TrackStem;
 	FString TrackId;
 	float TrackLengthM = 0.0f;
-	int32 TickRate = 240;
+	int32 TickRate = 420;
 	FApexSessionConditions Conditions;
 	TArray<FCarInfo> Cars;
 	TArray<FVector2D> Centerline;

@@ -14,6 +14,9 @@ use apexsim_server::physics;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
 const PLAYER: Uuid = Uuid::from_u128(100);
 
 /// A GT3 on Monza's straight at `speed` with `damage`, driven by `input`
@@ -58,7 +61,7 @@ fn drive<T>(
     state.water_temp_c = water_c;
     physics::seed_track_progress(state, &gs.track_config);
     let inputs: HashMap<PlayerId, PlayerInputData> = [(PLAYER, input)].into();
-    for _ in 0..(240.0 * seconds) as usize {
+    for _ in 0..(HZ as f32 * seconds) as usize {
         gs.tick(&inputs);
     }
     read(&gs.session.participants[&PLAYER], (x, y, yaw))

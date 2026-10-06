@@ -15,6 +15,9 @@ use apexsim_server::physics;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
 fn monza() -> TrackConfig {
     TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
         .expect("failed to load Monza")
@@ -55,7 +58,7 @@ fn sectors_are_crossed_in_order_and_add_up_to_the_lap() {
 
     // Collect every timing line the car crosses over two laps.
     let mut crossings = Vec::new();
-    for _ in 0..(240 * 60 * 8) {
+    for _ in 0..(HZ * 60 * 8) {
         let inputs: HashMap<PlayerId, PlayerInputData> = ids
             .iter()
             .map(|id| (*id, gs.generate_ai_input(id)))
@@ -118,7 +121,7 @@ fn a_car_dragged_off_the_road_loses_the_lap() {
     let driver = ids[0];
 
     // Get the car racing and cleanly on track.
-    for _ in 0..(240 * 30) {
+    for _ in 0..(HZ * 30) {
         let inputs: HashMap<PlayerId, PlayerInputData> = ids
             .iter()
             .map(|id| (*id, gs.generate_ai_input(id)))
@@ -135,11 +138,11 @@ fn a_car_dragged_off_the_road_loses_the_lap() {
 
     // Well beyond the widest Monza verge: every wheel is on the grass.
     let track = monza();
-    for _ in 0..(240 * 2) {
+    for _ in 0..(HZ * 2) {
         let state = gs.session.participants.get_mut(&driver).unwrap();
         state.pos_y += 60.0;
         state.wheels_off_track = true;
-        laps::note_track_limits(state, 240);
+        laps::note_track_limits(state, HZ as u16);
     }
     assert!(
         gs.session.participants[&driver].laps.invalid,
@@ -153,7 +156,7 @@ fn a_car_dragged_off_the_road_loses_the_lap() {
     state.laps.sector = 2;
     state.lap_start_tick = 0;
     state.track_progress = laps::track_length_m(&track) * 0.95;
-    physics::update_track_progress_3d(state, &track, 240 * 60, 240);
+    physics::update_track_progress_3d(state, &track, HZ as u32 * 60, HZ as u16);
     assert_eq!(
         state.best_lap_time_ms, before,
         "a lap outside track limits cannot be a best"

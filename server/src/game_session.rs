@@ -11,8 +11,12 @@ use std::collections::HashMap;
 use tracing::debug;
 
 /// Default simulation tick rate; used when no explicit rate is configured
-/// (tests, benches) so behavior matches the historical hardcoded 240Hz.
-pub const DEFAULT_TICK_RATE_HZ: u16 = 240;
+/// (tests, benches, the offline tools). 240 Hz until 2026-10-06.
+pub const DEFAULT_TICK_RATE_HZ: u16 = 420;
+
+/// Longest countdown a client may ask for. The tick count is a `u16`, so
+/// anything longer would wrap (at 420 Hz past 156 s).
+pub const MAX_COUNTDOWN_SECONDS: u16 = 60;
 
 /// Once the winner has finished, the rest of the field has this many of the
 /// winner's average laps to complete the distance...
@@ -1215,7 +1219,10 @@ impl GameSession {
         }
         self.session.game_mode = GameMode::Countdown;
         self.session.state = SessionState::Countdown;
-        self.session.countdown_ticks_remaining = Some(self.tick_rate_hz * countdown_seconds);
+        self.session.countdown_ticks_remaining = Some(
+            (self.tick_rate_hz as u32 * countdown_seconds.min(MAX_COUNTDOWN_SECONDS) as u32)
+                .min(u16::MAX as u32) as u16,
+        );
         self.session.next_mode = Some(next_mode);
     }
 
@@ -2874,7 +2881,7 @@ mod tests {
                 ..Default::default()
             },
         );
-        for _ in 0..240 {
+        for _ in 0..DEFAULT_TICK_RATE_HZ {
             a.tick(&inputs);
             b.tick(&inputs);
         }
@@ -3168,8 +3175,8 @@ mod tests {
         let inputs = HashMap::new();
 
         // Run enough ticks for the car to launch from standstill and move
-        // 240 ticks = 1 second of simulation time at 240Hz
-        for _ in 0..240 {
+        // One second of simulation time.
+        for _ in 0..DEFAULT_TICK_RATE_HZ {
             game_session.tick(&inputs);
         }
 
@@ -3280,7 +3287,7 @@ mod tests {
         );
 
         // Run several ticks to allow physics to update
-        for _ in 0..240 {
+        for _ in 0..DEFAULT_TICK_RATE_HZ {
             game_session.tick(&inputs);
         }
 
@@ -3319,7 +3326,7 @@ mod tests {
         assert_eq!(game_session.session.game_mode, GameMode::Countdown);
         assert_eq!(
             game_session.session.countdown_ticks_remaining,
-            Some(240 * 10)
+            Some(DEFAULT_TICK_RATE_HZ * 10)
         );
     }
 
@@ -3364,7 +3371,7 @@ mod tests {
             ..Default::default()
         };
         let inputs: HashMap<PlayerId, PlayerInputData> = [(auto, full), (manual, full)].into();
-        for _ in 0..240 {
+        for _ in 0..DEFAULT_TICK_RATE_HZ {
             game_session.tick(&inputs);
         }
         let car = &game_session.session.participants[&auto];
@@ -3420,7 +3427,11 @@ mod tests {
 
         // A quick race: the floor applies.
         let deadline = game_session.finish_deadline_tick.expect("deadline set");
-        assert!(deadline >= game_session.session.current_tick + FINISH_GRACE_MIN_SECONDS * 240);
+        assert!(
+            deadline
+                >= game_session.session.current_tick
+                    + FINISH_GRACE_MIN_SECONDS * DEFAULT_TICK_RATE_HZ as u32
+        );
 
         game_session.session.current_tick = deadline - 1;
         game_session.tick(&HashMap::new());
@@ -3456,7 +3467,7 @@ mod tests {
         let none: HashMap<PlayerId, PlayerInputData> = HashMap::new();
 
         // Laps past nothing while the clock runs: no lap is the last.
-        game_session.session.current_tick = start + 60 * 240 - 10;
+        game_session.session.current_tick = start + 60 * DEFAULT_TICK_RATE_HZ as u32 - 10;
         game_session.tick(&none);
         let clock = game_session.race_clock().expect("a timed race has a clock");
         assert!(clock.left_ms > 0 && clock.left_ms < 100, "{clock:?}");
@@ -3469,7 +3480,7 @@ mod tests {
 
         // Out of time: the leader's lap is the last, and the race has a
         // deadline in case nobody can complete it.
-        game_session.session.current_tick = start + 60 * 240;
+        game_session.session.current_tick = start + 60 * DEFAULT_TICK_RATE_HZ as u32;
         game_session.tick(&none);
         let clock = game_session.race_clock().unwrap();
         assert_eq!(
@@ -3521,7 +3532,7 @@ mod tests {
         game_session.lap_seconds.insert(car_id, 90.0);
         game_session.set_game_mode(GameMode::Race);
         let start = game_session.session.race_start_tick.unwrap();
-        game_session.session.current_tick = start + 1800 * 240;
+        game_session.session.current_tick = start + 1800 * DEFAULT_TICK_RATE_HZ as u32;
         let state = game_session.session.participants[&player].clone();
         assert_eq!(
             game_session.laps_left(&state),
@@ -3549,7 +3560,7 @@ mod tests {
             ..Default::default()
         };
         let inputs: HashMap<PlayerId, PlayerInputData> = [(winner, stale)].into();
-        for _ in 0..480 {
+        for _ in 0..(2 * DEFAULT_TICK_RATE_HZ) {
             game_session.tick(&inputs);
         }
         let car = &game_session.session.participants[&winner];
@@ -3717,8 +3728,8 @@ mod tests {
             ai_state.tyres_fitted = false;
         }
 
-        // Run simulation for 2 seconds (480 ticks at 240Hz)
-        for _ in 0..480 {
+        // Run simulation for 2 seconds.
+        for _ in 0..(2 * DEFAULT_TICK_RATE_HZ) {
             // Generate AI inputs for all AI players
             let mut inputs = HashMap::new();
             for ai_id in &game_session.session.ai_player_ids {
@@ -3872,7 +3883,7 @@ mod tests {
         // Check AI position over next 1 second, verifying it stays on line
         let mut max_lateral_deviation = 0.0f32;
 
-        for _ in 0..240 {
+        for _ in 0..DEFAULT_TICK_RATE_HZ {
             let mut inputs = HashMap::new();
             for ai_id in &game_session.session.ai_player_ids {
                 let ai_input = game_session.generate_ai_input(ai_id);

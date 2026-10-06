@@ -64,7 +64,7 @@ fn bench_physics_step_on(c: &mut Criterion, name: &str, track: TrackConfig) {
         ers_mode: None,
         ers_boost: false,
     };
-    let dt = 1.0 / 240.0;
+    let dt = 1.0 / apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as f32;
 
     c.bench_function(name, |b| {
         b.iter(|| {
@@ -88,7 +88,12 @@ fn bench_track_progress(c: &mut Criterion) {
         let mut tick = 0u32;
         b.iter(|| {
             tick = tick.wrapping_add(1);
-            physics::update_track_progress_3d(black_box(&mut state), black_box(&track), tick, 240);
+            physics::update_track_progress_3d(
+                black_box(&mut state),
+                black_box(&track),
+                tick,
+                apexsim_server::game_session::DEFAULT_TICK_RATE_HZ,
+            );
         })
     });
 }

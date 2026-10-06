@@ -34,6 +34,9 @@ use apexsim_server::physics::assisted_steering;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
 fn env_or<T: std::str::FromStr>(key: &str, default: T) -> T {
     std::env::var(key)
         .ok()
@@ -117,7 +120,7 @@ fn pad_driver_probe() {
 
     let tire = &car.tire_config;
     let peak = tire.optimal_slip_angle_rad;
-    let hold_ticks = (hold_s * 240.0) as u64;
+    let hold_ticks = (hold_s * HZ as f32) as u64;
     let (mut lap_count, mut tick) = (0usize, 0u64);
     // Which stop the stick is leaning on (0: none): it stays there until
     // the corner is done, as a hand does; the AI's own flicker between
@@ -132,7 +135,7 @@ fn pad_driver_probe() {
         tire.optimal_temperature_c,
         tire.temperature_window_c
     );
-    for _ in 0..(240 * 60 * 4 * laps as usize) {
+    for _ in 0..(HZ * 60 * 4 * laps as usize) {
         let mut input = gs.generate_ai_input(&driver);
         {
             let s = &gs.session.participants[&driver];
@@ -212,8 +215,8 @@ fn pad_driver_probe() {
                     t.front_right.temperature_c,
                     t.rear_left.temperature_c,
                     t.rear_right.temperature_c,
-                    past_peak_ticks as f32 / 240.0,
-                    off_ticks as f32 / 240.0
+                    past_peak_ticks as f32 / HZ as f32,
+                    off_ticks as f32 / HZ as f32
                 );
             }
         }
@@ -223,9 +226,9 @@ fn pad_driver_probe() {
     }
     println!(
         "  {:.0} s racing: hottest tread {hottest:.0} °C, fronts past peak slip {:.1} s ({:.0}%), off track {:.1} s, laps {lap_times:?}",
-        racing_ticks as f32 / 240.0,
-        past_peak_ticks as f32 / 240.0,
+        racing_ticks as f32 / HZ as f32,
+        past_peak_ticks as f32 / HZ as f32,
         100.0 * past_peak_ticks as f32 / racing_ticks.max(1) as f32,
-        off_ticks as f32 / 240.0
+        off_ticks as f32 / HZ as f32
     );
 }

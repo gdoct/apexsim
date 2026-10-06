@@ -68,7 +68,7 @@ impl Default for GuideOptions {
             skill: 110,
             car_gap_s: 2.0,
             cars: 3,
-            tick_rate: 240,
+            tick_rate: crate::game_session::DEFAULT_TICK_RATE_HZ,
             record_hz: 60,
         }
     }

@@ -17,6 +17,9 @@ use apexsim_server::physics;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
 fn car(folder: &str) -> CarConfig {
     CarLoader::load_from_file(Path::new(&format!(
         "../content/cars/default/{folder}/car.toml"
@@ -64,7 +67,7 @@ fn stop(folder: &str, speed: f32, brake_c: f32, setup: CarSetup) -> (f32, f32) {
         ..Default::default()
     };
     let inputs: HashMap<PlayerId, PlayerInputData> = [(player, brake)].into();
-    for _ in 0..(240 * 10) {
+    for _ in 0..(HZ * 10) {
         gs.tick(&inputs);
         if gs.session.participants[&player].speed_mps < 20.0 {
             break;

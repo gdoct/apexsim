@@ -1,5 +1,5 @@
 [server]
-tick_rate_hz = 240
+tick_rate_hz = 420
 max_sessions = 32
 session_timeout_seconds = 300
 

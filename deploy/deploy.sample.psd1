@@ -44,7 +44,7 @@
     HealthBind  = ''                 # '' = same as BindAddress; '127.0.0.1' keeps it private
 
     # ---- server ------------------------------------------------------------
-    TickRateHz       = 240
+    TickRateHz       = 420
     MaxSessions      = 32
     TelemetryDivisor = 4             # telemetry Hz = TickRateHz / this
     LogLevel         = 'info'        # error | warn | info | debug | trace

@@ -20,6 +20,9 @@ use apexsim_server::racing_line;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
 fn monza() -> TrackConfig {
     TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
         .expect("failed to load Monza")
@@ -87,7 +90,7 @@ fn race_burn_on(folder: &str, fuel_laps: Option<f32>) -> (f32, f32, f32) {
     // Fuel at each crossing of the line.
     let mut at_line = Vec::new();
     let mut lap_times = Vec::new();
-    for _ in 0..(240 * 60 * 10) {
+    for _ in 0..(HZ * 60 * 10) {
         let inputs: HashMap<PlayerId, PlayerInputData> =
             [(driver, gs.generate_ai_input(&driver))].into();
         gs.tick(&inputs);

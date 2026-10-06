@@ -35,7 +35,7 @@ class APEXSIMNET_API FApexStreamWriter
 {
 public:
 	/** Ticks a block spans (a second at the stream's tick rate). */
-	explicit FApexStreamWriter(int32 InBlockTicks = 240) : BlockTicks(FMath::Max(1, InBlockTicks)) {}
+	explicit FApexStreamWriter(int32 InBlockTicks = 420) : BlockTicks(FMath::Max(1, InBlockTicks)) {}
 
 	/** A timed record body; ticks never go back. */
 	void Add(int64 Tick, TArrayView<const uint8> Body);
@@ -68,7 +68,7 @@ private:
 	static FBlock Compress(int64 FirstTick, int64 LastTick, int32 Records, const TArray<uint8>& Raw);
 	void Flush();
 
-	int32 BlockTicks = 240;
+	int32 BlockTicks = 420;
 	TArray<FBlock> Blocks;
 	TArray<uint8> PendingRaw;
 	int64 PendingFirstTick = 0;

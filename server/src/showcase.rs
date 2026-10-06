@@ -2,7 +2,7 @@
 //! in a loop to any number of viewers.
 //!
 //! The menu of every client plays an AI race behind its screens. Simulating
-//! one per client (`SessionKind::Demo`) is a 240 Hz race nobody drives for
+//! one per client (`SessionKind::Demo`) is a 420 Hz race nobody drives for
 //! each player sitting in the menu; a showcase is that race rendered once
 //! (`apexsim-replay render`) and *played back*: a file read and a fan-out,
 //! no physics, and the frames forwarded as the bytes the file holds.

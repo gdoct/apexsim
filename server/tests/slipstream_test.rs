@@ -15,6 +15,9 @@ use apexsim_server::slipstream::Wake;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
 fn f1() -> CarConfig {
     CarLoader::load_from_file(Path::new("../content/cars/default/fugazzi-sf26/car.toml"))
         .expect("car loads")
@@ -76,7 +79,7 @@ fn run(with_leader: bool) -> (f32, f32, f32, Wake) {
         [(follower, flat_out), (leader, flat_out)].into();
     let (mut min_drag, mut min_front) = (1.0f32, 1.0f32);
     let mut leader_wake = Wake::CLEAN;
-    for _ in 0..(240 * 4) {
+    for _ in 0..(HZ * 4) {
         gs.tick(&inputs);
         let me = &gs.session.participants[&follower];
         min_drag = min_drag.min(me.wake.drag);
