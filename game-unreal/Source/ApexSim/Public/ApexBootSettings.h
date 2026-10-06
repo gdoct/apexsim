@@ -29,6 +29,15 @@ struct FApexBootSettings
 	/** Frames per second; 0 is uncapped. */
 	int32 FrameLimit = 144;
 
+	/**
+	 * 1, or 3 for a triple-monitor rig: the window then spans the three
+	 * monitors standing in a row and each shows its own view
+	 * (UApexMultiViewSubsystem). Here as well as in the slot because a
+	 * window stretched over the wrong monitors is exactly the kind of thing
+	 * this file exists to undo.
+	 */
+	int32 Screens = 1;
+
 	FString ServerHost = TEXT("127.0.0.1");
 
 	int32 ServerPort = 9000;
@@ -87,7 +96,7 @@ public:
 	bool DidFileExist() const { return bFileExisted; }
 
 	/** Records the display block and rewrites the file if anything moved. */
-	void SetDisplay(FIntPoint Resolution, int32 WindowMode, bool bVSync, int32 FrameLimit);
+	void SetDisplay(FIntPoint Resolution, int32 WindowMode, bool bVSync, int32 FrameLimit, int32 Screens);
 
 	/** Records the server block and rewrites the file if anything moved. */
 	void SetServer(const FString& Host, int32 Port);

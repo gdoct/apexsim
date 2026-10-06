@@ -20,6 +20,7 @@ bool FApexBootSettingsRoundTripTest::RunTest(const FString& Parameters)
 	Written.WindowMode = static_cast<int32>(EWindowMode::Windowed);
 	Written.bVSync = true;
 	Written.FrameLimit = 0;
+	Written.Screens = 3;
 	Written.ServerHost = TEXT("race.example.net");
 	Written.ServerPort = 9100;
 
@@ -32,6 +33,7 @@ bool FApexBootSettingsRoundTripTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("window mode survives"), Read.WindowMode, Written.WindowMode);
 	TestTrue(TEXT("vsync survives"), Read.bVSync);
 	TestEqual(TEXT("uncapped frame limit survives"), Read.FrameLimit, 0);
+	TestEqual(TEXT("a triple survives"), Read.Screens, 3);
 	TestEqual(TEXT("host survives"), Read.ServerHost, Written.ServerHost);
 	TestEqual(TEXT("port survives"), Read.ServerPort, Written.ServerPort);
 
@@ -92,6 +94,7 @@ bool FApexBootSettingsBadValuesTest::RunTest(const FString& Parameters)
 		TEXT("  resolution: enormous\n")
 		TEXT("  window_mode: cinema\n")
 		TEXT("  frame_limit: -5\n")
+		TEXT("  screens: 2\n")
 		TEXT("  brightness: 11\n")
 		TEXT("server:\n")
 		TEXT("  port: 70000\n")
@@ -105,6 +108,7 @@ bool FApexBootSettingsBadValuesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("bad resolution keeps the default height"), Settings.Resolution.Y, Defaults.Resolution.Y);
 	TestEqual(TEXT("unknown window mode keeps the default"), Settings.WindowMode, Defaults.WindowMode);
 	TestEqual(TEXT("negative frame limit keeps the default"), Settings.FrameLimit, Defaults.FrameLimit);
+	TestEqual(TEXT("two screens is not a layout; keeps the default"), Settings.Screens, Defaults.Screens);
 	TestEqual(TEXT("out-of-range port keeps the default"), Settings.ServerPort, Defaults.ServerPort);
 	TestEqual(TEXT("the good line after the bad ones still lands"),
 		Settings.ServerHost, FString(TEXT("192.168.1.50")));

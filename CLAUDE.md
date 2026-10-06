@@ -2028,7 +2028,8 @@ synthetic ring. `-ApexScreenshotAfter` takes a comma list of times.
 ### Client startup settings (`settings.yml`)
 
 The few settings a player may need to change *before* the game is usable -
-resolution, window mode, vsync, frame limit and the server address - live in a
+resolution, window mode, vsync, frame limit, the number of screens (see
+"Triple monitors") and the server address - live in a
 plain-text `settings.yml` rather than a binary save slot.
 `UApexBootSettingsSubsystem` owns it: it reads the file at game-instance
 startup, creates it with defaults (seeded from the desktop's own display mode)
@@ -2055,6 +2056,59 @@ every setting before the first run creates one. It is a sample and not a live
 display detection, pinning an arbitrary monitor to a 1920x1080 guess. Its text
 is a second copy of what `ApexBootSettingsIo::Serialise` writes; the two carry
 comments pointing at each other.
+
+### Triple monitors (`UApexMultiViewSubsystem`, `ApexMultiView.h`, `ApexSideView.h`, `UApexGameViewportClient`)
+
+Settings > Graphics > **Screens**: SINGLE or TRIPLE (settings.yml
+`display.screens: 1 | 3`, `-ApexScreens=3` for one run, `apexsim.view.Screens
+N` from the console). 2 and 4 are refused on purpose: an even row puts a
+bezel in front of the driver. On TRIPLE the game
+
+- **spans the window** across three monitors of one size standing in a
+  row (`ApexMultiView::FindTripleRow`, the row with the primary in the
+  middle preferred), borderless, and keeps it there from a core ticker:
+  the engine sizes a borderless window back to one monitor on every
+  resolution change (`FSceneViewport::ResizeFrame`), so the window is
+  compared with the span each frame and reshaped. Without such a row
+  (one monitor) the three views share the window, which is how the mode
+  is checked on a single screen; leaving TRIPLE calls `ResizeFrame` with
+  the stored resolution, because the window was moved behind the
+  engine's back and `ApplySettings` sees nothing to do.
+- **renders three views through the engine's split screen**: two extra
+  local players, the *side viewers* (`AApexSideViewController`, spawned
+  by `AApexMenuGameModeBase::SpawnPlayerController` while the subsystem's
+  `IsSpawningSideViewer` is up; no input, no HUD), whose
+  `AApexSideViewCameraManager::UpdateViewTarget` copies the driver's
+  camera cache (the engine updates camera managers in player order) and
+  turns it by the rig's side angle with the off-axis frustum of that
+  panel. `UApexGameViewportClient` (DefaultEngine.ini) rewrites the
+  engine's three-column layout so player 0 is the middle column. Every
+  view is a full render (Lumen, TSR, post-process); nothing is composited.
+  Each view keeps its own auto-exposure, so a seam can differ in
+  brightness when one panel holds the sun — the known limitation.
+- **pins the menu shell to the centre third** (`SetCentreWidget`, stretched
+  anchors 1/3..2/3): the HUD and the menus stay on the monitor in front
+  of the driver; UMG's DPI scale goes by the window height, so they are
+  the size they would be on one monitor.
+
+The geometry is four sliders on the Graphics page, on the settings slot
+(`TripleScreenWidthCm`, `TripleBezelCm`, `TripleEyeDistanceCm`,
+`TripleSideAngleDeg`; ranges in `ApexMultiView`): the maths in
+`ApexMultiView::SideView` is written up in the source. The centre field is
+`2 atan(W/2 / D)` and **fixes the FOV**: the Camera page's slider, the
+chase rungs' trims and the speed boost are all ignored on TRIPLE
+(`AApexRaceDirector::bFixedFov`); a broadcast or shot camera's own lens
+still works, since the side views are laid out as if the eye sat as far
+back as that lens implies (`EyeDistanceForFov`), so the three stay one
+picture. Tests: `ApexSim.MultiView.*` — the flat row is one plane, a
+toed-in panel's ends land on its view's edges *through the engine's own
+projection* (`CalculateProjectionMatrixGivenViewRectangle`, which is
+what pins the sign of `OffCenterProjectionOffset`), a long lens keeps
+the seam at every angle, and the monitor row finder; the boot settings
+tests cover the key. Not done: five in a row (the geometry chains to an
+outer panel at twice the angle; `MaxSplitscreenPlayers` would need 5), a
+second monitor for telemetry (a separate window, not a view), and a
+shared exposure across the three views.
 
 ### Startup splash hold (`ApexSimBoot`, `UApexStartupSplashSubsystem`)
 

@@ -673,6 +673,10 @@ display:
   vsync: false
   # Frames per second, or 0 for uncapped.
   frame_limit: 144
+  # 1 for one monitor, or 3 for a triple-monitor rig: the window then spans
+  # the three monitors standing in a row and each shows its own view. The
+  # rig's measurements are under Settings > Graphics > Screens.
+  screens: 1
 
 server:
   # The server the game connects to when it starts. 127.0.0.1 is a server

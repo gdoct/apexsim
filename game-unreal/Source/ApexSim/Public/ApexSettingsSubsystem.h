@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ApexMultiView.h"
 #include "ApexSettingsSave.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
@@ -124,6 +125,30 @@ public:
 
 	/** Modes the display actually supports, widest first. Cached after the first call. */
 	const TArray<FIntPoint>& GetAvailableResolutions() const;
+
+	// --- Screens --------------------------------------------------------------
+	//
+	// A triple-monitor rig: UApexMultiViewSubsystem applies these with the
+	// rest of the graphics group. Screens goes to settings.yml as well.
+
+	/** 1 or 3; anything else is 1. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetScreens(int32 Screens);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetTripleScreenWidth(float Cm);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetTripleBezel(float Cm);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetTripleEyeDistance(float Cm);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetTripleSideAngle(float Degrees);
+
+	/** The rig as set up, in its ranges; the aspect is left at the default for the caller to fill in. */
+	ApexMultiView::FTripleGeometry GetTripleGeometry() const;
 
 	// --- Camera ---------------------------------------------------------------
 

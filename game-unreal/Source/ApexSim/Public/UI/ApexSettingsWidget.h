@@ -109,6 +109,10 @@ protected:
 
 	UFUNCTION() void HandleAiSkillChanged(float Value);
 	UFUNCTION() void HandleMotionBlurChanged(float Value);
+	UFUNCTION() void HandleTripleWidthChanged(float Value);
+	UFUNCTION() void HandleTripleBezelChanged(float Value);
+	UFUNCTION() void HandleTripleDistanceChanged(float Value);
+	UFUNCTION() void HandleTripleAngleChanged(float Value);
 	UFUNCTION() void HandleFovChanged(float Value);
 	UFUNCTION() void HandleSeatForwardChanged(float Value);
 	UFUNCTION() void HandleSeatHeightChanged(float Value);
@@ -162,6 +166,9 @@ private:
 
 	/** Moves the meters to what the wheel is reading right now. */
 	void RefreshWheelMeters();
+
+	/** The line under the Screens control: what the rig's measurements come to, or what TRIPLE does. */
+	void RefreshTripleNote();
 
 	/** Section caption above a group of rows. */
 	UWidget* MakeSectionLabel(const FString& Text);
@@ -268,6 +275,26 @@ private:
 	UPROPERTY(Transient) TObjectPtr<USlider> MotionBlurSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> MotionBlurFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MotionBlurValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> TripleWidthSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> TripleWidthFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TripleWidthValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> TripleBezelSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> TripleBezelFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TripleBezelValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> TripleDistanceSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> TripleDistanceFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TripleDistanceValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> TripleAngleSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> TripleAngleFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TripleAngleValue;
+
+	/** The rig's four rows, dimmed while Screens is SINGLE. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> TripleGeometryBox;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TripleNoteText;
 
 	UPROPERTY(Transient) TObjectPtr<USlider> FovSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> FovFill;

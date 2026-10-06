@@ -186,6 +186,18 @@ void ApexBootSettingsIo::Parse(const FString& Text, FApexBootSettings& InOut)
 				WarnBadValue(LineNumber, TEXT("frame_limit"), Value, TEXT("expected 0 (uncapped) to 1000"));
 			}
 		}
+		else if (Path == TEXT("display.screens"))
+		{
+			int32 Screens = 0;
+			if (ParseInt(Value, 1, 3, Screens) && Screens != 2)
+			{
+				InOut.Screens = Screens;
+			}
+			else
+			{
+				WarnBadValue(LineNumber, TEXT("screens"), Value, TEXT("expected 1 (one monitor) or 3 (a triple)"));
+			}
+		}
 		else if (Path == TEXT("server.host"))
 		{
 			if (Value.IsEmpty())
@@ -234,6 +246,10 @@ FString ApexBootSettingsIo::Serialise(const FApexBootSettings& Settings)
 		TEXT("  vsync: %s\n")
 		TEXT("  # Frames per second, or 0 for uncapped.\n")
 		TEXT("  frame_limit: %d\n")
+		TEXT("  # 1 for one monitor, or 3 for a triple-monitor rig: the window then spans\n")
+		TEXT("  # the three monitors standing in a row and each shows its own view. The\n")
+		TEXT("  # rig's measurements are under Settings > Graphics > Screens.\n")
+		TEXT("  screens: %d\n")
 		TEXT("\n")
 		TEXT("server:\n")
 		TEXT("  # The server the game connects to when it starts. 127.0.0.1 is a server\n")
@@ -244,6 +260,7 @@ FString ApexBootSettingsIo::Serialise(const FApexBootSettings& Settings)
 		WindowModeName(Settings.WindowMode),
 		Settings.bVSync ? TEXT("true") : TEXT("false"),
 		Settings.FrameLimit,
+		Settings.Screens,
 		*Settings.ServerHost,
 		Settings.ServerPort);
 }
@@ -295,12 +312,14 @@ void UApexBootSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection
 	Write();
 }
 
-void UApexBootSettingsSubsystem::SetDisplay(FIntPoint Resolution, int32 WindowMode, bool bVSync, int32 FrameLimit)
+void UApexBootSettingsSubsystem::SetDisplay(FIntPoint Resolution, int32 WindowMode, bool bVSync, int32 FrameLimit, int32 Screens)
 {
+	Screens = Screens == 3 ? 3 : 1;
 	if (Settings.Resolution == Resolution
 		&& Settings.WindowMode == WindowMode
 		&& Settings.bVSync == bVSync
-		&& Settings.FrameLimit == FrameLimit)
+		&& Settings.FrameLimit == FrameLimit
+		&& Settings.Screens == Screens)
 	{
 		return;
 	}
@@ -309,6 +328,7 @@ void UApexBootSettingsSubsystem::SetDisplay(FIntPoint Resolution, int32 WindowMo
 	Settings.WindowMode = WindowMode;
 	Settings.bVSync = bVSync;
 	Settings.FrameLimit = FrameLimit;
+	Settings.Screens = Screens;
 	Write();
 }
 

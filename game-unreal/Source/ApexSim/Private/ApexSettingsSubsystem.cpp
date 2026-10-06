@@ -2,6 +2,7 @@
 
 #include "ApexBootSettings.h"
 #include "ApexDirectInputTypes.h"
+#include "ApexMultiViewSubsystem.h"
 #include "ApexPlayerController.h"
 #include "ApexSim.h"
 #include "ApexSimInputModule.h"
@@ -117,6 +118,7 @@ void UApexSettingsSubsystem::Load()
 		Settings->DisplayMode = Values.WindowMode;
 		Settings->bVSync = Values.bVSync;
 		Settings->FrameLimit = Values.FrameLimit;
+		Settings->Screens = Values.Screens;
 	}
 	else
 	{
@@ -155,7 +157,7 @@ void UApexSettingsSubsystem::PushToBootSettings()
 {
 	if (UApexBootSettingsSubsystem* Boot = GetBoot())
 	{
-		Boot->SetDisplay(Settings->Resolution, Settings->DisplayMode, Settings->bVSync, Settings->FrameLimit);
+		Boot->SetDisplay(Settings->Resolution, Settings->DisplayMode, Settings->bVSync, Settings->FrameLimit, Settings->Screens);
 	}
 }
 
@@ -435,7 +437,10 @@ void UApexSettingsSubsystem::ApplyGraphics()
 		return;
 	}
 
-	User->SetFullscreenMode(static_cast<EWindowMode::Type>(Settings->DisplayMode));
+	// A triple spans three monitors, which only a borderless window can do;
+	// the stored mode is kept for when the rig is switched off again.
+	const bool bTriple = Settings->Screens == 3;
+	User->SetFullscreenMode(bTriple ? EWindowMode::WindowedFullscreen : static_cast<EWindowMode::Type>(Settings->DisplayMode));
 	User->SetScreenResolution(Settings->Resolution);
 	User->SetVSyncEnabled(Settings->bVSync);
 	User->SetFrameRateLimit(static_cast<float>(Settings->FrameLimit));
@@ -458,6 +463,71 @@ void UApexSettingsSubsystem::ApplyGraphics()
 	{
 		Amount->Set(Settings->MotionBlur, ECVF_SetByGameSetting);
 	}
+
+	// The window, the side views and the shell's place on screen; null
+	// during this subsystem's own initialisation, when it applies itself.
+	if (UApexMultiViewSubsystem* MultiView = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMultiViewSubsystem>() : nullptr)
+	{
+		MultiView->Apply();
+	}
+	// The cameras read the rig's field of view, so a change here is a
+	// camera change too.
+	ApplyCamera();
+}
+
+// --- Screens ----------------------------------------------------------------
+
+void UApexSettingsSubsystem::SetScreens(int32 Screens)
+{
+	const int32 Wanted = Screens == 3 ? 3 : 1;
+	if (!Settings || Settings->Screens == Wanted) { return; }
+	Settings->Screens = Wanted;
+	Changed(EApexSettingsGroup::Graphics);
+}
+
+void UApexSettingsSubsystem::SetTripleScreenWidth(float Cm)
+{
+	const float Clamped = FMath::Clamp(Cm, ApexMultiView::MinScreenWidthCm, ApexMultiView::MaxScreenWidthCm);
+	if (!Settings || FMath::IsNearlyEqual(Settings->TripleScreenWidthCm, Clamped)) { return; }
+	Settings->TripleScreenWidthCm = Clamped;
+	Changed(EApexSettingsGroup::Graphics);
+}
+
+void UApexSettingsSubsystem::SetTripleBezel(float Cm)
+{
+	const float Clamped = FMath::Clamp(Cm, ApexMultiView::MinBezelCm, ApexMultiView::MaxBezelCm);
+	if (!Settings || FMath::IsNearlyEqual(Settings->TripleBezelCm, Clamped)) { return; }
+	Settings->TripleBezelCm = Clamped;
+	Changed(EApexSettingsGroup::Graphics);
+}
+
+void UApexSettingsSubsystem::SetTripleEyeDistance(float Cm)
+{
+	const float Clamped = FMath::Clamp(Cm, ApexMultiView::MinEyeDistanceCm, ApexMultiView::MaxEyeDistanceCm);
+	if (!Settings || FMath::IsNearlyEqual(Settings->TripleEyeDistanceCm, Clamped)) { return; }
+	Settings->TripleEyeDistanceCm = Clamped;
+	Changed(EApexSettingsGroup::Graphics);
+}
+
+void UApexSettingsSubsystem::SetTripleSideAngle(float Degrees)
+{
+	const float Clamped = FMath::Clamp(Degrees, ApexMultiView::MinSideAngleDeg, ApexMultiView::MaxSideAngleDeg);
+	if (!Settings || FMath::IsNearlyEqual(Settings->TripleSideAngleDeg, Clamped)) { return; }
+	Settings->TripleSideAngleDeg = Clamped;
+	Changed(EApexSettingsGroup::Graphics);
+}
+
+ApexMultiView::FTripleGeometry UApexSettingsSubsystem::GetTripleGeometry() const
+{
+	ApexMultiView::FTripleGeometry Geometry;
+	if (Settings)
+	{
+		Geometry.ScreenWidthCm = Settings->TripleScreenWidthCm;
+		Geometry.BezelCm = Settings->TripleBezelCm;
+		Geometry.EyeDistanceCm = Settings->TripleEyeDistanceCm;
+		Geometry.SideAngleDeg = Settings->TripleSideAngleDeg;
+	}
+	return ApexMultiView::Clamp(Geometry);
 }
 
 // --- Camera -----------------------------------------------------------------
@@ -1091,8 +1161,13 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->AntiAliasingQuality = Defaults->AntiAliasingQuality;
 		Settings->TextureQuality = Defaults->TextureQuality;
 		Settings->MotionBlur = Defaults->MotionBlur;
-		// Display mode and resolution are left alone on purpose: they describe
-		// this machine's monitor, not a preference that has a shipped default.
+		Settings->TripleScreenWidthCm = Defaults->TripleScreenWidthCm;
+		Settings->TripleBezelCm = Defaults->TripleBezelCm;
+		Settings->TripleEyeDistanceCm = Defaults->TripleEyeDistanceCm;
+		Settings->TripleSideAngleDeg = Defaults->TripleSideAngleDeg;
+		// Display mode, resolution and the number of screens are left alone on
+		// purpose: they describe this machine's monitors, not a preference that
+		// has a shipped default.
 		break;
 
 	case EApexSettingsGroup::Camera:

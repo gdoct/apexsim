@@ -841,6 +841,16 @@ private:
 	float BaseCockpitFov = 95.0f;
 	float BaseChaseFov = 80.0f;
 	float CurrentFovBoost = 0.0f;
+	/**
+	 * A triple-monitor rig fixes the field of view: the centre monitor
+	 * subtends what it subtends, and widening it with speed or narrowing it
+	 * per chase rung would break the picture at the joins. Set by
+	 * SetFieldOfView from UApexMultiViewSubsystem.
+	 */
+	bool bFixedFov = false;
+	/** The driving cameras' FOV this frame: the rung's trim and the speed boost, unless fixed. */
+	float CockpitFovDeg() const;
+	float ChaseFovDeg() const;
 	/** This frame's cockpit micro-shake, composed onto the car rotation. */
 	FRotator CockpitShake = FRotator::ZeroRotator;
 

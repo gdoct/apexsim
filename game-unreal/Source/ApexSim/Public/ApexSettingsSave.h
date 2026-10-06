@@ -233,6 +233,33 @@ public:
 	UPROPERTY()
 	float MotionBlur = 0.3f;
 
+	// --- Screens --------------------------------------------------------------
+	//
+	// A triple-monitor rig (UApexMultiViewSubsystem). Screens is mirrored
+	// into settings.yml like the display mode, because a window stretched
+	// across the wrong monitors has to be fixable from outside the game; the
+	// measurements below are only ever changed from the Graphics page.
+
+	/** 1 for one monitor, 3 for three in a row with a view each. */
+	UPROPERTY()
+	int32 Screens = 1;
+
+	/** Visible width of one of the three panels, cm. */
+	UPROPERTY()
+	float TripleScreenWidthCm = 60.0f;
+
+	/** The gap between two neighbouring pictures (both bezels together), cm. */
+	UPROPERTY()
+	float TripleBezelCm = 2.0f;
+
+	/** Eye to the middle of the centre panel, cm. */
+	UPROPERTY()
+	float TripleEyeDistanceCm = 65.0f;
+
+	/** How far each side panel is turned toward the driver, degrees; 0 is a flat row. */
+	UPROPERTY()
+	float TripleSideAngleDeg = 45.0f;
+
 	// --- Camera ---------------------------------------------------------------
 	//
 	// The driver's view: where the seat is, how the head behaves, and what of

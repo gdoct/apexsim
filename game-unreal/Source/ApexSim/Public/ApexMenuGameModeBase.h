@@ -22,6 +22,13 @@ public:
 
 	virtual void BeginPlay() override;
 
+	/**
+	 * A side viewer of a triple-monitor rig gets AApexSideViewController
+	 * instead of the driving controller, while UApexMultiViewSubsystem says
+	 * one is being added; everybody else gets PlayerControllerClass.
+	 */
+	virtual APlayerController* SpawnPlayerController(ENetRole InRemoteRole, const FString& Options) override;
+
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Menu")
 	UApexRootWidget* GetRootWidget() const { return RootWidget; }
 

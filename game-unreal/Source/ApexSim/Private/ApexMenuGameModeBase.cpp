@@ -1,7 +1,10 @@
 #include "ApexMenuGameModeBase.h"
 
+#include "ApexMultiViewSubsystem.h"
 #include "ApexPlayerController.h"
+#include "ApexSideView.h"
 #include "ApexSim.h"
+#include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -60,6 +63,11 @@ void AApexMenuGameModeBase::BeginPlay()
 	}
 
 	RootWidget->AddToViewport(0);
+	// On a triple-monitor rig the shell stays on the centre monitor.
+	if (UApexMultiViewSubsystem* MultiView = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMultiViewSubsystem>() : nullptr)
+	{
+		MultiView->SetCentreWidget(RootWidget);
+	}
 
 	// The starting state only. AApexPlayerController::SetDriveInputEnabled
 	// switches to game-and-UI for the duration of a race and back again.
@@ -69,4 +77,15 @@ void AApexMenuGameModeBase::BeginPlay()
 	PlayerController->bShowMouseCursor = true;
 
 	UE_LOG(LogApexSim, Log, TEXT("Menu shell ready"));
+}
+
+APlayerController* AApexMenuGameModeBase::SpawnPlayerController(ENetRole InRemoteRole, const FString& Options)
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexMultiViewSubsystem* MultiView = GameInstance ? GameInstance->GetSubsystem<UApexMultiViewSubsystem>() : nullptr;
+	if (MultiView && MultiView->IsSpawningSideViewer())
+	{
+		return SpawnPlayerControllerCommon(InRemoteRole, FVector::ZeroVector, FRotator::ZeroRotator, AApexSideViewController::StaticClass());
+	}
+	return Super::SpawnPlayerController(InRemoteRole, Options);
 }

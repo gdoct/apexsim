@@ -2,6 +2,7 @@
 
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexErs.h"
+#include "ApexMultiViewSubsystem.h"
 #include "ApexNetSubsystem.h"
 #include "ApexPlayerController.h"
 #include "ApexSettingsSubsystem.h"
@@ -1563,10 +1564,8 @@ void AApexRaceDirector::UpdateCameraFeel(float DeltaSeconds)
 
 	CurrentFovBoost =
 		FMath::FInterpTo(CurrentFovBoost, SpeedFovBoostDeg * Intensity, DeltaSeconds, 3.0f);
-	CockpitCamera->SetFieldOfView(
-		FMath::Clamp(BaseCockpitFov + 0.6f * CurrentFovBoost, 50.0f, 130.0f));
-	ChaseCamera->SetFieldOfView(
-		FMath::Clamp(BaseChaseFov + ApexChase::Get(ChaseLevel).FovDeltaDeg + CurrentFovBoost, 50.0f, 130.0f));
+	CockpitCamera->SetFieldOfView(CockpitFovDeg());
+	ChaseCamera->SetFieldOfView(ChaseFovDeg());
 
 	// Micro-shake from layered perlin noise, tuned to read as airflow and
 	// road texture: fractions of a degree in the cockpit, a few centimeters
@@ -2034,15 +2033,43 @@ FString AApexRaceDirector::DescribeView() const
 
 void AApexRaceDirector::SetFieldOfView(float Degrees)
 {
-	// These are the resting values; `UpdateCameraFeel` widens both with
-	// speed on top of them.
-	BaseCockpitFov = FMath::Clamp(Degrees, 60.0f, 120.0f);
-	// The chase view sits further back, where the same number reads much wider;
-	// it keeps a fixed offset below the cockpit's rather than a separate row in
-	// the settings screen.
-	BaseChaseFov = FMath::Clamp(BaseCockpitFov - 15.0f, 50.0f, 120.0f);
-	CockpitCamera->SetFieldOfView(BaseCockpitFov);
-	ChaseCamera->SetFieldOfView(BaseChaseFov + ApexChase::Get(ChaseLevel).FovDeltaDeg);
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexMultiViewSubsystem* MultiView = GameInstance ? GameInstance->GetSubsystem<UApexMultiViewSubsystem>() : nullptr;
+	bFixedFov = MultiView && MultiView->IsTriple();
+	if (bFixedFov)
+	{
+		// The rig decides: the centre monitor's field, from its width and
+		// how far away it is, for every driving camera alike. The side
+		// views follow whatever this camera draws (AApexSideViewCameraManager).
+		BaseCockpitFov = FMath::Clamp(MultiView->CentreFovDeg(), 10.0f, 140.0f);
+		BaseChaseFov = BaseCockpitFov;
+	}
+	else
+	{
+		// These are the resting values; `UpdateCameraFeel` widens both with
+		// speed on top of them.
+		BaseCockpitFov = FMath::Clamp(Degrees, 60.0f, 120.0f);
+		// The chase view sits further back, where the same number reads much wider;
+		// it keeps a fixed offset below the cockpit's rather than a separate row in
+		// the settings screen.
+		BaseChaseFov = FMath::Clamp(BaseCockpitFov - 15.0f, 50.0f, 120.0f);
+	}
+	CockpitCamera->SetFieldOfView(CockpitFovDeg());
+	ChaseCamera->SetFieldOfView(ChaseFovDeg());
+}
+
+float AApexRaceDirector::CockpitFovDeg() const
+{
+	return bFixedFov
+		? BaseCockpitFov
+		: FMath::Clamp(BaseCockpitFov + 0.6f * CurrentFovBoost, 50.0f, 130.0f);
+}
+
+float AApexRaceDirector::ChaseFovDeg() const
+{
+	return bFixedFov
+		? BaseChaseFov
+		: FMath::Clamp(BaseChaseFov + ApexChase::Get(ChaseLevel).FovDeltaDeg + CurrentFovBoost, 50.0f, 130.0f);
 }
 
 void AApexRaceDirector::SetShotCameraPose(const FVector& LocationCm, const FRotator& Rotation)
@@ -2116,8 +2143,7 @@ void AApexRaceDirector::ApplyChaseView()
 	// UpdateLook owns the yaw; this keeps the pitch right on the frame the
 	// rung changes, before the next look update.
 	CameraBoom->SetRelativeRotation(FRotator(View.PitchDeg, CameraBoom->GetRelativeRotation().Yaw, 0.0f));
-	ChaseCamera->SetFieldOfView(
-		FMath::Clamp(BaseChaseFov + View.FovDeltaDeg + CurrentFovBoost, 50.0f, 130.0f));
+	ChaseCamera->SetFieldOfView(ChaseFovDeg());
 }
 
 void AApexRaceDirector::ApplyCameraMode()

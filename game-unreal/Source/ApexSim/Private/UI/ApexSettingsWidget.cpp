@@ -106,6 +106,7 @@ namespace
 	const FName SegHud        = TEXT("Hud");
 	const FName SegPreset     = TEXT("Preset");
 	const FName SegVSync      = TEXT("VSync");
+	const FName SegScreens    = TEXT("Screens");
 	const FName SegStartView  = TEXT("StartView");
 	const FName SegChaseView  = TEXT("ChaseView");
 	const FName SegCockpitCar = TEXT("CockpitCar");
@@ -177,6 +178,21 @@ namespace
 	FString Percent(float Value01)
 	{
 		return FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value01 * 100.0f));
+	}
+
+	FString Centimetres(float Cm)
+	{
+		return FString::Printf(TEXT("%d cm"), FMath::RoundToInt(Cm));
+	}
+
+	FString TenthCentimetres(float Cm)
+	{
+		return FString::Printf(TEXT("%.1f cm"), Cm);
+	}
+
+	FString Degrees(float Deg)
+	{
+		return FString::Printf(TEXT("%d°"), FMath::RoundToInt(Deg));
 	}
 
 	const TArray<FString> QualityNames = { TEXT("LOW"), TEXT("MEDIUM"), TEXT("HIGH"), TEXT("ULTRA") };
@@ -808,6 +824,49 @@ UWidget* UApexSettingsWidget::BuildGraphicsPage()
 	AddH(Grid, Left, FMargin(0.0f, 0.0f, 14.0f, 0.0f), VAlign_Top, 1.0f);
 	AddH(Grid, Right, FMargin(), VAlign_Top, 1.0f);
 	AddV(Page, Grid, FMargin(0.0f, 14.0f, 0.0f, 0.0f));
+
+	// Screens: one monitor, or a triple-monitor rig with a view per monitor
+	// (UApexMultiViewSubsystem). The four measurements are what the side
+	// views are worked out from, so they are here with the switch rather
+	// than on the camera page, and they only mean anything on TRIPLE.
+	{
+		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>();
+
+		UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(Head, MakeSectionLabel(TEXT("Screens")), FMargin(), VAlign_Center);
+		AddH(Head, MakeSegment(SegScreens, { TEXT("SINGLE"), TEXT("TRIPLE") }, 0, 140.0f),
+			FMargin(24.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+		AddV(Box, Head);
+
+		TripleNoteText = MakeText(*WidgetTree, FString(), Font::Body(13.0f), Palette::TextSecondary);
+		AddV(Box, TripleNoteText, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+
+		UHorizontalBox* TripleGrid = WidgetTree->ConstructWidget<UHorizontalBox>();
+		UVerticalBox* TripleLeft = WidgetTree->ConstructWidget<UVerticalBox>();
+		UVerticalBox* TripleRight = WidgetTree->ConstructWidget<UVerticalBox>();
+
+		AddSliderRow(TripleLeft, TEXT("Screen width"), TEXT("The picture of one monitor, edge to edge."),
+			TripleWidthSlider, TripleWidthFill, TripleWidthValue, true);
+		TripleWidthSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleTripleWidthChanged);
+		AddSliderRow(TripleLeft, TEXT("Eye distance"), TEXT("From your eyes to the middle of the centre monitor."),
+			TripleDistanceSlider, TripleDistanceFill, TripleDistanceValue, false);
+		TripleDistanceSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleTripleDistanceChanged);
+
+		AddSliderRow(TripleRight, TEXT("Bezel"), TEXT("The gap between two pictures: both bezels together."),
+			TripleBezelSlider, TripleBezelFill, TripleBezelValue, true);
+		TripleBezelSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleTripleBezelChanged);
+		AddSliderRow(TripleRight, TEXT("Side angle"), TEXT("How far each side monitor is turned toward you; 0 is a flat row."),
+			TripleAngleSlider, TripleAngleFill, TripleAngleValue, false);
+		TripleAngleSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleTripleAngleChanged);
+
+		AddH(TripleGrid, TripleLeft, FMargin(0.0f, 0.0f, 14.0f, 0.0f), VAlign_Top, 1.0f);
+		AddH(TripleGrid, TripleRight, FMargin(), VAlign_Top, 1.0f);
+		AddV(Box, TripleGrid, FMargin(0.0f, 12.0f, 0.0f, 0.0f));
+		TripleGeometryBox = TripleGrid;
+
+		AddV(Page, MakePanel(*WidgetTree, Box, FMargin(22.0f, 18.0f), MakeBrush(Palette::Surface)),
+			FMargin(0.0f, 18.0f, 0.0f, 0.0f));
+	}
 
 	// The note the mockup carries, and it is true here: the pause menu leaves
 	// the scene rendering behind the panel, so a change is visible at once.
@@ -1708,6 +1767,21 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSlider(RoadVolumeSlider, RoadVolumeFill, RoadVolumeValue, Values->RoadVolume, 0.0f, 1.0f,
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->RoadVolume * 100.0f)));
 
+	SetSegment(SegScreens, Values->Screens == 3 ? 1 : 0);
+	SetSlider(TripleWidthSlider, TripleWidthFill, TripleWidthValue, Values->TripleScreenWidthCm,
+		ApexMultiView::MinScreenWidthCm, ApexMultiView::MaxScreenWidthCm, Centimetres(Values->TripleScreenWidthCm));
+	SetSlider(TripleBezelSlider, TripleBezelFill, TripleBezelValue, Values->TripleBezelCm,
+		ApexMultiView::MinBezelCm, ApexMultiView::MaxBezelCm, TenthCentimetres(Values->TripleBezelCm));
+	SetSlider(TripleDistanceSlider, TripleDistanceFill, TripleDistanceValue, Values->TripleEyeDistanceCm,
+		ApexMultiView::MinEyeDistanceCm, ApexMultiView::MaxEyeDistanceCm, Centimetres(Values->TripleEyeDistanceCm));
+	SetSlider(TripleAngleSlider, TripleAngleFill, TripleAngleValue, Values->TripleSideAngleDeg,
+		ApexMultiView::MinSideAngleDeg, ApexMultiView::MaxSideAngleDeg, Degrees(Values->TripleSideAngleDeg));
+	if (TripleGeometryBox)
+	{
+		TripleGeometryBox->SetIsEnabled(Values->Screens == 3);
+	}
+	RefreshTripleNote();
+
 	if (DisplayModeBox)
 	{
 		DisplayModeBox->SetSelectedIndex(IndexOfOr0(DisplayModeValues, Values->DisplayMode));
@@ -1960,6 +2034,14 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	else if (Id == SegUnits)      { Settings->SetUnits(static_cast<EApexUnits>(Index)); }
 	else if (Id == SegHud)        { Settings->SetHudDetail(static_cast<EApexHudDetail>(Index)); }
 	else if (Id == SegVSync)      { Settings->SetVSync(Index == 1); }
+	else if (Id == SegScreens)
+	{
+		Settings->SetScreens(Index == 1 ? 3 : 1);
+		// The rig's rows wake up or dim with it.
+		RefreshFromSettings();
+		RefreshFooter();
+		return;
+	}
 	else if (Id == SegStartView)      { Settings->SetStartInCockpit(Index == 1); }
 	// Stored, not switched to: the race director adopts it with the rest of
 	// the camera group, so picking a distance while sitting in the cockpit
@@ -2009,6 +2091,70 @@ void UApexSettingsWidget::HandleMotionBlurChanged(float Value)
 	if (MotionBlurValue) { MotionBlurValue->SetText(FText::FromString(FString::FromInt(FMath::RoundToInt(Value * 100.0f)))); }
 	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetMotionBlur(Value); }
 	RefreshFooter();
+}
+
+void UApexSettingsWidget::HandleTripleWidthChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	const float Cm = FMath::Lerp(ApexMultiView::MinScreenWidthCm, ApexMultiView::MaxScreenWidthCm, Value);
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetTripleScreenWidth(Cm); }
+	ReflectSlider(TripleWidthFill, TripleWidthValue, Value, Centimetres(Cm));
+	RefreshTripleNote();
+}
+
+void UApexSettingsWidget::HandleTripleBezelChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	const float Cm = FMath::Lerp(ApexMultiView::MinBezelCm, ApexMultiView::MaxBezelCm, Value);
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetTripleBezel(Cm); }
+	ReflectSlider(TripleBezelFill, TripleBezelValue, Value, TenthCentimetres(Cm));
+	RefreshTripleNote();
+}
+
+void UApexSettingsWidget::HandleTripleDistanceChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	const float Cm = FMath::Lerp(ApexMultiView::MinEyeDistanceCm, ApexMultiView::MaxEyeDistanceCm, Value);
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetTripleEyeDistance(Cm); }
+	ReflectSlider(TripleDistanceFill, TripleDistanceValue, Value, Centimetres(Cm));
+	RefreshTripleNote();
+}
+
+void UApexSettingsWidget::HandleTripleAngleChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	const float Deg = FMath::Lerp(ApexMultiView::MinSideAngleDeg, ApexMultiView::MaxSideAngleDeg, Value);
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetTripleSideAngle(Deg); }
+	ReflectSlider(TripleAngleFill, TripleAngleValue, Value, Degrees(Deg));
+	RefreshTripleNote();
+}
+
+void UApexSettingsWidget::RefreshTripleNote()
+{
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	const UApexSettingsSave* Values = Settings ? Settings->Get() : nullptr;
+	if (!TripleNoteText || !Values)
+	{
+		return;
+	}
+	FString Note;
+	if (Values->Screens == 3)
+	{
+		// What the measurements come to: the field the centre monitor gets,
+		// and how far the side views are turned. The Camera page's field of
+		// view does nothing while this is on, and this line says why.
+		const ApexMultiView::FTripleGeometry Geometry = Settings->GetTripleGeometry();
+		Note = FString::Printf(
+			TEXT("Three monitors in a row, the window across all of them. The centre view is %d° wide from these "
+				 "measurements (the Camera page's field of view is not used); each side view is turned %d°."),
+			FMath::RoundToInt(ApexMultiView::CentreFovDeg(Geometry)), FMath::RoundToInt(Geometry.SideAngleDeg));
+	}
+	else
+	{
+		Note = TEXT("One monitor. TRIPLE stretches the window across three monitors standing in a row and "
+			"draws each its own view, worked out from the measurements below.");
+	}
+	TripleNoteText->SetText(FText::FromString(Note));
 }
 
 void UApexSettingsWidget::HandleFovChanged(float Value)
