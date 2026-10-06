@@ -7,9 +7,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ApexSim — Racing Simulator</title>
-<meta name="description" content="ApexSim is a source-available racing simulator: a 240 Hz authoritative Rust physics server, an Unreal Engine 5 client, 14 cars across 4 classes and 27 real-world circuits, a 20.8 km mountain loop among them.">
+<meta name="description" content="ApexSim is a source-available racing simulator: a 420 Hz authoritative Rust physics server, an Unreal Engine 5 client, 14 cars across 4 classes and 27 real-world circuits, a 20.8 km mountain loop among them.">
 <meta property="og:title" content="ApexSim — Racing Simulator">
-<meta property="og:description" content="240 Hz authoritative physics, Unreal Engine 5, 14 cars, 27 real circuits, tyres, fuel, pit stops and damage simulated on the server.">
+<meta property="og:description" content="420 Hz authoritative physics, Unreal Engine 5, 14 cars, 27 real circuits, tyres, fuel, pit stops and damage simulated on the server.">
 <meta property="og:image" content="https://gdoct.github.io/apexsim/assets/splash.webp">
 <meta property="og:url" content="https://gdoct.github.io/apexsim/">
 <meta name="theme-color" content="#0b0d10">
@@ -46,7 +46,7 @@
     <div>
       <div class="eyebrow">Source-available simracing platform</div>
       <h1 style="margin-top:18px">The server decides <br><em>where every car is.</em></h1>
-      <p class="lede">ApexSim runs a 240&nbsp;Hz authoritative physics simulation in Rust and renders it in Unreal&nbsp;Engine&nbsp;5. Fourteen cars, twenty-seven real circuits, and no second physics model to argue with. Cars, circuits and the HUD are files you can open.</p>
+      <p class="lede">ApexSim runs a 420&nbsp;Hz authoritative physics simulation in Rust and renders it in Unreal&nbsp;Engine&nbsp;5. Fourteen cars, twenty-seven real circuits, and no second physics model to argue with. Cars, circuits and the HUD are files you can open.</p>
       <div class="ctas">
         <a class="btn primary" href="#cars">See the grid</a>
         <a class="btn" href="https://youtu.be/yiTEfozkK00" data-trailer="yiTEfozkK00"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>Watch the trailer</a>
@@ -54,7 +54,7 @@
       </div>
     </div>
     <aside class="telemetry" aria-label="Simulated telemetry readout">
-      <header><span>Telemetry · S2</span><i>240&nbsp;Hz</i></header>
+      <header><span>Telemetry · S2</span><i>420&nbsp;Hz</i></header>
       <div class="rows">
         <span>THR</span><div class="bar"><u id="t-thr" style="--c:var(--green)"></u></div><b id="t-thr-v">0%</b>
         <span>BRK</span><div class="bar"><u id="t-brk"></u></div><b id="t-brk-v">0%</b>
@@ -68,7 +68,7 @@
 
 <div class="stats">
   <div class="wrap stagger">
-    <div class="stat"><b>240<sup>Hz</sup></b><span>Authoritative physics tick</span></div>
+    <div class="stat"><b>420<sup>Hz</sup></b><span>Authoritative physics tick</span></div>
     <div class="stat"><b>14</b><span>Cars · four classes</span></div>
     <div class="stat"><b>27</b><span>Real-world circuits</span></div>
     <div class="stat"><b>156<sup>km</sup></b><span>Of surveyed tarmac</span></div>
@@ -274,7 +274,7 @@
       <p>Simulation logic stays isolated from presentation, so each piece can evolve on its own. The circuit you race is the circuit the server simulates, checked by CRC on both sides.</p>
     </div>
     <div class="arch stagger">
-      <div class="node"><div class="k">server/ · Rust</div><h3>Authoritative server</h3><p>240&nbsp;Hz tokio loop. Physics, OBB collision against cars and baked barriers, tyres, fuel, heat and damage, race control and pit stops, AI, force feedback, lap timing and records. <code>/health</code> <code>/metrics</code></p></div>
+      <div class="node"><div class="k">server/ · Rust</div><h3>Authoritative server</h3><p>420&nbsp;Hz tokio loop. Physics, OBB collision against cars and baked barriers, tyres, fuel, heat and damage, race control and pit stops, AI, force feedback, lap timing and records. <code>/health</code> <code>/metrics</code></p></div>
       <div class="link"><span>UDP<br>60&nbsp;Hz</span></div>
       <div class="node"><div class="k">game-unreal/ · C++</div><h3>Unreal client</h3><p>Tracks and cars built at runtime from their files, menus as C++ widget trees, a HUD from JSON, a cockpit built per car, dents and debris drawn from the server's damage figures, TV director, replays and track guides, synthesized audio, DirectInput wheels. Every car a telemetry puppet.</p></div>
       <div class="link"><span>exports<br>&amp; sidecars</span></div>
