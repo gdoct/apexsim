@@ -11,7 +11,10 @@
 //! - **heat**: an engine past `engine_heat::OVERHEAT_C` wears itself out
 //!   ([`OVERHEAT_DAMAGE_PER_C_S`] a second per degree over);
 //! - **over-revving**: a downshift that spins the engine past its limit
-//!   ([`over_rev_damage`]).
+//!   ([`over_rev_damage`]);
+//! - **wear**: every hour at the top of the rev range costs a few percent
+//!   ([`engine_wear`]), so a 24-hour race ends on a tired engine and one
+//!   driven on the limiter tires faster.
 //!
 //! and cost, progressively:
 //!
@@ -42,6 +45,12 @@ pub const OVERHEAT_DAMAGE_PER_C_S: f32 = 0.08;
 /// a small tolerance ([`OVER_REV_TOLERANCE`]).
 const OVER_REV_DAMAGE_PER_S: f32 = 400.0;
 const OVER_REV_TOLERANCE: f32 = 1.02;
+/// Engine wear, percent per hour, at the rev limit, and how steeply it
+/// falls with the revs: at 85% of the limit (a race's running) it is a
+/// third of that, about a quarter of the engine over 24 hours; at idle,
+/// nothing to speak of.
+const ENGINE_WEAR_PER_HOUR: f32 = 3.0;
+const ENGINE_WEAR_EXPONENT: i32 = 6;
 
 /// Most toe a fully damaged side bends into its front wheel, rad.
 const MAX_TOE_RAD: f32 = 0.025;
@@ -65,6 +74,11 @@ pub fn impact_damage(closing_mps: f32) -> f32 {
 /// `ratio` is the revs the wheels ask for over the engine's limit.
 pub fn over_rev_damage(ratio: f32, dt: f32) -> f32 {
     (ratio - OVER_REV_TOLERANCE).max(0.0) * OVER_REV_DAMAGE_PER_S * dt
+}
+
+/// Engine wear this tick, percent, turning at `rpm_share` of its limit.
+pub fn engine_wear(rpm_share: f32, dt: f32) -> f32 {
+    ENGINE_WEAR_PER_HOUR * rpm_share.clamp(0.0, 1.1).powi(ENGINE_WEAR_EXPONENT) * dt / 3600.0
 }
 
 /// Engine damage this tick from running at `coolant_c`.
@@ -184,5 +198,14 @@ mod tests {
         assert!(d.is_drivable);
         d.hurt_engine(1.0);
         assert!(!d.is_drivable);
+    }
+
+    #[test]
+    fn an_engine_wears_by_the_hour_and_faster_on_the_limiter() {
+        let day = |share: f32| engine_wear(share, 24.0 * 3600.0);
+        let racing = day(0.85);
+        assert!((20.0..35.0).contains(&racing), "{racing}");
+        assert!(day(1.0) > 2.0 * racing);
+        assert!(engine_wear(0.85, 3600.0) < 1.5, "a sprint barely notices");
     }
 }

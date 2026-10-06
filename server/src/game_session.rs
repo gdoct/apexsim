@@ -45,6 +45,20 @@ const FALLBACK_LAP_SECONDS: f32 = 120.0;
 /// How far before the line a hotlap car is put out, so the first flying lap
 /// starts at speed. Shortened on a track too small for it.
 pub const HOTLAP_RUNUP_M: f32 = 300.0;
+
+/// How long a car out of the race stands where it stopped before it is
+/// towed away, s: long enough to be seen, as a marshal's yellow is.
+pub const TOW_AFTER_S: f32 = 10.0;
+
+/// The AI's speed plans per car: one for every this-many-th of its tank
+/// (`GameSession::ai_speed_profile`). Each is a millisecond or so to build.
+pub const AI_FUEL_PLAN_STEPS: usize = 10;
+
+/// Seconds an AI coasts before each braking zone per share of the race's
+/// fuel it is short (`GameSession::fuel_save_coast_s`): a coast of a
+/// second before each of a lap's braking zones saves something like a
+/// tenth of its fuel, so 5% short is a coast of about half a second.
+pub const FUEL_SAVE_COAST_S_PER_SHORT: f32 = 10.0;
 /// Cars going out together are queued this far apart on the run-up.
 pub const HOTLAP_SPACING_M: f32 = 30.0;
 /// A run-up slot is taken while a car on the track is this close to it.
@@ -58,9 +72,13 @@ pub struct GameSession {
     pub car_configs: HashMap<CarConfigId, CarConfig>,
     /// AI driver profiles indexed by their player ID
     pub ai_profiles: std::collections::BTreeMap<PlayerId, AiDriverProfile>,
-    /// Speed profile along the line per car the AI drives, built when the AI
-    /// is seated. Looked up by key only, never iterated.
-    ai_speed_profiles: HashMap<CarConfigId, RacingLineProfile>,
+    /// Speed profiles along the line per car the AI drives, one per
+    /// [`AI_FUEL_PLAN_STEPS`]th of its tank from empty to full, built when
+    /// the AI is seated: a car drives the plan for the next step up from
+    /// what it carries ([`Self::ai_speed_profile`]), so it gets quicker as
+    /// the tank drains and is never planned lighter than it is. Looked up by
+    /// key only, never iterated.
+    ai_speed_profiles: HashMap<CarConfigId, Vec<RacingLineProfile>>,
     /// Simulation tick rate (Hz); the fixed timestep is `1 / tick_rate_hz`.
     tick_rate_hz: u16,
     /// Set when session membership changed since the last roster broadcast;
@@ -305,12 +323,13 @@ fn fit_tyres(
     start: TyreStart,
     car_setups: &HashMap<PlayerId, CarSetup>,
 ) {
-    // The compound the driver's setup chose for the next set.
+    // The compound the driver's setup chose for the next set (the weather's
+    // tyre for a stock pick in the rain, and for the AI).
     let compound = car_setups
         .get(&state.player_id)
         .copied()
         .unwrap_or_default()
-        .compound_index();
+        .compound_index_for(track.track_surface.water);
     let Some(config) = simulated_config(car_configs, tuned_configs, state) else {
         return;
     };
@@ -323,7 +342,7 @@ fn fit_tyres(
         // works 6 °C cooler than the medium.)
         TyreStart::Warm => tyre_thermal::optimum_c(tyre, tyre_thermal::compound(compound)),
     };
-    tyre_thermal::fit(state, tyre, temperature, compound);
+    tyre_thermal::fit(state, tyre, temperature, compound, surface.water);
     let brakes = crate::brakes::start_temperature_c(
         config.brake_material,
         track.track_surface.air_temperature_c,
@@ -1574,10 +1593,56 @@ impl GameSession {
     /// What the air does this tick, before the physics: the DRS rule and
     /// every car's wake (`crate::slipstream`).
     fn update_air(&mut self) {
+        self.update_retirements();
         self.update_pits();
         self.update_drs();
         self.update_wind();
         crate::slipstream::update(&mut self.session.participants, &self.car_configs);
+    }
+
+    /// A car out of the race stands where it stopped for
+    /// [`TOW_AFTER_S`], then is towed away: to its own pit box when the
+    /// track has a pit lane (where the client goes on drawing it, out of
+    /// everyone's way), else left where it is. Either way it leaves the
+    /// collision passes, the wake and the DRS gaps; a race has never waited
+    /// for it (`DamageState::is_drivable` counts as classified).
+    fn update_retirements(&mut self) {
+        let dt = self.dt();
+        let lane = self.track_config.pit_lane.as_ref();
+        for state in self.session.participants.values_mut() {
+            if state.damage.is_drivable {
+                // Repaired (a new grid, the hotlap garage): back in the race.
+                state.retired_s = 0.0;
+                state.towed = false;
+                continue;
+            }
+            if state.towed {
+                continue;
+            }
+            state.retired_s += dt;
+            if state.retired_s < TOW_AFTER_S {
+                continue;
+            }
+            state.towed = true;
+            if let Some(lane) = lane.filter(|l| !l.boxes.is_empty()) {
+                let spot = lane.box_at(state.pit.box_index.unwrap_or(0));
+                state.pos_x = spot.x;
+                state.pos_y = spot.y;
+                state.pos_z = spot.z;
+                state.yaw_rad = spot.yaw_rad;
+            }
+            state.vel_x = 0.0;
+            state.vel_y = 0.0;
+            state.vel_z = 0.0;
+            state.speed_mps = 0.0;
+            state.angular_vel_yaw = 0.0;
+            state.throttle_input = 0.0;
+            state.is_colliding = false;
+            state.pit.driving = false;
+            state.pit.servicing = false;
+            state.pit.in_lane = false;
+            state.pit.limiter = false;
+        }
     }
 
     /// The pit lane this tick (`crate::pit`): every car placed against it
@@ -1632,7 +1697,7 @@ impl GameSession {
         let mut arrived: Vec<PlayerId> = Vec::new();
         let mut finished: Vec<PlayerId> = Vec::new();
         for state in self.session.participants.values_mut() {
-            if state.in_garage {
+            if state.in_garage || state.towed {
                 continue;
             }
             // The windowed search is only good while the car is by the lane:
@@ -1972,7 +2037,8 @@ impl GameSession {
         let compound = if is_ai {
             state.pit.next_compound
         } else {
-            self.car_setup(player_id).compound_index()
+            self.car_setup(player_id)
+                .compound_index_for(self.track_config.track_surface.water)
         };
         let laps_left = self.laps_left(state) as f32 + 1.0;
         let fuel_now = state.fuel_liters;
@@ -2032,7 +2098,8 @@ impl GameSession {
         let tyre = &config.tire_config;
         let temperature = tyre_thermal::start_temperature_c(tyre, &self.track_config.track_surface);
         let compound = state.pit.service_compound;
-        tyre_thermal::fit(state, tyre, temperature, compound);
+        let water = self.track_config.track_surface.water;
+        tyre_thermal::fit(state, tyre, temperature, compound, water);
         state.fuel_liters =
             (state.fuel_liters + state.pit.service_fuel_l).min(config.fuel.capacity_liters);
         if state.pit.service_repair {
@@ -2089,6 +2156,10 @@ impl GameSession {
                     continue;
                 };
                 if let Some(compound) = crate::pit::plan_stop(state, laps_left, lap_fuel) {
+                    // In the rain the tyre is the weather's.
+                    let compound =
+                        tyre_thermal::weather_compound(self.track_config.track_surface.water)
+                            .unwrap_or(compound);
                     if let Some(state) = self.session.participants.get_mut(&ai_id) {
                         state.pit.wants_stop = true;
                         state.pit.next_compound = compound;
@@ -2158,7 +2229,8 @@ impl GameSession {
             }
         }
         let controller = AiDriverController::new(profile, &self.track_config, car_config)
-            .with_speed_profile(self.ai_speed_profiles.get(&state.car_config_id));
+            .with_speed_profile(self.ai_speed_profile(state.car_config_id, state.fuel_liters))
+            .with_fuel_save(self.fuel_save_coast_s(state, car_config));
         // BTreeMap order: the traffic list, and so the input, is
         // deterministic.
         let traffic: Vec<TrafficCar> = self
@@ -2190,6 +2262,33 @@ impl GameSession {
             input = crate::pit::run_up_input(lane, to_lane, state.speed_mps, input);
         }
         input
+    }
+
+    /// How long an AI in a race coasts before each braking zone to reach the
+    /// flag on what it carries: nothing while the tank will do, or when the
+    /// car will be refuelled at a stop (the pit plan's business); past that,
+    /// [`FUEL_SAVE_COAST_S_PER_SHORT`] per share it is short, capped by the
+    /// driver ([`crate::ai_driver::MAX_FUEL_SAVE_COAST_S`]).
+    fn fuel_save_coast_s(&self, state: &CarState, config: &CarConfig) -> f32 {
+        if self.session.game_mode != GameMode::Race
+            || self.session.state != SessionState::Racing
+            || state.finish_position.is_some()
+        {
+            return 0.0;
+        }
+        if crate::pit::refuelling_allowed(config) && self.track_config.pit_lane.is_some() {
+            return 0.0;
+        }
+        let Some(&lap) = self.lap_fuel.get(&state.car_config_id) else {
+            return 0.0;
+        };
+        let total = crate::laps::track_length_m(&self.track_config).max(1.0);
+        let this_lap = 1.0 - (state.track_progress / total).clamp(0.0, 1.0);
+        let needed = lap * (self.laps_left(state) as f32 + this_lap);
+        if needed <= 0.0 || state.fuel_liters >= needed {
+            return 0.0;
+        }
+        (1.0 - state.fuel_liters / needed) * FUEL_SAVE_COAST_S_PER_SHORT
     }
 
     /// An AI in a race presses the overtake button within
@@ -2496,17 +2595,49 @@ impl GameSession {
                 .insert(*player_id, state.steering_assist);
             state.steering_assist = false;
             let car_id = state.car_config_id;
-            let fuel = state.fuel_liters;
-            if !self.ai_speed_profiles.contains_key(&car_id) {
-                if let Some(speeds) = self
-                    .car_configs
-                    .get(&car_id)
-                    .and_then(|car| racing_line::build_laden(&self.track_config, car, fuel))
-                {
-                    self.ai_speed_profiles.insert(car_id, speeds);
-                }
-            }
+            self.plan_ai_speeds(car_id);
         }
+    }
+
+    /// Build the AI's speed profiles for `car_id`, one per step of its tank
+    /// (see `ai_speed_profiles`), unless they are built.
+    fn plan_ai_speeds(&mut self, car_id: CarConfigId) {
+        if self.ai_speed_profiles.contains_key(&car_id) {
+            return;
+        }
+        let Some(car) = self.car_configs.get(&car_id) else {
+            return;
+        };
+        let capacity = car.fuel.capacity_liters.max(0.0);
+        let plans: Option<Vec<RacingLineProfile>> = (0..=AI_FUEL_PLAN_STEPS)
+            .map(|step| {
+                let fuel = capacity * step as f32 / AI_FUEL_PLAN_STEPS as f32;
+                racing_line::build_laden(&self.track_config, car, fuel)
+            })
+            .collect();
+        if let Some(plans) = plans {
+            self.ai_speed_profiles.insert(car_id, plans);
+        }
+    }
+
+    /// The AI's speed profile for `car_id` carrying `fuel_liters`: the one
+    /// planned at the next step of the tank at or above it.
+    fn ai_speed_profile(
+        &self,
+        car_id: CarConfigId,
+        fuel_liters: f32,
+    ) -> Option<&RacingLineProfile> {
+        let plans = self.ai_speed_profiles.get(&car_id)?;
+        let capacity = self
+            .car_configs
+            .get(&car_id)
+            .map_or(0.0, |c| c.fuel.capacity_liters);
+        let step = if capacity > 0.0 {
+            (fuel_liters / capacity * AI_FUEL_PLAN_STEPS as f32).ceil() as usize
+        } else {
+            0
+        };
+        plans.get(step.min(plans.len().saturating_sub(1)))
     }
 
     /// Spawn AI drivers using the provided profiles.
@@ -2559,18 +2690,7 @@ impl GameSession {
 
             if self.add_player(ai_id, car_id).is_some() {
                 self.session.ai_player_ids.push(ai_id);
-                if !self.ai_speed_profiles.contains_key(&car_id) {
-                    // Planned for the heaviest the car will be: a race's
-                    // full load. It only gets quicker than the plan.
-                    let fuel = self.start_fuel_liters(&ai_id, car_id, GameMode::Race);
-                    if let Some(speeds) = self
-                        .car_configs
-                        .get(&car_id)
-                        .and_then(|car| racing_line::build_laden(&self.track_config, car, fuel))
-                    {
-                        self.ai_speed_profiles.insert(car_id, speeds);
-                    }
-                }
+                self.plan_ai_speeds(car_id);
             }
         }
     }

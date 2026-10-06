@@ -974,6 +974,11 @@ pub struct TrackSurface {
     /// faster (`tyre_thermal`).
     #[serde(default)]
     pub wet: bool,
+    /// How much water is on the road, 0 dry to 1 heavy rain
+    /// (`Weather::water`): which tyre grips (`tyre_thermal::Compound`).
+    /// The road's baked grip is the grip on the tyre the weather calls for.
+    #[serde(default)]
+    pub water: f32,
     /// The air's density against the reference day the cars are filed at
     /// (`SessionConditions::air_density_ratio`): the aero and a combustion
     /// engine's torque are scaled by it. 1.0 on a default day at sea level.
@@ -1025,6 +1030,7 @@ impl Default for TrackSurface {
             air_temperature_c: default_air_temperature_c(),
             track_temperature_c: default_track_temperature_c(),
             wet: false,
+            water: 0.0,
             air_density_ratio: 1.0,
             wind_mps: [0.0; 2],
             wind_now_mps: [0.0; 2],
@@ -1221,6 +1227,14 @@ pub struct TireData {
     /// share of what it has in its window at the set pressure (1.0).
     #[serde(default)]
     pub grip_factor: f32,
+    /// How deep a flat spot a locked wheel has ground into the tread, 0..1
+    /// (`crate::tyre_thermal`): a little grip, and a shake once a turn.
+    #[serde(default)]
+    pub flat_spot: f32,
+    /// Worn through: the tyre is down to its carcass and has let go of its
+    /// air.
+    #[serde(default)]
+    pub punctured: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
@@ -1401,6 +1415,15 @@ pub struct CarState {
     /// carries it as bit 2 of `lap_flags`.
     #[serde(default)]
     pub in_garage: bool,
+
+    /// Out of the race (`DamageState::is_drivable` false): how long it has
+    /// stood where it stopped, s, and whether it has been towed away to its
+    /// pit box since (`GameSession::update_retirements`). A towed car is
+    /// out of the collision passes, the wake and the DRS gaps.
+    #[serde(default)]
+    pub retired_s: f32,
+    #[serde(default)]
+    pub towed: bool,
 
     /// The drag reduction system (`crate::drs`). `drs_allowed`: the car is
     /// in an activation zone it earned at the detection point, so the
@@ -1620,6 +1643,8 @@ impl CarState {
             laps: crate::laps::LapTiming::default(),
             wheels_off_track: false,
             in_garage: false,
+            retired_s: 0.0,
+            towed: false,
             drs_allowed: false,
             drs_open: false,
             headlights: false,
@@ -1909,13 +1934,25 @@ impl Weather {
 
     /// What the asphalt's grip is multiplied by. Dry weather leaves the
     /// track as filed; a cold overcast track is a shade slower; rain takes
-    /// the field down to where a wet race sits, some 15% off a dry lap.
+    /// the field down to where a wet race sits, some 15% off a dry lap, on
+    /// the tyre the weather calls for (inters in light rain, wets in heavy:
+    /// any other tyre loses more, `tyre_thermal::Compound::grip_on`).
     pub fn road_grip_factor(self) -> f32 {
         match self {
             Weather::Sunny | Weather::Cloudy => 1.0,
             Weather::Overcast => 0.98,
             Weather::LightRain => 0.86,
             Weather::HeavyRain => 0.74,
+        }
+    }
+
+    /// Water on the road, 0 dry to 1: light rain is half of heavy. Which
+    /// tyre grips is read off it (`tyre_thermal::Compound::grip_on`).
+    pub fn water(self) -> f32 {
+        match self {
+            Weather::LightRain => 0.5,
+            Weather::HeavyRain => 1.0,
+            _ => 0.0,
         }
     }
 
@@ -2109,6 +2146,7 @@ impl SessionConditions {
         track.track_surface.air_temperature_c = self.air_temperature_c();
         track.track_surface.track_temperature_c = self.track_temperature_c();
         track.track_surface.wet = self.weather.is_wet();
+        track.track_surface.water = self.weather.water();
         let altitude = track.metadata.altitude_m.unwrap_or(0.0);
         track.track_surface.air_density_ratio = self.air_density_ratio(altitude);
         // The wind's direction is taken from the start straight: the

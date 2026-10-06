@@ -197,6 +197,10 @@ struct SurfaceQuerySample {
     /// What the road mesh says is here; `None` on the centerline backend
     /// and wherever the mesh has nothing under the point.
     mesh: Option<MeshHit>,
+    /// Past the road edge and on the pit lane's own strip
+    /// (`TrackConfig::pit_lane`): how the centerline backend, which knows
+    /// nothing beyond the road and its bands, tells the lane from the grass.
+    on_pit_lane: bool,
 }
 
 /// The road mesh's verdict on a point: its contact class and the
@@ -268,15 +272,17 @@ pub fn update_car_3d(
     state.fuel_capacity_liters = config.fuel.capacity_liters;
     state.fuel_liters = state.fuel_liters.min(state.fuel_capacity_liters);
 
-    // A car nobody sent out on a set of tyres starts on warm ones.
+    // A car nobody sent out on a set of tyres starts on warm ones: mediums,
+    // or the tyre the rain calls for.
     if !state.tyres_fitted {
-        let optimum = config.tire_config.optimal_temperature_c;
-        crate::tyre_thermal::fit(
-            state,
+        let water = track.track_surface.water;
+        let compound =
+            crate::tyre_thermal::weather_compound(water).unwrap_or(crate::tyre_thermal::MEDIUM);
+        let optimum = crate::tyre_thermal::optimum_c(
             &config.tire_config,
-            optimum,
-            crate::tyre_thermal::MEDIUM,
+            crate::tyre_thermal::compound(compound),
         );
+        crate::tyre_thermal::fit(state, &config.tire_config, optimum, compound, water);
         let warm = crate::brakes::start_temperature_c(
             config.brake_material,
             track.track_surface.air_temperature_c,
@@ -326,6 +332,7 @@ pub fn update_car_3d(
     let (downforce_front, downforce_rear) = (air.downforce_front, air.downforce_rear);
     state.drag_force_n = air.drag;
     state.aero_load_share = air.load_share;
+    let cooling_air_mps = air.cooling_air_mps;
     state.downforce_front_n = downforce_front;
     state.downforce_rear_n = downforce_rear;
 
@@ -358,6 +365,10 @@ pub fn update_car_3d(
     };
     let over_rev = crate::damage::over_rev_damage(forced, dt) * state.damage_scale();
     state.damage.hurt_engine(over_rev);
+    // And every revolution wears it a little, the top of the rev range most.
+    let wear = crate::damage::engine_wear(engine_rpm / config.max_engine_rpm.max(1.0), dt)
+        * state.damage_scale();
+    state.damage.hurt_engine(wear);
 
     // 4b. Hybrid system: electric motor assist + brake regeneration
     let lap_share = state.track_progress / crate::laps::track_length_m(track).max(1.0);
@@ -721,7 +732,13 @@ pub fn update_car_3d(
     let tyre_config = &config.tire_config;
     let compound = crate::tyre_thermal::compound(state.tyre_compound);
     let thermal = |tyre: &crate::data::TireData, set_kpa: f32| {
-        crate::tyre_thermal::grip_multiplier(tyre_config, compound, set_kpa, tyre)
+        crate::tyre_thermal::grip_multiplier(
+            tyre_config,
+            compound,
+            set_kpa,
+            tyre,
+            track.track_surface.water,
+        )
     };
     let side_left = crate::damage::side_grip_factor(&state.damage, true);
     let side_right = crate::damage::side_grip_factor(&state.damage, false);
@@ -878,6 +895,7 @@ pub fn update_car_3d(
         slip_angle_rad: w.slip_angle,
         load_n,
         speed_mps: v_long,
+        air_mps: cooling_air_mps,
     };
     let work = [
         tyre_work(&fl, state.weight_front_left_n),
@@ -910,7 +928,7 @@ pub fn update_car_3d(
     crate::engine_heat::step(
         &mut state.water_temp_c,
         shaft_w,
-        state.speed_mps * state.wake.drag,
+        cooling_air_mps,
         air_c,
         crate::engine_heat::radiator_conductance(
             config.max_engine_power_w,
@@ -994,6 +1012,7 @@ pub fn update_car_3d(
         suspension_mps: wheel_states.map(|w| w.suspension_velocity_mps),
         abs_active: wheels.iter().any(|w| w.abs_active),
         tc_active: wheels.iter().any(|w| w.tc_active),
+        flat_spot: state.tires.each().map(|t| t.flat_spot),
     });
 
     // Track limits are judged on the same per-wheel surfaces the force
@@ -1018,8 +1037,9 @@ pub fn update_car_3d(
         rr_forces.0 * steer_rear_right.sin() + rr_forces.1 * steer_rear_right.cos(),
     );
 
-    // Off-track rolling resistance, per tyre at its own patch: a share of
-    // the tyre's load along the way it rolls, against its rolling speed.
+    // Off-track rolling resistance (and a punctured tyre's), per tyre at
+    // its own patch: a share of the tyre's load along the way it rolls,
+    // against its rolling speed.
     // Two wheels on the grass drag that side, so the nose is pulled toward
     // the grass, as in a real car. Faded in over the first metre a second
     // of rolling speed so it never reverses a wheel at a standstill.
@@ -1038,10 +1058,21 @@ pub fn update_car_3d(
             state.weight_rear_left_n,
             state.weight_rear_right_n,
         ];
+        // A punctured tyre drags on its carcass wherever it is.
+        let punctured = state.tires.each().map(|t| t.punctured);
         let mut drag = (0.0f32, 0.0f32, 0.0f32);
-        if !is_airborne && rolling > 0.0 {
+        if !is_airborne {
             for i in 0..4 {
-                if !wheel_states[i].on_soft_ground {
+                let rolling = if wheel_states[i].on_soft_ground {
+                    rolling
+                } else {
+                    0.0
+                } + if punctured[i] {
+                    crate::tyre_thermal::PUNCTURE_ROLLING_RESISTANCE
+                } else {
+                    0.0
+                };
+                if rolling <= 0.0 {
                     continue;
                 }
                 let (x, y) = wheel_pos[i];
@@ -1318,6 +1349,10 @@ struct AeroForces {
     /// car would make at this ground speed in still, clean air: what the
     /// wind and the wake of a car ahead have done to its grip.
     load_share: f32,
+    /// The speed of the air that reaches the car's tyres and radiator,
+    /// m/s: the airflow through the wind, slowed by the wake of a car
+    /// ahead (a car in a tow is cooled by slower air).
+    cooling_air_mps: f32,
 }
 
 /// Side force coefficient of a car's flank, and the share of its length x
@@ -1410,6 +1445,7 @@ fn calculate_aerodynamic_forces(
         downforce_front,
         downforce_rear,
         load_share,
+        cooling_air_mps: airspeed * wake.drag,
     }
 }
 
@@ -2794,6 +2830,13 @@ fn query_track_surface_centerline(
 ) -> Option<SurfaceQuerySample> {
     let nearest_idx = find_nearest_centerline_idx(&track.centerline, world_x, world_y, hint)?;
     let (line, lateral_offset) = centerline_at(&track.centerline, nearest_idx, world_x, world_y);
+    let half_width = if lateral_offset >= 0.0 {
+        line.width_right_m
+    } else {
+        line.width_left_m
+    };
+    let on_pit_lane =
+        lateral_offset.abs() > half_width && on_pit_lane_strip(track, world_x, world_y);
 
     Some(SurfaceQuerySample {
         nearest_point: nearest_idx,
@@ -2807,7 +2850,20 @@ fn query_track_surface_centerline(
         surface_type: line.surface_type,
         grip_modifier: line.grip_modifier,
         mesh: None,
+        on_pit_lane,
     })
+}
+
+/// Whether `(x, y)` is on the pit lane's strip, from its sidecar: within
+/// half the lane's width of its middle. Only asked past the road edge.
+fn on_pit_lane_strip(track: &TrackConfig, x: f32, y: f32) -> bool {
+    let Some(lane) = track.pit_lane.as_ref() else {
+        return false;
+    };
+    if lane.nodes.len() < 2 || !lane.near(x, y, lane.width_m) {
+        return false;
+    }
+    lane.locate(x, y, None).distance_m <= 0.5 * lane.width_m
 }
 
 /// Where a surface sample sits against the track limits: on the road, on the
@@ -2920,6 +2976,10 @@ fn road_contact(track: &TrackConfig, surface: &SurfaceQuerySample) -> RoadContac
     });
     if overhang <= curb_width {
         RoadContact::Curb
+    } else if surface.on_pit_lane {
+        // The road mesh draws the lane as a surface of its own; without
+        // one the sidecar's strip is the lane, not the grass beside it.
+        RoadContact::PitLane
     } else if overhang <= runoff_reach {
         RoadContact::Runoff
     } else {
@@ -3086,9 +3146,12 @@ pub fn check_collisions_refs(
         state.collision_normal_z = 0.0;
     }
 
-    // Check all pairs
+    // Check all pairs; a car towed away is in nobody's way.
     for i in 0..states.len() {
         for j in (i + 1)..states.len() {
+            if states[i].towed || states[j].towed {
+                continue;
+            }
             let config_i = configs.get(&states[i].car_config_id);
             let config_j = configs.get(&states[j].car_config_id);
 
@@ -3379,6 +3442,9 @@ pub fn check_wall_collisions(
     };
     let mut nearby = Vec::new();
     for state in states.iter_mut() {
+        if state.towed {
+            continue;
+        }
         if let Some(config) = configs.get(&state.car_config_id) {
             resolve_wall_contacts(state, config, walls, dt, &mut nearby);
         }

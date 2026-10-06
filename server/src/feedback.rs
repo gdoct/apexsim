@@ -67,6 +67,8 @@ pub struct FeedbackTick {
     pub abs_active: bool,
     /// Traction control is cutting drive to a wheel.
     pub tc_active: bool,
+    /// How deep a flat spot each tyre carries, 0..1.
+    pub flat_spot: [f32; 4],
 }
 
 /// Collects [`FeedbackTick`]s between broadcasts. Runtime-only state on
@@ -86,6 +88,7 @@ pub struct FeedbackAccumulator {
     steer_input: f32,
     steer_stiffness: f32,
     front_load: f32,
+    flat_spot: [f32; 4],
 }
 
 impl Default for FeedbackAccumulator {
@@ -104,6 +107,7 @@ impl Default for FeedbackAccumulator {
             steer_input: 0.0,
             steer_stiffness: 0.0,
             front_load: 1.0,
+            flat_spot: [0.0; 4],
         }
     }
 }
@@ -138,6 +142,7 @@ impl FeedbackAccumulator {
         self.steer_input = finite_or_zero(tick.steer_input);
         self.steer_stiffness = finite_or_zero(tick.steer_stiffness);
         self.front_load = finite_or_zero(tick.front_load).max(0.0);
+        self.flat_spot = tick.flat_spot.map(|f| finite_or_zero(f).clamp(0.0, 1.0));
 
         for wheel in 0..4 {
             let clamp = |v: f32| finite_or_zero(v).clamp(-MAX_NORMALIZED_SLIP, MAX_NORMALIZED_SLIP);
@@ -182,6 +187,7 @@ impl FeedbackAccumulator {
             steer_input: self.steer_input,
             steer_stiffness: self.steer_stiffness,
             front_load: self.front_load,
+            flat_spot: self.flat_spot.map(|f| (f * 100.0).round() as u8),
         };
         *self = Self::default();
         message
@@ -245,6 +251,11 @@ pub struct DriverFeedback {
     /// under braking and with downforce. A wheel scales the road's texture by
     /// it, as a loaded tyre passes more of the road up the column. Appended.
     pub front_load: f32,
+    /// How deep a flat spot each tyre has had ground into it by a locked
+    /// wheel, percent of the worst (`crate::tyre_thermal`): the client
+    /// shakes the wheel and pad once per turn of the wheel by it. Appended.
+    #[serde(default)]
+    pub flat_spot: [u8; 4],
 }
 
 #[cfg(test)]

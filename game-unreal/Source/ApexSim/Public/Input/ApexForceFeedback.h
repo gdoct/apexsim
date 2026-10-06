@@ -99,6 +99,13 @@ namespace ApexFfb
 		/** A wheel spinning up under power. */
 		float Wheelspin = 0.0f;
 
+		/**
+		 * The deepest flat spot on the car's tyres, 0..1, the fronts' counted
+		 * fully and the rears' at half (a rear's comes through the seat, not
+		 * the rim): a shake once a turn of the wheel.
+		 */
+		float FlatSpot = 0.0f;
+
 		/** ABS is holding a wheel at its peak slip. */
 		bool bAbs = false;
 
@@ -166,6 +173,8 @@ namespace ApexFfb
 		float Impact = 0.0f;
 		/** Decaying kick from a gear change. */
 		float ShiftKick = 0.0f;
+		/** A turn of the wheel, wrapped at one: a flat spot thumps once a turn. */
+		float FlatSpotPhase = 0.0f;
 		/** INDEX_NONE until a car has been seen. */
 		int32 LastGear = INDEX_NONE;
 	};

@@ -146,7 +146,7 @@ pub fn update(
 ) {
     let bodies: Vec<(PlayerId, Body)> = participants
         .values()
-        .filter(|s| !s.in_garage)
+        .filter(|s| !s.in_garage && !s.towed)
         .filter_map(|s| {
             let config = car_configs.get(&s.car_config_id)?;
             Some((

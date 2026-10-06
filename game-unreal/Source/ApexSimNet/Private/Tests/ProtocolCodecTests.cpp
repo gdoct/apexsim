@@ -231,6 +231,9 @@ bool FApexCarSetupClicksTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("ducts read in air"), ApexCarSetup::Describe(ApexCarSetup::BrakeDucts, 2), FString(TEXT("+2  (+20% air)")));
 	TestEqual(TEXT("compound reads by name"), ApexCarSetup::Describe(ApexCarSetup::TyreCompound, 1), FString(TEXT("Soft")));
 	TestEqual(TEXT("hard"), ApexCarSetup::Describe(ApexCarSetup::TyreCompound, -1), FString(TEXT("Hard")));
+	TestEqual(TEXT("inters"), ApexCarSetup::Describe(ApexCarSetup::TyreCompound, -2), FString(TEXT("Intermediate")));
+	TestEqual(TEXT("wets"), ApexCarSetup::Describe(ApexCarSetup::TyreCompound, -3), FString(TEXT("Wet")));
+	TestEqual(TEXT("the compound reaches the wets"), ApexCarSetup::Knob(ApexCarSetup::TyreCompound).Min, -3);
 	TestEqual(TEXT("ride height reads in mm"),
 		ApexCarSetup::Describe(ApexCarSetup::RideHeightFront, -3), FString(TEXT("-3  (-6 mm)")));
 	return true;

@@ -74,11 +74,15 @@ fn the_limiter_holds_a_car_to_the_lane_limit() {
         return;
     };
     let lane = gs.track_config.pit_lane.clone().unwrap();
+    // Below the limit, flat out: it climbs to the limit and holds it. (It
+    // used to start 8 m/s over and pass because the lane drove as grass,
+    // whose drag had it down to the limit inside three seconds; on asphalt
+    // a car over the limit coasts down, the throttle shut.)
     on_the_lane(
         &mut gs,
         &player,
         lane.limit_start_m + 5.0,
-        lane.speed_limit_mps + 8.0,
+        lane.speed_limit_mps - 6.0,
     );
     let flat_out = PlayerInputData {
         throttle: 1.0,
@@ -746,4 +750,54 @@ fn a_car_leaving_its_box_waits_at_a_red_exit_light() {
     }
     let s = &gs.session.participants[&player];
     assert!(!s.pit.driving, "out of the lane once the light is green");
+}
+
+/// The lane drives as the lane on the centerline backend too: the offline
+/// tools (the guide, showcase renders, the AI survey, the surveys below)
+/// load tracks without the road mesh, which is the only thing that drew
+/// the lane as a surface, and every stop they drove was on the grass
+/// (grass grip and drag: a GT3 left its box at Le Mans at 1.6 m/s² and
+/// cooked its engine doing it). Every box and every 10 m between the limit
+/// lines is pit lane on every circuit with a sidecar.
+#[test]
+fn the_pit_lane_is_a_pit_lane_without_the_road_mesh() {
+    let mut stems: Vec<String> = std::fs::read_dir("../content/tracks/default")
+        .expect("tracks")
+        .filter_map(|e| {
+            let name = e.ok()?.file_name().to_string_lossy().into_owned();
+            name.strip_suffix(".pit.msgpack").map(str::to_string)
+        })
+        .collect();
+    stems.sort();
+    let mut bad = Vec::new();
+    for stem in &stems {
+        let Ok(track) =
+            TrackLoader::load_from_file(format!("../content/tracks/default/{stem}.yaml"))
+        else {
+            continue;
+        };
+        let Some(lane) = track.pit_lane.as_ref() else {
+            continue;
+        };
+        let mut points: Vec<(f32, f32)> = lane.boxes.iter().map(|b| (b.x, b.y)).collect();
+        let mut station = lane.limit_start_m;
+        while station <= lane.limit_end_m {
+            points.push(lane.point_at(station));
+            station += 10.0;
+        }
+        let off = points
+            .iter()
+            .filter(|(x, y)| {
+                let contact = physics::probe_surface(&track, *x, *y, 0.0, None).map(|p| p.contact);
+                !matches!(
+                    contact,
+                    Some(physics::RoadContact::PitLane | physics::RoadContact::Road)
+                )
+            })
+            .count();
+        if off > 0 {
+            bad.push(format!("{stem}: {off} of {} points", points.len()));
+        }
+    }
+    assert!(bad.is_empty(), "pit lane read as something else: {bad:?}");
 }

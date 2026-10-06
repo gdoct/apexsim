@@ -163,6 +163,15 @@ namespace
 	 * the pulse train.
 	 */
 	constexpr float BrakeGrainAmplitude = 0.22f;
+	/** A flat spot: its shake on the rim at its worst, and the rolling radius it turns at. */
+	constexpr float FlatSpotWheelAmplitude = 0.35f;
+	constexpr float FlatSpotPadLevel = 0.45f;
+	constexpr float FlatSpotRollingRadiusM = 0.33f;
+	/** The once-a-turn hz of a flat spot at `Speed`, held where a motor can play it. */
+	float FlatSpotHz(float Speed)
+	{
+		return FMath::Clamp(Speed / (2.0f * PI * FlatSpotRollingRadiusM), 2.0f, 60.0f);
+	}
 	constexpr float BrakeGrainHz = 62.0f;
 
 	/** Hits die away a little more slowly on a rim than on a motor. */
@@ -358,6 +367,7 @@ namespace
 		Out.RearSlide = WheelFinite(In.RearSlide);
 		Out.Lockup = WheelFinite(In.Lockup);
 		Out.Wheelspin = WheelFinite(In.Wheelspin);
+		Out.FlatSpot = WheelFinite(In.FlatSpot);
 		Out.CurbLeft = WheelFinite(In.CurbLeft);
 		Out.CurbRight = WheelFinite(In.CurbRight);
 		Out.OffTrack = WheelFinite(In.OffTrack);
@@ -441,6 +451,9 @@ namespace ApexFfb
 		}
 		Signals.bAbs = Feedback.bAbsActive;
 		Signals.bTractionControl = Feedback.bTcActive;
+		Signals.FlatSpot = FMath::Clamp(FMath::Max3(
+			Wheels[W::FrontLeft].FlatSpot, Wheels[W::FrontRight].FlatSpot,
+			0.5f * FMath::Max(Wheels[W::RearLeft].FlatSpot, Wheels[W::RearRight].FlatSpot)), 0.0f, 1.0f);
 
 		auto OnCurb = [Wheels](int32 Wheel) { return Wheels[Wheel].Surface == EApexContactSurface::Curb ? 0.5f : 0.0f; };
 		Signals.CurbLeft = OnCurb(W::FrontLeft) + OnCurb(W::RearLeft);
@@ -513,6 +526,16 @@ namespace ApexFfb
 				{
 					Add(Out.Low, 0.45f * Level, Gain);
 					Add(Out.High, 0.35f * Level, Gain);
+				}
+			}
+
+			// A flat spot: a thump on the heavy motor once a turn of the wheel.
+			if (Signals.FlatSpot > 0.0f && Speed > CrawlSpeedMps)
+			{
+				State.FlatSpotPhase = FMath::Frac(State.FlatSpotPhase + Dt * FlatSpotHz(Speed));
+				if (State.FlatSpotPhase < 0.3f)
+				{
+					Add(Out.Low, FlatSpotPadLevel * Signals.FlatSpot * Texture, Gain);
 				}
 			}
 
@@ -826,6 +849,11 @@ namespace ApexFfb
 			Louder(BrakeGrainAmplitude * Signals.FrontBrakeSlip * Road, BrakeGrainHz);
 			// A locked or spinning tyre judders faster than the road does.
 			Louder(0.3f * Signals.Lockup, 45.0f);
+			// A flat spot comes round once a turn of the wheel.
+			if (Speed > CrawlSpeedMps)
+			{
+				Louder(FlatSpotWheelAmplitude * Signals.FlatSpot * Road, FlatSpotHz(Speed));
+			}
 			Louder(0.2f * Signals.Wheelspin, 32.0f);
 			Louder(WheelScrubAmplitude * Signals.FrontSlide * Ramp(Speed, 0.0f, SlideFullSpeedMps), WheelScrubHz);
 		}

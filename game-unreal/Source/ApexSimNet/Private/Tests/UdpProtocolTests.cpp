@@ -250,6 +250,19 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("steering input"), Feedback.SteerInput, 0.25f);
 			TestEqual(TEXT("column stiffness"), Feedback.SteerStiffness, -4.0f);
 			TestEqual(TEXT("front load"), Feedback.FrontLoad, 1.5f);
+			TestEqual(TEXT("no flat spot from a 13-field server"), Feedback.Wheels[1].FlatSpot, 0.0f);
+		}
+
+		// Flat spots appended: percent per wheel.
+		FApexServerMessage Flat;
+		if (TestTrue(FString::Printf(TEXT("flat-spot DriverFeedback decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_DriverFeedbackFlatSpot, Flat, Error)))
+		{
+			const FApexWheelFeedback* W = Flat.DriverFeedback.Wheels;
+			TestEqual(TEXT("FL round"), W[0].FlatSpot, 0.0f);
+			TestEqual(TEXT("FR flat spot"), W[1].FlatSpot, 0.4f);
+			TestEqual(TEXT("RR flat spot"), W[3].FlatSpot, 1.0f);
+			TestEqual(TEXT("front load before it"), Flat.DriverFeedback.FrontLoad, 1.5f);
 		}
 
 		// A server from before the stiffness sends ten fields: the kick, and

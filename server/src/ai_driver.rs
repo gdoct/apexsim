@@ -218,7 +218,13 @@ pub struct AiDriverController<'a> {
     /// downforce, braking points from its own brakes. Without one the driver
     /// falls back to planning on a fixed g budget.
     speed_profile: Option<&'a RacingLineProfile>,
+    /// Seconds before each braking zone the driver lifts and coasts to save
+    /// fuel ([`Self::with_fuel_save`]); 0 races flat out.
+    coast_s: f32,
 }
+
+/// The longest a driver saving fuel coasts before a braking zone, s.
+pub const MAX_FUEL_SAVE_COAST_S: f32 = 2.0;
 
 /// Borrowed view of the line the AI follows: the optimal raceline when the
 /// track provides one (with precomputed cumulative distances for O(log n)
@@ -233,6 +239,29 @@ enum RacingLineRef<'a> {
     },
 }
 
+/// The point of `speeds` the car is at: the profile is the same loop
+/// resampled evenly from the same first point, so the line distance is
+/// close to right and the nearest point around it settles the rest.
+fn profile_point(state: &CarState, speeds: &RacingLineProfile, d_line: f32) -> Option<usize> {
+    let n = speeds.points.len();
+    if n == 0 || speeds.spacing_m <= 0.0 {
+        return None;
+    }
+    let guess = (d_line / speeds.spacing_m).round() as i64;
+    let mut here = guess.rem_euclid(n as i64) as usize;
+    let mut best = f32::MAX;
+    for offset in -PROFILE_SEARCH_POINTS..=PROFILE_SEARCH_POINTS {
+        let i = (guess + offset).rem_euclid(n as i64) as usize;
+        let [x, y, _] = speeds.points[i];
+        let dist2 = (x - state.pos_x).powi(2) + (y - state.pos_y).powi(2);
+        if dist2 < best {
+            best = dist2;
+            here = i;
+        }
+    }
+    Some(here)
+}
+
 impl<'a> AiDriverController<'a> {
     /// Create a new AI driver controller.
     pub fn new(
@@ -245,7 +274,17 @@ impl<'a> AiDriverController<'a> {
             track_config,
             car_config,
             speed_profile: None,
+            coast_s: 0.0,
         }
+    }
+
+    /// Lift and coast for `coast_s` (up to [`MAX_FUEL_SAVE_COAST_S`])
+    /// before every point where the speed profile has the car braking: the
+    /// throttle is shut and the brake left alone, so the car rolls into the
+    /// braking zone on what it has and burns nothing but idle.
+    pub fn with_fuel_save(mut self, coast_s: f32) -> Self {
+        self.coast_s = coast_s.clamp(0.0, MAX_FUEL_SAVE_COAST_S);
+        self
     }
 
     /// Plan speeds from the car's own speed profile.
@@ -439,6 +478,13 @@ impl<'a> AiDriverController<'a> {
 
         let (throttle, brake) = self.calculate_throttle_brake(state, target_speed, skill_factor);
         let throttle = self.limit_throttle_to_grip(state, throttle);
+        // Saving fuel: off the throttle into the braking zone, on the brake
+        // only where the ordinary plan wants it.
+        let throttle = if brake <= 0.0 && state.is_on_track && self.coasting(state, d_line) {
+            0.0
+        } else {
+            throttle
+        };
         let brake = self.limit_brake_to_grip(state, brake);
         let gear = self.calculate_gear(state, skill_factor);
 
@@ -535,6 +581,25 @@ impl<'a> AiDriverController<'a> {
         state.steering_input + (steering - state.steering_input) * blend
     }
 
+    /// Whether a driver saving fuel ([`Self::with_fuel_save`]) lifts here:
+    /// the profile asks for less speed than the car has somewhere within the
+    /// coasting window ahead. Inside the braking reach the ordinary target
+    /// has the brake on, and that wins.
+    fn coasting(&self, state: &CarState, d_line: f32) -> bool {
+        let Some(speeds) = self.speed_profile else {
+            return false;
+        };
+        if self.coast_s <= 0.0 || speeds.spacing_m <= 0.0 {
+            return false;
+        }
+        let Some(here) = profile_point(state, speeds, d_line) else {
+            return false;
+        };
+        let n = speeds.points.len();
+        let steps = ((state.speed_mps * self.coast_s) / speeds.spacing_m).ceil() as usize;
+        (1..=steps.min(n)).any(|k| speeds.speed_mps[(here + k) % n] < state.speed_mps * 0.95)
+    }
+
     /// Target speed from the car's speed profile: the slowest the profile
     /// asks for between here and where the car will be once the driver has
     /// reacted, scaled by how close to the limit this driver dares to go.
@@ -551,24 +616,9 @@ impl<'a> AiDriverController<'a> {
         skill_factor: f32,
     ) -> f32 {
         let n = speeds.points.len();
-        if n == 0 || speeds.spacing_m <= 0.0 {
+        let Some(here) = profile_point(state, speeds, d_line) else {
             return state.speed_mps;
-        }
-        // The profile is the same loop resampled evenly from the same first
-        // point: the line distance is close to right, and the nearest point
-        // around it settles the rest.
-        let guess = (d_line / speeds.spacing_m).round() as i64;
-        let mut here = guess.rem_euclid(n as i64) as usize;
-        let mut best = f32::MAX;
-        for offset in -PROFILE_SEARCH_POINTS..=PROFILE_SEARCH_POINTS {
-            let i = (guess + offset).rem_euclid(n as i64) as usize;
-            let [x, y, _] = speeds.points[i];
-            let dist2 = (x - state.pos_x).powi(2) + (y - state.pos_y).powi(2);
-            if dist2 < best {
-                best = dist2;
-                here = i;
-            }
-        }
+        };
 
         // Reaction plus the time the brakes take to bite.
         let lag_s = self.profile.reaction_time_ms as f32 / 1000.0 + BRAKE_BITE_S;

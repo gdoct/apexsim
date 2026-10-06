@@ -1661,6 +1661,23 @@ namespace
 			if (!Reader.ReadFloat(*Field)) { return false; }
 			++Read;
 		}
+		// The flat spots: percent per wheel, appended after the front load.
+		for (FApexWheelFeedback& Wheel : Out.Wheels)
+		{
+			Wheel.FlatSpot = 0.0f;
+		}
+		if (FieldCount > Read)
+		{
+			const bool bFlatOk = ParseWheelArray(Reader, Out.Wheels, [](FMsgPackReader& R, FApexWheelFeedback& W)
+				{
+					uint64 Percent = 0;
+					if (!R.ReadUInt64(Percent)) { return false; }
+					W.FlatSpot = FMath::Min<uint64>(Percent, 100) / 100.0f;
+					return true;
+				});
+			if (!bFlatOk) { return false; }
+			++Read;
+		}
 
 		for (int32 Extra = Read; Extra < FieldCount; ++Extra)
 		{

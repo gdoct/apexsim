@@ -39,6 +39,13 @@ fn close(a: f32, b: f32, what: &str) {
 /// A three-lap AI race at Monza in `folder`: the session's estimate of a
 /// lap and what the AI burnt on its second (flying) lap, litres.
 fn race_burn(folder: &str) -> (f32, f32) {
+    let (lap, burn, _) = race_burn_on(folder, None);
+    (lap, burn)
+}
+
+/// [`race_burn`] with the tank set to `fuel` laps of the estimate after
+/// the fill, and the flying lap's time, s.
+fn race_burn_on(folder: &str, fuel_laps: Option<f32>) -> (f32, f32, f32) {
     let car = car(folder);
     let car_id = car.id;
     let capacity = car.fuel.capacity_liters;
@@ -69,16 +76,25 @@ fn race_burn(folder: &str) -> (f32, f32) {
         ((laps as f32 * (1.0 + RACE_FUEL_MARGIN) + RACE_FUEL_RESERVE_LAPS) * lap).min(capacity),
         "race fuel",
     );
+    if let Some(fuel_laps) = fuel_laps {
+        gs.session
+            .participants
+            .get_mut(&driver)
+            .expect("seated")
+            .fuel_liters = fuel_laps * lap;
+    }
 
     // Fuel at each crossing of the line.
     let mut at_line = Vec::new();
+    let mut lap_times = Vec::new();
     for _ in 0..(240 * 60 * 10) {
         let inputs: HashMap<PlayerId, PlayerInputData> =
             [(driver, gs.generate_ai_input(&driver))].into();
         gs.tick(&inputs);
         for out in gs.take_lap_events() {
-            if out.event.lap_time_ms.is_some() {
+            if let Some(ms) = out.event.lap_time_ms {
                 at_line.push(gs.session.participants[&driver].fuel_liters);
+                lap_times.push(ms as f32 / 1000.0);
             }
         }
         if at_line.len() >= 2 {
@@ -87,7 +103,29 @@ fn race_burn(folder: &str) -> (f32, f32) {
     }
     assert_eq!(at_line.len(), 2, "{folder}: the AI completes two laps");
     assert!(at_line[1] > 0.0, "{folder}: not dry with a lap to go");
-    (lap, at_line[0] - at_line[1])
+    (lap, at_line[0] - at_line[1], lap_times[1])
+}
+
+/// An AI that cannot reach the flag on what it carries, in a car the rules
+/// do not refuel, lifts and coasts into the braking zones: it burns less a
+/// lap, and gives up some time for it.
+#[test]
+fn an_ai_short_of_fuel_lifts_and_coasts() {
+    let (lap, full_burn, full_time) = race_burn_on("fugazzi-sf26", None);
+    // Three laps to go on 2.6 laps of fuel: 13% short.
+    let (_, short_burn, short_time) = race_burn_on("fugazzi-sf26", Some(2.6));
+    println!(
+        "lap estimate {lap:.2} L: full {full_burn:.2} L {full_time:.2} s, short {short_burn:.2} L {short_time:.2} s"
+    );
+    assert!(
+        short_burn < 0.95 * full_burn,
+        "saves fuel: {short_burn:.2} against {full_burn:.2}"
+    );
+    assert!(short_time > full_time, "and costs time");
+    assert!(
+        short_time < full_time + 6.0,
+        "but not a crawl: {short_time:.2}"
+    );
 }
 
 #[test]

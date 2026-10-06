@@ -1071,4 +1071,32 @@ bool FApexFfbWheelNotANumberTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbFlatSpotTest,
+	"ApexSim.Input.ForceFeedback.FlatSpot",
+	ApexTestFlags)
+
+bool FApexFfbFlatSpotTest::RunTest(const FString& Parameters)
+{
+	// A flat spot comes round once a turn of the wheel: about ten times a
+	// second at 20 m/s on the pad's heavy motor, faster as the car goes faster.
+	ApexFfb::FSignals Flat = Cruising(20.0f);
+	Flat.FlatSpot = 1.0f;
+	TestEqual(TEXT("round tyres are silent"), PulsesPerSecond(Cruising(20.0f)), 0);
+	const int32 Slow = PulsesPerSecond(Flat);
+	Flat.SpeedMps = 40.0f;
+	const int32 Fast = PulsesPerSecond(Flat);
+	TestTrue(FString::Printf(TEXT("a flat spot thumps %d/s at 20 m/s, %d/s at 40"), Slow, Fast),
+		Slow >= 8 && Slow <= 11 && Fast > Slow + 6);
+
+	// On a wheel it is a shake at the same rate.
+	ApexFfb::FWheelTuning Tuning;
+	const FApexWheelEffects Shake = PeakWheelVibration(Flat, Tuning);
+	TestTrue(FString::Printf(TEXT("the rim shakes (%.2f at %.1f Hz)"), Shake.VibrationAmplitude, Shake.VibrationHz),
+		Shake.VibrationAmplitude > 0.05f && FMath::IsNearlyEqual(Shake.VibrationHz, 40.0f / (2.0f * PI * 0.33f), 0.5f));
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

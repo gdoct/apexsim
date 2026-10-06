@@ -1608,16 +1608,18 @@ struct APEXSIMNET_API FApexCarTelemetry
 
 	bool HasHybrid() const { return ErsChargePct >= 0.0f; }
 
-	/** "S", "M", "H", or empty when unknown. */
+	/** "S", "M", "H", "I", "W" (server tyre_thermal::COMPOUNDS), or empty when unknown. */
 	static FString CompoundLetter(int32 InCompound)
 	{
-		return InCompound == 0 ? TEXT("S") : InCompound == 1 ? TEXT("M") : InCompound == 2 ? TEXT("H") : TEXT("");
+		static const TCHAR* Letters[] = { TEXT("S"), TEXT("M"), TEXT("H"), TEXT("I"), TEXT("W") };
+		return InCompound >= 0 && InCompound < static_cast<int32>(UE_ARRAY_COUNT(Letters)) ? Letters[InCompound] : TEXT("");
 	}
 
-	/** "SOFT", "MEDIUM", "HARD" as the garage names them, or empty when unknown. */
+	/** "SOFT" ... "WET" as the garage names them, or empty when unknown. */
 	static FString CompoundName(int32 InCompound)
 	{
-		return InCompound == 0 ? TEXT("SOFT") : InCompound == 1 ? TEXT("MEDIUM") : InCompound == 2 ? TEXT("HARD") : TEXT("");
+		static const TCHAR* Names[] = { TEXT("SOFT"), TEXT("MEDIUM"), TEXT("HARD"), TEXT("INTER"), TEXT("WET") };
+		return InCompound >= 0 && InCompound < static_cast<int32>(UE_ARRAY_COUNT(Names)) ? Names[InCompound] : TEXT("");
 	}
 };
 
@@ -1681,6 +1683,13 @@ struct FApexWheelFeedback
 
 	/** Suspension compression speed, m/s (positive compressing), largest magnitude: bumps and landings. */
 	float SuspensionMps = 0.0f;
+
+	/**
+	 * How deep a flat spot a locked wheel has ground into the tyre, 0..1 of
+	 * the worst (server tyre_thermal.rs): felt as a shake once a turn of the
+	 * wheel. 0 from a server that predates the field.
+	 */
+	float FlatSpot = 0.0f;
 };
 
 /**
@@ -1764,6 +1773,7 @@ struct APEXSIMNET_API FApexDriverFeedback
 			Mine.SlipAngle = Peak(Mine.SlipAngle, Theirs.SlipAngle);
 			Mine.SuspensionMps = Peak(Mine.SuspensionMps, Theirs.SuspensionMps);
 			Mine.Surface = FMath::Max(Mine.Surface, Theirs.Surface);
+			Mine.FlatSpot = Theirs.FlatSpot;
 		}
 		bAbsActive |= Next.bAbsActive;
 		bTcActive |= Next.bTcActive;

@@ -187,7 +187,7 @@ pub const KNOBS: [Knob; KNOB_COUNT] = [
     },
     Knob {
         name: "tyre_compound",
-        min: -1,
+        min: -3,
         max: 1,
     },
     Knob {
@@ -373,10 +373,24 @@ impl CarSetup {
         } != Self::default()
     }
 
-    /// The compound the next set is, as a `tyre_thermal::COMPOUNDS` index
-    /// (softest first).
+    /// The compound the next set is on a dry road, as a
+    /// `tyre_thermal::COMPOUNDS` index: +1 soft, 0 medium, -1 hard, -2
+    /// intermediate, -3 wet.
     pub fn compound_index(&self) -> u8 {
-        (crate::tyre_thermal::MEDIUM as i8 - self.tyre_compound.clamp(-1, 1)) as u8
+        (crate::tyre_thermal::MEDIUM as i8 - self.tyre_compound.clamp(-3, 1)) as u8
+    }
+
+    /// The compound the next set is on a road with this much `water`
+    /// (`TrackSurface::water`): the stock pick (the medium) means "the
+    /// tyre for the weather", so a driver who never opened the garage is
+    /// not sent out on slicks in the rain. Any other pick is honoured.
+    pub fn compound_index_for(&self, water: f32) -> u8 {
+        if self.tyre_compound == 0 {
+            if let Some(wet) = crate::tyre_thermal::weather_compound(water) {
+                return wet;
+            }
+        }
+        self.compound_index()
     }
 
     /// The car with this setup applied. `self` is expected clamped.
@@ -743,6 +757,32 @@ mod tests {
                 spring_front: 2,
                 ..Default::default()
             }
+        );
+    }
+
+    #[test]
+    fn the_stock_compound_is_the_weathers_and_a_pick_is_honoured() {
+        let stock = CarSetup::default();
+        assert_eq!(stock.compound_index_for(0.0), crate::tyre_thermal::MEDIUM);
+        assert_eq!(
+            stock.compound_index_for(0.5),
+            crate::tyre_thermal::INTERMEDIATE
+        );
+        assert_eq!(stock.compound_index_for(1.0), crate::tyre_thermal::WET);
+        let wets = CarSetup {
+            tyre_compound: -3,
+            ..CarSetup::default()
+        }
+        .clamp();
+        assert_eq!(wets.compound_index_for(0.0), crate::tyre_thermal::WET);
+        let softs = CarSetup {
+            tyre_compound: 1,
+            ..CarSetup::default()
+        };
+        assert_eq!(
+            softs.compound_index_for(1.0),
+            0,
+            "slicks in the rain, if asked"
         );
     }
 }

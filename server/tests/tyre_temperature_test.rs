@@ -312,8 +312,24 @@ fn a_wet_track_runs_the_tyres_cooler() {
     let (_, rain) = ai_race("posh-gt3rs", 2, wet);
     let (dry_front, dry_rear) = grip_temperatures(dry[1].tyres);
     let (wet_front, wet_rear) = grip_temperatures(rain[1].tyres);
-    println!("dry {dry_front:.1}/{dry_rear:.1}, heavy rain {wet_front:.1}/{wet_rear:.1}");
+    println!(
+        "dry {dry_front:.1}/{dry_rear:.1}, heavy rain {wet_front:.1}/{wet_rear:.1} (grip {:.3})",
+        rain[1].tyres.4
+    );
     assert!(wet_front < dry_front - 10.0 && wet_rear < dry_rear - 10.0);
+    // On the wets the rain calls for, which work cool: inside their window
+    // by the second lap, and gripping as the track was baked for them.
+    let car = car("posh-gt3rs");
+    let wets = apexsim_server::tyre_thermal::compound(apexsim_server::tyre_thermal::WET);
+    let optimum = apexsim_server::tyre_thermal::optimum_c(&car.tire_config, wets);
+    let window = car.tire_config.temperature_window_c;
+    for t in [wet_front, wet_rear] {
+        assert!(
+            (t - optimum).abs() <= window + 3.0,
+            "wets at {t:.1} °C, their window {optimum} ± {window}"
+        );
+    }
+    assert!(rain[1].tyres.4 > 0.95, "grip share {:.3}", rain[1].tyres.4);
 }
 
 /// One human seated on Monza in `folder`, the session switched to `mode`.

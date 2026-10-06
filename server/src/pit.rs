@@ -50,6 +50,13 @@ pub const AI_PIT_WEAR: f32 = 70.0;
 pub const AI_PIT_DAMAGE: f32 = 25.0;
 /// Or its engine is, percent: power it would lose for the rest of the race.
 pub const AI_PIT_ENGINE_DAMAGE: f32 = 20.0;
+/// Or, when the tank will not reach the flag, once it holds less than this
+/// many laps: the car turns in before the next lap it could not finish,
+/// as a crew runs a stint to the end of the fuel. Asked anywhere on the
+/// lap, so it reaches the lane with at least the margin over a lap left.
+/// (Stopping as soon as the race needed more than the tank put a GT3 at Le
+/// Mans in on lap 1 of 9 with 50 litres aboard.)
+pub const AI_PIT_FUEL_LAPS: f32 = 1.6;
 /// A car further than this from the lane's bounding box is not looked for
 /// on it, m; within it, a hint further off the lane than this is stale.
 pub const LANE_SEARCH_MARGIN_M: f32 = 30.0;
@@ -355,7 +362,10 @@ pub fn plan_stop(state: &CarState, laps_left: u32, lap_fuel_l: Option<f32>) -> O
     .iter()
     .any(|z| *z >= AI_PIT_DAMAGE)
         || d.engine_damage_percent >= AI_PIT_ENGINE_DAMAGE;
-    let short = lap_fuel_l.is_some_and(|lap| state.fuel_liters < lap * (laps_left as f32 + 0.8));
+    let short = lap_fuel_l.is_some_and(|lap| {
+        state.fuel_liters < lap * (laps_left as f32 + 0.8)
+            && state.fuel_liters < lap * AI_PIT_FUEL_LAPS
+    });
     if !(worn || damaged || short) {
         return None;
     }
@@ -856,7 +866,18 @@ mod tests {
         assert_eq!(plan_stop(&state, 0, Some(2.0)), None, "not on the last lap");
         state.tires.rear_left.wear_percent = 0.0;
         state.fuel_liters = 5.0;
+        assert_eq!(
+            plan_stop(&state, 4, Some(2.0)),
+            None,
+            "short of the flag, but good for two more laps: a stint runs on"
+        );
+        state.fuel_liters = 3.0;
         assert!(plan_stop(&state, 4, Some(2.0)).is_some(), "short of fuel");
+        assert_eq!(
+            plan_stop(&state, 1, Some(1.5)),
+            None,
+            "enough to the flag: no stop"
+        );
     }
 
     #[test]

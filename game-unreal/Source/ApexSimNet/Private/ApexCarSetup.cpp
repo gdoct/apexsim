@@ -35,7 +35,7 @@ namespace ApexCarSetup
 			{ "ride_height_front",   -MaxClicks, MaxClicks, 2.0f,   TEXT(" mm") },
 			{ "ride_height_rear",    -MaxClicks, MaxClicks, 2.0f,   TEXT(" mm") },
 			// Not a figure but the next set's compound: read out by name.
-			{ "tyre_compound",       -1,         1,         1.0f,   TEXT("") },
+			{ "tyre_compound",       -3,         1,         1.0f,   TEXT("") },
 			{ "brake_ducts",         -MaxClicks, MaxClicks, 10.0f,  TEXT("% air") },
 			{ "camber_front",        -MaxClicks, MaxClicks, -0.25f,  TEXT("°") },
 			{ "camber_rear",         -MaxClicks, MaxClicks, -0.25f,  TEXT("°") },
@@ -53,7 +53,8 @@ namespace ApexCarSetup
 	{
 		if (Index == TyreCompound)
 		{
-			return Clicks > 0 ? TEXT("Soft") : Clicks < 0 ? TEXT("Hard") : TEXT("Medium");
+			return Clicks > 0 ? TEXT("Soft") : Clicks == 0 ? TEXT("Medium") : Clicks == -1 ? TEXT("Hard")
+				: Clicks == -2 ? TEXT("Intermediate") : TEXT("Wet");
 		}
 		if (Clicks == 0)
 		{

@@ -127,38 +127,94 @@ pub struct Compound {
     pub wear_scale: f32,
     /// Shift of its working window, °C (a soft works cooler).
     pub optimal_shift_c: f32,
+    /// What it keeps of the road's grip on a dry road, in light rain and in
+    /// heavy rain (`TrackSurface::water` 0, 0.5, 1; linear between). The
+    /// road's own grip is baked for the tyre the weather calls for, so
+    /// that tyre reads 1.0 there: a slick in heavy rain aquaplanes, a wet
+    /// on a dry road is soft, treaded rubber that squirms.
+    pub water_grip: [f32; 3],
 }
 
-/// The compounds every car has, softest first: `CarState::tyre_compound`
-/// and the setup's `tyre_compound` knob index them.
-pub const COMPOUNDS: [Compound; 3] = [
+/// The compounds every car has, softest slick first, then the intermediate
+/// and the full wet: `CarState::tyre_compound` and the setup's
+/// `tyre_compound` knob index them.
+pub const COMPOUNDS: [Compound; 5] = [
     Compound {
         name: "soft",
         grip_scale: 1.03,
         wear_scale: 1.8,
         optimal_shift_c: -6.0,
+        water_grip: SLICK_WATER_GRIP,
     },
     Compound {
         name: "medium",
         grip_scale: 1.0,
         wear_scale: 1.0,
         optimal_shift_c: 0.0,
+        water_grip: SLICK_WATER_GRIP,
     },
     Compound {
         name: "hard",
         grip_scale: 0.97,
         wear_scale: 0.55,
         optimal_shift_c: 6.0,
+        water_grip: SLICK_WATER_GRIP,
+    },
+    Compound {
+        name: "intermediate",
+        grip_scale: 1.0,
+        wear_scale: 1.5,
+        optimal_shift_c: -25.0,
+        water_grip: [0.88, 1.0, 0.88],
+    },
+    Compound {
+        name: "wet",
+        grip_scale: 1.0,
+        wear_scale: 2.0,
+        optimal_shift_c: -35.0,
+        water_grip: [0.78, 0.95, 1.0],
     },
 ];
+/// A slick on a wet road: damp is a few seconds a lap, standing water is
+/// aquaplaning.
+const SLICK_WATER_GRIP: [f32; 3] = [1.0, 0.85, 0.6];
 /// The medium: what a car is fitted with unless someone chose otherwise.
 pub const MEDIUM: u8 = 1;
+pub const INTERMEDIATE: u8 = 3;
+pub const WET: u8 = 4;
 
 /// The compound at `index`, the medium for an index out of range.
 pub fn compound(index: u8) -> &'static Compound {
     COMPOUNDS
         .get(index as usize)
         .unwrap_or(&COMPOUNDS[MEDIUM as usize])
+}
+
+/// The tyre the weather calls for on a road with this much `water`: the
+/// intermediate in light rain, the full wet past it; `None` when dry.
+pub fn weather_compound(water: f32) -> Option<u8> {
+    if water <= 0.0 {
+        None
+    } else if water < 0.75 {
+        Some(INTERMEDIATE)
+    } else {
+        Some(WET)
+    }
+}
+
+impl Compound {
+    /// Its grip on a road with this much water (0 dry .. 1 heavy rain), as
+    /// a multiplier on the car's tyre.
+    pub fn grip_on(&self, water: f32) -> f32 {
+        let w = water.clamp(0.0, 1.0) * 2.0;
+        let [dry, light, heavy] = self.water_grip;
+        let wet = if w <= 1.0 {
+            dry + (light - dry) * w
+        } else {
+            light + (heavy - light) * (w - 1.0)
+        };
+        self.grip_scale * wet
+    }
 }
 
 /// Wear, percent of the tread, per megajoule the patch dissipates sliding
@@ -172,6 +228,26 @@ const HOT_WEAR_PER_C: f32 = 0.04;
 const WEAR_LINEAR_LOSS: f32 = 0.06;
 const WEAR_CLIFF_START: f32 = 0.7;
 const WEAR_CLIFF_LOSS: f32 = 0.24;
+
+/// A wheel turning this much slower than the road (slip ratio, braking) is
+/// locked: one patch of its tread scrubs the road and the rest rests.
+pub const LOCK_SLIP_RATIO: f32 = 0.9;
+/// Flat spot depth (0..1) per megajoule a locked wheel's patch dissipates,
+/// on a medium: a second locked from 50 m/s on a loaded front (some
+/// 0.2 MJ) leaves a third of the way to the worst.
+const FLAT_SPOT_PER_MJ: f32 = 1.5;
+/// Below this the wheel is crawling, m/s: nothing to grind.
+const FLAT_SPOT_MIN_SPEED_MPS: f32 = 3.0;
+/// Grip the deepest flat spot costs: the patch is not round any more and
+/// rides off the road once a turn.
+const FLAT_SPOT_GRIP_LOSS: f32 = 0.04;
+/// What a punctured tyre keeps of its grip, on its carcass.
+pub const PUNCTURE_GRIP: f32 = 0.35;
+/// The pressure a punctured tyre reads, kPa.
+pub const PUNCTURED_KPA: f32 = 15.0;
+/// Rolling resistance of a punctured tyre, as a share of its load: a flat
+/// tyre's carcass and rim drag on the road.
+pub const PUNCTURE_ROLLING_RESISTANCE: f32 = 0.08;
 
 /// Grip left in a tyre `wear_percent` worn.
 pub fn wear_grip_factor(wear_percent: f32) -> f32 {
@@ -192,6 +268,10 @@ pub struct TyreWork {
     pub load_n: f32,
     /// Speed of the wheel along the road, m/s.
     pub speed_mps: f32,
+    /// Speed of the air over the tyre, m/s: the airflow through the wind
+    /// and the wake of a car ahead, which is what cools it (the road under
+    /// it arrives at `speed_mps`).
+    pub air_mps: f32,
 }
 
 impl TyreWork {
@@ -269,9 +349,15 @@ pub fn grip_multiplier(
     compound: &Compound,
     set_kpa: f32,
     tyre: &TireData,
+    water: f32,
 ) -> f32 {
     let optimum = optimum_c(tire, compound);
-    let used = compound.grip_scale * wear_grip_factor(tyre.wear_percent);
+    let used = compound.grip_on(water)
+        * wear_grip_factor(tyre.wear_percent)
+        * (1.0 - FLAT_SPOT_GRIP_LOSS * tyre.flat_spot.clamp(0.0, 1.0));
+    if tyre.punctured {
+        return PUNCTURE_GRIP * tire.pressure_grip_factor(set_kpa) * used;
+    }
     if tyre.core_temperature_c == optimum && tyre.temperature_c == optimum {
         return tire.pressure_grip_factor(set_kpa) * used;
     }
@@ -299,15 +385,26 @@ fn set_pressures(tire: &TireConfig) -> [f32; 4] {
 /// temperatures and wear. The grip share is against a new medium in its
 /// window at its set pressure, so 1.0 is "as good as the setup makes it"
 /// (a fresh soft is a little over).
-fn refresh(tyre: &mut TireData, tire: &TireConfig, compound: &Compound, set_kpa: f32) {
-    tyre.pressure_kpa = pressure_kpa(tire, compound, set_kpa, tyre.core_temperature_c);
+fn refresh(tyre: &mut TireData, tire: &TireConfig, compound: &Compound, set_kpa: f32, water: f32) {
+    tyre.pressure_kpa = if tyre.punctured {
+        PUNCTURED_KPA
+    } else {
+        pressure_kpa(tire, compound, set_kpa, tyre.core_temperature_c)
+    };
     let best = tire.pressure_grip_factor(set_kpa).max(1e-3);
-    tyre.grip_factor = grip_multiplier(tire, compound, set_kpa, tyre) / best;
+    tyre.grip_factor = grip_multiplier(tire, compound, set_kpa, tyre, water) / best;
 }
 
 /// Put a new set of `compound` (a [`COMPOUNDS`] index) on a car, at
-/// `temperature_c` right through, as it is sent out on them.
-pub fn fit(state: &mut CarState, tire: &TireConfig, temperature_c: f32, compound_index: u8) {
+/// `temperature_c` right through, as it is sent out on them, onto a road
+/// with this much `water`.
+pub fn fit(
+    state: &mut CarState,
+    tire: &TireConfig,
+    temperature_c: f32,
+    compound_index: u8,
+    water: f32,
+) {
     let index = if (compound_index as usize) < COMPOUNDS.len() {
         compound_index
     } else {
@@ -318,7 +415,9 @@ pub fn fit(state: &mut CarState, tire: &TireConfig, temperature_c: f32, compound
         tyre.temperature_c = temperature_c;
         tyre.core_temperature_c = temperature_c;
         tyre.wear_percent = 0.0;
-        refresh(tyre, tire, c, set);
+        tyre.flat_spot = 0.0;
+        tyre.punctured = false;
+        refresh(tyre, tire, c, set, water);
     }
     state.tyre_compound = index;
     state.tyres_fitted = true;
@@ -371,7 +470,7 @@ pub fn step(
     let tread = tyre.temperature_c;
     let core = tyre.core_temperature_c;
 
-    let to_air = TREAD_AIR_STILL + TREAD_AIR_FORCED * v.powf(0.8);
+    let to_air = TREAD_AIR_STILL + TREAD_AIR_FORCED * work.air_mps.abs().powf(0.8);
     let wet = if surface.wet { WET_ROAD_FACTOR } else { 1.0 };
     // The patch only touches the road with a load on it.
     let to_road = if work.load_n > 1.0 {
@@ -402,7 +501,18 @@ pub fn step(
         * tire.wear_rate.max(0.0)
         * (1.0 + HOT_WEAR_PER_C * over);
     tyre.wear_percent = (tyre.wear_percent + wear).min(100.0);
-    refresh(tyre, tire, compound, set_kpa);
+    // Worn through, it lets go of its air.
+    if tyre.wear_percent >= 100.0 {
+        tyre.punctured = true;
+    }
+    // A locked wheel grinds one patch of its tread flat (softer rubber
+    // faster).
+    if work.slip_ratio <= -LOCK_SLIP_RATIO && v > FLAT_SPOT_MIN_SPEED_MPS {
+        let grind = work.fx.abs() * work.slip_ratio.abs().min(1.0) * v;
+        tyre.flat_spot =
+            (tyre.flat_spot + FLAT_SPOT_PER_MJ * grind * dt * 1e-6 * compound.wear_scale).min(1.0);
+    }
+    refresh(tyre, tire, compound, set_kpa, surface.water);
 }
 
 /// Advance all four tyres, FL FR RL RR.
@@ -510,12 +620,12 @@ mod tests {
             core_temperature_c: t.optimal_temperature_c,
             ..Default::default()
         };
-        assert_eq!(grip_multiplier(&t, &M, 180.0, &data), 1.0);
+        assert_eq!(grip_multiplier(&t, &M, 180.0, &data, 0.0), 1.0);
         assert_eq!(
-            grip_multiplier(&t, &M, 190.0, &data),
+            grip_multiplier(&t, &M, 190.0, &data, 0.0),
             t.pressure_grip_factor(190.0)
         );
-        refresh(&mut data, &t, &M, 190.0);
+        refresh(&mut data, &t, &M, 190.0, 0.0);
         assert_eq!(data.grip_factor, 1.0, "as good as the setup makes it");
         assert_eq!(data.pressure_kpa, 190.0);
     }
@@ -541,6 +651,7 @@ mod tests {
             slip_angle_rad: 0.5,
             load_n: 3300.0,
             speed_mps: 25.0,
+            air_mps: 25.0,
             ..Default::default()
         };
         let (gripping, sliding) = understeer.power_split_w(&t);
@@ -555,6 +666,7 @@ mod tests {
             slip_ratio: -1.0,
             load_n: 3300.0,
             speed_mps: 40.0,
+            air_mps: 40.0,
             ..Default::default()
         };
         let hot = heat(&locked);
@@ -565,6 +677,7 @@ mod tests {
             slip_angle_rad: t.optimal_slip_angle_rad,
             load_n: 3300.0,
             speed_mps: 25.0,
+            air_mps: 25.0,
             ..Default::default()
         };
         assert!(at_peak.power_split_w(&t).1.abs() < 1e-3);
@@ -585,6 +698,7 @@ mod tests {
             slip_angle_rad: 0.25,
             load_n: 5_000.0,
             speed_mps: 40.0,
+            air_mps: 40.0,
             ..Default::default()
         };
         for _ in 0..(240 * 2) {
@@ -602,6 +716,7 @@ mod tests {
         let straight = TyreWork {
             load_n: 4_000.0,
             speed_mps: 80.0,
+            air_mps: 80.0,
             ..Default::default()
         };
         for _ in 0..(240 * 5) {
@@ -629,6 +744,7 @@ mod tests {
             slip_angle_rad: 2.0f32.to_radians(),
             load_n: 6_500.0,
             speed_mps: 70.0,
+            air_mps: 70.0,
             ..Default::default()
         };
         assert!((corner.slide_power_w() - 22_000.0).abs() < 500.0);
@@ -649,6 +765,7 @@ mod tests {
         let straight = TyreWork {
             load_n: 5_000.0,
             speed_mps: 75.0,
+            air_mps: 75.0,
             ..Default::default()
         };
         for _ in 0..(240 * 5) {
@@ -694,6 +811,7 @@ mod tests {
         let roll = TyreWork {
             load_n: 4_000.0,
             speed_mps: 50.0,
+            air_mps: 50.0,
             ..Default::default()
         };
         let run = |surface: &TrackSurface| {
@@ -722,5 +840,129 @@ mod tests {
             grid_temperature_c(&t, &surface),
             70.0 + FORMATION_LAP_WARMTH * (t.optimal_temperature_c - 70.0)
         );
+    }
+
+    #[test]
+    fn slower_air_cools_less_so_a_tow_or_a_tailwind_runs_hotter() {
+        let t = tyre();
+        let surface = TrackSurface::default();
+        let run = |air_mps: f32| {
+            let mut data = TireData {
+                temperature_c: 95.0,
+                core_temperature_c: 95.0,
+                ..Default::default()
+            };
+            let roll = TyreWork {
+                fy: 3_000.0,
+                slip_angle_rad: 0.03,
+                load_n: 4_000.0,
+                speed_mps: 60.0,
+                air_mps,
+                ..Default::default()
+            };
+            for _ in 0..(240 * 30) {
+                step(&mut data, &roll, &t, &M, 180.0, &surface, 1.0 / 240.0);
+            }
+            data.temperature_c
+        };
+        // Clean air at the car's speed, then 70% of it (a close tow).
+        let clean = run(60.0);
+        let towed = run(42.0);
+        assert!(towed > clean + 1.0, "{clean:.1} -> {towed:.1}");
+    }
+
+    #[test]
+    fn a_locked_wheel_grinds_a_flat_spot_and_a_worn_tyre_lets_go() {
+        let t = tyre();
+        let surface = TrackSurface::default();
+        let opt = t.optimal_temperature_c;
+        let mut data = TireData {
+            temperature_c: opt,
+            core_temperature_c: opt,
+            ..Default::default()
+        };
+        refresh(&mut data, &t, &M, 180.0, 0.0);
+        let fresh = data.grip_factor;
+        // Braking hard at the peak: no flat spot.
+        let braking = TyreWork {
+            fx: -6_000.0,
+            slip_ratio: -t.optimal_slip_ratio,
+            load_n: 6_000.0,
+            speed_mps: 50.0,
+            air_mps: 50.0,
+            ..Default::default()
+        };
+        for _ in 0..240 {
+            step(&mut data, &braking, &t, &M, 180.0, &surface, 1.0 / 240.0);
+        }
+        assert_eq!(data.flat_spot, 0.0);
+        // A second locked from 50 m/s.
+        let locked = TyreWork {
+            slip_ratio: -1.0,
+            ..braking
+        };
+        for _ in 0..240 {
+            step(&mut data, &locked, &t, &M, 180.0, &surface, 1.0 / 240.0);
+        }
+        assert!(
+            (0.2..0.7).contains(&data.flat_spot),
+            "a second's lock: {}",
+            data.flat_spot
+        );
+        let spotted = TireData {
+            temperature_c: opt,
+            core_temperature_c: opt,
+            flat_spot: 1.0,
+            ..Default::default()
+        };
+        let loss = 1.0 - grip_multiplier(&t, &M, 180.0, &spotted, 0.0) / fresh;
+        assert!((loss - FLAT_SPOT_GRIP_LOSS).abs() < 1e-4, "{loss}");
+
+        // Worn through, the tyre punctures: most of its grip and its air go.
+        data.wear_percent = 99.999;
+        for _ in 0..240 {
+            step(&mut data, &braking, &t, &M, 180.0, &surface, 1.0 / 240.0);
+        }
+        assert!(data.punctured);
+        assert_eq!(data.pressure_kpa, PUNCTURED_KPA);
+        assert!(data.grip_factor < 0.4, "{}", data.grip_factor);
+
+        // A new set clears both.
+        let mut car = CarState::new(
+            uuid::Uuid::nil(),
+            uuid::Uuid::nil(),
+            &crate::data::GridSlot {
+                position: 1,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            },
+        );
+        car.tires.front_left = data;
+        fit(&mut car, &t, opt, MEDIUM, 0.0);
+        assert!(!car.tires.front_left.punctured);
+        assert_eq!(car.tires.front_left.flat_spot, 0.0);
+    }
+
+    #[test]
+    fn the_weathers_tyre_grips_as_the_road_was_baked_and_slicks_aquaplane() {
+        let medium = compound(MEDIUM);
+        let inter = compound(INTERMEDIATE);
+        let wet = compound(WET);
+        // Dry: the medium is the car's tyre; the treaded tyres squirm.
+        assert_eq!(medium.grip_on(0.0), 1.0);
+        assert!(inter.grip_on(0.0) < 0.9 && wet.grip_on(0.0) < inter.grip_on(0.0));
+        // Light rain is the intermediate's, heavy the wet's: exactly what
+        // the road was baked for.
+        assert_eq!(inter.grip_on(0.5), 1.0);
+        assert_eq!(wet.grip_on(1.0), 1.0);
+        assert!(inter.grip_on(0.5) > wet.grip_on(0.5));
+        assert!(inter.grip_on(0.5) > medium.grip_on(0.5));
+        // A slick in standing water is little better than a sledge.
+        assert!(medium.grip_on(1.0) <= 0.6);
+        assert_eq!(weather_compound(0.0), None);
+        assert_eq!(weather_compound(0.5), Some(INTERMEDIATE));
+        assert_eq!(weather_compound(1.0), Some(WET));
     }
 }

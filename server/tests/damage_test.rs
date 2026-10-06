@@ -152,3 +152,49 @@ fn an_engine_past_its_heat_limit_wears_out_and_a_blown_one_stops() {
     let speed = drive(blown, 90.0, 30.0, flat_out, 1.0, |s, _| s.speed_mps);
     assert!(speed <= 30.0, "a blown engine drives nothing: {speed}");
 }
+
+/// A car out of the race stands where it stopped for a few seconds, then is
+/// towed to its pit box: out of the way, out of the collision passes.
+#[test]
+fn a_retired_car_is_towed_to_its_box() {
+    let out = DamageState {
+        is_drivable: false,
+        engine_damage_percent: 100.0,
+        ..Default::default()
+    };
+    let idle = PlayerInputData::default();
+    let (still, towed_early) = drive(out, 90.0, 0.0, idle, 5.0, |s, (x, y, _)| {
+        (
+            ((s.pos_x - x).powi(2) + (s.pos_y - y).powi(2)).sqrt(),
+            s.towed,
+        )
+    });
+    assert!(
+        still < 0.01 && !towed_early,
+        "stands where it stopped at first"
+    );
+    let track = TrackLoader::load_from_file("../content/tracks/default/Monza.yaml").expect("Monza");
+    let Some(lane) = track.pit_lane.as_ref() else {
+        return;
+    };
+    let (towed, at_box) = drive(
+        out,
+        90.0,
+        0.0,
+        idle,
+        apexsim_server::game_session::TOW_AFTER_S + 1.0,
+        |s, _| {
+            let spot = lane.box_at(s.pit.box_index.unwrap_or(0));
+            (
+                s.towed,
+                ((s.pos_x - spot.x).powi(2) + (s.pos_y - spot.y).powi(2)).sqrt(),
+            )
+        },
+    );
+    assert!(
+        towed,
+        "towed after {} s",
+        apexsim_server::game_session::TOW_AFTER_S
+    );
+    assert!(at_box < 0.01, "{at_box} m from its box");
+}

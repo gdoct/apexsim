@@ -84,7 +84,7 @@ namespace
 	const FTabSpec TabSpecs[] = { { TEXT("TYRES") }, { TEXT("SUSPENSION") }, { TEXT("ENGINE") }, { TEXT("LOAD / SAVE") } };
 	static_assert(UE_ARRAY_COUNT(TabSpecs) == static_cast<int32>(EApexGarageTab::Count), "a label per tab");
 
-	/** The three compounds, softest first: what `tyre_thermal::COMPOUNDS` does to the car's own tyre. */
+	/** The compounds, softest slick first, then the treaded tyres: what `tyre_thermal::COMPOUNDS` does to the car's own tyre. */
 	struct FCompoundSpec
 	{
 		int32 Clicks;
@@ -98,10 +98,14 @@ namespace
 	const FCompoundSpec Compounds[] = {
 		{ 1,  TEXT("SOFT"),   TEXT("Most grip, shortest life."),  TEXT("+3% GRIP  ·  1.8x WEAR  ·  WINDOW -6°C"),
 			FLinearColor::FromSRGBColor(FColor(0xE0, 0x4B, 0x3C)), 0.94f, 0.30f },
-		{ 0,  TEXT("MEDIUM"), TEXT("The car's own tyre."),        TEXT("AS FILED"),
+		{ 0,  TEXT("MEDIUM"), TEXT("The car's own tyre."),        TEXT("AS FILED  ·  IN THE RAIN, THE WEATHER'S TYRE"),
 			FLinearColor::FromSRGBColor(FColor(0xE8, 0xBA, 0x3A)), 0.80f, 0.55f },
 		{ -1, TEXT("HARD"),   TEXT("Slow to warm, lasts longest."), TEXT("-3% GRIP  ·  0.55x WEAR  ·  WINDOW +6°C"),
 			Ink, 0.66f, 1.00f },
+		{ -2, TEXT("INTER"),  TEXT("A damp or drying track."),    TEXT("BEST IN LIGHT RAIN  ·  -12% DRY  ·  WINDOW -25°C"),
+			FLinearColor::FromSRGBColor(FColor(0x3C, 0xB0, 0x4B)), 0.50f, 0.40f },
+		{ -3, TEXT("WET"),    TEXT("Standing water."),            TEXT("BEST IN HEAVY RAIN  ·  -22% DRY  ·  WINDOW -35°C"),
+			FLinearColor::FromSRGBColor(FColor(0x2F, 0x7F, 0xE0)), 0.35f, 0.30f },
 	};
 
 	/** "1:32.104", or dashes for no time. */
@@ -131,7 +135,8 @@ namespace
 
 	FString CompoundName(int32 Clicks)
 	{
-		return Clicks > 0 ? TEXT("SOFT") : Clicks < 0 ? TEXT("HARD") : TEXT("MEDIUM");
+		return Clicks > 0 ? TEXT("SOFT") : Clicks == 0 ? TEXT("MEDIUM") : Clicks == -1 ? TEXT("HARD")
+			: Clicks == -2 ? TEXT("INTER") : TEXT("WET");
 	}
 
 	/** A number with a fixed count of decimals. */
@@ -623,7 +628,7 @@ UWidget* UApexHotlapWidget::BuildTyresPage()
 		FApexButtonSpec Spec;
 		Spec.Variant = EApexButtonVariant::Panel;
 		Spec.ActionId = ActionCompound;
-		Spec.Height = 128.0f;
+		Spec.Height = 104.0f;
 		Spec.Sound = EApexUiSound::Adjust;
 		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
 		Button->Setup(Spec);
@@ -648,9 +653,10 @@ UWidget* UApexHotlapWidget::BuildTyresPage()
 			AddH(Line, ShareBar(*WidgetTree, Bar.Value, Ink), FMargin(), VAlign_Center, 1.0f);
 			AddV(Content, Line, FMargin(0.0f, 3.0f));
 		}
-		AddV(Right, ButtonWithContent(*WidgetTree, Button, Content, FMargin(20.0f, 0.0f)), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+		AddV(Right, ButtonWithContent(*WidgetTree, Button, Content, FMargin(20.0f, 0.0f)), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
 	}
-	AddH(Page, MakeSized(*WidgetTree, Right, SidePanelWidth, -1.0f), FMargin(36.0f, 0.0f, 0.0f, 0.0f), VAlign_Top);
+	// Five tyres: the column scrolls on a short screen.
+	AddH(Page, MakeSized(*WidgetTree, ScrollPage(*WidgetTree, Right), SidePanelWidth, -1.0f), FMargin(36.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
 	PageDefaults.Add(SetupSteppers.FindRef(ApexCarSetup::TyrePressureFront));
 	return Page;

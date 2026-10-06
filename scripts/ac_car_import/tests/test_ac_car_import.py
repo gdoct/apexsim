@@ -354,6 +354,46 @@ class ThermalWindowTest(unittest.TestCase):
         self.assertEqual((optimum, window, falloff), (100.0, 50.0, 0.0))
 
 
+class GeometryImportTest(unittest.TestCase):
+    """suspensions.ini's points as the server's camber gain and toe."""
+
+    @staticmethod
+    def wishbones(upper_inner_x: float, upper_inner_y: float = 0.20) -> dict:
+        return {"FRONT": {
+            "TYPE": "DWB",
+            "WBCAR_BOTTOM_FRONT": "0.30, -0.10, 0.20", "WBCAR_BOTTOM_REAR": "0.30, -0.10, -0.20",
+            "WBTYRE_BOTTOM": "0.00, -0.10, 0.00",
+            "WBCAR_TOP_FRONT": f"{upper_inner_x}, {upper_inner_y}, 0.20",
+            "WBCAR_TOP_REAR": f"{upper_inner_x}, {upper_inner_y}, -0.20",
+            "WBTYRE_TOP": "0.00, 0.20, 0.00",
+            "WBTYRE_STEER": "0.00, 0.00, 0.10",
+            "TOE_OUT": "0.001",
+        }}
+
+    def test_parallel_equal_arms_gain_nothing_and_a_short_upper_arm_does(self):
+        parallel = physics.camber_gain(self.wishbones(0.30), "FRONT", 1.6)
+        self.assertIsNotNone(parallel)
+        self.assertAlmostEqual(parallel, 0.0, places=3)
+        # A short upper arm inclined up to the upright: bump pulls its top in.
+        short = physics.camber_gain(self.wishbones(0.15, 0.12), "FRONT", 1.6)
+        self.assertTrue(0.1 < short <= 1.0, short)
+
+    def test_a_strut_gains_some(self):
+        strut = {"FRONT": {
+            "TYPE": "STRUT",
+            "WBCAR_BOTTOM_FRONT": "0.30, -0.10, 0.20", "WBCAR_BOTTOM_REAR": "0.30, -0.10, -0.20",
+            "WBTYRE_BOTTOM": "0.00, -0.10, 0.00", "STRUT_CAR": "0.05, 0.45, 0.00",
+        }}
+        gain = physics.camber_gain(strut, "FRONT", 1.6)
+        self.assertTrue(gain is not None and 0.0 < gain < 1.0, gain)
+        self.assertIsNone(physics.camber_gain({"FRONT": {"TYPE": "DWB"}}, "FRONT", 1.6))
+
+    def test_toe_out_over_the_steering_arm_is_toe_in_degrees(self):
+        # 1 mm of TOE_OUT on a 10 cm arm: a third of a degree... of toe-out.
+        toe = physics.toe_in_deg(self.wishbones(0.30), "FRONT")
+        self.assertAlmostEqual(toe, -math.degrees(math.atan(0.001 / 0.1)), places=4)
+
+
 class AeroPostureTest(unittest.TestCase):
     def test_the_heave_model_is_the_servers(self):
         # server/src/aero.rs the_bump_rubbers_hold_the_car_off_the_road:

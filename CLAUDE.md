@@ -2497,11 +2497,26 @@ car, so `CarSetup::apply` leaves it alone and `changes_car()` (not
 once only in a hotlap garage or before the start (lobby, countdown);
 anywhere else it waits for the next time the car is fuelled, never mid-lap.
 
-**The AI plans laden**: its speed profile is built at a race's starting
-load (`build_laden`), the heaviest the car will be, so it only gets quicker
-than the plan as the tank drains; its grip budget reads the laden mass. The
-player's racing line is still planned dry (`racing_line::build`). Neither is
-rebuilt as the fuel burns — a follow-up if the gap matters.
+**The AI plans laden**: every AI car model gets eleven speed profiles when
+it is seated, one per tenth of its tank (`AI_FUEL_PLAN_STEPS`,
+`build_laden`, about a millisecond each), and a car drives the one for the
+next tenth up from what it carries (`GameSession::ai_speed_profile`), so
+it gets quicker as the tank drains and is never planned lighter than it
+is; its grip budget reads the laden mass. The player's racing line is
+still planned dry (`racing_line::build`).
+
+**Fuel saving** (2026-10-06): an AI in a race that cannot reach the flag
+on what it carries, in a car that will not be refuelled (an F1, or no pit
+lane), lifts and coasts before every braking zone the profile has
+(`AiDriverController::with_fuel_save`: the throttle shut, the brake left
+to the ordinary plan), for `FUEL_SAVE_COAST_S_PER_SHORT` (10 s) per share
+of the fuel it is short, at most `MAX_FUEL_SAVE_COAST_S` (2 s)
+(`GameSession::fuel_save_coast_s`). An F1 at Monza 13% short burns 7.5%
+less a lap for 1.3 s (`fuel_test` `an_ai_short_of_fuel_lifts_and_coasts`).
+A car that refuels is the pit plan's: it runs its stint until the tank
+holds less than `pit::AI_PIT_FUEL_LAPS` (1.6) laps and stops then; it used
+to stop the moment the race needed more than a tank, which put a GT3 at
+Le Mans in on lap 1 of 9 with 50 litres aboard.
 
 **Wire**: `CompactCarState.fuel_dl` (u16, tenths of a litre) appended after
 `lap_flags`; `FApexCarTelemetry::FuelLiters` (-1 from an older server). The
@@ -2812,12 +2827,28 @@ Golden bytes: `cargo test conditions_air_wire_format -- --nocapture` ->
 The next package of docs/SIMULATION_GAPS.md. **Compounds**: every car has
 `tyre_thermal::COMPOUNDS`, soft / medium / hard as changes to its own tyre
 (soft +3% grip, 1.8x wear, window 6 °C lower; hard 0.97, 0.55x, 6 °C
-higher; the medium is the tyre exactly, so every calibration holds).
+higher; the medium is the tyre exactly, so every calibration holds), and
+since 2026-10-06 an **intermediate** (1.5x wear, window 25 °C lower) and a
+**wet** (2x, 35 °C lower). Which grips is the road's water
+(`TrackSurface::water`, `Weather::water`: 0 dry, 0.5 light rain, 1 heavy):
+the weather's baked road grip (0.86 light, 0.74 heavy) is the grip on the
+tyre the weather calls for (`tyre_thermal::weather_compound`: inters in
+light rain, wets in heavy), and `Compound::grip_on(water)` charges any
+other on top (`water_grip`, dry / light / heavy, linear between: a slick
+0.85 damp and 0.6 in standing water, an inter 0.88 dry, a wet 0.78 dry and
+0.95 damp). In the dry a treaded tyre also runs far over its window and
+wears from the heat. At Monza in heavy rain the GT3's wets sit at 40-50 °C
+in their 52 ± 10 window with grip share 0.99
+(`a_wet_track_runs_the_tyres_cooler`).
 `CarState::tyre_compound` is what is on the car, set when a set is fitted
-(`tyre_thermal::fit`, which also zeroes the wear); the setup's twentieth
-knob `tyre_compound` (-1 hard, 0 medium, +1 soft; `CarSetup::
-compound_index`, like the fuel load not baked into the car) chooses the
-*next* set: in the hotlap garage, on the grid, at a stop. **Wear** grows
+(`tyre_thermal::fit`, which also zeroes the wear, the flat spots and a
+puncture); the setup's twentieth knob `tyre_compound` (+1 soft, 0 medium,
+-1 hard, -2 intermediate, -3 wet; `CarSetup::compound_index_for(water)`,
+like the fuel load not baked into the car) chooses the *next* set: in the
+hotlap garage, on the grid, at a stop. The stock pick (0) is the
+weather's tyre in the rain, so a driver who never opened the garage is not
+sent out on slicks; any other pick is honoured. The AI always takes the
+weather's tyre, and a car nobody fitted starts on it. **Wear** grows
 with the same friction power that heats the tread
 (`WEAR_PERCENT_PER_MJ` 7, x the compound, x `[tires] wear_rate`, 4% more a
 degree over the window) and costs grip (`wear_grip_factor`: 6% across
@@ -2827,6 +2858,27 @@ medium wears 2.5-3.5% a lap at the AI's pace (the hypercars' hot fronts
 the most). The old stateless `wear_percent` in `update_telemetry_3d` is
 gone.
 
+**Flat spots and punctures** (2026-10-06). A wheel braking past
+`LOCK_SLIP_RATIO` (0.9) above 3 m/s grinds one patch of its tread:
+`TireData::flat_spot` (0..1) grows by 1.5 per megajoule the locked patch
+dissipates, times the compound's wear (a second locked from 50 m/s on a
+loaded front is about a third), costs up to 4% of the grip, and never
+wears round again until the set is changed. It reaches the driver as
+`DriverFeedback.flat_spot` ([u8;4], percent, appended after `front_load`):
+the client's wheel plays it as a shake at the wheel's turning rate
+(speed / (2π · 0.33 m)) on the vibration channel, the pad as a thump on
+the heavy motor once a turn (`FSignals::FlatSpot`, the fronts' fully and
+the rears' at half). A tyre worn to 100% **punctures**
+(`TireData::punctured`): `PUNCTURE_GRIP` (0.35) of its grip, its pressure
+reads `PUNCTURED_KPA` (15), and its carcass drags at
+`PUNCTURE_ROLLING_RESISTANCE` (0.08 of its load) through the same per-wheel
+rolling-resistance path as the grass. The AI's wear threshold has it in
+long before. Golden bytes: `cargo test driver_feedback_wire_format --
+--nocapture` -> `ApexUdpGolden::S_DriverFeedbackFlatSpot` (the 13-field
+`S_DriverFeedback` stays as an older server's). Tests:
+`tyre_thermal::tests`, `ApexSim.Input.ForceFeedback.FlatSpot`,
+`ApexSim.Net.Udp.GoldenDecode`.
+
 **The pit lane** reaches the server as a sidecar `ats-export` writes
 beside the YAML (`ue_export::PitSidecar`, gitignored like the others,
 shipped by `build_release.ps1`; `Sidecar::Pit`): the lane's centerline
@@ -2834,6 +2886,17 @@ every 2 m, the limit lines and the box row, a stop spot in the middle of
 each box's working lane, and the track stations where the lane leaves and
 rejoins. 26 of 27 shipped circuits have one (not the Nordschleife); AC
 imports have none yet. `TrackConfig::pit_lane` (`pit::PitLane`).
+
+The lane is a surface on both road backends. The road mesh draws it
+(`RoadContact::PitLane`); on the centerline backend, which knows nothing
+past the road and its bands, a point past the road edge within half the
+lane's width of the sidecar's middle is the lane
+(`physics::on_pit_lane_strip`). Until 2026-10-06 that backend read the
+lane as grass, and it is the one every offline tool loads (the guide, the
+showcase renders, the AI survey, both pit surveys): every stop they drove
+was on grass grip and drag, and the limiter test passed only because the
+grass slowed its car. `the_pit_lane_is_a_pit_lane_without_the_road_mesh`
+checks every box and every 10 m between the lines on every circuit.
 
 **Pit lanes a car can drive** (2026-10-04). The dossier's lane used to be
 taken as mapped, and on most circuits nothing could get in: Zandvoort's,
@@ -3000,8 +3063,11 @@ figures are gone; `engine_temp_c` is the coolant, the oil follows with a
 minute's lag) heated by 0.9 W per watt of combustion power plus idle,
 cooled by a radiator sized per car (`engine_heat::radiator_conductance`:
 at 65% of peak power, 60 m/s and 25 °C air it holds 95 °C; `[engine]
-radiator_scale` shrinks or grows it) through the air the car meets, times
-`wake.drag`, so a long tow runs it hotter; a fan below 6 m/s. Past 112 °C
+radiator_scale` shrinks or grows it) through the air the car meets (the
+wind's included, since 2026-10-06), times `wake.drag`, so a long tow or a
+tailwind runs it hotter; a fan below 6 m/s. The tyres are cooled by the
+same air (`TyreWork::air_mps`; it used to be the ground speed), so a close
+follower's tyres run a little hotter too. Past 112 °C
 the engine gives up 2% of its torque a degree (`power_factor`, floor 60%).
 At Monza the classes settle at 84-101 °C. Cars go out at 80 °C.
 
@@ -3039,8 +3105,19 @@ be inert until 80% front or engine parked the car, and a hit cost at most
   up to 0.025 rad (`toe_offset_rad`): at 60% left a GT3 hands-off drifts
   10 m left in 2 s. Engine: up to 40% of the power
   (`engine_power_factor`, 16% at half). All exactly 1.0 undamaged.
+- **Engine wear** (2026-10-06): `damage::engine_wear`, 3% an hour at the
+  rev limit falling with the sixth power of the revs (a quarter of the
+  engine over 24 hours at racing revs), scaled by the session's damage
+  rule like every accrual. A stop's repair takes it off with the rest.
 - **Out** when any zone reaches 100% (`DamageState::refresh`); the car
-  stops where it is (`update_car_3d` returns early) and is not towed off.
+  stops where it is (`update_car_3d` returns early), and after
+  `TOW_AFTER_S` (10 s) it is **towed** (`GameSession::update_retirements`,
+  first in `update_air`): moved to its own pit box when the track has a
+  lane (where the client goes on drawing it), and either way out of the
+  car-car and wall passes, the slipstream snapshot, the DRS gaps and the
+  pit lane's bookkeeping (`CarState::towed`; a repair clears it). The
+  driver's `standings` HUD component says OUT for a retired car, as the
+  spectator tower did.
 - **The AI** feels the aero through `aero_load_share` (now measured
   against the *undamaged* car, so the loss shows) and plans a stop at 25%
   in any body zone or 20% engine (`pit::AI_PIT_DAMAGE`,
@@ -3060,8 +3137,13 @@ be inert until 80% front or engine parked the car, and a hit cost at most
   telemetry_compact_wire_format -- --nocapture` -> `ApexUdpGolden::
   S_TelemetryCompactDamage`.
 
+Kerb, bottoming and landing damage was measured and not built: on the
+road mesh no AI car reaches full travel or leaves the ground over a lap,
+and the compression speeds are led by single-tick spikes where the mesh
+steps (docs/SIMULATION_GAPS.md).
+
 Tests: `damage::tests`, `tests/damage_test.rs` (the pull, the power, the
-heat). The survey against the brake-heat run: contact 22 637 car-seconds
+heat, `a_retired_car_is_towed_to_its_box`). The survey against the brake-heat run: contact 22 637 car-seconds
 against 23 397, off 12 020 against 11 779, and no car retired on any
 shipped circuit in its 3 minutes (it prints `retired N` per race now);
 the player's AC imports, whose AI already spends hundreds of car-seconds
@@ -3100,6 +3182,35 @@ damage, `apexsim.car.DamageEffects 0` keeps only the dents, and
 an unattended run (damage arriving mid-race, so the parts fly on camera).
 Tests: `ApexSim.Cars.Damage.*` (TOML, split, shares, emitters, debris,
 puffs, every repo car's parts).
+
+### Suspension geometry (`geometry.rs`, `[suspension]` geometry keys, knobs 22-25)
+
+Camber, toe and bump stops on the four vertical spring/damper units. The
+body's roll is worked out from the lateral load and the roll stiffness
+(`geometry::body_roll_rad`); each wheel's camber against the road is its
+static camber plus the roll, less what the linkage gains back
+(`camber_gain_*`: 0 a beam, ~0.5 a double wishbone), less the carcass's
+lean under side load. Lateral grip peaks at a lean into the corner of
+`OPTIMAL_LEAN_DEG` (2°) and falls away quadratically; braking and traction
+lose a little with any camber (`camber_grip`). Both are normalised to the
+car as filed at its reference cornering, so a car at its filed camber
+grips exactly as its car.toml says (the Monza AI laps moved under 0.15 s);
+a car.toml without camber keys has no camber model
+(`Geometry::camber_modelled`, `CarSetupSheet.CamberModelled`, and the
+garage hides the row). Toe (degrees per wheel, positive in) steers each
+wheel: the fronts on top of the steering, the rears on their own.
+`bump_stop_gap_m` past the static laden compression and
+`bump_stop_rate_n_per_m` add the stop's force (`bump_stop_force_n`).
+Every shipped car.toml carries `camber_*_deg`, `camber_gain_*`,
+`toe_*_deg` and the bump stops; the AC importer maps `STATIC_CAMBER`, the
+camber gain from the wishbone or strut points (`physics.camber_gain`),
+`TOE_OUT` over the steering arm and `BUMP_STOP_RATE` (`GeometryImportTest`).
+Setup: `camber_front` / `camber_rear` (0.25° a click) and `toe_front` /
+`toe_rear`, the 22nd-25th knobs, in the hotlap garage's Suspension tab.
+Golden bytes: `cargo test car_setup_wire_format -- --nocapture` ->
+`ApexGolden::C_SetCarSetup`. Tests: `geometry::tests`,
+`tests/geometry_test.rs` (more camber brakes later to a stop, camber away
+from the best corners worse, rear toe-in costs speed on the straight).
 
 ### Hybrid deployment (`hybrid.rs`, `PlayerInput.ers_mode` / `ers_boost`)
 
@@ -3305,7 +3416,9 @@ soft limit (so a saturated corner still has a road under it), scaled by Road
 effects, speed (full at 40 m/s), `front_load^0.7` (braking passes more of the
 road up) and 3x off track. **Braking grain**: the fronts' braking slip from
 half to all of their peak (`FrontBrakeSlip`) is a 62 Hz grain on the
-vibration channel, under the ABS pulse train.
+vibration channel, under the ABS pulse train. **A flat spot**
+(`DriverFeedback.flat_spot`, see "Tyre wear, compounds and pit stops") is
+a shake at the wheel's turning rate on the same channel.
 
 `UApexPlayerController` logs a `Wheel forces over 15 s driving:` line (torque
 in, constant force out, how often at the base's limit, the correction, the
