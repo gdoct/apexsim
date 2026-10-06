@@ -318,9 +318,10 @@ void UApexHudDataSubsystem::Refresh()
 
 	if (Flow)
 	{
-		// A hotlap has no distance: laps are counted, never counted down. The
-		// race on screen says its own; before it does, the host's choice.
-		In.LapLimit = In.GameMode == EApexGameMode::Hotlap ? 0
+		// A hotlap (or qualifying) has no distance: laps are counted, never
+		// counted down. The race on screen says its own; before it does, the
+		// host's choice.
+		In.LapLimit = ApexIsGarageMode(In.GameMode) ? 0
 			: HudLapLimit >= 0 ? HudLapLimit
 			: (bSpectating || bBackdrop) ? 0
 			: Flow->EffectiveRaceSeconds() > 0 ? 0

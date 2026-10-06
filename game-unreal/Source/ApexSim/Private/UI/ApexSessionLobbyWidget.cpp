@@ -40,6 +40,7 @@ namespace
 		EApexGameMode::FreePractice,
 		EApexGameMode::Race,
 		EApexGameMode::Hotlap,
+		EApexGameMode::Qualification,
 		EApexGameMode::Sandbox,
 	};
 

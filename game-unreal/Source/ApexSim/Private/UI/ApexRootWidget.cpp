@@ -252,6 +252,7 @@ void UApexRootWidget::BuildShell()
 	Hud = WidgetTree->ConstructWidget<UApexHudWidget>();
 	HotlapPanel = WidgetTree->ConstructWidget<UApexHotlapWidget>();
 	HotlapPanel->OnAction.AddDynamic(this, &UApexRootWidget::HandleHotlapAction);
+	HotlapPanel->OnWatchCar.AddDynamic(this, &UApexRootWidget::HandleHotlapWatch);
 	GuidePanel = WidgetTree->ConstructWidget<UApexTrackGuideWidget>();
 	PauseMenu = WidgetTree->ConstructWidget<UApexPauseMenuWidget>();
 	PauseMenu->OnAction.AddDynamic(this, &UApexRootWidget::HandlePauseAction);
@@ -1094,6 +1095,36 @@ void UApexRootWidget::SetGarageOpen(bool bOpen)
 	RequestFocusDefault();
 }
 
+void UApexRootWidget::HandleHotlapWatch(int32 CarIndex)
+{
+	// The qualifying scoreboard's click: the race director's spectator camera
+	// on that car (it is a live session, the local car in its garage), and
+	// back to the driver's own view when the scoreboard lets go.
+	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	if (!Director)
+	{
+		return;
+	}
+	if (CarIndex == INDEX_NONE)
+	{
+		if (Director->IsSpectating())
+		{
+			Director->SetSpectating(false);
+		}
+		return;
+	}
+	if (!Director->IsSpectating())
+	{
+		Director->SetSpectating(true);
+	}
+	Director->FocusCar(CarIndex);
+	if (HotlapPanel)
+	{
+		HotlapPanel->SetWatchCameraLabel(ApexSpectate::CameraName(Director->GetSpectatorCamera()));
+	}
+	ApexUiAudio::Play(this, EApexUiSound::Move);
+}
+
 void UApexRootWidget::HandleHotlapAction(EApexHotlapAction Action)
 {
 	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
@@ -1106,6 +1137,20 @@ void UApexRootWidget::HandleHotlapAction(EApexHotlapAction Action)
 		{
 			Net->HotlapRelocate(EApexHotlapDestination::Track,
 				Settings && Settings->Get() && Settings->Get()->bHotlapColdTyres);
+		}
+		break;
+
+	case EApexHotlapAction::CycleWatchCamera:
+		if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
+		{
+			if (Director->IsSpectating())
+			{
+				Director->CycleSpectatorCamera();
+				if (HotlapPanel)
+				{
+					HotlapPanel->SetWatchCameraLabel(ApexSpectate::CameraName(Director->GetSpectatorCamera()));
+				}
+			}
 		}
 		break;
 
@@ -1160,15 +1205,22 @@ void UApexRootWidget::HandleTelemetryForHotlap(const FApexTelemetryFrame& Frame)
 	{
 		return;
 	}
-	const bool bHotlap = Frame.GameMode == EApexGameMode::Hotlap;
+	// Hotlap and qualifying share the garage; qualifying adds the scoreboard.
+	const bool bHotlap = ApexIsGarageMode(Frame.GameMode);
+	const bool bQualifying = Frame.GameMode == EApexGameMode::Qualification;
+	if (bHotlap && HotlapPanel && HotlapPanel->IsQualifying() != bQualifying)
+	{
+		HotlapPanel->SetQualifying(bQualifying);
+	}
 	if (bHotlap != bHotlapSession)
 	{
 		bHotlapSession = bHotlap;
 		if (HotlapPanel)
 		{
+			HotlapPanel->SetQualifying(bQualifying);
 			HotlapPanel->SetActive(bHotlap);
 		}
-		if (bHotlap && Net)
+		if (bHotlap && !bQualifying && Net)
 		{
 			// The stored record lap's trace, for the ghost and the replay.
 			const_cast<UApexNetSubsystem*>(Net)->RequestGhost();

@@ -1662,8 +1662,36 @@ qualified (`@ai:N`), and any other human by name
 on the profile, resets when the pending track changes, and goes out through
 `UApexMenuFlowSubsystem::GridOrderToSend` (empty when it is just the
 seating order) from both the create screen and the main menu's one-click
-start. Not done: a qualifying length and results screen (docs/
-SIMULATION_GAPS.md).
+start.
+
+**Qualifying is a hotlap garage with an outlap** (2026-10-06).
+`GameMode::Qualification` runs `tick_hotlap` like `Hotlap`
+(`ApexIsGarageMode` on the client): every human starts in the garage,
+frozen and out of the collision passes, the AI drive on, and
+`hotlap_relocate` serves both. The differences: `Track` puts the car at
+the pit exit (`qualifying_outlap_pose`: the pit sidecar's `exit_station_m`
+when it is past the line, else `QUALIFYING_OUT_PAST_LINE_M` (30 m) past the
+line, queued `HOTLAP_SPACING_M` apart for several drivers; a teleport, not a
+drive down the lane), on cold tyres whatever the TYRES OUT toggle says (the
+outlap is the warm-up), and `CarState::outlap` is set, which stops
+`update_track_progress_3d` starting lap 1 ten per cent of the way round (its
+rule for a car placed past the line): lap 1 starts when the car next crosses
+the line, so nothing is timed until the first full lap is done
+(`qualifying_goes_out_for_a_full_outlap_before_the_first_timed_lap`). The
+client's garage (`UApexHotlapWidget::SetQualifying`) says QUALIFYING, drops
+REPLAY LAP / GHOST CAR / TYRES OUT, and has a **TUNE | SCOREBOARD** pair in
+its header. The scoreboard takes the place of the setup sheet: a column
+(`BuildBoard`) of every car fastest legal lap first
+(`ApexBoard::Build`, `Race/ApexQualifyingBoard.h`: roster + the newest
+telemetry's best / last lap and garage flag, pure and tested), refreshed four
+times a second, with the view clear beside it. Clicking a driver calls
+`OnWatchCar` and the root widget points the race director's spectator camera
+at that car (`SetSpectating(true)` + `FocusCar`; the camera button cycles
+TV / chase / onboard; a second click, TUNE, or going out stops watching and
+`SetSpectating(false)`). The lobby can start a Qualification session. Console
+/ screenshot helpers: `apexsim.hotlap.Board [0|1]`, `apexsim.hotlap.Watch N`,
+`-ApexAutoRace -ApexMode=6`. Not done: a qualifying length and results
+screen, race-style HUD standings in qualifying (docs/SIMULATION_GAPS.md).
 
 ### Lap timing: sectors, track limits and records (`laps.rs`, `records.rs`)
 

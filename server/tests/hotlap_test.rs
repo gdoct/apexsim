@@ -149,6 +149,65 @@ fn going_out_puts_the_car_on_the_run_up_and_the_lap_starts_at_the_line() {
     );
 }
 
+/// Qualifying runs like a hotlap (garage first, going out on request) but a
+/// car leaves just past the line, so its first crossing of it is the end of
+/// a full outlap: nothing is timed until then, and the lap after it is the
+/// first timed one, which classifies the driver.
+#[test]
+fn qualifying_goes_out_for_a_full_outlap_before_the_first_timed_lap() {
+    let (mut gs, ids) = hotlap_session(1);
+    let driver = ids[0];
+    gs.set_game_mode(GameMode::Qualification);
+    assert!(
+        gs.session.participants[&driver].in_garage,
+        "qualifying starts in the garage too"
+    );
+    let length = laps::track_length_m(&gs.track_config);
+
+    gs.hotlap_relocate(&driver, HotlapDestination::Track, false)
+        .expect("out onto the track");
+    let state = &gs.session.participants[&driver];
+    assert!(!state.in_garage);
+    assert!(
+        state.track_progress < length * 0.1,
+        "it leaves just past the line, not before it: station {:.0} of {length:.0}",
+        state.track_progress
+    );
+    let tyre = &gs.car_configs[&state.car_config_id].tire_config;
+    assert!(
+        state.tires.front_left.temperature_c < tyre.optimal_temperature_c - 20.0,
+        "the outlap is the warm-up: it leaves on cold tyres"
+    );
+
+    let mut first_crossing = None;
+    let mut timed = None;
+    for tick in 0..(HZ * 400) {
+        let inputs: HashMap<PlayerId, PlayerInputData> =
+            [(driver, gs.cooldown_input(&driver))].into();
+        gs.tick(&inputs);
+        let state = &gs.session.participants[&driver];
+        if first_crossing.is_none() && state.current_lap == 1 {
+            first_crossing = Some(tick);
+            assert!(state.best_lap_time_ms.is_none(), "the outlap is not timed");
+        }
+        if state.best_lap_time_ms.is_some() {
+            timed = Some(tick);
+            break;
+        }
+    }
+    let first = first_crossing.expect("the outlap should end at the line");
+    assert!(
+        first > HZ * 60,
+        "a whole lap, not a few metres: crossed after {} s",
+        first / HZ
+    );
+    timed.expect("the first flying lap should be timed");
+    // The server's tick loop offers every legal lap to the classification.
+    let best = gs.session.participants[&driver].best_lap_time_ms.unwrap();
+    assert!(gs.note_qualifying_lap(driver, best).is_some());
+    assert_eq!(gs.qualifying_order(), vec![driver]);
+}
+
 /// GO OUT normally fits the tyres at the compound's optimum (and warm
 /// brakes); asked for cold tyres, the car goes out as from the garage, on
 /// its blankets or at the air, and the first lap is the warm-up.

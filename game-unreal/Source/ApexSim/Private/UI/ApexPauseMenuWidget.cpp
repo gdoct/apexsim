@@ -224,7 +224,7 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 				? FString::Printf(TEXT("%d:%02d:%02d left"), Left / 3600, Left / 60 % 60, Left % 60)
 				: FString::Printf(TEXT("%d:%02d left"), Left / 60, Left % 60));
 		}
-		bOnTrackInHotlap = Net->GetGameMode() == EApexGameMode::Hotlap && !Local->bInGarage;
+		bOnTrackInHotlap = ApexIsGarageMode(Net->GetGameMode()) && !Local->bInGarage;
 	}
 	if (GarageRow)
 	{

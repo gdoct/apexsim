@@ -8,6 +8,7 @@
 #include "ApexSim.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
+#include "Race/ApexQualifyingBoard.h"
 #include "Components/Border.h"
 #include "Components/EditableTextBox.h"
 #include "Components/HorizontalBox.h"
@@ -47,6 +48,10 @@ namespace
 	constexpr float GearChartHeight = 230.0f;
 
 	constexpr float SheetWidth = 330.0f;
+	/** The scoreboard's column and its rows (a grid is twenty cars). */
+	constexpr float BoardWidth = 600.0f;
+	constexpr int32 BoardRowCount = 20;
+	constexpr float BoardRowHeight = 34.0f;
 	/** Laps kept on the sheet; older ones scroll off the top. */
 	constexpr int32 SheetRowCount = 10;
 
@@ -57,6 +62,10 @@ namespace
 	const FName ActionResetSetup = TEXT("Hotlap.Reset");
 	const FName ActionGarageSaveReplay = TEXT("Hotlap.SaveReplay");
 	const FName ActionTab        = TEXT("Hotlap.Tab");
+	const FName ActionTune       = TEXT("Hotlap.Page.Tune");
+	const FName ActionBoard      = TEXT("Hotlap.Page.Board");
+	const FName ActionWatch      = TEXT("Hotlap.Watch");
+	const FName ActionWatchCamera = TEXT("Hotlap.WatchCamera");
 	const FName ActionCompound   = TEXT("Hotlap.Compound");
 	const FName ActionSave       = TEXT("Hotlap.Save");
 	const FName ActionPickSaved  = TEXT("Hotlap.PickSaved");
@@ -223,6 +232,38 @@ static FAutoConsoleCommand GHotlapTabCommand(
 		}
 	}));
 
+// `apexsim.hotlap.Board [0|1]` opens (or closes) the qualifying scoreboard and
+// `apexsim.hotlap.Watch N` watches the Nth row's car, for screenshots and checks.
+static FAutoConsoleCommand GHotlapBoardCommand(
+	TEXT("apexsim.hotlap.Board"),
+	TEXT("Open (1, the default) or close (0) the qualifying garage's scoreboard."),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+	{
+		const bool bOpen = Args.Num() == 0 || FCString::Atoi(*Args[0]) != 0;
+		for (TObjectIterator<UApexHotlapWidget> It; It; ++It)
+		{
+			if (It->GetWorld())
+			{
+				It->SetBoardOpen(bOpen);
+			}
+		}
+	}));
+
+static FAutoConsoleCommand GHotlapWatchCommand(
+	TEXT("apexsim.hotlap.Watch"),
+	TEXT("Watch the car on a scoreboard row (0-based), from the qualifying garage."),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+	{
+		const int32 Row = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0;
+		for (TObjectIterator<UApexHotlapWidget> It; It; ++It)
+		{
+			if (It->GetWorld())
+			{
+				It->WatchRow(Row);
+			}
+		}
+	}));
+
 UApexHotlapWidget::UApexHotlapWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -240,6 +281,14 @@ void UApexHotlapWidget::NativeOnInitialized()
 	UOverlaySlot* GarageSlot = Layers->AddChildToOverlay(Garage);
 	GarageSlot->SetHorizontalAlignment(HAlign_Fill);
 	GarageSlot->SetVerticalAlignment(VAlign_Fill);
+
+	// The scoreboard stands in for the garage card in qualifying: a column on
+	// the right with the view clear beside it, for the car being watched.
+	BoardLayer = BuildBoard();
+	UOverlaySlot* BoardSlot = Layers->AddChildToOverlay(BoardLayer);
+	BoardSlot->SetHorizontalAlignment(HAlign_Right);
+	BoardSlot->SetVerticalAlignment(VAlign_Fill);
+	BoardSlot->SetPadding(FMargin(0.0f, CardInset, CardInset, CardInset));
 
 	TimingPanel = BuildTimingPanel();
 	UOverlaySlot* SheetSlot = Layers->AddChildToOverlay(TimingPanel);
@@ -271,6 +320,20 @@ void UApexHotlapWidget::NativeOnInitialized()
 	}
 	ApplyTab();
 	ApplyView();
+}
+
+void UApexHotlapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	if (View == EApexHotlapView::Garage && bQualifying && bBoardOpen)
+	{
+		BoardRefreshIn -= InDeltaTime;
+		if (BoardRefreshIn <= 0.0f)
+		{
+			BoardRefreshIn = 0.25f;
+			RefreshBoard();
+		}
+	}
 }
 
 void UApexHotlapWidget::NativeConstruct()
@@ -451,13 +514,21 @@ UWidget* UApexHotlapWidget::BuildGarageHeader()
 	UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>();
 
 	UVerticalBox* Title = WidgetTree->ConstructWidget<UVerticalBox>();
-	AddV(Title, Caption(*WidgetTree, TEXT("Hotlap"), Palette::Accent));
+	GarageCaption = Caption(*WidgetTree, TEXT("Hotlap"), Palette::Accent);
+	AddV(Title, GarageCaption);
 	UHorizontalBox* TitleLine = WidgetTree->ConstructWidget<UHorizontalBox>();
 	AddH(TitleLine, MakeText(*WidgetTree, TEXT("GARAGE"), Font::Display(44.0f, 10), Ink), FMargin(), VAlign_Bottom);
 	GarageSubtitle = MakeText(*WidgetTree, FString(), Font::Mono(13.0f, 60), Ink.CopyWithNewOpacity(0.75f));
 	AddH(TitleLine, GarageSubtitle, FMargin(22.0f, 0.0f, 0.0f, 8.0f), VAlign_Bottom);
 	AddV(Title, TitleLine, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 	AddH(Header, Title, FMargin(), VAlign_Center, 1.0f);
+	UApexButtonWidget* Tune = nullptr;
+	UApexButtonWidget* Board = nullptr;
+	GaragePageToggle = BuildPageToggle(Tune, Board);
+	GarageTuneButton = Tune;
+	GarageBoardButton = Board;
+	GaragePageToggle->SetVisibility(ESlateVisibility::Collapsed);
+	AddH(Header, GaragePageToggle, FMargin(0.0f, 0.0f, 12.0f, 0.0f), VAlign_Center);
 
 	UVerticalBox* Setup = WidgetTree->ConstructWidget<UVerticalBox>();
 	AddV(Setup, Caption(*WidgetTree, TEXT("Setup")), FMargin(), HAlign_Right);
@@ -500,9 +571,98 @@ UWidget* UApexHotlapWidget::BuildActionColumn()
 		TEXT("The car spawns on the run-up before the line, so the first lap is a flying one. Fuel and tyres are put in here, in the garage."),
 		Font::Body(14.0f), InkMuted);
 	Note->SetAutoWrapText(true);
+	GarageNote = Note;
 	AddV(Column, Note);
 
 	return MakePanel(*WidgetTree, Column, FMargin(24.0f, 26.0f), MakeBrush(FLinearColor::Transparent));
+}
+
+UWidget* UApexHotlapWidget::BuildPageToggle(UApexButtonWidget*& OutTune, UApexButtonWidget*& OutBoard)
+{
+	UHorizontalBox* Pair = WidgetTree->ConstructWidget<UHorizontalBox>();
+	OutTune = MakeActionButton(TEXT("TUNE"), FString(), ActionTune, EApexButtonVariant::Ghost, 42.0f, 14.0f);
+	OutBoard = MakeActionButton(TEXT("SCOREBOARD"), FString(), ActionBoard, EApexButtonVariant::Ghost, 42.0f, 14.0f);
+	AddH(Pair, MakeSized(*WidgetTree, OutTune, 92.0f, 42.0f), FMargin(), VAlign_Center);
+	AddH(Pair, MakeSized(*WidgetTree, OutBoard, 146.0f, 42.0f), FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+	return Pair;
+}
+
+UWidget* UApexHotlapWidget::BuildBoard()
+{
+	UVerticalBox* Card = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>();
+	UVerticalBox* Title = WidgetTree->ConstructWidget<UVerticalBox>();
+	AddV(Title, Caption(*WidgetTree, TEXT("Qualifying"), Palette::Accent));
+	AddV(Title, MakeText(*WidgetTree, TEXT("SCOREBOARD"), Font::Display(28.0f, 10), Ink), FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+	AddH(Head, Title, FMargin(), VAlign_Center, 1.0f);
+	UApexButtonWidget* Tune = nullptr;
+	UApexButtonWidget* Board = nullptr;
+	AddH(Head, BuildPageToggle(Tune, Board), FMargin(), VAlign_Center);
+	BoardTuneButton = Tune;
+	BoardBoardButton = Board;
+	AddV(Card, MakePanel(*WidgetTree, Head, FMargin(24.0f, 18.0f), MakeBrush(FLinearColor::Transparent)));
+	AddV(Card, Rule(*WidgetTree));
+
+	// Column captions over the rows.
+	UHorizontalBox* Captions = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddH(Captions, MakeSized(*WidgetTree, Caption(*WidgetTree, TEXT("P")), 44.0f, -1.0f));
+	AddH(Captions, Caption(*WidgetTree, TEXT("Driver")), FMargin(), VAlign_Center, 1.0f);
+	AddH(Captions, MakeSized(*WidgetTree, Caption(*WidgetTree, TEXT("Best")), 120.0f, -1.0f));
+	AddH(Captions, MakeSized(*WidgetTree, Caption(*WidgetTree, TEXT("Gap")), 84.0f, -1.0f));
+	AddH(Captions, MakeSized(*WidgetTree, Caption(*WidgetTree, TEXT("")), 78.0f, -1.0f));
+	AddV(Card, MakePanel(*WidgetTree, Captions, FMargin(24.0f, 12.0f, 24.0f, 6.0f), MakeBrush(FLinearColor::Transparent)));
+
+	UVerticalBox* Rows = WidgetTree->ConstructWidget<UVerticalBox>();
+	BoardRowButtons.Reset();
+	BoardRowRoots.Reset();
+	BoardPos.Reset();
+	BoardName.Reset();
+	BoardBest.Reset();
+	BoardGap.Reset();
+	BoardState.Reset();
+	BoardCars.Init(INDEX_NONE, BoardRowCount);
+	for (int32 Index = 0; Index < BoardRowCount; ++Index)
+	{
+		UApexButtonWidget* Button = MakeActionButton(FString(), FString(), ActionWatch, EApexButtonVariant::Panel, BoardRowHeight, 14.0f);
+		UHorizontalBox* Cells = WidgetTree->ConstructWidget<UHorizontalBox>();
+		UTextBlock* Pos = MakeText(*WidgetTree, FString(), Font::Mono(12.0f), InkMuted);
+		UTextBlock* Name = MakeText(*WidgetTree, FString(), Font::Display(17.0f), Ink);
+		UTextBlock* Best = MakeText(*WidgetTree, FString(), Font::Mono(13.0f), Ink);
+		UTextBlock* Gap = MakeText(*WidgetTree, FString(), Font::Mono(12.0f), InkMuted);
+		UTextBlock* State = MakeText(*WidgetTree, FString(), Font::Mono(10.0f, 80), InkFaint);
+		AddH(Cells, MakeSized(*WidgetTree, Pos, 44.0f, -1.0f), FMargin(), VAlign_Center);
+		AddH(Cells, Name, FMargin(), VAlign_Center, 1.0f);
+		AddH(Cells, MakeSized(*WidgetTree, Best, 120.0f, -1.0f), FMargin(), VAlign_Center);
+		AddH(Cells, MakeSized(*WidgetTree, Gap, 84.0f, -1.0f), FMargin(), VAlign_Center);
+		AddH(Cells, MakeSized(*WidgetTree, State, 78.0f, -1.0f), FMargin(), VAlign_Center);
+		UOverlay* Row = ButtonWithContent(*WidgetTree, Button, Cells, FMargin(14.0f, 0.0f));
+		BoardRowButtons.Add(Button);
+		BoardRowRoots.Add(Row);
+		BoardPos.Add(Pos);
+		BoardName.Add(Name);
+		BoardBest.Add(Best);
+		BoardGap.Add(Gap);
+		BoardState.Add(State);
+		AddV(Rows, MakeSized(*WidgetTree, Row, -1.0f, BoardRowHeight), FMargin(0.0f, 0.0f, 0.0f, 2.0f));
+	}
+	AddV(Card, MakePanel(*WidgetTree, ScrollPage(*WidgetTree, Rows), FMargin(24.0f, 0.0f), MakeBrush(FLinearColor::Transparent)),
+		FMargin(), HAlign_Fill, 1.0f);
+
+	AddV(Card, Rule(*WidgetTree));
+	UVerticalBox* Foot = WidgetTree->ConstructWidget<UVerticalBox>();
+	BoardHint = MakeText(*WidgetTree, TEXT("CLICK A DRIVER TO WATCH THEIR CAR"), Font::Mono(11.0f, 60), InkMuted);
+	AddV(Foot, BoardHint, FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+	UHorizontalBox* FootButtons = WidgetTree->ConstructWidget<UHorizontalBox>();
+	BoardCameraButton = MakeActionButton(TEXT("CAMERA"), TEXT("TV"), ActionWatchCamera, EApexButtonVariant::Panel, 46.0f, 15.0f);
+	AddH(FootButtons, BoardCameraButton, FMargin(), VAlign_Fill, 1.0f);
+	BoardGoOutButton = MakeActionButton(TEXT("GO OUT FOR A LAP"), FString(), ActionGoOut, EApexButtonVariant::Primary, 46.0f, 15.0f);
+	AddH(FootButtons, BoardGoOutButton, FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+	AddV(Foot, FootButtons);
+	AddV(Card, MakePanel(*WidgetTree, Foot, FMargin(24.0f, 12.0f), MakeBrush(FLinearColor::Transparent)));
+
+	UBorder* Panel = MakePanel(*WidgetTree, Card, FMargin(), MakeBrush(CardFill, Outline, 1.0f));
+	return MakeSized(*WidgetTree, Panel, BoardWidth, -1.0f);
 }
 
 UWidget* UApexHotlapWidget::BuildTabBar()
@@ -839,7 +999,8 @@ UWidget* UApexHotlapWidget::BuildTimingPanel()
 	UVerticalBox* Sheet = WidgetTree->ConstructWidget<UVerticalBox>();
 
 	UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>();
-	AddH(Head, MakeLabel(*WidgetTree, TEXT("Hotlap"), Palette::Accent), FMargin(), VAlign_Center, 1.0f);
+	SheetTitle = MakeLabel(*WidgetTree, TEXT("Hotlap"), Palette::Accent);
+	AddH(Head, SheetTitle, FMargin(), VAlign_Center, 1.0f);
 	SheetLiveLabel = MakeText(*WidgetTree, TEXT("OUT LAP"), Font::Mono(10.0f, 120), Palette::TextMuted);
 	AddH(Head, SheetLiveLabel, FMargin(), VAlign_Center);
 	AddV(Sheet, Head);
@@ -943,10 +1104,7 @@ void UApexHotlapWidget::ApplyView()
 	SetVisibility(bShown
 		? (View == EApexHotlapView::Garage ? ESlateVisibility::Visible : ESlateVisibility::HitTestInvisible)
 		: ESlateVisibility::Collapsed);
-	if (Garage)
-	{
-		Garage->SetVisibility(View == EApexHotlapView::Garage ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-	}
+	ApplyPage();
 	if (TimingPanel)
 	{
 		// The garage covers the screen; the sheet is for the track.
@@ -959,6 +1117,181 @@ void UApexHotlapWidget::ApplyView()
 	if (TrackHint)
 	{
 		TrackHint->SetVisibility(View == EApexHotlapView::Track ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+}
+
+void UApexHotlapWidget::ApplyPage()
+{
+	const bool bGarageUp = View == EApexHotlapView::Garage;
+	const bool bBoard = bGarageUp && bQualifying && bBoardOpen;
+	if (Garage)
+	{
+		Garage->SetVisibility(bGarageUp && !bBoard ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (BoardLayer)
+	{
+		BoardLayer->SetVisibility(bBoard ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (GaragePageToggle)
+	{
+		GaragePageToggle->SetVisibility(bQualifying ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	for (UApexButtonWidget* Tune : { GarageTuneButton.Get(), BoardTuneButton.Get() })
+	{
+		if (Tune) { Tune->SetSelected(!bBoardOpen); }
+	}
+	for (UApexButtonWidget* Board : { GarageBoardButton.Get(), BoardBoardButton.Get() })
+	{
+		if (Board) { Board->SetSelected(bBoardOpen); }
+	}
+	if (!bBoard)
+	{
+		// The sheet is back, or the car is out: the view is the driver's again.
+		StopWatching();
+	}
+	else
+	{
+		RefreshBoard();
+	}
+}
+
+void UApexHotlapWidget::StopWatching()
+{
+	if (WatchedCar != INDEX_NONE)
+	{
+		WatchedCar = INDEX_NONE;
+		OnWatchCar.Broadcast(INDEX_NONE);
+	}
+}
+
+void UApexHotlapWidget::SetQualifying(bool bInQualifying)
+{
+	if (bQualifying == bInQualifying)
+	{
+		return;
+	}
+	bQualifying = bInQualifying;
+	if (!bQualifying)
+	{
+		bBoardOpen = false;
+	}
+	ApplyQualifyingRows();
+	ApplyPage();
+}
+
+void UApexHotlapWidget::ApplyQualifyingRows()
+{
+	// Qualifying: no record-lap replay or ghost, and the tyres always leave
+	// cold (the outlap is the warm-up); the title and the note say so.
+	const ESlateVisibility HotlapOnly = bQualifying ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
+	for (UApexButtonWidget* Button : { ReplayButton.Get(), GhostButton.Get(), TyresButton.Get() })
+	{
+		if (Button)
+		{
+			Button->SetVisibility(HotlapOnly);
+		}
+	}
+	if (SheetTitle)
+	{
+		SheetTitle->SetText(FText::FromString(bQualifying ? TEXT("QUALIFYING") : TEXT("HOTLAP")));
+	}
+	if (GarageCaption)
+	{
+		GarageCaption->SetText(FText::FromString(bQualifying ? TEXT("QUALIFYING") : TEXT("HOTLAP")));
+	}
+	if (GarageNote)
+	{
+		GarageNote->SetText(FText::FromString(bQualifying
+			? TEXT("The car leaves the pit exit on cold tyres and drives a whole outlap: the first lap over the line is the warm-up, the next one is timed. Tune here, or watch the scoreboard.")
+			: TEXT("The car spawns on the run-up before the line, so the first lap is a flying one. Fuel and tyres are put in here, in the garage.")));
+	}
+	if (GoOutButton)
+	{
+		GoOutButton->SetLabel(bQualifying ? TEXT("GO OUT FOR A LAP") : TEXT("GO OUT ON TRACK"));
+	}
+}
+
+void UApexHotlapWidget::SetBoardOpen(bool bOpen)
+{
+	bOpen = bOpen && bQualifying;
+	if (bBoardOpen == bOpen)
+	{
+		return;
+	}
+	bBoardOpen = bOpen;
+	ApplyPage();
+	// Focus follows the page: the first driver, or the way out.
+	if (bBoardOpen)
+	{
+		if (BoardRowButtons.IsValidIndex(0))
+		{
+			ApexNav::Focus(BoardRowButtons[0]);
+		}
+	}
+	else
+	{
+		FocusDefault();
+	}
+}
+
+void UApexHotlapWidget::WatchRow(int32 Row)
+{
+	if (bBoardOpen && BoardCars.IsValidIndex(Row) && BoardCars[Row] != INDEX_NONE)
+	{
+		WatchedCar = BoardCars[Row];
+		OnWatchCar.Broadcast(WatchedCar);
+		RefreshBoard();
+	}
+}
+
+void UApexHotlapWidget::SetWatchCameraLabel(const FString& Label)
+{
+	WatchCameraLabel = Label;
+	if (BoardCameraButton)
+	{
+		BoardCameraButton->SetBadge(Label, Palette::TextPrimary);
+	}
+}
+
+void UApexHotlapWidget::RefreshBoard()
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (!Net)
+	{
+		return;
+	}
+	const TArray<ApexBoard::FRow> Rows = ApexBoard::Build(
+		Net->GetSessionRoster().Entries, Net->GetLatestTelemetry().Cars, Net->GetLocalCarIndex());
+	FString WatchedName;
+	for (int32 Index = 0; Index < BoardRowButtons.Num(); ++Index)
+	{
+		const bool bUsed = Rows.IsValidIndex(Index);
+		BoardRowRoots[Index]->SetVisibility(bUsed ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		BoardCars[Index] = bUsed ? Rows[Index].CarIndex : INDEX_NONE;
+		if (!bUsed)
+		{
+			continue;
+		}
+		const ApexBoard::FRow& Row = Rows[Index];
+		BoardPos[Index]->SetText(FText::FromString(Row.Position > 0 ? FString::FromInt(Row.Position) : FString(TEXT("-"))));
+		BoardName[Index]->SetText(FText::FromString(Row.bYou ? Row.Name + TEXT("  (YOU)") : Row.Name));
+		BoardName[Index]->SetColorAndOpacity(Row.bYou ? Palette::Accent : Ink);
+		BoardBest[Index]->SetText(FText::FromString(FormatMs(Row.BestMs)));
+		BoardBest[Index]->SetColorAndOpacity(Row.Position == 1 ? Purple : Ink);
+		BoardGap[Index]->SetText(FText::FromString(Row.Position > 1 ? FormatDelta(Row.GapMs, 0) : FString()));
+		BoardState[Index]->SetText(FText::FromString(Row.bInGarage ? TEXT("GARAGE") : TEXT("ON TRACK")));
+		BoardRowButtons[Index]->SetSelected(Row.CarIndex == WatchedCar);
+		if (Row.CarIndex == WatchedCar)
+		{
+			WatchedName = Row.Name;
+		}
+	}
+	if (BoardHint)
+	{
+		BoardHint->SetText(FText::FromString(WatchedCar == INDEX_NONE
+			? FString(TEXT("CLICK A DRIVER TO WATCH THEIR CAR"))
+			: FString::Printf(TEXT("WATCHING %s · CLICK AGAIN TO STOP"), *WatchedName.ToUpper())));
 	}
 }
 
@@ -1003,6 +1336,11 @@ void UApexHotlapWidget::ApplyTab()
 
 void UApexHotlapWidget::FocusDefault()
 {
+	if (View == EApexHotlapView::Garage && bQualifying && bBoardOpen && BoardRowButtons.IsValidIndex(0))
+	{
+		ApexNav::Focus(BoardRowButtons[0]);
+		return;
+	}
 	if (View != EApexHotlapView::Garage || !(GoOutButton && ApexNav::Focus(GoOutButton)))
 	{
 		SetKeyboardFocus();
@@ -1011,7 +1349,7 @@ void UApexHotlapWidget::FocusDefault()
 
 bool UApexHotlapWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
 {
-	if (View == EApexHotlapView::Garage && ApexNav::IsSequential(Direction))
+	if (View == EApexHotlapView::Garage && !bBoardOpen && ApexNav::IsSequential(Direction))
 	{
 		const int32 Count = static_cast<int32>(EApexGarageTab::Count);
 		const int32 Step = Direction == EUINavigation::Next ? 1 : -1;
@@ -1030,7 +1368,7 @@ FReply UApexHotlapWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKe
 {
 	const FKey Key = InKeyEvent.GetKey();
 	const bool bTyping = SaveNameBox && SaveNameBox->HasKeyboardFocus();
-	if (View == EApexHotlapView::Garage && !bTyping && (Key == EKeys::Q || Key == EKeys::E))
+	if (View == EApexHotlapView::Garage && !bBoardOpen && !bTyping && (Key == EKeys::Q || Key == EKeys::E))
 	{
 		ApexNav::FNavigationScope Scope;
 		HandleNavigation(Key == EKeys::E ? EUINavigation::Next : EUINavigation::Previous, nullptr);
@@ -1544,6 +1882,30 @@ void UApexHotlapWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (Id == ActionGarageSaveReplay)
 	{
 		OnAction.Broadcast(EApexHotlapAction::SaveReplay);
+	}
+	else if (Id == ActionTune)
+	{
+		SetBoardOpen(false);
+	}
+	else if (Id == ActionBoard)
+	{
+		SetBoardOpen(true);
+	}
+	else if (Id == ActionWatchCamera)
+	{
+		OnAction.Broadcast(EApexHotlapAction::CycleWatchCamera);
+	}
+	else if (Id == ActionWatch)
+	{
+		const int32 Row = ApexNav::IndexOf(BoardRowButtons, Button);
+		const int32 Car = BoardCars.IsValidIndex(Row) ? BoardCars[Row] : INDEX_NONE;
+		if (Car != INDEX_NONE)
+		{
+			// A second click on the watched driver gives the view back.
+			WatchedCar = Car == WatchedCar ? INDEX_NONE : Car;
+			OnWatchCar.Broadcast(WatchedCar);
+			RefreshBoard();
+		}
 	}
 	else if (Id == ActionTab)
 	{

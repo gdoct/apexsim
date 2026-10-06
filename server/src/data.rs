@@ -1416,6 +1416,12 @@ pub struct CarState {
     #[serde(default)]
     pub in_garage: bool,
 
+    /// A qualifying car out on its outlap (`GameSession::hotlap_relocate`):
+    /// it was put just past the line, and lap 1 starts when it next crosses
+    /// it, not 10% of the way round as for any other car placed there.
+    #[serde(default)]
+    pub outlap: bool,
+
     /// Out of the race (`DamageState::is_drivable` false): how long it has
     /// stood where it stopped, s, and whether it has been towed away to its
     /// pit box since (`GameSession::update_retirements`). A towed car is
@@ -1643,6 +1649,7 @@ impl CarState {
             laps: crate::laps::LapTiming::default(),
             wheels_off_track: false,
             in_garage: false,
+            outlap: false,
             retired_s: 0.0,
             towed: false,
             drs_allowed: false,

@@ -3785,6 +3785,7 @@ pub fn update_track_progress_3d(
         && state.track_progress < track_length * 0.2
     {
         state.current_lap = 1;
+        state.outlap = false;
         state.lap_start_tick = current_tick;
         state.current_lap_time_ms = 0;
         state.next_checkpoint = checkpoints_before(track, track_length, state.track_progress);
@@ -3800,6 +3801,7 @@ pub fn update_track_progress_3d(
     // car crossed the start line, so any checkpoint inside the first 10% of
     // the track has already been credited for this lap.)
     if state.current_lap == 0
+        && !state.outlap
         && old_progress < track_length * 0.1
         && state.track_progress > track_length * 0.1
     {

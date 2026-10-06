@@ -65,6 +65,9 @@ pub const AI_FUEL_PLAN_STEPS: usize = 10;
 pub const FUEL_SAVE_COAST_S_PER_SHORT: f32 = 10.0;
 /// Cars going out together are queued this far apart on the run-up.
 pub const HOTLAP_SPACING_M: f32 = 30.0;
+/// A qualifying car leaves this far past the line (or the pit exit), so its
+/// first crossing of the line is a lap on.
+pub const QUALIFYING_OUT_PAST_LINE_M: f32 = 30.0;
 /// A run-up slot is taken while a car on the track is this close to it.
 const HOTLAP_SLOT_CLEARANCE_M: f32 = 20.0;
 /// How many slots back the queue reaches before cars double up.
@@ -485,12 +488,10 @@ impl GameSession {
             GameMode::Race => {
                 self.tick_racing(inputs);
             }
-            GameMode::Qualification => {
-                // Qualification is practice-with-timing for now: free driving
-                // with lap timing, no finish-position logic.
-                self.tick_free_practice(inputs);
-            }
-            GameMode::Hotlap => {
+            GameMode::Qualification | GameMode::Hotlap => {
+                // Qualifying runs like a hotlap: every human starts in the
+                // garage, frozen and out of the collision passes, until
+                // they go out; the AI drive on.
                 self.tick_hotlap(inputs);
             }
         }
@@ -784,7 +785,7 @@ impl GameSession {
         physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
     }
 
-    /// Hotlap mode: free practice for the cars on the track, while the cars
+    /// Hotlap and qualifying: free practice for the cars on the track, while the cars
     /// in the garage stand still — not simulated, not collided with, so a
     /// driver tuning in the garage is out of everyone's way.
     fn tick_hotlap(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
@@ -1065,13 +1066,7 @@ impl GameSession {
                     }
                 }
             }
-            GameMode::Qualification => {
-                // Practice-with-timing: telemetry must flow
-                self.session.state = SessionState::Racing;
-                self.session.demo_lap_progress = None;
-                self.refuel_all(GameMode::Qualification);
-            }
-            GameMode::Hotlap => {
+            GameMode::Qualification | GameMode::Hotlap => {
                 // Every driver starts in the garage, with the setup screen;
                 // the AI (if any) is left where it stands and drives on.
                 self.session.state = SessionState::Racing;
@@ -1110,8 +1105,9 @@ impl GameSession {
         destination: HotlapDestination,
         cold_tyres: bool,
     ) -> Result<(), &'static str> {
-        if self.session.game_mode != GameMode::Hotlap {
-            return Err("Not a hotlap session");
+        let mode = self.session.game_mode;
+        if !matches!(mode, GameMode::Hotlap | GameMode::Qualification) {
+            return Err("Not a hotlap or qualifying session");
         }
         let Some(state) = self.session.participants.get(player_id) else {
             return Err("No car in this session");
@@ -1127,6 +1123,9 @@ impl GameSession {
                     .ok_or("Track has no grid")?;
                 (slot.x, slot.y, slot.z, slot.yaw_rad)
             }
+            HotlapDestination::Track if mode == GameMode::Qualification => self
+                .qualifying_outlap_pose(player_id)
+                .ok_or("Track has no centerline")?,
             HotlapDestination::Track => self
                 .hotlap_runup_pose(player_id)
                 .ok_or("Track has no centerline")?,
@@ -1135,7 +1134,7 @@ impl GameSession {
         // The garage fills the car to the driver's fuel knob, for the next
         // run or for this one.
         let car_id = state.car_config_id;
-        let fuel = self.start_fuel_liters(player_id, car_id, GameMode::Hotlap);
+        let fuel = self.start_fuel_liters(player_id, car_id, mode);
         let state = self
             .session
             .participants
@@ -1164,13 +1163,16 @@ impl GameSession {
         fresh.laps.best_lap_splits_ms = state.laps.best_lap_splits_ms;
         fresh.laps.best_splits_ms = state.laps.best_splits_ms;
         fresh.in_garage = in_garage;
+        // A qualifying car put on the track has its outlap to drive first.
+        fresh.outlap = !in_garage && mode == GameMode::Qualification;
         fresh.fuel_liters = fuel;
         fit_tyres(
             &mut fresh,
             &self.car_configs,
             &self.tuned_configs,
             &self.track_config,
-            if cold_tyres {
+            // The outlap is a qualifying car's warm-up: it leaves cold.
+            if cold_tyres || mode == GameMode::Qualification {
                 TyreStart::Garage
             } else {
                 TyreStart::Warm
@@ -1184,6 +1186,47 @@ impl GameSession {
         // The lap the car was on is abandoned with it.
         self.lap_traces.remove(player_id);
         Ok(())
+    }
+
+    /// Where a qualifying car goes out: the pit exit, the lane's last
+    /// station on the centerline when that is past the line, else just past
+    /// the line, so the car drives a whole lap (the outlap) before it
+    /// crosses the line and starts the first timed one. Cars going out
+    /// together are queued [`HOTLAP_SPACING_M`] apart along the lap, as on
+    /// the hotlap run-up.
+    fn qualifying_outlap_pose(&self, going_out: &PlayerId) -> Option<(f32, f32, f32, f32)> {
+        let track = &self.track_config;
+        let length = crate::laps::track_length_m(track);
+        if track.centerline.len() < 2 || length <= 0.0 {
+            return None;
+        }
+        let exit = track
+            .pit_lane
+            .as_ref()
+            .map(|lane| lane.exit_station_m)
+            .filter(|station| *station < length * 0.5);
+        let first = exit.map_or(QUALIFYING_OUT_PAST_LINE_M, |station| {
+            station + QUALIFYING_OUT_PAST_LINE_M
+        });
+        let mut fallback = None;
+        for k in 0..HOTLAP_SLOT_TRIES {
+            let station = first + k as f32 * HOTLAP_SPACING_M;
+            if station > length * 0.5 {
+                break;
+            }
+            let mut pose = physics::pose_at_station(&track.centerline, station);
+            pose.2 = physics::seat_height(track, pose.0, pose.1, pose.2);
+            fallback.get_or_insert(pose);
+            let taken = self.session.participants.values().any(|other| {
+                !other.in_garage
+                    && other.player_id != *going_out
+                    && (other.pos_x - pose.0).hypot(other.pos_y - pose.1) < HOTLAP_SLOT_CLEARANCE_M
+            });
+            if !taken {
+                return Some(pose);
+            }
+        }
+        fallback
     }
 
     /// Where the next car going out is put: on the centerline
@@ -1360,7 +1403,7 @@ impl GameSession {
         }
         if refuel {
             let mode = if car.in_garage {
-                GameMode::Hotlap
+                self.session.game_mode
             } else {
                 self.planned_mode()
             };

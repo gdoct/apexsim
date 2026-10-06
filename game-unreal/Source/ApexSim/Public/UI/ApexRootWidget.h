@@ -322,6 +322,9 @@ private:
 	UFUNCTION()
 	void HandleHotlapAction(EApexHotlapAction Action);
 
+	UFUNCTION()
+	void HandleHotlapWatch(int32 CarIndex);
+
 	/** The local car's telemetry decides which side of the garage wall the hotlap view is on. */
 	UFUNCTION()
 	void HandleTelemetryForHotlap(const FApexTelemetryFrame& Frame);

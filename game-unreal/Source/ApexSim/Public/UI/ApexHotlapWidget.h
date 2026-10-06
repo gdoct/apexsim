@@ -48,6 +48,8 @@ enum class EApexHotlapAction : uint8
 	ResetSetup,
 	/** Keep the session's laps so far as a replay. */
 	SaveReplay,
+	/** The scoreboard's camera button: TV, chase, onboard on the watched car. */
+	CycleWatchCamera,
 };
 
 /** The garage's pages, in tab order. */
@@ -61,6 +63,8 @@ enum class EApexGarageTab : uint8
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnHotlapAction, EApexHotlapAction, Action);
+/** The scoreboard asks to watch a car (its index), or to stop (INDEX_NONE). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnHotlapWatch, int32, CarIndex);
 
 /**
  * The hotlap session's own layer over the race view: the garage, and the
@@ -87,6 +91,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnHotlapAction, EApexHotlapActi
  * struck laps greyed. Cleared when a hotlap session begins. A legal lap also
  * becomes the loaded saved setup's best while the working setup matches it.
  *
+ * **Qualifying** uses the same garage with two differences: the car leaves on
+ * cold tyres and drives a whole outlap before its first timed lap, and the
+ * garage has a second page, the **scoreboard**, that takes the place of the
+ * setup sheet: every car fastest lap first, and a click on a driver puts the
+ * view on that car (OnWatchCar; the shell points the race director's
+ * spectator camera at it) until the sheet is back or the car goes out.
+ *
  * The card acts through OnAction; relocating the car and starting a replay
  * are the shell's and the race director's to carry out.
  */
@@ -112,6 +123,24 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
 	FApexOnHotlapAction OnAction;
 
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
+	FApexOnHotlapWatch OnWatchCar;
+
+	/** The session is a qualifying one: the scoreboard page exists, the hotlap-only rows go. */
+	void SetQualifying(bool bInQualifying);
+	bool IsQualifying() const { return bQualifying; }
+
+	/** Shows the scoreboard (true) or the setup sheet. Closing it stops watching. */
+	void SetBoardOpen(bool bOpen);
+	bool IsBoardOpen() const { return bBoardOpen; }
+
+	/** The car being watched from the scoreboard, INDEX_NONE for none. */
+	int32 GetWatchedCar() const { return WatchedCar; }
+	/** Watches the car on a scoreboard row (0-based); the console's way of clicking one. */
+	void WatchRow(int32 Row);
+	/** What the camera button says ("TV", "CHASE", "ONBOARD"). */
+	void SetWatchCameraLabel(const FString& Label);
+
 	/** A hotlap session began (the sheet is cleared) or ended (everything hides). */
 	void SetActive(bool bActive);
 
@@ -128,6 +157,9 @@ public:
 	void SetTab(EApexGarageTab Tab);
 
 protected:
+	/** Refreshes the scoreboard a few times a second while it is up. */
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
 	/** Q / E change tab, unless the setup name box is being typed in. */
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
@@ -165,6 +197,16 @@ private:
 	UWidget* BuildSavePage();
 	UWidget* BuildTimingPanel();
 	UWidget* BuildReplayStrip();
+	UWidget* BuildBoard();
+	/** The garage header's Tune / Scoreboard pair (qualifying only). */
+	UWidget* BuildPageToggle(UApexButtonWidget*& OutTune, UApexButtonWidget*& OutBoard);
+
+	/** The board's rows from the roster and the newest telemetry. */
+	void RefreshBoard();
+	/** Garage card or scoreboard, and the toggles' selection. */
+	void ApplyPage();
+	void ApplyQualifyingRows();
+	void StopWatching();
 
 	/** A stepper for one knob, registered for refreshes. */
 	UApexStepperWidget* MakeStepper(int32 Knob);
@@ -217,6 +259,14 @@ private:
 	/** The quickest legal lap in the sheet, ms; 0 until one is set. */
 	int32 BestMs = 0;
 
+	bool bQualifying = false;
+	bool bBoardOpen = false;
+	int32 WatchedCar = INDEX_NONE;
+	float BoardRefreshIn = 0.0f;
+	/** The car index each board row shows (INDEX_NONE for an unused row). */
+	TArray<int32> BoardCars;
+	FString WatchCameraLabel = TEXT("TV");
+
 	EApexHotlapView View = EApexHotlapView::Hidden;
 	EApexGarageTab Tab = EApexGarageTab::Tyres;
 	bool bActive = false;
@@ -233,6 +283,25 @@ private:
 	TArray<FGuid> SavedRowIds;
 
 	UPROPERTY(Transient) TObjectPtr<UWidget> Garage;
+	UPROPERTY(Transient) TObjectPtr<UWidget> BoardLayer;
+	UPROPERTY(Transient) TObjectPtr<UWidget> GaragePageToggle;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> GarageCaption;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> SheetTitle;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> GarageNote;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> BoardHint;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> GarageTuneButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> GarageBoardButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> BoardTuneButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> BoardBoardButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> BoardCameraButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> BoardGoOutButton;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> BoardRowButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> BoardRowRoots;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> BoardPos;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> BoardName;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> BoardBest;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> BoardGap;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> BoardState;
 	UPROPERTY(Transient) TObjectPtr<UWidget> TimingPanel;
 	UPROPERTY(Transient) TObjectPtr<UWidget> ReplayStrip;
 	UPROPERTY(Transient) TObjectPtr<UWidget> TrackHint;

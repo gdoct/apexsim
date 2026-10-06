@@ -615,6 +615,16 @@ enum class EApexGameMode : uint8
 	Hotlap        = 8,
 };
 
+/**
+ * Hotlap and qualifying run on the same garage rules: every human starts in
+ * the garage, the car is frozen until it goes out, and the setup is tuned there.
+ */
+inline bool ApexIsGarageMode(EApexGameMode Mode)
+{
+	return Mode == EApexGameMode::Hotlap || Mode == EApexGameMode::Qualification;
+}
+
+
 /** Mirrors `HotlapDestination` (data.rs): where a hotlap driver asks to be put. */
 UENUM(BlueprintType)
 enum class EApexHotlapDestination : uint8
