@@ -1,0 +1,21 @@
+services:
+  apexsim:
+    build: .
+    image: apexsim-server
+    restart: unless-stopped
+    ports:
+      - "9000:9000/tcp"
+      - "9001:9001/udp"
+      - "9002:9002/tcp"
+    environment:
+      # server.docker.toml has TLS off and auth "dev" (accept anyone): fine on a
+      # LAN, not on the internet.  For TLS, mount certs and set:
+      #   APEXSIM_NETWORK_TLS_CERT_PATH=/certs/server.crt
+      #   APEXSIM_NETWORK_TLS_KEY_PATH=/certs/server.key
+      #   APEXSIM_NETWORK_REQUIRE_TLS=true
+      APEXSIM_LOGGING_LEVEL: info
+    volumes:
+      - ../content:/content:ro        # cars/, tracks/ (with sidecars), showcase/
+      - apexsim-data:/data            # lap records, ghosts, replays
+volumes:
+  apexsim-data:
