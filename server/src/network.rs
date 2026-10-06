@@ -92,6 +92,21 @@ pub enum ClientMessage {
         /// for a race over laps, and left off the wire then.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         race_seconds: Option<u32>,
+        /// The race's start order, first to last, as driver references
+        /// (`crate::grid_order`: `@host`, `@ai:N` or a name); absent or empty
+        /// for the order cars were seated in (or the session's own
+        /// qualifying). Left off the wire when empty.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        grid_order: Vec<String>,
+    },
+    /// Asks for the qualifying results the server holds for a track, newest
+    /// first, to grid a race from. Answered with `QualifyingResults`.
+    RequestQualifyingResults {
+        #[serde(
+            serialize_with = "serialize_uuid_as_string",
+            deserialize_with = "deserialize_uuid_from_string"
+        )]
+        track_config_id: TrackConfigId,
     },
     JoinSession {
         #[serde(
@@ -473,6 +488,10 @@ pub enum ServerMessage {
     // the client to drive a ghost car through.
     GhostLap(GhostLapData),
 
+    // TCP - The qualifying results stored for a track, on request
+    // (`RequestQualifyingResults`).
+    QualifyingResults(QualifyingResultsData),
+
     // TCP - The garage's reference card for the joining driver's car: each
     // setup knob's stock value and click in real units (`setup_sheet.rs`).
     // Sent once, right after `SessionJoined`.
@@ -531,6 +550,7 @@ impl ServerMessage {
             // Asked for once; a reply that never came leaves the driver
             // with no ghost at all.
             ServerMessage::GhostLap(_) => MessagePriority::Critical,
+            ServerMessage::QualifyingResults(_) => MessagePriority::Critical,
             ServerMessage::CarSetupSheet(_) => MessagePriority::Critical,
             ServerMessage::PitService(_) => MessagePriority::Critical,
             ServerMessage::Showcases(_) => MessagePriority::Critical,
@@ -1189,6 +1209,77 @@ pub struct LapRecordData {
     pub track_record_holder: String,
     /// A trace of the record lap is stored, so a ghost can be driven from it.
     pub has_ghost: bool,
+}
+
+/// One driver's line of a stored qualifying result.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QualifyingEntryData {
+    pub name: String,
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub car_config_id: CarConfigId,
+    pub lap_time_ms: u32,
+    pub is_ai: bool,
+}
+
+/// A stored qualifying result: the drivers fastest first.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QualifyingResultData {
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub id: uuid::Uuid,
+    /// The car class it was set in, for the picker's label.
+    pub class: String,
+    /// RFC 3339, display only.
+    pub recorded_at: String,
+    pub entries: Vec<QualifyingEntryData>,
+}
+
+/// The reply to `ClientMessage::RequestQualifyingResults`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QualifyingResultsData {
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub track_id: TrackConfigId,
+    pub results: Vec<QualifyingResultData>,
+}
+
+impl QualifyingResultsData {
+    pub fn from_results(
+        track_id: TrackConfigId,
+        results: Vec<crate::records::QualifyingResult>,
+    ) -> Self {
+        Self {
+            track_id,
+            results: results
+                .into_iter()
+                .map(|r| QualifyingResultData {
+                    id: r.id,
+                    class: r.class,
+                    recorded_at: r.recorded_at,
+                    entries: r
+                        .entries
+                        .into_iter()
+                        .map(|e| QualifyingEntryData {
+                            name: e.name,
+                            car_config_id: e.car_config_id,
+                            lap_time_ms: e.lap_time_ms,
+                            is_ai: e.is_ai,
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
+    }
 }
 
 /// The trace of a record lap, for a ghost car (`ClientMessage::RequestGhost`).
@@ -2349,6 +2440,7 @@ mod tests {
             damage: Default::default(),
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSession: {}", hex(&create_bytes));
@@ -2427,6 +2519,7 @@ mod tests {
             damage: DamageLevel::Reduced,
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionDamage: {}", hex(&create_bytes));
@@ -2465,6 +2558,7 @@ mod tests {
             damage: DamageLevel::Full,
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         };
         let full_bytes = rmp_serde::to_vec_named(&full).unwrap();
         assert!(!full_bytes.windows(6).any(|w| w == b"damage"));
@@ -2503,6 +2597,7 @@ mod tests {
             damage: DamageLevel::Full,
             ai_skill: None,
             race_seconds,
+            grid_order: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(7200))).unwrap();
         println!("C_CreateSessionRaceTime: {}", hex(&create_bytes));
@@ -2597,6 +2692,7 @@ mod tests {
             damage: DamageLevel::Full,
             ai_skill: Some(95),
             race_seconds: None,
+            grid_order: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAiSkill: {}", hex(&create_bytes));
@@ -2635,6 +2731,7 @@ mod tests {
             damage: DamageLevel::Full,
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         };
         let mixed_bytes = rmp_serde::to_vec_named(&mixed).unwrap();
         assert!(!mixed_bytes.windows(8).any(|w| w == b"ai_skill"));
@@ -2680,6 +2777,7 @@ mod tests {
             damage: Default::default(),
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAir: {}", hex(&create_bytes));
@@ -2711,6 +2809,94 @@ mod tests {
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAir: {}", hex(&joined_bytes));
+    }
+
+    /// The bytes of the start-order messages, pinned on the client as
+    /// `ApexGolden::C_CreateSessionGrid`, `C_RequestQualifyingResults` and
+    /// `S_QualifyingResults`; `cargo test grid_wire_format -- --nocapture`
+    /// prints them.
+    #[test]
+    fn test_grid_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let track = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
+        let create = |grid_order: Vec<String>| ClientMessage::CreateSession {
+            track_config_id: track,
+            max_players: 8,
+            ai_count: 2,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: Default::default(),
+            ai_skill: None,
+            race_seconds: None,
+            grid_order,
+        };
+        // No order: the bytes of every earlier create.
+        let plain = rmp_serde::to_vec_named(&create(Vec::new())).unwrap();
+        assert!(!String::from_utf8_lossy(&plain).contains("grid_order"));
+        let ordered = create(vec!["@ai:2".into(), "@host".into(), "Luna Swift".into()]);
+        let ordered_bytes = rmp_serde::to_vec_named(&ordered).unwrap();
+        println!("C_CreateSessionGrid: {}", hex(&ordered_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&ordered_bytes).unwrap() {
+            ClientMessage::CreateSession { grid_order, .. } => {
+                assert_eq!(grid_order, ["@ai:2", "@host", "Luna Swift"]);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+
+        let request = ClientMessage::RequestQualifyingResults {
+            track_config_id: track,
+        };
+        let request_bytes = rmp_serde::to_vec_named(&request).unwrap();
+        println!("C_RequestQualifyingResults: {}", hex(&request_bytes));
+        assert!(matches!(
+            rmp_serde::from_slice::<ClientMessage>(&request_bytes).unwrap(),
+            ClientMessage::RequestQualifyingResults { .. }
+        ));
+
+        let results = ServerMessage::QualifyingResults(QualifyingResultsData::from_results(
+            track,
+            vec![crate::records::QualifyingResult {
+                id: Uuid::parse_str("11111111-2222-3333-4444-555555555555").unwrap(),
+                track_id: track,
+                class: "GT3".into(),
+                recorded_at: "2026-10-06T12:00:00Z".into(),
+                entries: vec![
+                    crate::records::QualifyingEntry {
+                        name: "Luna Swift".into(),
+                        car_config_id: Uuid::parse_str("99999999-8888-7777-6666-555555555555")
+                            .unwrap(),
+                        lap_time_ms: 91_234,
+                        is_ai: true,
+                    },
+                    crate::records::QualifyingEntry {
+                        name: "Guido".into(),
+                        car_config_id: Uuid::parse_str("99999999-8888-7777-6666-555555555555")
+                            .unwrap(),
+                        lap_time_ms: 91_876,
+                        is_ai: false,
+                    },
+                ],
+            }],
+        ));
+        let results_bytes = rmp_serde::to_vec_named(&results).unwrap();
+        println!("S_QualifyingResults: {}", hex(&results_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&results_bytes).unwrap() {
+            ServerMessage::QualifyingResults(data) => {
+                assert_eq!(data.track_id, track);
+                assert_eq!(data.results.len(), 1);
+                assert_eq!(data.results[0].entries[1].name, "Guido");
+                assert_eq!(data.results[0].entries[0].lap_time_ms, 91_234);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
     }
 
     /// The bytes of the hotlap messages, pinned on the client as

@@ -160,6 +160,28 @@ public:
 	int32 CreateAiSkill = -1;
 
 	/**
+	 * The race's start order as the create screen edits it: driver references
+	 * (`ApexCreateSession::HostRef`, `AiRef`, or a name) first to last, empty
+	 * for the order cars are seated in. Not kept on the profile: it belongs to
+	 * one track (CreateGridTrackId), and the AI and the cars it names change.
+	 */
+	TArray<FString> CreateGridOrder;
+
+	/** The stored qualifying result CreateGridOrder was loaded from; empty for a hand-made order. */
+	FString CreateGridResultId;
+
+	/** The track CreateGridOrder was made for. */
+	FString CreateGridTrackId;
+
+	/**
+	 * The start order a session created now sends: empty unless it is a race
+	 * with an order made for the pending track that is not just the seating
+	 * order, and otherwise the order made complete for the field.
+	 * `GridCeiling` is the most cars a grid holds.
+	 */
+	TArray<FString> GridOrderToSend(int32 GridCeiling) const;
+
+	/**
 	 * The mode a session is counted into once it starts.
 	 *
 	 * Not part of CreateSession — the server always creates a session in Lobby —

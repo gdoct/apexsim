@@ -21,6 +21,7 @@
 #include "Race/ApexRaceDirector.h"
 #include "TimerManager.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexCreateSessionModel.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexSettingsWidget.h"
@@ -749,7 +750,7 @@ void UApexMainMenuWidget::StartRememberedSession()
 		*Flow->GetPendingTrackId(), Flow->EffectiveAiCount(), Flow->EffectiveLapLimit(), Flow->EffectiveRaceSeconds(),
 		static_cast<int32>(Flow->CreateStartingMode), *Flow->CreateConditions.Describe());
 
-	Net->CreateSession(
+	Net->CreateSessionWithOrder(
 		Flow->GetPendingTrackId(),
 		Flow->CreateMaxPlayers,
 		Flow->EffectiveAiCount(),
@@ -759,7 +760,8 @@ void UApexMainMenuWidget::StartRememberedSession()
 		Flow->CreateConditions,
 		Flow->CreateDamage,
 		Flow->CreateAiSkill,
-		Flow->EffectiveRaceSeconds());
+		Flow->EffectiveRaceSeconds(),
+		Flow->GridOrderToSend(ApexCreateSession::GridCeiling));
 }
 
 void UApexMainMenuWidget::HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail)

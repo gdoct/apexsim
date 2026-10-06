@@ -84,6 +84,7 @@ pub(crate) async fn handle_message(
             damage,
             ai_skill,
             race_seconds,
+            grid_order,
         } => {
             handle_create_session(
                 ctx,
@@ -98,8 +99,12 @@ pub(crate) async fn handle_message(
                 damage,
                 ai_skill,
                 race_seconds,
+                grid_order,
             )
             .await;
+        }
+        ClientMessage::RequestQualifyingResults { track_config_id } => {
+            handle_request_qualifying(ctx, connection_id, track_config_id).await;
         }
         ClientMessage::JoinSession { session_id } => {
             handle_join_session(ctx, connection_id, session_id).await;
@@ -265,6 +270,7 @@ async fn handle_create_session(
     damage: DamageLevel,
     ai_skill: Option<u8>,
     race_seconds: Option<u32>,
+    grid_order: Vec<String>,
 ) {
     let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
@@ -343,6 +349,8 @@ async fn handle_create_session(
     // take it now, everyone who joins later as they are seated.
     if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
         game_session.set_damage(damage);
+        game_session.set_grid_order(grid_order);
+        game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
     }
 
     // Register session in lobby
@@ -624,6 +632,7 @@ async fn handle_join_session(
     };
 
     let game_session_kind = game_session.session.session_kind;
+    game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
         game_session.set_livery(conn_info.player_id, livery);
         debug!(
@@ -1223,6 +1232,26 @@ async fn handle_request_ghost(ctx: &GameLoopCtx, connection_id: ConnectionId) {
         data.sample_count()
     );
     let _ = ctx.send(connection_id, ServerMessage::GhostLap(data)).await;
+}
+
+/// The qualifying results stored for a track, newest first, read off the
+/// loop.
+async fn handle_request_qualifying(
+    ctx: &GameLoopCtx,
+    connection_id: ConnectionId,
+    track_id: TrackConfigId,
+) {
+    if ctx.connection(connection_id).await.is_none() {
+        return;
+    }
+    let store = ctx.state.read().await.records.clone();
+    let results = tokio::task::spawn_blocking(move || store.qualifying_for(track_id))
+        .await
+        .unwrap_or_default();
+    let data = crate::network::QualifyingResultsData::from_results(track_id, results);
+    let _ = ctx
+        .send(connection_id, ServerMessage::QualifyingResults(data))
+        .await;
 }
 
 /// Protocol-level disconnect (explicit `Disconnect` message from a client).

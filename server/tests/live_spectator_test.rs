@@ -100,6 +100,7 @@ async fn a_spectator_joining_mid_race_gets_the_roster_and_the_sectors() {
             damage: Default::default(),
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;

@@ -92,6 +92,7 @@ impl DemoLapTestClient {
             damage: Default::default(),
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         };
 
         self.send_message(&msg).await?;

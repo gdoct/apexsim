@@ -333,6 +333,23 @@ void UApexNetSubsystem::CreateSession(
 	int32 AiSkill,
 	int32 RaceSeconds)
 {
+	CreateSessionWithOrder(TrackConfigId, MaxPlayers, AiCount, LapLimit, SessionKind, AllowedAssists, Conditions,
+		Damage, AiSkill, RaceSeconds, TArray<FString>());
+}
+
+void UApexNetSubsystem::CreateSessionWithOrder(
+	const FString& TrackConfigId,
+	int32 MaxPlayers,
+	int32 AiCount,
+	int32 LapLimit,
+	EApexSessionKind SessionKind,
+	const FApexAllowedAssists& AllowedAssists,
+	const FApexSessionConditions& Conditions,
+	EApexDamageLevel Damage,
+	int32 AiSkill,
+	int32 RaceSeconds,
+	const TArray<FString>& GridOrder)
+{
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d race_seconds=%d locked_assists=%d conditions=%s damage=%d ai_skill=%d"),
 		*TrackConfigId, MaxPlayers, AiCount, LapLimit, RaceSeconds, AllowedAssists.CountLocked(), *Conditions.Describe(),
 		static_cast<int32>(Damage), AiSkill);
@@ -353,7 +370,8 @@ void UApexNetSubsystem::CreateSession(
 		Conditions,
 		Damage,
 		AiSkill,
-		RaceSeconds));
+		RaceSeconds,
+		GridOrder));
 }
 
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
@@ -481,6 +499,19 @@ void UApexNetSubsystem::HotlapRelocate(EApexHotlapDestination Destination, bool 
 		Destination == EApexHotlapDestination::Garage ? TEXT("garage") : TEXT("track"),
 		bColdTyres ? TEXT(" on cold tyres") : TEXT(""));
 	SendPayload(ApexProtocol::EncodeHotlapRelocate(Destination, bColdTyres));
+}
+
+void UApexNetSubsystem::RequestQualifyingResults(const FString& TrackConfigId)
+{
+	UE_LOG(LogApexSimNet, Log, TEXT("-> RequestQualifyingResults %s"), *TrackConfigId);
+	SendPayload(ApexProtocol::EncodeRequestQualifyingResults(TrackConfigId));
+}
+
+const TArray<FApexQualifyingResult>& UApexNetSubsystem::GetQualifyingResults(const FString& TrackConfigId) const
+{
+	static const TArray<FApexQualifyingResult> None;
+	const TArray<FApexQualifyingResult>* Found = QualifyingByTrack.Find(TrackConfigId.ToLower());
+	return Found ? *Found : None;
 }
 
 void UApexNetSubsystem::RequestGhost()
@@ -1047,6 +1078,13 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- GhostLap %d sample(s), %d ms"),
 			CachedGhostLap.Samples.Num(), CachedGhostLap.LapTimeMs);
 		OnGhostLap.Broadcast(CachedGhostLap);
+		break;
+
+	case EApexServerMessageType::QualifyingResults:
+		QualifyingByTrack.Add(Message.QualifyingTrackId.ToLower(), Message.QualifyingResults);
+		UE_LOG(LogApexSimNet, Log, TEXT("<- QualifyingResults %d for track %s"),
+			Message.QualifyingResults.Num(), *Message.QualifyingTrackId);
+		OnQualifyingResults.Broadcast(Message.QualifyingTrackId);
 		break;
 
 	case EApexServerMessageType::PitService:

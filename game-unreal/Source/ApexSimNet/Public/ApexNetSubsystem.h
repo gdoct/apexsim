@@ -29,6 +29,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnTelemetry, const FApexTelemet
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnLapTiming, const FApexLapTiming&, Timing);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnLapRecord, const FApexLapRecord&, Record);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnGhostLap, const FApexGhostLap&, Lap);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnQualifyingResults, const FString&, TrackId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnCarSetupSheet, const FApexCarSetupSheet&, Sheet);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnUdpReady);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionStateChanged, EApexSessionState, NewState);
@@ -133,6 +134,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
 	FApexOnGhostLap OnGhostLap;
 
+	/** The stored qualifying results for a track arrived (read them with GetQualifyingResults). */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
+	FApexOnQualifyingResults OnQualifyingResults;
+
 	/** The garage's reference card for the joined car arrived (after SessionJoined). */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Net")
 	FApexOnCarSetupSheet OnCarSetupSheet;
@@ -229,6 +234,25 @@ public:
 		EApexDamageLevel Damage = EApexDamageLevel::Full,
 		int32 AiSkill = -1,
 		int32 RaceSeconds = 0);
+
+	/**
+	 * CreateSession with the race's start order: driver references (`@host`,
+	 * `@ai:N`, or a name), first to last; empty for the order cars are
+	 * seated in. Not a UFUNCTION: the reflection system cannot default an
+	 * array parameter.
+	 */
+	void CreateSessionWithOrder(
+		const FString& TrackConfigId,
+		int32 MaxPlayers,
+		int32 AiCount,
+		int32 LapLimit,
+		EApexSessionKind SessionKind,
+		const FApexAllowedAssists& AllowedAssists,
+		const FApexSessionConditions& Conditions,
+		EApexDamageLevel Damage,
+		int32 AiSkill,
+		int32 RaceSeconds,
+		const TArray<FString>& GridOrder);
 
 	/**
 	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
@@ -384,6 +408,13 @@ public:
 	/** Ask for the record lap's trace; OnGhostLap answers, empty when there is none. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void RequestGhost();
+
+	/** Ask for the qualifying results stored for a track; OnQualifyingResults answers. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void RequestQualifyingResults(const FString& TrackConfigId);
+
+	/** The stored qualifying results last received for a track, newest first (empty until they arrive). */
+	const TArray<FApexQualifyingResult>& GetQualifyingResults(const FString& TrackConfigId) const;
 
 	/**
 	 * The aids the current session's host allows, from its SessionJoined.
@@ -588,6 +619,9 @@ private:
 
 	UPROPERTY()
 	FApexGhostLap CachedGhostLap;
+
+	/** Stored qualifying results per track id, as the server last listed them. */
+	TMap<FString, TArray<FApexQualifyingResult>> QualifyingByTrack;
 	FApexCarSetupSheet CachedSetupSheet;
 	TMap<int32, FApexPitService> PitServices;
 

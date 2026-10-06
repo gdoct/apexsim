@@ -137,6 +137,7 @@ impl TestClient {
             damage: Default::default(),
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         };
 
         self.send_tcp_message(&msg).await?;

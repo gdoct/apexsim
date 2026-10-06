@@ -83,7 +83,8 @@ namespace
 		const TCHAR* Description;
 	};
 
-	// Replay and Qualification are left out because nothing drives them yet,
+	// Replay is left out because nothing drives it yet (Qualification times
+	// laps and the server keeps the classification for a race to grid from),
 	// and Demo lap because the server turns it into a dead end for whoever
 	// asks (it drops the human players to spectators); the hotlap took its
 	// tile.
@@ -91,6 +92,7 @@ namespace
 		{ EApexGameMode::FreePractice, TEXT("Free practice"), TEXT("Drive freely") },
 		{ EApexGameMode::Sandbox,      TEXT("Sandbox"),       TEXT("Free camera") },
 		{ EApexGameMode::Hotlap,       TEXT("Hotlap"),        TEXT("Flying laps") },
+		{ EApexGameMode::Qualification, TEXT("Qualifying"),   TEXT("Sets the grid") },
 		{ EApexGameMode::Race,         TEXT("Race"),          TEXT("Grid start") },
 	};
 
@@ -174,6 +176,10 @@ namespace
 	const FGuid CustomSetupMarker(0x43555354, 0x4F4D, 0x5345, 0x5455);
 	/** Saved setups shown at most, newest first (the working one always is). */
 	constexpr int32 MaxSetupsShown = 4;
+	/** Stored qualifying results shown as chips, newest first (the loaded one always is). */
+	constexpr int32 MaxResultsShown = 3;
+	/** The start order's chip for an order edited by hand. */
+	const TCHAR* const CustomOrderId = TEXT("custom");
 
 	constexpr float RightColumnWidth = 760.0f;
 	constexpr int32 GridSlots = 20;
@@ -307,6 +313,7 @@ void UApexSessionCreateWidget::NativeConstruct()
 	if (UApexNetSubsystem* Net = GetNet())
 	{
 		Net->OnLobbyStateUpdated.AddDynamic(this, &UApexSessionCreateWidget::HandleLobbyStateUpdated);
+		Net->OnQualifyingResults.AddDynamic(this, &UApexSessionCreateWidget::HandleQualifyingResults);
 	}
 }
 
@@ -315,6 +322,7 @@ void UApexSessionCreateWidget::NativeDestruct()
 	if (UApexNetSubsystem* Net = GetNet())
 	{
 		Net->OnLobbyStateUpdated.RemoveDynamic(this, &UApexSessionCreateWidget::HandleLobbyStateUpdated);
+		Net->OnQualifyingResults.RemoveDynamic(this, &UApexSessionCreateWidget::HandleQualifyingResults);
 	}
 	Super::NativeDestruct();
 }
@@ -330,8 +338,21 @@ void UApexSessionCreateWidget::OnScreenActivated()
 		SetActiveTab(Tab);
 	}
 
+	// ... and -ApexCreateMode=N opens it on a mode (EApexGameMode: 7 is the race).
+	int32 ModeValue = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexCreateMode="), ModeValue))
+	{
+		if (UApexMenuFlowSubsystem* Flow = GetFlow())
+		{
+			Flow->CreateStartingMode = static_cast<EApexGameMode>(ModeValue);
+		}
+	}
+
 	// Redraws the settings and the footer too.
 	RefreshContent();
+	// Results may have been set since the screen was last open.
+	QualifyingRequestedFor.Reset();
+	RequestQualifying();
 }
 
 void UApexSessionCreateWidget::FocusDefault()
@@ -383,6 +404,12 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 		Out.Add(AiPlus);
 		Out.Add(AiSkillMinus);
 		Out.Add(AiSkillPlus);
+		if (const UApexMenuFlowSubsystem* OrderFlow = GetFlow(); OrderFlow && OrderFlow->CreateStartingMode == EApexGameMode::Race)
+		{
+			Out.Add(YourSlotEarlier);
+			Out.Add(YourSlotLater);
+			AddAll(StartOrderButtons);
+		}
 		AddAll(AssistPresetButtons);
 		AddAll(AssistButtons);
 		AddAll(DamageButtons);
@@ -693,6 +720,9 @@ UWidget* UApexSessionCreateWidget::BuildGridPreview()
 		HitSpec.Sound = EApexUiSound::Adjust;
 		UApexButtonWidget* Hit = MakeButton(HitSpec);
 		Hit->SetIsFocusable(false);
+		// The screen's own mouse handlers take the press (see NativeOnMouseButtonDown),
+		// so a driver can be dragged to another slot.
+		Hit->SetVisibility(ESlateVisibility::HitTestInvisible);
 
 		UOverlay* Cell = WidgetTree->ConstructWidget<UOverlay>();
 		AddFill(Cell, Face);
@@ -740,7 +770,7 @@ UWidget* UApexSessionCreateWidget::BuildGridPreview()
 	AddKey(TEXT("AI"), ApexUI::MakeBrush(ApexUI::Palette::SurfaceHover, ApexUI::Palette::Border, 1.0f));
 	AddKey(TEXT("OPEN SEAT"), ApexUI::MakeBrush(FLinearColor::Transparent, ApexUI::Palette::TextMuted, 1.0f));
 	ApexUI::AddH(Legend, WidgetTree->ConstructWidget<USpacer>(), FMargin(), VAlign_Center, 1.0f);
-	ApexUI::AddH(Legend, ApexUI::MakeText(*WidgetTree, TEXT("CLICK A SLOT TO SET THE FIELD"),
+	ApexUI::AddH(Legend, ApexUI::MakeText(*WidgetTree, TEXT("DRAG A DRIVER TO MOVE IT · CLICK AN EMPTY SEAT TO SET THE FIELD"),
 		ApexUI::Font::Mono(9.0f, 80), ApexUI::Palette::TextMuted));
 	ApexUI::AddV(Panel, Legend, FMargin(20.0f, 12.0f));
 
@@ -926,7 +956,7 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		Spec.Label = ModeOptions[Index].Label;
 		Spec.SubLabel = ModeOptions[Index].Description;
 		Spec.Variant = EApexButtonVariant::Panel;
-		Spec.LabelSize = 18.0f;
+		Spec.LabelSize = 16.0f;
 		Spec.Height = 76.0f;
 		UApexButtonWidget* Button = MakeButton(Spec);
 		ModeButtons.Add(Button);
@@ -1052,6 +1082,35 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		AiSkillPlus = SPlus;
 		AiSkillValueText = SValue;
 		FieldSection = Section;
+		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+	}
+
+	// --- Starting order -----------------------------------------------------------
+	// Who sits where on the grid: the seating order (the AI ahead, you behind),
+	// a stored qualifying result of this track, or one edited by hand, by
+	// dragging the drivers on the grid at the left or stepping your own slot.
+	{
+		UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>();
+		UTextBlock* Info = nullptr;
+		ApexUI::AddV(Section, MakeCaption(TEXT("Starting order"), &Info), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		StartOrderInfoText = Info;
+
+		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+		UTextBlock* Label = ApexUI::MakeText(*WidgetTree, TEXT("Your grid slot"), ApexUI::Font::Display(17.0f), ApexUI::Palette::TextPrimary);
+		ApexUI::AddH(Row, Label, FMargin(), VAlign_Center, 1.0f);
+		UApexButtonWidget* Earlier = nullptr;
+		UApexButtonWidget* Later = nullptr;
+		UTextBlock* Value = nullptr;
+		ApexUI::AddH(Row, MakeStepper(Earlier, Value, Later, 42.0f, 48.0f, 24.0f));
+		YourSlotEarlier = Earlier;
+		YourSlotLater = Later;
+		YourSlotValueText = Value;
+		ApexUI::AddV(Section, ApexUI::MakePanel(*WidgetTree, Row, FMargin(16.0f, 6.0f, 6.0f, 6.0f),
+			ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f)), FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+
+		StartOrderRows = WidgetTree->ConstructWidget<UVerticalBox>();
+		ApexUI::AddV(Section, StartOrderRows);
+		StartOrderSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
 
@@ -1890,6 +1949,7 @@ void UApexSessionCreateWidget::RefreshSettings()
 	}
 
 	RefreshSetups();
+	RefreshStartOrder();
 	RefreshGridPreview();
 	RefreshSkyPreview();
 	RefreshFooter();
@@ -2042,6 +2102,7 @@ void UApexSessionCreateWidget::RefreshGridPreview()
 	const bool bMultiplayer = Flow->CreateSessionKind != EApexSessionKind::Practice;
 	const bool bHotlap = Flow->CreateStartingMode == EApexGameMode::Hotlap;
 	const ApexCreateSession::FGrid G = ApexCreateSession::Grid(bMultiplayer, Flow->CreateMaxPlayers, Flow->CreateAiCount, MaxPlayersCeiling);
+	const int32 YourSlotNumber = CurrentOrder().IndexOfByKey(ApexCreateSession::HostRef()) + 1;
 
 	if (GridSlotsPanel) { GridSlotsPanel->SetVisibility(bHotlap ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible); }
 	if (GridSoloPanel)  { GridSoloPanel->SetVisibility(bHotlap ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed); }
@@ -2061,20 +2122,30 @@ void UApexSessionCreateWidget::RefreshGridPreview()
 		}
 		else if (bMultiplayer)
 		{
-			Hint = FString::Printf(TEXT("%d CARS · %d AI · %d OPEN · YOU START P%d"), G.Field, G.Ai, G.Open, G.YourSlot);
+			Hint = FString::Printf(TEXT("%d CARS · %d AI · %d OPEN · YOU START P%d"), G.Field, G.Ai, G.Open, YourSlotNumber);
 		}
 		else
 		{
 			Hint = G.Ai > 0
-				? FString::Printf(TEXT("%d CARS · YOU START P%d, BEHIND THE AI"), G.Field, G.YourSlot)
+				? (YourSlotNumber == G.Ai + 1
+					? FString::Printf(TEXT("%d CARS · YOU START P%d, BEHIND THE AI"), G.Field, YourSlotNumber)
+					: FString::Printf(TEXT("%d CARS · YOU START P%d"), G.Field, YourSlotNumber))
 				: FString(TEXT("1 CAR · JUST YOU"));
 		}
 		GridHintText->SetText(FText::FromString(Hint));
 	}
 
+	const TArray<ApexCreateSession::FGridEntry> Entries = ApexCreateSession::Entries(CurrentOrder());
+
 	for (int32 Index = 0; Index < SlotFaces.Num(); ++Index)
 	{
-		const ApexCreateSession::ESlot Kind = ApexCreateSession::SlotAt(G, Index + 1);
+		// The occupied slots come from the order (the AI, you and anyone a
+		// stored result names, wherever they sit); the rest are open seats
+		// in a multiplayer field and past the grid otherwise.
+		const bool bOccupied = Entries.IsValidIndex(Index);
+		const ApexCreateSession::ESlot Kind = bOccupied
+			? (Entries[Index].bYou ? ApexCreateSession::ESlot::You : ApexCreateSession::ESlot::Ai)
+			: (Index < G.Field && bMultiplayer ? ApexCreateSession::ESlot::Open : ApexCreateSession::ESlot::None);
 		FLinearColor Fill = FLinearColor::Transparent;
 		FLinearColor Outline = ApexUI::Palette::Border;
 		FLinearColor NumberColour = ApexUI::Palette::TextMuted;
@@ -2087,11 +2158,11 @@ void UApexSessionCreateWidget::RefreshGridPreview()
 			Outline = ApexUI::Palette::Accent;
 			NumberColour = ApexUI::Palette::OnAccent;
 			NameColour = ApexUI::Palette::OnAccent;
-			Name = TEXT("YOU");
+			Name = Entries[Index].Label;
 			break;
 		case ApexCreateSession::ESlot::Ai:
 			Fill = ApexUI::Palette::SurfaceHover;
-			Name = FString::Printf(TEXT("AI %d"), Index + 1);
+			Name = Entries[Index].Label;
 			break;
 		case ApexCreateSession::ESlot::Open:
 			Outline = ApexUI::Palette::TextMuted;
@@ -2103,6 +2174,17 @@ void UApexSessionCreateWidget::RefreshGridPreview()
 			Outline.A = 1.0f;
 			NumberColour = ApexUI::Palette::TextDisabled;
 			break;
+		}
+		// A driver picked up by a click, or dragged, stands out; so does the
+		// slot a drag would drop it on.
+		if (bOccupied && (Index == PickedSlot || Index == DragFrom))
+		{
+			Outline = ApexUI::Palette::TextPrimary;
+		}
+		else if (bOccupied && DragFrom != INDEX_NONE && Index == DragHover)
+		{
+			Outline = ApexUI::Palette::Accent;
+			Fill = ApexUI::Palette::SurfaceHover;
 		}
 		if (SlotFaces[Index])   { SlotFaces[Index]->SetBrush(ApexUI::MakeBrush(Fill, Outline, 1.0f)); }
 		if (SlotNumbers[Index]) { SlotNumbers[Index]->SetColorAndOpacity(FSlateColor(NumberColour)); }
@@ -2264,6 +2346,9 @@ void UApexSessionCreateWidget::RefreshFooter()
 
 void UApexSessionCreateWidget::HandleLobbyStateUpdated(const FApexLobbyState& LobbyState)
 {
+	// The first lobby state means the connection is up: the screen may have
+	// opened before it was, with the track's results still to ask for.
+	RequestQualifying();
 	RefreshContent();
 }
 
@@ -2307,6 +2392,383 @@ void UApexSessionCreateWidget::SetAiCount(int32 Count)
 		Flow->CreateAiCount = FMath::Clamp(Count, 0, FMath::Max(0, Flow->CreateMaxPlayers - 1));
 	}
 	Changed();
+}
+
+// --- The start order -------------------------------------------------------------
+
+TArray<FString> UApexSessionCreateWidget::CurrentOrder() const
+{
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!Flow)
+	{
+		return ApexCreateSession::DefaultOrder(0);
+	}
+	const ApexCreateSession::FGrid G = ApexCreateSession::Grid(
+		Flow->CreateSessionKind != EApexSessionKind::Practice, Flow->CreateMaxPlayers, Flow->CreateAiCount, MaxPlayersCeiling);
+	return ApexCreateSession::Normalise(Flow->CreateGridOrder, G.Ai, G.Field);
+}
+
+void UApexSessionCreateWidget::StoreOrder(const TArray<FString>& Order, const FString& ResultId)
+{
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!Flow)
+	{
+		return;
+	}
+	const ApexCreateSession::FGrid G = ApexCreateSession::Grid(
+		Flow->CreateSessionKind != EApexSessionKind::Practice, Flow->CreateMaxPlayers, Flow->CreateAiCount, MaxPlayersCeiling);
+	Flow->CreateGridTrackId = Flow->GetPendingTrackId();
+	if (ApexCreateSession::IsDefaultOrder(Order, G.Ai, G.Field))
+	{
+		// Just the seating order: nothing to send, nothing to remember.
+		Flow->CreateGridOrder.Reset();
+		Flow->CreateGridResultId.Reset();
+		return;
+	}
+	Flow->CreateGridOrder = ApexCreateSession::Normalise(Order, G.Ai, G.Field);
+	Flow->CreateGridResultId = ResultId;
+}
+
+bool UApexSessionCreateWidget::IsGridInteractive() const
+{
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	return Flow && ActiveTab == 0 && Flow->CreateStartingMode != EApexGameMode::Hotlap
+		&& GridSlotsPanel && GridSlotsPanel->GetVisibility() != ESlateVisibility::Collapsed;
+}
+
+int32 UApexSessionCreateWidget::SlotUnder(const FVector2D& ScreenPosition) const
+{
+	if (!IsGridInteractive())
+	{
+		return INDEX_NONE;
+	}
+	for (int32 Index = 0; Index < SlotFaces.Num(); ++Index)
+	{
+		if (SlotFaces[Index] && SlotFaces[Index]->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
+void UApexSessionCreateWidget::ClickSlot(int32 Clicked)
+{
+	const int32 Occupied = CurrentOrder().Num();
+	if (Clicked < Occupied)
+	{
+		// A driver: pick it up, or drop the one picked up here.
+		if (PickedSlot == INDEX_NONE)
+		{
+			PickedSlot = Clicked;
+		}
+		else if (PickedSlot == Clicked)
+		{
+			PickedSlot = INDEX_NONE;
+		}
+		else
+		{
+			const int32 From = PickedSlot;
+			PickedSlot = INDEX_NONE;
+			DropSlot(From, Clicked);
+			return;
+		}
+		RefreshGridPreview();
+		return;
+	}
+	// A seat past the drivers sets the field, as a click on the grid always did.
+	PickedSlot = INDEX_NONE;
+	PickGridSlot(Clicked + 1);
+}
+
+void UApexSessionCreateWidget::DropSlot(int32 From, int32 To)
+{
+	TArray<FString> Order = CurrentOrder();
+	// Dropped on a seat past the drivers: last of them.
+	To = FMath::Min(To, Order.Num() - 1);
+	if (ApexCreateSession::MoveEntry(Order, From, To))
+	{
+		StoreOrder(Order, FString());
+	}
+	PickedSlot = INDEX_NONE;
+	Changed();
+}
+
+FReply UApexSessionCreateWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		const int32 Pressed = SlotUnder(InMouseEvent.GetScreenSpacePosition());
+		if (Pressed != INDEX_NONE)
+		{
+			DragFrom = Pressed;
+			DragHover = Pressed;
+			return FReply::Handled().CaptureMouse(TakeWidget());
+		}
+	}
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
+FReply UApexSessionCreateWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (DragFrom != INDEX_NONE)
+	{
+		const int32 Hover = SlotUnder(InMouseEvent.GetScreenSpacePosition());
+		if (Hover != DragHover)
+		{
+			DragHover = Hover;
+			RefreshGridPreview();
+		}
+		return FReply::Handled();
+	}
+	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
+}
+
+FReply UApexSessionCreateWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (DragFrom != INDEX_NONE && InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		const int32 From = DragFrom;
+		const int32 To = SlotUnder(InMouseEvent.GetScreenSpacePosition());
+		DragFrom = INDEX_NONE;
+		DragHover = INDEX_NONE;
+		if (To == From)
+		{
+			ClickSlot(From);
+		}
+		else if (To != INDEX_NONE && From < CurrentOrder().Num())
+		{
+			DropSlot(From, To);
+		}
+		else
+		{
+			RefreshGridPreview();
+		}
+		return FReply::Handled().ReleaseMouseCapture();
+	}
+	return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
+}
+
+void UApexSessionCreateWidget::NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)
+{
+	if (DragFrom != INDEX_NONE)
+	{
+		DragFrom = INDEX_NONE;
+		DragHover = INDEX_NONE;
+		RefreshGridPreview();
+	}
+	Super::NativeOnMouseCaptureLost(CaptureLostEvent);
+}
+
+void UApexSessionCreateWidget::RequestQualifying()
+{
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	UApexNetSubsystem* Net = GetNet();
+	if (Flow && Net && Flow->HasPendingTrack() && Net->IsAuthenticated()
+		&& !QualifyingRequestedFor.Equals(Flow->GetPendingTrackId(), ESearchCase::IgnoreCase))
+	{
+		QualifyingRequestedFor = Flow->GetPendingTrackId();
+		Net->RequestQualifyingResults(QualifyingRequestedFor);
+	}
+}
+
+void UApexSessionCreateWidget::LoadResult(const FApexQualifyingResult& Result)
+{
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Flow || !Net)
+	{
+		return;
+	}
+	const ApexCreateSession::FGrid G = ApexCreateSession::Grid(
+		Flow->CreateSessionKind != EApexSessionKind::Practice, Flow->CreateMaxPlayers, Flow->CreateAiCount, MaxPlayersCeiling);
+	StoreOrder(ApexCreateSession::Normalise(
+		ApexCreateSession::OrderFromResult(Result, Net->GetPlayerName(), G.Ai), G.Ai, G.Field), Result.Id);
+}
+
+void UApexSessionCreateWidget::HandleQualifyingResults(const FString& TrackId)
+{
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	const UApexNetSubsystem* Net = GetNet();
+	if (Flow && Net && Flow->GetPendingTrackId().Equals(TrackId, ESearchCase::IgnoreCase))
+	{
+		// A screenshot run can load a stored result: -ApexCreateLoadResult=N is
+		// the Nth, newest first (once, when the list first arrives).
+		int32 LoadAt = INDEX_NONE;
+		const TArray<FApexQualifyingResult>& Results = Net->GetQualifyingResults(TrackId);
+		if (!bLoadedFromSwitch && FParse::Value(FCommandLine::Get(), TEXT("ApexCreateLoadResult="), LoadAt) && Results.IsValidIndex(LoadAt))
+		{
+			bLoadedFromSwitch = true;
+			LoadResult(Results[LoadAt]);
+		}
+		RefreshSettings();
+	}
+}
+
+void UApexSessionCreateWidget::RefreshStartOrder()
+{
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Flow || !StartOrderRows)
+	{
+		return;
+	}
+
+	const bool bRace = Flow->CreateStartingMode == EApexGameMode::Race;
+	if (StartOrderSection)
+	{
+		StartOrderSection->SetVisibility(bRace ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
+	// An order is made for one track: another track starts from the seating
+	// order again, and this one's stored results are asked for.
+	const FString TrackId = Flow->GetPendingTrackId();
+	if (!Flow->CreateGridTrackId.Equals(TrackId, ESearchCase::IgnoreCase))
+	{
+		Flow->CreateGridOrder.Reset();
+		Flow->CreateGridResultId.Reset();
+		Flow->CreateGridTrackId = TrackId;
+		PickedSlot = INDEX_NONE;
+		RequestQualifying();
+	}
+
+	const bool bMultiplayer = Flow->CreateSessionKind != EApexSessionKind::Practice;
+	const ApexCreateSession::FGrid G = ApexCreateSession::Grid(bMultiplayer, Flow->CreateMaxPlayers, Flow->CreateAiCount, MaxPlayersCeiling);
+	const TArray<FString> Order = CurrentOrder();
+	const bool bSeating = ApexCreateSession::IsDefaultOrder(Flow->CreateGridOrder, G.Ai, G.Field);
+	const TArray<FApexQualifyingResult> Empty;
+	const TArray<FApexQualifyingResult>& Results = Net ? Net->GetQualifyingResults(TrackId) : Empty;
+
+	// The newest few, and the loaded one wherever it is in the list.
+	int32 Loaded = INDEX_NONE;
+	if (!bSeating && !Flow->CreateGridResultId.IsEmpty())
+	{
+		Loaded = Results.IndexOfByPredicate([&](const FApexQualifyingResult& R) { return R.Id == Flow->CreateGridResultId; });
+	}
+	const bool bCustom = !bSeating && Loaded == INDEX_NONE;
+	TArray<int32> Shown;
+	for (int32 Index = 0; Index < Results.Num() && Shown.Num() < MaxResultsShown; ++Index)
+	{
+		Shown.Add(Index);
+	}
+	if (Loaded != INDEX_NONE && !Shown.Contains(Loaded))
+	{
+		Shown.Last() = Loaded;
+	}
+
+	auto When = [](const FString& Stamp)
+	{
+		FDateTime Utc;
+		if (!FDateTime::ParseIso8601(*Stamp, Utc))
+		{
+			return FString();
+		}
+		const FDateTime Local = Utc + (FDateTime::Now() - FDateTime::UtcNow());
+		static const TCHAR* const Months[] = {
+			TEXT("Jan"), TEXT("Feb"), TEXT("Mar"), TEXT("Apr"), TEXT("May"), TEXT("Jun"),
+			TEXT("Jul"), TEXT("Aug"), TEXT("Sep"), TEXT("Oct"), TEXT("Nov"), TEXT("Dec"),
+		};
+		return FString::Printf(TEXT("%02d %s %02d:%02d"), Local.GetDay(), Months[FMath::Clamp(Local.GetMonth() - 1, 0, 11)],
+			Local.GetHour(), Local.GetMinute());
+	};
+
+	FString Signature = TrackId + (bCustom ? TEXT("|custom") : TEXT(""));
+	for (const int32 Index : Shown)
+	{
+		Signature += FString::Printf(TEXT("|%s:%d"), *Results[Index].Id, Results[Index].Entries.Num());
+	}
+
+	if (Signature != StartOrderSignature || StartOrderButtons.IsEmpty())
+	{
+		StartOrderSignature = Signature;
+		const bool bHadFocus = StartOrderButtons.ContainsByPredicate(
+			[](const TObjectPtr<UApexButtonWidget>& Button) { return Button && Button->HasKeyboardFocus(); });
+
+		StartOrderRows->ClearChildren();
+		StartOrderButtons.Reset();
+		StartOrderIds.Reset();
+
+		// The pole sitter goes under the label: a chip is a third of the column,
+		// and a name and a time beside the label ran into it.
+		auto Add = [this](const FString& Label, const FString& SubLabel, const FString& Id)
+		{
+			FApexButtonSpec Spec;
+			Spec.Label = Label;
+			Spec.SubLabel = SubLabel;
+			Spec.Variant = EApexButtonVariant::Panel;
+			Spec.LabelSize = 16.0f;
+			Spec.Height = 58.0f;
+			StartOrderButtons.Add(MakeButton(Spec));
+			StartOrderIds.Add(Id);
+		};
+		Add(TEXT("Default"), TEXT("AI ahead"), FString());
+		if (bCustom)
+		{
+			Add(TEXT("Custom"), TEXT("Edited"), CustomOrderId);
+		}
+		for (const int32 Index : Shown)
+		{
+			const FApexQualifyingResult& Result = Results[Index];
+			const FString Pole = Result.Entries.IsEmpty() ? FString() : Result.Entries[0].Name;
+			const FString Stamp = When(Result.RecordedAt);
+			Add(Stamp.IsEmpty()
+					? FString::Printf(TEXT("Qualifying · %s"), *ApexCatalog::DisplayClass(Result.Class))
+					: FString::Printf(TEXT("%s · %s"), *ApexCatalog::DisplayClass(Result.Class), *Stamp),
+				Result.Entries.IsEmpty() ? FString(TEXT("Empty"))
+					: FString::Printf(TEXT("P1 %s %s"), *Pole.Left(12).ToUpper(), *UApexMenuFlowSubsystem::FormatLapTime(Result.Entries[0].LapTimeMs / 1000.0f)),
+				Result.Id);
+		}
+
+		// Three to a row, a short last row keeping the thirds.
+		UHorizontalBox* Row = nullptr;
+		for (int32 Index = 0; Index < StartOrderButtons.Num(); ++Index)
+		{
+			if (Index % 3 == 0)
+			{
+				Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+				ApexUI::AddV(StartOrderRows, Row, FMargin(0.0f, Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f));
+			}
+			ApexUI::AddH(Row, StartOrderButtons[Index], FMargin(Index % 3 == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		}
+		for (int32 Pad = StartOrderButtons.Num() % 3; Row && Pad != 0 && Pad < 3; ++Pad)
+		{
+			ApexUI::AddH(Row, WidgetTree->ConstructWidget<USpacer>(), FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		}
+
+		if (bHadFocus)
+		{
+			// Back onto the chip now in use, wherever the rebuild put it.
+			const FString Selected = bSeating ? FString() : bCustom ? FString(CustomOrderId) : Flow->CreateGridResultId;
+			const int32 At = StartOrderIds.IndexOfByKey(Selected);
+			ApexNav::Focus(StartOrderButtons.IsValidIndex(At) ? StartOrderButtons[At].Get() : StartOrderButtons[0].Get());
+		}
+	}
+
+	for (int32 Index = 0; Index < StartOrderButtons.Num(); ++Index)
+	{
+		const FString& Id = StartOrderIds[Index];
+		const bool bSelected = Id.IsEmpty() ? bSeating
+			: Id == CustomOrderId ? bCustom
+			: Loaded != INDEX_NONE && Results[Loaded].Id == Id;
+		StartOrderButtons[Index]->SetSelected(bSelected);
+	}
+
+	const int32 Mine = Order.IndexOfByKey(ApexCreateSession::HostRef());
+	if (YourSlotValueText)
+	{
+		YourSlotValueText->SetText(FText::FromString(FString::Printf(TEXT("P%d"), Mine + 1)));
+	}
+	if (YourSlotEarlier) { YourSlotEarlier->SetIsEnabled(Mine > 0); }
+	if (YourSlotLater)   { YourSlotLater->SetIsEnabled(Mine >= 0 && Mine + 1 < Order.Num()); }
+
+	if (StartOrderInfoText)
+	{
+		StartOrderInfoText->SetText(FText::FromString(Results.IsEmpty()
+			? FString(TEXT("DRAG THE GRID · NO QUALIFYING SET HERE YET"))
+			: Results.Num() > Shown.Num()
+				? FString::Printf(TEXT("DRAG THE GRID · %d STORED · NEWEST %d SHOWN"), Results.Num(), Shown.Num())
+				: FString::Printf(TEXT("DRAG THE GRID · %d STORED FOR THIS TRACK"), Results.Num())));
+	}
 }
 
 void UApexSessionCreateWidget::PickGridSlot(int32 Position)
@@ -2416,7 +2878,7 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Flow->CreateAllowedAssists.CountLocked(), *Flow->CreateConditions.Describe(),
 			static_cast<int32>(Flow->CreateDamage));
 
-		Net->CreateSession(
+		Net->CreateSessionWithOrder(
 			Flow->GetPendingTrackId(),
 			Flow->CreateMaxPlayers,
 			Flow->EffectiveAiCount(),
@@ -2426,7 +2888,8 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Flow->CreateConditions,
 			Flow->CreateDamage,
 			Flow->CreateAiSkill,
-			Flow->EffectiveRaceSeconds());
+			Flow->EffectiveRaceSeconds(),
+			Flow->GridOrderToSend(MaxPlayersCeiling));
 		return;
 	}
 
@@ -2503,7 +2966,48 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	}
 	if (const int32 Position = ApexNav::IndexOf(SlotButtons, Button); Position != INDEX_NONE)
 	{
-		PickGridSlot(Position + 1);
+		// Mouse presses reach the screen through its own handlers (a slot
+		// may be dragged); this is only a button activated some other way.
+		ClickSlot(Position);
+		return;
+	}
+	if (Button == YourSlotEarlier || Button == YourSlotLater)
+	{
+		TArray<FString> Order = CurrentOrder();
+		const int32 Mine = Order.IndexOfByKey(ApexCreateSession::HostRef());
+		if (ApexCreateSession::MoveEntry(Order, Mine, Mine + (Button == YourSlotLater ? 1 : -1)))
+		{
+			StoreOrder(Order, FString());
+			Changed();
+		}
+		return;
+	}
+	if (const int32 ChipAt = ApexNav::IndexOf(StartOrderButtons, Button); ChipAt != INDEX_NONE)
+	{
+		const UApexNetSubsystem* Net = GetNet();
+		const FString Id = StartOrderIds.IsValidIndex(ChipAt) ? StartOrderIds[ChipAt] : FString();
+		if (Id == CustomOrderId)
+		{
+			// Custom is the working order already.
+			return;
+		}
+		PickedSlot = INDEX_NONE;
+		if (Id.IsEmpty())
+		{
+			StoreOrder(TArray<FString>(), FString());
+		}
+		else if (Net)
+		{
+			for (const FApexQualifyingResult& Result : Net->GetQualifyingResults(Flow->GetPendingTrackId()))
+			{
+				if (Result.Id == Id)
+				{
+					LoadResult(Result);
+					break;
+				}
+			}
+		}
+		Changed();
 		return;
 	}
 	if (const int32 Preset = ApexNav::IndexOf(AssistPresetButtons, Button); Preset != INDEX_NONE)

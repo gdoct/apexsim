@@ -85,6 +85,12 @@ pub struct GameSession {
     ai_speed_profiles: HashMap<CarConfigId, Vec<RacingLineProfile>>,
     /// Simulation tick rate (Hz); the fixed timestep is `1 / tick_rate_hz`.
     tick_rate_hz: u16,
+    /// The names of the humans seated, set as they join (the AI's are on
+    /// their profiles): what the start order's name references match.
+    driver_names: std::collections::BTreeMap<PlayerId, String>,
+    /// Each driver's best legal qualifying lap, ms, and the tick it was set
+    /// on (the earlier of two equal times starts ahead).
+    qualifying: std::collections::BTreeMap<PlayerId, (u32, u32)>,
     /// Set when session membership changed since the last roster broadcast;
     /// starts true so the roster goes out once when the session first ticks.
     roster_dirty: bool,
@@ -369,6 +375,8 @@ impl GameSession {
             car_configs,
             ai_profiles: std::collections::BTreeMap::new(),
             tick_rate_hz: DEFAULT_TICK_RATE_HZ,
+            driver_names: std::collections::BTreeMap::new(),
+            qualifying: std::collections::BTreeMap::new(),
             roster_dirty: true,
             ai_speed_profiles: HashMap::new(),
             finish_deadline_tick: None,
@@ -409,6 +417,8 @@ impl GameSession {
             car_configs,
             ai_profiles: ai_profiles_map,
             tick_rate_hz: DEFAULT_TICK_RATE_HZ,
+            driver_names: std::collections::BTreeMap::new(),
+            qualifying: std::collections::BTreeMap::new(),
             roster_dirty: true,
             ai_speed_profiles: HashMap::new(),
             finish_deadline_tick: None,
@@ -1520,9 +1530,150 @@ impl GameSession {
         self.session_best_lap_ms
     }
 
+    /// Remember a human driver's name, for the start order's references.
+    pub fn set_driver_name(&mut self, player_id: PlayerId, name: &str) {
+        self.driver_names.insert(player_id, name.to_string());
+    }
+
+    fn driver_name(&self, player_id: &PlayerId) -> String {
+        self.ai_profiles
+            .get(player_id)
+            .map(|p| p.name.clone())
+            .or_else(|| self.driver_names.get(player_id).cloned())
+            .unwrap_or_default()
+    }
+
+    /// The start order the host asked for (see [`crate::grid_order`]),
+    /// bounded; replaces any earlier one.
+    pub fn set_grid_order(&mut self, order: Vec<String>) {
+        self.session.grid_order = crate::grid_order::sanitize(order);
+    }
+
+    /// The drivers seated, with the slot each holds.
+    fn seated_drivers(&self) -> Vec<crate::grid_order::Seated> {
+        self.session
+            .participants
+            .values()
+            .map(|s| crate::grid_order::Seated {
+                id: s.player_id,
+                name: self.driver_name(&s.player_id),
+                grid_position: s.grid_position,
+            })
+            .collect()
+    }
+
+    /// Whom the next race grids by, first to last: the host's own order
+    /// when there is one, else this session's qualifying result (drivers
+    /// with no time behind the classified), else nobody (the seating order
+    /// stands).
+    fn grid_order_ids(&self) -> Option<Vec<PlayerId>> {
+        let drivers = self.seated_drivers();
+        if !self.session.grid_order.is_empty() {
+            return Some(crate::grid_order::resolve(
+                &drivers,
+                self.session.host_player_id,
+                &self.session.ai_player_ids,
+                &self.session.grid_order,
+            ));
+        }
+        if self.qualifying.is_empty() {
+            return None;
+        }
+        let mut by_slot: Vec<&crate::grid_order::Seated> = drivers.iter().collect();
+        by_slot.sort_by_key(|d| (d.grid_position, d.id));
+        let classified: Vec<PlayerId> = self
+            .qualifying_order()
+            .into_iter()
+            .filter(|id| drivers.iter().any(|d| d.id == *id))
+            .collect();
+        Some(crate::grid_order::complete(&by_slot, classified))
+    }
+
+    /// Seat the drivers on the grid slots in start order. A session with no
+    /// requested order and no qualifying keeps the slots it has.
+    pub fn apply_grid_order(&mut self) {
+        let Some(order) = self.grid_order_ids() else {
+            return;
+        };
+        if order.len() > self.track_config.start_positions.len() {
+            return;
+        }
+        for (i, id) in order.iter().enumerate() {
+            if let Some(state) = self.session.participants.get_mut(id) {
+                state.grid_position = (i + 1) as u8;
+            }
+        }
+    }
+
+    /// A legal qualifying lap. Returns this session's classification when
+    /// the lap improved the driver's best, for the store to keep. The first
+    /// time laps count in a session its own result replaces any order the
+    /// host asked for.
+    pub fn note_qualifying_lap(
+        &mut self,
+        player_id: PlayerId,
+        lap_time_ms: u32,
+    ) -> Option<crate::records::QualifyingResult> {
+        if self.session.game_mode != GameMode::Qualification || lap_time_ms == 0 {
+            return None;
+        }
+        if self
+            .qualifying
+            .get(&player_id)
+            .is_some_and(|(best, _)| *best <= lap_time_ms)
+        {
+            return None;
+        }
+        if self.qualifying.is_empty() {
+            self.session.grid_order.clear();
+        }
+        self.qualifying
+            .insert(player_id, (lap_time_ms, self.session.current_tick));
+        Some(self.qualifying_result())
+    }
+
+    /// The drivers with a legal qualifying lap, fastest first.
+    pub fn qualifying_order(&self) -> Vec<PlayerId> {
+        let mut classified: Vec<(&PlayerId, &(u32, u32))> = self.qualifying.iter().collect();
+        classified.sort_by_key(|(id, (ms, tick))| (*ms, *tick, **id));
+        classified.into_iter().map(|(id, _)| *id).collect()
+    }
+
+    /// This session's classification as the store keeps it.
+    pub fn qualifying_result(&self) -> crate::records::QualifyingResult {
+        let class = self
+            .session
+            .host_car_id
+            .and_then(|id| self.car_configs.get(&id))
+            .map(|c| c.class.clone())
+            .unwrap_or_default();
+        let entries = self
+            .qualifying_order()
+            .into_iter()
+            .filter_map(|id| {
+                let state = self.session.participants.get(&id)?;
+                Some(crate::records::QualifyingEntry {
+                    name: self.driver_name(&id),
+                    car_config_id: state.car_config_id,
+                    lap_time_ms: self.qualifying.get(&id)?.0,
+                    is_ai: self.session.ai_player_ids.contains(&id),
+                })
+            })
+            .filter(|e| !e.name.is_empty())
+            .collect();
+        crate::records::QualifyingResult {
+            id: self.session.id,
+            track_id: self.session.track_config_id,
+            class,
+            recorded_at: String::new(),
+            entries,
+        }
+    }
+
     /// Put every car back on its grid slot with a clean race state (laps,
     /// times, finish position, damage), keeping the driver's aids.
     pub fn line_up_on_grid(&mut self) {
+        self.apply_grid_order();
         self.finish_deadline_tick = None;
         self.race_end = RaceEnd::default();
         // A fresh race, a fresh timing sheet: the session's bests and every
@@ -4158,5 +4309,132 @@ mod tests {
             session.session.participants[&early].damage_scale(),
             DamageLevel::REDUCED_SHARE
         );
+    }
+
+    /// Three humans seated in join order, named "A", "B" and "C".
+    fn three_drivers() -> (GameSession, [PlayerId; 3]) {
+        let mut game_session = create_test_session();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let ids = [Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()];
+        for (id, name) in ids.iter().zip(["A", "B", "C"]) {
+            game_session.set_driver_name(*id, name);
+            assert!(game_session.add_player(*id, car_id).is_some());
+        }
+        (game_session, ids)
+    }
+
+    fn slot(game_session: &GameSession, id: &PlayerId) -> u8 {
+        game_session.session.participants[id].grid_position
+    }
+
+    #[test]
+    fn a_requested_grid_order_seats_the_race_grid() {
+        let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.set_grid_order(vec!["C".into(), "A".into()]);
+        game_session.line_up_on_grid();
+        // C and A as asked, the unlisted B behind them.
+        assert_eq!(
+            (
+                slot(&game_session, &c),
+                slot(&game_session, &a),
+                slot(&game_session, &b)
+            ),
+            (1, 2, 3)
+        );
+    }
+
+    #[test]
+    fn without_an_order_or_qualifying_the_seating_stands() {
+        let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.line_up_on_grid();
+        assert_eq!(
+            (
+                slot(&game_session, &a),
+                slot(&game_session, &b),
+                slot(&game_session, &c)
+            ),
+            (1, 2, 3)
+        );
+    }
+
+    #[test]
+    fn a_driver_who_is_not_there_closes_the_grid_up() {
+        let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.set_grid_order(vec!["Ghost".into(), "B".into(), "C".into()]);
+        game_session.line_up_on_grid();
+        assert_eq!(
+            (
+                slot(&game_session, &b),
+                slot(&game_session, &c),
+                slot(&game_session, &a)
+            ),
+            (1, 2, 3)
+        );
+    }
+
+    #[test]
+    fn qualifying_classifies_by_best_legal_lap_and_grids_the_race() {
+        let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.set_game_mode(GameMode::Qualification);
+        // Laps outside a qualifying session count for nothing.
+        assert!(game_session.note_qualifying_lap(a, 90_000).is_some());
+        assert!(game_session.note_qualifying_lap(a, 91_000).is_none());
+        assert!(game_session.note_qualifying_lap(c, 88_000).is_some());
+        // The same time a tick later starts behind.
+        game_session.session.current_tick += 1;
+        let result = game_session.note_qualifying_lap(b, 90_000).unwrap();
+        assert_eq!(game_session.qualifying_order(), vec![c, a, b]);
+        let names: Vec<_> = result.entries.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, ["C", "A", "B"]);
+        game_session.line_up_on_grid();
+        assert_eq!(
+            (
+                slot(&game_session, &c),
+                slot(&game_session, &a),
+                slot(&game_session, &b)
+            ),
+            (1, 2, 3)
+        );
+    }
+
+    #[test]
+    fn a_driver_with_no_time_starts_behind_the_classified() {
+        let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.set_game_mode(GameMode::Qualification);
+        game_session.note_qualifying_lap(c, 88_000);
+        game_session.line_up_on_grid();
+        assert_eq!(slot(&game_session, &c), 1);
+        assert_eq!((slot(&game_session, &a), slot(&game_session, &b)), (2, 3));
+    }
+
+    #[test]
+    fn the_sessions_own_qualifying_replaces_a_requested_order() {
+        let (mut game_session, [a, _b, c]) = three_drivers();
+        game_session.set_grid_order(vec!["A".into()]);
+        game_session.set_game_mode(GameMode::Qualification);
+        game_session.note_qualifying_lap(c, 88_000);
+        assert!(game_session.session.grid_order.is_empty());
+        game_session.line_up_on_grid();
+        assert_eq!(slot(&game_session, &c), 1);
+        assert_eq!(slot(&game_session, &a), 2);
+    }
+
+    #[test]
+    fn an_order_can_name_the_host_and_the_ai_by_seat() {
+        let mut game_session = create_test_session();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let host = game_session.session.host_player_id;
+        game_session.set_driver_name(host, "Me");
+        game_session.add_player(host, car_id);
+        let ai: Vec<PlayerId> = (0..2).map(|_| Uuid::new_v4()).collect();
+        for id in &ai {
+            game_session.add_player(*id, car_id);
+            game_session.session.ai_player_ids.push(*id);
+        }
+        game_session.set_grid_order(vec!["@ai:2".into(), "@host".into(), "@ai:1".into()]);
+        game_session.line_up_on_grid();
+        assert_eq!(slot(&game_session, &ai[1]), 1);
+        assert_eq!(slot(&game_session, &host), 2);
+        assert_eq!(slot(&game_session, &ai[0]), 3);
     }
 }

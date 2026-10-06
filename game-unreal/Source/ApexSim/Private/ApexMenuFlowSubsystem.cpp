@@ -8,6 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Cars/ApexCarContentSubsystem.h"
 #include "Track/ApexTrackContentSubsystem.h"
+#include "UI/ApexCreateSessionModel.h"
 
 namespace
 {
@@ -104,6 +105,22 @@ void UApexMenuFlowSubsystem::LoadProfile()
 
 	UE_LOG(LogApexSim, Log, TEXT("Profile loaded: driver '%s', last track '%s', last car '%s', %d best lap(s)"),
 		*PlayerName, *PendingTrackId, *PendingCarId, Profile->BestLapSeconds.Num());
+}
+
+TArray<FString> UApexMenuFlowSubsystem::GridOrderToSend(int32 GridCeiling) const
+{
+	if (CreateStartingMode != EApexGameMode::Race || CreateGridOrder.IsEmpty()
+		|| !CreateGridTrackId.Equals(GetPendingTrackId(), ESearchCase::IgnoreCase))
+	{
+		return TArray<FString>();
+	}
+	const ApexCreateSession::FGrid Grid = ApexCreateSession::Grid(
+		CreateSessionKind != EApexSessionKind::Practice, CreateMaxPlayers, CreateAiCount, GridCeiling);
+	if (ApexCreateSession::IsDefaultOrder(CreateGridOrder, Grid.Ai, Grid.Field))
+	{
+		return TArray<FString>();
+	}
+	return ApexCreateSession::Normalise(CreateGridOrder, Grid.Ai, Grid.Field);
 }
 
 FString UApexMenuFlowSubsystem::DescribeRaceLength() const

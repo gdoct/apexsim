@@ -14,6 +14,7 @@ pub mod feedback;
 pub mod game_loop;
 pub mod game_session;
 pub mod geometry;
+pub mod grid_order;
 pub mod ground;
 pub mod headlights;
 pub mod health;

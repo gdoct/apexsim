@@ -15,6 +15,88 @@ namespace
 }
 
 // -----------------------------------------------------------------------------
+// The start order: references the server resolves, normalised so the preview
+// shows what it will seat.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCreateSessionStartOrderTest,
+	"ApexSim.UI.CreateSession.StartOrder",
+	ApexTestFlags)
+
+bool FApexCreateSessionStartOrderTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexCreateSession;
+
+	const TArray<FString> Seating = DefaultOrder(3);
+	TestEqual(TEXT("the seating order: the AI, then the host"),
+		FString::Join(Seating, TEXT(",")), FString(TEXT("@ai:1,@ai:2,@ai:3,@host")));
+	TestTrue(TEXT("nothing asked is the seating order"), IsDefaultOrder({}, 3, 8));
+	TestTrue(TEXT("the seating order spelled out is too"), IsDefaultOrder(Seating, 3, 8));
+
+	// A listed driver leads; the others follow in seating order.
+	TArray<FString> Custom = Normalise({ TEXT("@host"), TEXT("@ai:2") }, 3, 8);
+	TestEqual(TEXT("normalised"), FString::Join(Custom, TEXT(",")), FString(TEXT("@host,@ai:2,@ai:1,@ai:3")));
+	TestFalse(TEXT("a changed order is not the default"), IsDefaultOrder(Custom, 3, 8));
+
+	// What cannot match is dropped, repeats too; unknown @ references too.
+	TestEqual(TEXT("junk is dropped"),
+		FString::Join(Normalise({ TEXT("@ai:9"), TEXT(""), TEXT("@ai:1"), TEXT("@ai:1"), TEXT("@nope") }, 2, 8), TEXT(",")),
+		FString(TEXT("@ai:1,@ai:2,@host")));
+
+	// A named driver (from a loaded result) keeps its place.
+	TestEqual(TEXT("a name leads"),
+		FString::Join(Normalise({ TEXT("Alice"), TEXT("@host") }, 1, 8), TEXT(",")),
+		FString(TEXT("Alice,@host,@ai:1")));
+
+	// The field cuts the list, and the host is never cut.
+	TestEqual(TEXT("cut to the field"),
+		FString::Join(Normalise({ TEXT("@ai:1"), TEXT("@ai:2"), TEXT("@ai:3") }, 3, 2), TEXT(",")),
+		FString(TEXT("@ai:1,@host")));
+
+	const TArray<FGridEntry> Slots = ApexCreateSession::Entries(Custom);
+	TestTrue(TEXT("P1 is you"), Slots[0].bYou);
+	TestEqual(TEXT("P2's label"), Slots[1].Label, FString(TEXT("AI 2")));
+	TestTrue(TEXT("P2 is AI"), Slots[1].bAi);
+	TestEqual(TEXT("a name is its own label"), ApexCreateSession::Entries({ TEXT("Alice") })[0].Label, FString(TEXT("Alice")));
+
+	// Moving an entry shifts the ones between.
+	TArray<FString> Moving = Seating;
+	TestTrue(TEXT("the host to pole"), MoveEntry(Moving, 3, 0));
+	TestEqual(TEXT("moved"), FString::Join(Moving, TEXT(",")), FString(TEXT("@host,@ai:1,@ai:2,@ai:3")));
+	TestTrue(TEXT("down the grid"), MoveEntry(Moving, 0, 2));
+	TestEqual(TEXT("moved down"), FString::Join(Moving, TEXT(",")), FString(TEXT("@ai:1,@ai:2,@host,@ai:3")));
+	TestFalse(TEXT("to where it is"), MoveEntry(Moving, 2, 2));
+	TestFalse(TEXT("from nowhere"), MoveEntry(Moving, 9, 0));
+	TestTrue(TEXT("past the end clamps"), MoveEntry(Moving, 0, 99));
+	TestEqual(TEXT("clamped to last"), Moving.Last(), FString(TEXT("@ai:1")));
+
+	// A stored result: the host by name, its AI by rank, other humans by name.
+	FApexQualifyingResult Result;
+	auto Add = [&Result](const TCHAR* Name, bool bAi)
+	{
+		FApexQualifyingEntry& Entry = Result.Entries.AddDefaulted_GetRef();
+		Entry.Name = Name;
+		Entry.bIsAi = bAi;
+	};
+	Add(TEXT("Luna Swift"), true);
+	Add(TEXT("Guido"), false);
+	Add(TEXT("Max Voltage"), true);
+	Add(TEXT("Kai Storm"), true);
+	Add(TEXT("Bob"), false);
+	TestEqual(TEXT("from a result"),
+		FString::Join(OrderFromResult(Result, TEXT("Guido"), 2), TEXT(",")),
+		FString(TEXT("@ai:1,@host,@ai:2,Bob")));
+	TestEqual(TEXT("normalised for the field"),
+		FString::Join(Normalise(OrderFromResult(Result, TEXT("Guido"), 2), 2, 3), TEXT(",")),
+		FString(TEXT("@ai:1,@host,@ai:2")));
+	TestEqual(TEXT("a host who did not qualify starts behind"),
+		FString::Join(Normalise(OrderFromResult(Result, TEXT("Nobody"), 2), 2, 8), TEXT(",")),
+		FString(TEXT("@ai:1,Guido,@ai:2,Bob,@host")));
+	return true;
+}
+
+// -----------------------------------------------------------------------------
 // The grid: the AI take the front, the host lines up behind them, the rest
 // are open seats (the server spawns the AI before the host joins).
 // -----------------------------------------------------------------------------

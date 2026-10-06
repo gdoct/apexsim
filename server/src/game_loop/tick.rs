@@ -35,6 +35,8 @@ pub(crate) struct LapTimingOut {
     pub msg: ServerMessage,
     /// Present only for a lap a human driver may have set a record with.
     pub record: Option<RecordSubmission>,
+    /// The session's qualifying classification, when this lap changed it.
+    pub qualifying: Option<crate::records::QualifyingResult>,
 }
 
 /// A lap offered to the record store, once the state lock is released.
@@ -249,6 +251,12 @@ pub(crate) async fn tick_sessions(
                         flags |= crate::network::LapTimingData::FLAG_SESSION_BEST_SECTOR;
                     }
                     let lap_time_ms = out.event.lap_time_ms.unwrap_or(0);
+                    let qualifying = match out.event.lap_time_ms {
+                        Some(ms) if out.event.valid => {
+                            game_session.note_qualifying_lap(out.player_id, ms)
+                        }
+                        _ => None,
+                    };
                     let record = match (out.event.lap_time_ms, is_ai) {
                         (Some(lap_time_ms), false) if out.event.valid => game_session
                             .session
@@ -282,6 +290,7 @@ pub(crate) async fn tick_sessions(
                             flags,
                         }),
                         record,
+                        qualifying,
                     });
                 }
             }
@@ -302,6 +311,7 @@ pub(crate) async fn tick_sessions(
                 player_recipients: player_recipients.clone(),
                 msg: ServerMessage::PitService(service),
                 record: None,
+                qualifying: None,
             });
         }
 

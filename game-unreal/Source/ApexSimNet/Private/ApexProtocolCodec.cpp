@@ -493,6 +493,92 @@ namespace
 		return true;
 	}
 
+	/** `QualifyingEntryData` (network.rs) — PascalCase keys. */
+	bool ParseQualifyingEntry(FMsgPackReader& Reader, FApexQualifyingEntry& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("Name"))             { bOk = Reader.ReadString(Out.Name); }
+			else if (Key == TEXT("CarConfigId")) { bOk = Reader.ReadString(Out.CarConfigId); }
+			else if (Key == TEXT("LapTimeMs"))   { bOk = Reader.ReadUInt64(Raw); Out.LapTimeMs = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)); }
+			else if (Key == TEXT("IsAi"))        { bOk = Reader.ReadBool(Out.bIsAi); }
+			else                                 { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `QualifyingResultData` (network.rs) — PascalCase keys. */
+	bool ParseQualifyingResult(FMsgPackReader& Reader, FApexQualifyingResult& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("Id"))                { bOk = Reader.ReadString(Out.Id); }
+			else if (Key == TEXT("Class"))        { bOk = Reader.ReadString(Out.Class); }
+			else if (Key == TEXT("RecordedAt"))   { bOk = Reader.ReadString(Out.RecordedAt); }
+			else if (Key == TEXT("Entries"))      { bOk = ParseArrayOf(Reader, Out.Entries, &ParseQualifyingEntry); }
+			else                                  { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `QualifyingResultsData` (network.rs) — PascalCase keys. */
+	bool ParseQualifyingResults(FMsgPackReader& Reader, FApexServerMessage& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("TrackId"))       { bOk = Reader.ReadString(Out.QualifyingTrackId); }
+			else if (Key == TEXT("Results"))  { bOk = ParseArrayOf(Reader, Out.QualifyingResults, &ParseQualifyingResult); }
+			else                              { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/** `ShowcaseSummary` (network.rs) — PascalCase keys. */
 	bool ParseShowcaseSummary(FMsgPackReader& Reader, FApexShowcaseSummary& Out)
 	{
@@ -1708,6 +1794,7 @@ namespace
 		if (Variant == TEXT("LapTiming"))          { return EApexServerMessageType::LapTiming; }
 		if (Variant == TEXT("LapRecord"))          { return EApexServerMessageType::LapRecord; }
 		if (Variant == TEXT("GhostLap"))           { return EApexServerMessageType::GhostLap; }
+		if (Variant == TEXT("QualifyingResults"))  { return EApexServerMessageType::QualifyingResults; }
 		if (Variant == TEXT("CarSetupSheet"))      { return EApexServerMessageType::CarSetupSheet; }
 		if (Variant == TEXT("PitService"))         { return EApexServerMessageType::PitService; }
 		if (Variant == TEXT("Showcases"))          { return EApexServerMessageType::Showcases; }
@@ -1760,6 +1847,9 @@ namespace
 
 		case EApexServerMessageType::GhostLap:
 			return ParseGhostLap(Reader, Out.GhostLap);
+
+		case EApexServerMessageType::QualifyingResults:
+			return ParseQualifyingResults(Reader, Out);
 		case EApexServerMessageType::CarSetupSheet:
 			return ParseCarSetupSheet(Reader, Out.CarSetupSheet);
 
@@ -1902,7 +1992,8 @@ namespace ApexProtocol
 		const FApexSessionConditions& Conditions,
 		EApexDamageLevel Damage,
 		int32 AiSkill,
-		int32 RaceSeconds)
+		int32 RaceSeconds,
+		const TArray<FString>& GridOrder)
 	{
 		// Full damage, the mixed AI field and a race over laps are left
 		// off, as the server does: an older server's create, and every
@@ -1912,8 +2003,9 @@ namespace ApexProtocol
 		const bool bAiSkill = Skill != ApexAiSkill::Mixed;
 		const int32 Seconds = ApexRaceLength::Clamp(RaceSeconds);
 		const bool bTimed = Seconds > 0;
+		const bool bGrid = !GridOrder.IsEmpty();
 		FMsgPackWriter Writer(320);
-		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0) + (bTimed ? 1 : 0));
+		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0) + (bTimed ? 1 : 0) + (bGrid ? 1 : 0));
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -1943,6 +2035,26 @@ namespace ApexProtocol
 			Writer.WriteString("race_seconds");
 			Writer.WriteUInt(static_cast<uint32>(Seconds));
 		}
+		if (bGrid)
+		{
+			// The start order: references the server resolves (`@host`,
+			// `@ai:N` or a driver's name), first to last.
+			Writer.WriteString("grid_order");
+			Writer.WriteArrayHeader(GridOrder.Num());
+			for (const FString& Reference : GridOrder)
+			{
+				Writer.WriteString(Reference);
+			}
+		}
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeRequestQualifyingResults(const FString& TrackConfigId)
+	{
+		FMsgPackWriter Writer(96);
+		BeginDataVariant(Writer, "RequestQualifyingResults", 1);
+		Writer.WriteString("track_config_id");
+		Writer.WriteString(TrackConfigId);
 		return MoveTemp(Writer.GetBuffer());
 	}
 

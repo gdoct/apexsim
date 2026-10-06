@@ -190,6 +190,7 @@ async fn start_free_practice(client: &mut ProtocolTestClient) {
             damage: Default::default(),
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         })
         .await;
     client
@@ -307,6 +308,7 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
             damage: Default::default(),
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         })
         .await;
     client

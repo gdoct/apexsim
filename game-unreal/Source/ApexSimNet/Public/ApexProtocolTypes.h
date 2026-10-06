@@ -832,6 +832,54 @@ enum class EApexSpectatorKind : uint8
 	Live = 1,
 };
 
+/**
+ * One driver's line of a stored qualifying result (`QualifyingEntryData`,
+ * network.rs): who, in what car, and the best legal lap.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexQualifyingEntry
+{
+	GENERATED_BODY()
+
+	/** The name the server grids by: a human's, or the AI's own. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	FString Name;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	FString CarConfigId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	int32 LapTimeMs = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	bool bIsAi = false;
+};
+
+/**
+ * A qualifying session's classification as the server stores it
+ * (`QualifyingResultData`): the drivers fastest first, answering
+ * RequestQualifyingResults for a track.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexQualifyingResult
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	FString Id;
+
+	/** The class the session ran in as car.toml spells it (`GT3`); shown through DisplayClass. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	FString Class;
+
+	/** RFC 3339, `2026-10-06T12:00:00Z`. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	FString RecordedAt;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	TArray<FApexQualifyingEntry> Entries;
+};
+
 /** One showcase channel as `Showcases` lists it (`ShowcaseSummary`, network.rs) — PascalCase keys. */
 USTRUCT(BlueprintType)
 struct APEXSIMNET_API FApexShowcaseSummary
@@ -1856,6 +1904,7 @@ enum class EApexServerMessageType : uint8
 	LapTiming,
 	LapRecord,
 	GhostLap,
+	QualifyingResults,
 	CarSetupSheet,
 	PitService,
 	Showcases,
@@ -1889,6 +1938,9 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexLapTiming LapTiming;
 	FApexLapRecord LapRecord;
 	FApexGhostLap GhostLap;
+	/** QualifyingResults: the track they are for, and the results newest first. */
+	FString QualifyingTrackId;
+	TArray<FApexQualifyingResult> QualifyingResults;
 	FApexCarSetupSheet CarSetupSheet;
 	FApexPitService PitService;
 	FApexTelemetryFrame Telemetry;

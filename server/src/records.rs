@@ -71,6 +71,42 @@ pub struct LapRecord {
     pub ghost_file: Option<String>,
 }
 
+/// How many qualifying results the store keeps, oldest dropped first.
+pub const MAX_QUALIFYING_RESULTS: usize = 50;
+
+/// One driver's line of a qualifying result.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QualifyingEntry {
+    pub name: String,
+    pub car_config_id: CarConfigId,
+    pub lap_time_ms: u32,
+    pub is_ai: bool,
+}
+
+/// A qualifying session's classification: its drivers by best legal lap,
+/// fastest first. `id` is the session's, so a session that is still setting
+/// laps keeps replacing its own result.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QualifyingResult {
+    pub id: uuid::Uuid,
+    pub track_id: TrackConfigId,
+    /// The host car's class (`F1`, `GT3`...), for the picker's label.
+    pub class: String,
+    /// RFC 3339; stamped by the store when empty. Display only.
+    pub recorded_at: String,
+    pub entries: Vec<QualifyingEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct QualifyingFile {
+    version: u32,
+    results: Vec<QualifyingResult>,
+}
+
+fn qualifying_path(dir: &Path) -> PathBuf {
+    dir.join("qualifying.json")
+}
+
 type RecordKey = (String, TrackConfigId, CarConfigId);
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -88,6 +124,8 @@ struct RecordsFile {
 pub struct RecordStore {
     dir: Option<PathBuf>,
     records: RwLock<BTreeMap<RecordKey, LapRecord>>,
+    /// Qualifying results, newest first (`qualifying.json`).
+    qualifying: RwLock<Vec<QualifyingResult>>,
 }
 
 impl RecordStore {
@@ -97,6 +135,7 @@ impl RecordStore {
         Self {
             dir: None,
             records: RwLock::new(BTreeMap::new()),
+            qualifying: RwLock::new(Vec::new()),
         }
     }
 
@@ -128,9 +167,79 @@ impl RecordStore {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => warn!("Cannot read lap records {}: {e}", path.display()),
         }
+        let qualifying = match std::fs::read(qualifying_path(&dir)) {
+            Ok(bytes) => match serde_json::from_slice::<QualifyingFile>(&bytes) {
+                Ok(file) => file.results,
+                Err(e) => {
+                    warn!("Ignoring unreadable qualifying results: {e}");
+                    Vec::new()
+                }
+            },
+            Err(_) => Vec::new(),
+        };
         Self {
             dir: Some(dir),
             records: RwLock::new(records),
+            qualifying: RwLock::new(qualifying),
+        }
+    }
+
+    /// Keep a qualifying session's classification, replacing the earlier
+    /// snapshot of the same session (`result.id`). A session with nobody
+    /// classified is not kept. Newest first; only the newest
+    /// [`MAX_QUALIFYING_RESULTS`] survive.
+    pub fn submit_qualifying(&self, mut result: QualifyingResult) {
+        if result.entries.is_empty() {
+            return;
+        }
+        if result.recorded_at.is_empty() {
+            result.recorded_at = now_rfc3339();
+        }
+        {
+            let Ok(mut all) = self.qualifying.write() else {
+                return;
+            };
+            all.retain(|r| r.id != result.id);
+            all.insert(0, result);
+            all.truncate(MAX_QUALIFYING_RESULTS);
+        }
+        self.save_qualifying();
+    }
+
+    /// The saved qualifying results on a track, newest first.
+    pub fn qualifying_for(&self, track_id: TrackConfigId) -> Vec<QualifyingResult> {
+        self.qualifying
+            .read()
+            .map(|all| {
+                all.iter()
+                    .filter(|r| r.track_id == track_id)
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn save_qualifying(&self) {
+        let Some(dir) = &self.dir else { return };
+        let Ok(all) = self.qualifying.read() else {
+            return;
+        };
+        let file = QualifyingFile {
+            version: 1,
+            results: all.clone(),
+        };
+        drop(all);
+        let path = qualifying_path(dir);
+        let tmp = path.with_extension("json.tmp");
+        match serde_json::to_vec_pretty(&file) {
+            Ok(bytes) => {
+                if let Err(e) =
+                    std::fs::write(&tmp, bytes).and_then(|()| std::fs::rename(&tmp, &path))
+                {
+                    warn!("Cannot write qualifying results {}: {e}", path.display());
+                }
+            }
+            Err(e) => warn!("Cannot encode qualifying results: {e}"),
         }
     }
 
@@ -467,6 +576,54 @@ mod tests {
             )
             .is_some());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn quali_result(id: Uuid, track: TrackConfigId, names: &[&str]) -> QualifyingResult {
+        QualifyingResult {
+            id,
+            track_id: track,
+            class: "GT3".into(),
+            recorded_at: String::new(),
+            entries: names
+                .iter()
+                .enumerate()
+                .map(|(i, n)| QualifyingEntry {
+                    name: n.to_string(),
+                    car_config_id: Uuid::nil(),
+                    lap_time_ms: 90_000 + i as u32,
+                    is_ai: false,
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn a_qualifying_session_keeps_one_result_that_survives_a_restart() {
+        let dir = std::env::temp_dir().join(format!("apexsim-records-{}", Uuid::new_v4()));
+        let (track, other, session) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+        let store = RecordStore::open(&dir);
+        store.submit_qualifying(quali_result(session, track, &["A"]));
+        // The same session setting a quicker lap replaces its own result.
+        store.submit_qualifying(quali_result(session, track, &["B", "A"]));
+        store.submit_qualifying(quali_result(Uuid::new_v4(), other, &["C"]));
+        store.submit_qualifying(quali_result(Uuid::new_v4(), track, &[]));
+        let reopened = RecordStore::open(&dir);
+        let got = reopened.qualifying_for(track);
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].entries[0].name, "B");
+        assert!(!got[0].recorded_at.is_empty());
+        assert_eq!(reopened.qualifying_for(other).len(), 1);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn only_the_newest_qualifying_results_are_kept() {
+        let store = RecordStore::in_memory();
+        let track = Uuid::new_v4();
+        for _ in 0..MAX_QUALIFYING_RESULTS + 5 {
+            store.submit_qualifying(quali_result(Uuid::new_v4(), track, &["A"]));
+        }
+        assert_eq!(store.qualifying_for(track).len(), MAX_QUALIFYING_RESULTS);
     }
 
     #[test]

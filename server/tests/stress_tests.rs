@@ -500,6 +500,7 @@ impl TestClientMinimal {
             damage: Default::default(),
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         };
         self.send_message(&msg).await?;
 
@@ -848,6 +849,7 @@ async fn run_multi_client_test(
         damage: Default::default(),
         ai_skill: None,
         race_seconds: None,
+        grid_order: Vec::new(),
     };
     clients[0].send_message(&create_msg).await?;
 

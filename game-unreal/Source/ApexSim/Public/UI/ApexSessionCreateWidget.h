@@ -64,6 +64,17 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+	/**
+	 * The starting grid's slots take the mouse here rather than as buttons: a
+	 * press on a driver can end on another slot (drag to reorder) or on the
+	 * same one (a click picks the driver up, a second click on a slot drops
+	 * it there).
+	 */
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
+
 private:
 	void BuildLayout();
 	UWidget* BuildHeaderKinds();
@@ -94,6 +105,14 @@ private:
 	 * the working setup.
 	 */
 	void RefreshSetups();
+	/**
+	 * The race's starting order: the chips (the seating order, an edited
+	 * one, the stored qualifying results of this track), and your slot. Also
+	 * resets the order when the track changed under it and asks the server
+	 * for the track's results.
+	 */
+	void RefreshStartOrder();
+	void RequestQualifying();
 	void RefreshSkyPreview();
 	void RefreshFooter();
 
@@ -103,6 +122,22 @@ private:
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
 	UFUNCTION() void HandleTimeOfDayChanged(float Value);
 	UFUNCTION() void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
+	UFUNCTION() void HandleQualifyingResults(const FString& TrackId);
+
+	// --- The start order --------------------------------------------------------
+	/** The order for the field as it is now, complete: what the grid shows. */
+	TArray<FString> CurrentOrder() const;
+	/** Keeps an order the host made (a stored result's when ResultId names it). */
+	void StoreOrder(const TArray<FString>& Order, const FString& ResultId);
+	/** Makes a stored qualifying result the working start order. */
+	void LoadResult(const FApexQualifyingResult& Result);
+	/** The slot under a desktop-space point, INDEX_NONE for none. */
+	int32 SlotUnder(const FVector2D& ScreenPosition) const;
+	/** A press and release on one slot: pick the driver up or drop the picked one here. */
+	void ClickSlot(int32 Clicked);
+	/** A driver dragged from one slot to another: it takes that place and the rest shift. */
+	void DropSlot(int32 From, int32 To);
+	bool IsGridInteractive() const;
 
 	/** Grid size (multiplayer) or the AI count (single player) from a slot. */
 	void PickGridSlot(int32 Position);
@@ -208,6 +243,29 @@ private:
 	FString SetupSignature;
 	/** "Stock", the saved setup's name or "Custom", for the footer. */
 	FString CurrentSetupLabel;
+
+	// --- Starting order (Race tab, races only) ------------------------------------
+	UPROPERTY(Transient) TObjectPtr<UWidget> StartOrderSection;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> StartOrderInfoText;
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> StartOrderRows;
+	/** Seating order, Custom while the order is an edited one, then the track's stored results. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> StartOrderButtons;
+	/** Per chip: empty for the seating order, `custom`, or a stored result's id. */
+	TArray<FString> StartOrderIds;
+	FString StartOrderSignature;
+	/** The track the stored results were last asked for, so a screen open before the connection is up asks once it is. */
+	FString QualifyingRequestedFor;
+	/** -ApexCreateLoadResult= is applied once. */
+	bool bLoadedFromSwitch = false;
+	/** Your slot, earlier and later; the keyboard's and pad's way to move up the grid. */
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> YourSlotEarlier;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> YourSlotLater;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> YourSlotValueText;
+	/** The driver a click picked up (0-based slot), INDEX_NONE for none. */
+	int32 PickedSlot = INDEX_NONE;
+	/** While the mouse is down on a driver: where it started and which slot it is over. */
+	int32 DragFrom = INDEX_NONE;
+	int32 DragHover = INDEX_NONE;
 
 	// --- Conditions tab -------------------------------------------------------
 	UPROPERTY(Transient) TObjectPtr<USlider> TimeOfDaySlider;

@@ -16,6 +16,9 @@
  */
 namespace ApexCreateSession
 {
+	/** The most cars a starting grid holds (the server's 20 slots). */
+	constexpr int32 GridCeiling = 20;
+
 	/** What sits in one slot of the starting grid. */
 	enum class ESlot : uint8
 	{
@@ -67,6 +70,174 @@ namespace ApexCreateSession
 			return ESlot::Ai;
 		}
 		return Position == G.YourSlot ? ESlot::You : ESlot::Open;
+	}
+
+	// --- The start order ------------------------------------------------------
+	//
+	// The host's order is a list of driver references the server resolves
+	// when the race counts in (`server/src/grid_order.rs`): `@host`, `@ai:N`
+	// (the Nth AI car, 1-based) or a driver's name, which is how a loaded
+	// qualifying result names whoever set a lap. A driver the list leaves out
+	// starts behind the listed ones. The create screen keeps the list
+	// *normalised* once it is edited: the references that can match, each
+	// once, then everyone the field holds that it left out, so what the
+	// preview shows is what the server will seat.
+
+	/** What the server reads as the host's own car. */
+	inline const TCHAR* HostRef() { return TEXT("@host"); }
+
+	inline FString AiRef(int32 Number) { return FString::Printf(TEXT("@ai:%d"), Number); }
+
+	/** The AI number a reference names (1-based), 0 when it is not one. */
+	inline int32 AiNumberOf(const FString& Ref)
+	{
+		return Ref.StartsWith(TEXT("@ai:")) ? FCString::Atoi(*Ref.Mid(4)) : 0;
+	}
+
+	/** The order cars are seated in: the AI first, the host behind them. */
+	inline TArray<FString> DefaultOrder(int32 Ai)
+	{
+		TArray<FString> Out;
+		for (int32 Number = 1; Number <= Ai; ++Number)
+		{
+			Out.Add(AiRef(Number));
+		}
+		Out.Add(HostRef());
+		return Out;
+	}
+
+	/**
+	 * `Order` made complete for a field of `Field` cars with `Ai` of them AI:
+	 * references that cannot match (an AI past the count, a blank) dropped,
+	 * repeats dropped, then the AI and the host the list left out behind it,
+	 * and the whole cut to the field with the host kept.
+	 */
+	inline TArray<FString> Normalise(const TArray<FString>& Order, int32 Ai, int32 Field)
+	{
+		TArray<FString> Out;
+		auto Add = [&Out](const FString& Ref)
+		{
+			if (!Ref.IsEmpty() && !Out.Contains(Ref))
+			{
+				Out.Add(Ref);
+			}
+		};
+		for (const FString& Ref : Order)
+		{
+			const bool bAi = Ref.StartsWith(TEXT("@ai:"));
+			if (bAi ? (AiNumberOf(Ref) >= 1 && AiNumberOf(Ref) <= Ai) : (Ref == HostRef() || !Ref.StartsWith(TEXT("@"))))
+			{
+				Add(Ref);
+			}
+		}
+		for (const FString& Ref : DefaultOrder(Ai))
+		{
+			Add(Ref);
+		}
+		const int32 Cars = FMath::Max(1, Field);
+		if (Out.Num() > Cars)
+		{
+			const bool bHostKept = Out.IndexOfByKey(HostRef()) < Cars;
+			Out.SetNum(Cars);
+			if (!bHostKept)
+			{
+				Out.Last() = HostRef();
+			}
+		}
+		return Out;
+	}
+
+	/** Whether `Order` is just the seating order, so nothing need be sent. */
+	inline bool IsDefaultOrder(const TArray<FString>& Order, int32 Ai, int32 Field)
+	{
+		return Order.IsEmpty() || Normalise(Order, Ai, Field) == Normalise(DefaultOrder(Ai), Ai, Field);
+	}
+
+	/** One occupied slot of the starting grid as the preview draws it. */
+	struct FGridEntry
+	{
+		FString Ref;
+		/** `YOU`, `AI 2`, or the driver's own name. */
+		FString Label;
+		bool bYou = false;
+		bool bAi = false;
+	};
+
+	/** The occupied slots, first to last, for a normalised order. */
+	inline TArray<FGridEntry> Entries(const TArray<FString>& Normalised)
+	{
+		TArray<FGridEntry> Out;
+		for (const FString& Ref : Normalised)
+		{
+			FGridEntry Entry;
+			Entry.Ref = Ref;
+			if (Ref == HostRef())
+			{
+				Entry.Label = TEXT("YOU");
+				Entry.bYou = true;
+			}
+			else if (const int32 Number = AiNumberOf(Ref); Number > 0)
+			{
+				Entry.Label = FString::Printf(TEXT("AI %d"), Number);
+				Entry.bAi = true;
+			}
+			else
+			{
+				Entry.Label = Ref;
+			}
+			Out.Add(Entry);
+		}
+		return Out;
+	}
+
+	/** Moves the entry at `From` so it sits at `To` (the others shift). False when nothing moved. */
+	inline bool MoveEntry(TArray<FString>& Normalised, int32 From, int32 To)
+	{
+		if (!Normalised.IsValidIndex(From) || From == To)
+		{
+			return false;
+		}
+		To = FMath::Clamp(To, 0, Normalised.Num() - 1);
+		if (From == To)
+		{
+			return false;
+		}
+		const FString Moved = Normalised[From];
+		Normalised.RemoveAt(From);
+		Normalised.Insert(Moved, To);
+		return true;
+	}
+
+	/**
+	 * The order a stored qualifying result grids, fastest first: the driver
+	 * named `HostName` is the host, the result's AI take this session's AI
+	 * in the order they qualified (the Nth quickest AI is `@ai:N`; the ones
+	 * past this session's `Ai` are dropped), and any other human is named,
+	 * for the server to find if they join. Normalise it for the field after.
+	 */
+	inline TArray<FString> OrderFromResult(const FApexQualifyingResult& Result, const FString& HostName, int32 Ai)
+	{
+		TArray<FString> Out;
+		int32 NextAi = 1;
+		for (const FApexQualifyingEntry& Entry : Result.Entries)
+		{
+			if (Entry.bIsAi)
+			{
+				if (NextAi <= Ai)
+				{
+					Out.Add(AiRef(NextAi++));
+				}
+			}
+			else if (!HostName.IsEmpty() && Entry.Name == HostName)
+			{
+				Out.AddUnique(HostRef());
+			}
+			else if (!Entry.Name.IsEmpty() && !Entry.Name.StartsWith(TEXT("@")))
+			{
+				Out.AddUnique(Entry.Name);
+			}
+		}
+		return Out;
 	}
 
 	// --- The air, as the server resolves it ----------------------------------

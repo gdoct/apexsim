@@ -152,6 +152,11 @@ pub(crate) async fn deliver_lap_timing(ctx: &GameLoopCtx, events: Vec<LapTimingO
             }
         }
 
+        if let Some(result) = out.qualifying {
+            let store = ctx.state.read().await.records.clone();
+            let _ = tokio::task::spawn_blocking(move || store.submit_qualifying(result)).await;
+        }
+
         let Some(submission) = out.record else {
             continue;
         };

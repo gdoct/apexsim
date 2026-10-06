@@ -2274,9 +2274,10 @@ pub enum GameMode {
     FreePractice = 4,
     /// Playback recorded telemetry (view-only)
     Replay = 5,
-    /// Qualification mode (to be implemented)
+    /// Qualification mode: practice with timing; the session's best legal laps
+    /// classify the drivers (`GameSession::qualifying_order`), no fixed length yet
     Qualification = 6,
-    /// Race mode (to be implemented)
+    /// Race mode
     Race = 7,
     /// Time attack: every driver starts in the garage (tuning, nothing
     /// simulated), goes out onto a run-up before the line for flying laps,
@@ -2334,6 +2335,11 @@ pub struct RaceSession {
     /// (`crate::ai_driver::field_skills`); `None` is the mixed field.
     #[serde(default)]
     pub ai_skill: Option<u8>,
+    /// The race's start order the host asked for, as driver references in
+    /// grid order (see `GameSession::apply_grid_order`); empty means the
+    /// order cars were seated in, or the session's own qualifying result.
+    #[serde(default)]
+    pub grid_order: Vec<String>,
     pub state: SessionState,
     #[serde(default)]
     pub game_mode: GameMode,
@@ -2380,6 +2386,7 @@ impl RaceSession {
             conditions: SessionConditions::DEFAULT,
             damage: DamageLevel::Full,
             ai_skill: None,
+            grid_order: Vec::new(),
             state: SessionState::Lobby,
             game_mode: GameMode::Lobby,
             participants: std::collections::BTreeMap::new(),

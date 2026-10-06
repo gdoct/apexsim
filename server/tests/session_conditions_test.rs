@@ -120,6 +120,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             damage: Default::default(),
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -290,6 +291,7 @@ async fn the_hosts_damage_rule_holds_for_every_car() {
             damage: DamageLevel::Off,
             ai_skill: None,
             race_seconds: None,
+            grid_order: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -364,6 +366,7 @@ async fn the_hosts_ai_level_sets_the_field() {
             // Past the top: the server keeps it inside the bounds.
             ai_skill: Some(150),
             race_seconds: None,
+            grid_order: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -422,6 +425,7 @@ async fn the_hosts_race_time_is_echoed_and_listed() {
             ai_skill: None,
             // Past the top: the server keeps it to a day.
             race_seconds: Some(30 * 3600),
+            grid_order: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;

@@ -37,7 +37,10 @@ namespace ApexProtocol
 		const FApexSessionConditions& Conditions,
 		EApexDamageLevel Damage = EApexDamageLevel::Full,
 		int32 AiSkill = ApexAiSkill::Mixed,
-		int32 RaceSeconds = 0);
+		int32 RaceSeconds = 0,
+		const TArray<FString>& GridOrder = TArray<FString>());
+	/** Asks for the qualifying results stored for a track; answered with QualifyingResults. */
+	APEXSIMNET_API TArray<uint8> EncodeRequestQualifyingResults(const FString& TrackConfigId);
 	APEXSIMNET_API TArray<uint8> EncodeJoinSession(const FString& SessionId);
 	APEXSIMNET_API TArray<uint8> EncodeJoinAsSpectator(const FString& SessionId);
 	APEXSIMNET_API TArray<uint8> EncodeLeaveSession();

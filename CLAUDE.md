@@ -1605,6 +1605,66 @@ compressed frames after it (replay format v3; v2 files still read), a full
 queue drops frames rather than stall the loop, and a session removed
 without finishing has its recording discarded (the 5 s orphan sweep).
 
+### Starting order and qualifying (`grid_order.rs`, `records.rs`, `GameSession::apply_grid_order`)
+
+A race grids by **driver references**, not slots: `CreateSession.grid_order`
+(`Vec<String>`, left off the wire when empty, so every earlier create keeps
+its bytes) lists the drivers first to last as `@host`, `@ai:N` (the Nth AI
+car of the session, 1-based, in seating order) or a name (a human's, or an
+AI's own), because when the host asks only the AI are seated and the other
+humans join later. `line_up_on_grid` (every race countdown) calls
+`apply_grid_order` first: listed drivers lead in the list's order, a
+reference that matches nobody is skipped (a no-show closes the grid up),
+and everyone it leaves out starts behind in the order they were seated
+(`grid_order::resolve`; each driver is claimed once, a name matches the
+first unclaimed driver of it). With no list and no qualifying nothing is
+reassigned: the seating order stands. Names are kept per human by
+`GameSession::set_driver_name` (set before `add_player` on create and join;
+the AI's are their profiles').
+
+**Qualifying classifies.** In `GameMode::Qualification` every legal lap
+goes through `GameSession::note_qualifying_lap` (from `game_loop/tick.rs`,
+beside the record submission): each driver's best legal lap and the tick it
+was set on (`qualifying_order`: fastest first, the earlier of equal times
+ahead). The session's own qualifying beats a list the host asked for (the
+first lap clears `grid_order`), so Qualification -> Race in one session
+grids from the result, drivers with no time behind the classified. Each
+improvement sends the classification to `RecordStore::submit_qualifying`
+from the broadcast phase on a blocking task (`LapTimingOut::qualifying`),
+which keeps the newest 50 as `records/qualifying.json`, one per session id
+(`QualifyingResult { id, track_id, class, recorded_at, entries }`, AI
+included, `is_ai`). `ClientMessage::RequestQualifyingResults
+{ track_config_id }` -> `ServerMessage::QualifyingResults` lists a track's,
+newest first. Golden bytes: `cargo test grid_wire_format -- --nocapture` ->
+`ApexGolden::C_CreateSessionGrid` / `C_RequestQualifyingResults` /
+`S_QualifyingResults`. Tests: `grid_order::tests`, the `game_session` ones
+(`a_requested_grid_order_seats_the_race_grid`,
+`qualifying_classifies_by_best_legal_lap_and_grids_the_race`...),
+`records::tests`, `tests/grid_order_test.rs` (over the wire).
+
+**The create screen** has a Qualifying tile (it was left out until something
+drove it) and, for a race, a **Starting order** row on the Race tab
+(`ApexCreateSession::` model in `ApexCreateSessionModel.h`, pure and tested
+by `ApexSim.UI.CreateSession.StartOrder`): chips for the seating order, an
+edited one ("Custom") and the track's newest three stored results (asked for
+when the screen opens and the track changes, `UApexNetSubsystem::
+RequestQualifyingResults`, `OnQualifyingResults`), and a "Your grid slot"
+stepper for keyboard and pad. The grid preview draws the order: the screen
+takes the mouse itself (`NativeOnMouseButtonDown/Move/Up`, the slot buttons
+are hit-test invisible because a button activates on the press): press on a
+driver and release on another slot drags it there (the others shift), a
+click picks a driver up and a click on another slot drops it, a click on a
+seat past the drivers sets the field as it always did. A loaded result maps
+the host by name, the result's AI to this session's AI in the order they
+qualified (`@ai:N`), and any other human by name
+(`ApexCreateSession::OrderFromResult`). The order lives on the flow
+(`CreateGridOrder`, `CreateGridResultId`, `CreateGridTrackId`), is not kept
+on the profile, resets when the pending track changes, and goes out through
+`UApexMenuFlowSubsystem::GridOrderToSend` (empty when it is just the
+seating order) from both the create screen and the main menu's one-click
+start. Not done: a qualifying length and results screen (docs/
+SIMULATION_GAPS.md).
+
 ### Lap timing: sectors, track limits and records (`laps.rs`, `records.rs`)
 
 The stopwatch is the server's. The lap *counter* stays in

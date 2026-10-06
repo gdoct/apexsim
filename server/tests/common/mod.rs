@@ -8,11 +8,24 @@ pub async fn start_test_server() -> ServerHandle {
     start_test_server_with_tick_rate(ServerConfig::default().server.tick_rate_hz).await
 }
 
+/// Spawn an in-process server whose lap records and qualifying results are
+/// kept in `records_dir`, so a test that writes them leaves the player's own
+/// `records/` alone.
+pub async fn start_test_server_with_records(records_dir: &std::path::Path) -> ServerHandle {
+    let mut config = ServerConfig::default();
+    config.records.dir = records_dir.to_string_lossy().into_owned();
+    start_test_server_with_config(config).await
+}
+
 /// Spawn an in-process server on ephemeral ports with a custom tick rate
 /// (used by the stress tests).
 pub async fn start_test_server_with_tick_rate(tick_rate_hz: u16) -> ServerHandle {
     let mut config = ServerConfig::default();
     config.server.tick_rate_hz = tick_rate_hz;
+    start_test_server_with_config(config).await
+}
+
+async fn start_test_server_with_config(mut config: ServerConfig) -> ServerHandle {
     config.network.tcp_bind = "127.0.0.1:0".to_string();
     config.network.udp_bind = "127.0.0.1:0".to_string();
     config.network.health_bind = "127.0.0.1:0".to_string();

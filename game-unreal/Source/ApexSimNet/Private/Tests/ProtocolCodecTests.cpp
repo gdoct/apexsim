@@ -172,6 +172,15 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeHotlapRelocate(EApexHotlapDestination::Track, true),
 		ApexGolden::C_HotlapRelocateCold);
 	CheckBytes(TEXT("RequestGhost"), ApexProtocol::EncodeRequestGhost(), ApexGolden::C_RequestGhost);
+	CheckBytes(TEXT("CreateSession with a start order"),
+		ApexProtocol::EncodeCreateSession(
+			TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 2, 5, EApexSessionKind::Multiplayer,
+			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+			{ TEXT("@ai:2"), TEXT("@host"), TEXT("Luna Swift") }),
+		ApexGolden::C_CreateSessionGrid);
+	CheckBytes(TEXT("RequestQualifyingResults"),
+		ApexProtocol::EncodeRequestQualifyingResults(TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")),
+		ApexGolden::C_RequestQualifyingResults);
 
 	return true;
 }
@@ -881,6 +890,46 @@ bool FApexTimingBoardTest::RunTest(const FString& Parameters)
 	Fresh.Apply(Cross(3, 1, 1, 30000, 0, true));
 	TestEqual(TEXT("sector count grows to fit"), Fresh.SectorCount, 2);
 	TestNotNull(TEXT("car filed"), Fresh.Find(3));
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// Stored qualifying results, asked for per track.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexProtocolQualifyingResultsTest,
+	"ApexSim.Net.Protocol.QualifyingResults",
+	ApexTestFlags)
+
+bool FApexProtocolQualifyingResultsTest::RunTest(const FString& Parameters)
+{
+	FString Error;
+	FApexServerMessage Message;
+	if (!TestTrue(FString::Printf(TEXT("QualifyingResults decodes (%s)"), *Error),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_QualifyingResults, Message, Error)))
+	{
+		return false;
+	}
+	TestEqual(TEXT("type"), Message.Type, EApexServerMessageType::QualifyingResults);
+	TestEqual(TEXT("track"), Message.QualifyingTrackId, TrackId);
+	if (!TestEqual(TEXT("one result"), Message.QualifyingResults.Num(), 1))
+	{
+		return false;
+	}
+	const FApexQualifyingResult& Result = Message.QualifyingResults[0];
+	TestEqual(TEXT("id"), Result.Id, FString(TEXT("11111111-2222-3333-4444-555555555555")));
+	TestEqual(TEXT("class"), Result.Class, FString(TEXT("GT3")));
+	TestEqual(TEXT("date"), Result.RecordedAt, FString(TEXT("2026-10-06T12:00:00Z")));
+	if (!TestEqual(TEXT("two drivers"), Result.Entries.Num(), 2))
+	{
+		return false;
+	}
+	TestEqual(TEXT("pole"), Result.Entries[0].Name, FString(TEXT("Luna Swift")));
+	TestEqual(TEXT("pole time"), Result.Entries[0].LapTimeMs, 91234);
+	TestTrue(TEXT("pole is an AI"), Result.Entries[0].bIsAi);
+	TestEqual(TEXT("second"), Result.Entries[1].Name, FString(TEXT("Guido")));
+	TestFalse(TEXT("second is human"), Result.Entries[1].bIsAi);
 	return true;
 }
 
