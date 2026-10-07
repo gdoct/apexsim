@@ -4088,6 +4088,7 @@ Server config in `server.toml` (validated at startup; the server refuses to star
 - `[physics]`: `road_contact = "mesh"` (default) or `"centerline"` — whether a track with a baked `<Stem>.road.msgpack` drives on it (see the road mesh sidecar under "Track pipeline into Unreal", and docs/ROAD_MESH.md)
 - `[auth]`: `mode = "dev"` (accept all, development only) or `mode = "token"` with shared secrets in `tokens`
 - `[ai]`: AI driver defaults (optional)
+- `[debug]` (`debug_hooks.rs`, off by default, never on a server people race on): `stand_in_driver = true` has an AI profile drive every human's car (pit stops planned like an AI's), and `events = "<s of green>:<host|all|car index>:<action>;..."` does something to a car at a time of green: `wear=P`, `puncture=FL`, `leak=FL:KPA`, `flatspot=FL:S`, `damage=front|rear|left|right|engine:P` (100 retires it), `brakewear=P`, `pit`, `boost=S` (the stand-in holds the overtake button), `aids=off`. Env `APEXSIM_DEBUG_STAND_IN_DRIVER`, `APEXSIM_DEBUG_EVENTS`; not applied to demo sessions. How the "race" items of docs/SIMULATION_GAPS.md were put on screen: with `-ApexAutoRace` the client's own car then races, pits and boosts unattended under the driver's HUD (`tests/debug_hooks_test.rs`)
 
 Environment overrides use the `APEXSIM_` prefix, e.g. `APEXSIM_NETWORK_TCP_PORT=9100`, `APEXSIM_NETWORK_TCP_BIND=0.0.0.0:9000`, `APEXSIM_SERVER_TICK_RATE_HZ=120`, `APEXSIM_PHYSICS_ROAD_CONTACT=mesh` (see `ServerConfig::apply_env_overrides`).
 

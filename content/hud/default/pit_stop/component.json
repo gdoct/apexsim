@@ -7,7 +7,7 @@
   "region": "top",
   "float": true,
   "margin": [0, 300, 0, 0],
-  "visible": "=pit.autopilot || pit.servicing || pit.held",
+  "visible": "=(pit.autopilot && pit.in_lane) || pit.servicing || pit.held",
   "root": {
     "type": "panel", "width": 560, "padding": [22, 14], "background": "surface",
     "outline": "=pit.held ? 'error' : pit.servicing ? 'live' : 'accent'", "outline_width": 2,
@@ -40,7 +40,7 @@
 
       // --- Down the lane on the autopilot, in or out ---
       {
-        "type": "column", "margin": [0, 10, 0, 0], "visible": "=pit.autopilot && !pit.servicing && !pit.held",
+        "type": "column", "margin": [0, 10, 0, 0], "visible": "=pit.autopilot && pit.in_lane && !pit.servicing && !pit.held",
         "children": [
           { "type": "text", "font": "display", "size": 32, "color": "accent", "text": "PIT LANE · AUTOPILOT" },
           { "type": "label", "margin": [0, 4, 0, 0], "text": "Hands off: the car drives the lane" }

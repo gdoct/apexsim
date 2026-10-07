@@ -690,7 +690,10 @@ mod tests {
         assert_eq!(rubbered.sample(500.0, -5.0).grip, 1.0);
         let green = RoadState::new(&dipped_track(0.0), 0.0);
         assert!(green.sample(500.0, 2.0).grip < 0.99);
-        assert_eq!(green.sample(500.0, 2.0).grip, green.sample(500.0, -5.0).grip);
+        assert_eq!(
+            green.sample(500.0, 2.0).grip,
+            green.sample(500.0, -5.0).grip
+        );
     }
 
     #[test]

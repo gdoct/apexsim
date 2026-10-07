@@ -9,6 +9,7 @@ pub mod content_crc;
 pub mod curbs;
 pub mod damage;
 pub mod data;
+pub mod debug_hooks;
 pub mod drs;
 pub mod engine_heat;
 pub mod feedback;

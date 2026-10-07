@@ -39,8 +39,9 @@
               "text": "=(ers.boost ? 'OVERTAKE ' + fmt(ers.charge_pct) + '%' : 'ERS ' + ers.mode + ' ' + fmt(ers.charge_pct) + '%') + (has(ers.lap_pct) ? '  LAP ' + fmt(ers.lap_pct) + '%' : '')",
               "color": "=ers.deploying ? 'on_accent' : ers.harvesting ? 'accent' : ers.charge_pct < 10 || ers.lap_pct == 0 ? 'text_disabled' : 'text_secondary'" }] },
           { "type": "spacer", "fill": 1 },
+          // Kept off the badges when OVERTAKE and LAP 100% fill the row.
           { "type": "text", "font": "mono", "size": 12, "tracking": 40, "color": "text_secondary",
-            "text": "=fmt(car.rpm)" }
+            "margin": [10, 0, 0, 0], "text": "=fmt(car.rpm)" }
         ]
       },
 
@@ -131,8 +132,11 @@
                 { "type": "text", "margin": [0, 1, 0, 0], "font": "mono", "size": 10, "color": "text_muted",
                   "visible": "=has(item.inner_c)",
                   "text": "=has(item.inner_c) ? fmt(item.inner_c) + '·' + fmt(item.outer_c) : ''" },
-                { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11, "color": "text_muted",
-                  "text": "=has(item.pressure_kpa) ? fmt(item.pressure_kpa) + ' kPa' : '—'" },
+                // A punctured tyre reads 15 kPa and a slow leak is flat by
+                // 60 (the server's PUNCTURE_FLAT_KPA): under that it says so.
+                { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11,
+                  "text": "=!has(item.pressure_kpa) ? '—' : item.pressure_kpa < 60 ? 'FLAT' : fmt(item.pressure_kpa) + ' kPa'",
+                  "color": "=has(item.pressure_kpa) && item.pressure_kpa < 60 ? 'error' : 'text_muted'" },
                 // Wear on a line of its own: beside the pressure it pushed the
                 // fourth tyre off the panel. Past the cliff (70%) it is the story.
                 { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11, "visible": "=has(item.wear_pct)",

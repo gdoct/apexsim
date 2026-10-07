@@ -121,7 +121,9 @@ goes in seating order.
 | The create screen's wind dial names its eight directions AHD / AR / R / BR / BHD...: terse, though the caption above it spells the pick out ("FROM THE RIGHT"). | Low | Low |
 | The HUD colours brakes by temperature alone (the client does not know carbon from steel). | Low | Low |
 | The hybrid mode resets to Balanced each race; it is not saved. | Low | Low |
-| A puncture shows only as 15 kPa and the wear; the garage's stock Medium card does not say which wet tyre it will fit. | Low | Low |
+| A puncture shows only as FLAT under the tyre (red, under 60 kPa) and the wear; the garage's stock Medium card does not say which wet tyre it will fit. | Low | Low |
+| The chase camera ends up inside the garage when the car stops at its box or is towed there: the view is a pillar or the garage wall and the car is hidden (seen 2026-10-07 at Monza). | Low | Low |
+| The intermediate and wet tyres are a tint only (bluer, matte): no tread pattern, so in a wide shot they hardly read apart from a slick. | Low | Low |
 | Visible damage: one dent pattern per zone (no hit point on the wire), cosmetic debris the cars drive through, engine smoke always from the tail, no windscreen cracks or hanging parts, the DRS flap and driver never dented, wheels not drawn toed. | Med | Low |
 | AC imports have no `[[damage_part]]` tables (the importer writes none): they dent and smoke but shed nothing. | Low | Low |
 
@@ -152,9 +154,8 @@ goes in seating order.
 
 Covered by automation tests only; each needs a look on screen.
 
-- HUD: the PIT badge lit, the ERS badge and keys, a punctured tyre, OUT in the standings.
-- Race: a flat spot through a real wheel or pad, a towed car parked in its box, an AI pit stop as the client draws it, damage steam and sparks.
-- 2026-10-07: tyre smoke from the slide flags, the treaded look of the intermediate and wet tyres, the tyre shoulders and pad wear in the HUD, the garage's compound cards built from a car's own `[[tires.compound]]` list (no shipped car files one, so only the default five have been on screen; the own-list cards are pinned by `ApexSim.UI.Garage.CompoundCards`), the flat-spot thump in the road sound, a puddle or a dried line felt from the driver's seat, a slow puncture over a lap.
+- Race: contact sparks (a contact lasts a few frames and no timed screenshot of the 2026-10-07 runs caught one; the steam and the engine smoke were seen). Needs a human: a flat spot through a real wheel or pad.
+- 2026-10-07: the garage's compound cards built from a car's own `[[tires.compound]]` list (no shipped car files one, so only the default five have been on screen; the own-list cards are pinned by `ApexSim.UI.Garage.CompoundCards`). Needs a human: the flat-spot thump in the road sound, a puddle or a dried line felt from the driver's seat, a slow puncture felt over a lap (its pressure falling to FLAT in the HUD was seen).
 - Replays: SAVE REPLAY from the pause menu and garage, Keep and Delete, the watch view on a pad, a watched race finishing, replay speeds other than 2x, the session browser's Watch button clicked.
 - 2026-10-07 track and sky: the flags turning with the wind (no shipped circuit places `sign/flag_pole` yet), the sun at a circuit's real latitude and north (needs the re-exported tracks), rain arriving and the road drying under a changeable sky, a rubbered start. A 60x clock at Monza was watched relighting at dusk with the floodlights coming on.
 - The 420 Hz server (2026-10-06) through a real client: car motion, force feedback and the replay recorder's rate snap were tuned on 240 Hz ticks and 60 Hz telemetry; the divisor is 7 for the same 60 Hz. Not measured: tick jitter at 2.4 ms against the 1 ms Windows timer (only the mean rate is tested), and the AI survey at 420 against the 240 baseline (the AI's consistency noise is seeded from the tick number, so every race differs between the two rates by design, not by error).

@@ -19,6 +19,20 @@ pub struct ServerConfig {
     pub physics: PhysicsSettings,
     #[serde(default)]
     pub showcase: ShowcaseSettings,
+    #[serde(default)]
+    pub debug: DebugSettings,
+}
+
+/// Debug-only hooks for reaching states a short race seldom does
+/// (`crate::debug_hooks`). Both off by default; never set them on a server
+/// people race on.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DebugSettings {
+    /// Every human's car driven by an AI profile instead of its input.
+    pub stand_in_driver: bool,
+    /// `"<seconds of green>:<host|all|car index>:<action>"`, `;` separated.
+    pub events: String,
 }
 
 /// What a showcase channel does when its file ends.
@@ -269,6 +283,7 @@ impl Default for ServerConfig {
             records: RecordsSettings::default(),
             physics: PhysicsSettings::default(),
             showcase: ShowcaseSettings::default(),
+            debug: DebugSettings::default(),
         }
     }
 }
@@ -372,6 +387,11 @@ impl ServerConfig {
         );
         env_parse("APEXSIM_SHOWCASE_ENABLED", &mut self.showcase.enabled);
         env_string("APEXSIM_SHOWCASE_DIR", &mut self.showcase.dir);
+        env_parse(
+            "APEXSIM_DEBUG_STAND_IN_DRIVER",
+            &mut self.debug.stand_in_driver,
+        );
+        env_string("APEXSIM_DEBUG_EVENTS", &mut self.debug.events);
     }
 
     /// Sanity-check the configuration. Returns all problems found.

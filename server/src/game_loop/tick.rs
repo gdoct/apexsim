@@ -132,8 +132,13 @@ pub(crate) async fn tick_sessions(
         let mut session_inputs: HashMap<PlayerId, PlayerInputData> =
             HashMap::with_capacity(game_session.session.participants.len());
         for player_id in game_session.session.participants.keys() {
-            let input = match player_inputs.get(player_id) {
-                Some(input) => *input,
+            // The debug stand-in (`crate::debug_hooks`, off by default)
+            // drives a human's car in place of its input.
+            let input = match game_session
+                .stand_in_input(player_id)
+                .or_else(|| player_inputs.get(player_id).copied())
+            {
+                Some(input) => input,
                 // No human input, generate AI input
                 None => game_session.generate_ai_input(player_id),
             };

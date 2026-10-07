@@ -365,6 +365,14 @@ impl ServerState {
 
         // Run the session at the configured server tick rate
         game_session.set_tick_rate(self.config.server.tick_rate_hz);
+        let hooks = crate::debug_hooks::DebugHooks::from_settings(
+            self.config.debug.stand_in_driver,
+            &self.config.debug.events,
+        );
+        if hooks.is_active() && session_kind != SessionKind::Demo {
+            warn!("Debug hooks on for session {}: {:?}", session_id, hooks);
+            game_session.set_debug_hooks(hooks);
+        }
 
         // Spawn AI drivers immediately
         if ai_count > 0 {

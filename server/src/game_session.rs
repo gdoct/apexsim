@@ -196,6 +196,14 @@ pub struct GameSession {
     /// The sky as it is now: the clock, the forecast's weather, the air
     /// and the asphalt (`crate::conditions`, `update_sky`).
     pub sky: crate::conditions::LiveConditions,
+    /// Debug-only hooks (`crate::debug_hooks`), off unless the server's
+    /// `[debug]` table set them for the sessions it creates.
+    debug: crate::debug_hooks::DebugHooks,
+    /// Ticks of green so far, and the next debug event to fire.
+    debug_green_ticks: u64,
+    debug_next_event: usize,
+    /// Green tick until which a stand-in holds the overtake button.
+    debug_boost_until: std::collections::BTreeMap<PlayerId, u64>,
 }
 
 /// How a race's end stands, reset with every start.
@@ -463,6 +471,10 @@ impl GameSession {
             session_best_splits_ms: [None; SECTOR_COUNT],
             debris: Vec::new(),
             sky,
+            debug: crate::debug_hooks::DebugHooks::default(),
+            debug_green_ticks: 0,
+            debug_next_event: 0,
+            debug_boost_until: std::collections::BTreeMap::new(),
         }
     }
 
@@ -509,6 +521,10 @@ impl GameSession {
             session_best_splits_ms: [None; SECTOR_COUNT],
             debris: Vec::new(),
             sky,
+            debug: crate::debug_hooks::DebugHooks::default(),
+            debug_green_ticks: 0,
+            debug_next_event: 0,
+            debug_boost_until: std::collections::BTreeMap::new(),
         }
     }
 
@@ -930,6 +946,7 @@ impl GameSession {
     /// as cars complete the race distance, session finished when all cars
     /// are classified.
     fn tick_racing(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
+        self.fire_debug_events();
         self.update_air();
         let autopilot = self.pit_autopilot_inputs(inputs);
         let dt = self.dt(); // Fixed timestep derived from tick rate
@@ -1849,6 +1866,91 @@ impl GameSession {
         self.held_steering_assist.clear();
     }
 
+    /// Switch on the debug-only hooks (`crate::debug_hooks`) for this
+    /// session. The server does this only when its `[debug]` table asks.
+    pub fn set_debug_hooks(&mut self, hooks: crate::debug_hooks::DebugHooks) {
+        self.debug = hooks;
+        self.debug_green_ticks = 0;
+        self.debug_next_event = 0;
+        self.debug_boost_until.clear();
+    }
+
+    /// The debug stand-in driver's input for a human's car, when the hooks
+    /// ask for one: an AI profile at full skill drives it, its pit stops
+    /// planned like any AI's (`plan_ai_stops`). `None` otherwise.
+    pub fn stand_in_input(&self, player_id: &PlayerId) -> Option<PlayerInputData> {
+        if !self.debug.stand_in_driver || self.is_ai_player(player_id) {
+            return None;
+        }
+        let state = self.session.participants.get(player_id)?;
+        let car_config = self.car_configs.get(&state.car_config_id)?;
+        let mut profile = AiDriverProfile::new("Stand-in", 100);
+        profile.id = *player_id;
+        let mut input = self.ai_input_for(&profile, state, car_config);
+        if self
+            .debug_boost_until
+            .get(player_id)
+            .is_some_and(|until| self.debug_green_ticks < *until)
+        {
+            input.ers_boost = true;
+        }
+        Some(input)
+    }
+
+    /// Fire the debug events (`crate::debug_hooks`) whose time of green has
+    /// come. Called every racing tick.
+    fn fire_debug_events(&mut self) {
+        if self.debug.stand_in_driver {
+            // The AI steers the wheel itself: an aid between it and the car
+            // would reshape its every input.
+            let ai = &self.ai_profiles;
+            for state in self.session.participants.values_mut() {
+                if !ai.contains_key(&state.player_id) {
+                    state.steering_assist = false;
+                }
+            }
+        }
+        if self.debug.events.is_empty() || self.session.state != SessionState::Racing {
+            return;
+        }
+        self.debug_green_ticks += 1;
+        let now_s = self.debug_green_ticks as f32 / self.tick_rate_hz.max(1) as f32;
+        while let Some(event) = self.debug.events.get(self.debug_next_event).copied() {
+            if event.at_s > now_s {
+                break;
+            }
+            self.debug_next_event += 1;
+            let ids: Vec<PlayerId> = self
+                .session
+                .participants
+                .keys()
+                .enumerate()
+                .filter(|(idx, id)| match event.target {
+                    crate::debug_hooks::Target::All => true,
+                    crate::debug_hooks::Target::Host => !self.is_ai_player(id),
+                    crate::debug_hooks::Target::Car(n) => *idx == n as usize,
+                })
+                .map(|(_, id)| *id)
+                .collect();
+            for id in ids {
+                if let crate::debug_hooks::Action::Boost(seconds) = event.action {
+                    let ticks = (seconds.max(0.0) * self.tick_rate_hz as f32) as u64;
+                    self.debug_boost_until
+                        .insert(id, self.debug_green_ticks + ticks);
+                }
+                if let Some(state) = self.session.participants.get_mut(&id) {
+                    tracing::info!(
+                        "debug event at {:.1} s: {:?} on car {}",
+                        now_s,
+                        event.action,
+                        id
+                    );
+                    crate::debug_hooks::apply(event.action, state);
+                }
+            }
+        }
+    }
+
     /// Input for a finished human's car: a gentle server driver on the line,
     /// seeded from the player's id so the sim stays deterministic. Public so
     /// tests can drive a human's car round without a controller.
@@ -2082,8 +2184,10 @@ impl GameSession {
             state.speed_mps = 0.0;
             state.angular_vel_yaw = 0.0;
             state.throttle_input = 0.0;
+            state.gear = 0;
             state.is_colliding = false;
             state.pit.driving = false;
+            state.pit.wants_stop = false;
             state.pit.servicing = false;
             state.pit.in_lane = false;
             state.pit.limiter = false;
@@ -2302,7 +2406,14 @@ impl GameSession {
         self.session
             .participants
             .values()
-            .filter(|s| s.pit.driving && !s.in_garage && !self.is_ai_player(&s.player_id))
+            // A debug stand-in plans and drives its stops as the AI does,
+            // run-up included (`stand_in_input`).
+            .filter(|s| {
+                s.pit.driving
+                    && !s.in_garage
+                    && !self.is_ai_player(&s.player_id)
+                    && !self.debug.stand_in_driver
+            })
             .filter_map(|state| {
                 let config = self.car_configs.get(&state.car_config_id)?;
                 let mut input = crate::pit::drive_input(
@@ -2588,12 +2699,27 @@ impl GameSession {
             return;
         };
         let total = crate::laps::track_length_m(&self.track_config);
-        let ai_ids = self.session.ai_player_ids.clone();
+        let mut ai_ids = self.session.ai_player_ids.clone();
+        if self.debug.stand_in_driver {
+            // A stand-in driver plans its stops like any AI.
+            ai_ids.extend(
+                self.session
+                    .participants
+                    .keys()
+                    .filter(|id| !self.is_ai_player(id))
+                    .copied(),
+            );
+        }
         for ai_id in ai_ids {
             let Some(state) = self.session.participants.get(&ai_id) else {
                 continue;
             };
-            if state.finish_position.is_some() || state.pit.driving || state.pit.servicing {
+            // A retired car is towed, not driven in (`update_retirements`).
+            if state.finish_position.is_some()
+                || state.pit.driving
+                || state.pit.servicing
+                || !state.damage.is_drivable
+            {
                 continue;
             }
             if !state.pit.wants_stop {
