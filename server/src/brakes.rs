@@ -18,10 +18,114 @@
 //! not at their best (`CarState::brake_share`). Cars go out on brakes at
 //! the air (the garage), warmed a formation lap's worth (a race grid) or in
 //! their window (a hotlap), like the tyres.
+//!
+//! **Pads** ([`BrakePads`], the setup's `brake_pads`): the standard set is
+//! the car as filed; a *sprint* set bites harder and wears faster, an
+//! *endurance* set the other way, and each moves the window. **Wear**
+//! (`CarState::brake_wear_pct`, [`wear_percent`]): the pads and discs
+//! wear by the energy they absorb, faster over the window, and a worn set
+//! grips less ([`wear_friction`]) until, worn out, it is metal on metal. A
+//! pit stop fits new pads when they are more than [`PAD_CHANGE_PCT`] worn
+//! (`pit::plan_service`), which takes a crew [`PAD_CHANGE_S`].
 
 use serde::{Deserialize, Serialize};
 
 use crate::data::CarState;
+
+/// The pads a car runs (the setup's `brake_pads`: -1 endurance, 0
+/// standard, +1 sprint).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BrakePads {
+    Endurance,
+    #[default]
+    Standard,
+    Sprint,
+}
+
+impl BrakePads {
+    /// From the setup's click: -1 endurance, 0 standard, +1 sprint.
+    pub fn from_click(click: i8) -> Self {
+        match click {
+            i8::MIN..=-1 => BrakePads::Endurance,
+            0 => BrakePads::Standard,
+            _ => BrakePads::Sprint,
+        }
+    }
+
+    /// What the pads grip with against the standard set.
+    pub fn friction_scale(self) -> f32 {
+        match self {
+            BrakePads::Endurance => 0.96,
+            BrakePads::Standard => 1.0,
+            BrakePads::Sprint => 1.04,
+        }
+    }
+
+    /// How fast they wear against the standard set.
+    pub fn wear_scale(self) -> f32 {
+        match self {
+            BrakePads::Endurance => 0.6,
+            BrakePads::Standard => 1.0,
+            BrakePads::Sprint => 1.7,
+        }
+    }
+
+    /// Where the window moves, Â°C: a sprint pad wants heat, an endurance
+    /// pad comes in early and fades early.
+    pub fn window_shift_c(self) -> f32 {
+        match self {
+            BrakePads::Endurance => -40.0,
+            BrakePads::Standard => 0.0,
+            BrakePads::Sprint => 60.0,
+        }
+    }
+}
+
+/// Pad wear, percent per megajoule the pads absorb, on the standard set
+/// in its window: a steel GT3 set lasts a day's racing, a carbon set a
+/// long race (an F1 set is about a quarter gone after a Grand Prix).
+pub const STEEL_WEAR_PER_MJ: f32 = 0.07;
+pub const CARBON_WEAR_PER_MJ: f32 = 0.12;
+/// Each degree over the top of the window wears the pads this much faster.
+const HOT_WEAR_PER_C: f32 = 0.004;
+/// Grip a set loses over its life, and what it has left worn out.
+const WEAR_FRICTION_LOSS: f32 = 0.1;
+pub const WORN_OUT_FRICTION: f32 = 0.4;
+/// A pit stop changes pads worn past this, percent, and it takes this long.
+pub const PAD_CHANGE_PCT: f32 = 60.0;
+pub const PAD_CHANGE_S: f32 = 15.0;
+
+/// What a brake's friction is multiplied by at `wear_percent` worn.
+pub fn wear_friction(wear_percent: f32) -> f32 {
+    if wear_percent >= 100.0 {
+        return WORN_OUT_FRICTION;
+    }
+    1.0 - WEAR_FRICTION_LOSS * (wear_percent / 100.0).clamp(0.0, 1.0)
+}
+
+/// The wear this tick puts on a brake, percent: `power_w` absorbed for
+/// `dt` at `temperature_c`, on `pads` of `material`.
+pub fn wear_percent(
+    material: BrakeMaterial,
+    pads: BrakePads,
+    power_w: f32,
+    temperature_c: f32,
+    dt: f32,
+) -> f32 {
+    let per_mj = match material {
+        BrakeMaterial::Carbon => CARBON_WEAR_PER_MJ,
+        BrakeMaterial::Steel => STEEL_WEAR_PER_MJ,
+    };
+    let (_, top) = material.window_c();
+    let over = (temperature_c - (top + pads.window_shift_c())).max(0.0);
+    per_mj * pads.wear_scale() * power_w.max(0.0) * dt * 1e-6 * (1.0 + HOT_WEAR_PER_C * over)
+}
+
+/// New pads all round.
+pub fn fit_pads(state: &mut CarState) {
+    state.brake_wear_pct = [0.0; 4];
+}
 
 /// What a brake is made of.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -78,6 +182,14 @@ impl BrakeMaterial {
             BrakeMaterial::Carbon => (400.0, 900.0),
             BrakeMaterial::Steel => (200.0, 600.0),
         }
+    }
+
+    /// The grip of `pads` of this material at `temperature_c`, `wear_percent`
+    /// worn, as a share of a new standard set's best.
+    pub fn friction_of(self, pads: BrakePads, temperature_c: f32, wear_percent: f32) -> f32 {
+        self.friction(temperature_c - pads.window_shift_c())
+            * pads.friction_scale()
+            * wear_friction(wear_percent)
     }
 
     /// The pads' grip at `temperature_c`, as a share of their best.
@@ -164,9 +276,14 @@ pub fn step(
 impl CarState {
     /// The worst brake's grip as a share of its best, as a driver who can
     /// feel the pedal expects it in the stop to come: what the AI goes long
-    /// by. Carbon is judged hotter than it is ([`CARBON_STOP_RISE_C`]). 1.0
-    /// before the brakes are fitted.
+    /// by. Carbon is judged hotter than it is ([`CARBON_STOP_RISE_C`]); the
+    /// pads' choice and their wear count. 1.0 before the brakes are fitted.
     pub fn brake_share(&self, material: BrakeMaterial) -> f32 {
+        self.brake_share_of(material, BrakePads::Standard)
+    }
+
+    /// [`Self::brake_share`] on `pads`.
+    pub fn brake_share_of(&self, material: BrakeMaterial, pads: BrakePads) -> f32 {
         if !self.tyres_fitted {
             return 1.0;
         }
@@ -176,7 +293,8 @@ impl CarState {
         };
         self.brake_temp_c
             .iter()
-            .map(|t| material.friction(*t + rise))
+            .zip(self.brake_wear_pct)
+            .map(|(t, w)| material.friction_of(pads, *t + rise, w).min(1.0))
             .fold(1.0, f32::min)
     }
 }
@@ -251,6 +369,41 @@ mod tests {
             );
         }
         assert!(big < small - 50.0);
+    }
+
+    #[test]
+    fn pads_trade_bite_for_life_and_wear_costs_grip() {
+        let steel = BrakeMaterial::Steel;
+        assert!(BrakePads::Sprint.friction_scale() > BrakePads::Endurance.friction_scale());
+        assert!(BrakePads::Sprint.wear_scale() > BrakePads::Endurance.wear_scale());
+        assert_eq!(BrakePads::from_click(-3), BrakePads::Endurance);
+        assert_eq!(BrakePads::from_click(0), BrakePads::Standard);
+        assert_eq!(BrakePads::from_click(1), BrakePads::Sprint);
+        // A new standard set is the material's own curve.
+        assert_eq!(
+            steel.friction_of(BrakePads::Standard, 400.0, 0.0),
+            steel.friction(400.0)
+        );
+        // Endurance pads come in cold; sprint pads want heat (carbon, where
+        // cold costs; steel is near full from cold whatever the pads).
+        let carbon = BrakeMaterial::Carbon;
+        assert!(
+            carbon.friction_of(BrakePads::Endurance, 150.0, 0.0)
+                > carbon.friction_of(BrakePads::Sprint, 150.0, 0.0)
+        );
+        assert!(
+            carbon.friction_of(BrakePads::Sprint, 700.0, 0.0)
+                > carbon.friction_of(BrakePads::Endurance, 700.0, 0.0)
+        );
+        // Wear: a GT3's stop (~3 MJ over the four corners, a quarter each)
+        // costs a fraction of a percent; a day of them wears a set out.
+        let one_stop = wear_percent(steel, BrakePads::Standard, 0.75e6, 400.0, 1.0);
+        assert!((0.03..0.08).contains(&one_stop), "{one_stop}");
+        let hot = wear_percent(steel, BrakePads::Standard, 0.75e6, 750.0, 1.0);
+        assert!(hot > one_stop * 1.4, "hotter wears faster: {hot}");
+        assert_eq!(wear_friction(0.0), 1.0);
+        assert!(wear_friction(50.0) < 1.0 && wear_friction(50.0) > 0.9);
+        assert_eq!(wear_friction(100.0), WORN_OUT_FRICTION);
     }
 
     #[test]

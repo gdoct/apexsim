@@ -172,6 +172,14 @@ struct FApexTrackSceneHeader
 	FString EnvironmentType;
 	/** `metadata.description`: what the circuit is modelled on, by place. */
 	FString Description;
+	/**
+	 * `metadata.latitude_deg` (degrees north) and `metadata.north_yaw_deg`
+	 * (true north's yaw in the track frame, degrees counter-clockwise from
+	 * +X): where the sun stands over the real circuit. Unset in an export
+	 * from before the keys (the sky then keeps 50° N, north down +X).
+	 */
+	TOptional<float> LatitudeDeg;
+	TOptional<float> NorthYawDeg;
 	/** Version 2: the mesh blob's file name, beside the manifest. */
 	FString MeshBlob;
 	/** Version 3: which importer wrote the export whole (`ac`); empty for a generated circuit. */

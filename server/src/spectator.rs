@@ -494,6 +494,9 @@ impl StreamHeader {
             humidity_pct,
             wind_kph,
             wind_from_deg,
+            time_scale: None,
+            changeable: None,
+            track_rubber_pct: None,
         };
 
         let session_kind = match rd.uint()? {
@@ -2088,6 +2091,9 @@ mod tests {
                 humidity_pct: Some(85),
                 wind_kph: Some(22),
                 wind_from_deg: Some(270),
+                time_scale: None,
+                changeable: None,
+                track_rubber_pct: None,
             },
             session_kind: SessionKind::Multiplayer,
             game_mode: GameMode::Race,

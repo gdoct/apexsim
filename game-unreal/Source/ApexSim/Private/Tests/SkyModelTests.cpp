@@ -145,6 +145,136 @@ bool FApexSkyDeriveWeatherTest::RunTest(const FString& Parameters)
 }
 
 // -----------------------------------------------------------------------------
+// Where the circuit is: the latitude lifts or lowers the sun, true north turns
+// it in the world. The server's `sun_elevation_deg` is the same formula.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexSkySiteTest,
+	"ApexSim.Sky.Site",
+	ApexTestFlags)
+
+bool FApexSkySiteTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexSky;
+
+	// Solar noon's elevation is 90 - latitude + declination, to the letter.
+	TestTrue(TEXT("50 N noon is 60 degrees"), FMath::IsNearlyEqual(SunAt(SolarNoonHours).ElevationDeg, 60.0f, 0.01f));
+	TestTrue(TEXT("the default is 50 N"), FMath::IsNearlyEqual(SunAt(9.0f).ElevationDeg, SunAt(9.0f, 50.0f).ElevationDeg));
+	const FSunPosition YasNoon = SunAt(SolarNoonHours, 24.5f);
+	TestTrue(TEXT("Yas Marina's noon sun is higher than 50 N's"), YasNoon.ElevationDeg > SunAt(SolarNoonHours).ElevationDeg);
+	TestTrue(TEXT("24.5 N noon is 85.5 degrees"), FMath::IsNearlyEqual(YasNoon.ElevationDeg, 85.5f, 0.05f));
+	// Further south the evening is shorter: at 20:30 the sun is down at
+	// 24.5 N and still up at 50 N.
+	TestTrue(TEXT("tropical dusk comes early"), SunAt(20.5f, 24.5f).ElevationDeg < 0.0f && SunAt(20.5f).ElevationDeg > 0.0f);
+	// South of the declination's latitude the noon sun is to the north;
+	// in the south it always is.
+	TestTrue(TEXT("a southern noon sun is due north"), FMath::Abs(FRotator::NormalizeAxis(SunAt(SolarNoonHours, -34.0f).AzimuthDeg)) < 1.0f);
+	TestTrue(TEXT("at 50 N it is due south"), FMath::Abs(SunAt(SolarNoonHours).AzimuthDeg - 180.0f) < 1.0f);
+
+	// True north turns the light in the world, not the sun in the sky.
+	const FApexSessionConditions Afternoon = At(EApexWeather::Sunny, 16);
+	FSkySite Turned;
+	Turned.NorthYawDeg = 92.3f;	// Spa's
+	const FSkyState Plain = Derive(Afternoon);
+	const FSkyState Spa = Derive(Afternoon, Turned);
+	TestTrue(TEXT("the same sun in the sky"), FMath::IsNearlyEqual(Plain.Sun.AzimuthDeg, Spa.Sun.AzimuthDeg)
+		&& FMath::IsNearlyEqual(Plain.Sun.ElevationDeg, Spa.Sun.ElevationDeg));
+	TestTrue(TEXT("north turned counter-clockwise turns the light's yaw back by as much"),
+		FMath::IsNearlyEqual(FRotator::NormalizeAxis(Plain.LightRotation.Yaw - Spa.LightRotation.Yaw), 92.3f, 0.01f));
+	TestTrue(TEXT("no site is the default site"), Plain.LightRotation.Equals(Derive(Afternoon, FSkySite()).LightRotation));
+	// A bearing: north is at Unreal yaw -NorthYawDeg (the server frame's
+	// counter-clockwise yaw negated by the Y flip).
+	TestTrue(TEXT("north in the world"), FMath::IsNearlyEqual(Turned.WorldYawOfBearing(0.0f), -92.3f));
+	TestTrue(TEXT("east is a quarter turn clockwise of it"), FMath::IsNearlyEqual(Turned.WorldYawOfBearing(90.0f), -2.3f, 1e-3f));
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// A sky that moves: the server's clock, cloud, rain and road water light the
+// world between the weathers, and a sky that holds is lit as it always was.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexSkyLiveTest,
+	"ApexSim.Sky.Live",
+	ApexTestFlags)
+
+bool FApexSkyLiveTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexSky;
+
+	auto Now = [](EApexWeather Weather, int32 Hour, int32 Rain, int32 Cloud, int32 Water)
+	{
+		FApexSkyNow S;
+		S.bValid = true;
+		S.ClockS = Hour * 3600;
+		S.Weather = Weather;
+		S.RainPct = Rain;
+		S.CloudPct = Cloud;
+		S.RoadWaterPct = Water;
+		return S;
+	};
+
+	// The weathers' own cloud and rain stand on their own rungs.
+	TestTrue(TEXT("sunny rung"), FMath::IsNearlyEqual(WeatherLadder(0.0f, 0.0f), 0.0f));
+	TestTrue(TEXT("cloudy rung"), FMath::IsNearlyEqual(WeatherLadder(0.5f, 0.0f), 1.0f));
+	TestTrue(TEXT("overcast rung"), FMath::IsNearlyEqual(WeatherLadder(0.85f, 0.0f), 2.0f));
+	TestTrue(TEXT("light rain rung"), FMath::IsNearlyEqual(WeatherLadder(0.9f, 0.5f), 3.0f));
+	TestTrue(TEXT("heavy rain rung"), FMath::IsNearlyEqual(WeatherLadder(1.0f, 1.0f), 4.0f));
+
+	// A sky that holds is the fixed sky, figure for figure.
+	const FApexSessionConditions Session = At(EApexWeather::LightRain, 14);
+	const FSkyState Fixed = Derive(Session);
+	const FSkyState Held = DeriveLive(Session, Now(EApexWeather::LightRain, 14, 50, 90, 50));
+	TestTrue(TEXT("held: same light"), FMath::IsNearlyEqual(Fixed.LightIntensity, Held.LightIntensity));
+	TestTrue(TEXT("held: same fog"), FMath::IsNearlyEqual(Fixed.FogDensity, Held.FogDensity));
+	TestTrue(TEXT("held: same rain"), FMath::IsNearlyEqual(Fixed.RainIntensity, Held.RainIntensity));
+	TestTrue(TEXT("held: same road"), FMath::IsNearlyEqual(Fixed.RoadRoughness, Held.RoadRoughness) && Held.bWetRoad);
+	TestTrue(TEXT("held: same sun"), Fixed.LightRotation.Equals(Held.LightRotation));
+
+	// Rain arriving: between overcast and light rain, the streaks part way.
+	const FSkyState Arriving = DeriveLive(Session, Now(EApexWeather::LightRain, 14, 20, 88, 4));
+	const FSkyState Overcast = Derive(At(EApexWeather::Overcast, 14));
+	TestTrue(TEXT("arriving: some rain"), Arriving.RainIntensity > 0.0f && Arriving.RainIntensity < Fixed.RainIntensity);
+	TestTrue(TEXT("arriving: darker than overcast, lighter than the rain"),
+		Arriving.LightIntensity < Overcast.LightIntensity && Arriving.LightIntensity > Fixed.LightIntensity);
+	TestFalse(TEXT("arriving: the road not wet yet"), Arriving.bWetRoad);
+	TestTrue(TEXT("arriving: dry roughness"), FMath::IsNearlyEqual(Arriving.RoadRoughness, DryRoadRoughness, 0.1f));
+
+	// Rain stopped, road still wet: no streaks, a sheen part way.
+	const FSkyState Drying = DeriveLive(Session, Now(EApexWeather::Cloudy, 14, 0, 60, 25));
+	TestTrue(TEXT("drying: no streaks"), Drying.RainIntensity == 0.0f);
+	TestTrue(TEXT("drying: still wet"), Drying.bWetRoad);
+	TestTrue(TEXT("drying: half the sheen"), FMath::IsNearlyEqual(Drying.RoadWetness, 0.5f)
+		&& Drying.RoadRoughness < DryRoadRoughness && Drying.RoadRoughness > WetRoadRoughness);
+
+	// The clock is the server's, not the session's pick.
+	const FSkyState Late = DeriveLive(At(EApexWeather::Sunny, 13), Now(EApexWeather::Sunny, 23, 0, 0, 0));
+	TestTrue(TEXT("the running clock brings the night"), Late.bMoon && Late.bFloodlights);
+
+	// Relighting is on a minute, a weather step or a few percent.
+	const FApexSkyNow Base = Now(EApexWeather::Cloudy, 14, 0, 50, 0);
+	FApexSkyNow Moved = Base;
+	Moved.ClockS += 30;
+	TestFalse(TEXT("half a minute is nothing"), LiveSkyMoved(Base, Moved));
+	Moved.ClockS += 30;
+	TestTrue(TEXT("a minute relights"), LiveSkyMoved(Base, Moved));
+	Moved = Base;
+	Moved.CloudPct += 2;
+	TestFalse(TEXT("two percent of cloud is nothing"), LiveSkyMoved(Base, Moved));
+	Moved.RainPct = 1;
+	TestTrue(TEXT("the first drop relights"), LiveSkyMoved(Base, Moved));
+	FApexSkyNow Midnight = Base;
+	Midnight.ClockS = 86399;
+	FApexSkyNow After = Base;
+	After.ClockS = 20;
+	TestFalse(TEXT("midnight is not a day's jump"), LiveSkyMoved(Midnight, After));
+	TestTrue(TEXT("losing the sky relights"), LiveSkyMoved(Base, FApexSkyNow()));
+	return true;
+}
+
+// -----------------------------------------------------------------------------
 // The demo's sky: every weather and all three parts of the day come up, on
 // quarter hours, mostly dry daylight.
 // -----------------------------------------------------------------------------

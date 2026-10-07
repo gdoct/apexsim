@@ -494,6 +494,61 @@ bool FApexCarTomlClientTablesTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarTomlCompoundsTest, "ApexSim.Cars.TomlCompounds", ApexTestFlags)
+
+bool FApexCarTomlCompoundsTest::RunTest(const FString& Parameters)
+{
+	// A car's own compounds: the tables in order, the kind from `kind`
+	// (slick when left out), so telemetry's compound byte says what the
+	// wheels should look like.
+	const FString Text = TEXT(
+		"id = \"a1b2\"\n"
+		"name = \"Car\"\n"
+		"[tires]\n"
+		"optimal_temperature_c = 95.0\n"
+		"[[tires.compound]]\n"
+		"name = \"supersoft\"\n"
+		"grip = 1.05\n"
+		"[[tires.compound]]\n"
+		"name = \"prime\"\n"
+		"reference = true\n"
+		"[[tires.compound]]\n"
+		"name = \"rain\"\n"
+		"kind = \"wet\"\n"
+		"wear = 1.8\n");
+	FApexCarToml Car;
+	FString Error;
+	TestTrue(*FString::Printf(TEXT("parses (%s)"), *Error), ApexCarToml::Parse(Text, Car, Error));
+	TestEqual(TEXT("the window still reads beside the tables"), Car.TyreOptimalC, 95.0f);
+	const TArray<FApexCompoundSpec> Compounds = ApexCarToml::MakeCompounds(Car);
+	if (TestEqual(TEXT("three compounds"), Compounds.Num(), 3))
+	{
+		TestEqual(TEXT("first by name"), Compounds[0].Name, FString(TEXT("supersoft")));
+		TestTrue(TEXT("a slick when no kind is given"), Compounds[0].Kind == EApexCompoundKind::Slick);
+		TestTrue(TEXT("the prime is a slick too"), Compounds[1].Kind == EApexCompoundKind::Slick);
+		TestEqual(TEXT("the rain tyre"), Compounds[2].Name, FString(TEXT("rain")));
+		TestTrue(TEXT("is a wet"), Compounds[2].Kind == EApexCompoundKind::Wet);
+		TestTrue(TEXT("and treaded"), Compounds[2].IsTreaded());
+	}
+
+	// No tables: the server's five defaults, the inter and the wet treaded.
+	FApexCarToml Plain;
+	TestTrue(TEXT("no tables parses"), ApexCarToml::Parse(TEXT("id = \"a\"\nname = \"b\"\n"), Plain, Error));
+	const TArray<FApexCompoundSpec> Defaults = ApexCarToml::MakeCompounds(Plain);
+	if (TestEqual(TEXT("five defaults"), Defaults.Num(), 5))
+	{
+		TestEqual(TEXT("medium second"), Defaults[1].Name, FString(TEXT("medium")));
+		TestTrue(TEXT("hard is a slick"), Defaults[2].Kind == EApexCompoundKind::Slick);
+		TestTrue(TEXT("index 3 is the intermediate"), Defaults[3].Kind == EApexCompoundKind::Intermediate);
+		TestTrue(TEXT("index 4 is the wet"), Defaults[4].Kind == EApexCompoundKind::Wet);
+	}
+
+	FApexCarToml Bad;
+	TestFalse(TEXT("an unknown kind is an error"),
+		ApexCarToml::Parse(TEXT("id = \"a\"\nname = \"b\"\n[[tires.compound]]\nname = \"x\"\nkind = \"studded\"\n"), Bad, Error));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarTomlDriverTest, "ApexSim.Cars.TomlDriver", ApexTestFlags)
 
 bool FApexCarTomlDriverTest::RunTest(const FString& Parameters)

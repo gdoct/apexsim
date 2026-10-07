@@ -10,6 +10,11 @@ namespace ApexRoadSynth
 		/** Below this the car is creeping: nothing scrubs, nothing drones. */
 		constexpr float CrawlSpeedMps = 2.0f;
 
+		/** The tyre the flat spot's beat is counted on: the force feedback's figure, so hand and ear agree. */
+		constexpr float FlatSpotTyreRadiusM = 0.33f;
+		/** The thud a full-depth flat spot strikes each turn, against a hit's 0.15..1. */
+		constexpr float FlatSpotThud = 0.55f;
+
 		/** Levels ease to their targets over this long. */
 		constexpr float SmoothingSeconds = 0.04f;
 
@@ -188,6 +193,11 @@ namespace ApexRoadSynth
 		return FMath::Max(SpeedMps, 0.0f) / CurbRibSpacingM;
 	}
 
+	float FlatSpotHz(float SpeedMps)
+	{
+		return FMath::Max(SpeedMps, 0.0f) / (UE_TWO_PI * FlatSpotTyreRadiusM);
+	}
+
 	float SquealHz(int32 Axle, float SpeedMps, float Slide)
 	{
 		// Faster scrubbing sings higher; so does a tyre further past its peak.
@@ -255,6 +265,10 @@ namespace ApexRoadSynth
 		const float Scrub = Gate(Speed, 5.0f, 15.0f);
 		const float Moving = Gate(Speed, CrawlSpeedMps, 10.0f);
 		const float RibStep = CurbRibHz(Speed) * Dt;
+		// The flat spot's beat, and how hard it lands: a thump a turn, fading
+		// in off a crawl, where a wheel turns too slowly to thump at all.
+		const float FlatSpotStep = FlatSpotHz(Speed) * Dt;
+		const float FlatSpotLevel = FlatSpotThud * Gate(Speed, CrawlSpeedMps, 8.0f);
 		// Stones per sample: a few dozen a second at speed, fully off the road.
 		const float StoneChance = S.OffTrack * FMath::Clamp(Speed / 30.0f, 0.0f, 1.0f) * 60.0f * Dt;
 
@@ -268,6 +282,7 @@ namespace ApexRoadSynth
 			S.CurbLeft += (Inputs.CurbLeft - S.CurbLeft) * InputAlpha;
 			S.CurbRight += (Inputs.CurbRight - S.CurbRight) * InputAlpha;
 			S.OffTrack += (Inputs.OffTrack - S.OffTrack) * InputAlpha;
+			S.FlatSpot += (Inputs.FlatSpot - S.FlatSpot) * InputAlpha;
 
 			const float Noise = NextNoise(State.NoiseState);
 			const float Noise2 = NextNoise(State.NoiseState);
@@ -326,6 +341,18 @@ namespace ApexRoadSynth
 			State.RumbleLowpass += (Noise2 - State.RumbleLowpass) * RumbleAlpha;
 			const float Stone = NextNoise(State.NoiseState) * 0.5f + 0.5f < StoneChance ? Noise * 4.0f : 0.0f;
 			const float Rough = State.RumbleLowpass * S.OffTrack * Moving * 2.2f + Stones.Tick(State.Stones, Stone * Stones.ImpulseGain) * 0.12f;
+
+			// --- The flat spot -----------------------------------------------------
+			// Struck into the hits' thud below, in the sample the patch comes round.
+			if (S.FlatSpot > 0.001f && FlatSpotStep > 0.0f)
+			{
+				State.FlatSpotPhase += FlatSpotStep;
+				if (State.FlatSpotPhase >= 1.0f)
+				{
+					State.FlatSpotPhase -= 1.0f;
+					State.PendingThud += S.FlatSpot * FlatSpotLevel;
+				}
+			}
 
 			// --- Hits ------------------------------------------------------------
 			State.CrunchEnvelope *= CrunchDecay;

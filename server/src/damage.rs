@@ -14,7 +14,14 @@
 //!   ([`over_rev_damage`]);
 //! - **wear**: every hour at the top of the rev range costs a few percent
 //!   ([`engine_wear`]), so a 24-hour race ends on a tired engine and one
-//!   driven on the limiter tires faster.
+//!   driven on the limiter tires faster;
+//! - **kerb strikes, bottoming and landings** ([`kerb_strike_damage`],
+//!   [`bottoming_damage`], [`landing_damage`]): the suspension speed of a
+//!   wheel on a kerb, or of one driven past its bump stop, filtered over a
+//!   few ticks ([`STRIKE_FILTER_S`]: the road mesh's steps are one-tick
+//!   spikes, a strike lasts) costs that side or that end of the car above a
+//!   threshold, quadratically; a landing costs the ends by the fall's speed,
+//!   nose first or tail first by the attitude.
 //!
 //! and cost, progressively:
 //!
@@ -26,7 +33,11 @@
 //! - the **engine** its power ([`engine_power_factor`]).
 //!
 //! A car is out when a zone reaches 100% ([`DamageState::refresh`]). A pit
-//! stop repairs it all (`pit::service_seconds` counts the time).
+//! stop repairs the hits, the heat and the missed shifts (`pit::service_seconds`
+//! counts the time), but not the wear: that part of the engine's damage is
+//! kept apart ([`DamageState::engine_wear_percent`], [`DamageState::wear_engine`])
+//! and a repair takes the engine back to it, since no crew rebuilds an
+//! engine in a pit box.
 
 use crate::data::DamageState;
 
@@ -51,6 +62,25 @@ const OVER_REV_TOLERANCE: f32 = 1.02;
 /// nothing to speak of.
 const ENGINE_WEAR_PER_HOUR: f32 = 3.0;
 const ENGINE_WEAR_EXPONENT: i32 = 6;
+
+/// The strike measure's filter, s: a few ticks at 420 Hz, so a one-tick
+/// step where two road-mesh triangles meet (18 m/s of shaft speed for a
+/// tick at Suzuka) reads as a fraction of a metre per second and a real
+/// strike, which lasts tens of milliseconds, nearly whole.
+pub const STRIKE_FILTER_S: f32 = 0.012;
+/// A wheel on a kerb with a filtered suspension speed over this, m/s, is
+/// striking it; damage per second per (m/s over)^2 to that side.
+pub const KERB_STRIKE_MPS: f32 = 1.5;
+const KERB_DAMAGE_PER_S: f32 = 8.0;
+/// A wheel this far past its bump stop, m, at a filtered speed over this,
+/// m/s, is bottoming; damage per second per (m/s over)^2 to that end.
+pub const BOTTOMING_PAST_M: f32 = 0.008;
+pub const BOTTOMING_STRIKE_MPS: f32 = 0.6;
+const BOTTOMING_DAMAGE_PER_S: f32 = 6.0;
+/// A landing slower than this, m/s of fall, is a bump; faster, it costs
+/// this share of a contact's damage at that speed.
+pub const LANDING_MIN_MPS: f32 = 2.0;
+const LANDING_SHARE: f32 = 0.5;
 
 /// Most toe a fully damaged side bends into its front wheel, rad.
 const MAX_TOE_RAD: f32 = 0.025;
@@ -84,6 +114,32 @@ pub fn engine_wear(rpm_share: f32, dt: f32) -> f32 {
 /// Engine damage this tick from running at `coolant_c`.
 pub fn overheat_damage(coolant_c: f32, dt: f32) -> f32 {
     (coolant_c - crate::engine_heat::OVERHEAT_C).max(0.0) * OVERHEAT_DAMAGE_PER_C_S * dt
+}
+
+/// Damage this tick to the side of a wheel on a kerb whose filtered
+/// suspension speed is `strike_mps`, percent.
+pub fn kerb_strike_damage(strike_mps: f32, dt: f32) -> f32 {
+    let over = (strike_mps - KERB_STRIKE_MPS).max(0.0);
+    KERB_DAMAGE_PER_S * over * over * dt
+}
+
+/// Damage this tick to the end of a wheel `past_m` past its bump stop at a
+/// filtered suspension speed of `strike_mps`, percent.
+pub fn bottoming_damage(past_m: f32, strike_mps: f32, dt: f32) -> f32 {
+    if past_m < BOTTOMING_PAST_M {
+        return 0.0;
+    }
+    let over = (strike_mps - BOTTOMING_STRIKE_MPS).max(0.0);
+    BOTTOMING_DAMAGE_PER_S * over * over * dt
+}
+
+/// Damage a landing at `fall_mps` does, percent, to be shared between the
+/// car's ends.
+pub fn landing_damage(fall_mps: f32) -> f32 {
+    if fall_mps < LANDING_MIN_MPS {
+        return 0.0;
+    }
+    LANDING_SHARE * impact_damage(fall_mps)
 }
 
 fn share(percent: f32) -> f32 {
@@ -142,6 +198,56 @@ impl DamageState {
             self.refresh();
         }
     }
+
+    /// Add damage to a side (`left`) and re-judge the car.
+    pub fn hurt_side(&mut self, left: bool, percent: f32) {
+        if percent <= 0.0 {
+            return;
+        }
+        let zone = if left {
+            &mut self.left_damage_percent
+        } else {
+            &mut self.right_damage_percent
+        };
+        *zone = (*zone + percent).min(100.0);
+        self.refresh();
+    }
+
+    /// Add damage to an end (`front`) and re-judge the car.
+    pub fn hurt_end(&mut self, front: bool, percent: f32) {
+        if percent <= 0.0 {
+            return;
+        }
+        let zone = if front {
+            &mut self.front_damage_percent
+        } else {
+            &mut self.rear_damage_percent
+        };
+        *zone = (*zone + percent).min(100.0);
+        self.refresh();
+    }
+
+    /// Wear the engine: damage a repair does not undo.
+    pub fn wear_engine(&mut self, percent: f32) {
+        if percent > 0.0 {
+            self.engine_wear_percent = (self.engine_wear_percent + percent).min(100.0);
+            self.hurt_engine(percent);
+        }
+    }
+
+    /// The car after a pit crew's repairs: every zone mended but the
+    /// engine's wear, which stays.
+    pub fn repaired(&self) -> DamageState {
+        let wear = self.engine_wear_percent.clamp(0.0, 100.0);
+        let mut d = DamageState {
+            engine_damage_percent: wear,
+            engine_wear_percent: wear,
+            is_drivable: true,
+            ..Default::default()
+        };
+        d.refresh();
+        d
+    }
 }
 
 #[cfg(test)]
@@ -198,6 +304,56 @@ mod tests {
         assert!(d.is_drivable);
         d.hurt_engine(1.0);
         assert!(!d.is_drivable);
+    }
+
+    #[test]
+    fn strikes_cost_above_a_threshold_and_a_mesh_step_does_not() {
+        let dt = 1.0 / 420.0;
+        assert_eq!(kerb_strike_damage(1.0, dt), 0.0);
+        // A hard kerb strike at 2.5 m/s of filtered shaft speed for 50 ms.
+        let hard: f32 = (0..21).map(|_| kerb_strike_damage(2.5, dt)).sum();
+        assert!((0.2..0.8).contains(&hard), "{hard}");
+        // Short of the stop nothing; past it, over the speed, something.
+        assert_eq!(bottoming_damage(0.0, 3.0, dt), 0.0);
+        assert_eq!(bottoming_damage(0.02, 0.5, dt), 0.0);
+        assert!(bottoming_damage(0.02, 2.0, dt) > 0.0);
+        // The filter: an 18 m/s one-tick spike reads as a fraction of a
+        // metre per second.
+        let mut strike = 0.0f32;
+        strike += (18.0 - strike) * (dt / STRIKE_FILTER_S).min(1.0);
+        assert!(strike < 4.0, "{strike}");
+        for _ in 0..10 {
+            strike += (0.0 - strike) * (dt / STRIKE_FILTER_S).min(1.0);
+        }
+        assert!(strike < 0.5, "{strike}");
+        // A landing: a drop is free, a fall is not.
+        assert_eq!(landing_damage(1.0), 0.0);
+        assert!(landing_damage(6.0) > 0.5 && landing_damage(6.0) < impact_damage(6.0));
+        let mut d = DamageState {
+            is_drivable: true,
+            ..Default::default()
+        };
+        d.hurt_side(true, 3.0);
+        d.hurt_end(false, 2.0);
+        assert_eq!((d.left_damage_percent, d.rear_damage_percent), (3.0, 2.0));
+    }
+
+    #[test]
+    fn a_repair_undoes_the_hits_but_not_the_wear() {
+        let mut d = DamageState {
+            is_drivable: true,
+            front_damage_percent: 40.0,
+            engine_damage_percent: 10.0,
+            ..Default::default()
+        };
+        d.wear_engine(5.0);
+        assert!((d.engine_damage_percent - 15.0).abs() < 1e-6);
+        assert!((d.engine_wear_percent - 5.0).abs() < 1e-6);
+        let r = d.repaired();
+        assert_eq!(r.front_damage_percent, 0.0);
+        assert!((r.engine_damage_percent - 5.0).abs() < 1e-6, "{r:?}");
+        assert!((r.engine_wear_percent - 5.0).abs() < 1e-6);
+        assert!(r.is_drivable);
     }
 
     #[test]

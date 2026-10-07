@@ -396,6 +396,39 @@ struct APEXSIM_API FApexCarLivery
 	bool operator!=(const FApexCarLivery& Other) const { return !(*this == Other); }
 };
 
+/** What a tyre compound is cut like: a slick, or one of the two treaded rain tyres. */
+UENUM(BlueprintType)
+enum class EApexCompoundKind : uint8
+{
+	Slick,
+	Intermediate,
+	Wet,
+};
+
+/**
+ * One of a car's compounds (car.toml `[[tires.compound]]`, the server's
+ * `tyre_thermal::Compound`): its name, in the order telemetry's `compound`
+ * byte indexes them, and its kind, which is what the client draws (a
+ * treaded tyre looks different) — the grip and wear figures are the
+ * server's alone. A car without the tables has the five defaults.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIM_API FApexCompoundSpec
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tyres")
+	FString Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tyres")
+	EApexCompoundKind Kind = EApexCompoundKind::Slick;
+
+	bool IsTreaded() const { return Kind != EApexCompoundKind::Slick; }
+
+	bool operator==(const FApexCompoundSpec& Other) const { return Name == Other.Name && Kind == Other.Kind; }
+	bool operator!=(const FApexCompoundSpec& Other) const { return !(*this == Other); }
+};
+
 /** One row per car. RowName == the `id` from `content/cars/{default,custom}/<folder>/car.toml`. */
 USTRUCT(BlueprintType)
 struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
@@ -499,6 +532,14 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	float TyreWindowC = 10.0f;
 
 	/**
+	 * The car's compounds in telemetry order (car.toml `[[tires.compound]]`,
+	 * else the five defaults): which index is a treaded tyre, for the look
+	 * of the wheels. Derived on every import, like the window.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
+	TArray<FApexCompoundSpec> Compounds;
+
+	/**
 	 * The car's extra liveries, the car.toml's `[[livery]]` tables in order:
 	 * livery N on the wire is `Liveries[N - 1]`, livery 0 the model as
 	 * authored. Derived on every import, like the wheels.
@@ -589,6 +630,22 @@ struct APEXSIM_API FApexTrackCatalogRow : public FTableRowBase
 	 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Track")
 	TObjectPtr<UTexture2D> RuntimePreview;
+
+	/**
+	 * Where the circuit is, from its export's `metadata` (`latitude_deg`,
+	 * `north_yaw_deg`): degrees north, and true north's yaw in the track
+	 * frame (degrees counter-clockwise from +X). Only meaningful when
+	 * `bHasLocation`; a table row and an export from before the keys have
+	 * none, and the sky then keeps its 50° N with north down +X.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Track")
+	bool bHasLocation = false;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Track")
+	float LatitudeDeg = 50.0f;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Track")
+	float NorthYawDeg = 0.0f;
 };
 
 namespace ApexCatalog

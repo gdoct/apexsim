@@ -5,6 +5,7 @@
 #include "Audio/ApexEngineSoundWave.h"
 #include "Audio/ApexRoadSoundWave.h"
 #include "Cars/ApexCarContentSubsystem.h"
+#include "Cars/ApexCarToml.h"
 #include "Components/AudioComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -312,6 +313,72 @@ void AApexRaceCarActor::SetDriver(const FApexDriverSpec& Spec)
 void AApexRaceCarActor::SetDriverVisible(bool bVisible)
 {
 	Driver.SetDriverVisible(bVisible);
+}
+
+void AApexRaceCarActor::SetCompounds(const TArray<FApexCompoundSpec>& Specs)
+{
+	Compounds = Specs.IsEmpty() ? ApexCarToml::DefaultCompounds() : Specs;
+	UpdateTyreLook();
+}
+
+void AApexRaceCarActor::UpdateTyreLook()
+{
+	// An unknown compound (an older server, a car not yet on its tyres) is drawn as a slick.
+	const EApexCompoundKind Kind = Compounds.IsValidIndex(TelemetryCompound) ? Compounds[TelemetryCompound].Kind : EApexCompoundKind::Slick;
+	Wheels.SetTyreLook(Kind);
+}
+
+void AApexRaceCarActor::UpdateTyreSmoke(float DeltaSeconds)
+{
+	// The server decides what smokes (`slide_flags`: spinning past 1.6x the
+	// peak slip ratio, locked, or past 2.4x the peak slip angle, on tarmac,
+	// above 5 m/s); the client only draws it. Puffs owed per wheel like the
+	// engine smoke, so a slow frame does not skip a puff nor a fast one double it.
+	AApexCarEffectsActor* Fx = nullptr;
+	for (int32 Wheel = 0; Wheel < ApexWheels::NumWheels; ++Wheel)
+	{
+		if (!bTyreSliding[Wheel] || DeltaSeconds <= 0.0f)
+		{
+			TyreSmokeOwed[Wheel] = 0.0f;
+			continue;
+		}
+		if (!Fx)
+		{
+			Fx = GetEffects();
+			if (!Fx || !Fx->CanDraw())
+			{
+				return;
+			}
+		}
+		// A locked wheel grinds one patch and smokes about twice as much as a spinning or scrubbing one.
+		const float PuffsPerSecond = bTyreLocked[Wheel] ? 9.0f : 5.0f;
+		TyreSmokeOwed[Wheel] += PuffsPerSecond * DeltaSeconds;
+		FVector Patch;
+		if (!Wheels.ContactPatch(static_cast<ApexWheels::EWheel>(Wheel), Patch))
+		{
+			TyreSmokeOwed[Wheel] = 0.0f;
+			continue;
+		}
+		const FVector CarVelocity = Root->ComponentVelocity;
+		FRandomStream& R = DamageRandom;
+		for (; TyreSmokeOwed[Wheel] >= 1.0f; TyreSmokeOwed[Wheel] -= 1.0f)
+		{
+			ApexDamage::FPuff Puff;
+			// Born just behind and inside the patch, so it rolls out from under the tyre.
+			Puff.Location = Patch + FVector(R.FRandRange(-8.0f, 8.0f), R.FRandRange(-8.0f, 8.0f), R.FRandRange(2.0f, 10.0f));
+			// Left on the road more than carried: rubber smoke hangs where it was made, drifting back
+			// in the car's wake and rising slowly.
+			Puff.Velocity = CarVelocity * 0.15 + FVector(0.0, 0.0, 45.0) + R.GetUnitVector() * 30.0;
+			Puff.Life = R.FRandRange(1.2f, 2.0f);
+			Puff.StartSize = 14.0f;
+			Puff.EndSize = R.FRandRange(90.0f, 150.0f);
+			Puff.Shade = FMath::Clamp(0.85f + R.FRandRange(-0.04f, 0.04f), 0.0f, 1.0f);
+			Puff.Opacity = bTyreLocked[Wheel] ? 0.32f : 0.25f;
+			Puff.Drag = 2.0f;
+			Puff.Gravity = -0.03f;
+			Fx->Emit(Puff);
+		}
+	}
 }
 
 void AApexRaceCarActor::SetWheels(const FApexWheelSpec& Spec)
@@ -622,6 +689,12 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car, int64 Serve
 	FMemory::Memcpy(TelemetryDamagePct, Car.DamagePct, sizeof(TelemetryDamagePct));
 	WaterTempC = Car.WaterTempC;
 	bColliding = Car.bIsColliding;
+	for (int32 Wheel = 0; Wheel < ApexWheels::NumWheels; ++Wheel)
+	{
+		bTyreSliding[Wheel] = Car.bTyreSliding[Wheel];
+		bTyreLocked[Wheel] = Car.bTyreLocked[Wheel];
+	}
+	TelemetryCompound = Car.Compound;
 
 	ApexMotion::FSnapshot Snapshot;
 	Snapshot.Tick = ServerTick;
@@ -731,6 +804,8 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	// actuator takes a fifth of a second.
 	DrsFlap.Update(bDrsOpen, DeltaSeconds);
 	UpdateDamage(DeltaSeconds);
+	UpdateTyreSmoke(DeltaSeconds);
+	UpdateTyreLook();
 
 	if (CVarInterpDebug.GetValueOnGameThread() != 0 && GEngine)
 	{

@@ -161,6 +161,52 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("clock frame has a race clock"), Frame.HasRaceClock());
 			TestEqual(TEXT("race time left"), Frame.RaceLeftMs, 0);
 			TestEqual(TEXT("final lap"), Frame.RaceFinalLap, 37);
+			TestFalse(TEXT("a six-field frame has no sky"), Frame.Sky.bValid);
+		}
+	}
+
+	// The sky now: a seventh field, with the race clock nil before it.
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("TelemetryCompact with a sky decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactSky, Message, Error)))
+		{
+			const FApexTelemetryFrame& Frame = Message.Telemetry;
+			TestEqual(TEXT("sky frame tick"), Frame.ServerTick, static_cast<int64>(123456));
+			TestFalse(TEXT("a nil race clock is no race clock"), Frame.HasRaceClock());
+			const FApexSkyNow& Sky = Frame.Sky;
+			TestTrue(TEXT("sky valid"), Sky.bValid);
+			TestEqual(TEXT("sky clock"), Sky.ClockS, 15 * 3600 + 30 * 60 + 15);
+			TestEqual(TEXT("sky clock text"), Sky.ClockText(), FString(TEXT("15:30")));
+			TestEqual(TEXT("sky weather"), Sky.Weather, EApexWeather::LightRain);
+			TestEqual(TEXT("sky rain"), Sky.RainPct, 37);
+			TestEqual(TEXT("sky cloud"), Sky.CloudPct, 88);
+			TestEqual(TEXT("sky road water"), Sky.RoadWaterPct, 21);
+			TestEqual(TEXT("sky air (signed)"), Sky.AirC, -2);
+			TestEqual(TEXT("sky track"), Sky.TrackC, 14);
+			TestEqual(TEXT("sky wind"), Sky.WindKph, 23);
+			TestEqual(TEXT("sky wind to"), Sky.WindToDeg, 300);
+			TestEqual(TEXT("sky rubber"), Sky.LineRubberPct, 64);
+			TestEqual(TEXT("sky time scale"), Sky.TimeScale, 24);
+			TestEqual(TEXT("sky next weather"), Sky.NextWeather, static_cast<int32>(EApexWeather::HeavyRain));
+			TestEqual(TEXT("sky next in"), Sky.NextInS, 1250);
+			TestTrue(TEXT("sky has a next change"), Sky.HasNextChange());
+			// 300° counter-clockwise from +X: along +X and toward -Y (the right).
+			const FVector2D Wind = Sky.WindServerMps();
+			TestTrue(TEXT("sky wind vector +X"), Wind.X > 0.0);
+			TestTrue(TEXT("sky wind vector -Y"), Wind.Y < 0.0);
+			TestTrue(TEXT("sky wind vector speed"), FMath::IsNearlyEqual(Wind.Size(), 23.0 / 3.6, 1e-3));
+		}
+	}
+
+	// The frames from before the sky still decode with none.
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompact, Message, Error))
+		{
+			TestFalse(TEXT("an old frame has no sky"), Message.Telemetry.Sky.bValid);
 		}
 	}
 
@@ -626,6 +672,62 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 		{
 			TestFalse(TEXT("no hybrid from an older server"), Ers.Telemetry.Cars[0].HasHybrid());
 			TestEqual(TEXT("no mode from an older server"), Ers.Telemetry.Cars[0].ErsMode, -1);
+		}
+		// 41 fields: the tread shoulders, brake wear, slide flags and stint budget.
+		FApexServerMessage Zones;
+		if (TestTrue(TEXT("41-field telemetry decodes"),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactZones, Zones, Error))
+			&& Zones.Telemetry.Cars.Num() == 1)
+		{
+			const FApexCarTelemetry& Car = Zones.Telemetry.Cars[0];
+			TestEqual(TEXT("the hybrid still reads"), Car.ErsChargePct, 64.0f);
+			TestTrue(TEXT("the overtake button still reads"), Car.bErsBoost);
+			// Every shoulder is sent (the RR pair at the byte's ceiling, 255), so the set is known.
+			TestTrue(TEXT("every shoulder known"), Car.HasTyreEdges());
+			TestEqual(TEXT("FL inner"), Car.TyreInnerC[0], 88.0f);
+			TestEqual(TEXT("FL outer"), Car.TyreOuterC[0], 80.0f);
+			TestEqual(TEXT("FR inner"), Car.TyreInnerC[1], 90.0f);
+			TestEqual(TEXT("FR outer"), Car.TyreOuterC[1], 94.0f);
+			TestEqual(TEXT("RL inner"), Car.TyreInnerC[2], 100.0f);
+			TestEqual(TEXT("RL outer"), Car.TyreOuterC[2], 105.0f);
+			TestEqual(TEXT("RR inner at the ceiling"), Car.TyreInnerC[3], 255.0f);
+			TestEqual(TEXT("RR outer at the ceiling"), Car.TyreOuterC[3], 255.0f);
+			TestEqual(TEXT("FL brake wear"), Car.BrakeWearPct[0], 12.0f);
+			TestEqual(TEXT("RL brake wear"), Car.BrakeWearPct[2], 31.0f);
+			TestEqual(TEXT("RR brake wear"), Car.BrakeWearPct[3], 100.0f);
+			TestTrue(TEXT("FR sliding"), Car.bTyreSliding[1]);
+			TestFalse(TEXT("FL not sliding"), Car.bTyreSliding[0]);
+			TestTrue(TEXT("FL locked"), Car.bTyreLocked[0]);
+			TestFalse(TEXT("FR not locked"), Car.bTyreLocked[1]);
+			TestFalse(TEXT("RR not sliding"), Car.bTyreSliding[3]);
+			TestEqual(TEXT("stint budget"), Car.ErsStintPct, 73.0f);
+			// Zero one shoulder and the whole set is unknown (0 is "not known",
+			// and a half-known set is no use to a display): the blob ends
+			// `..., 0xCC, 0xFF, 0xCC, 0xFF, <brake wear: 0x94 + 4 bytes + 1 uint8 marker>, 0x12, 0x49`,
+			// each 0xCC a uint8 marker, so the value byte keeps its width.
+			TArray<uint8> Cold(ApexUdpGolden::S_TelemetryCompactZones, UE_ARRAY_COUNT(ApexUdpGolden::S_TelemetryCompactZones));
+			const int32 End = Cold.Num();
+			Cold[End - 8] = 0x00; // outer RR: not known
+			FApexServerMessage Patched;
+			if (TestTrue(TEXT("the patched frame decodes"), ApexProtocol::DecodeUdpMessage(Cold, Patched, Error))
+				&& Patched.Telemetry.Cars.Num() == 1)
+			{
+				const FApexCarTelemetry& Half = Patched.Telemetry.Cars[0];
+				TestFalse(TEXT("a half-known set of shoulders is unknown"), Half.HasTyreEdges());
+				TestTrue(TEXT("FL inner unknown with it"), Half.TyreInnerC[0] < 0.0f);
+				TestEqual(TEXT("the brake wear after it still reads"), Half.BrakeWearPct[3], 100.0f);
+				TestEqual(TEXT("and the stint budget"), Half.ErsStintPct, 73.0f);
+			}
+		}
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactErs, Zones, Error)
+			&& Zones.Telemetry.Cars.Num() == 1)
+		{
+			const FApexCarTelemetry& Car = Zones.Telemetry.Cars[0];
+			TestFalse(TEXT("no shoulders from an older server"), Car.HasTyreEdges());
+			TestTrue(TEXT("no brake wear from an older server"), Car.BrakeWearPct[0] < 0.0f);
+			TestFalse(TEXT("nothing slides on an older server"), Car.bTyreSliding[0] || Car.bTyreSliding[1] || Car.bTyreSliding[2] || Car.bTyreSliding[3]);
+			TestFalse(TEXT("nothing locks on an older server"), Car.bTyreLocked[0] || Car.bTyreLocked[3]);
+			TestTrue(TEXT("no stint budget from an older server"), Car.ErsStintPct < 0.0f);
 		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactPit, Heat, Error)
 			&& Heat.Telemetry.Cars.Num() == 1)

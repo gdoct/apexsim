@@ -14,20 +14,21 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use crate::data::{CarState, PlayerId, PlayerInputData, SessionConditions};
+use crate::data::{CarState, PlayerId, PlayerInputData};
 
 /// `lap_flags` bit 5: the headlights are on.
 pub const LAP_FLAG_HEADLIGHTS: u8 = 32;
 /// `lap_flags` bit 6: the driver is flashing them.
 pub const LAP_FLAG_HEADLIGHT_FLASH: u8 = 64;
 
-/// Sets every car's lights from its driver's input for this tick.
+/// Sets every car's lights from its driver's input for this tick; `auto`
+/// is the conditions' rule for a switch nobody touched
+/// (`LiveConditions::headlights_needed`).
 pub fn update(
     participants: &mut BTreeMap<PlayerId, CarState>,
     inputs: &HashMap<PlayerId, PlayerInputData>,
-    conditions: SessionConditions,
+    auto: bool,
 ) {
-    let auto = conditions.headlights_needed();
     for state in participants.values_mut() {
         let input = inputs.get(&state.player_id);
         state.headlights = input.and_then(|i| i.headlights).unwrap_or(auto);
@@ -38,7 +39,7 @@ pub fn update(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data::{GridSlot, Weather};
+    use crate::data::{GridSlot, SessionConditions, Weather};
     use uuid::Uuid;
 
     fn field() -> (BTreeMap<PlayerId, CarState>, PlayerId) {
@@ -80,7 +81,11 @@ mod tests {
         );
 
         let (mut cars, id) = field();
-        update(&mut cars, &HashMap::new(), at(Weather::Sunny, 22, 0));
+        update(
+            &mut cars,
+            &HashMap::new(),
+            at(Weather::Sunny, 22, 0).headlights_needed(),
+        );
         assert!(cars[&id].headlights, "no input yet: the conditions decide");
         assert!(!cars[&id].headlight_flash);
     }
@@ -96,17 +101,29 @@ mod tests {
                 ..Default::default()
             },
         );
-        update(&mut cars, &inputs, at(Weather::HeavyRain, 23, 0));
+        update(
+            &mut cars,
+            &inputs,
+            at(Weather::HeavyRain, 23, 0).headlights_needed(),
+        );
         assert!(!cars[&id].headlights, "switched off at night");
 
         inputs.get_mut(&id).unwrap().headlights = Some(true);
-        update(&mut cars, &inputs, SessionConditions::DEFAULT);
+        update(
+            &mut cars,
+            &inputs,
+            SessionConditions::DEFAULT.headlights_needed(),
+        );
         assert!(cars[&id].headlights, "switched on by day");
 
         let input = inputs.get_mut(&id).unwrap();
         input.headlights = None;
         input.flash = true;
-        update(&mut cars, &inputs, SessionConditions::DEFAULT);
+        update(
+            &mut cars,
+            &inputs,
+            SessionConditions::DEFAULT.headlights_needed(),
+        );
         assert!(!cars[&id].headlights);
         assert!(cars[&id].headlight_flash);
         let flags = crate::network::lap_flags_of(&cars[&id]);
@@ -116,7 +133,11 @@ mod tests {
         );
 
         inputs.get_mut(&id).unwrap().flash = false;
-        update(&mut cars, &inputs, SessionConditions::DEFAULT);
+        update(
+            &mut cars,
+            &inputs,
+            SessionConditions::DEFAULT.headlights_needed(),
+        );
         assert!(!cars[&id].headlight_flash, "let go, the flash ends");
     }
 }

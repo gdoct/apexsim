@@ -73,6 +73,14 @@ pub struct CarSetupSheetData {
     /// How far the front's share of the downforce moves per millimetre of
     /// rake (rear height less front) over the stock rake (`crate::aero`).
     pub rake_balance_per_mm: f32,
+    /// The car's compounds by name, in the order telemetry's `compound`
+    /// and the pit service's index them (`TireConfig::compounds`), and
+    /// which of them the `tyre_compound` knob's zero is. Appended; an older
+    /// server sends neither and the client assumes the default five.
+    #[serde(default)]
+    pub compounds: Vec<String>,
+    #[serde(default)]
+    pub reference_compound: u8,
 }
 
 /// Downforce in kg at the quote speed for a lift coefficient.
@@ -230,8 +238,24 @@ fn knob_figure(name: &str, car: &CarConfig, lap_fuel_l: f32, fill_laps: f32) -> 
                 "mm",
             )
         },
-        "tyre_compound" => figure(0.0, 1.0, 0, ""),
-        "brake_ducts" => figure(100.0, car_setup::BRAKE_DUCT_PER_CLICK * 100.0, 0, "%"),
+        "tyre_compound" => {
+            // The knob's range is the car's list: the reference at 0,
+            // softer up to the first compound, harder and treaded down to
+            // the last.
+            let reference = car.tire_config.reference_compound() as f32;
+            let last = car.tire_config.compounds().len().saturating_sub(1) as f32;
+            SetupKnobFigure {
+                lo: reference - last,
+                hi: reference,
+                ..figure(0.0, 1.0, 0, "")
+            }
+        }
+        "brake_ducts" | "brake_ducts_rear" => {
+            figure(100.0, car_setup::BRAKE_DUCT_PER_CLICK * 100.0, 0, "%")
+        }
+        // Not a figure but a choice: read out by name.
+        "brake_pads" => figure(0.0, 1.0, 0, ""),
+        "radiator" => figure(100.0, car_setup::RADIATOR_PER_CLICK * 100.0, 0, "%"),
         "camber_front" => SetupKnobFigure {
             lo: -8.0,
             hi: 3.0,
@@ -276,6 +300,13 @@ pub fn build(
         fill_laps,
         camber_modelled: car.suspension.camber_modelled,
         rake_balance_per_mm: car.aero.rake_sensitivity / 10.0,
+        compounds: car
+            .tire_config
+            .compounds()
+            .iter()
+            .map(|c| c.name.clone())
+            .collect(),
+        reference_compound: car.tire_config.reference_compound(),
     }
 }
 
@@ -300,6 +331,11 @@ mod tests {
         for f in &sheet.knobs {
             assert!(f.stock.is_finite() && f.step.is_finite(), "{f:?}");
         }
+        assert_eq!(sheet.compounds.len(), 5);
+        assert_eq!(sheet.reference_compound, crate::tyre_thermal::MEDIUM);
+        // The compound knob's range is the list's.
+        let knob = &sheet.knobs[19];
+        assert_eq!((knob.lo, knob.hi), (-3.0, 1.0));
     }
 
     /// The sheet's linear read-out agrees with what `apply` bakes into the car.

@@ -351,6 +351,9 @@ void UApexHudDataSubsystem::Refresh()
 	}
 	In.TyreOptimalC = TyreOptimalC;
 	In.TyreWindowC = TyreWindowC;
+	// The driver's car's compounds by name, from the garage's sheet. Watching
+	// another car the sheet is still the driver's, so the defaults apply.
+	In.CompoundNames = Net && !bSpectating && Net->GetCarSetupSheet().HasCompounds() ? &Net->GetCarSetupSheet().Compounds : nullptr;
 	In.RedlineRpm = RedlineRpm;
 	In.LimiterRpm = LimiterRpm;
 	In.CarName = CarName;

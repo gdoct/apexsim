@@ -1604,6 +1604,23 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 			UE_LOG(LogApexSim, Warning, TEXT("-ApexTimeOfDay: expected HH:MM, got '%s'"), *Clock);
 		}
 	}
+	// -ApexTimeScale=N (the day's clock, 0 frozen to 60), -ApexChangeable=N
+	// (0 fixed, 1 settled, 2 changeable, 3 stormy) and -ApexTrackRubber=N (0
+	// green to 100 rubbered): a sky that moves through the run.
+	int32 SkyValue = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexTimeScale="), SkyValue))
+	{
+		Conditions.TimeScale = SkyValue > 0 ? SkyValue : FApexSessionConditions::Auto;
+	}
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexChangeable="), SkyValue))
+	{
+		Conditions.Changeable = SkyValue > 0 ? SkyValue : FApexSessionConditions::Auto;
+	}
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexTrackRubber="), SkyValue))
+	{
+		Conditions.TrackRubberPct = FMath::Max(SkyValue, 0);
+	}
+	Conditions = Conditions.Clamped();
 
 	// SelectCar before CreateSession, same order the UI uses.
 	Net->SelectCar(Car.Id);

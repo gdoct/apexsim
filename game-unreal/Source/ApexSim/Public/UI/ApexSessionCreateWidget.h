@@ -93,6 +93,8 @@ private:
 		float PillSize, float ValueWidth, float ValueSize, UTextBlock** OutNote = nullptr);
 	/** A section caption, with an optional read-out at its right end. */
 	UWidget* MakeCaption(const FString& Label, UTextBlock** OutRight = nullptr, UWidget* RightWidget = nullptr);
+	/** A caption and a row of chips beside it, one line high: the Conditions tab's compact picks. */
+	UWidget* MakeChipRow(const FString& Label, const TArray<FString>& Chips, TArray<TObjectPtr<UApexButtonWidget>>& OutButtons);
 
 	/** Redraws the track and car summaries from the current pending selection. */
 	void RefreshContent();
@@ -272,8 +274,14 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> TimeOfDayFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TimeOfDayValue;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> TimePresetButtons;
+	/** How fast the day's clock runs, one chip per ApexCreateSession::ClockScales. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ClockScaleButtons;
 	/** One tile per EApexWeather, in enum order. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeatherButtons;
+	/** How the weather changes: fixed, settled, changeable, stormy. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ChangeableButtons;
+	/** The track's rubber at the start: green, normal, rubbered. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> TrackRubberButtons;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AirAutoButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AirMinus;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AirPlus;

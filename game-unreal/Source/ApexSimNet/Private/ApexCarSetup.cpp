@@ -34,13 +34,23 @@ namespace ApexCarSetup
 			{ "rear_wing",           -MaxClicks, MaxClicks, 5.0f,   TEXT("%") },
 			{ "ride_height_front",   -MaxClicks, MaxClicks, 2.0f,   TEXT(" mm") },
 			{ "ride_height_rear",    -MaxClicks, MaxClicks, 2.0f,   TEXT(" mm") },
-			// Not a figure but the next set's compound: read out by name.
-			{ "tyre_compound",       -3,         1,         1.0f,   TEXT("") },
+			// Not a figure but the next set's compound: read out by name. The
+			// range is wide on purpose: a car's own list may hold more than the
+			// five defaults, the sheet says how many (its Lo/Hi), and the
+			// server clamps to the car's anyway.
+			{ "tyre_compound",       -9,         9,         1.0f,   TEXT("") },
 			{ "brake_ducts",         -MaxClicks, MaxClicks, 10.0f,  TEXT("% air") },
 			{ "camber_front",        -MaxClicks, MaxClicks, -0.25f,  TEXT("°") },
 			{ "camber_rear",         -MaxClicks, MaxClicks, -0.25f,  TEXT("°") },
 			{ "toe_front",           -MaxClicks, MaxClicks, 0.05f,  TEXT("°") },
 			{ "toe_rear",            -MaxClicks, MaxClicks, 0.05f,  TEXT("°") },
+			// The rear ducts, appended after the geometry; "brake_ducts"
+			// above is the front pair.
+			{ "brake_ducts_rear",    -MaxClicks, MaxClicks, 10.0f,  TEXT("% air") },
+			// Not a figure but the pad compound: read out by name.
+			{ "brake_pads",          -1,         1,         1.0f,   TEXT("") },
+			// The radiator inlet: cooling for a little drag per click open.
+			{ "radiator",            -MaxClicks, MaxClicks, 8.0f,   TEXT("%") },
 		};
 	}
 
@@ -55,6 +65,10 @@ namespace ApexCarSetup
 		{
 			return Clicks > 0 ? TEXT("Soft") : Clicks == 0 ? TEXT("Medium") : Clicks == -1 ? TEXT("Hard")
 				: Clicks == -2 ? TEXT("Intermediate") : TEXT("Wet");
+		}
+		if (Index == BrakePads)
+		{
+			return Clicks > 0 ? TEXT("Sprint") : Clicks == 0 ? TEXT("Standard") : TEXT("Endurance");
 		}
 		if (Clicks == 0)
 		{

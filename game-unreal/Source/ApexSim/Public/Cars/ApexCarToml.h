@@ -73,6 +73,18 @@ struct FApexCarDamagePartToml
 };
 
 /**
+ * A `[[tires.compound]]` table, as far as the client reads it: the name
+ * (telemetry indexes the tables in order) and the `kind` (`slick`,
+ * `intermediate` or `wet`; slick when left out). The grip, wear and window
+ * figures are the server's.
+ */
+struct FApexCarCompoundToml
+{
+	FString Name;
+	FString Kind;
+};
+
+/**
  * A `[[livery]]` table: colours are linear RGB, files relative to the car
  * folder. A colour livery names `paint` (and maybe `accent`, `metallic`,
  * `logo`); a texture livery, an imported car's skin, names `skin` and maybe
@@ -149,6 +161,8 @@ struct FApexCarToml
 	 */
 	float TyreOptimalC = 90.0f;
 	float TyreWindowC = 10.0f;
+	/** The `[[tires.compound]]` tables, in order; empty when the car takes the defaults. */
+	TArray<FApexCarCompoundToml> Compounds;
 	FApexCarWheelsToml Wheels;
 	FApexCarDrsFlapToml DrsFlap;
 	FApexCarDriverToml Driver;
@@ -199,6 +213,16 @@ namespace ApexCarToml
 	 * mesh's frame (centimetres, nose +Y, left +X). Parse has checked them.
 	 */
 	APEXSIM_API TArray<FApexDamagePartSpec> MakeDamageParts(const FApexCarToml& Toml);
+
+	/**
+	 * The server's default compounds when a car.toml has no
+	 * `[[tires.compound]]` tables: soft, medium, hard, intermediate, wet
+	 * (`tyre_thermal::COMPOUNDS`), indices 3 and 4 treaded.
+	 */
+	APEXSIM_API TArray<FApexCompoundSpec> DefaultCompounds();
+
+	/** The row's compounds from the TOML: its own tables in order, else DefaultCompounds. */
+	APEXSIM_API TArray<FApexCompoundSpec> MakeCompounds(const FApexCarToml& Toml);
 
 	/** `yotota-lmp2` -> `yotota_lmp2`: a folder name as a package or object name segment. */
 	APEXSIM_API FString Segment(const FString& Folder);

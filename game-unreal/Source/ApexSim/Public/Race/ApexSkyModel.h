@@ -13,15 +13,20 @@
  * into light, fog and post-process settings; nothing here touches an actor,
  * so `ApexSim.Sky.*` can pin the numbers.
  *
- * The circuit is nowhere in particular: one latitude and one date serve
- * every track, a late-spring day in the north where the sun is up from a
- * little after six to a little after nine in the evening. Solar noon is
- * 13:00, which is what a clock on summer time says.
+ * One date serves every track, a late-spring day where, at the default
+ * 50° N, the sun is up from a little after six to a little after nine in
+ * the evening. Solar noon is 13:00, which is what a clock on summer time
+ * says. Where the circuit is comes from its export (`FSkySite`: the
+ * manifest's `latitude_deg` and `north_yaw_deg`); a track exported before
+ * those keys is at 50° N with true north down the frame's +X, which is
+ * how every circuit was lit until then. The server's `sun_elevation_deg`
+ * (data.rs) is `SunAt` to the letter, so its idea of dusk (the headlights,
+ * the asphalt's heat) is the one on screen.
  */
 namespace ApexSky
 {
-	/** Latitude the sun is computed for, degrees north. */
-	inline constexpr float LatitudeDeg = 50.0f;
+	/** Latitude the sun is computed for when a track does not say, degrees north. */
+	inline constexpr float DefaultLatitudeDeg = 50.0f;
 	/** Solar declination, degrees: a day in late May. */
 	inline constexpr float DeclinationDeg = 20.0f;
 	/** Hour of solar noon, local clock (summer time). */
@@ -30,19 +35,42 @@ namespace ApexSky
 	inline constexpr float ZenithLux = 100000.0f;
 	/** Below this elevation the sun is gone and the moon takes the light. */
 	inline constexpr float MoonBelowElevationDeg = -8.0f;
+	/** The road family's roughness, baked dry and at the full wet sheen. */
+	inline constexpr float DryRoadRoughness = 0.9f;
+	inline constexpr float WetRoadRoughness = 0.3f;
+	/** The road's RoughnessNoise at the full wet sheen. */
+	inline constexpr float WetRoadRoughnessNoise = 0.08f;
+
+	/**
+	 * Where on Earth the circuit is, as far as the sky cares: its latitude,
+	 * and which way true north lies in the track's (server) frame, degrees
+	 * counter-clockwise from +X. Unreal's world is that frame with Y flipped,
+	 * so north is at Unreal yaw `-NorthYawDeg`.
+	 */
+	struct FSkySite
+	{
+		float LatitudeDeg = DefaultLatitudeDeg;
+		float NorthYawDeg = 0.0f;
+
+		/** Unreal world yaw of a compass bearing (degrees clockwise from
+		 * north): both turn clockwise seen from above, so it is the bearing
+		 * less north's counter-clockwise server yaw. */
+		float WorldYawOfBearing(float BearingDeg) const { return BearingDeg - NorthYawDeg; }
+	};
 
 	struct FSunPosition
 	{
 		/** Degrees above the horizon; negative at night. */
 		float ElevationDeg = 0.0f;
-		/** Compass azimuth, degrees clockwise from north (+X). */
+		/** Compass azimuth, degrees clockwise from true north. */
 		float AzimuthDeg = 180.0f;
 	};
 
-	/** Where the sun is at `Hours` after midnight on the model day. */
-	inline FSunPosition SunAt(float Hours)
+	/** Where the sun is at `Hours` after midnight on the model day, at
+	 * `LatitudeDeg` north (south negative). */
+	inline FSunPosition SunAt(float Hours, float LatitudeDeg = DefaultLatitudeDeg)
 	{
-		const float Lat = FMath::DegreesToRadians(LatitudeDeg);
+		const float Lat = FMath::DegreesToRadians(FMath::Clamp(LatitudeDeg, -89.0f, 89.0f));
 		const float Dec = FMath::DegreesToRadians(DeclinationDeg);
 		const float HourAngle = FMath::DegreesToRadians((Hours - SolarNoonHours) * 15.0f);
 
@@ -101,6 +129,10 @@ namespace ApexSky
 		float RainIntensity = 0.0f;
 		/** The road's material roughness; 0.9 is the baked dry value. */
 		float RoadRoughness = 0.9f;
+		/** How far the road has gone from its baked dry look toward the wet
+		 * sheen, 0..1: the director lerps each road material's own roughness
+		 * toward WetRoadRoughness by it. */
+		float RoadWetness = 0.0f;
 		bool bWetRoad = false;
 
 		bool bHeadlights = false;
@@ -129,11 +161,13 @@ namespace ApexSky
 		}
 	}
 
-	inline FSkyState Derive(const FApexSessionConditions& Conditions)
+	inline FSkyState Derive(const FApexSessionConditions& Conditions, const FSkySite& Site = FSkySite())
 	{
 		FSkyState S;
 		const FApexSessionConditions C = Conditions.Clamped();
-		S.Sun = SunAt(C.Hours());
+		S.Sun = SunAt(C.Hours(), Site.LatitudeDeg);
+		// The light's yaw is in the world; the sun's azimuth is from true north.
+		const float SunYawDeg = Site.WorldYawOfBearing(S.Sun.AzimuthDeg);
 		const float Elev = S.Sun.ElevationDeg;
 		const float Day = Daylight(Elev);
 		const float Direct = DirectSunFactor(C.Weather);
@@ -144,7 +178,7 @@ namespace ApexSky
 		{
 			// The moon stands where the sun is not: opposite it, well up. The
 			// light shines away from its source, so its yaw is the sun's azimuth.
-			S.LightRotation = FRotator(-35.0f, S.Sun.AzimuthDeg, 0.0f);
+			S.LightRotation = FRotator(-35.0f, SunYawDeg, 0.0f);
 			S.LightIntensity = 1.0f * FMath::Lerp(1.0f, 0.35f, 1.0f - Direct);
 			S.LightColor = FLinearColor(0.62f, 0.72f, 1.0f);
 			S.bAtmosphereLight = false;
@@ -156,7 +190,7 @@ namespace ApexSky
 			// The light shines along its +X: yaw it to point away from the
 			// sun's azimuth, pitch it down by the elevation. A sun still under
 			// the horizon keeps aiming the atmosphere, for the twilight.
-			S.LightRotation = FRotator(-FMath::Max(Elev, 0.5f), S.Sun.AzimuthDeg + 180.0f, 0.0f);
+			S.LightRotation = FRotator(-FMath::Max(Elev, 0.5f), SunYawDeg + 180.0f, 0.0f);
 			// Airmass takes the beam down toward the horizon; the atmosphere
 			// colours it, this only dims it.
 			const float Airmass = FMath::Pow(FMath::Max(0.0f, FMath::Sin(FMath::DegreesToRadians(FMath::Max(Elev, 0.0f)))), 0.6f);
@@ -203,12 +237,120 @@ namespace ApexSky
 
 		S.RainIntensity = C.Weather == EApexWeather::LightRain ? 0.4f : (C.Weather == EApexWeather::HeavyRain ? 1.0f : 0.0f);
 		S.bWetRoad = C.IsWet();
-		S.RoadRoughness = S.bWetRoad ? 0.3f : 0.9f;
+		S.RoadWetness = S.bWetRoad ? 1.0f : 0.0f;
+		S.RoadRoughness = FMath::Lerp(DryRoadRoughness, WetRoadRoughness, S.RoadWetness);
 
 		// Lights come on as the sun goes, and in the rain as they do on a race day.
 		S.bHeadlights = Elev < 6.0f || C.IsWet();
 		S.bFloodlights = Elev < 4.0f;
 		S.LampGlow = S.bFloodlights ? FMath::Lerp(60.0f, 6.0f, Day) : 0.0f;
 		return S;
+	}
+
+	/**
+	 * Where a live sky stands on the weather ladder (0 sunny, 1 cloudy, 2
+	 * overcast, 3 light rain, 4 heavy rain), from the cloud and the rain
+	 * the server eases in rather than the forecast's step: the cloud carries
+	 * it to overcast at the server's own covers (`Weather::cloud`: 0, 0.5,
+	 * 0.85), the rain on from there by its water units (`Weather::water`: a
+	 * light rain is half a heavy one). Each weather's own figures land on
+	 * its rung exactly, so a sky that holds is lit as it always was.
+	 */
+	inline float WeatherLadder(float Cloud01, float Rain01)
+	{
+		const float Cloud = FMath::Clamp(Cloud01, 0.0f, 1.0f);
+		const float CloudRung = Cloud <= 0.5f ? Cloud / 0.5f
+			: Cloud <= 0.85f ? 1.0f + (Cloud - 0.5f) / 0.35f
+			: 2.0f;
+		return FMath::Clamp(CloudRung + 2.0f * FMath::Clamp(Rain01, 0.0f, 1.0f), 0.0f, 4.0f);
+	}
+
+	/** Two skies at the same clock, `T` of the way from `A` to `B`: every
+	 * figure lerped, every switch from the nearer. T = 0 is A to the bit. */
+	inline FSkyState Blend(const FSkyState& A, const FSkyState& B, float T)
+	{
+		if (T <= 0.0f)
+		{
+			return A;
+		}
+		if (T >= 1.0f)
+		{
+			return B;
+		}
+		FSkyState S = T < 0.5f ? A : B;
+		S.LightIntensity = FMath::Lerp(A.LightIntensity, B.LightIntensity, T);
+		S.LightColor = FMath::Lerp(A.LightColor, B.LightColor, T);
+		S.LightSourceAngleDeg = FMath::Lerp(A.LightSourceAngleDeg, B.LightSourceAngleDeg, T);
+		S.SkyLightIntensity = FMath::Lerp(A.SkyLightIntensity, B.SkyLightIntensity, T);
+		S.FogDensity = FMath::Lerp(A.FogDensity, B.FogDensity, T);
+		S.FogHeightFalloff = FMath::Lerp(A.FogHeightFalloff, B.FogHeightFalloff, T);
+		S.FogStartDistanceCm = FMath::Lerp(A.FogStartDistanceCm, B.FogStartDistanceCm, T);
+		S.FogColor = FMath::Lerp(A.FogColor, B.FogColor, T);
+		S.ExposureMinEv = FMath::Lerp(A.ExposureMinEv, B.ExposureMinEv, T);
+		S.ExposureMaxEv = FMath::Lerp(A.ExposureMaxEv, B.ExposureMaxEv, T);
+		S.ExposureBias = FMath::Lerp(A.ExposureBias, B.ExposureBias, T);
+		S.Saturation = FMath::Lerp(A.Saturation, B.Saturation, T);
+		S.Contrast = FMath::Lerp(A.Contrast, B.Contrast, T);
+		S.RainIntensity = FMath::Lerp(A.RainIntensity, B.RainIntensity, T);
+		S.LampGlow = FMath::Lerp(A.LampGlow, B.LampGlow, T);
+		return S;
+	}
+
+	/**
+	 * The sky a newer server says it is now (`FApexSkyNow`): the clock it
+	 * has run to, lit between the two weathers its cloud and rain stand
+	 * between (`WeatherLadder`), the streaks as heavy as the rain falling
+	 * (none at all when it has stopped), and the road as wet as the water
+	 * on it: a light rain's half of a heavy one is the full sheen, as the
+	 * fixed sky always drew it, and the sheen goes as the road dries. The
+	 * clock is read to the second (the director re-derives on a minute).
+	 */
+	inline FSkyState DeriveLive(const FApexSessionConditions& Session, const FApexSkyNow& Now, const FSkySite& Site = FSkySite())
+	{
+		FApexSessionConditions C = Now.AsConditions(Session);
+		const float Rung = WeatherLadder(Now.CloudPct / 100.0f, Now.RainPct / 100.0f);
+		const int32 Low = FMath::Clamp(FMath::FloorToInt(Rung), 0, FApexSessionConditions::WeatherCount - 1);
+		const int32 High = FMath::Min(Low + 1, FApexSessionConditions::WeatherCount - 1);
+		C.Weather = static_cast<EApexWeather>(Low);
+		const FSkyState A = Derive(C, Site);
+		C.Weather = static_cast<EApexWeather>(High);
+		const FSkyState B = Derive(C, Site);
+		FSkyState S = Blend(A, B, Rung - static_cast<float>(Low));
+		if (Now.RainPct <= 0)
+		{
+			S.RainIntensity = 0.0f;
+		}
+		// The water: a road counts as wet from 5% of a heavy rain's (the
+		// server's `WET_FROM_WATER`), the sheen full by a light rain's.
+		S.RoadWetness = FMath::Clamp(static_cast<float>(Now.RoadWaterPct) / 50.0f, 0.0f, 1.0f);
+		S.bWetRoad = Now.RoadWaterPct >= 5;
+		S.RoadRoughness = FMath::Lerp(DryRoadRoughness, WetRoadRoughness, S.RoadWetness);
+		return S;
+	}
+
+	/**
+	 * Whether a live sky has moved far enough from the one the world was
+	 * last lit by to light it again: a minute of the day, a step of the
+	 * weather, or a few percent of rain, cloud or road water. Lighting is
+	 * not free (the sky light recaptures, the road materials are written),
+	 * and the server's figures move in whole percents every frame.
+	 */
+	inline bool LiveSkyMoved(const FApexSkyNow& Lit, const FApexSkyNow& Now)
+	{
+		if (Lit.bValid != Now.bValid)
+		{
+			return true;
+		}
+		if (!Now.bValid)
+		{
+			return false;
+		}
+		int32 ClockStep = FMath::Abs(Now.ClockS - Lit.ClockS);
+		ClockStep = FMath::Min(ClockStep, 86400 - ClockStep);
+		return ClockStep >= 60 || Now.Weather != Lit.Weather
+			|| FMath::Abs(Now.RainPct - Lit.RainPct) >= 3
+			|| FMath::Abs(Now.CloudPct - Lit.CloudPct) >= 3
+			|| FMath::Abs(Now.RoadWaterPct - Lit.RoadWaterPct) >= 3
+			|| ((Now.RainPct == 0) != (Lit.RainPct == 0));
 	}
 }

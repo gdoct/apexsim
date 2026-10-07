@@ -118,7 +118,7 @@ bool FApexTrackReaderManifestTest::RunTest(const FString& Parameters)
 		"\"track_display_name\":\"Teeny Ring\","
 		"\"source_track\":\"Tiny.yaml\",\"source_crc\":3921426583,\"closed_loop\":true,\"length_cm\":123400.0,"
 		"\"metadata\":{\"country\":\"Netherlands\",\"city\":\"Zandvoort\",\"category\":\"F1\",\"environment_type\":\"coastal\","
-		"\"description\":\"Modelled on a tiny ring.\"},"
+		"\"description\":\"Modelled on a tiny ring.\",\"latitude_deg\":52.388,\"north_yaw_deg\":-31.5},"
 		"\"dressing\":{\"season\":\"autumn\",\"spectators\":false},\"mesh_blob\":\"Tiny.uemesh\","
 		"\"materials\":[{\"key\":\"road\",\"family\":\"road\",\"base_color\":[0.2,0.2,0.2,1.0]}],"
 		"\"meshes\":[{\"name\":\"tri\",\"material_key\":\"road\",\"vertex_count\":3,\"index_count\":3}],"
@@ -141,6 +141,10 @@ bool FApexTrackReaderManifestTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("country from the metadata"), Header.Country, FString(TEXT("Netherlands")));
 		TestEqual(TEXT("category"), Header.Category, FString(TEXT("F1")));
 		TestEqual(TEXT("blob"), Header.MeshBlob, FString(TEXT("Tiny.uemesh")));
+		TestTrue(TEXT("latitude from the metadata"), Header.LatitudeDeg.IsSet()
+			&& FMath::IsNearlyEqual(Header.LatitudeDeg.GetValue(), 52.388f, 1e-3f));
+		TestTrue(TEXT("north from the metadata"), Header.NorthYawDeg.IsSet()
+			&& FMath::IsNearlyEqual(Header.NorthYawDeg.GetValue(), -31.5f, 1e-3f));
 	}
 	else
 	{

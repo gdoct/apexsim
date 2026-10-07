@@ -158,16 +158,32 @@ struct SuspensionToml {
     #[serde(default)]
     bump_stop_gap_m: Option<f32>,
     #[serde(default)]
+    bump_stop_gap_front_m: Option<f32>,
+    #[serde(default)]
+    bump_stop_gap_rear_m: Option<f32>,
+    #[serde(default)]
     bump_stop_rate_n_per_m: Option<f32>,
+    /// Roll centre heights, m above the road, and the camber thrust share
+    /// (`crate::geometry`).
+    #[serde(default)]
+    roll_centre_front_m: Option<f32>,
+    #[serde(default)]
+    roll_centre_rear_m: Option<f32>,
+    #[serde(default)]
+    camber_thrust: Option<f32>,
 }
 
 /// Optional `[brakes]` section: what they are made of (`"carbon"` or
-/// `"steel"`); absent, the class's (`BrakeMaterial::for_class`).
+/// `"steel"`); absent, the class's (`BrakeMaterial::for_class`). `pads`
+/// (`"endurance"`, `"standard"`, `"sprint"`) is the set the car is filed
+/// with; the setup's `brake_pads` knob moves it.
 #[derive(Debug, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 struct BrakesToml {
     #[serde(default)]
     material: Option<crate::brakes::BrakeMaterial>,
+    #[serde(default)]
+    pads: Option<crate::brakes::BrakePads>,
 }
 
 /// Optional `[aero]` section: how the downforce answers ride height and
@@ -188,6 +204,15 @@ struct AeroToml {
     rake_sensitivity: Option<f32>,
     #[serde(default)]
     stall_height_m: Option<f32>,
+    /// Share of the downforce lost per degree the car runs sideways to the
+    /// air, and per degree of body roll; and how much the floor porpoises
+    /// when it runs near its stall height at speed (0..1).
+    #[serde(default)]
+    yaw_sensitivity: Option<f32>,
+    #[serde(default)]
+    roll_sensitivity: Option<f32>,
+    #[serde(default)]
+    porpoising: Option<f32>,
 }
 
 /// Optional `[tires]` section: what the one `grip_coefficient` cannot say
@@ -233,6 +258,33 @@ struct TiresToml {
     /// Tyre blankets: what the car goes out at, °C. Absent: the air.
     #[serde(default)]
     blanket_temperature_c: Option<f32>,
+    /// The car's own compounds (`[[tires.compound]]`, `crate::tyre_thermal`),
+    /// in the order the setup knob steps through them, softest slick first
+    /// and the treaded tyres last; one marked `reference = true` is the
+    /// tyre the car was calibrated on (else the middle slick). Absent: the
+    /// default five.
+    #[serde(default)]
+    compound: Vec<CompoundToml>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompoundToml {
+    name: String,
+    #[serde(default)]
+    kind: Option<crate::tyre_thermal::CompoundKind>,
+    /// Multiplier on the tyre's grip, on its wear; the window's shift, °C.
+    #[serde(default)]
+    grip: Option<f32>,
+    #[serde(default)]
+    wear: Option<f32>,
+    #[serde(default)]
+    window_shift_c: Option<f32>,
+    /// Grip kept on a dry road, in light rain, in heavy rain.
+    #[serde(default)]
+    water_grip: Option<[f32; 3]>,
+    #[serde(default)]
+    reference: Option<bool>,
 }
 
 /// Optional `[engine.turbo]`: the lag of a turbo whose boost the torque
@@ -544,6 +596,16 @@ struct HybridToml {
     /// A turbo generator (MGU-H) charging at full throttle, kW.
     #[serde(default)]
     heat_recovery_kw: Option<f32>,
+    /// A stint's deployment, kJ (the WEC rule), and the overtake button's
+    /// own allowance per lap, kJ, over the paced budget.
+    #[serde(default)]
+    stint_kj: Option<f32>,
+    #[serde(default)]
+    override_kj_per_lap: Option<f32>,
+    /// Brake-by-wire: the recovery stands in for the driven axle's hydraulic
+    /// brakes (default), or brakes on top of them.
+    #[serde(default)]
+    brake_by_wire: Option<bool>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -813,6 +875,9 @@ impl CarLoader {
                 deploy_kj_per_lap: hybrid_toml.deploy_kj_per_lap.filter(|b| *b > 0.0),
                 deploy_min_speed_kph: hybrid_toml.deploy_min_speed_kph.unwrap_or(0.0).max(0.0),
                 heat_recovery_kw: hybrid_toml.heat_recovery_kw.unwrap_or(0.0).max(0.0),
+                stint_kj: hybrid_toml.stint_kj.filter(|b| *b > 0.0),
+                override_kj_per_lap: hybrid_toml.override_kj_per_lap.filter(|b| *b > 0.0),
+                brake_by_wire: hybrid_toml.brake_by_wire.unwrap_or(true),
             },
 
             // Braking
@@ -830,6 +895,12 @@ impl CarLoader {
             aero: aero_defaults,
             brake_material: crate::brakes::BrakeMaterial::Steel,
             brake_duct_scale: 1.0,
+            brake_duct_scale_rear: 1.0,
+            brake_pads: car_toml
+                .brakes
+                .as_ref()
+                .and_then(|b| b.pads)
+                .unwrap_or_default(),
 
             // Steering
             max_steering_angle_rad: car_toml.physics.max_steering_angle_rad,
@@ -879,7 +950,12 @@ impl CarLoader {
                 toe_front_deg: suspension_toml.toe_front_deg.unwrap_or(0.0),
                 toe_rear_deg: suspension_toml.toe_rear_deg.unwrap_or(0.0),
                 bump_stop_gap_m: suspension_toml.bump_stop_gap_m,
+                bump_stop_gap_front_m: suspension_toml.bump_stop_gap_front_m,
+                bump_stop_gap_rear_m: suspension_toml.bump_stop_gap_rear_m,
                 bump_stop_rate_n_per_m: suspension_toml.bump_stop_rate_n_per_m.unwrap_or(0.0),
+                roll_centre_front_m: suspension_toml.roll_centre_front_m,
+                roll_centre_rear_m: suspension_toml.roll_centre_rear_m,
+                camber_thrust: suspension_toml.camber_thrust.unwrap_or(0.0),
             },
 
             // Tires
@@ -933,6 +1009,28 @@ impl CarLoader {
                     .temperature_grip_falloff
                     .unwrap_or(tire_defaults.temperature_grip_falloff),
                 blanket_temperature_c: tires_toml.blanket_temperature_c,
+                compounds: tires_toml
+                    .compound
+                    .iter()
+                    .map(|c| {
+                        let kind = c.kind.unwrap_or_default();
+                        crate::tyre_thermal::Compound {
+                            name: c.name.clone(),
+                            kind,
+                            grip_scale: c.grip.unwrap_or(1.0),
+                            wear_scale: c.wear.unwrap_or(1.0),
+                            optimal_shift_c: c.window_shift_c.unwrap_or(0.0),
+                            water_grip: c.water_grip.unwrap_or(match kind {
+                                crate::tyre_thermal::CompoundKind::Slick => [1.0, 0.85, 0.6],
+                                crate::tyre_thermal::CompoundKind::Intermediate => {
+                                    [0.88, 1.0, 0.88]
+                                }
+                                crate::tyre_thermal::CompoundKind::Wet => [0.78, 0.95, 1.0],
+                            }),
+                            reference: c.reference.unwrap_or(false),
+                        }
+                    })
+                    .collect(),
                 ..tire_defaults
             },
         };
@@ -958,6 +1056,9 @@ impl CarLoader {
             stall_height_m: aero_toml
                 .stall_height_m
                 .unwrap_or(aero_defaults.stall_height_m),
+            yaw_sensitivity: aero_toml.yaw_sensitivity.unwrap_or(0.0),
+            roll_sensitivity: aero_toml.roll_sensitivity.unwrap_or(0.0),
+            porpoising: aero_toml.porpoising.unwrap_or(0.0),
             ..aero_defaults
         };
         Self::validate(&config, &path_str)?;
@@ -1205,6 +1306,25 @@ impl CarLoader {
         );
         in_range("aero.rake_sensitivity", aero.rake_sensitivity, 0.0, 0.05);
         in_range("aero.stall_height_m", aero.stall_height_m, 0.0, 0.1);
+        in_range("aero.yaw_sensitivity", aero.yaw_sensitivity, 0.0, 0.05);
+        in_range("aero.roll_sensitivity", aero.roll_sensitivity, 0.0, 0.1);
+        in_range("aero.porpoising", aero.porpoising, 0.0, 1.0);
+        let susp = &config.suspension;
+        for (name, value) in [
+            ("suspension.roll_centre_front_m", susp.roll_centre_front_m),
+            ("suspension.roll_centre_rear_m", susp.roll_centre_rear_m),
+        ] {
+            if let Some(v) = value {
+                in_range(name, v, 0.0, 0.5);
+            }
+        }
+        in_range("suspension.camber_thrust", susp.camber_thrust, 0.0, 0.5);
+        if let Some(stint) = config.hybrid.stint_kj {
+            in_range("hybrid.stint_kj", stint, 1.0, 1.0e7);
+        }
+        if let Some(kj) = config.hybrid.override_kj_per_lap {
+            in_range("hybrid.override_kj_per_lap", kj, 1.0, 1.0e6);
+        }
         in_range(
             "engine.radiator_scale",
             config.engine.radiator_scale,
@@ -1231,6 +1351,53 @@ impl CarLoader {
         );
         if let Some(blanket) = tyre.blanket_temperature_c {
             in_range("tires.blanket_temperature_c", blanket, 0.0, 120.0);
+        }
+        if tyre.compounds.len() > 12 {
+            in_range(
+                "tires.compound count",
+                tyre.compounds.len() as f32,
+                0.0,
+                12.0,
+            );
+        }
+        if tyre.compounds.iter().filter(|c| c.reference).count() > 1 {
+            in_range(
+                "tires.compound reference count (one at most)",
+                2.0,
+                0.0,
+                1.0,
+            );
+        }
+        for c in &tyre.compounds {
+            if c.name.trim().is_empty() {
+                in_range("tires.compound name length", 0.0, 1.0, 64.0);
+            }
+            in_range(
+                &format!("tires.compound.{}.grip", c.name),
+                c.grip_scale,
+                0.5,
+                1.5,
+            );
+            in_range(
+                &format!("tires.compound.{}.wear", c.name),
+                c.wear_scale,
+                0.0,
+                10.0,
+            );
+            in_range(
+                &format!("tires.compound.{}.window_shift_c", c.name),
+                c.optimal_shift_c,
+                -80.0,
+                80.0,
+            );
+            for (i, w) in c.water_grip.iter().enumerate() {
+                in_range(
+                    &format!("tires.compound.{}.water_grip[{i}]", c.name),
+                    *w,
+                    0.1,
+                    1.5,
+                );
+            }
         }
         in_range(
             "drivetrain.awd_front_share",
@@ -1852,6 +2019,100 @@ boosted_share = 0.0
     /// The garage's pressure clicks move the car's own running pressures,
     /// so a car whose optimum is not 180 kPa is still at its optimum stock
     /// and loses grip either side of it.
+    #[test]
+    fn a_car_may_list_its_own_compounds_and_the_new_chassis_keys_load() {
+        let toml = format!(
+            "{BASE_TOML}
+[tires]
+optimal_temperature_c = 95.0
+
+[[tires.compound]]
+name = \"supersoft\"
+grip = 1.05
+wear = 2.5
+window_shift_c = -8.0
+
+[[tires.compound]]
+name = \"prime\"
+reference = true
+
+[[tires.compound]]
+name = \"rain\"
+kind = \"wet\"
+wear = 1.8
+window_shift_c = -30.0
+
+[brakes]
+material = \"carbon\"
+pads = \"sprint\"
+
+[suspension]
+roll_centre_front_m = 0.04
+roll_centre_rear_m = 0.08
+camber_thrust = 0.1
+bump_stop_gap_front_m = 0.02
+bump_stop_gap_rear_m = 0.03
+
+[aero]
+yaw_sensitivity = 0.005
+roll_sensitivity = 0.01
+porpoising = 0.5
+
+[hybrid]
+enabled = true
+battery_capacity_kwh = 1.0
+motor_max_torque_nm = 200.0
+motor_max_power_kw = 100.0
+regen_max_power_kw = 100.0
+stint_kj = 30000.0
+override_kj_per_lap = 1500.0
+brake_by_wire = false
+"
+        );
+        let config = load_toml_str(&toml).expect("loads");
+        let tyre = &config.tire_config;
+        assert_eq!(tyre.compounds().len(), 3);
+        assert_eq!(tyre.reference_compound(), 1);
+        assert_eq!(tyre.compound(0).name, "supersoft");
+        assert_eq!(
+            tyre.compound(2).kind,
+            crate::tyre_thermal::CompoundKind::Wet
+        );
+        assert_eq!(
+            tyre.compound(0).water_grip,
+            [1.0, 0.85, 0.6],
+            "a slick's default"
+        );
+        assert_eq!(tyre.weather_compound(1.0), Some(2));
+        assert_eq!(config.brake_pads, crate::brakes::BrakePads::Sprint);
+        assert_eq!(config.suspension.roll_centre_rear_m, Some(0.08));
+        assert_eq!(config.suspension.camber_thrust, 0.1);
+        assert_eq!(config.suspension.bump_stop_gap(true), Some(0.02));
+        assert_eq!(config.suspension.bump_stop_gap(false), Some(0.03));
+        assert_eq!(config.aero.porpoising, 0.5);
+        assert_eq!(config.hybrid.stint_kj, Some(30000.0));
+        assert_eq!(config.hybrid.override_kj_per_lap, Some(1500.0));
+        assert!(!config.hybrid.brake_by_wire);
+        // Two references, or a compound without a name, is a load error.
+        let bad = format!(
+            "{BASE_TOML}
+[[tires.compound]]
+name = \"a\"
+reference = true
+[[tires.compound]]
+name = \"b\"
+reference = true
+"
+        );
+        assert!(load_toml_str(&bad).is_err());
+        // Without the tables: the defaults.
+        let plain = load_toml_str(BASE_TOML).expect("loads");
+        assert_eq!(plain.tire_config.compounds().len(), 5);
+        assert!(plain.tire_config.compounds.is_empty());
+        assert!(plain.hybrid.brake_by_wire);
+        assert_eq!(plain.suspension.roll_centre_front_m, None);
+    }
+
     #[test]
     fn the_garage_clicks_pressure_from_the_files_own_optimum() {
         let config = load_toml_str(&format!(

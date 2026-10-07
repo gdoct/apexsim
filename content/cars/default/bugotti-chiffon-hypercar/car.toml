@@ -34,6 +34,12 @@ lift_coefficient_rear = -1.57
 # Aero posture (server/src/aero.rs): a prototype floor, less sensitive
 # than an F1's and run a little higher.
 [aero]
+# Attitude (server/src/aero.rs): downforce lost per degree the car runs
+# sideways to the air and per degree of roll; and how much the floor
+# porpoises when run near its stall height at speed (0 never).
+yaw_sensitivity = 0.004
+roll_sensitivity = 0.010
+porpoising = 0.3
 ride_height_front_m = 0.050
 ride_height_rear_m = 0.080
 ride_height_sensitivity = 0.02
@@ -117,12 +123,18 @@ shape = "progressive"
 layout = "AWD"
 
 [differential]
+# Run the limited-slip model (server/src/physics.rs `split_axle_torque`):
+# without it each driven wheel gets half the axle's torque whatever it can use.
+simulated = true
 differential_type = "ClutchLSD"
 preload_nm = 90.0
 lock_power = 0.45
 lock_coast = 0.30
 
 [fuel]
+# Where the tank sits as a share of the way from the rear axle to the front
+# (server/src/data.rs `laden`): the car's balance moves as it drains.
+tank_front_share = 0.50
 capacity_liters = 90.0
 idle_consumption_lps = 0.00006
 # Share of the fuel's energy the engine turns into work (a hybrid prototype's engine);
@@ -132,6 +144,11 @@ thermal_efficiency = 0.40
 # The LMH energy recovery system: a front-axle motor, deployed on throttle
 # and recharged under braking. The sim adds its torque at the crank.
 [hybrid]
+# Brake-by-wire: the recovery stands in for the driven axle's hydraulic
+# brakes, so the pedal decelerates the car the same (server/src/hybrid.rs).
+brake_by_wire = true
+# The WEC's stint rule: the motor may deploy this much, kJ, between stops.
+stint_kj = 30000.0
 enabled = true
 battery_capacity_kwh = 1.1
 battery_max_discharge_kw = 100.0
@@ -149,6 +166,15 @@ deploy_min_speed_kph = 190.0
 # dampers are still the sim's defaults. The grip is measured against this
 # camber, so the setup garage's camber clicks move it from here.
 [suspension]
+# Roll centres (m above the road: the share of each axle's lateral load
+# transfer that goes through its linkage at once rather than its springs),
+# camber thrust (side force per radian of lean, as a share of the cornering
+# stiffness) and a bump stop gap per axle (server/src/geometry.rs).
+roll_centre_front_m = 0.030
+roll_centre_rear_m = 0.060
+camber_thrust = 0.08
+bump_stop_gap_front_m = 0.030
+bump_stop_gap_rear_m = 0.035
 camber_front_deg = -3.0
 camber_rear_deg = -2.0
 camber_gain_front = 0.55

@@ -77,6 +77,20 @@ namespace ApexWheels
 
 	/** The space the four unsteered wheels fill, in the body mesh's frame; empty for an unusable spec. */
 	APEXSIM_API FBox WheelsBox(const FApexWheelSpec& Spec);
+
+	/** The `wheel_tyre` material slot of the class wheels (docs/CAR_MODELS.md, Wheels). */
+	inline const FName TyreSlot(TEXT("wheel_tyre"));
+
+	/**
+	 * How a treaded compound's tyre is drawn against the slick's authored
+	 * rubber: a cooler, matte grey, slightly blue for an intermediate and a
+	 * darker blue-grey for a wet, both nearly fully rough. The class wheels'
+	 * tyres carry no UVs (`build_wheels.py` lathes them without any), so a
+	 * groove texture cannot be laid round them; the tint is what tells a rain
+	 * tyre from a slick at a glance. False for a slick, which keeps the
+	 * model's own material.
+	 */
+	APEXSIM_API bool TreadedTint(EApexCompoundKind Kind, FLinearColor& OutBaseColour, float& OutRoughness);
 }
 
 /**
@@ -110,6 +124,20 @@ struct APEXSIM_API FApexCarWheelSet
 	/** Applied to each wheel component, e.g. the turntable's capture-only flag. */
 	void ForEachComponent(TFunctionRef<void(UStaticMeshComponent&)> Fn) const;
 
+	/**
+	 * Draws the tyres as the compound's kind looks (ApexWheels::TreadedTint):
+	 * a treaded kind gets each wheel's own instance of the tyre slot with the
+	 * tint; a slick puts the shared material back. Idempotent.
+	 */
+	void SetTyreLook(EApexCompoundKind Kind);
+	EApexCompoundKind GetTyreLook() const { return TyreLook; }
+
+	/**
+	 * Where a wheel meets the road, in world space: its hub less its radius
+	 * along world up. False with no wheels.
+	 */
+	bool ContactPatch(ApexWheels::EWheel Wheel, FVector& OutWorld) const;
+
 private:
 	void Place();
 
@@ -122,6 +150,8 @@ private:
 	FBoxSphereBounds RearMeshBounds{ForceInit};
 	bool bHasWheels = false;
 	bool bVisible = true;
+	/** What the tyres are drawn as; a new mesh is a slick until told otherwise. */
+	EApexCompoundKind TyreLook = EApexCompoundKind::Slick;
 	float SteerRad = 0.0f;
 	/** Roll of the front and rear axles, radians, kept within one turn. */
 	float SpinRad[2] = {0.0f, 0.0f};

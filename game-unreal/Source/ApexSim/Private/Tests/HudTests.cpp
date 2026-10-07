@@ -363,6 +363,17 @@ bool FApexHudDataBuildTest::RunTest(const FString& Parameters)
 	Local.TyreTempC[1] = 95.0f;  // ok
 	Local.TyreTempC[2] = 105.0f; // hot
 	Local.TyreTempC[3] = 130.0f; // over
+	for (int32 Tyre = 0; Tyre < 4; ++Tyre)
+	{
+		Local.TyreInnerC[Tyre] = Local.TyreTempC[Tyre] + 4.0f;
+		Local.TyreOuterC[Tyre] = Local.TyreTempC[Tyre] - 6.0f;
+	}
+	Local.BrakeWearPct[0] = 12.0f;
+	Local.BrakeWearPct[1] = 12.0f;
+	Local.BrakeWearPct[2] = 31.0f;
+	Local.BrakeWearPct[3] = 100.0f;
+	Local.bTyreSliding[1] = true;
+	Local.bTyreLocked[0] = true;
 	Local.DamagePct[0] = 0.0f;
 	Local.DamagePct[1] = 0.0f;
 	Local.DamagePct[2] = 0.0f;
@@ -471,6 +482,23 @@ bool FApexHudDataBuildTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("ok tyre"), HudValue(Data, TEXT("tyre.fr.state")).AsString(), FString(TEXT("ok")));
 	TestEqual(TEXT("hot tyre"), HudValue(Data, TEXT("tyre.rl.state")).AsString(), FString(TEXT("hot")));
 	TestEqual(TEXT("cooked tyre"), HudValue(Data, TEXT("tyre.rr.state")).AsString(), FString(TEXT("over")));
+	TestEqual(TEXT("FL inner shoulder"), HudValue(Data, TEXT("tyre.fl.inner_c")).AsNumber(), 64.0, 1e-4);
+	TestEqual(TEXT("FL outer shoulder"), HudValue(Data, TEXT("tyre.fl.outer_c")).AsNumber(), 54.0, 1e-4);
+	TestEqual(TEXT("RL brake wear"), HudValue(Data, TEXT("tyre.rl.brake_wear_pct")).AsNumber(), 31.0, 1e-4);
+	TestTrue(TEXT("FR sliding"), HudValue(Data, TEXT("tyre.fr.sliding")).AsBool());
+	TestFalse(TEXT("FL not sliding"), HudValue(Data, TEXT("tyre.fl.sliding")).AsBool());
+	TestTrue(TEXT("FL locked"), HudValue(Data, TEXT("tyre.fl.locked")).AsBool());
+	TestFalse(TEXT("RR not locked"), HudValue(Data, TEXT("tyre.rr.locked")).AsBool());
+	TestTrue(TEXT("no stint rule"), HudValue(Data, TEXT("ers.stint_pct")).IsNone());
+	if (const TArray<FApexHudRecord>* Tyres = Data.FindList(TEXT("tyres")))
+	{
+		TestEqual(TEXT("four tyres"), Tyres->Num(), 4);
+		if (Tyres->Num() == 4)
+		{
+			TestEqual(TEXT("RR pads worn out"), (*Tyres)[3][TEXT("brake_wear_pct")].AsNumber(), 100.0, 1e-4);
+			TestTrue(TEXT("FR sliding in the list"), (*Tyres)[1][TEXT("sliding")].AsBool());
+		}
+	}
 
 	// A fresh hit flashes its zone, fading over 0.8 s.
 	Frame.Cars[1].DamagePct[0] = 12.0f;
@@ -573,6 +601,17 @@ bool FApexHudDataWatchingTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("the watched car's driver"), HudValue(Data, TEXT("car.driver_name")).AsString(), FString(TEXT("Driver 1")));
 	TestEqual(TEXT("its place"), HudValue(Data, TEXT("race.position")).AsNumber(), 2.0);
 	TestEqual(TEXT("its compound"), HudValue(Data, TEXT("tyre.compound")).AsString(), FString(TEXT("M")));
+	{
+		// With the car's own compound list from the sheet the letter is the
+		// list's: index 1 here is "Rain", so the letter is R.
+		TArray<FString> Sheet = {TEXT("dry"), TEXT("rain")};
+		In.CompoundNames = &Sheet;
+		FApexHudMemory SheetMemory;
+		FApexHudData SheetData;
+		ApexHudData::Build(In, SheetMemory, SheetData);
+		TestEqual(TEXT("the sheet names the compound"), HudValue(SheetData, TEXT("tyre.compound")).AsString(), FString(TEXT("R")));
+		In.CompoundNames = nullptr;
+	}
 	TestEqual(TEXT("its most worn tyre"), HudValue(Data, TEXT("tyre.wear_max_pct")).AsNumber(), 31.0, 1e-4);
 	TestEqual(TEXT("on its first set since lap 1"), HudValue(Data, TEXT("tyre.age_laps")).AsNumber(), 4.0);
 
@@ -825,6 +864,83 @@ bool FApexHudPitProgressTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataSkyTest, "ApexSim.Hud.Data.Sky", ApexTestFlags)
+
+bool FApexHudDataSkyTest::RunTest(const FString& Parameters)
+{
+	FApexTelemetryFrame Frame;
+	FApexCarTelemetry Car = HudCar(0, 1, 100.0f, 30.0f);
+	Car.YawRad = 0.0f;	// down the server frame's +X
+	Frame.Cars.Add(Car);
+	FApexHudInputs In;
+	In.Frame = &Frame;
+	In.LocalCarIndex = 0;
+	FApexHudMemory Memory;
+	FApexHudData Data;
+
+	// An older server: no sky, every figure null, nothing live or wet.
+	ApexHudData::Build(In, Memory, Data);
+	TestFalse(TEXT("no sky: not live"), HudValue(Data, TEXT("sky.live")).AsBool());
+	TestFalse(TEXT("no sky: not wet"), HudValue(Data, TEXT("sky.wet")).AsBool());
+	for (const TCHAR* Name : {TEXT("sky.clock"), TEXT("sky.weather"), TEXT("sky.air_c"), TEXT("sky.wind_kph"),
+			 TEXT("sky.wind_rel_deg"), TEXT("sky.rubber"), TEXT("sky.next_weather"), TEXT("sky.next_in_s")})
+	{
+		TestTrue(*FString::Printf(TEXT("no sky: %s null"), Name), HudValue(Data, Name).IsNone());
+	}
+
+	// A wet afternoon running at 24x, rain due, the wind across from the left.
+	FApexSkyNow& Sky = Frame.Sky;
+	Sky.bValid = true;
+	Sky.ClockS = 15 * 3600 + 30 * 60 + 15;
+	Sky.Weather = EApexWeather::LightRain;
+	Sky.RainPct = 37;
+	Sky.CloudPct = 88;
+	Sky.RoadWaterPct = 21;
+	Sky.AirC = -2;
+	Sky.TrackC = 14;
+	Sky.WindKph = 23;
+	Sky.WindToDeg = 270;	// toward -Y: the car's right, so from its left
+	Sky.LineRubberPct = 64;
+	Sky.TimeScale = 24;
+	Sky.NextWeather = static_cast<int32>(EApexWeather::HeavyRain);
+	Sky.NextInS = 1250;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("live"), HudValue(Data, TEXT("sky.live")).AsBool());
+	TestTrue(TEXT("wet"), HudValue(Data, TEXT("sky.wet")).AsBool());
+	TestEqual(TEXT("clock"), HudValue(Data, TEXT("sky.clock")).AsString(), FString(TEXT("15:30")));
+	TestEqual(TEXT("clock s"), HudValue(Data, TEXT("sky.clock_s")).AsNumber(), 55815.0);
+	TestEqual(TEXT("weather"), HudValue(Data, TEXT("sky.weather")).AsString(), FString(TEXT("Light rain")));
+	TestEqual(TEXT("rain"), HudValue(Data, TEXT("sky.rain")).AsNumber(), 37.0);
+	TestEqual(TEXT("road water"), HudValue(Data, TEXT("sky.road_water")).AsNumber(), 21.0);
+	TestEqual(TEXT("air"), HudValue(Data, TEXT("sky.air_c")).AsNumber(), -2.0);
+	TestEqual(TEXT("track"), HudValue(Data, TEXT("sky.track_c")).AsNumber(), 14.0);
+	TestEqual(TEXT("rubber"), HudValue(Data, TEXT("sky.rubber")).AsNumber(), 64.0);
+	TestEqual(TEXT("time scale"), HudValue(Data, TEXT("sky.time_scale")).AsNumber(), 24.0);
+	TestEqual(TEXT("next weather"), HudValue(Data, TEXT("sky.next_weather")).AsString(), FString(TEXT("Heavy rain")));
+	TestEqual(TEXT("next in"), HudValue(Data, TEXT("sky.next_in_s")).AsNumber(), 1250.0);
+	TestTrue(TEXT("wind goes to the car's right"), FMath::IsNearlyEqual(HudValue(Data, TEXT("sky.wind_rel_deg")).AsNumber(), 90.0, 0.01));
+	TestEqual(TEXT("so it comes from the left"), HudValue(Data, TEXT("sky.wind_from")).AsString(), FString(TEXT("the left")));
+
+	// Turned round, the same wind comes from the right; a headwind is ahead.
+	Frame.Cars[0].YawRad = UE_PI;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("from the right when turned round"), HudValue(Data, TEXT("sky.wind_from")).AsString(), FString(TEXT("the right")));
+	Frame.Cars[0].YawRad = UE_PI / 2.0f;	// heading +Y, into a wind toward -Y
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("a headwind"), FMath::IsNearlyEqual(FMath::Abs(HudValue(Data, TEXT("sky.wind_rel_deg")).AsNumber()), 180.0, 0.01));
+	TestEqual(TEXT("from ahead"), HudValue(Data, TEXT("sky.wind_from")).AsString(), FString(TEXT("ahead")));
+
+	// A forecast that holds, and a calm: those go null, the rest stays.
+	Sky.NextWeather = -1;
+	Sky.NextInS = 0;
+	Sky.WindKph = 0;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("no change due"), HudValue(Data, TEXT("sky.next_weather")).IsNone() && HudValue(Data, TEXT("sky.next_in_s")).IsNone());
+	TestTrue(TEXT("calm has no direction"), HudValue(Data, TEXT("sky.wind_from")).IsNone());
+	TestEqual(TEXT("calm is 0 km/h"), HudValue(Data, TEXT("sky.wind_kph")).AsNumber(), 0.0);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataStableTest, "ApexSim.Hud.Data.Stable", ApexTestFlags)
 
 bool FApexHudDataStableTest::RunTest(const FString& Parameters)
@@ -838,6 +954,11 @@ bool FApexHudDataStableTest::RunTest(const FString& Parameters)
 	Car.TyreTempC[0] = Car.TyreTempC[1] = Car.TyreTempC[2] = Car.TyreTempC[3] = 90.0f;
 	Car.DamagePct[0] = Car.DamagePct[1] = Car.DamagePct[2] = Car.DamagePct[3] = Car.DamagePct[4] = 0.0f;
 	Frame.Cars.Add(Car);
+	// The sky now, with a forecast and a wind: every `sky.*` filled.
+	Frame.Sky.bValid = true;
+	Frame.Sky.WindKph = 20;
+	Frame.Sky.NextWeather = 3;
+	Frame.Sky.NextInS = 600;
 	FApexHudInputs In;
 	In.Frame = &Frame;
 	In.LocalCarIndex = 0;

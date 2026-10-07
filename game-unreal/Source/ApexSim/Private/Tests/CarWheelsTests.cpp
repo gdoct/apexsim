@@ -166,4 +166,25 @@ bool FApexWheelsRollTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexWheelsTreadedLookTest, "ApexSim.Wheels.TreadedLook", ApexTestFlags)
+
+bool FApexWheelsTreadedLookTest::RunTest(const FString& Parameters)
+{
+	// A slick keeps the model's own tyre; the two rain tyres are tinted,
+	// matte, and the wet darker than the intermediate, so the three can be
+	// told apart from the pit wall.
+	FLinearColor Colour;
+	float Roughness = 0.0f;
+	TestFalse(TEXT("a slick is not tinted"), ApexWheels::TreadedTint(EApexCompoundKind::Slick, Colour, Roughness));
+	TestTrue(TEXT("an intermediate is"), ApexWheels::TreadedTint(EApexCompoundKind::Intermediate, Colour, Roughness));
+	const FLinearColor Inter = Colour;
+	TestTrue(TEXT("matte"), Roughness >= 0.9f);
+	TestTrue(TEXT("bluish: more blue than red"), Inter.B > Inter.R * 1.2f);
+	TestTrue(TEXT("a wet is"), ApexWheels::TreadedTint(EApexCompoundKind::Wet, Colour, Roughness));
+	TestTrue(TEXT("the wet is darker than the inter"), Colour.GetLuminance() < Inter.GetLuminance());
+	TestTrue(TEXT("and bluer still"), Colour.B / FMath::Max(Colour.R, 1e-4f) > Inter.B / FMath::Max(Inter.R, 1e-4f));
+	TestEqual(TEXT("the tyre slot"), ApexWheels::TyreSlot, FName(TEXT("wheel_tyre")));
+	return true;
+}
+
 #endif	  // WITH_DEV_AUTOMATION_TESTS

@@ -101,6 +101,14 @@ public:
 	void SetDriver(const FApexDriverSpec& Spec);
 	void SetDriverVisible(bool bVisible);
 
+	/**
+	 * The car's compounds in telemetry order (the catalog row's), so the
+	 * `compound` byte can say whether the tyres on the car are treaded: the
+	 * wheels then draw the rain tyre's look (FApexCarWheelSet::SetTyreLook).
+	 * The five defaults when the row is unknown.
+	 */
+	void SetCompounds(const TArray<FApexCompoundSpec>& Specs);
+
 	/** The driver's component when the car has one, for tinting. */
 	UStaticMeshComponent* GetDriverComponent() const { return Driver.HasDriver() ? Driver.GetComponent() : nullptr; }
 
@@ -392,6 +400,16 @@ private:
 	float SmokeOwed = 0.0f;
 	float SteamOwed = 0.0f;
 	float ScrapeOwed = 0.0f;
+	/** Tyre smoke: the newest telemetry's slide and lock bits and the puffs owed per wheel. */
+	bool bTyreSliding[ApexWheels::NumWheels] = {false, false, false, false};
+	bool bTyreLocked[ApexWheels::NumWheels] = {false, false, false, false};
+	float TyreSmokeOwed[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
+	/** Smoke off each wheel whose tyre the server says is sliding hard enough. */
+	void UpdateTyreSmoke(float DeltaSeconds);
+	/** The newest telemetry's compound index (-1 unknown) and the car's compound list, for the tyres' look. */
+	int32 TelemetryCompound = -1;
+	TArray<FApexCompoundSpec> Compounds;
+	void UpdateTyreLook();
 	FRandomStream DamageRandom;
 	TWeakObjectPtr<AApexCarEffectsActor> Effects;
 

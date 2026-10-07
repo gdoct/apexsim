@@ -400,11 +400,106 @@ FString UApexHotlapWidget::GetCarId() const
 	return Flow ? Flow->GetPendingCarId() : FString();
 }
 
+const FApexCarSetupSheet* UApexHotlapWidget::GetCompoundSheet() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (!Net)
+	{
+		return nullptr;
+	}
+	const FApexCarSetupSheet& Sheet = Net->GetCarSetupSheet();
+	return Sheet.HasCompounds() ? &Sheet : nullptr;
+}
+
+FString UApexHotlapWidget::CompoundLabel(int32 Clicks) const
+{
+	if (const FApexCarSetupSheet* Sheet = GetCompoundSheet())
+	{
+		const FString Name = Sheet->CompoundNameAt(Sheet->CompoundIndexForClicks(Clicks));
+		return Name.IsEmpty() ? FString(TEXT("?")) : Name;
+	}
+	return CompoundName(Clicks);
+}
+
+TArray<FApexGarageCompound> UApexHotlapWidget::CompoundCardsFor(const FApexCarSetupSheet* Sheet)
+{
+	TArray<FApexGarageCompound> Cards;
+	if (!Sheet || !Sheet->HasCompounds())
+	{
+		for (const FCompoundSpec& Default : Compounds)
+		{
+			FApexGarageCompound& Card = Cards.AddDefaulted_GetRef();
+			Card.Clicks = Default.Clicks;
+			Card.Name = Default.Name;
+			Card.Note = Default.Note;
+			Card.Figures = Default.Figures;
+			Card.Colour = Default.Colour;
+			Card.Grip = Default.Grip;
+			Card.Life = Default.Life;
+		}
+		return Cards;
+	}
+	// The car's own list: the sheet names them and says which is the
+	// reference (click 0); it carries no grip or wear figures, so the cards
+	// say only what they are, and the colour is guessed from the name (the
+	// slick palette runs soft to hard down the list).
+	const FLinearColor Soft = FLinearColor::FromSRGBColor(FColor(0xE0, 0x4B, 0x3C));
+	const FLinearColor Medium = FLinearColor::FromSRGBColor(FColor(0xE8, 0xBA, 0x3A));
+	auto IsRain = [](const FString& Name) { return Name.Contains(TEXT("wet")) || Name.Contains(TEXT("inter")); };
+	int32 Slicks = 0;
+	for (const FString& Name : Sheet->Compounds)
+	{
+		Slicks += IsRain(Name) ? 0 : 1;
+	}
+	int32 SlickIndex = 0;
+	for (int32 Index = 0; Index < Sheet->Compounds.Num(); ++Index)
+	{
+		const FString& Raw = Sheet->Compounds[Index];
+		FApexGarageCompound& Card = Cards.AddDefaulted_GetRef();
+		Card.Clicks = Sheet->ClicksForCompoundIndex(Index);
+		Card.Name = Raw.ToUpper();
+		const bool bReference = Index == Sheet->ReferenceCompound;
+		if (Raw.Contains(TEXT("wet")))
+		{
+			Card.Note = TEXT("Standing water.");
+			Card.Colour = FLinearColor::FromSRGBColor(FColor(0x2F, 0x7F, 0xE0));
+			Card.Grip = 0.35f;
+			Card.Life = 0.30f;
+		}
+		else if (Raw.Contains(TEXT("inter")))
+		{
+			Card.Note = TEXT("A damp or drying track.");
+			Card.Colour = FLinearColor::FromSRGBColor(FColor(0x3C, 0xB0, 0x4B));
+			Card.Grip = 0.50f;
+			Card.Life = 0.40f;
+		}
+		else
+		{
+			Card.Note = bReference ? TEXT("The car's own tyre.") : TEXT("A compound of this car.");
+			// Softest first: red through amber to the hard's plain ink.
+			const float T = Slicks > 1 ? static_cast<float>(SlickIndex) / (Slicks - 1) : 0.5f;
+			Card.Colour = T < 0.5f ? FLinearColor::LerpUsingHSV(Soft, Medium, T * 2.0f)
+								   : FLinearColor::LerpUsingHSV(Medium, Ink, (T - 0.5f) * 2.0f);
+			Card.Grip = FMath::Lerp(0.94f, 0.66f, T);
+			Card.Life = FMath::Lerp(0.30f, 1.00f, T);
+			++SlickIndex;
+		}
+		Card.Figures = bReference ? TEXT("AS FILED  ·  THE REFERENCE") : TEXT("ONE OF THIS CAR'S OWN COMPOUNDS");
+	}
+	return Cards;
+}
+
 FString UApexHotlapWidget::DescribeValue(int32 Knob, int32 Clicks) const
 {
 	if (Knob == ApexCarSetup::TyreCompound)
 	{
-		return CompoundName(Clicks);
+		return CompoundLabel(Clicks);
+	}
+	if (Knob == ApexCarSetup::BrakePads)
+	{
+		// A choice, not a figure: the sheet's number for it is a dummy.
+		return ApexCarSetup::Describe(Knob, Clicks).ToUpper();
 	}
 	if (const FApexCarSetupSheet* Sheet = GetSheet())
 	{
@@ -418,7 +513,7 @@ FString UApexHotlapWidget::DescribeValue(int32 Knob, int32 Clicks) const
 
 FString UApexHotlapWidget::DescribeDelta(int32 Knob, int32 Clicks) const
 {
-	if (Clicks == 0 || Knob == ApexCarSetup::TyreCompound)
+	if (Clicks == 0 || Knob == ApexCarSetup::TyreCompound || Knob == ApexCarSetup::BrakePads)
 	{
 		return FString();
 	}
@@ -716,7 +811,10 @@ void UApexHotlapWidget::AddSection(UVerticalBox* Column, const TCHAR* Title, std
 		{ ApexCarSetup::TyrePressureFront, TEXT("Front pressure"), TEXT("Grip falls off either side of the hot target.") },
 		{ ApexCarSetup::TyrePressureRear, TEXT("Rear pressure"), TEXT("Same target. Lower rears calm power-on slides.") },
 		{ ApexCarSetup::BrakeBias, TEXT("Brake bias"), TEXT("Front share of the braking.") },
-		{ ApexCarSetup::BrakeDucts, TEXT("Brake ducts"), TEXT("Cooler brakes, a little drag.") },
+		{ ApexCarSetup::BrakeDucts, TEXT("Front brake ducts"), TEXT("Cooler front brakes, a little drag.") },
+		{ ApexCarSetup::BrakeDuctsRear, TEXT("Rear brake ducts"), TEXT("Cooler rear brakes, a little drag.") },
+		{ ApexCarSetup::BrakePads, TEXT("Brake pads"), TEXT("Endurance pads last; sprint pads bite and wear.") },
+		{ ApexCarSetup::Radiator, TEXT("Radiator"), TEXT("More air through it (+): a cooler engine for drag.") },
 		{ ApexCarSetup::RevLimiter, TEXT("Rev limiter"), TEXT("Redline. Down only.") },
 		{ ApexCarSetup::EngineBraking, TEXT("Engine braking"), TEXT("Drag off throttle.") },
 		{ ApexCarSetup::TorqueMap, TEXT("Torque map"), TEXT("Scales the whole curve. Down only.") },
@@ -778,12 +876,35 @@ UWidget* UApexHotlapWidget::BuildTyresPage()
 
 	UVerticalBox* Left = WidgetTree->ConstructWidget<UVerticalBox>();
 	AddSection(Left, TEXT("Pressure · hot"), { ApexCarSetup::TyrePressureFront, ApexCarSetup::TyrePressureRear });
-	AddSection(Left, TEXT("Brakes"), { ApexCarSetup::BrakeBias, ApexCarSetup::BrakeDucts });
+	AddSection(Left, TEXT("Brakes"), { ApexCarSetup::BrakeBias, ApexCarSetup::BrakeDucts, ApexCarSetup::BrakeDuctsRear, ApexCarSetup::BrakePads });
 	AddH(Page, ScrollPage(*WidgetTree, Left), FMargin(), VAlign_Fill, 1.0f);
 
 	UVerticalBox* Right = WidgetTree->ConstructWidget<UVerticalBox>();
 	AddV(Right, Caption(*WidgetTree, TEXT("Next tyres · fitted here or at a stop")), FMargin(0.0f, 0.0f, 0.0f, 12.0f));
-	for (const FCompoundSpec& Compound : Compounds)
+	// The cards live in a box of their own: the sheet may rename them after
+	// the page is built (a car with compounds of its own).
+	CompoundHost = WidgetTree->ConstructWidget<UVerticalBox>();
+	AddV(Right, CompoundHost);
+	BuildCompoundCards();
+	// Five tyres: the column scrolls on a short screen.
+	AddH(Page, MakeSized(*WidgetTree, ScrollPage(*WidgetTree, Right), SidePanelWidth, -1.0f), FMargin(36.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+
+	PageDefaults.Add(SetupSteppers.FindRef(ApexCarSetup::TyrePressureFront));
+	return Page;
+}
+
+void UApexHotlapWidget::BuildCompoundCards()
+{
+	if (!CompoundHost)
+	{
+		return;
+	}
+	const FApexCarSetupSheet* Sheet = GetCompoundSheet();
+	CompoundCardNames = Sheet ? Sheet->Compounds : TArray<FString>();
+	CompoundCards = CompoundCardsFor(Sheet);
+	CompoundHost->ClearChildren();
+	CompoundButtons.Reset();
+	for (const FApexGarageCompound& Compound : CompoundCards)
 	{
 		FApexButtonSpec Spec;
 		Spec.Variant = EApexButtonVariant::Panel;
@@ -813,13 +934,9 @@ UWidget* UApexHotlapWidget::BuildTyresPage()
 			AddH(Line, ShareBar(*WidgetTree, Bar.Value, Ink), FMargin(), VAlign_Center, 1.0f);
 			AddV(Content, Line, FMargin(0.0f, 3.0f));
 		}
-		AddV(Right, ButtonWithContent(*WidgetTree, Button, Content, FMargin(20.0f, 0.0f)), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		AddV(CompoundHost, ButtonWithContent(*WidgetTree, Button, Content, FMargin(20.0f, 0.0f)), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
 	}
-	// Five tyres: the column scrolls on a short screen.
-	AddH(Page, MakeSized(*WidgetTree, ScrollPage(*WidgetTree, Right), SidePanelWidth, -1.0f), FMargin(36.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
-
-	PageDefaults.Add(SetupSteppers.FindRef(ApexCarSetup::TyrePressureFront));
-	return Page;
+	RefreshCompounds();
 }
 
 UWidget* UApexHotlapWidget::BuildSuspensionPage()
@@ -874,7 +991,7 @@ UWidget* UApexHotlapWidget::BuildEnginePage()
 	UHorizontalBox* Page = WidgetTree->ConstructWidget<UHorizontalBox>();
 
 	UVerticalBox* Left = WidgetTree->ConstructWidget<UVerticalBox>();
-	AddSection(Left, TEXT("Engine"), { ApexCarSetup::RevLimiter, ApexCarSetup::EngineBraking, ApexCarSetup::TorqueMap });
+	AddSection(Left, TEXT("Engine"), { ApexCarSetup::RevLimiter, ApexCarSetup::EngineBraking, ApexCarSetup::TorqueMap, ApexCarSetup::Radiator });
 	AddSection(Left, TEXT("Transmission"), { ApexCarSetup::FinalDrive, ApexCarSetup::GearSpread });
 	AddSection(Left, TEXT("Fuel"), { ApexCarSetup::FuelLoad });
 	AddH(Page, ScrollPage(*WidgetTree, Left), FMargin(), VAlign_Fill, 1.0f);
@@ -1610,7 +1727,7 @@ void UApexHotlapWidget::RefreshCompounds()
 	{
 		if (CompoundButtons[Index])
 		{
-			CompoundButtons[Index]->SetSelected(Compounds[Index].Clicks == Clicks);
+			CompoundButtons[Index]->SetSelected(CompoundCards.IsValidIndex(Index) && CompoundCards[Index].Clicks == Clicks);
 		}
 	}
 }
@@ -1762,7 +1879,7 @@ void UApexHotlapWidget::RefreshSaved()
 		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
 		UHorizontalBox* NameCell = WidgetTree->ConstructWidget<UHorizontalBox>();
 		AddH(NameCell, MakeText(*WidgetTree, Setup.Name, Font::Body(19.0f, true), Ink));
-		UTextBlock* Tag = MakeText(*WidgetTree, CompoundName(Setup.Setup.GetClick(ApexCarSetup::TyreCompound)), Font::Mono(9.0f, 120), InkMuted);
+		UTextBlock* Tag = MakeText(*WidgetTree, CompoundLabel(Setup.Setup.GetClick(ApexCarSetup::TyreCompound)), Font::Mono(9.0f, 120), InkMuted);
 		AddH(NameCell, MakePanel(*WidgetTree, Tag, FMargin(6.0f, 2.0f), MakeBrush(FLinearColor::Transparent, Ink.CopyWithNewOpacity(0.16f), 1.0f)),
 			FMargin(12.0f, 0.0f, 0.0f, 0.0f));
 		AddH(Row, NameCell, FMargin(), VAlign_Center, 1.0f);
@@ -1805,7 +1922,7 @@ void UApexHotlapWidget::RefreshSaved()
 	DetailName->SetText(FText::FromString(Picked->Name));
 	const int32 Compound = Picked->Setup.GetClick(ApexCarSetup::TyreCompound);
 	DetailMeta->SetText(FText::FromString(FString::Printf(TEXT("SAVED %s  ·  BEST %s  ·  %s"),
-		*FormatDay(Picked->SavedAt), Picked->BestLapMs > 0 ? *FormatMs(Picked->BestLapMs) : TEXT("NO LAP YET"), *CompoundName(Compound))));
+		*FormatDay(Picked->SavedAt), Picked->BestLapMs > 0 ? *FormatMs(Picked->BestLapMs) : TEXT("NO LAP YET"), *CompoundLabel(Compound))));
 	DetailDiff->ClearChildren();
 	auto AddDiff = [this](const FString& Label, const FString& Value, const FString& Delta)
 	{
@@ -1822,14 +1939,15 @@ void UApexHotlapWidget::RefreshSaved()
 	};
 	if (Compound != 0)
 	{
-		AddDiff(TEXT("Next tyres"), CompoundName(Compound), FString());
+		AddDiff(TEXT("Next tyres"), CompoundLabel(Compound), FString());
 	}
 	static const TCHAR* KnobLabels[] = {
 		TEXT("Front pressure"), TEXT("Rear pressure"), TEXT("Rev limiter"), TEXT("Engine braking"), TEXT("Final drive"),
 		TEXT("Gear spread"), TEXT("Torque map"), TEXT("Brake bias"), TEXT("Front springs"), TEXT("Rear springs"),
 		TEXT("Front dampers"), TEXT("Rear dampers"), TEXT("Front anti-roll bar"), TEXT("Rear anti-roll bar"), TEXT("Fuel load"),
 		TEXT("Front wing"), TEXT("Rear wing"), TEXT("Front ride height"), TEXT("Rear ride height"), TEXT("Next tyres"),
-		TEXT("Brake ducts"), TEXT("Front camber"), TEXT("Rear camber"), TEXT("Front toe"), TEXT("Rear toe"),
+		TEXT("Front brake ducts"), TEXT("Front camber"), TEXT("Rear camber"), TEXT("Front toe"), TEXT("Rear toe"),
+		TEXT("Rear brake ducts"), TEXT("Brake pads"), TEXT("Radiator"),
 	};
 	static_assert(UE_ARRAY_COUNT(KnobLabels) == FApexCarSetup::KnobCount, "a label per knob");
 	int32 Diffs = Compound != 0 ? 1 : 0;
@@ -1914,9 +2032,9 @@ void UApexHotlapWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (Id == ActionCompound && Settings)
 	{
 		const int32 Index = ApexNav::IndexOf(CompoundButtons, Button);
-		if (Index != INDEX_NONE)
+		if (CompoundCards.IsValidIndex(Index))
 		{
-			Settings->SetCarSetupClick(ApexCarSetup::TyreCompound, Compounds[Index].Clicks);
+			Settings->SetCarSetupClick(ApexCarSetup::TyreCompound, CompoundCards[Index].Clicks);
 		}
 	}
 	else if (Id == ActionPickSaved)
@@ -2016,5 +2134,12 @@ void UApexHotlapWidget::HandleLapRecord(const FApexLapRecord& Record)
 
 void UApexHotlapWidget::HandleSetupSheet(const FApexCarSetupSheet& Sheet)
 {
+	// A car with compounds of its own renames the cards; the same list
+	// again (a rejoin) leaves them, and the focus on them, alone.
+	const TArray<FString> Names = Sheet.HasCompounds() ? Sheet.Compounds : TArray<FString>();
+	if (Names != CompoundCardNames)
+	{
+		BuildCompoundCards();
+	}
 	RefreshSetup();
 }

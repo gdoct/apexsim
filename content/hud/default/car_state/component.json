@@ -124,6 +124,13 @@
                 { "type": "text", "margin": [0, 4, 0, 0], "font": "mono", "size": 15,
                   "text": "=has(item.temp_c) ? fmt(item.temp_c) + '°' : '—'",
                   "color": "=switch(item.state, 'cold', 'tyre_cold', 'ok', 'live', 'hot', 'accent', 'over', 'error', 'text_muted')" },
+                // The shoulders, inner then outer, under the mean: a graining
+                // inner edge or a camber too shallow shows as a lopsided pair.
+                // Only when the server sends them, and no unit, so the
+                // column stays as narrow as the pressure under it.
+                { "type": "text", "margin": [0, 1, 0, 0], "font": "mono", "size": 10, "color": "text_muted",
+                  "visible": "=has(item.inner_c)",
+                  "text": "=has(item.inner_c) ? fmt(item.inner_c) + '·' + fmt(item.outer_c) : ''" },
                 { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11, "color": "text_muted",
                   "text": "=has(item.pressure_kpa) ? fmt(item.pressure_kpa) + ' kPa' : '—'" },
                 // Wear on a line of its own: beside the pressure it pushed the
@@ -133,7 +140,13 @@
                   "color": "=item.wear_pct >= 90 ? 'error' : item.wear_pct >= 70 ? 'accent' : 'text_muted'" },
                 { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11,
                   "text": "=has(item.brake_c) ? 'B ' + fmt(item.brake_c) + '°' : '—'",
-                  "color": "=switch(item.brake_state, 'over', 'error', 'hot', 'accent', 'cold', 'tyre_cold', 'ok', 'text_secondary', 'text_muted')" }
+                  "color": "=switch(item.brake_state, 'over', 'error', 'hot', 'accent', 'cold', 'tyre_cold', 'ok', 'text_secondary', 'text_muted')" },
+                // The pads' wear on its own line, like the tyre's: a figure
+                // beside the brake temperature is what pushed the fourth tyre
+                // off the panel before.
+                { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11, "visible": "=has(item.brake_wear_pct)",
+                  "text": "P {fmt(item.brake_wear_pct)}%",
+                  "color": "=item.brake_wear_pct >= 90 ? 'error' : item.brake_wear_pct >= 70 ? 'accent' : 'text_muted'" }
               ]},
               // A gap between the axles, so the four read as front pair and rear pair.
               { "type": "spacer", "width": 10, "visible": "=index == 1" }

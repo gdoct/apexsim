@@ -46,6 +46,9 @@ pub const REPAIR_S_PER_PERCENT: f32 = 0.04;
 
 /// A car wants a stop when a tyre is this worn, percent.
 pub const AI_PIT_WEAR: f32 = 70.0;
+/// Or a tyre carries a flat spot this deep (0..1): the shake costs lap
+/// time and the driver fears for the carcass.
+pub const AI_PIT_FLAT_SPOT: f32 = 0.6;
 /// Or any body zone is this damaged, percent.
 pub const AI_PIT_DAMAGE: f32 = 25.0;
 /// Or its engine is, percent: power it would lose for the rest of the race.
@@ -250,9 +253,11 @@ pub struct PitState {
     pub service_compound: u8,
     #[serde(default)]
     pub service_fuel_l: f32,
-    /// The service under way repairs the car.
+    /// The service under way repairs the car, and fits new brake pads.
     #[serde(default)]
     pub service_repair: bool,
+    #[serde(default)]
+    pub service_pads: bool,
     /// The car's own box (0-based), dealt the first time the car is placed
     /// against the lane: the lowest box no other car holds.
     #[serde(default)]
@@ -281,8 +286,10 @@ const MIN_REPAIR_PERCENT: f32 = 0.5;
 
 /// What a stop does and how long each part takes, in the order the crew
 /// does them: the tyres (an F1 crew is quicker), then the fuel (not at the
-/// same time, as endurance rules have it), then the repairs. A part the
-/// stop does not need takes 0 s.
+/// same time, as endurance rules have it), then the repairs, new brake
+/// pads included when the old ones are past `brakes::PAD_CHANGE_PCT`
+/// (their time is counted in `repair_s`: the client's panel knows three
+/// parts). A part the stop does not need takes 0 s.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ServicePlan {
     pub tyres_s: f32,
@@ -290,6 +297,8 @@ pub struct ServicePlan {
     pub fuel_l: f32,
     pub repair_s: f32,
     pub repair_pct: f32,
+    /// New brake pads go on.
+    pub pads: bool,
 }
 
 impl ServicePlan {
@@ -304,8 +313,14 @@ pub fn refuelling_allowed(config: &CarConfig) -> bool {
 }
 
 /// The stop for a car that wants `fuel_l` more fuel and carries
-/// `damage_percent` of damage (summed over its zones).
-pub fn plan_service(config: &CarConfig, fuel_l: f32, damage_percent: f32) -> ServicePlan {
+/// `damage_percent` of damage (summed over its zones), its most worn brake
+/// `brake_wear_pct` gone.
+pub fn plan_service(
+    config: &CarConfig,
+    fuel_l: f32,
+    damage_percent: f32,
+    brake_wear_pct: f32,
+) -> ServicePlan {
     let tyres_s = if config.class == "F1" {
         F1_TYRE_CHANGE_S
     } else {
@@ -317,18 +332,30 @@ pub fn plan_service(config: &CarConfig, fuel_l: f32, damage_percent: f32) -> Ser
     } else {
         0.0
     };
+    let pads = brake_wear_pct >= crate::brakes::PAD_CHANGE_PCT;
     ServicePlan {
         tyres_s,
         fuel_s: fuel_l / REFUEL_LPS,
         fuel_l,
-        repair_s: repair_pct * REPAIR_S_PER_PERCENT,
+        repair_s: repair_pct * REPAIR_S_PER_PERCENT
+            + if pads {
+                crate::brakes::PAD_CHANGE_S
+            } else {
+                0.0
+            },
         repair_pct,
+        pads,
     }
 }
 
-/// How long a stop takes ([`plan_service`]).
+/// How long a stop takes ([`plan_service`]), on brakes that need no pads.
 pub fn service_seconds(config: &CarConfig, fuel_added_l: f32, damage_percent: f32) -> f32 {
-    plan_service(config, fuel_added_l, damage_percent).total_s()
+    plan_service(config, fuel_added_l, damage_percent, 0.0).total_s()
+}
+
+/// The most worn of a car's brakes, percent.
+pub fn brake_wear_percent(state: &CarState) -> f32 {
+    state.brake_wear_pct.iter().copied().fold(0.0, f32::max)
 }
 
 /// The car's damage summed over its zones, percent.
@@ -341,17 +368,40 @@ pub fn damage_percent(state: &CarState) -> f32 {
         + d.engine_damage_percent
 }
 
+/// The compound an AI picks for a stop, as a step off the car's reference:
+/// the softest that lasts the rest of the race.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StopPick {
+    Hard,
+    Reference,
+    Soft,
+}
+
+impl StopPick {
+    /// The setup knob's click for it (`TireConfig::compound_for_click`).
+    pub fn click(self) -> i8 {
+        match self {
+            StopPick::Hard => -1,
+            StopPick::Reference => 0,
+            StopPick::Soft => 1,
+        }
+    }
+}
+
 /// Whether an AI driver in a race wants to stop, and on which compound:
-/// `laps_left` after the one it is on, `lap_fuel_l` a lap's fuel.
-pub fn plan_stop(state: &CarState, laps_left: u32, lap_fuel_l: Option<f32>) -> Option<u8> {
+/// `laps_left` after the one it is on, `lap_fuel_l` a lap's fuel. Worn
+/// tyres, a deep flat spot, a puncture (a leak counts, before it is flat),
+/// damage or a short tank.
+pub fn plan_stop(state: &CarState, laps_left: u32, lap_fuel_l: Option<f32>) -> Option<StopPick> {
     if laps_left == 0 {
         return None;
     }
-    let worn = state
-        .tires
-        .each()
-        .iter()
-        .any(|t| t.wear_percent >= AI_PIT_WEAR);
+    let worn = state.tires.each().iter().any(|t| {
+        t.wear_percent >= AI_PIT_WEAR
+            || t.flat_spot >= AI_PIT_FLAT_SPOT
+            || t.punctured
+            || t.leak_kpa_per_s > 0.0
+    });
     let d = &state.damage;
     let damaged = [
         d.front_damage_percent,
@@ -371,12 +421,51 @@ pub fn plan_stop(state: &CarState, laps_left: u32, lap_fuel_l: Option<f32>) -> O
     }
     // The softest that lasts the rest.
     Some(if laps_left >= 15 {
-        2
+        StopPick::Hard
     } else if laps_left >= 6 {
-        crate::tyre_thermal::MEDIUM
+        StopPick::Reference
     } else {
-        0
+        StopPick::Soft
     })
+}
+
+/// A slick is the wrong tyre once the racing line holds this much water,
+/// a treaded one once it holds less than [`TREADED_OFF_WATER`]: either way
+/// the AI comes in for the track's tyre. The gap between is the
+/// crossover's hysteresis, so a car does not stop again a lap later.
+pub const SLICK_OFF_WATER: f32 = 0.25;
+pub const TREADED_OFF_WATER: f32 = 0.06;
+/// An intermediate gives way to a wet, and a wet to an intermediate, this
+/// far either side of where the weather's tyre changes.
+const TREADED_SWAP_MARGIN: f32 = 0.15;
+
+/// The tyre an AI on `fitted` should stop for with `line_water` on the
+/// racing line, if `fitted` is the wrong one for it: rain on slicks, a
+/// drying line on treaded tyres, a downpour on intermediates.
+pub fn tyres_for_the_track(
+    tire: &crate::data::TireConfig,
+    fitted: u8,
+    line_water: f32,
+) -> Option<u8> {
+    use crate::tyre_thermal::{CompoundKind, WET_FROM_WATER};
+    let kind = tire.compound(fitted).kind;
+    let wrong = match kind {
+        CompoundKind::Slick => line_water >= SLICK_OFF_WATER,
+        CompoundKind::Intermediate => {
+            !(TREADED_OFF_WATER..WET_FROM_WATER + TREADED_SWAP_MARGIN).contains(&line_water)
+        }
+        CompoundKind::Wet => {
+            line_water < TREADED_OFF_WATER || line_water < WET_FROM_WATER - TREADED_SWAP_MARGIN
+        }
+    };
+    if !wrong {
+        return None;
+    }
+    let want = tire
+        .weather_compound(line_water)
+        .unwrap_or(tire.reference_compound());
+    // A car with no treaded tyre stays out on its slicks.
+    (tire.compound(want).kind != kind).then_some(want)
 }
 
 /// On the pit route but still short of the lane: how far along the track the
@@ -836,6 +925,11 @@ mod tests {
         assert!(refuelling_allowed(&gt) && !refuelling_allowed(&f1));
         assert_eq!(service_seconds(&f1, 0.0, 0.0), F1_TYRE_CHANGE_S);
         assert!((service_seconds(&gt, 60.0, 50.0) - (TYRE_CHANGE_S + 30.0 + 2.0)).abs() < 1e-4);
+        // Worn pads are changed with the repairs.
+        let pads = plan_service(&gt, 0.0, 0.0, 70.0);
+        assert!(pads.pads);
+        assert!((pads.repair_s - crate::brakes::PAD_CHANGE_S).abs() < 1e-4);
+        assert!(!plan_service(&gt, 0.0, 0.0, 30.0).pads);
     }
 
     #[test]
@@ -855,16 +949,36 @@ mod tests {
         state.tires.rear_left.wear_percent = 75.0;
         assert_eq!(
             plan_stop(&state, 20, Some(2.0)),
-            Some(2),
+            Some(StopPick::Hard),
             "a long run: hards"
         );
+        assert_eq!(plan_stop(&state, 8, Some(2.0)), Some(StopPick::Reference));
         assert_eq!(
-            plan_stop(&state, 8, Some(2.0)),
-            Some(crate::tyre_thermal::MEDIUM)
+            plan_stop(&state, 3, Some(2.0)),
+            Some(StopPick::Soft),
+            "a sprint: softs"
         );
-        assert_eq!(plan_stop(&state, 3, Some(2.0)), Some(0), "a sprint: softs");
         assert_eq!(plan_stop(&state, 0, Some(2.0)), None, "not on the last lap");
         state.tires.rear_left.wear_percent = 0.0;
+        // A deep flat spot, a puncture or a leak each bring it in.
+        state.tires.front_left.flat_spot = 0.7;
+        assert!(plan_stop(&state, 10, Some(2.0)).is_some(), "a flat spot");
+        state.tires.front_left.flat_spot = 0.0;
+        state.tires.front_right.leak_kpa_per_s = 2.0;
+        assert!(
+            plan_stop(&state, 10, Some(2.0)).is_some(),
+            "a slow puncture"
+        );
+        state.tires.front_right.leak_kpa_per_s = 0.0;
+        assert_eq!(plan_stop(&state, 10, Some(2.0)), None);
+        assert_eq!(
+            (
+                StopPick::Hard.click(),
+                StopPick::Reference.click(),
+                StopPick::Soft.click()
+            ),
+            (-1, 0, 1)
+        );
         state.fuel_liters = 5.0;
         assert_eq!(
             plan_stop(&state, 4, Some(2.0)),

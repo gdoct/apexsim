@@ -310,6 +310,34 @@ Names marked *null* above their meaning can be `null`.
 | `session.wind_kph` | the wind, when the host set it (*null* when left to the weather) |
 | `net.ping_ms` | heartbeat round trip, refreshed every two seconds (*null* before the first) |
 
+### The sky now
+
+A session's sky can move: the host may run the day's clock (`x24` is a day
+an hour) and let the weather follow a forecast. The server sends the sky as
+it is now with every telemetry frame; these read it. Every one but
+`sky.live` and `sky.wet` is *null* without it (a server from before the
+feature, a showcase stream), and then the `session.*` figures above are the
+sky. Percentages are whole numbers.
+
+| Name | Meaning |
+|---|---|
+| `sky.live` | the server reports the sky now (the rest are set) |
+| `sky.clock` | the time of day as the clock runs, "15:30" |
+| `sky.clock_s` | the same, seconds after midnight |
+| `sky.weather` | the weather the forecast has reached, "Light rain"; the rain and cloud ease in behind it |
+| `sky.rain` | rain falling, percent of a downpour (light rain is 50) |
+| `sky.cloud` | cloud cover, percent |
+| `sky.road_water` | water on the road, the lap's mean, percent of what a downpour leaves on a flat road; over 100 is standing water |
+| `sky.wet` | the road counts as wet (5% water or more); false without a sky |
+| `sky.air_c`, `sky.track_c` | the air and the asphalt, °C |
+| `sky.wind_kph` | the wind this moment, gusts included |
+| `sky.wind_rel_deg` | where the wind blows *toward*, degrees clockwise from the local car's nose, -180 to 180: 0 a tailwind, ±180 a headwind, 90 across from the left (*null* in a calm or with no car) |
+| `sky.wind_from` | where it comes from, seen from the local car: "ahead", "ahead-left", "the left", ... "behind" (*null* as above) |
+| `sky.rubber` | rubber on the racing line, the lap's mean, percent; 50 is the track every car is set up on, 0 green, 100 rubbered in |
+| `sky.time_scale` | how fast the day's clock runs (0 frozen, 1 real time, 24 a day an hour) |
+| `sky.next_weather` | the forecast's next weather, "Heavy rain" (*null* while the sky holds) |
+| `sky.next_in_s` | seconds of session until it arrives (*null* as above) |
+
 ### Watching a race
 
 Set while the player watches a race rather than drives in it: the menu's
@@ -424,6 +452,7 @@ Lap times, sectors and track limits are the server's: it times every tick.
 | `ers.lap_pct` | deployment budget left this lap, % (*null* without a budget) |
 | `ers.mode` | the deployment mode's short name (`BAL`, `ATK`, `HARV`) |
 | `ers.deploying`, `ers.harvesting`, `ers.boost` | the motor drives / recovers / the overtake button is held |
+| `ers.stint_pct` | the stint's energy budget left, % (*null* without a stint rule) |
 | `engine.water_c` | coolant temperature |
 | `engine.water_state` | `ok`, `hot` (over 105), `over` (over 112, losing power), `unknown` |
 
@@ -432,7 +461,7 @@ Lap times, sectors and track limits are the server's: it times every tick.
 | Name | Meaning |
 |---|---|
 | `tyre.known` | the server sends tyre temperatures |
-| `tyre.compound` | `S`, `M` or `H` (*null* when unknown) |
+| `tyre.compound` | the compound's letter: `S`, `M`, `H`, `I`, `W`, or the first letter of the car's own compound name when the server lists them (*null* when unknown) |
 | `tyre.age_laps` | laps the set on the car has done: since the start, or since the last stop the HUD saw (*null* when the compound is unknown) |
 | `tyre.wear_max_pct` | the most worn of the four, % (*null* when the wear is not sent) |
 | `tyre.optimal_c`, `tyre.window_c` | the car's working window: optimal ± window |
@@ -531,6 +560,10 @@ lap it finished).
 | `item.brake_c` | the brake on that corner |
 | `item.state` | the tread against the window: `cold`, `ok`, `hot`, `over` (15 °C past it), `unknown` |
 | `item.brake_state` | `cold` (under 150), `ok`, `hot` (850+), `over` (1000+), `unknown` |
+| `item.inner_c`, `item.outer_c` | the tread's inner and outer shoulders; `temp_c` is the mean of the three zones, so the middle is `3 * temp_c - inner_c - outer_c` (*null* from an older server) |
+| `item.brake_wear_pct` | the pads' and disc's wear on that corner, % (*null* from an older server) |
+| `item.sliding` | the tyre is sliding hard enough to smoke right now |
+| `item.locked` | the wheel is locked under braking |
 
 **`damage`**: front, rear, left, right, engine.
 

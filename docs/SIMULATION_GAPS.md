@@ -10,43 +10,45 @@ leaves something for later, add a row.
 
 ## Car physics
 
+The 2026-10-07 pass closed the list (CLAUDE.md, "Car physics and tyre
+gaps"); what it left for later:
+
 | Gap | Effort | Impact |
 |---|---|---|
-| Crests do not unload the car: the loads carry no vertical acceleration. | Med | Med |
-| No aero yaw or roll sensitivity, no porpoising. | Med | Low |
-| No camber thrust; one bump-stop gap per car; full suspension kinematics (roll centres) deliberately not modelled. | High | Low |
-| The force feedback's column stiffness ignores toe. | Low | Low |
-| No damage from kerb strikes, bottoming or landings. On the road mesh no AI car reaches full travel or leaves the ground, and compression speeds are led by one-tick spikes where the mesh steps (18 m/s at Suzuka). Needs a filtered strike measure first. | Med | Low |
-| A pit stop's repair also undoes engine wear, which no real crew could do. | Low | Low |
-| Regen under braking is free energy: no brake-by-wire split. | Med | Low |
-| No per-stint hybrid energy (the WEC limit) and no manual-override energy; the overtake button only overrides the pacing. | Med | Med |
-| No brake wear and no pad choice; one duct knob for all four corners. | Med | Low |
-| No radiator (grille) setup knob; `radiator_scale` is car.toml only. | Low | Low |
-| The differential exists and every shipped car.toml has a `[differential]` table, but none sets `simulated = true` (it defaults to false), so no car runs it. | Med | Med |
-| `[fuel] tank_front_share` exists; no shipped car sets one. | Low | Low |
+| Roll centres are fixed heights: no migration with travel, no jacking, no instant centres; the roll axis is all the kinematics there are. | High | Low |
+| The crest model reads the road's curvature along the path only: a crest taken diagonally, a banking's roll-over and a kerb's step are not vertical accelerations to it. | Med | Low |
+| Porpoising is an oscillation of the downforce at a fixed frequency with no body heave behind it; the car does not actually bounce on its springs. | Med | Low |
+| Brake pads are changed only at a pit stop that finds them past 60%: no pad choice in the pit menu, no disc wear separate from the pads. | Low | Low |
+| The hybrid's stint budget is electric energy only: the WEC's rule limits the whole car's energy per stint (fuel included), and no HUD element shows the stint budget yet. | Med | Low |
+| Brake-by-wire takes the recovery off the driven axle's hydraulics evenly: no front-rear migration of the balance as the battery fills. | Low | Low |
 
 ## Tyres
 
 | Gap | Effort | Impact |
 |---|---|---|
-| No inner / middle / outer temperatures: the tread is one node. | Med | Med |
-| The surface layer's constants were set against the AI's windows, never against a real tyre's surface swing. | Low | Low |
-| Dirty air costs grip and cooling but adds no extra sliding heat. | Low | Low |
-| Compounds are the same five changes on every car; a car.toml cannot list its own. | Med | Low |
-| A flat spot never wears round again, has no sound, and the AI does not stop for one. | Low | Low |
-| Punctures come only from wearing through: no debris, no hit, no slow puncture. | Med | Low |
-| Rain is one figure for the whole lap: no puddles, no drying line. | High | High |
-| The client draws no treaded or wet tyre, and no tyre smoke. | Med | Low |
+| The three tread zones read the heat's landing from camber, lateral force and pressure; toe scrub and the carcass's lateral deflection under braking are not in it, and the grip reads the mean rather than penalising a spread. | Med | Low |
+| The road state's passes are laid at the car's middle plus and minus half its track, not at each tyre's own contact patch, and count the same whatever the tyre is doing. | Low | Low |
+| Puddles are read off the centerline's elevation along the lap: a road crowned to drain, a banking's low edge and a cambered corner's inside are not puddles to it. | Med | Low |
+| Debris is a point the physics does not draw: the client shows no piece on the road (`GameSession::debris` is not on the wire). | Low | Low |
+| A slow puncture is a leak rate; a tyre's temperature and the leak's cause do not change it, and the client shows only the pressure falling. | Low | Low |
 
 ## Track and environment
 
 | Gap | Effort | Impact |
 |---|---|---|
-| No track evolution: no rubbering-in along the line, no marbles, no drying line. The strongest "better than other sims" feature. | Med | High |
-| Conditions are fixed for a session: no rain arriving, no drying, no evening cooling, no clock moving through a 24-hour race. | High | High |
-| Latitude is stored per circuit but unused: the sun is the sky model's 50° N everywhere. | Low | Low |
-| No humidity control on the create screen (auto only). | Low | Low |
-| The client draws no wind in the world: no windsock, flags or rain drift (the create screen does pick a direction). | Med | Low |
+The 2026-10-07 pass built track evolution and changing conditions
+(CLAUDE.md, "Track evolution and changing conditions"); what it left for
+later:
+
+| Gap | Effort | Impact |
+|---|---|---|
+| Rubber is laid per wheel pass, not by the tyre's slip energy, and marbles are shed by the car's lateral g, not by the tyres' wear; a tyre driven through marbles does not pick them up (no grip lost for a lap after a run off line). | Med | Low |
+| The client draws neither the rubbered line nor the marbles; the drying line is not drawn either (the road's sheen is one figure for the lap). | Med | Med |
+| The forecast is worked out from the session's id: a host cannot write one, and nothing shows it ahead (no forecast on the create screen, no radar; the HUD names only the next change). | Med | Low |
+| The wind's mean and the humidity hold for the session whatever the weather does: a storm front brings no gale. | Low | Low |
+| The day is late May everywhere (no date, no season) and solar noon is 13:00 whatever the circuit's longitude and time zone. | Low | Low |
+| Overnight cooling has no dew or fog; an evening session at a humid circuit is as clear as noon. | Med | Low |
+| AC imports carry no latitude or north in their export (the sun is the sky model's default there). | Low | Low |
 
 ## AI and strategy
 
@@ -58,16 +60,16 @@ leaves something for later, add a row.
 | No timed-race endgame: no splash-and-dash, no last-stint planning (`laps_left` does estimate from the clock for the pit plan). | Med | Low |
 | Fuel saving is lift-and-coast only, and only for cars that cannot refuel; no short-shifting. | Low | Low |
 | The AI never harvests or saves hybrid energy on purpose, and does not defend with the overtake button (it does press it within 0.8 s of a car ahead). | Low | Low |
+| The AI's tyre crossover is a threshold on the racing line's water (`pit::tyres_for_the_track`): it never gambles on slicks, never reads the forecast and never stays out because the race is nearly over. | Med | Med |
+| The AI drives the racing line whatever the road does: it does not move off a rubbered line to a wet one for grip, nor aim for the dry line in the rain. | Med | Low |
 | The AI's speed plan assumes full engine power after damage; it drives around damage only through its steering loop and aero share. | Low | Low |
-| The AI always takes the weather's tyre: no gamble on slicks in the damp. | Low | Low |
-| One AI level for the whole field: drivers have names and a ±2 spread around the level, but no chosen per-driver levels or separate aggression and consistency. The levels are not calibrated against lap times. | Med | Med |
 | `apexsim-replay render`, the showcases, the demo race and the AI survey race the mixed field, not a level. | Low | Low |
 
 ## Racing line aid (the player's)
 
 | Gap | Effort | Impact |
 |---|---|---|
-| Planned dry-tank, in clean air, still air, on warm new mediums, at the session's air density and grip: fuel, the wake, the wind, tyre temperature, compound and wear never change it (the AI's own plan does follow fuel). | Med | Low |
+| Planned dry-tank, in clean air, still air, on warm new mediums, at the session's air density and grip as it started: fuel, the wake, the wind, tyre temperature, compound and wear, the rubber and the weather changing never change it (the AI's own plan does follow fuel). | Med | Low |
 | Counts the hybrid motor at full power whatever the lap budget allows (optimistic for the F1s). | Low | Low |
 
 ## Race rules and the pit lane
@@ -126,7 +128,7 @@ goes in seating order.
 | Gap | Effort | Impact |
 |---|---|---|
 | A live session is watched through racer telemetry, not as a stream; a mid-race joiner gets no earlier lap timing, and undercounts pit stops and tyre age. | Med | Med |
-| Spectator streams carry no race clock (timed races show no time left) and no `PitService` (frames do carry the damage percentages). | Med | Low |
+| Spectator streams carry no race clock (timed races show no time left), no `PitService` (frames do carry the damage percentages) and no live sky: a showcase, a watched replay and the backdrop show the sky the session started under, whatever its clock and forecast did. | Med | Low |
 | Replays hold only stream rows: no tyre pressures, brake temperatures, fuel, ghost, or tyre and kerb sound. The server's own replays are still not `.apxs`. | Med | Low |
 | The client's replay of a session stops at 512 MB compressed. | Low | Low |
 | The timing tower is not clickable; the watch keys are not rebindable; the pad has no replay speed; no scrub bar. | Low | Low |
@@ -152,7 +154,9 @@ Covered by automation tests only; each needs a look on screen.
 - Create screen: the AI level stepper (laid out, never clicked through), the air temperature slider and the wind row, the Qualifying tile, the qualifying garage (scoreboard page, watching a car by clicking its name, the camera button; seen by screenshot only, never clicked), and the Starting order row (the chips, your grid slot, dragging and click-to-move on the grid, a stored result loaded).
 - HUD: the PIT badge lit, the ERS badge and keys, a punctured tyre, OUT in the standings.
 - Race: a flat spot through a real wheel or pad, a towed car parked in its box, an AI pit stop as the client draws it, damage steam and sparks.
+- 2026-10-07: tyre smoke from the slide flags, the treaded look of the intermediate and wet tyres, the tyre shoulders and pad wear in the HUD, the garage's compound cards built from a car's own list, the new Brakes and Engine rows (rear ducts, pads, radiator), the flat-spot thump in the road sound, a puddle or a dried line felt from the driver's seat, a slow puncture over a lap.
 - Replays: SAVE REPLAY from the pause menu and garage, Keep and Delete, the watch view on a pad, a watched race finishing, replay speeds other than 2x, the session browser's Watch button clicked.
+- 2026-10-07 track and sky: the flags turning with the wind (no shipped circuit places `sign/flag_pole` yet), the sun at a circuit's real latitude and north (needs the re-exported tracks), rain arriving and the road drying under a changeable sky, a rubbered start, the create screen's Clock / Weather changes / Track rows clicked through. A 60x clock at Monza was watched relighting at dusk with the floodlights coming on.
 - The 420 Hz server (2026-10-06) through a real client: car motion, force feedback and the replay recorder's rate snap were tuned on 240 Hz ticks and 60 Hz telemetry; the divisor is 7 for the same 60 Hz. Not measured: tick jitter at 2.4 ms against the 1 ms Windows timer (only the mean rate is tested), and the AI survey at 420 against the 240 baseline (the AI's consistency noise is seeded from the tick number, so every race differs between the two rates by design, not by error).
 
 ## Before picking one up

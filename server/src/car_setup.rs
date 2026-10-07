@@ -25,7 +25,7 @@
 //! (`GameSession::start_fuel_liters`), so `apply` leaves it alone and it
 //! only takes effect where a car is fuelled — never mid-lap.
 
-use crate::data::CarConfig;
+use crate::data::{CarConfig, TireConfig};
 use serde::{Deserialize, Serialize};
 
 /// Most clicks either side of the file's value for a symmetric knob.
@@ -70,9 +70,14 @@ pub const WING_PER_CLICK: f32 = 0.05;
 pub const FRONT_WING_DRAG_PER_CLICK: f32 = 0.005;
 pub const REAR_WING_DRAG_PER_CLICK: f32 = 0.015;
 /// Brake duct size per click, as a share of the car's own; and the drag
-/// each click of opening costs.
+/// each click of opening costs. Per axle: `brake_ducts` is the front pair,
+/// `brake_ducts_rear` the rear.
 pub const BRAKE_DUCT_PER_CLICK: f32 = 0.1;
 pub const BRAKE_DUCT_DRAG_PER_CLICK: f32 = 0.003;
+/// Radiator inlet per click, as a share of the car's own (`[engine]
+/// radiator_scale`), and the drag each click of opening costs.
+pub const RADIATOR_PER_CLICK: f32 = 0.08;
+pub const RADIATOR_DRAG_PER_CLICK: f32 = 0.003;
 /// Static ride height per click, m (`crate::aero`).
 pub const RIDE_HEIGHT_M_PER_CLICK: f32 = 0.002;
 /// Camber per click, degrees: a click more is more negative camber
@@ -84,7 +89,7 @@ pub const TOE_DEG_PER_CLICK: f32 = 0.05;
 const MIN_RIDE_HEIGHT_M: f32 = 0.01;
 
 /// Number of knobs in a setup.
-pub const KNOB_COUNT: usize = 25;
+pub const KNOB_COUNT: usize = 28;
 
 /// The knobs in wire order: tyres, engine, transmission, torque,
 /// suspension, the fuel load, then the aero (each group appended after
@@ -215,6 +220,21 @@ pub const KNOBS: [Knob; KNOB_COUNT] = [
         min: -MAX_CLICKS,
         max: MAX_CLICKS,
     },
+    Knob {
+        name: "brake_ducts_rear",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
+    Knob {
+        name: "brake_pads",
+        min: -1,
+        max: 1,
+    },
+    Knob {
+        name: "radiator",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
 ];
 
 /// A driver's setup as clicks per knob; all zero is the car as filed.
@@ -284,6 +304,16 @@ pub struct CarSetup {
     pub toe_front: i8,
     #[serde(default)]
     pub toe_rear: i8,
+    /// The rear brake ducts (`brake_ducts` is the front pair).
+    #[serde(default)]
+    pub brake_ducts_rear: i8,
+    /// The pads: -1 endurance, 0 standard, +1 sprint (`brakes::BrakePads`).
+    /// Like the compound, fitted at a stop or in the garage, never mid-lap.
+    #[serde(default)]
+    pub brake_pads: i8,
+    /// The radiator inlet, [`RADIATOR_PER_CLICK`] a click: cooler for drag.
+    #[serde(default)]
+    pub radiator: i8,
 }
 
 impl CarSetup {
@@ -315,6 +345,9 @@ impl CarSetup {
             self.camber_rear,
             self.toe_front,
             self.toe_rear,
+            self.brake_ducts_rear,
+            self.brake_pads,
+            self.radiator,
         ]
     }
 
@@ -346,6 +379,9 @@ impl CarSetup {
             camber_rear: c[22],
             toe_front: c[23],
             toe_rear: c[24],
+            brake_ducts_rear: c[25],
+            brake_pads: c[26],
+            radiator: c[27],
         }
     }
 
@@ -373,24 +409,26 @@ impl CarSetup {
         } != Self::default()
     }
 
-    /// The compound the next set is on a dry road, as a
-    /// `tyre_thermal::COMPOUNDS` index: +1 soft, 0 medium, -1 hard, -2
-    /// intermediate, -3 wet.
-    pub fn compound_index(&self) -> u8 {
-        (crate::tyre_thermal::MEDIUM as i8 - self.tyre_compound.clamp(-3, 1)) as u8
+    /// The compound the next set is on a dry road, as an index into the
+    /// car's compounds (`TireConfig::compound_for_click`): the reference at
+    /// 0, softer for positive clicks, harder and then the treaded tyres for
+    /// negative (on the default list +1 soft, 0 medium, -1 hard, -2
+    /// intermediate, -3 wet).
+    pub fn compound_index(&self, tire: &TireConfig) -> u8 {
+        tire.compound_for_click(self.tyre_compound)
     }
 
     /// The compound the next set is on a road with this much `water`
-    /// (`TrackSurface::water`): the stock pick (the medium) means "the
+    /// (`TrackSurface::water`): the stock pick (the reference) means "the
     /// tyre for the weather", so a driver who never opened the garage is
     /// not sent out on slicks in the rain. Any other pick is honoured.
-    pub fn compound_index_for(&self, water: f32) -> u8 {
+    pub fn compound_index_for(&self, tire: &TireConfig, water: f32) -> u8 {
         if self.tyre_compound == 0 {
-            if let Some(wet) = crate::tyre_thermal::weather_compound(water) {
+            if let Some(wet) = tire.weather_compound(water) {
                 return wet;
             }
         }
-        self.compound_index()
+        self.compound_index(tire)
     }
 
     /// The car with this setup applied. `self` is expected clamped.
@@ -467,9 +505,16 @@ impl CarSetup {
         car.drag_coefficient = base.drag_coefficient
             * scale(self.front_wing, FRONT_WING_DRAG_PER_CLICK)
             * scale(self.rear_wing, REAR_WING_DRAG_PER_CLICK)
-            * scale(self.brake_ducts, BRAKE_DUCT_DRAG_PER_CLICK);
+            * scale(self.brake_ducts, BRAKE_DUCT_DRAG_PER_CLICK)
+            * scale(self.brake_ducts_rear, BRAKE_DUCT_DRAG_PER_CLICK)
+            * scale(self.radiator, RADIATOR_DRAG_PER_CLICK);
         car.brake_duct_scale =
             base.brake_duct_scale * scale(self.brake_ducts, BRAKE_DUCT_PER_CLICK);
+        car.brake_duct_scale_rear =
+            base.brake_duct_scale_rear * scale(self.brake_ducts_rear, BRAKE_DUCT_PER_CLICK);
+        car.brake_pads = crate::brakes::BrakePads::from_click(self.brake_pads);
+        car.engine.radiator_scale =
+            base.engine.radiator_scale * scale(self.radiator, RADIATOR_PER_CLICK);
         let height = |base_m: f32, clicks: i8| {
             (base_m + clicks as f32 * RIDE_HEIGHT_M_PER_CLICK).max(MIN_RIDE_HEIGHT_M)
         };
@@ -535,9 +580,12 @@ mod tests {
     fn clamp_pins_every_knob_and_one_sided_knobs_only_lower() {
         let wild = CarSetup::from_clicks([
             100, -100, 3, 9, -9, 7, 4, 6, 8, -8, 20, -20, 6, -6, 30, 9, -9, 12, -12, 4, -9, 7, -7,
-            9, -9,
+            9, -9, 8, 3, -7,
         ]);
         let c = wild.clamp();
+        assert_eq!(c.brake_ducts_rear, MAX_CLICKS);
+        assert_eq!(c.brake_pads, 1, "sprint is the end of the pad range");
+        assert_eq!(c.radiator, -MAX_CLICKS);
         assert_eq!(c.tyre_pressure_front, MAX_CLICKS);
         assert_eq!(c.tyre_pressure_rear, -MAX_CLICKS);
         assert_eq!(c.rev_limiter, 0, "the limiter cannot be raised");
@@ -547,7 +595,11 @@ mod tests {
         assert_eq!(c.anti_roll_rear, -MAX_CLICKS);
         assert_eq!(c.fuel_load, MAX_CLICKS);
         assert_eq!(c.tyre_compound, 1, "soft is the end of the range");
-        assert_eq!(c.compound_index(), 0, "and the first compound");
+        assert_eq!(
+            c.compound_index(&TireConfig::default()),
+            0,
+            "and the first compound"
+        );
         assert_eq!(c.brake_ducts, -MAX_CLICKS);
         assert_eq!((c.camber_front, c.camber_rear), (MAX_CLICKS, -MAX_CLICKS));
         assert_eq!((c.toe_front, c.toe_rear), (MAX_CLICKS, -MAX_CLICKS));
@@ -670,7 +722,7 @@ mod tests {
         };
         assert!(!softs.changes_car(), "nor does the next set's compound");
         assert_eq!(
-            CarSetup::default().compound_index(),
+            CarSetup::default().compound_index(&TireConfig::default()),
             crate::tyre_thermal::MEDIUM
         );
         let tuned = fuel_only.apply(&car());
@@ -748,6 +800,30 @@ mod tests {
     }
 
     #[test]
+    fn the_cooling_knobs_scale_their_inlets_and_cost_drag() {
+        let base = car();
+        let t = CarSetup {
+            brake_ducts: 2,
+            brake_ducts_rear: -3,
+            radiator: 5,
+            brake_pads: -1,
+            ..Default::default()
+        }
+        .apply(&base);
+        assert!((t.brake_duct_scale - 1.2).abs() < 1e-6);
+        assert!((t.brake_duct_scale_rear - 0.7).abs() < 1e-6);
+        assert!((t.engine.radiator_scale - base.engine.radiator_scale * 1.4).abs() < 1e-6);
+        assert_eq!(t.brake_pads, crate::brakes::BrakePads::Endurance);
+        let drag = (1.0 + 2.0 * BRAKE_DUCT_DRAG_PER_CLICK)
+            * (1.0 - 3.0 * BRAKE_DUCT_DRAG_PER_CLICK)
+            * (1.0 + 5.0 * RADIATOR_DRAG_PER_CLICK);
+        assert!((t.drag_coefficient - base.drag_coefficient * drag).abs() < 1e-6);
+        assert_eq!(KNOBS[25].name, "brake_ducts_rear");
+        assert_eq!(KNOBS[26].name, "brake_pads");
+        assert_eq!(KNOBS[27].name, "radiator");
+    }
+
+    #[test]
     fn partial_message_leaves_unnamed_knobs_stock() {
         let json = r#"{"spring_front": 2}"#;
         let setup: CarSetup = serde_json::from_str(json).unwrap();
@@ -762,27 +838,52 @@ mod tests {
 
     #[test]
     fn the_stock_compound_is_the_weathers_and_a_pick_is_honoured() {
+        let tire = TireConfig::default();
         let stock = CarSetup::default();
-        assert_eq!(stock.compound_index_for(0.0), crate::tyre_thermal::MEDIUM);
         assert_eq!(
-            stock.compound_index_for(0.5),
+            stock.compound_index_for(&tire, 0.0),
+            crate::tyre_thermal::MEDIUM
+        );
+        assert_eq!(
+            stock.compound_index_for(&tire, 0.5),
             crate::tyre_thermal::INTERMEDIATE
         );
-        assert_eq!(stock.compound_index_for(1.0), crate::tyre_thermal::WET);
+        assert_eq!(
+            stock.compound_index_for(&tire, 1.0),
+            crate::tyre_thermal::WET
+        );
         let wets = CarSetup {
             tyre_compound: -3,
             ..CarSetup::default()
         }
         .clamp();
-        assert_eq!(wets.compound_index_for(0.0), crate::tyre_thermal::WET);
+        assert_eq!(
+            wets.compound_index_for(&tire, 0.0),
+            crate::tyre_thermal::WET
+        );
         let softs = CarSetup {
             tyre_compound: 1,
             ..CarSetup::default()
         };
         assert_eq!(
-            softs.compound_index_for(1.0),
+            softs.compound_index_for(&tire, 1.0),
             0,
             "slicks in the rain, if asked"
+        );
+        // A car with its own list: the knob is held to it.
+        let own = TireConfig {
+            compounds: crate::tyre_thermal::default_compounds()[..3].to_vec(),
+            ..TireConfig::default()
+        };
+        assert_eq!(
+            wets.compound_index_for(&own, 0.0),
+            2,
+            "hards: there is no wet"
+        );
+        assert_eq!(
+            stock.compound_index_for(&own, 1.0),
+            crate::tyre_thermal::MEDIUM,
+            "slicks in the rain: the car has nothing else"
         );
     }
 }

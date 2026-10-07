@@ -42,6 +42,28 @@ pub struct DemFile {
     pub inner: DemGrid,
     /// The far grid: 90 m posts out to the skyline.
     pub outer: DemGrid,
+    /// How the track's frame sits on the globe (`dem_fetch.py`).
+    #[serde(default)]
+    pub georef: Option<DemGeoref>,
+}
+
+/// The fit of the track's frame onto the globe: `track = a @ enu + t`,
+/// where `enu` is east and north in metres about `(lon0, lat0)`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct DemGeoref {
+    pub lon0: f64,
+    pub lat0: f64,
+    /// The rotation, row-major 2x2.
+    pub a: Vec<f64>,
+}
+
+impl DemGeoref {
+    /// True north's yaw in the track frame, degrees counter-clockwise from
+    /// +X, 0..360: north `(0, 1)` lands on `a`'s second column.
+    pub fn north_yaw_deg(&self) -> Option<f32> {
+        let a = &self.a;
+        (a.len() == 4).then(|| (a[3].atan2(a[1]).to_degrees().rem_euclid(360.0)) as f32)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -190,12 +212,28 @@ mod tests {
     }
 
     #[test]
+    fn spas_north_lies_a_little_past_plus_y() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../content/tracks/default/Spa.dem.msgpack");
+        let Ok(Some(dem)) = load_dem(&path) else {
+            return;
+        };
+        let georef = dem.georef.expect("a fetched sidecar is georeferenced");
+        let north = georef.north_yaw_deg().expect("a 2x2 rotation");
+        // Spa's frame is east along +X turned 2.3 degrees: north is +Y and a
+        // little more.
+        assert!((north - 92.3).abs() < 0.2, "{north}");
+        assert!((georef.lat0 - 50.449).abs() < 0.01);
+    }
+
+    #[test]
     fn the_near_grid_wins_where_it_reaches() {
         let dem = DemFile {
             version: 1,
             source: String::new(),
             inner: grid(10.0, 11, 11, |_, _| 1.0),
             outer: grid(90.0, 11, 11, |_, _| 500.0),
+            georef: None,
         };
         // Inside the inner grid's 100 m square.
         assert!((dem.height_at(50.0, 50.0) - 1.0).abs() < 1e-3);

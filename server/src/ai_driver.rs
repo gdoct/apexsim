@@ -624,7 +624,9 @@ impl<'a> AiDriverController<'a> {
         let lag_s = self.profile.reaction_time_ms as f32 / 1000.0 + BRAKE_BITE_S;
         // Brakes short of their best (cold carbon, faded steel) stop the car
         // later: look further ahead by the distance they lose.
-        let pads = state.brake_share(self.car_config.brake_material).max(0.3);
+        let pads = state
+            .brake_share_of(self.car_config.brake_material, self.car_config.brake_pads)
+            .max(0.3);
         let mass = crate::physics::car_mass_kg(self.car_config, state).max(1.0);
         let decel = (self.car_config.max_brake_force_n / mass).max(1.0);
         let long = state.speed_mps * state.speed_mps / (2.0 * decel) * (1.0 / pads - 1.0);

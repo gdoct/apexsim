@@ -9,6 +9,17 @@
 //! its springs: more still) and with its springs (a softer car runs lower),
 //! and it is what the springs and ride-height knobs of a real setup are for.
 //!
+//! The car's **attitude** to the air counts too ([`Posture`]): a car
+//! running sideways (a body slip angle) or rolled over in a corner has
+//! its floor and wings at an angle the designers did not want, and loses
+//! `yaw_sensitivity` / `roll_sensitivity` of its downforce per degree; and
+//! a floor run near its stall height at speed **porpoises** (`porpoising`,
+//! 0..1): the floor stalls, the car rises, the floor works again, the car
+//! squats, at a few hertz ([`PORPOISE_HZ`]), which the physics carries as
+//! an oscillation of the downforce and the ride height
+//! (`CarState::porpoise_phase` / `porpoise_amp`, [`step_porpoising`]). A
+//! car.toml without those keys has none of it.
+//!
 //! The sim has no body heave of its own (the body follows the ground, the
 //! loads are worked out analytically), so the ride height is too: each axle
 //! sits at its static height less its load change over its springs
@@ -64,6 +75,16 @@ pub struct AeroConfig {
     pub rake_sensitivity: f32,
     /// Mean height below which the floor stalls, m.
     pub stall_height_m: f32,
+    /// Share of the downforce lost per degree of body slip angle (the car
+    /// running sideways to the air), and per degree of body roll.
+    #[serde(default)]
+    pub yaw_sensitivity: f32,
+    #[serde(default)]
+    pub roll_sensitivity: f32,
+    /// How much the floor porpoises when run near its stall height at
+    /// speed, 0 (never) to 1.
+    #[serde(default)]
+    pub porpoising: f32,
     /// Where the car rides at [`REFERENCE_SPEED_MPS`] on its stock springs
     /// ([`fit_reference`]); the map is zero there.
     #[serde(default)]
@@ -80,10 +101,76 @@ impl Default for AeroConfig {
             ride_height_sensitivity: 0.0,
             rake_sensitivity: 0.0,
             stall_height_m: 0.0,
+            yaw_sensitivity: 0.0,
+            roll_sensitivity: 0.0,
+            porpoising: 0.0,
             reference_front_m: 0.0,
             reference_rear_m: 0.0,
         }
     }
+}
+
+/// The car's attitude to the air this tick, for [`multipliers_at`].
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Posture {
+    /// The body's slip angle to the airflow, degrees (either way).
+    pub yaw_deg: f32,
+    /// The body's roll, degrees (either way).
+    pub roll_deg: f32,
+    /// The porpoising this tick, as a signed share of the downforce
+    /// (`CarState::porpoise_amp` times the phase).
+    pub porpoise: f32,
+}
+
+impl Posture {
+    pub const STRAIGHT: Posture = Posture {
+        yaw_deg: 0.0,
+        roll_deg: 0.0,
+        porpoise: 0.0,
+    };
+}
+
+/// Porpoising's frequency, Hz, and the most of the downforce it swings
+/// at `porpoising = 1`.
+pub const PORPOISE_HZ: f32 = 5.0;
+pub const PORPOISE_MAX_SWING: f32 = 0.25;
+/// The floor porpoises from this many stall heights up, and from this
+/// speed, m/s (fully [`PORPOISE_FULL_SPEED_MPS`] above it).
+const PORPOISE_ONSET_HEIGHTS: f32 = 1.6;
+const PORPOISE_MIN_SPEED_MPS: f32 = 50.0;
+const PORPOISE_FULL_SPEED_MPS: f32 = 25.0;
+/// How quickly the oscillation builds, and dies, s.
+const PORPOISE_RISE_S: f32 = 0.6;
+const PORPOISE_DECAY_S: f32 = 0.3;
+/// Ride height the oscillation swings the car through at full amplitude, m.
+pub const PORPOISE_HEIGHT_SWING_M: f32 = 0.015;
+
+/// Advance a car's porpoising by `dt` at `mean_height_m` and `speed_mps`:
+/// returns the phase and the amplitude, and the signed share of the
+/// downforce this tick. Nothing for a car without `porpoising`.
+pub fn step_porpoising(
+    aero: &AeroConfig,
+    phase: f32,
+    amp: f32,
+    mean_height_m: f32,
+    speed_mps: f32,
+    dt: f32,
+) -> (f32, f32, f32) {
+    if aero.porpoising <= 0.0 || aero.stall_height_m <= 0.0 {
+        return (0.0, 0.0, 0.0);
+    }
+    let onset = aero.stall_height_m * PORPOISE_ONSET_HEIGHTS;
+    let depth = ((onset - mean_height_m) / (onset - aero.stall_height_m)).clamp(0.0, 1.0);
+    let speed = ((speed_mps - PORPOISE_MIN_SPEED_MPS) / PORPOISE_FULL_SPEED_MPS).clamp(0.0, 1.0);
+    let target = aero.porpoising.min(1.0) * PORPOISE_MAX_SWING * depth * speed;
+    let tau = if target > amp {
+        PORPOISE_RISE_S
+    } else {
+        PORPOISE_DECAY_S
+    };
+    let amp = amp + (target - amp) * (dt / tau).min(1.0);
+    let phase = (phase + std::f32::consts::TAU * PORPOISE_HZ * dt) % std::f32::consts::TAU;
+    (phase, amp, amp * phase.sin())
 }
 
 impl AeroConfig {
@@ -92,6 +179,9 @@ impl AeroConfig {
         self.ride_height_sensitivity == 0.0
             && self.rake_sensitivity == 0.0
             && self.stall_height_m <= 0.0
+            && self.yaw_sensitivity == 0.0
+            && self.roll_sensitivity == 0.0
+            && self.porpoising == 0.0
     }
 }
 
@@ -160,8 +250,21 @@ fn front_share(config: &CarConfig) -> f32 {
 }
 
 /// The aero map: what a car riding at these heights makes of its car.toml
-/// downforce and drag.
+/// downforce and drag, running straight and level.
 pub fn multipliers(config: &CarConfig, front_m: f32, rear_m: f32) -> AeroMultipliers {
+    multipliers_at(config, front_m, rear_m, Posture::STRAIGHT)
+}
+
+/// Least a sideways or rolled car keeps of its downforce from its attitude.
+const ATTITUDE_FLOOR: f32 = 0.5;
+
+/// [`multipliers`] for a car at `posture` to the air.
+pub fn multipliers_at(
+    config: &CarConfig,
+    front_m: f32,
+    rear_m: f32,
+    posture: Posture,
+) -> AeroMultipliers {
     let aero = &config.aero;
     if aero.is_constant() {
         return AeroMultipliers::ONE;
@@ -173,6 +276,13 @@ pub fn multipliers(config: &CarConfig, front_m: f32, rear_m: f32) -> AeroMultipl
         let depth = ((aero.stall_height_m - mean) / aero.stall_height_m).min(1.0);
         total *= 1.0 - STALL_LOSS * depth;
     }
+    // Sideways or rolled, the floor and the wings are off their angles.
+    let attitude = 1.0
+        - aero.yaw_sensitivity * posture.yaw_deg.abs()
+        - aero.roll_sensitivity * posture.roll_deg.abs();
+    total *= attitude.max(ATTITUDE_FLOOR);
+    // And the floor's porpoising swings it.
+    total *= 1.0 + posture.porpoise.clamp(-0.9, 0.9);
     let s0 = front_share(config);
     let rake = rear_m - front_m;
     let reference_rake = aero.reference_rear_m - aero.reference_front_m;
@@ -318,6 +428,97 @@ mod tests {
         let near = multipliers(&car, 0.014, 0.014);
         let on = multipliers(&car, 0.002, 0.002);
         assert!(on.downforce_front < near.downforce_front);
+    }
+
+    #[test]
+    fn a_sideways_or_rolled_car_loses_downforce_and_a_straight_one_does_not() {
+        let mut car = aero_car();
+        let (rf, rr) = (car.aero.reference_front_m, car.aero.reference_rear_m);
+        // Without the keys the attitude changes nothing.
+        let yawed = multipliers_at(
+            &car,
+            rf,
+            rr,
+            Posture {
+                yaw_deg: 10.0,
+                roll_deg: 3.0,
+                porpoise: 0.0,
+            },
+        );
+        assert_eq!(yawed, multipliers(&car, rf, rr));
+        car.aero.yaw_sensitivity = 0.01;
+        car.aero.roll_sensitivity = 0.02;
+        let straight = multipliers_at(&car, rf, rr, Posture::STRAIGHT);
+        assert!((straight.downforce_front - 1.0).abs() < 1e-6);
+        let yawed = multipliers_at(
+            &car,
+            rf,
+            rr,
+            Posture {
+                yaw_deg: 10.0,
+                roll_deg: 0.0,
+                porpoise: 0.0,
+            },
+        );
+        assert!((yawed.downforce_front - 0.9).abs() < 1e-5, "{yawed:?}");
+        let rolled = multipliers_at(
+            &car,
+            rf,
+            rr,
+            Posture {
+                yaw_deg: 0.0,
+                roll_deg: 2.5,
+                porpoise: 0.0,
+            },
+        );
+        assert!((rolled.downforce_rear - 0.95).abs() < 1e-5, "{rolled:?}");
+        // Never below the floor, however sideways.
+        let spun = multipliers_at(
+            &car,
+            rf,
+            rr,
+            Posture {
+                yaw_deg: 90.0,
+                roll_deg: 0.0,
+                porpoise: 0.0,
+            },
+        );
+        assert!((spun.downforce_front - ATTITUDE_FLOOR).abs() < 1e-5);
+        // The racing line's steady state is still the straight car.
+        assert!((steady_downforce_factor(&car, REFERENCE_SPEED_MPS) - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn a_low_floor_at_speed_porpoises_and_a_raised_one_does_not() {
+        let mut car = aero_car();
+        assert_eq!(
+            step_porpoising(&car.aero, 0.0, 0.0, 0.01, 80.0, 0.01),
+            (0.0, 0.0, 0.0),
+            "no key, no porpoising"
+        );
+        car.aero.porpoising = 0.8;
+        let dt = 1.0 / 420.0;
+        let (mut phase, mut amp) = (0.0, 0.0);
+        let (mut lo, mut hi) = (f32::MAX, f32::MIN);
+        for _ in 0..840 {
+            let (p, a, swing) = step_porpoising(&car.aero, phase, amp, 0.013, 85.0, dt);
+            phase = p;
+            amp = a;
+            lo = lo.min(swing);
+            hi = hi.max(swing);
+        }
+        assert!(amp > 0.1, "builds up near the stall height: {amp}");
+        assert!(hi > 0.08 && lo < -0.08, "swings both ways: {lo} {hi}");
+        // Raise the car and it dies away.
+        for _ in 0..420 {
+            let (p, a, _) = step_porpoising(&car.aero, phase, amp, 0.04, 85.0, dt);
+            phase = p;
+            amp = a;
+        }
+        assert!(amp < 0.01, "{amp}");
+        // Slow, it never starts.
+        let (_, slow, _) = step_porpoising(&car.aero, 0.0, 0.0, 0.013, 30.0, 1.0);
+        assert_eq!(slow, 0.0);
     }
 
     #[test]

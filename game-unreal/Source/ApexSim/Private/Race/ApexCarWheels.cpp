@@ -1,8 +1,10 @@
 #include "Race/ApexCarWheels.h"
 
 #include "Cars/ApexCarContentSubsystem.h"
+#include "Cars/ApexCarMaterials.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 namespace ApexWheels
 {
@@ -89,6 +91,26 @@ namespace ApexWheels
 	}
 }
 
+bool ApexWheels::TreadedTint(EApexCompoundKind Kind, FLinearColor& OutBaseColour, float& OutRoughness)
+{
+	// The slick is authored at (0.022, 0.022, 0.024), roughness 0.8: these
+	// sit a little lighter and bluer, and matte, the way a rain tyre's softer
+	// compound reads next to a slick's sheen.
+	switch (Kind)
+	{
+	case EApexCompoundKind::Intermediate:
+		OutBaseColour = FLinearColor(0.030f, 0.034f, 0.044f, 1.0f);
+		OutRoughness = 0.95f;
+		return true;
+	case EApexCompoundKind::Wet:
+		OutBaseColour = FLinearColor(0.018f, 0.022f, 0.036f, 1.0f);
+		OutRoughness = 0.95f;
+		return true;
+	default:
+		return false;
+	}
+}
+
 void FApexCarWheelSet::CreateComponents(UObject& Owner, USceneComponent* Body)
 {
 	static const TCHAR* Names[ApexWheels::NumWheels] = {
@@ -133,8 +155,62 @@ void FApexCarWheelSet::SetSpec(const FApexWheelSpec& InSpec)
 			Wheel->SetStaticMesh(Mesh);
 		}
 	}
+	// A new mesh draws its own tyre; the look is put back on it below.
+	const EApexCompoundKind Look = TyreLook;
+	TyreLook = EApexCompoundKind::Slick;
 	SetVisible(bVisible);
 	Place();
+	SetTyreLook(Look);
+}
+
+void FApexCarWheelSet::SetTyreLook(EApexCompoundKind Kind)
+{
+	if (Kind == TyreLook)
+	{
+		return;
+	}
+	TyreLook = Kind;
+	if (!bHasWheels)
+	{
+		return;
+	}
+	FLinearColor Colour;
+	float Roughness = 0.0f;
+	const bool bTreaded = ApexWheels::TreadedTint(Kind, Colour, Roughness);
+	for (UStaticMeshComponent* Wheel : Components)
+	{
+		const int32 Index = Wheel && Wheel->GetStaticMesh() ? Wheel->GetMaterialIndex(ApexWheels::TyreSlot) : INDEX_NONE;
+		if (Index == INDEX_NONE)
+		{
+			continue;
+		}
+		if (!bTreaded)
+		{
+			// Back to the mesh's own (shared) tyre: the override off.
+			Wheel->SetMaterial(Index, nullptr);
+			continue;
+		}
+		// This wheel's own instance: the class wheel's slots are shared by
+		// every car on that wheel, and a dynamic instance made from the
+		// shared one would repaint them all (ApexCarContent::OwnMaterialInstance).
+		if (UMaterialInstanceDynamic* Tyre = ApexCarContent::OwnMaterialInstance(*Wheel, Index, true))
+		{
+			Tyre->SetVectorParameterValue(ApexCarMaterials::BaseColorFactor, Colour);
+			Tyre->SetScalarParameterValue(ApexCarMaterials::RoughnessFactor, Roughness);
+		}
+	}
+}
+
+bool FApexCarWheelSet::ContactPatch(ApexWheels::EWheel Wheel, FVector& OutWorld) const
+{
+	const int32 Index = static_cast<int32>(Wheel);
+	const UStaticMeshComponent* Component = bHasWheels && Components.IsValidIndex(Index) ? Components[Index].Get() : nullptr;
+	if (!Component)
+	{
+		return false;
+	}
+	OutWorld = Component->GetComponentLocation() - FVector::UpVector * ApexWheels::RadiusM(Spec, Wheel) * 100.0f;
+	return true;
 }
 
 void FApexCarWheelSet::Update(float SteeringInput, float Distance, float MaxStepRad)

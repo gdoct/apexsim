@@ -123,6 +123,21 @@ namespace
 				bOk = Reader.ReadUInt64(Raw);
 				Out.WindFromDeg = static_cast<int32>(Raw);
 			}
+			else if (Key == TEXT("time_scale"))
+			{
+				bOk = Reader.ReadUInt64(Raw);
+				Out.TimeScale = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint8));
+			}
+			else if (Key == TEXT("changeable"))
+			{
+				bOk = Reader.ReadUInt64(Raw);
+				Out.Changeable = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint8));
+			}
+			else if (Key == TEXT("track_rubber_pct"))
+			{
+				bOk = Reader.ReadUInt64(Raw);
+				Out.TrackRubberPct = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint8));
+			}
 			else
 			{
 				bOk = Reader.SkipValue();
@@ -996,6 +1011,22 @@ namespace
 			else if (Key == TEXT("FillLaps"))          { bOk = Reader.ReadFloat(Out.FillLaps); }
 			else if (Key == TEXT("CamberModelled"))    { bOk = Reader.ReadBool(Out.bCamberModelled); }
 			else if (Key == TEXT("RakeBalancePerMm"))  { bOk = Reader.ReadFloat(Out.RakeBalancePerMm); }
+			else if (Key == TEXT("Compounds"))
+			{
+				int32 Count = 0;
+				bOk = Reader.ReadArrayHeader(Count);
+				Out.Compounds.SetNum(bOk ? Count : 0);
+				for (int32 c = 0; bOk && c < Count; ++c)
+				{
+					bOk = Reader.ReadString(Out.Compounds[c]);
+				}
+			}
+			else if (Key == TEXT("ReferenceCompound"))
+			{
+				uint64 Raw = 0;
+				bOk = Reader.ReadUInt64(Raw);
+				Out.ReferenceCompound = static_cast<int32>(Raw);
+			}
 			else { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -1171,7 +1202,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 37;
+	constexpr int32 CompactCarFieldCount = 41;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -1556,6 +1587,106 @@ namespace
 				return true;
 			});
 		}
+		// The tread shoulders, appended after the hybrid: eight bytes, each
+		// tyre's inner then outer edge in °C (0 unknown), FL FR RL RR. Known
+		// as a set or not at all, like the tread means above.
+		for (int32 Tyre = 0; Tyre < 4; ++Tyre)
+		{
+			Out.TyreInnerC[Tyre] = -1.0f;
+			Out.TyreOuterC[Tyre] = -1.0f;
+			Out.BrakeWearPct[Tyre] = -1.0f;
+			Out.bTyreSliding[Tyre] = false;
+			Out.bTyreLocked[Tyre] = false;
+		}
+		Out.ErsStintPct = -1.0f;
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				int32 Count = 0;
+				if (!Reader.ReadArrayHeader(Count))
+				{
+					return false;
+				}
+				float Edges[8] = {-1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
+				bool bAllKnown = Count >= 8;
+				for (int32 Edge = 0; Edge < Count; ++Edge)
+				{
+					if (!Reader.ReadUInt64(Raw))
+					{
+						return false;
+					}
+					if (Edge < 8)
+					{
+						Edges[Edge] = Raw == 0 ? -1.0f : static_cast<float>(Raw);
+						bAllKnown &= Raw != 0;
+					}
+				}
+				if (bAllKnown)
+				{
+					for (int32 Tyre = 0; Tyre < 4; ++Tyre)
+					{
+						Out.TyreInnerC[Tyre] = Edges[Tyre * 2];
+						Out.TyreOuterC[Tyre] = Edges[Tyre * 2 + 1];
+					}
+				}
+				return true;
+			});
+		}
+		// The brake wear, appended after the shoulders: four percentages.
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				int32 Count = 0;
+				if (!Reader.ReadArrayHeader(Count))
+				{
+					return false;
+				}
+				for (int32 Corner = 0; Corner < Count; ++Corner)
+				{
+					if (!Reader.ReadUInt64(Raw))
+					{
+						return false;
+					}
+					if (Corner < 4)
+					{
+						Out.BrakeWearPct[Corner] = static_cast<float>(Raw);
+					}
+				}
+				return true;
+			});
+		}
+		// The slide flags: bit i the tyre smokes, bit i + 4 it is locked.
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				for (int32 Tyre = 0; Tyre < 4; ++Tyre)
+				{
+					Out.bTyreSliding[Tyre] = (Raw & (1ull << Tyre)) != 0;
+					Out.bTyreLocked[Tyre] = (Raw & (1ull << (Tyre + 4))) != 0;
+				}
+				return true;
+			});
+		}
+		// The hybrid's stint budget, percent; 255 is no stint rule.
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.ErsStintPct = Raw >= 255 ? -1.0f : static_cast<float>(Raw);
+				return true;
+			});
+		}
 
 		if (!bOk)
 		{
@@ -1569,6 +1700,69 @@ namespace
 				return false;
 			}
 		}
+		return true;
+	}
+
+	/**
+	 * `SkyNow` (network.rs), positional: `[clock_s, weather, rain_pct,
+	 * cloud_pct, road_water_pct, air_c, track_c, wind_kph, wind_to_deg,
+	 * line_rubber_pct, time_scale, next_weather, next_in_s]`. Fields past the
+	 * thirteen are skipped; a shorter array is refused.
+	 */
+	bool ParseSkyNow(FMsgPackReader& Reader, FApexSkyNow& Out)
+	{
+		constexpr int32 SkyNowFieldCount = 13;
+		int32 Fields = 0;
+		if (!Reader.ReadArrayHeader(Fields) || Fields < SkyNowFieldCount)
+		{
+			return false;
+		}
+		uint64 Raw = 0;
+		int64 Signed = 0;
+		auto ReadU = [&](int32& Into, uint64 Max) -> bool
+		{
+			if (!Reader.ReadUInt64(Raw)) { return false; }
+			Into = static_cast<int32>(FMath::Min<uint64>(Raw, Max));
+			return true;
+		};
+		auto ReadI = [&](int32& Into) -> bool
+		{
+			if (!Reader.ReadInt64(Signed)) { return false; }
+			Into = static_cast<int32>(FMath::Clamp<int64>(Signed, -128, 127));
+			return true;
+		};
+		int32 WeatherRaw = 0;
+		int32 NextWeatherRaw = 255;
+		const bool bOk = ReadU(Out.ClockS, 86399)
+			&& ReadU(WeatherRaw, MAX_uint8)
+			&& ReadU(Out.RainPct, MAX_uint8)
+			&& ReadU(Out.CloudPct, MAX_uint8)
+			&& ReadU(Out.RoadWaterPct, MAX_uint8)
+			&& ReadI(Out.AirC)
+			&& ReadI(Out.TrackC)
+			&& ReadU(Out.WindKph, MAX_uint8)
+			&& ReadU(Out.WindToDeg, MAX_uint16)
+			&& ReadU(Out.LineRubberPct, MAX_uint8)
+			&& ReadU(Out.TimeScale, MAX_uint8)
+			&& ReadU(NextWeatherRaw, MAX_uint8)
+			&& ReadU(Out.NextInS, MAX_int32);
+		if (!bOk)
+		{
+			return false;
+		}
+		for (int32 Extra = SkyNowFieldCount; Extra < Fields; ++Extra)
+		{
+			if (!Reader.SkipValue()) { return false; }
+		}
+		Out.Weather = WeatherRaw < FApexSessionConditions::WeatherCount
+			? static_cast<EApexWeather>(WeatherRaw) : EApexWeather::Sunny;
+		Out.WindToDeg %= 360;
+		Out.NextWeather = NextWeatherRaw < FApexSessionConditions::WeatherCount ? NextWeatherRaw : -1;
+		if (Out.NextWeather < 0)
+		{
+			Out.NextInS = 0;
+		}
+		Out.bValid = true;
 		return true;
 	}
 
@@ -1634,6 +1828,18 @@ namespace
 				{
 					if (!Reader.SkipValue()) { return false; }
 				}
+			}
+		}
+
+		// `sky`, appended after the race clock (which a newer server then
+		// sends as nil when there is none): the positional `SkyNow`, or nil.
+		Out.Sky = FApexSkyNow();
+		if (FieldCount > Read)
+		{
+			++Read;
+			if (!Reader.TryReadNil() && !ParseSkyNow(Reader, Out.Sky))
+			{
+				return false;
 			}
 		}
 
@@ -1955,7 +2161,8 @@ namespace ApexProtocol
 		// an absent one is "from the weather".
 		const FApexSessionConditions Clamped = Conditions.Clamped();
 		Writer.WriteMapHeader(2 + (Clamped.HasAirTemp() ? 1 : 0) + (Clamped.HumidityPct >= 0 ? 1 : 0)
-			+ (Clamped.HasWind() ? 1 : 0) + (Clamped.HasWindDirection() ? 1 : 0));
+			+ (Clamped.HasWind() ? 1 : 0) + (Clamped.HasWindDirection() ? 1 : 0)
+			+ (Clamped.HasTimeScale() ? 1 : 0) + (Clamped.HasChangeable() ? 1 : 0) + (Clamped.HasTrackRubber() ? 1 : 0));
 		Writer.WriteString("weather");
 		Writer.WriteUInt(static_cast<uint8>(Clamped.Weather));
 		Writer.WriteString("time_of_day_minutes");
@@ -1979,6 +2186,22 @@ namespace ApexProtocol
 		{
 			Writer.WriteString("wind_from_deg");
 			Writer.WriteUInt(static_cast<uint16>(Clamped.WindFromDeg));
+		}
+		// How the sky moves, in the server's field order, each only when set.
+		if (Clamped.HasTimeScale())
+		{
+			Writer.WriteString("time_scale");
+			Writer.WriteUInt(static_cast<uint8>(Clamped.TimeScale));
+		}
+		if (Clamped.HasChangeable())
+		{
+			Writer.WriteString("changeable");
+			Writer.WriteUInt(static_cast<uint8>(Clamped.Changeable));
+		}
+		if (Clamped.HasTrackRubber())
+		{
+			Writer.WriteString("track_rubber_pct");
+			Writer.WriteUInt(static_cast<uint8>(Clamped.TrackRubberPct));
 		}
 	}
 

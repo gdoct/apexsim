@@ -124,6 +124,11 @@ conventions the generators follow:
   deploy_kj_per_lap = 4000.0    # energy the motor may deploy per lap, kJ (default: no limit)
   deploy_min_speed_kph = 190.0  # the motor drives only above this speed (default 0)
   heat_recovery_kw = 30.0       # a turbo generator charging at full throttle (default 0)
+  stint_kj = 30000.0            # energy the motor may deploy between pit stops (default: no limit)
+  override_kj_per_lap = 1500.0  # the overtake button's own allowance per lap, over the paced
+                                #   budget (default: the button draws on the lap budget)
+  brake_by_wire = true          # default true: the recovery under braking stands in for the
+                                #   driven axle's hydraulics; false brakes on top of the pedal
   ```
 - Optional, for a car that needs more than one grip figure (an Assetto Corsa
   import writes them; the shipped cars set only the tyre window, and every
@@ -148,6 +153,26 @@ conventions the generators follow:
   temperature_grip_falloff = 0.004 # 0-0.03, default 0.004: grip lost per degree outside it
   blanket_temperature_c = 70.0     # 0-120, default none: the car goes out at the air
 
+  # The car's own compounds (default: soft, medium, hard, intermediate,
+  # wet). In the order the garage's compound knob steps through them,
+  # softest slick first, the treaded tyres last; at most 12. One may be
+  # `reference = true`: the tyre the car was calibrated on and the knob's
+  # zero (default: the middle slick). The server, the garage and the HUD
+  # all take the names from here.
+  [[tires.compound]]
+  name = "supersoft"
+  kind = "slick"                   # "slick" | "intermediate" | "wet" (default slick)
+  grip = 1.05                      # 0.5-1.5, default 1: multiplier on the tyre's grip
+  wear = 2.5                       # 0-10, default 1: multiplier on its wear
+  window_shift_c = -8.0            # -80..80, default 0: where its window sits against the file's
+  water_grip = [1.0, 0.85, 0.6]    # grip kept dry / in light rain / in heavy rain (default by kind)
+  [[tires.compound]]
+  name = "prime"
+  reference = true
+  [[tires.compound]]
+  name = "rain"
+  kind = "wet"
+
   [engine]
   forced_induction = true          # default: has an [engine.turbo] table; a turbo keeps
                                    #   most of its power in thin air (altitude, heat)
@@ -156,6 +181,8 @@ conventions the generators follow:
   [brakes]
   material = "carbon"              # "carbon" | "steel"; default by class (carbon for
                                    #   F1, Hypercar, LMP2)
+  pads = "standard"                # "endurance" | "standard" | "sprint", default standard:
+                                   #   the set the car is filed with (the garage moves it)
 
   [aero]                           # ride-height aero (default: downforce is a constant)
   ride_height_front_m = 0.045      # 0.005-0.3, default 0.06: static, at rest
@@ -163,6 +190,19 @@ conventions the generators follow:
   ride_height_sensitivity = 0.03   # 0-0.1: share of downforce gained per cm lower
   rake_sensitivity = 0.01          # 0-0.05: front balance shift per cm more rake
   stall_height_m = 0.012           # 0-0.1: mean height below which the floor stalls
+  yaw_sensitivity = 0.006          # 0-0.05, default 0: downforce lost per degree the car
+                                   #   runs sideways to the air
+  roll_sensitivity = 0.015         # 0-0.1, default 0: downforce lost per degree of body roll
+  porpoising = 0.6                 # 0-1, default 0: how much the floor porpoises run near
+                                   #   its stall height above 50 m/s
+
+  [suspension]                     # geometry on top of the springs and dampers
+  roll_centre_front_m = 0.02       # 0-0.5, default none: the share of each axle's lateral load
+  roll_centre_rear_m = 0.05        #   transfer that goes through its linkage at once
+  camber_thrust = 0.08             # 0-0.5, default 0: side force per radian a tyre leans, as a
+                                   #   share of its cornering stiffness
+  bump_stop_gap_front_m = 0.020    # per-axle bump stop gaps (default: the shared bump_stop_gap_m)
+  bump_stop_gap_rear_m = 0.025
 
   [drivetrain]
   awd_front_share = 0.4            # 0-1, default 0.4: an AWD car's drive to the front axle

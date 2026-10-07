@@ -678,6 +678,7 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 		}
 		Car->SetCockpitSpec(Row.CarClass, Row.Cockpit);
 		Car->SetEngineSound(Row.EngineSound, Row.CarClass);
+		Car->SetCompounds(Row.Compounds);
 	}
 	else
 	{
@@ -685,6 +686,7 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 			*CarId, Car->GetCarIndex());
 		Car->SetCockpitSpec(FString(), FApexCockpitOverrides());
 		Car->SetEngineSound(FApexEngineSoundSpec(), FString());
+		Car->SetCompounds({});
 	}
 	// Tested first: L_Menu's still names a car that has since been removed.
 	if (!Mesh && !DefaultCarMesh.IsNull() && FPackageName::DoesPackageExist(DefaultCarMesh.ToSoftObjectPath().GetLongPackageName()))
@@ -1151,6 +1153,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 
 	DropFailedTrack();
 	SnapRacingLineToTrack();
+	UpdateLiveSky(DeltaSeconds);
 	ApplyTrackLevelConditions();
 	UpdateCameraFeel(DeltaSeconds);
 	if (bTvView)
@@ -1587,22 +1590,87 @@ void AApexRaceDirector::UpdateCameraFeel(float DeltaSeconds)
 
 void AApexRaceDirector::ApplyRaceEnvironment()
 {
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	// The session's sky, the demo's included (it rolls its own), or the sky
+	// as a newer server says it is now. A server from before conditions is a
+	// sunny early afternoon.
+	Sky = DeriveSky(LitSky);
+	{
+		const UApexNetSubsystem* Net = GetNet();
+		const FApexSessionConditions Conditions = bReplayView ? ReplayConditions
+			: Net                                             ? Net->GetSessionConditions()
+															  : FApexSessionConditions();
+		const ApexSky::FSkySite Site = CurrentSkySite();
+		UE_LOG(LogApexSim, Log, TEXT("Race sky: %s%s, at %.1f N (north at %.0f deg), sun %.1f deg at %.0f deg, %s %.0f lux, exposure %.1f..%.1f EV, rain %.2f, headlights %d, floodlights %d"),
+			*Conditions.Describe(),
+			LitSky.bValid ? *FString::Printf(TEXT(" (live: %s %s, rain %d%%, cloud %d%%, road water %d%%)"),
+				*FApexSessionConditions::WeatherLabel(LitSky.Weather), *LitSky.ClockText(), LitSky.RainPct, LitSky.CloudPct, LitSky.RoadWaterPct)
+				: TEXT(""),
+			Site.LatitudeDeg, Site.NorthYawDeg,
+			Sky.Sun.ElevationDeg, Sky.Sun.AzimuthDeg, Sky.bMoon ? TEXT("moon") : TEXT("sun"),
+			Sky.LightIntensity, Sky.ExposureMinEv, Sky.ExposureMaxEv, Sky.RainIntensity, Sky.bHeadlights, Sky.bFloodlights);
+	}
+
+	ApplySkyLighting();
+
+	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->SetHeadlights(Sky.bHeadlights);
+		}
+	}
+
+	// The fog and the masts come with the level, once it is visible.
+	ForgetTrackLevelConditions();
+}
+
+ApexSky::FSkySite AApexRaceDirector::CurrentSkySite() const
+{
+	ApexSky::FSkySite Site;
+	const UApexTrackContentSubsystem* Content = GetTrackContent();
+	FString Stem = Track ? Track->GetStem() : FString();
+	if (Stem.IsEmpty() && (bDemoView || bReplayView))
+	{
+		Stem = DemoTrackStem;
+	}
+	if (!Content || Stem.IsEmpty())
+	{
+		return Site;
+	}
+	const FApexTrackCatalogRow* Row = Content->FindRuntimeRow(Content->FindRuntimeTrackIdByStem(Stem));
+	if (Row && Row->bHasLocation)
+	{
+		Site.LatitudeDeg = Row->LatitudeDeg;
+		Site.NorthYawDeg = Row->NorthYawDeg;
+	}
+	return Site;
+}
+
+ApexSky::FSkyState AApexRaceDirector::DeriveSky(FApexSkyNow& OutLit) const
+{
+	const UApexNetSubsystem* Net = GetNet();
+	const FApexSessionConditions Conditions = bReplayView ? ReplayConditions
+		: Net                                             ? Net->GetSessionConditions()
+														  : FApexSessionConditions();
+	const ApexSky::FSkySite Site = CurrentSkySite();
+	// A replay clip carries its sky once, in its header; the live sky is the
+	// net's newest frame, which a showcase or a replay never fills.
+	OutLit = !bReplayView && Net ? Net->GetLatestSky() : FApexSkyNow();
+	return OutLit.bValid ? ApexSky::DeriveLive(Conditions, OutLit, Site) : ApexSky::Derive(Conditions, Site);
+}
+
+void AApexRaceDirector::ApplySkyLighting()
+{
 	UWorld* World = GetWorld();
 	if (!World)
 	{
 		return;
 	}
-
-	// The session's sky, the demo's included (it rolls its own). A server
-	// from before conditions is a sunny early afternoon.
-	const UApexNetSubsystem* Net = GetNet();
-	const FApexSessionConditions Conditions = bReplayView ? ReplayConditions
-		: Net                                             ? Net->GetSessionConditions()
-														  : FApexSessionConditions();
-	Sky = ApexSky::Derive(Conditions);
-	UE_LOG(LogApexSim, Log, TEXT("Race sky: %s, sun %.1f deg at %.0f deg, %s %.0f lux, exposure %.1f..%.1f EV, rain %.2f, headlights %d, floodlights %d"),
-		*Conditions.Describe(), Sky.Sun.ElevationDeg, Sky.Sun.AzimuthDeg, Sky.bMoon ? TEXT("moon") : TEXT("sun"),
-		Sky.LightIntensity, Sky.ExposureMinEv, Sky.ExposureMaxEv, Sky.RainIntensity, Sky.bHeadlights, Sky.bFloodlights);
 
 	// The menu world's sun points wherever the menu looked good, at the
 	// engine's default 10 lux — which is why race scenes used to render as
@@ -1691,22 +1759,22 @@ void AApexRaceDirector::ApplyRaceEnvironment()
 	if (Rain)
 	{
 		Rain->SetIntensity(Sky.RainIntensity);
+		// The drops drift with the wind (none from an older server: the
+		// actor's own breeze).
+		if (LitSky.bValid)
+		{
+			const FVector2D Wind = LitSky.WindServerMps();
+			Rain->SetWind(ApexRace::ServerToUnrealPosition(FVector(Wind.X, Wind.Y, 0.0)));
+		}
+		else
+		{
+			Rain->ClearWind();
+		}
 	}
 	if (RacingLine)
 	{
 		RacingLine->SetWet(Sky.bWetRoad);
 	}
-
-	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
-	{
-		if (Pair.Value)
-		{
-			Pair.Value->SetHeadlights(Sky.bHeadlights);
-		}
-	}
-
-	// The fog and the masts come with the level, once it is visible.
-	ForgetTrackLevelConditions();
 }
 
 void AApexRaceDirector::RestoreMenuEnvironment()
@@ -1750,12 +1818,14 @@ void AApexRaceDirector::RestoreMenuEnvironment()
 		}
 	}
 	Sky = ApexSky::FSkyState();
+	LitSky = FApexSkyNow();
 	ForgetTrackLevelConditions();
 }
 
 void AApexRaceDirector::ForgetTrackLevelConditions()
 {
 	bTrackConditionsApplied = false;
+	TrackFogs.Reset();
 	if (FloodlightRig)
 	{
 		FloodlightRig->Destroy();
@@ -1774,15 +1844,17 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 	Track->GetActors(TrackActors);
 	bTrackConditionsApplied = true;
 
-	static const FName RoughnessParam(TEXT("Roughness"));
-	static const FName RoughnessNoiseParam(TEXT("RoughnessNoise"));
 	static const FName EmissiveStrengthParam(TEXT("EmissiveStrength"));
 	static const FName LampTag(TEXT("ApexEmissive_floodlight_lamp"));
 
-	int32 WetSlots = 0;
 	int32 Masts = 0;
 	int32 Lamps = 0;
 	UWorld* World = GetWorld();
+	// A sky that moves may wet a dry road or light the lamps later, so its
+	// materials are made dynamic now; a fixed sky only touches what it needs.
+	const bool bSkyMoves = LitSky.bValid;
+	const bool bCollectFlags = !bFlagsCollected;
+	bFlagsCollected = true;
 
 	for (AActor* Actor : TrackActors)
 	{
@@ -1799,6 +1871,7 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 			Fog->SetFogHeightFalloff(Sky.FogHeightFalloff);
 			Fog->SetStartDistance(Sky.FogStartDistanceCm);
 			Fog->SetFogInscatteringColor(Sky.FogColor);
+			TrackFogs.Add(Fog);
 			continue;
 		}
 
@@ -1809,7 +1882,9 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 			// Wet road: the tarmac's sheen comes up on every material of the
 			// bake's road family: the road and pit lane, and the rubbered
 			// wear bands the racing line runs on (`wear_core`, `wear_edge`).
-			if (Sky.bWetRoad)
+			// Each is remembered with its dry look; ApplyRoadWetness below
+			// sets them all.
+			if (Sky.bWetRoad || bSkyMoves)
 			{
 				const int32 Slots = Mesh->GetNumMaterials();
 				for (int32 Slot = 0; Slot < Slots; ++Slot)
@@ -1825,16 +1900,19 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 					{
 						if (UMaterialInstanceDynamic* Wet = Mesh->CreateDynamicMaterialInstance(Slot))
 						{
-							Wet->SetScalarParameterValue(RoughnessParam, Sky.RoadRoughness);
-							Wet->SetScalarParameterValue(RoughnessNoiseParam, 0.08f);
-							++WetSlots;
+							if (!RoadDryLook.Contains(Wet))
+							{
+								RoadDryLook.Add(Wet, FVector2f(
+									Wet->K2_GetScalarParameterValue(TEXT("Roughness")),
+									Wet->K2_GetScalarParameterValue(TEXT("RoughnessNoise"))));
+							}
 						}
 					}
 				}
 			}
 
 			// The floodlight lamps glow after dark.
-			if (Sky.LampGlow > 0.0f && Mesh->ComponentHasTag(LampTag))
+			if ((Sky.LampGlow > 0.0f || bSkyMoves) && Mesh->ComponentHasTag(LampTag))
 			{
 				const int32 Slots = Mesh->GetNumMaterials();
 				for (int32 Slot = 0; Slot < Slots; ++Slot)
@@ -1844,10 +1922,48 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 					{
 						if (UMaterialInstanceDynamic* Glow = Mesh->CreateDynamicMaterialInstance(Slot))
 						{
-							Glow->SetScalarParameterValue(EmissiveStrengthParam, Sky.LampGlow);
+							if (!LampBaseGlow.Contains(Glow))
+							{
+								LampBaseGlow.Add(Glow, Glow->K2_GetScalarParameterValue(EmissiveStrengthParam));
+							}
+							// Lit by the sky; as built by day.
+							Glow->SetScalarParameterValue(EmissiveStrengthParam,
+								Sky.LampGlow > 0.0f ? Sky.LampGlow : LampBaseGlow[Glow]);
 							++Lamps;
 						}
 					}
+				}
+			}
+
+			// The flags: every instance (or actor) of the kit's flag pole,
+			// remembered once per track as built, turned by UpdateFlags. By
+			// the kit mesh's exact name: an imported AC circuit's merged
+			// scenery has meshes called `scenery_mon_flag_pole_a_p1_m3_nc`,
+			// whole blocks of the paddock that must not turn with the wind.
+			static const FName FlagPoleMesh(TEXT("SM_flag_pole"));
+			if (bCollectFlags && Mesh->GetStaticMesh() && Mesh->GetStaticMesh()->GetFName() == FlagPoleMesh)
+			{
+				if (UInstancedStaticMeshComponent* Poles = Cast<UInstancedStaticMeshComponent>(Mesh))
+				{
+					for (int32 Index = 0; Index < Poles->GetInstanceCount(); ++Index)
+					{
+						FFlagPole Pole;
+						Pole.Instanced = Poles;
+						Pole.Index = Index;
+						if (Poles->GetInstanceTransform(Index, Pole.Built, /*bWorldSpace*/ true))
+						{
+							Pole.YawDeg = Pole.Built.Rotator().Yaw;
+							FlagPoles.Add(Pole);
+						}
+					}
+				}
+				else
+				{
+					FFlagPole Pole;
+					Pole.Single = Mesh;
+					Pole.Built = Mesh->GetComponentTransform();
+					Pole.YawDeg = Pole.Built.Rotator().Yaw;
+					FlagPoles.Add(Pole);
 				}
 			}
 
@@ -1907,8 +2023,179 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 		}
 	}
 
-	UE_LOG(LogApexSim, Log, TEXT("Track level conditions applied: fog %.4f, %d wet road slots, %d floodlights, %d lamp faces"),
-		Sky.FogDensity, WetSlots, Masts, Lamps);
+	ApplyRoadWetness();
+	UpdateFlags(0.0f, /*bForce*/ true);
+
+	UE_LOG(LogApexSim, Log, TEXT("Track level conditions applied: fog %.4f, %d road slots at wetness %.2f, %d floodlights, %d lamp faces, %d flag poles"),
+		Sky.FogDensity, RoadDryLook.Num(), Sky.RoadWetness, Masts, Lamps, FlagPoles.Num());
+}
+
+void AApexRaceDirector::ApplyRoadWetness()
+{
+	static const FName RoughnessParam(TEXT("Roughness"));
+	static const FName RoughnessNoiseParam(TEXT("RoughnessNoise"));
+	// Wholly wet is the sheen the fixed sky always drew (0.3, noise 0.08);
+	// dry is each material's own look as built.
+	const float Wetness = FMath::Clamp(Sky.RoadWetness, 0.0f, 1.0f);
+	for (auto It = RoadDryLook.CreateIterator(); It; ++It)
+	{
+		UMaterialInstanceDynamic* Mid = It.Key().Get();
+		if (!Mid)
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+		Mid->SetScalarParameterValue(RoughnessParam, FMath::Lerp(It.Value().X, ApexSky::WetRoadRoughness, Wetness));
+		Mid->SetScalarParameterValue(RoughnessNoiseParam, FMath::Lerp(It.Value().Y, ApexSky::WetRoadRoughnessNoise, Wetness));
+	}
+}
+
+void AApexRaceDirector::UpdateLiveSky(float DeltaSeconds)
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (bReplayView || !Net)
+	{
+		return;
+	}
+	const FApexSkyNow& Now = Net->GetLatestSky();
+
+	// The rain drifts with the gusts, every frame; it is one vector.
+	if (Rain && Now.bValid)
+	{
+		const FVector2D Wind = Now.WindServerMps();
+		Rain->SetWind(ApexRace::ServerToUnrealPosition(FVector(Wind.X, Wind.Y, 0.0)));
+	}
+	UpdateFlags(DeltaSeconds, /*bForce*/ false);
+
+	if (!ApexSky::LiveSkyMoved(LitSky, Now))
+	{
+		return;
+	}
+	const bool bFloodlightsWere = Sky.bFloodlights;
+	const bool bWasLive = LitSky.bValid;
+	Sky = DeriveSky(LitSky);
+	ApplySkyLighting();
+	UE_LOG(LogApexSim, Verbose, TEXT("Live sky: %s %s, rain %d%%, cloud %d%%, road water %d%% -> sun %.1f deg, %.0f lux, rain %.2f, road wetness %.2f"),
+		*FApexSessionConditions::WeatherLabel(LitSky.Weather), *LitSky.ClockText(), LitSky.RainPct, LitSky.CloudPct,
+		LitSky.RoadWaterPct, Sky.Sun.ElevationDeg, Sky.LightIntensity, Sky.RainIntensity, Sky.RoadWetness);
+
+	if (!bTrackConditionsApplied)
+	{
+		// The track is not lit yet: ApplyTrackLevelConditions will use this sky.
+		return;
+	}
+	if (Sky.bFloodlights != bFloodlightsWere || bWasLive != LitSky.bValid)
+	{
+		// The first live frame after the track was lit by the fixed sky
+		// counts too: a dry fixed sky left the road's materials alone, and a
+		// moving one has to hold them to wet them later.
+		// Dusk or dawn: the masts' lights and the lamp faces are the level's,
+		// laid by ApplyTrackLevelConditions, which runs again next frame
+		// (the road and lamps keep the looks they were built with).
+		ForgetTrackLevelConditions();
+		return;
+	}
+	for (auto It = TrackFogs.CreateIterator(); It; ++It)
+	{
+		UExponentialHeightFogComponent* Fog = It->Get();
+		if (!Fog)
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+		Fog->SetFogDensity(Sky.FogDensity);
+		Fog->SetFogHeightFalloff(Sky.FogHeightFalloff);
+		Fog->SetStartDistance(Sky.FogStartDistanceCm);
+		Fog->SetFogInscatteringColor(Sky.FogColor);
+	}
+	if (Sky.LampGlow > 0.0f)
+	{
+		static const FName EmissiveStrengthParam(TEXT("EmissiveStrength"));
+		for (const TPair<TWeakObjectPtr<UMaterialInstanceDynamic>, float>& Lamp : LampBaseGlow)
+		{
+			if (UMaterialInstanceDynamic* Glow = Lamp.Key.Get())
+			{
+				Glow->SetScalarParameterValue(EmissiveStrengthParam, Sky.LampGlow);
+			}
+		}
+	}
+	ApplyRoadWetness();
+}
+
+void AApexRaceDirector::UpdateFlags(float DeltaSeconds, bool bForce)
+{
+	if (FlagPoles.Num() == 0)
+	{
+		return;
+	}
+	FlagClock += DeltaSeconds;
+	if (!bForce && FlagClock < FlagStepSeconds)
+	{
+		return;
+	}
+	const float StepSeconds = FlagClock;
+	FlagClock = 0.0f;
+
+	// The wind as the frame has it; without one (an older server, a replay)
+	// the flags stay as the track was built.
+	const UApexNetSubsystem* Net = GetNet();
+	const FApexSkyNow Now = !bReplayView && Net ? Net->GetLatestSky() : FApexSkyNow();
+	if (!Now.bValid || Now.WindKph < 3)
+	{
+		return;
+	}
+	// The cloth flies along the pole's local +X (glTF x, which Unreal keeps),
+	// so a pole yawed to the wind's heading streams it downwind. The server's
+	// angle is counter-clockwise; Unreal's yaw is clockwise.
+	const float TargetYaw = -static_cast<float>(Now.WindToDeg);
+	// Eased: half the way per step, all of it when forced (a fresh track).
+	const float Ease = bForce ? 1.0f : FMath::Clamp(StepSeconds * 0.5f, 0.0f, 1.0f);
+
+	TSet<UInstancedStaticMeshComponent*> Touched;
+	for (FFlagPole& Pole : FlagPoles)
+	{
+		const float Delta = FRotator::NormalizeAxis(TargetYaw - Pole.YawDeg);
+		if (FMath::Abs(Delta) < 0.5f)
+		{
+			continue;
+		}
+		Pole.YawDeg = FRotator::NormalizeAxis(Pole.YawDeg + Delta * Ease);
+		FTransform Turned = Pole.Built;
+		FRotator Rotation = Pole.Built.Rotator();
+		Rotation.Yaw = Pole.YawDeg;
+		Turned.SetRotation(Rotation.Quaternion());
+		if (UInstancedStaticMeshComponent* Poles = Pole.Instanced.Get())
+		{
+			Poles->UpdateInstanceTransform(Pole.Index, Turned, /*bWorldSpace*/ true, /*bMarkRenderStateDirty*/ false, /*bTeleport*/ true);
+			Touched.Add(Poles);
+		}
+		else if (UStaticMeshComponent* Single = Pole.Single.Get())
+		{
+			Single->SetWorldRotation(Rotation);
+		}
+	}
+	for (UInstancedStaticMeshComponent* Poles : Touched)
+	{
+		Poles->MarkRenderStateDirty();
+	}
+}
+
+void AApexRaceDirector::RestoreFlags()
+{
+	for (const FFlagPole& Pole : FlagPoles)
+	{
+		if (UInstancedStaticMeshComponent* Poles = Pole.Instanced.Get())
+		{
+			Poles->UpdateInstanceTransform(Pole.Index, Pole.Built, /*bWorldSpace*/ true, /*bMarkRenderStateDirty*/ true, /*bTeleport*/ true);
+		}
+		else if (UStaticMeshComponent* Single = Pole.Single.Get())
+		{
+			Single->SetWorldTransform(Pole.Built);
+		}
+	}
+	FlagPoles.Reset();
+	bFlagsCollected = false;
+	FlagClock = 0.0f;
 }
 
 void AApexRaceDirector::PollDrivingInput()
@@ -2616,6 +2903,8 @@ void AApexRaceDirector::UnloadTrackLevel()
 	{
 		return;
 	}
+	// The flags as built, before the track is kept for the next race.
+	RestoreFlags();
 	if (UApexTrackContentSubsystem* Content = GetTrackContent())
 	{
 		Content->Release(Track);
@@ -2627,6 +2916,9 @@ void AApexRaceDirector::UnloadTrackLevel()
 	Track = nullptr;
 	ForgetStartLights();
 	ForgetTrackLevelConditions();
+	// The track went back with its materials reset; its looks are forgotten.
+	RoadDryLook.Reset();
+	LampBaseGlow.Reset();
 	VerifiedTrackId.Reset();
 }
 
@@ -2993,6 +3285,9 @@ void AApexRaceDirector::UpdateCarAudio()
 	Levels.CurbRight = Signals.CurbRight;
 	Levels.OffTrack = Signals.OffTrack;
 	Levels.bWet = Sky.bWetRoad;
+	// The flat spot is the force feedback's signal as it is: the same depth
+	// that shakes the rim thumps in the ear, at the same beat.
+	Levels.FlatSpot = Signals.FlatSpot;
 	Local->UpdateRoadSound(Levels, Signals.BumpMps, Signals.ImpactMps);
 }
 

@@ -2897,8 +2897,8 @@ reference stays the file's). The springs knob now moves the aero too (a
 stiffer car squats less). Client: `ApexCarSetup::FrontWing` ...
 `RideHeightRear`, an **Aero** section in the hotlap garage. Golden bytes:
 `cargo test car_setup_wire_format -- --nocapture` ->
-`ApexGolden::C_SetCarSetup`. Not modelled: crests (the loads carry no
-vertical acceleration), yaw and roll sensitivity, and porpoising.
+`ApexGolden::C_SetCarSetup`. Crests, the attitude to the air and
+porpoising were added on 2026-10-07: see "Car physics and tyre gaps".
 
 ### The air: temperature, density and wind (`SessionConditions`, `wind.rs`)
 
@@ -3004,8 +3004,9 @@ gone.
 `LOCK_SLIP_RATIO` (0.9) above 3 m/s grinds one patch of its tread:
 `TireData::flat_spot` (0..1) grows by 1.5 per megajoule the locked patch
 dissipates, times the compound's wear (a second locked from 50 m/s on a
-loaded front is about a third), costs up to 4% of the grip, and never
-wears round again until the set is changed. It reaches the driver as
+loaded front is about a third), costs up to 4% of the grip, and (since
+2026-10-07) wears round again as the tread around it wears down to it
+(`FLAT_SPOT_ROUNDING_PER_PERCENT`). It reaches the driver as
 `DriverFeedback.flat_spot` ([u8;4], percent, appended after `front_load`):
 the client's wheel plays it as a shake at the wheel's turning rate
 (speed / (2π · 0.33 m)) on the vibration channel, the pad as a thump on
@@ -3186,7 +3187,8 @@ cold, full 400-900 °C, fading past 1000; **steel** (GT3) 0.9 cold, full
 it. Brakes are fitted with the tyres (`fit_tyres`: the air from the
 garage, carbon at 300 °C / steel half way to its window on a race grid,
 in the window for a hotlap; a car nobody fitted starts warm); a pit stop
-does not change them. At Monza at AI pace carbon peaks 650-850 °C and
+changes the pads only when they are worn past `brakes::PAD_CHANGE_PCT`
+(see "Car physics and tyre gaps"). At Monza at AI pace carbon peaks 650-850 °C and
 cools to 250-390 down the straights; steel peaks ~300. An F1 from 288
 km/h stops in 109 m on warm carbon, 129 m on cold; a GT3 in 182 m warm,
 187 m cold (`tests/brake_heat_test.rs`). **The AI** looks further ahead
@@ -3279,10 +3281,11 @@ be inert until 80% front or engine parked the car, and a hit cost at most
   telemetry_compact_wire_format -- --nocapture` -> `ApexUdpGolden::
   S_TelemetryCompactDamage`.
 
-Kerb, bottoming and landing damage was measured and not built: on the
-road mesh no AI car reaches full travel or leaves the ground over a lap,
-and the compression speeds are led by single-tick spikes where the mesh
-steps (docs/SIMULATION_GAPS.md).
+Kerb, bottoming and landing damage was first measured and not built (on
+the road mesh no AI car reaches full travel or leaves the ground over a
+lap, and the compression speeds are led by single-tick spikes where the
+mesh steps); it was built on 2026-10-07 on a filtered strike measure that
+those spikes do not reach (see "Car physics and tyre gaps").
 
 Tests: `damage::tests`, `tests/damage_test.rs` (the pull, the power, the
 heat, `a_retired_car_is_towed_to_its_box`). The survey against the brake-heat run: contact 22 637 car-seconds
@@ -3353,6 +3356,306 @@ Golden bytes: `cargo test car_setup_wire_format -- --nocapture` ->
 `ApexGolden::C_SetCarSetup`. Tests: `geometry::tests`,
 `tests/geometry_test.rs` (more camber brakes later to a stop, camber away
 from the best corners worse, rear toe-in costs speed on the straight).
+
+### Car physics and tyre gaps (2026-10-07; `geometry.rs`, `aero.rs`, `damage.rs`, `brakes.rs`, `hybrid.rs`, `tyre_thermal.rs`)
+
+The whole "Car physics" and "Tyres" lists of docs/SIMULATION_GAPS.md,
+closed in one pass. Each piece is a function of the tick's inputs, so
+the sim stays deterministic (`determinism_test` on both backends); a
+car.toml without a new key simulates as it did. The AI survey on six
+circuits (Monza, Spa, Zandvoort, Suzuka, SaoPaulo, Spielberg; the
+3-minute races of `survey_ai_races_on_every_circuit`) against the commit
+before the work (a7e342f): contact 18.9 car-seconds against 12.9, off
+the road 9.9 against 9.6, sliding 21.2 against 20.8, no retirements
+either way; Monza carries most of the contact rise (11.8 against 7.3),
+and switching the differential or the camber thrust off there did not
+bring it back, so it reads as the run-to-run noise single incidents make.
+The Silverstone profile laps are unchanged to the tenth (F1 1:32, LMP2
+1:44-1:46, Hypercar 1:42-1:43, GT3 2:05-2:06).
+
+**Chassis.**
+- **Crests** (`physics::update_car_3d`, `CarState::vertical_accel_mps2`):
+  the ground's grade under the body (the contact plane's pitch) is
+  filtered over 50 ms, its rate of change times the speed is the body's
+  vertical acceleration, filtered again over 80 ms and held to ±1.5 g, and
+  the static weight on the tyres is scaled by `1 + a/g`: a crest unloads
+  the car, a hollow loads it, and at a crest's speed the car leaves the
+  ground as it always could. A one-tick step where two road-mesh
+  triangles meet reaches the loads as a fraction of a percent; a flat
+  road is bit-identical (`a_crest_unloads_the_car_and_a_dip_loads_it`:
+  a 1.5 m hump at 50 m/s takes the loads to 0.5 and 1.25 of the flat).
+  `g_forces.vertical_g` carries it.
+- **Aero attitude and porpoising** (`aero::Posture`, `multipliers_at`,
+  `step_porpoising`; car.toml `[aero] yaw_sensitivity`,
+  `roll_sensitivity`, `porpoising`): the downforce loses the yaw
+  sensitivity per degree of body slip to the air and the roll sensitivity
+  per degree of body roll (floor 0.5), and a floor within 1.6 stall
+  heights of the road above 50 m/s porpoises: an oscillation at
+  `PORPOISE_HZ` (5) whose amplitude builds over 0.6 s toward
+  `porpoising x 0.25` of the downforce and dies in 0.3 s when the car
+  rises, carried as ±downforce and ±15 mm of the reported ride height.
+  F1 0.006 / 0.015 / 0.6, Hypercar and LMP2 0.004 / 0.01 / 0.3, GT3
+  0.002 / 0.006 / 0. An F1 at 85 m/s lowered 10 mm porpoises at a tenth
+  of its downforce; raised 10 mm, not at all. The racing line's steady
+  state is the straight car.
+- **Roll centres, camber thrust, per-axle bump stops** (`geometry.rs`;
+  `[suspension] roll_centre_front_m` / `_rear_m`, `camber_thrust`,
+  `bump_stop_gap_front_m` / `_rear_m`): an axle's lateral load transfer
+  is now its geometric part through its roll centre (that axle's mass, at
+  once) plus the elastic part through the springs and bars about the roll
+  axis (`geometry::lateral_transfer`; without roll centres it is the old
+  formula to the bit), and the body rolls about the axis
+  (`body_roll_rad`). A leaning tyre pushes toward its lean before it has
+  slip (`camber_thrust_rad`: `camber_thrust` of its cornering stiffness
+  per radian, an offset to the slip angle in `solve_wheel_forces`; the
+  outside wheel's lean into the corner helps, a wheel rolled onto
+  positive camber hurts). Roll centre migration, jacking and instant
+  centres are still deliberately out. Shipped: F1 20/50 mm, 0.08;
+  Hypercar and LMP2 30/60 mm; GT3 50/90 mm, 0.1.
+- **Toe in the column stiffness**: the stiffness probe
+  (`steering_column_stiffness`) nudged the Ackermann angles without the
+  toe the tyres' `steer_rad` carries, so a toed wheel read as turned by
+  its toe on top of the nudge
+  (`column_stiffness_reads_the_same_slope_with_toe`).
+- **Kerb strikes, bottoming and landings** (`damage.rs`,
+  `CarState::strike_mps`): each wheel's suspension speed filtered over
+  `STRIKE_FILTER_S` (12 ms: a mesh step's 18 m/s one-tick spike reads
+  under 4 m/s and is gone in ten ticks, a real strike lasts) costs the
+  side of a wheel on a kerb over `KERB_STRIKE_MPS` (1.5 m/s) and the end
+  of a wheel `BOTTOMING_PAST_M` past its bump stop over
+  `BOTTOMING_STRIKE_MPS`, quadratically per second; a landing
+  (`landing_damage`, half a contact's damage at the fall's speed, under 2
+  m/s free) costs the ends by the attitude. The session's damage rule
+  scales all of it. A 1.5 m fall costs a GT3 half a percent
+  (`a_landing_costs_the_ends_and_a_drop_is_free`).
+- **Engine wear survives a repair** (`DamageState::engine_wear_percent`,
+  `wear_engine`, `repaired`): the hours at racing revs are kept apart from
+  the hits, the heat and the missed shifts, and a pit stop's repair takes
+  the engine back to its wear, not to zero.
+- **Brake-by-wire** (`hybrid::MotorOutput::regen_w`, `[hybrid]
+  brake_by_wire`, default true): the recovery under braking is capped at
+  `REGEN_AXLE_SHARE` (0.9) of the braking power the driven axle's tyres
+  actually put down last tick (`CarState::driven_axle_brake_w`), and with
+  brake-by-wire it stands in for that axle's hydraulics: the pedal
+  decelerates the car the same and the discs take less (an F1 stop from
+  80 m/s: rears +112 °C against +199 without); without it the recovery
+  brakes on top of the pedal.
+- **Stint energy and the manual override** (`[hybrid] stint_kj`,
+  `override_kj_per_lap`; `CarState::ers_stint_kj` / `ers_override_kj`;
+  `hybrid::new_stint` at a pit stop, with `charge_full`): the motor may
+  deploy `stint_kj` between stops (the hypercars 30 MJ), and the overtake
+  button spends its own allowance per lap over the paced budget (the F1s
+  1.5 MJ), doing nothing more that lap once it is gone (the button stays
+  lit for the HUD). Telemetry's `ers_stint_pct` (255 none).
+- **Brake wear, pads and ducts** (`brakes::BrakePads`, `wear_percent`,
+  `CarState::brake_wear_pct`; knobs `brake_ducts_rear`, `brake_pads`,
+  `radiator`): the pads and discs wear by the energy they absorb
+  (`STEEL_WEAR_PER_MJ` 0.07, `CARBON_WEAR_PER_MJ` 0.12, faster over the
+  window), a worn set grips 10% less over its life and 0.4 worn out, and
+  a stop fits new pads past `PAD_CHANGE_PCT` (60%) in `PAD_CHANGE_S`
+  (counted in the service's `repair_s`). Sprint pads (+4% bite, 1.7x
+  wear, window +60 °C) and endurance pads (-4%, 0.6x, -40 °C) are the
+  26th knob, `brake_ducts` is the front pair and `brake_ducts_rear` the
+  25th knob, and `radiator` the 27th (8% of `[engine] radiator_scale` a
+  click for 0.3% drag). `[brakes] pads` files a car's set. The AI's
+  `brake_share_of` reads the pads and the wear.
+- **The differential runs** on every shipped car (`[differential]
+  simulated = true`), and **`[fuel] tank_front_share`** is filed per car
+  (F1 0.45, Hypercar and LMP2 0.50, the rear-engined GT3 0.70, the
+  front-engined 0.35, the mid-engined 0.45).
+
+**Tyres.**
+- **Three tread zones** (`TireData::tread_c`: inner shoulder, middle,
+  outer; `temperature_c` their mean): the patch's heat lands by
+  `zone_shares` (negative camber onto the inner shoulder, a lateral force
+  toward the car rolling the carcass onto the outer, over-inflation onto
+  the middle), the zones conduct to each other at `ZONE_CONDUCTANCE` and
+  cool on their own; the grip reads the mean, so an evenly heated tyre is
+  the one-node model. The wire carries the shoulders
+  (`CompactCarState.tyre_c_edges`, [u8;8] inner/outer x4).
+- **Surface swing**: `the_surface_swings_like_a_real_tyre_over_a_lap`
+  pins the surface layer against a real GT slick (15-35 °C through a hard
+  corner and most of it back down the straight) as well as the AI's
+  windows; the bulk follows at about six tenths of the swing.
+- **Dirty air** puts `DIRTY_AIR_SLIDE_HEAT` (0.3) of the gripping power
+  more into the tread per unit of downforce the wake took
+  (`TyreWork::wake_loss`).
+- **Compounds per car** (`[[tires.compound]]`: `name`, `kind`
+  slick/intermediate/wet, `grip`, `wear`, `window_shift_c`, `water_grip`,
+  `reference`; `TireConfig::compounds()` / `compound(i)` /
+  `reference_compound()` / `weather_compound(water)` /
+  `compound_for_click(click)`): a car lists its own, in the order the
+  knob steps through them, one the reference the car was calibrated on
+  (else the middle slick); without the tables it has
+  `tyre_thermal::default_compounds()`, the old five. A car with no treaded
+  tyre races on slicks in the rain. The setup sheet carries the names
+  (`CarSetupSheet.Compounds`, `ReferenceCompound`) and the compound
+  knob's real range; `CarSetup::compound_index_for(tire, water)`.
+- **Flat spots** wear round (`FLAT_SPOT_ROUNDING_PER_PERCENT`), the AI
+  stops for one past `pit::AI_PIT_FLAT_SPOT` (0.6), and the client's road
+  sound plays the thump.
+- **Punctures** (`tyre_thermal::puncture`, `TireData::leak_kpa_per_s`,
+  `GameSession::update_debris`, `GameSession::debris`): a hit of
+  `PUNCTURE_HIT_PCT` (5%) or more may hole the tyre nearest it (chance up
+  to 0.6 with the hit), a hit of `DEBRIS_HIT_PCT` (8%) sheds a piece of
+  debris where it happened (kept `DEBRIS_LIFE_S`, at most `MAX_DEBRIS`),
+  and a wheel within `DEBRIS_REACH_M` of a piece picks it up with a
+  `DEBRIS_PUNCTURE_CHANCE` of a puncture; half of them are slow leaks
+  (1-6 kPa/s) that the pressure curve charges for until the tyre is flat
+  at `PUNCTURE_FLAT_KPA` (60). The chances are `wind::hash01` of the tick
+  and the car, so a replay loses the same tyres. The AI stops for a leak.
+- **Rain along the lap**: puddles in the compressions and a line the cars
+  dry, now part of the road state (see "Track evolution and changing
+  conditions").
+- **Client**: tyre smoke from `CompactCarState.slide_flags` (bits 0-3
+  sliding, 4-7 locked), a treaded look for the intermediate and wet
+  compounds, the shoulders and pad wear in the HUD, the garage's
+  compound cards from the sheet (see "Visible damage" and
+  docs/HUD_MODDING.md).
+
+**Wire**: `CompactCarState` appends `tyre_c_edges` ([u8;8]), `brake_wear`
+([u8;4]), `slide_flags` (u8) and `ers_stint_pct` (u8) after `ers_flags`
+(41 fields); `CarSetupSheet` appends `Compounds` and `ReferenceCompound`;
+`CarSetup` appends `brake_ducts_rear`, `brake_pads`, `radiator` (28
+knobs). Golden bytes: `cargo test telemetry_compact_wire_format
+car_setup_wire_format car_setup_sheet_wire_format -- --nocapture` ->
+`ApexUdpGolden::S_TelemetryCompactZones`, `ApexGolden::C_SetCarSetup`,
+`S_CarSetupSheet`. Tests: `tests/car_physics_gaps_test.rs`, `road_state::tests`,
+`geometry::tests`, `brakes::tests`, `hybrid::tests`, `damage::tests`,
+`tyre_thermal::tests`, `car_loader` (`a_car_may_list_its_own_compounds_and_the_new_chassis_keys_load`).
+
+### Track evolution and changing conditions (2026-10-07; `road_state.rs`, `conditions.rs`, `SkyNow`)
+
+The "Track and environment" list of docs/SIMULATION_GAPS.md. Two pieces,
+both on every session and both stepped from the tick, so the sim stays
+deterministic (`a_changing_sky_is_deterministic`).
+
+**The road** (`road_state::RoadState`, `TrackConfig::road_state`, built
+by `GameSession::new` for every session; it replaced the wet-only
+`water.rs` field). The lap in 10 m cells (`CELL_M`), each cut across the
+road into 1 m bins (`BIN_M`, ±16 m, held to the road's own width). A car
+crossing into a cell (`GameSession::update_road`) lays a pass at each
+wheel path (its middle ± half its track, from `RoadState::lateral_of`),
+and sheds marbles over the cell by how hard it corners
+(`shed_for_lateral_g`). Per bin:
+- **rubber** 0..1, laid by every dry pass (`RUBBER_PER_PASS`), washed off
+  by rain (`RUBBER_WASH`). The start lays the host's level along the
+  raceline (`SessionConditions::track_rubber_pct`: 0 green, 50 the
+  default, 100 rubbered) flat `START_LINE_HALF_M` (2 m) either side and
+  fading beyond, and the road off the line at that level or
+  `RUBBER_REFERENCE` (0.5, what the cars are calibrated on), whichever is
+  less: a default start grips exactly as filed from edge to edge, a
+  rubbered one shows its line, a green one is 1.5% down everywhere. A
+  first version left the road off the line green at a default start, and
+  the AI survey found Monza's off-road time up in every class (cars
+  pushed wide in traffic). As built, the six-circuit survey against the
+  same tree with rubber and marbles switched off: contact 17.5
+  car-seconds against 18.9, off the road 9.2 against 9.4, sliding 21.5
+  against 21.0. Grip `rubber_grip`: +3% a unit
+  over the reference in the dry, greasy in the wet (`WET_RUBBER_GRIP`).
+  Four GT3s for six minutes at Monza take the line's mean from 0.50 to
+  0.52.
+- **marbles** 0..1, shed into every bin, swept from a bin by each wheel
+  through it (`MARBLE_SWEEP`), washed by rain; up to `MARBLE_GRIP` (15%)
+  of the grip. They pile up beside the line in the corners.
+- **dry**: what the wheels wiped of the cell's water (`DRY_PER_PASS` a
+  wheel, 0.3 of it in the next bins), rewetted by the rain, never past
+  `line_dry_ceiling(rain)`. A car on a line of its own dries its own.
+And per cell the **water depth**: fed toward the rain falling now
+(`RoadState::rain`, which the sky sets), deeper by `PUDDLE_GAIN` where the
+road lies `LOW_DEPTH_M` below its surroundings (Spa 25 cells, Monza
+none), drained above that at `DRAIN_RATE` times the sky's evaporation
+(sun, warm asphalt). `RoadState::sample(station, lateral)` is what a tyre
+finds: the water (for the compound's grip), `grip` (water against the
+**baked** water, `TrackSurface::baked_water`, times rubber and marbles:
+the racing surface), `wet_grip` (water alone: run-off, pit lane),
+`curb_grip` (the paint), `off_grip` (the grass's wetness). The physics
+reads it per wheel by contact class (`road_under` in `update_car_3d`);
+`CarState::surface_grip_share` at the car's middle feeds the AI's
+`tyre_grip_share`, so it drives a rubbered line a shade faster and
+marbles and puddles slower. The road steps every `STEP_TICKS`.
+
+**The sky** (`conditions::LiveConditions`, `GameSession::sky`, stepped
+once a second by `GameSession::update_sky` at the top of every tick).
+`SessionConditions` gained `time_scale` (0/absent: the clock holds; 1 real
+time ... 60), `changeable` (0/absent: the sky holds; 1 settled, 2
+changeable, 3 stormy) and `track_rubber_pct`, all left off the wire when
+absent. The clock runs at the scale from the host's hour; with
+`changeable` the weather follows `conditions::forecast`, laid out from
+the session's id (each step a stretch of the day, run through the time
+scale, never under 4 minutes of session; one weather step at a time,
+two now and then above settled, drawn back toward the host's pick, a
+stormy sky leaning wet). The rain eases in over `RAIN_EASE_S` (3 min) and
+the cloud over 5, the air follows the hour and the cloud with the host's
+offset kept, the asphalt lags over `TRACK_EASE_S` (15 min) toward the air
+plus the sun through the cloud (`data::solar_gain_c`, `through_cloud`),
+and a degree under the air while the road holds water. Each step bakes
+onto the session's track: air and track temperature, the air's density,
+`TrackSurface::water` (the road's mean: the tyre the track calls for) and
+`wet`, and hands the rain to the road. A session whose clock and sky both
+hold (`is_static`) never bakes anything: it runs as it always did, but
+for the rubber. Headlights' automatic rule is now the live sky's
+(`LiveConditions::headlights_needed`: sun under 6° or rain over 0.1).
+At Le Mans a sunny 15:00 run at real time is 23 °C air / 39 °C track,
+and 17 / 17 at 22:00.
+
+**Latitude**: the sun is worked out at the circuit's `metadata.latitude_deg`
+(`data::sun_elevation_deg(latitude, minutes)`, `TrackConfig::latitude_deg`,
+50° N without one) for the track temperature, the headlights and the
+evaporation; the client's `ApexSky::SunAt` is the same formula.
+`ats-export` writes `latitude_deg` and `north_yaw_deg` (true north's yaw
+in the track frame, from the DEM sidecar's georeference:
+`DemGeoref::north_yaw_deg`; Spa 92.3) into the export manifest's
+`metadata`, so the client puts the sun where it stands over the real
+circuit. Nothing about it is in the YAML, so no checksum moved; re-export
+the tracks for the client to see it.
+
+**The AI's tyres**: `pit::tyres_for_the_track` sends an AI in when the
+racing line's water (`RoadState::mean_line_water`) passes
+`SLICK_OFF_WATER` (0.25) on slicks, drops under `TREADED_OFF_WATER`
+(0.06) on treaded tyres, or crosses `WET_FROM_WATER` ± 0.15 between inter
+and wet; the gap is the hysteresis. `weather_compound_of` now returns no
+treaded tyre under `SLICK_BELOW_WATER` (0.1), so the damp a drying track
+leaves does not put a stock setup on inters. In
+`rain_from_the_forecast_wets_the_road_and_the_ai_stops_for_wets` rain
+arriving 30 s into a dry Monza race has every AI on wets within ten
+minutes.
+
+**Wire**: `CompactTelemetry.sky` (`network::SkyNow`, 13 positional
+fields: clock, weather, rain, cloud, road water, air, track, the wind this
+moment and where it blows toward, the line's rubber, the time scale, the
+forecast's next weather and when), appended after `race_clock`, which is
+then nil when there is no race clock (`impl Serialize for
+CompactTelemetry` leaves trailing empties off, so a frame without a sky
+keeps its old bytes). Every new server sends it every frame. Golden bytes:
+`cargo test sky_wire_format -- --nocapture` -> `ApexGolden::
+C_CreateSessionSky` / `S_SessionJoinedSky`, `ApexUdpGolden::
+S_TelemetryCompactSky`. Tests: `road_state::tests`, `conditions::tests`,
+`tests/track_evolution_test.rs` (rubber and marbles under a race at
+Monza, rain from the forecast and the AI's crossover, a 60x clock into
+the night, determinism).
+
+**Client**: `FApexSessionConditions::TimeScale` / `Changeable` /
+`TrackRubberPct` (-1 unset, written only when set), `FApexSkyNow` on
+`FApexTelemetryFrame::Sky` (frames of 5, 6 or 7 elements decode),
+`UApexNetSubsystem::GetLatestSky`. `ApexSky::SunAt(Hours, LatitudeDeg)`
+is the server's formula; `FSkySite` (latitude, north) from the catalog
+row (`bHasLocation`, `LatitudeDeg`, `NorthYawDeg`, read from the export's
+`metadata`) turns the sun's compass bearing into the track's frame. With
+a live sky the race director lights by `ApexSky::DeriveLive` (blended
+between the two nearest weathers by the server's cloud and rain),
+relighting only when `LiveSkyMoved` says so (a game-clock minute, a
+weather change, 3% of rain, cloud or road water); the rain streaks
+follow the falling rain and drift with the wind, the road's roughness
+eases from its own dry figure toward 0.3 with the road's water. Kit flag
+poles (`SM_flag_pole` exactly: an AC import's scenery has flag-named
+chunks) turn downwind once a second. HUD data points `sky.*`
+(docs/HUD_MODDING.md) and the `conditions` component (off by default);
+the create screen's Conditions tab has Clock (Frozen to 60x), Weather
+changes (Fixed / Settled / Changeable / Stormy) and Track (Green / Normal
+/ Rubbered) rows; `-ApexTimeScale=N -ApexChangeable=N -ApexTrackRubber=N`
+for an unattended run. Tests `ApexSim.Sky.Site` / `.Live`,
+`ApexSim.Hud.Data.Sky`, `ApexSim.UI.CreateSession.SkyChips`, the goldens.
 
 ### Hybrid deployment (`hybrid.rs`, `PlayerInput.ers_mode` / `ers_boost`)
 

@@ -308,6 +308,78 @@ namespace ApexCreateSession
 		return C.HasWind() ? FMath::Min(C.WindKph, FApexSessionConditions::MaxWindKph) : AutoWindKph(C.Weather);
 	}
 
+	// --- The sky through the session ------------------------------------------
+
+	/** How fast the day's clock may run, the Clock row's chips: frozen, then
+	 * real time to an hour a minute. */
+	inline constexpr int32 ClockScales[] = {0, 1, 2, 4, 8, 24, 60};
+	inline constexpr int32 ClockScaleCount = UE_ARRAY_COUNT(ClockScales);
+
+	/** "Frozen", "1x", "24x". */
+	inline FString ClockScaleLabel(int32 Scale)
+	{
+		return Scale <= 0 ? FString(TEXT("Frozen")) : FString::Printf(TEXT("%dx"), Scale);
+	}
+
+	/** The Clock row's chip for a pick: an unset scale is frozen. */
+	inline int32 ClockScaleIndex(const FApexSessionConditions& C)
+	{
+		const int32 Scale = C.ClockRuns() ? C.TimeScale : 0;
+		for (int32 Index = 0; Index < ClockScaleCount; ++Index)
+		{
+			if (ClockScales[Index] == Scale)
+			{
+				return Index;
+			}
+		}
+		return INDEX_NONE;
+	}
+
+	/** A chip's scale onto the conditions: frozen is left off the wire. */
+	inline void SetClockScale(FApexSessionConditions& C, int32 Scale)
+	{
+		C.TimeScale = Scale > 0 ? FMath::Min(Scale, FApexSessionConditions::MaxTimeScale) : FApexSessionConditions::Auto;
+	}
+
+	/** The Weather changes row: Fixed (0, off the wire), Settled, Changeable, Stormy. */
+	inline constexpr int32 ChangeableCount = FApexSessionConditions::MaxChangeable + 1;
+
+	inline int32 ChangeableIndex(const FApexSessionConditions& C)
+	{
+		return C.WeatherChanges() ? FMath::Min(C.Changeable, FApexSessionConditions::MaxChangeable) : 0;
+	}
+
+	inline void SetChangeable(FApexSessionConditions& C, int32 Level)
+	{
+		C.Changeable = Level > 0 ? FMath::Min(Level, FApexSessionConditions::MaxChangeable) : FApexSessionConditions::Auto;
+	}
+
+	/** The Track row: Green (0), Normal (unset: the calibrated 50, off the
+	 * wire) and Rubbered (100). */
+	inline constexpr int32 TrackRubberPicks[] = {0, FApexSessionConditions::Auto, 100};
+	inline constexpr int32 TrackRubberCount = UE_ARRAY_COUNT(TrackRubberPicks);
+
+	inline const TCHAR* TrackRubberChipLabel(int32 Index)
+	{
+		static const TCHAR* Labels[TrackRubberCount] = {TEXT("Green"), TEXT("Normal"), TEXT("Rubbered")};
+		return Labels[FMath::Clamp(Index, 0, TrackRubberCount - 1)];
+	}
+
+	/** The chip for a pick; a figure between them (a profile edited by hand) shows none. */
+	inline int32 TrackRubberIndex(const FApexSessionConditions& C)
+	{
+		if (!C.HasTrackRubber() || C.TrackRubberPct == FApexSessionConditions::ReferenceRubberPct)
+		{
+			return 1;
+		}
+		return C.TrackRubberPct == 0 ? 0 : C.TrackRubberPct >= 100 ? 2 : INDEX_NONE;
+	}
+
+	inline void SetTrackRubber(FApexSessionConditions& C, int32 Index)
+	{
+		C.TrackRubberPct = TrackRubberPicks[FMath::Clamp(Index, 0, TrackRubberCount - 1)];
+	}
+
 	/** The road's grip under this weather, percent: `Weather::road_grip_factor`. */
 	inline int32 GripPercent(EApexWeather Weather)
 	{

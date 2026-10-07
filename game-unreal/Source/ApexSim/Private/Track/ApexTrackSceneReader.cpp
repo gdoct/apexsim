@@ -415,6 +415,19 @@ bool FApexTrackSceneReader::LoadHeader(const FString& Path, FApexTrackSceneHeade
 			}
 			continue;
 		}
+		if (Depth == MetadataDepth && Notation == EJsonNotation::Number)
+		{
+			const double Value = Reader->GetValueAsNumber();
+			if (Id == TEXT("latitude_deg"))
+			{
+				Header.LatitudeDeg = static_cast<float>(Value);
+			}
+			else if (Id == TEXT("north_yaw_deg"))
+			{
+				Header.NorthYawDeg = static_cast<float>(Value);
+			}
+			continue;
+		}
 		if (Depth != 1)
 		{
 			continue;

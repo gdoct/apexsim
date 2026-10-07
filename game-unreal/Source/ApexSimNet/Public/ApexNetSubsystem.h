@@ -547,6 +547,15 @@ public:
 	const FApexTelemetryFrame& GetLatestTelemetry() const { return LatestTelemetry; }
 
 	/**
+	 * The sky as the newest frame carried it (`SkyNow`: the running clock,
+	 * the forecast's weather, rain, cloud, road water, air, wind, rubber);
+	 * not bValid from an older server, a showcase stream or before a frame
+	 * arrived, and then GetSessionConditions is the sky.
+	 */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
+	const FApexSkyNow& GetLatestSky() const { return LatestTelemetry.Sky; }
+
+	/**
 	 * What the local car's driver should feel: every `DriverFeedback` taken
 	 * off the socket since the last net tick, merged into one (see
 	 * FApexDriverFeedback::Absorb). Polled by the force-feedback devices.

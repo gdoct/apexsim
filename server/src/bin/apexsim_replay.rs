@@ -706,6 +706,7 @@ fn run(args: Args) -> Result<(), String> {
                         humidity_pct: None,
                         wind_kph: wind,
                         wind_from_deg: wind_from,
+                        ..SessionConditions::DEFAULT
                     }
                     .clamp(),
                     tick_rate,

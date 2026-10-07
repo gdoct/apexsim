@@ -348,6 +348,7 @@ impl TrackLoader {
             ground: None,
             curbs: None,
             walls: None,
+            road_state: None,
             road_mesh: None,
         };
         config.rebuild_raceline_distances();

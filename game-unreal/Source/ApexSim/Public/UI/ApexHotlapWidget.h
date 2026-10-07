@@ -32,6 +32,22 @@ enum class EApexHotlapView : uint8
 	Replay,
 };
 
+/**
+ * One compound card in the garage's "Next tyres" column: from the server's
+ * setup sheet when it names the car's compounds, else the default five.
+ */
+struct FApexGarageCompound
+{
+	/** The `tyre_compound` knob's clicks for this card. */
+	int32 Clicks = 0;
+	FString Name;
+	FString Note;
+	FString Figures;
+	FLinearColor Colour = FLinearColor::White;
+	float Grip = 0.5f;
+	float Life = 0.5f;
+};
+
 /** What the garage card asks the shell to do. */
 UENUM(BlueprintType)
 enum class EApexHotlapAction : uint8
@@ -239,6 +255,14 @@ private:
 	const FApexCarSetup* GetWorkingSetup() const;
 	/** The server's reference card for the car being driven, or null. */
 	const FApexCarSetupSheet* GetSheet() const;
+	/** The sheet when it names the car's compounds, whatever its knob count; null when the server named none. */
+	const FApexCarSetupSheet* GetCompoundSheet() const;
+	/** The compound knob's read-out: the sheet's name for the click when it has one, else the default table's. */
+	FString CompoundLabel(int32 Clicks) const;
+	/** The cards for a sheet: one per listed compound, click = reference - index; the defaults without a list. */
+	static TArray<FApexGarageCompound> CompoundCardsFor(const FApexCarSetupSheet* Sheet);
+	/** Rebuilds the compound cards in CompoundHost from CompoundCardsFor. */
+	void BuildCompoundCards();
 	FString GetCarId() const;
 
 	/** A knob at a click count, in the sheet's units ("124.8 N/mm"), or in clicks without one. */
@@ -333,6 +357,10 @@ private:
 
 	// Tyres.
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> CompoundButtons;
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> CompoundHost;
+	/** The cards CompoundButtons were built from, one each, and the sheet list they came from. */
+	TArray<FApexGarageCompound> CompoundCards;
+	TArray<FString> CompoundCardNames;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PressureNote;
 
 	// Suspension.

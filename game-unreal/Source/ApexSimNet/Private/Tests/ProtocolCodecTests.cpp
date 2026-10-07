@@ -109,6 +109,29 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 			ApexGolden::C_CreateSessionAir);
 	}
 
+	{
+		// A changing sky: the three follow the air's keys, the air unnamed.
+		FApexSessionConditions Sky;
+		Sky.Weather = EApexWeather::Cloudy;
+		Sky.TimeOfDayMinutes = 15 * 60;
+		Sky.TimeScale = 24;
+		Sky.Changeable = 2;
+		Sky.TrackRubberPct = 90;
+		CheckBytes(TEXT("CreateSession with a changing sky"),
+			ApexProtocol::EncodeCreateSession(TrackId, 8, 3, 5, EApexSessionKind::Multiplayer, FApexAllowedAssists(), Sky),
+			ApexGolden::C_CreateSessionSky);
+		// Out of range is held to what the server takes, as it would.
+		FApexSessionConditions Wild = Sky;
+		Wild.TimeScale = 200;
+		Wild.Changeable = 9;
+		Wild.TrackRubberPct = 300;
+		const FApexSessionConditions Held = Wild.Clamped();
+		TestEqual(TEXT("Sky.TimeScale clamped"), Held.TimeScale, FApexSessionConditions::MaxTimeScale);
+		TestEqual(TEXT("Sky.Changeable clamped"), Held.Changeable, FApexSessionConditions::MaxChangeable);
+		TestEqual(TEXT("Sky.TrackRubberPct clamped"), Held.TrackRubberPct, 100);
+		TestFalse(TEXT("Sky is not the default"), Sky.IsDefault());
+	}
+
 	CheckBytes(TEXT("JoinSession"),
 		ApexProtocol::EncodeJoinSession(SessId),
 		ApexGolden::C_JoinSession);
@@ -157,7 +180,8 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 
 	{
 		FApexCarSetup Setup;
-		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1, 2, -1, 2, 1, -2 };
+		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1, 2, -1, 2, 1, -2, 3, 1, -4 };
+		static_assert(UE_ARRAY_COUNT(Clicks) == FApexCarSetup::KnobCount, "the golden setup has a click per knob");
 		for (int32 Index = 0; Index < FApexCarSetup::KnobCount; ++Index)
 		{
 			Setup.Clicks[Index] = Clicks[Index];
@@ -236,13 +260,22 @@ bool FApexCarSetupClicksTest::RunTest(const FString& Parameters)
 		ApexCarSetup::Describe(ApexCarSetup::FuelLoad, 2), FString(TEXT("+2  (+2 laps)")));
 	TestEqual(TEXT("wing key"), FString(ApexCarSetup::Knob(ApexCarSetup::FrontWing).Key), FString(TEXT("front_wing")));
 	TestEqual(TEXT("compound key"), FString(ApexCarSetup::Knob(ApexCarSetup::TyreCompound).Key), FString(TEXT("tyre_compound")));
-	TestEqual(TEXT("last key"), FString(ApexCarSetup::Knob(ApexCarSetup::BrakeDucts).Key), FString(TEXT("brake_ducts")));
+	TestEqual(TEXT("ducts key"), FString(ApexCarSetup::Knob(ApexCarSetup::BrakeDucts).Key), FString(TEXT("brake_ducts")));
+	TestEqual(TEXT("rear ducts key"), FString(ApexCarSetup::Knob(ApexCarSetup::BrakeDuctsRear).Key), FString(TEXT("brake_ducts_rear")));
+	TestEqual(TEXT("pads key"), FString(ApexCarSetup::Knob(ApexCarSetup::BrakePads).Key), FString(TEXT("brake_pads")));
+	TestEqual(TEXT("last key"), FString(ApexCarSetup::Knob(ApexCarSetup::Radiator).Key), FString(TEXT("radiator")));
+	TestEqual(TEXT("pads read by name"), ApexCarSetup::Describe(ApexCarSetup::BrakePads, 1), FString(TEXT("Sprint")));
+	TestEqual(TEXT("standard pads"), ApexCarSetup::Describe(ApexCarSetup::BrakePads, 0), FString(TEXT("Standard")));
+	TestEqual(TEXT("endurance pads"), ApexCarSetup::Describe(ApexCarSetup::BrakePads, -1), FString(TEXT("Endurance")));
+	Setup.SetClick(ApexCarSetup::BrakePads, 3);
+	TestEqual(TEXT("the pads stop at sprint"), Setup.GetClick(ApexCarSetup::BrakePads), 1);
+	TestEqual(TEXT("radiator reads in percent"), ApexCarSetup::Describe(ApexCarSetup::Radiator, -2), FString(TEXT("-2  (-16%)")));
 	TestEqual(TEXT("ducts read in air"), ApexCarSetup::Describe(ApexCarSetup::BrakeDucts, 2), FString(TEXT("+2  (+20% air)")));
 	TestEqual(TEXT("compound reads by name"), ApexCarSetup::Describe(ApexCarSetup::TyreCompound, 1), FString(TEXT("Soft")));
 	TestEqual(TEXT("hard"), ApexCarSetup::Describe(ApexCarSetup::TyreCompound, -1), FString(TEXT("Hard")));
 	TestEqual(TEXT("inters"), ApexCarSetup::Describe(ApexCarSetup::TyreCompound, -2), FString(TEXT("Intermediate")));
 	TestEqual(TEXT("wets"), ApexCarSetup::Describe(ApexCarSetup::TyreCompound, -3), FString(TEXT("Wet")));
-	TestEqual(TEXT("the compound reaches the wets"), ApexCarSetup::Knob(ApexCarSetup::TyreCompound).Min, -3);
+	TestTrue(TEXT("the compound reaches the wets, and a car's longer list"), ApexCarSetup::Knob(ApexCarSetup::TyreCompound).Min <= -3);
 	TestEqual(TEXT("ride height reads in mm"),
 		ApexCarSetup::Describe(ApexCarSetup::RideHeightFront, -3), FString(TEXT("-3  (-6 mm)")));
 	return true;
@@ -407,7 +440,31 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("Air.wind_from_deg"), Message.Conditions.WindFromDeg, 270);
 			TestEqual(TEXT("Air.Describe"), Message.Conditions.Describe(),
 				FString(TEXT("Overcast · 08:00 · -3°C · wind 22 km/h from the right")));
+			TestFalse(TEXT("Air: no clock speed named"), Message.Conditions.HasTimeScale());
+			TestFalse(TEXT("Air: no forecast named"), Message.Conditions.HasChangeable());
+			TestFalse(TEXT("Air: no rubber named"), Message.Conditions.HasTrackRubber());
 		}
+	}
+
+	{
+		// A changing sky's echo, and the read-out that names it.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined with a changing sky"), ApexGolden::S_SessionJoinedSky, Message))
+		{
+			TestEqual(TEXT("Sky.weather"), Message.Conditions.Weather, EApexWeather::Cloudy);
+			TestEqual(TEXT("Sky.time_of_day"), Message.Conditions.TimeOfDayMinutes, 15 * 60);
+			TestEqual(TEXT("Sky.time_scale"), Message.Conditions.TimeScale, 24);
+			TestEqual(TEXT("Sky.changeable"), Message.Conditions.Changeable, 2);
+			TestEqual(TEXT("Sky.track_rubber_pct"), Message.Conditions.TrackRubberPct, 90);
+			TestEqual(TEXT("Sky.Describe"), Message.Conditions.Describe(),
+				FString(TEXT("Cloudy · 15:00 · clock x24 · changeable weather · track 90% rubber")));
+		}
+		FApexSessionConditions Green;
+		Green.TrackRubberPct = 0;
+		Green.TimeScale = 0;
+		Green.Changeable = 0;
+		TestEqual(TEXT("A frozen clock and a fixed sky say nothing; a green track does"), Green.Describe(),
+			FString(TEXT("Sunny · 13:00 · green track")));
 	}
 
 	{
@@ -1049,6 +1106,21 @@ bool FApexProtocolCarSetupSheetTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("fill"), Sheet.FillLaps, 3.0f);
 	TestTrue(TEXT("camber"), Sheet.bCamberModelled);
 	TestEqual(TEXT("rake balance"), Sheet.RakeBalancePerMm, 0.001f);
+	if (TestEqual(TEXT("two compounds"), Sheet.Compounds.Num(), 2))
+	{
+		TestEqual(TEXT("first compound"), Sheet.Compounds[0], FString(TEXT("soft")));
+		TestEqual(TEXT("upper-cased for the garage"), Sheet.CompoundNameAt(1), FString(TEXT("MEDIUM")));
+	}
+	TestEqual(TEXT("reference"), Sheet.ReferenceCompound, 1);
+	TestEqual(TEXT("the reference is click 0"), Sheet.CompoundIndexForClicks(0), 1);
+	TestEqual(TEXT("one click up is the first"), Sheet.ClicksForCompoundIndex(0), 1);
+	TestEqual(TEXT("a name from the sheet"), FApexCarTelemetry::CompoundNameFrom(Sheet.Compounds, 0), FString(TEXT("SOFT")));
+	TestEqual(TEXT("a letter from the sheet"), FApexCarTelemetry::CompoundLetterFrom(Sheet.Compounds, 1), FString(TEXT("M")));
+	TestEqual(TEXT("past the sheet's list is unknown"), FApexCarTelemetry::CompoundNameFrom(Sheet.Compounds, 4), FString());
+	TestEqual(TEXT("no sheet falls back to the defaults"), FApexCarTelemetry::CompoundNameFrom(TArray<FString>(), 4), FString(TEXT("WET")));
+	FApexCarSetupSheet Older;
+	TestFalse(TEXT("an older sheet names no compounds"), Older.HasCompounds());
+	TestEqual(TEXT("and its reference is the medium"), Older.ReferenceCompound, 1);
 	return true;
 }
 

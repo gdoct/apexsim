@@ -113,10 +113,16 @@ pub struct CarConfig {
     /// says.
     #[serde(default)]
     pub brake_material: crate::brakes::BrakeMaterial,
-    /// The brake ducts' size against the car's own (the setup's
-    /// `brake_ducts`): how much air cools the brakes.
+    /// The brake ducts' size against the car's own, per axle (the setup's
+    /// `brake_ducts` and `brake_ducts_rear`): how much air cools the brakes.
     #[serde(default = "default_one_f32")]
     pub brake_duct_scale: f32,
+    #[serde(default = "default_one_f32")]
+    pub brake_duct_scale_rear: f32,
+    /// The pads fitted (the setup's `brake_pads`; `crate::brakes`): what
+    /// they grip with, how fast they wear and where they come in.
+    #[serde(default)]
+    pub brake_pads: crate::brakes::BrakePads,
 
     // Steering
     pub max_steering_angle_rad: f32,
@@ -399,6 +405,22 @@ pub struct HybridConfig {
     /// A turbo generator charging the battery at full throttle, kW.
     #[serde(default)]
     pub heat_recovery_kw: f32,
+    /// Energy the motor may deploy in one stint, kJ (the WEC's rule): from
+    /// a pit stop, a grid or the garage to the next stop. `None` is no
+    /// stint limit.
+    #[serde(default)]
+    pub stint_kj: Option<f32>,
+    /// Energy the overtake button may spend per lap, kJ, over and above the
+    /// paced lap budget (`deploy_kj_per_lap`); `None` lets the button draw
+    /// on the lap budget as Attack does.
+    #[serde(default)]
+    pub override_kj_per_lap: Option<f32>,
+    /// Brake-by-wire: under braking the motor's recovery stands in for the
+    /// driven axle's hydraulic brakes, so the pedal gives the same
+    /// deceleration whether the battery takes the energy or the discs do.
+    /// Without it the recovery brakes the driven axle on top of the pads.
+    #[serde(default = "default_true")]
+    pub brake_by_wire: bool,
 }
 
 impl Default for HybridConfig {
@@ -414,6 +436,9 @@ impl Default for HybridConfig {
             deploy_kj_per_lap: None,
             deploy_min_speed_kph: 0.0,
             heat_recovery_kw: 0.0,
+            stint_kj: None,
+            override_kj_per_lap: None,
+            brake_by_wire: true,
         }
     }
 }
@@ -455,11 +480,29 @@ pub struct SuspensionConfig {
     #[serde(default)]
     pub toe_rear_deg: f32,
     /// The bump stop engages this far past the static laden compression,
-    /// m, at this rate, N/m; none without a gap.
+    /// m, at this rate, N/m; none without a gap. The per-axle gaps win
+    /// over the shared one where a car.toml gives them.
     #[serde(default)]
     pub bump_stop_gap_m: Option<f32>,
     #[serde(default)]
+    pub bump_stop_gap_front_m: Option<f32>,
+    #[serde(default)]
+    pub bump_stop_gap_rear_m: Option<f32>,
+    #[serde(default)]
     pub bump_stop_rate_n_per_m: f32,
+    /// Roll centre height per axle, m above the road (`crate::geometry`):
+    /// the share of an axle's lateral load transfer that goes through its
+    /// linkage at once (geometric) rather than through its springs and bar
+    /// (elastic). `None` on both is the old transfer, all of it elastic.
+    #[serde(default)]
+    pub roll_centre_front_m: Option<f32>,
+    #[serde(default)]
+    pub roll_centre_rear_m: Option<f32>,
+    /// Camber thrust: the side force a leaning tyre makes at no slip, as a
+    /// share of its cornering stiffness per radian of lean
+    /// (`geometry::camber_thrust_rad`). 0 is none.
+    #[serde(default)]
+    pub camber_thrust: f32,
 }
 
 impl Default for SuspensionConfig {
@@ -484,7 +527,23 @@ impl Default for SuspensionConfig {
             toe_front_deg: 0.0,
             toe_rear_deg: 0.0,
             bump_stop_gap_m: None,
+            bump_stop_gap_front_m: None,
+            bump_stop_gap_rear_m: None,
             bump_stop_rate_n_per_m: 0.0,
+            roll_centre_front_m: None,
+            roll_centre_rear_m: None,
+            camber_thrust: 0.0,
+        }
+    }
+}
+
+impl SuspensionConfig {
+    /// The bump stop gap on an axle, m: its own, else the shared one.
+    pub fn bump_stop_gap(&self, front: bool) -> Option<f32> {
+        if front {
+            self.bump_stop_gap_front_m.or(self.bump_stop_gap_m)
+        } else {
+            self.bump_stop_gap_rear_m.or(self.bump_stop_gap_m)
         }
     }
 }
@@ -552,6 +611,10 @@ pub struct TireConfig {
     pub front_grip_scale: f32,
     #[serde(default = "default_one")]
     pub rear_grip_scale: f32,
+    /// The car's own compounds (car.toml `[[tires.compound]]`,
+    /// `crate::tyre_thermal`); empty means the default five.
+    #[serde(default)]
+    pub compounds: Vec<crate::tyre_thermal::Compound>,
 }
 
 fn default_tyre_pressure_kpa() -> f32 {
@@ -717,6 +780,7 @@ impl Default for TireConfig {
             longitudinal_grip_factor: 1.0,
             front_grip_scale: 1.0,
             rear_grip_scale: 1.0,
+            compounds: Vec::new(),
         }
     }
 }
@@ -781,6 +845,8 @@ impl Default for CarConfig {
             aero: crate::aero::AeroConfig::default(),
             brake_material: crate::brakes::BrakeMaterial::Steel,
             brake_duct_scale: 1.0,
+            brake_duct_scale_rear: 1.0,
+            brake_pads: crate::brakes::BrakePads::Standard,
 
             // Steering
             max_steering_angle_rad: 0.52, // ~30 degrees
@@ -866,6 +932,13 @@ pub struct TrackConfig {
     /// loaded from the sidecar.
     #[serde(skip)]
     pub walls: Option<crate::walls::Walls>,
+    /// The road through the session (`crate::road_state`): the rubber the
+    /// cars lay, the marbles they shed, the water standing in the dips and
+    /// the lines they dry. Built by the session (`GameSession::new`);
+    /// `None` on a track nobody races on, which grips as baked.
+    /// Runtime-only.
+    #[serde(skip)]
+    pub road_state: Option<crate::road_state::RoadState>,
     /// Baked road mesh exported alongside the Unreal scene
     /// (`<Track>.road.msgpack`): the rendered road, curbs, run-off bands
     /// and pit lane as triangles, each with its surface. When present the
@@ -979,6 +1052,12 @@ pub struct TrackSurface {
     /// The road's baked grip is the grip on the tyre the weather calls for.
     #[serde(default)]
     pub water: f32,
+    /// The water the road's grip was baked at
+    /// (`SessionConditions::apply_to_track`): `water` moves with the sky
+    /// through a session (`crate::conditions`), and every grip the road
+    /// state works out is against this one (`crate::road_state`).
+    #[serde(default)]
+    pub baked_water: f32,
     /// The air's density against the reference day the cars are filed at
     /// (`SessionConditions::air_density_ratio`): the aero and a combustion
     /// engine's torque are scaled by it. 1.0 on a default day at sea level.
@@ -1031,6 +1110,7 @@ impl Default for TrackSurface {
             track_temperature_c: default_track_temperature_c(),
             wet: false,
             water: 0.0,
+            baked_water: 0.0,
             air_density_ratio: 1.0,
             wind_mps: [0.0; 2],
             wind_now_mps: [0.0; 2],
@@ -1123,12 +1203,22 @@ impl Default for TrackConfig {
             ground: None,
             curbs: None,
             walls: None,
+            road_state: None,
             road_mesh: None,
         }
     }
 }
 
 impl TrackConfig {
+    /// The circuit's latitude, degrees north, or the sky model's default
+    /// for a track that does not say where it is.
+    pub fn latitude_deg(&self) -> f32 {
+        self.metadata
+            .latitude_deg
+            .filter(|l| l.is_finite())
+            .unwrap_or(DEFAULT_LATITUDE_DEG)
+    }
+
     /// Recompute `raceline_distances` (cumulative arc length per raceline
     /// point). Must be called whenever `raceline` is (re)assigned outside the
     /// track loader; AI raceline-following falls back to the centerline when
@@ -1211,8 +1301,13 @@ pub struct GridSlot {
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct TireData {
     /// The tread, °C: the rubber on the road, quick to heat in a slide and
-    /// quick to cool on a straight (`crate::tyre_thermal`).
+    /// quick to cool on a straight (`crate::tyre_thermal`); the mean of
+    /// its three zones.
     pub temperature_c: f32,
+    /// The tread across its width, °C: inner shoulder (toward the car),
+    /// middle, outer shoulder.
+    #[serde(default)]
+    pub tread_c: [f32; 3],
     /// Running (gauge) pressure, kPa: the setup's hot pressure moved by the
     /// temperature of the gas, which is the core's.
     pub pressure_kpa: f32,
@@ -1231,10 +1326,16 @@ pub struct TireData {
     /// (`crate::tyre_thermal`): a little grip, and a shake once a turn.
     #[serde(default)]
     pub flat_spot: f32,
-    /// Worn through: the tyre is down to its carcass and has let go of its
-    /// air.
+    /// Worn through, or holed: the tyre is down to its carcass and has let
+    /// go of its air.
     #[serde(default)]
     pub punctured: bool,
+    /// A slow puncture: how fast the air is leaving, kPa/s, and how much
+    /// has gone (`tyre_thermal::puncture`).
+    #[serde(default)]
+    pub leak_kpa_per_s: f32,
+    #[serde(default)]
+    pub pressure_loss_kpa: f32,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
@@ -1300,6 +1401,11 @@ pub struct DamageState {
     pub left_damage_percent: f32,
     pub right_damage_percent: f32,
     pub engine_damage_percent: f32,
+    /// The part of `engine_damage_percent` that is wear (`damage::engine_wear`,
+    /// the hours at racing revs), which no pit crew can undo: a repair takes
+    /// the engine back to this, not to zero.
+    #[serde(default)]
+    pub engine_wear_percent: f32,
     pub is_drivable: bool,
 }
 
@@ -1476,9 +1582,36 @@ pub struct CarState {
     /// The car against the pit lane, and its stop (`crate::pit`).
     #[serde(default)]
     pub pit: crate::pit::PitState,
-    /// Each corner's brake, °C, FL FR RL RR (`crate::brakes`).
+    /// Each corner's brake, °C, FL FR RL RR (`crate::brakes`), and how worn
+    /// its pads and disc are, percent.
     #[serde(default)]
     pub brake_temp_c: [f32; 4],
+    #[serde(default)]
+    pub brake_wear_pct: [f32; 4],
+    /// The braking power the driven axle's tyres put down last tick, W:
+    /// what the hybrid may recover under brake-by-wire (`crate::hybrid`).
+    #[serde(default)]
+    pub driven_axle_brake_w: f32,
+    /// The ground's grade under the car, filtered, and the vertical
+    /// acceleration the road's curvature along the path gives the body
+    /// (positive into the road: a dip loads the car, a crest unloads it;
+    /// `physics::update_car_3d`).
+    #[serde(default)]
+    pub ground_slope_f: f32,
+    #[serde(default)]
+    pub vertical_accel_mps2: f32,
+    /// The floor's porpoising (`crate::aero`): the oscillation's phase, rad,
+    /// and amplitude as a share of the downforce.
+    #[serde(default)]
+    pub porpoise_phase: f32,
+    #[serde(default)]
+    pub porpoise_amp: f32,
+    /// Each wheel's suspension speed filtered over a few ticks, m/s: the
+    /// strike measure kerb, bottoming and landing damage reads
+    /// (`crate::damage`), which a one-tick step in the road mesh does not
+    /// reach.
+    #[serde(default)]
+    pub strike_mps: [f32; 4],
     /// The air this car drives into: the tow and dirty air of the cars
     /// ahead (`crate::slipstream`), set each tick before the physics.
     #[serde(default)]
@@ -1489,6 +1622,28 @@ pub struct CarState {
     /// by. Set by the physics each tick.
     #[serde(default = "default_one_f32")]
     pub aero_load_share: f32,
+    /// The grip of the road under the car against the road the session
+    /// was planned on (`crate::road_state`: rubber and a drying line give
+    /// more, marbles and a puddle less), 1.0 on the road as baked. Set by the physics each tick; the AI
+    /// reads it through `tyre_grip_share`.
+    #[serde(default = "default_one_f32")]
+    pub surface_grip_share: f32,
+    /// The hardest hit this car took since the pass that read it, percent
+    /// of damage (`physics::apply_damage_to_car`): what sheds debris and
+    /// what may puncture a tyre (`GameSession::update_debris`).
+    #[serde(default)]
+    pub last_hit_pct: f32,
+    /// Which way the last hit came from, rad in the car's frame (0 the
+    /// nose, π/2 the left side), for the tyre nearest it.
+    #[serde(default)]
+    pub last_hit_angle: f32,
+    /// The road state's cell the car was last in (`GameSession::update_road`).
+    #[serde(default)]
+    pub road_cell: u32,
+    /// Which tyres are sliding hard (bits 0-3) and locked (bits 4-7), for
+    /// the client's smoke (`network::CompactCarState::slide_flags`).
+    #[serde(default)]
+    pub slide_flags: u8,
     pub g_forces: GForces,
     pub suspension: SuspensionTelemetry,
     pub fuel_liters: f32,
@@ -1542,6 +1697,15 @@ pub struct CarState {
     pub ers_charge_pct: u8,
     #[serde(default = "no_hybrid_pct")]
     pub ers_budget_pct: u8,
+    /// What the motor has deployed this stint (kJ), what the overtake
+    /// button has spent this lap (kJ), and the stint's budget left for
+    /// telemetry, percent (255: no stint limit).
+    #[serde(default)]
+    pub ers_stint_kj: f32,
+    #[serde(default)]
+    pub ers_override_kj: f32,
+    #[serde(default = "no_hybrid_pct")]
+    pub ers_stint_pct: u8,
 
     /// Turbo spool, 0..1: how much of the boost the turbo is delivering
     /// (`TurboConfig`). Stays 0 on a car without one.
@@ -1674,8 +1838,20 @@ impl CarState {
             tyre_compound: crate::tyre_thermal::MEDIUM,
             pit: crate::pit::PitState::default(),
             brake_temp_c: [20.0; 4],
+            brake_wear_pct: [0.0; 4],
+            driven_axle_brake_w: 0.0,
+            ground_slope_f: 0.0,
+            vertical_accel_mps2: 0.0,
+            porpoise_phase: 0.0,
+            porpoise_amp: 0.0,
+            strike_mps: [0.0; 4],
             wake: crate::slipstream::Wake::CLEAN,
             aero_load_share: 1.0,
+            surface_grip_share: 1.0,
+            last_hit_pct: 0.0,
+            last_hit_angle: 0.0,
+            road_cell: 0,
+            slide_flags: 0,
             g_forces: GForces::default(),
             suspension: SuspensionTelemetry::default(),
             fuel_liters: 100.0,
@@ -1708,6 +1884,9 @@ impl CarState {
             ers_harvesting: false,
             ers_charge_pct: 255,
             ers_budget_pct: 255,
+            ers_stint_kj: 0.0,
+            ers_override_kj: 0.0,
+            ers_stint_pct: 255,
             turbo_spool: 0.0,
 
             // Aerodynamics (will be calculated)
@@ -1982,6 +2161,17 @@ impl Weather {
         }
     }
 
+    /// How much of the sky the weather's cloud covers, 0..1.
+    pub fn cloud(self) -> f32 {
+        match self {
+            Weather::Sunny => 0.0,
+            Weather::Cloudy => 0.5,
+            Weather::Overcast => 0.85,
+            Weather::LightRain => 0.9,
+            Weather::HeavyRain => 1.0,
+        }
+    }
+
     pub fn name(self) -> &'static str {
         match self {
             Weather::Sunny => "sunny",
@@ -2023,6 +2213,21 @@ pub struct SessionConditions {
     /// direction: 0 is head-on down the straight, 90 from its left.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wind_from_deg: Option<u16>,
+    /// How fast the day's clock runs against the session's: 0 (or absent)
+    /// holds it at `time_of_day_minutes` for the session's life, 1 is real
+    /// time, 24 a day in an hour (`crate::conditions`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time_scale: Option<u8>,
+    /// How changeable the weather is: 0 (or absent) holds the host's sky,
+    /// 1 to 3 (settled, changeable, stormy) let it follow a forecast worked
+    /// out from the session's id (`crate::conditions::forecast`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub changeable: Option<u8>,
+    /// The rubber on the racing line at the start, percent: 0 a green
+    /// track, 50 (or absent) what every car is calibrated on, 100 a track
+    /// rubbered in by a weekend of racing (`crate::road_state`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub track_rubber_pct: Option<u8>,
 }
 
 impl Default for SessionConditions {
@@ -2040,6 +2245,9 @@ impl SessionConditions {
         humidity_pct: None,
         wind_kph: None,
         wind_from_deg: None,
+        time_scale: None,
+        changeable: None,
+        track_rubber_pct: None,
     };
     pub const MINUTES_PER_DAY: u16 = 24 * 60;
 
@@ -2051,6 +2259,10 @@ impl SessionConditions {
     pub const AIR_TEMP_RANGE_C: (i8, i8) = (-5, 45);
     /// Strongest wind a host may pick, km/h.
     pub const MAX_WIND_KPH: u8 = 60;
+    /// Fastest a host may run the day's clock.
+    pub const MAX_TIME_SCALE: u8 = 60;
+    /// Most changeable a host may make the weather.
+    pub const MAX_CHANGEABLE: u8 = 3;
 
     /// The same conditions with the clock wrapped onto one day and every
     /// figure held to what the sim takes.
@@ -2063,7 +2275,33 @@ impl SessionConditions {
             humidity_pct: self.humidity_pct.map(|h| h.min(100)),
             wind_kph: self.wind_kph.map(|w| w.min(Self::MAX_WIND_KPH)),
             wind_from_deg: self.wind_from_deg.map(|d| d % 360),
+            time_scale: self.time_scale.map(|t| t.min(Self::MAX_TIME_SCALE)),
+            changeable: self.changeable.map(|c| c.min(Self::MAX_CHANGEABLE)),
+            track_rubber_pct: self.track_rubber_pct.map(|r| r.min(100)),
         }
+    }
+
+    /// The day's clock speed, 0 when it stands still.
+    pub fn clock_scale(&self) -> u8 {
+        self.time_scale.unwrap_or(0)
+    }
+
+    /// The forecast's level, 0 when the sky holds.
+    pub fn changeability(&self) -> u8 {
+        self.changeable.unwrap_or(0)
+    }
+
+    /// Whether anything about the sky moves through the session.
+    pub fn is_static(&self) -> bool {
+        self.clock_scale() == 0 && self.changeability() == 0
+    }
+
+    /// The racing line's rubber at the start, 0..1.
+    pub fn track_rubber(&self) -> f32 {
+        self.track_rubber_pct
+            .map_or(crate::road_state::RUBBER_REFERENCE, |r| {
+                r.min(100) as f32 / 100.0
+            })
     }
 
     /// Every figure named: what was picked, and the weather's own for the
@@ -2150,10 +2388,12 @@ impl SessionConditions {
     /// without a branch in the hot loop, and a dry session is the track to
     /// the bit.
     pub fn apply_to_track(&self, track: &mut TrackConfig) {
+        let latitude = track.latitude_deg();
         track.track_surface.air_temperature_c = self.air_temperature_c();
-        track.track_surface.track_temperature_c = self.track_temperature_c();
+        track.track_surface.track_temperature_c = self.track_temperature_c_at(latitude);
         track.track_surface.wet = self.weather.is_wet();
         track.track_surface.water = self.weather.water();
+        track.track_surface.baked_water = self.weather.water();
         let altitude = track.metadata.altitude_m.unwrap_or(0.0);
         track.track_surface.air_density_ratio = self.air_density_ratio(altitude);
         // The wind's direction is taken from the start straight: the
@@ -2181,15 +2421,7 @@ impl SessionConditions {
     /// N, solar noon at 13:00 — so the server's idea of dusk is the one the
     /// player sees.
     pub fn sun_elevation_deg(&self) -> f32 {
-        const LATITUDE_DEG: f32 = 50.0;
-        const DECLINATION_DEG: f32 = 20.0;
-        const SOLAR_NOON_HOURS: f32 = 13.0;
-        let hours = (self.time_of_day_minutes % Self::MINUTES_PER_DAY) as f32 / 60.0;
-        let lat = LATITUDE_DEG.to_radians();
-        let dec = DECLINATION_DEG.to_radians();
-        let hour_angle = ((hours - SOLAR_NOON_HOURS) * 15.0).to_radians();
-        let sin_elev = lat.sin() * dec.sin() + lat.cos() * dec.cos() * hour_angle.cos();
-        sin_elev.clamp(-1.0, 1.0).asin().to_degrees()
+        sun_elevation_deg(DEFAULT_LATITUDE_DEG, self.time_of_day_minutes as f32)
     }
 
     /// The air temperature, °C, for this weather at this hour, on the sky
@@ -2225,18 +2457,17 @@ impl SessionConditions {
     /// cloud (up to 20 °C more under a high sun on a clear day). A wet
     /// track sits a degree under the air.
     pub fn track_temperature_c(&self) -> f32 {
-        const SOLAR_GAIN_C: f32 = 20.0;
+        self.track_temperature_c_at(DEFAULT_LATITUDE_DEG)
+    }
+
+    /// The asphalt, °C, under the sun of a circuit `latitude_deg` north.
+    pub fn track_temperature_c_at(&self, latitude_deg: f32) -> f32 {
         let air = self.air_temperature_c();
         if self.weather.is_wet() {
             return air - 1.0;
         }
-        let sun = self.sun_elevation_deg().to_radians().sin().max(0.0);
-        let through_cloud = match self.weather {
-            Weather::Sunny => 1.0,
-            Weather::Cloudy => 0.6,
-            _ => 0.25,
-        };
-        air + SOLAR_GAIN_C * sun * through_cloud
+        let sun = sun_elevation_deg(latitude_deg, self.time_of_day_minutes as f32);
+        air + solar_gain_c(sun, self.weather.cloud())
     }
 
     /// Whether a car's lights are on when nobody has touched the switch:
@@ -2249,6 +2480,51 @@ impl SessionConditions {
     pub fn is_night(&self) -> bool {
         let hour = self.time_of_day_minutes / 60;
         !(6..20).contains(&hour)
+    }
+}
+
+/// The latitude the sky is worked out for when a circuit does not say
+/// where it is, degrees north: the client sky model's (`ApexSky`).
+pub const DEFAULT_LATITUDE_DEG: f32 = 50.0;
+/// The model day's solar declination, degrees: a day in late May.
+pub const SUN_DECLINATION_DEG: f32 = 20.0;
+/// Solar noon on the local clock (summer time).
+pub const SOLAR_NOON_HOURS: f32 = 13.0;
+/// What a high sun through a clear sky puts into the asphalt over the air.
+pub const SOLAR_GAIN_C: f32 = 20.0;
+
+/// The sun's elevation, degrees, `minutes` after midnight on the model
+/// day at `latitude_deg` north (south negative): the client's
+/// `ApexSky::SunAt` to the letter.
+pub fn sun_elevation_deg(latitude_deg: f32, minutes: f32) -> f32 {
+    let hours = minutes.rem_euclid(SessionConditions::MINUTES_PER_DAY as f32) / 60.0;
+    let lat = latitude_deg.clamp(-89.0, 89.0).to_radians();
+    let dec = SUN_DECLINATION_DEG.to_radians();
+    let hour_angle = ((hours - SOLAR_NOON_HOURS) * 15.0).to_radians();
+    let sin_elev = lat.sin() * dec.sin() + lat.cos() * dec.cos() * hour_angle.cos();
+    sin_elev.clamp(-1.0, 1.0).asin().to_degrees()
+}
+
+/// What the sun at `sun_elevation_deg` puts into dry asphalt through a sky
+/// `cloud` covered (0 clear, 1 overcast), °C over the air.
+pub fn solar_gain_c(sun_elevation_deg: f32, cloud: f32) -> f32 {
+    let sun = sun_elevation_deg.to_radians().sin().max(0.0);
+    SOLAR_GAIN_C * sun * through_cloud(cloud)
+}
+
+/// The share of the sun's heat that gets through a sky `cloud` covered:
+/// the weather's own figures (clear 1, cloudy 0.6, overcast and rain
+/// 0.25), linear between.
+pub fn through_cloud(cloud: f32) -> f32 {
+    let c = cloud.clamp(0.0, 1.0);
+    let half = Weather::Cloudy.cloud();
+    let full = Weather::Overcast.cloud();
+    if c <= half {
+        1.0 - 0.4 * c / half
+    } else if c <= full {
+        0.6 - 0.35 * (c - half) / (full - half)
+    } else {
+        0.25
     }
 }
 

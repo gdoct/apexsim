@@ -32,6 +32,16 @@ public:
 	void SetIntensity(float Intensity);
 	float GetIntensity() const { return RainIntensity; }
 
+	/**
+	 * The wind the drops drift with, Unreal world cm/s (only its horizontal
+	 * part counts): a falling drop moves with the air it falls through, so
+	 * its drift is the wind's speed. Eased in the tick, so the gusts the
+	 * server sends every frame do not jerk the streaks.
+	 */
+	void SetWind(const FVector& WindCmPerS);
+	/** Back to the actor's own light breeze (a sky with no wind on the wire). */
+	void ClearWind();
+
 private:
 	/** Puts the active streaks somewhere in the box the first time they are needed. */
 	void EnsureStreaks(int32 Count);
@@ -46,6 +56,14 @@ private:
 	TArray<FTransform> Transforms;
 	float RainIntensity = 0.0f;
 	int32 ActiveStreaks = 0;
+
+	/** The breeze from before the wind was on the wire, cm/s (ClearWind's). */
+	static FVector DefaultDrift() { return FVector(60.0f, 25.0f, 0.0f); }
+	/** Where the drift is heading, and where it is (eased toward it). */
+	FVector TargetDrift = FVector(60.0f, 25.0f, 0.0f);
+	FVector Drift = FVector(60.0f, 25.0f, 0.0f);
+	/** A gale's drops still fall more than they fly, cm/s. */
+	static constexpr float MaxDriftCmPerS = 2500.0f;
 
 	FVector LastCameraLocation = FVector::ZeroVector;
 	FVector CameraVelocity = FVector::ZeroVector;

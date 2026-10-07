@@ -184,6 +184,51 @@ bool FApexCreateSessionAirTest::RunTest(const FString& Parameters)
 }
 
 // -----------------------------------------------------------------------------
+// The sky through the session: the Clock, Weather changes and Track chips, and
+// what each leaves on the wire (the stock pick is left off it).
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCreateSessionSkyChipsTest,
+	"ApexSim.UI.CreateSession.SkyChips",
+	ApexTestFlags)
+
+bool FApexCreateSessionSkyChipsTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexCreateSession;
+
+	FApexSessionConditions C;
+	TestEqual(TEXT("an unset clock is the frozen chip"), ClockScaleIndex(C), 0);
+	TestEqual(TEXT("an unset forecast is fixed"), ChangeableIndex(C), 0);
+	TestEqual(TEXT("an unset track is normal"), TrackRubberIndex(C), 1);
+
+	SetClockScale(C, 24);
+	TestEqual(TEXT("24x"), C.TimeScale, 24);
+	TestEqual(TEXT("24x chip"), ClockScales[ClockScaleIndex(C)], 24);
+	TestEqual(TEXT("chip label"), ClockScaleLabel(24), FString(TEXT("24x")));
+	SetClockScale(C, 0);
+	TestFalse(TEXT("frozen is left off the wire"), C.HasTimeScale());
+
+	SetChangeable(C, 3);
+	TestEqual(TEXT("stormy"), C.Changeable, 3);
+	SetChangeable(C, 0);
+	TestFalse(TEXT("fixed is left off the wire"), C.HasChangeable());
+
+	SetTrackRubber(C, 0);
+	TestEqual(TEXT("green"), C.TrackRubberPct, 0);
+	TestEqual(TEXT("green chip"), TrackRubberIndex(C), 0);
+	SetTrackRubber(C, 2);
+	TestEqual(TEXT("rubbered"), C.TrackRubberPct, 100);
+	SetTrackRubber(C, 1);
+	TestFalse(TEXT("normal is left off the wire"), C.HasTrackRubber());
+	TestTrue(TEXT("all stock is the default sky"), C.IsDefault());
+
+	C.TrackRubberPct = 70;
+	TestEqual(TEXT("a figure between the chips shows none"), TrackRubberIndex(C), INDEX_NONE);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
 // The sky preview follows the race's sun and greys under cloud.
 // -----------------------------------------------------------------------------
 

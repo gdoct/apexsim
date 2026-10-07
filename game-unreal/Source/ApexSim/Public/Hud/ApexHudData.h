@@ -109,6 +109,13 @@ struct APEXSIM_API FApexHudInputs
 	/** Each car's model by car index, from the roster and the car catalog; null when not known. */
 	const TMap<int32, FString>* CarNames = nullptr;
 
+	/**
+	 * The local car's compound names from the setup sheet
+	 * (FApexCarSetupSheet::Compounds), in the order telemetry indexes them;
+	 * null or empty when the server named none, when the five defaults apply.
+	 */
+	const TArray<FString>* CompoundNames = nullptr;
+
 	/** Each car's latest pit stop as its crew started it (`PitService`), by car index. */
 	const TMap<int32, FApexPitService>* PitServices = nullptr;
 };
@@ -268,5 +275,6 @@ namespace ApexHudData
 	 * A stop's progress from its plan and the seconds of service left. The
 	 * parts run tyres, fuel, repairs; a part of no seconds is skipped.
 	 */
-	APEXSIM_API FApexPitStopProgress PitStopProgress(const FApexPitService& Stop, float SecondsLeft);
+	APEXSIM_API FApexPitStopProgress PitStopProgress(const FApexPitService& Stop, float SecondsLeft,
+		const TArray<FString>* CompoundNames = nullptr);
 }

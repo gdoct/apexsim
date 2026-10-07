@@ -73,6 +73,19 @@ namespace
 		Inputs.SpeedMps = SpeedMps;
 		return Inputs;
 	}
+
+	/** The signal's correlation with itself `Lag` samples on, -1..1: near 1 for something that repeats every Lag. */
+	double RoadAutocorrelation(const TArray<float>& Frames, int32 Lag)
+	{
+		double Cross = 0.0;
+		double Power = 0.0;
+		for (int32 Index = Lag; Index < Frames.Num(); ++Index)
+		{
+			Cross += Frames[Index] * Frames[Index - Lag];
+			Power += Frames[Index] * Frames[Index];
+		}
+		return Power > 0.0 ? Cross / Power : 0.0;
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -221,6 +234,50 @@ bool FApexRoadHitsTest::RunTest(const FString& Parameters)
 	const float Crash = RoadPeak(RenderRoad(Cruise(30.0f), 0.0f, 12.0f));
 	TestTrue(TEXT("contact crunches"), Tap > Rolling * 2.0f);
 	TestTrue(TEXT("a crash crunches harder than a tap"), Crash > Tap * 1.5f);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexRoadFlatSpotTest,
+	"ApexSim.Audio.RoadFlatSpot",
+	ApexTestFlags)
+
+bool FApexRoadFlatSpotTest::RunTest(const FString& Parameters)
+{
+	// A flat spot thumps once a turn of the wheel, so its beat is the car's
+	// speed over the tyre's circumference: 25 m/s on a 0.33 m tyre is twelve
+	// turns a second, the rate the force feedback shakes the rim at.
+	const float Speed = 25.0f;
+	const float Hz = ApexRoadSynth::FlatSpotHz(Speed);
+	TestTrue(*FString::Printf(TEXT("twelve turns a second at 25 m/s (%.2f)"), Hz), FMath::Abs(Hz - 12.06f) < 0.05f);
+
+	ApexRoadSynth::FInputs Spotted = Cruise(Speed);
+	Spotted.FlatSpot = 1.0f;
+	const TArray<float> Plain = RenderRoad(Cruise(Speed));
+	const TArray<float> Thumping = RenderRoad(Spotted);
+	TestTrue(*FString::Printf(TEXT("a flat spot is heard over the road (%.3f against %.3f)"), RoadRms(Thumping), RoadRms(Plain)),
+		RoadRms(Thumping) > RoadRms(Plain) * 2.0f);
+
+	// Periodic at the turning rate: the signal repeats a turn later and does
+	// not half a turn later, where the thud has died away; the plain road is
+	// noise and repeats at neither.
+	const int32 Period = FMath::RoundToInt(RoadTestSampleRate / Hz);
+	const double AtTurn = RoadAutocorrelation(Thumping, Period);
+	const double AtHalfTurn = RoadAutocorrelation(Thumping, Period / 2);
+	TestTrue(*FString::Printf(TEXT("the thumps repeat every turn (%.2f at a turn, %.2f at half)"), AtTurn, AtHalfTurn),
+		AtTurn > 0.5 && AtTurn > AtHalfTurn + 0.3);
+	TestTrue(TEXT("the road alone repeats at nothing"), RoadAutocorrelation(Plain, Period) < 0.2);
+
+	// Deeper is louder, and nothing at a crawl: a wheel turning once every
+	// few seconds thumps nobody.
+	ApexRoadSynth::FInputs Shallow = Spotted;
+	Shallow.FlatSpot = 0.3f;
+	TestTrue(TEXT("a shallow spot is quieter"), RoadRms(RenderRoad(Shallow)) < RoadRms(Thumping) * 0.7f);
+	ApexRoadSynth::FInputs Crawl = Cruise(1.0f);
+	Crawl.FlatSpot = 1.0f;
+	TestTrue(TEXT("silent at a crawl"), RoadRms(RenderRoad(Crawl)) < 0.005f);
 	return true;
 }
 

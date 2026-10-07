@@ -54,6 +54,64 @@ pub const HOTLAP_RUNUP_M: f32 = 300.0;
 /// towed away, s: long enough to be seen, as a marshal's yellow is.
 pub const TOW_AFTER_S: f32 = 10.0;
 
+/// A hit this hard, percent of damage, sheds a piece of debris onto the
+/// road where it happened; one this hard may puncture the tyre nearest
+/// it, with a chance that grows with the hit to this most
+/// (`GameSession::update_debris`).
+pub const DEBRIS_HIT_PCT: f32 = 8.0;
+pub const PUNCTURE_HIT_PCT: f32 = 5.0;
+pub const PUNCTURE_HIT_MAX_CHANCE: f32 = 0.6;
+/// How long a piece of debris stays on the road, s, how many pieces at
+/// most, how close a wheel has to pass to pick one up, m, and the chance
+/// that it punctures the tyre that does.
+pub const DEBRIS_LIFE_S: f32 = 90.0;
+pub const MAX_DEBRIS: usize = 32;
+pub const DEBRIS_REACH_M: f32 = 1.0;
+pub const DEBRIS_PUNCTURE_CHANCE: f32 = 0.3;
+/// Half the punctures are slow: a leak of this many kPa/s at most and at
+/// least, which has the tyre flat in half a lap to a few laps.
+const SLOW_LEAK_KPA_PER_S: (f32, f32) = (1.0, 6.0);
+
+/// A piece of debris on the road.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Debris {
+    pub x: f32,
+    pub y: f32,
+    pub until_tick: u32,
+}
+
+/// How a hashed puncture goes: a slow leak (half the time), or at once.
+fn slow_leak(seed: u64) -> Option<f32> {
+    if crate::wind::hash01(seed, 0x5107) < 0.5 {
+        let (lo, hi) = SLOW_LEAK_KPA_PER_S;
+        Some(lo + (hi - lo) * crate::wind::hash01(seed, 0x5108))
+    } else {
+        None
+    }
+}
+
+/// A session's track with its road state (`crate::road_state`): the
+/// water the baked weather leaves, the start's rubber on the line.
+fn with_road(mut track: TrackConfig, conditions: &SessionConditions) -> TrackConfig {
+    if track.road_state.is_none() {
+        track.road_state = Some(crate::road_state::RoadState::new(
+            &track,
+            conditions.track_rubber(),
+        ));
+    }
+    track
+}
+
+/// The live sky of `session` over `track` (`crate::conditions`).
+fn live_sky(session: &RaceSession, track: &TrackConfig) -> crate::conditions::LiveConditions {
+    crate::conditions::LiveConditions::new(
+        session.conditions,
+        track.latitude_deg(),
+        track.metadata.altitude_m.unwrap_or(0.0),
+        session.id.as_u64_pair().0,
+    )
+}
+
 /// The AI's speed plans per car: one for every this-many-th of its tank
 /// (`GameSession::ai_speed_profile`). Each is a millisecond or so to build.
 pub const AI_FUEL_PLAN_STEPS: usize = 10;
@@ -133,6 +191,11 @@ pub struct GameSession {
     /// each sector has been driven — the purple times on a timing screen.
     session_best_lap_ms: Option<u32>,
     session_best_splits_ms: [Option<u32>; SECTOR_COUNT],
+    /// Debris on the road ([`Debris`], `update_debris`), newest last.
+    pub debris: Vec<Debris>,
+    /// The sky as it is now: the clock, the forecast's weather, the air
+    /// and the asphalt (`crate::conditions`, `update_sky`).
+    pub sky: crate::conditions::LiveConditions,
 }
 
 /// How a race's end stands, reset with every start.
@@ -336,24 +399,25 @@ fn fit_tyres(
     start: TyreStart,
     car_setups: &HashMap<PlayerId, CarSetup>,
 ) {
-    // The compound the driver's setup chose for the next set (the weather's
-    // tyre for a stock pick in the rain, and for the AI).
-    let compound = car_setups
-        .get(&state.player_id)
-        .copied()
-        .unwrap_or_default()
-        .compound_index_for(track.track_surface.water);
     let Some(config) = simulated_config(car_configs, tuned_configs, state) else {
         return;
     };
     let tyre = &config.tire_config;
+    // The compound the driver's setup chose for the next set (the weather's
+    // tyre for a stock pick in the rain, and for the AI), from the car's
+    // own list.
+    let compound = car_setups
+        .get(&state.player_id)
+        .copied()
+        .unwrap_or_default()
+        .compound_index_for(tyre, track.track_surface.water);
     let surface = &track.track_surface;
     let temperature = match start {
         TyreStart::Garage => tyre_thermal::start_temperature_c(tyre, surface),
         TyreStart::Grid => tyre_thermal::grid_temperature_c(tyre, surface),
         // (A hotlap goes out at the chosen compound's own optimum: a soft
         // works 6 °C cooler than the medium.)
-        TyreStart::Warm => tyre_thermal::optimum_c(tyre, tyre_thermal::compound(compound)),
+        TyreStart::Warm => tyre_thermal::optimum_c(tyre, tyre.compound(compound)),
     };
     tyre_thermal::fit(state, tyre, temperature, compound, surface.water);
     let brakes = crate::brakes::start_temperature_c(
@@ -372,6 +436,8 @@ impl GameSession {
         track_config: TrackConfig,
         car_configs: HashMap<CarConfigId, CarConfig>,
     ) -> Self {
+        let track_config = with_road(track_config, &session.conditions);
+        let sky = live_sky(&session, &track_config);
         Self {
             session,
             track_config,
@@ -395,6 +461,8 @@ impl GameSession {
             lap_traces: HashMap::new(),
             session_best_lap_ms: None,
             session_best_splits_ms: [None; SECTOR_COUNT],
+            debris: Vec::new(),
+            sky,
         }
     }
 
@@ -413,6 +481,8 @@ impl GameSession {
     ) -> Self {
         let ai_profiles_map: std::collections::BTreeMap<PlayerId, AiDriverProfile> =
             ai_profiles.into_iter().map(|p| (p.id, p)).collect();
+        let track_config = with_road(track_config, &session.conditions);
+        let sky = live_sky(&session, &track_config);
 
         Self {
             session,
@@ -437,6 +507,8 @@ impl GameSession {
             lap_traces: HashMap::new(),
             session_best_lap_ms: None,
             session_best_splits_ms: [None; SECTOR_COUNT],
+            debris: Vec::new(),
+            sky,
         }
     }
 
@@ -459,10 +531,11 @@ impl GameSession {
     /// Advance the session by one tick
     pub fn tick(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         self.session.current_tick += 1;
+        self.update_sky();
         crate::headlights::update(
             &mut self.session.participants,
             inputs,
-            self.session.conditions,
+            self.sky.headlights_needed(),
         );
 
         // Handle game mode specific logic
@@ -1798,7 +1871,178 @@ impl GameSession {
         self.update_pits();
         self.update_drs();
         self.update_wind();
+        self.update_road();
+        self.update_debris();
         crate::slipstream::update(&mut self.session.participants, &self.car_configs);
+    }
+
+    /// The sky this tick (`crate::conditions`), once a second: the clock,
+    /// the forecast's weather, the rain, the air and the asphalt, baked onto
+    /// the session's track for the physics, and the rain handed to the road.
+    /// A session whose sky holds only reads the road's water for telemetry.
+    fn update_sky(&mut self) {
+        let rate = self.tick_rate_hz.max(1) as u32;
+        if !self.session.current_tick.is_multiple_of(rate) {
+            return;
+        }
+        let session_s = self.session.current_tick as f32 / rate as f32;
+        let (water, rubber) = match self.track_config.road_state.as_ref() {
+            Some(road) => (road.mean_water(), road.mean_line_rubber()),
+            None => (self.track_config.track_surface.water, self.sky.line_rubber),
+        };
+        self.sky.line_rubber = rubber;
+        self.sky.step(session_s, 1.0, water);
+        if self.sky.is_static() {
+            return;
+        }
+        let surface = &mut self.track_config.track_surface;
+        surface.air_temperature_c = self.sky.air_c;
+        surface.track_temperature_c = self.sky.track_c;
+        surface.air_density_ratio = self.sky.density_ratio;
+        // The water the road holds is the tyre the track calls for.
+        surface.water = water;
+        surface.wet = water > crate::conditions::WET_FROM_WATER;
+        if let Some(road) = self.track_config.road_state.as_mut() {
+            road.rain = self.sky.rain;
+        }
+    }
+
+    /// The road this tick (`crate::road_state`): every car that crosses
+    /// into a new cell lays its wheels' passes there (rubber, a dried line,
+    /// its marbles swept), and the road steps every few ticks.
+    fn update_road(&mut self) {
+        let Some(road) = self.track_config.road_state.as_mut() else {
+            return;
+        };
+        for state in self.session.participants.values_mut() {
+            if state.in_garage || state.towed || state.speed_mps < 3.0 {
+                continue;
+            }
+            let cell = (state.track_progress.max(0.0) / crate::road_state::CELL_M) as u32;
+            if cell != state.road_cell {
+                state.road_cell = cell;
+                // The wheels' paths either side of the car's middle.
+                let half = self.car_configs.get(&state.car_config_id).map_or(0.8, |c| {
+                    0.25 * (c.track_width_front_m + c.track_width_rear_m)
+                });
+                let lateral = road.lateral_of(state.track_progress, state.pos_x, state.pos_y);
+                road.note_pass(
+                    state.track_progress,
+                    &[lateral - half, lateral + half],
+                    crate::road_state::shed_for_lateral_g(state.g_forces.lateral_g),
+                );
+            }
+        }
+        if self
+            .session
+            .current_tick
+            .is_multiple_of(crate::road_state::STEP_TICKS)
+        {
+            let evaporation = self.sky.evaporation();
+            road.step(
+                crate::road_state::STEP_TICKS as f32 / self.tick_rate_hz.max(1) as f32,
+                evaporation,
+            );
+        }
+    }
+
+    /// Debris and punctures (`crate::tyre_thermal::puncture`). A hard hit
+    /// sheds a piece onto the road where it happened, kept for a while
+    /// ([`DEBRIS_LIFE_S`], at most [`MAX_DEBRIS`] pieces), and may hole the
+    /// tyre nearest it: at once, or as a slow leak. A car that drives over
+    /// a piece picks it up, and may puncture a tyre on it. The chances are
+    /// hashed from the tick and the car, so a replayed session loses the
+    /// same tyres.
+    fn update_debris(&mut self) {
+        let tick = self.session.current_tick;
+        let dt = self.dt();
+        let mut shed: Vec<(f32, f32)> = Vec::new();
+        for state in self.session.participants.values_mut() {
+            let hit = std::mem::take(&mut state.last_hit_pct);
+            if hit <= 0.0 {
+                continue;
+            }
+            let seed = tick as u64 ^ (state.player_id.as_u128() as u64).rotate_left(17);
+            if hit >= DEBRIS_HIT_PCT {
+                shed.push((state.pos_x, state.pos_y));
+            }
+            if hit >= PUNCTURE_HIT_PCT {
+                let chance = ((hit - PUNCTURE_HIT_PCT) / 40.0).clamp(0.0, PUNCTURE_HIT_MAX_CHANCE);
+                if crate::wind::hash01(seed, 0xD1E) < chance {
+                    // The tyre nearest the hit: the angle is in the car's
+                    // frame, 0 the nose, π/2 the left side.
+                    let a = state.last_hit_angle;
+                    let front = a.cos() >= 0.0;
+                    let left = a.sin() >= 0.0;
+                    let index = match (front, left) {
+                        (true, true) => 0,
+                        (true, false) => 1,
+                        (false, true) => 2,
+                        (false, false) => 3,
+                    };
+                    let leak = slow_leak(seed);
+                    tyre_thermal::puncture(state.tires.each_mut()[index], leak);
+                }
+            }
+        }
+        for (x, y) in shed {
+            if self.debris.len() < MAX_DEBRIS {
+                self.debris.push(Debris {
+                    x,
+                    y,
+                    until_tick: tick + (DEBRIS_LIFE_S / dt.max(1e-4)) as u32,
+                });
+            }
+        }
+        if self.debris.is_empty() {
+            return;
+        }
+        // Who drives over a piece: each wheel of every moving car.
+        let mut picked = vec![false; self.debris.len()];
+        for state in self.session.participants.values_mut() {
+            if state.in_garage || state.towed || state.speed_mps < 5.0 {
+                continue;
+            }
+            let Some(config) = self.car_configs.get(&state.car_config_id) else {
+                continue;
+            };
+            let (c, s) = (state.yaw_rad.cos(), state.yaw_rad.sin());
+            let half_l = config.wheelbase_m / 2.0;
+            let wheels = [
+                (half_l, config.track_width_front_m / 2.0),
+                (half_l, -config.track_width_front_m / 2.0),
+                (-half_l, config.track_width_rear_m / 2.0),
+                (-half_l, -config.track_width_rear_m / 2.0),
+            ];
+            for (d, piece) in self.debris.iter().enumerate() {
+                if picked[d] {
+                    continue;
+                }
+                for (i, (lx, ly)) in wheels.iter().enumerate() {
+                    let wx = state.pos_x + lx * c - ly * s;
+                    let wy = state.pos_y + lx * s + ly * c;
+                    let d2 = (wx - piece.x).powi(2) + (wy - piece.y).powi(2);
+                    if d2 > DEBRIS_REACH_M * DEBRIS_REACH_M {
+                        continue;
+                    }
+                    picked[d] = true;
+                    let seed = tick as u64
+                        ^ (state.player_id.as_u128() as u64).rotate_left(23)
+                        ^ (d as u64).rotate_left(41);
+                    if crate::wind::hash01(seed, 0xDEB) < DEBRIS_PUNCTURE_CHANCE {
+                        let leak = slow_leak(seed);
+                        tyre_thermal::puncture(state.tires.each_mut()[i], leak);
+                    }
+                    break;
+                }
+            }
+        }
+        let mut d = 0;
+        self.debris.retain(|piece| {
+            let keep = !picked[d] && piece.until_tick > tick;
+            d += 1;
+            keep
+        });
     }
 
     /// A car out of the race stands where it stopped for
@@ -2238,12 +2482,17 @@ impl GameSession {
         let compound = if is_ai {
             state.pit.next_compound
         } else {
+            let tyre = self
+                .simulated_config_for(player_id)
+                .map(|c| c.tire_config.clone())
+                .unwrap_or_default();
             self.car_setup(player_id)
-                .compound_index_for(self.track_config.track_surface.water)
+                .compound_index_for(&tyre, self.track_config.track_surface.water)
         };
         let laps_left = self.laps_left(state) as f32 + 1.0;
         let fuel_now = state.fuel_liters;
         let damage = crate::pit::damage_percent(state);
+        let brake_wear = crate::pit::brake_wear_percent(state);
         let pit_box = state.pit.box_index.unwrap_or(0);
         let mode = self.session.game_mode;
         let Some(config) = self.car_configs.get(&car_id).cloned() else {
@@ -2260,14 +2509,15 @@ impl GameSession {
         } else {
             self.start_fuel_liters(player_id, car_id, mode)
         };
-        let plan = crate::pit::plan_service(&config, fuel_target - fuel_now, damage);
+        let plan = crate::pit::plan_service(&config, fuel_target - fuel_now, damage, brake_wear);
         if let Some(state) = self.session.participants.get_mut(player_id) {
             let pit = &mut state.pit;
             pit.servicing = true;
             pit.service_left_s = plan.total_s();
             pit.service_compound = compound;
             pit.service_fuel_l = plan.fuel_l;
-            pit.service_repair = plan.repair_s > 0.0;
+            pit.service_repair = plan.repair_pct > 0.0;
+            pit.service_pads = plan.pads;
         }
         self.pit_events.push((
             *player_id,
@@ -2304,12 +2554,16 @@ impl GameSession {
         state.fuel_liters =
             (state.fuel_liters + state.pit.service_fuel_l).min(config.fuel.capacity_liters);
         if state.pit.service_repair {
-            state.damage = DamageState {
-                is_drivable: true,
-                ..Default::default()
-            };
+            // The hits, the heat and the missed shifts: not the wear.
+            state.damage = state.damage.repaired();
         }
+        if state.pit.service_pads {
+            crate::brakes::fit_pads(state);
+        }
+        // A new stint's energy (`crate::hybrid`).
+        crate::hybrid::new_stint(state, &config);
         let pit = &mut state.pit;
+        pit.service_pads = false;
         pit.servicing = false;
         pit.service_left_s = 0.0;
         pit.service_repair = false;
@@ -2356,11 +2610,36 @@ impl GameSession {
                 let Some(state) = self.session.participants.get(&ai_id) else {
                     continue;
                 };
-                if let Some(compound) = crate::pit::plan_stop(state, laps_left, lap_fuel) {
-                    // In the rain the tyre is the weather's.
-                    let compound =
-                        tyre_thermal::weather_compound(self.track_config.track_surface.water)
-                            .unwrap_or(compound);
+                // The weather first: rain on slicks, a dry line on treaded
+                // tyres (`pit::tyres_for_the_track`).
+                let line_water = self
+                    .track_config
+                    .road_state
+                    .as_ref()
+                    .map_or(self.track_config.track_surface.water, |r| {
+                        r.mean_line_water()
+                    });
+                let for_the_track = self.car_configs.get(&car_id).and_then(|c| {
+                    crate::pit::tyres_for_the_track(&c.tire_config, state.tyre_compound, line_water)
+                });
+                if let Some(compound) = for_the_track.filter(|_| laps_left > 0) {
+                    if let Some(state) = self.session.participants.get_mut(&ai_id) {
+                        state.pit.wants_stop = true;
+                        state.pit.next_compound = compound;
+                    }
+                    continue;
+                }
+                if let Some(pick) = crate::pit::plan_stop(state, laps_left, lap_fuel) {
+                    // In the rain the tyre is the weather's; either way one
+                    // of the car's own.
+                    let tyre = self
+                        .car_configs
+                        .get(&car_id)
+                        .map(|c| c.tire_config.clone())
+                        .unwrap_or_default();
+                    let compound = tyre
+                        .weather_compound(line_water)
+                        .unwrap_or_else(|| tyre.compound_for_click(pick.click()));
                     if let Some(state) = self.session.participants.get_mut(&ai_id) {
                         state.pit.wants_stop = true;
                         state.pit.next_compound = compound;
@@ -2594,6 +2873,11 @@ impl GameSession {
             countdown_ms,
             car_states,
             race_clock: self.race_clock(),
+            sky: Some(crate::network::SkyNow::of(
+                &self.sky,
+                self.track_config.track_surface.wind_now_mps,
+                self.session.current_tick as f32 / self.tick_rate_hz.max(1) as f32,
+            )),
         }
     }
 

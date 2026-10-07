@@ -213,7 +213,7 @@ fn an_ai_on_worn_tyres_pits_and_races_on() {
         "laps {laps:?}; stops {}, {:.1} s in the box on {} ; {:.1} s off the road",
         s.pit.stops,
         in_box_ticks as f32 / HZ as f32,
-        apexsim_server::tyre_thermal::COMPOUNDS[s.tyre_compound as usize].name,
+        apexsim_server::tyre_thermal::compound(s.tyre_compound).name,
         off_ticks as f32 / HZ as f32
     );
     assert_eq!(laps.len(), 3, "it races on");

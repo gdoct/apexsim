@@ -25,6 +25,9 @@ class UApexNetSubsystem;
 class UApexSettingsSubsystem;
 class UCameraComponent;
 class UMaterialInstanceDynamic;
+class UExponentialHeightFogComponent;
+class UInstancedStaticMeshComponent;
+class UStaticMeshComponent;
 class USpringArmComponent;
 class UTextureRenderTarget2D;
 
@@ -541,6 +544,38 @@ private:
 	const ApexSky::FSkyState& GetSky() const { return Sky; }
 
 	/**
+	 * The sky to light by now: the frame's live sky (`FApexSkyNow`, a newer
+	 * server) through `ApexSky::DeriveLive`, else the session's fixed
+	 * conditions (an older server, a replay clip) through `Derive`; either
+	 * way over the circuit's own latitude and north. `OutLit` is the live
+	 * sky used, not bValid when there was none.
+	 */
+	ApexSky::FSkyState DeriveSky(FApexSkyNow& OutLit) const;
+	/** Where the circuit on screen is (its catalog row's latitude and north), or the default site. */
+	ApexSky::FSkySite CurrentSkySite() const;
+	/**
+	 * What of the sky lives outside the track: the sun or moon, the sky
+	 * light, the exposure and grading, the rain and the racing line's wet
+	 * look. ApplyRaceEnvironment calls it, and UpdateLiveSky as the sky moves.
+	 */
+	void ApplySkyLighting();
+	/**
+	 * Follow a moving sky: when the frame's sky has moved a minute of the
+	 * day, a weather step or a few percent of rain, cloud or water since the
+	 * world was lit (`ApexSky::LiveSkyMoved`), light it again, re-fog the
+	 * track and re-wet its road; when the floodlights come on or go off,
+	 * set the track's lights again. The rain's drift follows the wind every
+	 * frame, the flags once a second.
+	 */
+	void UpdateLiveSky(float DeltaSeconds);
+	/** Each road-family material from its own dry roughness toward the wet sheen, by Sky.RoadWetness. */
+	void ApplyRoadWetness();
+	/** The flags on the track's flag poles streamed downwind, eased, at most once a second. */
+	void UpdateFlags(float DeltaSeconds, bool bForce);
+	/** Put every flag pole back as the track was built (before the track goes back). */
+	void RestoreFlags();
+
+	/**
 	 * Stem of the session's track, or empty if there is no session, no
 	 * track, or no export on disk to build it from
 	 * (`UApexTrackContentSubsystem`).
@@ -868,6 +903,39 @@ private:
 	bool bTrackConditionsApplied = false;
 	/** Spot lights on masts at most: a big circuit has more masts than the frame has budget. */
 	static constexpr int32 MaxFloodlights = 96;
+
+	/** The live sky the world was last lit by; not bValid while the session's fixed sky lights it. */
+	FApexSkyNow LitSky;
+	/**
+	 * Every road-family material of the track (the road, the pit lane, the
+	 * rubbered wear bands) with its own roughness and roughness noise as
+	 * built, so the wet sheen comes and goes from each one's dry look. Kept
+	 * for the track's life (a re-application must not take a wet value for
+	 * a dry one) and forgotten when it goes back, which resets them.
+	 */
+	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, FVector2f> RoadDryLook;
+	/** The floodlight lamp faces with their emissive strength as built. */
+	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, float> LampBaseGlow;
+	/** The track's fog, set again as the weather moves. */
+	TArray<TWeakObjectPtr<UExponentialHeightFogComponent>> TrackFogs;
+
+	/** One flag pole: an instance of the kit's `sign/flag_pole`, or a mesh actor of it. */
+	struct FFlagPole
+	{
+		TWeakObjectPtr<UInstancedStaticMeshComponent> Instanced;
+		TWeakObjectPtr<UStaticMeshComponent> Single;
+		int32 Index = INDEX_NONE;
+		/** World transform as the track was built. */
+		FTransform Built;
+		/** The yaw it flies at now, degrees (Unreal). */
+		float YawDeg = 0.0f;
+	};
+	TArray<FFlagPole> FlagPoles;
+	bool bFlagsCollected = false;
+	/** Seconds since the flags last turned. */
+	float FlagClock = 0.0f;
+	/** Flags turn at most this often, s. */
+	static constexpr float FlagStepSeconds = 1.0f;
 
 	/** Menu-world sun state, saved before the race re-aims it. */
 	TWeakObjectPtr<ADirectionalLight> MenuSun;

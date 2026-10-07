@@ -38,6 +38,12 @@ lift_coefficient_rear = -0.58
 # Aero posture (server/src/aero.rs): a flat-bottomed GT, high and only
 # a little sensitive to its height.
 [aero]
+# Attitude (server/src/aero.rs): downforce lost per degree the car runs
+# sideways to the air and per degree of roll; and how much the floor
+# porpoises when run near its stall height at speed (0 never).
+yaw_sensitivity = 0.002
+roll_sensitivity = 0.006
+porpoising = 0.0
 ride_height_front_m = 0.070
 ride_height_rear_m = 0.090
 ride_height_sensitivity = 0.01
@@ -128,6 +134,9 @@ shape = "progressive"
 layout = "RWD"
 
 [differential]
+# Run the limited-slip model (server/src/physics.rs `split_axle_torque`):
+# without it each driven wheel gets half the axle's torque whatever it can use.
+simulated = true
 # One of: Open, Locked, ClutchLSD, ViscousLSD, Torsen
 differential_type = "ClutchLSD"
 preload_nm = 60.0
@@ -135,6 +144,9 @@ lock_power = 0.35
 lock_coast = 0.20
 
 [fuel]
+# Where the tank sits as a share of the way from the rear axle to the front
+# (server/src/data.rs `laden`): the car's balance moves as it drains.
+tank_front_share = 0.35
 capacity_liters = 64.0
 idle_consumption_lps = 0.00005
 # Share of the fuel's energy the engine turns into work (a racing petrol engine);
@@ -157,6 +169,15 @@ regen_max_power_kw = 0.0
 # dampers are still the sim's defaults. The grip is measured against this
 # camber, so the setup garage's camber clicks move it from here.
 [suspension]
+# Roll centres (m above the road: the share of each axle's lateral load
+# transfer that goes through its linkage at once rather than its springs),
+# camber thrust (side force per radian of lean, as a share of the cornering
+# stiffness) and a bump stop gap per axle (server/src/geometry.rs).
+roll_centre_front_m = 0.050
+roll_centre_rear_m = 0.090
+camber_thrust = 0.10
+bump_stop_gap_front_m = 0.040
+bump_stop_gap_rear_m = 0.045
 camber_front_deg = -3.5
 camber_rear_deg = -2.8
 camber_gain_front = 0.45

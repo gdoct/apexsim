@@ -23,13 +23,28 @@
 //! - **heat recovery** (`heat_recovery_kw`): a turbo's generator (an
 //!   MGU-H) charging the battery while the engine works at full throttle,
 //!   at no cost to its torque. No shipped car has one; an AC import of a
-//!   2014-2020 F1 does.
+//!   2014-2020 F1 does;
+//! - a **stint budget** (`stint_kj`): the energy the motor may deploy
+//!   between two pit stops (the WEC's rule), reset by a stop, a grid or
+//!   the garage ([`new_stint`]);
+//! - a **manual override allowance** (`override_kj_per_lap`): what the
+//!   overtake button may spend per lap over and above the paced lap
+//!   budget; with it the button draws on its own allowance and leaves the
+//!   budget alone, and once it is spent the button does nothing more that
+//!   lap. Without it the button is Attack on the lap budget, as before.
 //!
-//! Recovery: under braking the motor charges at up to the regen power
-//! (the brakes' own work, as before), off the throttle and off the brake
-//! it charges at [`COAST_SHARE`] of it against the crank (a little more
-//! engine braking), and in Harvest mode on the throttle at
-//! [`HARVEST_SHARE`] of it, again against the crank.
+//! Recovery: under braking the motor charges with the energy the driven
+//! axle's tyres are actually taking out of the car, up to the regen power
+//! ([`MotorOutput::regen_w`]: last tick's braking power on that axle,
+//! [`REGEN_AXLE_SHARE`] of it), and with **brake-by-wire** (`brake_by_wire`,
+//! the default) that recovery stands in for the axle's hydraulic brakes,
+//! so the pedal decelerates the car the same whether the battery takes
+//! the energy or the discs do, and the discs run cooler for it; without
+//! it the recovery brakes the driven axle on top of the pads. Off the
+//! throttle and off the brake it charges at [`COAST_SHARE`] of the regen
+//! power against the crank (a little more engine braking), and in Harvest
+//! mode on the throttle at [`HARVEST_SHARE`] of it, again against the
+//! crank.
 //!
 //! Telemetry carries the charge, the lap budget left and the mode and what
 //! the motor is doing ([`telemetry_bytes`]).
@@ -96,23 +111,84 @@ pub const ERS_FLAG_DEPLOYING: u8 = 4;
 pub const ERS_FLAG_HARVESTING: u8 = 8;
 pub const ERS_FLAG_BOOST: u8 = 16;
 
+/// Share of the driven axle's braking power the motor may recover: the
+/// rest is the hydraulics' and the tyres' own losses.
+pub const REGEN_AXLE_SHARE: f32 = 0.9;
+
+/// What the hybrid did this tick.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct MotorOutput {
+    /// The motor's torque at the crank, Nm; negative while it recovers
+    /// against the engine.
+    pub crank_torque_nm: f32,
+    /// The power it is recovering from the driven axle under braking, W:
+    /// what brake-by-wire takes off that axle's hydraulic brakes.
+    pub regen_w: f32,
+}
+
 /// A full battery and a fresh lap budget: a car sent out of the garage or
-/// lined up on a grid.
+/// lined up on a grid. A fresh stint too.
 pub fn charge_full(state: &mut CarState, config: &CarConfig) {
     if config.hybrid.enabled {
         state.hybrid_battery_kwh = config.hybrid.battery_capacity_kwh;
     }
     state.ers_deployed_kj = 0.0;
+    state.ers_override_kj = 0.0;
     state.ers_lap_mark = state.current_lap;
+    new_stint(state, config);
+}
+
+/// A new stint's budget: a pit stop.
+pub fn new_stint(state: &mut CarState, config: &CarConfig) {
+    state.ers_stint_kj = 0.0;
     publish(state, config);
 }
 
+/// Energy the motor may still deploy this stint, kJ.
+fn stint_left_kj(state: &CarState, config: &CarConfig) -> f32 {
+    config
+        .hybrid
+        .stint_kj
+        .map(|s| s - state.ers_stint_kj)
+        .unwrap_or(f32::INFINITY)
+}
+
+/// Energy the overtake button may still spend this lap, kJ: its own
+/// allowance where the car has one, else the lap budget's.
+fn override_left_kj(state: &CarState, config: &CarConfig) -> f32 {
+    match config.hybrid.override_kj_per_lap {
+        Some(allowance) => allowance - state.ers_override_kj,
+        None => config
+            .hybrid
+            .deploy_kj_per_lap
+            .map(|b| b - state.ers_deployed_kj)
+            .unwrap_or(f32::INFINITY),
+    }
+}
+
 /// The deployment the motor may give this tick, 0..1 of its torque, from
-/// the mode, the throttle, the speed and the energy left.
-fn deploy_share(state: &CarState, config: &CarConfig, mode: ErsMode, throttle: f32) -> f32 {
+/// the mode, the throttle, the speed and the energy left. `boost` is the
+/// overtake button with an allowance of its own left.
+fn deploy_share(
+    state: &CarState,
+    config: &CarConfig,
+    mode: ErsMode,
+    boost: bool,
+    throttle: f32,
+) -> f32 {
     let hybrid = &config.hybrid;
     if state.hybrid_battery_kwh <= 0.0 || state.speed_mps * 3.6 < hybrid.deploy_min_speed_kph {
         return 0.0;
+    }
+    if stint_left_kj(state, config) <= 0.0 {
+        return 0.0;
+    }
+    if boost {
+        return if override_left_kj(state, config) > 0.0 {
+            throttle.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
     }
     let budget_left = hybrid
         .deploy_kj_per_lap
@@ -143,10 +219,11 @@ fn deploy_share(state: &CarState, config: &CarConfig, mode: ErsMode, throttle: f
     }
 }
 
-/// One tick of the hybrid: returns the motor's torque at the crank (Nm,
-/// negative while it recovers against the engine) and moves the battery
-/// and the lap's spend. `lap_share` is the car's progress round the lap,
-/// 0..1, for the pacing.
+/// One tick of the hybrid: the motor's torque at the crank (Nm, negative
+/// while it recovers against the engine) and the power it recovers from
+/// the driven axle's brakes, moving the battery and the lap's and the
+/// stint's spend. `lap_share` is the car's progress round the lap, 0..1,
+/// for the pacing.
 pub fn update(
     state: &mut CarState,
     config: &CarConfig,
@@ -154,10 +231,10 @@ pub fn update(
     engine_rpm: f32,
     lap_share: f32,
     dt: f32,
-) -> f32 {
-    let torque = step(state, config, input, engine_rpm, lap_share, dt);
+) -> MotorOutput {
+    let out = step(state, config, input, engine_rpm, lap_share, dt);
     publish(state, config);
-    torque
+    out
 }
 
 fn step(
@@ -167,7 +244,7 @@ fn step(
     engine_rpm: f32,
     lap_share: f32,
     dt: f32,
-) -> f32 {
+) -> MotorOutput {
     state.ers_deploying = false;
     state.ers_harvesting = false;
     if let Some(mode) = input.ers_mode {
@@ -176,7 +253,7 @@ fn step(
     state.ers_boost = input.ers_boost;
     let hybrid = &config.hybrid;
     if !hybrid.enabled {
-        return 0.0;
+        return MotorOutput::default();
     }
 
     // Seed the battery from config on first use (serde default is -1.0).
@@ -191,6 +268,7 @@ fn step(
     if crossed || state.current_lap != state.ers_lap_mark {
         state.ers_lap_mark = state.current_lap;
         state.ers_deployed_kj = 0.0;
+        state.ers_override_kj = 0.0;
     }
     state.ers_lap_share = share;
 
@@ -212,20 +290,30 @@ fn step(
     let room = state.hybrid_battery_kwh < capacity;
     let rolling = state.speed_mps > 3.0 && state.gear > 0;
 
-    // Under braking: the brakes' own work charges the battery.
+    // Under braking: what the driven axle's tyres are taking out of the car
+    // charges the battery, up to the regen power. Not free: with brake-by-
+    // wire it is energy the discs would have taken (`physics` takes it off
+    // the hydraulics), and without it is braking on top of the pedal.
     if input.brake > 0.1 && state.speed_mps > 3.0 {
         if room && regen_kw > 0.0 {
-            charge(state, regen_kw * input.brake);
-            state.ers_harvesting = true;
+            let axle_kw = state.driven_axle_brake_w.max(0.0) / 1000.0 * REGEN_AXLE_SHARE;
+            let kw = (regen_kw * input.brake).min(axle_kw);
+            if kw > 0.0 {
+                charge(state, kw);
+                state.ers_harvesting = true;
+                return MotorOutput {
+                    crank_torque_nm: 0.0,
+                    regen_w: kw * 1000.0,
+                };
+            }
         }
-        return 0.0;
+        return MotorOutput::default();
     }
 
-    let mode = if state.ers_boost {
-        ErsMode::Attack
-    } else {
-        ErsMode::from_u8(state.ers_mode)
-    };
+    let mode = ErsMode::from_u8(state.ers_mode);
+    // The overtake button: Attack on its own allowance where the car has
+    // one (nothing more once it is spent), on the lap budget otherwise.
+    let boost = state.ers_boost && override_left_kj(state, config) > 0.0;
 
     // Recovery against the crank: off the pedals, or Harvest on the
     // throttle.
@@ -238,18 +326,21 @@ fn step(
     };
     if recover_share > 0.0 {
         if !(room && rolling && regen_kw > 0.0 && omega > 1.0) {
-            return 0.0;
+            return MotorOutput::default();
         }
         let kw = regen_kw * recover_share;
         let torque = (kw * 1000.0 / omega).min(hybrid.motor_max_torque_nm);
         charge(state, torque * omega / 1000.0);
         state.ers_harvesting = true;
-        return -torque;
+        return MotorOutput {
+            crank_torque_nm: -torque,
+            regen_w: 0.0,
+        };
     }
 
-    let share = deploy_share(state, config, mode, input.throttle);
+    let share = deploy_share(state, config, mode, boost, input.throttle);
     if share <= 0.0 {
-        return 0.0;
+        return MotorOutput::default();
     }
     let power_limit_w = hybrid
         .motor_max_power_kw
@@ -264,21 +355,37 @@ fn step(
     let mut torque = (share * hybrid.motor_max_torque_nm)
         .min(torque_from_power)
         .max(0.0);
-    // Never past the budget or the charge within the tick.
+    // Never past the budget, the allowance, the stint or the charge within
+    // the tick.
     let mut drawn_kj = torque * omega.max(1.0) * dt / 1000.0;
-    let left_kj = hybrid
-        .deploy_kj_per_lap
-        .map(|b| b - state.ers_deployed_kj)
-        .unwrap_or(f32::INFINITY)
+    let on_override = boost && hybrid.override_kj_per_lap.is_some();
+    let budget_left = if on_override {
+        override_left_kj(state, config)
+    } else {
+        hybrid
+            .deploy_kj_per_lap
+            .map(|b| b - state.ers_deployed_kj)
+            .unwrap_or(f32::INFINITY)
+    };
+    let left_kj = budget_left
+        .min(stint_left_kj(state, config))
         .min(state.hybrid_battery_kwh * KJ_PER_KWH);
     if drawn_kj > left_kj {
         torque *= (left_kj / drawn_kj).max(0.0);
         drawn_kj = left_kj.max(0.0);
     }
     state.hybrid_battery_kwh = (state.hybrid_battery_kwh - drawn_kj / KJ_PER_KWH).max(0.0);
-    state.ers_deployed_kj += drawn_kj;
+    if on_override {
+        state.ers_override_kj += drawn_kj;
+    } else {
+        state.ers_deployed_kj += drawn_kj;
+    }
+    state.ers_stint_kj += drawn_kj;
     state.ers_deploying = torque > 0.0;
-    torque
+    MotorOutput {
+        crank_torque_nm: torque,
+        regen_w: 0.0,
+    }
 }
 
 /// The deployment the plan may count on at `speed_mps`: the motor's power,
@@ -317,8 +424,15 @@ fn publish(state: &mut CarState, config: &CarConfig) {
     if !hybrid.enabled {
         state.ers_charge_pct = 255;
         state.ers_budget_pct = 255;
+        state.ers_stint_pct = 255;
         return;
     }
+    state.ers_stint_pct = match hybrid.stint_kj {
+        Some(s) if s > 0.0 => ((1.0 - state.ers_stint_kj / s) * 100.0)
+            .round()
+            .clamp(0.0, 100.0) as u8,
+        _ => 255,
+    };
     state.ers_charge_pct = if hybrid.battery_capacity_kwh > 0.0 {
         (state.hybrid_battery_kwh.max(0.0) / hybrid.battery_capacity_kwh * 100.0)
             .round()
@@ -352,9 +466,21 @@ mod tests {
                 deploy_kj_per_lap: budget,
                 deploy_min_speed_kph: 0.0,
                 heat_recovery_kw: 0.0,
+                ..HybridConfig::default()
             },
             ..CarConfig::default()
         }
+    }
+
+    /// The motor's crank torque this tick.
+    fn torque(
+        state: &mut CarState,
+        config: &CarConfig,
+        input: &PlayerInputData,
+        rpm: f32,
+        share: f32,
+    ) -> f32 {
+        update(state, config, input, rpm, share, DT).crank_torque_nm
     }
 
     fn rolling(config: &CarConfig) -> CarState {
@@ -390,13 +516,12 @@ mod tests {
         let run = |throttle, mode| {
             let mut s = rolling(&config);
             s.hybrid_battery_kwh = 0.8;
-            update(
+            torque(
                 &mut s,
                 &config,
                 &input(throttle, 0.0, mode, false),
                 10000.0,
                 0.5,
-                DT,
             )
         };
         assert!(run(1.0, ErsMode::Harvest) < 0.0, "harvest never deploys");
@@ -419,7 +544,7 @@ mod tests {
         let mut s = rolling(&config);
         let flat = input(1.0, 0.0, ErsMode::Attack, false);
         let mut ticks = 0;
-        while update(&mut s, &config, &flat, 10000.0, 0.3, DT) > 0.0 {
+        while torque(&mut s, &config, &flat, 10000.0, 0.3) > 0.0 {
             ticks += 1;
             assert!(ticks < 240 * 60);
         }
@@ -428,15 +553,104 @@ mod tests {
         assert!((6.0..7.0).contains(&seconds), "{seconds}");
         assert!(s.ers_deployed_kj <= 2000.0 + 1e-3);
         s.current_lap += 1;
-        assert!(update(&mut s, &config, &flat, 10000.0, 0.01, DT) > 0.0);
+        assert!(torque(&mut s, &config, &flat, 10000.0, 0.01) > 0.0);
 
         // Crossing the line resets it too, whatever the lap counter says.
         let mut pole = rolling(&config);
         pole.ers_deployed_kj = 2000.0;
-        update(&mut pole, &config, &flat, 10000.0, 0.99, DT);
+        torque(&mut pole, &config, &flat, 10000.0, 0.99);
         assert!(pole.ers_deployed_kj >= 2000.0);
-        update(&mut pole, &config, &flat, 10000.0, 0.001, DT);
+        torque(&mut pole, &config, &flat, 10000.0, 0.001);
         assert!(pole.ers_deployed_kj < 10.0, "{}", pole.ers_deployed_kj);
+    }
+
+    #[test]
+    fn a_stint_budget_runs_out_and_a_stop_renews_it() {
+        let mut config = car(None);
+        config.hybrid.stint_kj = Some(1000.0);
+        let mut s = rolling(&config);
+        let flat = input(1.0, 0.0, ErsMode::Attack, false);
+        let mut ticks = 0;
+        while torque(&mut s, &config, &flat, 10000.0, 0.3) > 0.0 {
+            ticks += 1;
+            assert!(ticks < 240 * 60);
+        }
+        assert!((s.ers_stint_kj - 1000.0).abs() < 1.0, "{}", s.ers_stint_kj);
+        assert_eq!(s.ers_stint_pct, 0);
+        // A new lap does not help; a stop does.
+        s.current_lap += 1;
+        assert_eq!(torque(&mut s, &config, &flat, 10000.0, 0.01), 0.0);
+        new_stint(&mut s, &config);
+        assert_eq!(s.ers_stint_pct, 100);
+        assert!(torque(&mut s, &config, &flat, 10000.0, 0.02) > 0.0);
+        // A car without the rule reports none.
+        let plain = car(None);
+        let mut p = rolling(&plain);
+        torque(&mut p, &plain, &flat, 10000.0, 0.1);
+        assert_eq!(p.ers_stint_pct, 255);
+    }
+
+    #[test]
+    fn the_overtake_button_spends_its_own_allowance_and_then_nothing() {
+        let mut config = car(Some(4000.0));
+        config.hybrid.override_kj_per_lap = Some(300.0);
+        let mut s = rolling(&config);
+        // Balanced, paced: a quarter of the way round with half the budget
+        // gone is eased back ...
+        s.ers_deployed_kj = 2000.0;
+        let paced = torque(
+            &mut s,
+            &config,
+            &input(1.0, 0.0, ErsMode::Balanced, false),
+            10000.0,
+            0.25,
+        );
+        // ... and the button is full power, from its own allowance: the
+        // lap's spend does not move.
+        let before = s.ers_deployed_kj;
+        let boost = input(1.0, 0.0, ErsMode::Balanced, true);
+        let full = torque(&mut s, &config, &boost, 10000.0, 0.25);
+        assert!(full > paced * 1.2, "{full} against {paced}");
+        assert!((s.ers_deployed_kj - before).abs() < 1e-3);
+        assert!(s.ers_override_kj > 0.0);
+        // Hold it until the allowance is gone: then it does nothing more.
+        let mut ticks = 0;
+        while torque(&mut s, &config, &boost, 10000.0, 0.25) > paced * 1.05 {
+            ticks += 1;
+            assert!(ticks < 240 * 30);
+        }
+        assert!(
+            (s.ers_override_kj - 300.0).abs() < 1.0,
+            "{}",
+            s.ers_override_kj
+        );
+        assert!(s.ers_boost, "the button is still held, for the HUD");
+        // The next lap gives it back.
+        s.current_lap += 1;
+        s.ers_deployed_kj = 0.0;
+        assert!(torque(&mut s, &config, &boost, 10000.0, 0.01) > 0.0);
+    }
+
+    #[test]
+    fn braking_recovers_only_what_the_driven_axle_takes_out() {
+        let config = car(None);
+        let brake = input(0.0, 1.0, ErsMode::Balanced, false);
+        // Nothing yet known of the axle's braking: nothing recovered.
+        let mut s = rolling(&config);
+        s.hybrid_battery_kwh = 0.5;
+        s.driven_axle_brake_w = 0.0;
+        let out = update(&mut s, &config, &brake, 10000.0, 0.5, DT);
+        assert_eq!(out.regen_w, 0.0);
+        assert!((s.hybrid_battery_kwh - 0.5).abs() < 1e-7);
+        // The axle braking at 100 kW: 90 of it recovered.
+        s.driven_axle_brake_w = 100_000.0;
+        let out = update(&mut s, &config, &brake, 10000.0, 0.5, DT);
+        assert!((out.regen_w - 90_000.0).abs() < 1.0, "{out:?}");
+        assert!(s.hybrid_battery_kwh > 0.5 && s.ers_harvesting);
+        // Never more than the regen power.
+        s.driven_axle_brake_w = 1_000_000.0;
+        let out = update(&mut s, &config, &brake, 10000.0, 0.5, DT);
+        assert!((out.regen_w - 250_000.0).abs() < 1.0, "{out:?}");
     }
 
     #[test]
@@ -446,7 +660,7 @@ mod tests {
         let at = |spent: f32, share: f32, input: &PlayerInputData| {
             let mut s = rolling(&config);
             s.ers_deployed_kj = spent;
-            update(&mut s, &config, input, 10000.0, share, DT)
+            torque(&mut s, &config, input, 10000.0, share)
         };
         let full = at(0.0, 0.0, &flat);
         // Half the budget gone a quarter of the way round: eased back ...
@@ -467,23 +681,22 @@ mod tests {
         let config = car(None);
         let mut s = rolling(&config);
         s.hybrid_battery_kwh = 0.5;
-        update(
+        s.driven_axle_brake_w = 200_000.0;
+        torque(
             &mut s,
             &config,
             &input(0.0, 1.0, ErsMode::Balanced, false),
             10000.0,
             0.5,
-            DT,
         );
         assert!(s.hybrid_battery_kwh > 0.5 && s.ers_harvesting);
         let before = s.hybrid_battery_kwh;
-        let coast = update(
+        let coast = torque(
             &mut s,
             &config,
             &input(0.0, 0.0, ErsMode::Balanced, false),
             10000.0,
             0.5,
-            DT,
         );
         assert!(coast < 0.0 && s.hybrid_battery_kwh > before);
 
@@ -492,9 +705,9 @@ mod tests {
         let mut slow = rolling(&hyper);
         slow.speed_mps = 45.0;
         let flat = input(1.0, 0.0, ErsMode::Attack, false);
-        assert_eq!(update(&mut slow, &hyper, &flat, 8000.0, 0.5, DT), 0.0);
+        assert_eq!(torque(&mut slow, &hyper, &flat, 8000.0, 0.5), 0.0);
         slow.speed_mps = 55.0;
-        assert!(update(&mut slow, &hyper, &flat, 8000.0, 0.5, DT) > 0.0);
+        assert!(torque(&mut slow, &hyper, &flat, 8000.0, 0.5) > 0.0);
     }
 
     #[test]
@@ -503,9 +716,9 @@ mod tests {
         let mut s = rolling(&config);
         s.hybrid_battery_kwh = 1.1 * 0.1;
         let flat = input(1.0, 0.0, ErsMode::Balanced, false);
-        assert_eq!(update(&mut s, &config, &flat, 10000.0, 0.5, DT), 0.0);
+        assert_eq!(torque(&mut s, &config, &flat, 10000.0, 0.5), 0.0);
         let attack = input(1.0, 0.0, ErsMode::Attack, false);
-        assert!(update(&mut s, &config, &attack, 10000.0, 0.5, DT) > 0.0);
+        assert!(torque(&mut s, &config, &attack, 10000.0, 0.5) > 0.0);
     }
 
     #[test]

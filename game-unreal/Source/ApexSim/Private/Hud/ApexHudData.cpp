@@ -93,6 +93,13 @@ namespace
 		return Ms > 0 ? FApexHudValue::Of(Ms / 1000.0) : FApexHudValue();
 	}
 
+	/** The sheet's compound list for the local car, or the empty list for the defaults. */
+	const TArray<FString>& HudCompoundNames(const FApexHudInputs& In)
+	{
+		static const TArray<FString> None;
+		return In.CompoundNames ? *In.CompoundNames : None;
+	}
+
 	FApexHudValue HudKnown(float Value, bool bKnown)
 	{
 		return bKnown ? FApexHudValue::Of(Value) : FApexHudValue();
@@ -261,7 +268,8 @@ const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
 		{TEXT("sectors"), {TEXT("number"), TEXT("time_s"), TEXT("best_s"), TEXT("session_best_s"), TEXT("state"),
 			TEXT("is_current")}},
 		{TEXT("tyres"), {TEXT("key"), TEXT("name"), TEXT("temp_c"), TEXT("pressure_kpa"), TEXT("wear_pct"),
-			TEXT("brake_c"), TEXT("state"), TEXT("brake_state")}},
+			TEXT("brake_c"), TEXT("state"), TEXT("brake_state"), TEXT("inner_c"), TEXT("outer_c"), TEXT("brake_wear_pct"),
+			TEXT("sliding"), TEXT("locked")}},
 		{TEXT("damage"), {TEXT("key"), TEXT("name"), TEXT("pct"), TEXT("flash")}},
 	};
 	return Fields;
@@ -279,7 +287,8 @@ TArray<FName> ApexHudData::ScalarNames()
 	return Names;
 }
 
-FApexPitStopProgress ApexHudData::PitStopProgress(const FApexPitService& Stop, float SecondsLeft)
+FApexPitStopProgress ApexHudData::PitStopProgress(const FApexPitService& Stop, float SecondsLeft,
+	const TArray<FString>* CompoundNames)
 {
 	FApexPitStopProgress P;
 	P.PartSeconds[FApexPitStopProgress::Tyres] = FMath::Max(0.0f, Stop.TyresS);
@@ -339,7 +348,8 @@ FApexPitStopProgress ApexHudData::PitStopProgress(const FApexPitService& Stop, f
 	case FApexPitStopProgress::Tyres:
 	{
 		P.PhaseKey = TEXT("tyres");
-		const FString Compound = FApexCarTelemetry::CompoundName(Stop.Compound);
+		static const TArray<FString> NoNames;
+		const FString Compound = FApexCarTelemetry::CompoundNameFrom(CompoundNames ? *CompoundNames : NoNames, Stop.Compound);
 		P.PhaseLabel = Compound.IsEmpty() ? FString(TEXT("CHANGING TYRES")) : FString(TEXT("CHANGING TYRES")) + Dot + Compound;
 		break;
 	}
@@ -421,6 +431,73 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.SetNone(TEXT("session.wind_kph"));
 	}
 	Out.Values.FindOrAdd(TEXT("net.ping_ms")) = In.PingMs >= 0 ? FApexHudValue::Of(In.PingMs) : FApexHudValue();
+
+	// --- The sky now ----------------------------------------------------------
+	// From the frame's `SkyNow` (a newer server sends it in every session):
+	// the clock as it runs, the forecast's weather and how far the rain and
+	// the cloud have come, the road, the air and the wind. Every one null
+	// without it (an older server, a showcase stream, before a frame).
+	{
+		static const TCHAR* SkyNames[] = {
+			TEXT("sky.clock"), TEXT("sky.clock_s"), TEXT("sky.weather"), TEXT("sky.rain"), TEXT("sky.cloud"),
+			TEXT("sky.road_water"), TEXT("sky.air_c"), TEXT("sky.track_c"), TEXT("sky.wind_kph"),
+			TEXT("sky.wind_rel_deg"), TEXT("sky.wind_from"), TEXT("sky.rubber"), TEXT("sky.time_scale"),
+			TEXT("sky.next_weather"), TEXT("sky.next_in_s") };
+		const FApexSkyNow& Sky = Frame.Sky;
+		Out.Set(TEXT("sky.live"), Sky.bValid);
+		Out.Set(TEXT("sky.wet"), Sky.bValid && Sky.RoadWaterPct >= 5);
+		if (!Sky.bValid)
+		{
+			for (const TCHAR* Name : SkyNames)
+			{
+				Out.SetNone(Name);
+			}
+		}
+		else
+		{
+			Out.Set(TEXT("sky.clock"), Sky.ClockText());
+			Out.Set(TEXT("sky.clock_s"), Sky.ClockS);
+			Out.Set(TEXT("sky.weather"), FApexSessionConditions::WeatherLabel(Sky.Weather));
+			Out.Set(TEXT("sky.rain"), Sky.RainPct);
+			Out.Set(TEXT("sky.cloud"), Sky.CloudPct);
+			Out.Set(TEXT("sky.road_water"), Sky.RoadWaterPct);
+			Out.Set(TEXT("sky.air_c"), Sky.AirC);
+			Out.Set(TEXT("sky.track_c"), Sky.TrackC);
+			Out.Set(TEXT("sky.wind_kph"), Sky.WindKph);
+			Out.Set(TEXT("sky.rubber"), Sky.LineRubberPct);
+			Out.Set(TEXT("sky.time_scale"), Sky.TimeScale);
+			if (Sky.HasNextChange())
+			{
+				Out.Set(TEXT("sky.next_weather"),
+					FApexSessionConditions::WeatherLabel(static_cast<EApexWeather>(Sky.NextWeather)));
+				Out.Set(TEXT("sky.next_in_s"), Sky.NextInS);
+			}
+			else
+			{
+				Out.SetNone(TEXT("sky.next_weather"));
+				Out.SetNone(TEXT("sky.next_in_s"));
+			}
+			// The wind seen from the local car. Both angles are counter-
+			// clockwise in the server frame; the relative one is turned
+			// clockwise, as a screen turns an arrow: where the air goes, 0
+			// straight on (a tailwind), 180 back at the car (a headwind).
+			if (Local && Sky.WindKph > 0)
+			{
+				const float CarYawDeg = FMath::RadiansToDegrees(Local->YawRad);
+				const float RelTo = FRotator::NormalizeAxis(CarYawDeg - static_cast<float>(Sky.WindToDeg));
+				Out.Set(TEXT("sky.wind_rel_deg"), RelTo);
+				// Where it comes from, counter-clockwise from the nose (the
+				// convention of WindFromLabel): -(RelTo + 180).
+				const int32 FromCcw = FMath::RoundToInt(FRotator::ClampAxis(180.0f - RelTo));
+				Out.Set(TEXT("sky.wind_from"), FApexSessionConditions::WindFromLabel(FromCcw));
+			}
+			else
+			{
+				Out.SetNone(TEXT("sky.wind_rel_deg"));
+				Out.SetNone(TEXT("sky.wind_from"));
+			}
+		}
+	}
 
 	// --- Standings ----------------------------------------------------------
 
@@ -769,7 +846,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("pit.box"), Stop ? FApexHudValue::Of(Stop->PitBox + 1) : FApexHudValue());
 
 		const FApexPitStopProgress P = Stop && Local->bPitServicing
-			? ApexHudData::PitStopProgress(*Stop, Local->ServiceSecondsLeft)
+			? ApexHudData::PitStopProgress(*Stop, Local->ServiceSecondsLeft, In.CompoundNames)
 			: FApexPitStopProgress();
 		auto Known = [&P](float Value) { return P.bValid ? FApexHudValue::Of(Value) : FApexHudValue(); };
 		Out.Set(TEXT("pit.service_total_s"), Known(P.TotalS));
@@ -791,7 +868,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("pit.service_fuel_l"), P.bValid ? FApexHudValue::Of(Stop->FuelL) : FApexHudValue());
 		Out.Set(TEXT("pit.service_repair_pct"), P.bValid ? FApexHudValue::Of(Stop->RepairPct) : FApexHudValue());
 		const FString Compound = P.bValid && P.PartSeconds[FApexPitStopProgress::Tyres] > 0.0f
-			? FApexCarTelemetry::CompoundName(Stop->Compound)
+			? FApexCarTelemetry::CompoundNameFrom(HudCompoundNames(In), Stop->Compound)
 			: FString();
 		Out.Set(TEXT("pit.service_compound"), Compound.IsEmpty() ? FApexHudValue() : FApexHudValue::Of(Compound));
 	}
@@ -853,6 +930,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("ers.deploying"), bHybrid && Local->bErsDeploying);
 		Out.Set(TEXT("ers.harvesting"), bHybrid && Local->bErsHarvesting);
 		Out.Set(TEXT("ers.boost"), bHybrid && Local->bErsBoost);
+		Out.Set(TEXT("ers.stint_pct"), bHybrid && Local->ErsStintPct >= 0.0f ? FApexHudValue::Of(Local->ErsStintPct) : FApexHudValue());
 	}
 
 	// --- Tyres, brakes and engine -------------------------------------------------
@@ -860,7 +938,9 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	{
 		const bool bTyres = Local && Local->HasTyres();
 		Out.Set(TEXT("tyre.known"), bTyres);
-		const FString Letter = Local ? FApexCarTelemetry::CompoundLetter(Local->Compound) : FString();
+		// The local car's compound by the sheet's own list when the server
+		// sent one: an imported car may carry other compounds than the five.
+		const FString Letter = Local ? FApexCarTelemetry::CompoundLetterFrom(HudCompoundNames(In), Local->Compound) : FString();
 		Out.Set(TEXT("tyre.compound"), Letter.IsEmpty() ? FApexHudValue() : FApexHudValue::Of(Letter));
 		Out.Set(TEXT("tyre.optimal_c"), In.TyreOptimalC);
 		Out.Set(TEXT("tyre.window_c"), In.TyreWindowC);
@@ -873,6 +953,9 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			const float Kpa = Local ? Local->TyrePressureKpa[Tyre] : -1.0f;
 			const float Wear = Local ? Local->TyreWearPct[Tyre] : -1.0f;
 			const float BrakeC = Local ? Local->BrakeTempC[Tyre] : -1.0f;
+			const float InnerC = Local && Local->HasTyreEdges() ? Local->TyreInnerC[Tyre] : -1.0f;
+			const float OuterC = Local && Local->HasTyreEdges() ? Local->TyreOuterC[Tyre] : -1.0f;
+			const float BrakeWear = Local ? Local->BrakeWearPct[Tyre] : -1.0f;
 
 			FApexHudRecord& Row = List.AddDefaulted_GetRef();
 			Row.Add(TEXT("key"), FApexHudValue::Of(HudTyreKeys[Tyre]));
@@ -883,6 +966,14 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			Row.Add(TEXT("brake_c"), HudKnown(BrakeC, BrakeC >= 0.0f));
 			Row.Add(TEXT("state"), FApexHudValue::Of(HudTyreState(TempC, In.TyreOptimalC, In.TyreWindowC)));
 			Row.Add(TEXT("brake_state"), FApexHudValue::Of(HudBrakeState(BrakeC)));
+			// The tread's shoulders (temp_c is the mean of the three zones)
+			// and the pads' wear, from a server that sends them; whether the
+			// tyre is smoking or locked right now.
+			Row.Add(TEXT("inner_c"), HudKnown(InnerC, InnerC >= 0.0f));
+			Row.Add(TEXT("outer_c"), HudKnown(OuterC, OuterC >= 0.0f));
+			Row.Add(TEXT("brake_wear_pct"), HudKnown(BrakeWear, BrakeWear >= 0.0f));
+			Row.Add(TEXT("sliding"), FApexHudValue::Of(Local && Local->bTyreSliding[Tyre]));
+			Row.Add(TEXT("locked"), FApexHudValue::Of(Local && Local->bTyreLocked[Tyre]));
 
 			// The same figures by name, for a layout that places each tyre itself.
 			for (const TPair<FName, FApexHudValue>& Field : Row)

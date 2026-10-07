@@ -62,6 +62,16 @@ void AApexRainActor::SetIntensity(float Intensity)
 	SetActorTickEnabled(ActiveStreaks > 0);
 }
 
+void AApexRainActor::SetWind(const FVector& WindCmPerS)
+{
+	TargetDrift = FVector(WindCmPerS.X, WindCmPerS.Y, 0.0f).GetClampedToMaxSize(MaxDriftCmPerS);
+}
+
+void AApexRainActor::ClearWind()
+{
+	TargetDrift = DefaultDrift();
+}
+
 FVector AApexRainActor::BoxCentre(const FVector& CameraLocation, const FVector& InCameraVelocity) const
 {
 	// Ahead of a moving camera, so the drops it is about to meet exist.
@@ -124,8 +134,10 @@ void AApexRainActor::Tick(float DeltaSeconds)
 	bHaveCamera = true;
 
 	const FVector Centre = BoxCentre(CameraLocation, CameraVelocity);
-	// A little wind so the fall is never dead vertical.
-	const FVector Fall(60.0f, 25.0f, -FallSpeedCmPerS);
+	// The drops drift with the wind (a little breeze when none is known, so
+	// the fall is never dead vertical), eased over a second or so.
+	Drift = FMath::VInterpTo(Drift, TargetDrift, DeltaSeconds, 1.5f);
+	const FVector Fall(Drift.X, Drift.Y, -FallSpeedCmPerS);
 	// What the camera sees: the drop's motion less its own.
 	const FVector Apparent = Fall - CameraVelocity;
 	const float ApparentSpeed = FMath::Max(Apparent.Size(), 1.0f);

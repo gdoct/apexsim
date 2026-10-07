@@ -162,6 +162,14 @@ void UApexTrackContentSubsystem::Rescan()
 				Row.LengthM = Files.Header.LengthCm / 100.0f;
 				Row.YamlBaseName = Files.Stem;
 				Row.SourceCrc = Files.Header.SourceCrc;
+				// The latitude alone is enough to place the sun; north alone
+				// (it never comes without one) would still turn it.
+				if (Files.Header.LatitudeDeg.IsSet() || Files.Header.NorthYawDeg.IsSet())
+				{
+					Row.bHasLocation = true;
+					Row.LatitudeDeg = Files.Header.LatitudeDeg.Get(Row.LatitudeDeg);
+					Row.NorthYawDeg = Files.Header.NorthYawDeg.Get(Row.NorthYawDeg);
+				}
 				if (!Files.PreviewPath.IsEmpty())
 				{
 					Row.RuntimePreview = FImageUtils::ImportFileAsTexture2D(Files.PreviewPath);

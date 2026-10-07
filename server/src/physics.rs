@@ -73,6 +73,9 @@ struct WheelContact {
     contact_z: f32,
     contact: RoadContact,
     grip_modifier: f32,
+    /// Water on the road under this tyre (`crate::water`; the weather's
+    /// figure without a field).
+    water: f32,
 }
 
 /// The plane the body settles on over its four contact patches, in the
@@ -276,15 +279,17 @@ pub fn update_car_3d(
     state.fuel_capacity_liters = config.fuel.capacity_liters;
     state.fuel_liters = state.fuel_liters.min(state.fuel_capacity_liters);
 
-    // A car nobody sent out on a set of tyres starts on warm ones: mediums,
-    // or the tyre the rain calls for.
+    // A car nobody sent out on a set of tyres starts on warm ones: the
+    // car's reference compound, or the tyre the rain calls for.
     if !state.tyres_fitted {
         let water = track.track_surface.water;
-        let compound =
-            crate::tyre_thermal::weather_compound(water).unwrap_or(crate::tyre_thermal::MEDIUM);
+        let compound = config
+            .tire_config
+            .weather_compound(water)
+            .unwrap_or(config.tire_config.reference_compound());
         let optimum = crate::tyre_thermal::optimum_c(
             &config.tire_config,
-            crate::tyre_thermal::compound(compound),
+            config.tire_config.compound(compound),
         );
         crate::tyre_thermal::fit(state, &config.tire_config, optimum, compound, water);
         let warm = crate::brakes::start_temperature_c(
@@ -329,10 +334,51 @@ pub fn update_car_3d(
             config.aero.ride_height_rear_m,
         )
     };
-    state.ride_height_front_m = ride_front;
-    state.ride_height_rear_m = ride_rear;
-    let air =
-        calculate_aerodynamic_forces(state, config, &track.track_surface, ride_front, ride_rear);
+    // The car's attitude to the air (`crate::aero::Posture`): running
+    // sideways or rolled over costs a sensitive car downforce, and a floor
+    // near its stall height at speed porpoises. The body slip is read from
+    // the car's own velocity, the roll from last tick's cornering.
+    let (cos_yaw0, sin_yaw0) = (state.yaw_rad.cos(), state.yaw_rad.sin());
+    let v_long0 = state.vel_x * cos_yaw0 + state.vel_y * sin_yaw0;
+    let v_lat0 = -state.vel_x * sin_yaw0 + state.vel_y * cos_yaw0;
+    let body_slip_deg = if v_long0.abs() > 5.0 {
+        (v_lat0 / v_long0.abs()).atan().to_degrees()
+    } else {
+        0.0
+    };
+    let roll_deg = crate::geometry::body_roll_rad(config, mass, state.g_forces.lateral_g * GRAVITY)
+        .to_degrees();
+    let (porpoise_phase, porpoise_amp, porpoise) = crate::aero::step_porpoising(
+        &config.aero,
+        state.porpoise_phase,
+        state.porpoise_amp,
+        0.5 * (ride_front + ride_rear),
+        state.speed_mps,
+        dt,
+    );
+    state.porpoise_phase = porpoise_phase;
+    state.porpoise_amp = porpoise_amp;
+    let posture = crate::aero::Posture {
+        yaw_deg: body_slip_deg,
+        roll_deg,
+        porpoise,
+    };
+    // What telemetry shows of the ride height swings with the porpoising.
+    let bounce = if crate::aero::PORPOISE_MAX_SWING > 0.0 {
+        porpoise * crate::aero::PORPOISE_HEIGHT_SWING_M / crate::aero::PORPOISE_MAX_SWING
+    } else {
+        0.0
+    };
+    state.ride_height_front_m = (ride_front - bounce).max(0.0);
+    state.ride_height_rear_m = (ride_rear - bounce).max(0.0);
+    let air = calculate_aerodynamic_forces(
+        state,
+        config,
+        &track.track_surface,
+        ride_front,
+        ride_rear,
+        posture,
+    );
     let (downforce_front, downforce_rear) = (air.downforce_front, air.downforce_rear);
     state.drag_force_n = air.drag;
     state.aero_load_share = air.load_share;
@@ -369,14 +415,16 @@ pub fn update_car_3d(
     };
     let over_rev = crate::damage::over_rev_damage(forced, dt) * state.damage_scale();
     state.damage.hurt_engine(over_rev);
-    // And every revolution wears it a little, the top of the rev range most.
+    // And every revolution wears it a little, the top of the rev range most:
+    // wear a pit stop's repair leaves in place.
     let wear = crate::damage::engine_wear(engine_rpm / config.max_engine_rpm.max(1.0), dt)
         * state.damage_scale();
-    state.damage.hurt_engine(wear);
+    state.damage.wear_engine(wear);
 
     // 4b. Hybrid system: electric motor assist + brake regeneration
     let lap_share = state.track_progress / crate::laps::track_length_m(track).max(1.0);
-    let motor_torque = crate::hybrid::update(state, config, input, engine_rpm, lap_share, dt);
+    let motor = crate::hybrid::update(state, config, input, engine_rpm, lap_share, dt);
+    let motor_torque = motor.crank_torque_nm;
 
     // 5. Calculate wheel torques from drivetrain. A partially released
     // clutch transmits proportionally less torque.
@@ -385,20 +433,49 @@ pub fn update_car_3d(
     let (drive_torque_front, drive_torque_rear) =
         calculate_drive_torques(crank_torque, config, state.gear);
 
-    // 6. Calculate brake forces
+    // 6. Calculate brake forces. The pedal asks for a deceleration; the
+    // hybrid's recovery takes its share of it off the driven axle's
+    // hydraulics under brake-by-wire (`crate::hybrid`), or brakes on top
+    // of them without it. Each corner's pads grip by their temperature,
+    // their kind and their wear (`crate::brakes`).
     let brake_force = input.brake * config.max_brake_force_n;
-    let brake_front = brake_force * config.brake_bias_front;
-    let brake_rear = brake_force * (1.0 - config.brake_bias_front);
-    // Each corner's pads grip by their temperature (`crate::brakes`).
-    let pads = state
-        .brake_temp_c
-        .map(|t| config.brake_material.friction(t));
-    let brake_wheel = [
-        brake_front / 2.0 * pads[0],
-        brake_front / 2.0 * pads[1],
-        brake_rear / 2.0 * pads[2],
-        brake_rear / 2.0 * pads[3],
+    let (front_drive_share, rear_drive_share) = match config.drivetrain {
+        Drivetrain::FWD => (1.0, 0.0),
+        Drivetrain::RWD => (0.0, 1.0),
+        Drivetrain::AWD => config.awd_shares(),
+    };
+    let regen_force_n = if state.speed_mps > 3.0 {
+        motor.regen_w.max(0.0) / state.speed_mps
+    } else {
+        0.0
+    };
+    let regen_axle = [
+        regen_force_n * front_drive_share,
+        regen_force_n * rear_drive_share,
     ];
+    let asked_axle = [
+        brake_force * config.brake_bias_front,
+        brake_force * (1.0 - config.brake_bias_front),
+    ];
+    let hydraulic_axle = if config.hybrid.brake_by_wire {
+        [
+            (asked_axle[0] - regen_axle[0]).max(0.0),
+            (asked_axle[1] - regen_axle[1]).max(0.0),
+        ]
+    } else {
+        asked_axle
+    };
+    let pad_grip: [f32; 4] = std::array::from_fn(|i| {
+        config.brake_material.friction_of(
+            config.brake_pads,
+            state.brake_temp_c[i],
+            state.brake_wear_pct[i],
+        )
+    });
+    // What the pads deliver at each wheel, and the whole braking force the
+    // tyre is asked for (the motor's share on top).
+    let pads_force: [f32; 4] = std::array::from_fn(|i| hydraulic_axle[i / 2] / 2.0 * pad_grip[i]);
+    let brake_wheel: [f32; 4] = std::array::from_fn(|i| pads_force[i] + regen_axle[i / 2] / 2.0);
 
     // 7. Calculate weight transfer.
     // Deliberately uses the PREVIOUS tick's accelerations (g_forces are
@@ -416,10 +493,8 @@ pub fn update_car_3d(
     let prev_rl_compression = state.suspension.rear_left_travel_m;
     let prev_rr_compression = state.suspension.rear_right_travel_m;
 
-    // 8. Calculate individual wheel loads
-    let front_weight = static_front_weight + downforce_front - weight_transfer_long;
-    let rear_weight = static_rear_weight + downforce_rear + weight_transfer_long;
-
+    // 8. Calculate individual wheel loads (below, once the ground's
+    // curvature along the path is known: a crest unloads the car).
     let suspension_rest_length_m =
         (config.suspension.max_travel_m * 0.5).clamp(0.0, config.suspension.max_travel_m);
     let hub_z = state.pos_z + config.wheel_radius_m;
@@ -433,10 +508,30 @@ pub fn update_car_3d(
     // asks from rides on the body's attitude from the previous tick, so a
     // wheel on a bridge deck keeps finding the deck.
     let (prev_pitch_slope, prev_roll_slope) = (state.pitch_rad.tan(), -state.roll_rad.tan());
+    // The road under each tyre (`crate::road_state`): the water, rubber
+    // and marbles where the tyre is on the lap, against the road the
+    // session's grip was baked for; a track without a road state grips as
+    // baked.
+    let road_under = |local_x: f32, local_y: f32| -> crate::road_state::RoadSample {
+        match track.road_state.as_ref() {
+            Some(road) => {
+                let station = state.track_progress + local_x;
+                // `lateral_offset` is positive to the right; +y is left.
+                let lateral = track_ctx.lateral_offset - local_y;
+                road.sample(station, lateral)
+            }
+            None => crate::road_state::RoadSample {
+                water: track.track_surface.water,
+                ..crate::road_state::RoadSample::BAKED
+            },
+        }
+    };
     let contact_under = |local_x: f32, local_y: f32| -> WheelContact {
         let world_x = state.pos_x + local_x * cos_yaw - local_y * sin_yaw;
         let world_y = state.pos_y + local_x * sin_yaw + local_y * cos_yaw;
         let hub_ref = hub_z + local_x * prev_pitch_slope + local_y * prev_roll_slope;
+        let road = road_under(local_x, local_y);
+        let water = road.water;
         // Wheels sit within a couple meters of the car: the car's own
         // nearest index is an excellent hint.
         let sample = query_track_surface(
@@ -457,12 +552,21 @@ pub fn update_car_3d(
                 } else {
                     1.0
                 };
+                // The road's state on the racing surface, the water alone
+                // on asphalt nobody races on, the grass's own wetness.
+                let wet = match contact {
+                    RoadContact::Off => road.off_grip,
+                    RoadContact::Curb => road.grip * road.curb_grip,
+                    RoadContact::Road => road.grip,
+                    RoadContact::Runoff | RoadContact::PitLane => road.wet_grip,
+                };
                 WheelContact {
                     local_x,
                     local_y,
                     contact_z: s.elevation,
                     contact,
-                    grip_modifier: ctx.grip_modifier * patch,
+                    grip_modifier: ctx.grip_modifier * patch * wet,
+                    water,
                 }
             }
             None => WheelContact {
@@ -470,10 +574,14 @@ pub fn update_car_3d(
                 local_y,
                 contact_z: track_ctx.elevation,
                 contact: RoadContact::Road,
-                grip_modifier: track_ctx.grip_modifier,
+                grip_modifier: track_ctx.grip_modifier * road.grip,
+                water,
             },
         }
     };
+    // What the road under the car is worth against the road the session
+    // was planned on: what the AI drives to on a drying line or in a puddle.
+    state.surface_grip_share = road_under(0.0, 0.0).grip;
     // Body frame: +y is LEFT, so the left wheels sit at +track/2.
     let contacts = [
         contact_under(front_axle_x, config.track_width_front_m / 2.0),
@@ -516,7 +624,43 @@ pub fn update_car_3d(
     };
     state.is_airborne = is_airborne;
 
+    // The road's curvature along the path: how fast the ground's grade
+    // under the body changes, times the speed, is the vertical acceleration
+    // the body is given (`vertical_accel_mps2`, positive into the road: a
+    // dip loads the car, a crest unloads it, a car at a crest's speed
+    // leaves the ground). The grade is filtered first and the acceleration
+    // after, so a one-tick step where the road mesh's triangles meet does
+    // not reach the loads. A car just set down keeps its grade.
+    let crest = {
+        let slope = plane.a;
+        let settled = if state.speed_mps < 2.0 {
+            slope
+        } else {
+            state.ground_slope_f + (slope - state.ground_slope_f) * (dt / SLOPE_FILTER_S).min(1.0)
+        };
+        let raw = if state.speed_mps < 2.0 {
+            0.0
+        } else {
+            v_long0 * (settled - state.ground_slope_f) / dt.max(1e-4)
+        };
+        state.ground_slope_f = settled;
+        let accel = state.vertical_accel_mps2
+            + (raw - state.vertical_accel_mps2) * (dt / VERTICAL_ACCEL_FILTER_S).min(1.0);
+        state.vertical_accel_mps2 = accel.clamp(
+            -MAX_VERTICAL_ACCEL_G * GRAVITY,
+            MAX_VERTICAL_ACCEL_G * GRAVITY,
+        );
+        if state.vertical_accel_mps2 == 0.0 {
+            1.0
+        } else {
+            (1.0 + state.vertical_accel_mps2 / GRAVITY).clamp(0.0, 2.0)
+        }
+    };
+    let front_weight = static_front_weight * crest + downforce_front - weight_transfer_long;
+    let rear_weight = static_rear_weight * crest + downforce_rear + weight_transfer_long;
+
     let sample_wheel_state = |contact: &WheelContact,
+                              front: bool,
                               spring_rate_n_per_m: f32,
                               damper_compression: f32,
                               damper_rebound: f32,
@@ -546,6 +690,7 @@ pub fn update_car_3d(
         let spring_force = spring_rate_n_per_m * compression
             + crate::geometry::bump_stop_force_n(
                 &config.suspension,
+                front,
                 compression,
                 suspension_rest_length_m,
             );
@@ -568,6 +713,7 @@ pub fn update_car_3d(
 
     let mut wheel_front_left = sample_wheel_state(
         &contacts[0],
+        true,
         config.suspension.spring_rate_front_n_per_m,
         config.suspension.damper_compression_front,
         config.suspension.damper_rebound_front,
@@ -575,6 +721,7 @@ pub fn update_car_3d(
     );
     let mut wheel_front_right = sample_wheel_state(
         &contacts[1],
+        true,
         config.suspension.spring_rate_front_n_per_m,
         config.suspension.damper_compression_front,
         config.suspension.damper_rebound_front,
@@ -582,6 +729,7 @@ pub fn update_car_3d(
     );
     let mut wheel_rear_left = sample_wheel_state(
         &contacts[2],
+        false,
         config.suspension.spring_rate_rear_n_per_m,
         config.suspension.damper_compression_rear,
         config.suspension.damper_rebound_rear,
@@ -589,6 +737,7 @@ pub fn update_car_3d(
     );
     let mut wheel_rear_right = sample_wheel_state(
         &contacts[3],
+        false,
         config.suspension.spring_rate_rear_n_per_m,
         config.suspension.damper_compression_rear,
         config.suspension.damper_rebound_rear,
@@ -739,15 +888,9 @@ pub fn update_car_3d(
     // carries (`CarConfig::axle_tyre_mu`) are exactly 1.0 unless the car's
     // `[tires]` table says otherwise.
     let tyre_config = &config.tire_config;
-    let compound = crate::tyre_thermal::compound(state.tyre_compound);
-    let thermal = |tyre: &crate::data::TireData, set_kpa: f32| {
-        crate::tyre_thermal::grip_multiplier(
-            tyre_config,
-            compound,
-            set_kpa,
-            tyre,
-            track.track_surface.water,
-        )
+    let compound = tyre_config.compound(state.tyre_compound);
+    let thermal = |tyre: &crate::data::TireData, set_kpa: f32, water: f32| {
+        crate::tyre_thermal::grip_multiplier(tyre_config, compound, set_kpa, tyre, water)
     };
     let side_left = crate::damage::side_grip_factor(&state.damage, true);
     let side_right = crate::damage::side_grip_factor(&state.damage, false);
@@ -755,22 +898,38 @@ pub fn update_car_3d(
         * camber[0].lateral
         * config.axle_tyre_mu(true, state.weight_front_left_n)
         * wheel_front_left.grip_modifier
-        * thermal(&state.tires.front_left, tyre_config.pressure_front_kpa);
+        * thermal(
+            &state.tires.front_left,
+            tyre_config.pressure_front_kpa,
+            contacts[0].water,
+        );
     let grip_fr = side_right
         * camber[1].lateral
         * config.axle_tyre_mu(true, state.weight_front_right_n)
         * wheel_front_right.grip_modifier
-        * thermal(&state.tires.front_right, tyre_config.pressure_front_kpa);
+        * thermal(
+            &state.tires.front_right,
+            tyre_config.pressure_front_kpa,
+            contacts[1].water,
+        );
     let grip_rl = side_left
         * camber[2].lateral
         * config.axle_tyre_mu(false, state.weight_rear_left_n)
         * wheel_rear_left.grip_modifier
-        * thermal(&state.tires.rear_left, tyre_config.pressure_rear_kpa);
+        * thermal(
+            &state.tires.rear_left,
+            tyre_config.pressure_rear_kpa,
+            contacts[2].water,
+        );
     let grip_rr = side_right
         * camber[3].lateral
         * config.axle_tyre_mu(false, state.weight_rear_right_n)
         * wheel_rear_right.grip_modifier
-        * thermal(&state.tires.rear_right, tyre_config.pressure_rear_kpa);
+        * thermal(
+            &state.tires.rear_right,
+            tyre_config.pressure_rear_kpa,
+            contacts[3].water,
+        );
 
     // The differential shares each driven axle's torque between its two
     // wheels by what each can carry. Without one (every car that does not
@@ -779,6 +938,11 @@ pub fn update_car_3d(
     let long_factor = config.tire_config.longitudinal_grip_factor;
     let traction_torque =
         |grip: f32, load_n: f32| grip * load_n.max(0.0) * long_factor * config.wheel_radius_m;
+    // Camber thrust: a leaning tyre pushes toward its lean before it has any
+    // slip, as an offset to its slip angle (`crate::geometry`; 0 without the
+    // key).
+    let thrust =
+        camber.map(|c| crate::geometry::camber_thrust_rad(&config.suspension, c.lean_left_rad));
     let on_power = crank_torque > 0.0;
     let (drive_fl, drive_fr) = split_axle_torque(
         drive_torque_front,
@@ -831,6 +995,7 @@ pub fn update_car_3d(
             state.weight_front_left_n,
             grip_fl,
             long_scale[0],
+            thrust[0],
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -847,6 +1012,7 @@ pub fn update_car_3d(
             state.weight_front_right_n,
             grip_fr,
             long_scale[1],
+            thrust[1],
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -863,6 +1029,7 @@ pub fn update_car_3d(
             state.weight_rear_left_n,
             grip_rl,
             long_scale[2],
+            thrust[2],
             &config.tire_config,
             abs_enabled,
             traction_control,
@@ -879,11 +1046,21 @@ pub fn update_car_3d(
             state.weight_rear_right_n,
             grip_rr,
             long_scale[3],
+            thrust[3],
             &config.tire_config,
             abs_enabled,
             traction_control,
         );
     }
+
+    // What the driven axle's tyres took out of the car braking this tick:
+    // what the hybrid may recover next tick (`crate::hybrid`).
+    state.driven_axle_brake_w = {
+        let braking = |w: &WheelForces| (-w.fx * v_long.signum()).max(0.0);
+        (front_drive_share * (braking(&fl) + braking(&fr))
+            + rear_drive_share * (braking(&rl) + braking(&rr)))
+            * v_long.abs()
+    };
 
     let fl_slip = (fl.slip_ratio, fl.slip_angle);
     let fr_slip = (fr.slip_ratio, fr.slip_angle);
@@ -894,39 +1071,104 @@ pub fn update_car_3d(
     let rl_forces = (rl.fx, rl.fy);
     let rr_forces = (rr.fx, rr.fy);
     state.wheel_angular_vel = [fl.omega, fr.omega, rl.omega, rr.omega];
+    // Which tyres are sliding hard enough to smoke, and which are locked,
+    // for the client (`network::CompactCarState::slide_flags`): the road
+    // sound's own thresholds, a wheel well past its peak slip.
+    state.slide_flags = {
+        let peak_ratio = config.tire_config.optimal_slip_ratio.max(1e-4);
+        let peak_angle = config.tire_config.optimal_slip_angle_rad.max(1e-4);
+        let mut flags = 0u8;
+        let surfaces = [
+            wheel_front_left.surface,
+            wheel_front_right.surface,
+            wheel_rear_left.surface,
+            wheel_rear_right.surface,
+        ];
+        if !is_airborne && state.speed_mps > SLIDE_FLAG_MIN_SPEED_MPS {
+            for (i, w) in [&fl, &fr, &rl, &rr].into_iter().enumerate() {
+                let spinning = w.slip_ratio / peak_ratio >= SLIDE_FLAG_RATIO;
+                let locked = w.slip_ratio <= -crate::tyre_thermal::LOCK_SLIP_RATIO;
+                let sideways = (w.slip_angle / peak_angle).abs() >= SLIDE_FLAG_ANGLE;
+                if (spinning || locked || sideways) && surfaces[i] != ContactSurface::Off {
+                    flags |= 1 << i;
+                }
+                if locked {
+                    flags |= 1 << (i + crate::network::SLIDE_FLAG_LOCKED_SHIFT as usize);
+                }
+            }
+        }
+        flags
+    };
 
     // 10a. The heat this tick's work put into each tyre, and what the air
     // and the road took out; the grip reads it next tick.
-    let tyre_work = |w: &WheelForces, load_n: f32| crate::tyre_thermal::TyreWork {
-        fx: w.fx,
-        fy: w.fy,
-        slip_ratio: w.slip_ratio,
-        slip_angle_rad: w.slip_angle,
-        load_n,
-        speed_mps: v_long,
-        air_mps: cooling_air_mps,
+    // Where on its width each tyre works: its lean toward the car (the inner
+    // shoulder on the road), the lateral force rolling it onto the outer
+    // shoulder (toward the car is -y on a left wheel, +y on a right), the
+    // downforce the wake took from its axle, and the water under it.
+    let tyre_work = |i: usize, w: &WheelForces, load_n: f32| {
+        let left = i.is_multiple_of(2);
+        let sign = if left { -1.0 } else { 1.0 };
+        let wake_loss = if i < 2 {
+            1.0 - state.wake.downforce_front
+        } else {
+            1.0 - state.wake.downforce_rear
+        };
+        crate::tyre_thermal::TyreWork {
+            fx: w.fx,
+            fy: w.fy,
+            slip_ratio: w.slip_ratio,
+            slip_angle_rad: w.slip_angle,
+            load_n,
+            speed_mps: v_long,
+            air_mps: cooling_air_mps,
+            inner_lean_rad: sign * camber[i].lean_left_rad,
+            outer_push: (sign * w.fy / load_n.max(1.0)).clamp(-3.0, 3.0),
+            wake_loss: wake_loss.clamp(0.0, 1.0),
+            water: contacts[i].water,
+        }
     };
     let work = [
-        tyre_work(&fl, state.weight_front_left_n),
-        tyre_work(&fr, state.weight_front_right_n),
-        tyre_work(&rl, state.weight_rear_left_n),
-        tyre_work(&rr, state.weight_rear_right_n),
+        tyre_work(0, &fl, state.weight_front_left_n),
+        tyre_work(1, &fr, state.weight_front_right_n),
+        tyre_work(2, &rl, state.weight_rear_left_n),
+        tyre_work(3, &rr, state.weight_rear_right_n),
     ];
     crate::tyre_thermal::step_all(state, &work, tyre_config, &track.track_surface, dt);
 
-    // 10b. The brakes: each takes what its pads absorb (the brake force the
-    // tyre carried, at the speed its wheel turns: none from a locked
-    // wheel), and the air through its duct takes it out.
+    // 10b. The brakes: each takes what its pads absorb (the pads' share of
+    // the brake force the tyre carried, at the speed its wheel turns: none
+    // from a locked wheel, none of what the motor recovered), and the air
+    // through its axle's duct takes it out; the pads wear by it.
     let air_c = track.track_surface.air_temperature_c;
     for (i, w) in [&fl, &fr, &rl, &rr].into_iter().enumerate() {
-        let absorbed = brake_wheel[i].min(w.fx.abs()) * (w.omega * config.wheel_radius_m).abs();
+        let carried = if brake_wheel[i] > 0.0 {
+            (w.fx.abs() / brake_wheel[i]).min(1.0)
+        } else {
+            0.0
+        };
+        let absorbed = pads_force[i] * carried * (w.omega * config.wheel_radius_m).abs();
+        let duct = if i < 2 {
+            config.brake_duct_scale
+        } else {
+            config.brake_duct_scale_rear
+        };
+        state.brake_wear_pct[i] = (state.brake_wear_pct[i]
+            + crate::brakes::wear_percent(
+                config.brake_material,
+                config.brake_pads,
+                absorbed,
+                state.brake_temp_c[i],
+                dt,
+            ))
+        .min(100.0);
         crate::brakes::step(
             &mut state.brake_temp_c[i],
             absorbed,
             state.speed_mps,
             air_c,
             config.brake_material,
-            config.brake_duct_scale,
+            duct,
             dt,
         );
     }
@@ -1029,6 +1271,37 @@ pub fn update_car_3d(
     // the air is not counted — it left from somewhere, and that tick already
     // counted.
     state.wheels_off_track = !is_airborne && wheel_states.iter().all(|w| w.off_track);
+
+    // Kerb strikes and bottoming (`crate::damage`): read off each wheel's
+    // suspension speed filtered over a few ticks, which a one-tick step in
+    // the road mesh does not reach and a real strike does.
+    if !is_airborne && state.damage_scale() > 0.0 {
+        let scale = state.damage_scale();
+        for (i, w) in wheel_states.iter().enumerate() {
+            let strike = state.strike_mps[i]
+                + (w.suspension_velocity_mps.abs() - state.strike_mps[i])
+                    * (dt / crate::damage::STRIKE_FILTER_S).min(1.0);
+            state.strike_mps[i] = strike;
+            if w.surface == ContactSurface::Curb {
+                let hit = crate::damage::kerb_strike_damage(strike, dt) * scale;
+                if hit > 0.0 {
+                    state.damage.hurt_side(i % 2 == 0, hit);
+                }
+            }
+            let past = crate::geometry::past_bump_stop_m(
+                &config.suspension,
+                i < 2,
+                w.suspension_compression,
+                suspension_rest_length_m,
+            );
+            let hit = crate::damage::bottoming_damage(past, strike, dt) * scale;
+            if hit > 0.0 {
+                state.damage.hurt_end(i < 2, hit);
+            }
+        }
+    } else if is_airborne {
+        state.strike_mps = [0.0; 4];
+    }
 
     // 11. Sum all forces
     // Rotate front tire forces by steering angle
@@ -1141,7 +1414,7 @@ pub fn update_car_3d(
     // 14. Update G-forces
     state.g_forces.longitudinal_g = accel_x / GRAVITY;
     state.g_forces.lateral_g = accel_y / GRAVITY;
-    state.g_forces.vertical_g = 1.0 + (downforce_front + downforce_rear) / (mass * GRAVITY);
+    state.g_forces.vertical_g = crest + (downforce_front + downforce_rear) / (mass * GRAVITY);
 
     // 15. Integrate velocities
     // Transform acceleration from vehicle frame to world frame
@@ -1229,6 +1502,9 @@ pub fn update_car_3d(
     const GROUND_FOLLOW_MAX_DROP_MPS: f32 = 84.0;
     let ground_follow_max_drop_m = GROUND_FOLLOW_MAX_DROP_MPS * dt;
 
+    // How fast the body was falling into this tick: only a car that was in
+    // the air has a vertical speed, and touching down zeroes it below.
+    let falling = (-state.vel_z).max(0.0);
     if can_query_post_surface {
         if is_airborne {
             if state.pos_z <= ground_z {
@@ -1253,6 +1529,17 @@ pub fn update_car_3d(
     } else {
         state.vel_z = 0.0;
         is_airborne = false;
+    }
+    // A landing: the fall's speed goes into the suspension, and past what
+    // it can take into the car (`crate::damage`), nose first or tail first
+    // by the attitude it lands at.
+    if !is_airborne && falling > 0.0 {
+        let hit = crate::damage::landing_damage(falling) * state.damage_scale();
+        if hit > 0.0 {
+            let nose = (0.5 - 0.5 * (state.pitch_rad / 0.1).clamp(-1.0, 1.0)).clamp(0.0, 1.0);
+            state.damage.hurt_end(true, hit * nose);
+            state.damage.hurt_end(false, hit * (1.0 - nose));
+        }
     }
     state.is_airborne = is_airborne;
 
@@ -1372,12 +1659,29 @@ struct AeroForces {
 const SIDE_FORCE_COEFFICIENT: f32 = 0.9;
 const FLANK_AREA_SHARE: f32 = 0.75;
 
+/// The crest model's filters (`update_car_3d`): the ground's grade is
+/// settled over this long, and the vertical acceleration read off it over
+/// this long, so a one-tick step in the road mesh hardly reaches the
+/// loads while a real crest (a grade changing over a second) does; and the
+/// most the road's curvature may load or unload the car, in g.
+const SLOPE_FILTER_S: f32 = 0.05;
+const VERTICAL_ACCEL_FILTER_S: f32 = 0.08;
+const MAX_VERTICAL_ACCEL_G: f32 = 1.5;
+
+/// A tyre smokes (`CarState::slide_flags`) spinning past this multiple of
+/// its peak slip ratio or sliding past this multiple of its peak slip
+/// angle, above this speed, m/s (the road sound's thresholds).
+const SLIDE_FLAG_RATIO: f32 = 1.6;
+const SLIDE_FLAG_ANGLE: f32 = 2.4;
+const SLIDE_FLAG_MIN_SPEED_MPS: f32 = 5.0;
+
 fn calculate_aerodynamic_forces(
     state: &CarState,
     config: &CarConfig,
     surface: &TrackSurface,
     ride_front_m: f32,
     ride_rear_m: f32,
+    posture: crate::aero::Posture,
 ) -> AeroForces {
     // The air the car drives through: its own velocity less the wind, in
     // the car's frame. In still air this is the car's own velocity.
@@ -1402,9 +1706,10 @@ fn calculate_aerodynamic_forces(
     // tow, less downforce in the dirty air, the front wing worst. Exactly
     // 1.0 in clean air.
     let wake = state.wake;
-    // The posture (`crate::aero`: ride height and rake; exactly 1.0 for a
-    // car without an `[aero]` table) and a damaged nose.
-    let posture = crate::aero::multipliers(config, ride_front_m, ride_rear_m);
+    // The posture (`crate::aero`: ride height and rake, the attitude to the
+    // air and the porpoising; exactly 1.0 for a car without an `[aero]`
+    // table) and a damaged nose.
+    let posture = crate::aero::multipliers_at(config, ride_front_m, ride_rear_m, posture);
     let nose = 1.0
         - crate::aero::FRONT_DAMAGE_AERO_LOSS
             * (state.damage.front_damage_percent / 100.0).clamp(0.0, 1.0);
@@ -1807,27 +2112,17 @@ fn calculate_weight_transfer(
     let weight_transfer_long =
         (mass * longitudinal_accel * config.cog_height_m) / config.wheelbase_m;
 
-    // Lateral weight transfer, split front/rear by roll stiffness. Each
-    // axle's roll stiffness comes from its springs acting across the track
-    // width, with the anti-roll bar as an additional term — with zero ARBs
-    // the springs still resist roll, so lateral transfer never vanishes.
-    let front_roll_stiffness = (config.suspension.spring_rate_front_n_per_m
-        + config.suspension.anti_roll_bar_front)
-        * config.track_width_front_m.powi(2)
-        / 2.0;
-    let rear_roll_stiffness = (config.suspension.spring_rate_rear_n_per_m
-        + config.suspension.anti_roll_bar_rear)
-        * config.track_width_rear_m.powi(2)
-        / 2.0;
-    let total_roll_stiffness = front_roll_stiffness + rear_roll_stiffness;
-    let front_roll_ratio = front_roll_stiffness / total_roll_stiffness.max(1.0);
-    let rear_roll_ratio = rear_roll_stiffness / total_roll_stiffness.max(1.0);
-
-    let lateral_transfer_front = (mass * lateral_accel * config.cog_height_m)
-        / config.track_width_front_m
-        * front_roll_ratio;
-    let lateral_transfer_rear =
-        (mass * lateral_accel * config.cog_height_m) / config.track_width_rear_m * rear_roll_ratio;
+    // Lateral weight transfer, per axle (`crate::geometry::lateral_transfer`):
+    // through each axle's roll centre at once and through the springs and
+    // bars by roll stiffness; without roll centres all of it is the
+    // springs' and bars', split by roll stiffness, so with zero ARBs the
+    // springs still resist roll and lateral transfer never vanishes.
+    let (lateral_transfer_front, lateral_transfer_rear) = crate::geometry::lateral_transfer(
+        config,
+        mass,
+        config.weight_distribution_front,
+        lateral_accel,
+    );
 
     (
         weight_transfer_long,
@@ -2104,7 +2399,9 @@ const STIFFNESS_PROBE_INPUT: f32 = 0.01;
 ///
 /// `steering_angle` is the centre angle the wheels are at; each wheel is
 /// moved to where the Ackermann geometry puts it for the nudged angle, since
-/// the inner wheel turns further than the outer.
+/// the inner wheel turns further than the outer, plus its own toe: the
+/// tyres' `steer_rad` carries the toe, and a probe without it read every
+/// toed wheel as turned by its toe on top of the nudge.
 fn steering_column_stiffness(
     front: [FrontTyre; 2],
     config: &CarConfig,
@@ -2113,9 +2410,11 @@ fn steering_column_stiffness(
     rad_per_input: f32,
 ) -> f32 {
     let delta = STIFFNESS_PROBE_INPUT * rad_per_input;
+    let toe = crate::geometry::toe_steer_rad(&config.suspension);
     let at = |angle: f32| {
         let (left, right) =
             calculate_ackermann_steering(angle, config.wheelbase_m, config.track_width_front_m);
+        let (left, right) = (left + toe[0], right + toe[1]);
         let [fl, fr] = front;
         steering_column_torque(
             [
@@ -2211,7 +2510,8 @@ fn solve_wheel_forces(
     wheel_radius: f32,
     wheel_load: f32,
     grip_coefficient: f32,
-    long_scale: f32, // The tyre's grip along over its grip across (camber)
+    long_scale: f32,      // The tyre's grip along over its grip across (camber)
+    slip_offset_rad: f32, // Camber thrust: the lean's slip, positive pushing left
     tire_config: &TireConfig,
     abs_enabled: bool,
     traction_control: TractionControl,
@@ -2253,7 +2553,7 @@ fn solve_wheel_forces(
     // contact patch actually travels. Backing up, the steered wheel's
     // heading enters with the opposite sign.
     let slip_angle = if wheel_vel_x > MIN_SPEED_THRESHOLD {
-        ((wheel_vel_y / wheel_vel_x).atan() - dir * steer_angle).clamp(-0.5, 0.5)
+        ((wheel_vel_y / wheel_vel_x).atan() - dir * steer_angle - slip_offset_rad).clamp(-0.5, 0.5)
     } else {
         0.0
     };
@@ -3360,6 +3660,12 @@ fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount: f32) {
     let damage_amount = damage_amount * car.damage_scale();
     if damage_amount <= 0.0 {
         return;
+    }
+    // The hardest hit since the session last looked: what sheds debris and
+    // may puncture the tyre nearest it (`GameSession::update_debris`).
+    if damage_amount > car.last_hit_pct {
+        car.last_hit_pct = damage_amount;
+        car.last_hit_angle = angle;
     }
     if !(PI / 4.0..=7.0 * PI / 4.0).contains(&angle) {
         car.damage.front_damage_percent =
@@ -5004,6 +5310,37 @@ mod tests {
         }
     }
 
+    /// With toe the tyres' `steer_rad` carries it; the probe must too, or
+    /// the nudge reads as the nudge plus the toe and the slope is wrong.
+    #[test]
+    fn column_stiffness_reads_the_same_slope_with_toe() {
+        let mut config = create_test_config();
+        let static_front = config.mass_kg * GRAVITY * config.weight_distribution_front;
+        let mut front = front_axle_at(&config, 0.3, 1.0);
+        let straight = steering_column_stiffness(
+            front,
+            &config,
+            static_front,
+            0.0,
+            config.max_steering_angle_rad,
+        );
+        config.suspension.toe_front_deg = 0.5;
+        let toe = crate::geometry::toe_steer_rad(&config.suspension);
+        front[0].steer_rad = toe[0];
+        front[1].steer_rad = toe[1];
+        let toed = steering_column_stiffness(
+            front,
+            &config,
+            static_front,
+            0.0,
+            config.max_steering_angle_rad,
+        );
+        assert!(
+            (toed - straight).abs() < 0.02 * straight.abs(),
+            "toe is in the wheels, not in the nudge: {toed} against {straight}"
+        );
+    }
+
     #[test]
     fn column_stiffness_falls_through_the_aligning_crest() {
         let config = create_test_config();
@@ -5819,6 +6156,7 @@ mod tests {
             3000.0,
             1.0,
             1.0,
+            0.0,
             &tire,
             true,
             TractionControl::Low,
@@ -5835,6 +6173,7 @@ mod tests {
             3000.0,
             1.0,
             1.0,
+            0.0,
             &tire,
             true,
             TractionControl::Low,
@@ -5864,6 +6203,7 @@ mod tests {
             3000.0,
             1.0,
             1.0,
+            0.0,
             &tire,
             true,
             TractionControl::Off,
@@ -6151,7 +6491,14 @@ mod tests {
         let config = create_test_config();
         let still = TrackSurface::default();
 
-        let air = calculate_aerodynamic_forces(&state, &config, &still, 0.06, 0.08);
+        let air = calculate_aerodynamic_forces(
+            &state,
+            &config,
+            &still,
+            0.06,
+            0.08,
+            crate::aero::Posture::STRAIGHT,
+        );
 
         assert!(air.drag > 0.0, "Drag should be positive at speed");
         assert!(air.force_x < 0.0, "and pull the car back");
@@ -6182,7 +6529,14 @@ mod tests {
                 wind_now_mps: wind,
                 ..TrackSurface::default()
             };
-            calculate_aerodynamic_forces(&state, &config, &surface, 0.06, 0.08)
+            calculate_aerodynamic_forces(
+                &state,
+                &config,
+                &surface,
+                0.06,
+                0.08,
+                crate::aero::Posture::STRAIGHT,
+            )
         };
         let still = air_with([0.0, 0.0]);
         let head = air_with([-10.0, 0.0]);
@@ -6256,6 +6610,7 @@ mod tests {
             load,
             1.0,
             1.0,
+            0.0,
             &tire_config,
             true,
             TractionControl::Low,
@@ -6284,6 +6639,7 @@ mod tests {
             load,
             1.0,
             1.0,
+            0.0,
             &tire_config,
             true,
             TractionControl::Low,
@@ -6394,6 +6750,7 @@ mod tests {
             ground: None,
             curbs: None,
             walls: None,
+            road_state: None,
             road_mesh: None,
         };
 
@@ -7265,6 +7622,7 @@ mod tests {
                 load,
                 1.0,
                 1.0,
+                0.0,
                 &tire,
                 true,
                 tc,
@@ -7500,6 +7858,7 @@ mod tests {
                 3000.0,
                 1.0,
                 1.0,
+                0.0,
                 tire,
                 true,
                 TractionControl::Low,

@@ -788,6 +788,45 @@ tests pin the placement, the steering direction and the roll direction. A
 row without wheels draws none, which is right for a body that still has its
 own.
 
+### Rain tyres (the compound's look)
+
+The server's `compound` byte says which of the car's compounds is on the
+car, and the car.toml says what each one is: a `[[tires.compound]]` table
+per compound (the server's `tyre_thermal`; its grip, wear and window keys
+are the server's), of which the client reads only `name` and `kind`
+(`slick`, `intermediate` or `wet`; slick when left out), in order, onto the
+catalog row as `Compounds` (`FApexCompoundSpec`). A car without the tables
+has the five defaults, soft / medium / hard / intermediate / wet, indices 3
+and 4 treaded.
+
+```toml
+[[tires.compound]]
+name = "prime"
+reference = true
+
+[[tires.compound]]
+name = "rain"
+kind = "wet"
+```
+
+When the compound on the car is treaded the race car actor has the wheel
+set draw it so (`FApexCarWheelSet::SetTyreLook`): each wheel's `wheel_tyre`
+slot gets an instance of its own (made from the shared material's cooked
+parent, as `ApexCarContent::OwnMaterialInstance` does for a body, since the
+class wheel's slots are shared by every car on that wheel) with a cooler,
+matte tint — slightly bluish grey for an intermediate, a darker blue-grey
+for a wet, roughness 0.95 (`ApexWheels::TreadedTint`). A slick puts the
+shared material back. It is a tint and not a tread pattern because the
+class wheels' tyres carry no UVs: `build_wheels.py` lathes the tyre profile
+without laying any (only the sidewall lettering has them), so a groove
+texture would sample one texel. Give the tyre circumferential UVs in the
+lathe and a grooved texture can replace the tint. The tyres also smoke:
+telemetry's `slide_flags` (a wheel spinning, locked or scrubbing hard on
+tarmac above 5 m/s) has the actor puff white-grey smoke off that wheel's
+contact patch (`AApexRaceCarActor::UpdateTyreSmoke`, a locked wheel the
+most) through the same effects actor as the engine smoke.
+`ApexSim.Wheels.TreadedLook` and `ApexSim.Cars.TomlCompounds` pin it.
+
 `scripts/content/cars/strip_wheels.py` (run in Blender) is how the wheels came off:
 `measure(glb)` finds the four tyres from the faces whose material names a
 tyre and prints the `[wheels]` figures; `strip(glb)` deletes every loose part

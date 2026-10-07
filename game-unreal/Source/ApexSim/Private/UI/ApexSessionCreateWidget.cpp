@@ -419,7 +419,10 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 	{
 		Out.Add(TimeOfDaySlider);
 		AddAll(TimePresetButtons);
+		AddAll(ClockScaleButtons);
 		AddAll(WeatherButtons);
+		AddAll(ChangeableButtons);
+		AddAll(TrackRubberButtons);
 		Out.Add(AirAutoButton);
 		Out.Add(AirMinus);
 		Out.Add(AirPlus);
@@ -573,6 +576,29 @@ UWidget* UApexSessionCreateWidget::MakeCaption(const FString& Label, UTextBlock*
 		ApexUI::AddH(Row, RightWidget, FMargin(12.0f, 0.0f, 0.0f, 0.0f));
 	}
 	return ApexUI::MakeSized(*WidgetTree, Row, -1.0f, 26.0f);
+}
+
+UWidget* UApexSessionCreateWidget::MakeChipRow(const FString& Label, const TArray<FString>& Chips,
+	TArray<TObjectPtr<UApexButtonWidget>>& OutButtons)
+{
+	// The label in a fixed column, so the rows' chips line up under each other.
+	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, ApexUI::MakeLabel(*WidgetTree, Label), 150.0f, -1.0f),
+		FMargin(0.0f, 0.0f, 8.0f, 0.0f), VAlign_Center);
+	OutButtons.Reset();
+	for (int32 Index = 0; Index < Chips.Num(); ++Index)
+	{
+		FApexButtonSpec Spec;
+		Spec.Label = Chips[Index];
+		Spec.Variant = EApexButtonVariant::Ghost;
+		Spec.bCentreLabel = true;
+		Spec.LabelSize = 12.0f;
+		Spec.Height = 30.0f;
+		UApexButtonWidget* Button = MakeButton(Spec);
+		OutButtons.Add(Button);
+		ApexUI::AddH(Row, Button, FMargin(Index == 0 ? 0.0f : 4.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+	}
+	return ApexUI::MakeSized(*WidgetTree, Row, -1.0f, 30.0f);
 }
 
 void UApexSessionCreateWidget::BuildLayout()
@@ -1246,7 +1272,16 @@ UWidget* UApexSessionCreateWidget::BuildConditionsTab()
 			TimePresetButtons.Add(Button);
 			ApexUI::AddH(Presets, Button, FMargin(Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
 		}
-		ApexUI::AddV(Tab, Presets, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+		ApexUI::AddV(Tab, Presets, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+
+		// Whether the clock runs through the session, and how fast: the sun
+		// then moves, dusk comes, the air and the asphalt follow.
+		TArray<FString> Labels;
+		for (int32 Index = 0; Index < ApexCreateSession::ClockScaleCount; ++Index)
+		{
+			Labels.Add(ApexCreateSession::ClockScaleLabel(ApexCreateSession::ClockScales[Index]));
+		}
+		ApexUI::AddV(Tab, MakeChipRow(TEXT("Clock"), Labels, ClockScaleButtons), FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
 
 	// --- Weather ----------------------------------------------------------------
@@ -1318,7 +1353,22 @@ UWidget* UApexSessionCreateWidget::BuildConditionsTab()
 			ApexUI::AddH(Tiles, ApexUI::MakeSized(*WidgetTree, Frame, -1.0f, 96.0f),
 				FMargin(Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
 		}
-		ApexUI::AddV(Tab, Tiles, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+		ApexUI::AddV(Tab, Tiles, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+
+		// What the sky does from there (a forecast from the pick, worked out
+		// by the server), and how much rubber the line starts with.
+		TArray<FString> Changes;
+		for (int32 Level = 0; Level < ApexCreateSession::ChangeableCount; ++Level)
+		{
+			Changes.Add(FApexSessionConditions::ChangeableLabel(Level));
+		}
+		TArray<FString> Rubber;
+		for (int32 Index = 0; Index < ApexCreateSession::TrackRubberCount; ++Index)
+		{
+			Rubber.Add(ApexCreateSession::TrackRubberChipLabel(Index));
+		}
+		ApexUI::AddV(Tab, MakeChipRow(TEXT("Weather changes"), Changes, ChangeableButtons), FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		ApexUI::AddV(Tab, MakeChipRow(TEXT("Track"), Rubber, TrackRubberButtons), FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
 
 	// --- The air: temperature and wind -------------------------------------------
@@ -1899,6 +1949,25 @@ void UApexSessionCreateWidget::RefreshSettings()
 		if (WeatherButtons[Index])
 		{
 			WeatherButtons[Index]->SetSelected(static_cast<int32>(Conditions.Weather) == Index);
+		}
+	}
+
+	// The sky through the session: the clock's speed, the forecast, the rubber.
+	{
+		const int32 Clock = ApexCreateSession::ClockScaleIndex(Conditions);
+		for (int32 Index = 0; Index < ClockScaleButtons.Num(); ++Index)
+		{
+			if (ClockScaleButtons[Index]) { ClockScaleButtons[Index]->SetSelected(Index == Clock); }
+		}
+		const int32 Changes = ApexCreateSession::ChangeableIndex(Conditions);
+		for (int32 Index = 0; Index < ChangeableButtons.Num(); ++Index)
+		{
+			if (ChangeableButtons[Index]) { ChangeableButtons[Index]->SetSelected(Index == Changes); }
+		}
+		const int32 Rubber = ApexCreateSession::TrackRubberIndex(Conditions);
+		for (int32 Index = 0; Index < TrackRubberButtons.Num(); ++Index)
+		{
+			if (TrackRubberButtons[Index]) { TrackRubberButtons[Index]->SetSelected(Index == Rubber); }
 		}
 	}
 
@@ -3060,6 +3129,24 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (const int32 Weather = ApexNav::IndexOf(WeatherButtons, Button); Weather != INDEX_NONE)
 	{
 		Flow->CreateConditions.Weather = static_cast<EApexWeather>(Weather);
+		Changed();
+		return;
+	}
+	if (const int32 Clock = ApexNav::IndexOf(ClockScaleButtons, Button); Clock != INDEX_NONE)
+	{
+		ApexCreateSession::SetClockScale(Flow->CreateConditions, ApexCreateSession::ClockScales[Clock]);
+		Changed();
+		return;
+	}
+	if (const int32 Changes = ApexNav::IndexOf(ChangeableButtons, Button); Changes != INDEX_NONE)
+	{
+		ApexCreateSession::SetChangeable(Flow->CreateConditions, Changes);
+		Changed();
+		return;
+	}
+	if (const int32 Rubber = ApexNav::IndexOf(TrackRubberButtons, Button); Rubber != INDEX_NONE)
+	{
+		ApexCreateSession::SetTrackRubber(Flow->CreateConditions, Rubber);
 		Changed();
 		return;
 	}

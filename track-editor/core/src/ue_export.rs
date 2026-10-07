@@ -288,6 +288,13 @@ pub struct UeMetadata {
     /// What the circuit is modelled on, by place (shown in the track picker).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Where it is on the globe and which way true north lies in its frame
+    /// (yaw, degrees counter-clockwise from +X): the client puts the sun
+    /// where it stands over the real circuit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latitude_deg: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub north_yaw_deg: Option<f32>,
 }
 
 /// How a material key should look. The commandlet generates one material
@@ -1319,8 +1326,18 @@ pub fn bake_all_with_options(
             category: m.category.clone(),
             environment_type: m.environment_type.clone(),
             description: m.description.clone(),
+            latitude_deg: m.latitude_deg,
+            north_yaw_deg: None,
         })
         .unwrap_or_default();
+    let georef = dem.and_then(|d| d.georef.as_ref());
+    let metadata = UeMetadata {
+        latitude_deg: metadata
+            .latitude_deg
+            .or_else(|| georef.map(|g| g.lat0 as f32)),
+        north_yaw_deg: georef.and_then(|g| g.north_yaw_deg()),
+        ..metadata
+    };
 
     let ground = terrain
         .as_ref()

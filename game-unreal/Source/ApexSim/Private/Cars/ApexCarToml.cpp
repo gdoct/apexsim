@@ -218,6 +218,40 @@ FApexDrsFlapSpec ApexCarToml::MakeDrsFlapSpec(const FApexCarToml& Toml)
 	return Spec;
 }
 
+TArray<FApexCompoundSpec> ApexCarToml::DefaultCompounds()
+{
+	TArray<FApexCompoundSpec> Compounds;
+	const TPair<const TCHAR*, EApexCompoundKind> Defaults[] = {
+		{ TEXT("soft"), EApexCompoundKind::Slick }, { TEXT("medium"), EApexCompoundKind::Slick },
+		{ TEXT("hard"), EApexCompoundKind::Slick }, { TEXT("intermediate"), EApexCompoundKind::Intermediate },
+		{ TEXT("wet"), EApexCompoundKind::Wet } };
+	for (const TPair<const TCHAR*, EApexCompoundKind>& Default : Defaults)
+	{
+		FApexCompoundSpec& Spec = Compounds.AddDefaulted_GetRef();
+		Spec.Name = Default.Key;
+		Spec.Kind = Default.Value;
+	}
+	return Compounds;
+}
+
+TArray<FApexCompoundSpec> ApexCarToml::MakeCompounds(const FApexCarToml& Toml)
+{
+	if (Toml.Compounds.IsEmpty())
+	{
+		return DefaultCompounds();
+	}
+	TArray<FApexCompoundSpec> Compounds;
+	for (const FApexCarCompoundToml& Source : Toml.Compounds)
+	{
+		FApexCompoundSpec& Spec = Compounds.AddDefaulted_GetRef();
+		Spec.Name = Source.Name;
+		Spec.Kind = Source.Kind == TEXT("wet") ? EApexCompoundKind::Wet
+			: Source.Kind == TEXT("intermediate") ? EApexCompoundKind::Intermediate
+												   : EApexCompoundKind::Slick;
+	}
+	return Compounds;
+}
+
 TArray<FApexDamagePartSpec> ApexCarToml::MakeDamageParts(const FApexCarToml& Toml)
 {
 	TArray<FApexDamagePartSpec> Parts;
@@ -261,6 +295,10 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 		if (Line.StartsWith(TEXT("[[damage_part]]")))
 		{
 			Out.DamageParts.AddDefaulted();
+		}
+		if (Line.StartsWith(TEXT("[[tires.compound]]")))
+		{
+			Out.Compounds.AddDefaulted();
 		}
 		if (Line.StartsWith(TEXT("[")))
 		{
@@ -383,6 +421,12 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 			if (Key == TEXT("optimal_temperature_c")) { Out.TyreOptimalC = FCString::Atof(*Value); }
 			else if (Key == TEXT("temperature_window_c")) { Out.TyreWindowC = FCString::Atof(*Value); }
 		}
+		else if (Table == TEXT("tires.compound") && Out.Compounds.Num() > 0)
+		{
+			FApexCarCompoundToml& C = Out.Compounds.Last();
+			if (Key == TEXT("name")) { C.Name = Value; }
+			else if (Key == TEXT("kind")) { C.Kind = Value.ToLower(); }
+		}
 		else if (Table == TEXT("sound"))
 		{
 			FApexEngineSoundSpec& S = Out.Sound;
@@ -472,6 +516,14 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 		if (L.bBadTextures)
 		{
 			OutError = FString::Printf(TEXT("[[livery]] %s: textures must be one line of [\"SLOT=file\", ...]"), *L.Name);
+			return false;
+		}
+	}
+	for (const FApexCarCompoundToml& C : Out.Compounds)
+	{
+		if (C.Name.IsEmpty() || !(C.Kind.IsEmpty() || C.Kind == TEXT("slick") || C.Kind == TEXT("intermediate") || C.Kind == TEXT("wet")))
+		{
+			OutError = FString::Printf(TEXT("[[tires.compound]] %s needs a name and a kind of slick, intermediate or wet"), *C.Name);
 			return false;
 		}
 	}

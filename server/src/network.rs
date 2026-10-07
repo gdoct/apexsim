@@ -839,7 +839,26 @@ pub struct CompactCarState {
     pub ers_lap_pct: u8,
     #[serde(default)]
     pub ers_flags: u8,
+    /// Each tread's shoulders, °C, inner then outer per tyre, FL FR RL RR
+    /// (`tyre_thermal`: `tyre_c` is the mean, so the middle is three times
+    /// it less the two). Appended after `ers_flags`; 0 is "not known".
+    #[serde(default)]
+    pub tyre_c_edges: [u8; 8],
+    /// Each brake's pad wear, percent, FL FR RL RR (`crate::brakes`).
+    #[serde(default)]
+    pub brake_wear: [u8; 4],
+    /// Which tyres are sliding hard (bits 0-3, FL FR RL RR: smoke) and
+    /// which are locked (bits 4-7) ([`SLIDE_FLAG_LOCKED_SHIFT`]).
+    #[serde(default)]
+    pub slide_flags: u8,
+    /// The hybrid's stint budget left, percent (255: no stint rule / no
+    /// hybrid) (`crate::hybrid`).
+    #[serde(default = "no_hybrid")]
+    pub ers_stint_pct: u8,
 }
+
+/// `slide_flags`: a sliding tyre is bit `i`, a locked one bit `i + 4`.
+pub const SLIDE_FLAG_LOCKED_SHIFT: u8 = 4;
 
 fn no_hybrid() -> u8 {
     255
@@ -911,7 +930,7 @@ pub fn fuel_decilitres(liters: f32) -> u16 {
     (liters.max(0.0) * 10.0).round().min(u16::MAX as f32) as u16
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CompactTelemetry {
     pub server_tick: u32,
     pub session_state: SessionState,
@@ -919,9 +938,122 @@ pub struct CompactTelemetry {
     pub countdown_ms: Option<u16>,
     pub car_states: Vec<CompactCarState>,
     /// A timed race's clock (`GameSession::race_clock`). Appended, and left
-    /// off in every other session, so a lap race's frame keeps its bytes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// off in every other session (nil when the sky follows it), so a lap
+    /// race's frame from before the sky keeps its bytes.
+    #[serde(default)]
     pub race_clock: Option<RaceClock>,
+    /// The sky as it is now (`crate::conditions`), appended after the race
+    /// clock: every session's server sends it, since the wind and the clock
+    /// are drawn in every one.
+    #[serde(default)]
+    pub sky: Option<SkyNow>,
+}
+
+/// Positional like the struct it is, but with the trailing fields left off
+/// when there is nothing in them: the race clock goes when neither it nor
+/// the sky is there, and the sky when it is not.
+impl Serialize for CompactTelemetry {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let with_clock = self.race_clock.is_some() || self.sky.is_some();
+        let with_sky = self.sky.is_some();
+        let len = 5 + with_clock as usize + with_sky as usize;
+        let mut s = serializer.serialize_struct("CompactTelemetry", len)?;
+        s.serialize_field("server_tick", &self.server_tick)?;
+        s.serialize_field("session_state", &self.session_state)?;
+        s.serialize_field("game_mode", &self.game_mode)?;
+        s.serialize_field("countdown_ms", &self.countdown_ms)?;
+        s.serialize_field("car_states", &self.car_states)?;
+        if with_clock {
+            s.serialize_field("race_clock", &self.race_clock)?;
+        } else {
+            s.skip_field("race_clock")?;
+        }
+        if with_sky {
+            s.serialize_field("sky", &self.sky)?;
+        } else {
+            s.skip_field("sky")?;
+        }
+        s.end()
+    }
+}
+
+/// The sky as it is now (`crate::conditions::LiveConditions`) and what the
+/// road under it holds, positional like the rest of `CompactTelemetry`:
+/// `[clock_s, weather, rain_pct, cloud_pct, road_water_pct, air_c,
+/// track_c, wind_kph, wind_to_deg, line_rubber_pct, time_scale,
+/// next_weather, next_in_s]`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SkyNow {
+    /// The day's clock, seconds after midnight.
+    pub clock_s: u32,
+    /// The weather the forecast has reached (`Weather`).
+    pub weather: u8,
+    /// Rain falling, percent of heavy rain.
+    pub rain_pct: u8,
+    /// Cloud cover, percent.
+    pub cloud_pct: u8,
+    /// Water on the road, the lap's mean, percent of what heavy rain leaves
+    /// on a flat road (over 100 is standing water).
+    pub road_water_pct: u8,
+    /// The air and the asphalt, °C.
+    pub air_c: i8,
+    pub track_c: i8,
+    /// The wind this moment, gusts included, km/h.
+    pub wind_kph: u8,
+    /// Where it blows toward, degrees counter-clockwise from the track
+    /// frame's +X (0..359).
+    pub wind_to_deg: u16,
+    /// Rubber on the racing line, the lap's mean, percent (50 is what the
+    /// cars are calibrated on).
+    pub line_rubber_pct: u8,
+    /// How fast the day's clock runs (0 stands still).
+    pub time_scale: u8,
+    /// The forecast's next weather, 255 when it holds.
+    pub next_weather: u8,
+    /// Seconds of session until then, 0 when it holds.
+    pub next_in_s: u32,
+}
+
+impl SkyNow {
+    /// The sky of `live`, with the wind `wind_mps` (m/s toward where it
+    /// blows, track frame) and the forecast read `session_s` into the
+    /// session.
+    pub fn of(
+        live: &crate::conditions::LiveConditions,
+        wind_mps: [f32; 2],
+        session_s: f32,
+    ) -> Self {
+        let pct = |v: f32| (v * 100.0).round().clamp(0.0, 255.0) as u8;
+        let deg = |v: f32| v.round().clamp(-128.0, 127.0) as i8;
+        let speed = (wind_mps[0] * wind_mps[0] + wind_mps[1] * wind_mps[1]).sqrt();
+        let to_deg = if speed > 0.0 {
+            wind_mps[1]
+                .atan2(wind_mps[0])
+                .to_degrees()
+                .rem_euclid(360.0)
+                .round() as u16
+                % 360
+        } else {
+            0
+        };
+        let next = live.next_change(session_s);
+        Self {
+            clock_s: ((live.clock_min * 60.0).floor() as u32) % 86_400,
+            weather: live.weather as u8,
+            rain_pct: pct(live.rain),
+            cloud_pct: pct(live.cloud),
+            road_water_pct: pct(live.road_water),
+            air_c: deg(live.air_c),
+            track_c: deg(live.track_c),
+            wind_kph: (speed * 3.6).round().clamp(0.0, 255.0) as u8,
+            wind_to_deg: to_deg,
+            line_rubber_pct: pct(live.line_rubber),
+            time_scale: live.start.clock_scale(),
+            next_weather: next.map_or(255, |c| c.weather as u8),
+            next_in_s: next.map_or(0, |c| (c.at_s - session_s).max(1.0).round() as u32),
+        }
+    }
 }
 
 /// Where a timed race's clock stands, positional like the rest of
@@ -1000,8 +1132,35 @@ impl CompactCarState {
             service_ds: (state.pit.service_left_s.max(0.0) * 10.0)
                 .round()
                 .min(u16::MAX as f32) as u16,
+            tyre_c_edges: tyre_edge_bytes(state),
+            brake_wear: state
+                .brake_wear_pct
+                .map(|w| w.round().clamp(0.0, 100.0) as u8),
+            slide_flags: state.slide_flags,
+            ers_stint_pct: state.ers_stint_pct,
         }
     }
+}
+
+/// Each tread's inner and outer shoulder, °C, as `tyre_bytes` rounds them;
+/// all 0 before the tyres are fitted.
+pub fn tyre_edge_bytes(state: &CarState) -> [u8; 8] {
+    if !state.tyres_fitted {
+        return [0; 8];
+    }
+    let byte = |v: f32| v.round().clamp(1.0, 255.0) as u8;
+    let mut out = [0u8; 8];
+    for (i, t) in state.tires.each().into_iter().enumerate() {
+        // A tyre from before the zones reads its mean on both shoulders.
+        let (inner, outer) = if t.tread_c == [0.0; 3] {
+            (t.temperature_c, t.temperature_c)
+        } else {
+            (t.tread_c[0], t.tread_c[2])
+        };
+        out[2 * i] = byte(inner);
+        out[2 * i + 1] = byte(outer);
+    }
+    out
 }
 
 /// The `lap_flags` byte of a car's telemetry: the track-limit bits from
@@ -1752,6 +1911,7 @@ mod tests {
                 .map(|i| CompactCarState::from_car_state(&state, i))
                 .collect(),
             race_clock: None,
+            sky: None,
         });
 
         let named_bytes = rmp_serde::to_vec_named(&named).unwrap();
@@ -1821,6 +1981,9 @@ mod tests {
                     humidity_pct: Some(60),
                     wind_kph: Some(12),
                     wind_from_deg: Some(90),
+                    time_scale: None,
+                    changeable: None,
+                    track_rubber_pct: None,
                 },
                 duration_s: 259.5,
                 cars: 16,
@@ -2092,6 +2255,17 @@ mod tests {
         state.ers_mode = crate::hybrid::ErsMode::Attack as u8;
         state.ers_deploying = true;
         state.ers_boost = true;
+        for (tyre, (inner, outer)) in state.tires.each_mut().into_iter().zip([
+            (88.0, 80.0),
+            (90.0, 93.6),
+            (100.0, 105.0),
+            (300.0, 300.0),
+        ]) {
+            tyre.tread_c = [inner, tyre.temperature_c, outer];
+        }
+        state.brake_wear_pct = [12.4, 12.0, 30.6, 99.9];
+        state.slide_flags = 0b0001_0010;
+        state.ers_stint_pct = 73;
 
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,
@@ -2100,10 +2274,11 @@ mod tests {
             countdown_ms: None,
             car_states: vec![CompactCarState::from_car_state(&state, 0)],
             race_clock: None,
+            sky: None,
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
-            "S_TelemetryCompactErs: {}",
+            "S_TelemetryCompactZones: {}",
             bytes
                 .iter()
                 .map(|b| format!("0x{:02X}", b))
@@ -2111,10 +2286,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 37-field array: 0xDC 0x00 0x25 is the array-16 header.
+        // The car is a 41-field array: 0xDC 0x00 0x29 is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x25]),
-            "CompactCarState must stay 37 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x29]),
+            "CompactCarState must stay 41 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -2134,6 +2309,14 @@ mod tests {
                 assert_eq!(car.damage, [23, 0, 8, 0, 100]);
                 assert_eq!((car.ers_pct, car.ers_lap_pct), (64, 255));
                 assert_eq!(car.ers_flags, 2 | 4 | 16, "attack, deploying, boost");
+                assert_eq!(
+                    car.tyre_c_edges,
+                    [88, 80, 90, 94, 100, 105, 255, 255],
+                    "the shoulders, rounded"
+                );
+                assert_eq!(car.brake_wear, [12, 12, 31, 100]);
+                assert_eq!(car.slide_flags, 0b0001_0010, "FR sliding, FL locked");
+                assert_eq!(car.ers_stint_pct, 73);
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);
             }
@@ -2635,6 +2818,7 @@ mod tests {
                 countdown_ms: None,
                 car_states: vec![],
                 race_clock,
+                sky: None,
             })
         };
         let clock_bytes = rmp_serde::to_vec(&frame(Some(RaceClock {
@@ -2765,6 +2949,9 @@ mod tests {
             humidity_pct: Some(80),
             wind_kph: Some(22),
             wind_from_deg: Some(270),
+            time_scale: None,
+            changeable: None,
+            track_rubber_pct: None,
         };
         let create = ClientMessage::CreateSession {
             track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
@@ -2809,6 +2996,119 @@ mod tests {
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAir: {}", hex(&joined_bytes));
+    }
+
+    /// The bytes of a changing sky: a create whose clock runs, whose
+    /// weather follows a forecast and whose line starts rubbered in, its
+    /// echo, and a telemetry frame carrying the sky (with no race clock,
+    /// which then goes as nil). Pinned on the client as
+    /// `ApexGolden::C_CreateSessionSky` / `S_SessionJoinedSky` and
+    /// `ApexUdpGolden::S_TelemetryCompactSky`; `cargo test
+    /// sky_wire_format -- --nocapture` prints them.
+    #[test]
+    fn test_sky_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let sky = SessionConditions {
+            weather: Weather::Cloudy,
+            time_of_day_minutes: 15 * 60,
+            time_scale: Some(24),
+            changeable: Some(2),
+            track_rubber_pct: Some(90),
+            ..SessionConditions::DEFAULT
+        };
+        let create = |conditions| ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions,
+            damage: Default::default(),
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+        };
+        let create_bytes = rmp_serde::to_vec_named(&create(sky)).unwrap();
+        println!("C_CreateSessionSky: {}", hex(&create_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession { conditions, .. } => assert_eq!(conditions, sky),
+            _ => panic!("Wrong message type"),
+        }
+        // A held sky leaves all three off: every earlier create's bytes.
+        let held = rmp_serde::to_vec_named(&create(SessionConditions::DEFAULT)).unwrap();
+        let text = String::from_utf8_lossy(&held);
+        assert!(!text.contains("time_scale") && !text.contains("changeable"));
+        assert!(!text.contains("track_rubber_pct"));
+
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 3,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: sky,
+            damage: Default::default(),
+            ai_skill: None,
+            race_seconds: None,
+        });
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedSky: {}", hex(&joined_bytes));
+
+        let now = SkyNow {
+            clock_s: 15 * 3600 + 30 * 60 + 15,
+            weather: Weather::LightRain as u8,
+            rain_pct: 37,
+            cloud_pct: 88,
+            road_water_pct: 21,
+            air_c: -2,
+            track_c: 14,
+            wind_kph: 23,
+            wind_to_deg: 300,
+            line_rubber_pct: 64,
+            time_scale: 24,
+            next_weather: Weather::HeavyRain as u8,
+            next_in_s: 1250,
+        };
+        let frame = ServerMessage::TelemetryCompact(CompactTelemetry {
+            server_tick: 123_456,
+            session_state: SessionState::Racing,
+            game_mode: GameMode::Race,
+            countdown_ms: None,
+            car_states: vec![],
+            race_clock: None,
+            sky: Some(now),
+        });
+        let frame_bytes = rmp_serde::to_vec(&frame).unwrap();
+        println!("S_TelemetryCompactSky: {}", hex(&frame_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&frame_bytes).unwrap() {
+            ServerMessage::TelemetryCompact(t) => {
+                assert_eq!(t.race_clock, None);
+                assert_eq!(t.sky, Some(now));
+            }
+            _ => panic!("Wrong message type"),
+        }
+        // Without a sky the frame is the five fields it always was.
+        let bare = ServerMessage::TelemetryCompact(CompactTelemetry {
+            sky: None,
+            ..match frame {
+                ServerMessage::TelemetryCompact(t) => t,
+                _ => unreachable!(),
+            }
+        });
+        let bare_bytes = rmp_serde::to_vec(&bare).unwrap();
+        match rmp_serde::from_slice::<ServerMessage>(&bare_bytes).unwrap() {
+            ServerMessage::TelemetryCompact(t) => {
+                assert!(t.sky.is_none() && t.race_clock.is_none())
+            }
+            _ => panic!("Wrong message type"),
+        }
+        assert!(bare_bytes.len() < frame_bytes.len());
     }
 
     /// The bytes of the start-order messages, pinned on the client as
@@ -3030,6 +3330,7 @@ mod tests {
     fn test_car_setup_wire_format() {
         let setup = ClientMessage::SetCarSetup(CarSetup::from_clicks([
             1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1, 2, -1, 2, 1, -2,
+            3, 1, -4,
         ]));
         let bytes = rmp_serde::to_vec_named(&setup).unwrap();
         let hex = bytes
@@ -3049,6 +3350,14 @@ mod tests {
                 assert_eq!(decoded.brake_ducts, 2);
                 assert_eq!((decoded.camber_front, decoded.camber_rear), (-1, 2));
                 assert_eq!((decoded.toe_front, decoded.toe_rear), (1, -2));
+                assert_eq!(
+                    (
+                        decoded.brake_ducts_rear,
+                        decoded.brake_pads,
+                        decoded.radiator
+                    ),
+                    (3, 1, -4)
+                );
             }
             _ => panic!("Wrong message type"),
         }
@@ -3108,6 +3417,8 @@ mod tests {
             fill_laps: 3.0,
             camber_modelled: true,
             rake_balance_per_mm: 0.001,
+            compounds: vec!["soft".to_string(), "medium".to_string()],
+            reference_compound: 1,
         });
         let bytes = rmp_serde::to_vec_named(&sheet).unwrap();
         let hex = bytes
@@ -3122,6 +3433,8 @@ mod tests {
                 assert_eq!(decoded.knobs[1].unit, "mm");
                 assert_eq!(decoded.gear_ratios, vec![3.5, 1.0]);
                 assert!(decoded.camber_modelled);
+                assert_eq!(decoded.compounds, vec!["soft", "medium"]);
+                assert_eq!(decoded.reference_compound, 1);
             }
             _ => panic!("Wrong message type"),
         }
@@ -3130,7 +3443,7 @@ mod tests {
 
     const GOLDEN_S_CAR_SETUP_SHEET: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x43, 0x61, 0x72, 0x53, 0x65, 0x74, 0x75, 0x70,
-        0x53, 0x68, 0x65, 0x65, 0x74, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x8C, 0xA9, 0x53, 0x65, 0x73,
+        0x53, 0x68, 0x65, 0x65, 0x74, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x8E, 0xA9, 0x53, 0x65, 0x73,
         0x73, 0x69, 0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30,
         0x30, 0x2D, 0x30, 0x30, 0x30, 0x30, 0x2D, 0x30, 0x30, 0x30, 0x30, 0x2D, 0x30, 0x30, 0x30,
         0x30, 0x2D, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x31, 0xAB,
@@ -3155,12 +3468,15 @@ mod tests {
         0xCA, 0x3F, 0x40, 0x00, 0x00, 0xA8, 0x46, 0x69, 0x6C, 0x6C, 0x4C, 0x61, 0x70, 0x73, 0xCA,
         0x40, 0x40, 0x00, 0x00, 0xAE, 0x43, 0x61, 0x6D, 0x62, 0x65, 0x72, 0x4D, 0x6F, 0x64, 0x65,
         0x6C, 0x6C, 0x65, 0x64, 0xC3, 0xB0, 0x52, 0x61, 0x6B, 0x65, 0x42, 0x61, 0x6C, 0x61, 0x6E,
-        0x63, 0x65, 0x50, 0x65, 0x72, 0x4D, 0x6D, 0xCA, 0x3A, 0x83, 0x12, 0x6F,
+        0x63, 0x65, 0x50, 0x65, 0x72, 0x4D, 0x6D, 0xCA, 0x3A, 0x83, 0x12, 0x6F, 0xA9, 0x43, 0x6F,
+        0x6D, 0x70, 0x6F, 0x75, 0x6E, 0x64, 0x73, 0x92, 0xA4, 0x73, 0x6F, 0x66, 0x74, 0xA6, 0x6D,
+        0x65, 0x64, 0x69, 0x75, 0x6D, 0xB1, 0x52, 0x65, 0x66, 0x65, 0x72, 0x65, 0x6E, 0x63, 0x65,
+        0x43, 0x6F, 0x6D, 0x70, 0x6F, 0x75, 0x6E, 0x64, 0x01,
     ];
 
     const GOLDEN_C_SET_CAR_SETUP: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAB, 0x53, 0x65, 0x74, 0x43, 0x61, 0x72, 0x53, 0x65,
-        0x74, 0x75, 0x70, 0xA4, 0x64, 0x61, 0x74, 0x61, 0xDE, 0x00, 0x19, 0xB3, 0x74, 0x79, 0x72,
+        0x74, 0x75, 0x70, 0xA4, 0x64, 0x61, 0x74, 0x61, 0xDE, 0x00, 0x1C, 0xB3, 0x74, 0x79, 0x72,
         0x65, 0x5F, 0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72, 0x65, 0x5F, 0x66, 0x72, 0x6F, 0x6E,
         0x74, 0x01, 0xB2, 0x74, 0x79, 0x72, 0x65, 0x5F, 0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72,
         0x65, 0x5F, 0x72, 0x65, 0x61, 0x72, 0xFE, 0xAB, 0x72, 0x65, 0x76, 0x5F, 0x6C, 0x69, 0x6D,
@@ -3184,7 +3500,9 @@ mod tests {
         0x73, 0x02, 0xAC, 0x63, 0x61, 0x6D, 0x62, 0x65, 0x72, 0x5F, 0x66, 0x72, 0x6F, 0x6E, 0x74,
         0xFF, 0xAB, 0x63, 0x61, 0x6D, 0x62, 0x65, 0x72, 0x5F, 0x72, 0x65, 0x61, 0x72, 0x02, 0xA9,
         0x74, 0x6F, 0x65, 0x5F, 0x66, 0x72, 0x6F, 0x6E, 0x74, 0x01, 0xA8, 0x74, 0x6F, 0x65, 0x5F,
-        0x72, 0x65, 0x61, 0x72, 0xFE,
+        0x72, 0x65, 0x61, 0x72, 0xFE, 0xB0, 0x62, 0x72, 0x61, 0x6B, 0x65, 0x5F, 0x64, 0x75, 0x63,
+        0x74, 0x73, 0x5F, 0x72, 0x65, 0x61, 0x72, 0x03, 0xAA, 0x62, 0x72, 0x61, 0x6B, 0x65, 0x5F,
+        0x70, 0x61, 0x64, 0x73, 0x01, 0xA8, 0x72, 0x61, 0x64, 0x69, 0x61, 0x74, 0x6F, 0x72, 0xFC,
     ];
 
     const GOLDEN_C_CREATE_SESSION: &[u8] = &[

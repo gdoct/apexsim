@@ -27,6 +27,10 @@
  *  - **Off the road**: a low rumble and the rattle of stones against the floor.
  *  - **Hits**: a suspension bump is a thud, contact a crunch. Both arrive as
  *    one-shots (Hit), not levels.
+ *  - **A flat spot**: the ground patch of a locked tyre thumps through the
+ *    same thud once a turn of the wheel, so its beat is the car's speed
+ *    (what the force feedback shakes the rim at), as deep as the spot;
+ *    nothing at a crawl.
  *  - **Rolling and wind**: always there, growing with speed — what makes
  *    200 km/h sound unlike 80 with the engine at the same revs. Low and
  *    steady: buffeting under 200 Hz and a soft low-mid rush, well under the
@@ -55,6 +59,8 @@ namespace ApexRoadSynth
 		float OffTrack = 0.0f;
 		/** Rain on the road: squeal turns to hiss, and the tyres throw spray. */
 		bool bWet = false;
+		/** The deepest flat spot on the tyres, 0..1 (ApexFfb::FSignals::FlatSpot): a thump each turn of the wheel. */
+		float FlatSpot = 0.0f;
 	};
 
 	/** One sliding tyre's tone: see TickHowl. */
@@ -96,8 +102,10 @@ namespace ApexRoadSynth
 		float RumbleLowpass = 0.0f;
 		FResonator Stones;
 
-		/** Decaying one-shots; see Hit. */
+		/** Decaying one-shots; see Hit. The flat spot strikes the same thud. */
 		FResonator BumpThud;
+		/** Where the flat spot stands in the wheel's turn, 0..1. */
+		float FlatSpotPhase = 0.0f;
 		/** A hit waiting for the next rendered sample to strike the thud with. */
 		float PendingThud = 0.0f;
 		float CrunchEnvelope = 0.0f;
@@ -137,6 +145,9 @@ namespace ApexRoadSynth
 
 	/** Kerb ribs per second at this speed. */
 	APEXSIM_API float CurbRibHz(float SpeedMps);
+
+	/** Turns of the wheel per second at this speed: a flat spot's thump rate, on the force feedback's 0.33 m tyre. */
+	APEXSIM_API float FlatSpotHz(float SpeedMps);
 
 	/** The squeal's centre frequency for an axle (0 front, 1 rear) at this speed and slide. */
 	APEXSIM_API float SquealHz(int32 Axle, float SpeedMps, float Slide);

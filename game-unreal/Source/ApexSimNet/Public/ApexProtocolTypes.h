@@ -220,7 +220,7 @@ struct APEXSIMNET_API FApexCarSetup
 {
 	GENERATED_BODY()
 
-	static constexpr int32 KnobCount = 25;
+	static constexpr int32 KnobCount = 28;
 
 	/** Clicks per knob, in ApexCarSetup::EKnob order. */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Setup")
@@ -299,7 +299,7 @@ namespace ApexCarSetup
 		RideHeightRear,
 		/** The compound of the next set: -1 hard, 0 medium, +1 soft. */
 		TyreCompound,
-		/** Brake duct size: cooler brakes for a little drag. */
+		/** Front brake duct size: cooler brakes for a little drag. */
 		BrakeDucts,
 		/** Static camber per axle, degrees: negative for grip, positive for stability. */
 		CamberFront,
@@ -307,8 +307,14 @@ namespace ApexCarSetup
 		/** Toe per wheel, degrees: toe-in steadies the car but costs grip and tire heat. */
 		ToeFront,
 		ToeRear,
+		/** Rear brake duct size, like the front's (server brakes.rs). */
+		BrakeDuctsRear,
+		/** The pad compound: -1 Endurance, 0 Standard, +1 Sprint; read out by name. */
+		BrakePads,
+		/** Radiator inlet: a cooler engine for a little drag per click open. */
+		Radiator,
 	};
-	static_assert(ToeRear + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
+	static_assert(Radiator + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
 }
 
 /**
@@ -389,6 +395,32 @@ struct APEXSIMNET_API FApexCarSetupSheet
 	/** Front downforce share moved per mm of rake over the stock rake. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
 	float RakeBalancePerMm = 0.0f;
+
+	/**
+	 * The car's compound names in the order telemetry's `compound` byte and
+	 * `PitService.compound` index them (`Compounds`); empty from a server that
+	 * predates it, when the five defaults (soft, medium, hard, intermediate,
+	 * wet) apply. The `tyre_compound` knob at zero picks ReferenceCompound and
+	 * each click down the next in the list, so click = reference - index.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	TArray<FString> Compounds;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	int32 ReferenceCompound = 1;
+
+	/** Whether the sheet named the car's compounds. */
+	bool HasCompounds() const { return Compounds.Num() > 0; }
+
+	/** The compound at a list index, upper-cased as the garage shows it; empty when out of range. */
+	FString CompoundNameAt(int32 Index) const
+	{
+		return Compounds.IsValidIndex(Index) ? Compounds[Index].ToUpper() : FString();
+	}
+
+	/** The compound the knob picks at a click count: index = reference - clicks. */
+	int32 CompoundIndexForClicks(int32 Clicks) const { return ReferenceCompound - Clicks; }
+	int32 ClicksForCompoundIndex(int32 Index) const { return ReferenceCompound - Index; }
 };
 
 /**
@@ -504,9 +536,64 @@ struct APEXSIMNET_API FApexSessionConditions
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
 	int32 WindFromDeg = Auto;
 
+	/** How the sky moves through the session (server `crate::conditions`),
+	 * each Auto when unset and then left off the wire, so a create that
+	 * names none keeps the bytes it always had. */
+	static constexpr int32 MaxTimeScale = 60;
+	static constexpr int32 MaxChangeable = 3;
+	/** The rubber every car is calibrated on (`road_state::RUBBER_REFERENCE`). */
+	static constexpr int32 ReferenceRubberPct = 50;
+
+	/** How fast the day's clock runs against the session's: 0 (or Auto)
+	 * holds it, 1 is real time, 24 a day in an hour. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 TimeScale = Auto;
+
+	/** How changeable the weather is: 0 (or Auto) holds the host's sky, 1
+	 * settled, 2 changeable, 3 stormy (the server's forecast). */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 Changeable = Auto;
+
+	/** Rubber on the racing line at the start, percent: 0 green, Auto the
+	 * calibrated 50, 100 rubbered in. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 TrackRubberPct = Auto;
+
 	bool HasAirTemp() const { return AirTempC != AutoAirTemp; }
 	bool HasWind() const { return WindKph >= 0; }
 	bool HasWindDirection() const { return WindFromDeg >= 0; }
+	bool HasTimeScale() const { return TimeScale >= 0; }
+	bool HasChangeable() const { return Changeable >= 0; }
+	bool HasTrackRubber() const { return TrackRubberPct >= 0; }
+	/** Whether the day's clock runs. */
+	bool ClockRuns() const { return TimeScale > 0; }
+	/** Whether the weather follows a forecast. */
+	bool WeatherChanges() const { return Changeable > 0; }
+
+	/** "Settled", "Changeable", "Stormy" ("Fixed" for 0 and unset). */
+	static FString ChangeableLabel(int32 Level)
+	{
+		switch (Level)
+		{
+		case 1:  return TEXT("Settled");
+		case 2:  return TEXT("Changeable");
+		case 3:  return TEXT("Stormy");
+		default: return TEXT("Fixed");
+		}
+	}
+
+	/** "Green track", "Rubbered track", "Track 70% rubber"; empty for the
+	 * calibrated track (unset or 50). */
+	static FString TrackRubberLabel(int32 Pct)
+	{
+		if (Pct < 0 || Pct == ReferenceRubberPct)
+		{
+			return FString();
+		}
+		if (Pct == 0)   { return TEXT("Green track"); }
+		if (Pct >= 100) { return TEXT("Rubbered track"); }
+		return FString::Printf(TEXT("Track %d%% rubber"), Pct);
+	}
 
 	/** "ahead", "the left", "behind", "the right" (and the diagonals):
 	 * where the wind comes from, seen from the start line. */
@@ -532,6 +619,9 @@ struct APEXSIMNET_API FApexSessionConditions
 		Out.HumidityPct = Out.HumidityPct < 0 ? Auto : FMath::Min(Out.HumidityPct, 100);
 		Out.WindKph = Out.WindKph < 0 ? Auto : FMath::Min(Out.WindKph, MaxWindKph);
 		Out.WindFromDeg = Out.WindFromDeg < 0 ? Auto : Out.WindFromDeg % 360;
+		Out.TimeScale = Out.TimeScale < 0 ? Auto : FMath::Min(Out.TimeScale, MaxTimeScale);
+		Out.Changeable = Out.Changeable < 0 ? Auto : FMath::Min(Out.Changeable, MaxChangeable);
+		Out.TrackRubberPct = Out.TrackRubberPct < 0 ? Auto : FMath::Min(Out.TrackRubberPct, 100);
 		return Out;
 	}
 
@@ -539,7 +629,8 @@ struct APEXSIMNET_API FApexSessionConditions
 	bool IsDefault() const
 	{
 		return Weather == EApexWeather::Sunny && TimeOfDayMinutes == DefaultTimeOfDayMinutes
-			&& !HasAirTemp() && HumidityPct < 0 && !HasWind() && !HasWindDirection();
+			&& !HasAirTemp() && HumidityPct < 0 && !HasWind() && !HasWindDirection()
+			&& !HasTimeScale() && !HasChangeable() && !HasTrackRubber();
 	}
 
 	/** Hours since midnight, fractional. */
@@ -567,7 +658,9 @@ struct APEXSIMNET_API FApexSessionConditions
 	}
 
 	/** "Light rain · 21:30 · 14°C · wind 18 km/h from the left": the air
-	 * only where it is named (a session always names it; a pick may not). */
+	 * only where it is named (a session always names it; a pick may not),
+	 * then a running clock ("clock x24"), a forecast ("changeable weather")
+	 * and a track that is not the calibrated one ("green track"). */
 	FString Describe() const
 	{
 		FString Out = FString::Printf(TEXT("%s · %s"), *WeatherLabel(Weather), *ClockText());
@@ -582,6 +675,19 @@ struct APEXSIMNET_API FApexSessionConditions
 					? FString::Printf(TEXT(" · wind %d km/h from %s"), WindKph, *WindFromLabel(WindFromDeg))
 					: FString::Printf(TEXT(" · wind %d km/h"), WindKph);
 		}
+		if (ClockRuns())
+		{
+			Out += FString::Printf(TEXT(" · clock x%d"), TimeScale);
+		}
+		if (WeatherChanges())
+		{
+			Out += FString::Printf(TEXT(" · %s weather"), *ChangeableLabel(Changeable).ToLower());
+		}
+		const FString Rubber = TrackRubberLabel(TrackRubberPct);
+		if (!Rubber.IsEmpty())
+		{
+			Out += TEXT(" · ") + Rubber.ToLower();
+		}
 		return Out;
 	}
 
@@ -589,7 +695,9 @@ struct APEXSIMNET_API FApexSessionConditions
 	{
 		return Weather == Other.Weather && TimeOfDayMinutes == Other.TimeOfDayMinutes
 			&& AirTempC == Other.AirTempC && HumidityPct == Other.HumidityPct
-			&& WindKph == Other.WindKph && WindFromDeg == Other.WindFromDeg;
+			&& WindKph == Other.WindKph && WindFromDeg == Other.WindFromDeg
+			&& TimeScale == Other.TimeScale && Changeable == Other.Changeable
+			&& TrackRubberPct == Other.TrackRubberPct;
 	}
 	bool operator!=(const FApexSessionConditions& Other) const { return !(*this == Other); }
 };
@@ -1666,6 +1774,30 @@ struct APEXSIMNET_API FApexCarTelemetry
 
 	bool HasHybrid() const { return ErsChargePct >= 0.0f; }
 
+	/**
+	 * Each tread's inner and outer shoulder, °C, FL FR RL RR (`tyre_c_edges`);
+	 * negative when unknown. TyreTempC is the mean of the three tread zones,
+	 * so the middle zone is 3 * mean - inner - outer.
+	 */
+	float TyreInnerC[4] = {-1.0f, -1.0f, -1.0f, -1.0f};
+	float TyreOuterC[4] = {-1.0f, -1.0f, -1.0f, -1.0f};
+
+	bool HasTyreEdges() const { return TyreInnerC[0] >= 0.0f; }
+
+	/** Each corner's pad and disc wear, percent (`brake_wear`); negative when unknown. */
+	float BrakeWearPct[4] = {-1.0f, -1.0f, -1.0f, -1.0f};
+
+	/**
+	 * The tyre is sliding hard enough to smoke / is locked (`slide_flags`
+	 * bits 0-3 and 4-7). False from a server that predates them.
+	 */
+	bool bTyreSliding[4] = {false, false, false, false};
+	bool bTyreLocked[4] = {false, false, false, false};
+
+	/** The hybrid's stint energy budget left, percent (`ers_stint_pct`); negative without a stint rule. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float ErsStintPct = -1.0f;
+
 	/** "S", "M", "H", "I", "W" (server tyre_thermal::COMPOUNDS), or empty when unknown. */
 	static FString CompoundLetter(int32 InCompound)
 	{
@@ -1679,6 +1811,147 @@ struct APEXSIMNET_API FApexCarTelemetry
 		static const TCHAR* Names[] = { TEXT("SOFT"), TEXT("MEDIUM"), TEXT("HARD"), TEXT("INTER"), TEXT("WET") };
 		return InCompound >= 0 && InCompound < static_cast<int32>(UE_ARRAY_COUNT(Names)) ? Names[InCompound] : TEXT("");
 	}
+
+	/**
+	 * The compound's name from the car's own list when the setup sheet gave
+	 * one (upper-cased, "INTERMEDIATE" rather than the default table's
+	 * "INTER"), else the default table's. Empty when unknown either way.
+	 */
+	static FString CompoundNameFrom(const TArray<FString>& SheetCompounds, int32 InCompound)
+	{
+		if (SheetCompounds.Num() > 0)
+		{
+			return SheetCompounds.IsValidIndex(InCompound) ? SheetCompounds[InCompound].ToUpper() : FString();
+		}
+		return CompoundName(InCompound);
+	}
+
+	/** The first letter of CompoundNameFrom, upper-cased; empty when unknown. */
+	static FString CompoundLetterFrom(const TArray<FString>& SheetCompounds, int32 InCompound)
+	{
+		if (SheetCompounds.Num() > 0)
+		{
+			const FString Name = CompoundNameFrom(SheetCompounds, InCompound);
+			return Name.IsEmpty() ? FString() : Name.Left(1);
+		}
+		return CompoundLetter(InCompound);
+	}
+};
+
+/**
+ * The sky as it is now (`SkyNow`, network.rs), the seventh element of a
+ * newer server's `CompactTelemetry`: the day's clock, the weather the
+ * forecast has reached and how far the rain and the cloud have come in, the
+ * water and the rubber on the road, the air, the wind this moment and the
+ * forecast's next change. `bValid` is false from a server that predates it,
+ * and then the session's fixed conditions are the sky.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexSkyNow
+{
+	GENERATED_BODY()
+
+	/** Set when the frame carried a sky. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	bool bValid = false;
+
+	/** The day's clock, seconds after midnight (0..86399). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 ClockS = 13 * 3600;
+
+	/** The weather the forecast has reached. Rain and cloud ease in behind it. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	EApexWeather Weather = EApexWeather::Sunny;
+
+	/** Rain falling, percent of heavy rain. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 RainPct = 0;
+
+	/** Cloud cover, percent. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 CloudPct = 0;
+
+	/** Water on the road, the lap's mean, percent of what heavy rain leaves
+	 * on a flat road; over 100 is standing water. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 RoadWaterPct = 0;
+
+	/** The air and the asphalt, °C. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 AirC = 20;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 TrackC = 20;
+
+	/** The wind this moment, gusts included, km/h. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 WindKph = 0;
+
+	/** Where the wind blows TOWARD, degrees counter-clockwise from the server
+	 * frame's +X (the track's frame, not the start straight's). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 WindToDeg = 0;
+
+	/** Rubber on the racing line, the lap's mean, percent (50 is what the
+	 * cars are calibrated on). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 LineRubberPct = 50;
+
+	/** How fast the day's clock runs (0 stands still). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 TimeScale = 0;
+
+	/** The forecast's next weather; -1 while it holds. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 NextWeather = -1;
+
+	/** Seconds of session until that change; 0 while it holds. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 NextInS = 0;
+
+	bool HasNextChange() const { return NextWeather >= 0 && NextInS > 0; }
+
+	/** Hours since midnight, fractional. */
+	float Hours() const { return static_cast<float>(ClockS) / 3600.0f; }
+
+	/** "15:30". */
+	FString ClockText() const
+	{
+		const int32 Minutes = (ClockS / 60) % FApexSessionConditions::MinutesPerDay;
+		return FString::Printf(TEXT("%02d:%02d"), Minutes / 60, Minutes % 60);
+	}
+
+	/** The wind as a vector in the server frame, m/s toward where it blows. */
+	FVector2D WindServerMps() const
+	{
+		const float Speed = static_cast<float>(WindKph) / 3.6f;
+		const float Rad = FMath::DegreesToRadians(static_cast<float>(WindToDeg));
+		return FVector2D(Speed * FMath::Cos(Rad), Speed * FMath::Sin(Rad));
+	}
+
+	/**
+	 * This sky as session conditions, for the sky model: the clock to the
+	 * minute and the forecast's weather. The air is named from the frame.
+	 */
+	FApexSessionConditions AsConditions(const FApexSessionConditions& Session) const
+	{
+		FApexSessionConditions Out = Session;
+		Out.Weather = Weather;
+		Out.TimeOfDayMinutes = (ClockS / 60) % FApexSessionConditions::MinutesPerDay;
+		Out.AirTempC = AirC;
+		Out.WindKph = WindKph;
+		return Out.Clamped();
+	}
+
+	bool operator==(const FApexSkyNow& Other) const
+	{
+		return bValid == Other.bValid && ClockS == Other.ClockS && Weather == Other.Weather
+			&& RainPct == Other.RainPct && CloudPct == Other.CloudPct && RoadWaterPct == Other.RoadWaterPct
+			&& AirC == Other.AirC && TrackC == Other.TrackC && WindKph == Other.WindKph
+			&& WindToDeg == Other.WindToDeg && LineRubberPct == Other.LineRubberPct
+			&& TimeScale == Other.TimeScale && NextWeather == Other.NextWeather && NextInS == Other.NextInS;
+	}
+	bool operator!=(const FApexSkyNow& Other) const { return !(*this == Other); }
 };
 
 /** `CompactTelemetry` (network.rs:415) — positional encoding, UDP. */
@@ -1715,6 +1988,13 @@ struct APEXSIMNET_API FApexTelemetryFrame
 	int32 RaceFinalLap = 0;
 
 	bool HasRaceClock() const { return RaceLeftMs >= 0; }
+
+	/**
+	 * The sky now (`SkyNow`, appended after the race clock, which is then
+	 * nil when there is none). `Sky.bValid` is false from an older server.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FApexSkyNow Sky;
 };
 
 /** What is under one tyre (`feedback::ContactSurface`). Ordered by roughness. */
