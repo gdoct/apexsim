@@ -1974,7 +1974,11 @@ fields are in docs/HUD_MODDING.md, drawn by the `spectator_*` components
 `ApexSim.Spectator.Writer`), cutting time with every car in a hotlap
 garage; the session goes to `Saved/Replays/Recent/` (ten kept) when it
 ends, and SAVE REPLAY (pause menu, hotlap garage, `apexsim.replay.Save`)
-keeps it in `Saved/Replays/`. Playing one is
+keeps it in `Saved/Replays/`; the results screen's Save replay keeps the
+whole session (`UApexReplayRecorder::KeepThisSession`: written to
+`Saved/Replays/` instead of `Recent/` when it ends, or moved there once it
+has). A replay plays with the backdrop switched off too (`-ApexNoDemo`,
+`apexsim.demo.Enabled 0`, `-ApexAutoRace`). Playing one is
 `UApexDemoModeSubsystem::PlayReplay` (backdrop source `Replay`: no loop,
 no moving on) with `UApexSpectatorSubsystem`'s `SetPaused` /
 `SetPlaybackRate` / `SeekTo`. `apexsim-replay info` reads a client-saved
@@ -3793,11 +3797,20 @@ viewport pixels, `apexsim.ui.Click <text> [#N]` clicks the Nth visible text
 matching exactly (case-insensitive, top to bottom, so `Create session` the
 title is #0 and the CREATE SESSION button #1) and `apexsim.ui.Mouse
 down|move|up X Y` drives the left button at a viewport point (the create
-screen's grid drag, the wind dial). All three go through Slate's own input
+screen's grid drag, the wind dial); Click releases the button 50 ms after
+pressing it, since a plain UMG `UButton` (the session browser's Join and
+Watch) ignores a press and release in one frame. `apexsim.ui.Key <FKey
+name> [...]` presses and releases keys, pad buttons included
+(`Gamepad_FaceButton_Bottom`, `Gamepad_DPad_Down`, `Gamepad_LeftTrigger`
+...), built as `FSlateApplication::OnControllerButtonPressed` builds a pad's,
+so they reach the input processor and the focused widget as a pad's would.
+All of them go through Slate's own input
 path, so run them from `-ApexExecAfter`, e.g. `-ApexNoDemo -ApexStartScreen=3
 -ApexCreateMode=7 "-ApexExecAfter=20=apexsim.ui.Click + #3|25=apexsim.ui.Click
 Qualifying|30=apexsim.ui.Click CREATE SESSION #1"`; the client logs what
-`SessionJoined` echoed.
+`SessionJoined` echoed. `-ExecCmds` separates commands with commas: `"r.SetRes
+1920x1080w;DisableAllScreenMessages"` is one command, which sets the
+resolution and leaves the on-screen messages on.
 
 Checking it without a keyboard: `-ApexAutoRace -ApexMode=8 -ApexAiCount=0`
 counts into a hotlap, `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`

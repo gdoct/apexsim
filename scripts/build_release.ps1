@@ -25,6 +25,8 @@
     nothing here is ever committed.
 
         artifacts/release/ApexSim-<Version>-Win64/
+            apexsim.exe         the launcher (bootstrap/): checks the install,
+                                then launches, configures or manages content
             Play.bat            start the server (if needed) and the game
             Start-Server.bat    server only, for hosting
             README.txt
@@ -78,6 +80,10 @@
 .PARAMETER SkipServer
     Reuse the apexsim-server.exe already in server/target/release.
 
+.PARAMETER SkipLauncher
+    Reuse bootstrap\out\Game.exe instead of building the launcher (bootstrap\build.bat,
+    which needs MSVC). It is copied to the release root as apexsim.exe.
+
 .PARAMETER SkipProps
     Reuse the prop kit already imported under game-unreal/Content/Props.
 
@@ -130,6 +136,7 @@ param(
     [switch]$BuildEditor,
     [switch]$Zip,
     [switch]$SkipServer,
+    [switch]$SkipLauncher,
     [switch]$SkipProps,
     [switch]$SkipTracks,
     [switch]$SkipShowcase,
@@ -152,6 +159,8 @@ $WheelsDir    = Join-Path $RepoRoot 'content\wheels'
 $PropsSrcDir  = Join-Path $RepoRoot 'content\props'
 $PropsDir     = Join-Path $RepoRoot 'game-unreal\Content\Props'
 $ServerExe    = Join-Path $RepoRoot 'server\target\release\apexsim-server.exe'
+$LauncherDir  = Join-Path $RepoRoot 'bootstrap'
+$LauncherExe  = Join-Path $LauncherDir 'out\Game.exe'
 if (-not $ClientArtifactDirectory) {
     $ClientArtifactDirectory = Join-Path $RepoRoot 'artifacts\ApexSim-Win64\Windows'
 }
@@ -316,6 +325,13 @@ function Invoke-Preflight {
         if ($unidentified.Count -gt 0) {
             $problems.Add("track(s) without a track_id, which the catalog needs: $($unidentified -join ', ')")
         }
+    }
+
+    if ($SkipLauncher -and -not (Test-Path $LauncherExe)) {
+        $problems.Add("-SkipLauncher, but there is no launcher at $LauncherExe (run bootstrap\build.bat)")
+    }
+    if (-not $SkipLauncher -and -not (Test-Path (Join-Path $LauncherDir 'build.bat'))) {
+        $problems.Add("no launcher source at $LauncherDir; pass -SkipLauncher to build without it")
     }
 
     if (-not $SkipServer -and -not (Test-Command 'cargo')) {
@@ -515,6 +531,21 @@ if (-not (Test-Path $ReplayExe)) {
     throw "the server build did not produce $ReplayExe (cargo build --release --bin apexsim-replay)"
 }
 
+# --- launcher --------------------------------------------------------------
+
+if ($SkipLauncher) {
+    Write-Step 'Skipping the launcher build; using the existing binary'
+}
+else {
+    Write-Step 'Building the launcher (bootstrap\build.bat)'
+    # build.bat finds MSVC by itself; it is a batch file, so go through cmd.
+    Invoke-Tool -Exe 'cmd.exe' -What 'launcher build' -WorkingDir $LauncherDir `
+        -Arguments @('/c', (Join-Path $LauncherDir 'build.bat'))
+}
+if (-not (Test-Path $LauncherExe)) {
+    throw "the launcher build did not produce $LauncherExe"
+}
+
 # --- props -----------------------------------------------------------------
 
 if ($SkipProps) {
@@ -647,6 +678,8 @@ $runtimeCarCount = Copy-ApexRuntimeCars -CarsDir $CarsDir -WheelsDir $WheelsDir 
     -DefaultOnly:(-not $IncludeCustomCars)
 Write-Detail "$runtimeCarCount car(s) in $(Join-Path $GameDir 'Cars')"
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'LICENSE') -Destination $ReleaseDir -Force
+# The launcher finds Game\ApexSim.exe and Server\ beside itself, so it lives at the root.
+Copy-Item -LiteralPath $LauncherExe -Destination (Join-Path $ReleaseDir 'apexsim.exe') -Force
 
 # A sample rather than a live settings.yml: the client creates the real file on
 # its first run, filled in for the display it actually finds, and shipping one
@@ -725,11 +758,16 @@ Built from commit $Commit, client configuration $Configuration.
 
 QUICK START
 
-    Double-click Play.bat. It starts a local server and launches the game.
+    Double-click apexsim.exe, the launcher. Launch starts the game; its
+    drop-down has "Launch with local server". Or double-click Play.bat, which
+    starts a local server and launches the game.
     In the menu, connect to 127.0.0.1:9000.
 
 WHAT IS IN HERE
 
+    apexsim.exe        The launcher: checks the install, then Launch, Edit
+                       configuration (network and graphics, written to
+                       Game\settings.yml) and Manage content.
     Game\              The ApexSim client. Run Game\ApexSim.exe to play
                        against a server someone else is hosting.
     Game\Tracks\       Every circuit, as the data the game builds it from
@@ -827,6 +865,7 @@ $manifest = [ordered]@{
         showcases    = $showcaseCount
         server       = (Split-Path -Leaf $ServerExe)
         render_tool  = (Split-Path -Leaf $ReplayExe)
+        launcher     = 'apexsim.exe'
     }
 }
 Write-TextFile (Join-Path $ReleaseDir 'release.json') ($manifest | ConvertTo-Json -Depth 4)

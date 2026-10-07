@@ -123,6 +123,7 @@ goes in seating order.
 | The hybrid mode resets to Balanced each race; it is not saved. | Low | Low |
 | A puncture shows only as FLAT under the tyre (red, under 60 kPa) and the wear; the garage's stock Medium card does not say which wet tyre it will fit. | Low | Low |
 | The chase camera ends up inside the garage when the car stops at its box or is towed there: the view is a pillar or the garage wall and the car is hidden (seen 2026-10-07 at Monza). | Low | Low |
+| The race results screen's GAP column is each car's best lap against the fastest, not its gap at the flag, so in a race it can read out of order (P2 +9.4, P3 +9.0; seen 2026-10-07). | Low | Low |
 | The intermediate and wet tyres are a tint only (bluer, matte): no tread pattern, so in a wide shot they hardly read apart from a slick. | Low | Low |
 | Visible damage: one dent pattern per zone (no hit point on the wire), cosmetic debris the cars drive through, engine smoke always from the tail, no windscreen cracks or hanging parts, the DRS flap and driver never dented, wheels not drawn toed. | Med | Low |
 | AC imports have no `[[damage_part]]` tables (the importer writes none): they dent and smoke but shed nothing. | Low | Low |
@@ -136,7 +137,9 @@ goes in seating order.
 | Replays hold only stream rows: no tyre pressures, brake temperatures, fuel, ghost, or tyre and kerb sound. The server's own replays are still not `.apxs`. | Med | Low |
 | The client's replay of a session stops at 512 MB compressed. | Low | Low |
 | The timing tower is not clickable; the watch keys are not rebindable; the pad has no replay speed; no scrub bar. | Low | Low |
-| The session browser is still the legacy, unstyled blueprint screen. | Med | Low |
+| The session browser is still the legacy, unstyled blueprint screen: a row's track name and host line are white on its white background (invisible; seen 2026-10-07). | Med | Low |
+| Keep and Delete in the Replays screen are keys only (K / Del, pad X / Y): no mouse control, and the hint bar names only the keyboard keys. | Low | Low |
+| A watched backdrop race shows no results screen: the tower reads FINISHED down the field and the next race starts 6 s later. | Low | Low |
 
 ## Assetto Corsa imports
 
@@ -156,7 +159,6 @@ Covered by automation tests only; each needs a look on screen.
 
 - Race: contact sparks (a contact lasts a few frames and no timed screenshot of the 2026-10-07 runs caught one; the steam and the engine smoke were seen). Needs a human: a flat spot through a real wheel or pad.
 - 2026-10-07: the garage's compound cards built from a car's own `[[tires.compound]]` list (no shipped car files one, so only the default five have been on screen; the own-list cards are pinned by `ApexSim.UI.Garage.CompoundCards`). Needs a human: the flat-spot thump in the road sound, a puddle or a dried line felt from the driver's seat, a slow puncture felt over a lap (its pressure falling to FLAT in the HUD was seen).
-- Replays: SAVE REPLAY from the pause menu and garage, Keep and Delete, the watch view on a pad, a watched race finishing, replay speeds other than 2x, the session browser's Watch button clicked.
 - 2026-10-07 track and sky: the flags turning with the wind (no shipped circuit places `sign/flag_pole` yet), the sun at a circuit's real latitude and north (needs the re-exported tracks), rain arriving and the road drying under a changeable sky, a rubbered start. A 60x clock at Monza was watched relighting at dusk with the floodlights coming on.
 - The 420 Hz server (2026-10-06) through a real client: car motion, force feedback and the replay recorder's rate snap were tuned on 240 Hz ticks and 60 Hz telemetry; the divisor is 7 for the same 60 Hz. Not measured: tick jitter at 2.4 ms against the 1 ms Windows timer (only the mean rate is tested), and the AI survey at 420 against the 240 baseline (the AI's consistency noise is seeded from the tick number, so every race differs between the two rates by design, not by error).
 

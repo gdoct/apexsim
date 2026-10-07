@@ -158,6 +158,11 @@ pub struct GameSession {
     /// Tick at which the race ends whether or not every car has finished,
     /// set when the winner crosses the line.
     finish_deadline_tick: Option<u32>,
+    /// The server loop's tick on which this session was first seen
+    /// finished: `game_loop::tick::cleanup_finished_sessions` times its
+    /// removal from there (the session's own `current_tick` counts from its
+    /// creation, not the server's start).
+    pub(crate) finished_since_loop_tick: Option<u64>,
     /// A finished human's steering aid, held while the server drives their
     /// car on the cool-down lap (the AI steers the rack directly) and given
     /// back when the grid is lined up again. Looked up by key only.
@@ -457,6 +462,7 @@ impl GameSession {
             roster_dirty: true,
             ai_speed_profiles: HashMap::new(),
             finish_deadline_tick: None,
+            finished_since_loop_tick: None,
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
             liveries: HashMap::new(),
@@ -507,6 +513,7 @@ impl GameSession {
             roster_dirty: true,
             ai_speed_profiles: HashMap::new(),
             finish_deadline_tick: None,
+            finished_since_loop_tick: None,
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
             liveries: HashMap::new(),

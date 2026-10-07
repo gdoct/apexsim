@@ -49,6 +49,8 @@ private:
 	void RefreshSidePanel();
 
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
+	/** The Save replay button's state from the replay recorder. */
+	void RefreshSaveReplay();
 
 	/** Whether the results are final; drawn from the recorder. */
 	bool IsLive() const;
@@ -63,6 +65,7 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DriveAgainButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> BackToLobbyButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> SaveReplayButton;
 
 	/** Seconds until the provisional table is redrawn. */
 	float LiveRefreshCountdown = 0.0f;

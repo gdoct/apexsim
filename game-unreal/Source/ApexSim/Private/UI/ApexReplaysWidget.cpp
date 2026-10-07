@@ -129,7 +129,19 @@ void UApexReplaysWidget::Refresh(int32 FocusIndex)
 		{
 			Parts.Add(Info.Driver);
 		}
-		Parts.Add(Info.Header.Conditions.Describe());
+		// The sky in short (Describe's wind direction, clock and forecast ran
+		// the line past the badge column).
+		const FApexSessionConditions& Sky = Info.Header.Conditions;
+		FString SkyText = FString::Printf(TEXT("%s · %s"), *FApexSessionConditions::WeatherLabel(Sky.Weather), *Sky.ClockText());
+		if (Sky.HasAirTemp())
+		{
+			SkyText += FString::Printf(TEXT(" · %d°C"), Sky.AirTempC);
+		}
+		if (Sky.HasWind() && Sky.WindKph > 0)
+		{
+			SkyText += FString::Printf(TEXT(" · wind %d km/h"), Sky.WindKph);
+		}
+		Parts.Add(SkyText);
 		Spec.SubLabel = FString::Join(Parts, TEXT("  ·  "));
 		Spec.Badge = Info.bSaved ? TEXT("Saved") : TEXT("Recent");
 		Spec.Variant = EApexButtonVariant::Panel;

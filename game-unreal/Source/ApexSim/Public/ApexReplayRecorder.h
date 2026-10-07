@@ -63,6 +63,18 @@ public:
 	 */
 	bool SaveReplay(FString& OutPath, FString& OutError);
 
+	/**
+	 * Keep the whole of this session (the results screen's Save replay):
+	 * while it is still recording, it will go to Replays/ rather than Recent/
+	 * when it ends (bOutWhenFinished); once ended, its recent file moves to
+	 * Replays/. False with a reason when there is nothing of it to keep.
+	 */
+	bool KeepThisSession(FString& OutPath, bool& bOutWhenFinished, FString& OutError);
+	/** There is a recording, or a file of the session just ended, to keep. */
+	bool CanKeepThisSession() const;
+	/** KeepThisSession has been asked for this session (or it was kept). */
+	bool IsThisSessionKept() const;
+
 	/** `Saved/Replays` (the kept ones) and its `Recent` folder. */
 	static FString ReplayDirectory();
 	static FString RecentDirectory();
@@ -131,4 +143,8 @@ private:
 	EApexGameMode GameMode = EApexGameMode::Lobby;
 	TSet<int32> Finished;
 	bool bStoppedForSize = false;
+	/** Write the session to Replays/ instead of Recent/ when it ends. */
+	bool bKeepWhenFinished = false;
+	/** Where the last session's file went when it ended. */
+	FString LastSessionPath;
 };

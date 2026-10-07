@@ -2,6 +2,7 @@
 
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexReplayRecorder.h"
 #include "ApexSessionRecorder.h"
 #include "ApexSim.h"
 #include "Blueprint/WidgetTree.h"
@@ -16,6 +17,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Engine/GameInstance.h"
+#include "Misc/Paths.h"
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
@@ -25,6 +27,7 @@ namespace
 {
 	const FName ActionDriveAgain(TEXT("__again"));
 	const FName ActionLobby(TEXT("__lobby"));
+	const FName ActionSaveReplay(TEXT("__savereplay"));
 	const FName ActionMenu(TEXT("__menu"));
 
 	constexpr float ResultsSidePanelWidth = 470.0f;
@@ -64,6 +67,22 @@ void UApexSessionResultsWidget::OnScreenActivated()
 	LiveRefreshCountdown = LiveRefreshSeconds;
 	RefreshTable();
 	RefreshSidePanel();
+	RefreshSaveReplay();
+}
+
+void UApexSessionResultsWidget::RefreshSaveReplay()
+{
+	if (!SaveReplayButton)
+	{
+		return;
+	}
+	const UApexReplayRecorder* Replays = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexReplayRecorder>() : nullptr;
+	const bool bKept = Replays && Replays->IsThisSessionKept();
+	const bool bCan = Replays && Replays->CanKeepThisSession();
+	SaveReplayButton->SetIsEnabled(bCan && !bKept);
+	SaveReplayButton->SetBadge(bKept ? (Replays->IsRecording() ? TEXT("At the flag") : TEXT("Saved"))
+		: bCan ? FString() : TEXT("Nothing recorded"),
+		bKept ? ApexUI::Palette::Live : ApexUI::Palette::TextMuted);
 }
 
 void UApexSessionResultsWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -82,6 +101,7 @@ void UApexSessionResultsWidget::NativeTick(const FGeometry& MyGeometry, float In
 	}
 	LiveRefreshCountdown = LiveRefreshSeconds;
 	RefreshTable();
+	RefreshSaveReplay();
 	if (!bLive)
 	{
 		// The session just ended: the recorder has filed the local best by now.
@@ -212,17 +232,19 @@ UWidget* UApexSessionResultsWidget::BuildSidePanel()
 	BackToLobbyButton->OnActivated.AddDynamic(this, &UApexSessionResultsWidget::HandleButtonActivated);
 	ApexUI::AddV(Column, BackToLobbyButton, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
 
-	// No replay system exists; the button says so rather than misleading.
+	// Keeps the whole session's replay: at once when it has ended, else when
+	// it does (UApexReplayRecorder::KeepThisSession).
 	FApexButtonSpec ReplaySpec;
 	ReplaySpec.Label = TEXT("Save replay");
-	ReplaySpec.Badge = TEXT("Locked");
-	ReplaySpec.Variant = EApexButtonVariant::Locked;
+	ReplaySpec.Variant = EApexButtonVariant::Ghost;
 	ReplaySpec.LabelSize = 17.0f;
 	ReplaySpec.Height = 52.0f;
+	ReplaySpec.ActionId = ActionSaveReplay;
 
-	UApexButtonWidget* ReplayButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
-	ReplayButton->Setup(ReplaySpec);
-	ApexUI::AddV(Column, ReplayButton);
+	SaveReplayButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	SaveReplayButton->Setup(ReplaySpec);
+	SaveReplayButton->OnActivated.AddDynamic(this, &UApexSessionResultsWidget::HandleButtonActivated);
+	ApexUI::AddV(Column, SaveReplayButton);
 
 	return ApexUI::MakePanel(
 		*WidgetTree,
@@ -330,17 +352,30 @@ void UApexSessionResultsWidget::RefreshTable()
 		}
 		ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, NameCell, ColDriver, -1.0f));
 
-		// The protocol never says which car an AI is in, and a human's choice is
-		// only known while they are in the lobby list.
-		FString CarName;
-		for (const FApexLobbyPlayer& Player : Net->GetCachedLobbyState().PlayersInLobby)
+		// The roster names every car's model (AI included); a lobby player's
+		// pick stands in for a roster from an older server.
+		FString CarId;
+		for (const FApexRosterEntry& Entry : Net->GetSessionRoster().Entries)
 		{
-			if (Player.Id.Equals(Result.PlayerId, ESearchCase::IgnoreCase) && Player.HasSelectedCar())
+			if (Entry.CarIndex == Result.CarIndex && !Entry.CarConfigId.IsEmpty())
 			{
-				FApexCarCatalogRow CarRow;
-				CarName = Flow->GetCarCatalogRow(Player.SelectedCar, CarRow) ? CarRow.DisplayName : FString();
+				CarId = Entry.CarConfigId;
 				break;
 			}
+		}
+		for (const FApexLobbyPlayer& Player : Net->GetCachedLobbyState().PlayersInLobby)
+		{
+			if (CarId.IsEmpty() && Player.Id.Equals(Result.PlayerId, ESearchCase::IgnoreCase) && Player.HasSelectedCar())
+			{
+				CarId = Player.SelectedCar;
+				break;
+			}
+		}
+		FString CarName;
+		FApexCarCatalogRow CarRow;
+		if (!CarId.IsEmpty() && Flow->GetCarCatalogRow(CarId, CarRow))
+		{
+			CarName = CarRow.DisplayName;
 		}
 		ApexUI::AddH(Row, MakeCell(*WidgetTree, CarName.ToUpper(), ApexUI::Font::Mono(10.0f, 60), ApexUI::Palette::TextMuted, ColCar));
 
@@ -605,6 +640,25 @@ void UApexSessionResultsWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			return;
 		}
 		Net->StartCountdown(5, Flow->CreateStartingMode);
+		return;
+	}
+
+	if (Id == ActionSaveReplay)
+	{
+		UApexReplayRecorder* Replays = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexReplayRecorder>() : nullptr;
+		FString Path;
+		FString Error;
+		bool bWhenFinished = false;
+		if (Replays && Replays->KeepThisSession(Path, bWhenFinished, Error))
+		{
+			ShowToast(bWhenFinished ? FString(TEXT("The replay will be saved when the session ends"))
+				: FString::Printf(TEXT("Replay saved: %s"), *FPaths::GetBaseFilename(Path)));
+		}
+		else
+		{
+			ShowToast(FString::Printf(TEXT("No replay saved: %s"), Replays ? *Error : TEXT("no recorder")), true);
+		}
+		RefreshSaveReplay();
 		return;
 	}
 

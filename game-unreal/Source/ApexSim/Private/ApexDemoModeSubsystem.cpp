@@ -153,7 +153,9 @@ bool UApexDemoModeSubsystem::IsDemoAllowed(const UApexNetSubsystem& Net) const
 
 bool UApexDemoModeSubsystem::IsDemoExpected() const
 {
-	if (IsDemoDisabled())
+	// A replay the player picked plays with the backdrop switched off too
+	// (WantsBackdrop says the same).
+	if (IsDemoDisabled() && Source != EApexBackdropSource::Replay)
 	{
 		return false;
 	}

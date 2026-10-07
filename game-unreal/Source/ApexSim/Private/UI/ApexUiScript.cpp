@@ -5,6 +5,10 @@
 //                                      matching <text> exactly (case-insensitive)
 //   apexsim.ui.Mouse down|move|up X Y  press / drag / release the left button at a
 //                                      viewport point
+//   apexsim.ui.Key <key> [<key> ...]   press and release each key in turn, by its
+//                                      FKey name (K, Delete, SpaceBar, Equals,
+//                                      Gamepad_FaceButton_Top, Gamepad_DPad_Down...);
+//                                      a pad key arrives as the pad's own does
 //
 // Every click goes through Slate's own input pipeline (cursor move, button
 // down, button up), so it lands on whatever a hand on the mouse would hit:
@@ -17,10 +21,12 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
+#include "Containers/Ticker.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/IConsoleManager.h"
+#include "InputCoreTypes.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/SViewport.h"
 
@@ -173,7 +179,14 @@ namespace ApexUiScript
 				{
 					UE_LOG(LogApexSim, Log, TEXT("apexsim.ui.Click: '%s' #%d at (%.0f, %.0f)"), *Wanted, Nth, Found.Centre.X, Found.Centre.Y);
 					Send(TEXT("down"), Found.Centre);
-					Send(TEXT("up"), Found.Centre);
+					// Released a frame later, as a hand would: a plain UButton
+					// only clicks once it has drawn itself pressed.
+					const FVector2D At = Found.Centre;
+					FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([At](float)
+					{
+						Send(TEXT("up"), At);
+						return false;
+					}), 0.05f);
 					return;
 				}
 			}
@@ -192,5 +205,28 @@ namespace ApexUiScript
 				return;
 			}
 			Send(*Args[0], Origin + FVector2D(FCString::Atod(*Args[1]), FCString::Atod(*Args[2])));
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs KeyCommand(
+		TEXT("apexsim.ui.Key"),
+		TEXT("Press and release keys through Slate: apexsim.ui.Key <FKey name> [...] (pad keys as a pad sends them)"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			FSlateApplication& Slate = FSlateApplication::Get();
+			for (const FString& Name : Args)
+			{
+				const FKey Key(*Name);
+				if (!Key.IsValid())
+				{
+					UE_LOG(LogApexSim, Warning, TEXT("apexsim.ui.Key: no key '%s'"), *Name);
+					continue;
+				}
+				// A pad button is what FSlateApplication::OnControllerButtonPressed
+				// makes of it: slate user 0, no character.
+				const FKeyEvent Event(Key, FModifierKeysState(), 0u, false, 0u, 0u);
+				const bool bDown = Slate.ProcessKeyDownEvent(Event);
+				Slate.ProcessKeyUpEvent(Event);
+				UE_LOG(LogApexSim, Log, TEXT("apexsim.ui.Key: %s (%s)"), *Name, bDown ? TEXT("handled") : TEXT("not handled"));
+			}
 		}));
 }

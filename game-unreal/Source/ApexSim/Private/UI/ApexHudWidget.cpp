@@ -502,6 +502,12 @@ int32 UApexHudWidget::BuildElement(const FApexHudElementDef& Def, int32 Copy)
 	{
 		UTextBlock* Text = MakeText(*WidgetTree, FString(), HudFont(Def, false), Palette::TextPrimary);
 		Text->SetJustification(Def.Justify);
+		// A text given less room than it asks for (a fixed-width panel, a
+		// `fill` share) ends in an ellipsis instead of running over its
+		// neighbours: a long circuit or car name did. The ellipsis is cut at
+		// the clip rect, so the text clips itself, only when it overflows.
+		Text->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+		Text->SetClipping(EWidgetClipping::OnDemand);
 		Widget = Text;
 		break;
 	}

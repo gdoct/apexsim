@@ -513,6 +513,28 @@ pub(crate) async fn tick_sessions(
 /// Remove finished sessions older than the configured timeout and refresh
 /// the once-per-second gauges. Runs after the telemetry broadcast so a
 /// finished session still gets its final telemetry.
+/// Whether a session finished more than `timeout_seconds` ago, remembering
+/// in `finished_since` the loop tick it was first seen finished (and
+/// forgetting it when it is running again: "drive again"). The age used to
+/// be the loop's tick less the session's own, which is how long the server
+/// had been up before the session was created: on a server up for more than
+/// the timeout a race was removed the tick it finished, before most clients
+/// had a frame saying so (a watched backdrop race froze at the flag).
+pub(crate) fn finished_session_expired(
+    finished_since: &mut Option<u64>,
+    finished: bool,
+    tick_count: u64,
+    tick_rate: u64,
+    timeout_seconds: u64,
+) -> bool {
+    if !finished {
+        *finished_since = None;
+        return false;
+    }
+    let since = *finished_since.get_or_insert(tick_count);
+    tick_count.saturating_sub(since) / tick_rate.max(1) > timeout_seconds
+}
+
 pub(crate) async fn cleanup_finished_sessions(ctx: &GameLoopCtx, tick_count: u64) {
     let tick_rate = ctx.tick_rate;
     let mut state_write = ctx.state.write().await;
@@ -520,16 +542,17 @@ pub(crate) async fn cleanup_finished_sessions(ctx: &GameLoopCtx, tick_count: u64
     // Cleanup finished sessions (older than timeout)
     let timeout_seconds = state_write.config.server.session_timeout_seconds as u64;
     state_write.sessions.retain(|id, session| {
-        if session.session.state == SessionState::Finished {
-            let age_ticks = tick_count.saturating_sub(session.session.current_tick as u64);
-            let age_seconds = age_ticks / tick_rate as u64;
-
-            if age_seconds > timeout_seconds {
-                debug!("Removing finished session: {}", id);
-                return false;
-            }
+        let expired = finished_session_expired(
+            &mut session.finished_since_loop_tick,
+            session.session.state == SessionState::Finished,
+            tick_count,
+            tick_rate as u64,
+            timeout_seconds,
+        );
+        if expired {
+            debug!("Removing finished session: {}", id);
         }
-        true
+        !expired
     });
 
     // Refresh gauges once per second
@@ -542,5 +565,57 @@ pub(crate) async fn cleanup_finished_sessions(ctx: &GameLoopCtx, tick_count: u64
             state_write.lobby.get_lobby_count().await as u64,
             std::sync::atomic::Ordering::Relaxed,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::finished_session_expired;
+
+    #[test]
+    fn a_finished_session_is_kept_for_the_timeout_from_when_it_finished() {
+        let rate = 420;
+        let mut since = None;
+        // Running: never expired, whatever the server's uptime.
+        assert!(!finished_session_expired(
+            &mut since, false, 1_000_000, rate, 300
+        ));
+        assert_eq!(since, None);
+        // Finishes on a server up for an hour: kept for the timeout.
+        let finish = 3_600 * rate;
+        assert!(!finished_session_expired(
+            &mut since, true, finish, rate, 300
+        ));
+        assert!(!finished_session_expired(
+            &mut since,
+            true,
+            finish + 300 * rate,
+            rate,
+            300
+        ));
+        assert!(finished_session_expired(
+            &mut since,
+            true,
+            finish + 301 * rate,
+            rate,
+            300
+        ));
+        // Raced again before then: the clock starts over at the next finish.
+        let mut again = Some(finish);
+        assert!(!finished_session_expired(
+            &mut again,
+            false,
+            finish + 10 * rate,
+            rate,
+            300
+        ));
+        assert!(!finished_session_expired(
+            &mut again,
+            true,
+            finish + 400 * rate,
+            rate,
+            300
+        ));
+        assert_eq!(again, Some(finish + 400 * rate));
     }
 }

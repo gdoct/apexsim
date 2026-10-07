@@ -100,7 +100,7 @@ struct Env
     bool found = false;     // a game install or a source checkout was located
     bool release = false;   // packaged layout (Game\, Server\) vs. the repo
     fs::path root;
-    fs::path gameExe, serverExe, serverDir, settings, scripts;
+    fs::path gameExe, playScript, serverExe, serverDir, settings, scripts;
     fs::path carsDefault, carsCustom, wheels, hudDefault, hudCustom, tracksDefault, tracksCustom;
     bool tracksAreExports = false;  // packaged tracks are .uescene.json, the repo's are .yaml
 };
@@ -145,10 +145,9 @@ static Env Locate()
         {
             e.found = true;
             e.root = d;
-            fs::path art = d / L"artifacts" / L"ApexSim-Win64";
-            e.gameExe = art / L"ApexSim.exe";
-            if (!Exists(e.gameExe) && Exists(art / L"Windows" / L"ApexSim.exe"))
-                e.gameExe = art / L"Windows" / L"ApexSim.exe";
+            // The repo launches through play_editor.ps1 (builds, then runs the editor
+            // build with -game); there is no packaged ApexSim.exe to start.
+            e.playScript = d / L"scripts" / L"play_editor.ps1";
             e.serverExe = d / L"server" / L"target" / L"release" / L"apexsim-server.exe";
             e.serverDir = d;  // server.toml and content/ resolve from here
             e.settings = d / L"game-unreal" / L"settings.yml";
@@ -374,7 +373,7 @@ static void WorkerMain(HWND h)
 {
     Post(h, L"Checking environment...", 120);
     g.env = Locate();
-    g.gameOk = g.env.found && Exists(g.env.gameExe);
+    g.gameOk = g.env.found && Exists(g.env.release ? g.env.gameExe : g.env.playScript);
     g.serverOk = g.env.found && Exists(g.env.serverExe);
 
     Post(h, L"Generating config files...", 450);
@@ -406,8 +405,8 @@ static void WorkerMain(HWND h)
     }
     else if (!g.gameOk)
     {
-        final = L"ApexSim.exe was not found.";
-        g.note = L"Expected at " + g.env.gameExe.wstring();
+        final = g.env.release ? L"ApexSim.exe was not found." : L"scripts\\play_editor.ps1 was not found.";
+        g.note = L"Expected at " + (g.env.release ? g.env.gameExe : g.env.playScript).wstring();
     }
     else if (cars == 0 || tracks == 0)
     {
@@ -461,6 +460,23 @@ static bool Spawn(const fs::path& exe, const fs::path& cwd, DWORD flags, bool mi
     return true;
 }
 
+// Source checkout: the same as `scripts/play_editor.ps1 -Build`, minus its server
+// (-NoServer; "Launch with local server" is the launcher's own). The build and
+// the script run in a console of their own, kept open if the script fails.
+static bool SpawnEditorBuild()
+{
+    std::wstring cmd = L"cmd.exe /S /C \"powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"" +
+                       g.env.playScript.wstring() + L"\" -Build -NoServer || pause\"";
+    STARTUPINFOW si = { sizeof si };
+    si.lpTitle = const_cast<wchar_t*>(L"ApexSim build");
+    PROCESS_INFORMATION pi = {};
+    if (!CreateProcessW(nullptr, &cmd[0], nullptr, nullptr, FALSE, CREATE_NEW_CONSOLE, nullptr, g.env.root.c_str(), &si, &pi))
+        return false;
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    return true;
+}
+
 static void LaunchAsync(bool withServer)
 {
     g.busy = true;
@@ -490,8 +506,13 @@ static void LaunchAsync(bool withServer)
         if (ok)
         {
             Post(h, L"Launching ApexSim...", 900);
-            if (!Spawn(g.env.gameExe, g.env.gameExe.parent_path(), 0, false, nullptr))
-            { ok = false; err = L"Could not start ApexSim.exe."; }
+            if (g.env.release)
+            {
+                if (!Spawn(g.env.gameExe, g.env.gameExe.parent_path(), 0, false, nullptr))
+                { ok = false; err = L"Could not start ApexSim.exe."; }
+            }
+            else if (!SpawnEditorBuild())
+            { ok = false; err = L"Could not start scripts\\play_editor.ps1."; }
         }
         WSACleanup();
         if (ok) { PostMessageW(h, WM_CLOSE, 0, 0); return; }

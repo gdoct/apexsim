@@ -141,6 +141,8 @@ void UApexReplayRecorder::Begin()
 {
 	Writer.Reset();
 	bRecording = true;
+	bKeepWhenFinished = false;
+	LastSessionPath.Reset();
 	bHaveFirstRoster = false;
 	RosterRevision = 0;
 	bRosterChanged = false;
@@ -475,15 +477,64 @@ void UApexReplayRecorder::FinishAndKeepRecent()
 	FString Error;
 	if (BuildFile(Bytes, Header, Error))
 	{
-		const FString Path = FPaths::Combine(RecentDirectory(),
-			MakeReplayName(FDateTime::Now(), Header.Track.DisplayName, Header.GameMode) + TEXT(".apxs"));
+		const FString Dir = bKeepWhenFinished ? ReplayDirectory() : RecentDirectory();
+		const FString Base = MakeReplayName(FDateTime::Now(), Header.Track.DisplayName, Header.GameMode);
+		FString Path = FPaths::Combine(Dir, Base + TEXT(".apxs"));
+		for (int32 Suffix = 2; IFileManager::Get().FileExists(*Path); ++Suffix)
+		{
+			Path = FPaths::Combine(Dir, FString::Printf(TEXT("%s (%d).apxs"), *Base, Suffix));
+		}
 		if (FFileHelper::SaveArrayToFile(Bytes, *Path))
 		{
-			UE_LOG(LogApexSim, Log, TEXT("Replay of the session kept among the recent ones: %s"), *Path);
-			PruneRecent();
+			LastSessionPath = Path;
+			if (bKeepWhenFinished)
+			{
+				UE_LOG(LogApexSim, Log, TEXT("Replay of the session saved: %s"), *Path);
+			}
+			else
+			{
+				UE_LOG(LogApexSim, Log, TEXT("Replay of the session kept among the recent ones: %s"), *Path);
+				PruneRecent();
+			}
 		}
 	}
+	bKeepWhenFinished = false;
 	Writer.Reset();
+}
+
+bool UApexReplayRecorder::CanKeepThisSession() const
+{
+	return bRecording || (!LastSessionPath.IsEmpty() && IFileManager::Get().FileExists(*LastSessionPath));
+}
+
+bool UApexReplayRecorder::IsThisSessionKept() const
+{
+	return bRecording ? bKeepWhenFinished
+		: !LastSessionPath.IsEmpty() && FPaths::IsSamePath(FPaths::GetPath(LastSessionPath), ReplayDirectory());
+}
+
+bool UApexReplayRecorder::KeepThisSession(FString& OutPath, bool& bOutWhenFinished, FString& OutError)
+{
+	bOutWhenFinished = false;
+	if (bRecording)
+	{
+		bKeepWhenFinished = true;
+		bOutWhenFinished = true;
+		return true;
+	}
+	if (LastSessionPath.IsEmpty() || !IFileManager::Get().FileExists(*LastSessionPath))
+	{
+		OutError = TEXT("nothing of this session was recorded");
+		return false;
+	}
+	if (!KeepReplay(LastSessionPath, OutPath))
+	{
+		OutError = FString::Printf(TEXT("could not move %s"), *LastSessionPath);
+		return false;
+	}
+	LastSessionPath = OutPath;
+	UE_LOG(LogApexSim, Log, TEXT("Replay of the session saved: %s"), *OutPath);
+	return true;
 }
 
 FString UApexReplayRecorder::ReplayDirectory()
