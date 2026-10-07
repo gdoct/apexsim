@@ -44,7 +44,12 @@ jobs:
     name: Marketing page is up to date
     runs-on: ubuntu-latest
     steps:
+      # The page's pictures are cut from LFS files (the car renders, the
+      # liveries, the splash); manifest.json holds the hash of the real
+      # bytes, so a checkout of the pointer files can never match it.
       - uses: actions/checkout@v5
+        with:
+          lfs: true
 
       - uses: actions/setup-python@v6
         with:
