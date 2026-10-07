@@ -72,9 +72,11 @@ features:
         with real gear ratios, driving on the same road mesh the client
         draws: a kerb is five centimetres tall in the physics too.
         Downforce follows ride height and rake, a tow saves drag and dirty
-        air takes the front wing away. Deterministic to the bit, guarded by
-        a test that asserts identical runs.
-      chips: [Pacejka tyres, Ride-height aero, Slipstream, Road mesh, Deterministic]
+        air takes the front wing away; a crest unloads the car and a floor
+        too close to the road can porpoise. Camber, toe, roll centres and a
+        running differential shape the grip. Deterministic to the bit,
+        guarded by a test that asserts identical runs.
+      chips: [Pacejka tyres, Ride-height aero, Slipstream, Suspension geometry, Road mesh, Deterministic]
     - tag: Netcode
       wide: true
       icon: graph
@@ -88,9 +90,11 @@ features:
     - tag: Tyres and fuel
       title: A car that changes over a stint
       body: >-
-        Each tyre is a tread and a core with their own temperatures.
-        Pressure follows the gas law, grip follows the working window, and
-        wear ends in a cliff. Soft, medium and hard compounds. Fuel is
+        Each tyre is a tread and a core with their own temperatures, the
+        tread in three zones from shoulder to shoulder. Pressure follows the
+        gas law, grip follows the working window, and wear ends in a cliff.
+        Soft, medium and hard slicks, intermediates and wets; a locked wheel
+        flat-spots its tyre and a hard hit can puncture it. Fuel is
         burned by the power the engine makes, and its weight moves the
         balance as the tank drains.
     - tag: Heat
@@ -98,8 +102,9 @@ features:
       body: >-
         Each brake disc is a thermal mass, heated by what the pads absorb
         and cooled through a duct you can resize in the garage. Carbon is
-        weak when cold; steel fades past 700&nbsp;°C. The radiator runs hot
-        in a long tow, and an engine that overheats gives up power.
+        weak when cold; steel fades past 700&nbsp;°C. Pads wear with the
+        energy they absorb. The radiator runs hot in a long tow, and an
+        engine that overheats gives up power.
     - tag: Damage
       title: Every hit counts, and shows
       body: >-
@@ -107,8 +112,10 @@ features:
         loses downforce and radiator flow, a damaged flank pulls the
         steering, a hurt engine loses power, and a zone at 100% ends the
         race. You can see it on the car: panels dent and scuff, wings and
-        noses come off, and a hurt engine trails smoke. The host picks
-        full, reduced or no damage.
+        noses come off, and a hurt engine trails smoke. Kerb strikes,
+        bottoming and hard landings cost the car too, and an engine wears
+        with the hours it spends at racing revs. The host picks full,
+        reduced or no damage.
     - tag: Strategy
       title: Pit stops, DRS and deployment
       body: >-
@@ -147,8 +154,31 @@ features:
         Five weather states, any time of day, a host-picked air temperature
         and wind that gusts. Wet grip, air density and altitude are baked
         into the session, so physics, AI and the racing line all follow: at
-        2,240&nbsp;m a turbo keeps its power and a wing does not.
-        Floodlights and headlights come on after dark.
+        2,240&nbsp;m a turbo keeps its power and a wing does not. Let the
+        clock run and the sky can change with it. Floodlights and
+        headlights come on after dark.
+    - tag: Track
+      title: A road that changes under you
+      body: >-
+        Cars lay rubber along the racing line and shed marbles beside it;
+        rain washes both away. Water gathers in the low points of a lap and
+        the wheels dry a line through it. The sun warms the asphalt with
+        the clock, and the AI changes tyres as the track dries or wets.
+    - tag: Race format
+      title: Sprint or twenty-four hours
+      body: >-
+        Race for laps or against the clock, from a short sprint to a full
+        day: when time runs out, the leader's next lap is the last. Qualify
+        with an outlap in the garage, and the race grids from the result,
+        or drag the drivers into any order you like on the create screen.
+    - tag: Screens
+      title: Three monitors, one picture
+      body: >-
+        Triple screens render three real views from one eye point, with the
+        side panels toed in to match your rig and the bezels allowed for.
+        The HUD and menus stay on the centre screen. Two or four are
+        refused on purpose: an even row puts a bezel in front of the
+        driver.
     - tag: Hotlap
       title: Garage, ghost, repeat
       body: >-
