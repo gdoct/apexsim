@@ -104,6 +104,7 @@ goes in seating order.
 | Entries are not stable drivers: a player is a per-connection id and records key on the name, so the same driver must be recognised across days (an account or token identity, with car and livery fixed for the event). | Med | High |
 | Qualifying has no length or format: it runs until the host moves on, so the classification (best legal lap, the earlier of equal times first) is whatever stands then. No session timer and no results screen after it (the garage scoreboard is live only; the result shows afterwards as a chip in the next race's Starting order row). | Low | Med |
 | In qualifying a car appears at the pit exit (a teleport): it does not drive down the pit lane, so there is no pit limiter or queue at the exit light, and the HUD still shows race-style standings by track position (and the lap sheet says OUT LAP once). | Med | Low |
+| The lobby's GRID list is in car-index order (the session's player ids), not the starting order the race will use: a host who asked for P1 can be listed third. The race itself grids as asked; the roster carries no grid slot to sort by. | Low | Med |
 | The start order matches drivers by name: a stored result's humans are found again only under the same name, a no-show closes the grid up (their slot is not left empty), and the grid is reordered by mouse or by your own slot's stepper only, not by keyboard or pad. | Low | Low |
 | No schedule: a session opens, counts in and starts at its scheduled time whether or not everyone is there; a driver joining late goes out from the pit lane. Needs a lobby view of upcoming sessions and a countdown. | Med | Med |
 | No per-session rules within an event: practice length, qualifying format, race length, conditions per day (a different forecast each day), assists and damage fixed for all sessions. | Low | Med |
@@ -117,6 +118,7 @@ goes in seating order.
 | Gap | Effort | Impact |
 |---|---|---|
 | Tyre heat is not a force-feedback or squeal cue; damage changes neither the engine note nor the feel. | Med | Med |
+| The create screen's wind dial names its eight directions AHD / AR / R / BR / BHD...: terse, though the caption above it spells the pick out ("FROM THE RIGHT"). | Low | Low |
 | The HUD colours brakes by temperature alone (the client does not know carbon from steel). | Low | Low |
 | The hybrid mode resets to Balanced each race; it is not saved. | Low | Low |
 | A puncture shows only as 15 kPa and the wear; the garage's stock Medium card does not say which wet tyre it will fit. | Low | Low |
@@ -150,13 +152,11 @@ goes in seating order.
 
 Covered by automation tests only; each needs a look on screen.
 
-- Hotlap garage: the Intermediate and Wet cards, the Aero section, the Next tyres and Brake ducts rows.
-- Create screen: the AI level stepper (laid out, never clicked through), the air temperature slider and the wind row, the Qualifying tile, the qualifying garage (scoreboard page, watching a car by clicking its name, the camera button; seen by screenshot only, never clicked), and the Starting order row (the chips, your grid slot, dragging and click-to-move on the grid, a stored result loaded).
 - HUD: the PIT badge lit, the ERS badge and keys, a punctured tyre, OUT in the standings.
 - Race: a flat spot through a real wheel or pad, a towed car parked in its box, an AI pit stop as the client draws it, damage steam and sparks.
-- 2026-10-07: tyre smoke from the slide flags, the treaded look of the intermediate and wet tyres, the tyre shoulders and pad wear in the HUD, the garage's compound cards built from a car's own list, the new Brakes and Engine rows (rear ducts, pads, radiator), the flat-spot thump in the road sound, a puddle or a dried line felt from the driver's seat, a slow puncture over a lap.
+- 2026-10-07: tyre smoke from the slide flags, the treaded look of the intermediate and wet tyres, the tyre shoulders and pad wear in the HUD, the garage's compound cards built from a car's own `[[tires.compound]]` list (no shipped car files one, so only the default five have been on screen; the own-list cards are pinned by `ApexSim.UI.Garage.CompoundCards`), the flat-spot thump in the road sound, a puddle or a dried line felt from the driver's seat, a slow puncture over a lap.
 - Replays: SAVE REPLAY from the pause menu and garage, Keep and Delete, the watch view on a pad, a watched race finishing, replay speeds other than 2x, the session browser's Watch button clicked.
-- 2026-10-07 track and sky: the flags turning with the wind (no shipped circuit places `sign/flag_pole` yet), the sun at a circuit's real latitude and north (needs the re-exported tracks), rain arriving and the road drying under a changeable sky, a rubbered start, the create screen's Clock / Weather changes / Track rows clicked through. A 60x clock at Monza was watched relighting at dusk with the floodlights coming on.
+- 2026-10-07 track and sky: the flags turning with the wind (no shipped circuit places `sign/flag_pole` yet), the sun at a circuit's real latitude and north (needs the re-exported tracks), rain arriving and the road drying under a changeable sky, a rubbered start. A 60x clock at Monza was watched relighting at dusk with the floodlights coming on.
 - The 420 Hz server (2026-10-06) through a real client: car motion, force feedback and the replay recorder's rate snap were tuned on 240 Hz ticks and 60 Hz telemetry; the divisor is 7 for the same 60 Hz. Not measured: tick jitter at 2.4 ms against the 1 ms Windows timer (only the mean rate is tested), and the AI survey at 420 against the 240 baseline (the AI's consistency noise is seeded from the tick number, so every race differs between the two rates by design, not by error).
 
 ## Before picking one up

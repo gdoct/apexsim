@@ -3787,6 +3787,18 @@ and the lap's end ends it. Golden bytes: `cargo test hotlap_wire_format --
 blob with bit 2 set); `ApexSim.Net.Protocol.GhostLap` and
 `ApexSim.Net.Udp.LapFields` decode them.
 
+**Clicking through a menu unattended** (`UI/ApexUiScript.cpp`):
+`apexsim.ui.Texts [filter]` logs every visible text with its centre in
+viewport pixels, `apexsim.ui.Click <text> [#N]` clicks the Nth visible text
+matching exactly (case-insensitive, top to bottom, so `Create session` the
+title is #0 and the CREATE SESSION button #1) and `apexsim.ui.Mouse
+down|move|up X Y` drives the left button at a viewport point (the create
+screen's grid drag, the wind dial). All three go through Slate's own input
+path, so run them from `-ApexExecAfter`, e.g. `-ApexNoDemo -ApexStartScreen=3
+-ApexCreateMode=7 "-ApexExecAfter=20=apexsim.ui.Click + #3|25=apexsim.ui.Click
+Qualifying|30=apexsim.ui.Click CREATE SESSION #1"`; the client logs what
+`SessionJoined` echoed.
+
 Checking it without a keyboard: `-ApexAutoRace -ApexMode=8 -ApexAiCount=0`
 counts into a hotlap, `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`
 and `-ApexHotlapReplayAfter=N` press the garage's buttons N seconds in

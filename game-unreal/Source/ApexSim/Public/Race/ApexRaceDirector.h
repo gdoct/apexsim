@@ -808,6 +808,9 @@ private:
 	int32 SpectatorFocus = INDEX_NONE;
 	/** The cockpit rig was spawned for watching the backdrop (a race view has its own). */
 	bool bSpectatorRig = false;
+	/** The driver's own camera when watching began in a race view (the qualifying scoreboard), put back when it ends. */
+	bool bWatchSavedTvView = false;
+	bool bWatchSavedCockpitView = false;
 
 	/**
 	 * Tyres, kerbs, road and wind for the local car, from the server's

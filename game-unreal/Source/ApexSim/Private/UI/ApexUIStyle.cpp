@@ -577,6 +577,14 @@ namespace ApexUI
 		return MakeSized(Tree, Bar, -1.0f, Metrics::HintBarHeight);
 	}
 
+	/** A fill slot size at a weight: FSlateChildSize(Fill) alone is always weight 1. */
+	static FSlateChildSize FillWeight(float Weight)
+	{
+		FSlateChildSize Size(ESlateSizeRule::Fill);
+		Size.Value = Weight;
+		return Size;
+	}
+
 	UHorizontalBoxSlot* AddH(UHorizontalBox* Box, UWidget* Child, const FMargin& Padding, EVerticalAlignment VAlign, float FillSize)
 	{
 		if (!Box || !Child)
@@ -588,7 +596,7 @@ namespace ApexUI
 		Slot->SetPadding(Padding);
 		Slot->SetVerticalAlignment(VAlign);
 		Slot->SetSize(FillSize > 0.0f
-			? FSlateChildSize(ESlateSizeRule::Fill)
+			? FillWeight(FillSize)
 			: FSlateChildSize(ESlateSizeRule::Automatic));
 		return Slot;
 	}
@@ -604,7 +612,7 @@ namespace ApexUI
 		Slot->SetPadding(Padding);
 		Slot->SetHorizontalAlignment(HAlign);
 		Slot->SetSize(FillSize > 0.0f
-			? FSlateChildSize(ESlateSizeRule::Fill)
+			? FillWeight(FillSize)
 			: FSlateChildSize(ESlateSizeRule::Automatic));
 		return Slot;
 	}

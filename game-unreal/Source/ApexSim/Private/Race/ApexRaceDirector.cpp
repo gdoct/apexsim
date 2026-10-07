@@ -3339,6 +3339,11 @@ void AApexRaceDirector::SetSpectating(bool bInSpectating)
 		return;
 	}
 	bSpectating = bInSpectating;
+	if (bSpectating && !bDemoView)
+	{
+		bWatchSavedTvView = bTvView;
+		bWatchSavedCockpitView = bCockpitView;
+	}
 	if (bSpectating)
 	{
 		// Picked up where the backdrop's director was: on its car, choosing.
@@ -3372,6 +3377,16 @@ void AApexRaceDirector::SetSpectating(bool bInSpectating)
 		bHasTvPose = false;
 		Tv.RequestCut();
 		ApplyDemoWorldVisibility();
+		UpdateCameraTarget();
+		ApplyCameraMode();
+	}
+	else
+	{
+		// Back to the driver's own car and camera: watching from the
+		// qualifying scoreboard used to leave the view on the watched car.
+		bTvView = bWatchSavedTvView;
+		bCockpitView = bWatchSavedCockpitView;
+		bHasTvPose = false;
 		UpdateCameraTarget();
 		ApplyCameraMode();
 	}

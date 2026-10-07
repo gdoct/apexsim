@@ -19,6 +19,7 @@
 #include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/ScaleBox.h"
+#include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/Slider.h"
 #include "Components/Spacer.h"
@@ -463,7 +464,8 @@ void UApexSessionCreateWidget::SetActiveTab(int32 Tab)
 	ActiveTab = FMath::Clamp(Tab, 0, 1);
 	if (RaceTab)
 	{
-		RaceTab->SetVisibility(ActiveTab == 0 ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		// Visible, not self-hit-test-invisible: it is a scroll box and takes the wheel.
+		RaceTab->SetVisibility(ActiveTab == 0 ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (ConditionsTab)
 	{
@@ -959,7 +961,14 @@ UWidget* UApexSessionCreateWidget::BuildRightColumn()
 	ApexUI::AddV(Column, ApexUI::MakeDivider(*WidgetTree));
 
 	UOverlay* Body = WidgetTree->ConstructWidget<UOverlay>();
-	RaceTab = BuildRaceTab();
+	// The race tab is taller than a 1080p screen leaves it: it scrolls, and
+	// follows the focus down, rather than running under the footer.
+	UScrollBox* RaceScroll = WidgetTree->ConstructWidget<UScrollBox>();
+	RaceScroll->SetScrollWhenFocusChanges(EScrollWhenFocusChanges::InstantScroll);
+	RaceScroll->SetScrollbarThickness(FVector2D(4.0f, 4.0f));
+	RaceScroll->SetScrollbarPadding(FMargin(8.0f, 0.0f, 0.0f, 0.0f));
+	RaceScroll->AddChild(BuildRaceTab());
+	RaceTab = RaceScroll;
 	ConditionsTab = BuildConditionsTab();
 	AddFill(Body, RaceTab);
 	AddFill(Body, ConditionsTab);
@@ -1018,11 +1027,14 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		UApexButtonWidget* Minus = nullptr;
 		UApexButtonWidget* Plus = nullptr;
 		UTextBlock* Value = nullptr;
-		ApexUI::AddH(Row, MakeStepper(Minus, Value, Plus, 62.0f, 130.0f, 40.0f), FMargin(12.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+		ApexUI::AddH(Row, MakeStepper(Minus, Value, Plus, 62.0f, -1.0f, 40.0f), FMargin(12.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
 		LapsMinus = Minus;
 		LapsPlus = Plus;
 		LapsValueText = Value;
 
+		// The presets get a row of their own: beside the unit and the stepper
+		// they had under 50 px each and their names ran into each other.
+		UHorizontalBox* Presets = WidgetTree->ConstructWidget<UHorizontalBox>();
 		LapPresetButtons.Reset();
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(LapPresets); ++Index)
 		{
@@ -1032,10 +1044,10 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 			Spec.Variant = EApexButtonVariant::Panel;
 			Spec.bCentreLabel = true;
 			Spec.LabelSize = 16.0f;
-			Spec.Height = 62.0f;
+			Spec.Height = 54.0f;
 			UApexButtonWidget* Button = MakeButton(Spec);
 			LapPresetButtons.Add(Button);
-			ApexUI::AddH(Row, Button, FMargin(Index == 0 ? 12.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+			ApexUI::AddH(Presets, Button, FMargin(Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
 		}
 		DurationPresetButtons.Reset();
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(DurationPresets); ++Index)
@@ -1046,12 +1058,13 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 			Spec.Variant = EApexButtonVariant::Panel;
 			Spec.bCentreLabel = true;
 			Spec.LabelSize = 16.0f;
-			Spec.Height = 62.0f;
+			Spec.Height = 54.0f;
 			UApexButtonWidget* Button = MakeButton(Spec);
 			DurationPresetButtons.Add(Button);
-			ApexUI::AddH(Row, Button, FMargin(Index == 0 ? 12.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+			ApexUI::AddH(Presets, Button, FMargin(Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
 		}
 		ApexUI::AddV(Section, ApexUI::MakeSized(*WidgetTree, Row, -1.0f, 62.0f));
+		ApexUI::AddV(Section, ApexUI::MakeSized(*WidgetTree, Presets, -1.0f, 54.0f), FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		LengthSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
@@ -2487,9 +2500,14 @@ void UApexSessionCreateWidget::StoreOrder(const TArray<FString>& Order, const FS
 	const ApexCreateSession::FGrid G = ApexCreateSession::Grid(
 		Flow->CreateSessionKind != EApexSessionKind::Practice, Flow->CreateMaxPlayers, Flow->CreateAiCount, MaxPlayersCeiling);
 	Flow->CreateGridTrackId = Flow->GetPendingTrackId();
-	if (ApexCreateSession::IsDefaultOrder(Order, G.Ai, G.Field))
+	if (ApexCreateSession::IsDefaultOrder(Order, G.Ai, G.Field) && ResultId.IsEmpty())
 	{
-		// Just the seating order: nothing to send, nothing to remember.
+		// Just the seating order: nothing to send, nothing to remember. A
+		// loaded result is remembered even when it comes out as the seating
+		// order (an all-AI result always does: its AI map onto this session's
+		// in the order they qualified), or its chip would not light up and
+		// the click would seem to do nothing. GridOrderToSend still sends
+		// nothing for it.
 		Flow->CreateGridOrder.Reset();
 		Flow->CreateGridResultId.Reset();
 		return;
@@ -2704,17 +2722,18 @@ void UApexSessionCreateWidget::RefreshStartOrder()
 	const bool bMultiplayer = Flow->CreateSessionKind != EApexSessionKind::Practice;
 	const ApexCreateSession::FGrid G = ApexCreateSession::Grid(bMultiplayer, Flow->CreateMaxPlayers, Flow->CreateAiCount, MaxPlayersCeiling);
 	const TArray<FString> Order = CurrentOrder();
-	const bool bSeating = ApexCreateSession::IsDefaultOrder(Flow->CreateGridOrder, G.Ai, G.Field);
+	const bool bDefaultOrder = ApexCreateSession::IsDefaultOrder(Flow->CreateGridOrder, G.Ai, G.Field);
 	const TArray<FApexQualifyingResult> Empty;
 	const TArray<FApexQualifyingResult>& Results = Net ? Net->GetQualifyingResults(TrackId) : Empty;
 
 	// The newest few, and the loaded one wherever it is in the list.
 	int32 Loaded = INDEX_NONE;
-	if (!bSeating && !Flow->CreateGridResultId.IsEmpty())
+	if (!Flow->CreateGridResultId.IsEmpty())
 	{
 		Loaded = Results.IndexOfByPredicate([&](const FApexQualifyingResult& R) { return R.Id == Flow->CreateGridResultId; });
 	}
-	const bool bCustom = !bSeating && Loaded == INDEX_NONE;
+	const bool bSeating = bDefaultOrder && Loaded == INDEX_NONE;
+	const bool bCustom = !bDefaultOrder && Loaded == INDEX_NONE;
 	TArray<int32> Shown;
 	for (int32 Index = 0; Index < Results.Num() && Shown.Num() < MaxResultsShown; ++Index)
 	{

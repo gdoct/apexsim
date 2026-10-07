@@ -172,6 +172,13 @@ public:
 	/** Shows a garage tab (also `apexsim.hotlap.Tab` / `-ApexGarageTab=`). */
 	void SetTab(EApexGarageTab Tab);
 
+	/**
+	 * The cards for a sheet: one per listed compound, click = reference - index;
+	 * the hand-written defaults without a list or for the default five
+	 * (what the server sends for a car that files none of its own).
+	 */
+	static TArray<FApexGarageCompound> CompoundCardsFor(const FApexCarSetupSheet* Sheet);
+
 protected:
 	/** Refreshes the scoreboard a few times a second while it is up. */
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -259,8 +266,6 @@ private:
 	const FApexCarSetupSheet* GetCompoundSheet() const;
 	/** The compound knob's read-out: the sheet's name for the click when it has one, else the default table's. */
 	FString CompoundLabel(int32 Clicks) const;
-	/** The cards for a sheet: one per listed compound, click = reference - index; the defaults without a list. */
-	static TArray<FApexGarageCompound> CompoundCardsFor(const FApexCarSetupSheet* Sheet);
 	/** Rebuilds the compound cards in CompoundHost from CompoundCardsFor. */
 	void BuildCompoundCards();
 	FString GetCarId() const;

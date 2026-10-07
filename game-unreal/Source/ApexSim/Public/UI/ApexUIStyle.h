@@ -276,7 +276,8 @@ namespace ApexUI
 	// --- Slot sugar -----------------------------------------------------------
 	//
 	// Building a tree in C++ is mostly slot configuration; these keep that to one
-	// line per child so the shape of a screen stays readable.
+	// line per child so the shape of a screen stays readable. FillSize > 0 fills
+	// at that weight (0.8 beside 0.2 is a four-to-one split); 0 is automatic.
 
 	UHorizontalBoxSlot* AddH(
 		UHorizontalBox* Box,

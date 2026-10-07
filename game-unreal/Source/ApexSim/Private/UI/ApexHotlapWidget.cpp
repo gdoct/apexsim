@@ -105,15 +105,15 @@ namespace
 		float Life;
 	};
 	const FCompoundSpec Compounds[] = {
-		{ 1,  TEXT("SOFT"),   TEXT("Most grip, shortest life."),  TEXT("+3% GRIP  ·  1.8x WEAR  ·  WINDOW -6°C"),
+		{ 1,  TEXT("SOFT"),   TEXT("Most grip, shortest life."),  TEXT("+3% GRIP · 1.8x WEAR · -6°C"),
 			FLinearColor::FromSRGBColor(FColor(0xE0, 0x4B, 0x3C)), 0.94f, 0.30f },
-		{ 0,  TEXT("MEDIUM"), TEXT("The car's own tyre."),        TEXT("AS FILED  ·  IN THE RAIN, THE WEATHER'S TYRE"),
+		{ 0,  TEXT("MEDIUM"), TEXT("The car's own tyre."),        TEXT("AS FILED · WET: THE RAIN TYRE"),
 			FLinearColor::FromSRGBColor(FColor(0xE8, 0xBA, 0x3A)), 0.80f, 0.55f },
-		{ -1, TEXT("HARD"),   TEXT("Slow to warm, lasts longest."), TEXT("-3% GRIP  ·  0.55x WEAR  ·  WINDOW +6°C"),
+		{ -1, TEXT("HARD"),   TEXT("Slow to warm, lasts longest."), TEXT("-3% GRIP · 0.55x WEAR · +6°C"),
 			Ink, 0.66f, 1.00f },
-		{ -2, TEXT("INTER"),  TEXT("A damp or drying track."),    TEXT("BEST IN LIGHT RAIN  ·  -12% DRY  ·  WINDOW -25°C"),
+		{ -2, TEXT("INTER"),  TEXT("A damp or drying track."),    TEXT("LIGHT RAIN · -12% DRY · -25°C"),
 			FLinearColor::FromSRGBColor(FColor(0x3C, 0xB0, 0x4B)), 0.50f, 0.40f },
-		{ -3, TEXT("WET"),    TEXT("Standing water."),            TEXT("BEST IN HEAVY RAIN  ·  -22% DRY  ·  WINDOW -35°C"),
+		{ -3, TEXT("WET"),    TEXT("Standing water."),            TEXT("HEAVY RAIN · -22% DRY · -35°C"),
 			FLinearColor::FromSRGBColor(FColor(0x2F, 0x7F, 0xE0)), 0.35f, 0.30f },
 	};
 
@@ -425,7 +425,15 @@ FString UApexHotlapWidget::CompoundLabel(int32 Clicks) const
 TArray<FApexGarageCompound> UApexHotlapWidget::CompoundCardsFor(const FApexCarSetupSheet* Sheet)
 {
 	TArray<FApexGarageCompound> Cards;
-	if (!Sheet || !Sheet->HasCompounds())
+	// The server sends a list for every car; a car that files none of its own
+	// gets the five defaults, whose figures the hand-written cards know.
+	static const TCHAR* DefaultNames[] = { TEXT("soft"), TEXT("medium"), TEXT("hard"), TEXT("intermediate"), TEXT("wet") };
+	bool bDefaultList = Sheet && Sheet->Compounds.Num() == UE_ARRAY_COUNT(DefaultNames) && Sheet->ReferenceCompound == 1;
+	for (int32 Index = 0; bDefaultList && Index < UE_ARRAY_COUNT(DefaultNames); ++Index)
+	{
+		bDefaultList = Sheet->Compounds[Index].Equals(DefaultNames[Index], ESearchCase::IgnoreCase);
+	}
+	if (!Sheet || !Sheet->HasCompounds() || bDefaultList)
 	{
 		for (const FCompoundSpec& Default : Compounds)
 		{
@@ -655,7 +663,7 @@ UWidget* UApexHotlapWidget::BuildActionColumn()
 	TyresButton = MakeActionButton(TEXT("TYRES OUT"), TEXT("Warm"), ActionTyres, EApexButtonVariant::Panel, 64.0f, 20.0f);
 	AddV(Column, TyresButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	// The laps driven so far, kept to watch again (the Replays screen).
-	SaveReplayButton = MakeActionButton(TEXT("SAVE REPLAY"), TEXT("Nothing yet"), ActionGarageSaveReplay, EApexButtonVariant::Panel, 64.0f, 20.0f);
+	SaveReplayButton = MakeActionButton(TEXT("SAVE REPLAY"), TEXT("None"), ActionGarageSaveReplay, EApexButtonVariant::Panel, 64.0f, 20.0f);
 	AddV(Column, SaveReplayButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	AddV(Column, Rule(*WidgetTree), FMargin(0.0f, 18.0f));
 	ResetButton = MakeActionButton(TEXT("RESET SETUP"), TEXT("Stock"), ActionResetSetup, EApexButtonVariant::Panel, 64.0f, 20.0f);
@@ -922,10 +930,18 @@ void UApexHotlapWidget::BuildCompoundCards()
 		UBorder* Ring = MakePanel(*WidgetTree, nullptr, FMargin(), MakeBrush(FLinearColor::Transparent, Compound.Colour, 3.0f, 8.0f));
 		AddH(Head, MakeSized(*WidgetTree, Ring, 16.0f, 16.0f), FMargin(0.0f, 0.0f, 12.0f, 0.0f));
 		AddH(Head, MakeText(*WidgetTree, Compound.Name, Font::Display(22.0f, 20), Ink));
-		AddH(Head, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
-		AddH(Head, MakeText(*WidgetTree, Compound.Note, Font::Body(14.0f), InkMuted));
+		// The note takes what the name leaves, right-aligned and cut short with
+		// an ellipsis: a long name of a car's own ran straight into it.
+		UTextBlock* NoteText = MakeText(*WidgetTree, Compound.Note, Font::Body(14.0f), InkMuted);
+		NoteText->SetJustification(ETextJustify::Right);
+		NoteText->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+		NoteText->SetClipping(EWidgetClipping::ClipToBounds);
+		AddH(Head, NoteText, FMargin(14.0f, 0.0f, 0.0f, 0.0f), VAlign_Center, 1.0f);
 		AddV(Content, Head);
-		AddV(Content, Caption(*WidgetTree, Compound.Figures, InkFaint), FMargin(28.0f, 4.0f, 0.0f, 10.0f));
+		UTextBlock* Figures = Caption(*WidgetTree, Compound.Figures, InkFaint);
+		Figures->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+		Figures->SetClipping(EWidgetClipping::ClipToBounds);
+		AddV(Content, Figures, FMargin(28.0f, 4.0f, 0.0f, 10.0f));
 		const TPair<const TCHAR*, float> Bars[] = { { TEXT("GRIP"), Compound.Grip }, { TEXT("LIFE"), Compound.Life } };
 		for (const TPair<const TCHAR*, float>& Bar : Bars)
 		{
@@ -1641,7 +1657,8 @@ void UApexHotlapWidget::RefreshGhostRows()
 		const UApexReplayRecorder* Recorder = GameInstance ? GameInstance->GetSubsystem<UApexReplayRecorder>() : nullptr;
 		const bool bSomething = Recorder && Recorder->HasSomethingToSave();
 		const int32 Seconds = Recorder ? FMath::FloorToInt(Recorder->GetRecordedSeconds()) : 0;
-		SaveReplayButton->SetBadge(bSomething ? FString::Printf(TEXT("%d:%02d on track"), Seconds / 60, Seconds % 60) : TEXT("Nothing yet"),
+		// Short: the column is narrow, and a longer badge ran into the label.
+		SaveReplayButton->SetBadge(bSomething ? FString::Printf(TEXT("%d:%02d"), Seconds / 60, Seconds % 60) : TEXT("None"),
 			bSomething ? Palette::TextPrimary : Palette::TextMuted);
 	}
 	if (GhostButton)
