@@ -366,7 +366,7 @@ enum
     WM_APP_DONE = WM_APP + 2,    // worker finished; buttons may enable
 };
 
-enum { BtnTrouble, BtnLaunch, BtnArrow, BtnConfig, BtnContent, BtnClose, BtnCount };
+enum { BtnTrouble, BtnLaunch, BtnArrow, BtnConfig, BtnContent, BtnClose, BtnServer, BtnCount };
 
 struct App
 {
@@ -380,6 +380,7 @@ struct App
     bool ready = false, busy = false, failed = false;
     bool gameOk = false, serverOk = false;
     int hover = -1, down = -1;
+    bool menuOpen = false;  // the launch dropdown (BtnServer), drawn in the window like the buttons
     RECT btn[BtnCount] = {};
 } g;
 
@@ -570,11 +571,13 @@ static void Layout()
     place(BtnConfig, S(180));
     place(BtnContent, S(150));
     g.btn[BtnClose] = { W - S(48), 0, W, S(36) };
+    g.btn[BtnServer] = { g.btn[BtnLaunch].left, y + h + S(6), g.btn[BtnArrow].right, y + h + S(6) + S(44) };
 }
 
 static bool Enabled(int i)
 {
     if (i == BtnClose) return true;
+    if (i == BtnServer) return g.menuOpen && g.serverOk && g.gameOk && g.ready && !g.busy;
     if (!g.ready || g.busy) return i == BtnTrouble && g.ready;
     switch (i)
     {
@@ -587,7 +590,7 @@ static bool Enabled(int i)
 static int HitTest(POINT p)
 {
     for (int i = 0; i < BtnCount; ++i)
-        if (PtInRect(&g.btn[i], p)) return i;
+        if ((i != BtnServer || g.menuOpen) && PtInRect(&g.btn[i], p)) return i;
     return -1;
 }
 
@@ -736,6 +739,7 @@ static void Paint(HDC hdc, int W, int H)
         DrawLaunch(gr);
         DrawButton(gr, BtnConfig, L"Edit configuration", false);
         DrawButton(gr, BtnContent, L"Manage content", false);
+        if (g.menuOpen) DrawButton(gr, BtnServer, L"Launch with local server", true);
 
         // Close glyph.
         const RECT& c = g.btn[BtnClose];
@@ -1106,18 +1110,9 @@ static void Activate(int i)
     switch (i)
     {
     case BtnTrouble: ShellExecuteW(g.hwnd, L"open", kTroubleshootUrl, nullptr, nullptr, SW_SHOWNORMAL); break;
-    case BtnLaunch: LaunchAsync(false); break;
-    case BtnArrow:
-    {
-        HMENU m = CreatePopupMenu();
-        AppendMenuW(m, MF_STRING | (g.serverOk ? 0 : MF_GRAYED), 1, L"Launch with local server");
-        POINT p = { g.btn[BtnLaunch].left, g.btn[BtnLaunch].bottom + S(2) };
-        ClientToScreen(g.hwnd, &p);
-        int cmd = TrackPopupMenu(m, TPM_RETURNCMD | TPM_LEFTALIGN | TPM_TOPALIGN, p.x, p.y, 0, g.hwnd, nullptr);
-        DestroyMenu(m);
-        if (cmd == 1) LaunchAsync(true);
-        break;
-    }
+    case BtnLaunch: g.menuOpen = false; LaunchAsync(false); break;
+    case BtnArrow: g.menuOpen = !g.menuOpen; break;
+    case BtnServer: g.menuOpen = false; LaunchAsync(true); break;
     case BtnConfig: CreateDialogWindow(L"ApexCfg", L"Edit configuration", 460, 380, g.dpi); break;
     case BtnContent: CreateDialogWindow(L"ApexContent", L"Manage content", 640, 500, g.dpi); break;
     case BtnClose: PostMessageW(g.hwnd, WM_CLOSE, 0, 0); break;
@@ -1171,6 +1166,7 @@ static LRESULT CALLBACK MainProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
     {
         POINT p = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
         int h = HitTest(p);
+        if (g.menuOpen && h != BtnServer && h != BtnArrow) { g.menuOpen = false; InvalidateRect(hw, nullptr, FALSE); }
         if (h >= 0 && Enabled(h)) { g.down = h; SetCapture(hw); InvalidateRect(hw, nullptr, FALSE); }
         return 0;
     }
@@ -1185,8 +1181,15 @@ static LRESULT CALLBACK MainProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
         if (HitTest(p) == was && Enabled(was)) Activate(was);
         return 0;
     }
+    case WM_NCLBUTTONDOWN:
+        if (g.menuOpen) { g.menuOpen = false; InvalidateRect(hw, nullptr, FALSE); }
+        break;
+    case WM_ACTIVATE:
+        if (LOWORD(wp) == WA_INACTIVE && g.menuOpen) { g.menuOpen = false; InvalidateRect(hw, nullptr, FALSE); }
+        break;
     case WM_KEYDOWN:
-        if (wp == VK_ESCAPE) PostMessageW(hw, WM_CLOSE, 0, 0);
+        if (wp == VK_ESCAPE && g.menuOpen) { g.menuOpen = false; InvalidateRect(hw, nullptr, FALSE); }
+        else if (wp == VK_ESCAPE) PostMessageW(hw, WM_CLOSE, 0, 0);
         else if (wp == VK_RETURN && Enabled(BtnLaunch)) Activate(BtnLaunch);
         return 0;
     case WM_TIMER:
