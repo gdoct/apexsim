@@ -73,6 +73,7 @@
    "Hotlap (`GameMode::Hotlap`, `HotlapRelocate`, `GhostLap`, `UApexHotlapWidget`, `AApexGhostCarActor`)": "11cdee6f23dd",
    "Force feedback (`server/src/feedback.rs`, `Input/ApexForceFeedback.h`)": "3eb876940baf",
    "Wheels and pedals (`Source/ApexSimInput/`)": "c9321e452774",
+   "Server dashboard (`server/src/admin/`, docs/ADMIN_DASHBOARD.md)": "ea62ecc525b7",
    "Content (`content/`)": "8aec5be9d57c",
    "Key Technical Details": "92fff52ddf04",
    "Configuration": "cae00e6a7fbb",

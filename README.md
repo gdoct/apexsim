@@ -23,6 +23,7 @@ This project is in active development. The simulation and the networking underne
 * AI drivers with a traffic layer and friction-circle throttle, deterministic per tick
 * Force feedback computed from the tyre forces: steering-column torque, per-wheel slip and surface, suspension speed, ABS/TC activity and contact, sent to each driver over UDP
 * Prometheus metrics plus health and readiness endpoints
+* An operator web dashboard on its own ports, behind an access token: live track map and telemetry, timing, players (kick and ban), session history, logs, performance graphs, a validated `server.toml` editor and the loaded content ([docs/ADMIN_DASHBOARD.md](docs/ADMIN_DASHBOARD.md))
 
 **Content**
 * 26 circuits with exact measured centerline, per-side track width, banking, surface type and **elevation** (Spa spans ~90 m of it)
@@ -41,6 +42,7 @@ This project is in active development. The simulation and the networking underne
 * A demo race behind the menus, filmed by a TV director that follows battles, the leader and incidents through trackside, helicopter, onboard and chase shots
 * Race HUD: position, gaps, standings, live delta, sector times, minimap, pedal and engine telemetry
 * Pause menu and a settings overlay covering gameplay, graphics, audio and rebindable controls
+* A Windows launcher (`launcher/`, shipped as `launcher.exe`) that checks the install, launches the game (optionally with a local server), edits the network and graphics settings and manages content
 * Local profile and settings save slots (the server has no account model, so anything "yours" lives on your machine), plus a plain-text `settings.yml` beside the executable for resolution, window mode, vsync, frame limit and server address
 
 **Tooling**
@@ -108,6 +110,7 @@ apexsim/
 ├── content/        # Car and track definitions, shared by server, editor and client
 ├── docs/           # Design and implementation notes
 ├── game-unreal/    # Unreal Engine 5 client
+├── launcher/       # Windows launcher (launcher.exe) shipped with releases
 ├── scripts/        # Track pipeline runner and Python content helpers
 ├── server/         # Rust backend (source, config, docs)
 ├── track-editor/   # Rust + Bevy circuit scene authoring tool
@@ -120,12 +123,13 @@ apexsim/
 - [content/](content): Authoring-ready data. Cars are `cars/<name>/car.toml`; tracks are `tracks/default/*.yaml` (the logical circuit the server simulates) alongside `.ats` scene sidecars (the 3D dressing, read only by the editor and the Unreal importer).
 - [game-unreal/](game-unreal): Unreal Engine 5 client. Source lives in `Source/ApexSim`, `Source/ApexSimNet` and `Source/ApexTrackEditor`.
 - [scripts/](scripts): Build and content helpers — `build_track_levels.ps1` runs the whole track pipeline (dress, export, previews, materials); the Python scripts generate track preview images and racing lines.
-- [server/](server): Full Rust crate with source, configuration files and supporting docs for the backend runtime.
+- [launcher/](launcher): The native Windows launcher; `build.bat` (needs MSVC) produces `launcher/out/launcher.exe`, which `build_release.ps1` copies to the release root.
+- [server/](server): Full Rust crate with source, configuration files and supporting docs for the backend runtime, including the admin dashboard (`src/admin/`).
 - [track-editor/](track-editor): The circuit scene editor and the `ats-export` baker.
 
 ## Getting Started
 
-Just want to drive? Grab the latest zip from the [releases page](https://github.com/gdoct/apexsim/releases), unzip it and run `Play.bat`; it starts a local server and the client. The steps below are for building from source.
+Just want to drive? Grab the latest zip from the [releases page](https://github.com/gdoct/apexsim/releases), unzip it and double-click `launcher.exe`. Launch starts the game, its drop-down has "Launch with local server", and the launcher also edits the network and graphics settings and manages content. `Play.bat` does the same without the launcher: it starts a local server and the client. To host for others, run `Start-Server.bat`. The steps below are for building from source.
 
 ### 1. Run the server
 
@@ -134,7 +138,7 @@ cd server
 cargo run                 # uses server.toml
 ```
 
-The server listens on TCP 9000, UDP 9001 and HTTP 9002 (`/health`, `/ready`, `/metrics`). See [server/README.md](server/README.md) for configuration and TLS setup — TLS is fail-closed by default, with a development opt-out in `server.toml`.
+The server listens on TCP 9000, UDP 9001 and HTTP 9002 (`/health`, `/ready`, `/metrics`). The admin dashboard is on loopback HTTP 9003 and HTTPS 9004 (`[admin]` in `server.toml`; set `token`, or read the random one printed in the log at startup) — see [docs/ADMIN_DASHBOARD.md](docs/ADMIN_DASHBOARD.md). In Docker, `server/docker-compose.yml` publishes both and takes the token from `APEXSIM_ADMIN_TOKEN`. See [server/README.md](server/README.md) for configuration and TLS setup — TLS is fail-closed by default, with a development opt-out in `server.toml`.
 
 ### 2. Bake the tracks
 
@@ -182,7 +186,7 @@ That runs the whole pipeline — `cargo build --release`, the track bake and
 import, the track catalog sync, and the client package — and assembles
 `artifacts/release/ApexSim-<version>-Win64/` (plus a zip to attach to a GitHub
 release). The package holds the packaged client in `Game/`, the server with its
-config and content in `Server/`, and a `Play.bat` that starts both. It is
+config and content in `Server/`, `launcher.exe` (built from `launcher/`; `-SkipLauncher` reuses the last build) and a `Play.bat` that starts both. It is
 gitignored, like everything under `artifacts/`.
 
 The run aborts up front if the car or track data is missing, so a broken clone

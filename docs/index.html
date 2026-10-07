@@ -289,7 +289,7 @@
       <p>Simulation logic stays isolated from presentation, so each piece can evolve on its own. The circuit you race is the circuit the server simulates, checked by CRC on both sides.</p>
     </div>
     <div class="arch stagger">
-      <div class="node"><div class="k">server/ · Rust</div><h3>Authoritative server</h3><p>420&nbsp;Hz tokio loop. Physics, OBB collision against cars and baked barriers, tyres, fuel, heat and damage, race control and pit stops, AI, force feedback, lap timing and records. <code>/health</code> <code>/metrics</code></p></div>
+      <div class="node"><div class="k">server/ · Rust</div><h3>Authoritative server</h3><p>420&nbsp;Hz tokio loop. Physics, OBB collision against cars and baked barriers, tyres, fuel, heat and damage, race control and pit stops, AI, force feedback, lap timing and records. A token-protected operator dashboard shows live timing, players, logs and performance, and edits the config. <code>/health</code> <code>/metrics</code></p></div>
       <div class="link"><span>UDP<br>60&nbsp;Hz</span></div>
       <div class="node"><div class="k">game-unreal/ · C++</div><h3>Unreal client</h3><p>Tracks and cars built at runtime from their files, menus as C++ widget trees, a HUD from JSON, a cockpit built per car, dents and debris drawn from the server's damage figures, TV director, replays and track guides, synthesized audio, DirectInput wheels. Every car a telemetry puppet.</p></div>
       <div class="link"><span>exports<br>&amp; sidecars</span></div>

@@ -365,6 +365,8 @@ tech:
         {{ n.tick_hz }}&nbsp;Hz tokio loop. Physics, OBB collision against
         cars and baked barriers, tyres, fuel, heat and damage, race control
         and pit stops, AI, force feedback, lap timing and records.
+        A token-protected operator dashboard shows live timing, players,
+        logs and performance, and edits the config.
         <code>/health</code> <code>/metrics</code>
     - key: game-unreal/ · C++
       title: Unreal client
