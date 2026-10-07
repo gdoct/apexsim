@@ -1,0 +1,4 @@
+#include <windows.h>
+
+// Resource 1: the exe's icon (Explorer, taskbar, title bars).
+1 ICON "launcher.ico"

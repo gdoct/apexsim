@@ -1,10 +1,10 @@
-// ApexSim launcher ("Game.exe"). Plain Win32 + GDI+, no runtime beyond the CRT
+// ApexSim launcher ("launcher.exe"). Plain Win32 + GDI+, no runtime beyond the CRT
 // (linked statically), so it appears in a few tens of milliseconds.
 //
 // Flow (see README.md): splash with progress bar -> environment / config /
 // content checks on a worker thread -> buttons enable.
 //
-// Build: bootstrap\build.bat  ->  bootstrap\out\Game.exe
+// Build: bootstrap\build.bat  ->  bootstrap\out\launcher.exe
 
 #ifndef UNICODE
 #define UNICODE
@@ -1206,7 +1206,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int)
         wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
         wc.hbrBackground = bg;
         wc.lpszClassName = name;
-        wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+        wc.hIcon = (HICON)LoadImageW(inst, MAKEINTRESOURCEW(1), IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_SHARED);
+        wc.hIconSm = (HICON)LoadImageW(inst, MAKEINTRESOURCEW(1), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_SHARED);
         RegisterClassExW(&wc);
     };
     reg(L"ApexLauncher", MainProc, nullptr);
