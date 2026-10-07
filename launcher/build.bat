@@ -1,4 +1,5 @@
 @echo off
+rem Set APEXSIM_VERSION (e.g. 0.3.3) and APEXSIM_VERSION_NUM (0,3,3,0) to stamp the version.
 rem Builds launcher.exe with MSVC. Run from anywhere; output goes to launcher\out.
 rem Uses the first Visual Studio 2022 edition found unless cl.exe is already on PATH.
 setlocal
@@ -16,7 +17,9 @@ if errorlevel 1 (
 )
 :build
 if not exist out mkdir out
-rc /nologo /fo out\launcher.res launcher.rc
+set RCDEFS=
+if defined APEXSIM_VERSION set RCDEFS=/DAPEX_VERSION_STR=\"%APEXSIM_VERSION%\" /DAPEX_VERSION_NUM=%APEXSIM_VERSION_NUM%
+rc /nologo %RCDEFS% /fo out\launcher.res launcher.rc
 if errorlevel 1 exit /b 1
 cl /nologo /std:c++17 /O2 /GL /MT /EHsc /W4 /utf-8 /DUNICODE /D_UNICODE ^
    /Fo:out\ /Fe:out\launcher.exe main.cpp ^

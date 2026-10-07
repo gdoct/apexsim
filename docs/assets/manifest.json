@@ -424,7 +424,7 @@
     },
     "screen-garage-zoom.webp": {
       "src": "site/shots/garage.webp",
-      "sha256": "1d2aae5b389c1c52a37637f454b91227dc8769065eaefc5d9ea0cdc719f035cc",
+      "sha256": "f88838b015d7b412c04af5a6038d97032e311ca5a3a2f85da4f8639f64673637",
       "params": {
         "width": 1920,
         "quality": 86
@@ -432,7 +432,7 @@
     },
     "screen-garage.webp": {
       "src": "site/shots/garage.webp",
-      "sha256": "1d2aae5b389c1c52a37637f454b91227dc8769065eaefc5d9ea0cdc719f035cc",
+      "sha256": "f88838b015d7b412c04af5a6038d97032e311ca5a3a2f85da4f8639f64673637",
       "params": {
         "width": 1280,
         "quality": 86
@@ -440,7 +440,7 @@
     },
     "screen-hud-editor-zoom.webp": {
       "src": "site/shots/hud-editor.webp",
-      "sha256": "561659f8ab68be0b14ff7324b92f152857833c90a787cd8c7c245c6feded2b70",
+      "sha256": "48cdc2befdf0816f1a3a0c24bae0b4b97c30025169c8faf56778da78edbb04c6",
       "params": {
         "width": 1920,
         "quality": 86
@@ -448,7 +448,7 @@
     },
     "screen-hud-editor.webp": {
       "src": "site/shots/hud-editor.webp",
-      "sha256": "561659f8ab68be0b14ff7324b92f152857833c90a787cd8c7c245c6feded2b70",
+      "sha256": "48cdc2befdf0816f1a3a0c24bae0b4b97c30025169c8faf56778da78edbb04c6",
       "params": {
         "width": 1280,
         "quality": 86
@@ -456,7 +456,7 @@
     },
     "screen-hud-zoom.webp": {
       "src": "site/shots/hud-chase.webp",
-      "sha256": "3c02f5b01931898e0d7fe5c4717b103d5cf5729028bc5a3fdacd6b8ddaa906e1",
+      "sha256": "377d89c5fc0556ace318bbc7088621ebb05ef327b109f3fd5b036a2e51c8c88c",
       "params": {
         "width": 1920,
         "quality": 86
@@ -464,7 +464,7 @@
     },
     "screen-hud.webp": {
       "src": "site/shots/hud-chase.webp",
-      "sha256": "3c02f5b01931898e0d7fe5c4717b103d5cf5729028bc5a3fdacd6b8ddaa906e1",
+      "sha256": "377d89c5fc0556ace318bbc7088621ebb05ef327b109f3fd5b036a2e51c8c88c",
       "params": {
         "width": 1280,
         "quality": 86
@@ -472,7 +472,7 @@
     },
     "screen-menu-zoom.webp": {
       "src": "site/shots/menu-demo.webp",
-      "sha256": "d28ede6e596a917153f9c0cc95a457cc9340911ffc893f09413b2a96a50ef78d",
+      "sha256": "67c3f1f9096b714e03e8ebb90bf3d8049b9ccd2b60b1c353484a825d6cebeed7",
       "params": {
         "width": 1920,
         "quality": 86
@@ -480,7 +480,7 @@
     },
     "screen-menu.webp": {
       "src": "site/shots/menu-demo.webp",
-      "sha256": "d28ede6e596a917153f9c0cc95a457cc9340911ffc893f09413b2a96a50ef78d",
+      "sha256": "67c3f1f9096b714e03e8ebb90bf3d8049b9ccd2b60b1c353484a825d6cebeed7",
       "params": {
         "width": 1280,
         "quality": 86

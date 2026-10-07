@@ -502,6 +502,23 @@ $ServerDir   = Join-Path $ReleaseDir 'Server'
 $Commit      = Get-GitCommit
 
 Write-Detail "version $Version ($Commit), client configuration $Configuration"
+
+# Stamp the version on every executable: the server and replay tool read
+# APEXSIM_VERSION in server\build.rs, the launcher in launcher\build.bat, and
+# the client reads ProjectVersion from DefaultGame.ini.
+if ($Version -notmatch '^\d+\.\d+\.\d+') {
+    throw "version '$Version' must start with major.minor.patch (e.g. 0.3.3)"
+}
+$VersionParts = $Version -split '[.\-+]' | Select-Object -First 3
+$env:APEXSIM_VERSION = $Version
+$env:APEXSIM_VERSION_NUM = ($VersionParts -join ',') + ',0'
+$ProjectIni = Join-Path $RepoRoot 'game-unreal\Config\DefaultGame.ini'
+if ((Test-Path $ProjectIni) -and (Get-ProjectVersion) -ne $Version) {
+    Write-Detail "setting ProjectVersion=$Version in DefaultGame.ini"
+    $text = [IO.File]::ReadAllText($ProjectIni)
+    $text = [regex]::Replace($text, '(?m)^(\s*ProjectVersion\s*=\s*).*?(\r?)$', "`${1}$Version`$2")
+    [IO.File]::WriteAllText($ProjectIni, $text, (New-Object Text.UTF8Encoding($false)))
+}
 Write-Detail "package $ReleaseDir"
 
 if ($SkipClient -and

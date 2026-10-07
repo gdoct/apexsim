@@ -176,7 +176,7 @@ async fn overview(ctx: &AdminContext) -> Resp {
     let tls_game = Path::new(cfg.network.tls_cert_path.trim()).is_file()
         && Path::new(cfg.network.tls_key_path.trim()).is_file();
     ok(json!({
-        "version": env!("CARGO_PKG_VERSION"),
+        "version": env!("APEXSIM_BUILD_VERSION"),
         "status": status,
         "uptime_s": ctx.started.elapsed().as_secs(),
         "players": connected,
