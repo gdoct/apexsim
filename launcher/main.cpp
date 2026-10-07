@@ -167,6 +167,37 @@ static Env Locate()
     return e;
 }
 
+// The client's version: release.json's "version" beside Game\ in a package (written
+// by build_release.ps1), else ProjectVersion from DefaultGame.ini in a checkout.
+static std::wstring ReadVersion(const Env& e)
+{
+    std::ifstream f(e.release ? e.root / L"release.json" : e.root / L"game-unreal" / L"Config" / L"DefaultGame.ini");
+    std::string line;
+    while (f && std::getline(f, line))
+    {
+        std::string v;
+        if (e.release)
+        {
+            size_t k = line.find("\"version\"");
+            if (k == std::string::npos) continue;
+            size_t a = line.find('"', line.find(':', k) + 1);
+            size_t b = a == std::string::npos ? a : line.find('"', a + 1);
+            if (b == std::string::npos) continue;
+            v = line.substr(a + 1, b - a - 1);
+        }
+        else
+        {
+            std::string t = Trim(line);
+            if (t.rfind("ProjectVersion", 0) != 0) continue;
+            size_t eq = t.find('=');
+            if (eq == std::string::npos) continue;
+            v = Trim(t.substr(eq + 1));
+        }
+        if (!v.empty()) return Widen(v);
+    }
+    return {};
+}
+
 // ------------------------------------------------------------------ settings
 // The same flat two-level YAML subset UApexBootSettingsSubsystem reads, written
 // with the same text as ApexBootSettingsIo::Serialise. Only the keys the
@@ -344,7 +375,7 @@ struct App
     HWND hwnd = nullptr;
     HWND modeless = nullptr;  // secondary window that wants IsDialogMessage
     int dpi = 96;
-    std::wstring status = L"Starting...", note;
+    std::wstring status = L"Starting...", note, version, versionFound;
     float target = 0, shown = 0;
     bool ready = false, busy = false, failed = false;
     bool gameOk = false, serverOk = false;
@@ -375,6 +406,7 @@ static void WorkerMain(HWND h)
     g.env = Locate();
     g.gameOk = g.env.found && Exists(g.env.release ? g.env.gameExe : g.env.playScript);
     g.serverOk = g.env.found && Exists(g.env.serverExe);
+    if (g.env.found) g.versionFound = ReadVersion(g.env);  // shown once WM_APP_DONE lands on the UI thread
 
     Post(h, L"Generating config files...", 450);
     g.settings = DefaultSettings();
@@ -671,6 +703,12 @@ static void Paint(HDC hdc, int W, int H)
         SolidBrush dim(Color(255, 138, 146, 164));
         StringFormat spaced;
         gr.DrawString(L"S I M R A C I N G   P L A T F O R M", -1, &tag, PointF(wx + S(4), wy + S(92)), &spaced, &dim);
+
+        if (!g.version.empty())
+        {
+            std::wstring v = L"v" + g.version + (g.env.release ? L"" : L"  (source)");
+            gr.DrawString(v.c_str(), -1, &tag, PointF(wx + S(4), wy + S(116)), &spaced, &dim);
+        }
 
         // Progress bar.
         float bx = (float)S(40), by = (float)S(268), bw = (float)(W - S(80)), bh = (float)S(6);
@@ -972,8 +1010,9 @@ static void LayoutContent(HWND hw)
     SetWindowPos(tab, nullptr, m, m, c.right - 2 * m, c.bottom - S(100), SWP_NOZORDER);
     RECT r = { 0, 0, c.right - 2 * m, c.bottom - S(100) };
     TabCtrl_AdjustRect(tab, FALSE, &r);
-    SetWindowPos(GetDlgItem(hw, IdList), nullptr, m + r.left, m + r.top, r.right - r.left, r.bottom - r.top, SWP_NOZORDER);
     HWND list = GetDlgItem(hw, IdList);
+    // The list sits over the tab control's page, so keep it above it in z-order.
+    SetWindowPos(list, HWND_TOP, m + r.left, m + r.top, r.right - r.left, r.bottom - r.top, 0);
     int w = r.right - r.left - GetSystemMetrics(SM_CXVSCROLL) - S(4);
     ListView_SetColumnWidth(list, 0, w * 7 / 10);
     ListView_SetColumnWidth(list, 1, w * 3 / 10);
@@ -1171,6 +1210,7 @@ static LRESULT CALLBACK MainProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
     case WM_APP_DONE:
         g.ready = true;
         g.busy = false;
+        g.version = g.versionFound;
         SetTimer(hw, 1, 16, nullptr);
         InvalidateRect(hw, nullptr, FALSE);
         return 0;

@@ -541,8 +541,6 @@ bool FApexSpectatorWriterTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-#endif // WITH_DEV_AUTOMATION_TESTS
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexSpectatorPitFlagsTest, "ApexSim.Spectator.PitFlags", ApexSpectatorTests::Flags)
 
 bool FApexSpectatorPitFlagsTest::RunTest(const FString& Parameters)
@@ -566,3 +564,5 @@ bool FApexSpectatorPitFlagsTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("no service"), Back.bPitServicing);
 	return true;
 }
+
+#endif // WITH_DEV_AUTOMATION_TESTS

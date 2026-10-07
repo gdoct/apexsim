@@ -1063,8 +1063,6 @@ bool FApexProtocolGhostLapTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-#endif // WITH_DEV_AUTOMATION_TESTS
-
 // -----------------------------------------------------------------------------
 // The garage's setup sheet: every knob's stock value and click in real units.
 // -----------------------------------------------------------------------------
@@ -1153,3 +1151,5 @@ bool FApexProtocolPitServiceTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("total"), Stop.TotalS, 23.5f);
 	return true;
 }
+
+#endif // WITH_DEV_AUTOMATION_TESTS

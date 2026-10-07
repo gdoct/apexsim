@@ -469,7 +469,11 @@ bool UApexDemoModeSubsystem::StartShowcase(UApexNetSubsystem& Net)
 	}
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
 	const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
-	const FString Pending = Flow && Flow->HasPendingTrack() ? Flow->GetPendingTrackId() : FString();
+	FString Pending = Flow && Flow->HasPendingTrack() ? Flow->GetPendingTrackId() : FString();
+	if (Pending.Equals(SkippedPendingTrack, ESearchCase::IgnoreCase))
+	{
+		Pending.Reset();
+	}
 
 	// A channel this client can draw: its track has a level here.
 	auto StemOf = [&](const FApexShowcaseSummary& Channel, FString& OutStem)
@@ -554,7 +558,11 @@ bool UApexDemoModeSubsystem::StartLocalFile(UApexNetSubsystem& Net)
 		return false;
 	}
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	const FString Pending = Flow && Flow->HasPendingTrack() ? Flow->GetPendingTrackId() : FString();
+	FString Pending = Flow && Flow->HasPendingTrack() ? Flow->GetPendingTrackId() : FString();
+	if (Pending.Equals(SkippedPendingTrack, ESearchCase::IgnoreCase))
+	{
+		Pending.Reset();
+	}
 	TArray<FString> Skipped;
 	const int32 Pick = ChooseFile(LocalFiles, GatherContentCrcs(Net), Pending, LastFile, &Skipped);
 	for (const FString& Why : Skipped)
@@ -793,6 +801,8 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
 	if (Spectator && Spectator->TakeNextRequested())
 	{
+		// Another track and field, not the player's pending track again.
+		SkippedPendingTrack = Flow && Flow->HasPendingTrack() ? Flow->GetPendingTrackId() : FString();
 		Restart(TEXT("the next one was asked for"));
 	}
 	else if (FinishedFor > FinishedLingerSeconds)
@@ -803,7 +813,8 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 	{
 		Restart(TEXT("it has run long enough"));
 	}
-	else if (Flow && Flow->HasPendingTrack() && !Flow->GetPendingTrackId().Equals(TrackId, ESearchCase::IgnoreCase))
+	else if (Flow && Flow->HasPendingTrack() && !Flow->GetPendingTrackId().Equals(TrackId, ESearchCase::IgnoreCase)
+		&& !Flow->GetPendingTrackId().Equals(SkippedPendingTrack, ESearchCase::IgnoreCase))
 	{
 		// The player picked another circuit; show that one, if it has a level
 		// and something to play on it.

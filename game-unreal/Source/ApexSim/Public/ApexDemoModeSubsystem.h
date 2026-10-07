@@ -175,6 +175,12 @@ private:
 	/** The showcase channel or file last played, not to be played twice running. */
 	FString LastShowcaseId;
 	FString LastFile;
+	/**
+	 * The pending track the player was on when they asked for the next race:
+	 * that request moves on round the playlist instead of favouring it, and
+	 * the "player chose another track" restart ignores it until it changes.
+	 */
+	FString SkippedPendingTrack;
 
 	/** `-ApexShowcase=`: a file path or a showcase id to play, and nothing else. */
 	FString ForcedShowcase;
