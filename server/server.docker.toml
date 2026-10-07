@@ -64,3 +64,14 @@ dir = "/content/showcase"
 #mode = "loop"
 # Send every Nth frame of a file (1 = all of them).
 #stream_divisor = 1
+
+[admin]
+# Web dashboard (docs/ADMIN_DASHBOARD.md). Bound to all interfaces inside the
+# container; publish the ports deliberately. Set the access token with
+# APEXSIM_ADMIN_TOKEN (empty: a random one is printed in `docker logs` at each
+# start). The self-signed HTTPS certificate and the ban list are kept in /data.
+enabled = true
+http_bind = "0.0.0.0:9003"
+https_bind = "0.0.0.0:9004"
+redirect_http_to_https = true
+bans_file = "/data/records/bans.json"

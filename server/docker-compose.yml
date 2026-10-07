@@ -21,6 +21,8 @@ services:
       - "9000:9000/tcp"
       - "9001:9001/udp"
       - "9002:9002/tcp"
+      - "9003:9003/tcp"               # dashboard, redirects to HTTPS
+      - "9004:9004/tcp"               # dashboard, HTTPS
     environment:
       # server.docker.toml has TLS off and auth "dev" (accept anyone): fine on a
       # LAN, not on the internet.  For TLS, mount certs and set:
@@ -28,9 +30,12 @@ services:
       #   APEXSIM_NETWORK_TLS_KEY_PATH=/certs/server.key
       #   APEXSIM_NETWORK_REQUIRE_TLS=true
       APEXSIM_LOGGING_LEVEL: info
+      # Dashboard login. Set a real secret (e.g. in a .env file); left empty,
+      # a random token is printed in `docker compose logs apexsim` at start.
+      APEXSIM_ADMIN_TOKEN: ${APEXSIM_ADMIN_TOKEN:-}
     volumes:
       - apexsim-content:/content:ro
-      - apexsim-data:/data            # lap records, ghosts, replays
+      - apexsim-data:/data            # server.toml, lap records, ghosts, replays, bans
 
 volumes:
   apexsim-content:
