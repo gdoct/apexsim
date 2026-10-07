@@ -16,6 +16,7 @@ async fn start_token_server(tokens: Vec<String>) -> apexsim_server::server::Serv
     config.network.tcp_bind = "127.0.0.1:0".to_string();
     config.network.udp_bind = "127.0.0.1:0".to_string();
     config.network.health_bind = "127.0.0.1:0".to_string();
+    config.admin.enabled = false;
     config.network.require_tls = false;
     config.auth.mode = AuthMode::Token;
     config.auth.tokens = tokens;

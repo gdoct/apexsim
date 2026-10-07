@@ -29,6 +29,7 @@ async fn start_test_server_with_config(mut config: ServerConfig) -> ServerHandle
     config.network.tcp_bind = "127.0.0.1:0".to_string();
     config.network.udp_bind = "127.0.0.1:0".to_string();
     config.network.health_bind = "127.0.0.1:0".to_string();
+    config.admin.enabled = false;
     config.network.require_tls = false;
     // The AC imports under content/tracks/custom are the player's own data,
     // and the tests pick "the first track" of an unordered lobby list: one

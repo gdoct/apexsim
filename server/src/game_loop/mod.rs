@@ -141,6 +141,7 @@ pub(crate) async fn run_game_loop(
     let _timer_resolution = crate::timer_resolution::HighResolutionTimer::acquire();
 
     let tick_duration = Duration::from_micros((1_000_000.0 / tick_rate as f64) as u64);
+    ctx.metrics.set_tick_budget(tick_duration);
     let mut ticker = interval(tick_duration);
     // Skip missed ticks instead of bursting to catch up: the sim advances a
     // fixed dt per tick, so bursting only amplifies a stall.

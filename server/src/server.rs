@@ -397,6 +397,9 @@ pub struct ServerHandle {
     pub transport: Arc<RwLock<TransportLayer>>,
     pub health: HealthState,
     pub metrics: Arc<ServerMetrics>,
+    /// The web dashboard's addresses and access token; `None` when it is
+    /// disabled in the config.
+    pub admin: Option<crate::admin::AdminHandle>,
 }
 
 impl ServerHandle {
@@ -413,6 +416,15 @@ impl ServerHandle {
 /// Boot the server: load content, bind sockets, start the health endpoint and
 /// the game loop. Returns once everything is running.
 pub async fn run_server(config: ServerConfig) -> Result<ServerHandle, Box<dyn std::error::Error>> {
+    run_server_from(config, None).await
+}
+
+/// [`run_server`] for a server started from a config file: the dashboard's
+/// Config view edits `config_path`.
+pub async fn run_server_from(
+    config: ServerConfig,
+    config_path: Option<PathBuf>,
+) -> Result<ServerHandle, Box<dyn std::error::Error>> {
     config
         .validate()
         .map_err(|e| format!("Invalid configuration: {}", e))?;
@@ -467,6 +479,20 @@ pub async fn run_server(config: ServerConfig) -> Result<ServerHandle, Box<dyn st
 
     health_state.set_ready(true).await;
 
+    let admin = crate::admin::start(crate::admin::AdminInputs {
+        settings: config.admin.clone(),
+        state: Arc::clone(&state),
+        transport: Arc::clone(&transport),
+        metrics: Arc::clone(&metrics),
+        health: health_state.clone(),
+        config_path,
+        network_cert: (
+            config.network.tls_cert_path.clone(),
+            config.network.tls_key_path.clone(),
+        ),
+    })
+    .await?;
+
     let loop_state = Arc::clone(&state);
     let loop_transport = Arc::clone(&transport);
     let loop_metrics = Arc::clone(&metrics);
@@ -485,6 +511,7 @@ pub async fn run_server(config: ServerConfig) -> Result<ServerHandle, Box<dyn st
         transport,
         health: health_state,
         metrics,
+        admin,
     })
 }
 

@@ -1,5 +1,5 @@
 use apexsim_server::config::ServerConfig;
-use apexsim_server::server::run_server;
+use apexsim_server::server::run_server_from;
 use clap::Parser;
 use tracing::{error, info};
 use tracing_subscriber::layer::SubscriberExt;
@@ -60,6 +60,7 @@ fn init_tracing(
         .with(env_filter)
         .with(console_layer)
         .with(file_layer)
+        .with(apexsim_server::admin::logbuf::LogBufferLayer)
         .init();
 
     guard
@@ -118,7 +119,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("UDP bind: {}", config.network.udp_bind);
     info!("Tick rate: {}Hz", config.server.tick_rate_hz);
 
-    let handle = run_server(config).await?;
+    let handle = run_server_from(config, Some(std::path::PathBuf::from(&args.config))).await?;
 
     info!("Server is running. Send SIGINT (Ctrl+C) or SIGTERM to stop.");
 

@@ -26,6 +26,12 @@ pub struct ServerMetrics {
     tick_bucket_counts: [AtomicU64; 8],
     tick_count: AtomicU64,
     tick_sum_us: AtomicU64,
+    /// Longest tick since the dashboard sampler last took it.
+    tick_max_us: AtomicU64,
+    /// Ticks that took longer than their budget, and that budget (µs, set
+    /// by the game loop; 0 until it starts).
+    tick_overruns: AtomicU64,
+    tick_budget_us: AtomicU64,
     /// Transport-level counters (drops, backpressure disconnects), shared
     /// with the transport layer via its internal Arcs.
     pub transport: TransportMetrics,
@@ -43,12 +49,38 @@ impl ServerMetrics {
         let us = elapsed.as_micros() as u64;
         self.tick_count.fetch_add(1, Ordering::Relaxed);
         self.tick_sum_us.fetch_add(us, Ordering::Relaxed);
+        self.tick_max_us.fetch_max(us, Ordering::Relaxed);
+        let budget = self.tick_budget_us.load(Ordering::Relaxed);
+        if budget > 0 && us > budget {
+            self.tick_overruns.fetch_add(1, Ordering::Relaxed);
+        }
         for (i, bound) in TICK_BUCKETS_US.iter().enumerate() {
             if us <= *bound {
                 self.tick_bucket_counts[i].fetch_add(1, Ordering::Relaxed);
                 break;
             }
         }
+    }
+
+    /// The game loop's per-tick time budget (one tick period).
+    pub fn set_tick_budget(&self, budget: Duration) {
+        self.tick_budget_us
+            .store(budget.as_micros() as u64, Ordering::Relaxed);
+    }
+
+    /// Ticks run, the time they took in total (µs), and how many overran
+    /// their budget, since the server started.
+    pub fn tick_totals(&self) -> (u64, u64, u64) {
+        (
+            self.tick_count.load(Ordering::Relaxed),
+            self.tick_sum_us.load(Ordering::Relaxed),
+            self.tick_overruns.load(Ordering::Relaxed),
+        )
+    }
+
+    /// The longest tick since the last call (µs), and start over.
+    pub fn take_tick_max_us(&self) -> u64 {
+        self.tick_max_us.swap(0, Ordering::Relaxed)
     }
 
     /// The showcase channels as last published by the game loop.

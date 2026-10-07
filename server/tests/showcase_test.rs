@@ -151,6 +151,7 @@ async fn start_server_with_showcase(dir: &Path) -> ServerHandle {
     config.network.tcp_bind = "127.0.0.1:0".to_string();
     config.network.udp_bind = "127.0.0.1:0".to_string();
     config.network.health_bind = "127.0.0.1:0".to_string();
+    config.admin.enabled = false;
     config.network.require_tls = false;
     config.content.skip_imported_tracks = cfg!(debug_assertions);
     config.showcase.dir = dir.to_string_lossy().into_owned();

@@ -28,6 +28,7 @@ hyper-util = { version = "0.1", features = ["full"] }
 http-body-util = "0.1"
 bytes = "1"
 noise = "0.9"
+rcgen = { version = "0.14.10", default-features = false, features = ["ring", "pem"] }
 
 [dev-dependencies]
 proptest = "1"

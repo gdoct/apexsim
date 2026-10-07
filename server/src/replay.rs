@@ -144,6 +144,24 @@ pub fn write_replay_file(
     writer.flush()
 }
 
+/// Read just a replay file's header: its metadata and frame count, no frames.
+pub fn read_replay_header(path: &std::path::Path) -> Result<ReplayHeader, std::io::Error> {
+    use std::io::Read;
+    let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
+    let mut len = [0u8; 4];
+    reader.read_exact(&mut len)?;
+    let len = u32::from_le_bytes(len) as usize;
+    // A header is a few kilobytes; refuse a length that says otherwise.
+    if len > 16 * 1024 * 1024 {
+        return Err(invalid_data(std::io::Error::other(
+            "replay header too large",
+        )));
+    }
+    let mut header_bytes = vec![0u8; len];
+    reader.read_exact(&mut header_bytes)?;
+    rmp_serde::from_slice(&header_bytes).map_err(invalid_data)
+}
+
 /// Read a whole replay file synchronously.
 pub fn read_replay_file(
     path: &std::path::Path,
@@ -280,6 +298,11 @@ fn assemble_replay(
 }
 
 impl ReplayManager {
+    /// The folder the replays are written to.
+    pub fn dir(&self) -> &std::path::Path {
+        &self.replay_dir
+    }
+
     pub fn new(replay_dir: PathBuf) -> Self {
         Self {
             replay_dir,

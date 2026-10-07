@@ -21,6 +21,52 @@ pub struct ServerConfig {
     pub showcase: ShowcaseSettings,
     #[serde(default)]
     pub debug: DebugSettings,
+    #[serde(default)]
+    pub admin: AdminSettings,
+}
+
+/// The web dashboard (`crate::admin`, docs/ADMIN_DASHBOARD.md): an HTTP and
+/// an HTTPS listener on their own ports, behind a shared access token.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AdminSettings {
+    pub enabled: bool,
+    /// Plain HTTP listener; empty switches it off. Loopback by default: a
+    /// token that crosses a network in clear text is no token.
+    pub http_bind: String,
+    /// HTTPS listener; empty switches it off.
+    pub https_bind: String,
+    /// PEM certificate chain and key for the HTTPS listener. Both empty:
+    /// `network.tls_cert_path` / `tls_key_path` when those are set, else a
+    /// self-signed certificate made at startup (browsers warn about it).
+    pub tls_cert_path: String,
+    pub tls_key_path: String,
+    /// The access token the login asks for. Empty: a random one is made at
+    /// startup and printed once in the log.
+    pub token: String,
+    /// Answer every plain HTTP request except the login page's own assets
+    /// with a redirect to the HTTPS listener.
+    pub redirect_http_to_https: bool,
+    /// Where the ban list is kept.
+    pub bans_file: String,
+    /// Log lines kept for the Logs view.
+    pub log_buffer_lines: usize,
+}
+
+impl Default for AdminSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            http_bind: "127.0.0.1:9003".to_string(),
+            https_bind: "127.0.0.1:9004".to_string(),
+            tls_cert_path: String::new(),
+            tls_key_path: String::new(),
+            token: String::new(),
+            redirect_http_to_https: false,
+            bans_file: "./records/bans.json".to_string(),
+            log_buffer_lines: 5000,
+        }
+    }
 }
 
 /// Debug-only hooks for reaching states a short race seldom does
@@ -284,6 +330,7 @@ impl Default for ServerConfig {
             physics: PhysicsSettings::default(),
             showcase: ShowcaseSettings::default(),
             debug: DebugSettings::default(),
+            admin: AdminSettings::default(),
         }
     }
 }
@@ -392,6 +439,12 @@ impl ServerConfig {
             &mut self.debug.stand_in_driver,
         );
         env_string("APEXSIM_DEBUG_EVENTS", &mut self.debug.events);
+        env_parse("APEXSIM_ADMIN_ENABLED", &mut self.admin.enabled);
+        env_string("APEXSIM_ADMIN_HTTP_BIND", &mut self.admin.http_bind);
+        env_string("APEXSIM_ADMIN_HTTPS_BIND", &mut self.admin.https_bind);
+        env_port("APEXSIM_ADMIN_HTTP_PORT", &mut self.admin.http_bind);
+        env_port("APEXSIM_ADMIN_HTTPS_PORT", &mut self.admin.https_bind);
+        env_string("APEXSIM_ADMIN_TOKEN", &mut self.admin.token);
     }
 
     /// Sanity-check the configuration. Returns all problems found.
@@ -417,6 +470,21 @@ impl ServerConfig {
         ] {
             if bind.parse::<std::net::SocketAddr>().is_err() {
                 errors.push(format!("{} is not a valid socket address: {}", name, bind));
+            }
+        }
+        if self.admin.enabled {
+            for (name, bind) in [
+                ("admin.http_bind", &self.admin.http_bind),
+                ("admin.https_bind", &self.admin.https_bind),
+            ] {
+                if !bind.is_empty() && bind.parse::<std::net::SocketAddr>().is_err() {
+                    errors.push(format!("{} is not a valid socket address: {}", name, bind));
+                }
+            }
+            if self.admin.tls_cert_path.is_empty() != self.admin.tls_key_path.is_empty() {
+                errors.push(
+                    "admin.tls_cert_path and admin.tls_key_path must be set together".to_string(),
+                );
             }
         }
         if self.network.telemetry_divisor == 0 {

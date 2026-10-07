@@ -64,3 +64,21 @@ road_contact = "mesh"
 #mode = "loop"
 # Send every Nth frame of a file (1 = all of them).
 #stream_divisor = 1
+
+[admin]
+# The web dashboard (docs/ADMIN_DASHBOARD.md): plain HTTP and HTTPS on their
+# own ports, behind an access token. Every key is optional; these are the
+# defaults. Loopback only: bind to 0.0.0.0 to reach it from other machines,
+# and then prefer HTTPS (redirect_http_to_https = true).
+#enabled = true
+#http_bind = "127.0.0.1:9003"
+#https_bind = "127.0.0.1:9004"
+# Empty: network.tls_cert_path/tls_key_path when those files exist, else a
+# self-signed certificate made once and kept beside the ban list.
+#tls_cert_path = ""
+#tls_key_path = ""
+# Empty: a random token is made at every start and printed once in the log.
+#token = ""
+#redirect_http_to_https = false
+#bans_file = "./records/bans.json"
+#log_buffer_lines = 5000

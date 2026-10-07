@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod aero;
 pub mod ai_driver;
 pub mod brakes;

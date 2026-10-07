@@ -4071,6 +4071,9 @@ settle before measuring) answers in seconds.
 There is no wheel support for an H-pattern shifter (the wire protocol's gear
 field is filled from a shift delta, not an absolute gear).
 
+### Server dashboard (`server/src/admin/`, docs/ADMIN_DASHBOARD.md)
+Web UI for operators on HTTP (9003) and HTTPS (9004), token-protected (`[admin]` in server.toml), page compiled into the binary from `admin/web/`. Kick/ban go through `TransportLayer::kick_player` and the `BanList` checked at `Authenticate`; logs come from `admin::logbuf::LogBufferLayer` (installed in `main.rs`); `run_server_from` passes the config path for the Config view. Test servers set `config.admin.enabled = false` unless they test it. Not done: schedule, restart, broadcast, content upload (see the doc).
+
 ### Content (`content/`)
 - `cars/` - Car physics definitions (TOML: `car.toml` per car; most physical parameters moddable with validated ranges): `cars/default/<folder>` the shipped cars, `cars/custom/<folder>` the player's own (gitignored but for its README, read after `default/`, shipped only with `-IncludeCustomCars`)
 - No generator scripts live in `content/`: the Blender builders and texture generators that write the cars, wheels and prop kit are in `scripts/content/{cars,props,wheels}` (libraries `carlib.py`, `apex_props.py`, `apex_tex.py` beside them). The Blender ones find the repo through `APEXSIM_ROOT` (default `E:pexsim`), since `exec(open(...).read())` gives them no `__file__`; the plain-Python ones (`liveries.py`, `gen_graffiti.py`, `gen_brands.py`) from their own path. Either way they write into `content/`

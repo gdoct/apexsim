@@ -95,6 +95,18 @@ impl TransportMetrics {
     }
 }
 
+/// One connected client as the admin dashboard lists them.
+#[derive(Debug, Clone)]
+pub struct ConnectionSnapshot {
+    pub player_id: PlayerId,
+    pub name: String,
+    pub address: SocketAddr,
+    pub connected_for: Duration,
+    pub since_heartbeat: Duration,
+    pub in_session: Option<SessionId>,
+    pub udp_bound: bool,
+}
+
 #[derive(Debug, Error)]
 pub enum TransportError {
     #[error("IO error: {0}")]
@@ -154,6 +166,10 @@ pub struct ConnectionInfo {
     /// Bound UDP address, set by a completed `UdpHandshake`. Telemetry is
     /// sent here when present (TCP fallback otherwise).
     pub udp_addr: Option<SocketAddr>,
+    /// Signalled to drop the connection from the server's side (the admin
+    /// dashboard's kick); the reader loop ends and the usual disconnect
+    /// cleanup runs.
+    pub kick: Arc<tokio::sync::Notify>,
 }
 
 /// Shared connection registry: every map needed to resolve a connection from
@@ -165,6 +181,8 @@ struct ConnRegistry {
     addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
     udp_token_to_connection: Arc<RwLock<HashMap<String, ConnectionId>>>,
     udp_addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
+    /// Addresses and names refused at `Authenticate` (`crate::admin::bans`).
+    bans: crate::admin::bans::BanList,
 }
 
 impl ConnRegistry {
@@ -175,6 +193,7 @@ impl ConnRegistry {
             addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
             udp_token_to_connection: Arc::new(RwLock::new(HashMap::new())),
             udp_addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            bans: crate::admin::bans::BanList::default(),
         }
     }
 
@@ -553,9 +572,17 @@ impl TransportLayer {
         let mut control_bucket = TokenBucket::new(CONTROL_RATE_PER_SEC, CONTROL_RATE_BURST);
         let mut violations: u32 = 0;
 
+        let kick = Arc::new(tokio::sync::Notify::new());
         loop {
-            // Read length prefix
-            match reader.read_exact(&mut len_buf).await {
+            // Read length prefix (or stop when the admin kicks this client)
+            let read = tokio::select! {
+                r = reader.read_exact(&mut len_buf) => r,
+                _ = kick.notified() => {
+                    debug!("Connection {} dropped by the server", addr);
+                    break;
+                }
+            };
+            match read {
                 Ok(_) => {
                     let len = u32::from_be_bytes(len_buf) as usize;
 
@@ -659,6 +686,25 @@ impl TransportLayer {
                                                 .await;
                                             break;
                                         }
+                                        if let Some(ban) =
+                                            registry.bans.check(addr.ip(), player_name)
+                                        {
+                                            warn!(
+                                                "Rejecting authentication from {} ({}): banned",
+                                                addr, player_name
+                                            );
+                                            let _ = conn_tx
+                                                .send(OutboundFrame::Message(
+                                                    ServerMessage::AuthFailure {
+                                                        reason: format!(
+                                                            "you are banned from this server: {}",
+                                                            ban.reason
+                                                        ),
+                                                    },
+                                                ))
+                                                .await;
+                                            break;
+                                        }
                                         authenticated = true;
                                         let player_id = Uuid::new_v4();
                                         let udp_token = Uuid::new_v4().to_string();
@@ -672,6 +718,7 @@ impl TransportLayer {
                                             in_session: None,
                                             udp_token: udp_token.clone(),
                                             udp_addr: None,
+                                            kick: Arc::clone(&kick),
                                         };
 
                                         registry
@@ -1064,6 +1111,67 @@ impl TransportLayer {
         Some((conn_id, udp_addr))
     }
 
+    /// The ban list the authentication step consults.
+    pub fn bans(&self) -> crate::admin::bans::BanList {
+        self.registry.bans.clone()
+    }
+
+    /// Everyone connected, for the admin dashboard.
+    pub async fn connection_snapshots(&self) -> Vec<ConnectionSnapshot> {
+        let now = Instant::now();
+        self.registry
+            .connections
+            .read()
+            .await
+            .values()
+            .map(|c| ConnectionSnapshot {
+                player_id: c.player_id,
+                name: c.player_name.clone(),
+                address: c.tcp_addr,
+                connected_for: now.duration_since(c.connected_at),
+                since_heartbeat: now.duration_since(c.last_heartbeat),
+                in_session: c.in_session,
+                udp_bound: c.udp_addr.is_some(),
+            })
+            .collect()
+    }
+
+    /// Tell a player why and drop their connection. The reader task ends and
+    /// the ordinary disconnect path removes them from their session. False
+    /// when nobody by that id is connected.
+    pub async fn kick_player(&self, player_id: PlayerId, reason: &str) -> bool {
+        let Some(conn_id) = self
+            .registry
+            .player_to_connection
+            .read()
+            .await
+            .get(&player_id)
+            .copied()
+        else {
+            return false;
+        };
+        let Some(conn) = self
+            .registry
+            .connections
+            .read()
+            .await
+            .get(&conn_id)
+            .cloned()
+        else {
+            return false;
+        };
+        let _ = conn
+            .tcp_tx
+            .try_send(OutboundFrame::Message(ServerMessage::Error {
+                code: 403,
+                message: format!("Removed from the server: {}", reason),
+            }));
+        // Give the writer task a moment to put the notice on the wire.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        conn.kick.notify_one();
+        true
+    }
+
     pub async fn cleanup_stale_connections(&self) -> Vec<(PlayerId, Option<SessionId>)> {
         let now = Instant::now();
         let timeout = self.heartbeat_timeout;
@@ -1272,6 +1380,7 @@ mod tests {
             in_session: None,
             udp_token: Uuid::new_v4().to_string(),
             udp_addr: None,
+            kick: Arc::new(tokio::sync::Notify::new()),
         }
     }
 
