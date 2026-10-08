@@ -35,7 +35,8 @@ void UApexScreenWidget::SetBackdropOpacity(float Opacity)
 {
 	// The page brush's own tint is the palette's background; the border's
 	// brush colour multiplies it, so its alpha alone fades the page.
-	if (UBorder* Page = WidgetTree ? Cast<UBorder>(WidgetTree->RootWidget) : nullptr)
+	UBorder* Page = PageBackground ? PageBackground.Get() : (WidgetTree ? Cast<UBorder>(WidgetTree->RootWidget) : nullptr);
+	if (Page)
 	{
 		Page->SetBrushColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f - FMath::Clamp(Opacity, 0.0f, 1.0f)));
 	}

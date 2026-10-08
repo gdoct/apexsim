@@ -83,4 +83,12 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
 	void ShowToast(const FString& Message, bool bIsError = false);
+
+	/**
+	 * The border SetBackdropOpacity fades. Unset, it is the root widget when
+	 * that is a border; a screen whose root is something else (an overlay of
+	 * layers) names its solid bottom layer here, or the race never shows.
+	 */
+	UPROPERTY(Transient)
+	TObjectPtr<class UBorder> PageBackground;
 };

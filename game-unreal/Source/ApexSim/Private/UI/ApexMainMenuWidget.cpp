@@ -230,6 +230,8 @@ void UApexMainMenuWidget::BuildLayout()
 	UOverlay* Stack = WidgetTree->ConstructWidget<UOverlay>();
 
 	UBorder* Base = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::Background));
+	// The root is an overlay now, so name the layer the demo race fades out.
+	PageBackground = Base;
 	UOverlaySlot* BaseSlot = Stack->AddChildToOverlay(Base);
 	BaseSlot->SetHorizontalAlignment(HAlign_Fill);
 	BaseSlot->SetVerticalAlignment(VAlign_Fill);
