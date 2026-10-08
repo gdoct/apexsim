@@ -266,9 +266,15 @@ pub fn dress_scene_with_dem(
         }
     }
     for landmark in &layout.landmarks {
-        if let Some(prop) = lay_landmark(&path, &terrain, landmark) {
-            report.landmarks += 1;
-            laid.push(prop);
+        match lay_landmark(&path, &terrain, landmark) {
+            Ok(Some(prop)) => {
+                report.landmarks += 1;
+                laid.push(prop);
+            }
+            Ok(None) => {}
+            Err(reason) => report
+                .skipped
+                .push(format!("landmark {}: {reason}", name_of(&landmark.name))),
         }
     }
 
@@ -1248,11 +1254,17 @@ fn brand_text(brand: Option<&String>) -> Option<String> {
     KIT_BRANDS.contains(&brand.as_str()).then_some(brand)
 }
 
+/// Laid on its mapped centre, unless the kit's footprint there would
+/// reach onto the road: then stepped off it toward the dossier's side.
+/// Monza's Torre Sud is an OSM node 0.5 m off the centerline at the line,
+/// and a 13 m tower stood across the start straight, a wall the AI
+/// crashed into every few laps. `Ok(None)` for a kind the kit has no
+/// prop for, `Err` when there is no room beside the road.
 fn lay_landmark(
     path: &CenterlinePath,
     terrain: &TerrainHeightfield,
     landmark: &Landmark,
-) -> Option<Prop> {
+) -> Result<Option<Prop>, String> {
     let (kind, asset) = match landmark.kind.as_str() {
         "big_wheel" => (PropKind::Attraction, "ferris_wheel"),
         "screen" => (PropKind::Attraction, "video_screen"),
@@ -1266,9 +1278,17 @@ fn lay_landmark(
         "blimp" => (PropKind::Sky, "blimp"),
         "balloon" => (PropKind::Sky, "balloon"),
         "helicopter" => (PropKind::Sky, "helicopter"),
-        _ => return None,
+        _ => return Ok(None),
     };
-    let (x, y) = (landmark.centre[0], landmark.centre[1]);
+    let (mut x, mut y) = (landmark.centre[0], landmark.centre[1]);
+    let (sample, _) = nearest_cross_section(path, x, y);
+    let yaw = landmark.yaw_rad.unwrap_or(sample.heading_rad);
+    if kind != PropKind::Sky {
+        if let Some(kit) = props::find(kind, asset) {
+            (x, y) = clear_landmark(path, x, y, yaw, kit, landmark.side)
+                .ok_or_else(|| "no room beside the road".to_string())?;
+        }
+    }
     let (sample, lat) = nearest_cross_section(path, x, y);
     // Sky props fly: their z is an altitude over the road, not a seat.
     let z = match kind {
@@ -1279,18 +1299,92 @@ fn lay_landmark(
     };
     // Face the road: the builder flips by side, so the course heading is
     // enough for anything with a front.
-    Some(Prop {
+    Ok(Some(Prop {
         id: 0,
         kind,
         asset: asset.to_string(),
         x,
         y,
         z,
-        yaw_rad: landmark.yaw_rad.unwrap_or(sample.heading_rad),
+        yaw_rad: yaw,
         scale: 1.0,
         text: brand_text(landmark.brand.as_ref()),
         length_m: None,
-    })
+    }))
+}
+
+/// Least distance from the road edge (any section of the course) over a
+/// landmark's kit footprint pivoted at `(x, y)`: centred on the pivot for
+/// a centred asset, else reaching `depth` back from it on `side`.
+/// Negative is on the asphalt.
+fn landmark_road_gap(
+    path: &CenterlinePath,
+    x: f32,
+    y: f32,
+    yaw: f32,
+    kit: &props::KitAsset,
+    away: (f32, f32),
+) -> f32 {
+    let (sin, cos) = yaw.sin_cos();
+    // The footprint's depth axis, pointing away from the road.
+    let depth_axis = if -sin * away.0 + cos * away.1 >= 0.0 {
+        (-sin, cos)
+    } else {
+        (sin, -cos)
+    };
+    let (back0, back1) = if crate::ue_export::footprint_is_centred(kit.kind, kit.asset) {
+        (-kit.depth_m / 2.0, kit.depth_m / 2.0)
+    } else {
+        (0.0, kit.depth_m)
+    };
+    let mut worst = f32::MAX;
+    for a in 0..=FOOTPRINT_PROBES {
+        let along = (a as f32 / FOOTPRINT_PROBES as f32 - 0.5) * kit.length_m;
+        for b in 0..=FOOTPRINT_PROBES {
+            let back = back0 + b as f32 / FOOTPRINT_PROBES as f32 * (back1 - back0);
+            let px = x + cos * along + depth_axis.0 * back;
+            let py = y + sin * along + depth_axis.1 * back;
+            let (sample, lat) = nearest_cross_section(path, px, py);
+            let side = if lat >= 0.0 { Side::Left } else { Side::Right };
+            worst = worst.min(lat.abs() - side_half_width(&sample, side));
+        }
+    }
+    worst
+}
+
+/// Where a landmark's footprint stands [`BUILDING_ROAD_CLEAR_M`] clear of
+/// the road: its mapped spot when it already does, else stepped across
+/// the road's normal toward the dossier's `side` (which still says where
+/// it belongs when the mapped point is on the asphalt) in 1 m steps, up
+/// to [`BUILDING_MAX_PUSH_M`] past the road edge.
+fn clear_landmark(
+    path: &CenterlinePath,
+    x: f32,
+    y: f32,
+    yaw: f32,
+    kit: &props::KitAsset,
+    side: Side,
+) -> Option<(f32, f32)> {
+    let (sample, lat) = nearest_cross_section(path, x, y);
+    let (sin, cos) = sample.heading_rad.sin_cos();
+    let away = match side {
+        Side::Left => (-sin, cos),
+        Side::Right => (sin, -cos),
+    };
+    let (mut x, mut y) = (x, y);
+    let limit = lat.abs() + side_half_width(&sample, side) + BUILDING_MAX_PUSH_M;
+    let mut pushed = 0.0f32;
+    loop {
+        if landmark_road_gap(path, x, y, yaw, kit, away) >= BUILDING_ROAD_CLEAR_M - 0.05 {
+            return Some((x, y));
+        }
+        pushed += 1.0;
+        if pushed > limit {
+            return None;
+        }
+        x += away.0;
+        y += away.1;
+    }
 }
 
 // ---- Shared helpers -------------------------------------------------------
@@ -2203,6 +2297,40 @@ mod tests {
                 "a building front at lateral {lat} m: {lats:?}"
             );
         }
+    }
+
+    /// Monza's Torre Sud: an OSM tower node mapped half a metre off the
+    /// centerline put a 13 m tower across the start straight. It is
+    /// stepped off the road toward the dossier's side, whole footprint
+    /// clear.
+    #[test]
+    fn a_landmark_mapped_on_the_road_is_stepped_off_it() {
+        let track = track();
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        layout.landmarks.push(Landmark {
+            kind: "tower".to_string(),
+            name: Some("Torre".to_string()),
+            station_m: 300.0,
+            side: Side::Left,
+            centre: [300.0, -0.5],
+            brand: None,
+            yaw_rad: None,
+            altitude_m: None,
+        });
+        let report = dress_scene(&track, &mut scene, &layout).unwrap();
+        assert_eq!(report.landmarks, 1, "{:?}", report.skipped);
+        let tower = scene
+            .props
+            .iter()
+            .find(|p| p.asset == "control_tower")
+            .expect("the tower is laid");
+        let kit = props::find(PropKind::Building, "control_tower").unwrap();
+        let near_edge = tower.y - kit.depth_m / 2.0;
+        assert!(
+            near_edge >= 6.0 + BUILDING_ROAD_CLEAR_M - 0.1,
+            "the tower's road side is {near_edge} m left of the centerline"
+        );
     }
 
     /// Two legs of the course 28 m apart (centre to centre), joined by
