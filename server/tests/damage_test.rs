@@ -34,7 +34,8 @@ fn drive<T>(
             .expect("car loads");
     let mut car_configs = HashMap::new();
     car_configs.insert(config.id, config.clone());
-    let track = TrackLoader::load_from_file("../content/tracks/default/Monza.yaml").expect("Monza");
+    let track =
+        TrackLoader::load_from_file("../content/tracks/default/Monza/Monza.yaml").expect("Monza");
     let session = RaceSession::new(
         Uuid::from_u128(1),
         track.id,
@@ -176,7 +177,8 @@ fn a_retired_car_is_towed_to_its_box() {
         still < 0.01 && !towed_early,
         "stands where it stopped at first"
     );
-    let track = TrackLoader::load_from_file("../content/tracks/default/Monza.yaml").expect("Monza");
+    let track =
+        TrackLoader::load_from_file("../content/tracks/default/Monza/Monza.yaml").expect("Monza");
     let Some(lane) = track.pit_lane.as_ref() else {
         return;
     };

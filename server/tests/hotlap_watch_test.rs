@@ -26,7 +26,7 @@ use apexsim_server::track_loader::TrackLoader;
 
 const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
 
-const MONZA: &str = "../content/tracks/default/Monza.yaml";
+const MONZA: &str = "../content/tracks/default/Monza/Monza.yaml";
 
 fn car(folder: &str) -> CarConfig {
     let path = format!("../content/cars/default/{folder}/car.toml");
@@ -446,7 +446,7 @@ fn watch_probe() {
             profile.id = Uuid::from_u128(9100);
             profile.exact_line = true;
             let driver = profile.id;
-            let path = format!("../content/tracks/default/{stem}.yaml");
+            let path = format!("../content/tracks/default/{stem}/{stem}.yaml");
             let track = TrackLoader::load_from_file(&path).expect("track loads");
             let mut session = RaceSession::new(
                 Uuid::from_u128(1),

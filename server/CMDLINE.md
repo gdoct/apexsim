@@ -209,7 +209,7 @@ apexsim-replay <COMMAND> [OPTIONS]
   from `Server\` in a release package, which holds `content\cars` and
   `content\tracks`. A command that is given a replay but no `--track` finds
   the YAML by the stem recorded in the replay, under
-  `content/tracks/default` then `content/tracks/custom`.
+  `content/tracks/default/<stem>` then `content/tracks/custom/<stem>`.
 - **Cars.** A car is named by its folder, its `id` or its name. The field
   races in the host car's class: every car of that class, dealt in turn.
   `--cars-dir content/cars/default` leaves the player's own (custom and
@@ -250,7 +250,7 @@ apexsim-replay simulate --track <YAML> --out <FILE> [OPTIONS]
 | `--seed <N>` | random | Fixes the grid (the AI drivers' ids): the same seed, the same race. |
 
 ```bash
-apexsim-replay simulate --track content/tracks/default/Zandvoort.yaml --car yotota-lmp2 \
+apexsim-replay simulate --track content/tracks/default/Zandvoort/Zandvoort.yaml --car yotota-lmp2 \
     --ai 12 --laps 3 --weather sunny --time 18:30 --seed 4 --out out/zandvoort.bin
 ```
 
@@ -296,7 +296,7 @@ apexsim-replay render --track <YAML> (--class <CLASS> | --car <CAR>) --out <FILE
 | `--from-tick <T>` / `--to-tick <T>` | whole race | Keep only a window of the race. |
 
 ```bash
-apexsim-replay render --track content/tracks/default/Spa.yaml --class GT3 --cars 20 --laps 2 \
+apexsim-replay render --track content/tracks/default/Spa/Spa.yaml --class GT3 --cars 20 --laps 2 \
     --weather sunny --time 13:00 --seed 7 --seeds 4 --cars-dir content/cars/default \
     --out build/showcase/Spa.gt3.day.apxs
 ```
@@ -454,7 +454,7 @@ apexsim-replay guide (<YAML>... | --all) [OPTIONS]
 
 ```bash
 apexsim-replay guide --all                          # every shipped circuit x every class (a few minutes)
-apexsim-replay guide content/tracks/default/Spa.yaml --class GT3
+apexsim-replay guide content/tracks/default/Spa/Spa.yaml --class GT3
 apexsim-replay guide --all --report                 # detected corners only
 apexsim-replay guide --all --missing-only           # only what is out of date
 ```
@@ -488,7 +488,7 @@ apexsim-replay pose --track <YAML> (--corner <NAME> | --station <M>) [OPTIONS]
 | `--look-landmark <NAME>` | | Look at a dossier landmark, crossing, stand or structure by name or kind (`big_wheel`, `Tyre bridge`) instead of a point on the road; raised by `--look-height`. |
 
 ```bash
-apexsim-replay pose --track content/tracks/default/Spa.yaml --corner "Eau Rouge" \
+apexsim-replay pose --track content/tracks/default/Spa/Spa.yaml --corner "Eau Rouge" \
     --offset -60 --side outside --lateral 25 --height 6
 ```
 
@@ -542,7 +542,7 @@ What it reads and writes:
   carry an id over, or to give the track a known one.
 
 The result is a raw centerline. To turn it into a finished circuit, put the
-YAML in `content/tracks/custom/` and run it through the track pipeline
+YAML in its own folder, `content/tracks/custom/<Stem>/<Stem>.yaml`, and run it through the track pipeline
 (smoothing, banking, scene, export; see the track sections of `CLAUDE.md`
 in the source repository).
 
@@ -550,7 +550,7 @@ in the source repository).
 cargo run --release --bin convert_track -- \
     --tracks-csv racetrack-database/tracks/Monza.csv \
     --raceline-csv racetrack-database/racelines/Monza.csv \
-    --output content/tracks/custom/MyMonza.yaml \
+    --output content/tracks/custom/MyMonza/MyMonza.yaml \
     --name "Autodromo Nazionale Monza" --display-name "Monzza" \
     --country Italy --city Monza --category F1
 ```

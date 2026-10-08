@@ -570,7 +570,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let tracks = root.path().join("tracks");
         let write = |folder: &str, stem: &str, id: &str| {
-            let dir = tracks.join(folder);
+            let dir = tracks.join(folder).join(stem);
             std::fs::create_dir_all(&dir).unwrap();
             std::fs::write(
                 dir.join(format!("{stem}.yaml")),
@@ -606,12 +606,15 @@ mod tests {
         sources.sort();
         assert_eq!(
             sources,
-            vec!["tracks/custom/Mine.yaml", "tracks/default/Shipped.yaml"]
+            vec![
+                "tracks/custom/Mine/Mine.yaml",
+                "tracks/default/Shipped/Shipped.yaml"
+            ]
         );
 
         // An imported track (its report beside the YAML) is left out when
         // asked, as the debug-build test servers do; the rest still load.
-        std::fs::write(tracks.join("custom/Mine.import.json"), "{}").unwrap();
+        std::fs::write(tracks.join("custom/Mine/Mine.import.json"), "{}").unwrap();
         let mut configs = HashMap::new();
         let mut content = TrackContent::new(crate::config::RoadContactMode::Centerline);
         ServerState::load_custom_tracks(&mut configs, &mut content, tracks.to_str().unwrap(), true);
@@ -619,7 +622,7 @@ mod tests {
             .values()
             .map(|t| t.source_path.clone().unwrap_or_default())
             .collect();
-        assert_eq!(sources, vec!["tracks/default/Shipped.yaml"]);
+        assert_eq!(sources, vec!["tracks/default/Shipped/Shipped.yaml"]);
     }
 
     /// The same rule for cars: `content/cars/custom` is read after `default`

@@ -12,7 +12,9 @@ Netherlands."). The same goes for the corner boards (`display_name` on each
 corner of the `<Stem>.layout.json` dossier, from `CORNER_DISPLAY` in
 `scripts/osm_layout.py`) and the categories, which the client shows as
 Formula / Endurance / GT3 / Independent. When adding a track, give it both.
-The file stem stays the place (`Zandvoort.yaml`); it is what scripts, the
+Each circuit is a folder of its own named by the stem (`Zandvoort/`), holding
+`Zandvoort.yaml` and every other file of the track. The file stem stays the
+place (`Zandvoort.yaml`); it is what scripts, the
 docs and `-ApexTrack=` use.
 
 | In game | Real name (not shown) | Stem | Modelled on the circuit at | Length | Category shown (data) |
@@ -61,7 +63,7 @@ Edit your `server.toml`:
 
 ```toml
 [track]
-track_file = "./content/tracks/default/Spa.yaml"
+track_file = "./content/tracks/default/Spa/Spa.yaml"
 ```
 
 ### Quick Test
@@ -69,7 +71,7 @@ track_file = "./content/tracks/default/Spa.yaml"
 Try Spa-Frankenchamps:
 ```bash
 # Update server.toml
-track_file = "./content/tracks/default/Spa.yaml"
+track_file = "./content/tracks/default/Spa/Spa.yaml"
 
 # Run server
 cargo run --release

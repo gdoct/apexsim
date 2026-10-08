@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn sidecar_sits_next_to_the_track_file() {
-        let path = Walls::sidecar_path(Path::new("content/tracks/default/Monza.yaml"));
+        let path = Walls::sidecar_path(Path::new("content/tracks/default/Monza/Monza.yaml"));
         assert!(path.ends_with("Monza.walls.msgpack"));
     }
 

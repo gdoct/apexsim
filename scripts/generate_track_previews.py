@@ -137,9 +137,8 @@ def main():
         print(f"\n📂 Processing: {track_dir}")
 
         # Find all track files
-        track_files = list(track_path.glob('*.yaml')) + \
-                     list(track_path.glob('*.yml')) + \
-                     list(track_path.glob('*.json'))
+        # a track is a folder of its own: <Stem>/<Stem>.yaml
+        track_files = list(track_path.glob('*/*.yaml'))
 
         for track_file in track_files:
             if track_file.name == 'README.md':

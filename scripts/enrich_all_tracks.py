@@ -506,7 +506,7 @@ def main():
     print("="*60)
     print(f"Output directory: {output_dir}")
     
-    track_files = sorted(script_dir.glob('*.yaml'))
+    track_files = sorted(script_dir.glob('*/*.yaml'))
     track_files = [f for f in track_files if f.name != 'enrich_all_tracks.py']
     
     if not track_files:

@@ -75,7 +75,7 @@ bool FApexHotlapWatchSessionTest::RunTest(const FString& Parameters)
 	FApexSessionSummary Summary;
 	if (TestTrue(TEXT("found by id"), Net->FindSessionById(SessionId, Summary)))
 	{
-		TestEqual(TEXT("its circuit file"), Summary.TrackFile, FString(TEXT("tracks/default/Zandvoort.yaml")));
+		TestEqual(TEXT("its circuit file"), Summary.TrackFile, FString(TEXT("tracks/default/Zandvoort/Zandvoort.yaml")));
 		TestEqual(TEXT("its circuit's name"), Summary.TrackName, FString(TEXT("Zandervoort")));
 		TestEqual(TEXT("its kind"), static_cast<int32>(Summary.SessionKind), static_cast<int32>(EApexSessionKind::HotlapWatch));
 	}

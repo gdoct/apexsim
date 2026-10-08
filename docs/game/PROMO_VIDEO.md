@@ -111,12 +111,12 @@ The eye is seated on the baked ground heightfield when the track has one. The cl
 cd server && cargo build --release --bin apexsim-replay && cd ..
 R=server/target/release/apexsim-replay
 
-$R simulate --track content/tracks/default/Zandvoort.yaml --car yotota-lmp2 --ai 12 --laps 3 \
+$R simulate --track content/tracks/default/Zandvoort/Zandvoort.yaml --car yotota-lmp2 --ai 12 --laps 3 \
    --weather sunny --time 19:10 --countdown 7 --seed 1 --out out/zandvoort.bin
 $R info out/zandvoort.bin                  # laps, finish order, start and finish ticks
 $R find out/zandvoort.bin --corner Luyendyk --before 300 --after 150 --min-cars 3 --last-laps 1
 $R cut  out/zandvoort.bin --from-s 330 --to-s 345 --out out/luyendyk.apxs
-$R pose --track content/tracks/default/Zandvoort.yaml --corner Luyendyk --offset 40 \
+$R pose --track content/tracks/default/Zandvoort/Zandvoort.yaml --corner Luyendyk --offset 40 \
    --lateral 28 --side outside --height 8 --look-offset -30 --look-height 1
 ```
 

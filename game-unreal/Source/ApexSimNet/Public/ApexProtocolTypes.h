@@ -809,7 +809,7 @@ struct APEXSIMNET_API FApexSessionSummary
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	FString TrackName;
 
-	/** Track file relative to the content folder, e.g. "tracks/default/Austin.yaml". */
+	/** Track file relative to the content folder, e.g. "tracks/default/Austin/Austin.yaml". */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	FString TrackFile;
 

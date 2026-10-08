@@ -123,7 +123,7 @@ its `look` point, else falls back to the next. Car-relative cameras (chase,
 onboard, TV locked on car 0) are the client's own and come after the fixed
 ones in the cycle; they are not in the file.
 
-## Hand-written notes (`content/tracks/default/<Stem>.guide.yml`)
+## Hand-written notes (`content/tracks/default/<Stem>/<Stem>.guide.yml`)
 
 Checked in beside the YAML; read by `apexsim-replay guide`:
 

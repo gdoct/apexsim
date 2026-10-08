@@ -30,8 +30,9 @@ fn braking_zones(profile: &RacingLineProfile) -> Vec<(f32, f32, f32, f32)> {
 }
 
 fn profile_for(track: &str, car: &str) -> RacingLineProfile {
-    let track = TrackLoader::load_from_file(format!("../content/tracks/default/{track}.yaml"))
-        .expect("track loads");
+    let track =
+        TrackLoader::load_from_file(format!("../content/tracks/default/{track}/{track}.yaml"))
+            .expect("track loads");
     let car = CarLoader::load_from_file(Path::new(&format!(
         "../content/cars/default/{car}/car.toml"
     )))

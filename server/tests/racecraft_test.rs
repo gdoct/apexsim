@@ -22,7 +22,7 @@ fn repo(path: &str) -> PathBuf {
 /// given (participants are ordered by id).
 fn race(skills: &[u8], prepare: impl FnOnce(&mut TrackConfig)) -> GameSession {
     let mut track = TrackLoader::load_from_file_with(
-        repo("content/tracks/default/Monza.yaml"),
+        repo("content/tracks/default/Monza/Monza.yaml"),
         apexsim_server::config::RoadContactMode::Centerline,
     )
     .expect("track loads");

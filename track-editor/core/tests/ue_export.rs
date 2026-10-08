@@ -858,7 +858,7 @@ fn start_finish_anchor_sits_on_the_line() {
 /// wrapped past the lap length.
 #[test]
 fn monza_grid_boxes_end_60_m_before_the_line() {
-    let track_path = real_tracks_dir().join("Monza.yaml");
+    let track_path = real_tracks_dir().join("Monza/Monza.yaml");
     let opened = project::open_project(&track_path).unwrap();
     let baked = ue_export::bake(&opened.track, &opened.scene.unwrap()).unwrap();
     let lap_m = baked.length_cm / 100.0;
@@ -891,7 +891,7 @@ fn spa_ground_hugs_the_road_edge_at_the_line() {
     use track_core::terrain::{TerrainHeightfield, BLEND_END_M, VERGE_DROP_M};
     use track_core::track_path::{offset_point, CenterlinePath};
 
-    let track_path = real_tracks_dir().join("Spa.yaml");
+    let track_path = real_tracks_dir().join("Spa/Spa.yaml");
     let opened = project::open_project(&track_path).unwrap();
     let path = CenterlinePath::from_track(&opened.track).unwrap();
     let field = TerrainHeightfield::from_path(&path).unwrap();
@@ -1600,19 +1600,30 @@ fn batch_runs_walk_both_track_folders_and_refuse_a_shared_stem() {
     let default = root.path().join("default");
     let custom = root.path().join("custom");
     fs::create_dir_all(&default).unwrap();
-    fs::write(default.join("B.yaml"), "").unwrap();
-    fs::write(default.join("A.yaml"), "").unwrap();
+    let track = |dir: &Path, stem: &str| {
+        fs::create_dir_all(dir.join(stem)).unwrap();
+        fs::write(dir.join(stem).join(format!("{stem}.yaml")), "").unwrap();
+        dir.join(stem).join(format!("{stem}.yaml"))
+    };
+    track(&default, "B");
+    track(&default, "A");
+    // A stray file and a folder without its YAML are not tracks.
+    fs::write(default.join("README.md"), "").unwrap();
+    fs::create_dir_all(default.join("Empty")).unwrap();
 
     // A missing custom folder is no error.
     let found = ue_export_io::track_files_in_dirs(&[&default, &custom]).unwrap();
-    assert_eq!(found, vec![default.join("A.yaml"), default.join("B.yaml")]);
+    assert_eq!(
+        found,
+        vec![default.join("A/A.yaml"), default.join("B/B.yaml")]
+    );
 
     fs::create_dir_all(&custom).unwrap();
-    fs::write(custom.join("C.yaml"), "").unwrap();
+    track(&custom, "C");
     let found = ue_export_io::track_files_in_dirs(&[&default, &custom]).unwrap();
-    assert_eq!(found.last(), Some(&custom.join("C.yaml")));
+    assert_eq!(found.last(), Some(&custom.join("C/C.yaml")));
 
-    fs::write(custom.join("A.yaml"), "").unwrap();
+    track(&custom, "A");
     match ue_export_io::track_files_in_dirs(&[&default, &custom]) {
         Err(ue_export_io::UeExportError::DuplicateStem { stem, .. }) => assert_eq!(stem, "A"),
         other => panic!(

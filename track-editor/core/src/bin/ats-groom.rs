@@ -10,7 +10,7 @@
 //!
 //! ```text
 //! ats-groom --all                          # every track under content/tracks/{default,custom}
-//! ats-groom content/tracks/default/Monza.yaml # one track
+//! ats-groom content/tracks/default/Monza/Monza.yaml # one track
 //! ats-groom --all --dry-run                # report without writing
 //! ats-groom --verbose Monza.yaml           # also list braking corners + board stations
 //! ```

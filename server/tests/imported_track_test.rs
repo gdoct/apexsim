@@ -20,18 +20,16 @@ fn imported_tracks() -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(custom_dir()) else {
         return Vec::new();
     };
+    // `custom/<stem>/<stem>.yaml`, imported when `<stem>.import.json` is beside it.
     let mut found: Vec<PathBuf> = entries
         .filter_map(Result::ok)
         .map(|e| e.path())
-        .filter(|p| {
-            p.file_name()
-                .and_then(|n| n.to_str())
-                .is_some_and(|n| n.ends_with(".import.json"))
-        })
-        .map(|report| {
-            let name = report.file_name().unwrap().to_string_lossy().into_owned();
-            let stem = name.trim_end_matches(".import.json").to_string();
-            report.with_file_name(format!("{stem}.yaml"))
+        .filter(|p| p.is_dir())
+        .filter_map(|dir| {
+            let stem = dir.file_name()?.to_string_lossy().into_owned();
+            dir.join(format!("{stem}.import.json"))
+                .is_file()
+                .then(|| dir.join(format!("{stem}.yaml")))
         })
         .filter(|yaml| yaml.exists())
         // The Daytona oval's start line reads as off the road: a known

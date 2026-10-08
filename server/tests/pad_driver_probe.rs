@@ -99,8 +99,9 @@ fn pad_driver_probe() {
         1,
         laps,
     );
-    let mut track = TrackLoader::load_from_file(format!("../content/tracks/default/{stem}.yaml"))
-        .expect("track loads");
+    let mut track =
+        TrackLoader::load_from_file(format!("../content/tracks/default/{stem}/{stem}.yaml"))
+            .expect("track loads");
     // The report's sky: overcast, 12:15, 18 °C.
     let conditions = SessionConditions {
         weather: Weather::Overcast,

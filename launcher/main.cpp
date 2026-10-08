@@ -356,7 +356,7 @@ static std::vector<Item> ListContent(const Env& e, int tab)
     {
     case TabTracks:
         if (e.tracksAreExports) AddFiles(v, e.tracksDefault, L".uescene.json", L"installed");
-        else { AddFiles(v, e.tracksDefault, L".yaml", L"default"); AddFiles(v, e.tracksCustom, L".yaml", L"custom"); }
+        else { AddDirs(v, e.tracksDefault, L"default"); AddDirs(v, e.tracksCustom, L"custom"); }  // a track is a folder
         break;
     case TabCars: AddDirs(v, e.carsDefault, L"default"); AddDirs(v, e.carsCustom, L"custom"); break;
     case TabHud: AddDirs(v, e.hudDefault, L"default"); AddDirs(v, e.hudCustom, L"custom"); break;

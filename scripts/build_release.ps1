@@ -439,8 +439,9 @@ function Copy-ServerContent {
     $missingWalls = [Collections.Generic.List[string]]::new()
     $missingRoad = [Collections.Generic.List[string]]::new()
     foreach ($track in Get-TrackFiles) {
-        # The same folder it came from (tracks\default or tracks\custom).
-        $tracksOut = Join-Path $Destination ('tracks\' + (Split-Path -Leaf $track.DirectoryName))
+        # The same folder it came from (tracks\default\<Stem> or tracks\custom\<Stem>).
+        $root = Split-Path -Leaf (Split-Path -Parent $track.DirectoryName)
+        $tracksOut = Join-Path $Destination ("tracks\$root\" + $track.BaseName)
         New-Item -ItemType Directory -Path $tracksOut -Force | Out-Null
         Copy-Item -LiteralPath $track.FullName -Destination $tracksOut -Force
         $ground = Join-Path $track.DirectoryName ($track.BaseName + '.ground.msgpack')
@@ -788,7 +789,8 @@ WHAT IS IN HERE
     Game\Tracks\       Every circuit, as the data the game builds it from
                        when it is raced. A new circuit is its .uescene.json,
                        .uemesh and .png here,
-                       with the matching .yaml in Server\content\tracks\default.
+                       with the matching <Track>\<Track>.yaml in
+                       Server\content	racks\default.
     Game\Cars\         Every car, as the car.toml and GLBs the game builds
                        it from; Game\Wheels\ holds the class wheels. A new
                        car is its folder in Game\Cars\custom, with the same
@@ -843,7 +845,7 @@ HOSTING FOR OTHER PEOPLE
 MODDING
 
     Server\content\cars\default\<car>\car.toml holds each car's physics, and
-    Server\content\tracks\default\*.yaml the circuit centrelines. The server
+    Server\content\tracks\default\<track>\<track>.yaml the circuit centrelines. The server
     validates both at startup and is the authority on them, so edits change
     the simulation for everyone connected. A circuit's scenery is
     Game\Tracks\<Track>.uescene.json and .uemesh, which the game builds it
@@ -851,7 +853,7 @@ MODDING
     Game\Tracks, plus its .yaml here.
 
     Server\apexsim-replay.exe renders a showcase of any track and class:
-        apexsim-replay.exe render --track content\tracks\custom\<Track>.yaml
+        apexsim-replay.exe render --track content\tracks\custom\<Track>\<Track>.yaml
             --class GT3 --cars-dir content\cars --out showcase\<Track>.gt3.day.apxs
     run from the Server folder; copy the file into Game\Showcase as well
     for the menu's own backdrop.

@@ -120,7 +120,7 @@ fn render_into(dir: &Path, name: &str) -> std::path::PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let opts = RenderOptions {
         race: SimulateOptions {
-            track_path: root.join("content/tracks/default/Zandvoort.yaml"),
+            track_path: root.join("content/tracks/default/Zandvoort/Zandvoort.yaml"),
             cars_dir: root.join("content/cars/default"),
             host_car: "yotota-lmp2".into(),
             same_car: false,

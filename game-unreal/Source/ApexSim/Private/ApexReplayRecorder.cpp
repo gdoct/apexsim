@@ -45,7 +45,7 @@ namespace
 	/** Every other frame of a 60 Hz broadcast: 30 Hz, the showcases' rate. */
 	constexpr int32 FrameStride = 2;
 
-	/** `tracks/default/Zandvoort.yaml` -> `Zandvoort`. */
+	/** `tracks/default/Zandvoort/Zandvoort.yaml` -> `Zandvoort`. */
 	FString StemOfTrackFile(const FString& TrackFile)
 	{
 		return FPaths::GetBaseFilename(TrackFile);

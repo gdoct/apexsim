@@ -32,7 +32,7 @@ fn car(folder: &str) -> CarConfig {
 }
 
 fn monza() -> TrackConfig {
-    TrackLoader::load_from_file("../content/tracks/default/Monza.yaml").expect("Monza")
+    TrackLoader::load_from_file("../content/tracks/default/Monza/Monza.yaml").expect("Monza")
 }
 
 /// A 2 km straight along +x, 10 m wide either side, with `z_at(station)`
@@ -371,7 +371,8 @@ fn the_rain_stands_in_spas_compressions_and_the_cars_dry_a_line_at_monza() {
         weather: Weather::HeavyRain,
         ..SessionConditions::DEFAULT
     };
-    let mut spa = TrackLoader::load_from_file("../content/tracks/default/Spa.yaml").expect("Spa");
+    let mut spa =
+        TrackLoader::load_from_file("../content/tracks/default/Spa/Spa.yaml").expect("Spa");
     wet.apply_to_track(&mut spa);
     let field = RoadState::new(&spa, 0.5);
     println!(

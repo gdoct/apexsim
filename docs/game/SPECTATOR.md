@@ -211,7 +211,7 @@ A subcommand of the existing server bin, so it simulates with the server's
 own `GameSession`, physics and AI:
 
 ```
-apexsim-replay render --track content/tracks/default/Zandvoort.yaml \
+apexsim-replay render --track content/tracks/default/Zandvoort/Zandvoort.yaml \
     --class GT3 | --car posh-gt3rs   --cars 20   --laps 2 \
     --weather sunny --time 13:00 [--air 22] [--wind 15 --wind-from 90] \
     --seed 7 | --seeds 10 --pick best \

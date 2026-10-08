@@ -38,8 +38,8 @@ fn road_contact() -> apexsim_server::config::RoadContactMode {
 /// `<stem>.yaml` in the shipped folder, else the player's own
 /// (`content/tracks/custom`, where `scripts/ac_import.py` writes).
 fn track_file(stem: &str) -> PathBuf {
-    let custom = repo(&format!("content/tracks/custom/{stem}.yaml"));
-    let default = repo(&format!("content/tracks/default/{stem}.yaml"));
+    let custom = repo(&format!("content/tracks/custom/{stem}/{stem}.yaml"));
+    let default = repo(&format!("content/tracks/default/{stem}/{stem}.yaml"));
     if !default.exists() && custom.exists() {
         custom
     } else {
@@ -244,11 +244,10 @@ fn survey_ai_races_on_every_circuit() {
         .filter_map(|dir| std::fs::read_dir(repo(dir)).ok())
         .flatten()
         .filter_map(|entry| {
+            // A track is its own folder: `<stem>/<stem>.yaml`.
             let path = entry.ok()?.path();
-            if path.extension()? != "yaml" {
-                return None;
-            }
-            Some(path.file_stem()?.to_string_lossy().into_owned())
+            let stem = path.file_name()?.to_string_lossy().into_owned();
+            path.join(format!("{stem}.yaml")).is_file().then_some(stem)
         })
         .collect();
     tracks.sort();

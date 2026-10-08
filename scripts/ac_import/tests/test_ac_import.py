@@ -518,6 +518,7 @@ class ImportTests(unittest.TestCase):
             opts = cli.Options(out_dir=out, custom_dir=custom, stem="SynthOval")
             result = cli.import_layout(layout, opts, None)
             self.assertTrue(result.ok, result.summary)
+            custom = custom / "SynthOval"  # a track is a folder of its own
             for name in ("SynthOval.yaml", "SynthOval.ats", "SynthOval.road.msgpack", "SynthOval.walls.msgpack",
                          "SynthOval.ground.msgpack", "SynthOval.curbs.msgpack", "SynthOval.import.json"):
                 self.assertTrue((custom / name).is_file(), name)

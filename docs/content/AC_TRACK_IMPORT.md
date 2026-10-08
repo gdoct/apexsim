@@ -151,7 +151,7 @@ python scripts/ac_import.py "E:\SteamLibrary\steamapps\common\assettocorsa\conte
 1. The player runs the tool on a track folder. `--list` shows its layouts,
    and `--layout` picks one.
 2. The tool reads the track and writes:
-   - the server's files into `content/tracks/custom/`;
+   - the server's files into `content/tracks/custom/<Stem>/`;
    - the client's export into `build/tracks/`;
    - a report of what it found, what it approximated and what it dropped.
 3. The player restarts the server, then restarts the game or runs
@@ -194,7 +194,7 @@ python scripts/ac_import.py --all <ac-content-tracks-folder> [options]
 
 ## What it writes
 
-**Server** (in `content/tracks/custom/`):
+**Server** (in `content/tracks/custom/<Stem>/`):
 
 | File | Contents |
 |---|---|

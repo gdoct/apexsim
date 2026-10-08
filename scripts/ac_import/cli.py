@@ -1,5 +1,5 @@
 """`python scripts/ac_import.py <ac-track-folder> [options]`: one command per
-AC track layout, writing the server's files into `content/tracks/custom/`
+AC track layout, writing the server's files into `content/tracks/custom/<Stem>/`
 and the client's export into `build/tracks/`, then checking the result.
 See docs/AC_TRACK_IMPORT.md.
 """
@@ -21,6 +21,7 @@ import numpy as np
 
 from . import TOOL_VERSION, ai, centerline, ini, kn5, physics, scene, sidecars, textures, validate
 from .export import source_crc, ue_location, ue_yaw_deg, write_export
+from .prompt import StemTaken, retry_with_new_stem
 from .sidecars import CONTACT_NAMES
 
 SCRIPTS = Path(__file__).resolve().parent.parent
@@ -46,6 +47,10 @@ class ImportError_(Exception):
     """A track that cannot be imported, with the reason."""
 
 
+class NameTaken(StemTaken, ImportError_):
+    """The stem is a shipped circuit's or an earlier import's; the console can ask for another."""
+
+
 @dataclass
 class Options:
     layout: str | None = None
@@ -68,6 +73,12 @@ class Result:
     summary: str
     checks: list[dict] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+
+
+def shipped_circuit(default_dir: Path, stem: str) -> bool:
+    """Whether `default_dir` holds a circuit of this stem: its folder,
+    `<Stem>/<Stem>.yaml`."""
+    return (default_dir / stem / f"{stem}.yaml").exists()
 
 
 def camel(text: str) -> str:
@@ -119,15 +130,16 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
     track_id = centerline.track_id_for(layout.track_dir.name, layout.name)
 
     # Where it goes, and whether it may.
-    if (opts.default_dir / f"{stem}.yaml").exists():
-        raise ImportError_(f"stem {stem!r} is a shipped circuit; pick another with --stem")
-    yaml_path = opts.custom_dir / f"{stem}.yaml"
+    if shipped_circuit(opts.default_dir, stem):
+        raise NameTaken(f"the name {stem!r} is a shipped circuit's; pick another with --stem")
+    track_folder = opts.custom_dir / stem
+    yaml_path = track_folder / f"{stem}.yaml"
     if yaml_path.exists() and not opts.force:
-        existing = _existing_import(opts.custom_dir / f"{stem}.import.json")
+        existing = _existing_import(track_folder / f"{stem}.import.json")
         if existing and existing != layout.label:
-            raise ImportError_(f"{yaml_path.name} exists and came from {existing}; pick another --stem or --force")
+            raise NameTaken(f"{yaml_path.name} exists and came from {existing}; pick another --stem or --force", replaceable=True)
         if not opts.force:
-            raise ImportError_(f"{yaml_path.name} exists; --force replaces it")
+            raise NameTaken(f"{yaml_path.name} exists; --force replaces it", replaceable=True)
 
     # Read.
     files_read: dict[str, int] = {}
@@ -392,7 +404,7 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
         return Result(stem, layout.name, not failed, "(dry run) " + summary, [c.row() for c in checks], warnings)
 
     # Write: server first, then the client, then the report.
-    custom = opts.custom_dir
+    custom = track_folder
     custom.mkdir(parents=True, exist_ok=True)
     _write_text(yaml_path, yaml_text)
     ats = {
@@ -666,8 +678,9 @@ def main(argv: list[str] | None = None) -> int:
         system_surfaces = find_system_surfaces(folder)
         for lay in layouts:
             total += 1
+            print(f"Importing: {lay.label}")
             try:
-                result = import_layout(lay, opts, system_surfaces)
+                result = retry_with_new_stem(lambda o: import_layout(lay, o, system_surfaces), opts, lay.label)
             except ImportError_ as e:
                 print(f"{lay.label}: skipped: {e}")
                 failures += 1

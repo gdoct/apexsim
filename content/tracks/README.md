@@ -43,7 +43,7 @@ All real-world tracks include accurate centerlines, track widths, and optimized 
 Edit `server/server.toml`:
 ```toml
 [track]
-track_file = "./content/tracks/default/Spa.yaml"
+track_file = "./content/tracks/default/Spa/Spa.yaml"
 ```
 
 ### Convert More Tracks

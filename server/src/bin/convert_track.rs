@@ -145,6 +145,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Write output file
     println!("Writing to: {}", args.output.display());
+    if let Some(parent) = args.output.parent().filter(|p| !p.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent)?;
+    }
     let output_file = File::create(&args.output)?;
 
     match format.as_str() {

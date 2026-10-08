@@ -60,7 +60,7 @@ pub struct SimulateOptions {
 impl Default for SimulateOptions {
     fn default() -> Self {
         Self {
-            track_path: PathBuf::from("content/tracks/default/Zandvoort.yaml"),
+            track_path: PathBuf::from("content/tracks/default/Zandvoort/Zandvoort.yaml"),
             cars_dir: PathBuf::from("content/cars"),
             host_car: "yotota-lmp2".to_string(),
             same_car: false,
@@ -1502,12 +1502,13 @@ pub fn describe_stream(file: &StreamFile) -> Result<StreamInfo, String> {
     })
 }
 
-/// The track YAML a stream's stem names, under `tracks_dir`'s `default/`
-/// and `custom/` (or `tracks_dir` itself when it has neither).
+/// The track YAML a stream's stem names, in its own folder under
+/// `tracks_dir`'s `default/` and `custom/` (or `tracks_dir` itself when it
+/// has neither): `default/<stem>/<stem>.yaml`.
 pub fn find_track_yaml(tracks_dir: &Path, stem: &str) -> Option<PathBuf> {
     ["default", "custom", ""]
         .iter()
-        .map(|sub| tracks_dir.join(sub).join(format!("{stem}.yaml")))
+        .map(|sub| tracks_dir.join(sub).join(stem).join(format!("{stem}.yaml")))
         .find(|path| path.is_file())
 }
 
@@ -1590,7 +1591,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
         RenderOptions {
             race: SimulateOptions {
-                track_path: root.join("content/tracks/default/Zandvoort.yaml"),
+                track_path: root.join("content/tracks/default/Zandvoort/Zandvoort.yaml"),
                 cars_dir: root.join("content/cars/default"),
                 host_car: "yotota-lmp2".into(),
                 same_car: false,
@@ -2032,7 +2033,7 @@ mod tests {
     #[test]
     fn pose_stands_beside_the_road() {
         let track = TrackLoader::load_from_file(
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/tracks/default/Spa.yaml"),
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/tracks/default/Spa/Spa.yaml"),
         )
         .expect("Spa loads");
         let on = pose_at(&track, 1056.0, 0.0, 0.0);
@@ -2044,7 +2045,7 @@ mod tests {
         let wrapped = pose_at(&track, on.lap_length_m + 1056.0, 0.0, 0.0);
         assert!((wrapped.x - on.x).abs() < 1e-2);
         let (name, station) = corner_station(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/tracks/default/Spa.yaml"),
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/tracks/default/Spa/Spa.yaml"),
             "eau rouge",
         )
         .unwrap();
@@ -2054,8 +2055,8 @@ mod tests {
 
     #[test]
     fn sides_follow_the_bend() {
-        let path =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/tracks/default/Zandvoort.yaml");
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../content/tracks/default/Zandvoort/Zandvoort.yaml");
         let track = TrackLoader::load_from_file(&path).expect("Zandvoort loads");
         // Tarzanbocht is a right-hander: its outside is on the left.
         let (_, tarzan) = corner_station(&path, "Tarzan").unwrap();
@@ -2074,8 +2075,8 @@ mod tests {
 
     #[test]
     fn landmarks_are_found_by_kind_or_name() {
-        let path =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../content/tracks/default/LeMans.yaml");
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../content/tracks/default/LeMans/LeMans.yaml");
         let track = TrackLoader::load_from_file(&path).expect("Le Mans loads");
         let (label, wheel) = landmark_point(&path, &track, "big_wheel", 20.0).unwrap();
         assert_eq!(label, "big_wheel");
@@ -2095,7 +2096,7 @@ mod tests {
     fn a_short_race_simulates_and_cuts() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
         let opts = SimulateOptions {
-            track_path: root.join("content/tracks/default/Zandvoort.yaml"),
+            track_path: root.join("content/tracks/default/Zandvoort/Zandvoort.yaml"),
             cars_dir: root.join("content/cars"),
             host_car: "yotota-lmp2".into(),
             same_car: true,

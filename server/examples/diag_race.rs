@@ -12,7 +12,7 @@ fn fixed_uuid(n: u128) -> Uuid {
 }
 
 fn main() {
-    let track = TrackLoader::load_from_file("../content/tracks/default/Monza.yaml").unwrap();
+    let track = TrackLoader::load_from_file("../content/tracks/default/Monza/Monza.yaml").unwrap();
     println!(
         "track: centerline={} raceline={} raceline_dist={} checkpoints={:?} length={:.1}",
         track.centerline.len(),

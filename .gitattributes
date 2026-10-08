@@ -3,10 +3,10 @@
 # too keeps a Windows checkout with core.autocrlf from listing every re-dressed
 # scene as modified when only its line endings differ. (The content checksum
 # drops carriage returns, so the server and client agree either way.)
-content/tracks/default/*.ats          text eol=lf
-content/tracks/default/*.yaml         text eol=lf
-content/tracks/default/*.layout.json  text eol=lf
-content/tracks/default/*.msgpack      binary
+content/tracks/default/**/*.ats          text eol=lf
+content/tracks/default/**/*.yaml         text eol=lf
+content/tracks/default/**/*.layout.json  text eol=lf
+content/tracks/default/**/*.msgpack      binary
 
 # The marketing page: site/ is its source, docs/ what scripts/site/build_site.py
 # writes from it (LF, so `--check` and a Windows checkout agree).

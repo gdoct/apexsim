@@ -38,11 +38,11 @@ function Get-ApexGuideToolPath {
 function Get-ApexGuideWork {
     param([Parameter(Mandatory)][string]$RepoRoot)
     $dir = Get-ApexGuideDir -RepoRoot $RepoRoot
-    $tracks = Join-Path $RepoRoot 'content\tracks\default'
     $work = [Collections.Generic.List[string]]::new()
-    foreach ($yaml in @(Get-ChildItem -LiteralPath $tracks -Filter '*.yaml' -File | Sort-Object Name)) {
+    foreach ($yaml in @(Get-ApexTrackFiles -RepoRoot $RepoRoot -DefaultOnly)) {
         if (Test-ApexImportedTrack -TrackFile $yaml.FullName) { continue }
         $stem = $yaml.BaseName
+        $tracks = $yaml.DirectoryName
         $guides = @(if (Test-Path -LiteralPath $dir) {
                 Get-ChildItem -LiteralPath $dir -Filter "$stem.*.guide.json" -File
             })

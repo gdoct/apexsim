@@ -325,8 +325,8 @@ deletes a car's assets and row.
 
 ## Tracks
 
-A track is a set of files under `content/tracks/default/` sharing a stem (for
-example `Nordschleife`):
+A track is a folder of its own, `content/tracks/default/<Stem>/` (for example
+`content/tracks/default/Nordschleife/`), holding files that all carry the stem:
 
 | file | what it is | made by |
 | --- | --- | --- |
@@ -378,7 +378,7 @@ extract from a planet file instead, as was done for the Nordschleife.
 
 ```powershell
 python scripts/osm_centerline.py Mugello --dry-run   # check the length and the route first
-python scripts/osm_centerline.py Mugello             # -> content/tracks/default/Mugello.yaml
+python scripts/osm_centerline.py Mugello             # -> content/tracks/default/Mugello/Mugello.yaml
 ```
 
 This writes 5 m nodes in the game's frame (origin on the start line, +X
@@ -394,8 +394,8 @@ data that disagrees with itself:
 python scripts/osm_layout.py Mugello --offline        # dossier, fitted to the centerline
 python scripts/dem_fetch.py Mugello                   # terrain (same fit); a few hundred MB of tiles
 python scripts/dem_elevation.py Mugello               # the centerline's real z from the terrain
-cargo run --manifest-path track-editor/Cargo.toml --bin ats-smooth -- content/tracks/default/Mugello.yaml
-cargo run --manifest-path track-editor/Cargo.toml --release --bin ats-bank -- content/tracks/default/Mugello.yaml
+cargo run --manifest-path track-editor/Cargo.toml --bin ats-smooth -- content/tracks/default/Mugello/Mugello.yaml
+cargo run --manifest-path track-editor/Cargo.toml --release --bin ats-bank -- content/tracks/default/Mugello/Mugello.yaml
 python scripts/drs_zones.py Mugello                   # optional; needs a ZONES entry
 python scripts/osm_layout.py Mugello --offline        # refit the dossier to the smoothed line
 python scripts/dem_fetch.py Mugello --offline

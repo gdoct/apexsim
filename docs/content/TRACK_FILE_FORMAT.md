@@ -73,7 +73,7 @@ ls content/tracks/default/
 
 # Edit server.toml
 [track]
-track_file = "./content/tracks/default/Spa.yaml"
+track_file = "./content/tracks/default/Spa/Spa.yaml"
 ```
 
 ### Convert Your Own Tracks

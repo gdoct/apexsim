@@ -29,8 +29,8 @@ What one circuit is on disk, and who reads it:
 
 | File | Written by | Read by |
 |---|---|---|
-| `content/tracks/default/<Stem>.yaml` | hand / converters | server (simulation, `ContentCrc`); the exporter |
-| `content/tracks/default/<Stem>.{ground,curbs,walls}.msgpack` | `ats-export` | server only |
+| `content/tracks/default/<Stem>/<Stem>.yaml` | hand / converters | server (simulation, `ContentCrc`); the exporter |
+| `content/tracks/default/<Stem>/<Stem>.{ground,curbs,walls}.msgpack` | `ats-export` | server only |
 | `build/tracks/<Stem>.uescene.json` | `ats-export` | client: catalog row (the head) and the build (all of it) |
 | `build/tracks/<Stem>.uemesh` | `ats-export` | client: the build |
 | `build/tracks/previews/<Stem>.png` | `build_track_catalog.py` | client: the track card |

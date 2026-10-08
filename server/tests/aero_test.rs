@@ -31,7 +31,7 @@ fn on_the_straight(speed: f32) -> (GameSession, PlayerId) {
     let car = f1();
     let mut car_configs = HashMap::new();
     car_configs.insert(car.id, car.clone());
-    let track = TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
+    let track = TrackLoader::load_from_file("../content/tracks/default/Monza/Monza.yaml")
         .expect("failed to load Monza");
     let session = RaceSession::new(
         Uuid::from_u128(1),

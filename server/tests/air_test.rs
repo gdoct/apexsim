@@ -29,7 +29,7 @@ fn car(folder: &str) -> CarConfig {
 }
 
 fn track(stem: &str) -> TrackConfig {
-    TrackLoader::load_from_file(format!("../content/tracks/default/{stem}.yaml"))
+    TrackLoader::load_from_file(format!("../content/tracks/default/{stem}/{stem}.yaml"))
         .expect("track loads")
 }
 

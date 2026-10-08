@@ -2,13 +2,13 @@
 //! filming in them, and cut those into clips the client plays back.
 //!
 //! ```text
-//! apexsim-replay simulate --track content/tracks/default/Zandvoort.yaml --car yotota-lmp2 \
+//! apexsim-replay simulate --track content/tracks/default/Zandvoort/Zandvoort.yaml --car yotota-lmp2 \
 //!     --ai 12 --laps 3 --weather sunny --time 18:30 --out out/zandvoort.bin
 //! apexsim-replay info out/zandvoort.bin
 //! apexsim-replay find out/zandvoort.bin --corner Hugenholtz --before 150 --after 120 --min-cars 3
 //! apexsim-replay cut out/zandvoort.bin --from-tick 24000 --to-tick 26400 --out out/clip.clip.json
-//! apexsim-replay pose --track content/tracks/default/Spa.yaml --corner "Eau Rouge" --offset -60 --lateral -25 --height 6
-//! apexsim-replay render --track content/tracks/default/Zandvoort.yaml --class GT3 --cars 20 --laps 2 \
+//! apexsim-replay pose --track content/tracks/default/Spa/Spa.yaml --corner "Eau Rouge" --offset -60 --lateral -25 --height 6
+//! apexsim-replay render --track content/tracks/default/Zandvoort/Zandvoort.yaml --class GT3 --cars 20 --laps 2 \
 //!     --seed 7 --out build/showcase/Zandvoort.gt3.day.apxs
 //! apexsim-replay info build/showcase/Zandvoort.gt3.day.apxs --check
 //! apexsim-replay convert out/zandvoort.bin --rate 30 --out out/zandvoort.apxs
@@ -367,10 +367,14 @@ fn run_guide(args: GuideArgs) -> Result<(), String> {
     let mut tracks = args.tracks;
     if args.all {
         let dir = args.tracks_dir.join("default");
+        // A track is its own folder: `<stem>/<stem>.yaml`.
         let mut found: Vec<PathBuf> = std::fs::read_dir(&dir)
             .map_err(|e| format!("{}: {e}", dir.display()))?
             .filter_map(|e| e.ok().map(|e| e.path()))
-            .filter(|p| p.extension().is_some_and(|x| x == "yaml"))
+            .filter_map(|p| {
+                let yaml = p.join(format!("{}.yaml", p.file_name()?.to_str()?));
+                yaml.is_file().then_some(yaml)
+            })
             .collect();
         found.sort();
         tracks.extend(found);
@@ -542,8 +546,8 @@ fn default_track(explicit: Option<PathBuf>, stem: Option<&str>) -> Result<PathBu
     }
     let stem = stem.ok_or("the replay names no track; pass --track")?;
     // The shipped circuits, then the player's own.
-    let candidates =
-        ["default", "custom"].map(|dir| PathBuf::from(format!("content/tracks/{dir}/{stem}.yaml")));
+    let candidates = ["default", "custom"]
+        .map(|dir| PathBuf::from(format!("content/tracks/{dir}/{stem}/{stem}.yaml")));
     candidates
         .iter()
         .find(|path| path.is_file())

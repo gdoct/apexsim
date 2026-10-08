@@ -146,7 +146,7 @@ def outline(nodes: list[dict], closed: bool) -> tuple[str, float, float]:
 def _corners(stem: str) -> tuple[bool, list[str]]:
     """Whether the circuit has a layout dossier, and its corners as the
     player sees them, in lap order."""
-    path = TRACKS_DIR / f"{stem}.layout.json"
+    path = TRACKS_DIR / stem / f"{stem}.layout.json"
     if not path.is_file():
         return False, []
     with open(path, encoding="utf-8") as f:
@@ -161,7 +161,7 @@ def _corners(stem: str) -> tuple[bool, list[str]]:
 
 def tracks() -> list[dict]:
     out = []
-    for yaml_path in sorted(TRACKS_DIR.glob("*.yaml")):
+    for yaml_path in sorted(TRACKS_DIR.glob("*/*.yaml")):
         with open(yaml_path, encoding="utf-8") as f:
             data = yaml.load(f, Loader=_Loader)
         nodes = data.get("nodes") or []
@@ -185,7 +185,7 @@ def tracks() -> list[dict]:
             "env": meta.get("environment_type") or "",
             "corners": corner_names,
             "dossier": dossier,
-            "dem": (TRACKS_DIR / f"{stem}.dem.msgpack").is_file(),
+            "dem": (TRACKS_DIR / stem / f"{stem}.dem.msgpack").is_file(),
             "path": path,
             "sx": sx,
             "sy": sy,

@@ -19,7 +19,7 @@ use uuid::Uuid;
 const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
 
 fn monza() -> TrackConfig {
-    TrackLoader::load_from_file("../content/tracks/default/Monza.yaml")
+    TrackLoader::load_from_file("../content/tracks/default/Monza/Monza.yaml")
         .expect("failed to load Monza")
 }
 

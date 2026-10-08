@@ -11,7 +11,7 @@ use track_core::ats_io;
 use track_core::track_io;
 use track_core::track_path::CenterlinePath;
 
-/// Real tracks live at `<repo_root>/content/tracks/default/*.yaml`; this crate
+/// Real tracks live at `<repo_root>/content/tracks/default/<Stem>/<Stem>.yaml`; this crate
 /// lives at `<repo_root>/track-editor/core`.
 fn content_tracks_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/default")
@@ -19,13 +19,8 @@ fn content_tracks_dir() -> PathBuf {
 
 fn real_track_paths() -> Vec<PathBuf> {
     let dir = content_tracks_dir();
-    let mut paths: Vec<PathBuf> = fs::read_dir(&dir)
-        .unwrap_or_else(|e| panic!("failed to read {}: {e}", dir.display()))
-        .filter_map(|entry| entry.ok())
-        .map(|entry| entry.path())
-        .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("yaml"))
-        .collect();
-    paths.sort();
+    let paths = track_core::ue_export_io::track_files_in(&dir)
+        .unwrap_or_else(|e| panic!("failed to read {}: {e}", dir.display()));
     assert!(
         !paths.is_empty(),
         "expected at least one real track under {}",

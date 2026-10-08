@@ -13,7 +13,7 @@ use apexsim_server::data::{TrackConfig, TrackPoint};
 use apexsim_server::physics::{probe_surface, seat_height, RoadContact};
 use apexsim_server::track_loader::TrackLoader;
 
-const MONZA: &str = "../content/tracks/default/Monza.yaml";
+const MONZA: &str = "../content/tracks/default/Monza/Monza.yaml";
 
 /// Monza on the centerline and Monza on its mesh, or `None` without the
 /// sidecar.

@@ -70,7 +70,7 @@ cargo build --release --bin convert_track
 ./target/release/convert_track \\
   --tracks-csv /path/to/tracks/Monza.csv \\
   --raceline-csv /path/to/racelines/Monza.csv \\
-  --output ./content/tracks/default/monza.yaml \\
+  --output ./content/tracks/default/monza/monza.yaml \\
   --name "Autodromo Nazionale di Monza" \\
   --country "Italy" \\
   --city "Monza" \\
@@ -232,7 +232,7 @@ Edit your `server.toml`:
 ```toml
 [track]
 # Use any of the real-world tracks
-track_file = "./content/tracks/default/Spa.yaml"
+track_file = "./content/tracks/default/Spa/Spa.yaml"
 ```
 
 ### Load Programmatically
@@ -240,7 +240,7 @@ track_file = "./content/tracks/default/Spa.yaml"
 ```rust
 use apexsim_server::track_loader::TrackLoader;
 
-let track = TrackLoader::load_from_file("content/tracks/default/Monza.yaml")?;
+let track = TrackLoader::load_from_file("content/tracks/default/Monza/Monza.yaml")?;
 println!("Track: {}", track.name);
 println!("Length: {:.2} km", track.metadata.length_m.unwrap() / 1000.0);
 println!("Raceline points: {}", track.raceline.len());

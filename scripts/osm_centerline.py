@@ -6,7 +6,7 @@ racetrack database). The Nordschleife has none, but OpenStreetMap maps it
 end to end as `highway=raceway`, surveyed to a metre or two - so its lap is
 routed over the OSM raceway graph instead:
 
-    python scripts/osm_centerline.py Nordschleife            # -> content/tracks/default/Nordschleife.yaml
+    python scripts/osm_centerline.py Nordschleife            # -> content/tracks/default/Nordschleife/Nordschleife.yaml
     python scripts/osm_centerline.py Nordschleife --dry-run  # report only
     python scripts/osm_centerline.py Nordschleife --plot out.png
 
@@ -384,6 +384,7 @@ def write_yaml(stem: str, spec: dict, b: dict) -> Path:
         "metadata": {**spec["metadata"], "length_m": round(b["length"], 3)},
     }
     out = track_dir(stem) / f"{stem}.yaml"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(
         yaml.safe_dump(data, sort_keys=False, allow_unicode=True, default_flow_style=False, width=1000),
         encoding="utf-8",

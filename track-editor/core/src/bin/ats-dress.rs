@@ -11,7 +11,7 @@
 //!
 //! ```text
 //! ats-dress --all                           # every track that has a dossier
-//! ats-dress content/tracks/default/Monza.yaml  # one circuit
+//! ats-dress content/tracks/default/Monza/Monza.yaml  # one circuit
 //! ats-dress --all --dry-run                 # report without writing
 //! ats-dress --no-groom Spa.yaml             # dress only
 //! ```

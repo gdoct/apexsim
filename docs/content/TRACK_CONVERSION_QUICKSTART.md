@@ -30,7 +30,7 @@ Converts all tracks in one command with full metadata.
 Edit `server/server.toml`:
 ```toml
 [track]
-track_file = "./content/tracks/default/Spa.yaml"
+track_file = "./content/tracks/default/Spa/Spa.yaml"
 ```
 
 Available tracks:
@@ -46,7 +46,7 @@ cd server
 ./target/release/convert_track \
   --tracks-csv /path/to/tracks/Monza.csv \
   --raceline-csv /path/to/racelines/Monza.csv \
-  --output ../content/tracks/default/monza.yaml \
+  --output ../content/tracks/default/monza/monza.yaml \
   --name "Autodromo Nazionale di Monza" \
   --country "Italy" \
   --city "Monza" \
@@ -66,7 +66,7 @@ Output:
 Converting: Circuit de Spa-Francorchamps
   Track CSV: /path/to/tracks/Spa.csv
   Raceline CSV: /path/to/racelines/Spa.csv
-  Output: ../content/tracks/default/Spa.yaml
+  Output: ../content/tracks/default/Spa/Spa.yaml
   ✓ Success
 
 ...
@@ -180,7 +180,7 @@ To use a real-world track:
 1. Edit `server/server.toml`:
    ```toml
    [track]
-   track_file = "./content/tracks/default/Spa.yaml"
+   track_file = "./content/tracks/default/Spa/Spa.yaml"
    ```
 
 2. Run the server:

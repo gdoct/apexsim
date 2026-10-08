@@ -368,7 +368,7 @@ pub enum LayoutError {
 }
 
 /// The dossier path belonging to a source track file:
-/// `content/tracks/default/Monza.yaml` -> `content/tracks/default/Monza.layout.json`.
+/// `content/tracks/default/Monza/Monza.yaml` -> `content/tracks/default/Monza/Monza.layout.json`.
 pub fn layout_path_for<P: AsRef<Path>>(track_path: P) -> PathBuf {
     let path = track_path.as_ref();
     let stem = path.file_stem().unwrap_or_default().to_string_lossy();

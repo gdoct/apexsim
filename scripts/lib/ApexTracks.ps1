@@ -9,11 +9,11 @@
 
     content\tracks\default holds the circuits that ship with the game;
     content\tracks\custom the player's own (imported or hand-made, and
-    gitignored). Every file of a track (<Stem>.yaml, .ats, .layout.json, the
-    sidecars) sits in the folder its YAML is in, and a stem is unique across
-    both, since the exports and previews are keyed by the stem alone. The
-    same two folders as scripts/track_dirs.py and
-    track_core::ue_export_io::TRACK_DIRS.
+    gitignored). A track is a folder of its own named by its stem
+    (default\Spa\), holding every file of it (Spa.yaml, .ats, .layout.json,
+    the sidecars), and a stem is unique across both roots, since the exports
+    and previews are keyed by the stem alone. The same two roots as
+    scripts/track_dirs.py and track_core::ue_export_io::TRACK_DIRS.
 #>
 
 function Get-ApexTrackDirs {
@@ -27,7 +27,8 @@ function Get-ApexTrackDirs {
     return $dirs
 }
 
-# Every track YAML in the folders, default first, sorted within each.
+# Every track YAML (<root>\<Stem>\<Stem>.yaml), default root first, sorted
+# within each.
 function Get-ApexTrackFiles {
     param(
         [Parameter(Mandatory)][string]$RepoRoot,
@@ -36,7 +37,10 @@ function Get-ApexTrackFiles {
     $files = @()
     foreach ($dir in Get-ApexTrackDirs -RepoRoot $RepoRoot -DefaultOnly:$DefaultOnly) {
         if (Test-Path $dir) {
-            $files += @(Get-ChildItem $dir -Filter '*.yaml' -File | Sort-Object Name)
+            $files += @(Get-ChildItem $dir -Directory | Sort-Object Name | ForEach-Object {
+                $yaml = Join-Path $_.FullName "$($_.Name).yaml"
+                if (Test-Path -LiteralPath $yaml -PathType Leaf) { Get-Item -LiteralPath $yaml }
+            })
         }
     }
     return $files
@@ -49,7 +53,7 @@ function Find-ApexTrackFile {
         [Parameter(Mandatory)][string]$Stem
     )
     foreach ($dir in Get-ApexTrackDirs -RepoRoot $RepoRoot) {
-        $path = Join-Path $dir "$Stem.yaml"
+        $path = Join-Path $dir "$Stem\$Stem.yaml"
         if (Test-Path $path) { return $path }
     }
     return $null

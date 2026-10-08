@@ -4,11 +4,12 @@
     content/tracks/custom/    the player's own: imported or hand-made
                               (gitignored; see its README.md)
 
-Every file of a track (`<Stem>.yaml`, `.ats`, `.layout.json`, the
-sidecars) sits in the one folder its YAML is in, and a stem is unique
-across both folders, because the exports, previews and `-ApexTrack=`
-switches are keyed by the stem alone. The Rust tools read the same two
-folders (`track_core::ue_export_io::TRACK_DIRS`).
+A track is a folder of its own, named by its stem: `default/Spa/` holds
+every file of Spa (`Spa.yaml`, `.ats`, `.layout.json`, the sidecars), the
+way a car is `cars/default/<folder>/car.toml`. A stem is unique across both
+folders, because the exports, previews and `-ApexTrack=` switches are keyed
+by the stem alone. The Rust tools read the same two folders
+(`track_core::ue_export_io::TRACK_DIRS`).
 """
 
 from __future__ import annotations
@@ -23,12 +24,13 @@ TRACK_DIRS = (DEFAULT_DIR, CUSTOM_DIR)
 
 
 def track_dir(stem: str) -> Path:
-    """The folder holding `<stem>.yaml`; the default folder for a track
-    that has no YAML yet (a tool writing a new circuit)."""
-    for folder in TRACK_DIRS:
-        if (folder / f"{stem}.yaml").is_file():
-            return folder
-    return DEFAULT_DIR
+    """The track's own folder, `<root>/<stem>/`, holding `<stem>.yaml`; under
+    the default root for a track that has none yet (a tool writing a new
+    circuit)."""
+    for root in TRACK_DIRS:
+        if (root / stem / f"{stem}.yaml").is_file():
+            return root / stem
+    return DEFAULT_DIR / stem
 
 
 def imported_marker(yaml_path: Path) -> str | None:
@@ -49,5 +51,11 @@ def imported_marker(yaml_path: Path) -> str | None:
 
 
 def track_glob(pattern: str) -> list[Path]:
-    """`pattern` matched in both folders, default first, sorted within each."""
-    return [p for folder in TRACK_DIRS if folder.is_dir() for p in sorted(folder.glob(pattern))]
+    """`pattern` matched inside every track's folder (`*.yaml` is each track's
+    YAML), default root first, sorted within each."""
+    return [
+        p
+        for root in TRACK_DIRS
+        if root.is_dir()
+        for p in sorted(root.glob(f"*/{pattern}"))
+    ]

@@ -21,7 +21,7 @@ use uuid::Uuid;
 const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
 
 fn monza() -> TrackConfig {
-    TrackLoader::load_from_file("../content/tracks/default/Monza.yaml").expect("Monza")
+    TrackLoader::load_from_file("../content/tracks/default/Monza/Monza.yaml").expect("Monza")
 }
 
 fn gt3() -> CarConfig {
@@ -485,8 +485,12 @@ fn pit_lane_survey() {
     let mut stems: Vec<String> = std::fs::read_dir("../content/tracks/default")
         .expect("tracks")
         .filter_map(|e| {
-            let name = e.ok()?.file_name().to_string_lossy().into_owned();
-            name.strip_suffix(".pit.msgpack").map(str::to_string)
+            let stem = e.ok()?.file_name().to_string_lossy().into_owned();
+            std::path::Path::new("../content/tracks/default")
+                .join(&stem)
+                .join(format!("{stem}.pit.msgpack"))
+                .is_file()
+                .then_some(stem)
         })
         .collect();
     stems.sort();
@@ -495,7 +499,7 @@ fn pit_lane_survey() {
             continue;
         }
         let Ok(track) =
-            TrackLoader::load_from_file(format!("../content/tracks/default/{stem}.yaml"))
+            TrackLoader::load_from_file(format!("../content/tracks/default/{stem}/{stem}.yaml"))
         else {
             continue;
         };
@@ -611,8 +615,12 @@ fn ai_pit_survey() {
     let mut stems: Vec<String> = std::fs::read_dir("../content/tracks/default")
         .expect("tracks")
         .filter_map(|e| {
-            let name = e.ok()?.file_name().to_string_lossy().into_owned();
-            name.strip_suffix(".pit.msgpack").map(str::to_string)
+            let stem = e.ok()?.file_name().to_string_lossy().into_owned();
+            std::path::Path::new("../content/tracks/default")
+                .join(&stem)
+                .join(format!("{stem}.pit.msgpack"))
+                .is_file()
+                .then_some(stem)
         })
         .collect();
     stems.sort();
@@ -622,7 +630,7 @@ fn ai_pit_survey() {
             continue;
         }
         let Ok(track) =
-            TrackLoader::load_from_file(format!("../content/tracks/default/{stem}.yaml"))
+            TrackLoader::load_from_file(format!("../content/tracks/default/{stem}/{stem}.yaml"))
         else {
             continue;
         };
@@ -767,15 +775,19 @@ fn the_pit_lane_is_a_pit_lane_without_the_road_mesh() {
     let mut stems: Vec<String> = std::fs::read_dir("../content/tracks/default")
         .expect("tracks")
         .filter_map(|e| {
-            let name = e.ok()?.file_name().to_string_lossy().into_owned();
-            name.strip_suffix(".pit.msgpack").map(str::to_string)
+            let stem = e.ok()?.file_name().to_string_lossy().into_owned();
+            std::path::Path::new("../content/tracks/default")
+                .join(&stem)
+                .join(format!("{stem}.pit.msgpack"))
+                .is_file()
+                .then_some(stem)
         })
         .collect();
     stems.sort();
     let mut bad = Vec::new();
     for stem in &stems {
         let Ok(track) =
-            TrackLoader::load_from_file(format!("../content/tracks/default/{stem}.yaml"))
+            TrackLoader::load_from_file(format!("../content/tracks/default/{stem}/{stem}.yaml"))
         else {
             continue;
         };

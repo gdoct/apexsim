@@ -70,7 +70,7 @@ impl Client {
 /// checked in) and the test is skipped.
 fn baked_monza() -> Option<std::path::PathBuf> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../content/tracks/default/Monza.yaml");
+        .join("../content/tracks/default/Monza/Monza.yaml");
     apexsim_server::walls::Walls::sidecar_path(&path)
         .exists()
         .then_some(path)
@@ -93,7 +93,7 @@ async fn the_first_session_on_a_track_loads_its_sidecars_and_keeps_message_order
             let (id, catalog) = state
                 .track_configs
                 .iter()
-                .find(|(_, t)| t.source_path.as_deref() == Some("tracks/default/Monza.yaml"))
+                .find(|(_, t)| t.source_path.as_deref() == Some("tracks/default/Monza/Monza.yaml"))
                 .ok_or("Monza is not in the catalog")?;
             assert!(catalog.walls.is_none() && catalog.road_mesh.is_none());
             assert!(state.track_content.needs_loading(*id));

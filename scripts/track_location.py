@@ -30,7 +30,7 @@ import msgpack
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from track_dirs import TRACK_DIRS, track_dir  # noqa: E402
+from track_dirs import track_dir, track_glob  # noqa: E402
 
 KEYS = ("altitude_m", "latitude_deg", "longitude_deg")
 
@@ -115,7 +115,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     if args.all:
-        stems = sorted({p.stem for folder in TRACK_DIRS for p in folder.glob("*.yaml")})
+        stems = sorted({p.stem for p in track_glob("*.yaml")})
     else:
         stems = args.stems
     if not stems:

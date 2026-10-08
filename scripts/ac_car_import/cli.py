@@ -24,6 +24,7 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from ac_import.kn5 import EncryptedKn5, Kn5Error, read_kn5  # noqa: E402
+from ac_import.prompt import StemTaken, retry_with_new_stem  # noqa: E402
 
 from . import TOOL_VERSION, liveries, model, physics  # noqa: E402
 from .acd import AcdError  # noqa: E402
@@ -53,6 +54,10 @@ other games. Cars encrypted by Custom Shaders Patch are refused.
 
 class ImportError_(Exception):
     """A car that cannot be imported, with the reason."""
+
+
+class NameTaken(StemTaken, ImportError_):
+    """The stem is a shipped car's folder or an earlier import's; the console can ask for another."""
 
 
 @dataclass
@@ -178,7 +183,7 @@ def import_car(car_dir: Path, opts: Options) -> Result:
         raise ImportError_(f"stem {stem!r} must be letters, digits, _ or -")
     out_dir = opts.custom_dir / stem
     if (opts.default_dir / stem).exists():
-        raise ImportError_(f"{stem!r} is a shipped car's folder; pick another with --stem")
+        raise NameTaken(f"the name {stem!r} is a shipped car's folder; pick another with --stem")
     car_id = car_id_for(car_dir.name)
     for toml in sorted(opts.default_dir.glob("*/car.toml")):
         if car_id in toml.read_text(encoding="utf-8", errors="replace"):
@@ -192,7 +197,7 @@ def import_car(car_dir: Path, opts: Options) -> Result:
             except (OSError, ValueError):
                 pass
         where = f" (imported from {came_from})" if came_from else ""
-        raise ImportError_(f"{out_dir} exists{where}; --force replaces it")
+        raise NameTaken(f"{out_dir} exists{where}; --force replaces it", replaceable=True)
 
     # Read.
     try:
@@ -568,7 +573,8 @@ def main(argv: list[str] | None = None) -> int:
     failed = 0
     for folder in folders:
         try:
-            r = import_car(folder, opts)
+            print(f"Importing: {folder.name}")
+            r = retry_with_new_stem(lambda o: import_car(folder, o), opts, folder.name)
             if args.all:
                 print(("OK   " if r.ok else "FAIL ") + r.summary)
                 for c in r.checks:

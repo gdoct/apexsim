@@ -946,7 +946,7 @@ pub fn all_track_files() -> Result<Vec<PathBuf>, UeExportError> {
     track_files_in_dirs(&dirs)
 }
 
-/// Every `*.yaml` in each of `dirs` that exists, folder by folder in the
+/// Every track (see [`track_files_in`]) in each of `dirs` that exists, folder by folder in the
 /// order given and sorted within each. A stem found in two folders is an
 /// error rather than a silent pick: both would bake to the same export.
 pub fn track_files_in_dirs(dirs: &[&Path]) -> Result<Vec<PathBuf>, UeExportError> {
@@ -967,14 +967,18 @@ pub fn track_files_in_dirs(dirs: &[&Path]) -> Result<Vec<PathBuf>, UeExportError
     Ok(found)
 }
 
-/// Every `*.yaml` in `dir`, sorted, so a batch export is reproducible.
+/// Every track in `dir`, sorted, so a batch export is reproducible. A
+/// track is a folder holding a YAML of its own name (`dir/Spa/Spa.yaml`)
+/// next to its `.ats`, dossier and sidecars; anything else in `dir` (a
+/// README, a folder without that YAML) is not one.
 pub fn track_files_in(dir: &Path) -> Result<Vec<PathBuf>, UeExportError> {
     let mut found: Vec<PathBuf> = fs::read_dir(dir)?
         .filter_map(Result::ok)
         .map(|e| e.path())
-        .filter(|p| {
-            p.extension()
-                .is_some_and(|e| e.eq_ignore_ascii_case("yaml"))
+        .filter(|p| p.is_dir())
+        .filter_map(|p| {
+            let yaml = p.join(format!("{}.yaml", p.file_name()?.to_str()?));
+            yaml.is_file().then_some(yaml)
         })
         .collect();
     found.sort();

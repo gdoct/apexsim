@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Start a new circuit's `.ats` scene: the start line, the grass and the curbs.
 
-    python scripts/seed_scene.py Nordschleife            # writes content/tracks/default/Nordschleife.ats
+    python scripts/seed_scene.py Nordschleife            # writes content/tracks/default/Nordschleife/Nordschleife.ats
     python scripts/seed_scene.py Nordschleife --force    # replace an existing scene's curbs and grass
     python scripts/seed_scene.py Zandvoort --from survey.json   # curbs and bands measured elsewhere
 

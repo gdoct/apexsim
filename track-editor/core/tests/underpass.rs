@@ -372,8 +372,8 @@ fn the_walls_sidecar_carries_the_abutments_and_the_parapets() {
 #[test]
 fn suzuka_has_its_crossover() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/default");
-    let track = track_io::load_track_file(dir.join("Suzuka.yaml")).unwrap();
-    let scene = ats_io::load_ats(dir.join("Suzuka.ats")).unwrap();
+    let track = track_io::load_track_file(dir.join("Suzuka/Suzuka.yaml")).unwrap();
+    let scene = ats_io::load_ats(dir.join("Suzuka/Suzuka.ats")).unwrap();
     let path = CenterlinePath::from_track(&track).unwrap();
     let lane = scene
         .pit_lane

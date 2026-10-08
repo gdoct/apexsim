@@ -34,7 +34,8 @@ fn stop(folder: &str, speed: f32, brake_c: f32, setup: CarSetup) -> (f32, f32) {
     let config = car(folder);
     let mut car_configs = HashMap::new();
     car_configs.insert(config.id, config.clone());
-    let track = TrackLoader::load_from_file("../content/tracks/default/Monza.yaml").expect("Monza");
+    let track =
+        TrackLoader::load_from_file("../content/tracks/default/Monza/Monza.yaml").expect("Monza");
     let session = RaceSession::new(
         Uuid::from_u128(1),
         track.id,

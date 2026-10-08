@@ -6,8 +6,9 @@ build does not ship it unless you pass `-IncludeCustomTracks` to
 `build_release.ps1` or `build_game_standalone.ps1`. An import may be derived
 from another game's content that you may use but must not redistribute.
 
-A custom track is laid out exactly like one in `../default/`: the files sit
-side by side in this folder, named after the track's stem.
+A custom track is laid out exactly like one in `../default/`: a folder named
+after the track's stem (`custom/MyTrack/`) holding `MyTrack.yaml` and the rest
+of its files, which all carry the stem.
 
 The usual way in is `scripts/ac_import.py`, which turns a track from your
 own Assetto Corsa install into all of these files at once (plus the client

@@ -6,9 +6,9 @@
 //!
 //! ```text
 //! ats-export --all                          # every track under content/tracks/{default,custom}
-//! ats-export content/tracks/default/Monza.yaml # one track
+//! ats-export content/tracks/default/Monza/Monza.yaml # one track
 //! ats-export --all --out some/other/dir
-//! ats-export --keep-sidecars road,walls content/tracks/default/X.yaml
+//! ats-export --keep-sidecars road,walls content/tracks/default/X/X.yaml
 //! ```
 //!
 //! A track whose `.ats` lists `external_sidecars` (an imported circuit whose

@@ -275,7 +275,7 @@ function Get-ApexShowcasePlan {
             foreach ($key in @($list.Defaults.Keys)) { $settings[$key] = [string]$list.Defaults[$key] }
             foreach ($key in 'cars', 'laps', 'seed', 'seeds') { if ($entry.Contains($key)) { $settings[$key] = [string]$entry[$key] } }
 
-            $relTrack = if ($trackFile) { $trackFile.Substring($RepoRoot.TrimEnd('\').Length + 1).Replace('\', '/') } else { "content/tracks/default/$stem.yaml" }
+            $relTrack = if ($trackFile) { $trackFile.Substring($RepoRoot.TrimEnd('\').Length + 1).Replace('\', '/') } else { "content/tracks/default/$stem/$stem.yaml" }
             $renderArgs = @('render', '--track', $relTrack, '--class', $class,
                 '--cars-dir', 'content/cars/default',
                 '--cars', $settings['cars'], '--laps', $settings['laps'],

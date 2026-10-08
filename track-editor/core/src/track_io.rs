@@ -98,11 +98,7 @@ mod tests {
         let dir =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/tracks/default");
         let mut seen = 0;
-        for entry in std::fs::read_dir(&dir).expect("tracks") {
-            let path = entry.expect("entry").path();
-            if path.extension().and_then(|e| e.to_str()) != Some("yaml") {
-                continue;
-            }
+        for path in crate::ue_export_io::track_files_in(&dir).expect("tracks") {
             let text = std::fs::read_to_string(&path).expect("yaml");
             let lines: Vec<&str> = text
                 .lines()
