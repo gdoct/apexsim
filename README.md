@@ -12,7 +12,7 @@ This project is in active development. The simulation and the networking underne
 ### Working
 
 **Server**
-* Authoritative 240 Hz physics loop — the server decides where every car is, and the client renders what it is told
+* Authoritative 420 Hz physics loop — the server decides where every car is, and the client renders what it is told
 * 4-wheel vehicle model with per-wheel loads, Pacejka-style tires, suspension, drivetrain with per-gear ratios, and aerodynamic drag/downforce (front and rear, feeding wheel loads and steering assist)
 * Yaw-aware OBB collision between cars, and against the circuit's barriers — every armco, tyre wall, fence, stand and building is baked into a walls sidecar the server checks each tick, so nothing off the road is decorative
 * Track limits from the baked curb widths, and off-track elevation from a heightfield of the rendered terrain — a car that leaves the asphalt follows the verge, and Suzuka's crossover is a real underpass with its own deck and abutments
@@ -129,7 +129,7 @@ apexsim/
 
 ## Getting Started
 
-Just want to drive? Grab the latest zip from the [releases page](https://github.com/gdoct/apexsim/releases), unzip it and double-click `launcher.exe`. Launch starts the game, its drop-down has "Launch with local server", and the launcher also edits the network and graphics settings and manages content. `Play.bat` does the same without the launcher: it starts a local server and the client. To host for others, run `Start-Server.bat`. The steps below are for building from source.
+Just want to drive? Grab the latest zip from the [releases page](https://github.com/gdoct/apexsim/releases), unzip it and double-click `launcher.exe`. Launch starts the game, its drop-down has "Launch with local server", and the launcher also edits the network and graphics settings and manages content. To host for others, run `Server\apexsim-server.exe`. The steps below are for building from source.
 
 ### 1. Run the server
 
@@ -186,7 +186,7 @@ That runs the whole pipeline — `cargo build --release`, the track bake and
 import, the track catalog sync, and the client package — and assembles
 `artifacts/release/ApexSim-<version>-Win64/` (plus a zip to attach to a GitHub
 release). The package holds the packaged client in `Game/`, the server with its
-config and content in `Server/`, `launcher.exe` (built from `launcher/`; `-SkipLauncher` reuses the last build) and a `Play.bat` that starts both. It is
+config and content in `Server/`, `launcher.exe` (built from `launcher/`; `-SkipLauncher` reuses the last build), which starts both. It is
 gitignored, like everything under `artifacts/`.
 
 The run aborts up front if the car or track data is missing, so a broken clone
