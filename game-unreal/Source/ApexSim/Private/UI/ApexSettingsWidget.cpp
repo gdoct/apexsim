@@ -17,6 +17,7 @@
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
+#include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
@@ -50,6 +51,13 @@ namespace
 	constexpr float PanelWidth = 1370.0f;
 	constexpr float RailWidth = 274.0f;
 	constexpr float SettingsRowHeight = 68.0f;
+
+	/** Text that wraps inside whatever width its slot gives it, instead of running past it. */
+	UTextBlock* Wrapped(UTextBlock* Block)
+	{
+		Block->SetAutoWrapText(true);
+		return Block;
+	}
 	/** The bindings grid is the tallest column on any page; its rows are cut down to fit. */
 	constexpr float BindingRowHeight = 58.0f;
 	/** The wheel page's rows sit above devices and three sliders, so they are shorter still. */
@@ -327,14 +335,25 @@ void UApexSettingsWidget::BuildOverlay()
 	AddH(Body, BuildRail(), FMargin(), VAlign_Fill);
 	AddH(Body, MakeDivider(*WidgetTree, /*bVertical*/ true), FMargin(), VAlign_Fill);
 
+	// Every page scrolls: one taller than the panel (the bindings, the wheel's)
+	// used to run down behind the footer buttons.
+	auto ScrollPage = [this](UWidget* Page)
+	{
+		UScrollBox* Scroll = WidgetTree->ConstructWidget<UScrollBox>();
+		Scroll->SetScrollBarVisibility(ESlateVisibility::Collapsed);
+		Scroll->SetConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible);
+		Scroll->AddChild(Page);
+		return Scroll;
+	};
+
 	PageHost = WidgetTree->ConstructWidget<UWidgetSwitcher>();
-	PageHost->AddChild(BuildGameplayPage());
-	PageHost->AddChild(BuildAssistsPage());
-	PageHost->AddChild(BuildGraphicsPage());
-	PageHost->AddChild(BuildCameraPage());
-	PageHost->AddChild(BuildControlsPage());
-	PageHost->AddChild(BuildWheelPage());
-	PageHost->AddChild(BuildAudioPage());
+	PageHost->AddChild(ScrollPage(BuildGameplayPage()));
+	PageHost->AddChild(ScrollPage(BuildAssistsPage()));
+	PageHost->AddChild(ScrollPage(BuildGraphicsPage()));
+	PageHost->AddChild(ScrollPage(BuildCameraPage()));
+	PageHost->AddChild(ScrollPage(BuildControlsPage()));
+	PageHost->AddChild(ScrollPage(BuildWheelPage()));
+	PageHost->AddChild(ScrollPage(BuildAudioPage()));
 
 	// The page area is darker than the card it sits in, so that the rows — which
 	// are Surface — read as cards rather than dissolving into the panel.
@@ -397,9 +416,8 @@ UWidget* UApexSettingsWidget::BuildHeader()
 	// The context line changes per page: what a page needs to warn about is
 	// different on each, and none of it belongs in the page's own scroll area.
 	HeaderContextText = MakeLabel(*WidgetTree, FString(), Palette::TextMuted);
-	AddH(Row, HeaderContextText, FMargin(20.0f, 6.0f, 0.0f, 0.0f), VAlign_Center);
-
-	AddH(Row, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
+	Wrapped(HeaderContextText);
+	AddH(Row, HeaderContextText, FMargin(20.0f, 6.0f, 20.0f, 0.0f), VAlign_Center, 1.0f);
 
 	UApexButtonWidget* Back = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	FApexButtonSpec BackSpec;
@@ -455,8 +473,8 @@ UWidget* UApexSettingsWidget::BuildFooter()
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
 
 	FooterStatusText = MakeLabel(*WidgetTree, FString(), Palette::TextMuted);
-	AddH(Row, FooterStatusText);
-	AddH(Row, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
+	Wrapped(FooterStatusText);
+	AddH(Row, FooterStatusText, FMargin(0.0f, 0.0f, 24.0f, 0.0f), VAlign_Center, 1.0f);
 
 	UApexButtonWidget* Reset = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	FApexButtonSpec ResetSpec;
@@ -505,8 +523,8 @@ UWidget* UApexSettingsWidget::MakeRow(
 	UVerticalBox* Text = WidgetTree->ConstructWidget<UVerticalBox>();
 
 	UHorizontalBox* TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>();
-	AddH(TitleRow, MakeText(*WidgetTree, Label, Font::Body(17.0f, true),
-		bPending ? Palette::TextSecondary : Palette::TextPrimary));
+	AddH(TitleRow, Wrapped(MakeText(*WidgetTree, Label, Font::Body(17.0f, true),
+		bPending ? Palette::TextSecondary : Palette::TextPrimary)), FMargin(), VAlign_Center, 1.0f);
 	if (bPending)
 	{
 		// A badge, not a tooltip: the row has to read as "saved but inert" at a
@@ -527,8 +545,8 @@ UWidget* UApexSettingsWidget::MakeRow(
 		: Description;
 	if (!SubLine.IsEmpty())
 	{
-		AddV(Text, MakeText(*WidgetTree, SubLine, Font::Body(12.0f),
-			bPending ? Palette::TextDisabled : Palette::TextMuted),
+		AddV(Text, Wrapped(MakeText(*WidgetTree, SubLine, Font::Body(12.0f),
+			bPending ? Palette::TextDisabled : Palette::TextMuted)),
 			FMargin(0.0f, 5.0f, 0.0f, 0.0f));
 	}
 	AddH(Row, Text, FMargin(), VAlign_Center, 1.0f);
@@ -542,9 +560,13 @@ UWidget* UApexSettingsWidget::MakeRow(
 		AddH(Row, Control, FMargin(24.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
 	}
 
-	UBorder* Panel = MakePanel(*WidgetTree, Row, FMargin(22.0f, 0.0f), MakeBrush(Palette::Surface));
+	UBorder* Panel = MakePanel(*WidgetTree, Row, FMargin(22.0f, 10.0f), MakeBrush(Palette::Surface));
 	Panel->SetVerticalAlignment(VAlign_Center);
-	return MakeSized(*WidgetTree, Panel, -1.0f, Height > 0.0f ? Height : SettingsRowHeight);
+	// A minimum, not a fixed height: a description that wraps makes the row taller.
+	USizeBox* Sized = WidgetTree->ConstructWidget<USizeBox>();
+	Sized->SetMinDesiredHeight(Height > 0.0f ? Height : SettingsRowHeight);
+	Sized->SetContent(Panel);
+	return Sized;
 }
 
 UApexSegmentedWidget* UApexSettingsWidget::MakeSegment(
@@ -927,7 +949,7 @@ UWidget* UApexSettingsWidget::BuildGraphicsPage()
 			FMargin(24.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
 		AddV(Box, Head);
 
-		TripleNoteText = MakeText(*WidgetTree, FString(), Font::Body(13.0f), Palette::TextSecondary);
+		TripleNoteText = Wrapped(MakeText(*WidgetTree, FString(), Font::Body(13.0f), Palette::TextSecondary));
 		AddV(Box, TripleNoteText, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 
 		UHorizontalBox* TripleGrid = WidgetTree->ConstructWidget<UHorizontalBox>();
@@ -963,10 +985,10 @@ UWidget* UApexSettingsWidget::BuildGraphicsPage()
 		UHorizontalBox* Note = WidgetTree->ConstructWidget<UHorizontalBox>();
 		AddH(Note, MakeLabel(*WidgetTree, TEXT("Live preview"), Palette::Accent));
 		AddH(Note,
-			MakeText(*WidgetTree,
+			Wrapped(MakeText(*WidgetTree,
 				TEXT("Changes apply to the frame behind this panel, so the effect is visible before returning to the race."),
-				Font::Body(13.0f), Palette::TextSecondary),
-			FMargin(18.0f, 0.0f, 0.0f, 0.0f));
+				Font::Body(13.0f), Palette::TextSecondary)),
+			FMargin(18.0f, 0.0f, 0.0f, 0.0f), VAlign_Center, 1.0f);
 		AddV(Page, MakePanel(*WidgetTree, Note, FMargin(22.0f, 16.0f), MakeBrush(Palette::Surface)),
 			FMargin(0.0f, 18.0f, 0.0f, 0.0f));
 	}
@@ -999,7 +1021,7 @@ UWidget* UApexSettingsWidget::BuildCameraPage()
 		TEXT("Chase distance"),
 		TEXT("How far back the chase camera sits. C steps through these, then back to the cockpit."),
 		MakeSegment(SegChaseView, { TEXT("ROOF"), TEXT("CLOSE"), TEXT("NEAR"), TEXT("FAR") },
-			ApexChase::DefaultLevel())), RowGap);
+			ApexChase::DefaultLevel(), 84.0f)), RowGap);
 
 	AddV(Left, MakeRow(TEXT("Field of view"), TEXT("Horizontal, cockpit. Chase sits 15° narrower."),
 		MakeSliderCell(FovSlider, FovFill, FovValue, DropdownWidth)), RowGap);
@@ -1056,10 +1078,10 @@ UWidget* UApexSettingsWidget::BuildCameraPage()
 		UHorizontalBox* Note = WidgetTree->ConstructWidget<UHorizontalBox>();
 		AddH(Note, MakeLabel(*WidgetTree, TEXT("Live preview"), Palette::Accent));
 		AddH(Note,
-			MakeText(*WidgetTree,
+			Wrapped(MakeText(*WidgetTree,
 				TEXT("The seat and mirrors move behind this panel as you drag. In the race: , and . look aside, B looks behind, C swaps views."),
-				Font::Body(13.0f), Palette::TextSecondary),
-			FMargin(18.0f, 0.0f, 0.0f, 0.0f));
+				Font::Body(13.0f), Palette::TextSecondary)),
+			FMargin(18.0f, 0.0f, 0.0f, 0.0f), VAlign_Center, 1.0f);
 		AddV(Page, MakePanel(*WidgetTree, Note, FMargin(22.0f, 16.0f), MakeBrush(Palette::Surface)),
 			FMargin(0.0f, 18.0f, 0.0f, 0.0f));
 	}
@@ -1199,7 +1221,7 @@ UWidget* UApexSettingsWidget::BuildWheelPage()
 		AddV(Cell, Head);
 
 		AddV(Cell, MakeSliderTrack(*WidgetTree, Slider, Fill), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
-		AddV(Cell, MakeText(*WidgetTree, Note, Font::Body(12.0f), Palette::TextMuted), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+		AddV(Cell, Wrapped(MakeText(*WidgetTree, Note, Font::Body(12.0f), Palette::TextMuted)), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 
 		AddH(Sliders, Cell, FMargin(bFirst ? 0.0f : 26.0f, 0.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);
 
@@ -1263,7 +1285,7 @@ UWidget* UApexSettingsWidget::BuildWheelPage()
 		AddH(Controls, MakeSized(*WidgetTree, Test, 70.0f, 38.0f), FMargin(8.0f, 0.0f, 0.0f, 0.0f));
 		AddV(Direction, Controls, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 
-		AddV(Direction, MakeText(*WidgetTree, TEXT("Test pushes right. Went left? Invert."), Font::Body(12.0f), Palette::TextMuted),
+		AddV(Direction, Wrapped(MakeText(*WidgetTree, TEXT("Test pushes right. Went left? Invert."), Font::Body(12.0f), Palette::TextMuted)),
 			FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 		AddH(Row, Direction, FMargin(26.0f, 0.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);
 
@@ -1394,9 +1416,9 @@ void UApexSettingsWidget::RefreshWheelDevices()
 		UVerticalBox* Empty = WidgetTree->ConstructWidget<UVerticalBox>();
 		AddV(Empty, MakeText(*WidgetTree, TEXT("No wheel detected"), Font::Body(17.0f, true), Palette::TextSecondary));
 		AddV(Empty,
-			MakeText(*WidgetTree,
+			Wrapped(MakeText(*WidgetTree,
 				TEXT("Plug a wheel, pedals or a button box in and it appears here — the game does not need restarting. Devices already in use by another program can still be driven, but cannot play forces."),
-				Font::Body(12.0f), Palette::TextMuted),
+				Font::Body(12.0f), Palette::TextMuted)),
 			FMargin(0.0f, 7.0f, 0.0f, 0.0f));
 		AddH(WheelDeviceRow, MakePanel(*WidgetTree, Empty, FMargin(20.0f, 14.0f),
 			MakeBrush(Palette::Surface, Palette::Border, 1.0f)), FMargin(), VAlign_Fill, 1.0f);

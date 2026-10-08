@@ -964,10 +964,15 @@ void UApexRootWidget::OpenHudEditor()
 		return;
 	}
 	// Settings steps aside without closing, so closing the editor lands back
-	// on the page it was opened from.
+	// on the page it was opened from. So does the pause menu under it: its
+	// scrim would otherwise dim the very HUD being laid out.
 	if (SettingsOverlay && SettingsOverlay->IsOpen())
 	{
 		SettingsOverlay->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (PauseMenu && PauseMenu->IsOpen())
+	{
+		PauseMenu->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	HudEditor->Open(Hud);
 	ApplyDriveInput();
@@ -978,6 +983,10 @@ void UApexRootWidget::HandleHudEditorClosed()
 	if (SettingsOverlay && SettingsOverlay->IsOpen())
 	{
 		SettingsOverlay->SetVisibility(ESlateVisibility::Visible);
+	}
+	if (PauseMenu && PauseMenu->IsOpen())
+	{
+		PauseMenu->SetVisibility(ESlateVisibility::Visible);
 	}
 	ApplyDriveInput();
 	RequestFocusDefault();

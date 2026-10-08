@@ -30,9 +30,8 @@
 //! Paint is geometry too — the parent material can only vary a base color
 //! per key — so every color is its own `marking_*` material: edge lines,
 //! the chequered start/finish line, grid boxes, pit-lane lines and the
-//! painted strip beside each curb. The rubbered racing line is the
-//! exception: `wear_core` / `wear_edge` are dark bands of family `road`,
-//! not paint.
+//! painted strip beside each curb. No rubbered racing line is drawn: a
+//! fixed dark band along the line read as a stripe down the road.
 //!
 //! # Conventions at the boundary
 //!
@@ -189,16 +188,6 @@ const PIT_GAP_M: f32 = 3.0;
 /// A pit lane counts as running parallel to the road (dashed line, no
 /// merge) once its near edge is this far off the road edge.
 const PIT_PARALLEL_GAP_M: f32 = 1.5;
-
-/// Rubbered racing line: the worn core and the softer edge strips.
-const WEAR_CORE_HALF_M: f32 = 1.2;
-const WEAR_EDGE_M: f32 = 0.8;
-const WEAR_LIFT_M: f32 = 0.02;
-/// The worn band is soft-edged and smooth; road tessellation would double
-/// its vertex count for nothing.
-const WEAR_STEP_M: f32 = 2.0;
-const WEAR_CORE_COLOR: [f32; 4] = [0.12, 0.12, 0.13, 1.0];
-const WEAR_EDGE_COLOR: [f32; 4] = [0.17, 0.17, 0.18, 1.0];
 
 // Fallback starting grid, mirroring
 // `server/src/track_loader.rs::generate_start_positions` so the client puts
@@ -1283,7 +1272,6 @@ pub fn bake_all_with_options(
     }
     bake.grid_boxes(track, &path);
     bake.drs_lines(track, &path);
-    bake.wear(track, &path);
     let pit_layout = scene
         .pit_lane
         .as_ref()
@@ -3541,77 +3529,6 @@ impl Bake<'_> {
                 left - LINE_WIDTH_M,
                 GRID_PAINT_LIFT_M,
             );
-        }
-    }
-
-    /// The rubbered racing line: a dark worn core with softer edge strips
-    /// either side, along the track's raceline when it has one — and along
-    /// the centerline eased toward the inside of each corner when it does
-    /// not. Family `road`, not `marking`: this is grime, not paint.
-    fn wear(&mut self, track: &TrackFile, path: &CenterlinePath) {
-        self.register("wear_core", "road", WEAR_CORE_COLOR);
-        self.register("wear_edge", "road", WEAR_EDGE_COLOR);
-
-        let ground = self.ground;
-        // Seated on the road surface wherever the line crosses it, so the
-        // band follows the banking rather than the raceline's own heights.
-        let seat = move |_: &PathSample, _: f32, p: (f32, f32, f32)| {
-            ground.map_or(p.2, |field| field.surface_height_near(p.0, p.1, p.2))
-        };
-
-        let raceline: Vec<[f32; 3]> = track.raceline.iter().map(|p| [p.x, p.y, p.z]).collect();
-        let line = if raceline.len() >= 4 {
-            CenterlinePath::from_polyline_with(&raceline, WEAR_CORE_HALF_M, track.closed_loop)
-        } else {
-            None
-        };
-
-        let (outer, inner) = (WEAR_CORE_HALF_M + WEAR_EDGE_M, WEAR_CORE_HALF_M);
-        let bands: [(&str, f32, f32); 3] = [
-            ("wear_edge", outer, inner),
-            ("wear_core", inner, -inner),
-            ("wear_edge", -inner, -outer),
-        ];
-        match &line {
-            Some(line) => {
-                for (key, a, b) in bands {
-                    self.strip(
-                        line,
-                        0.0,
-                        line.total_length_m(),
-                        WEAR_STEP_M,
-                        key,
-                        move |_, _, out| {
-                            out.push(ProfilePoint::lifted(a, WEAR_LIFT_M));
-                            out.push(ProfilePoint::lifted(b, WEAR_LIFT_M));
-                        },
-                        seat,
-                    );
-                }
-            }
-            None => {
-                // Ease a metre toward the inside of each corner: curvature
-                // scaled so a 200 m radius already puts the line fully
-                // inside, without the jump a bare sign would make.
-                let centre = |sample: &PathSample| {
-                    (curvature_at(path, sample.station_m) * 200.0).clamp(-1.0, 1.0)
-                };
-                for (key, a, b) in bands {
-                    self.strip(
-                        path,
-                        0.0,
-                        path.total_length_m(),
-                        WEAR_STEP_M,
-                        key,
-                        move |sample, _, out| {
-                            let c = centre(sample);
-                            out.push(ProfilePoint::lifted(c + a, WEAR_LIFT_M));
-                            out.push(ProfilePoint::lifted(c + b, WEAR_LIFT_M));
-                        },
-                        seat,
-                    );
-                }
-            }
         }
     }
 }
