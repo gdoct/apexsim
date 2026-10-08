@@ -397,6 +397,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	Out.Set(TEXT("spectate.auto"), In.bSpectating && In.bSpectateAuto);
 	Out.Set(TEXT("spectate.tower_mode"), In.SpectateTowerMode);
 	Out.Set(TEXT("spectate.waiting"), In.bSpectating && Frame.Cars.Num() == 0);
+	Out.Set(TEXT("hotlap.active"), In.bSpectating && In.bHotlapWatch);
 
 	Out.Set(TEXT("replay.active"), In.bReplay);
 	Out.Set(TEXT("replay.time_s"), In.bReplay ? FApexHudValue::Of(In.ReplaySeconds) : FApexHudValue());
@@ -833,6 +834,38 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 				 TEXT("pit.autopilot"), TEXT("pit.exit_closed"), TEXT("pit.held")})
 		{
 			Out.SetNone(Name);
+		}
+	}
+
+	// --- The corner -----------------------------------------------------------------
+	// The corner the car is in, else the next one it comes to.
+
+	{
+		float DistanceM = 0.0f;
+		bool bInside = false;
+		const FApexTrackCorners* Corners = In.Corners;
+		const int32 Index = Local && Corners && Corners->IsValid()
+			? Corners->CornerAt(Local->TrackProgress, DistanceM, bInside)
+			: INDEX_NONE;
+		if (Index != INDEX_NONE)
+		{
+			const FApexTrackCorner& Corner = Corners->Corners[Index];
+			Out.Set(TEXT("corner.number"), Corner.Number);
+			Out.Set(TEXT("corner.name"), Corner.Name.IsEmpty() ? FApexHudValue() : FApexHudValue::Of(Corner.Name));
+			Out.Set(TEXT("corner.label"), Corner.Label());
+			Out.Set(TEXT("corner.count"), Corners->Corners.Num());
+			Out.Set(TEXT("corner.direction"), Corner.bLeft ? TEXT("left") : TEXT("right"));
+			Out.Set(TEXT("corner.inside"), bInside);
+			Out.Set(TEXT("corner.distance_m"), DistanceM);
+		}
+		else
+		{
+			for (const TCHAR* Name : {TEXT("corner.number"), TEXT("corner.name"), TEXT("corner.label"), TEXT("corner.count"),
+					 TEXT("corner.direction"), TEXT("corner.distance_m")})
+			{
+				Out.SetNone(Name);
+			}
+			Out.Set(TEXT("corner.inside"), false);
 		}
 	}
 

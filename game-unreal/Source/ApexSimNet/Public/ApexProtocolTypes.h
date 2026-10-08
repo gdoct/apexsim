@@ -70,6 +70,12 @@ enum class EApexSessionKind : uint8
 	 * it out of every session delegate (see IsInDemoSession).
 	 */
 	Demo        = 3,
+	/**
+	 * One AI car lapping the track alone, for this client to watch (Main menu
+	 * > Garage > Tracks > Watch hotlap). Unlisted like a demo, but seated as a
+	 * live session's spectator, with its timing lines.
+	 */
+	HotlapWatch = 4,
 };
 
 /** Mirrors `TractionControl` (data.rs). Serialize_repr => a plain u8 on the wire. */
@@ -1190,6 +1196,105 @@ struct APEXSIMNET_API FApexTrackSectors
 	int32 SectorCount() const { return BoundariesM.Num() + 1; }
 };
 
+/** One corner (or chicane, or esses) of the lap: `CornerData` (network.rs). */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexTrackCorner
+{
+	GENERATED_BODY()
+
+	/** From 1, in lap order from the start line. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Number = 0;
+
+	/** The dossier's display name; empty when it has none ("Turn N"). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString Name;
+
+	/** Stations from the line, each in [0, lap): the corner runs forward from the entry (past the line, if need be) to the exit. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float EntryM = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float ApexM = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float ExitM = 0.0f;
+
+	/** The main turn goes left. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bLeft = false;
+
+	/** The name to show: the dossier's, else "Turn N". */
+	FString Label() const
+	{
+		return Name.IsEmpty() ? FString::Printf(TEXT("Turn %d"), Number) : Name;
+	}
+};
+
+/**
+ * `TrackCornersData` (network.rs) — the track's corners in lap order.
+ *
+ * Sent to the watcher of a hotlap (`SessionKind::HotlapWatch`) with the sector
+ * lines, so the HUD can say which corner the car is in or coming to.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexTrackCorners
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString SessionId;
+
+	/** Lap length, metres. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float TrackLengthM = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<FApexTrackCorner> Corners;
+
+	bool IsValid() const { return TrackLengthM > 1.0f && Corners.Num() > 0; }
+
+	/** Metres from `FromM` forward along the lap to `ToM`, in [0, lap). */
+	float Ahead(float FromM, float ToM) const
+	{
+		return TrackLengthM > 0.0f ? FMath::Fmod(FMath::Fmod(ToM - FromM, TrackLengthM) + TrackLengthM, TrackLengthM) : 0.0f;
+	}
+
+	/** Whether the car at `StationM` is between a corner's entry and exit. */
+	bool IsInside(const FApexTrackCorner& Corner, float StationM) const
+	{
+		return Ahead(Corner.EntryM, StationM) <= Ahead(Corner.EntryM, Corner.ExitM);
+	}
+
+	/**
+	 * The corner the car at `StationM` is in, else the next one it comes to
+	 * (index into Corners, INDEX_NONE without any). `OutDistanceM` is 0 inside
+	 * a corner, else the metres to its entry; `bOutInside` says which.
+	 */
+	int32 CornerAt(float StationM, float& OutDistanceM, bool& bOutInside) const
+	{
+		int32 Best = INDEX_NONE;
+		OutDistanceM = 0.0f;
+		bOutInside = false;
+		for (int32 Index = 0; Index < Corners.Num(); ++Index)
+		{
+			if (IsInside(Corners[Index], StationM))
+			{
+				OutDistanceM = 0.0f;
+				bOutInside = true;
+				return Index;
+			}
+			const float Distance = Ahead(StationM, Corners[Index].EntryM);
+			if (Best == INDEX_NONE || Distance < OutDistanceM)
+			{
+				Best = Index;
+				OutDistanceM = Distance;
+			}
+		}
+		return Best;
+	}
+};
+
 /**
  * `LapTimingData` (network.rs) — one car crossed a timing line.
  *
@@ -2191,6 +2296,7 @@ enum class EApexServerMessageType : uint8
 	SessionRoster,
 	RacingLine,
 	TrackSectors,
+	TrackCorners,
 	LapTiming,
 	LapRecord,
 	GhostLap,
@@ -2225,6 +2331,7 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexSessionRoster Roster;
 	FApexRacingLineData RacingLine;
 	FApexTrackSectors TrackSectors;
+	FApexTrackCorners TrackCorners;
 	FApexLapTiming LapTiming;
 	FApexLapRecord LapRecord;
 	FApexGhostLap GhostLap;

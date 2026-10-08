@@ -144,6 +144,9 @@ goes in seating order.
 | The session browser is still the legacy, unstyled blueprint screen: a row's track name and host line are white on its white background (invisible; seen 2026-10-07). | Med | Low |
 | Keep and Delete in the Replays screen are keys only (K / Del, pad X / Y): no mouse control, and the hint bar names only the keyboard keys. | Low | Low |
 | A watched backdrop race shows no results screen: the tower reads FINISHED down the field and the next race starts 6 s later. | Low | Low |
+| A watched hotlap (Garage > Tracks > Watch hotlap, 2026-10-08) leaves a standing start 300 m before the line, so its first timed lap is the slowest. Its driver eases down a ladder after a crash or a struck lap (a GT3 at Monza's start gantry, at Suzuka's rails), so those pairs show a crash or two struck laps first, and the level it settled at is not remembered from one watch to the next (a per-track, per-car, per-sky cache would skip them). | Low | Low |
+| A watched hotlap has the stock setup, tyre and sky only (weather and hour; no wind, air temperature or track rubber picks), no saved garage setup, no pause, seek or speed, no ghost and no replay of it. | Med | Low |
+| The `hotlap_watch` HUD scene is not in the HUD editor (it lays out the ordinary HUD), the watch keys are not rebindable, and a corner's number is the detector's (curvature runs in lap order), not the circuit's official turn number, which the dossier does not hold. | Med | Low |
 
 ## Assetto Corsa imports
 

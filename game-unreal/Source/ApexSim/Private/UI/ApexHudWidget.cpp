@@ -290,6 +290,15 @@ void UApexHudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 			continue;
 		}
 		const FApexHudComponentDef& Component = Components[Index];
+		// A scene (a watched hotlap) replaces the HUD: its components are the
+		// only ones shown while it is up, and they are not shown outside it.
+		// The editor lays out the ordinary HUD.
+		const bool bSceneUp = !bEditing && Hud->GetBool(TEXT("hotlap.active"));
+		if (bEditing ? !Component.Scene.IsEmpty() : (Component.Scene.IsEmpty() == bSceneUp))
+		{
+			SetNodeVisible(Nodes[Root], false);
+			continue;
+		}
 		// While laying out, every shown panel is on screen: a damage panel that
 		// only appears after a hit could not be placed otherwise.
 		if (!bEditing && Component.Visible.IsSet() && !Component.Visible.Expr->Evaluate(Scope).AsBool())

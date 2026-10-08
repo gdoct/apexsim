@@ -572,6 +572,37 @@ pub fn name_corners(corners: &[Corner], named: &[NamedCorner], lap: f32) -> Vec<
     out
 }
 
+/// The track's corners as a client's HUD wants them (`TrackCorners`):
+/// numbered in lap order, named from the dossier beside `track_path` when
+/// there is one (the `display_name`, never the real name), the stations
+/// folded into `[0, lap)`.
+pub fn wire_corners(
+    track: &TrackConfig,
+    track_path: Option<&Path>,
+) -> Vec<crate::network::CornerData> {
+    let lap = lap_length_m(track);
+    if lap <= 0.0 {
+        return Vec::new();
+    }
+    let corners = detect_corners(track);
+    let named = track_path.map(dossier_corners).unwrap_or_default();
+    let names = name_corners(&corners, &named, lap);
+    corners
+        .iter()
+        .zip(names)
+        .take(u8::MAX as usize)
+        .enumerate()
+        .map(|(i, (corner, name))| crate::network::CornerData {
+            number: (i + 1) as u8,
+            name: name.unwrap_or_default(),
+            entry_m: corner.entry_m.rem_euclid(lap),
+            apex_m: corner.apex_m.rem_euclid(lap),
+            exit_m: corner.exit_m.rem_euclid(lap),
+            left: corner.main_sign() > 0.0,
+        })
+        .collect()
+}
+
 // --- A solo run ---------------------------------------------------------------
 
 /// One lone AI car's laps, every frame from green.

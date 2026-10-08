@@ -78,4 +78,39 @@ bool FApexTrackBuilderPrepareTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+// Which surfaces lie flat (and so cast no shadow): the road and everything
+// painted or banded beside it, never the terrain, a structure or an import's
+// own ground.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexTrackFlatSurfaceTest,
+	"ApexSim.Track.Builder.FlatSurfaces",
+	ApexTestFlags)
+
+bool FApexTrackFlatSurfaceTest::RunTest(const FString& Parameters)
+{
+	auto Flat = [](const TCHAR* Key, const TCHAR* Family) {
+		FApexTrackMaterial Material;
+		Material.Key = Key;
+		Material.Family = Family;
+		return Material.IsFlatSurface();
+	};
+	TestTrue(TEXT("road"), Flat(TEXT("road"), TEXT("road")));
+	TestTrue(TEXT("wear band"), Flat(TEXT("wear_core"), TEXT("road")));
+	TestTrue(TEXT("curb"), Flat(TEXT("curb_red_white"), TEXT("curb")));
+	TestTrue(TEXT("paint"), Flat(TEXT("marking_edge_line_d9d9d1"), TEXT("marking")));
+	TestTrue(TEXT("pit lane"), Flat(TEXT("pit_lane"), TEXT("pit_lane")));
+	TestTrue(TEXT("decal"), Flat(TEXT("graffiti/bull"), TEXT("decal")));
+	TestTrue(TEXT("grass apron"), Flat(TEXT("surface_grass"), TEXT("surface")));
+	TestTrue(TEXT("gravel trap"), Flat(TEXT("surface_gravel"), TEXT("surface")));
+	TestFalse(TEXT("terrain"), Flat(TEXT("ground"), TEXT("surface")));
+	TestFalse(TEXT("horizon"), Flat(TEXT("horizon"), TEXT("surface")));
+	TestFalse(TEXT("an import's ground"), Flat(TEXT("ac_grass"), TEXT("surface")));
+	TestFalse(TEXT("structure"), Flat(TEXT("structure"), TEXT("structure")));
+	TestFalse(TEXT("scenery"), Flat(TEXT("scenery_wall"), TEXT("scenery")));
+	return true;
+}
+
 #endif	  // WITH_DEV_AUTOMATION_TESTS

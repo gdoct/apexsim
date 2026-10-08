@@ -41,6 +41,13 @@ struct FApexBootSettings
 	FString ServerHost = TEXT("127.0.0.1");
 
 	int32 ServerPort = 9000;
+
+	/**
+	 * Read and written by launcher.exe, not used by the game: false makes the
+	 * launcher start the game without showing its window. It lives here only
+	 * because the game rewrites the whole file and would otherwise drop it.
+	 */
+	bool bShowLauncher = true;
 };
 
 /**

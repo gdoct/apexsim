@@ -133,6 +133,15 @@ struct APEXSIM_API FApexHudComponentDef
 	 */
 	bool bDefaultEnabled = true;
 
+	/**
+	 * Which view the component belongs to: empty for the ordinary HUD, or a
+	 * named scene (`"scene": "hotlap_watch"`, the HUD of a watched hotlap).
+	 * While a scene is on screen only its components are shown; the rest of
+	 * the HUD stands aside, and the scene's components are not shown outside
+	 * it.
+	 */
+	FString Scene;
+
 	/** One of ApexHud::Regions(). */
 	FString Region = TEXT("bottom-left");
 	/** Order within the region, lowest first (outermost first for the side regions). */
@@ -154,6 +163,12 @@ struct APEXSIM_API FApexHudLoadReport
 
 namespace ApexHud
 {
+	/**
+	 * The scenes a component can belong to (`"scene"`): `hotlap_watch`, the
+	 * HUD of a watched hotlap (`hotlap.active`).
+	 */
+	APEXSIM_API const TArray<FString>& Scenes();
+
 	/** The regions a component can sit in: top-left, top, top-right, left, center, right, bottom-left, bottom, bottom-right. */
 	APEXSIM_API const TArray<FString>& Regions();
 

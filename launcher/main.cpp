@@ -213,6 +213,7 @@ struct Settings
     int screens = 1;
     std::string host = "127.0.0.1";
     int port = kServerPort;
+    bool showLauncher = true;  // false: launcher.exe starts the game at once and shows no window
 };
 
 static Settings DefaultSettings()
@@ -258,6 +259,17 @@ static bool LoadSettings(const fs::path& path, Settings& out)
             if (key == "host" && !val.empty()) out.host = val;
             else if (key == "port") out.port = atoi(val.c_str());
         }
+        else if (section == "launcher")
+        {
+            // The same spellings the game's parser takes; anything else keeps the default.
+            if (key == "show")
+            {
+                if (!_stricmp(val.c_str(), "true") || !_stricmp(val.c_str(), "yes") || !_stricmp(val.c_str(), "on") || val == "1")
+                    out.showLauncher = true;
+                else if (!_stricmp(val.c_str(), "false") || !_stricmp(val.c_str(), "no") || !_stricmp(val.c_str(), "off") || val == "0")
+                    out.showLauncher = false;
+            }
+        }
     }
     return true;
 }
@@ -290,9 +302,14 @@ static bool SaveSettings(const fs::path& path, const Settings& s)
         "  # The server the game connects to when it starts. 127.0.0.1 is a server\n"
         "  # on this machine, such as the one the launcher starts for you.\n"
         "  host: %s\n"
-        "  port: %d\n",
+        "  port: %d\n"
+        "\n"
+        "launcher:\n"
+        "  # false: launcher.exe starts the game straight away, without a server, and\n"
+        "  # shows no window. Run launcher.exe --show to bring the window back.\n"
+        "  show: %s\n",
         s.resX, s.resY, s.mode.c_str(), s.vsync ? "true" : "false", s.frameLimit, s.screens,
-        s.host.c_str(), s.port);
+        s.host.c_str(), s.port, s.showLauncher ? "true" : "false");
     std::ofstream f(path, std::ios::binary | std::ios::trunc);
     if (!f) return false;
     f << buf;
@@ -366,7 +383,7 @@ enum
     WM_APP_DONE = WM_APP + 2,    // worker finished; buttons may enable
 };
 
-enum { BtnTrouble, BtnLaunch, BtnArrow, BtnConfig, BtnContent, BtnClose, BtnServer, BtnCount };
+enum { BtnTrouble, BtnLaunch, BtnArrow, BtnConfig, BtnContent, BtnClose, BtnServer, BtnShow, BtnCount };
 
 struct App
 {
@@ -510,6 +527,19 @@ static bool SpawnEditorBuild()
     return true;
 }
 
+// Starts the client (no server): ApexSim.exe in a package, the editor build in a checkout.
+static bool SpawnGame(std::wstring& err)
+{
+    if (g.env.release)
+    {
+        if (!Spawn(g.env.gameExe, g.env.gameExe.parent_path(), 0, false, nullptr))
+        { err = L"Could not start ApexSim.exe."; return false; }
+    }
+    else if (!SpawnEditorBuild())
+    { err = L"Could not start scripts\\play_editor.ps1."; return false; }
+    return true;
+}
+
 static void LaunchAsync(bool withServer)
 {
     g.busy = true;
@@ -539,13 +569,7 @@ static void LaunchAsync(bool withServer)
         if (ok)
         {
             Post(h, L"Launching ApexSim...", 900);
-            if (g.env.release)
-            {
-                if (!Spawn(g.env.gameExe, g.env.gameExe.parent_path(), 0, false, nullptr))
-                { ok = false; err = L"Could not start ApexSim.exe."; }
-            }
-            else if (!SpawnEditorBuild())
-            { ok = false; err = L"Could not start scripts\\play_editor.ps1."; }
+            ok = SpawnGame(err);
         }
         WSACleanup();
         if (ok) { PostMessageW(h, WM_CLOSE, 0, 0); return; }
@@ -561,7 +585,7 @@ static void LaunchAsync(bool withServer)
 static void Layout()
 {
     int W = S(820), H = S(460), m = S(40), gap = S(16), h = S(56);
-    int y = H - S(164), x = m;  // the progress bar and status lines sit below
+    int y = H - S(184), x = m;  // the checkbox, progress bar and status lines sit below
     auto place = [&](int i, int w) { g.btn[i] = { x, y, x + w, y + h }; x += w + gap; };
     place(BtnConfig, S(170));
     place(BtnContent, S(150));
@@ -573,6 +597,8 @@ static void Layout()
     g.btn[BtnArrow] = { x + lw - aw, y, x + lw, y + h };
     g.btn[BtnClose] = { W - S(48), 0, W, S(36) };
     g.btn[BtnServer] = { g.btn[BtnLaunch].left, y + h + S(6), g.btn[BtnArrow].right, y + h + S(6) + S(44) };
+    // "Show launcher" sits under the button row, flush left; the hit area takes in its label.
+    g.btn[BtnShow] = { m, y + h + S(10), m + S(190), y + h + S(30) };
 }
 
 static bool Enabled(int i)
@@ -671,6 +697,53 @@ static void DrawLaunch(Gdiplus::Graphics& gr)
     gr.FillPolygon(&ink, tri, 3);
 }
 
+static void DrawShowCheck(Gdiplus::Graphics& gr)
+{
+    using namespace Gdiplus;
+    const RECT& r = g.btn[BtnShow];
+    bool en = Enabled(BtnShow), on = g.settings.showLauncher;
+    bool hov = en && g.hover == BtnShow;
+    float side = (float)S(18), top = r.top + ((r.bottom - r.top) - side) / 2;
+    RectF box((float)r.left, top, side, side);
+
+    GraphicsPath path;
+    RoundPath(path, box, (float)S(4));
+    if (on)
+    {
+        SolidBrush fill(!en ? Color(255, 27, 30, 39) : hov ? Color(255, 238, 58, 74) : Color(255, 214, 28, 44));
+        gr.FillPath(&fill, &path);
+        Pen tick(Color(255, 255, 255, 255), (float)S(2));
+        tick.SetLineJoin(LineJoinRound);
+        PointF pts[3] = { PointF(box.X + side * 0.24f, box.Y + side * 0.54f), PointF(box.X + side * 0.43f, box.Y + side * 0.72f),
+                          PointF(box.X + side * 0.78f, box.Y + side * 0.30f) };
+        gr.DrawLines(&tick, pts, 3);
+    }
+    else
+    {
+        SolidBrush fill(Color(255, 34, 39, 52));
+        gr.FillPath(&fill, &path);
+        Pen edge(hov ? Color(200, 255, 255, 255) : Color(110, 255, 255, 255), 1.0f);
+        gr.DrawPath(&edge, &path);
+    }
+
+    FontFamily fam(L"Segoe UI");
+    Font font(&fam, (float)S(14), FontStyleRegular, UnitPixel);
+    StringFormat sf;
+    sf.SetLineAlignment(StringAlignmentCenter);
+    SolidBrush ink(en ? Color(255, 214, 219, 230) : Color(255, 98, 104, 120));
+    RectF label((float)r.left + side + S(8), (float)r.top, (float)(r.right - r.left) - side - S(8), (float)(r.bottom - r.top));
+    gr.DrawString(L"Show launcher", -1, &font, label, &sf, &ink);
+
+    if (!on)
+    {
+        // The way back, where the player who just unticked it will read it.
+        Font hint(&fam, (float)S(13), FontStyleRegular, UnitPixel);
+        SolidBrush dim(Color(255, 138, 146, 164));
+        gr.DrawString(L"Next time the game starts directly. Bring this window back with: launcher.exe --show", -1, &hint,
+                      RectF((float)r.right + S(8), (float)r.top, (float)S(520), (float)(r.bottom - r.top)), &sf, &dim);
+    }
+}
+
 static void Paint(HDC hdc, int W, int H)
 {
     using namespace Gdiplus;
@@ -715,7 +788,7 @@ static void Paint(HDC hdc, int W, int H)
         }
 
         // Progress bar, under the buttons.
-        float bx = (float)S(40), by = (float)(g.btn[BtnLaunch].bottom + S(24)), bw = (float)(W - S(80)), bh = (float)S(6);
+        float bx = (float)S(40), by = (float)(g.btn[BtnLaunch].bottom + S(40)), bw = (float)(W - S(80)), bh = (float)S(6);
         SolidBrush track(Color(255, 38, 43, 57));
         GraphicsPath tp;
         RoundPath(tp, RectF(bx, by, bw, bh), bh / 2);
@@ -740,6 +813,7 @@ static void Paint(HDC hdc, int W, int H)
         DrawLaunch(gr);
         DrawButton(gr, BtnConfig, L"Edit configuration", false);
         DrawButton(gr, BtnContent, L"Manage content", false);
+        DrawShowCheck(gr);
         if (g.menuOpen) DrawButton(gr, BtnServer, L"Launch with local server", true);
 
         // Close glyph.
@@ -1116,6 +1190,14 @@ static void Activate(int i)
     case BtnServer: g.menuOpen = false; LaunchAsync(true); break;
     case BtnConfig: CreateDialogWindow(L"ApexCfg", L"Edit configuration", 460, 380, g.dpi); break;
     case BtnContent: CreateDialogWindow(L"ApexContent", L"Manage content", 640, 500, g.dpi); break;
+    case BtnShow:
+    {
+        Settings n = g.settings;
+        n.showLauncher = !n.showLauncher;
+        if (SaveSettings(g.env.settings, n)) g.settings = n;
+        else MessageBoxW(g.hwnd, (L"Could not write " + g.env.settings.wstring()).c_str(), L"Show launcher", MB_OK | MB_ICONERROR);
+        break;
+    }
     case BtnClose: PostMessageW(g.hwnd, WM_CLOSE, 0, 0); break;
     }
 }
@@ -1234,8 +1316,40 @@ static LRESULT CALLBACK MainProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
     return DefWindowProcW(hw, msg, wp, lp);
 }
 
+// "Show launcher" unticked: read the settings before any window exists and, if the
+// game can be started, start it and report true so main exits. `--show` turns the
+// launcher back on (in the file too) and shows the window as usual. Any failure
+// falls through to the window, which is where the player can see what is wrong.
+static bool AutoLaunch()
+{
+    bool forceShow = false;
+    int argc = 0;
+    if (LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc))
+    {
+        for (int i = 1; i < argc; ++i)
+            if (_wcsicmp(argv[i], L"--show") == 0 || _wcsicmp(argv[i], L"/show") == 0) forceShow = true;
+        LocalFree(argv);
+    }
+
+    Env env = Locate();
+    Settings s = DefaultSettings();
+    if (!env.found || !LoadSettings(env.settings, s) || s.showLauncher) return false;
+    if (forceShow)
+    {
+        s.showLauncher = true;
+        SaveSettings(env.settings, s);
+        return false;
+    }
+    if (!Exists(env.release ? env.gameExe : env.playScript)) return false;
+    g.env = env;
+    std::wstring err;
+    return SpawnGame(err);
+}
+
 int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int)
 {
+    if (AutoLaunch()) return 0;
+
     INITCOMMONCONTROLSEX icc = { sizeof icc, ICC_TAB_CLASSES | ICC_LISTVIEW_CLASSES | ICC_STANDARD_CLASSES };
     InitCommonControlsEx(&icc);
 

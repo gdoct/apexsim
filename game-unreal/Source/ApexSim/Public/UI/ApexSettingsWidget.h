@@ -205,6 +205,10 @@ private:
 	 * looking like a control that quietly does nothing.
 	 */
 	void RefreshAssistLocks();
+	/** Applies Beginner (0), Pro (1) or Elite (2) to the five assists. */
+	void ApplyAssistPreset(int32 Index);
+	/** Selects the preset the five assists match, or CUSTOM. */
+	void RefreshAssistPreset();
 
 	/** A segmented control registered under an id the single handler knows. */
 	UApexSegmentedWidget* MakeSegment(FName ControlId, const TArray<FString>& Options, int32 Selected, float Width = 118.0f);

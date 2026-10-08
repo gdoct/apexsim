@@ -605,6 +605,12 @@ const TArray<FString>& ApexHud::Regions()
 	return Names;
 }
 
+const TArray<FString>& ApexHud::Scenes()
+{
+	static const TArray<FString> Names = {TEXT("hotlap_watch")};
+	return Names;
+}
+
 TArray<FString> ApexHud::HudDirectories()
 {
 	TArray<FString> Dirs;
@@ -781,7 +787,7 @@ bool ApexHud::ParseComponent(const FString& Text, const FString& Folder, FApexHu
 	FHudElementParser Parser{Folder, Out.Id, Report};
 	const FString Top = TEXT("component");
 	static const TArray<FString> KnownTop = {TEXT("name"), TEXT("description"), TEXT("enabled"), TEXT("default_enabled"), TEXT("region"),
-		TEXT("order"), TEXT("margin"), TEXT("float"), TEXT("visible"), TEXT("root")};
+		TEXT("order"), TEXT("margin"), TEXT("float"), TEXT("visible"), TEXT("scene"), TEXT("root")};
 	for (const TPair<FString, TSharedPtr<FJsonValue>>& Field : Json->Values)
 	{
 		if (!KnownTop.Contains(Field.Key))
@@ -807,11 +813,16 @@ bool ApexHud::ParseComponent(const FString& Text, const FString& Folder, FApexHu
 		|| !Parser.ReadNumber(*Json, TEXT("order"), Order, Top)
 		|| !Parser.ReadMargin(*Json, TEXT("margin"), Out.Margin, Top)
 		|| !Parser.ReadBool(*Json, TEXT("float"), Out.bFloat, Top)
+		|| !Parser.ReadString(*Json, TEXT("scene"), Out.Scene, Top)
 		|| !Parser.ReadProp(*Json, TEXT("visible"), FHudElementParser::EPropKind::Bool, Out.Visible, Top))
 	{
 		return false;
 	}
 	Out.Order = FMath::RoundToInt(Order);
+	if (!Out.Scene.IsEmpty() && !Scenes().Contains(Out.Scene))
+	{
+		return Parser.Error(Top, FString::Printf(TEXT("'scene' is one of %s"), *FString::Join(Scenes(), TEXT(", "))));
+	}
 	if (!Regions().Contains(Out.Region))
 	{
 		return Parser.Error(Top, FString::Printf(TEXT("'region' is one of %s"), *FString::Join(Regions(), TEXT(", "))));

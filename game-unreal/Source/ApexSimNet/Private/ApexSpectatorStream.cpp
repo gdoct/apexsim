@@ -131,7 +131,7 @@ namespace ApexSpectatorCodec
 		{
 			return false;
 		}
-		Out.SessionKind = static_cast<EApexSessionKind>(FMath::Clamp(Kind, 0, 3));
+		Out.SessionKind = static_cast<EApexSessionKind>(FMath::Clamp(Kind, 0, 4));
 		Out.GameMode = static_cast<EApexGameMode>(FMath::Clamp(Mode, 0, 8));
 
 		int32 TickCount = 0;

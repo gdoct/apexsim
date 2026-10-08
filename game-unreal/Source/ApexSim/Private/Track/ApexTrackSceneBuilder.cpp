@@ -13,6 +13,7 @@
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/PlatformTime.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/PackageName.h"
@@ -23,6 +24,7 @@
 #include "Track/ApexPropLibrary.h"
 #include "Track/ApexTrackCollisionComponent.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/UObjectIterator.h"
 
 DEFINE_LOG_CATEGORY(LogApexTrack);
 
@@ -33,6 +35,54 @@ const FName FApexTrackSceneBuilder::StartLightTag(TEXT("ApexStartLight"));
 
 namespace
 {
+	/** Component tags naming which shadow switch below a track surface answers to. */
+	const FName kFlatSurfaceTag(TEXT("ApexFlatSurface"));
+	const FName kHorizonTag(TEXT("ApexHorizon"));
+
+	void ApplyTrackShadowCasting(UStaticMeshComponent& Component);
+
+	/** Every built track's tagged surfaces, the moment a switch changes. */
+	void OnTrackShadowSwitchChanged(IConsoleVariable*)
+	{
+		for (UStaticMeshComponent* Component : TObjectRange<UStaticMeshComponent>())
+		{
+			if (Component->ComponentHasTag(kFlatSurfaceTag) || Component->ComponentHasTag(kHorizonTag))
+			{
+				ApplyTrackShadowCasting(*Component);
+			}
+		}
+	}
+
+	/*
+	 * Which track surfaces render into the virtual shadow map. Everything a
+	 * track is made of is non-Nanite (built at runtime), and the big pieces
+	 * are what overflow VSM's non-Nanite marking queue
+	 * (docs/game/VSM_NON_NANITE_SHADOWS.md); both switches apply at once to
+	 * the track on screen, for comparing.
+	 */
+	TAutoConsoleVariable<bool> CVarTrackFlatShadows(TEXT("apexsim.track.FlatShadows"), false,
+		TEXT("Whether the flat track surfaces (road, curbs, paint, pit lane, decals, grass/gravel/run-off bands) cast shadows."),
+		FConsoleVariableDelegate::CreateStatic(&OnTrackShadowSwitchChanged), ECVF_Default);
+	// Off: its tiles were the largest non-Nanite instances on screen (up to a
+	// thousand shadow pages each) and all their shadow falls on themselves,
+	// kilometres out; with them on, a crash that swung the cockpit camera
+	// round still overflowed the queue.
+	TAutoConsoleVariable<bool> CVarTrackHorizonShadows(TEXT("apexsim.track.HorizonShadows"), false,
+		TEXT("Whether the far terrain (the DEM horizon, kilometres out) casts shadows."),
+		FConsoleVariableDelegate::CreateStatic(&OnTrackShadowSwitchChanged), ECVF_Default);
+
+	void ApplyTrackShadowCasting(UStaticMeshComponent& Component)
+	{
+		if (Component.ComponentHasTag(kFlatSurfaceTag))
+		{
+			Component.SetCastShadow(CVarTrackFlatShadows.GetValueOnGameThread());
+		}
+		else if (Component.ComponentHasTag(kHorizonTag))
+		{
+			Component.SetCastShadow(CVarTrackHorizonShadows.GetValueOnGameThread());
+		}
+	}
+
 	/** Engine placeholder used for prop kinds that have no generated mesh. */
 	const TCHAR* kPlaceholderPropMesh = TEXT("/Engine/BasicShapes/Cube.Cube");
 
@@ -2035,6 +2085,15 @@ void FApexTrackSceneBuilder::SpawnActors(
 		// decal's own collision would only cost a cook, and an imported
 		// circuit's scenery says itself that it is not a track surface.
 		const FApexTrackMaterial* Material = Scene.FindMaterial(Source.MaterialKey);
+		if (Material && Material->IsFlatSurface())
+		{
+			Component->ComponentTags.Add(kFlatSurfaceTag);
+		}
+		else if (Source.MaterialKey == TEXT("horizon"))
+		{
+			Component->ComponentTags.Add(kHorizonTag);
+		}
+		ApplyTrackShadowCasting(*Component);
 		if (Material && Material->IsScenery())
 		{
 			// An imported circuit's scenery is drawn on the car parents, whose

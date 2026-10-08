@@ -23,6 +23,7 @@ bool FApexBootSettingsRoundTripTest::RunTest(const FString& Parameters)
 	Written.Screens = 3;
 	Written.ServerHost = TEXT("race.example.net");
 	Written.ServerPort = 9100;
+	Written.bShowLauncher = false;
 
 	FApexBootSettings Read;
 	ApexBootSettingsIo::Parse(ApexBootSettingsIo::Serialise(Written), Read);
@@ -36,6 +37,7 @@ bool FApexBootSettingsRoundTripTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("a triple survives"), Read.Screens, 3);
 	TestEqual(TEXT("host survives"), Read.ServerHost, Written.ServerHost);
 	TestEqual(TEXT("port survives"), Read.ServerPort, Written.ServerPort);
+	TestFalse(TEXT("the launcher's show flag survives the game's rewrite"), Read.bShowLauncher);
 
 	return true;
 }

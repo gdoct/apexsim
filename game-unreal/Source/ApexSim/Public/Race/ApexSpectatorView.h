@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
+#include "ApexProtocolTypes.h"
 
 /**
  * Watching a race: the choices a spectator makes (which car, which camera,
@@ -99,6 +100,16 @@ namespace ApexSpectate
 		SeekForward,
 		Slower,
 		Faster,
+		/**
+		 * A watched hotlap's choices (UApexRootWidget::StartHotlapWatch):
+		 * the weather, the hour an hour earlier and later, and the circuit
+		 * before and after. Nothing in any other view.
+		 */
+		Weather,
+		TimeEarlier,
+		TimeLater,
+		PreviousTrack,
+		NextTrack,
 	};
 
 	struct FCommand
@@ -114,11 +125,21 @@ namespace ApexSpectate
 	 * the auto director, T / View the tower, H / right stick the overlay,
 	 * N / left stick the next race, Backspace / B leave; a replay's transport
 	 * on Space / A (pause), comma and full stop / the triggers (ten seconds
-	 * back and on) and - / = (slower, faster). The pause key is not here: it
+	 * back and on) and - / = (slower, faster); a hotlap's choices on W
+	 * (weather), [ and ] (the hour) and Page Up / Page Down (the circuit). The pause key is not here: it
 	 * opens the pause menu as in a race.
 	 */
 	APEXSIM_API FCommand CommandFor(const FKey& Key);
 
 	/** The replay speeds - and = step through: 0.25, 0.5, 1, 2, 4. */
 	APEXSIM_API float StepPlaybackRate(float Rate, int32 Direction);
+
+	/** `Index` moved `Direction` places round a list of `Count` (wrapping); 0 for an empty list. */
+	APEXSIM_API int32 StepIndex(int32 Count, int32 Index, int32 Direction);
+
+	/** The weather after `Weather` in `Direction` (wrapping): sunny, cloudy, overcast, light rain, heavy rain. */
+	APEXSIM_API EApexWeather StepWeather(EApexWeather Weather, int32 Direction);
+
+	/** The time of day `Direction` hours on from `Minutes` (after midnight), wrapping the day and keeping its quarter hour. */
+	APEXSIM_API int32 StepTimeOfDay(int32 Minutes, int32 Direction);
 }

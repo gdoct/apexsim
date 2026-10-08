@@ -356,6 +356,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void JoinAsSpectator(const FString& SessionId);
 
+	/**
+	 * Watch a hotlap: a session of one AI car lapping `TrackConfigId` alone,
+	 * in the car last given to SelectCar, under `Conditions`
+	 * (SessionKind::HotlapWatch). Answered like JoinAsSpectator, with
+	 * SessionJoined at grid position 0, then the roster, sectors, corners
+	 * (GetTrackCorners) and the car's telemetry and timing. Asking again,
+	 * for another car or another sky, replaces the one being watched.
+	 * `TrackName` and `TrackStem` (the YAML's base name) stand in for the
+	 * session's entry in the lobby, which does not list it.
+	 */
+	void CreateHotlapWatch(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
+		const FApexSessionConditions& Conditions);
+
+	/** The session is a watched hotlap (SessionKind::HotlapWatch), from its join until it is left. */
+	bool IsHotlapWatch() const { return bHotlapWatch; }
+
 	/** The session joined was joined as a spectator: there is no local car in it. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	bool IsSessionSpectator() const { return bSessionSpectator; }
@@ -512,6 +528,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	const FApexRacingLineData& GetRacingLine() const { return CachedRacingLine; }
 
+	/** The track's corners, sent to the watcher of a hotlap; not IsValid otherwise. */
+	const FApexTrackCorners& GetTrackCorners() const { return CachedCorners; }
+
 	/** Where this session's sector lines are; not IsValid until they arrive. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	const FApexTrackSectors& GetTrackSectors() const { return CachedSectors; }
@@ -619,6 +638,16 @@ private:
 
 	UPROPERTY()
 	FApexTrackSectors CachedSectors;
+
+	UPROPERTY()
+	FApexTrackCorners CachedCorners;
+
+	/** A CreateHotlapWatch is waiting for its SessionJoined. */
+	bool bHotlapWatchRequested = false;
+	/** The session joined is a watched hotlap. */
+	bool bHotlapWatch = false;
+	/** What the lobby would list for it, had it been listed (FindSessionById). */
+	FApexSessionSummary HotlapWatchSummary;
 
 	UPROPERTY()
 	FApexTimingBoard TimingBoard;

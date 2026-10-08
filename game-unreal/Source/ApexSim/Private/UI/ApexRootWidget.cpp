@@ -30,6 +30,7 @@
 #include "TimerManager.h"
 #include "UnrealClient.h"
 #include "Race/ApexRaceDirector.h"
+#include "Track/ApexTrackContentSubsystem.h"
 #include "UI/ApexCarSelectWidget.h"
 #include "UI/ApexConnectDialogWidget.h"
 #include "UI/ApexHotlapWidget.h"
@@ -90,7 +91,8 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs WatchCommand(
 		TEXT("apexsim.watch"),
 		TEXT("Watch the race behind the menu, or steer the watch view: ")
-		TEXT("apexsim.watch [start|stop|next|prev|car <position>|camera|auto|tower|overlay|race|pause|back|forward|faster|slower]"),
+		TEXT("apexsim.watch [start|stop|next|prev|car <position>|camera|auto|tower|overlay|race|pause|back|forward|faster|slower] ")
+		TEXT("- a watched hotlap: apexsim.watch [hotlap|weather|earlier|later|circuit|prevcircuit] (next / prev step its car)"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			UApexRootWidget* Root = nullptr;
@@ -112,6 +114,11 @@ namespace
 			if (Verb == TEXT("start"))
 			{
 				Root->WatchBackdrop();
+				return;
+			}
+			if (Verb == TEXT("hotlap"))
+			{
+				Root->StartHotlapWatch();
 				return;
 			}
 			if (Verb == TEXT("stop"))
@@ -150,6 +157,26 @@ namespace
 			else if (Verb == TEXT("race"))
 			{
 				Command.Action = ApexSpectate::EAction::NextRace;
+			}
+			else if (Verb == TEXT("weather"))
+			{
+				Command.Action = ApexSpectate::EAction::Weather;
+			}
+			else if (Verb == TEXT("earlier"))
+			{
+				Command.Action = ApexSpectate::EAction::TimeEarlier;
+			}
+			else if (Verb == TEXT("later"))
+			{
+				Command.Action = ApexSpectate::EAction::TimeLater;
+			}
+			else if (Verb == TEXT("circuit"))
+			{
+				Command.Action = ApexSpectate::EAction::NextTrack;
+			}
+			else if (Verb == TEXT("prevcircuit"))
+			{
+				Command.Action = ApexSpectate::EAction::PreviousTrack;
 			}
 			else if (Verb == TEXT("pause"))
 			{
@@ -758,6 +785,7 @@ void UApexRootWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		Guide->ApplyCommandLine();
 	}
 	UpdateWatch(InDeltaTime);
+	UpdateHotlapWatch();
 	UpdateBackdrop(InDeltaTime);
 
 	// The replay ends itself when the lap is over; the garage card comes back.
@@ -997,7 +1025,8 @@ void UApexRootWidget::FocusDefault()
 		PauseMenu->FocusDefault();
 		return;
 	}
-	if (bGarageOpen && HotlapPanel && HotlapPanel->GetView() == EApexHotlapView::Garage)
+	if ((bGarageOpen || (HotlapPanel && HotlapPanel->IsMenuMode())) && HotlapPanel
+		&& HotlapPanel->GetView() == EApexHotlapView::Garage)
 	{
 		HotlapPanel->FocusDefault();
 		return;
@@ -1195,7 +1224,35 @@ void UApexRootWidget::HandleHotlapAction(EApexHotlapAction Action)
 			Settings->ResetToDefaults(EApexSettingsGroup::CarSetup);
 		}
 		break;
+
+	case EApexHotlapAction::CloseEditor:
+		CloseSetupEditor();
+		break;
 	}
+}
+
+void UApexRootWidget::OpenSetupEditor()
+{
+	if (!HotlapPanel || HotlapPanel->GetView() != EApexHotlapView::Hidden)
+	{
+		return;
+	}
+	HotlapPanel->SetMenuMode(true);
+	HotlapPanel->SetView(EApexHotlapView::Garage);
+	ApexUiAudio::Play(this, EApexUiSound::Accept);
+	RequestFocusDefault();
+}
+
+void UApexRootWidget::CloseSetupEditor()
+{
+	if (!HotlapPanel || !HotlapPanel->IsMenuMode())
+	{
+		return;
+	}
+	HotlapPanel->SetView(EApexHotlapView::Hidden);
+	HotlapPanel->SetMenuMode(false);
+	ApexUiAudio::Play(this, EApexUiSound::Back);
+	FocusDefault();
 }
 
 void UApexRootWidget::HandleTelemetryForHotlap(const FApexTelemetryFrame& Frame)
@@ -1751,15 +1808,26 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 		Guide->Close();
 	}
 	BackStack.Reset();
-	ActivateScreen(EApexScreen::SessionLobby);
-
 	const UApexNetSubsystem* JoinedNet = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const bool bJoinedHotlap = JoinedNet && JoinedNet->IsHotlapWatch();
+	if (!bJoinedHotlap)
+	{
+		// (A watched hotlap is under way already, and the shell stays out of
+		// sight from the moment it is asked for.)
+		ActivateScreen(EApexScreen::SessionLobby);
+	}
+
 	if (JoinedNet && JoinedNet->IsSessionSpectator())
 	{
 		// No car: nothing to tune, nothing to start. The race view opens with
 		// the session's next telemetry when it is under way, in the lobby
 		// until then.
 		bWatchJoinPending = false;
+		if (bJoinedHotlap)
+		{
+			bHotlapJoinPending = false;
+			bHotlapWatchWanted = true;
+		}
 		if (WatchKind == EWatchKind::Backdrop)
 		{
 			StopWatching();
@@ -1809,6 +1877,10 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 
 void UApexRootWidget::HandleSessionLeft()
 {
+	if (bHotlapWatchWanted)
+	{
+		EndHotlapWatch();
+	}
 	if (WatchKind == EWatchKind::Live)
 	{
 		WatchKind = EWatchKind::None;
@@ -2158,10 +2230,12 @@ void UApexRootWidget::ApplyWatchLayers()
 	if (!bRaceViewActive)
 	{
 		// Over a watched backdrop the menu steps aside; the background stays
-		// to cover the gaps between races (UpdateBackdrop).
+		// to cover the gaps between races (UpdateBackdrop). So does it for a
+		// hotlap from the moment it is asked for, for the wait while the
+		// server starts it and the circuit is built.
 		if (ScreenHost)
 		{
-			ScreenHost->SetVisibility(bBackdrop ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+			ScreenHost->SetVisibility(bBackdrop || bHotlapWatchWanted ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 		}
 		if (BackdropScrim && bBackdrop)
 		{
@@ -2195,7 +2269,8 @@ void UApexRootWidget::PushWatchState()
 	FString Source;
 	if (WatchKind == EWatchKind::Live)
 	{
-		Source = TEXT("live");
+		const UApexNetSubsystem* Net = GetGameInstance()->GetSubsystem<UApexNetSubsystem>();
+		Source = Net && Net->IsHotlapWatch() ? TEXT("hotlap") : TEXT("live");
 	}
 	else if (WatchKind == EWatchKind::Backdrop)
 	{
@@ -2282,6 +2357,29 @@ void UApexRootWidget::RunWatchCommand(const ApexSpectate::FCommand& Command)
 	using ApexSpectate::EAction;
 	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
 	const bool bLive = Director && Director->IsSpectating();
+
+	// A watched hotlap has one car on the road: the keys that step through a
+	// field choose what is lapped instead (the pad's auto, tower and next-race
+	// buttons stand in for the weather, the hour and the circuit).
+	if (bHotlapWatchWanted)
+	{
+		switch (Command.Action)
+		{
+		case EAction::PreviousCar:    ChangeHotlapWatch(EHotlapChoice::Car, -1); return;
+		case EAction::NextCar:        ChangeHotlapWatch(EHotlapChoice::Car, 1); return;
+		case EAction::Weather:
+		case EAction::Auto:           ChangeHotlapWatch(EHotlapChoice::Weather, 1); return;
+		case EAction::TimeEarlier:    ChangeHotlapWatch(EHotlapChoice::TimeOfDay, -1); return;
+		case EAction::TimeLater:
+		case EAction::Tower:          ChangeHotlapWatch(EHotlapChoice::TimeOfDay, 1); return;
+		case EAction::PreviousTrack:  ChangeHotlapWatch(EHotlapChoice::Track, -1); return;
+		case EAction::NextTrack:
+		case EAction::NextRace:       ChangeHotlapWatch(EHotlapChoice::Track, 1); return;
+		case EAction::Position:       return;
+		default:                      break;
+		}
+	}
+
 	switch (Command.Action)
 	{
 	case EAction::PreviousCar:
@@ -2516,6 +2614,319 @@ void UApexRootWidget::SaveReplay()
 	{
 		ShowToast(FString::Printf(TEXT("No replay saved: %s"), Recorder ? *Error : TEXT("no recorder")), true);
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Watching a hotlap
+// ---------------------------------------------------------------------------
+
+namespace
+{
+	/** A circuit or a car the hotlap can be watched on: its id and the name on its card. */
+	struct FHotlapOption
+	{
+		FString Id;
+		FString Name;
+		/** A circuit's YAML base name (its export's stem). */
+		FString Stem;
+	};
+
+	void SortByName(TArray<FHotlapOption>& Options)
+	{
+		Options.StableSort([](const FHotlapOption& A, const FHotlapOption& B)
+		{
+			return A.Name.Compare(B.Name, ESearchCase::IgnoreCase) < 0;
+		});
+	}
+
+	/** The circuits the server has and this machine can draw (an export is installed), by name. */
+	TArray<FHotlapOption> HotlapTracks(const UApexNetSubsystem& Net, const UApexMenuFlowSubsystem& Flow, const UApexTrackContentSubsystem* Content)
+	{
+		TArray<FHotlapOption> Out;
+		for (const FApexTrackConfigSummary& Track : Net.GetCachedLobbyState().TrackConfigs)
+		{
+			FApexTrackCatalogRow Row;
+			if (!Flow.GetTrackCatalogRow(Track.Id, Row) || Row.YamlBaseName.IsEmpty()
+				|| (Content && !Content->HasTrack(Row.YamlBaseName)))
+			{
+				continue;
+			}
+			Out.Add({Track.Id, Row.DisplayName.IsEmpty() ? Track.Name : Row.DisplayName, Row.YamlBaseName});
+		}
+		SortByName(Out);
+		return Out;
+	}
+
+	/** Every car the server has, by name. */
+	TArray<FHotlapOption> HotlapCars(const UApexNetSubsystem& Net, const UApexMenuFlowSubsystem& Flow)
+	{
+		TArray<FHotlapOption> Out;
+		for (const FApexCarConfigSummary& Car : Net.GetCachedLobbyState().CarConfigs)
+		{
+			FApexCarCatalogRow Row;
+			const bool bRow = Flow.GetCarCatalogRow(Car.Id, Row);
+			Out.Add({Car.Id, bRow && !Row.DisplayName.IsEmpty() ? Row.DisplayName : Car.Name, FString()});
+		}
+		SortByName(Out);
+		return Out;
+	}
+
+	/** `Wanted` if the list has it, else the list's first. */
+	const FHotlapOption* PickOption(const TArray<FHotlapOption>& Options, const FString& Wanted)
+	{
+		const FHotlapOption* Found = Options.FindByPredicate([&Wanted](const FHotlapOption& Option) { return Option.Id == Wanted; });
+		return Found ? Found : (Options.IsEmpty() ? nullptr : &Options[0]);
+	}
+}
+
+bool UApexRootWidget::StartHotlapWatch()
+{
+	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+	if (!Net || !Flow || !Net->IsAuthenticated())
+	{
+		ShowToast(TEXT("Not connected to a server yet"), true);
+		return false;
+	}
+	if (IsWatching() || bRaceViewActive || bHotlapWatchWanted)
+	{
+		return false;
+	}
+
+	const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
+	const TArray<FHotlapOption> Tracks = HotlapTracks(*Net, *Flow, Content);
+	const TArray<FHotlapOption> Cars = HotlapCars(*Net, *Flow);
+	if (Tracks.IsEmpty() || Cars.IsEmpty())
+	{
+		ShowToast(Cars.IsEmpty() ? TEXT("The server has no cars yet") : TEXT("No circuit to watch: none has an export installed"), true);
+		return false;
+	}
+	HotlapTrackId = PickOption(Tracks, Flow->GetPendingTrackId())->Id;
+	HotlapCarId = PickOption(Cars, Flow->GetPendingCarId())->Id;
+	if (!bHotlapConditionsKnown)
+	{
+		// The first watch is under the sky of the last session set up; after
+		// it, the one last watched.
+		HotlapConditions = FApexSessionConditions();
+		HotlapConditions.Weather = Flow->CreateConditions.Weather;
+		HotlapConditions.TimeOfDayMinutes = Flow->CreateConditions.TimeOfDayMinutes;
+		bHotlapConditionsKnown = true;
+	}
+
+	bHotlapWatchWanted = true;
+	WatchTower = ApexSpectate::ETowerMode::Interval;
+	bWatchOverlayHidden = false;
+	ApplyWatchLayers();
+	SendHotlapWatchRequest();
+	ApexUiAudio::Play(this, EApexUiSound::Accept);
+	return true;
+}
+
+void UApexRootWidget::SendHotlapWatchRequest()
+{
+	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+	if (!Net || !Flow)
+	{
+		return;
+	}
+	FApexTrackCatalogRow Row;
+	Flow->GetTrackCatalogRow(HotlapTrackId, Row);
+	UE_LOG(LogApexSim, Log, TEXT("Hotlap watch: track '%s', car '%s', %s"),
+		*Row.YamlBaseName, *HotlapCarId, *HotlapConditions.Describe());
+	// SelectCar before CreateSession, the order the rest of the shell uses.
+	Net->SelectCar(HotlapCarId);
+	Net->CreateHotlapWatch(HotlapTrackId, Row.DisplayName, Row.YamlBaseName, HotlapConditions);
+	bHotlapJoinPending = true;
+	HotlapRequestedAt = FPlatformTime::Seconds();
+	HotlapRestartAt = -1.0;
+}
+
+void UApexRootWidget::ChangeHotlapWatch(EHotlapChoice Choice, int32 Direction)
+{
+	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+	if (!bHotlapWatchWanted || !Net || !Flow)
+	{
+		return;
+	}
+
+	FString Message;
+	switch (Choice)
+	{
+	case EHotlapChoice::Car:
+	{
+		const TArray<FHotlapOption> Cars = HotlapCars(*Net, *Flow);
+		if (Cars.Num() < 2)
+		{
+			ApexUiAudio::Play(this, EApexUiSound::Denied);
+			return;
+		}
+		const int32 At = Cars.IndexOfByPredicate([this](const FHotlapOption& Option) { return Option.Id == HotlapCarId; });
+		const FHotlapOption& Next = Cars[ApexSpectate::StepIndex(Cars.Num(), At == INDEX_NONE ? 0 : At, Direction)];
+		HotlapCarId = Next.Id;
+		Message = FString::Printf(TEXT("Car: %s"), *Next.Name);
+		break;
+	}
+	case EHotlapChoice::Track:
+	{
+		const TArray<FHotlapOption> Tracks = HotlapTracks(*Net, *Flow, GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>());
+		if (Tracks.Num() < 2)
+		{
+			ApexUiAudio::Play(this, EApexUiSound::Denied);
+			return;
+		}
+		const int32 At = Tracks.IndexOfByPredicate([this](const FHotlapOption& Option) { return Option.Id == HotlapTrackId; });
+		const FHotlapOption& Next = Tracks[ApexSpectate::StepIndex(Tracks.Num(), At == INDEX_NONE ? 0 : At, Direction)];
+		HotlapTrackId = Next.Id;
+		Message = FString::Printf(TEXT("Circuit: %s"), *Next.Name);
+		break;
+	}
+	case EHotlapChoice::Weather:
+		HotlapConditions.Weather = ApexSpectate::StepWeather(HotlapConditions.Weather, Direction);
+		Message = FString::Printf(TEXT("Weather: %s"), *FApexSessionConditions::WeatherLabel(HotlapConditions.Weather));
+		break;
+	case EHotlapChoice::TimeOfDay:
+		HotlapConditions.TimeOfDayMinutes = ApexSpectate::StepTimeOfDay(HotlapConditions.TimeOfDayMinutes, Direction);
+		Message = FString::Printf(TEXT("Time of day: %s"), *HotlapConditions.ClockText());
+		break;
+	}
+	ShowToast(Message);
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
+
+	// A few presses in a row make one new lap, not one each.
+	constexpr double RestartAfterSeconds = 0.8;
+	HotlapRestartAt = FPlatformTime::Seconds() + RestartAfterSeconds;
+}
+
+void UApexRootWidget::RestartHotlapWatch()
+{
+	HotlapRestartAt = -1.0;
+	// The old lap ends the way a race does (the server replaces its session
+	// without a word, so nothing else will say so); the shell stays out of
+	// sight until the new one is up (ApplyWatchLayers).
+	SetRaceViewActive(false);
+	ApplyWatchLayers();
+	SendHotlapWatchRequest();
+}
+
+void UApexRootWidget::EndHotlapWatch()
+{
+	bHotlapWatchWanted = false;
+	bHotlapJoinPending = false;
+	HotlapRestartAt = -1.0;
+	// The watch chose its own car; the player's pick is the garage's again.
+	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+	if (Net && Flow && Net->IsAuthenticated() && Flow->HasPendingCar())
+	{
+		Net->SelectCar(Flow->GetPendingCarId());
+	}
+	if (!bRaceViewActive)
+	{
+		ApplyWatchLayers();
+	}
+}
+
+void UApexRootWidget::UpdateHotlapWatch()
+{
+	ApplyHotlapWatchCommandLine();
+	if (!bHotlapWatchWanted)
+	{
+		return;
+	}
+	const double Now = FPlatformTime::Seconds();
+	if (HotlapRestartAt >= 0.0 && Now >= HotlapRestartAt)
+	{
+		RestartHotlapWatch();
+		return;
+	}
+	// An answer that never comes: back to the menu rather than a blank screen.
+	constexpr double GiveUpAfterSeconds = 15.0;
+	if (bHotlapJoinPending && HotlapRequestedAt >= 0.0 && Now - HotlapRequestedAt > GiveUpAfterSeconds)
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("Hotlap watch: the server did not start it within %.0f s"), GiveUpAfterSeconds);
+		ShowToast(TEXT("The server did not start the hotlap"), true);
+		if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
+		{
+			Net->LeaveSession();
+		}
+		SetRaceViewActive(false);
+		EndHotlapWatch();
+		BackStack.Reset();
+		ActivateScreen(EApexScreen::MainMenu);
+	}
+}
+
+void UApexRootWidget::ApplyHotlapWatchCommandLine()
+{
+	// -ApexWatchHotlap, with -ApexTrack=<stem|name>, -ApexCar=<name>,
+	// -ApexWeather=<sunny|cloudy|overcast|lightrain|heavyrain> and
+	// -ApexTimeOfDay=HH:MM: watch a hotlap as soon as the lobby is known, for
+	// an unattended run.
+	if (bHotlapCommandLineApplied || !FParse::Param(FCommandLine::Get(), TEXT("ApexWatchHotlap")))
+	{
+		return;
+	}
+	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+	if (!Net || !Flow || !Net->IsAuthenticated() || !Net->IsUdpReady() || !AApexRaceDirector::Find(this)
+		|| Net->GetCachedLobbyState().TrackConfigs.IsEmpty() || Net->GetCachedLobbyState().CarConfigs.IsEmpty())
+	{
+		return;
+	}
+	bHotlapCommandLineApplied = true;
+
+	const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
+	FString Wanted;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexTrack="), Wanted))
+	{
+		for (const FHotlapOption& Track : HotlapTracks(*Net, *Flow, Content))
+		{
+			if (Track.Stem.Equals(Wanted, ESearchCase::IgnoreCase) || Track.Name.Contains(Wanted))
+			{
+				Flow->SetPendingTrack(Track.Id);
+				break;
+			}
+		}
+	}
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexCar="), Wanted))
+	{
+		for (const FHotlapOption& Car : HotlapCars(*Net, *Flow))
+		{
+			if (Car.Name.Contains(Wanted))
+			{
+				Flow->SetPendingCar(Car.Id);
+				break;
+			}
+		}
+	}
+	FString Value;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexWeather="), Value))
+	{
+		const FString Key = Value.TrimStartAndEnd().ToLower().Replace(TEXT("_"), TEXT("")).Replace(TEXT(" "), TEXT(""));
+		Flow->CreateConditions.Weather = Key == TEXT("cloudy") ? EApexWeather::Cloudy
+			: Key == TEXT("overcast") ? EApexWeather::Overcast
+			: (Key == TEXT("lightrain") || Key == TEXT("rain")) ? EApexWeather::LightRain
+			: Key == TEXT("heavyrain") ? EApexWeather::HeavyRain
+			: EApexWeather::Sunny;
+	}
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexTimeOfDay="), Value))
+	{
+		FString HourText, MinuteText;
+		if (!Value.Split(TEXT(":"), &HourText, &MinuteText))
+		{
+			HourText = Value;
+			MinuteText = TEXT("0");
+		}
+		if (HourText.IsNumeric() && MinuteText.IsNumeric())
+		{
+			Flow->CreateConditions.TimeOfDayMinutes =
+				(FCString::Atoi(*HourText) * 60 + FCString::Atoi(*MinuteText)) % FApexSessionConditions::MinutesPerDay;
+		}
+	}
+	UE_LOG(LogApexSim, Log, TEXT("-ApexWatchHotlap: starting"));
+	StartHotlapWatch();
 }
 
 // ---------------------------------------------------------------------------

@@ -863,6 +863,66 @@ namespace
 		return true;
 	}
 
+	/** `CornerData` — PascalCase keys. */
+	bool ParseTrackCorner(FMsgPackReader& Reader, FApexTrackCorner& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("Number"))      { bOk = Reader.ReadUInt64(Raw); Out.Number = static_cast<int32>(Raw); }
+			else if (Key == TEXT("Name"))   { bOk = Reader.ReadString(Out.Name); }
+			else if (Key == TEXT("EntryM")) { bOk = Reader.ReadFloat(Out.EntryM); }
+			else if (Key == TEXT("ApexM"))  { bOk = Reader.ReadFloat(Out.ApexM); }
+			else if (Key == TEXT("ExitM"))  { bOk = Reader.ReadFloat(Out.ExitM); }
+			else if (Key == TEXT("Left"))   { bOk = Reader.ReadBool(Out.bLeft); }
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `TrackCornersData` — PascalCase keys. */
+	bool ParseTrackCorners(FMsgPackReader& Reader, FApexTrackCorners& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("SessionId"))         { bOk = Reader.ReadString(Out.SessionId); }
+			else if (Key == TEXT("TrackLengthM")) { bOk = Reader.ReadFloat(Out.TrackLengthM); }
+			else if (Key == TEXT("Corners"))      { bOk = ParseArrayOf(Reader, Out.Corners, &ParseTrackCorner); }
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/**
 	 * `LapTimingData` — PascalCase keys. `Flags` is a bit field, unpacked
 	 * here into the four booleans the HUD paints with.
@@ -1997,6 +2057,7 @@ namespace
 		if (Variant == TEXT("SessionRoster"))      { return EApexServerMessageType::SessionRoster; }
 		if (Variant == TEXT("RacingLine"))         { return EApexServerMessageType::RacingLine; }
 		if (Variant == TEXT("TrackSectors"))       { return EApexServerMessageType::TrackSectors; }
+		if (Variant == TEXT("TrackCorners"))       { return EApexServerMessageType::TrackCorners; }
 		if (Variant == TEXT("LapTiming"))          { return EApexServerMessageType::LapTiming; }
 		if (Variant == TEXT("LapRecord"))          { return EApexServerMessageType::LapRecord; }
 		if (Variant == TEXT("GhostLap"))           { return EApexServerMessageType::GhostLap; }
@@ -2044,6 +2105,9 @@ namespace
 
 		case EApexServerMessageType::TrackSectors:
 			return ParseTrackSectors(Reader, Out.TrackSectors);
+
+		case EApexServerMessageType::TrackCorners:
+			return ParseTrackCorners(Reader, Out.TrackCorners);
 
 		case EApexServerMessageType::LapTiming:
 			return ParseLapTiming(Reader, Out.LapTiming);

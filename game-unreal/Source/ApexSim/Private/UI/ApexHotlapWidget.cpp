@@ -385,7 +385,7 @@ const FApexCarSetupSheet* UApexHotlapWidget::GetSheet() const
 {
 	const UGameInstance* GameInstance = GetGameInstance();
 	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
-	if (!Net)
+	if (!Net || bMenuMode)
 	{
 		return nullptr;
 	}
@@ -404,7 +404,7 @@ const FApexCarSetupSheet* UApexHotlapWidget::GetCompoundSheet() const
 {
 	const UGameInstance* GameInstance = GetGameInstance();
 	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
-	if (!Net)
+	if (!Net || bMenuMode)
 	{
 		return nullptr;
 	}
@@ -1216,7 +1216,7 @@ void UApexHotlapWidget::RefreshSubtitle()
 	const UApexMenuFlowSubsystem* Flow = GameInstance ? GameInstance->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
 	TArray<FString> Parts;
 	FApexSessionSummary Session;
-	if (Net && Net->FindSessionById(Net->GetCurrentSessionId(), Session) && !Session.TrackName.IsEmpty())
+	if (!bMenuMode && Net && Net->FindSessionById(Net->GetCurrentSessionId(), Session) && !Session.TrackName.IsEmpty())
 	{
 		Parts.Add(Session.TrackName);
 	}
@@ -1316,7 +1316,11 @@ void UApexHotlapWidget::ApplyQualifyingRows()
 {
 	// Qualifying: no record-lap replay or ghost, and the tyres always leave
 	// cold (the outlap is the warm-up); the title and the note say so.
-	const ESlateVisibility HotlapOnly = bQualifying ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
+	const ESlateVisibility HotlapOnly = (bQualifying || bMenuMode) ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
+	if (SaveReplayButton)
+	{
+		SaveReplayButton->SetVisibility(bMenuMode ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+	}
 	for (UApexButtonWidget* Button : { ReplayButton.Get(), GhostButton.Get(), TyresButton.Get() })
 	{
 		if (Button)
@@ -1330,18 +1334,48 @@ void UApexHotlapWidget::ApplyQualifyingRows()
 	}
 	if (GarageCaption)
 	{
-		GarageCaption->SetText(FText::FromString(bQualifying ? TEXT("QUALIFYING") : TEXT("HOTLAP")));
+		GarageCaption->SetText(FText::FromString(bMenuMode ? TEXT("SETUPS") : bQualifying ? TEXT("QUALIFYING") : TEXT("HOTLAP")));
 	}
 	if (GarageNote)
 	{
-		GarageNote->SetText(FText::FromString(bQualifying
+		GarageNote->SetText(FText::FromString(bMenuMode
+			? TEXT("Tune the pending car and save named setups here. The working setup goes out with you when you join any session. Units show in clicks until a session sends the car's figures.")
+			: bQualifying
 			? TEXT("The car leaves the pit exit on cold tyres and drives a whole outlap: the first lap over the line is the warm-up, the next one is timed. Tune here, or watch the scoreboard.")
 			: TEXT("The car spawns on the run-up before the line, so the first lap is a flying one. Fuel and tyres are put in here, in the garage.")));
 	}
 	if (GoOutButton)
 	{
-		GoOutButton->SetLabel(bQualifying ? TEXT("GO OUT FOR A LAP") : TEXT("GO OUT ON TRACK"));
+		GoOutButton->SetLabel(bMenuMode ? TEXT("DONE")
+			: bQualifying ? TEXT("GO OUT FOR A LAP") : TEXT("GO OUT ON TRACK"));
 	}
+}
+
+void UApexHotlapWidget::SetMenuMode(bool bInMenuMode)
+{
+	if (bMenuMode == bInMenuMode)
+	{
+		return;
+	}
+	bMenuMode = bInMenuMode;
+	// Rebuilt from the car's own figures (or clicks) whichever way it went.
+	CompoundCardNames.Reset();
+	ApplyQualifyingRows();
+	if (View == EApexHotlapView::Garage)
+	{
+		RefreshSetup();
+		RefreshSubtitle();
+	}
+}
+
+bool UApexHotlapWidget::HandleBack()
+{
+	if (bMenuMode && View == EApexHotlapView::Garage)
+	{
+		OnAction.Broadcast(EApexHotlapAction::CloseEditor);
+		return true;
+	}
+	return false;
 }
 
 void UApexHotlapWidget::SetBoardOpen(bool bOpen)
@@ -1996,7 +2030,7 @@ void UApexHotlapWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	const FName Id = Button->GetActionId();
 	if (Id == ActionGoOut)
 	{
-		OnAction.Broadcast(EApexHotlapAction::GoOut);
+		OnAction.Broadcast(bMenuMode ? EApexHotlapAction::CloseEditor : EApexHotlapAction::GoOut);
 	}
 	else if (Id == ActionReplay)
 	{

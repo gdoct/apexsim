@@ -73,6 +73,7 @@ trailing commas.
   "visible": "=car.present",       // optional: hide the whole component
   "enabled": true,                 // false: leave it out (how custom/ hides a default)
   "default_enabled": true,         // false: shipped off; the HUD editor offers to add it
+  "scene": "",                     // optional: belongs to a scene, see "Scenes"
   "root": {                        // the element tree
     "type": "panel", "padding": [16, 8], "background": "surface",
     "children": [
@@ -98,6 +99,18 @@ line into the next corner.
 
 The region is where a component starts. Once a player moves it in the HUD
 editor, `custom/layout.json` pins it somewhere else, and that wins.
+
+### Scenes
+
+A component with a `"scene"` belongs to a view that replaces the HUD instead
+of adding to it. There is one, `hotlap_watch`: the HUD of a watched hotlap
+(Main menu > Garage > Tracks > Watch hotlap, `hotlap.active`). While a scene
+is up only its components are shown, and every component without a scene
+stands aside; outside it the scene's components are not shown. The shipped
+set is `hotlap_header`, `hotlap_corner`, `hotlap_timing`, `hotlap_car` and
+`hotlap_controls`; a `custom/` component with one of those ids replaces it, as
+anywhere, and one of your own with `"scene": "hotlap_watch"` joins them. The
+HUD editor lays out the ordinary HUD and does not show a scene's components.
 
 ## The HUD editor
 
@@ -351,11 +364,12 @@ race"). The shipped `spectator_tower`, `spectator_driver` and
 |---|---|
 | `spectate.active` | watching: there is no car of the player's, the local car is the one on screen |
 | `spectate.live` | the race is a live session (not a recorded showcase, file or demo) |
-| `spectate.source` | `showcase`, `file`, `demo`, `replay` or `live` (*null* when not watching) |
+| `spectate.source` | `showcase`, `file`, `demo`, `replay`, `live` or `hotlap` (*null* when not watching) |
 | `spectate.camera` | the watch camera: `TV`, `CHASE`, `ONBOARD` (*null* when not watching) |
 | `spectate.auto` | the TV director chooses the car |
 | `spectate.tower_mode` | the timing tower's column, stepped with T: `interval`, `gap`, `last`, `best`, `tyres` |
 | `spectate.waiting` | watching, between two races (no cars yet) |
+| `hotlap.active` | the race on screen is a watched hotlap: one AI car lapping alone (`spectate.source` is `hotlap`). It is what turns the `hotlap_watch` scene on (see "Scenes") |
 
 A saved replay (Main menu > Replays) is watched the same way, with
 `spectate.source` `replay` and its transport below; the shipped
@@ -410,6 +424,25 @@ Lap times, sectors and track limits are the server's: it times every tick.
 | `timing.optimal_s` | the local car's best sectors added up |
 | `sector.current` | the sector the car is in, from 1 |
 | `sector.count` | sectors in a lap (3 unless the track names its own) |
+
+### The corner
+
+The corners are the server's (`TrackCorners`, sent with a watched hotlap):
+the track guide's stops, numbered in lap order from the start line and named
+from the circuit's dossier with the name the game shows, never the real one.
+These describe the corner the local car is in or, between corners, the next
+one it comes to; all *null* (and `corner.inside` false) without corners or a
+car.
+
+| Name | Meaning |
+|---|---|
+| `corner.number` | its number, from 1 |
+| `corner.name` | its name, *null* when the circuit's dossier has none for it |
+| `corner.label` | what to show: the name, else "Turn N" |
+| `corner.count` | corners in the lap |
+| `corner.direction` | `left` or `right`, the way its main turn goes |
+| `corner.inside` | the car is between its entry and its exit |
+| `corner.distance_m` | metres to its entry (0 inside it) |
 
 ### The car
 

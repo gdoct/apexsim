@@ -220,7 +220,7 @@ impl LobbyManager {
                 return false;
             }
 
-            if session.session_kind == SessionKind::Demo {
+            if session.session_kind.is_watch_only() {
                 warn!("Session {} is a demo and takes no players", session_id);
                 return false;
             }

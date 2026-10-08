@@ -216,6 +216,13 @@ void ApexBootSettingsIo::Parse(const FString& Text, FApexBootSettings& InOut)
 				WarnBadValue(LineNumber, TEXT("port"), Value, TEXT("expected 1 to 65535"));
 			}
 		}
+		else if (Path == TEXT("launcher.show"))
+		{
+			if (!ParseBool(Value, InOut.bShowLauncher))
+			{
+				WarnBadValue(LineNumber, TEXT("show"), Value, TEXT("expected true or false"));
+			}
+		}
 		else
 		{
 			UE_LOG(LogApexSim, Warning,
@@ -255,14 +262,20 @@ FString ApexBootSettingsIo::Serialise(const FApexBootSettings& Settings)
 		TEXT("  # The server the game connects to when it starts. 127.0.0.1 is a server\n")
 		TEXT("  # on this machine, such as the one the launcher starts for you.\n")
 		TEXT("  host: %s\n")
-		TEXT("  port: %d\n"),
+		TEXT("  port: %d\n")
+		TEXT("\n")
+		TEXT("launcher:\n")
+		TEXT("  # false: launcher.exe starts the game straight away, without a server, and\n")
+		TEXT("  # shows no window. Run launcher.exe --show to bring the window back.\n")
+		TEXT("  show: %s\n"),
 		Settings.Resolution.X, Settings.Resolution.Y,
 		WindowModeName(Settings.WindowMode),
 		Settings.bVSync ? TEXT("true") : TEXT("false"),
 		Settings.FrameLimit,
 		Settings.Screens,
 		*Settings.ServerHost,
-		Settings.ServerPort);
+		Settings.ServerPort,
+		Settings.bShowLauncher ? TEXT("true") : TEXT("false"));
 }
 
 // --- Subsystem ---------------------------------------------------------------

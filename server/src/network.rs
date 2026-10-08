@@ -474,6 +474,12 @@ pub enum ServerMessage {
     // Sent once, with the racing line.
     TrackSectors(TrackSectorsData),
 
+    // TCP - The corners of the session's track, numbered in lap order and
+    // named from the dossier, so a screen can say "T7 Eau Rouge" for the
+    // station a car is at. Sent once, after `SessionJoined`, to the watcher
+    // of a hotlap (`SessionKind::HotlapWatch`).
+    TrackCorners(TrackCornersData),
+
     // TCP - One car crossed a timing line: a sector split, or the lap. Sent
     // to every human in the session as it happens. Reliable on purpose — a
     // dropped split leaves a hole in the driver's lap that nothing refills.
@@ -545,6 +551,7 @@ impl ServerMessage {
             ServerMessage::SessionRoster(_) => MessagePriority::Critical,
             ServerMessage::RacingLine(_) => MessagePriority::Critical,
             ServerMessage::TrackSectors(_) => MessagePriority::Critical,
+            ServerMessage::TrackCorners(_) => MessagePriority::Critical,
             ServerMessage::LapTiming(_) => MessagePriority::Critical,
             ServerMessage::LapRecord(_) => MessagePriority::Critical,
             // Asked for once; a reply that never came leaves the driver
@@ -1284,6 +1291,39 @@ pub struct TrackSectorsData {
     /// Lap length in metres, so the client can work in fractions of a lap.
     pub track_length_m: f32,
     pub boundaries_m: Vec<f32>,
+}
+
+/// One corner (or chicane, or esses) of the lap: a stop of the track guide
+/// (`track_guide::detect_corners`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct CornerData {
+    /// From 1, in lap order from the start line.
+    pub number: u8,
+    /// The dossier's display name for it; empty when it has none (the
+    /// client says "Turn N").
+    pub name: String,
+    /// Stations in metres from the line, each in `[0, lap)`: the corner runs
+    /// from `entry_m` forward (past the line, if need be) to `exit_m`.
+    pub entry_m: f32,
+    pub apex_m: f32,
+    pub exit_m: f32,
+    /// The main turn goes left.
+    pub left: bool,
+}
+
+/// The corners of the session's track.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TrackCornersData {
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub session_id: SessionId,
+    /// Lap length in metres.
+    pub track_length_m: f32,
+    pub corners: Vec<CornerData>,
 }
 
 /// A car crossed a timing line.
@@ -2491,6 +2531,51 @@ mod tests {
     /// car setup are pinned: run
     /// `cargo test lap_timing_wire_format -- --nocapture` and paste the
     /// output into the client's `ApexGoldenBlobs.h`.
+    #[test]
+    fn test_track_corners_wire_format() {
+        let session_id = Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap();
+        let corners = ServerMessage::TrackCorners(TrackCornersData {
+            session_id,
+            track_length_m: 5793.0,
+            corners: vec![
+                CornerData {
+                    number: 1,
+                    name: "Variante del Rettifilo".to_string(),
+                    entry_m: 5700.0,
+                    apex_m: 120.0,
+                    exit_m: 210.0,
+                    left: false,
+                },
+                CornerData {
+                    number: 2,
+                    name: String::new(),
+                    entry_m: 900.0,
+                    apex_m: 950.0,
+                    exit_m: 1000.0,
+                    left: true,
+                },
+            ],
+        });
+        let bytes = rmp_serde::to_vec_named(&corners).unwrap();
+        println!(
+            "S_TrackCorners: {}",
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::TrackCorners(data) => {
+                assert_eq!(data.corners.len(), 2);
+                assert_eq!(data.corners[0].name, "Variante del Rettifilo");
+                assert!(data.corners[1].left);
+                assert_eq!(data.track_length_m, 5793.0);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
     #[test]
     fn test_lap_timing_wire_format() {
         fn hex(bytes: &[u8]) -> String {

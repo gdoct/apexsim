@@ -272,3 +272,4 @@ out/site/
 # Deployment settings (scripts/deploy_server.ps1)
 deploy/deploy.user.psd1
 build/deploy/
+records/*

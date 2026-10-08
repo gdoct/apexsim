@@ -9,6 +9,13 @@
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/Image.h"
+#include "Components/ScaleBox.h"
+#include "Components/ScrollBox.h"
+#include "Track/ApexTrackContentSubsystem.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
+#include "ApexSettingsSave.h"
 #include "Components/SizeBox.h"
 #include "Components/Spacer.h"
 #include "Components/TextBlock.h"
@@ -36,12 +43,24 @@ namespace
 		const FName ChangeSetup(TEXT("ChangeSetup"));
 		const FName Browse(TEXT("Browse"));
 		const FName Watch(TEXT("Watch"));
+		const FName WatchHotlap(TEXT("WatchHotlap"));
 		const FName Replays(TEXT("Replays"));
 		const FName Create(TEXT("Create"));
 		const FName Garage(TEXT("Garage"));
 		const FName Tracks(TEXT("Tracks"));
 		const FName Connect(TEXT("Connect"));
 		const FName Settings(TEXT("Settings"));
+		const FName Quick(TEXT("Quick"));
+		const FName Back(TEXT("Back"));
+		const FName GoGarage(TEXT("GoGarage"));
+		const FName GoDrive(TEXT("GoDrive"));
+		const FName GoCars(TEXT("GoCars"));
+		const FName Setups(TEXT("Setups"));
+		const FName ListItem(TEXT("ListItem"));
+		const FName GoTracks(TEXT("GoTracks"));
+		const FName GoCreate(TEXT("GoCreate"));
+		const FName QuitBack(TEXT("QuitBack"));
+		const FName QuitExit(TEXT("QuitExit"));
 	}
 
 	/**
@@ -196,14 +215,289 @@ void UApexMainMenuWidget::BuildLayout()
 		},
 		{
 			{ TEXT("Start"), TEXT("Settings") },
-			{ TEXT("Esc"), TEXT("Quit") },
+			{ TEXT("Alt+Enter"), TEXT("Display mode") },
+			{ TEXT("Esc"), TEXT("Menu") },
 		}));
 
-	WidgetTree->RootWidget = ApexUI::MakePanel(
+	// The page itself is clear so the backdrop can show through; the solid
+	// colour is the bottom layer.
+	UBorder* Background = ApexUI::MakePanel(
 		*WidgetTree,
 		Page,
 		FMargin(),
-		ApexUI::MakeBrush(ApexUI::Palette::Background));
+		ApexUI::MakeBrush(FLinearColor::Transparent));
+
+	UOverlay* Stack = WidgetTree->ConstructWidget<UOverlay>();
+
+	UBorder* Base = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::Background));
+	UOverlaySlot* BaseSlot = Stack->AddChildToOverlay(Base);
+	BaseSlot->SetHorizontalAlignment(HAlign_Fill);
+	BaseSlot->SetVerticalAlignment(VAlign_Fill);
+
+	// Full-bleed art (the focused circuit) under a dark scrim that keeps the
+	// text readable; hidden until a page asks for it (SetBackdrop).
+	UOverlay* Art = WidgetTree->ConstructWidget<UOverlay>();
+	BackdropImage = WidgetTree->ConstructWidget<UImage>();
+	BackdropImage->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.0f));
+	UScaleBox* Scale = WidgetTree->ConstructWidget<UScaleBox>();
+	Scale->SetStretch(EStretch::ScaleToFill);
+	Scale->AddChild(BackdropImage);
+	UOverlaySlot* ImageSlot = Art->AddChildToOverlay(Scale);
+	ImageSlot->SetHorizontalAlignment(HAlign_Fill);
+	ImageSlot->SetVerticalAlignment(VAlign_Fill);
+	UOverlaySlot* ScrimSlot = Art->AddChildToOverlay(
+		ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(FLinearColor(0.02f, 0.02f, 0.025f, 0.6f))));
+	ScrimSlot->SetHorizontalAlignment(HAlign_Fill);
+	ScrimSlot->SetVerticalAlignment(VAlign_Fill);
+	Art->SetVisibility(ESlateVisibility::Collapsed);
+	BackdropLayer = Art;
+	UOverlaySlot* ArtSlot = Stack->AddChildToOverlay(Art);
+	ArtSlot->SetHorizontalAlignment(HAlign_Fill);
+	ArtSlot->SetVerticalAlignment(VAlign_Fill);
+
+	UOverlaySlot* PageSlot = Stack->AddChildToOverlay(Background);
+	PageSlot->SetHorizontalAlignment(HAlign_Fill);
+	PageSlot->SetVerticalAlignment(VAlign_Fill);
+
+	QuitOverlay = BuildQuitOverlay();
+	QuitOverlay->SetVisibility(ESlateVisibility::Collapsed);
+	UOverlaySlot* QuitSlot = Stack->AddChildToOverlay(QuitOverlay);
+	QuitSlot->SetHorizontalAlignment(HAlign_Fill);
+	QuitSlot->SetVerticalAlignment(VAlign_Fill);
+
+	WidgetTree->RootWidget = Stack;
+
+	ShowPage(EPage::Root, /*bFocus*/ false);
+}
+
+UWidget* UApexMainMenuWidget::BuildQuitOverlay()
+{
+	UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>();
+	ApexUI::AddV(Box, ApexUI::MakeLabel(*WidgetTree, TEXT("Menu")), FMargin(0.0f, 0.0f, 0.0f, 14.0f));
+
+	FApexButtonSpec Spec;
+	Spec.Variant = EApexButtonVariant::Panel;
+	Spec.bCentreLabel = true;
+
+	const TPair<FName, FString> Rows[] = {
+		TPair<FName, FString>(Action::QuitBack, TEXT("Back to main menu")),
+		TPair<FName, FString>(Action::QuitExit, TEXT("Exit game")),
+	};
+	for (const TPair<FName, FString>& Row : Rows)
+	{
+		Spec.ActionId = Row.Key;
+		Spec.Label = Row.Value;
+		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		Button->Setup(Spec);
+		Button->OnActivated.AddDynamic(this, &UApexMainMenuWidget::HandleButtonActivated);
+		ApexUI::AddV(Box, Button, FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		QuitButtons.Add(Button);
+	}
+
+	UBorder* Card = ApexUI::MakePanel(
+		*WidgetTree,
+		ApexUI::MakeSized(*WidgetTree, Box, 420.0f, -1.0f),
+		FMargin(28.0f),
+		ApexUI::MakeBrush(ApexUI::Palette::Background, ApexUI::Palette::Border, 1.0f));
+
+	// Dims the screen and swallows the mouse, so the rail behind cannot be clicked.
+	UBorder* Dim = ApexUI::MakePanel(
+		*WidgetTree,
+		Card,
+		FMargin(),
+		ApexUI::MakeBrush(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f)));
+	Dim->SetHorizontalAlignment(HAlign_Center);
+	Dim->SetVerticalAlignment(VAlign_Center);
+	return Dim;
+}
+
+void UApexMainMenuWidget::SetQuitOverlayOpen(bool bOpen)
+{
+	bQuitOpen = bOpen;
+	if (QuitOverlay)
+	{
+		QuitOverlay->SetVisibility(bOpen ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	ApplyFocus();
+}
+
+void UApexMainMenuWidget::QuitGame()
+{
+	if (UApexNetSubsystem* Net = GetNet())
+	{
+		Net->Disconnect();
+	}
+	UKismetSystemLibrary::QuitGame(this, nullptr, EQuitPreference::Quit, false);
+}
+
+void UApexMainMenuWidget::CycleDisplayMode()
+{
+	UApexSettingsSubsystem* Settings =
+		GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+	if (!Settings || !Settings->Get())
+	{
+		return;
+	}
+
+	// EWindowMode order: 0 fullscreen, 1 borderless, 2 windowed.
+	const int32 Next = (Settings->Get()->DisplayMode + 1) % 3;
+	Settings->SetDisplayMode(Next);
+	static const TCHAR* Names[] = { TEXT("Fullscreen"), TEXT("Borderless"), TEXT("Windowed") };
+	ShowToast(FString::Printf(TEXT("Display mode: %s"), Names[Next]));
+}
+
+// ---------------------------------------------------------------------------
+// Rail pages
+// ---------------------------------------------------------------------------
+
+void UApexMainMenuWidget::ShowPage(EPage Page, bool bFocus)
+{
+	CurrentPage = Page;
+	RailButtons.Reset();
+
+	if (HeroHome && HeroList)
+	{
+		HeroHome->SetVisibility(IsListPage() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		HeroList->SetVisibility(IsListPage() ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		SetBackdrop(nullptr);
+		if (IsListPage())
+		{
+			BuildList(Page == EPage::Cars);
+		}
+	}
+
+	for (int32 i = 0; i < PageBoxes.Num(); ++i)
+	{
+		const bool bShown = i == static_cast<int32>(Page);
+		if (PageBoxes[i])
+		{
+			PageBoxes[i]->SetVisibility(bShown ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+			if (bShown)
+			{
+				for (UWidget* Child : PageBoxes[i]->GetAllChildren())
+				{
+					if (UApexButtonWidget* Button = Cast<UApexButtonWidget>(Child))
+					{
+						RailButtons.Add(Button);
+					}
+				}
+			}
+		}
+	}
+
+	RailIndex = 0;
+	for (int32 i = 0; i < RailButtons.Num(); ++i)
+	{
+		if (ApexNav::CanFocus(RailButtons[i]))
+		{
+			RailIndex = i;
+			break;
+		}
+	}
+
+	if (bFocus)
+	{
+		ActiveColumn = 1;
+		ApplyFocus();
+	}
+}
+
+bool UApexMainMenuWidget::GoUp()
+{
+	switch (CurrentPage)
+	{
+	case EPage::Garage:
+	case EPage::Drive:  ShowPage(EPage::Root);   return true;
+	case EPage::Cars:
+	case EPage::Tracks: ShowPage(EPage::Garage); return true;
+	case EPage::Create: ShowPage(EPage::Drive);  return true;
+	default:            return false;
+	}
+}
+
+UVerticalBox* UApexMainMenuWidget::BuildPage(EPage Page)
+{
+	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
+
+	// Rows that exist in the plan (docs/game/MAINMENU.md) but have no game
+	// behind them yet: greyed, no focus, listed under "Not implemented yet".
+	auto Row = [&](const TCHAR* Label, FName Id)
+	{
+		FApexButtonSpec Spec;
+		Spec.Variant = EApexButtonVariant::Panel;
+		Spec.Label = Label;
+		Spec.ActionId = Id;
+		AddColumnButton(Column, Spec, true);
+	};
+	auto Unavailable = [&](const TCHAR* Label)
+	{
+		FApexButtonSpec Locked;
+		Locked.Variant = EApexButtonVariant::Locked;
+		Locked.Badge = TEXT("Not yet");
+		Locked.Label = Label;
+		AddColumnButton(Column, Locked, true);
+	};
+	auto Heading = [&](const TCHAR* Text)
+	{
+		ApexUI::AddV(Column, ApexUI::MakeLabel(*WidgetTree, Text), FMargin(0.0f, 0.0f, 0.0f, 14.0f));
+	};
+
+	switch (Page)
+	{
+	case EPage::Root:
+		Heading(TEXT("Menu"));
+		Row(TEXT("Garage"),       Action::GoGarage);
+		Row(TEXT("Drive"),        Action::GoDrive);
+		Row(TEXT("Watch a race"), Action::Watch);
+		Row(TEXT("Settings"),     Action::Settings);
+		break;
+
+	case EPage::Garage:
+		Heading(TEXT("Garage"));
+		Row(TEXT("Garage"),  Action::GoCars);
+		Row(TEXT("Replays"), Action::Replays);
+		Row(TEXT("Tracks"),  Action::GoTracks);
+		break;
+
+	case EPage::Cars:
+		Heading(TEXT("Garage / Garage"));
+		Row(TEXT("Manage car setups"), Action::Setups);
+		Row(TEXT("View car stats"), Action::Garage);
+		break;
+
+	case EPage::Tracks:
+		Heading(TEXT("Garage / Tracks"));
+		Row(TEXT("Watch hotlap"), Action::WatchHotlap);
+		Row(TEXT("See track guide"), Action::Tracks);
+		break;
+
+	case EPage::Drive:
+		Heading(TEXT("Drive"));
+		Row(TEXT("Create session"),    Action::GoCreate);
+		Row(TEXT("Browse sessions"),   Action::Browse);
+		Row(TEXT("Connect to server"), Action::Connect);
+		break;
+
+	case EPage::Create:
+		Heading(TEXT("Drive / Create session"));
+		Row(TEXT("Quick"), Action::Quick);
+		Unavailable(TEXT("Race weekend"));
+		Row(TEXT("Custom"), Action::Create);
+		break;
+
+	default:
+		break;
+	}
+
+	if (Page != EPage::Root)
+	{
+		FApexButtonSpec Spec;
+		Spec.Variant = EApexButtonVariant::Ghost;
+		Spec.Label = TEXT("Back");
+		Spec.ActionId = Action::Back;
+		AddColumnButton(Column, Spec, true);
+	}
+	return Column;
 }
 
 UWidget* UApexMainMenuWidget::BuildTopBar()
@@ -254,7 +548,29 @@ UWidget* UApexMainMenuWidget::BuildTopBar()
 
 UWidget* UApexMainMenuWidget::BuildHero()
 {
+	// Two faces in one column: the home hero, and the car / circuit list the
+	// Garage pages show (ShowPage switches them).
+	UVerticalBox* Wrap = WidgetTree->ConstructWidget<UVerticalBox>();
 	UVerticalBox* Hero = WidgetTree->ConstructWidget<UVerticalBox>();
+	HeroHome = Hero;
+	ApexUI::AddV(Wrap, Hero, FMargin(), HAlign_Fill, 1.0f);
+
+	UVerticalBox* ListColumn = WidgetTree->ConstructWidget<UVerticalBox>();
+	ListTitleText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(11.0f, 200), ApexUI::Palette::Accent);
+	ApexUI::AddV(ListColumn, ListTitleText, FMargin(0.0f, 0.0f, 0.0f, 14.0f), HAlign_Left);
+	ListBox = WidgetTree->ConstructWidget<UVerticalBox>();
+	ListScroll = WidgetTree->ConstructWidget<UScrollBox>();
+	ListScroll->AddChild(ListBox);
+
+	// The names on the left, what the focused one looks like beside them.
+	UHorizontalBox* ListRow = WidgetTree->ConstructWidget<UHorizontalBox>();
+	ApexUI::AddH(ListRow, ApexUI::MakeSized(*WidgetTree, ListScroll, 320.0f, -1.0f), FMargin(), VAlign_Fill);
+	ListDetail = WidgetTree->ConstructWidget<UVerticalBox>();
+	ApexUI::AddH(ListRow, ListDetail, FMargin(36.0f, 0.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);
+	ApexUI::AddV(ListColumn, ListRow, FMargin(), HAlign_Fill, 1.0f);
+	ListColumn->SetVisibility(ESlateVisibility::Collapsed);
+	HeroList = ListColumn;
+	ApexUI::AddV(Wrap, ListColumn, FMargin(), HAlign_Fill, 1.0f);
 
 	EyebrowText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(11.0f, 200), ApexUI::Palette::Accent);
 	ApexUI::AddV(Hero, EyebrowText, FMargin(0.0f, 0.0f, 0.0f, 14.0f), HAlign_Left);
@@ -311,38 +627,244 @@ UWidget* UApexMainMenuWidget::BuildHero()
 	// Pushes everything above to the top of the column.
 	ApexUI::AddV(Hero, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
 
-	return Hero;
+	return Wrap;
+}
+
+// ---------------------------------------------------------------------------
+// Car / circuit list (Garage pages)
+// ---------------------------------------------------------------------------
+
+void UApexMainMenuWidget::BuildList(bool bCars)
+{
+	UApexNetSubsystem* Net = GetNet();
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!ListBox || !Net || !Flow)
+	{
+		return;
+	}
+
+	bListShowsCars = bCars;
+	ListBox->ClearChildren();
+	ListButtons.Reset();
+	ListIds.Reset();
+
+	if (ListTitleText)
+	{
+		ListTitleText->SetText(FText::FromString(bCars ? TEXT("GARAGE  /  CARS") : TEXT("GARAGE  /  TRACKS")));
+	}
+
+	const FApexLobbyState& Lobby = Net->GetCachedLobbyState();
+	const FString Pending = bCars ? Flow->GetPendingCarId() : Flow->GetPendingTrackId();
+
+	auto AddItem = [&](const FString& Id, const FString& Name, const FString& Badge)
+	{
+		FApexButtonSpec Spec;
+		Spec.Variant = EApexButtonVariant::Panel;
+		Spec.Label = Name;
+		Spec.Badge = Badge;
+		Spec.ActionId = Action::ListItem;
+		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		Button->Setup(Spec);
+		Button->SetSelected(Id == Pending);
+		Button->OnActivated.AddDynamic(this, &UApexMainMenuWidget::HandleButtonActivated);
+		ApexUI::AddV(ListBox, Button, FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		ListButtons.Add(Button);
+		ListIds.Add(Id);
+	};
+
+	if (bCars)
+	{
+		for (const FApexCarConfigSummary& Car : Lobby.CarConfigs)
+		{
+			FApexCarCatalogRow Row;
+			const bool bRow = Flow->GetCarCatalogRow(Car.Id, Row) && !Row.DisplayName.IsEmpty();
+			AddItem(Car.Id, bRow ? Row.DisplayName : Car.Name, FString());
+		}
+	}
+	else
+	{
+		for (const FApexTrackConfigSummary& Track : Lobby.TrackConfigs)
+		{
+			FApexTrackCatalogRow Row;
+			const bool bRow = Flow->GetTrackCatalogRow(Track.Id, Row) && !Row.DisplayName.IsEmpty();
+			AddItem(Track.Id, bRow ? Row.DisplayName : Track.Name,
+				bRow && Row.LengthM > 0.0f ? FString::Printf(TEXT("%.2f km"), Row.LengthM / 1000.0f) : FString());
+		}
+	}
+
+	if (ListButtons.Num() == 0)
+	{
+		ApexUI::AddV(ListBox, ApexUI::MakeText(*WidgetTree,
+			Net->IsAuthenticated() ? TEXT("Nothing to show yet.") : TEXT("Connect to a server to see the list."),
+			ApexUI::Font::Body(14.0f), ApexUI::Palette::TextMuted));
+	}
+
+	ListIndex = FMath::Max(0, ListIds.IndexOfByKey(Pending));
+	DetailShownId.Reset();
+	RefreshListDetail(ListIndex);
+}
+
+void UApexMainMenuWidget::RefreshListDetail(int32 Index)
+{
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!ListDetail || !Flow)
+	{
+		return;
+	}
+	if (!ListIds.IsValidIndex(Index))
+	{
+		ListDetail->ClearChildren();
+		DetailShownId.Reset();
+		return;
+	}
+	if (DetailShownId == ListIds[Index])
+	{
+		return;
+	}
+	DetailShownId = ListIds[Index];
+	ListDetail->ClearChildren();
+
+	using namespace ApexUI;
+
+	// A title in the hero's style: the distinctive half bright, the generic half grey.
+	auto AddTitle = [&](const FString& Name)
+	{
+		FString Head;
+		FString Tail;
+		SplitTitle(Name, Head, Tail);
+		const int32 Length = Head.Len() + Tail.Len();
+		const float Size = Length > 26 ? 34.0f : (Length > 18 ? 42.0f : 52.0f);
+		UHorizontalBox* Title = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(Title, MakeText(*WidgetTree, Head, Font::Display(Size), Palette::TextPrimary), FMargin(), VAlign_Bottom);
+		AddH(Title, MakeText(*WidgetTree, Tail, Font::Display(Size), Palette::TextDisabled), FMargin(), VAlign_Bottom);
+		AddV(ListDetail, Title, FMargin(0.0f, 18.0f, 0.0f, 6.0f), HAlign_Left);
+	};
+
+	auto AddStats = [&](const TArray<TPair<FString, FString>>& Stats)
+	{
+		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+		for (int32 i = 0; i < Stats.Num(); ++i)
+		{
+			UTextBlock* Value = nullptr;
+			AddH(Row, MakeStat(*WidgetTree, Stats[i].Key, Value), FMargin(i == 0 ? 0.0f : 10.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+			Value->SetText(FText::FromString(Stats[i].Value));
+		}
+		AddV(ListDetail, Row, FMargin(0.0f, 22.0f, 0.0f, 0.0f));
+	};
+
+	if (bListShowsCars)
+	{
+		SetBackdrop(nullptr);
+		FApexCarCatalogRow Car;
+		const bool bRow = Flow->GetCarCatalogRow(DetailShownId, Car);
+
+		// There is no car render on disk to show, so the class itself is the picture.
+		AddV(ListDetail, MakeArtPlaceholder(*WidgetTree,
+			bRow ? ApexCatalog::DisplayClass(Car.CarClass).ToUpper() : FString(TEXT("CAR"))));
+		AddTitle(bRow ? Car.DisplayName : FString(TEXT("Car")));
+
+		TArray<FString> Sub;
+		if (bRow)
+		{
+			if (!Car.Brand.IsEmpty())               { Sub.Add(Car.Brand.ToUpper()); }
+			if (!Car.ManufacturerCountry.IsEmpty()) { Sub.Add(Car.ManufacturerCountry.ToUpper()); }
+			if (Car.ModelYear > 0)                  { Sub.Add(FString::FromInt(Car.ModelYear)); }
+		}
+		AddV(ListDetail, MakeText(*WidgetTree, FString::Join(Sub, TEXT("  /  ")), Font::Mono(11.0f, 120), Palette::TextMuted));
+		AddStats({
+			{ TEXT("Class"), bRow ? ApexCatalog::DisplayClass(Car.CarClass) : FString(TEXT("—")) },
+			{ TEXT("Power"), bRow && Car.MaxPowerKw > 0.0f ? FString::Printf(TEXT("%d kW"), FMath::RoundToInt(Car.MaxPowerKw)) : FString(TEXT("—")) },
+			{ TEXT("Mass"),  bRow && Car.MassKg > 0.0f ? FString::Printf(TEXT("%d kg"), FMath::RoundToInt(Car.MassKg)) : FString(TEXT("—")) },
+		});
+		return;
+	}
+
+	FApexTrackCatalogRow Track;
+	const bool bRow = Flow->GetTrackCatalogRow(DetailShownId, Track);
+
+	// The circuit itself, large: this is the picture the page is about, and it
+	// fills the screen behind the page too.
+	UTexture2D* Art = bRow ? UApexTrackContentSubsystem::PreviewOf(Track) : nullptr;
+	SetBackdrop(Art);
+	AddV(ListDetail, MakePreview(*WidgetTree, Art, TEXT("No preview"), -1.0f, 300.0f));
+	AddTitle(bRow ? Track.DisplayName : FString(TEXT("Circuit")));
+
+	TArray<FString> Sub;
+	if (bRow)
+	{
+		if (!Track.Country.IsEmpty())  { Sub.Add(Track.Country.ToUpper()); }
+		if (!Track.City.IsEmpty())     { Sub.Add(Track.City.ToUpper()); }
+		if (!Track.Category.IsEmpty()) { Sub.Add(ApexCatalog::DisplayClass(Track.Category).ToUpper()); }
+	}
+	AddV(ListDetail, MakeText(*WidgetTree, FString::Join(Sub, TEXT("  /  ")), Font::Mono(11.0f, 120), Palette::TextMuted));
+
+	if (bRow && !Track.Description.IsEmpty())
+	{
+		UTextBlock* Description = MakeText(*WidgetTree, Track.Description, Font::Body(13.0f), Palette::TextMuted);
+		Description->SetAutoWrapText(true);
+		AddV(ListDetail, Description, FMargin(0.0f, 10.0f, 0.0f, 0.0f));
+	}
+
+	float Best = 0.0f;
+	AddStats({
+		{ TEXT("Length"),    bRow && Track.LengthM > 0.0f ? FString::Printf(TEXT("%.2f km"), Track.LengthM / 1000.0f) : FString(TEXT("—")) },
+		{ TEXT("Your best"), Flow->GetBestLapSeconds(DetailShownId, Best) ? UApexMenuFlowSubsystem::FormatLapTime(Best) : FString(TEXT("Never driven")) },
+	});
+}
+
+void UApexMainMenuWidget::RefreshList()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!IsListPage() || !Net)
+	{
+		return;
+	}
+	const FApexLobbyState& Lobby = Net->GetCachedLobbyState();
+	const int32 Count = bListShowsCars ? Lobby.CarConfigs.Num() : Lobby.TrackConfigs.Num();
+	if (Count != ListButtons.Num())
+	{
+		BuildList(bListShowsCars);
+	}
+}
+
+void UApexMainMenuWidget::CommitListItem(int32 Index)
+{
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!Flow || !ListIds.IsValidIndex(Index))
+	{
+		return;
+	}
+
+	ListIndex = Index;
+	for (int32 i = 0; i < ListButtons.Num(); ++i)
+	{
+		if (ListButtons[i])
+		{
+			ListButtons[i]->SetSelected(i == Index);
+		}
+	}
+
+	if (bListShowsCars)
+	{
+		if (Flow->GetPendingCarId() != ListIds[Index]) { Flow->SetPendingCar(ListIds[Index]); }
+	}
+	else
+	{
+		if (Flow->GetPendingTrackId() != ListIds[Index]) { Flow->SetPendingTrack(ListIds[Index]); }
+	}
 }
 
 UWidget* UApexMainMenuWidget::BuildRail()
 {
+	// One column per page, only the current one shown (ShowPage).
 	UVerticalBox* Rail = WidgetTree->ConstructWidget<UVerticalBox>();
 
-	ApexUI::AddV(Rail, ApexUI::MakeLabel(*WidgetTree, TEXT("Elsewhere")), FMargin(0.0f, 0.0f, 0.0f, 14.0f));
-
-	FApexButtonSpec Spec;
-	Spec.Variant = EApexButtonVariant::Panel;
-
-	Spec.Label = TEXT("Browse sessions"); Spec.ActionId = Action::Browse;  AddColumnButton(Rail, Spec, true);
-	Spec.Label = TEXT("Watch a race");    Spec.ActionId = Action::Watch;   AddColumnButton(Rail, Spec, true);
-	Spec.Label = TEXT("Replays");         Spec.ActionId = Action::Replays; AddColumnButton(Rail, Spec, true);
-	Spec.Label = TEXT("Create session");  Spec.ActionId = Action::Create;  AddColumnButton(Rail, Spec, true);
-	Spec.Label = TEXT("Garage");          Spec.ActionId = Action::Garage;  AddColumnButton(Rail, Spec, true);
-	Spec.Label = TEXT("Tracks");          Spec.ActionId = Action::Tracks;  AddColumnButton(Rail, Spec, true);
-	Spec.Label = TEXT("Connect to server");Spec.ActionId = Action::Connect; AddColumnButton(Rail, Spec, true);
-	Spec.Label = TEXT("Settings");        Spec.ActionId = Action::Settings; AddColumnButton(Rail, Spec, true);
-
-	ApexUI::AddV(Rail, ApexUI::MakeLabel(*WidgetTree, TEXT("In development")), FMargin(0.0f, 30.0f, 0.0f, 14.0f));
-
-	// Announced but not built. Kept in the rail so the shape of the finished
-	// product is visible; they take no focus and do nothing.
-	FApexButtonSpec LockedSpec;
-	LockedSpec.Variant = EApexButtonVariant::Locked;
-	LockedSpec.Badge = TEXT("Locked");
-	for (const TCHAR* Label : { TEXT("Race weekend"), TEXT("Qualifying") })
+	PageBoxes.Init(nullptr, static_cast<int32>(EPage::Count));
+	for (int32 i = 0; i < static_cast<int32>(EPage::Count); ++i)
 	{
-		LockedSpec.Label = Label;
-		AddColumnButton(Rail, LockedSpec, true);
+		UVerticalBox* Box = BuildPage(static_cast<EPage>(i));
+		PageBoxes[i] = Box;
+		ApexUI::AddV(Rail, Box);
 	}
 
 	ApexUI::AddV(Rail, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
@@ -360,7 +882,8 @@ UApexButtonWidget* UApexMainMenuWidget::AddColumnButton(UVerticalBox* Column, co
 
 	if (bIsRail)
 	{
-		RailButtons.Add(Button);
+		// ShowPage fills RailButtons with the visible page's rows.
+		AllRailButtons.Add(Button);
 	}
 	else
 	{
@@ -378,6 +901,7 @@ void UApexMainMenuWidget::RefreshAll()
 	RefreshHeader();
 	RefreshHero();
 	RefreshRail();
+	RefreshList();
 }
 
 void UApexMainMenuWidget::RefreshHeader()
@@ -562,7 +1086,7 @@ void UApexMainMenuWidget::RefreshRail()
 	const FApexLobbyState& Lobby = Net->GetCachedLobbyState();
 	const bool bOnline = Net->IsAuthenticated();
 
-	for (UApexButtonWidget* Button : RailButtons)
+	for (UApexButtonWidget* Button : AllRailButtons)
 	{
 		if (!Button)
 		{
@@ -576,10 +1100,6 @@ void UApexMainMenuWidget::RefreshRail()
 			Button->SetBadge(
 				bOnline ? (Live > 0 ? FString::Printf(TEXT("%d live"), Live) : TEXT("none")) : TEXT("offline"),
 				Live > 0 && bOnline ? ApexUI::Palette::Live : ApexUI::Palette::TextMuted);
-		}
-		else if (Id == Action::Create)
-		{
-			Button->SetBadge(TEXT("Host"), ApexUI::Palette::TextMuted);
 		}
 		else if (Id == Action::Garage)
 		{
@@ -619,6 +1139,37 @@ void UApexMainMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaT
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	// The backdrop comes and goes on its own clock, not the lobby's.
 	RefreshWatchBadge();
+
+	// The circuit art fades in when the focused row changes, and out when it goes.
+	if (BackdropImage && !FMath::IsNearlyEqual(BackdropAlpha, BackdropTarget, 0.002f))
+	{
+		BackdropAlpha = FMath::FInterpTo(BackdropAlpha, BackdropTarget, InDeltaTime, 5.0f);
+		BackdropImage->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, BackdropAlpha));
+		if (BackdropTarget <= 0.0f && BackdropAlpha < 0.01f && BackdropLayer)
+		{
+			BackdropLayer->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+}
+
+void UApexMainMenuWidget::SetBackdrop(UTexture2D* Texture)
+{
+	if (!BackdropImage || !BackdropLayer)
+	{
+		return;
+	}
+	if (Texture)
+	{
+		BackdropImage->SetBrushFromTexture(Texture, /*bMatchSize*/ false);
+		BackdropLayer->SetVisibility(ESlateVisibility::HitTestInvisible);
+		// Restart the fade so a new circuit arrives rather than snaps.
+		BackdropAlpha = 0.0f;
+		BackdropTarget = 1.0f;
+	}
+	else
+	{
+		BackdropTarget = 0.0f;
+	}
 }
 
 void UApexMainMenuWidget::RefreshWatchBadge()
@@ -630,7 +1181,7 @@ void UApexMainMenuWidget::RefreshWatchBadge()
 		return;
 	}
 	WatchBadgeState = bOn ? 1 : 0;
-	for (UApexButtonWidget* Button : RailButtons)
+	for (UApexButtonWidget* Button : AllRailButtons)
 	{
 		if (Button && Button->GetActionId() == Action::Watch)
 		{
@@ -649,9 +1200,31 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	const FName Id = Button->GetActionId();
 	UApexRootWidget* Root = GetRoot();
 
-	if (Id == Action::Start)
+	if (Id == Action::Start || Id == Action::Quick)
 	{
 		StartRememberedSession();
+	}
+	else if (Id == Action::GoGarage)  { ShowPage(EPage::Garage); }
+	else if (Id == Action::GoDrive)   { ShowPage(EPage::Drive); }
+	else if (Id == Action::GoCars)    { ShowPage(EPage::Cars); }
+	else if (Id == Action::GoTracks)  { ShowPage(EPage::Tracks); }
+	else if (Id == Action::GoCreate)  { ShowPage(EPage::Create); }
+	else if (Id == Action::Back)      { GoUp(); }
+	else if (Id == Action::ListItem)
+	{
+		// Pick it, then on to the rail's actions for it.
+		CommitListItem(ApexNav::IndexOf(ListButtons, Button));
+		ActiveColumn = 1;
+		ApplyFocus();
+	}
+	else if (Id == Action::QuitBack)
+	{
+		SetQuitOverlayOpen(false);
+		ShowPage(EPage::Root);
+	}
+	else if (Id == Action::QuitExit)
+	{
+		QuitGame();
 	}
 	else if (Id == Action::ChangeSetup)
 	{
@@ -673,6 +1246,15 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Root->WatchBackdrop();
 		}
 	}
+	else if (Id == Action::WatchHotlap)
+	{
+		// One AI car laps the pending circuit alone, full screen; the server
+		// works the lap out for the car and the sky as it is asked for.
+		if (Root)
+		{
+			Root->StartHotlapWatch();
+		}
+	}
 	else if (Id == Action::Create)
 	{
 		ShowScreen(EApexScreen::SessionCreate);
@@ -684,6 +1266,13 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Root->ScreenAfterCarSelect = EApexScreen::MainMenu;
 		}
 		ShowScreen(EApexScreen::CarSelect);
+	}
+	else if (Id == Action::Setups)
+	{
+		if (Root)
+		{
+			Root->OpenSetupEditor();
+		}
 	}
 	else if (Id == Action::Tracks)
 	{
@@ -816,16 +1405,18 @@ FReply UApexMainMenuWidget::NativeOnKeyDown(const FGeometry& InGeometry, const F
 		return FReply::Handled();
 	}
 
-	if (InKeyEvent.GetKey() == EKeys::Escape)
+	if (Key == EKeys::Enter && InKeyEvent.IsAltDown())
 	{
-		// The footer promises Escape quits here. Elsewhere Back means "back",
-		// but the main menu is the bottom of the stack. Only the key itself: a
-		// pad's B button must not end the game.
-		if (UApexNetSubsystem* Net = GetNet())
-		{
-			Net->Disconnect();
-		}
-		UKismetSystemLibrary::QuitGame(this, nullptr, EQuitPreference::Quit, false);
+		// Flip the display mode; never an accept on the focused row.
+		CycleDisplayMode();
+		return FReply::Handled();
+	}
+
+	if (Key == EKeys::Escape)
+	{
+		// Escape opens (and closes) the Back to main menu / Exit game menu. Only
+		// the key itself: a pad's B button steps up a page, see HandleBack.
+		SetQuitOverlayOpen(!bQuitOpen);
 		return FReply::Handled();
 	}
 
@@ -837,12 +1428,66 @@ void UApexMainMenuWidget::FocusDefault()
 	ApplyFocus();
 }
 
+bool UApexMainMenuWidget::HandleBack()
+{
+	if (bQuitOpen)
+	{
+		SetQuitOverlayOpen(false);
+	}
+	else
+	{
+		GoUp();
+	}
+	return true;
+}
+
 bool UApexMainMenuWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
 {
+	if (bQuitOpen)
+	{
+		const int32 At = ApexNav::IndexOf(QuitButtons, Source);
+		if (At != INDEX_NONE && QuitButtons.Num() > 1)
+		{
+			const bool bUp = Direction == EUINavigation::Up || Direction == EUINavigation::Previous;
+			const bool bDown = Direction == EUINavigation::Down || Direction == EUINavigation::Next;
+			if (bUp || bDown)
+			{
+				ApexNav::Focus(QuitButtons[(At + (bDown ? 1 : QuitButtons.Num() - 1)) % QuitButtons.Num()]);
+			}
+		}
+		return true;
+	}
+
 	if (ApexNav::IsSequential(Direction))
 	{
 		SwitchColumn();
 		return true;
+	}
+
+	const int32 ListAt = ApexNav::IndexOf(ListButtons, Source);
+	if (ListAt != INDEX_NONE && IsListPage())
+	{
+		ActiveColumn = 0;
+		ListIndex = ListAt;
+		switch (Direction)
+		{
+		case EUINavigation::Up:
+			ListIndex = FMath::Max(0, ListAt - 1);
+			ApplyFocus();
+			return true;
+		case EUINavigation::Down:
+			ListIndex = FMath::Min(ListButtons.Num() - 1, ListAt + 1);
+			ApplyFocus();
+			return true;
+		case EUINavigation::Right:
+			// Over to the rail with this row as the pick.
+			CommitListItem(ListAt);
+			ActiveColumn = 1;
+			ApplyFocus();
+			return true;
+		default:
+			return true;
+		}
 	}
 
 	const int32 HeroAt = ApexNav::IndexOf(HeroButtons, Source);
@@ -930,14 +1575,34 @@ void UApexMainMenuWidget::MoveRail(int32 Delta)
 
 void UApexMainMenuWidget::SwitchColumn()
 {
+	if (ActiveColumn == 0 && IsListPage())
+	{
+		CommitListItem(ListIndex);
+	}
 	ActiveColumn = ActiveColumn == 0 ? 1 : 0;
 	ApplyFocus();
 }
 
 void UApexMainMenuWidget::ApplyFocus()
 {
-	const TArray<TObjectPtr<UApexButtonWidget>>& Column = ActiveColumn == 0 ? HeroButtons : RailButtons;
-	const int32 Index = ActiveColumn == 0 ? HeroIndex : RailIndex;
+	if (bQuitOpen)
+	{
+		// The Esc menu owns focus until it is dismissed.
+		if (QuitButtons.Num() > 0 && ApexNav::Focus(QuitButtons[0]))
+		{
+			return;
+		}
+	}
+
+	const bool bList = ActiveColumn == 0 && IsListPage();
+	const TArray<TObjectPtr<UApexButtonWidget>>& Column = ActiveColumn == 0 ? (bList ? ListButtons : HeroButtons) : RailButtons;
+	const int32 Index = ActiveColumn == 0 ? (bList ? ListIndex : HeroIndex) : RailIndex;
+
+	if (bList && ListScroll && ListButtons.IsValidIndex(ListIndex))
+	{
+		ListScroll->ScrollWidgetIntoView(ListButtons[ListIndex], false);
+		RefreshListDetail(ListIndex);
+	}
 
 	if (Column.IsValidIndex(Index) && ApexNav::Focus(Column[Index]))
 	{

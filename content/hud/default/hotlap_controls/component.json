@@ -1,0 +1,65 @@
+// What can be changed about the watched hotlap, and the keys that do it (the
+// pad's buttons once a pad is in use). Each change starts the lap over for
+// the new choice. Part of the `hotlap_watch` scene.
+{
+  "name": "Hotlap: controls",
+  "scene": "hotlap_watch",
+  "region": "top-right",
+  "order": 10,
+  "root": {
+    "type": "column",
+    "children": [
+      {
+        "type": "row", "halign": "right",
+        "children": [
+          { "type": "panel", "valign": "center", "padding": [10, 4], "background": "surface",
+            "children": [{ "type": "text", "font": "mono", "size": 11, "tracking": 80, "color": "text",
+              "text": "='CAM ' + spectate.camera" }] }
+        ]
+      },
+      {
+        "type": "panel", "halign": "right", "margin": [0, 10, 0, 0], "padding": [10, 8],
+        "background": "=alpha('background', 0.72)",
+        "children": [{
+          "type": "column",
+          "children": [
+            {
+              "type": "row", "halign": "right", "visible": "=!hud.gamepad",
+              "children": [
+                { "type": "keycap", "text": "← → CAR" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "W WEATHER" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "[ ] TIME" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "PGUP PGDN CIRCUIT" }
+              ]
+            },
+            {
+              "type": "row", "halign": "right", "margin": [0, 6, 0, 0], "visible": "=!hud.gamepad",
+              "children": [
+                { "type": "keycap", "text": "C CAMERA" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "H HIDE" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "ESC MENU" }
+              ]
+            },
+            {
+              "type": "row", "halign": "right", "visible": "=hud.gamepad",
+              "children": [
+                { "type": "keycap", "text": "LB RB CAR" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "X WEATHER" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "VIEW TIME" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "L3 CIRCUIT" }
+              ]
+            },
+            {
+              "type": "row", "halign": "right", "margin": [0, 6, 0, 0], "visible": "=hud.gamepad",
+              "children": [
+                { "type": "keycap", "text": "Y CAMERA" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "R3 HIDE" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "START MENU" }
+              ]
+            }
+          ]
+        }]
+      }
+    ]
+  }
+}

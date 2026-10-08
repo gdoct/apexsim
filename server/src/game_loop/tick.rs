@@ -116,7 +116,11 @@ pub(crate) async fn tick_sessions(
             && !game_session.session.ai_player_ids.is_empty();
         // A demo session never has a human participant: it lives as long as
         // its spectator does, and the lobby removes it when they leave.
-        let is_demo_session = game_session.session.session_kind == SessionKind::Demo;
+        // (A watched hotlap is the same: one AI car, one spectator.)
+        let is_demo_session = game_session.session.session_kind.is_watch_only();
+        // A demo's field is menu scenery and nobody reads its splits; a
+        // watched hotlap exists to show them.
+        let sends_timing = game_session.session.session_kind != SessionKind::Demo;
 
         if real_player_count == 0 && !is_demo_lap_with_ai && !is_demo_session {
             debug!(
@@ -236,7 +240,7 @@ pub(crate) async fn tick_sessions(
         if game_session.has_lap_events() {
             let track_id = game_session.track_config.id;
             let events = game_session.take_lap_events();
-            if !is_demo_session {
+            if sends_timing {
                 for out in events {
                     let Some(car_index) = game_session.car_index_of(&out.player_id) else {
                         continue;

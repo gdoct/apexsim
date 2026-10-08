@@ -734,6 +734,11 @@ server:
   # on this machine, such as the one the launcher starts for you.
   host: 127.0.0.1
   port: 9000
+
+launcher:
+  # false: launcher.exe starts the game straight away, without a server, and
+  # shows no window. Run launcher.exe --show to bring the window back.
+  show: true
 '@
 Write-TextFile (Join-Path $GameDir 'settings.sample.yml') $sampleSettings
 

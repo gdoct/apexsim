@@ -52,6 +52,24 @@ struct FApexTrackMaterial
 	{
 		return Family == TEXT("scenery");
 	}
+
+	/**
+	 * Whether a surface of this material lies flat on the ground: the road,
+	 * the curbs, the paint, the pit lane, the decals and the exporter's
+	 * `surface_*` bands (grass apron, gravel, run-off, astroturf). They
+	 * receive shadows but cast none worth drawing (a 5 cm curb's shadow is
+	 * under a shadow texel at most clipmap levels), while each 250 m section
+	 * is one of the large instances that fill virtual shadow maps'
+	 * non-Nanite marking queue (docs/game/VSM_NON_NANITE_SHADOWS.md). The
+	 * terrain (`ground`, the `horizon`), structures, walls and an imported
+	 * circuit's own ground (`ac_*`, which may be a hillside) are not flat.
+	 */
+	bool IsFlatSurface() const
+	{
+		return Family == TEXT("road") || Family == TEXT("curb") || Family == TEXT("marking")
+			|| Family == TEXT("pit_lane") || Family == TEXT("decal")
+			|| (Family == TEXT("surface") && Key.StartsWith(TEXT("surface_")));
+	}
 };
 
 /** One bakeable static mesh. */

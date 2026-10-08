@@ -399,7 +399,8 @@ FReply UApexButtonWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKe
 	}
 
 	// Enter, Space, gamepad A — whatever the platform calls "accept".
-	if (IsInteractive() && ApexNav::IsAccept(InKeyEvent))
+	// Alt+Enter is the display-mode toggle (main menu), not an accept.
+	if (IsInteractive() && !InKeyEvent.IsAltDown() && ApexNav::IsAccept(InKeyEvent))
 	{
 		Activate();
 		return FReply::Handled();

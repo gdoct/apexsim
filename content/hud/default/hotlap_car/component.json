@@ -1,0 +1,48 @@
+// The watched car's basics: gear, speed, a rev strip, and the throttle and
+// brake as they travel. Part of the `hotlap_watch` scene.
+{
+  "name": "Hotlap: car",
+  "scene": "hotlap_watch",
+  "region": "bottom-right",
+  "order": 10,
+  "margin": [0, 0, 24, 0],
+  "root": {
+    "type": "panel", "padding": [18, 12], "background": "=alpha('surface', 0.88)",
+    "children": [{
+      "type": "row",
+      "children": [
+        // The pedals.
+        {
+          "type": "row", "valign": "bottom", "margin": [0, 0, 16, 0],
+          "children": [
+            { "type": "bar", "valign": "bottom", "width": 10, "height": 70, "direction": "up",
+              "color": "live", "value": "=car.throttle", "margin": [0, 0, 5, 0] },
+            { "type": "bar", "valign": "bottom", "width": 10, "height": 70, "direction": "up",
+              "color": "error", "value": "=car.brake" }
+          ]
+        },
+        // Gear and speed, the revs under them.
+        {
+          "type": "column",
+          "children": [
+            {
+              "type": "row",
+              "children": [
+                { "type": "text", "valign": "center", "width": 54, "font": "display", "size": 56,
+                  "text": "=has(car.gear_text) ? car.gear_text : 'N'",
+                  "color": "=car.rpm_fraction > 0.95 ? 'error' : 'accent'" },
+                { "type": "column", "valign": "center", "margin": [12, 0, 0, 0],
+                  "children": [
+                    { "type": "text", "font": "display", "size": 36, "text": "=has(car.speed) ? fmt(car.speed) : '0'" },
+                    { "type": "label", "text": "{hud.speed_unit}" }
+                  ] }
+              ]
+            },
+            { "type": "bar", "margin": [0, 8, 0, 0], "width": 168, "height": 6, "direction": "right",
+              "color": "=car.rpm_fraction > 0.95 ? 'error' : 'text_secondary'", "value": "=car.rpm_fraction" }
+          ]
+        }
+      ]
+    }]
+  }
+}

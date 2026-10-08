@@ -98,6 +98,11 @@ struct APEXSIM_API FApexHudInputs
 	/** The timing tower's column (ApexSpectate::TowerModeKey). */
 	FString SpectateTowerMode = TEXT("interval");
 
+	/** The race on screen is a watched hotlap (SessionKind::HotlapWatch): one AI car lapping alone. */
+	bool bHotlapWatch = false;
+	/** The track's corners (`TrackCorners`), for `corner.*`; null or not valid when none were sent. */
+	const FApexTrackCorners* Corners = nullptr;
+
 	/** A saved replay is playing (UApexReplayRecorder), and where its transport stands. */
 	bool bReplay = false;
 	double ReplaySeconds = 0.0;

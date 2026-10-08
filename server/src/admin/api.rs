@@ -142,12 +142,12 @@ async fn overview(ctx: &AdminContext) -> Resp {
         let sessions = st
             .sessions
             .values()
-            .filter(|s| s.session.session_kind != SessionKind::Demo)
+            .filter(|s| !s.session.session_kind.is_watch_only())
             .count();
         let humans = st
             .sessions
             .values()
-            .filter(|s| s.session.session_kind != SessionKind::Demo)
+            .filter(|s| !s.session.session_kind.is_watch_only())
             .map(|s| {
                 s.session
                     .participants
@@ -234,7 +234,7 @@ async fn sessions(ctx: &AdminContext, with_demo: bool) -> Resp {
     let mut list: Vec<(f64, Value)> = st
         .sessions
         .values()
-        .filter(|s| with_demo || s.session.session_kind != SessionKind::Demo)
+        .filter(|s| with_demo || !s.session.session_kind.is_watch_only())
         .map(|gs| {
             let humans = gs
                 .session
@@ -255,7 +255,7 @@ async fn sessions(ctx: &AdminContext, with_demo: bool) -> Resp {
                     "laps": gs.session.lap_limit,
                     "race_seconds": gs.session.race_seconds,
                     "elapsed_s": elapsed,
-                    "demo": gs.session.session_kind == SessionKind::Demo,
+                    "demo": gs.session.session_kind.is_watch_only(),
                 }),
             )
         })
@@ -509,7 +509,7 @@ async fn players(ctx: &AdminContext) -> Resp {
     for gs in st
         .sessions
         .values()
-        .filter(|gs| gs.session.session_kind != SessionKind::Demo)
+        .filter(|gs| !gs.session.session_kind.is_watch_only())
     {
         for (pid, profile) in &gs.ai_profiles {
             let car = gs

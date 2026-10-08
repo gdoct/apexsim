@@ -39,8 +39,8 @@ public:
 
 	virtual void FocusDefault() override;
 	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
-	/** Bottom of the flow: Back does nothing here. Escape quits and Start opens settings, see NativeOnKeyDown. */
-	virtual bool HandleBack() override { return true; }
+	/** Back (pad B etc.) closes the Esc menu or steps up a rail page. Escape itself opens the Esc menu, see NativeOnKeyDown. */
+	virtual bool HandleBack() override;
 
 protected:
 	virtual void NativeOnInitialized() override;
@@ -90,6 +90,69 @@ private:
 
 	/** The settings overlay, over this screen, on the controls page. */
 	void OpenSettings();
+
+	// --- Rail pages -------------------------------------------------------------
+	//
+	// The rail is a small tree of pages (docs/game/MAINMENU.md): Root holds the
+	// four main entries, the others hold what is under Garage and Drive.
+
+	enum class EPage : uint8 { Root, Garage, Cars, Tracks, Drive, Create, Count };
+
+	/** Shows one page of the rail and focuses its first usable row. */
+	void ShowPage(EPage Page, bool bFocus = true);
+	/** One level up; false when already at the root. */
+	bool GoUp();
+	/** Builds a page's column (heading, rows, a Back row unless Root). */
+	class UVerticalBox* BuildPage(EPage Page);
+
+	/** Cycles fullscreen -> borderless -> windowed (Alt+Enter). */
+	void CycleDisplayMode();
+
+	/** The Esc menu: Back to main menu / Exit game. */
+	UWidget* BuildQuitOverlay();
+	void SetQuitOverlayOpen(bool bOpen);
+	void QuitGame();
+
+	// The Garage > Garage and Garage > Tracks pages show the cars / circuits as a
+	// list in the hero's place: the focused row is committed as the pending car /
+	// track (Enter, click, Right or Tab), and the rail acts on it.
+	bool IsListPage() const { return CurrentPage == EPage::Cars || CurrentPage == EPage::Tracks; }
+	/** Fills the list from the lobby snapshot (cars or circuits). */
+	void BuildList(bool bCars);
+	/** Rebuilds the list when the lobby's count differs from what is shown. */
+	void RefreshList();
+	/** Makes the row at Index the pending car / track and marks it. */
+	void CommitListItem(int32 Index);
+
+	UPROPERTY(Transient) TObjectPtr<UWidget> HeroHome;
+	UPROPERTY(Transient) TObjectPtr<UWidget> HeroList;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ListTitleText;
+	UPROPERTY(Transient) TObjectPtr<class UVerticalBox> ListBox;
+	UPROPERTY(Transient) TObjectPtr<class UScrollBox> ListScroll;
+	/** The big picture and facts of the focused row. */
+	UPROPERTY(Transient) TObjectPtr<class UVerticalBox> ListDetail;
+	FString DetailShownId;
+
+	/** Full-screen art behind the page (the focused circuit); fades in when it changes. */
+	void SetBackdrop(class UTexture2D* Texture);
+	UPROPERTY(Transient) TObjectPtr<UWidget> BackdropLayer;
+	UPROPERTY(Transient) TObjectPtr<class UImage> BackdropImage;
+	float BackdropAlpha = 0.0f;
+	float BackdropTarget = 0.0f;
+	void RefreshListDetail(int32 Index);
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ListButtons;
+	TArray<FString> ListIds;
+	int32 ListIndex = 0;
+	bool bListShowsCars = false;
+
+	EPage CurrentPage = EPage::Root;
+	bool bQuitOpen = false;
+	/** Indexed by EPage. */
+	UPROPERTY(Transient) TArray<TObjectPtr<class UVerticalBox>> PageBoxes;
+	UPROPERTY(Transient) TObjectPtr<class UWidget> QuitOverlay;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> QuitButtons;
+	/** Every rail row of every page (badges are refreshed on all of them); RailButtons is the visible page's. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> AllRailButtons;
 
 	// --- Widgets --------------------------------------------------------------
 

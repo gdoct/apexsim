@@ -2,9 +2,17 @@
 //! `run_server` entry point used by both the binary and integration tests.
 
 use crate::{
-    car_loader::CarLoader, config::ServerConfig, data::*, game_session::GameSession,
-    health::HealthState, lobby::LobbyManager, metrics::ServerMetrics, replay::ReplayManager,
-    track_content::TrackContent, track_loader::TrackLoader, transport::TransportLayer,
+    car_loader::CarLoader,
+    config::ServerConfig,
+    data::*,
+    game_session::{GameSession, HOTLAP_WATCH_SKILL},
+    health::HealthState,
+    lobby::LobbyManager,
+    metrics::ServerMetrics,
+    replay::ReplayManager,
+    track_content::TrackContent,
+    track_loader::TrackLoader,
+    transport::TransportLayer,
 };
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -350,7 +358,13 @@ impl ServerState {
         // Create AI profiles if AI count is specified
         // No preferred cars: the session deals the field from the host car's
         // class (`class_field`), and the roster tells clients who drives what.
-        let ai_profiles = if ai_count > 0 {
+        let ai_profiles = if session_kind == SessionKind::HotlapWatch {
+            // The one car laps in the host's own car, on the line itself.
+            let mut driver = crate::ai_driver::AiDriverProfile::new("Hotlap", HOTLAP_WATCH_SKILL)
+                .with_car(host_car_id);
+            driver.exact_line = true;
+            vec![driver]
+        } else if ai_count > 0 {
             generate_ai_profiles(ai_count, session.ai_skill)
         } else {
             Vec::new()
@@ -369,7 +383,7 @@ impl ServerState {
             self.config.debug.stand_in_driver,
             &self.config.debug.events,
         );
-        if hooks.is_active() && session_kind != SessionKind::Demo {
+        if hooks.is_active() && !session_kind.is_watch_only() {
             warn!("Debug hooks on for session {}: {:?}", session_id, hooks);
             game_session.set_debug_hooks(hooks);
         }
@@ -378,6 +392,14 @@ impl ServerState {
         if ai_count > 0 {
             game_session.spawn_ai_drivers();
             debug!("Spawned {} AI drivers for session {}", ai_count, session_id);
+        }
+
+        // A watched hotlap starts at once, with the corners for its HUD.
+        if session_kind == SessionKind::HotlapWatch {
+            let path = self.track_content.path_of(track_config_id);
+            let corners = crate::track_guide::wire_corners(&game_session.track_config, path);
+            game_session.set_track_corners(corners);
+            game_session.start_hotlap_watch();
         }
 
         self.sessions.insert(session_id, game_session);

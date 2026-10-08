@@ -2132,6 +2132,12 @@ It sits next to the executable: `Game/settings.yml` in a release package,
 `<Release>/Game/ApexSim/` in a packaged build, so its parent is the folder
 holding `ApexSim.exe`.
 
+A `launcher: show:` key (default true) belongs to `launcher.exe`, not the game:
+the launcher's "Show launcher" checkbox writes it, and with it false the
+launcher reads the file before creating a window and starts the game at once
+(no server), exiting; `launcher.exe --show` sets it back to true and shows the
+window. The game only carries it through its rewrites (`bShowLauncher`).
+
 The file wins over the save slots for the values it covers, which is the whole
 point of it. `UApexSettingsSubsystem` and `UApexMenuFlowSubsystem` name it as an
 `InitializeDependency`, adopt its values on load, and push back on save; a file
@@ -3883,6 +3889,95 @@ the console. A ghost needs a record: `cargo test --release --test
 hotlap_test generate_ghost_fixture -- --ignored` writes an AI lap round Monza
 in the LMP2 into `APEXSIM_GHOST_DIR` (the server's `[records] dir`) under
 `APEXSIM_GHOST_PLAYER` (default `Player`).
+
+### Watching a hotlap (`SessionKind::HotlapWatch`, `hotlap_watch` HUD scene; docs/game/MAINMENU.md)
+
+Main menu > Garage > Tracks > Watch hotlap: one AI car laps a circuit alone,
+on its racing line and at the speed its car can manage, full screen, with a
+minimal HUD. Nothing is stored or rendered ahead: **the server works the lap
+out when it is asked for**, so any car, weather, hour and circuit is one
+request, and changing any of them is a new session.
+
+**The session** (`SessionKind::HotlapWatch = 4`, `data.rs`; `SessionKind::
+is_watch_only` is Demo or HotlapWatch). `CreateSession` with that kind makes
+a private session of one AI car in the host's own car (`ServerState::
+create_session`: the profile is `AiDriverProfile::new("Hotlap",
+HOTLAP_WATCH_SKILL)` with `preferred_car_id` and `exact_line`, so it is
+the guide's lone teaching car), the host seated as a spectator
+(`start_demo_session`, shared with the demo) and answered with
+`SessionJoined { session_kind: HotlapWatch, your_grid_position: 0 }`, then
+`TrackSectors` and the new `TrackCorners`. It lives as long as its watcher,
+is unlisted and unjoinable, writes no replay; unlike a demo its timing lines
+are sent (`tick.rs`: `sends_timing`), so the client's timing board fills as
+in any session. A second `CreateSession` of the kind from the same host
+**replaces** the first without a `SessionLeft` (another car or sky is one
+request); `ai_count`, `max_players` and `ai_skill` on the wire are ignored.
+
+**The lap** (`GameSession::start_hotlap_watch`, `update_hotlap_watch`). It is
+`GameMode::Hotlap` from the first tick: the AI is put on the run-up
+(`hotlap_relocate`, 300 m before the line, tyres at the optimum) and held on
+the brake for `HOTLAP_WATCH_HOLD_S` (6 s, so the client has the circuit up),
+then laps for ever. Each time the car crosses the line it is refitted - fuel
+to the hotlap load, tyres and brakes at their optimum, damage off - so a long
+watch does not wear out. Exact line at skill 110 is not always possible (a
+stand against the raceline at Monza's start, Suzuka's rails in the GT3), so
+the driver eases down a **ladder** (`hotlap_watch_driver`, `HotlapWatch::
+level`): level 0 the exact line, 1 the same skill without it, then three
+points of skill a step to `HOTLAP_WATCH_FLOOR_SKILL`. A crash (damage of 1% in
+a body zone, not drivable, towed) steps it and puts the car back on the
+run-up; a lap struck for track limits steps it and the car drives on. Across
+Monza, Spa, Zandvoort, Suzuka, Sao Paulo and Spielberg in a GT3, an F1 and an
+LMP2 every pair settles at level 0 but Monza's GT3 (1) and Suzuka's GT3 (2,
+two struck laps first), with laps within 0.3 s of each other
+(`cargo test --release --test hotlap_watch_test watch_probe -- --ignored
+--nocapture`, `WATCH_TRACKS=` / `WATCH_CARS=` / `WATCH_LAPS=`). The first
+timed lap leaves a standing start 300 m before the line, so it is the slowest.
+`hotlap_watch_test`: the run-up and the hold, four clean laps with fresh tyres
+at the line, an F1 against a GT3, heavy rain against dry, determinism, the
+corners' order, and the whole thing over the wire.
+
+**Corners** (`track_guide::wire_corners`, `TrackCornersData`, appended to
+`ServerMessage` as `TrackCorners`): the guide's `detect_corners` numbered in
+lap order, named from the dossier's `display_name` (`name_corners`; empty when
+it has none, "Turn N" on the client), stations folded into `[0, lap)` with the
+entry before the line allowed (`FApexTrackCorners::IsInside` / `CornerAt`).
+The session keeps them (`set_track_corners`), computed once at creation from
+the track's file (`TrackContent::path_of`). Golden bytes: `cargo test
+track_corners_wire_format -- --nocapture` -> `ApexGolden::S_TrackCorners`.
+
+**The client** (`UApexRootWidget::StartHotlapWatch`, `ChangeHotlapWatch`,
+`UApexNetSubsystem::CreateHotlapWatch`). The menu row calls
+`StartHotlapWatch`: the pending circuit and car (else the first the server
+and this machine's exports have), the weather and hour of the last session
+set up and then of the last watch; `SelectCar` then `CreateHotlapWatch`.
+The net subsystem takes the join like `JoinAsSpectator` (`bSpectatorJoinRequested`),
+and, because the lobby does not list the session, answers `FindSessionById`
+from the summary it made at the request (the race director finds the circuit
+through it). The shell stays out of sight from the request (`ApplyWatchLayers`
+treats `bHotlapWatchWanted` like a watched backdrop), the screen is not
+switched to the session lobby, and `PushWatchState` reports the source as
+`hotlap`. A choice changed while watching - Left / Right the car, `W` the
+weather, `[` / `]` the hour, Page Up / Down the circuit (`ApexSpectate::EAction::
+Weather ... NextTrack`; the pad's auto / tower / next-race buttons stand in) -
+waits 0.8 s for more presses (`HotlapRestartAt`), ends the race view and asks
+again; the net subsystem puts a replaced session's state back to the lobby
+at the new join, so the first frame opens the race view again. A request not
+answered in 15 s goes back to the menu. Esc > Stop watching leaves as any
+watch does; the player's own car is selected again.
+
+**The HUD** is a *scene* (`"scene": "hotlap_watch"` in a component.json,
+`FApexHudComponentDef::Scene`, `ApexHud::Scenes()`; docs/game/HUD_MODDING.md,
+"Scenes"): while `hotlap.active` is true (`FApexHudInputs::bHotlapWatch` and a
+spectator) the HUD widget shows only the scene's components and hides every
+other, and shows none of them outside it. Five ship: `hotlap_header`
+(circuit, car, sky), `hotlap_corner` (number, name, direction, distance to
+the entry; `corner.*`), `hotlap_timing` (lap clock, delta, the sectors, last
+and best), `hotlap_car` (gear, speed, revs, throttle and brake) and
+`hotlap_controls` (the keys). `-ApexWatchHotlap -ApexTrack=<stem>
+-ApexCar=<name> -ApexWeather=<sky> -ApexTimeOfDay=HH:MM` starts one at launch.
+Tests: `ApexSim.Hotlap.Session` / `.HudData` / `.Scene`,
+`ApexSim.Spectate.Keys` / `.HotlapChoices`, `ApexSim.Net.Protocol.LapTimingDecode`
+(the corners).
 
 ### Force feedback (`server/src/feedback.rs`, `Input/ApexForceFeedback.h`)
 

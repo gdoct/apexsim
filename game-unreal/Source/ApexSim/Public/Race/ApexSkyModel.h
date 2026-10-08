@@ -335,6 +335,30 @@ namespace ApexSky
 	 * not free (the sky light recaptures, the road materials are written),
 	 * and the server's figures move in whole percents every frame.
 	 */
+	/**
+	 * Whether the sun has to be turned from where it stands to where the
+	 * sky wants it. Virtual shadow maps key their whole cache on the light's
+	 * direction, so every turn, however small, re-renders every shadow page
+	 * on the next frame (and is what overflows the non-Nanite marking queue:
+	 * docs/game/VSM_NON_NANITE_SHADOWS.md). The sky relights for a game
+	 * minute (a quarter of a degree of sun) and for every few percent of
+	 * cloud or rain, which would turn it each time; held until it is
+	 * `StepDeg` out, it turns every few game minutes and never for the
+	 * weather. A step of zero or less turns it every time.
+	 */
+	inline bool SunNeedsTurning(const FQuat& Current, const FQuat& Wanted, float StepDeg)
+	{
+		if (StepDeg <= 0.0f)
+		{
+			return !Current.Equals(Wanted, 0.0);
+		}
+		// The light shines down its X axis; that is all the shadows see.
+		const FVector From = Current.GetForwardVector();
+		const FVector To = Wanted.GetForwardVector();
+		const double CosAngle = FMath::Clamp(FVector::DotProduct(From, To), -1.0, 1.0);
+		return FMath::RadiansToDegrees(FMath::Acos(CosAngle)) >= StepDeg;
+	}
+
 	inline bool LiveSkyMoved(const FApexSkyNow& Lit, const FApexSkyNow& Now)
 	{
 		if (Lit.bValid != Now.bValid)

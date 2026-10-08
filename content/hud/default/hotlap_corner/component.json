@@ -1,0 +1,56 @@
+// The corner the watched car is in, or the next one it comes to: its number
+// and name, which way it turns, and how far away its entry is. Part of the
+// `hotlap_watch` scene. The server numbers the corners in lap order
+// (`TrackCorners`) and names them from the circuit's dossier.
+{
+  "name": "Hotlap: corner",
+  "scene": "hotlap_watch",
+  "region": "top",
+  "order": 10,
+  "visible": "=has(corner.number)",
+  "root": {
+    "type": "row",
+    "children": [
+      // The number, lit while the car is in the corner.
+      {
+        "type": "panel", "height": 76, "valign": "fill", "padding": [18, 9],
+        "background": "=corner.inside ? 'accent' : 'surface'",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "text": "=corner.inside ? 'Corner' : 'Next'", "halign": "center",
+              "color": "=corner.inside ? alpha('on_accent', 0.7) : 'text_muted'" },
+            { "type": "text", "halign": "center", "margin": [0, 2, 0, 0], "font": "display", "size": 34,
+              "color": "=corner.inside ? 'on_accent' : 'text'", "text": "=str(corner.number)" }
+          ]
+        }]
+      },
+      // Its name and how it turns.
+      {
+        "type": "panel", "width": 300, "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [16, 10],
+        "background": "surface",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "text", "font": "display", "size": 24, "tracking": 10, "upper": true, "text": "=corner.label" },
+            { "type": "label", "margin": [0, 6, 0, 0], "color": "text_secondary",
+              "text": "=(corner.direction == 'left' ? '← Left' : 'Right →') + (corner.count > 0 ? '  ·  ' + corner.number + ' of ' + corner.count : '')" }
+          ]
+        }]
+      },
+      // The way to it.
+      {
+        "type": "panel", "width": 128, "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [14, 11],
+        "background": "surface", "visible": "=!corner.inside",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "text": "In" },
+            { "type": "text", "margin": [0, 6, 0, 0], "font": "mono", "size": 20,
+              "text": "=fmt(round(corner.distance_m / 10) * 10) + ' m'" }
+          ]
+        }]
+      }
+    ]
+  }
+}

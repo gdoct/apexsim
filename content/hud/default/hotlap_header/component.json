@@ -1,0 +1,36 @@
+// The watched hotlap's heading: which circuit, in which car, under which sky.
+// Part of the `hotlap_watch` scene: it replaces the rest of the HUD while a
+// hotlap is being watched (Main menu > Garage > Tracks > Watch hotlap).
+{
+  "name": "Hotlap: circuit and car",
+  "scene": "hotlap_watch",
+  "region": "top-left",
+  "order": 10,
+  "root": {
+    // On a backing so it reads over a bright sky.
+    "type": "panel", "padding": [16, 12], "background": "=alpha('background', 0.62)",
+    "children": [{
+      "type": "column",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            { "type": "panel", "valign": "center", "padding": [10, 4], "background": "accent",
+              "children": [{ "type": "text", "font": "mono", "size": 11, "tracking": 80, "bold": true,
+                "color": "on_accent", "text": "HOTLAP" }] },
+            { "type": "text", "valign": "center", "margin": [10, 0, 0, 0], "font": "mono", "size": 11, "tracking": 80,
+              "color": "text_secondary", "text": "AI DRIVER" }
+          ]
+        },
+        {
+          "type": "text", "margin": [0, 10, 0, 0], "font": "display", "size": 30, "tracking": 20, "upper": true,
+          "text": "=session.track_name != '' ? session.track_name : 'Circuit'"
+        },
+        {
+          "type": "label", "margin": [0, 8, 0, 0], "color": "text_secondary",
+          "text": "=(session.car_name != '' ? session.car_name : 'Car') + (has(session.weather) ? '  ·  ' + session.weather + ' ' + session.clock : '')"
+        }
+      ]
+    }]
+  }
+}

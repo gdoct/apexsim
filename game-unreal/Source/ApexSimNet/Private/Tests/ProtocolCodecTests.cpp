@@ -822,6 +822,47 @@ bool FApexProtocolLapTimingDecodeTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("past the second"), Sectors.SectorAt(5000.0f), 2);
 	}
 
+	FApexServerMessage CornersMessage;
+	if (TestTrue(TEXT("TrackCorners decodes"),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_TrackCorners, CornersMessage, Error)))
+	{
+		TestEqual(TEXT("TrackCorners type"), CornersMessage.Type, EApexServerMessageType::TrackCorners);
+		const FApexTrackCorners& Corners = CornersMessage.TrackCorners;
+		TestEqual(TEXT("session id"), Corners.SessionId, SessId);
+		TestEqual(TEXT("lap length"), Corners.TrackLengthM, 5793.0f);
+		TestTrue(TEXT("corners are usable"), Corners.IsValid());
+		if (TestEqual(TEXT("two corners"), Corners.Corners.Num(), 2))
+		{
+			const FApexTrackCorner& First = Corners.Corners[0];
+			TestEqual(TEXT("number"), First.Number, 1);
+			TestEqual(TEXT("name"), First.Name, FString(TEXT("Variante del Rettifilo")));
+			TestEqual(TEXT("entry"), First.EntryM, 5700.0f);
+			TestEqual(TEXT("apex"), First.ApexM, 120.0f);
+			TestEqual(TEXT("exit"), First.ExitM, 210.0f);
+			TestFalse(TEXT("turns right"), First.bLeft);
+			const FApexTrackCorner& Second = Corners.Corners[1];
+			TestEqual(TEXT("no name, so Turn N"), Second.Label(), FString(TEXT("Turn 2")));
+			TestTrue(TEXT("turns left"), Second.bLeft);
+
+			// The first corner's entry is before the line and its exit past
+			// it: the car is in it on both sides of the line, not between
+			// the exit and the next entry.
+			TestTrue(TEXT("inside, before the line"), Corners.IsInside(First, 5750.0f));
+			TestTrue(TEXT("inside, past the line"), Corners.IsInside(First, 100.0f));
+			TestFalse(TEXT("out of it after the exit"), Corners.IsInside(First, 300.0f));
+			TestFalse(TEXT("out of it before the entry"), Corners.IsInside(First, 5600.0f));
+
+			float Distance = 0.0f;
+			bool bInside = false;
+			TestEqual(TEXT("in the first"), Corners.CornerAt(150.0f, Distance, bInside), 0);
+			TestTrue(TEXT("and inside it"), bInside && Distance == 0.0f);
+			TestEqual(TEXT("coming to the second"), Corners.CornerAt(500.0f, Distance, bInside), 1);
+			TestTrue(TEXT("400 m from its entry"), !bInside && FMath::IsNearlyEqual(Distance, 400.0f));
+			TestEqual(TEXT("past the second, the first comes round"), Corners.CornerAt(1500.0f, Distance, bInside), 0);
+			TestTrue(TEXT("through the line"), !bInside && FMath::IsNearlyEqual(Distance, 4200.0f));
+		}
+	}
+
 	FApexServerMessage TimingMessage;
 	if (TestTrue(TEXT("LapTiming decodes"),
 			ApexProtocol::DecodeServerMessage(ApexGolden::S_LapTiming, TimingMessage, Error)))

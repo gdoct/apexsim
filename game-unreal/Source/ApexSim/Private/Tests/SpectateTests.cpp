@@ -88,10 +88,36 @@ bool FApexSpectateKeysTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("no faster than 4x"), StepPlaybackRate(4.0f, 1), 4.0f);
 	TestEqual(TEXT("no slower than a quarter"), StepPlaybackRate(0.25f, -1), 0.25f);
 
+	TestEqual(TEXT("W the weather"), ActionOf(EKeys::W), (int32)EAction::Weather);
+	TestEqual(TEXT("[ an hour earlier"), ActionOf(EKeys::LeftBracket), (int32)EAction::TimeEarlier);
+	TestEqual(TEXT("] an hour later"), ActionOf(EKeys::RightBracket), (int32)EAction::TimeLater);
+	TestEqual(TEXT("page up the previous circuit"), ActionOf(EKeys::PageUp), (int32)EAction::PreviousTrack);
+	TestEqual(TEXT("page down the next circuit"), ActionOf(EKeys::PageDown), (int32)EAction::NextTrack);
+
 	const FCommand Third = CommandFor(EKeys::Three);
 	TestTrue(TEXT("3 is P3"), Third.Action == EAction::Position && Third.Position == 3);
 	const FCommand Tenth = CommandFor(EKeys::Zero);
 	TestTrue(TEXT("0 is P10"), Tenth.Action == EAction::Position && Tenth.Position == 10);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexSpectateHotlapChoicesTest, "ApexSim.Spectate.HotlapChoices", ApexTestFlags)
+
+bool FApexSpectateHotlapChoicesTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexSpectate;
+	TestEqual(TEXT("on from the last wraps to the first"), StepIndex(4, 3, 1), 0);
+	TestEqual(TEXT("back from the first wraps to the last"), StepIndex(4, 0, -1), 3);
+	TestEqual(TEXT("an empty list"), StepIndex(0, 2, 1), 0);
+
+	TestEqual(TEXT("sunny, then cloudy"), (int32)StepWeather(EApexWeather::Sunny, 1), (int32)EApexWeather::Cloudy);
+	TestEqual(TEXT("heavy rain, then sunny again"), (int32)StepWeather(EApexWeather::HeavyRain, 1), (int32)EApexWeather::Sunny);
+	TestEqual(TEXT("before sunny is heavy rain"), (int32)StepWeather(EApexWeather::Sunny, -1), (int32)EApexWeather::HeavyRain);
+
+	TestEqual(TEXT("an hour on"), StepTimeOfDay(13 * 60, 1), 14 * 60);
+	TestEqual(TEXT("an hour earlier keeps the quarter hour"), StepTimeOfDay(13 * 60 + 15, -1), 12 * 60 + 15);
+	TestEqual(TEXT("past midnight"), StepTimeOfDay(23 * 60 + 30, 1), 30);
+	TestEqual(TEXT("before midnight"), StepTimeOfDay(30, -1), 23 * 60 + 30);
 	return true;
 }
 

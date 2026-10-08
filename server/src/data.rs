@@ -1952,6 +1952,21 @@ pub enum SessionKind {
     /// into a race, and never recorded as a replay. It ends when its last
     /// spectator leaves.
     Demo = 3,
+    /// One AI car lapping the track alone, on the line and at the speed its
+    /// car can manage, for the creator to watch (the menu's "Watch hotlap").
+    /// Built on demand for the car, the weather and the hour the creator
+    /// picked, so changing any of them is a new session.
+    /// Unlisted, unjoinable, spectated by its creator and never recorded as
+    /// a replay, like a demo; unlike a demo its timing lines are sent.
+    HotlapWatch = 4,
+}
+
+impl SessionKind {
+    /// A session its creator only watches: no human takes a seat, it is
+    /// unlisted, and it lives as long as its spectator does.
+    pub fn is_watch_only(self) -> bool {
+        matches!(self, SessionKind::Demo | SessionKind::HotlapWatch)
+    }
 }
 
 /// How hard the traction control intervenes, chosen per player

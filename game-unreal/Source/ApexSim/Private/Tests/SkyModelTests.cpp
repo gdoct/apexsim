@@ -315,4 +315,34 @@ bool FApexSkyDemoRollTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+// The sun is turned only once it has drifted past the step: a game minute of
+// the sky's own sun is not enough, a few are, and the weather never is.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexSkySunStepTest,
+	"ApexSim.Sky.SunStep",
+	ApexTestFlags)
+
+bool FApexSkySunStepTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexSky;
+
+	const FQuat At1500 = Derive(At(EApexWeather::Sunny, 15, 0)).LightRotation.Quaternion();
+	const FQuat At1501 = Derive(At(EApexWeather::Sunny, 15, 1)).LightRotation.Quaternion();
+	const FQuat At1505 = Derive(At(EApexWeather::Sunny, 15, 5)).LightRotation.Quaternion();
+	const FQuat Cloudy1500 = Derive(At(EApexWeather::Cloudy, 15, 0)).LightRotation.Quaternion();
+
+	TestFalse(TEXT("a game minute stays under half a degree"), SunNeedsTurning(At1500, At1501, 0.5f));
+	TestTrue(TEXT("five game minutes pass it"), SunNeedsTurning(At1500, At1505, 0.5f));
+	TestFalse(TEXT("cloud alone does not turn the sun"), SunNeedsTurning(At1500, Cloudy1500, 0.5f));
+	TestTrue(TEXT("a step of zero turns it for a minute"), SunNeedsTurning(At1500, At1501, 0.0f));
+	TestFalse(TEXT("a step of zero leaves a sun that is there"), SunNeedsTurning(At1500, At1500, 0.0f));
+	// A roll about the beam is not a turn: the shadows cannot see it.
+	const FQuat Rolled = At1500 * FQuat(FVector::ForwardVector, FMath::DegreesToRadians(30.0f));
+	TestFalse(TEXT("roll about the beam"), SunNeedsTurning(At1500, Rolled, 0.5f));
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

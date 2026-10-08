@@ -66,6 +66,8 @@ enum class EApexHotlapAction : uint8
 	SaveReplay,
 	/** The scoreboard's camera button: TV, chase, onboard on the watched car. */
 	CycleWatchCamera,
+	/** Menu mode: the setup editor is done (the main menu's Garage > Manage car setups). */
+	CloseEditor,
 };
 
 /** The garage's pages, in tab order. */
@@ -134,13 +136,23 @@ public:
 	/** Previous / Next (shoulders, Tab) change tab; the rest is Slate's. */
 	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
 	/** Nothing to go back to: Escape falls through to the pause key. */
-	virtual bool HandleBack() override { return false; }
+	virtual bool HandleBack() override;
 
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
 	FApexOnHotlapAction OnAction;
 
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
 	FApexOnHotlapWatch OnWatchCar;
+
+	/**
+	 * The garage as a setup editor outside any session (the main menu's
+	 * Garage > Manage car setups): the same tabs and Load / Save for the pending
+	 * car, no way out onto a track, no replay rows, and DONE (or Escape / B)
+	 * raises CloseEditor. The server's setup sheet is not used (it may belong
+	 * to another car), so knobs read in clicks.
+	 */
+	void SetMenuMode(bool bInMenuMode);
+	bool IsMenuMode() const { return bMenuMode; }
 
 	/** The session is a qualifying one: the scoreboard page exists, the hotlap-only rows go. */
 	void SetQualifying(bool bInQualifying);
@@ -290,6 +302,7 @@ private:
 
 	bool bQualifying = false;
 	bool bBoardOpen = false;
+	bool bMenuMode = false;
 	int32 WatchedCar = INDEX_NONE;
 	float BoardRefreshIn = 0.0f;
 	/** The car index each board row shows (INDEX_NONE for an unused row). */

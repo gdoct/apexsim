@@ -238,6 +238,13 @@ namespace
 				}
 			}));
 
+	TAutoConsoleVariable<float> CVarSunStepDeg(
+		TEXT("apexsim.sky.SunStepDeg"),
+		0.5f,
+		TEXT("How far the sky's sun must drift, degrees, before the light is turned to it. Each turn re-renders ")
+		TEXT("every virtual shadow page; 0 turns it on every relight."),
+		ECVF_Default);
+
 	TAutoConsoleVariable<int32> CVarTvDebug(
 		TEXT("apexsim.tv.Debug"),
 		0,
@@ -1692,7 +1699,15 @@ void AApexRaceDirector::ApplySkyLighting()
 			bMenuSunSaved = true;
 		}
 		SunComponent->SetMobility(EComponentMobility::Movable);
-		Sun->SetActorRotation(Sky.LightRotation);
+		// The menu's sun is wherever the menu put it, so the first race light
+		// always turns it; after that only a drift past the step does.
+		const bool bFirstRaceLight = MenuSun.Get() == Sun && Sun->GetActorRotation().Equals(MenuSunRotation);
+		if (bFirstRaceLight
+			|| ApexSky::SunNeedsTurning(Sun->GetActorQuat(), Sky.LightRotation.Quaternion(),
+				CVarSunStepDeg.GetValueOnGameThread()))
+		{
+			Sun->SetActorRotation(Sky.LightRotation);
+		}
 		SunComponent->SetLightColor(Sky.LightColor);
 		SunComponent->SetIntensity(Sky.LightIntensity);
 		SunComponent->SetCastShadows(Sky.bCastShadows);

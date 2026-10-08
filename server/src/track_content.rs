@@ -51,6 +51,11 @@ impl TrackContent {
         );
     }
 
+    /// The file a catalog track was read from.
+    pub fn path_of(&self, id: TrackConfigId) -> Option<&std::path::Path> {
+        self.tracks.get(&id).map(|slot| slot.path.as_path())
+    }
+
     /// Whether a session on this track would have to wait for a disk read.
     pub fn needs_loading(&self, id: TrackConfigId) -> bool {
         self.tracks

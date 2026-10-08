@@ -503,6 +503,7 @@ impl StreamHeader {
             1 => SessionKind::Practice,
             2 => SessionKind::Sandbox,
             3 => SessionKind::Demo,
+            4 => SessionKind::HotlapWatch,
             _ => SessionKind::Multiplayer,
         };
         let game_mode = game_mode_from(rd.uint()? as u8);

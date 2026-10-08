@@ -140,6 +140,10 @@ public:
 	 */
 	void OpenSettings(EApexSettingsTab Tab);
 
+	/** The garage card as a setup editor over the menu (Garage > Manage car setups), outside any session. */
+	void OpenSetupEditor();
+	void CloseSetupEditor();
+
 	// --- Watching a race -------------------------------------------------------
 
 	/**
@@ -179,6 +183,37 @@ public:
 	bool HandleWatchKey(const FKeyEvent& InKeyEvent);
 	/** The same, by action, for the console (`apexsim.watch`). */
 	void RunWatchCommand(const ApexSpectate::FCommand& Command);
+
+	// --- Watching a hotlap ------------------------------------------------------
+
+	/**
+	 * Main menu > Garage > Tracks > Watch hotlap: one AI car laps a circuit
+	 * alone, on its racing line and at the speed its car can manage, worked
+	 * out by the server when it is asked for (SessionKind::HotlapWatch). It
+	 * starts on the pending circuit and car, under the weather and hour last
+	 * watched, and shows a minimal HUD (`scene: hotlap_watch`): the lap and
+	 * its sectors, the car's speed, gear and pedals, the corner it is at.
+	 * The car (arrows), the weather (W), the hour ([ and ]) and the circuit
+	 * (Page Up and Down) can be changed while watching: each change starts
+	 * the lap over for the new choice. False, with a toast, when it cannot
+	 * be started.
+	 */
+	bool StartHotlapWatch();
+
+	/** A hotlap is being watched (or asked for). */
+	bool IsWatchingHotlap() const { return bHotlapWatchWanted; }
+
+	/** What a key changes about the hotlap being watched. */
+	enum class EHotlapChoice : uint8
+	{
+		Car,
+		Track,
+		Weather,
+		TimeOfDay,
+	};
+
+	/** Step one of the hotlap's choices `Direction` places on (wrapping) and, after a moment, start the lap over for it. */
+	void ChangeHotlapWatch(EHotlapChoice Choice, int32 Direction);
 
 	// --- Track guide ------------------------------------------------------------
 
@@ -388,6 +423,32 @@ private:
 	bool bWatchDemoUp = false;
 	/** Seconds the backdrop watch has had no race to show; it gives up eventually. */
 	float WatchIdleSeconds = 0.0f;
+
+	/** The hotlap being watched: its circuit, car and sky. Valid while bHotlapWatchWanted. */
+	bool bHotlapWatchWanted = false;
+	FString HotlapTrackId;
+	FString HotlapCarId;
+	FApexSessionConditions HotlapConditions;
+	/** The weather and hour are remembered from one watch to the next. */
+	bool bHotlapConditionsKnown = false;
+	/** Seconds on the clock at which the lap starts over for a changed choice; negative when none is waiting. */
+	double HotlapRestartAt = -1.0;
+	/** When the session was last asked for, to give up on an answer that never comes. */
+	double HotlapRequestedAt = -1.0;
+	/** The session was asked for and has not been joined. */
+	bool bHotlapJoinPending = false;
+
+	/** Ask the server for the hotlap as chosen (select the car, create the session). */
+	void SendHotlapWatchRequest();
+	/** Put the lap over for a changed choice: the old session goes, the view waits for the new. */
+	void RestartHotlapWatch();
+	/** Forget the hotlap being watched (its session is left or gone) and give the shell back. */
+	void EndHotlapWatch();
+	/** Keep a changed choice's restart and the join's answer on the clock. */
+	void UpdateHotlapWatch();
+	/** `-ApexWatchHotlap[=<Stem>]` and its options, for an unattended run. */
+	void ApplyHotlapWatchCommandLine();
+	bool bHotlapCommandLineApplied = false;
 
 	/** Keep a watched backdrop on screen and its HUD in step with its races. */
 	void UpdateWatch(float DeltaSeconds);

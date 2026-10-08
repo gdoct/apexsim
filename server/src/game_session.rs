@@ -131,6 +131,62 @@ const HOTLAP_SLOT_CLEARANCE_M: f32 = 20.0;
 /// How many slots back the queue reaches before cars double up.
 const HOTLAP_SLOT_TRIES: usize = 16;
 
+/// Skill of the AI that drives a watched hotlap: the top of the scale, on
+/// `AiDriverProfile::exact_line`, so it shows the car at its best.
+pub const HOTLAP_WATCH_SKILL: u8 = 110;
+/// Seconds the car waits on the run-up before it sets off, so the watcher's
+/// client has the track up (and the camera on the car) for the lap.
+pub const HOTLAP_WATCH_HOLD_S: f32 = 6.0;
+/// A watched car that makes no headway for this long is put back on the
+/// run-up (`GameSession::update_hotlap_watch`): the AI backs out of a wall
+/// by itself, this is for the day it cannot.
+pub const HOTLAP_WATCH_STUCK_S: f32 = 8.0;
+/// Under this speed a watched car counts as standing still, m/s.
+const HOTLAP_WATCH_STUCK_MPS: f32 = 1.5;
+
+/// A watched hotlap (`SessionKind::HotlapWatch`): the session's one AI car
+/// laps the track alone, every lap on fresh tyres and a fresh tank.
+#[derive(Debug, Clone, Copy, Default)]
+struct HotlapWatch {
+    active: bool,
+    /// Tick until which the car is held on the run-up.
+    hold_until_tick: u32,
+    /// Ticks the car has stood still (not held) so far.
+    stuck_ticks: u32,
+    /// The lap counter last tick: a change is the car crossing the line.
+    last_lap: Option<u16>,
+    /// How far the driver has been eased off since the lap began to go
+    /// wrong ([`hotlap_watch_driver`]): 0 is the line itself at the top of
+    /// the scale, which some circuits' rails and stands do not leave room
+    /// for; each step after is a driver a little less exact.
+    level: u8,
+}
+
+/// The skill at the end of the ladder a watched hotlap's driver eases down.
+const HOTLAP_WATCH_FLOOR_SKILL: u8 = 80;
+/// Skill given up per step of the ladder.
+const HOTLAP_WATCH_SKILL_STEP: u8 = 3;
+/// Damage, percent in any zone, that makes a lap a crash.
+const HOTLAP_WATCH_CRASH_PCT: f32 = 1.0;
+
+/// The watched driver at `level` of the ladder: the exact line at the top
+/// of the scale; then the same skill with the margin off the edge every
+/// racing AI keeps; then that driver a few points slower each step.
+fn hotlap_watch_driver(base: &AiDriverProfile, level: u8) -> AiDriverProfile {
+    let skill = if level <= 1 {
+        HOTLAP_WATCH_SKILL
+    } else {
+        HOTLAP_WATCH_SKILL
+            .saturating_sub((level - 1).saturating_mul(HOTLAP_WATCH_SKILL_STEP))
+            .max(HOTLAP_WATCH_FLOOR_SKILL)
+    };
+    let mut driver = AiDriverProfile::new(base.name.clone(), skill);
+    driver.id = base.id;
+    driver.preferred_car_id = base.preferred_car_id;
+    driver.exact_line = level == 0;
+    driver
+}
+
 pub struct GameSession {
     pub session: RaceSession,
     pub track_config: TrackConfig,
@@ -209,6 +265,10 @@ pub struct GameSession {
     debug_next_event: usize,
     /// Green tick until which a stand-in holds the overtake button.
     debug_boost_until: std::collections::BTreeMap<PlayerId, u64>,
+    /// The watched hotlap this session is, if it is one.
+    hotlap_watch: HotlapWatch,
+    /// The track's corners, for the watcher's HUD (`TrackCorners`).
+    track_corners: Vec<crate::network::CornerData>,
 }
 
 /// How a race's end stands, reset with every start.
@@ -481,6 +541,8 @@ impl GameSession {
             debug_green_ticks: 0,
             debug_next_event: 0,
             debug_boost_until: std::collections::BTreeMap::new(),
+            hotlap_watch: HotlapWatch::default(),
+            track_corners: Vec::new(),
         }
     }
 
@@ -532,6 +594,8 @@ impl GameSession {
             debug_green_ticks: 0,
             debug_next_event: 0,
             debug_boost_until: std::collections::BTreeMap::new(),
+            hotlap_watch: HotlapWatch::default(),
+            track_corners: Vec::new(),
         }
     }
 
@@ -555,6 +619,16 @@ impl GameSession {
     pub fn tick(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         self.session.current_tick += 1;
         self.update_sky();
+        // A watched car waits on the run-up with its foot on the brake.
+        let held;
+        let inputs = if self.hotlap_watch.active
+            && self.session.current_tick < self.hotlap_watch.hold_until_tick
+        {
+            held = self.hotlap_watch_hold(inputs);
+            &held
+        } else {
+            inputs
+        };
         crate::headlights::update(
             &mut self.session.participants,
             inputs,
@@ -590,6 +664,9 @@ impl GameSession {
                 // they go out; the AI drive on.
                 self.tick_hotlap(inputs);
             }
+        }
+        if self.hotlap_watch.active {
+            self.update_hotlap_watch();
         }
     }
 
@@ -1179,10 +1256,177 @@ impl GameSession {
                 for player_id in humans {
                     let _ = self.hotlap_relocate(&player_id, HotlapDestination::Garage, false);
                 }
+                if self.hotlap_watch.active {
+                    self.send_hotlap_watch_out();
+                }
             }
             _ => {
                 self.session.demo_lap_progress = None;
             }
+        }
+    }
+
+    // --- A watched hotlap ------------------------------------------------
+
+    /// Make this session a watched hotlap (`SessionKind::HotlapWatch`): its
+    /// AI car goes onto the run-up on tyres at their optimum and, after
+    /// [`HOTLAP_WATCH_HOLD_S`], laps the track alone for as long as anyone
+    /// watches. Nobody presses start, so the hotlap begins now.
+    pub fn start_hotlap_watch(&mut self) {
+        self.hotlap_watch.active = true;
+        self.set_game_mode(GameMode::Hotlap);
+    }
+
+    /// Whether this session is a watched hotlap.
+    pub fn is_hotlap_watch(&self) -> bool {
+        self.hotlap_watch.active
+    }
+
+    /// How far the watched driver has been eased off the exact line (0: not
+    /// at all); see [`hotlap_watch_driver`].
+    pub fn hotlap_watch_level(&self) -> u8 {
+        self.hotlap_watch.level
+    }
+
+    /// Give the watcher's HUD the track's corners.
+    pub fn set_track_corners(&mut self, corners: Vec<crate::network::CornerData>) {
+        self.track_corners = corners;
+    }
+
+    /// The `TrackCorners` message for a joining watcher; `None` when the
+    /// track has no corners.
+    pub fn track_corners_message(&self, session_id: SessionId) -> Option<ServerMessage> {
+        if self.track_corners.is_empty() {
+            return None;
+        }
+        Some(ServerMessage::TrackCorners(
+            crate::network::TrackCornersData {
+                session_id,
+                track_length_m: self.track_length_m(),
+                corners: self.track_corners.clone(),
+            },
+        ))
+    }
+
+    /// The AI's inputs while the car is held: the brake on, nothing else.
+    fn hotlap_watch_hold(
+        &self,
+        inputs: &HashMap<PlayerId, PlayerInputData>,
+    ) -> HashMap<PlayerId, PlayerInputData> {
+        let mut held = inputs.clone();
+        for id in &self.session.ai_player_ids {
+            held.insert(
+                *id,
+                PlayerInputData {
+                    brake: 1.0,
+                    ..Default::default()
+                },
+            );
+        }
+        held
+    }
+
+    /// Put every AI car on the run-up, fresh, and hold it there.
+    fn send_hotlap_watch_out(&mut self) {
+        let ids: Vec<PlayerId> = self.session.ai_player_ids.clone();
+        for id in ids {
+            let _ = self.hotlap_relocate(&id, HotlapDestination::Track, false);
+            // The lap before the trip is not this one's to answer for.
+            if let Some(state) = self.session.participants.get_mut(&id) {
+                state.laps.last_invalid = false;
+            }
+        }
+        self.hotlap_watch.hold_until_tick =
+            self.session.current_tick + (HOTLAP_WATCH_HOLD_S * self.tick_rate_hz as f32) as u32;
+        self.hotlap_watch.stuck_ticks = 0;
+        self.hotlap_watch.last_lap = None;
+    }
+
+    /// After each tick of a watched hotlap: a car that has just crossed the
+    /// line starts its next lap on a fresh tank and tyres (a long watch
+    /// would otherwise watch the car wear out, and the lap times drift); a
+    /// lap that went wrong - a crash, a car that has stopped for good, a lap
+    /// struck for leaving the track - eases the driver a step down the
+    /// ladder ([`hotlap_watch_driver`]), and a crash or a stop puts the car
+    /// back on the run-up.
+    fn update_hotlap_watch(&mut self) {
+        if self.session.game_mode != GameMode::Hotlap {
+            return;
+        }
+        let ids: Vec<PlayerId> = self.session.ai_player_ids.clone();
+        let stuck_limit = (HOTLAP_WATCH_STUCK_S * self.tick_rate_hz as f32) as u32;
+        let held = self.session.current_tick < self.hotlap_watch.hold_until_tick;
+        let mut crashed = false;
+        let mut struck = false;
+        for id in ids {
+            let Some(state) = self.session.participants.get(&id) else {
+                continue;
+            };
+            let car_id = state.car_config_id;
+            let crossed_line = self
+                .hotlap_watch
+                .last_lap
+                .is_some_and(|lap| lap != state.current_lap);
+            self.hotlap_watch.last_lap = Some(state.current_lap);
+            let d = &state.damage;
+            let hurt = [
+                d.front_damage_percent,
+                d.rear_damage_percent,
+                d.left_damage_percent,
+                d.right_damage_percent,
+            ]
+            .into_iter()
+            .fold(0.0, f32::max)
+                >= HOTLAP_WATCH_CRASH_PCT;
+            if !d.is_drivable || state.towed || hurt {
+                crashed = true;
+                continue;
+            }
+            if !held && state.speed_mps < HOTLAP_WATCH_STUCK_MPS {
+                self.hotlap_watch.stuck_ticks += 1;
+                if self.hotlap_watch.stuck_ticks >= stuck_limit {
+                    crashed = true;
+                    continue;
+                }
+            } else {
+                self.hotlap_watch.stuck_ticks = 0;
+            }
+            if crossed_line {
+                struck |= state.laps.last_invalid;
+                let fuel = self.start_fuel_liters(&id, car_id, GameMode::Hotlap);
+                if let Some(state) = self.session.participants.get_mut(&id) {
+                    state.fuel_liters = fuel;
+                    state.damage = DamageState {
+                        is_drivable: true,
+                        ..Default::default()
+                    };
+                    fit_tyres(
+                        state,
+                        &self.car_configs,
+                        &self.tuned_configs,
+                        &self.track_config,
+                        TyreStart::Warm,
+                        &self.car_setups,
+                    );
+                }
+            }
+        }
+        if crashed || struck {
+            self.ease_hotlap_watch_driver();
+        }
+        if crashed {
+            self.send_hotlap_watch_out();
+        }
+    }
+
+    /// One step down the ladder for the watched driver.
+    fn ease_hotlap_watch_driver(&mut self) {
+        let level = self.hotlap_watch.level.saturating_add(1);
+        let floor_level =
+            2 + (HOTLAP_WATCH_SKILL - HOTLAP_WATCH_FLOOR_SKILL).div_ceil(HOTLAP_WATCH_SKILL_STEP);
+        self.hotlap_watch.level = level.min(floor_level);
+        for profile in self.ai_profiles.values_mut() {
+            *profile = hotlap_watch_driver(profile, self.hotlap_watch.level);
         }
     }
 

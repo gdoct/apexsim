@@ -135,6 +135,26 @@ namespace ApexSpectate
 		{
 			Command.Action = EAction::Faster;
 		}
+		else if (Key == EKeys::W)
+		{
+			Command.Action = EAction::Weather;
+		}
+		else if (Key == EKeys::LeftBracket)
+		{
+			Command.Action = EAction::TimeEarlier;
+		}
+		else if (Key == EKeys::RightBracket)
+		{
+			Command.Action = EAction::TimeLater;
+		}
+		else if (Key == EKeys::PageUp)
+		{
+			Command.Action = EAction::PreviousTrack;
+		}
+		else if (Key == EKeys::PageDown)
+		{
+			Command.Action = EAction::NextTrack;
+		}
 		else
 		{
 			// The number row: 1 to 9 are P1 to P9 and 0 is P10.
@@ -151,6 +171,26 @@ namespace ApexSpectate
 			}
 		}
 		return Command;
+	}
+
+	int32 StepIndex(int32 Count, int32 Index, int32 Direction)
+	{
+		if (Count <= 0)
+		{
+			return 0;
+		}
+		return ((Index + Direction) % Count + Count) % Count;
+	}
+
+	EApexWeather StepWeather(EApexWeather Weather, int32 Direction)
+	{
+		return static_cast<EApexWeather>(StepIndex(FApexSessionConditions::WeatherCount, static_cast<int32>(Weather), Direction));
+	}
+
+	int32 StepTimeOfDay(int32 Minutes, int32 Direction)
+	{
+		const int32 Day = FApexSessionConditions::MinutesPerDay;
+		return ((Minutes + 60 * Direction) % Day + Day) % Day;
 	}
 
 	float StepPlaybackRate(float Rate, int32 Direction)

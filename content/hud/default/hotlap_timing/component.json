@@ -1,0 +1,66 @@
+// The watched car's lap: the clock, each sector as it is closed, the last and
+// best laps, and the gap to the best. Every split was timed by the server.
+// Part of the `hotlap_watch` scene.
+{
+  "name": "Hotlap: timing",
+  "scene": "hotlap_watch",
+  "region": "bottom-left",
+  "order": 10,
+  "margin": [24, 0, 0, 0],
+  "root": {
+    "type": "column",
+    "children": [
+      // Struck for leaving the track; hidden while the lap is clean.
+      { "type": "text", "halign": "left", "margin": [0, 0, 0, 8], "visible": "=lap.invalid",
+        "text": "LAP INVALID", "font": "body", "size": 14, "bold": true, "color": "error" },
+
+      {
+        "type": "panel", "halign": "left", "padding": [20, 14], "background": "=alpha('surface', 0.88)",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "row", "children": [
+              { "type": "label", "valign": "bottom", "text": "=has(lap.display) ? 'Lap ' + lap.display : 'Out lap'" },
+              { "type": "text", "valign": "bottom", "margin": [16, 0, 0, 0], "font": "mono", "size": 13,
+                "color": "=!has(timing.delta_s) ? 'text_muted' : timing.delta_s <= 0 ? 'live' : 'error'",
+                "text": "=fmt_delta(timing.delta_s)" }
+            ] },
+            // The lap clock.
+            { "type": "text", "margin": [0, 4, 0, 0], "font": "display", "size": 56,
+              "color": "=lap.invalid ? 'error' : 'text'", "text": "=fmt_time(lap.time_s)" },
+
+            // The sectors: closed ones in their timing colour, the one being driven marked.
+            {
+              "type": "row", "margin": [0, 12, 0, 0],
+              "children": [{
+                "type": "column", "repeat": { "list": "sectors", "max": 6 }, "margin": [0, 0, 14, 0],
+                "children": [
+                  { "type": "rect", "width": 82, "height": 5,
+                    "color": "=item.is_current ? 'accent' : switch(item.state, 'session_best', 'session_best', 'personal_best', 'personal_best', 'slower', 'text_muted', 'border')" },
+                  { "type": "row", "margin": [0, 6, 0, 0], "children": [
+                    { "type": "label", "valign": "center", "width": 24, "text": "='S' + item.number" },
+                    { "type": "text", "font": "mono", "size": 15, "text": "=fmt_split(item.time_s)",
+                      "color": "=switch(item.state, 'session_best', 'session_best', 'personal_best', 'personal_best', 'slower', 'text_secondary', 'text_muted')" }
+                  ] }
+                ]
+              }]
+            },
+
+            // The laps behind it.
+            {
+              "type": "row", "margin": [0, 14, 0, 0],
+              "children": [
+                { "type": "label", "valign": "center", "margin": [0, 0, 10, 0], "text": "Last" },
+                { "type": "text", "font": "mono", "size": 15, "margin": [0, 0, 24, 0], "text": "=fmt_time(lap.last_s)",
+                  "color": "=lap.last_invalid ? 'error' : 'text'" },
+                { "type": "label", "valign": "center", "margin": [0, 0, 10, 0], "text": "Best" },
+                { "type": "text", "font": "mono", "size": 15, "text": "=fmt_time(lap.best_s)",
+                  "color": "=has(lap.best_s) && lap.best_s == timing.session_best_s ? 'session_best' : 'text'" }
+              ]
+            }
+          ]
+        }]
+      }
+    ]
+  }
+}

@@ -299,6 +299,8 @@ void UApexHudDataSubsystem::Refresh()
 		In.Timing = &Net->GetTimingBoard();
 		In.PitServices = &Net->GetPitServices();
 		In.Sectors = &Net->GetTrackSectors();
+		In.Corners = &Net->GetTrackCorners();
+		In.bHotlapWatch = Net->IsHotlapWatch();
 		// The backdrop's mode is its frames'; the net subsystem keeps a demo out of its own.
 		In.GameMode = bBackdrop && In.Frame->GameMode != EApexGameMode::Lobby ? In.Frame->GameMode : Net->GetGameMode();
 		In.ModeName = UApexMenuFlowSubsystem::GetGameModeName(In.GameMode);

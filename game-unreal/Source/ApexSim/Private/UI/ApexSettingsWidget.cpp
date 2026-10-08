@@ -102,6 +102,40 @@ namespace
 	const FName SegGearbox    = TEXT("Gearbox");
 	const FName SegSteering   = TEXT("Steering");
 	const FName SegRacingLine = TEXT("RacingLine");
+	const FName SegAssistPreset = TEXT("AssistPreset");
+
+	/** One assist preset: what each of the five assists is set to. */
+	struct FAssistPreset
+	{
+		EApexAssistLevel Traction;
+		bool bAbs;
+		bool bAutoGearbox;
+		bool bSteeringAssist;
+		EApexRacingLine RacingLine;
+	};
+
+	/** Beginner, Pro, Elite: everything on, braking aids only, nothing. */
+	const FAssistPreset AssistPresets[] = {
+		{ EApexAssistLevel::High, true,  true,  true,  EApexRacingLine::Full },
+		{ EApexAssistLevel::Low,  true,  false, true,  EApexRacingLine::BrakingOnly },
+		{ EApexAssistLevel::Off,  false, false, false, EApexRacingLine::Off },
+	};
+	constexpr int32 AssistPresetCustom = 3;
+
+	/** The AI skill slider's steps: the mixed field, then one per level 70-110. */
+	constexpr float AiSkillSteps = static_cast<float>(ApexAiSkill::Max - ApexAiSkill::Min + 1);
+
+	int32 AiSkillStep(int32 Level)
+	{
+		return Level == ApexAiSkill::Mixed ? 0 : Level - ApexAiSkill::Min + 1;
+	}
+
+	FString AiSkillText(int32 Level)
+	{
+		return Level == ApexAiSkill::Mixed
+			? FString(TEXT("MIX"))
+			: FString::Printf(TEXT("%d  %s"), Level, ApexAiSkill::Label(Level));
+	}
 	const FName SegUnits      = TEXT("Units");
 	const FName SegHud        = TEXT("Hud");
 	const FName SegPreset     = TEXT("Preset");
@@ -577,18 +611,19 @@ UWidget* UApexSettingsWidget::BuildGameplayPage()
 
 		AiSkillSlider = Slider;
 		AiSkillFill = Fill;
+		// One step per level: the leftmost is the mixed field, then 70-110.
+		Slider->SetStepSize(1.0f / AiSkillSteps);
 		Slider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleAiSkillChanged);
 
 		// An explicit width, because MakeRow right-aligns its control cell and a
 		// fill-width slider right-aligned to its own desired size is a stub.
 
-		// CreateSession carries a track, a player cap, an AI count, a lap limit
-		// and a session kind — and no skill. The server's own [ai] config decides.
+		// The same level the create screen's AI stepper edits
+		// (UApexMenuFlowSubsystem::CreateAiSkill, sent as CreateSession.ai_skill).
 		AddV(Page, MakeRow(
 			TEXT("AI skill"),
-			TEXT("Would apply to every AI car in a session you create."),
-			MakeSized(*WidgetTree, Cell, SliderCellWidth, -1.0f),
-			TEXT("CreateSession has no skill field.")));
+			TEXT("The level of the AI field in sessions you create (MIX: every level). The create screen can change it per session."),
+			MakeSized(*WidgetTree, Cell, SliderCellWidth, -1.0f)));
 	}
 
 	AddV(Page, MakeRow(
@@ -633,7 +668,15 @@ UWidget* UApexSettingsWidget::BuildAssistsPage()
 	// forwards the group on join and on any change. The session's host picks
 	// which are allowed when creating it, and the server forces the rest off,
 	// so each row carries a lock badge for that case (RefreshAssistLocks).
-	AddV(Page, MakeSectionLabel(TEXT("Driving aids")), FMargin(0.0f, 0.0f, 0.0f, 14.0f));
+	AddV(Page, MakeSectionLabel(TEXT("Preset")), FMargin(0.0f, 0.0f, 0.0f, 14.0f));
+
+	AddV(Page, MakeRow(
+		TEXT("Assist level"),
+		TEXT("Beginner: every aid on. Pro: ABS, light traction control, steering aid, braking line. Elite: no aids. Changing any aid below makes it Custom."),
+		MakeSegment(SegAssistPreset, { TEXT("BEGINNER"), TEXT("PRO"), TEXT("ELITE"), TEXT("CUSTOM") }, AssistPresetCustom, 118.0f),
+		FString(), 0.0f));
+
+	AddV(Page, MakeSectionLabel(TEXT("Driving aids")), FMargin(0.0f, 26.0f, 0.0f, 14.0f));
 
 	AddV(Page, MakeRow(
 		TEXT("ABS"),
@@ -681,6 +724,52 @@ UWidget* UApexSettingsWidget::BuildAssistsPage()
 
 	AddV(Page, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
 	return Page;
+}
+
+void UApexSettingsWidget::ApplyAssistPreset(int32 Index)
+{
+	UApexSettingsSubsystem* Settings = GetSettings();
+	if (!Settings || Index < 0 || Index >= UE_ARRAY_COUNT(AssistPresets))
+	{
+		return;
+	}
+
+	const FAssistPreset& Preset = AssistPresets[Index];
+	Settings->SetTractionControl(Preset.Traction);
+	Settings->SetAbs(Preset.bAbs);
+	Settings->SetAutoGearbox(Preset.bAutoGearbox);
+	Settings->SetSteeringAssist(Preset.bSteeringAssist);
+	Settings->SetRacingLine(Preset.RacingLine);
+
+	// Move the five rows to match.
+	RefreshFromSettings();
+}
+
+void UApexSettingsWidget::RefreshAssistPreset()
+{
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	const UApexSettingsSave* Values = Settings ? Settings->Get() : nullptr;
+	const TObjectPtr<UApexSegmentedWidget>* Segment = Segments.Find(SegAssistPreset);
+	if (!Values || !Segment || !*Segment)
+	{
+		return;
+	}
+
+	int32 Match = AssistPresetCustom;
+	for (int32 i = 0; i < UE_ARRAY_COUNT(AssistPresets); ++i)
+	{
+		const FAssistPreset& Preset = AssistPresets[i];
+		if (Values->TractionControl == Preset.Traction && Values->bAbs == Preset.bAbs
+			&& Values->bAutoGearbox == Preset.bAutoGearbox && Values->bSteeringAssist == Preset.bSteeringAssist
+			&& Values->RacingLine == Preset.RacingLine)
+		{
+			Match = i;
+			break;
+		}
+	}
+
+	TGuardValue<bool> Guard(bRefreshing, true);
+	(*Segment)->SetSelectedIndex(Match);
 }
 
 UWidget* UApexSettingsWidget::MakeAssistLockBadge(FName ControlId)
@@ -1492,34 +1581,39 @@ UWidget* UApexSettingsWidget::BuildBindingsGrid()
 		/** -1 for a cell this control does not have. */
 		int32 DeviceSlot;
 		int32 KeyboardSlot;
+		/** Heading shown above the first row of each group. */
+		const TCHAR* Group;
+		/** Which of the two columns the group sits in. */
+		bool bRightColumn;
 	};
 
 	static const TArray<FRowSpec> RowSpecs = {
-		{ TEXT("Throttle"),    ApexInput::Actions::Throttle,      0,  1 },
-		{ TEXT("Brake"),       ApexInput::Actions::Brake,         0,  1 },
-		{ TEXT("Steer axis"),  ApexInput::Actions::Steer,         0, -1 },
-		{ TEXT("Steer left"),  ApexInput::Actions::Steer,        -1,  2 },
-		{ TEXT("Steer right"), ApexInput::Actions::Steer,        -1,  3 },
-		{ TEXT("Shift up"),    ApexInput::Actions::GearUp,        0,  1 },
-		{ TEXT("Shift down"),  ApexInput::Actions::GearDown,      0,  1 },
-		{ TEXT("Camera"),      ApexInput::Actions::ToggleCamera,  0,  1 },
-		{ TEXT("Look axis"),   ApexInput::Actions::Look,          0, -1 },
-		{ TEXT("Look left"),   ApexInput::Actions::Look,         -1,  2 },
-		{ TEXT("Look right"),  ApexInput::Actions::Look,         -1,  3 },
-		{ TEXT("Look behind"), ApexInput::Actions::LookBack,      0,  1 },
-		{ TEXT("DRS"),         ApexInput::Actions::Drs,           0,  1 },
-		{ TEXT("Headlights"),  ApexInput::Actions::Headlights,    0,  1 },
-		{ TEXT("Flash lights"), ApexInput::Actions::FlashLights,  0,  1 },
-		{ TEXT("ERS mode"),    ApexInput::Actions::ErsMode,       0,  1 },
-		{ TEXT("Overtake"),    ApexInput::Actions::ErsBoost,      0,  1 },
-		{ TEXT("Pause menu"),  ApexInput::Actions::PauseMenu,     0,  1 },
+		{ TEXT("Throttle"),     ApexInput::Actions::Throttle,      0,  1, TEXT("Driving"),         false },
+		{ TEXT("Brake"),        ApexInput::Actions::Brake,         0,  1, TEXT("Driving"),         false },
+		{ TEXT("Steer axis"),   ApexInput::Actions::Steer,         0, -1, TEXT("Driving"),         false },
+		{ TEXT("Steer left"),   ApexInput::Actions::Steer,        -1,  2, TEXT("Driving"),         false },
+		{ TEXT("Steer right"),  ApexInput::Actions::Steer,        -1,  3, TEXT("Driving"),         false },
+		{ TEXT("Shift up"),     ApexInput::Actions::GearUp,        0,  1, TEXT("Gears"),           false },
+		{ TEXT("Shift down"),   ApexInput::Actions::GearDown,      0,  1, TEXT("Gears"),           false },
+		{ TEXT("DRS"),          ApexInput::Actions::Drs,           0,  1, TEXT("Energy and DRS"),  false },
+		{ TEXT("ERS mode"),     ApexInput::Actions::ErsMode,       0,  1, TEXT("Energy and DRS"),  false },
+		{ TEXT("Overtake"),     ApexInput::Actions::ErsBoost,      0,  1, TEXT("Energy and DRS"),  false },
+		{ TEXT("Camera"),       ApexInput::Actions::ToggleCamera,  0,  1, TEXT("View"),            true  },
+		{ TEXT("Look axis"),    ApexInput::Actions::Look,          0, -1, TEXT("View"),            true  },
+		{ TEXT("Look left"),    ApexInput::Actions::Look,         -1,  2, TEXT("View"),            true  },
+		{ TEXT("Look right"),   ApexInput::Actions::Look,         -1,  3, TEXT("View"),            true  },
+		{ TEXT("Look behind"),  ApexInput::Actions::LookBack,      0,  1, TEXT("View"),            true  },
+		{ TEXT("Headlights"),   ApexInput::Actions::Headlights,    0,  1, TEXT("Lights"),          true  },
+		{ TEXT("Flash lights"), ApexInput::Actions::FlashLights,   0,  1, TEXT("Lights"),          true  },
+		{ TEXT("Pause menu"),   ApexInput::Actions::PauseMenu,     0,  1, TEXT("Menu"),            true  },
 	};
 
 	UHorizontalBox* Grid = WidgetTree->ConstructWidget<UHorizontalBox>();
 	UVerticalBox* Left = WidgetTree->ConstructWidget<UVerticalBox>();
 	UVerticalBox* Right = WidgetTree->ConstructWidget<UVerticalBox>();
 
-	const int32 Split = FMath::DivideAndRoundUp(RowSpecs.Num(), 2);
+	const TCHAR* LeftGroup = nullptr;
+	const TCHAR* RightGroup = nullptr;
 
 	for (int32 Index = 0; Index < RowSpecs.Num(); ++Index)
 	{
@@ -1540,9 +1634,16 @@ UWidget* UApexSettingsWidget::BuildBindingsGrid()
 		AddChip(RowSpec.DeviceSlot, true);
 		AddChip(RowSpec.KeyboardSlot, false);
 
-		UVerticalBox* Column = Index < Split ? Left : Right;
+		UVerticalBox* Column = RowSpec.bRightColumn ? Right : Left;
+		const TCHAR*& CurrentGroup = RowSpec.bRightColumn ? RightGroup : LeftGroup;
+		if (!CurrentGroup || FCString::Strcmp(CurrentGroup, RowSpec.Group) != 0)
+		{
+			CurrentGroup = RowSpec.Group;
+			AddV(Column, MakeSectionLabel(RowSpec.Group),
+				FMargin(0.0f, Column->GetChildrenCount() == 0 ? 0.0f : 22.0f, 0.0f, 8.0f));
+		}
 		AddV(Column, MakeRow(RowSpec.Label, FString(), Chips, FString(), BindingRowHeight),
-			FMargin(0.0f, Column->GetChildrenCount() == 0 ? 0.0f : 2.0f, 0.0f, 0.0f));
+			FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 	}
 
 	AddH(Grid, Left, FMargin(0.0f, 0.0f, 14.0f, 0.0f), VAlign_Top, 1.0f);
@@ -1699,6 +1800,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegGearbox, Values->bAutoGearbox ? 1 : 0);
 	SetSegment(SegSteering, Values->bSteeringAssist ? 1 : 0);
 	SetSegment(SegRacingLine, static_cast<int32>(Values->RacingLine));
+	RefreshAssistPreset();
 	RefreshAssistLocks();
 	SetSegment(SegUnits, static_cast<int32>(Values->Units));
 	SetSegment(SegHud, static_cast<int32>(Values->HudDetail));
@@ -1722,8 +1824,12 @@ void UApexSettingsWidget::RefreshFromSettings()
 		if (Text)   { Text->SetText(FText::FromString(Display)); }
 	};
 
-	SetSlider(AiSkillSlider, AiSkillFill, AiSkillValue, Values->AiSkill, 0.0f, 1.0f,
-		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->AiSkill * 100.0f)));
+	{
+		const UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+		const int32 Level = Flow ? ApexAiSkill::Clamp(Flow->CreateAiSkill) : ApexAiSkill::Mixed;
+		SetSlider(AiSkillSlider, AiSkillFill, AiSkillValue, static_cast<float>(AiSkillStep(Level)), 0.0f, AiSkillSteps,
+			AiSkillText(Level));
+	}
 	SetSlider(MotionBlurSlider, MotionBlurFill, MotionBlurValue, Values->MotionBlur, 0.0f, 1.0f,
 		FString::FromInt(FMath::RoundToInt(Values->MotionBlur * 100.0f)));
 	SetSlider(FovSlider, FovFill, FovValue, Values->FieldOfView, FovMin, FovMax,
@@ -2013,6 +2119,15 @@ void UApexSettingsWidget::HandleFooterActivated(UApexButtonWidget* Button)
 			// controls page must not throw away their graphics settings.
 			Settings->ResetToDefaults(static_cast<EApexSettingsGroup>(CurrentTab));
 		}
+		if (CurrentTab == EApexSettingsTab::Gameplay)
+		{
+			// The AI level lives on the profile, not in the settings slot.
+			if (UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr)
+			{
+				Flow->CreateAiSkill = ApexAiSkill::Mixed;
+				Flow->SaveProfile();
+			}
+		}
 		RefreshFromSettings();
 	}
 }
@@ -2026,11 +2141,24 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	}
 
 	const FName Id = Control->ControlId;
-	if (Id == SegTraction)        { Settings->SetTractionControl(static_cast<EApexAssistLevel>(Index)); }
-	else if (Id == SegAbs)        { Settings->SetAbs(Index == 1); }
-	else if (Id == SegGearbox)    { Settings->SetAutoGearbox(Index == 1); }
-	else if (Id == SegSteering)   { Settings->SetSteeringAssist(Index == 1); }
-	else if (Id == SegRacingLine) { Settings->SetRacingLine(static_cast<EApexRacingLine>(Index)); }
+	if (Id == SegAssistPreset)
+	{
+		// CUSTOM is a read-out, not a choice: put the pills back where they were.
+		if (Index == AssistPresetCustom)
+		{
+			RefreshAssistPreset();
+		}
+		else
+		{
+			ApplyAssistPreset(Index);
+		}
+		return;
+	}
+	else if (Id == SegTraction)   { Settings->SetTractionControl(static_cast<EApexAssistLevel>(Index)); RefreshAssistPreset(); }
+	else if (Id == SegAbs)        { Settings->SetAbs(Index == 1); RefreshAssistPreset(); }
+	else if (Id == SegGearbox)    { Settings->SetAutoGearbox(Index == 1); RefreshAssistPreset(); }
+	else if (Id == SegSteering)   { Settings->SetSteeringAssist(Index == 1); RefreshAssistPreset(); }
+	else if (Id == SegRacingLine) { Settings->SetRacingLine(static_cast<EApexRacingLine>(Index)); RefreshAssistPreset(); }
 	else if (Id == SegUnits)      { Settings->SetUnits(static_cast<EApexUnits>(Index)); }
 	else if (Id == SegHud)        { Settings->SetHudDetail(static_cast<EApexHudDetail>(Index)); }
 	else if (Id == SegVSync)      { Settings->SetVSync(Index == 1); }
@@ -2077,9 +2205,19 @@ void UApexSettingsWidget::HandleAiSkillChanged(float Value)
 {
 	if (bRefreshing) { return; }
 	ApexUiAudio::Play(this, EApexUiSound::Adjust);
+
+	const int32 Step = FMath::RoundToInt(Value * AiSkillSteps);
+	const int32 Level = Step <= 0 ? ApexAiSkill::Mixed : ApexAiSkill::Min + Step - 1;
 	if (AiSkillFill) { AiSkillFill->SetPercent(Value); }
-	if (AiSkillValue) { AiSkillValue->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value * 100.0f)))); }
-	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetAiSkill(Value); }
+	if (AiSkillValue) { AiSkillValue->SetText(FText::FromString(AiSkillText(Level))); }
+	if (UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr)
+	{
+		if (Flow->CreateAiSkill != Level)
+		{
+			Flow->CreateAiSkill = Level;
+			Flow->SaveProfile();
+		}
+	}
 	RefreshFooter();
 }
 

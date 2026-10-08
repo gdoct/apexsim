@@ -279,8 +279,10 @@ async fn handle_create_session(
     let mut state_write = ctx.state.write().await;
 
     // A demo is watched, not driven, so it needs no car of the host's: it
-    // falls back to the default AI car (smallest id, for determinism).
-    let is_demo = session_kind == SessionKind::Demo;
+    // falls back to the default AI car (smallest id, for determinism). A
+    // watched hotlap is the same, with one AI car in the host's own car.
+    let is_demo = session_kind.is_watch_only();
+    let is_hotlap_watch = session_kind == SessionKind::HotlapWatch;
     let selected_car = state_write.lobby.get_player_car(conn_info.player_id).await;
     let fallback_car = || state_write.car_configs.keys().min().copied();
     let car_id = if is_demo {
@@ -288,12 +290,38 @@ async fn handle_create_session(
     } else {
         selected_car
     };
-    // Nobody but the AI takes a seat in a demo.
-    let max_players = if is_demo {
-        ai_count.max(1)
+    // Nobody but the AI takes a seat in a demo; a watched hotlap is one car
+    // at the top of the scale.
+    let (max_players, ai_count, ai_skill) = if is_hotlap_watch {
+        (1, 1, Some(crate::game_session::HOTLAP_WATCH_SKILL))
+    } else if is_demo {
+        (ai_count.max(1), ai_count, ai_skill)
     } else {
-        max_players
+        (max_players, ai_count, ai_skill)
     };
+    if is_hotlap_watch {
+        // One session per player: a hotlap being watched makes way for the
+        // next (another car, another sky), without a word to the client,
+        // which is asking for the replacement.
+        if let Some(old) = state_write
+            .lobby
+            .get_spectating_session(conn_info.player_id)
+            .await
+        {
+            if state_write
+                .sessions
+                .get(&old)
+                .is_some_and(|s| s.session.session_kind == SessionKind::HotlapWatch)
+            {
+                state_write
+                    .lobby
+                    .leave_session(conn_info.player_id, connection_id)
+                    .await;
+                state_write.sessions.remove(&old);
+                state_write.lobby.unregister_session(old).await;
+            }
+        }
+    }
 
     // Get host's selected car
     let Some(car_id) = car_id else {
@@ -407,7 +435,15 @@ async fn handle_create_session(
     state_write.lobby.register_session(session_info).await;
 
     if is_demo {
-        start_demo_session(ctx, state_write, &conn_info, connection_id, session_id).await;
+        start_demo_session(
+            ctx,
+            state_write,
+            &conn_info,
+            connection_id,
+            session_id,
+            session_kind,
+        )
+        .await;
         return;
     }
 
@@ -503,15 +539,17 @@ async fn handle_create_session(
 /// client's broadcast camera to open on the grid.
 const DEMO_COUNTDOWN_SECONDS: u16 = 8;
 
-/// Second half of creating a `SessionKind::Demo`: the host watches as a
-/// spectator (so no car of theirs is on the grid) and the AI field is counted
-/// straight into a race, since nobody will ever press start.
+/// Second half of creating a `SessionKind::Demo` or `HotlapWatch`: the host
+/// watches as a spectator (so no car of theirs is on the grid). A demo's AI
+/// field is counted straight into a race, since nobody will ever press
+/// start; a watched hotlap is already under way (`start_hotlap_watch`).
 async fn start_demo_session(
     ctx: &GameLoopCtx,
     mut state_write: tokio::sync::RwLockWriteGuard<'_, crate::server::ServerState>,
     conn_info: &ConnectionInfo,
     connection_id: ConnectionId,
     session_id: SessionId,
+    session_kind: SessionKind,
 ) {
     let (conditions, ai_skill, race_seconds) = state_write
         .sessions
@@ -531,11 +569,33 @@ async fn start_demo_session(
     let started = joined
         && match state_write.sessions.get_mut(&session_id) {
             Some(game_session) => {
-                game_session.start_countdown_mode(DEMO_COUNTDOWN_SECONDS, GameMode::Race);
+                if session_kind == SessionKind::Demo {
+                    game_session.start_countdown_mode(DEMO_COUNTDOWN_SECONDS, GameMode::Race);
+                }
                 true
             }
             None => false,
         };
+    // What a watcher of a hotlap needs ahead of the first frame: where the
+    // sector lines are (the roster follows with the next tick) and the
+    // corners.
+    let watch_messages: Vec<ServerMessage> = if session_kind == SessionKind::HotlapWatch {
+        state_write
+            .sessions
+            .get(&session_id)
+            .map(|s| {
+                let mut out = vec![ServerMessage::TrackSectors(TrackSectorsData {
+                    session_id,
+                    track_length_m: s.track_length_m(),
+                    boundaries_m: s.sector_boundaries_m(),
+                })];
+                out.extend(s.track_corners_message(session_id));
+                out
+            })
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
     if !started {
         warn!(
             "Demo session {} for player {} could not be started",
@@ -564,7 +624,7 @@ async fn start_demo_session(
             ServerMessage::SessionJoined(SessionJoinedData {
                 session_id,
                 your_grid_position: 0, // 0 indicates spectator
-                session_kind: SessionKind::Demo,
+                session_kind,
                 allowed_assists: AllowedAssists::ALL,
                 conditions,
                 damage: DamageLevel::Full,
@@ -573,6 +633,9 @@ async fn start_demo_session(
             }),
         )
         .await;
+    for msg in watch_messages {
+        let _ = ctx.send(connection_id, msg).await;
+    }
     ctx.set_player_session(connection_id, Some(session_id))
         .await;
 }

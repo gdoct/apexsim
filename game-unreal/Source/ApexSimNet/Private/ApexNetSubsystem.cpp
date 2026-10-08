@@ -396,6 +396,33 @@ void UApexNetSubsystem::JoinAsSpectator(const FString& SessionId)
 	SendPayload(ApexProtocol::EncodeJoinAsSpectator(SessionId));
 }
 
+void UApexNetSubsystem::CreateHotlapWatch(const FString& TrackConfigId, const FString& TrackName,
+	const FString& TrackStem, const FApexSessionConditions& Conditions)
+{
+	UE_LOG(LogApexSimNet, Log, TEXT("-> CreateSession (hotlap watch) track=%s conditions=%s"),
+		*TrackConfigId, *Conditions.Describe());
+	// One session per player: a hotlap already being watched is replaced by
+	// the server, a demo goes first.
+	LeaveDemoSession();
+	ResetSpectate();
+	bSessionRequestPending = true;
+	bSpectatorJoinRequested = true;
+	bHotlapWatchRequested = true;
+	SessionRequestSentSeconds = FPlatformTime::Seconds();
+
+	HotlapWatchSummary = FApexSessionSummary();
+	HotlapWatchSummary.TrackId = TrackConfigId;
+	HotlapWatchSummary.TrackName = TrackName;
+	HotlapWatchSummary.TrackFile = FString::Printf(TEXT("tracks/default/%s.yaml"), *TrackStem);
+	HotlapWatchSummary.SessionKind = EApexSessionKind::HotlapWatch;
+	HotlapWatchSummary.State = EApexSessionState::Racing;
+	HotlapWatchSummary.Conditions = Conditions;
+	HotlapWatchSummary.MaxPlayers = 1;
+
+	SendPayload(ApexProtocol::EncodeCreateSession(
+		TrackConfigId, 1, 1, 3, EApexSessionKind::HotlapWatch, FApexAllowedAssists(), Conditions));
+}
+
 void UApexNetSubsystem::CreateDemoSession(const FString& TrackConfigId, int32 AiCount, int32 LapLimit,
 	const FApexSessionConditions& Conditions)
 {
@@ -555,6 +582,7 @@ bool UApexNetSubsystem::FindTrackById(const FString& TrackId, FApexTrackConfigSu
 void UApexNetSubsystem::ClearLapTiming()
 {
 	CachedSectors = FApexTrackSectors();
+	CachedCorners = FApexTrackCorners();
 	CachedLapRecord = FApexLapRecord();
 	CachedGhostLap = FApexGhostLap();
 	CachedSetupSheet = FApexCarSetupSheet();
@@ -581,6 +609,12 @@ bool UApexNetSubsystem::FindSessionById(const FString& SessionId, FApexSessionSu
 			OutSession = Session;
 			return true;
 		}
+	}
+	// A watched hotlap is unlisted: the summary made when it was asked for.
+	if (bHotlapWatch && !SessionId.IsEmpty() && HotlapWatchSummary.Id.Equals(SessionId, ESearchCase::IgnoreCase))
+	{
+		OutSession = HotlapWatchSummary;
+		return true;
 	}
 	return false;
 }
@@ -909,7 +943,32 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		// Seated as a spectator: no car of our own, every car is someone else's.
 		bSessionSpectator = bSpectatorJoinRequested;
 		bSpectatorJoinRequested = false;
-		// The new session's line follows this message; the old one is for a
+		bHotlapWatch = Message.SessionKind == EApexSessionKind::HotlapWatch;
+		bHotlapWatchRequested = false;
+		if (bHotlapWatch)
+		{
+			HotlapWatchSummary.Id = Message.SessionId;
+			HotlapWatchSummary.Conditions = Message.Conditions;
+		}
+		CachedCorners = FApexTrackCorners();
+		if (bHotlapWatch)
+		{
+			// A hotlap being watched is replaced without a SessionLeft in
+			// between (another car, another sky), so nothing has put the old
+			// one's state back: the new session starts from the lobby, and
+			// its first frame is what opens the race view again.
+			if (CurrentSessionState != EApexSessionState::Lobby)
+			{
+				CurrentSessionState = EApexSessionState::Lobby;
+				OnSessionStateChanged.Broadcast(CurrentSessionState);
+			}
+			if (CurrentGameMode != EApexGameMode::Lobby)
+			{
+				CurrentGameMode = EApexGameMode::Lobby;
+				OnGameModeChanged.Broadcast(CurrentGameMode);
+			}
+		}
+
 		// different track or car.
 		ClearRacingLine();
 		ClearLapTiming();
@@ -949,6 +1008,8 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		}
 		CurrentSessionId.Reset();
 		bSessionSpectator = false;
+		bHotlapWatch = false;
+		bHotlapWatchRequested = false;
 		CurrentAllowedAssists = FApexAllowedAssists();
 		CurrentConditions = FApexSessionConditions();
 		CurrentDamage = EApexDamageLevel::Full;
@@ -1045,6 +1106,12 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- RacingLine %d point(s) every %.2f m for session %s"),
 			CachedRacingLine.Points.Num(), CachedRacingLine.SpacingM, *CachedRacingLine.SessionId);
 		OnRacingLineUpdated.Broadcast(CachedRacingLine);
+		break;
+
+	case EApexServerMessageType::TrackCorners:
+		CachedCorners = Message.TrackCorners;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- TrackCorners %d corner(s) over %.0f m"),
+			CachedCorners.Corners.Num(), CachedCorners.TrackLengthM);
 		break;
 
 	case EApexServerMessageType::TrackSectors:
