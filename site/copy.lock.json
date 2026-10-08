@@ -12,7 +12,7 @@
    "Track Editor (Rust + Bevy)": "bc1bd8681ca9",
    "Play from the editor build": "e516475bdf18",
    "Standalone game build": "d60f04d38e98",
-   "Release package": "edded07e4f26",
+   "Release package": "40ca24d535ca",
    "Real-world layouts (`<Stem>.layout.json`, `ats-dress`)": "8b557432befb",
    "Real elevation (`<Stem>.dem.msgpack`, `dem_fetch.py`)": "6803cc818e11",
    "Smoothing a traced centerline (`ats-smooth`)": "76db745bc6b8",
@@ -49,7 +49,7 @@
    "Watching a race and replays (`Race/ApexSpectatorView.h`, `UApexReplayRecorder`, `UApexReplaysWidget`; docs/SPECTATOR.md sections 5-6)": "1fb7d7e825a7",
    "Track guide (`track_guide.rs`, `apexsim-replay guide`, `<Stem>.guide.yml`; docs/TRACK_GUIDE.md)": "1c063a07c979",
    "Demo mode and the broadcast camera (`ApexDemoModeSubsystem`, `Race/ApexTvDirector.h`)": "3a968556031f",
-   "Client startup settings (`settings.yml`)": "5d804ce485e7",
+   "Client startup settings (`settings.yml`)": "be608938d4bf",
    "Triple monitors (`UApexMultiViewSubsystem`, `ApexMultiView.h`, `ApexSideView.h`, `UApexGameViewportClient`)": "c6a25ad0107f",
    "Startup splash hold (`ApexSimBoot`, `UApexStartupSplashSubsystem`)": "669812c04fe3",
    "Menu sound (`Audio/`)": "a6f10d0ce0e6",
@@ -59,7 +59,8 @@
    "Car setup (`server/src/car_setup.rs`, `SetCarSetup`, the hotlap garage)": "5bcb512949f4",
    "Fuel (`FuelConfig`, `GameSession::start_fuel_liters`, the fuel knob)": "821ce13c418e",
    "Tyre temperature (`server/src/tyre_thermal.rs`, `[tires]` window keys)": "c3c64f0dbd6e",
-   "Slipstream and dirty air (`server/src/slipstream.rs`)": "f994a2ad17ad",
+   "Slipstream and dirty air (`server/src/slipstream.rs`)": "f16e785d0b34",
+   "Racecraft: passing, defending, getting unstuck (2026-10-08; `racecraft.rs`)": "e4cce7f4ed43",
    "Ride-height aero and wings (`server/src/aero.rs`, `[aero]`, the aero knobs)": "6e3faf243cee",
    "The air: temperature, density and wind (`SessionConditions`, `wind.rs`)": "cdb07e5ef003",
    "Tyre wear, compounds and pit stops (`tyre_thermal.rs`, `pit.rs`, `<Stem>.pit.msgpack`)": "9b249239f9e3",
@@ -71,6 +72,7 @@
    "Track evolution and changing conditions (2026-10-07; `road_state.rs`, `conditions.rs`, `SkyNow`)": "67bda9462b1a",
    "Hybrid deployment (`hybrid.rs`, `PlayerInput.ers_mode` / `ers_boost`)": "e1efa1e74853",
    "Hotlap (`GameMode::Hotlap`, `HotlapRelocate`, `GhostLap`, `UApexHotlapWidget`, `AApexGhostCarActor`)": "11cdee6f23dd",
+   "Watching a hotlap (`SessionKind::HotlapWatch`, `hotlap_watch` HUD scene; docs/game/MAINMENU.md)": "7cbe548273e7",
    "Force feedback (`server/src/feedback.rs`, `Input/ApexForceFeedback.h`)": "3eb876940baf",
    "Wheels and pedals (`Source/ApexSimInput/`)": "c9321e452774",
    "Server dashboard (`server/src/admin/`, docs/ADMIN_DASHBOARD.md)": "ea62ecc525b7",
@@ -78,21 +80,6 @@
    "Key Technical Details": "92fff52ddf04",
    "Configuration": "cae00e6a7fbb",
    "Testing Notes": "c098bbc9e718"
-  },
-  "docs/SIMULATION_GAPS.md": {
-   "Simulation gaps": "fb76b741345d",
-   "Car physics": "920e29782d1b",
-   "Tyres": "db632f745359",
-   "Track and environment": "52312ff8a7d4",
-   "AI and strategy": "8c4c7c441ee7",
-   "Racing line aid (the player's)": "e1fd3d30d0df",
-   "Race rules and the pit lane": "86e89fdc187b",
-   "Race weekends: sessions across days": "1f26c0be8605",
-   "Client feel, visuals and HUD": "62051d332dab",
-   "Replays and spectating": "3fb235b14a71",
-   "Assetto Corsa imports": "33dd0d0e7262",
-   "Built but never seen in the running game": "41d4db1772fc",
-   "Before picking one up": "5c1d8c069093"
   }
  }
 }

@@ -337,12 +337,7 @@ async fn session_detail(ctx: &AdminContext, id: SessionId) -> Resp {
         })
         .collect();
     rows.sort_by(|a, b| {
-        let key = |r: &Row| {
-            (
-                r.car.in_garage,
-                r.car.finish_position.map_or(u8::MAX, |p| p),
-            )
-        };
+        let key = |r: &Row| (r.car.in_garage, r.car.finish_position.unwrap_or(u8::MAX));
         key(a).cmp(&key(b)).then_with(|| {
             if in_timing_mode {
                 let best = |r: &Row| {

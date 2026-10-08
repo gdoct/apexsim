@@ -206,19 +206,24 @@ features:
         behind the menus, with a timing tower, a choice of car and camera,
         and the broadcast director on hand. Every session you drive is
         recorded on your machine; save the ones worth keeping and play them
-        back paused, sped up or skipped through.
-      chips: [Live sessions, Timing tower, Replays, Pause and seek]
+        back paused, sped up or skipped through. Or watch a hotlap: one AI
+        car lapping any circuit alone on its racing line, in the car,
+        weather and hour you pick, with each corner named as it comes.
+      chips: [Live sessions, Timing tower, Replays, Pause and seek, Hotlap watch]
     - tag: Racecraft
       wide: true
-      title: AI and a TV director
+      title: AI that races, and a TV director
       body: >-
-        Deterministic AI drivers race in your car's class with a traffic
-        layer, at a level the host sets, and drive to the grip they have:
-        cold tyres, dirty air, a tailwind into a braking zone, a damaged
-        wing. Behind the menus a recorded AI race plays, and a broadcast
+        Deterministic AI drivers race in your car's class at a level the
+        host sets. A quicker car pulls out of the tow into a braking zone
+        and dives up the inside, or tucks back in if it is not alongside; a
+        car under attack covers the inside, and a backmarker moves over for
+        the leaders. They drive to the grip they have (cold tyres, dirty
+        air, a damaged wing) and reverse out of a barrier they end up
+        against. Behind the menus a recorded AI race plays, and a broadcast
         director follows its battles through trackside, helicopter and
         onboard shots.
-      chips: [Class fields, Host-set level, Pit strategy, Broadcast cameras]
+      chips: [Overtaking, Defending, Host-set level, Pit strategy, Broadcast cameras]
     - tag: Modding
       wide: true
       title: Open the files
