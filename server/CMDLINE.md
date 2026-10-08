@@ -520,8 +520,8 @@ cargo run --release --bin convert_track -- --tracks-csv <CSV> --output <FILE> --
 | `--description <TEXT>` | none | `metadata.description` (shown in the track picker). |
 | `-f`, `--format <FMT>` | from the extension | `yaml` (or `yml`) or `json`. An unknown extension with no `--format` is an error. |
 | `--friction <F>` | `1.0` | The friction of every node. |
-| `--elevation <MODE>` | `flat` | Accepted but not used yet: the source data is 2D, so every node and raceline point has `z = 0`. |
-| `--closed-loop` | on | Accepted, but it is a switch that is on by default, so every track is written as a closed loop. |
+| `--closed-loop <BOOL>` | `true` | `--closed-loop false` writes a point-to-point track (`closed_loop: false`, and the length has no closing segment). |
+| `--track-id <UUID>` | kept, else new | The track's fixed id. Without it, converting over an existing file keeps that file's `track_id`, and only a new file gets a fresh random one. |
 
 What it reads and writes:
 
@@ -530,15 +530,16 @@ What it reads and writes:
   skipped with a warning; a value that is not a number stops the
   conversion. Coordinates and widths are metres.
 - **Nodes** take the CSV's points as they are (`width_left`,
-  `width_right`), on asphalt, with no banking and `z = 0`. `default_width`
-  is the mean total width. `metadata.length_m` is measured from the
-  centerline, including the closing segment.
+  `width_right`), on asphalt, with no banking and `z = 0` (the source data
+  is 2D). `default_width` is the mean total width. `metadata.length_m` is
+  measured from the centerline, with the closing segment on a closed loop.
 - **Not generated:** checkpoints, sector lines (the lap is then split into
   thirds), grid slots, DRS zones and the location metadata (altitude,
   latitude, longitude).
-- **`track_id` is a new random UUID every run.** Keep the one from the
-  first conversion: a track's id must stay fixed, or the client's catalog
-  rows and the lap records stop matching it.
+- **`track_id` stays fixed.** The client's catalog rows and the lap
+  records are keyed by it, so converting again over the same output file
+  keeps its id. Converting to a new file mints one; pass `--track-id` to
+  carry an id over, or to give the track a known one.
 
 The result is a raw centerline. To turn it into a finished circuit, put the
 YAML in `content/tracks/custom/` and run it through the track pipeline

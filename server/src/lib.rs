@@ -29,6 +29,7 @@ pub mod network;
 pub mod physics;
 pub mod pit;
 pub mod procgen;
+pub mod racecraft;
 pub mod racing_line;
 pub mod records;
 pub mod replay;

@@ -1983,6 +1983,55 @@ impl GameSession {
         self.update_road();
         self.update_debris();
         crate::slipstream::update(&mut self.session.participants, &self.car_configs);
+        self.update_racecraft();
+    }
+
+    /// Every AI driver's racecraft for the coming tick (`crate::racecraft`):
+    /// whether it passes, defends or lets a car by. Decided from one
+    /// snapshot of the field, so no driver's answer depends on whose was
+    /// worked out first.
+    fn update_racecraft(&mut self) {
+        let total = crate::laps::track_length_m(&self.track_config);
+        if total <= 0.0 || self.session.ai_player_ids.is_empty() {
+            return;
+        }
+        let ctx = crate::racecraft::Context {
+            track: &self.track_config,
+            total_m: total,
+            race: self.session.game_mode == GameMode::Race,
+            dt: self.dt(),
+        };
+        let field: Vec<crate::racecraft::Rival> = self
+            .session
+            .participants
+            .values()
+            .filter_map(|state| {
+                let config = self.car_configs.get(&state.car_config_id)?;
+                Some(crate::racecraft::Rival::of(
+                    state,
+                    config.length_m,
+                    config.width_m,
+                    total,
+                ))
+            })
+            .collect();
+        let decided: Vec<(PlayerId, crate::racecraft::Racecraft)> = field
+            .iter()
+            .filter_map(|me| {
+                let profile = self.ai_profiles.get(&me.id)?;
+                let state = self.session.participants.get(&me.id)?;
+                let speeds = self.ai_speed_profile(state.car_config_id, state.fuel_liters);
+                Some((
+                    me.id,
+                    crate::racecraft::decide(state, me, profile, speeds, &field, &ctx),
+                ))
+            })
+            .collect();
+        for (id, racecraft) in decided {
+            if let Some(state) = self.session.participants.get_mut(&id) {
+                state.racecraft = racecraft;
+            }
+        }
     }
 
     /// The sky this tick (`crate::conditions`), once a second: the clock,

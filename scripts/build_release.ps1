@@ -18,7 +18,7 @@
         5. client     - scripts/build_game_standalone.ps1 (BuildCookRun)
         6. assemble   - server binary, server.toml and the content the server
                         reads at runtime, the showcases for both sides, plus
-                        launchers and a manifest
+                        the launcher and a manifest
         7. zip        - optional, with -Zip
 
     The package lands under artifacts/, which .gitignore already excludes, so
@@ -27,8 +27,6 @@
         artifacts/release/ApexSim-<Version>-Win64/
             launcher.exe        the launcher (launcher/): checks the install,
                                 then launches, configures or manages content
-            Play.bat            start the server (if needed) and the game
-            Start-Server.bat    server only, for hosting
             README.txt
             LICENSE
             release.json        version, commit, configuration, contents
@@ -45,7 +43,8 @@
             Game/Showcase/      the rendered AI races (.apxs) the menu plays
                                 behind its screens (docs/SPECTATOR.md)
             Server/             apexsim-server.exe + apexsim-replay.exe +
-                                server.toml + content/ + showcase/ (the same
+                                server.toml + server.md (how to start it by
+                                hand) + content/ + showcase/ (the same
                                 .apxs files, the server's playlist)
 
     Every stage can be skipped so a broken piece does not block the rest; a
@@ -671,6 +670,8 @@ New-Item -ItemType Directory -Path $ServerDir -Force | Out-Null
 Copy-Item -LiteralPath $ServerExe -Destination $ServerDir -Force
 Copy-Item -LiteralPath $ReplayExe -Destination $ServerDir -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'server.toml') -Destination $ServerDir -Force
+# How to start the server by hand: its options and environment overrides.
+Copy-Item -LiteralPath (Join-Path $RepoRoot 'server\CMDLINE.md') -Destination (Join-Path $ServerDir 'server.md') -Force
 Copy-ServerContent -Destination (Join-Path $ServerDir 'content')
 # The track guides (docs/TRACK_GUIDE.md): Game\Guide is where the track
 # picker looks. Built here when missing or stale, like the content script.
@@ -730,7 +731,7 @@ display:
 
 server:
   # The server the game connects to when it starts. 127.0.0.1 is a server
-  # on this machine, such as the one Play.bat starts for you.
+  # on this machine, such as the one the launcher starts for you.
   host: 127.0.0.1
   port: 9000
 '@
@@ -739,36 +740,6 @@ Write-TextFile (Join-Path $GameDir 'settings.sample.yml') $sampleSettings
 $carCount   = @(Get-CarFiles).Count
 $trackCount = @(Get-TrackFiles).Count
 
-# Launchers. Both cd into their own folder first: the server resolves
-# content/ and its TLS paths relative to the working directory.
-$startServerBat = @'
-@echo off
-rem Host an ApexSim server. Extra arguments are passed through, e.g.
-rem   Start-Server.bat --log-level debug
-cd /d "%~dp0Server"
-apexsim-server.exe %*
-if errorlevel 1 pause
-'@
-Set-Content -LiteralPath (Join-Path $ReleaseDir 'Start-Server.bat') `
-    -Value $startServerBat -Encoding ascii
-
-$playBat = @'
-@echo off
-rem Start a local server unless one is already listening, then play.
-cd /d "%~dp0"
-netstat -an | findstr /r /c:":9000 .*LISTENING" >nul
-if errorlevel 1 (
-    echo Starting the ApexSim server...
-    start "ApexSim Server" /min /d "%~dp0Server" "%~dp0Server\apexsim-server.exe"
-    timeout /t 2 /nobreak >nul
-) else (
-    echo Using the server already listening on port 9000.
-)
-start "" "%~dp0Game\ApexSim.exe"
-'@
-Set-Content -LiteralPath (Join-Path $ReleaseDir 'Play.bat') `
-    -Value $playBat -Encoding ascii
-
 $readme = @"
 ApexSim $Version (Windows 64-bit)
 Built from commit $Commit, client configuration $Configuration.
@@ -776,8 +747,7 @@ Built from commit $Commit, client configuration $Configuration.
 QUICK START
 
     Double-click launcher.exe, the launcher. Launch starts the game; its
-    drop-down has "Launch with local server". Or double-click Play.bat, which
-    starts a local server and launches the game.
+    drop-down has "Launch with local server".
     In the menu, connect to 127.0.0.1:9000.
 
 WHAT IS IN HERE
@@ -810,8 +780,8 @@ WHAT IS IN HERE
                        and the car and track data it reads at startup;
                        Server\showcase holds the races it streams to the
                        menus of connected players ([showcase] in server.toml).
-    Start-Server.bat   Run the server on its own, to host for other people.
-    Play.bat           Server plus client, for playing on your own machine.
+                       Run Server\apexsim-server.exe on its own to host;
+                       Server\server.md has its options.
 
 SETTINGS
 
@@ -829,7 +799,7 @@ SETTINGS
 
 HOSTING FOR OTHER PEOPLE
 
-    Run Start-Server.bat and open these ports to your players:
+    Run Server\apexsim-server.exe and open these ports to your players:
 
         9000/tcp   login, lobby and session management
         9001/udp   telemetry out, player input in

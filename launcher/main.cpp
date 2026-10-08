@@ -48,7 +48,7 @@ namespace Gdiplus { using std::min; using std::max; }
 namespace fs = std::filesystem;
 
 static const wchar_t* kTroubleshootUrl = L"https://gdoct.github.io/apexsim";
-static const unsigned short kServerPort = 9000;  // Play.bat's check
+static const unsigned short kServerPort = 9000;  // the default server port
 
 // ---------------------------------------------------------------- text utils
 
@@ -288,7 +288,7 @@ static bool SaveSettings(const fs::path& path, const Settings& s)
         "\n"
         "server:\n"
         "  # The server the game connects to when it starts. 127.0.0.1 is a server\n"
-        "  # on this machine, such as the one Play.bat starts for you.\n"
+        "  # on this machine, such as the one the launcher starts for you.\n"
         "  host: %s\n"
         "  port: %d\n",
         s.resX, s.resY, s.mode.c_str(), s.vsync ? "true" : "false", s.frameLimit, s.screens,
@@ -531,7 +531,7 @@ static void LaunchAsync(bool withServer)
                 { ok = false; err = L"Could not start the server."; }
                 else
                 {
-                    // Play.bat waits two seconds; poll so a quick server is not slowed.
+                    // Poll rather than wait a fixed time, so a quick server is not slowed.
                     for (int i = 0; i < 40 && !PortListening(kServerPort); ++i) Sleep(100);
                 }
             }
@@ -561,15 +561,16 @@ static void LaunchAsync(bool withServer)
 static void Layout()
 {
     int W = S(820), H = S(460), m = S(40), gap = S(16), h = S(56);
-    int y = H - S(112), x = m;
+    int y = H - S(164), x = m;  // the progress bar and status lines sit below
     auto place = [&](int i, int w) { g.btn[i] = { x, y, x + w, y + h }; x += w + gap; };
-    place(BtnTrouble, S(130));
-    int lw = S(230), aw = S(40);
+    place(BtnConfig, S(170));
+    place(BtnContent, S(150));
+    place(BtnTrouble, S(140));
+    // LAUNCH sits apart, flush with the right margin.
+    int lw = S(220), aw = S(40);
+    x = W - m - lw;
     g.btn[BtnLaunch] = { x, y, x + lw - aw, y + h };
     g.btn[BtnArrow] = { x + lw - aw, y, x + lw, y + h };
-    x += lw + gap;
-    place(BtnConfig, S(180));
-    place(BtnContent, S(150));
     g.btn[BtnClose] = { W - S(48), 0, W, S(36) };
     g.btn[BtnServer] = { g.btn[BtnLaunch].left, y + h + S(6), g.btn[BtnArrow].right, y + h + S(6) + S(44) };
 }
@@ -696,7 +697,7 @@ static void Paint(HDC hdc, int W, int H)
         Font word(&fam, (float)S(70), FontStyleBold | FontStyleItalic, UnitPixel);
         StringFormat tight(StringFormat::GenericTypographic());
         RectF bounds;
-        float wx = (float)S(40), wy = (float)S(80);
+        float wx = (float)S(40), wy = (float)S(15);
         gr.MeasureString(L"APEX", -1, &word, PointF(0, 0), &tight, &bounds);
         SolidBrush ink(Color(255, 246, 247, 250)), accent(Color(255, 230, 36, 54));
         gr.DrawString(L"APEX", -1, &word, PointF(wx, wy), &tight, &ink);
@@ -713,8 +714,8 @@ static void Paint(HDC hdc, int W, int H)
             gr.DrawString(v.c_str(), -1, &tag, PointF(wx + S(4), wy + S(116)), &spaced, &dim);
         }
 
-        // Progress bar.
-        float bx = (float)S(40), by = (float)S(268), bw = (float)(W - S(80)), bh = (float)S(6);
+        // Progress bar, under the buttons.
+        float bx = (float)S(40), by = (float)(g.btn[BtnLaunch].bottom + S(24)), bw = (float)(W - S(80)), bh = (float)S(6);
         SolidBrush track(Color(255, 38, 43, 57));
         GraphicsPath tp;
         RoundPath(tp, RectF(bx, by, bw, bh), bh / 2);

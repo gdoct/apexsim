@@ -34,7 +34,7 @@ This project is in active development. The simulation and the networking underne
 **Unreal client (`game-unreal/`)**
 * Full menu shell — connect, session browser and create, car and track selection, lobby, session results — built as C++ widget trees rather than widget blueprints, so layout is reviewable in a diff
 * Race view: a car per roster entry driven from telemetry, with the circuit built at runtime from its export; cockpit and chase cameras
-* No client-side physics by design: the 240 Hz authoritative server is the only simulation, and every car is rendered from a telemetry buffer clocked in server ticks — interpolated between samples, dead-reckoned across gaps, so motion stays smooth without a second model to reconcile
+* No client-side physics by design: the 420 Hz authoritative server is the only simulation, and every car is rendered from a telemetry buffer clocked in server ticks — interpolated between samples, dead-reckoned across gaps, so motion stays smooth without a second model to reconcile
 * A first-person cockpit view built at runtime per car — steering wheel, dashboard widget (gear, speed, RPM, lap time) and mirrors rendered from scene captures
 * Synthesized audio: per-car engine sound driven by live RPM/throttle/gear telemetry (no audio assets, no wire fields for redline/idle), plus a synthesized UI sound set for menu navigation
 * Optional racing-line overlay (off / braking only / full), drawn as coloured dots on the track from the server's per-car speed profile

@@ -29,6 +29,13 @@ const AI_DOWNSHIFT_HEADROOM: f32 = 0.85;
 /// at. The profile itself keeps a margin below the grip limit.
 const PROFILE_NOVICE_PACE: f32 = 0.85;
 const PROFILE_ACE_PACE: f32 = 0.98;
+/// The share of its car's speed profile a driver of `skill_level` runs at.
+pub fn profile_pace(skill_level: u8) -> f32 {
+    let skill = (skill_level.clamp(MIN_SKILL_LEVEL, MAX_SKILL_LEVEL) - MIN_SKILL_LEVEL) as f32
+        / (MAX_SKILL_LEVEL - MIN_SKILL_LEVEL) as f32;
+    PROFILE_NOVICE_PACE + (PROFILE_ACE_PACE - PROFILE_NOVICE_PACE) * skill
+}
+
 /// Profile points searched either side of the estimated position.
 const PROFILE_SEARCH_POINTS: i64 = 24;
 /// Time from pressing the brake to the car decelerating at the rate asked.
@@ -50,6 +57,18 @@ fn env_f(name: &str, default: f32) -> f32 {
         .unwrap_or(default)
 }
 const STEER_LAG_ACE_S: f32 = 0.04;
+
+/// Smooth per-lap noise: control points this far apart along the line, m.
+const LAP_NOISE_SPACING_M: f32 = 150.0;
+const PACE_NOISE_SALT: u64 = 0x5041_4345;
+const WANDER_SALT: u64 = 0x5741_4E44;
+/// The wander's control points are this much further apart than the pace
+/// noise's.
+const WANDER_STRETCH: f32 = 0.5;
+/// A driver's wander about its line on a straight, m: the most precise
+/// and the least.
+const WANDER_PRECISE_M: f32 = 0.05;
+const WANDER_IMPRECISE_M: f32 = 0.5;
 
 /// Lateral room an AI driver keeps between its flank and a car alongside.
 const TRAFFIC_SIDE_MARGIN_M: f32 = 1.0;
@@ -340,6 +359,20 @@ impl<'a> AiDriverController<'a> {
         if self.track_config.centerline.is_empty() {
             return PlayerInputData::default();
         }
+        if state.racecraft.reverse_s > 0.0 {
+            return self.back_out(state);
+        }
+        if state.gear < 0 {
+            // Backed out: stop before first will go in (it does not while
+            // the car rolls backwards, and in reverse the throttle would
+            // carry on backing it up).
+            return PlayerInputData {
+                brake: 1.0,
+                gear: Some(1),
+                clutch: Some(1.0),
+                ..PlayerInputData::default()
+            };
+        }
 
         // Reaction time: pedal and gear decisions are only remade every
         // `interval` ticks and held in between (the physics step copies the
@@ -369,27 +402,29 @@ impl<'a> AiDriverController<'a> {
         };
         let d_line = self.refine_line_distance(&line, d_est, state.pos_x, state.pos_y);
 
-        let target_speed = match self.speed_profile {
-            Some(speeds) => self.profile_target_speed(state, speeds, d_line, skill_factor),
+        let (target_speed, slowest_ahead_m) = match self.speed_profile {
+            Some(speeds) => self.profile_target_speed(state, speeds, d_line),
             None => {
                 // Straight-line speed cap scales with skill:
                 // 70 skill = ~52 m/s (187 km/h), 110 skill = ~80 m/s (288 km/h)
                 let speed_cap = 52.0 + (skill_factor * 28.0);
-                self.plan_target_speed(state, &line, d_line, speed_cap, skill_factor)
+                (
+                    self.plan_target_speed(state, &line, d_line, speed_cap, skill_factor),
+                    None,
+                )
             }
         };
 
         // Consistency variation: deterministic noise, amplitude set by the
         // profile's randomness_scale (less consistent drivers wander more).
-        // Asymmetric: the slow side varies freely (lap-time spread), but the
-        // fast side is damped — overshooting a *planned corner speed* sends
-        // low-skill drivers straight off the road.
-        let consistency_noise = self.get_consistency_noise(current_tick);
-        let consistency_noise = if consistency_noise > 0.0 {
-            consistency_noise * 0.3
-        } else {
-            consistency_noise
-        };
+        // Smooth along the lap and different every lap: a driver takes a
+        // corner a little differently from the last time round, rather than
+        // flickering every tick. Only ever slower than the plan: held over
+        // a whole corner, the fast side the per-tick noise had (damped to
+        // 0.3) doubled the time the field spent sliding in the AI survey.
+        let consistency_noise = self
+            .lap_noise(d_line, state.current_lap, PACE_NOISE_SALT)
+            .min(0.0);
         let target_speed = target_speed
             * (1.0
                 + consistency_noise
@@ -426,6 +461,30 @@ impl<'a> AiDriverController<'a> {
             ty = center.y + (ty - center.y) * precision;
         }
 
+        // Racecraft (`crate::racecraft`): a lane across the road to pass or
+        // defend on, eased onto and off, and the driver's own small wander
+        // about its line down the straights. Held on the road.
+        let racecraft = state.racecraft;
+        let shift = self.lane_shift(
+            state,
+            &line,
+            d_line,
+            look_ahead,
+            (track_length, line_length),
+            (tx, ty),
+        );
+        tx += shift.0;
+        ty += shift.1;
+        target_speed *= racecraft.pace;
+        // A lane inside the line is a tighter corner: v goes with the root
+        // of the radius.
+        if racecraft.blend > 0.0 {
+            if let Some(ahead_m) = slowest_ahead_m {
+                let curvature = self.line_curvature(&line, d_line + ahead_m);
+                target_speed *= (1.0 - curvature * shift.2).clamp(0.6, 1.0).sqrt();
+            }
+        }
+
         // Off-track recovery: aim at the centerline ahead (the middle of
         // the road), not the raceline — chasing an optimal line from the
         // grass leaves the car orbiting a target it can never rejoin. Speed
@@ -454,7 +513,28 @@ impl<'a> AiDriverController<'a> {
         }
 
         let steering = if state.is_on_track {
-            self.track_path(state, &line, d_line, look_ahead, (tx, ty), skill_factor)
+            // On a racecraft lane the target is a place across the road, so
+            // it is held across the road (`hold_lane`), by the blend.
+            let hold = if racecraft.blend > 0.0 {
+                let d_center = (state.track_progress
+                    + look_ahead * track_length / line_length.max(1.0))
+                .rem_euclid(track_length.max(1e-3));
+                let center = self.find_nearest_centerline_point(d_center);
+                let left = (tx - center.x) * -center.heading_rad.sin()
+                    + (ty - center.y) * center.heading_rad.cos();
+                Some((racecraft.blend, left))
+            } else {
+                None
+            };
+            self.track_path(
+                state,
+                &line,
+                d_line,
+                look_ahead,
+                (tx, ty),
+                hold,
+                skill_factor,
+            )
         } else {
             self.calculate_steering(state, tx, ty, skill_factor)
         };
@@ -504,6 +584,27 @@ impl<'a> AiDriverController<'a> {
         }
     }
 
+    /// Backing out of a wall (`crate::racecraft`): stop, select reverse,
+    /// and back up with the wheel turned so the nose swings toward the road
+    /// ahead (backing, a car turns the other way from its wheels).
+    fn back_out(&self, state: &CarState) -> PlayerInputData {
+        let total = self.get_track_length();
+        let error = crate::racecraft::road_heading_error(state, self.track_config, total);
+        let in_reverse = state.gear < 0;
+        PlayerInputData {
+            throttle: if in_reverse { 0.5 } else { 0.0 },
+            brake: if in_reverse { 0.0 } else { 1.0 },
+            steering: (-2.0 * error).clamp(-1.0, 1.0),
+            gear: Some(-1),
+            clutch: Some(1.0),
+            drs: false,
+            headlights: None,
+            flash: false,
+            ers_mode: None,
+            ers_boost: false,
+        }
+    }
+
     /// Steering that follows a path: the line, shifted sideways to pass
     /// through the target point (which carries the precision pull towards
     /// the centerline and any dodge around traffic).
@@ -514,6 +615,13 @@ impl<'a> AiDriverController<'a> {
     /// instead cut every fast corner: at 75 m/s the point was 50 m ahead,
     /// on the inside of the bend, and the car followed the chord onto the
     /// grass at a third of its grip.
+    ///
+    /// `hold` is (weight, m left of the centerline): a lane held across the
+    /// road rather than as an offset from the line. An offset from the line
+    /// read at the target point and held all the way to it sweeps across
+    /// the road wherever the line does (every corner entry): a car passing
+    /// on the inside drifted into the car it was passing.
+    #[allow(clippy::too_many_arguments)]
     fn track_path(
         &self,
         state: &CarState,
@@ -521,6 +629,7 @@ impl<'a> AiDriverController<'a> {
         d_line: f32,
         look_ahead: f32,
         (tx, ty): (f32, f32),
+        hold: Option<(f32, f32)>,
         skill_factor: f32,
     ) -> f32 {
         let speed = state.speed_mps.max(0.0);
@@ -551,7 +660,41 @@ impl<'a> AiDriverController<'a> {
         let curvature = turn / (2.0 * CURVATURE_HALF_SPAN_M);
         let feedforward = (wheelbase * curvature).atan();
 
-        let heading_error = self.normalize_angle(hy.atan2(hx) - state.yaw_rad);
+        let mut heading_error = self.normalize_angle(hy.atan2(hx) - state.yaw_rad);
+        let (mut error, mut feedforward, mut curvature) = (error, feedforward, curvature);
+        if let Some((weight, lane)) = hold {
+            // The same three terms against a path parallel to the
+            // centerline, `lane` m to its left, blended in by `weight`.
+            let here = self.find_nearest_centerline_point(state.track_progress);
+            let lane_heading = self.normalize_angle(here.heading_rad - state.yaw_rad);
+            let front_left = -state.lateral_offset_m - 0.5 * wheelbase * lane_heading.sin();
+            let ahead = state.track_progress + 0.5 * wheelbase + (speed * STEER_PREVIEW_S).max(2.0);
+            let h0 = self
+                .find_nearest_centerline_point(ahead - CURVATURE_HALF_SPAN_M)
+                .heading_rad;
+            let h1 = self
+                .find_nearest_centerline_point(ahead + CURVATURE_HALF_SPAN_M)
+                .heading_rad;
+            // A centerline node's heading is its segment's: nodes a few
+            // metres apart, so the span is read off their own distances.
+            let span = (self
+                .find_nearest_centerline_point(ahead + CURVATURE_HALF_SPAN_M)
+                .distance_from_start_m
+                - self
+                    .find_nearest_centerline_point(ahead - CURVATURE_HALF_SPAN_M)
+                    .distance_from_start_m)
+                .abs()
+                .max(1.0);
+            // Curvature of a path `lane` m left of a centerline of
+            // curvature k: k / (1 - k·lane).
+            let k = self.normalize_angle(h1 - h0) / span;
+            let lane_curvature = k / (1.0 - k * lane).max(0.3);
+            let w = weight.clamp(0.0, 1.0);
+            error += w * ((front_left - lane) - error);
+            curvature += w * (lane_curvature - curvature);
+            feedforward = (wheelbase * curvature).atan();
+            heading_error += w * (lane_heading - heading_error);
+        }
         let gain = STANLEY_GAIN_NOVICE + (STANLEY_GAIN_ACE - STANLEY_GAIN_NOVICE) * skill_factor;
         let cross_track =
             (-gain * env_f("AI_KE", 1.0) * error / (speed + STANLEY_SOFTENING_MPS)).atan();
@@ -608,16 +751,17 @@ impl<'a> AiDriverController<'a> {
     /// takes it at this car's grip, so an F1 is no longer held to a road
     /// car's cornering budget and a road car no longer arrives at a sweeper
     /// at F1 pace and brakes in the middle of it.
+    ///
+    /// Also where the slowest point it planned for is, m ahead.
     fn profile_target_speed(
         &self,
         state: &CarState,
         speeds: &RacingLineProfile,
         d_line: f32,
-        skill_factor: f32,
-    ) -> f32 {
+    ) -> (f32, Option<f32>) {
         let n = speeds.points.len();
         let Some(here) = profile_point(state, speeds, d_line) else {
-            return state.speed_mps;
+            return (state.speed_mps, None);
         };
 
         // Reaction plus the time the brakes take to bite.
@@ -632,11 +776,11 @@ impl<'a> AiDriverController<'a> {
         let long = state.speed_mps * state.speed_mps / (2.0 * decel) * (1.0 / pads - 1.0);
         let reach = (state.speed_mps * lag_s + long).max(speeds.spacing_m);
         let steps = (reach / speeds.spacing_m).ceil() as usize;
-        let slowest = (0..=steps.min(n))
-            .map(|k| speeds.speed_mps[(here + k) % n])
-            .fold(f32::INFINITY, f32::min);
+        let (slowest_k, slowest) = (0..=steps.min(n))
+            .map(|k| (k, speeds.speed_mps[(here + k) % n]))
+            .fold((0, f32::INFINITY), |a, b| if b.1 < a.1 { b } else { a });
 
-        let pace = PROFILE_NOVICE_PACE + (PROFILE_ACE_PACE - PROFILE_NOVICE_PACE) * skill_factor;
+        let pace = profile_pace(self.profile.skill_level);
         // The profile is planned on tyres in their window. Cold or cooked
         // tyres grip less, and every speed the grip sets goes with its root;
         // the driver takes a little more off than that (the 0.75 power, not
@@ -647,7 +791,83 @@ impl<'a> AiDriverController<'a> {
         // Likewise the downforce the dirty air of a car ahead or a tailwind
         // takes away.
         let grip = state.tyre_grip_share() * state.aero_load_share;
-        slowest * pace * grip.powf(0.75) * env_f("AI_PACE", 1.0)
+        (
+            slowest * pace * grip.powf(0.75) * env_f("AI_PACE", 1.0),
+            Some(slowest_k as f32 * speeds.spacing_m),
+        )
+    }
+
+    /// The line's curvature at `d`, 1/m, positive turning left.
+    fn line_curvature(&self, line: &RacingLineRef<'a>, d: f32) -> f32 {
+        let (h0x, h0y) = self.line_heading(line, d - CURVATURE_HALF_SPAN_M);
+        let (h1x, h1y) = self.line_heading(line, d + CURVATURE_HALF_SPAN_M);
+        let turn = (h0x * h1y - h0y * h1x).atan2(h0x * h1x + h0y * h1y);
+        turn / (2.0 * CURVATURE_HALF_SPAN_M)
+    }
+
+    /// How far to move the steering target across the road: (x, y) in the
+    /// world, and the move in m left of where the line would have it. Onto
+    /// the racecraft's lane by its blend, plus the driver's own wander about
+    /// its line where the road runs straight. Never off the road, unless
+    /// the line itself is.
+    fn lane_shift(
+        &self,
+        state: &CarState,
+        line: &RacingLineRef<'a>,
+        d_line: f32,
+        look_ahead: f32,
+        (track_length, line_length): (f32, f32),
+        (tx, ty): (f32, f32),
+    ) -> (f32, f32, f32) {
+        let racecraft = state.racecraft;
+        // Wander: up to half a metre for an imprecise driver, a few
+        // centimetres for the most precise, and only where the line is
+        // nearly straight (a radius over 100 m), so no apex is missed by it.
+        let curvature = self.line_curvature(line, d_line + look_ahead);
+        let straightness = (1.0 - curvature.abs() * 100.0).clamp(0.0, 1.0);
+        let imprecision = 1.0 - self.profile.precision.clamp(0.0, 1.0);
+        let amplitude = WANDER_PRECISE_M + (WANDER_IMPRECISE_M - WANDER_PRECISE_M) * imprecision;
+        let wander = if self.profile.exact_line {
+            0.0
+        } else {
+            amplitude
+                * straightness
+                * self.lap_noise(d_line * WANDER_STRETCH, state.current_lap, WANDER_SALT)
+        };
+        if racecraft.blend <= 0.0 && wander == 0.0 {
+            return (0.0, 0.0, 0.0);
+        }
+
+        // The road at the target: its centerline point and left normal.
+        let d_center = (state.track_progress + look_ahead * track_length / line_length.max(1.0))
+            .rem_euclid(track_length.max(1e-3));
+        let center = self.find_nearest_centerline_point(d_center);
+        let (nx, ny) = (-center.heading_rad.sin(), center.heading_rad.cos());
+        let target_left = (tx - center.x) * nx + (ty - center.y) * ny;
+        let wanted = target_left + racecraft.blend * (racecraft.lane_m - target_left) + wander;
+        let half = 0.5 * self.car_config.width_m + 0.4;
+        let lo = (-center.width_right_m + half).min(target_left);
+        let hi = (center.width_left_m - half).max(target_left);
+        let left = if lo <= hi {
+            wanted.clamp(lo, hi)
+        } else {
+            target_left
+        };
+        let shift = left - target_left;
+        (nx * shift, ny * shift, shift)
+    }
+
+    /// Smooth noise in -1..1 along the line for this driver and lap:
+    /// control points every [`LAP_NOISE_SPACING_M`], eased between.
+    fn lap_noise(&self, d: f32, lap: u16, salt: u64) -> f32 {
+        let x = (d / LAP_NOISE_SPACING_M).max(0.0);
+        let i = x.floor();
+        let f = x - i;
+        let ease = f * f * (3.0 - 2.0 * f);
+        let (hi, lo) = self.profile.id.as_u64_pair();
+        let seed = hi ^ lo.rotate_left(23) ^ ((lap as u64) << 48);
+        let at = |k: f32| crate::wind::hash01(seed ^ (k as u64), salt) * 2.0 - 1.0;
+        at(i) + (at(i + 1.0) - at(i)) * ease
     }
 
     /// Plan the current target speed from upcoming curvature: sample the
@@ -788,7 +1008,15 @@ impl<'a> AiDriverController<'a> {
                 // hold its pace.
                 let other_fwd = o.vel_x * hx + o.vel_y * hy;
                 let gap = along - reach_along;
-                let wanted_gap = 2.0 + 0.3 * own_fwd.max(0.0);
+                // Closer in the tow of a car the driver is pulling out to
+                // pass.
+                let attacking = state.racecraft.tactic == crate::racecraft::Tactic::Attack
+                    && state.racecraft.rival == Some(o.player_id);
+                let wanted_gap = if attacking {
+                    1.5 + 0.15 * own_fwd.max(0.0)
+                } else {
+                    2.0 + 0.3 * own_fwd.max(0.0)
+                };
                 let limit = other_fwd + 0.8 * (gap - wanted_gap);
                 speed_limit = speed_limit.min(limit.max(0.0));
             }
@@ -950,14 +1178,6 @@ impl<'a> AiDriverController<'a> {
     fn get_skill_factor(&self) -> f32 {
         (self.profile.skill_level - MIN_SKILL_LEVEL) as f32
             / (MAX_SKILL_LEVEL - MIN_SKILL_LEVEL) as f32
-    }
-
-    /// Generate consistency-based noise for the current tick.
-    fn get_consistency_noise(&self, tick: u32) -> f32 {
-        // Simple pseudo-random noise based on tick and driver ID
-        let seed = (tick as u64).wrapping_mul(self.profile.id.as_u128() as u64);
-        // -1.0 to 1.0
-        ((seed % 1000) as f32 / 500.0) - 1.0
     }
 
     /// Find the nearest centerline point to the given progress distance.

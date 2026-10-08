@@ -263,8 +263,17 @@ fn survey_ai_races_on_every_circuit() {
             let mut race = ai_race(&track, car, DEMO_FIELD);
             let (mut contact, mut off, mut slide, mut at_3s) = (0u32, 0u32, 0u32, 0);
             let mut dbg: HashMap<(i32, u8), u32> = HashMap::new();
+            let mut passes = Passes::default();
+            let mut tactics: HashMap<String, u32> = HashMap::new();
+            let mut was: HashMap<PlayerId, (bool, bool, u32)> = HashMap::new();
             for t in 1..=(TICK_RATE as u32 * 180) {
                 tick(&mut race);
+                if t.is_multiple_of(TICK_RATE as u32 / 4) {
+                    passes.sample(&race);
+                }
+                if std::env::var("SURVEY_EVENTS").is_ok() {
+                    log_events(&race, t, &mut was);
+                }
                 if t == TICK_RATE as u32 * 3 {
                     at_3s = race
                         .session
@@ -273,8 +282,19 @@ fn survey_ai_races_on_every_circuit() {
                         .filter(|c| out_of_shape(c))
                         .count();
                 }
-                for c in race.session.participants.values() {
+                // A car out of the race is parked in its box (towed), not
+                // racing: it is counted as retired, not as time off the
+                // road against the garage walls.
+                for c in race
+                    .session
+                    .participants
+                    .values()
+                    .filter(|c| !c.towed && c.damage.is_drivable)
+                {
                     if c.is_colliding && std::env::var("SURVEY_DBG").is_ok() {
+                        *tactics
+                            .entry(format!("{:?}", c.racecraft.tactic))
+                            .or_insert(0u32) += 1;
                         *dbg.entry(((c.track_progress / 20.0) as i32, c.grid_position))
                             .or_insert(0u32) += 1;
                     }
@@ -288,6 +308,9 @@ fn survey_ai_races_on_every_circuit() {
             // a wall can be found on the map.
             let mut worst: Vec<_> = dbg.into_iter().collect();
             worst.sort_by_key(|w| std::cmp::Reverse(w.1));
+            if !tactics.is_empty() {
+                println!("    contact by tactic: {tactics:?}");
+            }
             for ((bucket, grid), ticks) in worst.into_iter().take(4) {
                 println!(
                     "    car {grid}: {:.1} s of contact around station {} m",
@@ -303,11 +326,157 @@ fn survey_ai_races_on_every_circuit() {
                 .filter(|c| !c.damage.is_drivable)
                 .count();
             println!(
-                "{track:>14} {car:>14}: out of shape at 3 s {at_3s}, car-seconds of contact {:5.1}, off {:5.1}, sliding {:5.1}, retired {retired}",
+                "{track:>14} {car:>14}: out of shape at 3 s {at_3s}, car-seconds of contact {:5.1}, off {:5.1}, sliding {:5.1}, retired {retired}, passes {}",
                 secs(contact),
                 secs(off),
-                secs(slide)
+                secs(slide),
+                passes.count
             );
+        }
+    }
+}
+
+/// `SURVEY_EVENTS=1`: each contact as it starts, with the nearest car,
+/// and every spell off the road longer than 2 s as it ends.
+fn log_events(race: &GameSession, t: u32, was: &mut HashMap<PlayerId, (bool, bool, u32)>) {
+    let total = apexsim_server::laps::track_length_m(&race.track_config).max(1.0);
+    let cars: Vec<&CarState> = race.session.participants.values().collect();
+    for c in &cars {
+        let (hit, off, off_since) = was.get(&c.player_id).copied().unwrap_or((false, false, 0));
+        if c.is_colliding && !hit {
+            let near = cars
+                .iter()
+                .filter(|o| o.player_id != c.player_id)
+                .map(|o| {
+                    let rel = (o.track_progress - c.track_progress + 0.5 * total).rem_euclid(total)
+                        - 0.5 * total;
+                    (o, rel)
+                })
+                .min_by(|a, b| a.1.abs().total_cmp(&b.1.abs()));
+            if let Some((o, rel)) = near {
+                println!(
+                    "    t {:6.1} car {:2} {:?}/{:.2} at {:6.0} m lat {:5.1} v {:4.1} | car {:2} {:?}/{:.2} {:+5.1} m ahead lat {:5.1} v {:4.1}",
+                    t as f32 / TICK_RATE as f32,
+                    c.grid_position,
+                    c.racecraft.tactic,
+                    c.racecraft.blend,
+                    c.track_progress,
+                    -c.lateral_offset_m,
+                    c.speed_mps,
+                    o.grid_position,
+                    o.racecraft.tactic,
+                    o.racecraft.blend,
+                    rel,
+                    -o.lateral_offset_m,
+                    o.speed_mps
+                );
+            }
+        }
+        // `SURVEY_TRACE=grid,from_s,to_s`: one car every tenth of a second.
+        if let Ok(spec) = std::env::var("SURVEY_TRACE") {
+            let v: Vec<f32> = spec.split(',').filter_map(|x| x.parse().ok()).collect();
+            let secs = t as f32 / TICK_RATE as f32;
+            if v.len() == 3
+                && c.grid_position as f32 == v[0]
+                && secs >= v[1]
+                && secs <= v[2]
+                && t.is_multiple_of(TICK_RATE as u32 / 10)
+            {
+                println!(
+                    "    trace {secs:6.1} at {:6.1} m lat {:6.1} v {:4.1} on {} {:?} lane {:5.1} blend {:.2} pace {:.3} thr {:.2} brk {:.2} str {:+.2} hit {}",
+                    c.track_progress,
+                    -c.lateral_offset_m,
+                    c.speed_mps,
+                    c.is_on_track,
+                    c.racecraft.tactic,
+                    c.racecraft.lane_m,
+                    c.racecraft.blend,
+                    c.racecraft.pace,
+                    c.throttle_input,
+                    c.brake_input,
+                    c.steering_input,
+                    c.is_colliding
+                );
+            }
+        }
+        let d = &c.damage;
+        let zones = [
+            d.front_damage_percent,
+            d.rear_damage_percent,
+            d.left_damage_percent,
+            d.right_damage_percent,
+            d.engine_damage_percent,
+        ];
+        let worst: f32 = zones.iter().copied().fold(0.0, f32::max);
+        let key = uuid::Uuid::from_u64_pair(c.player_id.as_u64_pair().0, !0);
+        let before = was.get(&key).map_or(0.0, |w| w.2 as f32 / 10.0);
+        if worst >= before + 10.0 || (!d.is_drivable && before < 100.0) {
+            println!(
+                "    t {:6.1} car {:2} {:?} at {:6.0} m v {:4.1} damage F/R/L/R/E {:?}{}",
+                t as f32 / TICK_RATE as f32,
+                c.grid_position,
+                c.racecraft.tactic,
+                c.track_progress,
+                c.speed_mps,
+                zones.map(|z| z.round() as i32),
+                if d.is_drivable { "" } else { " RETIRED" }
+            );
+            let mark = if d.is_drivable { worst } else { 100.0 };
+            was.insert(key, (false, false, (mark * 10.0) as u32));
+        }
+        let off_now = !c.is_on_track;
+        let since = if off_now && !off { t } else { off_since };
+        if !off_now && off && t - off_since > 2 * TICK_RATE as u32 {
+            println!(
+                "    car {:2} off the road {:.1} s from {:.1} s",
+                c.grid_position,
+                (t - off_since) as f32 / TICK_RATE as f32,
+                off_since as f32 / TICK_RATE as f32
+            );
+        }
+        was.insert(c.player_id, (c.is_colliding, off_now, since));
+    }
+}
+
+/// Passes on the road: two cars within [`Passes::NEAR_M`] of each other
+/// that swap order, counted once the new leader is [`Passes::CLEAR_M`]
+/// ahead (so a dice side by side is not a pass a tick). A car on the pit
+/// route, in a garage or out of the race is not passed and passes nobody.
+#[derive(Default)]
+struct Passes {
+    leader: HashMap<(PlayerId, PlayerId), PlayerId>,
+    count: u32,
+}
+
+impl Passes {
+    const NEAR_M: f32 = 30.0;
+    const CLEAR_M: f32 = 2.0;
+
+    fn sample(&mut self, race: &GameSession) {
+        let total = apexsim_server::laps::track_length_m(&race.track_config).max(1.0);
+        let cars: Vec<&CarState> = race
+            .session
+            .participants
+            .values()
+            .filter(|c| !c.pit.driving && !c.in_garage && c.damage.is_drivable && !c.towed)
+            .collect();
+        for (i, a) in cars.iter().enumerate() {
+            for b in &cars[i + 1..] {
+                let rel = (a.track_progress - b.track_progress + 0.5 * total).rem_euclid(total)
+                    - 0.5 * total;
+                let key = (a.player_id, b.player_id);
+                if rel.abs() > Self::NEAR_M {
+                    self.leader.remove(&key);
+                    continue;
+                }
+                if rel.abs() < Self::CLEAR_M {
+                    continue;
+                }
+                let ahead = if rel > 0.0 { a.player_id } else { b.player_id };
+                if let Some(before) = self.leader.insert(key, ahead) {
+                    self.count += (before != ahead) as u32;
+                }
+            }
         }
     }
 }

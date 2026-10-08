@@ -167,8 +167,8 @@ with `-IncludeCustomCars` (both scripts), like `-IncludeCustomTracks`.
 
 Layout: `Game/` (the packaged client, `Tracks/`, `Cars/`, `Wheels/`, plus a `settings.sample.yml`), `Server/` (`apexsim-server.exe`,
 `server.toml` and only the content the server reads � `car.toml` per car and
-the track YAML, not the `.glb` models or `.ats` sidecars), plus `Play.bat`,
-`Start-Server.bat`, `README.txt`, `LICENSE` and `release.json`.
+the track YAML, not the `.glb` models or `.ats` sidecars), plus `launcher.exe`,
+`README.txt`, `LICENSE` and `release.json`.
 
 The run aborts before any long build if the car or track data is missing, or if
 a track YAML has no `track_id`. Every stage has a `-Skip*` switch for when one
@@ -2854,9 +2854,9 @@ seconds (291 -> 305 km/h: drag x0.71, front downforce x0.75;
 `tests/slipstream_test.rs`). The AI's profile speeds also scale by the
 root of `CarState::wake_load_share` (its weight and downforce now over
 what it would have in clean air), so it backs off through a fast corner in
-dirty air; its grip budget already read the real downforce. It does not
-yet *use* the tow to pass: the traffic layer still caps a follower's speed
-to a following distance. The racing line is planned in clean air.
+dirty air; its grip budget already read the real downforce. It uses the
+tow to pass through racecraft (below). The racing line is planned in
+clean air.
 
 **Wire**: `CompactCarState.tow_pct` (u8, percent of drag saved) appended
 after `tyre_kpa`; `FApexCarTelemetry::TowShare` (0-1, -1 unknown) and a
@@ -2865,6 +2865,69 @@ after `tyre_kpa`; `FApexCarTelemetry::TowShare` (0-1, -1 unknown) and a
 telemetry_compact_wire_format -- --nocapture` ->
 `ApexUdpGolden::S_TelemetryCompactTow` (the 26-field
 `S_TelemetryCompactTyres` stays as an older server's frame).
+
+### Racecraft: passing, defending, getting unstuck (2026-10-08; `racecraft.rs`)
+
+The AI used to queue: the traffic layer held a quicker car at a following
+distance behind a slower one for good. `GameSession::update_racecraft`
+(last in `update_air`) now asks every AI, from one snapshot of the field
+(`racecraft::Rival`), what it does about the cars near it
+(`racecraft::decide`) and keeps the answer on its car
+(`CarState::racecraft`, `Racecraft`), which the controller reads next
+tick. Tactics: **Attack** (held up, it pulls out of the tow on the
+approach to a braking zone, to the inside or, if brave and covered, the
+outside; brakes 2% later alongside on the inside; without half a car
+alongside at the end of the braking (`TURN_IN_OVERLAP`) it lifts and tucks
+in behind; the lane ends at the apex either way), **Defend** (races only:
+one move to the inside before the braking, against a car closing within
+0.5 s, held to the apex, by a hashed chance from aggressiveness),
+**Room** (with an AI attacker alongside, the passed car takes the lane
+beside it until they are clear and lifts 2%), **Yield** (about to be
+lapped: move toward the outside, lift 3%). Under pressure a driver
+overcooks a braking zone now and then (`MISTAKE_*`, by inconsistency).
+Every chance is `wind::hash01` of driver, lap and corner, so
+`determinism_test` holds. Corners are read off the car's own speed
+profile (`next_corner`: the next `Brake` phase, its slowest point, the
+hand at the apex).
+
+**Held up** is the trap that took longest: a driver is held when the car
+ahead is slower than this driver's plan *at that car's place*, measured
+only where the plan sets the speed (a `Brake` or `Partial` phase). Read at
+the follower's own place, a car braking ahead looked slow; read on the
+straights, every car accelerating is below its plan; either way four
+equal drivers attacked each other 7% of the time and
+`the_line_rubbers_in_and_the_marbles_gather_off_it` failed (rubber off the
+line). Equal drivers now follow; a quicker one passes.
+
+**The lane is held across the road** (`track_path`'s `hold`): a lane given
+as an offset from the racing line read at the look-ahead point swept
+across the road with the line on every corner entry, and the passing car
+drifted into the one it passed. Holding the per-tick traffic dodge the
+same way was tried and made contact worse (it flips on and off). The
+inside lane's tighter radius slows the target (`v ∝ √r`).
+
+**Getting unstuck**: a car under 2.5 m/s in contact or off the road for
+1.5 s reverses for up to 2.5 s, steering the nose toward the road 20 m
+ahead (`AiDriverController::back_out`), stops, takes first and drives on.
+Before it, cars pinned on a barrier sat there flat out until the engine
+cooked (three retirements in three survey seeds).
+
+Controller changes beside it: the pace noise is smooth along the lap and
+new each lap (`lap_noise`) and only ever slower than the plan (held over a
+corner, the old damped fast side doubled the sliding); a driver wanders up
+to 0.5 m about its line on straights by imprecision (`WANDER_*`);
+`ai_driver::profile_pace` is the share of the profile a skill runs at.
+
+**Measured** (`survey_ai_races_on_every_circuit`, which now counts
+`passes` and leaves towed cars out; Monza, Spa, Zandvoort, Suzuka,
+SaoPaulo, Spielberg; seeds 1-3, 54 races) against the AI before it:
+passes 299 -> 916, contact 75 -> 311 car-seconds (0.25 -> 0.34 s a pass),
+off the road 30 -> 144, sliding 66 -> 177, retirements 0 -> 0. The
+survey's `SURVEY_EVENTS=1` logs each contact with both cars' tactics and
+`SURVEY_TRACE=grid,from,to` one car every 0.1 s. What is left is in
+docs/server/SIMULATION_GAPS.md (AI and strategy). Tests:
+`racecraft::tests`, `tests/racecraft_test.rs` (an ace gets past a novice
+on Monza without contact; a car nose-first in a barrier reverses out).
 
 ### Ride-height aero and wings (`server/src/aero.rs`, `[aero]`, the aero knobs)
 

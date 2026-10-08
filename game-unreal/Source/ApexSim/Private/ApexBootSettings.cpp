@@ -253,7 +253,7 @@ FString ApexBootSettingsIo::Serialise(const FApexBootSettings& Settings)
 		TEXT("\n")
 		TEXT("server:\n")
 		TEXT("  # The server the game connects to when it starts. 127.0.0.1 is a server\n")
-		TEXT("  # on this machine, such as the one Play.bat starts for you.\n")
+		TEXT("  # on this machine, such as the one the launcher starts for you.\n")
 		TEXT("  host: %s\n")
 		TEXT("  port: %d\n"),
 		Settings.Resolution.X, Settings.Resolution.Y,

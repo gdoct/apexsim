@@ -64,17 +64,19 @@ struct Args {
     #[arg(short = 'f', long)]
     format: Option<String>,
 
-    /// Elevation mode: flat (z=0) or auto-compute from data
-    #[arg(long, default_value = "flat")]
-    elevation: String,
-
     /// Default friction coefficient for all nodes
     #[arg(long, default_value = "1.0")]
     friction: f32,
 
-    /// Track is a closed loop
-    #[arg(long, default_value = "true")]
+    /// Track is a closed loop: `--closed-loop false` for a point-to-point stage
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     closed_loop: bool,
+
+    /// The track's fixed id. Without it the id of an existing output file is
+    /// kept, and only a new file gets a fresh one: catalog rows and lap
+    /// records are keyed by it, so it must not change between conversions.
+    #[arg(long)]
+    track_id: Option<uuid::Uuid>,
 }
 
 #[derive(Debug)]
@@ -111,11 +113,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Vec::new()
     };
 
+    let track_id = resolve_track_id(&args)?;
+
     // Convert to TrackFileFormat
-    let track_file = convert_to_track_format(track_points, raceline_points, &args);
+    let track_file = convert_to_track_format(track_points, raceline_points, &args, track_id);
 
     // Calculate track length
-    let length_m = calculate_track_length(&track_file.nodes);
+    let length_m = calculate_track_length(&track_file.nodes, args.closed_loop);
     println!(
         "  Track length: {:.2} meters ({:.2} km)",
         length_m,
@@ -159,6 +163,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Output: {}", args.output.display());
 
     Ok(())
+}
+
+/// `--track-id`, else the id already in the output file, else a new one.
+fn resolve_track_id(args: &Args) -> Result<uuid::Uuid, Box<dyn std::error::Error>> {
+    if let Some(id) = args.track_id {
+        return Ok(id);
+    }
+    if args.output.is_file() {
+        let text = std::fs::read_to_string(&args.output)?;
+        let existing: serde_yaml::Value =
+            serde_yaml::from_str(&text).map_err(|e| format!("{}: {e}", args.output.display()))?;
+        if let Some(id) = existing.get("track_id").and_then(|v| v.as_str()) {
+            let id = uuid::Uuid::parse_str(id)
+                .map_err(|e| format!("{}: track_id {id:?}: {e}", args.output.display()))?;
+            println!("  Keeping the track_id of the existing file: {id}");
+            return Ok(id);
+        }
+    }
+    let id = uuid::Uuid::new_v4();
+    println!("  New track_id: {id} (pass --track-id to fix it)");
+    Ok(id)
 }
 
 fn read_track_csv(path: &PathBuf) -> Result<Vec<TrackCSVPoint>, Box<dyn std::error::Error>> {
@@ -236,13 +261,14 @@ fn convert_to_track_format(
     track_points: Vec<TrackCSVPoint>,
     raceline_points: Vec<RacelineCSVPoint>,
     args: &Args,
+    track_id: uuid::Uuid,
 ) -> TrackFileFormat {
     let nodes: Vec<TrackNode> = track_points
         .into_iter()
         .map(|p| TrackNode {
             x: p.x,
             y: p.y,
-            z: 0.0,      // elevation not derivable from 2D source data yet
+            z: 0.0,      // the source data is 2D
             width: None, // Use width_left/width_right instead
             width_left: Some(p.width_left),
             width_right: Some(p.width_right),
@@ -295,7 +321,7 @@ fn convert_to_track_format(
     TrackFileFormat {
         name: args.name.clone(),
         display_name: args.display_name.clone(),
-        track_id: Some(uuid::Uuid::new_v4().to_string()),
+        track_id: Some(track_id.to_string()),
         nodes,
         checkpoints: Vec::new(), // Could be auto-generated based on track sectors
         sectors: Vec::new(),     // No sector lines: the lap splits into thirds
@@ -308,7 +334,7 @@ fn convert_to_track_format(
     }
 }
 
-fn calculate_track_length(nodes: &[TrackNode]) -> f32 {
+fn calculate_track_length(nodes: &[TrackNode], closed_loop: bool) -> f32 {
     if nodes.len() < 2 {
         return 0.0;
     }
@@ -322,7 +348,7 @@ fn calculate_track_length(nodes: &[TrackNode]) -> f32 {
     }
 
     // Add closing segment if it's a loop
-    if nodes.len() > 2 {
+    if closed_loop && nodes.len() > 2 {
         let dx = nodes[0].x - nodes[nodes.len() - 1].x;
         let dy = nodes[0].y - nodes[nodes.len() - 1].y;
         let dz = nodes[0].z - nodes[nodes.len() - 1].z;

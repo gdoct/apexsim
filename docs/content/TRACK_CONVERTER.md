@@ -107,9 +107,9 @@ This will:
 | `--year-built` | | Year the track was constructed | ❌ |
 | `--description` | | Track description | ❌ |
 | `--format` | `-f` | Output format (yaml/json, auto-detected) | ❌ |
-| `--elevation` | | Elevation mode: flat or auto-compute | ❌ |
 | `--friction` | | Default friction coefficient (default: 1.0) | ❌ |
-| `--closed-loop` | | Track is a closed loop (default: true) | ❌ |
+| `--closed-loop` | | Track is a closed loop (default: true; `--closed-loop false` for a point-to-point stage) | ❌ |
+| `--track-id` | | The track's fixed UUID (default: kept from an existing output file, else a new one) | ❌ |
 
 ## Input Data Format
 

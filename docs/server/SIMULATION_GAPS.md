@@ -54,8 +54,12 @@ later:
 
 | Gap | Effort | Impact |
 |---|---|---|
-| The AI does not pull out of a tow to pass: the traffic layer holds a follower back. No defending, no mistakes under pressure. | High | High |
-| Recovering from a wall: a car can stay pinned against a barrier (Nordschleife at ~440 m in the 2026-10-06 survey: 107 s in the GT3 race). | Med | Med |
+| Passes are made only into a braking zone, on one lane across the road held to that corner's apex (`crate::racecraft`): no switchback on the exit, no planned cutback, no pull-out on a straight with no corner at its end, no use of the DRS zone or the tow to choose where. | Med | Med |
+| Side by side past the apex the cars are back on the old per-tick dodge (an offset from the line, which sweeps across the road with it); the AI survey's contact per pass is up from 0.25 to about 0.36 s, and on an 8 m road (Zandvoort) two GT3s alongside lean on each other. Holding the dodge across the road was tried and made it worse. | High | Med |
+| A defence is one move to the inside before the braking: no covering the tow on a straight, no squeeze toward the edge, no judging how fast the car behind is coming. | Med | Low |
+| Room and yield are given only to an AI attacker: a human alongside gets the per-tick dodge, and nothing reads a human's intent or judges a human's blocking. | Med | Med |
+| Backing out of a wall is a timed reverse toward the road ahead: no look behind for traffic, no wait for a gap before rejoining, and a car whose progress jumped to another leg (Zandvoort 887 m / 4282 m) steers for that leg. | Med | Med |
+| Mistakes under pressure are an overcooked braking zone only: no lock-up, spin, missed apex or missed shift. | Low | Low |
 | Pit strategy is thresholds: no undercuts, no reaction to the cars around it, no mandatory stops, no fuel saving to skip a stop. | Med | Med |
 | No timed-race endgame: no splash-and-dash, no last-stint planning (`laps_left` does estimate from the clock for the pit plan). | Med | Low |
 | Fuel saving is lift-and-coast only, and only for cars that cannot refuel; no short-shifting. | Low | Low |
@@ -160,7 +164,8 @@ Covered by automation tests only; each needs a look on screen.
 - Race: contact sparks (a contact lasts a few frames and no timed screenshot of the 2026-10-07 runs caught one; the steam and the engine smoke were seen). Needs a human: a flat spot through a real wheel or pad.
 - 2026-10-07: the garage's compound cards built from a car's own `[[tires.compound]]` list (no shipped car files one, so only the default five have been on screen; the own-list cards are pinned by `ApexSim.UI.Garage.CompoundCards`). Needs a human: the flat-spot thump in the road sound, a puddle or a dried line felt from the driver's seat, a slow puncture felt over a lap (its pressure falling to FLAT in the HUD was seen).
 - 2026-10-07 track and sky: the flags turning with the wind (no shipped circuit places `sign/flag_pole` yet), the sun at a circuit's real latitude and north (needs the re-exported tracks), rain arriving and the road drying under a changeable sky, a rubbered start. A 60x clock at Monza was watched relighting at dusk with the floodlights coming on.
-- The 420 Hz server (2026-10-06) through a real client: car motion, force feedback and the replay recorder's rate snap were tuned on 240 Hz ticks and 60 Hz telemetry; the divisor is 7 for the same 60 Hz. Not measured: tick jitter at 2.4 ms against the 1 ms Windows timer (only the mean rate is tested), and the AI survey at 420 against the 240 baseline (the AI's consistency noise is seeded from the tick number, so every race differs between the two rates by design, not by error).
+- 2026-10-08 racecraft (`crate::racecraft`): passes, defensive moves, a car leaving room, a backmarker yielding and a car reversing out of a barrier have only been read off the AI survey's numbers and traces, never watched on the client (the demo race behind the menu or a watched race shows them). Worth a look: whether a car leaving a lane after a pass, and the timed reverse, look natural, and how the side-by-side contact the survey counts looks on screen.
+- The 420 Hz server (2026-10-06) through a real client: car motion, force feedback and the replay recorder's rate snap were tuned on 240 Hz ticks and 60 Hz telemetry; the divisor is 7 for the same 60 Hz. Not measured: tick jitter at 2.4 ms against the 1 ms Windows timer (only the mean rate is tested), and the AI survey at 420 against the 240 baseline (the AI's races differ between the two rates by design, not by error).
 
 ## Before picking one up
 

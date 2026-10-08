@@ -1616,6 +1616,11 @@ pub struct CarState {
     /// ahead (`crate::slipstream`), set each tick before the physics.
     #[serde(default)]
     pub wake: crate::slipstream::Wake,
+    /// What an AI driver is doing about the cars around it: passing,
+    /// defending, letting a car by (`crate::racecraft`), set each tick
+    /// before the physics and read by the controller the next.
+    #[serde(default)]
+    pub racecraft: crate::racecraft::Racecraft,
     /// The tyres' load with the downforce the car makes now over the load
     /// it would have at this ground speed in still, clean air (the wind and
     /// the wake of a car ahead), never over 1: what the AI plans its grip
@@ -1846,6 +1851,7 @@ impl CarState {
             porpoise_amp: 0.0,
             strike_mps: [0.0; 4],
             wake: crate::slipstream::Wake::CLEAN,
+            racecraft: crate::racecraft::Racecraft::default(),
             aero_load_share: 1.0,
             surface_grip_share: 1.0,
             last_hit_pct: 0.0,
