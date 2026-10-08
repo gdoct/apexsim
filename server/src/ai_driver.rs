@@ -58,6 +58,11 @@ fn env_f(name: &str, default: f32) -> f32 {
 }
 const STEER_LAG_ACE_S: f32 = 0.04;
 
+/// The share of its grip a car corners on along a racecraft lane, and how
+/// many seconds of road ahead that lane's bends are read over.
+const LANE_GRIP_SHARE: f32 = 0.9;
+const LANE_SPEED_LOOK_S: f32 = 2.0;
+
 /// Smooth per-lap noise: control points this far apart along the line, m.
 const LAP_NOISE_SPACING_M: f32 = 150.0;
 const PACE_NOISE_SALT: u64 = 0x5041_4345;
@@ -65,6 +70,9 @@ const WANDER_SALT: u64 = 0x5741_4E44;
 /// The wander's control points are this much further apart than the pace
 /// noise's.
 const WANDER_STRETCH: f32 = 0.5;
+/// The wander fades out toward an edge the line is within this much of
+/// (past the margin a car keeps), m.
+const WANDER_EDGE_ROOM_M: f32 = 1.5;
 /// A driver's wander about its line on a straight, m: the most precise
 /// and the least.
 const WANDER_PRECISE_M: f32 = 0.05;
@@ -483,6 +491,13 @@ impl<'a> AiDriverController<'a> {
                 let curvature = self.line_curvature(&line, d_line + ahead_m);
                 target_speed *= (1.0 - curvature * shift.2).clamp(0.6, 1.0).sqrt();
             }
+            // A lane is held parallel to the centerline, which through a
+            // kink the line cuts flat out is a far tighter path than the
+            // line's: no faster than the grip allows on the lane itself.
+            let ahead_m = (state.speed_mps * LANE_SPEED_LOOK_S).max(40.0);
+            let cap = self.lane_speed_cap(state, racecraft.lane_m, ahead_m);
+            let blend = racecraft.blend.clamp(0.0, 1.0);
+            target_speed = target_speed.min(target_speed + blend * (cap - target_speed));
         }
 
         // Off-track recovery: aim at the centerline ahead (the middle of
@@ -522,7 +537,13 @@ impl<'a> AiDriverController<'a> {
                 let center = self.find_nearest_centerline_point(d_center);
                 let left = (tx - center.x) * -center.heading_rad.sin()
                     + (ty - center.y) * center.heading_rad.cos();
-                Some((racecraft.blend, left))
+                // The traffic dodge is worked out across the car's own
+                // station, so near a bend it can put the target past the
+                // edge at the look-ahead: never hold a lane off the road.
+                let half = 0.5 * self.car_config.width_m + 0.4;
+                let lo = -center.width_right_m + half;
+                let hi = (center.width_left_m - half).max(lo);
+                Some((racecraft.blend, left.clamp(lo, hi)))
             } else {
                 None
             };
@@ -844,8 +865,18 @@ impl<'a> AiDriverController<'a> {
         let center = self.find_nearest_centerline_point(d_center);
         let (nx, ny) = (-center.heading_rad.sin(), center.heading_rad.cos());
         let target_left = (tx - center.x) * nx + (ty - center.y) * ny;
-        let wanted = target_left + racecraft.blend * (racecraft.lane_m - target_left) + wander;
         let half = 0.5 * self.car_config.width_m + 0.4;
+        // No wander toward an edge the line already runs along: out of a
+        // corner the line is at the edge, and a wander outward there ran
+        // the car over it on every lap where the edge is the limit (Monza's
+        // Roggia without the curb sidecar).
+        let room = if wander > 0.0 {
+            center.width_left_m - half - target_left
+        } else {
+            target_left + center.width_right_m - half
+        };
+        let wander = wander * (room / WANDER_EDGE_ROOM_M).clamp(0.0, 1.0);
+        let wanted = target_left + racecraft.blend * (racecraft.lane_m - target_left) + wander;
         let lo = (-center.width_right_m + half).min(target_left);
         let hi = (center.width_left_m - half).max(target_left);
         let left = if lo <= hi {
@@ -1264,6 +1295,35 @@ impl<'a> AiDriverController<'a> {
             + state.vel_y * c
             + state.angular_vel_yaw * 0.5 * self.car_config.wheelbase_m;
         lat.atan2(fwd.abs().max(1e-3))
+    }
+
+    /// The speed the tyres can carry along a path `lane` m left of the
+    /// centerline over the next `ahead_m`: its tightest bend against the
+    /// car's grip now (downforce, dirty air and tyres included), less a
+    /// margin.
+    fn lane_speed_cap(&self, state: &CarState, lane: f32, ahead_m: f32) -> f32 {
+        const STEPS: usize = 6;
+        let mut k_max = 0.0f32;
+        for i in 0..=STEPS {
+            let at = state.track_progress + ahead_m * i as f32 / STEPS as f32;
+            let p0 = self.find_nearest_centerline_point(at - CURVATURE_HALF_SPAN_M);
+            let p1 = self.find_nearest_centerline_point(at + CURVATURE_HALF_SPAN_M);
+            let span = (p1.distance_from_start_m - p0.distance_from_start_m)
+                .abs()
+                .max(1.0);
+            let k = self.normalize_angle(p1.heading_rad - p0.heading_rad) / span;
+            // Curvature of a path `lane` m left of a centerline of k.
+            k_max = k_max.max((k / (1.0 - k * lane).max(0.3)).abs());
+        }
+        if k_max < 1e-4 {
+            return f32::INFINITY;
+        }
+        let config = self.car_config;
+        let downforce = state.downforce_front_n + state.downforce_rear_n;
+        let mass = crate::physics::car_mass_kg(config, state).max(1.0);
+        let load_ratio = 1.0 + downforce.max(0.0) / (mass * 9.81);
+        let grip_g = config.envelope_mu(load_ratio) * load_ratio * state.tyre_grip_share();
+        (LANE_GRIP_SHARE * grip_g * 9.81 / k_max).sqrt()
     }
 
     /// How much of the tyres' grip cornering is taking, and whether the car

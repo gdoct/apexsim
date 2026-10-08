@@ -605,9 +605,16 @@ pub fn decide(
             if rel > reach(o) + 3.0 || rel < -(reach(o) + 5.0) {
                 rc = back_to_racing(rc, 0.0);
             } else {
-                let side = if rc.lane_m >= o.left_m { 1.0 } else { -1.0 };
+                // Beside the lane it holds, as when the room was first
+                // given: beside where it is would follow it as its own
+                // traffic dodge moves it away, and the two would walk each
+                // other off the road (Le Mans' first corner, without the
+                // road mesh). Once it stops attacking its blend runs out
+                // and this is where it is.
+                let theirs = o.left_m + o.blend.clamp(0.0, 1.0) * (o.lane_m - o.left_m);
+                let side = if rc.lane_m >= theirs { 1.0 } else { -1.0 };
                 rc.lane_m =
-                    clamp_lane(o.left_m + side * (0.5 * (me.width_m + o.width_m) + SIDE_ROOM_M));
+                    clamp_lane(theirs + side * (0.5 * (me.width_m + o.width_m) + SIDE_ROOM_M));
                 // Level or behind it: the corner is its, so do not race it
                 // out of the corner side by side.
                 if rel > -0.5 * reach(o) {
