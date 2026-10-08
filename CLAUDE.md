@@ -906,6 +906,31 @@ silverstone_profile_lap_times -- --ignored --nocapture`, and on the client
 `ApexSim.Cars.Glb.RepoCars` and `ApexSim.Cars.TomlRepoCars`. Not done: a
 DRS flap is not split off the body yet.
 
+### Importing from the launcher (`Tools/importer`, `launcher/main.cpp`)
+
+Manage content > Import from Assetto Corsa runs the two importers under the
+player's own Python; nothing is frozen into an exe (an unsigned PyInstaller
+build was tried 2026-10-08 and dropped: antivirus/SmartScreen exposure). The
+launcher (`FindPython`) looks for `py -3`, `python`, `python3` that report
+>= 3.11 (the Store stub prints nothing and is skipped); with none it says
+which version to install and offers python.org. It keeps the packages in a
+venv at `%LOCALAPPDATA%\ApexSim\importer-venv` (made on first use, redone
+when `importer-requirements.txt` differs from the copy stamped in the venv;
+needs internet then) and runs one console command: set up if needed, then the
+import, with `pause` after. A package carries `Tools/importer/` (`ac_import.py`,
+`ac_car_import.py`, the `ac_import` / `ac_car_import` packages without
+tests, `track_dirs.py`, `generate_track_previews.py`,
+`importer-requirements.txt`; copied by `build_release.ps1`); a checkout uses
+`scripts/`. `--root <install>` (given by the launcher in a package) sends the
+client's files to `Game/Tracks` / `Game/Cars/custom` and the server's to
+`Server/content/{tracks,cars}/custom` (a car's server side is its car.toml),
+and checks stems and ids against `Server/content/*/default`. Requirements are
+ranges, not pins, so they find wheels for any Python 3.11+. Checked by running
+the launcher's exact command chain from a fake package with an empty
+`LOCALAPPDATA`: venv, pip, then a car and a track import (~20 s each). Not
+done: the launcher button has not been clicked by hand; the packages are
+fetched from PyPI at first use (offline machines cannot import).
+
 ### Runtime tracks (`UApexTrackContentSubsystem`, `UApexTrackInstance`, docs/RUNTIME_CONTENT_LOADING.md)
 
 Every circuit is built by the running game from its export; **there are no

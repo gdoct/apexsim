@@ -57,6 +57,7 @@ class Options:
     dry_run: bool = False
     out_dir: Path = EXPORT_DIR
     custom_dir: Path = CUSTOM_DIR
+    default_dir: Path = DEFAULT_DIR  # shipped circuits: a stem here is refused
 
 
 @dataclass
@@ -118,7 +119,7 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
     track_id = centerline.track_id_for(layout.track_dir.name, layout.name)
 
     # Where it goes, and whether it may.
-    if (DEFAULT_DIR / f"{stem}.yaml").exists():
+    if (opts.default_dir / f"{stem}.yaml").exists():
         raise ImportError_(f"stem {stem!r} is a shipped circuit; pick another with --stem")
     yaml_path = opts.custom_dir / f"{stem}.yaml"
     if yaml_path.exists() and not opts.force:
@@ -609,8 +610,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--dry-run", action="store_true", help="read and report; write nothing")
     ap.add_argument("--out", type=Path, default=EXPORT_DIR, help=argparse.SUPPRESS)
     ap.add_argument("--custom-dir", type=Path, default=CUSTOM_DIR, help=argparse.SUPPRESS)
+    ap.add_argument("--default-dir", type=Path, default=DEFAULT_DIR, help=argparse.SUPPRESS)
+    ap.add_argument("--root", type=Path, help="an ApexSim install (the folder holding Game and Server): the client's files "
+                                              "go to Game/Tracks, the server's to Server/content/tracks/custom")
     ap.add_argument("--no-notice", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
+    if args.root:
+        args.out = args.root / "Game" / "Tracks"
+        args.custom_dir = args.root / "Server" / "content" / "tracks" / "custom"
+        args.default_dir = args.root / "Server" / "content" / "tracks" / "default"
 
     if not args.track and not args.all:
         ap.error("give an AC track folder, or --all <folder>")
@@ -619,7 +627,7 @@ def main(argv: list[str] | None = None) -> int:
 
     opts = Options(layout=args.layout, stem=args.stem, display_name=args.display_name, textures=args.textures,
                    max_texture=max(64, args.max_texture), force=args.force, dry_run=args.dry_run,
-                   out_dir=args.out, custom_dir=args.custom_dir)
+                   out_dir=args.out, custom_dir=args.custom_dir, default_dir=args.default_dir)
 
     if args.list:
         list_layouts(Path(args.track or args.all))

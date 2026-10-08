@@ -449,3 +449,11 @@ drivable, with exact physics, before it looks like anything.
 
 `seed_scene.py --from`, built for the survey approach, is not used by this
 route: the kerbs and run-off come with AC's geometry.
+
+## From the launcher
+
+In a release package, use the launcher's Manage content > Import from
+Assetto Corsa. It needs Python 3.11 or newer (python.org) on the PC and sets
+up the packages itself on first use; the importer lives in `Tools/importer`.
+Run by hand, `--root <install>` writes into an install's `Game/` and
+`Server/` folders. See CLAUDE.md, "Importing from the launcher".

@@ -101,6 +101,7 @@ struct Env
     bool release = false;   // packaged layout (Game\, Server\) vs. the repo
     fs::path root;
     fs::path gameExe, playScript, serverExe, serverDir, settings, scripts;
+    fs::path importerDir;   // holds ac_import.py, ac_car_import.py and importer-requirements.txt
     fs::path carsDefault, carsCustom, wheels, hudDefault, hudCustom, tracksDefault, tracksCustom;
     bool tracksAreExports = false;  // packaged tracks are .uescene.json, the repo's are .yaml
 };
@@ -138,6 +139,7 @@ static Env Locate()
             e.hudDefault = game / L"Hud" / L"default";
             e.hudCustom = game / L"Hud" / L"custom";
             e.tracksDefault = game / L"Tracks";
+            e.importerDir = d / L"Tools" / L"importer";
             e.tracksAreExports = true;
             break;
         }
@@ -152,6 +154,7 @@ static Env Locate()
             e.serverDir = d;  // server.toml and content/ resolve from here
             e.settings = d / L"game-unreal" / L"settings.yml";
             e.scripts = d / L"scripts";
+            e.importerDir = e.scripts;
             e.carsDefault = d / L"content" / L"cars" / L"default";
             e.carsCustom = d / L"content" / L"cars" / L"custom";
             e.wheels = d / L"content" / L"wheels";
@@ -1042,18 +1045,117 @@ static ImportKind DetectKind(HWND hw, const fs::path& dir)
     return r == IDYES ? ImpCar : r == IDNO ? ImpTrack : ImpNone;
 }
 
+// ---- Python for the importers
+//
+// The importers are Python (numpy, Pillow, PyYAML, msgpack). The launcher looks for
+// a Python 3.11+, keeps the packages in a venv of its own under %LOCALAPPDATA%
+// (made on first use, redone when importer-requirements.txt changes) and runs the
+// import in a console so the player sees the setup and the report.
+
+static const int kMinPython = 311;  // 3.11: what the importers are written and tested on
+
+// Runs a command line without a window and returns its stdout; false if it did not start.
+static bool RunCapture(const std::wstring& line, std::string& out, DWORD timeoutMs)
+{
+    SECURITY_ATTRIBUTES sa = { sizeof sa, nullptr, TRUE };
+    HANDLE rd = nullptr, wr = nullptr;
+    if (!CreatePipe(&rd, &wr, &sa, 0)) return false;
+    SetHandleInformation(rd, HANDLE_FLAG_INHERIT, 0);
+    STARTUPINFOW si = { sizeof si };
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    si.hStdOutput = wr;
+    si.hStdError = wr;
+    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    PROCESS_INFORMATION pi = {};
+    std::wstring cmd = line;
+    BOOL ok = CreateProcessW(nullptr, &cmd[0], nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
+    CloseHandle(wr);
+    if (!ok) { CloseHandle(rd); return false; }
+    CloseHandle(pi.hThread);
+    out.clear();
+    // The output is a few bytes, far under the pipe's buffer, so waiting first cannot block it;
+    // a hung interpreter is cut off after the timeout.
+    if (WaitForSingleObject(pi.hProcess, timeoutMs) == WAIT_TIMEOUT) TerminateProcess(pi.hProcess, 1);
+    char buf[256];
+    DWORD n = 0;
+    while (PeekNamedPipe(rd, nullptr, 0, nullptr, &n, nullptr) && n && ReadFile(rd, buf, sizeof buf, &n, nullptr) && n)
+        out.append(buf, n);
+    CloseHandle(rd);
+    CloseHandle(pi.hProcess);
+    return true;
+}
+
+// The command that starts a Python of at least kMinPython ("py -3", "python", ...), and
+// the highest too-old version seen (0 when none). The Microsoft Store's python.exe stub
+// prints nothing and exits non-zero, so it simply does not count.
+static bool FindPython(std::wstring& command, int& tooOld)
+{
+    static const wchar_t* candidates[] = { L"py -3", L"python", L"python3" };
+    tooOld = 0;
+    for (const wchar_t* c : candidates)
+    {
+        std::string out;
+        std::wstring line = std::wstring(c) + L" -c \"import sys;print(sys.version_info[0]*100+sys.version_info[1])\"";
+        if (!RunCapture(line, out, 15000)) continue;
+        int v = atoi(out.c_str());
+        if (v >= kMinPython) { command = c; return true; }
+        if (v > tooOld) tooOld = v;
+    }
+    return false;
+}
+
+static void ExplainNoPython(HWND hw, int tooOld)
+{
+    std::wstring m = tooOld
+        ? L"Importing needs Python 3.11 or newer. Python " + std::to_wstring(tooOld / 100) + L"." + std::to_wstring(tooOld % 100) +
+              L" is installed, which is too old.\n\n"
+        : L"Importing needs Python 3.11 or newer, and none was found on this PC.\n\n";
+    m += L"Install it from python.org/downloads (3.12 is a good choice). In the installer, leave the \"py launcher\" ticked "
+         L"or tick \"Add python.exe to PATH\", then try again. Nothing else needs installing by hand: the launcher sets up "
+         L"the importer's packages itself the first time (this needs an internet connection).\n\n"
+         L"Open the download page now?";
+    if (MessageBoxW(hw, m.c_str(), L"Import from Assetto Corsa", MB_YESNO | MB_ICONINFORMATION) == IDYES)
+        ShellExecuteW(hw, L"open", L"https://www.python.org/downloads/windows/", nullptr, nullptr, SW_SHOWNORMAL);
+}
+
+static std::string ReadAll(const fs::path& p)
+{
+    std::ifstream f(p, std::ios::binary);
+    std::ostringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+static fs::path VenvDir()
+{
+    wchar_t buf[MAX_PATH];
+    DWORD n = GetEnvironmentVariableW(L"LOCALAPPDATA", buf, (DWORD)std::size(buf));
+    fs::path base = (n && n < std::size(buf)) ? fs::path(buf) : fs::temp_directory_path();
+    return base / L"ApexSim" / L"importer-venv";
+}
+
 static void StartImport(HWND hw)
 {
     if (gImport) { MessageBoxW(hw, L"An import is already running.", L"Import", MB_OK | MB_ICONINFORMATION); return; }
     int tab = TabCtrl_GetCurSel(GetDlgItem(hw, IdTab));
-    if (!Exists(g.env.scripts / L"ac_import.py"))
+    const fs::path& tools = g.env.importerDir;
+    fs::path req = tools / L"importer-requirements.txt";
+    if (tools.empty() || !Exists(tools / L"ac_import.py") || !Exists(req))
     {
         MessageBoxW(hw,
-            L"Importing needs the ApexSim tools (the scripts folder) and Python 3 with numpy, Pillow and PyYAML.\n\n"
-            L"This installation does not include them. Run the importer from a source checkout.",
+            L"This installation does not include the importer (Tools\\importer).\n\n"
+            L"Download a release that includes it, or run the importer from a source checkout.",
             L"Import from Assetto Corsa", MB_OK | MB_ICONINFORMATION);
         return;
     }
+    std::wstring py;
+    int tooOld = 0;
+    SetCursor(LoadCursorW(nullptr, IDC_WAIT));
+    bool havePython = FindPython(py, tooOld);
+    SetCursor(LoadCursorW(nullptr, IDC_ARROW));
+    if (!havePython) { ExplainNoPython(hw, tooOld); return; }
+
     fs::path dir = PickFolder(hw, tab == TabCars ? L"Select an Assetto Corsa car folder (or content\\cars)"
                                                  : L"Select an Assetto Corsa track folder (or content\\tracks)");
     if (dir.empty()) return;
@@ -1061,12 +1163,34 @@ static void StartImport(HWND hw)
     if (k == ImpNone) return;
 
     bool car = (k == ImpCar || k == ImpCars), all = (k == ImpCars || k == ImpTracks);
-    fs::path script = g.env.scripts / (car ? L"ac_car_import.py" : L"ac_import.py");
     std::wstring d = dir.wstring();
     while (d.size() > 3 && (d.back() == L'\\' || d.back() == L'/')) d.pop_back();  // a trailing \ would escape the quote
-    // /S makes cmd strip exactly the outer quotes; the console stays open (pause) so the report can be read.
-    std::wstring cmd = L"cmd.exe /S /C \"python \"" + script.wstring() + L"\" " + (all ? L"--all " : L"") +
-                       L"\"" + d + L"\" & echo. & pause\"";
+
+    fs::path venv = VenvDir();
+    fs::path venvPy = venv / L"Scripts" / L"python.exe";
+    fs::path stamp = venv / L"importer-requirements.installed.txt";
+    bool haveVenv = Exists(venvPy);
+    bool upToDate = haveVenv && Exists(stamp) && ReadAll(stamp) == ReadAll(req);
+
+    // One console line: set up if needed, then import. `&&` stops at the first failure and the
+    // console stays open (pause) so the report or the error can be read. /S makes cmd strip
+    // exactly the outer quotes.
+    const std::wstring q = L"\"";
+    std::wstring line;
+    if (!upToDate)
+    {
+        line += L"echo Setting up the importer (first use or updated requirements; needs an internet connection)... && ";
+        line += L"echo If this fails, delete " + q + venv.wstring() + q + L" and try again. && ";
+        if (!haveVenv) line += py + L" -m venv " + q + venv.wstring() + q + L" && ";
+        line += q + venvPy.wstring() + q + L" -m pip install --disable-pip-version-check -r " + q + req.wstring() + q + L" && ";
+        line += L"copy /Y " + q + req.wstring() + q + L" " + q + stamp.wstring() + q + L" >nul && ";
+    }
+    line += q + venvPy.wstring() + q + L" " + q + (tools / (car ? L"ac_car_import.py" : L"ac_import.py")).wstring() + q + L" ";
+    if (g.env.release) line += L"--root " + q + g.env.root.wstring() + q + L" ";  // into this install's Game and Server
+    line += all ? L"--all " : L"";
+    line += q + d + q;
+    std::wstring cmd = L"cmd.exe /S /C \"" + line + L" & echo. & pause\"";
+
     STARTUPINFOW si = { sizeof si };
     si.lpTitle = const_cast<wchar_t*>(L"ApexSim import");
     PROCESS_INFORMATION pi = {};

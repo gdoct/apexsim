@@ -27,6 +27,8 @@
         artifacts/release/ApexSim-<Version>-Win64/
             launcher.exe        the launcher (launcher/): checks the install,
                                 then launches, configures or manages content
+            Tools/importer/     the Assetto Corsa importers (Python, run by
+                                the launcher)
             README.txt
             LICENSE
             release.json        version, commit, configuration, contents
@@ -699,6 +701,23 @@ Copy-Item -LiteralPath (Join-Path $RepoRoot 'LICENSE') -Destination $ReleaseDir 
 # The launcher finds Game\ApexSim.exe and Server\ beside itself, so it lives at the root.
 Copy-Item -LiteralPath $LauncherExe -Destination (Join-Path $ReleaseDir 'launcher.exe') -Force
 
+# The Assetto Corsa importers are Python: the launcher's Manage content > Import
+# runs them from Tools\importer in a venv it sets up on first use (it checks for
+# Python 3.11+ and says what to install when there is none).
+$ImporterDir = Join-Path $ReleaseDir 'Tools\importer'
+New-Item -ItemType Directory -Force -Path $ImporterDir | Out-Null
+foreach ($f in 'ac_import.py', 'ac_car_import.py', 'track_dirs.py', 'generate_track_previews.py', 'importer-requirements.txt') {
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $f) -Destination $ImporterDir -Force
+}
+foreach ($pkg in 'ac_import', 'ac_car_import') {
+    $dest = Join-Path $ImporterDir $pkg
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $pkg) -Destination $dest -Recurse -Force
+    # tests and bytecode are not the player's
+    Get-ChildItem -LiteralPath $dest -Recurse -Force -Directory |
+        Where-Object { $_.Name -in 'tests', '__pycache__' } | Remove-Item -Recurse -Force
+}
+Write-Detail 'Tools\importer copied'
+
 # A sample rather than a live settings.yml: the client creates the real file on
 # its first run, filled in for the display it actually finds, and shipping one
 # would override that with a resolution guess that is wrong on most monitors.
@@ -760,6 +779,10 @@ WHAT IS IN HERE
     launcher.exe       The launcher: checks the install, then Launch, Edit
                        configuration (network and graphics, written to
                        Game\settings.yml) and Manage content.
+    Tools\importer\    Imports a car or track from your own Assetto Corsa
+                       install. Use the launcher's Manage content > Import
+                       from Assetto Corsa: it needs Python 3.11 or newer
+                       (python.org) and sets up the rest itself on first use.
     Game\              The ApexSim client. Run Game\ApexSim.exe to play
                        against a server someone else is hosting.
     Game\Tracks\       Every circuit, as the data the game builds it from

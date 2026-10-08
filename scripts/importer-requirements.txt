@@ -1,0 +1,8 @@
+# What the Assetto Corsa importers (ac_import.py, ac_car_import.py) need. The
+# launcher installs these into a venv of its own the first time you import,
+# and again whenever this file changes. Ranges, not pins: they must have
+# wheels for whichever Python 3.11+ the player has.
+numpy>=1.26
+Pillow>=10.4
+PyYAML>=6.0
+msgpack>=1.0

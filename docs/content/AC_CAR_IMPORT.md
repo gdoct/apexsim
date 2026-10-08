@@ -837,3 +837,11 @@ fixes), `server/src/server.rs` (`load_cars_recursive`),
 `scripts/content/cars/liveries.py`, `scripts/import_cars.ps1`,
 `.gitignore`, `docs/CAR_MODELS.md`, `docs/RUNTIME_CONTENT_LOADING.md`,
 `CLAUDE.md`.
+
+## From the launcher
+
+In a release package, use the launcher's Manage content > Import from
+Assetto Corsa. It needs Python 3.11 or newer (python.org) on the PC and sets
+up the packages itself on first use; the importer lives in `Tools/importer`.
+Run by hand, `--root <install>` writes into an install's `Game/` and
+`Server/` folders. See CLAUDE.md, "Importing from the launcher".

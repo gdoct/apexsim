@@ -71,6 +71,8 @@ class Options:
     dry_run: bool = False
     custom_dir: Path = CUSTOM_DIR
     default_dir: Path = DEFAULT_DIR
+    #: a packaged install keeps the server's car.toml apart from the game's folder
+    server_dir: Path | None = None
 
 
 @dataclass
@@ -470,6 +472,10 @@ def import_car(car_dir: Path, opts: Options) -> Result:
     report["files"] = {k: sizes[k] for k in sorted(sizes)}
     (out_dir / f"{stem}.import.json").write_text(json.dumps(report, indent=2, sort_keys=False, default=_json) + "\n",
                                                   encoding="utf-8")
+    if opts.server_dir is not None:
+        # The server reads only the car.toml; the game's folder holds the rest.
+        (opts.server_dir / stem).mkdir(parents=True, exist_ok=True)
+        (opts.server_dir / stem / "car.toml").write_bytes(toml_text.encode("utf-8"))
     return Result(stem, ok, summary, checks, warnings)
 
 
@@ -531,9 +537,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--cylinders", type=int, help="engine cylinders for the sound (default: guessed from the name)")
     ap.add_argument("--keep-steering-wheel", action="store_true",
                     help="leave the steering wheel in the body (static) and hide the rig's rim")
+    ap.add_argument("--root", type=Path, help="an ApexSim install (the folder holding Game and Server): the car goes to "
+                                              "Game/Cars/custom and its car.toml to Server/content/cars/custom")
+    ap.add_argument("--custom-dir", type=Path, default=CUSTOM_DIR, help=argparse.SUPPRESS)
+    ap.add_argument("--default-dir", type=Path, default=DEFAULT_DIR, help=argparse.SUPPRESS)
+    ap.add_argument("--no-notice", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--force", action="store_true", help="replace an existing import")
     ap.add_argument("--dry-run", action="store_true", help="read and check, write nothing")
     args = ap.parse_args(argv)
+    server_dir = None
+    if args.root:
+        args.custom_dir = args.root / "Game" / "Cars" / "custom"
+        args.default_dir = args.root / "Server" / "content" / "cars" / "default"
+        server_dir = args.root / "Server" / "content" / "cars" / "custom"
 
     if not args.car and not args.all:
         ap.print_help()
@@ -541,11 +557,13 @@ def main(argv: list[str] | None = None) -> int:
     opts = Options(stem=args.stem, display_name=args.display_name, car_class=args.car_class, skin=args.skin,
                    compound=args.compound, lod=args.lod, max_texture=args.max_texture,
                    max_skin_texture=args.max_skin_texture, cylinders=args.cylinders,
-                   keep_steering_wheel=args.keep_steering_wheel, force=args.force, dry_run=args.dry_run)
+                   keep_steering_wheel=args.keep_steering_wheel, force=args.force, dry_run=args.dry_run,
+                   custom_dir=args.custom_dir, default_dir=args.default_dir, server_dir=server_dir)
     if args.list:
         list_car(Path(args.car))
         return 0
-    show_notice_once()
+    if not args.no_notice and not args.dry_run:
+        show_notice_once()
     folders = [Path(args.car)] if args.car else sorted(p for p in Path(args.all).iterdir() if p.is_dir())
     failed = 0
     for folder in folders:
