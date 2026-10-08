@@ -2,8 +2,13 @@
 
 #include "ApexSim.h"
 #include "Audio/ApexUiAudioSubsystem.h"
+#include "Cars/ApexCarContentSubsystem.h"
+#include "Catalog/ApexCatalogRows.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/EditableTextBox.h"
 #include "Components/HorizontalBox.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
@@ -11,6 +16,7 @@
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Components/WrapBox.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/CommandLine.h"
@@ -28,14 +34,20 @@ using namespace ApexUI;
 
 namespace
 {
-	const FName HudEdRow = TEXT("HudEditor.Row");
-	const FName HudEdToggle = TEXT("HudEditor.Toggle");
+	const FName HudEdAdd = TEXT("HudEditor.Add");
+	const FName HudEdAddRow = TEXT("HudEditor.AddRow");
+	const FName HudEdAddClose = TEXT("HudEditor.AddClose");
+	const FName HudEdRemove = TEXT("HudEditor.Remove");
+	const FName HudEdLayouts = TEXT("HudEditor.Layouts");
+	const FName HudEdLayoutRow = TEXT("HudEditor.LayoutRow");
+	const FName HudEdLayoutClose = TEXT("HudEditor.LayoutClose");
+	const FName HudEdLayoutSaveNew = TEXT("HudEditor.LayoutSaveNew");
+	const FName HudEdLayoutRename = TEXT("HudEditor.LayoutRename");
+	const FName HudEdLayoutDelete = TEXT("HudEditor.LayoutDelete");
+	const FName HudEdBind = TEXT("HudEditor.Bind");
 	const FName HudEdSave = TEXT("HudEditor.Save");
 	const FName HudEdCancel = TEXT("HudEditor.Cancel");
 	const FName HudEdResetAll = TEXT("HudEditor.ResetAll");
-	const FName HudEdResetOne = TEXT("HudEditor.ResetOne");
-	const FName HudEdSmaller = TEXT("HudEditor.Smaller");
-	const FName HudEdBigger = TEXT("HudEditor.Bigger");
 	const FName HudEdHideCard = TEXT("HudEditor.HideCard");
 	const FName HudEdShowCard = TEXT("HudEditor.ShowCard");
 
@@ -47,7 +59,9 @@ namespace
 	constexpr float HudEdStickSpeed = 600.0f;
 	/** Scripted steps (-ApexHudEditorSteps) run this far apart, so each is laid out before the next. */
 	constexpr float HudEdStepInterval = 0.6f;
-	constexpr float HudEdCardWidth = 540.0f;
+	constexpr float HudEdCardWidth = 560.0f;
+	/** The "-" button on a panel's corner. */
+	constexpr float HudEdRemoveSize = 28.0f;
 
 	FAutoConsoleCommand HudEditCommand(TEXT("apexsim.hud.Edit"),
 		TEXT("Open the HUD editor (as Settings > Gameplay > HUD layout does)."),
@@ -264,58 +278,56 @@ void UApexHudEditorWidget::BuildCard()
 		return Button;
 	};
 
+	// The "-" buttons ride on the panels, over the frames and under the toolbar.
+	RemoveCanvas = WidgetTree->ConstructWidget<UCanvasPanel>();
+	UOverlaySlot* RemoveSlot = Layers->AddChildToOverlay(RemoveCanvas);
+	RemoveSlot->SetHorizontalAlignment(HAlign_Fill);
+	RemoveSlot->SetVerticalAlignment(VAlign_Fill);
+
 	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>();
 
-	// Title, and the way to get the card out from over a panel.
+	// Title, and the way to get the toolbar out from over a panel.
 	{
 		UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>();
-		AddH(Header, MakeText(*WidgetTree, TEXT("HUD LAYOUT"), Font::Display(30.0f, 20), Palette::TextPrimary));
+		AddH(Header, MakeText(*WidgetTree, TEXT("HUD LAYOUT"), Font::Display(24.0f, 20), Palette::TextPrimary), FMargin(), VAlign_Center);
 		AddH(Header, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
 		AddH(Header, MakeButton(TEXT("Hide"), HudEdHideCard, EApexButtonVariant::Bare, 34.0f, 13.0f, TEXT("H")));
 		AddV(Content, Header);
 		UTextBlock* Hint = MakeText(*WidgetTree,
-			TEXT("Drag a panel to move it and its corner to resize it; it snaps to the edges and the other panels (hold Shift to place it freely). "
-				 "Tab picks a panel, the arrows nudge it, [ and ] size it, Del hides it."),
+			TEXT("Drag a panel to move it and its corner to resize it. The - on a panel removes it; + brings removed panels back. "
+				 "Hold Shift to place a panel freely."),
 			Font::Body(12.0f), Palette::TextMuted);
 		Hint->SetAutoWrapText(true);
-		AddV(Content, Hint, FMargin(0.0f, 8.0f, 0.0f, 14.0f));
+		AddV(Content, Hint, FMargin(0.0f, 6.0f, 0.0f, 12.0f));
 	}
 
-	AddV(Content, MakeLabel(*WidgetTree, TEXT("Panels")), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
-	ListBox = WidgetTree->ConstructWidget<UVerticalBox>();
-	UScrollBox* Scroll = WidgetTree->ConstructWidget<UScrollBox>();
-	Scroll->AddChild(ListBox);
-	USizeBox* ScrollSize = WidgetTree->ConstructWidget<USizeBox>();
-	ScrollSize->SetMaxDesiredHeight(420.0f);
-	ScrollSize->AddChild(Scroll);
-	AddV(Content, ScrollSize);
-
-	// The selected panel's size and reset.
+	// Which layout is being edited; the way into the layout manager.
 	{
-		AddV(Content, MakeDivider(*WidgetTree), FMargin(0.0f, 14.0f, 0.0f, 12.0f));
-		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
-		SelectedText = MakeText(*WidgetTree, FString(), Font::Body(15.0f, true), Palette::TextPrimary);
-		AddH(Row, SelectedText, FMargin(), VAlign_Center, 1.0f);
-		AddH(Row, MakeSized(*WidgetTree, MakeButton(TEXT("-"), HudEdSmaller, EApexButtonVariant::Ghost, 36.0f, 17.0f), 40.0f, 36.0f),
-			FMargin(12.0f, 0.0f, 0.0f, 0.0f));
-		ScaleText = MakeText(*WidgetTree, TEXT("100%"), Font::Mono(14.0f, 40), Palette::TextPrimary);
-		ScaleText->SetJustification(ETextJustify::Center);
-		AddH(Row, MakeSized(*WidgetTree, ScaleText, 64.0f, -1.0f));
-		AddH(Row, MakeSized(*WidgetTree, MakeButton(TEXT("+"), HudEdBigger, EApexButtonVariant::Ghost, 36.0f, 17.0f), 40.0f, 36.0f));
-		AddH(Row, MakeSized(*WidgetTree, MakeButton(TEXT("Reset"), HudEdResetOne, EApexButtonVariant::Ghost, 36.0f, 13.0f, TEXT("R")), 112.0f, 36.0f),
-			FMargin(12.0f, 0.0f, 0.0f, 0.0f));
-		AddV(Content, Row);
+		AddV(Content, MakeLabel(*WidgetTree, TEXT("Layout")), FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		LayoutButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		FApexButtonSpec Spec;
+		Spec.Label = ApexHudLayouts::DefaultName;
+		Spec.ActionId = HudEdLayouts;
+		Spec.Variant = EApexButtonVariant::Panel;
+		Spec.Height = 56.0f;
+		Spec.LabelSize = 16.0f;
+		Spec.KeyCap = TEXT("L");
+		LayoutButton->Setup(Spec);
+		LayoutButton->OnActivated.AddDynamic(this, &UApexHudEditorWidget::HandleButton);
+		AddV(Content, LayoutButton, FMargin(0.0f, 0.0f, 0.0f, 12.0f));
 	}
 
-	// Save, cancel, start over.
+	// Add, reset, cancel, save.
 	{
-		AddV(Content, MakeDivider(*WidgetTree), FMargin(0.0f, 12.0f, 0.0f, 14.0f));
 		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
-		AddH(Row, MakeSized(*WidgetTree, MakeButton(TEXT("Reset all"), HudEdResetAll, EApexButtonVariant::Ghost, 48.0f, 15.0f), 130.0f, 48.0f));
+		AddButton = MakeButton(TEXT("+  Add panel"), HudEdAdd, EApexButtonVariant::Ghost, 48.0f, 15.0f, TEXT("INS"));
+		AddH(Row, MakeSized(*WidgetTree, AddButton, 190.0f, 48.0f));
+		AddH(Row, MakeSized(*WidgetTree, MakeButton(TEXT("Reset all"), HudEdResetAll, EApexButtonVariant::Ghost, 48.0f, 15.0f), 120.0f, 48.0f),
+			FMargin(8.0f, 0.0f, 0.0f, 0.0f));
 		AddH(Row, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
-		AddH(Row, MakeSized(*WidgetTree, MakeButton(TEXT("Cancel"), HudEdCancel, EApexButtonVariant::Ghost, 48.0f, 15.0f, TEXT("ESC")), 150.0f, 48.0f),
-			FMargin(0.0f, 0.0f, 10.0f, 0.0f));
-		AddH(Row, MakeSized(*WidgetTree, MakeButton(TEXT("Save"), HudEdSave, EApexButtonVariant::Primary, 48.0f, 15.0f, TEXT("ENTER")), 150.0f, 48.0f));
+		AddH(Row, MakeSized(*WidgetTree, MakeButton(TEXT("Cancel"), HudEdCancel, EApexButtonVariant::Ghost, 48.0f, 15.0f, TEXT("ESC")), 140.0f, 48.0f),
+			FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+		AddH(Row, MakeSized(*WidgetTree, MakeButton(TEXT("Save"), HudEdSave, EApexButtonVariant::Primary, 48.0f, 15.0f, TEXT("ENTER")), 140.0f, 48.0f));
 		AddV(Content, Row);
 		StatusText = MakeText(*WidgetTree, FString(), Font::Body(11.0f), Palette::TextDisabled);
 		StatusText->SetAutoWrapText(true);
@@ -323,13 +335,89 @@ void UApexHudEditorWidget::BuildCard()
 	}
 
 	// The middle of the screen is the one place the HUD leaves empty.
-	Card = MakeSized(*WidgetTree, MakeModalCard(*WidgetTree, Content, FMargin(26.0f, 22.0f)), HudEdCardWidth, -1.0f);
+	Card = MakeSized(*WidgetTree, MakeModalCard(*WidgetTree, Content, FMargin(22.0f, 18.0f)), HudEdCardWidth, -1.0f);
 	UOverlaySlot* CardSlot = Layers->AddChildToOverlay(Card);
 	CardSlot->SetHorizontalAlignment(HAlign_Center);
 	CardSlot->SetVerticalAlignment(VAlign_Center);
 
-	UApexButtonWidget* Show = MakeButton(TEXT("Show the HUD layout card"), HudEdShowCard, EApexButtonVariant::Primary, 40.0f, 13.0f, TEXT("H"));
-	ShowCardButton = MakeSized(*WidgetTree, Show, 320.0f, 40.0f);
+	// The list of removed panels takes the toolbar's place while it is open.
+	{
+		UVerticalBox* Popup = WidgetTree->ConstructWidget<UVerticalBox>();
+		UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(Header, MakeText(*WidgetTree, TEXT("ADD A PANEL"), Font::Display(24.0f, 20), Palette::TextPrimary), FMargin(), VAlign_Center);
+		AddH(Header, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
+		AddH(Header, MakeButton(TEXT("Close"), HudEdAddClose, EApexButtonVariant::Bare, 34.0f, 13.0f, TEXT("ESC")));
+		AddV(Popup, Header, FMargin(0.0f, 0.0f, 0.0f, 12.0f));
+		AddList = WidgetTree->ConstructWidget<UVerticalBox>();
+		UScrollBox* Scroll = WidgetTree->ConstructWidget<UScrollBox>();
+		Scroll->AddChild(AddList);
+		USizeBox* ScrollSize = WidgetTree->ConstructWidget<USizeBox>();
+		ScrollSize->SetMaxDesiredHeight(420.0f);
+		ScrollSize->AddChild(Scroll);
+		AddV(Popup, ScrollSize);
+		AddPopup = MakeSized(*WidgetTree, MakeModalCard(*WidgetTree, Popup, FMargin(22.0f, 18.0f)), HudEdCardWidth, -1.0f);
+		AddPopup->SetVisibility(ESlateVisibility::Collapsed);
+		UOverlaySlot* PopupSlot = Layers->AddChildToOverlay(AddPopup);
+		PopupSlot->SetHorizontalAlignment(HAlign_Center);
+		PopupSlot->SetVerticalAlignment(VAlign_Center);
+	}
+
+	// The layout manager takes the toolbar's place too.
+	{
+		UVerticalBox* Popup = WidgetTree->ConstructWidget<UVerticalBox>();
+		UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(Header, MakeText(*WidgetTree, TEXT("LAYOUTS"), Font::Display(24.0f, 20), Palette::TextPrimary), FMargin(), VAlign_Center);
+		AddH(Header, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
+		AddH(Header, MakeButton(TEXT("Done"), HudEdLayoutClose, EApexButtonVariant::Bare, 34.0f, 13.0f, TEXT("ESC")));
+		AddV(Popup, Header, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+
+		LayoutWarning = MakeText(*WidgetTree, TEXT("You have unsaved changes. Picking another layout drops them; Save keeps them."),
+			Font::Body(12.0f), Palette::Accent);
+		LayoutWarning->SetAutoWrapText(true);
+		AddV(Popup, LayoutWarning, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+
+		LayoutList = WidgetTree->ConstructWidget<UVerticalBox>();
+		UScrollBox* Scroll = WidgetTree->ConstructWidget<UScrollBox>();
+		Scroll->AddChild(LayoutList);
+		USizeBox* ScrollSize = WidgetTree->ConstructWidget<USizeBox>();
+		ScrollSize->SetMaxDesiredHeight(230.0f);
+		ScrollSize->AddChild(Scroll);
+		AddV(Popup, ScrollSize);
+
+		AddV(Popup, MakeDivider(*WidgetTree), FMargin(0.0f, 12.0f, 0.0f, 12.0f));
+		AddV(Popup, MakeLabel(*WidgetTree, TEXT("Name")), FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		UHorizontalBox* NameLine = WidgetTree->ConstructWidget<UHorizontalBox>();
+		LayoutNameBox = MakeSearchBox(*WidgetTree, TEXT("Layout name"));
+		AddH(NameLine, MakeSized(*WidgetTree, LayoutNameBox, -1.0f, 44.0f), FMargin(), VAlign_Center, 1.0f);
+		AddH(NameLine, MakeSized(*WidgetTree, MakeButton(TEXT("Save as new"), HudEdLayoutSaveNew, EApexButtonVariant::Primary, 44.0f, 14.0f), 150.0f, 44.0f),
+			FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+		AddV(Popup, NameLine);
+		UHorizontalBox* ManageLine = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(ManageLine, MakeSized(*WidgetTree, MakeButton(TEXT("Rename"), HudEdLayoutRename, EApexButtonVariant::Ghost, 38.0f, 13.0f), 120.0f, 38.0f));
+		AddH(ManageLine, MakeSized(*WidgetTree, MakeButton(TEXT("Delete"), HudEdLayoutDelete, EApexButtonVariant::Ghost, 38.0f, 13.0f), 120.0f, 38.0f),
+			FMargin(8.0f, 0.0f, 0.0f, 0.0f));
+		AddV(Popup, ManageLine, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+
+		AddV(Popup, MakeDivider(*WidgetTree), FMargin(0.0f, 12.0f, 0.0f, 12.0f));
+		BindingCaption = MakeLabel(*WidgetTree, TEXT("Use this layout"));
+		AddV(Popup, BindingCaption, FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		BindingChips = WidgetTree->ConstructWidget<UWrapBox>();
+		BindingChips->SetInnerSlotPadding(FVector2D(6.0, 6.0));
+		AddV(Popup, BindingChips);
+
+		LayoutNotice = MakeText(*WidgetTree, FString(), Font::Body(12.0f), Palette::TextMuted);
+		LayoutNotice->SetAutoWrapText(true);
+		AddV(Popup, LayoutNotice, FMargin(0.0f, 10.0f, 0.0f, 0.0f));
+
+		LayoutPopup = MakeSized(*WidgetTree, MakeModalCard(*WidgetTree, Popup, FMargin(22.0f, 18.0f)), HudEdCardWidth, -1.0f);
+		LayoutPopup->SetVisibility(ESlateVisibility::Collapsed);
+		UOverlaySlot* LayoutSlot = Layers->AddChildToOverlay(LayoutPopup);
+		LayoutSlot->SetHorizontalAlignment(HAlign_Center);
+		LayoutSlot->SetVerticalAlignment(VAlign_Center);
+	}
+
+	UApexButtonWidget* Show = MakeButton(TEXT("Show the HUD layout toolbar"), HudEdShowCard, EApexButtonVariant::Primary, 40.0f, 13.0f, TEXT("H"));
+	ShowCardButton = MakeSized(*WidgetTree, Show, 340.0f, 40.0f);
 	ShowCardButton->SetVisibility(ESlateVisibility::Collapsed);
 	UOverlaySlot* ShowSlot = Layers->AddChildToOverlay(ShowCardButton);
 	ShowSlot->SetHorizontalAlignment(HAlign_Center);
@@ -338,50 +426,98 @@ void UApexHudEditorWidget::BuildCard()
 	WidgetTree->RootWidget = Layers;
 }
 
-void UApexHudEditorWidget::RebuildList()
+bool UApexHudEditorWidget::IsEditable(int32 Index) const
+{
+	const UApexHudWidget* HudWidget = Hud.Get();
+	return HudWidget && HudWidget->GetComponents().IsValidIndex(Index) && HudWidget->GetComponents()[Index].Scene.IsEmpty();
+}
+
+void UApexHudEditorWidget::RebuildRemoveButtons()
 {
 	UApexHudWidget* HudWidget = Hud.Get();
-	if (!ListBox || !HudWidget)
+	if (!RemoveCanvas || !HudWidget)
 	{
 		return;
 	}
-	ListBox->ClearChildren();
-	RowButtons.Reset();
-	ToggleButtons.Reset();
+	RemoveCanvas->ClearChildren();
+	RemoveHolders.Reset();
+
+	for (int32 Index = 0; Index < HudWidget->GetComponents().Num(); ++Index)
+	{
+		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		FApexButtonSpec Spec;
+		Spec.Label = TEXT("-");
+		Spec.ActionId = FName(HudEdRemove, Index + 1);
+		Spec.Variant = EApexButtonVariant::Primary;
+		Spec.Height = HudEdRemoveSize;
+		Spec.LabelSize = 18.0f;
+		Spec.bCentreLabel = true;
+		Button->Setup(Spec);
+		Button->OnActivated.AddDynamic(this, &UApexHudEditorWidget::HandleButton);
+
+		UWidget* Holder = MakeSized(*WidgetTree, Button, HudEdRemoveSize, HudEdRemoveSize);
+		Holder->SetVisibility(ESlateVisibility::Collapsed);
+		UCanvasPanelSlot* CanvasSlot = RemoveCanvas->AddChildToCanvas(Holder);
+		CanvasSlot->SetAutoSize(true);
+		RemoveHolders.Add(Holder);
+	}
+}
+
+void UApexHudEditorWidget::RebuildAddList()
+{
+	UApexHudWidget* HudWidget = Hud.Get();
+	if (!AddList || !HudWidget)
+	{
+		return;
+	}
+	AddList->ClearChildren();
+	AddRows.Reset();
 
 	const TArray<FApexHudComponentDef>& Components = HudWidget->GetComponents();
-	ListedCount = Components.Num();
 	for (int32 Index = 0; Index < Components.Num(); ++Index)
 	{
-		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+		if (HudWidget->IsComponentShown(Index) || !IsEditable(Index))
+		{
+			continue;
+		}
+		UApexButtonWidget* Row = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		FApexButtonSpec Spec;
+		Spec.Label = HudEdName(Components[Index]);
+		Spec.SubLabel = Components[Index].Description;
+		Spec.ActionId = FName(HudEdAddRow, Index + 1);
+		Spec.Variant = EApexButtonVariant::Panel;
+		Spec.Height = Components[Index].Description.IsEmpty() ? 44.0f : 56.0f;
+		Spec.LabelSize = 15.0f;
+		Row->Setup(Spec);
+		Row->OnActivated.AddDynamic(this, &UApexHudEditorWidget::HandleButton);
+		AddV(AddList, Row, FMargin(0.0f, AddRows.IsEmpty() ? 0.0f : 4.0f, 0.0f, 0.0f));
+		AddRows.Add(Row);
+	}
+	if (AddRows.IsEmpty())
+	{
+		AddV(AddList, MakeText(*WidgetTree, TEXT("Every panel is already on screen."), Font::Body(14.0f), Palette::TextMuted),
+			FMargin(0.0f, 8.0f));
+	}
+}
 
-		UApexButtonWidget* Name = WidgetTree->ConstructWidget<UApexButtonWidget>();
-		FApexButtonSpec NameSpec;
-		NameSpec.Label = HudEdName(Components[Index]);
-		NameSpec.SubLabel = Components[Index].Description;
-		NameSpec.ActionId = FName(HudEdRow, Index + 1);
-		NameSpec.Variant = EApexButtonVariant::Panel;
-		NameSpec.Height = Components[Index].Description.IsEmpty() ? 40.0f : 52.0f;
-		NameSpec.LabelSize = 15.0f;
-		Name->Setup(NameSpec);
-		Name->OnActivated.AddDynamic(this, &UApexHudEditorWidget::HandleButton);
-		AddH(Row, Name, FMargin(), VAlign_Fill, 1.0f);
-		RowButtons.Add(Name);
-
-		UApexButtonWidget* Toggle = WidgetTree->ConstructWidget<UApexButtonWidget>();
-		FApexButtonSpec ToggleSpec;
-		ToggleSpec.Label = TEXT("Hide");
-		ToggleSpec.ActionId = FName(HudEdToggle, Index + 1);
-		ToggleSpec.Variant = EApexButtonVariant::Ghost;
-		ToggleSpec.Height = NameSpec.Height;
-		ToggleSpec.LabelSize = 13.0f;
-		ToggleSpec.bCentreLabel = true;
-		Toggle->Setup(ToggleSpec);
-		Toggle->OnActivated.AddDynamic(this, &UApexHudEditorWidget::HandleButton);
-		AddH(Row, MakeSized(*WidgetTree, Toggle, 86.0f, -1.0f), FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
-		ToggleButtons.Add(Toggle);
-
-		AddV(ListBox, Row, FMargin(0.0f, Index == 0 ? 0.0f : 4.0f, 0.0f, 0.0f));
+void UApexHudEditorWidget::ApplyChrome()
+{
+	const bool bAnyList = (bAddOpen || bLayoutsOpen) && !bPanelHidden;
+	if (Card)
+	{
+		Card->SetVisibility(bPanelHidden || bAnyList ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+	}
+	if (AddPopup)
+	{
+		AddPopup->SetVisibility(bAddOpen && !bPanelHidden ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (LayoutPopup)
+	{
+		LayoutPopup->SetVisibility(bLayoutsOpen && !bPanelHidden ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (ShowCardButton)
+	{
+		ShowCardButton->SetVisibility(bPanelHidden ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 }
 
@@ -393,33 +529,51 @@ void UApexHudEditorWidget::RefreshCard()
 		return;
 	}
 	const TArray<FApexHudComponentDef>& Components = HudWidget->GetComponents();
-	if (ListedCount != Components.Num())
+	if (RemoveHolders.Num() != Components.Num())
 	{
-		RebuildList();
-	}
-	for (int32 Index = 0; Index < Components.Num() && Index < RowButtons.Num(); ++Index)
-	{
-		const bool bShown = HudWidget->IsComponentShown(Index);
-		RowButtons[Index]->SetBadge(bShown ? TEXT("SHOWN") : TEXT("HIDDEN"), bShown ? Palette::Live : Palette::TextDisabled);
-		RowButtons[Index]->SetSelected(Index == Selected);
-		ToggleButtons[Index]->SetLabel(bShown ? TEXT("Hide") : TEXT("Show"));
+		RebuildRemoveButtons();
 	}
 
-	if (SelectedText && ScaleText)
+	// A "-" on the top right corner of each shown panel, kept on the screen so a
+	// panel against the edge can still be reached. Out of the way during a drag.
+	const FGeometry CanvasGeometry = RemoveCanvas ? RemoveCanvas->GetCachedGeometry() : FGeometry();
+	const FVector2D Screen = HudWidget->GetHudSize();
+	int32 Hidden = 0;
+	for (int32 Index = 0; Index < Components.Num(); ++Index)
 	{
-		if (Components.IsValidIndex(Selected))
+		const bool bEditable = IsEditable(Index);
+		Hidden += (bEditable && !HudWidget->IsComponentShown(Index)) ? 1 : 0;
+		if (!RemoveHolders.IsValidIndex(Index))
 		{
-			const FApexHudComponentDef& Component = Components[Selected];
-			SelectedText->SetText(FText::FromString(HudWidget->IsComponentShown(Selected)
-				? HudEdName(Component)
-				: HudEdName(Component) + TEXT(" (hidden)")));
-			ScaleText->SetText(FText::FromString(HudEdPercent(HudWidget->GetLayout().ScaleOf(Component.Id))));
+			continue;
 		}
-		else
+		UWidget* Holder = RemoveHolders[Index];
+		FSlateRect Rect;
+		if (!bEditable || Drag != EDrag::None || bPanelHidden || !HudWidget->GetComponentRect(Index, Rect) || CanvasGeometry.GetLocalSize().X < 1.0)
 		{
-			SelectedText->SetText(FText::FromString(TEXT("Click a panel to pick it")));
-			ScaleText->SetText(FText::FromString(TEXT("—")));
+			Holder->SetVisibility(ESlateVisibility::Collapsed);
+			continue;
 		}
+		const double Half = HudEdRemoveSize * 0.5;
+		const FVector2D Centre(FMath::Min(static_cast<double>(Rect.Right), Screen.X - Half), FMath::Max(static_cast<double>(Rect.Top), Half));
+		const FVector2D Local = CanvasGeometry.AbsoluteToLocal(HudWidget->HudToAbsolute(Centre)) - FVector2D(Half);
+		if (UCanvasPanelSlot* HolderSlot = Cast<UCanvasPanelSlot>(Holder->Slot))
+		{
+			HolderSlot->SetPosition(Local);
+		}
+		Holder->SetVisibility(ESlateVisibility::Visible);
+	}
+
+	RefreshLayoutButton(false);
+	if (LayoutWarning)
+	{
+		LayoutWarning->SetVisibility(bLayoutsOpen && HasUnsavedChanges() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
+	if (AddButton && Hidden != LabelledHidden)
+	{
+		LabelledHidden = Hidden;
+		AddButton->SetLabel(Hidden > 0 ? FString::Printf(TEXT("+  Add panel  (%d)"), Hidden) : FString(TEXT("+  Add panel")));
 	}
 }
 
@@ -439,8 +593,14 @@ void UApexHudEditorWidget::Open(UApexHudWidget* InHud)
 	Drag = EDrag::None;
 	SetPanelHidden(false);
 
+	bAddOpen = false;
+	bLayoutsOpen = false;
+	LabelledHidden = -1;
+	LabelledLayoutKey.Reset();
+	OriginalName = InHud->GetActiveLayoutName();
+	Baseline = Original.ToJson();
 	InHud->BeginEditing();
-	RebuildList();
+	RebuildRemoveButtons();
 	RefreshCard();
 	if (StatusText)
 	{
@@ -488,11 +648,14 @@ void UApexHudEditorWidget::Close(bool bSave)
 		else
 		{
 			HudWidget->SetLayout(Original);
+			HudWidget->SetActiveLayoutName(OriginalName);
 		}
 		HudWidget->EndEditing();
 	}
 	ApexUiAudio::Play(this, bSave ? EApexUiSound::Accept : EApexUiSound::Back);
 	bOpen = false;
+	bAddOpen = false;
+	bLayoutsOpen = false;
 	PendingSteps.Reset();
 	SetVisibility(ESlateVisibility::Collapsed);
 	OnClosed.Broadcast();
@@ -501,7 +664,21 @@ void UApexHudEditorWidget::Close(bool bSave)
 void UApexHudEditorWidget::FocusDefault()
 {
 	// The editor itself takes the keys, not a button on its card: the arrows
-	// move the panel, and Enter saves whatever was clicked last.
+	// move the panel, and Enter saves whatever was clicked last. The add list is
+	// the exception: its rows are what the keys and the pad are for.
+	if (bAddOpen && !bPanelHidden && !AddRows.IsEmpty() && ApexNav::Focus(AddRows[0]))
+	{
+		return;
+	}
+	if (bLayoutsOpen && !bPanelHidden && !LayoutRows.IsEmpty())
+	{
+		const int32 Current = LayoutRowNames.IndexOfByPredicate([this](const FString& Name)
+			{ return Hud.IsValid() && Name.Equals(Hud->GetActiveLayoutName(), ESearchCase::IgnoreCase); });
+		if (ApexNav::Focus(LayoutRows[Current == INDEX_NONE ? 0 : Current]))
+		{
+			return;
+		}
+	}
 	if (!ApexNav::Focus(this))
 	{
 		SetKeyboardFocus();
@@ -511,14 +688,32 @@ void UApexHudEditorWidget::FocusDefault()
 void UApexHudEditorWidget::SetPanelHidden(bool bHidden)
 {
 	bPanelHidden = bHidden;
-	if (Card)
+	ApplyChrome();
+}
+
+void UApexHudEditorWidget::OpenAddList()
+{
+	if (!bOpen)
 	{
-		Card->SetVisibility(bHidden ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+		return;
 	}
-	if (ShowCardButton)
+	bPanelHidden = false;
+	bAddOpen = true;
+	bLayoutsOpen = false;
+	RebuildAddList();
+	ApplyChrome();
+	ApexUiAudio::Play(this, EApexUiSound::Accept);
+}
+
+void UApexHudEditorWidget::CloseAddList()
+{
+	if (!bAddOpen)
 	{
-		ShowCardButton->SetVisibility(bHidden ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		return;
 	}
+	bAddOpen = false;
+	ApplyChrome();
+	ApexUiAudio::Play(this, EApexUiSound::Back);
 }
 
 void UApexHudEditorWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -606,13 +801,18 @@ void UApexHudEditorWidget::SelectNext(int32 Step)
 {
 	const UApexHudWidget* HudWidget = Hud.Get();
 	const int32 Count = HudWidget ? HudWidget->GetComponents().Num() : 0;
-	if (Count == 0)
+	// The panels on screen, in the order the components are listed.
+	int32 Candidate = Selected;
+	for (int32 Tried = 0; Tried < Count; ++Tried)
 	{
-		return;
+		Candidate = Candidate == INDEX_NONE ? (Step > 0 ? 0 : Count - 1) : (Candidate + Step + Count) % Count;
+		if (IsEditable(Candidate) && HudWidget->IsComponentShown(Candidate))
+		{
+			Selected = Candidate;
+			ApexUiAudio::Play(this, EApexUiSound::Move);
+			return;
+		}
 	}
-	// Every component, hidden ones too: the way back for one hidden with the pad.
-	Selected = Selected == INDEX_NONE ? (Step > 0 ? 0 : Count - 1) : (Selected + Step + Count) % Count;
-	ApexUiAudio::Play(this, EApexUiSound::Move);
 }
 
 void UApexHudEditorWidget::MoveSelected(const FVector2D& Delta)
@@ -666,12 +866,17 @@ void UApexHudEditorWidget::ToggleComponent(int32 Index)
 	{
 		return;
 	}
+	// Everything else is pinned where it is first, so the rest of the region
+	// neither closes up behind a removed panel nor shuffles for an added one.
+	HudWidget->PinAll();
 	const FString& Id = HudWidget->GetComponents()[Index].Id;
 	const FApexHudPlacement* Existing = HudWidget->GetLayout().Find(Id);
 	FApexHudPlacement Placement = Existing ? *Existing : FApexHudPlacement();
-	Placement.bEnabled = !HudWidget->IsComponentShown(Index);
+	const bool bNowShown = !HudWidget->IsComponentShown(Index);
+	Placement.bEnabled = bNowShown;
 	HudWidget->PlaceComponent(Index, Placement);
-	Selected = Index;
+	// An added panel is picked, so it can be moved at once; a removed one has nothing to pick.
+	Selected = bNowShown ? Index : INDEX_NONE;
 	ApexUiAudio::Play(this, EApexUiSound::Adjust);
 }
 
@@ -757,6 +962,28 @@ bool UApexHudEditorWidget::RunStep(const FString& InStep)
 		ResetAll();
 		return true;
 	}
+	if (Verb == TEXT("layouts"))
+	{
+		OpenLayouts();
+		return true;
+	}
+	if (Verb == TEXT("layout") && Words.Num() >= 2)
+	{
+		return SwitchLayout(FString::Join(TArray<FString>(Words.GetData() + 1, Words.Num() - 1), TEXT(" ")));
+	}
+	if (Verb == TEXT("saveas") && Words.Num() >= 2)
+	{
+		return SaveLayoutAs(FString::Join(TArray<FString>(Words.GetData() + 1, Words.Num() - 1), TEXT(" ")));
+	}
+	if (Verb == TEXT("bind") && Words.Num() == 2)
+	{
+		return ToggleBinding(Words[1]);
+	}
+	if (Verb == TEXT("add"))
+	{
+		OpenAddList();
+		return true;
+	}
 	if (Verb == TEXT("panel"))
 	{
 		SetPanelHidden(!bPanelHidden);
@@ -818,13 +1045,73 @@ void UApexHudEditorWidget::HandleButton(UApexButtonWidget* Button)
 	}
 	const FName Action = Button->GetActionId();
 	const FString Plain = Action.GetPlainNameString();
-	if (Plain == HudEdRow.ToString())
+	if (Plain == HudEdRemove.ToString())
 	{
-		Selected = Action.GetNumber() - 1;
+		const int32 Index = Action.GetNumber() - 1;
+		if (Hud.IsValid() && Hud->IsComponentShown(Index))
+		{
+			ToggleComponent(Index);
+		}
 	}
-	else if (Plain == HudEdToggle.ToString())
+	else if (Plain == HudEdAddRow.ToString())
 	{
 		ToggleComponent(Action.GetNumber() - 1);
+		bAddOpen = false;
+		ApplyChrome();
+	}
+	else if (Plain == HudEdLayoutRow.ToString())
+	{
+		const int32 Index = Action.GetNumber() - 1;
+		if (LayoutRowNames.IsValidIndex(Index))
+		{
+			SwitchLayout(LayoutRowNames[Index]);
+		}
+	}
+	else if (Plain == HudEdBind.ToString())
+	{
+		const int32 Index = Action.GetNumber() - 1;
+		if (BindingKeys.IsValidIndex(Index))
+		{
+			ToggleBinding(BindingKeys[Index]);
+		}
+	}
+	else if (Action == HudEdLayouts)
+	{
+		OpenLayouts();
+	}
+	else if (Action == HudEdLayoutClose)
+	{
+		CloseLayouts();
+	}
+	else if (Action == HudEdLayoutSaveNew)
+	{
+		SaveLayoutAs(LayoutNameBox ? LayoutNameBox->GetText().ToString() : FString());
+	}
+	else if (Action == HudEdLayoutRename)
+	{
+		const FString Wanted = LayoutNameBox ? LayoutNameBox->GetText().ToString().TrimStartAndEnd() : FString();
+		if (Wanted.IsEmpty() && Hud.IsValid() && LayoutNameBox)
+		{
+			// Nothing typed: start from the name it has, and hand over the keys.
+			LayoutNameBox->SetText(FText::FromString(Hud->GetActiveLayoutName()));
+			bFocusNameBox = true;
+		}
+		else
+		{
+			RenameLayout(Wanted);
+		}
+	}
+	else if (Action == HudEdLayoutDelete)
+	{
+		DeleteLayout();
+	}
+	else if (Action == HudEdAdd)
+	{
+		OpenAddList();
+	}
+	else if (Action == HudEdAddClose)
+	{
+		CloseAddList();
 	}
 	else if (Action == HudEdSave || Action == HudEdCancel)
 	{
@@ -835,28 +1122,423 @@ void UApexHudEditorWidget::HandleButton(UApexButtonWidget* Button)
 	{
 		ResetAll();
 	}
-	else if (Action == HudEdResetOne)
-	{
-		ResetSelected();
-	}
-	else if (Action == HudEdSmaller || Action == HudEdBigger)
-	{
-		ScaleSelected(Action == HudEdBigger ? HudEdScaleStep : -HudEdScaleStep);
-	}
 	else if (Action == HudEdHideCard || Action == HudEdShowCard)
 	{
 		SetPanelHidden(Action == HudEdHideCard);
 	}
-	// The keys go back to the editor whatever was clicked.
+	// The keys go back to the editor whatever was clicked, or to the name box when it was asked for.
+	if (bFocusNameBox && LayoutNameBox)
+	{
+		bFocusNameBox = false;
+		LayoutNameBox->SetKeyboardFocus();
+		return;
+	}
 	FocusDefault();
+}
+
+// --- Layouts ------------------------------------------------------------------------
+
+bool UApexHudEditorWidget::HasUnsavedChanges() const
+{
+	return Hud.IsValid() && Hud->GetLayout().ToJson() != Baseline;
+}
+
+void UApexHudEditorWidget::SetLayoutNotice(const FString& Text)
+{
+	if (LayoutNotice)
+	{
+		LayoutNotice->SetText(FText::FromString(Text));
+	}
+	UE_LOG(LogApexSim, Log, TEXT("HUD editor: %s"), *Text);
+}
+
+void UApexHudEditorWidget::RefreshLayoutButton(bool bForce)
+{
+	const UApexHudWidget* HudWidget = Hud.Get();
+	if (!LayoutButton || !HudWidget)
+	{
+		return;
+	}
+	const FString& Name = HudWidget->GetActiveLayoutName();
+	const FString Used = HudWidget->GetBindings().Describe(Name);
+	const bool bEdited = HasUnsavedChanges();
+	const FString Key = FString::Printf(TEXT("%s|%s|%d"), *Name, *Used, bEdited);
+	if (!bForce && Key == LabelledLayoutKey)
+	{
+		return;
+	}
+	LabelledLayoutKey = Key;
+
+	FApexButtonSpec Spec;
+	Spec.Label = Name;
+	Spec.SubLabel = Used.IsEmpty() ? FString(TEXT("Not used anywhere yet")) : Used;
+	Spec.Badge = bEdited ? TEXT("EDITED") : TEXT("");
+	Spec.BadgeColour = Palette::Accent;
+	Spec.ActionId = HudEdLayouts;
+	Spec.Variant = EApexButtonVariant::Panel;
+	Spec.Height = 56.0f;
+	Spec.LabelSize = 16.0f;
+	Spec.KeyCap = TEXT("L");
+	LayoutButton->Setup(Spec);
+}
+
+void UApexHudEditorWidget::OpenLayouts()
+{
+	if (!bOpen)
+	{
+		return;
+	}
+	bPanelHidden = false;
+	bLayoutsOpen = true;
+	bAddOpen = false;
+	if (LayoutNotice)
+	{
+		LayoutNotice->SetText(FText::GetEmpty());
+	}
+	RebuildLayouts();
+	ApplyChrome();
+	ApexUiAudio::Play(this, EApexUiSound::Accept);
+}
+
+void UApexHudEditorWidget::CloseLayouts()
+{
+	if (!bLayoutsOpen)
+	{
+		return;
+	}
+	bLayoutsOpen = false;
+	ApplyChrome();
+	RefreshLayoutButton(true);
+	ApexUiAudio::Play(this, EApexUiSound::Back);
+}
+
+void UApexHudEditorWidget::RebuildLayouts()
+{
+	UApexHudWidget* HudWidget = Hud.Get();
+	if (!HudWidget || !LayoutList || !BindingChips)
+	{
+		return;
+	}
+	const FString Current = HudWidget->GetActiveLayoutName();
+	const ApexHudLayouts::FBindings& Bindings = HudWidget->GetBindings();
+
+	// The layouts, the one being edited marked.
+	LayoutList->ClearChildren();
+	LayoutRows.Reset();
+	LayoutRowNames = ApexHudLayouts::List();
+	for (int32 Index = 0; Index < LayoutRowNames.Num(); ++Index)
+	{
+		const FString& Name = LayoutRowNames[Index];
+		const FString Used = Bindings.Describe(Name);
+		UApexButtonWidget* Row = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		FApexButtonSpec Spec;
+		Spec.Label = Name;
+		Spec.SubLabel = Used.IsEmpty() ? FString(TEXT("Not used anywhere yet")) : Used;
+		Spec.ActionId = FName(HudEdLayoutRow, Index + 1);
+		Spec.Variant = EApexButtonVariant::Panel;
+		Spec.Height = 52.0f;
+		Spec.LabelSize = 15.0f;
+		if (Name.Equals(Current, ESearchCase::IgnoreCase))
+		{
+			Spec.Badge = TEXT("EDITING");
+			Spec.BadgeColour = Palette::Accent;
+		}
+		Row->Setup(Spec);
+		Row->SetSelected(Name.Equals(Current, ESearchCase::IgnoreCase));
+		Row->OnActivated.AddDynamic(this, &UApexHudEditorWidget::HandleButton);
+		AddV(LayoutList, Row, FMargin(0.0f, Index == 0 ? 0.0f : 4.0f, 0.0f, 0.0f));
+		LayoutRows.Add(Row);
+	}
+
+	// Where the one being edited is used: a chip per place, lit when it is.
+	if (BindingCaption)
+	{
+		BindingCaption->SetText(FText::FromString(FString::Printf(TEXT("Use \"%s\""), *Current)));
+	}
+	BindingChips->ClearChildren();
+	BindingButtons.Reset();
+	BindingKeys.Reset();
+
+	TArray<TPair<FString, FString>> Places;
+	Places.Emplace(TEXT("everywhere"), TEXT("Everywhere else"));
+	Places.Emplace(TEXT("watching"), TEXT("Watching"));
+	Places.Emplace(TEXT("hotlap"), TEXT("Hotlap and qualifying"));
+	TArray<FString> Classes;
+	if (const UApexCarContentSubsystem* Cars = UApexCarContentSubsystem::Get())
+	{
+		Cars->ForEachRow([&Classes](const FString&, const FApexCarCatalogRow& Row)
+		{
+			if (!Row.CarClass.IsEmpty())
+			{
+				Classes.AddUnique(ApexCatalog::DisplayClass(Row.CarClass));
+			}
+		});
+	}
+	Classes.Sort();
+	for (const FString& Class : Classes)
+	{
+		Places.Emplace(FString(TEXT("class:")) + Class, FString::Printf(TEXT("In a %s car"), *Class));
+	}
+
+	const bool bIsDefault = Current.Equals(ApexHudLayouts::DefaultName, ESearchCase::IgnoreCase);
+	for (const TPair<FString, FString>& Place : Places)
+	{
+		const FString& Key = Place.Key;
+		bool bBound = false;
+		if (Key == TEXT("everywhere"))
+		{
+			bBound = Bindings.Everywhere.IsEmpty() ? bIsDefault : Bindings.Everywhere.Equals(Current, ESearchCase::IgnoreCase);
+		}
+		else if (Key == TEXT("watching"))
+		{
+			bBound = Bindings.Watching.Equals(Current, ESearchCase::IgnoreCase);
+		}
+		else if (Key == TEXT("hotlap"))
+		{
+			bBound = Bindings.Hotlap.Equals(Current, ESearchCase::IgnoreCase);
+		}
+		else if (const FString* Bound = Bindings.Classes.Find(Key.RightChop(6)))
+		{
+			bBound = Bound->Equals(Current, ESearchCase::IgnoreCase);
+		}
+
+		UApexButtonWidget* Chip = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		FApexButtonSpec Spec;
+		Spec.Label = Place.Value;
+		Spec.ActionId = FName(HudEdBind, BindingKeys.Num() + 1);
+		Spec.Variant = EApexButtonVariant::Ghost;
+		Spec.Height = 36.0f;
+		Spec.LabelSize = 13.0f;
+		Spec.bCentreLabel = true;
+		Chip->Setup(Spec);
+		Chip->SetSelected(bBound);
+		Chip->OnActivated.AddDynamic(this, &UApexHudEditorWidget::HandleButton);
+		BindingChips->AddChildToWrapBox(MakeSized(*WidgetTree, Chip, 40.0f + 8.0f * Place.Value.Len(), 36.0f));
+		BindingButtons.Add(Chip);
+		BindingKeys.Add(Key);
+	}
+}
+
+bool UApexHudEditorWidget::SwitchLayout(const FString& Name)
+{
+	UApexHudWidget* HudWidget = Hud.Get();
+	if (!bOpen || !HudWidget)
+	{
+		return false;
+	}
+	if (Name.Equals(HudWidget->GetActiveLayoutName(), ESearchCase::IgnoreCase))
+	{
+		return true;
+	}
+	if (!ApexHudLayouts::Exists(Name) || !HudWidget->LoadLayoutNamed(Name))
+	{
+		SetLayoutNotice(FString::Printf(TEXT("\"%s\" could not be read."), *Name));
+		return false;
+	}
+	Baseline = HudWidget->GetLayout().ToJson();
+	Selected = INDEX_NONE;
+	SetLayoutNotice(FString::Printf(TEXT("Editing \"%s\"."), *HudWidget->GetActiveLayoutName()));
+	RebuildLayouts();
+	RefreshLayoutButton(true);
+	ApexUiAudio::Play(this, EApexUiSound::Accept);
+	return true;
+}
+
+bool UApexHudEditorWidget::SaveLayoutAs(const FString& Name)
+{
+	UApexHudWidget* HudWidget = Hud.Get();
+	if (!bOpen || !HudWidget)
+	{
+		return false;
+	}
+	const FString Wanted = ApexHudLayouts::SanitiseName(Name);
+	const FString Target = Wanted.IsEmpty() ? ApexHudLayouts::UniqueName(TEXT("Layout")) : Wanted;
+	if (Target.Equals(ApexHudLayouts::DefaultName, ESearchCase::IgnoreCase) || ApexHudLayouts::Exists(Target))
+	{
+		SetLayoutNotice(FString::Printf(TEXT("There is already a layout called \"%s\"."), *Target));
+		ApexUiAudio::Play(this, EApexUiSound::Denied);
+		return false;
+	}
+	if (!HudWidget->GetLayout().Save(ApexHudLayouts::FileFor(Target)))
+	{
+		SetLayoutNotice(FString::Printf(TEXT("\"%s\" could not be written."), *Target));
+		ApexUiAudio::Play(this, EApexUiSound::Error);
+		return false;
+	}
+	HudWidget->SetActiveLayoutName(Target);
+	Baseline = HudWidget->GetLayout().ToJson();
+	if (LayoutNameBox)
+	{
+		LayoutNameBox->SetText(FText::GetEmpty());
+	}
+	SetLayoutNotice(FString::Printf(TEXT("Saved as \"%s\". Choose below where to use it."), *Target));
+	RebuildLayouts();
+	RefreshLayoutButton(true);
+	ApexUiAudio::Play(this, EApexUiSound::Accept);
+	return true;
+}
+
+void UApexHudEditorWidget::PersistBindings(const ApexHudLayouts::FBindings& Bindings)
+{
+	if (!Bindings.Save())
+	{
+		SetLayoutNotice(TEXT("The bindings could not be written."));
+	}
+	if (Hud.IsValid())
+	{
+		Hud->SetBindings(Bindings);
+	}
+}
+
+bool UApexHudEditorWidget::RenameLayout(const FString& NewName)
+{
+	UApexHudWidget* HudWidget = Hud.Get();
+	if (!bOpen || !HudWidget)
+	{
+		return false;
+	}
+	const FString Current = HudWidget->GetActiveLayoutName();
+	const FString Target = ApexHudLayouts::SanitiseName(NewName);
+	if (Current.Equals(ApexHudLayouts::DefaultName, ESearchCase::IgnoreCase))
+	{
+		SetLayoutNotice(TEXT("Default cannot be renamed. Save it as a new layout instead."));
+		ApexUiAudio::Play(this, EApexUiSound::Denied);
+		return false;
+	}
+	if (Target.IsEmpty() || !ApexHudLayouts::Rename(Current, Target))
+	{
+		SetLayoutNotice(Target.IsEmpty() ? FString(TEXT("Type a name first."))
+			: FString::Printf(TEXT("\"%s\" could not be renamed to \"%s\" (is the name taken?)."), *Current, *Target));
+		ApexUiAudio::Play(this, EApexUiSound::Denied);
+		return false;
+	}
+	ApexHudLayouts::FBindings Bindings = HudWidget->GetBindings();
+	Bindings.Rename(Current, Target);
+	PersistBindings(Bindings);
+	HudWidget->SetActiveLayoutName(Target);
+	if (LayoutNameBox)
+	{
+		LayoutNameBox->SetText(FText::GetEmpty());
+	}
+	SetLayoutNotice(FString::Printf(TEXT("\"%s\" is now \"%s\"."), *Current, *Target));
+	RebuildLayouts();
+	RefreshLayoutButton(true);
+	ApexUiAudio::Play(this, EApexUiSound::Accept);
+	return true;
+}
+
+bool UApexHudEditorWidget::DeleteLayout()
+{
+	UApexHudWidget* HudWidget = Hud.Get();
+	if (!bOpen || !HudWidget)
+	{
+		return false;
+	}
+	const FString Current = HudWidget->GetActiveLayoutName();
+	if (Current.Equals(ApexHudLayouts::DefaultName, ESearchCase::IgnoreCase))
+	{
+		SetLayoutNotice(TEXT("Default cannot be deleted. Reset all puts it back to the shipped layout."));
+		ApexUiAudio::Play(this, EApexUiSound::Denied);
+		return false;
+	}
+	if (!ApexHudLayouts::Delete(Current))
+	{
+		SetLayoutNotice(FString::Printf(TEXT("\"%s\" could not be deleted."), *Current));
+		ApexUiAudio::Play(this, EApexUiSound::Error);
+		return false;
+	}
+	ApexHudLayouts::FBindings Bindings = HudWidget->GetBindings();
+	Bindings.Forget(Current);
+	PersistBindings(Bindings);
+	// Back to Default; what was bound to the deleted layout falls through to it.
+	HudWidget->LoadLayoutNamed(ApexHudLayouts::DefaultName);
+	Baseline = HudWidget->GetLayout().ToJson();
+	Selected = INDEX_NONE;
+	SetLayoutNotice(FString::Printf(TEXT("Deleted \"%s\". Editing Default."), *Current));
+	RebuildLayouts();
+	RefreshLayoutButton(true);
+	ApexUiAudio::Play(this, EApexUiSound::Back);
+	return true;
+}
+
+bool UApexHudEditorWidget::ToggleBinding(const FString& Key)
+{
+	UApexHudWidget* HudWidget = Hud.Get();
+	if (!bOpen || !HudWidget)
+	{
+		return false;
+	}
+	const FString Current = HudWidget->GetActiveLayoutName();
+	const bool bIsDefault = Current.Equals(ApexHudLayouts::DefaultName, ESearchCase::IgnoreCase);
+	ApexHudLayouts::FBindings Bindings = HudWidget->GetBindings();
+
+	// Binds the place to this layout, or lets it go when it already is.
+	auto Flip = [&Current](FString& Place)
+	{
+		Place = Place.Equals(Current, ESearchCase::IgnoreCase) ? FString() : Current;
+	};
+	if (Key == TEXT("everywhere"))
+	{
+		const bool bBound = Bindings.Everywhere.IsEmpty() ? bIsDefault : Bindings.Everywhere.Equals(Current, ESearchCase::IgnoreCase);
+		if (bBound && bIsDefault)
+		{
+			SetLayoutNotice(TEXT("Default is what is left when nothing else is bound; pick another layout for everywhere else."));
+			return false;
+		}
+		// Letting it go hands everywhere else back to Default.
+		Bindings.Everywhere = bBound || bIsDefault ? FString() : Current;
+	}
+	else if (Key == TEXT("watching"))
+	{
+		Flip(Bindings.Watching);
+	}
+	else if (Key == TEXT("hotlap"))
+	{
+		Flip(Bindings.Hotlap);
+	}
+	else if (Key.StartsWith(TEXT("class:")))
+	{
+		FString& Bound = Bindings.Classes.FindOrAdd(Key.RightChop(6));
+		Flip(Bound);
+		if (Bound.IsEmpty())
+		{
+			Bindings.Classes.Remove(Key.RightChop(6));
+		}
+	}
+	else
+	{
+		return false;
+	}
+	PersistBindings(Bindings);
+	SetLayoutNotice(FString::Printf(TEXT("\"%s\": %s."), *Current, Bindings.Describe(Current).IsEmpty()
+		? TEXT("not used anywhere") : *Bindings.Describe(Current)));
+	RebuildLayouts();
+	RefreshLayoutButton(true);
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
+	return true;
 }
 
 // --- Mouse --------------------------------------------------------------------------
 
 bool UApexHudEditorWidget::IsOverCard(const FVector2D& ScreenPosition) const
 {
-	const UWidget* Shown = bPanelHidden ? ShowCardButton.Get() : Card.Get();
-	return Shown && Shown->GetCachedGeometry().IsUnderLocation(ScreenPosition);
+	// Whichever of the toolbar, the add list and the show button is up, and the
+	// "-" buttons, which are not for dragging a panel by.
+	for (const UWidget* Chrome : {Card.Get(), AddPopup.Get(), LayoutPopup.Get(), ShowCardButton.Get()})
+	{
+		if (Chrome && Chrome->GetVisibility() != ESlateVisibility::Collapsed && Chrome->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+		{
+			return true;
+		}
+	}
+	for (const UWidget* Holder : RemoveHolders)
+	{
+		if (Holder && Holder->GetVisibility() != ESlateVisibility::Collapsed && Holder->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 int32 UApexHudEditorWidget::HitTest(const FVector2D& HudPoint) const
@@ -1065,6 +1747,26 @@ FReply UApexHudEditorWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 	const FKey Key = InKeyEvent.GetKey();
 	const bool bShift = InKeyEvent.IsShiftDown();
 
+	if (bAddOpen || bLayoutsOpen)
+	{
+		// A list is up: Esc / B closes it, and its rows take everything else
+		// (the name box takes the letters, so none of them may be shortcuts).
+		if (Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right)
+		{
+			CloseAddList();
+			CloseLayouts();
+			FocusDefault();
+			return FReply::Handled();
+		}
+		return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+	}
+	if (Key == EKeys::L)
+	{
+		OpenLayouts();
+		FocusDefault();
+		return FReply::Handled();
+	}
+
 	if (Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right)
 	{
 		if (Drag != EDrag::None)
@@ -1117,7 +1819,17 @@ FReply UApexHudEditorWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 	}
 	if (Key == EKeys::Delete || Key == EKeys::Gamepad_FaceButton_Top)
 	{
-		ToggleComponent(Selected);
+		// Removes the picked panel; the add list is the way back.
+		if (Hud.IsValid() && Hud->IsComponentShown(Selected))
+		{
+			ToggleComponent(Selected);
+		}
+		return FReply::Handled();
+	}
+	if (Key == EKeys::Insert || Key == EKeys::Gamepad_FaceButton_Bottom)
+	{
+		OpenAddList();
+		FocusDefault();
 		return FReply::Handled();
 	}
 	if (Key == EKeys::R || Key == EKeys::Gamepad_FaceButton_Left)

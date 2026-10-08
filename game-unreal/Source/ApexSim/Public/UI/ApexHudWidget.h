@@ -88,6 +88,20 @@ public:
 	/** The layout file the HUD was read with, and is saved to. */
 	FString GetLayoutFile() const;
 
+	// --- Named layouts (ApexHudLayouts) -------------------------------------------
+
+	/** The layout in use, by name; "Default" is `layout.json`. */
+	const FString& GetActiveLayoutName() const { return ActiveLayoutName; }
+	/** Names the layout the working one belongs to (and is saved to), without reading anything. */
+	void SetActiveLayoutName(const FString& Name);
+	/** Reads a named layout and builds the HUD with it. False, and nothing changes, when it will not read. */
+	bool LoadLayoutNamed(const FString& Name);
+	const ApexHudLayouts::FBindings& GetBindings() const { return Bindings; }
+	/** Takes the bindings the editor wrote; the layout for the context is looked up again next frame. */
+	void SetBindings(const ApexHudLayouts::FBindings& InBindings);
+	/** Where the player is, for choosing a layout. */
+	ApexHudLayouts::FContext GetContext() const;
+
 	bool IsComponentShown(int32 Index) const;
 	/** A shown component's rectangle in HUD units (1080p pixels, from the top left); false before it is laid out. */
 	bool GetComponentRect(int32 Index, FSlateRect& OutRect) const;
@@ -151,6 +165,8 @@ private:
 	void ApplyFont(FHudNode& Node, bool bBold);
 	void ApplyBrush(FHudNode& Node);
 	void ApplyVisibility();
+	/** Puts on the layout the bindings give for where the player is now. True when it changed the HUD. */
+	bool RefreshContext();
 
 	UApexHudDataSubsystem* GetHudData() const;
 
@@ -165,6 +181,10 @@ private:
 
 	FApexHudLayout Layout;
 	FString LayoutFile;
+	FString ActiveLayoutName = TEXT("Default");
+	ApexHudLayouts::FBindings Bindings;
+	/** The context the layout was last chosen for; empty to choose again. */
+	FString LastContextKey;
 	/** The widget tree's root for good; each build's layers go inside it. */
 	UPROPERTY(Transient) TObjectPtr<UOverlay> HostRoot;
 	/** The canvas pinned components sit on, over the regions. */

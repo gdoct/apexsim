@@ -1,8 +1,10 @@
 #include "UI/ApexHudWidget.h"
 
+#include "ApexMenuFlowSubsystem.h"
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "Blueprint/WidgetTree.h"
+#include "Catalog/ApexCatalogRows.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -187,9 +189,23 @@ void UApexHudWidget::Reload()
 	}
 	UE_LOG(LogApexSim, Log, TEXT("HUD: %d component(s) from %s"), Components.Num(), *FString::Join(Directories, TEXT(" + ")));
 
-	// The player's arrangement, from the HUD editor. A broken file is a
-	// warning and the shipped layout, never a missing HUD.
-	LayoutFile = FApexHudLayout::DefaultFile();
+	// The player's arrangement, from the HUD editor: the layout the bindings
+	// give for where they are. A broken file is a warning and the shipped
+	// layout, never a missing HUD.
+	FString BindingsError;
+	if (!Bindings.Load(BindingsError))
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("HUD layout bindings %s ignored: %s"), *ApexHudLayouts::BindingsFile(), *BindingsError);
+		Bindings = ApexHudLayouts::FBindings();
+	}
+	FString Wanted = Bindings.Resolve(GetContext());
+	if (!ApexHudLayouts::Exists(Wanted))
+	{
+		Wanted = ApexHudLayouts::DefaultName;
+	}
+	LastContextKey.Reset();
+	ActiveLayoutName = Wanted;
+	LayoutFile = ApexHudLayouts::FileFor(Wanted);
 	FString LayoutError;
 	if (!Layout.Load(LayoutFile, LayoutError))
 	{
@@ -207,6 +223,86 @@ void UApexHudWidget::Reload()
 
 	BuildHud();
 	ApplyVisibility();
+}
+
+ApexHudLayouts::FContext UApexHudWidget::GetContext() const
+{
+	ApexHudLayouts::FContext Context;
+	if (const UApexHudDataSubsystem* Data = GetHudData())
+	{
+		Context.bWatching = Data->GetBool(TEXT("spectate.active"));
+		const FString Mode = Data->GetText(TEXT("session.mode"));
+		Context.bGarageMode = Mode == TEXT("hotlap") || Mode == TEXT("qualifying");
+	}
+	if (const UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (const UApexMenuFlowSubsystem* Flow = GameInstance->GetSubsystem<UApexMenuFlowSubsystem>())
+		{
+			FApexCarCatalogRow Row;
+			if (Flow->GetCarCatalogRow(Flow->GetPendingCarId(), Row))
+			{
+				Context.CarClass = ApexCatalog::DisplayClass(Row.CarClass);
+			}
+		}
+	}
+	return Context;
+}
+
+bool UApexHudWidget::RefreshContext()
+{
+	if (bEditing)
+	{
+		return false;
+	}
+	const ApexHudLayouts::FContext Context = GetContext();
+	const FString Key = FString::Printf(TEXT("%d|%d|%s"), Context.bWatching, Context.bGarageMode, *Context.CarClass);
+	if (Key == LastContextKey)
+	{
+		return false;
+	}
+	LastContextKey = Key;
+	FString Wanted = Bindings.Resolve(Context);
+	if (!ApexHudLayouts::Exists(Wanted))
+	{
+		Wanted = ApexHudLayouts::DefaultName;
+	}
+	if (Wanted.Equals(ActiveLayoutName, ESearchCase::IgnoreCase))
+	{
+		return false;
+	}
+	UE_LOG(LogApexSim, Log, TEXT("HUD layout '%s' for this context"), *Wanted);
+	return LoadLayoutNamed(Wanted);
+}
+
+void UApexHudWidget::SetActiveLayoutName(const FString& Name)
+{
+	ActiveLayoutName = Name.IsEmpty() ? ApexHudLayouts::DefaultName : Name;
+	LayoutFile = ApexHudLayouts::FileFor(ActiveLayoutName);
+}
+
+bool UApexHudWidget::LoadLayoutNamed(const FString& Name)
+{
+	const FString File = ApexHudLayouts::FileFor(Name);
+	FApexHudLayout Loaded;
+	FString Error;
+	if (!Loaded.Load(File, Error))
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("HUD layout %s not applied: %s"), *File, *Error);
+		return false;
+	}
+	if (!Error.IsEmpty())
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("HUD layout %s: %s"), *File, *Error);
+	}
+	SetActiveLayoutName(Name);
+	SetLayout(Loaded);
+	return true;
+}
+
+void UApexHudWidget::SetBindings(const ApexHudLayouts::FBindings& InBindings)
+{
+	Bindings = InBindings;
+	LastContextKey.Reset();
 }
 
 void UApexHudWidget::SetRaceActive(bool bActive)
@@ -279,6 +375,11 @@ void UApexHudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	}
 
 	Hud->Refresh();
+	// Another layout for where the player is now; the tree is new, so this frame is its first.
+	if (RefreshContext())
+	{
+		return;
+	}
 	FApexHudScope Scope;
 	Scope.Data = &Hud->GetData();
 
@@ -927,6 +1028,8 @@ void UApexHudWidget::EndEditing()
 		return;
 	}
 	bEditing = false;
+	// The layout the bindings give for here applies again, whichever was being edited.
+	LastContextKey.Reset();
 	if (UApexHudDataSubsystem* Hud = GetHudData())
 	{
 		Hud->SetPreview(false);
@@ -962,7 +1065,7 @@ void UApexHudWidget::SetLayout(const FApexHudLayout& InLayout)
 
 FString UApexHudWidget::GetLayoutFile() const
 {
-	return LayoutFile.IsEmpty() ? FApexHudLayout::DefaultFile() : LayoutFile;
+	return LayoutFile.IsEmpty() ? ApexHudLayouts::FileFor(ActiveLayoutName) : LayoutFile;
 }
 
 bool UApexHudWidget::IsComponentShown(int32 Index) const

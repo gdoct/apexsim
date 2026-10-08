@@ -1136,6 +1136,71 @@ bool FApexHudLayoutJsonTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudLayoutBindingsTest, "ApexSim.Hud.Layout.Bindings", ApexTestFlags)
+
+bool FApexHudLayoutBindingsTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexHudLayouts;
+
+	FBindings Bindings;
+	FContext Anywhere;
+	TestEqual(TEXT("nothing bound is Default"), Bindings.Resolve(Anywhere), DefaultName);
+
+	Bindings.Everywhere = TEXT("Plain");
+	Bindings.Classes.Add(TEXT("Formula"), TEXT("Wing"));
+	Bindings.Hotlap = TEXT("Clean");
+	Bindings.Watching = TEXT("Stream");
+
+	TestEqual(TEXT("everywhere else"), Bindings.Resolve(Anywhere), FString(TEXT("Plain")));
+	FContext InFormula;
+	InFormula.CarClass = TEXT("Formula");
+	TestEqual(TEXT("a car class"), Bindings.Resolve(InFormula), FString(TEXT("Wing")));
+	TestEqual(TEXT("class names are not case sensitive"), Bindings.Resolve([] { FContext C; C.CarClass = TEXT("formula"); return C; }()), FString(TEXT("Wing")));
+	FContext InGt3;
+	InGt3.CarClass = TEXT("GT3");
+	TestEqual(TEXT("a class with nothing bound falls to everywhere"), Bindings.Resolve(InGt3), FString(TEXT("Plain")));
+	FContext Garage = InFormula;
+	Garage.bGarageMode = true;
+	TestEqual(TEXT("hotlap beats the class"), Bindings.Resolve(Garage), FString(TEXT("Clean")));
+	FContext Watching = Garage;
+	Watching.bWatching = true;
+	TestEqual(TEXT("watching beats all"), Bindings.Resolve(Watching), FString(TEXT("Stream")));
+	Bindings.Watching.Empty();
+	TestEqual(TEXT("an unbound context falls through"), Bindings.Resolve(Watching), FString(TEXT("Clean")));
+
+	TestEqual(TEXT("where a layout is used"), Bindings.Describe(TEXT("Wing")), FString(TEXT("Formula")));
+	TestEqual(TEXT("everywhere is named"), Bindings.Describe(TEXT("plain")), FString(TEXT("Everywhere else")));
+	TestTrue(TEXT("a layout nothing uses"), Bindings.Describe(TEXT("Spare")).IsEmpty());
+	FBindings Fresh;
+	TestEqual(TEXT("Default is used everywhere until told otherwise"), Fresh.Describe(DefaultName), FString(TEXT("Everywhere else")));
+
+	// Disk form, hand-written form, and what a rename or a delete leaves behind.
+	FBindings Back;
+	FString Error;
+	TestTrue(TEXT("reads what it writes"), Back.FromJson(Bindings.ToJson(), Error));
+	TestEqual(TEXT("everywhere"), Back.Everywhere, FString(TEXT("Plain")));
+	TestEqual(TEXT("hotlap"), Back.Hotlap, FString(TEXT("Clean")));
+	TestTrue(TEXT("watching stays empty"), Back.Watching.IsEmpty());
+	TestEqual(TEXT("class"), Back.Classes.FindRef(TEXT("Formula")), FString(TEXT("Wing")));
+	TestTrue(TEXT("hand-written, with a comment"), Back.FromJson(TEXT("{ // mine\n \"watching\": \"A\", }"), Error) && Back.Watching == TEXT("A"));
+	TestFalse(TEXT("not JSON"), Back.FromJson(TEXT("{ nope"), Error));
+
+	Bindings.Rename(TEXT("wing"), TEXT("Big Wing"));
+	TestEqual(TEXT("a rename follows"), Bindings.Classes.FindRef(TEXT("Formula")), FString(TEXT("Big Wing")));
+	Bindings.Forget(TEXT("Big Wing"));
+	TestFalse(TEXT("a delete lets go"), Bindings.Classes.Contains(TEXT("Formula")));
+	Bindings.Forget(TEXT("Plain"));
+	TestEqual(TEXT("everywhere falls back to Default"), Bindings.Resolve(Anywhere), DefaultName);
+
+	TestEqual(TEXT("names are trimmed"), SanitiseName(TEXT("  Night race  ")), FString(TEXT("Night race")));
+	TestEqual(TEXT("path characters go"), SanitiseName(TEXT("a/b\\c:d*e?f\"g<h>i|j")), FString(TEXT("abcdefghij")));
+	TestTrue(TEXT("dots alone are no name"), SanitiseName(TEXT("..")).IsEmpty());
+	TestEqual(TEXT("forty at most"), SanitiseName(FString::ChrN(60, TEXT('x'))).Len(), 40);
+	TestTrue(TEXT("Default is layout.json"), FileFor(TEXT("default")).EndsWith(TEXT("layout.json")));
+	TestTrue(TEXT("the rest are in layouts"), FileFor(TEXT("Night")).EndsWith(TEXT("layouts/Night.json")));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudLayoutPinTest, "ApexSim.Hud.Layout.Pin", ApexTestFlags)
 
 bool FApexHudLayoutPinTest::RunTest(const FString& Parameters)

@@ -116,25 +116,74 @@ HUD editor lays out the ordinary HUD and does not show a scene's components.
 
 **Settings > Gameplay > HUD layout > Edit layout** (or `apexsim.hud.Edit` in
 the console) lays the HUD out on screen: over the race when there is one,
-otherwise over a made-up race so every panel has something to show. A card in
-the middle of the screen lists every component; each is drawn with a frame.
+otherwise over a made-up race so every panel has something to show. Settings
+and the pause menu step aside, so only the HUD is on screen, each panel with a
+frame and a **-** on its top right corner, and a small toolbar in the middle
+(Add panel, Reset all, Cancel, Save).
 
 | | Mouse | Keyboard | Pad |
 |---|---|---|---|
-| Pick a panel | click it, or its name on the card | Tab / Shift+Tab | shoulders |
+| Pick a panel | click it | Tab / Shift+Tab | shoulders |
 | Move it | drag it | arrows (Shift: 10 at a time) | left stick, D-pad |
 | Resize it | drag its corner handle | `[` `]` | triggers |
-| Show / hide it | the card's Show / Hide | Del | Y |
-| Put it back where it shipped | the card's Reset | R | X |
-| Hide the card | Hide | H | Back |
+| Remove it | the **-** on its corner | Del | Y |
+| Add a removed one | **+ Add panel**, then the panel's row | Ins | A |
+| Put it back where it shipped | | R | X |
+| Hide the toolbar | Hide | H | Back |
 | Save / cancel | Save / Cancel | Enter / Esc | Start / B |
 
 A dragged panel snaps to the screen's gutters and centre lines and to the
 other panels' edges and centres (hold Shift to place it freely). Sizes run
 from 50% to 200% in 5% steps. Components shipped with `"default_enabled":
-false` (a relative board, a big gear and speed, the conditions) are listed
-as hidden: Show adds them. Cancel puts back the layout the editor opened with;
-Reset all goes back to the shipped one (until saved).
+false` (a relative board, a big gear and speed, the conditions) start out
+removed: **+ Add panel** lists them with every other removed panel. Cancel
+puts back the layout the editor opened with; Reset all goes back to the
+shipped one (until saved).
+
+### Several layouts
+
+The **Layout** button on the toolbar (or `L`) opens the layout manager. A
+layout is a named file; the one that was always there, `custom/layout.json`,
+is the layout called **Default** (it cannot be renamed or deleted), every
+other is `custom/layouts/<name>.json`, shareable like any component.
+
+- Pick a layout in the list to edit it; the panels you changed on the one you
+  were on are dropped (a warning says so while there are any).
+- Type a name and **Save as new** to keep the working layout under that name
+  (no name makes "Layout", "Layout 2"...). **Rename** and **Delete** act on
+  the layout being edited.
+- The chips under it say **where the layout is used**: *Everywhere else*,
+  *Watching* (a race, a replay or a hotlap on screen), *Hotlap and
+  qualifying*, and *In a <class> car* for each class of car the game has
+  (Formula, GT3, Hypercar...). A click binds that place to this layout, a
+  second click lets it go. Most specific wins: watching, then hotlap and
+  qualifying, then the car's class, then everywhere else; a place nothing is
+  bound to falls through to the next. Everywhere else is Default until you
+  choose another layout for it, which is also how you "load" a layout.
+- The HUD changes layout by itself when the place changes (leaving a race
+  for a replay, starting a hotlap, picking another car); the choice is read
+  from `custom/layout_bindings.json`.
+
+Saving, renaming, deleting and binding act at once, like a file saved;
+**Cancel** only drops the panel edits of the layout you were on. **Save**
+writes the layout being edited and closes. A layout that is not used
+anywhere shows "Not used anywhere yet": after you save it the HUD goes back
+to the layout its place is bound to.
+
+`custom/layout_bindings.json` (comments allowed):
+
+```jsonc
+{
+  "version": 1,
+  "everywhere": "Plain",          // omitted: Default
+  "watching": "Stream",
+  "hotlap": "Clean",
+  "classes": { "Formula": "Wing" }  // by the class names the menus show
+}
+```
+
+Unattended: `apexsim.hud.EditStep layouts | layout <name> | saveas <name> |
+bind everywhere|watching|hotlap|class:<Name>`.
 
 Moving one panel first *pins* every panel where it is, so the others in its
 region stay put rather than closing up the gap. A pinned panel keeps to the

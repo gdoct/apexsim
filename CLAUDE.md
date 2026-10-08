@@ -1489,7 +1489,16 @@ hidden, not closed, while it runs; the input processor stands back for it
 like it does for settings. Trap: the HUD keeps one `HostRoot` and swaps its
 content on rebuild, because a user widget never rereads
 `WidgetTree->RootWidget` after its Slate widgets exist (replacing it froze the
-old tree on screen). Unattended: `-ApexOpenHudEditor=N
+old tree on screen). **Several layouts** (2026-10-08, `ApexHudLayouts`, docs/game/HUD_MODDING.md,
+"Several layouts"): `layout.json` is the layout "Default", others are
+`custom/layouts/<name>.json`, and `custom/layout_bindings.json` says which
+applies where (watching > hotlap/qualifying > the car's class > everywhere
+else). `UApexHudWidget::RefreshContext` swaps the layout when the place
+changes (from `spectate.active`, `session.mode` and the pending car's class);
+the editor's Layout button opens the manager (switch, save as new, rename,
+delete, bind). Not done: per-track bindings, pad navigation of the manager
+checked on a pad, a layout picker outside the editor, and none of it seen
+in the running game. Unattended: `-ApexOpenHudEditor=N
 -ApexHudEditorSteps="select standings;move 500 -350;scale 0.25;save"`;
 `grab standings;dragby 300 -200;release` and `grab car_state corner` drive the
 real mouse path with synthesised Slate events, run from the world timer

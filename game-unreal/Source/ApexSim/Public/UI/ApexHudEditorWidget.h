@@ -10,9 +10,12 @@
 class UApexButtonWidget;
 class UApexHudEditorWidget;
 class UApexHudWidget;
+class UCanvasPanel;
+class UEditableTextBox;
 class UTextBlock;
 class UVerticalBox;
 class UWidget;
+class UWrapBox;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnHudEditorClosed);
 
@@ -53,7 +56,17 @@ private:
 /**
  * The HUD editor: move, resize, add and remove the HUD's panels with the
  * mouse, keyboard or pad, over the race or (from the main menu) over a
- * made-up one. Opened from Settings > Gameplay > HUD layout.
+ * made-up one. Opened from Settings > Gameplay > HUD layout, which (and the
+ * pause menu under it) steps aside, so what is on screen is the HUD alone and
+ * a small floating toolbar: + Add panel, Reset all, Cancel, Save. Every shown
+ * panel carries a "-" button on its top-right corner that removes it; "+"
+ * lists the removed panels and puts the picked one back.
+ *
+ * The layout button opens the layout manager: the player's named layouts
+ * (ApexHudLayouts), to switch between, save the working one as a new one,
+ * rename or delete, and the places each one is used (everywhere else, while
+ * watching, in a hotlap or qualifying, or in one car class). Those actions
+ * apply at once, like a file saved; Cancel only drops the panel edits.
  *
  * It edits the HUD widget's FApexHudLayout in place, so what is on screen is
  * the result; Save writes it to `custom/layout.json` and Cancel puts back the
@@ -65,8 +78,9 @@ private:
  * and the other panels' edges; Shift to place freely), drag its corner to
  * resize it, click empty space to deselect. Keys: Tab / Shift+Tab (shoulders)
  * pick a panel, arrows (D-pad) nudge it (Shift for 10), [ ] (triggers) size
- * it, Del (Y) shows or hides it, R (X) puts it back where it shipped, H hides
- * this card, Enter (Start) saves, Esc (B) cancels.
+ * it, Del (Y) removes it, Ins (A) opens the add list, R (X) puts it back
+ * where it shipped, H hides the toolbar, Enter (Start) saves, Esc (B)
+ * cancels (or closes the add list).
  */
 UCLASS()
 class APEXSIM_API UApexHudEditorWidget : public UUserWidget
@@ -93,7 +107,27 @@ public:
 	void MoveSelected(const FVector2D& Delta);
 	/** Grows or shrinks the selected panel by Step (0.05 is 5%) about its anchor corner. */
 	void ScaleSelected(float Step);
+	/** Removes a shown panel or puts a removed one back (and picks it). */
 	void ToggleComponent(int32 Index);
+	void OpenAddList();
+	void CloseAddList();
+	bool IsAddListOpen() const { return bAddOpen; }
+
+	// --- Layouts -------------------------------------------------------------------
+
+	void OpenLayouts();
+	void CloseLayouts();
+	bool IsLayoutsOpen() const { return bLayoutsOpen; }
+	/** Whether the panels differ from the layout as it was read or last saved. */
+	bool HasUnsavedChanges() const;
+	/** Edits another layout (the working one's changes are dropped). False when it will not load. */
+	bool SwitchLayout(const FString& Name);
+	/** Writes the working layout to a new file and edits that from now on. False (with the reason on screen) for a taken or empty name. */
+	bool SaveLayoutAs(const FString& Name);
+	bool RenameLayout(const FString& NewName);
+	bool DeleteLayout();
+	/** Uses (or stops using) the layout being edited for "everywhere", "watching", "hotlap" or "class:<Name>". */
+	bool ToggleBinding(const FString& Key);
 	/** The selected panel back where its component.json puts it, at 100%. */
 	void ResetSelected();
 	void ResetAll();
@@ -144,10 +178,20 @@ private:
 	};
 
 	void BuildCard();
-	/** The component list's rows, made again whenever the set of components changes. */
-	void RebuildList();
-	/** Labels, badges and the selection, every frame while open. */
+	void RebuildLayouts();
+	void RefreshLayoutButton(bool bForce);
+	void SetLayoutNotice(const FString& Text);
+	void PersistBindings(const ApexHudLayouts::FBindings& Bindings);
+	/** One "-" button per component, made when the editor opens. */
+	void RebuildRemoveButtons();
+	/** The add list's rows: the panels that are not on screen. */
+	void RebuildAddList();
+	/** What is visible among the toolbar, the add list and the show button. */
+	void ApplyChrome();
+	/** The "-" buttons follow their panels, every frame while open. */
 	void RefreshCard();
+	/** Whether a panel can be laid out here (the hotlap watch's scene panels cannot). */
+	bool IsEditable(int32 Index) const;
 
 	/** The panel under a HUD point, smallest first where they overlap; INDEX_NONE for none. */
 	int32 HitTest(const FVector2D& HudPoint) const;
@@ -162,6 +206,15 @@ private:
 	FApexHudLayout Original;
 	bool bOpen = false;
 	bool bPanelHidden = false;
+	bool bAddOpen = false;
+	bool bLayoutsOpen = false;
+	/** The layout the editor opened on, and what it held: Cancel puts both back. */
+	FString OriginalName;
+	/** The working layout as read or last saved; the panels differing from it are "edited". */
+	FString Baseline;
+	/** Set by a button that wants the name box to take the keys instead of the editor. */
+	bool bFocusNameBox = false;
+	FString LabelledLayoutKey;
 
 	int32 Selected = INDEX_NONE;
 	int32 Hovered = INDEX_NONE;
@@ -184,14 +237,29 @@ private:
 	float StepCountdown = 0.0f;
 
 	UPROPERTY(Transient) TObjectPtr<UApexHudFrameLayer> Frames;
+	/** The toolbar. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> Card;
 	UPROPERTY(Transient) TObjectPtr<UWidget> ShowCardButton;
-	UPROPERTY(Transient) TObjectPtr<UVerticalBox> ListBox;
-	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> RowButtons;
-	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ToggleButtons;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> SelectedText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> ScaleText;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AddButton;
+	UPROPERTY(Transient) TObjectPtr<UWidget> AddPopup;
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> AddList;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> AddRows;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> LayoutButton;
+	UPROPERTY(Transient) TObjectPtr<UWidget> LayoutPopup;
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> LayoutList;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> LayoutRows;
+	TArray<FString> LayoutRowNames;
+	UPROPERTY(Transient) TObjectPtr<UWrapBox> BindingChips;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> BindingButtons;
+	TArray<FString> BindingKeys;
+	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> LayoutNameBox;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> LayoutNotice;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> LayoutWarning;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> BindingCaption;
+	/** Over the HUD, where the "-" buttons sit. */
+	UPROPERTY(Transient) TObjectPtr<UCanvasPanel> RemoveCanvas;
+	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> RemoveHolders;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
-	/** How many components the list was made for. */
-	int32 ListedCount = -1;
+	/** How many panels the add button was labelled for. */
+	int32 LabelledHidden = -1;
 };

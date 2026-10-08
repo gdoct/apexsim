@@ -173,6 +173,294 @@ bool FApexHudLayout::Save(const FString& File) const
 	return FFileHelper::SaveStringToFile(ToJson(), *File, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 }
 
+// --- Named layouts and where they apply ------------------------------------------------
+
+const FString ApexHudLayouts::DefaultName(TEXT("Default"));
+
+namespace
+{
+	bool LayoutSameName(const FString& A, const FString& B)
+	{
+		return A.Equals(B, ESearchCase::IgnoreCase);
+	}
+
+	FString LayoutQuote(const FString& Text)
+	{
+		return FString::Printf(TEXT("\"%s\""), *Text.ReplaceCharWithEscapedChar());
+	}
+
+	FString LayoutCustomDir()
+	{
+		return FPaths::GetPath(FApexHudLayout::DefaultFile());
+	}
+}
+
+FString ApexHudLayouts::Directory()
+{
+	return FPaths::Combine(LayoutCustomDir(), TEXT("layouts"));
+}
+
+FString ApexHudLayouts::BindingsFile()
+{
+	return FPaths::Combine(LayoutCustomDir(), TEXT("layout_bindings.json"));
+}
+
+FString ApexHudLayouts::SanitiseName(const FString& Name)
+{
+	FString Out;
+	for (const TCHAR Char : Name)
+	{
+		// What a file name cannot hold on Windows, and control characters.
+		if (Char < 32 || FCString::Strchr(TEXT("\\/:*?\"<>|"), Char))
+		{
+			continue;
+		}
+		Out.AppendChar(Char);
+	}
+	Out.TrimStartAndEndInline();
+	if (Out.Len() > 40)
+	{
+		Out.LeftInline(40);
+		Out.TrimEndInline();
+	}
+	// A name of nothing but dots is a path.
+	return Out.Replace(TEXT("."), TEXT("")).IsEmpty() ? FString() : Out;
+}
+
+FString ApexHudLayouts::FileFor(const FString& Name)
+{
+	if (Name.IsEmpty() || LayoutSameName(Name, DefaultName))
+	{
+		return FApexHudLayout::DefaultFile();
+	}
+	return FPaths::Combine(Directory(), SanitiseName(Name) + TEXT(".json"));
+}
+
+bool ApexHudLayouts::Exists(const FString& Name)
+{
+	return Name.IsEmpty() || LayoutSameName(Name, DefaultName) || FPaths::FileExists(FileFor(Name));
+}
+
+TArray<FString> ApexHudLayouts::List()
+{
+	TArray<FString> Files;
+	IFileManager::Get().FindFiles(Files, *FPaths::Combine(Directory(), TEXT("*.json")), /*Files*/ true, /*Directories*/ false);
+	TArray<FString> Names;
+	for (const FString& File : Files)
+	{
+		const FString Name = FPaths::GetBaseFilename(File);
+		if (!Name.IsEmpty() && !LayoutSameName(Name, DefaultName))
+		{
+			Names.Add(Name);
+		}
+	}
+	Names.Sort([](const FString& A, const FString& B) { return A.Compare(B, ESearchCase::IgnoreCase) < 0; });
+	Names.Insert(DefaultName, 0);
+	return Names;
+}
+
+bool ApexHudLayouts::Rename(const FString& From, const FString& To)
+{
+	const FString Target = SanitiseName(To);
+	if (Target.IsEmpty() || LayoutSameName(From, DefaultName) || LayoutSameName(Target, DefaultName) || !Exists(From))
+	{
+		return false;
+	}
+	// A change of case only is the same file, which a move refuses.
+	if (!LayoutSameName(From, Target) && Exists(Target))
+	{
+		return false;
+	}
+	return IFileManager::Get().Move(*FileFor(Target), *FileFor(From), /*Replace*/ false, /*EvenIfReadOnly*/ false);
+}
+
+bool ApexHudLayouts::Delete(const FString& Name)
+{
+	return !LayoutSameName(Name, DefaultName) && FPaths::FileExists(FileFor(Name)) && IFileManager::Get().Delete(*FileFor(Name));
+}
+
+FString ApexHudLayouts::UniqueName(const FString& Base)
+{
+	FString Stem = SanitiseName(Base);
+	if (Stem.IsEmpty())
+	{
+		Stem = TEXT("Layout");
+	}
+	FString Name = Stem;
+	for (int32 N = 2; Exists(Name) || LayoutSameName(Name, DefaultName); ++N)
+	{
+		Name = FString::Printf(TEXT("%s %d"), *Stem, N);
+	}
+	return Name;
+}
+
+FString ApexHudLayouts::FBindings::Resolve(const FContext& Context) const
+{
+	if (Context.bWatching && !Watching.IsEmpty())
+	{
+		return Watching;
+	}
+	if (Context.bGarageMode && !Hotlap.IsEmpty())
+	{
+		return Hotlap;
+	}
+	if (!Context.CarClass.IsEmpty())
+	{
+		for (const TPair<FString, FString>& Entry : Classes)
+		{
+			if (!Entry.Value.IsEmpty() && LayoutSameName(Entry.Key, Context.CarClass))
+			{
+				return Entry.Value;
+			}
+		}
+	}
+	return Everywhere.IsEmpty() ? DefaultName : Everywhere;
+}
+
+FString ApexHudLayouts::FBindings::Describe(const FString& Layout) const
+{
+	TArray<FString> Parts;
+	if (LayoutSameName(Everywhere.IsEmpty() ? DefaultName : Everywhere, Layout))
+	{
+		Parts.Add(TEXT("Everywhere else"));
+	}
+	if (LayoutSameName(Watching, Layout))
+	{
+		Parts.Add(TEXT("Watching"));
+	}
+	if (LayoutSameName(Hotlap, Layout))
+	{
+		Parts.Add(TEXT("Hotlap and qualifying"));
+	}
+	TArray<FString> Keys;
+	Classes.GetKeys(Keys);
+	Keys.Sort();
+	for (const FString& Key : Keys)
+	{
+		if (LayoutSameName(Classes[Key], Layout))
+		{
+			Parts.Add(Key);
+		}
+	}
+	return FString::Join(Parts, TEXT(", "));
+}
+
+void ApexHudLayouts::FBindings::Rename(const FString& From, const FString& To)
+{
+	auto Swap = [&](FString& Slot)
+	{
+		if (LayoutSameName(Slot, From))
+		{
+			Slot = To;
+		}
+	};
+	Swap(Everywhere);
+	Swap(Watching);
+	Swap(Hotlap);
+	for (TPair<FString, FString>& Entry : Classes)
+	{
+		Swap(Entry.Value);
+	}
+}
+
+void ApexHudLayouts::FBindings::Forget(const FString& Layout)
+{
+	Rename(Layout, FString());
+	for (auto It = Classes.CreateIterator(); It; ++It)
+	{
+		if (It.Value().IsEmpty())
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
+FString ApexHudLayouts::FBindings::ToJson() const
+{
+	TArray<FString> Lines;
+	Lines.Add(TEXT("  \"version\": 1"));
+	if (!Everywhere.IsEmpty() && !LayoutSameName(Everywhere, DefaultName))
+	{
+		Lines.Add(FString::Printf(TEXT("  \"everywhere\": %s"), *LayoutQuote(Everywhere)));
+	}
+	if (!Watching.IsEmpty())
+	{
+		Lines.Add(FString::Printf(TEXT("  \"watching\": %s"), *LayoutQuote(Watching)));
+	}
+	if (!Hotlap.IsEmpty())
+	{
+		Lines.Add(FString::Printf(TEXT("  \"hotlap\": %s"), *LayoutQuote(Hotlap)));
+	}
+	TArray<FString> Keys;
+	Classes.GetKeys(Keys);
+	Keys.Sort();
+	TArray<FString> ClassLines;
+	for (const FString& Key : Keys)
+	{
+		if (!Classes[Key].IsEmpty())
+		{
+			ClassLines.Add(FString::Printf(TEXT("    %s: %s"), *LayoutQuote(Key), *LayoutQuote(Classes[Key])));
+		}
+	}
+	if (!ClassLines.IsEmpty())
+	{
+		Lines.Add(FString::Printf(TEXT("  \"classes\": {\n%s\n  }"), *FString::Join(ClassLines, TEXT(",\n"))));
+	}
+	return FString::Printf(TEXT("{\n  // Which HUD layout applies where, written by the HUD editor. Names are files in layouts/ (or Default).\n")
+		TEXT("  // Watching beats hotlap and qualifying, which beats the car's class, which beats everywhere.\n%s\n}\n"),
+		*FString::Join(Lines, TEXT(",\n")));
+}
+
+bool ApexHudLayouts::FBindings::FromJson(const FString& Text, FString& OutError)
+{
+	*this = FBindings();
+	TSharedPtr<FJsonObject> Root;
+	const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ApexHud::StripJsonExtras(Text));
+	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
+	{
+		OutError = FString::Printf(TEXT("not valid JSON: %s"), *Reader->GetErrorMessage());
+		return false;
+	}
+	Root->TryGetStringField(TEXT("everywhere"), Everywhere);
+	Root->TryGetStringField(TEXT("watching"), Watching);
+	Root->TryGetStringField(TEXT("hotlap"), Hotlap);
+	const TSharedPtr<FJsonObject>* Entries = nullptr;
+	if (Root->TryGetObjectField(TEXT("classes"), Entries))
+	{
+		for (const TPair<FString, TSharedPtr<FJsonValue>>& Field : (*Entries)->Values)
+		{
+			FString Layout;
+			if (Field.Value->TryGetString(Layout) && !Layout.IsEmpty())
+			{
+				Classes.Add(Field.Key, Layout);
+			}
+		}
+	}
+	return true;
+}
+
+bool ApexHudLayouts::FBindings::Load(FString& OutError)
+{
+	*this = FBindings();
+	FString Text;
+	if (!FPaths::FileExists(BindingsFile()))
+	{
+		return true;
+	}
+	if (!FFileHelper::LoadFileToString(Text, *BindingsFile()))
+	{
+		OutError = TEXT("cannot be read");
+		return false;
+	}
+	return FromJson(Text, OutError);
+}
+
+bool ApexHudLayouts::FBindings::Save() const
+{
+	IFileManager::Get().MakeDirectory(*FPaths::GetPath(BindingsFile()), /*Tree*/ true);
+	return FFileHelper::SaveStringToFile(ToJson(), *BindingsFile(), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+}
+
 FApexHudPlacement ApexHudPlace::PinRect(const FSlateRect& Rect, const FVector2D& ScreenSize, float Scale, bool bEnabled)
 {
 	auto Third = [](double Centre, double Extent)
