@@ -132,6 +132,7 @@ private:
 	/** The big picture and facts of the focused row. */
 	UPROPERTY(Transient) TObjectPtr<class UVerticalBox> ListDetail;
 	FString DetailShownId;
+	int32 LastListProbe = INDEX_NONE;
 
 	/** Full-screen art behind the page (the focused circuit); fades in when it changes. */
 	void SetBackdrop(class UTexture2D* Texture);

@@ -240,7 +240,8 @@ void UApexMainMenuWidget::BuildLayout()
 	BackdropImage = WidgetTree->ConstructWidget<UImage>();
 	BackdropImage->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.0f));
 	UScaleBox* Scale = WidgetTree->ConstructWidget<UScaleBox>();
-	Scale->SetStretch(EStretch::ScaleToFill);
+	// Fit, not fill: the previews are small, and filling blew one line up into a blur.
+	Scale->SetStretch(EStretch::ScaleToFit);
 	Scale->AddChild(BackdropImage);
 	UOverlaySlot* ImageSlot = Art->AddChildToOverlay(Scale);
 	ImageSlot->SetHorizontalAlignment(HAlign_Fill);
@@ -661,7 +662,8 @@ void UApexMainMenuWidget::BuildList(bool bCars)
 		FApexButtonSpec Spec;
 		Spec.Variant = EApexButtonVariant::Panel;
 		Spec.Label = Name;
-		Spec.Badge = Badge;
+		// No badge: it ran into long names, and the detail beside the list has the figures.
+		Spec.LabelSize = 17.0f;
 		Spec.ActionId = Action::ListItem;
 		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
 		Button->Setup(Spec);
@@ -672,13 +674,15 @@ void UApexMainMenuWidget::BuildList(bool bCars)
 		ListIds.Add(Id);
 	};
 
+	// Names as the player sees them (the catalog's, else the server's), A to Z.
+	TArray<TPair<FString, FString>> Entries; // name, id
 	if (bCars)
 	{
 		for (const FApexCarConfigSummary& Car : Lobby.CarConfigs)
 		{
 			FApexCarCatalogRow Row;
 			const bool bRow = Flow->GetCarCatalogRow(Car.Id, Row) && !Row.DisplayName.IsEmpty();
-			AddItem(Car.Id, bRow ? Row.DisplayName : Car.Name, FString());
+			Entries.Emplace(bRow ? Row.DisplayName : Car.Name, Car.Id);
 		}
 	}
 	else
@@ -687,9 +691,16 @@ void UApexMainMenuWidget::BuildList(bool bCars)
 		{
 			FApexTrackCatalogRow Row;
 			const bool bRow = Flow->GetTrackCatalogRow(Track.Id, Row) && !Row.DisplayName.IsEmpty();
-			AddItem(Track.Id, bRow ? Row.DisplayName : Track.Name,
-				bRow && Row.LengthM > 0.0f ? FString::Printf(TEXT("%.2f km"), Row.LengthM / 1000.0f) : FString());
+			Entries.Emplace(bRow ? Row.DisplayName : Track.Name, Track.Id);
 		}
+	}
+	Entries.StableSort([](const TPair<FString, FString>& A, const TPair<FString, FString>& B)
+	{
+		return A.Key.Compare(B.Key, ESearchCase::IgnoreCase) < 0;
+	});
+	for (const TPair<FString, FString>& Entry : Entries)
+	{
+		AddItem(Entry.Value, Entry.Key, FString());
 	}
 
 	if (ListButtons.Num() == 0)
@@ -836,6 +847,7 @@ void UApexMainMenuWidget::CommitListItem(int32 Index)
 	}
 
 	ListIndex = Index;
+	RefreshListDetail(Index);
 	for (int32 i = 0; i < ListButtons.Num(); ++i)
 	{
 		if (ListButtons[i])
@@ -1140,11 +1152,31 @@ void UApexMainMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaT
 	// The backdrop comes and goes on its own clock, not the lobby's.
 	RefreshWatchBadge();
 
+	// The detail follows whichever row has focus or the pointer, however it got
+	// there (keys, pad, mouse hover); only a change of row counts.
+	if (IsListPage())
+	{
+		int32 Probe = INDEX_NONE;
+		for (int32 i = 0; i < ListButtons.Num() && Probe == INDEX_NONE; ++i)
+		{
+			if (ListButtons[i] && (ListButtons[i]->HasAnyUserFocus() || ListButtons[i]->IsHovered()))
+			{
+				Probe = i;
+			}
+		}
+		if (Probe != INDEX_NONE && Probe != LastListProbe)
+		{
+			ListIndex = Probe;
+			RefreshListDetail(Probe);
+		}
+		LastListProbe = Probe;
+	}
+
 	// The circuit art fades in when the focused row changes, and out when it goes.
 	if (BackdropImage && !FMath::IsNearlyEqual(BackdropAlpha, BackdropTarget, 0.002f))
 	{
 		BackdropAlpha = FMath::FInterpTo(BackdropAlpha, BackdropTarget, InDeltaTime, 5.0f);
-		BackdropImage->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, BackdropAlpha));
+		BackdropImage->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, BackdropAlpha * 0.5f));
 		if (BackdropTarget <= 0.0f && BackdropAlpha < 0.01f && BackdropLayer)
 		{
 			BackdropLayer->SetVisibility(ESlateVisibility::Collapsed);

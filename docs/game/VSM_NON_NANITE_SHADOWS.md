@@ -48,7 +48,18 @@ at the finest levels). Cars, debris and props never appeared. A crash
 overflows because the cockpit camera swings onto ground whose shadow pages
 were never requested, so every big tile under it becomes a large job at
 once. The terrain still casts shadows on purpose: hills shadow the track.
-If the warning comes back, the next steps are A5 and then C.
+
+More runs later the same day (other cars, night and noon) still often
+overflowed **once, as the track appears**. In the first frame every shadow
+page is uncached, and the 49 terrain tiles alone are large jobs at levels
+14–18 (about 245 against a queue of 128). Sampling the on-screen message
+every 5 s through a 60 s race showed that one overflow near load and none
+afterwards. `r.Shadow.Virtual.NonNanite.IncludeInCoarsePages 0` (A5) made
+no difference, in the samples or in single runs, so it stays at the
+default. A one-frame overflow at load is a slower frame, not a problem.
+If overflows show up during racing, the next step is C, or smaller terrain
+tiles in `ue_export` (at levels 14–18, a tile under about 100 m is a small
+job).
 
 Tests: `ApexSim.Sky.SunStep`, `ApexSim.Track.Builder.FlatSurfaces`.
 

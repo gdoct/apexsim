@@ -540,6 +540,23 @@ static bool SpawnGame(std::wstring& err)
     return true;
 }
 
+// Starts the local server unless one is already listening. Needs Winsock up. `h` is
+// the window to report progress to, or null when there is none (command-line launch).
+static bool StartServer(HWND h, std::wstring& err)
+{
+    if (PortListening(kServerPort))
+    {
+        if (h) Post(h, L"Using the server already running...", 600);
+        return true;
+    }
+    if (h) Post(h, L"Starting local server...", 500);
+    if (!Spawn(g.env.serverExe, g.env.serverDir, CREATE_NEW_CONSOLE, true, L"ApexSim Server"))
+    { err = L"Could not start the server."; return false; }
+    // Poll rather than wait a fixed time, so a quick server is not slowed.
+    for (int i = 0; i < 40 && !PortListening(kServerPort); ++i) Sleep(100);
+    return true;
+}
+
 static void LaunchAsync(bool withServer)
 {
     g.busy = true;
@@ -548,24 +565,8 @@ static void LaunchAsync(bool withServer)
     std::thread([h, withServer] {
         WSADATA wsa;
         WSAStartup(MAKEWORD(2, 2), &wsa);
-        bool ok = true;
         std::wstring err;
-        if (withServer)
-        {
-            if (PortListening(kServerPort))
-                Post(h, L"Using the server already running...", 600);
-            else
-            {
-                Post(h, L"Starting local server...", 500);
-                if (!Spawn(g.env.serverExe, g.env.serverDir, CREATE_NEW_CONSOLE, true, L"ApexSim Server"))
-                { ok = false; err = L"Could not start the server."; }
-                else
-                {
-                    // Poll rather than wait a fixed time, so a quick server is not slowed.
-                    for (int i = 0; i < 40 && !PortListening(kServerPort); ++i) Sleep(100);
-                }
-            }
-        }
+        bool ok = !withServer || StartServer(h, err);
         if (ok)
         {
             Post(h, L"Launching ApexSim...", 900);
@@ -1316,33 +1317,55 @@ static LRESULT CALLBACK MainProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
     return DefWindowProcW(hw, msg, wp, lp);
 }
 
-// "Show launcher" unticked: read the settings before any window exists and, if the
-// game can be started, start it and report true so main exits. `--show` turns the
-// launcher back on (in the file too) and shows the window as usual. Any failure
-// falls through to the window, which is where the player can see what is wrong.
+// Command line and the "Show launcher" setting, decided before any window exists.
+//   --launch   start the game now, no window
+//   --server   with a launch, start the local server first (unless one is listening)
+//   --show     show the window, and turn "Show launcher" back on in settings.yml
+// With "Show launcher" unticked a plain start behaves like --launch. Returns true
+// when the game was started and main should exit; any failure falls through to the
+// window, which is where the player can see what is wrong.
 static bool AutoLaunch()
 {
-    bool forceShow = false;
+    bool show = false, launch = false, server = false;
     int argc = 0;
     if (LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc))
     {
+        auto is = [&](int i, const wchar_t* name) {
+            return _wcsicmp(argv[i], (std::wstring(L"--") + name).c_str()) == 0 ||
+                   _wcsicmp(argv[i], (std::wstring(L"/") + name).c_str()) == 0;
+        };
         for (int i = 1; i < argc; ++i)
-            if (_wcsicmp(argv[i], L"--show") == 0 || _wcsicmp(argv[i], L"/show") == 0) forceShow = true;
+        {
+            if (is(i, L"show")) show = true;
+            else if (is(i, L"launch")) launch = true;
+            else if (is(i, L"server")) server = true;
+        }
         LocalFree(argv);
     }
 
     Env env = Locate();
+    if (!env.found) return false;
     Settings s = DefaultSettings();
-    if (!env.found || !LoadSettings(env.settings, s) || s.showLauncher) return false;
-    if (forceShow)
+    bool have = LoadSettings(env.settings, s);
+    if (show)
     {
-        s.showLauncher = true;
-        SaveSettings(env.settings, s);
+        if (have && !s.showLauncher) { s.showLauncher = true; SaveSettings(env.settings, s); }
         return false;
     }
+    if (!launch && !(have && !s.showLauncher)) return false;
+
     if (!Exists(env.release ? env.gameExe : env.playScript)) return false;
     g.env = env;
     std::wstring err;
+    if (server)
+    {
+        if (!Exists(env.serverExe)) return false;
+        WSADATA wsa;
+        WSAStartup(MAKEWORD(2, 2), &wsa);
+        bool ok = StartServer(nullptr, err);
+        WSACleanup();
+        if (!ok) return false;
+    }
     return SpawnGame(err);
 }
 
