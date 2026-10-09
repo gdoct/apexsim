@@ -547,16 +547,16 @@
       }
     },
     "shot-pack-zoom.webp": {
-      "src": "site/shots/paddock-hill.webp",
-      "sha256": "9c347d869d1267e8795871a776a2cf4866c019109a2963288c6608e285c9a1e1",
+      "src": "site/shots/marina-night.webp",
+      "sha256": "973a657915141f90a65ce6ec224b7e5e0cdbd142a9b23c6e16585c2501923ecb",
       "params": {
         "width": 1920,
         "quality": 86
       }
     },
     "shot-pack.webp": {
-      "src": "site/shots/paddock-hill.webp",
-      "sha256": "9c347d869d1267e8795871a776a2cf4866c019109a2963288c6608e285c9a1e1",
+      "src": "site/shots/marina-night.webp",
+      "sha256": "973a657915141f90a65ce6ec224b7e5e0cdbd142a9b23c6e16585c2501923ecb",
       "params": {
         "width": 1000
       }

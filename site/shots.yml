@@ -63,12 +63,12 @@ races:
     car: mclarsen-mcl40
     weather: sunny
     time: "21:00"       # the night race, under the floodlights
-  brands:
-    track: BrandsHatch
-    car: limbotiti-caravan-gt3
+  marina:
+    track: MarinaBay
+    car: posh-gt3rs
     laps: 3
-    weather: overcast
-    time: "16:00"
+    weather: sunny
+    time: "21:00"       # the night race, under the lights
   lemans:
     track: LeMans
     car: panini-zomba-hypercar
@@ -124,19 +124,14 @@ action:
     length: 4.0
     camera: {mode: tv, shot: trackside, follow: lead}
 
-  - id: paddock-hill
-    about: Over the crest and down the hill
-    pick: 6
-    race: brands
-    window: {corner: "Paddock Hill", before: 150, after: 150, min_cars: 3}
-    length: 3.5
-    camera:
-      mode: pan
-      eye:  {corner: "Paddock Hill", offset: 60, lateral: 20, side: outside, height: 4}
-      fov: 45
-      frame_width: 12
-      follow: nearest
-      pan_speed: 5
+  - id: marina-night
+    about: The GT3 grid on the lit start straight
+    pick: 4
+    race: marina
+    window: start
+    start_offset_s: -1.5
+    length: 5.0
+    camera: {mode: tv, shot: grid, follow: leader}
 
   - id: endurance-dusk
     about: A hypercar after dark, under the floodlight towers

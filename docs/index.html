@@ -7,9 +7,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ApexSim — Racing Simulator</title>
-<meta name="description" content="ApexSim is a source-available racing simulator: a 420 Hz authoritative Rust physics server, an Unreal Engine 5 client, 14 cars across 4 classes and 27 real-world circuits, a 20.8 km mountain loop among them.">
+<meta name="description" content="ApexSim is a source-available racing simulator: a 420 Hz authoritative Rust physics server, an Unreal Engine 5 client, 14 cars across 4 classes and 28 real-world circuits, a 20.8 km mountain loop among them.">
 <meta property="og:title" content="ApexSim — Racing Simulator">
-<meta property="og:description" content="420 Hz authoritative physics, Unreal Engine 5, 14 cars, 27 real circuits, tyres, fuel, pit stops and damage simulated on the server.">
+<meta property="og:description" content="420 Hz authoritative physics, Unreal Engine 5, 14 cars, 28 real circuits, tyres, fuel, pit stops and damage simulated on the server.">
 <meta property="og:image" content="https://gdoct.github.io/apexsim/assets/splash.webp">
 <meta property="og:url" content="https://gdoct.github.io/apexsim/">
 <meta name="theme-color" content="#0b0d10">
@@ -46,7 +46,7 @@
     <div>
       <div class="eyebrow">Source-available simracing platform</div>
       <h1 style="margin-top:18px">The server decides <br><em>where every car is.</em></h1>
-      <p class="lede">ApexSim runs a 420&nbsp;Hz authoritative physics simulation in Rust and renders it in Unreal&nbsp;Engine&nbsp;5. Fourteen cars, twenty-seven real circuits, and no second physics model to argue with. Cars, circuits and the HUD are files you can open.</p>
+      <p class="lede">ApexSim runs a 420&nbsp;Hz authoritative physics simulation in Rust and renders it in Unreal&nbsp;Engine&nbsp;5. Fourteen cars, twenty-eight real circuits, and no second physics model to argue with. Cars, circuits and the HUD are files you can open.</p>
       <div class="ctas">
         <a class="btn primary" href="#cars">See the grid</a>
         <a class="btn" href="https://youtu.be/yiTEfozkK00" data-trailer="yiTEfozkK00"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>Watch the trailer</a>
@@ -70,8 +70,8 @@
   <div class="wrap stagger">
     <div class="stat"><b>420<sup>Hz</sup></b><span>Authoritative physics tick</span></div>
     <div class="stat"><b>14</b><span>Cars · four classes</span></div>
-    <div class="stat"><b>27</b><span>Real-world circuits</span></div>
-    <div class="stat"><b>156<sup>km</sup></b><span>Of surveyed tarmac</span></div>
+    <div class="stat"><b>28</b><span>Real-world circuits</span></div>
+    <div class="stat"><b>160<sup>km</sup></b><span>Of surveyed tarmac</span></div>
     <div class="stat"><b>0</b><span>Client-side physics</span></div>
   </div>
 </div>
@@ -120,7 +120,7 @@
       <article class="feat">
         <div class="num">07 / CIRCUITS</div>
         <h3>Real ground, real furniture</h3>
-        <p>Measured centerlines with per-side width and banking, and terrain from the Copernicus GLO-30 elevation model out to an eight kilometre horizon. Stands, pit lanes, barriers and woodland are laid from OpenStreetMap dossiers on 23 of the 27 circuits.</p>
+        <p>Measured centerlines with per-side width and banking, and terrain from the Copernicus GLO-30 elevation model out to an eight kilometre horizon. Stands, pit lanes, barriers and woodland are laid from OpenStreetMap dossiers on 24 of the 28 circuits. Mandarina Bay is a street circuit: Tecpro the whole way round, water either side of its raised bridges, and a start straight lit for the night.</p>
       </article>
       <article class="feat">
         <div class="num">08 / FORCE FEEDBACK</div>
@@ -178,7 +178,7 @@
       <article class="feat wide">
         <div class="num">18 / MODDING</div>
         <h3>Open the files</h3>
-        <p>A car is a <code>car.toml</code> and a GLB. A circuit is an export the game builds as it loads. The HUD is 23 JSON components with an in-game layout editor. Nothing is cooked, so a change is a file save and a rescan. Tracks and cars from your own Assetto Corsa install import with one command, and stay on your machine.</p>
+        <p>A car is a <code>car.toml</code> and a GLB. A circuit is an export the game builds as it loads. The HUD is 23 JSON components with an in-game layout editor, and several saved layouts that switch by where you are: watching, hotlap, or your car's class. Nothing is cooked, so a change is a file save and a rescan. Tracks and cars from your own Assetto Corsa install import with one command, or from the launcher, and stay on your machine.</p>
         <ul><li>car.toml</li><li>Runtime tracks</li><li>JSON HUD</li><li>AC importers</li></ul>
       </article>
     </div>
@@ -229,8 +229,8 @@
 <section id="tracks">
   <div class="wrap">
     <div class="sec-head reveal-head">
-      <div><div class="eyebrow">The calendar</div><h2>27 circuits.<br>Surveyed, not sketched.</h2></div>
-      <p>Centerlines from public GPS traces, smoothed without shrinking the circuit, in 20 countries. The longest is the 20.8&nbsp;km Nürburger Mordschleife, routed over OpenStreetMap: 292&nbsp;m of relief, guard rail close to the road, the forest right behind it and the fans' graffiti on the asphalt. Banking is laid onto the bends it belongs to, and elevation comes from satellite surface models.</p>
+      <div><div class="eyebrow">The calendar</div><h2>28 circuits.<br>Surveyed, not sketched.</h2></div>
+      <p>Centerlines from public GPS traces, smoothed without shrinking the circuit, in 21 countries. The longest is the 20.8&nbsp;km Nürburger Mordschleife, routed over OpenStreetMap: 292&nbsp;m of relief, guard rail close to the road, the forest right behind it and the fans' graffiti on the asphalt. Banking is laid onto the bends it belongs to, and elevation comes from satellite surface models.</p>
     </div>
     <div class="filters" id="trackFilters"></div>
     <div class="track-layout">
@@ -270,7 +270,7 @@
       <figure><img src="assets/shot-climb.webp" data-zoom="assets/shot-climb-zoom.webp" tabindex="0" alt="A Formula car over the top of the hill at Spa-Frankenchamps" loading="lazy"><figcaption>Spa-Frankenchamps · Raidillon</figcaption></figure>
       <figure><img src="assets/shot-night.webp" data-zoom="assets/shot-night-zoom.webp" tabindex="0" alt="A hypercar under floodlight towers at night at Lemons – Circuit du Peuple" loading="lazy"><figcaption>Lemons – Circuit du Peuple · after dark</figcaption></figure>
       <figure><img src="assets/shot-banking.webp" data-zoom="assets/shot-banking-zoom.webp" tabindex="0" alt="A prototype through the banked hairpin at Zandervoort" loading="lazy"><figcaption>Zandervoort · the banked hairpin</figcaption></figure>
-      <figure><img src="assets/shot-pack.webp" data-zoom="assets/shot-pack-zoom.webp" tabindex="0" alt="Three GT3 cars nose to tail at Brands Scratch" loading="lazy"><figcaption>Brands Scratch · Paddock Hill</figcaption></figure>
+      <figure><img src="assets/shot-pack.webp" data-zoom="assets/shot-pack-zoom.webp" tabindex="0" alt="GT3 cars on the grid under the lights at Mandarina Bay" loading="lazy"><figcaption>Mandarina Bay · the grid at night</figcaption></figure>
     </div>
     <div class="eyebrow sub reveal">What the player sees</div>
     <div class="screens stagger">
@@ -301,7 +301,7 @@
       <div class="spec"><b>Track limits</b><p>Four wheels past the kerb band for 0.2&nbsp;s strikes the lap. Cut the course and it's gone too.</p></div>
       <div class="spec"><b>Racing line</b><p>A quasi-steady-state speed profile per car from its grip, downforce, power and brakes.</p></div>
       <div class="spec"><b>Assists, host-controlled</b><p>ABS, traction control, auto gearbox, steering assist, damage level. The session host decides what's allowed; the server enforces it.</p></div>
-      <div class="spec"><b>Cockpit</b><p>Wheel, dash and scene-captured mirrors built per car. Seat, horizon lock and head motion are yours to set.</p></div>
+      <div class="spec"><b>Cockpit</b><p>Wheel, dash and scene-captured mirrors built per car, with a steering wheel modelled for each class and its dash on the wheel's screen. Seat, horizon lock and head motion are yours to set.</p></div>
       <div class="spec"><b>Records and ghosts</b><p>Your best legal lap per car and circuit survives restarts, with a trace of the lap that set it to race against.</p></div>
       <div class="spec"><b>Checked content</b><p>Each car and circuit carries a checksum of its source file. A client racing on different data than the server is told so.</p></div>
       <div class="spec"><b>Replays nobody drove</b><p>A seeded AI race replays bit for bit. The menu's backdrop races and the trailer were run headless, then filmed by the game's own cameras.</p></div>
@@ -340,7 +340,7 @@
   </div>
 </footer>
 
-<script src="assets/data.js?v=3e0b8a8a"></script>
+<script src="assets/data.js?v=91389585"></script>
 <script src="assets/site.js?v=4f158c3b"></script>
 </body>
 </html>

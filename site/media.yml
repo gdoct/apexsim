@@ -90,7 +90,7 @@ images:
   shot-climb.webp:     {src: site/shots/eau-rouge.webp, width: 1000, zoom: 1920}
   shot-night.webp:     {src: site/shots/endurance-dusk.webp, width: 1000, zoom: 1920}
   shot-banking.webp:   {src: site/shots/banking.webp, width: 1000, zoom: 1920}
-  shot-pack.webp:      {src: site/shots/paddock-hill.webp, width: 1000, zoom: 1920}
+  shot-pack.webp:      {src: site/shots/marina-night.webp, width: 1000, zoom: 1920}
   # ...and the game as a player sees it.
   screen-hud.webp:        {src: site/shots/hud-chase.webp, width: 1280, quality: 86, zoom: 1920}
   screen-garage.webp:     {src: site/shots/garage.webp, width: 1280, quality: 86, zoom: 1920}

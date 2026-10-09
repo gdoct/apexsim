@@ -132,7 +132,9 @@ features:
         from the Copernicus GLO-30 elevation model out to an eight
         kilometre horizon. Stands, pit lanes, barriers and woodland are
         laid from OpenStreetMap dossiers on {{ n.dossiers }} of the
-        {{ n.tracks }} circuits.
+        {{ n.tracks }} circuits. {{ name('MarinaBay') }} is a street
+        circuit: Tecpro the whole way round, water either side of its
+        raised bridges, and a start straight lit for the night.
     - tag: Force feedback
       title: Feel the front let go
       body: >-
@@ -230,10 +232,11 @@ features:
       body: >-
         A car is a <code>car.toml</code> and a GLB. A circuit is an export
         the game builds as it loads. The HUD is {{ n.hud_components }} JSON
-        components with an in-game layout editor. Nothing is cooked, so a
-        change is a file save and a rescan. Tracks and cars from your own
-        Assetto Corsa install import with one command, and stay on your
-        machine.
+        components with an in-game layout editor, and several saved layouts
+        that switch by where you are: watching, hotlap, or your car's class.
+        Nothing is cooked, so a change is a file save and a rescan. Tracks
+        and cars from your own Assetto Corsa install import with one
+        command, or from the launcher, and stay on your machine.
       chips: [car.toml, Runtime tracks, JSON HUD, AC importers]
 
 band:
@@ -339,8 +342,8 @@ engine:
       alt: 'A prototype through the banked hairpin at {{ name("Zandvoort") }}'
       caption: '{{ name("Zandvoort") }} · the banked hairpin'
     - image: shot-pack.webp
-      alt: 'Three GT3 cars nose to tail at {{ name("BrandsHatch") }}'
-      caption: '{{ name("BrandsHatch") }} · Paddock Hill'
+      alt: 'GT3 cars on the grid under the lights at {{ name("MarinaBay") }}'
+      caption: '{{ name("MarinaBay") }} · the grid at night'
   screens_eyebrow: What the player sees
   screens:
     - image: screen-hud.webp
@@ -415,8 +418,9 @@ tech:
         The session host decides what's allowed; the server enforces it.
     - title: Cockpit
       body: >-
-        Wheel, dash and scene-captured mirrors built per car. Seat, horizon
-        lock and head motion are yours to set.
+        Wheel, dash and scene-captured mirrors built per car, with a steering
+        wheel modelled for each class and its dash on the wheel's screen.
+        Seat, horizon lock and head motion are yours to set.
     - title: Records and ghosts
       body: >-
         Your best legal lap per car and circuit survives restarts, with a
