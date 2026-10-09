@@ -44,6 +44,7 @@
 #include "Race/ApexRainActor.h"
 #include "Race/ApexReplayClip.h"
 #include "Race/ApexShotCamera.h"
+#include "Track/ApexPropLibrary.h"
 #include "Track/ApexTrackContentSubsystem.h"
 #include "Track/ApexTrackInstance.h"
 #include "Track/ApexTrackSceneReader.h"
@@ -1950,6 +1951,37 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 				}
 			}
 
+			// The night pass: lit windows, light strips and lit panels are
+			// dark by day and come on with the sky's WindowGlow.
+			if ((Sky.WindowGlow > 0.0f || bSkyMoves) && Mesh->ComponentHasTag(ApexProps::NightGlowTag)
+				&& Mesh->GetStaticMesh())
+			{
+				const TArray<FStaticMaterial>& StaticSlots = Mesh->GetStaticMesh()->GetStaticMaterials();
+				for (int32 Slot = 0; Slot < StaticSlots.Num() && Slot < Mesh->GetNumMaterials(); ++Slot)
+				{
+					ApexProps::FNightGlow Night;
+					if (!ApexProps::NightGlowOf(StaticSlots[Slot].MaterialSlotName, Night))
+					{
+						continue;
+					}
+					if (UMaterialInstanceDynamic* Glow = Mesh->CreateDynamicMaterialInstance(Slot))
+					{
+						if (!NightGlowMids.Contains(Glow))
+						{
+							FNightGlowLook Look;
+							Look.PeakNits = Night.PeakNits;
+							Look.bEmissiveParent = Night.bEmissiveParent;
+							Look.BaseFactor = Glow->K2_GetVectorParameterValue(TEXT("EmissiveFactor"));
+							if (Look.BaseFactor.GetMax() <= KINDA_SMALL_NUMBER)
+							{
+								Look.BaseFactor = FLinearColor::White;
+							}
+							NightGlowMids.Add(Glow, Look);
+						}
+					}
+				}
+			}
+
 			// The flags: every instance (or actor) of the kit's flag pole,
 			// remembered once per track as built, turned by UpdateFlags. By
 			// the kit mesh's exact name: an imported AC circuit's merged
@@ -2038,6 +2070,7 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 		}
 	}
 
+	ApplyNightGlow();
 	ApplyRoadWetness();
 	UpdateFlags(0.0f, /*bForce*/ true);
 
@@ -2134,7 +2167,39 @@ void AApexRaceDirector::UpdateLiveSky(float DeltaSeconds)
 			}
 		}
 	}
+	ApplyNightGlow();
 	ApplyRoadWetness();
+}
+
+void AApexRaceDirector::ApplyNightGlow()
+{
+	// The imported glTF parent ignores its `EmissiveStrength` scalar (see
+	// AApexRaceCarActor), so the glow is the emissive colour scaled; the
+	// scalar is set as well, and is what a builder-made emissive instance reads.
+	static const FName EmissiveFactorParam(TEXT("EmissiveFactor"));
+	static const FName EmissiveStrengthParam(TEXT("EmissiveStrength"));
+	const float Glow = FMath::Clamp(Sky.WindowGlow, 0.0f, 1.0f);
+	for (auto It = NightGlowMids.CreateIterator(); It; ++It)
+	{
+		UMaterialInstanceDynamic* Mid = It.Key().Get();
+		if (!Mid)
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+		const FNightGlowLook& Look = It.Value();
+		if (Look.bEmissiveParent)
+		{
+			Mid->SetScalarParameterValue(EmissiveStrengthParam, Look.PeakNits * Glow);
+		}
+		else
+		{
+			FLinearColor Factor = Look.BaseFactor * (Look.PeakNits * Glow);
+			Factor.A = 1.0f;
+			Mid->SetVectorParameterValue(EmissiveFactorParam, Factor);
+			Mid->SetScalarParameterValue(EmissiveStrengthParam, Glow);
+		}
+	}
 }
 
 void AApexRaceDirector::UpdateFlags(float DeltaSeconds, bool bForce)
@@ -2934,6 +2999,7 @@ void AApexRaceDirector::UnloadTrackLevel()
 	// The track went back with its materials reset; its looks are forgotten.
 	RoadDryLook.Reset();
 	LampBaseGlow.Reset();
+	NightGlowMids.Reset();
 	VerifiedTrackId.Reset();
 }
 

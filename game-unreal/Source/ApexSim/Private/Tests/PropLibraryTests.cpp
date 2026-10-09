@@ -1,4 +1,5 @@
 #include "Track/ApexPropLibrary.h"
+#include "Race/ApexSkyModel.h"
 #include "ApexTestCommon.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -267,6 +268,96 @@ bool FApexPropWedgeStandTest::RunTest(const FString& Parameters)
 				Layout.Caps[1].GetLocation().Equals(StandBayCorner(Layout.Bays[3], 550.0), 0.01));
 		}
 	}
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPropNightGlowTest, "ApexSim.Props.NightGlow", ApexTestFlags)
+
+bool FApexPropNightGlowTest::RunTest(const FString& Parameters)
+{
+	// Every textured window slot of the Marina Bay pass, and the older pit one.
+	const TCHAR* Windows[] = {TEXT("mb_glass_blue"), TEXT("mb_glass_teal"), TEXT("mb_glass_bronze"),
+		TEXT("mb_glass_grey"), TEXT("mb_glass_clear"), TEXT("mb_classic"), TEXT("mb_colonial"), TEXT("mb_deco"),
+		TEXT("pit_glass"), TEXT("pit_interior")};
+	for (const TCHAR* Name : Windows)
+	{
+		ApexProps::FNightGlow Glow;
+		TestTrue(FString(Name) + TEXT(" lights at night"), ApexProps::NightGlowOf(FName(Name), Glow));
+		TestTrue(FString(Name) + TEXT(" has a level"), Glow.PeakNits > 0.0f);
+		TestFalse(FString(Name) + TEXT(" keeps the imported material"), Glow.bEmissiveParent);
+		TestFalse(FString(Name) + TEXT(" is not a fixed lamp"), ApexProps::IsEmissiveSlot(FName(Name)));
+	}
+	// The wheel's light strips, on both wheels' slots.
+	for (const TCHAR* Name : {TEXT("ferris_lights"), TEXT("ferris_lights_rim"), TEXT("ferris_lights_hub")})
+	{
+		ApexProps::FNightGlow Glow;
+		TestTrue(FString(Name) + TEXT(" lights at night"), ApexProps::NightGlowOf(FName(Name), Glow));
+		TestFalse(FString(Name) + TEXT(" keeps the imported material"), Glow.bEmissiveParent);
+	}
+	// A plain emissive panel is a builder-made emissive instance driven at night.
+	ApexProps::FNightGlow Panel;
+	TestTrue(TEXT("mb_lit_panel lights at night"), ApexProps::NightGlowOf(FName(TEXT("mb_lit_panel")), Panel));
+	TestTrue(TEXT("mb_lit_panel is an emissive instance"), Panel.bEmissiveParent);
+	TestTrue(TEXT("mb_lit_panel is an emissive slot"), ApexProps::IsEmissiveSlot(FName(TEXT("mb_lit_panel"))));
+	// The signal heads are emissive lamps, but not night-driven.
+	for (const TCHAR* Name : {TEXT("signal_red"), TEXT("signal_amber"), TEXT("signal_green")})
+	{
+		ApexProps::FNightGlow Glow;
+		TestTrue(FString(Name) + TEXT(" is an emissive slot"), ApexProps::IsEmissiveSlot(FName(Name)));
+		TestFalse(FString(Name) + TEXT(" is lit by day too"), ApexProps::NightGlowOf(FName(Name), Glow));
+	}
+	// Ordinary slots are left alone.
+	ApexProps::FNightGlow None;
+	TestFalse(TEXT("asphalt does not glow"), ApexProps::NightGlowOf(FName(TEXT("armco_galv")), None));
+	TestFalse(TEXT("floodlight lamps are the lamp path"), ApexProps::NightGlowOf(FName(TEXT("floodlight_lamp")), None));
+
+	// The sky: off in full day, on in full night, rising through twilight.
+	TestEqual(TEXT("full day"), ApexSky::WindowGlowAt(1.0f), 0.0f);
+	TestEqual(TEXT("full night"), ApexSky::WindowGlowAt(0.0f), 1.0f);
+	TestTrue(TEXT("dusk is part way"), ApexSky::WindowGlowAt(0.25f) > 0.0f && ApexSky::WindowGlowAt(0.25f) < 1.0f);
+	FApexSessionConditions Noon;
+	Noon.TimeOfDayMinutes = 13 * 60;
+	FApexSessionConditions Midnight = Noon;
+	Midnight.TimeOfDayMinutes = 0;
+	TestEqual(TEXT("sky at 13:00"), ApexSky::Derive(Noon).WindowGlow, 0.0f);
+	TestEqual(TEXT("sky at midnight"), ApexSky::Derive(Midnight).WindowGlow, 1.0f);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPropRotorTest, "ApexSim.Props.Rotor", ApexTestFlags)
+
+bool FApexPropRotorTest::RunTest(const FString& Parameters)
+{
+	const ApexProps::FRotorSpec* Ferris = ApexProps::FindRotorSpec(TEXT("attraction"), TEXT("ferris_wheel"));
+	if (!TestNotNull(TEXT("the ferris wheel turns"), Ferris))
+	{
+		return false;
+	}
+	TestEqual(TEXT("ferris rpm"), Ferris->Rpm, 0.5f);
+	TestEqual(TEXT("ferris rotor mesh"), FString(Ferris->RotorAsset), FString(ApexProps::FerrisRotorAsset));
+	TestTrue(TEXT("ferris hub 35 m up"), Ferris->HubOffsetCm.Equals(ApexProps::FerrisHubOffsetCm));
+
+	const ApexProps::FRotorSpec* Xl = ApexProps::FindRotorSpec(TEXT("attraction"), TEXT("landmark_big_wheel_xl"));
+	if (!TestNotNull(TEXT("the observation wheel turns"), Xl))
+	{
+		return false;
+	}
+	TestEqual(TEXT("xl rotor mesh"), FString(Xl->RotorAsset), FString(TEXT("landmark_big_wheel_xl_rotor")));
+	// One turn in about half an hour.
+	TestTrue(TEXT("xl turns once in 25-35 minutes"), Xl->Rpm > 1.0f / 35.0f && Xl->Rpm < 1.0f / 25.0f);
+	// glTF translation [0, 90, 8] m -> Unreal (x, z, y) cm.
+	TestTrue(TEXT("xl hub"), Xl->HubOffsetCm.Equals(FVector(0.0, 800.0, 9000.0)));
+
+	TestNull(TEXT("a bridge does not turn"), ApexProps::FindRotorSpec(TEXT("bridge"), TEXT("start_gantry")));
+	TestNull(TEXT("the rotor mesh is not itself a rotor asset"),
+		ApexProps::FindRotorSpec(TEXT("attraction"), TEXT("ferris_wheel_rotor")));
+	TestEqual(TEXT("two rotor assets"), ApexProps::AllRotorSpecs().Num(), 2);
+	TestFalse(TEXT("the observation wheel has no front"),
+		ApexProps::FacesRoad(TEXT("attraction"), TEXT("landmark_big_wheel_xl")));
 	return true;
 }
 

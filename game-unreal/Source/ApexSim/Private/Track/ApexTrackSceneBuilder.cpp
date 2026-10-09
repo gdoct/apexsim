@@ -1758,6 +1758,13 @@ UMaterialInterface* FApexTrackSceneBuilder::EmissiveMaterialFor(FName Slot)
 		// at 30 a lamp was dark in the race's daylight exposure.
 		{TEXT("pit_light_green"), FLinearColor(0.1f, 1.0f, 0.25f), 4000.0f},
 		{TEXT("pit_light_red"), FLinearColor(1.0f, 0.1f, 0.1f), 0.0f},
+		// Marina Bay: the theatre's lit panels are dark as built and lit after
+		// dark by the race director (`ApexProps::NightGlowOf`); the traffic
+		// signal heads are lit all day, at the pit light's order of brightness.
+		{TEXT("mb_lit_panel"), FLinearColor(1.0f, 0.85f, 0.55f), 0.0f},
+		{TEXT("signal_red"), FLinearColor(1.0f, 0.05f, 0.03f), 1200.0f},
+		{TEXT("signal_amber"), FLinearColor(1.0f, 0.55f, 0.05f), 1200.0f},
+		{TEXT("signal_green"), FLinearColor(0.1f, 1.0f, 0.35f), 1200.0f},
 	};
 	const FString Key = TEXT("glow_") + Slot.ToString();
 	if (const TObjectPtr<UMaterialInterface>* Cached = SlotMaterials.Find(Key))
@@ -1845,6 +1852,14 @@ void FApexTrackSceneBuilder::ApplyAuthoredSlots(
 			{
 				Component->ComponentTags.AddUnique(FName(*(TEXT("ApexEmissive_") + Slot.ToString())));
 			}
+		}
+		// Night pass: the lit-window and light-strip slots keep the imported
+		// material; the director finds the component by this tag and drives
+		// the slot's emissive from the sky (dark by day).
+		ApexProps::FNightGlow Night;
+		if (ApexProps::NightGlowOf(Slot, Night))
+		{
+			Component->ComponentTags.AddUnique(FName(ApexProps::NightGlowTag));
 		}
 		if (Override)
 		{
@@ -2298,7 +2313,7 @@ void FApexTrackSceneBuilder::SpawnActors(
 				}
 				continue;
 			}
-			if (Resolved.Kind == ApexProps::FerrisWheelKind && Resolved.Asset == ApexProps::FerrisWheelAsset)
+			if (const ApexProps::FRotorSpec* Rotor = ApexProps::FindRotorSpec(Resolved.Kind, Resolved.Asset))
 			{
 				SpawnParams.Name = MakeUniqueObjectName(
 					Level, AApexRotorActor::StaticClass(), FName(*FString::Printf(TEXT("Prop_%d"), i)));
@@ -2308,10 +2323,13 @@ void FApexTrackSceneBuilder::SpawnActors(
 					Actor->Tags.Add(PropTag);
 					Actor->GetMesh()->SetStaticMesh(Resolved.Mesh);
 					Actor->GetMesh()->ShadowCacheInvalidationBehavior = EShadowCacheInvalidationBehavior::Static;
-					Actor->GetRotor()->SetStaticMesh(
-						FindAuthoredMesh(ApexProps::FerrisWheelKind, ApexProps::FerrisRotorAsset));
-					Actor->GetRotor()->SetRelativeLocation(ApexProps::FerrisHubOffsetCm);
+					Actor->GetRotor()->SetStaticMesh(FindAuthoredMesh(Rotor->Kind, Rotor->RotorAsset));
+					Actor->GetRotor()->SetRelativeLocation(Rotor->HubOffsetCm);
+					Actor->RevolutionsPerMinute = Rotor->Rpm;
 					Actor->SetActorScale3D(FVector(Prop.Scale));
+					// Night glow on both parts (the wheel's light strips are on the rotor).
+					ApplyAuthoredSlots(Actor->GetMesh(), Resolved.Mesh, Resolved.Text);
+					ApplyAuthoredSlots(Actor->GetRotor(), Actor->GetRotor()->GetStaticMesh(), Resolved.Text);
 					OutActors.Add(Actor);
 					++PropActors;
 				}

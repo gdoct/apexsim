@@ -299,7 +299,77 @@ namespace ApexProps
 	{
 		return NameIs(SlotName, TEXT("gantry_lamp")) || NameIs(SlotName, TEXT("led_panel"))
 			|| NameIs(SlotName, TEXT("floodlight_lamp")) || NameIs(SlotName, TEXT("led_screen"))
-			|| NameIs(SlotName, TEXT("pit_light_red")) || NameIs(SlotName, TEXT("pit_light_green"));
+			|| NameIs(SlotName, TEXT("pit_light_red")) || NameIs(SlotName, TEXT("pit_light_green"))
+			|| NameIs(SlotName, TEXT("mb_lit_panel")) || NameIs(SlotName, TEXT("signal_red"))
+			|| NameIs(SlotName, TEXT("signal_amber")) || NameIs(SlotName, TEXT("signal_green"));
+	}
+
+	bool NightGlowOf(FName SlotName, FNightGlow& Out)
+	{
+		struct FEntry
+		{
+			const TCHAR* Slot;
+			float PeakNits;
+			bool bEmissiveParent;
+		};
+		static const FEntry Entries[] = {
+			// Window-glow textures: a lit window is a patch of the facade texture.
+			{TEXT("pit_glass"), 25.0f, false},
+			{TEXT("pit_interior"), 15.0f, false},
+			{TEXT("mb_glass_blue"), 25.0f, false},
+			{TEXT("mb_glass_teal"), 25.0f, false},
+			{TEXT("mb_glass_bronze"), 25.0f, false},
+			{TEXT("mb_glass_grey"), 25.0f, false},
+			{TEXT("mb_glass_clear"), 25.0f, false},
+			{TEXT("mb_classic"), 25.0f, false},
+			{TEXT("mb_colonial"), 25.0f, false},
+			{TEXT("mb_deco"), 25.0f, false},
+			// The wheel's light strips (spokes and capsules, rim and legs, hub).
+			{TEXT("ferris_lights"), 60.0f, false},
+			{TEXT("ferris_lights_rim"), 80.0f, false},
+			{TEXT("ferris_lights_hub"), 60.0f, false},
+			// A plain emissive panel: a lit M_ApexEmissive instance, dark by day.
+			{TEXT("mb_lit_panel"), 40.0f, true},
+		};
+		for (const FEntry& Entry : Entries)
+		{
+			if (NameIs(SlotName, Entry.Slot))
+			{
+				Out.PeakNits = Entry.PeakNits;
+				Out.bEmissiveParent = Entry.bEmissiveParent;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	namespace
+	{
+		const FRotorSpec kRotorSpecTable[] = {
+			// The fairground wheel: 60 m, hub 35 m up, a turn in two minutes.
+			{TEXT("attraction"), TEXT("ferris_wheel"), TEXT("ferris_wheel_rotor"), FVector(0.0, 0.0, 3500.0), 0.5f},
+			// The 150 m observation wheel: hub 90 m up and 8 m to one side
+			// (glTF translation [0, 90, 8]), one turn in about 30 minutes.
+			{TEXT("attraction"), TEXT("landmark_big_wheel_xl"), TEXT("landmark_big_wheel_xl_rotor"),
+				FVector(0.0, 800.0, 9000.0), 1.0f / 30.0f},
+		};
+	}	 // namespace
+
+	const FRotorSpec* FindRotorSpec(const FString& Kind, const FString& Asset)
+	{
+		for (const FRotorSpec& Spec : kRotorSpecTable)
+		{
+			if (Kind == Spec.Kind && Asset == Spec.Asset)
+			{
+				return &Spec;
+			}
+		}
+		return nullptr;
+	}
+
+	TArray<FRotorSpec> AllRotorSpecs()
+	{
+		return TArray<FRotorSpec>(kRotorSpecTable, UE_ARRAY_COUNT(kRotorSpecTable));
 	}
 
 	bool IsMaskedSlot(FName SlotName)

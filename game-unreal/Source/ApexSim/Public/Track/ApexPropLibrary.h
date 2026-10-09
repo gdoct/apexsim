@@ -124,12 +124,58 @@ namespace ApexProps
 	 */
 	APEXSIM_API bool IsBayFamily(const FString& Asset);
 
-	/** The one asset imported as two meshes: the wheel and its `rotor` node. */
+	/** The ferris wheel, the first asset imported as two meshes: the wheel and its `rotor` node. */
 	inline const TCHAR* const FerrisWheelKind = TEXT("attraction");
 	inline const TCHAR* const FerrisWheelAsset = TEXT("ferris_wheel");
 	inline const TCHAR* const FerrisRotorAsset = TEXT("ferris_wheel_rotor");
 	/** Where the rotor node sits in the wheel's frame: the hub, 35 m up. */
 	inline const FVector FerrisHubOffsetCm(0.0, 0.0, 3500.0);
+
+	/**
+	 * An asset whose GLB has a child node `rotor` (origin at the hub): imported
+	 * as `SM_<asset>` plus `SM_<asset>_rotor`, spawned as an `AApexRotorActor`
+	 * that turns the rotor about its local Y at `Rpm`.
+	 */
+	struct FRotorSpec
+	{
+		const TCHAR* Kind;
+		const TCHAR* Asset;
+		/** `<Asset>_rotor`. */
+		const TCHAR* RotorAsset;
+		/** The `rotor` node's translation in the asset's frame (cm, UE axes). */
+		FVector HubOffsetCm;
+		float Rpm;
+	};
+	/** Null when the asset has no rotor. */
+	APEXSIM_API const FRotorSpec* FindRotorSpec(const FString& Kind, const FString& Asset);
+	/** Every rotor asset, in table order. */
+	APEXSIM_API TArray<FRotorSpec> AllRotorSpecs();
+
+	// ---- Night pass ------------------------------------------------------------
+
+	/** Component tag on a mesh component that has a night-glow material slot. */
+	inline const TCHAR* const NightGlowTag = TEXT("ApexNightGlow");
+
+	/** How a material slot lights after dark. */
+	struct FNightGlow
+	{
+		/**
+		 * Emissive level at full night, in nits, scaled by the sky's
+		 * `WindowGlow` (0 by day, 1 at night): the imported material's
+		 * `EmissiveFactor` colour times it, or an `M_ApexEmissive` instance's
+		 * `EmissiveStrength`.
+		 */
+		float PeakNits = 0.0f;
+		/** The slot is a lit `M_ApexEmissive` instance (the builder's), not the imported glTF material. */
+		bool bEmissiveParent = false;
+	};
+	/**
+	 * Whether the slot is dark by day and lit at night, and how: the lit
+	 * windows (`pit_glass`, `pit_interior`, the Marina Bay `mb_glass_*`,
+	 * `mb_classic`, `mb_colonial`, `mb_deco`), the Ferris-style light strips
+	 * (`ferris_lights*`) and the plain emissive `mb_lit_panel`.
+	 */
+	APEXSIM_API bool NightGlowOf(FName SlotName, FNightGlow& Out);
 
 	/** The authored start gantry's lamp panel, in the gantry's frame (cm). */
 	inline constexpr float GantryLampX = -37.0f;

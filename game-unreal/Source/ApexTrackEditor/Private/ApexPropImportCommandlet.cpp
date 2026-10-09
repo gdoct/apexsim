@@ -483,7 +483,10 @@ bool UApexPropImportCommandlet::CollectSources(
 bool UApexPropImportCommandlet::ImportGlb(const FSource& Source, const FOptions& Options, FStats& Stats)
 {
 	const FString DestPath = Options.DestRoot / Source.Kind;
-	const bool bFerris = Source.Kind == ApexProps::FerrisWheelKind && Source.Asset == ApexProps::FerrisWheelAsset;
+	// An asset with a `rotor` node (the ferris wheel, the observation wheel):
+	// two meshes, `SM_<asset>` and `SM_<asset>_rotor`.
+	const ApexProps::FRotorSpec* RotorSpec = ApexProps::FindRotorSpec(Source.Kind, Source.Asset);
+	const bool bFerris = RotorSpec != nullptr;
 
 	// The engine's glTF assets pipeline, adjusted: one mesh per GLB (two
 	// for the ferris wheel, each in its own node frame so the rotor keeps
@@ -546,8 +549,8 @@ bool UApexPropImportCommandlet::ImportGlb(const FSource& Source, const FOptions&
 		TArray<FString> Targets;
 		if (bFerris)
 		{
-			Targets.Add(ApexProps::MeshPackageName(Options.DestRoot, Source.Kind, ApexProps::FerrisWheelAsset));
-			Targets.Add(ApexProps::MeshPackageName(Options.DestRoot, Source.Kind, ApexProps::FerrisRotorAsset));
+			Targets.Add(ApexProps::MeshPackageName(Options.DestRoot, Source.Kind, Source.Asset));
+			Targets.Add(ApexProps::MeshPackageName(Options.DestRoot, Source.Kind, RotorSpec->RotorAsset));
 		}
 		else
 		{
@@ -626,7 +629,7 @@ bool UApexPropImportCommandlet::ImportGlb(const FSource& Source, const FOptions&
 		{
 			const bool bRotor = Mesh->GetName().Contains(TEXT("rotor"));
 			const FString Target = ApexProps::MeshPackageName(Options.DestRoot, Source.Kind,
-				bRotor ? ApexProps::FerrisRotorAsset : ApexProps::FerrisWheelAsset);
+				bRotor ? FString(RotorSpec->RotorAsset) : Source.Asset);
 			if (!Relocate(Mesh, Target, Error))
 			{
 				UE_LOG(LogApexTrackImport, Error, TEXT("    %s"), *Error);

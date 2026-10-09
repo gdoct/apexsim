@@ -139,12 +139,27 @@ namespace ApexSky
 		bool bFloodlights = false;
 		/** Emissive strength of the floodlight lamp faces (nits). */
 		float LampGlow = 0.0f;
+		/**
+		 * 0 by day, 1 at night, smooth through twilight: how far the lit windows,
+		 * the wheel's light strips and the lit panels have come on
+		 * (`ApexProps::NightGlowOf`).
+		 */
+		float WindowGlow = 0.0f;
 	};
 
 	/** 0 at full night, 1 in full day, smooth through twilight. */
 	inline float Daylight(float ElevationDeg)
 	{
 		return FMath::SmoothStep(-6.0f, 10.0f, ElevationDeg);
+	}
+
+	/**
+	 * The night pass's level for a daylight figure: lit from the golden hour
+	 * (daylight under 0.5) to full at dark, exactly 0 in full day.
+	 */
+	inline float WindowGlowAt(float Day)
+	{
+		return 1.0f - FMath::SmoothStep(0.0f, 0.5f, FMath::Clamp(Day, 0.0f, 1.0f));
 	}
 
 	/** Sunlight through the cloud: what is left of the direct beam. */
@@ -244,6 +259,7 @@ namespace ApexSky
 		S.bHeadlights = Elev < 6.0f || C.IsWet();
 		S.bFloodlights = Elev < 4.0f;
 		S.LampGlow = S.bFloodlights ? FMath::Lerp(60.0f, 6.0f, Day) : 0.0f;
+		S.WindowGlow = WindowGlowAt(Day);
 		return S;
 	}
 
@@ -293,6 +309,7 @@ namespace ApexSky
 		S.Contrast = FMath::Lerp(A.Contrast, B.Contrast, T);
 		S.RainIntensity = FMath::Lerp(A.RainIntensity, B.RainIntensity, T);
 		S.LampGlow = FMath::Lerp(A.LampGlow, B.LampGlow, T);
+		S.WindowGlow = FMath::Lerp(A.WindowGlow, B.WindowGlow, T);
 		return S;
 	}
 

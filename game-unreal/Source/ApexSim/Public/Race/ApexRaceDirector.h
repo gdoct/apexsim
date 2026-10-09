@@ -919,6 +919,20 @@ private:
 	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, FVector2f> RoadDryLook;
 	/** The floodlight lamp faces with their emissive strength as built. */
 	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, float> LampBaseGlow;
+	/**
+	 * The night pass's material instances (`ApexProps::NightGlowOf`: lit
+	 * windows, the wheel's light strips, the lit panels) with the emissive
+	 * colour they were built with; `ApplyNightGlow` lights them by the sky's
+	 * `WindowGlow`.
+	 */
+	struct FNightGlowLook
+	{
+		FLinearColor BaseFactor = FLinearColor::White;
+		float PeakNits = 0.0f;
+		bool bEmissiveParent = false;
+	};
+	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, FNightGlowLook> NightGlowMids;
+	void ApplyNightGlow();
 	/** The track's fog, set again as the weather moves. */
 	TArray<TWeakObjectPtr<UExponentialHeightFogComponent>> TrackFogs;
 
