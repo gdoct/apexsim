@@ -232,7 +232,7 @@ edit:
   music_volume: 0.9
   title:
     text: null                # the splash art carries the logo; set a text for a plain card
-    subtitle: "240 Hz. Every corner. Every sky."
+    subtitle: "420 Hz. Every corner. Every sky."
     seconds: 3.0
     background: docs/assets/splash.webp   # null for black
     darken: 0.1
@@ -242,16 +242,16 @@ edit:
     subtitle: "Coming soon"
     seconds: 3.5
     background: null
-  sequence:                   # shots in play order; a string or {id, transition, crossfade_s}
-    - 01_zandvoort_start
-    - {id: 02_spa_eau_rouge, transition: fadewhite, crossfade_s: 0.25}
-    - 03_spa_onboard_raidillon
-    - 04_zandvoort_hugenholtz_heli
-    - {id: 05_lemans_wheel, transition: fadeblack, crossfade_s: 0.5}
-    - 11_lemans_night
-    - 06_monza_rain_parabolica
-    - 08_spielberg_bull
-    - {id: 09_marina_start, transition: fadeblack, crossfade_s: 0.4}
-    - 10_marina_wheel
-    - {id: 13_zandvoort_luyendyk_final_lap, transition: smoothleft}
-    - 14_zandvoort_finish
+  sequence:                   # shots in play order; a string or {id, transition, crossfade_s, brag}
+    - {id: 01_zandvoort_start, brag: "420 Hz authoritative physics"}
+    - {id: 02_spa_eau_rouge, transition: fadewhite, crossfade_s: 0.25, brag: "Fully deterministic simulation"}
+    - {id: 03_spa_onboard_raidillon, brag: "Triple screen. Wheel force feedback."}
+    - {id: 04_zandvoort_hugenholtz_heli, brag: "Real elevation and banking"}
+    - {id: 05_lemans_wheel, transition: fadeblack, crossfade_s: 0.5, brag: "Real circuits, built from real data"}
+    - {id: 11_lemans_night, brag: "Races up to 24 hours"}
+    - {id: 06_monza_rain_parabolica, brag: "Dynamic weather, live track state"}
+    - {id: 08_spielberg_bull, brag: "Tyres, brakes, fuel and damage"}
+    - {id: 09_marina_start, transition: fadeblack, crossfade_s: 0.4, brag: "Night racing under the lights"}
+    - {id: 10_marina_wheel, brag: "AI that passes and defends"}
+    - {id: 13_zandvoort_luyendyk_final_lap, transition: smoothleft, brag: "Slipstream, dirty air, ride-height aero"}
+    - {id: 14_zandvoort_finish, brag: "Watch, replay, share every race"}
