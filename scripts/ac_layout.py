@@ -111,6 +111,7 @@ LANDMARK_MATCH_M = 40.0
 START_GANTRY_M = 40.0
 LANDMARK_RANGE_M = 300.0
 LANDMARK_KINDS = {"floodlight", "big_wheel", "screen", "camera_tower", "tower"}
+AUTHORED_ONLY_LANDMARKS = {"big_wheel"}
 # Woods.
 WOOD_CELL_M = 10.0
 WOOD_MIN_TREES = 2
@@ -831,6 +832,12 @@ def merge(layout: dict, overlay: dict, stem: str, track: Track | None = None) ->
     lm_native = out.get("landmarks", [])
     used, added, matched_l = set(), [], 0
     for ae in entries.get("landmarks", []):
+        # A circuit has one fairground wheel, and AC models it as several
+        # nodes (Le Mans: two, 30 m apart): where the dossier has an authored
+        # one, the AC survey adds none.
+        if ae["kind"] in AUTHORED_ONLY_LANDMARKS and any(
+                ne.get("kind") == ae["kind"] and ne.get("source") == "authored" for ne in lm_native):
+            continue
         hit = None
         for ni, ne in enumerate(lm_native):
             if ne.get("kind") == ae["kind"] and math.hypot(*(np.array(ne["centre"]) - np.array(ae["centre"]))) \

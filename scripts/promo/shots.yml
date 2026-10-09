@@ -66,30 +66,18 @@ races:
     laps: 2
     weather: heavyrain
     time: "17:30"
-  suzuka:
-    track: Suzuka
-    car: fugazzi-sf26
-    laps: 2
-    weather: cloudy
-    time: "14:00"
   spielberg:
     track: Spielberg
     car: murcetes-amd-gt3
     laps: 2
     weather: sunny
     time: "11:00"
-  sakhir:
-    track: Sakhir
+  marina:
+    track: MarinaBay
     car: mclarsen-mcl40
     laps: 2
     weather: sunny
-    time: "21:00"             # the night race, under the floodlights
-  brands:
-    track: BrandsHatch
-    car: limbotiti-caravan-gt3
-    laps: 3
-    weather: overcast
-    time: "16:00"
+    time: "21:00"             # the night race, under the lights
 
 shots:
   - id: 01_zandvoort_start
@@ -153,13 +141,6 @@ shots:
     caption: "Monzarella · Curva Alberello"
     camera: {mode: tv, shot: chase, follow: lead}
 
-  - id: 07_suzuka_130r
-    race: suzuka
-    window: {corner: "130R", before: 200, after: 150, min_cars: 2}
-    length: 5.0
-    caption: "Sudoku · 130R"
-    camera: {mode: tv, shot: tracking, follow: lead}
-
   - id: 08_spielberg_bull
     race: spielberg
     # at_s: picked from the seeded race (the most cars passing near this camera);
@@ -177,25 +158,27 @@ shots:
       follow: nearest
       pan_speed: 4
 
-  - id: 09_sakhir_night
-    race: sakhir
-    window: {station: 400, before: 200, after: 150, min_cars: 3}
-    length: 5.0
-    caption: "Bahrainless · under the lights"
-    camera: {mode: tv, shot: trackside, follow: lead}
+  - id: 09_marina_start
+    race: marina
+    window: start
+    start_offset_s: -4.0      # five lights, then out, under the LED ribbon
+    length: 9.0
+    caption: "Mandarina Bay · night race"
+    camera: {mode: tv, shot: grid, follow: leader}
 
-  - id: 10_brands_paddock
-    race: brands
-    window: {corner: "Paddock Hill", before: 150, after: 150, min_cars: 3}
-    length: 4.5
-    caption: "Brands Scratch · Paddock Hill"
+  - id: 10_marina_wheel
+    race: marina
+    window: {station: 4600, before: 250, after: 150, min_cars: 3}
+    length: 5.0
+    caption: "Mandarina Bay · under the lights"
     camera:
       mode: pan
-      eye:  {corner: "Paddock Hill", offset: 60, lateral: 20, side: outside, height: 4}
-      fov: 45
-      frame_width: 16
+      eye:  {station: 4500, lateral: 14, side: right, height: 4}
+      look: {landmark: big_wheel_xl, height: 40}
+      look_bias: 0.5
+      fov: 55
       follow: nearest
-      pan_speed: 5
+      pan_speed: 4
 
   - id: 11_lemans_night
     race: lemans
@@ -204,16 +187,6 @@ shots:
     time: "23:40"             # same race, after dark: headlights and floodlights
     caption: "24 hours"
     camera: {mode: chase, chase: near, follow: lead}
-
-  - id: 12_suzuka_wheel_straight
-    race: suzuka
-    window: {station: 5500, before: 250, after: 150, min_cars: 3, last_laps: 1}
-    length: 4.0
-    camera:
-      mode: fixed
-      eye:  {station: 5620, lateral: 22, side: right, height: 9}
-      look: {landmark: big_wheel, height: 12}
-      fov: 60
 
   - id: 13_zandvoort_luyendyk_final_lap
     race: zandvoort
@@ -277,10 +250,8 @@ edit:
     - {id: 05_lemans_wheel, transition: fadeblack, crossfade_s: 0.5}
     - 11_lemans_night
     - 06_monza_rain_parabolica
-    - 07_suzuka_130r
-    - 12_suzuka_wheel_straight
     - 08_spielberg_bull
-    - {id: 09_sakhir_night, transition: fadeblack, crossfade_s: 0.4}
-    - 10_brands_paddock
+    - {id: 09_marina_start, transition: fadeblack, crossfade_s: 0.4}
+    - 10_marina_wheel
     - {id: 13_zandvoort_luyendyk_final_lap, transition: smoothleft}
     - 14_zandvoort_finish
