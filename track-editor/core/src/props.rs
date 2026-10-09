@@ -65,6 +65,8 @@ pub const KIT: &[KitAsset] = kit![
     Barrier "vangrail_4m_triple" 4.0 x 0.3 x 1.6,
     Barrier "vangrail_4m_fence" 4.0 x 0.4 x 3.55,
     Barrier "vangrail_end" 2.0 x 0.5 x 1.25,
+    // Marina Bay waterfront: galvanised balustrade on a kerb plinth.
+    Barrier "quay_rail_4m" 4.0 x 0.4 x 1.3,
     TireWall "tires_4m" 4.0 x 1.3 x 0.8,
     TireWall "tires_corner" 1.7 x 1.7 x 0.8,
     Board "hoarding_3m" 3.0 x 0.3 x 2.0,
@@ -90,18 +92,34 @@ pub const KIT: &[KitAsset] = kit![
     // Standing letters on the slope above T1 (Spielberg); rebuilt per
     // circuit from `text`, centred on its footprint.
     Sign "hillside_letters" 47.0 x 0.8 x 4.7,
+    // Marina Bay street furniture; the signal head lamps are the emissive
+    // `signal_red/amber/green` slots (mast arm reaches towards the road on -Y).
+    Sign "traffic_signal_pole" 0.7 x 3.6 x 6.4,
+    Sign "road_sign_post" 2.5 x 0.2 x 3.6,
     Fence "mesh_4m" 4.0 x 0.1 x 2.5,
     Fence "mesh_4m_hoarding" 4.0 x 0.1 x 2.5,
     Fence "wood_4m" 4.0 x 0.1 x 1.2,
     Fence "hedge_4m" 4.0 x 1.1 x 1.6,
+    // 6 m catch fence for street circuits (`fence_mesh`, outriggers lean to the road).
+    Fence "catch_fence_6m" 4.0 x 1.1 x 6.5,
     // Overhead
     Bridge "start_gantry" 2.0 x 20.0 x 7.2,
     Bridge "truss_bridge" 2.7 x 20.4 x 8.7,
     Bridge "tyre_bridge" 4.0 x 23.7 x 13.6,
     Bridge "timing_gantry" 2.0 x 20.0 x 10.5,
     Bridge "span_building" 8.2 x 20.7 x 22.0,
+    // Marina Bay crossings: the road runs ON `bridge_arch_steel` and
+    // `bridge_deck_wide` (arches/parapets either side), UNDER `viaduct_deck`.
+    Bridge "bridge_arch_steel" 30.6 x 21.7 x 12.9,
+    Bridge "bridge_deck_wide" 40.2 x 23.5 x 9.5,
+    Bridge "viaduct_deck" 26.1 x 20.6 x 13.8,
+    // Overhead expressway sign gantry and a covered pedestrian link; both span the road.
+    Bridge "sign_gantry" 1.5 x 19.2 x 7.5,
+    Bridge "linkbridge_covered" 4.2 x 19.8 x 8.6,
     Light "floodlight_tower" 4.9 x 3.0 x 30.3,
     Light "lamp_post" 0.6 x 2.5 x 8.1,
+    // Street lamp with an arm to each side (Marina Bay median/verge lighting).
+    Light "lamp_arm_twin" 0.7 x 6.9 x 9.6,
     // Pit complex
     Pit "garage_6m" 6.0 x 14.2 x 9.9,
     Pit "garage_6m_closed" 6.0 x 14.2 x 9.9,
@@ -135,6 +153,19 @@ pub const KIT: &[KitAsset] = kit![
     Building "skyline_step" 30.1 x 22.1 x 150.0,
     Building "skyline_twin" 32.1 x 12.1 x 161.2,
     Building "skyline_needle" 14.1 x 14.1 x 190.0,
+    // Marina Bay ("Mandarina Bay"): landmark and civic buildings, centred on
+    // their footprint, front on -Y. Real sizes; see docs/content/MARINA_BAY.md.
+    Building "landmark_twin_domes" 188.0 x 85.2 x 36.2,
+    Building "building_wheel_terminal" 64.5 x 31.0 x 24.0,
+    Building "building_pit_street" 120.8 x 33.5 x 24.6,
+    Building "building_colonnade_hotel" 97.4 x 59.5 x 28.0,
+    Building "building_domed_court" 81.2 x 58.3 x 27.9,
+    Building "building_colonnade_civic" 97.4 x 51.2 x 23.2,
+    Building "building_clock_tower_hall" 63.2 x 45.4 x 56.0,
+    Building "building_five_towers" 144.0 x 73.1 x 164.0,
+    Building "building_club_pavilion" 48.4 x 30.0 x 22.5,
+    Building "building_gothic_church" 40.8 x 53.4 x 61.3,
+    Building "building_deco_theatre" 44.6 x 35.4 x 42.0,
     // Spectators: a stand family is one bay; the stand's length lays more.
     Grandstand "bay_10m" 10.0 x 9.1 x 5.6,
     Grandstand "bay_10m_roof" 10.0 x 10.4 x 10.6,
@@ -151,6 +182,12 @@ pub const KIT: &[KitAsset] = kit![
     Attraction "fanzone_stage" 12.7 x 8.0 x 8.5,
     Attraction "food_stall_6m" 6.2 x 3.0 x 3.9,
     Attraction "ticket_gate" 7.0 x 1.8 x 4.6,
+    // Marina Bay landmarks: `landmark_big_wheel_xl` has a `rotor` child node
+    // (hub at its origin) like `ferris_wheel`.
+    Attraction "landmark_big_wheel_xl" 149.9 x 36.8 x 164.9,
+    Attraction "landmark_three_towers_skypark" 358.0 x 96.0 x 200.5,
+    Attraction "landmark_lotus_museum" 54.0 x 50.0 x 40.3,
+    Attraction "bridge_double_helix" 118.0 x 9.0 x 8.8,
     // Landscape
     Tree "broadleaf_m" 8.0 x 7.2 x 10.0,
     Tree "broadleaf_s" 5.0 x 4.5 x 6.0,
@@ -161,6 +198,8 @@ pub const KIT: &[KitAsset] = kit![
     Tree "bush_cluster" 4.0 x 3.6 x 3.0,
     Tree "palm_oil" 4.4 x 4.4 x 8.4,
     Tree "palm_ornamental" 3.8 x 4.8 x 13.2,
+    // Rain tree: clear trunk, wide umbrella crown (leaf cards), centred.
+    Tree "raintree_l" 25.6 x 23.2 x 19.2,
     // Near-LOD card trees for the first 60 m (masked `tree_card_*` slots).
     Tree "broadleaf_m_near" 9.6 x 9.0 x 9.7,
     Tree "conifer_m_near" 4.3 x 4.7 x 12.1,
@@ -195,6 +234,15 @@ pub const KIT: &[KitAsset] = kit![
     Misc "bull_statue" 22.0 x 11.5 x 17.2,
     Misc "tyre_stack" 1.9 x 1.2 x 0.8,
     Misc "gate_4m" 4.3 x 0.15 x 1.5,
+    // Marina Bay: ring fountain in a round basin, and the four-column memorial.
+    Misc "fountain_basin" 48.0 x 48.0 x 10.4,
+    Misc "monument_four_columns" 26.0 x 26.0 x 66.0,
+    Misc "bus_shelter" 7.5 x 2.8 x 3.5,
+    Misc "station_entrance" 7.0 x 5.0 x 4.4,
+    Misc "carpark_entrance" 8.3 x 8.6 x 4.6,
+    Misc "monument_obelisk" 7.0 x 7.0 x 15.5,
+    Misc "monument_pagoda" 10.4 x 9.0 x 10.2,
+    Misc "monument_statue_plinth" 6.0 x 6.0 x 8.5,
     // Lattice pylon, centred; the line runs along local X.
     Misc "power_pylon" 8.0 x 14.0 x 38.0,
     // Sky: origin at the hull centre, sized round it.

@@ -356,6 +356,60 @@ python scripts/content/props/gen_graffiti.py --sheet
 `-all` imports them too. `decal` is not a prop kind (there are no GLBs), so
 the groomer, `props::KIT` and the kind tables know nothing of it.
 
+### 11. Marina Bay ("Mandarina Bay")
+
+Landmarks and civic buildings for the Singapore street circuit (research and
+placement in `docs/content/MARINA_BAY.md`). Built by
+`scripts/content/props/build_marina_bay_{a1,a2,a3,b1,c1}.py` on top of
+`marina_common.py`: facade textures are generated (curtain-wall tile + a
+warm lit-window emissive map), everything else uses the kit generators.
+Originals only: no brand marks, and the Merlion is deliberately **not**
+modelled (trademark). All sizes are real-world; windows are texture, not
+geometry.
+
+| kind | asset | size | notes | prio |
+| --- | --- | --- | --- | --- |
+| building | `landmark_twin_domes` | 188 × 85 m, 36 m | two spiked-sunshade domes on glazed drums, link foyer, entrance canopy; centred, front on -Y | P1 |
+| attraction | `landmark_big_wheel_xl` | 150 m wheel, hub 90 m, 165 m tall, 150 × 37 m | 28 capsules rigid to the `rotor` child (hub origin), one-sided A-frame, boarding platform; night slots `ferris_lights`, `ferris_lights_rim`, `ferris_lights_hub` — **done** | P1 |
+| building | `building_wheel_terminal` | 64.5 × 31 m, 24 m | glazed two-storey terminal with fins and a ticket hall tail | P1 |
+| building | `building_pit_street` | 120.8 × 33.5 m, 24.6 m | pit-lane side on -Y: 20 service bays under a cantilevered paddock club, glazed hospitality band, set-back terrace club, roof masts | P1 |
+| building | `building_colonnade_hotel` | 97 × 60 m, 28 m | neo-classical hotel, two-storey Doric colonnade, central pediment | P1 |
+| building | `building_domed_court` | 81 × 58 m, 28 m | hexastyle portico, drum and copper dome with lantern | P1 |
+| building | `building_colonnade_civic` | 97 × 51 m, 23 m | giant-order colonnade of 18 columns, pediment, balustrade | P1 |
+| building | `building_clock_tower_hall` | 63 × 45 m, 56 m | gabled hall wings, 40 m clock tower with four faces and a copper pyramid | P1 |
+| building | `building_five_towers` | 144 × 73 m, 164 m | podium + five chamfered glass towers (58–160 m) with white belts | P1 |
+| misc | `fountain_basin` | 48 m dia, 10.4 m | round pool, bronze ring on a dais, 28 jets; places at the base of the five towers | P1 |
+| building | `building_club_pavilion` | 48 × 30 m, 22.5 m | white colonial pavilion, two-storey verandah on -Y, hipped tile roof, turret | P1 |
+| building | `building_gothic_church` | 41 × 53 m, 61 m | nave + transept, west tower with octagonal spire and pinnacles | P2 |
+| building | `building_deco_theatre` | 45 × 35 m, 42 m | three-step art-deco massing, vertical fins, marquee, neon bands (`mb_lit_panel`) | P2 |
+| misc | `monument_four_columns` | 26 × 26 m, 66 m | four inward-leaning columns on a stepped plinth | P1 |
+| bridge | `bridge_arch_steel` | 30.6 m long, 12.9 m | **road runs on it**: two through-arches, hangers, bracing, corner pylons; tile along the road for longer crossings | P1 |
+| bridge | `bridge_deck_wide` | 40 m long, 9.5 m | **road runs on it**: fascia, parapets, footways, twin-arm lamps, end pylons | P1 |
+| bridge | `viaduct_deck` | 26 m long, 13.8 m, 9.6 m clearance | **road runs under it**: box girder, parapets, four pier columns; scales with `span_m` | P1 |
+| attraction | `bridge_double_helix` | 118 × 9 m, 8.8 m | footbridge with outer/inner counter-rotating helices, LED edge strips; pushed clear (not a road crossing) | P2 |
+| attraction | `landmark_three_towers_skypark` | 358 × 96 m, 200 m | three leaning-slab towers, retail podium, ship-shaped sky deck with pool and gardens; ~460 m from the road, use as backdrop | P2 |
+| attraction | `landmark_lotus_museum` | 54 × 50 m, 40 m | ten outer and ten inner cupped petals over a glazed ring podium | P2 |
+
+| barrier | `quay_rail_4m` | 4 m, 1.3 m | waterfront balustrade: galvanised posts, top rail, two rails and balusters on a concrete kerb plinth; tiles end to end — **done** | P1 |
+| fence | `catch_fence_6m` | 4 × 6.5 m | tall catch fence for street circuits: `fence_mesh` on both faces, three posts, top outriggers leaning to the road with two strands — **done** | P1 |
+| sign | `traffic_signal_pole` | 3.6 m deep, 6.4 m | mast-arm signal: two three-aspect heads facing both ways along the road (`signal_red/amber/green`, emissive), pedestrian head, push button, street blade; arm reaches the road on -Y — **done** | P1 |
+| sign | `road_sign_post` | 2.5 × 3.6 m | green direction sign on two posts with white border, arrow and text strips (blank, no text slot) — **done** | P2 |
+| bridge | `sign_gantry` | 19.2 m span, 7.5 m | **road runs under it**: galvanised box-truss on two posts with two green panels, catwalk and lights; scales with `span_m` — **done** | P1 |
+| bridge | `linkbridge_covered` | 4.2 m wide, 19.8 m span, 8.6 m | **road runs under it**: glazed covered walkway on a curved roof at 5.2 m, two columns off the verges; scales with `span_m` — **done** | P1 |
+| misc | `bus_shelter` | 7.5 × 2.8 m, 3.5 m | roof canopy, glass back and ends, bench, lit advert case, stop pole; open to the road on -Y — **done** | P2 |
+| misc | `station_entrance` | 7 × 5 m, 4.4 m | underground-station entrance: stair well with parapets and handrails under a glazed gable canopy, line-colour pylon, map case, planters — **done** | P2 |
+| misc | `carpark_entrance` | 8.3 × 8.6 m, 4.6 m | ramp portal with sloping retaining walls, headroom bar, boom barrier, ticket booth, blue P board — **done** | P2 |
+| misc | `monument_obelisk` | 7 × 7 m, 15.5 m | stepped plinth, plaque, tapered shaft with pyramid cap — **done** | P2 |
+| misc | `monument_pagoda` | 10.4 × 9 m, 10.2 m | hexagonal memorial pavilion: stepped base, six red columns, two-tier tiled roof, stele inside — **done** | P2 |
+| misc | `monument_statue_plinth` | 6 × 6 m, 8.5 m | stepped stone plinth with plaque and a generic bronze standing figure (not a likeness) — **done** | P2 |
+| tree | `raintree_l` | 25.6 × 23.2 m, 19.2 m | umbrella-crowned rain tree: 9.5 m clear trunk, spreading limbs, wide flat leaf-card crown on `tree_card_broadleaf` — **done** | P1 |
+| light | `lamp_arm_twin` | 6.9 m across, 9.6 m | pole with a swan-neck arm to each side, `floodlight_lamp` lens slot — **done** | P1 |
+
+Night pass additions: the textured facade slots `mb_glass_blue/teal/bronze/grey/clear`,
+`mb_classic`, `mb_colonial`, `mb_deco` carry a lit-window emissive texture
+(`EmissiveStrength` 0 by day, ~1 at night, like `pit_glass`), and
+`mb_lit_panel` is a plain emissive; the signal heads use `signal_red/amber/green`. Not yet wired in the Unreal importer.
+
 ## Unreal import notes
 
 - Every asset in the tables above is authored (**done**); the recipe fallback
