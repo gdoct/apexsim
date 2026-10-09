@@ -405,6 +405,42 @@ geometry.
 | tree | `raintree_l` | 25.6 × 23.2 m, 19.2 m | umbrella-crowned rain tree: 9.5 m clear trunk, spreading limbs, wide flat leaf-card crown on `tree_card_broadleaf` — **done** | P1 |
 | light | `lamp_arm_twin` | 6.9 m across, 9.6 m | pole with a swan-neck arm to each side, `floodlight_lamp` lens slot — **done** | P1 |
 
+
+**Start/finish straight** (brief: `docs/content/MARINA_BAY_START_FINISH.md`). Built by
+`scripts/content/props/build_marina_bay_d1.py` (`ASSET = "all"` builds, exports every GLB and
+saves `_batches/marina_bay_d1.blend`); decals and garage plates by `gen_marina_decals.py`
+(runs inside Blender, no PIL).
+
+| kind | asset | size | notes | prio |
+| --- | --- | --- | --- | --- |
+| building | `pit_building_roofdeck` | 200 × 34 m, 26 m | 33 garage doors at 6 m pitch under a glazed band, two terraces stepped back from the lane (-Y), black roof deck with parapet, stair towers at both ends, roof masts; road-facing pivot. Replaces the generated garage block — **done** | P1 |
+| board | `roof_wordmark_block` | 40 × 0.6 m, 7.5 m | 40 × 6 m panel on stilts, `board_brand` face (2 repeats, brand from `text`), alternating `mb_lit_panel` / `mb_red` rim; centred — **done** | P2 |
+| misc | `stair_zigzag_scaffold` | 14 × 5 m, 8 m | two 20-step flights (3.5 m each) on tube scaffold, landings, rails, `step_light_orange` nosings; centred — **done** | P3 |
+| grandstand | `street_stand_tier_10m` / `_crowd` | 10 × 26 m, 17 m | 18 rows (1.05 m tread, 0.72 m rise, first row 2.2 m), central aisle, scaffold under the rake, rear service deck at 15.16 m with balustrade and wind screen; fascia LED lines `stand_led_blue` / `stand_led_green`; crowd cards as `bay_10m_crowd` — **done** | P1 |
+| grandstand | `street_stand_tier_end` | 4 × 26 m, 17 m | end cap symmetric about x = 0, place at ±(L/2 + 2): raked access stair with rails both sides, rear stair tower (five flights) roofed at 17 m, same LED fascia — **done** | P1 |
+| grandstand | `street_stand_tier_10m_roof` / `_crowd` | 10 × 26 m, 22 m | as the bay plus a cantilever truss canopy (22 m at the back, 20.6 m at the front edge), lit soffit strips (`mb_lit_panel`), lamp bars (`floodlight_lamp`), canopy fascia with both LED lines — **done** | P2 |
+| grandstand | `street_stand_deck_10m` | 10 × 14 m, 9 m | glazed ground floor, balcony slab with glass balustrade and one row of `seat_b`, glazed upper floor, `stand_led_blue` roof fascia — **done** | P3 |
+| bridge | `banner_gantry` | 20 m span (legs at y = ±10, skewed 3 m in X), 7 m | box-truss legs and beam, 16 × 1.7 m double-sided banner (`board_brand`, 2 repeats) at 4.4–6.1 m, `led_panel` underside strip; scales with `span_m` — **done** | P1 |
+| misc | `finish_tower_scaffold` | 4 × 4 m, 7 m | scaffold base, glazed cabin at 3.6 m, 14-step stair, roof camera, `flag_cloth` flag; centred — **done** | P2 |
+| light | `lamp_globe_pole` | 0.6 × 0.6 m, 6.5 m | 0.8 m `globe_lamp` sphere on a tapered pole — **done** | P1 |
+| light | `lamp_balloon_tether` / `_orange` | 1.6 m balloon, 9 m | anchor block, tether, `balloon_lamp_white` / `balloon_lamp_orange` — **done** | P2 |
+| light | `pit_light_truss_6m` | 6 × 1.1 m, 1.2 m | tiles on 6 m; **pivot at the bottom centre** (place at mounting height); four `floodlight_lamp` bars underneath — **done** | P2 |
+| board | `led_ribbon_3m` | 3 × 0.15 m, 0.9 m | `led_panel` face with UV 0..1 (brand from `text`); pivot at its base, sits on Tecpro/walls — **done** | P2 |
+| fence | `catch_fence_post_lit_6m` | 4 × 0.6 m, 6.5 m | as `catch_fence_6m` with the top metre leaning 0.3 m to the road and an `mb_lit_panel` rail along the head — **done** | P3 |
+| barrier | `spectator_handrail_4m` | 4 × 0.1 m, 1.1 m | `grandstand_rail`, posts at x = ±1 (2 m pitch across tiles) — **done** | P3 |
+| sign | `pit_entry_board` | 3 × 0.3 m, 4.5 m | blue board at 3.2–4.4 m on two posts, "PIT" in geometry, arrow — **done** | P3 |
+| sign | `garage_number_board` | 1.5 × 0.1 m, 0.8 m | `board_marker` face, UV 0..1, `text` 1–24 → `board/markers/<n>.png` (generated) — **done** | P3 |
+| pit | `pit_wall_gantry_6m` | 6 × 2 m, 3.2 m | 1.1 m wall, crew deck, desk with four `led_screen` monitors and stools, hung timing screen, headset rack, `tent_colour` awning with `board_brand` fascia; road-facing pivot — **done** | P2 |
+| attraction | `marquee_peak_12m` | 12 × 8 m, 6 m | two pyramid peaks, `tent_white` walls on three sides with `mb_lit_panel` panels, open front on -Y; centred — **done** | P2 |
+| attraction | `led_wall_stage_16m` | 16 × 6 m, 9 m | 1.2 m deck, 14.6 × 6.7 m `led_screen` wall (UV 0..1), box-truss goalposts with lamps, speaker stacks; road-facing pivot — **done** | P3 |
+| misc | `walkway_planter_4m` | 4 × 1.2 m, 1.2 m | stone planter, clipped shrubs and a rain-tree sapling — **done** | P3 |
+
+Decals (`content/props/decal/marina/`, same convention as the graffiti set): `edge_yellow_blue.png`
+(+ mirrored `_r`), `pit_exit_blue_green.png`, `wall_base_brand.png`, `finish_chequer_wide.png`
+(opaque), `pit_lane_digits.png` (4 × 4 atlas: 0–9, roundels 60/80/100, PIT, arrow, blank).
+New emissive slots to wire in the night pass: `stand_led_blue`, `stand_led_green`,
+`globe_lamp`, `balloon_lamp_white`, `balloon_lamp_orange`, `step_light_orange`.
+
 Night pass additions: the textured facade slots `mb_glass_blue/teal/bronze/grey/clear`,
 `mb_classic`, `mb_colonial`, `mb_deco` carry a lit-window emissive texture
 (`EmissiveStrength` 0 by day, ~1 at night, like `pit_glass`), and

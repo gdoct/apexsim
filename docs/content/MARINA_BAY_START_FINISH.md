@@ -94,6 +94,19 @@ graffiti: `ats-dress` lays them, `ats-export` bakes them road-hugging).
 | `finish_chequer_wide.png` | 12 x 2 m | The chequered line (the bake paints a plain one today). |
 | `pit_lane_digits.png` | atlas | Lane numbers and speed-limit roundels. |
 
+## Status (2026-10-09)
+
+All meshes in "Props to author" and all five decal images are authored: see
+`docs/content/PROPS.md` § 11 "Start/finish straight". Script:
+`scripts/content/props/build_marina_bay_d1.py`; decals and garage-number plates:
+`scripts/content/props/gen_marina_decals.py`. Deviations from the table:
+`roof_wordmark_block` is the 40 x 6 m textured panel (not 12 letters);
+`lamp_balloon_tether` ships as two GLBs (`lamp_balloon_tether`, `_orange`);
+`street_stand_tier_10m_roof` also has a `_crowd` twin; the stand bay carries no side
+balustrades (they would double up between tiled bays; the end cap has them);
+`stair_zigzag_scaffold` adds one new emissive slot, `step_light_orange`.
+The hooks list below is unchanged.
+
 ## Hooks I (not the prop agent) will have to add
 
 So the list is not the whole job: the dresser needs rules for the start
