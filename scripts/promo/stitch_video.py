@@ -144,10 +144,39 @@ def make_card(path: Path, size: tuple[int, int], card: dict, font_path: str | No
     image.save(path)
 
 
-def make_caption(path: Path, size: tuple[int, int], text: str, font_path: str | None) -> None:
-    """A lower third: an accent bar and the words on a soft dark band, bottom left."""
+def draw_brag(image: Image.Image, text: str, font_path: str | None) -> Image.Image:
+    """A headline claim, top left: big white type with an accent bar, on a soft dark wash."""
+    width, height = image.size
+    font = load_font(font_path, round(height * 0.058))
+    words = text.upper()
+    margin_x = width * 0.055
+    baseline = height * 0.17
+    spacing = height * 0.006
+    text_width = sum(ImageDraw.Draw(image).textlength(ch, font=font) for ch in words) + spacing * max(len(words) - 1, 0)
+    pad = height * 0.022
+    band = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    ImageDraw.Draw(band).rectangle(
+        (margin_x - pad, baseline - height * 0.075, margin_x + text_width + pad * 2, baseline + pad * 1.2),
+        fill=(0, 0, 0, 120))
+    image = Image.alpha_composite(image, band.filter(ImageFilter.GaussianBlur(radius=height * 0.004)))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((margin_x - pad, baseline - height * 0.075, margin_x - pad + max(5, height * 0.008),
+                    baseline + pad * 1.2), fill=ACCENT + (255,))
+    spaced_text(draw, (margin_x + pad * 0.6, baseline), words, font, (255, 255, 255, 255), spacing,
+                anchor_centre=False)
+    return image
+
+
+def make_caption(path: Path, size: tuple[int, int], text: str | None, font_path: str | None,
+                 brag: str | None = None) -> None:
+    """A lower third (an accent bar and the words on a soft dark band, bottom left) and/or a headline claim."""
     width, height = size
     image = Image.new("RGBA", size, (0, 0, 0, 0))
+    if brag:
+        image = draw_brag(image, brag, font_path)
+    if not text:
+        image.save(path)
+        return
     draw = ImageDraw.Draw(image)
     font = load_font(font_path, round(height * 0.034))
     words = text.upper()
@@ -255,9 +284,10 @@ def main() -> None:
         seconds = probe_seconds(ffmpeg, file) if not args.dry_run else float(clip["seconds"])
         caption_text = entry.get("caption", clip.get("caption"))
         caption = None
-        if captions_on and caption_text:
+        brag_text = entry.get("brag")
+        if captions_on and (caption_text or brag_text):
             caption = work / f"caption_{entry['id']}.png"
-            make_caption(caption, size, caption_text, font)
+            make_caption(caption, size, caption_text, font, brag_text)
         segments.append({
             "kind": "clip", "file": file, "seconds": seconds, "caption": caption,
             "transition": entry.get("transition", default_transition),
