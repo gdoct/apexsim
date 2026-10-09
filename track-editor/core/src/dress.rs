@@ -1107,8 +1107,11 @@ fn city_building_asset(structure: &Structure) -> (&'static str, usize) {
         .wrapping_mul(31)
         .wrapping_add((structure.centre[1] * 7.0).floor() as i64)
         .unsigned_abs() as usize;
-    if structure.area_m2 < 900.0 {
+    // What the map says about its height beats a guess from the footprint.
+    if (1..=8).contains(&structure.levels) || structure.area_m2 < 900.0 {
         ("skyline_lowrise", 1)
+    } else if structure.levels >= 40 {
+        ("skyline_needle", 1)
     } else if structure.area_m2 >= 3500.0 {
         let row = (structure.length_m / 40.0).round().clamp(1.0, 6.0) as usize;
         ("skyline_podium", row)

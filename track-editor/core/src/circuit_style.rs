@@ -23,9 +23,8 @@ pub enum Rail {
     /// `vangrail_4m_triple` on the fast stretches, `vangrail_4m_fence`
     /// where people stand behind it, `vangrail_end` closing a run.
     Vangrail,
-    /// A city circuit's walls: concrete (`concrete_4m_rail`, with the catch
-    /// fence's rail on top) wherever a modern circuit would put armco, and
-    /// Tecpro for the tyre walls, close to the road. Marina Bay.
+    /// A city circuit's barriers: Tecpro blocks the whole way round, close
+    /// to the road, with an advertising board behind every one. Marina Bay.
     Street,
 }
 
@@ -51,11 +50,14 @@ impl Rail {
         use crate::barriers::BarrierKind;
         match (self, kind) {
             (Rail::Vangrail, BarrierKind::Tecpro) => BarrierKind::Armco,
-            (Rail::Street, BarrierKind::Armco | BarrierKind::ArmcoFence) => BarrierKind::Concrete,
             // Walls everywhere; Tecpro only where a tyre wall would stand,
             // at the tightest corners.
-            (Rail::Street, BarrierKind::Tyres) => BarrierKind::Tecpro,
-            (Rail::Street, BarrierKind::Tecpro) => BarrierKind::Concrete,
+            // Tecpro the whole way round, as on the real circuit; a mapped
+            // wall stays a wall.
+            (
+                Rail::Street,
+                BarrierKind::Armco | BarrierKind::ArmcoFence | BarrierKind::Tyres,
+            ) => BarrierKind::Tecpro,
             (_, kind) => kind,
         }
     }
@@ -114,7 +116,13 @@ pub enum Ground {
     /// set in a desert tint ([`DESERT_SAND_COLOR`]), and no grass or
     /// flower clumps scattered on the verge.
     Sand,
+    /// A city: the terrain and the apron drawn with the concrete set in a
+    /// pavement grey, no lawn.
+    Paved,
 }
+
+/// Linear base colour of a city's paving.
+pub const PAVED_COLOR: [f32; 4] = [0.20, 0.20, 0.21, 1.0];
 
 /// Linear base colour of a desert floor: paler and redder than a gravel
 /// trap's sand, which is washed river gravel, not Arabian limestone dust.
@@ -217,7 +225,7 @@ impl CircuitStyle {
         // Over the other-leg clearance (2.5 m), or a wall would be refused
         // beside its own road.
         straight_barrier_min_m: 3.0,
-        corner_barrier_min_m: 3.5,
+        corner_barrier_min_m: 5.0,
         trees: TreeBelt {
             near_m: 22.0,
             far_m: 90.0,
@@ -226,6 +234,7 @@ impl CircuitStyle {
             empty_share: 1.0,
         },
         flora: Flora::Tropical,
+        ground: Ground::Paved,
         floodlights: false,
         city_buildings: true,
         ground_cover: false,
@@ -296,13 +305,13 @@ mod tests {
     }
 
     #[test]
-    fn the_street_style_walls_in_concrete() {
+    fn the_street_style_is_tecpro_and_paving() {
         use crate::barriers::BarrierKind;
         let r = Rail::Street;
-        assert_eq!(r.barrier(BarrierKind::Armco), BarrierKind::Concrete);
+        assert_eq!(r.barrier(BarrierKind::Armco), BarrierKind::Tecpro);
         assert_eq!(r.barrier(BarrierKind::Tyres), BarrierKind::Tecpro);
-        assert_eq!(r.barrier(BarrierKind::Tecpro), BarrierKind::Concrete);
-        assert_eq!(r.asset("concrete_4m_rail", 50.0), "concrete_4m_rail");
+        assert_eq!(r.barrier(BarrierKind::Concrete), BarrierKind::Concrete);
+        assert_eq!(CircuitStyle::STREET.ground, Ground::Paved);
         assert_eq!(CircuitStyle::for_stem("MarinaBay"), CircuitStyle::STREET);
         assert!(!CircuitStyle::STREET.floodlights);
     }

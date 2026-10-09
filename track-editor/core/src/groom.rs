@@ -974,7 +974,7 @@ pub fn groom_props_with_dem(
 
     // So do the hoardings: hung on the rails, brand by brand.
     let hoardings = if style.hoardings {
-        lay_hoardings(&path, &terrain, &corners, &props)
+        lay_hoardings(&path, &terrain, &corners, &props, style.city_buildings)
     } else {
         Vec::new()
     };
@@ -1001,7 +1001,7 @@ pub fn groom_props_with_dem(
     let cover_density = match style.ground {
         Ground::Grass if style.ground_cover => tree_density(track),
         Ground::Grass => 0.0,
-        Ground::Sand => 0.0,
+        Ground::Sand | Ground::Paved => 0.0,
     };
     trees.extend(lay_ground_cover(
         &path,
@@ -1115,6 +1115,10 @@ const HOARDING_BEFORE_LINE_M: f32 = 250.0;
 const HOARDING_AFTER_LINE_M: f32 = 150.0;
 /// One sponsor takes a stretch this long before the next.
 const HOARDING_BRAND_RUN_M: f32 = 36.0;
+/// A city circuit changes brand every this many metres, and a board is this
+/// wide.
+const STREET_BRAND_RUN_M: f32 = 15.0;
+const HOARDING_MODULE_M: f32 = 3.0;
 /// A rail with a grandstand this close behind it carries hoardings.
 const HOARDING_STAND_RANGE_M: f32 = 20.0;
 
@@ -1137,9 +1141,18 @@ fn lay_hoardings(
     terrain: &TerrainHeightfield,
     corners: &[BrakingCorner],
     props: &[Prop],
+    street: bool,
 ) -> Vec<Prop> {
     let total = path.total_length_m();
     let closed = path.is_closed();
+    // A street circuit sells every metre of its barrier: a board behind
+    // every Tecpro run, one brand per short stretch.
+    let brand_run = if street {
+        STREET_BRAND_RUN_M
+    } else {
+        HOARDING_BRAND_RUN_M
+    };
+    let mut last_board: [f32; 2] = [f32::NEG_INFINITY; 2];
     let along = |from: f32, to: f32, station: f32| -> bool {
         let d = station - from;
         let d = if closed { d.rem_euclid(total) } else { d };
@@ -1176,7 +1189,7 @@ fn lay_hoardings(
         .collect();
     let mut out = Vec::new();
     for rail in props.iter().filter(|p| p.kind == PropKind::Barrier) {
-        if !matches!(
+        let carries = matches!(
             rail.asset.as_str(),
             "armco_4m"
                 | "armco_4m_fence"
@@ -1184,7 +1197,8 @@ fn lay_hoardings(
                 | "vangrail_4m"
                 | "vangrail_4m_triple"
                 | "vangrail_4m_fence"
-        ) {
+        ) || (street && rail.asset == "tecpro_2m");
+        if !carries {
             continue;
         }
         let fence = stands
@@ -1195,8 +1209,16 @@ fn lay_hoardings(
             continue;
         };
         let side = if lat >= 0.0 { Side::Left } else { Side::Right };
-        if !sold(station, side, fence) {
+        if !street && !sold(station, side, fence) {
             continue;
+        }
+        // Boards are 3 m wide, Tecpro blocks 2 m: one board per 3 m of rail.
+        if street {
+            let slot = matches!(side, Side::Left) as usize;
+            if station >= last_board[slot] && station - last_board[slot] < HOARDING_MODULE_M {
+                continue;
+            }
+            last_board[slot] = station;
         }
         // Behind the rail: along the rail's own normal, away from the road.
         let (sin, cos) = rail.yaw_rad.sin_cos();
@@ -1205,7 +1227,7 @@ fn lay_hoardings(
         let (x, y) = (rail.x - sin * away * behind, rail.y + cos * away * behind);
         let sample = path.sample_at(station);
         let seat_lat = lat + away * behind;
-        let stretch = (station / HOARDING_BRAND_RUN_M).floor() as u64;
+        let stretch = (station / brand_run).floor() as u64;
         let pick = hash01(&[stretch, matches!(side, Side::Left) as u64], 0x4041);
         let brand = crate::dress::KIT_BRANDS[(pick * crate::dress::KIT_BRANDS.len() as f32)
             as usize

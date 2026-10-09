@@ -381,12 +381,19 @@ retirements, 5-12 car-seconds of contact, 13-17 off the road) drives it.
 
 What it added to the pipeline, all inert for other circuits:
 
-- **Street style** (`CircuitStyle::STREET`, `Rail::Street`): concrete walls
-  3 / 3.5 m off the road (more than `OTHER_LEG_CLEAR_M`, or the wall is
-  refused beside its own road), Tecpro only for tyre-wall corners, no tree
-  belt or ground cover, no floodlight ring, `city_buildings` and twin-arm
-  street lamps every 40 m alternating sides, walls allowed in front of
-  buildings (`building_clear`).
+- **Street style** (`CircuitStyle::STREET`, `Rail::Street`): Tecpro the
+  whole way round (the real circuit's look; a mapped wall stays concrete),
+  3 m off the road on straights and 5 m at corners (more than
+  `OTHER_LEG_CLEAR_M`, or the wall is refused beside its own road; at 3.5 m
+  the F1 survey pinned a car in T5's Tecpro, contact 12 -> 68 car-seconds),
+  an advertising board behind every 3 m of rail, a brand per 15 m
+  (`lay_hoardings(street)`), paved ground (`Ground::Paved`: the ground,
+  horizon and grass band sample the **asphalt** set in a pavement grey; the
+  **concrete** set on those keys hung the GPU, `DXGI_ERROR_DEVICE_HUNG`
+  five seconds into a race, unexplained), no tree belt or ground cover, no
+  floodlight ring, `city_buildings` and twin-arm street lamps every 40 m
+  alternating sides, walls allowed in front of buildings (`building_clear`).
+  The dossier takes buildings out to 260 m from 600 m^2 for a city.
 - **Landmark buildings**: a dossier `Structure.asset` (from
   `MANUAL_STRUCTURE_ASSETS`) names a centred kit building
   (`building_colonnade_hotel`...; `"-"` leaves a footprint out); a city

@@ -949,6 +949,10 @@ POI_RANGE_M = 300.0
 # `unclassified` census, whether a rule claims it or not.
 CENSUS_RANGE_M = 250.0
 STRUCTURE_RANGE_M = 140.0
+# A city's skyline is more than its near neighbours: for the stems in
+# `WATER_STEMS` buildings count out to this range, from this size.
+CITY_STRUCTURE_RANGE_M = 260.0
+CITY_STRUCTURE_MIN_M2 = 600.0
 WOOD_RANGE_M = 260.0
 
 
@@ -2152,7 +2156,11 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         near = float(d.min())
         if is_stand and near > STAND_RANGE_M:
             continue
-        if is_building and (near > STRUCTURE_RANGE_M or ring_area(p) < 250.0):
+        city = stem in WATER_STEMS
+        if is_building and (
+            near > (CITY_STRUCTURE_RANGE_M if city else STRUCTURE_RANGE_M)
+            or ring_area(p) < (CITY_STRUCTURE_MIN_M2 if city else 250.0)
+        ):
             continue
         centre, length, depth, yaw = oriented_box(p)
         front = front_edge(p, track) if is_stand else None

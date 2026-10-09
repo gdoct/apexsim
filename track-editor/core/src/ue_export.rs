@@ -1360,8 +1360,10 @@ pub fn bake_all_with_options(
         terrain.as_ref(),
     );
     let walls = bake_walls(&props, &path, terrain.as_ref());
-    if CircuitStyle::for_scene(scene).ground == Ground::Sand {
-        bake.sand_ground();
+    match CircuitStyle::for_scene(scene).ground {
+        Ground::Sand => bake.sand_ground(),
+        Ground::Paved => bake.paved_ground(),
+        Ground::Grass => {}
     }
     let Bake {
         chunks,
@@ -1800,11 +1802,20 @@ impl Bake<'_> {
     /// samples the sand set instead, in the desert's own tint. Run after
     /// everything is registered; the meshes and physics are untouched.
     fn sand_ground(&mut self) {
+        self.restyle_ground("sand", DESERT_SAND_COLOR);
+    }
+
+    /// A city: the same keys sample the asphalt set in a pavement grey.
+    fn paved_ground(&mut self) {
+        self.restyle_ground("asphalt", crate::circuit_style::PAVED_COLOR);
+    }
+
+    fn restyle_ground(&mut self, set: &str, color: [f32; 4]) {
         let grass_band = format!("surface_{}", crate::ats::SurfaceKind::Grass.label());
         for key in ["ground", HORIZON_KEY, grass_band.as_str()] {
             if let Some(material) = self.materials.get_mut(key) {
-                material.ground_set = Some("sand".to_string());
-                material.base_color = DESERT_SAND_COLOR.map(|c| round(c, 4));
+                material.ground_set = Some(set.to_string());
+                material.base_color = color.map(|c| round(c, 4));
             }
         }
     }

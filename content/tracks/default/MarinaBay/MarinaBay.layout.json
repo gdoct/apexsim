@@ -1451,22 +1451,6 @@
    "area_m2": 645
   },
   {
-   "name": null,
-   "station_m": 49.6,
-   "side": "left",
-   "offset_m": 63.5,
-   "length_m": 29.2,
-   "depth_m": 11.0,
-   "yaw_rad": 0.0079,
-   "centre": [
-    49.59,
-    70.19
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 320
-  },
-  {
    "name": "F1 Pit Building",
    "station_m": 63.3,
    "side": "left",
@@ -1499,6 +1483,22 @@
    "area_m2": 739
   },
   {
+   "name": "Suntec City",
+   "station_m": 633.9,
+   "side": "right",
+   "offset_m": 187.5,
+   "length_m": 200.2,
+   "depth_m": 98.2,
+   "yaw_rad": 0.4687,
+   "centre": [
+    528.23,
+    408.43
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 11860
+  },
+  {
    "name": null,
    "station_m": 1039.4,
    "side": "left",
@@ -1515,38 +1515,6 @@
    "area_m2": 1777
   },
   {
-   "name": null,
-   "station_m": 1172.4,
-   "side": "right",
-   "offset_m": 80.5,
-   "length_m": 72.9,
-   "depth_m": 14.1,
-   "yaw_rad": 3.1302,
-   "centre": [
-    248.59,
-    331.58
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 551
-  },
-  {
-   "name": null,
-   "station_m": 1240.5,
-   "side": "right",
-   "offset_m": 20.8,
-   "length_m": 24.5,
-   "depth_m": 12.4,
-   "yaw_rad": 2.1615,
-   "centre": [
-    180.6,
-    401.85
-   ],
-   "levels": 0,
-   "osm_building": "train_station",
-   "area_m2": 293
-  },
-  {
    "name": "Millenia Tower",
    "station_m": 1272.4,
    "side": "right",
@@ -1561,6 +1529,22 @@
    "levels": 41,
    "osm_building": "yes",
    "area_m2": 1726
+  },
+  {
+   "name": "Centennial Tower",
+   "station_m": 1282.2,
+   "side": "right",
+   "offset_m": 199.6,
+   "length_m": 68.4,
+   "depth_m": 43.6,
+   "yaw_rad": 0.9484,
+   "centre": [
+    380.8,
+    411.31
+   ],
+   "levels": 37,
+   "osm_building": "yes",
+   "area_m2": 2427
   },
   {
    "name": "Millenia Walk",
@@ -1627,6 +1611,22 @@
    "area_m2": 5649
   },
   {
+   "name": "Conrad Centennial",
+   "station_m": 1540.4,
+   "side": "right",
+   "offset_m": 142.6,
+   "length_m": 97.7,
+   "depth_m": 56.7,
+   "yaw_rad": 1.4022,
+   "centre": [
+    397.29,
+    574.56
+   ],
+   "levels": 0,
+   "osm_building": "hotel",
+   "area_m2": 4164
+  },
+  {
    "name": "Marina Square",
    "station_m": 1576.3,
    "side": "left",
@@ -1659,6 +1659,22 @@
    "area_m2": 9842
   },
   {
+   "name": "Suntec Tower 5",
+   "station_m": 1692.3,
+   "side": "right",
+   "offset_m": 219.6,
+   "length_m": 59.2,
+   "depth_m": 58.8,
+   "yaw_rad": 2.5075,
+   "centre": [
+    540.95,
+    654.58
+   ],
+   "levels": 0,
+   "osm_building": "office",
+   "area_m2": 3485
+  },
+  {
    "name": "Suntec Singapore Convention & Exhibition Centre",
    "station_m": 1700.9,
    "side": "right",
@@ -1674,6 +1690,54 @@
    "osm_building": "retail",
    "area_m2": 26071,
    "asset": "building_five_towers"
+  },
+  {
+   "name": "Suntec City",
+   "station_m": 1719.8,
+   "side": "right",
+   "offset_m": 199.5,
+   "length_m": 183.8,
+   "depth_m": 45.9,
+   "yaw_rad": 2.5703,
+   "centre": [
+    567.39,
+    671.49
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 5125
+  },
+  {
+   "name": null,
+   "station_m": 1736.1,
+   "side": "right",
+   "offset_m": 199.5,
+   "length_m": 63.8,
+   "depth_m": 42.2,
+   "yaw_rad": 2.0491,
+   "centre": [
+    551.6,
+    707.15
+   ],
+   "levels": 5,
+   "osm_building": "yes",
+   "area_m2": 1775
+  },
+  {
+   "name": null,
+   "station_m": 1789.3,
+   "side": "right",
+   "offset_m": 244.2,
+   "length_m": 28.3,
+   "depth_m": 28.1,
+   "yaw_rad": 0.8489,
+   "centre": [
+    665.04,
+    947.05
+   ],
+   "levels": 4,
+   "osm_building": "yes",
+   "area_m2": 709
   },
   {
    "name": "South Beach Avenue",
@@ -1708,6 +1772,54 @@
    "area_m2": 2824
   },
   {
+   "name": "South Beach Tower",
+   "station_m": 1815.8,
+   "side": "right",
+   "offset_m": 245.4,
+   "length_m": 52.8,
+   "depth_m": 28.4,
+   "yaw_rad": 2.4932,
+   "centre": [
+    665.25,
+    813.29
+   ],
+   "levels": 0,
+   "osm_building": "office",
+   "area_m2": 1497
+  },
+  {
+   "name": "Old SSVF HQ",
+   "station_m": 1816.4,
+   "side": "right",
+   "offset_m": 206.7,
+   "length_m": 43.6,
+   "depth_m": 20.5,
+   "yaw_rad": 0.9241,
+   "centre": [
+    628.78,
+    870.92
+   ],
+   "levels": 0,
+   "osm_building": "hotel",
+   "area_m2": 885
+  },
+  {
+   "name": "Old Command Block",
+   "station_m": 1824.3,
+   "side": "right",
+   "offset_m": 149.8,
+   "length_m": 67.7,
+   "depth_m": 13.7,
+   "yaw_rad": 2.4945,
+   "centre": [
+    577.71,
+    924.02
+   ],
+   "levels": 2,
+   "osm_building": "commercial",
+   "area_m2": 912
+  },
+  {
    "name": "NCO Club",
    "station_m": 1827.2,
    "side": "right",
@@ -1722,6 +1834,22 @@
    "levels": 2,
    "osm_building": "commercial",
    "area_m2": 1138
+  },
+  {
+   "name": null,
+   "station_m": 1831.7,
+   "side": "right",
+   "offset_m": 188.3,
+   "length_m": 33.8,
+   "depth_m": 21.8,
+   "yaw_rad": 0.8073,
+   "centre": [
+    563.66,
+    1047.56
+   ],
+   "levels": 1,
+   "osm_building": "yes",
+   "area_m2": 735
   },
   {
    "name": "One Raffles Link",
@@ -1757,6 +1885,22 @@
    "asset": "building_club_pavilion"
   },
   {
+   "name": "Former Dormitories",
+   "station_m": 2207.1,
+   "side": "right",
+   "offset_m": 255.0,
+   "length_m": 76.2,
+   "depth_m": 75.8,
+   "yaw_rad": 0.839,
+   "centre": [
+    657.01,
+    1256.1
+   ],
+   "levels": 2,
+   "osm_building": "yes",
+   "area_m2": 2291
+  },
+  {
    "name": "Raffles City Shopping Centre",
    "station_m": 2212.5,
    "side": "right",
@@ -1773,6 +1917,102 @@
    "area_m2": 22792
   },
   {
+   "name": "SMRT Headquarters",
+   "station_m": 2232.2,
+   "side": "right",
+   "offset_m": 243.9,
+   "length_m": 40.8,
+   "depth_m": 38.1,
+   "yaw_rad": 0.9063,
+   "centre": [
+    604.12,
+    1309.76
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1305
+  },
+  {
+   "name": "SMRT Headquarters",
+   "station_m": 2239.3,
+   "side": "right",
+   "offset_m": 213.3,
+   "length_m": 150.8,
+   "depth_m": 61.3,
+   "yaw_rad": 0.9067,
+   "centre": [
+    595.52,
+    1350.28
+   ],
+   "levels": 3,
+   "osm_building": "yes",
+   "area_m2": 4239
+  },
+  {
+   "name": null,
+   "station_m": 2242.9,
+   "side": "right",
+   "offset_m": 236.7,
+   "length_m": 132.3,
+   "depth_m": 85.9,
+   "yaw_rad": 0.8326,
+   "centre": [
+    663.0,
+    1251.15
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1631
+  },
+  {
+   "name": "Capitol Building",
+   "station_m": 2260.5,
+   "side": "right",
+   "offset_m": 194.3,
+   "length_m": 97.7,
+   "depth_m": 56.0,
+   "yaw_rad": 0.851,
+   "centre": [
+    507.69,
+    1369.88
+   ],
+   "levels": 3,
+   "osm_building": "yes",
+   "area_m2": 2100
+  },
+  {
+   "name": null,
+   "station_m": 2261.3,
+   "side": "right",
+   "offset_m": 209.1,
+   "length_m": 80.4,
+   "depth_m": 44.1,
+   "yaw_rad": 0.8574,
+   "centre": [
+    504.2,
+    1396.86
+   ],
+   "levels": 0,
+   "osm_building": "roof",
+   "area_m2": 2137
+  },
+  {
+   "name": "Capitol Theatre",
+   "station_m": 2266.2,
+   "side": "right",
+   "offset_m": 231.9,
+   "length_m": 56.3,
+   "depth_m": 24.2,
+   "yaw_rad": 0.934,
+   "centre": [
+    500.03,
+    1408.58
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1339
+  },
+  {
    "name": "Cathedral Café",
    "station_m": 2275.1,
    "side": "right",
@@ -1787,6 +2027,22 @@
    "levels": 0,
    "osm_building": "yes",
    "area_m2": 1102
+  },
+  {
+   "name": "Capitol Singapore",
+   "station_m": 2301.1,
+   "side": "right",
+   "offset_m": 203.9,
+   "length_m": 81.3,
+   "depth_m": 57.4,
+   "yaw_rad": 0.887,
+   "centre": [
+    454.95,
+    1422.92
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 4031
   },
   {
    "name": "Saint Andrew's Cathedral",
@@ -1822,6 +2078,54 @@
    "area_m2": 945
   },
   {
+   "name": "Peninsula Plaza",
+   "station_m": 2379.7,
+   "side": "right",
+   "offset_m": 202.2,
+   "length_m": 76.9,
+   "depth_m": 59.4,
+   "yaw_rad": 2.5069,
+   "centre": [
+    388.93,
+    1462.59
+   ],
+   "levels": 0,
+   "osm_building": "retail",
+   "area_m2": 4342
+  },
+  {
+   "name": "Peninsula Hotel",
+   "station_m": 2470.5,
+   "side": "right",
+   "offset_m": 234.1,
+   "length_m": 38.5,
+   "depth_m": 21.1,
+   "yaw_rad": 2.5319,
+   "centre": [
+    323.99,
+    1529.45
+   ],
+   "levels": 22,
+   "osm_building": "hotel",
+   "area_m2": 812
+  },
+  {
+   "name": "Peninsula Shopping Centre",
+   "station_m": 2474.0,
+   "side": "right",
+   "offset_m": 230.5,
+   "length_m": 112.3,
+   "depth_m": 42.3,
+   "yaw_rad": 0.9571,
+   "centre": [
+    343.33,
+    1562.67
+   ],
+   "levels": 5,
+   "osm_building": "yes",
+   "area_m2": 4682
+  },
+  {
    "name": "Old City Hall",
    "station_m": 2513.3,
    "side": "right",
@@ -1837,6 +2141,22 @@
    "osm_building": "yes",
    "area_m2": 8084,
    "asset": "building_colonnade_civic"
+  },
+  {
+   "name": "Funan",
+   "station_m": 2524.1,
+   "side": "right",
+   "offset_m": 207.3,
+   "length_m": 128.7,
+   "depth_m": 118.5,
+   "yaw_rad": 0.9368,
+   "centre": [
+    289.08,
+    1573.67
+   ],
+   "levels": 0,
+   "osm_building": "commercial",
+   "area_m2": 9045
   },
   {
    "name": "Supreme Court of Singapore",
@@ -1871,6 +2191,38 @@
    "area_m2": 3554
   },
   {
+   "name": null,
+   "station_m": 2597.2,
+   "side": "right",
+   "offset_m": 209.1,
+   "length_m": 124.1,
+   "depth_m": 43.5,
+   "yaw_rad": 0.8977,
+   "centre": [
+    236.04,
+    1625.72
+   ],
+   "levels": 0,
+   "osm_building": "office",
+   "area_m2": 4555
+  },
+  {
+   "name": null,
+   "station_m": 2600.1,
+   "side": "right",
+   "offset_m": 209.1,
+   "length_m": 123.5,
+   "depth_m": 35.5,
+   "yaw_rad": 0.8977,
+   "centre": [
+    233.17,
+    1627.91
+   ],
+   "levels": 10,
+   "osm_building": "yes",
+   "area_m2": 3601
+  },
+  {
    "name": "Old Supreme Court",
    "station_m": 2613.6,
    "side": "right",
@@ -1888,6 +2240,54 @@
    "asset": "building_domed_court"
   },
   {
+   "name": "High Street Plaza",
+   "station_m": 2640.7,
+   "side": "right",
+   "offset_m": 255.4,
+   "length_m": 37.4,
+   "depth_m": 26.3,
+   "yaw_rad": 0.7899,
+   "centre": [
+    198.98,
+    1658.93
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 984
+  },
+  {
+   "name": "High Street Centre",
+   "station_m": 2642.8,
+   "side": "right",
+   "offset_m": 212.9,
+   "length_m": 99.7,
+   "depth_m": 49.4,
+   "yaw_rad": 0.8924,
+   "centre": [
+    135.88,
+    1682.98
+   ],
+   "levels": 6,
+   "osm_building": "commercial",
+   "area_m2": 4883
+  },
+  {
+   "name": "25 North Bridge",
+   "station_m": 2653.1,
+   "side": "right",
+   "offset_m": 208.2,
+   "length_m": 31.9,
+   "depth_m": 28.0,
+   "yaw_rad": 0.8244,
+   "centre": [
+    154.63,
+    1616.07
+   ],
+   "levels": 8,
+   "osm_building": "office",
+   "area_m2": 846
+  },
+  {
    "name": "Front Hall",
    "station_m": 2654.4,
    "side": "right",
@@ -1902,22 +2302,6 @@
    "levels": 0,
    "osm_building": "government",
    "area_m2": 3060
-  },
-  {
-   "name": "Hallpike Public Hall",
-   "station_m": 2657.0,
-   "side": "right",
-   "offset_m": 64.6,
-   "length_m": 22.7,
-   "depth_m": 22.2,
-   "yaw_rad": 0.8266,
-   "centre": [
-    43.3,
-    1518.81
-   ],
-   "levels": 0,
-   "osm_building": "public",
-   "area_m2": 501
   },
   {
    "name": "Parliament Secretariat's Office",
@@ -1968,22 +2352,6 @@
    "area_m2": 1865
   },
   {
-   "name": "Old Civil District Court",
-   "station_m": 2687.8,
-   "side": "right",
-   "offset_m": 105.0,
-   "length_m": 48.8,
-   "depth_m": 18.6,
-   "yaw_rad": 2.3629,
-   "centre": [
-    -94.64,
-    1518.11
-   ],
-   "levels": 2,
-   "osm_building": "yes",
-   "area_m2": 600
-  },
-  {
    "name": "Singapore Cricket Club",
    "station_m": 2736.5,
    "side": "left",
@@ -2017,20 +2385,52 @@
    "area_m2": 5333
   },
   {
-   "name": "The Fullerton Waterboat House",
-   "station_m": 3003.2,
-   "side": "left",
-   "offset_m": 11.6,
-   "length_m": 32.6,
-   "depth_m": 24.7,
-   "yaw_rad": 0.4556,
+   "name": "Singapore Land Tower",
+   "station_m": 3014.8,
+   "side": "right",
+   "offset_m": 253.2,
+   "length_m": 40.2,
+   "depth_m": 39.8,
+   "yaw_rad": 2.1226,
    "centre": [
-    -238.04,
-    1237.13
+    -474.03,
+    1443.83
+   ],
+   "levels": 48,
+   "osm_building": "commercial",
+   "area_m2": 1602
+  },
+  {
+   "name": "BOC",
+   "station_m": 3017.9,
+   "side": "right",
+   "offset_m": 157.4,
+   "length_m": 47.5,
+   "depth_m": 33.9,
+   "yaw_rad": 0.3348,
+   "centre": [
+    -372.84,
+    1395.82
    ],
    "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 584
+   "osm_building": "office",
+   "area_m2": 1557
+  },
+  {
+   "name": "Singapore Land Tower",
+   "station_m": 3026.5,
+   "side": "right",
+   "offset_m": 232.7,
+   "length_m": 68.2,
+   "depth_m": 67.1,
+   "yaw_rad": 1.3602,
+   "centre": [
+    -483.67,
+    1436.65
+   ],
+   "levels": 4,
+   "osm_building": "commercial",
+   "area_m2": 3774
   },
   {
    "name": "Maybank",
@@ -2049,6 +2449,22 @@
    "area_m2": 1025
   },
   {
+   "name": "HSBC",
+   "station_m": 3035.3,
+   "side": "right",
+   "offset_m": 178.2,
+   "length_m": 49.8,
+   "depth_m": 33.3,
+   "yaw_rad": 1.1757,
+   "centre": [
+    -444.31,
+    1340.11
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1513
+  },
+  {
    "name": "The Fullerton Hotel",
    "station_m": 3036.4,
    "side": "right",
@@ -2064,6 +2480,54 @@
    "osm_building": "yes",
    "area_m2": 6743,
    "asset": "building_colonnade_hotel"
+  },
+  {
+   "name": "Tung Centre",
+   "station_m": 3037.7,
+   "side": "right",
+   "offset_m": 222.6,
+   "length_m": 46.0,
+   "depth_m": 37.0,
+   "yaw_rad": 2.828,
+   "centre": [
+    -488.78,
+    1362.29
+   ],
+   "levels": 0,
+   "osm_building": "yes",
+   "area_m2": 1382
+  },
+  {
+   "name": "MYP Centre",
+   "station_m": 3042.0,
+   "side": "right",
+   "offset_m": 186.6,
+   "length_m": 92.2,
+   "depth_m": 55.3,
+   "yaw_rad": 2.9288,
+   "centre": [
+    -455.79,
+    1392.11
+   ],
+   "levels": 0,
+   "osm_building": "office",
+   "area_m2": 2166
+  },
+  {
+   "name": "Six Battery Road",
+   "station_m": 3042.9,
+   "side": "right",
+   "offset_m": 190.8,
+   "length_m": 87.8,
+   "depth_m": 50.2,
+   "yaw_rad": 1.8802,
+   "centre": [
+    -399.76,
+    1451.42
+   ],
+   "levels": 4,
+   "osm_building": "yes",
+   "area_m2": 3800
   },
   {
    "name": "One Fullerton",
@@ -2097,22 +2561,6 @@
    "osm_building": "yes",
    "area_m2": 5152,
    "asset": "-"
-  },
-  {
-   "name": "The Cenotaph",
-   "station_m": 3445.5,
-   "side": "left",
-   "offset_m": 77.7,
-   "length_m": 24.4,
-   "depth_m": 14.4,
-   "yaw_rad": 2.5891,
-   "centre": [
-    111.95,
-    1167.33
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 351
   },
   {
    "name": "Esplanade Theatre",
