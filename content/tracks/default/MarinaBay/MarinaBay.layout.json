@@ -590,7 +590,7 @@
    "side": "left",
    "offset_m": 6,
    "length_m": 98.1,
-   "depth_m": 12.0,
+   "depth_m": 14.0,
    "covered": false,
    "yaw_rad": 0.031,
    "centre": [
@@ -638,7 +638,8 @@
      397.7,
      20.39
     ]
-   ]
+   ],
+   "family": "street_deck"
   },
   {
    "name": "Turn 1 Grandstand",
@@ -693,7 +694,7 @@
    "side": "left",
    "offset_m": 6,
    "length_m": 80.7,
-   "depth_m": 12.0,
+   "depth_m": 14.0,
    "covered": false,
    "yaw_rad": 0.8985,
    "centre": [
@@ -733,7 +734,8 @@
      479.25,
      111.95
     ]
-   ]
+   ],
+   "family": "street_deck"
   },
   {
    "name": "Turn 2 Grandstand",
@@ -788,7 +790,7 @@
    "side": "right",
    "offset_m": 6,
    "length_m": 105.0,
-   "depth_m": 12.0,
+   "depth_m": 14.0,
    "covered": false,
    "yaw_rad": 2.5107,
    "centre": [
@@ -840,7 +842,8 @@
      293.94,
      1010.54
     ]
-   ]
+   ],
+   "family": "street_deck"
   },
   {
    "name": "Padang A Grandstand",
@@ -849,7 +852,7 @@
    "side": "right",
    "offset_m": 6,
    "length_m": 90.1,
-   "depth_m": 12.0,
+   "depth_m": 14.0,
    "covered": false,
    "yaw_rad": 2.528,
    "centre": [
@@ -897,7 +900,8 @@
      218.02,
      1315.92
     ]
-   ]
+   ],
+   "family": "street_deck"
   },
   {
    "name": "Padang B Grandstand",
@@ -906,7 +910,7 @@
    "side": "right",
    "offset_m": 6,
    "length_m": 85.1,
-   "depth_m": 12.0,
+   "depth_m": 14.0,
    "covered": false,
    "yaw_rad": 2.527,
    "centre": [
@@ -950,7 +954,8 @@
      144.4,
      1367.74
     ]
-   ]
+   ],
+   "family": "street_deck"
   },
   {
    "name": "Empress Grandstand",
@@ -959,7 +964,7 @@
    "side": "right",
    "offset_m": 6,
    "length_m": 68.0,
-   "depth_m": 12.0,
+   "depth_m": 14.0,
    "covered": false,
    "yaw_rad": -2.3117,
    "centre": [
@@ -999,7 +1004,8 @@
      -66.44,
      1374.23
     ]
-   ]
+   ],
+   "family": "street_deck"
   },
   {
    "name": "Connaught Grandstand",
@@ -1008,7 +1014,7 @@
    "side": "right",
    "offset_m": 6,
    "length_m": 111.3,
-   "depth_m": 12.0,
+   "depth_m": 14.0,
    "covered": false,
    "yaw_rad": -0.4565,
    "centre": [
@@ -1064,7 +1070,8 @@
      164.83,
      1033.39
     ]
-   ]
+   ],
+   "family": "street_deck"
   },
   {
    "name": "Raffles Grandstand",
@@ -1073,7 +1080,7 @@
    "side": "left",
    "offset_m": 6,
    "length_m": 120.1,
-   "depth_m": 12.0,
+   "depth_m": 14.0,
    "covered": false,
    "yaw_rad": -1.7393,
    "centre": [
@@ -1133,7 +1140,8 @@
      -7.48,
      596.14
     ]
-   ]
+   ],
+   "family": "street_deck"
   },
   {
    "name": "Promenade Grandstand",
@@ -1142,7 +1150,7 @@
    "side": "left",
    "offset_m": 6,
    "length_m": 69.9,
-   "depth_m": 12.0,
+   "depth_m": 14.0,
    "covered": false,
    "yaw_rad": -1.7898,
    "centre": [
@@ -1182,7 +1190,8 @@
      -155.79,
      224.94
     ]
-   ]
+   ],
+   "family": "street_deck"
   },
   {
    "name": "Bayfront Grandstand",
@@ -1191,7 +1200,7 @@
    "side": "left",
    "offset_m": 6,
    "length_m": 94.2,
-   "depth_m": 12.0,
+   "depth_m": 14.0,
    "covered": false,
    "yaw_rad": -1.7424,
    "centre": [
@@ -1239,7 +1248,8 @@
      -172.97,
      127.28
     ]
-   ]
+   ],
+   "family": "street_deck"
   },
   {
    "name": "Skyline Grandstand",
@@ -1248,7 +1258,7 @@
    "side": "right",
    "offset_m": 6,
    "length_m": 120.3,
-   "depth_m": 12.0,
+   "depth_m": 14.0,
    "covered": false,
    "yaw_rad": -1.7361,
    "centre": [
@@ -1308,7 +1318,8 @@
      -203.38,
      91.92
     ]
-   ]
+   ],
+   "family": "street_deck"
   },
   {
    "name": "Marina Bay Grandstand",
@@ -1317,7 +1328,7 @@
    "side": "right",
    "offset_m": 6,
    "length_m": 51.3,
-   "depth_m": 12.0,
+   "depth_m": 14.0,
    "covered": false,
    "yaw_rad": -1.1885,
    "centre": [
@@ -1345,7 +1356,8 @@
      -186.25,
      41.28
     ]
-   ]
+   ],
+   "family": "street_deck"
   },
   {
    "name": "Super Pit Grandstand",
@@ -48674,6 +48686,277 @@
    "from_m": 290,
    "side": "left",
    "offset_m": 40
+  },
+  {
+   "kind": "attraction",
+   "asset": "marquee_peak_12m",
+   "from_m": 2330,
+   "to_m": 2590,
+   "every_m": 34,
+   "side": "left",
+   "offset_m": 46
+  },
+  {
+   "kind": "attraction",
+   "asset": "marquee_peak_12m",
+   "from_m": 2347,
+   "to_m": 2570,
+   "every_m": 34,
+   "side": "left",
+   "offset_m": 74
+  },
+  {
+   "kind": "attraction",
+   "asset": "led_wall_stage_16m",
+   "from_m": 2460,
+   "side": "left",
+   "offset_m": 105
+  },
+  {
+   "kind": "misc",
+   "asset": "walkway_planter_4m",
+   "from_m": 2330,
+   "to_m": 2600,
+   "every_m": 14,
+   "side": "left",
+   "offset_m": 30
+  },
+  {
+   "kind": "light",
+   "asset": "lamp_globe_pole",
+   "from_m": 2330,
+   "to_m": 2600,
+   "every_m": 20,
+   "side": "left",
+   "offset_m": 60
+  },
+  {
+   "kind": "bridge",
+   "asset": "banner_gantry",
+   "from_m": 1237,
+   "side": "centre",
+   "offset_m": 0,
+   "text": "kronos"
+  },
+  {
+   "kind": "bridge",
+   "asset": "banner_gantry",
+   "from_m": 1637,
+   "side": "centre",
+   "offset_m": 0,
+   "text": "hexon"
+  },
+  {
+   "kind": "bridge",
+   "asset": "banner_gantry",
+   "from_m": 2461,
+   "side": "centre",
+   "offset_m": 0,
+   "text": "rolux"
+  },
+  {
+   "kind": "bridge",
+   "asset": "banner_gantry",
+   "from_m": 4115,
+   "side": "centre",
+   "offset_m": 0,
+   "text": "piretti"
+  },
+  {
+   "kind": "bridge",
+   "asset": "banner_gantry",
+   "from_m": 4569,
+   "side": "centre",
+   "offset_m": 0,
+   "text": "velocet"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 440,
+   "to_m": 525,
+   "every_m": 3,
+   "side": "right",
+   "offset_m": 3.0,
+   "text": "brix"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 575,
+   "to_m": 660,
+   "every_m": 3,
+   "side": "right",
+   "offset_m": 3.0,
+   "text": "hexon"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 815,
+   "to_m": 900,
+   "every_m": 3,
+   "side": "left",
+   "offset_m": 3.0,
+   "text": "velocet"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 1305,
+   "to_m": 1390,
+   "every_m": 3,
+   "side": "left",
+   "offset_m": 3.0,
+   "text": "apexsim"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 1678,
+   "to_m": 1763,
+   "every_m": 3,
+   "side": "right",
+   "offset_m": 3.0,
+   "text": "rolux"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 1887,
+   "to_m": 1972,
+   "every_m": 3,
+   "side": "left",
+   "offset_m": 3.0,
+   "text": "northwind"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 2043,
+   "to_m": 2128,
+   "every_m": 3,
+   "side": "right",
+   "offset_m": 3.0,
+   "text": "kronos"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 2536,
+   "to_m": 2621,
+   "every_m": 3,
+   "side": "right",
+   "offset_m": 3.0,
+   "text": "piretti"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 2673,
+   "to_m": 2758,
+   "every_m": 3,
+   "side": "left",
+   "offset_m": 3.0,
+   "text": "brix"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 2721,
+   "to_m": 2806,
+   "every_m": 3,
+   "side": "right",
+   "offset_m": 3.0,
+   "text": "hexon"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 2865,
+   "to_m": 2950,
+   "every_m": 3,
+   "side": "left",
+   "offset_m": 3.0,
+   "text": "velocet"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 2919,
+   "to_m": 3004,
+   "every_m": 3,
+   "side": "right",
+   "offset_m": 3.0,
+   "text": "apexsim"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 3462,
+   "to_m": 3547,
+   "every_m": 3,
+   "side": "left",
+   "offset_m": 3.0,
+   "text": "rolux"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 3705,
+   "to_m": 3790,
+   "every_m": 3,
+   "side": "right",
+   "offset_m": 3.0,
+   "text": "northwind"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 4210,
+   "to_m": 4295,
+   "every_m": 3,
+   "side": "left",
+   "offset_m": 3.0,
+   "text": "kronos"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 4279,
+   "to_m": 4364,
+   "every_m": 3,
+   "side": "right",
+   "offset_m": 3.0,
+   "text": "piretti"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 4579,
+   "to_m": 4664,
+   "every_m": 3,
+   "side": "right",
+   "offset_m": 3.0,
+   "text": "brix"
+  },
+  {
+   "kind": "light",
+   "asset": "lamp_globe_pole",
+   "from_m": 430.0,
+   "to_m": 4720.0,
+   "every_m": 48,
+   "side": "left",
+   "offset_m": 9.0
+  },
+  {
+   "kind": "light",
+   "asset": "lamp_globe_pole",
+   "from_m": 454.0,
+   "to_m": 4720.0,
+   "every_m": 48,
+   "side": "right",
+   "offset_m": 9.0
   }
  ]
 }

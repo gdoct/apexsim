@@ -164,23 +164,23 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Super Pit Grandstand", from_m=4730, to_m=4900, side="right", depth_m=26, gap_m=6, family="street", covered=True),
         dict(name="Pit Grandstand", from_m=20, to_m=200, side="right", depth_m=26, gap_m=6, family="street", covered=True),
         dict(name="Republic Grandstand", from_m=215, to_m=330, side="right", depth_m=26, gap_m=6, family="street"),
-        dict(name="Pit Exit Grandstand", from_m=300, to_m=395, side="left", depth_m=12, gap_m=6),
+        dict(name="Pit Exit Grandstand", from_m=300, to_m=395, side="left", depth_m=14, gap_m=6, family="street_deck"),
         # Turns 1-3.
         dict(name="Turn 1 Grandstand", from_m=405, to_m=470, side="right", depth_m=26, gap_m=6, family="street"),
         dict(name="Turn 2 Grandstand", from_m=480, to_m=545, side="right", depth_m=26, gap_m=6, family="street"),
-        dict(name="Chicane Turn 2 Grandstand", from_m=470, to_m=540, side="left", depth_m=12, gap_m=6),
+        dict(name="Chicane Turn 2 Grandstand", from_m=470, to_m=540, side="left", depth_m=14, gap_m=6, family="street_deck"),
         # The back of the lap, round the Flyer and along the bottom straight.
-        dict(name="Promenade Grandstand", from_m=4470, to_m=4540, side="left", depth_m=12, gap_m=6),
-        dict(name="Bayfront Grandstand", from_m=4545, to_m=4640, side="left", depth_m=12, gap_m=6),
-        dict(name="Skyline Grandstand", from_m=4560, to_m=4680, side="right", depth_m=12, gap_m=6),
-        dict(name="Marina Bay Grandstand", from_m=4685, to_m=4725, side="right", depth_m=12, gap_m=6),
+        dict(name="Promenade Grandstand", from_m=4470, to_m=4540, side="left", depth_m=14, gap_m=6, family="street_deck"),
+        dict(name="Bayfront Grandstand", from_m=4545, to_m=4640, side="left", depth_m=14, gap_m=6, family="street_deck"),
+        dict(name="Skyline Grandstand", from_m=4560, to_m=4680, side="right", depth_m=14, gap_m=6, family="street_deck"),
+        dict(name="Marina Bay Grandstand", from_m=4685, to_m=4725, side="right", depth_m=14, gap_m=6, family="street_deck"),
         # Raffles Avenue and the Padang.
-        dict(name="Raffles Grandstand", from_m=3980, to_m=4100, side="left", depth_m=12, gap_m=6),
-        dict(name="Stamford Grandstand", from_m=1855, to_m=1960, side="right", depth_m=12, gap_m=6),
-        dict(name="Padang A Grandstand", from_m=2340, to_m=2430, side="right", depth_m=12, gap_m=6),
-        dict(name="Padang B Grandstand", from_m=2435, to_m=2520, side="right", depth_m=12, gap_m=6),
-        dict(name="Connaught Grandstand", from_m=3440, to_m=3550, side="right", depth_m=12, gap_m=6),
-        dict(name="Empress Grandstand", from_m=2705, to_m=2775, side="right", depth_m=12, gap_m=6),
+        dict(name="Raffles Grandstand", from_m=3980, to_m=4100, side="left", depth_m=14, gap_m=6, family="street_deck"),
+        dict(name="Stamford Grandstand", from_m=1855, to_m=1960, side="right", depth_m=14, gap_m=6, family="street_deck"),
+        dict(name="Padang A Grandstand", from_m=2340, to_m=2430, side="right", depth_m=14, gap_m=6, family="street_deck"),
+        dict(name="Padang B Grandstand", from_m=2435, to_m=2520, side="right", depth_m=14, gap_m=6, family="street_deck"),
+        dict(name="Connaught Grandstand", from_m=3440, to_m=3550, side="right", depth_m=14, gap_m=6, family="street_deck"),
+        dict(name="Empress Grandstand", from_m=2705, to_m=2775, side="right", depth_m=14, gap_m=6, family="street_deck"),
     ],
     # Only the Hoofdtribune is in OSM.  The rest are from the circuit's
     # own tribune map (https://dutchgp.com/en/tribunes/,
@@ -914,8 +914,59 @@ MANUAL_FURNITURE: dict[str, list[dict]] = {
         # The fan zone behind the stand.
         dict(kind="attraction", asset="marquee_peak_12m", from_m=4750, to_m=330, every_m=28, side="right", offset_m=52),
         dict(kind="attraction", asset="led_wall_stage_16m", from_m=290, side="left", offset_m=40),
+        # The Padang, the open green inside St Andrew's Road: a village of
+        # marquees round a stage, planters and globe lamps (the organiser's
+        # map puts the F1 village here).
+        dict(kind="attraction", asset="marquee_peak_12m", from_m=2330, to_m=2590, every_m=34, side="left", offset_m=46),
+        dict(kind="attraction", asset="marquee_peak_12m", from_m=2347, to_m=2570, every_m=34, side="left", offset_m=74),
+        dict(kind="attraction", asset="led_wall_stage_16m", from_m=2460, side="left", offset_m=105),
+        dict(kind="misc", asset="walkway_planter_4m", from_m=2330, to_m=2600, every_m=14, side="left", offset_m=30),
+        dict(kind="light", asset="lamp_globe_pole", from_m=2330, to_m=2600, every_m=20, side="left", offset_m=60),
     ],
 }
+
+def generated_furniture(stem: str) -> list[dict]:
+    """The lap's furniture that follows from its geometry: a banner gantry on
+    the middle of every long straight, an LED ribbon on the outside barrier
+    of each braking zone, and rows of globe lamps along both verges. Added
+    to the hand-authored `MANUAL_FURNITURE` entries (the start straight, the
+    Padang), which it leaves alone."""
+    if stem != "MarinaBay":
+        return []
+    import drs_zones as dz
+
+    corners = dz.Corners(dz.load(stem))
+    total, runs = corners.total, corners.runs
+    brands = ["kronos", "hexon", "rolux", "piretti", "velocet", "northwind", "brix", "apexsim"]
+    pit_straight = (4735.0, 400.0)  # hand-authored: the start straight
+
+    def on_pit_straight(s: float) -> bool:
+        return (s - pit_straight[0]) % total <= (pit_straight[1] - pit_straight[0]) % total
+
+    bridges = [(2912.0, 2983.0), (3067.0, 3359.0)]  # Anderson, Esplanade
+    out: list[dict] = []
+    n = len(runs)
+    for i, (a, b, sign) in enumerate(runs):
+        nxt = runs[(i + 1) % n][0]
+        gap = (nxt - b) % total
+        mid = (b + gap / 2) % total
+        if gap >= 190 and not on_pit_straight(mid) and not any(lo - 20 <= mid <= hi + 20 for lo, hi in bridges):
+            out.append(dict(kind="bridge", asset="banner_gantry", from_m=round(mid), side="centre",
+                            offset_m=0, text=brands[len(out) % len(brands)]))
+    for i, (a, b, sign) in enumerate(runs):
+        start = (a - 105) % total
+        if on_pit_straight(start) or on_pit_straight((a - 20) % total):
+            continue
+        # The outside of a left-hander is its right-hand barrier.
+        out.append(dict(kind="board", asset="led_ribbon_3m", from_m=round(start), to_m=round((a - 20) % total),
+                        every_m=3, side="right" if sign > 0 else "left", offset_m=3.0,
+                        text=brands[(i * 3) % len(brands)]))
+    # Globe lamps along both verges, staggered, round the lap but for the start straight.
+    for side, first in (("left", 430.0), ("right", 454.0)):
+        out.append(dict(kind="light", asset="lamp_globe_pole", from_m=first, to_m=4720.0, every_m=48,
+                        side=side, offset_m=9.0))
+    return out
+
 
 # Decal runs painted on the road beside the start straight: the yellow and
 # blue band at each edge, tiled (`image` in `content/props/decal/marina/`).
@@ -2568,7 +2619,11 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             if (g := manual_graffiti(stem, track, osm, to_track) + manual_decal_runs(stem, track))
             else {}
         ),
-        **({"furniture": MANUAL_FURNITURE[stem]} if stem in MANUAL_FURNITURE else {}),
+        **(
+            {"furniture": MANUAL_FURNITURE.get(stem, []) + generated_furniture(stem)}
+            if stem in MANUAL_FURNITURE
+            else {}
+        ),
     }
 
 

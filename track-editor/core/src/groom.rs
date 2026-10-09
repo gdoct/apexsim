@@ -2679,7 +2679,7 @@ fn hash01(keys: &[u64], salt: u64) -> f32 {
 /// front-pivot centre needs the nearest cross-section, which is a walk
 /// over every sample of the course.
 #[derive(Debug, Clone, Copy)]
-struct Slab {
+pub(crate) struct Slab {
     kind: PropKind,
     cx: f32,
     cy: f32,
@@ -2691,7 +2691,7 @@ struct Slab {
 }
 
 impl Slab {
-    fn of(path: &CenterlinePath, prop: &Prop) -> Slab {
+    pub(crate) fn of(path: &CenterlinePath, prop: &Prop) -> Slab {
         let (cx, cy) = footprint_centre_of(path, prop);
         Slab {
             kind: prop.kind,
@@ -2705,7 +2705,7 @@ impl Slab {
 
     /// Planar distance from a point to the footprint's edge (negative
     /// inside).
-    fn gap(&self, x: f32, y: f32) -> f32 {
+    pub(crate) fn gap(&self, x: f32, y: f32) -> f32 {
         match self.extents {
             Some((half_len, half_thick)) => {
                 let (sin_h, cos_h) = self.yaw.sin_cos();

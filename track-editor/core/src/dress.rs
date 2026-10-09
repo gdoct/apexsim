@@ -325,6 +325,33 @@ pub fn dress_scene_with_dem(
         }
     }
 
+    // On a city circuit a tree, lamp, sign or planter is not inside a block
+    // that was laid after the survey put it there (the buildings are pushed
+    // clear of the road; a lamp row is not).
+    let city_blocks: Vec<crate::groom::Slab> = if city {
+        laid.iter()
+            .filter(|p| matches!(p.kind, PropKind::Building | PropKind::Grandstand))
+            .map(|p| crate::groom::Slab::of(&path, p))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let in_a_block = |p: &Prop| {
+        matches!(
+            p.kind,
+            PropKind::Tree | PropKind::Light | PropKind::Sign | PropKind::Misc | PropKind::Board
+        ) && city_blocks.iter().any(|s| s.gap(p.x, p.y) < 1.0)
+    };
+    if city {
+        let before = laid.len();
+        laid.retain(|p| !in_a_block(p));
+        if laid.len() < before {
+            report
+                .skipped
+                .push(format!("{} props: inside a building", before - laid.len()));
+        }
+    }
+
     // Nothing dressed stands in the pit lane or where its garages go.
     let zone = scene
         .pit_lane
@@ -348,6 +375,9 @@ pub fn dress_scene_with_dem(
     // after the pit-zone test on purpose: its lamps and marquees stand
     // behind the garages, which that test keeps clear.
     for prop in lay_furniture(&path, &terrain, &layout.furniture) {
+        if in_a_block(&prop) {
+            continue;
+        }
         report.landmarks += 1;
         laid.push(prop);
     }
@@ -892,6 +922,9 @@ impl PitZone {
 /// too deep to be anything else).
 fn stand_family(stand: &Stand) -> &'static str {
     // The street circuit's tall stand: one family, roofed or not.
+    if stand.family.as_deref() == Some("street_deck") {
+        return "street_stand_deck_10m";
+    }
     if stand.family.as_deref() == Some("street") {
         return if stand.covered {
             "street_stand_tier_10m_roof"
