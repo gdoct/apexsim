@@ -2026,6 +2026,8 @@ AActor* FApexTrackSceneBuilder::SpawnGrandstand(UWorld* World, ULevel* Level, co
 		Row->ShadowCacheInvalidationBehavior = EShadowCacheInvalidationBehavior::Static;
 		Row->SetupAttachment(Root);
 		Row->SetStaticMesh(Mesh);
+		// Lit soffits, LED fascia lines and lamp bars on the street stands.
+		ApplyAuthoredSlots(Row, Mesh, FString());
 		Row->SetNumCustomDataFloats(1);
 		Actor->AddInstanceComponent(Row);
 		Row->RegisterComponent();

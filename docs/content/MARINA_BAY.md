@@ -172,6 +172,9 @@ Builders: `scripts/content/props/build_marina_bay_{a1,a2,a3,b1,c1}.py` (+ `marin
   big wheel not re-imported yet): night-pass wiring for the `mb_*` window-glow slots and
   `mb_lit_panel` / `signal_*` (docs/content/PROPS.md, "Night pass additions"), and the
   `rotor` child of `landmark_big_wheel_xl` (0.033 rpm).
+- Done 2026-10-09 (compiled, tests pass, not seen in game): night slots for the start/finish
+  props, the straight-only `street_stand_tier_*` family in `LayoutGrandstand`, the `marina`
+  decal set in the importer; see PROPS.md section 11.
 - Done 2026-10-09: the road-on-bridge rule (crossing kinds `deck_arch` / `deck_wide` carry
   `from_m`..`to_m`; `ats-dress` tiles the deck along the span, the `.ats` records a `bridges`
   span, and the bake leaves bands and curbs out of it) and "water as ground" (the dossier's

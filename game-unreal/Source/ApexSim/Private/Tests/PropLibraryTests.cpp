@@ -296,6 +296,25 @@ bool FApexPropNightGlowTest::RunTest(const FString& Parameters)
 		TestTrue(FString(Name) + TEXT(" lights at night"), ApexProps::NightGlowOf(FName(Name), Glow));
 		TestFalse(FString(Name) + TEXT(" keeps the imported material"), Glow.bEmissiveParent);
 	}
+	// Start/finish straight: stand LED lines, globe lamp, balloons, step lights.
+	for (const TCHAR* Name : {TEXT("stand_led_blue"), TEXT("stand_led_green"), TEXT("globe_lamp"),
+			 TEXT("balloon_lamp_white"), TEXT("balloon_lamp_orange"), TEXT("step_light_orange")})
+	{
+		ApexProps::FNightGlow Glow;
+		TestTrue(FString(Name) + TEXT(" lights at night"), ApexProps::NightGlowOf(FName(Name), Glow));
+		TestTrue(FString(Name) + TEXT(" has a level"), Glow.PeakNits > 0.0f);
+		TestFalse(FString(Name) + TEXT(" keeps the imported material"), Glow.bEmissiveParent);
+	}
+	ApexProps::FNightGlow Step;
+	ApexProps::FNightGlow Globe;
+	ApexProps::NightGlowOf(FName(TEXT("step_light_orange")), Step);
+	ApexProps::NightGlowOf(FName(TEXT("globe_lamp")), Globe);
+	TestTrue(TEXT("step nosings are dimmer than the globe lamps"), Step.PeakNits < Globe.PeakNits);
+	// The other lit slots of the new props ride the existing paths.
+	for (const TCHAR* Name : {TEXT("led_panel"), TEXT("led_screen"), TEXT("floodlight_lamp")})
+	{
+		TestTrue(FString(Name) + TEXT(" is an emissive slot"), ApexProps::IsEmissiveSlot(FName(Name)));
+	}
 	// A plain emissive panel is a builder-made emissive instance driven at night.
 	ApexProps::FNightGlow Panel;
 	TestTrue(TEXT("mb_lit_panel lights at night"), ApexProps::NightGlowOf(FName(TEXT("mb_lit_panel")), Panel));
@@ -358,6 +377,71 @@ bool FApexPropRotorTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("two rotor assets"), ApexProps::AllRotorSpecs().Num(), 2);
 	TestFalse(TEXT("the observation wheel has no front"),
 		ApexProps::FacesRoad(TEXT("attraction"), TEXT("landmark_big_wheel_xl")));
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPropStreetStandTest, "ApexSim.Props.StreetStand", ApexTestFlags)
+
+bool FApexPropStreetStandTest::RunTest(const FString& Parameters)
+{
+	// 50 m of stand: five bays, a cap at +-(25 + 2) m, even on a bend.
+	for (TOptional<float> Radius : {TOptional<float>(), TOptional<float>(60.0f), TOptional<float>(-60.0f)})
+	{
+		bool bWedge = true;
+		const ApexProps::FStandLayout Layout =
+			ApexProps::LayoutGrandstand(TEXT("street_stand_tier_10m"), 50.0f, Radius, &bWedge);
+		TestFalse(TEXT("never a wedge"), bWedge);
+		TestEqual(TEXT("bay asset"), Layout.BayAsset, FString(TEXT("street_stand_tier_10m")));
+		TestEqual(TEXT("cap asset"), Layout.CapAsset, FString(TEXT("street_stand_tier_end")));
+		TestEqual(TEXT("five bays"), Layout.Bays.Num(), 5);
+		TestEqual(TEXT("two caps"), Layout.Caps.Num(), 2);
+		if (Layout.Bays.Num() == 5 && Layout.Caps.Num() == 2)
+		{
+			TestTrue(TEXT("bays straight at 10 m"), Layout.Bays[0].GetLocation().Equals(FVector(-2000, 0, 0), 0.01)
+				&& Layout.Bays[4].GetLocation().Equals(FVector(2000, 0, 0), 0.01) && Layout.Bays[2].GetRotation().IsIdentity());
+			TestTrue(TEXT("caps at +-(L/2 + 2)"), Layout.Caps[0].GetLocation().Equals(FVector(-2700, 0, 0), 0.01)
+				&& Layout.Caps[1].GetLocation().Equals(FVector(2700, 0, 0), 0.01));
+		}
+	}
+	// Rounded to whole bays, at least one.
+	TestEqual(TEXT("a 4 m stand is one bay"),
+		ApexProps::LayoutGrandstand(TEXT("street_stand_tier_10m"), 4.0f, TOptional<float>()).Bays.Num(), 1);
+	// The roofed variant is the asset the scene names; the cap is shared.
+	const ApexProps::FStandLayout Roof =
+		ApexProps::LayoutGrandstand(TEXT("street_stand_tier_10m_roof"), 30.0f, TOptional<float>());
+	TestEqual(TEXT("roof bay"), Roof.BayAsset, FString(TEXT("street_stand_tier_10m_roof")));
+	TestEqual(TEXT("roof cap"), Roof.CapAsset, FString(TEXT("street_stand_tier_end")));
+	TestEqual(TEXT("three roofed bays"), Roof.Bays.Num(), 3);
+	// Crowd twins for the bays only.
+	TestEqual(TEXT("crowd twin"), ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("street_stand_tier_10m")),
+		FString(TEXT("street_stand_tier_10m_crowd")));
+	TestEqual(TEXT("roof crowd twin"), ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("street_stand_tier_10m_roof")),
+		FString(TEXT("street_stand_tier_10m_roof_crowd")));
+	TestTrue(TEXT("the cap has no crowd"),
+		ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("street_stand_tier_end")).IsEmpty());
+	TestTrue(TEXT("the deck has no crowd"),
+		ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("street_stand_deck_10m")).IsEmpty());
+	// The deck is a plain tiled module with no caps.
+	const ApexProps::FStandLayout Deck =
+		ApexProps::LayoutGrandstand(TEXT("street_stand_deck_10m"), 40.0f, TOptional<float>(60.0f));
+	TestEqual(TEXT("deck bay"), Deck.BayAsset, FString(TEXT("street_stand_deck_10m")));
+	TestEqual(TEXT("four deck bays"), Deck.Bays.Num(), 4);
+	TestEqual(TEXT("no deck caps"), Deck.Caps.Num(), 0);
+	// The marina decal set rides with the graffiti.
+	TestTrue(TEXT("marina decals imported"), ApexProps::DecalSets().Contains(TEXT("marina")));
+	FString Set;
+	FString Name;
+	TestTrue(TEXT("marina decal key"), ApexProps::ParseDecalKey(TEXT("decal_marina_edge_yellow_blue_r"), Set, Name));
+	TestEqual(TEXT("decal set"), Set, FString(TEXT("marina")));
+	TestEqual(TEXT("decal name"), Name, FString(TEXT("edge_yellow_blue_r")));
+	TestEqual(TEXT("decal texture"), ApexProps::DecalTextureObjectPath(TEXT("/Game/Props"), Set, Name),
+		FString(TEXT("/Game/Props/decal/Marina/T_marina_edge_yellow_blue_r.T_marina_edge_yellow_blue_r")));
+	// Road-facing pivots and the bridge scale the new props rely on.
+	TestTrue(TEXT("pit wall gantry faces the road"), ApexProps::FacesRoad(TEXT("pit"), TEXT("pit_wall_gantry_6m")));
+	TestTrue(TEXT("roof deck faces the road"), ApexProps::FacesRoad(TEXT("building"), TEXT("pit_building_roofdeck")));
+	TestTrue(TEXT("banner gantry spans 20 m"), FMath::IsNearlyEqual(ApexProps::BridgeSpanScale(20.0f), 20.0f / 15.0f));
 	return true;
 }
 

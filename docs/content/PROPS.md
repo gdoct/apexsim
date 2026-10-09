@@ -438,8 +438,19 @@ saves `_batches/marina_bay_d1.blend`); decals and garage plates by `gen_marina_d
 Decals (`content/props/decal/marina/`, same convention as the graffiti set): `edge_yellow_blue.png`
 (+ mirrored `_r`), `pit_exit_blue_green.png`, `wall_base_brand.png`, `finish_chequer_wide.png`
 (opaque), `pit_lane_digits.png` (4 × 4 atlas: 0–9, roundels 60/80/100, PIT, arrow, blank).
-New emissive slots to wire in the night pass: `stand_led_blue`, `stand_led_green`,
-`globe_lamp`, `balloon_lamp_white`, `balloon_lamp_orange`, `step_light_orange`.
+Client wiring (2026-10-09, compiled and unit-tested, not seen in game): the six emissive slots
+`stand_led_blue`/`_green` (120 nits), `globe_lamp` (150), `balloon_lamp_white`/`_orange` (100)
+and `step_light_orange` (12) are in the night table (`ApexProps::NightGlowOf`, peaks in one
+place). Stands now run `ApplyAuthoredSlots` on their rows, so the roofs' `mb_lit_panel` and
+`floodlight_lamp` and the LED lines are driven too; `led_panel`, `led_screen` and
+`floodlight_lamp` on the other new props use the existing emissive paths. The street stand
+family is straight-only: `LayoutGrandstand("street_stand_tier_10m[_roof]")` gives
+`round(L/10)` bays plus `street_stand_tier_end` caps at +-(L/2 + 2) m, never a wedge, with the
+`_crowd` twins from `CrowdVariant` (the cap and `street_stand_deck_10m` have none).
+`street_stand_deck_10m` tiles at 10 m with no caps (the 26 m x 17 m cap does not fit a 14 m
+deck). The `marina` decal set is in `DecalSets()` (`/Game/Props/decal/Marina/T_marina_<name>`);
+re-run `ApexPropImport -kind=decal`. Garage plates: `garage_number_board` text 1-24 uses the
+`board_marker` rule and `T_marker_<n>`, imported with the `board` kind (or `-all`), not `sign`.
 
 Night pass additions: the textured facade slots `mb_glass_blue/teal/bronze/grey/clear`,
 `mb_classic`, `mb_colonial`, `mb_deco` carry a lit-window emissive texture

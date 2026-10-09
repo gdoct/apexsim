@@ -414,6 +414,25 @@ What it added to the pipeline, all inert for other circuits:
 - **Stands**: `MANUAL_STANDS` from the organiser's circuit park maps (2025,
   with the 2019 one for the unchanged Padang part); stations are +-100 m.
   `ats-dress` drops three that fall in the pit zone.
+- **The start straight** (docs/content/MARINA_BAY_START_FINISH.md): a
+  dossier `furniture` layer (`MANUAL_FURNITURE`, `layout::Furniture`: kind,
+  asset, `from_m`/`to_m`/`every_m`, side, offset from the road edge) that
+  `ats-dress` expands (`lay_furniture`), after the pit-zone test (its lamps
+  stand behind the garages). Grooming re-seats a dressed prop on the ground,
+  so a raised one (balloons and the wordmark on the roof, the LED ribbon on
+  the Tecpro) gets its height back from `dress::fixed_lift_m`, by asset.
+  `Stand.family = "street"` switches a stand to `street_stand_tier_10m`
+  (`_roof` when covered; 26 m deep). `CircuitStyle::pit_garages` is false
+  for a street circuit: the bake then stands `pit_building_roofdeck` (33
+  doors) where the garages would be, a `pit_wall_gantry_6m` for each pit
+  wall module and a `garage_number_board` over each door, and `garage_6m` /
+  `garage_end` are not made. The painted edge bands are dossier decals
+  (`MANUAL_DECAL_RUNS`, images in `decal/marina/`, owned by `ats-dress`
+  alongside the graffiti; a decal has to lie on the road, so the band sits
+  just inside the edge). The client's six night slots (`stand_led_*` at
+  40 nits, `globe_lamp`, `balloon_lamp_*`, `step_light_orange`) and the
+  street stand family (`ApexProps::LayoutGrandstand`) are in `ApexSim/Track/`.
+  A pit-lane survey (`PIT_TRACKS=MarinaBay`) still serves all 24 boxes.
 - **Checks**: `check_walls.py --openings MarinaBay` (50 m open of 9.8 km).
 
 ### Real elevation (`<Stem>.dem.msgpack`, `dem_fetch.py`)

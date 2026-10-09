@@ -123,6 +123,16 @@ namespace ApexProps
 	 * The other stands (`scaffold_10m`, `banking_seats`) tile plain.
 	 */
 	APEXSIM_API bool IsBayFamily(const FString& Asset);
+	/**
+	 * The Marina Bay street stand's bay (`street_stand_tier_10m`, `_roof`, and
+	 * their `_crowd` twins): a straight-only bay family with `street_stand_tier_end`
+	 * caps at +-(L/2 + 2 m) and no wedges. `street_stand_deck_10m` is not in it:
+	 * a 14 m deck tiled at 10 m with no caps (the 26 m x 17 m end cap does not fit it).
+	 */
+	APEXSIM_API bool IsStreetStandBay(const FString& Asset);
+	inline const TCHAR* const StreetStandCapAsset = TEXT("street_stand_tier_end");
+	/** Half the street stand cap's 4 m width: the cap stands this far past the bays. */
+	inline constexpr float StreetStandCapHalfM = 2.0f;
 
 	/** The ferris wheel, the first asset imported as two meshes: the wheel and its `rotor` node. */
 	inline const TCHAR* const FerrisWheelKind = TEXT("attraction");

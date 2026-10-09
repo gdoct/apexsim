@@ -209,7 +209,7 @@ namespace ApexProps
 
 	TArray<FString> DecalSets()
 	{
-		return {TEXT("graffiti")};
+		return {TEXT("graffiti"), TEXT("marina")};
 	}
 
 	FString DecalFolder(const FString& Root, const FString& Set)
@@ -252,7 +252,8 @@ namespace ApexProps
 		{
 			return FString();
 		}
-		if (Asset.StartsWith(TEXT("bay_10m")) || Asset == TEXT("scaffold_10m") || Asset == TEXT("banking_seats"))
+		if (Asset.StartsWith(TEXT("bay_10m")) || Asset == TEXT("scaffold_10m") || Asset == TEXT("banking_seats")
+			|| IsStreetStandBay(Asset))
 		{
 			return Asset + TEXT("_crowd");
 		}
@@ -272,9 +273,15 @@ namespace ApexProps
 		return FString();
 	}
 
+	bool IsStreetStandBay(const FString& Asset)
+	{
+		return Asset == TEXT("street_stand_tier_10m") || Asset == TEXT("street_stand_tier_10m_roof")
+			|| Asset == TEXT("street_stand_tier_10m_crowd") || Asset == TEXT("street_stand_tier_10m_roof_crowd");
+	}
+
 	bool IsBayFamily(const FString& Asset)
 	{
-		return Asset.StartsWith(TEXT("bay_10m"));
+		return Asset.StartsWith(TEXT("bay_10m")) || IsStreetStandBay(Asset);
 	}
 
 	bool IsBrandSlot(FName SlotName)
@@ -330,6 +337,16 @@ namespace ApexProps
 			{TEXT("ferris_lights_hub"), 60.0f, false},
 			// A plain emissive panel: a lit M_ApexEmissive instance, dark by day.
 			{TEXT("mb_lit_panel"), 40.0f, true},
+			// Start/finish straight: LED fascia lines on the street stands
+			// (saturated), the globe lamps and light balloons (bright, soft),
+			// the scaffold's step nosings (dim). Imported materials, scaled
+			// EmissiveFactor like the windows.
+			{TEXT("stand_led_blue"), 40.0f, false},
+			{TEXT("stand_led_green"), 40.0f, false},
+			{TEXT("globe_lamp"), 150.0f, false},
+			{TEXT("balloon_lamp_white"), 100.0f, false},
+			{TEXT("balloon_lamp_orange"), 100.0f, false},
+			{TEXT("step_light_orange"), 12.0f, false},
 		};
 		for (const FEntry& Entry : Entries)
 		{
@@ -401,6 +418,27 @@ namespace ApexProps
 				const float X = (i - (Bays - 1) * 0.5f) * BayPitchM * 100.0f;
 				Layout.Bays.Add(FTransform(FVector(X, 0.0, 0.0)));
 			}
+			return Layout;
+		}
+		if (IsStreetStandBay(Asset))
+		{
+			// The street stand: straight only, 10 m bays and a 4 m end cap
+			// (symmetric about x = 0) at +-(L/2 + 2). The roofed variant is
+			// the asset the scene names; the crowd twin is the builder's pick.
+			if (bWedge)
+			{
+				*bWedge = false;
+			}
+			Layout.BayAsset = Asset.EndsWith(TEXT("_crowd")) ? Asset.LeftChop(6) : Asset;
+			Layout.CapAsset = StreetStandCapAsset;
+			for (int32 i = 0; i < Bays; ++i)
+			{
+				const float X = (i - (Bays - 1) * 0.5f) * BayPitchM * 100.0f;
+				Layout.Bays.Add(FTransform(FVector(X, 0.0, 0.0)));
+			}
+			const float CapX = Bays * BayPitchM * 50.0f + StreetStandCapHalfM * 100.0f;
+			Layout.Caps.Add(FTransform(FVector(-CapX, 0.0, 0.0)));
+			Layout.Caps.Add(FTransform(FVector(CapX, 0.0, 0.0)));
 			return Layout;
 		}
 		const bool bRoof = Asset.EndsWith(TEXT("_roof"));
