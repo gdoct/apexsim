@@ -166,6 +166,14 @@ public:
 	 */
 	const FApexCockpitLayout& GetCockpitLayout();
 
+	/**
+	 * Bumped whenever the layout is invalidated (a new body, wheels or cockpit
+	 * spec), so a cockpit rig already in the car knows to lay itself out and
+	 * dress its steering wheel again: a car is often dressed again after the
+	 * rig has moved in (the roster arriving after the first frames).
+	 */
+	uint32 GetCockpitRevision() const { return CockpitRevision; }
+
 	/** The body's bounds, wheels included, in the car's frame (cm, +X nose, +Z up), for framing it from outside. */
 	FBox GetBodyBox() const;
 
@@ -313,6 +321,8 @@ private:
 	FApexCockpitOverrides CockpitOverrides;
 	FApexCockpitLayout CockpitLayout;
 	bool bCockpitLayoutValid = false;
+	uint32 CockpitRevision = 0;
+	void InvalidateCockpitLayout() { bCockpitLayoutValid = false; ++CockpitRevision; }
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexEngineSoundWave> EngineSound;

@@ -235,7 +235,7 @@ void AApexRaceCarActor::SetCarMesh(UStaticMesh* MeshToShow)
 	bLiveryApplied = false;
 	CarMesh->SetStaticMesh(Loaded);
 	// A different body is a different seat.
-	bCockpitLayoutValid = false;
+	InvalidateCockpitLayout();
 	// ... and a different frame for the dents; the parts belong to the old body.
 	SetDamageParts({}, {});
 
@@ -389,7 +389,7 @@ void AApexRaceCarActor::SetWheels(const FApexWheelSpec& Spec)
 	}
 	Wheels.SetSpec(Spec);
 	// The layout box includes the wheels.
-	bCockpitLayoutValid = false;
+	InvalidateCockpitLayout();
 }
 
 FBoxSphereBounds AApexRaceCarActor::BodyBounds() const
@@ -537,7 +537,7 @@ void AApexRaceCarActor::SetCockpitSpec(const FString& InCarClass, const FApexCoc
 {
 	CarClass = InCarClass;
 	CockpitOverrides = InOverrides;
-	bCockpitLayoutValid = false;
+	InvalidateCockpitLayout();
 }
 
 FBox AApexRaceCarActor::GetBodyBox() const

@@ -229,4 +229,6 @@ private:
 	int32 BuiltQuality = -1;
 	float AppliedNits = -1.0f;
 	bool bPlaced = false;
+	/** The car's cockpit revision the layout and steering wheel were taken from. */
+	uint32 SeenCockpitRevision = 0;
 };

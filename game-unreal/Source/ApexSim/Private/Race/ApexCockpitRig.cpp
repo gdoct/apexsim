@@ -294,6 +294,7 @@ void AApexCockpitRig::AttachToCar(AApexRaceCarActor* InCar)
 	}
 
 	Layout = Car->GetCockpitLayout();
+	SeenCockpitRevision = Car->GetCockpitRevision();
 	DressWheel();
 	AttachToActor(Car, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	// The parts ride the attachment, but the display reads the car's
@@ -668,6 +669,17 @@ void AApexCockpitRig::Tick(float DeltaSeconds)
 	if (!Car)
 	{
 		return;
+	}
+	// The car was dressed again under the rig (its catalog row arrived after
+	// the rig moved in, or its body changed): take the new layout and wheel,
+	// or the rig keeps the primitive rim it found in the undressed car.
+	if (Car->GetCockpitRevision() != SeenCockpitRevision)
+	{
+		Layout = Car->GetCockpitLayout();
+		SeenCockpitRevision = Car->GetCockpitRevision();
+		DressWheel();
+		bPlaced = false;
+		ApplyVisibility();
 	}
 	if (!bPlaced)
 	{
