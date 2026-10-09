@@ -13,6 +13,7 @@
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/ExponentialHeightFog.h"
@@ -44,6 +45,7 @@
 #include "Race/ApexRainActor.h"
 #include "Race/ApexReplayClip.h"
 #include "Race/ApexShotCamera.h"
+#include "Race/ApexStreetLights.h"
 #include "Track/ApexPropLibrary.h"
 #include "Track/ApexTrackContentSubsystem.h"
 #include "Track/ApexTrackInstance.h"
@@ -238,6 +240,19 @@ namespace
 					Director->ReleaseShotCamera();
 				}
 			}));
+
+	TAutoConsoleVariable<int32> CVarStreetLightsMax(
+		TEXT("apexsim.lights.Max"),
+		ApexLights::DefaultMaxLights,
+		TEXT("Most lamp lights (masts, posts, arm lamps, globes, balloons, truss bars) on at once after dark: ")
+		TEXT("the nearest to the camera. The emissive lamp heads stay lit whatever this is."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<float> CVarStreetLightsRange(
+		TEXT("apexsim.lights.Range"),
+		ApexLights::DefaultRangeM,
+		TEXT("Distance in metres past which a lamp light is never on, however few are lit."),
+		ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarSunStepDeg(
 		TEXT("apexsim.sky.SunStepDeg"),
@@ -1163,6 +1178,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	SnapRacingLineToTrack();
 	UpdateLiveSky(DeltaSeconds);
 	ApplyTrackLevelConditions();
+	UpdateStreetLights(DeltaSeconds, /*bForce*/ false);
 	UpdateCameraFeel(DeltaSeconds);
 	if (bTvView)
 	{
@@ -1842,6 +1858,8 @@ void AApexRaceDirector::ForgetTrackLevelConditions()
 {
 	bTrackConditionsApplied = false;
 	TrackFogs.Reset();
+	StreetLights.Reset();
+	StreetLightOn.Reset();
 	if (FloodlightRig)
 	{
 		FloodlightRig->Destroy();
@@ -2022,10 +2040,8 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 			{
 				continue;
 			}
-			const FString MeshName = Instanced->GetStaticMesh()->GetName();
-			const bool bMast = MeshName.Contains(TEXT("floodlight_tower"));
-			const bool bPost = MeshName.Contains(TEXT("lamp_post"));
-			if (!bMast && !bPost)
+			const TArray<ApexLights::FLightSpec> Specs = ApexLights::SpecsFor(Instanced->GetStaticMesh()->GetName());
+			if (Specs.IsEmpty())
 			{
 				continue;
 			}
@@ -2044,32 +2060,53 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 				continue;
 			}
 			const int32 Count = Instanced->GetInstanceCount();
-			for (int32 Index = 0; Index < Count && Masts < MaxFloodlights; ++Index)
+			for (int32 Index = 0; Index < Count && StreetLights.Num() < ApexLights::MaxSpawned; ++Index)
 			{
 				FTransform Instance;
 				if (!Instanced->GetInstanceTransform(Index, Instance, /*bWorldSpace*/ true))
 				{
 					continue;
 				}
-				const FVector Head = Instance.TransformPosition(bMast ? FVector(0.0f, 230.0f, 2800.0f) : FVector(0.0f, 110.0f, 750.0f));
-				const FRotator Aim = (Instance.GetRotation() * FRotator(bMast ? -52.0f : -70.0f, 90.0f, 0.0f).Quaternion()).Rotator();
-				USpotLightComponent* Lamp = NewObject<USpotLightComponent>(FloodlightRig);
-				Lamp->SetMobility(EComponentMobility::Movable);
-				Lamp->SetIntensityUnits(ELightUnits::Lumens);
-				Lamp->SetIntensity(bMast ? 220000.0f : 12000.0f);
-				Lamp->SetLightColor(FLinearColor(1.0f, 0.95f, 0.82f));
-				Lamp->SetAttenuationRadius(bMast ? 16000.0f : 3500.0f);
-				Lamp->SetInnerConeAngle(bMast ? 30.0f : 40.0f);
-				Lamp->SetOuterConeAngle(bMast ? 52.0f : 60.0f);
-				Lamp->SetCastShadows(false);
-				Lamp->SetupAttachment(FloodlightRig->GetRootComponent());
-				Lamp->SetWorldLocationAndRotation(Head, Aim);
-				Lamp->RegisterComponent();
-				++Masts;
+				for (const ApexLights::FLightSpec& Spec : Specs)
+				{
+					const FVector Head = Instance.TransformPosition(Spec.LocalCm);
+					const FRotator Aim = (Instance.GetRotation() * Spec.AimLocal.Quaternion()).Rotator();
+					ULocalLightComponent* Lamp = nullptr;
+					if (Spec.bSpot)
+					{
+						USpotLightComponent* Spot = NewObject<USpotLightComponent>(FloodlightRig);
+						Spot->SetInnerConeAngle(Spec.InnerConeDeg);
+						Spot->SetOuterConeAngle(Spec.OuterConeDeg);
+						Lamp = Spot;
+					}
+					else
+					{
+						UPointLightComponent* Point = NewObject<UPointLightComponent>(FloodlightRig);
+						Point->SetSourceRadius(15.0f);
+						Point->SetSoftSourceRadius(40.0f);
+						Lamp = Point;
+					}
+					Lamp->SetMobility(EComponentMobility::Movable);
+					Lamp->SetIntensityUnits(ELightUnits::Lumens);
+					Lamp->SetIntensity(Spec.Lumens);
+					Lamp->SetLightColor(Spec.Color);
+					Lamp->SetAttenuationRadius(Spec.RadiusCm);
+					Lamp->SetCastShadows(false);
+					Lamp->SetVisibility(false);
+					Lamp->SetupAttachment(FloodlightRig->GetRootComponent());
+					Lamp->SetWorldLocationAndRotation(Head, Aim);
+					Lamp->RegisterComponent();
+					FStreetLight Entry;
+					Entry.Light = Lamp;
+					Entry.Location = Head;
+					StreetLights.Add(Entry);
+					++Masts;
+				}
 			}
 		}
 	}
 
+	UpdateStreetLights(0.0f, /*bForce*/ true);
 	ApplyNightGlow();
 	ApplyRoadWetness();
 	UpdateFlags(0.0f, /*bForce*/ true);
@@ -2169,6 +2206,46 @@ void AApexRaceDirector::UpdateLiveSky(float DeltaSeconds)
 	}
 	ApplyNightGlow();
 	ApplyRoadWetness();
+}
+
+void AApexRaceDirector::UpdateStreetLights(float DeltaSeconds, bool bForce)
+{
+	if (StreetLights.IsEmpty())
+	{
+		return;
+	}
+	StreetLightClock += DeltaSeconds;
+	if (!bForce && StreetLightClock < ApexLights::SelectIntervalS)
+	{
+		return;
+	}
+	StreetLightClock = 0.0f;
+
+	// From the camera the player sees through (the followed car in the
+	// cockpit); the director itself rides the followed car.
+	FVector Eye = GetActorLocation();
+	if (const APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(this, 0))
+	{
+		Eye = CameraManager->GetCameraLocation();
+	}
+	StreetLightDistances.SetNumUninitialized(StreetLights.Num());
+	for (int32 i = 0; i < StreetLights.Num(); ++i)
+	{
+		StreetLightDistances[i] = static_cast<float>(FVector::Dist(Eye, StreetLights[i].Location));
+	}
+	ApexLights::Select(StreetLightDistances, StreetLightOn, FMath::Max(CVarStreetLightsMax.GetValueOnGameThread(), 0),
+		FMath::Max(CVarStreetLightsRange.GetValueOnGameThread(), 0.0f) * 100.0f);
+	for (int32 i = 0; i < StreetLights.Num(); ++i)
+	{
+		if (ULightComponent* Lamp = StreetLights[i].Light.Get())
+		{
+			const bool bOn = StreetLightOn[i] != 0;
+			if (Lamp->IsVisible() != bOn)
+			{
+				Lamp->SetVisibility(bOn);
+			}
+		}
+	}
 }
 
 void AApexRaceDirector::ApplyNightGlow()

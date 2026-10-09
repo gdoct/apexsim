@@ -103,6 +103,20 @@ struct APEXSIM_API FApexCockpitOverrides
 	 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Cockpit")
 	FString RuntimeSteeringWheel;
+
+	/**
+	 * Where the rig's hub display goes on `RuntimeSteeringWheel`: its centre in
+	 * the wheel pivot's frame (cm, +X along the column toward the nose, +Y the
+	 * driver's right, +Z up) and its width, so it lies on the wheel's own
+	 * screen glass. Read from the `<class>.json` beside a class steering wheel
+	 * (scripts/content/wheels/build_steering_wheels.py); a width of zero keeps
+	 * the rig's own placement. Never saved.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Cockpit")
+	FVector RuntimeDashCm = FVector::ZeroVector;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Cockpit")
+	float RuntimeDashWidthCm = 0.0f;
 };
 
 /**
@@ -131,8 +145,11 @@ struct APEXSIM_API FApexCockpitLayout
 	/** Draw the rig's own rim and hub display (FApexCockpitOverrides::bRigWheel / bRigDash). */
 	bool bRigWheel = true;
 	bool bRigDash = true;
-	/** The car's own steering wheel GLB, drawn in place of the rim; empty for none. */
+	/** The car's own steering wheel GLB (or its class's), drawn in place of the rim; empty for none. */
 	FString SteeringWheelModel;
+	/** The hub display: centre in the wheel pivot's frame and width (cm). */
+	FVector DashCm = FVector(-2.2f, 0.0f, 0.5f);
+	float DashWidthCm = 21.0f;
 
 	bool bCentreMirror = false;
 	FVector MirrorCentre = FVector::ZeroVector;

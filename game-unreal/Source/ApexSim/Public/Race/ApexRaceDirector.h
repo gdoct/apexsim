@@ -904,8 +904,22 @@ private:
 	TObjectPtr<AActor> FloodlightRig;
 	/** Set once the streamed level's fog and lights have been set for this sky. */
 	bool bTrackConditionsApplied = false;
-	/** Spot lights on masts at most: a big circuit has more masts than the frame has budget. */
-	static constexpr int32 MaxFloodlights = 96;
+	/**
+	 * Every lamp light of the level (masts, posts, arm lamps, globes,
+	 * balloons, truss bars): all spawned once after dark, hidden but for the
+	 * nearest few (`ApexLights::Select`, `UpdateStreetLights`).
+	 */
+	struct FStreetLight
+	{
+		TWeakObjectPtr<ULightComponent> Light;
+		FVector Location = FVector::ZeroVector;
+	};
+	TArray<FStreetLight> StreetLights;
+	TArray<uint8> StreetLightOn;
+	TArray<float> StreetLightDistances;
+	float StreetLightClock = 0.0f;
+	/** Show the budget's nearest lights, hide the rest; about twice a second. */
+	void UpdateStreetLights(float DeltaSeconds, bool bForce);
 
 	/** The live sky the world was last lit by; not bValid while the session's fixed sky lights it. */
 	FApexSkyNow LitSky;

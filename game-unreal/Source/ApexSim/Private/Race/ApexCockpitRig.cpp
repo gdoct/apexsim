@@ -55,9 +55,6 @@ namespace
 		return FIntPoint(Width, Height);
 	}
 
-	/** Width of the wheel display in centimetres; the height follows the widget's aspect. */
-	constexpr float DashWidthCm = 21.0f;
-
 	void ConfigureCapture(USceneCaptureComponent2D& Capture)
 	{
 		Capture.CaptureSource = SCS_FinalColorLDR;
@@ -500,10 +497,12 @@ void AApexCockpitRig::PlaceParts()
 	SpokeBottom->SetRelativeLocation(FVector(0.0f, 0.0f, -5.5f));
 	SpokeBottom->SetRelativeScale3D(FVector(0.025f, (2.0f * Half) / 100.0f, 0.035f));
 
-	// The display sits proud of the hub on the driver's side and faces them.
-	Dash->SetRelativeLocation(FVector(-2.2f, 0.0f, 0.5f));
+	// The display sits proud of the hub on the driver's side and faces them;
+	// on a steering wheel that brings a screen, on that screen's glass. The
+	// height follows the widget's aspect.
+	Dash->SetRelativeLocation(Layout.DashCm);
 	Dash->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
-	Dash->SetRelativeScale3D(FVector(DashWidthCm / UApexCockpitDashWidget::DrawWidth));
+	Dash->SetRelativeScale3D(FVector(Layout.DashWidthCm / UApexCockpitDashWidget::DrawWidth));
 
 	// Mirrors: each camera looks back, the side ones toed out a little so the
 	// glass shows the flank of the car and the lane beside it. Pitch is a

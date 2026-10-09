@@ -267,6 +267,24 @@ on purpose, the way a real skyline repeats curtain-wall colours. Simple boxy
 massing + a few `skyline_frame` belt bands stand in for floor lines — no
 window grid geometry, since these are only ever seen at a distance.
 
+**Night (2026-10-09).** The glass slots are no longer `skyline_glass_*`: they
+are the Marina Bay curtain-wall slots the night pass already drives
+(`ApexPropLibrary.cpp` `NightGlowOf`, by slot name) with their lit-window
+emissive atlas: blue -> `mb_glass_blue`, teal -> `mb_glass_teal`, bronze ->
+`mb_glass_bronze`, grey -> `mb_glass_grey`, green (the pyramid) ->
+`mb_glass_teal` (nearest hue; there is no `mb_glass_green`). Facade UVs are in
+metres (`KHR_texture_transform` scale 1/tile, as the Marina Bay towers), so
+windows sit on a floor grid from y = 0, each face and building shifted by whole
+cells so the lit patterns differ; roof/floor glass faces are pinned to a
+mullion strip and never light. Frame, roof and concrete slots are untouched.
+The GLBs are patched by `scripts/content/props/skyline_night.py` (numpy only,
+idempotent; the original Blender build script is not in the repo and the
+`.blend` files were not updated). Each GLB is now ~1.2 MB (the three atlas PNGs
+are embedded, like every `mb_*` asset). Lit share is whatever the shared atlas
+has (about 17-40% of cells); a denser or per-floor pattern would need new
+atlas images under the same slot names, which the prop import shares by name
+across the `building` kind.
+
 | kind | asset | size | notes | prio |
 | --- | --- | --- | --- | --- |
 | building | `skyline_slab_a` | 24 × 16 m, 96.2 m | plain glass slab, blue — **done** | P2 |
@@ -471,6 +489,8 @@ night via `EmissiveStrength`); `signal_red/amber/green` are `M_ApexEmissive` ins
 lit all day (1200). The peak levels are first guesses, to tune by eye at night. A sky that
 is day for the whole session touches none of these materials. Needs `ApexPropImport`
 re-run only for the rotor below; the slots need no re-import.
+
+Street lighting (2026-10-09, compiled and unit-tested, not seen in game): after dark every `lamp_arm_twin` (two shadowless 3300 K spots, 80 000 lm, 110 deg, 28 m, at +-3.4 m / 9.2 m, leaning toward the road), `lamp_globe_pole` (point, 30 000 lm, 12 m), `lamp_balloon_tether(_orange)` (point, 60 000 lm, 18 m), `pit_light_truss_6m` (one downward spot, 20 000 lm, 16 m) and the older `floodlight_tower` / `lamp_post` get a light component (`ApexLights::SpecsFor`, `Race/ApexStreetLights.h`, one table). All are spawned once and hidden but for the nearest `apexsim.lights.Max` (90) within `apexsim.lights.Range` (260 m) of the camera, re-chosen twice a second with 20% hysteresis (`ApexLights::Select`); the emissive heads stay on regardless. Units follow `lamp_post` (12 000 lm); levels need tuning by eye.
 
 Rotor: `ApexProps::FindRotorSpec` lists the assets with a `rotor` node — `ferris_wheel`
 (0.5 rpm) and `landmark_big_wheel_xl` (1/30 rpm, one turn in 30 minutes, hub offset

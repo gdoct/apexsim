@@ -133,6 +133,11 @@ namespace ApexCockpit
 		Layout.bRigWheel = Overrides.bRigWheel;
 		Layout.bRigDash = Overrides.bRigDash;
 		Layout.SteeringWheelModel = Overrides.RuntimeSteeringWheel;
+		if (!Layout.SteeringWheelModel.IsEmpty() && Overrides.RuntimeDashWidthCm > 0.0f)
+		{
+			Layout.DashCm = Overrides.RuntimeDashCm;
+			Layout.DashWidthCm = Overrides.RuntimeDashWidthCm;
+		}
 
 		return Layout;
 	}
