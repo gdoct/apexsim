@@ -344,6 +344,14 @@ pub fn dress_scene_with_dem(
         }
     }
 
+    // The authored furniture of a circuit's own straights. It is laid
+    // after the pit-zone test on purpose: its lamps and marquees stand
+    // behind the garages, which that test keeps clear.
+    for prop in lay_furniture(&path, &terrain, &layout.furniture) {
+        report.landmarks += 1;
+        laid.push(prop);
+    }
+
     for mut prop in laid {
         prop.id = recycled.pop().unwrap_or_else(|| {
             let id = scene.next_id;
@@ -363,7 +371,11 @@ fn name_of(name: &Option<String>) -> String {
 
 /// The decal image set this pass owns: every `graffiti/*` decal in a
 /// dressed scene came from the dossier and is replaced on each run.
-const GRAFFITI_SET: &str = "graffiti/";
+const GRAFFITI_SETS: [&str; 2] = ["graffiti/", "marina/"];
+
+fn is_dressed_decal(image: &str) -> bool {
+    GRAFFITI_SETS.iter().any(|set| image.starts_with(set))
+}
 
 /// Replace the scene's graffiti decals with the dossier's, reusing their
 /// ids lowest first (so a re-run writes the same file). Entries that do
@@ -378,12 +390,12 @@ fn lay_graffiti(
     let mut recycled: Vec<u64> = scene
         .decals
         .iter()
-        .filter(|d| d.image.starts_with(GRAFFITI_SET))
+        .filter(|d| is_dressed_decal(&d.image))
         .map(|d| d.id)
         .collect();
     recycled.sort_unstable();
     recycled.reverse();
-    scene.decals.retain(|d| !d.image.starts_with(GRAFFITI_SET));
+    scene.decals.retain(|d| !is_dressed_decal(&d.image));
 
     let total = path.total_length_m();
     let mut laid = 0;
@@ -398,7 +410,7 @@ fn lay_graffiti(
             width_m: g.width_m,
             reversed: g.reversed,
         };
-        if !g.image.starts_with(GRAFFITI_SET) || decal.image_parts().is_none() {
+        if !is_dressed_decal(&g.image) || decal.image_parts().is_none() {
             skipped.push(format!(
                 "graffiti {label}: image {:?} is not graffiti/<name>",
                 g.image
@@ -879,6 +891,14 @@ impl PitZone {
 /// to be a two-tier stand, roofed when the dossier says so (or when it is
 /// too deep to be anything else).
 fn stand_family(stand: &Stand) -> &'static str {
+    // The street circuit's tall stand: one family, roofed or not.
+    if stand.family.as_deref() == Some("street") {
+        return if stand.covered {
+            "street_stand_tier_10m_roof"
+        } else {
+            "street_stand_tier_10m"
+        };
+    }
     let large = stand.depth_m >= LARGE_STAND_DEPTH_M;
     let roof = stand.covered || stand.depth_m >= ASSUMED_ROOF_DEPTH_M;
     match (large, roof) {
@@ -1392,6 +1412,69 @@ fn lay_crossing(path: &CenterlinePath, crossing: &Crossing) -> Vec<Prop> {
     vec![one(asset, crossing.station_m)]
 }
 
+/// How far above the ground an asset stands when the dossier places it: a
+/// balloon and the wordmark ride the pit building's roof deck, a ribbon sits
+/// on top of the Tecpro. Grooming re-seats a dressed prop on the ground, so
+/// it adds this back (`groom`), which is why it is by asset.
+pub fn fixed_lift_m(asset: &str) -> f32 {
+    match asset {
+        "lamp_balloon_tether" | "lamp_balloon_tether_orange" | "roof_wordmark_block" => 22.0,
+        "led_ribbon_3m" => 1.15,
+        _ => 0.0,
+    }
+}
+
+/// Expand the dossier's furniture runs into props.
+fn lay_furniture(
+    path: &CenterlinePath,
+    terrain: &TerrainHeightfield,
+    furniture: &[crate::layout::Furniture],
+) -> Vec<Prop> {
+    let total = path.total_length_m();
+    let mut out = Vec::new();
+    for f in furniture {
+        let Ok(kind) = PropKind::parse(&f.kind) else {
+            continue;
+        };
+        let every = f.every_m.filter(|e| *e > 0.1);
+        let span = f.to_m.map_or(0.0, |to| (to - f.from_m).rem_euclid(total));
+        let count = every.map_or(1, |e| (span / e).floor() as usize + 1);
+        for i in 0..count {
+            let station = (f.from_m + i as f32 * every.unwrap_or(0.0)).rem_euclid(total);
+            let sample = path.sample_at(station);
+            let lat = match f.side.as_str() {
+                "left" => side_half_width(&sample, Side::Left) + f.offset_m,
+                "right" => -(side_half_width(&sample, Side::Right) + f.offset_m),
+                _ => f.offset_m,
+            };
+            let (x, y, road_z) = offset_point(&sample, lat);
+            if terrain.in_water(x, y) && kind != PropKind::Bridge {
+                continue;
+            }
+            // A bridge spans the road at the road's height; everything
+            // else stands on the ground.
+            let z = if kind == PropKind::Bridge {
+                road_z
+            } else {
+                seat_z(terrain, &sample, lat, x, y) + fixed_lift_m(&f.asset)
+            };
+            out.push(Prop {
+                id: 0,
+                kind,
+                asset: f.asset.clone(),
+                x,
+                y,
+                z,
+                yaw_rad: sample.heading_rad + f.yaw_deg.to_radians(),
+                scale: 1.0,
+                text: f.text.clone(),
+                length_m: None,
+            });
+        }
+    }
+    out
+}
+
 /// Distance between the street lamps of a city circuit, metres, and how
 /// far behind the road edge their poles stand. They alternate sides, so
 /// each side has one every twice the spacing and the arms reach across.
@@ -1814,7 +1897,7 @@ mod surroundings {
     /// run, so it has to recognise its own output; and because it shares
     /// kinds with hand-placed props (a `sign` is also a distance board, a
     /// `misc` is also a bollard) ownership is by asset, not by kind.
-    pub const OWNED: [&str; 25] = [
+    pub const OWNED: [&str; 31] = [
         "car_a",
         "car_b",
         "car_c",
@@ -1843,6 +1926,14 @@ mod surroundings {
         "station_entrance",
         "traffic_signal_pole",
         "bus_shelter",
+        // The start straight's furniture (`Layout::furniture`): boards,
+        // scaffold and signs are not dressed kinds, so they are owned here.
+        "roof_wordmark_block",
+        "led_ribbon_3m",
+        "stair_zigzag_scaffold",
+        "finish_tower_scaffold",
+        "walkway_planter_4m",
+        "pit_entry_board",
     ];
 
     /// Village buildings are `building` kind, which the dressing pass
@@ -2794,6 +2885,7 @@ mod tests {
             front,
             centre: [0.0, 0.0],
             yaw_rad: 0.0,
+            family: None,
         }
     }
 

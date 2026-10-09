@@ -774,7 +774,8 @@ pub fn groom_props_with_dem(
                 // the real one is. Seat it on the ground and leave it
                 // alone: a push would trade a fact for a guess.
                 let (sample, lat, _) = nearest_cross_section(&path, prop.x, prop.y);
-                let z = seat_z(&terrain, &sample, lat, prop.x, prop.y);
+                let z = seat_z(&terrain, &sample, lat, prop.x, prop.y)
+                    + crate::dress::fixed_lift_m(&prop.asset);
                 if (z - prop.z).abs() > MIN_MOVE_M {
                     prop.z = z;
                     report.reseated += 1;

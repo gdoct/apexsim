@@ -1415,7 +1415,7 @@
     {
       "id": 44,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m_roof",
       "x": 38.057247,
       "y": -12.0,
       "z": -0.080188885,
@@ -1427,7 +1427,7 @@
     {
       "id": 45,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m_roof",
       "x": 74.15173,
       "y": -11.995,
       "z": -0.08018906,
@@ -1439,7 +1439,7 @@
     {
       "id": 46,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m_roof",
       "x": 110.2462,
       "y": -11.996828,
       "z": -0.080189005,
@@ -1451,7 +1451,7 @@
     {
       "id": 47,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m_roof",
       "x": 146.33463,
       "y": -11.571524,
       "z": -0.08020326,
@@ -1463,7 +1463,7 @@
     {
       "id": 48,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m_roof",
       "x": 182.4129,
       "y": -10.534696,
       "z": -0.0802382,
@@ -1475,7 +1475,7 @@
     {
       "id": 49,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m",
       "x": 234.61832,
       "y": -8.8032,
       "z": -0.080296084,
@@ -1487,7 +1487,7 @@
     {
       "id": 50,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m",
       "x": 272.95505,
       "y": -7.531211,
       "z": -0.08031854,
@@ -1499,7 +1499,7 @@
     {
       "id": 51,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m",
       "x": 311.29172,
       "y": -6.258011,
       "z": -0.08030466,
@@ -1511,7 +1511,7 @@
     {
       "id": 52,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m",
       "x": 420.07935,
       "y": -1.4962007,
       "z": -0.08015775,
@@ -1523,7 +1523,7 @@
     {
       "id": 53,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m",
       "x": 442.3635,
       "y": 10.21275,
       "z": -0.0802477,
@@ -1535,7 +1535,7 @@
     {
       "id": 54,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m",
       "x": 452.3955,
       "y": 33.94545,
       "z": -0.08028087,
@@ -1547,7 +1547,7 @@
     {
       "id": 55,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m",
       "x": 482.1673,
       "y": 85.28493,
       "z": -0.082271725,
@@ -1847,7 +1847,7 @@
     {
       "id": 80,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m_roof",
       "x": -168.01749,
       "y": 26.785898,
       "z": -0.08032166,
@@ -1859,7 +1859,7 @@
     {
       "id": 81,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m_roof",
       "x": -139.87581,
       "y": 5.1790257,
       "z": -0.08022634,
@@ -1871,7 +1871,7 @@
     {
       "id": 82,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m_roof",
       "x": -108.35039,
       "y": -8.708047,
       "z": -0.08029925,
@@ -1883,7 +1883,7 @@
     {
       "id": 83,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m_roof",
       "x": -73.3159,
       "y": -12.037498,
       "z": -0.0801948,
@@ -1895,7 +1895,7 @@
     {
       "id": 84,
       "kind": "grandstand",
-      "asset": "bay_10m",
+      "asset": "street_stand_tier_10m_roof",
       "x": -37.778847,
       "y": -12.001324,
       "z": -0.080188796,
@@ -10285,6 +10285,2844 @@
       "yaw_rad": -1.74,
       "scale": 1.0,
       "text": "Marina Bay Street Circuit"
+    },
+    {
+      "id": 48649,
+      "kind": "bridge",
+      "asset": "banner_gantry",
+      "x": 45.0,
+      "y": 0.0,
+      "z": 0.0,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48650,
+      "kind": "misc",
+      "asset": "finish_tower_scaffold",
+      "x": 8.0,
+      "y": -14.0,
+      "z": -0.081779696,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48651,
+      "kind": "sign",
+      "asset": "pit_entry_board",
+      "x": -160.67459,
+      "y": 197.87428,
+      "z": -0.08142057,
+      "yaw_rad": -1.7636033,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48652,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -177.23834,
+      "y": 38.115597,
+      "z": 1.0697138,
+      "yaw_rad": -0.6420415,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48653,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -174.86966,
+      "y": 36.33919,
+      "z": 1.0697305,
+      "yaw_rad": -0.6464021,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48654,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -172.52362,
+      "y": 34.56425,
+      "z": 1.0697324,
+      "yaw_rad": -0.6528546,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48655,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -170.19647,
+      "y": 32.778976,
+      "z": 1.069736,
+      "yaw_rad": -0.66026336,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48656,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -167.89734,
+      "y": 30.986835,
+      "z": 1.069733,
+      "yaw_rad": -0.6696957,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48657,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -165.60776,
+      "y": 29.167427,
+      "z": 1.0697235,
+      "yaw_rad": -0.67807317,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48658,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -163.33093,
+      "y": 27.32627,
+      "z": 1.0697218,
+      "yaw_rad": -0.6860601,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48659,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -161.05746,
+      "y": 25.459173,
+      "z": 1.0697534,
+      "yaw_rad": -0.69252324,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48660,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -158.78867,
+      "y": 23.57153,
+      "z": 1.0697848,
+      "yaw_rad": -0.69791967,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48661,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -156.50754,
+      "y": 21.656124,
+      "z": 1.0697967,
+      "yaw_rad": -0.7003036,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48662,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -154.23515,
+      "y": 19.73862,
+      "z": 1.0697877,
+      "yaw_rad": -0.7032706,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48663,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -151.97087,
+      "y": 17.81557,
+      "z": 1.0697582,
+      "yaw_rad": -0.70656425,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48664,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -149.69714,
+      "y": 15.874212,
+      "z": 1.0697081,
+      "yaw_rad": -0.7076935,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48665,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -147.40892,
+      "y": 13.9158,
+      "z": 1.0697393,
+      "yaw_rad": -0.7063709,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48666,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -145.0757,
+      "y": 11.931034,
+      "z": 1.0697725,
+      "yaw_rad": -0.69939053,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48667,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -142.71115,
+      "y": 9.947872,
+      "z": 1.0697793,
+      "yaw_rad": -0.6898229,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48668,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -140.32066,
+      "y": 7.984513,
+      "z": 1.069759,
+      "yaw_rad": -0.6794448,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48669,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -137.81154,
+      "y": 5.9813223,
+      "z": 1.0697094,
+      "yaw_rad": -0.65600246,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48670,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -135.22342,
+      "y": 4.0142655,
+      "z": 1.0696803,
+      "yaw_rad": -0.628105,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48671,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -132.4889,
+      "y": 2.067356,
+      "z": 1.0697364,
+      "yaw_rad": -0.5884266,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48672,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -129.63596,
+      "y": 0.20326233,
+      "z": 1.069786,
+      "yaw_rad": -0.5430435,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48673,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -126.649734,
+      "y": -1.541542,
+      "z": 1.0698245,
+      "yaw_rad": -0.49204054,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48674,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -123.496056,
+      "y": -3.1652517,
+      "z": 1.0698394,
+      "yaw_rad": -0.43120188,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48675,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -120.23424,
+      "y": -4.5990047,
+      "z": 1.0698135,
+      "yaw_rad": -0.36854088,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48676,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -116.87031,
+      "y": -5.831361,
+      "z": 1.0697641,
+      "yaw_rad": -0.30367702,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48677,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -113.45551,
+      "y": -6.8405404,
+      "z": 1.069696,
+      "yaw_rad": -0.24129614,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48678,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -109.986755,
+      "y": -7.634756,
+      "z": 1.0696803,
+      "yaw_rad": -0.17920724,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48679,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -106.604324,
+      "y": -8.200997,
+      "z": 1.0696837,
+      "yaw_rad": -0.13147093,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48680,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -103.24148,
+      "y": -8.603806,
+      "z": 1.0696973,
+      "yaw_rad": -0.08842328,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48681,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -99.93367,
+      "y": -8.867696,
+      "z": 1.0697061,
+      "yaw_rad": -0.05303361,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48682,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -96.70424,
+      "y": -9.016747,
+      "z": 1.0697111,
+      "yaw_rad": -0.027176216,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48683,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -93.51659,
+      "y": -9.089076,
+      "z": 1.0697135,
+      "yaw_rad": -0.0062325476,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48684,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -90.42321,
+      "y": -9.099922,
+      "z": 1.0697138,
+      "yaw_rad": 0.004162549,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48685,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -87.35073,
+      "y": -9.07967,
+      "z": 1.0697131,
+      "yaw_rad": 0.012185969,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48686,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -84.333206,
+      "y": -9.041555,
+      "z": 1.0697119,
+      "yaw_rad": 0.014174147,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48687,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -81.34674,
+      "y": -8.998413,
+      "z": 1.0697105,
+      "yaw_rad": 0.012713318,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48688,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -78.388214,
+      "y": -8.964327,
+      "z": 1.0697093,
+      "yaw_rad": 0.00815443,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48689,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -75.420395,
+      "y": -8.942677,
+      "z": 1.0697086,
+      "yaw_rad": 0.0045596818,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48690,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -72.45293,
+      "y": -8.931577,
+      "z": 1.0697082,
+      "yaw_rad": 0.0009504358,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48691,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -69.48973,
+      "y": -8.931299,
+      "z": 1.0697082,
+      "yaw_rad": -0.0031098735,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48692,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -66.50879,
+      "y": -8.942493,
+      "z": 1.0697086,
+      "yaw_rad": -0.005180694,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48693,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -63.518238,
+      "y": -8.9585,
+      "z": 1.0697091,
+      "yaw_rad": -0.0061936514,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48694,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -60.51866,
+      "y": -8.977129,
+      "z": 1.0697098,
+      "yaw_rad": -0.006226711,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48695,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -57.515427,
+      "y": -8.995823,
+      "z": 1.0697104,
+      "yaw_rad": -0.005860373,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48696,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -54.50465,
+      "y": -9.012677,
+      "z": 1.069711,
+      "yaw_rad": -0.004662914,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48697,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -51.486782,
+      "y": -9.02583,
+      "z": 1.0697113,
+      "yaw_rad": -0.0026376229,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48698,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -48.46166,
+      "y": -9.031738,
+      "z": 1.0697116,
+      "yaw_rad": 0.00013994148,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48699,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -45.450523,
+      "y": -9.030384,
+      "z": 1.0697116,
+      "yaw_rad": 0.0013780283,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48700,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -42.442875,
+      "y": -9.025407,
+      "z": 1.0697113,
+      "yaw_rad": 0.0022224137,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48701,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -39.444843,
+      "y": -9.018869,
+      "z": 1.0697111,
+      "yaw_rad": 0.0019960038,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48702,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -36.444576,
+      "y": -9.012882,
+      "z": 1.069711,
+      "yaw_rad": 0.0020256361,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48703,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -33.442696,
+      "y": -9.006541,
+      "z": 1.0697107,
+      "yaw_rad": 0.002222615,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48704,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -30.45635,
+      "y": -9.000702,
+      "z": 1.0697105,
+      "yaw_rad": 0.0007466507,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48705,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -27.464878,
+      "y": -8.9994545,
+      "z": 1.0697105,
+      "yaw_rad": -0.00022222221,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48706,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -24.462584,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48707,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": -21.46229,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48708,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 20.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48709,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 23.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48710,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 26.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48711,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 29.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48712,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 32.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48713,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 35.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48714,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 38.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48715,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 41.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48716,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 44.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48717,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 47.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48718,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 50.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48719,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 53.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48720,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 56.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48721,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 59.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48722,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 62.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48723,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 65.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48724,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 68.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48725,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 71.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48726,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 74.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48727,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 77.0,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48728,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 79.99804,
+      "y": -9.0,
+      "z": 1.0697105,
+      "yaw_rad": -0.00021783658,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48729,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 83.00266,
+      "y": -9.000658,
+      "z": 1.0697105,
+      "yaw_rad": 0.000296163,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48730,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 86.019455,
+      "y": -8.998273,
+      "z": 1.0697104,
+      "yaw_rad": 0.0021615818,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48731,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 89.01148,
+      "y": -8.991841,
+      "z": 1.0697103,
+      "yaw_rad": 0.0012768803,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48732,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 91.99799,
+      "y": -8.989325,
+      "z": 1.0697101,
+      "yaw_rad": -0.00022222173,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48733,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 94.99995,
+      "y": -8.989991,
+      "z": 1.0697101,
+      "yaw_rad": -0.0000053344993,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48734,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 97.99999,
+      "y": -8.99,
+      "z": 1.0697101,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48735,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 101.00199,
+      "y": -8.989786,
+      "z": 1.0697101,
+      "yaw_rad": 0.00022227148,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48736,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 103.99224,
+      "y": -8.989535,
+      "z": 1.0697101,
+      "yaw_rad": -0.00086136087,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48737,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 106.98004,
+      "y": -8.993215,
+      "z": 1.0697103,
+      "yaw_rad": -0.002217058,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48738,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 109.981926,
+      "y": -8.999871,
+      "z": 1.0697105,
+      "yaw_rad": -0.0020056705,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48739,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 112.98197,
+      "y": -9.005881,
+      "z": 1.0697107,
+      "yaw_rad": -0.0020004467,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48740,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 115.97997,
+      "y": -9.012089,
+      "z": 1.0697109,
+      "yaw_rad": -0.0022222165,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48741,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 118.98818,
+      "y": -9.018359,
+      "z": 1.0697111,
+      "yaw_rad": -0.0013089804,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48742,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 122.0,
+      "y": -9.021544,
+      "z": 1.0697112,
+      "yaw_rad": 0.000004637303,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48743,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 125.02156,
+      "y": -9.02003,
+      "z": 1.0697112,
+      "yaw_rad": 0.002400199,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48744,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 128.04764,
+      "y": -9.010974,
+      "z": 1.0697109,
+      "yaw_rad": 0.0053003645,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48745,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 131.08202,
+      "y": -8.992109,
+      "z": 1.0697103,
+      "yaw_rad": 0.009126779,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48746,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 134.11429,
+      "y": -8.961997,
+      "z": 1.0697092,
+      "yaw_rad": 0.012728415,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48747,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 137.1464,
+      "y": -8.921103,
+      "z": 1.0697079,
+      "yaw_rad": 0.016325966,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48748,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 140.17833,
+      "y": -8.869311,
+      "z": 1.0697061,
+      "yaw_rad": 0.019924123,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48749,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 143.21004,
+      "y": -8.806199,
+      "z": 1.0697039,
+      "yaw_rad": 0.02352167,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48750,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 146.24352,
+      "y": -8.732054,
+      "z": 1.0697014,
+      "yaw_rad": 0.027340421,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48751,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 149.26651,
+      "y": -8.647381,
+      "z": 1.0696987,
+      "yaw_rad": 0.030026345,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48752,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 152.28569,
+      "y": -8.55519,
+      "z": 1.0696956,
+      "yaw_rad": 0.032314435,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48753,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 155.29349,
+      "y": -8.457187,
+      "z": 1.0696923,
+      "yaw_rad": 0.0333606,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48754,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 158.3026,
+      "y": -8.355855,
+      "z": 1.0696889,
+      "yaw_rad": 0.03456139,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48755,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 161.31297,
+      "y": -8.250766,
+      "z": 1.0696853,
+      "yaw_rad": 0.03591855,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48756,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 164.31357,
+      "y": -8.14257,
+      "z": 1.0696818,
+      "yaw_rad": 0.036201205,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48757,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 167.31065,
+      "y": -8.034017,
+      "z": 1.0696803,
+      "yaw_rad": 0.036099043,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48758,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 170.29413,
+      "y": -7.9270015,
+      "z": 1.0696803,
+      "yaw_rad": 0.03447465,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48759,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 173.286,
+      "y": -7.824717,
+      "z": 1.0696803,
+      "yaw_rad": 0.033764906,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48760,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 176.28825,
+      "y": -7.7228923,
+      "z": 1.0696803,
+      "yaw_rad": 0.03420899,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48761,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 179.27696,
+      "y": -7.621004,
+      "z": 1.0696803,
+      "yaw_rad": 0.033146307,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48762,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 182.26295,
+      "y": -7.5231085,
+      "z": 1.0696803,
+      "yaw_rad": 0.03176732,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48763,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 185.26335,
+      "y": -7.427763,
+      "z": 1.0696803,
+      "yaw_rad": 0.031979114,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48764,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 188.26192,
+      "y": -7.3318257,
+      "z": 1.0696803,
+      "yaw_rad": 0.031989064,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48765,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 191.25839,
+      "y": -7.236143,
+      "z": 1.0696803,
+      "yaw_rad": 0.031767193,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48766,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 194.26707,
+      "y": -7.140136,
+      "z": 1.0696803,
+      "yaw_rad": 0.03290252,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48767,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 197.27826,
+      "y": -7.039698,
+      "z": 1.0696803,
+      "yaw_rad": 0.03433013,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48768,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 200.25815,
+      "y": -6.938093,
+      "z": 1.0696803,
+      "yaw_rad": 0.032287844,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48769,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 203.25443,
+      "y": -6.84225,
+      "z": 1.0696803,
+      "yaw_rad": 0.032044277,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48770,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 206.27159,
+      "y": -6.74387,
+      "z": 1.0696803,
+      "yaw_rad": 0.034130365,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48771,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 209.26169,
+      "y": -6.641759,
+      "z": 1.0696803,
+      "yaw_rad": 0.033224646,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48772,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 212.24586,
+      "y": -6.5440774,
+      "z": 1.0696803,
+      "yaw_rad": 0.031642888,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48773,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 215.26266,
+      "y": -6.447809,
+      "z": 1.0696803,
+      "yaw_rad": 0.03368072,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48774,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 218.26323,
+      "y": -6.34577,
+      "z": 1.0696803,
+      "yaw_rad": 0.033934962,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48775,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 221.24278,
+      "y": -6.2462363,
+      "z": 1.0696803,
+      "yaw_rad": 0.03184903,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48776,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 224.24928,
+      "y": -6.15047,
+      "z": 1.0696803,
+      "yaw_rad": 0.032741148,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48777,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 227.26195,
+      "y": -6.050274,
+      "z": 1.0696803,
+      "yaw_rad": 0.034331992,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48778,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 230.24245,
+      "y": -5.9486256,
+      "z": 1.0696803,
+      "yaw_rad": 0.032358166,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48779,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 233.2386,
+      "y": -5.852561,
+      "z": 1.0696803,
+      "yaw_rad": 0.032102816,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48780,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 236.25325,
+      "y": -5.754339,
+      "z": 1.0696803,
+      "yaw_rad": 0.033908762,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48781,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 239.25417,
+      "y": -5.652152,
+      "z": 1.0696803,
+      "yaw_rad": 0.03420365,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48782,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 242.2516,
+      "y": -5.5495825,
+      "z": 1.0696803,
+      "yaw_rad": 0.034113884,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48783,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 245.23347,
+      "y": -5.4485664,
+      "z": 1.0696803,
+      "yaw_rad": 0.032288603,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48784,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 248.22969,
+      "y": -5.3527155,
+      "z": 1.0696803,
+      "yaw_rad": 0.03203855,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48785,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 251.24687,
+      "y": -5.254367,
+      "z": 1.0696803,
+      "yaw_rad": 0.034124658,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48786,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 254.23714,
+      "y": -5.1522493,
+      "z": 1.0696803,
+      "yaw_rad": 0.033238135,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48787,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 257.22113,
+      "y": -5.0545425,
+      "z": 1.0696803,
+      "yaw_rad": 0.031636883,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48788,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 260.23788,
+      "y": -4.958286,
+      "z": 1.0696803,
+      "yaw_rad": 0.033666916,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48789,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 263.23862,
+      "y": -4.8562727,
+      "z": 1.0696803,
+      "yaw_rad": 0.033940624,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48790,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 266.2182,
+      "y": -4.756707,
+      "z": 1.0696803,
+      "yaw_rad": 0.031854782,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48791,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 269.22458,
+      "y": -4.660945,
+      "z": 1.0696803,
+      "yaw_rad": 0.03273005,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48792,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 272.23743,
+      "y": -4.5607595,
+      "z": 1.0696808,
+      "yaw_rad": 0.034342352,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48793,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 275.21747,
+      "y": -4.459129,
+      "z": 1.0696822,
+      "yaw_rad": 0.032316968,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48794,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 278.21338,
+      "y": -4.36323,
+      "z": 1.0696837,
+      "yaw_rad": 0.032032005,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48795,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 281.22858,
+      "y": -4.2651815,
+      "z": 1.069685,
+      "yaw_rad": 0.03389579,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48796,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 284.22964,
+      "y": -4.163001,
+      "z": 1.0696919,
+      "yaw_rad": 0.03420927,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48797,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 287.2271,
+      "y": -4.06042,
+      "z": 1.0697097,
+      "yaw_rad": 0.03412318,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48798,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 290.2109,
+      "y": -3.9593258,
+      "z": 1.0697268,
+      "yaw_rad": 0.03251414,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48799,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 293.20264,
+      "y": -3.8629313,
+      "z": 1.0697436,
+      "yaw_rad": 0.03176722,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48800,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 296.20306,
+      "y": -3.7673883,
+      "z": 1.0697495,
+      "yaw_rad": 0.03198894,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48801,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 299.20154,
+      "y": -3.6714392,
+      "z": 1.0697328,
+      "yaw_rad": 0.031987168,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48802,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 302.19998,
+      "y": -3.575501,
+      "z": 1.0697165,
+      "yaw_rad": 0.03198409,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48803,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 305.1971,
+      "y": -3.4795818,
+      "z": 1.0697006,
+      "yaw_rad": 0.031837635,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48804,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 308.19986,
+      "y": -3.3839412,
+      "z": 1.0696902,
+      "yaw_rad": 0.032313038,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48805,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 311.2125,
+      "y": -3.2853737,
+      "z": 1.069691,
+      "yaw_rad": 0.03389686,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48806,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 314.21286,
+      "y": -3.1832252,
+      "z": 1.0696915,
+      "yaw_rad": 0.034131486,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48807,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 317.20978,
+      "y": -3.0810876,
+      "z": 1.0696921,
+      "yaw_rad": 0.03398643,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48808,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 320.20618,
+      "y": -2.9792104,
+      "z": 1.0696994,
+      "yaw_rad": 0.033782206,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48809,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 323.20868,
+      "y": -2.8777647,
+      "z": 1.06972,
+      "yaw_rad": 0.034246072,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48810,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 326.22162,
+      "y": -2.7733169,
+      "z": 1.0697402,
+      "yaw_rad": 0.035887413,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48811,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 329.2225,
+      "y": -2.665152,
+      "z": 1.0697595,
+      "yaw_rad": 0.036204208,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48812,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 332.2198,
+      "y": -2.5565972,
+      "z": 1.0697818,
+      "yaw_rad": 0.036121912,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48813,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 335.20764,
+      "y": -2.4493709,
+      "z": 1.0698107,
+      "yaw_rad": 0.03498808,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48814,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 338.1908,
+      "y": -2.3457818,
+      "z": 1.0698385,
+      "yaw_rad": 0.03331477,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48815,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 341.16504,
+      "y": -2.2485247,
+      "z": 1.0698656,
+      "yaw_rad": 0.030631583,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48816,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 344.14078,
+      "y": -2.1588917,
+      "z": 1.0698767,
+      "yaw_rad": 0.02808568,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48817,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 347.11685,
+      "y": -2.0771189,
+      "z": 1.0698532,
+      "yaw_rad": 0.025553996,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48818,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 350.1173,
+      "y": -2.0004497,
+      "z": 1.0698302,
+      "yaw_rad": 0.02571661,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48819,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 353.1206,
+      "y": -1.9231958,
+      "z": 1.0698078,
+      "yaw_rad": 0.026190436,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48820,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 356.12842,
+      "y": -1.8437586,
+      "z": 1.069792,
+      "yaw_rad": 0.027175017,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48821,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 359.15335,
+      "y": -1.7600503,
+      "z": 1.0697916,
+      "yaw_rad": 0.030074375,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48822,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 362.1848,
+      "y": -1.6666641,
+      "z": 1.0697908,
+      "yaw_rad": 0.03373107,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48823,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 365.24402,
+      "y": -1.5592484,
+      "z": 1.0697898,
+      "yaw_rad": 0.04052053,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48824,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 368.28806,
+      "y": -1.431263,
+      "z": 1.0697942,
+      "yaw_rad": 0.045714192,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48825,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 371.3173,
+      "y": -1.2901697,
+      "z": 1.0698085,
+      "yaw_rad": 0.049329128,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48826,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 374.3341,
+      "y": -1.1394539,
+      "z": 1.0698216,
+      "yaw_rad": 0.05161475,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48827,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 377.34555,
+      "y": -0.9821415,
+      "z": 1.0698335,
+      "yaw_rad": 0.05333838,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48828,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 380.28693,
+      "y": -0.8289356,
+      "z": 1.0698386,
+      "yaw_rad": 0.047273178,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48829,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 383.20813,
+      "y": -0.6947565,
+      "z": 1.0698341,
+      "yaw_rad": 0.038856674,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48830,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 386.09177,
+      "y": -0.59085464,
+      "z": 1.0698307,
+      "yaw_rad": 0.026140284,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48831,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 388.9529,
+      "y": -0.52444077,
+      "z": 1.0698285,
+      "yaw_rad": 0.010800351,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48832,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 391.80475,
+      "y": -0.5032959,
+      "z": 1.0698278,
+      "yaw_rad": -0.005649012,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48833,
+      "kind": "board",
+      "asset": "led_ribbon_3m",
+      "x": 394.64548,
+      "y": -0.5276766,
+      "z": 1.0698285,
+      "yaw_rad": -0.023333231,
+      "scale": 1.0,
+      "text": "kronos"
+    },
+    {
+      "id": 48834,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": -196.99979,
+      "y": 11.686726,
+      "z": 0.0066428334,
+      "yaw_rad": -0.6420415,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48835,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": -175.57678,
+      "y": -5.431505,
+      "z": 0.006264409,
+      "yaw_rad": -0.7032706,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48836,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": -146.6885,
+      "y": -28.049356,
+      "z": 0.006455806,
+      "yaw_rad": -0.5430435,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48837,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": -97.600945,
+      "y": -42.004562,
+      "z": 0.006003278,
+      "yaw_rad": -0.027176216,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48838,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": -66.679756,
+      "y": -41.94205,
+      "z": 0.0055470644,
+      "yaw_rad": -0.005180694,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48839,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": -36.37773,
+      "y": -42.012817,
+      "z": 0.005369517,
+      "yaw_rad": 0.0020256361,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48840,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": -6.4615965,
+      "y": -42.0,
+      "z": 0.0052533858,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48841,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 23.538574,
+      "y": -42.0,
+      "z": 0.005161262,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48842,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 53.538574,
+      "y": -42.0,
+      "z": 0.0050937566,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48843,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 83.56285,
+      "y": -42.00066,
+      "z": 0.005041849,
+      "yaw_rad": 0.00057797664,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48844,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 113.45367,
+      "y": -42.006893,
+      "z": 0.005005264,
+      "yaw_rad": -0.0020210568,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48845,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 144.55254,
+      "y": -41.78427,
+      "z": 0.00497577,
+      "yaw_rad": 0.024186505,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48846,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 174.93982,
+      "y": -40.787674,
+      "z": 0.004890658,
+      "yaw_rad": 0.033801325,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48847,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 204.86174,
+      "y": -39.807865,
+      "z": 0.004818652,
+      "yaw_rad": 0.032323755,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48848,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 234.84671,
+      "y": -38.818115,
+      "z": 0.004768096,
+      "yaw_rad": 0.032355323,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48849,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 264.88547,
+      "y": -37.819168,
+      "z": 0.004716236,
+      "yaw_rad": 0.03367309,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48850,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 294.78955,
+      "y": -36.829163,
+      "z": 0.0046929778,
+      "yaw_rad": 0.031778336,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48851,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 324.88672,
+      "y": -35.839844,
+      "z": 0.0047000325,
+      "yaw_rad": 0.034481525,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48852,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 40.0,
+      "y": 60.0,
+      "z": 0.0059134113,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48853,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 64.0,
+      "y": 60.0,
+      "z": 0.0057704025,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48854,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 87.88433,
+      "y": 60.006012,
+      "z": 0.0056035314,
+      "yaw_rad": 0.0019277184,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48855,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 112.12,
+      "y": 59.99598,
+      "z": 0.0054185297,
+      "yaw_rad": -0.0020004413,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48856,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 135.09203,
+      "y": 60.05629,
+      "z": 0.0052489787,
+      "yaw_rad": 0.015126349,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48857,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 157.85928,
+      "y": 60.670074,
+      "z": 0.005137983,
+      "yaw_rad": 0.03552623,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48858,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 182.06566,
+      "y": 61.50545,
+      "z": 0.0050536525,
+      "yaw_rad": 0.031845935,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48859,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 205.92773,
+      "y": 62.2847,
+      "z": 0.0049947733,
+      "yaw_rad": 0.033932716,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48860,
+      "kind": "light",
+      "asset": "lamp_globe_pole",
+      "x": 230.0477,
+      "y": 63.081017,
+      "z": 0.0049617006,
+      "yaw_rad": 0.03171405,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48861,
+      "kind": "light",
+      "asset": "lamp_balloon_tether",
+      "x": 55.0,
+      "y": 24.5,
+      "z": 21.919682,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48862,
+      "kind": "light",
+      "asset": "lamp_balloon_tether",
+      "x": 95.00012,
+      "y": 24.51001,
+      "z": 21.91968,
+      "yaw_rad": -0.0000053344993,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48863,
+      "kind": "light",
+      "asset": "lamp_balloon_tether",
+      "x": 134.65848,
+      "y": 24.5469,
+      "z": 21.91968,
+      "yaw_rad": 0.013926741,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48864,
+      "kind": "light",
+      "asset": "lamp_balloon_tether",
+      "x": 174.14352,
+      "y": 25.723352,
+      "z": 21.91968,
+      "yaw_rad": 0.03419044,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48865,
+      "kind": "light",
+      "asset": "lamp_balloon_tether",
+      "x": 214.13457,
+      "y": 27.033192,
+      "z": 21.91968,
+      "yaw_rad": 0.03368072,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48866,
+      "kind": "light",
+      "asset": "lamp_balloon_tether_orange",
+      "x": 75.0,
+      "y": 24.5,
+      "z": 21.91968,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48867,
+      "kind": "light",
+      "asset": "lamp_balloon_tether_orange",
+      "x": 115.05426,
+      "y": 24.490042,
+      "z": 21.91968,
+      "yaw_rad": -0.0022155643,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48868,
+      "kind": "light",
+      "asset": "lamp_balloon_tether_orange",
+      "x": 154.17612,
+      "y": 25.024174,
+      "z": 21.91968,
+      "yaw_rad": 0.0333606,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48869,
+      "kind": "light",
+      "asset": "lamp_balloon_tether_orange",
+      "x": 194.14496,
+      "y": 26.373508,
+      "z": 21.91968,
+      "yaw_rad": 0.033701252,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48870,
+      "kind": "light",
+      "asset": "lamp_balloon_tether_orange",
+      "x": 234.1284,
+      "y": 27.693317,
+      "z": 21.91968,
+      "yaw_rad": 0.03348725,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48871,
+      "kind": "board",
+      "asset": "roof_wordmark_block",
+      "x": 75.0,
+      "y": 36.0,
+      "z": 21.910809,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48872,
+      "kind": "board",
+      "asset": "roof_wordmark_block",
+      "x": 134.49832,
+      "y": 36.045784,
+      "z": 21.91295,
+      "yaw_rad": 0.013926741,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48873,
+      "kind": "board",
+      "asset": "roof_wordmark_block",
+      "x": 193.75748,
+      "y": 37.866978,
+      "z": 21.922703,
+      "yaw_rad": 0.033701252,
+      "scale": 1.0,
+      "text": "apexsim"
+    },
+    {
+      "id": 48874,
+      "kind": "misc",
+      "asset": "stair_zigzag_scaffold",
+      "x": 28.0,
+      "y": 28.0,
+      "z": -0.08122202,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48875,
+      "kind": "misc",
+      "asset": "stair_zigzag_scaffold",
+      "x": 240.98964,
+      "y": 31.42889,
+      "z": -0.080472045,
+      "yaw_rad": 0.034113884,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48876,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 40.0,
+      "y": 66.0,
+      "z": 0.006554668,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48877,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 56.0,
+      "y": 66.0,
+      "z": 0.0064448984,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48878,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 72.0,
+      "y": 66.0,
+      "z": 0.0063166157,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48879,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 87.872765,
+      "y": 66.006004,
+      "z": 0.0061775334,
+      "yaw_rad": 0.0019277184,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48880,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 104.05684,
+      "y": 66.01044,
+      "z": 0.006026505,
+      "yaw_rad": -0.00086136087,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48881,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 120.05996,
+      "y": 65.98005,
+      "z": 0.005870944,
+      "yaw_rad": -0.0009090996,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48882,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 135.00127,
+      "y": 66.05561,
+      "z": 0.005736279,
+      "yaw_rad": 0.015126349,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48883,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 149.86252,
+      "y": 66.405655,
+      "z": 0.005627028,
+      "yaw_rad": 0.032314435,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48884,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 165.6295,
+      "y": 66.95427,
+      "z": 0.0055338573,
+      "yaw_rad": 0.03569963,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48885,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 181.87462,
+      "y": 67.50241,
+      "z": 0.005453432,
+      "yaw_rad": 0.031845935,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48886,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 197.83698,
+      "y": 68.02282,
+      "z": 0.0053909416,
+      "yaw_rad": 0.032287844,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48887,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 213.70702,
+      "y": 68.542274,
+      "z": 0.00534771,
+      "yaw_rad": 0.03412811,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48888,
+      "kind": "misc",
+      "asset": "walkway_planter_4m",
+      "x": 229.85745,
+      "y": 69.077995,
+      "z": 0.0053192135,
+      "yaw_rad": 0.03171405,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48889,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": -175.75676,
+      "y": -26.292421,
+      "z": 0.008529959,
+      "yaw_rad": -0.6971827,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48890,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": -133.65646,
+      "y": -51.87713,
+      "z": 0.008546707,
+      "yaw_rad": -0.32522267,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48891,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": -86.75363,
+      "y": -58.07603,
+      "z": 0.0076689892,
+      "yaw_rad": 0.012185969,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48892,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": -59.82361,
+      "y": -57.982407,
+      "z": 0.007259373,
+      "yaw_rad": -0.0062234993,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48893,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": -31.380959,
+      "y": -58.002205,
+      "z": 0.0070223967,
+      "yaw_rad": 0.0014135883,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48894,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": -3.4614782,
+      "y": -58.0,
+      "z": 0.0068648756,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48895,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": 24.538574,
+      "y": -58.0,
+      "z": 0.0067446036,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48896,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": 52.538574,
+      "y": -58.0,
+      "z": 0.0066507114,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48897,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": 80.52571,
+      "y": -58.000114,
+      "z": 0.006576449,
+      "yaw_rad": -0.0002217825,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48898,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": 108.4111,
+      "y": -57.996506,
+      "z": 0.0065201935,
+      "yaw_rad": -0.002197507,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48899,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": 137.45285,
+      "y": -57.922092,
+      "z": 0.0064778733,
+      "yaw_rad": 0.015772471,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48900,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": 166.62541,
+      "y": -57.09097,
+      "z": 0.0063890046,
+      "yaw_rad": 0.036203783,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48901,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": 194.3709,
+      "y": -56.161964,
+      "z": 0.006306103,
+      "yaw_rad": 0.032084294,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48902,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": 222.35262,
+      "y": -55.235905,
+      "z": 0.006240195,
+      "yaw_rad": 0.03203326,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48903,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": 250.35336,
+      "y": -54.31,
+      "z": 0.0061892746,
+      "yaw_rad": 0.032310344,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48904,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": 278.29935,
+      "y": -53.385067,
+      "z": 0.0061569368,
+      "yaw_rad": 0.03164142,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 48905,
+      "kind": "attraction",
+      "asset": "marquee_peak_12m",
+      "x": 306.29858,
+      "y": -52.46942,
+      "z": 0.00615738,
+      "yaw_rad": 0.031887446,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 49100,
+      "kind": "attraction",
+      "asset": "led_wall_stage_16m",
+      "x": 288.42294,
+      "y": 51.011604,
+      "z": -0.019605132,
+      "yaw_rad": 0.03251414,
+      "scale": 1.0,
+      "text": null
     },
     {
       "id": 30470,
@@ -89762,6 +92600,1560 @@
       "text": "northwind"
     }
   ],
+  "decals": [
+    {
+      "id": 48906,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4735.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48907,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4741.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48908,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4747.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48909,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4753.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48910,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4759.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48911,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4765.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48912,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4771.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48913,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4777.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48914,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4783.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48915,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4789.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48916,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4795.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48917,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4801.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48918,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4807.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48919,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4813.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48920,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4819.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48921,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4825.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48922,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4831.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48923,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4837.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48924,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4843.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48925,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4849.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48926,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4855.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48927,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4861.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48928,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4867.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48929,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4873.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48930,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4879.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48931,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4885.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48932,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4891.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48933,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4897.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48934,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4903.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48935,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4909.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48936,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 4915.0,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48937,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 0.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48938,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 6.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48939,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 12.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48940,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 18.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48941,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 24.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48942,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 30.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48943,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 36.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48944,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 42.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48945,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 48.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48946,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 54.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48947,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 60.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48948,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 66.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48949,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 72.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48950,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 78.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48951,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 84.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48952,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 90.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48953,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 96.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48954,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 102.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48955,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 108.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48956,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 114.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48957,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 120.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48958,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 126.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48959,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 132.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48960,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 138.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48961,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 144.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48962,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 150.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48963,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 156.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48964,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 162.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48965,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 168.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48966,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 174.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48967,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 180.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48968,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 186.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48969,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 192.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48970,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 198.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48971,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 204.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48972,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 210.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48973,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 216.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48974,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 222.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48975,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 228.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48976,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 234.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48977,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 240.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48978,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 246.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48979,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 252.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48980,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 258.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48981,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 264.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48982,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 270.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48983,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 276.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48984,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 282.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48985,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 288.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48986,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 294.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48987,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 300.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48988,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 306.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48989,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 312.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48990,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 318.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48991,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 324.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48992,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 330.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48993,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 336.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48994,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 342.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48995,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 348.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48996,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 354.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48997,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 360.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48998,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 366.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 48999,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 372.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49000,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 378.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49001,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 384.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49002,
+      "image": "marina/edge_yellow_blue",
+      "start_m": 390.2,
+      "length_m": 6.0,
+      "lat_m": -4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49003,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4735.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49004,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4741.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49005,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4747.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49006,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4753.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49007,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4759.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49008,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4765.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49009,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4771.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49010,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4777.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49011,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4783.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49012,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4789.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49013,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4795.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49014,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4801.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49015,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4807.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49016,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4813.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49017,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4819.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49018,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4825.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49019,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4831.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49020,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4837.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49021,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4843.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49022,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4849.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49023,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4855.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49024,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4861.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49025,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4867.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49026,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4873.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49027,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4879.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49028,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4885.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49029,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4891.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49030,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4897.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49031,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4903.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49032,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4909.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49033,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 4915.0,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49034,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 0.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49035,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 6.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49036,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 12.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49037,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 18.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49038,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 24.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49039,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 30.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49040,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 36.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49041,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 42.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49042,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 48.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49043,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 54.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49044,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 60.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49045,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 66.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49046,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 72.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49047,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 78.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49048,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 84.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49049,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 90.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49050,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 96.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49051,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 102.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49052,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 108.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49053,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 114.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49054,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 120.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49055,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 126.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49056,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 132.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49057,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 138.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49058,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 144.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49059,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 150.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49060,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 156.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49061,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 162.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49062,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 168.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49063,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 174.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49064,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 180.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49065,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 186.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49066,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 192.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49067,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 198.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49068,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 204.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49069,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 210.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49070,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 216.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49071,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 222.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49072,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 228.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49073,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 234.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49074,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 240.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49075,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 246.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49076,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 252.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49077,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 258.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49078,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 264.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49079,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 270.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49080,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 276.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49081,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 282.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49082,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 288.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49083,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 294.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49084,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 300.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49085,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 306.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49086,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 312.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49087,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 318.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49088,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 324.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49089,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 330.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49090,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 336.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49091,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 342.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49092,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 348.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49093,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 354.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49094,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 360.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49095,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 366.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49096,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 372.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49097,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 378.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49098,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 384.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    },
+    {
+      "id": 49099,
+      "image": "marina/edge_yellow_blue_r",
+      "start_m": 390.2,
+      "length_m": 6.0,
+      "lat_m": 4.4,
+      "width_m": 2.8000002
+    }
+  ],
   "water": [
     {
       "id": 9119,
@@ -92573,5 +96965,5 @@
       "end_m": 3358.6
     }
   ],
-  "next_id": 48649
+  "next_id": 49101
 }

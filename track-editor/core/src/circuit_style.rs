@@ -166,6 +166,10 @@ pub struct CircuitStyle {
     pub city_buildings: bool,
     /// Grass and wildflower clumps on the verge. A city has paving.
     pub ground_cover: bool,
+    /// The generated pit garages. A circuit whose pit building is a prop of
+    /// its own (Marina Bay's `pit_building_roofdeck`, with its own doors)
+    /// has none, and a team stand on the pit wall in their place.
+    pub pit_garages: bool,
 }
 
 impl CircuitStyle {
@@ -189,6 +193,7 @@ impl CircuitStyle {
         pit_lane: true,
         city_buildings: false,
         ground_cover: true,
+        pit_garages: true,
     };
 
     /// The Nordschleife: guard rail close to a narrow road, forest right
@@ -212,6 +217,7 @@ impl CircuitStyle {
         pit_lane: false,
         city_buildings: false,
         ground_cover: true,
+        pit_garages: true,
     };
 
     /// Marina Bay: a street circuit between buildings and water. Concrete
@@ -236,6 +242,7 @@ impl CircuitStyle {
         floodlights: false,
         city_buildings: true,
         ground_cover: false,
+        pit_garages: false,
         ..Self::DEFAULT
     };
 

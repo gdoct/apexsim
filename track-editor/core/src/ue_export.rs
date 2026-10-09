@@ -3911,6 +3911,9 @@ fn curb_style_colors(style: &str) -> ([f32; 4], [f32; 4]) {
 const STAND_STRAIGHT_KAPPA: f32 = 1.0 / 1000.0;
 /// Default stand length when the scene does not say.
 const STAND_DEFAULT_LENGTH_M: f32 = 30.0;
+/// Height of a garage's number plate over the ground, metres.
+const GARAGE_PLATE_HEIGHT_M: f32 = 3.2;
+
 /// Pit modules tile at this pitch along the lane (`garage_6m`,
 /// `pit_wall_6m`).
 const PIT_MODULE_M: f32 = 6.0;
@@ -4111,7 +4114,16 @@ fn bake_props(
         .as_ref()
         .zip(lane)
         .zip(layout)
-        .map(|((pit, lane), layout)| bake_pit_complex(lane, pit.width_m, relation, layout, terrain))
+        .map(|((pit, lane), layout)| {
+            bake_pit_complex(
+                lane,
+                pit.width_m,
+                relation,
+                layout,
+                terrain,
+                CircuitStyle::for_scene(scene).pit_garages,
+            )
+        })
         .unwrap_or_default();
     let complex_present = !pit.is_empty();
     scene
@@ -4297,6 +4309,7 @@ fn bake_pit_complex(
     relation: &LaneRelation,
     layout: &PitLayout,
     terrain: Option<&TerrainHeightfield>,
+    garages: bool,
 ) -> Vec<UeProp> {
     let total = lane.total_length_m();
     // The stretch of pit road that runs clear of the track and the box row
@@ -4321,15 +4334,43 @@ fn bake_pit_complex(
     let row_start = layout.row_start;
 
     let mut out = pit_signs(lane, width_m, side, layout);
-    for i in 0..boxes {
-        let s = row_start + (i as f32 + 0.5) * PIT_MODULE_M;
+    if !garages {
+        // The pit building is one prop with a door per box (33 at the same
+        // pitch, so shifted half a door to meet the row's even count),
+        // standing where the garages would, with a number plate over each
+        // door.
         out.push(pit_module(
             lane,
-            ("pit", "garage_6m"),
-            s,
+            ("building", "pit_building_roofdeck"),
+            row_start + row / 2.0 + PIT_MODULE_M / 2.0,
             box_edge,
             face_left,
         ));
+        for i in 0..boxes {
+            let s = row_start + (i as f32 + 0.5) * PIT_MODULE_M;
+            let mut plate = pit_module(
+                lane,
+                ("sign", "garage_number_board"),
+                s,
+                box_edge,
+                face_left,
+            );
+            plate.location[2] += GARAGE_PLATE_HEIGHT_M * M_TO_CM;
+            plate.text = Some((i + 1).to_string());
+            out.push(plate);
+        }
+    }
+    for i in 0..boxes {
+        let s = row_start + (i as f32 + 0.5) * PIT_MODULE_M;
+        if garages {
+            out.push(pit_module(
+                lane,
+                ("pit", "garage_6m"),
+                s,
+                box_edge,
+                face_left,
+            ));
+        }
         // The crew's kit on the working lane in front of the door, on the
         // same pivot: it is authored to reach 2.6 m out from the garage.
         out.push(pit_module(lane, ("pit", "box_kit"), s, box_edge, face_left));
@@ -4338,7 +4379,7 @@ fn bake_pit_complex(
         row_start - PIT_MODULE_M / 2.0,
         row_start + row + PIT_MODULE_M / 2.0,
     ] {
-        if s - PIT_MODULE_M / 2.0 >= start && s + PIT_MODULE_M / 2.0 <= end {
+        if garages && s - PIT_MODULE_M / 2.0 >= start && s + PIT_MODULE_M / 2.0 <= end {
             out.push(pit_module(
                 lane,
                 ("pit", "garage_end"),
@@ -4366,13 +4407,14 @@ fn bake_pit_complex(
     };
     let mut s = row_start + PIT_MODULE_M / 2.0;
     while s < row_start + row {
-        out.push(pit_module(
-            lane,
-            ("pit", "pit_wall_6m"),
-            s,
-            wall_lat(s),
-            face_left,
-        ));
+        // A circuit without the generated garages has the wall with the
+        // team's desk and timing screen on it.
+        let wall = if garages {
+            "pit_wall_6m"
+        } else {
+            "pit_wall_gantry_6m"
+        };
+        out.push(pit_module(lane, ("pit", wall), s, wall_lat(s), face_left));
         s += PIT_MODULE_M;
     }
     // Plain walls over the rest of the pit road, whole modules only.

@@ -161,13 +161,13 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # `ats-dress --verbose` before relying on one.
     "MarinaBay": [
         # The pit straight: the stands face the pit building across the road.
-        dict(name="Super Pit Grandstand", from_m=4730, to_m=4900, side="right", depth_m=12, gap_m=6),
-        dict(name="Pit Grandstand", from_m=20, to_m=200, side="right", depth_m=12, gap_m=6),
-        dict(name="Republic Grandstand", from_m=215, to_m=330, side="right", depth_m=12, gap_m=6),
+        dict(name="Super Pit Grandstand", from_m=4730, to_m=4900, side="right", depth_m=26, gap_m=6, family="street", covered=True),
+        dict(name="Pit Grandstand", from_m=20, to_m=200, side="right", depth_m=26, gap_m=6, family="street", covered=True),
+        dict(name="Republic Grandstand", from_m=215, to_m=330, side="right", depth_m=26, gap_m=6, family="street"),
         dict(name="Pit Exit Grandstand", from_m=300, to_m=395, side="left", depth_m=12, gap_m=6),
         # Turns 1-3.
-        dict(name="Turn 1 Grandstand", from_m=405, to_m=470, side="right", depth_m=12, gap_m=6),
-        dict(name="Turn 2 Grandstand", from_m=480, to_m=545, side="right", depth_m=12, gap_m=6),
+        dict(name="Turn 1 Grandstand", from_m=405, to_m=470, side="right", depth_m=26, gap_m=6, family="street"),
+        dict(name="Turn 2 Grandstand", from_m=480, to_m=545, side="right", depth_m=26, gap_m=6, family="street"),
         dict(name="Chicane Turn 2 Grandstand", from_m=470, to_m=540, side="left", depth_m=12, gap_m=6),
         # The back of the lap, round the Flyer and along the bottom straight.
         dict(name="Promenade Grandstand", from_m=4470, to_m=4540, side="left", depth_m=12, gap_m=6),
@@ -882,6 +882,52 @@ def with_display_names(stem: str, corners: list[dict]) -> list[dict]:
 # and laid by `ats-dress` as `.ats` decals. Images are
 # `content/props/decal/graffiti/<name>.png` (scripts/content/props/gen_graffiti.py).
 # Stations are metres along the YAML centerline in race direction.
+# Props placed by station and offset: `kind`, `asset`, `from_m` [`to_m`
+# `every_m`], `side` (left | right | centre), `offset_m` from the road edge
+# (from the centerline on `centre`), optional `yaw_deg` and `text`. The
+# dossier carries them verbatim; `ats-dress` lays them. Marina Bay's start
+# straight, from the 2025 night aerial and the circuit park map: the pit
+# building and its lane on the left, the one long stand on the right.
+# Offsets: the stands stand 6 m off the road and reach 26 m (so 32 m), the
+# garages' road-facing edge is 15.6 m off the edge and the building reaches
+# 34 m behind it.
+MANUAL_FURNITURE: dict[str, list[dict]] = {
+    "MarinaBay": [
+        # Overhead, beside the start lights.
+        dict(kind="bridge", asset="banner_gantry", from_m=45, side="centre", offset_m=0),
+        dict(kind="misc", asset="finish_tower_scaffold", from_m=8, side="right", offset_m=8),
+        dict(kind="sign", asset="pit_entry_board", from_m=4570, side="left", offset_m=7),
+        # LED advertising ribbon on top of the Tecpro in front of the stands.
+        dict(kind="board", asset="led_ribbon_3m", from_m=4735, to_m=4900, every_m=3, side="right", offset_m=3.0, text="apexsim"),
+        dict(kind="board", asset="led_ribbon_3m", from_m=20, to_m=395, every_m=3, side="right", offset_m=3.0, text="kronos"),
+        # Globe lamps behind the stand and behind the pit building.
+        dict(kind="light", asset="lamp_globe_pole", from_m=4735, to_m=330, every_m=30, side="right", offset_m=36),
+        dict(kind="light", asset="lamp_globe_pole", from_m=40, to_m=240, every_m=24, side="left", offset_m=54),
+        # Light balloons along the pit roof's edge, white and orange.
+        dict(kind="light", asset="lamp_balloon_tether", from_m=55, to_m=235, every_m=40, side="left", offset_m=18.5),
+        dict(kind="light", asset="lamp_balloon_tether_orange", from_m=75, to_m=235, every_m=40, side="left", offset_m=18.5),
+        # The wordmark on the roof, the stairs at both ends, planters on the walkway.
+        dict(kind="board", asset="roof_wordmark_block", from_m=75, to_m=195, every_m=60, side="left", offset_m=30, text="apexsim"),
+        dict(kind="misc", asset="stair_zigzag_scaffold", from_m=28, side="left", offset_m=22),
+        dict(kind="misc", asset="stair_zigzag_scaffold", from_m=242, side="left", offset_m=22),
+        dict(kind="misc", asset="walkway_planter_4m", from_m=40, to_m=240, every_m=16, side="left", offset_m=60),
+        # The fan zone behind the stand.
+        dict(kind="attraction", asset="marquee_peak_12m", from_m=4750, to_m=330, every_m=28, side="right", offset_m=52),
+        dict(kind="attraction", asset="led_wall_stage_16m", from_m=290, side="left", offset_m=40),
+    ],
+}
+
+# Decal runs painted on the road beside the start straight: the yellow and
+# blue band at each edge, tiled (`image` in `content/props/decal/marina/`).
+MANUAL_DECAL_RUNS: dict[str, list[dict]] = {
+    "MarinaBay": [
+        dict(name="Pit straight edge band", image="marina/edge_yellow_blue", from_m=4735, to_m=395,
+             every_m=6, length_m=6, width_m=3.0, side="right", beyond_edge_m=-1.5),
+        dict(name="Pit straight edge band", image="marina/edge_yellow_blue_r", from_m=4735, to_m=395,
+             every_m=6, length_m=6, width_m=3.0, side="left", beyond_edge_m=-1.5),
+    ],
+}
+
 MANUAL_GRAFFITI: dict[str, list[dict]] = {
     # Where the Nordschleife's crowds stand and paint: the spectator
     # places along the lap, each anchored on OSM's own locality node for
@@ -2213,6 +2259,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
                 "yaw_rad": round(float(math.atan2(head[1], head[0])), 4),
                 "centre": round_pts(centre[None, :])[0],
                 "front": round_pts(front),
+                **({"family": spec["family"]} if "family" in spec else {}),
             }
         )
     # A MANUAL_STANDS entry promoting a named OSM building (tagged plain
@@ -2516,8 +2563,39 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         "landmarks": landmarks,
         "woods": woods,
         **extract_surroundings(stem, track, osm, xy),
-        **({"graffiti": g} if (g := manual_graffiti(stem, track, osm, to_track)) else {}),
+        **(
+            {"graffiti": g}
+            if (g := manual_graffiti(stem, track, osm, to_track) + manual_decal_runs(stem, track))
+            else {}
+        ),
+        **({"furniture": MANUAL_FURNITURE[stem]} if stem in MANUAL_FURNITURE else {}),
     }
+
+
+def manual_decal_runs(stem: str, track: Track) -> list[dict]:
+    """`MANUAL_DECAL_RUNS` as one decal per `every_m`, centred `beyond_edge_m`
+    outside the road edge on the run's side (so it is painted on the apron
+    between the road and the wall). They ride in the dossier's `graffiti`
+    list: `ats-dress` owns every decal whose image is in a dressed set."""
+    out = []
+    for run in MANUAL_DECAL_RUNS.get(stem, []):
+        span = (run["to_m"] - run["from_m"]) % track.total
+        n = int(span // run["every_m"]) + 1
+        sign = 1.0 if run["side"] == "left" else -1.0
+        for i in range(n):
+            station = (run["from_m"] + i * run["every_m"]) % track.total
+            half = track.half_width(station, run["side"])
+            out.append(
+                {
+                    "image": run["image"],
+                    "station_m": round(station, 1),
+                    "lat_m": round(sign * (half + run["beyond_edge_m"]), 2),
+                    "length_m": run["length_m"],
+                    "width_m": run["width_m"],
+                    "name": run["name"],
+                }
+            )
+    return out
 
 
 def manual_graffiti(stem: str, track: Track, osm: Osm, to_track) -> list[dict]:

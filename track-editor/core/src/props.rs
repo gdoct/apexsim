@@ -67,6 +67,7 @@ pub const KIT: &[KitAsset] = kit![
     Barrier "vangrail_end" 2.0 x 0.5 x 1.25,
     // Marina Bay waterfront: galvanised balustrade on a kerb plinth.
     Barrier "quay_rail_4m" 4.0 x 0.4 x 1.3,
+    Barrier "spectator_handrail_4m" 4.0 x 0.1 x 1.1,
     TireWall "tires_4m" 4.0 x 1.3 x 0.8,
     TireWall "tires_corner" 1.7 x 1.7 x 0.8,
     Board "hoarding_3m" 3.0 x 0.3 x 2.0,
@@ -85,6 +86,8 @@ pub const KIT: &[KitAsset] = kit![
     Board "de_curve_right" 0.9 x 0.1 x 2.65,
     Board "de_danger" 0.9 x 0.1 x 2.65,
     Board "de_overtake_left" 1.5 x 0.1 x 2.4,
+    Board "roof_wordmark_block" 40.0 x 0.6 x 7.5,
+    Board "led_ribbon_3m" 3.0 x 0.15 x 0.9,
     Sign "marshal_post" 3.2 x 2.4 x 4.8,
     Sign "pit_speed_limit" 0.9 x 0.3 x 2.8,
     Sign "pit_exit_light" 0.6 x 0.4 x 4.2,
@@ -96,12 +99,15 @@ pub const KIT: &[KitAsset] = kit![
     // `signal_red/amber/green` slots (mast arm reaches towards the road on -Y).
     Sign "traffic_signal_pole" 0.7 x 3.6 x 6.4,
     Sign "road_sign_post" 2.5 x 0.2 x 3.6,
+    Sign "pit_entry_board" 3.0 x 0.3 x 4.5,
+    Sign "garage_number_board" 1.5 x 0.1 x 0.8,
     Fence "mesh_4m" 4.0 x 0.1 x 2.5,
     Fence "mesh_4m_hoarding" 4.0 x 0.1 x 2.5,
     Fence "wood_4m" 4.0 x 0.1 x 1.2,
     Fence "hedge_4m" 4.0 x 1.1 x 1.6,
     // 6 m catch fence for street circuits (`fence_mesh`, outriggers lean to the road).
     Fence "catch_fence_6m" 4.0 x 1.1 x 6.5,
+    Fence "catch_fence_post_lit_6m" 4.0 x 0.6 x 6.5,
     // Overhead
     Bridge "start_gantry" 2.0 x 20.0 x 7.2,
     Bridge "truss_bridge" 2.7 x 20.4 x 8.7,
@@ -116,10 +122,15 @@ pub const KIT: &[KitAsset] = kit![
     // Overhead expressway sign gantry and a covered pedestrian link; both span the road.
     Bridge "sign_gantry" 1.5 x 19.2 x 7.5,
     Bridge "linkbridge_covered" 4.2 x 19.8 x 8.6,
+    Bridge "banner_gantry" 3.0 x 20.0 x 7.0,
     Light "floodlight_tower" 4.9 x 3.0 x 30.3,
     Light "lamp_post" 0.6 x 2.5 x 8.1,
     // Street lamp with an arm to each side (Marina Bay median/verge lighting).
     Light "lamp_arm_twin" 0.7 x 6.9 x 9.6,
+    Light "lamp_globe_pole" 0.6 x 0.6 x 6.5,
+    Light "lamp_balloon_tether" 1.6 x 1.6 x 9.0,
+    Light "lamp_balloon_tether_orange" 1.6 x 1.6 x 9.0,
+    Light "pit_light_truss_6m" 6.0 x 1.1 x 1.2,
     // Pit complex
     Pit "garage_6m" 6.0 x 14.2 x 9.9,
     Pit "garage_6m_closed" 6.0 x 14.2 x 9.9,
@@ -127,6 +138,7 @@ pub const KIT: &[KitAsset] = kit![
     Pit "pit_wall_6m" 6.0 x 2.3 x 3.8,
     Pit "pit_wall_plain_6m" 6.0 x 0.4 x 2.9,
     Pit "box_kit" 5.5 x 2.6 x 2.4,
+    Pit "pit_wall_gantry_6m" 6.0 x 2.0 x 3.2,
     Building "clubhouse" 25.6 x 18.9 x 11.5,
     Building "hospitality_3f" 30.6 x 12.6 x 12.4,
     Building "media_centre" 40.6 x 15.6 x 21.0,
@@ -166,6 +178,7 @@ pub const KIT: &[KitAsset] = kit![
     Building "building_club_pavilion" 48.4 x 30.0 x 22.5,
     Building "building_gothic_church" 40.8 x 53.4 x 61.3,
     Building "building_deco_theatre" 44.6 x 35.4 x 42.0,
+    Building "pit_building_roofdeck" 200.0 x 34.0 x 26.0,
     // Spectators: a stand family is one bay; the stand's length lays more.
     Grandstand "bay_10m" 10.0 x 9.1 x 5.6,
     Grandstand "bay_10m_roof" 10.0 x 10.4 x 10.6,
@@ -174,6 +187,10 @@ pub const KIT: &[KitAsset] = kit![
     Grandstand "bay_10m_stadium_roof" 10.6 x 35.1 x 28.0,
     Grandstand "scaffold_10m" 10.1 x 5.1 x 4.1,
     Grandstand "banking_seats" 10.0 x 6.0 x 2.6,
+    Grandstand "street_stand_tier_10m" 10.0 x 26.0 x 17.0,
+    Grandstand "street_stand_tier_end" 4.0 x 26.0 x 17.0,
+    Grandstand "street_stand_tier_10m_roof" 10.0 x 26.0 x 22.0,
+    Grandstand "street_stand_deck_10m" 10.0 x 14.0 x 9.0,
     Attraction "tent_6m" 6.5 x 6.5 x 5.2,
     Attraction "video_screen" 12.1 x 2.0 x 11.1,
     Attraction "camera_tower" 4.4 x 4.4 x 13.2,
@@ -188,6 +205,8 @@ pub const KIT: &[KitAsset] = kit![
     Attraction "landmark_three_towers_skypark" 358.0 x 96.0 x 200.5,
     Attraction "landmark_lotus_museum" 54.0 x 50.0 x 40.3,
     Attraction "bridge_double_helix" 118.0 x 9.0 x 8.8,
+    Attraction "marquee_peak_12m" 12.0 x 8.0 x 6.0,
+    Attraction "led_wall_stage_16m" 16.0 x 6.0 x 9.0,
     // Landscape
     Tree "broadleaf_m" 8.0 x 7.2 x 10.0,
     Tree "broadleaf_s" 5.0 x 4.5 x 6.0,
@@ -245,6 +264,9 @@ pub const KIT: &[KitAsset] = kit![
     Misc "monument_statue_plinth" 6.0 x 6.0 x 8.5,
     // Lattice pylon, centred; the line runs along local X.
     Misc "power_pylon" 8.0 x 14.0 x 38.0,
+    Misc "stair_zigzag_scaffold" 14.0 x 5.0 x 8.0,
+    Misc "finish_tower_scaffold" 4.0 x 4.0 x 7.0,
+    Misc "walkway_planter_4m" 4.0 x 1.2 x 1.2,
     // Sky: origin at the hull centre, sized round it.
     Sky "blimp" 60.0 x 19.5 x 19.7,
     Sky "balloon" 16.0 x 16.0 x 22.1,

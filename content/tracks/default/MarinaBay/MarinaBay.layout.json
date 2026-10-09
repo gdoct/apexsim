@@ -430,8 +430,8 @@
    "side": "right",
    "offset_m": 6,
    "length_m": 180.5,
-   "depth_m": 12.0,
-   "covered": false,
+   "depth_m": 26.0,
+   "covered": true,
    "yaw_rad": 0.0115,
    "centre": [
     110.18,
@@ -514,7 +514,8 @@
      200.45,
      -9.93
     ]
-   ]
+   ],
+   "family": "street"
   },
   {
    "name": "Republic Grandstand",
@@ -523,7 +524,7 @@
    "side": "right",
    "offset_m": 6,
    "length_m": 115.1,
-   "depth_m": 12.0,
+   "depth_m": 26.0,
    "covered": false,
    "yaw_rad": 0.0332,
    "centre": [
@@ -579,7 +580,8 @@
      330.46,
      -5.62
     ]
-   ]
+   ],
+   "family": "street"
   },
   {
    "name": "Pit Exit Grandstand",
@@ -645,7 +647,7 @@
    "side": "right",
    "offset_m": 6,
    "length_m": 80.5,
-   "depth_m": 12.0,
+   "depth_m": 26.0,
    "covered": false,
    "yaw_rad": 0.8203,
    "centre": [
@@ -681,7 +683,8 @@
      454.67,
      47.11
     ]
-   ]
+   ],
+   "family": "street"
   },
   {
    "name": "Chicane Turn 2 Grandstand",
@@ -739,7 +742,7 @@
    "side": "right",
    "offset_m": 6,
    "length_m": 55.3,
-   "depth_m": 12.0,
+   "depth_m": 26.0,
    "covered": false,
    "yaw_rad": 0.7949,
    "centre": [
@@ -775,7 +778,8 @@
      493.92,
      92.31
     ]
-   ]
+   ],
+   "family": "street"
   },
   {
    "name": "Stamford Grandstand",
@@ -1350,8 +1354,8 @@
    "side": "right",
    "offset_m": 6,
    "length_m": 177.7,
-   "depth_m": 12.0,
-   "covered": false,
+   "depth_m": 26.0,
+   "covered": true,
    "yaw_rad": -0.2988,
    "centre": [
     -104.89,
@@ -1430,7 +1434,8 @@
      -20.01,
      -12.0
     ]
-   ]
+   ],
+   "family": "street"
   }
  ],
  "structures": [
@@ -46987,6 +46992,1688 @@
      ]
     ]
    ]
+  }
+ ],
+ "graffiti": [
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4735.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4741.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4747.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4753.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4759.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4765.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4771.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4777.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4783.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4789.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4795.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4801.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4807.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4813.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4819.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4825.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4831.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4837.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4843.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4849.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4855.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4861.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4867.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4873.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4879.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4885.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4891.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4897.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4903.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4909.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 4915.0,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 0.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 6.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 12.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 18.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 24.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 30.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 36.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 42.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 48.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 54.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 60.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 66.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 72.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 78.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 84.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 90.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 96.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 102.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 108.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 114.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 120.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 126.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 132.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 138.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 144.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 150.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 156.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 162.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 168.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 174.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 180.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 186.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 192.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 198.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 204.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 210.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 216.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 222.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 228.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 234.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 240.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 246.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 252.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 258.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 264.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 270.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 276.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 282.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 288.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 294.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 300.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 306.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 312.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 318.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 324.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 330.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 336.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 342.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 348.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 354.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 360.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 366.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 372.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 378.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 384.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue",
+   "station_m": 390.2,
+   "lat_m": -4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4735.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4741.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4747.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4753.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4759.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4765.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4771.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4777.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4783.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4789.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4795.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4801.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4807.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4813.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4819.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4825.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4831.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4837.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4843.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4849.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4855.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4861.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4867.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4873.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4879.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4885.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4891.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4897.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4903.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4909.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 4915.0,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 0.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 6.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 12.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 18.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 24.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 30.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 36.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 42.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 48.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 54.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 60.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 66.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 72.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 78.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 84.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 90.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 96.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 102.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 108.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 114.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 120.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 126.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 132.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 138.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 144.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 150.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 156.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 162.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 168.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 174.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 180.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 186.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 192.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 198.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 204.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 210.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 216.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 222.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 228.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 234.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 240.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 246.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 252.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 258.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 264.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 270.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 276.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 282.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 288.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 294.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 300.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 306.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 312.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 318.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 324.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 330.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 336.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 342.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 348.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 354.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 360.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 366.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 372.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 378.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 384.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  },
+  {
+   "image": "marina/edge_yellow_blue_r",
+   "station_m": 390.2,
+   "lat_m": 4.5,
+   "length_m": 6,
+   "width_m": 3.0,
+   "name": "Pit straight edge band"
+  }
+ ],
+ "furniture": [
+  {
+   "kind": "bridge",
+   "asset": "banner_gantry",
+   "from_m": 45,
+   "side": "centre",
+   "offset_m": 0
+  },
+  {
+   "kind": "misc",
+   "asset": "finish_tower_scaffold",
+   "from_m": 8,
+   "side": "right",
+   "offset_m": 8
+  },
+  {
+   "kind": "sign",
+   "asset": "pit_entry_board",
+   "from_m": 4570,
+   "side": "left",
+   "offset_m": 7
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 4735,
+   "to_m": 4900,
+   "every_m": 3,
+   "side": "right",
+   "offset_m": 3.0,
+   "text": "apexsim"
+  },
+  {
+   "kind": "board",
+   "asset": "led_ribbon_3m",
+   "from_m": 20,
+   "to_m": 395,
+   "every_m": 3,
+   "side": "right",
+   "offset_m": 3.0,
+   "text": "kronos"
+  },
+  {
+   "kind": "light",
+   "asset": "lamp_globe_pole",
+   "from_m": 4735,
+   "to_m": 330,
+   "every_m": 30,
+   "side": "right",
+   "offset_m": 36
+  },
+  {
+   "kind": "light",
+   "asset": "lamp_globe_pole",
+   "from_m": 40,
+   "to_m": 240,
+   "every_m": 24,
+   "side": "left",
+   "offset_m": 54
+  },
+  {
+   "kind": "light",
+   "asset": "lamp_balloon_tether",
+   "from_m": 55,
+   "to_m": 235,
+   "every_m": 40,
+   "side": "left",
+   "offset_m": 18.5
+  },
+  {
+   "kind": "light",
+   "asset": "lamp_balloon_tether_orange",
+   "from_m": 75,
+   "to_m": 235,
+   "every_m": 40,
+   "side": "left",
+   "offset_m": 18.5
+  },
+  {
+   "kind": "board",
+   "asset": "roof_wordmark_block",
+   "from_m": 75,
+   "to_m": 195,
+   "every_m": 60,
+   "side": "left",
+   "offset_m": 30,
+   "text": "apexsim"
+  },
+  {
+   "kind": "misc",
+   "asset": "stair_zigzag_scaffold",
+   "from_m": 28,
+   "side": "left",
+   "offset_m": 22
+  },
+  {
+   "kind": "misc",
+   "asset": "stair_zigzag_scaffold",
+   "from_m": 242,
+   "side": "left",
+   "offset_m": 22
+  },
+  {
+   "kind": "misc",
+   "asset": "walkway_planter_4m",
+   "from_m": 40,
+   "to_m": 240,
+   "every_m": 16,
+   "side": "left",
+   "offset_m": 60
+  },
+  {
+   "kind": "attraction",
+   "asset": "marquee_peak_12m",
+   "from_m": 4750,
+   "to_m": 330,
+   "every_m": 28,
+   "side": "right",
+   "offset_m": 52
+  },
+  {
+   "kind": "attraction",
+   "asset": "led_wall_stage_16m",
+   "from_m": 290,
+   "side": "left",
+   "offset_m": 40
   }
  ]
 }

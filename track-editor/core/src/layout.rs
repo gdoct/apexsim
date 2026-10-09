@@ -76,6 +76,11 @@ pub struct Layout {
     /// copies them into the scene.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub water: Vec<WaterBody>,
+    /// Props placed by station and offset, authored per circuit
+    /// (`MANUAL_FURNITURE`): the start straight's lamps, balloons, LED
+    /// ribbons, marquees and gantry.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub furniture: Vec<Furniture>,
     /// Point features worth a prop: the statue, chapels, pylons, gates,
     /// food stalls, camp sites mapped as a node.
     #[serde(default)]
@@ -156,6 +161,29 @@ impl Line {
             .map(|p| (p[1][0] - p[0][0]).hypot(p[1][1] - p[0][1]))
             .sum()
     }
+}
+
+/// A run of identical props along the course: `asset` of `kind` every
+/// `every_m` metres from `from_m` to `to_m` (one at `from_m` when there is
+/// no `to_m`), `offset_m` metres from the road edge on `side` (`left`,
+/// `right`) or from the centerline on `centre`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Furniture {
+    pub kind: String,
+    pub asset: String,
+    pub from_m: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_m: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub every_m: Option<f32>,
+    pub side: String,
+    #[serde(default)]
+    pub offset_m: f32,
+    /// Added to the course heading at the station, degrees.
+    #[serde(default)]
+    pub yaw_deg: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
 }
 
 /// A body of water: its outer ring and any islands, even-odd, track space.
@@ -302,6 +330,10 @@ pub struct Stand {
     pub centre: [f32; 2],
     #[serde(default)]
     pub yaw_rad: f32,
+    /// A kit family other than the default bays: `"street"` is the tall
+    /// street-circuit stand (`street_stand_tier_10m`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub family: Option<String>,
 }
 
 /// A building beside the circuit: the pit building, a tower, hospitality.
