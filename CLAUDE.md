@@ -369,9 +369,15 @@ the usual order (`ats-smooth`, `drs_zones.py` with authored zones,
 `ats-export`); no DEM (reclaimed land, and a surface model reads roofs), no
 `ats-bank`. Not done: corner names (the dossier has one "corner", the
 circuit), the F1 pit building prop (`building_pit_street`, the generated
-pit complex stands there), the quay rail along the water, a quay rail/catch
-fence pass, elevation of the bridges and Raffles Boulevard underpass, and
-nothing has been seen in the running game.
+pit complex stands there), the quay rail along the water and a catch fence
+pass, and nothing has been seen in the running game. The road is flat but for
+its two bridges: `scripts/bridge_elevation.py MarinaBay` (after `ats-smooth`,
+before the dossier) lifts the dossier's `deck_*` spans into raised-cosine
+humps (Anderson 2.5 m, Esplanade 4 m, 60 m ramps; estimates, no survey is
+published), writing only the `z:` lines of nodes and raceline. The relation
+has no Raffles Boulevard underpass (only two `building_passage` ways at
+grade), and the AI survey (`SURVEY_TRACKS=MarinaBay`: LMP2/F1/GT3, no
+retirements, 5-12 car-seconds of contact, 13-17 off the road) drives it.
 
 What it added to the pipeline, all inert for other circuits:
 
