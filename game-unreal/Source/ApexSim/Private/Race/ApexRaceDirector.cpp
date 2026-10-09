@@ -2176,7 +2176,7 @@ void AApexRaceDirector::ApplyNightGlow()
 	// The imported glTF parent ignores its `EmissiveStrength` scalar (see
 	// AApexRaceCarActor), so the glow is the emissive colour scaled; the
 	// scalar is set as well, and is what a builder-made emissive instance reads.
-	static const FName EmissiveFactorParam(TEXT("EmissiveFactor"));
+	static const FName NightGlowFactorParam(TEXT("EmissiveFactor"));
 	static const FName EmissiveStrengthParam(TEXT("EmissiveStrength"));
 	const float Glow = FMath::Clamp(Sky.WindowGlow, 0.0f, 1.0f);
 	for (auto It = NightGlowMids.CreateIterator(); It; ++It)
@@ -2196,7 +2196,7 @@ void AApexRaceDirector::ApplyNightGlow()
 		{
 			FLinearColor Factor = Look.BaseFactor * (Look.PeakNits * Glow);
 			Factor.A = 1.0f;
-			Mid->SetVectorParameterValue(EmissiveFactorParam, Factor);
+			Mid->SetVectorParameterValue(NightGlowFactorParam, Factor);
 			Mid->SetScalarParameterValue(EmissiveStrengthParam, Glow);
 		}
 	}
