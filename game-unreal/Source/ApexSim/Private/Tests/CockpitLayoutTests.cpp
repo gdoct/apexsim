@@ -226,6 +226,21 @@ bool FApexCockpitCarWheelTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("the car's rake"), Own.WheelRakeDeg, -6.0f);
 	TestEqual(TEXT("the car's lock"), Own.WheelLockDeg, 270.0f);
 	TestEqual(TEXT("the car's wheel"), Own.SteeringWheelModel, Overrides.RuntimeSteeringWheel);
+	TestEqual(TEXT("no screen named: the display keeps its place"), Own.DashCm, Derived.DashCm);
+	TestEqual(TEXT("no screen named: the display keeps its width"), Own.DashWidthCm, Derived.DashWidthCm);
+	{
+		// A class steering wheel names its screen; the display goes on it.
+		FApexCockpitOverrides Class = Overrides;
+		Class.RuntimeDashCm = FVector(-1.1f, 0.0f, 2.4f);
+		Class.RuntimeDashWidthCm = 10.0f;
+		const FApexCockpitLayout OnScreen = ApexCockpit::DeriveLayout(Box, EApexCockpitStyle::Closed, Class);
+		TestEqual(TEXT("the display on the wheel's screen"), OnScreen.DashCm, Class.RuntimeDashCm);
+		TestEqual(TEXT("the display the screen's width"), OnScreen.DashWidthCm, 10.0f);
+		// Without a wheel to carry it, a screen means nothing.
+		Class.RuntimeSteeringWheel.Reset();
+		const FApexCockpitLayout NoWheel = ApexCockpit::DeriveLayout(Box, EApexCockpitStyle::Closed, Class);
+		TestEqual(TEXT("no wheel: the rig's display width"), NoWheel.DashWidthCm, Derived.DashWidthCm);
+	}
 	TestEqual(TEXT("the seat is not moved by any of it"), Own.Eye, Derived.Eye);
 
 	// The rig mounts a car GLB's steering wheel turned -90 about Z, as the

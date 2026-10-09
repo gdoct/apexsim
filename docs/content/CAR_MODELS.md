@@ -348,11 +348,32 @@ the shell is barely a metre across, seats the driver 18 cm too far inboard.
 the aerial, whichever stands taller): the box height decides the eye, and
 an assumed `wing_z + 0.22` put it 5 cm out.
 
-**No generated car carries a steering wheel.** The client's cockpit rig
-(`AApexCockpitRig`) draws its own wheel and display at the derived wheel
-point, so a mesh wheel is a second rim a few centimetres from the first. (A
-car that brings its own wheel says so in `[cockpit]`; see "How a car
-reaches the game".)
+**No generated car carries a steering wheel in its body.** The client's
+cockpit rig (`AApexCockpitRig`) draws the wheel and its display at the
+wheel point, so a mesh wheel would be a second rim a few centimetres from
+the first. A car that brings its own wheel says so in `[cockpit]` (see "How
+a car reaches the game"); every other car drives with its **class steering
+wheel**, `content/wheels/steering/<model>.glb` for its `[wheels] model`
+(`f1`, `lmp2`, `hypercar`, `gt3`), written with a `<model>.json` beside it by
+
+```bash
+python scripts/content/wheels/build_steering_wheels.py [f1 gt3 ...]
+```
+
+(plain Python and numpy, byte-identical every run). Each is a real racing
+wheel, 14-19k triangles: a twill-textured carbon faceplate, alcantara or
+rubber grips, a screen in a bezel, rev-light lenses, coloured buttons,
+knurled rotaries with printed scales, funky switches, shift and clutch
+paddles and the column's quick release. The `.json` gives `dash_cm` (the
+display's centre in the wheel pivot's frame) and `dash_width_cm`, so the
+rig's hub display lies on that wheel's screen instead of floating 21 cm wide
+over the hub (`FApexCockpitOverrides::RuntimeDashCm` / `RuntimeDashWidthCm`,
+`FApexCockpitLayout::DashCm` / `DashWidthCm`). A car with `rig_wheel = false`
+gets none. The packages ship the steering wheels of the classes their cars
+name in `Wheels\steering\` (`Copy-ApexRuntimeCars`). Checked by
+`ApexSim.Cars.TomlRepoCars` (every car without a wheel of its own has its
+class's), `ApexSim.Cars.Glb.RepoCars` (they read) and
+`ApexSim.Cockpit.CarWheel` (the display goes on the screen).
 What the mesh does carry, all sized from those points (`build_gt3.py` and
 `build_lmp2.py`, cabin kit in `carlib.py`): a cowl and dash whose top is `EYE_Z - 0.22`, its
 face `WHEEL_Y - 0.28` (a forearm beyond the wheel - any closer or taller

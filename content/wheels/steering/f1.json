@@ -1,0 +1,9 @@
+{
+  "_comment": "Written by scripts/content/wheels/build_steering_wheels.py: where the cockpit rig puts its hub display on this wheel (wheel pivot frame, cm). Do not edit.",
+  "dash_cm": [
+    -0.94,
+    0.0,
+    2.3
+  ],
+  "dash_width_cm": 10.8
+}

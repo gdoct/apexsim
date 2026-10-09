@@ -207,6 +207,16 @@ function Copy-ApexRuntimeCars {
         else {
             Write-Warning "no $wheel.glb in $WheelsDir; the cars that use it will have no wheels"
         }
+        # The class's steering wheel and where its screen is, for the cars that
+        # bring none of their own (scripts/content/wheels/build_steering_wheels.py).
+        $steeringOut = Join-Path $wheelsOut 'steering'
+        foreach ($ext in @('glb', 'json')) {
+            $steering = Join-Path $WheelsDir "steering\$wheel.$ext"
+            if (Test-Path -LiteralPath $steering) {
+                New-Item -ItemType Directory -Path $steeringOut -Force | Out-Null
+                Copy-Item -LiteralPath $steering -Destination $steeringOut -Force
+            }
+        }
     }
     return $count
 }

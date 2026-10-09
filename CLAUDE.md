@@ -1879,8 +1879,11 @@ the whole thing round Monza.
 The first-person view is the default (settings: Camera tab, "Start in"). The
 car meshes are exteriors, so the cockpit is built at runtime by
 `AApexCockpitRig`, spawned by the race director and attached to the followed
-car: a flat-bottomed steering wheel from engine basic shapes that rolls with
-the steering telemetry, a `UApexCockpitDashWidget` on its hub (gear, speed,
+car: a steering wheel that rolls with the steering telemetry (the car's own
+`steering_wheel_model`, else its class's `content/wheels/steering/<model>.glb`
+from `scripts/content/wheels/build_steering_wheels.py`, else a flat-bottomed
+rim of engine basic shapes), a `UApexCockpitDashWidget` on its hub (on a
+class wheel, on its screen: `<model>.json` beside the GLB) (gear, speed,
 RPM lights, lap time; the countdown while on the grid), and mirrors that are
 `USceneCaptureComponent2D`s into render targets shown on `UApexMirrorWidget`
 faces (drawn flipped, as a mirror is). Captures are refreshed round-robin by

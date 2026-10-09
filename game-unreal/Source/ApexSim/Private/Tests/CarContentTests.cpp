@@ -432,6 +432,14 @@ bool FApexCarTomlRepoCarsTest::RunTest(const FString& Parameters)
 		{
 			Exists(Toml.SteeringWheelModel, TEXT("steering wheel"));
 		}
+		else if (!Toml.Wheels.Model.IsEmpty() && !ApexCarToml::IsCarLocalWheel(Toml.Wheels.Model))
+		{
+			// No wheel of its own: it drives with its class's, and the display
+			// needs the .json to find that wheel's screen.
+			const FString Steering = FPaths::Combine(Root, TEXT(".."), TEXT("wheels"), TEXT("steering"), Toml.Wheels.Model.ToLower() + TEXT(".glb"));
+			TestTrue(*FString::Printf(TEXT("%s: the %s class steering wheel is there"), *Car, *Toml.Wheels.Model),
+				FPaths::FileExists(Steering) && FPaths::FileExists(FPaths::ChangeExtension(Steering, TEXT("json"))));
+		}
 		for (const FApexCarLiveryToml& Livery : Toml.Liveries)
 		{
 			TestFalse(*FString::Printf(TEXT("%s: livery %s textures parse"), *Car, *Livery.Name), Livery.bBadTextures);

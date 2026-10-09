@@ -7,6 +7,7 @@
 #include "Cars/ApexGlbReader.h"
 #include "Catalog/ApexContentCrc.h"
 #include "Components/StaticMeshComponent.h"
+#include "Dom/JsonObject.h"
 #include "Engine/DataTable.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
@@ -25,6 +26,8 @@
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshResources.h"
 #include "TextureResource.h"
@@ -100,6 +103,51 @@ namespace
 				*Folder, *Model, *Model);
 		}
 		return Path;
+	}
+
+	/**
+	 * The class steering wheel for a `[wheels] model`: `steering/<model>.glb`
+	 * in the wheels folder (scripts/content/wheels/build_steering_wheels.py),
+	 * with where its screen is from the `.json` beside it. False, and nothing
+	 * set, for a car-local wheel model or a class with no steering wheel.
+	 */
+	bool ResolveClassSteeringWheel(const FString& CarsDir, const FString& Model, FApexCockpitOverrides& Out)
+	{
+		if (Model.IsEmpty() || ApexCarToml::IsCarLocalWheel(Model))
+		{
+			return false;
+		}
+		const FString Key = TEXT("steering/") + Model.ToLower();
+		FString Path = FindWheel(CarsDir, Key);
+		const TArray<FString> Dirs = UApexCarContentSubsystem::CarDirectories();
+		for (int32 i = 0; Path.IsEmpty() && i < Dirs.Num(); ++i)
+		{
+			Path = FindWheel(Dirs[i], Key);
+		}
+		if (Path.IsEmpty())
+		{
+			return false;
+		}
+		Out.RuntimeSteeringWheel = Path;
+
+		FString Text;
+		TSharedPtr<FJsonObject> Json;
+		const TArray<TSharedPtr<FJsonValue>>* Centre = nullptr;
+		double Width = 0.0;
+		if (FFileHelper::LoadFileToString(Text, *FPaths::ChangeExtension(Path, TEXT("json")))
+			&& FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Json) && Json.IsValid()
+			&& Json->TryGetArrayField(TEXT("dash_cm"), Centre) && Centre && Centre->Num() == 3
+			&& Json->TryGetNumberField(TEXT("dash_width_cm"), Width) && Width > 0.0)
+		{
+			Out.RuntimeDashCm = FVector((*Centre)[0]->AsNumber(), (*Centre)[1]->AsNumber(), (*Centre)[2]->AsNumber());
+			Out.RuntimeDashWidthCm = static_cast<float>(Width);
+		}
+		else
+		{
+			// The wheel still draws; the display keeps the rig's own place.
+			UE_LOG(LogApexSim, Warning, TEXT("Runtime cars: %s has no readable .json beside it; the hub display keeps its default place"), *Path);
+		}
+		return true;
 	}
 
 	/**
@@ -408,6 +456,12 @@ void UApexCarContentSubsystem::ScanNow()
 				else if (TableRow)
 				{
 					Row.Cockpit = TableRow->Cockpit;
+				}
+				// A car that brings no steering wheel of its own, and keeps the
+				// rig's rim, drives with its class's (the `[wheels] model`).
+				if (Row.Cockpit.RuntimeSteeringWheel.IsEmpty() && Row.Cockpit.bRigWheel && Toml.Wheels.IsPresent())
+				{
+					ResolveClassSteeringWheel(Dir, Toml.Wheels.Model, Row.Cockpit);
 				}
 
 				Found.Add(Folder);
