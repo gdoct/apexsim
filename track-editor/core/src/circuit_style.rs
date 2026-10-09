@@ -50,8 +50,6 @@ impl Rail {
         use crate::barriers::BarrierKind;
         match (self, kind) {
             (Rail::Vangrail, BarrierKind::Tecpro) => BarrierKind::Armco,
-            // Walls everywhere; Tecpro only where a tyre wall would stand,
-            // at the tightest corners.
             // Tecpro the whole way round, as on the real circuit; a mapped
             // wall stays a wall.
             (
