@@ -196,6 +196,9 @@ pub fn dress_scene_with_dem(
     dem: Option<&DemFile>,
 ) -> Option<DressReport> {
     let path = CenterlinePath::from_track(track)?;
+    // Water and bridge spans first: the ground the props are seated on
+    // sinks under the water, so it has to know about it.
+    lay_water_and_bridges(scene, layout);
     // Seated on the ground the exporter will draw: see
     // `groom::seating_terrain`, which is shared so the two cannot drift.
     let terrain = crate::groom::seating_terrain(&path, scene, dem)?;
@@ -248,8 +251,9 @@ pub fn dress_scene_with_dem(
         report.stand_props += props.len();
         laid.extend(props);
     }
+    let city = crate::circuit_style::CircuitStyle::for_scene(scene).city_buildings;
     for structure in &layout.structures {
-        match lay_structure(&path, &terrain, lane.as_ref(), structure) {
+        match lay_structure(&path, &terrain, lane.as_ref(), structure, city) {
             Ok(props) => {
                 report.buildings += props.len();
                 laid.extend(props);
@@ -260,10 +264,13 @@ pub fn dress_scene_with_dem(
         }
     }
     for crossing in &layout.crossings {
-        if let Some(prop) = lay_crossing(&path, crossing) {
+        for prop in lay_crossing(&path, crossing) {
             report.bridges += 1;
             laid.push(prop);
         }
+    }
+    if crate::circuit_style::CircuitStyle::for_scene(scene).city_buildings {
+        laid.extend(lay_street_lamps(&path, &terrain, &scene.bridges));
     }
     for landmark in &layout.landmarks {
         match lay_landmark(&path, &terrain, landmark) {
@@ -300,6 +307,23 @@ pub fn dress_scene_with_dem(
     );
     report.surroundings = extras.len();
     laid.extend(extras);
+
+    // Nothing dressed stands in the water. A bridge, a sky prop and a
+    // landmark that is meant to stand over it (the double helix) keep
+    // their place.
+    if terrain.has_water() {
+        let before = laid.len();
+        laid.retain(|p| {
+            matches!(p.kind, PropKind::Bridge | PropKind::Sky)
+                || p.asset == "bridge_double_helix"
+                || !terrain.in_water(p.x, p.y)
+        });
+        if laid.len() < before {
+            report
+                .skipped
+                .push(format!("{} props: in the water", before - laid.len()));
+        }
+    }
 
     // Nothing dressed stands in the pit lane or where its garages go.
     let zone = scene
@@ -808,7 +832,13 @@ impl PitZone {
                 (a.length_m * prop.scale, a.depth_m * prop.scale)
             }),
             _ => {
-                let r = dressed_footprint_radius_m(prop) * prop.scale;
+                // A landmark wheel is 150 m across but only 37 m deep: its
+                // circle of influence would reach garages it never touches.
+                let r = if prop.asset.starts_with("landmark_") {
+                    0.0
+                } else {
+                    dressed_footprint_radius_m(prop) * prop.scale
+                };
                 return (0..=8).any(|k| {
                     let (dx, dy) = if k == 8 {
                         (0.0, 0.0)
@@ -1060,6 +1090,83 @@ fn building_asset(structure: &Structure) -> (&'static str, f32) {
     ("clubhouse", 25.6)
 }
 
+/// The `skyline_*` block a street circuit's neighbour reads as, and how
+/// many of them make its row: by footprint, and for the mid-size ones by a
+/// hash of where it stands, so a street of offices is not one tower copied.
+fn city_building_asset(structure: &Structure) -> (&'static str, usize) {
+    const MIX: [&str; 7] = [
+        "skyline_slab_a",
+        "skyline_slab_b",
+        "skyline_step",
+        "skyline_pyramid",
+        "skyline_cylinder",
+        "skyline_twin",
+        "skyline_needle",
+    ];
+    let hash = ((structure.centre[0] * 7.0).floor() as i64)
+        .wrapping_mul(31)
+        .wrapping_add((structure.centre[1] * 7.0).floor() as i64)
+        .unsigned_abs() as usize;
+    if structure.area_m2 < 900.0 {
+        ("skyline_lowrise", 1)
+    } else if structure.area_m2 >= 3500.0 {
+        let row = (structure.length_m / 40.0).round().clamp(1.0, 6.0) as usize;
+        ("skyline_podium", row)
+    } else {
+        (MIX[hash % MIX.len()], 1)
+    }
+}
+
+/// Lay a kit building that is centred on its footprint (`landmark_*`,
+/// `building_*`, `skyline_*`) on a real footprint: one unit, or a row
+/// along its long axis. Each unit is stepped back from the road until its
+/// whole footprint is clear of it.
+fn lay_centred_building(
+    path: &CenterlinePath,
+    terrain: &TerrainHeightfield,
+    structure: &Structure,
+    asset: &str,
+    row: usize,
+) -> Result<Vec<Prop>, String> {
+    let kit = props::find(PropKind::Building, asset)
+        .ok_or_else(|| format!("{asset} is not in the kit"))?;
+    let (sin, cos) = structure.yaw_rad.sin_cos();
+    let units = row.max(1);
+    let mut out = Vec::new();
+    for i in 0..units {
+        let along = (i as f32 - (units as f32 - 1.0) / 2.0) * kit.length_m;
+        let (x, y) = (
+            structure.centre[0] + cos * along,
+            structure.centre[1] + sin * along,
+        );
+        let Some((x, y)) = clear_landmark(path, x, y, structure.yaw_rad, kit, structure.side)
+        else {
+            continue;
+        };
+        if terrain.in_water(x, y) {
+            continue;
+        }
+        let (sample, lat) = nearest_cross_section(path, x, y);
+        out.push(Prop {
+            id: 0,
+            kind: PropKind::Building,
+            asset: asset.to_string(),
+            x,
+            y,
+            z: seat_z(terrain, &sample, lat, x, y),
+            yaw_rad: structure.yaw_rad,
+            scale: 1.0,
+            text: None,
+            length_m: None,
+        });
+    }
+    if out.is_empty() {
+        Err("no room beside the road".to_string())
+    } else {
+        Ok(out)
+    }
+}
+
 /// Place a building on its real footprint. A footprint longer than the
 /// kit's block is filled with a row of them, which is what a 200 m
 /// hospitality terrace looks like anyway.
@@ -1068,7 +1175,11 @@ fn lay_structure(
     terrain: &TerrainHeightfield,
     lane: Option<&CenterlinePath>,
     structure: &Structure,
+    city: bool,
 ) -> Result<Vec<Prop>, String> {
+    if structure.asset.as_deref() == Some("-") {
+        return Err("covered by a landmark prop".to_string());
+    }
     if structure.area_m2 < MIN_BUILDING_AREA_M2 {
         return Err("footprint too small".to_string());
     }
@@ -1082,6 +1193,18 @@ fn lay_structure(
         if lane_gap(lane, x, y) < PIT_BUILDING_RANGE_M {
             return Err("in the pit complex, which the bake generates".to_string());
         }
+    }
+    // A landmark with a mesh of its own, or a city block on a street
+    // circuit, stands centred on its footprint rather than being a row of
+    // venue blocks pivoted on their fronts.
+    if let Some(named) = structure.asset.as_deref() {
+        if props::find(PropKind::Building, named).is_some() {
+            return lay_centred_building(path, terrain, structure, named, 1);
+        }
+    }
+    if city {
+        let (asset, row) = city_building_asset(structure);
+        return lay_centred_building(path, terrain, structure, asset, row);
     }
     let (asset, unit_m) = building_asset(structure);
     let units = (structure.length_m / unit_m).round().max(1.0) as usize;
@@ -1214,25 +1337,142 @@ fn lay_structure(
 /// Something that crosses the road, on the road's centre at its station.
 /// The pivot is the road centre and the Unreal side scales the span to the
 /// road width, so nothing here needs to know how wide the bridge is.
-fn lay_crossing(path: &CenterlinePath, crossing: &Crossing) -> Option<Prop> {
-    let sample = path.sample_at(crossing.station_m);
-    let asset = if crossing.kind == "footbridge" {
-        "truss_bridge"
-    } else {
-        "tyre_bridge"
+///
+/// Most things cross *over* the road (a footbridge, the tyre arch, a
+/// viaduct, a sign gantry). A `deck_*` crossing is the other way round: the
+/// road runs *on* the bridge, over water, and the dossier gives the
+/// stations it spans (`from_m`..`to_m`). The deck is tiled along them,
+/// module after module, each at the road's height with its own heading, so
+/// a long bridge curves with the road. The bake leaves ground out of the
+/// span (see [`lay_water_and_bridges`]).
+fn lay_crossing(path: &CenterlinePath, crossing: &Crossing) -> Vec<Prop> {
+    let total = path.total_length_m();
+    let one = |asset: &str, station: f32| {
+        let sample = path.sample_at(station);
+        Prop {
+            id: 0,
+            kind: PropKind::Bridge,
+            asset: asset.to_string(),
+            x: sample.pos.0,
+            y: sample.pos.1,
+            z: sample.pos.2,
+            yaw_rad: sample.heading_rad,
+            scale: 1.0,
+            text: brand_text(crossing.brand.as_ref()),
+            length_m: None,
+        }
     };
-    Some(Prop {
-        id: 0,
-        kind: PropKind::Bridge,
-        asset: asset.to_string(),
-        x: sample.pos.0,
-        y: sample.pos.1,
-        z: sample.pos.2,
-        yaw_rad: sample.heading_rad,
-        scale: 1.0,
-        text: brand_text(crossing.brand.as_ref()),
-        length_m: None,
-    })
+    let deck = match crossing.kind.as_str() {
+        "deck_arch" => Some("bridge_arch_steel"),
+        "deck_wide" => Some("bridge_deck_wide"),
+        _ => None,
+    };
+    if let (Some(asset), Some(from), Some(to)) = (deck, crossing.from_m, crossing.to_m) {
+        let span = (to - from).rem_euclid(total);
+        let len = props::find(PropKind::Bridge, asset).map_or(30.0, |k| k.length_m);
+        let n = (span / len).round().max(1.0) as usize;
+        // Modules end to end, centred on the span.
+        let first = from + span / 2.0 - len * (n as f32 - 1.0) / 2.0;
+        return (0..n)
+            .map(|i| one(asset, (first + i as f32 * len).rem_euclid(total)))
+            .collect();
+    }
+    let asset = match crossing.kind.as_str() {
+        "footbridge" => "truss_bridge",
+        // The covered walkway over a city street.
+        "link" => "linkbridge_covered",
+        // An elevated expressway over the road.
+        "viaduct" => "viaduct_deck",
+        "gantry" => "sign_gantry",
+        _ => "tyre_bridge",
+    };
+    vec![one(asset, crossing.station_m)]
+}
+
+/// Distance between the street lamps of a city circuit, metres, and how
+/// far behind the road edge their poles stand. They alternate sides, so
+/// each side has one every twice the spacing and the arms reach across.
+const STREET_LAMP_SPACING_M: f32 = 40.0;
+const STREET_LAMP_SETBACK_M: f32 = 4.5;
+
+/// Twin-arm street lamps along both verges, none on a bridge (the deck has
+/// its own) and none in the water.
+fn lay_street_lamps(
+    path: &CenterlinePath,
+    terrain: &TerrainHeightfield,
+    bridges: &[crate::ats::BridgeSpan],
+) -> Vec<Prop> {
+    let total = path.total_length_m();
+    let count = (total / STREET_LAMP_SPACING_M).floor() as usize;
+    let mut out = Vec::new();
+    for i in 0..count {
+        let station = i as f32 * STREET_LAMP_SPACING_M;
+        if bridges.iter().any(|b| b.covers(station, total)) {
+            continue;
+        }
+        let sample = path.sample_at(station);
+        let (side, sign) = if i % 2 == 0 {
+            (Side::Left, 1.0)
+        } else {
+            (Side::Right, -1.0)
+        };
+        let lat = sign * (side_half_width(&sample, side) + STREET_LAMP_SETBACK_M);
+        let (x, y, _) = offset_point(&sample, lat);
+        if terrain.in_water(x, y) {
+            continue;
+        }
+        out.push(Prop {
+            id: 0,
+            kind: PropKind::Light,
+            asset: "lamp_arm_twin".to_string(),
+            x,
+            y,
+            z: seat_z(terrain, &sample, lat, x, y),
+            yaw_rad: sample.heading_rad,
+            scale: 1.0,
+            text: None,
+            length_m: None,
+        });
+    }
+    out
+}
+
+/// The scene's water and bridge spans, from the dossier. Ids are reused
+/// lowest first, so re-dressing an unchanged circuit rewrites the same
+/// file. A circuit with neither leaves both lists empty.
+fn lay_water_and_bridges(scene: &mut AtsScene, layout: &Layout) {
+    let mut ids: Vec<u64> = scene
+        .water
+        .iter()
+        .map(|w| w.id)
+        .chain(scene.bridges.iter().map(|b| b.id))
+        .collect();
+    ids.sort_unstable();
+    ids.reverse();
+    scene.water.clear();
+    scene.bridges.clear();
+    let mut take = |scene: &mut AtsScene| ids.pop().unwrap_or_else(|| scene.alloc_id());
+    for body in &layout.water {
+        let id = take(scene);
+        scene.water.push(crate::ats::Water {
+            id,
+            name: body.name.clone(),
+            rings: body.rings.clone(),
+        });
+    }
+    for crossing in &layout.crossings {
+        if !matches!(crossing.kind.as_str(), "deck_arch" | "deck_wide") {
+            continue;
+        }
+        if let (Some(from), Some(to)) = (crossing.from_m, crossing.to_m) {
+            let id = take(scene);
+            scene.bridges.push(crate::ats::BridgeSpan {
+                id,
+                start_m: from,
+                end_m: to,
+            });
+        }
+    }
 }
 
 /// The brands the kit has artwork for (`content/props/board/brands`).
@@ -1267,6 +1507,12 @@ fn lay_landmark(
 ) -> Result<Option<Prop>, String> {
     let (kind, asset) = match landmark.kind.as_str() {
         "big_wheel" => (PropKind::Attraction, "ferris_wheel"),
+        // Marina Bay: the 150 m observation wheel, the three-tower hotel
+        // with its sky deck, the lotus-shaped museum and the double helix.
+        "big_wheel_xl" => (PropKind::Attraction, "landmark_big_wheel_xl"),
+        "skypark" => (PropKind::Attraction, "landmark_three_towers_skypark"),
+        "lotus_museum" => (PropKind::Attraction, "landmark_lotus_museum"),
+        "double_helix" => (PropKind::Attraction, "bridge_double_helix"),
         "screen" => (PropKind::Attraction, "video_screen"),
         "stage" => (PropKind::Attraction, "fanzone_stage"),
         "camera_tower" => (PropKind::Attraction, "camera_tower"),
@@ -1565,7 +1811,7 @@ mod surroundings {
     /// run, so it has to recognise its own output; and because it shares
     /// kinds with hand-placed props (a `sign` is also a distance board, a
     /// `misc` is also a bollard) ownership is by asset, not by kind.
-    pub const OWNED: [&str; 21] = [
+    pub const OWNED: [&str; 25] = [
         "car_a",
         "car_b",
         "car_c",
@@ -1590,6 +1836,10 @@ mod surroundings {
         "village_house_c",
         "barn",
         "chapel",
+        "raintree_l",
+        "station_entrance",
+        "traffic_signal_pole",
+        "bus_shelter",
     ];
 
     /// Village buildings are `building` kind, which the dressing pass
@@ -1976,6 +2226,11 @@ mod surroundings {
                 "chapel" => (PropKind::Building, "chapel"),
                 "pylon" => (PropKind::Misc, "power_pylon"),
                 "food" => (PropKind::Attraction, "food_stall_6m"),
+                // A city circuit's street furniture (`CITY_POI_KINDS`).
+                "tree" => (PropKind::Tree, "raintree_l"),
+                "station" => (PropKind::Misc, "station_entrance"),
+                "signal" => (PropKind::Sign, "traffic_signal_pole"),
+                "bus_shelter" => (PropKind::Misc, "bus_shelter"),
                 // `tourism=information` is a map board or a noticeboard,
                 // not an entrance; the kit's ticket gate would be a lie.
                 _ => continue,
@@ -2208,6 +2463,7 @@ mod tests {
             levels: 1,
             area_m2: 900.0,
             osm_building: Some("yes".to_string()),
+            asset: None,
         }
     }
 
@@ -2421,6 +2677,79 @@ mod tests {
 
     /// A box that straddles the centerline is not a building beside the
     /// road, and a footbridge mapped as a building is not one at all.
+    #[test]
+    fn a_deck_bridge_is_tiled_along_its_span_at_road_height() {
+        let track = track();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let crossing = Crossing {
+            name: Some("Esplanade".to_string()),
+            station_m: 400.0,
+            kind: "deck_wide".to_string(),
+            brand: None,
+            from_m: Some(200.0),
+            to_m: Some(600.0),
+        };
+        let tiles = lay_crossing(&path, &crossing);
+        // 400 m of 40 m modules.
+        assert_eq!(tiles.len(), 10);
+        assert!(tiles.iter().all(|p| p.asset == "bridge_deck_wide" && p.kind == PropKind::Bridge));
+        // Contiguous: neighbours are one module apart along the road.
+        for pair in tiles.windows(2) {
+            let gap = (pair[1].x - pair[0].x).hypot(pair[1].y - pair[0].y);
+            assert!((gap - 40.2).abs() < 1.5, "{gap}");
+        }
+        // A footbridge is still one prop over the road.
+        let foot = Crossing {
+            kind: "link".to_string(),
+            from_m: None,
+            to_m: None,
+            ..crossing
+        };
+        let one = lay_crossing(&path, &foot);
+        assert_eq!(one.len(), 1);
+        assert_eq!(one[0].asset, "linkbridge_covered");
+    }
+
+    #[test]
+    fn water_and_bridge_spans_come_from_the_dossier() {
+        let track = track();
+        let mut scene = make_scene(&track);
+        let mut layout = make_layout();
+        layout.water.push(crate::layout::WaterBody {
+            name: Some("Bay".to_string()),
+            rings: vec![vec![[300.0, 30.0], [500.0, 30.0], [500.0, 110.0], [300.0, 110.0]]],
+        });
+        layout.crossings.push(Crossing {
+            name: None,
+            station_m: 400.0,
+            kind: "deck_arch".to_string(),
+            brand: None,
+            from_m: Some(350.0),
+            to_m: Some(450.0),
+        });
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        assert_eq!(scene.water.len(), 1);
+        assert_eq!(scene.bridges.len(), 1);
+        let ids: Vec<u64> = scene.water.iter().map(|w| w.id).chain(scene.bridges.iter().map(|b| b.id)).collect();
+        let again = {
+            dress_scene(&track, &mut scene, &layout).unwrap();
+            scene.water.iter().map(|w| w.id).chain(scene.bridges.iter().map(|b| b.id)).collect::<Vec<_>>()
+        };
+        assert_eq!(ids, again, "re-dressing must reuse the ids");
+        // Nothing dressed stands in the bay.
+        let field = crate::groom::seating_terrain(
+            &CenterlinePath::from_track(&track).unwrap(),
+            &scene,
+            None,
+        )
+        .unwrap();
+        assert!(scene
+            .props
+            .iter()
+            .filter(|p| !matches!(p.kind, PropKind::Bridge | PropKind::Sky))
+            .all(|p| !field.in_water(p.x, p.y)));
+    }
+
     #[test]
     fn buildings_across_the_road_are_skipped() {
         let track = track();
@@ -2652,6 +2981,7 @@ mod tests {
             levels: 2,
             area_m2: 2400.0,
             osm_building: Some("yes".to_string()),
+            asset: None,
         });
         layout.structures.push(Structure {
             name: Some("Clubhouse".to_string()),
@@ -2665,6 +2995,7 @@ mod tests {
             levels: 1,
             area_m2: 470.0,
             osm_building: Some("yes".to_string()),
+            asset: None,
         });
         let report = dress_scene(&track, &mut scene, &layout).unwrap();
         let buildings: Vec<&String> = report

@@ -408,7 +408,28 @@ geometry.
 Night pass additions: the textured facade slots `mb_glass_blue/teal/bronze/grey/clear`,
 `mb_classic`, `mb_colonial`, `mb_deco` carry a lit-window emissive texture
 (`EmissiveStrength` 0 by day, ~1 at night, like `pit_glass`), and
-`mb_lit_panel` is a plain emissive; the signal heads use `signal_red/amber/green`. Not yet wired in the Unreal importer.
+`mb_lit_panel` is a plain emissive; the signal heads use `signal_red/amber/green`.
+
+Wired in the Unreal client (2026-10-09; built and unit-tested, **not yet seen in the
+running game**): `ApexProps::NightGlowOf` lists the night slots (the `mb_*` windows,
+`pit_glass`, `pit_interior`, `ferris_lights*`, `mb_lit_panel`). The builder tags a
+component with one `ApexNightGlow`; the race director makes the slot's material a
+dynamic instance and `ApplyNightGlow` sets it from the sky's `WindowGlow` (0 by day, 1
+at night, smooth through twilight, `ApexSky::WindowGlowAt`): the imported material's
+`EmissiveFactor` times a per-slot peak (25 nits windows, 15 `pit_interior`, 60-80 the
+wheel's strips), plus the `EmissiveStrength` scalar (0..1) — the Interchange glTF parent
+ignores that scalar (see `AApexRaceCarActor`), so the factor is what actually lights the
+slot. `mb_lit_panel` is a builder-made `M_ApexEmissive` instance (dark by day, 40 at
+night via `EmissiveStrength`); `signal_red/amber/green` are `M_ApexEmissive` instances
+lit all day (1200). The peak levels are first guesses, to tune by eye at night. A sky that
+is day for the whole session touches none of these materials. Needs `ApexPropImport`
+re-run only for the rotor below; the slots need no re-import.
+
+Rotor: `ApexProps::FindRotorSpec` lists the assets with a `rotor` node — `ferris_wheel`
+(0.5 rpm) and `landmark_big_wheel_xl` (1/30 rpm, one turn in 30 minutes, hub offset
+(0, 800, 9000) cm from the node's `[0, 90, 8]`). Both import as `SM_<asset>` +
+`SM_<asset>_rotor` and spawn as an `AApexRotorActor` (re-run
+`-run=ApexPropImport -asset=attraction/landmark_big_wheel_xl`).
 
 ## Unreal import notes
 

@@ -1,9 +1,11 @@
 # Mandarina Bay (Marina Bay Street Circuit, Singapore)
 
-Research pass, 2026-10-09. Nothing here is wired into the pipeline yet: no
-`BBOXES` entry, no YAML, no `.ats`. This file is the survey that comes before
-that, plus the OSM-derived seed for the dossier
-(`MARINA_BAY.dossier-seed.json`, beside this file).
+Research pass, 2026-10-09; the circuit itself was built the same day
+(`content/tracks/default/MarinaBay/`, CLAUDE.md "Mandarina Bay"). This file is
+the survey that came before it, plus the OSM-derived seed for the dossier
+(`MARINA_BAY.dossier-seed.json`, beside this file). The sections below are
+the research as written: the lap is not routed from waypoints but from OSM
+relation 421263, which models the whole route.
 
 ## 1. Identity
 
@@ -166,10 +168,16 @@ Builders: `scripts/content/props/build_marina_bay_{a1,a2,a3,b1,c1}.py` (+ `marin
   Fountains and the other viaduct/arch decks were already covered by Tier A.
 - Still not props: the "water as ground" check (does `ats-export` draw `areas` water, and is the river
   crossing a bridge rather than ground) belongs to the track pipeline.
-- Open: Unreal importer night-pass wiring for the new `mb_*` window-glow slots; the importer
-  must honour the `rotor` child of `landmark_big_wheel_xl`; bridges that the road runs *on*
-  (`bridge_arch_steel`, `bridge_deck_wide`) need a placement rule in the crossings code
-  (the existing bridge kind assumes the road passes under).
+- Done 2026-10-09 (compiled, `ApexSim.Props.NightGlow` / `.Rotor` pass; not seen in game, the
+  big wheel not re-imported yet): night-pass wiring for the `mb_*` window-glow slots and
+  `mb_lit_panel` / `signal_*` (docs/content/PROPS.md, "Night pass additions"), and the
+  `rotor` child of `landmark_big_wheel_xl` (0.033 rpm).
+- Done 2026-10-09: the road-on-bridge rule (crossing kinds `deck_arch` / `deck_wide` carry
+  `from_m`..`to_m`; `ats-dress` tiles the deck along the span, the `.ats` records a `bridges`
+  span, and the bake leaves bands and curbs out of it) and "water as ground" (the dossier's
+  `water` layer becomes `.ats` `water`; the terrain sinks under it, the bake draws a glossy
+  `scenery` surface at `water_level_m`, nothing dressed stands in it). See CLAUDE.md,
+  "Mandarina Bay".
 
 ### Tier A: on camera from the road (P1)
 

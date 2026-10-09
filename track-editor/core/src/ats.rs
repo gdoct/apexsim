@@ -63,6 +63,16 @@ pub struct AtsScene {
     /// decal follows the camber and the grade the way paint does.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub decals: Vec<Decal>,
+    /// Water the course runs beside or across: a bay, a river, a basin
+    /// (Marina Bay). The terrain drops under it, the bake draws a level
+    /// surface over the drop, and nothing dressed stands in it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub water: Vec<Water>,
+    /// Stretches of the course carried on a bridge over water. The deck
+    /// props are in `props`; the bake leaves the ground bands, curbs and
+    /// run-off out of a span, since there is no ground there.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bridges: Vec<BridgeSpan>,
     /// How the kit is dressed on import: season and spectators.
     #[serde(default, skip_serializing_if = "Dressing::is_default")]
     pub dressing: Dressing,
@@ -74,6 +84,36 @@ pub struct AtsScene {
     pub external_sidecars: Vec<Sidecar>,
     /// Next element id to hand out. Monotonic, never reused.
     pub next_id: u64,
+}
+
+/// A body of water, as polygon rings in track space (metres). The rings
+/// fill even-odd, so a hole (an island, a pontoon) is simply another ring.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Water {
+    pub id: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    pub rings: Vec<Vec<[f32; 2]>>,
+}
+
+/// A span of the course on a bridge over water, by station.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct BridgeSpan {
+    pub id: u64,
+    pub start_m: f32,
+    pub end_m: f32,
+}
+
+impl BridgeSpan {
+    /// Whether `station_m` is on the bridge, on a loop of `total_m`.
+    pub fn covers(&self, station_m: f32, total_m: f32) -> bool {
+        let s = station_m.rem_euclid(total_m);
+        if self.start_m <= self.end_m {
+            s >= self.start_m && s <= self.end_m
+        } else {
+            s >= self.start_m || s <= self.end_m
+        }
+    }
 }
 
 /// One of the server's sidecars beside a track's YAML
@@ -612,6 +652,8 @@ impl AtsScene {
             pit_lane: None,
             props: Vec::new(),
             decals: Vec::new(),
+            water: Vec::new(),
+            bridges: Vec::new(),
             dressing: Dressing::default(),
             external_sidecars: Vec::new(),
             next_id: 2,

@@ -355,6 +355,54 @@ the fit and field on a rotated, shifted and bent trace, every merge rule).
 Twenty-two of the twenty-six circuits have dossiers; a track without one is
 groomed exactly as before.
 
+### Mandarina Bay (`MarinaBay`, docs/content/MARINA_BAY.md)
+
+The Singapore street circuit (current 19-turn layout, 4 921 m). It is the
+first circuit with **no raceway graph**: OSM models the whole lap as one
+`type=circuit` relation (421263, 99 member ways on ordinary streets plus the
+pit lane), so `osm_centerline.py` walks the relation's own loop
+(`relation_loop`, from `first_way`) instead of routing waypoints; widths are
+lanes x 3.5 m held to 10-14 m. `osm_layout.py` allow-lists the relation
+(`STREET_CIRCUIT_RELATIONS`) so no other dossier moves. Everything else is
+the usual order (`ats-smooth`, `drs_zones.py` with authored zones,
+`track_location.py` MANUAL, `osm_layout.py`, `seed_scene.py`, `ats-dress`,
+`ats-export`); no DEM (reclaimed land, and a surface model reads roofs), no
+`ats-bank`. Not done: corner names (the dossier has one "corner", the
+circuit), the F1 pit building prop (`building_pit_street`, the generated
+pit complex stands there), the quay rail along the water, a quay rail/catch
+fence pass, elevation of the bridges and Raffles Boulevard underpass, and
+nothing has been seen in the running game.
+
+What it added to the pipeline, all inert for other circuits:
+
+- **Street style** (`CircuitStyle::STREET`, `Rail::Street`): concrete walls
+  3 / 3.5 m off the road (more than `OTHER_LEG_CLEAR_M`, or the wall is
+  refused beside its own road), Tecpro only for tyre-wall corners, no tree
+  belt or ground cover, no floodlight ring, `city_buildings` and twin-arm
+  street lamps every 40 m alternating sides, walls allowed in front of
+  buildings (`building_clear`).
+- **Landmark buildings**: a dossier `Structure.asset` (from
+  `MANUAL_STRUCTURE_ASSETS`) names a centred kit building
+  (`building_colonnade_hotel`...; `"-"` leaves a footprint out); a city
+  circuit's other buildings are `skyline_*` blocks by footprint
+  (`city_building_asset`). Landmark kinds `big_wheel_xl`, `skypark`,
+  `lotus_museum`, `double_helix`; `MANUAL_LANDMARKS` takes `yaw_toward`.
+- **Crossings**: `link` (covered walkway), `viaduct`, `gantry`, and the
+  road-carrying `deck_arch` / `deck_wide` with `from_m`/`to_m` (found from
+  the lap relation's `bridge=yes` ways: Anderson and Esplanade Bridge).
+- **Water** (`WATER_STEMS`; dossier `water`, `.ats` `water`, `bridges`): the
+  rings are assembled from `natural=water` ways and multipolygon relations.
+  `TerrainHeightfield::with_water` sinks the ground under them (a 3 m bank to
+  a bed 4 m under a surface 3 m under the lowest road), `Bake::water` draws
+  the surface as a `scenery` material (family 3, glossy, no texture), ground
+  bands and curbs are clipped out of every bridge span (`clip_surface`,
+  `clip_curb`), and dress and groom drop anything standing in water that a
+  bridge does not carry.
+- **Stands**: `MANUAL_STANDS` from the organiser's circuit park maps (2025,
+  with the 2019 one for the unchanged Padang part); stations are +-100 m.
+  `ats-dress` drops three that fall in the pit zone.
+- **Checks**: `check_walls.py --openings MarinaBay` (50 m open of 9.8 km).
+
 ### Real elevation (`<Stem>.dem.msgpack`, `dem_fetch.py`)
 
 The ground used to be an inverse-distance average of the road's own

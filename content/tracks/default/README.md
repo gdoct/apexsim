@@ -34,6 +34,7 @@ docs and `-ApexTrack=` use.
 | Hungoverring | Hungaroring | `Budapest` | Budapest, Hungary | 4.37 km | Formula (F1) |
 | Lemons – Circuit du Peuple | Circuit de la Sarthe (Le Mans 24 Hours) | `LeMans` | Le Mans, France | 13.62 km | Endurance (WEC) |
 | Moscow Mule Raceway | Moscow Raceway | `MoscowRaceway` | Volokolamsk, Russia | 4.05 km | GT3 (DTM) |
+| Mandarina Bay | Marina Bay Street Circuit | `MarinaBay` | Singapore | 4.92 km | Formula (F1) |
 | Motorsport Arena Oskarsleben | Motorsport Arena Oschersleben | `Oschersleben` | Oschersleben, Germany | 3.69 km | GT3 (DTM) |
 | Nürburger Mordschleife | Nürburgring Nordschleife | `Nordschleife` | Nürburg, Germany | 20.76 km | Endurance (Endurance) |
 | Nürburgerring | Nürburgring | `Nuerburgring` | Nürburg, Germany | 5.14 km | GT3 (DTM) |

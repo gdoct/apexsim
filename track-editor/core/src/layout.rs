@@ -71,6 +71,11 @@ pub struct Layout {
     /// actually is, rather than the single grass band it used to be.
     #[serde(default)]
     pub areas: Vec<Area>,
+    /// Bays, rivers and basins near the lap, as even-odd ring sets
+    /// (Marina Bay). Written only by a dossier that has them; `ats-dress`
+    /// copies them into the scene.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub water: Vec<WaterBody>,
     /// Point features worth a prop: the statue, chapels, pylons, gates,
     /// food stalls, camp sites mapped as a node.
     #[serde(default)]
@@ -151,6 +156,14 @@ impl Line {
             .map(|p| (p[1][0] - p[0][0]).hypot(p[1][1] - p[0][1]))
             .sum()
     }
+}
+
+/// A body of water: its outer ring and any islands, even-odd, track space.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WaterBody {
+    #[serde(default)]
+    pub name: Option<String>,
+    pub rings: Vec<Vec<[f32; 2]>>,
 }
 
 /// A patch of ground with a kind: a car park, a meadow, a village.
@@ -312,6 +325,12 @@ pub struct Structure {
     pub area_m2: f32,
     #[serde(default)]
     pub osm_building: Option<String>,
+    /// The kit building that stands for it, by name: a landmark with its
+    /// own mesh (`building_colonnade_hotel`). `"-"` leaves it out, for a
+    /// footprint another prop already covers. Absent: the dresser picks
+    /// from the footprint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset: Option<String>,
 }
 
 /// Something that crosses over the road: a footbridge, a service road,
@@ -329,6 +348,13 @@ pub struct Crossing {
     /// off the map.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub brand: Option<String>,
+    /// For a bridge that carries the road (`deck_wide`, `deck_arch`): the
+    /// stations it spans. The deck is tiled along them, and the bake
+    /// leaves the ground bands out.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_m: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_m: Option<f32>,
 }
 
 /// A point feature worth keeping: the fairground wheel at the Esses, a

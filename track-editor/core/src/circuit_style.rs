@@ -23,6 +23,10 @@ pub enum Rail {
     /// `vangrail_4m_triple` on the fast stretches, `vangrail_4m_fence`
     /// where people stand behind it, `vangrail_end` closing a run.
     Vangrail,
+    /// A city circuit's walls: concrete (`concrete_4m_rail`, with the catch
+    /// fence's rail on top) wherever a modern circuit would put armco, and
+    /// Tecpro for the tyre walls, close to the road. Marina Bay.
+    Street,
 }
 
 /// Every asset the vangrail style can lay, for the barrier pass's
@@ -47,6 +51,11 @@ impl Rail {
         use crate::barriers::BarrierKind;
         match (self, kind) {
             (Rail::Vangrail, BarrierKind::Tecpro) => BarrierKind::Armco,
+            (Rail::Street, BarrierKind::Armco | BarrierKind::ArmcoFence) => BarrierKind::Concrete,
+            // Walls everywhere; Tecpro only where a tyre wall would stand,
+            // at the tightest corners.
+            (Rail::Street, BarrierKind::Tyres) => BarrierKind::Tecpro,
+            (Rail::Street, BarrierKind::Tecpro) => BarrierKind::Concrete,
             (_, kind) => kind,
         }
     }
@@ -55,7 +64,7 @@ impl Rail {
     /// tightest radius is `radius_m`. Non-rail keys pass through.
     pub fn asset(self, kit_asset: &'static str, radius_m: f32) -> &'static str {
         match (self, kit_asset) {
-            (Rail::Armco, _) => kit_asset,
+            (Rail::Armco | Rail::Street, _) => kit_asset,
             (Rail::Vangrail, "armco_4m") if radius_m >= VANGRAIL_TRIPLE_RADIUS_M => {
                 "vangrail_4m_triple"
             }
@@ -145,6 +154,12 @@ pub struct CircuitStyle {
     /// the walls the bake stands along it stood on the racing line (the
     /// endurance races pit in the GP paddock).
     pub pit_lane: bool,
+    /// Buildings beside the road are the kit's `skyline_*` city blocks
+    /// rather than the venue's hospitality and media blocks: a street
+    /// circuit's neighbours are offices, malls and hotels.
+    pub city_buildings: bool,
+    /// Grass and wildflower clumps on the verge. A city has paving.
+    pub ground_cover: bool,
 }
 
 impl CircuitStyle {
@@ -166,6 +181,8 @@ impl CircuitStyle {
         signs: RoadSigns::BrakingBoards,
         floodlights: true,
         pit_lane: true,
+        city_buildings: false,
+        ground_cover: true,
     };
 
     /// The Nordschleife: guard rail close to a narrow road, forest right
@@ -187,6 +204,32 @@ impl CircuitStyle {
         signs: RoadSigns::German,
         floodlights: false,
         pit_lane: false,
+        city_buildings: false,
+        ground_cover: true,
+    };
+
+    /// Marina Bay: a street circuit between buildings and water. Concrete
+    /// walls a couple of metres off the road, no tree belt (the city's
+    /// own trees are laid from the dossier), and no floodlight ring: the
+    /// light comes from lamp rows along the road.
+    pub const STREET: CircuitStyle = CircuitStyle {
+        rail: Rail::Street,
+        // Over the other-leg clearance (2.5 m), or a wall would be refused
+        // beside its own road.
+        straight_barrier_min_m: 3.0,
+        corner_barrier_min_m: 3.5,
+        trees: TreeBelt {
+            near_m: 22.0,
+            far_m: 90.0,
+            min_per_cell: 0,
+            max_per_cell: 0,
+            empty_share: 1.0,
+        },
+        flora: Flora::Tropical,
+        floodlights: false,
+        city_buildings: true,
+        ground_cover: false,
+        ..Self::DEFAULT
     };
 
     /// The Gulf circuits: the modern rules, palms instead of a forest.
@@ -230,6 +273,7 @@ impl CircuitStyle {
     pub fn for_stem(stem: &str) -> CircuitStyle {
         match stem {
             "Nordschleife" => Self::NORDSCHLEIFE,
+            "MarinaBay" => Self::STREET,
             "Sakhir" => Self::SAKHIR,
             "YasMarina" => Self::DESERT,
             "Sepang" | "SaoPaulo" | "MexicoCity" => Self::TROPICAL,
@@ -249,6 +293,18 @@ mod tests {
             CircuitStyle::for_stem("Nordschleife"),
             CircuitStyle::NORDSCHLEIFE
         );
+    }
+
+    #[test]
+    fn the_street_style_walls_in_concrete() {
+        use crate::barriers::BarrierKind;
+        let r = Rail::Street;
+        assert_eq!(r.barrier(BarrierKind::Armco), BarrierKind::Concrete);
+        assert_eq!(r.barrier(BarrierKind::Tyres), BarrierKind::Tecpro);
+        assert_eq!(r.barrier(BarrierKind::Tecpro), BarrierKind::Concrete);
+        assert_eq!(r.asset("concrete_4m_rail", 50.0), "concrete_4m_rail");
+        assert_eq!(CircuitStyle::for_stem("MarinaBay"), CircuitStyle::STREET);
+        assert!(!CircuitStyle::STREET.floodlights);
     }
 
     #[test]

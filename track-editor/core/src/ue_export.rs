@@ -826,7 +826,11 @@ pub(crate) fn footprint_is_centred(kind: PropKind, asset: &str) -> bool {
                 PropKind::Attraction,
                 "camera_tower" | "ferris_wheel" | "tent_6m"
             )
-    )
+    ) || (kind == PropKind::Building
+        && ["skyline_", "building_", "landmark_"]
+            .iter()
+            .any(|prefix| asset.starts_with(prefix)))
+        || (kind == PropKind::Attraction && asset.starts_with("landmark_"))
 }
 
 /// Where a `length_m` × `depth_m` footprint pivoted at `at` is centred:
@@ -1219,7 +1223,8 @@ pub fn bake_all_with_options(
         .as_ref()
         .and_then(|pit| CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0));
     let extra: Vec<&CenterlinePath> = lane.iter().collect();
-    let terrain = TerrainHeightfield::from_paths_with_dem(&path, &extra, dem);
+    let terrain = TerrainHeightfield::from_paths_with_dem(&path, &extra, dem)
+        .map(|t| t.with_water(&scene.water));
 
     let mut bake = Bake {
         ground: terrain.as_ref(),
@@ -1251,17 +1256,31 @@ pub fn bake_all_with_options(
         for underpass in field.underpasses() {
             bake.underpass(field, underpass);
         }
+        bake.water(field);
     }
+    // A bridge carries the road over water: no ground bands or curbs
+    // there, since there is no ground to lay them on.
+    let total_m = path.total_length_m();
+    let band_surfaces: Vec<Surface> = scene
+        .surfaces
+        .iter()
+        .flat_map(|surface| clip_surface(surface, &scene.bridges, total_m))
+        .collect();
+    let band_curbs: Vec<Curb> = scene
+        .curbs
+        .iter()
+        .flat_map(|curb| clip_curb(curb, &scene.bridges, total_m))
+        .collect();
     // Bands in layer order, the way they are drawn (`surface_lift`): the
     // tarmac run-off over the grass it is laid across. The rendered meshes
     // are merged per material and do not care; the physics mesh does,
     // since the server takes the later triangle where two coincide.
-    let mut surfaces: Vec<&Surface> = scene.surfaces.iter().collect();
+    let mut surfaces: Vec<&Surface> = band_surfaces.iter().collect();
     surfaces.sort_by(|a, b| surface_lift(a.kind).total_cmp(&surface_lift(b.kind)));
     for surface in surfaces {
         bake.surface(&path, surface);
     }
-    for curb in &scene.curbs {
+    for curb in &band_curbs {
         bake.curb(&path, curb);
     }
     for marking in &scene.markings {
@@ -1330,7 +1349,7 @@ pub fn bake_all_with_options(
     let ground = terrain
         .as_ref()
         .map(|field| field.bake_ground_sidecar(terrain::GROUND_SIDECAR_CELL_M));
-    let curbs = bake_curb_bands(&path, &scene.curbs, &scene.surfaces);
+    let curbs = bake_curb_bands(&path, &band_curbs, &band_surfaces);
     let props = bake_props(
         track,
         scene,
@@ -1384,6 +1403,108 @@ pub fn bake_all_with_options(
         pit,
     })
 }
+
+/// The pieces of the station span `start..end` (wrapping on a loop of
+/// `total`) that lie outside every bridge, each as `(start, end)` in
+/// stations. Pieces keep the span's direction; one touching a bridge ends
+/// where the bridge begins.
+fn outside_bridges(
+    start: f32,
+    end: f32,
+    bridges: &[crate::ats::BridgeSpan],
+    total: f32,
+) -> Vec<(f32, f32)> {
+    let mut pieces = vec![(start, if end > start { end } else { end + total })];
+    for bridge in bridges {
+        let (bs, be) = (
+            bridge.start_m,
+            if bridge.end_m > bridge.start_m {
+                bridge.end_m
+            } else {
+                bridge.end_m + total
+            },
+        );
+        for shift in [-total, 0.0, total] {
+            let (lo, hi) = (bs + shift, be + shift);
+            pieces = pieces
+                .into_iter()
+                .flat_map(|(a, b)| {
+                    if hi <= a || lo >= b {
+                        vec![(a, b)]
+                    } else {
+                        let mut out = Vec::new();
+                        if lo > a {
+                            out.push((a, lo));
+                        }
+                        if hi < b {
+                            out.push((hi, b));
+                        }
+                        out
+                    }
+                })
+                .collect();
+        }
+    }
+    pieces
+        .into_iter()
+        .filter(|(a, b)| b - a > 0.5)
+        .map(|(a, b)| (a.rem_euclid(total), b.rem_euclid(total)))
+        .collect()
+}
+
+/// A surface band with the bridges taken out of it; the widths of a taper
+/// are carried to each piece's ends.
+fn clip_surface(
+    surface: &Surface,
+    bridges: &[crate::ats::BridgeSpan],
+    total: f32,
+) -> Vec<Surface> {
+    if bridges.is_empty() {
+        return vec![surface.clone()];
+    }
+    let end = if surface.end_m > surface.start_m {
+        surface.end_m
+    } else {
+        surface.end_m + total
+    };
+    let len = (end - surface.start_m).max(f32::EPSILON);
+    outside_bridges(surface.start_m, surface.end_m, bridges, total)
+        .into_iter()
+        .map(|(a, b)| {
+            let t = |m: f32| ((m - surface.start_m).rem_euclid(total) / len).clamp(0.0, 1.0);
+            let t1 = if b > a { t(b) } else { 1.0 };
+            let mut piece = surface.clone();
+            piece.start_m = a;
+            piece.end_m = b;
+            piece.width_m = surface.width_at(t(a));
+            piece.end_width_m = surface.end_width_m.map(|_| surface.width_at(t1));
+            piece
+        })
+        .collect()
+}
+
+fn clip_curb(curb: &Curb, bridges: &[crate::ats::BridgeSpan], total: f32) -> Vec<Curb> {
+    if bridges.is_empty() {
+        return vec![curb.clone()];
+    }
+    outside_bridges(curb.start_m, curb.end_m, bridges, total)
+        .into_iter()
+        .map(|(a, b)| Curb {
+            start_m: a,
+            end_m: b,
+            ..curb.clone()
+        })
+        .collect()
+}
+
+/// Linear colour of the water: a dark harbour green-blue; the glossy
+/// roughness is what reflects the skyline in it.
+const WATER_COLOR: [f32; 4] = [0.012, 0.062, 0.075, 1.0];
+const WATER_ROUGHNESS: f32 = 0.04;
+/// Water quads are cut from the ground grid's cells down to this size, so
+/// a shore is within a couple of metres of where the dossier has it (and
+/// the ground bank hides what is left).
+const WATER_MIN_QUAD_M: f32 = 3.0;
 
 // ---------------------------------------------------------------------------
 // Strip extrusion
@@ -3077,6 +3198,91 @@ impl Bake<'_> {
         }
     }
 
+    /// The water: a level surface over every cell of the ground grid that
+    /// lies in a body of water, split down to [`WATER_MIN_QUAD_M`] where
+    /// the shore runs through it. Drawn as `scenery` (flat colour, very
+    /// glossy), so it needs no new material on the client; the ground
+    /// under it has sunk into a bed, and the road on a bridge stays up.
+    fn water(&mut self, field: &TerrainHeightfield) {
+        if !field.has_water() {
+            return;
+        }
+        let key = "water";
+        self.materials
+            .entry(key.to_string())
+            .or_insert_with(|| UeMaterial {
+                key: key.to_string(),
+                family: "scenery".to_string(),
+                base_color: WATER_COLOR,
+                blend: Some("opaque".to_string()),
+                roughness: Some(WATER_ROUGHNESS),
+                ..UeMaterial::default()
+            });
+        let level = field.water_level_m();
+        let (cols, rows) = (field.cols(), field.rows());
+        let cell = field.cell_m();
+        let (ox, oy, _) = field.vertex(0, 0);
+        const TILE_CELLS: usize = 32;
+        let mut tile = 0i32;
+        let mut r0 = 0;
+        while r0 + 1 < rows {
+            let r1 = (r0 + TILE_CELLS).min(rows - 1);
+            let mut c0 = 0;
+            while c0 + 1 < cols {
+                let c1 = (c0 + TILE_CELLS).min(cols - 1);
+                let mut chunk = Chunk {
+                    section: tile,
+                    material_key: key.to_string(),
+                    positions: Vec::new(),
+                    normals: Vec::new(),
+                    uvs: Vec::new(),
+                    indices: Vec::new(),
+                };
+                let mut stack: Vec<(f32, f32, f32)> = Vec::new();
+                for r in r0..r1 {
+                    for c in c0..c1 {
+                        stack.push((ox + c as f32 * cell, oy + r as f32 * cell, cell));
+                    }
+                }
+                while let Some((x, y, size)) = stack.pop() {
+                    let corners = [
+                        field.in_water(x, y),
+                        field.in_water(x + size, y),
+                        field.in_water(x, y + size),
+                        field.in_water(x + size, y + size),
+                    ];
+                    let centre = field.in_water(x + size / 2.0, y + size / 2.0);
+                    let inside = corners.iter().filter(|&&c| c).count();
+                    if inside == 0 && !centre {
+                        continue;
+                    }
+                    let whole = inside == 4 && centre;
+                    if !whole && size > WATER_MIN_QUAD_M {
+                        let h = size / 2.0;
+                        stack.extend([(x, y, h), (x + h, y, h), (x, y + h, h), (x + h, y + h, h)]);
+                        continue;
+                    }
+                    let base = (chunk.positions.len() / 3) as u32;
+                    for (dx, dy) in [(0.0, 0.0), (size, 0.0), (0.0, size), (size, size)] {
+                        push_position(&mut chunk.positions, (x + dx, y + dy, level));
+                        push_normal(&mut chunk.normals, (0.0, 0.0, 1.0));
+                        chunk.uvs.push(round(x + dx, 3));
+                        chunk.uvs.push(round(y + dy, 3));
+                    }
+                    chunk
+                        .indices
+                        .extend_from_slice(&[base, base + 1, base + 2, base + 1, base + 3, base + 2]);
+                }
+                if !chunk.indices.is_empty() {
+                    self.chunks.push(chunk);
+                }
+                tile += 1;
+                c0 = c1;
+            }
+            r0 = r1;
+        }
+    }
+
     /// The skyline: the land from where the ground mesh stops out to the
     /// far hills, drawn from the elevation model's coarse grid.
     ///
@@ -4407,5 +4613,59 @@ fn sanitize(s: &str) -> String {
         "default".to_string()
     } else {
         cleaned
+    }
+}
+
+#[cfg(test)]
+mod bridge_tests {
+    use super::*;
+    use crate::ats::{BridgeSpan, Side, Surface, SurfaceKind};
+
+    fn bridge(start_m: f32, end_m: f32) -> BridgeSpan {
+        BridgeSpan {
+            id: 1,
+            start_m,
+            end_m,
+        }
+    }
+
+    #[test]
+    fn bands_leave_a_bridge_out_and_keep_the_rest() {
+        let pieces = outside_bridges(0.0, 1000.0, &[bridge(300.0, 400.0)], 1000.0);
+        assert_eq!(pieces, vec![(0.0, 300.0), (400.0, 0.0)]);
+        // A band that ends inside the bridge stops at its start.
+        assert_eq!(
+            outside_bridges(100.0, 350.0, &[bridge(300.0, 400.0)], 1000.0),
+            vec![(100.0, 300.0)]
+        );
+        // A bridge across the start line.
+        let wrapped = outside_bridges(0.0, 1000.0, &[bridge(950.0, 50.0)], 1000.0);
+        assert_eq!(wrapped, vec![(50.0, 950.0)]);
+        // No bridge: the band whole.
+        assert_eq!(
+            outside_bridges(200.0, 500.0, &[], 1000.0),
+            vec![(200.0, 500.0)]
+        );
+    }
+
+    #[test]
+    fn a_tapered_band_keeps_its_widths_across_the_cut() {
+        let wedge = Surface {
+            id: 5,
+            kind: SurfaceKind::Grass,
+            side: Side::Left,
+            start_m: 0.0,
+            end_m: 800.0,
+            inner_m: 0.0,
+            width_m: 10.0,
+            end_width_m: Some(50.0),
+            paint: None,
+        };
+        let pieces = clip_surface(&wedge, &[bridge(300.0, 500.0)], 1000.0);
+        assert_eq!(pieces.len(), 2);
+        assert!((pieces[0].width_m - 10.0).abs() < 1e-3);
+        assert!((pieces[0].end_width_m.unwrap() - 25.0).abs() < 1e-3);
+        assert!((pieces[1].width_m - 35.0).abs() < 1e-3);
+        assert!((pieces[1].end_width_m.unwrap() - 50.0).abs() < 1e-3);
     }
 }

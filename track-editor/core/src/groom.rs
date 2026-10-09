@@ -586,7 +586,7 @@ pub fn seating_terrain(
         .as_ref()
         .and_then(|pit| CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0));
     let extra: Vec<&CenterlinePath> = lane.iter().collect();
-    TerrainHeightfield::from_paths_with_dem(path, &extra, dem)
+    TerrainHeightfield::from_paths_with_dem(path, &extra, dem).map(|t| t.with_water(&scene.water))
 }
 
 /// Groom the whole scene: the pit lane is rebuilt first (entry, pit road,
@@ -999,7 +999,8 @@ pub fn groom_props_with_dem(
     );
     // Green clumps and wildflowers on a desert floor would undo it.
     let cover_density = match style.ground {
-        Ground::Grass => tree_density(track),
+        Ground::Grass if style.ground_cover => tree_density(track),
+        Ground::Grass => 0.0,
         Ground::Sand => 0.0,
     };
     trees.extend(lay_ground_cover(
@@ -1009,6 +1010,10 @@ pub fn groom_props_with_dem(
         lane.as_ref(),
         cover_density,
     ));
+    // Nothing grows in the bay.
+    if terrain.has_water() {
+        trees.retain(|p| !stands_in_water(&terrain, p));
+    }
     report.trees = trees.len();
     props.extend(adopt(
         scene,
@@ -1019,6 +1024,23 @@ pub fn groom_props_with_dem(
 
     scene.props = props;
     Some(report)
+}
+
+/// How far from a road's edge a prop in the water still counts as being
+/// on the bridge that carries it, metres.
+const BRIDGE_DECK_REACH_M: f32 = 6.0;
+
+/// True for a prop that stands in water and is not carried by a bridge.
+fn stands_in_water(terrain: &TerrainHeightfield, prop: &Prop) -> bool {
+    if matches!(prop.kind, PropKind::Bridge | PropKind::Sky)
+        || prop.asset == "bridge_double_helix"
+        || !terrain.in_water(prop.x, prop.y)
+    {
+        return false;
+    }
+    !terrain
+        .nearest_track_point(prop.x, prop.y, BRIDGE_DECK_REACH_M + 20.0)
+        .is_some_and(|(_, lat, half)| lat.abs() - half <= BRIDGE_DECK_REACH_M)
 }
 
 /// Snap every `board` prop onto the nearest barrier or tire wall within
@@ -1834,6 +1856,13 @@ fn lay_all_barriers(
         .copied()
         .filter(|p| p.kind == PropKind::Grandstand)
         .collect();
+    // On a city circuit the wall is the street line and the buildings stand
+    // right behind it: only a module inside a footprint is dropped.
+    let building_clear = if style.city_buildings {
+        0.3
+    } else {
+        BARRIER_CLEAR_M
+    };
     let placeable = |x: f32, y: f32, road_z: f32| -> bool {
         if let (Some(lane), Some(span)) = (lane, lane_span.as_ref()) {
             let gap = lane_edge_gap(lane, x, y);
@@ -1872,7 +1901,16 @@ fn lay_all_barriers(
                     past_wall < BARRIER_CLEAR_M
                 }
             });
-        !at_underpass && !barrier_blocked(&slabs, x, y)
+        // In the water only a bridge's own edge takes a wall.
+        if terrain.has_water()
+            && terrain.in_water(x, y)
+            && terrain
+                .nearest_track_point(x, y, BRIDGE_DECK_REACH_M + 20.0)
+                .is_none_or(|(_, lat, half)| lat.abs() - half > BRIDGE_DECK_REACH_M)
+        {
+            return false;
+        }
+        !at_underpass && !barrier_blocked(&slabs, x, y, building_clear)
     };
 
     let mut walls = Vec::new();
@@ -2267,14 +2305,15 @@ fn planar_distance(a: (f32, f32, f32), b: (f32, f32, f32)) -> f32 {
 }
 
 /// Something already standing where a barrier would go.
-fn barrier_blocked(slabs: &[Slab], x: f32, y: f32) -> bool {
+fn barrier_blocked(slabs: &[Slab], x: f32, y: f32, building_clear: f32) -> bool {
     slabs.iter().any(|p| {
         let clear = match p.kind {
             // A grandstand stands *behind* the barrier that separates it
             // from the road — that is what the barrier is for — so only a
             // rail that would land inside the seating is dropped.
             PropKind::Grandstand => 0.5,
-            PropKind::Building | PropKind::Pit | PropKind::Attraction => BARRIER_CLEAR_M,
+            PropKind::Building | PropKind::Attraction => building_clear,
+            PropKind::Pit => BARRIER_CLEAR_M,
             // Nothing else takes a module out of the line. A board stands
             // on the barrier line by design, a bridge's footings are off
             // the verge either side, and a lamp post, a marshal post or a

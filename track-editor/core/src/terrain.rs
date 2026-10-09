@@ -273,6 +273,82 @@ pub struct TerrainHeightfield {
     /// slopes — came out on a flat plain at road level while the horizon
     /// mesh drew the real hill a few hundred metres above it.
     far: Option<DemGrid>,
+    /// Water the ground drops under; empty for every circuit without any.
+    water: Vec<WaterShape>,
+    /// Height of the water surface, metres.
+    water_level_m: f32,
+}
+
+/// How far under the lowest road the water stands, metres.
+pub const WATER_BELOW_ROAD_M: f32 = 3.0;
+/// How far under the water's surface its bed lies, metres.
+pub const WATER_DEPTH_M: f32 = 4.0;
+/// Width of the bank, from the shore to the bed, metres.
+pub const WATER_BANK_M: f32 = 3.0;
+
+/// One body of water for the ground to sink under: its rings (even-odd)
+/// and their bounding box.
+#[derive(Debug, Clone)]
+struct WaterShape {
+    rings: Vec<Vec<(f32, f32)>>,
+    bounds: (f32, f32, f32, f32),
+}
+
+impl WaterShape {
+    fn new(rings: &[Vec<[f32; 2]>]) -> Option<Self> {
+        let rings: Vec<Vec<(f32, f32)>> = rings
+            .iter()
+            .filter(|r| r.len() >= 3)
+            .map(|r| r.iter().map(|p| (p[0], p[1])).collect())
+            .collect();
+        if rings.is_empty() {
+            return None;
+        }
+        let mut b = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+        for p in rings.iter().flatten() {
+            b = (b.0.min(p.0), b.1.min(p.1), b.2.max(p.0), b.3.max(p.1));
+        }
+        Some(Self { rings, bounds: b })
+    }
+
+    fn contains(&self, x: f32, y: f32) -> bool {
+        if x < self.bounds.0 || x > self.bounds.2 || y < self.bounds.1 || y > self.bounds.3 {
+            return false;
+        }
+        let mut inside = false;
+        for ring in &self.rings {
+            let mut j = ring.len() - 1;
+            for i in 0..ring.len() {
+                let (a, b) = (ring[i], ring[j]);
+                if (a.1 > y) != (b.1 > y) && x < (b.0 - a.0) * (y - a.1) / (b.1 - a.1) + a.0 {
+                    inside = !inside;
+                }
+                j = i;
+            }
+        }
+        inside
+    }
+
+    /// Distance to the nearest shore (any ring edge).
+    fn shore_distance(&self, x: f32, y: f32) -> f32 {
+        let mut best = f32::MAX;
+        for ring in &self.rings {
+            let mut j = ring.len() - 1;
+            for i in 0..ring.len() {
+                let (a, b) = (ring[j], ring[i]);
+                let (dx, dy) = (b.0 - a.0, b.1 - a.1);
+                let len2 = dx * dx + dy * dy;
+                let t = if len2 > 0.0 {
+                    (((x - a.0) * dx + (y - a.1) * dy) / len2).clamp(0.0, 1.0)
+                } else {
+                    0.0
+                };
+                best = best.min((x - a.0 - dx * t).hypot(y - a.1 - dy * t));
+                j = i;
+            }
+        }
+        best
+    }
 }
 
 impl TerrainHeightfield {
@@ -444,9 +520,64 @@ impl TerrainHeightfield {
             road_bounds,
             underpasses: Vec::new(),
             far: dem.map(|d| d.outer.clone()),
+            water: Vec::new(),
+            water_level_m: 0.0,
         };
         field.underpasses = field.find_underpasses();
         Some(field)
+    }
+
+    /// Sink the ground under `water`: inside a body it falls over a short
+    /// bank to a bed [`WATER_DEPTH_M`] under a surface that stands
+    /// [`WATER_BELOW_ROAD_M`] under the lowest point of the course. A road
+    /// is untouched, so a bridge keeps its deck over the drop.
+    pub fn with_water(mut self, water: &[crate::ats::Water]) -> Self {
+        self.water = water
+            .iter()
+            .filter_map(|w| WaterShape::new(&w.rings))
+            .collect();
+        let lowest = self
+            .roads
+            .iter()
+            .flat_map(|r| r.path.samples().iter().map(|s| s.pos.2))
+            .fold(f32::MAX, f32::min);
+        self.water_level_m = if lowest.is_finite() && lowest < f32::MAX {
+            lowest - WATER_BELOW_ROAD_M
+        } else {
+            -WATER_BELOW_ROAD_M
+        };
+        self
+    }
+
+    /// Whether the scene has any water.
+    pub fn has_water(&self) -> bool {
+        !self.water.is_empty()
+    }
+
+    /// Height of the water's surface.
+    pub fn water_level_m(&self) -> f32 {
+        self.water_level_m
+    }
+
+    /// Whether a track-space point is under water (inside a body).
+    pub fn in_water(&self, x: f32, y: f32) -> bool {
+        self.water.iter().any(|w| w.contains(x, y))
+    }
+
+    /// Ground height after the water has had its say.
+    fn sunk(&self, x: f32, y: f32, ground: f32) -> f32 {
+        if self.water.is_empty() {
+            return ground;
+        }
+        let bed = self.water_level_m - WATER_DEPTH_M;
+        for w in &self.water {
+            if w.contains(x, y) {
+                let t = (w.shore_distance(x, y) / WATER_BANK_M).clamp(0.0, 1.0);
+                let eased = t * t * (3.0 - 2.0 * t);
+                return ground + (bed.min(ground) - ground) * eased;
+            }
+        }
+        ground
     }
 
     /// Raw terrain height at a track-space position — the far field, with
@@ -483,7 +614,8 @@ impl TerrainHeightfield {
     /// Under a road it dips below the surface; see [`Self::surface_height_at`]
     /// for the surface a car drives on.
     pub fn ground_height_at(&self, x: f32, y: f32) -> f32 {
-        self.probe(x, y, UNDERPASS_WALL_GAP_M).ground
+        let ground = self.probe(x, y, UNDERPASS_WALL_GAP_M).ground;
+        self.sunk(x, y, ground)
     }
 
     /// The surface at a track-space position: the road (with banking)
@@ -493,7 +625,9 @@ impl TerrainHeightfield {
     /// the surface under it.
     pub fn surface_height_at(&self, x: f32, y: f32) -> f32 {
         let probe = self.probe(x, y, UNDERPASS_WALL_GAP_M);
-        probe.road_near(probe.ground).unwrap_or(probe.ground)
+        probe
+            .road_near(probe.ground)
+            .unwrap_or_else(|| self.sunk(x, y, probe.ground))
     }
 
     /// [`Self::surface_height_at`] for something that knows roughly how
@@ -508,7 +642,7 @@ impl TerrainHeightfield {
                 self.deck_top_at(x, y)
                     .filter(|top| (top - reference_z).abs() <= OVERHEAD_M)
             })
-            .unwrap_or(probe.ground)
+            .unwrap_or_else(|| self.sunk(x, y, probe.ground))
     }
 
     /// Ground and road surfaces at a point, from one candidate search, with
@@ -682,7 +816,9 @@ impl TerrainHeightfield {
             y,
             UNDERPASS_WALL_GAP_M + cell_m * std::f32::consts::SQRT_2,
         );
-        probe.road_near(probe.ground).unwrap_or(probe.ground)
+        probe
+            .road_near(probe.ground)
+            .unwrap_or_else(|| self.sunk(x, y, probe.ground))
     }
 
     /// The nearest point of road `road` to `(x, y)`, searching only the
@@ -1388,6 +1524,30 @@ mod tests {
     fn field() -> TerrainHeightfield {
         let path = CenterlinePath::from_track(&hilly_loop()).unwrap();
         TerrainHeightfield::from_path(&path).unwrap()
+    }
+
+    #[test]
+    fn water_sinks_the_ground_but_not_the_road() {
+        let water = crate::ats::Water {
+            id: 1,
+            name: None,
+            rings: vec![vec![[100.0, 100.0], [300.0, 100.0], [300.0, 200.0], [100.0, 200.0]]],
+        };
+        let f = field().with_water(&[water]);
+        assert!(f.has_water());
+        assert!(f.in_water(200.0, 150.0));
+        assert!(!f.in_water(50.0, 150.0));
+        let dry = field();
+        // Mid-pool: down at the bed, well under the surface.
+        let bed = f.water_level_m() - WATER_DEPTH_M;
+        assert!((f.ground_height_at(200.0, 150.0) - bed).abs() < 0.01);
+        assert!(f.water_level_m() < 0.0);
+        // Away from the pool nothing moved; the road itself is still there.
+        assert_eq!(f.ground_height_at(50.0, 150.0), dry.ground_height_at(50.0, 150.0));
+        assert_eq!(f.surface_height_at(200.0, 0.0), dry.surface_height_at(200.0, 0.0));
+        // The bank is smooth: a metre inside the shore it is part way down.
+        let bank = f.ground_height_at(101.0, 150.0);
+        assert!(bank < dry.ground_height_at(101.0, 150.0) && bank > bed);
     }
 
     #[test]

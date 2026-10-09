@@ -149,6 +149,39 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
 # a bend comes out curved, exactly like one traced from a building
 # outline.  `gap_m` is the distance from the road edge to the front row.
 MANUAL_STANDS: dict[str, list[dict]] = {
+    # Marina Bay has no permanent stands: every one is temporary and none is
+    # in OSM. These are the named grandstands of the 2025 Circuit Park Map
+    # (the organiser's published seating map, 03-05 October 2025), placed
+    # by reading each against the corner runs `drs_zones.py --report`
+    # prints. The map is "not drawn to scale", so stations are good to
+    # about +-100 m and sides to what the map shows (the 2019 Circuit Park
+    # Map, an older 23-turn layout, was used for the Padang, Stamford,
+    # Connaught and Empress stands, which that layout shares; its Float
+    # stand is gone); check them against
+    # `ats-dress --verbose` before relying on one.
+    "MarinaBay": [
+        # The pit straight: the stands face the pit building across the road.
+        dict(name="Super Pit Grandstand", from_m=4730, to_m=4900, side="right", depth_m=12, gap_m=6),
+        dict(name="Pit Grandstand", from_m=20, to_m=200, side="right", depth_m=12, gap_m=6),
+        dict(name="Republic Grandstand", from_m=215, to_m=330, side="right", depth_m=12, gap_m=6),
+        dict(name="Pit Exit Grandstand", from_m=300, to_m=395, side="left", depth_m=12, gap_m=6),
+        # Turns 1-3.
+        dict(name="Turn 1 Grandstand", from_m=405, to_m=470, side="right", depth_m=12, gap_m=6),
+        dict(name="Turn 2 Grandstand", from_m=480, to_m=545, side="right", depth_m=12, gap_m=6),
+        dict(name="Chicane Turn 2 Grandstand", from_m=470, to_m=540, side="left", depth_m=12, gap_m=6),
+        # The back of the lap, round the Flyer and along the bottom straight.
+        dict(name="Promenade Grandstand", from_m=4470, to_m=4540, side="left", depth_m=12, gap_m=6),
+        dict(name="Bayfront Grandstand", from_m=4545, to_m=4640, side="left", depth_m=12, gap_m=6),
+        dict(name="Skyline Grandstand", from_m=4560, to_m=4680, side="right", depth_m=12, gap_m=6),
+        dict(name="Marina Bay Grandstand", from_m=4685, to_m=4725, side="right", depth_m=12, gap_m=6),
+        # Raffles Avenue and the Padang.
+        dict(name="Raffles Grandstand", from_m=3980, to_m=4100, side="left", depth_m=12, gap_m=6),
+        dict(name="Stamford Grandstand", from_m=1855, to_m=1960, side="right", depth_m=12, gap_m=6),
+        dict(name="Padang A Grandstand", from_m=2340, to_m=2430, side="right", depth_m=12, gap_m=6),
+        dict(name="Padang B Grandstand", from_m=2435, to_m=2520, side="right", depth_m=12, gap_m=6),
+        dict(name="Connaught Grandstand", from_m=3440, to_m=3550, side="right", depth_m=12, gap_m=6),
+        dict(name="Empress Grandstand", from_m=2705, to_m=2775, side="right", depth_m=12, gap_m=6),
+    ],
     # Only the Hoofdtribune is in OSM.  The rest are from the circuit's
     # own tribune map (https://dutchgp.com/en/tribunes/,
     # https://grandprixguides.com/circuit/netherlands): the Arena and
@@ -476,6 +509,45 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     ],
 }
 
+# What the dossier's OSM-derived crossings are called for a circuit whose
+# bridges are not the kit's default: over a city street a "footbridge" is a
+# covered link, and a "road" is an expressway viaduct.
+CROSSING_KINDS: dict[str, dict[str, str]] = {
+    "MarinaBay": {"footbridge": "link", "road": "viaduct"},
+}
+
+# A street circuit's bridges that carry the lap itself (`bridge=yes` ways of
+# the lap's route relation) become `deck_*` crossings spanning the way's
+# stations: a bridge of at least this length is the wide deck, a shorter
+# one the steel arch (Anderson Bridge, 70 m; Esplanade Bridge, 290 m).
+DECK_WIDE_MIN_M = 120.0
+
+# OSM building name (substring) -> the kit building that stands for it.
+# "-" leaves a footprint out because another prop covers it. Names are the
+# dossier's internal ones; what the player sees never shows a real name.
+MANUAL_STRUCTURE_ASSETS: dict[str, dict[str, str]] = {
+    "MarinaBay": {
+        # authored: the three footprints of the performing-arts centre are
+        # one prop, `landmark_twin_domes`, laid on the wrapper's outline.
+        "Esplanade Theatres on the Bay": "landmark_twin_domes",
+        "Esplanade Concert Hall": "-",
+        "Esplanade Theatre": "-",
+        "The Fullerton Hotel": "building_colonnade_hotel",
+        "Old Supreme Court": "building_domed_court",
+        "Old City Hall": "building_colonnade_civic",
+        "Singapore Cricket Club": "building_club_pavilion",
+        "Singapore Recreation Club": "building_club_pavilion",
+        "Saint Andrew's Cathedral": "building_gothic_church",
+        "Suntec Singapore Convention": "building_five_towers",
+        "Singapore Flyer Car Park": "-",
+    },
+}
+
+# Landmark kinds OSM finds that a circuit draws with its own prop.
+LANDMARK_KINDS: dict[str, dict[str, str]] = {
+    "MarinaBay": {"big_wheel": "big_wheel_xl"},
+}
+
 # Point features OSM does not carry, but that are part of what the place
 # looks like on a race weekend.
 # Centroid of OSM's `historic=castle` outline of Burg Nürburg, way
@@ -483,6 +555,16 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
 NUERBURG_CASTLE = (6.95352, 50.34674)
 
 MANUAL_LANDMARKS: dict[str, list[dict]] = {
+    # The skyline across the water that is on every picture of the circuit,
+    # at the positions OSM has them (lon, lat). All of them stand 300-500 m
+    # from the road, so they are backdrop, not neighbours.
+    "MarinaBay": [
+        dict(kind="skypark", name="Three-tower hotel", at=(103.86085, 1.28390),
+             yaw_toward=(103.86102, 1.28459)),
+        dict(kind="lotus_museum", name="Lotus museum", at=(103.85923, 1.28611)),
+        dict(kind="double_helix", name="Double helix bridge", at=(103.86049, 1.28746),
+             yaw_toward=(103.86045, 1.28871)),
+    ],
     # Burg Nürburg, the castle ruin on its basalt cone in Nürburg, inside
     # the loop between the GP circuit and the Hatzenbach: the landmark every
     # view across the Nordschleife has on its skyline. Anchored on OSM's
@@ -1584,6 +1666,15 @@ POI_KINDS = {
     ("highway", "street_lamp"): "lamp",
 }
 
+# Street furniture of a city circuit, mapped as nodes: only for the stems
+# in `WATER_STEMS` (a city), so no other dossier gains a layer.
+CITY_POI_KINDS = {
+    ("natural", "tree"): "tree",
+    ("railway", "subway_entrance"): "station",
+    ("highway", "traffic_signals"): "signal",
+    ("shelter_type", "public_transport"): "bus_shelter",
+}
+
 # Tags the rest of the pipeline consumes outside this pass -- the course
 # itself, the stands, the structures and the woods -- so a way carrying one
 # is not reported as dropped.
@@ -1623,6 +1714,88 @@ def _first_match(t: dict, table: dict):
         if t.get(key) == value:
             return out
     return None
+
+
+# Circuits whose dossier carries a `water` layer: the bay, the river, the
+# basins, assembled from natural=water ways and multipolygon relations
+# (outer rings, with the inner ones as holes). Others keep the few small
+# water `areas` they always had, so their dossiers do not move.
+WATER_STEMS = frozenset({"MarinaBay"})
+WATER_RANGE_M = 700.0
+
+
+def _join_rings(segments: list[list[int]]) -> list[list[int]]:
+    """Closed node rings from the open ways of a multipolygon's role, by
+    joining segments end to end (reversing one where that is what fits)."""
+    rings: list[list[int]] = []
+    pool = [list(s) for s in segments if len(s) >= 2]
+    while pool:
+        cur = pool.pop(0)
+        while cur[0] != cur[-1]:
+            for i, seg in enumerate(pool):
+                if seg[0] == cur[-1]:
+                    cur += seg[1:]
+                elif seg[-1] == cur[-1]:
+                    cur += seg[::-1][1:]
+                elif seg[-1] == cur[0]:
+                    cur = seg[:-1] + cur
+                elif seg[0] == cur[0]:
+                    cur = seg[::-1][:-1] + cur
+                else:
+                    continue
+                pool.pop(i)
+                break
+            else:
+                break
+        if cur[0] == cur[-1] and len(cur) >= 4:
+            rings.append(cur)
+    return rings
+
+
+def extract_water(track: Track, osm: Osm) -> list[dict]:
+    """Water bodies near the lap as even-odd ring sets in the track frame."""
+    def ring_xy(ids: list[int]) -> np.ndarray | None:
+        pts = [osm.nodes[n] for n in ids if n in osm.nodes]
+        if len(pts) < 4:
+            return None
+        return _TO_TRACK(np.array([enu(lo, la, osm.lon0, osm.lat0) for lo, la in pts]))
+
+    def near(p: np.ndarray) -> bool:
+        d, _ = track.grid.query(p, max_rings=60)
+        return float(d.min()) < WATER_RANGE_M
+
+    bodies: list[dict] = []
+    in_relation: set[int] = set()
+    for r in osm.relations:
+        t = r.get("tags") or {}
+        if t.get("natural") != "water" or t.get("type") != "multipolygon":
+            continue
+        outer, inner = [], []
+        for m in r.get("members", []):
+            if m.get("type") != "way":
+                continue
+            w = osm.ways_by_id.get(m["ref"])
+            if w is None:
+                continue
+            in_relation.add(w["id"])
+            (inner if m.get("role") == "inner" else outer).append(w["nodes"])
+        rings = []
+        for ids in _join_rings(outer) + _join_rings(inner):
+            p = ring_xy(ids)
+            if p is not None:
+                rings.append(p)
+        if rings and any(near(p) for p in rings):
+            bodies.append({"name": osm_name(t), "rings": [round_pts(simplify(p, 3.0), 1) for p in rings]})
+    for w in osm.ways:
+        t = w.get("tags") or {}
+        if t.get("natural") != "water" or w["id"] in in_relation or w["nodes"][0] != w["nodes"][-1]:
+            continue
+        p = ring_xy(w["nodes"])
+        if p is None or not near(p) or ring_area(p) < 200.0:
+            continue
+        bodies.append({"name": osm_name(t), "rings": [round_pts(simplify(p, 2.0), 1)]})
+    bodies.sort(key=lambda b: (b["rings"][0][0], b.get("name") or ""))
+    return [{k: v for k, v in b.items() if v is not None} for b in bodies]
 
 
 def extract_surroundings(stem: str, track: Track, osm: Osm, xy) -> dict:
@@ -1732,6 +1905,8 @@ def extract_surroundings(stem: str, track: Track, osm: Osm, xy) -> dict:
 
     for nid, t in osm.node_tags.items():
         poi_kind = _first_match(t, POI_KINDS)
+        if poi_kind is None and stem in WATER_STEMS:
+            poi_kind = _first_match(t, CITY_POI_KINDS)
         if poi_kind is None:
             continue
         c = to_track_node(osm, nid)
@@ -1743,8 +1918,12 @@ def extract_surroundings(stem: str, track: Track, osm: Osm, xy) -> dict:
     roads.sort(key=lambda e: (e["kind"], e["line"][0]))
     waterways.sort(key=lambda e: (e["kind"], e["line"][0]))
     areas.sort(key=lambda e: (e["kind"], e["ring"][0]))
+    if stem in WATER_STEMS:
+        # In a city every cafe is mapped; a stall for each would be absurd.
+        poi = [e for e in poi if e["kind"] != "food"]
+        areas = [e for e in areas if e["kind"] not in ("residential", "farmland", "farmyard", "camp_site")]
     poi.sort(key=lambda e: (e["station_m"], e["kind"]))
-    return {
+    out = {
         "barriers": barriers,
         "roads": roads,
         "waterways": waterways,
@@ -1752,6 +1931,9 @@ def extract_surroundings(stem: str, track: Track, osm: Osm, xy) -> dict:
         "poi": poi,
         "unclassified": dict(sorted(census.items(), key=lambda kv: (-kv[1], kv[0]))),
     }
+    if stem in WATER_STEMS:
+        out["water"] = extract_water(track, osm)
+    return out
 
 
 def manual_pit_lane(track: Track, spec: dict) -> dict:
@@ -1996,6 +2178,10 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             entry["levels"] = int(t.get("building:levels", 0) or 0)
             entry["osm_building"] = t.get("building")
             entry["area_m2"] = round(ring_area(p))
+            for needle, asset in MANUAL_STRUCTURE_ASSETS.get(stem, {}).items():
+                if entry["name"] and needle in entry["name"]:
+                    entry["asset"] = asset
+                    break
             structures.append(entry)
     for spec in MANUAL_STANDS.get(stem, []):
         side = spec["side"]
@@ -2061,6 +2247,28 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
                 "kind": "footbridge" if t.get("highway") in ("footway", "path", "steps") else "road",
             }
         )
+    kinds = CROSSING_KINDS.get(stem, {})
+    crossings = [dict(c, kind=kinds.get(c["kind"], c["kind"])) for c in crossings]
+    if stem in WATER_STEMS:
+        lap = {m["ref"] for r in osm.relations if r["id"] in STREET_CIRCUIT_RELATIONS
+               for m in r["members"] if m["type"] == "way"}
+        for w in osm.ways:
+            t = w.get("tags") or {}
+            if w["id"] not in lap or t.get("bridge") != "yes":
+                continue
+            p = to_track(osm.way_xy(w))
+            s_all, _ = track.locate(p)
+            b_lo, b_hi = float(np.min(s_all)), float(np.max(s_all))
+            crossings.append(
+                {
+                    "name": t.get("bridge:name") or osm_name(t),
+                    "station_m": round((b_lo + b_hi) / 2, 1),
+                    "kind": "deck_wide" if b_hi - b_lo >= DECK_WIDE_MIN_M else "deck_arch",
+                    "from_m": round(b_lo, 1),
+                    "to_m": round(b_hi, 1),
+                    "source": "authored",
+                }
+            )
     for spec in MANUAL_CROSSINGS.get(stem, []):
         crossings.append(dict(spec, source="authored"))
     crossings.sort(key=lambda c: c["station_m"])
@@ -2159,6 +2367,20 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
                 "centre": round_pts(c)[0],
             }
         )
+    kind_map = LANDMARK_KINDS.get(stem, {})
+    if kind_map:
+        landmarks = [dict(l, kind=kind_map.get(l["kind"], l["kind"])) for l in landmarks]
+        # One prop for what OSM maps twice (the wheel and its hub node).
+        unique: list[dict] = []
+        for l in landmarks:
+            if any(
+                u["kind"] == l["kind"]
+                and math.hypot(*(np.array(u["centre"]) - np.array(l["centre"]))) < 120.0
+                for u in unique
+            ):
+                continue
+            unique.append(l)
+        landmarks = unique
     for spec in MANUAL_LANDMARKS.get(stem, []):
         if "at" in spec:
             # Anchored on the map rather than beside the road: a castle on
@@ -2196,6 +2418,10 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             entry["altitude_m"] = spec["altitude_m"]
         if "yaw_rad" in spec:
             entry["yaw_rad"] = spec["yaw_rad"]
+        if "yaw_toward" in spec:
+            # Long axis along the line from the landmark to this point.
+            q = to_track(np.array([enu(*spec["yaw_toward"], osm.lon0, osm.lat0)]))[0]
+            entry["yaw_rad"] = round(math.atan2(q[1] - p[1], q[0] - p[0]), 4)
         if "broadside_to_m" in spec:
             # Long axis across the line of sight from that station.
             eye = track.offset_point(spec["broadside_to_m"], "left", -track.half_width(spec["broadside_to_m"], "left"))

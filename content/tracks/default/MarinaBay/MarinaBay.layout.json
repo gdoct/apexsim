@@ -422,7 +422,1017 @@
    ]
   ]
  },
- "stands": [],
+ "stands": [
+  {
+   "name": "Pit Grandstand",
+   "source": "seating map",
+   "station_m": 110.2,
+   "side": "right",
+   "offset_m": 6,
+   "length_m": 180.5,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": 0.0115,
+   "centre": [
+    110.18,
+    -11.6
+   ],
+   "front": [
+    [
+     20.01,
+     -12.0
+    ],
+    [
+     30.01,
+     -12.0
+    ],
+    [
+     40.02,
+     -12.0
+    ],
+    [
+     50.02,
+     -12.0
+    ],
+    [
+     60.02,
+     -12.0
+    ],
+    [
+     70.03,
+     -12.0
+    ],
+    [
+     80.03,
+     -12.0
+    ],
+    [
+     90.05,
+     -11.99
+    ],
+    [
+     100.04,
+     -11.99
+    ],
+    [
+     110.03,
+     -12.0
+    ],
+    [
+     120.04,
+     -12.02
+    ],
+    [
+     130.14,
+     -12.0
+    ],
+    [
+     140.29,
+     -11.87
+    ],
+    [
+     150.42,
+     -11.61
+    ],
+    [
+     160.47,
+     -11.28
+    ],
+    [
+     170.47,
+     -10.92
+    ],
+    [
+     180.45,
+     -10.58
+    ],
+    [
+     190.43,
+     -10.26
+    ],
+    [
+     200.45,
+     -9.93
+    ]
+   ]
+  },
+  {
+   "name": "Republic Grandstand",
+   "source": "seating map",
+   "station_m": 273.6,
+   "side": "right",
+   "offset_m": 6,
+   "length_m": 115.1,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": 0.0332,
+   "centre": [
+    273.98,
+    -7.51
+   ],
+   "front": [
+    [
+     215.45,
+     -9.44
+    ],
+    [
+     227.96,
+     -9.03
+    ],
+    [
+     237.95,
+     -8.7
+    ],
+    [
+     247.92,
+     -8.36
+    ],
+    [
+     257.92,
+     -8.03
+    ],
+    [
+     267.92,
+     -7.7
+    ],
+    [
+     280.44,
+     -7.29
+    ],
+    [
+     290.44,
+     -6.95
+    ],
+    [
+     300.42,
+     -6.63
+    ],
+    [
+     310.43,
+     -6.31
+    ],
+    [
+     320.44,
+     -5.97
+    ],
+    [
+     330.46,
+     -5.62
+    ]
+   ]
+  },
+  {
+   "name": "Pit Exit Grandstand",
+   "source": "seating map",
+   "station_m": 348.8,
+   "side": "left",
+   "offset_m": 6,
+   "length_m": 98.1,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": 0.031,
+   "centre": [
+    348.42,
+    18.97
+   ],
+   "front": [
+    [
+     299.66,
+     17.35
+    ],
+    [
+     312.12,
+     17.76
+    ],
+    [
+     322.12,
+     18.1
+    ],
+    [
+     332.1,
+     18.45
+    ],
+    [
+     342.16,
+     18.79
+    ],
+    [
+     354.71,
+     19.13
+    ],
+    [
+     364.59,
+     19.43
+    ],
+    [
+     374.46,
+     19.89
+    ],
+    [
+     384.59,
+     20.37
+    ],
+    [
+     397.7,
+     20.39
+    ]
+   ]
+  },
+  {
+   "name": "Turn 1 Grandstand",
+   "source": "seating map",
+   "station_m": 438.5,
+   "side": "right",
+   "offset_m": 6,
+   "length_m": 80.5,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": 0.8203,
+   "centre": [
+    437.6,
+    16.11
+   ],
+   "front": [
+    [
+     407.07,
+     -3.94
+    ],
+    [
+     418.84,
+     -3.53
+    ],
+    [
+     431.8,
+     -0.09
+    ],
+    [
+     445.76,
+     11.15
+    ],
+    [
+     451.47,
+     23.76
+    ],
+    [
+     453.61,
+     38.32
+    ],
+    [
+     454.67,
+     47.11
+    ]
+   ]
+  },
+  {
+   "name": "Chicane Turn 2 Grandstand",
+   "source": "seating map",
+   "station_m": 506.6,
+   "side": "left",
+   "offset_m": 6,
+   "length_m": 80.7,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": 0.8985,
+   "centre": [
+    450.91,
+    85.32
+   ],
+   "front": [
+    [
+     431.06,
+     51.4
+    ],
+    [
+     434.21,
+     62.8
+    ],
+    [
+     438.89,
+     73.11
+    ],
+    [
+     444.32,
+     82.65
+    ],
+    [
+     450.74,
+     92.08
+    ],
+    [
+     459.26,
+     100.96
+    ],
+    [
+     469.58,
+     107.6
+    ],
+    [
+     479.25,
+     111.95
+    ]
+   ]
+  },
+  {
+   "name": "Turn 2 Grandstand",
+   "source": "seating map",
+   "station_m": 512.0,
+   "side": "right",
+   "offset_m": 6,
+   "length_m": 55.3,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": 0.7949,
+   "centre": [
+    472.71,
+    75.99
+   ],
+   "front": [
+    [
+     456.66,
+     54.34
+    ],
+    [
+     460.16,
+     61.99
+    ],
+    [
+     465.99,
+     72.1
+    ],
+    [
+     470.86,
+     78.88
+    ],
+    [
+     477.17,
+     84.36
+    ],
+    [
+     484.17,
+     87.93
+    ],
+    [
+     493.92,
+     92.31
+    ]
+   ]
+  },
+  {
+   "name": "Stamford Grandstand",
+   "source": "seating map",
+   "station_m": 1909.1,
+   "side": "right",
+   "offset_m": 6,
+   "length_m": 105.0,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": 2.5107,
+   "centre": [
+    336.82,
+    980.0
+   ],
+   "front": [
+    [
+     378.74,
+     948.6
+    ],
+    [
+     371.49,
+     953.99
+    ],
+    [
+     361.91,
+     961.54
+    ],
+    [
+     353.94,
+     967.82
+    ],
+    [
+     345.86,
+     974.05
+    ],
+    [
+     337.64,
+     980.18
+    ],
+    [
+     329.3,
+     986.15
+    ],
+    [
+     318.97,
+     993.31
+    ],
+    [
+     310.76,
+     999.0
+    ],
+    [
+     302.45,
+     1004.78
+    ],
+    [
+     293.94,
+     1010.54
+    ]
+   ]
+  },
+  {
+   "name": "Padang A Grandstand",
+   "source": "seating map",
+   "station_m": 2386.5,
+   "side": "right",
+   "offset_m": 6,
+   "length_m": 90.1,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": 2.528,
+   "centre": [
+    255.08,
+    1290.3
+   ],
+   "front": [
+    [
+     291.69,
+     1264.03
+    ],
+    [
+     283.62,
+     1269.91
+    ],
+    [
+     275.54,
+     1275.8
+    ],
+    [
+     267.45,
+     1281.69
+    ],
+    [
+     259.36,
+     1287.58
+    ],
+    [
+     251.21,
+     1293.49
+    ],
+    [
+     242.97,
+     1299.29
+    ],
+    [
+     234.61,
+     1304.86
+    ],
+    [
+     226.3,
+     1310.38
+    ],
+    [
+     218.02,
+     1315.92
+    ]
+   ]
+  },
+  {
+   "name": "Padang B Grandstand",
+   "source": "seating map",
+   "station_m": 2478.7,
+   "side": "right",
+   "offset_m": 6,
+   "length_m": 85.1,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": 2.527,
+   "centre": [
+    179.26,
+    1342.89
+   ],
+   "front": [
+    [
+     213.9,
+     1318.69
+    ],
+    [
+     205.64,
+     1324.29
+    ],
+    [
+     197.36,
+     1329.92
+    ],
+    [
+     187.08,
+     1337.08
+    ],
+    [
+     178.94,
+     1342.94
+    ],
+    [
+     170.8,
+     1348.79
+    ],
+    [
+     162.67,
+     1354.62
+    ],
+    [
+     152.52,
+     1361.91
+    ],
+    [
+     144.4,
+     1367.74
+    ]
+   ]
+  },
+  {
+   "name": "Empress Grandstand",
+   "source": "seating map",
+   "station_m": 2740.6,
+   "side": "right",
+   "offset_m": 6,
+   "length_m": 68.0,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": -2.3117,
+   "centre": [
+    -43.21,
+    1399.25
+   ],
+   "front": [
+    [
+     -20.53,
+     1424.42
+    ],
+    [
+     -26.51,
+     1417.52
+    ],
+    [
+     -33.06,
+     1410.36
+    ],
+    [
+     -39.9,
+     1402.77
+    ],
+    [
+     -46.56,
+     1395.26
+    ],
+    [
+     -53.03,
+     1388.2
+    ],
+    [
+     -59.65,
+     1381.27
+    ],
+    [
+     -66.44,
+     1374.23
+    ]
+   ]
+  },
+  {
+   "name": "Connaught Grandstand",
+   "source": "seating map",
+   "station_m": 3496.7,
+   "side": "right",
+   "offset_m": 6,
+   "length_m": 111.3,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": -0.4565,
+   "centre": [
+    114.39,
+    1057.71
+   ],
+   "front": [
+    [
+     64.96,
+     1082.43
+    ],
+    [
+     73.99,
+     1078.07
+    ],
+    [
+     82.94,
+     1073.65
+    ],
+    [
+     91.85,
+     1069.14
+    ],
+    [
+     100.78,
+     1064.53
+    ],
+    [
+     109.76,
+     1059.9
+    ],
+    [
+     118.75,
+     1055.36
+    ],
+    [
+     127.66,
+     1050.87
+    ],
+    [
+     136.53,
+     1046.33
+    ],
+    [
+     145.57,
+     1041.71
+    ],
+    [
+     155.02,
+     1037.2
+    ],
+    [
+     164.83,
+     1033.39
+    ]
+   ]
+  },
+  {
+   "name": "Raffles Grandstand",
+   "source": "seating map",
+   "station_m": 4042.4,
+   "side": "left",
+   "offset_m": 6,
+   "length_m": 120.1,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": -1.7393,
+   "centre": [
+    2.58,
+    655.32
+   ],
+   "front": [
+    [
+     12.65,
+     714.5
+    ],
+    [
+     10.97,
+     704.63
+    ],
+    [
+     9.29,
+     694.77
+    ],
+    [
+     7.61,
+     684.91
+    ],
+    [
+     5.93,
+     675.05
+    ],
+    [
+     4.26,
+     665.18
+    ],
+    [
+     2.59,
+     655.32
+    ],
+    [
+     0.91,
+     645.45
+    ],
+    [
+     -0.77,
+     635.59
+    ],
+    [
+     -2.45,
+     625.73
+    ],
+    [
+     -4.12,
+     615.87
+    ],
+    [
+     -5.8,
+     606.0
+    ],
+    [
+     -7.48,
+     596.14
+    ]
+   ]
+  },
+  {
+   "name": "Promenade Grandstand",
+   "source": "seating map",
+   "station_m": 4506.6,
+   "side": "left",
+   "offset_m": 6,
+   "length_m": 69.9,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": -1.7898,
+   "centre": [
+    -148.23,
+    259.13
+   ],
+   "front": [
+    [
+     -140.6,
+     293.19
+    ],
+    [
+     -142.86,
+     283.49
+    ],
+    [
+     -145.05,
+     273.82
+    ],
+    [
+     -147.19,
+     264.07
+    ],
+    [
+     -149.32,
+     254.3
+    ],
+    [
+     -151.46,
+     244.52
+    ],
+    [
+     -153.61,
+     234.74
+    ],
+    [
+     -155.79,
+     224.94
+    ]
+   ]
+  },
+  {
+   "name": "Bayfront Grandstand",
+   "source": "seating map",
+   "station_m": 4594.1,
+   "side": "left",
+   "offset_m": 6,
+   "length_m": 94.2,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": -1.7424,
+   "centre": [
+    -165.37,
+    174.15
+   ],
+   "front": [
+    [
+     -156.89,
+     220.03
+    ],
+    [
+     -159.06,
+     210.33
+    ],
+    [
+     -161.12,
+     200.73
+    ],
+    [
+     -163.38,
+     188.78
+    ],
+    [
+     -164.97,
+     179.13
+    ],
+    [
+     -166.45,
+     169.33
+    ],
+    [
+     -167.93,
+     159.4
+    ],
+    [
+     -169.47,
+     149.45
+    ],
+    [
+     -171.46,
+     137.06
+    ],
+    [
+     -172.97,
+     127.28
+    ]
+   ]
+  },
+  {
+   "name": "Skyline Grandstand",
+   "source": "seating map",
+   "station_m": 4621.5,
+   "side": "right",
+   "offset_m": 6,
+   "length_m": 120.3,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": -1.7361,
+   "centre": [
+    -193.54,
+    150.85
+   ],
+   "front": [
+    [
+     -183.58,
+     210.54
+    ],
+    [
+     -185.63,
+     200.5
+    ],
+    [
+     -187.46,
+     190.39
+    ],
+    [
+     -189.07,
+     180.33
+    ],
+    [
+     -190.56,
+     170.36
+    ],
+    [
+     -192.03,
+     160.54
+    ],
+    [
+     -193.56,
+     150.74
+    ],
+    [
+     -195.16,
+     140.84
+    ],
+    [
+     -196.71,
+     130.78
+    ],
+    [
+     -198.13,
+     120.85
+    ],
+    [
+     -199.54,
+     111.3
+    ],
+    [
+     -201.26,
+     101.96
+    ],
+    [
+     -203.38,
+     91.92
+    ]
+   ]
+  },
+  {
+   "name": "Marina Bay Grandstand",
+   "source": "seating map",
+   "station_m": 4706.1,
+   "side": "right",
+   "offset_m": 6,
+   "length_m": 51.3,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": -1.1885,
+   "centre": [
+    -198.6,
+    62.41
+   ],
+   "front": [
+    [
+     -204.38,
+     86.37
+    ],
+    [
+     -205.13,
+     73.98
+    ],
+    [
+     -202.17,
+     60.83
+    ],
+    [
+     -195.05,
+     49.59
+    ],
+    [
+     -186.25,
+     41.28
+    ]
+   ]
+  },
+  {
+   "name": "Super Pit Grandstand",
+   "source": "seating map",
+   "station_m": 4815.9,
+   "side": "right",
+   "offset_m": 6,
+   "length_m": 177.7,
+   "depth_m": 12.0,
+   "covered": false,
+   "yaw_rad": -0.2988,
+   "centre": [
+    -104.89,
+    0.6
+   ],
+   "front": [
+    [
+     -181.9,
+     37.87
+    ],
+    [
+     -173.79,
+     31.76
+    ],
+    [
+     -166.25,
+     25.83
+    ],
+    [
+     -158.81,
+     19.67
+    ],
+    [
+     -151.27,
+     13.27
+    ],
+    [
+     -143.36,
+     6.59
+    ],
+    [
+     -134.56,
+     -0.15
+    ],
+    [
+     -124.28,
+     -6.12
+    ],
+    [
+     -112.7,
+     -10.12
+    ],
+    [
+     -100.99,
+     -11.81
+    ],
+    [
+     -90.04,
+     -12.1
+    ],
+    [
+     -79.87,
+     -11.98
+    ],
+    [
+     -70.02,
+     -11.93
+    ],
+    [
+     -60.1,
+     -11.98
+    ],
+    [
+     -50.05,
+     -12.03
+    ],
+    [
+     -40.0,
+     -12.02
+    ],
+    [
+     -30.0,
+     -12.0
+    ],
+    [
+     -20.01,
+     -12.0
+    ]
+   ]
+  }
+ ],
  "structures": [
   {
    "name": null,
@@ -662,7 +1672,8 @@
    ],
    "levels": 0,
    "osm_building": "retail",
-   "area_m2": 26071
+   "area_m2": 26071,
+   "asset": "building_five_towers"
   },
   {
    "name": "South Beach Avenue",
@@ -742,7 +1753,8 @@
    ],
    "levels": 3,
    "osm_building": "yes",
-   "area_m2": 2238
+   "area_m2": 2238,
+   "asset": "building_club_pavilion"
   },
   {
    "name": "Raffles City Shopping Centre",
@@ -790,7 +1802,8 @@
    ],
    "levels": 0,
    "osm_building": "church",
-   "area_m2": 1885
+   "area_m2": 1885,
+   "asset": "building_gothic_church"
   },
   {
    "name": null,
@@ -822,7 +1835,8 @@
    ],
    "levels": 0,
    "osm_building": "yes",
-   "area_m2": 8084
+   "area_m2": 8084,
+   "asset": "building_colonnade_civic"
   },
   {
    "name": "Supreme Court of Singapore",
@@ -870,7 +1884,8 @@
    ],
    "levels": 0,
    "osm_building": "yes",
-   "area_m2": 5111
+   "area_m2": 5111,
+   "asset": "building_domed_court"
   },
   {
    "name": "Front Hall",
@@ -982,7 +1997,8 @@
    ],
    "levels": 0,
    "osm_building": "yes",
-   "area_m2": 1673
+   "area_m2": 1673,
+   "asset": "building_club_pavilion"
   },
   {
    "name": "Asian Civilisations Museum",
@@ -1046,7 +2062,8 @@
    ],
    "levels": 0,
    "osm_building": "yes",
-   "area_m2": 6743
+   "area_m2": 6743,
+   "asset": "building_colonnade_hotel"
   },
   {
    "name": "One Fullerton",
@@ -1078,7 +2095,8 @@
    ],
    "levels": 4,
    "osm_building": "yes",
-   "area_m2": 5152
+   "area_m2": 5152,
+   "asset": "-"
   },
   {
    "name": "The Cenotaph",
@@ -1110,7 +2128,8 @@
    ],
    "levels": 4,
    "osm_building": "yes",
-   "area_m2": 5874
+   "area_m2": 5874,
+   "asset": "-"
   },
   {
    "name": "Esplanade Theatres on the Bay",
@@ -1126,7 +2145,8 @@
    ],
    "levels": 4,
    "osm_building": "yes",
-   "area_m2": 10436
+   "area_m2": 10436,
+   "asset": "landmark_twin_domes"
   },
   {
    "name": "DBS Foundation Outdoor Theatre",
@@ -1238,7 +2258,8 @@
    ],
    "levels": 0,
    "osm_building": "parking",
-   "area_m2": 5614
+   "area_m2": 5614,
+   "asset": "-"
   },
   {
    "name": "Singapore Flyer",
@@ -1277,62 +2298,103 @@
   {
    "name": null,
    "station_m": 340.3,
-   "kind": "footbridge"
+   "kind": "link"
   },
   {
    "name": "East Coast Parkway",
    "station_m": 370.1,
-   "kind": "road"
+   "kind": "viaduct"
   },
   {
    "name": null,
    "station_m": 401.9,
-   "kind": "road"
+   "kind": "viaduct"
   },
   {
    "name": null,
    "station_m": 656.6,
-   "kind": "footbridge"
+   "kind": "link"
   },
   {
    "name": null,
    "station_m": 1032.5,
-   "kind": "footbridge"
+   "kind": "link"
   },
   {
    "name": "East Coast Parkway",
    "station_m": 1104.6,
-   "kind": "road"
+   "kind": "viaduct"
   },
   {
    "name": "East Coast Parkway",
    "station_m": 1154.8,
-   "kind": "road"
+   "kind": "viaduct"
+  },
+  {
+   "name": "Anderson Bridge",
+   "station_m": 2947.5,
+   "kind": "deck_arch",
+   "from_m": 2912.4,
+   "to_m": 2982.6,
+   "source": "authored"
+  },
+  {
+   "name": "Esplanade Bridge",
+   "station_m": 3213.0,
+   "kind": "deck_wide",
+   "from_m": 3067.4,
+   "to_m": 3358.6,
+   "source": "authored"
   },
   {
    "name": null,
    "station_m": 4406.1,
-   "kind": "footbridge"
+   "kind": "link"
   },
   {
    "name": "East Coast Parkway",
    "station_m": 4447.2,
-   "kind": "road"
+   "kind": "viaduct"
   }
  ],
  "landmarks": [
   {
-   "kind": "big_wheel",
-   "name": "Singapore Flyer",
-   "station_m": 4597.3,
-   "side": "left",
+   "kind": "double_helix",
+   "name": "Double helix bridge",
+   "source": "authored",
+   "station_m": 4413.7,
+   "side": "right",
    "centre": [
-    -107.61,
-    162.31
+    -282.54,
+    465.63
+   ],
+   "yaw_rad": -0.0832
+  },
+  {
+   "kind": "lotus_museum",
+   "name": "Lotus museum",
+   "source": "authored",
+   "station_m": 4428.0,
+   "side": "right",
+   "centre": [
+    -415.71,
+    622.2
    ]
   },
   {
-   "kind": "big_wheel",
+   "kind": "skypark",
+   "name": "Three-tower hotel",
+   "source": "authored",
+   "station_m": 4438.2,
+   "side": "right",
+   "centre": [
+    -680.82,
+    471.38
+   ],
+   "yaw_rad": -0.3567
+  },
+  {
+   "kind": "big_wheel_xl",
    "name": "Singapore Flyer",
    "station_m": 4608.5,
    "side": "left",
@@ -37538,85 +38600,6 @@
    ]
   },
   {
-   "kind": "residential",
-   "ring": [
-    [
-     780.9,
-     -303.2
-    ],
-    [
-     770.7,
-     -391.4
-    ],
-    [
-     762.9,
-     -403.5
-    ],
-    [
-     705.6,
-     -402.6
-    ],
-    [
-     577.8,
-     -453.7
-    ],
-    [
-     513.0,
-     -461.5
-    ],
-    [
-     491.6,
-     -344.5
-    ],
-    [
-     499.9,
-     -274.8
-    ],
-    [
-     560.0,
-     -269.2
-    ],
-    [
-     646.3,
-     -271.5
-    ],
-    [
-     724.3,
-     -284.4
-    ],
-    [
-     780.9,
-     -303.2
-    ]
-   ],
-   "name": "Costa Rhu"
-  },
-  {
-   "kind": "residential",
-   "ring": [
-    [
-     792.9,
-     702.5
-    ],
-    [
-     742.1,
-     658.4
-    ],
-    [
-     690.9,
-     697.2
-    ],
-    [
-     743.8,
-     754.6
-    ],
-    [
-     792.9,
-     702.5
-    ]
-   ]
-  },
-  {
    "kind": "scrub",
    "ring": [
     [
@@ -37906,6 +38889,330 @@
  ],
  "poi": [
   {
+   "kind": "tree",
+   "station_m": 16.0,
+   "side": "right",
+   "centre": [
+    15.99,
+    -52.76
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 66.8,
+   "side": "right",
+   "centre": [
+    66.84,
+    -49.62
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 113.5,
+   "side": "right",
+   "centre": [
+    113.4,
+    -47.2
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 172.0,
+   "side": "right",
+   "centre": [
+    173.6,
+    -46.36
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 446.3,
+   "side": "right",
+   "centre": [
+    602.6,
+    -31.69
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 451.3,
+   "side": "right",
+   "centre": [
+    555.64,
+    -22.05
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 544.7,
+   "side": "right",
+   "centre": [
+    676.31,
+    -17.99
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 553.7,
+   "side": "right",
+   "centre": [
+    644.21,
+    -30.49
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 555.0,
+   "side": "right",
+   "centre": [
+    759.14,
+    98.59
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 556.5,
+   "side": "right",
+   "centre": [
+    748.17,
+    100.36
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 562.9,
+   "side": "right",
+   "centre": [
+    716.71,
+    -22.06
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 566.0,
+   "side": "right",
+   "centre": [
+    791.33,
+    108.73
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 570.9,
+   "side": "right",
+   "centre": [
+    562.06,
+    109.85
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 572.5,
+   "side": "right",
+   "centre": [
+    675.85,
+    118.38
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 573.7,
+   "side": "right",
+   "centre": [
+    745.49,
+    117.64
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 575.0,
+   "side": "right",
+   "centre": [
+    703.49,
+    103.16
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 575.4,
+   "side": "right",
+   "centre": [
+    762.63,
+    73.59
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 580.6,
+   "side": "right",
+   "centre": [
+    707.35,
+    125.66
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 582.6,
+   "side": "right",
+   "centre": [
+    757.49,
+    81.96
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 582.8,
+   "side": "right",
+   "centre": [
+    745.59,
+    84.59
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 583.7,
+   "side": "right",
+   "centre": [
+    590.89,
+    161.42
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 584.3,
+   "side": "right",
+   "centre": [
+    770.24,
+    196.52
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 584.8,
+   "side": "right",
+   "centre": [
+    742.89,
+    169.59
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 585.1,
+   "side": "right",
+   "centre": [
+    637.25,
+    177.68
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 585.7,
+   "side": "right",
+   "centre": [
+    729.59,
+    188.44
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 587.1,
+   "side": "right",
+   "centre": [
+    766.27,
+    -24.79
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 588.1,
+   "side": "right",
+   "centre": [
+    616.8,
+    154.76
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 588.3,
+   "side": "right",
+   "centre": [
+    555.66,
+    164.46
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 588.4,
+   "side": "right",
+   "centre": [
+    653.18,
+    213.39
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 589.8,
+   "side": "right",
+   "centre": [
+    650.29,
+    200.07
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 589.9,
+   "side": "right",
+   "centre": [
+    613.08,
+    194.95
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 597.8,
+   "side": "right",
+   "centre": [
+    737.86,
+    223.1
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 599.8,
+   "side": "right",
+   "centre": [
+    715.75,
+    257.44
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 601.2,
+   "side": "right",
+   "centre": [
+    766.99,
+    235.96
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 603.3,
+   "side": "right",
+   "centre": [
+    620.63,
+    237.5
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 604.5,
+   "side": "right",
+   "centre": [
+    638.6,
+    388.43
+   ]
+  },
+  {
    "kind": "gate",
    "station_m": 604.7,
    "side": "right",
@@ -37915,134 +39222,528 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 620.8,
+   "kind": "signal",
+   "station_m": 605.0,
    "side": "right",
    "centre": [
-    571.9,
-    392.18
-   ],
-   "name": "Burger King"
+    593.2,
+    285.3
+   ]
   },
   {
-   "kind": "food",
+   "kind": "tree",
+   "station_m": 609.4,
+   "side": "right",
+   "centre": [
+    585.8,
+    239.45
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 609.6,
+   "side": "right",
+   "centre": [
+    604.97,
+    294.98
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 609.8,
+   "side": "right",
+   "centre": [
+    551.71,
+    229.78
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 610.6,
+   "side": "right",
+   "centre": [
+    594.35,
+    296.27
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 621.0,
+   "side": "right",
+   "centre": [
+    559.74,
+    290.07
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 622.5,
+   "side": "right",
+   "centre": [
+    528.2,
+    284.3
+   ]
+  },
+  {
+   "kind": "tree",
    "station_m": 623.9,
    "side": "right",
    "centre": [
-    564.56,
-    441.64
-   ],
-   "name": "Noci Bakehouse"
+    549.91,
+    344.01
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 624.5,
-   "side": "right",
-   "centre": [
-    597.06,
-    434.81
-   ],
-   "name": "Marché Mövenpick"
-  },
-  {
-   "kind": "food",
+   "kind": "tree",
    "station_m": 625.2,
    "side": "right",
    "centre": [
-    579.07,
-    395.11
-   ],
-   "name": "Compose Coffee"
+    619.04,
+    396.11
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 630.8,
+   "kind": "tree",
+   "station_m": 626.0,
    "side": "right",
    "centre": [
-    556.1,
-    437.68
-   ],
-   "name": "matchaya"
+    511.92,
+    252.18
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 632.8,
+   "kind": "tree",
+   "station_m": 626.6,
    "side": "right",
    "centre": [
-    532.07,
-    419.64
-   ],
-   "name": "Hoshino Coffee"
+    600.86,
+    368.76
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 638.7,
+   "kind": "tree",
+   "station_m": 639.2,
    "side": "right",
    "centre": [
-    513.4,
-    391.92
-   ],
-   "name": "BORNGA 본가"
+    490.33,
+    273.51
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 640.1,
+   "kind": "tree",
+   "station_m": 639.9,
    "side": "right",
    "centre": [
-    513.27,
-    398.42
-   ],
-   "name": "Sukiya"
+    500.5,
+    337.71
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 640.3,
+   "kind": "tree",
+   "station_m": 643.8,
    "side": "right",
    "centre": [
-    513.47,
-    419.63
-   ],
-   "name": "McDonald's"
+    473.03,
+    232.61
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 645.0,
+   "kind": "tree",
+   "station_m": 668.1,
    "side": "right",
    "centre": [
-    506.56,
-    439.71
-   ],
-   "name": "Tonkichi"
+    455.29,
+    269.19
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 646.1,
+   "kind": "tree",
+   "station_m": 671.0,
    "side": "right",
    "centre": [
-    508.43,
-    423.94
-   ],
-   "name": "SUSHIRO"
+    441.5,
+    213.24
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 654.9,
+   "kind": "station",
+   "station_m": 684.0,
    "side": "right",
    "centre": [
-    496.91,
-    447.29
+    454.78,
+    404.37
    ],
-   "name": "Ginza Lion"
+   "name": "Promenade (CCL/DTL) Exit C"
   },
   {
-   "kind": "food",
-   "station_m": 660.4,
+   "kind": "tree",
+   "station_m": 688.9,
    "side": "right",
    "centre": [
-    487.61,
-    410.55
+    418.75,
+    197.56
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 690.9,
+   "side": "right",
+   "centre": [
+    421.43,
+    243.29
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 691.5,
+   "side": "right",
+   "centre": [
+    422.13,
+    271.99
+   ]
+  },
+  {
+   "kind": "station",
+   "station_m": 694.2,
+   "side": "right",
+   "centre": [
+    434.06,
+    431.92
    ],
-   "name": "Morganfield's"
+   "name": "Promenade (CCL/DTL) Exit B"
+  },
+  {
+   "kind": "tree",
+   "station_m": 707.1,
+   "side": "right",
+   "centre": [
+    397.48,
+    190.08
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 708.6,
+   "side": "right",
+   "centre": [
+    393.68,
+    261.15
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 714.4,
+   "side": "right",
+   "centre": [
+    387.5,
+    216.88
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 719.7,
+   "side": "right",
+   "centre": [
+    376.63,
+    235.91
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 725.5,
+   "side": "right",
+   "centre": [
+    362.86,
+    275.18
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 736.2,
+   "side": "right",
+   "centre": [
+    346.23,
+    253.56
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 738.1,
+   "side": "right",
+   "centre": [
+    354.22,
+    218.63
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 745.3,
+   "side": "right",
+   "centre": [
+    326.54,
+    277.82
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 767.2,
+   "side": "right",
+   "centre": [
+    330.03,
+    199.45
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 772.5,
+   "side": "right",
+   "centre": [
+    317.03,
+    231.83
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 783.4,
+   "side": "right",
+   "centre": [
+    292.91,
+    290.08
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 783.9,
+   "side": "right",
+   "centre": [
+    300.16,
+    257.85
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 805.6,
+   "side": "right",
+   "centre": [
+    272.99,
+    276.16
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 806.1,
+   "side": "left",
+   "centre": [
+    304.3,
+    143.99
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 818.7,
+   "side": "left",
+   "centre": [
+    291.91,
+    141.21
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 825.9,
+   "side": "right",
+   "centre": [
+    275.2,
+    182.26
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 859.9,
+   "side": "right",
+   "centre": [
+    245.73,
+    176.25
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 863.2,
+   "side": "left",
+   "centre": [
+    248.0,
+    118.96
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 869.3,
+   "side": "right",
+   "centre": [
+    235.34,
+    213.03
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 884.3,
+   "side": "right",
+   "centre": [
+    222.75,
+    185.71
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 891.6,
+   "side": "left",
+   "centre": [
+    218.32,
+    120.3
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 909.8,
+   "side": "right",
+   "centre": [
+    198.82,
+    159.71
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 915.1,
+   "side": "right",
+   "centre": [
+    193.58,
+    195.89
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 933.2,
+   "side": "left",
+   "centre": [
+    174.81,
+    119.59
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 937.3,
+   "side": "right",
+   "centre": [
+    173.0,
+    162.69
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 962.4,
+   "side": "left",
+   "centre": [
+    137.07,
+    123.43
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 979.3,
+   "side": "left",
+   "centre": [
+    98.1,
+    125.84
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 990.1,
+   "side": "right",
+   "centre": [
+    149.32,
+    179.56
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 990.2,
+   "side": "left",
+   "centre": [
+    85.32,
+    138.68
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 995.9,
+   "side": "left",
+   "centre": [
+    81.08,
+    149.38
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1004.5,
+   "side": "left",
+   "centre": [
+    27.36,
+    142.92
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1004.8,
+   "side": "left",
+   "centre": [
+    61.51,
+    157.8
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1009.7,
+   "side": "right",
+   "centre": [
+    126.45,
+    185.34
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1014.9,
+   "side": "left",
+   "centre": [
+    -5.24,
+    155.07
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1017.0,
+   "side": "left",
+   "centre": [
+    89.59,
+    183.34
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1018.6,
+   "side": "left",
+   "centre": [
+    28.98,
+    170.46
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1028.3,
+   "side": "left",
+   "centre": [
+    -3.67,
+    186.8
+   ]
   },
   {
    "kind": "gate",
@@ -38051,6 +39752,78 @@
    "centre": [
     84.35,
     207.37
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1050.1,
+   "side": "left",
+   "centre": [
+    39.18,
+    234.51
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1053.6,
+   "side": "right",
+   "centre": [
+    149.67,
+    218.75
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1053.7,
+   "side": "left",
+   "centre": [
+    9.36,
+    249.64
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1120.2,
+   "side": "right",
+   "centre": [
+    247.58,
+    269.16
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1139.0,
+   "side": "left",
+   "centre": [
+    55.93,
+    317.5
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1139.3,
+   "side": "left",
+   "centre": [
+    111.81,
+    312.08
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1141.3,
+   "side": "right",
+   "centre": [
+    183.93,
+    306.87
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1168.2,
+   "side": "left",
+   "centre": [
+    121.35,
+    340.28
    ]
   },
   {
@@ -38072,14 +39845,86 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 1270.6,
+   "kind": "signal",
+   "station_m": 1196.9,
+   "side": "right",
+   "centre": [
+    139.97,
+    367.08
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 1208.1,
    "side": "left",
    "centre": [
-    100.45,
-    449.23
+    141.04,
+    378.31
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1213.7,
+   "side": "left",
+   "centre": [
+    50.63,
+    402.14
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1219.7,
+   "side": "left",
+   "centre": [
+    105.47,
+    398.2
+   ]
+  },
+  {
+   "kind": "station",
+   "station_m": 1228.7,
+   "side": "right",
+   "centre": [
+    175.26,
+    390.89
    ],
-   "name": "Colony"
+   "name": "Promenade (CCL/DTL) Exit A"
+  },
+  {
+   "kind": "tree",
+   "station_m": 1230.9,
+   "side": "left",
+   "centre": [
+    122.65,
+    406.43
+   ]
+  },
+  {
+   "kind": "station",
+   "station_m": 1249.2,
+   "side": "right",
+   "centre": [
+    175.55,
+    412.63
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1259.6,
+   "side": "left",
+   "centre": [
+    134.64,
+    432.08
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1285.3,
+   "side": "left",
+   "centre": [
+    141.07,
+    456.58
+   ]
   },
   {
    "kind": "gate",
@@ -38091,44 +39936,13 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 1309.8,
-   "side": "right",
+   "kind": "tree",
+   "station_m": 1327.5,
+   "side": "left",
    "centre": [
-    295.43,
-    453.64
-   ],
-   "name": "elemen"
-  },
-  {
-   "kind": "food",
-   "station_m": 1310.9,
-   "side": "right",
-   "centre": [
-    313.12,
-    451.59
-   ],
-   "name": "Antoinette"
-  },
-  {
-   "kind": "food",
-   "station_m": 1323.8,
-   "side": "right",
-   "centre": [
-    240.89,
-    477.92
-   ],
-   "name": "Plentyfull"
-  },
-  {
-   "kind": "food",
-   "station_m": 1329.1,
-   "side": "right",
-   "centre": [
-    272.19,
-    477.9
-   ],
-   "name": "Commune"
+    145.35,
+    498.75
+   ]
   },
   {
    "kind": "gate",
@@ -38140,36 +39954,6 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 1334.9,
-   "side": "right",
-   "centre": [
-    405.5,
-    460.23
-   ],
-   "name": "Toast Box"
-  },
-  {
-   "kind": "food",
-   "station_m": 1343.8,
-   "side": "right",
-   "centre": [
-    268.1,
-    493.57
-   ],
-   "name": "The Dark Gallery"
-  },
-  {
-   "kind": "food",
-   "station_m": 1346.4,
-   "side": "right",
-   "centre": [
-    284.23,
-    493.44
-   ],
-   "name": "Supertea"
-  },
-  {
    "kind": "info",
    "station_m": 1348.1,
    "side": "right",
@@ -38179,114 +39963,13 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 1348.2,
-   "side": "right",
-   "centre": [
-    371.25,
-    480.01
-   ],
-   "name": "KOI Cafe"
-  },
-  {
-   "kind": "food",
-   "station_m": 1348.4,
-   "side": "right",
-   "centre": [
-    209.96,
-    508.51
-   ],
-   "name": "Fumee by Habanos"
-  },
-  {
-   "kind": "food",
-   "station_m": 1349.1,
-   "side": "right",
-   "centre": [
-    377.93,
-    479.93
-   ],
-   "name": "Joe & Dough"
-  },
-  {
-   "kind": "food",
-   "station_m": 1350.1,
-   "side": "right",
-   "centre": [
-    383.97,
-    479.87
-   ],
-   "name": "Mexout"
-  },
-  {
-   "kind": "food",
-   "station_m": 1350.7,
-   "side": "right",
-   "centre": [
-    387.81,
-    479.82
-   ],
-   "name": "dönergy"
-  },
-  {
-   "kind": "food",
-   "station_m": 1352.0,
-   "side": "right",
-   "centre": [
-    235.37,
-    507.9
-   ],
-   "name": "Kith"
-  },
-  {
-   "kind": "food",
-   "station_m": 1352.1,
-   "side": "right",
-   "centre": [
-    398.53,
-    479.7
-   ],
-   "name": "EAT"
-  },
-  {
-   "kind": "food",
-   "station_m": 1353.1,
-   "side": "right",
-   "centre": [
-    404.51,
-    479.64
-   ],
-   "name": "Poke Doke"
-  },
-  {
-   "kind": "food",
-   "station_m": 1353.6,
-   "side": "right",
-   "centre": [
-    409.61,
-    479.57
-   ],
-   "name": "Tachihara Coffee"
-  },
-  {
-   "kind": "food",
-   "station_m": 1358.1,
-   "side": "right",
-   "centre": [
-    247.99,
-    512.02
-   ],
-   "name": "BistroG"
-  },
-  {
-   "kind": "food",
-   "station_m": 1365.0,
+   "kind": "tree",
+   "station_m": 1350.3,
    "side": "left",
    "centre": [
-    135.17,
-    538.5
-   ],
-   "name": "Shiraishi"
+    149.74,
+    521.08
+   ]
   },
   {
    "kind": "toilets",
@@ -38296,146 +39979,6 @@
     306.51,
     509.64
    ]
-  },
-  {
-   "kind": "food",
-   "station_m": 1366.5,
-   "side": "right",
-   "centre": [
-    380.55,
-    497.19
-   ],
-   "name": "The Coffee Bean & Tea Leaf"
-  },
-  {
-   "kind": "food",
-   "station_m": 1367.1,
-   "side": "right",
-   "centre": [
-    384.56,
-    497.14
-   ],
-   "name": "Teppei Syokudo"
-  },
-  {
-   "kind": "food",
-   "station_m": 1368.9,
-   "side": "right",
-   "centre": [
-    394.42,
-    497.23
-   ],
-   "name": "Thai Affair"
-  },
-  {
-   "kind": "food",
-   "station_m": 1376.8,
-   "side": "right",
-   "centre": [
-    329.39,
-    515.13
-   ],
-   "name": "Madam Saigon"
-  },
-  {
-   "kind": "food",
-   "station_m": 1379.2,
-   "side": "right",
-   "centre": [
-    340.49,
-    514.9
-   ],
-   "name": "Chabuton Ramen"
-  },
-  {
-   "kind": "food",
-   "station_m": 1381.7,
-   "side": "right",
-   "centre": [
-    370.39,
-    511.27
-   ],
-   "name": "Boulevard"
-  },
-  {
-   "kind": "food",
-   "station_m": 1392.3,
-   "side": "right",
-   "centre": [
-    333.54,
-    526.82
-   ],
-   "name": "Ole’s"
-  },
-  {
-   "kind": "food",
-   "station_m": 1397.3,
-   "side": "right",
-   "centre": [
-    345.03,
-    527.97
-   ],
-   "name": "Sapporo Misono"
-  },
-  {
-   "kind": "food",
-   "station_m": 1403.8,
-   "side": "right",
-   "centre": [
-    343.66,
-    532.37
-   ],
-   "name": "Saboten"
-  },
-  {
-   "kind": "food",
-   "station_m": 1410.9,
-   "side": "right",
-   "centre": [
-    336.41,
-    538.61
-   ],
-   "name": "Quinn’s"
-  },
-  {
-   "kind": "food",
-   "station_m": 1440.5,
-   "side": "right",
-   "centre": [
-    408.35,
-    488.97
-   ],
-   "name": "Starbucks"
-  },
-  {
-   "kind": "food",
-   "station_m": 1440.6,
-   "side": "left",
-   "centre": [
-    137.98,
-    628.22
-   ],
-   "name": "Attap House"
-  },
-  {
-   "kind": "food",
-   "station_m": 1445.2,
-   "side": "left",
-   "centre": [
-    132.45,
-    636.78
-   ],
-   "name": "Hong Kong Zhai 香港仔"
-  },
-  {
-   "kind": "food",
-   "station_m": 1447.1,
-   "side": "right",
-   "centre": [
-    407.22,
-    497.06
-   ],
-   "name": "Subway"
   },
   {
    "kind": "info",
@@ -38448,26 +39991,6 @@
    "name": " City Tourist Hub"
   },
   {
-   "kind": "food",
-   "station_m": 1453.4,
-   "side": "left",
-   "centre": [
-    143.66,
-    643.42
-   ],
-   "name": "Tingkat Peranakan"
-  },
-  {
-   "kind": "food",
-   "station_m": 1453.8,
-   "side": "left",
-   "centre": [
-    152.26,
-    639.45
-   ],
-   "name": "Jia Xiang Sarawak Kolo Mee"
-  },
-  {
    "kind": "info",
    "station_m": 1458.0,
    "side": "right",
@@ -38476,106 +39999,6 @@
     606.13
    ],
    "name": "City Tours"
-  },
-  {
-   "kind": "food",
-   "station_m": 1459.0,
-   "side": "left",
-   "centre": [
-    115.71,
-    668.53
-   ],
-   "name": "Mei Heong Yuen Dessert"
-  },
-  {
-   "kind": "food",
-   "station_m": 1459.9,
-   "side": "left",
-   "centre": [
-    165.35,
-    641.31
-   ],
-   "name": "Putien"
-  },
-  {
-   "kind": "food",
-   "station_m": 1469.0,
-   "side": "left",
-   "centre": [
-    172.04,
-    649.85
-   ],
-   "name": "Dian Xiao Er"
-  },
-  {
-   "kind": "food",
-   "station_m": 1472.5,
-   "side": "left",
-   "centre": [
-    116.42,
-    692.47
-   ],
-   "name": "Seoul Garden"
-  },
-  {
-   "kind": "food",
-   "station_m": 1475.6,
-   "side": "left",
-   "centre": [
-    164.48,
-    664.99
-   ],
-   "name": "Hans"
-  },
-  {
-   "kind": "food",
-   "station_m": 1483.8,
-   "side": "left",
-   "centre": [
-    131.98,
-    700.82
-   ],
-   "name": "Pizza Hut"
-  },
-  {
-   "kind": "food",
-   "station_m": 1483.9,
-   "side": "left",
-   "centre": [
-    181.74,
-    664.8
-   ],
-   "name": "Swensens"
-  },
-  {
-   "kind": "food",
-   "station_m": 1488.3,
-   "side": "left",
-   "centre": [
-    141.68,
-    700.6
-   ],
-   "name": "Starbucks"
-  },
-  {
-   "kind": "food",
-   "station_m": 1489.2,
-   "side": "right",
-   "centre": [
-    412.0,
-    497.0
-   ],
-   "name": "Korean Tofu House"
-  },
-  {
-   "kind": "food",
-   "station_m": 1492.5,
-   "side": "right",
-   "centre": [
-    417.07,
-    496.92
-   ],
-   "name": "MOS Burger"
   },
   {
    "kind": "gate",
@@ -38596,66 +40019,6 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 1494.0,
-   "side": "right",
-   "centre": [
-    347.19,
-    551.75
-   ],
-   "name": "Tomi Sushi"
-  },
-  {
-   "kind": "food",
-   "station_m": 1494.5,
-   "side": "right",
-   "centre": [
-    419.61,
-    496.98
-   ],
-   "name": "Milkfish"
-  },
-  {
-   "kind": "food",
-   "station_m": 1498.1,
-   "side": "left",
-   "centre": [
-    178.02,
-    685.97
-   ],
-   "name": "Saizeriya"
-  },
-  {
-   "kind": "food",
-   "station_m": 1498.9,
-   "side": "left",
-   "centre": [
-    144.58,
-    712.28
-   ],
-   "name": "dal.komm Coffee"
-  },
-  {
-   "kind": "food",
-   "station_m": 1502.9,
-   "side": "left",
-   "centre": [
-    193.84,
-    679.78
-   ],
-   "name": "Mouth Restaurant"
-  },
-  {
-   "kind": "food",
-   "station_m": 1504.7,
-   "side": "right",
-   "centre": [
-    349.56,
-    564.77
-   ],
-   "name": "Miyako Teppanyaki & Grill"
-  },
-  {
    "kind": "toilets",
    "station_m": 1506.7,
    "side": "right",
@@ -38663,26 +40026,6 @@
     232.69,
     655.27
    ]
-  },
-  {
-   "kind": "food",
-   "station_m": 1507.0,
-   "side": "left",
-   "centre": [
-    182.29,
-    693.34
-   ],
-   "name": "Ya Kun Kaya Toast"
-  },
-  {
-   "kind": "food",
-   "station_m": 1507.2,
-   "side": "right",
-   "centre": [
-    344.51,
-    572.32
-   ],
-   "name": "Sho Yakitori Sushi"
   },
   {
    "kind": "toilets",
@@ -38694,176 +40037,6 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 1510.6,
-   "side": "left",
-   "centre": [
-    197.73,
-    686.1
-   ],
-   "name": "Carl's Jr."
-  },
-  {
-   "kind": "food",
-   "station_m": 1513.5,
-   "side": "right",
-   "centre": [
-    345.31,
-    580.42
-   ],
-   "name": "Sushi Murasaki"
-  },
-  {
-   "kind": "food",
-   "station_m": 1513.6,
-   "side": "right",
-   "centre": [
-    438.59,
-    511.75
-   ],
-   "name": "Korean Tofu House"
-  },
-  {
-   "kind": "food",
-   "station_m": 1514.2,
-   "side": "right",
-   "centre": [
-    351.72,
-    576.67
-   ],
-   "name": "Gyu Jin"
-  },
-  {
-   "kind": "food",
-   "station_m": 1515.4,
-   "side": "right",
-   "centre": [
-    267.5,
-    640.43
-   ],
-   "name": "Hai Tien Lo"
-  },
-  {
-   "kind": "food",
-   "station_m": 1516.4,
-   "side": "right",
-   "centre": [
-    345.74,
-    584.13
-   ],
-   "name": "Kura"
-  },
-  {
-   "kind": "food",
-   "station_m": 1520.6,
-   "side": "right",
-   "centre": [
-    347.92,
-    587.92
-   ],
-   "name": "Sandaime Bunji"
-  },
-  {
-   "kind": "food",
-   "station_m": 1526.7,
-   "side": "right",
-   "centre": [
-    347.93,
-    595.13
-   ],
-   "name": "Nozomi"
-  },
-  {
-   "kind": "food",
-   "station_m": 1533.5,
-   "side": "left",
-   "centre": [
-    143.63,
-    754.72
-   ],
-   "name": "Gloria Jean's"
-  },
-  {
-   "kind": "food",
-   "station_m": 1535.4,
-   "side": "left",
-   "centre": [
-    150.89,
-    751.81
-   ],
-   "name": "Wee Nam Kee Chicken Rice"
-  },
-  {
-   "kind": "food",
-   "station_m": 1539.5,
-   "side": "right",
-   "centre": [
-    350.68,
-    608.22
-   ],
-   "name": "Black Knight"
-  },
-  {
-   "kind": "food",
-   "station_m": 1545.6,
-   "side": "right",
-   "centre": [
-    357.82,
-    610.17
-   ],
-   "name": "Miharu Sapporo Ramen"
-  },
-  {
-   "kind": "food",
-   "station_m": 1551.4,
-   "side": "right",
-   "centre": [
-    292.06,
-    666.71
-   ],
-   "name": "BHC Chicken"
-  },
-  {
-   "kind": "food",
-   "station_m": 1560.2,
-   "side": "right",
-   "centre": [
-    360.79,
-    626.48
-   ],
-   "name": "Yayoi Teishoku"
-  },
-  {
-   "kind": "food",
-   "station_m": 1561.2,
-   "side": "left",
-   "centre": [
-    181.51,
-    761.41
-   ],
-   "name": "Tanamera Coffee"
-  },
-  {
-   "kind": "food",
-   "station_m": 1572.6,
-   "side": "right",
-   "centre": [
-    363.39,
-    640.73
-   ],
-   "name": "Paulaner Bräuhaus"
-  },
-  {
-   "kind": "food",
-   "station_m": 1574.2,
-   "side": "left",
-   "centre": [
-    184.38,
-    774.84
-   ],
-   "name": "McDonald's"
-  },
-  {
    "kind": "artwork",
    "station_m": 1601.0,
    "side": "right",
@@ -38872,26 +40045,6 @@
     566.17
    ],
    "name": "SUNTECCITY"
-  },
-  {
-   "kind": "food",
-   "station_m": 1615.0,
-   "side": "right",
-   "centre": [
-    526.13,
-    576.2
-   ],
-   "name": "Toast Box"
-  },
-  {
-   "kind": "food",
-   "station_m": 1622.5,
-   "side": "left",
-   "centre": [
-    195.04,
-    826.32
-   ],
-   "name": "Chic-a-boo"
   },
   {
    "kind": "artwork",
@@ -38913,364 +40066,44 @@
    "name": "Between sea and sky by Oliver Strebelle"
   },
   {
-   "kind": "food",
-   "station_m": 1649.4,
+   "kind": "station",
+   "station_m": 1763.0,
    "side": "left",
    "centre": [
-    246.46,
-    824.27
+    373.45,
+    870.06
    ],
-   "name": "Hifumi"
+   "name": "Esplanade (CCL)"
   },
   {
-   "kind": "food",
-   "station_m": 1651.6,
-   "side": "right",
-   "centre": [
-    392.41,
-    715.19
-   ],
-   "name": "Gopizza"
-  },
-  {
-   "kind": "food",
-   "station_m": 1651.9,
-   "side": "right",
-   "centre": [
-    529.5,
-    610.43
-   ],
-   "name": "Jollibee"
-  },
-  {
-   "kind": "food",
-   "station_m": 1653.3,
-   "side": "right",
-   "centre": [
-    414.78,
-    700.21
-   ],
-   "name": "Shake Shack"
-  },
-  {
-   "kind": "food",
-   "station_m": 1657.7,
-   "side": "right",
-   "centre": [
-    369.31,
-    740.44
-   ],
-   "name": "Milksha"
-  },
-  {
-   "kind": "food",
-   "station_m": 1657.9,
-   "side": "left",
-   "centre": [
-    239.49,
-    840.63
-   ],
-   "name": "Menzo Butao"
-  },
-  {
-   "kind": "food",
-   "station_m": 1662.6,
-   "side": "left",
-   "centre": [
-    253.63,
-    835.54
-   ],
-   "name": "St. Marc Cafe"
-  },
-  {
-   "kind": "food",
-   "station_m": 1663.2,
-   "side": "right",
-   "centre": [
-    513.55,
-    636.68
-   ],
-   "name": "The Bistro (NUSS Suntec)"
-  },
-  {
-   "kind": "food",
-   "station_m": 1663.3,
-   "side": "left",
-   "centre": [
-    269.05,
-    824.66
-   ],
-   "name": "Bangkok Jam"
-  },
-  {
-   "kind": "food",
-   "station_m": 1666.6,
-   "side": "left",
-   "centre": [
-    237.28,
-    852.85
-   ],
-   "name": "Burger King"
-  },
-  {
-   "kind": "food",
-   "station_m": 1667.3,
-   "side": "left",
-   "centre": [
-    244.0,
-    848.52
-   ],
-   "name": "Yechun Xiao Jiang Nan"
-  },
-  {
-   "kind": "food",
-   "station_m": 1669.4,
-   "side": "right",
-   "centre": [
-    375.74,
-    750.7
-   ],
-   "name": "Monster Curry"
-  },
-  {
-   "kind": "food",
-   "station_m": 1674.1,
-   "side": "left",
-   "centre": [
-    247.94,
-    853.92
-   ],
-   "name": "Manhattan Fish"
-  },
-  {
-   "kind": "food",
-   "station_m": 1676.4,
-   "side": "left",
-   "centre": [
-    272.67,
-    837.81
-   ],
-   "name": "Rolling Rice"
-  },
-  {
-   "kind": "food",
-   "station_m": 1683.0,
-   "side": "left",
-   "centre": [
-    265.79,
-    851.1
-   ],
-   "name": "The Coffee Bean & Tea Leaf"
-  },
-  {
-   "kind": "food",
-   "station_m": 1687.7,
-   "side": "left",
-   "centre": [
-    242.68,
-    874.66
-   ],
-   "name": "SUKI-YA すき屋"
-  },
-  {
-   "kind": "food",
-   "station_m": 1693.0,
-   "side": "left",
-   "centre": [
-    260.16,
-    868.02
-   ],
-   "name": "Sukiya すき家"
-  },
-  {
-   "kind": "food",
-   "station_m": 1693.3,
-   "side": "left",
-   "centre": [
-    298.34,
-    839.49
-   ],
-   "name": "Chic-a-boo"
-  },
-  {
-   "kind": "food",
-   "station_m": 1693.8,
-   "side": "right",
-   "centre": [
-    538.44,
-    658.46
-   ],
-   "name": "Krispy Kreme"
-  },
-  {
-   "kind": "food",
-   "station_m": 1696.0,
-   "side": "right",
-   "centre": [
-    503.58,
-    687.56
-   ],
-   "name": "Hollin Singapore"
-  },
-  {
-   "kind": "food",
-   "station_m": 1697.2,
-   "side": "left",
-   "centre": [
-    276.15,
-    861.27
-   ],
-   "name": "Kenny Rogers Roaster"
-  },
-  {
-   "kind": "food",
-   "station_m": 1702.5,
-   "side": "right",
-   "centre": [
-    539.25,
-    668.13
-   ],
-   "name": "Starbucks"
-  },
-  {
-   "kind": "food",
-   "station_m": 1706.4,
-   "side": "left",
-   "centre": [
-    257.67,
-    886.92
-   ],
-   "name": "malts"
-  },
-  {
-   "kind": "food",
-   "station_m": 1707.7,
-   "side": "right",
-   "centre": [
-    515.78,
-    692.64
-   ],
-   "name": "Ya Kun Kaya Toast"
-  },
-  {
-   "kind": "food",
-   "station_m": 1710.5,
-   "side": "left",
-   "centre": [
-    282.68,
-    872.89
-   ],
-   "name": "Qiji"
-  },
-  {
-   "kind": "food",
-   "station_m": 1711.8,
-   "side": "left",
-   "centre": [
-    321.13,
-    845.38
-   ],
-   "name": "The Beacon"
-  },
-  {
-   "kind": "food",
-   "station_m": 1717.1,
-   "side": "left",
-   "centre": [
-    313.03,
-    857.89
-   ],
-   "name": "The Beacon"
-  },
-  {
-   "kind": "food",
-   "station_m": 1721.5,
-   "side": "left",
-   "centre": [
-    341.38,
-    842.1
-   ],
-   "name": "The Burger Bar"
-  },
-  {
-   "kind": "food",
-   "station_m": 1728.5,
-   "side": "right",
-   "centre": [
-    433.32,
-    782.97
-   ],
-   "name": "Starbucks"
-  },
-  {
-   "kind": "food",
-   "station_m": 1728.6,
-   "side": "right",
-   "centre": [
-    423.19,
-    790.88
-   ],
-   "name": "Putien"
-  },
-  {
-   "kind": "food",
-   "station_m": 1728.8,
-   "side": "right",
-   "centre": [
-    430.05,
-    786.04
-   ],
-   "name": "Uncle Fong Hot pot Restaurant 方叔叔重慶老火鍋"
-  },
-  {
-   "kind": "food",
-   "station_m": 1730.9,
-   "side": "right",
-   "centre": [
-    454.38,
-    771.05
-   ],
-   "name": "Din Tai Fung"
-  },
-  {
-   "kind": "food",
-   "station_m": 1751.0,
-   "side": "right",
-   "centre": [
-    425.94,
-    816.98
-   ],
-   "name": "SoupCup Suntec City"
-  },
-  {
-   "kind": "food",
-   "station_m": 1761.4,
-   "side": "right",
-   "centre": [
-    409.61,
-    840.32
-   ],
-   "name": "Omu"
-  },
-  {
-   "kind": "food",
+   "kind": "station",
    "station_m": 1767.0,
    "side": "right",
    "centre": [
-    418.81,
-    839.0
+    398.11,
+    855.61
    ],
-   "name": "Old Chang Kee"
+   "name": "Esplanade (CCL)"
   },
   {
-   "kind": "food",
-   "station_m": 1769.0,
-   "side": "right",
+   "kind": "station",
+   "station_m": 1772.5,
+   "side": "left",
    "centre": [
-    435.08,
-    827.34
+    354.29,
+    899.03
    ],
-   "name": "Mad for Garlic"
+   "name": "Esplanade (CCL)"
+  },
+  {
+   "kind": "station",
+   "station_m": 1779.4,
+   "side": "left",
+   "centre": [
+    363.67,
+    901.06
+   ],
+   "name": "Esplanade (CCL)"
   },
   {
    "kind": "gate",
@@ -39282,84 +40115,139 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 1793.7,
+   "kind": "tree",
+   "station_m": 1785.8,
    "side": "right",
    "centre": [
-    605.98,
-    894.07
-   ],
-   "name": "Court Martial Bar"
+    512.52,
+    817.49
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1794.8,
+   "kind": "tree",
+   "station_m": 1788.1,
    "side": "right",
    "centre": [
-    559.08,
-    894.09
-   ],
-   "name": "Flynn's Cicheti"
+    496.53,
+    828.91
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1804.2,
+   "kind": "tree",
+   "station_m": 1790.5,
    "side": "right",
    "centre": [
-    548.8,
-    903.24
-   ],
-   "name": "Harry's Bar + Dining"
+    480.99,
+    840.27
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1808.8,
+   "kind": "tree",
+   "station_m": 1791.8,
    "side": "right",
    "centre": [
-    505.9,
-    906.86
-   ],
-   "name": "Wild Honey"
+    638.13,
+    718.25
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1810.8,
+   "kind": "tree",
+   "station_m": 1792.3,
    "side": "right",
    "centre": [
-    665.39,
-    761.22
-   ],
-   "name": "Dimbulah Mountain Estate Coffee"
+    527.9,
+    804.79
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1811.3,
+   "kind": "tree",
+   "station_m": 1793.8,
    "side": "right",
    "centre": [
-    588.23,
-    873.15
-   ],
-   "name": "Beach Road Kitchen"
+    463.87,
+    853.64
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1812.2,
+   "kind": "tree",
+   "station_m": 1794.1,
    "side": "right",
    "centre": [
-    684.63,
-    856.57
-   ],
-   "name": "The Armoury Gastrobar"
+    613.59,
+    738.39
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1814.0,
+   "kind": "tree",
+   "station_m": 1794.9,
    "side": "right",
    "centre": [
-    534.95,
-    912.67
-   ],
-   "name": "Real Food"
+    595.16,
+    752.36
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 1795.5,
+   "side": "left",
+   "centre": [
+    397.0,
+    892.6
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1795.9,
+   "side": "right",
+   "centre": [
+    578.04,
+    765.74
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1796.4,
+   "side": "right",
+   "centre": [
+    560.41,
+    778.71
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1797.3,
+   "side": "right",
+   "centre": [
+    448.88,
+    865.85
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1797.5,
+   "side": "right",
+   "centre": [
+    544.13,
+    791.52
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 1797.8,
+   "side": "right",
+   "centre": [
+    433.85,
+    877.61
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 1812.0,
+   "side": "right",
+   "centre": [
+    408.81,
+    908.52
+   ]
   },
   {
    "kind": "artwork",
@@ -39371,34 +40259,23 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 1816.4,
+   "kind": "signal",
+   "station_m": 1824.5,
    "side": "right",
    "centre": [
-    684.07,
-    918.51
-   ],
-   "name": "松屋"
+    508.07,
+    1027.92
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1818.7,
+   "kind": "station",
+   "station_m": 1824.7,
    "side": "right",
    "centre": [
-    575.74,
-    918.37
+    502.48,
+    968.75
    ],
-   "name": "The Armoury Craft Beer Bar"
-  },
-  {
-   "kind": "food",
-   "station_m": 1821.4,
-   "side": "right",
-   "centre": [
-    570.91,
-    886.57
-   ],
-   "name": "Starbucks"
+   "name": "Esplanade (CCL)"
   },
   {
    "kind": "info",
@@ -39411,34 +40288,24 @@
    "name": "12 Raffles Hotel"
   },
   {
-   "kind": "food",
-   "station_m": 1827.8,
+   "kind": "station",
+   "station_m": 1830.1,
    "side": "right",
    "centre": [
-    429.99,
-    956.02
+    496.64,
+    1024.57
    ],
-   "name": "Burger King"
+   "name": "Esplanade (CCL)"
   },
   {
-   "kind": "food",
-   "station_m": 1830.8,
+   "kind": "tree",
+   "station_m": 1831.5,
    "side": "right",
    "centre": [
-    549.29,
-    1036.2
+    473.31,
+    1024.12
    ],
-   "name": "Osteria Bar & Billiard Room"
-  },
-  {
-   "kind": "food",
-   "station_m": 1836.1,
-   "side": "right",
-   "centre": [
-    596.24,
-    1025.37
-   ],
-   "name": "Shinji by Kanesaka"
+   "name": "Belinjau (Gnetum gnemon)"
   },
   {
    "kind": "gate",
@@ -39448,6 +40315,16 @@
     539.05,
     1038.57
    ]
+  },
+  {
+   "kind": "station",
+   "station_m": 1844.1,
+   "side": "right",
+   "centre": [
+    390.71,
+    945.59
+   ],
+   "name": "Esplanade (CCL)"
   },
   {
    "kind": "artwork",
@@ -39460,64 +40337,139 @@
    "name": "Water Cycle (kinetic sculpture)"
   },
   {
-   "kind": "food",
-   "station_m": 1898.2,
-   "side": "left",
+   "kind": "tree",
+   "station_m": 1965.3,
+   "side": "right",
    "centre": [
-    308.77,
-    924.78
-   ],
-   "name": "TAP Craft Beer Bar"
+    299.41,
+    1027.82
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1905.5,
+   "kind": "signal",
+   "station_m": 2023.2,
    "side": "left",
    "centre": [
-    305.0,
-    930.83
-   ],
-   "name": "SaladStop"
+    230.68,
+    1036.35
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1914.5,
+   "kind": "tree",
+   "station_m": 2031.4,
    "side": "left",
    "centre": [
-    298.18,
-    935.59
-   ],
-   "name": "Starbucks"
+    226.5,
+    1052.41
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1969.5,
+   "kind": "tree",
+   "station_m": 2044.2,
    "side": "left",
    "centre": [
-    257.62,
-    968.05
-   ],
-   "name": "Paik's Bibim"
+    239.89,
+    1066.9
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1984.5,
+   "kind": "station",
+   "station_m": 2045.8,
    "side": "left",
    "centre": [
-    248.54,
-    974.61
-   ],
-   "name": "Idaten Udon"
+    233.73,
+    1075.95
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 1997.9,
+   "kind": "station",
+   "station_m": 2050.6,
+   "side": "right",
+   "centre": [
+    264.14,
+    1046.27
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2051.5,
    "side": "left",
    "centre": [
-    234.35,
-    985.72
-   ],
-   "name": "Sushi Express"
+    242.28,
+    1082.03
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2055.1,
+   "side": "left",
+   "centre": [
+    249.38,
+    1078.41
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2056.3,
+   "side": "left",
+   "centre": [
+    245.15,
+    1088.19
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2090.2,
+   "side": "right",
+   "centre": [
+    314.57,
+    1045.89
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2108.9,
+   "side": "right",
+   "centre": [
+    328.13,
+    1060.56
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2118.3,
+   "side": "right",
+   "centre": [
+    344.24,
+    1055.53
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2136.1,
+   "side": "right",
+   "centre": [
+    348.25,
+    1078.51
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2149.4,
+   "side": "right",
+   "centre": [
+    373.06,
+    1070.83
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2158.8,
+   "side": "right",
+   "centre": [
+    366.74,
+    1096.8
+   ]
   },
   {
    "kind": "gate",
@@ -39548,203 +40500,13 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2194.2,
+   "kind": "signal",
+   "station_m": 2206.2,
    "side": "right",
    "centre": [
-    593.68,
-    1151.63
-   ],
-   "name": "Salt tapas & bar"
-  },
-  {
-   "kind": "food",
-   "station_m": 2194.4,
-   "side": "right",
-   "centre": [
-    660.07,
-    1152.93
-   ],
-   "name": "Gather"
-  },
-  {
-   "kind": "food",
-   "station_m": 2196.4,
-   "side": "right",
-   "centre": [
-    593.67,
-    1153.81
-   ],
-   "name": "Alice"
-  },
-  {
-   "kind": "food",
-   "station_m": 2202.7,
-   "side": "right",
-   "centre": [
-    519.05,
-    1132.0
-   ],
-   "name": "Toast Box"
-  },
-  {
-   "kind": "food",
-   "station_m": 2204.5,
-   "side": "right",
-   "centre": [
-    518.48,
-    1080.54
-   ],
-   "name": "Din Tai Fung"
-  },
-  {
-   "kind": "food",
-   "station_m": 2206.1,
-   "side": "right",
-   "centre": [
-    607.1,
-    1163.73
-   ],
-   "name": "Tipsy Flamingo"
-  },
-  {
-   "kind": "food",
-   "station_m": 2206.6,
-   "side": "right",
-   "centre": [
-    457.38,
-    1161.75
-   ],
-   "name": "Ya Kun Kaya Toast"
-  },
-  {
-   "kind": "food",
-   "station_m": 2206.7,
-   "side": "right",
-   "centre": [
-    481.05,
-    1162.25
-   ],
-   "name": "MOS CAFÉ Raffles City"
-  },
-  {
-   "kind": "food",
-   "station_m": 2208.1,
-   "side": "right",
-   "centre": [
-    441.48,
-    1150.33
-   ],
-   "name": "Casa Vostra"
-  },
-  {
-   "kind": "food",
-   "station_m": 2209.1,
-   "side": "right",
-   "centre": [
-    480.34,
-    1124.84
-   ],
-   "name": "Tiong Bahru Bakery"
-  },
-  {
-   "kind": "food",
-   "station_m": 2209.9,
-   "side": "right",
-   "centre": [
-    613.81,
-    1244.4
+    374.17,
+    1159.45
    ]
-  },
-  {
-   "kind": "food",
-   "station_m": 2210.0,
-   "side": "right",
-   "centre": [
-    536.55,
-    1166.45
-   ],
-   "name": "Hyangtogol"
-  },
-  {
-   "kind": "food",
-   "station_m": 2210.8,
-   "side": "right",
-   "centre": [
-    655.53,
-    1143.79
-   ],
-   "name": "Long Bar"
-  },
-  {
-   "kind": "food",
-   "station_m": 2211.6,
-   "side": "right",
-   "centre": [
-    480.31,
-    1167.07
-   ],
-   "name": "Starbucks"
-  },
-  {
-   "kind": "food",
-   "station_m": 2211.9,
-   "side": "right",
-   "centre": [
-    376.69,
-    1165.36
-   ],
-   "name": "Tim Ho Wan"
-  },
-  {
-   "kind": "food",
-   "station_m": 2214.1,
-   "side": "right",
-   "centre": [
-    436.12,
-    1157.33
-   ],
-   "name": "Stamford Brasserie"
-  },
-  {
-   "kind": "food",
-   "station_m": 2216.1,
-   "side": "right",
-   "centre": [
-    557.54,
-    1204.26
-   ],
-   "name": "Yu Ba Fang"
-  },
-  {
-   "kind": "food",
-   "station_m": 2216.5,
-   "side": "right",
-   "centre": [
-    467.71,
-    1171.84
-   ],
-   "name": "Gastronomia"
-  },
-  {
-   "kind": "food",
-   "station_m": 2217.3,
-   "side": "right",
-   "centre": [
-    484.13,
-    1182.7
-   ],
-   "name": "Shahi Maharani"
-  },
-  {
-   "kind": "food",
-   "station_m": 2217.5,
-   "side": "right",
-   "centre": [
-    488.74,
-    1210.22
-   ],
-   "name": "KOI Express"
   },
   {
    "kind": "artwork",
@@ -39755,56 +40517,6 @@
     1175.76
    ],
    "name": "Red Memory-Smile"
-  },
-  {
-   "kind": "food",
-   "station_m": 2218.5,
-   "side": "right",
-   "centre": [
-    441.42,
-    1173.39
-   ],
-   "name": "New Asia Bar (71st Floor)"
-  },
-  {
-   "kind": "food",
-   "station_m": 2218.8,
-   "side": "right",
-   "centre": [
-    406.79,
-    1178.78
-   ],
-   "name": "Toast Box"
-  },
-  {
-   "kind": "food",
-   "station_m": 2219.3,
-   "side": "right",
-   "centre": [
-    460.08,
-    1174.5
-   ],
-   "name": "XW Western Grill"
-  },
-  {
-   "kind": "food",
-   "station_m": 2220.2,
-   "side": "right",
-   "centre": [
-    558.29,
-    1223.52
-   ],
-   "name": "麺 House Yamamoto"
-  },
-  {
-   "kind": "food",
-   "station_m": 2220.3,
-   "side": "right",
-   "centre": [
-    447.75,
-    1194.02
-   ],
-   "name": "Casa Vostra"
   },
   {
    "kind": "toilets",
@@ -39825,143 +40537,33 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2221.0,
+   "kind": "signal",
+   "station_m": 2225.5,
    "side": "right",
    "centre": [
-    440.38,
-    1187.38
-   ],
-   "name": "Jaan"
-  },
-  {
-   "kind": "food",
-   "station_m": 2222.3,
-   "side": "right",
-   "centre": [
-    613.86,
-    1180.09
-   ],
-   "name": "Brotzeit"
-  },
-  {
-   "kind": "food",
-   "station_m": 2222.5,
-   "side": "right",
-   "centre": [
-    542.17,
-    1255.75
-   ],
-   "name": "Milkfish Raffles City"
-  },
-  {
-   "kind": "food",
-   "station_m": 2223.0,
-   "side": "right",
-   "centre": [
-    607.45,
-    1256.16
-   ],
-   "name": "Konjiki Hototogisu Singapore"
-  },
-  {
-   "kind": "food",
-   "station_m": 2224.9,
-   "side": "right",
-   "centre": [
-    519.36,
-    1247.76
-   ],
-   "name": "Mensho Tokyo ramen (Vegan options)"
-  },
-  {
-   "kind": "food",
-   "station_m": 2225.1,
-   "side": "right",
-   "centre": [
-    457.46,
-    1194.66
-   ],
-   "name": "Paris Baguette"
-  },
-  {
-   "kind": "food",
-   "station_m": 2225.9,
-   "side": "right",
-   "centre": [
-    503.01,
-    1181.81
-   ],
-   "name": "The Pizza Place"
-  },
-  {
-   "kind": "food",
-   "station_m": 2226.6,
-   "side": "right",
-   "centre": [
-    631.54,
-    1228.67
+    659.68,
+    1184.1
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2227.4,
+   "kind": "station",
+   "station_m": 2226.1,
    "side": "right",
    "centre": [
-    663.4,
-    1235.46
+    422.47,
+    1200.65
    ],
-   "name": "Simply Jazz by Tin Box"
+   "name": "City Hall (EWL/NSL) Exit C"
   },
   {
-   "kind": "food",
-   "station_m": 2227.7,
+   "kind": "station",
+   "station_m": 2228.3,
    "side": "right",
    "centre": [
-    528.36,
-    1210.54
+    447.24,
+    1217.69
    ],
-   "name": "Old Chang Kee"
-  },
-  {
-   "kind": "food",
-   "station_m": 2227.8,
-   "side": "right",
-   "centre": [
-    482.16,
-    1233.5
-   ],
-   "name": "Joe & The Juice"
-  },
-  {
-   "kind": "food",
-   "station_m": 2229.4,
-   "side": "right",
-   "centre": [
-    550.26,
-    1186.11
-   ],
-   "name": "Ippudo"
-  },
-  {
-   "kind": "food",
-   "station_m": 2229.4,
-   "side": "right",
-   "centre": [
-    485.35,
-    1236.76
-   ],
-   "name": "The Coffee Bean & Tea Leaf"
-  },
-  {
-   "kind": "food",
-   "station_m": 2229.9,
-   "side": "right",
-   "centre": [
-    498.12,
-    1226.52
-   ],
-   "name": "Din Tai Fung"
+   "name": "City Hall (EWL/NSL) Exit A"
   },
   {
    "kind": "gate",
@@ -39973,35 +40575,6 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2231.7,
-   "side": "right",
-   "centre": [
-    590.36,
-    1189.12
-   ],
-   "name": "Sushi Tei"
-  },
-  {
-   "kind": "food",
-   "station_m": 2232.5,
-   "side": "right",
-   "centre": [
-    655.1,
-    1239.09
-   ]
-  },
-  {
-   "kind": "food",
-   "station_m": 2232.9,
-   "side": "right",
-   "centre": [
-    465.22,
-    1231.22
-   ],
-   "name": "Costa"
-  },
-  {
    "kind": "artwork",
    "station_m": 2234.4,
    "side": "right",
@@ -40011,24 +40584,13 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2234.8,
+   "kind": "signal",
+   "station_m": 2244.3,
    "side": "right",
    "centre": [
-    597.96,
-    1192.28
-   ],
-   "name": "NamNam"
-  },
-  {
-   "kind": "food",
-   "station_m": 2235.4,
-   "side": "right",
-   "centre": [
-    573.52,
-    1226.83
-   ],
-   "name": "Chagee"
+    502.93,
+    1323.87
+   ]
   },
   {
    "kind": "info",
@@ -40067,54 +40629,24 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2261.0,
+   "kind": "station",
+   "station_m": 2259.1,
    "side": "right",
    "centre": [
-    516.41,
-    1379.56
+    448.58,
+    1331.05
    ],
-   "name": "TAP Craft Beer Bar"
+   "name": "City Hall (EWL/NSL) Exit B"
   },
   {
-   "kind": "food",
-   "station_m": 2267.8,
+   "kind": "tree",
+   "station_m": 2277.6,
    "side": "right",
    "centre": [
-    510.45,
-    1424.71
+    362.63,
+    1255.99
    ],
-   "name": "Two Cranes"
-  },
-  {
-   "kind": "food",
-   "station_m": 2269.1,
-   "side": "right",
-   "centre": [
-    475.55,
-    1381.94
-   ],
-   "name": "Ka-En"
-  },
-  {
-   "kind": "food",
-   "station_m": 2303.7,
-   "side": "right",
-   "centre": [
-    449.87,
-    1419.99
-   ],
-   "name": "Holycrab"
-  },
-  {
-   "kind": "food",
-   "station_m": 2309.6,
-   "side": "right",
-   "centre": [
-    440.52,
-    1415.82
-   ],
-   "name": "So Good Char Chan Tang"
+   "name": "Golden Shower Tree (Cassia fistula)"
   },
   {
    "kind": "chapel",
@@ -40127,6 +40659,16 @@
    "name": "Saint Andrew's Cathedral"
   },
   {
+   "kind": "station",
+   "station_m": 2311.1,
+   "side": "right",
+   "centre": [
+    426.01,
+    1397.66
+   ],
+   "name": "City Hall (EWL/NSL) Exit D"
+  },
+  {
    "kind": "chapel",
    "station_m": 2311.4,
    "side": "right",
@@ -40137,34 +40679,14 @@
    "name": "Masjid Al-Burhani"
   },
   {
-   "kind": "food",
-   "station_m": 2316.9,
+   "kind": "tree",
+   "station_m": 2311.4,
    "side": "right",
    "centre": [
-    443.7,
-    1433.04
+    335.8,
+    1273.74
    ],
-   "name": "Ramen Dining Keisuke Tokyo けいすけ東京"
-  },
-  {
-   "kind": "food",
-   "station_m": 2319.7,
-   "side": "right",
-   "centre": [
-    429.79,
-    1418.43
-   ],
-   "name": "Ponggol Nasi Lemak"
-  },
-  {
-   "kind": "food",
-   "station_m": 2335.5,
-   "side": "right",
-   "centre": [
-    410.9,
-    1417.54
-   ],
-   "name": "True Breakfast"
+   "name": "Saga (Adenanthera pavonina)"
   },
   {
    "kind": "gate",
@@ -40176,14 +40698,24 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2410.9,
+   "kind": "tree",
+   "station_m": 2348.8,
    "side": "right",
    "centre": [
-    370.2,
-    1495.34
+    321.0,
+    1316.67
    ],
-   "name": "Mandalay Style"
+   "name": "Sealing Wax Palm (Cyrtostachys renda)"
+  },
+  {
+   "kind": "tree",
+   "station_m": 2374.6,
+   "side": "right",
+   "centre": [
+    357.35,
+    1410.49
+   ],
+   "name": "Sea Apple (Syzygium grande)"
   },
   {
    "kind": "gate",
@@ -40195,24 +40727,13 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2414.2,
+   "kind": "signal",
+   "station_m": 2425.8,
    "side": "right",
    "centre": [
-    358.96,
-    1484.92
-   ],
-   "name": "Maw Shan"
-  },
-  {
-   "kind": "food",
-   "station_m": 2421.0,
-   "side": "right",
-   "centre": [
-    354.14,
-    1489.4
-   ],
-   "name": "Inle Myanmar Restaurant"
+    324.96,
+    1455.76
+   ]
   },
   {
    "kind": "artwork",
@@ -40251,404 +40772,68 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2465.5,
+   "kind": "signal",
+   "station_m": 2438.8,
    "side": "right",
    "centre": [
-    263.85,
-    1437.18
-   ],
-   "name": "Fruits Cafe"
+    309.98,
+    1455.56
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2467.7,
+   "kind": "signal",
+   "station_m": 2438.8,
    "side": "right",
    "centre": [
-    311.53,
-    1506.84
-   ],
-   "name": "Miss Tang's Rice Noodle 唐大小姐小锅米线"
+    321.28,
+    1471.29
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2469.0,
+   "kind": "signal",
+   "station_m": 2438.9,
    "side": "right",
    "centre": [
-    305.21,
-    1500.53
-   ],
-   "name": "Sushi Zushi"
+    315.32,
+    1463.27
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2472.6,
-   "side": "right",
+   "kind": "signal",
+   "station_m": 2442.6,
+   "side": "left",
    "centre": [
-    270.63,
-    1459.3
-   ],
-   "name": "Chef Lai's Cafe"
+    201.92,
+    1312.6
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2473.0,
+   "kind": "signal",
+   "station_m": 2445.8,
    "side": "right",
    "centre": [
-    196.95,
-    1357.66
-   ],
-   "name": "National Kitchen"
+    254.78,
+    1390.81
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2477.0,
+   "kind": "signal",
+   "station_m": 2446.5,
    "side": "right",
    "centre": [
-    260.47,
-    1452.98
-   ],
-   "name": "M2 Cafe"
+    309.64,
+    1467.68
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2477.6,
+   "kind": "tree",
+   "station_m": 2471.6,
    "side": "right",
    "centre": [
-    266.44,
-    1462.29
+    183.29,
+    1336.28
    ],
-   "name": "WhiteElephant"
-  },
-  {
-   "kind": "food",
-   "station_m": 2478.7,
-   "side": "right",
-   "centre": [
-    296.27,
-    1505.61
-   ],
-   "name": "Paradise Dynasty"
-  },
-  {
-   "kind": "food",
-   "station_m": 2482.0,
-   "side": "right",
-   "centre": [
-    189.55,
-    1362.95
-   ],
-   "name": "Art di Daniele Sperindio"
-  },
-  {
-   "kind": "food",
-   "station_m": 2488.4,
-   "side": "right",
-   "centre": [
-    289.64,
-    1513.57
-   ],
-   "name": "Dunkin'"
-  },
-  {
-   "kind": "food",
-   "station_m": 2490.3,
-   "side": "right",
-   "centre": [
-    286.67,
-    1512.74
-   ],
-   "name": "Ya Kun Kaya Toast"
-  },
-  {
-   "kind": "food",
-   "station_m": 2490.9,
-   "side": "right",
-   "centre": [
-    291.17,
-    1520.0
-   ],
-   "name": "The Tree Cafe"
-  },
-  {
-   "kind": "food",
-   "station_m": 2491.6,
-   "side": "right",
-   "centre": [
-    229.74,
-    1435.54
-   ],
-   "name": "Coffee Hive"
-  },
-  {
-   "kind": "food",
-   "station_m": 2496.9,
-   "side": "right",
-   "centre": [
-    177.48,
-    1371.6
-   ],
-   "name": "Smoke & Mirrors"
-  },
-  {
-   "kind": "food",
-   "station_m": 2500.8,
-   "side": "right",
-   "centre": [
-    283.85,
-    1526.78
-   ],
-   "name": "The Oyster Bank"
-  },
-  {
-   "kind": "food",
-   "station_m": 2503.9,
-   "side": "right",
-   "centre": [
-    275.01,
-    1519.43
-   ],
-   "name": "Yan Ji Gourmet"
-  },
-  {
-   "kind": "food",
-   "station_m": 2507.6,
-   "side": "right",
-   "centre": [
-    276.43,
-    1527.6
-   ],
-   "name": "Guzman y Gomez"
-  },
-  {
-   "kind": "food",
-   "station_m": 2507.9,
-   "side": "right",
-   "centre": [
-    280.85,
-    1534.46
-   ],
-   "name": "Pops"
-  },
-  {
-   "kind": "food",
-   "station_m": 2508.0,
-   "side": "right",
-   "centre": [
-    283.03,
-    1537.54
-   ],
-   "name": "Old Street Bak Kut Teh"
-  },
-  {
-   "kind": "food",
-   "station_m": 2508.1,
-   "side": "right",
-   "centre": [
-    212.16,
-    1439.07
-   ],
-   "name": "Kale by KangSu 康素"
-  },
-  {
-   "kind": "food",
-   "station_m": 2512.0,
-   "side": "right",
-   "centre": [
-    289.08,
-    1553.13
-   ],
-   "name": "Sukiya すき家"
-  },
-  {
-   "kind": "food",
-   "station_m": 2512.1,
-   "side": "right",
-   "centre": [
-    296.74,
-    1564.0
-   ],
-   "name": "Flavours By Saute"
-  },
-  {
-   "kind": "food",
-   "station_m": 2512.5,
-   "side": "right",
-   "centre": [
-    313.48,
-    1588.05
-   ],
-   "name": "Toast Box"
-  },
-  {
-   "kind": "food",
-   "station_m": 2513.1,
-   "side": "right",
-   "centre": [
-    292.31,
-    1559.22
-   ],
-   "name": "Ajumma's"
-  },
-  {
-   "kind": "food",
-   "station_m": 2513.4,
-   "side": "right",
-   "centre": [
-    308.91,
-    1582.91
-   ],
-   "name": "Tiong Bahru Bakery"
-  },
-  {
-   "kind": "food",
-   "station_m": 2513.4,
-   "side": "right",
-   "centre": [
-    300.85,
-    1571.72
-   ],
-   "name": "Afuri"
-  },
-  {
-   "kind": "food",
-   "station_m": 2517.0,
-   "side": "right",
-   "centre": [
-    154.0,
-    1373.43
-   ],
-   "name": "The Aryaa"
-  },
-  {
-   "kind": "food",
-   "station_m": 2517.9,
-   "side": "right",
-   "centre": [
-    274.72,
-    1542.74
-   ],
-   "name": "Subway"
-  },
-  {
-   "kind": "food",
-   "station_m": 2518.0,
-   "side": "right",
-   "centre": [
-    272.59,
-    1539.96
-   ],
-   "name": "Kebabs Faktory"
-  },
-  {
-   "kind": "food",
-   "station_m": 2522.7,
-   "side": "right",
-   "centre": [
-    284.34,
-    1564.37
-   ],
-   "name": "A Gan Guo Kui"
-  },
-  {
-   "kind": "food",
-   "station_m": 2523.8,
-   "side": "right",
-   "centre": [
-    264.38,
-    1538.73
-   ],
-   "name": "Delibowl"
-  },
-  {
-   "kind": "food",
-   "station_m": 2524.1,
-   "side": "right",
-   "centre": [
-    280.69,
-    1561.96
-   ],
-   "name": "Old Chang Kee"
-  },
-  {
-   "kind": "food",
-   "station_m": 2525.9,
-   "side": "right",
-   "centre": [
-    278.06,
-    1561.85
-   ],
-   "name": "LiHO TEA"
-  },
-  {
-   "kind": "food",
-   "station_m": 2526.6,
-   "side": "right",
-   "centre": [
-    304.88,
-    1600.38
-   ],
-   "name": "Sinpopo Coffee"
-  },
-  {
-   "kind": "food",
-   "station_m": 2526.7,
-   "side": "right",
-   "centre": [
-    273.72,
-    1557.09
-   ],
-   "name": "Gong yuan ma la tang"
-  },
-  {
-   "kind": "food",
-   "station_m": 2527.1,
-   "side": "right",
-   "centre": [
-    278.39,
-    1564.38
-   ],
-   "name": "Sanook Kitchen"
-  },
-  {
-   "kind": "food",
-   "station_m": 2528.5,
-   "side": "right",
-   "centre": [
-    270.34,
-    1555.22
-   ],
-   "name": "Raffles"
-  },
-  {
-   "kind": "food",
-   "station_m": 2528.9,
-   "side": "right",
-   "centre": [
-    268.98,
-    1554.03
-   ],
-   "name": "Qiji"
-  },
-  {
-   "kind": "food",
-   "station_m": 2531.0,
-   "side": "right",
-   "centre": [
-    269.16,
-    1557.51
-   ],
-   "name": "Saap Saap Tha"
-  },
-  {
-   "kind": "food",
-   "station_m": 2531.1,
-   "side": "right",
-   "centre": [
-    271.68,
-    1561.22
-   ],
-   "name": "Stuff'd"
+   "name": "Royal Palm (Roystonea regia)"
   },
   {
    "kind": "info",
@@ -40669,16 +40854,6 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2535.5,
-   "side": "right",
-   "centre": [
-    293.99,
-    1600.25
-   ],
-   "name": "Steak & Sushi"
-  },
-  {
    "kind": "toilets",
    "station_m": 2535.8,
    "side": "right",
@@ -40688,144 +40863,13 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2536.1,
+   "kind": "signal",
+   "station_m": 2645.9,
    "side": "right",
    "centre": [
-    275.53,
-    1575.51
-   ],
-   "name": "Potato Corner"
-  },
-  {
-   "kind": "food",
-   "station_m": 2538.6,
-   "side": "right",
-   "centre": [
-    257.93,
-    1555.08
-   ],
-   "name": "Godmama"
-  },
-  {
-   "kind": "food",
-   "station_m": 2539.4,
-   "side": "right",
-   "centre": [
-    260.87,
-    1560.51
-   ],
-   "name": "Toast Box"
-  },
-  {
-   "kind": "food",
-   "station_m": 2543.3,
-   "side": "right",
-   "centre": [
-    264.59,
-    1572.13
-   ],
-   "name": "Boost"
-  },
-  {
-   "kind": "food",
-   "station_m": 2546.0,
-   "side": "right",
-   "centre": [
-    255.48,
-    1564.21
-   ],
-   "name": "Sushi Express"
-  },
-  {
-   "kind": "food",
-   "station_m": 2546.9,
-   "side": "right",
-   "centre": [
-    136.83,
-    1400.7
-   ],
-   "name": "Yàn"
-  },
-  {
-   "kind": "food",
-   "station_m": 2548.1,
-   "side": "right",
-   "centre": [
-    288.03,
-    1613.26
-   ],
-   "name": "amps tea"
-  },
-  {
-   "kind": "food",
-   "station_m": 2563.3,
-   "side": "right",
-   "centre": [
-    274.2,
-    1620.58
-   ],
-   "name": "Mincheng Bibimbap"
-  },
-  {
-   "kind": "food",
-   "station_m": 2585.4,
-   "side": "right",
-   "centre": [
-    107.15,
-    1425.11
-   ],
-   "name": "Odette"
-  },
-  {
-   "kind": "food",
-   "station_m": 2623.7,
-   "side": "right",
-   "centre": [
-    99.24,
-    1476.84
-   ],
-   "name": "Courtyard Cafe"
-  },
-  {
-   "kind": "food",
-   "station_m": 2640.2,
-   "side": "right",
-   "centre": [
-    65.87,
-    1457.94
-   ],
-   "name": "Hachi Restaurant"
-  },
-  {
-   "kind": "food",
-   "station_m": 2641.7,
-   "side": "right",
-   "centre": [
-    62.51,
-    1457.4
-   ],
-   "name": "Hachi"
-  },
-  {
-   "kind": "food",
-   "station_m": 2648.6,
-   "side": "right",
-   "centre": [
-    55.15,
-    1462.72
-   ],
-   "name": "The Public Eight"
-  },
-  {
-   "kind": "food",
-   "station_m": 2650.7,
-   "side": "right",
-   "centre": [
-    145.96,
-    1614.2
-   ],
-   "name": "Starbucks"
+    154.04,
+    1588.63
+   ]
   },
   {
    "kind": "gate",
@@ -40838,24 +40882,13 @@
    "name": "Hallpike Public Entrance"
   },
   {
-   "kind": "food",
-   "station_m": 2653.1,
+   "kind": "signal",
+   "station_m": 2652.5,
    "side": "right",
    "centre": [
-    -28.18,
-    1697.77
-   ],
-   "name": "Singapore Seafood Restaurant"
-  },
-  {
-   "kind": "food",
-   "station_m": 2654.4,
-   "side": "right",
-   "centre": [
-    -86.14,
-    1694.77
-   ],
-   "name": "Tandoori Zaika"
+    104.42,
+    1627.19
+   ]
   },
   {
    "kind": "gate",
@@ -40867,34 +40900,13 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2657.5,
+   "kind": "tree",
+   "station_m": 2656.1,
    "side": "right",
    "centre": [
-    -33.96,
-    1703.12
-   ],
-   "name": "Southbridge"
-  },
-  {
-   "kind": "food",
-   "station_m": 2658.8,
-   "side": "right",
-   "centre": [
-    -33.93,
-    1697.26
-   ],
-   "name": "7-Eleven Bar"
-  },
-  {
-   "kind": "food",
-   "station_m": 2659.0,
-   "side": "right",
-   "centre": [
-    -92.0,
-    1696.31
-   ],
-   "name": "Shandong Restaurant"
+    -12.21,
+    1617.07
+   ]
   },
   {
    "kind": "gate",
@@ -40906,44 +40918,22 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2663.5,
+   "kind": "tree",
+   "station_m": 2665.4,
    "side": "right",
    "centre": [
-    -97.12,
-    1696.66
-   ],
-   "name": "Beijing Roast Duck House"
+    -51.68,
+    1594.73
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2664.0,
+   "kind": "tree",
+   "station_m": 2666.0,
    "side": "right",
    "centre": [
-    -39.18,
-    1697.08
-   ],
-   "name": "Singapore Seafood Restaurant"
-  },
-  {
-   "kind": "food",
-   "station_m": 2664.1,
-   "side": "right",
-   "centre": [
-    135.61,
-    1649.21
-   ],
-   "name": "Sai Kitchen"
-  },
-  {
-   "kind": "food",
-   "station_m": 2666.9,
-   "side": "right",
-   "centre": [
-    -102.44,
-    1700.04
-   ],
-   "name": "Dumpukht Grill & Curry"
+    -21.07,
+    1611.56
+   ]
   },
   {
    "kind": "artwork",
@@ -40954,26 +40944,6 @@
     1691.67
    ],
    "name": "The Early Days mural"
-  },
-  {
-   "kind": "food",
-   "station_m": 2668.7,
-   "side": "right",
-   "centre": [
-    11.17,
-    1739.91
-   ],
-   "name": "Ikigai"
-  },
-  {
-   "kind": "food",
-   "station_m": 2669.2,
-   "side": "right",
-   "centre": [
-    -43.91,
-    1694.48
-   ],
-   "name": "Aburiya"
   },
   {
    "kind": "info",
@@ -40995,62 +40965,67 @@
    "name": "Boat Quay"
   },
   {
-   "kind": "food",
-   "station_m": 2671.8,
+   "kind": "tree",
+   "station_m": 2670.7,
    "side": "right",
    "centre": [
-    -107.87,
-    1700.21
-   ],
-   "name": "Eat Sum Thing"
-  },
-  {
-   "kind": "food",
-   "station_m": 2674.6,
-   "side": "right",
-   "centre": [
-    -49.62,
-    1694.9
-   ],
-   "name": "Katanashi"
-  },
-  {
-   "kind": "food",
-   "station_m": 2676.1,
-   "side": "right",
-   "centre": [
-    -6.68,
-    1472.99
+    -72.79,
+    1565.55
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2676.4,
+   "kind": "tree",
+   "station_m": 2670.7,
    "side": "right",
    "centre": [
-    -113.13,
-    1700.61
-   ],
-   "name": "Lit"
-  },
-  {
-   "kind": "food",
-   "station_m": 2679.2,
-   "side": "right",
-   "centre": [
-    -19.63,
-    1481.57
+    -25.51,
+    1609.89
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2680.9,
+   "kind": "tree",
+   "station_m": 2675.5,
    "side": "right",
    "centre": [
-    -118.72,
-    1701.93
-   ],
-   "name": "Gosso"
+    6.4,
+    1628.08
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2676.0,
+   "side": "right",
+   "centre": [
+    -61.11,
+    1589.88
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2681.0,
+   "side": "right",
+   "centre": [
+    -34.75,
+    1604.04
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2684.5,
+   "side": "right",
+   "centre": [
+    -2.43,
+    1622.34
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2687.1,
+   "side": "right",
+   "centre": [
+    -70.77,
+    1584.25
+   ]
   },
   {
    "kind": "artwork",
@@ -41062,84 +41037,377 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 2689.0,
+   "kind": "tree",
+   "station_m": 2690.9,
    "side": "right",
    "centre": [
-    -128.12,
-    1702.87
-   ],
-   "name": "Izakaya Shindo"
+    -43.62,
+    1598.83
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2690.0,
+   "kind": "tree",
+   "station_m": 2691.6,
    "side": "right",
    "centre": [
-    -64.79,
-    1692.27
-   ],
-   "name": "Est. 1819 dine by the quay"
+    -71.64,
+    1527.4
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2691.3,
+   "kind": "tree",
+   "station_m": 2692.5,
    "side": "right",
    "centre": [
-    -115.63,
-    1532.68
-   ],
-   "name": "Timbre X S.E.A."
+    -81.91,
+    1540.53
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2693.6,
+   "kind": "tree",
+   "station_m": 2692.7,
    "side": "right",
    "centre": [
-    -12.96,
-    1699.29
+    -126.96,
+    1541.13
    ],
-   "name": "Skinny's Lounge"
+   "name": "Singapore White Frangipanis (Plumeria obtusa ‘Singapore White’)"
   },
   {
-   "kind": "food",
-   "station_m": 2694.9,
+   "kind": "tree",
+   "station_m": 2774.8,
    "side": "right",
    "centre": [
-    -69.99,
-    1692.79
-   ],
-   "name": "Sultan Palace"
+    -69.63,
+    1378.07
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2730.8,
+   "kind": "tree",
+   "station_m": 2787.4,
    "side": "right",
    "centre": [
-    -55.42,
-    1423.66
-   ],
-   "name": "Astoria"
+    -77.35,
+    1370.76
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2863.7,
-   "side": "right",
+   "kind": "tree",
+   "station_m": 2800.5,
+   "side": "left",
    "centre": [
-    -192.86,
-    1484.55
-   ],
-   "name": "Empress"
+    -71.07,
+    1301.74
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 2873.1,
+   "kind": "tree",
+   "station_m": 2800.8,
+   "side": "left",
+   "centre": [
+    -59.2,
+    1292.09
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2801.0,
+   "side": "left",
+   "centre": [
+    -56.91,
+    1284.44
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2801.7,
+   "side": "left",
+   "centre": [
+    -31.85,
+    1260.03
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2805.9,
+   "side": "left",
+   "centre": [
+    -83.75,
+    1279.02
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2808.9,
+   "side": "left",
+   "centre": [
+    -79.81,
+    1303.26
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2809.0,
+   "side": "left",
+   "centre": [
+    -86.7,
+    1264.59
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2811.4,
+   "side": "left",
+   "centre": [
+    -93.69,
+    1280.17
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2815.3,
+   "side": "left",
+   "centre": [
+    -100.2,
+    1281.05
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2815.3,
+   "side": "left",
+   "centre": [
+    -93.08,
+    1263.3
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2815.9,
+   "side": "left",
+   "centre": [
+    -102.01,
+    1268.65
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2819.7,
+   "side": "left",
+   "centre": [
+    -108.13,
+    1281.84
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2823.8,
+   "side": "left",
+   "centre": [
+    -106.11,
+    1323.48
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2824.2,
+   "side": "left",
+   "centre": [
+    -108.01,
+    1313.66
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2825.2,
+   "side": "left",
+   "centre": [
+    -109.6,
+    1305.44
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2826.0,
+   "side": "left",
+   "centre": [
+    -111.64,
+    1296.63
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2850.6,
+   "side": "left",
+   "centre": [
+    -123.53,
+    1332.72
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2851.6,
+   "side": "left",
+   "centre": [
+    -125.76,
+    1337.34
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2854.0,
    "side": "right",
    "centre": [
-    -220.07,
-    1468.68
+    -167.72,
+    1520.68
    ],
-   "name": "Privé Cafe"
+   "name": "Malayan Banyan (Ficus microcarpa)"
+  },
+  {
+   "kind": "tree",
+   "station_m": 2858.2,
+   "side": "right",
+   "centre": [
+    -165.4,
+    1427.61
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2860.1,
+   "side": "right",
+   "centre": [
+    -171.59,
+    1421.29
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2861.3,
+   "side": "left",
+   "centre": [
+    -129.36,
+    1326.65
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2862.4,
+   "side": "left",
+   "centre": [
+    -133.85,
+    1335.74
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2864.9,
+   "side": "right",
+   "centre": [
+    -177.37,
+    1415.31
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2866.4,
+   "side": "right",
+   "centre": [
+    -172.81,
+    1398.6
+   ],
+   "name": "Frangipani (Plumeria obtusa)"
+  },
+  {
+   "kind": "tree",
+   "station_m": 2869.1,
+   "side": "left",
+   "centre": [
+    -129.25,
+    1318.22
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2869.7,
+   "side": "left",
+   "centre": [
+    -126.53,
+    1312.79
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2869.9,
+   "side": "right",
+   "centre": [
+    -184.0,
+    1401.87
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2872.0,
+   "side": "right",
+   "centre": [
+    -237.46,
+    1479.46
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2872.2,
+   "side": "right",
+   "centre": [
+    -229.1,
+    1486.49
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2872.8,
+   "side": "left",
+   "centre": [
+    -138.61,
+    1327.5
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2875.4,
+   "side": "left",
+   "centre": [
+    -135.36,
+    1319.36
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2877.2,
+   "side": "right",
+   "centre": [
+    -249.1,
+    1471.91
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2877.5,
+   "side": "right",
+   "centre": [
+    -191.91,
+    1393.66
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2881.6,
+   "side": "right",
+   "centre": [
+    -186.92,
+    1376.85
+   ],
+   "name": "Rain Tree (Samanea saman)"
   },
   {
    "kind": "artwork",
@@ -41152,6 +41420,15 @@
    "name": "24 Hours in Singapore"
   },
   {
+   "kind": "tree",
+   "station_m": 2887.5,
+   "side": "left",
+   "centre": [
+    -125.74,
+    1292.15
+   ]
+  },
+  {
    "kind": "artwork",
    "station_m": 2887.8,
    "side": "right",
@@ -41160,6 +41437,15 @@
     1565.58
    ],
    "name": "Bird"
+  },
+  {
+   "kind": "tree",
+   "station_m": 2890.5,
+   "side": "right",
+   "centre": [
+    -177.74,
+    1350.0
+   ]
   },
   {
    "kind": "artwork",
@@ -41172,6 +41458,15 @@
    "name": "24 Hours in Singapore"
   },
   {
+   "kind": "tree",
+   "station_m": 2891.0,
+   "side": "left",
+   "centre": [
+    -130.08,
+    1292.4
+   ]
+  },
+  {
    "kind": "artwork",
    "station_m": 2893.2,
    "side": "right",
@@ -41180,6 +41475,24 @@
     1388.14
    ],
    "name": "24 Hours in Singapore"
+  },
+  {
+   "kind": "tree",
+   "station_m": 2893.7,
+   "side": "right",
+   "centre": [
+    -350.83,
+    1550.23
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2895.8,
+   "side": "right",
+   "centre": [
+    -220.57,
+    1392.12
+   ]
   },
   {
    "kind": "artwork",
@@ -41202,6 +41515,15 @@
    "name": "24 Hours in Singapore"
   },
   {
+   "kind": "tree",
+   "station_m": 2899.9,
+   "side": "right",
+   "centre": [
+    -352.25,
+    1542.76
+   ]
+  },
+  {
    "kind": "artwork",
    "station_m": 2900.1,
    "side": "right",
@@ -41210,6 +41532,33 @@
     1377.85
    ],
    "name": "24 Hours in Singapore"
+  },
+  {
+   "kind": "tree",
+   "station_m": 2901.7,
+   "side": "right",
+   "centre": [
+    -221.23,
+    1383.83
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2902.6,
+   "side": "left",
+   "centre": [
+    -156.75,
+    1306.18
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 2904.9,
+   "side": "right",
+   "centre": [
+    -188.06,
+    1339.68
+   ]
   },
   {
    "kind": "gate",
@@ -41281,44 +41630,14 @@
    "name": "A Great Emporium"
   },
   {
-   "kind": "food",
-   "station_m": 2923.2,
-   "side": "right",
-   "centre": [
-    -376.8,
-    1513.08
-   ],
-   "name": "The Salad Shop"
-  },
-  {
-   "kind": "food",
-   "station_m": 2994.2,
+   "kind": "tree",
+   "station_m": 2986.7,
    "side": "left",
    "centre": [
-    -231.1,
-    1248.6
+    -226.54,
+    1257.04
    ],
-   "name": "Starbucks"
-  },
-  {
-   "kind": "food",
-   "station_m": 3001.0,
-   "side": "left",
-   "centre": [
-    -239.23,
-    1245.39
-   ],
-   "name": "Picotin"
-  },
-  {
-   "kind": "food",
-   "station_m": 3004.0,
-   "side": "left",
-   "centre": [
-    -240.51,
-    1239.67
-   ],
-   "name": "The Rooftop"
+   "name": "Tamarind (Tamarindus indica)"
   },
   {
    "kind": "toilets",
@@ -41340,14 +41659,13 @@
    "name": "The First Generation"
   },
   {
-   "kind": "food",
-   "station_m": 3023.1,
+   "kind": "tree",
+   "station_m": 3021.9,
    "side": "right",
    "centre": [
-    -530.96,
-    1402.81
-   ],
-   "name": "Non Neng Ji"
+    -323.92,
+    1358.19
+   ]
   },
   {
    "kind": "artwork",
@@ -41360,14 +41678,31 @@
    "name": "Cat and kittens"
   },
   {
-   "kind": "food",
-   "station_m": 3024.7,
+   "kind": "tree",
+   "station_m": 3027.5,
    "side": "right",
    "centre": [
-    -297.22,
-    1327.97
-   ],
-   "name": "Town"
+    -316.14,
+    1358.19
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3027.5,
+   "side": "right",
+   "centre": [
+    -446.76,
+    1307.1
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3028.4,
+   "side": "right",
+   "centre": [
+    -441.19,
+    1304.51
+   ]
   },
   {
    "kind": "artwork",
@@ -41410,73 +41745,185 @@
    "name": "Rainforest Rhapsody"
   },
   {
-   "kind": "food",
-   "station_m": 3031.3,
+   "kind": "tree",
+   "station_m": 3030.3,
    "side": "right",
    "centre": [
-    -533.41,
-    1394.78
-   ],
-   "name": "The Sandwich Shop"
-  },
-  {
-   "kind": "food",
-   "station_m": 3040.1,
-   "side": "right",
-   "centre": [
-    -429.32,
-    1217.64
-   ],
-   "name": "Jing"
-  },
-  {
-   "kind": "food",
-   "station_m": 3046.0,
-   "side": "right",
-   "centre": [
-    -419.41,
-    1213.42
+    -430.81,
+    1299.34
    ]
   },
   {
-   "kind": "food",
-   "station_m": 3049.5,
+   "kind": "tree",
+   "station_m": 3030.6,
    "side": "right",
    "centre": [
-    -540.52,
-    1377.88
-   ],
-   "name": "Taki"
+    -436.12,
+    1300.68
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3056.8,
+   "kind": "tree",
+   "station_m": 3031.2,
    "side": "right",
    "centre": [
-    -391.09,
-    1207.6
-   ],
-   "name": "Issoh Izakaya"
+    -423.36,
+    1296.07
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3057.6,
+   "kind": "tree",
+   "station_m": 3031.8,
    "side": "right",
    "centre": [
-    -403.24,
-    1204.62
-   ],
-   "name": "Starbucks"
+    -417.57,
+    1293.71
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3058.2,
+   "kind": "tree",
+   "station_m": 3041.0,
    "side": "right",
    "centre": [
-    -517.56,
-    1424.06
+    -412.16,
+    1315.54
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3041.6,
+   "side": "right",
+   "centre": [
+    -416.63,
+    1317.44
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3042.4,
+   "side": "right",
+   "centre": [
+    -422.23,
+    1319.63
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3046.3,
+   "side": "right",
+   "centre": [
+    -412.93,
+    1309.9
+   ]
+  },
+  {
+   "kind": "station",
+   "station_m": 3047.5,
+   "side": "right",
+   "centre": [
+    -419.78,
+    1477.81
    ],
-   "name": "Sanger"
+   "name": "Raffles Place (EWL/NSL) Exit H"
+  },
+  {
+   "kind": "tree",
+   "station_m": 3047.6,
+   "side": "right",
+   "centre": [
+    -418.66,
+    1311.69
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3048.3,
+   "side": "right",
+   "centre": [
+    -424.51,
+    1314.12
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 3049.1,
+   "side": "right",
+   "centre": [
+    -288.58,
+    1235.4
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 3049.8,
+   "side": "right",
+   "centre": [
+    -334.69,
+    1236.93
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3051.2,
+   "side": "right",
+   "centre": [
+    -414.02,
+    1304.89
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3052.8,
+   "side": "right",
+   "centre": [
+    -420.63,
+    1306.83
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3053.7,
+   "side": "right",
+   "centre": [
+    -427.11,
+    1309.39
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 3055.6,
+   "side": "right",
+   "centre": [
+    -421.17,
+    1344.13
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3056.5,
+   "side": "right",
+   "centre": [
+    -415.29,
+    1299.54
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3058.8,
+   "side": "right",
+   "centre": [
+    -422.56,
+    1300.95
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3059.0,
+   "side": "right",
+   "centre": [
+    -429.31,
+    1304.56
+   ]
   },
   {
    "kind": "toilets",
@@ -41485,6 +41932,15 @@
    "centre": [
     -450.57,
     1232.45
+   ]
+  },
+  {
+   "kind": "station",
+   "station_m": 3061.8,
+   "side": "right",
+   "centre": [
+    -470.6,
+    1278.61
    ]
   },
   {
@@ -41497,74 +41953,13 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 3064.2,
+   "kind": "signal",
+   "station_m": 3068.3,
    "side": "right",
    "centre": [
-    -343.86,
-    1179.09
-   ],
-   "name": "OverEasy Bar and Diner"
-  },
-  {
-   "kind": "food",
-   "station_m": 3067.3,
-   "side": "right",
-   "centre": [
-    -374.73,
-    1199.83
-   ],
-   "name": "LITTLE SHEEP"
-  },
-  {
-   "kind": "food",
-   "station_m": 3068.2,
-   "side": "right",
-   "centre": [
-    -333.38,
-    1173.43
-   ],
-   "name": "St Pierre"
-  },
-  {
-   "kind": "food",
-   "station_m": 3068.7,
-   "side": "right",
-   "centre": [
-    -445.12,
-    1224.69
-   ],
-   "name": "The Pelican"
-  },
-  {
-   "kind": "food",
-   "station_m": 3069.4,
-   "side": "right",
-   "centre": [
-    -312.63,
-    1166.42
-   ],
-   "name": "MOS Burger"
-  },
-  {
-   "kind": "food",
-   "station_m": 3069.9,
-   "side": "right",
-   "centre": [
-    -320.76,
-    1181.45
-   ],
-   "name": "PS.Cafe"
-  },
-  {
-   "kind": "food",
-   "station_m": 3071.1,
-   "side": "right",
-   "centre": [
-    -322.58,
-    1170.81
-   ],
-   "name": "Palm Beach"
+    -294.08,
+    1202.67
+   ]
   },
   {
    "kind": "toilets",
@@ -41576,16 +41971,6 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 3073.4,
-   "side": "right",
-   "centre": [
-    -309.74,
-    1180.17
-   ],
-   "name": "Bistro Aseana"
-  },
-  {
    "kind": "toilets",
    "station_m": 3075.7,
    "side": "right",
@@ -41593,16 +41978,6 @@
     -297.68,
     1157.76
    ]
-  },
-  {
-   "kind": "food",
-   "station_m": 3077.5,
-   "side": "right",
-   "centre": [
-    -507.45,
-    1219.68
-   ],
-   "name": "Monti"
   },
   {
    "kind": "artwork",
@@ -41625,6 +42000,15 @@
    "name": "Merlion Fountain"
   },
   {
+   "kind": "tree",
+   "station_m": 3264.5,
+   "side": "left",
+   "centre": [
+    -67.01,
+    1243.34
+   ]
+  },
+  {
    "kind": "artwork",
    "station_m": 3300.1,
    "side": "left",
@@ -41633,6 +42017,33 @@
     1171.1
    ],
    "name": "Cloud Nine: Raining"
+  },
+  {
+   "kind": "tree",
+   "station_m": 3307.7,
+   "side": "left",
+   "centre": [
+    -30.43,
+    1215.05
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3321.6,
+   "side": "left",
+   "centre": [
+    -18.84,
+    1207.47
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3329.5,
+   "side": "left",
+   "centre": [
+    -5.06,
+    1227.5
+   ]
   },
   {
    "kind": "artwork",
@@ -41645,14 +42056,571 @@
    "name": "Seeds by Han Soi Por"
   },
   {
-   "kind": "food",
-   "station_m": 3376.7,
+   "kind": "tree",
+   "station_m": 3330.9,
    "side": "right",
    "centre": [
-    -50.43,
-    998.84
-   ],
-   "name": "CoNutink"
+    -43.75,
+    1093.61
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3333.0,
+   "side": "right",
+   "centre": [
+    -45.22,
+    1081.32
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3333.9,
+   "side": "right",
+   "centre": [
+    -42.45,
+    1087.33
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3334.5,
+   "side": "right",
+   "centre": [
+    -45.56,
+    1074.87
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3335.3,
+   "side": "left",
+   "centre": [
+    -11.78,
+    1184.75
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3336.7,
+   "side": "right",
+   "centre": [
+    -45.15,
+    1069.26
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3337.1,
+   "side": "right",
+   "centre": [
+    -46.8,
+    1062.46
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3340.9,
+   "side": "right",
+   "centre": [
+    -46.98,
+    1051.24
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3341.3,
+   "side": "left",
+   "centre": [
+    -6.21,
+    1181.19
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3342.2,
+   "side": "right",
+   "centre": [
+    -47.22,
+    1046.15
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3342.4,
+   "side": "right",
+   "centre": [
+    -34.03,
+    1087.87
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3343.2,
+   "side": "right",
+   "centre": [
+    -31.87,
+    1093.0
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3343.7,
+   "side": "right",
+   "centre": [
+    -47.71,
+    1041.45
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3343.8,
+   "side": "right",
+   "centre": [
+    -51.93,
+    1027.71
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3344.1,
+   "side": "right",
+   "centre": [
+    -53.06,
+    1023.18
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3344.5,
+   "side": "right",
+   "centre": [
+    -49.32,
+    1033.69
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3344.8,
+   "side": "right",
+   "centre": [
+    -33.06,
+    1084.07
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3344.9,
+   "side": "left",
+   "centre": [
+    3.87,
+    1200.13
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3346.0,
+   "side": "right",
+   "centre": [
+    -34.31,
+    1077.99
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3346.8,
+   "side": "right",
+   "centre": [
+    -29.6,
+    1089.84
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3348.4,
+   "side": "right",
+   "centre": [
+    -53.83,
+    1015.27
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3348.8,
+   "side": "right",
+   "centre": [
+    -26.56,
+    1094.2
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3349.2,
+   "side": "left",
+   "centre": [
+    1.54,
+    1175.57
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3349.3,
+   "side": "left",
+   "centre": [
+    8.77,
+    1196.26
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3349.5,
+   "side": "right",
+   "centre": [
+    -30.64,
+    1079.99
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3349.8,
+   "side": "right",
+   "centre": [
+    -32.41,
+    1073.91
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3349.9,
+   "side": "right",
+   "centre": [
+    -47.3,
+    1029.7
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3351.5,
+   "side": "right",
+   "centre": [
+    -28.04,
+    1083.69
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3351.5,
+   "side": "right",
+   "centre": [
+    -25.34,
+    1091.22
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3353.8,
+   "side": "right",
+   "centre": [
+    -48.76,
+    1023.64
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3353.9,
+   "side": "right",
+   "centre": [
+    -31.26,
+    1070.24
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3354.2,
+   "side": "right",
+   "centre": [
+    -26.72,
+    1081.51
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3354.5,
+   "side": "right",
+   "centre": [
+    -28.38,
+    1076.34
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3354.8,
+   "side": "right",
+   "centre": [
+    -23.89,
+    1087.61
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3356.6,
+   "side": "right",
+   "centre": [
+    -20.97,
+    1092.18
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3358.1,
+   "side": "right",
+   "centre": [
+    -27.98,
+    1072.79
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3358.5,
+   "side": "right",
+   "centre": [
+    -25.4,
+    1078.01
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3358.6,
+   "side": "right",
+   "centre": [
+    -49.94,
+    1017.81
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3358.8,
+   "side": "right",
+   "centre": [
+    -20.72,
+    1088.76
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3359.0,
+   "side": "right",
+   "centre": [
+    -54.14,
+    1006.5
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3360.3,
+   "side": "right",
+   "centre": [
+    -24.67,
+    1075.09
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3361.4,
+   "side": "right",
+   "centre": [
+    -21.96,
+    1080.66
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3363.8,
+   "side": "right",
+   "centre": [
+    -50.83,
+    1011.42
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3365.0,
+   "side": "right",
+   "centre": [
+    -15.21,
+    1089.04
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3368.7,
+   "side": "right",
+   "centre": [
+    -17.96,
+    1077.51
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3369.6,
+   "side": "right",
+   "centre": [
+    -55.27,
+    997.61
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3369.6,
+   "side": "right",
+   "centre": [
+    -51.28,
+    1005.81
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3370.0,
+   "side": "right",
+   "centre": [
+    -14.22,
+    1082.29
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3372.1,
+   "side": "right",
+   "centre": [
+    -14.23,
+    1078.64
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3373.1,
+   "side": "right",
+   "centre": [
+    -57.03,
+    991.94
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3374.2,
+   "side": "right",
+   "centre": [
+    -6.29,
+    1090.79
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3374.3,
+   "side": "right",
+   "centre": [
+    -10.3,
+    1082.49
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3375.7,
+   "side": "right",
+   "centre": [
+    -10.74,
+    1079.1
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3376.1,
+   "side": "left",
+   "centre": [
+    47.8,
+    1193.52
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3377.9,
+   "side": "right",
+   "centre": [
+    -56.53,
+    985.86
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3378.8,
+   "side": "right",
+   "centre": [
+    -0.04,
+    1093.71
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3379.1,
+   "side": "left",
+   "centre": [
+    56.2,
+    1202.35
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3379.4,
+   "side": "right",
+   "centre": [
+    -5.27,
+    1082.17
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3380.2,
+   "side": "right",
+   "centre": [
+    -0.22,
+    1090.4
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3381.4,
+   "side": "right",
+   "centre": [
+    -4.58,
+    1079.35
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3381.6,
+   "side": "right",
+   "centre": [
+    -1.05,
+    1085.88
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3383.2,
+   "side": "right",
+   "centre": [
+    -1.73,
+    1081.2
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3383.3,
+   "side": "right",
+   "centre": [
+    4.49,
+    1092.93
+   ]
   },
   {
    "kind": "toilets",
@@ -41664,12 +42632,202 @@
    ]
   },
   {
+   "kind": "tree",
+   "station_m": 3384.3,
+   "side": "right",
+   "centre": [
+    -1.57,
+    1079.16
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3385.0,
+   "side": "right",
+   "centre": [
+    4.34,
+    1089.01
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3385.7,
+   "side": "right",
+   "centre": [
+    3.41,
+    1085.46
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3386.6,
+   "side": "right",
+   "centre": [
+    2.41,
+    1081.58
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3388.2,
+   "side": "left",
+   "centre": [
+    45.98,
+    1162.41
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3388.2,
+   "side": "right",
+   "centre": [
+    2.47,
+    1078.18
+   ]
+  },
+  {
    "kind": "toilets",
    "station_m": 3389.5,
    "side": "right",
    "centre": [
     -40.16,
     992.56
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3389.8,
+   "side": "left",
+   "centre": [
+    41.03,
+    1149.37
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3398.3,
+   "side": "left",
+   "centre": [
+    71.61,
+    1192.13
+   ],
+   "name": "Leopard Tree (Libidibia ferrea)"
+  },
+  {
+   "kind": "tree",
+   "station_m": 3398.5,
+   "side": "left",
+   "centre": [
+    73.73,
+    1195.9
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3402.6,
+   "side": "left",
+   "centre": [
+    58.57,
+    1156.88
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3408.0,
+   "side": "left",
+   "centre": [
+    56.77,
+    1141.31
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3408.4,
+   "side": "left",
+   "centre": [
+    63.29,
+    1153.54
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3412.1,
+   "side": "left",
+   "centre": [
+    56.04,
+    1130.57
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3418.3,
+   "side": "left",
+   "centre": [
+    62.06,
+    1128.73
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3420.3,
+   "side": "left",
+   "centre": [
+    67.31,
+    1134.49
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3422.9,
+   "side": "left",
+   "centre": [
+    75.72,
+    1145.48
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3424.0,
+   "side": "left",
+   "centre": [
+    103.03,
+    1196.96
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3428.0,
+   "side": "left",
+   "centre": [
+    71.37,
+    1125.48
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3432.1,
+   "side": "left",
+   "centre": [
+    77.9,
+    1129.18
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3435.5,
+   "side": "left",
+   "centre": [
+    78.74,
+    1123.23
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3435.9,
+   "side": "left",
+   "centre": [
+    87.38,
+    1139.55
    ]
   },
   {
@@ -41683,6 +42841,96 @@
    "name": "Esplanade Forecourt Garden"
   },
   {
+   "kind": "tree",
+   "station_m": 3441.7,
+   "side": "left",
+   "centre": [
+    84.81,
+    1121.76
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3451.4,
+   "side": "left",
+   "centre": [
+    101.9,
+    1134.17
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3452.7,
+   "side": "left",
+   "centre": [
+    95.85,
+    1119.22
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3458.9,
+   "side": "left",
+   "centre": [
+    101.22,
+    1116.18
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3460.8,
+   "side": "left",
+   "centre": [
+    113.62,
+    1136.38
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3471.4,
+   "side": "left",
+   "centre": [
+    122.94,
+    1131.1
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3477.4,
+   "side": "left",
+   "centre": [
+    146.03,
+    1163.43
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3489.2,
+   "side": "left",
+   "centre": [
+    135.7,
+    1118.17
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3495.3,
+   "side": "left",
+   "centre": [
+    160.37,
+    1155.29
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3517.9,
+   "side": "left",
+   "centre": [
+    169.64,
+    1122.13
+   ]
+  },
+  {
    "kind": "artwork",
    "station_m": 3521.3,
    "side": "right",
@@ -41691,6 +42939,96 @@
     1034.06
    ],
    "name": "Piano Sidewalk"
+  },
+  {
+   "kind": "tree",
+   "station_m": 3526.1,
+   "side": "left",
+   "centre": [
+    180.01,
+    1124.75
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3526.8,
+   "side": "left",
+   "centre": [
+    173.95,
+    1110.94
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3536.7,
+   "side": "left",
+   "centre": [
+    188.08,
+    1121.91
+   ]
+  },
+  {
+   "kind": "station",
+   "station_m": 3555.8,
+   "side": "right",
+   "centre": [
+    164.79,
+    1016.85
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3563.6,
+   "side": "left",
+   "centre": [
+    192.88,
+    1080.87
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3566.4,
+   "side": "left",
+   "centre": [
+    200.06,
+    1092.38
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3574.8,
+   "side": "left",
+   "centre": [
+    203.94,
+    1065.33
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 3598.3,
+   "side": "left",
+   "centre": [
+    214.88,
+    1022.25
+   ]
+  },
+  {
+   "kind": "station",
+   "station_m": 3598.8,
+   "side": "left",
+   "centre": [
+    207.4,
+    1020.37
+   ]
+  },
+  {
+   "kind": "station",
+   "station_m": 3618.8,
+   "side": "left",
+   "centre": [
+    207.7,
+    993.78
+   ]
   },
   {
    "kind": "info",
@@ -41702,84 +43040,40 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 3680.0,
+   "kind": "tree",
+   "station_m": 3717.0,
    "side": "left",
    "centre": [
-    228.96,
-    880.74
-   ],
-   "name": "Subway"
+    136.95,
+    924.45
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3687.5,
+   "kind": "tree",
+   "station_m": 3734.7,
    "side": "left",
    "centre": [
-    210.19,
-    888.63
-   ],
-   "name": "Kith"
+    122.77,
+    913.62
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3707.3,
+   "kind": "tree",
+   "station_m": 3753.1,
    "side": "left",
    "centre": [
-    198.99,
-    870.97
-   ],
-   "name": "Bell's Crusine"
+    108.89,
+    901.56
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3713.4,
+   "kind": "tree",
+   "station_m": 3772.3,
    "side": "left",
    "centre": [
-    177.0,
-    886.16
-   ],
-   "name": "Redpan"
-  },
-  {
-   "kind": "food",
-   "station_m": 3727.4,
-   "side": "left",
-   "centre": [
-    161.83,
-    882.26
-   ],
-   "name": "Jia Xiang Sarawak Kolo Mee"
-  },
-  {
-   "kind": "food",
-   "station_m": 3764.7,
-   "side": "left",
-   "centre": [
-    173.72,
-    815.67
-   ],
-   "name": "Astons"
-  },
-  {
-   "kind": "food",
-   "station_m": 3774.6,
-   "side": "right",
-   "centre": [
-    56.55,
-    926.29
-   ],
-   "name": "The Coffee Bean & Tea Leaf"
-  },
-  {
-   "kind": "food",
-   "station_m": 3775.9,
-   "side": "right",
-   "centre": [
-    28.69,
-    954.15
-   ],
-   "name": "Chun Fun How"
+    95.87,
+    887.59
+   ]
   },
   {
    "kind": "toilets",
@@ -41791,124 +43085,85 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 3785.2,
-   "side": "right",
+   "kind": "signal",
+   "station_m": 3790.5,
+   "side": "left",
    "centre": [
-    45.5,
-    923.42
-   ],
-   "name": "Straits Chinese Signatures"
+    70.22,
+    888.37
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3791.1,
-   "side": "right",
+   "kind": "tree",
+   "station_m": 3793.6,
+   "side": "left",
    "centre": [
-    43.91,
-    917.08
-   ],
-   "name": "Subway"
+    77.87,
+    874.95
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3795.0,
+   "kind": "tree",
+   "station_m": 3815.0,
    "side": "right",
    "centre": [
-    32.3,
-    925.15
-   ],
-   "name": "Labyrinth"
+    -30.27,
+    957.93
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3803.6,
-   "side": "right",
+   "kind": "tree",
+   "station_m": 3815.9,
+   "side": "left",
    "centre": [
-    19.2,
-    927.93
-   ],
-   "name": "Foreword Coffee"
+    61.86,
+    859.97
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3804.4,
+   "kind": "tree",
+   "station_m": 3816.8,
    "side": "right",
    "centre": [
-    27.38,
-    917.02
-   ],
-   "name": "Old School Delights"
+    -55.66,
+    981.9
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3807.6,
+   "kind": "tree",
+   "station_m": 3818.3,
    "side": "right",
    "centre": [
-    -14.09,
-    959.35
-   ],
-   "name": "The Malayan Council"
+    -37.44,
+    960.61
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3808.1,
+   "kind": "tree",
+   "station_m": 3818.4,
    "side": "right",
    "centre": [
-    32.02,
-    905.45
-   ],
-   "name": "Toast Box"
+    -29.88,
+    952.62
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3814.1,
+   "kind": "tree",
+   "station_m": 3818.9,
    "side": "right",
    "centre": [
-    -41.39,
-    976.96
-   ],
-   "name": "No Signboard Seafood Restaurant"
+    -59.39,
+    973.83
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3815.1,
+   "kind": "tree",
+   "station_m": 3820.8,
    "side": "right",
    "centre": [
-    4.75,
-    921.27
-   ],
-   "name": "Harry's Esplanade"
-  },
-  {
-   "kind": "food",
-   "station_m": 3817.5,
-   "side": "right",
-   "centre": [
-    16.17,
-    905.8
-   ],
-   "name": "The ExciseMan"
-  },
-  {
-   "kind": "food",
-   "station_m": 3819.9,
-   "side": "right",
-   "centre": [
-    -54.58,
-    972.56
-   ],
-   "name": "Sweet Tooth"
-  },
-  {
-   "kind": "food",
-   "station_m": 3822.6,
-   "side": "right",
-   "centre": [
-    -5.2,
-    916.54
-   ],
-   "name": "Tomo Izakaya"
+    -55.67,
+    976.09
+   ]
   },
   {
    "kind": "toilets",
@@ -41920,44 +43175,103 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 3829.5,
-   "side": "right",
+   "kind": "tree",
+   "station_m": 3834.2,
+   "side": "left",
    "centre": [
-    11.74,
-    886.63
-   ],
-   "name": "The Boiler"
+    53.2,
+    847.45
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3833.4,
+   "kind": "tree",
+   "station_m": 3834.2,
    "side": "right",
    "centre": [
-    1.93,
-    888.17
-   ],
-   "name": "Noosh"
+    -35.55,
+    916.5
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3839.5,
+   "kind": "tree",
+   "station_m": 3834.4,
    "side": "right",
    "centre": [
-    -31.29,
-    898.44
-   ],
-   "name": "Alter Ego"
+    -36.99,
+    911.36
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3840.0,
+   "kind": "tree",
+   "station_m": 3836.8,
    "side": "right",
    "centre": [
-    -18.09,
-    891.15
-   ],
-   "name": "Aniplus"
+    -42.67,
+    912.4
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3839.7,
+   "side": "right",
+   "centre": [
+    -44.71,
+    907.1
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3843.8,
+   "side": "right",
+   "centre": [
+    -69.75,
+    909.18
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3845.5,
+   "side": "right",
+   "centre": [
+    -67.52,
+    908.92
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3845.8,
+   "side": "right",
+   "centre": [
+    -67.32,
+    905.49
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3849.0,
+   "side": "right",
+   "centre": [
+    -68.68,
+    902.65
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3849.9,
+   "side": "right",
+   "centre": [
+    -70.81,
+    902.81
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3850.6,
+   "side": "right",
+   "centre": [
+    -70.14,
+    898.73
+   ]
   },
   {
    "kind": "artwork",
@@ -41970,44 +43284,85 @@
    "name": "Makan Angin"
   },
   {
-   "kind": "food",
+   "kind": "tree",
+   "station_m": 3851.5,
+   "side": "left",
+   "centre": [
+    43.37,
+    836.42
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3852.3,
+   "side": "right",
+   "centre": [
+    -69.81,
+    894.11
+   ]
+  },
+  {
+   "kind": "tree",
    "station_m": 3854.1,
    "side": "right",
    "centre": [
-    -36.59,
-    874.84
-   ],
-   "name": "Muro"
+    -74.16,
+    891.74
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3854.9,
+   "kind": "tree",
+   "station_m": 3854.7,
    "side": "right",
    "centre": [
-    -42.89,
-    877.2
-   ],
-   "name": "Gloria Jean's"
+    -70.78,
+    887.24
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3855.3,
+   "kind": "tree",
+   "station_m": 3857.6,
    "side": "right",
    "centre": [
-    -76.33,
-    889.16
-   ],
-   "name": "The Berry Spot"
+    -63.08,
+    880.48
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3860.2,
-   "side": "left",
+   "kind": "tree",
+   "station_m": 3860.1,
+   "side": "right",
    "centre": [
-    122.65,
-    792.14
-   ],
-   "name": "Sofra"
+    -71.94,
+    881.86
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3862.9,
+   "side": "right",
+   "centre": [
+    -75.72,
+    876.46
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3864.8,
+   "side": "right",
+   "centre": [
+    -64.85,
+    869.75
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3866.0,
+   "side": "right",
+   "centre": [
+    -73.29,
+    870.23
+   ]
   },
   {
    "kind": "artwork",
@@ -42020,44 +43375,40 @@
    "name": "SG Marina Square"
   },
   {
-   "kind": "food",
-   "station_m": 3875.1,
+   "kind": "tree",
+   "station_m": 3869.7,
    "side": "right",
    "centre": [
-    -22.86,
-    836.67
-   ],
-   "name": "Do Rae Mee"
+    -74.31,
+    864.84
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3875.9,
+   "kind": "tree",
+   "station_m": 3870.0,
    "side": "right",
    "centre": [
-    -25.81,
-    836.88
-   ],
-   "name": "Saporita"
+    -77.26,
+    862.28
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3876.0,
+   "kind": "tree",
+   "station_m": 3870.7,
    "side": "right",
    "centre": [
-    -28.56,
-    837.62
-   ],
-   "name": "Balestier Bak Kut Teh"
+    -66.97,
+    857.83
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3877.0,
+   "kind": "tree",
+   "station_m": 3872.8,
    "side": "right",
    "centre": [
-    -75.46,
-    851.12
-   ],
-   "name": "Tank By The Bay"
+    -76.11,
+    858.82
+   ]
   },
   {
    "kind": "toilets",
@@ -42069,44 +43420,139 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 3914.7,
-   "side": "left",
+   "kind": "tree",
+   "station_m": 3879.0,
+   "side": "right",
    "centre": [
-    126.79,
-    763.65
-   ],
-   "name": "Gu Thai Noodle Cafe"
+    -79.88,
+    850.4
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3915.4,
-   "side": "left",
+   "kind": "tree",
+   "station_m": 3884.1,
+   "side": "right",
    "centre": [
-    110.31,
-    765.79
-   ],
-   "name": "Tenkaichi Japanese BBQ @Marina Square"
+    -78.46,
+    841.65
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3926.5,
-   "side": "left",
+   "kind": "tree",
+   "station_m": 3900.4,
+   "side": "right",
    "centre": [
-    106.39,
-    755.74
-   ],
-   "name": "Kai Garden"
+    -82.93,
+    817.81
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 3928.3,
+   "kind": "tree",
+   "station_m": 3905.5,
+   "side": "right",
+   "centre": [
+    -84.21,
+    811.25
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3910.0,
+   "side": "right",
+   "centre": [
+    -84.57,
+    805.5
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3912.3,
+   "side": "right",
+   "centre": [
+    -88.94,
+    803.42
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3914.4,
+   "side": "right",
+   "centre": [
+    -85.59,
+    800.25
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3922.6,
+   "side": "right",
+   "centre": [
+    -88.01,
+    791.84
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3925.2,
+   "side": "right",
+   "centre": [
+    -91.24,
+    789.74
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3929.2,
+   "side": "right",
+   "centre": [
+    -88.48,
+    785.08
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 3983.2,
+   "side": "right",
+   "centre": [
+    -72.88,
+    728.16
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 4054.7,
+   "side": "right",
+   "centre": [
+    -12.31,
+    645.41
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4138.2,
    "side": "left",
    "centre": [
-    125.75,
-    750.65
-   ],
-   "name": "Beyond Pancakes"
+    51.99,
+    550.25
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4177.5,
+   "side": "left",
+   "centre": [
+    18.05,
+    515.28
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4236.1,
+   "side": "left",
+   "centre": [
+    -29.32,
+    464.28
+   ]
   },
   {
    "kind": "artwork",
@@ -42129,6 +43575,24 @@
    "name": "O scale the highest mountain in the world"
   },
   {
+   "kind": "tree",
+   "station_m": 4276.7,
+   "side": "left",
+   "centre": [
+    -36.95,
+    424.29
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4285.0,
+   "side": "left",
+   "centre": [
+    12.15,
+    407.19
+   ]
+  },
+  {
    "kind": "artwork",
    "station_m": 4288.2,
    "side": "right",
@@ -42137,6 +43601,105 @@
     420.61
    ],
    "name": "YOG"
+  },
+  {
+   "kind": "signal",
+   "station_m": 4307.7,
+   "side": "right",
+   "centre": [
+    -54.71,
+    395.96
+   ]
+  },
+  {
+   "kind": "signal",
+   "station_m": 4319.9,
+   "side": "right",
+   "centre": [
+    -56.75,
+    383.97
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4327.4,
+   "side": "left",
+   "centre": [
+    10.58,
+    355.18
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4330.1,
+   "side": "left",
+   "centre": [
+    -24.52,
+    359.24
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4400.9,
+   "side": "right",
+   "centre": [
+    -135.88,
+    429.44
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4414.6,
+   "side": "right",
+   "centre": [
+    -150.3,
+    366.48
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4481.0,
+   "side": "left",
+   "centre": [
+    -97.75,
+    273.54
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4482.9,
+   "side": "left",
+   "centre": [
+    -137.2,
+    280.73
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4510.2,
+   "side": "left",
+   "centre": [
+    -96.44,
+    244.09
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4516.1,
+   "side": "left",
+   "centre": [
+    -69.07,
+    232.03
+   ]
+  },
+  {
+   "kind": "tree",
+   "station_m": 4530.4,
+   "side": "left",
+   "centre": [
+    -55.42,
+    214.24
+   ]
   },
   {
    "kind": "toilets",
@@ -42148,34 +43711,22 @@
    ]
   },
   {
-   "kind": "food",
-   "station_m": 4592.5,
-   "side": "left",
+   "kind": "tree",
+   "station_m": 4859.7,
+   "side": "right",
    "centre": [
-    -134.69,
-    171.0
-   ],
-   "name": "Seafood Paradise"
+    -61.49,
+    -57.61
+   ]
   },
   {
-   "kind": "food",
-   "station_m": 4632.2,
-   "side": "left",
+   "kind": "tree",
+   "station_m": 4899.3,
+   "side": "right",
    "centre": [
-    -137.3,
-    130.97
-   ],
-   "name": "Royal Palm"
-  },
-  {
-   "kind": "food",
-   "station_m": 4729.5,
-   "side": "left",
-   "centre": [
-    -151.37,
-    79.38
-   ],
-   "name": "Urban Beach Bar"
+    -21.46,
+    -54.43
+   ]
   }
  ],
  "unclassified": {
@@ -42207,5 +43758,2787 @@
   "landuse=garages": 1,
   "leisure=outdoor_seating": 1,
   "tourism=hotel": 1
- }
+ },
+ "water": [
+  {
+   "name": "Kingfisher Lake",
+   "rings": [
+    [
+     [
+      -1087.9,
+      -79.1
+     ],
+     [
+      -1087.6,
+      -165.9
+     ],
+     [
+      -1075.0,
+      -172.1
+     ],
+     [
+      -1052.4,
+      -175.7
+     ],
+     [
+      -993.9,
+      -177.3
+     ],
+     [
+      -984.1,
+      -181.6
+     ],
+     [
+      -961.0,
+      -239.3
+     ],
+     [
+      -957.8,
+      -240.9
+     ],
+     [
+      -935.7,
+      -229.9
+     ],
+     [
+      -931.4,
+      -231.4
+     ],
+     [
+      -923.8,
+      -257.5
+     ],
+     [
+      -914.5,
+      -264.0
+     ],
+     [
+      -900.0,
+      -268.3
+     ],
+     [
+      -893.5,
+      -274.9
+     ],
+     [
+      -885.2,
+      -292.5
+     ],
+     [
+      -871.1,
+      -295.7
+     ],
+     [
+      -855.0,
+      -304.6
+     ],
+     [
+      -829.8,
+      -325.5
+     ],
+     [
+      -827.8,
+      -311.4
+     ],
+     [
+      -864.2,
+      -283.4
+     ],
+     [
+      -849.6,
+      -272.1
+     ],
+     [
+      -838.0,
+      -282.9
+     ],
+     [
+      -832.6,
+      -282.5
+     ],
+     [
+      -806.6,
+      -250.8
+     ],
+     [
+      -821.6,
+      -231.5
+     ],
+     [
+      -833.5,
+      -229.3
+     ],
+     [
+      -842.1,
+      -260.7
+     ],
+     [
+      -868.7,
+      -278.6
+     ],
+     [
+      -890.8,
+      -257.4
+     ],
+     [
+      -921.6,
+      -220.0
+     ],
+     [
+      -924.3,
+      -213.5
+     ],
+     [
+      -917.2,
+      -195.2
+     ],
+     [
+      -921.2,
+      -191.9
+     ],
+     [
+      -928.2,
+      -207.1
+     ],
+     [
+      -936.6,
+      -213.9
+     ],
+     [
+      -956.1,
+      -217.1
+     ],
+     [
+      -972.4,
+      -186.0
+     ],
+     [
+      -988.2,
+      -171.6
+     ],
+     [
+      -1068.6,
+      -169.0
+     ],
+     [
+      -1080.9,
+      -158.9
+     ],
+     [
+      -1082.9,
+      -150.0
+     ],
+     [
+      -1083.4,
+      -78.9
+     ],
+     [
+      -1087.9,
+      -79.1
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "Dragonfly Lake",
+   "rings": [
+    [
+     [
+      -841.5,
+      295.2
+     ],
+     [
+      -809.7,
+      280.9
+     ],
+     [
+      -783.6,
+      253.0
+     ],
+     [
+      -769.5,
+      222.3
+     ],
+     [
+      -758.6,
+      175.9
+     ],
+     [
+      -754.2,
+      176.7
+     ],
+     [
+      -754.0,
+      149.9
+     ],
+     [
+      -750.2,
+      149.2
+     ],
+     [
+      -747.9,
+      155.5
+     ],
+     [
+      -738.6,
+      150.9
+     ],
+     [
+      -729.9,
+      161.8
+     ],
+     [
+      -726.5,
+      157.6
+     ],
+     [
+      -675.4,
+      219.2
+     ],
+     [
+      -652.9,
+      233.8
+     ],
+     [
+      -638.1,
+      236.6
+     ],
+     [
+      -510.4,
+      218.2
+     ],
+     [
+      -504.6,
+      230.0
+     ],
+     [
+      -630.7,
+      249.7
+     ],
+     [
+      -629.0,
+      257.0
+     ],
+     [
+      -732.5,
+      284.1
+     ],
+     [
+      -853.0,
+      326.7
+     ],
+     [
+      -983.2,
+      395.8
+     ],
+     [
+      -1044.2,
+      433.6
+     ],
+     [
+      -1230.1,
+      572.6
+     ],
+     [
+      -1350.3,
+      671.3
+     ],
+     [
+      -1355.9,
+      664.6
+     ],
+     [
+      -1353.1,
+      652.4
+     ],
+     [
+      -1374.3,
+      652.9
+     ],
+     [
+      -1382.9,
+      642.4
+     ],
+     [
+      -1376.3,
+      637.2
+     ],
+     [
+      -1370.5,
+      644.1
+     ],
+     [
+      -1349.4,
+      644.1
+     ],
+     [
+      -1332.4,
+      632.3
+     ],
+     [
+      -1300.3,
+      625.7
+     ],
+     [
+      -1281.7,
+      592.8
+     ],
+     [
+      -1239.0,
+      575.3
+     ],
+     [
+      -1210.7,
+      519.1
+     ],
+     [
+      -1169.7,
+      514.2
+     ],
+     [
+      -1156.0,
+      506.5
+     ],
+     [
+      -1138.3,
+      487.9
+     ],
+     [
+      -1127.8,
+      467.4
+     ],
+     [
+      -1126.6,
+      451.0
+     ],
+     [
+      -1137.4,
+      442.5
+     ],
+     [
+      -1164.1,
+      445.4
+     ],
+     [
+      -1187.4,
+      440.4
+     ],
+     [
+      -1185.4,
+      435.0
+     ],
+     [
+      -1164.4,
+      438.7
+     ],
+     [
+      -1146.8,
+      435.5
+     ],
+     [
+      -1131.3,
+      416.6
+     ],
+     [
+      -1130.1,
+      402.4
+     ],
+     [
+      -1124.3,
+      403.2
+     ],
+     [
+      -1123.9,
+      440.0
+     ],
+     [
+      -1121.7,
+      446.1
+     ],
+     [
+      -1113.1,
+      448.3
+     ],
+     [
+      -1078.9,
+      436.8
+     ],
+     [
+      -1033.6,
+      406.0
+     ],
+     [
+      -1003.9,
+      369.5
+     ],
+     [
+      -1005.5,
+      361.5
+     ],
+     [
+      -1016.6,
+      357.1
+     ],
+     [
+      -1046.4,
+      356.7
+     ],
+     [
+      -1049.5,
+      345.2
+     ],
+     [
+      -1002.0,
+      342.3
+     ],
+     [
+      -965.4,
+      332.0
+     ],
+     [
+      -946.0,
+      316.3
+     ],
+     [
+      -930.5,
+      285.4
+     ],
+     [
+      -925.0,
+      284.5
+     ],
+     [
+      -920.2,
+      239.6
+     ],
+     [
+      -906.1,
+      243.1
+     ],
+     [
+      -909.6,
+      303.6
+     ],
+     [
+      -841.5,
+      295.2
+     ]
+    ],
+    [
+     [
+      -950.3,
+      344.9
+     ],
+     [
+      -952.1,
+      351.7
+     ],
+     [
+      -957.5,
+      353.3
+     ],
+     [
+      -966.6,
+      345.9
+     ],
+     [
+      -955.0,
+      335.5
+     ],
+     [
+      -950.3,
+      344.9
+     ]
+    ],
+    [
+     [
+      -762.0,
+      257.3
+     ],
+     [
+      -748.7,
+      237.0
+     ],
+     [
+      -741.9,
+      235.7
+     ],
+     [
+      -724.5,
+      248.7
+     ],
+     [
+      -726.8,
+      255.6
+     ],
+     [
+      -753.2,
+      268.1
+     ],
+     [
+      -761.8,
+      264.1
+     ],
+     [
+      -762.0,
+      257.3
+     ]
+    ]
+   ]
+  },
+  {
+   "rings": [
+    [
+     [
+      -839.0,
+      -72.4
+     ],
+     [
+      -862.6,
+      -70.3
+     ],
+     [
+      -879.9,
+      -90.4
+     ],
+     [
+      -876.8,
+      -95.8
+     ],
+     [
+      -861.5,
+      -90.2
+     ],
+     [
+      -840.4,
+      -89.7
+     ],
+     [
+      -870.8,
+      -87.3
+     ],
+     [
+      -861.5,
+      -74.2
+     ],
+     [
+      -841.2,
+      -75.1
+     ],
+     [
+      -837.7,
+      -74.4
+     ],
+     [
+      -839.0,
+      -72.4
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "Rain Oculus",
+   "rings": [
+    [
+     [
+      -639.4,
+      708.5
+     ],
+     [
+      -642.6,
+      701.0
+     ],
+     [
+      -651.1,
+      697.8
+     ],
+     [
+      -659.2,
+      701.8
+     ],
+     [
+      -661.7,
+      709.6
+     ],
+     [
+      -658.3,
+      716.9
+     ],
+     [
+      -650.0,
+      720.1
+     ],
+     [
+      -642.0,
+      716.1
+     ],
+     [
+      -639.4,
+      708.5
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "Marina Reservoir",
+   "rings": [
+    [
+     [
+      -553.8,
+      684.4
+     ],
+     [
+      -595.1,
+      746.6
+     ],
+     [
+      -635.8,
+      771.3
+     ],
+     [
+      -674.9,
+      781.2
+     ],
+     [
+      -738.4,
+      835.3
+     ],
+     [
+      -771.3,
+      886.0
+     ],
+     [
+      -799.0,
+      912.3
+     ],
+     [
+      -805.6,
+      926.3
+     ],
+     [
+      -805.0,
+      938.1
+     ],
+     [
+      -810.0,
+      942.2
+     ],
+     [
+      -813.2,
+      938.3
+     ],
+     [
+      -834.8,
+      955.8
+     ],
+     [
+      -829.6,
+      942.2
+     ],
+     [
+      -831.8,
+      932.9
+     ],
+     [
+      -842.0,
+      927.9
+     ],
+     [
+      -855.3,
+      931.6
+     ],
+     [
+      -888.6,
+      966.4
+     ],
+     [
+      -938.2,
+      1008.0
+     ],
+     [
+      -968.5,
+      1025.5
+     ],
+     [
+      -977.3,
+      1035.6
+     ],
+     [
+      -970.1,
+      1043.9
+     ],
+     [
+      -985.1,
+      1042.7
+     ],
+     [
+      -985.3,
+      1046.9
+     ],
+     [
+      -999.0,
+      1047.7
+     ],
+     [
+      -1023.3,
+      1079.9
+     ],
+     [
+      -926.5,
+      1197.7
+     ],
+     [
+      -881.8,
+      1161.2
+     ],
+     [
+      -866.9,
+      1179.6
+     ],
+     [
+      -790.0,
+      1187.8
+     ],
+     [
+      -796.2,
+      1264.4
+     ],
+     [
+      -781.0,
+      1282.6
+     ],
+     [
+      -825.5,
+      1319.5
+     ],
+     [
+      -786.7,
+      1368.9
+     ],
+     [
+      -769.0,
+      1348.2
+     ],
+     [
+      -780.2,
+      1339.6
+     ],
+     [
+      -744.5,
+      1336.4
+     ],
+     [
+      -755.8,
+      1269.2
+     ],
+     [
+      -697.4,
+      1259.3
+     ],
+     [
+      -693.2,
+      1284.0
+     ],
+     [
+      -724.0,
+      1289.2
+     ],
+     [
+      -719.6,
+      1315.7
+     ],
+     [
+      -684.3,
+      1309.7
+     ],
+     [
+      -692.9,
+      1258.6
+     ],
+     [
+      -644.1,
+      1250.1
+     ],
+     [
+      -637.5,
+      1287.1
+     ],
+     [
+      -600.6,
+      1280.2
+     ],
+     [
+      -605.7,
+      1249.2
+     ],
+     [
+      -611.8,
+      1250.2
+     ],
+     [
+      -614.0,
+      1239.3
+     ],
+     [
+      -565.9,
+      1231.3
+     ],
+     [
+      -556.5,
+      1280.1
+     ],
+     [
+      -543.8,
+      1280.1
+     ],
+     [
+      -544.6,
+      1273.2
+     ],
+     [
+      -532.8,
+      1271.5
+     ],
+     [
+      -532.9,
+      1266.7
+     ],
+     [
+      -513.2,
+      1263.4
+     ],
+     [
+      -512.4,
+      1267.9
+     ],
+     [
+      -508.0,
+      1267.1
+     ],
+     [
+      -509.6,
+      1255.5
+     ],
+     [
+      -494.2,
+      1251.8
+     ],
+     [
+      -492.1,
+      1263.1
+     ],
+     [
+      -482.6,
+      1261.7
+     ],
+     [
+      -482.9,
+      1257.4
+     ],
+     [
+      -475.4,
+      1255.9
+     ],
+     [
+      -475.2,
+      1221.0
+     ],
+     [
+      -326.1,
+      1147.7
+     ],
+     [
+      -331.6,
+      1143.3
+     ],
+     [
+      -301.1,
+      1123.6
+     ],
+     [
+      -293.1,
+      1131.5
+     ],
+     [
+      -260.9,
+      1131.2
+     ],
+     [
+      -259.1,
+      1120.7
+     ],
+     [
+      -274.6,
+      1106.9
+     ],
+     [
+      -267.8,
+      1098.3
+     ],
+     [
+      -250.2,
+      1113.6
+     ],
+     [
+      -265.0,
+      1177.5
+     ],
+     [
+      -44.6,
+      1114.8
+     ],
+     [
+      -51.7,
+      1097.6
+     ],
+     [
+      -53.6,
+      1053.6
+     ],
+     [
+      -65.7,
+      974.2
+     ],
+     [
+      -73.7,
+      969.5
+     ],
+     [
+      -77.2,
+      972.8
+     ],
+     [
+      -84.8,
+      965.5
+     ],
+     [
+      -93.7,
+      943.9
+     ],
+     [
+      -90.5,
+      921.7
+     ],
+     [
+      -76.6,
+      909.8
+     ],
+     [
+      -95.2,
+      799.9
+     ],
+     [
+      -108.7,
+      784.2
+     ],
+     [
+      -154.3,
+      767.5
+     ],
+     [
+      -206.3,
+      739.1
+     ],
+     [
+      -233.8,
+      704.5
+     ],
+     [
+      -242.7,
+      652.2
+     ],
+     [
+      -253.2,
+      496.5
+     ],
+     [
+      -146.7,
+      477.7
+     ],
+     [
+      -213.4,
+      79.7
+     ],
+     [
+      -216.5,
+      36.4
+     ],
+     [
+      -187.0,
+      -21.0
+     ],
+     [
+      -139.8,
+      -54.3
+     ],
+     [
+      -74.0,
+      -66.4
+     ],
+     [
+      478.9,
+      -57.7
+     ],
+     [
+      568.8,
+      -49.1
+     ],
+     [
+      625.9,
+      -64.3
+     ],
+     [
+      641.7,
+      -45.7
+     ],
+     [
+      645.2,
+      -48.5
+     ],
+     [
+      630.3,
+      -67.8
+     ],
+     [
+      670.0,
+      -76.2
+     ],
+     [
+      675.5,
+      -43.2
+     ],
+     [
+      692.0,
+      -42.5
+     ],
+     [
+      790.4,
+      -62.6
+     ],
+     [
+      891.6,
+      -110.3
+     ],
+     [
+      972.2,
+      -175.3
+     ],
+     [
+      1023.5,
+      -240.7
+     ],
+     [
+      1098.5,
+      -368.5
+     ],
+     [
+      1126.3,
+      -402.5
+     ],
+     [
+      1112.6,
+      -413.8
+     ],
+     [
+      1116.7,
+      -418.8
+     ],
+     [
+      1130.4,
+      -407.4
+     ],
+     [
+      1161.6,
+      -440.8
+     ],
+     [
+      1163.2,
+      -483.6
+     ],
+     [
+      1204.0,
+      -513.2
+     ],
+     [
+      1212.7,
+      -512.0
+     ],
+     [
+      1219.3,
+      -501.9
+     ],
+     [
+      1235.8,
+      -500.2
+     ],
+     [
+      1291.2,
+      -520.5
+     ],
+     [
+      1355.0,
+      -522.8
+     ],
+     [
+      1368.1,
+      -592.1
+     ],
+     [
+      1314.1,
+      -587.0
+     ],
+     [
+      1313.5,
+      -593.4
+     ],
+     [
+      1378.8,
+      -599.3
+     ],
+     [
+      1481.2,
+      -549.2
+     ],
+     [
+      1494.0,
+      -529.2
+     ],
+     [
+      1489.5,
+      -527.0
+     ],
+     [
+      1480.5,
+      -541.9
+     ],
+     [
+      1472.9,
+      -513.9
+     ],
+     [
+      1501.1,
+      -446.1
+     ],
+     [
+      1584.5,
+      -389.1
+     ],
+     [
+      1598.0,
+      -396.8
+     ],
+     [
+      1630.0,
+      -442.3
+     ],
+     [
+      1633.9,
+      -444.6
+     ],
+     [
+      1639.0,
+      -437.1
+     ],
+     [
+      1628.5,
+      -471.9
+     ],
+     [
+      1613.8,
+      -472.4
+     ],
+     [
+      1605.9,
+      -490.9
+     ],
+     [
+      1623.4,
+      -543.3
+     ],
+     [
+      1761.1,
+      -655.4
+     ],
+     [
+      1881.6,
+      -801.2
+     ],
+     [
+      1916.5,
+      -816.9
+     ],
+     [
+      1921.4,
+      -830.7
+     ],
+     [
+      2088.7,
+      -826.8
+     ],
+     [
+      2145.5,
+      -881.1
+     ],
+     [
+      2170.4,
+      -878.3
+     ],
+     [
+      2196.9,
+      -951.7
+     ],
+     [
+      2161.0,
+      -970.2
+     ],
+     [
+      2137.0,
+      -968.0
+     ],
+     [
+      2081.4,
+      -925.4
+     ],
+     [
+      2048.4,
+      -916.9
+     ],
+     [
+      1950.0,
+      -923.2
+     ],
+     [
+      1927.0,
+      -932.9
+     ],
+     [
+      1837.3,
+      -921.7
+     ],
+     [
+      1793.3,
+      -901.1
+     ],
+     [
+      1738.3,
+      -838.0
+     ],
+     [
+      1736.3,
+      -820.0
+     ],
+     [
+      1689.4,
+      -770.1
+     ],
+     [
+      1689.1,
+      -757.1
+     ],
+     [
+      1666.5,
+      -749.0
+     ],
+     [
+      1603.5,
+      -699.6
+     ],
+     [
+      1592.4,
+      -688.7
+     ],
+     [
+      1597.7,
+      -686.8
+     ],
+     [
+      1596.6,
+      -681.8
+     ],
+     [
+      1552.1,
+      -693.6
+     ],
+     [
+      1454.5,
+      -742.5
+     ],
+     [
+      1451.5,
+      -895.2
+     ],
+     [
+      1409.0,
+      -1023.4
+     ],
+     [
+      1386.0,
+      -1020.9
+     ],
+     [
+      1369.0,
+      -1009.8
+     ],
+     [
+      1267.1,
+      -1004.7
+     ],
+     [
+      1177.8,
+      -1013.0
+     ],
+     [
+      1079.0,
+      -1041.8
+     ],
+     [
+      977.0,
+      -1100.3
+     ],
+     [
+      946.2,
+      -1127.1
+     ],
+     [
+      902.4,
+      -1178.2
+     ],
+     [
+      811.3,
+      -1102.8
+     ],
+     [
+      845.4,
+      -1062.7
+     ],
+     [
+      848.1,
+      -1050.0
+     ],
+     [
+      837.5,
+      -1041.1
+     ],
+     [
+      826.8,
+      -1044.8
+     ],
+     [
+      825.3,
+      -1058.7
+     ],
+     [
+      831.4,
+      -1064.2
+     ],
+     [
+      800.6,
+      -1097.4
+     ],
+     [
+      781.8,
+      -1091.5
+     ],
+     [
+      778.7,
+      -1002.6
+     ],
+     [
+      872.4,
+      -972.0
+     ],
+     [
+      885.7,
+      -865.0
+     ],
+     [
+      848.4,
+      -877.5
+     ],
+     [
+      841.9,
+      -919.4
+     ],
+     [
+      810.7,
+      -928.9
+     ],
+     [
+      781.5,
+      -794.8
+     ],
+     [
+      777.3,
+      -683.2
+     ],
+     [
+      802.0,
+      -448.7
+     ],
+     [
+      831.3,
+      -451.7
+     ],
+     [
+      857.5,
+      -420.7
+     ],
+     [
+      867.1,
+      -382.5
+     ],
+     [
+      859.9,
+      -345.8
+     ],
+     [
+      846.9,
+      -324.0
+     ],
+     [
+      830.2,
+      -308.1
+     ],
+     [
+      766.9,
+      -281.0
+     ],
+     [
+      669.0,
+      -257.6
+     ],
+     [
+      571.2,
+      -253.0
+     ],
+     [
+      374.7,
+      -271.6
+     ],
+     [
+      231.9,
+      -295.1
+     ],
+     [
+      60.6,
+      -334.5
+     ],
+     [
+      -199.1,
+      -419.8
+     ],
+     [
+      -331.9,
+      -476.2
+     ],
+     [
+      -457.4,
+      -536.0
+     ],
+     [
+      -598.1,
+      -612.9
+     ],
+     [
+      -789.4,
+      -738.5
+     ],
+     [
+      -939.7,
+      -852.6
+     ],
+     [
+      -1032.8,
+      -931.2
+     ],
+     [
+      -1188.3,
+      -661.0
+     ],
+     [
+      -1172.8,
+      -652.4
+     ],
+     [
+      -1174.7,
+      -647.9
+     ],
+     [
+      -1049.1,
+      -580.7
+     ],
+     [
+      -1064.2,
+      -555.8
+     ],
+     [
+      -972.2,
+      -475.5
+     ],
+     [
+      -983.3,
+      -465.8
+     ],
+     [
+      -971.6,
+      -452.7
+     ],
+     [
+      -962.6,
+      -462.4
+     ],
+     [
+      -829.8,
+      -325.5
+     ],
+     [
+      -823.6,
+      -303.6
+     ],
+     [
+      -792.0,
+      -272.5
+     ],
+     [
+      -748.1,
+      -215.1
+     ],
+     [
+      -610.0,
+      -22.7
+     ],
+     [
+      -576.1,
+      43.1
+     ],
+     [
+      -510.4,
+      218.2
+     ],
+     [
+      -486.4,
+      253.3
+     ],
+     [
+      -448.3,
+      336.7
+     ],
+     [
+      -422.1,
+      414.0
+     ],
+     [
+      -379.5,
+      510.4
+     ],
+     [
+      -370.8,
+      506.5
+     ],
+     [
+      -353.0,
+      544.5
+     ],
+     [
+      -357.2,
+      546.4
+     ],
+     [
+      -341.8,
+      583.4
+     ],
+     [
+      -342.1,
+      613.3
+     ],
+     [
+      -352.2,
+      640.8
+     ],
+     [
+      -370.2,
+      662.5
+     ],
+     [
+      -410.5,
+      681.2
+     ],
+     [
+      -441.2,
+      681.3
+     ],
+     [
+      -475.8,
+      665.5
+     ],
+     [
+      -491.7,
+      664.1
+     ],
+     [
+      -553.8,
+      684.4
+     ]
+    ]
+   ]
+  },
+  {
+   "rings": [
+    [
+     [
+      -412.5,
+      641.8
+     ],
+     [
+      -420.6,
+      641.8
+     ],
+     [
+      -429.9,
+      631.2
+     ],
+     [
+      -409.3,
+      588.8
+     ],
+     [
+      -421.4,
+      580.0
+     ],
+     [
+      -426.6,
+      592.3
+     ],
+     [
+      -459.7,
+      635.2
+     ],
+     [
+      -470.7,
+      641.2
+     ],
+     [
+      -452.1,
+      656.2
+     ],
+     [
+      -444.8,
+      659.3
+     ],
+     [
+      -443.6,
+      655.8
+     ],
+     [
+      -437.1,
+      656.7
+     ],
+     [
+      -442.1,
+      660.7
+     ],
+     [
+      -427.9,
+      662.9
+     ],
+     [
+      -399.1,
+      657.4
+     ],
+     [
+      -390.2,
+      649.6
+     ],
+     [
+      -405.5,
+      637.4
+     ],
+     [
+      -412.5,
+      641.8
+     ]
+    ]
+   ]
+  },
+  {
+   "rings": [
+    [
+     [
+      -389.8,
+      581.8
+     ],
+     [
+      -390.4,
+      570.4
+     ],
+     [
+      -404.8,
+      573.6
+     ],
+     [
+      -409.7,
+      575.4
+     ],
+     [
+      -410.1,
+      587.6
+     ],
+     [
+      -398.5,
+      591.4
+     ],
+     [
+      -389.8,
+      581.8
+     ]
+    ]
+   ]
+  },
+  {
+   "rings": [
+    [
+     [
+      -368.0,
+      615.6
+     ],
+     [
+      -376.3,
+      617.9
+     ],
+     [
+      -375.5,
+      620.0
+     ],
+     [
+      -368.5,
+      618.4
+     ],
+     [
+      -371.6,
+      627.9
+     ],
+     [
+      -385.7,
+      647.8
+     ],
+     [
+      -402.6,
+      632.9
+     ],
+     [
+      -402.4,
+      625.5
+     ],
+     [
+      -385.9,
+      619.0
+     ],
+     [
+      -376.6,
+      621.6
+     ],
+     [
+      -385.5,
+      602.6
+     ],
+     [
+      -378.2,
+      588.5
+     ],
+     [
+      -375.7,
+      589.4
+     ],
+     [
+      -377.9,
+      572.4
+     ],
+     [
+      -374.3,
+      573.1
+     ],
+     [
+      -367.0,
+      593.0
+     ],
+     [
+      -368.0,
+      615.6
+     ]
+    ]
+   ]
+  },
+  {
+   "rings": [
+    [
+     [
+      -140.5,
+      -480.9
+     ],
+     [
+      -148.1,
+      -476.4
+     ],
+     [
+      -150.8,
+      -466.8
+     ],
+     [
+      -158.4,
+      -464.9
+     ],
+     [
+      -164.8,
+      -458.0
+     ],
+     [
+      -172.8,
+      -458.0
+     ],
+     [
+      -178.6,
+      -463.4
+     ],
+     [
+      -186.2,
+      -462.8
+     ],
+     [
+      -209.5,
+      -472.8
+     ],
+     [
+      -209.8,
+      -476.6
+     ],
+     [
+      -204.5,
+      -480.0
+     ],
+     [
+      -191.2,
+      -471.7
+     ],
+     [
+      -181.8,
+      -472.5
+     ],
+     [
+      -171.9,
+      -467.5
+     ],
+     [
+      -166.4,
+      -468.9
+     ],
+     [
+      -163.8,
+      -479.1
+     ],
+     [
+      -152.6,
+      -479.5
+     ],
+     [
+      -144.7,
+      -490.1
+     ],
+     [
+      -140.8,
+      -489.2
+     ],
+     [
+      -140.5,
+      -480.9
+     ]
+    ]
+   ]
+  },
+  {
+   "rings": [
+    [
+     [
+      131.6,
+      -639.6
+     ],
+     [
+      129.0,
+      -661.2
+     ],
+     [
+      133.1,
+      -681.1
+     ],
+     [
+      130.9,
+      -689.3
+     ],
+     [
+      125.1,
+      -696.9
+     ],
+     [
+      77.7,
+      -711.4
+     ],
+     [
+      73.6,
+      -716.7
+     ],
+     [
+      128.6,
+      -698.7
+     ],
+     [
+      134.3,
+      -692.9
+     ],
+     [
+      136.7,
+      -683.0
+     ],
+     [
+      132.3,
+      -660.5
+     ],
+     [
+      134.9,
+      -638.5
+     ],
+     [
+      131.6,
+      -639.6
+     ]
+    ]
+   ]
+  },
+  {
+   "rings": [
+    [
+     [
+      185.6,
+      -592.4
+     ],
+     [
+      128.8,
+      -588.3
+     ],
+     [
+      112.2,
+      -594.4
+     ],
+     [
+      102.0,
+      -601.6
+     ],
+     [
+      97.9,
+      -613.8
+     ],
+     [
+      98.9,
+      -625.2
+     ],
+     [
+      104.7,
+      -631.1
+     ],
+     [
+      181.7,
+      -640.4
+     ],
+     [
+      187.8,
+      -637.4
+     ],
+     [
+      192.3,
+      -630.5
+     ],
+     [
+      195.0,
+      -606.5
+     ],
+     [
+      191.8,
+      -596.5
+     ],
+     [
+      185.6,
+      -592.4
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "Singapore River",
+   "rings": [
+    [
+     [
+      362.1,
+      3195.1
+     ],
+     [
+      387.1,
+      3193.5
+     ],
+     [
+      468.9,
+      3151.8
+     ],
+     [
+      502.8,
+      3143.8
+     ],
+     [
+      562.3,
+      3158.8
+     ],
+     [
+      575.1,
+      3167.0
+     ],
+     [
+      584.7,
+      3176.3
+     ],
+     [
+      586.6,
+      3194.9
+     ],
+     [
+      591.4,
+      3363.1
+     ],
+     [
+      598.3,
+      3378.9
+     ],
+     [
+      614.7,
+      3385.6
+     ],
+     [
+      618.0,
+      3185.9
+     ],
+     [
+      613.4,
+      3162.0
+     ],
+     [
+      598.4,
+      3141.5
+     ],
+     [
+      571.1,
+      3126.5
+     ],
+     [
+      508.7,
+      3116.4
+     ],
+     [
+      472.2,
+      3114.6
+     ],
+     [
+      389.6,
+      3150.4
+     ],
+     [
+      366.8,
+      3157.5
+     ],
+     [
+      357.7,
+      3154.2
+     ],
+     [
+      348.6,
+      3146.5
+     ],
+     [
+      329.7,
+      3115.0
+     ],
+     [
+      313.2,
+      3062.4
+     ],
+     [
+      262.1,
+      2979.7
+     ],
+     [
+      218.1,
+      2871.7
+     ],
+     [
+      216.2,
+      2827.9
+     ],
+     [
+      224.7,
+      2792.2
+     ],
+     [
+      234.2,
+      2774.0
+     ],
+     [
+      257.9,
+      2749.6
+     ],
+     [
+      318.4,
+      2695.8
+     ],
+     [
+      345.3,
+      2603.4
+     ],
+     [
+      342.0,
+      2602.7
+     ],
+     [
+      349.1,
+      2580.9
+     ],
+     [
+      328.4,
+      2494.2
+     ],
+     [
+      326.8,
+      2449.3
+     ],
+     [
+      332.5,
+      2426.4
+     ],
+     [
+      339.8,
+      2331.2
+     ],
+     [
+      353.8,
+      2287.1
+     ],
+     [
+      352.4,
+      2255.7
+     ],
+     [
+      339.8,
+      2239.2
+     ],
+     [
+      262.4,
+      2176.1
+     ],
+     [
+      215.9,
+      2181.2
+     ],
+     [
+      193.3,
+      2177.7
+     ],
+     [
+      151.8,
+      2168.0
+     ],
+     [
+      133.8,
+      2149.8
+     ],
+     [
+      131.7,
+      2127.4
+     ],
+     [
+      151.6,
+      2068.2
+     ],
+     [
+      188.7,
+      2006.4
+     ],
+     [
+      191.5,
+      1961.8
+     ],
+     [
+      180.4,
+      1882.9
+     ],
+     [
+      168.0,
+      1839.4
+     ],
+     [
+      134.3,
+      1766.0
+     ],
+     [
+      117.1,
+      1744.8
+     ],
+     [
+      112.9,
+      1747.8
+     ],
+     [
+      83.5,
+      1710.8
+     ],
+     [
+      88.0,
+      1707.6
+     ],
+     [
+      39.5,
+      1646.9
+     ],
+     [
+      24.2,
+      1637.8
+     ],
+     [
+      11.8,
+      1638.0
+     ],
+     [
+      -32.2,
+      1608.9
+     ],
+     [
+      -99.7,
+      1571.4
+     ],
+     [
+      -101.6,
+      1574.8
+     ],
+     [
+      -180.3,
+      1522.6
+     ],
+     [
+      -244.4,
+      1486.8
+     ],
+     [
+      -261.7,
+      1473.7
+     ],
+     [
+      -269.1,
+      1454.0
+     ],
+     [
+      -271.6,
+      1438.2
+     ],
+     [
+      -267.1,
+      1419.8
+     ],
+     [
+      -249.4,
+      1383.0
+     ],
+     [
+      -177.7,
+      1305.7
+     ],
+     [
+      -163.5,
+      1293.6
+     ],
+     [
+      -151.1,
+      1292.3
+     ],
+     [
+      -79.4,
+      1242.3
+     ],
+     [
+      -78.6,
+      1228.1
+     ],
+     [
+      -62.1,
+      1224.1
+     ],
+     [
+      -61.7,
+      1216.4
+     ],
+     [
+      -45.1,
+      1211.2
+     ],
+     [
+      -44.5,
+      1200.3
+     ],
+     [
+      -34.8,
+      1197.0
+     ],
+     [
+      -32.6,
+      1157.9
+     ],
+     [
+      -44.6,
+      1114.8
+     ],
+     [
+      -265.0,
+      1177.5
+     ],
+     [
+      -212.2,
+      1233.7
+     ],
+     [
+      -178.0,
+      1214.9
+     ],
+     [
+      -173.4,
+      1218.9
+     ],
+     [
+      -193.3,
+      1244.3
+     ],
+     [
+      -195.3,
+      1268.0
+     ],
+     [
+      -209.4,
+      1271.7
+     ],
+     [
+      -217.7,
+      1267.3
+     ],
+     [
+      -258.0,
+      1322.5
+     ],
+     [
+      -293.2,
+      1353.2
+     ],
+     [
+      -296.5,
+      1351.4
+     ],
+     [
+      -310.5,
+      1373.7
+     ],
+     [
+      -318.9,
+      1369.7
+     ],
+     [
+      -347.3,
+      1430.7
+     ],
+     [
+      -362.3,
+      1490.7
+     ],
+     [
+      -337.5,
+      1579.4
+     ],
+     [
+      -322.6,
+      1613.1
+     ],
+     [
+      -253.9,
+      1661.4
+     ],
+     [
+      -179.1,
+      1685.4
+     ],
+     [
+      -123.4,
+      1684.8
+     ],
+     [
+      -75.2,
+      1673.2
+     ],
+     [
+      13.5,
+      1684.2
+     ],
+     [
+      53.5,
+      1726.9
+     ],
+     [
+      103.8,
+      1809.5
+     ],
+     [
+      125.9,
+      1857.9
+     ],
+     [
+      129.6,
+      1866.4
+     ],
+     [
+      126.0,
+      1872.6
+     ],
+     [
+      140.5,
+      1919.0
+     ],
+     [
+      136.0,
+      1962.1
+     ],
+     [
+      110.4,
+      2034.7
+     ],
+     [
+      87.0,
+      2123.3
+     ],
+     [
+      77.8,
+      2141.3
+     ],
+     [
+      86.4,
+      2162.9
+     ],
+     [
+      113.2,
+      2199.9
+     ],
+     [
+      133.7,
+      2216.3
+     ],
+     [
+      168.4,
+      2231.6
+     ],
+     [
+      221.3,
+      2243.1
+     ],
+     [
+      287.3,
+      2234.3
+     ],
+     [
+      306.4,
+      2258.2
+     ],
+     [
+      311.2,
+      2292.9
+     ],
+     [
+      293.5,
+      2327.1
+     ],
+     [
+      282.1,
+      2401.4
+     ],
+     [
+      292.7,
+      2498.7
+     ],
+     [
+      299.1,
+      2623.2
+     ],
+     [
+      285.2,
+      2656.4
+     ],
+     [
+      225.7,
+      2710.8
+     ],
+     [
+      201.3,
+      2749.2
+     ],
+     [
+      184.7,
+      2792.6
+     ],
+     [
+      178.0,
+      2834.1
+     ],
+     [
+      189.1,
+      2901.1
+     ],
+     [
+      209.4,
+      2943.4
+     ],
+     [
+      237.2,
+      3030.1
+     ],
+     [
+      266.2,
+      3065.6
+     ],
+     [
+      308.6,
+      3150.8
+     ],
+     [
+      322.3,
+      3169.9
+     ],
+     [
+      346.0,
+      3189.1
+     ],
+     [
+      362.1,
+      3195.1
+     ]
+    ]
+   ]
+  },
+  {
+   "rings": [
+    [
+     [
+      377.9,
+      1033.1
+     ],
+     [
+      384.7,
+      1028.1
+     ],
+     [
+      378.3,
+      1020.4
+     ],
+     [
+      370.6,
+      1026.6
+     ],
+     [
+      369.0,
+      1038.0
+     ],
+     [
+      384.8,
+      1057.5
+     ],
+     [
+      395.5,
+      1059.1
+     ],
+     [
+      403.9,
+      1052.6
+     ],
+     [
+      397.6,
+      1044.6
+     ],
+     [
+      391.6,
+      1050.0
+     ],
+     [
+      377.9,
+      1033.1
+     ]
+    ]
+   ]
+  },
+  {
+   "rings": [
+    [
+     [
+      415.6,
+      1043.0
+     ],
+     [
+      416.8,
+      1031.4
+     ],
+     [
+      401.8,
+      1012.3
+     ],
+     [
+      390.2,
+      1011.1
+     ],
+     [
+      382.4,
+      1017.2
+     ],
+     [
+      388.7,
+      1024.8
+     ],
+     [
+      394.9,
+      1019.7
+     ],
+     [
+      408.0,
+      1036.3
+     ],
+     [
+      402.5,
+      1041.3
+     ],
+     [
+      408.0,
+      1048.7
+     ],
+     [
+      415.6,
+      1043.0
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "Fountain of Wealth",
+   "rings": [
+    [
+     [
+      522.0,
+      549.7
+     ],
+     [
+      525.3,
+      533.6
+     ],
+     [
+      540.8,
+      522.8
+     ],
+     [
+      551.2,
+      523.0
+     ],
+     [
+      560.2,
+      527.4
+     ],
+     [
+      569.1,
+      543.5
+     ],
+     [
+      568.0,
+      553.8
+     ],
+     [
+      563.3,
+      561.8
+     ],
+     [
+      546.3,
+      569.8
+     ],
+     [
+      529.1,
+      563.3
+     ],
+     [
+      522.0,
+      549.7
+     ]
+    ]
+   ]
+  },
+  {
+   "rings": [
+    [
+     [
+      890.1,
+      1467.1
+     ],
+     [
+      843.7,
+      1422.1
+     ],
+     [
+      860.4,
+      1404.9
+     ],
+     [
+      906.8,
+      1449.9
+     ],
+     [
+      890.1,
+      1467.1
+     ]
+    ]
+   ]
+  },
+  {
+   "rings": [
+    [
+     [
+      1011.7,
+      481.3
+     ],
+     [
+      995.5,
+      480.8
+     ],
+     [
+      982.6,
+      490.6
+     ],
+     [
+      978.7,
+      506.4
+     ],
+     [
+      986.8,
+      521.6
+     ],
+     [
+      1018.8,
+      485.6
+     ],
+     [
+      1011.7,
+      481.3
+     ]
+    ]
+   ]
+  }
+ ]
 }
