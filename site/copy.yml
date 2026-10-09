@@ -347,7 +347,7 @@ engine:
   screens_eyebrow: What the player sees
   screens:
     - image: screen-hud.webp
-      alt: Chase view on the grid with the HUD
+      alt: Chase view on the night grid at Mandarina Bay with the HUD
       caption: 'Race view · a HUD of {{ n.hud_components }} moddable components'
     - image: screen-garage.webp
       alt: The hotlap garage with the suspension setup sheet

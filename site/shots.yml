@@ -158,7 +158,8 @@ ui:
   - id: hud-chase
     about: The chase view on the grid during the countdown, HUD on
     pick: 1
-    args: [-ApexAutoRace, -ApexTrack=Spa, -ApexCar=994P, -ApexAiCount=11, -ApexLaps=5,
+    args: [-ApexAutoRace, -ApexTrack=MarinaBay, -ApexCar=994P, -ApexAiCount=11, -ApexLaps=5,
+           -ApexWeather=sunny, -ApexTimeOfDay=21:00,
            -ApexCountdown=30, -ApexView=near, -ApexRacingLine=full]
     at: [14, 20, 26]
 
@@ -170,7 +171,7 @@ ui:
 
   - id: menu-demo
     about: The main menu over the live demo race
-    pick: 2
+    pick: 1
     args: []
     at: [35, 45, 55, 65, 75]
 
