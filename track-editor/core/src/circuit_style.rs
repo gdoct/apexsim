@@ -52,10 +52,9 @@ impl Rail {
             (Rail::Vangrail, BarrierKind::Tecpro) => BarrierKind::Armco,
             // Tecpro the whole way round, as on the real circuit; a mapped
             // wall stays a wall.
-            (
-                Rail::Street,
-                BarrierKind::Armco | BarrierKind::ArmcoFence | BarrierKind::Tyres,
-            ) => BarrierKind::Tecpro,
+            (Rail::Street, BarrierKind::Armco | BarrierKind::ArmcoFence | BarrierKind::Tyres) => {
+                BarrierKind::Tecpro
+            }
             (_, kind) => kind,
         }
     }

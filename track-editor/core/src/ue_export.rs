@@ -1456,11 +1456,7 @@ fn outside_bridges(
 
 /// A surface band with the bridges taken out of it; the widths of a taper
 /// are carried to each piece's ends.
-fn clip_surface(
-    surface: &Surface,
-    bridges: &[crate::ats::BridgeSpan],
-    total: f32,
-) -> Vec<Surface> {
+fn clip_surface(surface: &Surface, bridges: &[crate::ats::BridgeSpan], total: f32) -> Vec<Surface> {
     if bridges.is_empty() {
         return vec![surface.clone()];
     }
@@ -3280,9 +3276,14 @@ impl Bake<'_> {
                         chunk.uvs.push(round(x + dx, 3));
                         chunk.uvs.push(round(y + dy, 3));
                     }
-                    chunk
-                        .indices
-                        .extend_from_slice(&[base, base + 1, base + 2, base + 1, base + 3, base + 2]);
+                    chunk.indices.extend_from_slice(&[
+                        base,
+                        base + 1,
+                        base + 2,
+                        base + 1,
+                        base + 3,
+                        base + 2,
+                    ]);
                 }
                 if !chunk.indices.is_empty() {
                     self.chunks.push(chunk);

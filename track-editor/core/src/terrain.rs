@@ -1531,7 +1531,12 @@ mod tests {
         let water = crate::ats::Water {
             id: 1,
             name: None,
-            rings: vec![vec![[100.0, 100.0], [300.0, 100.0], [300.0, 200.0], [100.0, 200.0]]],
+            rings: vec![vec![
+                [100.0, 100.0],
+                [300.0, 100.0],
+                [300.0, 200.0],
+                [100.0, 200.0],
+            ]],
         };
         let f = field().with_water(&[water]);
         assert!(f.has_water());
@@ -1543,8 +1548,14 @@ mod tests {
         assert!((f.ground_height_at(200.0, 150.0) - bed).abs() < 0.01);
         assert!(f.water_level_m() < 0.0);
         // Away from the pool nothing moved; the road itself is still there.
-        assert_eq!(f.ground_height_at(50.0, 150.0), dry.ground_height_at(50.0, 150.0));
-        assert_eq!(f.surface_height_at(200.0, 0.0), dry.surface_height_at(200.0, 0.0));
+        assert_eq!(
+            f.ground_height_at(50.0, 150.0),
+            dry.ground_height_at(50.0, 150.0)
+        );
+        assert_eq!(
+            f.surface_height_at(200.0, 0.0),
+            dry.surface_height_at(200.0, 0.0)
+        );
         // The bank is smooth: a metre inside the shore it is part way down.
         let bank = f.ground_height_at(101.0, 150.0);
         assert!(bank < dry.ground_height_at(101.0, 150.0) && bank > bed);

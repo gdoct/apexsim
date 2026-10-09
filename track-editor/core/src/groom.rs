@@ -774,8 +774,15 @@ pub fn groom_props_with_dem(
                 // the real one is. Seat it on the ground and leave it
                 // alone: a push would trade a fact for a guess.
                 let (sample, lat, _) = nearest_cross_section(&path, prop.x, prop.y);
-                let z = seat_z(&terrain, &sample, lat, prop.x, prop.y)
-                    + crate::dress::fixed_lift_m(&prop.asset);
+                // A prop on a bridge deck stands at the road's height, not on
+                // the river bed under it.
+                let on_deck = terrain.in_water(prop.x, prop.y) && !stands_in_water(&terrain, &prop);
+                let base = if on_deck {
+                    offset_point(&sample, lat).2
+                } else {
+                    seat_z(&terrain, &sample, lat, prop.x, prop.y)
+                };
+                let z = base + crate::dress::fixed_lift_m(&prop.asset);
                 if (z - prop.z).abs() > MIN_MOVE_M {
                     prop.z = z;
                     report.reseated += 1;
@@ -1032,7 +1039,7 @@ pub fn groom_props_with_dem(
 const BRIDGE_DECK_REACH_M: f32 = 6.0;
 
 /// True for a prop that stands in water and is not carried by a bridge.
-fn stands_in_water(terrain: &TerrainHeightfield, prop: &Prop) -> bool {
+pub(crate) fn stands_in_water(terrain: &TerrainHeightfield, prop: &Prop) -> bool {
     if matches!(prop.kind, PropKind::Bridge | PropKind::Sky)
         || prop.asset == "bridge_double_helix"
         || !terrain.in_water(prop.x, prop.y)

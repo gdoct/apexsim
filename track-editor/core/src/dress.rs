@@ -313,11 +313,7 @@ pub fn dress_scene_with_dem(
     // their place.
     if terrain.has_water() {
         let before = laid.len();
-        laid.retain(|p| {
-            matches!(p.kind, PropKind::Bridge | PropKind::Sky)
-                || p.asset == "bridge_double_helix"
-                || !terrain.in_water(p.x, p.y)
-        });
+        laid.retain(|p| !crate::groom::stands_in_water(&terrain, p));
         if laid.len() < before {
             report
                 .skipped
@@ -1513,6 +1509,7 @@ fn lay_furniture(
 /// each side has one every twice the spacing and the arms reach across.
 const STREET_LAMP_SPACING_M: f32 = 40.0;
 const STREET_LAMP_SETBACK_M: f32 = 4.5;
+const STREET_LAMP_BRIDGE_SETBACK_M: f32 = 2.0;
 
 /// Twin-arm street lamps along both verges, none on a bridge (the deck has
 /// its own) and none in the water.
@@ -1526,18 +1523,24 @@ fn lay_street_lamps(
     let mut out = Vec::new();
     for i in 0..count {
         let station = i as f32 * STREET_LAMP_SPACING_M;
-        if bridges.iter().any(|b| b.covers(station, total)) {
-            continue;
-        }
+        // On a bridge the pole stands on the footway, just inside the
+        // parapet (the deck's own lamps carry no light source), and the
+        // water under it is no reason to leave it out.
+        let on_bridge = bridges.iter().any(|b| b.covers(station, total));
         let sample = path.sample_at(station);
         let (side, sign) = if i % 2 == 0 {
             (Side::Left, 1.0)
         } else {
             (Side::Right, -1.0)
         };
-        let lat = sign * (side_half_width(&sample, side) + STREET_LAMP_SETBACK_M);
-        let (x, y, _) = offset_point(&sample, lat);
-        if terrain.in_water(x, y) {
+        let setback = if on_bridge {
+            STREET_LAMP_BRIDGE_SETBACK_M
+        } else {
+            STREET_LAMP_SETBACK_M
+        };
+        let lat = sign * (side_half_width(&sample, side) + setback);
+        let (x, y, road_z) = offset_point(&sample, lat);
+        if !on_bridge && terrain.in_water(x, y) {
             continue;
         }
         out.push(Prop {
@@ -1546,7 +1549,11 @@ fn lay_street_lamps(
             asset: "lamp_arm_twin".to_string(),
             x,
             y,
-            z: seat_z(terrain, &sample, lat, x, y),
+            z: if on_bridge {
+                road_z
+            } else {
+                seat_z(terrain, &sample, lat, x, y)
+            },
             yaw_rad: sample.heading_rad,
             scale: 1.0,
             text: None,
@@ -2819,7 +2826,9 @@ mod tests {
         let tiles = lay_crossing(&path, &crossing);
         // 400 m of 40 m modules.
         assert_eq!(tiles.len(), 10);
-        assert!(tiles.iter().all(|p| p.asset == "bridge_deck_wide" && p.kind == PropKind::Bridge));
+        assert!(tiles
+            .iter()
+            .all(|p| p.asset == "bridge_deck_wide" && p.kind == PropKind::Bridge));
         // Contiguous: neighbours are one module apart along the road.
         for pair in tiles.windows(2) {
             let gap = (pair[1].x - pair[0].x).hypot(pair[1].y - pair[0].y);
@@ -2844,7 +2853,12 @@ mod tests {
         let mut layout = make_layout();
         layout.water.push(crate::layout::WaterBody {
             name: Some("Bay".to_string()),
-            rings: vec![vec![[300.0, 30.0], [500.0, 30.0], [500.0, 110.0], [300.0, 110.0]]],
+            rings: vec![vec![
+                [300.0, 30.0],
+                [500.0, 30.0],
+                [500.0, 110.0],
+                [300.0, 110.0],
+            ]],
         });
         layout.crossings.push(Crossing {
             name: None,
@@ -2857,10 +2871,20 @@ mod tests {
         dress_scene(&track, &mut scene, &layout).unwrap();
         assert_eq!(scene.water.len(), 1);
         assert_eq!(scene.bridges.len(), 1);
-        let ids: Vec<u64> = scene.water.iter().map(|w| w.id).chain(scene.bridges.iter().map(|b| b.id)).collect();
+        let ids: Vec<u64> = scene
+            .water
+            .iter()
+            .map(|w| w.id)
+            .chain(scene.bridges.iter().map(|b| b.id))
+            .collect();
         let again = {
             dress_scene(&track, &mut scene, &layout).unwrap();
-            scene.water.iter().map(|w| w.id).chain(scene.bridges.iter().map(|b| b.id)).collect::<Vec<_>>()
+            scene
+                .water
+                .iter()
+                .map(|w| w.id)
+                .chain(scene.bridges.iter().map(|b| b.id))
+                .collect::<Vec<_>>()
         };
         assert_eq!(ids, again, "re-dressing must reuse the ids");
         // Nothing dressed stands in the bay.
