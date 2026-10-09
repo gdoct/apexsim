@@ -127,6 +127,43 @@ LAPS: dict[str, dict] = {
             "decal_profile": None,
         },
     },
+    # Marina Bay, Singapore: the current 19-turn layout (2023 on), counter-
+    # clockwise. OSM models the whole lap as relation 421263 (type=circuit,
+    # 99 member ways on ordinary streets, plus the pit lane), so there are
+    # no waypoints: the loop is walked from the pit straight along the
+    # relation's own ways (`relation_loop`). Only the pit straight and a few
+    # fragments are highway=raceway. Road width comes from the lane count.
+    "MarinaBay": {
+        "name": "Marina Bay Street Circuit",
+        "display_name": "Mandarina Bay",
+        "track_id": "618a7f94-5679-4119-bc49-f891af68256c",
+        "relation": 421263,
+        "first_way": 686335807,  # the pit straight, south to north
+        # The route's own `finish` node, on the pit straight.
+        "start_finish": (103.8643543, 1.290463),
+        "start_offset_m": 0.0,
+        "banking": [],
+        # A street circuit is closed and run wider than the carriageway:
+        # lanes x 3.5 m, held to this window.
+        "lane_width_m": 3.5,
+        "min_width_m": 10.0,
+        "max_width_m": 14.0,
+        "default_width_m": 12.0,
+        "metadata": {
+            "country": "Singapore",
+            "city": "Singapore",
+            "description": "Modelled on the street circuit around Marina Bay, Singapore.",
+            "year_built": 2008,
+            "category": "Formula",
+            "environment_type": "city",
+            "terrain_seed": None,
+            "terrain_scale": None,
+            "terrain_detail": None,
+            "terrain_blend_width": None,
+            "object_density": None,
+            "decal_profile": None,
+        },
+    },
 }
 
 
@@ -140,15 +177,69 @@ def _wgs(lon, lat, lon0, lat0):
 def load_extract(stem: str) -> dict:
     nodes: dict[int, tuple[float, float]] = {}
     ways: dict[int, dict] = {}
+    relations: list[dict] = []
     for p in sorted(CACHE_DIR.glob(f"{stem}.*.json")):
         for e in json.loads(p.read_text(encoding="utf-8"))["elements"]:
             if e["type"] == "node":
                 nodes[e["id"]] = (e["lon"], e["lat"])
             elif e["type"] == "way":
                 ways.setdefault(e["id"], e)
+            elif e["type"] == "relation":
+                relations.append(e)
     if not nodes:
         raise SystemExit(f"{stem}: no extract under {CACHE_DIR}")
-    return {"nodes": nodes, "ways": ways}
+    return {"nodes": nodes, "ways": ways, "relations": relations}
+
+
+def relation_loop(ext: dict, spec: dict, lon0: float, lat0: float):
+    """The lap of a street circuit mapped as one route relation: its member
+    ways (pit lane excluded) form a single loop, walked from `first_way` in
+    that way's own direction. Returns the loop's points, the way under each,
+    and each way's width."""
+    rel = next(
+        (e for e in ext["relations"] if e["id"] == spec["relation"]), None
+    )
+    if rel is None:
+        raise SystemExit(f"relation {spec['relation']} is not in the extract")
+    ids = [m["ref"] for m in rel["members"] if m["type"] == "way" and m.get("role") != "pitlane"]
+    by_end: dict[int, list[int]] = {}
+    for wid in ids:
+        ns = ext["ways"][wid]["nodes"]
+        for n in (ns[0], ns[-1]):
+            by_end.setdefault(n, []).append(wid)
+    bad = [n for n, w in by_end.items() if len(w) != 2]
+    if bad:
+        raise SystemExit(f"relation {spec['relation']} is not a closed loop: nodes {bad[:5]} have != 2 ways")
+    cur = spec["first_way"]
+    nodes_seq: list[int] = []
+    way_seq: list[int] = []
+    used: set[int] = set()
+    ns = list(ext["ways"][cur]["nodes"])
+    while cur not in used:
+        used.add(cur)
+        nodes_seq += ns if not nodes_seq else ns[1:]
+        way_seq += [cur] * (len(ns) if len(way_seq) == 0 else len(ns) - 1)
+        end = ns[-1]
+        nxt = [w for w in by_end[end] if w != cur]
+        if not nxt:
+            break
+        cur = nxt[0]
+        ns = list(ext["ways"][cur]["nodes"])
+        if ns[0] != end:
+            ns = ns[::-1]
+    if len(used) != len(ids):
+        raise SystemExit(f"loop walk used {len(used)} of {len(ids)} member ways")
+    xy = np.array([_wgs(*ext["nodes"][n], lon0, lat0) for n in nodes_seq])
+    width = {}
+    for wid in ids:
+        t = ext["ways"][wid].get("tags") or {}
+        try:
+            lanes = float(str(t.get("lanes", "")).split(";")[0])
+        except ValueError:
+            lanes = 0.0
+        w = lanes * spec["lane_width_m"] if lanes else spec["default_width_m"]
+        width[wid] = min(max(w, spec["min_width_m"]), spec["max_width_m"])
+    return xy, np.array(way_seq), width
 
 
 class RacewayGraph:
@@ -281,17 +372,24 @@ def build(stem: str) -> dict:
     ext = load_extract(stem)
     box = BBOXES[stem][0]
     lon0, lat0 = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
-    g = RacewayGraph(ext, spec, lon0, lat0)
-    wps = [g.nearest(np.array(_wgs(lon, lat, lon0, lat0))) for lon, lat in spec["waypoints"]]
-    route: list[tuple[int, int]] = []
-    seen: set[int] = set()
-    for i, a in enumerate(wps):
-        b = wps[(i + 1) % len(wps)]
-        leg = g.route(a, b, seen)
-        route += leg
-        seen.update(n for n, _ in leg)
-    raw = np.array([g.xy[n] for n, _ in route])
-    raw_way = np.array([w for _, w in route])
+    if "relation" in spec:
+        raw, raw_way, way_width = relation_loop(ext, spec, lon0, lat0)
+        # The walk ends on the node it began with.
+        if np.hypot(*(raw[0] - raw[-1])) < 0.05:
+            raw, raw_way = raw[:-1], raw_way[:-1]
+    else:
+        g = RacewayGraph(ext, spec, lon0, lat0)
+        way_width = g.way_width
+        wps = [g.nearest(np.array(_wgs(lon, lat, lon0, lat0))) for lon, lat in spec["waypoints"]]
+        route: list[tuple[int, int]] = []
+        seen: set[int] = set()
+        for i, a in enumerate(wps):
+            b = wps[(i + 1) % len(wps)]
+            leg = g.route(a, b, seen)
+            route += leg
+            seen.update(n for n, _ in leg)
+        raw = np.array([g.xy[n] for n, _ in route])
+        raw_way = np.array([w for _, w in route])
     # Drop repeated points (ways meeting end to end).
     keep = np.concatenate([[True], np.hypot(*np.diff(raw, axis=0).T) > 0.05])
     raw, raw_way = raw[keep], raw_way[keep]
@@ -307,7 +405,7 @@ def build(stem: str) -> dict:
     pts = np.roll(pts, -shift, axis=0)
     # The way under each resampled node, for its width.
     j = np.array([int(np.hypot(*(raw - q).T).argmin()) for q in pts])
-    widths = np.array([g.way_width.get(int(raw_way[k]), spec["default_width_m"]) for k in j])
+    widths = np.array([way_width.get(int(raw_way[k]), spec["default_width_m"]) for k in j])
     for lo_m, hi_m, w in spec.get("widths", ()):
         s = np.arange(len(pts)) * STEP_M
         widths[(s >= lo_m) & (s < hi_m)] = w

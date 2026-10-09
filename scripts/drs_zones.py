@@ -137,6 +137,13 @@ class Corners:
 # f1technical.net for the last DRS season of each circuit; entries marked
 # `recalled` had only the turns sourced, the metres are from memory.
 ZONES: dict[str, list[tuple]] = {
+    # authored: the three longest straights of the 2023 layout (the FIA notes
+    # were not sourced for this circuit; stations from --report).
+    "MarinaBay": [
+        (("after", 4810, 0), ("after", 4810, 40)),       # T19/T20 -> pit straight, to T1
+        (("after", 3062, 10), ("after", 3062, 60)),      # T14 -> T15
+        (("after", 3862, 10), ("after", 3862, 60)),      # T16 -> T17
+    ],
     "Monza": [
         (("before", 2877, 95), ("after", 2877, 170)),    # T7 Lesmo 2 -> Ascari
         (("after", 5290, 20), ("sfl", 120)),            # T11 Parabolica -> SFL

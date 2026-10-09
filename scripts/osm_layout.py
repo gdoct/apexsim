@@ -73,6 +73,10 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Budapest": [(19.236, 47.572, 19.262, 47.588)],
     "Sakhir": [(50.495, 26.020, 50.525, 26.045)],
     "Norisring": [(11.110, 49.428, 11.132, 49.440)],
+    # Street circuit on public roads; the lap is OSM relation 421263 (see
+    # STREET_CIRCUIT_RELATIONS). The box stops at 1.283 N, south of it is Gardens
+    # by the Bay, which is backdrop only.
+    "MarinaBay": [(103.846, 1.283, 103.872, 1.299)],
     # MoscowRaceway is deliberately NOT registered here (see below): a bbox
     # whose fit fails would abort every `--all` run at this entry (build()
     # raises SystemExit, uncaught in main()'s loop), breaking `--all` for
@@ -1118,6 +1122,12 @@ def osm_name(t: dict) -> str | None:
     return t.get("name") or t.get("name:en") or t.get("name:fr") or t.get("name:de")
 
 
+# Street-circuit lap relations that do not carry highway=raceway themselves
+# (type=circuit, members tagged as the ordinary streets they are). Listed by
+# id so no other circuit's dossier changes: Monza has such a relation too.
+STREET_CIRCUIT_RELATIONS = frozenset({421263})  # Marina Bay Street Circuit
+
+
 def relation_raceway_roles(osm: Osm) -> dict[int, str]:
     """Way id -> its role in an OSM route relation tagged highway=raceway.
 
@@ -1134,11 +1144,12 @@ def relation_raceway_roles(osm: Osm) -> dict[int, str]:
     """
     roles: dict[int, str] = {}
     for r in osm.relations:
-        if (r.get("tags") or {}).get("highway") != "raceway":
+        if (r.get("tags") or {}).get("highway") != "raceway" and r.get("id") not in STREET_CIRCUIT_RELATIONS:
             continue
         for m in r.get("members", []):
             if m.get("type") == "way":
-                roles.setdefault(m["ref"], m.get("role") or "")
+                role = m.get("role") or ""
+                roles.setdefault(m["ref"], "pit_lane" if role == "pitlane" else role)
     return roles
 
 
