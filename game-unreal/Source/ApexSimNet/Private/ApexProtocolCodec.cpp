@@ -956,6 +956,80 @@ namespace
 	}
 
 	/**
+	 * `RoadStateData` — PascalCase keys. `Rows` is a `bin` kept as it is
+	 * (it goes straight into a texture); `Debris` an array of `[x, y]`.
+	 */
+	bool ParseRoadState(FMsgPackReader& Reader, FApexRoadState& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("SessionId"))       { bOk = Reader.ReadString(Out.SessionId); }
+			else if (Key == TEXT("LapM"))       { bOk = Reader.ReadFloat(Out.LapM); }
+			else if (Key == TEXT("CellM"))      { bOk = Reader.ReadFloat(Out.CellM); }
+			else if (Key == TEXT("Bins"))       { bOk = Reader.ReadUInt64(Raw); Out.Bins = static_cast<int32>(Raw); }
+			else if (Key == TEXT("HalfSpanM"))  { bOk = Reader.ReadFloat(Out.HalfSpanM); }
+			else if (Key == TEXT("FirstCell"))  { bOk = Reader.ReadUInt64(Raw); Out.FirstCell = static_cast<int32>(Raw); }
+			else if (Key == TEXT("Rows"))
+			{
+				TArrayView<const uint8> Bytes;
+				bOk = Reader.ReadBinary(Bytes);
+				if (bOk)
+				{
+					Out.Rows = TArray<uint8>(Bytes.GetData(), Bytes.Num());
+				}
+			}
+			else if (Key == TEXT("Geometry"))
+			{
+				TArrayView<const uint8> Bytes;
+				bOk = Reader.ReadBinary(Bytes);
+				if (bOk)
+				{
+					Out.SetGeometryBytes(Bytes);
+				}
+			}
+			else if (Key == TEXT("Debris"))
+			{
+				int32 Count = 0;
+				bOk = Reader.ReadArrayHeader(Count);
+				Out.Debris.Reset(bOk ? Count : 0);
+				for (int32 p = 0; bOk && p < Count; ++p)
+				{
+					int32 Pair = 0;
+					float X = 0.0f;
+					float Y = 0.0f;
+					bOk = Reader.ReadArrayHeader(Pair) && Pair >= 2 && Reader.ReadFloat(X) && Reader.ReadFloat(Y);
+					for (int32 Extra = 2; bOk && Extra < Pair; ++Extra)
+					{
+						bOk = Reader.SkipValue();
+					}
+					if (bOk)
+					{
+						Out.Debris.Add(FVector2D(X, Y));
+					}
+				}
+			}
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * `LapTimingData` — PascalCase keys. `Flags` is a bit field, unpacked
 	 * here into the four booleans the HUD paints with.
 	 */
@@ -2117,6 +2191,7 @@ namespace
 		if (Variant == TEXT("TelemetryCompact"))   { return EApexServerMessageType::TelemetryCompact; }
 		if (Variant == TEXT("DriverFeedback"))     { return EApexServerMessageType::DriverFeedback; }
 		if (Variant == TEXT("RejoinAvailable"))    { return EApexServerMessageType::RejoinAvailable; }
+		if (Variant == TEXT("RoadState"))          { return EApexServerMessageType::RoadState; }
 
 		// The named-encoding `Telemetry` is only used for server-side replays;
 		// the wire carries TelemetryCompact.
@@ -2158,6 +2233,9 @@ namespace
 
 		case EApexServerMessageType::TrackCorners:
 			return ParseTrackCorners(Reader, Out.TrackCorners);
+
+		case EApexServerMessageType::RoadState:
+			return ParseRoadState(Reader, Out.RoadState);
 
 		case EApexServerMessageType::LapTiming:
 			return ParseLapTiming(Reader, Out.LapTiming);

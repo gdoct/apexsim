@@ -21,7 +21,10 @@ positions, so a session replays the same (`a_changing_sky_is_deterministic`).
   `wind_mps`, `wind_now_mps`).
 - `server/src/conditions.rs` - `LiveConditions` (the sky now) and `forecast`.
 - `server/src/road_state.rs` - `RoadState`: rubber, marbles, a dried line,
-  water depth.
+  water depth; `write_rows` / `write_geometry` pack it for the wire.
+- `server/src/game_loop/dispatch.rs` - `road_state_message`,
+  `road_state_full` (the join burst); `game_loop/tick.rs` the round-robin
+  send, `broadcast.rs` `broadcast_road`.
 - `server/src/wind.rs` - `gusting` and `hash01` (the hash the AI and
   racecraft use too).
 - `server/src/headlights.rs` - whose lights are on.
@@ -32,9 +35,12 @@ positions, so a session replays the same (`a_changing_sky_is_deterministic`).
   `wind_now_mps`, density), `engine_density_factor`, the per-wheel road
   sample in `update_car_3d`.
 - `scripts/track_location.py` - a circuit's altitude and position.
-- Client: `ApexSimNet` (`FApexSessionConditions`, `FApexSkyNow`),
-  `ApexSim/Public/Race/ApexSkyModel.h` (`ApexSky`), `ApexRaceDirector`,
-  `ApexRainActor`, `ApexStreetLights.h`.
+- Client: `ApexSimNet` (`FApexSessionConditions`, `FApexSkyNow`,
+  `FApexRoadState`), `ApexSim/Public/Race/ApexSkyModel.h` (`ApexSky`),
+  `ApexRaceDirector` (the road state in `ApexRaceDirectorRoad.cpp`),
+  `Race/ApexRoadStateMap.h`, `ApexRainActor`, `ApexStreetLights.h`; the
+  road material `M_ApexTrackRoad` (`ApexTrackMaterialGraphs.cpp`,
+  `ApplyRoadStateGraph`).
 
 ## What the host picks (`SessionConditions`)
 
@@ -181,6 +187,69 @@ contact class, and at the car's middle into `CarState::surface_grip_share`,
 which the AI reads through `tyre_grip_share`. `mean_line_water` drives the
 AI's tyre crossover ([ai.md](ai.md)).
 
+## The road on screen
+
+The server sends the road state as it is, and the client draws it on the
+road: a darker, glossier rubbered line, marbles as dark crumbs beside it, a
+dry line between wet edges, mirror-flat puddles, and the debris lying on it.
+
+**On the wire.** `RoadState` (TCP, named, droppable) carries a slice of
+whole cells from `FirstCell`, wrapping the lap. Each cell is `ROW_BYTES`:
+its water depth as a byte (`DEPTH_BYTE`: 100 is heavy rain on the flat,
+over 100 a puddle), then for each of the `BINS` bins its rubber, marbles and
+dry, each a byte over 0..1. `Geometry` gives each cell's centerline point and
+the unit vector to its left (four `f32`, server frame): the point and vector
+`RoadState::lateral_of` measures a bin from. `Debris` lists every piece on
+the road now. A joining driver, spectator or rejoiner gets the whole lap at
+once (`road_state_full`, `ROAD_CELLS_PER_JOIN` cells a message), as does
+the driver who creates a session and the host of a demo backdrop or a
+watched hotlap. While the
+session is live (countdown, race, finish) every session sends the next
+`ROAD_CELLS_PER_SEND` (50) cells every `ROAD_SEND_SECONDS` (2 s), picked
+from the loop's tick, so there is no per-session cursor. Monza refreshes
+round the lap in about 23 s, the Nordschleife in about 83 s. Sending reads
+the state and never steps it, so the sim is untouched.
+
+A spectator stream carries the same payload as record 8 `Road`
+([../game/spectator.md](../game/spectator.md)): `render_stream` writes the
+whole lap with the first frame and a round-robin slice every 2 s after, and
+the client's `UApexReplayRecorder` writes every slice it receives (the
+join's burst under the first frame's tick).
+
+**On the client.** `UApexNetSubsystem::OnRoadState` fires for each live
+slice (`FeedBackdropRoad` for a stream's). The race director keeps the lap
+in an `FApexRoadStateMap` from the join on, across race views, and forgets
+it when the session is left, a new backdrop begins, or a slice comes from
+another source (another session id, or a stream's empty one). Each frame it
+uploads the map into two transient textures:
+
+- `RoadState`: a column a cell, a row a bin; R rubber, G marbles, B dry, A
+  the depth byte. Bilinear, wrapping round the lap.
+- `RoadGeometry`: a texel a cell, the cell's point in world cm and its left
+  vector in Unreal axes (the server's Y flipped). Nearest, so a pixel uses
+  its own cell's point, as the server does.
+
+Only the road itself (`family` `road`) is made from `M_ApexTrackRoad`, the
+base graph plus `ApplyRoadStateGraph`; the pit lane, curbs and bands stay
+on `M_ApexTrackBase` and pay nothing. The road mesh's UV0 `u` is metres of
+station, which picks the cell (`RoadStateU` = 1 / (cell length x cells));
+`-dot(world - point, left)` is the lateral, which picks the bin. Its `v` is
+arc length across the strip from its first edge, not a lateral, so it is not
+used. `RoadStateAmount` is 0 until the first slice arrives, which leaves the
+road as built. While the road state is drawn, `ApplyRoadWetness` leaves the
+road's own materials to it and wets only the pit lane by the lap's mean.
+Debris is an instanced shard of the engine cube per piece, traced down onto
+the track (`UpdateRoadDebris`).
+
+A bake from before `M_ApexTrackRoad` existed builds the road on the base
+parent and draws no road state; `-run=ApexMaterialBake` bakes it beside the
+base. Two console switches compare its cost: `apexsim.road.Draw 0` stops the
+director drawing it (the road as built, the lap's wetness back on it), and
+`apexsim.track.RoadMaterial 0` builds the next track's road on the base
+parent, with no road-state shader at all. Each time the road's materials take
+the textures the log says `Road state to N road material(s): drawn, K of M
+cells known, B bins rubbered past 0.8`.
+
 ## Headlights
 
 The server decides, because everyone sees them (`headlights::update`, each
@@ -207,10 +276,13 @@ as `lap_flags` bits 5 and 6 (`LAP_FLAG_HEADLIGHTS`,
 - `PlayerInput.headlights` / `flash`: `cargo test
   player_input_headlights_wire_format -- --nocapture` ->
   `ApexUdpGolden::C_PlayerInput`.
+- `RoadState`: `cargo test road_state_wire_format -- --nocapture` ->
+  `ApexGolden::S_RoadState`; the stream's `Road` record in
+  `spectator_wire_format` -> `ApexSpectatorGolden::Road`.
 
 See [protocol.md](protocol.md) for the append-only rules.
 
-## Client (lighting only)
+## Client
 
 - `FApexSessionConditions` (net module: `Describe`, `ClockText`,
   `WeatherLabel`; unset optional fields are -128 / -1 and written only when
@@ -229,7 +301,8 @@ See [protocol.md](protocol.md) for the append-only rules.
   post-process volume carries exposure, wet desaturation and bloom.
 - `ApplyTrackLevelConditions` (once the track is built and visible): fog
   by weather, the road family's material roughness eased toward
-  `ApexSky::WetRoadRoughness` (0.3) with the road's water, the racing-line
+  `ApexSky::WetRoadRoughness` (0.3) with the road's water (the road itself
+  per bin from the road state once it arrives, above), the racing-line
   dots wet (`AApexRacingLineActor::SetWet`), kit flag poles (`SM_flag_pole`)
   turned downwind. After dark the lamp props get real lights, the nearest
   `apexsim.lights.Max` (90) within `apexsim.lights.Range` of the camera
@@ -251,12 +324,23 @@ cd server
 cargo test --test session_conditions_test     # echo, listing, the grip bake
 cargo test --test air_test                     # density, turbo, wind, the AI in a gale
 cargo test --test track_evolution_test         # rubber and marbles, forecast rain and the AI's crossover, 60x clock, determinism
-cargo test --lib -- conditions:: road_state:: wind::
+cargo test --lib -- conditions:: road_state:: wind:: road_state_wire_format a_render_carries_the_road_state
 SURVEY_WIND_KPH=25 cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture
 ```
 
 Client: `ApexSim.Sky.*` (incl. `.Site`, `.Live`), `ApexSim.Hud.Data.Sky`,
-`ApexSim.UI.CreateSession.SkyChips`, the golden decode tests.
+`ApexSim.UI.CreateSession.SkyChips`, `ApexSim.Race.RoadStateMap` (the
+lateral against the server's), the golden decode tests
+(`ApexSim.Net.Protocol.GoldenDecode` for `S_RoadState`, the spectator
+stream tests for `Road`).
+
+On screen, unattended: `-ApexAutoRace -ApexTrackRubber=0` against
+`-ApexTrackRubber=100` from a TV camera shows the line light against dark;
+`-ApexWeather=lightrain -ApexChangeable=0` after some AI laps shows the dry
+line. The log says `Road state: N cells x 32 bins` when the textures are
+made and `Road state to N road material(s): drawn, ...` when the road takes
+them (above). The low camera barely shows the line; look from above, and a
+screenshot with `apexsim.road.Draw 0` at the same pose diffs to the band.
 
 ## Traps
 

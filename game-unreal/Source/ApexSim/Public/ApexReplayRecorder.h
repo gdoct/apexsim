@@ -101,6 +101,9 @@ private:
 	UFUNCTION() void HandleLapTiming(const FApexLapTiming& Timing);
 	UFUNCTION() void HandleSessionStateChanged(EApexSessionState NewState);
 	UFUNCTION() void HandleDisconnected(const FString& Reason);
+	/** A road-state slice, written as a stream `Road` record (held until the first frame gives it a tick). */
+	void HandleRoadState(const FApexRoadState& Road);
+	void WriteRoad(int64 Tick, const FApexRoadState& Road);
 
 	UApexNetSubsystem* GetNet() const;
 	/** The server's tick rate, measured from the frames' ticks against their arrival. */
@@ -138,6 +141,9 @@ private:
 	int64 FirstServerTick = -1;
 	int64 LastSeenServerTick = -1;
 	int32 FramesSeen = 0;
+	FDelegateHandle RoadStateHandle;
+	/** The join's burst of road state, which comes before any frame has a tick to file it under. */
+	TArray<FApexRoadState> PendingRoads;
 	int32 FramesWritten = 0;
 	EApexSessionState LastState = EApexSessionState::Lobby;
 	EApexGameMode GameMode = EApexGameMode::Lobby;

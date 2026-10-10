@@ -100,8 +100,10 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
 
 Joining a session: `SelectCar`, then `CreateSession` or `JoinSession`, answered
 by `SessionJoined`, a `SessionRoster` (car index to player, reliable, resent
-whenever membership changes), `RacingLine`, `TrackSectors`, `CarSetupSheet`
-and, in a hotlap watch, `TrackCorners`. Session rules travel inside
+whenever membership changes), `RacingLine`, `TrackSectors`, `CarSetupSheet`,
+the whole lap's `RoadState` and, in a hotlap watch, `TrackCorners`. A
+session then sends a `RoadState` slice every 2 s
+([conditions.md](conditions.md#the-road-on-screen)). Session rules travel inside
 `CreateSession` and are echoed in `SessionJoined`
 ([sessions.md](sessions.md)).
 
@@ -164,6 +166,7 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 |---|---|
 | Telemetry, feedback, input | `telemetry_compact_wire_format`, `driver_feedback_wire_format`, `player_input_drs_wire_format`, `player_input_headlights_wire_format`, `udp_seal_wire_format` (udp_seal.rs: the seal around every inbound datagram) |
 | Lap timing, line, corners | `lap_timing_wire_format`, `racing_line_wire_format`, `track_corners_wire_format` |
+| Road state | `road_state_wire_format` |
 | Session rules | `assists_wire_format`, `session_damage_wire_format`, `race_time_wire_format`, `session_ai_skill_wire_format`, `conditions_air_wire_format`, `sky_wire_format`, `grid_wire_format` |
 | Garage, pit, hotlap | `car_setup_wire_format`, `car_setup_sheet_wire_format`, `pit_service_wire_format`, `hotlap_wire_format`, `recover_wire_format` |
 | Reconnect | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`) |

@@ -197,6 +197,40 @@ namespace ApexSpectator
 		W.WriteBinary(Points);
 		return MoveTemp(W.GetBuffer());
 	}
+
+	TArray<uint8> EncodeRoad(const FApexStreamRoad& R)
+	{
+		const FApexRoadState& Road = R.Road;
+		TArray<uint8> Debris;
+		Debris.Reserve(Road.Debris.Num() * 8);
+		for (const FVector2D& Piece : Road.Debris)
+		{
+			const int32 X = static_cast<int32>(FMath::Clamp(FMath::RoundToDouble(Piece.X * 1000.0), static_cast<double>(MIN_int32), static_cast<double>(MAX_int32)));
+			const int32 Y = static_cast<int32>(FMath::Clamp(FMath::RoundToDouble(Piece.Y * 1000.0), static_cast<double>(MIN_int32), static_cast<double>(MAX_int32)));
+			Debris.Append(reinterpret_cast<const uint8*>(&X), 4);
+			Debris.Append(reinterpret_cast<const uint8*>(&Y), 4);
+		}
+		TArray<uint8> Geometry;
+		Geometry.SetNumUninitialized(Road.Geometry.Num() * 16);
+		for (int32 i = 0; i < Road.Geometry.Num(); ++i)
+		{
+			const FVector4f& G = Road.Geometry[i];
+			const float V[4] = {G.X, G.Y, G.Z, G.W};
+			FMemory::Memcpy(Geometry.GetData() + i * 16, V, 16);
+		}
+		FMsgPackWriter W(48 + Road.Rows.Num() + Debris.Num() + Geometry.Num());
+		BeginRecord(W, 11, RecordRoad, R.Epoch);
+		W.WriteUInt32Fixed(static_cast<uint32>(R.Tick));
+		W.WriteFloat(Road.LapM);
+		W.WriteFloat(Road.CellM);
+		W.WriteUInt(static_cast<uint64>(FMath::Max(Road.Bins, 0)));
+		W.WriteFloat(Road.HalfSpanM);
+		W.WriteUInt(static_cast<uint64>(FMath::Max(Road.FirstCell, 0)));
+		W.WriteBinary(Road.Rows);
+		W.WriteBinary(Debris);
+		W.WriteBinary(Geometry);
+		return MoveTemp(W.GetBuffer());
+	}
 }
 
 // --- The file ---------------------------------------------------------------------

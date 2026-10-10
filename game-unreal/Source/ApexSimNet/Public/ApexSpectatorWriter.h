@@ -22,6 +22,8 @@ namespace ApexSpectator
 	/** LapTiming, TrackSectors, SessionState, Finish, Retired, PitStop and Contact; empty for another kind. */
 	APEXSIMNET_API TArray<uint8> EncodeEvent(const FApexStreamEvent& Event);
 	APEXSIMNET_API TArray<uint8> EncodePath(const FApexStreamPath& Path);
+	/** A road slice, as `spectator::StreamRoad::encode`. */
+	APEXSIMNET_API TArray<uint8> EncodeRoad(const FApexStreamRoad& Road);
 }
 
 /**

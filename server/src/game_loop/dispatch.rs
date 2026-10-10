@@ -533,6 +533,7 @@ async fn handle_create_session(
             &conn_info.player_name,
             &records,
         );
+        let road = road_state_full(game_session, session_id);
         let allowed_assists = game_session.session.allowed_assists;
         let conditions = game_session.session.conditions;
         let damage = game_session.session.damage;
@@ -561,6 +562,9 @@ async fn handle_create_session(
             let _ = ctx.send(connection_id, msg).await;
         }
         for msg in timing {
+            let _ = ctx.send(connection_id, msg).await;
+        }
+        for msg in road {
             let _ = ctx.send(connection_id, msg).await;
         }
         // Track that player is in a session
@@ -638,6 +642,11 @@ async fn start_demo_session(
     } else {
         Vec::new()
     };
+    // The road as it is, for the demo backdrop and the watched hotlap alike.
+    let mut watch_messages = watch_messages;
+    if let Some(s) = state_write.sessions.get(&session_id) {
+        watch_messages.extend(road_state_full(s, session_id));
+    }
     if !started {
         warn!(
             "Demo session {} for player {} could not be started",
@@ -771,6 +780,7 @@ async fn handle_join_session(
             conn_info.player_name, session_id, grid_pos
         );
         let racing_line = racing_line_message(game_session, session_id, car_id);
+        let road = road_state_full(game_session, session_id);
         let timing = timing_messages(
             game_session,
             session_id,
@@ -803,6 +813,9 @@ async fn handle_join_session(
             let _ = ctx.send(connection_id, msg).await;
         }
         for msg in timing {
+            let _ = ctx.send(connection_id, msg).await;
+        }
+        for msg in road {
             let _ = ctx.send(connection_id, msg).await;
         }
         // Track that player is in a session
@@ -862,6 +875,7 @@ async fn rejoin_session(
         &conn_info.player_name,
         &records,
     ));
+    messages.extend(road_state_full(game_session, session_id));
     drop(state_write);
     for msg in messages {
         let _ = ctx.send(connection_id, msg).await;
@@ -887,6 +901,63 @@ fn racing_line_message(
     Some(ServerMessage::RacingLine(RacingLineData::from_profile(
         session_id, &profile,
     )))
+}
+
+/// One slice of the session's road state: `count` cells from `first_cell`
+/// (wrapping the lap), with every piece of debris on the road now. `None`
+/// when the session has no road state (an older track, before creation).
+pub(crate) fn road_state_message(
+    game_session: &GameSession,
+    session_id: SessionId,
+    first_cell: usize,
+    count: usize,
+) -> Option<ServerMessage> {
+    let road = game_session.track_config.road_state.as_ref()?;
+    let n = road.cell_count();
+    if n == 0 {
+        return None;
+    }
+    let count = count.min(n);
+    let mut rows = Vec::with_capacity(count * crate::road_state::ROW_BYTES);
+    road.write_rows(first_cell % n, count, &mut rows);
+    let mut geometry = Vec::with_capacity(count * crate::road_state::GEOMETRY_BYTES);
+    road.write_geometry(first_cell % n, count, &mut geometry);
+    let debris = game_session
+        .debris
+        .iter()
+        .map(|d| [d.x, d.y])
+        .collect::<Vec<_>>();
+    Some(ServerMessage::RoadState(crate::network::RoadStateData {
+        session_id,
+        lap_m: road.lap_m,
+        cell_m: crate::road_state::CELL_M,
+        bins: crate::road_state::BINS as u8,
+        half_span_m: crate::road_state::HALF_SPAN_M,
+        first_cell: (first_cell % n) as u32,
+        rows: crate::network::RecordBytes(rows),
+        debris,
+        geometry: crate::network::RecordBytes(geometry),
+    }))
+}
+
+/// The whole lap's road state, in messages of at most `ROAD_CELLS_PER_JOIN`
+/// cells: what a joining client gets at once, so the host's start rubber is
+/// on the road from its first frame.
+fn road_state_full(game_session: &GameSession, session_id: SessionId) -> Vec<ServerMessage> {
+    let Some(road) = game_session.track_config.road_state.as_ref() else {
+        return Vec::new();
+    };
+    let n = road.cell_count();
+    let mut out = Vec::new();
+    let mut first = 0;
+    while first < n {
+        let count = crate::road_state::ROAD_CELLS_PER_JOIN.min(n - first);
+        if let Some(msg) = road_state_message(game_session, session_id, first, count) {
+            out.push(msg);
+        }
+        first += count;
+    }
+    out
 }
 
 /// The garage's reference card for `car_id`: every setup knob in real units
@@ -1001,37 +1072,47 @@ async fn handle_join_as_spectator(
         ai_skill,
         race_seconds,
         sectors,
+        road,
     ) = {
         let mut state_write = ctx.state.write().await;
         let joined = state_write
             .lobby
             .join_as_spectator(conn_info.player_id, session_id)
             .await;
-        let (session_kind, allowed_assists, conditions, damage, ai_skill, race_seconds, sectors) =
-            state_write
-                .sessions
-                .get_mut(&session_id)
-                .map(|s| {
-                    // A spectator arriving mid-session has no roster, and the
-                    // client drops telemetry it cannot place: send it again.
-                    if joined {
-                        s.mark_roster_dirty();
-                    }
-                    (
-                        s.session.session_kind,
-                        s.session.allowed_assists,
-                        s.session.conditions,
-                        s.session.damage,
-                        s.session.ai_skill,
-                        s.session.race_seconds,
-                        Some(ServerMessage::TrackSectors(TrackSectorsData {
-                            session_id,
-                            track_length_m: s.track_length_m(),
-                            boundaries_m: s.sector_boundaries_m(),
-                        })),
-                    )
-                })
-                .unwrap_or_default();
+        let (
+            session_kind,
+            allowed_assists,
+            conditions,
+            damage,
+            ai_skill,
+            race_seconds,
+            sectors,
+            road,
+        ) = state_write
+            .sessions
+            .get_mut(&session_id)
+            .map(|s| {
+                // A spectator arriving mid-session has no roster, and the
+                // client drops telemetry it cannot place: send it again.
+                if joined {
+                    s.mark_roster_dirty();
+                }
+                (
+                    s.session.session_kind,
+                    s.session.allowed_assists,
+                    s.session.conditions,
+                    s.session.damage,
+                    s.session.ai_skill,
+                    s.session.race_seconds,
+                    Some(ServerMessage::TrackSectors(TrackSectorsData {
+                        session_id,
+                        track_length_m: s.track_length_m(),
+                        boundaries_m: s.sector_boundaries_m(),
+                    })),
+                    road_state_full(s, session_id),
+                )
+            })
+            .unwrap_or_default();
         (
             joined,
             session_kind,
@@ -1041,6 +1122,7 @@ async fn handle_join_as_spectator(
             ai_skill,
             race_seconds,
             sectors,
+            road,
         )
     };
 
@@ -1067,6 +1149,9 @@ async fn handle_join_as_spectator(
         // Where the sector lines are, so the spectator's timing board can
         // place every car; the roster follows with the next tick.
         if let Some(msg) = sectors {
+            let _ = ctx.send(connection_id, msg).await;
+        }
+        for msg in road {
             let _ = ctx.send(connection_id, msg).await;
         }
         // Track that player is in a session

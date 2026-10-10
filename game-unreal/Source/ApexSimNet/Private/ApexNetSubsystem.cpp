@@ -284,6 +284,15 @@ void UApexNetSubsystem::FeedBackdropTelemetry(const FApexTelemetryFrame& Frame)
 	OnTelemetry.Broadcast(LatestTelemetry);
 }
 
+void UApexNetSubsystem::FeedBackdropRoad(const FApexRoadState& Road)
+{
+	if (!bBackdropFeed || !Road.IsValid())
+	{
+		return;
+	}
+	OnRoadState.Broadcast(Road);
+}
+
 void UApexNetSubsystem::FeedBackdropSectors(const FApexTrackSectors& Sectors)
 {
 	if (!bBackdropFeed)
@@ -1215,6 +1224,17 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CachedCorners = Message.TrackCorners;
 		UE_LOG(LogApexSimNet, Log, TEXT("<- TrackCorners %d corner(s) over %.0f m"),
 			CachedCorners.Corners.Num(), CachedCorners.TrackLengthM);
+		break;
+
+	case EApexServerMessageType::RoadState:
+		// The backdrop's road comes from its stream, not from a session we
+		// are not driving in.
+		if (!bBackdropFeed && Message.RoadState.IsValid())
+		{
+			UE_LOG(LogApexSimNet, VeryVerbose, TEXT("<- RoadState %d cell(s) from %d, %d debris"),
+				Message.RoadState.NumCells(), Message.RoadState.FirstCell, Message.RoadState.Debris.Num());
+			OnRoadState.Broadcast(Message.RoadState);
+		}
 		break;
 
 	case EApexServerMessageType::TrackSectors:

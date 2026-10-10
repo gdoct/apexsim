@@ -222,6 +222,22 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("path spacing"), FMath::IsNearlyEqual(Record.Path.SpacingM, 10.0f));
 	TestTrue(TEXT("path point"), Record.Path.Points.Num() == 3 && Record.Path.Points[2].Equals(FVector2D(-19.75, 3.25), 1e-3));
 
+	// Road.
+	if (TestTrue(TEXT("road decodes"), ApexSpectator::DecodeRecord(View(Road, UE_ARRAY_COUNT(Road)), Record, Error)))
+	{
+		const FApexRoadState& R = Record.Road.Road;
+		TestEqual(TEXT("road type"), (int32)Record.Type, (int32)ApexSpectator::RecordRoad);
+		TestEqual(TEXT("road epoch"), (int64)Record.Road.Epoch, (int64)3);
+		TestEqual(TEXT("road tick"), Record.Road.Tick, (int64)9000);
+		TestEqual(TEXT("road bins"), R.Bins, 4);
+		TestEqual(TEXT("road first cell"), R.FirstCell, 7);
+		TestEqual(TEXT("road cells"), R.NumCells(), 2);
+		TestEqual(TEXT("road first depth"), (int32)R.Rows[0], 80);
+		TestTrue(TEXT("road debris"), R.Debris.Num() == 2 && R.Debris[0].Equals(FVector2D(12.5, -3.25), 1e-3));
+		TestTrue(TEXT("road geometry"), R.Geometry.Num() == 2 && R.Geometry[1] == FVector4f(110.0f, -20.0f, 0.0f, 1.0f));
+		TestTrue(TEXT("road is usable"), R.IsValid());
+	}
+
 	// Rubbish is refused; an unknown record type is reported, not refused.
 	const uint8 Rubbish[] = { 0xC0, 0x01 };
 	TestFalse(TEXT("rubbish refused"), ApexSpectator::DecodeRecord(View(Rubbish, 2), Record, Error));
@@ -486,6 +502,7 @@ bool FApexSpectatorWriterTest::RunTest(const FString& Parameters)
 		case ApexSpectator::RecordFrame: Bytes = ApexSpectator::EncodeFrame(Record.Frame); break;
 		case ApexSpectator::RecordEvent: Bytes = ApexSpectator::EncodeEvent(Record.Event); break;
 		case ApexSpectator::RecordPath: Bytes = ApexSpectator::EncodePath(Record.Path); break;
+		case ApexSpectator::RecordRoad: Bytes = ApexSpectator::EncodeRoad(Record.Road); break;
 		default: break;
 		}
 		TestTrue(*FString::Printf(TEXT("%s encodes as the server does"), What), Bytes == TArray<uint8>(Golden, Num));
@@ -497,6 +514,7 @@ bool FApexSpectatorWriterTest::RunTest(const FString& Parameters)
 	RoundTrip(TEXT("track sectors"), EventTrackSectors, UE_ARRAY_COUNT(EventTrackSectors));
 	RoundTrip(TEXT("contact"), EventContact, UE_ARRAY_COUNT(EventContact));
 	RoundTrip(TEXT("path"), Path, UE_ARRAY_COUNT(Path));
+	RoundTrip(TEXT("road"), Road, UE_ARRAY_COUNT(Road));
 
 	// A row through the telemetry a race director reads and back is the row.
 	{

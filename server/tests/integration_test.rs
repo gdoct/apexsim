@@ -982,6 +982,7 @@ async fn test_sandbox_session_workflow() {
                 | ServerMessage::RacingLine(_)
                 | ServerMessage::TrackSectors(_)
                 | ServerMessage::CarSetupSheet(_)
+                | ServerMessage::RoadState(_)
                 | ServerMessage::LapRecord(_)
                 | ServerMessage::LobbyState(_)
                 | ServerMessage::HeartbeatAck { .. } => continue,

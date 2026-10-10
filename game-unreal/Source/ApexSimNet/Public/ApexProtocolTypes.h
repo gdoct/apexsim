@@ -1320,6 +1320,61 @@ struct APEXSIMNET_API FApexTrackCorners
 };
 
 /**
+ * `RoadStateData` (network.rs) — a slice of the session's road state:
+ * rubber, marbles, a dry line and water per cell across the road, and the
+ * debris on it. The lap is cut into cells of `CellM`, each across the road
+ * into `Bins` bins reaching `HalfSpanM` either side of the centerline.
+ * `Rows` holds whole cells from `FirstCell` (wrapping the lap), RowBytes()
+ * each: the cell's water depth (100 = heavy rain on the flat, over 100 a
+ * puddle), then per bin rubber, marbles and dry, each a byte over 0..1.
+ *
+ * Sent round-robin while racing and whole on join (also fed from a stream's
+ * `Road` record for showcases and replays); the race director reads it into
+ * the road-state texture the road material samples by its (station, lateral)
+ * UV. Not a UPROPERTY struct: the rows are raw bytes for a texture upload.
+ */
+struct APEXSIMNET_API FApexRoadState
+{
+	FString SessionId;
+	float LapM = 0.0f;
+	float CellM = 10.0f;
+	int32 Bins = 32;
+	float HalfSpanM = 16.0f;
+	int32 FirstCell = 0;
+	TArray<uint8> Rows;
+	/** Debris pieces on the road now, server frame, metres. */
+	TArray<FVector2D> Debris;
+	/**
+	 * Where each cell in Rows lies: X, Y the centerline at its middle and
+	 * Z, W the unit vector to its left (server frame, metres). A bin's
+	 * lateral is measured from this point along this vector, positive right,
+	 * as the server's `RoadState::lateral_of` does.
+	 */
+	TArray<FVector4f> Geometry;
+
+	/** Decode a geometry bin (four little-endian f32 per cell) into Geometry. */
+	void SetGeometryBytes(TArrayView<const uint8> Bytes)
+	{
+		const int32 Cells = Bytes.Num() / 16;
+		Geometry.SetNumUninitialized(Cells);
+		for (int32 i = 0; i < Cells; ++i)
+		{
+			float V[4];
+			FMemory::Memcpy(V, Bytes.GetData() + i * 16, 16);
+			Geometry[i] = FVector4f(V[0], V[1], V[2], V[3]);
+		}
+	}
+
+	/** Bytes of one cell: its depth, then rubber/marbles/dry per bin. */
+	int32 RowBytes() const { return 1 + 3 * FMath::Max(Bins, 0); }
+	/** Whole cells in Rows. */
+	int32 NumCells() const { const int32 B = RowBytes(); return B > 0 ? Rows.Num() / B : 0; }
+	/** Cells round the whole lap. */
+	int32 LapCells() const { return CellM > 0.0f ? FMath::Max(1, FMath::CeilToInt(LapM / CellM)) : 0; }
+	bool IsValid() const { return LapM > 1.0f && CellM > 0.0f && Bins > 0 && NumCells() > 0; }
+};
+
+/**
  * `LapTimingData` (network.rs) — one car crossed a timing line.
  *
  * Timed on the server at the full tick rate; a client timing splits off 60 Hz
@@ -2344,6 +2399,8 @@ enum class EApexServerMessageType : uint8
 	IgnoredVariant,
 	/** A seat is held for us in a session we lost the connection to (SessionId, TrackId, SessionKind). */
 	RejoinAvailable,
+	/** A slice of the session's road state (`RoadState`). */
+	RoadState,
 };
 
 /**
@@ -2364,6 +2421,7 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexRacingLineData RacingLine;
 	FApexTrackSectors TrackSectors;
 	FApexTrackCorners TrackCorners;
+	FApexRoadState RoadState;
 	FApexLapTiming LapTiming;
 	FApexLapRecord LapRecord;
 	FApexGhostLap GhostLap;

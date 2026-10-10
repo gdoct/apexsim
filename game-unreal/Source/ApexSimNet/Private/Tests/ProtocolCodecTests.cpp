@@ -938,6 +938,36 @@ bool FApexProtocolLapTimingDecodeTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	FApexServerMessage RoadMessage;
+	if (TestTrue(TEXT("RoadState decodes"),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_RoadState, RoadMessage, Error)))
+	{
+		TestEqual(TEXT("RoadState type"), RoadMessage.Type, EApexServerMessageType::RoadState);
+		const FApexRoadState& Road = RoadMessage.RoadState;
+		TestEqual(TEXT("session id"), Road.SessionId, SessId);
+		TestEqual(TEXT("lap"), Road.LapM, 5793.0f);
+		TestEqual(TEXT("cell"), Road.CellM, 10.0f);
+		TestEqual(TEXT("bins"), Road.Bins, 4);
+		TestEqual(TEXT("half span"), Road.HalfSpanM, 16.0f);
+		TestEqual(TEXT("first cell"), Road.FirstCell, 7);
+		TestEqual(TEXT("a row is depth and three bytes a bin"), Road.RowBytes(), 13);
+		TestEqual(TEXT("two cells"), Road.NumCells(), 2);
+		TestEqual(TEXT("580 cells round the lap"), Road.LapCells(), 580);
+		if (TestEqual(TEXT("26 row bytes"), Road.Rows.Num(), 26))
+		{
+			TestEqual(TEXT("first cell's depth"), (int32)Road.Rows[0], 80);
+			// Cell 0, bin 2: rubber 255, marbles 20, dry 40.
+			TestEqual(TEXT("bin rubber"), (int32)Road.Rows[1 + 3 * 2], 255);
+			TestEqual(TEXT("bin dry"), (int32)Road.Rows[1 + 3 * 2 + 2], 40);
+			TestEqual(TEXT("second cell dry"), (int32)Road.Rows[13], 0);
+		}
+		TestTrue(TEXT("debris"), Road.Debris.Num() == 2 && Road.Debris[1].Equals(FVector2D(900.0, 4.0), 1e-3));
+		TestTrue(TEXT("geometry"), Road.Geometry.Num() == 2
+			&& Road.Geometry[0] == FVector4f(100.0f, -20.0f, 0.0f, 1.0f)
+			&& Road.Geometry[1] == FVector4f(110.0f, -20.0f, 0.0f, 1.0f));
+		TestTrue(TEXT("usable"), Road.IsValid());
+	}
+
 	return true;
 }
 

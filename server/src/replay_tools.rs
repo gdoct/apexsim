@@ -1140,6 +1140,7 @@ pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
     let mut records: Vec<(u32, Vec<u8>)> = Vec::new();
     let mut keeper = ScoreKeeper::default();
     let mut won_at: Option<u32> = None;
+    let mut road_burst_done = false;
     loop {
         let inputs: HashMap<PlayerId, PlayerInputData> = race
             .session
@@ -1163,6 +1164,45 @@ pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
             );
             for body in encoder.frame_of(&race, &rows) {
                 records.push((tick, body));
+            }
+        }
+        // The road, round-robin over the lap: the next slice every couple of
+        // seconds, so a rendered stream carries the track rubbering in and
+        // drying just as a live client sees it.
+        let road_every =
+            ((crate::road_state::ROAD_SEND_SECONDS * tick_rate as f32).round() as u32).max(1);
+        // The whole lap once, with the first frame: a viewer opens on the
+        // road as the host set it, not on a lap filling in.
+        if !road_burst_done && tick.is_multiple_of(record_every) {
+            road_burst_done = true;
+            let n = race
+                .track_config
+                .road_state
+                .as_ref()
+                .map_or(0, |r| r.cell_count());
+            let mut first = 0;
+            while first < n {
+                let count = crate::road_state::ROAD_CELLS_PER_JOIN.min(n - first);
+                if let Some(road) = encoder.road(&race, first, count) {
+                    records.push((tick, road.encode()));
+                }
+                first += count;
+            }
+        } else if tick.is_multiple_of(road_every) {
+            if let Some(n) = race
+                .track_config
+                .road_state
+                .as_ref()
+                .map(|r| r.cell_count())
+                .filter(|n| *n > 0)
+            {
+                let first =
+                    ((tick / road_every) as usize * crate::road_state::ROAD_CELLS_PER_SEND) % n;
+                if let Some(road) =
+                    encoder.road(&race, first, crate::road_state::ROAD_CELLS_PER_SEND)
+                {
+                    records.push((tick, road.encode()));
+                }
             }
         }
         if won_at.is_none()
@@ -1612,6 +1652,51 @@ mod tests {
             from_tick: None,
             to_tick: None,
         }
+    }
+
+    /// A rendered stream carries its road: the whole lap with the first
+    /// frame, then a slice round the lap every couple of seconds, each one
+    /// matching the session's own road state cell for cell.
+    #[test]
+    fn a_render_carries_the_road_state() {
+        use crate::spectator::{Record, StreamFile};
+        let rendered = render_stream(&short_render()).expect("renders");
+        let file = StreamFile::from_bytes(rendered.content.to_bytes().unwrap()).unwrap();
+        let roads: Vec<_> = file
+            .records()
+            .unwrap()
+            .iter()
+            .filter_map(|b| match Record::decode(b).unwrap() {
+                Record::Road(r) => Some(r),
+                _ => None,
+            })
+            .collect();
+        assert!(!roads.is_empty(), "no road records");
+        let first = &roads[0];
+        let lap_cells = (first.lap_m / first.cell_m).ceil() as usize;
+        let row = 1 + 3 * first.bins as usize;
+        // The opening burst covers the lap.
+        let opening: usize = roads
+            .iter()
+            .take_while(|r| r.tick == first.tick)
+            .map(|r| r.rows.len() / row)
+            .sum();
+        assert_eq!(opening, lap_cells, "the first frame carries the whole lap");
+        for r in &roads {
+            assert_eq!(r.rows.len() % row, 0);
+            assert_eq!(r.geometry.len() / 16, r.rows.len() / row);
+        }
+        // Then round-robin: later slices start further round the lap.
+        let later: Vec<_> = roads.iter().filter(|r| r.tick > first.tick).collect();
+        assert!(later.len() >= 3, "a slice every couple of seconds");
+        assert!(later.windows(2).all(|w| w[0].first_cell != w[1].first_cell));
+        // Overcast, a default start: rubber on the line at the calibrated half.
+        let rubber_on_line = first.rows.chunks(row).any(|cell| {
+            cell[1..]
+                .chunks(3)
+                .any(|bin| (bin[0] as i32 - 128).abs() <= 1)
+        });
+        assert!(rubber_on_line);
     }
 
     /// The determinism the pipeline's "only what is stale" rests on: the

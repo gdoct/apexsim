@@ -45,6 +45,7 @@ and readers skip what they do not know (`a_newer_writers_extra_fields_are_skippe
 | 5 | `Block` | file only | a second of records, zlib |
 | 6 | `Index` | file only | first tick and offset of every block |
 | 7 | `Path` | TCP, with the header | the centerline every 10 m, for the TV cameras of a viewer with no lobby |
+| 8 | `Road` | TCP | tick, a slice of the road state (lap, cell length, bins, half span, first cell, rows, debris, geometry): the `RoadState` message's payload ([../server/conditions.md](../server/conditions.md#the-road-on-screen)) |
 
 **Epoch.** The second element of every viewer-facing record is the epoch,
 always written as a full `uint 32`, so it sits at bytes 3..7 of the body. A

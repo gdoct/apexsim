@@ -568,6 +568,13 @@ pub enum ServerMessage {
     // TCP - The showcases the server plays, answering `ListShowcases`.
     Showcases(ShowcasesData),
 
+    // TCP - A slice of the session's road state (`crate::road_state`):
+    // rubber, marbles, a dry line and water, per cell across the road.
+    // Sent round-robin over the lap while racing and all at once on join;
+    // the client draws it on the road (droppable, a drop self-heals on the
+    // next round).
+    RoadState(RoadStateData),
+
     // TCP - A showcase was joined (`SpectateShowcase`). The stream's
     // `Header`, `Roster`, `Path` and `TrackSectors` records follow.
     SpectatorJoined(SpectatorJoinedData),
@@ -617,6 +624,8 @@ impl ServerMessage {
             ServerMessage::CarSetupSheet(_) => MessagePriority::Critical,
             ServerMessage::PitService(_) => MessagePriority::Critical,
             ServerMessage::Showcases(_) => MessagePriority::Critical,
+            // Periodic and self-healing on the next round, like telemetry.
+            ServerMessage::RoadState(_) => MessagePriority::Droppable,
             ServerMessage::SpectatorJoined(_) => MessagePriority::Critical,
             ServerMessage::SpectatorRecord(_) => MessagePriority::Critical,
 
@@ -1387,6 +1396,45 @@ pub struct TrackCornersData {
     /// Lap length in metres.
     pub track_length_m: f32,
     pub corners: Vec<CornerData>,
+}
+
+/// A slice of a session's road state (`crate::road_state::RoadState`): the
+/// lap is cut into cells of `cell_m`, each across the road into `bins` bins
+/// reaching `half_span_m` either side of the centerline. `rows` holds
+/// `count` cells from `first_cell`, `RoadState::ROW_BYTES` each (water depth
+/// then the bins' rubber, marbles and dry), and `geometry` where each of
+/// those cells lies. `debris` is every piece on the
+/// road now, in the server frame. Sent round-robin while racing and whole
+/// on join; the client reads the rows into a texture it samples by the road
+/// mesh's `(station, lateral)` UV.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct RoadStateData {
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub session_id: SessionId,
+    /// The lap the cells cover, m.
+    pub lap_m: f32,
+    /// One cell's length along the lap, m (`road_state::CELL_M`).
+    pub cell_m: f32,
+    /// Bins across a cell (`road_state::BINS`).
+    pub bins: u8,
+    /// How far either side of the centerline the bins reach, m
+    /// (`road_state::HALF_SPAN_M`).
+    pub half_span_m: f32,
+    /// The first cell `rows` covers.
+    pub first_cell: u32,
+    /// `count` cells, `RoadState::ROW_BYTES` bytes each.
+    pub rows: RecordBytes,
+    /// Every piece of debris on the road now, `[x, y]` in the server frame.
+    pub debris: Vec<[f32; 2]>,
+    /// Where each cell in `rows` lies, `RoadState::GEOMETRY_BYTES` each:
+    /// the centerline at its middle and the unit vector to its left (four
+    /// little-endian `f32`, server frame). A bin's lateral is measured from
+    /// it, positive right.
+    pub geometry: RecordBytes,
 }
 
 /// A car crossed a timing line.
@@ -2644,6 +2692,59 @@ mod tests {
                 assert_eq!(data.corners[0].name, "Variante del Rettifilo");
                 assert!(data.corners[1].left);
                 assert_eq!(data.track_length_m, 5793.0);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
+    /// Golden bytes for `RoadState` -> `ApexGolden::S_RoadState`; run
+    /// `cargo test road_state_wire_format -- --nocapture` and paste the
+    /// output into the client's `ApexGoldenBlobs.h`.
+    #[test]
+    fn test_road_state_wire_format() {
+        let session_id = Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap();
+        // Two cells of four bins each: a small fixture the client decodes,
+        // not the real BINS. The row is depth then, per bin, rubber/marbles/dry.
+        let rows = vec![
+            80, // cell 0 depth (0.80 of heavy rain)
+            128, 0, 0, 200, 10, 0, 255, 20, 40, 60, 5, 200, // its 4 bins
+            0,   // cell 1 depth (dry)
+            128, 0, 0, 170, 0, 0, 191, 0, 0, 128, 0, 0, // its 4 bins
+        ];
+        // Cell 0 at (100, -20) facing +X (left is +Y); cell 1 at (110, -20).
+        let geometry: Vec<u8> = [100.0f32, -20.0, 0.0, 1.0, 110.0, -20.0, 0.0, 1.0]
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect();
+        let msg = ServerMessage::RoadState(RoadStateData {
+            session_id,
+            lap_m: 5793.0,
+            cell_m: 10.0,
+            bins: 4,
+            half_span_m: 16.0,
+            first_cell: 7,
+            rows: RecordBytes(rows.clone()),
+            debris: vec![[12.5, -3.25], [900.0, 4.0]],
+            geometry: RecordBytes(geometry.clone()),
+        });
+        let bytes = rmp_serde::to_vec_named(&msg).unwrap();
+        println!(
+            "S_RoadState: {}",
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::RoadState(data) => {
+                assert_eq!(data.first_cell, 7);
+                assert_eq!(data.bins, 4);
+                assert_eq!(data.rows.0, rows);
+                assert_eq!(data.debris.len(), 2);
+                assert_eq!(data.debris[1], [900.0, 4.0]);
+                assert_eq!(data.lap_m, 5793.0);
+                assert_eq!(data.geometry.0, geometry);
             }
             other => panic!("Wrong message type: {other:?}"),
         }

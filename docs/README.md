@@ -49,5 +49,5 @@ see [marketing-site.md](marketing-site.md).
 ## Elsewhere
 
 - [marketing-site.md](marketing-site.md): the generated site, in-engine shots and the promo video.
-- [proposals/](proposals/): designs that are not built ([client-side prediction](proposals/client-prediction.md), [Nanite and shadows](proposals/nanite-shadows.md)).
+- [proposals/](proposals/): designs that are not built ([client-side prediction](proposals/client-prediction.md), [Nanite and shadows](proposals/nanite-shadows.md), [road state and snow](proposals/roadstate.md)).
 - [../MODDING.md](../MODDING.md): the player-facing modding guide; [../server/CMDLINE.md](../server/CMDLINE.md): server command line.

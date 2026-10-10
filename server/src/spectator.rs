@@ -26,6 +26,7 @@
 //! | 5 | [`Block`] | `[5, first_tick, last_tick, records, raw_len, bin zlib]` (file only) |
 //! | 6 | [`Index`] | `[6, [[first_tick, offset, records], ...]]` (file only) |
 //! | 7 | [`StreamPath`] | `[7, epoch, spacing_m, bin points]` |
+//! | 8 | [`StreamRoad`] | `[8, epoch, tick, lap_m, cell_m, bins, half_span_m, first_cell, rows bin, debris bin, geometry bin]` |
 //!
 //! Golden bytes for the client's codec come from
 //! `cargo test spectator_wire_format -- --nocapture`
@@ -67,6 +68,7 @@ pub const RECORD_EVENT: u8 = 4;
 pub const RECORD_BLOCK: u8 = 5;
 pub const RECORD_INDEX: u8 = 6;
 pub const RECORD_PATH: u8 = 7;
+pub const RECORD_ROAD: u8 = 8;
 
 /// `CarRow::status` bits.
 pub const STATUS_ON_TRACK: u8 = 1;
@@ -288,9 +290,10 @@ pub fn record_epoch(body: &[u8]) -> Option<u32> {
 /// The tick of a [`StreamFrame`] or [`StreamEvent`], without decoding it.
 pub fn record_tick(body: &[u8]) -> Option<u32> {
     match (record_type(body)?, body) {
-        (RECORD_FRAME | RECORD_EVENT, [_, _, 0xCE, _, _, _, _, 0xCE, a, b, c, d, ..]) => {
-            Some(u32::from_be_bytes([*a, *b, *c, *d]))
-        }
+        (
+            RECORD_FRAME | RECORD_EVENT | RECORD_ROAD,
+            [_, _, 0xCE, _, _, _, _, 0xCE, a, b, c, d, ..],
+        ) => Some(u32::from_be_bytes([*a, *b, *c, *d])),
         _ => None,
     }
 }
@@ -1356,6 +1359,91 @@ impl StreamPath {
     }
 }
 
+// --- Road ---------------------------------------------------------------------
+
+/// A slice of the session's road state (`crate::road_state`), the stream's
+/// own copy of the `RoadState` TCP message: rubber, marbles, a dry line and
+/// water per cell across the road, plus the debris on it. Written round-robin
+/// over the lap while a stream is recorded, so a viewer of a showcase, a
+/// replay or the menu backdrop sees the road evolve. The body is
+/// `[8, epoch, tick, lap_m, cell_m, bins, half_span_m, first_cell, rows bin,
+/// debris bin, geometry bin]`, debris `[x, y]` pairs in millimetres like a
+/// [`StreamPath`], geometry as `RoadState::write_geometry` packs it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StreamRoad {
+    pub epoch: u32,
+    pub tick: u32,
+    pub lap_m: f32,
+    pub cell_m: f32,
+    pub bins: u8,
+    pub half_span_m: f32,
+    pub first_cell: u32,
+    pub rows: Vec<u8>,
+    pub debris: Vec<[f32; 2]>,
+    pub geometry: Vec<u8>,
+}
+
+impl StreamRoad {
+    pub fn encode(&self) -> Vec<u8> {
+        let mut debris = Vec::with_capacity(self.debris.len() * 8);
+        for [x, y] in &self.debris {
+            debris.extend_from_slice(&metres_to_mm(*x).to_le_bytes());
+            debris.extend_from_slice(&metres_to_mm(*y).to_le_bytes());
+        }
+        let mut out = Vec::with_capacity(self.rows.len() + debris.len() + 32);
+        begin(&mut out, 11, RECORD_ROAD, self.epoch);
+        wr::u32_fixed(&mut out, self.tick);
+        wr::f32(&mut out, self.lap_m);
+        wr::f32(&mut out, self.cell_m);
+        wr::uint(&mut out, self.bins as u64);
+        wr::f32(&mut out, self.half_span_m);
+        wr::uint(&mut out, self.first_cell as u64);
+        wr::bin(&mut out, &self.rows);
+        wr::bin(&mut out, &debris);
+        wr::bin(&mut out, &self.geometry);
+        out
+    }
+
+    fn decode(rd: &mut Rd, len: usize, epoch: u32) -> Result<Self, StreamError> {
+        if len < 11 {
+            return malformed("road of too few fields");
+        }
+        let tick = rd.uint()? as u32;
+        let lap_m = rd.f32()?;
+        let cell_m = rd.f32()?;
+        let bins = rd.uint()? as u8;
+        let half_span_m = rd.f32()?;
+        let first_cell = rd.uint()? as u32;
+        let rows = rd.bin()?.to_vec();
+        let debris = rd
+            .bin()?
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .map(|c| {
+                [
+                    i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32 / 1000.0,
+                    i32::from_le_bytes([c[4], c[5], c[6], c[7]]) as f32 / 1000.0,
+                ]
+            })
+            .collect();
+        let geometry = rd.bin()?.to_vec();
+        rd.skip_rest(len, 11)?;
+        Ok(Self {
+            epoch,
+            tick,
+            lap_m,
+            cell_m,
+            bins,
+            half_span_m,
+            first_cell,
+            rows,
+            debris,
+            geometry,
+        })
+    }
+}
+
 // --- File-only records ------------------------------------------------------------
 
 /// About a second of framed records, zlib-compressed.
@@ -1491,6 +1579,7 @@ pub enum Record {
     Block(Block),
     Index(Index),
     Path(StreamPath),
+    Road(StreamRoad),
     /// A record type this build does not know.
     Unknown(u8),
 }
@@ -1506,14 +1595,16 @@ impl Record {
         match kind {
             RECORD_BLOCK => Ok(Record::Block(Block::decode(&mut rd, len)?)),
             RECORD_INDEX => Ok(Record::Index(Index::decode(&mut rd, len)?)),
-            RECORD_HEADER | RECORD_ROSTER | RECORD_FRAME | RECORD_EVENT | RECORD_PATH => {
+            RECORD_HEADER | RECORD_ROSTER | RECORD_FRAME | RECORD_EVENT | RECORD_PATH
+            | RECORD_ROAD => {
                 let epoch = rd.uint()? as u32;
                 Ok(match kind {
                     RECORD_HEADER => Record::Header(StreamHeader::decode(&mut rd, len, epoch)?),
                     RECORD_ROSTER => Record::Roster(StreamRoster::decode(&mut rd, len, epoch)?),
                     RECORD_FRAME => Record::Frame(StreamFrame::decode(&mut rd, len, epoch)?),
                     RECORD_EVENT => Record::Event(StreamEvent::decode(&mut rd, len, epoch)?),
-                    _ => Record::Path(StreamPath::decode(&mut rd, len, epoch)?),
+                    RECORD_PATH => Record::Path(StreamPath::decode(&mut rd, len, epoch)?),
+                    _ => Record::Road(StreamRoad::decode(&mut rd, len, epoch)?),
                 })
             }
             other => Ok(Record::Unknown(other)),
@@ -1529,6 +1620,7 @@ impl Record {
             Record::Block(r) => r.encode(),
             Record::Index(r) => r.encode(),
             Record::Path(r) => r.encode(),
+            Record::Road(r) => r.encode(),
             Record::Unknown(kind) => {
                 let mut out = Vec::new();
                 wr::array(&mut out, 2);
@@ -1830,6 +1922,39 @@ impl BroadcastEncoder {
 
     pub fn path(&self, session: &GameSession) -> StreamPath {
         StreamPath::from_centerline(&session.track_config.centerline, self.epoch)
+    }
+
+    /// A slice of the session's road state as a stream record, or `None`
+    /// when the session's track carries none. `count` cells from
+    /// `first_cell`, wrapping the lap.
+    pub fn road(
+        &self,
+        session: &GameSession,
+        first_cell: usize,
+        count: usize,
+    ) -> Option<StreamRoad> {
+        let road = session.track_config.road_state.as_ref()?;
+        let n = road.cell_count();
+        if n == 0 {
+            return None;
+        }
+        let count = count.min(n);
+        let mut rows = Vec::with_capacity(count * crate::road_state::ROW_BYTES);
+        road.write_rows(first_cell % n, count, &mut rows);
+        let mut geometry = Vec::with_capacity(count * crate::road_state::GEOMETRY_BYTES);
+        road.write_geometry(first_cell % n, count, &mut geometry);
+        Some(StreamRoad {
+            epoch: self.epoch,
+            tick: session.session.current_tick,
+            lap_m: road.lap_m,
+            cell_m: crate::road_state::CELL_M,
+            bins: crate::road_state::BINS as u8,
+            half_span_m: crate::road_state::HALF_SPAN_M,
+            first_cell: (first_cell % n) as u32,
+            rows,
+            debris: session.debris.iter().map(|d| [d.x, d.y]).collect(),
+            geometry,
+        })
     }
 
     pub fn sectors(&self, session: &GameSession) -> StreamEvent {
@@ -2660,6 +2785,25 @@ mod tests {
             points: vec![[0.0, 0.0], [10.0, 0.5], [-19.75, 3.25]],
         }
         .encode();
+        let road = StreamRoad {
+            epoch: 3,
+            tick: 9000,
+            lap_m: 4259.0,
+            cell_m: 10.0,
+            bins: 4,
+            half_span_m: 16.0,
+            first_cell: 7,
+            rows: vec![
+                80, 128, 0, 0, 200, 10, 0, 255, 20, 40, 60, 5, 200, //
+                0, 128, 0, 0, 170, 0, 0, 191, 0, 0, 128, 0, 0,
+            ],
+            debris: vec![[12.5, -3.25], [900.0, 4.0]],
+            geometry: [100.0f32, -20.0, 0.0, 1.0, 110.0, -20.0, 0.0, 1.0]
+                .iter()
+                .flat_map(|v| v.to_le_bytes())
+                .collect(),
+        }
+        .encode();
         let file = sample_content().to_bytes().unwrap();
 
         println!(
@@ -2691,6 +2835,10 @@ mod tests {
             hex(&path)
         );
         println!(
+            "\tinline constexpr uint8 Road[] = {{\n\t\t{}\n\t}};\n",
+            hex(&road)
+        );
+        println!(
             "\tinline constexpr uint8 File[] = {{\n\t\t{}\n\t}};\n",
             hex(&file)
         );
@@ -2706,5 +2854,17 @@ mod tests {
         assert_eq!(&lap[..2], &[0x95, RECORD_EVENT]);
         assert_eq!(&roster[..2], &[0x94, RECORD_ROSTER]);
         assert_eq!(&path[..2], &[0x94, RECORD_PATH]);
+        assert_eq!(&road[..7], &[0x9B, RECORD_ROAD, 0xCE, 0, 0, 0, 3]);
+        // It round-trips through the generic decoder.
+        match Record::decode(&road).unwrap() {
+            Record::Road(r) => {
+                assert_eq!(r.first_cell, 7);
+                assert_eq!(r.bins, 4);
+                assert_eq!(r.rows.len(), 26);
+                assert_eq!(r.debris, vec![[12.5, -3.25], [900.0, 4.0]]);
+                assert_eq!(r.geometry.len(), 32);
+            }
+            other => panic!("not a road record: {other:?}"),
+        }
     }
 }

@@ -131,6 +131,22 @@ pub(crate) async fn broadcast_rosters(ctx: &GameLoopCtx, rosters: Vec<SessionRos
     }
 }
 
+/// Deliver this tick's road-state slices to each session's drivers and
+/// spectators, reliably over TCP (a dropped slice self-heals on the next
+/// round). Reuses `SessionRosterOut` as the generic per-session message.
+pub(crate) async fn broadcast_road(ctx: &GameLoopCtx, slices: Vec<SessionRosterOut>) {
+    for slice in slices {
+        let (players, spectators) =
+            resolve_recipients(ctx, slice.session_id, &slice.player_recipients).await;
+        let transport_read = ctx.transport.read().await;
+        for player_id in players.into_iter().chain(spectators) {
+            if let Some(conn_id) = transport_read.get_player_connection(player_id).await {
+                let _ = transport_read.send_tcp(conn_id, slice.msg.clone()).await;
+            }
+        }
+    }
+}
+
 /// Deliver this tick's timing lines: the split itself to everyone in the
 /// session, and — when a human driver's legal lap may be a record — the lap
 /// to the record store, with a `LapRecord` back to them if it stood.

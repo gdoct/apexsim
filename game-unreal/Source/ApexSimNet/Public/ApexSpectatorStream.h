@@ -37,6 +37,7 @@ namespace ApexSpectator
 	constexpr uint8 RecordBlock = 5;
 	constexpr uint8 RecordIndex = 6;
 	constexpr uint8 RecordPath = 7;
+	constexpr uint8 RecordRoad = 8;
 
 	constexpr uint8 EventLapTiming = 1;
 	constexpr uint8 EventTrackSectors = 2;
@@ -204,6 +205,19 @@ struct APEXSIMNET_API FApexStreamPath
 	TArray<FVector2D> Points;
 };
 
+/**
+ * A slice of the road state (`spectator::StreamRoad`, record 8): the stream's
+ * copy of the `RoadState` message, written round-robin over the lap so a
+ * showcase, a replay or the backdrop shows the road as it was.
+ */
+struct APEXSIMNET_API FApexStreamRoad
+{
+	uint32 Epoch = 0;
+	int64 Tick = 0;
+	/** SessionId is left empty: a stream's road is its own. */
+	FApexRoadState Road;
+};
+
 struct APEXSIMNET_API FApexStreamBlock
 {
 	int64 FirstTick = 0;
@@ -229,6 +243,7 @@ struct APEXSIMNET_API FApexStreamRecord
 	FApexStreamFrame Frame;
 	FApexStreamEvent Event;
 	FApexStreamPath Path;
+	FApexStreamRoad Road;
 	FApexStreamBlock Block;
 	TArray<FApexStreamIndexEntry> Index;
 };
@@ -337,6 +352,8 @@ public:
 	/** Frames completed since the last call, in tick order, as the director reads a live frame. */
 	TArray<FApexTelemetryFrame> TakeFrames();
 	TArray<FApexStreamEvent> TakeEvents();
+	/** Road slices of the current epoch since the last call, in order. */
+	TArray<FApexStreamRoad> TakeRoads();
 
 	/** Frames thrown away for a wrong epoch or revision. */
 	int32 GetDroppedFrames() const { return DroppedFrames; }
@@ -364,6 +381,7 @@ private:
 
 	TArray<FApexTelemetryFrame> Frames;
 	TArray<FApexStreamEvent> Events;
+	TArray<FApexStreamRoad> Roads;
 	int32 DroppedFrames = 0;
 	int32 IncompleteFrames = 0;
 	int32 AppliedFrames = 0;

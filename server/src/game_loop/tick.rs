@@ -62,6 +62,10 @@ pub(crate) struct TickOutput {
     pub telemetry: Vec<SessionTelemetry>,
     pub rosters: Vec<SessionRosterOut>,
     pub lap_timing: Vec<LapTimingOut>,
+    /// Round-robin slices of each racing session's road state, reliable
+    /// over TCP to its drivers and spectators (`SessionRosterOut` is reused
+    /// as the generic reliable per-session delivery).
+    pub road: Vec<SessionRosterOut>,
 }
 
 /// Advance all sessions one tick and return the payloads to broadcast.
@@ -101,6 +105,11 @@ pub(crate) async fn tick_sessions(
     let mut telemetry_out = Vec::new();
     let mut rosters_out = Vec::new();
     let mut lap_timing_out: Vec<LapTimingOut> = Vec::new();
+    let mut road_out: Vec<SessionRosterOut> = Vec::new();
+    // Every session sends the next slice of its road on the same beat.
+    let road_send_ticks =
+        ((crate::road_state::ROAD_SEND_SECONDS * tick_rate as f32).round() as u64).max(1);
+    let road_send = tick_count.is_multiple_of(road_send_ticks);
     // Sessions whose state moved since the lobby last heard (a tick, or a
     // handler between ticks), so the browser lists what each is doing.
     let mut state_changes: Vec<(SessionId, SessionState)> = Vec::new();
@@ -366,6 +375,34 @@ pub(crate) async fn tick_sessions(
             });
         }
 
+        // Road state: the next slice round the lap, while the session is
+        // live. Round-robin by the global tick, so the whole lap refreshes
+        // over several sends and there is no per-session cursor to keep.
+        if road_send && should_broadcast {
+            if let Some(n) = game_session
+                .track_config
+                .road_state
+                .as_ref()
+                .map(|r| r.cell_count())
+                .filter(|n| *n > 0)
+            {
+                let send_index = (tick_count / road_send_ticks) as usize;
+                let first = (send_index * crate::road_state::ROAD_CELLS_PER_SEND) % n;
+                if let Some(msg) = super::dispatch::road_state_message(
+                    game_session,
+                    *session_id,
+                    first,
+                    crate::road_state::ROAD_CELLS_PER_SEND,
+                ) {
+                    road_out.push(SessionRosterOut {
+                        session_id: *session_id,
+                        player_recipients: player_recipients.clone(),
+                        msg,
+                    });
+                }
+            }
+        }
+
         // Telemetry: the broadcast payload uses the compact positional
         // encoding and is only produced on divisor ticks, as is the replay
         // frame (full telemetry), captured further down.
@@ -551,6 +588,7 @@ pub(crate) async fn tick_sessions(
         telemetry: telemetry_out,
         rosters: rosters_out,
         lap_timing: lap_timing_out,
+        road: road_out,
     }
 }
 

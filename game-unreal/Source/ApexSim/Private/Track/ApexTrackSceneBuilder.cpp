@@ -15,6 +15,7 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformTime.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/PackageName.h"
 #include "Race/ApexPropActors.h"
@@ -70,6 +71,11 @@ namespace
 	TAutoConsoleVariable<bool> CVarTrackHorizonShadows(TEXT("apexsim.track.HorizonShadows"), false,
 		TEXT("Whether the far terrain (the DEM horizon, kilometres out) casts shadows."),
 		FConsoleVariableDelegate::CreateStatic(&OnTrackShadowSwitchChanged), ECVF_Default);
+	// Off builds the road on the base parent: no road-state shader at all,
+	// for comparing its cost. Takes effect on the next track built.
+	TAutoConsoleVariable<bool> CVarTrackRoadMaterial(TEXT("apexsim.track.RoadMaterial"), true,
+		TEXT("Whether the road is made from M_ApexTrackRoad (draws the road state) rather than M_ApexTrackBase. Applies to the next track built."),
+		ECVF_Default);
 
 	void ApplyTrackShadowCasting(UStaticMeshComponent& Component)
 	{
@@ -1006,6 +1012,7 @@ FApexTrackParents ApexTrackMaterials::LoadParents()
 	Parents.Emissive = Load(EmissiveName);
 	Parents.Brand = Load(BrandName);
 	Parents.Decal = Load(DecalName);
+	Parents.Road = Load(RoadName);
 	// An imported circuit's textured scenery draws on the car parents: the
 	// same shapes (opaque, masked, translucent; two-sided) and the same
 	// parameter names, so no track parent of its own is needed.
@@ -1014,6 +1021,13 @@ FApexTrackParents ApexTrackMaterials::LoadParents()
 	Parents.SceneryMasked = Car.Masked;
 	Parents.SceneryTranslucent = Car.Translucent;
 	return Parents;
+}
+
+bool ApexTrackMaterials::IsRoadStateMaterial(const UMaterialInterface* Material)
+{
+	// GetBaseMaterial is not const; it only walks the parent chain.
+	const UMaterial* Base = Material ? const_cast<UMaterialInterface*>(Material)->GetBaseMaterial() : nullptr;
+	return Base && Base->GetFName() == FName(RoadName);
 }
 
 bool ApexTrackMaterials::HasGroundTextures(const UMaterialInterface* Base)
@@ -1058,6 +1072,7 @@ void FApexTrackSceneBuilder::AddReferencedObjects(FReferenceCollector& Collector
 	Collector.AddReferencedObject(Parents.Emissive);
 	Collector.AddReferencedObject(Parents.Brand);
 	Collector.AddReferencedObject(Parents.Decal);
+	Collector.AddReferencedObject(Parents.Road);
 	Collector.AddReferencedObject(Parents.SceneryOpaque);
 	Collector.AddReferencedObject(Parents.SceneryMasked);
 	Collector.AddReferencedObject(Parents.SceneryTranslucent);
@@ -1341,7 +1356,11 @@ bool FApexTrackSceneBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 
 		Base.A = 1.0f;
 		Params.Vector(TEXT("BaseColor"), Base);
-		UMaterialInterface* Instance = Factory.MakeMaterial(Source.Key, Parents.Base, Params);
+		// The road itself draws the road state; the pit lane keeps the base
+		// (its UV `u` is its own station, not the lap's).
+		UMaterialInterface* Parent = Source.Family == TEXT("road") && Parents.Road && CVarTrackRoadMaterial.GetValueOnGameThread()
+			? Parents.Road.Get() : Parents.Base.Get();
+		UMaterialInterface* Instance = Factory.MakeMaterial(Source.Key, Parent, Params);
 		if (!Instance)
 		{
 			OutError = FString::Printf(TEXT("could not create material %s"), *Source.Key);

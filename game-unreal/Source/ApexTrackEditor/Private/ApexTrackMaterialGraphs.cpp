@@ -4,6 +4,7 @@
 #include "Cars/ApexCarMaterials.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionAbs.h"
 #include "Materials/MaterialExpressionAdd.h"
@@ -122,7 +123,16 @@ namespace
 	 * its own values through the same parameter names (the scene builder's
 	 * family table), cooked or at runtime.
 	 */
-	void BuildTrackBase(UMaterial* Parent, bool& bOutGroundTextures)
+	void ApplyRoadStateGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
+		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness, UMaterialExpression*& InOutNormal);
+
+	/**
+	 * `bRoadState` builds `M_ApexTrackRoad`: the same surface, with the
+	 * session's road state (rubber, marbles, a dry line, water) drawn over
+	 * it from the textures the race director fills (ApplyRoadStateGraph).
+	 * Only the road samples them, so the other surfaces do not pay for it.
+	 */
+	void BuildTrackBase(UMaterial* Parent, bool& bOutGroundTextures, bool bRoadState = false)
 	{
 		UMaterialExpressionVectorParameter* ColorParam =
 			AddExpr<UMaterialExpressionVectorParameter>(Parent);
@@ -644,6 +654,11 @@ namespace
 			UE_LOG(LogApexTrackImport, Warning,
 				TEXT("    no ground textures and %s is missing — surfaces have no grain at all"),
 				kDetailTexture);
+		}
+
+		if (bRoadState)
+		{
+			ApplyRoadStateGraph(Parent, TexCoord, WorldPos, FinalAlbedo, FinalRoughness, FinalNormal);
 		}
 
 		UMaterialExpressionClamp* RoughOut = AddExpr<UMaterialExpressionClamp>(Parent);
@@ -1250,6 +1265,121 @@ namespace
 		}
 		return FString();
 	}
+	/**
+	 * The road state over the road's surface (`M_ApexTrackRoad` only).
+	 *
+	 * The race director fills two textures from the server's `RoadState`
+	 * (`FApexRoadStateMap`): `RoadState`, a column per 10 m cell of the lap
+	 * and a row per 1 m bin across the road (R rubber, G marbles, B dry, A
+	 * water depth, 255 = 2.55 of heavy rain), and `RoadGeometry`, one texel
+	 * per cell holding where the server measures that cell's bins from (the
+	 * centerline point in world cm, then the unit vector to its left in
+	 * world axes). The road mesh's UV0 `u` is metres of station, which picks
+	 * the cell; the pixel's world position against that cell's point gives
+	 * its lateral exactly as `RoadState::lateral_of` does, which picks the
+	 * bin. `RoadStateAmount` 0 (the default, and what an instance has until
+	 * a road state arrives) leaves the surface as built.
+	 *
+	 * What it draws: rubber darkens the asphalt and makes it a little
+	 * glossier (0.5 is the calibrated look, unchanged); marbles show as dark
+	 * crumbs where they lie; water darkens and glosses the bins the wheels
+	 * have not wiped, so a dry line appears between wet edges; standing
+	 * water over the rain's depth goes mirror-smooth and flat.
+	 */
+	void ApplyRoadStateGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
+		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness, UMaterialExpression*& InOutNormal)
+	{
+		const FGraph G{Parent};
+
+		// A neutral 1x1 default, a subobject of the parent (a rebake moves it
+		// out with the old parent): rubber at
+		// the calibrated half, no marbles, no water. Linear, so the samplers
+		// take the director's linear textures at runtime.
+		UTexture2D* Neutral = NewObject<UTexture2D>(Parent, TEXT("T_RoadStateNeutral"));
+		const uint8 NeutralTexel[4] = {0, 0, 128, 0};	 // B G R A
+		Neutral->Source.Init(1, 1, 1, 1, TSF_BGRA8, NeutralTexel);
+		Neutral->SRGB = false;
+		Neutral->CompressionSettings = TC_VectorDisplacementmap;
+		Neutral->MipGenSettings = TMGS_NoMipmaps;
+		Neutral->Filter = TF_Nearest;
+		Neutral->PostEditChange();
+
+		auto Param = [Parent](const TCHAR* Name, float Default) {
+			UMaterialExpressionScalarParameter* P = AddExpr<UMaterialExpressionScalarParameter>(Parent);
+			P->ParameterName = Name;
+			P->DefaultValue = Default;
+			return P;
+		};
+		auto Sample = [Parent, Neutral](const TCHAR* Name, UMaterialExpression* Coords) {
+			UMaterialExpressionTextureSampleParameter2D* S = AddExpr<UMaterialExpressionTextureSampleParameter2D>(Parent);
+			S->ParameterName = Name;
+			S->Texture = Neutral;
+			S->SamplerType = MaterialExpressionUtils::GetSamplerTypeForTexture(Neutral);
+			S->Coordinates.Expression = Coords;
+			return S;
+		};
+		// One output of a sample (1 R, 2 G, 3 B, 4 A) as a node of its own.
+		auto Channel = [Parent](UMaterialExpression* Source, int32 Output) {
+			UMaterialExpressionMultiply* M = AddExpr<UMaterialExpressionMultiply>(Parent);
+			M->A.Expression = Source;
+			M->A.OutputIndex = Output;
+			M->ConstB = 1.0f;
+			return M;
+		};
+
+		UMaterialExpression* Amount = Param(TEXT("RoadStateAmount"), 0.0f);
+		// 1 / (cell length x cells in the texture): station metres to `u`.
+		UMaterialExpression* PerMetre = Param(TEXT("RoadStateU"), 0.0f);
+		UMaterialExpression* HalfSpan = Param(TEXT("RoadStateHalfSpanM"), 16.0f);
+
+		// The cell: `u` from the station.
+		UMaterialExpression* Station = G.Mask(TexCoord, true, false, false);
+		UMaterialExpression* U = G.Mul(Station, PerMetre);
+		UMaterialExpression* Geo = Sample(TEXT("RoadGeometry"), G.Append(U, G.C(0.5f)));
+		UMaterialExpression* CentreCm = G.Append(Channel(Geo, 1), Channel(Geo, 2));
+		UMaterialExpression* LeftDir = G.Append(Channel(Geo, 3), Channel(Geo, 4));
+
+		// The bin: the lateral, positive right, as the server measures it.
+		UMaterialExpression* Here = G.Mask(WorldPos, true, true, false);
+		UMaterialExpression* LeftCm = G.Dot(G.Sub(Here, CentreCm), LeftDir);
+		UMaterialExpression* RightM = G.Mul(LeftCm, G.C(-0.01f));
+		UMaterialExpression* V = G.Div(G.Add(RightM, HalfSpan), G.Mul(HalfSpan, G.C(2.0f)));
+		UMaterialExpression* State = Sample(TEXT("RoadState"), G.Append(U, V));
+		UMaterialExpression* Rubber = Channel(State, 1);
+		UMaterialExpression* Marbles = Channel(State, 2);
+		UMaterialExpression* Dry = Channel(State, 3);
+		UMaterialExpression* Depth = G.Mul(Channel(State, 4), G.C(2.55f));
+
+		// Water the wheels have not wiped: the road's own wet threshold (0.5
+		// of heavy rain is fully wet, `road_state::step`), less what is dry.
+		UMaterialExpression* Wet = G.Mul(G.Sat(G.Mul(Depth, G.C(2.0f))), G.Sub(G.C(1.0f), Dry));
+		// Standing water deeper than the rain leaves.
+		UMaterialExpression* Puddle = G.Sat(G.Mul(G.Sub(Depth, G.C(1.0f)), G.C(2.0f)));
+		// Marbles as crumbs: 10 cm grain, shown where there are marbles.
+		UMaterialExpression* Grain = G.Noise(WorldPos, 0.1f, 1);
+		UMaterialExpression* Crumbs = G.Sat(G.Mul(G.Sub(Grain, G.Sub(G.C(1.0f), Marbles)), G.C(6.0f)));
+
+		UMaterialExpression* RubberOver = G.Sub(Rubber, G.C(0.5f));
+		UMaterialExpression* Shade = G.Mul(
+			G.Mul(G.Sub(G.C(1.0f), G.Mul(RubberOver, G.C(0.35f))), G.Lerp(G.C(1.0f), G.C(0.55f), Crumbs)),
+			G.Sub(G.C(1.0f), G.Mul(Wet, G.C(0.3f))));
+		UMaterialExpression* Albedo = G.Mul(InOutAlbedo, Shade);
+
+		UMaterialExpression* Rough = G.Sub(InOutRoughness, G.Mul(RubberOver, G.C(0.15f)));
+		Rough = G.Add(Rough, G.Mul(Crumbs, G.C(0.1f)));
+		// Wet is ApexSky::WetRoadRoughness (0.3); a puddle is a mirror.
+		Rough = G.Lerp(Rough, G.C(0.3f), Wet);
+		Rough = G.Lerp(Rough, G.C(0.05f), Puddle);
+
+		InOutAlbedo = G.Lerp(InOutAlbedo, Albedo, Amount);
+		InOutRoughness = G.Lerp(InOutRoughness, Rough, Amount);
+		if (InOutNormal)
+		{
+			UMaterialExpression* Flat = G.C3(0.0f, 0.0f, 1.0f);
+			UMaterialExpression* Calm = G.Lerp(InOutNormal, Flat, G.Mul(Puddle, Amount));
+			InOutNormal = G.Normalize(Calm);
+		}
+	}
 }	 // namespace
 
 bool ApexTrackMaterialGraphs::GroundSetImported()
@@ -1292,6 +1422,18 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 		}
 		UE_LOG(LogApexTrackImport, Display, TEXT("    %s samples %s"), ApexTrackMaterials::BaseName,
 			bGroundTextures ? TEXT("the baked ground sets") : TEXT("the engine noise tile (no /Game/Ground yet)"));
+		++Baked;
+	}
+	// The road's own parent: the base's graph plus the road state. Baked
+	// with the base, so the two always carry the same surface.
+	if (bRebakeBase || !ParentExists(ApexTrackMaterials::RoadName))
+	{
+		bool bGroundTextures = false;
+		if (!BakeOne(ApexTrackMaterials::RoadName,
+				[&bGroundTextures](UMaterial* M) { BuildTrackBase(M, bGroundTextures, /*bRoadState*/ true); }, OutError))
+		{
+			return false;
+		}
 		++Baked;
 	}
 	if (bForce || !ParentExists(ApexTrackMaterials::EmissiveName))

@@ -91,6 +91,7 @@ void UApexReplayRecorder::Initialize(FSubsystemCollectionBase& Collection)
 		Net->OnLapTiming.AddDynamic(this, &UApexReplayRecorder::HandleLapTiming);
 		Net->OnSessionStateChanged.AddDynamic(this, &UApexReplayRecorder::HandleSessionStateChanged);
 		Net->OnDisconnected.AddDynamic(this, &UApexReplayRecorder::HandleDisconnected);
+		RoadStateHandle = Net->OnRoadState.AddUObject(this, &UApexReplayRecorder::HandleRoadState);
 	}
 }
 
@@ -107,6 +108,7 @@ void UApexReplayRecorder::Deinitialize()
 		Net->OnLapTiming.RemoveDynamic(this, &UApexReplayRecorder::HandleLapTiming);
 		Net->OnSessionStateChanged.RemoveDynamic(this, &UApexReplayRecorder::HandleSessionStateChanged);
 		Net->OnDisconnected.RemoveDynamic(this, &UApexReplayRecorder::HandleDisconnected);
+		Net->OnRoadState.Remove(RoadStateHandle);
 	}
 	Super::Deinitialize();
 }
@@ -159,6 +161,7 @@ void UApexReplayRecorder::Begin()
 	GameMode = EApexGameMode::Lobby;
 	Finished.Reset();
 	bStoppedForSize = false;
+	PendingRoads.Reset();
 	if (const UApexNetSubsystem* Net = GetNet())
 	{
 		SessionId = Net->GetCurrentSessionId();
@@ -312,6 +315,40 @@ void UApexReplayRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	}
 	Writer.Add(Tick, ApexSpectator::EncodeFrame(Out));
 	++FramesWritten;
+	// The join's road, filed under the first frame it can be.
+	for (const FApexRoadState& Road : PendingRoads)
+	{
+		WriteRoad(Tick, Road);
+	}
+	PendingRoads.Reset();
+}
+
+void UApexReplayRecorder::HandleRoadState(const FApexRoadState& Road)
+{
+	if (!bRecording || !IsRecordableSession())
+	{
+		return;
+	}
+	if (LastTick < 0)
+	{
+		// A lap's burst is a handful of messages; more than this is not a burst.
+		if (PendingRoads.Num() < 64)
+		{
+			PendingRoads.Add(Road);
+		}
+		return;
+	}
+	WriteRoad(LastTick, Road);
+}
+
+void UApexReplayRecorder::WriteRoad(int64 Tick, const FApexRoadState& Road)
+{
+	FApexStreamRoad Record;
+	Record.Tick = Tick;
+	Record.Road = Road;
+	// A stream's road is its own, not a live session's.
+	Record.Road.SessionId.Reset();
+	Writer.Add(Tick, ApexSpectator::EncodeRoad(Record));
 }
 
 void UApexReplayRecorder::HandleLapTiming(const FApexLapTiming& Timing)

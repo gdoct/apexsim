@@ -62,6 +62,25 @@ pub const BINS: usize = (2.0 * HALF_SPAN_M / BIN_M) as usize;
 /// The state steps every so many ticks: everything in it is slow.
 pub const STEP_TICKS: u32 = 7;
 
+/// Byte units for a cell's water depth on the wire ([`RoadState::write_rows`]):
+/// 100 is the depth heavy rain leaves on a flat road (`Weather::water` 1.0),
+/// so standing water reads over 100 and the full 0..2.55 range fits a byte.
+pub const DEPTH_BYTE: f32 = 100.0;
+/// Bytes of one cell on the wire: its water depth, then [`BINS`] bins of
+/// rubber, marbles and dry.
+pub const ROW_BYTES: usize = 1 + 3 * BINS;
+/// Bytes of one cell's geometry on the wire ([`RoadState::write_geometry`]).
+pub const GEOMETRY_BYTES: usize = 16;
+/// Cells sent in one round-robin `RoadState` message while racing: the
+/// whole lap is refreshed over `cell_count / ROAD_CELLS_PER_SEND` sends,
+/// one every [`ROAD_SEND_SECONDS`]. 50 cells is about 5 kB a send.
+pub const ROAD_CELLS_PER_SEND: usize = 50;
+/// Seconds between round-robin sends. The road moves over minutes, so the
+/// lag around the lap is invisible and the bandwidth is bounded.
+pub const ROAD_SEND_SECONDS: f32 = 2.0;
+/// Cells in one message of the whole-lap burst a joining client gets.
+pub const ROAD_CELLS_PER_JOIN: usize = 512;
+
 /// Share of the gap to the rain's standing depth the rain closes per second.
 pub const RAIN_RATE: f32 = 0.01;
 /// Share of the depth over the standing depth that drains per second on a
@@ -320,6 +339,56 @@ impl RoadState {
     /// The depth a cell `low` settles at under `rain`.
     fn standing_depth(rain: f32, low: f32) -> f32 {
         rain * (1.0 + PUDDLE_GAIN * low)
+    }
+
+    /// How many cells the lap is cut into.
+    pub fn cell_count(&self) -> usize {
+        self.cells.len()
+    }
+
+    /// Pack where `count` cells from `first_cell` (wrapping) lie, for the
+    /// wire ([`GEOMETRY_BYTES`] each): the centerline at the cell's middle
+    /// and the unit vector to its left, four little-endian `f32`s in the
+    /// server frame. A bin's lateral is measured from exactly this point
+    /// along exactly this vector ([`RoadState::lateral_of`]), so the client
+    /// that draws the bins from world position lines up with the sim.
+    pub fn write_geometry(&self, first_cell: usize, count: usize, out: &mut Vec<u8>) {
+        let n = self.cells.len();
+        if n == 0 {
+            return;
+        }
+        for k in 0..count {
+            let c = &self.cells[(first_cell + k) % n];
+            for v in [c.x, c.y, c.left_x, c.left_y] {
+                out.extend_from_slice(&v.to_le_bytes());
+            }
+        }
+    }
+
+    /// Pack `count` cells from `first_cell` (wrapping the lap) for the wire
+    /// ([`ROW_BYTES`] each): the cell's water depth as a byte in
+    /// [`DEPTH_BYTE`] units (100 is heavy rain on the flat, over 100 a
+    /// puddle), then its [`BINS`] bins, each rubber, marbles and dry as a
+    /// byte over 0..1. The client reads it straight into a texture row; a
+    /// byte is the client's resolution, the sim keeps its `f32`s. Bins the
+    /// road does not cover stay 0 (the tyre never samples them).
+    pub fn write_rows(&self, first_cell: usize, count: usize, out: &mut Vec<u8>) {
+        let n = self.cells.len();
+        if n == 0 {
+            return;
+        }
+        let q = |v: f32| (v * 255.0).round().clamp(0.0, 255.0) as u8;
+        for k in 0..count {
+            let i = (first_cell + k) % n;
+            let cell = &self.cells[i];
+            out.push((cell.depth * DEPTH_BYTE).round().clamp(0.0, 255.0) as u8);
+            let base = i * BINS;
+            for b in 0..BINS {
+                out.push(q(self.rubber[base + b]));
+                out.push(q(self.marbles[base + b]));
+                out.push(q(self.dry[base + b]));
+            }
+        }
     }
 
     pub fn cell_index(&self, station_m: f32) -> usize {
@@ -694,6 +763,36 @@ mod tests {
             green.sample(500.0, 2.0).grip,
             green.sample(500.0, -5.0).grip
         );
+    }
+
+    #[test]
+    fn write_rows_packs_the_cells_the_wire_reads() {
+        let mut road = RoadState::new(&dipped_track(0.5), 1.0);
+        drive(&mut road, 2.0, 200, 1800.0);
+        let n = road.cell_count();
+        // A wrapping slice of three cells from near the end of the lap.
+        let first = n - 2;
+        let mut bytes = Vec::new();
+        road.write_rows(first, 3, &mut bytes);
+        assert_eq!(bytes.len(), 3 * ROW_BYTES);
+        for k in 0..3 {
+            let i = (first + k) % n;
+            let off = k * ROW_BYTES;
+            let cell = &road.cells[i];
+            assert_eq!(
+                bytes[off],
+                (cell.depth * DEPTH_BYTE).round().clamp(0.0, 255.0) as u8,
+                "cell {i} depth byte",
+            );
+            let base = i * BINS;
+            // A bin on the raceline carries the rubber the laps laid.
+            let b = bin_of(2.0).unwrap();
+            let rubber_byte = bytes[off + 1 + 3 * b];
+            assert_eq!(
+                rubber_byte,
+                (road.rubber[base + b] * 255.0).round().clamp(0.0, 255.0) as u8,
+            );
+        }
     }
 
     #[test]

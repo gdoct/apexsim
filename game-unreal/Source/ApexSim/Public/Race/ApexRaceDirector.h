@@ -6,6 +6,7 @@
 #include "Race/ApexChaseView.h"
 #include "Race/ApexLobbyCamera.h"
 #include "Race/ApexReplayCamera.h"
+#include "Race/ApexRoadStateMap.h"
 #include "Race/ApexSkyModel.h"
 #include "Race/ApexSpectatorView.h"
 #include "Race/ApexTvDirector.h"
@@ -29,6 +30,7 @@ class UMaterialInstanceDynamic;
 class UExponentialHeightFogComponent;
 class UInstancedStaticMeshComponent;
 class UStaticMeshComponent;
+class UTexture2D;
 class USpringArmComponent;
 class UTextureRenderTarget2D;
 
@@ -970,6 +972,49 @@ private:
 	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, FVector2f> RoadDryLook;
 	/** The floodlight lamp faces with their emissive strength as built. */
 	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, float> LampBaseGlow;
+
+	// --- Road state (ApexRaceDirectorRoad.cpp) ---------------------------------------
+
+	/**
+	 * The server's road state (`RoadState`, or a stream's `Road` record on
+	 * the backdrop feed), kept whole for the lap and drawn on the road by
+	 * `M_ApexTrackRoad`: rubber, marbles, a dry line and water per metre
+	 * across the road, and the debris lying on it. Kept across a race view
+	 * (the join's burst arrives before the track is shown) and forgotten
+	 * when the session is left or another source begins.
+	 */
+	void HandleRoadState(const FApexRoadState& Slice);
+	void HandleDemoSessionChanged(bool bJoined);
+	/** Once a frame: make and fill the textures, hand them to the road's materials, lay the debris. */
+	void UpdateRoadState();
+	/** Set the road-state parameters on every road material taken (RoadStateMids). */
+	void PushRoadStateParameters();
+	/** Lay the debris pieces on the road (an instanced shard each). */
+	void UpdateRoadDebris();
+	/** Drop the textures, the materials and the debris (the track went back). */
+	void ForgetRoadStateOnTrack();
+	/** Whether the road's materials draw the road state now (a slice has arrived). */
+	bool IsRoadStateLive() const { return RoadMap.IsValid() && RoadMap.NumKnownCells() > 0; }
+
+	FApexRoadStateMap RoadMap;
+	/** Who the map came from: the live session's id, or empty for a stream. */
+	FString RoadSource;
+	FDelegateHandle RoadStateHandle;
+	FDelegateHandle DemoSessionHandle;
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> RoadStateTexture;
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> RoadGeometryTexture;
+	/** The road's materials made from `M_ApexTrackRoad`, taken in ApplyTrackLevelConditions. */
+	TArray<TWeakObjectPtr<UMaterialInstanceDynamic>> RoadStateMids;
+	/** The parameters must go to RoadStateMids again (new textures, new materials, live or not). */
+	bool bRoadStateParamsStale = true;
+	/** RoadStateAmount as last pushed. */
+	bool bRoadStateShown = false;
+	UPROPERTY(Transient)
+	TObjectPtr<UInstancedStaticMeshComponent> RoadDebris;
+	/** The pieces have been laid on the track on show (cleared when it goes). */
+	bool bRoadDebrisLaid = false;
 	/**
 	 * The night pass's material instances (`ApexProps::NightGlowOf`: lit
 	 * windows, the wheel's light strips, the lit panels) with the emissive

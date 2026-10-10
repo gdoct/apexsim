@@ -35,6 +35,13 @@ struct FApexTrackParents
 	/** `M_ApexDecal`: masked road paint. */
 	TObjectPtr<UMaterialInterface> Decal;
 	/**
+	 * `M_ApexTrackRoad`: `Base` plus the session's road state (rubber,
+	 * marbles, a dry line, water), drawn from the textures the race
+	 * director fills. The road family's own keys are made from it; null on
+	 * a bake from before it existed, when the road is made from `Base`.
+	 */
+	TObjectPtr<UMaterialInterface> Road;
+	/**
 	 * The car parents under `/Game/Materials/Car` (opaque, masked,
 	 * translucent; two-sided, with `BaseColorTexture` and friends), which
 	 * an imported circuit's textured scenery is drawn on. Null on a clone
@@ -52,6 +59,10 @@ namespace ApexTrackMaterials
 	inline const TCHAR* const EmissiveName = TEXT("M_ApexEmissive");
 	inline const TCHAR* const BrandName = TEXT("M_ApexBrand");
 	inline const TCHAR* const DecalName = TEXT("M_ApexDecal");
+	inline const TCHAR* const RoadName = TEXT("M_ApexTrackRoad");
+
+	/** Whether `Material` is made from `M_ApexTrackRoad` (it can draw the road state). */
+	APEXSIM_API bool IsRoadStateMaterial(const UMaterialInterface* Material);
 
 	/** `/Game/Materials/Track/<Name>`. */
 	APEXSIM_API FString PackageName(const TCHAR* Name);

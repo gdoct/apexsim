@@ -39,6 +39,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnShowcases, const TArray<FApexShowcase
 DECLARE_MULTICAST_DELEGATE_TwoParams(FApexOnSpectatorJoined, const FString& /*StreamId*/, const FString& /*ShowcaseId*/);
 /** A run of spectator stream records in the stream's framing (ApexSpectatorStream.h), as they arrived. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnSpectatorRecords, TArrayView<const uint8>);
+/** A slice of the session's road state (`RoadState`, or a stream's `Road` record on the backdrop feed). */
+DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnRoadState, const FApexRoadState&);
 
 /**
  * Owns the connection to the ApexSim server and translates it into Blueprint
@@ -327,6 +329,13 @@ public:
 	FApexOnSpectatorJoined OnSpectatorJoined;
 	FApexOnSpectatorRecords OnSpectatorRecords;
 
+	/**
+	 * Every slice of the road state as it arrives, live or from the backdrop
+	 * feed: the whole lap in a burst on join, then a slice every couple of
+	 * seconds. The race director keeps the lap and draws it on the road.
+	 */
+	FApexOnRoadState OnRoadState;
+
 	// --- Backdrop feed --------------------------------------------------------------
 
 	/**
@@ -341,6 +350,8 @@ public:
 	void FeedBackdropTelemetry(const FApexTelemetryFrame& Frame);
 	void FeedBackdropSectors(const FApexTrackSectors& Sectors);
 	void FeedBackdropLapTiming(const FApexLapTiming& Timing);
+	/** A stream's `Road` record, out through OnRoadState as a live slice is. */
+	void FeedBackdropRoad(const FApexRoadState& Road);
 	void EndBackdropFeed();
 	bool IsBackdropFeedActive() const { return bBackdropFeed; }
 

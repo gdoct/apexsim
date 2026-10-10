@@ -126,6 +126,7 @@ impl LobbyTestClient {
                 ServerMessage::RacingLine(_)
                 | ServerMessage::TrackSectors(_)
                 | ServerMessage::CarSetupSheet(_)
+                | ServerMessage::RoadState(_)
                 | ServerMessage::LapRecord(_) => continue,
                 other => {
                     return Err(
@@ -183,6 +184,7 @@ impl LobbyTestClient {
                 Ok(Ok(ServerMessage::RacingLine(_)))
                 | Ok(Ok(ServerMessage::TrackSectors(_)))
                 | Ok(Ok(ServerMessage::CarSetupSheet(_)))
+                | Ok(Ok(ServerMessage::RoadState(_)))
                 | Ok(Ok(ServerMessage::LapRecord(_))) => continue,
                 Ok(Ok(ServerMessage::TelemetryCompact(_))) => continue,
                 Ok(Ok(ServerMessage::HeartbeatAck { .. })) => continue,

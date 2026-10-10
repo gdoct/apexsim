@@ -427,6 +427,10 @@ void UApexSpectatorSubsystem::Drain()
 	{
 		Net->FeedBackdropTelemetry(Frame);
 	}
+	for (const FApexStreamRoad& Road : Player.TakeRoads())
+	{
+		Net->FeedBackdropRoad(Road.Road);
+	}
 }
 
 FString UApexSpectatorSubsystem::DescribeState() const

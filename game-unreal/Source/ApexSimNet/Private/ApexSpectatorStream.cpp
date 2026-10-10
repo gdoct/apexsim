@@ -354,6 +354,44 @@ namespace ApexSpectatorCodec
 		return SkipRest(Reader, Count, 4);
 	}
 
+	/** `[8, epoch, tick, lap_m, cell_m, bins, half_span_m, first_cell, rows bin, debris bin, geometry bin]`. */
+	bool ParseRoad(FMsgPackReader& Reader, int32 Count, uint32 Epoch, FApexStreamRoad& Out)
+	{
+		if (Count < 11)
+		{
+			return false;
+		}
+		Out.Epoch = Epoch;
+		FApexRoadState& Road = Out.Road;
+		uint64 Bins = 0;
+		uint64 FirstCell = 0;
+		TArrayView<const uint8> Rows;
+		TArrayView<const uint8> Debris;
+		TArrayView<const uint8> Geometry;
+		if (!ReadI64(Reader, Out.Tick) || !Reader.ReadFloat(Road.LapM) || !Reader.ReadFloat(Road.CellM)
+			|| !Reader.ReadUInt64(Bins) || !Reader.ReadFloat(Road.HalfSpanM) || !Reader.ReadUInt64(FirstCell)
+			|| !Reader.ReadBinary(Rows) || !Reader.ReadBinary(Debris) || !Reader.ReadBinary(Geometry))
+		{
+			return false;
+		}
+		Road.Bins = static_cast<int32>(Bins);
+		Road.FirstCell = static_cast<int32>(FirstCell);
+		Road.Rows = TArray<uint8>(Rows.GetData(), Rows.Num());
+		const int32 Pieces = Debris.Num() / 8;
+		Road.Debris.Reset(Pieces);
+		for (int32 i = 0; i < Pieces; ++i)
+		{
+			const uint8* P = Debris.GetData() + i * 8;
+			int32 X = 0;
+			int32 Y = 0;
+			FMemory::Memcpy(&X, P, 4);
+			FMemory::Memcpy(&Y, P + 4, 4);
+			Road.Debris.Add(FVector2D(X / 1000.0, Y / 1000.0));
+		}
+		Road.SetGeometryBytes(Geometry);
+		return SkipRest(Reader, Count, 11);
+	}
+
 	bool ParseBlock(FMsgPackReader& Reader, int32 Count, FApexStreamBlock& Out)
 	{
 		if (Count < 6)
@@ -699,6 +737,7 @@ namespace ApexSpectator
 		case RecordFrame:
 		case RecordEvent:
 		case RecordPath:
+		case RecordRoad:
 		{
 			uint32 Epoch = 0;
 			if (!ReadU32(Reader, Epoch))
@@ -712,6 +751,7 @@ namespace ApexSpectator
 			case RecordRoster: bOk = ParseRoster(Reader, Count, Epoch, Out.Roster); break;
 			case RecordFrame:  bOk = ParseFrame(Reader, Count, Epoch, Out.Frame); break;
 			case RecordEvent:  bOk = ParseEvent(Reader, Count, Epoch, Out.Event); break;
+			case RecordRoad:   bOk = ParseRoad(Reader, Count, Epoch, Out.Road); break;
 			default:           bOk = ParsePath(Reader, Count, Epoch, Out.Path); break;
 			}
 			break;
@@ -1083,6 +1123,12 @@ bool FApexSpectatorPlayer::Apply(TArrayView<const uint8> Body, FString& OutError
 			Events.Add(MoveTemp(Record.Event));
 		}
 		return true;
+	case ApexSpectator::RecordRoad:
+		if (bHasHeader && Record.Road.Epoch == Header.Epoch)
+		{
+			Roads.Add(MoveTemp(Record.Road));
+		}
+		return true;
 	case ApexSpectator::RecordFrame:
 		if (!bHasHeader || !bHasRoster || Record.Frame.Epoch != Header.Epoch || Record.Frame.RosterRevision != Roster.Revision)
 		{
@@ -1171,5 +1217,12 @@ TArray<FApexStreamEvent> FApexSpectatorPlayer::TakeEvents()
 {
 	TArray<FApexStreamEvent> Out = MoveTemp(Events);
 	Events.Reset();
+	return Out;
+}
+
+TArray<FApexStreamRoad> FApexSpectatorPlayer::TakeRoads()
+{
+	TArray<FApexStreamRoad> Out = MoveTemp(Roads);
+	Roads.Reset();
 	return Out;
 }

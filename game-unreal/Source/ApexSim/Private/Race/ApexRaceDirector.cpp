@@ -49,6 +49,7 @@
 #include "Track/ApexPropLibrary.h"
 #include "Track/ApexTrackContentSubsystem.h"
 #include "Track/ApexTrackInstance.h"
+#include "Track/ApexTrackSceneBuilder.h"
 #include "Track/ApexTrackSceneReader.h"
 
 AApexRaceDirector::AApexRaceDirector()
@@ -488,6 +489,8 @@ void AApexRaceDirector::BeginPlay()
 		Net->OnLobbyStateUpdated.AddDynamic(this, &AApexRaceDirector::HandleLobbyStateUpdated);
 		Net->OnRacingLineUpdated.AddDynamic(this, &AApexRaceDirector::HandleRacingLineUpdated);
 		Net->OnGhostLap.AddDynamic(this, &AApexRaceDirector::HandleGhostLap);
+		RoadStateHandle = Net->OnRoadState.AddUObject(this, &AApexRaceDirector::HandleRoadState);
+		DemoSessionHandle = Net->OnDemoSessionChanged.AddUObject(this, &AApexRaceDirector::HandleDemoSessionChanged);
 	}
 }
 
@@ -500,6 +503,8 @@ void AApexRaceDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		Net->OnSessionLeft.RemoveDynamic(this, &AApexRaceDirector::HandleSessionLeft);
 		Net->OnLobbyStateUpdated.RemoveDynamic(this, &AApexRaceDirector::HandleLobbyStateUpdated);
 		Net->OnRacingLineUpdated.RemoveDynamic(this, &AApexRaceDirector::HandleRacingLineUpdated);
+		Net->OnRoadState.Remove(RoadStateHandle);
+		Net->OnDemoSessionChanged.Remove(DemoSessionHandle);
 	}
 	DestroyAllCars();
 	Super::EndPlay(EndPlayReason);
@@ -520,6 +525,9 @@ void AApexRaceDirector::HandleSessionLeft()
 {
 	EndLobbyView();
 	EndRaceView();
+	// The road was that session's.
+	RoadMap.Reset();
+	RoadSource.Reset();
 }
 
 void AApexRaceDirector::HandleLobbyStateUpdated(const FApexLobbyState& LobbyState)
@@ -1233,6 +1241,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	SnapRacingLineToTrack();
 	UpdateLiveSky(DeltaSeconds);
 	ApplyTrackLevelConditions();
+	UpdateRoadState();
 	UpdateStreetLights(DeltaSeconds, /*bForce*/ false);
 	UpdateCameraFeel(DeltaSeconds);
 	if (bTvView)
@@ -1968,6 +1977,20 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 		Actor->GetComponents<UStaticMeshComponent>(Meshes);
 		for (UStaticMeshComponent* Mesh : Meshes)
 		{
+			// The road's own materials draw the session's road state
+			// (UpdateRoadState fills them), dry or wet.
+			for (int32 Slot = 0, Slots = Mesh->GetNumMaterials(); Slot < Slots; ++Slot)
+			{
+				if (ApexTrackMaterials::IsRoadStateMaterial(Mesh->GetMaterial(Slot)))
+				{
+					if (UMaterialInstanceDynamic* Mid = Mesh->CreateDynamicMaterialInstance(Slot))
+					{
+						RoadStateMids.AddUnique(Mid);
+						bRoadStateParamsStale = true;
+					}
+				}
+			}
+
 			// Wet road: the tarmac's sheen comes up on every material of the
 			// bake's road family: the road and pit lane, and the rubbered
 			// wear bands the racing line runs on (`wear_core`, `wear_edge`).
@@ -2176,7 +2199,8 @@ void AApexRaceDirector::ApplyRoadWetness()
 	static const FName RoughnessNoiseParam(TEXT("RoughnessNoise"));
 	// Wholly wet is the sheen the fixed sky always drew (0.3, noise 0.08);
 	// dry is each material's own look as built.
-	const float Wetness = FMath::Clamp(Sky.RoadWetness, 0.0f, 1.0f);
+	const float LapWetness = FMath::Clamp(Sky.RoadWetness, 0.0f, 1.0f);
+	const bool bPerBin = bRoadStateShown;
 	for (auto It = RoadDryLook.CreateIterator(); It; ++It)
 	{
 		UMaterialInstanceDynamic* Mid = It.Key().Get();
@@ -2185,6 +2209,9 @@ void AApexRaceDirector::ApplyRoadWetness()
 			It.RemoveCurrent();
 			continue;
 		}
+		// The road's own materials wet each bin from the road state (the dry
+		// line, the puddles); the lap's one figure would wet it twice.
+		const float Wetness = bPerBin && RoadStateMids.Contains(Mid) ? 0.0f : LapWetness;
 		Mid->SetScalarParameterValue(RoughnessParam, FMath::Lerp(It.Value().X, ApexSky::WetRoadRoughness, Wetness));
 		Mid->SetScalarParameterValue(RoughnessNoiseParam, FMath::Lerp(It.Value().Y, ApexSky::WetRoadRoughnessNoise, Wetness));
 	}
@@ -3130,6 +3157,7 @@ void AApexRaceDirector::UnloadTrackLevel()
 	Track = nullptr;
 	ForgetStartLights();
 	ForgetTrackLevelConditions();
+	ForgetRoadStateOnTrack();
 	// The track went back with its materials reset; its looks are forgotten.
 	RoadDryLook.Reset();
 	LampBaseGlow.Reset();
