@@ -76,6 +76,7 @@ enum class EApexGarageTab : uint8
 	Tyres,
 	Suspension,
 	Engine,
+	Aero,
 	Save,
 	Count,
 };
@@ -91,11 +92,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnHotlapWatch, int32, CarIndex)
  * **Garage.** While the server holds the car in its garage (the car's
  * `bInGarage` telemetry flag) a full-screen sheet covers the view: the way
  * out, the record lap's replay, the ghost toggle and a reset down the left,
- * and the setup split into four tabs on the right — Tyres (pressures,
- * brakes, the next compound), Suspension (front and rear side by side, with
- * the rake and aero balance they add up to), Engine (engine, gearing, fuel,
- * with top speed per gear and the fuel's range and weight) and Load / Save
- * (named setups per car). Q / E (or the shoulders, or Tab) change tab.
+ * and the setup split into five tabs on the right — Tyres (pressures,
+ * brakes, the next compound), Suspension (springs, dampers, bars and
+ * geometry, front and rear side by side), Engine (engine, gearing, fuel,
+ * with top speed per gear and the fuel's range and weight), Aero (wings and
+ * ride heights, with the downforce, balance, rake and drag they add up to)
+ * and Load / Save (named setups per car). Q / E (or the shoulders, or Tab) change tab.
  *
  * Every stepper shows the knob in real units with its change from stock
  * under it. The units come from the server's CarSetupSheet (the car's own
@@ -229,6 +231,7 @@ private:
 	UWidget* BuildTyresPage();
 	UWidget* BuildSuspensionPage();
 	UWidget* BuildEnginePage();
+	UWidget* BuildAeroPage();
 	UWidget* BuildSavePage();
 	UWidget* BuildTimingPanel();
 	UWidget* BuildReplayStrip();
@@ -247,7 +250,9 @@ private:
 	UApexStepperWidget* MakeStepper(int32 Knob);
 	/** A section caption and its rows of one knob each. */
 	void AddSection(UVerticalBox* Column, const TCHAR* Title, std::initializer_list<int32> Knobs);
-	/** One suspension row: the pair's name and note, the front stepper, the rear. */
+	/** The Setting / Front / Rear captions over a page of pair rows. */
+	void AddPairHeader(UVerticalBox* Table);
+	/** One front / rear row: the pair's name and note, the front stepper, the rear. */
 	UWidget* AddPairRow(UVerticalBox* Table, const TCHAR* Label, const TCHAR* Note, int32 Front, int32 Rear);
 	UApexButtonWidget* MakeActionButton(const FString& Label, const FString& Badge, FName ActionId, EApexButtonVariant Variant, float Height, float LabelSize);
 
@@ -383,14 +388,18 @@ private:
 
 	// Suspension.
 	UPROPERTY(Transient) TObjectPtr<UWidget> CamberRow;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> RakeText;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> BalanceText;
 
 	// Engine.
 	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> GearBars;
 	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> GearLabels;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FuelRangeText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FuelWeightText;
+
+	// Aero.
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> DownforceText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> BalanceText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> RakeText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> DragText;
 
 	// Load / Save.
 	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> SaveNameBox;

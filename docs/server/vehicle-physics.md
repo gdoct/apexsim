@@ -443,8 +443,10 @@ reordered; effects are the `*_PER_CLICK` consts):
   radius, lap fuel, rake balance, `CamberModelled`, `Compounds`, `ReferenceCompound`. Knobs
   are linear in clicks, so the client predicts without a round trip
   (`the_sheet_predicts_what_apply_does`).
-- **Client**: the hotlap garage (`UApexHotlapWidget`: Tyres / Suspension / Engine / Save
-  tabs of `UApexStepperWidget` rows in the sheet's units) edits
+- **Client**: the hotlap garage (`UApexHotlapWidget`: Tyres / Suspension / Engine / Aero /
+  Save tabs of `UApexStepperWidget` rows in the sheet's units; Aero holds the wings and ride
+  heights with the wing downforce, aero balance, rake and drag change they add up to, the drag
+  from the `*_DRAG_PER_CLICK` consts mirrored in the widget) edits
   `UApexSettingsSave::CarSetup`, one setup for every car, with named setups per car in
   `SavedSetups`; the knob table mirror is `ApexCarSetup::FKnob`
   (`ApexSim.Net.CarSetup.Clicks`). More in [sessions](sessions.md).

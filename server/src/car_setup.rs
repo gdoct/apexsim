@@ -66,7 +66,9 @@ pub const FUEL_LAPS_PER_CLICK: f32 = 1.0;
 /// Scale of a wing's lift coefficient per click.
 pub const WING_PER_CLICK: f32 = 0.05;
 /// Drag scale per click of the front and of the rear wing: the rear wing
-/// costs three times as much drag for its downforce.
+/// costs three times as much drag for its downforce. Every `*_DRAG_PER_CLICK`
+/// is mirrored by the garage's drag read-out (`ApexHotlapWidget.cpp`
+/// `DragPerClick`).
 pub const FRONT_WING_DRAG_PER_CLICK: f32 = 0.005;
 pub const REAR_WING_DRAG_PER_CLICK: f32 = 0.015;
 /// Brake duct size per click, as a share of the car's own; and the drag

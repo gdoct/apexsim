@@ -90,8 +90,18 @@ namespace
 	{
 		const TCHAR* Label;
 	};
-	const FTabSpec TabSpecs[] = { { TEXT("TYRES") }, { TEXT("SUSPENSION") }, { TEXT("ENGINE") }, { TEXT("LOAD / SAVE") } };
+	const FTabSpec TabSpecs[] = { { TEXT("TYRES") }, { TEXT("SUSPENSION") }, { TEXT("ENGINE") }, { TEXT("AERO") }, { TEXT("LOAD / SAVE") } };
 	static_assert(UE_ARRAY_COUNT(TabSpecs) == static_cast<int32>(EApexGarageTab::Count), "a label per tab");
+
+	/**
+	 * Drag scale per click of the knobs that open the car to the air, as
+	 * `CarSetup::apply` multiplies them (server/src/car_setup.rs
+	 * `*_DRAG_PER_CLICK`): change both sides together.
+	 */
+	const TPair<int32, float> DragPerClick[] = {
+		{ ApexCarSetup::FrontWing, 0.005f }, { ApexCarSetup::RearWing, 0.015f },
+		{ ApexCarSetup::BrakeDucts, 0.003f }, { ApexCarSetup::BrakeDuctsRear, 0.003f },
+		{ ApexCarSetup::Radiator, 0.003f } };
 
 	/** The compounds, softest slick first, then the treaded tyres: what `tyre_thermal::COMPOUNDS` does to the car's own tyre. */
 	struct FCompoundSpec
@@ -216,10 +226,10 @@ namespace
 	}
 }
 
-// `apexsim.hotlap.Tab N` (0-3) shows a garage tab, for screenshots and checks.
+// `apexsim.hotlap.Tab N` (0-4) shows a garage tab, for screenshots and checks.
 static FAutoConsoleCommand GHotlapTabCommand(
 	TEXT("apexsim.hotlap.Tab"),
-	TEXT("Show a hotlap garage tab: 0 tyres, 1 suspension, 2 engine, 3 load / save."),
+	TEXT("Show a hotlap garage tab: 0 tyres, 1 suspension, 2 engine, 3 aero, 4 load / save."),
 	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 	{
 		const int32 Index = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0;
@@ -585,6 +595,7 @@ UWidget* UApexHotlapWidget::BuildGarage()
 	Pages->AddChild(BuildTyresPage());
 	Pages->AddChild(BuildSuspensionPage());
 	Pages->AddChild(BuildEnginePage());
+	Pages->AddChild(BuildAeroPage());
 	Pages->AddChild(BuildSavePage());
 	AddV(Right, MakePanel(*WidgetTree, Pages, FMargin(PagePadX, PagePadY), MakeBrush(FLinearColor::Transparent)),
 		FMargin(), HAlign_Fill, 1.0f);
@@ -862,6 +873,19 @@ void UApexHotlapWidget::AddSection(UVerticalBox* Column, const TCHAR* Title, std
 	AddV(Column, Section, FMargin(0.0f, Column->GetChildrenCount() == 0 ? 0.0f : 22.0f, 0.0f, 0.0f));
 }
 
+void UApexHotlapWidget::AddPairHeader(UVerticalBox* Table)
+{
+	UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddH(Head, Caption(*WidgetTree, TEXT("Setting")), FMargin(), VAlign_Center, 1.0f);
+	UTextBlock* FrontCaption = Caption(*WidgetTree, TEXT("Front"));
+	FrontCaption->SetJustification(ETextJustify::Center);
+	AddH(Head, MakeSized(*WidgetTree, FrontCaption, StepperWidth, -1.0f), FMargin(30.0f, 0.0f, 0.0f, 0.0f));
+	UTextBlock* RearCaption = Caption(*WidgetTree, TEXT("Rear"));
+	RearCaption->SetJustification(ETextJustify::Center);
+	AddH(Head, MakeSized(*WidgetTree, RearCaption, StepperWidth, -1.0f), FMargin(30.0f, 0.0f, 0.0f, 0.0f));
+	AddV(Table, Head, FMargin(20.0f, 0.0f, 14.0f, 6.0f));
+}
+
 UWidget* UApexHotlapWidget::AddPairRow(UVerticalBox* Table, const TCHAR* Label, const TCHAR* Note, int32 Front, int32 Rear)
 {
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
@@ -958,45 +982,17 @@ void UApexHotlapWidget::BuildCompoundCards()
 UWidget* UApexHotlapWidget::BuildSuspensionPage()
 {
 	UVerticalBox* Page = WidgetTree->ConstructWidget<UVerticalBox>();
-
-	UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>();
-	AddH(Head, Caption(*WidgetTree, TEXT("Setting")), FMargin(), VAlign_Center, 1.0f);
-	UTextBlock* FrontCaption = Caption(*WidgetTree, TEXT("Front"));
-	FrontCaption->SetJustification(ETextJustify::Center);
-	AddH(Head, MakeSized(*WidgetTree, FrontCaption, StepperWidth, -1.0f), FMargin(30.0f, 0.0f, 0.0f, 0.0f));
-	UTextBlock* RearCaption = Caption(*WidgetTree, TEXT("Rear"));
-	RearCaption->SetJustification(ETextJustify::Center);
-	AddH(Head, MakeSized(*WidgetTree, RearCaption, StepperWidth, -1.0f), FMargin(30.0f, 0.0f, 0.0f, 0.0f));
-	AddV(Page, Head, FMargin(20.0f, 0.0f, 14.0f, 6.0f));
-
+	AddPairHeader(Page);
 	AddPairRow(Page, TEXT("Springs"), TEXT("Stiffer: less dive and roll. Softer rears put power down."),
 		ApexCarSetup::SpringFront, ApexCarSetup::SpringRear);
 	AddPairRow(Page, TEXT("Dampers"), TEXT("Bump and rebound together."),
 		ApexCarSetup::DamperFront, ApexCarSetup::DamperRear);
 	AddPairRow(Page, TEXT("Anti-roll bar"), TEXT("Stiffer front: more understeer. Stiffer rear: more oversteer."),
 		ApexCarSetup::AntiRollFront, ApexCarSetup::AntiRollRear);
-	AddPairRow(Page, TEXT("Ride height"), TEXT("Lower: more downforce. Rake moves the balance forward."),
-		ApexCarSetup::RideHeightFront, ApexCarSetup::RideHeightRear);
-	AddPairRow(Page, TEXT("Wing"), TEXT("Downforce at 200 km/h. The rear costs more drag."),
-		ApexCarSetup::FrontWing, ApexCarSetup::RearWing);
 	CamberRow = AddPairRow(Page, TEXT("Camber"), TEXT("More negative: grip in the corner, less under braking."),
 		ApexCarSetup::CamberFront, ApexCarSetup::CamberRear);
 	AddPairRow(Page, TEXT("Toe"), TEXT("Toe-in (+) steadies the car; toe-out sharpens turn-in."),
 		ApexCarSetup::ToeFront, ApexCarSetup::ToeRear);
-
-	UHorizontalBox* Totals = WidgetTree->ConstructWidget<UHorizontalBox>();
-	auto AddTotal = [this, Totals](const TCHAR* Label, TObjectPtr<UTextBlock>& OutValue, bool bFirst)
-	{
-		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>();
-		AddH(Line, Caption(*WidgetTree, Label), FMargin(), VAlign_Center, 1.0f);
-		OutValue = MakeText(*WidgetTree, TEXT("--"), Font::Display(26.0f), Ink);
-		AddH(Line, OutValue);
-		AddH(Totals, MakePanel(*WidgetTree, Line, FMargin(20.0f, 14.0f), MakeBrush(FLinearColor::Transparent, Outline, 1.0f)),
-			FMargin(bFirst ? 0.0f : 2.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
-	};
-	AddTotal(TEXT("Rake · rear minus front"), RakeText, true);
-	AddTotal(TEXT("Aero balance · front"), BalanceText, false);
-	AddV(Page, Totals, FMargin(0.0f, 16.0f, 0.0f, 0.0f));
 
 	PageDefaults.Add(SetupSteppers.FindRef(ApexCarSetup::SpringFront));
 	return ScrollPage(*WidgetTree, Page);
@@ -1040,6 +1036,42 @@ UWidget* UApexHotlapWidget::BuildEnginePage()
 
 	PageDefaults.Add(SetupSteppers.FindRef(ApexCarSetup::RevLimiter));
 	return Page;
+}
+
+UWidget* UApexHotlapWidget::BuildAeroPage()
+{
+	UVerticalBox* Page = WidgetTree->ConstructWidget<UVerticalBox>();
+	AddPairHeader(Page);
+	AddPairRow(Page, TEXT("Wing"), TEXT("Downforce at 200 km/h. The rear costs three times the drag."),
+		ApexCarSetup::FrontWing, ApexCarSetup::RearWing);
+	AddPairRow(Page, TEXT("Ride height"), TEXT("Lower: more downforce, until the floor touches. Rake moves the balance forward."),
+		ApexCarSetup::RideHeightFront, ApexCarSetup::RideHeightRear);
+
+	// What the knobs add up to, two cells a line.
+	UHorizontalBox* Line = nullptr;
+	int32 Cells = 0;
+	auto AddTotal = [this, Page, &Line, &Cells](const TCHAR* Label, TObjectPtr<UTextBlock>& OutValue)
+	{
+		if (Cells % 2 == 0)
+		{
+			Line = WidgetTree->ConstructWidget<UHorizontalBox>();
+			AddV(Page, Line, FMargin(0.0f, Cells == 0 ? 16.0f : 2.0f, 0.0f, 0.0f));
+		}
+		UHorizontalBox* Cell = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(Cell, Caption(*WidgetTree, Label), FMargin(), VAlign_Center, 1.0f);
+		OutValue = MakeText(*WidgetTree, TEXT("--"), Font::Display(26.0f), Ink);
+		AddH(Cell, OutValue);
+		AddH(Line, MakePanel(*WidgetTree, Cell, FMargin(20.0f, 14.0f), MakeBrush(FLinearColor::Transparent, Outline, 1.0f)),
+			FMargin(Cells % 2 == 0 ? 0.0f : 2.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		++Cells;
+	};
+	AddTotal(TEXT("Wing downforce · 200 km/h"), DownforceText);
+	AddTotal(TEXT("Aero balance · front"), BalanceText);
+	AddTotal(TEXT("Rake · rear minus front"), RakeText);
+	AddTotal(TEXT("Drag · wings, ducts, radiator"), DragText);
+
+	PageDefaults.Add(SetupSteppers.FindRef(ApexCarSetup::FrontWing));
+	return ScrollPage(*WidgetTree, Page);
 }
 
 UWidget* UApexHotlapWidget::BuildSavePage()
@@ -1805,8 +1837,8 @@ void UApexHotlapWidget::RefreshDerived()
 	}
 	auto Value = [Sheet, Setup](int32 Knob) { return SheetValue(Sheet->Knobs[Knob], Setup->GetClick(Knob)); };
 
-	// Rake and balance.
-	if (RakeText && BalanceText)
+	// Downforce, balance, rake and drag.
+	if (DownforceText && BalanceText && RakeText && DragText)
 	{
 		if (Sheet)
 		{
@@ -1817,14 +1849,25 @@ void UApexHotlapWidget::RefreshDerived()
 			const float Share = Front + Rear > 0.0f
 				? Front / (Front + Rear) + Sheet->RakeBalancePerMm * (Rake - StockRake)
 				: 0.0f;
+			DownforceText->SetText(FText::FromString(Front + Rear > 0.0f ? FString::Printf(TEXT("%.0f kg"), Front + Rear) : FString(TEXT("--"))));
 			RakeText->SetText(FText::FromString(FString::Printf(TEXT("%.0f mm"), Rake)));
 			BalanceText->SetText(FText::FromString(Front + Rear > 0.0f ? FString::Printf(TEXT("%.1f %%"), Share * 100.0f) : FString(TEXT("--"))));
 		}
 		else
 		{
+			DownforceText->SetText(FText::FromString(TEXT("--")));
 			RakeText->SetText(FText::FromString(TEXT("--")));
 			BalanceText->SetText(FText::FromString(TEXT("--")));
 		}
+		// Drag needs no sheet: it is the clicks alone, against the car's own.
+		float Drag = 1.0f;
+		for (const TPair<int32, float>& Knob : DragPerClick)
+		{
+			Drag *= 1.0f + Setup->GetClick(Knob.Key) * Knob.Value;
+		}
+		const float DragPct = (Drag - 1.0f) * 100.0f;
+		DragText->SetText(FText::FromString(FMath::Abs(DragPct) < 0.05f
+			? FString(TEXT("Stock")) : FString::Printf(TEXT("%+.1f %%"), DragPct)));
 	}
 
 	// Top speed per gear: the gearing knobs scale the file's ratios as the server's
