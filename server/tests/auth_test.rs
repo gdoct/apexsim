@@ -53,6 +53,7 @@ async fn test_valid_token_accepted() {
             token: "secret123".to_string(),
             player_name: "TokenPlayer".to_string(),
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
+            resume_token: None,
         },
     )
     .await;
@@ -79,6 +80,7 @@ async fn test_invalid_token_rejected() {
             token: "wrong".to_string(),
             player_name: "Imposter".to_string(),
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
+            resume_token: None,
         },
     )
     .await;
@@ -118,6 +120,7 @@ async fn test_empty_token_rejected_in_token_mode() {
             token: String::new(),
             player_name: "NoToken".to_string(),
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
+            resume_token: None,
         },
     )
     .await;
@@ -156,6 +159,7 @@ async fn test_pre_auth_messages_dropped() {
             token: "anything".to_string(),
             player_name: "LateAuth".to_string(),
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
+            resume_token: None,
         },
     )
     .await;

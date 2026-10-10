@@ -357,6 +357,7 @@ namespace
 			else if (Key == TEXT("UdpToken"))        { bOk = Reader.ReadString(Out.UdpToken); }
 			else if (Key == TEXT("UdpPort"))         { bOk = Reader.ReadUInt64(Raw); Out.UdpPort = static_cast<int32>(Raw); }
 			else if (Key == TEXT("UdpKey"))          { bOk = Reader.ReadString(Out.UdpKey); }
+			else if (Key == TEXT("ResumeToken"))     { bOk = Reader.ReadString(Out.ResumeToken); }
 			else                                     { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -502,6 +503,35 @@ namespace
 			else if (Key == TEXT("AiSkill"))           { bOk = Reader.ReadUInt64(Raw); Out.AiSkill = ApexAiSkill::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
 			else if (Key == TEXT("RaceSeconds"))       { bOk = Reader.ReadUInt64(Raw); Out.RaceSeconds = ApexRaceLength::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32))); }
 			else                                       { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `RejoinData` — PascalCase keys. */
+	bool ParseRejoin(FMsgPackReader& Reader, FApexServerMessage& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("SessionId"))        { bOk = Reader.ReadString(Out.SessionId); }
+			else if (Key == TEXT("TrackId"))     { bOk = Reader.ReadString(Out.TrackId); }
+			else if (Key == TEXT("SessionKind")) { bOk = Reader.ReadUInt64(Raw); Out.SessionKind = static_cast<EApexSessionKind>(Raw); }
+			else                                 { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
 				return false;
@@ -2086,6 +2116,7 @@ namespace
 		if (Variant == TEXT("UdpHandshakeAck"))    { return EApexServerMessageType::UdpHandshakeAck; }
 		if (Variant == TEXT("TelemetryCompact"))   { return EApexServerMessageType::TelemetryCompact; }
 		if (Variant == TEXT("DriverFeedback"))     { return EApexServerMessageType::DriverFeedback; }
+		if (Variant == TEXT("RejoinAvailable"))    { return EApexServerMessageType::RejoinAvailable; }
 
 		// The named-encoding `Telemetry` is only used for server-side replays;
 		// the wire carries TelemetryCompact.
@@ -2109,6 +2140,9 @@ namespace
 
 		case EApexServerMessageType::SessionJoined:
 			return ParseSessionJoined(Reader, Out);
+
+		case EApexServerMessageType::RejoinAvailable:
+			return ParseRejoin(Reader, Out);
 
 		case EApexServerMessageType::PlayerDisconnected:
 			return ParsePlayerDisconnected(Reader, Out);
@@ -2180,16 +2214,23 @@ namespace ApexProtocol
 		return CVarParseCenterline.GetValueOnAnyThread() != 0;
 	}
 
-	TArray<uint8> EncodeAuthenticate(const FString& Token, const FString& PlayerName)
+	TArray<uint8> EncodeAuthenticate(const FString& Token, const FString& PlayerName, const FString& ResumeToken)
 	{
-		FMsgPackWriter Writer(128);
-		BeginDataVariant(Writer, "Authenticate", 3);
+		// Without a resume token the bytes are those of every earlier client.
+		const bool bResume = !ResumeToken.IsEmpty();
+		FMsgPackWriter Writer(160);
+		BeginDataVariant(Writer, "Authenticate", bResume ? 4 : 3);
 		Writer.WriteString("token");
 		Writer.WriteString(Token);
 		Writer.WriteString("player_name");
 		Writer.WriteString(PlayerName);
 		Writer.WriteString("protocol_version");
 		Writer.WriteUInt(APEXSIM_PROTOCOL_VERSION);
+		if (bResume)
+		{
+			Writer.WriteString("resume_token");
+			Writer.WriteString(ResumeToken);
+		}
 		return MoveTemp(Writer.GetBuffer());
 	}
 

@@ -76,6 +76,20 @@ private:
 	UFUNCTION() void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
 	UFUNCTION() void HandlePendingCarChanged(const FString& CarId);
 	UFUNCTION() void HandlePendingTrackChanged(const FString& TrackId);
+	UFUNCTION() void HandleRejoinOfferChanged();
+
+	// --- Rejoin banner ----------------------------------------------------------
+	//
+	// Over the hero while the server holds a seat for us in a session we lost
+	// the connection to (UApexNetSubsystem::HasRejoinOffer). It takes focus
+	// when it appears; Up from the hero's actions reaches it, Down leaves it.
+
+	void RefreshRejoin();
+	bool IsRejoinShown() const;
+	UPROPERTY(Transient) TObjectPtr<UWidget> RejoinBanner;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> RejoinButton;
+	/** Focus is on the banner rather than the hero's actions (column 0). */
+	bool bOnRejoin = false;
 
 	// --- Keyboard navigation --------------------------------------------------
 

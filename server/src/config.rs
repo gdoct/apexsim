@@ -209,6 +209,14 @@ pub struct ServerSettings {
     pub tick_rate_hz: u16,
     pub max_sessions: u8,
     pub session_timeout_seconds: u32,
+    /// How long a session is kept once every human in it has lost their
+    /// connection, for one of them to come back; then it ends.
+    #[serde(default = "default_reconnect_grace_seconds")]
+    pub reconnect_grace_seconds: u32,
+}
+
+fn default_reconnect_grace_seconds() -> u32 {
+    60
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -265,6 +273,7 @@ impl Default for ServerConfig {
                 tick_rate_hz: 420,
                 max_sessions: 8,
                 session_timeout_seconds: 300,
+                reconnect_grace_seconds: default_reconnect_grace_seconds(),
             },
             network: NetworkSettings {
                 tcp_bind: "127.0.0.1:9000".to_string(),

@@ -21,12 +21,12 @@
  *
  * The enums carry no `rename_all`, so fields declared INLINE on a variant stay
  * snake_case:
- *     Authenticate { token, player_name, protocol_version }
+ *     Authenticate { token, player_name, protocol_version, resume_token? }
  *     AuthFailure { reason } / HeartbeatAck { server_tick } / Error { code, message }
  *
  * But the standalone payload STRUCTS carry `#[serde(rename_all = "PascalCase")]`,
  * so their fields are PascalCase:
- *     AuthSuccessData { PlayerId, ServerVersion, ProtocolVersion, UdpToken, UdpPort }
+ *     AuthSuccessData { PlayerId, ServerVersion, ProtocolVersion, UdpToken, UdpPort, ResumeToken? }
  *     LobbyStateData  { PlayersInLobby, AvailableSessions, CarConfigs, TrackConfigs }
  *     SessionJoinedData { SessionId, YourGridPosition, SessionKind, AllowedAssists, Conditions }
  *
@@ -1078,6 +1078,11 @@ struct APEXSIMNET_API FApexAuthSuccess
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Auth")
 	FString UdpKey;
+
+	/** Secret to present in a later `Authenticate` to be this player again
+	 *  (and take back a seat held in a session); empty from an older server. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Auth")
+	FString ResumeToken;
 };
 
 /**
@@ -2337,6 +2342,8 @@ enum class EApexServerMessageType : uint8
 	DriverFeedback,
 	/** Full named-encoding Telemetry — replays only; the wire uses the compact form. */
 	IgnoredVariant,
+	/** A seat is held for us in a session we lost the connection to (SessionId, TrackId, SessionKind). */
+	RejoinAvailable,
 };
 
 /**
@@ -2379,8 +2386,10 @@ struct APEXSIMNET_API FApexServerMessage
 
 	/** AuthFailure::reason, or Error::message. */
 	FString Reason;
-	/** SessionJoined::SessionId. */
+	/** SessionJoined::SessionId, or RejoinAvailable::SessionId. */
 	FString SessionId;
+	/** RejoinAvailable::TrackId. */
+	FString TrackId;
 	/** PlayerDisconnected::PlayerId. */
 	FString PlayerId;
 

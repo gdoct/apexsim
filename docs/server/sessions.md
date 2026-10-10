@@ -22,8 +22,12 @@ belong to these rules are described briefly beside them.
   conditions, clamps the rules, seeds the AI, starts a watched hotlap)
 - `server/src/game_loop/dispatch.rs`: message handlers;
   `start_demo_session` for watch-only kinds
-- `server/src/game_loop/tick.rs`: ticking, removal of empty sessions, lap
-  timing out, qualifying and record submission
+- `server/src/game_loop/tick.rs`: ticking, removal of empty sessions (and
+  of sessions whose drivers are all away past the grace), lap timing out,
+  qualifying and record submission
+- `server/src/game_loop/lifecycle.rs`: disconnects, held seats
+  (`hold_seat_for_rejoin`, `give_up_seat`); `GameSession::hold_seat` /
+  `resume_seat` / `away_input`
 - `server/src/recovery.rs` and `GameSession::recover_car` /
   `update_recoveries`: back to track and back to pits
 - `server/src/laps.rs`, `records.rs`, `grid_order.rs`,
@@ -282,6 +286,48 @@ splits and bests; the HUD paints the sector strip (purple session best,
 green personal best, amber slower), "LAP INVALID", and a delta against the
 quickest legal lap seen.
 
+## Reconnecting
+
+A driver whose connection is lost keeps their seat. `AuthSuccess` hands every
+client a `resume_token`; a client that connects again with it in
+`Authenticate` gets the same player id back
+([protocol.md](protocol.md#connection-flow)), and with it the seat.
+
+- **Held seat.** A lost connection (stream closed, heartbeat timeout) holds
+  the seat instead of removing the car (`GameSession::hold_seat`): the car
+  stays in the session and the server drives it with the cool-down driver
+  (`away_input`, steering aid off as after the flag), or parks it in its
+  garage in a hotlap or qualifying session. A lap the server drives is never
+  a record. The lobby keeps the seat counted (`LobbyManager::hold_seat`), so
+  the session is not given away beyond its size.
+- **Offer and rejoin.** On a resumed `Authenticate` the server sends
+  `RejoinAvailable { session_id, track_id, session_kind }` after the lobby
+  state. `JoinSession` with that id takes the seat back (`resume_seat`): the
+  same car where it is now, with the join's `SessionJoined`, racing line,
+  setup sheet, sectors and record, and the roster again on the next tick.
+  A resume that overtakes the old connection's timeout drops the old
+  connection; its end is then ignored (the player is already back).
+- **Giving it up.** Creating or joining another session (not a demo or a
+  watched hotlap) gives the held seat up (`give_up_seat`), as do
+  `Disconnect` and a dashboard kick (the kick also forgets the resume
+  token). `LeaveSession` leaves what the connection is in, never a seat
+  held elsewhere: the menu sends it with nothing joined.
+- **The last driver.** While any human in the session is connected, held
+  seats wait for as long as the session runs. Once every human is away the
+  session ends after `[server] reconnect_grace_seconds` (60) unless one
+  comes back (`GameSession::orphaned_since_loop_tick`, checked in the tick).
+  Spectators do not keep it alive.
+- Resume tokens are kept only for connected players and players holding a
+  seat (`TransportLayer::prune_resume_tokens`, every second).
+
+Client: `UApexNetSubsystem` saves the resume token per server
+(`[ApexSim.Resume]` in GameUserSettings), so a restarted game can rejoin too,
+and keeps the offer (`HasRejoinOffer`, `OnRejoinOfferChanged`) until a join,
+a lost connection, or the session leaving the lobby's list. The main menu
+shows it as a banner over the hero ([client.md](../game/client.md#main-menu-uiapexmainmenuwidgetcpp)).
+A lost connection takes the client back to the menu; a rejoin's first frame
+opens the race view again.
+
 ## Recovering a stuck car
 
 Walls stop cars, so a human can end up nose-in against a barrier.
@@ -413,6 +459,7 @@ cargo test --lib game_session                 # mode ticks, timed race, grid ord
 cargo test --test race_flow_test              # incl. test_timed_race_flow_to_the_flag_monza
 cargo test --test session_conditions_test     # rules echoed and enforced end to end
 cargo test --test grid_order_test             # start order, stored results, over the wire
+cargo test --test reconnect_test              # held seat, resume, takeover, grace, Disconnect
 cargo test --test lap_timing_test             # sectors and track limits round Monza
 cargo test --test hotlap_test                 # garage, run-up, queue, cold tyres, qualifying outlap
 cargo test --test recovery_test               # back to track, a taken spot, back to pits, refused moving
@@ -426,7 +473,8 @@ Golden bytes ([protocol](protocol.md)): `cargo test <name> -- --nocapture`
 for `assists_wire_format`, `session_damage_wire_format`,
 `session_ai_skill_wire_format`, `race_time_wire_format`, `grid_wire_format`,
 `lap_timing_wire_format`, `telemetry_compact_wire_format`,
-`hotlap_wire_format`, `recover_wire_format`, `track_corners_wire_format`.
+`hotlap_wire_format`, `recover_wire_format`, `track_corners_wire_format`,
+`rejoin_wire_format`.
 
 Client tests: `ApexSim.UI.CreateSession.StartOrder`,
 `ApexSim.Race.QualifyingBoard`, `ApexSim.Race.RaceOrder`,
@@ -453,7 +501,12 @@ qualifying, 8 hotlap), with `-ApexAiCount=N`, `-ApexDamage=off|reduced|full`,
   later. Whether a driver may join is asked of the session itself
   (`refuses_drivers`), not of that copy.
 - Records and stored qualifying are keyed by driver **name**, not player id
-  (ids are minted per connection).
+  (an id outlives a connection only through a resume token, and only while
+  the player is connected or holds a seat).
+- A held seat is the lobby's record (`get_player_session`), not the
+  connection's `in_session`: a player holding a seat may be watching a menu
+  backdrop, and `lobby.leave_session` / `remove_player` drop the seat as
+  well as the watching. Leaving a watched session uses `leave_spectating`.
 - Anything that removes "empty" sessions must keep `is_watch_only` sessions,
   which never have a human participant.
 - Many AI laps are struck for track limits, so an AI car's

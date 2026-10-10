@@ -45,7 +45,7 @@ class APEXSIMNET_API FApexTcpConnection : public FRunnable
 {
 public:
 	FApexTcpConnection(const FString& InHost, int32 InPort, const FString& InToken, const FString& InPlayerName,
-		const FApexTlsOptions& InTls = FApexTlsOptions());
+		const FApexTlsOptions& InTls = FApexTlsOptions(), const FString& InResumeToken = FString());
 	virtual ~FApexTcpConnection() override;
 
 	/** Spawns the worker thread. Returns false only if thread creation itself failed. */
@@ -120,6 +120,8 @@ private:
 	const FString Token;
 	const FString PlayerName;
 	const FApexTlsOptions TlsOptions;
+	/** Sent in Authenticate to be the same player again; empty for a new one. */
+	const FString ResumeToken;
 
 	/** Worker-thread only. Set while the connection runs over TLS. */
 	TUniquePtr<FApexTlsSession> Tls;

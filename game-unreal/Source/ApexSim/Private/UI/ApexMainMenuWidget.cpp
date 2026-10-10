@@ -58,6 +58,7 @@ namespace
 		const FName Setups(TEXT("Setups"));
 		const FName ListItem(TEXT("ListItem"));
 		const FName GoTracks(TEXT("GoTracks"));
+		const FName Rejoin(TEXT("Rejoin"));
 		const FName GoCreate(TEXT("GoCreate"));
 		const FName QuitBack(TEXT("QuitBack"));
 		const FName QuitExit(TEXT("QuitExit"));
@@ -144,6 +145,7 @@ void UApexMainMenuWidget::NativeConstruct()
 	{
 		Net->OnConnectionStateChanged.AddDynamic(this, &UApexMainMenuWidget::HandleConnectionStateChanged);
 		Net->OnLobbyStateUpdated.AddDynamic(this, &UApexMainMenuWidget::HandleLobbyStateUpdated);
+		Net->OnRejoinOfferChanged.AddDynamic(this, &UApexMainMenuWidget::HandleRejoinOfferChanged);
 	}
 	if (UApexMenuFlowSubsystem* Flow = GetFlow())
 	{
@@ -160,6 +162,7 @@ void UApexMainMenuWidget::NativeDestruct()
 	{
 		Net->OnConnectionStateChanged.RemoveDynamic(this, &UApexMainMenuWidget::HandleConnectionStateChanged);
 		Net->OnLobbyStateUpdated.RemoveDynamic(this, &UApexMainMenuWidget::HandleLobbyStateUpdated);
+		Net->OnRejoinOfferChanged.RemoveDynamic(this, &UApexMainMenuWidget::HandleRejoinOfferChanged);
 	}
 	if (UApexMenuFlowSubsystem* Flow = GetFlow())
 	{
@@ -575,6 +578,17 @@ UWidget* UApexMainMenuWidget::BuildHero()
 	HeroList = ListColumn;
 	ApexUI::AddV(Wrap, ListColumn, FMargin(), HAlign_Fill, 1.0f);
 
+	// The rejoin banner, above everything else in the hero (RefreshRejoin).
+	FApexButtonSpec RejoinSpec;
+	RejoinSpec.ActionId = Action::Rejoin;
+	RejoinSpec.Variant = EApexButtonVariant::Panel;
+	RejoinButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	RejoinButton->Setup(RejoinSpec);
+	RejoinButton->OnActivated.AddDynamic(this, &UApexMainMenuWidget::HandleButtonActivated);
+	RejoinBanner = ApexUI::MakeSized(*WidgetTree, RejoinButton, 840.0f, -1.0f);
+	RejoinBanner->SetVisibility(ESlateVisibility::Collapsed);
+	ApexUI::AddV(Hero, RejoinBanner, FMargin(0.0f, 0.0f, 0.0f, 28.0f), HAlign_Left);
+
 	EyebrowText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(11.0f, 200), ApexUI::Palette::Accent);
 	ApexUI::AddV(Hero, EyebrowText, FMargin(0.0f, 0.0f, 0.0f, 14.0f), HAlign_Left);
 
@@ -912,6 +926,7 @@ UApexButtonWidget* UApexMainMenuWidget::AddColumnButton(UVerticalBox* Column, co
 
 void UApexMainMenuWidget::RefreshAll()
 {
+	RefreshRejoin();
 	RefreshHeader();
 	RefreshHero();
 	RefreshRail();
@@ -954,6 +969,76 @@ void UApexMainMenuWidget::RefreshHeader()
 	if (DriverText)
 	{
 		DriverText->SetText(FText::FromString(Flow->PlayerName));
+	}
+}
+
+void UApexMainMenuWidget::RefreshRejoin()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	const bool bOffer = Net && Net->HasRejoinOffer();
+	if (RejoinBanner)
+	{
+		RejoinBanner->SetVisibility(bOffer ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (!bOffer || !RejoinButton)
+	{
+		bOnRejoin = false;
+		return;
+	}
+
+	// The circuit as the catalog shows it, the server's name failing that.
+	FString TrackName;
+	if (UApexMenuFlowSubsystem* Flow = GetFlow())
+	{
+		FApexTrackCatalogRow TrackRow;
+		if (Flow->GetTrackCatalogRow(Net->GetRejoinTrackId(), TrackRow))
+		{
+			TrackName = TrackRow.DisplayName;
+		}
+	}
+	if (TrackName.IsEmpty())
+	{
+		FApexTrackConfigSummary Summary;
+		if (Net->FindTrackById(Net->GetRejoinTrackId(), Summary))
+		{
+			TrackName = Summary.Name;
+		}
+	}
+
+	FApexButtonSpec Spec;
+	Spec.ActionId = Action::Rejoin;
+	Spec.Variant = EApexButtonVariant::Panel;
+	const TCHAR* What = Net->GetRejoinSessionKind() == EApexSessionKind::Practice ? TEXT("practice session")
+		: Net->GetRejoinSessionKind() == EApexSessionKind::Sandbox ? TEXT("sandbox session")
+		: TEXT("race");
+	Spec.Label = TrackName.IsEmpty()
+		? FString::Printf(TEXT("You are still in a %s"), What)
+		: FString::Printf(TEXT("You are still in a %s at %s"), What, *TrackName);
+	Spec.SubLabel = TEXT("Click here to rejoin. The server drives your car until you are back.");
+	Spec.Badge = TEXT("REJOIN");
+	Spec.BadgeColour = ApexUI::Palette::Live;
+	RejoinButton->Setup(Spec);
+}
+
+bool UApexMainMenuWidget::IsRejoinShown() const
+{
+	return RejoinBanner && RejoinBanner->GetVisibility() == ESlateVisibility::Visible && !IsListPage();
+}
+
+void UApexMainMenuWidget::HandleRejoinOfferChanged()
+{
+	RefreshRejoin();
+	const bool bShown = IsRejoinShown();
+	// A new offer takes focus, so Enter (or pad A) rejoins at once; one that
+	// went away hands focus back to the hero.
+	if (bShown != bOnRejoin && GetRoot() && GetRoot()->GetCurrentScreen() == EApexScreen::MainMenu && !bQuitOpen)
+	{
+		bOnRejoin = bShown;
+		if (bShown)
+		{
+			ActiveColumn = 0;
+		}
+		ApplyFocus();
 	}
 }
 
@@ -1237,6 +1322,13 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (Id == Action::Start || Id == Action::Quick)
 	{
 		StartRememberedSession();
+	}
+	else if (Id == Action::Rejoin)
+	{
+		if (UApexNetSubsystem* Net = GetNet())
+		{
+			Net->RejoinSession();
+		}
 	}
 	else if (Id == Action::GoGarage)  { ShowPage(EPage::Garage); }
 	else if (Id == Action::GoDrive)   { ShowPage(EPage::Drive); }
@@ -1527,11 +1619,30 @@ bool UApexMainMenuWidget::HandleNavigation(EUINavigation Direction, UWidget* Sou
 		}
 	}
 
+	if (Source && Source == RejoinButton.Get())
+	{
+		ActiveColumn = 0;
+		switch (Direction)
+		{
+		case EUINavigation::Down:
+			bOnRejoin = false;
+			ApplyFocus();
+			return true;
+		case EUINavigation::Right:
+			ActiveColumn = 1;
+			ApplyFocus();
+			return true;
+		default:
+			return true;
+		}
+	}
+
 	const int32 HeroAt = ApexNav::IndexOf(HeroButtons, Source);
 	if (HeroAt != INDEX_NONE)
 	{
 		ActiveColumn = 0;
 		HeroIndex = HeroAt;
+		bOnRejoin = false;
 
 		switch (Direction)
 		{
@@ -1553,9 +1664,18 @@ bool UApexMainMenuWidget::HandleNavigation(EUINavigation Direction, UWidget* Sou
 			ApplyFocus();
 			return true;
 
+		case EUINavigation::Up:
+			// The rejoin banner, when there is one, is above the actions.
+			if (IsRejoinShown())
+			{
+				bOnRejoin = true;
+				ApplyFocus();
+			}
+			return true;
+
 		default:
-			// Nothing above or below the actions worth landing on; Slate's
-			// search would pick a rail item at random.
+			// Nothing below the actions worth landing on; Slate's search
+			// would pick a rail item at random.
 			return true;
 		}
 	}
@@ -1629,6 +1749,11 @@ void UApexMainMenuWidget::ApplyFocus()
 		{
 			return;
 		}
+	}
+
+	if (ActiveColumn == 0 && bOnRejoin && IsRejoinShown() && ApexNav::Focus(RejoinButton))
+	{
+		return;
 	}
 
 	const bool bList = ActiveColumn == 0 && IsListPage();

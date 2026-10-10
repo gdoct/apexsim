@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use thiserror::Error;
@@ -156,6 +156,9 @@ pub enum TransportEvent {
         connection_id: ConnectionId,
         player_id: PlayerId,
         session_id: Option<SessionId>,
+        /// The player keeps their seat in `session_id` to come back to: the
+        /// connection was lost, not ended by the server (a kick).
+        keep_seat: bool,
     },
 }
 
@@ -182,6 +185,10 @@ pub struct ConnectionInfo {
     /// dashboard's kick); the reader loop ends and the usual disconnect
     /// cleanup runs.
     pub kick: Arc<tokio::sync::Notify>,
+    /// Set with `kick` when the server drops the player for good (the
+    /// dashboard's kick): the disconnect then gives up their seat instead of
+    /// holding it for a reconnect.
+    pub release_seat: Arc<AtomicBool>,
 }
 
 /// Shared connection registry: every map needed to resolve a connection from
@@ -193,6 +200,11 @@ struct ConnRegistry {
     addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
     udp_token_to_connection: Arc<RwLock<HashMap<String, ConnectionId>>>,
     udp_addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
+    /// `AuthSuccess.resume_token` -> the player it was issued to. Presented
+    /// again in `Authenticate`, it gives a new connection the old player id.
+    /// Pruned to the connected players and those holding a seat
+    /// ([`TransportLayer::prune_resume_tokens`]).
+    resume_tokens: Arc<RwLock<HashMap<String, PlayerId>>>,
     /// Addresses and names refused at `Authenticate` (`crate::admin::bans`).
     bans: crate::admin::bans::BanList,
     /// The game loop's tick count (wrapping), stored by the loop every tick
@@ -208,6 +220,7 @@ impl ConnRegistry {
             addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
             udp_token_to_connection: Arc::new(RwLock::new(HashMap::new())),
             udp_addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
+            resume_tokens: Arc::new(RwLock::new(HashMap::new())),
             bans: crate::admin::bans::BanList::default(),
             server_tick: Arc::new(std::sync::atomic::AtomicU32::new(0)),
         }
@@ -217,10 +230,13 @@ impl ConnRegistry {
     async fn remove_connection(&self, connection_id: ConnectionId) -> Option<ConnectionInfo> {
         let conn = self.connections.write().await.remove(&connection_id)?;
         self.addr_to_connection.write().await.remove(&conn.tcp_addr);
-        self.player_to_connection
-            .write()
-            .await
-            .remove(&conn.player_id);
+        // A resumed player may already be mapped to their new connection.
+        {
+            let mut players = self.player_to_connection.write().await;
+            if players.get(&conn.player_id) == Some(&connection_id) {
+                players.remove(&conn.player_id);
+            }
+        }
         self.udp_token_to_connection
             .write()
             .await
@@ -590,6 +606,7 @@ impl TransportLayer {
         let mut violations: u32 = 0;
 
         let kick = Arc::new(tokio::sync::Notify::new());
+        let release_seat = Arc::new(AtomicBool::new(false));
         loop {
             // Read length prefix (or stop when the admin kicks this client)
             let read = tokio::select! {
@@ -663,6 +680,7 @@ impl TransportLayer {
                                         token,
                                         player_name,
                                         protocol_version,
+                                        resume_token,
                                     } = &msg
                                     {
                                         if *protocol_version != PROTOCOL_VERSION {
@@ -723,7 +741,28 @@ impl TransportLayer {
                                             break;
                                         }
                                         authenticated = true;
-                                        let player_id = Uuid::new_v4();
+                                        // A known resume token is the same
+                                        // player again: their id, and with
+                                        // it their seat in a session.
+                                        let resumed = match resume_token.as_deref() {
+                                            Some(t) if !t.is_empty() => registry
+                                                .resume_tokens
+                                                .read()
+                                                .await
+                                                .get(t)
+                                                .map(|pid| (*pid, t.to_string())),
+                                            _ => None,
+                                        };
+                                        let resuming = resumed.is_some();
+                                        let (player_id, resume_token) =
+                                            resumed.unwrap_or_else(|| {
+                                                (Uuid::new_v4(), Uuid::new_v4().to_string())
+                                            });
+                                        registry
+                                            .resume_tokens
+                                            .write()
+                                            .await
+                                            .insert(resume_token.clone(), player_id);
                                         let udp_token = Uuid::new_v4().to_string();
                                         let udp_key = udp_seal::generate_key();
                                         let conn_info = ConnectionInfo {
@@ -738,6 +777,7 @@ impl TransportLayer {
                                             udp_seal: Arc::new(udp_seal::Inbound::new(&udp_key)),
                                             udp_addr: None,
                                             kick: Arc::clone(&kick),
+                                            release_seat: Arc::clone(&release_seat),
                                         };
 
                                         registry
@@ -751,19 +791,30 @@ impl TransportLayer {
                                             .await
                                             .insert(addr, connection_id);
                                         // Also track player_id -> connection_id mapping for broadcast lookups
-                                        registry
+                                        let replaced = registry
                                             .player_to_connection
                                             .write()
                                             .await
                                             .insert(player_id, connection_id);
+                                        // The player is back before the old
+                                        // connection timed out: it is dropped
+                                        // now, its seat kept for this one.
+                                        if let Some(old) = replaced.filter(|c| *c != connection_id)
+                                        {
+                                            if let Some(old_conn) =
+                                                registry.connections.read().await.get(&old)
+                                            {
+                                                old_conn.kick.notify_one();
+                                            }
+                                        }
                                         registry
                                             .udp_token_to_connection
                                             .write()
                                             .await
                                             .insert(udp_token.clone(), connection_id);
                                         debug!(
-                                            "Player {} authenticated as {} (connection: {})",
-                                            player_name, player_id, connection_id
+                                            "Player {} authenticated as {} (connection: {}, resumed: {})",
+                                            player_name, player_id, connection_id, resuming
                                         );
 
                                         // Send auth success response
@@ -775,6 +826,7 @@ impl TransportLayer {
                                                 udp_token,
                                                 udp_port,
                                                 udp_key,
+                                                resume_token,
                                             });
                                         // Critical message - if queue full, client is too slow
                                         if conn_tx
@@ -849,6 +901,7 @@ impl TransportLayer {
                     connection_id,
                     player_id: conn.player_id,
                     session_id: conn.in_session,
+                    keep_seat: !conn.release_seat.load(Ordering::Relaxed),
                 })
                 .await;
         }
@@ -1228,13 +1281,33 @@ impl TransportLayer {
                 code: 403,
                 message: format!("Removed from the server: {}", reason),
             }));
+        // Removed for good: no seat held, and no way back in as this player.
+        conn.release_seat.store(true, Ordering::Relaxed);
+        self.registry
+            .resume_tokens
+            .write()
+            .await
+            .retain(|_, pid| *pid != player_id);
         // Give the writer task a moment to put the notice on the wire.
         tokio::time::sleep(Duration::from_millis(100)).await;
         conn.kick.notify_one();
         true
     }
 
-    pub async fn cleanup_stale_connections(&self) -> Vec<(PlayerId, Option<SessionId>)> {
+    /// Forget the resume tokens of players who are neither connected nor
+    /// `holds_seat`: there is nothing left for them to come back to.
+    pub async fn prune_resume_tokens(&self, holds_seat: impl Fn(&PlayerId) -> bool) {
+        let connected = self.registry.player_to_connection.read().await;
+        self.registry
+            .resume_tokens
+            .write()
+            .await
+            .retain(|_, pid| connected.contains_key(pid) || holds_seat(pid));
+    }
+
+    pub async fn cleanup_stale_connections(
+        &self,
+    ) -> Vec<(ConnectionId, PlayerId, Option<SessionId>)> {
         let now = Instant::now();
         let timeout = self.heartbeat_timeout;
         // Use a much longer timeout for lobby players (30 seconds)
@@ -1276,7 +1349,7 @@ impl TransportLayer {
         let mut disconnected_players = Vec::new();
         for conn_id in to_remove {
             if let Some(info) = self.registry.remove_connection(conn_id).await {
-                disconnected_players.push((info.player_id, info.in_session));
+                disconnected_players.push((conn_id, info.player_id, info.in_session));
             }
         }
 
@@ -1444,6 +1517,7 @@ mod tests {
             udp_seal: Arc::new(udp_seal::Inbound::new("test-key")),
             udp_addr: None,
             kick: Arc::new(tokio::sync::Notify::new()),
+            release_seat: Arc::new(AtomicBool::new(false)),
         }
     }
 

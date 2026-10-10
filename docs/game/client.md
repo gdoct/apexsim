@@ -121,6 +121,14 @@ the remembered session) and **Change setup** (the create screen). The right
 - **Watch a race**: the menu's backdrop race full screen (`WatchBackdrop`).
 - **Settings**: the settings overlay.
 
+While the server holds a seat for the player in a session they lost the
+connection to (`UApexNetSubsystem::HasRejoinOffer`,
+[sessions.md](../server/sessions.md#reconnecting)), a banner over the hero
+says "You are still in a race at <circuit>" with "Click here to rejoin"
+(`RejoinSession`). It takes focus when it appears (Enter or pad A rejoins);
+Up from the hero's actions reaches it and Down leaves it. It goes when the
+offer does: a join, a lost connection, or the session no longer listed.
+
 Keys: Tab / shoulders cross columns, Back (pad B) steps up a page, Escape
 opens a "Back to main menu / Exit game" overlay, pad Start (or the pause key)
 opens settings, Alt+Enter cycles fullscreen / borderless / windowed through

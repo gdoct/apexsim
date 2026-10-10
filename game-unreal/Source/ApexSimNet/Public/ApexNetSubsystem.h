@@ -33,6 +33,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnQualifyingResults, const FStr
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnCarSetupSheet, const FApexCarSetupSheet&, Sheet);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnUdpReady);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionStateChanged, EApexSessionState, NewState);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnRejoinOfferChanged);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnDemoSessionChanged, bool /*bJoined*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnShowcases, const TArray<FApexShowcaseSummary>&);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FApexOnSpectatorJoined, const FString& /*StreamId*/, const FString& /*ShowcaseId*/);
@@ -101,6 +102,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Net")
 	FApexOnDisconnected OnDisconnected;
+
+	/** A seat to rejoin was offered (RejoinAvailable) or the offer went away. */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Net")
+	FApexOnRejoinOfferChanged OnRejoinOfferChanged;
 
 	/** Car index -> player identity. Arrives reliably over TCP on join and on change. */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
@@ -510,6 +515,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	bool IsInSession() const { return !CurrentSessionId.IsEmpty() && !bInDemoSession; }
 
+	/**
+	 * The server holds a seat for us in a session we lost the connection to
+	 * (RejoinAvailable after a resumed Authenticate): our car is still in it,
+	 * driven by the server, until RejoinSession takes it back. Cleared by a
+	 * join, a lost connection, or the session leaving the lobby's list.
+	 */
+	bool HasRejoinOffer() const { return !RejoinSessionId.IsEmpty(); }
+	const FString& GetRejoinSessionId() const { return RejoinSessionId; }
+	const FString& GetRejoinTrackId() const { return RejoinTrackId; }
+	EApexSessionKind GetRejoinSessionKind() const { return RejoinSessionKind; }
+
+	/** Takes the offered seat back (JoinSession with its id). */
+	void RejoinSession();
+
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	const FApexLobbyState& GetCachedLobbyState() const { return CachedLobbyState; }
 
@@ -710,6 +729,18 @@ private:
 	FString PlayerName;
 	/** Kept for reconnects; the server reads it once per connection. */
 	FString Token;
+	/**
+	 * AuthSuccess's resume token for this server, sent back in Authenticate
+	 * to be the same player (and keep a held seat). Saved per server in
+	 * GameUserSettings, so a restarted game can rejoin too.
+	 */
+	FString ResumeToken;
+	/** The seat offered by RejoinAvailable; empty when none. */
+	FString RejoinSessionId;
+	FString RejoinTrackId;
+	EApexSessionKind RejoinSessionKind = EApexSessionKind::Multiplayer;
+	void SetRejoinOffer(const FString& SessionId, const FString& TrackId, EApexSessionKind Kind);
+	void ClearRejoinOffer();
 	FApexTlsOptions TlsOptions;
 	FString PlayerId;
 

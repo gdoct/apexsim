@@ -447,6 +447,7 @@ impl TestClientMinimal {
             token: format!("test_token_{}", name),
             player_name: name.to_string(),
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
+            resume_token: None,
         };
         self.send_message(&msg).await?;
         sleep(Duration::from_millis(50)).await;

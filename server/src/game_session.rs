@@ -225,6 +225,15 @@ pub struct GameSession {
     /// removal from there (the session's own `current_tick` counts from its
     /// creation, not the server's start).
     pub(crate) finished_since_loop_tick: Option<u64>,
+    /// The server loop's tick from which every human seated here has been
+    /// away (`away`): `game_loop::tick` ends the session when none is back
+    /// within `[server] reconnect_grace_seconds`.
+    pub(crate) orphaned_since_loop_tick: Option<u64>,
+    /// Humans whose connection was lost: their seat is held for them to
+    /// come back to (`hold_seat` / `resume_seat`) and the server drives
+    /// their car meanwhile (`away_input`), or parks it in its garage in a
+    /// hotlap or qualifying session.
+    away: std::collections::BTreeSet<PlayerId>,
     /// A finished human's steering aid, held while the server drives their
     /// car on the cool-down lap (the AI steers the rack directly) and given
     /// back when the grid is lined up again. Looked up by key only.
@@ -575,6 +584,8 @@ impl GameSession {
             ai_speed_profiles: HashMap::new(),
             finish_deadline_tick: None,
             finished_since_loop_tick: None,
+            orphaned_since_loop_tick: None,
+            away: std::collections::BTreeSet::new(),
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
             liveries: HashMap::new(),
@@ -629,6 +640,8 @@ impl GameSession {
             ai_speed_profiles: HashMap::new(),
             finish_deadline_tick: None,
             finished_since_loop_tick: None,
+            orphaned_since_loop_tick: None,
+            away: std::collections::BTreeSet::new(),
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
             liveries: HashMap::new(),
@@ -2111,10 +2124,86 @@ impl GameSession {
         if self.session.participants.remove(player_id).is_some() {
             self.roster_dirty = true;
         }
+        self.away.remove(player_id);
+        self.held_steering_assist.remove(player_id);
         self.tuned_configs.remove(player_id);
         self.car_setups.remove(player_id);
         self.lap_traces.remove(player_id);
         self.liveries.remove(player_id);
+    }
+
+    /// Hold a human's seat after their connection was lost: the car stays
+    /// in the session, driven by the server (`away_input`, steering the rack
+    /// itself as the cool-down driver does) or, in a hotlap or qualifying
+    /// session, parked in its garage. False when the player has no car here
+    /// to hold (an AI, a demo, someone not seated).
+    pub fn hold_seat(&mut self, player_id: &PlayerId) -> bool {
+        if self.session.session_kind.is_watch_only()
+            || self.session.ai_player_ids.contains(player_id)
+        {
+            return false;
+        }
+        let Some(state) = self.session.participants.get_mut(player_id) else {
+            return false;
+        };
+        if self.away.insert(*player_id) {
+            if let std::collections::hash_map::Entry::Vacant(held) =
+                self.held_steering_assist.entry(*player_id)
+            {
+                held.insert(state.steering_assist);
+                state.steering_assist = false;
+            }
+            let car_id = state.car_config_id;
+            self.plan_ai_speeds(car_id);
+            let _ = self.hotlap_relocate(player_id, HotlapDestination::Garage, false);
+        }
+        true
+    }
+
+    /// Give a held seat back to its driver: the server stops driving the
+    /// car and their steering aid comes back (after the flag the cool-down
+    /// driver keeps the car, as for anyone finished). Returns the car's grid
+    /// slot and model, or `None` when no seat is held for them here.
+    pub fn resume_seat(&mut self, player_id: &PlayerId) -> Option<(u8, CarConfigId)> {
+        if !self.away.remove(player_id) {
+            return None;
+        }
+        self.roster_dirty = true;
+        self.orphaned_since_loop_tick = None;
+        let state = self.session.participants.get_mut(player_id)?;
+        if state.finish_position.is_none() {
+            if let Some(assist) = self.held_steering_assist.remove(player_id) {
+                state.steering_assist = assist;
+            }
+        }
+        Some((state.grid_position, state.car_config_id))
+    }
+
+    /// Whether this human's seat is held while they are away.
+    pub fn is_away(&self, player_id: &PlayerId) -> bool {
+        self.away.contains(player_id)
+    }
+
+    /// Whether any human is seated here, connected or away.
+    pub fn has_human_driver(&self) -> bool {
+        self.session
+            .participants
+            .keys()
+            .any(|id| !self.session.ai_player_ids.contains(id))
+    }
+
+    /// Whether a human seated here is connected (not away).
+    pub fn has_connected_driver(&self) -> bool {
+        self.session
+            .participants
+            .keys()
+            .any(|id| !self.session.ai_player_ids.contains(id) && !self.away.contains(id))
+    }
+
+    /// The input the server drives an away driver's car with: the cool-down
+    /// driver's, on the line at a gentle pace.
+    pub fn away_input(&self, player_id: &PlayerId) -> PlayerInputData {
+        self.cooldown_input(player_id)
     }
 
     /// The car index this player's telemetry carries, matching the roster.

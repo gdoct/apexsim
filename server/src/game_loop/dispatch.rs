@@ -31,12 +31,22 @@ pub(crate) async fn handle_event(
             connection_id,
             player_id,
             session_id,
+            keep_seat,
         } => {
             debug!(
                 "Connection {} closed (player {}), running disconnect lifecycle",
                 connection_id, player_id
             );
-            lifecycle::handle_player_disconnect(ctx, player_id, session_id).await;
+            // The last input stops applying: an away car is the server's.
+            player_inputs.remove(&player_id);
+            lifecycle::handle_player_disconnect(
+                ctx,
+                connection_id,
+                player_id,
+                session_id,
+                keep_seat,
+            )
+            .await;
         }
     }
 }
@@ -228,6 +238,28 @@ async fn handle_authenticate(ctx: &GameLoopCtx, connection_id: ConnectionId, pla
     if let Err(e) = broadcast::send_lobby_state(ctx, connection_id).await {
         warn!("Failed to send lobby state: {:?}", e);
     }
+
+    // A resumed player with a seat in a session is offered it back, after
+    // the lobby state that lists the session.
+    let rejoin = {
+        let mut state_write = ctx.state.write().await;
+        lifecycle::hold_seat_for_rejoin(&mut state_write, conn_info.player_id).await
+    };
+    if let Some(msg) = rejoin {
+        debug!("Offering player {} their seat back", conn_info.player_id);
+        let _ = ctx.send(connection_id, msg).await;
+    }
+}
+
+/// The seat this connection's player holds in a session they lost the
+/// connection to, if any: a seat in the lobby's books that this connection
+/// is not driving.
+async fn held_seat(
+    state: &crate::server::ServerState,
+    conn_info: &ConnectionInfo,
+) -> Option<SessionId> {
+    let seat = state.lobby.get_player_session(conn_info.player_id).await?;
+    (conn_info.in_session != Some(seat)).then_some(seat)
 }
 
 async fn handle_select_car(
@@ -280,6 +312,13 @@ async fn handle_create_session(
         return;
     };
     let mut state_write = ctx.state.write().await;
+
+    // Driving in a new session gives up a seat held in another.
+    if !session_kind.is_watch_only() {
+        if let Some(seat) = held_seat(&state_write, &conn_info).await {
+            lifecycle::give_up_seat(&mut state_write, conn_info.player_id, seat).await;
+        }
+    }
 
     // A demo is watched, not driven, so it needs no car of the host's: it
     // falls back to the default AI car (smallest id, for determinism). A
@@ -653,6 +692,15 @@ async fn handle_join_session(
     };
     let mut state_write = ctx.state.write().await;
 
+    // A seat held here is taken back; one held elsewhere is given up.
+    if let Some(seat) = held_seat(&state_write, &conn_info).await {
+        if seat == session_id {
+            rejoin_session(ctx, state_write, &conn_info, connection_id, session_id).await;
+            return;
+        }
+        lifecycle::give_up_seat(&mut state_write, conn_info.player_id, seat).await;
+    }
+
     // Get player's selected car
     let selected_car = state_write.lobby.get_player_car(conn_info.player_id).await;
     let livery = state_write
@@ -766,6 +814,60 @@ async fn handle_join_session(
         drop(state_write);
         ctx.send_error(connection_id, 400, "Session is full").await;
     }
+}
+
+/// A driver back in the seat they held: the car they left, wherever it is
+/// now, with everything a join sends (the session's rules, the racing line,
+/// the setup sheet, the sectors and their record). The roster goes out
+/// again on the next tick.
+async fn rejoin_session(
+    ctx: &GameLoopCtx,
+    mut state_write: tokio::sync::RwLockWriteGuard<'_, crate::server::ServerState>,
+    conn_info: &ConnectionInfo,
+    connection_id: ConnectionId,
+    session_id: SessionId,
+) {
+    let records = state_write.records.clone();
+    let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
+        return;
+    };
+    let Some((grid_pos, car_id)) = game_session.resume_seat(&conn_info.player_id) else {
+        drop(state_write);
+        ctx.send_error(connection_id, 409, "No seat held in that session")
+            .await;
+        return;
+    };
+    game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
+    debug!(
+        "Player {} rejoined session {} (grid position {})",
+        conn_info.player_name, session_id, grid_pos
+    );
+    let joined = ServerMessage::SessionJoined(SessionJoinedData {
+        session_id,
+        your_grid_position: grid_pos,
+        session_kind: game_session.session.session_kind,
+        allowed_assists: game_session.session.allowed_assists,
+        conditions: game_session.session.conditions,
+        damage: game_session.session.damage,
+        ai_skill: game_session.session.ai_skill,
+        race_seconds: game_session.session.race_seconds,
+    });
+    let mut messages = vec![joined];
+    messages.extend(racing_line_message(game_session, session_id, car_id));
+    messages.extend(setup_sheet_message(game_session, session_id, car_id));
+    messages.extend(timing_messages(
+        game_session,
+        session_id,
+        car_id,
+        &conn_info.player_name,
+        &records,
+    ));
+    drop(state_write);
+    for msg in messages {
+        let _ = ctx.send(connection_id, msg).await;
+    }
+    ctx.set_player_session(connection_id, Some(session_id))
+        .await;
 }
 
 /// The racing line for `car_id` on the session's track, for the client's
@@ -982,17 +1084,32 @@ async fn handle_leave_session(ctx: &GameLoopCtx, connection_id: ConnectionId) {
     };
     let mut state_write = ctx.state.write().await;
 
-    // Remove from game session
-    if let Some(sid) = conn_info.in_session {
+    // Leaving what the connection is in: watching a session (a menu
+    // backdrop) or driving in it. A seat held in another session (the
+    // player lost the connection to it) is left alone: the menu sends this
+    // with nothing joined too.
+    let watching = state_write
+        .lobby
+        .get_spectating_session(conn_info.player_id)
+        .await
+        .filter(|sid| conn_info.in_session == Some(*sid));
+    let empty_session = if watching.is_some() {
+        state_write
+            .lobby
+            .leave_spectating(conn_info.player_id)
+            .await
+    } else if let Some(sid) = conn_info.in_session {
+        // Remove from game session
         if let Some(game_session) = state_write.sessions.get_mut(&sid) {
             game_session.remove_player(&conn_info.player_id);
         }
-    }
-
-    let empty_session = state_write
-        .lobby
-        .leave_session(conn_info.player_id, connection_id)
-        .await;
+        state_write
+            .lobby
+            .leave_session(conn_info.player_id, connection_id)
+            .await
+    } else {
+        None
+    };
 
     if let Some(session_id) = empty_session {
         debug!(
@@ -1376,7 +1493,16 @@ async fn handle_request_qualifying(
 /// paths converge on the same lifecycle function.
 async fn handle_disconnect(ctx: &GameLoopCtx, connection_id: ConnectionId) {
     if let Some(conn_info) = ctx.connection(connection_id).await {
-        lifecycle::handle_player_disconnect(ctx, conn_info.player_id, conn_info.in_session).await;
+        // Leaving the server on purpose gives the seat up.
+        lifecycle::handle_player_disconnect(
+            ctx,
+            connection_id,
+            conn_info.player_id,
+            conn_info.in_session,
+            false,
+        )
+        .await;
+        ctx.set_player_session(connection_id, None).await;
     }
 }
 

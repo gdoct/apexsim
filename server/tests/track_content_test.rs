@@ -35,6 +35,7 @@ impl Client {
                 token: format!("test_token_{name}"),
                 player_name: name.to_string(),
                 protocol_version: apexsim_server::network::PROTOCOL_VERSION,
+                resume_token: None,
             })
             .await?;
         match client.recv().await? {

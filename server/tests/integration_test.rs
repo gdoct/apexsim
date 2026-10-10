@@ -57,6 +57,7 @@ impl TestClient {
             token: format!("test_token_{}", self.name),
             player_name: self.name.clone(),
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
+            resume_token: None,
         };
 
         self.send_tcp_message(&auth_msg).await?;

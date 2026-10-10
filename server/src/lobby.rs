@@ -123,6 +123,51 @@ impl LobbyManager {
         (player, empty_session_id)
     }
 
+    /// A player whose connection was lost keeps their seat: they leave the
+    /// lobby's player list (and stop spectating), but stay counted in their
+    /// session, which `get_player_session` still answers, until they come
+    /// back or the seat is given up (`leave_session`).
+    pub async fn hold_seat(&self, player_id: PlayerId) {
+        let mut state = self.state.write().await;
+        state.players.remove(&player_id);
+        if let Some(session_id) = state.spectators.remove(&player_id) {
+            if let Some(session) = state.sessions.get_mut(&session_id) {
+                session.spectator_count = session.spectator_count.saturating_sub(1);
+            }
+        }
+    }
+
+    /// Give up a player's seat (as driver) in their session, leaving any
+    /// session they watch alone. Returns the session if nobody is left in it.
+    pub async fn leave_seat(&self, player_id: PlayerId) -> Option<SessionId> {
+        let mut state = self.state.write().await;
+        let session_id = state.player_sessions.remove(&player_id)?;
+        let session = state.sessions.get_mut(&session_id)?;
+        session.current_player_count = session.current_player_count.saturating_sub(1);
+        (session.current_player_count == 0 && session.spectator_count == 0).then_some(session_id)
+    }
+
+    /// Stop watching a session, keeping any seat the player holds as a
+    /// driver. Returns the session if nobody is left in it.
+    pub async fn leave_spectating(&self, player_id: PlayerId) -> Option<SessionId> {
+        let mut state = self.state.write().await;
+        let session_id = state.spectators.remove(&player_id)?;
+        let session = state.sessions.get_mut(&session_id)?;
+        session.spectator_count = session.spectator_count.saturating_sub(1);
+        (session.current_player_count == 0 && session.spectator_count == 0).then_some(session_id)
+    }
+
+    /// Every player seated in a session, connected or holding their seat.
+    pub async fn seated_players(&self) -> std::collections::HashSet<PlayerId> {
+        self.state
+            .read()
+            .await
+            .player_sessions
+            .keys()
+            .copied()
+            .collect()
+    }
+
     /// Update a player's selected car
     pub async fn set_player_car(&self, player_id: PlayerId, car_config_id: CarConfigId) {
         if let Some(player) = self.state.write().await.players.get_mut(&player_id) {

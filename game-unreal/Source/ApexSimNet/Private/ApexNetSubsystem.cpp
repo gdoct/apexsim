@@ -3,8 +3,20 @@
 #include "ApexProtocolCodec.h"
 #include "ApexSimNetModule.h"
 #include "ApexTcpConnection.h"
+#include "Misc/ConfigCacheIni.h"
 
 UApexNetSubsystem::UApexNetSubsystem() = default;
+
+namespace
+{
+	/** GameUserSettings section holding one resume token per server. */
+	const TCHAR* ResumeSection = TEXT("ApexSim.Resume");
+
+	FString ResumeKey(const FString& Host, int32 Port)
+	{
+		return FString::Printf(TEXT("%s_%d"), *Host, Port);
+	}
+}
 
 // FApexTcpConnection is complete here (see the include above), which is what
 // lets TUniquePtr destroy it.
@@ -120,6 +132,12 @@ void UApexNetSubsystem::Connect(const FString& InHost, int32 InPort, const FStri
 	Port = InPort;
 	PlayerName = InPlayerName;
 	Token = InToken;
+	ResumeToken.Reset();
+	if (GConfig)
+	{
+		GConfig->GetString(ResumeSection, *ResumeKey(Host, Port), ResumeToken, GGameUserSettingsIni);
+	}
+	ClearRejoinOffer();
 	PlayerId.Reset();
 	CurrentSessionId.Reset();
 	bSessionSpectator = false;
@@ -145,7 +163,7 @@ void UApexNetSubsystem::StartConnectionAttempt()
 	PingMs = -1;
 	bWarnedEmptyCatalog = false;
 
-	Connection = MakeUnique<FApexTcpConnection>(Host, Port, Token, PlayerName, TlsOptions);
+	Connection = MakeUnique<FApexTcpConnection>(Host, Port, Token, PlayerName, TlsOptions, ResumeToken);
 	if (!Connection->Start())
 	{
 		Connection.Reset();
@@ -391,6 +409,35 @@ void UApexNetSubsystem::JoinSession(const FString& SessionId)
 	bSpectatorJoinRequested = false;
 	SessionRequestSentSeconds = FPlatformTime::Seconds();
 	SendPayload(ApexProtocol::EncodeJoinSession(SessionId));
+}
+
+void UApexNetSubsystem::RejoinSession()
+{
+	if (!HasRejoinOffer())
+	{
+		return;
+	}
+	UE_LOG(LogApexSimNet, Log, TEXT("Rejoining session %s"), *RejoinSessionId);
+	JoinSession(RejoinSessionId);
+}
+
+void UApexNetSubsystem::SetRejoinOffer(const FString& SessionId, const FString& TrackId, EApexSessionKind Kind)
+{
+	RejoinSessionId = SessionId;
+	RejoinTrackId = TrackId;
+	RejoinSessionKind = Kind;
+	OnRejoinOfferChanged.Broadcast();
+}
+
+void UApexNetSubsystem::ClearRejoinOffer()
+{
+	if (RejoinSessionId.IsEmpty())
+	{
+		return;
+	}
+	RejoinSessionId.Reset();
+	RejoinTrackId.Reset();
+	OnRejoinOfferChanged.Broadcast();
 }
 
 void UApexNetSubsystem::JoinAsSpectator(const FString& SessionId)
@@ -712,6 +759,16 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		bSessionSpectator = false;
 		ResetDemoSession();
 		ResetSpectate();
+		// The server offers a held seat again once we are back.
+		ClearRejoinOffer();
+		// Telemetry has stopped, so nothing else takes the state back to Lobby:
+		// the race view closes, and a rejoin's first frame opens it again.
+		if (CurrentSessionState != EApexSessionState::Lobby)
+		{
+			CurrentSessionState = EApexSessionState::Lobby;
+			OnSessionStateChanged.Broadcast(CurrentSessionState);
+		}
+		CurrentGameMode = EApexGameMode::Lobby;
 
 		if (bAuthRejected)
 		{
@@ -876,6 +933,15 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			*PlayerId, Message.AuthSuccess.ServerVersion, Message.AuthSuccess.ProtocolVersion, Message.AuthSuccess.UdpPort);
 
 		ReconnectAttempt = 0;
+		if (!Message.AuthSuccess.ResumeToken.IsEmpty() && Message.AuthSuccess.ResumeToken != ResumeToken)
+		{
+			ResumeToken = Message.AuthSuccess.ResumeToken;
+			if (GConfig)
+			{
+				GConfig->SetString(ResumeSection, *ResumeKey(Host, Port), *ResumeToken, GGameUserSettingsIni);
+				GConfig->Flush(false, GGameUserSettingsIni);
+			}
+		}
 		SetConnectionState(EApexConnectionState::Authenticated, TEXT("Connected"));
 		OnAuthSucceeded.Broadcast(PlayerId, static_cast<int32>(Message.AuthSuccess.ServerVersion));
 
@@ -929,7 +995,20 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 				TEXT("or the PascalCase payload keys in ApexProtocolCodec no longer match the server."));
 		}
 
+		// The offered session has ended (it is no longer listed).
+		if (HasRejoinOffer() && !CachedLobbyState.AvailableSessions.ContainsByPredicate(
+				[this](const FApexSessionSummary& Session) { return Session.Id == RejoinSessionId; }))
+		{
+			ClearRejoinOffer();
+		}
+
 		OnLobbyStateUpdated.Broadcast(CachedLobbyState);
+		break;
+
+	case EApexServerMessageType::RejoinAvailable:
+		UE_LOG(LogApexSimNet, Log, TEXT("<- RejoinAvailable SessionId=%s TrackId=%s Kind=%d"),
+			*Message.SessionId, *Message.TrackId, static_cast<int32>(Message.SessionKind));
+		SetRejoinOffer(Message.SessionId, Message.TrackId, Message.SessionKind);
 		break;
 
 	case EApexServerMessageType::SessionJoined:
@@ -1001,6 +1080,8 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentAiSkill = Message.AiSkill;
 		CurrentRaceSeconds = Message.RaceSeconds;
 		DiscardTelemetryOfPreviousSession();
+		// In a session now: the seat held for us is this one or given up.
+		ClearRejoinOffer();
 		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d Conditions=%s Damage=%d AiSkill=%d RaceSeconds=%d"),
 			*CurrentSessionId, Message.GridPosition, CurrentAllowedAssists.CountLocked(), *CurrentConditions.Describe(),
 			static_cast<int32>(CurrentDamage), CurrentAiSkill, CurrentRaceSeconds);

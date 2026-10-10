@@ -60,7 +60,9 @@ Every section and its keys (defaults from `config.rs`):
 
 - `[server]` - `tick_rate_hz` (420), `max_sessions` (8; a create beyond it is
   refused), `session_timeout_seconds` (300: how long a finished session
-  lingers before removal).
+  lingers before removal), `reconnect_grace_seconds` (60: how long a session
+  whose drivers have all lost their connection waits for one to come back,
+  [sessions.md](sessions.md#reconnecting)).
 - `[network]` - the three binds, `tls_cert_path` / `tls_key_path`,
   `require_tls` (true), `heartbeat_timeout_ms` (5000), `heartbeat_interval_ms`
   (1000; only validated against the timeout, the server sends nothing on it),

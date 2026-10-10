@@ -61,6 +61,10 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 	CheckBytes(TEXT("Authenticate"),
 		ApexProtocol::EncodeAuthenticate(TEXT("dev-token"), TEXT("Player")),
 		ApexGolden::C_Authenticate);
+	// A reconnect presents the resume token; without one the bytes above hold.
+	CheckBytes(TEXT("Authenticate with a resume token"),
+		ApexProtocol::EncodeAuthenticate(TEXT("dev-token"), TEXT("Player"), TEXT("resume-tok")),
+		ApexGolden::C_AuthenticateResume);
 
 	// The unit variants are the sharpest trap: a one-key map with no "data".
 	// Emitting `"data": {}` fails from_slice on the server, and each parse
@@ -316,6 +320,26 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("AuthSuccess.ProtocolVersion"), Message.AuthSuccess.ProtocolVersion, 2);
 			TestEqual(TEXT("AuthSuccess.UdpToken"), Message.AuthSuccess.UdpToken, FString(TEXT("udp-tok")));
 			TestEqual(TEXT("AuthSuccess.UdpPort"), Message.AuthSuccess.UdpPort, 9001);
+		}
+	}
+
+	{
+		FApexServerMessage Message;
+		if (Decode(TEXT("AuthSuccess with a resume token"), ApexGolden::S_AuthSuccessResume, Message))
+		{
+			TestEqual(TEXT("AuthSuccess.ResumeToken"), Message.AuthSuccess.ResumeToken, FString(TEXT("resume-tok")));
+			TestEqual(TEXT("AuthSuccess.UdpPort (resume)"), Message.AuthSuccess.UdpPort, 9001);
+		}
+	}
+
+	{
+		FApexServerMessage Message;
+		if (Decode(TEXT("RejoinAvailable"), ApexGolden::S_RejoinAvailable, Message))
+		{
+			TestEqual(TEXT("RejoinAvailable type"), Message.Type, EApexServerMessageType::RejoinAvailable);
+			TestEqual(TEXT("RejoinAvailable.SessionId"), Message.SessionId, FString(TEXT("01234567-89ab-cdef-0123-456789abcdef")));
+			TestEqual(TEXT("RejoinAvailable.TrackId"), Message.TrackId, FString(TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")));
+			TestEqual(TEXT("RejoinAvailable.SessionKind"), Message.SessionKind, EApexSessionKind::Multiplayer);
 		}
 	}
 

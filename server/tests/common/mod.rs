@@ -25,7 +25,7 @@ pub async fn start_test_server_with_tick_rate(tick_rate_hz: u16) -> ServerHandle
     start_test_server_with_config(config).await
 }
 
-async fn start_test_server_with_config(mut config: ServerConfig) -> ServerHandle {
+pub async fn start_test_server_with_config(mut config: ServerConfig) -> ServerHandle {
     config.network.tcp_bind = "127.0.0.1:0".to_string();
     config.network.udp_bind = "127.0.0.1:0".to_string();
     config.network.health_bind = "127.0.0.1:0".to_string();

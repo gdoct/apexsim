@@ -50,6 +50,12 @@ pub enum ClientMessage {
         /// which the server rejects with a clear `AuthFailure`.
         #[serde(default)]
         protocol_version: u8,
+        /// The `resume_token` an earlier `AuthSuccess` from this server
+        /// handed out: presented again, the player gets their old player id
+        /// back, and with it any seat they hold in a session. Left off the
+        /// wire when the client has none.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        resume_token: Option<String>,
     },
     Heartbeat {
         client_tick: u32,
@@ -278,6 +284,31 @@ pub struct AuthSuccessData {
     /// accepts no sealed datagram: such a client stays on TCP telemetry.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub udp_key: String,
+    /// Secret to present as `Authenticate.resume_token` on a later
+    /// connection to be this player again (the same player id, and the seat
+    /// they hold in a session). Left off the wire when empty.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub resume_token: String,
+}
+
+/// A seat the player still holds in a session they lost the connection to:
+/// their car is driven by the server (or parked in its garage) until they
+/// come back with `JoinSession`. Sent after `Authenticate` on a resumed
+/// connection; the session's `SessionSummary` in the lobby has the rest.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct RejoinData {
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub session_id: SessionId,
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub track_id: TrackConfigId,
+    pub session_kind: SessionKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -478,6 +509,10 @@ pub enum ServerMessage {
     Error { code: u16, message: String },
     PlayerDisconnected(PlayerDisconnectedData),
 
+    // TCP - The player holds a seat in a session they lost the connection
+    // to; `JoinSession` with its id takes it back.
+    RejoinAvailable(RejoinData),
+
     // UDP - Confirms a `UdpHandshake`; from then on telemetry flows over UDP.
     UdpHandshakeAck,
 
@@ -565,6 +600,7 @@ impl ServerMessage {
             ServerMessage::AuthFailure { .. } => MessagePriority::Critical,
             ServerMessage::Error { .. } => MessagePriority::Critical,
             ServerMessage::SessionJoined(_) => MessagePriority::Critical,
+            ServerMessage::RejoinAvailable(_) => MessagePriority::Critical,
             ServerMessage::SessionStarting { .. } => MessagePriority::Critical,
             ServerMessage::SessionLeft => MessagePriority::Critical,
             ServerMessage::GameModeChanged { .. } => MessagePriority::Critical,
@@ -1632,6 +1668,7 @@ mod tests {
             token: "test_token".to_string(),
             player_name: "Player1".to_string(),
             protocol_version: PROTOCOL_VERSION,
+            resume_token: None,
         };
 
         let serialized = rmp_serde::to_vec_named(&msg).unwrap();
@@ -1642,6 +1679,7 @@ mod tests {
                 token,
                 player_name,
                 protocol_version,
+                resume_token: _,
             } => {
                 assert_eq!(token, "test_token");
                 assert_eq!(player_name, "Player1");
@@ -1774,6 +1812,7 @@ mod tests {
             udp_token: "udp-token".to_string(),
             udp_port: 9001,
             udp_key: "udp-key".to_string(),
+            resume_token: String::new(),
         });
 
         let serialized = rmp_serde::to_vec_named(&msg).unwrap();
@@ -3344,6 +3383,78 @@ mod tests {
                 ClientMessage::RecoverCar { destination: back } => assert_eq!(back, destination),
                 other => panic!("Wrong message type: {other:?}"),
             }
+        }
+    }
+
+    /// `cargo test rejoin_wire_format -- --nocapture` prints them.
+    #[test]
+    fn test_rejoin_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        // Without a token the bytes are those of every earlier Authenticate.
+        let plain = rmp_serde::to_vec_named(&ClientMessage::Authenticate {
+            token: "dev-token".to_string(),
+            player_name: "Player".to_string(),
+            protocol_version: PROTOCOL_VERSION,
+            resume_token: None,
+        })
+        .unwrap();
+        assert!(!String::from_utf8_lossy(&plain).contains("resume_token"));
+        let resume = rmp_serde::to_vec_named(&ClientMessage::Authenticate {
+            token: "dev-token".to_string(),
+            player_name: "Player".to_string(),
+            protocol_version: PROTOCOL_VERSION,
+            resume_token: Some("resume-tok".to_string()),
+        })
+        .unwrap();
+        println!("C_AuthenticateResume: {}", hex(&resume));
+        match rmp_serde::from_slice::<ClientMessage>(&resume).unwrap() {
+            ClientMessage::Authenticate { resume_token, .. } => {
+                assert_eq!(resume_token.as_deref(), Some("resume-tok"));
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+
+        let player_id = Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap();
+        let auth = |resume_token: &str| {
+            ServerMessage::AuthSuccess(AuthSuccessData {
+                player_id,
+                server_version: 1,
+                protocol_version: PROTOCOL_VERSION,
+                udp_token: "udp-tok".to_string(),
+                udp_port: 9001,
+                udp_key: String::new(),
+                resume_token: resume_token.to_string(),
+            })
+        };
+        let plain = rmp_serde::to_vec_named(&auth("")).unwrap();
+        assert!(!String::from_utf8_lossy(&plain).contains("ResumeToken"));
+        let with_token = rmp_serde::to_vec_named(&auth("resume-tok")).unwrap();
+        println!("S_AuthSuccessResume: {}", hex(&with_token));
+        match rmp_serde::from_slice::<ServerMessage>(&with_token).unwrap() {
+            ServerMessage::AuthSuccess(data) => assert_eq!(data.resume_token, "resume-tok"),
+            other => panic!("Wrong message type: {other:?}"),
+        }
+
+        let rejoin = ServerMessage::RejoinAvailable(RejoinData {
+            session_id: player_id,
+            track_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            session_kind: SessionKind::Multiplayer,
+        });
+        assert_eq!(rejoin.priority(), MessagePriority::Critical);
+        let bytes = rmp_serde::to_vec_named(&rejoin).unwrap();
+        println!("S_RejoinAvailable: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::RejoinAvailable(data) => {
+                assert_eq!(data.session_id, player_id);
+                assert_eq!(data.session_kind, SessionKind::Multiplayer);
+            }
+            other => panic!("Wrong message type: {other:?}"),
         }
     }
 

@@ -8,7 +8,7 @@ use crate::data::*;
 use crate::network::ServerMessage;
 use bytes::Bytes;
 use std::collections::HashMap;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 /// Telemetry for one session, serialized exactly once per tick. The broadcast
 /// phase fans out cheap `Bytes` clones to every recipient.
@@ -88,6 +88,7 @@ pub(crate) async fn tick_sessions(
     let mut player_names: Option<HashMap<PlayerId, String>> = None;
     let empty_names: HashMap<PlayerId, String> = HashMap::new();
     let lobby = &state.lobby;
+    let reconnect_grace_seconds = state.config.server.reconnect_grace_seconds as u64;
 
     // Collect replay operations to execute after iteration
     let mut replay_starts = Vec::new();
@@ -134,6 +135,24 @@ pub(crate) async fn tick_sessions(
             continue;
         }
 
+        // Every human here has lost their connection: their seats are held
+        // for the grace period, then the session ends.
+        let orphaned = !is_demo_session && !game_session.has_connected_driver();
+        if finished_session_expired(
+            &mut game_session.orphaned_since_loop_tick,
+            orphaned,
+            tick_count,
+            tick_rate as u64,
+            reconnect_grace_seconds,
+        ) {
+            info!(
+                "Session {} ended: no driver came back within {} s",
+                session_id, reconnect_grace_seconds
+            );
+            sessions_to_remove.push(*session_id);
+            continue;
+        }
+
         // Build this session's input map: human inputs are looked up by key
         // (no clone of the global input map), AI inputs are generated.
         let mut session_inputs: HashMap<PlayerId, PlayerInputData> =
@@ -141,8 +160,14 @@ pub(crate) async fn tick_sessions(
         for player_id in game_session.session.participants.keys() {
             // The debug stand-in (`crate::debug_hooks`, off by default)
             // drives a human's car in place of its input.
+            // An away driver's car is the server's until they rejoin.
             let input = match game_session
                 .stand_in_input(player_id)
+                .or_else(|| {
+                    game_session
+                        .is_away(player_id)
+                        .then(|| game_session.away_input(player_id))
+                })
                 .or_else(|| player_inputs.get(player_id).copied())
             {
                 Some(input) => input,
@@ -252,6 +277,8 @@ pub(crate) async fn tick_sessions(
                         continue;
                     };
                     let is_ai = game_session.session.ai_player_ids.contains(&out.player_id);
+                    // A lap the server drove for an away driver is not theirs.
+                    let recordable = !is_ai && !game_session.is_away(&out.player_id);
                     let mut flags = 0u8;
                     if out.event.personal_best_lap {
                         flags |= crate::network::LapTimingData::FLAG_PERSONAL_BEST_LAP;
@@ -272,8 +299,8 @@ pub(crate) async fn tick_sessions(
                         }
                         _ => None,
                     };
-                    let record = match (out.event.lap_time_ms, is_ai) {
-                        (Some(lap_time_ms), false) if out.event.valid => game_session
+                    let record = match (out.event.lap_time_ms, recordable) {
+                        (Some(lap_time_ms), true) if out.event.valid => game_session
                             .session
                             .participants
                             .get(&out.player_id)

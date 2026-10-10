@@ -155,6 +155,7 @@ impl Racer {
                 token: "x".into(),
                 player_name: name.into(),
                 protocol_version: apexsim_server::network::PROTOCOL_VERSION,
+                resume_token: None,
             })
             .await;
         let first = racer.recv().await.ok_or("closed before answering")?;

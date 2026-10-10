@@ -21,18 +21,16 @@ None open.
 
 | Item | Type | Notes |
 |---|---|---|
-| Wheel bases other than the Fanatec ClubSport V2.5 | task | The DirectInput path and wheel force feedback have run only on that base. Profiles (`ApexWheelProfiles`) set peak torque and a gear drive's minimum force, but their name rules are written from the names the drivers are known to report, not read off the devices, and the peaks and the 5% / 3% minimums are untested by hand. Other drivers (Logitech, Thrustmaster, Moza, Simucube) may also differ in force direction, HID collections and centring. No Simagic, Cammus, Asetek or VRS profiles. |
-| Yas Marina: green over the track | bug | A green texture overlays the road surface. Reported, not re-checked since the desert ground set. |
-| Austin (COTA) first corner is off | bug | Track data or centerline problem, seen on the first lap. Reported, not re-checked since `ats-smooth`. |
-| Minimap marker drifts | bug | The marker drifts away from the car's real position (`UApexMinimapWidget`). Reported, not re-checked. |
+| Wheelbase profiles unchecked on hardware | task | The `ApexWheelProfiles` name rules are written from the product names the drivers are known to report, not read off real devices, so a base can fall through to Generic. The peak torques and the gear / hybrid minimum forces (5% / 3%) have not been felt on any base. |
 | Race results GAP column | bug | `UApexSessionResultsWidget` shows each car's best lap against the fastest, not its gap at the flag, so a race result can read out of order (P2 +9.4, P3 +9.0). |
-| Reconnect after disconnect | feature | The client reconnects its TCP connection, but the server removes a disconnected player from their session (`game_loop/lifecycle.rs`), so the car and the race are lost. |
 | UDP is unencrypted | feature | Telemetry and player input travel in the clear (no DTLS). Since 2026-10-10 every inbound datagram is sealed (HMAC under a per-connection key from `AuthSuccess`, rising sequence number), so a forged, tampered or replayed input is dropped; what is left open is only reading telemetry and input off the wire, which carries nothing the other players do not already get. TCP has TLS since 2026-10-10. |
 
 ## P2: depth
 
 | Item | Type | Notes |
 |---|---|---|
+| Wheelbase profiles for more brands | feature | `ApexWheelProfiles` has no Simagic, Cammus, Asetek or VRS bases; they mix as Generic (no output scaling) until the player picks a profile or gives the peak torque. |
+| Reconnect polish | feature | A dropped client always goes back to the menu and rejoins from its banner; it does not rejoin by itself after a short drop. The banner has no way to give the seat up (creating or joining another session does). Other drivers are not told a car is server-driven (the roster has no away flag), and the away driver does not pit, so a long race can run its tank dry. |
 | Session lobby shows no track | feature | After joining a session the demo backdrop is left and the lobby has a plain background; it should show the session's circuit (a panoramic or TV camera). |
 | Chase camera inside the garage | bug | When a car stops at its box or is towed there, the chase camera ends up in a pillar or the garage wall and the car is hidden. |
 | Road state on screen | feature | The client draws neither the rubbered line nor the marbles nor a drying line (the road's sheen is one figure for the lap), and debris (`GameSession::debris`) is not on the wire, so no piece is drawn on the road. |

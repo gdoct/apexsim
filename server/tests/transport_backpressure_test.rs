@@ -68,6 +68,7 @@ async fn test_message_priority_classification() {
         udp_token: "t".to_string(),
         udp_port: 0,
         udp_key: String::new(),
+        resume_token: String::new(),
     });
     assert_eq!(auth_msg.priority(), MessagePriority::Critical);
 

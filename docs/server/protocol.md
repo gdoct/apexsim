@@ -14,7 +14,7 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
   handshake, rate limits, bounded queues, `TransportMetrics`.
 - `server/src/game_loop/dispatch.rs` (handlers), `broadcast.rs` (fan-out,
   UDP or TCP fallback), `tick.rs` (telemetry and feedback serialization),
-  `lifecycle.rs` (disconnects, stale connections).
+  `lifecycle.rs` (disconnects, held seats, stale connections).
 - `server/src/spectator.rs` - the spectator stream records
   ([../game/spectator.md](../game/spectator.md)).
 - Client, `game-unreal/Source/ApexSimNet/`: `ApexProtocolCodec` and
@@ -68,12 +68,17 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
 ## Connection flow
 
 1. Client opens TCP and sends `Authenticate { token, player_name,
-   protocol_version }`. Anything else before it is dropped and counted as a
-   violation.
+   protocol_version, resume_token? }`. Anything else before it is dropped
+   and counted as a violation.
 2. Server checks the version (a mismatch, or an old client without the field,
    gets an `AuthFailure` naming both) and the token (`[auth]`), checks the ban
    list, and answers `AuthSuccess` with the `PlayerId`, a one-time
    `udp_token` and the `udp_port`, then puts the player in the lobby.
+   `AuthSuccess.resume_token` is a secret the client presents as
+   `Authenticate.resume_token` on a later connection to get the same
+   `PlayerId` back (a still-open connection of that player is dropped); an
+   unknown token is a new player. A player holding a seat in a session is
+   then sent `RejoinAvailable` ([sessions.md](sessions.md#reconnecting)).
 3. Client sends `UdpHandshake { token }` over UDP, sealed under `udp_key`,
    resending (with a higher `seq` each time) until it gets `UdpHandshakeAck`
    (datagrams get lost). The server looks the connection up by the token,
@@ -161,6 +166,7 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 | Lap timing, line, corners | `lap_timing_wire_format`, `racing_line_wire_format`, `track_corners_wire_format` |
 | Session rules | `assists_wire_format`, `session_damage_wire_format`, `race_time_wire_format`, `session_ai_skill_wire_format`, `conditions_air_wire_format`, `sky_wire_format`, `grid_wire_format` |
 | Garage, pit, hotlap | `car_setup_wire_format`, `car_setup_sheet_wire_format`, `pit_service_wire_format`, `hotlap_wire_format`, `recover_wire_format` |
+| Reconnect | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`) |
 | Spectator | `showcase_wire_format` (network.rs), `spectator_wire_format` (spectator.rs) |
 
 `test_lobby_summaries_carry_content_crc` pins the lobby's checksum fields
