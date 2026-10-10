@@ -179,6 +179,16 @@ struct APEXSIM_API FApexHudMemory
 	float FuelAtLapStart = -1.0f;
 	float FuelPerLap = -1.0f;
 
+	/** The battery at the line, for what a lap gains or spends. A lap the HUD
+	 * joined part-way, or one with a stop in it (the battery is refilled),
+	 * is not whole and measures nothing. */
+	int32 ErsCar = -1;
+	int32 ErsLap = -1;
+	float ErsAtLapStart = -1.0f;
+	bool bErsLapWhole = false;
+	bool bErsLastLapKnown = false;
+	float ErsLastLapNet = 0.0f;
+
 	float LastDamagePct[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 	double DamageFlashUntil[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
 

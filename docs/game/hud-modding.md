@@ -54,7 +54,8 @@ component id. To hide a shipped component, write
 `custom/<id>/component.json` holding `{ "enabled": false }`.
 
 Shipped components: `track_info`, `race_state`, `status`, `minimap`,
-`standings`, `timing`, `pedals`, `damage`, `car_state`, `mirror`, `pit_stop`;
+`standings`, `timing`, `pedals`, `damage`, `car_state`, `mirror`, `pit_stop`,
+`ers` (a hybrid only);
 off until added in the editor: `relative`, `speed_gear`, `conditions`; while
 watching: `spectator_tower`, `spectator_driver`, `spectator_controls`,
 `spectator_replay`; the `hotlap_watch` scene: `hotlap_header`,
@@ -403,6 +404,11 @@ the car is in or, between corners, the next one; all *null* (and
 | `ers.mode` | the deployment mode: `BAL`, `ATK`, `HARV` |
 | `ers.deploying`, `ers.harvesting`, `ers.boost` | the motor drives / recovers / the overtake button is held |
 | `ers.stint_pct` | the stint's energy budget left, % (*null* without a stint rule) |
+| `ers.mode_name` | the mode in words: `Harvest`, `Balanced`, `Attack` |
+| `ers.state` | what the motor is doing: `boost` (deploying on the overtake button), `deploy`, `harvest`, `empty` (under 1% charge), `capped` (the lap or stint budget is spent), `idle`; `none` without a hybrid |
+| `ers.lap_net_pct` | the battery's change since the line this lap, % points (*null* on a lap the HUD joined part-way or with a stop in it) |
+| `ers.last_lap_net_pct` | what the last whole lap did to the battery, % points, negative when it ran it down (*null* until a whole lap is measured) |
+| `ers.laps_left` | laps the battery lasts at the last lap's rate (*null* unless that lap ran it down by over half a point) |
 | `engine.water_c` | coolant temperature |
 | `engine.water_state` | `ok`, `hot` (over 105), `over` (over 112, losing power), `unknown` |
 
@@ -599,7 +605,7 @@ class, then everywhere else (Default when unset).
   in this file (per-tyre names as the `tyre.<fl|fr|rl|rr>.<field>` pattern).
 - `ApexSim.Hud.Shipped`: the shipped components load with no errors and no
   warnings (a warning is usually a misspelt data point).
-- `ApexSim.Hud.Data.Build`, `.Sky`, `.Watching`, `.StandingsHold`,
+- `ApexSim.Hud.Data.Build`, `.Sky`, `.Watching`, `.StandingsHold`, `.Ers`,
   `ApexSim.Hud.Expr.*`, `ApexSim.Hud.Component.*`, `ApexSim.Hud.Json.Extras`,
   `ApexSim.Hud.Layout.*` (`Json`, `Pin`, `Snap`, `Bindings`),
   `ApexSim.Hud.Pit.Progress`.

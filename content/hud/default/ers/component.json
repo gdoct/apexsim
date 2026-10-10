@@ -1,0 +1,125 @@
+// The hybrid: the battery, what the motor is doing, what the rules still let
+// it spend this lap and this stint, the mode (stepped with the ERS key) and,
+// at the "All" detail level, the strategy: what the last lap did to the
+// battery and how long the mode in use can keep it up. Only for a hybrid.
+{
+  "name": "ERS",
+  "description": "Hybrid battery, deployment budgets, mode and what a lap does to the charge.",
+  "region": "right",
+  "order": 20,
+  "visible": "=ers.present",
+  "root": {
+    "type": "panel", "width": 250, "padding": [16, 12], "background": "=alpha('surface', 0.9)",
+    "children": [
+      // --- Caption, and what the motor is doing this moment ---
+      {
+        "type": "row",
+        "children": [
+          { "type": "label", "valign": "center", "text": "Ers" },
+          { "type": "spacer", "fill": 1 },
+          { "type": "panel", "valign": "center", "padding": [8, 1],
+            "background": "=switch(ers.state, 'boost', 'accent', 'deploy', 'live', 'harvest', 'tyre_cold', 'empty', 'error', 'border')",
+            "children": [{ "type": "text", "font": "body", "size": 12, "bold": true,
+              "text": "=switch(ers.state, 'boost', 'OVERTAKE', 'deploy', 'DEPLOY', 'harvest', 'HARVEST', 'empty', 'FLAT', 'capped', 'LIMIT', 'IDLE')",
+              "color": "=switch(ers.state, 'boost', 'on_accent', 'deploy', 'on_accent', 'harvest', 'on_accent', 'empty', 'white', 'capped', 'text_secondary', 'text_disabled')" }] }
+        ]
+      },
+
+      // --- The battery: the figure, and what this lap has done to it ---
+      {
+        "type": "row", "margin": [0, 4, 0, 0],
+        "children": [
+          { "type": "text", "valign": "bottom", "font": "display", "size": 44,
+            "text": "=fmt(ers.charge_pct)",
+            "color": "=ramp(ers.charge_pct, 5, 'error', 20, 'accent', 35, 'text')" },
+          { "type": "text", "valign": "bottom", "margin": [4, 0, 0, 9], "font": "mono", "size": 11, "tracking": 60,
+            "color": "text_muted", "text": "%" },
+          { "type": "spacer", "fill": 1 },
+          { "type": "column", "valign": "bottom", "margin": [0, 0, 0, 8], "visible": "=has(ers.lap_net_pct)",
+            "children": [
+              { "type": "label", "halign": "right", "text": "This lap" },
+              { "type": "text", "halign": "right", "margin": [0, 3, 0, 0], "font": "mono", "size": 13,
+                "text": "=(ers.lap_net_pct >= 0 ? '+' : '') + fmt(ers.lap_net_pct, 1) + '%'",
+                "color": "=ers.lap_net_pct >= 0 ? 'live' : 'text_secondary'" }
+            ] }
+        ]
+      },
+      { "type": "bar", "height": 8, "margin": [0, 2, 0, 0], "value": "=ers.charge_pct / 100",
+        "color": "=ers.harvesting ? 'tyre_cold' : ramp(ers.charge_pct, 5, 'error', 20, 'accent')" },
+
+      // --- The rules' budgets: the lap's (reset at the line) and the stint's
+      // (reset at a stop). A car with neither has only the battery. ---
+      {
+        "type": "column", "margin": [0, 10, 0, 0], "visible": "=has(ers.lap_pct)",
+        "children": [
+          { "type": "row", "children": [
+            { "type": "label", "fill": 1, "text": "Lap budget" },
+            { "type": "text", "font": "mono", "size": 12,
+              "text": "=fmt(ers.lap_pct) + '%'",
+              "color": "=ers.lap_pct == 0 ? 'error' : 'text_secondary'" }
+          ]},
+          { "type": "bar", "height": 4, "margin": [0, 4, 0, 0], "value": "=ers.lap_pct / 100", "color": "text_secondary" }
+        ]
+      },
+      {
+        "type": "column", "margin": [0, 8, 0, 0], "visible": "=has(ers.stint_pct)",
+        "children": [
+          { "type": "row", "children": [
+            { "type": "label", "fill": 1, "text": "Stint budget" },
+            { "type": "text", "font": "mono", "size": 12,
+              "text": "=fmt(ers.stint_pct) + '%'",
+              "color": "=ers.stint_pct == 0 ? 'error' : ers.stint_pct < 15 ? 'accent' : 'text_secondary'" }
+          ]},
+          { "type": "bar", "height": 4, "margin": [0, 4, 0, 0], "value": "=ers.stint_pct / 100", "color": "text_secondary" }
+        ]
+      },
+
+      // --- The mode, saving to spending; the ERS key steps BAL, ATK, HARV ---
+      { "type": "label", "margin": [0, 12, 0, 0], "text": "Mode" },
+      {
+        "type": "row", "margin": [0, 5, 0, 0],
+        "children": [
+          { "type": "panel", "fill": 1, "padding": [0, 3],
+            "background": "=ers.mode == 'HARV' ? 'tyre_cold' : 'border'",
+            "children": [{ "type": "text", "halign": "center", "font": "body", "size": 12, "bold": true, "text": "HARV",
+              "color": "=ers.mode == 'HARV' ? 'on_accent' : 'text_disabled'" }] },
+          { "type": "panel", "fill": 1, "margin": [3, 0], "padding": [0, 3],
+            "background": "=ers.mode == 'BAL' ? 'accent' : 'border'",
+            "children": [{ "type": "text", "halign": "center", "font": "body", "size": 12, "bold": true, "text": "BAL",
+              "color": "=ers.mode == 'BAL' ? 'on_accent' : 'text_disabled'" }] },
+          // The overtake button is Attack while it is held: lit with it.
+          { "type": "panel", "fill": 1, "padding": [0, 3],
+            "background": "=ers.mode == 'ATK' || ers.boost ? 'error' : 'border'",
+            "children": [{ "type": "text", "halign": "center", "font": "body", "size": 12, "bold": true, "text": "ATK",
+              "color": "=ers.mode == 'ATK' || ers.boost ? 'white' : 'text_disabled'" }] }
+        ]
+      },
+
+      // --- Strategy: the last lap's net, how many laps the battery lasts at
+      // that rate (amber when that is short of the flag), and a word of advice. ---
+      {
+        "type": "column", "visible": "=hud.full",
+        "children": [
+          { "type": "divider", "margin": [0, 12, 0, 10] },
+          { "type": "row", "children": [
+            { "type": "column", "fill": 1, "children": [
+              { "type": "label", "text": "Last lap" },
+              { "type": "text", "margin": [0, 4, 0, 0], "font": "mono", "size": 13,
+                "text": "=has(ers.last_lap_net_pct) ? (ers.last_lap_net_pct >= 0 ? '+' : '') + fmt(ers.last_lap_net_pct, 1) + '%' : '—'",
+                "color": "=!has(ers.last_lap_net_pct) ? 'text_muted' : ers.last_lap_net_pct >= 0 ? 'live' : 'text'" }
+            ]},
+            { "type": "column", "fill": 1, "children": [
+              { "type": "label", "halign": "right", "text": "Lasts" },
+              { "type": "text", "halign": "right", "margin": [0, 4, 0, 0], "font": "mono", "size": 13,
+                "text": "=has(ers.laps_left) ? fmt(ers.laps_left, 1) + ' laps' : !has(ers.last_lap_net_pct) ? '—' : ers.last_lap_net_pct > 0.5 ? 'Charging' : 'Holding'",
+                "color": "=has(ers.laps_left) && has(lap.laps_left) && ers.laps_left < lap.laps_left ? 'accent' : has(ers.laps_left) ? 'text' : 'text_muted'" }
+            ]}
+          ]},
+          { "type": "text", "margin": [0, 8, 0, 0], "font": "mono", "size": 11, "color": "accent",
+            "visible": "=(has(ers.laps_left) && has(lap.laps_left) && ers.laps_left < lap.laps_left && ers.mode != 'HARV') || (ers.charge_pct >= 95 && ers.mode == 'HARV') || (ers.charge_pct < 15 && ers.mode == 'ATK')",
+            "text": "=ers.charge_pct >= 95 && ers.mode == 'HARV' ? 'Battery full: spend it' : ers.charge_pct < 15 && ers.mode == 'ATK' ? 'Battery low: leave Attack' : 'Short of the flag: save'" }
+        ]
+      }
+    ]
+  }
+}

@@ -941,6 +941,74 @@ bool FApexHudDataSkyTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataErsTest, "ApexSim.Hud.Data.Ers", ApexTestFlags)
+
+bool FApexHudDataErsTest::RunTest(const FString& Parameters)
+{
+	FApexTelemetryFrame Frame;
+	Frame.Cars.Add(HudCar(0, 2, 100.0f, 50.0f));
+	FApexCarTelemetry& Car = Frame.Cars[0];
+	Car.ErsChargePct = 60.0f;
+	Car.ErsLapPct = 80.0f;
+	Car.ErsMode = 1;
+	FApexHudInputs In;
+	In.Frame = &Frame;
+	In.LocalCarIndex = 0;
+	FApexHudMemory Memory;
+	FApexHudData Data;
+
+	auto Step = [&](int32 Lap, float Charge)
+	{
+		Car.CurrentLap = Lap;
+		Car.ErsChargePct = Charge;
+		ApexHudData::Build(In, Memory, Data);
+	};
+
+	Step(2, 60.0f);
+	TestEqual(TEXT("mode name"), HudValue(Data, TEXT("ers.mode_name")).AsString(), FString(TEXT("Balanced")));
+	TestEqual(TEXT("idle"), HudValue(Data, TEXT("ers.state")).AsString(), FString(TEXT("idle")));
+	TestTrue(TEXT("a lap joined part-way measures nothing"), HudValue(Data, TEXT("ers.lap_net_pct")).IsNone());
+
+	Step(3, 50.0f);
+	TestEqual(TEXT("at the line"), HudValue(Data, TEXT("ers.lap_net_pct")).AsNumber(), 0.0, 1e-4);
+	TestTrue(TEXT("lap 2 was not whole"), HudValue(Data, TEXT("ers.last_lap_net_pct")).IsNone());
+
+	Step(3, 45.0f);
+	TestEqual(TEXT("spent this lap"), HudValue(Data, TEXT("ers.lap_net_pct")).AsNumber(), -5.0, 1e-4);
+
+	Step(4, 40.0f);
+	TestEqual(TEXT("lap 3 spent ten"), HudValue(Data, TEXT("ers.last_lap_net_pct")).AsNumber(), -10.0, 1e-4);
+	TestEqual(TEXT("four laps of it"), HudValue(Data, TEXT("ers.laps_left")).AsNumber(), 4.0, 1e-4);
+
+	// A stop refills the battery: that lap measures nothing, the last one stands.
+	Car.bPitServicing = true;
+	Step(4, 100.0f);
+	Car.bPitServicing = false;
+	TestTrue(TEXT("a lap with a stop"), HudValue(Data, TEXT("ers.lap_net_pct")).IsNone());
+	Step(5, 98.0f);
+	TestEqual(TEXT("last lap kept"), HudValue(Data, TEXT("ers.last_lap_net_pct")).AsNumber(), -10.0, 1e-4);
+
+	Car.bErsDeploying = true;
+	Car.bErsBoost = true;
+	Step(5, 97.0f);
+	TestEqual(TEXT("boost"), HudValue(Data, TEXT("ers.state")).AsString(), FString(TEXT("boost")));
+	Car.bErsDeploying = false;
+	Car.bErsBoost = false;
+	Car.ErsLapPct = 0.0f;
+	Step(5, 96.0f);
+	TestEqual(TEXT("lap budget gone"), HudValue(Data, TEXT("ers.state")).AsString(), FString(TEXT("capped")));
+
+	// Gaining a lap: no countdown.
+	Step(6, 99.0f);
+	TestEqual(TEXT("lap 5 gained a point"), HudValue(Data, TEXT("ers.last_lap_net_pct")).AsNumber(), 1.0, 1e-4);
+	TestTrue(TEXT("no countdown while gaining"), HudValue(Data, TEXT("ers.laps_left")).IsNone());
+
+	Car.ErsChargePct = -1.0f;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("no hybrid"), HudValue(Data, TEXT("ers.state")).AsString(), FString(TEXT("none")));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataStableTest, "ApexSim.Hud.Data.Stable", ApexTestFlags)
 
 bool FApexHudDataStableTest::RunTest(const FString& Parameters)
@@ -1020,7 +1088,7 @@ bool FApexHudShippedTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("the shipped HUD has components"), Components.Num() >= 10);
 	for (const TCHAR* Id : {TEXT("track_info"), TEXT("race_state"), TEXT("status"), TEXT("minimap"), TEXT("standings"),
-			 TEXT("timing"), TEXT("pedals"), TEXT("damage"), TEXT("car_state"), TEXT("mirror")})
+			 TEXT("timing"), TEXT("pedals"), TEXT("damage"), TEXT("car_state"), TEXT("mirror"), TEXT("ers")})
 	{
 		const FApexHudComponentDef* Found = Components.FindByPredicate([Id](const FApexHudComponentDef& C) { return C.Id == Id; });
 		TestTrue(*FString::Printf(TEXT("has %s, shown"), Id), Found && Found->bDefaultEnabled);

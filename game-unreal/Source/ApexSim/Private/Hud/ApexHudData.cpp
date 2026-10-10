@@ -967,6 +967,56 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("ers.harvesting"), bHybrid && Local->bErsHarvesting);
 		Out.Set(TEXT("ers.boost"), bHybrid && Local->bErsBoost);
 		Out.Set(TEXT("ers.stint_pct"), bHybrid && Local->ErsStintPct >= 0.0f ? FApexHudValue::Of(Local->ErsStintPct) : FApexHudValue());
+		Out.Set(TEXT("ers.mode_name"), bHybrid ? FApexHudValue::Of(ApexErs::Name(Local->ErsMode)) : FApexHudValue());
+
+		// What the motor is doing in one word. Out of battery or budget only
+		// when it is not driving: Balanced tapers the last of the lap.
+		const TCHAR* State = TEXT("none");
+		if (bHybrid)
+		{
+			const bool bCapped = Local->ErsLapPct == 0.0f || Local->ErsStintPct == 0.0f;
+			State = Local->bErsDeploying ? (Local->bErsBoost ? TEXT("boost") : TEXT("deploy"))
+				: Local->bErsHarvesting ? TEXT("harvest")
+				: Local->ErsChargePct < 1.0f ? TEXT("empty")
+				: bCapped ? TEXT("capped")
+				: TEXT("idle");
+		}
+		Out.Set(TEXT("ers.state"), State);
+
+		// What a lap does to the battery, measured at the line like the fuel:
+		// the strategy is whether the mode in use runs it down or tops it up.
+		if (bHybrid)
+		{
+			if (Local->CarIndex != Memory.ErsCar)
+			{
+				Memory.ErsCar = Local->CarIndex;
+				Memory.ErsLap = -1;
+				Memory.bErsLastLapKnown = false;
+			}
+			if (Local->CurrentLap != Memory.ErsLap)
+			{
+				const bool bNext = Memory.ErsLap >= 0 && Local->CurrentLap == Memory.ErsLap + 1;
+				if (bNext && Memory.bErsLapWhole)
+				{
+					Memory.ErsLastLapNet = Local->ErsChargePct - Memory.ErsAtLapStart;
+					Memory.bErsLastLapKnown = true;
+				}
+				Memory.bErsLapWhole = bNext;
+				Memory.ErsLap = Local->CurrentLap;
+				Memory.ErsAtLapStart = Local->ErsChargePct;
+			}
+			if (Local->bPitServicing)
+			{
+				Memory.bErsLapWhole = false;
+			}
+		}
+		const bool bLapNet = bHybrid && Memory.bErsLapWhole;
+		const bool bLastNet = bHybrid && Memory.bErsLastLapKnown;
+		Out.Set(TEXT("ers.lap_net_pct"), bLapNet ? FApexHudValue::Of(Local->ErsChargePct - Memory.ErsAtLapStart) : FApexHudValue());
+		Out.Set(TEXT("ers.last_lap_net_pct"), bLastNet ? FApexHudValue::Of(Memory.ErsLastLapNet) : FApexHudValue());
+		// Under half a percent a lap is as good as level: no countdown.
+		Out.Set(TEXT("ers.laps_left"), bLastNet && Memory.ErsLastLapNet < -0.5f
+			? FApexHudValue::Of(Local->ErsChargePct / -Memory.ErsLastLapNet) : FApexHudValue());
 	}
 
 	// --- Tyres, brakes and engine -------------------------------------------------
@@ -1175,6 +1225,12 @@ FApexHudPreview::FApexHudPreview()
 	Memory.ReferenceLap.Emplace(1.0f, 82.0f);
 	Memory.ReferenceLapSeconds = 82.0f;
 	Memory.LastSeenLap = 6;
+	// Last lap ran the battery down six points: ten laps of it at that rate.
+	Memory.ErsCar = LocalIndex;
+	Memory.ErsLap = Frame.Cars[LocalIndex].CurrentLap;
+	Memory.ErsAtLapStart = 70.0f;
+	Memory.bErsLastLapKnown = true;
+	Memory.ErsLastLapNet = -6.0f;
 
 	Inputs.Frame = &Frame;
 	Inputs.LocalCarIndex = LocalIndex;
