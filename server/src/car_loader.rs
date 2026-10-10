@@ -878,6 +878,7 @@ impl CarLoader {
                 stint_kj: hybrid_toml.stint_kj.filter(|b| *b > 0.0),
                 override_kj_per_lap: hybrid_toml.override_kj_per_lap.filter(|b| *b > 0.0),
                 brake_by_wire: hybrid_toml.brake_by_wire.unwrap_or(true),
+                deploy_early: 0.0,
             },
 
             // Braking

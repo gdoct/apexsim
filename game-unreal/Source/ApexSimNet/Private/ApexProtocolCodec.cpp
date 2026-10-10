@@ -1177,6 +1177,10 @@ namespace
 			else if (Key == TEXT("FillLaps"))          { bOk = Reader.ReadFloat(Out.FillLaps); }
 			else if (Key == TEXT("CamberModelled"))    { bOk = Reader.ReadBool(Out.bCamberModelled); }
 			else if (Key == TEXT("RakeBalancePerMm"))  { bOk = Reader.ReadFloat(Out.RakeBalancePerMm); }
+			else if (Key == TEXT("HybridBatteryKwh"))  { bOk = Reader.ReadFloat(Out.HybridBatteryKwh); }
+			else if (Key == TEXT("HybridMotorKw"))     { bOk = Reader.ReadFloat(Out.HybridMotorKw); }
+			else if (Key == TEXT("HybridLapBudgetKj")) { bOk = Reader.ReadFloat(Out.HybridLapBudgetKj); }
+			else if (Key == TEXT("HybridDeployMinKph")) { bOk = Reader.ReadFloat(Out.HybridDeployMinKph); }
 			else if (Key == TEXT("Compounds"))
 			{
 				int32 Count = 0;

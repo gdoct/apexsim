@@ -27,6 +27,11 @@
 //! - a **stint budget** (`stint_kj`): the energy the motor may deploy
 //!   between two pit stops (the WEC's rule), reset by a stop, a grid or
 //!   the garage ([`new_stint`]);
+//! - a **deploy map** (`deploy_early`, the setup's, never the car.toml's):
+//!   Balanced mode paces the budget against the share of the lap left;
+//!   the map bends that share (`lap_share ^ (1 - deploy_early)`), so a
+//!   positive map spends the budget earlier in the lap and a negative one
+//!   saves it for the end;
 //! - a **manual override allowance** (`override_kj_per_lap`): what the
 //!   overtake button may spend per lap over and above the paced lap
 //!   budget; with it the button draws on its own allowance and leaves the
@@ -209,13 +214,25 @@ fn deploy_share(
             let pace = match hybrid.deploy_kj_per_lap {
                 Some(budget) if budget > 0.0 => {
                     let budget_left = (1.0 - state.ers_deployed_kj / budget).max(0.0);
-                    let lap_left = (1.0 - state.ers_lap_share).max(0.0);
+                    let lap_left =
+                        (1.0 - spend_target(state.ers_lap_share, hybrid.deploy_early)).max(0.0);
                     ((budget_left + PACE_LEAD) / (lap_left + PACE_LEAD)).clamp(0.0, 1.0)
                 }
                 _ => 1.0,
             };
             pedal * charge * pace
         }
+    }
+}
+
+/// The share of the lap budget Balanced mode means to have spent at
+/// `lap_share` round the lap: the lap share itself for an even map, bent
+/// earlier (`deploy_early` > 0) or later.
+fn spend_target(lap_share: f32, deploy_early: f32) -> f32 {
+    if deploy_early == 0.0 {
+        lap_share
+    } else {
+        lap_share.max(0.0).powf((1.0 - deploy_early).max(0.2))
     }
 }
 
@@ -536,6 +553,30 @@ mod tests {
             run(0.5, ErsMode::Harvest) < 0.0,
             "harvest charges against the crank"
         );
+    }
+
+    #[test]
+    fn the_deploy_map_spends_the_budget_earlier_or_later_in_the_lap() {
+        // A fifth of the way round with three tenths of the budget gone:
+        // ahead of an even spend, so Balanced eases back; an early map is
+        // still behind its curve, a late one further ahead of it.
+        let run = |deploy_early: f32| {
+            let mut config = car(Some(2000.0));
+            config.hybrid.deploy_early = deploy_early;
+            let mut s = rolling(&config);
+            s.hybrid_battery_kwh = 0.8;
+            s.ers_deployed_kj = 600.0;
+            torque(
+                &mut s,
+                &config,
+                &input(1.0, 0.0, ErsMode::Balanced, false),
+                10000.0,
+                0.2,
+            )
+        };
+        let (early, even, late) = (run(0.5), run(0.0), run(-0.5));
+        assert!(early > even && even > late, "{early} {even} {late}");
+        assert_eq!(spend_target(0.4, 0.0), 0.4);
     }
 
     #[test]

@@ -561,6 +561,13 @@ fn fit_tyres(
     );
     crate::brakes::fit(state, brakes);
     crate::hybrid::charge_full(state, config);
+    // The hybrid's mode at the start of the run: the driver's setup's (the
+    // AI's and a stock setup's is Balanced).
+    state.ers_mode = car_setups
+        .get(&state.player_id)
+        .copied()
+        .unwrap_or_default()
+        .start_mode();
 }
 
 impl GameSession {

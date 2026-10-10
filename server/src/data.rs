@@ -421,6 +421,11 @@ pub struct HybridConfig {
     /// Without it the recovery brakes the driven axle on top of the pads.
     #[serde(default = "default_true")]
     pub brake_by_wire: bool,
+    /// Balanced mode's spend curve (`crate::hybrid`), from the setup's
+    /// deploy map, never the car.toml: 0 spends the lap budget evenly over
+    /// the lap, positive earlier, negative later.
+    #[serde(default)]
+    pub deploy_early: f32,
 }
 
 impl Default for HybridConfig {
@@ -439,6 +444,7 @@ impl Default for HybridConfig {
             stint_kj: None,
             override_kj_per_lap: None,
             brake_by_wire: true,
+            deploy_early: 0.0,
         }
     }
 }

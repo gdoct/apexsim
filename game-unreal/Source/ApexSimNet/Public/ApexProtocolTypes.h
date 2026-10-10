@@ -226,7 +226,7 @@ struct APEXSIMNET_API FApexCarSetup
 {
 	GENERATED_BODY()
 
-	static constexpr int32 KnobCount = 28;
+	static constexpr int32 KnobCount = 31;
 
 	/** Clicks per knob, in ApexCarSetup::EKnob order. */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Setup")
@@ -319,8 +319,14 @@ namespace ApexCarSetup
 		BrakePads,
 		/** Radiator inlet: a cooler engine for a little drag per click open. */
 		Radiator,
+		/** The hybrid's mode at the start of a run: -1 Harvest, 0 Balanced, +1 Attack; read out by name. */
+		ErsStartMode,
+		/** The motor's recovery power under braking and off the throttle (server hybrid.rs). */
+		ErsRegen,
+		/** Where Balanced mode spends the lap budget: + earlier in the lap, - later; read out by name. */
+		ErsDeployMap,
 	};
-	static_assert(Radiator + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
+	static_assert(ErsDeployMap + 1 == FApexCarSetup::KnobCount, "knob table and enum disagree");
 }
 
 /**
@@ -415,8 +421,28 @@ struct APEXSIMNET_API FApexCarSetupSheet
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
 	int32 ReferenceCompound = 1;
 
+	/**
+	 * The hybrid as filed: battery, kWh (0: the car has none), motor power,
+	 * kW, lap budget, kJ (0: none) and the speed the motor may drive from,
+	 * km/h. Absent from a server that predates them, or for a car without one.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float HybridBatteryKwh = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float HybridMotorKw = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float HybridLapBudgetKj = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Setup")
+	float HybridDeployMinKph = 0.0f;
+
 	/** Whether the sheet named the car's compounds. */
 	bool HasCompounds() const { return Compounds.Num() > 0; }
+
+	/** Whether the car has a hybrid, so the ERS knobs mean anything. */
+	bool HasHybrid() const { return HybridBatteryKwh > 0.0f; }
 
 	/** The compound at a list index, upper-cased as the garage shows it; empty when out of range. */
 	FString CompoundNameAt(int32 Index) const

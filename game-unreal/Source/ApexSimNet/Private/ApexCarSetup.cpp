@@ -51,6 +51,12 @@ namespace ApexCarSetup
 			{ "brake_pads",          -1,         1,         1.0f,   TEXT("") },
 			// The radiator inlet: cooling for a little drag per click open.
 			{ "radiator",            -MaxClicks, MaxClicks, 8.0f,   TEXT("%") },
+			// The hybrid: the mode a run starts in (read out by name), the
+			// motor's recovery power (down only), and the deploy map (read
+			// out by name).
+			{ "ers_start_mode",      -1,         1,         1.0f,   TEXT("") },
+			{ "ers_regen",           -MaxClicks, 0,         10.0f,  TEXT("%") },
+			{ "ers_deploy_map",      -MaxClicks, MaxClicks, 1.0f,   TEXT("") },
 		};
 	}
 
@@ -69,6 +75,15 @@ namespace ApexCarSetup
 		if (Index == BrakePads)
 		{
 			return Clicks > 0 ? TEXT("Sprint") : Clicks == 0 ? TEXT("Standard") : TEXT("Endurance");
+		}
+		if (Index == ErsStartMode)
+		{
+			return Clicks > 0 ? TEXT("Attack") : Clicks == 0 ? TEXT("Balanced") : TEXT("Harvest");
+		}
+		if (Index == ErsDeployMap)
+		{
+			return Clicks == 0 ? FString(TEXT("Even"))
+				: FString::Printf(TEXT("%s %d"), Clicks > 0 ? TEXT("Early") : TEXT("Late"), FMath::Abs(Clicks));
 		}
 		if (Clicks == 0)
 		{

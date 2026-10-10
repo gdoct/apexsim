@@ -20,6 +20,15 @@
 //! aero map (`crate::aero`), whose reference stays the file's; a car with
 //! no `[aero]` table takes the wings but not the ride heights.
 //!
+//! The hybrid knobs (appended after the radiator) touch only a car with
+//! `[hybrid]`: the regen level scales the motor's recovery power
+//! (`HybridConfig::regen_max_power_kw`) and the deploy map shapes how
+//! Balanced mode spreads the lap budget over the lap
+//! (`HybridConfig::deploy_early`). The series' energy rules (the lap and
+//! stint budgets, the minimum deployment speed) have no knob. The starting
+//! mode, like the fuel, is not a figure of the car: it is put on the car
+//! wherever a run starts (`GameSession`'s `fit_tyres`).
+//!
 //! The fuel knob is the odd one out: it is not a figure of the car but
 //! laps of fuel either side of what the session fills it with
 //! (`GameSession::start_fuel_liters`), so `apply` leaves it alone and it
@@ -87,15 +96,23 @@ pub const RIDE_HEIGHT_M_PER_CLICK: f32 = 0.002;
 pub const CAMBER_DEG_PER_CLICK: f32 = -0.25;
 /// Toe per wheel per click, degrees: a click more is more toe-in.
 pub const TOE_DEG_PER_CLICK: f32 = 0.05;
+/// The motor's recovery power scale per click of the regen level; the knob
+/// only lowers it, as the battery's charge limit is the system's ceiling
+/// (every shipped hybrid files the two equal).
+pub const ERS_REGEN_PER_CLICK: f32 = 0.1;
+/// How far each click of the deploy map moves Balanced mode's spend curve
+/// (`HybridConfig::deploy_early`): positive spends the budget earlier in
+/// the lap, negative saves it for the end.
+pub const ERS_DEPLOY_MAP_PER_CLICK: f32 = 0.1;
 /// Lowest static ride height a setup can ask for, m.
 const MIN_RIDE_HEIGHT_M: f32 = 0.01;
 
 /// Number of knobs in a setup.
-pub const KNOB_COUNT: usize = 28;
+pub const KNOB_COUNT: usize = 31;
 
 /// The knobs in wire order: tyres, engine, transmission, torque,
-/// suspension, the fuel load, then the aero (each group appended after
-/// the last, so the order of the others never moved).
+/// suspension, the fuel load, the aero, then the rest and the hybrid (each
+/// group appended after the last, so the order of the others never moved).
 pub const KNOBS: [Knob; KNOB_COUNT] = [
     Knob {
         name: "tyre_pressure_front",
@@ -237,6 +254,21 @@ pub const KNOBS: [Knob; KNOB_COUNT] = [
         min: -MAX_CLICKS,
         max: MAX_CLICKS,
     },
+    Knob {
+        name: "ers_start_mode",
+        min: -1,
+        max: 1,
+    },
+    Knob {
+        name: "ers_regen",
+        min: -MAX_CLICKS,
+        max: 0,
+    },
+    Knob {
+        name: "ers_deploy_map",
+        min: -MAX_CLICKS,
+        max: MAX_CLICKS,
+    },
 ];
 
 /// A driver's setup as clicks per knob; all zero is the car as filed.
@@ -316,6 +348,17 @@ pub struct CarSetup {
     /// The radiator inlet, [`RADIATOR_PER_CLICK`] a click: cooler for drag.
     #[serde(default)]
     pub radiator: i8,
+    /// The hybrid's mode at the start of a run: -1 Harvest, 0 Balanced,
+    /// +1 Attack (`hybrid::ErsMode`). Not a figure of the car.
+    #[serde(default)]
+    pub ers_start_mode: i8,
+    /// The motor's recovery power, [`ERS_REGEN_PER_CLICK`] a click; down only.
+    #[serde(default)]
+    pub ers_regen: i8,
+    /// Balanced mode's spend over the lap: + earlier, - later
+    /// ([`ERS_DEPLOY_MAP_PER_CLICK`]).
+    #[serde(default)]
+    pub ers_deploy_map: i8,
 }
 
 impl CarSetup {
@@ -350,6 +393,9 @@ impl CarSetup {
             self.brake_ducts_rear,
             self.brake_pads,
             self.radiator,
+            self.ers_start_mode,
+            self.ers_regen,
+            self.ers_deploy_map,
         ]
     }
 
@@ -384,6 +430,9 @@ impl CarSetup {
             brake_ducts_rear: c[25],
             brake_pads: c[26],
             radiator: c[27],
+            ers_start_mode: c[28],
+            ers_regen: c[29],
+            ers_deploy_map: c[30],
         }
     }
 
@@ -407,8 +456,14 @@ impl CarSetup {
         Self {
             fuel_load: 0,
             tyre_compound: 0,
+            ers_start_mode: 0,
             ..*self
         } != Self::default()
+    }
+
+    /// The hybrid mode a run starts in, as `hybrid::ErsMode`'s byte.
+    pub fn start_mode(&self) -> u8 {
+        crate::hybrid::ErsMode::from_u8((self.ers_start_mode.clamp(-1, 1) + 1) as u8) as u8
     }
 
     /// The compound the next set is on a dry road, as an index into the
@@ -535,6 +590,12 @@ impl CarSetup {
         s.toe_front_deg = b.toe_front_deg + self.toe_front as f32 * TOE_DEG_PER_CLICK;
         s.toe_rear_deg = b.toe_rear_deg + self.toe_rear as f32 * TOE_DEG_PER_CLICK;
 
+        // Hybrid: how hard the motor recovers, and where in the lap
+        // Balanced mode spends its budget.
+        car.hybrid.regen_max_power_kw =
+            base.hybrid.regen_max_power_kw * scale(self.ers_regen, ERS_REGEN_PER_CLICK);
+        car.hybrid.deploy_early = self.ers_deploy_map as f32 * ERS_DEPLOY_MAP_PER_CLICK;
+
         car
     }
 }
@@ -582,9 +643,12 @@ mod tests {
     fn clamp_pins_every_knob_and_one_sided_knobs_only_lower() {
         let wild = CarSetup::from_clicks([
             100, -100, 3, 9, -9, 7, 4, 6, 8, -8, 20, -20, 6, -6, 30, 9, -9, 12, -12, 4, -9, 7, -7,
-            9, -9, 8, 3, -7,
+            9, -9, 8, 3, -7, -4, 9, -9,
         ]);
         let c = wild.clamp();
+        assert_eq!(c.ers_start_mode, -1, "harvest is the end of the mode range");
+        assert_eq!(c.ers_regen, 0, "regen cannot pass the file's");
+        assert_eq!(c.ers_deploy_map, -MAX_CLICKS);
         assert_eq!(c.brake_ducts_rear, MAX_CLICKS);
         assert_eq!(c.brake_pads, 1, "sprint is the end of the pad range");
         assert_eq!(c.radiator, -MAX_CLICKS);
@@ -823,6 +887,43 @@ mod tests {
         assert_eq!(KNOBS[25].name, "brake_ducts_rear");
         assert_eq!(KNOBS[26].name, "brake_pads");
         assert_eq!(KNOBS[27].name, "radiator");
+    }
+
+    #[test]
+    fn the_hybrid_knobs_scale_the_regen_bend_the_deploy_and_pick_the_start_mode() {
+        let mut base = car();
+        base.hybrid.enabled = true;
+        base.hybrid.regen_max_power_kw = 200.0;
+        let stock = CarSetup::default().apply(&base);
+        assert_eq!(stock.hybrid.regen_max_power_kw, 200.0);
+        assert_eq!(stock.hybrid.deploy_early, 0.0);
+        let t = CarSetup {
+            ers_regen: -3,
+            ers_deploy_map: -2,
+            ..Default::default()
+        }
+        .apply(&base);
+        assert!((t.hybrid.regen_max_power_kw - 140.0).abs() < 1e-3);
+        assert!((t.hybrid.deploy_early + 0.2).abs() < 1e-6);
+        // The starting mode is put on the car at a run's start, not baked in.
+        let harvest = CarSetup {
+            ers_start_mode: -1,
+            ..Default::default()
+        };
+        assert!(!harvest.changes_car());
+        assert_eq!(harvest.start_mode(), crate::hybrid::ErsMode::Harvest as u8);
+        assert_eq!(
+            CarSetup::default().start_mode(),
+            crate::hybrid::DEFAULT_MODE
+        );
+        assert_eq!(
+            CarSetup {
+                ers_start_mode: 1,
+                ..Default::default()
+            }
+            .start_mode(),
+            crate::hybrid::ErsMode::Attack as u8
+        );
     }
 
     #[test]

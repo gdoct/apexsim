@@ -77,6 +77,8 @@ enum class EApexGarageTab : uint8
 	Suspension,
 	Engine,
 	Aero,
+	/** The hybrid's knobs; only for a car with one. */
+	Ers,
 	Save,
 	Count,
 };
@@ -92,12 +94,14 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnHotlapWatch, int32, CarIndex)
  * **Garage.** While the server holds the car in its garage (the car's
  * `bInGarage` telemetry flag) a full-screen sheet covers the view: the way
  * out, the record lap's replay, the ghost toggle and a reset down the left,
- * and the setup split into five tabs on the right — Tyres (pressures,
+ * and the setup split into six tabs on the right — Tyres (pressures,
  * brakes, the next compound), Suspension (springs, dampers, bars and
  * geometry, front and rear side by side), Engine (engine, gearing, fuel,
  * with top speed per gear and the fuel's range and weight), Aero (wings and
- * ride heights, with the downforce, balance, rake and drag they add up to)
- * and Load / Save (named setups per car). Q / E (or the shoulders, or Tab) change tab.
+ * ride heights, with the downforce, balance, rake and drag they add up to),
+ * ERS (the hybrid's starting mode, regen and deploy map, with the battery,
+ * motor and lap budget as filed; hidden for a car the sheet says has no
+ * hybrid) and Load / Save (named setups per car). Q / E (or the shoulders, or Tab) change tab.
  *
  * Every stepper shows the knob in real units with its change from stock
  * under it. The units come from the server's CarSetupSheet (the car's own
@@ -232,6 +236,7 @@ private:
 	UWidget* BuildSuspensionPage();
 	UWidget* BuildEnginePage();
 	UWidget* BuildAeroPage();
+	UWidget* BuildErsPage();
 	UWidget* BuildSavePage();
 	UWidget* BuildTimingPanel();
 	UWidget* BuildReplayStrip();
@@ -274,6 +279,10 @@ private:
 	void RefreshSheet();
 	void ApplyView();
 	void ApplyTab();
+	/** Whether a tab is offered for this car (ERS only for a hybrid, or with no sheet yet). */
+	bool IsTabShown(EApexGarageTab InTab) const;
+	/** Shows or hides the tabs IsTabShown rules on, renumbers them, and leaves a hidden one. */
+	void ApplyTabVisibility();
 
 	UApexSettingsSubsystem* GetSettings() const;
 	const FApexCarSetup* GetWorkingSetup() const;
@@ -372,6 +381,8 @@ private:
 	// Tabs.
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> TabButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UBorder>> TabUnderlines;
+	/** Each tab's whole column in the bar, to hide a tab the car has no use for. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> TabColumns;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> TabNumbers;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> TabLabels;
 	/** Where focus goes on each page when the tab is changed from the keyboard. */
@@ -400,6 +411,14 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> BalanceText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> RakeText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> DragText;
+
+	// ERS.
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ErsBatteryText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ErsMotorText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ErsBudgetText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ErsDeployFromText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ErsHalfLapText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ErsHalfLapNote;
 
 	// Load / Save.
 	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> SaveNameBox;

@@ -385,6 +385,13 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
   (default true) it replaces that axle's hydraulics (the pedal feels the same, the discs run
   cooler); without, it brakes on top. Coasting charges at `COAST_SHARE`; `heat_recovery_kw`
   (MGU-H) charges at full throttle.
+- **Setup** ([car setup](#car-setup-car_setuprs-setup_sheetrs)): `ers_regen` lowers
+  `regen_max_power_kw` (down only: recovery is capped at `battery_max_charge_kw`, which
+  every shipped hybrid files equal to it); `ers_deploy_map` sets `HybridConfig::deploy_early` (setup only, never
+  the car.toml), which bends Balanced's "lap left" to `1 - lap_share^(1 - deploy_early)`
+  (`spend_target`; exactly the even pace at 0), so a positive map spends the budget earlier;
+  `ers_start_mode` is put on the car with the tyres (`fit_tyres`: AI and stock Balanced).
+  A client that has pressed the ERS key keeps sending its own mode, which wins.
 - `charge_full` refills with the tyres. The racing line counts the motor above the minimum
   speed at full power (`plan_power_w`). The AI drives Balanced and boosts within
   `AI_BOOST_GAP_S` of the car ahead.
@@ -411,7 +418,7 @@ the F1 flap mesh (`[drs_flap]`, `FApexDrsFlapSpec`, [cars](../content/cars.md)).
 ## Car setup (`car_setup.rs`, `setup_sheet.rs`)
 
 A setup is **clicks** off the car.toml, one `i8` per knob (`CarSetup`, `KNOBS`, `KNOB_COUNT`
-= 28), so the wire and client need no base figures. Wire order (groups appended, never
+= 31), so the wire and client need no base figures. Wire order (groups appended, never
 reordered; effects are the `*_PER_CLICK` consts):
 
 | # | Knob | Range | Per click |
@@ -432,6 +439,9 @@ reordered; effects are the `*_PER_CLICK` consts):
 | 23-24 | `toe_front/_rear` | ±5 | 0.05° |
 | 26 | `brake_pads` | -1..+1 | endurance/standard/sprint |
 | 27 | `radiator` | ±5 | 8% |
+| 28 | `ers_start_mode` | -1..+1 | harvest/balanced/attack |
+| 29 | `ers_regen` | -5..0 | -10% regen power |
+| 30 | `ers_deploy_map` | ±5 | 0.1 of `deploy_early` (+ earlier) |
 
 - **Flow**: the client sends `SetCarSetup` on join and on change; the server clamps
   (`CarSetup::clamp`) and bakes a tuned `CarConfig` (`CarSetup::apply`) into
@@ -440,13 +450,17 @@ reordered; effects are the `*_PER_CLICK` consts):
   and the collision passes use the shared config.
 - **The sheet**: `ServerMessage::CarSetupSheet` (`CarSetupSheetData`, once after
   `SessionJoined`): each knob's stock, step and bounds in display units, gear ratios, wheel
-  radius, lap fuel, rake balance, `CamberModelled`, `Compounds`, `ReferenceCompound`. Knobs
+  radius, lap fuel, rake balance, `CamberModelled`, `Compounds`, `ReferenceCompound`, and for a
+  hybrid `HybridBatteryKwh`, `HybridMotorKw`, `HybridLapBudgetKj`, `HybridDeployMinKph` (off
+  the wire at 0; no battery means no hybrid). Knobs
   are linear in clicks, so the client predicts without a round trip
   (`the_sheet_predicts_what_apply_does`).
 - **Client**: the hotlap garage (`UApexHotlapWidget`: Tyres / Suspension / Engine / Aero /
-  Save tabs of `UApexStepperWidget` rows in the sheet's units; Aero holds the wings and ride
+  ERS / Save tabs of `UApexStepperWidget` rows in the sheet's units; Aero holds the wings and ride
   heights with the wing downforce, aero balance, rake and drag change they add up to, the drag
-  from the `*_DRAG_PER_CLICK` consts mirrored in the widget) edits
+  from the `*_DRAG_PER_CLICK` consts mirrored in the widget; ERS, shown only when the sheet
+  has a battery (or before a sheet), holds the three hybrid knobs, the system as filed and
+  the share of the budget the deploy map spends by half distance) edits
   `UApexSettingsSave::CarSetup`, one setup for every car, with named setups per car in
   `SavedSetups`; the knob table mirror is `ApexCarSetup::FKnob`
   (`ApexSim.Net.CarSetup.Clicks`). More in [sessions](sessions.md).

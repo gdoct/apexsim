@@ -81,6 +81,22 @@ pub struct CarSetupSheetData {
     pub compounds: Vec<String>,
     #[serde(default)]
     pub reference_compound: u8,
+    /// The hybrid as filed, for the garage's ERS page: the battery (0: no
+    /// hybrid, and none of the rest are sent), the motor's power, the lap
+    /// budget (0: none) and the speed it may deploy from. Appended, off
+    /// the wire at zero.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub hybrid_battery_kwh: f32,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub hybrid_motor_kw: f32,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub hybrid_lap_budget_kj: f32,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub hybrid_deploy_min_kph: f32,
+}
+
+fn is_zero(v: &f32) -> bool {
+    *v == 0.0
 }
 
 /// Downforce in kg at the quote speed for a lift coefficient.
@@ -268,6 +284,18 @@ fn knob_figure(name: &str, car: &CarConfig, lap_fuel_l: f32, fill_laps: f32) -> 
         },
         "toe_front" => figure(s.toe_front_deg, car_setup::TOE_DEG_PER_CLICK, 2, "°"),
         "toe_rear" => figure(s.toe_rear_deg, car_setup::TOE_DEG_PER_CLICK, 2, "°"),
+        // Choices, read out by name: Harvest / Balanced / Attack, and the
+        // deploy map's lean earlier or later.
+        "ers_start_mode" => SetupKnobFigure {
+            lo: -1.0,
+            hi: 1.0,
+            ..figure(0.0, 1.0, 0, "")
+        },
+        "ers_deploy_map" => figure(0.0, 1.0, 0, ""),
+        "ers_regen" => {
+            let kw = car.hybrid.regen_max_power_kw;
+            figure(kw, percent_of(kw, car_setup::ERS_REGEN_PER_CLICK), 0, "kW")
+        }
         // A knob this table has not been taught yet reads as its clicks.
         _ => figure(0.0, 1.0, 0, ""),
     }
@@ -307,6 +335,19 @@ pub fn build(
             .map(|c| c.name.clone())
             .collect(),
         reference_compound: car.tire_config.reference_compound(),
+        hybrid_battery_kwh: hybrid_figure(car, car.hybrid.battery_capacity_kwh),
+        hybrid_motor_kw: hybrid_figure(car, car.hybrid.motor_max_power_kw),
+        hybrid_lap_budget_kj: hybrid_figure(car, car.hybrid.deploy_kj_per_lap.unwrap_or(0.0)),
+        hybrid_deploy_min_kph: hybrid_figure(car, car.hybrid.deploy_min_speed_kph),
+    }
+}
+
+/// A hybrid figure for the sheet: nothing for a car without one.
+fn hybrid_figure(car: &CarConfig, value: f32) -> f32 {
+    if car.hybrid.enabled {
+        value.max(0.0)
+    } else {
+        0.0
     }
 }
 
@@ -364,6 +405,30 @@ mod tests {
         assert!(close(value(&sheet.knobs[7], 2), t.brake_bias_front * 100.0));
         assert!(close(value(&sheet.knobs[4], -4), t.final_drive_ratio));
         assert!(close(value(&sheet.knobs[2], -3), t.redline_rpm));
+    }
+
+    #[test]
+    fn a_hybrid_is_described_and_a_car_without_one_is_not() {
+        let mut car = CarConfig::default();
+        let plain = build(SessionId::nil(), &car, 3.0, 3.0);
+        assert_eq!(plain.hybrid_battery_kwh, 0.0);
+        car.hybrid.enabled = true;
+        car.hybrid.battery_capacity_kwh = 4.0;
+        car.hybrid.motor_max_power_kw = 350.0;
+        car.hybrid.regen_max_power_kw = 200.0;
+        car.hybrid.deploy_min_speed_kph = 190.0;
+        let sheet = build(SessionId::nil(), &car, 3.0, 3.0);
+        assert_eq!(sheet.hybrid_battery_kwh, 4.0);
+        assert_eq!(sheet.hybrid_lap_budget_kj, 0.0);
+        assert_eq!(sheet.hybrid_deploy_min_kph, 190.0);
+        let regen = &sheet.knobs[29];
+        let t = CarSetup {
+            ers_regen: -2,
+            ..Default::default()
+        }
+        .apply(&car);
+        assert!((value(regen, -2) - t.hybrid.regen_max_power_kw).abs() < 1e-3);
+        assert_eq!((sheet.knobs[28].lo, sheet.knobs[28].hi), (-1.0, 1.0));
     }
 
     #[test]

@@ -90,13 +90,17 @@ namespace
 	{
 		const TCHAR* Label;
 	};
-	const FTabSpec TabSpecs[] = { { TEXT("TYRES") }, { TEXT("SUSPENSION") }, { TEXT("ENGINE") }, { TEXT("AERO") }, { TEXT("LOAD / SAVE") } };
+	const FTabSpec TabSpecs[] = { { TEXT("TYRES") }, { TEXT("SUSPENSION") }, { TEXT("ENGINE") }, { TEXT("AERO") }, { TEXT("ERS") }, { TEXT("LOAD / SAVE") } };
 	static_assert(UE_ARRAY_COUNT(TabSpecs) == static_cast<int32>(EApexGarageTab::Count), "a label per tab");
 
 	/**
 	 * Drag scale per click of the knobs that open the car to the air, as
 	 * `CarSetup::apply` multiplies them (server/src/car_setup.rs
-	 * `*_DRAG_PER_CLICK`): change both sides together.
+	 * `*_DRAG_PER_CLICK`): change both sides together. And the deploy map's
+	 * bend of Balanced mode's spend curve per click (`ERS_DEPLOY_MAP_PER_CLICK`).
+	 */
+	const float DeployMapPerClick = 0.1f;
+	/**
 	 */
 	const TPair<int32, float> DragPerClick[] = {
 		{ ApexCarSetup::FrontWing, 0.005f }, { ApexCarSetup::RearWing, 0.015f },
@@ -226,10 +230,10 @@ namespace
 	}
 }
 
-// `apexsim.hotlap.Tab N` (0-4) shows a garage tab, for screenshots and checks.
+// `apexsim.hotlap.Tab N` (0-5) shows a garage tab, for screenshots and checks.
 static FAutoConsoleCommand GHotlapTabCommand(
 	TEXT("apexsim.hotlap.Tab"),
-	TEXT("Show a hotlap garage tab: 0 tyres, 1 suspension, 2 engine, 3 aero, 4 load / save."),
+	TEXT("Show a hotlap garage tab: 0 tyres, 1 suspension, 2 engine, 3 aero, 4 ers, 5 load / save."),
 	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 	{
 		const int32 Index = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0;
@@ -329,6 +333,7 @@ void UApexHotlapWidget::NativeOnInitialized()
 		Tab = static_cast<EApexGarageTab>(FMath::Clamp(StartTab, 0, static_cast<int32>(EApexGarageTab::Count) - 1));
 	}
 	ApplyTab();
+	ApplyTabVisibility();
 	ApplyView();
 }
 
@@ -514,7 +519,7 @@ FString UApexHotlapWidget::DescribeValue(int32 Knob, int32 Clicks) const
 	{
 		return CompoundLabel(Clicks);
 	}
-	if (Knob == ApexCarSetup::BrakePads)
+	if (Knob == ApexCarSetup::BrakePads || Knob == ApexCarSetup::ErsStartMode || Knob == ApexCarSetup::ErsDeployMap)
 	{
 		// A choice, not a figure: the sheet's number for it is a dummy.
 		return ApexCarSetup::Describe(Knob, Clicks).ToUpper();
@@ -531,7 +536,8 @@ FString UApexHotlapWidget::DescribeValue(int32 Knob, int32 Clicks) const
 
 FString UApexHotlapWidget::DescribeDelta(int32 Knob, int32 Clicks) const
 {
-	if (Clicks == 0 || Knob == ApexCarSetup::TyreCompound || Knob == ApexCarSetup::BrakePads)
+	if (Clicks == 0 || Knob == ApexCarSetup::TyreCompound || Knob == ApexCarSetup::BrakePads
+		|| Knob == ApexCarSetup::ErsStartMode || Knob == ApexCarSetup::ErsDeployMap)
 	{
 		return FString();
 	}
@@ -596,6 +602,7 @@ UWidget* UApexHotlapWidget::BuildGarage()
 	Pages->AddChild(BuildSuspensionPage());
 	Pages->AddChild(BuildEnginePage());
 	Pages->AddChild(BuildAeroPage());
+	Pages->AddChild(BuildErsPage());
 	Pages->AddChild(BuildSavePage());
 	AddV(Right, MakePanel(*WidgetTree, Pages, FMargin(PagePadX, PagePadY), MakeBrush(FLinearColor::Transparent)),
 		FMargin(), HAlign_Fill, 1.0f);
@@ -807,6 +814,7 @@ UWidget* UApexHotlapWidget::BuildTabBar()
 		UBorder* Underline = MakePanel(*WidgetTree, nullptr, FMargin(), MakeBrush(Palette::Accent));
 		AddV(Stack, MakeSized(*WidgetTree, Underline, -1.0f, 3.0f));
 		TabUnderlines.Add(Underline);
+		TabColumns.Add(Stack);
 		AddH(Bar, Stack, FMargin(0.0f, 0.0f, 4.0f, 0.0f), VAlign_Bottom);
 	}
 	AddH(Bar, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
@@ -840,6 +848,9 @@ void UApexHotlapWidget::AddSection(UVerticalBox* Column, const TCHAR* Title, std
 		{ ApexCarSetup::FinalDrive, TEXT("Final drive"), TEXT("Shorter (+) pulls harder, lower top speed.") },
 		{ ApexCarSetup::GearSpread, TEXT("Gear spread"), TEXT("Top gear closer (+); first stays put.") },
 		{ ApexCarSetup::FuelLoad, TEXT("Fuel load"), TEXT("Laps on the fill. Weight is lap time.") },
+		{ ApexCarSetup::ErsStartMode, TEXT("Starting mode"), TEXT("The mode the car leaves the garage or the grid in.") },
+		{ ApexCarSetup::ErsRegen, TEXT("Regen level"), TEXT("Less: less charge, more of the braking on the discs. Down only.") },
+		{ ApexCarSetup::ErsDeployMap, TEXT("Deploy map"), TEXT("Where Balanced spends the lap's budget: early or late.") },
 	};
 
 	UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>();
@@ -1072,6 +1083,52 @@ UWidget* UApexHotlapWidget::BuildAeroPage()
 
 	PageDefaults.Add(SetupSteppers.FindRef(ApexCarSetup::FrontWing));
 	return ScrollPage(*WidgetTree, Page);
+}
+
+UWidget* UApexHotlapWidget::BuildErsPage()
+{
+	UHorizontalBox* Page = WidgetTree->ConstructWidget<UHorizontalBox>();
+
+	UVerticalBox* Left = WidgetTree->ConstructWidget<UVerticalBox>();
+	AddSection(Left, TEXT("Hybrid"), { ApexCarSetup::ErsStartMode, ApexCarSetup::ErsRegen, ApexCarSetup::ErsDeployMap });
+	AddH(Page, ScrollPage(*WidgetTree, Left), FMargin(), VAlign_Fill, 1.0f);
+
+	// The system as filed: what the knobs work with, and the rules they cannot move.
+	UVerticalBox* Right = WidgetTree->ConstructWidget<UVerticalBox>();
+	AddV(Right, Caption(*WidgetTree, TEXT("The system · as filed")), FMargin(0.0f, 0.0f, 0.0f, 12.0f));
+	auto AddCell = [this](UHorizontalBox* Line, const TCHAR* Label, TObjectPtr<UTextBlock>& OutValue, bool bFirst)
+	{
+		UVerticalBox* Cell = WidgetTree->ConstructWidget<UVerticalBox>();
+		AddV(Cell, Caption(*WidgetTree, Label));
+		OutValue = MakeText(*WidgetTree, TEXT("--"), Font::Display(30.0f), Ink);
+		AddV(Cell, OutValue, FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+		AddH(Line, MakePanel(*WidgetTree, Cell, FMargin(20.0f, 16.0f), MakeBrush(FLinearColor::Transparent, Outline, 1.0f)),
+			FMargin(bFirst ? 0.0f : 2.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+	};
+	UHorizontalBox* Top = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddCell(Top, TEXT("Battery"), ErsBatteryText, true);
+	AddCell(Top, TEXT("Motor"), ErsMotorText, false);
+	AddV(Right, Top);
+	UHorizontalBox* Bottom = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddCell(Bottom, TEXT("Lap budget"), ErsBudgetText, true);
+	AddCell(Bottom, TEXT("Deploys from"), ErsDeployFromText, false);
+	AddV(Right, Bottom, FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	AddV(Right, Caption(*WidgetTree, TEXT("Deploy map · Balanced mode")), FMargin(0.0f, 22.0f, 0.0f, 12.0f));
+	UVerticalBox* Map = WidgetTree->ConstructWidget<UVerticalBox>();
+	UHorizontalBox* MapLine = WidgetTree->ConstructWidget<UHorizontalBox>();
+	AddH(MapLine, Caption(*WidgetTree, TEXT("Budget spent by half distance")), FMargin(), VAlign_Center, 1.0f);
+	ErsHalfLapText = MakeText(*WidgetTree, TEXT("--"), Font::Display(26.0f), Ink);
+	AddH(MapLine, ErsHalfLapText);
+	AddV(Map, MapLine);
+	ErsHalfLapNote = MakeText(*WidgetTree, TEXT(""), Font::Body(14.0f), InkMuted);
+	ErsHalfLapNote->SetAutoWrapText(true);
+	AddV(Map, ErsHalfLapNote, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+	AddV(Right, MakePanel(*WidgetTree, Map, FMargin(20.0f, 14.0f), MakeBrush(FLinearColor::Transparent, Outline, 1.0f)));
+	AddH(Page, MakeSized(*WidgetTree, Right, SidePanelWidth, -1.0f), FMargin(36.0f, 0.0f, 0.0f, 0.0f), VAlign_Top);
+
+	PageDefaults.Add(SetupSteppers.FindRef(ApexCarSetup::ErsStartMode));
+	return Page;
 }
 
 UWidget* UApexHotlapWidget::BuildSavePage()
@@ -1496,7 +1553,7 @@ void UApexHotlapWidget::RefreshBoard()
 
 void UApexHotlapWidget::SetTab(EApexGarageTab InTab)
 {
-	if (InTab == EApexGarageTab::Count || InTab == Tab)
+	if (InTab == EApexGarageTab::Count || InTab == Tab || !IsTabShown(InTab))
 	{
 		return;
 	}
@@ -1505,6 +1562,38 @@ void UApexHotlapWidget::SetTab(EApexGarageTab InTab)
 	if (Tab == EApexGarageTab::Save)
 	{
 		RefreshSaved();
+	}
+}
+
+bool UApexHotlapWidget::IsTabShown(EApexGarageTab InTab) const
+{
+	if (InTab == EApexGarageTab::Ers)
+	{
+		const FApexCarSetupSheet* Sheet = GetSheet();
+		return !Sheet || Sheet->HasHybrid();
+	}
+	return InTab != EApexGarageTab::Count;
+}
+
+void UApexHotlapWidget::ApplyTabVisibility()
+{
+	int32 Shown = 0;
+	for (int32 Index = 0; Index < TabColumns.Num(); ++Index)
+	{
+		const bool bShown = IsTabShown(static_cast<EApexGarageTab>(Index));
+		if (TabColumns[Index])
+		{
+			TabColumns[Index]->SetVisibility(bShown ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		}
+		if (bShown && TabNumbers.IsValidIndex(Index) && TabNumbers[Index])
+		{
+			TabNumbers[Index]->SetText(FText::AsNumber(++Shown));
+		}
+	}
+	if (!IsTabShown(Tab))
+	{
+		Tab = EApexGarageTab::Tyres;
+		ApplyTab();
 	}
 }
 
@@ -1552,7 +1641,13 @@ bool UApexHotlapWidget::HandleNavigation(EUINavigation Direction, UWidget* Sourc
 	{
 		const int32 Count = static_cast<int32>(EApexGarageTab::Count);
 		const int32 Step = Direction == EUINavigation::Next ? 1 : -1;
-		SetTab(static_cast<EApexGarageTab>((static_cast<int32>(Tab) + Step + Count) % Count));
+		int32 Next = static_cast<int32>(Tab);
+		do
+		{
+			Next = (Next + Step + Count) % Count;
+		}
+		while (!IsTabShown(static_cast<EApexGarageTab>(Next)) && Next != static_cast<int32>(Tab));
+		SetTab(static_cast<EApexGarageTab>(Next));
 		ApexUiAudio::Play(this, EApexUiSound::Adjust);
 		if (PageDefaults.IsValidIndex(static_cast<int32>(Tab)))
 		{
@@ -1809,6 +1904,7 @@ void UApexHotlapWidget::RefreshSetup()
 		const FApexCarSetupSheet* Sheet = GetSheet();
 		CamberRow->SetVisibility(!Sheet || Sheet->bCamberModelled ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
+	ApplyTabVisibility();
 	RefreshCompounds();
 	RefreshDerived();
 	RefreshSaved();
@@ -1868,6 +1964,25 @@ void UApexHotlapWidget::RefreshDerived()
 		const float DragPct = (Drag - 1.0f) * 100.0f;
 		DragText->SetText(FText::FromString(FMath::Abs(DragPct) < 0.05f
 			? FString(TEXT("Stock")) : FString::Printf(TEXT("%+.1f %%"), DragPct)));
+	}
+
+	// The hybrid as filed, and where the deploy map has Balanced mode
+	// spend the lap budget: the server's `spend_target`, at half distance.
+	if (ErsBatteryText && ErsMotorText && ErsBudgetText && ErsDeployFromText && ErsHalfLapText && ErsHalfLapNote)
+	{
+		const bool bHybrid = Sheet && Sheet->HasHybrid();
+		ErsBatteryText->SetText(FText::FromString(bHybrid ? FString::Printf(TEXT("%.1f kWh"), Sheet->HybridBatteryKwh) : FString(TEXT("--"))));
+		ErsMotorText->SetText(FText::FromString(bHybrid ? FString::Printf(TEXT("%.0f kW"), Sheet->HybridMotorKw) : FString(TEXT("--"))));
+		ErsBudgetText->SetText(FText::FromString(!bHybrid ? FString(TEXT("--"))
+			: Sheet->HybridLapBudgetKj > 0.0f ? FString::Printf(TEXT("%.1f MJ"), Sheet->HybridLapBudgetKj / 1000.0f) : FString(TEXT("None"))));
+		ErsDeployFromText->SetText(FText::FromString(!bHybrid ? FString(TEXT("--"))
+			: Sheet->HybridDeployMinKph > 0.0f ? FString::Printf(TEXT("%.0f km/h"), Sheet->HybridDeployMinKph) : FString(TEXT("Any speed"))));
+		const float Early = Setup->GetClick(ApexCarSetup::ErsDeployMap) * DeployMapPerClick;
+		const float HalfLap = Early == 0.0f ? 0.5f : FMath::Pow(0.5f, FMath::Max(1.0f - Early, 0.2f));
+		ErsHalfLapText->SetText(FText::FromString(FString::Printf(TEXT("%.0f %%"), HalfLap * 100.0f)));
+		ErsHalfLapNote->SetText(FText::FromString(bHybrid && Sheet->HybridLapBudgetKj <= 0.0f
+			? FString(TEXT("This car has no lap budget: Balanced deploys whenever there is charge, so the map changes nothing."))
+			: FString(TEXT("Early spends the budget on the first straights; late saves it for the end of the lap."))));
 	}
 
 	// Top speed per gear: the gearing knobs scale the file's ratios as the server's
@@ -2053,7 +2168,8 @@ void UApexHotlapWidget::RefreshSaved()
 		TEXT("Front dampers"), TEXT("Rear dampers"), TEXT("Front anti-roll bar"), TEXT("Rear anti-roll bar"), TEXT("Fuel load"),
 		TEXT("Front wing"), TEXT("Rear wing"), TEXT("Front ride height"), TEXT("Rear ride height"), TEXT("Next tyres"),
 		TEXT("Front brake ducts"), TEXT("Front camber"), TEXT("Rear camber"), TEXT("Front toe"), TEXT("Rear toe"),
-		TEXT("Rear brake ducts"), TEXT("Brake pads"), TEXT("Radiator"),
+		TEXT("Rear brake ducts"), TEXT("Brake pads"), TEXT("Radiator"), TEXT("ERS starting mode"),
+		TEXT("ERS regen"), TEXT("ERS deploy map"),
 	};
 	static_assert(UE_ARRAY_COUNT(KnobLabels) == FApexCarSetup::KnobCount, "a label per knob");
 	int32 Diffs = Compound != 0 ? 1 : 0;

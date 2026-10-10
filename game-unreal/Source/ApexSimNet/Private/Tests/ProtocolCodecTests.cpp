@@ -184,7 +184,7 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 
 	{
 		FApexCarSetup Setup;
-		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1, 2, -1, 2, 1, -2, 3, 1, -4 };
+		const int32 Clicks[] = { 1, -2, -3, 4, -5, 5, -1, 2, 3, -3, 0, 1, -4, 4, -2, 2, -1, -3, 1, 1, 2, -1, 2, 1, -2, 3, 1, -4, 1, -3, 2 };
 		static_assert(UE_ARRAY_COUNT(Clicks) == FApexCarSetup::KnobCount, "the golden setup has a click per knob");
 		for (int32 Index = 0; Index < FApexCarSetup::KnobCount; ++Index)
 		{
@@ -288,6 +288,10 @@ bool FApexCarSetupClicksTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("the compound reaches the wets, and a car's longer list"), ApexCarSetup::Knob(ApexCarSetup::TyreCompound).Min <= -3);
 	TestEqual(TEXT("ride height reads in mm"),
 		ApexCarSetup::Describe(ApexCarSetup::RideHeightFront, -3), FString(TEXT("-3  (-6 mm)")));
+	TestEqual(TEXT("start mode by name"), ApexCarSetup::Describe(ApexCarSetup::ErsStartMode, -1), FString(TEXT("Harvest")));
+	TestEqual(TEXT("deploy map by lean"), ApexCarSetup::Describe(ApexCarSetup::ErsDeployMap, 2), FString(TEXT("Early 2")));
+	TestEqual(TEXT("deploy map even"), ApexCarSetup::Describe(ApexCarSetup::ErsDeployMap, 0), FString(TEXT("Even")));
+	TestEqual(TEXT("regen key"), FString(ApexCarSetup::Knob(ApexCarSetup::ErsRegen).Key), FString(TEXT("ers_regen")));
 	return true;
 }
 
@@ -1211,6 +1215,11 @@ bool FApexProtocolCarSetupSheetTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("upper-cased for the garage"), Sheet.CompoundNameAt(1), FString(TEXT("MEDIUM")));
 	}
 	TestEqual(TEXT("reference"), Sheet.ReferenceCompound, 1);
+	TestTrue(TEXT("a hybrid"), Sheet.HasHybrid());
+	TestEqual(TEXT("battery"), Sheet.HybridBatteryKwh, 4.0f);
+	TestEqual(TEXT("motor"), Sheet.HybridMotorKw, 350.0f);
+	TestEqual(TEXT("no lap budget"), Sheet.HybridLapBudgetKj, 0.0f);
+	TestEqual(TEXT("deploys from"), Sheet.HybridDeployMinKph, 190.0f);
 	TestEqual(TEXT("the reference is click 0"), Sheet.CompoundIndexForClicks(0), 1);
 	TestEqual(TEXT("one click up is the first"), Sheet.ClicksForCompoundIndex(0), 1);
 	TestEqual(TEXT("a name from the sheet"), FApexCarTelemetry::CompoundNameFrom(Sheet.Compounds, 0), FString(TEXT("SOFT")));
