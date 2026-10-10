@@ -311,6 +311,11 @@ void UApexTrackInstance::Tick(float DeltaTime)
 		{
 			Actors.Add(Actor);
 		}
+		Centerline.Reset(Scene->Centerline.Num());
+		for (const FApexTrackCenterlinePoint& Point : Scene->Centerline)
+		{
+			Centerline.Add(Point.Location);
+		}
 		// Everything is referenced by the actors and `Created` now.
 		Builder.Reset();
 		Factory.Reset();

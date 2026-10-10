@@ -2,8 +2,9 @@
 
 Every camera in a race belongs to the race director (`AApexRaceDirector`,
 `Race/ApexRaceDirector.h`): the cockpit rig, the chase ladder, the free
-screenshot camera and the TV director. The menu's backdrop race (demo mode)
-is filmed by the TV director. Spectator controls, replays and showcases are
+screenshot camera, the TV director and the lobby camera. The menu's backdrop
+race (demo mode) is filmed by the TV director; a session's lobby shows its
+circuit through the lobby camera. Spectator controls, replays and showcases are
 in [spectator.md](spectator.md); triple-screen side views in
 [client.md](client.md#triple-monitors-uapexmultiviewsubsystem-apexmultiviewh-apexsideviewh).
 
@@ -11,11 +12,12 @@ in [spectator.md](spectator.md); triple-screen side views in
 
 - `game-unreal/Source/ApexSim/Public/Race/`: `ApexCockpitRig.h`,
   `ApexCockpitLayout.h`, `ApexChaseView.h`, `ApexShotCamera.h`,
-  `ApexRaceCoordinate.h`, `ApexTvDirector.h`, `ApexRaceDirector.h`
+  `ApexRaceCoordinate.h`, `ApexTvDirector.h`, `ApexLobbyCamera.h`,
+  `ApexRaceDirector.h`
 - `UI/ApexCockpitDashWidget.h`, `UI/ApexMirrorWidget.h`
 - `ApexDemoModeSubsystem.h` (module root)
 - Tests: `Private/Tests/CockpitLayoutTests.cpp`, `ChaseViewTests.cpp`,
-  `ShotCameraTests.cpp`, `TvDirectorTests.cpp`
+  `ShotCameraTests.cpp`, `TvDirectorTests.cpp`, `LobbyCameraTests.cpp`
 
 ## Camera modes
 
@@ -169,6 +171,34 @@ finished race, a track change, `apexsim.spectate.Next` or
   ([client.md](client.md#startup-splash-hold-apexsimboot-uapexstartupsplashsubsystem)).
 
 Tests: `ApexSim.Sky.DemoRoll`, `ApexSim.Backdrop.ChooseFile`, `ApexSim.Backdrop.EndsAtJoin`.
+
+## Lobby view (`BeginLobbyView`, `ApexLobbyCam::FFlyover`)
+
+In a session, outside its race (the lobby, the results), the backdrop is the
+session's own circuit with nobody on it. `UApexRootWidget::UpdateBackdrop`
+begins the director's lobby view while the player is in a (non-demo) session,
+the race view is off and the screen `WantsLiveBackdrop`, and ends it once the
+backdrop gate has faded behind a screen that does not (car select). The view
+builds the session's track (`ResolveTrackStem`, from the track cache when it
+was built before), lights it with the session's conditions and fades in by
+`GetBackdropOpacity()` under the same scrim as the demo. No track export means
+the plain background, as before. `BeginRaceView` takes the view over with the
+track already built (`StopLobbyView(bKeepTrack)`); leaving the session or the
+demo or a replay beginning ends it.
+
+The camera is pure logic in `Race/ApexLobbyCamera.h`, flying the built
+track's own centerline (`UApexTrackInstance::GetCenterline`, with heights;
+the lobby's centerline is not parsed unless the minimap wants it). Shots of
+7 to 13 s round the tightest of a few random corners, never the same kind
+twice running nor the same part of the lap: an establishing **orbit** high
+over a corner, a **glide** above the outside of the road flying into a
+corner, and a low **pan** on the outside of a bend from entry to exit. A shot
+whose view of the road is blocked at its start, middle or end is replanned;
+the camera eases over steps in the ground and keeps 2 m above it.
+`apexsim.tv.Cut` cuts it; each cut is logged at `LogApexSim Verbose`.
+
+Tests: `ApexSim.LobbyCam.*` (no path, road height, flying the circuit, a
+blocked view).
 
 ## Traps
 

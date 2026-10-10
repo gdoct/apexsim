@@ -873,18 +873,37 @@ void UApexRootWidget::UpdateBackdrop(float DeltaSeconds)
 		AppliedBackdrop = -1.0f;
 		return;
 	}
-	const bool bDemo = Director && Director->IsDemoViewActive() && !bRaceViewActive;
 	const UApexScreenWidget* Screen = GetScreenWidget(CurrentScreen);
 	const bool bScreenWants = Screen && Screen->WantsLiveBackdrop();
-
 	BackdropGate = FMath::FInterpConstantTo(BackdropGate, bScreenWants ? 1.0f : 0.0f, DeltaSeconds, 4.0f);
+
+	// In a session, before and after its race (the lobby, the results), the
+	// backdrop is the session's own circuit. It goes once faded behind a screen
+	// that keeps the world to itself (car select's turntable) and is built
+	// again, from the track cache, when the lobby comes back.
+	const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const bool bSessionBackdrop = Net && Net->IsInSession() && !Net->IsInDemoSession() && !bRaceViewActive;
+	if (Director)
+	{
+		if (bSessionBackdrop && (bScreenWants || BackdropGate > 0.0f))
+		{
+			Director->BeginLobbyView();
+		}
+		else if (Director->IsLobbyViewActive())
+		{
+			Director->EndLobbyView();
+		}
+	}
+
+	const bool bDemo = Director && Director->IsDemoViewActive() && !bRaceViewActive;
 	if (bDemo)
 	{
 		// Hidden once faded, shown again as soon as a screen wants it.
 		Director->SetDemoWorldVisible(bScreenWants || BackdropGate > 0.0f);
 	}
 
-	const float Opacity = bDemo ? Director->GetDemoBackdropOpacity() * BackdropGate : 0.0f;
+	const bool bBackdropView = bDemo || (Director && Director->IsLobbyViewActive() && !bRaceViewActive);
+	const float Opacity = bBackdropView ? Director->GetBackdropOpacity() * BackdropGate : 0.0f;
 	if (FMath::IsNearlyEqual(Opacity, AppliedBackdrop, 0.002f) && AppliedBackdropScreen == CurrentScreen)
 	{
 		return;

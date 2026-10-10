@@ -31,7 +31,6 @@ None open.
 |---|---|---|
 | Wheelbase profiles for more brands | feature | `ApexWheelProfiles` has no Simagic, Cammus, Asetek or VRS bases; they mix as Generic (no output scaling) until the player picks a profile or gives the peak torque. |
 | Reconnect polish | feature | A dropped client always goes back to the menu and rejoins from its banner; it does not rejoin by itself after a short drop. The banner has no way to give the seat up (creating or joining another session does). Other drivers are not told a car is server-driven (the roster has no away flag), and the away driver does not pit, so a long race can run its tank dry. |
-| Session lobby shows no track | feature | After joining a session the demo backdrop is left and the lobby has a plain background; it should show the session's circuit (a panoramic or TV camera). |
 | Chase camera inside the garage | bug | When a car stops at its box or is towed there, the chase camera ends up in a pillar or the garage wall and the car is hidden. |
 | Road state on screen | feature | The client draws neither the rubbered line nor the marbles nor a drying line (the road's sheen is one figure for the lap), and debris (`GameSession::debris`) is not on the wire, so no piece is drawn on the road. |
 | Forecast on screen | feature | Nothing shows the weather ahead: no forecast on the create screen, no radar; the HUD names only the next change (`sky.*`). |

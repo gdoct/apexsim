@@ -330,12 +330,13 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs TvCutCommand(
 		TEXT("apexsim.tv.Cut"),
-		TEXT("Make the broadcast camera cut now."),
+		TEXT("Make the broadcast camera (or the lobby's) cut now."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
 			{
 				if (AApexRaceDirector* Director = FindDirectorForCommand(World))
 				{
 					Director->GetTvDirector().RequestCut();
+					Director->GetLobbyCamera().RequestCut();
 				}
 			}));
 
@@ -353,6 +354,37 @@ namespace
 		}
 		const UStaticMeshComponent* Mesh = Cast<UStaticMeshComponent>(Hit.GetComponent());
 		return Mesh && Mesh->GetStaticMesh() && Mesh->GetStaticMesh()->GetName().StartsWith(TEXT("SM_Prop_"));
+	}
+
+	/**
+	 * The ground and line of sight the broadcast and lobby cameras ask about:
+	 * the first static hit below that is not a prop, and nothing static in the
+	 * way. The functions hold references to the query params, which must
+	 * outlive them.
+	 */
+	ApexTv::FWorldQueries MakeCameraQueries(UWorld* World, const FCollisionQueryParams& Params, const FCollisionObjectQueryParams& Statics)
+	{
+		ApexTv::FWorldQueries Queries;
+		Queries.GroundZ = [World, &Params, &Statics](const FVector& Above, double& OutGroundZ)
+		{
+			TArray<FHitResult> Hits;
+			World->LineTraceMultiByObjectType(Hits, Above, Above - FVector(0.0, 0.0, 200000.0), Statics, Params);
+			Hits.Sort([](const FHitResult& A, const FHitResult& B) { return A.Distance < B.Distance; });
+			for (const FHitResult& Hit : Hits)
+			{
+				if (!IsPropHit(Hit))
+				{
+					OutGroundZ = Hit.ImpactPoint.Z;
+					return true;
+				}
+			}
+			return false;
+		};
+		Queries.IsClear = [World, &Params, &Statics](const FVector& From, const FVector& To)
+		{
+			return !World->LineTraceTestByObjectType(From, To, Statics, Params);
+		};
+		return Queries;
 	}
 
 	FAutoConsoleCommandWithWorldAndArgs ChaseViewCommand(
@@ -486,6 +518,7 @@ void AApexRaceDirector::HandleRosterUpdated(const FApexSessionRoster& Roster)
 
 void AApexRaceDirector::HandleSessionLeft()
 {
+	EndLobbyView();
 	EndRaceView();
 }
 
@@ -494,9 +527,14 @@ void AApexRaceDirector::HandleLobbyStateUpdated(const FApexLobbyState& LobbyStat
 	// A race that started before the lobby cache knew about its session resolves
 	// no track path in BeginRaceView; the next lobby snapshot is what makes the
 	// session — and its track file — findable, so try again here.
-	if (bRaceViewActive && !Track)
+	if ((bRaceViewActive || bLobbyView) && !Track)
 	{
 		LoadTrackLevel();
+		if (bLobbyView && Track)
+		{
+			// The sky site is the circuit's, unknown until now.
+			ApplyRaceEnvironment();
+		}
 	}
 }
 
@@ -1161,6 +1199,11 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 		CameraBoom->bEnableCameraRotationLag = true;
 	}
 
+	if (bLobbyView)
+	{
+		UpdateLobbyView(DeltaSeconds);
+		return;
+	}
 	if (!bRaceViewActive)
 	{
 		return;
@@ -1882,7 +1925,7 @@ void AApexRaceDirector::ForgetTrackLevelConditions()
 void AApexRaceDirector::ApplyTrackLevelConditions()
 {
 	// Only once the track's actors are in the world and shown.
-	if (bTrackConditionsApplied || !bRaceViewActive || !IsTrackVisible())
+	if (bTrackConditionsApplied || !(bRaceViewActive || bLobbyView) || !IsTrackVisible())
 	{
 		return;
 	}
@@ -2771,6 +2814,8 @@ void AApexRaceDirector::BeginRaceView()
 		// The player's own race takes the view from the menu's demo.
 		EndDemoView();
 	}
+	// From the lobby's: the same circuit, already built.
+	StopLobbyView(/*bKeepTrack*/ true);
 	if (bRaceViewActive)
 	{
 		return;
@@ -3181,26 +3226,7 @@ void AApexRaceDirector::UpdateTvCamera(float DeltaSeconds)
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(ApexTvCamera), /*bTraceComplex*/ true, this);
 	const FCollisionObjectQueryParams Statics(ECC_WorldStatic);
-	ApexTv::FWorldQueries Queries;
-	Queries.GroundZ = [World, &Params, &Statics](const FVector& Above, double& OutGroundZ)
-	{
-		TArray<FHitResult> Hits;
-		World->LineTraceMultiByObjectType(Hits, Above, Above - FVector(0.0, 0.0, 200000.0), Statics, Params);
-		Hits.Sort([](const FHitResult& A, const FHitResult& B) { return A.Distance < B.Distance; });
-		for (const FHitResult& Hit : Hits)
-		{
-			if (!IsPropHit(Hit))
-			{
-				OutGroundZ = Hit.ImpactPoint.Z;
-				return true;
-			}
-		}
-		return false;
-	};
-	Queries.IsClear = [World, &Params, &Statics](const FVector& From, const FVector& To)
-	{
-		return !World->LineTraceTestByObjectType(From, To, Statics, Params);
-	};
+	const ApexTv::FWorldQueries Queries = MakeCameraQueries(World, Params, Statics);
 
 	Tv.Tuning().PaceScale = CVarTvPace.GetValueOnGameThread();
 	ApexTv::FPose Pose;
@@ -3259,6 +3285,8 @@ void AApexRaceDirector::BeginDemoView(const FString& TrackStem, const TArray<FVe
 	{
 		EndDemoView();
 	}
+	// Back from a session: the menu's race replaces its circuit.
+	EndLobbyView();
 
 	bDemoView = true;
 	bRaceViewActive = true;
@@ -3500,6 +3528,108 @@ void AApexRaceDirector::UpdateDemoOpacity(float DeltaSeconds)
 		: FMath::Max(Target, DemoOpacity - DeltaSeconds * 3.0f);
 }
 
+// --- Lobby view ------------------------------------------------------------------
+
+void AApexRaceDirector::BeginLobbyView()
+{
+	// The demo is ended by whoever began it; a race or a replay has the view.
+	if (bLobbyView || bRaceViewActive || bReplayView)
+	{
+		return;
+	}
+	bLobbyView = true;
+	bTvView = true;
+	bHasLobbyPose = false;
+	bShotCameraPose = false;
+	LobbyOpacity = 0.0f;
+	LobbyReadyFor = 0.0f;
+	LoggedLobbyCuts = 0;
+	LobbyCamera.Reset(static_cast<int32>(FPlatformTime::Cycles()));
+
+	LoadTrackLevel();
+	ApplyRaceEnvironment();
+	ApplyCameraMode();
+	// Nothing to focus on: the whole circuit is the subject.
+	TvCamera->PostProcessSettings.DepthOfFieldFocalDistance = 0.0f;
+	TvCamera->PostProcessSettings.DepthOfFieldFstop = 22.0f;
+	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
+	{
+		// The shell stays opaque until the circuit fades in, so no blend is needed.
+		PlayerController->SetViewTarget(this);
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Lobby view: %s"), Track ? *Track->GetStem() : TEXT("no track yet"));
+}
+
+void AApexRaceDirector::EndLobbyView()
+{
+	StopLobbyView(/*bKeepTrack*/ false);
+}
+
+void AApexRaceDirector::StopLobbyView(bool bKeepTrack)
+{
+	if (!bLobbyView)
+	{
+		return;
+	}
+	bLobbyView = false;
+	bTvView = false;
+	bHasLobbyPose = false;
+	LobbyOpacity = 0.0f;
+	LobbyReadyFor = 0.0f;
+	if (bKeepTrack)
+	{
+		// The race view lights it and points its own cameras.
+		UE_LOG(LogApexSim, Log, TEXT("Lobby view handed to the race"));
+		return;
+	}
+	UnloadTrackLevel();
+	RestoreMenuEnvironment();
+	ApplyCameraMode();
+	UE_LOG(LogApexSim, Log, TEXT("Lobby view ended"));
+}
+
+void AApexRaceDirector::UpdateLobbyView(float DeltaSeconds)
+{
+	DropFailedTrack();
+	ApplyTrackLevelConditions();
+	UpdateStreetLights(DeltaSeconds, /*bForce*/ false);
+
+	// The track's own centerline, with its heights: the lobby's list leaves it
+	// out unless the minimap asked for it, and has no heights anyway.
+	if (!LobbyCamera.HasPath() && IsTrackVisible() && Track->GetCenterline().Num() >= 3)
+	{
+		LobbyCamera.SetPath(Track->GetCenterline());
+	}
+	UWorld* World = GetWorld();
+	if (World && LobbyCamera.HasPath() && IsTrackVisible())
+	{
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(ApexLobbyCamera), /*bTraceComplex*/ true, this);
+		const FCollisionObjectQueryParams Statics(ECC_WorldStatic);
+		ApexTv::FPose Pose;
+		if (LobbyCamera.Tick(DeltaSeconds, MakeCameraQueries(World, Params, Statics), Pose))
+		{
+			bHasLobbyPose = true;
+			TvCamera->SetWorldLocationAndRotation(Pose.Location, Pose.Rotation);
+			TvCamera->SetFieldOfView(Pose.FovDeg);
+		}
+		if (LobbyCamera.GetCutCount() != LoggedLobbyCuts)
+		{
+			LoggedLobbyCuts = LobbyCamera.GetCutCount();
+			UE_LOG(LogApexSim, Verbose, TEXT("Lobby camera: %s at %.0f m"),
+				ApexLobbyCam::ShotName(LobbyCamera.GetShot()), LobbyCamera.GetShotStationCm() / 100.0);
+		}
+	}
+
+	// As the demo does: a moment's grace once the circuit is in and framed,
+	// so the sky capture and the first textures settle unseen.
+	const bool bReady = bHasLobbyPose && IsTrackVisible();
+	LobbyReadyFor = bReady ? LobbyReadyFor + DeltaSeconds : 0.0f;
+	const float Target = LobbyReadyFor > 0.75f ? 1.0f : 0.0f;
+	LobbyOpacity = Target > LobbyOpacity
+		? FMath::Min(Target, LobbyOpacity + DeltaSeconds * 0.8f)
+		: FMath::Max(Target, LobbyOpacity - DeltaSeconds * 3.0f);
+}
+
 // --- Watching ------------------------------------------------------------------------
 
 void AApexRaceDirector::SetSpectating(bool bInSpectating)
@@ -3698,6 +3828,7 @@ void AApexRaceDirector::BeginReplayView(TSharedPtr<const FApexReplayClip> Clip, 
 	{
 		EndDemoView();
 	}
+	EndLobbyView();
 	if (bReplayView)
 	{
 		EndReplayView();

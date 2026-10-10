@@ -4,6 +4,7 @@
 #include "ApexProtocolTypes.h"
 #include "GameFramework/Actor.h"
 #include "Race/ApexChaseView.h"
+#include "Race/ApexLobbyCamera.h"
 #include "Race/ApexReplayCamera.h"
 #include "Race/ApexSkyModel.h"
 #include "Race/ApexSpectatorView.h"
@@ -146,6 +147,27 @@ public:
 
 	/** Fade the backdrop out ahead of ending the demo; watch GetDemoBackdropOpacity reach 0. */
 	void FadeOutDemo() { bDemoFadeOut = true; }
+
+	// --- Lobby view ----------------------------------------------------------------
+
+	/**
+	 * Show the joined session's circuit behind the lobby: build its track, light
+	 * it with the session's sky and fly the empty circuit with the lobby camera
+	 * (ApexLobbyCam). No cars, no input. The race view takes over from it with
+	 * the track already built. Does nothing while any other view has the director.
+	 */
+	void BeginLobbyView();
+
+	/** Drop the lobby's circuit and give the menu its lighting back. */
+	void EndLobbyView();
+
+	bool IsLobbyViewActive() const { return bLobbyView; }
+
+	/** The demo's or the lobby's opacity, whichever view is on (see GetDemoBackdropOpacity). */
+	float GetBackdropOpacity() const { return bLobbyView ? LobbyOpacity : DemoOpacity; }
+
+	/** The lobby camera, for the console commands. */
+	ApexLobbyCam::FFlyover& GetLobbyCamera() { return LobbyCamera; }
 
 	// --- Watching -------------------------------------------------------------------
 
@@ -460,6 +482,11 @@ private:
 
 	/** Ease the demo backdrop's opacity toward whether there is anything worth showing. */
 	void UpdateDemoOpacity(float DeltaSeconds);
+
+	/** The lobby view's frame: the track's lights and conditions, the camera, the fade. */
+	void UpdateLobbyView(float DeltaSeconds);
+	/** End the lobby view; a race view beginning keeps its track rather than building it again. */
+	void StopLobbyView(bool bKeepTrack);
 
 	/** Cars, level and engine sound of the demo, shown or hidden together. */
 	void ApplyDemoWorldVisibility();
@@ -797,6 +824,16 @@ private:
 	float DemoOpacity = 0.0f;
 	/** Seconds the demo has had everything it needs on screen. */
 	float DemoReadyFor = 0.0f;
+
+	// --- Lobby view ---
+	bool bLobbyView = false;
+	ApexLobbyCam::FFlyover LobbyCamera;
+	/** The lobby camera has been placed at least once since the view began. */
+	bool bHasLobbyPose = false;
+	float LobbyOpacity = 0.0f;
+	/** Seconds the lobby view has had its circuit and a shot. */
+	float LobbyReadyFor = 0.0f;
+	int32 LoggedLobbyCuts = 0;
 	/** The demo's cars sit under the menu's own sounds; watched, they are the show. */
 	static constexpr float DemoEngineVolume = 0.35f;
 

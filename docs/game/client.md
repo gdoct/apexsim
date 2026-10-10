@@ -135,6 +135,8 @@ opens settings, Alt+Enter cycles fullscreen / borderless / windowed through
 the settings subsystem (it never activates the focused row). Session create,
 car select and replays return false from `WantsLiveBackdrop`, so the
 backdrop world is hidden behind them (the car turntable shares the world).
+In a session the lobby and results screens show the session's circuit
+instead of the demo ([cameras.md](cameras.md#lobby-view-beginlobbyview-apexlobbycamfflyover)).
 
 ## Input mode and focus
 

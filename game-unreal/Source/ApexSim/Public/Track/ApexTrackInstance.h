@@ -80,6 +80,9 @@ public:
 	/** The track's actors. */
 	void GetActors(TArray<AActor*>& OutActors) const;
 
+	/** The road's centerline as built (cm, with its heights); empty until the actors are in. */
+	const TArray<FVector>& GetCenterline() const { return Centerline; }
+
 	// FTickableGameObject
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
@@ -147,6 +150,8 @@ private:
 	TFuture<TSharedPtr<FParsed>> Parsing;
 	TSharedPtr<FApexTrackScene> Scene;
 	TSharedPtr<FApexTrackGeometry> Geometry;
+	/** Kept from the scene, which is let go once built: the lobby's cameras fly it. */
+	TArray<FVector> Centerline;
 	// Shared rather than unique pointers: the types are only complete in the
 	// .cpp, and a unique pointer's deleter would be needed by generated code.
 	TSharedPtr<FApexRuntimeTrackFactory> Factory;
