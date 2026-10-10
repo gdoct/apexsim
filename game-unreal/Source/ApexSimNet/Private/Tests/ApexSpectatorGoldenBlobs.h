@@ -2,7 +2,7 @@
 
 // GENERATED - do not edit by hand.
 //
-// Golden bytes of the spectator stream (docs/SPECTATOR.md): the records as
+// Golden bytes of the spectator stream (docs/game/spectator.md): the records as
 // `server/src/spectator.rs` encodes them, printed by
 // `cargo test spectator_wire_format -- --nocapture`, and the showcase
 // messages of `network.rs`, printed by

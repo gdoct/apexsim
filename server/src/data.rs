@@ -1575,8 +1575,10 @@ pub struct CarState {
     /// optimum on its first tick.
     #[serde(default)]
     pub tyres_fitted: bool,
-    /// The compound on the car (`tyre_thermal::COMPOUNDS`: 0 soft, 1
-    /// medium, 2 hard), fitted with the set.
+    /// The compound on the car, an index into its tyre's
+    /// `TireConfig::compounds()` (without its own list
+    /// `tyre_thermal::default_compounds()`: 0 soft, 1 medium, 2 hard, 3
+    /// intermediate, 4 wet), fitted with the set.
     #[serde(default = "default_medium")]
     pub tyre_compound: u8,
     /// The car against the pit lane, and its stop (`crate::pit`).

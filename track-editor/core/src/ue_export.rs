@@ -77,7 +77,7 @@ pub const UE_SCENE_FORMAT: &str = "apex-ue-scene";
 /// beside it (`ue_export_io::write_scene`), and `source_crc` appeared.
 pub const UE_SCENE_VERSION: u32 = 2;
 /// The layout with the textured-material and per-mesh extensions an
-/// imported circuit needs (docs/AC_TRACK_IMPORT.md); written only when a
+/// imported circuit needs (docs/content/ac-import.md); written only when a
 /// scene uses one of them, read by `read_scene` and the client either way.
 pub const UE_SCENE_VERSION_EXTENDED: u32 = 3;
 

@@ -8,7 +8,7 @@ Each wheel is built in a scratch scene and exported without touching the
 open file. Frame: metres, hub centre at the origin, axle along X, the face
 (spokes, centre nut) on +X. The whole wheel sits inside x in [-W/2, W/2] and
 a radius of R, so the client can size it to any car from the mesh bounds:
-width from X, diameter from Y/Z (car.toml `[wheels]`, docs/CAR_MODELS.md).
+width from X, diameter from Y/Z (car.toml `[wheels]`, docs/content/cars.md).
 The client puts the face outboard on both sides of the car.
 
 Material slots: `wheel_tyre`, `wheel_mark` (sidewall lettering, which is

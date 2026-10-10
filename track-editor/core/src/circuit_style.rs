@@ -113,8 +113,9 @@ pub enum Ground {
     /// set in a desert tint ([`DESERT_SAND_COLOR`]), and no grass or
     /// flower clumps scattered on the verge.
     Sand,
-    /// A city: the terrain and the apron drawn with the concrete set in a
-    /// pavement grey, no lawn.
+    /// A city: the terrain and the apron drawn with the asphalt set in a
+    /// pavement grey, no lawn (the concrete set on those keys hung the
+    /// GPU).
     Paved,
 }
 

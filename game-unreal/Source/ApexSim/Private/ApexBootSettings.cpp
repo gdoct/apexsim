@@ -1,6 +1,8 @@
 #include "ApexBootSettings.h"
 
 #include "ApexSim.h"
+#include "ApexNetSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/GameUserSettings.h"
 #include "HAL/PlatformProperties.h"
 #include "Misc/FileHelper.h"
@@ -216,6 +218,32 @@ void ApexBootSettingsIo::Parse(const FString& Text, FApexBootSettings& InOut)
 				WarnBadValue(LineNumber, TEXT("port"), Value, TEXT("expected 1 to 65535"));
 			}
 		}
+		else if (Path == TEXT("server.tls"))
+		{
+			if (!ApexTls::ParseMode(Value, InOut.ServerTls.Mode))
+			{
+				WarnBadValue(LineNumber, TEXT("tls"), Value, TEXT("expected auto, on or off"));
+			}
+		}
+		else if (Path == TEXT("server.tls_verify"))
+		{
+			if (!ParseBool(Value, InOut.ServerTls.bVerify))
+			{
+				WarnBadValue(LineNumber, TEXT("tls_verify"), Value, TEXT("expected true or false"));
+			}
+		}
+		else if (Path == TEXT("server.tls_fingerprint"))
+		{
+			if (Value.IsEmpty())
+			{
+				InOut.ServerTls.Fingerprint.Reset();
+			}
+			else if (!ApexTls::CanonicalFingerprint(Value, InOut.ServerTls.Fingerprint))
+			{
+				WarnBadValue(LineNumber, TEXT("tls_fingerprint"), Value,
+					TEXT("expected a SHA-256 fingerprint: 64 hex digits, colons optional"));
+			}
+		}
 		else if (Path == TEXT("launcher.show"))
 		{
 			if (!ParseBool(Value, InOut.bShowLauncher))
@@ -263,6 +291,17 @@ FString ApexBootSettingsIo::Serialise(const FApexBootSettings& Settings)
 		TEXT("  # on this machine, such as the one the launcher starts for you.\n")
 		TEXT("  host: %s\n")
 		TEXT("  port: %d\n")
+		TEXT("  # TLS on the connection: auto | on | off. auto tries TLS and falls back\n")
+		TEXT("  # to plaintext only when the server does not speak it; on never falls\n")
+		TEXT("  # back. Telemetry and input (UDP) are never encrypted.\n")
+		TEXT("  tls: %s\n")
+		TEXT("  # Check the server's certificate against the system's trusted roots and\n")
+		TEXT("  # the host name. false encrypts without checking: development only.\n")
+		TEXT("  tls_verify: %s\n")
+		TEXT("  # Trust exactly this certificate instead (SHA-256, as the server's\n")
+		TEXT("  # operator gives it, or as the game logs it when it refuses one): how a\n")
+		TEXT("  # self-signed certificate is trusted. Empty: none. Cleared when host changes.\n")
+		TEXT("  tls_fingerprint: %s\n")
 		TEXT("\n")
 		TEXT("launcher:\n")
 		TEXT("  # false: launcher.exe starts the game straight away, without a server, and\n")
@@ -275,6 +314,9 @@ FString ApexBootSettingsIo::Serialise(const FApexBootSettings& Settings)
 		Settings.Screens,
 		*Settings.ServerHost,
 		Settings.ServerPort,
+		ApexTls::ModeName(Settings.ServerTls.Mode),
+		Settings.ServerTls.bVerify ? TEXT("true") : TEXT("false"),
+		*Settings.ServerTls.Fingerprint,
 		Settings.bShowLauncher ? TEXT("true") : TEXT("false"));
 }
 
@@ -302,14 +344,22 @@ void UApexBootSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection
 	FString Text;
 	bFileExisted = FFileHelper::LoadFileToString(Text, *Path);
 
+	// The net subsystem takes the TLS options from here, so it must exist first.
+	Collection.InitializeDependency<UApexNetSubsystem>();
+
 	if (bFileExisted)
 	{
 		ApexBootSettingsIo::Parse(Text, Settings);
-		UE_LOG(LogApexSim, Log, TEXT("Settings read from %s: %dx%d %s, server %s:%d"),
+		UE_LOG(LogApexSim, Log, TEXT("Settings read from %s: %dx%d %s, server %s:%d (tls %s%s%s)"),
 			*Path, Settings.Resolution.X, Settings.Resolution.Y,
-			WindowModeName(Settings.WindowMode), *Settings.ServerHost, Settings.ServerPort);
+			WindowModeName(Settings.WindowMode), *Settings.ServerHost, Settings.ServerPort,
+			ApexTls::ModeName(Settings.ServerTls.Mode),
+			Settings.ServerTls.IsPinned() ? TEXT(", pinned") : TEXT(""),
+			!Settings.ServerTls.IsPinned() && !Settings.ServerTls.bVerify ? TEXT(", NOT verified") : TEXT(""));
+		PushTlsOptions();
 		return;
 	}
+	PushTlsOptions();
 
 	// First run. 1920x1080 is a guess that is wrong on most machines, so the file
 	// is created describing the display it is actually created on. The subsystems
@@ -352,9 +402,28 @@ void UApexBootSettingsSubsystem::SetServer(const FString& Host, int32 Port)
 		return;
 	}
 
+	if (Settings.ServerTls.IsPinned() && !Settings.ServerHost.Equals(Host, ESearchCase::IgnoreCase))
+	{
+		// The pin is one server's certificate; kept, it would refuse the new one.
+		UE_LOG(LogApexSim, Log, TEXT("Server host changed from %s to %s: dropping the pinned TLS fingerprint"),
+			*Settings.ServerHost, *Host);
+		Settings.ServerTls.Fingerprint.Reset();
+		PushTlsOptions();
+	}
 	Settings.ServerHost = Host;
 	Settings.ServerPort = Port;
 	Write();
+}
+
+void UApexBootSettingsSubsystem::PushTlsOptions() const
+{
+	if (const UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UApexNetSubsystem* Net = GameInstance->GetSubsystem<UApexNetSubsystem>())
+		{
+			Net->SetTlsOptions(Settings.ServerTls);
+		}
+	}
 }
 
 void UApexBootSettingsSubsystem::Write() const

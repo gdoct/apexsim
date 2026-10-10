@@ -707,7 +707,7 @@ NUM = V.get("number", "1")
 carlib.top_decal(p, M.number, L, 0.0, NOSE + 0.48, 0.32, 0.32, carlib.number_uv(NUM), along_y=False,
                  lift=0.005, nu=8, nv=8)
 
-# ---- cockpit, built to the points the client derives (docs/CAR_MODELS.md)
+# ---- cockpit, built to the points the client derives (docs/content/cars.md)
 # No mesh steering wheel: the client's cockpit rig draws its own at the
 # derived wheel point. The cabin is a prototype tub - narrow, the driver on
 # the centreline-ish, a bulkhead behind him - built to the same points the

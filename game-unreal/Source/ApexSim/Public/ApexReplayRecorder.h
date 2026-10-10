@@ -27,7 +27,7 @@ struct APEXSIM_API FApexReplayInfo
 /**
  * Records every session this client is in (a race, practice, a hotlap, a
  * live race watched) as a spectator stream, and saves it as an `.apxs`
- * replay (docs/SPECTATOR.md, "Replays"). A replay plays back through the
+ * replay (docs/game/spectator.md, "Replays"). A replay plays back through the
  * watch view like a showcase: any car, any camera, the timing tower.
  *
  * What is recorded is what the client received: every car's telemetry,

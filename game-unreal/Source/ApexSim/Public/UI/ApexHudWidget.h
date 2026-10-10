@@ -27,7 +27,7 @@ class UWidget;
  * a player's own in `custom/`) says where it sits and what it draws, in
  * elements bound to the data points UApexHudDataSubsystem publishes, and this
  * widget builds the tree once and, every frame, evaluates the bindings and
- * touches only the widgets whose value moved. docs/HUD_MODDING.md is the
+ * touches only the widgets whose value moved. docs/game/hud-modding.md is the
  * format; `apexsim.hud.Reload` reads the folders again without a restart.
  *
  * What the panels show is still mostly derived (position, gaps and the delta

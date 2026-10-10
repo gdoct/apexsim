@@ -216,6 +216,11 @@ struct Settings
     int screens = 1;
     std::string host = "127.0.0.1";
     int port = kServerPort;
+    // Not edited here, only carried through the rewrite (the game owns them):
+    // server.tls (auto | on | off), tls_verify, tls_fingerprint.
+    std::string tls = "auto";
+    std::string tlsVerify = "true";
+    std::string tlsFingerprint;
     bool showLauncher = true;  // false: launcher.exe starts the game at once and shows no window
 };
 
@@ -261,6 +266,15 @@ static bool LoadSettings(const fs::path& path, Settings& out)
         {
             if (key == "host" && !val.empty()) out.host = val;
             else if (key == "port") out.port = atoi(val.c_str());
+            // Kept as written (less any trailing comment); the game validates them.
+            else if (key == "tls" || key == "tls_verify" || key == "tls_fingerprint")
+            {
+                size_t hash = val.find('#');
+                if (hash != std::string::npos) val = Trim(val.substr(0, hash));
+                if (key == "tls") { if (!val.empty()) out.tls = val; }
+                else if (key == "tls_verify") { if (!val.empty()) out.tlsVerify = val; }
+                else out.tlsFingerprint = val;
+            }
         }
         else if (section == "launcher")
         {
@@ -279,7 +293,7 @@ static bool LoadSettings(const fs::path& path, Settings& out)
 
 static bool SaveSettings(const fs::path& path, const Settings& s)
 {
-    char buf[2048];
+    char buf[4096];
     snprintf(buf, sizeof buf,
         "# ApexSim settings.\n"
         "#\n"
@@ -306,13 +320,25 @@ static bool SaveSettings(const fs::path& path, const Settings& s)
         "  # on this machine, such as the one the launcher starts for you.\n"
         "  host: %s\n"
         "  port: %d\n"
+        "  # TLS on the connection: auto | on | off. auto tries TLS and falls back\n"
+        "  # to plaintext only when the server does not speak it; on never falls\n"
+        "  # back. Telemetry and input (UDP) are never encrypted.\n"
+        "  tls: %s\n"
+        "  # Check the server's certificate against the system's trusted roots and\n"
+        "  # the host name. false encrypts without checking: development only.\n"
+        "  tls_verify: %s\n"
+        "  # Trust exactly this certificate instead (SHA-256, as the server's\n"
+        "  # operator gives it, or as the game logs it when it refuses one): how a\n"
+        "  # self-signed certificate is trusted. Empty: none. Cleared when host changes.\n"
+        "  tls_fingerprint: %s\n"
         "\n"
         "launcher:\n"
         "  # false: launcher.exe starts the game straight away, without a server, and\n"
         "  # shows no window. Run launcher.exe --show to bring the window back.\n"
         "  show: %s\n",
         s.resX, s.resY, s.mode.c_str(), s.vsync ? "true" : "false", s.frameLimit, s.screens,
-        s.host.c_str(), s.port, s.showLauncher ? "true" : "false");
+        s.host.c_str(), s.port, s.tls.c_str(), s.tlsVerify.c_str(), s.tlsFingerprint.c_str(),
+        s.showLauncher ? "true" : "false");
     std::ofstream f(path, std::ios::binary | std::ios::trunc);
     if (!f) return false;
     f << buf;
@@ -951,6 +977,8 @@ static LRESULT CALLBACK ConfigProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
                 err = L"The resolution must look like 1920x1080.";
             else if (limit < 0 || limit > 1000) err = L"The frame limit must be between 0 and 1000.";
             if (err) { MessageBoxW(hw, err, L"Edit configuration", MB_OK | MB_ICONWARNING); return 0; }
+            // A pinned TLS certificate belongs to the old host (as in the game).
+            if (_stricmp(host.c_str(), n.host.c_str()) != 0) n.tlsFingerprint.clear();
             n.host = host; n.port = port; n.resX = x; n.resY = y; n.frameLimit = limit;
             n.mode = kModes[std::max(0, (int)SendDlgItemMessageW(hw, IdMode, CB_GETCURSEL, 0, 0))];
             n.screens = SendDlgItemMessageW(hw, IdScreens, CB_GETCURSEL, 0, 0) == 1 ? 3 : 1;

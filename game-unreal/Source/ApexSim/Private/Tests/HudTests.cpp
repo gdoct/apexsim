@@ -1040,9 +1040,9 @@ bool FApexHudDocumentedTest::RunTest(const FString& Parameters)
 {
 	// The data points are the modding API: each one is in the reference.
 	FString Doc;
-	if (!FFileHelper::LoadFileToString(Doc, *HudRepoPath(TEXT("docs/game/HUD_MODDING.md"))))
+	if (!FFileHelper::LoadFileToString(Doc, *HudRepoPath(TEXT("docs/game/hud-modding.md"))))
 	{
-		AddError(TEXT("docs/game/HUD_MODDING.md is missing"));
+		AddError(TEXT("docs/game/hud-modding.md is missing"));
 		return false;
 	}
 	auto Documented = [&Doc](const FString& Name) { return Doc.Contains(TEXT("`") + Name + TEXT("`")); };

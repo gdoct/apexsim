@@ -23,7 +23,7 @@ enum class EApexSpectatorSource : uint8
 };
 
 /**
- * Plays a spectator stream (docs/SPECTATOR.md) into the race view: the
+ * Plays a spectator stream (docs/game/spectator.md) into the race view: the
  * menu backdrop, from a local `.apxs` or from the server's showcase, through
  * the paths a live race already uses.
  *

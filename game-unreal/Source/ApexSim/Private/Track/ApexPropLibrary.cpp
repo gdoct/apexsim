@@ -5,7 +5,7 @@ namespace ApexProps
 	namespace
 	{
 		/*
-		 * The kit's kinds (docs/PROPS.md). Instanced kinds are the ones placed
+		 * The kit's kinds (docs/content/props.md). Instanced kinds are the ones placed
 		 * by the hundred; Nanite goes on the big one-offs. Everything with a
 		 * front faces the road (the buildings all have one: glass front,
 		 * balcony, brand board); bridges span it, trees, parked vehicles and

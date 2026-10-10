@@ -275,7 +275,7 @@ def apply_livery(objs, car_dir, livery):
 def eye_from_box(lo, hi):
     """The driver's eye the client derives from the mesh box: 70% of the
     height, 5% of the length behind centre, 18% of the width to the left
-    (ApexCockpit::DeriveLayout, closed style - docs/CAR_MODELS.md). An
+    (ApexCockpit::DeriveLayout, closed style - docs/content/cars.md). An
     open-wheeler's is on the centreline, 8% behind centre, 82% up."""
     c = (lo + hi) / 2.0
     if COCKPIT_EYE is not None:

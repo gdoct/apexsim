@@ -41,7 +41,7 @@ pub fn load_ats<P: AsRef<Path>>(path: P) -> Result<AtsScene, AtsIoError> {
 /// The `imported` marker of the `.ats` beside a track file, without
 /// loading the scene: `Ok(None)` for a generated circuit or a track with
 /// no scene. The tools that rewrite a track's files ask this first and
-/// skip a track another tool wrote whole (docs/AC_TRACK_IMPORT.md).
+/// skip a track another tool wrote whole (docs/content/ac-import.md).
 pub fn imported_marker<P: AsRef<Path>>(track_path: P) -> Result<Option<String>, AtsIoError> {
     #[derive(serde::Deserialize)]
     struct Head {

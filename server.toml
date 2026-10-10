@@ -1,19 +1,23 @@
+# The server config a release ships (build_release.ps1 copies it to Server\),
+# where content/ and showcase/ sit beside the exe. It is server/server.toml
+# with release-relative paths: keep the two in step.
+
 [server]
-tick_rate_hz = 240
-max_sessions = 8
+tick_rate_hz = 420
+max_sessions = 32
 session_timeout_seconds = 300
 
 [network]
 tcp_bind = "0.0.0.0:9000"
 udp_bind = "0.0.0.0:9001"
 health_bind = "0.0.0.0:9002"
-tls_cert_path = "./certs/server.crt"
-tls_key_path = "./certs/server.key"
+# Local development runs plaintext: leave the certificate paths empty and
+# require_tls = false. For production set both paths and require_tls = true.
+tls_cert_path = ""
+tls_key_path = ""
 require_tls = false
 heartbeat_interval_ms = 1000
 heartbeat_timeout_ms = 5000
-# Broadcast telemetry every N-th sim tick (4 → 60Hz snapshots at 240Hz)
-telemetry_divisor = 4
 
 [content]
 cars_dir = "./content/cars"
@@ -23,9 +27,32 @@ tracks_dir = "./content/tracks"
 level = "info"
 console_enabled = true
 
+[auth]
+# "dev" accepts any token (development only!). For production use
+# mode = "token" and list shared secrets in `tokens`.
+mode = "dev"
+tokens = []
+
+[records]
+# Best legal lap per driver, track and car, kept across restarts in
+# `dir`/lap_records.json with each record lap's ghost trace beside it.
+enabled = true
+dir = "./records"
+
+[physics]
+# How the sim finds the surface under a wheel (docs/content/road-mesh.md):
+#   "centerline" - the nearest centerline point's height sheared by the
+#                  banking, with the curb bands for the track limits.
+#   "mesh"       - a track's baked <Track>.road.msgpack when it has one (the
+#                  road the client draws, as triangles: curbs with their
+#                  profile, two levels at a crossover); the centerline for a
+#                  track without the sidecar.
+# APEXSIM_PHYSICS_ROAD_CONTACT overrides it.
+road_contact = "mesh"
+
 [showcase]
 # Rendered AI races (build/showcase/*.apxs from scripts/build_track_levels.ps1,
-# docs/SPECTATOR.md) the server streams to clients sitting in the menu, in
+# docs/game/spectator.md) the server streams to clients sitting in the menu, in
 # place of a simulated demo race per client. Every key is optional; these
 # are the defaults. A `dir` that is not there is no showcase, not an error;
 # a file whose track or cars this server does not have, or whose checksums
@@ -41,3 +68,21 @@ console_enabled = true
 #mode = "loop"
 # Send every Nth frame of a file (1 = all of them).
 #stream_divisor = 1
+
+[admin]
+# The web dashboard (docs/server/operations.md): plain HTTP and HTTPS on their
+# own ports, behind an access token. Every key is optional; these are the
+# defaults. Loopback only: bind to 0.0.0.0 to reach it from other machines,
+# and then prefer HTTPS (redirect_http_to_https = true).
+#enabled = true
+#http_bind = "127.0.0.1:9003"
+#https_bind = "127.0.0.1:9004"
+# Empty: network.tls_cert_path/tls_key_path when those files exist, else a
+# self-signed certificate made once and kept beside the ban list.
+#tls_cert_path = ""
+#tls_key_path = ""
+# Empty: a random token is made at every start and printed once in the log.
+#token = ""
+#redirect_http_to_https = false
+#bans_file = "./records/bans.json"
+#log_buffer_lines = 5000

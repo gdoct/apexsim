@@ -9,9 +9,9 @@
 //! `CarConfig`, made once per change and looked up per tick in place of the
 //! shared config (`GameSession::tuned_config`), so the hot loop is untouched.
 //!
-//! Only knobs the simulation actually reads are offered: there is no
-//! differential model and rolling resistance is never consumed, so neither
-//! appears here. Tyre pressure is the one addition to the physics — a
+//! Only knobs the simulation actually reads are offered. The differential
+//! (`[differential] simulated`) is set in the car.toml and has no knob, and
+//! rolling resistance is a figure of the tyre, not of the setup. Tyre pressure is the one addition to the physics — a
 //! per-axle grip factor off the optimum (`TireConfig::pressure_grip_factor`)
 //! — which is what lets pressures shift the balance of the car.
 //!

@@ -7,7 +7,7 @@
 //! wheel's height, normal and surface from it instead of from the
 //! centerline formula, so the road the sim drives on is the road the
 //! client draws; without the sidecar the sim drives on the centerline as
-//! before (`docs/ROAD_MESH.md`).
+//! before (`docs/content/road-mesh.md`).
 //!
 //! The bake writes the *rendered* triangles here, minus the render-only
 //! lifts against z-fighting: the physics road and the drawn road share

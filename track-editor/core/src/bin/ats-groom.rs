@@ -68,7 +68,7 @@ fn main() -> ExitCode {
         let name = track_path.display();
         match ats_io::imported_marker(track_path) {
             Ok(Some(by)) => {
-                println!("{name}: skipped (imported by {by}; see docs/AC_TRACK_IMPORT.md)");
+                println!("{name}: skipped (imported by {by}; see docs/content/ac-import.md)");
                 continue;
             }
             Ok(None) => {}

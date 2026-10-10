@@ -4,7 +4,7 @@
 #include "ApexSpectatorStream.h"
 
 /**
- * Writing the spectator stream (docs/SPECTATOR.md) on the client: the record
+ * Writing the spectator stream (docs/game/spectator.md) on the client: the record
  * encoders, byte for byte as `server/src/spectator.rs` writes them (the
  * golden bytes pin both: `ApexSim.Spectator.Writer`), and an `.apxs` file
  * built from timed records a block at a time, which is how a replay of a race

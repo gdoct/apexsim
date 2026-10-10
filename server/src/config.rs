@@ -10,8 +10,6 @@ pub struct ServerConfig {
     pub content: ContentSettings,
     pub logging: LoggingSettings,
     #[serde(default)]
-    pub ai: AiSettings,
-    #[serde(default)]
     pub auth: AuthSettings,
     #[serde(default)]
     pub records: RecordsSettings,
@@ -25,7 +23,7 @@ pub struct ServerConfig {
     pub admin: AdminSettings,
 }
 
-/// The web dashboard (`crate::admin`, docs/ADMIN_DASHBOARD.md): an HTTP and
+/// The web dashboard (`crate::admin`, docs/server/operations.md): an HTTP and
 /// an HTTPS listener on their own ports, behind a shared access token.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -92,7 +90,7 @@ pub enum ShowcaseMode {
 }
 
 /// Rendered races the server plays to clients sitting in the menu
-/// (`crate::showcase`, docs/SPECTATOR.md): a file read and a fan-out in
+/// (`crate::showcase`, docs/game/spectator.md): a file read and a fan-out in
 /// place of a simulated demo race per client.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -121,7 +119,7 @@ impl Default for ShowcaseSettings {
     }
 }
 
-/// How the sim finds the surface under a wheel (`docs/ROAD_MESH.md`).
+/// How the sim finds the surface under a wheel (`docs/content/road-mesh.md`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RoadContactMode {
@@ -260,38 +258,6 @@ fn default_log_dir() -> String {
     "./logs".to_string()
 }
 
-/// AI driver configuration settings.
-///
-/// These settings control the default behavior of AI drivers as per the specification.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AiSettings {
-    /// Default aggressiveness level (0.0-1.0)
-    pub default_aggressiveness: f32,
-    /// Default precision level (0.0-1.0)
-    pub default_precision: f32,
-    /// Default reaction time in milliseconds
-    pub default_reaction_time_ms: u16,
-    /// Default steering smoothness (0.0-1.0)
-    pub default_steering_smoothness: f32,
-    /// Default randomness scale (0.0-1.0)
-    pub default_randomness_scale: f32,
-    /// Enable deterministic mode (for replay consistency)
-    pub deterministic_mode: bool,
-}
-
-impl Default for AiSettings {
-    fn default() -> Self {
-        Self {
-            default_aggressiveness: 0.5,
-            default_precision: 0.7,
-            default_reaction_time_ms: 100,
-            default_steering_smoothness: 0.7,
-            default_randomness_scale: 0.05,
-            deterministic_mode: false,
-        }
-    }
-}
-
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
@@ -324,7 +290,6 @@ impl Default for ServerConfig {
                 file_enabled: false,
                 file_dir: default_log_dir(),
             },
-            ai: AiSettings::default(),
             auth: AuthSettings::default(),
             records: RecordsSettings::default(),
             physics: PhysicsSettings::default(),
@@ -551,6 +516,20 @@ mod tests {
         let toml_str = toml::to_string(&config).unwrap();
         assert!(toml_str.contains("tick_rate_hz"));
         assert!(toml_str.contains("tcp_bind"));
+    }
+
+    /// An older server.toml may still carry the `[ai]` table, which nothing
+    /// ever read; it loads and the table is ignored.
+    #[test]
+    fn an_old_ai_table_still_loads() {
+        let mut toml_str = toml::to_string(&ServerConfig::default()).unwrap();
+        toml_str.push_str(
+            "\n[ai]\ndefault_aggressiveness = 0.5\ndefault_precision = 0.7\n\
+             default_reaction_time_ms = 100\ndefault_steering_smoothness = 0.7\n\
+             default_randomness_scale = 0.05\ndeterministic_mode = false\n",
+        );
+        let parsed: ServerConfig = toml::from_str(&toml_str).unwrap();
+        assert_eq!(parsed.server.tick_rate_hz, 420);
     }
 
     fn valid_test_config() -> ServerConfig {

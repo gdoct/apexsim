@@ -100,6 +100,9 @@ pub(crate) async fn tick_sessions(
     let mut telemetry_out = Vec::new();
     let mut rosters_out = Vec::new();
     let mut lap_timing_out: Vec<LapTimingOut> = Vec::new();
+    // Sessions whose state moved since the lobby last heard (a tick, or a
+    // handler between ticks), so the browser lists what each is doing.
+    let mut state_changes: Vec<(SessionId, SessionState)> = Vec::new();
 
     // Tick each session
     for (session_id, game_session) in state.sessions.iter_mut() {
@@ -173,6 +176,9 @@ pub(crate) async fn tick_sessions(
             continue;
         }
         let new_state = game_session.session.state;
+        if let Some(listed) = game_session.take_state_change() {
+            state_changes.push((*session_id, listed));
+        }
 
         let replay_starting = !is_demo_session
             && prev_state != SessionState::Racing
@@ -481,6 +487,13 @@ pub(crate) async fn tick_sessions(
                 warn!("Failed to save replay for session {}: {}", session_id, e);
             }
         }
+    }
+
+    for (session_id, session_state) in state_changes {
+        state
+            .lobby
+            .set_session_state(session_id, session_state)
+            .await;
     }
 
     // Remove empty sessions from the game state and lobby

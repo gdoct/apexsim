@@ -9,7 +9,7 @@
 /**
  * A HUD component as read from `content/hud/<default|custom>/<id>/component.json`:
  * where it sits on screen and the tree of elements it draws, with every
- * dynamic attribute compiled to an FApexHudExpr. docs/HUD_MODDING.md is the
+ * dynamic attribute compiled to an FApexHudExpr. docs/game/hud-modding.md is the
  * format's reference.
  */
 enum class EApexHudElementType : uint8

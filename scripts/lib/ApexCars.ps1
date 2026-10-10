@@ -8,7 +8,7 @@
         . (Join-Path $PSScriptRoot 'lib\ApexCars.ps1')
 
     Cars are not cooked: the game reads each car.toml and builds the GLBs it
-    names at runtime (UApexCarContentSubsystem, docs/RUNTIME_CONTENT_LOADING.md).
+    names at runtime (UApexCarContentSubsystem, docs/content/cars.md).
     A packaged game looks in Cars\ beside ApexSim.exe, with the class wheels in
     Wheels\ beside that. Only what the game reads is shipped: car.toml, the
     body GLB (`model`), the DRS flap GLB (`[drs_flap] model`), the livery

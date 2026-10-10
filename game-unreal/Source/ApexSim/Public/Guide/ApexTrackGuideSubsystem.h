@@ -46,7 +46,7 @@ enum class EApexGuideCameraKind : uint8
 };
 
 /**
- * The track guide (docs/TRACK_GUIDE.md): a corner-by-corner walk round a
+ * The track guide (docs/content/track-guide.md): a corner-by-corner walk round a
  * circuit, played from files made offline. No server, no session.
  *
  * Finds the guides (`-ApexGuideDir=`, `Guide/` beside ApexSim.exe in a

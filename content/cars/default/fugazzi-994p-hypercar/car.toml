@@ -91,7 +91,7 @@ torque_nm = 560.0
 rpm = 8600.0
 torque_nm = 500.0
 
-# What the client's engine synthesiser is built from (docs/CAR_MODELS.md,
+# What the client's engine synthesiser is built from (docs/content/cars.md,
 # "Engine sound"): the server ignores this table.
 # 3.0 L 120-degree twin-turbo V6, hot-vee, short pipes.
 [sound]

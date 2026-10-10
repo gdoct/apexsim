@@ -93,7 +93,7 @@ private:
 
 	// --- Rail pages -------------------------------------------------------------
 	//
-	// The rail is a small tree of pages (docs/game/MAINMENU.md): Root holds the
+	// The rail is a small tree of pages (docs/game/client.md): Root holds the
 	// four main entries, the others hold what is under Garage and Drive.
 
 	enum class EPage : uint8 { Root, Garage, Cars, Tracks, Drive, Create, Count };

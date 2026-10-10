@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import an Assetto Corsa track as an ApexSim track (docs/AC_TRACK_IMPORT.md).
+"""Import an Assetto Corsa track as an ApexSim track (docs/content/ac-import.md).
 
     python scripts/ac_import.py "E:\\SteamLibrary\\steamapps\\common\\assettocorsa\\content\\tracks\\ks_zandvoort"
     python scripts/ac_import.py <folder> --list             # the layouts

@@ -1,5 +1,5 @@
 //! The generated road mesh held against the centerline it was generated
-//! from, on Monza (`docs/ROAD_MESH.md`, "Agreement with the centerline").
+//! from, on Monza (`docs/content/road-mesh.md`, "Agreement with the centerline").
 //!
 //! The two backends sample two different splines through the same nodes
 //! (the exporter's 2 m Catmull-Rom, the server's adaptive one), so this

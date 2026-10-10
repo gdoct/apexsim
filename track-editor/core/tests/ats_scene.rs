@@ -1,7 +1,7 @@
 //! Integration tests for the `.ats` scene layer against every real track
 //! shipped in `content/tracks`: a default scene can be created, saved,
 //! reloaded losslessly, and repeated saves are byte-identical (the
-//! determinism bar in `TRACK_EDITOR.md`). The source YAML is never written.
+//! determinism bar in `docs/content/track-format.md`). The source YAML is never written.
 
 use std::fs;
 use std::path::{Path, PathBuf};

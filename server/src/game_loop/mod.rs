@@ -124,6 +124,8 @@ pub(crate) async fn run_game_loop(
         .await
         .take_event_receiver()
         .expect("event receiver already taken: only one game loop may run per transport");
+    // What `HeartbeatAck` echoes as the server's tick.
+    let server_tick = transport.read().await.server_tick_handle();
 
     let telemetry_divisor = state.read().await.config.network.telemetry_divisor.max(1) as u64;
 
@@ -162,6 +164,7 @@ pub(crate) async fn run_game_loop(
         ticker.tick().await;
         let tick_start = std::time::Instant::now();
         tick_count += 1;
+        server_tick.store(tick_count as u32, std::sync::atomic::Ordering::Relaxed);
 
         if tick_count.is_multiple_of(rate_window_ticks) {
             let achieved = rate_window_ticks as f64 / rate_window_start.elapsed().as_secs_f64();

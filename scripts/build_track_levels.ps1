@@ -6,7 +6,7 @@
     Runs the whole track pipeline end to end, so every circuit under
     content/tracks/default ends up as an export in build/tracks - the
     files the game builds the circuit from when it is raced. There are no
-    cooked track levels (docs/RUNTIME_CONTENT_LOADING.md): a changed circuit
+    cooked track levels (docs/content/track-pipeline.md): a changed circuit
     is playable in the editor build as soon as this finishes (restart the
     game, or `apexsim.track.Rescan`).
 
@@ -19,7 +19,7 @@
                                                     (+ the server's sidecars beside each YAML)
         5. python scripts/build_track_catalog.py -> build/tracks/previews/<Track>.png
         6. apexsim-replay render ...              -> build/showcase/<Track>.<class>.<variant>.apxs
-           The showcases content/showcase.yml lists (docs/SPECTATOR.md): a
+           The showcases content/showcase.yml lists (docs/game/spectator.md): a
            rendered AI race per circuit that the menu plays behind its
            screens and the server plays to clients. Only the missing ones
            and those `apexsim-replay info --check` calls stale (the track
@@ -61,7 +61,7 @@
     touching C++ under game-unreal/Source; skip it for a content-only rebake.
 
 .PARAMETER ImportProps
-    Bring the authored prop kit (content/props/<kind>/*.glb, docs/PROPS.md)
+    Bring the authored prop kit (content/props/<kind>/*.glb, docs/content/props.md)
     into /Game/Props first, with the ApexPropImport commandlet. Needed once,
     and again whenever a GLB changes; a track is dressed with whatever is
     there when the game builds it, with generated stand-ins for the rest, so

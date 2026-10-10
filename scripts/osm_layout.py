@@ -95,8 +95,8 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     # chicane / turn 8), and the uncovered stretches are scattered across
     # ~7 short spans rather than one contiguous chunk, which looks like OSM
     # traced a different variant than this YAML's rather than a
-    # thin-coverage or public-road case. See docs/ADDITIONAL_TRACKS.md
-    # hand-back for the full investigation; no dossier was written.
+    # thin-coverage or public-road case (the full investigation is in git
+    # history: docs/ADDITIONAL_TRACKS.md); no dossier was written.
     # MexicoCity is deliberately NOT registered here either, for the same
     # --all-abort reason: the best achievable fit (using only the OSM ways
     # actually named "Autodromo Hermanos Rodriguez", excluding a duplicate
@@ -493,8 +493,7 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # cached extract), and no aerial source gives its exact position, so the
     # station is placed by judgement partway up the climb, just before the
     # Red Bull Tribune's OSM-traced footprint begins (station_m 646.7):
-    # authored per docs/ADDITIONAL_TRACKS.md 6.19, an approximation to flag
-    # in the hand-back rather than a sourced fact.
+    # an approximation rather than a sourced fact.
     "Spielberg": [dict(name="T1 climb footbridge", station_m=600.0, kind="footbridge", brand="kronos")],
     # The pit building's two cantilevered "wing" roofs (the Press Centre and
     # the Sky Restaurant, ~38 m up) reach out over the front straight from
@@ -787,6 +786,10 @@ CORNER_DISPLAY: dict[str, dict[str, str | None]] = {
         "Virage Porsche": "Virage Porridge",
         "Virage Corvette": "Virage Serviette",
         "Chicane Ford": "Chicane Fjord",
+    },
+    "MarinaBay": {
+        # OSM's lap relation is one "corner" named for the circuit itself.
+        "Marina Bay Street Circuit": None,
     },
     "Montreal": {
         "Circuit Gilles-Villeneuve": None,
@@ -2830,12 +2833,6 @@ def main() -> int:
         if stem not in BBOXES:
             raise SystemExit(f"no bbox for {stem}; add one to BBOXES")
         layout = build(stem, args.offline)
-        # A checked-in AC survey overlay (scripts/ac_layout.py) corrects the
-        # stands, buildings, pit lane, crossings, landmarks and woods; it is
-        # re-applied on every refresh so a refetch does not undo it.
-        from ac_layout import apply_overlay_file
-
-        layout = apply_overlay_file(stem, layout, strict=False)
         if args.dry_run:
             continue
         out = track_dir(stem) / f"{stem}.layout.json"

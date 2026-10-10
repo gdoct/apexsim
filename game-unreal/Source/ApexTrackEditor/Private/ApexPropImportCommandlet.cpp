@@ -403,7 +403,7 @@ bool UApexPropImportCommandlet::ParseOptions(const FString& Params, FOptions& Ou
 	{
 		if (!ApexProps::FindKind(Kind) && Kind != ApexProps::DecalKind)
 		{
-			OutError = FString::Printf(TEXT("\"%s\" is not a prop kind (see docs/PROPS.md)"), *Kind);
+			OutError = FString::Printf(TEXT("\"%s\" is not a prop kind (see docs/content/props.md)"), *Kind);
 			return false;
 		}
 	}

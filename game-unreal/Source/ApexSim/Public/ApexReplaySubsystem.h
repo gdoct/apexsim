@@ -36,7 +36,7 @@ class FApexReplayClip;
  * / `-ApexReplayPanSpeed=` for a pan, `-ApexReplayChase=roof|close|near|far`.
  * The sky is the clip's; `-ApexReplayTimeOfDay=hh:mm` / `-ApexReplayWeather=`
  * override the look (not the grip the race was simulated with).
- * `docs/PROMO_VIDEO.md` has the whole pipeline.
+ * `docs/marketing-site.md` has the whole pipeline.
  */
 UCLASS()
 class APEXSIM_API UApexReplaySubsystem : public UGameInstanceSubsystem, public FTickableGameObject

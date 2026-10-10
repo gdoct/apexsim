@@ -91,7 +91,7 @@ FString FApexHudLayout::ToJson() const
 		Lines.Add(FString::Printf(TEXT("    \"%s\": { %s }"), *Id.ReplaceCharWithEscapedChar(), *Line));
 	}
 	return FString::Printf(TEXT("{\n  // The HUD's layout, written by the HUD editor (Settings > Gameplay > HUD layout).\n")
-		TEXT("  // Positions are in 1080p pixels from the anchor point; docs/HUD_MODDING.md has the rest.\n")
+		TEXT("  // Positions are in 1080p pixels from the anchor point; docs/game/hud-modding.md has the rest.\n")
 		TEXT("  \"version\": 1,\n  \"components\": {\n%s\n  }\n}\n"),
 		*FString::Join(Lines, TEXT(",\n")));
 }

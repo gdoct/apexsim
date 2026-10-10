@@ -10,7 +10,7 @@ class USceneComponent;
 
 /**
  * The driver figure a generated car carries in its seat (car.toml
- * `[driver]`, docs/CAR_MODELS.md): a GLB of his own in the body mesh's
+ * `[driver]`, docs/content/cars.md): a GLB of his own in the body mesh's
  * frame, so it sits on the body with no transform.
  *
  * He is drawn on every car but the one the cockpit camera sits in: that

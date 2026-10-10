@@ -191,15 +191,11 @@ impl LobbyManager {
         }
     }
 
-    /// Update session information (player count, state, etc.)
-    pub async fn update_session(
-        &self,
-        session_id: SessionId,
-        player_count: u8,
-        state: SessionState,
-    ) {
+    /// Record a session's state as the session reports it
+    /// (`GameSession::take_state_change`, from the tick), for the listing.
+    /// Player and spectator counts are kept by the joins and leaves.
+    pub async fn set_session_state(&self, session_id: SessionId, state: SessionState) {
         if let Some(session) = self.state.write().await.sessions.get_mut(&session_id) {
-            session.current_player_count = player_count;
             session.state = state;
         }
     }
@@ -215,8 +211,11 @@ impl LobbyManager {
                 return false;
             }
 
-            if session.state != SessionState::Lobby {
-                warn!("Session {} is not in lobby state", session_id);
+            // Whether a session under way takes another driver is the
+            // session's to say (`GameSession::refuses_drivers`, asked by the
+            // join handler first); a finished one never does.
+            if session.state == SessionState::Finished {
+                warn!("Session {} has finished", session_id);
                 return false;
             }
 

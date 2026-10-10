@@ -8,7 +8,7 @@
  * be copied into a transient `UTexture2D` block for block, with no decode.
  * That is what lets an imported circuit's few hundred megabytes of
  * textures cost a few hundred megabytes rather than four times that as
- * BGRA8 (`docs/AC_TRACK_IMPORT.md`, "Compressed runtime textures").
+ * BGRA8 (`docs/content/ac-import.md`, "Compressed runtime textures").
  */
 struct FApexTrackTexture
 {

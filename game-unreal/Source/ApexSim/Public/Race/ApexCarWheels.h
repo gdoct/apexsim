@@ -12,7 +12,7 @@ class UStaticMeshComponent;
  *
  * Every frame below is the BODY MESH's (the component the wheels hang off):
  * centimetres, nose on +Y, left on +X, floor at Z = 0 — the car GLBs' frame
- * after import (docs/CAR_MODELS.md). A wheel mesh (the class wheel, or a
+ * after import (docs/content/cars.md). A wheel mesh (the class wheel, or a
  * car's own, and the rear pair's own when the spec has one) has its axle on
  * X and its face on +X, centred on the hub; it is scaled to the axle's
  * radius and width, so its size only needs to be close.
@@ -78,7 +78,7 @@ namespace ApexWheels
 	/** The space the four unsteered wheels fill, in the body mesh's frame; empty for an unusable spec. */
 	APEXSIM_API FBox WheelsBox(const FApexWheelSpec& Spec);
 
-	/** The `wheel_tyre` material slot of the class wheels (docs/CAR_MODELS.md, Wheels). */
+	/** The `wheel_tyre` material slot of the class wheels (docs/content/cars.md, Wheels). */
 	inline const FName TyreSlot(TEXT("wheel_tyre"));
 
 	/**

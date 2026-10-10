@@ -798,7 +798,7 @@ fn generic_pieces(prop: &Prop) -> Vec<Piece> {
             emissive: false,
         }],
         // The stand-ins below mirror the authored kit's footprints
-        // (docs/PROPS.md) so a placement previews at the size it imports.
+        // (docs/content/props.md) so a placement previews at the size it imports.
         PropKind::Board => vec![
             Piece {
                 mesh: Cuboid::new(3.0 * s, 1.0 * s, 0.1 * s).into(),

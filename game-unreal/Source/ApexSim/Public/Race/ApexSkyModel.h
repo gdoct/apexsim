@@ -357,7 +357,7 @@ namespace ApexSky
 	 * sky wants it. Virtual shadow maps key their whole cache on the light's
 	 * direction, so every turn, however small, re-renders every shadow page
 	 * on the next frame (and is what overflows the non-Nanite marking queue:
-	 * docs/game/VSM_NON_NANITE_SHADOWS.md). The sky relights for a game
+	 * docs/proposals/nanite-shadows.md). The sky relights for a game
 	 * minute (a quarter of a degree of sun) and for every few percent of
 	 * cloud or rain, which would turn it each time; held until it is
 	 * `StepDeg` out, it turns every few game minutes and never for the

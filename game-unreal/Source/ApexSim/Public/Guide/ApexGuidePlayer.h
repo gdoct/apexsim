@@ -6,7 +6,7 @@
 struct FApexTrackGuide;
 
 /**
- * The track guide's clock (docs/TRACK_GUIDE.md): pure, so the loop, the
+ * The track guide's clock (docs/content/track-guide.md): pure, so the loop, the
  * fast-forward and the cuts are tested without a world.
  *
  * The guide owns the recording's clock outright; the race director only

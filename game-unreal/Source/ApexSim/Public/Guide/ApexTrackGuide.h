@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 
 /**
- * A track guide (docs/TRACK_GUIDE.md): a corner-by-corner walk round a
+ * A track guide (docs/content/track-guide.md): a corner-by-corner walk round a
  * circuit, played on the client from two files `apexsim-replay guide`
  * writes offline, `<Stem>.<Class>.guide.json` (this) and the recording
  * beside it, `<Stem>.<Class>.guide.apxs` (an ordinary spectator stream).

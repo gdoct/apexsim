@@ -97,7 +97,7 @@ torque_nm = 629.3
 rpm = 7500.0
 torque_nm = 553.2
 
-# What the client's engine synthesiser is built from (docs/CAR_MODELS.md, "Engine
+# What the client's engine synthesiser is built from (docs/content/cars.md, "Engine
 # sound"): the server ignores this table.
 # 6.3 L crossplane V8 on side pipes: the uneven firing into each bank is the burble,
 # and it pops on every lift.

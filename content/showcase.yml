@@ -1,5 +1,5 @@
 # Showcases: rendered AI races the menu plays behind its screens and the
-# server plays to clients (docs/SPECTATOR.md). Rendered into build/showcase/
+# server plays to clients (docs/game/spectator.md). Rendered into build/showcase/
 # as <track>.<class>.<variant>.apxs by scripts/build_track_levels.ps1 (and
 # initialize_content.ps1); only what is missing or stale is rendered, where
 # stale means `apexsim-replay info --check` says the track YAML or a car.toml

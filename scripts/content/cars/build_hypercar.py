@@ -704,7 +704,7 @@ NUM = V.get("number", "1")
 carlib.top_decal(p, M.number, L, 0.0, NOSE + 0.50, 0.30, 0.30, carlib.number_uv(NUM), along_y=False,
                  lift=0.005, nu=8, nv=8)
 
-# ---- cockpit, built to the authored eye (docs/CAR_MODELS.md); the seat,
+# ---- cockpit, built to the authored eye (docs/content/cars.md); the seat,
 # pedals and footwell were laid out for the derived eye 0.25 m behind
 # the middle, so they move with it
 SH = EYE.y - 0.25

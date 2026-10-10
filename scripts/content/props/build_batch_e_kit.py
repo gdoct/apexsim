@@ -1,4 +1,4 @@
-r"""Batch E - kit rules for the real-layout dossiers (docs/PROPS.md step 2):
+r"""Batch E - kit rules for the real-layout dossiers (docs/content/props.md step 2):
 
   board/corner_sign            named-corner board on two posts (`board_text` face)
   attraction/food_stall_6m     concession unit, serving hatch to the road, brand fascia

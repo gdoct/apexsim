@@ -1,4 +1,4 @@
-r"""Near-LOD card trees and ground scatter (docs/PROPS.md step 4):
+r"""Near-LOD card trees and ground scatter (docs/content/props.md step 4):
 
   tree/broadleaf_m_near          10 m broadleaf, ~440 once-bent leaf cards (~3.6 K tris)
   tree/broadleaf_m_near_autumn   the same tree in autumn leaves

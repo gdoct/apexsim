@@ -1,6 +1,6 @@
 """`python scripts/ac_car_import.py <ac-car-folder> [options]`: one command
 per AC car, writing `content/cars/custom/<Stem>/` (car.toml, the GLBs, the
-skins and the report) and checking the result. See docs/AC_CAR_IMPORT.md.
+skins and the report) and checking the result. See docs/content/ac-import.md.
 """
 
 from __future__ import annotations

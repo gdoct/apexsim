@@ -10,7 +10,7 @@ Load from a build script:
     import carlib
 
 Frame: nose on -Y, tail on +Y, ground z = 0, metres, left-hand drive (driver
-on +X). See docs/CAR_MODELS.md.
+on +X). See docs/content/cars.md.
 
 What this module exists for
 ---------------------------
@@ -123,7 +123,7 @@ def car_materials(paint_rgb, accent_rgb, caliper_rgb, logo_path=None, seat_rgb=(
                   paint_metallic=0.80, paint_rough=0.22, accent_metallic=0.55, accent_rough=0.28,
                   carbon_weave=False, sponsors=False):
     """The slot set every car GLB carries; names are what the client drives
-    (docs/CAR_MODELS.md - do not rename).
+    (docs/content/cars.md - do not rename).
 
     Paint is a metallic base under a clearcoat (glTF KHR_materials_clearcoat):
     `paint_metallic` ~0.8 and a roughness ~0.2 is what makes the flank pick
@@ -1785,7 +1785,7 @@ def flat_decal(b, mat, centre, u_dir, v_dir, w, h, uv_rect, lift=0.0015):
 def cockpit_points(loft, wing_z, liner_z=-0.057, tail_pad=0.12, nose_pad=0.14, top_z=None, eye=None):
     """Where the client will put the driver's eye, wheel and mirror.
 
-    Mirrors `ApexCockpit::DeriveLayout` (closed style, docs/CAR_MODELS.md) so
+    Mirrors `ApexCockpit::DeriveLayout` (closed style, docs/content/cars.md) so
     the interior can be built around the same points instead of by eye. With
     `eye` given (a build that writes its own `[cockpit]` table) the points
     are laid off that eye instead: see `authored_cockpit()`."""
@@ -2020,7 +2020,7 @@ def authored_cockpit(eye, wheel_ahead=0.40, wheel_below=0.20):
 
 
 def cockpit_table(ck, wheel_lock_deg, style="closed", rake_deg=None, note=None, mirrors=None):
-    """The `[cockpit]` lines for car.toml (docs/CAR_MODELS.md): the authored
+    """The `[cockpit]` lines for car.toml (docs/content/cars.md): the authored
     eye and wheel in the car's frame (+X nose, +Y right, +Z up, cm) from the
     build frame (nose -Y, driver +X)."""
     def cm(v):

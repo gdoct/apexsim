@@ -1,4 +1,4 @@
-r"""Batch F - terrain and horizon (docs/PROPS.md step 3):
+r"""Batch F - terrain and horizon (docs/content/props.md step 3):
 
   tree/forest_impostor          40 x 40 x 18 m patch of billboard trees, one per forest polygon
   tree/forest_impostor_conifer  same footprint, all spruce (Styrian hillsides)

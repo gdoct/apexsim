@@ -1,4 +1,4 @@
-"""The kn5 -> the GLBs the client draws (docs/AC_CAR_IMPORT.md, "Visuals").
+"""The kn5 -> the GLBs the client draws (docs/content/ac-import.md, "Visuals").
 
 AC stores a car as (x left, y up, z forward) in metres with
 counter-clockwise front faces: glTF's frame, so positions are copied. Only

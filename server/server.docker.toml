@@ -1,5 +1,5 @@
 [server]
-tick_rate_hz = 240
+tick_rate_hz = 420
 max_sessions = 32
 session_timeout_seconds = 300
 
@@ -36,7 +36,7 @@ enabled = true
 dir = "/data/records"
 
 [physics]
-# How the sim finds the surface under a wheel (docs/ROAD_MESH.md):
+# How the sim finds the surface under a wheel (docs/content/road-mesh.md):
 #   "centerline" - the nearest centerline point's height sheared by the
 #                  banking, with the curb bands for the track limits.
 #   "mesh"       - a track's baked <Track>.road.msgpack when it has one (the
@@ -48,7 +48,7 @@ road_contact = "mesh"
 
 [showcase]
 # Rendered AI races (build/showcase/*.apxs from scripts/build_track_levels.ps1,
-# docs/SPECTATOR.md) the server streams to clients sitting in the menu, in
+# docs/game/spectator.md) the server streams to clients sitting in the menu, in
 # place of a simulated demo race per client. Every key is optional; these
 # are the defaults. A `dir` that is not there is no showcase, not an error;
 # a file whose track or cars this server does not have, or whose checksums
@@ -66,7 +66,7 @@ dir = "/content/showcase"
 #stream_divisor = 1
 
 [admin]
-# Web dashboard (docs/ADMIN_DASHBOARD.md). Bound to all interfaces inside the
+# Web dashboard (docs/server/operations.md). Bound to all interfaces inside the
 # container; publish the ports deliberately. Set the access token with
 # APEXSIM_ADMIN_TOKEN (empty: a random one is printed in `docker logs` at each
 # start). The self-signed HTTPS certificate and the ban list are kept in /data.

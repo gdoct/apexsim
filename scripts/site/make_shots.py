@@ -12,7 +12,7 @@ Two kinds of shot, because they want opposite things:
 
   action  A race nobody drove, filmed by the replay cameras: no HUD, no
           menu, no server. The promo video's pipeline (scripts/promo/
-          make_clips.py, docs/PROMO_VIDEO.md) simulates a seeded AI race,
+          make_clips.py, docs/marketing-site.md) simulates a seeded AI race,
           finds the moment the field runs through a corner together, cuts
           it as a clip and plays it in the game with `-ApexReplay` under a
           broadcast or tripod camera, recording every frame. Here a few

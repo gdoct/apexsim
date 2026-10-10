@@ -18,6 +18,9 @@ pub const DEFAULT_TICK_RATE_HZ: u16 = 420;
 /// anything longer would wrap (at 420 Hz past 156 s).
 pub const MAX_COUNTDOWN_SECONDS: u16 = 60;
 
+/// How long `StartSession` counts down before the race goes green.
+pub const START_SESSION_COUNTDOWN_SECONDS: u16 = 5;
+
 /// Once the winner has finished, the rest of the field has this many of the
 /// winner's average laps to complete the distance...
 pub const FINISH_GRACE_LAPS: f32 = 2.0;
@@ -211,6 +214,9 @@ pub struct GameSession {
     /// Set when session membership changed since the last roster broadcast;
     /// starts true so the roster goes out once when the session first ticks.
     roster_dirty: bool,
+    /// The state the lobby was last told (`take_state_change`), so the
+    /// session browser lists what the session is doing.
+    listed_state: SessionState,
     /// Tick at which the race ends whether or not every car has finished,
     /// set when the winner crosses the line.
     finish_deadline_tick: Option<u32>,
@@ -520,6 +526,7 @@ impl GameSession {
             driver_names: std::collections::BTreeMap::new(),
             qualifying: std::collections::BTreeMap::new(),
             roster_dirty: true,
+            listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
             finish_deadline_tick: None,
             finished_since_loop_tick: None,
@@ -573,6 +580,7 @@ impl GameSession {
             driver_names: std::collections::BTreeMap::new(),
             qualifying: std::collections::BTreeMap::new(),
             roster_dirty: true,
+            listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
             finish_deadline_tick: None,
             finished_since_loop_tick: None,
@@ -1112,13 +1120,41 @@ impl GameSession {
         }
     }
 
-    /// Start the countdown
-    pub fn start_countdown(&mut self) {
-        if self.session.state == SessionState::Lobby {
-            self.session.state = SessionState::Countdown;
-            self.session.countdown_ticks_remaining = Some(self.tick_rate_hz * 5);
-            // 5 seconds
+    /// `StartSession`: count a session still in its lobby down into a race,
+    /// [`START_SESSION_COUNTDOWN_SECONDS`] long, as `StartCountdown` with
+    /// `next_mode: Race` does. Returns false (and changes nothing) for a
+    /// session already under way.
+    pub fn start_countdown(&mut self) -> bool {
+        if self.session.state != SessionState::Lobby {
+            return false;
         }
+        self.start_countdown_mode(START_SESSION_COUNTDOWN_SECONDS, GameMode::Race);
+        true
+    }
+
+    /// Why a human may not join this session as a driver now, or `None`
+    /// when they may. A running practice, hotlap or qualifying session takes
+    /// drivers (a hotlap or qualifying driver arrives in the garage); a race
+    /// takes them until the green light, and a finished session none. A
+    /// spectator (`JoinAsSpectator`) is never refused for this.
+    pub fn refuses_drivers(&self) -> Option<&'static str> {
+        if self.session.state == SessionState::Finished {
+            return Some("Session has finished");
+        }
+        if self.session.game_mode == GameMode::Race {
+            return Some("A race is under way: watch it instead");
+        }
+        None
+    }
+
+    /// The session's state when it changed since the last call, for the
+    /// lobby's listing (`LobbyManager::set_session_state`).
+    pub fn take_state_change(&mut self) -> Option<SessionState> {
+        if self.session.state == self.listed_state {
+            return None;
+        }
+        self.listed_state = self.session.state;
+        Some(self.session.state)
     }
 
     /// Set the game mode
@@ -3684,10 +3720,56 @@ mod tests {
     #[test]
     fn test_start_countdown() {
         let mut game_session = create_test_session();
-        game_session.start_countdown();
+        assert!(game_session.start_countdown());
 
         assert_eq!(game_session.session.state, SessionState::Countdown);
+        assert_eq!(game_session.session.game_mode, GameMode::Countdown);
+        assert_eq!(game_session.session.next_mode, Some(GameMode::Race));
         assert!(game_session.session.countdown_ticks_remaining.is_some());
+        // A second press changes nothing.
+        assert!(!game_session.start_countdown());
+    }
+
+    /// `StartSession` counts into a race: after its countdown the session is
+    /// racing, not frozen in a countdown with no mode to go to.
+    #[test]
+    fn start_session_counts_down_into_a_race() {
+        let mut game_session = create_test_session();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        game_session.add_player(Uuid::new_v4(), car_id).unwrap();
+        let ticks = START_SESSION_COUNTDOWN_SECONDS as u32 * DEFAULT_TICK_RATE_HZ as u32 + 2;
+        assert!(game_session.start_countdown());
+        let inputs = HashMap::new();
+        for _ in 0..ticks {
+            game_session.tick(&inputs);
+        }
+        assert_eq!(game_session.session.game_mode, GameMode::Race);
+        assert_eq!(game_session.session.state, SessionState::Racing);
+    }
+
+    #[test]
+    fn a_running_race_refuses_drivers_but_practice_takes_them() {
+        let mut game_session = create_test_session();
+        assert_eq!(game_session.refuses_drivers(), None);
+        game_session.start_countdown_mode(5, GameMode::Race);
+        assert_eq!(game_session.refuses_drivers(), None, "the grid is open");
+        game_session.set_game_mode(GameMode::Race);
+        assert!(game_session.refuses_drivers().is_some());
+        game_session.set_game_mode(GameMode::FreePractice);
+        assert_eq!(game_session.refuses_drivers(), None);
+        game_session.set_game_mode(GameMode::Hotlap);
+        assert_eq!(game_session.refuses_drivers(), None);
+        game_session.session.state = SessionState::Finished;
+        assert!(game_session.refuses_drivers().is_some());
+    }
+
+    #[test]
+    fn the_lobby_hears_each_state_change_once() {
+        let mut game_session = create_test_session();
+        assert_eq!(game_session.take_state_change(), None);
+        game_session.set_game_mode(GameMode::FreePractice);
+        assert_eq!(game_session.take_state_change(), Some(SessionState::Racing));
+        assert_eq!(game_session.take_state_change(), None);
     }
 
     #[test]

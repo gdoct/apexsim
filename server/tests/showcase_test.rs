@@ -1,4 +1,4 @@
-//! The showcase endpoint (`crate::showcase`, docs/SPECTATOR.md): a rendered
+//! The showcase endpoint (`crate::showcase`, docs/game/spectator.md): a rendered
 //! race played in a loop to any number of viewers. Two clients watch one
 //! channel on one clock, a late joiner gets the header and roster first, the
 //! end of the content bumps the epoch, and leaving (asked for, or implied by

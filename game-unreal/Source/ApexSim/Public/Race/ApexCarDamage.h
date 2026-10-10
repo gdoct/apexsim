@@ -4,7 +4,7 @@
 #include "Catalog/ApexCatalogRows.h"
 
 /**
- * What a car's damage looks like: the pure half of it (docs/CAR_MODELS.md,
+ * What a car's damage looks like: the pure half of it (docs/content/cars.md,
  * Damage). The server sends five percentages per car (`DamagePct`: front,
  * rear, left, right, engine) and nothing about where a hit landed, so
  * everything here is worked out from those five numbers.

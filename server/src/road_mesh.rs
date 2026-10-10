@@ -15,7 +15,7 @@
 //! its normal and its surface class from here instead of from the
 //! centerline formula. Everything about *where along the lap* a car is
 //! (progress, laps, sectors, the AI, the racing line, the grid) stays on
-//! the centerline; see `docs/ROAD_MESH.md`. Without the sidecar, or with
+//! the centerline; see `docs/content/road-mesh.md`. Without the sidecar, or with
 //! the setting at `"centerline"`, nothing changes.
 //!
 //! The query is a vertical ray: of the triangles under `(x, y)` it returns

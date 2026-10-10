@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ApexTls.h"
 #include "GenericPlatform/GenericWindow.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
@@ -41,6 +42,13 @@ struct FApexBootSettings
 	FString ServerHost = TEXT("127.0.0.1");
 
 	int32 ServerPort = 9000;
+
+	/**
+	 * `server.tls` (auto | on | off), `server.tls_verify` and
+	 * `server.tls_fingerprint`: how the TCP connection uses TLS (see
+	 * FApexTlsOptions). The fingerprint is kept in the AB:CD:... spelling.
+	 */
+	FApexTlsOptions ServerTls;
 
 	/**
 	 * Read and written by launcher.exe, not used by the game: false makes the
@@ -105,11 +113,17 @@ public:
 	/** Records the display block and rewrites the file if anything moved. */
 	void SetDisplay(FIntPoint Resolution, int32 WindowMode, bool bVSync, int32 FrameLimit, int32 Screens);
 
-	/** Records the server block and rewrites the file if anything moved. */
+	/**
+	 * Records the server block and rewrites the file if anything moved. A
+	 * pinned TLS fingerprint belongs to the host it was pinned for, so moving
+	 * to another host drops it.
+	 */
 	void SetServer(const FString& Host, int32 Port);
 
 private:
 	void Write() const;
+	/** Hands the TLS options to UApexNetSubsystem for its next connection. */
+	void PushTlsOptions() const;
 
 	FApexBootSettings Settings;
 	bool bFileExisted = false;

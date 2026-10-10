@@ -13,7 +13,7 @@ class UVerticalBox;
 class UWidget;
 
 /**
- * The track guide's layer over the world (docs/TRACK_GUIDE.md): a card on
+ * The track guide's layer over the world (docs/content/track-guide.md): a card on
  * the left with the circuit's facts (the overview) or the corner's (name,
  * direction, minimum speed and gear, braking point, entry and exit speed,
  * elevation, banking, the gotchas), the stop and playback state along the

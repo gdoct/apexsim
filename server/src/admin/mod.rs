@@ -1,4 +1,4 @@
-//! The web dashboard (docs/ADMIN_DASHBOARD.md): the server's operator
+//! The web dashboard (docs/server/operations.md): the server's operator
 //! interface, served on two ports of its own, plain HTTP and HTTPS, from the
 //! server binary itself (the page and its fonts are compiled in).
 //!

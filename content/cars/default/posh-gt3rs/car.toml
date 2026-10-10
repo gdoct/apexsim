@@ -97,7 +97,7 @@ torque_nm = 459.8
 rpm = 9000.0
 torque_nm = 404.3
 
-# What the client's engine synthesiser is built from (docs/CAR_MODELS.md, "Engine
+# What the client's engine synthesiser is built from (docs/content/cars.md, "Engine
 # sound"): the server ignores this table.
 # 4.0 L flat-six: even firing, a hard-edged howl that climbs to 9000.
 [sound]

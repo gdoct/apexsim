@@ -4,7 +4,7 @@
 //! brakes, fuel and everything else a driver's HUD shows. A spectator draws
 //! the cars and nothing more, so the stream is a sequence of small
 //! self-contained **records** that can be written to a file or sent over the
-//! wire unchanged (docs/SPECTATOR.md):
+//! wire unchanged (docs/game/spectator.md):
 //!
 //! ```text
 //! [u32 big-endian length][MessagePack body]

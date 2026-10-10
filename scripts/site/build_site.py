@@ -13,7 +13,7 @@ the way it has to be:
   facts   the car cards, the circuit list and every number in the text:
           read from content/ and the server source on each build
           (scripts/site/facts.py). Never typed.
-  words   site/copy.yml, written by hand against CLAUDE.md and docs/. The
+  words   site/copy.yml, written by hand against the feature docs in docs/. The
           build cannot tell whether they still describe the game, so it
           keeps a hash of every section of those documents in
           site/copy.lock.json and `--stale` lists the ones that have
@@ -55,7 +55,12 @@ MANIFEST = ASSETS / "manifest.json"
 LOCK = SITE / "copy.lock.json"
 
 # The documents the copy is written from; `--stale` watches their sections.
-FEATURE_DOCS = ["CLAUDE.md", "docs/SIMULATION_GAPS.md"]
+# Every doc under docs/ but the unbuilt proposals and the index.
+FEATURE_DOCS = sorted(
+    p.relative_to(REPO).as_posix()
+    for p in (REPO / "docs").rglob("*.md")
+    if "proposals" not in p.parts and p.name != "README.md"
+)
 
 # The text files the build writes into docs/assets beside the pictures.
 TEXT_ASSETS = ["site.css", "site.js", "data.js"]

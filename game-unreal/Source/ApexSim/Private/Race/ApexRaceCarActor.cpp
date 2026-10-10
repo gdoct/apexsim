@@ -83,7 +83,7 @@ namespace
 		TEXT("Most a car's wheel is drawn turning per frame, in degrees (0: true road speed, blurred)"),
 		ECVF_Default);
 
-	/** The material slot every car GLB gives its brake lights (docs/CAR_MODELS.md). */
+	/** The material slot every car GLB gives its brake lights (docs/content/cars.md). */
 	const FName BrakeLightSlot(TEXT("car_brakelight"));
 	/** ... and its running lights (always on while racing). */
 	const FName TailLightSlot(TEXT("car_taillight"));

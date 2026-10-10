@@ -149,7 +149,7 @@ public:
 	/**
 	 * Take the race playing behind the menu (a showcase, a local file or a
 	 * demo session) full screen, with the spectator's controls and the HUD
-	 * on the watched car (docs/SPECTATOR.md, "Watching a race"). False, with
+	 * on the watched car (docs/game/spectator.md, "Watching a race"). False, with
 	 * a toast, when there is nothing to watch. Between the backdrop's races
 	 * the view waits for the next one.
 	 */
@@ -218,7 +218,7 @@ public:
 	// --- Track guide ------------------------------------------------------------
 
 	/**
-	 * Open a circuit's track guide (UApexTrackGuideSubsystem, docs/TRACK_GUIDE.md)
+	 * Open a circuit's track guide (UApexTrackGuideSubsystem, docs/content/track-guide.md)
 	 * over the menu: the screens step aside for the world and the guide's
 	 * layer; leaving it comes back to the screen it was opened from. False,
 	 * with a toast, when the circuit has none or it cannot be played.

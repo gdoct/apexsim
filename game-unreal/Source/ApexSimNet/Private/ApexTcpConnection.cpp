@@ -2,6 +2,7 @@
 
 #include "ApexProtocolCodec.h"
 #include "ApexSimNetModule.h"
+#include "ApexTlsSession.h"
 #include "Common/TcpSocketBuilder.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/ScopeLock.h"
@@ -12,11 +13,13 @@ FApexTcpConnection::FApexTcpConnection(
 	const FString& InHost,
 	int32 InPort,
 	const FString& InToken,
-	const FString& InPlayerName)
+	const FString& InPlayerName,
+	const FApexTlsOptions& InTls)
 	: Host(InHost)
 	, Port(InPort)
 	, Token(InToken)
 	, PlayerName(InPlayerName)
+	, TlsOptions(InTls)
 {
 }
 
@@ -74,14 +77,14 @@ bool FApexTcpConnection::PopDisconnectReason(FApexDisconnectReason& OutReason)
 	return DisconnectQueue.Dequeue(OutReason);
 }
 
-void FApexTcpConnection::SetDisconnectReason(const FString& Text, bool bDuringConnect)
+void FApexTcpConnection::SetDisconnectReason(const FString& Text, bool bDuringConnect, bool bPermanent)
 {
 	if (bDisconnectReported)
 	{
 		return;
 	}
 	bDisconnectReported = true;
-	DisconnectQueue.Enqueue(FApexDisconnectReason{Text, bDuringConnect});
+	DisconnectQueue.Enqueue(FApexDisconnectReason{Text, bDuringConnect, bPermanent});
 }
 
 bool FApexTcpConnection::Init()
@@ -108,6 +111,14 @@ void FApexTcpConnection::Stop()
 
 void FApexTcpConnection::Exit()
 {
+	if (Tls)
+	{
+		// Best effort: a close_notify tells the server this was not a truncation.
+		Tls->Close();
+		FlushCiphertext();
+		Tls.Reset();
+	}
+	bEncrypted = false;
 	DestroySocket();
 	bConnected = false;
 }
@@ -190,21 +201,185 @@ bool FApexTcpConnection::ConnectSocket(FString& OutError)
 	return true;
 }
 
-bool FApexTcpConnection::SendAll(const TArray<uint8>& Bytes)
+bool FApexTcpConnection::SendRaw(const uint8* Bytes, int32 Num)
 {
 	int32 TotalSent = 0;
-	while (TotalSent < Bytes.Num())
+	while (TotalSent < Num)
 	{
-		if (bStopRequested)
+		if (bStopRequested || !Socket)
 		{
 			return false;
 		}
 		int32 Sent = 0;
-		if (!Socket->Send(Bytes.GetData() + TotalSent, Bytes.Num() - TotalSent, Sent) || Sent <= 0)
+		if (!Socket->Send(Bytes + TotalSent, Num - TotalSent, Sent) || Sent <= 0)
 		{
 			return false;
 		}
 		TotalSent += Sent;
+	}
+	return true;
+}
+
+bool FApexTcpConnection::FlushCiphertext()
+{
+	if (!Tls)
+	{
+		return true;
+	}
+	TArray<uint8> Ciphertext;
+	if (!Tls->TakeCiphertext(Ciphertext))
+	{
+		return true;
+	}
+	return SendRaw(Ciphertext.GetData(), Ciphertext.Num());
+}
+
+bool FApexTcpConnection::SendAll(const TArray<uint8>& Bytes)
+{
+	if (!Tls)
+	{
+		return SendRaw(Bytes.GetData(), Bytes.Num());
+	}
+	FString Error;
+	if (!Tls->Write(Bytes.GetData(), Bytes.Num(), Error))
+	{
+		UE_LOG(LogApexSimNet, Warning, TEXT("TLS write failed: %s"), *Error);
+		return false;
+	}
+	return FlushCiphertext();
+}
+
+bool FApexTcpConnection::RecvRaw(TArray<uint8>& Out, FString& OutError)
+{
+	// The socket is blocking, but Wait said it is readable, so this Recv
+	// returns at once: with bytes, or with nothing because the peer closed or
+	// reset the connection. HasPendingData alone cannot tell a closed
+	// connection from an idle one.
+	constexpr int32 ChunkBytes = 64 * 1024;
+	int32 Offset = Out.Num();
+	Out.AddUninitialized(ChunkBytes);
+	int32 BytesRead = 0;
+	if (!Socket->Recv(Out.GetData() + Offset, ChunkBytes, BytesRead) || BytesRead <= 0)
+	{
+		Out.SetNum(Offset, EAllowShrinking::No);
+		OutError = TEXT("Server closed the connection");
+		return false;
+	}
+	Out.SetNum(Offset + BytesRead, EAllowShrinking::No);
+
+	uint32 PendingBytes = 0;
+	while (Socket->HasPendingData(PendingBytes) && PendingBytes > 0)
+	{
+		const int32 ChunkSize = static_cast<int32>(FMath::Min<uint32>(PendingBytes, static_cast<uint32>(ChunkBytes)));
+		Offset = Out.Num();
+		Out.AddUninitialized(ChunkSize);
+		BytesRead = 0;
+		if (!Socket->Recv(Out.GetData() + Offset, ChunkSize, BytesRead) || BytesRead <= 0)
+		{
+			Out.SetNum(Offset, EAllowShrinking::No);
+			OutError = TEXT("Connection lost");
+			return false;
+		}
+		Out.SetNum(Offset + BytesRead, EAllowShrinking::No);
+	}
+	return true;
+}
+
+bool FApexTcpConnection::HandshakeTls(FString& OutError, EApexTlsFailure& OutFailure)
+{
+	OutFailure = EApexTlsFailure::None;
+	Tls = MakeUnique<FApexTlsSession>();
+	FString Error;
+	if (!Tls->Init(Host, TlsOptions, Error))
+	{
+		OutFailure = EApexTlsFailure::Setup;
+		OutError = Error;
+		return false;
+	}
+
+	const double Deadline = FPlatformTime::Seconds() + TlsHandshakeTimeoutSeconds;
+	int64 BytesReceived = 0;
+	uint8 FirstByte = 0;
+	TArray<uint8> Raw;
+
+	for (;;)
+	{
+		const FApexTlsSession::EStep Step = Tls->StepHandshake(Error);
+		const bool bSent = FlushCiphertext();
+		if (Step == FApexTlsSession::EStep::Done)
+		{
+			break;
+		}
+		if (Step == FApexTlsSession::EStep::Failed)
+		{
+			OutFailure = ApexTls::ClassifyFailure(BytesReceived, FirstByte, EApexTlsFailure::Handshake);
+			OutError = OutFailure == EApexTlsFailure::Handshake
+				? FString::Printf(TEXT("TLS handshake with %s:%d failed: %s"), *Host, Port, *Error)
+				: FString::Printf(TEXT("%s:%d did not answer in TLS (%s)"), *Host, Port, *Error);
+			return false;
+		}
+		if (!bSent)
+		{
+			OutFailure = ApexTls::ClassifyFailure(BytesReceived, FirstByte, EApexTlsFailure::Handshake);
+			OutError = FString::Printf(TEXT("Connection to %s:%d lost during the TLS handshake"), *Host, Port);
+			return false;
+		}
+
+		// Wait for the server's next flight.
+		bool bReadable = false;
+		while (!bReadable)
+		{
+			if (bStopRequested)
+			{
+				OutError = TEXT("Stopped during the TLS handshake");
+				OutFailure = EApexTlsFailure::Handshake;
+				return false;
+			}
+			if (FPlatformTime::Seconds() > Deadline)
+			{
+				OutFailure = EApexTlsFailure::Timeout;
+				OutError = FString::Printf(TEXT("%s:%d did not complete a TLS handshake in %.0f s"),
+					*Host, Port, TlsHandshakeTimeoutSeconds);
+				return false;
+			}
+			bReadable = Socket->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromMilliseconds(PollIntervalMs));
+		}
+
+		Raw.Reset();
+		FString RecvError;
+		const bool bOpen = RecvRaw(Raw, RecvError);
+		if (Raw.Num() > 0)
+		{
+			if (BytesReceived == 0)
+			{
+				FirstByte = Raw[0];
+			}
+			BytesReceived += Raw.Num();
+			Tls->FeedCiphertext(Raw.GetData(), Raw.Num());
+		}
+		if (!bOpen)
+		{
+			// Let OpenSSL read what did arrive (an alert, say) before giving up.
+			if (Raw.Num() > 0 && Tls->StepHandshake(Error) == FApexTlsSession::EStep::Done)
+			{
+				break;
+			}
+			OutFailure = ApexTls::ClassifyFailure(BytesReceived, FirstByte, EApexTlsFailure::Handshake);
+			OutError = OutFailure == EApexTlsFailure::ClosedBeforeReply
+				? FString::Printf(TEXT("%s:%d closed the connection on the TLS hello"), *Host, Port)
+				: FString::Printf(TEXT("TLS handshake with %s:%d failed: %s"), *Host, Port,
+					Error.IsEmpty() ? *RecvError : *Error);
+			return false;
+		}
+	}
+
+	if (!Tls->CheckPeer(Error))
+	{
+		OutFailure = EApexTlsFailure::Untrusted;
+		OutError = FString::Printf(TEXT("Refused %s:%d: %s"), *Host, Port, *Error);
+		Tls->Close();
+		FlushCiphertext();
+		return false;
 	}
 	return true;
 }
@@ -234,30 +409,36 @@ bool FApexTcpConnection::FlushOutbound()
 
 bool FApexTcpConnection::ReceiveAvailable(FString& OutError)
 {
-	uint32 PendingBytes = 0;
-	while (Socket->HasPendingData(PendingBytes) && PendingBytes > 0)
+	if (!Tls)
 	{
-		const int32 ChunkSize = static_cast<int32>(FMath::Min<uint32>(PendingBytes, 64u * 1024u));
-		const int32 WriteOffset = ReceiveBuffer.Num();
-		ReceiveBuffer.AddUninitialized(ChunkSize);
+		return RecvRaw(ReceiveBuffer, OutError);
+	}
 
-		int32 BytesRead = 0;
-		if (!Socket->Recv(ReceiveBuffer.GetData() + WriteOffset, ChunkSize, BytesRead))
-		{
-			ReceiveBuffer.SetNum(WriteOffset, EAllowShrinking::No);
-			OutError = TEXT("Connection lost");
-			return false;
-		}
+	TArray<uint8> Raw;
+	FString RecvError;
+	const bool bOpen = RecvRaw(Raw, RecvError);
+	Tls->FeedCiphertext(Raw.GetData(), Raw.Num());
 
-		if (BytesRead == 0)
-		{
-			// A clean close from the server side.
-			ReceiveBuffer.SetNum(WriteOffset, EAllowShrinking::No);
-			OutError = TEXT("Server closed the connection");
-			return false;
-		}
-
-		ReceiveBuffer.SetNum(WriteOffset + BytesRead, EAllowShrinking::No);
+	// Decrypt what arrived even when the socket then closed: the last frames
+	// before a server's close are still worth having.
+	FString TlsError;
+	const FApexTlsSession::ERead Read = Tls->ReadAvailable(ReceiveBuffer, TlsError);
+	// Reading can make the session answer (a TLS 1.3 key update).
+	FlushCiphertext();
+	if (Read == FApexTlsSession::ERead::Closed)
+	{
+		OutError = TEXT("Server closed the connection");
+		return false;
+	}
+	if (Read == FApexTlsSession::ERead::Failed)
+	{
+		OutError = FString::Printf(TEXT("TLS error: %s"), *TlsError);
+		return false;
+	}
+	if (!bOpen)
+	{
+		OutError = RecvError;
+		return false;
 	}
 	return true;
 }
@@ -324,15 +505,68 @@ uint32 FApexTcpConnection::Run()
 
 	UE_LOG(LogApexSimNet, Log, TEXT("Connecting to %s:%d as '%s'"), *Host, Port, *PlayerName);
 
-	if (!ConnectSocket(Error))
+	bool bTryTls = TlsOptions.Mode != EApexTlsMode::Off;
+	for (;;)
 	{
-		UE_LOG(LogApexSimNet, Warning, TEXT("Connect failed: %s"), *Error);
-		SetDisconnectReason(Error, true);
+		if (!ConnectSocket(Error))
+		{
+			UE_LOG(LogApexSimNet, Warning, TEXT("Connect failed: %s"), *Error);
+			SetDisconnectReason(Error, true);
+			return 0;
+		}
+		if (!bTryTls)
+		{
+			break;
+		}
+
+		EApexTlsFailure Failure = EApexTlsFailure::None;
+		if (HandshakeTls(Error, Failure))
+		{
+			bEncrypted = true;
+			break;
+		}
+		Tls.Reset();
+		if (bStopRequested)
+		{
+			SetDisconnectReason(TEXT("Disconnected"), true);
+			return 0;
+		}
+		if (ApexTls::ShouldFallBackToPlaintext(TlsOptions, Failure))
+		{
+			// The server is a plaintext one (it dropped the hello unanswered, or
+			// answered in something that is not TLS): connect again without.
+			UE_LOG(LogApexSimNet, Warning,
+				TEXT("%s; the server does not speak TLS, reconnecting in plaintext (settings.yml server.tls: auto)"),
+				*Error);
+			DestroySocket();
+			bTryTls = false;
+			continue;
+		}
+
+		const bool bPermanent = ApexTls::IsPermanent(Failure);
+		UE_LOG(LogApexSimNet, Warning, TEXT("%s"), *Error);
+		if (TlsOptions.Mode == EApexTlsMode::On
+			&& (Failure == EApexTlsFailure::ClosedBeforeReply || Failure == EApexTlsFailure::NotTls))
+		{
+			UE_LOG(LogApexSimNet, Warning,
+				TEXT("settings.yml has server.tls: on, so there is no plaintext fallback; the server may not have TLS enabled"));
+		}
+		SetDisconnectReason(Error, true, bPermanent);
 		return 0;
 	}
 
 	bConnected = true;
-	UE_LOG(LogApexSimNet, Log, TEXT("TCP connected to %s:%d"), *Host, Port);
+	if (Tls)
+	{
+		UE_LOG(LogApexSimNet, Log, TEXT("Connected to %s:%d over TLS (%s; %s; SHA-256 %s; server.tls: %s)"),
+			*Host, Port, *Tls->DescribeCipher(), Tls->TrustDescription(), *Tls->PeerFingerprint(),
+			ApexTls::ModeName(TlsOptions.Mode));
+	}
+	else
+	{
+		UE_LOG(LogApexSimNet, Log, TEXT("Connected to %s:%d in PLAINTEXT (unencrypted; server.tls: %s)"),
+			*Host, Port, ApexTls::ModeName(TlsOptions.Mode));
+	}
 
 	// Authenticate is sent from this thread the instant the socket is up, so
 	// the handshake never waits on a game-thread tick.
@@ -349,19 +583,26 @@ uint32 FApexTcpConnection::Run()
 			break;
 		}
 
-		Socket->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromMilliseconds(PollIntervalMs));
+		const bool bReadable = Socket->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromMilliseconds(PollIntervalMs));
 
 		if (bStopRequested)
 		{
 			break;
 		}
-
-		if (!ReceiveAvailable(Error))
+		if (!bReadable)
 		{
-			break;
+			continue;
 		}
 
-		if (!ExtractFrames(Error))
+		// Frames that arrived just ahead of a close are still delivered.
+		const bool bOpen = ReceiveAvailable(Error);
+		FString FrameError;
+		if (!ExtractFrames(FrameError))
+		{
+			Error = FrameError;
+			break;
+		}
+		if (!bOpen)
 		{
 			break;
 		}

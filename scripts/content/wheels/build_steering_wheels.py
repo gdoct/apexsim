@@ -11,7 +11,7 @@ car.toml names no `[cockpit] steering_wheel_model` of its own is given the
 wheel of its class by the client (`UApexCarContentSubsystem`), which the rig
 draws and turns in place of its primitive rim.
 
-Frame (docs/content/CAR_MODELS.md, `steering_wheel_model`): metres, hub at
+Frame (docs/content/cars.md, `steering_wheel_model`): metres, hub at
 the origin, the wheel straight and upright, the rim in glTF XY (+Y up, +X the
 car's left) and the column along +Z toward the nose, so the driver looks at
 the face from -Z. It is built here in centimetres in a driver's frame (u to

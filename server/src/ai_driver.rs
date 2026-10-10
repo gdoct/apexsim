@@ -1,7 +1,7 @@
 //! AI Driver system for computer-controlled cars.
 //!
 //! This module implements AI drivers as server-side players that produce the same
-//! input commands as human players. The AI follows the specification in ai-driver.md.
+//! input commands as human players. See docs/server/ai.md.
 //!
 //! ## Architecture
 //! The AI is structured in three layers:
@@ -50,13 +50,10 @@ const STANLEY_GAIN_NOVICE: f32 = 1.2;
 const STANLEY_GAIN_ACE: f32 = 2.0;
 const STANLEY_SOFTENING_MPS: f32 = 3.0;
 const STEER_LAG_NOVICE_S: f32 = 0.08;
-fn env_f(name: &str, default: f32) -> f32 {
-    std::env::var(name)
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(default)
-}
 const STEER_LAG_ACE_S: f32 = 0.04;
+/// Seconds of steering per unit of yaw-rate error against the rate the path
+/// asks for (`track_path`): damps the weave the wheel and tyre lags make.
+const YAW_DAMPING: f32 = 0.25;
 
 /// The share of its grip a car corners on along a racecraft lane, and how
 /// many seconds of road ahead that lane's bends are read over.
@@ -717,17 +714,14 @@ impl<'a> AiDriverController<'a> {
             heading_error += w * (lane_heading - heading_error);
         }
         let gain = STANLEY_GAIN_NOVICE + (STANLEY_GAIN_ACE - STANLEY_GAIN_NOVICE) * skill_factor;
-        let cross_track =
-            (-gain * env_f("AI_KE", 1.0) * error / (speed + STANLEY_SOFTENING_MPS)).atan();
+        let cross_track = (-gain * error / (speed + STANLEY_SOFTENING_MPS)).atan();
         // Damp the yaw rate against the rate the path asks for: without it
         // the heading and sideways feedback, the wheel's lag and the tyres'
         // own lag made a limit cycle at speed, the car weaving down a
         // straight until the rear let go.
-        let yaw_damping = -env_f("AI_KR", 0.25) * (state.angular_vel_yaw - speed * curvature);
+        let yaw_damping = -YAW_DAMPING * (state.angular_vel_yaw - speed * curvature);
 
-        ((feedforward + env_f("AI_KPSI", 1.0) * heading_error + cross_track + yaw_damping)
-            / full_lock)
-            .clamp(-1.0, 1.0)
+        ((feedforward + heading_error + cross_track + yaw_damping) / full_lock).clamp(-1.0, 1.0)
     }
 
     /// A driver's hands are not instant: the wheel moves towards the wanted
@@ -813,7 +807,7 @@ impl<'a> AiDriverController<'a> {
         // takes away.
         let grip = state.tyre_grip_share() * state.aero_load_share;
         (
-            slowest * pace * grip.powf(0.75) * env_f("AI_PACE", 1.0),
+            slowest * pace * grip.powf(0.75),
             Some(slowest_k as f32 * speeds.spacing_m),
         )
     }
@@ -1334,8 +1328,7 @@ impl<'a> AiDriverController<'a> {
         let mass = crate::physics::car_mass_kg(config, state).max(1.0);
         let load_ratio = 1.0 + downforce.max(0.0) / (mass * 9.81);
         let grip_g = config.envelope_mu(load_ratio) * load_ratio * state.tyre_grip_share();
-        let used =
-            (state.g_forces.lateral_g.abs() / (grip_g * env_f("AI_GM", 1.0)).max(0.1)).min(1.0);
+        let used = (state.g_forces.lateral_g.abs() / grip_g.max(0.1)).min(1.0);
 
         let (c, s) = (state.yaw_rad.cos(), state.yaw_rad.sin());
         let fwd = state.vel_x * c + state.vel_y * s;

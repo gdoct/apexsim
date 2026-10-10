@@ -90,7 +90,7 @@ torque_nm = 505.0
 rpm = 8200.0
 torque_nm = 450.0
 
-# What the client's engine synthesiser is built from (docs/CAR_MODELS.md, "Engine
+# What the client's engine synthesiser is built from (docs/content/cars.md, "Engine
 # sound"): the server ignores this table.
 # Spec 4.2 L flat-plane V8 on short open pipes.
 [sound]

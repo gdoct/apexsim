@@ -75,8 +75,8 @@ const PIT_BOX_PITCH_M: f32 = 6.0;
 const PIT_BOXES: std::ops::RangeInclusive<u32> = 8..=40;
 const PIT_WIDTH_M: f32 = 12.0;
 const PIT_SPEED_LIMIT_KMH: f32 = 80.0;
-/// Boxes a lane gets when it has room, whatever a survey counted: every
-/// car of a full grid (the create screen's 20) its own garage, and spares.
+/// Boxes a lane gets when it has room: every car of a full grid (the
+/// create screen's 20) its own garage, and spares.
 const PIT_GRID_BOXES: u32 = 24;
 /// A mapped lane shorter than this along the course is not laid, m.
 const PIT_MIN_LANE_M: f32 = 150.0;
@@ -681,12 +681,9 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
     // The garages line the stretch between the tapers.
     let clear = (length - 2.0 * taper).max(0.0);
     let room = (clear / PIT_BOX_PITCH_M) as u32;
-    // Every car its own garage: at least a full grid's worth where the
-    // lane has room, a survey's count when it found more.
-    let box_count = road
-        .box_count
-        .unwrap_or(0)
-        .max(PIT_GRID_BOXES)
+    // Every car its own garage: a full grid's worth where the lane has
+    // room.
+    let box_count = PIT_GRID_BOXES
         .min(room)
         .clamp(*PIT_BOXES.start(), *PIT_BOXES.end());
     Some(PitLane {
@@ -1511,8 +1508,10 @@ const STREET_LAMP_SPACING_M: f32 = 40.0;
 const STREET_LAMP_SETBACK_M: f32 = 4.5;
 const STREET_LAMP_BRIDGE_SETBACK_M: f32 = 2.0;
 
-/// Twin-arm street lamps along both verges, none on a bridge (the deck has
-/// its own) and none in the water.
+/// Twin-arm street lamps along both verges, alternating sides. On a bridge
+/// span the pole stands at road height on the deck's footway,
+/// `STREET_LAMP_BRIDGE_SETBACK_M` past the road edge instead of
+/// `STREET_LAMP_SETBACK_M`; off a bridge none is laid in the water.
 fn lay_street_lamps(
     path: &CenterlinePath,
     terrain: &TerrainHeightfield,
@@ -3047,7 +3046,6 @@ mod tests {
             side: Side::Right,
             length_m: 300.0,
             nodes: (0..=15).map(|i| [100.0 + i as f32 * 20.0, -22.0]).collect(),
-            box_count: None,
         });
         let report = dress_scene(&track, &mut scene, &layout).unwrap();
         assert!(report.pit_lane);
@@ -3084,30 +3082,21 @@ mod tests {
     }
 
     #[test]
-    fn a_lane_gets_a_full_grids_boxes_or_a_surveys_within_its_room() {
+    fn a_lane_with_room_gets_a_full_grids_boxes() {
         let track = track();
-        let lane = |count| PitRoad {
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        layout.pit_lane = Some(PitRoad {
             side: Side::Right,
             length_m: 300.0,
             nodes: (0..=15).map(|i| [100.0 + i as f32 * 20.0, -22.0]).collect(),
-            box_count: count,
-        };
-        let boxes = |count| {
-            let mut scene = scene(&track);
-            let mut layout = layout();
-            layout.pit_lane = Some(lane(count));
-            dress_scene(&track, &mut scene, &layout).unwrap();
-            scene.pit_lane.expect("lane").box_count
-        };
-        let room = boxes(Some(200));
-        assert!(room > PIT_GRID_BOXES, "this lane holds a grid: {room}");
-        assert_eq!(boxes(None), PIT_GRID_BOXES, "every car its own garage");
+        });
+        dress_scene(&track, &mut scene, &layout).unwrap();
         assert_eq!(
-            boxes(Some(12)),
+            scene.pit_lane.expect("lane").box_count,
             PIT_GRID_BOXES,
-            "a short survey is not a limit"
+            "every car its own garage"
         );
-        assert_eq!(boxes(Some(room - 1)), room - 1, "a longer one is used");
     }
 
     #[test]
@@ -3119,7 +3108,6 @@ mod tests {
             side: Side::Right,
             length_m: 300.0,
             nodes: (0..=15).map(|i| [100.0 + i as f32 * 20.0, -22.0]).collect(),
-            box_count: None,
         });
         layout.structures.push(Structure {
             name: Some("Pit building".to_string()),

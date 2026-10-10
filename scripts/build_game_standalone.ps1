@@ -8,7 +8,7 @@
    and contains ApexSim.exe plus its required runtime files.
 
    The circuits are not cooked: the game builds each one from its export at
-   runtime (docs/RUNTIME_CONTENT_LOADING.md). After packaging, the exports in
+   runtime (docs/content/track-pipeline.md). After packaging, the exports in
    build/tracks (run scripts/build_track_levels.ps1 first) and their
    previews are copied into Tracks\ beside ApexSim.exe, where the game looks.
 
@@ -16,11 +16,11 @@
    runtime. Every content/cars folder's car.toml, model, DRS flap and livery
    logos are copied into Cars\, and the class wheels into Wheels\.
 
-   The HUD is files too (docs/HUD_MODDING.md): content\hud\default is
+   The HUD is files too (docs/game/hud-modding.md): content\hud\default is
    copied into Hud\default, with an empty Hud\custom (and its README) for
    the player's own components.
 
-   The showcases (docs/SPECTATOR.md) are the rendered AI races the menu
+   The showcases (docs/game/spectator.md) are the rendered AI races the menu
    plays behind its screens when no server streams one: every .apxs in
    build\showcase (run scripts/build_track_levels.ps1 first) is copied into
    Showcase\ beside ApexSim.exe, where the game looks.
@@ -66,7 +66,7 @@
    plays only what a server streams.
 
 .PARAMETER SkipGuide
-   Do not copy the track guides (build\guide, docs/TRACK_GUIDE.md) into
+   Do not copy the track guides (build\guide, docs/content/track-guide.md) into
    Guide\ next to the executable. The track picker then offers no guide.
 
 .PARAMETER ExtraUatArgs
@@ -249,7 +249,7 @@ if (-not $SkipHud) {
 
 if (-not $SkipShowcase) {
    # Where the menu's local backdrop looks in a packaged build: Showcase\
-   # next to ApexSim.exe (docs/SPECTATOR.md). Every rendered showcase, the
+   # next to ApexSim.exe (docs/game/spectator.md). Every rendered showcase, the
    # pipeline's and any rendered by hand.
    $showcaseOut = Join-Path $executable.DirectoryName 'Showcase'
    Write-Host ''
@@ -264,7 +264,7 @@ if (-not $SkipShowcase) {
 }
 
 if (-not $SkipGuide) {
-   # Where the track picker looks for guides in a packaged build: Guide   # next to ApexSim.exe (docs/TRACK_GUIDE.md).
+   # Where the track picker looks for guides in a packaged build: Guide   # next to ApexSim.exe (docs/content/track-guide.md).
    $guideOut = Join-Path $executable.DirectoryName 'Guide'
    Write-Host ''
    Write-Host "==> Copying the track guides to $guideOut" -ForegroundColor Cyan

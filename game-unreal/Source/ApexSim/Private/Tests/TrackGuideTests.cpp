@@ -7,7 +7,7 @@
 
 namespace ApexGuideTest
 {
-	/** A guide as `apexsim-replay guide` writes it (docs/TRACK_GUIDE.md), with a key from the future. */
+	/** A guide as `apexsim-replay guide` writes it (docs/content/track-guide.md), with a key from the future. */
 	const TCHAR* FullGuide = TEXT(R"({
 		"version": 1,
 		"class": "GT3",

@@ -1,8 +1,8 @@
-r"""Marina Bay batch C1 - street furniture, crossings and trees the street circuit needs (MARINA_BAY.md s5).
+r"""Marina Bay batch C1 - street furniture, crossings and trees the street circuit needs (docs/content/circuits.md s5).
 
     ASSET = "all"   # or one of BUILD
     exec(open(r"E:\apexsim\scripts\content\props\build_marina_bay_c1.py").read())
-Thin modules are centred on their footprint with the road on -Y (PROPS.md Conventions).
+Thin modules are centred on their footprint with the road on -Y (docs/content/props.md Conventions).
 """
 exec(open(r"E:\apexsim\scripts\content\props\marina_common.py").read())
 ct = _load("card_trees", "card_trees.py")

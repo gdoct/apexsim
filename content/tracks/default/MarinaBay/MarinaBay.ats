@@ -10145,17 +10145,6 @@
     },
     {
       "id": 34186,
-      "kind": "board",
-      "asset": "corner_sign",
-      "x": -191.03,
-      "y": 193.25,
-      "z": -0.09,
-      "yaw_rad": -1.74,
-      "scale": 1.0,
-      "text": "Marina Bay Street Circuit"
-    },
-    {
-      "id": 34187,
       "kind": "bridge",
       "asset": "banner_gantry",
       "x": 45.0,
@@ -10166,7 +10155,7 @@
       "text": null
     },
     {
-      "id": 34188,
+      "id": 34187,
       "kind": "misc",
       "asset": "finish_tower_scaffold",
       "x": 8.0,
@@ -10177,7 +10166,7 @@
       "text": null
     },
     {
-      "id": 34189,
+      "id": 34188,
       "kind": "sign",
       "asset": "pit_entry_board",
       "x": -160.67459,
@@ -10188,7 +10177,7 @@
       "text": null
     },
     {
-      "id": 34190,
+      "id": 34189,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -177.23834,
@@ -10199,7 +10188,7 @@
       "text": "apexsim"
     },
     {
-      "id": 34191,
+      "id": 34190,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -174.86966,
@@ -10210,7 +10199,7 @@
       "text": "apexsim"
     },
     {
-      "id": 34192,
+      "id": 34191,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -172.52362,
@@ -10221,7 +10210,7 @@
       "text": "apexsim"
     },
     {
-      "id": 34193,
+      "id": 34192,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -170.19647,
@@ -10232,7 +10221,7 @@
       "text": "apexsim"
     },
     {
-      "id": 34194,
+      "id": 34193,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -167.89734,
@@ -10243,7 +10232,7 @@
       "text": "apexsim"
     },
     {
-      "id": 34195,
+      "id": 34194,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -165.60776,
@@ -10254,7 +10243,7 @@
       "text": "apexsim"
     },
     {
-      "id": 34196,
+      "id": 34195,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -163.33093,
@@ -10265,7 +10254,7 @@
       "text": "apexsim"
     },
     {
-      "id": 34197,
+      "id": 34196,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -161.05746,
@@ -10276,7 +10265,7 @@
       "text": "apexsim"
     },
     {
-      "id": 34198,
+      "id": 34197,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -158.78867,
@@ -10287,7 +10276,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48649,
+      "id": 34198,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -156.50754,
@@ -10298,7 +10287,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48650,
+      "id": 48649,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -154.23515,
@@ -10309,7 +10298,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48651,
+      "id": 48650,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -151.97087,
@@ -10320,7 +10309,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48652,
+      "id": 48651,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -149.69714,
@@ -10331,7 +10320,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48653,
+      "id": 48652,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -147.40892,
@@ -10342,7 +10331,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48654,
+      "id": 48653,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -145.0757,
@@ -10353,7 +10342,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48655,
+      "id": 48654,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -142.71115,
@@ -10364,7 +10353,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48656,
+      "id": 48655,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -140.32066,
@@ -10375,7 +10364,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48657,
+      "id": 48656,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -137.81154,
@@ -10386,7 +10375,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48658,
+      "id": 48657,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -135.22342,
@@ -10397,7 +10386,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48659,
+      "id": 48658,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -132.4889,
@@ -10408,7 +10397,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48660,
+      "id": 48659,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -129.63596,
@@ -10419,7 +10408,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48661,
+      "id": 48660,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -126.649734,
@@ -10430,7 +10419,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48662,
+      "id": 48661,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -123.496056,
@@ -10441,7 +10430,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48663,
+      "id": 48662,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -120.23424,
@@ -10452,7 +10441,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48664,
+      "id": 48663,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -116.87031,
@@ -10463,7 +10452,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48665,
+      "id": 48664,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -103.24148,
@@ -10474,7 +10463,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48666,
+      "id": 48665,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -99.93367,
@@ -10485,7 +10474,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48667,
+      "id": 48666,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -96.70424,
@@ -10496,7 +10485,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48668,
+      "id": 48667,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -93.51659,
@@ -10507,7 +10496,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48669,
+      "id": 48668,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -90.42321,
@@ -10518,7 +10507,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48670,
+      "id": 48669,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -87.35073,
@@ -10529,7 +10518,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48671,
+      "id": 48670,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -84.333206,
@@ -10540,7 +10529,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48672,
+      "id": 48671,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -81.34674,
@@ -10551,7 +10540,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48673,
+      "id": 48672,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -78.388214,
@@ -10562,7 +10551,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48674,
+      "id": 48673,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -75.420395,
@@ -10573,7 +10562,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48675,
+      "id": 48674,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -72.45293,
@@ -10584,7 +10573,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48676,
+      "id": 48675,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -69.48973,
@@ -10595,7 +10584,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48677,
+      "id": 48676,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -66.50879,
@@ -10606,7 +10595,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48678,
+      "id": 48677,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -63.518238,
@@ -10617,7 +10606,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48679,
+      "id": 48678,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -60.51866,
@@ -10628,7 +10617,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48680,
+      "id": 48679,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -57.515427,
@@ -10639,7 +10628,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48681,
+      "id": 48680,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -54.50465,
@@ -10650,7 +10639,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48682,
+      "id": 48681,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -51.486782,
@@ -10661,7 +10650,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48683,
+      "id": 48682,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -48.46166,
@@ -10672,7 +10661,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48684,
+      "id": 48683,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -45.450523,
@@ -10683,7 +10672,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48685,
+      "id": 48684,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -42.442875,
@@ -10694,7 +10683,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48686,
+      "id": 48685,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -39.444843,
@@ -10705,7 +10694,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48687,
+      "id": 48686,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -36.444576,
@@ -10716,7 +10705,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48688,
+      "id": 48687,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -33.442696,
@@ -10727,7 +10716,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48689,
+      "id": 48688,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -30.45635,
@@ -10738,7 +10727,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48690,
+      "id": 48689,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -27.464878,
@@ -10749,7 +10738,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48691,
+      "id": 48690,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -24.462584,
@@ -10760,7 +10749,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48692,
+      "id": 48691,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -21.46229,
@@ -10771,7 +10760,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48693,
+      "id": 48692,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 20.0,
@@ -10782,7 +10771,7 @@
       "text": "kronos"
     },
     {
-      "id": 48694,
+      "id": 48693,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 23.0,
@@ -10793,7 +10782,7 @@
       "text": "kronos"
     },
     {
-      "id": 48695,
+      "id": 48694,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 26.0,
@@ -10804,7 +10793,7 @@
       "text": "kronos"
     },
     {
-      "id": 48696,
+      "id": 48695,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 29.0,
@@ -10815,7 +10804,7 @@
       "text": "kronos"
     },
     {
-      "id": 48697,
+      "id": 48696,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 32.0,
@@ -10826,7 +10815,7 @@
       "text": "kronos"
     },
     {
-      "id": 48698,
+      "id": 48697,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 35.0,
@@ -10837,7 +10826,7 @@
       "text": "kronos"
     },
     {
-      "id": 48699,
+      "id": 48698,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 38.0,
@@ -10848,7 +10837,7 @@
       "text": "kronos"
     },
     {
-      "id": 48700,
+      "id": 48699,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 41.0,
@@ -10859,7 +10848,7 @@
       "text": "kronos"
     },
     {
-      "id": 48701,
+      "id": 48700,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 44.0,
@@ -10870,7 +10859,7 @@
       "text": "kronos"
     },
     {
-      "id": 48702,
+      "id": 48701,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 47.0,
@@ -10881,7 +10870,7 @@
       "text": "kronos"
     },
     {
-      "id": 48703,
+      "id": 48702,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 50.0,
@@ -10892,7 +10881,7 @@
       "text": "kronos"
     },
     {
-      "id": 48704,
+      "id": 48703,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 53.0,
@@ -10903,7 +10892,7 @@
       "text": "kronos"
     },
     {
-      "id": 48705,
+      "id": 48704,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 56.0,
@@ -10914,7 +10903,7 @@
       "text": "kronos"
     },
     {
-      "id": 48706,
+      "id": 48705,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 59.0,
@@ -10925,7 +10914,7 @@
       "text": "kronos"
     },
     {
-      "id": 48707,
+      "id": 48706,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 62.0,
@@ -10936,7 +10925,7 @@
       "text": "kronos"
     },
     {
-      "id": 48708,
+      "id": 48707,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 65.0,
@@ -10947,7 +10936,7 @@
       "text": "kronos"
     },
     {
-      "id": 48709,
+      "id": 48708,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 68.0,
@@ -10958,7 +10947,7 @@
       "text": "kronos"
     },
     {
-      "id": 48710,
+      "id": 48709,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 71.0,
@@ -10969,7 +10958,7 @@
       "text": "kronos"
     },
     {
-      "id": 48711,
+      "id": 48710,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 74.0,
@@ -10980,7 +10969,7 @@
       "text": "kronos"
     },
     {
-      "id": 48712,
+      "id": 48711,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 77.0,
@@ -10991,7 +10980,7 @@
       "text": "kronos"
     },
     {
-      "id": 48713,
+      "id": 48712,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 79.99804,
@@ -11002,7 +10991,7 @@
       "text": "kronos"
     },
     {
-      "id": 48714,
+      "id": 48713,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 83.00266,
@@ -11013,7 +11002,7 @@
       "text": "kronos"
     },
     {
-      "id": 48715,
+      "id": 48714,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 86.019455,
@@ -11024,7 +11013,7 @@
       "text": "kronos"
     },
     {
-      "id": 48716,
+      "id": 48715,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 89.01148,
@@ -11035,7 +11024,7 @@
       "text": "kronos"
     },
     {
-      "id": 48717,
+      "id": 48716,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 91.99799,
@@ -11046,7 +11035,7 @@
       "text": "kronos"
     },
     {
-      "id": 48718,
+      "id": 48717,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 94.99995,
@@ -11057,7 +11046,7 @@
       "text": "kronos"
     },
     {
-      "id": 48719,
+      "id": 48718,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 97.99999,
@@ -11068,7 +11057,7 @@
       "text": "kronos"
     },
     {
-      "id": 48720,
+      "id": 48719,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 101.00199,
@@ -11079,7 +11068,7 @@
       "text": "kronos"
     },
     {
-      "id": 48721,
+      "id": 48720,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 103.99224,
@@ -11090,7 +11079,7 @@
       "text": "kronos"
     },
     {
-      "id": 48722,
+      "id": 48721,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 106.98004,
@@ -11101,7 +11090,7 @@
       "text": "kronos"
     },
     {
-      "id": 48723,
+      "id": 48722,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 109.981926,
@@ -11112,7 +11101,7 @@
       "text": "kronos"
     },
     {
-      "id": 48724,
+      "id": 48723,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 112.98197,
@@ -11123,7 +11112,7 @@
       "text": "kronos"
     },
     {
-      "id": 48725,
+      "id": 48724,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 115.97997,
@@ -11134,7 +11123,7 @@
       "text": "kronos"
     },
     {
-      "id": 48726,
+      "id": 48725,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 118.98818,
@@ -11145,7 +11134,7 @@
       "text": "kronos"
     },
     {
-      "id": 48727,
+      "id": 48726,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 122.0,
@@ -11156,7 +11145,7 @@
       "text": "kronos"
     },
     {
-      "id": 48728,
+      "id": 48727,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 125.02156,
@@ -11167,7 +11156,7 @@
       "text": "kronos"
     },
     {
-      "id": 48729,
+      "id": 48728,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 128.04764,
@@ -11178,7 +11167,7 @@
       "text": "kronos"
     },
     {
-      "id": 48730,
+      "id": 48729,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 131.08202,
@@ -11189,7 +11178,7 @@
       "text": "kronos"
     },
     {
-      "id": 48731,
+      "id": 48730,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 134.11429,
@@ -11200,7 +11189,7 @@
       "text": "kronos"
     },
     {
-      "id": 48732,
+      "id": 48731,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 137.1464,
@@ -11211,7 +11200,7 @@
       "text": "kronos"
     },
     {
-      "id": 48733,
+      "id": 48732,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 140.17833,
@@ -11222,7 +11211,7 @@
       "text": "kronos"
     },
     {
-      "id": 48734,
+      "id": 48733,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 143.21004,
@@ -11233,7 +11222,7 @@
       "text": "kronos"
     },
     {
-      "id": 48735,
+      "id": 48734,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 146.24352,
@@ -11244,7 +11233,7 @@
       "text": "kronos"
     },
     {
-      "id": 48736,
+      "id": 48735,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 149.26651,
@@ -11255,7 +11244,7 @@
       "text": "kronos"
     },
     {
-      "id": 48737,
+      "id": 48736,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 152.28569,
@@ -11266,7 +11255,7 @@
       "text": "kronos"
     },
     {
-      "id": 48738,
+      "id": 48737,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 155.29349,
@@ -11277,7 +11266,7 @@
       "text": "kronos"
     },
     {
-      "id": 48739,
+      "id": 48738,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 158.3026,
@@ -11288,7 +11277,7 @@
       "text": "kronos"
     },
     {
-      "id": 48740,
+      "id": 48739,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 161.31297,
@@ -11299,7 +11288,7 @@
       "text": "kronos"
     },
     {
-      "id": 48741,
+      "id": 48740,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 164.31357,
@@ -11310,7 +11299,7 @@
       "text": "kronos"
     },
     {
-      "id": 48742,
+      "id": 48741,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 167.31065,
@@ -11321,7 +11310,7 @@
       "text": "kronos"
     },
     {
-      "id": 48743,
+      "id": 48742,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 170.29413,
@@ -11332,7 +11321,7 @@
       "text": "kronos"
     },
     {
-      "id": 48744,
+      "id": 48743,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 173.286,
@@ -11343,7 +11332,7 @@
       "text": "kronos"
     },
     {
-      "id": 48745,
+      "id": 48744,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 176.28825,
@@ -11354,7 +11343,7 @@
       "text": "kronos"
     },
     {
-      "id": 48746,
+      "id": 48745,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 179.27696,
@@ -11365,7 +11354,7 @@
       "text": "kronos"
     },
     {
-      "id": 48747,
+      "id": 48746,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 182.26295,
@@ -11376,7 +11365,7 @@
       "text": "kronos"
     },
     {
-      "id": 48748,
+      "id": 48747,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 185.26335,
@@ -11387,7 +11376,7 @@
       "text": "kronos"
     },
     {
-      "id": 48749,
+      "id": 48748,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 188.26192,
@@ -11398,7 +11387,7 @@
       "text": "kronos"
     },
     {
-      "id": 48750,
+      "id": 48749,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 191.25839,
@@ -11409,7 +11398,7 @@
       "text": "kronos"
     },
     {
-      "id": 48751,
+      "id": 48750,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 194.26707,
@@ -11420,7 +11409,7 @@
       "text": "kronos"
     },
     {
-      "id": 48752,
+      "id": 48751,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 197.27826,
@@ -11431,7 +11420,7 @@
       "text": "kronos"
     },
     {
-      "id": 48753,
+      "id": 48752,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 200.25815,
@@ -11442,7 +11431,7 @@
       "text": "kronos"
     },
     {
-      "id": 48754,
+      "id": 48753,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 203.25443,
@@ -11453,7 +11442,7 @@
       "text": "kronos"
     },
     {
-      "id": 48755,
+      "id": 48754,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 206.27159,
@@ -11464,7 +11453,7 @@
       "text": "kronos"
     },
     {
-      "id": 48756,
+      "id": 48755,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 209.26169,
@@ -11475,7 +11464,7 @@
       "text": "kronos"
     },
     {
-      "id": 48757,
+      "id": 48756,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 212.24586,
@@ -11486,7 +11475,7 @@
       "text": "kronos"
     },
     {
-      "id": 48758,
+      "id": 48757,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 215.26266,
@@ -11497,7 +11486,7 @@
       "text": "kronos"
     },
     {
-      "id": 48759,
+      "id": 48758,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 218.26323,
@@ -11508,7 +11497,7 @@
       "text": "kronos"
     },
     {
-      "id": 48760,
+      "id": 48759,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 221.24278,
@@ -11519,7 +11508,7 @@
       "text": "kronos"
     },
     {
-      "id": 48761,
+      "id": 48760,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 224.24928,
@@ -11530,7 +11519,7 @@
       "text": "kronos"
     },
     {
-      "id": 48762,
+      "id": 48761,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 227.26195,
@@ -11541,7 +11530,7 @@
       "text": "kronos"
     },
     {
-      "id": 48763,
+      "id": 48762,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 230.24245,
@@ -11552,7 +11541,7 @@
       "text": "kronos"
     },
     {
-      "id": 48764,
+      "id": 48763,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 233.2386,
@@ -11563,7 +11552,7 @@
       "text": "kronos"
     },
     {
-      "id": 48765,
+      "id": 48764,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 236.25325,
@@ -11574,7 +11563,7 @@
       "text": "kronos"
     },
     {
-      "id": 48766,
+      "id": 48765,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 239.25417,
@@ -11585,7 +11574,7 @@
       "text": "kronos"
     },
     {
-      "id": 48767,
+      "id": 48766,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 242.2516,
@@ -11596,7 +11585,7 @@
       "text": "kronos"
     },
     {
-      "id": 48768,
+      "id": 48767,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 245.23347,
@@ -11607,7 +11596,7 @@
       "text": "kronos"
     },
     {
-      "id": 48769,
+      "id": 48768,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 248.22969,
@@ -11618,7 +11607,7 @@
       "text": "kronos"
     },
     {
-      "id": 48770,
+      "id": 48769,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 251.24687,
@@ -11629,7 +11618,7 @@
       "text": "kronos"
     },
     {
-      "id": 48771,
+      "id": 48770,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 254.23714,
@@ -11640,7 +11629,7 @@
       "text": "kronos"
     },
     {
-      "id": 48772,
+      "id": 48771,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 257.22113,
@@ -11651,7 +11640,7 @@
       "text": "kronos"
     },
     {
-      "id": 48773,
+      "id": 48772,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 260.23788,
@@ -11662,7 +11651,7 @@
       "text": "kronos"
     },
     {
-      "id": 48774,
+      "id": 48773,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 263.23862,
@@ -11673,7 +11662,7 @@
       "text": "kronos"
     },
     {
-      "id": 48775,
+      "id": 48774,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 266.2182,
@@ -11684,7 +11673,7 @@
       "text": "kronos"
     },
     {
-      "id": 48776,
+      "id": 48775,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 269.22458,
@@ -11695,7 +11684,7 @@
       "text": "kronos"
     },
     {
-      "id": 48777,
+      "id": 48776,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 272.23743,
@@ -11706,7 +11695,7 @@
       "text": "kronos"
     },
     {
-      "id": 48778,
+      "id": 48777,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 275.21747,
@@ -11717,7 +11706,7 @@
       "text": "kronos"
     },
     {
-      "id": 48779,
+      "id": 48778,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 278.21338,
@@ -11728,7 +11717,7 @@
       "text": "kronos"
     },
     {
-      "id": 48780,
+      "id": 48779,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 281.22858,
@@ -11739,7 +11728,7 @@
       "text": "kronos"
     },
     {
-      "id": 48781,
+      "id": 48780,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 284.22964,
@@ -11750,7 +11739,7 @@
       "text": "kronos"
     },
     {
-      "id": 48782,
+      "id": 48781,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 287.2271,
@@ -11761,7 +11750,7 @@
       "text": "kronos"
     },
     {
-      "id": 48783,
+      "id": 48782,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 290.2109,
@@ -11772,7 +11761,7 @@
       "text": "kronos"
     },
     {
-      "id": 48784,
+      "id": 48783,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 293.20264,
@@ -11783,7 +11772,7 @@
       "text": "kronos"
     },
     {
-      "id": 48785,
+      "id": 48784,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 296.20306,
@@ -11794,7 +11783,7 @@
       "text": "kronos"
     },
     {
-      "id": 48786,
+      "id": 48785,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 299.20154,
@@ -11805,7 +11794,7 @@
       "text": "kronos"
     },
     {
-      "id": 48787,
+      "id": 48786,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 302.19998,
@@ -11816,7 +11805,7 @@
       "text": "kronos"
     },
     {
-      "id": 48788,
+      "id": 48787,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 305.1971,
@@ -11827,7 +11816,7 @@
       "text": "kronos"
     },
     {
-      "id": 48789,
+      "id": 48788,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 308.19986,
@@ -11838,7 +11827,7 @@
       "text": "kronos"
     },
     {
-      "id": 48790,
+      "id": 48789,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 311.2125,
@@ -11849,7 +11838,7 @@
       "text": "kronos"
     },
     {
-      "id": 48791,
+      "id": 48790,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 314.21286,
@@ -11860,7 +11849,7 @@
       "text": "kronos"
     },
     {
-      "id": 48792,
+      "id": 48791,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 317.20978,
@@ -11871,7 +11860,7 @@
       "text": "kronos"
     },
     {
-      "id": 48793,
+      "id": 48792,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 320.20618,
@@ -11882,7 +11871,7 @@
       "text": "kronos"
     },
     {
-      "id": 48794,
+      "id": 48793,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 323.20868,
@@ -11893,7 +11882,7 @@
       "text": "kronos"
     },
     {
-      "id": 48795,
+      "id": 48794,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 326.22162,
@@ -11904,7 +11893,7 @@
       "text": "kronos"
     },
     {
-      "id": 48796,
+      "id": 48795,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 329.2225,
@@ -11915,7 +11904,7 @@
       "text": "kronos"
     },
     {
-      "id": 48797,
+      "id": 48796,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 332.2198,
@@ -11926,7 +11915,7 @@
       "text": "kronos"
     },
     {
-      "id": 48798,
+      "id": 48797,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 335.20764,
@@ -11937,7 +11926,7 @@
       "text": "kronos"
     },
     {
-      "id": 48799,
+      "id": 48798,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 338.1908,
@@ -11948,7 +11937,7 @@
       "text": "kronos"
     },
     {
-      "id": 48800,
+      "id": 48799,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 341.16504,
@@ -11959,7 +11948,7 @@
       "text": "kronos"
     },
     {
-      "id": 48801,
+      "id": 48800,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 344.14078,
@@ -11970,7 +11959,7 @@
       "text": "kronos"
     },
     {
-      "id": 48802,
+      "id": 48801,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 347.11685,
@@ -11981,7 +11970,7 @@
       "text": "kronos"
     },
     {
-      "id": 48803,
+      "id": 48802,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 350.1173,
@@ -11992,7 +11981,7 @@
       "text": "kronos"
     },
     {
-      "id": 48804,
+      "id": 48803,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 353.1206,
@@ -12003,7 +11992,7 @@
       "text": "kronos"
     },
     {
-      "id": 48805,
+      "id": 48804,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 356.12842,
@@ -12014,7 +12003,7 @@
       "text": "kronos"
     },
     {
-      "id": 48806,
+      "id": 48805,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 359.15335,
@@ -12025,7 +12014,7 @@
       "text": "kronos"
     },
     {
-      "id": 48807,
+      "id": 48806,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 362.1848,
@@ -12036,7 +12025,7 @@
       "text": "kronos"
     },
     {
-      "id": 48808,
+      "id": 48807,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 365.24402,
@@ -12047,7 +12036,7 @@
       "text": "kronos"
     },
     {
-      "id": 48809,
+      "id": 48808,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 368.28806,
@@ -12058,7 +12047,7 @@
       "text": "kronos"
     },
     {
-      "id": 48810,
+      "id": 48809,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 371.3173,
@@ -12069,7 +12058,7 @@
       "text": "kronos"
     },
     {
-      "id": 48811,
+      "id": 48810,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 374.3341,
@@ -12080,7 +12069,7 @@
       "text": "kronos"
     },
     {
-      "id": 48812,
+      "id": 48811,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 377.34555,
@@ -12091,7 +12080,7 @@
       "text": "kronos"
     },
     {
-      "id": 48813,
+      "id": 48812,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 380.28693,
@@ -12102,7 +12091,7 @@
       "text": "kronos"
     },
     {
-      "id": 48814,
+      "id": 48813,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 383.20813,
@@ -12113,7 +12102,7 @@
       "text": "kronos"
     },
     {
-      "id": 48815,
+      "id": 48814,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 386.09177,
@@ -12124,7 +12113,7 @@
       "text": "kronos"
     },
     {
-      "id": 48816,
+      "id": 48815,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 388.9529,
@@ -12135,7 +12124,7 @@
       "text": "kronos"
     },
     {
-      "id": 48817,
+      "id": 48816,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 391.80475,
@@ -12146,7 +12135,7 @@
       "text": "kronos"
     },
     {
-      "id": 48818,
+      "id": 48817,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 394.64548,
@@ -12157,7 +12146,7 @@
       "text": "kronos"
     },
     {
-      "id": 48819,
+      "id": 48818,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -196.99979,
@@ -12168,7 +12157,7 @@
       "text": null
     },
     {
-      "id": 48820,
+      "id": 48819,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -175.57678,
@@ -12179,7 +12168,7 @@
       "text": null
     },
     {
-      "id": 48821,
+      "id": 48820,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -146.6885,
@@ -12190,7 +12179,7 @@
       "text": null
     },
     {
-      "id": 48822,
+      "id": 48821,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -97.600945,
@@ -12201,7 +12190,7 @@
       "text": null
     },
     {
-      "id": 48823,
+      "id": 48822,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -66.679756,
@@ -12212,7 +12201,7 @@
       "text": null
     },
     {
-      "id": 48824,
+      "id": 48823,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -36.37773,
@@ -12223,7 +12212,7 @@
       "text": null
     },
     {
-      "id": 48825,
+      "id": 48824,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -6.4615965,
@@ -12234,7 +12223,7 @@
       "text": null
     },
     {
-      "id": 48826,
+      "id": 48825,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 23.538574,
@@ -12245,7 +12234,7 @@
       "text": null
     },
     {
-      "id": 48827,
+      "id": 48826,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 53.538574,
@@ -12256,7 +12245,7 @@
       "text": null
     },
     {
-      "id": 48828,
+      "id": 48827,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 83.56285,
@@ -12267,7 +12256,7 @@
       "text": null
     },
     {
-      "id": 48829,
+      "id": 48828,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 113.45367,
@@ -12278,7 +12267,7 @@
       "text": null
     },
     {
-      "id": 48830,
+      "id": 48829,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 144.55254,
@@ -12289,7 +12278,7 @@
       "text": null
     },
     {
-      "id": 48831,
+      "id": 48830,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 174.93982,
@@ -12300,7 +12289,7 @@
       "text": null
     },
     {
-      "id": 48832,
+      "id": 48831,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 204.86174,
@@ -12311,7 +12300,7 @@
       "text": null
     },
     {
-      "id": 48833,
+      "id": 48832,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 234.84671,
@@ -12322,7 +12311,7 @@
       "text": null
     },
     {
-      "id": 48834,
+      "id": 48833,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 264.88547,
@@ -12333,7 +12322,7 @@
       "text": null
     },
     {
-      "id": 48835,
+      "id": 48834,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 294.78955,
@@ -12344,7 +12333,7 @@
       "text": null
     },
     {
-      "id": 48836,
+      "id": 48835,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 324.88672,
@@ -12355,7 +12344,7 @@
       "text": null
     },
     {
-      "id": 48837,
+      "id": 48836,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 40.0,
@@ -12366,7 +12355,7 @@
       "text": null
     },
     {
-      "id": 48838,
+      "id": 48837,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 64.0,
@@ -12377,7 +12366,7 @@
       "text": null
     },
     {
-      "id": 48839,
+      "id": 48838,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 87.88433,
@@ -12388,7 +12377,7 @@
       "text": null
     },
     {
-      "id": 48840,
+      "id": 48839,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 112.12,
@@ -12399,7 +12388,7 @@
       "text": null
     },
     {
-      "id": 48841,
+      "id": 48840,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 135.09203,
@@ -12410,7 +12399,7 @@
       "text": null
     },
     {
-      "id": 48842,
+      "id": 48841,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 157.85928,
@@ -12421,7 +12410,7 @@
       "text": null
     },
     {
-      "id": 48843,
+      "id": 48842,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 182.06566,
@@ -12432,7 +12421,7 @@
       "text": null
     },
     {
-      "id": 48844,
+      "id": 48843,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 205.92773,
@@ -12443,7 +12432,7 @@
       "text": null
     },
     {
-      "id": 48845,
+      "id": 48844,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 230.0477,
@@ -12454,7 +12443,7 @@
       "text": null
     },
     {
-      "id": 48846,
+      "id": 48845,
       "kind": "light",
       "asset": "lamp_balloon_tether",
       "x": 55.0,
@@ -12465,7 +12454,7 @@
       "text": null
     },
     {
-      "id": 48847,
+      "id": 48846,
       "kind": "light",
       "asset": "lamp_balloon_tether",
       "x": 95.00012,
@@ -12476,7 +12465,7 @@
       "text": null
     },
     {
-      "id": 48848,
+      "id": 48847,
       "kind": "light",
       "asset": "lamp_balloon_tether",
       "x": 134.65848,
@@ -12487,7 +12476,7 @@
       "text": null
     },
     {
-      "id": 48849,
+      "id": 48848,
       "kind": "light",
       "asset": "lamp_balloon_tether",
       "x": 174.14352,
@@ -12498,7 +12487,7 @@
       "text": null
     },
     {
-      "id": 48850,
+      "id": 48849,
       "kind": "light",
       "asset": "lamp_balloon_tether",
       "x": 214.13457,
@@ -12509,7 +12498,7 @@
       "text": null
     },
     {
-      "id": 48851,
+      "id": 48850,
       "kind": "light",
       "asset": "lamp_balloon_tether_orange",
       "x": 75.0,
@@ -12520,7 +12509,7 @@
       "text": null
     },
     {
-      "id": 48852,
+      "id": 48851,
       "kind": "light",
       "asset": "lamp_balloon_tether_orange",
       "x": 115.05426,
@@ -12531,7 +12520,7 @@
       "text": null
     },
     {
-      "id": 48853,
+      "id": 48852,
       "kind": "light",
       "asset": "lamp_balloon_tether_orange",
       "x": 154.17612,
@@ -12542,7 +12531,7 @@
       "text": null
     },
     {
-      "id": 48854,
+      "id": 48853,
       "kind": "light",
       "asset": "lamp_balloon_tether_orange",
       "x": 194.14496,
@@ -12553,7 +12542,7 @@
       "text": null
     },
     {
-      "id": 48855,
+      "id": 48854,
       "kind": "light",
       "asset": "lamp_balloon_tether_orange",
       "x": 234.1284,
@@ -12564,7 +12553,7 @@
       "text": null
     },
     {
-      "id": 48856,
+      "id": 48855,
       "kind": "board",
       "asset": "roof_wordmark_block",
       "x": 75.0,
@@ -12575,7 +12564,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48857,
+      "id": 48856,
       "kind": "board",
       "asset": "roof_wordmark_block",
       "x": 134.49832,
@@ -12586,7 +12575,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48858,
+      "id": 48857,
       "kind": "board",
       "asset": "roof_wordmark_block",
       "x": 193.75748,
@@ -12597,7 +12586,7 @@
       "text": "apexsim"
     },
     {
-      "id": 48859,
+      "id": 48858,
       "kind": "misc",
       "asset": "stair_zigzag_scaffold",
       "x": 28.0,
@@ -12608,7 +12597,7 @@
       "text": null
     },
     {
-      "id": 48860,
+      "id": 48859,
       "kind": "misc",
       "asset": "stair_zigzag_scaffold",
       "x": 240.98964,
@@ -12619,7 +12608,7 @@
       "text": null
     },
     {
-      "id": 48861,
+      "id": 48860,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 40.0,
@@ -12630,7 +12619,7 @@
       "text": null
     },
     {
-      "id": 48862,
+      "id": 48861,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 56.0,
@@ -12641,7 +12630,7 @@
       "text": null
     },
     {
-      "id": 48863,
+      "id": 48862,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 72.0,
@@ -12652,7 +12641,7 @@
       "text": null
     },
     {
-      "id": 48864,
+      "id": 48863,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 87.872765,
@@ -12663,7 +12652,7 @@
       "text": null
     },
     {
-      "id": 48865,
+      "id": 48864,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 104.05684,
@@ -12674,7 +12663,7 @@
       "text": null
     },
     {
-      "id": 48866,
+      "id": 48865,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 120.05996,
@@ -12685,7 +12674,7 @@
       "text": null
     },
     {
-      "id": 48867,
+      "id": 48866,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 135.00127,
@@ -12696,7 +12685,7 @@
       "text": null
     },
     {
-      "id": 48868,
+      "id": 48867,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 149.86252,
@@ -12707,7 +12696,7 @@
       "text": null
     },
     {
-      "id": 48869,
+      "id": 48868,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 165.6295,
@@ -12718,7 +12707,7 @@
       "text": null
     },
     {
-      "id": 48870,
+      "id": 48869,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 181.87462,
@@ -12729,7 +12718,7 @@
       "text": null
     },
     {
-      "id": 48871,
+      "id": 48870,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 197.83698,
@@ -12740,7 +12729,7 @@
       "text": null
     },
     {
-      "id": 48872,
+      "id": 48871,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 213.70702,
@@ -12751,7 +12740,7 @@
       "text": null
     },
     {
-      "id": 48873,
+      "id": 48872,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 229.85745,
@@ -12762,7 +12751,7 @@
       "text": null
     },
     {
-      "id": 48874,
+      "id": 48873,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": -175.75676,
@@ -12773,7 +12762,7 @@
       "text": null
     },
     {
-      "id": 48875,
+      "id": 48874,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": -133.65646,
@@ -12784,7 +12773,7 @@
       "text": null
     },
     {
-      "id": 48876,
+      "id": 48875,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": -86.75363,
@@ -12795,7 +12784,7 @@
       "text": null
     },
     {
-      "id": 48877,
+      "id": 48876,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": -59.82361,
@@ -12806,7 +12795,7 @@
       "text": null
     },
     {
-      "id": 48878,
+      "id": 48877,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": -31.380959,
@@ -12817,7 +12806,7 @@
       "text": null
     },
     {
-      "id": 48879,
+      "id": 48878,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": -3.4614782,
@@ -12828,7 +12817,7 @@
       "text": null
     },
     {
-      "id": 48880,
+      "id": 48879,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 24.538574,
@@ -12839,7 +12828,7 @@
       "text": null
     },
     {
-      "id": 48881,
+      "id": 48880,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 52.538574,
@@ -12850,7 +12839,7 @@
       "text": null
     },
     {
-      "id": 48882,
+      "id": 48881,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 80.52571,
@@ -12861,7 +12850,7 @@
       "text": null
     },
     {
-      "id": 48883,
+      "id": 48882,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 108.4111,
@@ -12872,7 +12861,7 @@
       "text": null
     },
     {
-      "id": 48884,
+      "id": 48883,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 137.45285,
@@ -12883,7 +12872,7 @@
       "text": null
     },
     {
-      "id": 48885,
+      "id": 48884,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 166.62541,
@@ -12894,7 +12883,7 @@
       "text": null
     },
     {
-      "id": 48886,
+      "id": 48885,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 194.3709,
@@ -12905,7 +12894,7 @@
       "text": null
     },
     {
-      "id": 48887,
+      "id": 48886,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 222.35262,
@@ -12916,7 +12905,7 @@
       "text": null
     },
     {
-      "id": 48888,
+      "id": 48887,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 250.35336,
@@ -12927,7 +12916,7 @@
       "text": null
     },
     {
-      "id": 48889,
+      "id": 48888,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 278.29935,
@@ -12938,7 +12927,7 @@
       "text": null
     },
     {
-      "id": 48890,
+      "id": 48889,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 306.29858,
@@ -12949,7 +12938,7 @@
       "text": null
     },
     {
-      "id": 48891,
+      "id": 48890,
       "kind": "attraction",
       "asset": "led_wall_stage_16m",
       "x": 288.42294,
@@ -12960,7 +12949,7 @@
       "text": null
     },
     {
-      "id": 48892,
+      "id": 48891,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 262.49612,
@@ -12971,7 +12960,7 @@
       "text": null
     },
     {
-      "id": 48893,
+      "id": 48892,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 234.855,
@@ -12982,7 +12971,7 @@
       "text": null
     },
     {
-      "id": 48894,
+      "id": 48893,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 207.69594,
@@ -12993,7 +12982,7 @@
       "text": null
     },
     {
-      "id": 48895,
+      "id": 48894,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 180.52469,
@@ -13004,7 +12993,7 @@
       "text": null
     },
     {
-      "id": 48896,
+      "id": 48895,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 153.39264,
@@ -13015,7 +13004,7 @@
       "text": null
     },
     {
-      "id": 48897,
+      "id": 48896,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 125.98572,
@@ -13026,7 +13015,7 @@
       "text": null
     },
     {
-      "id": 48898,
+      "id": 48897,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 98.333626,
@@ -13037,7 +13026,7 @@
       "text": null
     },
     {
-      "id": 48899,
+      "id": 48898,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 70.745735,
@@ -13048,7 +13037,7 @@
       "text": null
     },
     {
-      "id": 48900,
+      "id": 48899,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 232.01898,
@@ -13059,7 +13048,7 @@
       "text": null
     },
     {
-      "id": 48901,
+      "id": 48900,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 204.63818,
@@ -13070,7 +13059,7 @@
       "text": null
     },
     {
-      "id": 48902,
+      "id": 48901,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 178.07167,
@@ -13081,7 +13070,7 @@
       "text": null
     },
     {
-      "id": 48903,
+      "id": 48902,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 150.36995,
@@ -13092,7 +13081,7 @@
       "text": null
     },
     {
-      "id": 48904,
+      "id": 48903,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 123.40348,
@@ -13103,7 +13092,7 @@
       "text": null
     },
     {
-      "id": 48905,
+      "id": 48904,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 95.74475,
@@ -13114,7 +13103,7 @@
       "text": null
     },
     {
-      "id": 49100,
+      "id": 48905,
       "kind": "attraction",
       "asset": "marquee_peak_12m",
       "x": 68.22783,
@@ -13125,7 +13114,7 @@
       "text": null
     },
     {
-      "id": 49101,
+      "id": 49100,
       "kind": "attraction",
       "asset": "led_wall_stage_16m",
       "x": 123.591736,
@@ -13136,7 +13125,7 @@
       "text": null
     },
     {
-      "id": 49102,
+      "id": 49101,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 271.8697,
@@ -13147,7 +13136,7 @@
       "text": null
     },
     {
-      "id": 49103,
+      "id": 49102,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 260.41837,
@@ -13158,7 +13147,7 @@
       "text": null
     },
     {
-      "id": 49104,
+      "id": 49103,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 249.09828,
@@ -13169,7 +13158,7 @@
       "text": null
     },
     {
-      "id": 49105,
+      "id": 49104,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 237.81718,
@@ -13180,7 +13169,7 @@
       "text": null
     },
     {
-      "id": 49106,
+      "id": 49105,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 226.56993,
@@ -13191,7 +13180,7 @@
       "text": null
     },
     {
-      "id": 49107,
+      "id": 49106,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 215.43793,
@@ -13202,7 +13191,7 @@
       "text": null
     },
     {
-      "id": 49108,
+      "id": 49107,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 204.34566,
@@ -13213,7 +13202,7 @@
       "text": null
     },
     {
-      "id": 49109,
+      "id": 49108,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 193.06494,
@@ -13224,7 +13213,7 @@
       "text": null
     },
     {
-      "id": 49110,
+      "id": 49109,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 181.79999,
@@ -13235,7 +13224,7 @@
       "text": null
     },
     {
-      "id": 49111,
+      "id": 49110,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 170.67584,
@@ -13246,7 +13235,7 @@
       "text": null
     },
     {
-      "id": 49112,
+      "id": 49111,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 159.56352,
@@ -13257,7 +13246,7 @@
       "text": null
     },
     {
-      "id": 49113,
+      "id": 49112,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 148.27707,
@@ -13268,7 +13257,7 @@
       "text": null
     },
     {
-      "id": 49114,
+      "id": 49113,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 136.91652,
@@ -13279,7 +13268,7 @@
       "text": null
     },
     {
-      "id": 49115,
+      "id": 49114,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 125.53892,
@@ -13290,7 +13279,7 @@
       "text": null
     },
     {
-      "id": 49116,
+      "id": 49115,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 114.191376,
@@ -13301,7 +13290,7 @@
       "text": null
     },
     {
-      "id": 49117,
+      "id": 49116,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 102.76771,
@@ -13312,7 +13301,7 @@
       "text": null
     },
     {
-      "id": 49118,
+      "id": 49117,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 91.42755,
@@ -13323,7 +13312,7 @@
       "text": null
     },
     {
-      "id": 49119,
+      "id": 49118,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 80.065895,
@@ -13334,7 +13323,7 @@
       "text": null
     },
     {
-      "id": 49120,
+      "id": 49119,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 68.57959,
@@ -13345,7 +13334,7 @@
       "text": null
     },
     {
-      "id": 49121,
+      "id": 49120,
       "kind": "misc",
       "asset": "walkway_planter_4m",
       "x": 57.355484,
@@ -13356,7 +13345,7 @@
       "text": null
     },
     {
-      "id": 49122,
+      "id": 49121,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 254.29428,
@@ -13367,7 +13356,7 @@
       "text": null
     },
     {
-      "id": 49123,
+      "id": 49122,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 237.95125,
@@ -13378,7 +13367,7 @@
       "text": null
     },
     {
-      "id": 49124,
+      "id": 49123,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 221.78227,
@@ -13389,7 +13378,7 @@
       "text": null
     },
     {
-      "id": 49125,
+      "id": 49124,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 205.8199,
@@ -13400,7 +13389,7 @@
       "text": null
     },
     {
-      "id": 49126,
+      "id": 49125,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 190.2225,
@@ -13411,7 +13400,7 @@
       "text": null
     },
     {
-      "id": 49127,
+      "id": 49126,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 174.00421,
@@ -13422,7 +13411,7 @@
       "text": null
     },
     {
-      "id": 49128,
+      "id": 49127,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 157.80525,
@@ -13433,7 +13422,7 @@
       "text": null
     },
     {
-      "id": 49129,
+      "id": 49128,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 142.00165,
@@ -13444,7 +13433,7 @@
       "text": null
     },
     {
-      "id": 49130,
+      "id": 49129,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 125.94899,
@@ -13455,7 +13444,7 @@
       "text": null
     },
     {
-      "id": 49131,
+      "id": 49130,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 109.675476,
@@ -13466,7 +13455,7 @@
       "text": null
     },
     {
-      "id": 49132,
+      "id": 49131,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 93.369514,
@@ -13477,7 +13466,7 @@
       "text": null
     },
     {
-      "id": 49133,
+      "id": 49132,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 77.18553,
@@ -13488,7 +13477,7 @@
       "text": null
     },
     {
-      "id": 49134,
+      "id": 49133,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 60.97665,
@@ -13499,7 +13488,7 @@
       "text": null
     },
     {
-      "id": 49135,
+      "id": 49134,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 44.518864,
@@ -13510,7 +13499,7 @@
       "text": null
     },
     {
-      "id": 49136,
+      "id": 49135,
       "kind": "bridge",
       "asset": "banner_gantry",
       "x": 147.69371,
@@ -13521,7 +13510,7 @@
       "text": "kronos"
     },
     {
-      "id": 49137,
+      "id": 49136,
       "kind": "bridge",
       "asset": "banner_gantry",
       "x": 302.4809,
@@ -13532,7 +13521,7 @@
       "text": "hexon"
     },
     {
-      "id": 49138,
+      "id": 49137,
       "kind": "bridge",
       "asset": "banner_gantry",
       "x": 187.34491,
@@ -13543,7 +13532,7 @@
       "text": "rolux"
     },
     {
-      "id": 49139,
+      "id": 49138,
       "kind": "bridge",
       "asset": "banner_gantry",
       "x": -22.316729,
@@ -13554,7 +13543,7 @@
       "text": "piretti"
     },
     {
-      "id": 49140,
+      "id": 49139,
       "kind": "bridge",
       "asset": "banner_gantry",
       "x": -173.23965,
@@ -13565,7 +13554,7 @@
       "text": "velocet"
     },
     {
-      "id": 49141,
+      "id": 49140,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 444.0981,
@@ -13576,7 +13565,7 @@
       "text": "brix"
     },
     {
-      "id": 49142,
+      "id": 49141,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 446.07507,
@@ -13587,7 +13576,7 @@
       "text": "brix"
     },
     {
-      "id": 49143,
+      "id": 49142,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 447.58487,
@@ -13598,7 +13587,7 @@
       "text": "brix"
     },
     {
-      "id": 49144,
+      "id": 49143,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 448.6724,
@@ -13609,7 +13598,7 @@
       "text": "brix"
     },
     {
-      "id": 49145,
+      "id": 49144,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 449.416,
@@ -13620,7 +13609,7 @@
       "text": "brix"
     },
     {
-      "id": 49146,
+      "id": 49145,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 449.93536,
@@ -13631,7 +13620,7 @@
       "text": "brix"
     },
     {
-      "id": 49147,
+      "id": 49146,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 450.28815,
@@ -13642,7 +13631,7 @@
       "text": "brix"
     },
     {
-      "id": 49148,
+      "id": 49147,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 450.5785,
@@ -13653,7 +13642,7 @@
       "text": "brix"
     },
     {
-      "id": 49149,
+      "id": 49148,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 450.83002,
@@ -13664,7 +13653,7 @@
       "text": "brix"
     },
     {
-      "id": 49150,
+      "id": 49149,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 451.10864,
@@ -13675,7 +13664,7 @@
       "text": "brix"
     },
     {
-      "id": 49151,
+      "id": 49150,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 451.44864,
@@ -13686,7 +13675,7 @@
       "text": "brix"
     },
     {
-      "id": 49152,
+      "id": 49151,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 451.89157,
@@ -13697,7 +13686,7 @@
       "text": "brix"
     },
     {
-      "id": 49153,
+      "id": 49152,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 452.4599,
@@ -13708,7 +13697,7 @@
       "text": "brix"
     },
     {
-      "id": 49154,
+      "id": 49153,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 453.15686,
@@ -13719,7 +13708,7 @@
       "text": "brix"
     },
     {
-      "id": 49155,
+      "id": 49154,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 454.02042,
@@ -13730,7 +13719,7 @@
       "text": "brix"
     },
     {
-      "id": 49156,
+      "id": 49155,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 455.02274,
@@ -13741,7 +13730,7 @@
       "text": "brix"
     },
     {
-      "id": 49157,
+      "id": 49156,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 456.1828,
@@ -13752,7 +13741,7 @@
       "text": "brix"
     },
     {
-      "id": 49158,
+      "id": 49157,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 457.42606,
@@ -13763,7 +13752,7 @@
       "text": "brix"
     },
     {
-      "id": 49159,
+      "id": 49158,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 458.75122,
@@ -13774,7 +13763,7 @@
       "text": "brix"
     },
     {
-      "id": 49160,
+      "id": 49159,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 460.14172,
@@ -13785,7 +13774,7 @@
       "text": "brix"
     },
     {
-      "id": 49161,
+      "id": 49160,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 461.5968,
@@ -13796,7 +13785,7 @@
       "text": "brix"
     },
     {
-      "id": 49162,
+      "id": 49161,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 463.05023,
@@ -13807,7 +13796,7 @@
       "text": "brix"
     },
     {
-      "id": 49163,
+      "id": 49162,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 464.54126,
@@ -13818,7 +13807,7 @@
       "text": "brix"
     },
     {
-      "id": 49164,
+      "id": 49163,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 466.04343,
@@ -13829,7 +13818,7 @@
       "text": "brix"
     },
     {
-      "id": 49165,
+      "id": 49164,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 467.57278,
@@ -13840,7 +13829,7 @@
       "text": "brix"
     },
     {
-      "id": 49166,
+      "id": 49165,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 469.14264,
@@ -13851,7 +13840,7 @@
       "text": "brix"
     },
     {
-      "id": 49167,
+      "id": 49166,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 470.7381,
@@ -13862,7 +13851,7 @@
       "text": "brix"
     },
     {
-      "id": 49168,
+      "id": 49167,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 472.4332,
@@ -13873,7 +13862,7 @@
       "text": "brix"
     },
     {
-      "id": 49169,
+      "id": 49168,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 474.22586,
@@ -13884,7 +13873,7 @@
       "text": "brix"
     },
     {
-      "id": 49170,
+      "id": 49169,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 514.52576,
@@ -13895,7 +13884,7 @@
       "text": "hexon"
     },
     {
-      "id": 49171,
+      "id": 49170,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 514.7688,
@@ -13906,7 +13895,7 @@
       "text": "hexon"
     },
     {
-      "id": 49172,
+      "id": 49171,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 514.6113,
@@ -13917,7 +13906,7 @@
       "text": "hexon"
     },
     {
-      "id": 49173,
+      "id": 49172,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 514.0342,
@@ -13928,7 +13917,7 @@
       "text": "hexon"
     },
     {
-      "id": 49174,
+      "id": 49173,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 513.0825,
@@ -13939,7 +13928,7 @@
       "text": "hexon"
     },
     {
-      "id": 49175,
+      "id": 49174,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 511.7805,
@@ -13950,7 +13939,7 @@
       "text": "hexon"
     },
     {
-      "id": 49176,
+      "id": 49175,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 510.154,
@@ -13961,7 +13950,7 @@
       "text": "hexon"
     },
     {
-      "id": 49177,
+      "id": 49176,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 508.25555,
@@ -13972,7 +13961,7 @@
       "text": "hexon"
     },
     {
-      "id": 49178,
+      "id": 49177,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 506.10233,
@@ -13983,7 +13972,7 @@
       "text": "hexon"
     },
     {
-      "id": 49179,
+      "id": 49178,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 503.7712,
@@ -13994,7 +13983,7 @@
       "text": "hexon"
     },
     {
-      "id": 49180,
+      "id": 49179,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 501.281,
@@ -14005,7 +13994,7 @@
       "text": "hexon"
     },
     {
-      "id": 49181,
+      "id": 49180,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 498.66357,
@@ -14016,7 +14005,7 @@
       "text": "hexon"
     },
     {
-      "id": 49182,
+      "id": 49181,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 495.93658,
@@ -14027,7 +14016,7 @@
       "text": "hexon"
     },
     {
-      "id": 49183,
+      "id": 49182,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 493.11044,
@@ -14038,7 +14027,7 @@
       "text": "hexon"
     },
     {
-      "id": 49184,
+      "id": 49183,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 490.1768,
@@ -14049,7 +14038,7 @@
       "text": "hexon"
     },
     {
-      "id": 49185,
+      "id": 49184,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 487.1502,
@@ -14060,7 +14049,7 @@
       "text": "hexon"
     },
     {
-      "id": 49186,
+      "id": 49185,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 484.04697,
@@ -14071,7 +14060,7 @@
       "text": "hexon"
     },
     {
-      "id": 49187,
+      "id": 49186,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 480.89603,
@@ -14082,7 +14071,7 @@
       "text": "hexon"
     },
     {
-      "id": 49188,
+      "id": 49187,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 477.70062,
@@ -14093,7 +14082,7 @@
       "text": "hexon"
     },
     {
-      "id": 49189,
+      "id": 49188,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 474.48865,
@@ -14104,7 +14093,7 @@
       "text": "hexon"
     },
     {
-      "id": 49190,
+      "id": 49189,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 471.27124,
@@ -14115,7 +14104,7 @@
       "text": "hexon"
     },
     {
-      "id": 49191,
+      "id": 49190,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 468.0992,
@@ -14126,7 +14115,7 @@
       "text": "hexon"
     },
     {
-      "id": 49192,
+      "id": 49191,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 464.966,
@@ -14137,7 +14126,7 @@
       "text": "hexon"
     },
     {
-      "id": 49193,
+      "id": 49192,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 461.85565,
@@ -14148,7 +14137,7 @@
       "text": "hexon"
     },
     {
-      "id": 49194,
+      "id": 49193,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 458.8394,
@@ -14159,7 +14148,7 @@
       "text": "hexon"
     },
     {
-      "id": 49195,
+      "id": 49194,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 455.84094,
@@ -14170,7 +14159,7 @@
       "text": "hexon"
     },
     {
-      "id": 49196,
+      "id": 49195,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 452.89087,
@@ -14181,7 +14170,7 @@
       "text": "hexon"
     },
     {
-      "id": 49197,
+      "id": 49196,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 449.9597,
@@ -14192,7 +14181,7 @@
       "text": "hexon"
     },
     {
-      "id": 49198,
+      "id": 49197,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 447.05118,
@@ -14203,7 +14192,7 @@
       "text": "hexon"
     },
     {
-      "id": 49199,
+      "id": 49198,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 295.05426,
@@ -14214,7 +14203,7 @@
       "text": "velocet"
     },
     {
-      "id": 49200,
+      "id": 49199,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 292.1099,
@@ -14225,7 +14214,7 @@
       "text": "velocet"
     },
     {
-      "id": 49201,
+      "id": 49200,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 289.1679,
@@ -14236,7 +14225,7 @@
       "text": "velocet"
     },
     {
-      "id": 49202,
+      "id": 49201,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 286.23013,
@@ -14247,7 +14236,7 @@
       "text": "velocet"
     },
     {
-      "id": 49203,
+      "id": 49202,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 283.26648,
@@ -14258,7 +14247,7 @@
       "text": "velocet"
     },
     {
-      "id": 49204,
+      "id": 49203,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 280.29614,
@@ -14269,7 +14258,7 @@
       "text": "velocet"
     },
     {
-      "id": 49205,
+      "id": 49204,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 277.31604,
@@ -14280,7 +14269,7 @@
       "text": "velocet"
     },
     {
-      "id": 49206,
+      "id": 49205,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 274.32703,
@@ -14291,7 +14280,7 @@
       "text": "velocet"
     },
     {
-      "id": 49207,
+      "id": 49206,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 271.3328,
@@ -14302,7 +14291,7 @@
       "text": "velocet"
     },
     {
-      "id": 49208,
+      "id": 49207,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 268.3044,
@@ -14313,7 +14302,7 @@
       "text": "velocet"
     },
     {
-      "id": 49209,
+      "id": 49208,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 265.26273,
@@ -14324,7 +14313,7 @@
       "text": "velocet"
     },
     {
-      "id": 49210,
+      "id": 49209,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 262.19736,
@@ -14335,7 +14324,7 @@
       "text": "velocet"
     },
     {
-      "id": 49211,
+      "id": 49210,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 259.12296,
@@ -14346,7 +14335,7 @@
       "text": "velocet"
     },
     {
-      "id": 49212,
+      "id": 49211,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 256.0387,
@@ -14357,7 +14346,7 @@
       "text": "velocet"
     },
     {
-      "id": 49213,
+      "id": 49212,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 252.93416,
@@ -14368,7 +14357,7 @@
       "text": "velocet"
     },
     {
-      "id": 49214,
+      "id": 49213,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 249.82974,
@@ -14379,7 +14368,7 @@
       "text": "velocet"
     },
     {
-      "id": 49215,
+      "id": 49214,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 246.73795,
@@ -14390,7 +14379,7 @@
       "text": "velocet"
     },
     {
-      "id": 49216,
+      "id": 49215,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 243.65332,
@@ -14401,7 +14390,7 @@
       "text": "velocet"
     },
     {
-      "id": 49217,
+      "id": 49216,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 240.57243,
@@ -14412,7 +14401,7 @@
       "text": "velocet"
     },
     {
-      "id": 49218,
+      "id": 49217,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 237.5176,
@@ -14423,7 +14412,7 @@
       "text": "velocet"
     },
     {
-      "id": 49219,
+      "id": 49218,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 234.47131,
@@ -14434,7 +14423,7 @@
       "text": "velocet"
     },
     {
-      "id": 49220,
+      "id": 49219,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 231.4462,
@@ -14445,7 +14434,7 @@
       "text": "velocet"
     },
     {
-      "id": 49221,
+      "id": 49220,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 228.4371,
@@ -14456,7 +14445,7 @@
       "text": "velocet"
     },
     {
-      "id": 49222,
+      "id": 49221,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 225.44263,
@@ -14467,7 +14456,7 @@
       "text": "velocet"
     },
     {
-      "id": 49223,
+      "id": 49222,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 222.45927,
@@ -14478,7 +14467,7 @@
       "text": "velocet"
     },
     {
-      "id": 49224,
+      "id": 49223,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 219.46803,
@@ -14489,7 +14478,7 @@
       "text": "velocet"
     },
     {
-      "id": 49225,
+      "id": 49224,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 216.44658,
@@ -14500,7 +14489,7 @@
       "text": "velocet"
     },
     {
-      "id": 49226,
+      "id": 49225,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 213.4303,
@@ -14511,7 +14500,7 @@
       "text": "velocet"
     },
     {
-      "id": 49227,
+      "id": 49226,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 210.41695,
@@ -14522,7 +14511,7 @@
       "text": "velocet"
     },
     {
-      "id": 49228,
+      "id": 49227,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 150.97649,
@@ -14533,7 +14522,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49229,
+      "id": 49228,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 151.51088,
@@ -14544,7 +14533,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49230,
+      "id": 49229,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 152.04399,
@@ -14555,7 +14544,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49231,
+      "id": 49230,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 152.57237,
@@ -14566,7 +14555,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49232,
+      "id": 49231,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 153.09964,
@@ -14577,7 +14566,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49233,
+      "id": 49232,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 153.62672,
@@ -14588,7 +14577,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49234,
+      "id": 49233,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 154.15527,
@@ -14599,7 +14588,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49235,
+      "id": 49234,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 154.68237,
@@ -14610,7 +14599,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49236,
+      "id": 49235,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 155.20369,
@@ -14621,7 +14610,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49237,
+      "id": 49236,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 155.72516,
@@ -14632,7 +14621,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49238,
+      "id": 49237,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 156.24765,
@@ -14643,7 +14632,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49239,
+      "id": 49238,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 156.7693,
@@ -14654,7 +14643,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49240,
+      "id": 49239,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 157.29063,
@@ -14665,7 +14654,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49241,
+      "id": 49240,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 157.81253,
@@ -14676,7 +14665,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49242,
+      "id": 49241,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 158.33194,
@@ -14687,7 +14676,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49243,
+      "id": 49242,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 158.84813,
@@ -14698,7 +14687,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49244,
+      "id": 49243,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 159.35957,
@@ -14709,7 +14698,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49245,
+      "id": 49244,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 159.86853,
@@ -14720,7 +14709,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49246,
+      "id": 49245,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 160.3776,
@@ -14731,7 +14720,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49247,
+      "id": 49246,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 160.89003,
@@ -14742,7 +14731,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49248,
+      "id": 49247,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 161.406,
@@ -14753,7 +14742,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49249,
+      "id": 49248,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 161.92009,
@@ -14764,7 +14753,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49250,
+      "id": 49249,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 162.43848,
@@ -14775,7 +14764,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49251,
+      "id": 49250,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 162.97008,
@@ -14786,7 +14775,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49252,
+      "id": 49251,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 163.51335,
@@ -14797,7 +14786,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49253,
+      "id": 49252,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 164.06767,
@@ -14808,7 +14797,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49254,
+      "id": 49253,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 164.63235,
@@ -14819,7 +14808,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49255,
+      "id": 49254,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 165.20724,
@@ -14830,7 +14819,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49256,
+      "id": 49255,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 165.7913,
@@ -14841,7 +14830,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49257,
+      "id": 49256,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 335.35394,
@@ -14852,7 +14841,7 @@
       "text": "rolux"
     },
     {
-      "id": 49258,
+      "id": 49257,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 337.16336,
@@ -14863,7 +14852,7 @@
       "text": "rolux"
     },
     {
-      "id": 49259,
+      "id": 49258,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 338.96396,
@@ -14874,7 +14863,7 @@
       "text": "rolux"
     },
     {
-      "id": 49260,
+      "id": 49259,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 340.7752,
@@ -14885,7 +14874,7 @@
       "text": "rolux"
     },
     {
-      "id": 49261,
+      "id": 49260,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 342.58597,
@@ -14896,7 +14885,7 @@
       "text": "rolux"
     },
     {
-      "id": 49262,
+      "id": 49261,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 344.39722,
@@ -14907,7 +14896,7 @@
       "text": "rolux"
     },
     {
-      "id": 49263,
+      "id": 49262,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 346.20493,
@@ -14918,7 +14907,7 @@
       "text": "rolux"
     },
     {
-      "id": 49264,
+      "id": 49263,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 348.01157,
@@ -14929,7 +14918,7 @@
       "text": "rolux"
     },
     {
-      "id": 49265,
+      "id": 49264,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 349.81897,
@@ -14940,7 +14929,7 @@
       "text": "rolux"
     },
     {
-      "id": 49266,
+      "id": 49265,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 351.634,
@@ -14951,7 +14940,7 @@
       "text": "rolux"
     },
     {
-      "id": 49267,
+      "id": 49266,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 353.46017,
@@ -14962,7 +14951,7 @@
       "text": "rolux"
     },
     {
-      "id": 49268,
+      "id": 49267,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 355.2821,
@@ -14973,7 +14962,7 @@
       "text": "rolux"
     },
     {
-      "id": 49269,
+      "id": 49268,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 357.10052,
@@ -14984,7 +14973,7 @@
       "text": "rolux"
     },
     {
-      "id": 49270,
+      "id": 49269,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 358.9174,
@@ -14995,7 +14984,7 @@
       "text": "rolux"
     },
     {
-      "id": 49271,
+      "id": 49270,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 360.72687,
@@ -15006,7 +14995,7 @@
       "text": "rolux"
     },
     {
-      "id": 49272,
+      "id": 49271,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 362.52557,
@@ -15017,7 +15006,7 @@
       "text": "rolux"
     },
     {
-      "id": 49273,
+      "id": 49272,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 364.32877,
@@ -15028,7 +15017,7 @@
       "text": "rolux"
     },
     {
-      "id": 49274,
+      "id": 49273,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 366.13007,
@@ -15039,7 +15028,7 @@
       "text": "rolux"
     },
     {
-      "id": 49275,
+      "id": 49274,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 367.91183,
@@ -15050,7 +15039,7 @@
       "text": "rolux"
     },
     {
-      "id": 49276,
+      "id": 49275,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 369.69046,
@@ -15061,7 +15050,7 @@
       "text": "rolux"
     },
     {
-      "id": 49277,
+      "id": 49276,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 371.4676,
@@ -15072,7 +15061,7 @@
       "text": "rolux"
     },
     {
-      "id": 49278,
+      "id": 49277,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 373.23065,
@@ -15083,7 +15072,7 @@
       "text": "rolux"
     },
     {
-      "id": 49279,
+      "id": 49278,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 374.98645,
@@ -15094,7 +15083,7 @@
       "text": "rolux"
     },
     {
-      "id": 49280,
+      "id": 49279,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 376.75104,
@@ -15105,7 +15094,7 @@
       "text": "rolux"
     },
     {
-      "id": 49281,
+      "id": 49280,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 378.50677,
@@ -15116,7 +15105,7 @@
       "text": "rolux"
     },
     {
-      "id": 49282,
+      "id": 49281,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 380.24756,
@@ -15127,7 +15116,7 @@
       "text": "rolux"
     },
     {
-      "id": 49283,
+      "id": 49282,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 381.99072,
@@ -15138,7 +15127,7 @@
       "text": "rolux"
     },
     {
-      "id": 49284,
+      "id": 49283,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 383.74298,
@@ -15149,7 +15138,7 @@
       "text": "rolux"
     },
     {
-      "id": 49285,
+      "id": 49284,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 385.4815,
@@ -15160,7 +15149,7 @@
       "text": "rolux"
     },
     {
-      "id": 49286,
+      "id": 49285,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 341.1031,
@@ -15171,7 +15160,7 @@
       "text": "northwind"
     },
     {
-      "id": 49287,
+      "id": 49286,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 338.7594,
@@ -15182,7 +15171,7 @@
       "text": "northwind"
     },
     {
-      "id": 49288,
+      "id": 49287,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 336.4125,
@@ -15193,7 +15182,7 @@
       "text": "northwind"
     },
     {
-      "id": 49289,
+      "id": 49288,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 334.07083,
@@ -15204,7 +15193,7 @@
       "text": "northwind"
     },
     {
-      "id": 49290,
+      "id": 49289,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 331.7278,
@@ -15215,7 +15204,7 @@
       "text": "northwind"
     },
     {
-      "id": 49291,
+      "id": 49290,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 329.38907,
@@ -15226,7 +15215,7 @@
       "text": "northwind"
     },
     {
-      "id": 49292,
+      "id": 49291,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 327.02872,
@@ -15237,7 +15226,7 @@
       "text": "northwind"
     },
     {
-      "id": 49293,
+      "id": 49292,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 324.65588,
@@ -15248,7 +15237,7 @@
       "text": "northwind"
     },
     {
-      "id": 49294,
+      "id": 49293,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 322.2842,
@@ -15259,7 +15248,7 @@
       "text": "northwind"
     },
     {
-      "id": 49295,
+      "id": 49294,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 319.90216,
@@ -15270,7 +15259,7 @@
       "text": "northwind"
     },
     {
-      "id": 49296,
+      "id": 49295,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 317.51675,
@@ -15281,7 +15270,7 @@
       "text": "northwind"
     },
     {
-      "id": 49297,
+      "id": 49296,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 315.09326,
@@ -15292,7 +15281,7 @@
       "text": "northwind"
     },
     {
-      "id": 49298,
+      "id": 49297,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 312.6544,
@@ -15303,7 +15292,7 @@
       "text": "northwind"
     },
     {
-      "id": 49299,
+      "id": 49298,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 310.1898,
@@ -15314,7 +15303,7 @@
       "text": "northwind"
     },
     {
-      "id": 49300,
+      "id": 49299,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 307.71967,
@@ -15325,7 +15314,7 @@
       "text": "northwind"
     },
     {
-      "id": 49301,
+      "id": 49300,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 305.24008,
@@ -15336,7 +15325,7 @@
       "text": "northwind"
     },
     {
-      "id": 49302,
+      "id": 49301,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 302.76312,
@@ -15347,7 +15336,7 @@
       "text": "northwind"
     },
     {
-      "id": 49303,
+      "id": 49302,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 300.28702,
@@ -15358,7 +15347,7 @@
       "text": "northwind"
     },
     {
-      "id": 49304,
+      "id": 49303,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 297.8044,
@@ -15369,7 +15358,7 @@
       "text": "northwind"
     },
     {
-      "id": 49305,
+      "id": 49304,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 295.34396,
@@ -15380,7 +15369,7 @@
       "text": "northwind"
     },
     {
-      "id": 49306,
+      "id": 49305,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 292.91122,
@@ -15391,7 +15380,7 @@
       "text": "northwind"
     },
     {
-      "id": 49307,
+      "id": 49306,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 290.4675,
@@ -15402,7 +15391,7 @@
       "text": "northwind"
     },
     {
-      "id": 49308,
+      "id": 49307,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 288.01794,
@@ -15413,7 +15402,7 @@
       "text": "northwind"
     },
     {
-      "id": 49309,
+      "id": 49308,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 285.5988,
@@ -15424,7 +15413,7 @@
       "text": "northwind"
     },
     {
-      "id": 49310,
+      "id": 49309,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 283.18112,
@@ -15435,7 +15424,7 @@
       "text": "northwind"
     },
     {
-      "id": 49311,
+      "id": 49310,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 280.77545,
@@ -15446,7 +15435,7 @@
       "text": "northwind"
     },
     {
-      "id": 49312,
+      "id": 49311,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 278.3574,
@@ -15457,7 +15446,7 @@
       "text": "northwind"
     },
     {
-      "id": 49313,
+      "id": 49312,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 275.92715,
@@ -15468,7 +15457,7 @@
       "text": "northwind"
     },
     {
-      "id": 49314,
+      "id": 49313,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 273.52563,
@@ -15479,7 +15468,7 @@
       "text": "northwind"
     },
     {
-      "id": 49315,
+      "id": 49314,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 255.66736,
@@ -15490,7 +15479,7 @@
       "text": "kronos"
     },
     {
-      "id": 49316,
+      "id": 49315,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 257.28613,
@@ -15501,7 +15490,7 @@
       "text": "kronos"
     },
     {
-      "id": 49317,
+      "id": 49316,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 259.182,
@@ -15512,7 +15501,7 @@
       "text": "kronos"
     },
     {
-      "id": 49318,
+      "id": 49317,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 261.3993,
@@ -15523,7 +15512,7 @@
       "text": "kronos"
     },
     {
-      "id": 49319,
+      "id": 49318,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 263.77402,
@@ -15534,7 +15523,7 @@
       "text": "kronos"
     },
     {
-      "id": 49320,
+      "id": 49319,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 266.31033,
@@ -15545,7 +15534,7 @@
       "text": "kronos"
     },
     {
-      "id": 49321,
+      "id": 49320,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 268.95963,
@@ -15556,7 +15545,7 @@
       "text": "kronos"
     },
     {
-      "id": 49322,
+      "id": 49321,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 271.6371,
@@ -15567,7 +15556,7 @@
       "text": "kronos"
     },
     {
-      "id": 49323,
+      "id": 49322,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 274.35275,
@@ -15578,7 +15567,7 @@
       "text": "kronos"
     },
     {
-      "id": 49324,
+      "id": 49323,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 277.04074,
@@ -15589,7 +15578,7 @@
       "text": "kronos"
     },
     {
-      "id": 49325,
+      "id": 49324,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 279.69266,
@@ -15600,7 +15589,7 @@
       "text": "kronos"
     },
     {
-      "id": 49326,
+      "id": 49325,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 282.26416,
@@ -15611,7 +15600,7 @@
       "text": "kronos"
     },
     {
-      "id": 49327,
+      "id": 49326,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 284.81747,
@@ -15622,7 +15611,7 @@
       "text": "kronos"
     },
     {
-      "id": 49328,
+      "id": 49327,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 287.34912,
@@ -15633,7 +15622,7 @@
       "text": "kronos"
     },
     {
-      "id": 49329,
+      "id": 49328,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 289.82867,
@@ -15644,7 +15633,7 @@
       "text": "kronos"
     },
     {
-      "id": 49330,
+      "id": 49329,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 292.29657,
@@ -15655,7 +15644,7 @@
       "text": "kronos"
     },
     {
-      "id": 49331,
+      "id": 49330,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 294.7539,
@@ -15666,7 +15655,7 @@
       "text": "kronos"
     },
     {
-      "id": 49332,
+      "id": 49331,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 297.1934,
@@ -15677,7 +15666,7 @@
       "text": "kronos"
     },
     {
-      "id": 49333,
+      "id": 49332,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 299.6227,
@@ -15688,7 +15677,7 @@
       "text": "kronos"
     },
     {
-      "id": 49334,
+      "id": 49333,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 302.04108,
@@ -15699,7 +15688,7 @@
       "text": "kronos"
     },
     {
-      "id": 49335,
+      "id": 49334,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 304.45572,
@@ -15710,7 +15699,7 @@
       "text": "kronos"
     },
     {
-      "id": 49336,
+      "id": 49335,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 306.87024,
@@ -15721,7 +15710,7 @@
       "text": "kronos"
     },
     {
-      "id": 49337,
+      "id": 49336,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 309.2646,
@@ -15732,7 +15721,7 @@
       "text": "kronos"
     },
     {
-      "id": 49338,
+      "id": 49337,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 311.64636,
@@ -15743,7 +15732,7 @@
       "text": "kronos"
     },
     {
-      "id": 49339,
+      "id": 49338,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 314.01703,
@@ -15754,7 +15743,7 @@
       "text": "kronos"
     },
     {
-      "id": 49340,
+      "id": 49339,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 316.37872,
@@ -15765,7 +15754,7 @@
       "text": "kronos"
     },
     {
-      "id": 49341,
+      "id": 49340,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 318.72556,
@@ -15776,7 +15765,7 @@
       "text": "kronos"
     },
     {
-      "id": 49342,
+      "id": 49341,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 321.07303,
@@ -15787,7 +15776,7 @@
       "text": "kronos"
     },
     {
-      "id": 49343,
+      "id": 49342,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 323.4237,
@@ -15798,7 +15787,7 @@
       "text": "kronos"
     },
     {
-      "id": 49344,
+      "id": 49343,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 131.11192,
@@ -15809,7 +15798,7 @@
       "text": "piretti"
     },
     {
-      "id": 49345,
+      "id": 49344,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 128.68092,
@@ -15820,7 +15809,7 @@
       "text": "piretti"
     },
     {
-      "id": 49346,
+      "id": 49345,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 126.24821,
@@ -15831,7 +15820,7 @@
       "text": "piretti"
     },
     {
-      "id": 49347,
+      "id": 49346,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 123.813065,
@@ -15842,7 +15831,7 @@
       "text": "piretti"
     },
     {
-      "id": 49348,
+      "id": 49347,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 121.37452,
@@ -15853,7 +15842,7 @@
       "text": "piretti"
     },
     {
-      "id": 49349,
+      "id": 49348,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 118.93183,
@@ -15864,7 +15853,7 @@
       "text": "piretti"
     },
     {
-      "id": 49350,
+      "id": 49349,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 116.49525,
@@ -15875,7 +15864,7 @@
       "text": "piretti"
     },
     {
-      "id": 49351,
+      "id": 49350,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 114.05701,
@@ -15886,7 +15875,7 @@
       "text": "piretti"
     },
     {
-      "id": 49352,
+      "id": 49351,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 111.61694,
@@ -15897,7 +15886,7 @@
       "text": "piretti"
     },
     {
-      "id": 49353,
+      "id": 49352,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 109.17789,
@@ -15908,7 +15897,7 @@
       "text": "piretti"
     },
     {
-      "id": 49354,
+      "id": 49353,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 106.74011,
@@ -15919,7 +15908,7 @@
       "text": "piretti"
     },
     {
-      "id": 49355,
+      "id": 49354,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 104.30004,
@@ -15930,7 +15919,7 @@
       "text": "piretti"
     },
     {
-      "id": 49356,
+      "id": 49355,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 101.864235,
@@ -15941,7 +15930,7 @@
       "text": "piretti"
     },
     {
-      "id": 49357,
+      "id": 49356,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 99.4413,
@@ -15952,7 +15941,7 @@
       "text": "piretti"
     },
     {
-      "id": 49358,
+      "id": 49357,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 97.01393,
@@ -15963,7 +15952,7 @@
       "text": "piretti"
     },
     {
-      "id": 49359,
+      "id": 49358,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 94.58592,
@@ -15974,7 +15963,7 @@
       "text": "piretti"
     },
     {
-      "id": 49360,
+      "id": 49359,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 92.159256,
@@ -15985,7 +15974,7 @@
       "text": "piretti"
     },
     {
-      "id": 49361,
+      "id": 49360,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 89.73016,
@@ -15996,7 +15985,7 @@
       "text": "piretti"
     },
     {
-      "id": 49362,
+      "id": 49361,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 87.29614,
@@ -16007,7 +15996,7 @@
       "text": "piretti"
     },
     {
-      "id": 49363,
+      "id": 49362,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 84.853294,
@@ -16018,7 +16007,7 @@
       "text": "piretti"
     },
     {
-      "id": 49364,
+      "id": 49363,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 82.40185,
@@ -16029,7 +16018,7 @@
       "text": "piretti"
     },
     {
-      "id": 49365,
+      "id": 49364,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 79.9383,
@@ -16040,7 +16029,7 @@
       "text": "piretti"
     },
     {
-      "id": 49366,
+      "id": 49365,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 77.47308,
@@ -16051,7 +16040,7 @@
       "text": "piretti"
     },
     {
-      "id": 49367,
+      "id": 49366,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 75.00875,
@@ -16062,7 +16051,7 @@
       "text": "piretti"
     },
     {
-      "id": 49368,
+      "id": 49367,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 72.55029,
@@ -16073,7 +16062,7 @@
       "text": "piretti"
     },
     {
-      "id": 49369,
+      "id": 49368,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 70.09367,
@@ -16084,7 +16073,7 @@
       "text": "piretti"
     },
     {
-      "id": 49370,
+      "id": 49369,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 67.66865,
@@ -16095,7 +16084,7 @@
       "text": "piretti"
     },
     {
-      "id": 49371,
+      "id": 49370,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 65.264084,
@@ -16106,7 +16095,7 @@
       "text": "piretti"
     },
     {
-      "id": 49372,
+      "id": 49371,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 62.89395,
@@ -16117,7 +16106,7 @@
       "text": "piretti"
     },
     {
-      "id": 49373,
+      "id": 49372,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 15.061268,
@@ -16128,7 +16117,7 @@
       "text": "brix"
     },
     {
-      "id": 49374,
+      "id": 49373,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 13.178534,
@@ -16139,7 +16128,7 @@
       "text": "brix"
     },
     {
-      "id": 49375,
+      "id": 49374,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 11.336624,
@@ -16150,7 +16139,7 @@
       "text": "brix"
     },
     {
-      "id": 49376,
+      "id": 49375,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 9.435041,
@@ -16161,7 +16150,7 @@
       "text": "brix"
     },
     {
-      "id": 49377,
+      "id": 49376,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 7.5723686,
@@ -16172,7 +16161,7 @@
       "text": "brix"
     },
     {
-      "id": 49378,
+      "id": 49377,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 5.7477584,
@@ -16183,7 +16172,7 @@
       "text": "brix"
     },
     {
-      "id": 49379,
+      "id": 49378,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 3.903501,
@@ -16194,7 +16183,7 @@
       "text": "brix"
     },
     {
-      "id": 49380,
+      "id": 49379,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 2.0926852,
@@ -16205,7 +16194,7 @@
       "text": "brix"
     },
     {
-      "id": 49381,
+      "id": 49380,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 0.25322866,
@@ -16216,7 +16205,7 @@
       "text": "brix"
     },
     {
-      "id": 49382,
+      "id": 49381,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -1.587718,
@@ -16227,7 +16216,7 @@
       "text": "brix"
     },
     {
-      "id": 49383,
+      "id": 49382,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -3.4852886,
@@ -16238,7 +16227,7 @@
       "text": "brix"
     },
     {
-      "id": 49384,
+      "id": 49383,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -5.4311285,
@@ -16249,7 +16238,7 @@
       "text": "brix"
     },
     {
-      "id": 49385,
+      "id": 49384,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -7.4189515,
@@ -16260,7 +16249,7 @@
       "text": "brix"
     },
     {
-      "id": 49386,
+      "id": 49385,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -9.454098,
@@ -16271,7 +16260,7 @@
       "text": "brix"
     },
     {
-      "id": 49387,
+      "id": 49386,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -11.501633,
@@ -16282,7 +16271,7 @@
       "text": "brix"
     },
     {
-      "id": 49388,
+      "id": 49387,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -13.563791,
@@ -16293,7 +16282,7 @@
       "text": "brix"
     },
     {
-      "id": 49389,
+      "id": 49388,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -15.595109,
@@ -16304,7 +16293,7 @@
       "text": "brix"
     },
     {
-      "id": 49390,
+      "id": 49389,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -17.623077,
@@ -16315,7 +16304,7 @@
       "text": "brix"
     },
     {
-      "id": 49391,
+      "id": 49390,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -19.63845,
@@ -16326,7 +16315,7 @@
       "text": "brix"
     },
     {
-      "id": 49392,
+      "id": 49391,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -21.627804,
@@ -16337,7 +16326,7 @@
       "text": "brix"
     },
     {
-      "id": 49393,
+      "id": 49392,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -23.595467,
@@ -16348,7 +16337,7 @@
       "text": "brix"
     },
     {
-      "id": 49394,
+      "id": 49393,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -25.575676,
@@ -16359,7 +16348,7 @@
       "text": "brix"
     },
     {
-      "id": 49395,
+      "id": 49394,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -27.55799,
@@ -16370,7 +16359,7 @@
       "text": "brix"
     },
     {
-      "id": 49396,
+      "id": 49395,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -29.553886,
@@ -16381,7 +16370,7 @@
       "text": "brix"
     },
     {
-      "id": 49397,
+      "id": 49396,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -31.564098,
@@ -16392,7 +16381,7 @@
       "text": "brix"
     },
     {
-      "id": 49398,
+      "id": 49397,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -33.588272,
@@ -16403,7 +16392,7 @@
       "text": "brix"
     },
     {
-      "id": 49399,
+      "id": 49398,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -35.664948,
@@ -16414,7 +16403,7 @@
       "text": "brix"
     },
     {
-      "id": 49400,
+      "id": 49399,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -37.751465,
@@ -16425,7 +16414,7 @@
       "text": "brix"
     },
     {
-      "id": 49401,
+      "id": 49400,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -39.83037,
@@ -16436,7 +16425,7 @@
       "text": "brix"
     },
     {
-      "id": 49402,
+      "id": 49401,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -27.385056,
@@ -16447,7 +16436,7 @@
       "text": "hexon"
     },
     {
-      "id": 49403,
+      "id": 49402,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -29.414501,
@@ -16458,7 +16447,7 @@
       "text": "hexon"
     },
     {
-      "id": 49404,
+      "id": 49403,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -31.452496,
@@ -16469,7 +16458,7 @@
       "text": "hexon"
     },
     {
-      "id": 49405,
+      "id": 49404,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -33.505615,
@@ -16480,7 +16469,7 @@
       "text": "hexon"
     },
     {
-      "id": 49406,
+      "id": 49405,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -35.55012,
@@ -16491,7 +16480,7 @@
       "text": "hexon"
     },
     {
-      "id": 49407,
+      "id": 49406,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -37.555588,
@@ -16502,7 +16491,7 @@
       "text": "hexon"
     },
     {
-      "id": 49408,
+      "id": 49407,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -39.548027,
@@ -16513,7 +16502,7 @@
       "text": "hexon"
     },
     {
-      "id": 49409,
+      "id": 49408,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -41.52678,
@@ -16524,7 +16513,7 @@
       "text": "hexon"
     },
     {
-      "id": 49410,
+      "id": 49409,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -43.49908,
@@ -16535,7 +16524,7 @@
       "text": "hexon"
     },
     {
-      "id": 49411,
+      "id": 49410,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -45.474625,
@@ -16546,7 +16535,7 @@
       "text": "hexon"
     },
     {
-      "id": 49412,
+      "id": 49411,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -47.42453,
@@ -16557,7 +16546,7 @@
       "text": "hexon"
     },
     {
-      "id": 49413,
+      "id": 49412,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -49.417923,
@@ -16568,7 +16557,7 @@
       "text": "hexon"
     },
     {
-      "id": 49414,
+      "id": 49413,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -51.449192,
@@ -16579,7 +16568,7 @@
       "text": "hexon"
     },
     {
-      "id": 49415,
+      "id": 49414,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -53.486824,
@@ -16590,7 +16579,7 @@
       "text": "hexon"
     },
     {
-      "id": 49416,
+      "id": 49415,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -55.53902,
@@ -16601,7 +16590,7 @@
       "text": "hexon"
     },
     {
-      "id": 49417,
+      "id": 49416,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -57.625984,
@@ -16612,7 +16601,7 @@
       "text": "hexon"
     },
     {
-      "id": 49418,
+      "id": 49417,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -59.703575,
@@ -16623,7 +16612,7 @@
       "text": "hexon"
     },
     {
-      "id": 49419,
+      "id": 49418,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -61.788017,
@@ -16634,7 +16623,7 @@
       "text": "hexon"
     },
     {
-      "id": 49420,
+      "id": 49419,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -63.82389,
@@ -16645,7 +16634,7 @@
       "text": "hexon"
     },
     {
-      "id": 49421,
+      "id": 49420,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -65.88245,
@@ -16656,7 +16645,7 @@
       "text": "hexon"
     },
     {
-      "id": 49422,
+      "id": 49421,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -67.92675,
@@ -16667,7 +16656,7 @@
       "text": "hexon"
     },
     {
-      "id": 49423,
+      "id": 49422,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -69.940346,
@@ -16678,7 +16667,7 @@
       "text": "hexon"
     },
     {
-      "id": 49424,
+      "id": 49423,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -71.96061,
@@ -16689,7 +16678,7 @@
       "text": "hexon"
     },
     {
-      "id": 49425,
+      "id": 49424,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -73.905876,
@@ -16700,7 +16689,7 @@
       "text": "hexon"
     },
     {
-      "id": 49426,
+      "id": 49425,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -75.87141,
@@ -16711,7 +16700,7 @@
       "text": "hexon"
     },
     {
-      "id": 49427,
+      "id": 49426,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -77.776306,
@@ -16722,7 +16711,7 @@
       "text": "hexon"
     },
     {
-      "id": 49428,
+      "id": 49427,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -79.70711,
@@ -16733,7 +16722,7 @@
       "text": "hexon"
     },
     {
-      "id": 49429,
+      "id": 49428,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -81.66632,
@@ -16744,7 +16733,7 @@
       "text": "hexon"
     },
     {
-      "id": 49430,
+      "id": 49429,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -83.6955,
@@ -16755,7 +16744,7 @@
       "text": "hexon"
     },
     {
-      "id": 49431,
+      "id": 49430,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -137.43195,
@@ -16766,7 +16755,7 @@
       "text": "velocet"
     },
     {
-      "id": 49432,
+      "id": 49431,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -139.75766,
@@ -16777,7 +16766,7 @@
       "text": "velocet"
     },
     {
-      "id": 49433,
+      "id": 49432,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -142.05446,
@@ -16788,7 +16777,7 @@
       "text": "velocet"
     },
     {
-      "id": 49434,
+      "id": 49433,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -144.32222,
@@ -16799,7 +16788,7 @@
       "text": "velocet"
     },
     {
-      "id": 49435,
+      "id": 49434,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -146.59622,
@@ -16810,7 +16799,7 @@
       "text": "velocet"
     },
     {
-      "id": 49436,
+      "id": 49435,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -148.85005,
@@ -16821,7 +16810,7 @@
       "text": "velocet"
     },
     {
-      "id": 49437,
+      "id": 49436,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -151.12764,
@@ -16832,7 +16821,7 @@
       "text": "velocet"
     },
     {
-      "id": 49438,
+      "id": 49437,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -153.40485,
@@ -16843,7 +16832,7 @@
       "text": "velocet"
     },
     {
-      "id": 49439,
+      "id": 49438,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -155.69771,
@@ -16854,7 +16843,7 @@
       "text": "velocet"
     },
     {
-      "id": 49440,
+      "id": 49439,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -158.00291,
@@ -16865,7 +16854,7 @@
       "text": "velocet"
     },
     {
-      "id": 49441,
+      "id": 49440,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -160.31245,
@@ -16876,7 +16865,7 @@
       "text": "velocet"
     },
     {
-      "id": 49442,
+      "id": 49441,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -162.65422,
@@ -16887,7 +16876,7 @@
       "text": "velocet"
     },
     {
-      "id": 49443,
+      "id": 49442,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -164.97745,
@@ -16898,7 +16887,7 @@
       "text": "velocet"
     },
     {
-      "id": 49444,
+      "id": 49443,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -167.27655,
@@ -16909,7 +16898,7 @@
       "text": "velocet"
     },
     {
-      "id": 49445,
+      "id": 49444,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -169.56528,
@@ -16920,7 +16909,7 @@
       "text": "velocet"
     },
     {
-      "id": 49446,
+      "id": 49445,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -171.8413,
@@ -16931,7 +16920,7 @@
       "text": "velocet"
     },
     {
-      "id": 49447,
+      "id": 49446,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -174.06676,
@@ -16942,7 +16931,7 @@
       "text": "velocet"
     },
     {
-      "id": 49448,
+      "id": 49447,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -176.2512,
@@ -16953,7 +16942,7 @@
       "text": "velocet"
     },
     {
-      "id": 49449,
+      "id": 49448,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -178.42624,
@@ -16964,7 +16953,7 @@
       "text": "velocet"
     },
     {
-      "id": 49450,
+      "id": 49449,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -189.24265,
@@ -16975,7 +16964,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49451,
+      "id": 49450,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -229.98357,
@@ -16986,7 +16975,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49452,
+      "id": 49451,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -232.09636,
@@ -16997,7 +16986,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49453,
+      "id": 49452,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -234.22867,
@@ -17008,7 +16997,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49454,
+      "id": 49453,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -236.39738,
@@ -17019,7 +17008,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49455,
+      "id": 49454,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -238.60614,
@@ -17030,7 +17019,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49456,
+      "id": 49455,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -240.85962,
@@ -17041,7 +17030,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49457,
+      "id": 49456,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -243.14667,
@@ -17052,7 +17041,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49458,
+      "id": 49457,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -245.50449,
@@ -17063,7 +17052,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49459,
+      "id": 49458,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -247.92657,
@@ -17074,7 +17063,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49460,
+      "id": 49459,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -250.4413,
@@ -17085,7 +17074,7 @@
       "text": "apexsim"
     },
     {
-      "id": 49461,
+      "id": 49460,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 92.28684,
@@ -17096,7 +17085,7 @@
       "text": "rolux"
     },
     {
-      "id": 49462,
+      "id": 49461,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 94.970276,
@@ -17107,7 +17096,7 @@
       "text": "rolux"
     },
     {
-      "id": 49463,
+      "id": 49462,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 97.635414,
@@ -17118,7 +17107,7 @@
       "text": "rolux"
     },
     {
-      "id": 49464,
+      "id": 49463,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 100.32341,
@@ -17129,7 +17118,7 @@
       "text": "rolux"
     },
     {
-      "id": 49465,
+      "id": 49464,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 103.01625,
@@ -17140,7 +17129,7 @@
       "text": "rolux"
     },
     {
-      "id": 49466,
+      "id": 49465,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 105.66754,
@@ -17151,7 +17140,7 @@
       "text": "rolux"
     },
     {
-      "id": 49467,
+      "id": 49466,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 108.34533,
@@ -17162,7 +17151,7 @@
       "text": "rolux"
     },
     {
-      "id": 49468,
+      "id": 49467,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 111.02377,
@@ -17173,7 +17162,7 @@
       "text": "rolux"
     },
     {
-      "id": 49469,
+      "id": 49468,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 113.70737,
@@ -17184,7 +17173,7 @@
       "text": "rolux"
     },
     {
-      "id": 49470,
+      "id": 49469,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 116.393005,
@@ -17195,7 +17184,7 @@
       "text": "rolux"
     },
     {
-      "id": 49471,
+      "id": 49470,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 119.080826,
@@ -17206,7 +17195,7 @@
       "text": "rolux"
     },
     {
-      "id": 49472,
+      "id": 49471,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 121.77846,
@@ -17217,7 +17206,7 @@
       "text": "rolux"
     },
     {
-      "id": 49473,
+      "id": 49472,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 124.48273,
@@ -17228,7 +17217,7 @@
       "text": "rolux"
     },
     {
-      "id": 49474,
+      "id": 49473,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 127.19592,
@@ -17239,7 +17228,7 @@
       "text": "rolux"
     },
     {
-      "id": 49475,
+      "id": 49474,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 129.91347,
@@ -17250,7 +17239,7 @@
       "text": "rolux"
     },
     {
-      "id": 49476,
+      "id": 49475,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 132.64362,
@@ -17261,7 +17250,7 @@
       "text": "rolux"
     },
     {
-      "id": 49477,
+      "id": 49476,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 135.37671,
@@ -17272,7 +17261,7 @@
       "text": "rolux"
     },
     {
-      "id": 49478,
+      "id": 49477,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 138.11983,
@@ -17283,7 +17272,7 @@
       "text": "rolux"
     },
     {
-      "id": 49479,
+      "id": 49478,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 140.85368,
@@ -17294,7 +17283,7 @@
       "text": "rolux"
     },
     {
-      "id": 49480,
+      "id": 49479,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 143.58424,
@@ -17305,7 +17294,7 @@
       "text": "rolux"
     },
     {
-      "id": 49481,
+      "id": 49480,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 146.28712,
@@ -17316,7 +17305,7 @@
       "text": "rolux"
     },
     {
-      "id": 49482,
+      "id": 49481,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 148.98155,
@@ -17327,7 +17316,7 @@
       "text": "rolux"
     },
     {
-      "id": 49483,
+      "id": 49482,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 151.66597,
@@ -17338,7 +17327,7 @@
       "text": "rolux"
     },
     {
-      "id": 49484,
+      "id": 49483,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 154.33463,
@@ -17349,7 +17338,7 @@
       "text": "rolux"
     },
     {
-      "id": 49485,
+      "id": 49484,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 157.00166,
@@ -17360,7 +17349,7 @@
       "text": "rolux"
     },
     {
-      "id": 49486,
+      "id": 49485,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 159.59264,
@@ -17371,7 +17360,7 @@
       "text": "rolux"
     },
     {
-      "id": 49487,
+      "id": 49486,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 162.19905,
@@ -17382,7 +17371,7 @@
       "text": "rolux"
     },
     {
-      "id": 49488,
+      "id": 49487,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 164.80247,
@@ -17393,7 +17382,7 @@
       "text": "rolux"
     },
     {
-      "id": 49489,
+      "id": 49488,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 167.38426,
@@ -17404,7 +17393,7 @@
       "text": "rolux"
     },
     {
-      "id": 49490,
+      "id": 49489,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 126.664345,
@@ -17415,7 +17404,7 @@
       "text": "northwind"
     },
     {
-      "id": 49491,
+      "id": 49490,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 124.43521,
@@ -17426,7 +17415,7 @@
       "text": "northwind"
     },
     {
-      "id": 49492,
+      "id": 49491,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 122.21176,
@@ -17437,7 +17426,7 @@
       "text": "northwind"
     },
     {
-      "id": 49493,
+      "id": 49492,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 119.99178,
@@ -17448,7 +17437,7 @@
       "text": "northwind"
     },
     {
-      "id": 49494,
+      "id": 49493,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 117.77978,
@@ -17459,7 +17448,7 @@
       "text": "northwind"
     },
     {
-      "id": 49495,
+      "id": 49494,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 115.57309,
@@ -17470,7 +17459,7 @@
       "text": "northwind"
     },
     {
-      "id": 49496,
+      "id": 49495,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 113.382935,
@@ -17481,7 +17470,7 @@
       "text": "northwind"
     },
     {
-      "id": 49497,
+      "id": 49496,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 111.179855,
@@ -17492,7 +17481,7 @@
       "text": "northwind"
     },
     {
-      "id": 49498,
+      "id": 49497,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 108.96489,
@@ -17503,7 +17492,7 @@
       "text": "northwind"
     },
     {
-      "id": 49499,
+      "id": 49498,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 106.7812,
@@ -17514,7 +17503,7 @@
       "text": "northwind"
     },
     {
-      "id": 49500,
+      "id": 49499,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 104.5956,
@@ -17525,7 +17514,7 @@
       "text": "northwind"
     },
     {
-      "id": 49501,
+      "id": 49500,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 102.39071,
@@ -17536,7 +17525,7 @@
       "text": "northwind"
     },
     {
-      "id": 49502,
+      "id": 49501,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 100.181915,
@@ -17547,7 +17536,7 @@
       "text": "northwind"
     },
     {
-      "id": 49503,
+      "id": 49502,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 97.968124,
@@ -17558,7 +17547,7 @@
       "text": "northwind"
     },
     {
-      "id": 49504,
+      "id": 49503,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 95.75798,
@@ -17569,7 +17558,7 @@
       "text": "northwind"
     },
     {
-      "id": 49505,
+      "id": 49504,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 93.54523,
@@ -17580,7 +17569,7 @@
       "text": "northwind"
     },
     {
-      "id": 49506,
+      "id": 49505,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 91.31754,
@@ -17591,7 +17580,7 @@
       "text": "northwind"
     },
     {
-      "id": 49507,
+      "id": 49506,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 89.09757,
@@ -17602,7 +17591,7 @@
       "text": "northwind"
     },
     {
-      "id": 49508,
+      "id": 49507,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 86.88328,
@@ -17613,7 +17602,7 @@
       "text": "northwind"
     },
     {
-      "id": 49509,
+      "id": 49508,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 84.6566,
@@ -17624,7 +17613,7 @@
       "text": "northwind"
     },
     {
-      "id": 49510,
+      "id": 49509,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 82.43847,
@@ -17635,7 +17624,7 @@
       "text": "northwind"
     },
     {
-      "id": 49511,
+      "id": 49510,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 80.253876,
@@ -17646,7 +17635,7 @@
       "text": "northwind"
     },
     {
-      "id": 49512,
+      "id": 49511,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 78.06796,
@@ -17657,7 +17646,7 @@
       "text": "northwind"
     },
     {
-      "id": 49513,
+      "id": 49512,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 75.88254,
@@ -17668,7 +17657,7 @@
       "text": "northwind"
     },
     {
-      "id": 49514,
+      "id": 49513,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 73.705925,
@@ -17679,7 +17668,7 @@
       "text": "northwind"
     },
     {
-      "id": 49515,
+      "id": 49514,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 71.530396,
@@ -17690,7 +17679,7 @@
       "text": "northwind"
     },
     {
-      "id": 49516,
+      "id": 49515,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 69.37427,
@@ -17701,7 +17690,7 @@
       "text": "northwind"
     },
     {
-      "id": 49517,
+      "id": 49516,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 67.204414,
@@ -17712,7 +17701,7 @@
       "text": "northwind"
     },
     {
-      "id": 49518,
+      "id": 49517,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": 65.02547,
@@ -17723,7 +17712,7 @@
       "text": "northwind"
     },
     {
-      "id": 49519,
+      "id": 49518,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -28.403183,
@@ -17734,7 +17723,7 @@
       "text": "kronos"
     },
     {
-      "id": 49520,
+      "id": 49519,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -28.909826,
@@ -17745,7 +17734,7 @@
       "text": "kronos"
     },
     {
-      "id": 49521,
+      "id": 49520,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -29.41299,
@@ -17756,7 +17745,7 @@
       "text": "kronos"
     },
     {
-      "id": 49522,
+      "id": 49521,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -29.915857,
@@ -17767,7 +17756,7 @@
       "text": "kronos"
     },
     {
-      "id": 49523,
+      "id": 49522,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -30.419107,
@@ -17778,7 +17767,7 @@
       "text": "kronos"
     },
     {
-      "id": 49524,
+      "id": 49523,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -30.923443,
@@ -17789,7 +17778,7 @@
       "text": "kronos"
     },
     {
-      "id": 49525,
+      "id": 49524,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -31.423943,
@@ -17800,7 +17789,7 @@
       "text": "kronos"
     },
     {
-      "id": 49526,
+      "id": 49525,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -31.921555,
@@ -17811,7 +17800,7 @@
       "text": "kronos"
     },
     {
-      "id": 49527,
+      "id": 49526,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -32.424458,
@@ -17822,7 +17811,7 @@
       "text": "kronos"
     },
     {
-      "id": 49528,
+      "id": 49527,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -32.9286,
@@ -17833,7 +17822,7 @@
       "text": "kronos"
     },
     {
-      "id": 49529,
+      "id": 49528,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -33.431416,
@@ -17844,7 +17833,7 @@
       "text": "kronos"
     },
     {
-      "id": 49530,
+      "id": 49529,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -33.934753,
@@ -17855,7 +17844,7 @@
       "text": "kronos"
     },
     {
-      "id": 49531,
+      "id": 49530,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -34.438816,
@@ -17866,7 +17855,7 @@
       "text": "kronos"
     },
     {
-      "id": 49532,
+      "id": 49531,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -34.944206,
@@ -17877,7 +17866,7 @@
       "text": "kronos"
     },
     {
-      "id": 49533,
+      "id": 49532,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -35.44737,
@@ -17888,7 +17877,7 @@
       "text": "kronos"
     },
     {
-      "id": 49534,
+      "id": 49533,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -35.945374,
@@ -17899,7 +17888,7 @@
       "text": "kronos"
     },
     {
-      "id": 49535,
+      "id": 49534,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -36.443024,
@@ -17910,7 +17899,7 @@
       "text": "kronos"
     },
     {
-      "id": 49536,
+      "id": 49535,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -36.941074,
@@ -17921,7 +17910,7 @@
       "text": "kronos"
     },
     {
-      "id": 49537,
+      "id": 49536,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -37.43876,
@@ -17932,7 +17921,7 @@
       "text": "kronos"
     },
     {
-      "id": 49538,
+      "id": 49537,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -37.93772,
@@ -17943,7 +17932,7 @@
       "text": "kronos"
     },
     {
-      "id": 49539,
+      "id": 49538,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -38.439102,
@@ -17954,7 +17943,7 @@
       "text": "kronos"
     },
     {
-      "id": 49540,
+      "id": 49539,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -38.944138,
@@ -17965,7 +17954,7 @@
       "text": "kronos"
     },
     {
-      "id": 49541,
+      "id": 49540,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -39.454014,
@@ -17976,7 +17965,7 @@
       "text": "kronos"
     },
     {
-      "id": 49542,
+      "id": 49541,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -39.97139,
@@ -17987,7 +17976,7 @@
       "text": "kronos"
     },
     {
-      "id": 49543,
+      "id": 49542,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -40.492348,
@@ -17998,7 +17987,7 @@
       "text": "kronos"
     },
     {
-      "id": 49544,
+      "id": 49543,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -41.06477,
@@ -18009,7 +17998,7 @@
       "text": "kronos"
     },
     {
-      "id": 49545,
+      "id": 49544,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -41.664288,
@@ -18020,7 +18009,7 @@
       "text": "kronos"
     },
     {
-      "id": 49546,
+      "id": 49545,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -42.259144,
@@ -18031,7 +18020,7 @@
       "text": "kronos"
     },
     {
-      "id": 49547,
+      "id": 49546,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -42.821552,
@@ -18042,7 +18031,7 @@
       "text": "kronos"
     },
     {
-      "id": 49548,
+      "id": 49547,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -59.67018,
@@ -18053,7 +18042,7 @@
       "text": "piretti"
     },
     {
-      "id": 49549,
+      "id": 49548,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -60.1883,
@@ -18064,7 +18053,7 @@
       "text": "piretti"
     },
     {
-      "id": 49550,
+      "id": 49549,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -60.658573,
@@ -18075,7 +18064,7 @@
       "text": "piretti"
     },
     {
-      "id": 49551,
+      "id": 49550,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -61.101658,
@@ -18086,7 +18075,7 @@
       "text": "piretti"
     },
     {
-      "id": 49552,
+      "id": 49551,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -61.54408,
@@ -18097,7 +18086,7 @@
       "text": "piretti"
     },
     {
-      "id": 49553,
+      "id": 49552,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -62.005596,
@@ -18108,7 +18097,7 @@
       "text": "piretti"
     },
     {
-      "id": 49554,
+      "id": 49553,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -62.515617,
@@ -18119,7 +18108,7 @@
       "text": "piretti"
     },
     {
-      "id": 49555,
+      "id": 49554,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -63.01181,
@@ -18130,7 +18119,7 @@
       "text": "piretti"
     },
     {
-      "id": 49556,
+      "id": 49555,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -63.492523,
@@ -18141,7 +18130,7 @@
       "text": "piretti"
     },
     {
-      "id": 49557,
+      "id": 49556,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -63.958004,
@@ -18152,7 +18141,7 @@
       "text": "piretti"
     },
     {
-      "id": 49558,
+      "id": 49557,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -64.40111,
@@ -18163,7 +18152,7 @@
       "text": "piretti"
     },
     {
-      "id": 49559,
+      "id": 49558,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -64.804855,
@@ -18174,7 +18163,7 @@
       "text": "piretti"
     },
     {
-      "id": 49560,
+      "id": 49559,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -65.220695,
@@ -18185,7 +18174,7 @@
       "text": "piretti"
     },
     {
-      "id": 49561,
+      "id": 49560,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -65.64923,
@@ -18196,7 +18185,7 @@
       "text": "piretti"
     },
     {
-      "id": 49562,
+      "id": 49561,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -66.125015,
@@ -18207,7 +18196,7 @@
       "text": "piretti"
     },
     {
-      "id": 49563,
+      "id": 49562,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -66.66545,
@@ -18218,7 +18207,7 @@
       "text": "piretti"
     },
     {
-      "id": 49564,
+      "id": 49563,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -67.25986,
@@ -18229,7 +18218,7 @@
       "text": "piretti"
     },
     {
-      "id": 49565,
+      "id": 49564,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -67.95623,
@@ -18240,7 +18229,7 @@
       "text": "piretti"
     },
     {
-      "id": 49566,
+      "id": 49565,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -68.72835,
@@ -18251,7 +18240,7 @@
       "text": "piretti"
     },
     {
-      "id": 49567,
+      "id": 49566,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -69.62695,
@@ -18262,7 +18251,7 @@
       "text": "piretti"
     },
     {
-      "id": 49568,
+      "id": 49567,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -70.617325,
@@ -18273,7 +18262,7 @@
       "text": "piretti"
     },
     {
-      "id": 49569,
+      "id": 49568,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -71.712875,
@@ -18284,7 +18273,7 @@
       "text": "piretti"
     },
     {
-      "id": 49570,
+      "id": 49569,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -72.92112,
@@ -18295,7 +18284,7 @@
       "text": "piretti"
     },
     {
-      "id": 49571,
+      "id": 49570,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -74.21427,
@@ -18306,7 +18295,7 @@
       "text": "piretti"
     },
     {
-      "id": 49572,
+      "id": 49571,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -75.69821,
@@ -18317,7 +18306,7 @@
       "text": "piretti"
     },
     {
-      "id": 49573,
+      "id": 49572,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -77.26505,
@@ -18328,7 +18317,7 @@
       "text": "piretti"
     },
     {
-      "id": 49574,
+      "id": 49573,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -79.041504,
@@ -18339,7 +18328,7 @@
       "text": "piretti"
     },
     {
-      "id": 49575,
+      "id": 49574,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -80.97399,
@@ -18350,7 +18339,7 @@
       "text": "piretti"
     },
     {
-      "id": 49576,
+      "id": 49575,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -83.07956,
@@ -18361,7 +18350,7 @@
       "text": "piretti"
     },
     {
-      "id": 49577,
+      "id": 49576,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -183.95581,
@@ -18372,7 +18361,7 @@
       "text": "brix"
     },
     {
-      "id": 49578,
+      "id": 49577,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -184.47656,
@@ -18383,7 +18372,7 @@
       "text": "brix"
     },
     {
-      "id": 49579,
+      "id": 49578,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -184.97647,
@@ -18394,7 +18383,7 @@
       "text": "brix"
     },
     {
-      "id": 49580,
+      "id": 49579,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -185.45923,
@@ -18405,7 +18394,7 @@
       "text": "brix"
     },
     {
-      "id": 49581,
+      "id": 49580,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -185.9258,
@@ -18416,7 +18405,7 @@
       "text": "brix"
     },
     {
-      "id": 49582,
+      "id": 49581,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -186.3834,
@@ -18427,7 +18416,7 @@
       "text": "brix"
     },
     {
-      "id": 49583,
+      "id": 49582,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -186.83443,
@@ -18438,7 +18427,7 @@
       "text": "brix"
     },
     {
-      "id": 49584,
+      "id": 49583,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -187.27536,
@@ -18449,7 +18438,7 @@
       "text": "brix"
     },
     {
-      "id": 49585,
+      "id": 49584,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -187.71173,
@@ -18460,7 +18449,7 @@
       "text": "brix"
     },
     {
-      "id": 49586,
+      "id": 49585,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -188.14706,
@@ -18471,7 +18460,7 @@
       "text": "brix"
     },
     {
-      "id": 49587,
+      "id": 49586,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -188.58832,
@@ -18482,7 +18471,7 @@
       "text": "brix"
     },
     {
-      "id": 49588,
+      "id": 49587,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -189.03922,
@@ -18493,7 +18482,7 @@
       "text": "brix"
     },
     {
-      "id": 49589,
+      "id": 49588,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -189.49127,
@@ -18504,7 +18493,7 @@
       "text": "brix"
     },
     {
-      "id": 49590,
+      "id": 49589,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -189.94763,
@@ -18515,7 +18504,7 @@
       "text": "brix"
     },
     {
-      "id": 49591,
+      "id": 49590,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -190.41187,
@@ -18526,7 +18515,7 @@
       "text": "brix"
     },
     {
-      "id": 49592,
+      "id": 49591,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -190.88315,
@@ -18537,7 +18526,7 @@
       "text": "brix"
     },
     {
-      "id": 49593,
+      "id": 49592,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -191.36288,
@@ -18548,7 +18537,7 @@
       "text": "brix"
     },
     {
-      "id": 49594,
+      "id": 49593,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -191.8442,
@@ -18559,7 +18548,7 @@
       "text": "brix"
     },
     {
-      "id": 49595,
+      "id": 49594,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -192.32349,
@@ -18570,7 +18559,7 @@
       "text": "brix"
     },
     {
-      "id": 49596,
+      "id": 49595,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -192.79492,
@@ -18581,7 +18570,7 @@
       "text": "brix"
     },
     {
-      "id": 49597,
+      "id": 49596,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -193.25697,
@@ -18592,7 +18581,7 @@
       "text": "brix"
     },
     {
-      "id": 49598,
+      "id": 49597,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -193.70955,
@@ -18603,7 +18592,7 @@
       "text": "brix"
     },
     {
-      "id": 49599,
+      "id": 49598,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -194.14317,
@@ -18614,7 +18603,7 @@
       "text": "brix"
     },
     {
-      "id": 49600,
+      "id": 49599,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -194.56636,
@@ -18625,7 +18614,7 @@
       "text": "brix"
     },
     {
-      "id": 49601,
+      "id": 49600,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -194.98927,
@@ -18636,7 +18625,7 @@
       "text": "brix"
     },
     {
-      "id": 49602,
+      "id": 49601,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -195.41049,
@@ -18647,7 +18636,7 @@
       "text": "brix"
     },
     {
-      "id": 49603,
+      "id": 49602,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -195.8273,
@@ -18658,7 +18647,7 @@
       "text": "brix"
     },
     {
-      "id": 49604,
+      "id": 49603,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -196.26003,
@@ -18669,7 +18658,7 @@
       "text": "brix"
     },
     {
-      "id": 49605,
+      "id": 49604,
       "kind": "board",
       "asset": "led_ribbon_3m",
       "x": -196.71571,
@@ -18680,7 +18669,7 @@
       "text": "brix"
     },
     {
-      "id": 49606,
+      "id": 49605,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 421.1892,
@@ -18691,7 +18680,7 @@
       "text": null
     },
     {
-      "id": 49607,
+      "id": 49606,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 430.10397,
@@ -18702,7 +18691,7 @@
       "text": null
     },
     {
-      "id": 49608,
+      "id": 49607,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 463.18433,
@@ -18713,7 +18702,7 @@
       "text": null
     },
     {
-      "id": 49609,
+      "id": 49608,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 490.54602,
@@ -18724,7 +18713,7 @@
       "text": null
     },
     {
-      "id": 49610,
+      "id": 49609,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 474.9828,
@@ -18735,7 +18724,7 @@
       "text": null
     },
     {
-      "id": 49611,
+      "id": 49610,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 432.0916,
@@ -18746,7 +18735,7 @@
       "text": null
     },
     {
-      "id": 49612,
+      "id": 49611,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 389.02737,
@@ -18757,7 +18746,7 @@
       "text": null
     },
     {
-      "id": 49613,
+      "id": 49612,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 344.47687,
@@ -18768,7 +18757,7 @@
       "text": null
     },
     {
-      "id": 49614,
+      "id": 49613,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 297.41776,
@@ -18779,7 +18768,7 @@
       "text": null
     },
     {
-      "id": 49615,
+      "id": 49614,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 248.30624,
@@ -18790,7 +18779,7 @@
       "text": null
     },
     {
-      "id": 49616,
+      "id": 49615,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 199.34125,
@@ -18801,7 +18790,7 @@
       "text": null
     },
     {
-      "id": 49617,
+      "id": 49616,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 146.96844,
@@ -18812,7 +18801,7 @@
       "text": null
     },
     {
-      "id": 49618,
+      "id": 49617,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 106.601074,
@@ -18823,7 +18812,7 @@
       "text": null
     },
     {
-      "id": 49619,
+      "id": 49618,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 101.86615,
@@ -18834,7 +18823,7 @@
       "text": null
     },
     {
-      "id": 49620,
+      "id": 49619,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 113.00605,
@@ -18845,7 +18834,7 @@
       "text": null
     },
     {
-      "id": 49621,
+      "id": 49620,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 121.13434,
@@ -18856,7 +18845,7 @@
       "text": null
     },
     {
-      "id": 49622,
+      "id": 49621,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 125.167305,
@@ -18867,7 +18856,7 @@
       "text": null
     },
     {
-      "id": 49623,
+      "id": 49622,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 134.2598,
@@ -18878,7 +18867,7 @@
       "text": null
     },
     {
-      "id": 49624,
+      "id": 49623,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 143.12648,
@@ -18889,7 +18878,7 @@
       "text": null
     },
     {
-      "id": 49625,
+      "id": 49624,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 151.55605,
@@ -18900,7 +18889,7 @@
       "text": null
     },
     {
-      "id": 49626,
+      "id": 49625,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 160.10802,
@@ -18911,7 +18900,7 @@
       "text": null
     },
     {
-      "id": 49627,
+      "id": 49626,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 173.84297,
@@ -18922,7 +18911,7 @@
       "text": null
     },
     {
-      "id": 49628,
+      "id": 49627,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 228.59813,
@@ -18933,7 +18922,7 @@
       "text": null
     },
     {
-      "id": 49629,
+      "id": 49628,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 257.14386,
@@ -18944,7 +18933,7 @@
       "text": null
     },
     {
-      "id": 49630,
+      "id": 49629,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 285.44513,
@@ -18955,7 +18944,7 @@
       "text": null
     },
     {
-      "id": 49631,
+      "id": 49630,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 314.60846,
@@ -18966,7 +18955,7 @@
       "text": null
     },
     {
-      "id": 49632,
+      "id": 49631,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 343.41498,
@@ -18977,7 +18966,7 @@
       "text": null
     },
     {
-      "id": 49633,
+      "id": 49632,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 373.02454,
@@ -18988,7 +18977,7 @@
       "text": null
     },
     {
-      "id": 49634,
+      "id": 49633,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 385.17725,
@@ -18999,7 +18988,7 @@
       "text": null
     },
     {
-      "id": 49635,
+      "id": 49634,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 350.712,
@@ -19010,7 +18999,7 @@
       "text": null
     },
     {
-      "id": 49636,
+      "id": 49635,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 313.28174,
@@ -19021,7 +19010,7 @@
       "text": null
     },
     {
-      "id": 49637,
+      "id": 49636,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 274.37048,
@@ -19032,7 +19021,7 @@
       "text": null
     },
     {
-      "id": 49638,
+      "id": 49637,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 229.05113,
@@ -19043,7 +19032,7 @@
       "text": null
     },
     {
-      "id": 49639,
+      "id": 49638,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 256.65225,
@@ -19054,7 +19043,7 @@
       "text": null
     },
     {
-      "id": 49640,
+      "id": 49639,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 294.0708,
@@ -19065,7 +19054,7 @@
       "text": null
     },
     {
-      "id": 49641,
+      "id": 49640,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 356.55753,
@@ -19076,7 +19065,7 @@
       "text": null
     },
     {
-      "id": 49642,
+      "id": 49641,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 343.92337,
@@ -19087,7 +19076,7 @@
       "text": null
     },
     {
-      "id": 49643,
+      "id": 49642,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 306.92096,
@@ -19098,7 +19087,7 @@
       "text": null
     },
     {
-      "id": 49644,
+      "id": 49643,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 267.95718,
@@ -19109,7 +19098,7 @@
       "text": null
     },
     {
-      "id": 49645,
+      "id": 49644,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 229.22406,
@@ -19120,7 +19109,7 @@
       "text": null
     },
     {
-      "id": 49646,
+      "id": 49645,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 190.92725,
@@ -19131,7 +19120,7 @@
       "text": null
     },
     {
-      "id": 49647,
+      "id": 49646,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 152.40405,
@@ -19142,7 +19131,7 @@
       "text": null
     },
     {
-      "id": 49648,
+      "id": 49647,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 113.400826,
@@ -19153,7 +19142,7 @@
       "text": null
     },
     {
-      "id": 49649,
+      "id": 49648,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 74.40436,
@@ -19164,7 +19153,7 @@
       "text": null
     },
     {
-      "id": 49650,
+      "id": 49649,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 35.123848,
@@ -19175,7 +19164,7 @@
       "text": null
     },
     {
-      "id": 49651,
+      "id": 49650,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 11.003287,
@@ -19186,7 +19175,7 @@
       "text": null
     },
     {
-      "id": 49652,
+      "id": 49651,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -53.42257,
@@ -19197,7 +19186,7 @@
       "text": null
     },
     {
-      "id": 49653,
+      "id": 49652,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -108.90479,
@@ -19208,7 +19197,7 @@
       "text": null
     },
     {
-      "id": 49654,
+      "id": 49653,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -143.74341,
@@ -19219,7 +19208,7 @@
       "text": null
     },
     {
-      "id": 49655,
+      "id": 49654,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -213.32977,
@@ -19230,7 +19219,7 @@
       "text": null
     },
     {
-      "id": 49656,
+      "id": 49655,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -259.61945,
@@ -19241,7 +19230,7 @@
       "text": null
     },
     {
-      "id": 49657,
+      "id": 49656,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -267.61807,
@@ -19252,7 +19241,7 @@
       "text": null
     },
     {
-      "id": 49658,
+      "id": 49657,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -230.09642,
@@ -19263,7 +19252,7 @@
       "text": null
     },
     {
-      "id": 49659,
+      "id": 49658,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 1.1042209,
@@ -19274,7 +19263,7 @@
       "text": null
     },
     {
-      "id": 49660,
+      "id": 49659,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 45.22822,
@@ -19285,7 +19274,7 @@
       "text": null
     },
     {
-      "id": 49661,
+      "id": 49660,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 87.84744,
@@ -19296,7 +19285,7 @@
       "text": null
     },
     {
-      "id": 49662,
+      "id": 49661,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 130.71162,
@@ -19307,7 +19296,7 @@
       "text": null
     },
     {
-      "id": 49663,
+      "id": 49662,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 172.86139,
@@ -19318,7 +19307,7 @@
       "text": null
     },
     {
-      "id": 49664,
+      "id": 49663,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 221.20364,
@@ -19329,7 +19318,7 @@
       "text": null
     },
     {
-      "id": 49665,
+      "id": 49664,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 186.78485,
@@ -19340,7 +19329,7 @@
       "text": null
     },
     {
-      "id": 49666,
+      "id": 49665,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 152.34354,
@@ -19351,7 +19340,7 @@
       "text": null
     },
     {
-      "id": 49667,
+      "id": 49666,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 117.00442,
@@ -19362,7 +19351,7 @@
       "text": null
     },
     {
-      "id": 49668,
+      "id": 49667,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 81.53941,
@@ -19373,7 +19362,7 @@
       "text": null
     },
     {
-      "id": 49669,
+      "id": 49668,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 49.956886,
@@ -19384,7 +19373,7 @@
       "text": null
     },
     {
-      "id": 49670,
+      "id": 49669,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 32.67616,
@@ -19395,7 +19384,7 @@
       "text": null
     },
     {
-      "id": 49671,
+      "id": 49670,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 23.818592,
@@ -19406,7 +19395,7 @@
       "text": null
     },
     {
-      "id": 49672,
+      "id": 49671,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -8.330203,
@@ -19417,7 +19406,7 @@
       "text": null
     },
     {
-      "id": 49673,
+      "id": 49672,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -16.306206,
@@ -19428,7 +19417,7 @@
       "text": null
     },
     {
-      "id": 49674,
+      "id": 49673,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -24.504221,
@@ -19439,7 +19428,7 @@
       "text": null
     },
     {
-      "id": 49675,
+      "id": 49674,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -32.523697,
@@ -19450,7 +19439,7 @@
       "text": null
     },
     {
-      "id": 49676,
+      "id": 49675,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -40.932655,
@@ -19461,7 +19450,7 @@
       "text": null
     },
     {
-      "id": 49677,
+      "id": 49676,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -86.00902,
@@ -19472,7 +19461,7 @@
       "text": null
     },
     {
-      "id": 49678,
+      "id": 49677,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -122.286,
@@ -19483,7 +19472,7 @@
       "text": null
     },
     {
-      "id": 49679,
+      "id": 49678,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -135.39117,
@@ -19494,7 +19483,7 @@
       "text": null
     },
     {
-      "id": 49680,
+      "id": 49679,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -156.3069,
@@ -19505,7 +19494,7 @@
       "text": null
     },
     {
-      "id": 49681,
+      "id": 49680,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -164.4101,
@@ -19516,7 +19505,7 @@
       "text": null
     },
     {
-      "id": 49682,
+      "id": 49681,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -171.64777,
@@ -19527,7 +19516,7 @@
       "text": null
     },
     {
-      "id": 49683,
+      "id": 49682,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -177.98207,
@@ -19538,7 +19527,7 @@
       "text": null
     },
     {
-      "id": 49684,
+      "id": 49683,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 467.63992,
@@ -19549,7 +19538,7 @@
       "text": null
     },
     {
-      "id": 49685,
+      "id": 49684,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 500.70782,
@@ -19560,7 +19549,7 @@
       "text": null
     },
     {
-      "id": 49686,
+      "id": 49685,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 511.64862,
@@ -19571,7 +19560,7 @@
       "text": null
     },
     {
-      "id": 49687,
+      "id": 49686,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 460.86984,
@@ -19582,7 +19571,7 @@
       "text": null
     },
     {
-      "id": 49688,
+      "id": 49687,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 412.14685,
@@ -19593,7 +19582,7 @@
       "text": null
     },
     {
-      "id": 49689,
+      "id": 49688,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 359.64633,
@@ -19604,7 +19593,7 @@
       "text": null
     },
     {
-      "id": 49690,
+      "id": 49689,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 314.3087,
@@ -19615,7 +19604,7 @@
       "text": null
     },
     {
-      "id": 49691,
+      "id": 49690,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 268.03024,
@@ -19626,7 +19615,7 @@
       "text": null
     },
     {
-      "id": 49692,
+      "id": 49691,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 222.47403,
@@ -19637,7 +19626,7 @@
       "text": null
     },
     {
-      "id": 49693,
+      "id": 49692,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 175.81924,
@@ -19648,7 +19637,7 @@
       "text": null
     },
     {
-      "id": 49694,
+      "id": 49693,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 142.14769,
@@ -19659,7 +19648,7 @@
       "text": null
     },
     {
-      "id": 49695,
+      "id": 49694,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 128.46194,
@@ -19670,7 +19659,7 @@
       "text": null
     },
     {
-      "id": 49696,
+      "id": 49695,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 136.79265,
@@ -19681,7 +19670,7 @@
       "text": null
     },
     {
-      "id": 49697,
+      "id": 49696,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 146.90086,
@@ -19692,7 +19681,7 @@
       "text": null
     },
     {
-      "id": 49698,
+      "id": 49697,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 152.0914,
@@ -19703,7 +19692,7 @@
       "text": null
     },
     {
-      "id": 49699,
+      "id": 49698,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 159.23256,
@@ -19714,7 +19703,7 @@
       "text": null
     },
     {
-      "id": 49700,
+      "id": 49699,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 170.43173,
@@ -19725,7 +19714,7 @@
       "text": null
     },
     {
-      "id": 49701,
+      "id": 49700,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 178.87077,
@@ -19736,7 +19725,7 @@
       "text": null
     },
     {
-      "id": 49702,
+      "id": 49701,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 196.55466,
@@ -19747,7 +19736,7 @@
       "text": null
     },
     {
-      "id": 49703,
+      "id": 49702,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 213.03348,
@@ -19758,7 +19747,7 @@
       "text": null
     },
     {
-      "id": 49704,
+      "id": 49703,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 240.05351,
@@ -19769,7 +19758,7 @@
       "text": null
     },
     {
-      "id": 49705,
+      "id": 49704,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 268.62643,
@@ -19780,7 +19769,7 @@
       "text": null
     },
     {
-      "id": 49706,
+      "id": 49705,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 297.1454,
@@ -19791,7 +19780,7 @@
       "text": null
     },
     {
-      "id": 49707,
+      "id": 49706,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 325.4807,
@@ -19802,7 +19791,7 @@
       "text": null
     },
     {
-      "id": 49708,
+      "id": 49707,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 354.59512,
@@ -19813,7 +19802,7 @@
       "text": null
     },
     {
-      "id": 49709,
+      "id": 49708,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 383.36,
@@ -19824,7 +19813,7 @@
       "text": null
     },
     {
-      "id": 49710,
+      "id": 49709,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 414.2269,
@@ -19835,7 +19824,7 @@
       "text": null
     },
     {
-      "id": 49711,
+      "id": 49710,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 388.74518,
@@ -19846,7 +19835,7 @@
       "text": null
     },
     {
-      "id": 49712,
+      "id": 49711,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 268.7432,
@@ -19857,7 +19846,7 @@
       "text": null
     },
     {
-      "id": 49713,
+      "id": 49712,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 258.33163,
@@ -19868,7 +19857,7 @@
       "text": null
     },
     {
-      "id": 49714,
+      "id": 49713,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 294.18896,
@@ -19879,7 +19868,7 @@
       "text": null
     },
     {
-      "id": 49715,
+      "id": 49714,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 332.56696,
@@ -19890,7 +19879,7 @@
       "text": null
     },
     {
-      "id": 49716,
+      "id": 49715,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 370.50534,
@@ -19901,7 +19890,7 @@
       "text": null
     },
     {
-      "id": 49717,
+      "id": 49716,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 383.40994,
@@ -19912,7 +19901,7 @@
       "text": null
     },
     {
-      "id": 49718,
+      "id": 49717,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 344.94363,
@@ -19923,7 +19912,7 @@
       "text": null
     },
     {
-      "id": 49719,
+      "id": 49718,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 306.17386,
@@ -19934,7 +19923,7 @@
       "text": null
     },
     {
-      "id": 49720,
+      "id": 49719,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 110.2357,
@@ -19945,7 +19934,7 @@
       "text": null
     },
     {
-      "id": 49721,
+      "id": 49720,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 26.433844,
@@ -19956,7 +19945,7 @@
       "text": null
     },
     {
-      "id": 49722,
+      "id": 49721,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -84.8463,
@@ -19967,7 +19956,7 @@
       "text": null
     },
     {
-      "id": 49723,
+      "id": 49722,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -135.82217,
@@ -19978,7 +19967,7 @@
       "text": null
     },
     {
-      "id": 49724,
+      "id": 49723,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -180.15575,
@@ -19989,7 +19978,7 @@
       "text": null
     },
     {
-      "id": 49725,
+      "id": 49724,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -248.9424,
@@ -20000,7 +19989,7 @@
       "text": null
     },
     {
-      "id": 49726,
+      "id": 49725,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -297.17923,
@@ -20011,7 +20000,7 @@
       "text": null
     },
     {
-      "id": 49727,
+      "id": 49726,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -259.8701,
@@ -20022,7 +20011,7 @@
       "text": null
     },
     {
-      "id": 49728,
+      "id": 49727,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -32.219475,
@@ -20033,7 +20022,7 @@
       "text": null
     },
     {
-      "id": 49729,
+      "id": 49728,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 9.449808,
@@ -20044,7 +20033,7 @@
       "text": null
     },
     {
-      "id": 49730,
+      "id": 49729,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 52.702908,
@@ -20055,7 +20044,7 @@
       "text": null
     },
     {
-      "id": 49731,
+      "id": 49730,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 183.43915,
@@ -20066,7 +20055,7 @@
       "text": null
     },
     {
-      "id": 49732,
+      "id": 49731,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 186.37747,
@@ -20077,7 +20066,7 @@
       "text": null
     },
     {
-      "id": 49733,
+      "id": 49732,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 148.0971,
@@ -20088,7 +20077,7 @@
       "text": null
     },
     {
-      "id": 49734,
+      "id": 49733,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 112.966,
@@ -20099,7 +20088,7 @@
       "text": null
     },
     {
-      "id": 49735,
+      "id": 49734,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 77.60366,
@@ -20110,7 +20099,7 @@
       "text": null
     },
     {
-      "id": 49736,
+      "id": 49735,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 41.99886,
@@ -20121,7 +20110,7 @@
       "text": null
     },
     {
-      "id": 49737,
+      "id": 49736,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": 10.50943,
@@ -20132,7 +20121,7 @@
       "text": null
     },
     {
-      "id": 49738,
+      "id": 49737,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -3.7264986,
@@ -20143,7 +20132,7 @@
       "text": null
     },
     {
-      "id": 49739,
+      "id": 49738,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -11.767103,
@@ -20154,7 +20143,7 @@
       "text": null
     },
     {
-      "id": 49740,
+      "id": 49739,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -19.818151,
@@ -20165,7 +20154,7 @@
       "text": null
     },
     {
-      "id": 49741,
+      "id": 49740,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -27.857712,
@@ -20176,7 +20165,7 @@
       "text": null
     },
     {
-      "id": 49742,
+      "id": 49741,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -35.90865,
@@ -20187,7 +20176,7 @@
       "text": null
     },
     {
-      "id": 49754,
+      "id": 49742,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -43.779037,
@@ -20198,7 +20187,7 @@
       "text": null
     },
     {
-      "id": 49755,
+      "id": 49754,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -51.984314,
@@ -20209,7 +20198,7 @@
       "text": null
     },
     {
-      "id": 49756,
+      "id": 49755,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -60.069054,
@@ -20220,7 +20209,7 @@
       "text": null
     },
     {
-      "id": 49757,
+      "id": 49756,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -67.91991,
@@ -20231,7 +20220,7 @@
       "text": null
     },
     {
-      "id": 49758,
+      "id": 49757,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -76.33996,
@@ -20242,7 +20231,7 @@
       "text": null
     },
     {
-      "id": 49759,
+      "id": 49758,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -110.057556,
@@ -20253,7 +20242,7 @@
       "text": null
     },
     {
-      "id": 49760,
+      "id": 49759,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -158.97934,
@@ -20264,7 +20253,7 @@
       "text": null
     },
     {
-      "id": 49761,
+      "id": 49760,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -170.04483,
@@ -20275,7 +20264,7 @@
       "text": null
     },
     {
-      "id": 49762,
+      "id": 49761,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -180.37515,
@@ -20286,7 +20275,7 @@
       "text": null
     },
     {
-      "id": 49763,
+      "id": 49762,
       "kind": "light",
       "asset": "lamp_globe_pole",
       "x": -190.39397,

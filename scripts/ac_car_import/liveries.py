@@ -1,4 +1,4 @@
-"""AC's skins -> texture liveries (docs/CAR_MODELS.md, "Texture liveries").
+"""AC's skins -> texture liveries (docs/content/cars.md, "Texture liveries").
 
 A skin folder overrides kn5 textures by file name. One skin (the first in
 AC's order, or `--skin`) is baked into the GLBs and is livery 0, "the model

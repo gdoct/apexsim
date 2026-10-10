@@ -491,7 +491,7 @@ for sx in (-1, 1):
     skirt = [(-1.00, 0.085 + FLOOR_LIFT), (1.00, 0.085 + FLOOR_LIFT), (1.00, 0.175), (-1.00, 0.165)]
     carlib.plate(p, M.carbon, skirt, sx * (SILL_X + 0.012), 0.032, chamfer=0.008)
     # accent stripe along the sill: the slot the client paints per team, so
-    # every car has to carry it (docs/CAR_MODELS.md)
+    # every car has to carry it (docs/content/cars.md)
     stripe = [(-0.96, 0.190), (0.96, 0.190), (0.96, 0.270), (-0.96, 0.265)]
     carlib.plate(p, M.accent, stripe, sx * (SILL_X + 0.004), 0.008)
     # a fin standing on the end of the skirt, ahead of the rear arch
@@ -817,7 +817,7 @@ if V.get("rear_number_y"):
     carlib.top_decal(p, M.number, L, 0.0, (ry0 + ry1) / 2, -rs, -rs, carlib.number_uv(NUM), along_y=False,
                      lift=0.005, nu=8, nv=8)
 
-# ---- cockpit, built to the points the client derives (docs/CAR_MODELS.md)
+# ---- cockpit, built to the points the client derives (docs/content/cars.md)
 # The client's cockpit rig draws the steering wheel and its display at the
 # derived wheel point, so the mesh carries no wheel of its own (two wheels
 # a few centimetres apart is what the first generation showed). Everything

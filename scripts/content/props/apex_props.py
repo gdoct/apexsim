@@ -6,7 +6,7 @@ Load inside Blender's Python console or an MCP session:
     spec = importlib.util.spec_from_file_location("apex", r"E:\\apexsim\\scripts\\content\\props\\apex_props.py")
     apex = importlib.util.module_from_spec(spec); sys.modules["apex"] = apex; spec.loader.exec_module(apex)
 
-Conventions (see docs/PROPS.md):
+Conventions (see docs/content/props.md):
   * metres; pivot on the ground at the footprint centre (sky props: hull centre)
   * +X along the track, the road is on -Y in Blender (glTF/Unreal import maps this
     to the importer's +Y "faces road" side), Z up

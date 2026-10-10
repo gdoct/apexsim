@@ -1,4 +1,4 @@
-"""Import an Assetto Corsa car as an ApexSim car (docs/AC_CAR_IMPORT.md).
+"""Import an Assetto Corsa car as an ApexSim car (docs/content/ac-import.md).
 
 The package behind `scripts/ac_car_import.py`. It shares the kn5 reader,
 the INI parser and the texture decoder with the track importer

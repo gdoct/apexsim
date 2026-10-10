@@ -23,7 +23,7 @@ tracks' levels imported; encoding needs ffmpeg on PATH (or --ffmpeg).
                                        # play a shot live, looping, to tune its camera
     python scripts/promo/make_clips.py --dry-run               # print the game command lines
 
-See docs/PROMO_VIDEO.md.
+See docs/marketing-site.md.
 """
 
 from __future__ import annotations

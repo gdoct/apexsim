@@ -4,7 +4,7 @@
 #   python scripts/promo/make_clips.py --preview 05_lemans_wheel   # tune one camera live
 #   python scripts/promo/stitch_video.py          # -> out/promo/ApexSim_promo.mp4
 #
-# docs/PROMO_VIDEO.md explains every key. In short:
+# docs/marketing-site.md explains every key. In short:
 #
 # races:  each is ONE headless AI race (apexsim-replay simulate); several
 #         shots can be cut from the same race. `weather` changes the grip the

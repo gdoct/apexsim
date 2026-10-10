@@ -2,10 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
+#include "ApexTls.h"
 #include "Containers/Queue.h"
 #include "HAL/Runnable.h"
 #include "HAL/ThreadSafeBool.h"
 
+class FApexTlsSession;
 class FRunnableThread;
 class FSocket;
 class ISocketSubsystem;
@@ -16,13 +18,23 @@ struct FApexDisconnectReason
 	FString Text;
 	/** True when the failure happened before/during connect rather than mid-session. */
 	bool bDuringConnect = false;
+	/**
+	 * Retrying the same server will not help: its TLS certificate failed the
+	 * check settings.yml asks for. The subsystem stops reconnecting.
+	 */
+	bool bPermanent = false;
 };
 
 /**
  * Owns the TCP socket to the ApexSim server and runs it on a dedicated thread.
  *
  * One thread services both directions: connect, send queued frames, poll for
- * readable data, extract frames, decode. Decoding happens here rather than on
+ * readable data, extract frames, decode. TLS (FApexTlsOptions, settings.yml
+ * `server.tls`) sits between the socket and the framing on the same thread:
+ * an OpenSSL session on memory BIOs (FApexTlsSession) that the socket feeds
+ * and drains, so the `[4-byte BE length][msgpack]` frames are the same either
+ * way. In `auto` a server that drops the TLS hello unanswered (a plaintext
+ * ApexSim server does) is connected to again in plaintext. Decoding happens here rather than on
  * the game thread precisely because LobbyState is a ~250 KB message arriving
  * every 2 seconds.
  *
@@ -32,7 +44,8 @@ struct FApexDisconnectReason
 class APEXSIMNET_API FApexTcpConnection : public FRunnable
 {
 public:
-	FApexTcpConnection(const FString& InHost, int32 InPort, const FString& InToken, const FString& InPlayerName);
+	FApexTcpConnection(const FString& InHost, int32 InPort, const FString& InToken, const FString& InPlayerName,
+		const FApexTlsOptions& InTls = FApexTlsOptions());
 	virtual ~FApexTcpConnection() override;
 
 	/** Spawns the worker thread. Returns false only if thread creation itself failed. */
@@ -56,6 +69,9 @@ public:
 
 	bool IsConnected() const { return bConnected; }
 
+	/** True once connected over TLS (false in plaintext, and before). */
+	bool IsEncrypted() const { return bEncrypted; }
+
 	// FRunnable
 	virtual bool Init() override;
 	virtual uint32 Run() override;
@@ -69,22 +85,45 @@ private:
 	static constexpr int32 SendBufferBytes = 1 << 16;
 	static constexpr int32 PollIntervalMs = 50;
 
+	/** No reply to a ClientHello in this long is a failed handshake. */
+	static constexpr double TlsHandshakeTimeoutSeconds = 10.0;
+
 	bool ConnectSocket(FString& OutError);
+	/**
+	 * Runs the TLS handshake on the connected socket and checks the server's
+	 * certificate. On failure says how it failed, which decides the fallback.
+	 */
+	bool HandshakeTls(FString& OutError, EApexTlsFailure& OutFailure);
 	/** Writes everything currently queued. Returns false on a socket error. */
 	bool FlushOutbound();
-	/** Sends a whole buffer, looping over partial sends. */
+	/** Sends a frame: through TLS when the connection has it. */
 	bool SendAll(const TArray<uint8>& Bytes);
-	/** Appends readable bytes to ReceiveBuffer. Returns false on error or clean close. */
+	/** Sends bytes as they are on the socket, looping over partial sends. */
+	bool SendRaw(const uint8* Bytes, int32 Num);
+	/** Sends whatever ciphertext the TLS session has waiting. */
+	bool FlushCiphertext();
+	/**
+	 * Reads what the socket has (call once Wait said it is readable): one Recv,
+	 * which is what notices a closed connection, then whatever else is pending.
+	 * False on an error or a clean close.
+	 */
+	bool RecvRaw(TArray<uint8>& Out, FString& OutError);
+	/** Appends readable (decrypted) bytes to ReceiveBuffer. Returns false on error or clean close. */
 	bool ReceiveAvailable(FString& OutError);
 	/** Extracts and decodes every complete frame in ReceiveBuffer. */
 	bool ExtractFrames(FString& OutError);
-	void SetDisconnectReason(const FString& Text, bool bDuringConnect);
+	void SetDisconnectReason(const FString& Text, bool bDuringConnect, bool bPermanent = false);
 	void DestroySocket();
 
 	const FString Host;
 	const int32 Port;
 	const FString Token;
 	const FString PlayerName;
+	const FApexTlsOptions TlsOptions;
+
+	/** Worker-thread only. Set while the connection runs over TLS. */
+	TUniquePtr<FApexTlsSession> Tls;
+	FThreadSafeBool bEncrypted{false};
 
 	FSocket* Socket = nullptr;
 	ISocketSubsystem* SocketSubsystem = nullptr;

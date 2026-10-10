@@ -22,9 +22,7 @@ apart) and flags any that qualify.
 
 Exits non-zero (and prints a report) if any segment is flagged. A handful of
 flags right at a pit lane's entry/exit taper is a known cosmetic issue --
-still reported, not silently excused, but §4.3 of
-`docs/ADDITIONAL_TRACKS.md` allows it as long as it is called out by hand in
-the hand-back.
+still reported, not silently excused.
 """
 
 from __future__ import annotations
@@ -111,8 +109,8 @@ def check_track(stem: str, z_tolerance: float, verbose: bool) -> list[dict]:
         if n_taper:
             print(
                 f"    {n_taper} of {len(flagged)} flagged segment(s) are within 60 m "
-                "of the pit lane's entry/exit nodes -- a known cosmetic issue "
-                "(docs/ADDITIONAL_TRACKS.md §4.3), still reported, not excused."
+                "of the pit lane's entry/exit nodes -- a known cosmetic issue, "
+                "still reported, not excused."
             )
     elif verbose:
         print("    clean")

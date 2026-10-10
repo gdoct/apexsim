@@ -90,7 +90,7 @@ torque_nm = 545.0
 rpm = 9000.0
 torque_nm = 495.0
 
-# What the client's engine synthesiser is built from (docs/CAR_MODELS.md,
+# What the client's engine synthesiser is built from (docs/content/cars.md,
 # "Engine sound"): the server ignores this table.
 # 6.0 L 60-degree V12 through equal-length headers into the quad tail cluster.
 [sound]

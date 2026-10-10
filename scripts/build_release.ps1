@@ -12,7 +12,7 @@
         4. tracks     - scripts/build_track_levels.ps1: dress, export,
                         previews, the showcases and the shared track
                         materials; every circuit ships as data the game
-                        builds at runtime (docs/RUNTIME_CONTENT_LOADING.md),
+                        builds at runtime (docs/content/track-pipeline.md),
                         not as a level
                         track picker has names, metadata and preview art
         5. client     - scripts/build_game_standalone.ps1 (BuildCookRun)
@@ -41,9 +41,9 @@
             Game/Wheels/        the class wheels the cars name
             Game/Hud/           the HUD's components (default/, and custom/
                                 for the player's own), drawn from files
-            Game/Guide/         the track guides (docs/TRACK_GUIDE.md)
+            Game/Guide/         the track guides (docs/content/track-guide.md)
             Game/Showcase/      the rendered AI races (.apxs) the menu plays
-                                behind its screens (docs/SPECTATOR.md)
+                                behind its screens (docs/game/spectator.md)
             Server/             apexsim-server.exe + apexsim-replay.exe +
                                 server.toml + server.md (how to start it by
                                 hand) + content/ + showcase/ (the same
@@ -676,7 +676,7 @@ Copy-Item -LiteralPath (Join-Path $RepoRoot 'server.toml') -Destination $ServerD
 # How to start the server by hand: its options and environment overrides.
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'server\CMDLINE.md') -Destination (Join-Path $ServerDir 'server.md') -Force
 Copy-ServerContent -Destination (Join-Path $ServerDir 'content')
-# The track guides (docs/TRACK_GUIDE.md): Game\Guide is where the track
+# The track guides (docs/content/track-guide.md): Game\Guide is where the track
 # picker looks. Built here when missing or stale, like the content script.
 if (@(Get-ApexGuideWork -RepoRoot $RepoRoot).Count -gt 0) {
     Write-Detail 'building the track guides that are missing or stale'
@@ -754,6 +754,17 @@ server:
   # on this machine, such as the one the launcher starts for you.
   host: 127.0.0.1
   port: 9000
+  # TLS on the connection: auto | on | off. auto tries TLS and falls back
+  # to plaintext only when the server does not speak it; on never falls
+  # back. Telemetry and input (UDP) are never encrypted.
+  tls: auto
+  # Check the server's certificate against the system's trusted roots and
+  # the host name. false encrypts without checking: development only.
+  tls_verify: true
+  # Trust exactly this certificate instead (SHA-256, as the server's
+  # operator gives it, or as the game logs it when it refuses one): how a
+  # self-signed certificate is trusted. Empty: none. Cleared when host changes.
+  tls_fingerprint:
 
 launcher:
   # false: launcher.exe starts the game straight away, without a server, and
@@ -789,8 +800,8 @@ WHAT IS IN HERE
     Game\Tracks\       Every circuit, as the data the game builds it from
                        when it is raced. A new circuit is its .uescene.json,
                        .uemesh and .png here,
-                       with the matching <Track>\<Track>.yaml in
-                       Server\content	racks\default.
+                       with its <Track>\ folder (the YAML and sidecars) in
+                       Server\content	racks\custom.
     Game\Cars\         Every car, as the car.toml and GLBs the game builds
                        it from; Game\Wheels\ holds the class wheels. A new
                        car is its folder in Game\Cars\custom, with the same
@@ -841,6 +852,14 @@ HOSTING FOR OTHER PEOPLE
     require TLS, which suits a LAN or a private game among friends. For
     anything public, edit Server\server.toml: set require_tls = true with a
     certificate and key, and switch [auth] to mode = "token".
+
+    The game tries TLS on its own (settings.yml server.tls: auto). With a
+    certificate from a public CA nothing more is needed. With a self-signed
+    one, give your players its SHA-256 fingerprint, printed by
+        openssl x509 -in server.crt -noout -fingerprint -sha256
+    for their settings.yml (server.tls_fingerprint); the game also prints it
+    in its log when it refuses the certificate. Telemetry and input (UDP)
+    are not encrypted either way.
 
 MODDING
 

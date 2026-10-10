@@ -137,7 +137,7 @@ void UApexNetSubsystem::StartConnectionAttempt()
 	PingMs = -1;
 	bWarnedEmptyCatalog = false;
 
-	Connection = MakeUnique<FApexTcpConnection>(Host, Port, Token, PlayerName);
+	Connection = MakeUnique<FApexTcpConnection>(Host, Port, Token, PlayerName, TlsOptions);
 	if (!Connection->Start())
 	{
 		Connection.Reset();
@@ -701,6 +701,13 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		if (bAuthRejected)
 		{
 			bReconnectEnabled = false;
+		}
+		else if (Reason.bPermanent)
+		{
+			// The server's certificate failed the check settings.yml asks for:
+			// the same certificate would fail again, so say why and stop.
+			bReconnectEnabled = false;
+			SetConnectionState(EApexConnectionState::Failed, Reason.Text);
 		}
 		else if (bReconnectEnabled)
 		{

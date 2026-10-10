@@ -36,7 +36,7 @@ enabled = true
 dir = "./records"
 
 [physics]
-# How the sim finds the surface under a wheel (docs/ROAD_MESH.md):
+# How the sim finds the surface under a wheel (docs/content/road-mesh.md):
 #   "centerline" - the nearest centerline point's height sheared by the
 #                  banking, with the curb bands for the track limits.
 #   "mesh"       - a track's baked <Track>.road.msgpack when it has one (the
@@ -48,7 +48,7 @@ road_contact = "mesh"
 
 [showcase]
 # Rendered AI races (build/showcase/*.apxs from scripts/build_track_levels.ps1,
-# docs/SPECTATOR.md) the server streams to clients sitting in the menu, in
+# docs/game/spectator.md) the server streams to clients sitting in the menu, in
 # place of a simulated demo race per client. Every key is optional; these
 # are the defaults. A `dir` that is not there is no showcase, not an error;
 # a file whose track or cars this server does not have, or whose checksums
@@ -66,7 +66,7 @@ road_contact = "mesh"
 #stream_divisor = 1
 
 [admin]
-# The web dashboard (docs/ADMIN_DASHBOARD.md): plain HTTP and HTTPS on their
+# The web dashboard (docs/server/operations.md): plain HTTP and HTTPS on their
 # own ports, behind an access token. Every key is optional; these are the
 # defaults. Loopback only: bind to 0.0.0.0 to reach it from other machines,
 # and then prefer HTTPS (redirect_http_to_https = true).

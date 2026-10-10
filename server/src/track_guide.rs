@@ -1,5 +1,5 @@
 //! The track guide: a corner-by-corner walk round a circuit, made offline
-//! and played on the client from two files (docs/TRACK_GUIDE.md).
+//! and played on the client from two files (docs/content/track-guide.md).
 //!
 //! Three lone AI cars of a class lap the empty track ([`solo_run`]); each
 //! one's first flying lap is kept and the three are merged into one

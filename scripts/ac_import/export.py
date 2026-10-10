@@ -1,6 +1,6 @@
 """The client export, format version 3: the `<Stem>.uescene.json` manifest
 and the `<Stem>.uemesh` blob `ats-export` writes for a generated circuit
-(`track-editor/TRACK_EDITOR.md` section 5), plus what version 3 adds for an
+(`docs/content/track-format.md`), plus what version 3 adds for an
 imported one:
 
 - a material may carry `texture` (a DDS path relative to the manifest),

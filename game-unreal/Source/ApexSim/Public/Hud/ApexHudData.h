@@ -16,7 +16,7 @@
  *
  * Every name is always present, with a `null` value when the game cannot
  * fill it (an older server, no car yet), so the set of names is the catalogue
- * and `apexsim.hud.Data` can list it. docs/HUD_MODDING.md documents each one;
+ * and `apexsim.hud.Data` can list it. docs/game/hud-modding.md documents each one;
  * `ApexSim.Hud.Data.Documented` fails when a name is missing from it.
  */
 struct APEXSIM_API FApexHudData
@@ -87,7 +87,7 @@ struct APEXSIM_API FApexHudInputs
 	/** The last input came from a gamepad (the hints show its buttons). */
 	bool bGamepad = false;
 
-	/** Watching a race rather than driving in it (docs/SPECTATOR.md, "Watching a race"). */
+	/** Watching a race rather than driving in it (docs/game/spectator.md, "Watching a race"). */
 	bool bSpectating = false;
 	/** What is being watched: `showcase`, `file`, `demo` or `live`. */
 	FString SpectateSource;

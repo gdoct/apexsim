@@ -92,7 +92,7 @@ torque_nm = 292.0
 rpm = 15000.0
 torque_nm = 246.0
 
-# What the client's engine synthesiser is built from (docs/CAR_MODELS.md,
+# What the client's engine synthesiser is built from (docs/content/cars.md,
 # "Engine sound"): the server ignores this table.
 # 1.6 L turbo V6 to 15,000 through one short, open tailpipe.
 [sound]

@@ -4,7 +4,7 @@
 
 /**
  * What the importer knows about the authored prop kit (`content/props`,
- * see docs/PROPS.md): which kinds are instanced, which get Nanite, which
+ * see docs/content/props.md): which kinds are instanced, which get Nanite, which
  * face the road, what each kind falls back to, the aliases that keep the
  * pre-kit `.ats` scenes working, where the imported assets live, and the
  * pure maths of laying a grandstand out of bays.
@@ -222,7 +222,7 @@ namespace ApexProps
 	 * is used — `_curve6` at 95 m, `_curve12` at 48 m, `_curve6_in` on the
 	 * inside — and the bays are turned about the wedges' common centre so
 	 * they share their side edges; the large family is straight only.
-	 * `bWedge` reports whether a wedge was chosen. See docs/PROPS.md.
+	 * `bWedge` reports whether a wedge was chosen. See docs/content/props.md.
 	 * A non-bay stand (`scaffold_10m`, `banking_seats`) is the module
 	 * repeated at the same pitch, straight, with no caps.
 	 */

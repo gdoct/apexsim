@@ -2,7 +2,7 @@ r"""Marina Bay batch A2 - bridges: steel through-arch, wide deck parapets, viadu
 
     ASSET = "all"   # or one of BUILD
     exec(open(r"E:\apexsim\scripts\content\props\build_marina_bay_a2.py").read())
-Bridge convention (PROPS.md section 2): road along X, span across Y (authored for a 15 m road,
+Bridge convention (docs/content/props.md section 2): road along X, span across Y (authored for a 15 m road,
 supports 1.5 m off each edge; the importer scales local Y only).
 """
 exec(open(r"E:\apexsim\scripts\content\props\marina_common.py").read())

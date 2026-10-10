@@ -1,5 +1,5 @@
 //! The authored prop kit as the editor knows it (`content/props`, catalogued
-//! in `docs/PROPS.md`): which asset keys exist per kind, how big each is,
+//! in `docs/content/props.md`): which asset keys exist per kind, how big each is,
 //! and which one a kind falls back to. Data only — the GLBs themselves are
 //! never read here; the sizes are the authored footprints, so the editor
 //! can preview a placement at the size it imports and the groomer can push
@@ -45,7 +45,7 @@ macro_rules! kit {
     };
 }
 
-/// Every authored asset, in `docs/PROPS.md` order. The first entry of a
+/// Every authored asset, in `docs/content/props.md` order. The first entry of a
 /// kind is its default.
 pub const KIT: &[KitAsset] = kit![
     // Track edge
@@ -166,7 +166,7 @@ pub const KIT: &[KitAsset] = kit![
     Building "skyline_twin" 32.1 x 12.1 x 161.2,
     Building "skyline_needle" 14.1 x 14.1 x 190.0,
     // Marina Bay ("Mandarina Bay"): landmark and civic buildings, centred on
-    // their footprint, front on -Y. Real sizes; see docs/content/MARINA_BAY.md.
+    // their footprint, front on -Y. Real sizes; see docs/content/circuits.md.
     Building "landmark_twin_domes" 188.0 x 85.2 x 36.2,
     Building "building_wheel_terminal" 64.5 x 31.0 x 24.0,
     Building "building_pit_street" 120.8 x 33.5 x 24.6,

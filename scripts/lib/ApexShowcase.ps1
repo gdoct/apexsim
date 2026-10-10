@@ -8,7 +8,7 @@
         . (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
 
     A showcase is a spectator stream (<Stem>.<class>.<variant>.apxs,
-    docs/SPECTATOR.md) rendered by `apexsim-replay render` from a headless AI
+    docs/game/spectator.md) rendered by `apexsim-replay render` from a headless AI
     race: the menu plays it behind its screens and the server plays it to
     clients. content\showcase.yml lists what to render (track, class, sky
     variants, grid, laps, seed); build\showcase holds the files, gitignored
@@ -191,7 +191,7 @@ function Get-ApexShowcaseList {
 }
 
 # The file name of one showcase: <Stem>.<class>.<variant>, class in lower
-# case (GT3 -> gt3), as docs/SPECTATOR.md names them.
+# case (GT3 -> gt3), as docs/game/spectator.md names them.
 function Get-ApexShowcaseName {
     param([string]$Track, [string]$Class, [string]$Variant)
     return "$Track.$($Class.ToLowerInvariant()).$Variant"

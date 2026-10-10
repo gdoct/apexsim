@@ -7,7 +7,7 @@
 
         . (Join-Path $PSScriptRoot 'lib\ApexGuide.ps1')
 
-    A track guide (docs/TRACK_GUIDE.md) is two files per shipped circuit
+    A track guide (docs/content/track-guide.md) is two files per shipped circuit
     and car class, `<Stem>.<Class>.guide.json` and its recording
     `<Stem>.<Class>.guide.apxs`, built by `apexsim-replay guide` from the
     track YAML, its hand-written notes (`<Stem>.guide.yml`), its dossier and

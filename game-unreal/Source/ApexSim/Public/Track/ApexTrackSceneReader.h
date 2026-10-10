@@ -13,7 +13,7 @@ struct FApexTrackSceneHeader;
  * 2 is that JSON as a manifest (materials, props, grid, centerline, and a
  * header per mesh) plus `<Stem>.uemesh` beside it: a little-endian blob with
  * each mesh's buffers, zlib-compressed per mesh. Both load into the same
- * `FApexTrackScene`. The blob layout is pinned in TRACK_EDITOR.md section 5
+ * `FApexTrackScene`. The blob layout is pinned in docs/content/track-format.md section 5
  * and by `ApexSim.Track.Reader.*`.
  *
  * Nothing here touches UObjects, so it is safe on a worker thread.

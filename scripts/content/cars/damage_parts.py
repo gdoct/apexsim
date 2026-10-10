@@ -1,5 +1,5 @@
 """Damage parts for the shipped cars: writes each car's `[[damage_part]]`
-tables into its car.toml (docs/CAR_MODELS.md, Damage parts).
+tables into its car.toml (docs/content/cars.md, Damage parts).
 
     python scripts/content/cars/damage_parts.py                  # every car in content/cars/default
     python scripts/content/cars/damage_parts.py posh-gt3rs       # one car

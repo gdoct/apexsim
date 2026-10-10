@@ -3,7 +3,7 @@ r"""Barrier kit, batch 2: sausage kerb, tecpro corner cap, concrete end ramp.
     ASSET = "all"        # or one of ASSETS
     exec(open(r"E:\apexsim\scripts\content\props\build_barriers2.py").read())
 
-Frame per docs/PROPS.md: +X along the road, road on -Y, Z up, pivot on the
+Frame per docs/content/props.md: +X along the road, road on -Y, Z up, pivot on the
 ground at the footprint centre (thin modules).
 """
 import bpy, math, os, importlib.util, sys

@@ -53,7 +53,7 @@ cd server
 ./convert_all_tracks.sh /path/to/racetrack-database ./content/tracks/default
 ```
 
-See [../../docs/TRACK_CONVERTER.md](../../docs/TRACK_CONVERTER.md) for the track converter tool documentation.
+See [../../docs/content/track-format.md](../../docs/content/track-format.md) for the track converter tool documentation.
 
 ## File Format
 
@@ -61,7 +61,7 @@ Tracks can be defined in either JSON or YAML format. The server automatically lo
 
 ### Complete Track Format
 
-See [../../docs/TRACK_FILE_FORMAT.md](../../docs/TRACK_FILE_FORMAT.md) for the complete specification.
+See [../../docs/content/track-format.md](../../docs/content/track-format.md) for the complete specification.
 
 ## Track Structure
 

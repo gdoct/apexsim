@@ -73,8 +73,8 @@ struct WheelContact {
     contact_z: f32,
     contact: RoadContact,
     grip_modifier: f32,
-    /// Water on the road under this tyre (`crate::water`; the weather's
-    /// figure without a field).
+    /// Water on the road under this tyre (`crate::road_state`'s sample
+    /// at the wheel).
     water: f32,
 }
 
@@ -3193,8 +3193,9 @@ pub enum RoadContact {
     Curb,
     Runoff,
     Off,
-    /// The pit lane, which only a road mesh knows: asphalt with the road's
-    /// grip, off the track for the lap like the run-off.
+    /// The pit lane (the road mesh's strip, or the pit sidecar's lane
+    /// beside the centerline): asphalt with the road's grip, and on the
+    /// track for the lap (`off_track` is false), so a lap with a stop counts.
     PitLane,
 }
 

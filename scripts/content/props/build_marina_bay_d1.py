@@ -1,4 +1,4 @@
-r"""Marina Bay batch D1 - the start/finish straight (docs/content/MARINA_BAY_START_FINISH.md).
+r"""Marina Bay batch D1 - the start/finish straight (docs/content/circuits.md).
 
     ASSET = "all"   # or one key of BUILD
     exec(open(r"E:\apexsim\scripts\content\props\build_marina_bay_d1.py").read())
@@ -7,7 +7,7 @@ r"""Marina Bay batch D1 - the start/finish straight (docs/content/MARINA_BAY_STA
 GLB to content/props/<kind>/<asset>.glb and saves the scene as
 content/props/_batches/marina_bay_d1.blend (a copy; the open file is untouched).
 
-Conventions (PROPS.md): road on -Y, +X along the track, metres, pivot on the
+Conventions (docs/content/props.md): road on -Y, +X along the track, metres, pivot on the
 ground. Deep road-facing kinds (grandstand, building, pit, the stage) have the
 pivot on the road-facing edge and reach +Y; thin modules and free-standing
 pieces are centred; the bridge is centred on its span (across Y).

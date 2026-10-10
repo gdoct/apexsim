@@ -1,5 +1,5 @@
 """AC's physics files -> the figures ApexSim's car.toml takes
-(docs/AC_CAR_IMPORT.md, "AC -> ApexSim: the mapping").
+(docs/content/ac-import.md, "AC -> ApexSim: the mapping").
 
 Frames. AC's physics origin is the car's centre of gravity, (x left, y up,
 z forward); the aero wings' and the colliders' positions are given from it.

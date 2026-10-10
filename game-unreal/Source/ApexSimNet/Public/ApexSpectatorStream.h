@@ -5,7 +5,7 @@
 
 /**
  * The spectator stream (`.apxs`): what a viewer of a race receives, from a
- * file or from the server (docs/SPECTATOR.md; `server/src/spectator.rs` is
+ * file or from the server (docs/game/spectator.md; `server/src/spectator.rs` is
  * the format's definition and prints the golden bytes these are tested on).
  *
  * A stream is a sequence of self-contained records, each a positional

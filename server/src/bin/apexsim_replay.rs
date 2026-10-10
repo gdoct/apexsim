@@ -15,7 +15,7 @@
 //! ```
 //!
 //! `render`, `convert` and a `cut` to `.apxs` write spectator streams
-//! (docs/SPECTATOR.md): what the menu backdrop, the server's showcase and
+//! (docs/game/spectator.md): what the menu backdrop, the server's showcase and
 //! `-ApexReplay=` play.
 //!
 //! Every command that reports prints JSON on stdout, so a script can drive
@@ -250,7 +250,7 @@ enum Command {
         #[arg(long)]
         out: PathBuf,
     },
-    /// Build the track guide of each track and class (docs/TRACK_GUIDE.md):
+    /// Build the track guide of each track and class (docs/content/track-guide.md):
     /// `<Stem>.<Class>.guide.json` and its `.guide.apxs` recording.
     Guide {
         /// Track YAMLs (or `--all`).

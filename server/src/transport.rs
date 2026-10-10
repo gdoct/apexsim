@@ -183,6 +183,9 @@ struct ConnRegistry {
     udp_addr_to_connection: Arc<RwLock<HashMap<SocketAddr, ConnectionId>>>,
     /// Addresses and names refused at `Authenticate` (`crate::admin::bans`).
     bans: crate::admin::bans::BanList,
+    /// The game loop's tick count (wrapping), stored by the loop every tick
+    /// and echoed in `HeartbeatAck`.
+    server_tick: Arc<std::sync::atomic::AtomicU32>,
 }
 
 impl ConnRegistry {
@@ -194,6 +197,7 @@ impl ConnRegistry {
             udp_token_to_connection: Arc::new(RwLock::new(HashMap::new())),
             udp_addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
             bans: crate::admin::bans::BanList::default(),
+            server_tick: Arc::new(std::sync::atomic::AtomicU32::new(0)),
         }
     }
 
@@ -778,7 +782,9 @@ impl TransportLayer {
 
                                         // Send heartbeat ack (droppable - can be skipped if queue full)
                                         let response = ServerMessage::HeartbeatAck {
-                                            server_tick: 0, // Will be updated later with actual tick
+                                            server_tick: registry
+                                                .server_tick
+                                                .load(std::sync::atomic::Ordering::Relaxed),
                                         };
                                         let _ = conn_tx.try_send(OutboundFrame::Message(response));
                                     }
@@ -964,6 +970,12 @@ impl TransportLayer {
     /// once at game-loop startup so message draining needs no transport lock.
     pub fn take_event_receiver(&mut self) -> Option<mpsc::Receiver<TransportEvent>> {
         self.event_rx.take()
+    }
+
+    /// The counter `HeartbeatAck.server_tick` reads: the game loop takes it
+    /// once and stores its tick count in it every tick.
+    pub fn server_tick_handle(&self) -> Arc<std::sync::atomic::AtomicU32> {
+        self.registry.server_tick.clone()
     }
 
     pub async fn send_tcp(

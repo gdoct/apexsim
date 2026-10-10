@@ -28,7 +28,7 @@ struct FApexHudScope
  * - data points by name, `car.speed_kph`; in a repeat, `item.name` and `index`
  * - `+ - * / %` (`+` joins text when either side is text), `== != < <= > >=`,
  *   `&& || !` (or `and or not`), `cond ? a : b`
- * - functions: see docs/HUD_MODDING.md, or `FunctionNames()`
+ * - functions: see docs/game/hud-modding.md, or `FunctionNames()`
  *
  * A name nobody fills evaluates to `null`, which reads as false, 0 and "".
  */

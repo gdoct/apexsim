@@ -12,7 +12,7 @@ class UTexture2D;
 
 /**
  * Brings the authored prop kit (`content/props/<kind>/<asset>.glb`, see
- * docs/PROPS.md) into the project as static meshes the track import places.
+ * docs/content/props.md) into the project as static meshes the track import places.
  *
  * ```
  * UnrealEditor-Cmd.exe <uproject> -run=ApexPropImport -all

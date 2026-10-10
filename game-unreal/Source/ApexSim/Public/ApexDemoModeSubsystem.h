@@ -33,7 +33,7 @@ enum class EApexBackdropSource : uint8
  *
  * Whenever the player is not in a session, this puts a race on the race
  * director's demo view, from the first source that can deliver one
- * (docs/SPECTATOR.md):
+ * (docs/game/spectator.md):
  *
  *  1. the server's showcase, when connected and the lobby lists one
  *     (`SpectateShowcase`, through UApexSpectatorSubsystem);

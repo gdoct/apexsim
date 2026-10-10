@@ -11,8 +11,8 @@
 //!
 //! - **The limiter**: in the lane between the lines, the physics holds the
 //!   car to the lane's limit (`physics::update_car_3d` cuts the throttle).
-//! - **The box**: a car stopped at its own box's spot (its grid position's
-//!   box, teams share) is serviced for [`service_seconds`], held still by
+//! - **The box**: a car stopped at its own box's spot (dealt by
+//!   [`deal_box`]: the lowest box nobody holds) is serviced for [`service_seconds`], held still by
 //!   the physics: a new set of the compound its driver chose (the setup's
 //!   `tyre_compound`, or the AI's plan), fuel for the rest of the race where
 //!   the rules allow refuelling (not an F1), and repairs.

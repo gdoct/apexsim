@@ -219,7 +219,11 @@ impl ServerState {
             .and_then(|s| s.to_str())
             .unwrap_or_default();
         let name = name.to_ascii_lowercase();
-        name.ends_with(".layout.json") || name.ends_with(".import.json")
+        // Files beside a track that are not one: its dossier, an import
+        // report and its track guide notes.
+        name.ends_with(".layout.json")
+            || name.ends_with(".import.json")
+            || name.ends_with(".guide.yml")
     }
 
     fn collect_track_files(dir: &Path, skip_imported: bool, files: &mut Vec<PathBuf>) {

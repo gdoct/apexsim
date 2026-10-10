@@ -213,7 +213,7 @@ content/tracks/custom/*
 # The player's own cars (content/cars/custom), for the same reason.
 content/cars/custom/*
 !content/cars/custom/README.md
-# The player's own HUD components (content/hud/custom, docs/HUD_MODDING.md).
+# The player's own HUD components (content/hud/custom, docs/game/hud-modding.md).
 content/hud/custom/*
 !content/hud/custom/README.md
 

@@ -1,6 +1,6 @@
 //! Conversion between track space and Bevy's render space.
 //!
-//! Track space (per `TRACK_EDITOR.md` \#2 and the server's coordinate
+//! Track space (per `docs/content/track-format.md` and the server's coordinate
 //! convention): right-handed, `+X` follows the course from start/finish,
 //! `+Y` is left, `+Z` is up.
 //!

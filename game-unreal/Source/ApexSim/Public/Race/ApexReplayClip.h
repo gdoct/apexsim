@@ -11,7 +11,7 @@ class FApexStreamFile;
  *
  * The server's `apexsim-replay` tool simulates an AI race, finds the moment
  * worth filming and cuts it into a spectator stream (`server/src/spectator.rs`,
- * docs/SPECTATOR.md), whose frames are read into the same table the JSON
+ * docs/game/spectator.md), whose frames are read into the same table the JSON
  * clip (`replay_tools::ClipFile`) filled: every car per frame as a
  * positional row in roster order, in the server frame:
  *

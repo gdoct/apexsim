@@ -32,7 +32,7 @@
 
 /**
  * Where a car's wheels go and which shared wheel model they use: the
- * `[wheels]` table of car.toml (docs/CAR_MODELS.md), filled by
+ * `[wheels]` table of car.toml (docs/content/cars.md), filled by
  * ApexCarImport. The body meshes carry no wheels; the client draws four
  * copies of `Mesh`, sized per axle, steers the front pair and spins all four.
  *
@@ -122,7 +122,7 @@ struct APEXSIM_API FApexWheelSpec
 /**
  * An F1 car's DRS flap: the rear wing's upper element, cut out of the body
  * mesh into its own so the client can open it. The `[drs_flap]` table of
- * car.toml (docs/CAR_MODELS.md), filled by ApexCarImport.
+ * car.toml (docs/content/cars.md), filled by ApexCarImport.
  *
  * The mesh's origin is the hinge, in the body mesh's frame otherwise; the
  * hinge axis runs across the car (the frame's X). Metres, like the wheels:
@@ -164,7 +164,7 @@ struct APEXSIM_API FApexDrsFlapSpec
 };
 
 /**
- * The driver figure in a car's seat (car.toml `[driver]`, docs/CAR_MODELS.md):
+ * The driver figure in a car's seat (car.toml `[driver]`, docs/content/cars.md):
  * a mesh in the body mesh's own frame, drawn on the body with no transform
  * and hidden for the car the cockpit camera sits in.
  */
@@ -202,7 +202,7 @@ enum class EApexDamageZone : uint8
 
 /**
  * A piece of bodywork that comes off in a big enough hit: a car.toml
- * `[[damage_part]]` table (docs/CAR_MODELS.md, Damage parts). The body GLB
+ * `[[damage_part]]` table (docs/content/cars.md, Damage parts). The body GLB
  * is split at runtime: every triangle whose centre lies inside the box is
  * built into the part's own mesh (the first box to hold it wins), drawn on
  * the body until the zone's damage reaches `DetachPct` and then thrown off

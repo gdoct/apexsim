@@ -39,7 +39,7 @@ pub struct AtsScene {
     /// Track name copied from the source at creation time, for display.
     pub track_name: String,
     /// Set by an importer that wrote this track whole (`"ac"`: the Assetto
-    /// Corsa import, docs/AC_TRACK_IMPORT.md). Such a track's sidecars and
+    /// Corsa import, docs/content/ac-import.md). Such a track's sidecars and
     /// its client export come from the importer, and its centerline is a
     /// measurement of the imported road, so `ats-export`, `ats-dress`,
     /// `ats-groom`, `ats-smooth` and `ats-bank` all leave it alone. `None`
@@ -158,7 +158,7 @@ impl Sidecar {
 }
 
 /// Scene-wide choices the Unreal importer makes among the kit's variants
-/// (docs/PROPS.md): the `_crowd` stands and the `_autumn` trees. The props
+/// (docs/content/props.md): the `_crowd` stands and the `_autumn` trees. The props
 /// themselves keep their base asset keys, so a scene can be re-dressed
 /// without touching a single placement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

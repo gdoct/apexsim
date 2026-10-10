@@ -6,7 +6,7 @@
 #   python scripts/site/build_site.py                # then cut the page's pictures (site/media.yml)
 #
 # action: a race nobody drove, filmed by the replay cameras: no HUD, no menu.
-#   The keys are the promo video's (scripts/promo/shots.yml, docs/PROMO_VIDEO.md):
+#   The keys are the promo video's (scripts/promo/shots.yml, docs/marketing-site.md):
 #   `race` names one of the seeded AI races below, `window` finds the moment
 #   (a dossier corner by its real name, a station, "start" or "finish"),
 #   `camera` is the TV director (mode: tv, shot: grid | trackside | helicopter |

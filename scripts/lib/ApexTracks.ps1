@@ -60,7 +60,7 @@ function Find-ApexTrackFile {
 }
 
 # Whether a track's .ats says another tool wrote it whole ("imported": "ac",
-# scripts/ac_import.py, docs/AC_TRACK_IMPORT.md): its export and sidecars
+# scripts/ac_import.py, docs/content/ac-import.md): its export and sidecars
 # are the importer's, and the bake, the dressing and the smoothing all
 # leave it alone. The marker sits in the head of the file, so only that
 # is read.

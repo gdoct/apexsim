@@ -1,241 +1,106 @@
-# [ApexSim SimRacing Platform](https://gdoct.github.io/apexsim/)
+# [ApexSim](https://gdoct.github.io/apexsim/)
 
-ApexSim is a source-available simracing platform composed of a high-frequency authoritative server written in Rust and an Unreal Engine 5 client. The codebase is tuned for realistic vehicle physics, low-latency multiplayer, and mod-friendly content pipelines.
+ApexSim is a source-available sim-racing platform: a high-frequency
+authoritative server written in Rust and an Unreal Engine 5 client, with a
+content pipeline that builds real-world circuits from public data.
 
-## New site: https://gdoct.github.io/apexsim/
-[![visit the new marketing site](game-unreal/apexsim_splash.png)](https://gdoct.github.io/apexsim/)
+[![ApexSim](game-unreal/apexsim_splash.png)](https://gdoct.github.io/apexsim/)
 
-## Project Status
+The site at **https://gdoct.github.io/apexsim/** shows the cars, the
+circuits and the game in motion.
 
-This project is in active development. The simulation and the networking underneath it are solid; presentation and gameplay systems are still being filled in.
+## What it is
 
-### Working
+- **One simulation, on the server.** The server runs every car at 420 Hz: a
+  four-wheel model with per-wheel loads, a slip-based tyre model with heat,
+  wear and compounds, aero that depends on ride height and the air, fuel,
+  brake and engine heat, damage, hybrids and slipstream. The client has no
+  physics: every car, the player's included, is drawn from the server's
+  telemetry. The simulation is deterministic, and a test holds it to
+  bit-identical runs.
+- **Racing.** Races over laps or time, qualifying that sets the grid, hotlaps
+  with a ghost, pit stops, weather and time of day that change during a
+  session, a track that rubbers in, AI drivers that pass, defend and plan
+  stops, and force feedback worked out from the tyre forces.
+- **Real circuits.** Every circuit is a measured centerline with real
+  elevation, dressed from OpenStreetMap: its stands, buildings, pit lane,
+  woods and barriers. The track pipeline bakes each circuit for the client,
+  and the game builds it at runtime.
+- **Moddable.** Cars are a `car.toml` plus models, the HUD is JSON components,
+  and tracks and cars from a player's own Assetto Corsa install can be
+  imported. See [MODDING.md](MODDING.md).
 
-**Server**
-* Authoritative 420 Hz physics loop — the server decides where every car is, and the client renders what it is told
-* 4-wheel vehicle model with per-wheel loads, Pacejka-style tires, suspension, drivetrain with per-gear ratios, and aerodynamic drag/downforce (front and rear, feeding wheel loads and steering assist)
-* Yaw-aware OBB collision between cars, and against the circuit's barriers — every armco, tyre wall, fence, stand and building is baked into a walls sidecar the server checks each tick, so nothing off the road is decorative
-* Track limits from the baked curb widths, and off-track elevation from a heightfield of the rendered terrain — a car that leaves the asphalt follows the verge, and Suzuka's crossover is a real underpass with its own deck and abutments
-* A per-car racing line: a quasi-steady-state speed profile along the raceline (or centerline) derived from the car's grip, downforce, power and brakes, sent to joining players
-* Deterministic simulation, guarded by a test that asserts bit-identical runs
-* Protocol v2: TCP+TLS for auth, lobby and session management; UDP for telemetry out and player input in, bound by a token handshake
-* Race control: grid start with countdown, lap timing and validation, classification at the lap limit with a finish deadline, and a cool-down driver that takes over a finished human's car
-* AI drivers with a traffic layer and friction-circle throttle, deterministic per tick
-* Force feedback computed from the tyre forces: steering-column torque, per-wheel slip and surface, suspension speed, ABS/TC activity and contact, sent to each driver over UDP
-* Prometheus metrics plus health and readiness endpoints
-* An operator web dashboard on its own ports, behind an access token: live track map and telemetry, timing, players (kick and ban), session history, logs, performance graphs, a validated `server.toml` editor and the loaded content ([docs/ADMIN_DASHBOARD.md](docs/ADMIN_DASHBOARD.md))
+The project is in active development. What is not built yet is listed in
+[docs/simulation-gaps.md](docs/simulation-gaps.md) and
+[docs/roadmap.md](docs/roadmap.md).
 
-**Content**
-* 26 circuits with exact measured centerline, per-side track width, banking, surface type and **elevation** (Spa spans ~90 m of it)
-* 17 cars with physics definitions and 3D models: GT3, LMP2, Hypercar and F1
-* An authored trackside prop kit — grandstands, pit garages, barriers, bridges, trees, attractions — with summer/autumn and crowd variants; Le Mans, Monza, Silverstone, Spa and Zandvoort are dressed from real layout dossiers built from OpenStreetMap (named stands, the real pit lane and side, landmarks, the actual woodland)
-* Both shared verbatim between the server, the track editor and the client
+## Playing
 
-**Unreal client (`game-unreal/`)**
-* Full menu shell — connect, session browser and create, car and track selection, lobby, session results — built as C++ widget trees rather than widget blueprints, so layout is reviewable in a diff
-* Race view: a car per roster entry driven from telemetry, with the circuit built at runtime from its export; cockpit and chase cameras
-* No client-side physics by design: the 420 Hz authoritative server is the only simulation, and every car is rendered from a telemetry buffer clocked in server ticks — interpolated between samples, dead-reckoned across gaps, so motion stays smooth without a second model to reconcile
-* A first-person cockpit view built at runtime per car — steering wheel, dashboard widget (gear, speed, RPM, lap time) and mirrors rendered from scene captures
-* Synthesized audio: per-car engine sound driven by live RPM/throttle/gear telemetry (no audio assets, no wire fields for redline/idle), plus a synthesized UI sound set for menu navigation
-* Optional racing-line overlay (off / braking only / full), drawn as coloured dots on the track from the server's per-car speed profile
-* Driving via Enhanced Input, with actions and bindings defined in C++; wheels, pedals, shifters and button boxes via a DirectInput module with per-device bindings, and force feedback mixed for both a gamepad's motors and a direct-drive wheelbase
-* A demo race behind the menus, filmed by a TV director that follows battles, the leader and incidents through trackside, helicopter, onboard and chase shots
-* Race HUD: position, gaps, standings, live delta, sector times, minimap, pedal and engine telemetry
-* Pause menu and a settings overlay covering gameplay, graphics, audio and rebindable controls
-* A Windows launcher (`launcher/`, shipped as `launcher.exe`) that checks the install, launches the game (optionally with a local server), edits the network and graphics settings and manages content
-* Local profile and settings save slots (the server has no account model, so anything "yours" lives on your machine), plus a plain-text `settings.yml` beside the executable for resolution, window mode, vsync, frame limit and server address
+Download the latest zip from the
+[releases page](https://github.com/gdoct/apexsim/releases), unzip it and run
+`launcher.exe`. It starts the game, with a local server if you want one, and
+edits the network and graphics settings. To host for others, run
+`Server\apexsim-server.exe` ([docs/server/operations.md](docs/server/operations.md)).
 
-**Tooling**
-* A Rust + Bevy track editor that authors the 3D scene on top of a logical track, and bakes it for Unreal
-* `osm_layout.py` and `ats-dress`: fetch a circuit's real furniture from OpenStreetMap, fit it onto the track's own frame, and lay it as scenery; `ats-groom` seats every prop on the terrain and plants tree belts only inside the real woods
-* Commandlets that import cars, props and tracks into Unreal from the shared content, so nothing in `game-unreal/Content` is hand-made
+## Building from source
 
-### Missing
-
-* No tire or collision sound — only engine and UI audio are synthesized so far
-* Driving aids (traction control, ABS) and AI skill cannot be set per session from the client — the wire protocol has no fields for them, so those settings are stored but inert
-* No hand-modelled terrain beyond the generated heightfield, and only the five circuits with a layout dossier get their real furniture; the other 21 are dressed procedurally
-* No server-side player accounts or persistence
-
-## Architecture Overview
-
-1. **Rust server (`server/`)** — runs the authoritative 240 Hz simulation loop, manages sessions, performs collision-aware physics, and streams telemetry over UDP while handling lobby and session traffic over TCP+TLS. See [server/README.md](server/README.md) for configuration, build and operations detail.
-2. **Unreal client (`game-unreal/`)** — the player experience: menus, HUD, driving view, and the networking layer that talks to the backend. Three C++ modules: `ApexSimNet` (protocol and transport), `ApexSim` (game and UI), `ApexTrackEditor` (editor-only import commandlet).
-3. **Track editor (`track-editor/`)** — a Rust + Bevy tool that turns a logical track into a 3D scene, and bakes that scene into buffers Unreal can build a level from.
-
-This separation keeps critical simulation logic isolated from presentation while letting each component evolve independently.
-
-> A Godot client (`game-godot/`) and a CLI test client (`game-cli/`) existed earlier in the project's history. Both were removed in favour of the Unreal client; integration testing now runs against an in-process server from the server crate's own test suite.
-
-### Serialization
-
-The client and server communicate using [MessagePack](https://msgpack.org/). All networked data structures are defined in Rust with `serde` and `rmp_serde`. High-frequency telemetry uses a compact positional encoding with session-scoped car indices (~60% smaller on the wire than the named encoding) and flows over UDP after a token handshake; reliable lobby and session traffic stays on TCP+TLS. This prioritizes performance and low bandwidth overhead, which is critical for real-time simulation.
-
-### Track pipeline
-
-A circuit reaches the client as data: the track editor bakes it into an export, and the game builds the circuit from that export when it is raced. There are no cooked track levels, so a circuit needs no Unreal import and no repackage. The export is regenerated wholesale and should not be hand-edited:
-
-```bash
-cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- --all
-                                     # -> build/tracks/<Track>.uescene.json + <Track>.uemesh
-```
-
-Or run the whole pipeline for every circuit at once: dress the scenes, export them, draw the catalog previews and bake the shared track materials (the engine install is found by itself):
+You need Rust, Python 3 (numpy, Pillow, PyYAML) and Unreal Engine 5.8 on
+Windows. In short:
 
 ```powershell
-./scripts/build_track_levels.ps1                 # all tracks
-./scripts/build_track_levels.ps1 -Track Monza,Spa -SkipMaterials   # two tracks, Rust and Python only
+cd server; cargo run                       # the server (TCP 9000, UDP 9001, HTTP 9002)
+./scripts/initialize_content.ps1           # build the generated content a fresh clone lacks
+./scripts/play_editor.ps1 -Build           # build the client and play it from the editor build
+./scripts/build_release.ps1 -Zip           # a release package
 ```
 
-The exporter resolves the editor's `.ats` scene against the YAML centerline and bakes triangles, because Unreal cannot read YAML; the game reads the export (a small JSON manifest plus a binary mesh blob) at runtime and builds the meshes, materials, props and collision itself ([docs/RUNTIME_CONTENT_LOADING.md](docs/RUNTIME_CONTENT_LOADING.md)). See [track-editor/TRACK_EDITOR.md](track-editor/TRACK_EDITOR.md) §5 for the format and the coordinate conventions.
+[docs/building.md](docs/building.md) has the details: the content stages,
+tests, packaging and the engine lookup.
 
 ## Performance
 
-The simulation loop is, to put it modestly, not the bottleneck. Measured with the checked-in Criterion benchmarks (`cargo bench --bench physics_tick`, release build, single core, Monza with its full measured centerline):
+Measured with `cargo bench --bench physics_tick` (release, one core, Monza):
+one car's physics step takes about 2.4 µs, and a whole 8-car session tick
+(physics, AI, collisions, timing) about 40 µs, under 2% of the 2.4 ms a
+420 Hz tick allows.
 
-| What | Cost | What that means |
-|---|---|---|
-| One car, one full physics step (per-wheel tire model, suspension, aero, drivetrain) | **~835 ns** | ~1.2 million car-steps per second per core |
-| Nearest-centerline track query (windowed, cached) | **~106 ns** | effectively free |
-| Complete 8-car session tick — physics, AI drivers, collision detection, lap validation | **~7.8 µs** | ~130,000 full session ticks per second |
-
-At the default 240 Hz tick rate, simulating a full 8-car session consumes about **0.2% of the 4.17 ms tick budget**. The physics engine could sustain a tick rate in the six figures; the server caps `tick_rate_hz` at 1000 purely because async timer granularity — not simulation cost — becomes the limiting factor beyond that. In other words: the sim spends 99.8% of its time waiting politely for the next tick, and your network connection will give out long before the physics does.
-
-These numbers held (within noise) through the move from a synthesized slip model to the current per-wheel torque-balance tire model with combined-slip friction ellipse, ABS/TC driver aids, and hybrid powertrain support — realism upgrades that cost nanoseconds, not milliseconds.
-
-## Repository Layout
+## Repository
 
 ```
-apexsim/
-├── content/        # Car and track definitions, shared by server, editor and client
-├── docs/           # Design and implementation notes
-├── game-unreal/    # Unreal Engine 5 client
-├── launcher/       # Windows launcher (launcher.exe) shipped with releases
-├── scripts/        # Track pipeline runner and Python content helpers
-├── server/         # Rust backend (source, config, docs)
-├── track-editor/   # Rust + Bevy circuit scene authoring tool
-├── README.md       # This overview
-└── LICENSE         # Restricted commercial license
+server/        Rust server: simulation, sessions, networking, admin dashboard
+game-unreal/   Unreal Engine 5.8 client (C++ modules ApexSim, ApexSimNet, ApexSimInput, ApexSimBoot, ApexTrackEditor)
+track-editor/  Rust track pipeline (track-core) and the Bevy scene editor
+scripts/       build scripts, the Python content pipeline and the importers
+content/       cars, tracks and HUD, shared by server, pipeline and client
+launcher/      the Windows launcher shipped with releases
+site/          the marketing site's source (generated into docs/)
+docs/          documentation
 ```
 
-### Directory Highlights
+## Documentation
 
-- [content/](content): Authoring-ready data. Cars are `cars/<name>/car.toml`; tracks are `tracks/default/*.yaml` (the logical circuit the server simulates) alongside `.ats` scene sidecars (the 3D dressing, read only by the editor and the Unreal importer).
-- [game-unreal/](game-unreal): Unreal Engine 5 client. Source lives in `Source/ApexSim`, `Source/ApexSimNet` and `Source/ApexTrackEditor`.
-- [scripts/](scripts): Build and content helpers — `build_track_levels.ps1` runs the whole track pipeline (dress, export, previews, materials); the Python scripts generate track preview images and racing lines.
-- [launcher/](launcher): The native Windows launcher; `build.bat` (needs MSVC) produces `launcher/out/launcher.exe`, which `build_release.ps1` copies to the release root.
-- [server/](server): Full Rust crate with source, configuration files and supporting docs for the backend runtime, including the admin dashboard (`src/admin/`).
-- [track-editor/](track-editor): The circuit scene editor and the `ats-export` baker.
-
-## Getting Started
-
-Just want to drive? Grab the latest zip from the [releases page](https://github.com/gdoct/apexsim/releases), unzip it and double-click `launcher.exe`. Launch starts the game, its drop-down has "Launch with local server", and the launcher also edits the network and graphics settings and manages content. To host for others, run `Server\apexsim-server.exe`. The steps below are for building from source.
-
-### 1. Run the server
-
-```bash
-cd server
-cargo run                 # uses server.toml
-```
-
-The server listens on TCP 9000, UDP 9001 and HTTP 9002 (`/health`, `/ready`, `/metrics`). The admin dashboard is on loopback HTTP 9003 and HTTPS 9004 (`[admin]` in `server.toml`; set `token`, or read the random one printed in the log at startup) — see [docs/ADMIN_DASHBOARD.md](docs/ADMIN_DASHBOARD.md). In Docker, `server/docker-compose.yml` publishes both and takes the token from `APEXSIM_ADMIN_TOKEN`. See [server/README.md](server/README.md) for configuration and TLS setup — TLS is fail-closed by default, with a development opt-out in `server.toml`.
-
-### 2. Bake the tracks
-
-The circuits' exports are generated, not committed, so a fresh clone has no
-circuits to drive on — the race view would load an empty world. Bake all of
-them once, before the first run:
-
-```powershell
-./scripts/build_track_levels.ps1 -Build
-```
-
-That runs the whole [track pipeline](#track-pipeline): it compiles the
-`ApexSimEditor` target (`-Build`, needed the first time and after any C++
-change), dresses and bakes every circuit with `ats-dress` and `ats-export`
-into `build/tracks`, draws the catalog previews, and bakes the
-shared track materials under `/Game/Materials/Track`. The engine install is
-located from the `.uproject`, or pass `-EngineRoot <path>`. Expect a few
-minutes for the full set; `-Track Monza,Spa` limits it to a couple of
-circuits, and re-running it after editing a track picks up the changes: the
-game builds each circuit from its export when it is raced, so there is
-nothing to import. `./scripts/initialize_content.ps1` does this and every
-other generated-content step a fresh clone needs.
-
-### 3. Run the client
-
-Requires Unreal Engine 5.8. Open `game-unreal/ApexSim.uproject` and press Play, or build and launch from the command line:
-
-```bash
-"$UE/Engine/Build/BatchFiles/Build.bat" ApexSimEditor Win64 Development \
-    -Project="<repo>/game-unreal/ApexSim.uproject"
-"$UE/Engine/Binaries/Win64/UnrealEditor.exe" "<repo>/game-unreal/ApexSim.uproject" -game
-```
-
-The client auto-connects to `127.0.0.1:9000`. Handy switches for unattended runs: `-ApexAutoRace` (create and start a session immediately), `-ApexAiCount=N`, `-ApexLaps=N`, `-ApexStartScreen=N`, `-ApexOpenPause=N` / `-ApexOpenSettings=N`, and `-ApexScreenshotAfter=N`, which drops a screenshot in `Saved/Screenshots/`.
-
-### 4. Build a release package
-
-To produce something other people can download and run:
-
-```powershell
-./scripts/build_release.ps1 -Zip
-```
-
-That runs the whole pipeline — `cargo build --release`, the track bake and
-import, the track catalog sync, and the client package — and assembles
-`artifacts/release/ApexSim-<version>-Win64/` (plus a zip to attach to a GitHub
-release). The package holds the packaged client in `Game/`, the server with its
-config and content in `Server/`, `launcher.exe` (built from `launcher/`; `-SkipLauncher` reuses the last build), which starts both. It is
-gitignored, like everything under `artifacts/`.
-
-The run aborts up front if the car or track data is missing, so a broken clone
-fails in seconds rather than twenty minutes in. Each stage has a `-Skip*`
-switch (`-SkipServer`, `-SkipTracks`, `-SkipCatalog`, `-SkipClient`) for
-reusing what is already built.
-
-## Windows Setup
-
-Install the development prerequisites from an elevated PowerShell session. Approve any Windows UAC prompts shown by the installers.
-
-```powershell
-winget install --id Rustlang.Rustup --exact --source winget --include-unknown --accept-package-agreements --accept-source-agreements --silent
-winget install --id Kitware.CMake --exact --source winget --accept-package-agreements --accept-source-agreements --silent
-winget install --id NASM.NASM --exact --source winget --accept-package-agreements --accept-source-agreements --silent
-winget install --id Python.Python.3.12 --exact --source winget --accept-package-agreements --accept-source-agreements --silent
-```
-
-Unreal Engine 5.8 is installed separately through the Epic Games Launcher. Python is only needed for the helpers in `scripts/`.
-
-Restart VS Code after installation so new integrated terminals receive the updated `PATH`. Then verify the toolchain and build the Rust server:
-
-```powershell
-cargo --version
-rustc --version
-cmake --version
-
-Set-Location server
-cargo build
-```
-
-There is no `package.json` anywhere in the repository, so there are no npm dependencies to install.
+[docs/README.md](docs/README.md) indexes it: architecture, building, the
+server, the client and the content pipeline.
 
 ## Contributing
 
-Contributions are welcome across gameplay programming, engine tooling, networking, UI, and content creation. Please coordinate significant changes via issues or discussion threads, and keep server and client documentation up to date when workflows change.
-
-Before submitting a pull request:
+Coordinate significant changes in an issue first. Before a pull request:
 
 ```bash
 cd server
-cargo fmt && cargo clippy --all-targets   # CI enforces fmt --check and treats warnings as errors
+cargo fmt && cargo clippy --all-targets   # CI enforces fmt --check and -D warnings
 cargo test
 ```
 
-Wire-format changes must be made on both sides at once — `server/src/network.rs` and `game-unreal/Source/ApexSimNet` — and the client's codec tests pin every message against a golden byte blob, so a mismatch fails loudly rather than silently decoding to an empty list.
+Wire-format changes are made on both sides at once (`server/src/network.rs`
+and `game-unreal/Source/ApexSimNet`) and pinned by golden bytes on both sides;
+see [docs/server/protocol.md](docs/server/protocol.md). Keep the doc for the
+area you change up to date.
 
 ## License
 
-ApexSim is proprietary software released under the [ApexSim Restricted Commercial License](LICENSE). You may run, read and modify it for your own personal, non-commercial use; any commercial use, redistribution or hosting as a service requires a separate commercial license. See LICENSE for the terms and contact details.
-
----
+ApexSim is proprietary software released under the
+[ApexSim Restricted Commercial License](LICENSE). You may run, read and modify
+it for your own personal, non-commercial use; any commercial use,
+redistribution or hosting as a service requires a separate commercial license.
+See LICENSE for the terms and contact details.

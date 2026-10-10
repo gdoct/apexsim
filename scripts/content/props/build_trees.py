@@ -133,7 +133,7 @@ def _leaf_color_and_bump(base_rgb, size, seed, warm=False):
 def make_organic_material(name, base_rgb, seed=0, kind="foliage"):
     """Bark, foliage, conifer and autumn all share this: a base-colour map,
     a roughness map and a normal map, baked with numpy and wired into the
-    Principled BSDF. Never touches Alpha - stays solid per docs/PROPS.md."""
+    Principled BSDF. Never touches Alpha - stays solid per docs/content/props.md."""
     size = TEX_SIZE
     if kind == "bark":
         x = np.linspace(0, 2 * math.pi * 5, size, endpoint=False)

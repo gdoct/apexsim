@@ -1,546 +1,300 @@
 # Modding ApexSim
 
-We encourage modding this game. You can create custom content, modify existing assets, and extend the game's functionality through scripts and configuration files.
+Cars, tracks and the race HUD are files the game reads at runtime: nothing
+is cooked into the client, so new content needs no Unreal editor and no
+repackaging. This guide is the practical route for each. The developer docs
+under [docs/](docs/README.md) go deeper; links below point at the right page.
 
-## Getting Started
+## Two sides, one file
 
-Content lives in two places, and a mod has to reach both:
+A server and a client each read their own copy of the content:
 
-- **The server** simulates from the source files themselves: a car is its
-  `car.toml`, a track is its YAML centerline plus the sidecars baked beside it
-  (`.ground`, `.curbs`, `.walls` `.msgpack`). The server scans
-  `content/cars/` and `content/tracks/` recursively on startup, so a new file
-  there is picked up on the next start.
-- **The client** draws what was imported into the Unreal project: a car's
-  mesh and a track's level are Unreal assets, found through the
-  `DT_CarCatalog` / `DT_TrackCatalog` tables by the car's `id` or the track's
-  `track_id`. A packaged game cannot import anything, so a new car or track
-  means importing it in the editor and packaging the client again.
+- **The server** simulates from `car.toml` files and track YAMLs (with the
+  sidecars baked beside a YAML). It reads them at startup, so restart it
+  after a change.
+- **The client** builds each car from its `car.toml` and GLBs, and each
+  circuit from its export (`<Stem>.uescene.json` + `<Stem>.uemesh`), the
+  first time it draws them. Restart the game after a change; an editor or
+  Development build can rescan instead with `apexsim.car.Rescan` /
+  `apexsim.track.Rescan` in the console (a release package is a Shipping
+  build and has no console).
 
-Both sides checksum the files (CRC-32 of the `car.toml` / track YAML), so if
-the server's copy and the one the client was built from disagree, the game
-logs it and shows a toast. That is usually the first sign an update only
-reached one side.
+**Content checksums.** Both sides take a CRC-32 of each `car.toml` and track
+YAML, and the game compares the two when it loads a track or spawns your
+car. A mismatch is a warning in the log and a toast on screen: the car or
+circuit you see is not the one the server simulates. Every byte counts,
+including client-only tables such as `[wheels]` or `[[livery]]` (line endings
+do not). So whenever you change a car or a track, give every server and every
+player the same `car.toml` and YAML, and re-export a track after any YAML
+edit. Details: [docs/architecture.md](docs/architecture.md), "Content
+checksums".
 
-What you need:
+### Where things go
 
-- a checkout of this repository
-- Rust (stable), for the server and the track tools in `track-editor/`
-- Python 3.11 with `numpy`, `pyyaml` and `Pillow`; the car generators also
-  need Blender, or the `bpy` module (`pip install bpy`) to run headless
-- Unreal Engine 5.8 and the `ApexSimEditor` target built (see `CLAUDE.md`,
-  "Unreal client"). Every commandlet below needs the editor **closed**.
+| | Source checkout | Installed release package |
+|---|---|---|
+| Your cars | `content/cars/custom/<folder>/` (read by both sides) | `Game/Cars/custom/<folder>/` (car.toml + GLBs + logos) and the same `car.toml` in `Server/content/cars/custom/<folder>/` |
+| Class wheels | `content/wheels/` | `Game/Wheels/` |
+| Your tracks, server side | `content/tracks/custom/<Stem>/` | `Server/content/tracks/custom/<Stem>/` |
+| Your tracks, client side | `build/tracks/` (preview in `build/tracks/previews/`) | `Game/Tracks/` (`<Stem>.uescene.json`, `.uemesh`, `.png`) |
+| Your HUD components | `content/hud/custom/<id>/` | `Game/Hud/custom/<id>/` |
 
-The commands below assume PowerShell at the repo root, with the engine at
-`$UE`:
+`default/` holds the shipped content and is read first; `custom/` is yours,
+gitignored in a checkout (but for its README) and left out of a package
+unless `build_release.ps1` / `build_game_standalone.ps1` get
+`-IncludeCustomCars` / `-IncludeCustomTracks`. Two rules hold across both
+folders: **folder names and track stems must be unique**, and **a car's `id`
+and a track's `track_id` must be unique**; a custom one reusing a shipped id
+is skipped with a warning in the log.
 
-```powershell
-$UE = "C:\Program Files\Epic Games\UE_5.8"
-$Cmd = "$UE\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
-```
+From a checkout you need Rust (stable) and Python 3.11+ with `numpy`,
+`Pillow` and `PyYAML` (the car generators also Blender, or `pip install bpy`).
+On a fresh clone run `./scripts/initialize_content.ps1` once for the
+materials, props and track exports git does not carry; `./scripts/play_editor.ps1`
+then plays the editor build against a local server
+([docs/building.md](docs/building.md)).
+
+## Names on screen
+
+ApexSim ships no trademarks: a real name lives in `name`, what the player
+sees lives beside it. A track YAML's `display_name` is a sound-alike
+(`Zandervoort`), `metadata.description` names the place, not the operator,
+dossier corners carry a `display_name`, and car `name` / `brand` are
+parodies (`Posh GT3 RS`). Class keys (`F1`, `GT3`...) stay in the files and
+are shown as Formula, GT3 and so on. Your own content on your machine is
+exempt, but follow the rule in anything you share; a track without
+`display_name` shows its `name`. See
+[docs/content/naming.md](docs/content/naming.md).
 
 ## Cars
 
-A car is a folder under `content/cars/custom/<folder>/` (the shipped cars are
-in `content/cars/default/`) holding a `car.toml` (the
-physics, engine, gearbox, sound, wheel placement and liveries) and the GLB
-body its `model` key names. Folder names are lower-case with hyphens
-(`bugotti-chiffon-hypercar`); the GLB stem uses underscores
-(`bugotti_chiffon.glb`). `docs/CAR_MODELS.md` is the full reference.
+A car is a folder holding a `car.toml` and the files it names: the body GLB
+(`model`), optionally a driver figure, a DRS flap, livery logos and skins,
+and its own road or steering wheels. Everything else (the class's road and
+steering wheels) comes from the shared wheels folder. The server reads the
+physics tables; the client reads the visual ones. The full reference is
+[docs/content/cars.md](docs/content/cars.md); every physics key is in
+[docs/server/vehicle-physics.md](docs/server/vehicle-physics.md).
 
-### Creating a new car
+### Making a car
 
-There are two ways to get a body: add a variant to one of the class
-generators (how the three hypercars were made), or bring your own model.
+**1. The body.** Either add a variant to a class generator, or bring your own
+GLB.
 
-**1. The body, from a generator.** Each class has a Blender script in
-`scripts/content/cars/`: `build_gt3.py`, `build_lmp2.py`, `build_hypercar.py` and
-`build_f1.py`. A script is a table of `VARIANTS` on top of a shared hull and
-the part library in `carlib.py`. To add a car to a class, copy an existing
-entry in `VARIANTS` and change it:
+- *Generator* (checkout, Blender): `scripts/content/cars/build_gt3.py`,
+  `build_lmp2.py`, `build_hypercar.py` and `build_f1.py` each hold a
+  `VARIANTS` table over a shared hull (`carlib.py`). Copy an entry, give it
+  its own `folder`, `stem`, colours and shape and style keys, then in
+  Blender's Python console:
 
-```python
-"mycar": dict(folder="mybrand-x1-hypercar", stem="mybrand_x1", logo="mybrand_logo.png",
-              paint=(0.60, 0.015, 0.025), accent=(0.96, 0.78, 0.04), caliper=(0.96, 0.80, 0.05),
-              paint_metallic=0.60, number="7",
-              lights="slit", drl="blade", tail="double", exhaust="twin", grille="twin",
-              nose_w=0.88, fender=1.05, roof=0.96, ...,
-              face="boomerang", side="slash",
-              wing_plan=("spoon", 0.055), endplate="horn", wing_led="endplate"),
-```
-
-Colours are linear RGB. The shape keys (`nose_w`, `fender`, `roof`,
-`nose_z`, `valley`, `canopy_w`, ...) scale the shared hull, and the style
-keys (`lights`, `face`, `side`, `wing_plan`, `endplate`, ...) pick from the
-parts each script knows; the comments above the existing variants say what
-each choice looks like. Give the car its own face, flank and wing rather than
-only a new colour. "Character: one class, different cars" in
-`docs/CAR_MODELS.md` explains why.
-
-Create the folder first, then run the script in Blender's Python console:
-
-```python
-VARIANT = "mycar"
-exec(open(r"E:\apexsim\scripts\content\cars\build_hypercar.py").read())
-```
-
-or headless, with `APEXSIM_ROOT` set to your checkout and the same two lines
-run under Python with `bpy` installed. The script saves a `.blend` after each
-stage and writes `<stem>.glb` into the folder. Set `APEX_EXPORT=0` to skip the
-export while you iterate on the shape.
-
-**1b. The body, from your own model.** Any GLB works if it follows the
-conventions the generators follow:
-
-- metres, ground at z = 0, **nose on -Y**, tail on +Y, driver on +X (left-hand
-  drive). Exported with glTF +Y up.
-- **No wheels.** The client draws the class's shared wheel four times, where
-  `[wheels]` says. If your model has wheels, `scripts/content/cars/strip_wheels.py`
-  measures them (`measure(glb)`) and removes them (`strip(glb)`).
-- the **material slot names** the client drives: `car_paint`, `car_accent`,
-  `car_logo`, `car_glass`, `car_headlight`, `car_taillight`,
-  `car_brakelight`, `car_rainlight` and the others in "Material slots the
-  client drives". A slot with another name renders as authored but won't
-  take liveries, brake lights or headlights.
-
-**2. The `car.toml`.** Start from a car of the same class. Copy
-`content/cars/default/bugotti-chiffon-hypercar/car.toml` into your folder, then:
-
-- give it a **new `id`** (a fresh UUID, e.g. `python -c "import uuid; print(uuid.uuid4())"`).
-  The id is how the client finds the car's mesh. Never reuse one.
-- set `name`, `brand`, `model_type`, `model_year`, `manufacturer_country`
-  and `model` (the GLB file name).
-- `class` decides who it races: the AI field is every car of the host's
-  class. Use an existing class (`GT3`, `LMP2`, `Hypercar`, `F1`) to race the
-  others, or a new one to race only itself.
-- `[physics]`, `[engine]` (with its torque curve), `[transmission]`,
-  `[drivetrain]`, `[differential]`, `[fuel]` and optionally `[hybrid]` are what
-  the server simulates. Values are range-checked at load, and a car that fails
-  validation is logged and skipped. `[hybrid]` has three optional keys for how
-  the driver may use the motor (the driver picks Harvest / Balanced / Attack
-  and has an overtake button; `server/src/hybrid.rs`):
-
-  ```toml
-  deploy_kj_per_lap = 4000.0    # energy the motor may deploy per lap, kJ (default: no limit)
-  deploy_min_speed_kph = 190.0  # the motor drives only above this speed (default 0)
-  heat_recovery_kw = 30.0       # a turbo generator charging at full throttle (default 0)
-  stint_kj = 30000.0            # energy the motor may deploy between pit stops (default: no limit)
-  override_kj_per_lap = 1500.0  # the overtake button's own allowance per lap, over the paced
-                                #   budget (default: the button draws on the lap budget)
-  brake_by_wire = true          # default true: the recovery under braking stands in for the
-                                #   driven axle's hydraulics; false brakes on top of the pedal
-  ```
-- Optional, for a car that needs more than one grip figure (an Assetto Corsa
-  import writes them; the shipped cars set only the tyre window, and every
-  other key's default is how the sim behaved before it existed). `[tires]` and `[engine.turbo]`
-  refuse keys they do not know, so a typo fails the load:
-
-  ```toml
-  [tires]
-  optimal_pressure_kpa = 179.0     # 50-400, default 180; the garage's clicks move
-  pressure_front_kpa = 179.0       #   the running pressures (default: the optimum)
-  pressure_rear_kpa = 179.0
-  load_sensitivity = 0.85          # 0.3-1.2, default 1.0 (linear): mu x (Fz/Fz_ref)^(ls - 1)
-  # load_sensitivity_front / _rear  override the shared key per axle
-  reference_load_n = 3768.0        # 100-30000 N, default each axle's static wheel load
-  # reference_load_front_n / _rear_n override it per axle
-  longitudinal_grip_factor = 1.05  # 0.6-1.6, default 1.0: the friction ellipse's long axis
-  front_grip_scale = 1.0           # 0.5-1.5, default 1.0: per-axle compound on grip_coefficient
-  rear_grip_scale = 1.0
-  optimal_temperature_c = 90.0     # 30-150, default 90: the compound grips fully within
-  temperature_window_c = 10.0      #   optimum +- window (0-50, default 10) °C, and the
-                                   #   pressures above are the ones at the optimum (hot)
-  temperature_grip_falloff = 0.004 # 0-0.03, default 0.004: grip lost per degree outside it
-  blanket_temperature_c = 70.0     # 0-120, default none: the car goes out at the air
-
-  # The car's own compounds (default: soft, medium, hard, intermediate,
-  # wet). In the order the garage's compound knob steps through them,
-  # softest slick first, the treaded tyres last; at most 12. One may be
-  # `reference = true`: the tyre the car was calibrated on and the knob's
-  # zero (default: the middle slick). The server, the garage and the HUD
-  # all take the names from here.
-  [[tires.compound]]
-  name = "supersoft"
-  kind = "slick"                   # "slick" | "intermediate" | "wet" (default slick)
-  grip = 1.05                      # 0.5-1.5, default 1: multiplier on the tyre's grip
-  wear = 2.5                       # 0-10, default 1: multiplier on its wear
-  window_shift_c = -8.0            # -80..80, default 0: where its window sits against the file's
-  water_grip = [1.0, 0.85, 0.6]    # grip kept dry / in light rain / in heavy rain (default by kind)
-  [[tires.compound]]
-  name = "prime"
-  reference = true
-  [[tires.compound]]
-  name = "rain"
-  kind = "wet"
-
-  [engine]
-  forced_induction = true          # default: has an [engine.turbo] table; a turbo keeps
-                                   #   most of its power in thin air (altitude, heat)
-  radiator_scale = 1.0             # 0.3-3, default 1: under 1 the engine runs hotter
-
-  [brakes]
-  material = "carbon"              # "carbon" | "steel"; default by class (carbon for
-                                   #   F1, Hypercar, LMP2)
-  pads = "standard"                # "endurance" | "standard" | "sprint", default standard:
-                                   #   the set the car is filed with (the garage moves it)
-
-  [aero]                           # ride-height aero (default: downforce is a constant)
-  ride_height_front_m = 0.045      # 0.005-0.3, default 0.06: static, at rest
-  ride_height_rear_m = 0.090       # 0.005-0.3, default 0.08
-  ride_height_sensitivity = 0.03   # 0-0.1: share of downforce gained per cm lower
-  rake_sensitivity = 0.01          # 0-0.05: front balance shift per cm more rake
-  stall_height_m = 0.012           # 0-0.1: mean height below which the floor stalls
-  yaw_sensitivity = 0.006          # 0-0.05, default 0: downforce lost per degree the car
-                                   #   runs sideways to the air
-  roll_sensitivity = 0.015         # 0-0.1, default 0: downforce lost per degree of body roll
-  porpoising = 0.6                 # 0-1, default 0: how much the floor porpoises run near
-                                   #   its stall height above 50 m/s
-
-  [suspension]                     # geometry on top of the springs and dampers
-  roll_centre_front_m = 0.02       # 0-0.5, default none: the share of each axle's lateral load
-  roll_centre_rear_m = 0.05        #   transfer that goes through its linkage at once
-  camber_thrust = 0.08             # 0-0.5, default 0: side force per radian a tyre leans, as a
-                                   #   share of its cornering stiffness
-  bump_stop_gap_front_m = 0.020    # per-axle bump stop gaps (default: the shared bump_stop_gap_m)
-  bump_stop_gap_rear_m = 0.025
-
-  [drivetrain]
-  awd_front_share = 0.4            # 0-1, default 0.4: an AWD car's drive to the front axle
-
-  [differential]
-  simulated = true                 # default false: every other key here is ignored without it
-  # differential_type = "Open" | "ClutchLSD" | "Locked" (Viscous/Torsen act as ClutchLSD)
-  # preload_nm (0-5000), lock_power, lock_coast (0-1): the locking torque is
-  # preload + lock x axle torque, the most the gripping wheel may take over the other's
-
-  [engine.turbo]
-  boosted_share = 0.35             # 0-0.9: the part of the torque curve that is boost
-  lag_up_s = 0.25                  # 0-5 s, default 0.25: spool time constant
-  lag_down_s = 0.4                 # 0-5 s, default 0.4
+  ```python
+  VARIANT = "mycar"
+  exec(open(r"E:\apexsim\scripts\content\cars\build_hypercar.py").read())
   ```
 
-  With load sensitivity below 1 the car at a standstill still grips as
-  `grip_coefficient` says (at the default reference), and loses grip per
-  newton as downforce and load transfer load the tyres; the racing line and
-  the AI plan with the coefficient at the load the car carries at 40 m/s.
-  The turbo only delays a tip-in: at a steady pedal the curve is delivered
-  as written, so write the curve at full boost.
-- `[wheels]` places the wheels on the body (visual only). It must agree with
-  the arches: the generators build each class to the stance table in
-  `docs/CAR_MODELS.md`.
-- `[sound]` describes the engine to the client's synthesiser (cylinders,
-  crossplane, turbo, exhaust length, muffling, ...). The server ignores it.
-- F1 cars only: `build_f1.py` also writes the DRS flap GLB and a `[drs_flap]`
-  table.
+  Headless, set `APEXSIM_ROOT` to your checkout and run the same two lines
+  under Python with `bpy`. It writes `<stem>.glb`, `<stem>_driver.glb` (and an
+  F1's `<stem>_drs.glb`) into the car's folder and rewrites the generated
+  tables in its `car.toml` (`[cockpit]`, `[driver]`, `[drs_flap]`).
+  `APEX_EXPORT=0` skips the export while you iterate. The generators write
+  into `content/cars/default/`; move the folder to `custom/` if it is yours.
+- *Your own model*: metres, ground at z = 0, **nose on -Y**, driver on +X,
+  exported as glTF with +Y up. **No wheels** (the client adds them;
+  `scripts/content/cars/strip_wheels.py` measures and removes a model's own).
+  Name the materials the client drives (`car_paint`, `car_accent`,
+  `car_logo`, `car_brakelight`, `car_taillight`, ...; the table "Material
+  slots the client drives" in [docs/content/cars.md](docs/content/cars.md)).
+  Any other slot draws as authored and nothing changes it at runtime.
 
-**3. Tune it.** The class grip levels are set so each car's ideal lap
-lands a few seconds off real poles. The grip probe prints every car's ideal
-Silverstone lap from its racing-line profile:
+**2. The `car.toml`.** Copy one from a car of the same class in
+`content/cars/default/` and change:
 
-```powershell
-cd server
-cargo test --release --test grip_probe_test -- --ignored --nocapture
-```
+- `id`: a **fresh UUID** (`python -c "import uuid; print(uuid.uuid4())"`).
+  It is how the client, the lobby and the lap records know the car; never
+  reuse one, and keep it when you update the car.
+- `name`, `brand`, `model_type`, `model_year`, `manufacturer_country`, and
+  `model` (the body GLB's file name).
+- `class`: the AI field is every car of the host's class. An existing class
+  (`GT3`, `LMP2`, `Hypercar`, `F1`) races the others; a new one races only
+  itself and needs its wheel in the wheels folder (`<class>.glb`, see
+  "Wheels" in the cars doc).
+- The physics tables (`[physics]`, `[aero]`, `[tires]`, `[engine]`, ...),
+  range-checked at load: a car that fails is logged and skipped.
+- The client tables: `[wheels]` (where the wheels sit; match your arches),
+  `[cockpit]`, `[preview]`, `[sound]` (the engine synth) and
+  `[[damage_part]]`. See the cars doc for each.
 
-The hypercars sit at 1:42.2-1:42.8, about two seconds under the LMP2s. If
-your car is far off its class, adjust `grip_coefficient`, the lift
-coefficients or power, not the class.
+**3. Tune it** (checkout). Class grip is set so each car's ideal Silverstone
+lap lands a few seconds off a real pole; `cargo test --release --test
+grip_probe_test -- --ignored --nocapture` in `server/` prints every car's.
+If yours is far from its class, adjust its grip, lift coefficients or power,
+not the class. `scripts/content/cars/preview_cars.py` (Blender, `CARS =
+["custom/<folder>"]`) renders it with the wheels where `[wheels]` puts them.
 
-**4. Preview it** (optional). Run `scripts/content/cars/preview_cars.py` in Blender
-with `CARS = ["mybrand-x1-hypercar"]` to render hero, side, front, rear and
-cockpit shots into `content/props/_preview/cars/`, with the wheels placed
-where `car.toml` puts them.
+### Liveries
 
-### Adding liveries
-
-Livery 0 is the model as built. The rest are `[[livery]]` tables at the end
-of `car.toml`:
+Livery 0 is the model as authored. The others are `[[livery]]` tables at the
+end of `car.toml`:
 
 ```toml
 [[livery]]
 name = "Greenline Forest"
-paint = [0.008, 0.090, 0.035]         # linear RGB
-accent = [0.780, 0.680, 0.420]        # optional
-metallic = 0.60                       # optional
-logo = "textures/livery_forest.png"   # optional: replaces the car_logo wordmark
+paint = [0.008, 0.090, 0.035]          # linear RGB, recolours car_paint
+accent = [0.780, 0.680, 0.420]         # optional, car_accent
+metallic = 0.60                        # optional
+logo = "textures/livery_forest.png"    # optional, replaces the car_logo texture
 ```
 
-A livery is a repaint of the same mesh: `paint` and `accent` recolour the
-`car_paint` / `car_accent` slots and `logo` replaces the `car_logo` texture.
-Which panels count as accent is fixed by the body.
+A table needs a `name` and one of `paint`, `skin` (a texture for every
+`car_skin*` slot) or `textures` (`["SLOT=file", ...]`, on **one line**);
+paths are relative to the car's folder. A player's pick is saved as an
+index, so **append** new liveries rather than reordering. The shipped cars'
+liveries are written by `scripts/content/cars/liveries.py` (everything below
+its marker line is rewritten on each run); for your own car, write the tables
+by hand. A livery change is a change to `car.toml`, so it changes the
+checksum too.
 
-`scripts/content/cars/liveries.py` owns everything below the marker line
-`# --- liveries: written by scripts/content/cars/liveries.py ...` and draws the logo
-PNGs. To add or change liveries, edit its schemes and rerun it for your car:
+### Installing and updating a car
 
-```powershell
-python scripts/content/cars/liveries.py mybrand-x1-hypercar
-```
-
-Anything written below the marker by hand is lost on the next run. Append
-new liveries to the end: a player's saved pick is an index, so reordering
-changes what they drive. After changing liveries, re-import the car (below).
-
-### Installing your car
-
-1. **Server:** nothing to register. `car.toml` under `content/cars/` (`default/`
-   then `custom/`; a custom car reusing a shipped `id` is skipped) is found
-   on the next server start. It shows up in the lobby's car list and, if its
-   class matches, in AI fields.
-2. **Client:** import the mesh and create its catalog row:
-
-   ```powershell
-   & $Cmd game-unreal/ApexSim.uproject -run=ApexCarImport -car=mybrand-x1-hypercar
-   ```
-
-   This imports the GLB to `/Game/Cars/<folder>/SM_<folder>` and adds a
-   `DT_CarCatalog` row keyed by the `id`, with name, class, specs, wheels,
-   engine sound, liveries (logos included) and the content checksum. If the
-   class's wheel isn't imported yet, it is imported here too. The log warns
-   if the body isn't long along Y.
-3. **Play it:** `./scripts/play_editor.ps1` runs the editor build with a
-   local server. To ship it, package the client again
-   (`./scripts/build_game_standalone.ps1`, or `./scripts/build_release.ps1`,
-   which also copies every `car.toml` into `Server/`).
-
-A car with no catalog row still drives. It shows placeholder art and an empty
-turntable.
-
-### Updating your car
-
-- **Physics, engine, gearbox:** edit `car.toml` and restart the server. Then
-  re-run `ApexCarImport -car=<folder>` so the client's checksum, specs and
-  sound match. Without it, the content-mismatch toast appears.
-- **Wheels, sound, liveries, DRS flap:** re-run the import. These fields are
-  derived and refreshed on every run.
-- **The body:** rebuild the GLB, then import with `-force`. Without `-force`
-  an existing mesh is kept. `-force` also resets the row's hand-tuned
-  fields (preview framing, cockpit points), so re-check the garage turntable
-  and the cockpit view.
-- Keep the `id`. A new id is a new car to the client, and lap records are
-  kept per car.
-
-`ApexCarImport -list` shows what is imported, and `-remove=<folder>`
-deletes a car's assets and row.
+- **Checkout**: put the folder in `content/cars/custom/`. Restart the server
+  and the game (or `apexsim.car.Rescan`).
+- **Installed game**: copy the whole folder to `Game/Cars/custom/<folder>/`
+  and its `car.toml` to `Server/content/cars/custom/<folder>/car.toml`. Restart
+  both. A new class also needs its wheel in `Game/Wheels/`.
+- **Updating**: edit, then restart (or rescan). A changed GLB needs only the
+  game; a changed `car.toml` needs the server too, and every player the file.
 
 ## Tracks
 
-A track is a folder of its own, `content/tracks/default/<Stem>/` (for example
-`content/tracks/default/Nordschleife/`), holding files that all carry the stem:
+A track is a folder named after its stem, `<Stem>/`, with every file
+carrying the stem:
 
-| file | what it is | made by |
-| --- | --- | --- |
-| `<Stem>.yaml` | centerline nodes, widths, banking, raceline, DRS zones, metadata; the server simulates this | you, via the scripts below |
-| `<Stem>.layout.json` | the real furniture: corners, pit lane, stands, buildings, woods, barriers, surroundings | `scripts/osm_layout.py` from OpenStreetMap |
-| `<Stem>.dem.msgpack` | real terrain elevation | `scripts/dem_fetch.py` from Copernicus GLO-30 |
-| `<Stem>.ats` | the scene: curbs, grass, run-off, props, pit lane, decals | `seed_scene.py`, then `ats-dress` / groom |
-| `<Stem>.{ground,curbs,walls}.msgpack` | ground, track limits and barriers as the server needs them | `ats-export` (not checked in) |
+| File | What it is | Made by |
+|---|---|---|
+| `<Stem>.yaml` | the centerline (nodes, widths, banking), raceline, grid, sectors, DRS zones, metadata; what the server simulates | a converter, an OSM route or an importer, then the data tools |
+| `<Stem>.ats` | the scene: curbs, run-off, props, pit lane, decals | `seed_scene.py`, then `ats-dress` / the track editor |
+| `<Stem>.layout.json` | optional: the real furniture from OpenStreetMap | `scripts/osm_layout.py` |
+| `<Stem>.dem.msgpack` | optional: real terrain | `scripts/dem_fetch.py` |
+| `<Stem>.{ground,curbs,walls,road,pit}.msgpack` | the server's sidecars: terrain, track limits, barriers, the road mesh, the pit lane | `ats-export` |
+| `build/tracks/<Stem>.uescene.json`, `.uemesh`, `previews/<Stem>.png` | what the client builds the circuit from, and its picture | `ats-export`, `build_track_catalog.py` |
 
-The Nordschleife is the worked example; `docs/NORDSCHLEIFE.md` records every
-step and number. Most circuits started from a GPS trace. The Nordschleife
-has none, so its centerline was routed over OpenStreetMap's
-`highway=raceway` ways. That is the route below, and it works for any
-circuit OSM maps as a raceway.
+The YAML needs a fixed `track_id` (a UUID; without one nothing can match
+it), `name`, `display_name` and a place-based `metadata.description`
+([docs/content/track-format.md](docs/content/track-format.md)).
 
-### Creating a new track
+### Making a track (checkout)
 
-Pick a stem (CamelCase, no spaces, e.g. `Mugello`) and a fresh UUID for
-its `track_id`.
+The full procedure, with the review points, is "Adding a new circuit" in
+[docs/content/track-pipeline.md](docs/content/track-pipeline.md); the
+Nordschleife in [docs/content/circuits.md](docs/content/circuits.md) is a
+worked example. In short, from the repo root:
 
-**1. Tell the scripts where it is.** In `scripts/osm_layout.py` add a
-`BBOXES["Mugello"]` entry (one or more `(min_lon, min_lat, max_lon, max_lat)`
-boxes around the circuit and ~1 km of surroundings). In
-`scripts/osm_centerline.py` add a `LAPS["Mugello"]` entry:
+1. **A centerline.** From a CSV trace (`x_m,y_m,w_tr_right_m,w_tr_left_m`):
 
-```python
-"Mugello": {
-    "name": "Autodromo del Mugello",
-    "track_id": "<your uuid>",
-    "start_finish": (11.3718, 43.9975),       # lon, lat of the line
-    "start_offset_m": 0.0,                    # slide the line along the lap if the grid won't fit
-    "banking": [],                            # (from_m, to_m, radians); negative = left-hander
-    "waypoints": [ (lon, lat), ... ],         # in race direction, enough to pin the layout
-    ...                                       # widths: see the Nordschleife entry
-},
-```
+   ```powershell
+   cd server
+   cargo run --release --bin convert_track -- -t track.csv [-r raceline.csv] -o out.yaml -n "Real name" --display-name "Shown name"
+   ```
 
-The waypoints only need to sit near the right stretch of tarmac. The lap
-between them is routed over the raceway graph. Add more where two layouts
-share tarmac, as at the Nordschleife's junctions with the GP circuit.
+   Save it as `content/tracks/custom/<Stem>/<Stem>.yaml`. Or route it over
+   OpenStreetMap's raceway ways: add a `LAPS` entry to
+   `scripts/osm_centerline.py` and a `BBOXES` entry to `scripts/osm_layout.py`,
+   then `python scripts/osm_centerline.py <Stem> [--dry-run] [--plot out.png]`
+   (it writes under `content/tracks/default/`; move the folder to `custom/`
+   if it is yours, and the tools find it there). No raceline?
+   `python scripts/generate_race_line.py --track <yaml>`.
+2. **A scene.** `python scripts/seed_scene.py <Stem>` writes a first `.ats`:
+   the start line, grass either side, curbs at every apex.
+3. **Optional real data**, in this order, because each step is fitted to the
+   one before (the "Refresh order" in the track pipeline doc):
+   `osm_layout.py <Stem>` (the dossier), `dem_fetch.py <Stem>`,
+   `dem_elevation.py <Stem>`, then `ats-smooth` and `ats-bank` on the YAML,
+   `drs_zones.py`, the dossier and DEM refitted with `--offline`, and
+   `track_location.py <Stem>`. Without a dossier or terrain the track is
+   dressed and grounded generically.
+4. **Bake it:**
 
-**2. Fetch the OSM extract.** `python scripts/osm_layout.py Mugello` downloads
-the extract into `.cache/osm/` (gitignored). No centerline
-exists yet, so there is nothing to fit a dossier to, and it stops after
-the download. If the OSM API refuses the box (it caps at 50k nodes), cut the
-extract from a planet file instead, as was done for the Nordschleife.
+   ```powershell
+   ./scripts/build_track_levels.ps1 -Track <Stem> -SkipMaterials
+   ```
 
-**3. Route the centerline.**
+   This dresses the scene (`ats-dress`), exports the client files and the
+   server sidecars (`ats-export`) and draws the preview. Drop
+   `-SkipMaterials` the first time on a machine whose track materials are not
+   yet baked; `-SkipDress` keeps hand edits made in the track editor
+   (`cargo run` in `track-editor/`) from being re-laid.
+5. **Check it.** `python scripts/check_walls.py --openings <Stem>` finds holes
+   in the barriers; the AI survey (`$env:SURVEY_TRACKS = "<Stem>"`, then
+   `cargo test --release --test ai_race_start_test
+   survey_ai_races_on_every_circuit -- --ignored --nocapture` in `server/`)
+   drives a field round it and reports contact and off-road time.
 
-```powershell
-python scripts/osm_centerline.py Mugello --dry-run   # check the length and the route first
-python scripts/osm_centerline.py Mugello             # -> content/tracks/default/Mugello/Mugello.yaml
-```
+### Installing and updating a track
 
-This writes 5 m nodes in the game's frame (origin on the start line, +X
-along the course, +Y left), widths from OSM `width` tags where present, and a
-minimum-curvature raceline. Elevation is left flat. Use `--plot out.png` to
-see the route.
-
-**4. The dossier, elevation, smoothing, banking and DRS.** Run these in this
-order. Each step depends on the one before, and out-of-order runs produce
-data that disagrees with itself:
-
-```powershell
-python scripts/osm_layout.py Mugello --offline        # dossier, fitted to the centerline
-python scripts/dem_fetch.py Mugello                   # terrain (same fit); a few hundred MB of tiles
-python scripts/dem_elevation.py Mugello               # the centerline's real z from the terrain
-cargo run --manifest-path track-editor/Cargo.toml --bin ats-smooth -- content/tracks/default/Mugello/Mugello.yaml
-cargo run --manifest-path track-editor/Cargo.toml --release --bin ats-bank -- content/tracks/default/Mugello/Mugello.yaml
-python scripts/drs_zones.py Mugello                   # optional; needs a ZONES entry
-python scripts/osm_layout.py Mugello --offline        # refit the dossier to the smoothed line
-python scripts/dem_fetch.py Mugello --offline
-```
-
-Check the fit printed by `osm_layout.py` (rmse around a metre, coverage near
-100%). It refuses to write a dossier the fit doesn't explain. On a wooded
-circuit the terrain model reads the tree canopy, so compare the elevation
-profile to the known one before trusting it (`dem_elevation.py --report`).
-
-**5. Real details OSM lacks.** Named grandstands from the seating map,
-bridges, landmarks, a hand-drawn pit lane or road graffiti go into the
-`MANUAL_STANDS`, `MANUAL_CROSSINGS`, `MANUAL_LANDMARKS`, `MANUAL_PIT_LANE`,
-`MANUAL_WOODS` and `MANUAL_GRAFFITI` tables in `osm_layout.py`, keyed by
-stem. They survive every refetch. Re-run the dossier after editing them.
-
-**6. Seed the scene.** `python scripts/seed_scene.py Mugello` writes the first
-`Mugello.ats`: the start line, a 130 m grass band either side, and curbs on
-the inside of every apex and the outside of every exit.
-
-**7. A style of its own (optional).** Barrier kinds and distances, tree
-density, signs, hoardings, floodlights and whether there is a pit lane come
-from `CircuitStyle` in `track-editor/core/src/circuit_style.rs`. Every track
-gets `DEFAULT` unless `for_stem` maps it to another. The Nordschleife's
-German guard rail 3 m off the road, dense forest, German signs and no pit
-lane are one entry there.
-
-**8. Dress and export:**
-
-```powershell
-./scripts/build_track_levels.ps1 -Track Mugello
-```
-
-This runs `ats-dress` (stands, buildings, pit lane, barriers, trees,
-boards, decals from the dossier), `ats-export` (`build/tracks/Mugello.uescene.json`
-and `Mugello.uemesh`, which the game builds the circuit from, plus the
-server's `.ground` / `.curbs` / `.walls` sidecars), `build_track_catalog.py`
-(the track picker's preview) and `ApexMaterialBake` (the shared track
-materials, only if they are missing; `-SkipMaterials` to leave the engine
-out of it). There is no level to import: the game builds the circuit from
-its export when it is raced. Add `-ImportProps` if you added new prop
-meshes. For road graffiti, also run
-`& $Cmd game-unreal/ApexSim.uproject -run=ApexPropImport -kind=decal`.
-To look at the result in the editor, `-ImportLevels` also imports it as a
-level under `/Game/Tracks` (editor only: the game never loads it).
-
-**9. Check it.**
-
-```powershell
-python scripts/check_walls.py --openings Mugello   # holes in the barriers a car could leave through
-cd server
-$env:SURVEY_TRACKS = "Mugello"
-cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture
-```
-
-The AI survey reports contact and off-road time per class. A car pinned
-against a wall for most of the run usually means a barrier sits too close
-somewhere. You can also open the `.ats` in the track editor
-(`cargo run` in `track-editor/`) to move props, curbs and run-off by hand.
-Pass `-SkipDress` to the level build afterwards, or dressing re-lays what it
-owns.
-
-**Without OSM.** If you have a GPS trace or your own design instead, write
-the YAML directly: `name`, a fixed `track_id`, `nodes` (x, y, z, `width_left`,
-`width_right`, `banking`, `surface_type`), `default_width`,
-`closed_loop: true`, `raceline` and `metadata` (see
-`docs/TRACK_FILE_FORMAT.md`; `docs/TRACK_CONVERTER.md` converts
-racetrack-database CSVs). Then start at step 4 with `ats-smooth`. Without a
-dossier or terrain sidecar the track is dressed and grounded generically.
-
-### Installing your track
-
-1. **Server:** the YAML and the three `.msgpack` sidecars `ats-export` wrote
-   beside it are all it needs. It is found on the next start and appears
-   in the lobby. Without the sidecars it still runs, but with no barriers,
-   curbs counted as grass and the ground held at road height off the track.
-2. **Client:** the export from step 8 — `Mugello.uescene.json`,
-   `Mugello.uemesh` and the preview `previews/Mugello.png`. In the editor
-   build the game reads them straight from `build/tracks`; a
-   packaged game reads them from `Tracks\` beside `ApexSim.exe` (the preview
-   as `Mugello.png` there). The track picker's name, metadata, preview and
-   content checksum all come from the export, keyed by `track_id`.
-3. **Play it:** `./scripts/play_editor.ps1`, or drop the three files into a
-   packaged game's `Tracks\` folder — no repackage. A release
-   (`./scripts/build_release.ps1`) copies the YAML and sidecars into
-   `Server/` and the exports into `Game/Tracks`, and refuses to run if a
-   circuit has no export.
-
-### Updating your track
-
-- **Scenery only** (props in the track editor, `MANUAL_*` tables, the
-  circuit style): re-run the dossier if you touched `osm_layout.py`, then
-  `./scripts/build_track_levels.ps1 -Track Mugello`. Restart the server to
-  pick up new walls and curbs, and the game (or `apexsim.track.Rescan` in its
-  console) to pick up the new export.
-- **The centerline** (widths, route, elevation, banking): everything is fitted
-  to it, so run the whole of step 4 again in order, then step 8. A dossier or
-  terrain built against the old line describes a road that has moved.
-- **Anything in the YAML** changes its checksum. Re-export (step 8) so the
-  client's export carries the new one and matches the server.
-- Keep the `track_id`. The catalog, lap records and ghost laps are keyed by
+- **Checkout**: the folder under `content/tracks/custom/` and the export in
+  `build/tracks/`, which `build_track_levels.ps1` already put there. Restart
+  the server and the game (or `apexsim.track.Rescan`).
+- **Installed game**: copy `<Stem>.uescene.json`, `<Stem>.uemesh` and the
+  preview (as `<Stem>.png`) into `Game/Tracks/`, and the YAML with its
+  `.msgpack` sidecars into `Server/content/tracks/custom/<Stem>/`. Restart
+  both. Without the sidecars the track still runs, but with no barriers,
+  curbs counted as grass, the ground held at road height off the track and
+  no pit stops.
+- **Updating**: any YAML change changes its checksum, so re-run the bake and
+  hand out the new YAML, sidecars and export together. A change to the
+  centerline moves everything fitted to it: run the data steps again in
+  order. Keep the `track_id`: lap records, ghosts and the catalog are keyed by
   it.
-- Anything that moves barriers, walls, the centerline or the ground should go
-  through the AI survey again (step 9).
+
+## Importing from Assetto Corsa
+
+Cars and tracks from your own Assetto Corsa install convert in one step.
+They stay on your machine: imports are never shipped or redistributed, and
+content encrypted by Custom Shaders Patch is refused.
+
+- **Installed game**: the launcher's **Manage content > Import from Assetto
+  Corsa**. Pick a car or track folder (or a whole `cars` / `tracks` folder).
+  It needs Python 3.11 or newer from python.org and sets up the rest on first
+  use (that step needs internet). The files land in `Game/` and
+  `Server/content/` directly.
+- **Checkout**: `python scripts/ac_car_import.py "<AC>\content\cars\<car>"`
+  (into `content/cars/custom/`) or `python scripts/ac_import.py
+  "<AC>\content\tracks\<track>"` (into `content/tracks/custom/` and
+  `build/tracks/`); `--list` shows layouts or skins, `--all <folder>` takes a
+  whole collection, `--force` replaces an earlier import.
+
+Then restart the server and the game. An imported track is marked in its
+`.ats` and the bake, dressing and smoothing leave it alone: to rebuild one,
+run the command its `<Stem>.import.json` records. Everything else, including
+what is not supported, is in
+[docs/content/ac-import.md](docs/content/ac-import.md).
 
 ## HUD
 
-The race HUD is drawn from files: every panel (standings, the car's
-numbers, the minimap, ...) is a component folder under `content/hud`, laid out
-in JSON and bound to the data points the game publishes every frame (speed,
-lap times, tyres, the standings, the delta and about a hundred more). The full
-reference, every element, function and data point, is
-[docs/HUD_MODDING.md](docs/HUD_MODDING.md).
+The race HUD is a set of components, one folder each, laid out in JSON and
+bound to the data points the game publishes every frame. Nothing about it
+touches the server. The full reference (every element, function and data
+point) is [docs/game/hud-modding.md](docs/game/hud-modding.md).
 
-### Moving things around
+**Moving things** needs no files: **Settings > Gameplay > HUD layout > Edit
+layout** moves, resizes, adds and removes panels and saves to
+`custom/layout.json` (several named layouts too, under `custom/layouts/`).
 
-**Settings > Gameplay > HUD layout > Edit layout** opens the HUD editor: drag
-a panel to move it, drag its corner to resize it, show or hide panels from
-the list (including a few extras that ship switched off), then Save. No files
-to edit; the arrangement is kept in `custom/layout.json`.
+**Changing or adding a panel**, in `content/hud/custom/` (checkout) or
+`Game/Hud/custom/` (installed game):
 
-### Creating a new HUD element
+- *Change a shipped panel*: copy its folder from `default/` into `custom/`
+  under the same name and edit the copy.
+- *Hide one*: `custom/<id>/component.json` holding `{ "enabled": false }`.
+- *Add one*: a new folder with a `component.json`, for example:
 
-1. Make a folder in `content/hud/custom/` (in a packaged game,
-   `Hud\custom\` beside `ApexSim.exe`) with a `component.json`: where it
-   sits (`region`, `order`, `margin`) and a tree of elements (`panel`,
-   `row`, `text`, `bar`, `rect`, ...). Starting from a copy of a shipped one
-   in `content/hud/default/` is the quickest way in.
-2. Bind what it shows to data points: `"text": "{fmt(car.speed)}"`,
-   `"value": "=car.throttle"`, `"color": "=car.drs_open ? 'live' : 'border'"`.
-   `apexsim.hud.Data` in the game's console lists every name with its value
-   right now.
-3. To change a shipped panel, copy its folder into `custom/` under the same
-   name; to hide one, give `custom/<name>/component.json` the content
-   `{ "enabled": false }`.
+  ```jsonc
+  { "name": "Big speed", "region": "bottom", "margin": [0, 0, 0, 170],
+    "root": { "type": "text", "font": "display", "size": 64, "text": "{fmt(car.speed)}",
+              "color": "=car.rpm_fraction > 0.95 ? 'error' : 'text'" } }
+  ```
 
-### Installing your HUD element
-
-Drop the folder into `content/hud/custom/` (editor build) or
-`Hud\custom\` (packaged game). Nothing on the server changes, and nothing is
-cooked or repackaged.
-
-### Updating your HUD element
-
-Edit the file and run `apexsim.hud.Reload` in the console during a race; the
-HUD is rebuilt in place. A component that fails to load is named on screen
-with the reason, and the log (`LogApexSim`) warns about anything suspicious
-that still loads, such as a misspelt data point.
+A component that fails to load is named on screen with the reason; a
+misspelt data point is a warning in the log. Restart the game to see a
+change, or in an editor or Development build run `apexsim.hud.Reload` during
+a race (`apexsim.hud.Data [filter]` lists every data point and its value).

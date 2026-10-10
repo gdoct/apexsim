@@ -22,7 +22,7 @@
  "corners": [
   {
    "name": "Marina Bay Street Circuit",
-   "display_name": "Marina Bay Street Circuit",
+   "display_name": null,
    "station_m": 0.1,
    "from_m": 4580.0,
    "to_m": 520.6

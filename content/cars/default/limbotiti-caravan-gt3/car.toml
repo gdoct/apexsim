@@ -97,7 +97,7 @@ torque_nm = 542.1
 rpm = 8500.0
 torque_nm = 476.6
 
-# What the client's engine synthesiser is built from (docs/CAR_MODELS.md, "Engine
+# What the client's engine synthesiser is built from (docs/content/cars.md, "Engine
 # sound"): the server ignores this table.
 # 5.2 L V10: five firings a rev, even into each bank - the wail.
 [sound]

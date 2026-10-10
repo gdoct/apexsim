@@ -15,7 +15,7 @@ ffmpeg build works (drawtext is not in every one).
     python scripts/promo/stitch_video.py --draft          # half resolution, fast
     python scripts/promo/stitch_video.py --dry-run        # print the ffmpeg command
 
-See docs/PROMO_VIDEO.md.
+See docs/marketing-site.md.
 """
 
 from __future__ import annotations

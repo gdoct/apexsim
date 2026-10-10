@@ -1,4 +1,4 @@
-r"""Retexture the high-frequency kit in place (docs/PROPS.md step 4): import
+r"""Retexture the high-frequency kit in place (docs/content/props.md step 4): import
 each GLB, swap its flat material slots for baked albedo / roughness / normal
 versions (apex_tex), re-export to the same path. Geometry untouched.
 

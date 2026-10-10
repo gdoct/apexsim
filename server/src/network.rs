@@ -812,8 +812,9 @@ pub struct CompactCarState {
     /// after `tow_pct`; all 0 from an older server.
     #[serde(default)]
     pub tyre_wear: [u8; 4],
-    /// The compound on the car (`tyre_thermal::COMPOUNDS`: 0 soft, 1
-    /// medium, 2 hard); [`COMPOUND_UNKNOWN`] before a set is fitted, or
+    /// The compound on the car, an index into its `TireConfig::compounds()`
+    /// (the defaults: 0 soft, 1 medium, 2 hard, 3 intermediate, 4 wet);
+    /// [`COMPOUND_UNKNOWN`] before a set is fitted, or
     /// from an older server.
     #[serde(default = "compound_unknown")]
     pub compound: u8,
@@ -1360,7 +1361,7 @@ pub struct PitServiceData {
     /// The car's own box, 0-based from the lane's entry end.
     pub pit_box: u8,
     /// The tyre change, s, and the compound going on
-    /// (`tyre_thermal::COMPOUNDS` index).
+    /// (an index into the car's `TireConfig::compounds()`).
     pub tyres_s: f32,
     pub compound: u8,
     /// Refuelling, s, and the litres going in.

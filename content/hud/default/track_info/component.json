@@ -1,5 +1,5 @@
 // Which circuit, and what kind of session in which car.
-// The format is in docs/HUD_MODDING.md; `apexsim.hud.Data` lists every data point.
+// The format is in docs/game/hud-modding.md; `apexsim.hud.Data` lists every data point.
 {
   "name": "Track and session",
   "region": "top-left",

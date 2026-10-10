@@ -2,7 +2,7 @@
 
 Kunos pack every car's `data/` folder this way; Content Manager and every
 AC tool read it routinely. It is not the Custom Shaders Patch encryption the
-importers refuse. Layout (docs/AC_CAR_IMPORT.md, appendix):
+importers refuse. Layout (docs/content/ac-import.md, appendix):
 
     optional header: i32 -1111, i32 version
     records:         i32 name_len, name (clear), i32 n, n x 4 bytes

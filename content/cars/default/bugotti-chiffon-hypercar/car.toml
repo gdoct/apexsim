@@ -91,7 +91,7 @@ torque_nm = 720.0
 rpm = 6900.0
 torque_nm = 620.0
 
-# What the client's engine synthesiser is built from (docs/CAR_MODELS.md,
+# What the client's engine synthesiser is built from (docs/content/cars.md,
 # "Engine sound"): the server ignores this table.
 # 8.0 L W16, four turbos, a long exhaust with a heavy silencer: a deep
 # whoosh more than a scream.

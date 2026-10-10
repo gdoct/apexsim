@@ -580,7 +580,7 @@ save("parts")
 
 
 def write_drs_table(toml_path, stem, hinge_yz, open_deg):
-    """Put the flap's `[drs_flap]` table in car.toml (docs/CAR_MODELS.md): the
+    """Put the flap's `[drs_flap]` table in car.toml (docs/content/cars.md): the
     GLB, the hinge in the wheels' convention (forward of the body origin,
     up from the floor, metres) and how far it opens. Replaced on every run,
     kept above the liveries' marker (`carlib.write_table`)."""

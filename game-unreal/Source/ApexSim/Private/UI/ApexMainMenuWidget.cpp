@@ -422,7 +422,7 @@ UVerticalBox* UApexMainMenuWidget::BuildPage(EPage Page)
 {
 	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
 
-	// Rows that exist in the plan (docs/game/MAINMENU.md) but have no game
+	// Rows that exist in the plan (docs/game/client.md) but have no game
 	// behind them yet: greyed, no focus, listed under "Not implemented yet".
 	auto Row = [&](const TCHAR* Label, FName Id)
 	{

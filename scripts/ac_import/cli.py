@@ -1,7 +1,7 @@
 """`python scripts/ac_import.py <ac-track-folder> [options]`: one command per
 AC track layout, writing the server's files into `content/tracks/custom/<Stem>/`
 and the client's export into `build/tracks/`, then checking the result.
-See docs/AC_TRACK_IMPORT.md.
+See docs/content/ac-import.md.
 """
 
 from __future__ import annotations

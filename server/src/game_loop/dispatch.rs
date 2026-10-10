@@ -657,6 +657,19 @@ async fn handle_join_session(
         .get_player_livery(conn_info.player_id)
         .await;
 
+    // The session itself decides whether it takes another driver now: a
+    // race under way does not (watch it with `JoinAsSpectator`), a running
+    // practice or hotlap does.
+    if let Some(reason) = state_write
+        .sessions
+        .get(&session_id)
+        .and_then(|s| s.refuses_drivers())
+    {
+        drop(state_write);
+        ctx.send_error(connection_id, 409, reason).await;
+        return;
+    }
+
     let joined = state_write
         .lobby
         .join_session(conn_info.player_id, session_id)
@@ -667,7 +680,7 @@ async fn handle_join_session(
         ctx.send_error(
             connection_id,
             400,
-            "Unable to join session (full or not in lobby state)",
+            "Unable to join session (full, finished or not joinable)",
         )
         .await;
         return;
@@ -698,6 +711,10 @@ async fn handle_join_session(
     game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
         game_session.set_livery(conn_info.player_id, livery);
+        // A driver joining a hotlap or qualifying session under way starts
+        // in the garage, as the drivers there when it began did.
+        let _ =
+            game_session.hotlap_relocate(&conn_info.player_id, HotlapDestination::Garage, false);
         debug!(
             "Player {} joined session {} at grid position {}",
             conn_info.player_name, session_id, grid_pos
@@ -1016,7 +1033,12 @@ async fn handle_start_session(ctx: &GameLoopCtx, connection_id: ConnectionId) {
         return;
     }
 
-    game_session.start_countdown();
+    if !game_session.start_countdown() {
+        drop(state_write);
+        ctx.send_error(connection_id, 409, "Session has already started")
+            .await;
+        return;
+    }
     debug!(
         "Player {} started session {}",
         conn_info.player_name, session_id
@@ -1031,7 +1053,7 @@ async fn handle_start_session(ctx: &GameLoopCtx, connection_id: ConnectionId) {
     drop(state_write);
 
     let msg = ServerMessage::SessionStarting {
-        countdown_seconds: 5,
+        countdown_seconds: crate::game_session::START_SESSION_COUNTDOWN_SECONDS as u8,
     };
     for player_id in participants {
         if let Some(conn_id) = ctx.player_connection(player_id).await {

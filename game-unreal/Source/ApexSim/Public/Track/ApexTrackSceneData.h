@@ -12,7 +12,7 @@
  * here converts coordinates — if you find yourself negating a Y or flipping
  * an index order, the bug is on the Rust side.
  *
- * See `track-editor/TRACK_EDITOR.md` section 5 for the format. Version 2
+ * See `docs/content/track-format.md` for the format. Version 2
  * splits it in two: the JSON manifest keeps everything small and names a
  * `<Stem>.uemesh` blob beside it that carries the vertex data, which the
  * reader loads into `Meshes` as if it had been inline.
@@ -60,7 +60,7 @@ struct FApexTrackMaterial
 	 * receive shadows but cast none worth drawing (a 5 cm curb's shadow is
 	 * under a shadow texel at most clipmap levels), while each 250 m section
 	 * is one of the large instances that fill virtual shadow maps'
-	 * non-Nanite marking queue (docs/game/VSM_NON_NANITE_SHADOWS.md). The
+	 * non-Nanite marking queue (docs/proposals/nanite-shadows.md). The
 	 * terrain (`ground`, the `horizon`), structures, walls and an imported
 	 * circuit's own ground (`ac_*`, which may be a hillside) are not flat.
 	 */

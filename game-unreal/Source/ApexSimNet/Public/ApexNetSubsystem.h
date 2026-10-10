@@ -476,6 +476,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	bool IsAuthenticated() const { return ConnectionState == EApexConnectionState::Authenticated; }
 
+	/** True while the TCP connection runs over TLS (UDP never does). */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
+	bool IsConnectionEncrypted() const { return Connection && Connection->IsEncrypted(); }
+
+	/**
+	 * How the next connection uses TLS (settings.yml `server.tls`,
+	 * `tls_verify`, `tls_fingerprint`; UApexBootSettingsSubsystem pushes them
+	 * here). Takes effect on the next Connect or reconnect.
+	 */
+	void SetTlsOptions(const FApexTlsOptions& InOptions) { TlsOptions = InOptions; }
+	const FApexTlsOptions& GetTlsOptions() const { return TlsOptions; }
+
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	const FString& GetPlayerId() const { return PlayerId; }
 
@@ -689,6 +701,7 @@ private:
 	FString PlayerName;
 	/** Kept for reconnects; the server reads it once per connection. */
 	FString Token;
+	FApexTlsOptions TlsOptions;
 	FString PlayerId;
 
 	/** Set by Connect(), cleared by Disconnect() and by an AuthFailure. */

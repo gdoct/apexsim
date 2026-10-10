@@ -1,4 +1,4 @@
-r"""Marina Bay start/finish decals + garage number plates (MARINA_BAY_START_FINISH.md).
+r"""Marina Bay start/finish decals + garage number plates (docs/content/circuits.md).
 
 Runs inside Blender (fonts are rasterised from Blender text meshes, no PIL):
     exec(open(r"E:\apexsim\scripts\content\props\gen_marina_decals.py").read())

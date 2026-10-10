@@ -7,7 +7,7 @@ Run inside Blender (Blender 4.x/5.x), e.g. from its Python console:
     strip(r"E:\\apexsim\\content\\cars\\default\\posh-lmp2\\posh_lmp2.glb", dry_run=True)
 
 `measure` finds the four wheels from the faces whose material names a tyre
-and returns what the `[wheels]` table of car.toml wants (docs/CAR_MODELS.md).
+and returns what the `[wheels]` table of car.toml wants (docs/content/cars.md).
 `strip` removes every loose part that lies wholly inside one of the four
 wheel cylinders (tyre, rim, disc, caliper, nuts), which leaves the uprights
 and suspension that reach out of the wheel, then writes the GLB back.

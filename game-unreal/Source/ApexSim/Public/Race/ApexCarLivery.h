@@ -9,7 +9,7 @@ class UStaticMeshComponent;
 /**
  * Liveries: repainting a car body at run time.
  *
- * Every generated car GLB carries the same slot names (docs/CAR_MODELS.md);
+ * Every generated car GLB carries the same slot names (docs/content/cars.md);
  * a livery sets `BaseColorFactor` on `car_paint` and `car_accent` (and
  * `MetallicFactor` on the paint), and `BaseColorTexture` on `car_logo`,
  * through dynamic instances of the body's slot materials (for a car built at

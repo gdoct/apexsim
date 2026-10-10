@@ -7,7 +7,7 @@
 //! the substitute the spec calls for: it proves, against every real track
 //! shipped in `content/tracks`, that a file loaded and re-saved by the
 //! editor still loads through the server's `TrackLoader` and produces the
-//! same physical track — the acceptance bar in `TRACK_EDITOR.md` #4 and #8.
+//! same physical track — the acceptance bar in `docs/content/track-format.md`.
 
 use std::path::{Path, PathBuf};
 

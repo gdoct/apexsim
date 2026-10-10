@@ -14,7 +14,7 @@ textures they carry to content/props/_textures/, the km board faces to
 content/props/board/markers/km<N>.png (the marker slot's `text`), and saves
 this batch's scene as content/props/_batches/nordschleife_kit.blend.
 
-Frame per docs/PROPS.md: +X along the road, road on -Y, Z up, pivot on the
+Frame per docs/content/props.md: +X along the road, road on -Y, Z up, pivot on the
 ground (thin modules and the castle centred on their footprint; signs on
 their post).
 

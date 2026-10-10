@@ -13,7 +13,7 @@
 //! seconds and hundreds of megabytes of DOM to parse at runtime; the blob is
 //! a copy. The manifest's scalar keys come before its first array, so a
 //! catalog scanner can read the track's identity from the first few KB. The
-//! layout is `track-editor/TRACK_EDITOR.md` §5 and
+//! layout is `docs/content/track-format.md` and
 //! `ApexTrackSceneReader` on the Unreal side reads exactly it.
 //!
 //! The exceptions are the server's sidecars, `<Track>.ground.msgpack`,
@@ -71,7 +71,7 @@ pub enum UeExportError {
     /// The track's `.ats` says another tool wrote it whole (`imported`),
     /// export included; baking it would put a generated circuit over the
     /// imported one.
-    #[error("track {stem} was imported ({by}); its export and sidecars are the importer's, not baked (see docs/AC_TRACK_IMPORT.md)")]
+    #[error("track {stem} was imported ({by}); its export and sidecars are the importer's, not baked (see docs/content/ac-import.md)")]
     Imported { stem: String, by: String },
     /// Two track folders hold a track of the same stem. Every export,
     /// preview and `-ApexTrack=` switch is keyed by the stem, so the two
@@ -731,7 +731,7 @@ fn stored_payload(mesh: &UeMesh) -> Result<Stored, UeExportError> {
     })
 }
 
-/// Encode meshes as a `.uemesh` blob (layout in `TRACK_EDITOR.md` §5).
+/// Encode meshes as a `.uemesh` blob (layout in `docs/content/track-format.md`).
 ///
 /// Each mesh is compressed on its own, so the work is spread over the
 /// machine's cores; the output depends only on the meshes, never on which

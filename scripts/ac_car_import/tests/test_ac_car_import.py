@@ -1,7 +1,7 @@
 """Tests for the AC car importer: data.acd on a synthetic file, the LUTs,
 the turbo, and one whole import of a synthetic car through the same code
 path a real one takes. With the Assetto Corsa install this machine has, the
-911 GT3 R's figures from docs/AC_CAR_IMPORT.md are pinned too.
+911 GT3 R's figures from docs/content/ac-import.md are pinned too.
 
     python -m unittest discover -s scripts/ac_car_import/tests -v
 """
@@ -769,7 +769,7 @@ class Kn5PathTest(unittest.TestCase):
 
 @unittest.skipUnless(GT3R.is_dir(), "no Assetto Corsa install with the 911 GT3 R on this machine")
 class Porsche911Gt3RTest(unittest.TestCase):
-    """The figures docs/AC_CAR_IMPORT.md quotes for the Kunos 911 GT3 R."""
+    """The figures docs/content/ac-import.md quotes for the Kunos 911 GT3 R."""
 
     @classmethod
     def setUpClass(cls):

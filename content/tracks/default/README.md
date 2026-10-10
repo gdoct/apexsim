@@ -171,7 +171,7 @@ cd ../server
 ./convert_all_tracks.sh /path/to/racetrack-database ./content/tracks/default
 ```
 
-See [../../docs/TRACK_CONVERTER.md](../../docs/TRACK_CONVERTER.md) for details.
+See [../../docs/content/track-format.md](../../docs/content/track-format.md) for details.
 
 ## License
 

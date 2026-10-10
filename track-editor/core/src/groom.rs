@@ -267,7 +267,7 @@ fn prop_radius(kind: PropKind) -> f32 {
     match kind {
         PropKind::Building => 6.4,
         PropKind::Grandstand => 8.7,
-        // The authored kit (docs/PROPS.md): a ferris wheel's 45 m footprint,
+        // The authored kit (docs/content/props.md): a ferris wheel's 45 m footprint,
         // a transporter, a 6 m garage module.
         PropKind::Attraction => 25.0,
         PropKind::Vehicle => 3.0,

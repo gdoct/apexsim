@@ -215,7 +215,7 @@ public:
 	// --- Track guide (a replay whose clock the caller owns) --------------------------
 
 	/**
-	 * The track guide's view (UApexTrackGuideSubsystem, docs/TRACK_GUIDE.md):
+	 * The track guide's view (UApexTrackGuideSubsystem, docs/content/track-guide.md):
 	 * the clip's track, field and sky exactly as BeginReplayView, from the
 	 * menu world, but the clock is the guide's: it stays wherever
 	 * SetGuideClock last put it, which is what lets the guide pause, play in

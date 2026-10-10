@@ -49,7 +49,7 @@ moment.
 ## Refreshing the words
 
 ```powershell
-python scripts/site/build_site.py --stale      # sections of CLAUDE.md / SIMULATION_GAPS.md changed since the last review
+python scripts/site/build_site.py --stale      # sections of the feature docs (docs/) changed since the last review
 # ...rewrite site/copy.yml against them (in Claude Code: /site-refresh)...
 python scripts/site/build_site.py --reviewed   # record them as covered
 python scripts/site/build_site.py

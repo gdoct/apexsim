@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import an Assetto Corsa car as an ApexSim car (docs/AC_CAR_IMPORT.md).
+"""Import an Assetto Corsa car as an ApexSim car (docs/content/ac-import.md).
 
     python scripts/ac_car_import.py "E:\\SteamLibrary\\steamapps\\common\\assettocorsa\\content\\cars\\ks_porsche_911_gt3_r_2016"
     python scripts/ac_car_import.py <folder> --list          # skins, compounds, parts

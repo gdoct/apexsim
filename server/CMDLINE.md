@@ -103,7 +103,7 @@ those subfolders. Pointing `APEXSIM_CONTENT_CARS_DIR` at
 ### Admin dashboard
 
 A web page for operators, on the same machine by default
-(`docs/server/ADMIN_DASHBOARD.md` in the source repository).
+(`docs/server/operations.md` in the source repository).
 
 | Variable | Setting | Default |
 |---|---|---|

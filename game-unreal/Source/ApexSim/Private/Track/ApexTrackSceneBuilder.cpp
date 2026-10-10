@@ -57,7 +57,7 @@ namespace
 	 * Which track surfaces render into the virtual shadow map. Everything a
 	 * track is made of is non-Nanite (built at runtime), and the big pieces
 	 * are what overflow VSM's non-Nanite marking queue
-	 * (docs/game/VSM_NON_NANITE_SHADOWS.md); both switches apply at once to
+	 * (docs/proposals/nanite-shadows.md); both switches apply at once to
 	 * the track on screen, for comparing.
 	 */
 	TAutoConsoleVariable<bool> CVarTrackFlatShadows(TEXT("apexsim.track.FlatShadows"), false,

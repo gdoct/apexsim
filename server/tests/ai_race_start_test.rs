@@ -26,7 +26,7 @@ fn repo(path: &str) -> PathBuf {
 /// A race of `ai_count` AI drivers all in `car`, as a demo session sets it
 /// up, with the lights already out.
 /// `SURVEY_ROAD_CONTACT=mesh` runs the survey on each circuit's road mesh
-/// (`docs/ROAD_MESH.md`) instead of the centerline, so the two backends
+/// (`docs/content/road-mesh.md`) instead of the centerline, so the two backends
 /// can be compared line by line.
 fn road_contact() -> apexsim_server::config::RoadContactMode {
     std::env::var("SURVEY_ROAD_CONTACT")

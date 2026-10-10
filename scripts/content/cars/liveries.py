@@ -6,7 +6,7 @@ tables into its car.toml and draws the sponsor logos they use.
 
 Needs Pillow. Plain Python, not Blender: the logos are 2D.
 
-A livery is a repaint of the same mesh (docs/CAR_MODELS.md, Liveries): the
+A livery is a repaint of the same mesh (docs/content/cars.md, Liveries): the
 client sets `car_paint` and `car_accent` to the livery's colours and swaps the
 `car_logo` texture, so a scheme is two colours, the paint's metallic and one
 wordmark. Colours are linear RGB, the same numbers the build scripts give

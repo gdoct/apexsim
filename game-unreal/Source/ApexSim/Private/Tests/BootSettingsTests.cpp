@@ -24,6 +24,10 @@ bool FApexBootSettingsRoundTripTest::RunTest(const FString& Parameters)
 	Written.ServerHost = TEXT("race.example.net");
 	Written.ServerPort = 9100;
 	Written.bShowLauncher = false;
+	Written.ServerTls.Mode = EApexTlsMode::On;
+	Written.ServerTls.bVerify = false;
+	Written.ServerTls.Fingerprint =
+		TEXT("5E:2B:8C:01:9A:44:77:10:FE:3D:6A:C2:91:0B:58:E7:24:9F:D3:6C:A1:08:BB:4E:72:F5:19:3A:C6:0D:E8:57");
 
 	FApexBootSettings Read;
 	ApexBootSettingsIo::Parse(ApexBootSettingsIo::Serialise(Written), Read);
@@ -38,7 +42,76 @@ bool FApexBootSettingsRoundTripTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("host survives"), Read.ServerHost, Written.ServerHost);
 	TestEqual(TEXT("port survives"), Read.ServerPort, Written.ServerPort);
 	TestFalse(TEXT("the launcher's show flag survives the game's rewrite"), Read.bShowLauncher);
+	TestTrue(TEXT("tls: on survives"), Read.ServerTls.Mode == EApexTlsMode::On);
+	TestFalse(TEXT("tls_verify: false survives"), Read.ServerTls.bVerify);
+	TestEqual(TEXT("the pinned fingerprint survives"), Read.ServerTls.Fingerprint, Written.ServerTls.Fingerprint);
 
+	// And the defaults: auto, verified, no pin, written as an empty key.
+	const FApexBootSettings Defaults;
+	const FString DefaultText = ApexBootSettingsIo::Serialise(Defaults);
+	TestTrue(TEXT("the default file says tls: auto"), DefaultText.Contains(TEXT("  tls: auto\n")));
+	TestTrue(TEXT("and tls_verify: true"), DefaultText.Contains(TEXT("  tls_verify: true\n")));
+	FApexBootSettings ReadDefaults;
+	ReadDefaults.ServerTls.Fingerprint = TEXT("stale");
+	ApexBootSettingsIo::Parse(DefaultText, ReadDefaults);
+	TestTrue(TEXT("default mode reads back"), ReadDefaults.ServerTls.Mode == EApexTlsMode::Auto);
+	TestTrue(TEXT("default verify reads back"), ReadDefaults.ServerTls.bVerify);
+	TestTrue(TEXT("an empty tls_fingerprint clears the pin"), ReadDefaults.ServerTls.Fingerprint.IsEmpty());
+
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexBootSettingsTlsTest,
+	"ApexSim.Settings.BootSettingsTls",
+	ApexTestFlags)
+
+bool FApexBootSettingsTlsTest::RunTest(const FString& Parameters)
+{
+	AddExpectedError(TEXT("settings.yml line"), EAutomationExpectedErrorFlags::Contains, 0);
+
+	// A file from before the keys: TLS is auto and verified.
+	{
+		FApexBootSettings Settings;
+		ApexBootSettingsIo::Parse(TEXT("server:\n  host: 10.0.0.2\n  port: 9000\n"), Settings);
+		TestTrue(TEXT("no tls key is auto"), Settings.ServerTls.Mode == EApexTlsMode::Auto);
+		TestTrue(TEXT("no tls_verify key verifies"), Settings.ServerTls.bVerify);
+		TestFalse(TEXT("no pin"), Settings.ServerTls.IsPinned());
+	}
+
+	// Hand-written: upper-case mode, a bool spelt "no", a fingerprint pasted as
+	// lower-case hex with no colons (and a comment after it).
+	{
+		FApexBootSettings Settings;
+		ApexBootSettingsIo::Parse(
+			TEXT("server:\n")
+			TEXT("  tls: OFF\n")
+			TEXT("  tls_verify: no\n")
+			TEXT("  tls_fingerprint: 5e2b8c019a447710fe3d6ac2910b58e7249fd36ca108bb4e72f5193ac60de857 # the LAN box\n"),
+			Settings);
+		TestTrue(TEXT("OFF is off"), Settings.ServerTls.Mode == EApexTlsMode::Off);
+		TestFalse(TEXT("no is false"), Settings.ServerTls.bVerify);
+		TestEqual(TEXT("the fingerprint is kept in the AB:CD spelling"), Settings.ServerTls.Fingerprint,
+			FString(TEXT("5E:2B:8C:01:9A:44:77:10:FE:3D:6A:C2:91:0B:58:E7:24:9F:D3:6C:A1:08:BB:4E:72:F5:19:3A:C6:0D:E8:57")));
+	}
+
+	// Bad values keep what was there.
+	{
+		FApexBootSettings Settings;
+		Settings.ServerTls.Fingerprint =
+			TEXT("5E:2B:8C:01:9A:44:77:10:FE:3D:6A:C2:91:0B:58:E7:24:9F:D3:6C:A1:08:BB:4E:72:F5:19:3A:C6:0D:E8:57");
+		ApexBootSettingsIo::Parse(
+			TEXT("server:\n")
+			TEXT("  tls: sometimes\n")
+			TEXT("  tls_verify: perhaps\n")
+			TEXT("  tls_fingerprint: 5e2b8c\n"),
+			Settings);
+		TestTrue(TEXT("a bad mode keeps auto"), Settings.ServerTls.Mode == EApexTlsMode::Auto);
+		TestTrue(TEXT("a bad bool keeps verifying"), Settings.ServerTls.bVerify);
+		TestTrue(TEXT("a short fingerprint keeps the old pin"), Settings.ServerTls.Fingerprint.StartsWith(TEXT("5E:2B:8C:01")));
+	}
 	return true;
 }
 

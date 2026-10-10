@@ -25,17 +25,17 @@
            import in stage 3 or 5 needs no rebake.
         7. Showcases: apexsim-replay render for every showcase in
            content/showcase.yml (a rendered AI race the menu plays behind
-           its screens and the server plays to clients, docs/SPECTATOR.md)
+           its screens and the server plays to clients, docs/game/spectator.md)
            that build/showcase lacks, or that `apexsim-replay info --check`
            calls stale because its track YAML or a car.toml changed since
            it was rendered. About 6 s each; an imported track is never
            rendered here.
         8. Track guides: apexsim-replay guide --all for every shipped
            circuit with no guide in build\guide or one older than its
-           YAML, notes (<Stem>.guide.yml) or dossier (docs/TRACK_GUIDE.md).
+           YAML, notes (<Stem>.guide.yml) or dossier (docs/content/track-guide.md).
 
     Cars need no stage: the game builds each from content/cars and
-    content/wheels when it is drawn (docs/RUNTIME_CONTENT_LOADING.md). The
+    content/wheels when it is drawn (docs/content/cars.md). The
     script only checks that every file a car.toml names is there.
     (scripts/import_cars.ps1 still imports them as assets, for looking at a
     car in the editor; the game does not use those.)
@@ -220,7 +220,7 @@ $showcasePlan = @(Get-ApexShowcasePlan -RepoRoot $RepoRoot)
 $showcaseWork = @(Select-ApexShowcaseWork -Plan $showcasePlan)
 $showcaseUnchecked = @($showcasePlan | Where-Object { $_.Status -eq 'unchecked' })
 
-# The track guides (docs/TRACK_GUIDE.md): circuits with none, or with one
+# The track guides (docs/content/track-guide.md): circuits with none, or with one
 # older than the YAML, notes or dossier it was made from.
 $guideWork = @(Get-ApexGuideWork -RepoRoot $RepoRoot)
 
