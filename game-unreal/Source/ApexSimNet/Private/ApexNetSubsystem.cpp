@@ -61,8 +61,16 @@ void UApexNetSubsystem::StartUdp(const FApexAuthSuccess& Auth)
 			TEXT("AuthSuccess carried no usable UDP token/port; telemetry will not flow"));
 		return;
 	}
+	if (Auth.UdpKey.IsEmpty())
+	{
+		// A server from before sealed UDP: it would drop our sealed
+		// datagrams, so stay on TCP telemetry rather than handshake forever.
+		UE_LOG(LogApexSimNet, Warning,
+			TEXT("AuthSuccess carried no UDP key (older server); telemetry stays on TCP and there is no force feedback"));
+		return;
+	}
 
-	UdpConnection = MakeUnique<FApexUdpConnection>(Host, Auth.UdpPort, Auth.UdpToken);
+	UdpConnection = MakeUnique<FApexUdpConnection>(Host, Auth.UdpPort, Auth.UdpToken, Auth.UdpKey);
 	if (!UdpConnection->Start())
 	{
 		UdpConnection.Reset();

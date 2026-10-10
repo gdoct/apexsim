@@ -11,6 +11,7 @@ use tokio::net::{TcpStream, UdpSocket};
 use tokio::time::timeout;
 
 use apexsim_server::network::{ClientMessage, ServerMessage, PROTOCOL_VERSION};
+use apexsim_server::udp_seal;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -127,12 +128,114 @@ async fn test_auth_success_carries_udp_binding_info() {
     server.shutdown().await;
 }
 
+/// A UDP handshake that is not sealed under the connection's key is never
+/// acked: a bare datagram (a client from before sealing, or anyone who
+/// sniffed the token), one under the wrong key, and a replay of a genuine
+/// one are all dropped, while the genuine one binds.
+#[tokio::test]
+async fn test_udp_handshake_needs_the_seal() {
+    let server = common::start_test_server().await;
+    let mut client = ProtocolTestClient::connect(server.tcp_addr).await;
+    let (udp_token, udp_key, udp_port) = match client.authenticate("Sealed", PROTOCOL_VERSION).await
+    {
+        ServerMessage::AuthSuccess(data) => (data.udp_token, data.udp_key, data.udp_port),
+        other => panic!("expected AuthSuccess, got {:?}", other),
+    };
+    assert_eq!(udp_key.len(), 64, "udp_key is 32 bytes of hex");
+
+    let socket = UdpSocket::bind("127.0.0.1:0").await.expect("bind udp");
+    socket
+        .connect(SocketAddr::new(server.tcp_addr.ip(), udp_port))
+        .await
+        .expect("connect udp");
+    let handshake = rmp_serde::to_vec_named(&ClientMessage::UdpHandshake {
+        token: udp_token.clone(),
+    })
+    .expect("serialize handshake");
+
+    let mut buf = vec![0u8; 65_536];
+    async fn acked(socket: &UdpSocket, datagram: Vec<u8>, buf: &mut [u8]) -> bool {
+        for _ in 0..3 {
+            socket.send(&datagram).await.expect("send");
+            if let Ok(Ok(n)) = timeout(Duration::from_millis(150), socket.recv(buf)).await {
+                if let Ok(ServerMessage::UdpHandshakeAck) =
+                    rmp_serde::from_slice::<ServerMessage>(&buf[..n])
+                {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    assert!(
+        !acked(&socket, handshake.clone(), &mut buf).await,
+        "a bare handshake must not bind"
+    );
+    assert!(
+        !acked(
+            &socket,
+            udp_seal::seal("not-the-key", 1, &handshake),
+            &mut buf
+        )
+        .await,
+        "a handshake under another key must not bind"
+    );
+    let genuine = udp_seal::seal(&udp_key, 5, &handshake);
+    assert!(
+        acked(&socket, genuine.clone(), &mut buf).await,
+        "the sealed handshake binds"
+    );
+    assert!(
+        !acked(&socket, genuine, &mut buf).await,
+        "a replayed handshake must not be accepted again"
+    );
+    assert!(
+        acked(&socket, udp_seal::seal(&udp_key, 6, &handshake), &mut buf).await,
+        "the next sequence number is accepted"
+    );
+
+    server.shutdown().await;
+}
+
+/// A client's UDP socket that seals what it sends (`udp_seal`): every
+/// datagram under the connection's key with a rising sequence number.
+struct SealedUdp {
+    socket: UdpSocket,
+    key: String,
+    seq: u64,
+}
+
+impl SealedUdp {
+    async fn send(&mut self, payload: &[u8]) {
+        self.seq += 1;
+        self.socket
+            .send(&udp_seal::seal(&self.key, self.seq, payload))
+            .await
+            .expect("send sealed datagram");
+    }
+
+    async fn recv(&self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.socket.recv(buf).await
+    }
+}
+
 /// Binds a UDP socket to the authenticated connection: re-sends the
 /// handshake until it is acked, since datagrams may race the bind.
-async fn bind_udp(server_ip: std::net::IpAddr, udp_token: &str, udp_port: u16) -> UdpSocket {
-    let udp = UdpSocket::bind("127.0.0.1:0").await.expect("bind udp");
+async fn bind_udp(
+    server_ip: std::net::IpAddr,
+    udp_token: &str,
+    udp_key: &str,
+    udp_port: u16,
+) -> SealedUdp {
+    let socket = UdpSocket::bind("127.0.0.1:0").await.expect("bind udp");
     let server_udp: SocketAddr = SocketAddr::new(server_ip, udp_port);
-    udp.connect(server_udp).await.expect("connect udp");
+    socket.connect(server_udp).await.expect("connect udp");
+    let mut udp = SealedUdp {
+        socket,
+        key: udp_key.to_string(),
+        seq: 0,
+    };
 
     let handshake = rmp_serde::to_vec_named(&ClientMessage::UdpHandshake {
         token: udp_token.to_string(),
@@ -142,7 +245,7 @@ async fn bind_udp(server_ip: std::net::IpAddr, udp_token: &str, udp_port: u16) -
     let mut buf = vec![0u8; 65_536];
     let acked = timeout(TEST_TIMEOUT, async {
         loop {
-            udp.send(&handshake).await.expect("send handshake");
+            udp.send(&handshake).await;
             match timeout(Duration::from_millis(250), udp.recv(&mut buf)).await {
                 Ok(Ok(n)) => {
                     if let Ok(ServerMessage::UdpHandshakeAck) =
@@ -257,14 +360,16 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
     let mut client = ProtocolTestClient::connect(server.tcp_addr).await;
 
     // --- Authenticate over TCP (v2) ---
-    let (player_id, udp_token, udp_port) =
+    let (player_id, udp_token, udp_key, udp_port) =
         match client.authenticate("UdpDriver", PROTOCOL_VERSION).await {
-            ServerMessage::AuthSuccess(data) => (data.player_id, data.udp_token, data.udp_port),
+            ServerMessage::AuthSuccess(data) => {
+                (data.player_id, data.udp_token, data.udp_key, data.udp_port)
+            }
             other => panic!("expected AuthSuccess, got {:?}", other),
         };
 
     // --- UDP handshake ---
-    let udp = bind_udp(server.tcp_addr.ip(), &udp_token, udp_port).await;
+    let mut udp = bind_udp(server.tcp_addr.ip(), &udp_token, &udp_key, udp_port).await;
     let mut buf = vec![0u8; 65_536];
 
     // --- Set up a session over TCP ---
@@ -361,7 +466,7 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
         let mut telemetry_seen = 0u32;
         loop {
             // Keep driving (well under the 300/s per-address rate limit).
-            udp.send(&input).await.expect("send input");
+            udp.send(&input).await;
             match timeout(Duration::from_millis(100), udp.recv(&mut buf)).await {
                 Ok(Ok(n)) => {
                     if let Ok(ServerMessage::TelemetryCompact(t)) =
@@ -399,11 +504,12 @@ async fn test_driver_feedback_reaches_the_driver_over_udp() {
     let server = common::start_test_server().await;
     let mut client = ProtocolTestClient::connect(server.tcp_addr).await;
 
-    let (udp_token, udp_port) = match client.authenticate("FfbDriver", PROTOCOL_VERSION).await {
-        ServerMessage::AuthSuccess(data) => (data.udp_token, data.udp_port),
-        other => panic!("expected AuthSuccess, got {:?}", other),
-    };
-    let udp = bind_udp(server.tcp_addr.ip(), &udp_token, udp_port).await;
+    let (udp_token, udp_key, udp_port) =
+        match client.authenticate("FfbDriver", PROTOCOL_VERSION).await {
+            ServerMessage::AuthSuccess(data) => (data.udp_token, data.udp_key, data.udp_port),
+            other => panic!("expected AuthSuccess, got {:?}", other),
+        };
+    let mut udp = bind_udp(server.tcp_addr.ip(), &udp_token, &udp_key, udp_port).await;
     start_free_practice(&mut client).await;
 
     // Accelerate with a little left lock (positive is left).
@@ -429,7 +535,7 @@ async fn test_driver_feedback_reaches_the_driver_over_udp() {
     let feedback = timeout(TEST_TIMEOUT, async {
         let mut seen = 0u32;
         loop {
-            udp.send(&input).await.expect("send input");
+            udp.send(&input).await;
             let Ok(Ok(n)) = timeout(Duration::from_millis(100), udp.recv(&mut buf)).await else {
                 continue;
             };

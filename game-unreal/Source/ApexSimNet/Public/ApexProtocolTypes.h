@@ -1063,12 +1063,21 @@ struct APEXSIMNET_API FApexAuthSuccess
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Auth")
 	int32 ProtocolVersion = 0;
 
-	/** One-time token for the UDP handshake. Unused by the menu shell. */
+	/** Names this connection in the UDP handshake. Unused by the menu shell. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Auth")
 	FString UdpToken;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Auth")
 	int32 UdpPort = 0;
+
+	/**
+	 * Secret under which every datagram we send is sealed
+	 * (ApexProtocol::SealUdpDatagram). Hex, used as raw bytes; it only ever
+	 * travels here, over TLS. Empty from a server from before sealing, which
+	 * takes no sealed datagram either: UDP is then not started.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Auth")
+	FString UdpKey;
 };
 
 /**

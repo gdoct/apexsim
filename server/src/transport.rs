@@ -3,6 +3,7 @@ use crate::data::*;
 use crate::network::{
     AuthSuccessData, ClientMessage, MessagePriority, ServerMessage, PROTOCOL_VERSION,
 };
+use crate::udp_seal;
 use bytes::Bytes;
 use rustls::pki_types::CertificateDer;
 use rustls::ServerConfig as TlsConfig;
@@ -74,6 +75,9 @@ pub struct TransportMetrics {
     pub tcp_messages_dropped: Arc<AtomicU64>,
     pub udp_messages_dropped: Arc<AtomicU64>,
     pub clients_disconnected_backpressure: Arc<AtomicU64>,
+    /// Inbound datagrams refused by the seal (`crate::udp_seal`): bare,
+    /// forged, tampered or replayed.
+    pub udp_datagrams_rejected: Arc<AtomicU64>,
 }
 
 impl TransportMetrics {
@@ -87,6 +91,10 @@ impl TransportMetrics {
 
     pub fn udp_dropped(&self) -> u64 {
         self.udp_messages_dropped.load(Ordering::Relaxed)
+    }
+
+    pub fn udp_rejected(&self) -> u64 {
+        self.udp_datagrams_rejected.load(Ordering::Relaxed)
     }
 
     pub fn clients_disconnected(&self) -> u64 {
@@ -163,6 +171,10 @@ pub struct ConnectionInfo {
     /// Token issued in `AuthSuccess`; presenting it in a `UdpHandshake`
     /// binds the sender's UDP address to this connection.
     pub udp_token: String,
+    /// The seal every datagram from this client must carry
+    /// (`crate::udp_seal`): its key, issued as `AuthSuccess.udp_key`, and
+    /// the last sequence number accepted.
+    pub udp_seal: Arc<udp_seal::Inbound>,
     /// Bound UDP address, set by a completed `UdpHandshake`. Telemetry is
     /// sent here when present (TCP fallback otherwise).
     pub udp_addr: Option<SocketAddr>,
@@ -408,8 +420,9 @@ impl TransportLayer {
         let registry = self.registry.clone();
         let event_tx = self.event_tx.clone();
         let udp_out_tx = self.udp_out_tx.clone();
+        let metrics = self.metrics.clone();
         tokio::spawn(async move {
-            Self::udp_receiver(udp_socket, registry, event_tx, udp_out_tx).await;
+            Self::udp_receiver(udp_socket, registry, event_tx, udp_out_tx, metrics).await;
         });
 
         // Spawn UDP sender
@@ -712,6 +725,7 @@ impl TransportLayer {
                                         authenticated = true;
                                         let player_id = Uuid::new_v4();
                                         let udp_token = Uuid::new_v4().to_string();
+                                        let udp_key = udp_seal::generate_key();
                                         let conn_info = ConnectionInfo {
                                             player_id,
                                             player_name: player_name.clone(),
@@ -721,6 +735,7 @@ impl TransportLayer {
                                             tcp_tx: conn_tx.clone(),
                                             in_session: None,
                                             udp_token: udp_token.clone(),
+                                            udp_seal: Arc::new(udp_seal::Inbound::new(&udp_key)),
                                             udp_addr: None,
                                             kick: Arc::clone(&kick),
                                         };
@@ -759,6 +774,7 @@ impl TransportLayer {
                                                 protocol_version: PROTOCOL_VERSION,
                                                 udp_token,
                                                 udp_port,
+                                                udp_key,
                                             });
                                         // Critical message - if queue full, client is too slow
                                         if conn_tx
@@ -840,15 +856,19 @@ impl TransportLayer {
         Ok(())
     }
 
-    /// Receive UDP datagrams. `UdpHandshake` binds the sender's address to
-    /// the connection that owns the presented token (and is acked over UDP);
-    /// all other messages are only accepted from bound addresses and are
+    /// Receive UDP datagrams. Every inbound datagram must be sealed
+    /// (`crate::udp_seal`); anything else is counted and dropped.
+    /// `UdpHandshake` binds the sender's address to the connection that owns
+    /// the presented token, once the seal verifies under that connection's
+    /// key (and is acked over UDP); all other messages are only accepted
+    /// from bound addresses, under the bound connection's key, and are
     /// forwarded into the shared game-loop event channel.
     async fn udp_receiver(
         socket: Arc<UdpSocket>,
         registry: ConnRegistry,
         event_tx: mpsc::Sender<TransportEvent>,
         udp_out_tx: mpsc::Sender<(SocketAddr, Bytes)>,
+        metrics: TransportMetrics,
     ) {
         let mut buf = vec![0u8; 2048];
         // Per-address rate limiting, mirroring the TCP input bucket.
@@ -868,7 +888,18 @@ impl TransportLayer {
                         continue;
                     }
 
-                    let msg = match rmp_serde::from_slice::<ClientMessage>(&buf[..n]) {
+                    let (seq, tag, payload) = match udp_seal::split(&buf[..n]) {
+                        Ok(parts) => parts,
+                        Err(_) => {
+                            metrics
+                                .udp_datagrams_rejected
+                                .fetch_add(1, Ordering::Relaxed);
+                            debug!("Dropping unsealed UDP datagram from {}", addr);
+                            continue;
+                        }
+                    };
+
+                    let msg = match rmp_serde::from_slice::<ClientMessage>(payload) {
                         Ok(msg) => msg,
                         Err(e) => {
                             debug!("Failed to deserialize UDP message from {}: {}", addr, e);
@@ -876,65 +907,84 @@ impl TransportLayer {
                         }
                     };
 
-                    match msg {
-                        ClientMessage::UdpHandshake { token } => {
-                            let conn_id = registry
-                                .udp_token_to_connection
-                                .read()
-                                .await
-                                .get(&token)
-                                .copied();
-                            let Some(conn_id) = conn_id else {
-                                debug!("UDP handshake from {} with unknown token", addr);
-                                continue;
-                            };
-                            // Bind (or re-bind) the sender's address.
-                            let old_addr = {
-                                let mut connections = registry.connections.write().await;
-                                match connections.get_mut(&conn_id) {
-                                    Some(conn) => conn.udp_addr.replace(addr),
-                                    None => continue,
-                                }
-                            };
-                            {
-                                let mut udp_addrs = registry.udp_addr_to_connection.write().await;
-                                if let Some(old) = old_addr {
-                                    if old != addr {
-                                        udp_addrs.remove(&old);
-                                    }
-                                }
-                                udp_addrs.insert(addr, conn_id);
-                            }
-                            debug!("UDP address {} bound to connection {}", addr, conn_id);
-                            match rmp_serde::to_vec_named(&ServerMessage::UdpHandshakeAck) {
-                                Ok(ack) => {
-                                    let _ = udp_out_tx.try_send((addr, Bytes::from(ack)));
-                                }
-                                Err(e) => error!("Failed to serialize UdpHandshakeAck: {}", e),
-                            }
+                    // The connection the datagram claims to be from: named
+                    // by the token in a handshake, by the bound address
+                    // otherwise. Its seal decides whether the claim holds.
+                    let is_handshake = matches!(msg, ClientMessage::UdpHandshake { .. });
+                    let conn_id = match &msg {
+                        ClientMessage::UdpHandshake { token } => registry
+                            .udp_token_to_connection
+                            .read()
+                            .await
+                            .get(token)
+                            .copied(),
+                        _ => registry
+                            .udp_addr_to_connection
+                            .read()
+                            .await
+                            .get(&addr)
+                            .copied(),
+                    };
+                    let Some(conn_id) = conn_id else {
+                        if is_handshake {
+                            debug!("UDP handshake from {} with unknown token", addr);
+                        } else {
+                            debug!("Dropping UDP message from unbound address {}", addr);
                         }
-                        msg => {
-                            // Identity is derived from the bound source
-                            // address; unbound addresses are dropped.
-                            let conn_id = registry
-                                .udp_addr_to_connection
-                                .read()
-                                .await
-                                .get(&addr)
-                                .copied();
-                            let Some(conn_id) = conn_id else {
-                                debug!("Dropping UDP message from unbound address {}", addr);
-                                continue;
-                            };
-                            if event_tx
-                                .send(TransportEvent::Message(conn_id, msg))
-                                .await
-                                .is_err()
-                            {
-                                error!("UDP receiver event channel closed");
-                                return;
+                        continue;
+                    };
+                    let seal = registry
+                        .connections
+                        .read()
+                        .await
+                        .get(&conn_id)
+                        .map(|c| Arc::clone(&c.udp_seal));
+                    let Some(seal) = seal else {
+                        continue;
+                    };
+                    if let Err(why) = seal.accept(seq, tag, payload) {
+                        metrics
+                            .udp_datagrams_rejected
+                            .fetch_add(1, Ordering::Relaxed);
+                        debug!(
+                            "Dropping UDP datagram from {} for connection {}: {:?}",
+                            addr, conn_id, why
+                        );
+                        continue;
+                    }
+
+                    if is_handshake {
+                        // Bind (or re-bind) the sender's address.
+                        let old_addr = {
+                            let mut connections = registry.connections.write().await;
+                            match connections.get_mut(&conn_id) {
+                                Some(conn) => conn.udp_addr.replace(addr),
+                                None => continue,
                             }
+                        };
+                        {
+                            let mut udp_addrs = registry.udp_addr_to_connection.write().await;
+                            if let Some(old) = old_addr {
+                                if old != addr {
+                                    udp_addrs.remove(&old);
+                                }
+                            }
+                            udp_addrs.insert(addr, conn_id);
                         }
+                        debug!("UDP address {} bound to connection {}", addr, conn_id);
+                        match rmp_serde::to_vec_named(&ServerMessage::UdpHandshakeAck) {
+                            Ok(ack) => {
+                                let _ = udp_out_tx.try_send((addr, Bytes::from(ack)));
+                            }
+                            Err(e) => error!("Failed to serialize UdpHandshakeAck: {}", e),
+                        }
+                    } else if event_tx
+                        .send(TransportEvent::Message(conn_id, msg))
+                        .await
+                        .is_err()
+                    {
+                        error!("UDP receiver event channel closed");
+                        return;
                     }
                 }
                 Err(e) => {
@@ -1391,6 +1441,7 @@ mod tests {
             tcp_tx: conn_tx,
             in_session: None,
             udp_token: Uuid::new_v4().to_string(),
+            udp_seal: Arc::new(udp_seal::Inbound::new("test-key")),
             udp_addr: None,
             kick: Arc::new(tokio::sync::Notify::new()),
         }

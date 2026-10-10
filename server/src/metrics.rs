@@ -175,6 +175,12 @@ impl ServerMetrics {
         );
         counter(
             &mut out,
+            "apexsim_udp_datagrams_rejected",
+            "Inbound UDP datagrams refused by the seal (bare, forged, tampered or replayed)",
+            self.transport.udp_rejected(),
+        );
+        counter(
+            &mut out,
             "apexsim_clients_disconnected_backpressure",
             "Clients disconnected for sustained backpressure",
             self.transport.clients_disconnected(),

@@ -27,7 +27,7 @@ None open.
 | Minimap marker drifts | bug | The marker drifts away from the car's real position (`UApexMinimapWidget`). Reported, not re-checked. |
 | Race results GAP column | bug | `UApexSessionResultsWidget` shows each car's best lap against the fastest, not its gap at the flag, so a race result can read out of order (P2 +9.4, P3 +9.0). |
 | Reconnect after disconnect | feature | The client reconnects its TCP connection, but the server removes a disconnected player from their session (`game_loop/lifecycle.rs`), so the car and the race are lost. |
-| UDP is unencrypted | feature | Telemetry and player input travel in the clear (no DTLS); the UDP binding is authenticated only by the token `AuthSuccess` delivers over the TLS connection. TCP has TLS since 2026-10-10. |
+| UDP is unencrypted | feature | Telemetry and player input travel in the clear (no DTLS). Since 2026-10-10 every inbound datagram is sealed (HMAC under a per-connection key from `AuthSuccess`, rising sequence number), so a forged, tampered or replayed input is dropped; what is left open is only reading telemetry and input off the wire, which carries nothing the other players do not already get. TCP has TLS since 2026-10-10. |
 
 ## P2: depth
 

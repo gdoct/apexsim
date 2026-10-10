@@ -96,6 +96,7 @@ dependencies = [
  "noise",
  "proptest",
  "rcgen",
+ "ring",
  "rmp",
  "rmp-serde",
  "rustls",

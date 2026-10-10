@@ -51,6 +51,30 @@ bool FApexUdpGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeUdpHandshake(TEXT("udp-tok")),
 		ApexUdpGolden::C_UdpHandshake);
 
+	// The seal around every datagram we send (server: `cargo test
+	// udp_seal_wire_format`): marker, sequence number 7, 16 bytes of
+	// HMAC-SHA1 under "udp-key", then the handshake above.
+	{
+		const TArray<uint8> Sealed = ApexProtocol::SealUdpDatagram(
+			TEXT("udp-key"), 7, ApexProtocol::EncodeUdpHandshake(TEXT("udp-tok")));
+		CheckBytes(TEXT("SealedUdpHandshake"), Sealed, ApexUdpGolden::C_SealedUdpHandshake);
+		if (Sealed.Num() > 25)
+		{
+			TestEqual(TEXT("sealed datagrams start with 0xC1"), Sealed[0], (uint8)0xC1);
+			TestEqual(TEXT("the sequence number is big-endian"), Sealed[8], (uint8)7);
+		}
+		// Another sequence number or key changes the tag and nothing else.
+		const TArray<uint8> Next = ApexProtocol::SealUdpDatagram(
+			TEXT("udp-key"), 8, ApexProtocol::EncodeUdpHandshake(TEXT("udp-tok")));
+		TestEqual(TEXT("the seal is the same length for every sequence number"), Next.Num(), Sealed.Num());
+		TestNotEqual(TEXT("a new sequence number gets a new tag"),
+			FMemory::Memcmp(Next.GetData() + 9, Sealed.GetData() + 9, 16), 0);
+		const TArray<uint8> Other = ApexProtocol::SealUdpDatagram(
+			TEXT("other-key"), 7, ApexProtocol::EncodeUdpHandshake(TEXT("udp-tok")));
+		TestNotEqual(TEXT("another key gets another tag"),
+			FMemory::Memcmp(Other.GetData() + 9, Sealed.GetData() + 9, 16), 0);
+	}
+
 	FApexPlayerInput Input;
 	Input.Throttle = 1.0f;
 	Input.Brake = 0.0f;

@@ -256,6 +256,7 @@ proptest! {
                 protocol_version: apexsim_server::network::PROTOCOL_VERSION,
                 udp_token: "prop-udp-token".to_string(),
                 udp_port: 9001,
+                udp_key: "prop-udp-key".to_string(),
             }),
             ServerMessage::Error { code, message },
             ServerMessage::HeartbeatAck { server_tick },

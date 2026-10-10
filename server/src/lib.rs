@@ -49,5 +49,6 @@ pub mod track_loader;
 pub mod track_mesh;
 pub mod transport;
 pub mod tyre_thermal;
+pub mod udp_seal;
 pub mod walls;
 pub mod wind;

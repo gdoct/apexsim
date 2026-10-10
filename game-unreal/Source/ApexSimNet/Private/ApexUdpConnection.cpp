@@ -8,10 +8,12 @@
 #include "SocketSubsystem.h"
 #include "Sockets.h"
 
-FApexUdpConnection::FApexUdpConnection(const FString& InHost, int32 InUdpPort, const FString& InUdpToken)
+FApexUdpConnection::FApexUdpConnection(
+	const FString& InHost, int32 InUdpPort, const FString& InUdpToken, const FString& InUdpKey)
 	: Host(InHost)
 	, UdpPort(InUdpPort)
 	, UdpToken(InUdpToken)
+	, UdpKey(InUdpKey)
 {
 	ReceiveBuffer.SetNumUninitialized(MaxDatagramBytes);
 }
@@ -156,12 +158,18 @@ bool FApexUdpConnection::CreateSocket(FString& OutError)
 	return true;
 }
 
+void FApexUdpConnection::SendSealed(TArrayView<const uint8> Payload)
+{
+	const TArray<uint8> Datagram = ApexProtocol::SealUdpDatagram(UdpKey, ++SendSeq, Payload);
+	int32 Sent = 0;
+	Socket->SendTo(Datagram.GetData(), Datagram.Num(), Sent, *ServerAddr);
+}
+
 void FApexUdpConnection::SendHandshake()
 {
 	const TArray<uint8> Payload = ApexProtocol::EncodeUdpHandshake(UdpToken);
-	int32 Sent = 0;
-	Socket->SendTo(Payload.GetData(), Payload.Num(), Sent, *ServerAddr);
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> UdpHandshake (%d bytes)"), Payload.Num());
+	SendSealed(Payload);
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> UdpHandshake (%d bytes, seq %llu)"), Payload.Num(), SendSeq);
 }
 
 void FApexUdpConnection::SendPlayerInput()
@@ -174,8 +182,7 @@ void FApexUdpConnection::SendPlayerInput()
 
 	const TArray<uint8> Payload =
 		ApexProtocol::EncodePlayerInput(static_cast<uint32>(LastServerTick.GetValue()), Input);
-	int32 Sent = 0;
-	Socket->SendTo(Payload.GetData(), Payload.Num(), Sent, *ServerAddr);
+	SendSealed(Payload);
 }
 
 void FApexUdpConnection::ReceiveAvailable()

@@ -73,12 +73,22 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeLeaveSpectate();
 
 	// --- Client -> server over UDP -------------------------------------------
-	// Sent as bare datagrams: no length prefix, unlike the TCP stream. The
-	// server decodes with `rmp_serde::from_slice`, which accepts either
-	// encoding, so these keep using the named encoder.
+	// Sent as datagrams: no length prefix, unlike the TCP stream. The server
+	// decodes with `rmp_serde::from_slice`, which accepts either encoding, so
+	// these keep using the named encoder. Every datagram goes out wrapped by
+	// SealUdpDatagram; the server drops a bare one.
 
 	APEXSIMNET_API TArray<uint8> EncodeUdpHandshake(const FString& UdpToken);
 	APEXSIMNET_API TArray<uint8> EncodePlayerInput(uint32 ServerTickAck, const FApexPlayerInput& Input);
+	/**
+	 * Seals one outbound datagram (`server/src/udp_seal.rs`): a 0xC1 marker,
+	 * the big-endian sequence number, 16 bytes of HMAC-SHA1 over the sequence
+	 * number and the payload under the UTF-8 bytes of `AuthSuccess.udp_key`,
+	 * then the payload. The server accepts a connection's datagrams only in
+	 * rising sequence order, so Seq must go up with every send, the handshake
+	 * retries included.
+	 */
+	APEXSIMNET_API TArray<uint8> SealUdpDatagram(const FString& UdpKey, uint64 Seq, TArrayView<const uint8> Payload);
 
 	// --- Server -> client -----------------------------------------------------
 

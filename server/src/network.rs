@@ -31,6 +31,11 @@ where
 ///
 /// v2: UDP handshake + telemetry/input over UDP, compact positional
 /// telemetry encoding with session-scoped car indices, gear/clutch inputs.
+///
+/// Still v2 with sealed inbound UDP (`crate::udp_seal`): a client from
+/// before it never gets its bare handshake acked and stays on TCP
+/// telemetry, and a client after it gets no `udp_key` from an older server
+/// and does the same, so neither pairing needs refusing at `Authenticate`.
 pub const PROTOCOL_VERSION: u8 = 2;
 
 // --- Client to Server Messages ---
@@ -259,13 +264,20 @@ pub struct AuthSuccessData {
     /// would have failed).
     #[serde(default)]
     pub protocol_version: u8,
-    /// One-time token to present in `UdpHandshake` to bind a UDP address to
-    /// this connection.
+    /// Token to present in `UdpHandshake` to bind a UDP address to this
+    /// connection. It travels in the clear in that handshake, so it only
+    /// names the connection; the handshake is accepted on `udp_key`.
     #[serde(default)]
     pub udp_token: String,
     /// UDP port the server listens on (same host as the TCP endpoint).
     #[serde(default)]
     pub udp_port: u16,
+    /// Secret under which the client seals every datagram it sends
+    /// (`crate::udp_seal`): hex, used as raw bytes. It never travels except
+    /// here, over TLS. Empty from a server from before sealing, which also
+    /// accepts no sealed datagram: such a client stays on TCP telemetry.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub udp_key: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1761,6 +1773,7 @@ mod tests {
             protocol_version: PROTOCOL_VERSION,
             udp_token: "udp-token".to_string(),
             udp_port: 9001,
+            udp_key: "udp-key".to_string(),
         });
 
         let serialized = rmp_serde::to_vec_named(&msg).unwrap();

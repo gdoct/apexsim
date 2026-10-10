@@ -101,9 +101,12 @@ CMDLINE.md.
   the server drops the hello unanswered; see
   [../game/client.md](../game/client.md#startup-settings-settingsyml)), so a
   server with TLS on is joined as it is. **UDP is never encrypted**: telemetry
-  and input travel in the clear, and a UDP sender's identity is the address
-  bound by its handshake with the token that `AuthSuccess` delivered over the
-  (TLS) TCP connection.
+  and input travel in the clear. Every datagram a client sends is sealed
+  with a per-connection key that `AuthSuccess` delivered over the (TLS) TCP
+  connection and a rising sequence number
+  ([protocol.md](protocol.md#transport)), so a forged source address, a
+  tampered input or a replay is dropped and counted in
+  `apexsim_udp_datagrams_rejected`.
 - The server does not make a certificate for the game port (only the
   dashboard makes itself a self-signed one). Make one with
   `openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -keyout certs/server.key -out certs/server.crt -days 365 -subj "/CN=race.example.net" -addext "subjectAltName=DNS:race.example.net,IP:192.168.1.50"`
@@ -151,6 +154,7 @@ On `health_bind`:
   `apexsim_active_sessions`, `apexsim_telemetry_messages_sent`,
   `apexsim_input_messages_received`, `apexsim_session_tick_panics`,
   `apexsim_tcp_messages_dropped`, `apexsim_udp_messages_dropped`,
+  `apexsim_udp_datagrams_rejected` (inbound datagrams the seal refused),
   `apexsim_clients_disconnected_backpressure`, `apexsim_showcase_frames_sent`,
   `apexsim_showcase_viewers`, and the `apexsim_tick_duration_us` histogram.
 - `/showcase` - JSON status of the showcase channels.

@@ -36,6 +36,19 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
 - **UDP**: one message per datagram, no framing. The client reads datagrams
   up to 64 KiB (`ApexUdpConnection::MaxDatagramBytes`); a full grid's
   telemetry frame is one datagram.
+- **Sealed inbound UDP** (`server/src/udp_seal.rs`,
+  `ApexProtocol::SealUdpDatagram`): every datagram the client sends, the
+  handshake included, is `[0xC1][u64 big-endian seq][16-byte tag][message]`,
+  the tag being HMAC-SHA1 over `seq ‖ message` under the UTF-8 bytes of
+  `AuthSuccess.udp_key` (32 random bytes as hex, issued per connection over
+  TLS). The server drops a datagram that is bare, carries a bad tag, or
+  whose `seq` is not above the last one it accepted for that connection
+  (`apexsim_udp_datagrams_rejected`), so a forged source address, a
+  tampered input or a replay never reaches the game loop. 0xC1 is the one
+  byte MessagePack never uses, so a bare datagram is told apart at once. The
+  client's `seq` rises with every send, handshake retries included. Outbound
+  datagrams (telemetry, feedback, the ack, spectator frames) are plain:
+  nothing in them is secret and the client is a puppet of them anyway.
 - **TLS**: the server wraps TCP in TLS (rustls, TLS 1.2/1.3) when it has a
   certificate ([operations.md](operations.md#tls-and-authentication)); the
   framing above is unchanged inside it. The game's `FApexTcpConnection` runs
@@ -48,8 +61,9 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
   plaintext server reads the hello's first four bytes (`16 03 01 xx`) as a
   ~370 MB frame length and drops the connection. A failed certificate check
   never falls back. **UDP is never encrypted**: telemetry and input are
-  plaintext, and the UDP binding is authenticated only by the `udp_token`
-  that `AuthSuccess` carries over the TCP (TLS) connection.
+  plaintext. Inbound datagrams are authenticated by the seal above under
+  the `udp_key` that `AuthSuccess` carries over the TCP (TLS) connection;
+  the `udp_token` in the handshake only names the connection.
 
 ## Connection flow
 
@@ -60,14 +74,19 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
    gets an `AuthFailure` naming both) and the token (`[auth]`), checks the ban
    list, and answers `AuthSuccess` with the `PlayerId`, a one-time
    `udp_token` and the `udp_port`, then puts the player in the lobby.
-3. Client sends `UdpHandshake { token }` over UDP, resending until it gets
-   `UdpHandshakeAck` (datagrams get lost). The server binds the datagram's
-   source address to the connection; a later handshake re-binds it.
-4. From then on a UDP datagram's identity is its source address; datagrams
-   from an unbound address are dropped. Telemetry goes over UDP; a client
-   that never handshakes gets telemetry over TCP (droppable) and no
-   `DriverFeedback` at all, which is UDP only because a late force is worse
-   than none.
+3. Client sends `UdpHandshake { token }` over UDP, sealed under `udp_key`,
+   resending (with a higher `seq` each time) until it gets `UdpHandshakeAck`
+   (datagrams get lost). The server looks the connection up by the token,
+   checks the seal under that connection's key, and only then binds the
+   datagram's source address to the connection; a later handshake re-binds
+   it. A client with no `udp_key` (an older server) does not start UDP.
+4. From then on a UDP datagram is looked up by its source address and
+   accepted when its seal verifies under that connection's key; datagrams
+   from an unbound address, or that fail the seal, are dropped. Telemetry
+   goes over UDP; a client that never handshakes (or whose handshake is
+   never accepted: a client from before sealing) gets telemetry over TCP
+   (droppable) and no `DriverFeedback` at all, which is UDP only because a
+   late force is worse than none.
 5. Client sends `Heartbeat` over TCP every 2 s
    (`UApexNetSubsystem::HeartbeatIntervalSeconds`). The server drops a
    connection silent for `heartbeat_timeout_ms` (5 s) while it is in a
@@ -138,7 +157,7 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 
 | Area | Tests |
 |---|---|
-| Telemetry, feedback, input | `telemetry_compact_wire_format`, `driver_feedback_wire_format`, `player_input_drs_wire_format`, `player_input_headlights_wire_format` |
+| Telemetry, feedback, input | `telemetry_compact_wire_format`, `driver_feedback_wire_format`, `player_input_drs_wire_format`, `player_input_headlights_wire_format`, `udp_seal_wire_format` (udp_seal.rs: the seal around every inbound datagram) |
 | Lap timing, line, corners | `lap_timing_wire_format`, `racing_line_wire_format`, `track_corners_wire_format` |
 | Session rules | `assists_wire_format`, `session_damage_wire_format`, `race_time_wire_format`, `session_ai_skill_wire_format`, `conditions_air_wire_format`, `sky_wire_format`, `grid_wire_format` |
 | Garage, pit, hotlap | `car_setup_wire_format`, `car_setup_sheet_wire_format`, `pit_service_wire_format`, `hotlap_wire_format`, `recover_wire_format` |
@@ -180,7 +199,10 @@ connection. Constants at the top of `transport.rs`.
 ## Checking it
 
 - `server/tests/protocol_test.rs`: version rejection, the UDP binding info,
-  the handshake, input and telemetry loopback, feedback over UDP, the tick
+  the handshake, input and telemetry loopback, feedback over UDP, the seal
+  (`test_udp_handshake_needs_the_seal`: bare, wrong-key and replayed
+  handshakes never bind; `udp_seal.rs` unit tests cover tampering and
+  reordering), the tick
   rate.
 - `auth_test.rs` (token mode, pre-auth drops), `tls_requirement_test.rs`,
   `transport_backpressure_test.rs` (bounded queues, priorities, metrics),
@@ -197,6 +219,12 @@ connection. Constants at the top of `transport.rs`.
   every frame silently dropped.
 - A field added in the middle of a positional struct shifts everything after
   it for every older peer: append only.
+- The seal's sequence number is per key and must rise on *every* send. A
+  client that reuses a number (a second socket under the same key, a reset
+  counter after a reconnect on the same `AuthSuccess`) has every datagram
+  after the highest one dropped as a replay with nothing in the game but a
+  car that stops answering; `apexsim_udp_datagrams_rejected` climbing is
+  the tell. A fresh `Authenticate` gets a fresh key and counter.
 - A full grid's telemetry frame is one datagram. A receive buffer smaller than
   the frame drops it whole and the cars freeze; the client's drop log is
   Verbose, so it looks like a server stall.

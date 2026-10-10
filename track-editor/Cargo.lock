@@ -246,6 +246,7 @@ dependencies = [
  "hyper-util",
  "noise",
  "rcgen",
+ "ring",
  "rmp",
  "rmp-serde",
  "rustls",

@@ -4,6 +4,7 @@
 
 #include "ApexSimNetModule.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/SecureHash.h"
 #include "MsgPack/MsgPackFormat.h"
 #include "MsgPack/MsgPackReader.h"
 #include "MsgPack/MsgPackWriter.h"
@@ -355,6 +356,7 @@ namespace
 			else if (Key == TEXT("ProtocolVersion")) { bOk = Reader.ReadUInt64(Raw); Out.ProtocolVersion = static_cast<int32>(Raw); }
 			else if (Key == TEXT("UdpToken"))        { bOk = Reader.ReadString(Out.UdpToken); }
 			else if (Key == TEXT("UdpPort"))         { bOk = Reader.ReadUInt64(Raw); Out.UdpPort = static_cast<int32>(Raw); }
+			else if (Key == TEXT("UdpKey"))          { bOk = Reader.ReadString(Out.UdpKey); }
 			else                                     { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -2477,6 +2479,33 @@ namespace ApexProtocol
 			Writer.WriteString(Id);
 		}
 		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> SealUdpDatagram(const FString& UdpKey, uint64 Seq, TArrayView<const uint8> Payload)
+	{
+		// Mirror of `server/src/udp_seal.rs`: 0xC1, the big-endian sequence
+		// number, 16 bytes of HMAC-SHA1(key, seq || payload), the payload.
+		const FTCHARToUTF8 KeyBytes(*UdpKey);
+
+		TArray<uint8> Signed;
+		Signed.Reserve(8 + Payload.Num());
+		for (int32 Shift = 56; Shift >= 0; Shift -= 8)
+		{
+			Signed.Add(static_cast<uint8>((Seq >> Shift) & 0xFF));
+		}
+		Signed.Append(Payload.GetData(), Payload.Num());
+
+		uint8 Tag[20];
+		FSHA1::HMACBuffer(KeyBytes.Get(), static_cast<uint32>(KeyBytes.Length()),
+			Signed.GetData(), static_cast<uint64>(Signed.Num()), Tag);
+
+		TArray<uint8> Out;
+		Out.Reserve(1 + 8 + 16 + Payload.Num());
+		Out.Add(0xC1);
+		Out.Append(Signed.GetData(), 8);
+		Out.Append(Tag, 16);
+		Out.Append(Payload.GetData(), Payload.Num());
+		return Out;
 	}
 
 	TArray<uint8> EncodeUdpHandshake(const FString& UdpToken)

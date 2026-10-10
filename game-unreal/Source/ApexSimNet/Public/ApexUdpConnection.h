@@ -15,8 +15,11 @@ class ISocketSubsystem;
 /**
  * The UDP half of protocol v2: telemetry in, player input out.
  *
- * Datagrams are bare MessagePack payloads with no length prefix — unlike the
- * TCP stream, where every frame is preceded by a 4-byte length.
+ * Datagrams carry MessagePack payloads with no length prefix — unlike the
+ * TCP stream, where every frame is preceded by a 4-byte length. Everything
+ * we send is sealed (ApexProtocol::SealUdpDatagram) under the key from
+ * `AuthSuccess` with a sequence number that rises with every send; what the
+ * server sends arrives plain.
  *
  * The connection is not usable until the server has bound this socket's source
  * address to the TCP session. That happens by sending `UdpHandshake` carrying
@@ -29,7 +32,7 @@ class ISocketSubsystem;
 class APEXSIMNET_API FApexUdpConnection : public FRunnable
 {
 public:
-	FApexUdpConnection(const FString& InHost, int32 InUdpPort, const FString& InUdpToken);
+	FApexUdpConnection(const FString& InHost, int32 InUdpPort, const FString& InUdpToken, const FString& InUdpKey);
 	virtual ~FApexUdpConnection() override;
 
 	bool Start();
@@ -90,6 +93,8 @@ private:
 	bool CreateSocket(FString& OutError);
 	void SendHandshake();
 	void SendPlayerInput();
+	/** Seals and sends one payload; the sequence number rises with each call. */
+	void SendSealed(TArrayView<const uint8> Payload);
 	/** Drains everything readable, decoding as it goes. */
 	void ReceiveAvailable();
 	void DestroySocket();
@@ -97,6 +102,9 @@ private:
 	const FString Host;
 	const int32 UdpPort;
 	const FString UdpToken;
+	const FString UdpKey;
+	/** Worker thread only: the sequence number of the last datagram sent. */
+	uint64 SendSeq = 0;
 
 	FSocket* Socket = nullptr;
 	ISocketSubsystem* SocketSubsystem = nullptr;
