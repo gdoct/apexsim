@@ -385,6 +385,8 @@ the car is in or, between corners, the next one; all *null* (and
 | `car.tow` | share of drag the slipstream saves, 0 to 1 |
 | `car.x`, `car.y`, `car.z`, `car.yaw_deg` | position in the track frame (+X along the start straight, +Y left) and heading |
 | `car.station_m` | distance along the lap |
+| `car.recovering` | the car is held by a recovery (back to track or pits) |
+| `car.recover_s` | seconds of the recovery's hold left; 0.1 while it waits for traffic (*null* when not recovering) |
 | `pit.in_lane`, `pit.limiter`, `pit.servicing` | in the pit lane / on the limiter / stopped at the box |
 | `pit.service_s` | seconds of service left |
 | `pit.autopilot` | the server drives the car along the pit route (the player's input is ignored) |

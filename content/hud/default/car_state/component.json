@@ -25,12 +25,13 @@
               "text": "=car.tow >= 0.03 ? 'TOW ' + fmt(car.tow * 100) + '%' : 'TOW'",
               "color": "=car.tow >= 0.03 ? 'live' : 'text_disabled'" }] },
           // The pit lane: the autopilot driving the lane, the limiter between
-          // its lines, the service at the box.
+          // its lines, the service at the box; a recovery's hold (back to
+          // track or pits) while the car waits to be let go.
           { "type": "panel", "valign": "center", "margin": [6, 0, 0, 0], "padding": [8, 1],
-            "background": "=pit.servicing ? 'live' : pit.autopilot || pit.limiter ? 'accent' : 'border'",
+            "background": "=car.recovering ? 'error' : pit.servicing ? 'live' : pit.autopilot || pit.limiter ? 'accent' : 'border'",
             "children": [{ "type": "text", "font": "body", "size": 12, "bold": true,
-              "text": "=pit.servicing ? 'SERVICE ' + fmt(pit.service_s, 1) : pit.autopilot ? 'AUTOPILOT' : pit.limiter ? 'LIMITER' : 'PIT'",
-              "color": "=pit.servicing || pit.autopilot || pit.limiter ? 'on_accent' : 'text_disabled'" }] },
+              "text": "=car.recovering ? 'HELD ' + fmt(car.recover_s, 1) : pit.servicing ? 'SERVICE ' + fmt(pit.service_s, 1) : pit.autopilot ? 'AUTOPILOT' : pit.limiter ? 'LIMITER' : 'PIT'",
+              "color": "=car.recovering || pit.servicing || pit.autopilot || pit.limiter ? 'on_accent' : 'text_disabled'" }] },
           // The hybrid: mode, charge and what is left of the lap's budget; lit
           // while the motor drives, OVERTAKE while the button is held.
           { "type": "panel", "valign": "center", "margin": [6, 0, 0, 0], "padding": [8, 1], "visible": "=ers.present",

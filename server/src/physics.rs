@@ -230,9 +230,9 @@ pub fn update_car_3d(
     if !state.damage.is_drivable {
         return;
     }
-    // A car in its box is being worked on: held where it stands
-    // (`crate::pit`).
-    if state.pit.servicing {
+    // A car in its box is being worked on, or a recovered one is waiting
+    // out its hold: held where it stands (`crate::pit`, `crate::recovery`).
+    if state.pit.servicing || state.recovery.is_some() {
         state.vel_x = 0.0;
         state.vel_y = 0.0;
         state.vel_z = 0.0;
@@ -3459,10 +3459,11 @@ pub fn check_collisions_refs(
         state.collision_normal_z = 0.0;
     }
 
-    // Check all pairs; a car towed away is in nobody's way.
+    // Check all pairs; a car towed away or held by a recovery is in
+    // nobody's way.
     for i in 0..states.len() {
         for j in (i + 1)..states.len() {
-            if states[i].towed || states[j].towed {
+            if states[i].is_ghost() || states[j].is_ghost() {
                 continue;
             }
             let config_i = configs.get(&states[i].car_config_id);
@@ -3764,7 +3765,7 @@ pub fn check_wall_collisions(
     };
     let mut nearby = Vec::new();
     for state in states.iter_mut() {
-        if state.towed {
+        if state.is_ghost() {
             continue;
         }
         if let Some(config) = configs.get(&state.car_config_id) {

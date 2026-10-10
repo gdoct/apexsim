@@ -822,6 +822,8 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("pit.autopilot"), Local->bPitAutopilot);
 		Out.Set(TEXT("pit.exit_closed"), Local->bPitExitClosed);
 		Out.Set(TEXT("pit.held"), Local->bPitHeld);
+		Out.Set(TEXT("car.recovering"), Local->IsRecovering());
+		Out.Set(TEXT("car.recover_s"), HudKnown(Local->RecoverSecondsLeft, Local->IsRecovering()));
 	}
 	else
 	{
@@ -831,7 +833,8 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 				 TEXT("car.colliding"), TEXT("car.headlights"), TEXT("car.finish_position"), TEXT("car.drs_allowed"),
 				 TEXT("car.drs_open"), TEXT("car.tow"), TEXT("car.x"), TEXT("car.y"), TEXT("car.z"), TEXT("car.yaw_deg"),
 				 TEXT("car.station_m"), TEXT("pit.in_lane"), TEXT("pit.limiter"), TEXT("pit.servicing"), TEXT("pit.service_s"),
-				 TEXT("pit.autopilot"), TEXT("pit.exit_closed"), TEXT("pit.held")})
+				 TEXT("pit.autopilot"), TEXT("pit.exit_closed"), TEXT("pit.held"), TEXT("car.recovering"),
+				 TEXT("car.recover_s")})
 		{
 			Out.SetNone(Name);
 		}

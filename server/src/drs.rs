@@ -113,7 +113,7 @@ pub fn update(
     let race = race_rules(mode);
     let field: Vec<(PlayerId, f32)> = participants
         .values()
-        .filter(|s| !s.in_garage && !s.towed)
+        .filter(|s| !s.in_garage && !s.is_ghost())
         .map(|s| (s.player_id, s.track_progress))
         .collect();
 

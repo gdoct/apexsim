@@ -8,6 +8,7 @@
 #include "ApexSettingsSave.h"
 #include "ApexSim.h"
 #include "ApexSimInputModule.h"
+#include "ApexWheelProfiles.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -30,6 +31,7 @@
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexSegmentedWidget.h"
+#include "UI/ApexStepperWidget.h"
 #include "UI/ApexUIStyle.h"
 
 using namespace ApexUI;
@@ -1247,6 +1249,71 @@ UWidget* UApexSettingsWidget::BuildWheelPage()
 		AddV(Page, Sliders);
 	}
 
+	// Which base this is, and how strong: what turns the sliders' shares of
+	// the base into newton-metres (ApexWheelProfiles). Detected from the
+	// base's name; the player can name another or give the peak their base's
+	// own software is set to.
+	{
+		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+
+		auto AddStepperCell = [this, Row](const TCHAR* Label, TObjectPtr<UApexStepperWidget>& OutStepper, FName Id,
+			int32 Max, float ReadoutWidth, bool bFirst)
+		{
+			UVerticalBox* Cell = WidgetTree->ConstructWidget<UVerticalBox>();
+			AddV(Cell, MakeLabel(*WidgetTree, Label));
+			UApexStepperWidget* Stepper = WidgetTree->ConstructWidget<UApexStepperWidget>();
+			Stepper->ControlId = Id;
+			Stepper->Setup(0, Max, 0, ReadoutWidth);
+			Stepper->OnChanged.AddDynamic(this, &UApexSettingsWidget::HandleWheelProfileStepped);
+			AddV(Cell, Stepper, FMargin(0.0f, 8.0f, 0.0f, 0.0f), HAlign_Left);
+			AddH(Row, Cell, FMargin(bFirst ? 0.0f : 26.0f, 0.0f, 0.0f, 0.0f), VAlign_Top);
+			OutStepper = Stepper;
+		};
+
+		AddStepperCell(TEXT("Wheelbase"), WheelProfileStepper, TEXT("WheelProfile"),
+			ApexWheelProfiles::All().Num(), 300.0f, true);
+		WheelProfileStepper->Formatter = [this](int32 Value)
+		{
+			const UApexSettingsSubsystem* Settings = GetSettings();
+			const UApexSettingsSubsystem::FWheelProfileState State = Settings
+				? Settings->GetWheelProfile() : UApexSettingsSubsystem::FWheelProfileState();
+			if (!State.bHasBase)
+			{
+				return FString(TEXT("No force wheel"));
+			}
+			const TConstArrayView<ApexWheelProfiles::FProfile> Profiles = ApexWheelProfiles::All();
+			return Value <= 0 || Value > Profiles.Num()
+				? FString::Printf(TEXT("Auto: %s"), State.Detected->DisplayName)
+				: FString(Profiles[Value - 1].DisplayName);
+		};
+
+		AddStepperCell(TEXT("Peak torque"), WheelPeakStepper, TEXT("WheelPeak"),
+			FMath::RoundToInt(ApexWheelProfiles::MaxPeakTorqueNm), 150.0f, false);
+		WheelPeakStepper->Formatter = [this](int32 Value)
+		{
+			if (Value > 0)
+			{
+				return FString::Printf(TEXT("%d Nm"), Value);
+			}
+			const UApexSettingsSubsystem* Settings = GetSettings();
+			const UApexSettingsSubsystem::FWheelProfileState State = Settings
+				? Settings->GetWheelProfile() : UApexSettingsSubsystem::FWheelProfileState();
+			return State.Profile->PeakTorqueNm > 0.0f
+				? FString::Printf(TEXT("Auto: %s Nm"), *FString::SanitizeFloat(State.Profile->PeakTorqueNm, 0))
+				: FString(TEXT("Auto: unknown"));
+		};
+
+		UVerticalBox* NoteCell = WidgetTree->ConstructWidget<UVerticalBox>();
+		WheelProfileNote = MakeText(*WidgetTree, FString(), Font::Mono(12.0f, 40), Palette::TextSecondary);
+		AddV(NoteCell, WheelProfileNote);
+		AddV(NoteCell, Wrapped(MakeText(*WidgetTree,
+			TEXT("Turned the base down in its own software? Give the peak it is set to."),
+			Font::Body(12.0f), Palette::TextMuted)), FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+		AddH(Row, NoteCell, FMargin(26.0f, 22.0f, 0.0f, 0.0f), VAlign_Top, 1.0f);
+
+		AddV(Page, Row, FMargin(0.0f, 20.0f, 0.0f, 0.0f));
+	}
+
 	// Steering and direction share a row: how far the rim turns for the car's
 	// full lock (the base's rotation has to be said, because DirectInput only
 	// reports where the rim is between its two ends), and which way a positive
@@ -1409,6 +1476,8 @@ void UApexSettingsWidget::RefreshWheelDevices()
 	const FApexSimInputModule* Input = FApexSimInputModule::Get();
 	WheelDevicesSerial = Input ? Input->GetDevicesSerial() : 0;
 	WheelDeviceRow->ClearChildren();
+	// A base arriving or leaving changes which profile the steppers are about.
+	RefreshWheelProfile();
 
 	const TArray<ApexDirectInput::FDeviceInfo> Devices = Input ? Input->GetDevices() : TArray<ApexDirectInput::FDeviceInfo>();
 	if (Devices.IsEmpty())
@@ -1455,6 +1524,61 @@ void UApexSettingsWidget::RefreshWheelDevices()
 			MakeBrush(Palette::Surface, bDrivingForces ? Palette::Accent : Palette::Border, 1.0f)),
 			FMargin(WheelDeviceRow->GetChildrenCount() == 0 ? 0.0f : 12.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
 	}
+}
+
+void UApexSettingsWidget::RefreshWheelProfile()
+{
+	if (!WheelProfileStepper || !WheelPeakStepper)
+	{
+		return;
+	}
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	const UApexSettingsSubsystem::FWheelProfileState State = Settings
+		? Settings->GetWheelProfile() : UApexSettingsSubsystem::FWheelProfileState();
+
+	WheelProfileStepper->SetValue(State.bChosen ? ApexWheelProfiles::IndexOf(*State.Profile) + 1 : 0);
+	WheelPeakStepper->SetValue(State.bPeakGiven ? FMath::RoundToInt(State.PeakTorqueNm) : 0);
+	WheelProfileStepper->RefreshReadout();
+	WheelPeakStepper->RefreshReadout();
+	WheelProfileStepper->SetIsEnabled(State.bHasBase);
+	WheelPeakStepper->SetIsEnabled(State.bHasBase);
+
+	if (WheelProfileNote)
+	{
+		// What the profile does, in the terms the sliders above are in.
+		FString Note = TEXT("—");
+		if (State.bHasBase)
+		{
+			const float Scale = ApexWheelProfiles::OutputScale(State.PeakTorqueNm);
+			const float MinForce = ApexWheelProfiles::MinimumForce(State.Profile->Drive);
+			Note = FString::Printf(TEXT("%s · forces at %d %% of the base"),
+				ApexWheelProfiles::DriveName(State.Profile->Drive), FMath::RoundToInt(Scale * 100.0f));
+			if (MinForce > 0.0f)
+			{
+				Note += FString::Printf(TEXT(" · minimum %d %%"), FMath::RoundToInt(MinForce * 100.0f));
+			}
+		}
+		WheelProfileNote->SetText(FText::FromString(Note));
+	}
+}
+
+void UApexSettingsWidget::HandleWheelProfileStepped(UApexStepperWidget* Stepper, int32 Value)
+{
+	if (bRefreshing || !Stepper) { return; }
+	UApexSettingsSubsystem* Settings = GetSettings();
+	if (!Settings) { return; }
+
+	if (Stepper == WheelProfileStepper)
+	{
+		const TConstArrayView<ApexWheelProfiles::FProfile> Profiles = ApexWheelProfiles::All();
+		Settings->SetWheelProfile(Value > 0 && Value <= Profiles.Num() ? FString(Profiles[Value - 1].Id) : FString());
+	}
+	else if (Stepper == WheelPeakStepper)
+	{
+		Settings->SetWheelPeakTorque(static_cast<float>(Value));
+	}
+	// The peak's Auto read-out follows the profile, and the note follows both.
+	RefreshWheelProfile();
 }
 
 void UApexSettingsWidget::RefreshWheelMeters()
@@ -1730,14 +1854,15 @@ bool UApexSettingsWidget::HandleNavigation(EUINavigation Direction, UWidget* Sou
 	// is the only way to reach them without crossing back to the rail.
 	if (ApexNav::IsSequential(Direction))
 	{
-		const int32 Step = Direction == EUINavigation::Next ? 1 : 2;
+		const int32 Step = Direction == EUINavigation::Next ? 1 : TabCount - 1;
 		ShowTab(static_cast<EApexSettingsTab>((static_cast<int32>(CurrentTab) + Step) % TabCount));
 		FocusDefault();
 		return true;
 	}
 
-	// Everything else is laid out plainly enough for Slate's geometric search.
-	return false;
+	// The pages are rows of pills, sliders and bindings in a scroll box, where
+	// Slate's own search stops at a row of pills and the box's edge.
+	return ApexNav::MoveToward(this, Direction, Source);
 }
 
 bool UApexSettingsWidget::HandleBack()
@@ -1884,6 +2009,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 		Values->bWheelSteeringLockAuto ? SteeringLockSliderMinDeg : Values->WheelSteeringLockDeg,
 		SteeringLockSliderMinDeg, ApexInput::SteeringLockMaxDeg,
 		SteeringLockSettingText(Values->bWheelSteeringLockAuto, Values->WheelSteeringLockDeg, Values->WheelRotationDeg));
+	RefreshWheelProfile();
 	SetSlider(MasterVolumeSlider, MasterVolumeFill, MasterVolumeValue, Values->MasterVolume, 0.0f, 1.0f,
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->MasterVolume * 100.0f)));
 	SetSlider(UiVolumeSlider, UiVolumeFill, UiVolumeValue, Values->UiVolume, 0.0f, 1.0f,

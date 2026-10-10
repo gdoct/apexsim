@@ -182,6 +182,14 @@ pub enum ClientMessage {
     },
     /// Stop watching. Also implied by creating or joining a session.
     LeaveSpectate,
+    /// A driver whose car is stuck asks for it back (`crate::recovery`):
+    /// onto the track where it is, or to its pit box (the garage in a
+    /// hotlap or qualifying session), held there for the time cost.
+    /// Refused with an `Error` while the car is moving or cannot be
+    /// recovered; the hold comes back in telemetry (`recover_ds`).
+    RecoverCar {
+        destination: crate::recovery::RecoverDestination,
+    },
     Disconnect,
 
     // UDP - Binds the sender's UDP address to the TCP connection that was
@@ -863,6 +871,11 @@ pub struct CompactCarState {
     /// hybrid) (`crate::hybrid`).
     #[serde(default = "no_hybrid")]
     pub ers_stint_pct: u8,
+    /// A recovery's hold left, in tenths of a second (`crate::recovery`):
+    /// 0 for none, at least 1 while the car waits for traffic. Appended
+    /// after `ers_stint_pct`; 0 from an older server.
+    #[serde(default)]
+    pub recover_ds: u16,
 }
 
 /// `slide_flags`: a sliding tyre is bit `i`, a locked one bit `i + 4`.
@@ -1146,6 +1159,7 @@ impl CompactCarState {
                 .map(|w| w.round().clamp(0.0, 100.0) as u8),
             slide_flags: state.slide_flags,
             ers_stint_pct: state.ers_stint_pct,
+            recover_ds: state.recovery.map_or(0, |r| r.deciseconds()),
         }
     }
 }
@@ -2307,6 +2321,11 @@ mod tests {
         state.brake_wear_pct = [12.4, 12.0, 30.6, 99.9];
         state.slide_flags = 0b0001_0010;
         state.ers_stint_pct = 73;
+        state.recovery = Some(crate::recovery::Recovery {
+            destination: crate::recovery::RecoverDestination::Track,
+            left_s: 6.34,
+            waited_s: 0.0,
+        });
 
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,
@@ -2319,7 +2338,7 @@ mod tests {
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
-            "S_TelemetryCompactZones: {}",
+            "S_TelemetryCompactRecover: {}",
             bytes
                 .iter()
                 .map(|b| format!("0x{:02X}", b))
@@ -2327,10 +2346,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 41-field array: 0xDC 0x00 0x29 is the array-16 header.
+        // The car is a 42-field array: 0xDC 0x00 0x2A is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x29]),
-            "CompactCarState must stay 41 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x2A]),
+            "CompactCarState must stay 42 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -2358,6 +2377,7 @@ mod tests {
                 assert_eq!(car.brake_wear, [12, 12, 31, 100]);
                 assert_eq!(car.slide_flags, 0b0001_0010, "FR sliding, FL locked");
                 assert_eq!(car.ers_stint_pct, 73);
+                assert_eq!(car.recover_ds, 63, "6.34 s of hold left");
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);
             }
@@ -3287,6 +3307,33 @@ mod tests {
 
     /// The bytes of the hotlap messages, pinned on the client as
     /// `ApexGolden::C_HotlapRelocate`, `C_RequestGhost` and `S_GhostLap`;
+    /// `RecoverCar`, as the client sends it: `C_RecoverCarTrack`,
+    /// `C_RecoverCarPits`. `cargo test recover_wire_format -- --nocapture`
+    /// prints them.
+    #[test]
+    fn test_recover_wire_format() {
+        use crate::recovery::RecoverDestination;
+        for (name, destination) in [
+            ("C_RecoverCarTrack", RecoverDestination::Track),
+            ("C_RecoverCarPits", RecoverDestination::Pits),
+        ] {
+            let bytes =
+                rmp_serde::to_vec_named(&ClientMessage::RecoverCar { destination }).unwrap();
+            println!(
+                "{name}: {}",
+                bytes
+                    .iter()
+                    .map(|b| format!("0x{:02X}", b))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+            match rmp_serde::from_slice::<ClientMessage>(&bytes).unwrap() {
+                ClientMessage::RecoverCar { destination: back } => assert_eq!(back, destination),
+                other => panic!("Wrong message type: {other:?}"),
+            }
+        }
+    }
+
     /// `cargo test hotlap_wire_format -- --nocapture` prints them.
     #[test]
     fn test_hotlap_wire_format() {

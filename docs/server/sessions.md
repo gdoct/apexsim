@@ -3,8 +3,9 @@
 A session is one track, one set of rules and the cars on it, ticked by the
 server as a `GameSession`. This doc covers session kinds, states and game
 modes, the rules a host sets on create, race start and finish (over laps or
-against a clock), starting order and qualifying, lap timing and records, the
-hotlap mode with its ghost, and the watched hotlap. The client pieces that
+against a clock), starting order and qualifying, lap timing and records,
+recovering a stuck car, the hotlap mode with its ghost, and the watched
+hotlap. The client pieces that
 belong to these rules are described briefly beside them.
 
 ## Code
@@ -23,6 +24,8 @@ belong to these rules are described briefly beside them.
   `start_demo_session` for watch-only kinds
 - `server/src/game_loop/tick.rs`: ticking, removal of empty sessions, lap
   timing out, qualifying and record submission
+- `server/src/recovery.rs` and `GameSession::recover_car` /
+  `update_recoveries`: back to track and back to pits
 - `server/src/laps.rs`, `records.rs`, `grid_order.rs`,
   `track_guide.rs` (`wire_corners`)
 - Client: `UI/ApexRootWidget.cpp`, `UI/ApexSessionCreateWidget.cpp` (model
@@ -279,6 +282,47 @@ splits and bests; the HUD paints the sector strip (purple session best,
 green personal best, amber slower), "LAP INVALID", and a delta against the
 quickest legal lap seen.
 
+## Recovering a stuck car
+
+Walls stop cars, so a human can end up nose-in against a barrier.
+`ClientMessage::RecoverCar { destination }` (`RecoverDestination`: `Track`
+0, `Pits` 1) puts the car back at a cost (`GameSession::recover_car`,
+`crate::recovery`). It is refused with `Error 400` outside free practice,
+a running race, a hotlap or qualifying; for a car moving faster than
+`MAX_SPEED_MPS` (5 m/s), out of the race (undrivable or towed), finished,
+in the garage, on the pit route or already recovering.
+
+- **Track**: on the centerline at the car's own station (its nearest
+  centerline point), or the first of `SPOT_TRIES` spots `STEP_BACK_M` (15
+  m) behind it that is `CLEARANCE_M` (10 m) clear of every other car,
+  never back over the line, pointing along the lap, in first. The lap in
+  progress is struck (`laps.invalid`) and its ghost trace dropped. The
+  station barely moves, so the lap counter and its checkpoints carry on.
+- **Pits**: parked at the car's own box. In a hotlap or qualifying session
+  it is the garage (`hotlap_relocate`). A towed car crosses no checkpoint,
+  so the lap it was on counts only if it had passed them all.
+
+The car keeps its fuel, tyres, damage, aids and timing; only what moves is
+reset (`place_still`). It is then **held** (`CarState::recovery`): still,
+its input ignored (the physics freezes it as a serviced car), and a ghost
+(`CarState::is_ghost`): out of both collision passes, the wake, the DRS
+gaps and the AI's racecraft. `update_recoveries` counts the hold down:
+`TRACK_HOLD_S` (8 s) on the track, `PITS_HOLD_S` (30 s) at the box. A car
+on the track is then let go once no car is closing on it from behind
+(`traffic_clear`: within 3 s at its speed or 30 m), for at most
+`RELEASE_WAIT_MAX_S` (15 s) more. A car at its box is handed to the pit
+autopilot: the crew services it (tyres, fuel where allowed, repairs) and
+drives it out, as after a stop ([pit lane](pit-lane.md)).
+
+Telemetry carries the hold as `recover_ds` (tenths, 0 none, at least 1
+while waiting for traffic), appended after `ers_stint_pct`.
+
+**Client.** The pause menu shows BACK TO TRACK and BACK TO PITS while the
+local car is out on the track in a running session (BACK TO PITS gives way
+to BACK TO GARAGE in a hotlap or qualifying); a refusal comes back as a
+toast. The HUD's car state badge reads HELD and the seconds left
+(`car.recovering`, `car.recover_s`). Console: `apexsim.recover [track|pits]`.
+
 ## Hotlap
 
 `GameMode::Hotlap`: time attack, several drivers at once, each with their
@@ -371,6 +415,8 @@ cargo test --test session_conditions_test     # rules echoed and enforced end to
 cargo test --test grid_order_test             # start order, stored results, over the wire
 cargo test --test lap_timing_test             # sectors and track limits round Monza
 cargo test --test hotlap_test                 # garage, run-up, queue, cold tyres, qualifying outlap
+cargo test --test recovery_test               # back to track, a taken spot, back to pits, refused moving
+cargo test --lib recovery                     # spot choice, traffic release
 cargo test --test hotlap_watch_test           # hold, laps, determinism, corners, over the wire
 cargo test --release --test hotlap_watch_test watch_probe -- --ignored --nocapture   # WATCH_TRACKS/CARS/LAPS
 cargo test --release --test hotlap_test generate_ghost_fixture -- --ignored          # APEXSIM_GHOST_DIR, APEXSIM_GHOST_PLAYER
@@ -380,7 +426,7 @@ Golden bytes ([protocol](protocol.md)): `cargo test <name> -- --nocapture`
 for `assists_wire_format`, `session_damage_wire_format`,
 `session_ai_skill_wire_format`, `race_time_wire_format`, `grid_wire_format`,
 `lap_timing_wire_format`, `telemetry_compact_wire_format`,
-`hotlap_wire_format`, `track_corners_wire_format`.
+`hotlap_wire_format`, `recover_wire_format`, `track_corners_wire_format`.
 
 Client tests: `ApexSim.UI.CreateSession.StartOrder`,
 `ApexSim.Race.QualifyingBoard`, `ApexSim.Race.RaceOrder`,

@@ -52,7 +52,7 @@ private:
 	/** While driving, moves the user's focus to the game viewport if it is anywhere else. */
 	void KeepFocusOnGame(FSlateApplication& SlateApp, uint32 UserIndex) const;
 
-	/** A race is on screen with no overlay up: every key belongs to the car. */
+	/** A race is on screen with no overlay (pause, garage, settings, HUD editor) up: every key belongs to the car. */
 	static bool IsDriving(const UApexRootWidget& Root);
 
 	/** Hides the cursor while a pad drives the menu, shows it again for the mouse. */

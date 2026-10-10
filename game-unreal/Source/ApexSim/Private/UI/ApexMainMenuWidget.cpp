@@ -1448,8 +1448,9 @@ FReply UApexMainMenuWidget::NativeOnKeyDown(const FGeometry& InGeometry, const F
 
 	if (Key == EKeys::Escape)
 	{
-		// Escape opens (and closes) the Back to main menu / Exit game menu. Only
-		// the key itself: a pad's B button steps up a page, see HandleBack.
+		// Escape opens (and closes) the Back to main menu / Exit game menu from
+		// any page. A pad's B button steps up a page and opens it from the root
+		// page, see HandleBack.
 		SetQuitOverlayOpen(!bQuitOpen);
 		return FReply::Handled();
 	}
@@ -1468,9 +1469,11 @@ bool UApexMainMenuWidget::HandleBack()
 	{
 		SetQuitOverlayOpen(false);
 	}
-	else
+	else if (!GoUp())
 	{
-		GoUp();
+		// Nothing above the root page: B opens the Back to main menu / Exit
+		// game menu, the pad's way to quit (Escape opens it from any page).
+		SetQuitOverlayOpen(true);
 	}
 	return true;
 }

@@ -30,6 +30,8 @@ namespace
 	const FName ActionPauseLeave    = TEXT("Leave");
 	const FName ActionPauseSaveReplay    = TEXT("SaveReplay");
 	const FName ActionGarage   = TEXT("Garage");
+	const FName ActionRecoverTrack = TEXT("RecoverTrack");
+	const FName ActionRecoverPits  = TEXT("RecoverPits");
 	const FName ActionQuit     = TEXT("Quit");
 }
 
@@ -65,6 +67,12 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	// with the setup card up. Collapsed in every other mode and in the garage.
 	GarageRow = AddRow(Actions, TEXT("BACK TO GARAGE"), TEXT("Tune, replay, go again"), ActionGarage, false);
 	GarageRow->SetVisibility(ESlateVisibility::Collapsed);
+	// A car stuck against a wall: put back where it is, or towed to its box.
+	// The server holds it there (the time cost) and refuses a moving car.
+	RecoverTrackRow = AddRow(Actions, TEXT("BACK TO TRACK"), TEXT("Held 8 s · lap struck"), ActionRecoverTrack, false);
+	RecoverTrackRow->SetVisibility(ESlateVisibility::Collapsed);
+	RecoverPitsRow = AddRow(Actions, TEXT("BACK TO PITS"), TEXT("Towed 30 s · serviced"), ActionRecoverPits, false);
+	RecoverPitsRow->SetVisibility(ESlateVisibility::Collapsed);
 	// Every session is recorded; this keeps it (Saved/Replays) rather than
 	// leaving it among the recent ones that make way for newer sessions.
 	SaveReplayRow = AddRow(Actions, TEXT("SAVE REPLAY"), TEXT("Watch it again later"), ActionPauseSaveReplay, false);
@@ -206,6 +214,7 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 
 	const int32 LocalIndex = Net->GetLocalCarIndex();
 	bool bOnTrackInHotlap = false;
+	bool bCanRecover = false;
 	if (const FApexCarTelemetry* Local = Net->GetLatestTelemetry().Cars.FindByPredicate(
 			[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; }))
 	{
@@ -225,6 +234,19 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 				: FString::Printf(TEXT("%d:%02d left"), Left / 60, Left % 60));
 		}
 		bOnTrackInHotlap = ApexIsGarageMode(Net->GetGameMode()) && !Local->bInGarage;
+		const EApexGameMode Mode = Net->GetGameMode();
+		const bool bRunning = Mode == EApexGameMode::FreePractice || ApexIsGarageMode(Mode)
+			|| (Mode == EApexGameMode::Race && Net->GetSessionState() == EApexSessionState::Racing);
+		bCanRecover = !bWatching && bRunning && !Local->bInGarage && Local->FinishPosition <= 0
+			&& !Local->IsRecovering() && !Local->bPitAutopilot && !Local->bPitServicing;
+	}
+	if (RecoverTrackRow)
+	{
+		RecoverTrackRow->SetVisibility(bCanRecover ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (RecoverPitsRow)
+	{
+		RecoverPitsRow->SetVisibility(bCanRecover && !bOnTrackInHotlap ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (GarageRow)
 	{
@@ -284,6 +306,14 @@ void UApexPauseMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	{
 		OnAction.Broadcast(EApexPauseAction::ReturnToGarage);
 	}
+	else if (Action == ActionRecoverTrack)
+	{
+		OnAction.Broadcast(EApexPauseAction::RecoverToTrack);
+	}
+	else if (Action == ActionRecoverPits)
+	{
+		OnAction.Broadcast(EApexPauseAction::RecoverToPits);
+	}
 	else if (Action == ActionPauseSaveReplay)
 	{
 		OnAction.Broadcast(EApexPauseAction::SaveReplay);
@@ -327,7 +357,8 @@ bool UApexPauseMenuWidget::HandleNavigation(EUINavigation Direction, UWidget* So
 	}
 
 	const int32 Current = ApexNav::IndexOf(Rows, Source);
-	// A collapsed row (the garage row outside a hotlap) is skipped over.
+	// A collapsed row (the garage and recovery rows when they do not apply)
+	// is skipped over.
 	auto Step = [this](int32 From, int32 Delta)
 	{
 		int32 Index = From;

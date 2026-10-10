@@ -148,6 +148,35 @@ struct APEXSIM_API FApexSavedSetup
 	FApexCarSetup Setup;
 };
 
+/**
+ * The player's word on one wheelbase model (ApexWheelProfiles), kept per
+ * model by USB vendor and product id: a second base on the same desk keeps
+ * its own. A model with no entry is detected from its name.
+ */
+USTRUCT()
+struct APEXSIM_API FApexWheelProfileChoice
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	int32 VendorId = 0;
+
+	UPROPERTY()
+	int32 ProductId = 0;
+
+	/** An ApexWheelProfiles id; empty is the detected profile. */
+	UPROPERTY()
+	FString ProfileId;
+
+	/**
+	 * Newton-metres at 100% of the base's own strength setting; 0 is the
+	 * profile's figure. For a base whose software has been turned down, or
+	 * one with a stronger power supply than its box says.
+	 */
+	UPROPERTY()
+	float PeakTorqueNm = 0.0f;
+};
+
 UCLASS()
 class APEXSIM_API UApexSettingsSave : public USaveGame
 {
@@ -404,6 +433,10 @@ public:
 	 */
 	UPROPERTY()
 	bool bWheelSteeringLockAuto = true;
+
+	/** Profile and peak-torque choices, one per wheelbase model the player has changed them for. */
+	UPROPERTY()
+	TArray<FApexWheelProfileChoice> WheelProfiles;
 
 	// --- Audio ----------------------------------------------------------------
 

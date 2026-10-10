@@ -232,6 +232,15 @@ namespace
 	constexpr float SoftLockRampDeg = 6.0f;
 	constexpr float SoftLockDamper = 0.5f;
 
+	/**
+	 * A profile's minimum force is reached at this much asked-for force and
+	 * grows in from zero below it, so the rim is not flicked from side to side
+	 * as the torque crosses the centre.
+	 */
+	constexpr float MinimumForceRamp = 0.02f;
+	/** Any more than this and the centre is a notch of the game's own making. */
+	constexpr float MaxMinimumForce = 0.2f;
+
 	/** Damping is heaviest at a standstill and mostly gone by here. */
 	constexpr float WheelDamperFullSpeedMps = 18.0f;
 
@@ -388,6 +397,8 @@ namespace
 		Out.Damping = WheelFinite(In.Damping);
 		Out.SteeringLockDeg = WheelFinite(In.SteeringLockDeg);
 		Out.RimDegreesPerInput = WheelFinite(In.RimDegreesPerInput);
+		Out.OutputScale = FMath::IsFinite(In.OutputScale) ? FMath::Clamp(In.OutputScale, 0.0f, 1.0f) : 1.0f;
+		Out.MinimumForce = FMath::Clamp(WheelFinite(In.MinimumForce), 0.0f, MaxMinimumForce);
 		return Out;
 	}
 
@@ -765,10 +776,22 @@ namespace ApexFfb
 			}
 		}
 		State.StiffnessLimit = Limit;
-		const float Torque = SoftLimit((State.Torque + State.Correction + State.SteerKick) * Gain * Limit);
+		// The profile's scale goes in before the soft limit: a base stronger
+		// than the reference plays the reference's newton-metres and keeps the
+		// rest of its motor as room for a downforce car's corners.
+		const float Scale = Tuning.OutputScale;
+		const float Torque = SoftLimit((State.Torque + State.Correction + State.SteerKick) * Gain * Limit * Scale);
 		// The road rides on top of the soft limit, so a corner that has the
 		// torque near the base's peak still has a road under it.
-		const float Force = FMath::Clamp(Torque + State.Road + Centring + Stop, -1.0f, 1.0f);
+		float Force = FMath::Clamp(Torque + (State.Road + Centring + Stop) * Scale, -1.0f, 1.0f);
+		// A gear drive's friction swallows a light force whole: lift it to
+		// what the rim can feel, growing in from zero so the centre stays
+		// smooth.
+		if (Tuning.MinimumForce > 0.0f)
+		{
+			Force = FMath::Clamp(Force * (1.0f - Tuning.MinimumForce)
+				+ Tuning.MinimumForce * FMath::Clamp(Force / MinimumForceRamp, -1.0f, 1.0f), -1.0f, 1.0f);
+		}
 		Out.Constant = Tuning.bInvert ? -Force : Force;
 
 		if (Signals.bActive)
@@ -862,7 +885,7 @@ namespace ApexFfb
 		Louder(State.Impact, 9.0f);
 		Louder(0.8f * State.ShiftKick, 26.0f);
 
-		Out.VibrationAmplitude = FMath::Clamp(Texture.Amplitude * 2.0f * FMath::Clamp(Tuning.RoadEffects, 0.0f, 1.0f), 0.0f, 1.0f);
+		Out.VibrationAmplitude = FMath::Clamp(Texture.Amplitude * 2.0f * FMath::Clamp(Tuning.RoadEffects, 0.0f, 1.0f), 0.0f, 1.0f) * Scale;
 		Out.VibrationHz = Texture.Hz;
 
 		// Heavy at a standstill, where a real car's steering is heavy and where
@@ -887,6 +910,10 @@ namespace ApexFfb
 		// Only in the menus, and only if forces are on at all: a rim that
 		// flops to one side while the player picks a car feels broken.
 		Out.Spring = Signals.bActive ? 0.0f : WheelMenuSpring * FMath::Clamp(2.0f * Tuning.Force, 0.0f, 1.0f);
+
+		// The damper and spring are shares of the base's own strength too.
+		Out.Damper *= Scale;
+		Out.Spring *= Scale;
 
 		if (!AreWheelEffectsFinite(Out) || !IsWheelStateFinite(State))
 		{

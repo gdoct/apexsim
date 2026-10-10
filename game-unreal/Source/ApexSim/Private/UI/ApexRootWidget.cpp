@@ -40,6 +40,7 @@
 #include "UI/ApexMenuInputProcessor.h"
 #include "UI/ApexPauseMenuWidget.h"
 #include "UI/ApexReplaysWidget.h"
+#include "UI/ApexSessionBrowserWidget.h"
 #include "UI/ApexScreenWidget.h"
 #include "UI/ApexSessionCreateWidget.h"
 #include "UI/ApexSessionLobbyWidget.h"
@@ -64,7 +65,6 @@ namespace
 		switch (Screen)
 		{
 		case EApexScreen::ConnectDialog:  return TEXT("/Game/UI/Screens/WBP_ConnectDialog.WBP_ConnectDialog_C");
-		case EApexScreen::SessionBrowser: return TEXT("/Game/UI/Screens/WBP_SessionBrowser.WBP_SessionBrowser_C");
 		case EApexScreen::SessionCreate:  return TEXT("/Game/UI/Screens/WBP_SessionCreate.WBP_SessionCreate_C");
 		case EApexScreen::CarSelect:      return TEXT("/Game/UI/Screens/WBP_CarSelect.WBP_CarSelect_C");
 		case EApexScreen::TrackSelect:    return TEXT("/Game/UI/Screens/WBP_TrackSelect.WBP_TrackSelect_C");
@@ -240,6 +240,9 @@ UClass* UApexRootWidget::ResolveScreenClass(EApexScreen Screen)
 
 	case EApexScreen::Replays:
 		return UApexReplaysWidget::StaticClass();
+
+	case EApexScreen::SessionBrowser:
+		return UApexSessionBrowserWidget::StaticClass();
 
 	default:
 		break;
@@ -1053,6 +1056,33 @@ void UApexRootWidget::FocusDefault()
 	}
 }
 
+UUserWidget* UApexRootWidget::GetFrontSurface() const
+{
+	// The same order as FocusDefault.
+	if (IsHudEditorOpen())
+	{
+		return HudEditor;
+	}
+	if (SettingsOverlay && SettingsOverlay->IsOpen())
+	{
+		return SettingsOverlay;
+	}
+	if (PauseMenu && PauseMenu->IsOpen())
+	{
+		return PauseMenu;
+	}
+	if ((bGarageOpen || (HotlapPanel && HotlapPanel->IsMenuMode())) && HotlapPanel
+		&& HotlapPanel->GetView() == EApexHotlapView::Garage)
+	{
+		return HotlapPanel;
+	}
+	if (bRaceViewActive || IsWatching() || bGuideLayers)
+	{
+		return nullptr;
+	}
+	return GetScreenWidget(CurrentScreen);
+}
+
 void UApexRootWidget::RequestFocusDefault()
 {
 	if (UWorld* World = GetWorld())
@@ -1346,6 +1376,16 @@ void UApexRootWidget::HandlePauseAction(EApexPauseAction Action)
 		if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
 		{
 			Net->HotlapRelocate(EApexHotlapDestination::Garage);
+		}
+		break;
+
+	case EApexPauseAction::RecoverToTrack:
+	case EApexPauseAction::RecoverToPits:
+		SetPaused(false);
+		if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
+		{
+			Net->RecoverCar(Action == EApexPauseAction::RecoverToPits
+				? EApexRecoverDestination::Pits : EApexRecoverDestination::Track);
 		}
 		break;
 

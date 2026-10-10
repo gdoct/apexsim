@@ -62,6 +62,8 @@ namespace ApexProtocol
 	 *  than at the compound's optimum; it is only written when set, so the bytes
 	 *  an older server reads are unchanged. */
 	APEXSIMNET_API TArray<uint8> EncodeHotlapRelocate(EApexHotlapDestination Destination, bool bColdTyres = false);
+	/** A stuck driver asks for their car back: onto the track where it is, or to its box. */
+	APEXSIMNET_API TArray<uint8> EncodeRecoverCar(EApexRecoverDestination Destination);
 	/** Asks for the trace of the driver's record lap here, answered with GhostLap. */
 	APEXSIMNET_API TArray<uint8> EncodeRequestGhost();
 	/** Asks which showcases the server plays; answered with Showcases. */

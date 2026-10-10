@@ -54,8 +54,8 @@ and widget factories), so layouts are reviewable as diffs.
   `EApexScreen` (`ApexMenuFlowSubsystem.h`), toasts, a back stack, and the
   race-time layers (HUD, pause menu, settings overlay, hotlap garage, track
   guide, HUD editor). Escape and every Back button go through it.
-  `ResolveScreenClass` maps a screen to its C++ class; the session browser and
-  loading screen still come from their `/Game/UI/Screens/WBP_*` blueprints.
+  `ResolveScreenClass` maps a screen to its C++ class; the loading screen
+  still comes from its `/Game/UI/Screens/WBP_*` blueprint.
   `EApexScreen` values are appended, never inserted (the switcher is indexed
   by them).
 - `UApexMenuFlowSubsystem` holds menu state the protocol has no message for:
@@ -71,6 +71,37 @@ and widget factories), so layouts are reviewable as diffs.
   owning screen. `FApexMenuInputProcessor` is a Slate input preprocessor that
   sees every event, recovers focus and routes the pause key. Menu sounds for
   focus moves come from `ApexNav::FNavigationScope` ([audio.md](audio.md)).
+  A surface whose controls sit in a scroll box (create session, settings, the
+  garage card) answers directions itself with `ApexNav::MoveToward`: the
+  nearest control that way by its current layout (`ApexNav::LayoutRect`,
+  arranged afresh, not the last paint), rows of the same scroll box first,
+  and a row scrolled out of view by list order. `UApexNavigableWidget` sends
+  Up/Down on its own slider the same way (`NativeOnPreviewKeyDown`). Every
+  screen and overlay is walked by pad in `ApexSim.UI.PadWalk` (below).
+- The pause menu in a race: Close menu, Settings, BACK TO GARAGE (hotlap and
+  qualifying, on track), BACK TO TRACK / BACK TO PITS (a stuck car; see
+  [sessions.md](../server/sessions.md#recovering-a-stuck-car)), Save replay,
+  Back to main menu, Exit. On the main menu's root page pad B opens the Back
+  to main menu / Exit game menu (Escape opens it from any page).
+
+### Session browser (`UI/ApexSessionBrowserWidget.cpp`)
+
+Drive > Browse sessions: the live sessions from the latest `LobbyState`.
+The header has Back and Refresh (R, pad Y; the server also broadcasts every
+two seconds) with the session and live counts; under it the car the player
+would join in, Change car (car select, returning here) and Create session.
+One row a session: the track's preview, its display name (the catalog's,
+the server's name only without a row), host, drivers, kind, length and sky,
+and a badge (Lobby, Starting, Racing, Full, Finished). Enter on a row joins
+in the pending car (SelectCar, then JoinSession; without a car it opens car
+select; a full or finished session says so). Right from a row is its Watch
+button, lit while a race is being driven (`WatchSession`). Rows are rebuilt
+only when sessions come or go and refreshed in place otherwise, so a
+broadcast never moves the pad's place. `WBP_SessionBrowser` and
+`WBP_SessionRow` (`UApexSessionRowWidget`) are no longer loaded; `WBP_Root`
+still references the first, so its designer widgets must not share a name
+with the class's members (`RefreshButton`, `StatusText` would break its
+compile).
 
 ### Main menu (`UI/ApexMainMenuWidget.cpp`)
 
@@ -338,6 +369,35 @@ Hotlap: `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`,
   see [track-guide.md](../content/track-guide.md).
 - Content folders: `-ApexTracksDir=`, `-ApexCarsDir=`, `-ApexHudDir=`, `-ApexGuideDir=`.
 
+### Pad walk (`UI/ApexPadWalk.h`, `ApexSim.UI.PadWalk`)
+
+Walks every menu screen and overlay by pad alone: main menu, connect,
+session browser, create session, car select, track select, session lobby,
+loading, results, replays, settings, pause menu, car setups. For each it checks that focus
+lands on a control, that the D-pad and the right shoulder (pages and tabs)
+reach every control a pad could focus, and that pad B leaves where it should
+(not the main menu, lobby or results). Keys go through `FSlateApplication`
+as a pad's do, one control a frame, so scrolled rows and new pages are laid
+out as for a player. Accept is never pressed and Left/Right never on a
+slider, so nothing is chosen; a car's livery may change.
+
+It needs the running game and real rendering (Slate's layout is empty under
+`-nullrhi`); in the headless editor run it passes with a note. A server on
+the configured address fills car and track select:
+
+```powershell
+& "$UE\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "$PWD\game-unreal\ApexSim.uproject" -game `
+    -RenderOffscreen -ResX=1920 -ResY=1080 -ApexNoDemo -ApexNoSplashHold `
+    -ExecCmds="Automation RunTests ApexSim.UI.PadWalk; Quit" -unattended -nosplash -log
+```
+
+`-ApexPadWalkOnly=<name>` walks the stops whose name contains it;
+`-LogCmds="LogApexPadWalk Verbose"` logs every step (from, key, to, where).
+`apexsim.ui.PadWalk` walks whatever is in front in a running game. A
+control the walk cannot reach fails the test with its name and place: give
+the surface a way there (`HandleNavigation`, `ApexNav::MoveToward`) or, when
+a pad does its job another way, make it `FApexButtonSpec::bMouseOnly`.
+
 ### Clicking through menus (`UI/ApexUiScript.cpp`)
 
 - `apexsim.ui.Texts [filter]` logs every visible text with its centre in
@@ -367,6 +427,8 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
 - Hotlap: `apexsim.hotlap.Out|Garage|Replay|Stop|Tab|Board|Watch`.
 - Replays: `apexsim.replay.Save|List`. Guide: `apexsim.guide.*`.
 - Display: `apexsim.view.Screens`, `apexsim.splash.MaxSeconds`.
+- Menus: `apexsim.ui.Texts|Click|Mouse|Key` (above), `apexsim.ui.PadWalk`.
+- Race: `apexsim.recover [track|pits]` (the pause menu's BACK TO TRACK / PITS).
 - Input and audio: `apexsim.input.Devices|Rescan`, `apexsim.ffb.Debug`, `apexsim.audio.RenderCars`.
 - Net: `apexsim.net.ParseCenterline` (parse the lobby's track centerlines; set from HUD detail).
 
@@ -383,3 +445,15 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
   switches: append, do not insert.
 - The input-mode, focus and Blueprint game mode traps above; `settings.yml`
   is rewritten wholesale and never shipped live.
+- Slate's scroll box steps a pad only between its own direct slots: with one
+  vertical box inside it, Down from a row goes nowhere. Its other trap is
+  layout: rows scrolled out of view are not arranged, so their cached
+  geometry is stale or zero. Use `ApexNav::MoveToward`.
+- A `UWidgetSwitcher`'s other pages are "visible" to `UWidget::IsVisible`;
+  `ApexNav::CanFocus` treats them as hidden. Check focusability with it, not
+  with visibility.
+- A stepper (`UApexStepperWidget`) or segmented control is not focusable
+  itself; focus its first pill (`ApexNav::FindFirstFocusable`).
+- `UApexButtonWidget::Setup` (and `SetBadge`, which may call it) resets
+  focusability from the spec: set `bMouseOnly` in the spec, not
+  `SetIsFocusable` afterwards.

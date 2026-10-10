@@ -127,6 +127,8 @@ batches the files, which can be after commit.
 ```
 
 Narrow the filter (`ApexSim.Net`, `ApexSim.Hud.Data`...) to run a group.
+`ApexSim.UI.PadWalk` needs the running game (`-game -RenderOffscreen`); see
+[game/client.md](game/client.md#pad-walk-uiapexpadwalkh-apexsimuipadwalk).
 
 ## Fresh checkout: generated content
 

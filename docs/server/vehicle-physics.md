@@ -454,11 +454,11 @@ reordered; effects are the `*_PER_CLICK` consts):
 
 `CompactCarState` (positional, appended only; [protocol](protocol.md)): `fuel_dl`, `tyre_c`,
 `tyre_kpa`, `tow_pct`, `tyre_wear`, `compound`, `brake_c`, `water_c`, `damage`, `ers_pct`,
-`ers_lap_pct`, `ers_flags`, `tyre_c_edges`, `brake_wear`, `slide_flags`, `ers_stint_pct`
-(pit fields: [pit lane](pit-lane.md)); `PlayerInput.drs` / `ers_mode` / `ers_boost`;
+`ers_lap_pct`, `ers_flags`, `tyre_c_edges`, `brake_wear`, `slide_flags`, `ers_stint_pct`,
+`recover_ds` ([sessions](sessions.md#recovering-a-stuck-car)) (pit fields: [pit lane](pit-lane.md)); `PlayerInput.drs` / `ers_mode` / `ers_boost`;
 `DriverFeedback.flat_spot`. Golden bytes (in `server/`, `-- --nocapture`): `cargo test
-telemetry_compact_wire_format` -> `ApexUdpGolden::S_TelemetryCompactZones` (the older
-`S_TelemetryCompact{Fuel,Tyres,Tow,Heat,Damage,Ers}` stay on the client as older servers'
+telemetry_compact_wire_format` -> `ApexUdpGolden::S_TelemetryCompactRecover` (the older
+`S_TelemetryCompact{Fuel,Tyres,Tow,Heat,Damage,Ers,Zones}` stay on the client as older servers'
 frames); `car_setup_wire_format` -> `ApexGolden::C_SetCarSetup`;
 `car_setup_sheet_wire_format` -> `S_CarSetupSheet`; `player_input_headlights_wire_format` ->
 `ApexUdpGolden::C_PlayerInput`; `driver_feedback_wire_format` -> `S_DriverFeedbackFlatSpot`.

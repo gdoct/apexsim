@@ -211,6 +211,18 @@ namespace ApexFfb
 		 * the stiffness limit; 0 leaves the limit off.
 		 */
 		float RimDegreesPerInput = 0.0f;
+
+		/**
+		 * The base's profile (ApexWheelProfiles): every force, the damper and
+		 * the vibration are multiplied by OutputScale, so a base stronger than
+		 * the reference plays the reference base's newton-metres and keeps the
+		 * rest as headroom; the soft limit and the clamp stay at the base's own
+		 * peak. MinimumForce lifts a constant force off zero to at least that
+		 * share of the base, for a gear drive's friction. 1 and 0 are the
+		 * mixing as it was tuned.
+		 */
+		float OutputScale = 1.0f;
+		float MinimumForce = 0.0f;
 	};
 
 	/** The smoothed torque and the decaying hits, carried from frame to frame. */

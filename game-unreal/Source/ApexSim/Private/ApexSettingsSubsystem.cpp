@@ -998,6 +998,108 @@ int32 UApexSettingsSubsystem::GetWheelDeviceSlot() const
 	return Settings ? ApexInput::FindForceFeedbackDevice(Settings->Bindings) : INDEX_NONE;
 }
 
+namespace
+{
+	FApexWheelProfileChoice* FindWheelProfileChoice(TArray<FApexWheelProfileChoice>& Choices, uint16 VendorId, uint16 ProductId)
+	{
+		return Choices.FindByPredicate([VendorId, ProductId](const FApexWheelProfileChoice& Choice)
+		{
+			return Choice.VendorId == VendorId && Choice.ProductId == ProductId;
+		});
+	}
+}
+
+UApexSettingsSubsystem::FWheelProfileState UApexSettingsSubsystem::GetWheelProfile() const
+{
+	FWheelProfileState State;
+
+	const FApexSimInputModule* Input = FApexSimInputModule::Get();
+	const int32 Slot = GetWheelDeviceSlot();
+	const ApexDirectInput::FDeviceInfo* Device = Input && Slot != INDEX_NONE ? Input->FindDevice(Slot) : nullptr;
+	if (!Settings || !Device)
+	{
+		return State;
+	}
+
+	State.bHasBase = true;
+	State.VendorId = Device->VendorId;
+	State.ProductId = Device->ProductId;
+	State.Detected = &ApexWheelProfiles::Detect(Device->Name, Device->VendorId);
+	State.Profile = State.Detected;
+	State.PeakTorqueNm = State.Profile->PeakTorqueNm;
+
+	const FApexWheelProfileChoice* Choice = Settings->WheelProfiles.FindByPredicate([Device](const FApexWheelProfileChoice& Entry)
+	{
+		return Entry.VendorId == Device->VendorId && Entry.ProductId == Device->ProductId;
+	});
+	if (Choice)
+	{
+		// An id from a later build, or one since removed, is the detected profile.
+		if (const ApexWheelProfiles::FProfile* Chosen = Choice->ProfileId.IsEmpty() ? nullptr : ApexWheelProfiles::Find(Choice->ProfileId))
+		{
+			State.Profile = Chosen;
+			State.bChosen = true;
+			State.PeakTorqueNm = Chosen->PeakTorqueNm;
+		}
+		if (Choice->PeakTorqueNm > 0.0f)
+		{
+			State.PeakTorqueNm = FMath::Clamp(Choice->PeakTorqueNm, ApexWheelProfiles::MinPeakTorqueNm, ApexWheelProfiles::MaxPeakTorqueNm);
+			State.bPeakGiven = true;
+		}
+	}
+	return State;
+}
+
+void UApexSettingsSubsystem::SetWheelProfile(const FString& ProfileId)
+{
+	const FWheelProfileState Current = GetWheelProfile();
+	if (!Settings || !Current.bHasBase) { return; }
+
+	// Choosing the detected profile is the same as not choosing, and stays
+	// that way if a later build detects this base as something better.
+	const ApexWheelProfiles::FProfile* Wanted = ApexWheelProfiles::Find(ProfileId);
+	const FString Id = Wanted && Wanted != Current.Detected ? FString(Wanted->Id) : FString();
+
+	FApexWheelProfileChoice* Choice = FindWheelProfileChoice(Settings->WheelProfiles, Current.VendorId, Current.ProductId);
+	if ((Choice ? Choice->ProfileId : FString()) == Id) { return; }
+	if (!Choice)
+	{
+		Choice = &Settings->WheelProfiles.AddDefaulted_GetRef();
+		Choice->VendorId = Current.VendorId;
+		Choice->ProductId = Current.ProductId;
+	}
+	Choice->ProfileId = Id;
+	Settings->WheelProfiles.RemoveAll([](const FApexWheelProfileChoice& Entry)
+	{
+		return Entry.ProfileId.IsEmpty() && Entry.PeakTorqueNm <= 0.0f;
+	});
+	Changed(EApexSettingsGroup::Wheel);
+}
+
+void UApexSettingsSubsystem::SetWheelPeakTorque(float Nm)
+{
+	const FWheelProfileState Current = GetWheelProfile();
+	if (!Settings || !Current.bHasBase) { return; }
+
+	const float Clamped = Nm > 0.0f
+		? FMath::Clamp(Nm, ApexWheelProfiles::MinPeakTorqueNm, ApexWheelProfiles::MaxPeakTorqueNm)
+		: 0.0f;
+	FApexWheelProfileChoice* Choice = FindWheelProfileChoice(Settings->WheelProfiles, Current.VendorId, Current.ProductId);
+	if (FMath::IsNearlyEqual(Choice ? Choice->PeakTorqueNm : 0.0f, Clamped)) { return; }
+	if (!Choice)
+	{
+		Choice = &Settings->WheelProfiles.AddDefaulted_GetRef();
+		Choice->VendorId = Current.VendorId;
+		Choice->ProductId = Current.ProductId;
+	}
+	Choice->PeakTorqueNm = Clamped;
+	Settings->WheelProfiles.RemoveAll([](const FApexWheelProfileChoice& Entry)
+	{
+		return Entry.ProfileId.IsEmpty() && Entry.PeakTorqueNm <= 0.0f;
+	});
+	Changed(EApexSettingsGroup::Wheel);
+}
+
 bool UApexSettingsSubsystem::IsSteeringOnWheel() const
 {
 	return Settings && ApexInput::FindSteeringDevice(Settings->Bindings) != INDEX_NONE;
@@ -1204,6 +1306,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->WheelRotationDeg = Defaults->WheelRotationDeg;
 		Settings->WheelSteeringLockDeg = Defaults->WheelSteeringLockDeg;
 		Settings->bWheelSteeringLockAuto = Defaults->bWheelSteeringLockAuto;
+		Settings->WheelProfiles.Reset();
 		ApexInput::ResetColumn(Settings->Bindings, ApexInput::EColumn::Wheel);
 		break;
 

@@ -719,6 +719,22 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 				TestEqual(TEXT("and the stint budget"), Half.ErsStintPct, 73.0f);
 			}
 		}
+		// 42 fields: a recovery's hold.
+		FApexServerMessage Recover;
+		if (TestTrue(TEXT("42-field telemetry decodes"),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactRecover, Recover, Error))
+			&& Recover.Telemetry.Cars.Num() == 1)
+		{
+			const FApexCarTelemetry& Car = Recover.Telemetry.Cars[0];
+			TestEqual(TEXT("the stint budget still reads"), Car.ErsStintPct, 73.0f);
+			TestEqual(TEXT("the recovery hold"), Car.RecoverSecondsLeft, 6.3f);
+			TestTrue(TEXT("recovering"), Car.IsRecovering());
+		}
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactZones, Recover, Error)
+			&& Recover.Telemetry.Cars.Num() == 1)
+		{
+			TestFalse(TEXT("no recovery from an older server"), Recover.Telemetry.Cars[0].IsRecovering());
+		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactErs, Zones, Error)
 			&& Zones.Telemetry.Cars.Num() == 1)
 		{

@@ -334,6 +334,11 @@ void AApexPlayerController::TickWheelFeedback(const ApexFfb::FSignals& Signals, 
 	const float Rotation = FMath::Clamp(Values->WheelRotationDeg, ApexInput::WheelRotationMinDeg, ApexInput::WheelRotationMaxDeg);
 	Tuning.SteeringLockDeg = Scale > 1.001f ? Rotation / Scale : 0.0f;
 	Tuning.RimDegreesPerInput = 0.5f * Rotation / FMath::Max(Scale, 1.0f);
+	// The base's profile: how strong it is, and how much friction a light
+	// force has to get through.
+	const UApexSettingsSubsystem::FWheelProfileState Profile = Settings->GetWheelProfile();
+	Tuning.OutputScale = ApexWheelProfiles::OutputScale(Profile.PeakTorqueNm);
+	Tuning.MinimumForce = ApexWheelProfiles::MinimumForce(Profile.Profile->Drive);
 
 	// Where the rim is, for centring it and for the stop: the device's own
 	// reading, which the server never sees.
@@ -387,15 +392,18 @@ void AApexPlayerController::AccumulateWheelStats(
 	{
 		const UApexSettingsSubsystem* Settings = GetSettings();
 		const UApexSettingsSave* Values = Settings ? Settings->Get() : nullptr;
+		const UApexSettingsSubsystem::FWheelProfileState Profile = Settings ? Settings->GetWheelProfile() : UApexSettingsSubsystem::FWheelProfileState();
 		UE_LOG(LogApexSim, Log,
 			TEXT("Wheel forces over %.0f s driving: torque |mean| %.2f peak %.2f -> constant |mean| %.2f peak %.2f, ")
 			TEXT("at the base's limit %.0f%% of the time; rim correction |mean| %.3f, stiffness limit mean %.2f, road |mean| %.3f, vibration mean %.2f ")
-			TEXT("(force %.2f, road %.2f, damping %.2f, invert %d)"),
+			TEXT("(force %.2f, road %.2f, damping %.2f, invert %d; profile %s%s, %.1f Nm%s, output x%.2f)"),
 			S.Seconds, S.SumTorque / S.Seconds, S.PeakTorque, S.SumConstant / S.Seconds, S.PeakConstant,
 			100.0 * S.SaturatedSeconds / S.Seconds, S.SumCorrection / S.Seconds, S.SumLimit / S.Seconds, S.SumRoad / S.Seconds,
 			S.SumVibration / S.Seconds,
 			Values ? Values->WheelForce : -1.0f, Values ? Values->WheelRoadEffects : -1.0f,
-			Values ? Values->WheelDamping : -1.0f, Values && Values->bWheelInvertForce ? 1 : 0);
+			Values ? Values->WheelDamping : -1.0f, Values && Values->bWheelInvertForce ? 1 : 0,
+			Profile.Profile->Id, Profile.bChosen ? TEXT(" (chosen)") : TEXT(""), Profile.PeakTorqueNm,
+			Profile.bPeakGiven ? TEXT(" (given)") : TEXT(""), ApexWheelProfiles::OutputScale(Profile.PeakTorqueNm));
 		S = FApexWheelForceStats();
 	}
 }

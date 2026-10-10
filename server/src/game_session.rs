@@ -300,6 +300,51 @@ struct Finisher {
     progress: f32,
 }
 
+/// Put a car down still at a pose: everything that moves (velocities,
+/// spin, suspension, the body's lean, contact) as a fresh car on a grid
+/// slot has it; fuel, tyres, damage, aids and timing stay as they are.
+fn place_still(state: &mut CarState, x: f32, y: f32, z: f32, yaw_rad: f32) {
+    let slot = GridSlot {
+        position: state.grid_position,
+        x,
+        y,
+        z,
+        yaw_rad,
+    };
+    let fresh = CarState::new(state.player_id, state.car_config_id, &slot);
+    state.pos_x = fresh.pos_x;
+    state.pos_y = fresh.pos_y;
+    state.pos_z = fresh.pos_z;
+    state.yaw_rad = fresh.yaw_rad;
+    state.pitch_rad = fresh.pitch_rad;
+    state.roll_rad = fresh.roll_rad;
+    state.vel_x = 0.0;
+    state.vel_y = 0.0;
+    state.vel_z = 0.0;
+    state.speed_mps = 0.0;
+    state.angular_vel_yaw = 0.0;
+    state.angular_vel_pitch = 0.0;
+    state.angular_vel_roll = 0.0;
+    state.throttle_input = 0.0;
+    state.brake_input = 0.0;
+    state.steering_input = 0.0;
+    state.wheel_angular_vel = [0.0; 4];
+    state.suspension = fresh.suspension;
+    state.g_forces = fresh.g_forces;
+    state.is_colliding = false;
+    state.collision_normal_x = 0.0;
+    state.collision_normal_y = 0.0;
+    state.collision_normal_z = 0.0;
+    state.is_airborne = fresh.is_airborne;
+    state.strike_mps = fresh.strike_mps;
+    state.porpoise_phase = fresh.porpoise_phase;
+    state.porpoise_amp = fresh.porpoise_amp;
+    state.auto_shift_hold_ticks = 0;
+    state.auto_reverse_ticks = 0;
+    state.wheels_off_track = false;
+    state.laps.off_track_ticks = 0;
+}
+
 /// A timing line crossed by one car, with what it meant for the session.
 #[derive(Debug, Clone)]
 pub struct SessionLapEvent {
@@ -1565,6 +1610,164 @@ impl GameSession {
         Ok(())
     }
 
+    /// A driver asks for their car back (`ClientMessage::RecoverCar`,
+    /// `crate::recovery`): onto the track where it is, or to its pit box,
+    /// held there for the recovery's time cost. Refused while the car is
+    /// moving faster than `recovery::MAX_SPEED_MPS`, out of the race, in
+    /// the garage or on the pit route, already recovering, before the
+    /// start, or after the flag. In a hotlap or qualifying session the pits
+    /// are the garage (`hotlap_relocate`).
+    pub fn recover_car(
+        &mut self,
+        player_id: &PlayerId,
+        destination: crate::recovery::RecoverDestination,
+    ) -> Result<(), &'static str> {
+        use crate::recovery::{RecoverDestination, Recovery};
+        let mode = self.session.game_mode;
+        let garage_mode = matches!(mode, GameMode::Hotlap | GameMode::Qualification);
+        match mode {
+            GameMode::FreePractice | GameMode::Hotlap | GameMode::Qualification => {}
+            GameMode::Race if self.session.state == SessionState::Racing => {}
+            _ => return Err("No recovery outside a running session"),
+        }
+        let state = self
+            .session
+            .participants
+            .get(player_id)
+            .ok_or("No car in this session")?;
+        if state.in_garage {
+            return Err("The car is in the garage");
+        }
+        if !state.damage.is_drivable || state.towed {
+            return Err("The car is out");
+        }
+        if state.finish_position.is_some() {
+            return Err("The car has finished");
+        }
+        if state.recovery.is_some() {
+            return Err("Already recovering");
+        }
+        if state.pit.driving || state.pit.servicing {
+            return Err("The car is on the pit route");
+        }
+        if state.speed_mps > crate::recovery::MAX_SPEED_MPS {
+            return Err("Too fast to recover");
+        }
+        if destination == RecoverDestination::Pits && garage_mode {
+            return self.hotlap_relocate(player_id, HotlapDestination::Garage, false);
+        }
+        let track = &self.track_config;
+        if track.centerline.len() < 2 {
+            return Err("Track has no centerline");
+        }
+        let (x, y, z, yaw) = match destination {
+            RecoverDestination::Track => {
+                let others: Vec<(f32, f32)> = self
+                    .session
+                    .participants
+                    .values()
+                    .filter(|o| o.player_id != *player_id && !o.in_garage && !o.is_ghost())
+                    .map(|o| (o.pos_x, o.pos_y))
+                    .collect();
+                let station = crate::recovery::track_station(
+                    &track.centerline,
+                    state.track_progress,
+                    &others,
+                );
+                let (x, y, z, yaw) = physics::pose_at_station(&track.centerline, station);
+                (x, y, physics::seat_height(track, x, y, z), yaw)
+            }
+            RecoverDestination::Pits => {
+                let lane = track
+                    .pit_lane
+                    .as_ref()
+                    .filter(|l| !l.boxes.is_empty())
+                    .ok_or("Track has no pit lane")?;
+                let spot = lane.box_at(state.pit.box_index.unwrap_or(0));
+                (
+                    spot.x,
+                    spot.y,
+                    physics::seat_height(track, spot.x, spot.y, spot.z),
+                    spot.yaw_rad,
+                )
+            }
+        };
+        let nearest = physics::find_nearest_centerline_idx(&track.centerline, x, y, None);
+        let progress = nearest.map(|i| track.centerline[i].distance_from_start_m);
+        let state = self
+            .session
+            .participants
+            .get_mut(player_id)
+            .ok_or("No car in this session")?;
+        place_still(state, x, y, z, yaw);
+        if let (Some(idx), Some(progress)) = (nearest, progress) {
+            state.nearest_centerline_idx = Some(idx as u32);
+            state.track_progress = progress;
+        }
+        state.gear = 1;
+        // The lap in progress is struck, and its ghost trace dropped.
+        state.laps.invalid = true;
+        state.pit.serviced = false;
+        state.recovery = Some(Recovery::new(destination));
+        self.lap_traces.remove(player_id);
+        Ok(())
+    }
+
+    /// Each recovery's hold counted down (`crate::recovery`). A car towed
+    /// to its box is handed to the pit autopilot, which services it and
+    /// drives it out; a car put back on the track is let go once nothing
+    /// is closing on it from behind, or after `RELEASE_WAIT_MAX_S`.
+    fn update_recoveries(&mut self) {
+        use crate::recovery::{RecoverDestination, RELEASE_WAIT_MAX_S};
+        let dt = self.dt();
+        let total = crate::laps::track_length_m(&self.track_config);
+        let traffic: Vec<(PlayerId, f32, f32)> = self
+            .session
+            .participants
+            .values()
+            .filter(|s| !s.in_garage && !s.is_ghost() && !s.pit.in_lane && s.damage.is_drivable)
+            .map(|s| (s.player_id, s.track_progress, s.speed_mps))
+            .collect();
+        for state in self.session.participants.values_mut() {
+            let Some(mut recovery) = state.recovery else {
+                continue;
+            };
+            if !state.damage.is_drivable || state.in_garage {
+                state.recovery = None;
+                continue;
+            }
+            recovery.left_s -= dt;
+            let release = recovery.left_s <= 0.0
+                && match recovery.destination {
+                    RecoverDestination::Pits => true,
+                    RecoverDestination::Track => {
+                        let others: Vec<(f32, f32)> = traffic
+                            .iter()
+                            .filter(|(id, _, _)| *id != state.player_id)
+                            .map(|&(_, progress, speed)| (progress, speed))
+                            .collect();
+                        recovery.waited_s >= RELEASE_WAIT_MAX_S
+                            || crate::recovery::traffic_clear(state.track_progress, total, &others)
+                    }
+                };
+            if recovery.left_s <= 0.0 {
+                recovery.waited_s += dt;
+            }
+            if !release {
+                state.recovery = Some(recovery);
+                continue;
+            }
+            state.recovery = None;
+            if recovery.destination == RecoverDestination::Pits {
+                // The crew's car now: serviced at the box and driven out.
+                state.pit.driving = true;
+                state.pit.restore_aids = Some([state.auto_gearbox, state.steering_assist]);
+                state.auto_gearbox = true;
+                state.steering_assist = false;
+            }
+        }
+    }
+
     /// Where a qualifying car goes out: the pit exit, the lane's last
     /// station on the centerline when that is past the line, else just past
     /// the line, so the car drives a whole lap (the outlap) before it
@@ -2257,6 +2460,7 @@ impl GameSession {
     /// every car's wake (`crate::slipstream`).
     fn update_air(&mut self) {
         self.update_retirements();
+        self.update_recoveries();
         self.update_pits();
         self.update_drs();
         self.update_wind();
@@ -2655,6 +2859,8 @@ impl GameSession {
                 state.auto_gearbox = true;
                 state.steering_assist = false;
             }
+            // A car towed to its box waits out its hold before the crew starts.
+            let recovery_hold = state.recovery;
             let pit = &mut state.pit;
             if pit.servicing {
                 pit.service_left_s -= dt;
@@ -2663,6 +2869,7 @@ impl GameSession {
                 }
             } else if pit.limiter
                 && !pit.serviced
+                && recovery_hold.is_none()
                 && state.speed_mps < crate::pit::BOX_STOP_SPEED_MPS
             {
                 let spot = lane.box_at(pit.box_index.unwrap_or(0));

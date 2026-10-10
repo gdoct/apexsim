@@ -520,6 +520,13 @@ void UApexNetSubsystem::SetDriverAids(
 	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist, bAbs, TractionControl));
 }
 
+void UApexNetSubsystem::RecoverCar(EApexRecoverDestination Destination)
+{
+	UE_LOG(LogApexSimNet, Log, TEXT("-> RecoverCar %s"),
+		Destination == EApexRecoverDestination::Pits ? TEXT("pits") : TEXT("track"));
+	SendPayload(ApexProtocol::EncodeRecoverCar(Destination));
+}
+
 void UApexNetSubsystem::HotlapRelocate(EApexHotlapDestination Destination, bool bColdTyres)
 {
 	UE_LOG(LogApexSimNet, Log, TEXT("-> HotlapRelocate %s%s"),

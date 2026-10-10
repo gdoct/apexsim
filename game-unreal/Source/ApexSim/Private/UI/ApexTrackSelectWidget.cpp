@@ -878,11 +878,15 @@ bool UApexTrackSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* 
 			return true;
 
 		case EUINavigation::Right:
-			// The detail panel beside the grid holds nothing to press (the demo
-			// lap is locked), so the last column is the edge.
+			// Past the row's last card: the detail panel beside the grid
+			// (Hotlap, then the track guide).
 			if (Column + 1 < GridColumns && CardAt + 1 < VisibleCards.Num())
 			{
 				FocusCard(CardAt + 1);
+			}
+			else
+			{
+				ApexNav::Focus(DemoButton) || ApexNav::Focus(GuideButton);
 			}
 			return true;
 
@@ -931,6 +935,22 @@ bool UApexTrackSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* 
 			return true;
 		case EUINavigation::Previous:
 			return ApexNav::Focus(SearchField);
+		default:
+			return true;
+		}
+	}
+
+	if (Source == DemoButton || Source == GuideButton)
+	{
+		switch (Direction)
+		{
+		case EUINavigation::Left:
+		case EUINavigation::Previous:
+			return FocusCard(FocusedCardIndex);
+		case EUINavigation::Up:
+			return Source == GuideButton ? (ApexNav::Focus(DemoButton) || true) : true;
+		case EUINavigation::Down:
+			return Source == DemoButton ? (ApexNav::Focus(GuideButton) || true) : true;
 		default:
 			return true;
 		}

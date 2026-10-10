@@ -23,6 +23,10 @@ enum class EApexPauseAction : uint8
 	SaveReplay,
 	LeaveSession,
 	QuitGame,
+	/** A stuck car back onto the track where it is, held for the time cost. */
+	RecoverToTrack,
+	/** A stuck car towed to its pit box, serviced and driven out. */
+	RecoverToPits,
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPauseAction, EApexPauseAction, Action);
@@ -109,6 +113,15 @@ private:
 	/** Shown only in a hotlap with the car out on the track. */
 	UPROPERTY(Transient)
 	TObjectPtr<UApexButtonWidget> GarageRow;
+
+	/** A stuck car's way out (`RecoverCar`): shown while the local car is out
+	 *  on the track in a session that runs; the pits row not in a hotlap or
+	 *  qualifying, where the garage row is the way back. */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexButtonWidget> RecoverTrackRow;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UApexButtonWidget> RecoverPitsRow;
 
 	/** Back to the main menu, or out of the race being watched. */
 	UPROPERTY(Transient)

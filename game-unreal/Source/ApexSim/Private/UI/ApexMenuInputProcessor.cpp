@@ -60,7 +60,8 @@ void FApexMenuInputProcessor::KeepFocusOnGame(FSlateApplication& SlateApp, uint3
 
 bool FApexMenuInputProcessor::IsDriving(const UApexRootWidget& Root)
 {
-	return Root.IsRaceViewActive() && !Root.IsPaused() && !Root.IsSettingsOpen() && !Root.IsHudEditorOpen();
+	return Root.IsRaceViewActive() && !Root.IsPaused() && !Root.IsGarageOpen() && !Root.IsSettingsOpen()
+		&& !Root.IsHudEditorOpen();
 }
 
 void FApexMenuInputProcessor::SetGamepadActive(UApexRootWidget& Root, bool bActive)

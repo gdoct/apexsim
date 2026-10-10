@@ -68,6 +68,14 @@ struct FApexButtonSpec
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
 	FLinearColor BadgeColour = FLinearColor(0.43f, 0.43f, 0.46f);
 
+	/**
+	 * Clicked, never focused: for a button whose job a pad does another way
+	 * (the livery, cycled by left and right on a car's row), so the pad is
+	 * not walked onto a control it cannot leave.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
+	bool bMouseOnly = false;
+
 	/** Key cap before the label rather than after — "[ESC] Back". */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
 	bool bKeyCapLeading = false;
@@ -128,6 +136,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
 	void SetLabel(const FString& InLabel);
+
+	const FString& GetLabel() const { return Spec.Label; }
 
 	/**
 	 * Marks this as the chosen one of a set — an accent outline that survives the

@@ -1262,7 +1262,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 41;
+	constexpr int32 CompactCarFieldCount = 42;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -1659,6 +1659,7 @@ namespace
 			Out.bTyreLocked[Tyre] = false;
 		}
 		Out.ErsStintPct = -1.0f;
+		Out.RecoverSecondsLeft = 0.0f;
 		if (Index < Known)
 		{
 			bOk &= Next([&]
@@ -1744,6 +1745,19 @@ namespace
 					return false;
 				}
 				Out.ErsStintPct = Raw >= 255 ? -1.0f : static_cast<float>(Raw);
+				return true;
+			});
+		}
+		// A recovery's hold left, tenths of a second; 0 for none.
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.RecoverSecondsLeft = static_cast<float>(Raw) / 10.0f;
 				return true;
 			});
 		}
@@ -2433,6 +2447,15 @@ namespace ApexProtocol
 			Writer.WriteString("cold_tyres");
 			Writer.WriteBool(true);
 		}
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeRecoverCar(EApexRecoverDestination Destination)
+	{
+		FMsgPackWriter Writer(64);
+		BeginDataVariant(Writer, "RecoverCar", 1);
+		Writer.WriteString("destination");
+		Writer.WriteUInt(static_cast<uint8>(Destination));
 		return MoveTemp(Writer.GetBuffer());
 	}
 

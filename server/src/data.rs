@@ -1536,6 +1536,11 @@ pub struct CarState {
     pub retired_s: f32,
     #[serde(default)]
     pub towed: bool,
+    /// A recovery under way (`crate::recovery`, `ClientMessage::RecoverCar`):
+    /// the car is held where it was put, out of every collision, wake and
+    /// DRS pass, until it is released.
+    #[serde(default)]
+    pub recovery: Option<crate::recovery::Recovery>,
 
     /// The drag reduction system (`crate::drs`). `drs_allowed`: the car is
     /// in an activation zone it earned at the detection point, so the
@@ -1737,6 +1742,12 @@ pub struct CarState {
 }
 
 impl CarState {
+    /// Out of everyone's way: towed after retiring, or held by a recovery.
+    /// Other cars, walls, the wake and the DRS gaps pass through it.
+    pub fn is_ghost(&self) -> bool {
+        self.towed || self.recovery.is_some()
+    }
+
     /// The aids this car runs, as a `DriverAids`.
     pub fn driver_aids(&self) -> DriverAids {
         DriverAids {
@@ -1823,6 +1834,7 @@ impl CarState {
             outlap: false,
             retired_s: 0.0,
             towed: false,
+            recovery: None,
             drs_allowed: false,
             drs_open: false,
             headlights: false,

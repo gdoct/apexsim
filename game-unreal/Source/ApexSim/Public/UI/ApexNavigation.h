@@ -73,6 +73,40 @@ namespace ApexNav
 	APEXSIM_API UWidget* FindFirstFocusable(const UUserWidget* Container);
 
 	/**
+	 * Every widget on Container that CanFocus now, in tree order, nested user
+	 * widgets included (a segmented control's or a stepper's pills), a
+	 * button's own insides not.
+	 */
+	APEXSIM_API void GatherFocusables(const UUserWidget* Container, TArray<UWidget*>& Out);
+
+	/**
+	 * Where Widget is laid out now, in desktop space: arranged afresh down its
+	 * path, so a row scrolled out of view has its place too (its cached
+	 * geometry is only where it was last drawn).
+	 */
+	APEXSIM_API FBox2D LayoutRect(const UWidget* Widget);
+
+	/** The widget in Candidates on user 0's focus path, innermost first (a text box's inner editable); null if none. */
+	APEXSIM_API UWidget* FocusedAmong(const TArray<UWidget*>& Candidates);
+
+	/**
+	 * The control to go to from Source in Direction (Up, Down, Left, Right):
+	 * wholly on that side of it, nearest along the way, then nearest across
+	 * it, so a move that lines up with nothing still lands on the closest
+	 * thing that way. By where each was last drawn; null when nothing is
+	 * that way. Slate's own search stops at a scroll box's edge and inside a
+	 * row of pills; a surface whose controls sit in one answers with this.
+	 */
+	APEXSIM_API UWidget* NearestToward(EUINavigation Direction, const UWidget* Source, const TArray<UWidget*>& Candidates);
+
+	/**
+	 * A surface's move by NearestToward over everything on it that can take
+	 * focus: true when it moved, or when nothing lies that way (stay put
+	 * rather than let Slate wander), false for a direction it does not take.
+	 */
+	APEXSIM_API bool MoveToward(UUserWidget* Surface, EUINavigation Direction, const UWidget* Source);
+
+	/**
 	 * What a leaf does with a direction: offer it to the host, and if the host
 	 * declines, hand it to Slate's own search from the leaf's position.
 	 */
@@ -145,5 +179,11 @@ public:
 
 protected:
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	/**
+	 * Up and Down on a slider of this surface move to the row above or below.
+	 * A slider answers them with Slate's own navigation, which an enclosing
+	 * scroll box takes over and sends to its next slot, wherever that is.
+	 */
+	virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent) override;
 };

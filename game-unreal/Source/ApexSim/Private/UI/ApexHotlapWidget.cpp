@@ -1524,8 +1524,20 @@ bool UApexHotlapWidget::HandleNavigation(EUINavigation Direction, UWidget* Sourc
 		ApexUiAudio::Play(this, EApexUiSound::Adjust);
 		if (PageDefaults.IsValidIndex(static_cast<int32>(Tab)))
 		{
-			ApexNav::Focus(PageDefaults[static_cast<int32>(Tab)]);
+			// A page opens on a stepper, which holds focus in its pills, not itself.
+			UWidget* Default = PageDefaults[static_cast<int32>(Tab)];
+			if (!ApexNav::Focus(Default))
+			{
+				ApexNav::Focus(ApexNav::FindFirstFocusable(Cast<UUserWidget>(Default)));
+			}
 		}
+		return true;
+	}
+	// The setup pages are rows of steppers in a scroll box: Slate's own search
+	// stops at the pills' row and the box's edge, so a pad could not leave
+	// the first stepper it reached.
+	if (View == EApexHotlapView::Garage && ApexNav::MoveToward(this, Direction, Source))
+	{
 		return true;
 	}
 	return Super::HandleNavigation(Direction, Source);

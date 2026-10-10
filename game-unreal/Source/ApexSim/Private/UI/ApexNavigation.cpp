@@ -4,7 +4,10 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/PanelWidget.h"
 #include "Components/ScrollBox.h"
+#include "Components/Slider.h"
+#include "Components/WidgetSwitcher.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Layout/WidgetPath.h"
 #include "UI/ApexButtonWidget.h"
 
 namespace ApexNav
@@ -101,12 +104,22 @@ namespace ApexNav
 			return Widget->GetTypedOuter<UUserWidget>();
 		}
 
-		/** Visible here and all the way up. UWidget::IsVisible only answers for the widget itself. */
+		/**
+		 * Visible here and all the way up. UWidget::IsVisible only answers for
+		 * the widget itself, and a switcher's other pages are visible by that
+		 * measure while not drawn at all.
+		 */
 		bool IsShown(const UWidget* Widget)
 		{
-			for (const UWidget* At = Widget; At; At = StepUp(At))
+			const UWidget* Below = nullptr;
+			for (const UWidget* At = Widget; At; Below = At, At = StepUp(At))
 			{
 				if (!At->IsVisible())
+				{
+					return false;
+				}
+				if (const UWidgetSwitcher* Switcher = Cast<UWidgetSwitcher>(At); Switcher && Below
+					&& Below->GetParent() == Switcher && Switcher->GetActiveWidget() != Below)
 				{
 					return false;
 				}
@@ -180,6 +193,259 @@ namespace ApexNav
 		return Found;
 	}
 
+	namespace
+	{
+		void GatherInto(const UUserWidget* Container, TArray<UWidget*>& Out, int32 Depth)
+		{
+			if (!Container || !Container->WidgetTree || Depth > 16)
+			{
+				return;
+			}
+			Container->WidgetTree->ForEachWidget([&Out, Depth](UWidget* Widget)
+			{
+				if (CanFocus(Widget))
+				{
+					Out.Add(Widget);
+				}
+				// A button is a user widget too, but nothing inside it takes focus.
+				if (const UUserWidget* Nested = Cast<UUserWidget>(Widget); Nested && !Cast<UApexButtonWidget>(Nested))
+				{
+					GatherInto(Nested, Out, Depth + 1);
+				}
+			});
+		}
+
+		/**
+		 * Where a widget is laid out now, in desktop space. Arranged afresh
+		 * down its path rather than read from its last paint: a row scrolled
+		 * out of a scroll box is not drawn, so its cached geometry is where it
+		 * was last seen, or nowhere.
+		 */
+		bool LaidOut(const UWidget* Widget, FBox2D& Out)
+		{
+			const TSharedPtr<SWidget> Slate = Widget ? Widget->GetCachedWidget() : nullptr;
+			if (!Slate.IsValid() || !FSlateApplication::IsInitialized())
+			{
+				return false;
+			}
+			FWidgetPath Path;
+			if (!FSlateApplication::Get().FindPathToWidget(Slate.ToSharedRef(), Path, EVisibility::Visible) || !Path.IsValid())
+			{
+				return false;
+			}
+			const FGeometry& Geometry = Path.Widgets.Last().Geometry;
+			const FVector2D Min = Geometry.GetAbsolutePosition();
+			const FVector2D Size = Geometry.GetAbsoluteSize();
+			Out = FBox2D(Min, Min + Size);
+			return Size.X > 0.0f && Size.Y > 0.0f;
+		}
+
+		/**
+		 * Where a widget is laid out now, in desktop space; where it was last
+		 * drawn when it is not laid out (see LaidOut).
+		 */
+		FBox2D RectOfImpl(const UWidget* Widget)
+		{
+			FBox2D Rect(ForceInit);
+			if (LaidOut(Widget, Rect))
+			{
+				return Rect;
+			}
+			const FGeometry& Geometry = Widget->GetCachedGeometry();
+			const FVector2D Min = Geometry.GetAbsolutePosition();
+			return FBox2D(Min, Min + Geometry.GetAbsoluteSize());
+		}
+
+		/** Space between two intervals; zero where they overlap. */
+		float IntervalGap(float AMin, float AMax, float BMin, float BMax)
+		{
+			return FMath::Max(0.0f, FMath::Max(BMin - AMax, AMin - BMax));
+		}
+	}
+
+	FBox2D LayoutRect(const UWidget* Widget)
+	{
+		return Widget ? RectOfImpl(Widget) : FBox2D(ForceInit);
+	}
+
+	void GatherFocusables(const UUserWidget* Container, TArray<UWidget*>& Out)
+	{
+		GatherInto(Container, Out, 0);
+	}
+
+	UWidget* FocusedAmong(const TArray<UWidget*>& Candidates)
+	{
+		if (!FSlateApplication::IsInitialized())
+		{
+			return nullptr;
+		}
+		for (TSharedPtr<SWidget> At = FSlateApplication::Get().GetUserFocusedWidget(0); At.IsValid(); At = At->GetParentWidget())
+		{
+			for (UWidget* Candidate : Candidates)
+			{
+				if (Candidate && Candidate->GetCachedWidget() == At)
+				{
+					return Candidate;
+				}
+			}
+		}
+		return nullptr;
+	}
+
+	namespace
+	{
+		/** The scroll box a widget scrolls in, if any. */
+		const UScrollBox* ScrollBoxOf(const UWidget* Widget)
+		{
+			for (const UWidget* At = Widget ? StepUp(Widget) : nullptr; At; At = StepUp(At))
+			{
+				if (const UScrollBox* Scroll = Cast<UScrollBox>(At))
+				{
+					return Scroll;
+				}
+			}
+			return nullptr;
+		}
+
+		UWidget* NearestAmong(EUINavigation Direction, const UWidget* Source, const TArray<UWidget*>& Candidates);
+	}
+
+	UWidget* NearestToward(EUINavigation Direction, const UWidget* Source, const TArray<UWidget*>& Candidates)
+	{
+		if (!Source)
+		{
+			return nullptr;
+		}
+		// Along a scroll box, its own rows first and what lies past it (a
+		// footer) only at the list's end: a row scrolled out of view is
+		// further away than the footer drawn over the box's edge.
+		const UScrollBox* Scroll = ScrollBoxOf(Source);
+		const bool bAlong = Scroll && (Scroll->GetOrientation() == Orient_Vertical
+			? Direction == EUINavigation::Up || Direction == EUINavigation::Down
+			: Direction == EUINavigation::Left || Direction == EUINavigation::Right);
+		if (bAlong)
+		{
+			TArray<UWidget*> Inside;
+			for (UWidget* Candidate : Candidates)
+			{
+				if (Candidate && ScrollBoxOf(Candidate) == Scroll)
+				{
+					Inside.Add(Candidate);
+				}
+			}
+			if (UWidget* Best = NearestAmong(Direction, Source, Inside))
+			{
+				return Best;
+			}
+			// Nothing laid out that way: the next row in the list's own order,
+			// which the box scrolls into view as it takes focus.
+			const bool bForward = Direction == EUINavigation::Down || Direction == EUINavigation::Right;
+			const int32 At = Inside.IndexOfByKey(Source);
+			FBox2D Ignored(ForceInit);
+			if (At != INDEX_NONE)
+			{
+				for (int32 Index = At + (bForward ? 1 : -1); Inside.IsValidIndex(Index); Index += bForward ? 1 : -1)
+				{
+					if (!LaidOut(Inside[Index], Ignored))
+					{
+						return Inside[Index];
+					}
+				}
+			}
+		}
+		return NearestAmong(Direction, Source, Candidates);
+	}
+
+	namespace
+	{
+		UWidget* NearestAmong(EUINavigation Direction, const UWidget* Source, const TArray<UWidget*>& Candidates)
+		{
+			constexpr float Slack = 4.0f;
+			const FBox2D From = RectOfImpl(Source);
+			const FVector2D FromCentre = From.GetCenter();
+
+			UWidget* Best = nullptr;
+			float BestScore = TNumericLimits<float>::Max();
+			for (UWidget* Candidate : Candidates)
+			{
+				if (!Candidate || Candidate == Source || !CanFocus(Candidate))
+				{
+					continue;
+				}
+				// A row a scroll box has not laid out (scrolled out of view) has
+				// no place to measure; NearestToward reaches it by list order.
+				FBox2D To(ForceInit);
+				if (!LaidOut(Candidate, To))
+				{
+					continue;
+				}
+				const FVector2D ToCentre = To.GetCenter();
+				float Along = 0.0f;
+				float Across = 0.0f;
+				float CentreAcross = 0.0f;
+				switch (Direction)
+				{
+				case EUINavigation::Right:
+					if (To.Min.X < From.Max.X - Slack) { continue; }
+					Along = To.Min.X - From.Max.X;
+					Across = IntervalGap(From.Min.Y, From.Max.Y, To.Min.Y, To.Max.Y);
+					CentreAcross = FMath::Abs(ToCentre.Y - FromCentre.Y);
+					break;
+				case EUINavigation::Left:
+					if (To.Max.X > From.Min.X + Slack) { continue; }
+					Along = From.Min.X - To.Max.X;
+					Across = IntervalGap(From.Min.Y, From.Max.Y, To.Min.Y, To.Max.Y);
+					CentreAcross = FMath::Abs(ToCentre.Y - FromCentre.Y);
+					break;
+				case EUINavigation::Down:
+					if (To.Min.Y < From.Max.Y - Slack) { continue; }
+					Along = To.Min.Y - From.Max.Y;
+					Across = IntervalGap(From.Min.X, From.Max.X, To.Min.X, To.Max.X);
+					CentreAcross = FMath::Abs(ToCentre.X - FromCentre.X);
+					break;
+				case EUINavigation::Up:
+					if (To.Max.Y > From.Min.Y + Slack) { continue; }
+					Along = From.Min.Y - To.Max.Y;
+					Across = IntervalGap(From.Min.X, From.Max.X, To.Min.X, To.Max.X);
+					CentreAcross = FMath::Abs(ToCentre.X - FromCentre.X);
+					break;
+				default:
+					return nullptr;
+				}
+				const float Score = FMath::Max(0.0f, Along) + 2.0f * Across + 0.05f * CentreAcross;
+				if (Score < BestScore)
+				{
+					BestScore = Score;
+					Best = Candidate;
+				}
+			}
+			return Best;
+		}
+	}
+
+	bool MoveToward(UUserWidget* Surface, EUINavigation Direction, const UWidget* Source)
+	{
+		if (!Surface || IsSequential(Direction) || Direction == EUINavigation::Invalid)
+		{
+			return false;
+		}
+		TArray<UWidget*> Candidates;
+		GatherFocusables(Surface, Candidates);
+		if (!Source || Source == Surface)
+		{
+			Source = FocusedAmong(Candidates);
+		}
+		if (!Source)
+		{
+			return false;
+		}
+		if (UWidget* Target = NearestToward(Direction, Source, Candidates))
+		{
+			Focus(Target);
+		}
+		return true;
+	}
+
 	FReply RouteFromLeaf(UWidget* Leaf, EUINavigation Direction, ENavigationGenesis Genesis)
 	{
 		if (UApexNavigableWidget* Host = FindHost(Leaf))
@@ -245,6 +511,25 @@ bool UApexNavigableWidget::HandleBack()
 bool UApexNavigableWidget::HandleAccept()
 {
 	return false;
+}
+
+FReply UApexNavigableWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	const EUINavigation Direction = ApexNav::DirectionFromKey(InKeyEvent);
+	if (Direction == EUINavigation::Up || Direction == EUINavigation::Down)
+	{
+		TArray<UWidget*> Controls;
+		ApexNav::GatherFocusables(this, Controls);
+		UWidget* Focused = ApexNav::FocusedAmong(Controls);
+		// Only a slider that is this surface's own, not one in a surface on top.
+		if (Focused && Focused->IsA<USlider>() && ApexNav::FindHost(Focused) == this)
+		{
+			ApexNav::FNavigationScope Scope;
+			ApexNav::MoveToward(this, Direction, Focused);
+			return FReply::Handled();
+		}
+	}
+	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
 }
 
 FReply UApexNavigableWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)

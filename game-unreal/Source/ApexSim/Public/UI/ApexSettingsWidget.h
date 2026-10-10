@@ -129,6 +129,7 @@ protected:
 	UFUNCTION() void HandleWheelRotationChanged(float Value);
 	UFUNCTION() void HandleWheelSteeringLockChanged(float Value);
 	UFUNCTION() void HandleWheelTestActivated(UApexButtonWidget* Button);
+	UFUNCTION() void HandleWheelProfileStepped(UApexStepperWidget* Stepper, int32 Value);
 	UFUNCTION() void HandleMasterVolumeChanged(float Value);
 	UFUNCTION() void HandleUiVolumeChanged(float Value);
 	UFUNCTION() void HandleEngineVolumeChanged(float Value);
@@ -155,6 +156,8 @@ private:
 	UWidget* BuildCameraPage();
 	UWidget* BuildControlsPage();
 	UWidget* BuildWheelPage();
+	/** Puts the profile steppers on the force wheel as it is now. */
+	void RefreshWheelProfile();
 	UWidget* BuildAudioPage();
 	UWidget* BuildBindingsGrid();
 
@@ -386,6 +389,15 @@ private:
 	UPROPERTY(Transient) TObjectPtr<USlider> WheelSteeringLockSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> WheelSteeringLockFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WheelSteeringLockValue;
+
+	/**
+	 * The force wheel's profile (0 = detected, else ApexWheelProfiles::All()
+	 * index + 1) and peak torque (0 = the profile's, else newton-metres),
+	 * with the line saying what they add up to.
+	 */
+	UPROPERTY(Transient) TObjectPtr<UApexStepperWidget> WheelProfileStepper;
+	UPROPERTY(Transient) TObjectPtr<UApexStepperWidget> WheelPeakStepper;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WheelProfileNote;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> DeviceCountText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GamepadStateText;

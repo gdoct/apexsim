@@ -255,7 +255,7 @@ fn racing(state: &CarState) -> bool {
         && state.speed_mps >= MIN_SPEED_MPS
         && !state.pit.driving
         && !state.in_garage
-        && !state.towed
+        && !state.is_ghost()
         && state.damage.is_drivable
         && state.finish_position.is_none()
 }
@@ -811,7 +811,7 @@ fn recover(rc: &mut Racecraft, state: &CarState, ctx: &Context<'_>) {
     rc.recover_cooldown_s = (rc.recover_cooldown_s - dt).max(0.0);
     let out_of_it = state.pit.driving
         || state.in_garage
-        || state.towed
+        || state.is_ghost()
         || !state.damage.is_drivable
         || state.finish_position.is_some();
     if out_of_it {

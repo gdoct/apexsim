@@ -75,7 +75,7 @@ void UApexButtonWidget::Setup(const FApexButtonSpec& InSpec)
 
 	// A locked row must not take focus: the keyboard would land on it, nothing
 	// would light up, and the selection would look like it had vanished.
-	SetIsFocusable(IsInteractive());
+	SetIsFocusable(IsInteractive() && !Spec.bMouseOnly);
 
 	if (!ContentRow)
 	{

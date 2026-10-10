@@ -217,82 +217,6 @@ namespace
 		}
 	}
 
-	/** Where a widget was last drawn, in desktop space. */
-	FBox2D RectOf(const UWidget* Widget)
-	{
-		const FGeometry& Geometry = Widget->GetCachedGeometry();
-		const FVector2D Min = Geometry.GetAbsolutePosition();
-		return FBox2D(Min, Min + Geometry.GetAbsoluteSize());
-	}
-
-	/** Space between two intervals; zero where they overlap. */
-	float IntervalGap(float AMin, float AMax, float BMin, float BMax)
-	{
-		return FMath::Max(0.0f, FMath::Max(BMin - AMax, AMin - BMax));
-	}
-
-	/**
-	 * The control to go to from Source in Direction: wholly on that side of
-	 * it, nearest along the way, then nearest across it, so a move that lines
-	 * up with nothing still lands on the closest thing that way.
-	 */
-	UWidget* NearestToward(EUINavigation Direction, const UWidget* Source, const TArray<UWidget*>& Candidates)
-	{
-		constexpr float Slack = 4.0f;
-		const FBox2D From = RectOf(Source);
-		const FVector2D FromCentre = From.GetCenter();
-
-		UWidget* Best = nullptr;
-		float BestScore = TNumericLimits<float>::Max();
-		for (UWidget* Candidate : Candidates)
-		{
-			if (!Candidate || Candidate == Source || !ApexNav::CanFocus(Candidate))
-			{
-				continue;
-			}
-			const FBox2D To = RectOf(Candidate);
-			const FVector2D ToCentre = To.GetCenter();
-			float Along = 0.0f;
-			float Across = 0.0f;
-			float CentreAcross = 0.0f;
-			switch (Direction)
-			{
-			case EUINavigation::Right:
-				if (To.Min.X < From.Max.X - Slack) { continue; }
-				Along = To.Min.X - From.Max.X;
-				Across = IntervalGap(From.Min.Y, From.Max.Y, To.Min.Y, To.Max.Y);
-				CentreAcross = FMath::Abs(ToCentre.Y - FromCentre.Y);
-				break;
-			case EUINavigation::Left:
-				if (To.Max.X > From.Min.X + Slack) { continue; }
-				Along = From.Min.X - To.Max.X;
-				Across = IntervalGap(From.Min.Y, From.Max.Y, To.Min.Y, To.Max.Y);
-				CentreAcross = FMath::Abs(ToCentre.Y - FromCentre.Y);
-				break;
-			case EUINavigation::Down:
-				if (To.Min.Y < From.Max.Y - Slack) { continue; }
-				Along = To.Min.Y - From.Max.Y;
-				Across = IntervalGap(From.Min.X, From.Max.X, To.Min.X, To.Max.X);
-				CentreAcross = FMath::Abs(ToCentre.X - FromCentre.X);
-				break;
-			case EUINavigation::Up:
-				if (To.Max.Y > From.Min.Y + Slack) { continue; }
-				Along = From.Min.Y - To.Max.Y;
-				Across = IntervalGap(From.Min.X, From.Max.X, To.Min.X, To.Max.X);
-				CentreAcross = FMath::Abs(ToCentre.X - FromCentre.X);
-				break;
-			default:
-				return nullptr;
-			}
-			const float Score = FMath::Max(0.0f, Along) + 2.0f * Across + 0.05f * CentreAcross;
-			if (Score < BestScore)
-			{
-				BestScore = Score;
-				Best = Candidate;
-			}
-		}
-		return Best;
-	}
 }
 
 UApexSessionCreateWidget::UApexSessionCreateWidget(const FObjectInitializer& ObjectInitializer)
@@ -451,7 +375,7 @@ bool UApexSessionCreateWidget::HandleNavigation(EUINavigation Direction, UWidget
 
 	TArray<UWidget*> Candidates;
 	GatherFocusables(Candidates);
-	if (UWidget* Target = NearestToward(Direction, Source, Candidates))
+	if (UWidget* Target = ApexNav::NearestToward(Direction, Source, Candidates))
 	{
 		ApexNav::Focus(Target);
 	}

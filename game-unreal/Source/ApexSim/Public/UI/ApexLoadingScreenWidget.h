@@ -18,6 +18,8 @@ class APEXSIM_API UApexLoadingScreenWidget : public UApexScreenWidget
 	GENERATED_BODY()
 
 public:
+	UApexLoadingScreenWidget(const FObjectInitializer& ObjectInitializer);
+
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
 	void SetMessage(const FString& Message);
 

@@ -224,6 +224,10 @@ UWidget* UApexCarSelectWidget::BuildStage()
 	LiverySpec.LabelSize = 17.0f;
 	LiverySpec.Height = 56.0f;
 	LiverySpec.ActionId = ActionLivery;
+	// A pad changes the livery with left and right on a car's row (the key
+	// cap says so), so the button is the mouse's: a pad that could focus it
+	// would find it a dead end, every direction on the rows being taken.
+	LiverySpec.bMouseOnly = true;
 
 	LiveryButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	LiveryButton->Setup(LiverySpec);

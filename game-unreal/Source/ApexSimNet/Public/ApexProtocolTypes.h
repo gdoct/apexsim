@@ -749,6 +749,16 @@ enum class EApexHotlapDestination : uint8
 	Track  = 1,
 };
 
+/** Mirrors `RecoverDestination` (recovery.rs): where a stuck driver asks for their car to be put. */
+UENUM(BlueprintType)
+enum class EApexRecoverDestination : uint8
+{
+	/** Back onto the track where the car is, held for the time cost. */
+	Track = 0,
+	/** To the car's pit box, serviced and driven out (the garage in a hotlap or qualifying). */
+	Pits  = 1,
+};
+
 /** Client-side connection lifecycle. Not a protocol type. */
 UENUM(BlueprintType)
 enum class EApexConnectionState : uint8
@@ -1902,6 +1912,12 @@ struct APEXSIMNET_API FApexCarTelemetry
 	/** The hybrid's stint energy budget left, percent (`ers_stint_pct`); negative without a stint rule. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	float ErsStintPct = -1.0f;
+
+	/** A recovery's hold left, seconds (`recover_ds`, recovery.rs): 0 for none;
+	 *  at least 0.1 while the car waits for traffic to pass. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float RecoverSecondsLeft = 0.0f;
+	bool IsRecovering() const { return RecoverSecondsLeft > 0.0f; }
 
 	/** "S", "M", "H", "I", "W" (server tyre_thermal::COMPOUNDS), or empty when unknown. */
 	static FString CompoundLetter(int32 InCompound)

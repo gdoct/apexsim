@@ -195,6 +195,12 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 	CheckBytes(TEXT("HotlapRelocate cold"),
 		ApexProtocol::EncodeHotlapRelocate(EApexHotlapDestination::Track, true),
 		ApexGolden::C_HotlapRelocateCold);
+	CheckBytes(TEXT("RecoverCar track"),
+		ApexProtocol::EncodeRecoverCar(EApexRecoverDestination::Track),
+		ApexGolden::C_RecoverCarTrack);
+	CheckBytes(TEXT("RecoverCar pits"),
+		ApexProtocol::EncodeRecoverCar(EApexRecoverDestination::Pits),
+		ApexGolden::C_RecoverCarPits);
 	CheckBytes(TEXT("RequestGhost"), ApexProtocol::EncodeRequestGhost(), ApexGolden::C_RequestGhost);
 	CheckBytes(TEXT("CreateSession with a start order"),
 		ApexProtocol::EncodeCreateSession(

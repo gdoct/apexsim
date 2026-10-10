@@ -1099,4 +1099,62 @@ bool FApexFfbFlatSpotTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbWheelProfileTest,
+	"ApexSim.Input.ForceFeedback.WheelProfile",
+	ApexTestFlags)
+
+bool FApexFfbWheelProfileTest::RunTest(const FString& Parameters)
+{
+	const ApexFfb::FWheelTuning Designed;
+	ApexFfb::FWheelTuning Strong;	// a 25 Nm base against the 8 Nm reference
+	Strong.OutputScale = 8.0f / 25.0f;
+
+	// A corner at the grip limit: the same newton-metres in the hands.
+	ApexFfb::FSignals Corner = Cruising(45.0f);
+	Corner.SteerTorque = 1.0f;
+	const FApexWheelEffects Reference = SettledWheel(Corner, Designed);
+	const FApexWheelEffects Scaled = SettledWheel(Corner, Strong);
+	TestTrue(FString::Printf(TEXT("a strong base plays the reference's torque (%.3f x 25 vs %.3f x 8 Nm)"),
+			Scaled.Constant, Reference.Constant),
+		FMath::IsNearlyEqual(Scaled.Constant * 25.0f, Reference.Constant * 8.0f, 0.05f * 8.0f));
+	TestTrue(TEXT("and its damper weighs the same"),
+		FMath::IsNearlyEqual(Scaled.Damper * 25.0f, Reference.Damper * 8.0f, 0.01f));
+
+	// A downforce car's fast corner: the reference base compresses it, the
+	// strong one has the room to play it straight.
+	Corner.SteerTorque = 2.4f;
+	const float ReferenceFast = SettledWheel(Corner, Designed).Constant;
+	const float ScaledFast = SettledWheel(Corner, Strong).Constant;
+	TestTrue(FString::Printf(TEXT("the strong base keeps headroom (%.2f of its peak)"), ScaledFast), ScaledFast < 0.6f);
+	TestTrue(TEXT("and gives more of the fast corner than the reference can"), ScaledFast * 25.0f > ReferenceFast * 8.0f);
+
+	// Curbs are shares of the base as well.
+	ApexFfb::FSignals Curb = Cruising(30.0f);
+	Curb.CurbLeft = 1.0f;
+	const float CurbReference = PeakWheelVibration(Curb, Designed).VibrationAmplitude;
+	const float CurbScaled = PeakWheelVibration(Curb, Strong).VibrationAmplitude;
+	TestTrue(TEXT("a curb shakes the rim as hard"), FMath::IsNearlyEqual(CurbScaled * 25.0f, CurbReference * 8.0f, 0.01f));
+
+	// A gear drive's minimum force: a light torque is lifted to what the rim
+	// can feel, the sign kept, and nothing is still nothing.
+	ApexFfb::FWheelTuning Gear;
+	Gear.MinimumForce = 0.05f;
+	ApexFfb::FSignals Light = Cruising(45.0f);
+	Light.SteerTorque = 0.05f;
+	const float Lifted = SettledWheel(Light, Gear).Constant;
+	TestTrue(FString::Printf(TEXT("a light torque is lifted (%.3f against %.3f)"), Lifted, SettledWheel(Light, Designed).Constant),
+		Lifted >= 0.05f && Lifted > SettledWheel(Light, Designed).Constant);
+	Light.SteerTorque = -0.05f;
+	TestTrue(TEXT("either way"), SettledWheel(Light, Gear).Constant <= -0.05f);
+	TestTrue(TEXT("no torque is still no force"), FMath::Abs(SettledWheel(Cruising(45.0f), Gear).Constant) < 0.01f);
+
+	Corner.SteerTorque = 1.0f;
+	TestTrue(TEXT("a firm torque is barely touched"),
+		FMath::IsNearlyEqual(SettledWheel(Corner, Gear).Constant, Reference.Constant, 0.03f));
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

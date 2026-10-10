@@ -154,6 +154,9 @@ pub(crate) async fn handle_message(
         } => {
             handle_hotlap_relocate(ctx, connection_id, destination, cold_tyres).await;
         }
+        ClientMessage::RecoverCar { destination } => {
+            handle_recover_car(ctx, connection_id, destination).await;
+        }
         ClientMessage::RequestGhost => {
             handle_request_ghost(ctx, connection_id).await;
         }
@@ -1271,6 +1274,35 @@ async fn handle_hotlap_relocate(
     match result {
         Ok(()) => debug!(
             "Player {} relocated to {:?}",
+            conn_info.player_name, destination
+        ),
+        Err(reason) => ctx.send_error(connection_id, 400, reason).await,
+    }
+}
+
+/// A stuck driver's car put back (`GameSession::recover_car`); an `Error`
+/// says why when it cannot be.
+async fn handle_recover_car(
+    ctx: &GameLoopCtx,
+    connection_id: ConnectionId,
+    destination: crate::recovery::RecoverDestination,
+) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        return;
+    };
+    let result = {
+        let mut state_write = ctx.state.write().await;
+        match state_write.sessions.get_mut(&session_id) {
+            Some(game_session) => game_session.recover_car(&conn_info.player_id, destination),
+            None => Err("Session not found"),
+        }
+    };
+    match result {
+        Ok(()) => debug!(
+            "Player {} recovered to {:?}",
             conn_info.player_name, destination
         ),
         Err(reason) => ctx.send_error(connection_id, 400, reason).await,

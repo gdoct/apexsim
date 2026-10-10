@@ -17,7 +17,8 @@ Client paths under `game-unreal/Source/`.
 - `ApexSim/Public/Input/ApexForceFeedback.h`: `ApexFfb`, signals and the two
   mixers (pure maths).
 - `ApexSimInput/`: the DirectInput device module (`ApexDirectInputTypes.h`,
-  `Windows/ApexDirectInputDevice.cpp`, `ApexSimInputModule.cpp`).
+  `ApexWheelProfiles.h`, `Windows/ApexDirectInputDevice.cpp`,
+  `ApexSimInputModule.cpp`).
 - `server/src/feedback.rs` (`FeedbackTick`, `FeedbackAccumulator`,
   `DriverFeedback`), `server/src/physics.rs` (`steering_column_torque`,
   `steering_column_stiffness`, `impact_steer_kick`),
@@ -259,6 +260,48 @@ Everything else is texture on top.
   (`UApexSettingsSave::WheelForce`, `WheelRoadEffects`, `WheelDamping`,
   `bWheelInvertForce`; the Direction test pushes the rim right and asks).
 
+### Wheelbase profiles
+
+Every force above is a share of the base's own peak, so on its own the same
+Force setting would put 5 Nm in the hands on the 8 Nm ClubSport V2.5 the feel
+was tuned on and 15 Nm on a 25 Nm direct drive, curbs, damper and soft lock
+scaled up with it. A profile (`ApexWheelProfiles`, `ApexSimInput`) gives the
+base's peak and drive type:
+
+- **Output scale** (`FWheelTuning::OutputScale`,
+  `ApexWheelProfiles::OutputScale`): a base stronger than
+  `ReferencePeakTorqueNm` (8) plays everything (torque, road, centring, the
+  stop, vibration, damper, spring) at 8 / peak, so the rim weighs the
+  reference's newton-metres. The soft limit and the clamp stay at the base's
+  own peak: the rest of the motor is headroom for a downforce car. The
+  stiffness limit is worked out before the scale, so it holds the same Nm per
+  degree it was measured at. A weaker base keeps scale 1.
+- **Minimum force** (`FWheelTuning::MinimumForce`, by drive type: gear 5%,
+  gear + belt 3%, belt and direct 0): lifts the constant force off zero so a
+  light aligning torque gets through a gear drive's friction, ramped in over
+  the first 2% of force so the centre is not notched.
+- **Generic** (no peak, unknown drive) and the V2.5 are scale 1 and minimum 0:
+  the mixing exactly as tuned.
+
+`ApexWheelProfiles::Detect` matches the USB vendor id (`FDeviceInfo::VendorId`)
+and tokens in the product name (upper case, letters and digits only; the first
+rule wins, so `CLUBSPORTDD` is tried before the belt ClubSports). The table
+covers Fanatec, Logitech, Thrustmaster, Moza and Simucube 2 bases. Peaks are
+the makers' published figures, or the commonly measured figure where none is
+published (Logitech, Thrustmaster's belt and hybrid bases). Simucube shares a
+vendor id, so its rules also need `SIMUCUBE` in the name.
+
+**Choosing.** The Wheel tab's Wheelbase stepper (Auto = detected, then every
+profile) and Peak torque stepper (Auto = the profile's figure, then 1-40 Nm)
+act on the force wheel. The choice is kept per model by vendor and product id
+(`UApexSettingsSave::WheelProfiles`, `FApexWheelProfileChoice`), so a second
+base keeps its own. Choosing the detected profile stores nothing, and an entry
+left with nothing in it is removed. The peak is for a base whose own software
+has been turned down (Simucube True Drive, Moza Pit House, Fanatec's FF
+setting), or a CSL DD on its 8 Nm supply. The subsystem resolves it
+(`UApexSettingsSubsystem::GetWheelProfile`); the controller reads it every
+frame, and the 15 s forces log line names the profile, peak and scale.
+
 ### Sending forces safely
 
 Devices are opened shared. Only the wheel the steering is bound to is taken
@@ -300,6 +343,9 @@ hardware.
 - Automation tests (run as in [building](../building.md)):
   `ApexSim.Input.ForceFeedback.*` (both mixers; `WheelLetGo` lets go of a rim in
   a corner against a 40 ms, 60 Hz server and expects it home inside 0.3 s),
+  `ApexSim.Input.ForceFeedback.WheelProfile` (scale and minimum force),
+  `ApexSim.Input.WheelProfiles.*` (detection by name and vendor, the table,
+  the reference base unscaled),
   `ApexSim.Input.DirectInput.*` (slots, keys, readings, records file,
   `ConstantSchedule`, `Sanitise`), `ApexSim.Input.Wheel.*` (binding rules,
   mapping, menu navigation), `ApexSim.Net.Udp.*` (feedback goldens),

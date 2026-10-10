@@ -92,6 +92,14 @@ public:
 	 */
 	void RequestFocusDefault();
 
+	/**
+	 * The surface FocusDefault puts the keys on: the HUD editor, settings,
+	 * pause menu or garage card in front, else the current screen. Null while
+	 * driving, watching or in the guide, where the viewport owns the keys.
+	 * What the pad walk (ApexPadWalk) walks.
+	 */
+	UUserWidget* GetFrontSurface() const;
+
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	bool IsRaceViewActive() const { return bRaceViewActive; }
 

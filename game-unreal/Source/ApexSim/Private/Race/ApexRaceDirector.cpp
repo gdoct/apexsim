@@ -205,6 +205,18 @@ namespace
 		TEXT("apexsim.hotlap.Out"),
 		TEXT("Hotlap: out of the garage onto the run-up before the line."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World) { RunHotlapCommand(World, TEXT("Out")); }));
+	FAutoConsoleCommandWithWorldAndArgs RecoverCommand(
+		TEXT("apexsim.recover"),
+		TEXT("apexsim.recover [track|pits]: the pause menu's BACK TO TRACK / BACK TO PITS (default track)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			UApexNetSubsystem* Net = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+			if (Net)
+			{
+				const bool bPits = Args.Num() > 0 && Args[0].Equals(TEXT("pits"), ESearchCase::IgnoreCase);
+				Net->RecoverCar(bPits ? EApexRecoverDestination::Pits : EApexRecoverDestination::Track);
+			}
+		}));
 	FAutoConsoleCommandWithWorld HotlapGarageCommand(
 		TEXT("apexsim.hotlap.Garage"),
 		TEXT("Hotlap: back into the garage."),

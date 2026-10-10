@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "ApexMultiView.h"
 #include "ApexSettingsSave.h"
+#include "ApexWheelProfiles.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
 #include "ApexSettingsSubsystem.generated.h"
@@ -278,6 +279,36 @@ public:
 	 * to — or INDEX_NONE when there is no wheel that can play them.
 	 */
 	int32 GetWheelDeviceSlot() const;
+
+	/** The force-feedback wheel's profile, as the mixer uses it and the Wheel page shows it. */
+	struct FWheelProfileState
+	{
+		/** A wheel that can play forces is attached; everything below is about it. */
+		bool bHasBase = false;
+		uint16 VendorId = 0;
+		uint16 ProductId = 0;
+		/** What its name matched (Generic when nothing did), and what is in use. */
+		const ApexWheelProfiles::FProfile* Detected = &ApexWheelProfiles::Generic();
+		const ApexWheelProfiles::FProfile* Profile = &ApexWheelProfiles::Generic();
+		/** The player chose Profile rather than it being detected. */
+		bool bChosen = false;
+		/** Newton-metres in use, 0 when unknown, and whether the player gave it. */
+		float PeakTorqueNm = 0.0f;
+		bool bPeakGiven = false;
+	};
+
+	/**
+	 * The profile for the wheel the forces go to: the player's choice for its
+	 * model (UApexSettingsSave::WheelProfiles), else the one its name
+	 * matches. Generic, with no base, when there is no such wheel.
+	 */
+	FWheelProfileState GetWheelProfile() const;
+
+	/** Chooses the force wheel's profile by id; empty goes back to the detected one. */
+	void SetWheelProfile(const FString& ProfileId);
+
+	/** The force wheel's peak in newton-metres; 0 goes back to the profile's figure. */
+	void SetWheelPeakTorque(float Nm);
 
 	/**
 	 * Whether the steering is bound to an attached wheel rather than a pad or

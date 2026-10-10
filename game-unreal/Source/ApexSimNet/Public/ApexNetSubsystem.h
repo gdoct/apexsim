@@ -421,6 +421,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void HotlapRelocate(EApexHotlapDestination Destination, bool bColdTyres = false);
 
+	/**
+	 * A stuck car back onto the track where it is, or to its pit box (the
+	 * garage in a hotlap or qualifying), held for the time cost. The hold
+	 * comes back in telemetry (FApexCarTelemetry::RecoverSecondsLeft); a
+	 * refusal (moving, out, on the pit route) as an Error.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void RecoverCar(EApexRecoverDestination Destination);
+
 	/** Ask for the record lap's trace; OnGhostLap answers, empty when there is none. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void RequestGhost();
