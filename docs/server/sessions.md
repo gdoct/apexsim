@@ -162,10 +162,23 @@ or at the deadline. A finished human's car is driven by the server
 received otherwise stays applied.
 
 Client: the HUD ranks finishers first (`ApexRace::RanksAhead`), cars still
-racing get a toast when P1 takes the flag, and 2.5 s after the local car
-finishes the root widget swaps the race view for a provisional
-`SessionResults` screen that re-sorts until the session ends (best lap's
-splits, personal and track records, Save replay).
+racing get a toast when P1 takes the flag, and the race view stays up after
+the local car finishes: 1 s after the flag the root widget begins the finish
+view (`UApexRootWidget::BeginFinishView`: drive input off, HUD hidden, the
+director's panorama over the car the cool-down driver now has; see
+[cameras](../game/cameras.md#finish-view-apexfinishcamfmove)), and 3 s
+later `UApexRaceResultsWidget` comes up over the race, translucent: the
+classification (race time, gaps, laps down), provisional until the session
+ends. A row of a car still racing films it (`FocusFinishCar`, the broadcast
+camera locked on it), the player's own row brings the panorama back; H or
+pad Y folds the card to a tab; Drive again (once the race is over), Back to
+lobby, Save replay. A driver whose race ends without the flag (out of time,
+or the last car home, where `Finished` and the flag arrive together) gets
+the same view on `Finished`. The `SessionResults` screen remains for
+spectators and the other modes. `UApexSessionRecorder` records the frame
+that carries `Finished` before freezing, or the last car home would read DNF.
+`apexsim.finish [view|car N|panorama|end]` opens the view mid-race for
+unattended checks.
 
 ## Timed races
 

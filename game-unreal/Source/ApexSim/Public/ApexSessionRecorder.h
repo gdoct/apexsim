@@ -135,6 +135,8 @@ private:
 	void BeginRecording();
 	/** Freezes and classifies what was recorded, and files any personal best. */
 	void FinishRecording();
+	/** One frame's laps, flags, speeds and distances into the results. */
+	void RecordFrame(const FApexTelemetryFrame& Frame);
 
 	FApexCarResult& FindOrAddCar(int32 CarIndex);
 	void SortResults();

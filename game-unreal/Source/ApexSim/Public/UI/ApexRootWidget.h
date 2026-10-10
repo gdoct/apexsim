@@ -18,6 +18,7 @@ class UApexTrackGuideWidget;
 class UApexHudEditorWidget;
 class UApexHudWidget;
 class UApexPauseMenuWidget;
+class UApexRaceResultsWidget;
 class UApexScreenWidget;
 class UApexSettingsWidget;
 class UApexToastWidget;
@@ -26,6 +27,7 @@ class UImage;
 class UTexture2D;
 class UWidgetSwitcher;
 enum class EApexPauseAction : uint8;
+enum class EApexRaceResultsAction : uint8;
 enum class EApexHotlapAction : uint8;
 enum class EApexSettingsTab : uint8;
 
@@ -109,6 +111,16 @@ public:
 	/** True while the hotlap garage card is up and owns the keys. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	bool IsGarageOpen() const { return bGarageOpen; }
+
+	/**
+	 * The local car has taken the flag: the server drives it, the camera
+	 * films it from the finish view and the results are (or are about to be)
+	 * up over the race. Nothing is driven, so the keys are the results'.
+	 */
+	bool IsFinishViewActive() const { return bFinishView; }
+
+	/** `apexsim.finish [view|car <index>|panorama|end]`: the finish view on demand, for unattended checks. */
+	void HandleFinishCommand(const TArray<FString>& Args);
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	bool IsSettingsOpen() const;
@@ -296,6 +308,10 @@ protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
 	TObjectPtr<UApexHudEditorWidget> HudEditor;
 
+	/** The results over the finish view, under the pause menu. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
+	TObjectPtr<UApexRaceResultsWidget> RaceResults;
+
 private:
 	/** Builds the frame and fills the switcher, one screen per EApexScreen. */
 	void BuildShell();
@@ -353,8 +369,26 @@ private:
 	UFUNCTION()
 	void HandleTelemetryForFinish(const FApexTelemetryFrame& Frame);
 
-	/** Leaves the race view for the live results, a moment after the flag. */
+	/**
+	 * After the flag: a beat on the driving camera, then the finish view (the
+	 * camera pulls back into a panorama over the car the server now drives)
+	 * and the results over the race once it has.
+	 */
 	void ShowResultsAfterFinish(int32 Position);
+
+	/** The finish view on: drive input off, HUD away, the director's panorama. */
+	void BeginFinishView();
+	/** And off again (the next race, leaving the race view); closes the results. */
+	void EndFinishView();
+	/** The results card over the finish view. */
+	void OpenFinishResults();
+
+	UFUNCTION()
+	void HandleRaceResultsAction(EApexRaceResultsAction Action);
+
+	/** A driver clicked in the results: film their car (or ours again). */
+	UFUNCTION()
+	void HandleRaceResultsWatch(int32 CarIndex);
 
 	/** Forgets the flags seen, for a race that is about to start. */
 	void ResetFinishWatch();
@@ -480,7 +514,10 @@ private:
 	bool bWinnerAnnounced = false;
 	/** The local car has taken the flag in this race. */
 	bool bLocalFinished = false;
+	/** The finish view is on (BeginFinishView). */
+	bool bFinishView = false;
 	FTimerHandle ResultsAfterFinishTimer;
+	FTimerHandle FinishViewTimer;
 	/** A one-click start joined before the telemetry channel was up. */
 	bool bStartWhenUdpReady = false;
 	bool bAutoRaceRequested = false;

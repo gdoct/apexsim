@@ -12,12 +12,12 @@ in [spectator.md](spectator.md); triple-screen side views in
 
 - `game-unreal/Source/ApexSim/Public/Race/`: `ApexCockpitRig.h`,
   `ApexCockpitLayout.h`, `ApexChaseView.h`, `ApexShotCamera.h`,
-  `ApexRaceCoordinate.h`, `ApexTvDirector.h`, `ApexLobbyCamera.h`,
+  `ApexRaceCoordinate.h`, `ApexTvDirector.h`, `ApexLobbyCamera.h`, `ApexFinishCamera.h`,
   `ApexRaceDirector.h`
 - `UI/ApexCockpitDashWidget.h`, `UI/ApexMirrorWidget.h`
 - `ApexDemoModeSubsystem.h` (module root)
 - Tests: `Private/Tests/CockpitLayoutTests.cpp`, `ChaseViewTests.cpp`,
-  `ShotCameraTests.cpp`, `TvDirectorTests.cpp`, `LobbyCameraTests.cpp`
+  `ShotCameraTests.cpp`, `TvDirectorTests.cpp`, `LobbyCameraTests.cpp`, `FinishCameraTests.cpp`
 
 ## Camera modes
 
@@ -130,6 +130,24 @@ director feeds it the session track's centerline from the lobby
 
 Tests: `ApexSim.Tv.*` (cutting, framing, path, target choice, cars in
 trouble, a blocked view, trackside placement, lock target).
+
+## Finish view (`ApexFinishCam::FMove`)
+
+After the local car takes the flag (`AApexRaceDirector::BeginFinishView`,
+asked for by the root widget; [sessions](../server/sessions.md#race-start-and-finish))
+the director spectates its own race: the TV camera is flown by
+`Race/ApexFinishCamera.h`, a pure move from whichever camera was on screen.
+It pulls straight back and up behind the car (3 s, 22 m back, 8 m up,
+following the car's eased heading), then climbs into a slow orbit in the
+world frame (5 s, to 52 m out and 26 m up, 6°/s), held while the cool-down
+driver laps. It keeps 3 m over the ground below and turns from the old
+camera's aim onto the car over 0.8 s; a camera more than 100 m away starts
+from a chase position behind the car. `FocusFinishCar` puts the broadcast
+director on another car (locked) or the move back on ours; `EndFinishView`
+gives the driver's own camera back.
+
+Tests: `ApexSim.FinishCam.*` (zoom out behind, rise into the panorama
+without a jump, orbit in the world frame, far start, rising ground).
 
 ## Demo mode (`UApexDemoModeSubsystem`)
 

@@ -61,7 +61,7 @@ void FApexMenuInputProcessor::KeepFocusOnGame(FSlateApplication& SlateApp, uint3
 bool FApexMenuInputProcessor::IsDriving(const UApexRootWidget& Root)
 {
 	return Root.IsRaceViewActive() && !Root.IsPaused() && !Root.IsGarageOpen() && !Root.IsSettingsOpen()
-		&& !Root.IsHudEditorOpen();
+		&& !Root.IsHudEditorOpen() && !Root.IsFinishViewActive();
 }
 
 void FApexMenuInputProcessor::SetGamepadActive(UApexRootWidget& Root, bool bActive)
@@ -163,7 +163,7 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 			return true;
 		}
 
-		if (!Root->IsPaused() && !Root->IsGarageOpen())
+		if (!Root->IsPaused() && !Root->IsGarageOpen() && !Root->IsFinishViewActive())
 		{
 			// Driving: the keys belong to the car.
 			KeepFocusOnGame(SlateApp, InKeyEvent.GetUserIndex());

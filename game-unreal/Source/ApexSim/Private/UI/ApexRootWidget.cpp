@@ -4,6 +4,7 @@
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
 #include "ApexReplayRecorder.h"
+#include "ApexSessionRecorder.h"
 #include "ApexPlayerController.h"
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
@@ -44,6 +45,7 @@
 #include "UI/ApexScreenWidget.h"
 #include "UI/ApexSessionCreateWidget.h"
 #include "UI/ApexSessionLobbyWidget.h"
+#include "UI/ApexRaceResultsWidget.h"
 #include "UI/ApexSessionResultsWidget.h"
 #include "UI/ApexSettingsWidget.h"
 #include "UI/ApexToastWidget.h"
@@ -87,6 +89,22 @@ namespace
 	 */
 	/** Seconds a backdrop watch waits for a race before giving up. */
 	constexpr float WatchGiveUpSeconds = 30.0f;
+
+	FAutoConsoleCommandWithWorldAndArgs FinishCommand(
+		TEXT("apexsim.finish"),
+		TEXT("The view after the flag, without waiting for it: apexsim.finish [view|car <index>|panorama|end] ")
+		TEXT("(view: the finish view and the results now; car: film that car as a click on its row does)"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			for (TObjectIterator<UApexRootWidget> It; It; ++It)
+			{
+				if (It->GetWorld() == World && It->GetCachedWidget().IsValid())
+				{
+					It->HandleFinishCommand(Args);
+					return;
+				}
+			}
+		}));
 
 	FAutoConsoleCommandWithWorldAndArgs WatchCommand(
 		TEXT("apexsim.watch"),
@@ -284,6 +302,9 @@ void UApexRootWidget::BuildShell()
 	HotlapPanel->OnAction.AddDynamic(this, &UApexRootWidget::HandleHotlapAction);
 	HotlapPanel->OnWatchCar.AddDynamic(this, &UApexRootWidget::HandleHotlapWatch);
 	GuidePanel = WidgetTree->ConstructWidget<UApexTrackGuideWidget>();
+	RaceResults = WidgetTree->ConstructWidget<UApexRaceResultsWidget>();
+	RaceResults->OnAction.AddDynamic(this, &UApexRootWidget::HandleRaceResultsAction);
+	RaceResults->OnWatchCar.AddDynamic(this, &UApexRootWidget::HandleRaceResultsWatch);
 	PauseMenu = WidgetTree->ConstructWidget<UApexPauseMenuWidget>();
 	PauseMenu->OnAction.AddDynamic(this, &UApexRootWidget::HandlePauseAction);
 	SettingsOverlay = WidgetTree->ConstructWidget<UApexSettingsWidget>();
@@ -321,6 +342,10 @@ void UApexRootWidget::BuildShell()
 	UOverlaySlot* GuideSlot = Frame->AddChildToOverlay(GuidePanel);
 	GuideSlot->SetHorizontalAlignment(HAlign_Fill);
 	GuideSlot->SetVerticalAlignment(VAlign_Fill);
+
+	UOverlaySlot* ResultsSlot = Frame->AddChildToOverlay(RaceResults);
+	ResultsSlot->SetHorizontalAlignment(HAlign_Fill);
+	ResultsSlot->SetVerticalAlignment(VAlign_Fill);
 
 	UOverlaySlot* PauseSlot = Frame->AddChildToOverlay(PauseMenu);
 	PauseSlot->SetHorizontalAlignment(HAlign_Fill);
@@ -729,6 +754,7 @@ void UApexRootWidget::NativeDestruct()
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(ResultsAfterFinishTimer);
+		GetWorld()->GetTimerManager().ClearTimer(FinishViewTimer);
 	}
 
 	Super::NativeDestruct();
@@ -971,7 +997,7 @@ void UApexRootWidget::HandleFocusChanging(
 bool UApexRootWidget::IsRaceOverlayOpen() const
 {
 	return (PauseMenu && PauseMenu->IsOpen()) || (SettingsOverlay && SettingsOverlay->IsOpen()) || bGarageOpen
-		|| IsHudEditorOpen();
+		|| IsHudEditorOpen() || (RaceResults && RaceResults->IsOpen());
 }
 
 bool UApexRootWidget::IsHudEditorOpen() const
@@ -1019,7 +1045,8 @@ void UApexRootWidget::ApplyDriveInput()
 	if (AApexPlayerController* PlayerController =
 			Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
 	{
-		PlayerController->SetDriveInputEnabled(bRaceViewActive && !IsWatching() && !bPauseMenuOpen && !bGarageOpen && !IsHudEditorOpen());
+		PlayerController->SetDriveInputEnabled(bRaceViewActive && !IsWatching() && !bPauseMenuOpen && !bGarageOpen && !IsHudEditorOpen()
+			&& !bFinishView);
 	}
 }
 
@@ -1056,6 +1083,11 @@ void UApexRootWidget::FocusDefault()
 		PauseMenu->FocusDefault();
 		return;
 	}
+	if (RaceResults && RaceResults->IsOpen())
+	{
+		RaceResults->FocusDefault();
+		return;
+	}
 	if ((bGarageOpen || (HotlapPanel && HotlapPanel->IsMenuMode())) && HotlapPanel
 		&& HotlapPanel->GetView() == EApexHotlapView::Garage)
 	{
@@ -1089,6 +1121,10 @@ UUserWidget* UApexRootWidget::GetFrontSurface() const
 	if (PauseMenu && PauseMenu->IsOpen())
 	{
 		return PauseMenu;
+	}
+	if (RaceResults && RaceResults->IsOpen())
+	{
+		return RaceResults;
 	}
 	if ((bGarageOpen || (HotlapPanel && HotlapPanel->IsMenuMode())) && HotlapPanel
 		&& HotlapPanel->GetView() == EApexHotlapView::Garage)
@@ -1146,7 +1182,7 @@ void UApexRootWidget::SetPaused(bool bPaused)
 	if (AApexPlayerController* PlayerController =
 			Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
 	{
-		PlayerController->SetDriveInputEnabled(!bPaused && bRaceViewActive && !IsWatching() && !bGarageOpen);
+		PlayerController->SetDriveInputEnabled(!bPaused && bRaceViewActive && !IsWatching() && !bGarageOpen && !bFinishView);
 	}
 
 	// The input-mode switch above hands focus to the viewport when its deferred
@@ -2006,6 +2042,28 @@ void UApexRootWidget::HandleSessionStateChanged(EApexSessionState NewState)
 		if (GetWorld())
 		{
 			GetWorld()->GetTimerManager().ClearTimer(ResultsAfterFinishTimer);
+			GetWorld()->GetTimerManager().ClearTimer(FinishViewTimer);
+		}
+		// A driver's race: the results go final over the race, which the
+		// server keeps running (cool-down laps) until the session is started
+		// again or removed. A car that never saw the flag (out of time) gets
+		// the same view.
+		const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+		const int32 LocalIndex = Net ? Net->GetLocalCarIndex() : INDEX_NONE;
+		const bool bDriverInRace = Net && bRaceViewActive && !IsWatching() && !Net->IsSessionSpectator()
+			&& Net->GetLatestTelemetry().GameMode == EApexGameMode::Race
+			&& Net->GetLatestTelemetry().Cars.ContainsByPredicate(
+				[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; });
+		if (bFinishView || bDriverInRace)
+		{
+			BeginFinishView();
+			OpenFinishResults();
+			return;
+		}
+		if (!bRaceViewActive && CurrentScreen == EApexScreen::SessionLobby)
+		{
+			// Gone back to the lobby from the results while the others raced on.
+			return;
 		}
 		SetRaceViewActive(false);
 		BackStack.Reset();
@@ -2023,7 +2081,9 @@ void UApexRootWidget::ResetFinishWatch()
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(ResultsAfterFinishTimer);
+		GetWorld()->GetTimerManager().ClearTimer(FinishViewTimer);
 	}
+	EndFinishView();
 }
 
 void UApexRootWidget::HandleTelemetryForFinish(const FApexTelemetryFrame& Frame)
@@ -2089,33 +2149,178 @@ void UApexRootWidget::HandleTelemetryForFinish(const FApexTelemetryFrame& Frame)
 
 void UApexRootWidget::ShowResultsAfterFinish(int32 Position)
 {
-	UE_LOG(LogApexSim, Log, TEXT("Local car took the flag in P%d; showing live results"), Position);
+	UE_LOG(LogApexSim, Log, TEXT("Local car took the flag in P%d; the finish view follows"), Position);
 	ShowToast(Position == 1
 		? FString(TEXT("Chequered flag — you win!"))
 		: FString::Printf(TEXT("Chequered flag — you finished P%d"), Position));
 
-	// A beat to see the line go by before the race view gives way. The server
-	// drives the car on from here, so nothing is lost by leaving.
-	constexpr float FlagToResultsSeconds = 2.5f;
+	// A beat on the driving camera to see the line go by, then the camera
+	// pulls back from the car (the server's cool-down driver has it now) and,
+	// once it is up and out, the results come over the race.
+	constexpr float FlagToFinishViewSeconds = 1.0f;
+	constexpr float FinishViewToResultsSeconds = 3.0f;
 	UWorld* World = GetWorld();
 	if (!World)
 	{
 		return;
 	}
 	World->GetTimerManager().SetTimer(
+		FinishViewTimer,
+		FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			if (bLocalFinished && bRaceViewActive)
+			{
+				BeginFinishView();
+			}
+		}),
+		FlagToFinishViewSeconds,
+		false);
+	World->GetTimerManager().SetTimer(
 		ResultsAfterFinishTimer,
 		FTimerDelegate::CreateWeakLambda(this, [this]()
 		{
-			if (!bLocalFinished || !bRaceViewActive)
+			if (bLocalFinished && bFinishView)
 			{
-				return;
+				OpenFinishResults();
 			}
-			SetRaceViewActive(false);
-			BackStack.Reset();
-			ActivateScreen(EApexScreen::SessionResults);
 		}),
-		FlagToResultsSeconds,
+		FlagToFinishViewSeconds + FinishViewToResultsSeconds,
 		false);
+}
+
+void UApexRootWidget::BeginFinishView()
+{
+	if (bFinishView || !bRaceViewActive)
+	{
+		return;
+	}
+	bFinishView = true;
+	if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
+	{
+		Director->BeginFinishView();
+	}
+	// The race is shown, not driven: no dials, no controls.
+	if (Hud)
+	{
+		Hud->SetShown(false);
+	}
+	ApplyDriveInput();
+}
+
+void UApexRootWidget::OpenFinishResults()
+{
+	if (!bFinishView || !RaceResults)
+	{
+		return;
+	}
+	if (!RaceResults->IsOpen())
+	{
+		RaceResults->Open();
+		ApexUiAudio::Play(this, EApexUiSound::Notice);
+	}
+	if (const AApexRaceDirector* Director = AApexRaceDirector::Find(this))
+	{
+		RaceResults->SetWatchedCar(Director->IsFinishPanorama() ? INDEX_NONE : Director->GetFinishFocusCarIndex());
+	}
+	// After the input-mode switch has settled, as the pause menu does.
+	RequestFocusDefault();
+}
+
+void UApexRootWidget::EndFinishView()
+{
+	if (!bFinishView)
+	{
+		return;
+	}
+	bFinishView = false;
+	if (RaceResults)
+	{
+		RaceResults->Close();
+	}
+	if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
+	{
+		Director->EndFinishView();
+	}
+	if (Hud)
+	{
+		Hud->SetShown(!bGarageOpen);
+	}
+	ApplyDriveInput();
+	RequestFocusDefault();
+}
+
+void UApexRootWidget::HandleFinishCommand(const TArray<FString>& Args)
+{
+	const FString Verb = Args.Num() > 0 ? Args[0].ToLower() : FString(TEXT("view"));
+	if (Verb == TEXT("end"))
+	{
+		EndFinishView();
+	}
+	else if (Verb == TEXT("car") && Args.Num() > 1)
+	{
+		HandleRaceResultsWatch(FCString::Atoi(*Args[1]));
+	}
+	else if (Verb == TEXT("panorama"))
+	{
+		HandleRaceResultsWatch(INDEX_NONE);
+	}
+	else
+	{
+		BeginFinishView();
+		OpenFinishResults();
+	}
+	UE_LOG(LogApexSim, Log, TEXT("apexsim.finish %s: finish view %s"), *Verb, bFinishView ? TEXT("on") : TEXT("off"));
+}
+
+void UApexRootWidget::HandleRaceResultsWatch(int32 CarIndex)
+{
+	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	if (!Director || !bFinishView)
+	{
+		return;
+	}
+	Director->FocusFinishCar(CarIndex);
+	if (RaceResults)
+	{
+		RaceResults->SetWatchedCar(Director->IsFinishPanorama() ? INDEX_NONE : CarIndex);
+	}
+}
+
+void UApexRootWidget::HandleRaceResultsAction(EApexRaceResultsAction Action)
+{
+	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+	switch (Action)
+	{
+	case EApexRaceResultsAction::DriveAgain:
+	{
+		const UApexSessionRecorder* Recorder = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSessionRecorder>() : nullptr;
+		if (!Net || !Flow || !Net->IsInSession())
+		{
+			return;
+		}
+		if (Recorder && Recorder->IsRecording())
+		{
+			// Starting again now would put everyone still racing back on the grid.
+			ShowToast(TEXT("The race is still running — wait for the field to finish"), true);
+			return;
+		}
+		if (!Net->IsUdpReady())
+		{
+			ShowToast(TEXT("Still binding the telemetry channel — try again in a moment"), true);
+			return;
+		}
+		// The countdown that follows ends the finish view (ResetFinishWatch).
+		Net->StartCountdown(5, Flow->CreateStartingMode);
+		return;
+	}
+	case EApexRaceResultsAction::BackToLobby:
+		EndFinishView();
+		SetRaceViewActive(false);
+		BackStack.Reset();
+		ActivateScreen(Net && Net->IsInSession() ? EApexScreen::SessionLobby : EApexScreen::MainMenu);
+		return;
+	}
 }
 
 void UApexRootWidget::SetRaceViewActive(bool bActive)
@@ -2150,6 +2355,7 @@ void UApexRootWidget::SetRaceViewActive(bool bActive)
 
 	if (!bActive)
 	{
+		EndFinishView();
 		// A session that ends while paused — a race finishing, a disconnect —
 		// must not leave the overlays up over the menu. A layout half made
 		// over the race is put back rather than saved behind the player's back.

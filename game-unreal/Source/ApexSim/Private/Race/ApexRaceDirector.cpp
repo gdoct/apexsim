@@ -1249,6 +1249,10 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	{
 		UpdateTvCamera(DeltaSeconds);
 	}
+	else if (bFinishPanorama)
+	{
+		UpdateFinishCamera(DeltaSeconds);
+	}
 	if (bReplayView)
 	{
 		// No input, no rig, no ghost: a camera on a recorded race.
@@ -2552,6 +2556,10 @@ FString AApexRaceDirector::DescribeView() const
 	{
 		return TEXT("broadcast");
 	}
+	if (bFinishPanorama)
+	{
+		return TEXT("finish panorama");
+	}
 	return bCockpitView
 		? FString(TEXT("cockpit"))
 		: FString::Printf(TEXT("chase %s (%.1f m)"), ApexChase::Get(ChaseLevel).Name,
@@ -2678,9 +2686,11 @@ void AApexRaceDirector::ApplyCameraMode()
 	// A shot pose outranks both driving cameras, and everything that re-applies
 	// the mode (a new followed car, C, a settings change) comes through here,
 	// which is what keeps it parked.
-	CockpitCamera->SetActive(bCockpitView && !bTvView && !bShotCameraPose);
-	ChaseCamera->SetActive(!bCockpitView && !bTvView && !bShotCameraPose);
-	TvCamera->SetActive(bTvView && !bShotCameraPose);
+	// The finish move flies the TV camera itself (UpdateFinishCamera).
+	const bool bTvCamera = bTvView || bFinishPanorama;
+	CockpitCamera->SetActive(bCockpitView && !bTvCamera && !bShotCameraPose);
+	ChaseCamera->SetActive(!bCockpitView && !bTvCamera && !bShotCameraPose);
+	TvCamera->SetActive(bTvCamera && !bShotCameraPose);
 	ShotCamera->SetActive(bShotCameraPose);
 	ApplyChaseView();
 
@@ -2690,7 +2700,7 @@ void AApexRaceDirector::ApplyCameraMode()
 	// stay visible, which is why this is not a flag on the mesh itself.
 	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
 	// A replay's onboard is a film of the car, never a bare camera in the air.
-	const bool bShowOwnCar = bShotCameraPose || bTvView || !bCockpitView || bReplayView || !Values || Values->bCockpitShowCar;
+	const bool bShowOwnCar = bShotCameraPose || bTvCamera || !bCockpitView || bReplayView || !Values || Values->bCockpitShowCar;
 	if (FollowedCar && !(bDemoView && !bDemoWorldVisible))
 	{
 		FollowedCar->SetMeshVisible(bShowOwnCar);
@@ -2699,7 +2709,7 @@ void AApexRaceDirector::ApplyCameraMode()
 	// stays for every other view, his shadow for this one (ApexCarDriver.h).
 	if (FollowedCar)
 	{
-		FollowedCar->SetDriverVisible(!(bCockpitView && !bTvView && !bShotCameraPose));
+		FollowedCar->SetDriverVisible(!(bCockpitView && !bTvCamera && !bShotCameraPose));
 	}
 	PushRigFeatures();
 }
@@ -2768,7 +2778,7 @@ void AApexRaceDirector::PushRigFeatures()
 	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
 	FApexCockpitFeatures Features;
 	// From the shot or broadcast camera the wheel and mirrors would float in mid-air.
-	Features.bCockpitActive = bCockpitView && !bShotCameraPose && !bTvView;
+	Features.bCockpitActive = bCockpitView && !bShotCameraPose && !bTvView && !bFinishPanorama;
 	if (Values)
 	{
 		Features.bWheel = Values->bCockpitWheel;
@@ -2856,6 +2866,8 @@ void AApexRaceDirector::BeginRaceView()
 	bSpectating = false;
 	bSpectatorRig = false;
 	SpectatorFocus = INDEX_NONE;
+	bFinishView = false;
+	bFinishPanorama = false;
 	Tv.Reset(static_cast<int32>(FPlatformTime::Cycles()));
 	CarProgress.Reset();
 	CarMotion.Reset();
@@ -2951,6 +2963,8 @@ void AApexRaceDirector::EndRaceView()
 	bSpectating = false;
 	bSpectatorRig = false;
 	SpectatorFocus = INDEX_NONE;
+	bFinishView = false;
+	bFinishPanorama = false;
 	Tv.LockTarget(INDEX_NONE);
 	DestroyGhost();
 	bLocalInGarage = false;
@@ -3819,6 +3833,16 @@ TArray<int32> AApexRaceDirector::GetRaceOrder() const
 
 void AApexRaceDirector::ApplySpectatorCamera()
 {
+	if (bFinishPanorama)
+	{
+		// The finish move has the camera, on the local car.
+		bTvView = false;
+		bHasTvPose = false;
+		Tv.LockTarget(INDEX_NONE);
+		UpdateCameraTarget();
+		ApplyCameraMode();
+		return;
+	}
 	const bool bBroadcast = SpectatorCamera == ApexSpectate::ECamera::Broadcast;
 	if (!bBroadcast)
 	{
@@ -3841,6 +3865,106 @@ void AApexRaceDirector::ApplySpectatorCamera()
 	}
 	UpdateCameraTarget();
 	ApplyCameraMode();
+}
+
+// --- After the flag ------------------------------------------------------------------
+
+void AApexRaceDirector::BeginFinishView()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	AApexRaceCarActor* Local = Net ? FindCar(Net->GetLocalCarIndex()) : nullptr;
+	if (bFinishView || !bRaceViewActive || bDemoView || bReplayView || !Local)
+	{
+		return;
+	}
+	// From the camera on screen at the flag, before watching moves it.
+	StartFinishMove();
+	bFinishView = true;
+	bFinishPanorama = true;
+	SetSpectating(true);
+	bSpectatorAuto = false;
+	SpectatorFocus = Local->GetCarIndex();
+	ApplySpectatorCamera();
+	UE_LOG(LogApexSim, Log, TEXT("Finish view: the panorama on car %d"), SpectatorFocus);
+}
+
+void AApexRaceDirector::EndFinishView()
+{
+	if (!bFinishView)
+	{
+		return;
+	}
+	bFinishView = false;
+	bFinishPanorama = false;
+	// Back to the driver's own car and camera.
+	SetSpectating(false);
+	UE_LOG(LogApexSim, Log, TEXT("Finish view ended"));
+}
+
+void AApexRaceDirector::FocusFinishCar(int32 CarIndex)
+{
+	if (!bFinishView)
+	{
+		return;
+	}
+	const UApexNetSubsystem* Net = GetNet();
+	const int32 LocalIndex = Net ? Net->GetLocalCarIndex() : INDEX_NONE;
+	if (CarIndex == INDEX_NONE || CarIndex == LocalIndex || !FindCar(CarIndex))
+	{
+		if (bFinishPanorama)
+		{
+			return;
+		}
+		// Back to our car: the move again, from behind it (the broadcast
+		// camera is somewhere else on the circuit).
+		SpectatorFocus = LocalIndex;
+		bSpectatorAuto = false;
+		bFinishPanorama = true;
+		FinishMove = ApexFinishCam::FMove();
+		ApplySpectatorCamera();
+		UE_LOG(LogApexSim, Log, TEXT("Finish view: back to the panorama"));
+		return;
+	}
+	bFinishPanorama = false;
+	SpectatorCamera = ApexSpectate::ECamera::Broadcast;
+	FocusCar(CarIndex);
+	UE_LOG(LogApexSim, Log, TEXT("Finish view: broadcast on car %d"), CarIndex);
+}
+
+void AApexRaceDirector::StartFinishMove()
+{
+	if (!FollowedCar)
+	{
+		FinishMove = ApexFinishCam::FMove();
+		return;
+	}
+	const UCameraComponent* OnScreen = bShotCameraPose ? ShotCamera.Get()
+		: bTvView                                  ? TvCamera.Get()
+		: bCockpitView                             ? CockpitCamera.Get()
+												   : ChaseCamera.Get();
+	FinishMove = ApexFinishCam::FMove();
+	FinishMove.Start(OnScreen->GetComponentLocation(), OnScreen->GetComponentRotation(), OnScreen->FieldOfView,
+		FollowedCar->GetActorLocation(), FollowedCar->GetActorRotation());
+}
+
+void AApexRaceDirector::UpdateFinishCamera(float DeltaSeconds)
+{
+	UWorld* World = GetWorld();
+	if (!World || !FollowedCar || DeltaSeconds <= 0.0f)
+	{
+		return;
+	}
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ApexFinishCamera), /*bTraceComplex*/ true, this);
+	const FCollisionObjectQueryParams Statics(ECC_WorldStatic);
+	const ApexTv::FWorldQueries Queries = MakeCameraQueries(World, Params, Statics);
+
+	// Started without a camera to pull back from (back from another car): from behind it.
+	const ApexTv::FPose Pose = FinishMove.Tick(FollowedCar->GetActorLocation(), FollowedCar->GetActorRotation(),
+		DeltaSeconds, Queries);
+	TvCamera->SetWorldLocationAndRotation(Pose.Location, Pose.Rotation);
+	TvCamera->SetFieldOfView(Pose.FovDeg);
+	TvCamera->PostProcessSettings.DepthOfFieldFocalDistance = 0.0f;
+	TvCamera->PostProcessSettings.DepthOfFieldFstop = 22.0f;
 }
 
 // --- Replay clip ---------------------------------------------------------------------

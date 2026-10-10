@@ -181,6 +181,16 @@ void UApexSessionRecorder::HandleSessionStateChanged(EApexSessionState NewState)
 		break;
 
 	case EApexSessionState::Finished:
+		// The frame that says so is broadcast after this, and it is the one
+		// that classifies the last car home (the session finishes on the tick
+		// it takes the flag): take it in before the results freeze.
+		if (bRecording)
+		{
+			if (const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
+			{
+				RecordFrame(Net->GetLatestTelemetry());
+			}
+		}
 		FinishRecording();
 		break;
 
@@ -224,7 +234,12 @@ void UApexSessionRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 		}
 		BeginRecording();
 	}
+	RecordFrame(Frame);
+}
 
+void UApexSessionRecorder::RecordFrame(const FApexTelemetryFrame& Frame)
+{
+	const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
 	for (const FApexCarTelemetry& Car : Frame.Cars)
 	{
 		FApexCarResult& Result = FindOrAddCar(Car.CarIndex);

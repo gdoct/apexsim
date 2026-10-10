@@ -4,6 +4,7 @@
 #include "ApexProtocolTypes.h"
 #include "GameFramework/Actor.h"
 #include "Race/ApexChaseView.h"
+#include "Race/ApexFinishCamera.h"
 #include "Race/ApexLobbyCamera.h"
 #include "Race/ApexReplayCamera.h"
 #include "Race/ApexRoadStateMap.h"
@@ -205,6 +206,29 @@ public:
 	int32 GetFocusCarIndex() const;
 	/** Every car's index, leader first, from the telemetry seen so far. */
 	TArray<int32> GetRaceOrder() const;
+
+	// --- After the flag ---------------------------------------------------------------
+
+	/**
+	 * The local car has taken the chequered flag and the server's cool-down
+	 * driver has it: watch it from a camera that pulls back from the driving
+	 * view and climbs into a slow orbit high over the car (ApexFinishCam),
+	 * while the results are up over the race. Spectating underneath, so the
+	 * driver's own camera comes back with EndFinishView (the next race).
+	 */
+	void BeginFinishView();
+	void EndFinishView();
+	bool IsFinishViewActive() const { return bFinishView; }
+
+	/**
+	 * Whom the finish view films: another car (one still racing) from the
+	 * broadcast camera locked on it, or the local car (or INDEX_NONE) from
+	 * the panorama again.
+	 */
+	void FocusFinishCar(int32 CarIndex);
+	/** The car the finish view is on; the local car while the panorama has it. */
+	int32 GetFinishFocusCarIndex() const { return GetFocusCarIndex(); }
+	bool IsFinishPanorama() const { return bFinishView && bFinishPanorama; }
 
 	// --- Replay clip (offline playback) ------------------------------------------------
 
@@ -481,6 +505,11 @@ private:
 
 	/** Point the cameras where the spectator's choice says (SetSpectatorCamera). */
 	void ApplySpectatorCamera();
+
+	/** Place the TV camera where the finish move says, on the followed car. */
+	void UpdateFinishCamera(float DeltaSeconds);
+	/** Start the finish move from whichever camera is on screen now. */
+	void StartFinishMove();
 
 	/** Ease the demo backdrop's opacity toward whether there is anything worth showing. */
 	void UpdateDemoOpacity(float DeltaSeconds);
@@ -850,6 +879,12 @@ private:
 	/** The driver's own camera when watching began in a race view (the qualifying scoreboard), put back when it ends. */
 	bool bWatchSavedTvView = false;
 	bool bWatchSavedCockpitView = false;
+
+	// --- After the flag ---
+	bool bFinishView = false;
+	/** The finish move has the TV camera (else the broadcast director does, on another car). */
+	bool bFinishPanorama = false;
+	ApexFinishCam::FMove FinishMove;
 
 	/**
 	 * Tyres, kerbs, road and wind for the local car, from the server's

@@ -438,7 +438,8 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
 - Replays: `apexsim.replay.Save|List`. Guide: `apexsim.guide.*`.
 - Display: `apexsim.view.Screens`, `apexsim.splash.MaxSeconds`.
 - Menus: `apexsim.ui.Texts|Click|Mouse|Key` (above), `apexsim.ui.PadWalk`.
-- Race: `apexsim.recover [track|pits]` (the pause menu's BACK TO TRACK / PITS).
+- Race: `apexsim.recover [track|pits]` (the pause menu's BACK TO TRACK / PITS),
+  `apexsim.finish [view|car N|panorama|end]` (the view after the flag, now).
 - Input and audio: `apexsim.input.Devices|Rescan`, `apexsim.ffb.Debug`, `apexsim.audio.RenderCars`.
 - Net: `apexsim.net.ParseCenterline` (parse the lobby's track centerlines; set from HUD detail).
 
