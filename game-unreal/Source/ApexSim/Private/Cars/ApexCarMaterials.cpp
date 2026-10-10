@@ -11,7 +11,10 @@ UMaterialInterface* FApexCarParents::For(const FApexGlbMaterial& Material) const
 	{
 	case EApexGlbAlpha::Blend: Wanted = Translucent; break;
 	case EApexGlbAlpha::Mask: Wanted = Masked; break;
-	default: Wanted = Material.ClearCoat > 0.0f ? ClearCoat : Opaque; break;
+	default:
+		Wanted = Tyre && Material.Name == ApexCarMaterials::TyreSlotName ? Tyre.Get()
+			: Material.ClearCoat > 0.0f ? ClearCoat.Get() : Opaque.Get();
+		break;
 	}
 	return Wanted ? Wanted : Opaque.Get();
 }
@@ -41,5 +44,6 @@ FApexCarParents ApexCarMaterials::LoadParents()
 	Parents.ClearCoat = Load(ClearCoatName);
 	Parents.Masked = Load(MaskedName);
 	Parents.Translucent = Load(TranslucentName);
+	Parents.Tyre = Load(TyreName);
 	return Parents;
 }

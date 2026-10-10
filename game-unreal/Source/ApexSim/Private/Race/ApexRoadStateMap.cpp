@@ -77,6 +77,21 @@ FColor FApexRoadStateMap::StateAt(int32 Cell, int32 Bin) const
 	return State[Bin * Cells + Cell];
 }
 
+float FApexRoadStateMap::WaterAt(float StationM, const FVector2D& WorldCm) const
+{
+	if (!IsValid())
+	{
+		return -1.0f;
+	}
+	const int32 Cell = FMath::Clamp(FMath::FloorToInt(TexU(StationM) * Cells), 0, Cells - 1);
+	if (!Known.IsValidIndex(Cell) || !Known[Cell])
+	{
+		return -1.0f;
+	}
+	const int32 Bin = FMath::Clamp(FMath::FloorToInt(TexV(StationM, WorldCm) * Bins), 0, Bins - 1);
+	return static_cast<float>(StateAt(Cell, Bin).A);
+}
+
 float FApexRoadStateMap::TexU(float StationM) const
 {
 	return StationM * UPerMetre();

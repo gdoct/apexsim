@@ -187,4 +187,54 @@ bool FApexWheelsTreadedLookTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexWheelsTyreSurfaceTest, "ApexSim.Wheels.TyreSurface", ApexTestFlags)
+
+bool FApexWheelsTyreSurfaceTest::RunTest(const FString& Parameters)
+{
+	// The tyre parent's tread index per kind.
+	TestEqual(TEXT("slick"), ApexWheels::TreadIndex(EApexCompoundKind::Slick), 0.0f);
+	TestEqual(TEXT("intermediate"), ApexWheels::TreadIndex(EApexCompoundKind::Intermediate), 1.0f);
+	TestEqual(TEXT("wet"), ApexWheels::TreadIndex(EApexCompoundKind::Wet), 2.0f);
+
+	// The sidewall ring: green on an intermediate, blue on a wet, none on a slick.
+	FLinearColor Band;
+	TestFalse(TEXT("a slick keeps its model's ring"), ApexWheels::CompoundBandColour(EApexCompoundKind::Slick, Band));
+	TestTrue(TEXT("an intermediate has one"), ApexWheels::CompoundBandColour(EApexCompoundKind::Intermediate, Band));
+	TestTrue(TEXT("green"), Band.G > Band.R * 4.0f && Band.G > Band.B * 4.0f);
+	TestTrue(TEXT("a wet has one"), ApexWheels::CompoundBandColour(EApexCompoundKind::Wet, Band));
+	TestTrue(TEXT("blue"), Band.B > Band.R * 4.0f && Band.B > Band.G * 4.0f);
+
+	// Deflation: round at running pressure and while unknown, flat at the
+	// server's punctured pressure, partly down on the way.
+	TestEqual(TEXT("unknown is round"), ApexWheels::DeflatedShare(-1.0f), 0.0f);
+	TestEqual(TEXT("running pressure is round"), ApexWheels::DeflatedShare(175.0f), 0.0f);
+	TestEqual(TEXT("100 kPa is still round"), ApexWheels::DeflatedShare(100.0f), 0.0f);
+	TestEqual(TEXT("the server's PUNCTURED_KPA is flat"), ApexWheels::DeflatedShare(15.0f), 1.0f);
+	const float Leaking = ApexWheels::DeflatedShare(60.0f);
+	TestTrue(TEXT("a slow leak at 60 kPa is partly down"), Leaking > 0.2f && Leaking < 0.8f);
+
+	// Water: a damp road is a sheen, a wet one soaks the tyre.
+	TestEqual(TEXT("dry road, dry tyre"), ApexWheels::WetnessForWater(0.0f), 0.0f);
+	TestTrue(TEXT("damp is part wet"), ApexWheels::WetnessForWater(10.0f) > 0.1f && ApexWheels::WetnessForWater(10.0f) < 0.5f);
+	TestEqual(TEXT("standing water soaks it"), ApexWheels::WetnessForWater(150.0f), 1.0f);
+
+	// Soaked quickly, dried slowly; no time, no change.
+	TestEqual(TEXT("no time"), ApexWheels::WetnessStep(0.3f, 1.0f, 0.0f), 0.3f);
+	TestTrue(TEXT("mostly soaked in two seconds"), ApexWheels::WetnessStep(0.0f, 1.0f, 2.0f) > 0.7f);
+	TestTrue(TEXT("still wet two seconds after leaving the water"), ApexWheels::WetnessStep(1.0f, 0.0f, 2.0f) > 0.85f);
+	TestTrue(TEXT("dry a minute later"), ApexWheels::WetnessStep(1.0f, 0.0f, 60.0f) < 0.1f);
+
+	// Where a wheel touches the road, as the tyre parent's theta: an
+	// unturned wheel (axle on X) touches at -Z, theta -90 degrees; turned a
+	// quarter about its axle (+Y up toward +Z), the patch is on its -Y.
+	TestTrue(TEXT("unturned: -90 degrees"),
+		FMath::IsNearlyEqual(ApexWheels::ContactTheta(FTransform::Identity), -UE_HALF_PI, 1e-4f));
+	const FTransform Turned(FQuat(FVector::XAxisVector, UE_HALF_PI));
+	const float Theta = ApexWheels::ContactTheta(Turned);
+	TestTrue(TEXT("turned a quarter: on its -Y (+-180 degrees)"), FMath::IsNearlyEqual(FMath::Abs(Theta), UE_PI, 1e-4f));
+	TestTrue(TEXT("scale does not move it"),
+		FMath::IsNearlyEqual(ApexWheels::ContactTheta(FTransform(FQuat::Identity, FVector::ZeroVector, FVector(1.0, 3.0, 3.0))), -UE_HALF_PI, 1e-4f));
+	return true;
+}
+
 #endif	  // WITH_DEV_AUTOMATION_TESTS

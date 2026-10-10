@@ -4,6 +4,7 @@
 #include "Cars/ApexCarMaterials.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 namespace ApexWheels
@@ -111,6 +112,64 @@ bool ApexWheels::TreadedTint(EApexCompoundKind Kind, FLinearColor& OutBaseColour
 	}
 }
 
+bool ApexWheels::CompoundBandColour(EApexCompoundKind Kind, FLinearColor& OutColour)
+{
+	switch (Kind)
+	{
+	case EApexCompoundKind::Intermediate:
+		OutColour = FLinearColor(0.02f, 0.45f, 0.06f, 1.0f);
+		return true;
+	case EApexCompoundKind::Wet:
+		OutColour = FLinearColor(0.02f, 0.15f, 0.80f, 1.0f);
+		return true;
+	default:
+		OutColour = FLinearColor::Black;
+		return false;
+	}
+}
+
+float ApexWheels::TreadIndex(EApexCompoundKind Kind)
+{
+	switch (Kind)
+	{
+	case EApexCompoundKind::Intermediate: return 1.0f;
+	case EApexCompoundKind::Wet: return 2.0f;
+	default: return 0.0f;
+	}
+}
+
+float ApexWheels::DeflatedShare(float PressureKpa)
+{
+	if (PressureKpa < 0.0f)
+	{
+		return 0.0f;
+	}
+	// Round down to 100 kPa, flat at the server's PUNCTURED_KPA (15).
+	const float T = FMath::Clamp((100.0f - PressureKpa) / (100.0f - 15.0f), 0.0f, 1.0f);
+	return T * T * (3.0f - 2.0f * T);
+}
+
+float ApexWheels::WetnessForWater(float WaterPct)
+{
+	return FMath::Clamp(WaterPct / 40.0f, 0.0f, 1.0f);
+}
+
+float ApexWheels::WetnessStep(float Current, float Target, float DeltaSeconds)
+{
+	if (DeltaSeconds <= 0.0f)
+	{
+		return Current;
+	}
+	const float TimeConstantS = Target > Current ? 1.5f : 20.0f;
+	return Current + (Target - Current) * (1.0f - FMath::Exp(-DeltaSeconds / TimeConstantS));
+}
+
+float ApexWheels::ContactTheta(const FTransform& WheelWorld)
+{
+	const FVector Down = WheelWorld.InverseTransformVectorNoScale(FVector::DownVector);
+	return static_cast<float>(FMath::Atan2(Down.Z, Down.Y));
+}
+
 void FApexCarWheelSet::CreateComponents(UObject& Owner, USceneComponent* Body)
 {
 	static const TCHAR* Names[ApexWheels::NumWheels] = {
@@ -177,8 +236,32 @@ void FApexCarWheelSet::SetTyreLook(EApexCompoundKind Kind)
 	FLinearColor Colour;
 	float Roughness = 0.0f;
 	const bool bTreaded = ApexWheels::TreadedTint(Kind, Colour, Roughness);
-	for (UStaticMeshComponent* Wheel : Components)
+	FLinearColor Band;
+	const bool bBand = ApexWheels::CompoundBandColour(Kind, Band);
+	for (int32 i = 0; i < Components.Num(); ++i)
 	{
+		UStaticMeshComponent* Wheel = Components[i];
+		// The model's own sidewall ring, when it has one: green or blue for
+		// a rain tyre (this wheel's own instance, as below), the model's
+		// colour for a slick.
+		const int32 BandIndex = Wheel && Wheel->GetStaticMesh() ? Wheel->GetMaterialIndex(ApexWheels::BandSlot) : INDEX_NONE;
+		if (BandIndex != INDEX_NONE)
+		{
+			if (!bBand)
+			{
+				Wheel->SetMaterial(BandIndex, nullptr);
+			}
+			else if (UMaterialInstanceDynamic* Ring = ApexCarContent::OwnMaterialInstance(*Wheel, BandIndex, true))
+			{
+				Ring->SetVectorParameterValue(ApexCarMaterials::BaseColorFactor, Band);
+			}
+		}
+		if (UsesTyreParent(i))
+		{
+			// The tyre parent draws the tread itself, from the custom data.
+			WriteTyreData(i);
+			continue;
+		}
 		const int32 Index = Wheel && Wheel->GetStaticMesh() ? Wheel->GetMaterialIndex(ApexWheels::TyreSlot) : INDEX_NONE;
 		if (Index == INDEX_NONE)
 		{
@@ -201,6 +284,97 @@ void FApexCarWheelSet::SetTyreLook(EApexCompoundKind Kind)
 	}
 }
 
+bool FApexCarWheelSet::UsesTyreParent(int32 Index) const
+{
+	const UStaticMeshComponent* Wheel = bHasWheels && Components.IsValidIndex(Index) ? Components[Index].Get() : nullptr;
+	const int32 Slot = Wheel && Wheel->GetStaticMesh() ? Wheel->GetMaterialIndex(ApexWheels::TyreSlot) : INDEX_NONE;
+	if (Slot == INDEX_NONE)
+	{
+		return false;
+	}
+	UMaterialInterface* Material = Wheel->GetMaterial(Slot);
+	const UMaterial* Base = Material ? Material->GetBaseMaterial() : nullptr;
+	return Base && Base->GetFName() == FName(ApexCarMaterials::TyreName);
+}
+
+void FApexCarWheelSet::WriteTyreData(int32 Index)
+{
+	UStaticMeshComponent* Wheel = Components.IsValidIndex(Index) ? Components[Index].Get() : nullptr;
+	if (!Wheel || !UsesTyreParent(Index))
+	{
+		return;
+	}
+	namespace Cpd = ApexCarMaterials::TyreCpd;
+	const ApexWheels::EWheel Which = static_cast<ApexWheels::EWheel>(Index);
+	const bool bFront = ApexWheels::IsFront(Which);
+	const FVector Extent = (bFront ? MeshBounds : RearMeshBounds).BoxExtent;
+	// World cm per body-frame cm: the turntable may scale the car.
+	const USceneComponent* Body = Wheel->GetAttachParent();
+	const float BodyScale = Body ? static_cast<float>(Body->GetComponentScale().Z) : 1.0f;
+	const float Width = bFront ? Spec.FrontWidthM : Spec.RearWidthM;
+	const FApexTyreSurface& Surface = Surfaces[Index];
+	FLinearColor Band;
+	ApexWheels::CompoundBandColour(TyreLook, Band);
+	const float Values[Cpd::Count - Cpd::RadiusLocal] = {
+		static_cast<float>(FMath::Max(Extent.Y, Extent.Z)),
+		static_cast<float>(Extent.X),
+		ApexWheels::RadiusM(Spec, Which) * 100.0f * BodyScale,
+		Width * 50.0f * BodyScale,
+		ApexWheels::TreadIndex(TyreLook),
+		// Rolling forward turns the left wheel about its own -X and the
+		// turned-round right one about its +X (WheelTransform).
+		ApexWheels::IsLeft(Which) ? -1.0f : 1.0f,
+		Surface.Wear,
+		Surface.Wetness,
+		Surface.FlatSpot,
+		FlatSpotTheta[Index],
+		SagCm[Index] * BodyScale,
+		Band.R,
+		Band.G,
+		Band.B,
+		0.0f,
+	};
+	// Only what changed: each write re-sends the component's render state.
+	for (int32 i = 0; i < static_cast<int32>(UE_ARRAY_COUNT(Values)); ++i)
+	{
+		const int32 Slot = Cpd::RadiusLocal + i;
+		const TArray<float>& Data = Wheel->GetCustomPrimitiveData().Data;
+		if (!Data.IsValidIndex(Slot) || FMath::Abs(Data[Slot] - Values[i]) > 1e-3f)
+		{
+			Wheel->SetCustomPrimitiveDataFloat(Slot, Values[i]);
+		}
+	}
+}
+
+void FApexCarWheelSet::SetTyreSurface(ApexWheels::EWheel Wheel, const FApexTyreSurface& Surface)
+{
+	const int32 Index = static_cast<int32>(Wheel);
+	if (Index < 0 || Index >= ApexWheels::NumWheels)
+	{
+		return;
+	}
+	FApexTyreSurface Next = Surface;
+	Next.Wear = FMath::Clamp(Next.Wear, 0.0f, 1.0f);
+	Next.Wetness = FMath::Clamp(Next.Wetness, 0.0f, 1.0f);
+	Next.FlatSpot = FMath::Clamp(Next.FlatSpot, 0.0f, 1.0f);
+	// A new flat spot is ground where the locked wheel touches the road
+	// now: it does not turn while it is locked. One per tyre; a fresh set
+	// (or one worn round again) lays the next wherever it locks.
+	constexpr float NewSpot = 0.02f;
+	if (Next.FlatSpot >= NewSpot && Surfaces[Index].FlatSpot < NewSpot && Components.IsValidIndex(Index) && Components[Index])
+	{
+		FlatSpotTheta[Index] = ApexWheels::ContactTheta(Components[Index]->GetComponentTransform());
+	}
+	Surfaces[Index] = Next;
+	const float Sag = ApexWheels::DeflatedShare(Next.PressureKpa) * ApexWheels::MaxSagShare * ApexWheels::RadiusM(Spec, Wheel) * 100.0f;
+	if (FMath::Abs(Sag - SagCm[Index]) > 0.05f)
+	{
+		SagCm[Index] = Sag;
+		Place();
+	}
+	WriteTyreData(Index);
+}
+
 bool FApexCarWheelSet::ContactPatch(ApexWheels::EWheel Wheel, FVector& OutWorld) const
 {
 	const int32 Index = static_cast<int32>(Wheel);
@@ -209,7 +383,8 @@ bool FApexCarWheelSet::ContactPatch(ApexWheels::EWheel Wheel, FVector& OutWorld)
 	{
 		return false;
 	}
-	OutWorld = Component->GetComponentLocation() - FVector::UpVector * ApexWheels::RadiusM(Spec, Wheel) * 100.0f;
+	// A deflated tyre's hub is dropped by its squat; the tread is still on the road.
+	OutWorld = Component->GetComponentLocation() - FVector::UpVector * (ApexWheels::RadiusM(Spec, Wheel) * 100.0f - SagCm[Index]);
 	return true;
 }
 
@@ -239,8 +414,13 @@ void FApexCarWheelSet::Place()
 		if (UStaticMeshComponent* Component = Components[i])
 		{
 			const bool bFront = ApexWheels::IsFront(Wheel);
-			Component->SetRelativeTransform(ApexWheels::WheelTransform(
-				Spec, Wheel, bFront ? MeshBounds : RearMeshBounds, SteerRad, SpinRad[bFront ? 0 : 1]));
+			FTransform Transform = ApexWheels::WheelTransform(
+				Spec, Wheel, bFront ? MeshBounds : RearMeshBounds, SteerRad, SpinRad[bFront ? 0 : 1]);
+			// A deflated tyre's hub sits lower; the tyre parent flattens the
+			// tread by as much, so it still stands on the road.
+			Transform.AddToTranslation(FVector(0.0, 0.0, -SagCm[i]));
+			Component->SetRelativeTransform(Transform);
+			WriteTyreData(i);
 		}
 	}
 }

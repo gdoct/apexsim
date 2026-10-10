@@ -170,7 +170,8 @@ always takes the weather's tyre; when it changes is in [AI](ai.md).
 - **Flat spots**: braking past `LOCK_SLIP_RATIO` above 3 m/s grows `TireData::flat_spot`
   (0..1) by the locked patch's energy; up to 4% grip; wears round with the tread
   (`FLAT_SPOT_ROUNDING_PER_PERCENT`). Sent as `DriverFeedback.flat_spot` (wheel, pad and
-  road sound play it).
+  road sound play it) and, for every car, telemetry's `flat_spot` (drawn on the tyre,
+  [cars](../content/cars.md#wheels)).
 - **Punctures** (`tyre_thermal::puncture`): a tyre worn to 100%; a hit of `PUNCTURE_HIT_PCT`
   or more (chance grows with the hit); debris (`GameSession::debris`, shed by hits of
   `DEBRIS_HIT_PCT`, picked up within `DEBRIS_REACH_M` with `DEBRIS_PUNCTURE_CHANCE`;
@@ -471,10 +472,10 @@ reordered; effects are the `*_PER_CLICK` consts):
 `CompactCarState` (positional, appended only; [protocol](protocol.md)): `fuel_dl`, `tyre_c`,
 `tyre_kpa`, `tow_pct`, `tyre_wear`, `compound`, `brake_c`, `water_c`, `damage`, `ers_pct`,
 `ers_lap_pct`, `ers_flags`, `tyre_c_edges`, `brake_wear`, `slide_flags`, `ers_stint_pct`,
-`recover_ds` ([sessions](sessions.md#recovering-a-stuck-car)) (pit fields: [pit lane](pit-lane.md)); `PlayerInput.drs` / `ers_mode` / `ers_boost`;
+`recover_ds` ([sessions](sessions.md#recovering-a-stuck-car)), `flat_spot` (pit fields: [pit lane](pit-lane.md)); `PlayerInput.drs` / `ers_mode` / `ers_boost`;
 `DriverFeedback.flat_spot`. Golden bytes (in `server/`, `-- --nocapture`): `cargo test
-telemetry_compact_wire_format` -> `ApexUdpGolden::S_TelemetryCompactRecover` (the older
-`S_TelemetryCompact{Fuel,Tyres,Tow,Heat,Damage,Ers,Zones}` stay on the client as older servers'
+telemetry_compact_wire_format` -> `ApexUdpGolden::S_TelemetryCompactFlatSpot` (the older
+`S_TelemetryCompact{Fuel,Tyres,Tow,Heat,Damage,Ers,Zones,Recover}` stay on the client as older servers'
 frames); `car_setup_wire_format` -> `ApexGolden::C_SetCarSetup`;
 `car_setup_sheet_wire_format` -> `S_CarSetupSheet`; `player_input_headlights_wire_format` ->
 `ApexUdpGolden::C_PlayerInput`; `driver_feedback_wire_format` -> `S_DriverFeedbackFlatSpot`.

@@ -86,12 +86,70 @@ namespace ApexWheels
 	 * rubber: a cooler, matte grey, slightly blue for an intermediate and a
 	 * darker blue-grey for a wet, both nearly fully rough. The class wheels'
 	 * tyres carry no UVs (`build_wheels.py` lathes them without any), so a
-	 * groove texture cannot be laid round them; the tint is what tells a rain
-	 * tyre from a slick at a glance. False for a slick, which keeps the
-	 * model's own material.
+	 * groove texture cannot be laid round them. The fallback for a tyre slot
+	 * not on `M_ApexCarTyre` (a project baked before it), which draws the
+	 * tread itself. False for a slick, which keeps the model's own material.
 	 */
 	APEXSIM_API bool TreadedTint(EApexCompoundKind Kind, FLinearColor& OutBaseColour, float& OutRoughness);
+
+	/** The class wheels' compound ring on the sidewall (docs/content/cars.md, Wheels). */
+	inline const FName BandSlot(TEXT("wheel_band"));
+
+	/**
+	 * The sidewall ring of a rain tyre, linear: green for an intermediate,
+	 * blue for a wet, as the rain tyres are marked. False for a slick, whose
+	 * ring stays as the wheel model has it.
+	 */
+	APEXSIM_API bool CompoundBandColour(EApexCompoundKind Kind, FLinearColor& OutColour);
+
+	/** What the tyre parent draws for a compound kind: 0 slick, 1 intermediate, 2 wet. */
+	APEXSIM_API float TreadIndex(EApexCompoundKind Kind);
+
+	/** How far a flat tyre squats at most, a share of its radius. */
+	inline constexpr float MaxSagShare = 0.09f;
+
+	/**
+	 * How deflated a tyre at this running pressure looks, 0 (round) to 1
+	 * (flat: the server's PUNCTURED_KPA, 15 kPa); nothing above 100 kPa,
+	 * so a slow leak shows only once most of the air is gone. Unknown
+	 * (negative) is round.
+	 */
+	APEXSIM_API float DeflatedShare(float PressureKpa);
+
+	/**
+	 * How wet the road leaves a tyre, 0..1, for the water under it (percent
+	 * of heavy rain on the flat, as the road state's and the sky's
+	 * `RoadWaterPct`): a damp road is a sheen, 40% and over soaks it.
+	 */
+	APEXSIM_API float WetnessForWater(float WaterPct);
+
+	/**
+	 * One step of a tyre's wetness toward `Target`: soaked in about a
+	 * second and a half, dried off over about twenty (the tread throws the
+	 * water off, the heat dries the film).
+	 */
+	APEXSIM_API float WetnessStep(float Current, float Target, float DeltaSeconds);
+
+	/**
+	 * Where a wheel touches the road, as the tyre parent's `theta` (radians
+	 * round the wheel mesh's own X from +Y toward +Z), for the wheel's
+	 * world transform: where a wheel locked now grinds its flat spot.
+	 */
+	APEXSIM_API float ContactTheta(const FTransform& WheelWorld);
 }
+
+/** One tyre's state as drawn (FApexCarWheelSet::SetTyreSurface). */
+struct FApexTyreSurface
+{
+	/** Tread worn, 0..1 (telemetry's `tyre_wear` / 100). */
+	float Wear = 0.0f;
+	/** Water on the tyre, 0..1 (ApexWheels::WetnessStep). */
+	float Wetness = 0.0f;
+	/** Flat-spot depth, 0..1 of the worst (`flat_spot`). */
+	float FlatSpot = 0.0f;
+	/** Running pressure, kPa; negative when unknown, drawn round. */
+	float PressureKpa = -1.0f;
+};
 
 /**
  * Four wheel components on a car body and the state that turns them. Held by
@@ -125,12 +183,28 @@ struct APEXSIM_API FApexCarWheelSet
 	void ForEachComponent(TFunctionRef<void(UStaticMeshComponent&)> Fn) const;
 
 	/**
-	 * Draws the tyres as the compound's kind looks (ApexWheels::TreadedTint):
-	 * a treaded kind gets each wheel's own instance of the tyre slot with the
-	 * tint; a slick puts the shared material back. Idempotent.
+	 * Draws the tyres as the compound's kind looks: through the tyre parent,
+	 * the kind's tread pattern (ApexWheels::TreadIndex). A tyre slot not on
+	 * that parent (a project baked before it) falls back to the tint
+	 * (ApexWheels::TreadedTint): a treaded kind gets each wheel's own
+	 * instance of the tyre slot with the tint, a slick the shared material
+	 * back. Idempotent.
 	 */
 	void SetTyreLook(EApexCompoundKind Kind);
 	EApexCompoundKind GetTyreLook() const { return TyreLook; }
+
+	/**
+	 * Draws one tyre's state through the tyre parent (`M_ApexCarTyre`,
+	 * ApexCarMaterials::TyreCpd): wear, water, a flat spot (laid where the
+	 * wheel touches the road when the spot first appears; one per tyre)
+	 * and a deflated tyre, whose hub drops by the squat so the flattened
+	 * tread stays on the road. Only changed values are written.
+	 */
+	void SetTyreSurface(ApexWheels::EWheel Wheel, const FApexTyreSurface& Surface);
+	const FApexTyreSurface& GetTyreSurface(ApexWheels::EWheel Wheel) const { return Surfaces[static_cast<int32>(Wheel)]; }
+
+	/** How far a wheel's hub is dropped for a deflated tyre, cm in the body's frame. */
+	float GetSagCm(ApexWheels::EWheel Wheel) const { return SagCm[static_cast<int32>(Wheel)]; }
 
 	/**
 	 * Where a wheel meets the road, in world space: its hub less its radius
@@ -140,6 +214,10 @@ struct APEXSIM_API FApexCarWheelSet
 
 private:
 	void Place();
+	/** Whether a wheel's tyre slot is drawn by the tyre parent (baked, and the mesh has the slot). */
+	bool UsesTyreParent(int32 Index) const;
+	/** Writes the tyre parent's custom data for one wheel: its shape, compound and state. */
+	void WriteTyreData(int32 Index);
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> Components;
@@ -155,4 +233,8 @@ private:
 	float SteerRad = 0.0f;
 	/** Roll of the front and rear axles, radians, kept within one turn. */
 	float SpinRad[2] = {0.0f, 0.0f};
+	FApexTyreSurface Surfaces[ApexWheels::NumWheels];
+	/** Each flat spot's `theta` (ApexWheels::ContactTheta). */
+	float FlatSpotTheta[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
+	float SagCm[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
 };

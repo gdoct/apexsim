@@ -328,6 +328,31 @@ void AApexRaceCarActor::UpdateTyreLook()
 	Wheels.SetTyreLook(Kind);
 }
 
+void AApexRaceCarActor::TakeTyreTelemetry(const FApexCarTelemetry& Car)
+{
+	for (int32 Wheel = 0; Wheel < ApexWheels::NumWheels; ++Wheel)
+	{
+		TyreWear[Wheel] = Car.TyreWearPct[Wheel] >= 0.0f ? Car.TyreWearPct[Wheel] / 100.0f : -1.0f;
+		TyrePressureKpa[Wheel] = Car.TyrePressureKpa[Wheel];
+		TyreFlatSpot[Wheel] = Car.FlatSpot[Wheel];
+	}
+}
+
+void AApexRaceCarActor::UpdateTyreSurface(float DeltaSeconds)
+{
+	// One figure for the car: the road state is read under its middle.
+	TyreWetness = ApexWheels::WetnessStep(TyreWetness, ApexWheels::WetnessForWater(RoadWaterPct), DeltaSeconds);
+	for (int32 Wheel = 0; Wheel < ApexWheels::NumWheels; ++Wheel)
+	{
+		FApexTyreSurface Surface;
+		Surface.Wear = FMath::Max(TyreWear[Wheel], 0.0f);
+		Surface.Wetness = TyreWetness;
+		Surface.FlatSpot = TyreFlatSpot[Wheel];
+		Surface.PressureKpa = TyrePressureKpa[Wheel];
+		Wheels.SetTyreSurface(static_cast<ApexWheels::EWheel>(Wheel), Surface);
+	}
+}
+
 void AApexRaceCarActor::UpdateTyreSmoke(float DeltaSeconds)
 {
 	// The server decides what smokes (`slide_flags`: spinning past 1.6x the
@@ -695,6 +720,7 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car, int64 Serve
 		bTyreLocked[Wheel] = Car.bTyreLocked[Wheel];
 	}
 	TelemetryCompound = Car.Compound;
+	TakeTyreTelemetry(Car);
 
 	ApexMotion::FSnapshot Snapshot;
 	Snapshot.Tick = ServerTick;
@@ -745,6 +771,10 @@ void AApexRaceCarActor::SetPlaybackPose(const FApexCarTelemetry& Car, float Delt
 		: Rotation.GetForwardVector() * Car.SpeedMps * ApexRace::MetresToCentimetres;
 
 	SetPuppetState(Car.SpeedMps, Car.EngineRpm, Car.Gear, Car.Steering, Car.Throttle, Car.Brake);
+	// What the clip's rows hold of the tyres (an older recording: nothing,
+	// so they draw new, dry of the road's water only and round).
+	TakeTyreTelemetry(Car);
+	UpdateTyreSurface(DeltaSeconds);
 	if (EngineSound && OwnEngineSound)
 	{
 		EngineSound->SetLive(EngineRpm, Throttle, Gear);
@@ -806,6 +836,7 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	UpdateDamage(DeltaSeconds);
 	UpdateTyreSmoke(DeltaSeconds);
 	UpdateTyreLook();
+	UpdateTyreSurface(DeltaSeconds);
 
 	if (CVarInterpDebug.GetValueOnGameThread() != 0 && GEngine)
 	{

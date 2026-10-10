@@ -846,7 +846,7 @@ UStaticMesh* UApexCarContentSubsystem::BuildModel(const FString& Path, const FAp
 	{
 		bParentsLoaded = true;
 		const FApexCarParents Loaded = ApexCarMaterials::LoadParents();
-		Parents = {Loaded.Opaque, Loaded.ClearCoat, Loaded.Masked, Loaded.Translucent};
+		Parents = {Loaded.Opaque, Loaded.ClearCoat, Loaded.Masked, Loaded.Translucent, Loaded.Tyre};
 		FallbackMaterial = LoadObject<UMaterialInterface>(nullptr, kCarFallbackMaterial);
 	}
 	FApexCarParents CarParents;
@@ -854,6 +854,7 @@ UStaticMesh* UApexCarContentSubsystem::BuildModel(const FString& Path, const FAp
 	CarParents.ClearCoat = Parents.IsValidIndex(1) ? Parents[1].Get() : nullptr;
 	CarParents.Masked = Parents.IsValidIndex(2) ? Parents[2].Get() : nullptr;
 	CarParents.Translucent = Parents.IsValidIndex(3) ? Parents[3].Get() : nullptr;
+	CarParents.Tyre = Parents.IsValidIndex(4) ? Parents[4].Get() : nullptr;
 	if (!CarParents.IsComplete() && !bReportedNoParents)
 	{
 		bReportedNoParents = true;

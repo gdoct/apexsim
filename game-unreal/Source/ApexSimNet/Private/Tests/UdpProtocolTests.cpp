@@ -754,6 +754,23 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("the recovery hold"), Car.RecoverSecondsLeft, 6.3f);
 			TestTrue(TEXT("recovering"), Car.IsRecovering());
 		}
+		// 43 fields: the flat spots.
+		FApexServerMessage Spots;
+		if (TestTrue(TEXT("43-field telemetry decodes"),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactFlatSpot, Spots, Error))
+			&& Spots.Telemetry.Cars.Num() == 1)
+		{
+			const FApexCarTelemetry& Car = Spots.Telemetry.Cars[0];
+			TestEqual(TEXT("the recovery hold still reads"), Car.RecoverSecondsLeft, 6.3f);
+			TestEqual(TEXT("FL round"), Car.FlatSpot[0], 0.0f);
+			TestEqual(TEXT("FR flat-spotted"), Car.FlatSpot[1], 0.4f);
+			TestEqual(TEXT("RR the worst"), Car.FlatSpot[3], 1.0f);
+		}
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactRecover, Spots, Error)
+			&& Spots.Telemetry.Cars.Num() == 1)
+		{
+			TestEqual(TEXT("no flat spots from an older server"), Spots.Telemetry.Cars[0].FlatSpot[3], 0.0f);
+		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactZones, Recover, Error)
 			&& Recover.Telemetry.Cars.Num() == 1)
 		{

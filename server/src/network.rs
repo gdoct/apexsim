@@ -933,6 +933,12 @@ pub struct CompactCarState {
     /// after `ers_stint_pct`; 0 from an older server.
     #[serde(default)]
     pub recover_ds: u16,
+    /// How deep a flat spot each tyre carries, percent of the worst,
+    /// FL FR RL RR (`TireData::flat_spot`): drawn on the tyre for every car,
+    /// where `DriverFeedback` only tells the car's own driver. Appended
+    /// after `recover_ds`; all 0 from an older server.
+    #[serde(default)]
+    pub flat_spot: [u8; 4],
 }
 
 /// `slide_flags`: a sliding tyre is bit `i`, a locked one bit `i + 4`.
@@ -1217,6 +1223,10 @@ impl CompactCarState {
             slide_flags: state.slide_flags,
             ers_stint_pct: state.ers_stint_pct,
             recover_ds: state.recovery.map_or(0, |r| r.deciseconds()),
+            flat_spot: state
+                .tires
+                .each()
+                .map(|t| (t.flat_spot.clamp(0.0, 1.0) * 100.0).round() as u8),
         }
     }
 }
@@ -2342,7 +2352,7 @@ mod tests {
     /// The positional shape of `CompactCarState`, pinned because the Unreal
     /// client reads it by position: one field inserted rather than appended
     /// and every value after it lands in the wrong place. The bytes are the
-    /// client's `ApexUdpGolden::S_TelemetryCompactLapFlags`; print them with
+    /// client's `ApexUdpGolden::S_TelemetryCompactFlatSpot`; print them with
     /// `cargo test telemetry_compact_wire_format -- --nocapture`.
     #[test]
     fn test_telemetry_compact_wire_format() {
@@ -2426,6 +2436,14 @@ mod tests {
             left_s: 6.34,
             waited_s: 0.0,
         });
+        for (tyre, spot) in state
+            .tires
+            .each_mut()
+            .into_iter()
+            .zip([0.0, 0.404, 0.0, 1.0])
+        {
+            tyre.flat_spot = spot;
+        }
 
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,
@@ -2438,7 +2456,7 @@ mod tests {
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
-            "S_TelemetryCompactRecover: {}",
+            "S_TelemetryCompactFlatSpot: {}",
             bytes
                 .iter()
                 .map(|b| format!("0x{:02X}", b))
@@ -2446,10 +2464,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 42-field array: 0xDC 0x00 0x2A is the array-16 header.
+        // The car is a 43-field array: 0xDC 0x00 0x2B is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x2A]),
-            "CompactCarState must stay 42 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x2B]),
+            "CompactCarState must stay 43 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -2478,6 +2496,7 @@ mod tests {
                 assert_eq!(car.slide_flags, 0b0001_0010, "FR sliding, FL locked");
                 assert_eq!(car.ers_stint_pct, 73);
                 assert_eq!(car.recover_ds, 63, "6.34 s of hold left");
+                assert_eq!(car.flat_spot, [0, 40, 0, 100], "percent of the worst");
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);
             }

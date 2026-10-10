@@ -2014,6 +2014,13 @@ struct APEXSIMNET_API FApexCarTelemetry
 	float RecoverSecondsLeft = 0.0f;
 	bool IsRecovering() const { return RecoverSecondsLeft > 0.0f; }
 
+	/**
+	 * How deep a flat spot each tyre carries, 0..1 of the worst, FL FR RL RR
+	 * (`flat_spot`, server tyre_thermal.rs); 0 from a server that predates it.
+	 * The own car's driver also gets it in FApexDriverFeedback.
+	 */
+	float FlatSpot[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
 	/** "S", "M", "H", "I", "W" (server tyre_thermal::COMPOUNDS), or empty when unknown. */
 	static FString CompoundLetter(int32 InCompound)
 	{

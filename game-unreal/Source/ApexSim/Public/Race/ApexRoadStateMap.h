@@ -75,6 +75,12 @@ public:
 	 */
 	float TexU(float StationM) const;
 	float TexV(float StationM, const FVector2D& WorldCm) const;
+	/**
+	 * The water at a station and world position (cm, Unreal frame),
+	 * percent of heavy rain on the flat (the texel's A); negative when the
+	 * map is empty or no slice has reached that cell yet.
+	 */
+	float WaterAt(float StationM, const FVector2D& WorldCm) const;
 	/** `RoadStateU`: 1 / (cell length x cells), station metres to `u`. */
 	float UPerMetre() const { return Cells > 0 && CellM > 0.0f ? 1.0f / (CellM * Cells) : 0.0f; }
 

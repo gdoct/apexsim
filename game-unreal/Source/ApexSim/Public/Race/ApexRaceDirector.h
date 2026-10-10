@@ -994,6 +994,12 @@ private:
 	/** Drop the textures, the materials and the debris (the track went back). */
 	void ForgetRoadStateOnTrack();
 	/** Whether the road's materials draw the road state now (a slice has arrived). */
+	/**
+	 * The water a car's tyres pick up, percent of heavy rain on the flat:
+	 * the road state's cell under it when that is known, else the sky's lap
+	 * mean; rain falling wets them a little even on a road still dry.
+	 */
+	float TyreWaterFor(const FApexCarTelemetry& Car) const;
 	bool IsRoadStateLive() const { return RoadMap.IsValid() && RoadMap.NumKnownCells() > 0; }
 
 	FApexRoadStateMap RoadMap;

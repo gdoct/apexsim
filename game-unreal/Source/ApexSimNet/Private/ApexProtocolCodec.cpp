@@ -1372,7 +1372,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 42;
+	constexpr int32 CompactCarFieldCount = 43;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -1770,6 +1770,10 @@ namespace
 		}
 		Out.ErsStintPct = -1.0f;
 		Out.RecoverSecondsLeft = 0.0f;
+		for (float& Spot : Out.FlatSpot)
+		{
+			Spot = 0.0f;
+		}
 		if (Index < Known)
 		{
 			bOk &= Next([&]
@@ -1868,6 +1872,30 @@ namespace
 					return false;
 				}
 				Out.RecoverSecondsLeft = static_cast<float>(Raw) / 10.0f;
+				return true;
+			});
+		}
+		// The flat spots, appended after the recovery: four percentages.
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				int32 Count = 0;
+				if (!Reader.ReadArrayHeader(Count))
+				{
+					return false;
+				}
+				for (int32 Tyre = 0; Tyre < Count; ++Tyre)
+				{
+					if (!Reader.ReadUInt64(Raw))
+					{
+						return false;
+					}
+					if (Tyre < 4)
+					{
+						Out.FlatSpot[Tyre] = FMath::Clamp(static_cast<float>(Raw) / 100.0f, 0.0f, 1.0f);
+					}
+				}
 				return true;
 			});
 		}

@@ -72,6 +72,12 @@ bool FApexRoadStateMapTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("15.5 m left is the first bin"),
 		FMath::FloorToInt(Map.TexV(95.0f, FVector2D(LeftEdge.X, LeftEdge.Y)) * 32.0f) == 0);
 
+	// What the tyres pick up: the depth of the cell under the car, unknown
+	// (negative) where no slice has reached yet or before any slice.
+	TestEqual(TEXT("cell 9's water under a car"), Map.WaterAt(95.0f, FVector2D(RightOfCentre.X, RightOfCentre.Y)), 90.0f);
+	TestTrue(TEXT("a cell not sent has no water figure"), Map.WaterAt(35.0f, FVector2D(RightOfCentre.X, RightOfCentre.Y)) < 0.0f);
+	TestTrue(TEXT("nor an empty map"), FApexRoadStateMap().WaterAt(95.0f, FVector2D::ZeroVector) < 0.0f);
+
 	// Another layout starts again; the same one fills in.
 	TestTrue(TEXT("more of the lap"), Map.Apply(Slice(1, 2)));
 	TestEqual(TEXT("five known"), Map.NumKnownCells(), 5);

@@ -828,6 +828,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 		if (AApexRaceCarActor* Actor = FindCar(Car.CarIndex))
 		{
 			Actor->ApplyTelemetry(Car, Frame.ServerTick);
+			Actor->SetRoadWater(TyreWaterFor(Car));
 			// The lights are the server's: the driver's switch, or the sky.
 			Actor->SetHeadlights(bRaceViewActive && (Car.bHeadlights || Car.bHeadlightFlash), Car.bHeadlightFlash);
 			// Someone else's car parked in its hotlap garage is out of the
@@ -4229,6 +4230,23 @@ void AApexRaceDirector::UpdateReplay(float DeltaSeconds)
 	}
 }
 
+float AApexRaceDirector::TyreWaterFor(const FApexCarTelemetry& Car) const
+{
+	// The sky as drawn, live or the session's fixed one: road wetness is
+	// the water / 50 (ApexSkyModel), rain 0..1 of heavy rain.
+	const float RainWater = 40.0f * Sky.RainIntensity;
+	if (IsRoadStateLive())
+	{
+		const FVector World = ApexRace::ServerToUnrealPosition(Car.Position);
+		const float Water = RoadMap.WaterAt(Car.TrackProgress, FVector2D(World.X, World.Y));
+		if (Water >= 0.0f)
+		{
+			return FMath::Max(Water, RainWater);
+		}
+	}
+	return FMath::Max(50.0f * Sky.RoadWetness, RainWater);
+}
+
 void AApexRaceDirector::ApplyReplayFrame(const FApexTelemetryFrame& Frame, float DeltaSeconds)
 {
 	LatestFrameState = Frame.SessionState;
@@ -4243,6 +4261,7 @@ void AApexRaceDirector::ApplyReplayFrame(const FApexTelemetryFrame& Frame, float
 			}
 			else
 			{
+				Actor->SetRoadWater(TyreWaterFor(Car));
 				Actor->SetPlaybackPose(Car, DeltaSeconds);
 				if (Actor->IsHidden())
 				{

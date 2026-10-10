@@ -109,6 +109,13 @@ public:
 	 */
 	void SetCompounds(const TArray<FApexCompoundSpec>& Specs);
 
+	/**
+	 * The water under the car, percent of heavy rain on the flat (the road
+	 * state's cell, or the sky's lap mean): the tyres soak it up and dry
+	 * off (ApexWheels::WetnessStep). Set by the race director each frame.
+	 */
+	void SetRoadWater(float WaterPct) { RoadWaterPct = FMath::Max(WaterPct, 0.0f); }
+
 	/** The driver's component when the car has one, for tinting. */
 	UStaticMeshComponent* GetDriverComponent() const { return Driver.HasDriver() ? Driver.GetComponent() : nullptr; }
 
@@ -420,6 +427,15 @@ private:
 	int32 TelemetryCompound = -1;
 	TArray<FApexCompoundSpec> Compounds;
 	void UpdateTyreLook();
+	/** The newest telemetry's wear (0..1, negative unknown), pressure (kPa, negative unknown) and flat spots, per tyre. */
+	float TyreWear[ApexWheels::NumWheels] = {-1.0f, -1.0f, -1.0f, -1.0f};
+	float TyrePressureKpa[ApexWheels::NumWheels] = {-1.0f, -1.0f, -1.0f, -1.0f};
+	float TyreFlatSpot[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
+	float RoadWaterPct = 0.0f;
+	float TyreWetness = 0.0f;
+	void TakeTyreTelemetry(const FApexCarTelemetry& Car);
+	/** Draws the tyres' wear, water, flat spots and deflation (FApexCarWheelSet::SetTyreSurface). */
+	void UpdateTyreSurface(float DeltaSeconds);
 	FRandomStream DamageRandom;
 	TWeakObjectPtr<AApexCarEffectsActor> Effects;
 

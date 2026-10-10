@@ -35,8 +35,16 @@ struct FApexCarParents
 	TObjectPtr<UMaterialInterface> Masked;
 	/** `M_ApexCarTranslucent`: `alphaMode` BLEND (glass). */
 	TObjectPtr<UMaterialInterface> Translucent;
+	/**
+	 * `M_ApexCarTyre`: the `wheel_tyre` slot's (ApexCarMaterials::TyreCpd).
+	 * Optional: a project baked before it draws its tyres with `Opaque`.
+	 */
+	TObjectPtr<UMaterialInterface> Tyre;
 
-	/** The parent a glTF material wants; falls back to `Opaque`, which may be null. */
+	/**
+	 * The parent a glTF material wants (`Tyre` for an opaque `wheel_tyre`
+	 * when it is baked); falls back to `Opaque`, which may be null.
+	 */
 	UMaterialInterface* For(const FApexGlbMaterial& Material) const;
 	bool IsComplete() const { return Opaque && ClearCoat && Masked && Translucent; }
 };
@@ -48,6 +56,14 @@ namespace ApexCarMaterials
 	inline const TCHAR* const ClearCoatName = TEXT("M_ApexCarClearCoat");
 	inline const TCHAR* const MaskedName = TEXT("M_ApexCarMasked");
 	inline const TCHAR* const TranslucentName = TEXT("M_ApexCarTranslucent");
+	inline const TCHAR* const TyreName = TEXT("M_ApexCarTyre");
+	/** The glTF material (slot) the tyre parent is for (docs/content/cars.md, Wheels). */
+	inline const TCHAR* const TyreSlotName = TEXT("wheel_tyre");
+	/**
+	 * The tyre parent's sidewall ring height, a share of the radius. Also
+	 * how the bake tells a tyre parent from before the ring.
+	 */
+	inline const TCHAR* const TyreBandWidth = TEXT("TyreBandWidth");
 
 	/** The parameter names, shared by the bake and the runtime. */
 	inline const TCHAR* const BaseColorFactor = TEXT("BaseColorFactor");
@@ -76,6 +92,40 @@ namespace ApexCarMaterials
 	 */
 	inline const TCHAR* const SmokeName = TEXT("M_ApexCarSmoke");
 	inline constexpr int32 SmokeCustomFloats = 4;
+
+	/**
+	 * `M_ApexCarTyre` draws the tyre from the wheel component's custom
+	 * primitive data, so one instance serves every car on that wheel and
+	 * each tyre still shows its own state (FApexCarWheelSet writes it). The
+	 * class tyres carry no UVs, so the tread is laid from the mesh's own
+	 * position: the axle on X, `theta` round it from +Y toward +Z. Starts at
+	 * 16, past the damage graph's (ApexDamage::CpdCount), which the rims'
+	 * opaque parent reads from the same component.
+	 */
+	namespace TyreCpd
+	{
+		/** The tyre's radius and half width in the mesh's own units. */
+		inline constexpr int32 RadiusLocal = 16;
+		inline constexpr int32 HalfWidthLocal = 17;
+		/** The same as drawn, world cm. */
+		inline constexpr int32 RadiusCm = 18;
+		inline constexpr int32 HalfWidthCm = 19;
+		/** 0 slick, 1 intermediate, 2 wet (ApexWheels::TreadIndex). */
+		inline constexpr int32 Tread = 20;
+		/** +1 or -1: which way `theta` rolls forward, so a directional tread points the same way on both sides. */
+		inline constexpr int32 Chevron = 21;
+		/** 0..1 each. */
+		inline constexpr int32 Wear = 22;
+		inline constexpr int32 Wetness = 23;
+		inline constexpr int32 FlatSpot = 24;
+		/** Where the flat spot is, `theta` radians. */
+		inline constexpr int32 FlatSpotAngle = 25;
+		/** How far a deflated tyre squats, world cm. */
+		inline constexpr int32 SagCm = 26;
+		/** The compound's ring on the sidewalls, linear RGB (27..29, 30 unused); black for none. */
+		inline constexpr int32 BandColour = 27;
+		inline constexpr int32 Count = 31;
+	}
 
 	/** `/Game/Materials/Car/<Name>`. */
 	APEXSIM_API FString PackageName(const TCHAR* Name);

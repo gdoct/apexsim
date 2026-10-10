@@ -17,6 +17,7 @@
 #include "Materials/MaterialExpressionConstant2Vector.h"
 #include "Materials/MaterialExpressionConstant3Vector.h"
 #include "Materials/MaterialExpressionCrossProduct.h"
+#include "Materials/MaterialExpressionCustom.h"
 #include "Materials/MaterialExpressionDDX.h"
 #include "Materials/MaterialExpressionDDY.h"
 #include "Materials/MaterialExpressionDepthFade.h"
@@ -1178,6 +1179,258 @@ namespace
 	}
 
 	/**
+	 * The HLSL the tyre parent's two pixel nodes share: where on the tyre a
+	 * pixel is and the tread's groove pattern there. Inputs (all custom
+	 * node pins): `P` the local position, `Rm` / `Hm` the tyre's radius and
+	 * half width in the mesh's units, `Rcm` / `Hcm` the same in world cm,
+	 * `Tread` 0 / 1 / 2, `Chev` +-1, `Wear`, `Flat`, `FlatA`, `Depth` the
+	 * pixel's depth, cm. Defines `onTread` (the running surface, 0..1),
+	 * `u` (0..1 round the tyre), `av` (|across|, 0 centre to 1 shoulder),
+	 * `fade` (how far below a pixel the grooves are), `keep` (what wear
+	 * leaves of the grooves), `spot` (the flat spot) and `g` (groove, 0..1).
+	 */
+	const TCHAR* kTyrePrelude = TEXT(R"HLSL(
+struct ApxTread
+{
+	float Line(float x, float w, float a) { return 1.0 - smoothstep(w - a, w + a, x); }
+	// The groove at `u` round the tyre and `av` across it. Each pattern's
+	// pitch is a whole number round the tyre (`sTot` is the circumference in
+	// tread widths), so no seam where `theta` wraps.
+	float G(float u, float av, float tread, float chev, float aa, float sTot)
+	{
+		if (tread > 1.5)
+		{
+			// Wet: four deep channels and swept blocks, pointing forward on top.
+			float circ = max(Line(abs(av - 0.24), 0.035, aa), Line(abs(av - 0.62), 0.03, aa));
+			float ph = frac(u * max(round(sTot * 3.2), 1.0) * chev + av * 1.1);
+			float lat = Line(abs(ph - 0.5), 0.07, aa * 3.2) * smoothstep(0.22, 0.27, av);
+			return max(circ, lat);
+		}
+		if (tread > 0.5)
+		{
+			// Intermediate: two thin channels and many shallow sipes.
+			float circ = Line(abs(av - 0.33), 0.022, aa);
+			float ph = frac(u * max(round(sTot * 5.0), 1.0) * chev + av * 1.6);
+			float lat = 0.75 * Line(abs(ph - 0.5), 0.05, aa * 5.0)
+				* smoothstep(0.10, 0.14, av) * (1.0 - smoothstep(0.86, 0.92, av));
+			return max(circ, lat);
+		}
+		return 0.0;
+	}
+	// What a pattern averages to once its grooves are smaller than a pixel.
+	float Cover(float tread) { return tread > 1.5 ? 0.24 : (tread > 0.5 ? 0.14 : 0.0); }
+};
+ApxTread Tr;
+float Rl = max(Rm, 1e-3);
+float Hl = max(Hm, 1e-3);
+float RW = max(Rcm, 1e-3);
+float HW = max(Hcm, 1e-3);
+float rr = length(P.yz) / Rl;
+float th = atan2(P.z, P.y);
+float u = th * 0.15915494 + 0.5;
+float v = P.x / Hl;
+float av = abs(v);
+float sTot = 3.14159265 * RW / HW;
+float onTread = Rm > 0.0 ? smoothstep(0.93, 0.975, rr) * (1.0 - smoothstep(0.86, 0.97, av)) : 0.0;
+float aa = max(0.006, Depth * 0.0011 / (2.0 * HW));
+float fade = saturate((aa - 0.02) / 0.04);
+float keep = 1.0 - 0.85 * saturate(Wear);
+float dth = abs(atan2(sin(th - FlatA), cos(th - FlatA)));
+float flatLen = 0.10 + 0.22 * saturate(Flat);
+float spot = (Flat > 0.01 ? 1.0 : 0.0) * (1.0 - smoothstep(flatLen * 0.7, flatLen, dth * RW / (2.0 * HW)))
+	* onTread * (1.0 - smoothstep(0.7, 0.9, av));
+float g = lerp(Tr.G(u, av, Tread, Chev, aa, sTot), Tr.Cover(Tread), fade) * onTread * keep * (1.0 - 0.7 * spot);
+)HLSL");
+
+	/** Base colour (rgb) and roughness (a) from the prelude, `Base` and `Rough`. */
+	const TCHAR* kTyreSurface = TEXT(R"HLSL(
+float3 c = Base * lerp(1.0, 0.3, g);
+float r = lerp(Rough, 0.95, g);
+// The compound's ring round both sidewalls (green inter, blue wet; none
+// on a slick). A wheel model with its own `wheel_band` ring there hides it,
+// and the wheel set paints that ring the same colour.
+float ring = (Rm > 0.0 && dot(Band, float3(1.0, 1.0, 1.0)) > 0.0 ? 1.0 : 0.0)
+	* smoothstep(0.93, 0.97, av)
+	* (1.0 - smoothstep(BandW * 0.5, BandW * 0.5 + 0.004, abs(rr - 0.87)));
+c = lerp(c, Band, ring);
+r = lerp(r, 0.6, ring);
+// Worn: lighter, matte streaks round the tread.
+float h1 = frac(sin(floor(v * 40.0) * 91.345) * 43758.5453);
+float scuff = saturate(Wear * 1.4) * (0.55 + 0.45 * h1) * onTread * (1.0 - 0.5 * fade);
+c = lerp(c, c * 1.7 + 0.010, scuff * 0.7);
+r = lerp(r, 0.95, scuff * 0.5);
+// Past mid life: grained, little torn ridges across the tread.
+float2 cell = floor(float2(u * max(round(sTot * 70.0), 1.0), v * 18.0));
+float h2 = frac(sin(dot(cell, float2(12.9898, 78.233))) * 43758.5453);
+float grain = smoothstep(0.45, 0.9, Wear) * step(0.72, h2) * onTread * (1.0 - fade);
+c = lerp(c, c * 2.2 + 0.015, grain * 0.6);
+// A flat spot: a glazed, lighter patch where the locked tyre slid.
+float glaze = spot * (0.45 + 0.55 * saturate(Flat));
+c = lerp(c, float3(0.075, 0.077, 0.085), glaze);
+r = lerp(r, 0.32, glaze);
+// Wet: darker and glossy, the sidewalls a little less; water stands in the grooves.
+float w = saturate(Wet) * lerp(0.75, 1.0, onTread);
+c *= lerp(1.0, 0.55, w);
+r = lerp(r, 0.10, w * (0.8 + 0.2 * g));
+return float4(c, saturate(r));
+)HLSL");
+
+	/**
+	 * The world-space normal: the vertex's, tilted by the grooves' walls
+	 * (the pattern's slope by finite differences, so no UVs, tangents or
+	 * screen derivatives are needed). `Nv` the vertex normal, `Xw` / `Yw` /
+	 * `Zw` the mesh's axes in world space.
+	 */
+	const TCHAR* kTyreNormal = TEXT(R"HLSL(
+float3 n = normalize(Nv);
+if (Tread < 0.5 || onTread <= 0.0 || fade >= 1.0)
+{
+	return n;
+}
+float e = 0.004;
+float g0 = Tr.G(u, av, Tread, Chev, aa, sTot);
+float gu = Tr.G(u + e / sTot, av, Tread, Chev, aa, sTot);
+float gv = Tr.G(u, av + e, Tread, Chev, aa, sTot);
+float3 ts = normalize(-sin(th) * Yw + cos(th) * Zw);
+float3 tv = normalize(Xw) * (v < 0.0 ? -1.0 : 1.0);
+// Groove depth, cm: a wet's channels deeper than an inter's sipes.
+float depthCm = (Tread > 1.5 ? 0.6 : 0.35) * keep * onTread * (1.0 - fade);
+// d(groove)/d(cm) round the tyre and across it: `u + e / sTot` is e tread
+// widths (2 x HW cm) on, `av + e` is e half widths (HW cm).
+float3 grad = ((gu - g0) / (e * 2.0 * HW)) * ts + ((gv - g0) / (e * HW)) * tv;
+return normalize(n + depthCm * grad);
+)HLSL");
+
+	/**
+	 * A deflated tyre, world position offset: below `Rcm - Sag` under the
+	 * hub it is flattened onto the road, and the sidewalls there bulge out
+	 * along the axle. `Rel` the vertex from the hub, world cm; `Axle` the
+	 * axle's world direction. Nothing moves at `Sag` 0.
+	 */
+	const TCHAR* kTyreSag = TEXT(R"HLSL(
+if (Sag <= 0.01 || Rcm <= 0.0)
+{
+	return float3(0.0, 0.0, 0.0);
+}
+float d = -Rel.z;
+float lim = Rcm - Sag;
+float3 o = float3(0.0, 0.0, max(d - lim, 0.0));
+float lat = dot(Rel, Axle);
+float band = smoothstep(lim - 2.5 * Sag, Rcm, d);
+o += Axle * (lat >= 0.0 ? 1.0 : -1.0) * band * Sag * 0.6 * saturate(abs(lat) / max(Hcm, 1.0));
+return o;
+)HLSL");
+
+	/** One input pin of a custom node. */
+	struct FCustomPin
+	{
+		const TCHAR* Name;
+		UMaterialExpression* Expression;
+	};
+
+	UMaterialExpressionCustom* AddCustom(UMaterial* Material, const TCHAR* Description, const FString& Code,
+		ECustomMaterialOutputType Type, const TArray<FCustomPin>& Inputs)
+	{
+		UMaterialExpressionCustom* E = AddExpr<UMaterialExpressionCustom>(Material);
+		E->Description = Description;
+		E->Code = Code;
+		E->OutputType = Type;
+		E->Inputs.Reset();
+		for (const FCustomPin& Pin : Inputs)
+		{
+			FCustomInput& In = E->Inputs.AddDefaulted_GetRef();
+			In.InputName = Pin.Name;
+			In.Input.Expression = Pin.Expression;
+		}
+		return E;
+	}
+
+	/**
+	 * `M_ApexCarTyre`, the `wheel_tyre` slot's parent: the opaque car
+	 * parent's inputs (`BaseColorFactor` x `BaseColorTexture`, `MetallicFactor`,
+	 * `RoughnessFactor`, `EmissiveFactor`) and, from the wheel component's
+	 * custom primitive data (ApexCarMaterials::TyreCpd), the tyre's state
+	 * laid over them without UVs: the tread of an intermediate or a wet
+	 * (grooves fading to their average under a pixel and with wear), wear's
+	 * scuffing and graining, a flat spot's glazed patch, water, and a
+	 * deflated tyre's squat (WPO). With the data at zero (no wheel set
+	 * wrote it) it draws as the opaque parent would. The normal is world
+	 * space: the class tyres' tangents are meaningless without UVs.
+	 */
+	void BuildCarTyre(UMaterial* Parent, UTexture* White)
+	{
+		const FGraph G{Parent};
+		UMaterialExpressionVectorParameter* Factor = AddExpr<UMaterialExpressionVectorParameter>(Parent);
+		Factor->ParameterName = ApexCarMaterials::BaseColorFactor;
+		Factor->DefaultValue = FLinearColor::White;
+		UMaterialExpressionTextureSampleParameter2D* Sample = AddExpr<UMaterialExpressionTextureSampleParameter2D>(Parent);
+		Sample->ParameterName = ApexCarMaterials::BaseColorTexture;
+		Sample->Texture = White;
+		Sample->SamplerType = SAMPLERTYPE_Color;
+		UMaterialExpressionMultiply* Base = AddExpr<UMaterialExpressionMultiply>(Parent);
+		Base->A.Expression = CarMask(Parent, Factor, true, true, true, false);
+		Base->B.Connect(0, Sample);
+		UMaterialExpressionVectorParameter* Emissive = AddExpr<UMaterialExpressionVectorParameter>(Parent);
+		Emissive->ParameterName = ApexCarMaterials::EmissiveFactor;
+		Emissive->DefaultValue = FLinearColor::Black;
+		UMaterialExpression* Rough = CarScalar(Parent, ApexCarMaterials::RoughnessFactor, 0.8f);
+
+		namespace Cpd = ApexCarMaterials::TyreCpd;
+		UMaterialExpression* Rm = G.PrimitiveScalar(TEXT("TyreRadiusLocal"), Cpd::RadiusLocal);
+		UMaterialExpression* Hm = G.PrimitiveScalar(TEXT("TyreHalfWidthLocal"), Cpd::HalfWidthLocal);
+		UMaterialExpression* Rcm = G.PrimitiveScalar(TEXT("TyreRadiusCm"), Cpd::RadiusCm);
+		UMaterialExpression* Hcm = G.PrimitiveScalar(TEXT("TyreHalfWidthCm"), Cpd::HalfWidthCm);
+		UMaterialExpression* Tread = G.PrimitiveScalar(TEXT("TyreTread"), Cpd::Tread);
+		UMaterialExpression* Chev = G.PrimitiveScalar(TEXT("TyreChevron"), Cpd::Chevron);
+		UMaterialExpression* Wear = G.PrimitiveScalar(TEXT("TyreWear"), Cpd::Wear);
+		UMaterialExpression* Wet = G.PrimitiveScalar(TEXT("TyreWetness"), Cpd::Wetness);
+		UMaterialExpression* Flat = G.PrimitiveScalar(TEXT("TyreFlatSpot"), Cpd::FlatSpot);
+		UMaterialExpression* FlatA = G.PrimitiveScalar(TEXT("TyreFlatSpotAngle"), Cpd::FlatSpotAngle);
+		UMaterialExpression* Sag = G.PrimitiveScalar(TEXT("TyreSagCm"), Cpd::SagCm);
+
+		// The undeformed position in the wheel mesh's frame: the tread turns with the wheel.
+		UMaterialExpressionLocalPosition* Local = AddExpr<UMaterialExpressionLocalPosition>(Parent);
+		Local->IncludedOffsets = EPositionIncludedOffsets::ExcludeOffsets;
+		Local->LocalOrigin = ELocalPositionOrigin::Primitive;
+		UMaterialExpressionPixelDepth* Depth = AddExpr<UMaterialExpressionPixelDepth>(Parent);
+		auto Axis = [&](float X, float Y, float Z) {
+			return G.Transform(G.C3(X, Y, Z), TRANSFORMSOURCE_Local, TRANSFORM_World);
+		};
+
+		const FString Prelude(kTyrePrelude);
+		UMaterialExpressionCustom* Surface = AddCustom(Parent, TEXT("ApexTyreSurface"), Prelude + kTyreSurface, CMOT_Float4,
+			{{TEXT("P"), Local}, {TEXT("Rm"), Rm}, {TEXT("Hm"), Hm}, {TEXT("Rcm"), Rcm}, {TEXT("Hcm"), Hcm},
+				{TEXT("Tread"), Tread}, {TEXT("Chev"), Chev}, {TEXT("Wear"), Wear}, {TEXT("Flat"), Flat},
+				{TEXT("FlatA"), FlatA}, {TEXT("Depth"), Depth}, {TEXT("Base"), Base}, {TEXT("Rough"), Rough},
+				{TEXT("Wet"), Wet}, {TEXT("Band"), G.PrimitiveVector(TEXT("TyreBandColour"), Cpd::BandColour, FLinearColor::Black)},
+				{TEXT("BandW"), CarScalar(Parent, ApexCarMaterials::TyreBandWidth, 0.035f)}});
+		UMaterialExpressionCustom* Normal = AddCustom(Parent, TEXT("ApexTyreNormal"), Prelude + kTyreNormal, CMOT_Float3,
+			{{TEXT("P"), Local}, {TEXT("Rm"), Rm}, {TEXT("Hm"), Hm}, {TEXT("Rcm"), Rcm}, {TEXT("Hcm"), Hcm},
+				{TEXT("Tread"), Tread}, {TEXT("Chev"), Chev}, {TEXT("Wear"), Wear}, {TEXT("Flat"), Flat},
+				{TEXT("FlatA"), FlatA}, {TEXT("Depth"), Depth}, {TEXT("Nv"), AddExpr<UMaterialExpressionVertexNormalWS>(Parent)},
+				{TEXT("Xw"), Axis(1.0f, 0.0f, 0.0f)}, {TEXT("Yw"), Axis(0.0f, 1.0f, 0.0f)}, {TEXT("Zw"), Axis(0.0f, 0.0f, 1.0f)}});
+		UMaterialExpressionCustom* Squat = AddCustom(Parent, TEXT("ApexTyreSag"), kTyreSag, CMOT_Float3,
+			{{TEXT("Rel"), G.Transform(Local, TRANSFORMSOURCE_Local, TRANSFORM_World)},
+				{TEXT("Axle"), G.Normalize(Axis(1.0f, 0.0f, 0.0f))}, {TEXT("Sag"), Sag}, {TEXT("Rcm"), Rcm},
+				{TEXT("Hcm"), Hcm}});
+
+		UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
+		EditorOnly->BaseColor.Expression = G.MaskRgb(Surface);
+		UMaterialExpressionComponentMask* SurfaceRough = AddExpr<UMaterialExpressionComponentMask>(Parent);
+		SurfaceRough->Input.Expression = Surface;
+		SurfaceRough->R = SurfaceRough->G = SurfaceRough->B = 0;
+		SurfaceRough->A = 1;
+		EditorOnly->Roughness.Expression = SurfaceRough;
+		EditorOnly->Metallic.Expression = CarScalar(Parent, ApexCarMaterials::MetallicFactor, 0.0f);
+		EditorOnly->EmissiveColor.Expression = CarMask(Parent, Emissive, true, true, true, false);
+		EditorOnly->Normal.Expression = Normal;
+		EditorOnly->WorldPositionOffset.Expression = Squat;
+		Parent->bTangentSpaceNormal = false;
+		Parent->TwoSided = true;
+		Parent->PostEditChange();
+	}
+
+	/**
 	 * A package ready to receive a freshly generated asset: an existing one
 	 * of the same name is renamed out of the way first, since re-baking is
 	 * the normal case.
@@ -1506,6 +1759,28 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 		}
 		const ECarParent Kind = Car.Value;
 		if (!BakeAs(PackageName, [Kind, White](UMaterial* M) { BuildCar(M, Kind, White); }, OutError))
+		{
+			return false;
+		}
+		++CarsBaked;
+	}
+	const FString TyrePackage = ApexCarMaterials::PackageName(ApexCarMaterials::TyreName);
+	bool bBakeTyre = bForce || !FPackageName::DoesPackageExist(TyrePackage);
+	if (!bBakeTyre)
+	{
+		// One baked before the compound ring draws none: bake it again.
+		const UMaterialInterface* Existing = LoadObject<UMaterialInterface>(nullptr, *ApexCarMaterials::ObjectPath(ApexCarMaterials::TyreName));
+		float Width = 0.0f;
+		bBakeTyre = Existing
+			&& !Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::TyreBandWidth), Width);
+		if (bBakeTyre)
+		{
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no compound ring; baking it again"), ApexCarMaterials::TyreName);
+		}
+	}
+	if (bBakeTyre)
+	{
+		if (!BakeAs(TyrePackage, [White](UMaterial* M) { BuildCarTyre(M, White); }, OutError))
 		{
 			return false;
 		}

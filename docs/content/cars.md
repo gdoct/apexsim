@@ -171,8 +171,8 @@ caches it until `apexsim.car.Rescan`:
    Textures are transient and cached by content hash.
 2. **Materials**: a dynamic instance per slot of a cooked parent under
    `/Game/Materials/Car`: `M_ApexCarTranslucent` (`BLEND`), `M_ApexCarMasked`
-   (`MASK`), `M_ApexCarClearCoat` (`KHR_materials_clearcoat`), else
-   `M_ApexCarOpaque`, with Interchange's parameter names (`BaseColorFactor`,
+   (`MASK`), `M_ApexCarClearCoat` (`KHR_materials_clearcoat`), `M_ApexCarTyre`
+   for an opaque `wheel_tyre` (when baked), else `M_ApexCarOpaque`, with Interchange's parameter names (`BaseColorFactor`,
    `BaseColorTexture`, `MetallicFactor`, `RoughnessFactor`, `EmissiveFactor`).
 3. **Mesh**: built on the tracks' fast path, no collision.
 
@@ -239,13 +239,48 @@ fronts by `steering x max_steering_angle_rad` and rolls all four by how far
 the drawn car moved along its nose, capped at `apexsim.car.WheelMaxDegPerFrame`
 (12) a frame so the spokes do not strobe. A row without wheels draws none.
 
-**Compound look.** The client reads each `[[tires.compound]]`'s `name` and
+**Tyre look.** The client reads each `[[tires.compound]]`'s `name` and
 `kind` (`slick`, `intermediate`, `wet`) onto `Compounds`; without the tables a
-car has the five defaults (soft, medium, hard, intermediate, wet). When
-telemetry's `compound` is treaded, `FApexCarWheelSet::SetTyreLook` gives each
-`wheel_tyre` its own instance with a matte blue-grey tint
-(`ApexWheels::TreadedTint`). It is a tint, not a tread pattern, because the
-class tyres carry no UVs (`build_wheels.py` lathes the profile without them).
+car has the five defaults (soft, medium, hard, intermediate, wet). The
+`wheel_tyre` slot is an instance of `M_ApexCarTyre` (`ApexMaterialBake`,
+`BuildCarTyre`), one per wheel model like every slot; each wheel component's
+custom primitive data (`ApexCarMaterials::TyreCpd`, from index 16, past the
+damage graph the rims read) carries its tyre's own state, written by
+`FApexCarWheelSet` only when a value changes. The class tyres carry no UVs
+(`build_wheels.py` lathes them), so the graph lays everything from the mesh's
+local position: `theta` round the axle (X) from +Y toward +Z, the radius and
+`x` across the tread, both normalised by the tyre's size in mesh units.
+
+- **Tread**: telemetry's `compound` picks the kind (`ApexWheels::TreadIndex`).
+  A wet draws four channels and swept blocks whose V points forward on top
+  (`Chevron` is -1 on the left, whose model rolls about its own -X); an
+  intermediate two thin channels and shallow sipes. Each pitch is a whole
+  number round the tyre, so there is no seam. Grooves darken and roughen the
+  rubber and tilt the normal (world space, by finite differences of the
+  pattern, no tangents); below a pixel they fade to their average shade, and
+  wear wears them down to 15%.
+- **Compound ring**: an intermediate's sidewalls carry a green ring and a
+  wet's a blue one (`ApexWheels::CompoundBandColour`). A model with its own
+  `wheel_band` ring has it repainted (each wheel's own instance; a slick puts
+  the model's colour back); the tyre parent draws the same ring at 87% of the
+  radius (`TyreBandWidth` high) for a model without one (the GT3 wheel).
+- **Wear** (`tyre_wear`): lighter, matte streaks round the tread, and from
+  45% grained specks.
+- **Flat spots** (`flat_spot`): a glazed lighter patch, longer the deeper the
+  spot, laid at the wheel's contact angle when the spot first appears
+  (`ApexWheels::ContactTheta`; one per tyre).
+- **Water**: the race director hands each car the water under it
+  (`TyreWaterFor`: the road state's cell, else the drawn sky's road wetness;
+  rain falling counts as 40% of its intensity), and the tyres soak it up in
+  about 1.5 s and dry over about 20 s (`ApexWheels::WetnessStep`): darker and
+  glossy, water standing in the grooves.
+- **Deflation** (`tyre_kpa`): round down to 100 kPa, flat at the server's
+  `PUNCTURED_KPA` (`ApexWheels::DeflatedShare`). A flat tyre squats 9% of its
+  radius: the hub drops by that and the graph's WPO flattens the tread onto
+  the road and bulges the sidewalls there.
+
+A project baked before `M_ApexCarTyre` draws its tyres with `M_ApexCarOpaque`
+and the old tint (`ApexWheels::TreadedTint`: matte blue-grey for a rain tyre).
 Telemetry's `slide_flags` make the actor puff tyre smoke off a sliding or
 locked wheel (`UpdateTyreSmoke`, through the effects actor).
 
