@@ -21,15 +21,15 @@ None open.
 
 | Item | Type | Notes |
 |---|---|---|
-| Wheelbase profiles unchecked on hardware | task | The `ApexWheelProfiles` name rules are written from the product names the drivers are known to report, not read off real devices, so a base can fall through to Generic. The peak torques and the gear / hybrid minimum forces (5% / 3%) have not been felt on any base. |
 | Race results GAP column | bug | `UApexSessionResultsWidget` shows each car's best lap against the fastest, not its gap at the flag, so a race result can read out of order (P2 +9.4, P3 +9.0). |
-| UDP is unencrypted | feature | Telemetry and player input travel in the clear (no DTLS). Since 2026-10-10 every inbound datagram is sealed (HMAC under a per-connection key from `AuthSuccess`, rising sequence number), so a forged, tampered or replayed input is dropped; what is left open is only reading telemetry and input off the wire, which carries nothing the other players do not already get. TCP has TLS since 2026-10-10. |
+
 
 ## P2: depth
 
 | Item | Type | Notes |
 |---|---|---|
 | Wheelbase profiles for more brands | feature | `ApexWheelProfiles` has no Simagic, Cammus, Asetek or VRS bases; they mix as Generic (no output scaling) until the player picks a profile or gives the peak torque. |
+| Wheelbase profiles unchecked on hardware | task | The `ApexWheelProfiles` name rules are written from the product names the drivers are known to report, not read off real devices, so a base can fall through to Generic. The peak torques and the gear / hybrid minimum forces (5% / 3%) have not been felt on any base. 
 | Reconnect polish | feature | A dropped client always goes back to the menu and rejoins from its banner; it does not rejoin by itself after a short drop. The banner has no way to give the seat up (creating or joining another session does). Other drivers are not told a car is server-driven (the roster has no away flag), and the away driver does not pit, so a long race can run its tank dry. |
 | Chase camera inside the garage | bug | When a car stops at its box or is towed there, the chase camera ends up in a pillar or the garage wall and the car is hidden. |
 | GPU hang in a race | bug | A Silverstone race (`-ApexAutoRace`, 5 AI, TV camera, road state off) stopped with `DXGI_ERROR_DEVICE_HUNG` about 10 s after the track was shown on 2026-10-10, and a Suzuka race did the same; reruns ran. Seen alongside the VSM "Non-Nanite Marking Job Queue overflow" message ([proposals/nanite-shadows.md](proposals/nanite-shadows.md)); the cause is not known. |
@@ -84,6 +84,7 @@ None open.
 | Track pipeline tooling | task | No `ats-dress --explain` or per-prop source stamp; no `ats-export --strict` that fails on a dropped facet; no aerial-imagery tracing aid for dossiers. `ats-export --keep-sidecars` accepts `pit` but its help text omits it. `ApexRaceDirector.cpp` still matches `MI_wear_*` road bands that no exporter writes. |
 | Kit pieces never placed | content | Kerb markers, sausage kerbs, the podium and the hillside letters exist in the kit but no pass lays them; no emissive garage windows at night. |
 | `sign/hillside_letters` spells a trademark | content | The unplaced GLB reads "RED BULL RING"; it needs a display-name text before any scene uses it. |
+| UDP is unencrypted | feature | Telemetry and player input travel in the clear (no DTLS). Since 2026-10-10 every inbound datagram is sealed (HMAC under a per-connection key from `AuthSuccess`, rising sequence number), so a forged, tampered or replayed input is dropped; what is left open is only reading telemetry and input off the wire, which carries nothing the other players do not already get. TCP has TLS since 2026-10-10. | Minor
 
 ## Built but never checked by hand
 
