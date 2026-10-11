@@ -82,11 +82,14 @@ features:
       icon: graph
       title: One simulation, clocked in server ticks
       body: >-
-        TCP+TLS for the lobby, UDP for telemetry and input, bound by a
-        token handshake. Cars are rendered from a telemetry buffer
+        TCP+TLS for the lobby, UDP for telemetry and input, and every
+        input datagram sealed under a per-connection key, so a forged or
+        replayed one is dropped. Cars are rendered from a telemetry buffer
         interpolated between samples and dead-reckoned across gaps, so
-        motion stays smooth without a second model to reconcile.
-      chips: [Protocol v2, MessagePack, 'Telemetry at {{ n.telemetry_hz }} Hz', Prometheus metrics]
+        motion stays smooth without a second model to reconcile. Lose the
+        connection and your seat is held: the server drives your car on
+        until you rejoin from the menu.
+      chips: [Protocol v2, MessagePack, 'Telemetry at {{ n.telemetry_hz }} Hz', Sealed input, Rejoin, Prometheus metrics]
     - tag: Tyres and fuel
       title: A car that changes over a stint
       body: >-
@@ -94,9 +97,11 @@ features:
         tread in three zones from shoulder to shoulder. Pressure follows the
         gas law, grip follows the working window, and wear ends in a cliff.
         Soft, medium and hard slicks, intermediates and wets; a locked wheel
-        flat-spots its tyre and a hard hit can puncture it. Fuel is
-        burned by the power the engine makes, and its weight moves the
-        balance as the tank drains.
+        flat-spots its tyre and a hard hit can puncture it, and you see
+        both: wets and intermediates carry their tread and a coloured ring,
+        a worn tyre streaks, a flat spot glazes and a puncture sits the car
+        down. Fuel is burned by the power the engine makes, and its weight
+        moves the balance as the tank drains.
     - tag: Heat
       title: Carbon wants heat, steel fades
       body: >-
@@ -124,7 +129,8 @@ features:
         repairs; a red light holds it at the exit while traffic passes.
         The AI plans its own stops. DRS arms within a second of the car
         ahead. Hybrids have harvest, balanced and attack modes, a lap
-        budget and an overtake button.
+        budget and an overtake button, and a HUD panel that tells you how
+        many laps the battery lasts at this pace.
     - tag: Circuits
       title: Real ground, real furniture
       body: >-
@@ -142,7 +148,9 @@ features:
         moment, scrub and jacking: the rim goes light as the grip peaks.
         Kerbs, lock-ups and the road's own texture come through it.
         DirectInput wheels, pedals and button boxes, with the steering lock
-        matched to each car.
+        matched to each car. A wheelbase profile scales the forces to the
+        base's own peak torque, so a direct drive is not three times the
+        wheel it was tuned on.
     - tag: Audio
       title: Engines that are simulated, not sampled
       body: >-
@@ -165,14 +173,19 @@ features:
         Cars lay rubber along the racing line and shed marbles beside it;
         rain washes both away. Water gathers in the low points of a lap and
         the wheels dry a line through it. The sun warms the asphalt with
-        the clock, and the AI changes tyres as the track dries or wets.
+        the clock, and the AI changes tyres as the track dries or wets. The
+        server sends the road as it is and the client paints it: the dark
+        line, the marbles, the dry line between wet edges, the debris.
     - tag: Race format
       title: Sprint or twenty-four hours
       body: >-
         Race for laps or against the clock, from a short sprint to a full
         day: when time runs out, the leader's next lap is the last. Qualify
-        with an outlap in the garage, and the race grids from the result,
-        or drag the drivers into any order you like on the create screen.
+        from the garage and the race grids from the result, or drag the
+        drivers into any order. Take the flag and the camera pulls back over
+        the circuit while the results fill in; click a car still running to
+        watch it home. Stuck in a barrier? Back to track or to the pits, for
+        a hold and the lap.
     - tag: Screens
       title: Three monitors, one picture
       body: >-
@@ -187,7 +200,8 @@ features:
         Time attack with sector splits, track limits and records that
         persist. Chase your best lap's ghost, replay it from the TV
         cameras, then work through {{ n.setup_knobs }} setup knobs shown in
-        real units: psi, N/mm, millimetres of ride height.
+        real units: psi, N/mm, millimetres of ride height, with the
+        downforce, balance and drag a wing change adds up to.
     - tag: Track guide
       wide: true
       title: Every corner, walked through
@@ -224,7 +238,7 @@ features:
         air, a damaged wing) and reverse out of a barrier they end up
         against. Behind the menus a recorded AI race plays, and a broadcast
         director follows its battles through trackside, helicopter and
-        onboard shots.
+        onboard shots; a session's lobby flies over its own circuit.
       chips: [Overtaking, Defending, Host-set level, Pit strategy, Broadcast cameras]
     - tag: Modding
       wide: true
@@ -350,7 +364,7 @@ engine:
       alt: Chase view on the night grid at Mandarina Bay with the HUD
       caption: 'Race view · a HUD of {{ n.hud_components }} moddable components'
     - image: screen-garage.webp
-      alt: The hotlap garage with the suspension setup sheet
+      alt: The hotlap garage on its Aero page, wings and ride heights with the downforce, balance and drag they add up to
       caption: 'Hotlap garage · {{ n.setup_knobs }} setup knobs in real units'
     - image: screen-menu.webp
       alt: Main menu over a recorded AI race
@@ -381,7 +395,8 @@ tech:
       body: >-
         Tracks and cars built at runtime from their files, menus as C++
         widget trees, a HUD from JSON, a cockpit built per car, dents and
-        debris drawn from the server's damage figures, TV director,
+        debris drawn from the server's damage figures, tyres and road drawn
+        from its tyre and road state, TV director,
         replays and track guides, synthesized audio, DirectInput wheels.
         Every car a telemetry puppet.
     - key: track-editor/ · Rust

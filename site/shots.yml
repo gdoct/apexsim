@@ -102,7 +102,7 @@ action:
 
   - id: banking
     about: The pack through the banked hairpin, on the long lens
-    pick: 2
+    pick: 4
     race: zandvoort
     window: {corner: "Hugenholtz", before: 150, after: 120, min_cars: 4}
     length: 4.0
@@ -164,9 +164,9 @@ ui:
     at: [14, 20, 26]
 
   - id: garage
-    about: The hotlap garage's setup sheet
+    about: The hotlap garage's Aero page (wings, ride heights and what they add up to)
     pick: 1
-    args: [-ApexAutoRace, -ApexMode=8, -ApexAiCount=0, -ApexTrack=Spa, -ApexCar=994P, -ApexGarageTab=1]
+    args: [-ApexAutoRace, -ApexMode=8, -ApexAiCount=0, -ApexTrack=Spa, -ApexCar=994P, -ApexGarageTab=3]
     at: [16, 22]
 
   - id: menu-demo
@@ -180,6 +180,31 @@ ui:
     pick: 1
     args: [-ApexAutoRace, -ApexTrack=Spielberg, -ApexCar=RS, -ApexAiCount=9, -ApexOpenHudEditor=14]
     at: [22]
+
+  # Not on the page yet: take `finish` and `lobby`, look at the sheets, then
+  # add screen-finish.webp / screen-lobby.webp (site/shots/finish.webp,
+  # lobby.webp) to site/media.yml and both screens to site/copy.yml: the
+  # screens grid wants them in pairs.
+  #
+  # The view after the flag, opened by the console (the auto race's own car
+  # never takes it): the results card over the race, the broadcast camera on
+  # another car, as a click on its row does.
+  - id: finish
+    about: The results card over the race after the flag, filming a car still racing
+    pick: 1
+    # One lap, opened once the field is home: the classification filled in.
+    args: [-ApexAutoRace, -ApexTrack=Zandvoort, -ApexCar=LMP2, -ApexAiCount=9, -ApexLaps=1,
+           -ApexWeather=sunny, -ApexTimeOfDay=18:40, -ApexCountdown=8,
+           '-ApexExecAfter=130=apexsim.finish view|133=apexsim.finish car 3']
+    at: [138, 145, 152, 160, 170]
+
+  # A session's lobby, with its circuit flown by the lobby camera behind it.
+  - id: lobby
+    about: The session lobby over its own circuit
+    pick: 1
+    args: [-ApexAutoRace, -ApexNoStart, -ApexTrack=Spa, -ApexCar=994P, -ApexAiCount=11,
+           -ApexWeather=sunny, -ApexTimeOfDay=17:30]
+    at: [25, 33, 41, 49]
 
   # No `pick` yet and not in site/media.yml: take it and look at the sheet,
   # then add guide.webp to media.yml and a screen to copy.yml.

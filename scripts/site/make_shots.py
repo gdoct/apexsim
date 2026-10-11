@@ -73,6 +73,9 @@ REPLAY_EXE = SERVER_DIR / "target" / "release" / "apexsim-replay.exe"
 # clock the grab times are counted on.
 STARTUP_ALLOWANCE_S = 150.0
 MASTER_QUALITY = 92
+# The server's `reconnect_grace_seconds` (60) and a margin: how long a
+# killed run's held seat outlives it (docs/server/sessions.md, Reconnecting).
+HELD_SEAT_GRACE_S = 70.0
 # Frames of an action shot left out at either end when the candidates are
 # spread over it: the first ones still carry the cut onto the camera.
 EDGE_FRAMES = 6
@@ -389,8 +392,16 @@ def main(argv=None) -> int:
         for shot in chosen_ui:
             take_ui(shot, game, defaults, True)
     elif chosen_ui:
-        with Server():
-            for shot in chosen_ui:
+        # A run ends by killing the game, and the server holds a killed
+        # driver's seat for them to rejoin: the next run would come back with
+        # the same resume token and be put into that race. So each ui shot
+        # gets a fresh server of its own, or, on a server that is not ours,
+        # waits out the seat's grace first.
+        for index, shot in enumerate(chosen_ui):
+            with Server() as server:
+                if index and not server.process:
+                    log(f"  waiting {HELD_SEAT_GRACE_S:.0f} s for the last run's held seat to lapse")
+                    time.sleep(HELD_SEAT_GRACE_S)
                 if not take_ui(shot, game, defaults, False):
                     failed.append(shot["id"])
 

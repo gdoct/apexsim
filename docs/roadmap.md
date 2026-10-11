@@ -21,6 +21,7 @@ None open.
 
 | Item | Type | Notes |
 |---|---|---|
+| Resumed connection is put into the held race | bug | A resumed `Authenticate` holds the seat and sends `RejoinAvailable`, but the tick's telemetry recipients are every non-AI participant (`tick.rs`, `player_recipients`) and `resolve_recipients` sends to any player whose lobby session matches, held seats included. The resumed client gets the held race's telemetry, its session state follows it, and it enters the race view without the player choosing to rejoin (seen 2026-10-10: a game killed by `make_shots.py`, the next run started within the grace landed in the killed run's hotlap). Held seats should get no telemetry until `JoinSession` resumes them. |
 | Race results GAP column | bug | `UApexSessionResultsWidget` shows each car's best lap against the fastest, not its gap at the flag, so a race result can read out of order (P2 +9.4, P3 +9.0). |
 
 

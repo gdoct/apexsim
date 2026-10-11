@@ -94,13 +94,13 @@
         <svg class="ico" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 26l8-10 7 6 7-11 8 9"/><path d="M3 32h30"/></svg>
         <div class="num">02 / NETCODE</div>
         <h3>One simulation, clocked in server ticks</h3>
-        <p>TCP+TLS for the lobby, UDP for telemetry and input, bound by a token handshake. Cars are rendered from a telemetry buffer interpolated between samples and dead-reckoned across gaps, so motion stays smooth without a second model to reconcile.</p>
-        <ul><li>Protocol v2</li><li>MessagePack</li><li>Telemetry at 60 Hz</li><li>Prometheus metrics</li></ul>
+        <p>TCP+TLS for the lobby, UDP for telemetry and input, and every input datagram sealed under a per-connection key, so a forged or replayed one is dropped. Cars are rendered from a telemetry buffer interpolated between samples and dead-reckoned across gaps, so motion stays smooth without a second model to reconcile. Lose the connection and your seat is held: the server drives your car on until you rejoin from the menu.</p>
+        <ul><li>Protocol v2</li><li>MessagePack</li><li>Telemetry at 60 Hz</li><li>Sealed input</li><li>Rejoin</li><li>Prometheus metrics</li></ul>
       </article>
       <article class="feat">
         <div class="num">03 / TYRES AND FUEL</div>
         <h3>A car that changes over a stint</h3>
-        <p>Each tyre is a tread and a core with their own temperatures, the tread in three zones from shoulder to shoulder. Pressure follows the gas law, grip follows the working window, and wear ends in a cliff. Soft, medium and hard slicks, intermediates and wets; a locked wheel flat-spots its tyre and a hard hit can puncture it. Fuel is burned by the power the engine makes, and its weight moves the balance as the tank drains.</p>
+        <p>Each tyre is a tread and a core with their own temperatures, the tread in three zones from shoulder to shoulder. Pressure follows the gas law, grip follows the working window, and wear ends in a cliff. Soft, medium and hard slicks, intermediates and wets; a locked wheel flat-spots its tyre and a hard hit can puncture it, and you see both: wets and intermediates carry their tread and a coloured ring, a worn tyre streaks, a flat spot glazes and a puncture sits the car down. Fuel is burned by the power the engine makes, and its weight moves the balance as the tank drains.</p>
       </article>
       <article class="feat">
         <div class="num">04 / HEAT</div>
@@ -115,7 +115,7 @@
       <article class="feat">
         <div class="num">06 / STRATEGY</div>
         <h3>Pit stops, DRS and deployment</h3>
-        <p>Turn into the pit lane and the server drives the car to its own box on the limiter, where a crew changes tyres, refuels and repairs; a red light holds it at the exit while traffic passes. The AI plans its own stops. DRS arms within a second of the car ahead. Hybrids have harvest, balanced and attack modes, a lap budget and an overtake button.</p>
+        <p>Turn into the pit lane and the server drives the car to its own box on the limiter, where a crew changes tyres, refuels and repairs; a red light holds it at the exit while traffic passes. The AI plans its own stops. DRS arms within a second of the car ahead. Hybrids have harvest, balanced and attack modes, a lap budget and an overtake button, and a HUD panel that tells you how many laps the battery lasts at this pace.</p>
       </article>
       <article class="feat">
         <div class="num">07 / CIRCUITS</div>
@@ -125,7 +125,7 @@
       <article class="feat">
         <div class="num">08 / FORCE FEEDBACK</div>
         <h3>Feel the front let go</h3>
-        <p>Steering-column torque summed from each front tyre's aligning moment, scrub and jacking: the rim goes light as the grip peaks. Kerbs, lock-ups and the road's own texture come through it. DirectInput wheels, pedals and button boxes, with the steering lock matched to each car.</p>
+        <p>Steering-column torque summed from each front tyre's aligning moment, scrub and jacking: the rim goes light as the grip peaks. Kerbs, lock-ups and the road's own texture come through it. DirectInput wheels, pedals and button boxes, with the steering lock matched to each car. A wheelbase profile scales the forces to the base's own peak torque, so a direct drive is not three times the wheel it was tuned on.</p>
       </article>
       <article class="feat">
         <div class="num">09 / AUDIO</div>
@@ -140,12 +140,12 @@
       <article class="feat">
         <div class="num">11 / TRACK</div>
         <h3>A road that changes under you</h3>
-        <p>Cars lay rubber along the racing line and shed marbles beside it; rain washes both away. Water gathers in the low points of a lap and the wheels dry a line through it. The sun warms the asphalt with the clock, and the AI changes tyres as the track dries or wets.</p>
+        <p>Cars lay rubber along the racing line and shed marbles beside it; rain washes both away. Water gathers in the low points of a lap and the wheels dry a line through it. The sun warms the asphalt with the clock, and the AI changes tyres as the track dries or wets. The server sends the road as it is and the client paints it: the dark line, the marbles, the dry line between wet edges, the debris.</p>
       </article>
       <article class="feat">
         <div class="num">12 / RACE FORMAT</div>
         <h3>Sprint or twenty-four hours</h3>
-        <p>Race for laps or against the clock, from a short sprint to a full day: when time runs out, the leader's next lap is the last. Qualify with an outlap in the garage, and the race grids from the result, or drag the drivers into any order you like on the create screen.</p>
+        <p>Race for laps or against the clock, from a short sprint to a full day: when time runs out, the leader's next lap is the last. Qualify from the garage and the race grids from the result, or drag the drivers into any order. Take the flag and the camera pulls back over the circuit while the results fill in; click a car still running to watch it home. Stuck in a barrier? Back to track or to the pits, for a hold and the lap.</p>
       </article>
       <article class="feat">
         <div class="num">13 / SCREENS</div>
@@ -155,7 +155,7 @@
       <article class="feat">
         <div class="num">14 / HOTLAP</div>
         <h3>Garage, ghost, repeat</h3>
-        <p>Time attack with sector splits, track limits and records that persist. Chase your best lap's ghost, replay it from the TV cameras, then work through 28 setup knobs shown in real units: psi, N/mm, millimetres of ride height.</p>
+        <p>Time attack with sector splits, track limits and records that persist. Chase your best lap's ghost, replay it from the TV cameras, then work through 31 setup knobs shown in real units: psi, N/mm, millimetres of ride height, with the downforce, balance and drag a wing change adds up to.</p>
       </article>
       <article class="feat wide">
         <div class="num">15 / TRACK GUIDE</div>
@@ -172,13 +172,13 @@
       <article class="feat wide">
         <div class="num">17 / RACECRAFT</div>
         <h3>AI that races, and a TV director</h3>
-        <p>Deterministic AI drivers race in your car's class at a level the host sets. A quicker car pulls out of the tow into a braking zone and dives up the inside, or tucks back in if it is not alongside; a car under attack covers the inside, and a backmarker moves over for the leaders. They drive to the grip they have (cold tyres, dirty air, a damaged wing) and reverse out of a barrier they end up against. Behind the menus a recorded AI race plays, and a broadcast director follows its battles through trackside, helicopter and onboard shots.</p>
+        <p>Deterministic AI drivers race in your car's class at a level the host sets. A quicker car pulls out of the tow into a braking zone and dives up the inside, or tucks back in if it is not alongside; a car under attack covers the inside, and a backmarker moves over for the leaders. They drive to the grip they have (cold tyres, dirty air, a damaged wing) and reverse out of a barrier they end up against. Behind the menus a recorded AI race plays, and a broadcast director follows its battles through trackside, helicopter and onboard shots; a session's lobby flies over its own circuit.</p>
         <ul><li>Overtaking</li><li>Defending</li><li>Host-set level</li><li>Pit strategy</li><li>Broadcast cameras</li></ul>
       </article>
       <article class="feat wide">
         <div class="num">18 / MODDING</div>
         <h3>Open the files</h3>
-        <p>A car is a <code>car.toml</code> and a GLB. A circuit is an export the game builds as it loads. The HUD is 23 JSON components with an in-game layout editor, and several saved layouts that switch by where you are: watching, hotlap, or your car's class. Nothing is cooked, so a change is a file save and a rescan. Tracks and cars from your own Assetto Corsa install import with one command, or from the launcher, and stay on your machine.</p>
+        <p>A car is a <code>car.toml</code> and a GLB. A circuit is an export the game builds as it loads. The HUD is 24 JSON components with an in-game layout editor, and several saved layouts that switch by where you are: watching, hotlap, or your car's class. Nothing is cooked, so a change is a file save and a rescan. Tracks and cars from your own Assetto Corsa install import with one command, or from the launcher, and stay on your machine.</p>
         <ul><li>car.toml</li><li>Runtime tracks</li><li>JSON HUD</li><li>AC importers</li></ul>
       </article>
     </div>
@@ -274,8 +274,8 @@
     </div>
     <div class="eyebrow sub reveal">What the player sees</div>
     <div class="screens stagger">
-      <figure><img src="assets/screen-hud.webp" data-zoom="assets/screen-hud-zoom.webp" tabindex="0" alt="Chase view on the night grid at Mandarina Bay with the HUD" loading="lazy"><figcaption>Race view · a HUD of 23 moddable components</figcaption></figure>
-      <figure><img src="assets/screen-garage.webp" data-zoom="assets/screen-garage-zoom.webp" tabindex="0" alt="The hotlap garage with the suspension setup sheet" loading="lazy"><figcaption>Hotlap garage · 28 setup knobs in real units</figcaption></figure>
+      <figure><img src="assets/screen-hud.webp" data-zoom="assets/screen-hud-zoom.webp" tabindex="0" alt="Chase view on the night grid at Mandarina Bay with the HUD" loading="lazy"><figcaption>Race view · a HUD of 24 moddable components</figcaption></figure>
+      <figure><img src="assets/screen-garage.webp" data-zoom="assets/screen-garage-zoom.webp" tabindex="0" alt="The hotlap garage on its Aero page, wings and ride heights with the downforce, balance and drag they add up to" loading="lazy"><figcaption>Hotlap garage · 31 setup knobs in real units</figcaption></figure>
       <figure><img src="assets/screen-menu.webp" data-zoom="assets/screen-menu-zoom.webp" tabindex="0" alt="Main menu over a recorded AI race" loading="lazy"><figcaption>Main menu · over a recorded AI race</figcaption></figure>
       <figure><img src="assets/screen-hud-editor.webp" data-zoom="assets/screen-hud-editor-zoom.webp" tabindex="0" alt="The in-game HUD layout editor" loading="lazy"><figcaption>HUD layout editor · move, resize and hide panels in game</figcaption></figure>
     </div>
@@ -291,7 +291,7 @@
     <div class="arch stagger">
       <div class="node"><div class="k">server/ · Rust</div><h3>Authoritative server</h3><p>420&nbsp;Hz tokio loop. Physics, OBB collision against cars and baked barriers, tyres, fuel, heat and damage, race control and pit stops, AI, force feedback, lap timing and records. A token-protected operator dashboard shows live timing, players, logs and performance, and edits the config. <code>/health</code> <code>/metrics</code></p></div>
       <div class="link"><span>UDP<br>60&nbsp;Hz</span></div>
-      <div class="node"><div class="k">game-unreal/ · C++</div><h3>Unreal client</h3><p>Tracks and cars built at runtime from their files, menus as C++ widget trees, a HUD from JSON, a cockpit built per car, dents and debris drawn from the server's damage figures, TV director, replays and track guides, synthesized audio, DirectInput wheels. Every car a telemetry puppet.</p></div>
+      <div class="node"><div class="k">game-unreal/ · C++</div><h3>Unreal client</h3><p>Tracks and cars built at runtime from their files, menus as C++ widget trees, a HUD from JSON, a cockpit built per car, dents and debris drawn from the server's damage figures, tyres and road drawn from its tyre and road state, TV director, replays and track guides, synthesized audio, DirectInput wheels. Every car a telemetry puppet.</p></div>
       <div class="link"><span>exports<br>&amp; sidecars</span></div>
       <div class="node"><div class="k">track-editor/ · Rust</div><h3>Track pipeline</h3><p><code>ats-dress</code>, <code>ats-groom</code> and <code>ats-export</code> turn a centerline and a dossier into the export the game builds, and the road mesh, walls, kerbs and pit lane the server drives on. A Bevy editor sits on top.</p></div>
     </div>
@@ -340,7 +340,7 @@
   </div>
 </footer>
 
-<script src="assets/data.js?v=91389585"></script>
+<script src="assets/data.js?v=965dd99b"></script>
 <script src="assets/site.js?v=4f158c3b"></script>
 </body>
 </html>

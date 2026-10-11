@@ -83,8 +83,10 @@ The picked masters are checked in. Two kinds:
   `-ApexScreenshotAfter`), with `r.SetRes` because settings.yml's borderless
   mode otherwise makes the grab the monitor's size, and
   `DisableAllScreenMessages`; the game is killed once the grabs are on disk
-  (it does not quit by itself). A retake is a new picture: look at the sheet
-  again.
+  (it does not quit by itself). The server holds a killed driver's seat for a
+  rejoin, so each ui shot gets a server of its own (or, on a server
+  `make_shots.py` did not start, waits out the 60 s grace). A retake is a new
+  picture: look at the sheet again.
 
 ## The promo video
 
