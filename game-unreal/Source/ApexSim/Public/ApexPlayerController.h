@@ -49,6 +49,18 @@ struct APEXSIM_API FApexDriveInput
 	/** Held: the hybrid's overtake button. Sent as `PlayerInput.ers_boost`. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
 	bool bErsBoost = false;
+
+	/** Held: the handbrake. Sent as `PlayerInput.handbrake`. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
+	bool bHandbrake = false;
+
+	/**
+	 * The gear an H-pattern shifter's lever sits in: -1 reverse, 0 neutral,
+	 * 1 to 8. -2 until one of its gates has been pressed, when the shift up
+	 * and down keys still own the gearbox.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
+	int32 HGear = -2;
 };
 
 /**
@@ -212,6 +224,14 @@ private:
 	void HandleErsMode(const struct FInputActionValue& Value);
 	void HandleErsBoost(const struct FInputActionValue& Value);
 	void HandleErsBoostReleased(const struct FInputActionValue& Value);
+	void HandleHandbrake(const struct FInputActionValue& Value);
+	void HandleHandbrakeReleased(const struct FInputActionValue& Value);
+	/** A gate of an H-pattern shifter closed or opened: `Gear` is -1 (reverse) or 1 to 8. */
+	void HandleHGear(const struct FInputActionValue& Value, int32 Gear);
+	void HandleHGearReleased(const struct FInputActionValue& Value, int32 Gear);
+	void HandleRecover(const struct FInputActionValue& Value, bool bPits);
+	/** DriveInput.HGear from the gates held now. */
+	void UpdateHGear();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexInputConfig> InputConfig;
@@ -221,6 +241,10 @@ private:
 	bool bPendingCameraToggle = false;
 	int32 PendingHeadlightToggles = 0;
 	int32 PendingErsModeSteps = 0;
+	/** The H-pattern gates held, in the order they closed (the last one is the gear). */
+	TArray<int32> HeldHGates;
+	/** One of the gates has been pressed this session: the H-pattern owns the gearbox. */
+	bool bHPatternSeen = false;
 	/** `FPlatformTime::Seconds()` the flash button last went down. */
 	double FlashPressedAt = -1.0e9;
 	bool bDriveInputEnabled = false;

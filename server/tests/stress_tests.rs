@@ -541,6 +541,7 @@ impl TestClientMinimal {
             flash: None,
             ers_mode: None,
             ers_boost: None,
+            handbrake: None,
         };
         self.send_message(&msg).await
     }

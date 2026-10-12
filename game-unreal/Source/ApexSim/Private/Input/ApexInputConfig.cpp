@@ -57,6 +57,12 @@ namespace ApexInput
 			{ Actions::ErsBoost,     1, TEXT("Overtake"),     EKeys::SpaceBar,                 false, EColumn::Keyboard },
 			{ Actions::PauseMenu,    0, TEXT("Pause menu"),   EKeys::Gamepad_Special_Right,    false, EColumn::Gamepad  },
 			{ Actions::PauseMenu,    1, TEXT("Pause menu"),   EKeys::Escape,                   false, EColumn::Keyboard },
+			{ Actions::Handbrake,    0, TEXT("Handbrake"),    EKeys::Gamepad_FaceButton_Right, false, EColumn::Gamepad  },
+			{ Actions::Handbrake,    1, TEXT("Handbrake"),    EKeys::LeftControl,              false, EColumn::Keyboard },
+			{ Actions::RecoverTrack, 0, TEXT("Back to track"), FKey(),                         false, EColumn::Gamepad  },
+			{ Actions::RecoverTrack, 1, TEXT("Back to track"), EKeys::R,                       false, EColumn::Keyboard },
+			{ Actions::RecoverPits,  0, TEXT("Back to pits"), FKey(),                          false, EColumn::Gamepad  },
+			{ Actions::RecoverPits,  1, TEXT("Back to pits"), FKey(),                          false, EColumn::Keyboard },
 
 			// The watch view: a race, a replay, a hotlap watched without a car.
 			{ Actions::WatchPreviousCar, 0, TEXT("Car ahead"),    EKeys::Gamepad_LeftShoulder,      false, EColumn::Gamepad  },
@@ -106,6 +112,18 @@ namespace ApexInput
 			{ Actions::ErsMode,      Slot::Wheel,      TEXT("ERS mode"),    FKey(), false, EColumn::Wheel },
 			{ Actions::ErsBoost,     Slot::Wheel,      TEXT("Overtake"),    FKey(), false, EColumn::Wheel },
 			{ Actions::PauseMenu,    Slot::Wheel,      TEXT("Pause menu"),  FKey(), false, EColumn::Wheel },
+			{ Actions::Handbrake,    Slot::Wheel,      TEXT("Handbrake"),   FKey(), false, EColumn::Wheel },
+			{ Actions::RecoverTrack, Slot::Wheel,      TEXT("Back to track"), FKey(), false, EColumn::Wheel },
+			{ Actions::RecoverPits,  Slot::Wheel,      TEXT("Back to pits"), FKey(), false, EColumn::Wheel },
+			{ Actions::HGearReverse, Slot::Wheel, TEXT("Reverse"), FKey(), false, EColumn::Wheel },
+			{ Actions::HGear1, Slot::Wheel, TEXT("Gear 1"), FKey(), false, EColumn::Wheel },
+			{ Actions::HGear2, Slot::Wheel, TEXT("Gear 2"), FKey(), false, EColumn::Wheel },
+			{ Actions::HGear3, Slot::Wheel, TEXT("Gear 3"), FKey(), false, EColumn::Wheel },
+			{ Actions::HGear4, Slot::Wheel, TEXT("Gear 4"), FKey(), false, EColumn::Wheel },
+			{ Actions::HGear5, Slot::Wheel, TEXT("Gear 5"), FKey(), false, EColumn::Wheel },
+			{ Actions::HGear6, Slot::Wheel, TEXT("Gear 6"), FKey(), false, EColumn::Wheel },
+			{ Actions::HGear7, Slot::Wheel, TEXT("Gear 7"), FKey(), false, EColumn::Wheel },
+			{ Actions::HGear8, Slot::Wheel, TEXT("Gear 8"), FKey(), false, EColumn::Wheel },
 			{ Actions::MenuUp,       Slot::Wheel,      TEXT("Menu up"),     FKey(), false, EColumn::Wheel },
 			{ Actions::MenuDown,     Slot::Wheel,      TEXT("Menu down"),   FKey(), false, EColumn::Wheel },
 			{ Actions::MenuLeft,     Slot::Wheel,      TEXT("Menu left"),   FKey(), false, EColumn::Wheel },
@@ -125,6 +143,18 @@ namespace ApexInput
 	EContext ContextOf(FName ActionId)
 	{
 		return IsMenuAction(ActionId) ? EContext::Menu : IsWatchAction(ActionId) ? EContext::Watch : EContext::Driving;
+	}
+
+	int32 HGearOfAction(FName ActionId)
+	{
+		if (ActionId == Actions::HGearReverse) { return -1; }
+		static const FName Forward[8] = { Actions::HGear1, Actions::HGear2, Actions::HGear3, Actions::HGear4,
+			Actions::HGear5, Actions::HGear6, Actions::HGear7, Actions::HGear8 };
+		for (int32 Index = 0; Index < 8; ++Index)
+		{
+			if (ActionId == Forward[Index]) { return Index + 1; }
+		}
+		return 0;
 	}
 
 	bool IsMenuAction(FName ActionId)
@@ -507,6 +537,20 @@ UApexInputConfig* UApexInputConfig::Create(UObject* Outer)
 	Config->FlashLights = MakeAction(Config, TEXT("IA_FlashLights"), EInputActionValueType::Boolean);
 	Config->ErsMode = MakeAction(Config, TEXT("IA_ErsMode"), EInputActionValueType::Boolean);
 	Config->ErsBoost = MakeAction(Config, TEXT("IA_ErsBoost"), EInputActionValueType::Boolean);
+	Config->Handbrake = MakeAction(Config, TEXT("IA_Handbrake"), EInputActionValueType::Boolean);
+	Config->RecoverTrack = MakeAction(Config, TEXT("IA_RecoverTrack"), EInputActionValueType::Boolean);
+	Config->RecoverPits = MakeAction(Config, TEXT("IA_RecoverPits"), EInputActionValueType::Boolean);
+	// Reverse, then 1 to 8: one held action each.
+	for (int32 Gear = -1; Gear <= 8; ++Gear)
+	{
+		if (Gear == 0)
+		{
+			continue;
+		}
+		Config->HGears.Add(MakeAction(Config,
+			*FString::Printf(TEXT("IA_HGear%s"), Gear < 0 ? TEXT("Reverse") : *FString::FromInt(Gear)),
+			EInputActionValueType::Boolean));
+	}
 
 	Config->DriveContext = NewObject<UInputMappingContext>(Config, TEXT("IMC_Drive"));
 	Config->ApplyBindings({});
@@ -529,6 +573,16 @@ UInputAction* UApexInputConfig::FindAction(FName ActionId) const
 	if (ActionId == ApexInput::Actions::FlashLights)  { return FlashLights; }
 	if (ActionId == ApexInput::Actions::ErsMode)      { return ErsMode; }
 	if (ActionId == ApexInput::Actions::ErsBoost)     { return ErsBoost; }
+	if (ActionId == ApexInput::Actions::Handbrake)    { return Handbrake; }
+	if (ActionId == ApexInput::Actions::RecoverTrack) { return RecoverTrack; }
+	if (ActionId == ApexInput::Actions::RecoverPits)  { return RecoverPits; }
+	{
+		const int32 Gear = ApexInput::HGearOfAction(ActionId);
+		if (Gear != 0)
+		{
+			return HGears.IsValidIndex(Gear < 0 ? 0 : Gear) ? HGears[Gear < 0 ? 0 : Gear].Get() : nullptr;
+		}
+	}
 	// PauseMenu is handled by the root widget, not by Enhanced Input.
 	return nullptr;
 }

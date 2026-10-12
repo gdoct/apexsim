@@ -50,6 +50,11 @@ still while serviced) and the gearbox, limiter and DRS flap:
 - **Engine**: torque curve, turbo spool, limiter, `engine_density_factor`, coolant and
   damage factors; the hybrid motor; drive torques through the drivetrain and differential.
   **Brakes**: demand split by `brake_bias_front`, scaled per wheel by pad friction.
+  **Handbrake** (`PlayerInput.handbrake`, held): `HANDBRAKE_SHARE` (0.6) of the car's pedal
+  force on the rear axle on top, and ABS off for the rears, so they lock; a locked rear tyre
+  then pushes with its sliding friction against the way its patch travels
+  (`locked_wheel_force`), which leaves it almost no cornering force and swings the tail out.
+  Nothing else moves while it is up.
 - **Contact**: each tyre queries the ground under its own patch (`query_track_surface`: the
   road mesh when present and server.toml `[physics] road_contact = "mesh"`, else the centerline):
   height, normal and a `RoadContact`. The body settles on the plane through the four

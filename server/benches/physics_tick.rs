@@ -65,6 +65,7 @@ fn bench_physics_step_on(c: &mut Criterion, name: &str, track: TrackConfig) {
         flash: false,
         ers_mode: None,
         ers_boost: false,
+        handbrake: false,
     };
     let dt = 1.0 / apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as f32;
 

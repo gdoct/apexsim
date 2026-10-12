@@ -85,6 +85,7 @@ bool FApexUdpGoldenEncodeTest::RunTest(const FString& Parameters)
 	Input.bFlash = false;
 	Input.ErsMode = 1;
 	Input.bErsBoost = false;
+	Input.bHandbrake = false;
 	CheckBytes(TEXT("PlayerInput"),
 		ApexProtocol::EncodePlayerInput(4242, Input),
 		ApexUdpGolden::C_PlayerInput);
@@ -92,11 +93,13 @@ bool FApexUdpGoldenEncodeTest::RunTest(const FString& Parameters)
 	// Every bool, the nil switch and the mode are one byte, so a held button
 	// or a set switch is the same message with that byte changed (server:
 	// `cargo test player_input_headlights_wire_format`). From the end: the
-	// overtake button, `a9 "ers_boost"`, the mode, `a8 "ers_mode"`, flash,
-	// `a5 "flash"`, the switch, `aa "headlights"`, drs.
+	// handbrake, `a9 "handbrake"`, the overtake button, `a9 "ers_boost"`, the
+	// mode, `a8 "ers_mode"`, flash, `a5 "flash"`, the switch, `aa
+	// "headlights"`, drs.
 	{
 		const int32 Len = (int32)UE_ARRAY_COUNT(ApexUdpGolden::C_PlayerInput);
-		const int32 BoostAt = Len - 1;
+		const int32 HandbrakeAt = Len - 1;
+		const int32 BoostAt = HandbrakeAt - 11;
 		const int32 ModeAt = BoostAt - 11;
 		const int32 FlashAt = ModeAt - 10;
 		const int32 SwitchAt = FlashAt - 7;
@@ -108,6 +111,7 @@ bool FApexUdpGoldenEncodeTest::RunTest(const FString& Parameters)
 		Input.bFlash = true;
 		Input.ErsMode = 2;
 		Input.bErsBoost = true;
+		Input.bHandbrake = true;
 		const TArray<uint8> Held = ApexProtocol::EncodePlayerInput(4242, Input);
 		if (TestEqual(TEXT("PlayerInput with every button set is the same length"), Held.Num(), Len))
 		{
@@ -116,6 +120,7 @@ bool FApexUdpGoldenEncodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("flash held is true"), Held[FlashAt], (uint8)0xC3);
 			TestEqual(TEXT("attack is 2"), Held[ModeAt], (uint8)0x02);
 			TestEqual(TEXT("overtake held is true"), Held[BoostAt], (uint8)0xC3);
+			TestEqual(TEXT("handbrake held is true"), Held[HandbrakeAt], (uint8)0xC3);
 		}
 		Input.ErsMode = -1;
 		TestEqual(TEXT("the car's own mode is nil"),

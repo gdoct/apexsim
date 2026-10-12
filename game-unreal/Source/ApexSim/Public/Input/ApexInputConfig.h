@@ -61,6 +61,36 @@ namespace ApexInput
 		/** Held: the hybrid's overtake button. Sent as `PlayerInput.ers_boost`. */
 		inline const FName ErsBoost     = TEXT("ErsBoost");
 		/**
+		 * Held: the handbrake. Sent as `PlayerInput.handbrake`: the server
+		 * brakes the rear axle hard and locks the rear tyres.
+		 */
+		inline const FName Handbrake    = TEXT("Handbrake");
+		/**
+		 * Held, one per gear of an H-pattern shifter: `HGearReverse`, then
+		 * `HGear1` to `HGear8`. Wheel column only. A shifter reports a
+		 * gate's button down while the lever sits in it, so the gear asked
+		 * for is the one held (neutral when none is). Sent as an absolute
+		 * `PlayerInput.gear` when it changes, and only once one of these
+		 * has been pressed in the session: until then the shift up and
+		 * down keys own the gearbox.
+		 */
+		inline const FName HGearReverse = TEXT("HGearReverse");
+		inline const FName HGear1       = TEXT("HGear1");
+		inline const FName HGear2       = TEXT("HGear2");
+		inline const FName HGear3       = TEXT("HGear3");
+		inline const FName HGear4       = TEXT("HGear4");
+		inline const FName HGear5       = TEXT("HGear5");
+		inline const FName HGear6       = TEXT("HGear6");
+		inline const FName HGear7       = TEXT("HGear7");
+		inline const FName HGear8       = TEXT("HGear8");
+		/**
+		 * Pressed: back to the track (held 8 s, the lap struck) or back to
+		 * the pits (towed, serviced): the pause menu's rows. The server
+		 * decides whether the car may.
+		 */
+		inline const FName RecoverTrack = TEXT("RecoverTrack");
+		inline const FName RecoverPits  = TEXT("RecoverPits");
+		/**
 		 * Not an Enhanced Input action: the pause key has to work while the race
 		 * view owns input, so the root widget tests it directly. Listed here so
 		 * it is rebindable and appears in the controls screen with the rest.
@@ -192,6 +222,9 @@ namespace ApexInput
 	APEXSIM_API FString GetKeyLongName(const FKey& Key);
 
 	inline bool IsWheelSlot(int32 Slot) { return Slot >= Slot::Wheel; }
+
+	/** The gear an H-pattern action asks for: -1 reverse, 1 to 8; 0 for any other action. */
+	APEXSIM_API int32 HGearOfAction(FName ActionId);
 
 	/**
 	 * An axis slot that runs both ways from a centre (steering, looking), as
@@ -433,4 +466,19 @@ public:
 	/** Digital, held. Goes to the server as `PlayerInput.ers_boost`. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> ErsBoost;
+
+	/** Digital, held. Goes to the server as `PlayerInput.handbrake`. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> Handbrake;
+
+	/** Digital, held: reverse, then gears 1 to 8 of an H-pattern shifter (`HGearAction`). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UInputAction>> HGears;
+
+	/** Digital, fires once per press: back to the track, back to the pits. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> RecoverTrack;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> RecoverPits;
 };

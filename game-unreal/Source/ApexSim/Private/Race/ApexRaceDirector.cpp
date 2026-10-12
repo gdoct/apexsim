@@ -2539,6 +2539,13 @@ void AApexRaceDirector::PollDrivingInput()
 		// Clamped to the range the server accepts: reverse through tenth.
 		Input.Gear = FMath::Clamp(FollowedCar->GetGear() + GearDelta, -1, 10);
 	}
+	// An H-pattern shifter's lever is an absolute gear: sent when it moves
+	// (the shift keys' delta above only when it did not).
+	if (Drive.HGear != -2 && Drive.HGear != HGearSent)
+	{
+		HGearSent = Drive.HGear;
+		Input.Gear = Drive.HGear;
+	}
 	// The automatic gearbox runs on the server (see SetDriverAids): it knows
 	// the car's redline and ratios, which the client never learns.
 
@@ -2573,6 +2580,7 @@ void AApexRaceDirector::PollDrivingInput()
 	}
 	Input.ErsMode = ErsModeSwitch;
 	Input.bErsBoost = Drive.bErsBoost;
+	Input.bHandbrake = Drive.bHandbrake;
 
 	Net->SetPlayerInput(Input);
 }
@@ -2947,6 +2955,7 @@ void AApexRaceDirector::BeginRaceView()
 	bLocalHeadlights = false;
 	ErsModeSwitch = -1;
 	LocalErsMode = -1;
+	HGearSent = -3;
 
 	LoadTrackLevel();
 	ApplyRaceEnvironment();

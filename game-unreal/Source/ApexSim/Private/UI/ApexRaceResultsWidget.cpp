@@ -37,11 +37,11 @@ namespace
 	constexpr float ResultsRowHeight = 44.0f;
 	constexpr float ResultsRefreshSeconds = 0.5f;
 
-	constexpr float ColPos = 52.0f;
-	constexpr float ColLaps = 70.0f;
-	constexpr float ColTime = 150.0f;
-	constexpr float ColBest = 130.0f;
-	constexpr float ColState = 150.0f;
+	constexpr float RaceColPos = 52.0f;
+	constexpr float RaceColLaps = 70.0f;
+	constexpr float RaceColTime = 150.0f;
+	constexpr float RaceColBest = 130.0f;
+	constexpr float RaceColState = 150.0f;
 
 	/** Translucent: the race goes on behind it. */
 	const FLinearColor ResultsCardFill = Palette::Background.CopyWithNewOpacity(0.74f);
@@ -202,12 +202,12 @@ void UApexRaceResultsWidget::NativeOnInitialized()
 
 	// --- Table ----------------------------------------------------------------
 	UHorizontalBox* Captions = WidgetTree->ConstructWidget<UHorizontalBox>();
-	AddH(Captions, MakeSized(*WidgetTree, MakeLabel(*WidgetTree, TEXT("Pos")), ColPos, -1.0f));
+	AddH(Captions, MakeSized(*WidgetTree, MakeLabel(*WidgetTree, TEXT("Pos")), RaceColPos, -1.0f));
 	AddH(Captions, MakeLabel(*WidgetTree, TEXT("Driver")), FMargin(), VAlign_Center, 1.0f);
-	AddH(Captions, MakeSized(*WidgetTree, MakeLabel(*WidgetTree, TEXT("Laps")), ColLaps, -1.0f));
-	AddH(Captions, MakeSized(*WidgetTree, MakeLabel(*WidgetTree, TEXT("Time")), ColTime, -1.0f));
-	AddH(Captions, MakeSized(*WidgetTree, MakeLabel(*WidgetTree, TEXT("Best lap")), ColBest, -1.0f));
-	AddH(Captions, MakeSized(*WidgetTree, MakeLabel(*WidgetTree, FString()), ColState, -1.0f));
+	AddH(Captions, MakeSized(*WidgetTree, MakeLabel(*WidgetTree, TEXT("Laps")), RaceColLaps, -1.0f));
+	AddH(Captions, MakeSized(*WidgetTree, MakeLabel(*WidgetTree, TEXT("Time")), RaceColTime, -1.0f));
+	AddH(Captions, MakeSized(*WidgetTree, MakeLabel(*WidgetTree, TEXT("Best lap")), RaceColBest, -1.0f));
+	AddH(Captions, MakeSized(*WidgetTree, MakeLabel(*WidgetTree, FString()), RaceColState, -1.0f));
 	AddV(Column, MakePanel(*WidgetTree, Captions, FMargin(42.0f, 12.0f, 42.0f, 6.0f), MakeBrush(FLinearColor::Transparent)));
 
 	RowBox = WidgetTree->ConstructWidget<UVerticalBox>();
@@ -283,12 +283,12 @@ void UApexRaceResultsWidget::AddRow()
 	UTextBlock* Time = MakeText(*WidgetTree, FString(), Font::Mono(13.0f), Palette::TextPrimary);
 	UTextBlock* Best = MakeText(*WidgetTree, FString(), Font::Mono(12.0f), Palette::TextSecondary);
 	UTextBlock* State = MakeText(*WidgetTree, FString(), Font::Mono(9.0f, 100), Palette::TextMuted);
-	AddH(Cells, MakeSized(*WidgetTree, Pos, ColPos, -1.0f), FMargin(), VAlign_Center);
+	AddH(Cells, MakeSized(*WidgetTree, Pos, RaceColPos, -1.0f), FMargin(), VAlign_Center);
 	AddH(Cells, Name, FMargin(), VAlign_Center, 1.0f);
-	AddH(Cells, MakeSized(*WidgetTree, Laps, ColLaps, -1.0f), FMargin(), VAlign_Center);
-	AddH(Cells, MakeSized(*WidgetTree, Time, ColTime, -1.0f), FMargin(), VAlign_Center);
-	AddH(Cells, MakeSized(*WidgetTree, Best, ColBest, -1.0f), FMargin(), VAlign_Center);
-	AddH(Cells, MakeSized(*WidgetTree, State, ColState, -1.0f), FMargin(), VAlign_Center);
+	AddH(Cells, MakeSized(*WidgetTree, Laps, RaceColLaps, -1.0f), FMargin(), VAlign_Center);
+	AddH(Cells, MakeSized(*WidgetTree, Time, RaceColTime, -1.0f), FMargin(), VAlign_Center);
+	AddH(Cells, MakeSized(*WidgetTree, Best, RaceColBest, -1.0f), FMargin(), VAlign_Center);
+	AddH(Cells, MakeSized(*WidgetTree, State, RaceColState, -1.0f), FMargin(), VAlign_Center);
 
 	UOverlay* Row = RowWithContent(*WidgetTree, Button, Cells);
 	AddV(RowBox, MakeSized(*WidgetTree, Row, -1.0f, ResultsRowHeight), FMargin(0.0f, 0.0f, 0.0f, 3.0f));

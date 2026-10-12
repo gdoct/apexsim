@@ -210,6 +210,7 @@ pub(crate) async fn handle_message(
             flash,
             ers_mode,
             ers_boost,
+            handbrake,
             ..
         } => {
             handle_player_input(
@@ -224,6 +225,7 @@ pub(crate) async fn handle_message(
                 headlights,
                 flash.unwrap_or(false),
                 (ers_mode, ers_boost.unwrap_or(false)),
+                handbrake.unwrap_or(false),
                 player_inputs,
             )
             .await;
@@ -1760,6 +1762,7 @@ async fn handle_player_input(
     headlights: Option<bool>,
     flash: bool,
     (ers_mode, ers_boost): (Option<u8>, bool),
+    handbrake: bool,
     player_inputs: &mut HashMap<PlayerId, PlayerInputData>,
 ) {
     // Sanitize before the values reach physics: drop NaN/Inf,
@@ -1789,6 +1792,7 @@ async fn handle_player_input(
             flash,
             ers_mode,
             ers_boost,
+            handbrake,
         };
         player_inputs.insert(conn_info.player_id, input);
         ctx.metrics

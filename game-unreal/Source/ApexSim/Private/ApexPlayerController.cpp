@@ -157,6 +157,17 @@ void AApexPlayerController::SetupInputComponent()
 	Input->BindAction(InputConfig->ErsMode, ETriggerEvent::Started, this, &AApexPlayerController::HandleErsMode);
 	Input->BindAction(InputConfig->ErsBoost, ETriggerEvent::Started, this, &AApexPlayerController::HandleErsBoost);
 	Input->BindAction(InputConfig->ErsBoost, ETriggerEvent::Completed, this, &AApexPlayerController::HandleErsBoostReleased);
+	Input->BindAction(InputConfig->Handbrake, ETriggerEvent::Started, this, &AApexPlayerController::HandleHandbrake);
+	Input->BindAction(InputConfig->Handbrake, ETriggerEvent::Completed, this, &AApexPlayerController::HandleHandbrakeReleased);
+	// An H-pattern shifter: each gate a held button (index 0 is reverse).
+	for (int32 Index = 0; Index < InputConfig->HGears.Num(); ++Index)
+	{
+		const int32 Gear = Index == 0 ? -1 : Index;
+		Input->BindAction(InputConfig->HGears[Index], ETriggerEvent::Started, this, &AApexPlayerController::HandleHGear, Gear);
+		Input->BindAction(InputConfig->HGears[Index], ETriggerEvent::Completed, this, &AApexPlayerController::HandleHGearReleased, Gear);
+	}
+	Input->BindAction(InputConfig->RecoverTrack, ETriggerEvent::Started, this, &AApexPlayerController::HandleRecover, false);
+	Input->BindAction(InputConfig->RecoverPits, ETriggerEvent::Started, this, &AApexPlayerController::HandleRecover, true);
 }
 
 void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
@@ -215,6 +226,8 @@ void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
 		// release, leaving the throttle latched on for the next one.
 		FlushPressedKeys();
 		DriveInput = FApexDriveInput();
+		HeldHGates.Reset();
+		UpdateHGear();
 		PendingGearDelta = 0;
 		bPendingCameraToggle = false;
 		PendingHeadlightToggles = 0;
@@ -588,4 +601,48 @@ void AApexPlayerController::HandleErsBoostReleased(const FInputActionValue&)
 void AApexPlayerController::HandleFlashLightsReleased(const FInputActionValue&)
 {
 	DriveInput.bFlashLights = false;
+}
+
+void AApexPlayerController::HandleHandbrake(const FInputActionValue&)
+{
+	DriveInput.bHandbrake = true;
+}
+
+void AApexPlayerController::HandleHandbrakeReleased(const FInputActionValue&)
+{
+	DriveInput.bHandbrake = false;
+}
+
+void AApexPlayerController::HandleHGear(const FInputActionValue&, int32 Gear)
+{
+	bHPatternSeen = true;
+	HeldHGates.Remove(Gear);
+	HeldHGates.Add(Gear);
+	UpdateHGear();
+}
+
+void AApexPlayerController::HandleHGearReleased(const FInputActionValue&, int32 Gear)
+{
+	HeldHGates.Remove(Gear);
+	UpdateHGear();
+}
+
+void AApexPlayerController::UpdateHGear()
+{
+	// The lever in a gate holds its button down; between gates (or in
+	// neutral) none is held.
+	DriveInput.HGear = !bHPatternSeen ? -2 : (HeldHGates.IsEmpty() ? 0 : HeldHGates.Last());
+}
+
+void AApexPlayerController::HandleRecover(const FInputActionValue&, bool bPits)
+{
+	// The server says whether the car may (a car in its box, mid-recovery or
+	// past the flag is refused); the pause menu's rows ask the same way.
+	if (UGameInstance* Game = GetGameInstance())
+	{
+		if (UApexNetSubsystem* Net = Game->GetSubsystem<UApexNetSubsystem>())
+		{
+			Net->RecoverCar(bPits ? EApexRecoverDestination::Pits : EApexRecoverDestination::Track);
+		}
+	}
 }

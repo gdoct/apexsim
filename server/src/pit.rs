@@ -843,6 +843,7 @@ pub fn drive_input(
         flash: false,
         ers_mode: None,
         ers_boost: false,
+        handbrake: false,
     }
 }
 

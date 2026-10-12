@@ -105,6 +105,7 @@ proptest! {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
 
         for tick in 0..ticks {
@@ -227,6 +228,7 @@ proptest! {
                 flash: None,
                 ers_mode: None,
                 ers_boost: None,
+                handbrake: None,
             },
         ];
 

@@ -287,6 +287,10 @@ pub enum ClientMessage {
         /// The overtake button is held.
         #[serde(default)]
         ers_boost: Option<bool>,
+        /// The handbrake is held (`physics::HANDBRAKE_SHARE`). A client from
+        /// before the field never brakes by hand.
+        #[serde(default)]
+        handbrake: Option<bool>,
     },
 }
 
@@ -2103,6 +2107,7 @@ mod tests {
             flash: Some(true),
             ers_mode: Some(2),
             ers_boost: Some(true),
+            handbrake: Some(true),
         };
 
         let serialized = rmp_serde::to_vec_named(&msg).unwrap();
@@ -2121,7 +2126,9 @@ mod tests {
                 flash,
                 ers_mode,
                 ers_boost,
+                handbrake,
             } => {
+                assert_eq!(handbrake, Some(true));
                 assert_eq!(ers_mode, Some(2));
                 assert_eq!(ers_boost, Some(true));
                 assert_eq!(server_tick_ack, 100);
@@ -2156,6 +2163,7 @@ mod tests {
             flash: None,
             ers_mode: None,
             ers_boost: None,
+            handbrake: None,
         };
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         println!("C_PlayerInputDrs = {bytes:02x?}");
@@ -2217,6 +2225,7 @@ mod tests {
             flash: Some(false),
             ers_mode: Some(1),
             ers_boost: Some(false),
+            handbrake: Some(false),
         };
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         println!("C_PlayerInput = {bytes:02x?}");
@@ -2228,9 +2237,11 @@ mod tests {
             0xa8, b'e', b'r', b's', b'_', b'm', b'o', b'd', b'e', 0x01, // ers_mode: 1
             0xa9, b'e', b'r', b's', b'_', b'b', b'o', b'o', b's', b't',
             0xc2, // ers_boost: false
+            0xa9, b'h', b'a', b'n', b'd', b'b', b'r', b'a', b'k', b'e',
+            0xc2, // handbrake: false
         ];
         assert!(bytes.ends_with(tail), "{bytes:02x?}");
-        assert_eq!(bytes[23], 0x8b, "eleven fields in the data map");
+        assert_eq!(bytes[23], 0x8c, "twelve fields in the data map");
 
         if let ClientMessage::PlayerInput {
             headlights, flash, ..
@@ -2241,8 +2252,8 @@ mod tests {
         }
         let on = rmp_serde::to_vec_named(&msg).unwrap();
         assert_eq!(on.len(), bytes.len(), "a bool is as long as nil");
-        assert_eq!(on[on.len() - 29], 0xc3, "headlights: true");
-        assert_eq!(on[on.len() - 22], 0xc3, "flash: true");
+        assert_eq!(on[on.len() - 40], 0xc3, "headlights: true");
+        assert_eq!(on[on.len() - 33], 0xc3, "flash: true");
     }
 
     #[test]

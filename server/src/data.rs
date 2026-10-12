@@ -2868,6 +2868,9 @@ pub struct PlayerInputData {
     pub ers_mode: Option<u8>,
     /// The overtake button is held: full deployment whatever the mode.
     pub ers_boost: bool,
+    /// The handbrake is held: the rear wheels are braked hard and ABS is
+    /// off for them (`physics::HANDBRAKE_SHARE`).
+    pub handbrake: bool,
 }
 
 impl PlayerInputData {
@@ -2938,6 +2941,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
 
         input.clamp();

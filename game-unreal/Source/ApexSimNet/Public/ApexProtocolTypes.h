@@ -2624,6 +2624,10 @@ struct APEXSIMNET_API FApexPlayerInput
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
 	bool bErsBoost = false;
 
+	/** The handbrake is held: the rear tyres lock (`PlayerInput.handbrake`). */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	bool bHandbrake = false;
+
 	bool HasGear() const { return Gear != -128; }
 };
 

@@ -49,6 +49,9 @@ is one entry in that table.
 | `FlashLights` | held | H | D-pad down | `PlayerInput.flash` |
 | `ErsMode` | press | M | D-pad right | `PlayerInput.ers_mode` |
 | `ErsBoost` | held | Space | A | `PlayerInput.ers_boost` |
+| `Handbrake` | held | Left Ctrl | B | `PlayerInput.handbrake` (rear tyres lock: [vehicle physics](../server/vehicle-physics.md)) |
+| `RecoverTrack` / `RecoverPits` | press | R / unbound | unbound | `RecoverCar` (the pause menu's BACK TO TRACK / BACK TO PITS; the server says whether the car may) |
+| `HGearReverse`, `HGear1` to `HGear8` | held | | | `PlayerInput.gear`, absolute (wheel column only, unbound) |
 | `PauseMenu` | press | Escape | Start | local |
 
 Every action also has a wheel slot, unbound by default (unbound steering falls
@@ -71,8 +74,13 @@ back to the first wheelbase's axis, `ApexInput::GetWheelDefaultKey`).
   cue. What the server does with DRS and ERS is in
   [vehicle physics](../server/vehicle-physics.md).
 - Gears: the race director sets `PlayerInput.gear` to the current gear plus the
-  shift presses since the last send (`ConsumeGearDelta`). There is no handbrake
-  action and no H-pattern shifter support.
+  shift presses since the last send (`ConsumeGearDelta`). An H-pattern shifter
+  reports a gate's button down while the lever sits in it: bind its buttons to
+  `HGearReverse` and `HGear1`..`HGear8` on the Wheel tab. The first gate pressed
+  hands the gearbox to the shifter for the session (`bHPatternSeen`): the lever's
+  gear (the last gate closed; neutral when none is) goes out as an absolute
+  `PlayerInput.gear` whenever it changes, and the shift up and down keys no longer
+  step it. The server's automatic gearbox ignores it, as it does the shift keys.
 
 Bindings are edited on the settings overlay's Controls tab (pad and keyboard)
 and Wheel tab (devices, forces, the wheel's slots, live pedal and steering

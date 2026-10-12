@@ -188,9 +188,7 @@ session with real wheels, pads and screens.
 
 | Item | Type | Notes |
 |---|---|---|
-| H-pattern shifter | feature | The wire's gear field is filled from a shift delta, not an absolute gear. (The wheel's soft lock is built.) |
-| Handbrake | feature | No handbrake action, and nowhere on the wire to send one. |
-| Recovery key | feature | Back to track and back to pits are pause-menu rows (and `apexsim.recover`); there is no bindable driving action for them. |
+| Shifter, handbrake and recovery keys: unchecked on hardware | task | Built: `HGear*` wheel slots send an absolute gear, `Handbrake` locks the rear tyres, `RecoverTrack` / `RecoverPits` are bindable. No shifter has been plugged in (a clutch pedal is still not sent), and the handbrake's feel (`HANDBRAKE_SHARE`, how fast the tail comes round) has been judged only in a unit test. |
 | ERS mode not kept | feature | A run starts in the setup's ERS starting mode; a mode switched with the key in the car is not kept into the next run, and once the key is pressed the client's mode overrides the starting mode for the rest of the session. |
 | Wheelbase profiles for more brands | feature | `ApexWheelProfiles` has no Simagic, Cammus, Asetek or VRS bases; they mix as Generic (no output scaling) until the player picks a profile or gives the peak torque. |
 | Wheelbase profiles unchecked on hardware | task | The `ApexWheelProfiles` name rules are written from the product names the drivers are known to report, not read off real devices, so a base can fall through to Generic. The peak torques and the gear / hybrid minimum forces (5% / 3%) have not been felt on any base. |

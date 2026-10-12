@@ -766,6 +766,8 @@ private:
 	 * -1 until the first press: the car's default). Reset with the lights. */
 	int32 LocalErsMode = -1;
 	int32 ErsModeSwitch = -1;
+	/** The H-pattern gear last sent (-3: none yet, so the first poll sends it). */
+	int32 HGearSent = -3;
 	/** The ghost is hidden this close to the player's car and shown again past the larger distance, cm. */
 	static constexpr float GhostHideDistanceCm = 300.0f;
 	static constexpr float GhostShowDistanceCm = 500.0f;

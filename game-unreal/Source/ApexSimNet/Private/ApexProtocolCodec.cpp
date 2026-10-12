@@ -2938,7 +2938,7 @@ namespace ApexProtocol
 	TArray<uint8> EncodePlayerInput(uint32 ServerTickAck, const FApexPlayerInput& Input)
 	{
 		FMsgPackWriter Writer(160);
-		BeginDataVariant(Writer, "PlayerInput", 11);
+		BeginDataVariant(Writer, "PlayerInput", 12);
 		Writer.WriteString("server_tick_ack");
 		Writer.WriteUInt(ServerTickAck);
 		Writer.WriteString("throttle");
@@ -2991,6 +2991,9 @@ namespace ApexProtocol
 		}
 		Writer.WriteString("ers_boost");
 		Writer.WriteBool(Input.bErsBoost);
+		// The handbrake, last (`cargo test player_input_headlights_wire_format`).
+		Writer.WriteString("handbrake");
+		Writer.WriteBool(Input.bHandbrake);
 		return MoveTemp(Writer.GetBuffer());
 	}
 

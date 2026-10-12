@@ -475,7 +475,16 @@ pub fn update_car_3d(
     // What the pads deliver at each wheel, and the whole braking force the
     // tyre is asked for (the motor's share on top).
     let pads_force: [f32; 4] = std::array::from_fn(|i| hydraulic_axle[i / 2] / 2.0 * pad_grip[i]);
-    let brake_wheel: [f32; 4] = std::array::from_fn(|i| pads_force[i] + regen_axle[i / 2] / 2.0);
+    let mut brake_wheel: [f32; 4] =
+        std::array::from_fn(|i| pads_force[i] + regen_axle[i / 2] / 2.0);
+    // The handbrake: a cable to the rear callipers, on top of the pedal's
+    // share, hard enough to lock the rear tyres (and out of ABS's reach: see
+    // `rear_abs` below).
+    if input.handbrake {
+        let held = config.max_brake_force_n * HANDBRAKE_SHARE / 2.0;
+        brake_wheel[2] += held;
+        brake_wheel[3] += held;
+    }
 
     // 7. Calculate weight transfer.
     // Deliberately uses the PREVIOUS tick's accelerations (g_forces are
@@ -969,6 +978,8 @@ pub fn update_car_3d(
     // The driver's own aids win over the car's; an AI or an old client has
     // neither set and drives the car as its file describes it.
     let abs_enabled = state.abs.unwrap_or(config.abs_enabled);
+    // A held handbrake locks the rears whatever ABS would do.
+    let rear_abs = abs_enabled && !input.handbrake;
     let traction_control = state
         .traction_control
         .unwrap_or(if config.traction_control_enabled {
@@ -1031,7 +1042,7 @@ pub fn update_car_3d(
             long_scale[2],
             thrust[2],
             &config.tire_config,
-            abs_enabled,
+            rear_abs,
             traction_control,
         );
         rr = solve_wheel_forces(
@@ -1048,9 +1059,32 @@ pub fn update_car_3d(
             long_scale[3],
             thrust[3],
             &config.tire_config,
-            abs_enabled,
+            rear_abs,
             traction_control,
         );
+    }
+
+    // A rear tyre the handbrake has locked slides: its force is the sliding
+    // friction against the way its patch travels, so it gives no cornering
+    // grip to speak of and the tail comes round.
+    if input.handbrake && !is_airborne {
+        for (wheel, load, grip, scale) in [
+            (&mut rl, state.weight_rear_left_n, grip_rl, long_scale[2]),
+            (&mut rr, state.weight_rear_right_n, grip_rr, long_scale[3]),
+        ] {
+            if wheel.slip_ratio <= -0.99 {
+                let d = grip * load;
+                let dx = d * config.tire_config.longitudinal_grip_factor * scale;
+                let (fx, fy) = locked_wheel_force(
+                    v_long,
+                    v_lat + state.angular_vel_yaw * rear_axle_x,
+                    dx,
+                    &config.tire_config,
+                );
+                wheel.fx = fx;
+                wheel.fy = fy;
+            }
+        }
     }
 
     // What the driven axle's tyres took out of the car braking this tick:
@@ -1658,6 +1692,11 @@ struct AeroForces {
 /// height that the flank presents.
 const SIDE_FORCE_COEFFICIENT: f32 = 0.9;
 const FLANK_AREA_SHARE: f32 = 0.75;
+
+/// What the handbrake adds to the rear axle, as a share of the car's whole
+/// pedal braking force (`max_brake_force_n`): enough to lock two rear tyres
+/// on any road, held or not under the pedal.
+pub const HANDBRAKE_SHARE: f32 = 0.6;
 
 /// The crest model's filters (`update_car_3d`): the ground's grade is
 /// settled over this long, and the vertical acceleration read off it over
@@ -2655,6 +2694,20 @@ fn solve_wheel_forces(
         abs_active: abs_enabled && requested_force < -dx,
         tc_active: tc_enabled && requested_force > tc_limit,
     }
+}
+
+/// What a locked (not rolling) tyre pushes with: the sliding friction
+/// (`dx` at the tail of the longitudinal curve), against the way its contact
+/// patch travels over the road, `v_long` along the car and `v_lat` across it
+/// (positive left). A slow patch keeps none of it, so a standing car is not
+/// pushed about.
+fn locked_wheel_force(v_long: f32, v_lat: f32, dx: f32, tire_config: &TireConfig) -> (f32, f32) {
+    let speed = v_long.hypot(v_lat);
+    if speed < BRAKE_DEADZONE_SPEED_MPS || dx <= 0.0 {
+        return (0.0, 0.0);
+    }
+    let sliding = -pacejka(dx, PACEJKA_C_LONG, -1.0 / tire_config.optimal_slip_ratio);
+    (-sliding * v_long / speed, -sliding * v_lat / speed)
 }
 
 /// Automatic gearbox. Where it shifts comes from the engine's torque curve,
@@ -4490,6 +4543,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
         let dt = 1.0 / 240.0;
 
@@ -4542,6 +4596,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
         let dt = 1.0 / 240.0;
         let mut track = straight_track_with_right_curb(1.5);
@@ -4594,6 +4649,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -4636,6 +4692,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -4672,6 +4729,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
 
         // Measure the average decel between 55 and 25 m/s
@@ -4867,6 +4925,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
         let dt = 1.0 / 240.0;
         let mut lowest = state.gear;
@@ -5134,6 +5193,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
         let dt = 1.0 / 240.0;
         let mut worst: f32 = 0.0;
@@ -5606,6 +5666,47 @@ mod tests {
         );
     }
 
+    #[test]
+    fn the_handbrake_locks_the_rears_and_swings_the_tail_out() {
+        let track = create_straight_test_track();
+        let run = |handbrake: bool| {
+            let mut config = create_test_config();
+            config.abs_enabled = true;
+            let mut state = create_test_car_state();
+            state.pos_x = 100.0;
+            state.vel_x = 30.0;
+            state.speed_mps = 30.0;
+            state.gear = 4;
+            let input = PlayerInputData {
+                steering: 0.25,
+                handbrake,
+                ..Default::default()
+            };
+            let mut worst_slip = 0.0f32;
+            let mut yaw_rate = 0.0f32;
+            for _ in 0..480 {
+                update_car_3d(&mut state, &config, &input, &track, 1.0 / 240.0);
+                let feedback = state.feedback.take(0);
+                let rear = feedback.slip_ratio[2].min(feedback.slip_ratio[3]);
+                worst_slip = worst_slip.min(rear);
+                yaw_rate = yaw_rate.max(state.angular_vel_yaw.abs());
+            }
+            (worst_slip, yaw_rate, state.speed_mps)
+        };
+        let (free_slip, free_yaw, free_speed) = run(false);
+        let (locked_slip, locked_yaw, locked_speed) = run(true);
+        println!(
+            "rear slip {free_slip:.2} -> {locked_slip:.2}, yaw rate {free_yaw:.2} -> {locked_yaw:.2}, speed {free_speed:.1} -> {locked_speed:.1}"
+        );
+        assert!(
+            free_slip > -0.5,
+            "off the handbrake the rears roll: {free_slip}"
+        );
+        assert!(locked_slip < -0.9, "held, they lock: {locked_slip}");
+        assert!(locked_yaw > free_yaw * 1.3, "and the tail comes round");
+        assert!(locked_speed < free_speed - 2.0, "and the car slows");
+    }
+
     use crate::walls::WallSegment;
 
     fn wall_across(x: f32, kind: u8) -> Walls {
@@ -6002,6 +6103,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
         let dt = 1.0 / 240.0;
         for _ in 0..480 {
@@ -6045,6 +6147,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -6081,6 +6184,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -6125,6 +6229,7 @@ mod tests {
                 flash: false,
                 ers_mode: None,
                 ers_boost: false,
+                handbrake: false,
             };
             update_car_3d(&mut state, &config, &input, &track, dt);
             if state.speed_mps >= 27.8 {
@@ -6254,6 +6359,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
         for _ in 0..240 {
             update_car_3d(&mut state, &config, &throttle_input, &track, dt);
@@ -6276,6 +6382,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
         for _ in 0..120 {
             update_car_3d(&mut state, &config, &brake_input, &track, dt);
@@ -6307,6 +6414,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -6701,6 +6809,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
 
         // Run several ticks
@@ -6772,6 +6881,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
 
         let dt = 1.0 / 240.0;
@@ -7359,6 +7469,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
 
         let initial_fuel = state.fuel_liters;
@@ -7596,6 +7707,7 @@ mod tests {
             flash: false,
             ers_mode: None,
             ers_boost: false,
+            handbrake: false,
         };
 
         // Test that legacy API still works
