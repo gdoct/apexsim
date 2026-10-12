@@ -116,7 +116,23 @@ struct APEXSIM_API FApexHudElementDef
 	/** A bar's fill, 0-1. */
 	FApexHudProp Value;
 	FApexHudProp Bold;
+
+	/**
+	 * What a click on the element does (`"click": "watch.focus"`), one of
+	 * ApexHudClick::Actions, or empty for an element the mouse passes through.
+	 * Only the watch view takes clicks; `click_arg` is worked out where the
+	 * element is (a repeated row's own `item.*`) and handed to the action.
+	 */
+	FString Click;
+	FApexHudProp ClickArg;
 };
+
+/** The actions a HUD element's `click` can name. */
+namespace ApexHudClick
+{
+	/** `watch.focus` (the car in place `click_arg`), `watch.seek` (to the click's place along the element), `watch.pause`, `watch.slower`, `watch.faster`, `watch.back`, `watch.forward`, `watch.camera`, `watch.auto`, `watch.tower`, `watch.overlay`, `watch.leave`. */
+	APEXSIM_API const TArray<FString>& Actions();
+}
 
 struct APEXSIM_API FApexHudComponentDef
 {

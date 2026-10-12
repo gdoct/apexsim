@@ -78,7 +78,6 @@ showcase files need re-recording.
 |---|---|---|
 | Stream format | feature | No delta or keyframe encoding of frames. `SessionKind::Demo` is kept only for old servers and can go once showcases are everywhere. The promo pipeline records no audio. |
 | Streams and replays carry too little | feature | A stream's rows and `State` records leave out the ghost and the driver feedback, so a replay has no tyre or kerb sound (slip, slide and contact surface are in no stream). |
-| Replay and watch controls | feature | The timing tower is not clickable; the watch keys are not rebindable; the pad has no replay speed; there is no scrub bar. Keep and Delete in the Replays screen are keys only (K / Del, pad X / Y): no mouse, and the hint bar names only the keyboard keys. |
 
 ### Hotlap and lap records
 

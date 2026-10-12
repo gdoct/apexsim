@@ -35,6 +35,7 @@
       {
         "type": "panel",
         "repeat": { "list": "standings", "max": 20, "focus": "is_local" },
+        "click": "watch.focus", "click_arg": "=item.position",
         "height": 30, "margin": [0, 1, 0, 0], "padding": [10, 0],
         "background": "=item.is_local ? 'accent' : alpha('surface', 0.92)",
         "children": [{

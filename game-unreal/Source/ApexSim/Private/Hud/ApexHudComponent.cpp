@@ -10,6 +10,18 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
+namespace ApexHudClick
+{
+	const TArray<FString>& Actions()
+	{
+		static const TArray<FString> Table = {
+			TEXT("watch.focus"), TEXT("watch.seek"), TEXT("watch.pause"), TEXT("watch.slower"), TEXT("watch.faster"),
+			TEXT("watch.back"), TEXT("watch.forward"), TEXT("watch.camera"), TEXT("watch.auto"), TEXT("watch.tower"),
+			TEXT("watch.overlay"), TEXT("watch.leave")};
+		return Table;
+	}
+}
+
 namespace
 {
 	const TCHAR* const HudComponentFile = TEXT("component.json");
@@ -351,7 +363,7 @@ namespace
 			}
 
 			TArray<FString> Known = {TEXT("type"), TEXT("children"), TEXT("margin"), TEXT("halign"), TEXT("valign"),
-				TEXT("fill"), TEXT("width"), TEXT("height"), TEXT("visible"), TEXT("repeat")};
+				TEXT("fill"), TEXT("width"), TEXT("height"), TEXT("visible"), TEXT("repeat"), TEXT("click"), TEXT("click_arg")};
 			Known.Append(HudKeysFor(Out.Type));
 			for (const TPair<FString, TSharedPtr<FJsonValue>>& Field : Json.Values)
 			{
@@ -376,10 +388,21 @@ namespace
 				&& ReadNumber(Json, TEXT("width"), Out.Width, Path)
 				&& ReadNumber(Json, TEXT("height"), Out.Height, Path)
 				&& ReadProp(Json, TEXT("visible"), EPropKind::Bool, Out.Visible, Path)
-				&& ReadRepeat(Json, Out.Repeat, Path);
+				&& ReadRepeat(Json, Out.Repeat, Path)
+				&& ReadString(Json, TEXT("click"), Out.Click, Path)
+				&& ReadProp(Json, TEXT("click_arg"), EPropKind::Number, Out.ClickArg, Path);
 			if (!bOk)
 			{
 				return false;
+			}
+			if (!Out.Click.IsEmpty() && !ApexHudClick::Actions().Contains(Out.Click))
+			{
+				return Error(Path, FString::Printf(TEXT("'click': there is no action '%s' (actions: %s)"), *Out.Click,
+					*FString::Join(ApexHudClick::Actions(), TEXT(", "))));
+			}
+			if (Out.ClickArg.IsSet() && Out.Click.IsEmpty())
+			{
+				Warn(Path, TEXT("'click_arg' with no 'click'"));
 			}
 
 			FString Align;
@@ -477,10 +500,6 @@ namespace
 				break;
 			case EApexHudElementType::KeyCap:
 				bOk = ReadProp(Json, TEXT("text"), EPropKind::Template, Out.Text, Path);
-				if (bOk && Out.Text.IsDynamic())
-				{
-					return Error(Path, TEXT("a keycap's text is fixed"));
-				}
 				break;
 			case EApexHudElementType::Image:
 			{

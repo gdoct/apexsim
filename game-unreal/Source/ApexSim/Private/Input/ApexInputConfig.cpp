@@ -58,6 +58,39 @@ namespace ApexInput
 			{ Actions::PauseMenu,    0, TEXT("Pause menu"),   EKeys::Gamepad_Special_Right,    false, EColumn::Gamepad  },
 			{ Actions::PauseMenu,    1, TEXT("Pause menu"),   EKeys::Escape,                   false, EColumn::Keyboard },
 
+			// The watch view: a race, a replay, a hotlap watched without a car.
+			{ Actions::WatchPreviousCar, 0, TEXT("Car ahead"),    EKeys::Gamepad_LeftShoulder,      false, EColumn::Gamepad  },
+			{ Actions::WatchPreviousCar, 1, TEXT("Car ahead"),    EKeys::Up,                        false, EColumn::Keyboard },
+			{ Actions::WatchNextCar,     0, TEXT("Car behind"),   EKeys::Gamepad_RightShoulder,     false, EColumn::Gamepad  },
+			{ Actions::WatchNextCar,     1, TEXT("Car behind"),   EKeys::Down,                      false, EColumn::Keyboard },
+			{ Actions::WatchCamera,      0, TEXT("Camera"),       EKeys::Gamepad_FaceButton_Top,    false, EColumn::Gamepad  },
+			{ Actions::WatchCamera,      1, TEXT("Camera"),       EKeys::C,                         false, EColumn::Keyboard },
+			{ Actions::WatchAuto,        0, TEXT("TV director"),  EKeys::Gamepad_FaceButton_Left,   false, EColumn::Gamepad  },
+			{ Actions::WatchAuto,        1, TEXT("TV director"),  EKeys::A,                         false, EColumn::Keyboard },
+			{ Actions::WatchTower,       0, TEXT("Timing tower"), EKeys::Gamepad_Special_Left,      false, EColumn::Gamepad  },
+			{ Actions::WatchTower,       1, TEXT("Timing tower"), EKeys::T,                         false, EColumn::Keyboard },
+			{ Actions::WatchOverlay,     0, TEXT("Hide overlay"), EKeys::Gamepad_RightThumbstick,   false, EColumn::Gamepad  },
+			{ Actions::WatchOverlay,     1, TEXT("Hide overlay"), EKeys::H,                         false, EColumn::Keyboard },
+			{ Actions::WatchNextRace,    0, TEXT("Next race"),    EKeys::Gamepad_LeftThumbstick,    false, EColumn::Gamepad  },
+			{ Actions::WatchNextRace,    1, TEXT("Next race"),    EKeys::N,                         false, EColumn::Keyboard },
+			{ Actions::WatchLeave,       0, TEXT("Stop watching"), EKeys::Gamepad_FaceButton_Right, false, EColumn::Gamepad  },
+			{ Actions::WatchLeave,       1, TEXT("Stop watching"), EKeys::BackSpace,                false, EColumn::Keyboard },
+			{ Actions::WatchPlayPause,   0, TEXT("Pause replay"), EKeys::Gamepad_FaceButton_Bottom, false, EColumn::Gamepad  },
+			{ Actions::WatchPlayPause,   1, TEXT("Pause replay"), EKeys::SpaceBar,                  false, EColumn::Keyboard },
+			{ Actions::WatchSeekBack,    0, TEXT("Back 10 s"),    EKeys::Gamepad_LeftTrigger,       false, EColumn::Gamepad  },
+			{ Actions::WatchSeekBack,    1, TEXT("Back 10 s"),    EKeys::Comma,                     false, EColumn::Keyboard },
+			{ Actions::WatchSeekForward, 0, TEXT("On 10 s"),      EKeys::Gamepad_RightTrigger,      false, EColumn::Gamepad  },
+			{ Actions::WatchSeekForward, 1, TEXT("On 10 s"),      EKeys::Period,                    false, EColumn::Keyboard },
+			{ Actions::WatchSlower,      0, TEXT("Slower"),       EKeys::Gamepad_DPad_Left,         false, EColumn::Gamepad  },
+			{ Actions::WatchSlower,      1, TEXT("Slower"),       EKeys::Hyphen,                    false, EColumn::Keyboard },
+			{ Actions::WatchFaster,      0, TEXT("Faster"),       EKeys::Gamepad_DPad_Right,        false, EColumn::Gamepad  },
+			{ Actions::WatchFaster,      1, TEXT("Faster"),       EKeys::Equals,                    false, EColumn::Keyboard },
+			{ Actions::WatchWeather,     1, TEXT("Weather"),      EKeys::W,                         false, EColumn::Keyboard },
+			{ Actions::WatchTimeEarlier, 1, TEXT("Hour earlier"), EKeys::LeftBracket,               false, EColumn::Keyboard },
+			{ Actions::WatchTimeLater,   1, TEXT("Hour later"),   EKeys::RightBracket,              false, EColumn::Keyboard },
+			{ Actions::WatchPreviousTrack, 1, TEXT("Previous circuit"), EKeys::PageUp,              false, EColumn::Keyboard },
+			{ Actions::WatchNextTrack,   1, TEXT("Next circuit"), EKeys::PageDown,                  false, EColumn::Keyboard },
+
 			{ Actions::Steer,        Slot::Wheel,      TEXT("Steering"),    FKey(), false, EColumn::Wheel },
 			{ Actions::Throttle,     Slot::Wheel,      TEXT("Throttle"),    FKey(), false, EColumn::Wheel },
 			{ Actions::Brake,        Slot::Wheel,      TEXT("Brake"),       FKey(), false, EColumn::Wheel },
@@ -81,6 +114,17 @@ namespace ApexInput
 			{ Actions::MenuBack,     Slot::Wheel,      TEXT("Menu back"),   FKey(), false, EColumn::Wheel },
 		};
 		return Table;
+	}
+
+	bool IsWatchAction(FName ActionId)
+	{
+		static const FString Prefix(TEXT("Watch"));
+		return ActionId.ToString().StartsWith(Prefix);
+	}
+
+	EContext ContextOf(FName ActionId)
+	{
+		return IsMenuAction(ActionId) ? EContext::Menu : IsWatchAction(ActionId) ? EContext::Watch : EContext::Driving;
 	}
 
 	bool IsMenuAction(FName ActionId)
@@ -186,7 +230,7 @@ namespace ApexInput
 			{ EKeys::Gamepad_FaceButton_Right.GetFName(), TEXT("B")      },
 			{ EKeys::Gamepad_FaceButton_Left.GetFName(),  TEXT("X")      },
 			{ EKeys::Gamepad_FaceButton_Top.GetFName(),   TEXT("Y")      },
-			{ EKeys::Gamepad_Special_Left.GetFName(),     TEXT("BACK")   },
+			{ EKeys::Gamepad_Special_Left.GetFName(),     TEXT("VIEW")   },
 			{ EKeys::Gamepad_Special_Right.GetFName(),    TEXT("START")  },
 			{ EKeys::Gamepad_RightThumbstick.GetFName(),  TEXT("RS")     },
 			{ EKeys::Comma.GetFName(),                    TEXT(",")      },

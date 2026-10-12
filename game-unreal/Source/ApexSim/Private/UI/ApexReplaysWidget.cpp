@@ -4,6 +4,7 @@
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/HorizontalBox.h"
 #include "Components/ScrollBox.h"
 #include "Components/ScrollBoxSlot.h"
 #include "Components/SizeBox.h"
@@ -21,7 +22,7 @@ namespace
 	const FName ActionReplayRow(TEXT("Replays.Row"));
 	const FName ActionReplaysBack(TEXT("Replays.Back"));
 
-	constexpr float ReplaysCardWidth = 960.0f;
+	constexpr float ReplaysCardWidth = 1120.0f;
 
 	const TCHAR* ReplayModeName(EApexGameMode Mode)
 	{
@@ -87,9 +88,16 @@ void UApexReplaysWidget::BuildLayout()
 	BackButton->OnActivated.AddDynamic(this, &UApexReplaysWidget::HandleButtonActivated);
 	AddV(Card, MakeSized(*WidgetTree, BackButton, 180.0f, -1.0f), FMargin(0.0f, 18.0f, 0.0f, 0.0f), HAlign_Left);
 
-	AddV(Card, MakeKeyHintBar(*WidgetTree,
+	// The keys for the keyboard and the buttons for the pad, one bar each.
+	KeyboardHints = MakeKeyHintBar(*WidgetTree,
 		{ { TEXT("Enter"), TEXT("Watch") }, { TEXT("K"), TEXT("Keep") }, { TEXT("Del"), TEXT("Delete") } },
-		{ { TEXT("Esc"), TEXT("Back") } }), FMargin(0.0f, 18.0f, 0.0f, 0.0f));
+		{ { TEXT("Esc"), TEXT("Back") } });
+	PadHints = MakeKeyHintBar(*WidgetTree,
+		{ { TEXT("A"), TEXT("Watch") }, { TEXT("X"), TEXT("Keep") }, { TEXT("Y"), TEXT("Delete") } },
+		{ { TEXT("B"), TEXT("Back") } });
+	PadHints->SetVisibility(ESlateVisibility::Collapsed);
+	AddV(Card, KeyboardHints, FMargin(0.0f, 18.0f, 0.0f, 0.0f));
+	AddV(Card, PadHints, FMargin(0.0f, 18.0f, 0.0f, 0.0f));
 
 	UVerticalBox* Centre = WidgetTree->ConstructWidget<UVerticalBox>();
 	AddV(Centre, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
@@ -103,13 +111,28 @@ void UApexReplaysWidget::BuildLayout()
 void UApexReplaysWidget::OnScreenActivated()
 {
 	Super::OnScreenActivated();
+	if (const UApexRootWidget* Root = GetRoot())
+	{
+		OnInputDeviceChanged(Root->IsGamepadHints());
+	}
 	Refresh(LastFocused);
+}
+
+void UApexReplaysWidget::OnInputDeviceChanged(bool bGamepad)
+{
+	if (KeyboardHints && PadHints)
+	{
+		KeyboardHints->SetVisibility(bGamepad ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		PadHints->SetVisibility(bGamepad ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 void UApexReplaysWidget::Refresh(int32 FocusIndex)
 {
 	Replays = UApexReplayRecorder::ListReplays();
 	Rows.Reset();
+	KeepButtons.Reset();
+	DeleteButtons.Reset();
 	if (!List)
 	{
 		return;
@@ -154,12 +177,41 @@ void UApexReplaysWidget::Refresh(int32 FocusIndex)
 		Row->Setup(Spec);
 		Row->SetBadge(Spec.Badge, Info.bSaved ? ApexUI::Palette::Live : ApexUI::Palette::TextMuted);
 		Row->OnActivated.AddDynamic(this, &UApexReplaysWidget::HandleButtonActivated);
-		List->AddChild(Row);
-		if (UScrollBoxSlot* RowSlot = Cast<UScrollBoxSlot>(Row->Slot))
+
+		// Keep and Delete beside the row, for the mouse; the pad has X and Y.
+		auto MakeSideButton = [this](const TCHAR* Label, EApexButtonVariant Variant)
+		{
+			FApexButtonSpec SideSpec;
+			SideSpec.Label = Label;
+			SideSpec.Variant = Variant;
+			SideSpec.bCentreLabel = true;
+			SideSpec.bMouseOnly = true;
+			SideSpec.LabelSize = 14.0f;
+			SideSpec.Height = 72.0f;
+			SideSpec.ActionId = ActionReplayRow;
+			UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
+			Button->Setup(SideSpec);
+			Button->OnActivated.AddDynamic(this, &UApexReplaysWidget::HandleButtonActivated);
+			return Button;
+		};
+		UApexButtonWidget* Keep = Info.bSaved ? nullptr : MakeSideButton(TEXT("Keep"), EApexButtonVariant::Ghost);
+		UApexButtonWidget* Delete = MakeSideButton(TEXT("Delete"), EApexButtonVariant::Ghost);
+
+		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>();
+		ApexUI::AddH(Line, Row, FMargin(), VAlign_Fill, 1.0f);
+		if (Keep)
+		{
+			ApexUI::AddH(Line, ApexUI::MakeSized(*WidgetTree, Keep, 96.0f, -1.0f), FMargin(4.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+		}
+		ApexUI::AddH(Line, ApexUI::MakeSized(*WidgetTree, Delete, 96.0f, -1.0f), FMargin(4.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+		List->AddChild(Line);
+		if (UScrollBoxSlot* RowSlot = Cast<UScrollBoxSlot>(Line->Slot))
 		{
 			RowSlot->SetPadding(FMargin(0.0f, Index == 0 ? 0.0f : 2.0f, 0.0f, 0.0f));
 		}
 		Rows.Add(Row);
+		KeepButtons.Add(Keep);
+		DeleteButtons.Add(Delete);
 	}
 	if (EmptyText)
 	{
@@ -296,6 +348,18 @@ void UApexReplaysWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (Button == BackButton)
 	{
 		GoBack();
+		return;
+	}
+	const int32 KeepIndex = KeepButtons.IndexOfByKey(Button);
+	if (KeepIndex != INDEX_NONE)
+	{
+		KeepRow(KeepIndex);
+		return;
+	}
+	const int32 DeleteIndex = DeleteButtons.IndexOfByKey(Button);
+	if (DeleteIndex != INDEX_NONE)
+	{
+		DeleteRow(DeleteIndex);
 		return;
 	}
 	const int32 Index = ApexNav::IndexOf(Rows, Button);

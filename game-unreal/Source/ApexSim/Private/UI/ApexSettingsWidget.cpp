@@ -1757,6 +1757,25 @@ UWidget* UApexSettingsWidget::BuildBindingsGrid()
 		{ TEXT("Headlights"),   ApexInput::Actions::Headlights,    0,  1, TEXT("Lights"),          true  },
 		{ TEXT("Flash lights"), ApexInput::Actions::FlashLights,   0,  1, TEXT("Lights"),          true  },
 		{ TEXT("Pause menu"),   ApexInput::Actions::PauseMenu,     0,  1, TEXT("Menu"),            true  },
+		// Watching a race, a replay or a hotlap with no car of your own.
+		{ TEXT("Car ahead"),    ApexInput::Actions::WatchPreviousCar, 0, 1, TEXT("Watching"),      false },
+		{ TEXT("Car behind"),   ApexInput::Actions::WatchNextCar,     0, 1, TEXT("Watching"),      false },
+		{ TEXT("Camera"),       ApexInput::Actions::WatchCamera,      0, 1, TEXT("Watching"),      false },
+		{ TEXT("TV director"),  ApexInput::Actions::WatchAuto,        0, 1, TEXT("Watching"),      false },
+		{ TEXT("Timing tower"), ApexInput::Actions::WatchTower,       0, 1, TEXT("Watching"),      false },
+		{ TEXT("Hide overlay"), ApexInput::Actions::WatchOverlay,     0, 1, TEXT("Watching"),      false },
+		{ TEXT("Next race"),    ApexInput::Actions::WatchNextRace,    0, 1, TEXT("Watching"),      false },
+		{ TEXT("Stop watching"), ApexInput::Actions::WatchLeave,      0, 1, TEXT("Watching"),      false },
+		{ TEXT("Pause replay"), ApexInput::Actions::WatchPlayPause,   0, 1, TEXT("Replay"),        true  },
+		{ TEXT("Back 10 s"),    ApexInput::Actions::WatchSeekBack,    0, 1, TEXT("Replay"),        true  },
+		{ TEXT("On 10 s"),      ApexInput::Actions::WatchSeekForward, 0, 1, TEXT("Replay"),        true  },
+		{ TEXT("Slower"),       ApexInput::Actions::WatchSlower,      0, 1, TEXT("Replay"),        true  },
+		{ TEXT("Faster"),       ApexInput::Actions::WatchFaster,      0, 1, TEXT("Replay"),        true  },
+		{ TEXT("Weather"),      ApexInput::Actions::WatchWeather,    -1, 1, TEXT("Watched hotlap"), true },
+		{ TEXT("Hour earlier"), ApexInput::Actions::WatchTimeEarlier, -1, 1, TEXT("Watched hotlap"), true },
+		{ TEXT("Hour later"),   ApexInput::Actions::WatchTimeLater,   -1, 1, TEXT("Watched hotlap"), true },
+		{ TEXT("Previous circuit"), ApexInput::Actions::WatchPreviousTrack, -1, 1, TEXT("Watched hotlap"), true },
+		{ TEXT("Next circuit"), ApexInput::Actions::WatchNextTrack,   -1, 1, TEXT("Watched hotlap"), true },
 	};
 
 	UHorizontalBox* Grid = WidgetTree->ConstructWidget<UHorizontalBox>();

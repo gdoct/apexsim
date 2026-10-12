@@ -273,6 +273,31 @@ bool FApexHudComponentParseTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("not JSON"), Errors(TEXT("{ root: ")).Errors.Num() > 0);
 	TestTrue(TEXT("a visible that is not an expression"), Errors(TEXT(R"({ "root": { "type": "row", "visible": "car.present" } })")).Errors.Num() > 0);
 
+	// A click names one of the watch view's actions, and a keycap's text may be an expression.
+	{
+		FApexHudComponentDef Clickable;
+		FApexHudLoadReport ClickReport;
+		const bool bClickOk = ApexHud::ParseComponent(TEXT(R"({
+			"root": { "type": "column", "children": [
+				{ "type": "panel", "click": "watch.focus", "click_arg": "=item.position", "repeat": { "list": "standings", "max": 3 },
+					"children": [{ "type": "text", "text": "{item.name}" }] },
+				{ "type": "keycap", "text": "=watch.key.tower + ' TIMING'" }
+			] }
+		})"), TEXT("C:/hud/clickable"), Clickable, ClickReport);
+		TestTrue(TEXT("clickable parses"), bClickOk);
+		TestEqual(TEXT("clickable has no errors"), ClickReport.Errors.Num(), 0);
+		TestEqual(TEXT("clickable has no warnings"), ClickReport.Warnings.Num(), 0);
+		if (Clickable.Root.Children.Num() == 2)
+		{
+			TestEqual(TEXT("the click action"), Clickable.Root.Children[0].Click, FString(TEXT("watch.focus")));
+			TestTrue(TEXT("the click argument is the row's own"), Clickable.Root.Children[0].ClickArg.IsDynamic());
+			TestTrue(TEXT("a keycap's text follows the data"), Clickable.Root.Children[1].Text.IsDynamic());
+		}
+	}
+	TestTrue(TEXT("an unknown click action"), Errors(TEXT(R"({ "root": { "type": "panel", "click": "watch.explode" } })")).Errors.Num() > 0);
+	TestEqual(TEXT("an argument with no click is a warning"),
+		Errors(TEXT(R"({ "root": { "type": "panel", "click_arg": "=1" } })")).Warnings.Num(), 1);
+
 	const FApexHudLoadReport Typo = Errors(TEXT(R"({ "root": { "type": "text", "txt": "a", "text": "b" } })"));
 	TestEqual(TEXT("unknown key is a warning"), Typo.Warnings.Num(), 1);
 	TestEqual(TEXT("not an error"), Typo.Errors.Num(), 0);

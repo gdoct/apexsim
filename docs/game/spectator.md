@@ -288,9 +288,14 @@ cockpit rig; `SetSpectatorCamera`) and whether the TV director picks the car
 (order, stepping, the key map). Keys reach `UApexRootWidget::HandleWatchKey`
 through the input processor, so none reaches the hidden menu or a car:
 
+The keys are the defaults of Settings > Controls > Watching (`ApexInput::Slots`,
+the `Watch*` actions; `ApexSpectate::CommandFor` reads the player's own), and
+the HUD's hints print what is bound (`watch.key.*`). Not rebindable: the number
+row, the left and right arrows and the D-pad's up and down (they also step cars).
+
 | Keyboard | Pad | |
 |---|---|---|
-| Up, Left / Down, Right | D-pad, LB / RB | the car ahead / behind |
+| Up, Left / Down, Right | LB / RB, D-pad up / down | the car ahead / behind |
 | 1-9, 0 | | P1-P9, P10 |
 | C | Y | camera: TV, chase, onboard |
 | A | X | the TV director picks the car |
@@ -299,9 +304,17 @@ through the input processor, so none reaches the hidden menu or a car:
 | N | L3 | the next race (the backdrop) |
 | Space | A | pause a replay |
 | comma / full stop | LT / RT | ten seconds back / on in a replay |
-| - / = | | slower / faster (0.25x to 4x) |
+| - / = | D-pad left / right | slower / faster (0.25x to 4x) |
 | Backspace | B | stop watching |
 | Esc | Start | the pause menu |
+
+With the mouse: a click on a timing tower row watches that car, on the replay's
+bar goes to that place, and on the transport's buttons or a key hint does what
+the key does (HUD `click`, [HUD modding](hud-modding.md#clicking);
+`UApexRootWidget::HandleWatchClick`, taken in `FApexMenuInputProcessor`; console
+`apexsim.watch click <x> <y>` for unattended runs). The Replays screen has Keep
+and Delete beside each row for the mouse, and its hint bar follows the device
+in use (`OnInputDeviceChanged`).
 
 The HUD follows the watched car and shows the race's own circuit and
 distance; the `spectate.*` and `replay.*` data points and the `spectator_*`

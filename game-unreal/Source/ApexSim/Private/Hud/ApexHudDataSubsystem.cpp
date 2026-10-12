@@ -6,6 +6,7 @@
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "ApexSpectatorSubsystem.h"
+#include "Input/ApexInputConfig.h"
 #include "Race/ApexRaceDirector.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -264,6 +265,24 @@ void UApexHudDataSubsystem::Refresh()
 	In.bSpectating = bSpectating;
 	if (bSpectating)
 	{
+		// The watch keys as bound for the device in use, for the hints.
+		if (Settings)
+		{
+			const int32 Slot = bGamepad ? ApexInput::Slot::Gamepad : ApexInput::Slot::Keyboard;
+			auto Name = [Settings, Slot](FName ActionId) { return ApexInput::GetKeyDisplayName(Settings->GetBoundKey(ActionId, Slot)); };
+			using namespace ApexInput::Actions;
+			In.WatchKeys.Cars = Name(WatchPreviousCar) + TEXT(" ") + Name(WatchNextCar);
+			In.WatchKeys.Camera = Name(WatchCamera);
+			In.WatchKeys.Auto = Name(WatchAuto);
+			In.WatchKeys.Tower = Name(WatchTower);
+			In.WatchKeys.Overlay = Name(WatchOverlay);
+			In.WatchKeys.NextRace = Name(WatchNextRace);
+			In.WatchKeys.Leave = Name(WatchLeave);
+			In.WatchKeys.PlayPause = Name(WatchPlayPause);
+			In.WatchKeys.Seek = Name(WatchSeekBack) + TEXT(" ") + Name(WatchSeekForward);
+			In.WatchKeys.Speed = Name(WatchSlower) + TEXT(" ") + Name(WatchFaster);
+			In.WatchKeys.PauseMenu = Name(PauseMenu);
+		}
 		In.SpectateSource = WatchSource.IsEmpty() ? FString(bBackdrop ? TEXT("demo") : TEXT("live")) : WatchSource;
 		In.SpectateCamera = ApexSpectate::CameraName(Director->GetSpectatorCamera());
 		In.bSpectateAuto = Director->IsSpectatorAuto();

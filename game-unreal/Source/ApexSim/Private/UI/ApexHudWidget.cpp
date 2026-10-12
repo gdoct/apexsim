@@ -382,6 +382,7 @@ void UApexHudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	}
 	FApexHudScope Scope;
 	Scope.Data = &Hud->GetData();
+	++HudFrame;
 
 	for (int32 Index = 0; Index < Components.Num(); ++Index)
 	{
@@ -754,6 +755,39 @@ void UApexHudWidget::AddToContainer(UPanelWidget* Container, const FHudNode& Chi
 
 // --- Per frame ----------------------------------------------------------------
 
+bool UApexHudWidget::HitClick(const FVector2D& AbsolutePosition, FClick& OutClick) const
+{
+	if (bEditing || GetVisibility() == ESlateVisibility::Collapsed)
+	{
+		return false;
+	}
+	// Built parents first, so the last hit is the innermost.
+	const FHudNode* Hit = nullptr;
+	FGeometry HitGeometry;
+	for (const FHudNode& Node : Nodes)
+	{
+		if (Node.ClickFrame != HudFrame || !Node.Outer || !Node.Def || Node.Def->Click.IsEmpty())
+		{
+			continue;
+		}
+		const FGeometry& Geometry = Node.Outer->GetCachedGeometry();
+		if (Geometry.GetLocalSize().X > 0.0f && Geometry.IsUnderLocation(AbsolutePosition))
+		{
+			Hit = &Node;
+			HitGeometry = Geometry;
+		}
+	}
+	if (!Hit)
+	{
+		return false;
+	}
+	OutClick.Action = Hit->Def->Click;
+	OutClick.Arg = Hit->ClickArg;
+	const FVector2D Local = HitGeometry.AbsoluteToLocal(AbsolutePosition);
+	OutClick.Fraction = FMath::Clamp(static_cast<double>(Local.X) / FMath::Max(static_cast<double>(HitGeometry.GetLocalSize().X), 1.0), 0.0, 1.0);
+	return true;
+}
+
 void UApexHudWidget::SetNodeVisible(FHudNode& Node, bool bVisible)
 {
 	const int8 Wanted = bVisible ? 1 : 0;
@@ -814,6 +848,12 @@ void UApexHudWidget::UpdateNode(int32 NodeIndex, const FApexHudScope& Scope)
 	if (!bVisible)
 	{
 		return;
+	}
+	if (!Def.Click.IsEmpty())
+	{
+		// Shown this frame, and what the click would carry (a row's own place).
+		Node.ClickFrame = HudFrame;
+		Node.ClickArg = Def.ClickArg.IsSet() ? Def.ClickArg.Expr->Evaluate(Scope).AsNumber() : 0.0;
 	}
 
 	if (Def.FillShare.IsSet() && Node.Outer)
@@ -904,6 +944,25 @@ void UApexHudWidget::UpdateNode(int32 NodeIndex, const FApexHudScope& Scope)
 		}
 		break;
 	}
+	case EApexHudElementType::KeyCap:
+		// A hint whose key the player can rebind: its text follows the data.
+		if (Def.Text.IsSet() && Def.Text.IsDynamic())
+		{
+			const FString Value = Def.Text.Expr->Evaluate(Scope).AsString().ToUpper();
+			if (!Node.bHasText || !Value.Equals(Node.LastText, ESearchCase::CaseSensitive))
+			{
+				Node.bHasText = true;
+				Node.LastText = Value;
+				if (const UBorder* Cap = Cast<UBorder>(Node.Widget))
+				{
+					if (UTextBlock* Label = Cast<UTextBlock>(Cap->GetContent()))
+					{
+						Label->SetText(FText::FromString(Value));
+					}
+				}
+			}
+		}
+		break;
 	case EApexHudElementType::Image:
 		if (HudUpdateColour(Def.Colour, Scope, Node.bHasColour, Node.LastColour))
 		{

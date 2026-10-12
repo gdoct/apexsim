@@ -139,6 +139,14 @@ namespace
 				Root->StartHotlapWatch();
 				return;
 			}
+			if (Verb == TEXT("click") && Args.Num() > 2)
+			{
+				// A click at a point of the shell (its own units, from the top left), as the mouse would make it.
+				const FVector2D Local(FCString::Atof(*Args[1]), FCString::Atof(*Args[2]));
+				const bool bTaken = Root->HandleWatchClick(Root->GetCachedGeometry().LocalToAbsolute(Local));
+				UE_LOG(LogApexSim, Display, TEXT("apexsim.watch click %.0f,%.0f: %s"), Local.X, Local.Y, bTaken ? TEXT("taken") : TEXT("nothing there"));
+				return;
+			}
 			if (Verb == TEXT("stop"))
 			{
 				Command.Action = ApexSpectate::EAction::Leave;
@@ -2631,6 +2639,11 @@ void UApexRootWidget::SetGamepadHints(bool bGamepad)
 	{
 		HudData->SetGamepadActive(bGamepad);
 	}
+	bGamepadHints = bGamepad;
+	if (UApexScreenWidget* Screen = GetScreenWidget(CurrentScreen))
+	{
+		Screen->OnInputDeviceChanged(bGamepad);
+	}
 }
 
 void UApexRootWidget::UpdateWatch(float DeltaSeconds)
@@ -2680,8 +2693,59 @@ void UApexRootWidget::UpdateWatch(float DeltaSeconds)
 
 bool UApexRootWidget::HandleWatchKey(const FKeyEvent& InKeyEvent)
 {
-	const ApexSpectate::FCommand Command = ApexSpectate::CommandFor(InKeyEvent.GetKey());
+	// The player's own keys for the watch view (Settings > Controls).
+	const UApexSettingsSubsystem* Settings = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+	const ApexSpectate::FCommand Command = Settings
+		? ApexSpectate::CommandFor(InKeyEvent.GetKey(), [Settings](FName ActionId, int32 SlotIndex) { return Settings->GetBoundKey(ActionId, SlotIndex); })
+		: ApexSpectate::CommandFor(InKeyEvent.GetKey());
 	if (Command.Action == ApexSpectate::EAction::None)
+	{
+		return false;
+	}
+	RunWatchCommand(Command);
+	return true;
+}
+
+bool UApexRootWidget::HandleWatchClick(const FVector2D& AbsolutePosition)
+{
+	if (!IsWatching() || IsPaused() || bWatchOverlayHidden || !Hud)
+	{
+		return false;
+	}
+	UApexHudWidget::FClick Click;
+	if (!Hud->HitClick(AbsolutePosition, Click))
+	{
+		return false;
+	}
+	using ApexSpectate::EAction;
+	ApexSpectate::FCommand Command;
+	if (Click.Action == TEXT("watch.seek"))
+	{
+		// A place along a replay's bar.
+		UApexSpectatorSubsystem* Replay = GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>();
+		if (IsWatchingReplay() && Replay)
+		{
+			Replay->SeekTo(Click.Fraction * Replay->GetDurationSeconds());
+			ApexUiAudio::Play(this, EApexUiSound::Adjust);
+		}
+		return true;
+	}
+	if (Click.Action == TEXT("watch.focus"))
+	{
+		Command.Action = EAction::Position;
+		Command.Position = FMath::RoundToInt(Click.Arg);
+	}
+	else if (Click.Action == TEXT("watch.pause"))   { Command.Action = EAction::PlayPause; }
+	else if (Click.Action == TEXT("watch.slower"))  { Command.Action = EAction::Slower; }
+	else if (Click.Action == TEXT("watch.faster"))  { Command.Action = EAction::Faster; }
+	else if (Click.Action == TEXT("watch.back"))    { Command.Action = EAction::SeekBack; }
+	else if (Click.Action == TEXT("watch.forward")) { Command.Action = EAction::SeekForward; }
+	else if (Click.Action == TEXT("watch.camera"))  { Command.Action = EAction::Camera; }
+	else if (Click.Action == TEXT("watch.auto"))    { Command.Action = EAction::Auto; }
+	else if (Click.Action == TEXT("watch.tower"))   { Command.Action = EAction::Tower; }
+	else if (Click.Action == TEXT("watch.overlay")) { Command.Action = EAction::Overlay; }
+	else if (Click.Action == TEXT("watch.leave"))   { Command.Action = EAction::Leave; }
+	if (Command.Action == EAction::None)
 	{
 		return false;
 	}
@@ -2809,6 +2873,10 @@ void UApexRootWidget::RunWatchCommand(const ApexSpectate::FCommand& Command)
 		if (IsWatchingReplay())
 		{
 			ShowToast(TEXT("A replay: leave it to pick another"), true);
+		}
+		else if (IsWatchingLiveStream())
+		{
+			ShowToast(TEXT("A live session: leave it to watch another"), true);
 		}
 		else if (WatchKind == EWatchKind::Backdrop)
 		{

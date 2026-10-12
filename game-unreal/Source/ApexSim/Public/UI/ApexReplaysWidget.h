@@ -7,6 +7,7 @@
 #include "ApexReplaysWidget.generated.h"
 
 class UApexButtonWidget;
+class UWidget;
 class UScrollBox;
 class UTextBlock;
 class UVerticalBox;
@@ -28,6 +29,7 @@ public:
 	virtual void OnScreenActivated() override;
 	virtual void FocusDefault() override;
 	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
+	virtual void OnInputDeviceChanged(bool bGamepad) override;
 	/** A replay covers the backdrop anyway; the list reads better on the plain page. */
 	virtual bool WantsLiveBackdrop() const override { return false; }
 
@@ -51,6 +53,12 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> CountText;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> BackButton;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> Rows;
+	/** Each row's Keep and Delete, for the mouse (the pad has X and Y); Keep is null on a saved replay. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> KeepButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> DeleteButtons;
+	/** The hint bars for the keyboard and for the pad; one shows. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> KeyboardHints;
+	UPROPERTY(Transient) TObjectPtr<UWidget> PadHints;
 
 	TArray<FApexReplayInfo> Replays;
 	int32 LastFocused = 0;

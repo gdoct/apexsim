@@ -35,6 +35,8 @@ public:
 	virtual void OnScreenActivated();
 	/** Called when the switcher moves away from this screen. */
 	virtual void OnScreenDeactivated();
+	/** The last input came from a pad or from the keyboard and mouse: a screen with key hints swaps them. */
+	virtual void OnInputDeviceChanged(bool bGamepad) {}
 
 	/** Back walks the root's history. Screens at the bottom of a flow override this. */
 	virtual bool HandleBack() override;

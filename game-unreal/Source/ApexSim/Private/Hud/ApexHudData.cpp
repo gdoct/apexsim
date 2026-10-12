@@ -397,6 +397,17 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	Out.Set(TEXT("spectate.camera"), In.bSpectating && !In.SpectateCamera.IsEmpty() ? FApexHudValue::Of(In.SpectateCamera) : FApexHudValue());
 	Out.Set(TEXT("spectate.auto"), In.bSpectating && In.bSpectateAuto);
 	Out.Set(TEXT("spectate.tower_mode"), In.SpectateTowerMode);
+	Out.Set(TEXT("watch.key.cars"), In.WatchKeys.Cars);
+	Out.Set(TEXT("watch.key.camera"), In.WatchKeys.Camera);
+	Out.Set(TEXT("watch.key.auto"), In.WatchKeys.Auto);
+	Out.Set(TEXT("watch.key.tower"), In.WatchKeys.Tower);
+	Out.Set(TEXT("watch.key.overlay"), In.WatchKeys.Overlay);
+	Out.Set(TEXT("watch.key.next_race"), In.WatchKeys.NextRace);
+	Out.Set(TEXT("watch.key.leave"), In.WatchKeys.Leave);
+	Out.Set(TEXT("watch.key.play_pause"), In.WatchKeys.PlayPause);
+	Out.Set(TEXT("watch.key.seek"), In.WatchKeys.Seek);
+	Out.Set(TEXT("watch.key.speed"), In.WatchKeys.Speed);
+	Out.Set(TEXT("watch.key.pause_menu"), In.WatchKeys.PauseMenu);
 	Out.Set(TEXT("spectate.waiting"), In.bSpectating && Frame.Cars.Num() == 0);
 	Out.Set(TEXT("hotlap.active"), In.bSpectating && In.bHotlapWatch);
 

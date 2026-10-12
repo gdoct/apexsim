@@ -107,6 +107,18 @@ public:
 	bool GetComponentRect(int32 Index, FSlateRect& OutRect) const;
 	/** The HUD's size in its own units. */
 	FVector2D GetHudSize() const;
+
+	/** A click that landed on an element with a `click` (the watch view's). */
+	struct FClick
+	{
+		FString Action;
+		/** The element's `click_arg`, 0 when it has none. */
+		double Arg = 0.0;
+		/** How far along the element the click was, 0 to 1 from its left edge. */
+		double Fraction = 0.0;
+	};
+	/** The innermost clickable element shown under a point (absolute screen coordinates); false when there is none. */
+	bool HitClick(const FVector2D& AbsolutePosition, FClick& OutClick) const;
 	FVector2D AbsoluteToHud(const FVector2D& Absolute) const;
 	FVector2D HudToAbsolute(const FVector2D& Local) const;
 
@@ -152,6 +164,9 @@ private:
 		float LastValue = -1.0f;
 		/** The share last given to the slot of an element whose `fill` is an expression. */
 		float LastFill = -1.0f;
+		/** The frame this clickable element was last shown in, and its `click_arg` then. */
+		uint32 ClickFrame = 0;
+		double ClickArg = 0.0;
 	};
 
 	void BuildHud();
@@ -192,6 +207,8 @@ private:
 	/** Behind the panels while laying out from the menu, so they are not drawn over the menu's own screens. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> EditBackdrop;
 	bool bEditing = false;
+	/** Counts frames of UpdateNode, to tell which clickable elements are shown now. */
+	uint32 HudFrame = 1;
 
 	/** Widgets with their own per-frame feed. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexMinimapWidget>> Minimaps;

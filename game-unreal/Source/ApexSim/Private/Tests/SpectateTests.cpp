@@ -1,5 +1,6 @@
 #include "ApexTestCommon.h"
 #include "Race/ApexSpectatorView.h"
+#include "Input/ApexInputConfig.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -93,6 +94,56 @@ bool FApexSpectateKeysTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("] an hour later"), ActionOf(EKeys::RightBracket), (int32)EAction::TimeLater);
 	TestEqual(TEXT("page up the previous circuit"), ActionOf(EKeys::PageUp), (int32)EAction::PreviousTrack);
 	TestEqual(TEXT("page down the next circuit"), ActionOf(EKeys::PageDown), (int32)EAction::NextTrack);
+
+	// The pad's D-pad sets a replay's speed; up and down still step through the field.
+	TestEqual(TEXT("D-pad left is slower"), ActionOf(EKeys::Gamepad_DPad_Left), (int32)EAction::Slower);
+	TestEqual(TEXT("D-pad right is faster"), ActionOf(EKeys::Gamepad_DPad_Right), (int32)EAction::Faster);
+	TestEqual(TEXT("D-pad up is the car ahead"), ActionOf(EKeys::Gamepad_DPad_Up), (int32)EAction::PreviousCar);
+	TestEqual(TEXT("D-pad down is the car behind"), ActionOf(EKeys::Gamepad_DPad_Down), (int32)EAction::NextCar);
+	TestEqual(TEXT("the left arrow still steps"), ActionOf(EKeys::Left), (int32)EAction::PreviousCar);
+
+	// A rebound key is the new one's, and the old one is nobody's.
+	{
+		auto Rebound = [](FName ActionId, int32 Slot) -> FKey
+		{
+			if (ActionId == ApexInput::Actions::WatchTower && Slot == ApexInput::Slot::Keyboard)
+			{
+				return EKeys::J;
+			}
+			const ApexInput::FSlotDef* Def = ApexInput::FindSlot(ActionId, Slot);
+			return Def ? Def->DefaultKey : FKey();
+		};
+		TestEqual(TEXT("J is the tower now"), (int32)CommandFor(EKeys::J, Rebound).Action, (int32)EAction::Tower);
+		TestEqual(TEXT("T no longer is"), (int32)CommandFor(EKeys::T, Rebound).Action, (int32)EAction::None);
+		TestEqual(TEXT("the pad's tower key stays"), (int32)CommandFor(EKeys::Gamepad_Special_Left, Rebound).Action, (int32)EAction::Tower);
+		TestEqual(TEXT("the others stay"), (int32)CommandFor(EKeys::C, Rebound).Action, (int32)EAction::Camera);
+		TestEqual(TEXT("an unbound slot owns nothing"), (int32)CommandFor(FKey(), Rebound).Action, (int32)EAction::None);
+	}
+	// The slot table has a slot for every command and none of its keys clashes with another's.
+	{
+		TSet<FKey> Seen;
+		for (const ApexInput::FSlotDef& Def : ApexInput::Slots())
+		{
+			if (ApexInput::IsWatchAction(Def.ActionId) && Def.DefaultKey.IsValid())
+			{
+				TestFalse(*FString::Printf(TEXT("%s has its own default key"), *Def.ActionId.ToString()), Seen.Contains(Def.DefaultKey));
+				Seen.Add(Def.DefaultKey);
+			}
+		}
+		for (uint8 Raw = static_cast<uint8>(EAction::PreviousCar); Raw <= static_cast<uint8>(EAction::NextTrack); ++Raw)
+		{
+			if (Raw == static_cast<uint8>(EAction::Position))
+			{
+				continue;
+			}
+			const FName Id = ActionIdOf(static_cast<EAction>(Raw));
+			TestTrue(*FString::Printf(TEXT("action %d has a slot"), Raw), !Id.IsNone() && ApexInput::FindSlot(Id, ApexInput::Slot::Keyboard) != nullptr);
+		}
+		TestEqual(TEXT("a watch key is no clash with a driving key"),
+			(int32)ApexInput::ContextOf(ApexInput::Actions::WatchCamera), (int32)ApexInput::EContext::Watch);
+		TestEqual(TEXT("the camera key is a driving key too"),
+			(int32)ApexInput::ContextOf(ApexInput::Actions::ToggleCamera), (int32)ApexInput::EContext::Driving);
+	}
 
 	const FCommand Third = CommandFor(EKeys::Three);
 	TestTrue(TEXT("3 is P3"), Third.Action == EAction::Position && Third.Position == 3);

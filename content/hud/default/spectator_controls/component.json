@@ -41,38 +41,38 @@
             {
               "type": "row", "halign": "right", "visible": "=!hud.gamepad",
               "children": [
-                { "type": "keycap", "text": "← → CAR" },
-                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "C CAMERA" },
-                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "A AUTO" },
-                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "T TIMING" }
+                { "type": "keycap", "text": "=watch.key.cars + ' CAR'" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.camera + ' CAMERA'" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.auto + ' AUTO'" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.tower + ' TIMING'" }
               ]
             },
             {
               "type": "row", "halign": "right", "margin": [0, 6, 0, 0], "visible": "=!hud.gamepad",
               "children": [
                 { "type": "keycap", "text": "1-0 POSITION" },
-                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "H HIDE" },
-                { "type": "keycap", "margin": [6, 0, 0, 0], "visible": "=!spectate.live && !replay.active", "text": "N NEXT RACE" },
-                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "ESC MENU" }
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.overlay + ' HIDE'" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "visible": "=!spectate.live && !replay.active", "text": "=watch.key.next_race + ' NEXT RACE'" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.pause_menu + ' MENU'" }
               ]
             },
             // ...and pad.
             {
               "type": "row", "halign": "right", "visible": "=hud.gamepad",
               "children": [
-                { "type": "keycap", "text": "LB RB CAR" },
-                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "Y CAMERA" },
-                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "X AUTO" },
-                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "VIEW TIMING" }
+                { "type": "keycap", "text": "=watch.key.cars + ' CAR'" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.camera + ' CAMERA'" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.auto + ' AUTO'" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.tower + ' TIMING'" }
               ]
             },
             {
               "type": "row", "halign": "right", "margin": [0, 6, 0, 0], "visible": "=hud.gamepad",
               "children": [
-                { "type": "keycap", "text": "R3 HIDE" },
-                { "type": "keycap", "margin": [6, 0, 0, 0], "visible": "=!spectate.live && !replay.active", "text": "L3 NEXT RACE" },
-                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "B LEAVE" },
-                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "START MENU" }
+                { "type": "keycap", "text": "=watch.key.overlay + ' HIDE'" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "visible": "=!spectate.live && !replay.active", "text": "=watch.key.next_race + ' NEXT RACE'" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.leave + ' LEAVE'" },
+                { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.pause_menu + ' MENU'" }
               ]
             }
           ]

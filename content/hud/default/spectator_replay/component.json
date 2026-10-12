@@ -27,20 +27,41 @@
               "text": "=fmt(replay.rate, replay.rate < 1 ? 2 : 0) + '×'" }
           ]
         },
-        { "type": "bar", "margin": [0, 8, 0, 0], "height": 4, "value": "=replay.progress", "color": "accent", "background": "border" },
+        // A click on the bar goes to that place in the replay.
+        {
+          "type": "panel", "margin": [0, 4, 0, 0], "padding": [0, 6], "click": "watch.seek",
+          "children": [{ "type": "bar", "height": 4, "value": "=replay.progress", "color": "accent", "background": "border" }]
+        },
+        // The transport for the mouse; the keys are below.
+        {
+          "type": "row", "halign": "center", "margin": [0, 4, 0, 0], "visible": "=!hud.gamepad",
+          "children": [
+            { "type": "panel", "padding": [12, 5], "background": "surface_hover", "click": "watch.back",
+              "children": [{ "type": "text", "font": "mono", "size": 12, "text": "-10 S" }] },
+            { "type": "panel", "margin": [6, 0, 0, 0], "padding": [12, 5], "background": "surface_hover", "click": "watch.pause",
+              "children": [{ "type": "text", "font": "mono", "size": 12, "text": "=replay.ended ? 'AGAIN' : replay.paused ? 'PLAY' : 'PAUSE'" }] },
+            { "type": "panel", "margin": [6, 0, 0, 0], "padding": [12, 5], "background": "surface_hover", "click": "watch.forward",
+              "children": [{ "type": "text", "font": "mono", "size": 12, "text": "+10 S" }] },
+            { "type": "panel", "margin": [16, 0, 0, 0], "padding": [12, 5], "background": "surface_hover", "click": "watch.slower",
+              "children": [{ "type": "text", "font": "mono", "size": 12, "text": "SLOWER" }] },
+            { "type": "panel", "margin": [6, 0, 0, 0], "padding": [12, 5], "background": "surface_hover", "click": "watch.faster",
+              "children": [{ "type": "text", "font": "mono", "size": 12, "text": "FASTER" }] }
+          ]
+        },
         {
           "type": "row", "halign": "right", "margin": [0, 8, 0, 0], "visible": "=!hud.gamepad",
           "children": [
-            { "type": "keycap", "text": "SPACE PAUSE" },
-            { "type": "keycap", "margin": [6, 0, 0, 0], "text": ", . 10 S" },
-            { "type": "keycap", "margin": [6, 0, 0, 0], "text": "- = SPEED" }
+            { "type": "keycap", "text": "=watch.key.play_pause + ' PAUSE'" },
+            { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.seek + ' 10 S'" },
+            { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.speed + ' SPEED'" }
           ]
         },
         {
           "type": "row", "halign": "right", "margin": [0, 8, 0, 0], "visible": "=hud.gamepad",
           "children": [
-            { "type": "keycap", "text": "A PAUSE" },
-            { "type": "keycap", "margin": [6, 0, 0, 0], "text": "LT RT 10 S" }
+            { "type": "keycap", "text": "=watch.key.play_pause + ' PAUSE'" },
+            { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.seek + ' 10 S'" },
+            { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.speed + ' SPEED'" }
           ]
         }
       ]

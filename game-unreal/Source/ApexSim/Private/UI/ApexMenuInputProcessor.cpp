@@ -299,6 +299,13 @@ bool FApexMenuInputProcessor::HandleMouseButtonDownEvent(FSlateApplication& Slat
 	if (UApexRootWidget* Root = Owner.Get())
 	{
 		SetGamepadActive(*Root, false);
+		// Watching, a click on a timing tower row, the replay's bar or a key
+		// hint is the watch view's (a click elsewhere is nobody's).
+		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && Root->IsWatching() && !Root->IsPaused()
+			&& !Root->IsSettingsOpen() && !Root->IsHudEditorOpen() && Root->HandleWatchClick(MouseEvent.GetScreenSpacePosition()))
+		{
+			return true;
+		}
 	}
 	return false;
 }

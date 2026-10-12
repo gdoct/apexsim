@@ -119,16 +119,29 @@ namespace ApexSpectate
 		int32 Position = 0;
 	};
 
+	/** The settings action id of a command's key ("WatchTower"); none for Position and None, which have no slot. */
+	APEXSIM_API FName ActionIdOf(EAction Action);
+
+	/** The key bound to an action's slot (ApexInput::Slot::Gamepad or Keyboard), as the settings hold it. */
+	using FBoundKey = TFunctionRef<FKey(FName ActionId, int32 Slot)>;
+
 	/**
-	 * The keyboard and pad keys of the watch view: arrows / D-pad / shoulders
-	 * step through the field, 1-9 and 0 pick P1-P10, C / Y the camera, A / X
-	 * the auto director, T / View the tower, H / right stick the overlay,
-	 * N / left stick the next race, Backspace / B leave; a replay's transport
-	 * on Space / A (pause), comma and full stop / the triggers (ten seconds
-	 * back and on) and - / = (slower, faster); a hotlap's choices on W
-	 * (weather), [ and ] (the hour) and Page Up / Page Down (the circuit). The pause key is not here: it
-	 * opens the pause menu as in a race.
+	 * What `Key` does in the watch view, with the keys the player has bound
+	 * (`Bound`: UApexSettingsSubsystem::GetBoundKey). The defaults are in
+	 * the slot table (`ApexInput::Slots`): LB / RB or up / down the car ahead
+	 * and behind, C / Y the camera, A / X the auto director, T / View the
+	 * tower, H / right stick the overlay, N / left stick the next race,
+	 * Backspace / B leave; a replay's transport on Space / A (pause), comma
+	 * and full stop / the triggers (ten seconds back and on) and - / = or the
+	 * D-pad's left and right (slower, faster); a hotlap's choices on W
+	 * (weather), [ and ] (the hour) and Page Up / Page Down (the circuit).
+	 * Not rebindable: 1-9 and 0 pick P1-P10, and the left and right arrows
+	 * and the D-pad's up and down also step through the field. The pause key
+	 * is not here: it opens the pause menu as in a race.
 	 */
+	APEXSIM_API FCommand CommandFor(const FKey& Key, FBoundKey Bound);
+
+	/** CommandFor with the keys the slot table starts from. */
 	APEXSIM_API FCommand CommandFor(const FKey& Key);
 
 	/** The replay speeds - and = step through: 0.25, 0.5, 1, 2, 4. */

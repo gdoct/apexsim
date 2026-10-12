@@ -182,6 +182,13 @@ public:
 	 */
 	void WatchSession(const FString& SessionId);
 
+	/**
+	 * A left click while watching: on a HUD element with a `click` (a timing
+	 * tower row, the replay's bar, a key hint) it does what the key does.
+	 * True when the click was taken.
+	 */
+	bool HandleWatchClick(const FVector2D& AbsolutePosition);
+
 	/** Watch a live session as a stream in the watch view; false, with a toast, when it cannot be. */
 	bool WatchLiveStream(const FString& SessionId);
 	bool IsWatchingLiveStream() const { return WatchKind == EWatchKind::Backdrop && bWatchingLiveStream; }
@@ -261,6 +268,8 @@ public:
 
 	/** The pad is in use: the HUD's key hints show its buttons. */
 	void SetGamepadHints(bool bGamepad);
+	/** The last input came from a pad (SetGamepadHints), so screens show its buttons. */
+	bool IsGamepadHints() const { return bGamepadHints; }
 
 	/** The screen the car picker should return to once a car is confirmed. */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|UI")
@@ -469,6 +478,7 @@ private:
 	bool bWatchingReplay = false;
 	/** The watched race is a live session's stream (WatchLiveStream). */
 	bool bWatchingLiveStream = false;
+	bool bGamepadHints = false;
 	ApexSpectate::ETowerMode WatchTower = ApexSpectate::ETowerMode::Interval;
 	bool bWatchOverlayHidden = false;
 	/** Whether the director's backdrop was up last frame, to notice the next race begin. */

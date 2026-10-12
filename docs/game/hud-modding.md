@@ -134,6 +134,7 @@ Keys on every element:
 | `fill` | in a row or column, share of the spare room; an expression (`"=pit.service_fuel_share"`) sizes it every frame, which is how a bar is cut into segments |
 | `visible` | `true`, `false` or an expression; a hidden element takes no room |
 | `repeat` | draw the element several times, see "Repeating" |
+| `click`, `click_arg` | what a mouse click on the element does while watching (see "Clicking"); `click_arg` is an expression worked out where the element is, so a repeated row passes its own `item.*` |
 
 | Type | What it is | Its own keys |
 |---|---|---|
@@ -147,10 +148,23 @@ Keys on every element:
 | `bar` | a progress bar filled to `value` (0 to 1) | `value`, `color`, `background`, `direction` (`right`, `left`, `up`, `down`) |
 | `spacer` | empty room; `"fill": 1` pushes its neighbours apart | |
 | `divider` | a hairline rule | `vertical` |
-| `keycap` | a key hint chip, `ESC MENU` | `text` (fixed) |
+| `keycap` | a key hint chip, `ESC MENU` | `text` (fixed, or an expression such as `=watch.key.tower + ' TIMING'` for a key the player can rebind) |
 | `image` | a PNG from the component's folder | `file`, `color` (tint) |
 | `minimap` | the circuit outline with a dot per car | `color` (the player's dot) |
 | `mirror` | the virtual rear-view mirror, while the setting is on | `width`, `height` |
+
+### Clicking
+
+While watching a race (never in a race of your own, where the HUD lets the
+mouse through) an element with `"click": "<action>"` takes a left click. The
+innermost clickable element under the cursor wins. Actions: `watch.focus`
+(watch the car in place `click_arg`; the shipped timing tower's rows pass
+`=item.position`), `watch.seek` (go to the clicked place along the element, a
+replay's bar), `watch.pause`, `watch.slower`, `watch.faster`, `watch.back`,
+`watch.forward` (a replay's transport), `watch.camera`, `watch.auto`,
+`watch.tower`, `watch.overlay`, `watch.leave`: each does what its key does
+(Settings > Controls > Watching). A `click` names no other action (the file is
+refused with the list); the pad has no cursor and ignores them.
 
 A panel with exactly one child (not a repeat) places it by the child's
 `halign`, `valign` and `margin`; with more it lays them out by `direction`
@@ -293,6 +307,8 @@ then; `standings`, `race_state`, `track_info`, `status` and `mirror` hide.
 | `spectate.auto` | the TV director chooses the car |
 | `spectate.tower_mode` | the timing tower's column, stepped with T: `interval`, `gap`, `last`, `best`, `tyres` |
 | `spectate.waiting` | watching, between two races (no cars yet) |
+| `watch.key.cars`, `watch.key.camera`, `watch.key.auto`, `watch.key.tower`, `watch.key.overlay`, `watch.key.next_race`, `watch.key.leave`, `watch.key.play_pause`, `watch.key.pause_menu` | the keys of the watch view as the player has bound them (Settings > Controls), for the device in use: the pad's buttons once a pad is, else the keyboard's, as the hints print them (`C`, `LB`); `watch.key.cars` is the car ahead's and the car behind's side by side |
+| `watch.key.seek`, `watch.key.speed` | a replay's ten seconds back and on, and its slower and faster, side by side |
 | `hotlap.active` | a watched hotlap: one AI car lapping alone; turns the `hotlap_watch` scene on |
 | `replay.active` | a saved replay is playing |
 | `replay.time_s`, `replay.duration_s` | how far into it, and how long it runs (*null* outside a replay) |

@@ -87,6 +87,31 @@ struct APEXSIM_API FApexHudInputs
 	/** The last input came from a gamepad (the hints show its buttons). */
 	bool bGamepad = false;
 
+	/**
+	 * The keys of the watch view as the player has bound them, for the device
+	 * in use (the pad's buttons once a pad is, else the keyboard's), as the
+	 * hints print them: "UP DOWN", "C", "BACKSPACE". Empty names are
+	 * published empty.
+	 */
+	struct FWatchKeys
+	{
+		/** The car ahead and the car behind, side by side. */
+		FString Cars;
+		FString Camera;
+		FString Auto;
+		FString Tower;
+		FString Overlay;
+		FString NextRace;
+		FString Leave;
+		FString PlayPause;
+		/** Ten seconds back and on, side by side. */
+		FString Seek;
+		/** Slower and faster, side by side. */
+		FString Speed;
+		FString PauseMenu;
+	};
+	FWatchKeys WatchKeys;
+
 	/** Watching a race rather than driving in it (docs/game/spectator.md, "Watching a race"). */
 	bool bSpectating = false;
 	/** What is being watched: `showcase`, `file`, `demo` or `live`. */

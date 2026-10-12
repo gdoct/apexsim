@@ -81,7 +81,48 @@ namespace ApexInput
 		inline const FName MenuRight    = TEXT("MenuRight");
 		inline const FName MenuAccept   = TEXT("MenuAccept");
 		inline const FName MenuBack     = TEXT("MenuBack");
+
+		/**
+		 * The watch view's keys (ApexSpectate::CommandFor): watching a race, a
+		 * replay or a hotlap, where the player has no car. Not Enhanced Input
+		 * actions: the root widget reads them through the input processor.
+		 * Pad and keyboard columns only.
+		 */
+		inline const FName WatchPreviousCar = TEXT("WatchPreviousCar");
+		inline const FName WatchNextCar     = TEXT("WatchNextCar");
+		inline const FName WatchCamera      = TEXT("WatchCamera");
+		inline const FName WatchAuto        = TEXT("WatchAuto");
+		inline const FName WatchTower       = TEXT("WatchTower");
+		inline const FName WatchOverlay     = TEXT("WatchOverlay");
+		inline const FName WatchNextRace    = TEXT("WatchNextRace");
+		inline const FName WatchLeave       = TEXT("WatchLeave");
+		inline const FName WatchPlayPause   = TEXT("WatchPlayPause");
+		inline const FName WatchSeekBack    = TEXT("WatchSeekBack");
+		inline const FName WatchSeekForward = TEXT("WatchSeekForward");
+		inline const FName WatchSlower      = TEXT("WatchSlower");
+		inline const FName WatchFaster      = TEXT("WatchFaster");
+		inline const FName WatchWeather     = TEXT("WatchWeather");
+		inline const FName WatchTimeEarlier = TEXT("WatchTimeEarlier");
+		inline const FName WatchTimeLater   = TEXT("WatchTimeLater");
+		inline const FName WatchPreviousTrack = TEXT("WatchPreviousTrack");
+		inline const FName WatchNextTrack   = TEXT("WatchNextTrack");
 	}
+
+	/** True for the Watch* actions: they act only in the watch view. */
+	APEXSIM_API bool IsWatchAction(FName ActionId);
+
+	/**
+	 * Which part of the game reads an action's keys: the car (driving), the
+	 * menus or the watch view. A key bound in two contexts is not a conflict;
+	 * in one, it is.
+	 */
+	enum class EContext : uint8
+	{
+		Driving,
+		Menu,
+		Watch,
+	};
+	APEXSIM_API EContext ContextOf(FName ActionId);
 
 	/**
 	 * True for the Menu* actions. They only act in the menus and the rest only

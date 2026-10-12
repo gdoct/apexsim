@@ -791,9 +791,10 @@ TArray<const ApexInput::FSlotDef*> UApexSettingsSubsystem::FindConflicts(
 		{
 			continue;
 		}
-		// Menu keys act only in the menus and the rest only while driving: a
-		// hat on both "look left" and "menu left" is the point, not a clash.
-		if (ApexInput::IsMenuAction(Def.ActionId) != ApexInput::IsMenuAction(ExceptAction))
+		// Menu keys act only in the menus, the watch view's only while
+		// watching and the rest only while driving: a hat on both "look left"
+		// and "menu left" is the point, not a clash.
+		if (ApexInput::ContextOf(Def.ActionId) != ApexInput::ContextOf(ExceptAction))
 		{
 			continue;
 		}

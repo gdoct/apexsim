@@ -1,4 +1,5 @@
 #include "Race/ApexSpectatorView.h"
+#include "Input/ApexInputConfig.h"
 
 #include "Race/ApexRaceCoordinate.h"
 
@@ -78,86 +79,77 @@ namespace ApexSpectate
 		return Order.IsValidIndex(Position - 1) ? Order[Position - 1] : INDEX_NONE;
 	}
 
-	FCommand CommandFor(const FKey& Key)
+	FName ActionIdOf(EAction Action)
+	{
+		using namespace ApexInput::Actions;
+		switch (Action)
+		{
+		case EAction::PreviousCar:   return WatchPreviousCar;
+		case EAction::NextCar:       return WatchNextCar;
+		case EAction::Camera:        return WatchCamera;
+		case EAction::Auto:          return WatchAuto;
+		case EAction::Tower:         return WatchTower;
+		case EAction::Overlay:       return WatchOverlay;
+		case EAction::NextRace:      return WatchNextRace;
+		case EAction::Leave:         return WatchLeave;
+		case EAction::PlayPause:     return WatchPlayPause;
+		case EAction::SeekBack:      return WatchSeekBack;
+		case EAction::SeekForward:   return WatchSeekForward;
+		case EAction::Slower:        return WatchSlower;
+		case EAction::Faster:        return WatchFaster;
+		case EAction::Weather:       return WatchWeather;
+		case EAction::TimeEarlier:   return WatchTimeEarlier;
+		case EAction::TimeLater:     return WatchTimeLater;
+		case EAction::PreviousTrack: return WatchPreviousTrack;
+		case EAction::NextTrack:     return WatchNextTrack;
+		default:                     return NAME_None;
+		}
+	}
+
+	FCommand CommandFor(const FKey& Key, FBoundKey Bound)
 	{
 		FCommand Command;
-		if (Key == EKeys::Up || Key == EKeys::Left || Key == EKeys::Gamepad_DPad_Up || Key == EKeys::Gamepad_DPad_Left
-			|| Key == EKeys::Gamepad_LeftShoulder)
+		if (!Key.IsValid())
+		{
+			return Command;
+		}
+		// What the player has bound, pad and keyboard: the first action
+		// that owns the key (the controls screen warns when two do).
+		for (uint8 Raw = static_cast<uint8>(EAction::PreviousCar); Raw <= static_cast<uint8>(EAction::NextTrack); ++Raw)
+		{
+			const EAction Action = static_cast<EAction>(Raw);
+			const FName Id = ActionIdOf(Action);
+			if (Id.IsNone())
+			{
+				continue;
+			}
+			if (Bound(Id, ApexInput::Slot::Gamepad) == Key || Bound(Id, ApexInput::Slot::Keyboard) == Key)
+			{
+				Command.Action = Action;
+				return Command;
+			}
+		}
+		// What is not rebindable: the arrows and the D-pad's vertical beside
+		// the bound keys, the numpad's minus and plus beside - and =, and the
+		// number row's P1 to P10 (0 is P10).
+		if (Key == EKeys::Left || Key == EKeys::Gamepad_DPad_Up)
 		{
 			Command.Action = EAction::PreviousCar;
 		}
-		else if (Key == EKeys::Down || Key == EKeys::Right || Key == EKeys::Gamepad_DPad_Down || Key == EKeys::Gamepad_DPad_Right
-			|| Key == EKeys::Gamepad_RightShoulder)
+		else if (Key == EKeys::Right || Key == EKeys::Gamepad_DPad_Down)
 		{
 			Command.Action = EAction::NextCar;
 		}
-		else if (Key == EKeys::C || Key == EKeys::Gamepad_FaceButton_Top)
-		{
-			Command.Action = EAction::Camera;
-		}
-		else if (Key == EKeys::A || Key == EKeys::Gamepad_FaceButton_Left)
-		{
-			Command.Action = EAction::Auto;
-		}
-		else if (Key == EKeys::T || Key == EKeys::Gamepad_Special_Left)
-		{
-			Command.Action = EAction::Tower;
-		}
-		else if (Key == EKeys::H || Key == EKeys::Gamepad_RightThumbstick)
-		{
-			Command.Action = EAction::Overlay;
-		}
-		else if (Key == EKeys::N || Key == EKeys::Gamepad_LeftThumbstick)
-		{
-			Command.Action = EAction::NextRace;
-		}
-		else if (Key == EKeys::BackSpace || Key == EKeys::Gamepad_FaceButton_Right)
-		{
-			Command.Action = EAction::Leave;
-		}
-		else if (Key == EKeys::SpaceBar || Key == EKeys::Gamepad_FaceButton_Bottom)
-		{
-			Command.Action = EAction::PlayPause;
-		}
-		else if (Key == EKeys::Comma || Key == EKeys::Gamepad_LeftTrigger)
-		{
-			Command.Action = EAction::SeekBack;
-		}
-		else if (Key == EKeys::Period || Key == EKeys::Gamepad_RightTrigger)
-		{
-			Command.Action = EAction::SeekForward;
-		}
-		else if (Key == EKeys::Hyphen || Key == EKeys::Subtract)
+		else if (Key == EKeys::Subtract)
 		{
 			Command.Action = EAction::Slower;
 		}
-		else if (Key == EKeys::Equals || Key == EKeys::Add)
+		else if (Key == EKeys::Add)
 		{
 			Command.Action = EAction::Faster;
 		}
-		else if (Key == EKeys::W)
-		{
-			Command.Action = EAction::Weather;
-		}
-		else if (Key == EKeys::LeftBracket)
-		{
-			Command.Action = EAction::TimeEarlier;
-		}
-		else if (Key == EKeys::RightBracket)
-		{
-			Command.Action = EAction::TimeLater;
-		}
-		else if (Key == EKeys::PageUp)
-		{
-			Command.Action = EAction::PreviousTrack;
-		}
-		else if (Key == EKeys::PageDown)
-		{
-			Command.Action = EAction::NextTrack;
-		}
 		else
 		{
-			// The number row: 1 to 9 are P1 to P9 and 0 is P10.
 			static const FKey Digits[10] = {EKeys::Zero, EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four,
 				EKeys::Five, EKeys::Six, EKeys::Seven, EKeys::Eight, EKeys::Nine};
 			for (int32 Digit = 0; Digit < 10; ++Digit)
@@ -171,6 +163,15 @@ namespace ApexSpectate
 			}
 		}
 		return Command;
+	}
+
+	FCommand CommandFor(const FKey& Key)
+	{
+		return CommandFor(Key, [](FName ActionId, int32 Slot)
+		{
+			const ApexInput::FSlotDef* Def = ApexInput::FindSlot(ActionId, Slot);
+			return Def ? Def->DefaultKey : FKey();
+		});
 	}
 
 	int32 StepIndex(int32 Count, int32 Index, int32 Direction)
