@@ -269,6 +269,37 @@ impl RecordStore {
             .cloned()
     }
 
+    /// The fastest laps on a track, best first: each driver's best with
+    /// each car, optionally in one car only, at most `limit` of them. Equal
+    /// times keep the earlier lap first, then the name, so the order is the
+    /// same on every read.
+    pub fn leaderboard(
+        &self,
+        track_id: TrackConfigId,
+        car_config_id: Option<CarConfigId>,
+        limit: usize,
+    ) -> Vec<LapRecord> {
+        let Ok(records) = self.records.read() else {
+            return Vec::new();
+        };
+        let mut board: Vec<LapRecord> = records
+            .values()
+            .filter(|r| {
+                r.track_id == track_id && car_config_id.is_none_or(|c| r.car_config_id == c)
+            })
+            .cloned()
+            .collect();
+        board.sort_by(|a, b| {
+            (a.lap_time_ms, &a.recorded_at, &a.player).cmp(&(
+                b.lap_time_ms,
+                &b.recorded_at,
+                &b.player,
+            ))
+        });
+        board.truncate(limit);
+        board
+    }
+
     /// Offer a completed legal lap. Returns the new record when it beat the
     /// stored one (or when there was none), and nothing otherwise; the
     /// caller tells the driver either way.
@@ -504,6 +535,43 @@ mod tests {
             90_000
         );
         assert!(store.best("Alain", track_a, car_a).is_none());
+    }
+
+    #[test]
+    fn a_leaderboard_lists_the_fastest_laps_best_first() {
+        let store = RecordStore::in_memory();
+        let (track, other_track) = (Uuid::new_v4(), Uuid::new_v4());
+        let (car_a, car_b) = (Uuid::new_v4(), Uuid::new_v4());
+        store.submit("Ayrton", track, car_a, 82_000, [0; 3], None);
+        store.submit("Ayrton", track, car_b, 85_000, [0; 3], None);
+        store.submit("Alain", track, car_a, 81_000, [0; 3], None);
+        store.submit("Nigel", track, car_a, 83_000, [0; 3], None);
+        store.submit("Nigel", other_track, car_a, 60_000, [0; 3], None);
+
+        let all = store.leaderboard(track, None, 10);
+        let names: Vec<(&str, u32)> = all
+            .iter()
+            .map(|r| (r.player.as_str(), r.lap_time_ms))
+            .collect();
+        assert_eq!(
+            names,
+            [
+                ("Alain", 81_000),
+                ("Ayrton", 82_000),
+                ("Nigel", 83_000),
+                ("Ayrton", 85_000)
+            ],
+            "every driver's best in every car, another track left out"
+        );
+        let one_car = store.leaderboard(track, Some(car_a), 10);
+        assert_eq!(one_car.len(), 3);
+        assert!(one_car.iter().all(|r| r.car_config_id == car_a));
+        assert_eq!(
+            store.leaderboard(track, None, 2).len(),
+            2,
+            "at most the limit"
+        );
+        assert!(store.leaderboard(Uuid::new_v4(), None, 10).is_empty());
     }
 
     #[test]

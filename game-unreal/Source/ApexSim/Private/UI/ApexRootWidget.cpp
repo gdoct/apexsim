@@ -40,6 +40,7 @@
 #include "UI/ApexMainMenuWidget.h"
 #include "UI/ApexMenuInputProcessor.h"
 #include "UI/ApexPauseMenuWidget.h"
+#include "UI/ApexLeaderboardWidget.h"
 #include "UI/ApexReplaysWidget.h"
 #include "UI/ApexSessionBrowserWidget.h"
 #include "UI/ApexScreenWidget.h"
@@ -267,6 +268,9 @@ UClass* UApexRootWidget::ResolveScreenClass(EApexScreen Screen)
 	case EApexScreen::Replays:
 		return UApexReplaysWidget::StaticClass();
 
+	case EApexScreen::Leaderboard:
+		return UApexLeaderboardWidget::StaticClass();
+
 	case EApexScreen::SessionBrowser:
 		return UApexSessionBrowserWidget::StaticClass();
 
@@ -294,7 +298,7 @@ void UApexRootWidget::BuildShell()
 	Background = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::Background));
 
 	ScreenHost = WidgetTree->ConstructWidget<UWidgetSwitcher>();
-	for (int32 Index = 0; Index <= static_cast<int32>(EApexScreen::Replays); ++Index)
+	for (int32 Index = 0; Index <= static_cast<int32>(EApexScreen::Leaderboard); ++Index)
 	{
 		const EApexScreen Screen = static_cast<EApexScreen>(Index);
 		UClass* ScreenClass = ResolveScreenClass(Screen);

@@ -632,6 +632,24 @@ void UApexNetSubsystem::HotlapRelocate(EApexHotlapDestination Destination, bool 
 	SendPayload(ApexProtocol::EncodeHotlapRelocate(Destination, bColdTyres));
 }
 
+void UApexNetSubsystem::RequestLeaderboard(const FString& TrackConfigId, const FString& CarConfigId)
+{
+	UE_LOG(LogApexSimNet, Log, TEXT("-> RequestLeaderboard %s %s"), *TrackConfigId, CarConfigId.IsEmpty() ? TEXT("(every car)") : *CarConfigId);
+	SendPayload(ApexProtocol::EncodeRequestLeaderboard(TrackConfigId, CarConfigId));
+}
+
+const TArray<FApexLeaderboardEntry>& UApexNetSubsystem::GetLeaderboard(const FString& TrackConfigId, const FString& CarConfigId) const
+{
+	static const TArray<FApexLeaderboardEntry> None;
+	const TArray<FApexLeaderboardEntry>* Found = LeaderboardByKey.Find((TrackConfigId + TEXT("|") + CarConfigId).ToLower());
+	return Found ? *Found : None;
+}
+
+bool UApexNetSubsystem::HasLeaderboard(const FString& TrackConfigId, const FString& CarConfigId) const
+{
+	return LeaderboardByKey.Contains((TrackConfigId + TEXT("|") + CarConfigId).ToLower());
+}
+
 void UApexNetSubsystem::RequestQualifyingResults(const FString& TrackConfigId)
 {
 	UE_LOG(LogApexSimNet, Log, TEXT("-> RequestQualifyingResults %s"), *TrackConfigId);
@@ -1323,6 +1341,12 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			static_cast<int32>(CurrentWeekendState.Phase), CurrentWeekendState.Round, CurrentWeekendState.Rounds,
 			CurrentWeekendState.bFinished ? 1 : 0, CurrentWeekendState.Advancing, CurrentWeekendState.Eliminated.Num());
 		OnWeekendStateChanged.Broadcast();
+		break;
+
+	case EApexServerMessageType::Leaderboard:
+		LeaderboardByKey.Add((Message.LeaderboardTrackId + TEXT("|") + Message.LeaderboardCarId).ToLower(), Message.Leaderboard);
+		UE_LOG(LogApexSimNet, Log, TEXT("<- Leaderboard %d lap(s) for track %s"), Message.Leaderboard.Num(), *Message.LeaderboardTrackId);
+		OnLeaderboard.Broadcast(Message.LeaderboardTrackId, Message.LeaderboardCarId);
 		break;
 
 	case EApexServerMessageType::QualifyingResults:

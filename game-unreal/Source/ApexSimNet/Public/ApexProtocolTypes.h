@@ -1177,6 +1177,33 @@ struct APEXSIMNET_API FApexQualifyingEntry
 };
 
 /**
+ * One line of a leaderboard (`LeaderboardEntryData`): a driver's best lap in
+ * a car, answering RequestLeaderboard.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexLeaderboardEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Leaderboard")
+	FString PlayerName;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Leaderboard")
+	FString CarConfigId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Leaderboard")
+	int32 LapTimeMs = 0;
+
+	/** Each sector's time, ms. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Leaderboard")
+	TArray<int32> SplitsMs;
+
+	/** RFC 3339. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Leaderboard")
+	FString RecordedAt;
+};
+
+/**
  * A qualifying session's classification as the server stores it
  * (`QualifyingResultData`): the drivers fastest first, answering
  * RequestQualifyingResults for a track.
@@ -2597,6 +2624,8 @@ enum class EApexServerMessageType : uint8
 	RejoinAvailable,
 	/** A slice of the session's road state (`RoadState`). */
 	RoadState,
+	/** A track's fastest laps, on request (`Leaderboard`). */
+	Leaderboard,
 };
 
 /**
@@ -2624,6 +2653,10 @@ struct APEXSIMNET_API FApexServerMessage
 	/** QualifyingResults: the track they are for, and the results newest first. */
 	FString QualifyingTrackId;
 	TArray<FApexQualifyingResult> QualifyingResults;
+	/** Leaderboard: the track and car (empty: every car) it is for, best lap first. */
+	FString LeaderboardTrackId;
+	FString LeaderboardCarId;
+	TArray<FApexLeaderboardEntry> Leaderboard;
 	FApexCarSetupSheet CarSetupSheet;
 	FApexPitService PitService;
 	FApexTelemetryFrame Telemetry;

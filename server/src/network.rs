@@ -123,6 +123,18 @@ pub enum ClientMessage {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         weekend: Option<crate::weekend::WeekendFormat>,
     },
+    /// Asks for a track's fastest laps (`records::RecordStore::leaderboard`):
+    /// each driver's best with each car, or in one car (`car_config_id`).
+    /// Answered with `Leaderboard`.
+    RequestLeaderboard {
+        #[serde(
+            serialize_with = "serialize_uuid_as_string",
+            deserialize_with = "deserialize_uuid_from_string"
+        )]
+        track_config_id: TrackConfigId,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        car_config_id: Option<String>,
+    },
     /// Asks for the qualifying results the server holds for a track, newest
     /// first, to grid a race from. Answered with `QualifyingResults`.
     RequestQualifyingResults {
@@ -635,6 +647,9 @@ pub enum ServerMessage {
     // (`RequestQualifyingResults`).
     QualifyingResults(QualifyingResultsData),
 
+    // TCP - A track's fastest laps, on request (`RequestLeaderboard`).
+    Leaderboard(LeaderboardData),
+
     // TCP - The garage's reference card for the joining driver's car: each
     // setup knob's stock value and click in real units (`setup_sheet.rs`).
     // Sent once, right after `SessionJoined`.
@@ -708,6 +723,7 @@ impl ServerMessage {
             // with no ghost at all.
             ServerMessage::GhostLap(_) => MessagePriority::Critical,
             ServerMessage::QualifyingResults(_) => MessagePriority::Critical,
+            ServerMessage::Leaderboard(_) => MessagePriority::Critical,
             ServerMessage::CarSetupSheet(_) => MessagePriority::Critical,
             ServerMessage::PitService(_) => MessagePriority::Critical,
             ServerMessage::Showcases(_) => MessagePriority::Critical,
@@ -1684,6 +1700,60 @@ impl QualifyingResultsData {
                             is_ai: e.is_ai,
                         })
                         .collect(),
+                })
+                .collect(),
+        }
+    }
+}
+
+/// One line of a leaderboard: a driver's best lap in a car.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct LeaderboardEntryData {
+    pub player_name: String,
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub car_config_id: CarConfigId,
+    pub lap_time_ms: u32,
+    pub splits_ms: Vec<u32>,
+    /// When the lap was set, RFC 3339. Display only.
+    pub recorded_at: String,
+}
+
+/// The reply to `ClientMessage::RequestLeaderboard`: the fastest laps on a
+/// track, best first.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct LeaderboardData {
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub track_id: TrackConfigId,
+    /// The car the board is for, empty for every car.
+    pub car_config_id: String,
+    pub entries: Vec<LeaderboardEntryData>,
+}
+
+impl LeaderboardData {
+    pub fn from_records(
+        track_id: TrackConfigId,
+        car_config_id: Option<CarConfigId>,
+        records: Vec<crate::records::LapRecord>,
+    ) -> Self {
+        Self {
+            track_id,
+            car_config_id: car_config_id.map(|c| c.to_string()).unwrap_or_default(),
+            entries: records
+                .into_iter()
+                .map(|r| LeaderboardEntryData {
+                    player_name: r.player,
+                    car_config_id: r.car_config_id,
+                    lap_time_ms: r.lap_time_ms,
+                    splits_ms: r.splits_ms.to_vec(),
+                    recorded_at: r.recorded_at,
                 })
                 .collect(),
         }
@@ -3815,6 +3885,62 @@ mod tests {
                 ],
             }],
         ));
+        let board_request = ClientMessage::RequestLeaderboard {
+            track_config_id: track,
+            car_config_id: Some("99999999-8888-7777-6666-555555555555".into()),
+        };
+        let board_request_bytes = rmp_serde::to_vec_named(&board_request).unwrap();
+        println!("C_RequestLeaderboard: {}", hex(&board_request_bytes));
+        let all_cars = rmp_serde::to_vec_named(&ClientMessage::RequestLeaderboard {
+            track_config_id: track,
+            car_config_id: None,
+        })
+        .unwrap();
+        // Without a car the field is left off the wire.
+        assert!(!String::from_utf8_lossy(&all_cars).contains("car_config_id"));
+        assert!(matches!(
+            rmp_serde::from_slice::<ClientMessage>(&all_cars).unwrap(),
+            ClientMessage::RequestLeaderboard {
+                car_config_id: None,
+                ..
+            }
+        ));
+        let board = ServerMessage::Leaderboard(LeaderboardData::from_records(
+            track,
+            Some(Uuid::parse_str("99999999-8888-7777-6666-555555555555").unwrap()),
+            vec![
+                crate::records::LapRecord {
+                    player: "Luna Swift".into(),
+                    track_id: track,
+                    car_config_id: Uuid::parse_str("99999999-8888-7777-6666-555555555555").unwrap(),
+                    lap_time_ms: 91_234,
+                    splits_ms: [30_100, 31_000, 30_134],
+                    recorded_at: "2026-10-06T12:00:00Z".into(),
+                    ghost_file: None,
+                },
+                crate::records::LapRecord {
+                    player: "Guido".into(),
+                    track_id: track,
+                    car_config_id: Uuid::parse_str("99999999-8888-7777-6666-555555555555").unwrap(),
+                    lap_time_ms: 91_876,
+                    splits_ms: [30_400, 31_300, 30_176],
+                    recorded_at: "2026-10-07T09:30:00Z".into(),
+                    ghost_file: None,
+                },
+            ],
+        ));
+        let board_bytes = rmp_serde::to_vec_named(&board).unwrap();
+        println!("S_Leaderboard: {}", hex(&board_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&board_bytes).unwrap() {
+            ServerMessage::Leaderboard(data) => {
+                assert_eq!(data.entries.len(), 2);
+                assert_eq!(data.entries[1].player_name, "Guido");
+                assert_eq!(data.entries[0].splits_ms, vec![30_100, 31_000, 30_134]);
+                assert_eq!(data.car_config_id, "99999999-8888-7777-6666-555555555555");
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+
         let results_bytes = rmp_serde::to_vec_named(&results).unwrap();
         println!("S_QualifyingResults: {}", hex(&results_bytes));
         match rmp_serde::from_slice::<ServerMessage>(&results_bytes).unwrap() {

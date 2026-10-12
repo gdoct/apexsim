@@ -482,6 +482,15 @@ the driver's **name**. The AI never sets one. The driver gets `LapRecord`
 it. A corrupt file is logged and treated as empty; writes run on a blocking
 task from the broadcast phase, never under the state lock.
 
+**Leaderboards**: `RequestLeaderboard { track_config_id, car_config_id? }` is
+answered with `Leaderboard`: the fastest laps on the track, best first (at most
+100), every driver's best in every car or in the one car asked for
+(`RecordStore::leaderboard`; equal times keep the earlier lap first). Each line
+carries the driver, the car, the time, the three splits and the date. The
+client's Leaderboards screen (Garage > Tracks, `UApexLeaderboardWidget`) steps
+through the circuits and filters to the garage's car; the driver's own laps are
+lit. Nothing is shared between servers.
+
 **Ghost traces**: each human's lap is sampled at `records::GHOST_SAMPLE_HZ`
 (20 Hz); a new personal best stores its trace under `ghosts/`, replacing the
 record's previous one.

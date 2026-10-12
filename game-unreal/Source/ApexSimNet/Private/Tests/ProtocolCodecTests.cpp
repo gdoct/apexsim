@@ -230,6 +230,9 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
 			{ TEXT("@ai:2"), TEXT("@host"), TEXT("Luna Swift") }),
 		ApexGolden::C_CreateSessionGrid);
+	CheckBytes(TEXT("RequestLeaderboard"),
+		ApexProtocol::EncodeRequestLeaderboard(TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), TEXT("99999999-8888-7777-6666-555555555555")),
+		ApexGolden::C_RequestLeaderboard);
 	CheckBytes(TEXT("RequestQualifyingResults"),
 		ApexProtocol::EncodeRequestQualifyingResults(TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")),
 		ApexGolden::C_RequestQualifyingResults);
@@ -1131,6 +1134,38 @@ bool FApexTimingBoardTest::RunTest(const FString& Parameters)
 // -----------------------------------------------------------------------------
 // Stored qualifying results, asked for per track.
 // -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexProtocolLeaderboardTest,
+	"ApexSim.Net.Protocol.Leaderboard",
+	ApexTestFlags)
+
+bool FApexProtocolLeaderboardTest::RunTest(const FString& Parameters)
+{
+	FApexServerMessage Message;
+	FString Error;
+	if (!TestTrue(FString::Printf(TEXT("Leaderboard decodes (%s)"), *Error),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_Leaderboard, Message, Error)))
+	{
+		return false;
+	}
+	TestEqual(TEXT("type"), Message.Type, EApexServerMessageType::Leaderboard);
+	TestEqual(TEXT("track"), Message.LeaderboardTrackId, FString(TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")));
+	TestEqual(TEXT("car"), Message.LeaderboardCarId, FString(TEXT("99999999-8888-7777-6666-555555555555")));
+	if (!TestEqual(TEXT("two laps"), Message.Leaderboard.Num(), 2))
+	{
+		return false;
+	}
+	TestEqual(TEXT("first driver"), Message.Leaderboard[0].PlayerName, FString(TEXT("Luna Swift")));
+	TestEqual(TEXT("first lap"), Message.Leaderboard[0].LapTimeMs, 91234);
+	TestTrue(TEXT("splits"), Message.Leaderboard[0].SplitsMs == TArray<int32>({30100, 31000, 30134}));
+	TestEqual(TEXT("second driver"), Message.Leaderboard[1].PlayerName, FString(TEXT("Guido")));
+	TestEqual(TEXT("when"), Message.Leaderboard[1].RecordedAt, FString(TEXT("2026-10-07T09:30:00Z")));
+	// A request for every car leaves the car off the wire.
+	const TArray<uint8> All = ApexProtocol::EncodeRequestLeaderboard(TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), FString());
+	TestTrue(TEXT("every car has no car field"), All.Num() > 0 && All.Num() < UE_ARRAY_COUNT(ApexGolden::C_RequestLeaderboard));
+	return true;
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FApexProtocolQualifyingResultsTest,

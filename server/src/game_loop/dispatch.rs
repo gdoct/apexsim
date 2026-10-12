@@ -118,6 +118,12 @@ pub(crate) async fn handle_message(
             )
             .await;
         }
+        ClientMessage::RequestLeaderboard {
+            track_config_id,
+            car_config_id,
+        } => {
+            handle_request_leaderboard(ctx, connection_id, track_config_id, car_config_id).await;
+        }
         ClientMessage::RequestQualifyingResults { track_config_id } => {
             handle_request_qualifying(ctx, connection_id, track_config_id).await;
         }
@@ -1671,6 +1677,34 @@ async fn handle_request_ghost(ctx: &GameLoopCtx, connection_id: ConnectionId) {
 
 /// The qualifying results stored for a track, newest first, read off the
 /// loop.
+/// How many laps a leaderboard lists.
+const LEADERBOARD_LIMIT: usize = 100;
+
+async fn handle_request_leaderboard(
+    ctx: &GameLoopCtx,
+    connection_id: ConnectionId,
+    track_id: TrackConfigId,
+    car: Option<String>,
+) {
+    if ctx.connection(connection_id).await.is_none() {
+        return;
+    }
+    // An empty or unreadable car id is every car.
+    let car_id = car
+        .as_deref()
+        .filter(|c| !c.is_empty())
+        .and_then(|c| CarConfigId::parse_str(c).ok());
+    let store = ctx.state.read().await.records.clone();
+    let records =
+        tokio::task::spawn_blocking(move || store.leaderboard(track_id, car_id, LEADERBOARD_LIMIT))
+            .await
+            .unwrap_or_default();
+    let data = crate::network::LeaderboardData::from_records(track_id, car_id, records);
+    let _ = ctx
+        .send(connection_id, ServerMessage::Leaderboard(data))
+        .await;
+}
+
 async fn handle_request_qualifying(
     ctx: &GameLoopCtx,
     connection_id: ConnectionId,

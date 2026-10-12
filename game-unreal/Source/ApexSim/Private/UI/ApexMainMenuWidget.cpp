@@ -45,6 +45,7 @@ namespace
 		const FName Watch(TEXT("Watch"));
 		const FName WatchHotlap(TEXT("WatchHotlap"));
 		const FName Replays(TEXT("Replays"));
+		const FName Leaderboard(TEXT("Leaderboard"));
 		const FName Create(TEXT("Create"));
 		const FName Garage(TEXT("Garage"));
 		const FName Tracks(TEXT("Tracks"));
@@ -474,6 +475,7 @@ UVerticalBox* UApexMainMenuWidget::BuildPage(EPage Page)
 	case EPage::Tracks:
 		Heading(TEXT("Garage / Tracks"));
 		Row(TEXT("Watch hotlap"), Action::WatchHotlap);
+		Row(TEXT("Track leaderboards"), Action::Leaderboard);
 		Row(TEXT("See track guide"), Action::Tracks);
 		break;
 
@@ -1365,6 +1367,10 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (Id == Action::Replays)
 	{
 		ShowScreen(EApexScreen::Replays);
+	}
+	else if (Id == Action::Leaderboard)
+	{
+		ShowScreen(EApexScreen::Leaderboard);
 	}
 	else if (Id == Action::Watch)
 	{

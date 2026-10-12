@@ -86,7 +86,6 @@ stream v2 controls.
 |---|---|---|
 | Hotlap polish | feature | The ghost is opaque and tinted (`AApexGhostCarActor` tints its own instances); the replay's trackside shots are placed geometrically (`CutReplayShot`), not from the TV director's cameras; a multiplayer hotlap has no leaderboard across drivers (the garage scoreboard is shown in qualifying only). |
 | Hotlap watch | feature | The first timed lap is from a standing start 300 m before the line, so it is the slowest. The driver's ladder level (after a crash or a struck lap) is not remembered between watches (a per-track, per-car, per-sky cache would skip the bad laps). Stock setup, tyre and sky only (weather and hour; no wind, air temperature or rubber picks, no saved setup), no pause, seek or speed, no ghost and no replay. The `hotlap_watch` HUD scene is not in the HUD editor, and a corner's number is the detector's, not the circuit's official turn number (the dossier does not hold one). |
-| Leaderboards | feature | The server keeps every driver's best lap per track and car (`records/lap_records.json`), but a driver is only told their own and the track record (`LapRecord`); no screen lists a track's times, and nothing is shared between servers (see Hosting). |
 
 ### Wet weather on screen
 

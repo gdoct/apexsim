@@ -710,6 +710,75 @@ namespace
 		return true;
 	}
 
+	/** `LeaderboardEntryData` (network.rs) — PascalCase keys. */
+	bool ParseLeaderboardEntry(FMsgPackReader& Reader, FApexLeaderboardEntry& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("PlayerName"))       { bOk = Reader.ReadString(Out.PlayerName); }
+			else if (Key == TEXT("CarConfigId")) { bOk = Reader.ReadString(Out.CarConfigId); }
+			else if (Key == TEXT("LapTimeMs"))   { bOk = Reader.ReadUInt64(Raw); Out.LapTimeMs = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)); }
+			else if (Key == TEXT("RecordedAt"))  { bOk = Reader.ReadString(Out.RecordedAt); }
+			else if (Key == TEXT("SplitsMs"))
+			{
+				int32 Count = 0;
+				bOk = Reader.ReadArrayHeader(Count);
+				Out.SplitsMs.Reset(Count);
+				for (int32 p = 0; p < Count && bOk; ++p)
+				{
+					bOk = Reader.ReadUInt64(Raw);
+					Out.SplitsMs.Add(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)));
+				}
+			}
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `LeaderboardData` (network.rs) — PascalCase keys. */
+	bool ParseLeaderboard(FMsgPackReader& Reader, FApexServerMessage& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("TrackId"))          { bOk = Reader.ReadString(Out.LeaderboardTrackId); }
+			else if (Key == TEXT("CarConfigId")) { bOk = Reader.ReadString(Out.LeaderboardCarId); }
+			else if (Key == TEXT("Entries"))     { bOk = ParseArrayOf(Reader, Out.Leaderboard, &ParseLeaderboardEntry); }
+			else                                 { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/** `QualifyingResultsData` (network.rs) — PascalCase keys. */
 	bool ParseQualifyingResults(FMsgPackReader& Reader, FApexServerMessage& Out)
 	{
@@ -2336,6 +2405,7 @@ namespace
 		if (Variant == TEXT("WeekendState"))       { return EApexServerMessageType::WeekendState; }
 		if (Variant == TEXT("RejoinAvailable"))    { return EApexServerMessageType::RejoinAvailable; }
 		if (Variant == TEXT("RoadState"))          { return EApexServerMessageType::RoadState; }
+		if (Variant == TEXT("Leaderboard"))        { return EApexServerMessageType::Leaderboard; }
 
 		// The named-encoding `Telemetry` is only used for server-side replays;
 		// the wire carries TelemetryCompact.
@@ -2392,6 +2462,8 @@ namespace
 
 		case EApexServerMessageType::QualifyingResults:
 			return ParseQualifyingResults(Reader, Out);
+		case EApexServerMessageType::Leaderboard:
+			return ParseLeaderboard(Reader, Out);
 		case EApexServerMessageType::WeekendState:
 			return ParseWeekendState(Reader, Out.WeekendState);
 		case EApexServerMessageType::CarSetupSheet:
@@ -2639,6 +2711,21 @@ namespace ApexProtocol
 			{
 				Writer.WriteUInt(static_cast<uint32>(RoundSeconds));
 			}
+		}
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeRequestLeaderboard(const FString& TrackConfigId, const FString& CarConfigId)
+	{
+		FMsgPackWriter Writer(160);
+		// The car is left off the wire for every car, as the server's message does.
+		BeginDataVariant(Writer, "RequestLeaderboard", CarConfigId.IsEmpty() ? 1 : 2);
+		Writer.WriteString("track_config_id");
+		Writer.WriteString(TrackConfigId);
+		if (!CarConfigId.IsEmpty())
+		{
+			Writer.WriteString("car_config_id");
+			Writer.WriteString(CarConfigId);
 		}
 		return MoveTemp(Writer.GetBuffer());
 	}

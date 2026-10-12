@@ -30,6 +30,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnLapTiming, const FApexLapTimi
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnLapRecord, const FApexLapRecord&, Record);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnGhostLap, const FApexGhostLap&, Lap);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnQualifyingResults, const FString&, TrackId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FApexOnLeaderboard, const FString&, TrackId, const FString&, CarId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnCarSetupSheet, const FApexCarSetupSheet&, Sheet);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnUdpReady);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionStateChanged, EApexSessionState, NewState);
@@ -475,6 +476,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void RequestGhost();
 
+	/**
+	 * Ask for a track's fastest laps, every car or one (an id); OnLeaderboard
+	 * answers and GetLeaderboard reads them.
+	 */
+	void RequestLeaderboard(const FString& TrackConfigId, const FString& CarConfigId = FString());
+	/** The last Leaderboard answer for a track and car (empty id: every car); empty until it came. */
+	const TArray<FApexLeaderboardEntry>& GetLeaderboard(const FString& TrackConfigId, const FString& CarConfigId = FString()) const;
+	/** The server has answered RequestLeaderboard for this track and car. */
+	bool HasLeaderboard(const FString& TrackConfigId, const FString& CarConfigId = FString()) const;
+	/** The server answers RequestLeaderboard (it predates the message when it never does). */
+	FApexOnLeaderboard OnLeaderboard;
+
 	/** Ask for the qualifying results stored for a track; OnQualifyingResults answers. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void RequestQualifyingResults(const FString& TrackConfigId);
@@ -750,6 +763,8 @@ private:
 
 	/** Stored qualifying results per track id, as the server last listed them. */
 	TMap<FString, TArray<FApexQualifyingResult>> QualifyingByTrack;
+	/** Leaderboards by "track|car", lower case. */
+	TMap<FString, TArray<FApexLeaderboardEntry>> LeaderboardByKey;
 	FApexCarSetupSheet CachedSetupSheet;
 	TMap<int32, FApexPitService> PitServices;
 

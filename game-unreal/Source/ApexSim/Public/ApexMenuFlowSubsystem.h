@@ -28,6 +28,8 @@ enum class EApexScreen : uint8
 	SessionResults = 8,
 	/** Saved and recent replays (UApexReplaysWidget). */
 	Replays        = 9,
+	/** A circuit's fastest laps on the server (UApexLeaderboardWidget). */
+	Leaderboard    = 10,
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPendingCarChanged, const FString&, CarId);
