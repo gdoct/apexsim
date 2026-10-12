@@ -1057,8 +1057,8 @@ pub fn parse_weather(text: &str) -> Result<Weather, String> {
 // --- Spectator streams (`.apxs`) ----------------------------------------------------
 
 use crate::spectator::{
-    BroadcastEncoder, EventKind, RaceScore, ScoreKeeper, StreamContent, StreamEvent, StreamFile,
-    StreamHeader, StreamPath, StreamRender, StreamRoster, StreamRosterEntry, StreamTrack,
+    EventKind, RaceScore, ScoreKeeper, StreamContent, StreamEvent, StreamFile, StreamHeader,
+    StreamPath, StreamRender, StreamRoster, StreamRosterEntry, StreamTrack,
 };
 
 /// A showcase race to render (`apexsim-replay render`).
@@ -1122,18 +1122,15 @@ pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
     } = start_race(race_opts)?;
     let stem = track_stem(&race_opts.track_path).unwrap_or_default();
 
-    let mut encoder = BroadcastEncoder::new(0);
-    let mut header = encoder.header(&race, &stem);
-    let roster = encoder.roster(&race);
-    let path = encoder.path(&race);
-    let sectors = encoder.sectors(&race);
-    // The state the stream opens in is not an event.
-    encoder.observe(&race, &[]);
+    let names = HashMap::new();
+    let mut stream = crate::session_stream::SessionStream::new(&race, race_opts.record_hz, &names);
+    let mut header = stream.header(&race, &stem);
+    let roster = stream.roster().clone();
+    let path = stream.path(&race);
+    let sectors = stream.encoder.sectors(&race);
 
     let tick_rate = race_opts.tick_rate.max(1);
-    let record_every = frame_spacing(tick_rate, race_opts.record_hz);
-    let frame_dt = record_every as f32 / tick_rate as f32;
-    let state_every = ((crate::spectator::STATE_EVERY_S * tick_rate as f32).round() as u32).max(1);
+    let frame_dt = stream.record_every() as f32 / tick_rate as f32;
     let max_ticks = (race_opts.max_seconds.max(1.0) * tick_rate as f32) as u32
         + race_opts.countdown_seconds as u32 * tick_rate as u32;
     let tail_ticks = (opts.tail_seconds.max(0.0) * tick_rate as f32) as u32;
@@ -1141,7 +1138,6 @@ pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
     let mut records: Vec<(u32, Vec<u8>)> = Vec::new();
     let mut keeper = ScoreKeeper::default();
     let mut won_at: Option<u32> = None;
-    let mut road_burst_done = false;
     loop {
         let inputs: HashMap<PlayerId, PlayerInputData> = race
             .session
@@ -1152,68 +1148,18 @@ pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
         race.tick(&inputs);
         let tick = race.session.current_tick;
         let laps = race.take_lap_events();
-        for event in encoder.observe(&race, &laps) {
-            records.push((tick, event.encode()));
-        }
         let pit_starts = race.take_pit_events();
-        for event in encoder.pit_services(&race, &pit_starts) {
-            records.push((tick, event.encode()));
-        }
-        // The slow state: the sky, a timed race's clock, every car's tyres
-        // and tank, a few times a second.
-        if tick.is_multiple_of(state_every) {
-            records.push((tick, encoder.state(&race).encode()));
-        }
-        if tick.is_multiple_of(record_every) {
-            let rows = BroadcastEncoder::rows(&race);
+        let out = stream.tick(&race, &laps, &pit_starts, &names, false);
+        if let Some(rows) = &out.rows {
             keeper.frame(
-                &rows,
+                rows,
                 race.session.state == SessionState::Racing,
                 frame_dt,
                 track_length_m,
             );
-            for body in encoder.frame_of(&race, &rows) {
-                records.push((tick, body));
-            }
         }
-        // The road, round-robin over the lap: the next slice every couple of
-        // seconds, so a rendered stream carries the track rubbering in and
-        // drying just as a live client sees it.
-        let road_every =
-            ((crate::road_state::ROAD_SEND_SECONDS * tick_rate as f32).round() as u32).max(1);
-        // The whole lap once, with the first frame: a viewer opens on the
-        // road as the host set it, not on a lap filling in.
-        if !road_burst_done && tick.is_multiple_of(record_every) {
-            road_burst_done = true;
-            let n = race
-                .track_config
-                .road_state
-                .as_ref()
-                .map_or(0, |r| r.cell_count());
-            let mut first = 0;
-            while first < n {
-                let count = crate::road_state::ROAD_CELLS_PER_JOIN.min(n - first);
-                if let Some(road) = encoder.road(&race, first, count) {
-                    records.push((tick, road.encode()));
-                }
-                first += count;
-            }
-        } else if tick.is_multiple_of(road_every) {
-            if let Some(n) = race
-                .track_config
-                .road_state
-                .as_ref()
-                .map(|r| r.cell_count())
-                .filter(|n| *n > 0)
-            {
-                let first =
-                    ((tick / road_every) as usize * crate::road_state::ROAD_CELLS_PER_SEND) % n;
-                if let Some(road) =
-                    encoder.road(&race, first, crate::road_state::ROAD_CELLS_PER_SEND)
-                {
-                    records.push((tick, road.encode()));
-                }
-            }
+        for record in out.records {
+            records.push((record.tick, record.body));
         }
         if won_at.is_none()
             && (race.session.state == SessionState::Finished
@@ -1240,7 +1186,6 @@ pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
     };
     header.start_tick = first.0;
     header.end_tick = last.0;
-    header.frame_rate = frames_per_second(tick_rate, record_every);
     header.race_start_tick = race.session.race_start_tick;
     // What is being watched, not the countdown the stream opens in.
     header.game_mode = race.session.game_mode;

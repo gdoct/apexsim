@@ -138,8 +138,8 @@ AApexRaceDirector* UApexDemoModeSubsystem::GetDirector() const
 
 bool UApexDemoModeSubsystem::IsDemoAllowed(const UApexNetSubsystem& Net) const
 {
-	// A replay the player asked for plays with the backdrop turned off too.
-	if (IsDemoDisabled() && Source != EApexBackdropSource::Replay)
+	// A replay or a session the player asked for plays with the backdrop turned off too.
+	if (IsDemoDisabled() && !IsPlayerChoice())
 	{
 		return false;
 	}
@@ -155,7 +155,7 @@ bool UApexDemoModeSubsystem::IsDemoExpected() const
 {
 	// A replay the player picked plays with the backdrop switched off too
 	// (WantsBackdrop says the same).
-	if (IsDemoDisabled() && Source != EApexBackdropSource::Replay)
+	if (IsDemoDisabled() && !IsPlayerChoice())
 	{
 		return false;
 	}
@@ -687,6 +687,69 @@ bool UApexDemoModeSubsystem::PlayReplay(const FString& Path, FString& OutError)
 	return true;
 }
 
+bool UApexDemoModeSubsystem::WatchLive(const FString& SessionId, FString& OutError)
+{
+	UApexNetSubsystem* Net = GetNet();
+	UApexSpectatorSubsystem* Spectator = GetSpectator();
+	if (!Net || !Spectator)
+	{
+		OutError = TEXT("the game is not ready");
+		return false;
+	}
+	const AApexRaceDirector* Director = GetDirector();
+	if (!Director || Net->IsInSession() || Net->IsSessionRequestPending()
+		|| (Director->IsRaceViewActive() && !Director->IsDemoViewActive()))
+	{
+		OutError = TEXT("leave the session first");
+		return false;
+	}
+	FApexSessionSummary Session;
+	if (!Net->FindSessionById(SessionId, Session))
+	{
+		OutError = TEXT("the session is gone");
+		return false;
+	}
+	const FString Stem = FPaths::GetBaseFilename(Session.TrackFile);
+	const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
+	if (!Content || !Content->HasTrack(Stem))
+	{
+		OutError = FString::Printf(TEXT("%s is not installed on this machine"), *Session.TrackName);
+		return false;
+	}
+	Teardown(*Net);
+	TrackId = Session.TrackId;
+	TrackStem = Stem;
+	Centerline.Reset();
+	FApexTrackConfigSummary Track;
+	if (Net->FindTrackById(TrackId, Track))
+	{
+		Centerline = Track.Centerline;
+	}
+	if (!Spectator->WatchLive(SessionId))
+	{
+		OutError = TEXT("not connected to the server");
+		return false;
+	}
+	Source = EApexBackdropSource::Live;
+	Cooldown = 0.0f;
+	Failures = 0;
+	UE_LOG(LogApexSim, Log, TEXT("Demo mode: watching the session %s as a stream"), *SessionId);
+	return true;
+}
+
+void UApexDemoModeSubsystem::StopLive()
+{
+	if (Source != EApexBackdropSource::Live)
+	{
+		return;
+	}
+	if (UApexNetSubsystem* Net = GetNet())
+	{
+		Teardown(*Net);
+	}
+	Cooldown = 0.5f;
+}
+
 void UApexDemoModeSubsystem::StopReplay()
 {
 	if (Source != EApexBackdropSource::Replay)
@@ -775,7 +838,7 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 	{
 		return true;
 	}
-	if (Source == EApexBackdropSource::Replay)
+	if (IsPlayerChoice())
 	{
 		// The player's own choice: it runs until they leave it, and the
 		// backdrop's reasons to move on do not apply.

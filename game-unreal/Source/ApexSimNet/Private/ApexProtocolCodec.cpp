@@ -402,6 +402,10 @@ namespace
 			{
 				bOk = Reader.ReadBool(Out.bShowcaseAvailable);
 			}
+			else if (Key == TEXT("LiveStream"))
+			{
+				bOk = Reader.ReadBool(Out.bLiveStream);
+			}
 			else
 			{
 				bOk = Reader.SkipValue();
@@ -2752,6 +2756,15 @@ namespace ApexProtocol
 	TArray<uint8> EncodeRequestGhost() { return EncodeUnitVariant("RequestGhost"); }
 	TArray<uint8> EncodeListShowcases() { return EncodeUnitVariant("ListShowcases"); }
 	TArray<uint8> EncodeLeaveSpectate() { return EncodeUnitVariant("LeaveSpectate"); }
+
+	TArray<uint8> EncodeSpectateSession(const FString& SessionId)
+	{
+		FMsgPackWriter Writer(96);
+		BeginDataVariant(Writer, "SpectateSession", 1);
+		Writer.WriteString("session_id");
+		Writer.WriteString(SessionId);
+		return MoveTemp(Writer.GetBuffer());
+	}
 
 	TArray<uint8> EncodeSpectateShowcase(const FString& Id)
 	{

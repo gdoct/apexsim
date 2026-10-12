@@ -615,8 +615,7 @@ fn read_history(
         .flatten()
         .filter(|e| {
             let n = e.file_name();
-            let n = n.to_string_lossy();
-            n.starts_with("replay_") && n.ends_with(".bin")
+            crate::stream_recorder::is_listed_file(&n.to_string_lossy())
         })
         .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
         .collect();
@@ -625,10 +624,9 @@ fn read_history(
 
     let mut out = Vec::new();
     for (_, path) in files {
-        let Ok(header) = crate::replay::read_replay_header(&path) else {
+        let Some(m) = crate::stream_recorder::read_listing(&path) else {
             continue;
         };
-        let m = header.metadata;
         let mut results: Vec<_> = m.participants.iter().collect();
         results.sort_by_key(|p| p.finish_position.unwrap_or(u8::MAX));
         let winner = results

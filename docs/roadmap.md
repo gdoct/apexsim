@@ -78,9 +78,6 @@ showcase files need re-recording.
 |---|---|---|
 | Stream format | feature | No delta or keyframe encoding of frames. `SessionKind::Demo` is kept only for old servers and can go once showcases are everywhere. The promo pipeline records no audio. |
 | Streams and replays carry too little | feature | A stream's rows and `State` records leave out the ghost and the driver feedback, so a replay has no tyre or kerb sound (slip, slide and contact surface are in no stream). |
-| Server replays are not `.apxs` | feature | The server's own replays (`replay.rs`) are their own format; `GameMode::Replay`'s `tick_replay` is empty. |
-| Road state in clips | feature | A replay clip played through `FApexReplayClip` (`-ApexReplay=`, the track guide) draws no road state. |
-| Live spectating as a stream | feature | A live session is watched through racer telemetry (`SpectatorKind::Live` is reserved): a mid-race joiner gets no earlier lap timing and undercounts pit stops and tyre age. |
 | Replay and watch controls | feature | The timing tower is not clickable; the watch keys are not rebindable; the pad has no replay speed; there is no scrub bar. Keep and Delete in the Replays screen are keys only (K / Del, pad X / Y): no mouse, and the hint bar names only the keyboard keys. |
 
 ### Hotlap and lap records

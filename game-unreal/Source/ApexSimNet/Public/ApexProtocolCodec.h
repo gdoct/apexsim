@@ -76,6 +76,8 @@ namespace ApexProtocol
 	/** Watch a showcase channel (empty: the server's first); answered with SpectatorJoined and the stream. */
 	APEXSIMNET_API TArray<uint8> EncodeSpectateShowcase(const FString& Id);
 	APEXSIMNET_API TArray<uint8> EncodeLeaveSpectate();
+	/** Watch a live session as a spectator stream; answered with SpectatorJoined (Live) and the stream. */
+	APEXSIMNET_API TArray<uint8> EncodeSpectateSession(const FString& SessionId);
 
 	// --- Client -> server over UDP -------------------------------------------
 	// Sent as datagrams: no length prefix, unlike the TCP stream. The server

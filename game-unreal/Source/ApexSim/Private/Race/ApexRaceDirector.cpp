@@ -1753,7 +1753,7 @@ ApexSky::FSkyState AApexRaceDirector::DeriveSky(FApexSkyNow& OutLit) const
 	const ApexSky::FSkySite Site = CurrentSkySite();
 	// A replay clip carries its sky once, in its header; the live sky is the
 	// net's newest frame, which a showcase or a replay never fills.
-	OutLit = !bReplayView && Net ? Net->GetLatestSky() : FApexSkyNow();
+	OutLit = bReplayView ? ReplaySkyNow : Net ? Net->GetLatestSky() : FApexSkyNow();
 	return OutLit.bValid ? ApexSky::DeriveLive(Conditions, OutLit, Site) : ApexSky::Derive(Conditions, Site);
 }
 
@@ -2225,11 +2225,12 @@ void AApexRaceDirector::ApplyRoadWetness()
 void AApexRaceDirector::UpdateLiveSky(float DeltaSeconds)
 {
 	const UApexNetSubsystem* Net = GetNet();
-	if (bReplayView || !Net)
+	if (!bReplayView && !Net)
 	{
 		return;
 	}
-	const FApexSkyNow& Now = Net->GetLatestSky();
+	// A clip's sky is its stream's, a race's the net's newest frame.
+	const FApexSkyNow& Now = bReplayView ? ReplaySkyNow : Net->GetLatestSky();
 
 	// The rain drifts with the gusts, every frame; it is one vector.
 	if (Rain && Now.bValid)
@@ -2383,7 +2384,7 @@ void AApexRaceDirector::UpdateFlags(float DeltaSeconds, bool bForce)
 	// The wind as the frame has it; without one (an older server, a replay)
 	// the flags stay as the track was built.
 	const UApexNetSubsystem* Net = GetNet();
-	const FApexSkyNow Now = !bReplayView && Net ? Net->GetLatestSky() : FApexSkyNow();
+	const FApexSkyNow Now = bReplayView ? ReplaySkyNow : Net ? Net->GetLatestSky() : FApexSkyNow();
 	if (!Now.bValid || Now.WindKph < 3)
 	{
 		return;
@@ -3995,6 +3996,13 @@ void AApexRaceDirector::BeginReplayView(TSharedPtr<const FApexReplayClip> Clip, 
 	bReplayPlaying = false;
 	bGuideClock = false;
 	ReplayTime = 0.0;
+	// The clip's own sky and road: nothing of a race before it.
+	ReplaySkyNow = Clip->SkyAt(0.0);
+	ReplayRoadCursor = 0;
+	ReplayRoadTick = -1;
+	RoadMap.Reset();
+	// A stream's slices carry no session id.
+	RoadSource.Reset();
 
 	bRaceViewActive = true;
 	bHasTvPose = false;
@@ -4218,6 +4226,10 @@ void AApexRaceDirector::EndReplayView()
 	RestoreMenuEnvironment();
 	DemoTrackStem.Reset();
 	ReplayClip.Reset();
+	ReplaySkyNow = FApexSkyNow();
+	ReplayRoadCursor = 0;
+	ReplayRoadTick = -1;
+	RoadMap.Reset();
 	if (bReplayOwnsChaseLevel)
 	{
 		// The rung was the clip's, not the player's.
@@ -4267,6 +4279,30 @@ void AApexRaceDirector::PlayReplay(double FromSeconds)
 	UE_LOG(LogApexSim, Log, TEXT("Replay rolling from %.2f s, following car %d"), ReplayTime, ReplayFollowIndex);
 }
 
+void AApexRaceDirector::UpdateReplayWorld()
+{
+	if (!ReplayClip)
+	{
+		return;
+	}
+	ReplaySkyNow = ReplayClip->SkyAt(ReplayTime);
+	const int64 Tick = ReplayClip->TickAt(ReplayTime);
+	const TArray<FApexStreamRoad>& Roads = ReplayClip->GetRoads();
+	if (Tick < ReplayRoadTick)
+	{
+		// The clock jumped back (the guide, a restart): the road as it was
+		// is laid again from the start.
+		RoadMap.Reset();
+		ReplayRoadCursor = 0;
+	}
+	ReplayRoadTick = Tick;
+	while (ReplayRoadCursor < Roads.Num() && Roads[ReplayRoadCursor].Tick <= Tick)
+	{
+		HandleRoadState(Roads[ReplayRoadCursor].Road);
+		++ReplayRoadCursor;
+	}
+}
+
 int32 AApexRaceDirector::ResolveReplayFollow() const
 {
 	if (!ReplayClip)
@@ -4311,6 +4347,7 @@ void AApexRaceDirector::UpdateReplay(float DeltaSeconds)
 		FApexTelemetryFrame Frame;
 		ReplayClip->SampleAt(ReplayTime, Frame);
 		ApplyReplayFrame(Frame, bCut || !bMoved ? 0.0f : DeltaSeconds);
+		UpdateReplayWorld();
 		if (bCut)
 		{
 			SnapCameras();
@@ -4338,6 +4375,7 @@ void AApexRaceDirector::UpdateReplay(float DeltaSeconds)
 	FApexTelemetryFrame Frame;
 	ReplayClip->SampleAt(ReplayTime, Frame);
 	ApplyReplayFrame(Frame, bReplayPlaying ? DeltaSeconds : 0.0f);
+	UpdateReplayWorld();
 
 	if (ReplayCamera.Follow == ApexReplayCam::EFollow::Nearest)
 	{

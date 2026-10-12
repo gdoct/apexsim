@@ -224,6 +224,19 @@ void UApexNetSubsystem::SpectateShowcase(const FString& Id)
 	SendPayload(ApexProtocol::EncodeSpectateShowcase(Id));
 }
 
+void UApexNetSubsystem::SpectateSession(const FString& SessionId)
+{
+	if (!IsAuthenticated() || (!CurrentSessionId.IsEmpty() && !bInDemoSession))
+	{
+		return;
+	}
+	LeaveDemoSession();
+	UE_LOG(LogApexSimNet, Log, TEXT("-> SpectateSession %s"), *SessionId);
+	bSpectateRequested = true;
+	bSpectating = false;
+	SendPayload(ApexProtocol::EncodeSpectateSession(SessionId));
+}
+
 void UApexNetSubsystem::LeaveSpectate()
 {
 	if (!bSpectating && !bSpectateRequested)

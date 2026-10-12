@@ -13,10 +13,13 @@ telemetry, not the stream.
 ## Code
 
 - `server/src/spectator.rs`: records, the car row, the file (blocks, index),
-  `BroadcastEncoder` (session state to records), `patch_epoch`, `RaceScore`.
+  `BroadcastEncoder` (session state to records), `patch_epoch`, `RaceScore`;
+  `server/src/session_stream.rs` (`SessionStream`: a session, tick by tick, as
+  the records the format promises) and `server/src/stream_recorder.rs` (the
+  server's replay files).
 - `server/src/replay_tools.rs` and `server/src/bin/apexsim_replay.rs`: the
   `apexsim-replay` tool (`simulate`, `info`, `find`, `pose`, `cut`, `render`,
-  `convert`, `guide`); `server/src/replay.rs`: the older `.bin` replay format.
+  `convert`, `guide`); `server/src/replay.rs`: the `.bin` replay format of the offline tools.
 - `server/src/showcase.rs` (`ShowcaseState`, channels),
   `server/src/game_loop/showcase.rs` (messages), `server/src/health.rs`
   (`/showcase`).
@@ -194,13 +197,28 @@ loop. At the end the channel takes a new epoch and resends the `Header`
 |---|---|
 | C to S | `ListShowcases` -> `Showcases` (per channel: id, track, class, conditions, duration, cars, viewers) |
 | C to S | `SpectateShowcase { id }` (none: the first channel) -> `SpectatorJoined` then a `SpectatorRecord`; `Error 404` for an unknown id, `400` from inside a session |
-| C to S | `LeaveSpectate`; also implied by `CreateSession`, `JoinSession`, `JoinAsSpectator` and a disconnect |
-| S to C | `LobbyState.ShowcaseAvailable` tells a client to ask |
+| C to S | `SpectateSession { session_id }` -> `SpectatorJoined` (`kind` Live) then a `SpectatorRecord` holding the catch-up, then the session's records as it ticks; `Error 404` for an unknown session, `400` from inside a session |
+| C to S | `LeaveSpectate`; also implied by `CreateSession`, `JoinSession`, `JoinAsSpectator`, `SpectateSession` and a disconnect |
+| S to C | `LobbyState.ShowcaseAvailable` tells a client to ask; `LobbyState.LiveStream` that `SpectateSession` is understood (left off the wire by a server without it) |
 
 The health port serves `/showcase` (JSON) and the metrics
 `apexsim_showcase_viewers{showcase=...}` and `apexsim_showcase_frames_sent`
-(see [operations](../server/operations.md)). `SpectatorKind::Live` is
-reserved on the wire and never sent.
+(see [operations](../server/operations.md)).
+
+## Watching a live session as a stream
+
+`SpectateSession` puts a viewer on the session's `SessionStream`
+(`session_stream.rs`, made on the first viewer or when the recording starts,
+dropped when neither is left). The viewer is not a participant: no seat, no
+telemetry of its own, no roster message. `tick_sessions` hands the stream
+the tick's lap events and pit stops, and the records that come back go to the
+recorder and to `LiveWatchers`' viewers through the same `showcase::fan_out`
+a showcase uses (frames as datagrams, the rest as `SpectatorRecord`).
+A newcomer is excluded from the tick it joins in; it gets
+`SessionStream::catch_up` instead: header, roster, path and sector lines, every
+timing and pit event so far (`History`), the road as last laid and the latest
+slow state. So a mid-race joiner sees the earlier laps and counts the earlier
+stops, which the racer telemetry (`JoinAsSpectator`) never carried.
 
 ## The client player and the menu backdrop
 
@@ -251,12 +269,15 @@ Any race the director has on screen can be watched full screen
 (`UApexRootWidget::WatchBackdrop`, `WatchSession`, `WatchReplay`):
 
 - **Main menu > Watch a race**: the backdrop, kept across its next races.
-- **Session browser > Watch**: a live session through `JoinAsSpectator`. The
-  server answers `SessionJoined` with grid position 0 and the session's
-  `TrackSectors`, and marks the roster to be sent again
-  (`GameSession::mark_roster_dirty`); the spectator gets the full racer
-  telemetry. `UApexNetSubsystem::IsSessionSpectator` is true and the race view
-  opens with no car.
+- **Session browser > Watch**: a live session as a stream when
+  `LobbyState.LiveStream` says the server has it (`WatchLiveStream`:
+  `UApexDemoModeSubsystem::WatchLive` puts the session on the backdrop feed
+  like a replay, source `Live`, which stays until the player leaves it). Against
+  an older server it is `JoinAsSpectator`: the server answers `SessionJoined`
+  with grid position 0 and the session's `TrackSectors`, and marks the roster to
+  be sent again (`GameSession::mark_roster_dirty`); the spectator gets the full
+  racer telemetry. `UApexNetSubsystem::IsSessionSpectator` is true and the race
+  view opens with no car.
 - **Main menu > Replays**: a saved replay, below.
 - A watched hotlap: see [sessions](../server/sessions.md).
 
@@ -311,9 +332,10 @@ way; back replays the preamble first). A replay plays with the backdrop
 switched off too. `apexsim-replay info` reads a client-saved file like a
 rendered one.
 
-The server's own recorder (`replay::ReplayRecorder`) is separate: it writes
-`.bin` replays of live sessions (format v3, frames streamed compressed to
-disk while the race runs); see [sessions](../server/sessions.md).
+The server records the same way: its `stream_recorder` writes every finished
+race as an `.apxs` in `replays/` (see [sessions](../server/sessions.md)), so a
+server's replay and a client's replay are one format and play in the same
+Replays screen. `replay.rs`'s `.bin` is only the offline tools' format.
 
 ## Replay clips (`-ApexReplay=`)
 
@@ -322,7 +344,10 @@ for filming: `UApexReplaySubsystem` is created only for such a run (no server,
 no demo, no splash hold), `AApexRaceDirector::BeginReplayView` builds the
 track by the clip's stem and spawns its roster, and every car is placed with
 `AApexRaceCarActor::SetPlaybackPose` from `FApexReplayClip::SampleAt` at the
-director's own game-time clock. `-ApexReplayRecord=<dir>` sets a fixed
+director's own game-time clock. The clip also keeps the stream's sky (`SkyAt`)
+and road slices (`GetRoads`); `UpdateReplayWorld` hands them to the director
+as the clock reaches them, and lays the road again from the start after a jump
+back, so a clip films the rain arriving and the line drying. `-ApexReplayRecord=<dir>` sets a fixed
 timestep (`-ApexReplayFps`) and writes every frame as a PNG. Camera and
 switch reference: the header of `ApexReplaySubsystem.h` and
 [marketing site](../marketing-site.md).

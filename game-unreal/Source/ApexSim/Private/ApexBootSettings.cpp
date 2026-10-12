@@ -1,4 +1,5 @@
 #include "ApexBootSettings.h"
+#include "Misc/CommandLine.h"
 
 #include "ApexSim.h"
 #include "ApexNetSubsystem.h"
@@ -342,6 +343,13 @@ FString ApexBootSettingsIo::Serialise(const FApexBootSettings& Settings)
 
 FString UApexBootSettingsSubsystem::FilePath()
 {
+	// A test run on another server (or with another display) names its own
+	// folder, so it neither reads nor rewrites the player's file.
+	FString Override;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-ApexSettingsDir="), Override) && !Override.IsEmpty())
+	{
+		return FPaths::ConvertRelativePathToFull(FPaths::Combine(Override, TEXT("settings.yml")));
+	}
 	// In a packaged build ProjectDir is <Release>/Game/ApexSim/, so its parent is
 	// the folder holding ApexSim.exe - which is where a player will look for a
 	// file like this. In the editor there is no such folder, and ProjectDir

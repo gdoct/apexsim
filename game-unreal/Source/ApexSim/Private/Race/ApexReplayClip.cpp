@@ -143,13 +143,32 @@ bool FApexReplayClip::LoadFromStream(const FApexStreamFile& File, FString& OutEr
 		Ticks.Add(Frame.ServerTick);
 		States.Add(static_cast<uint8>(Frame.SessionState));
 		CountdownMs.Add(Frame.CountdownMs);
+		Skies.Add(Frame.Sky);
 	}
 	if (Ticks.Num() == 0)
 	{
 		OutError = TEXT("the stream has no frames");
 		return false;
 	}
+	// A stream with no sky in any frame keeps none: the header's is the sky.
+	if (!Skies.ContainsByPredicate([](const FApexSkyNow& Sky) { return Sky.bValid; }))
+	{
+		Skies.Reset();
+	}
+	Roads = Player.TakeRoads();
 	return true;
+}
+
+FApexSkyNow FApexReplayClip::SkyAt(double Seconds) const
+{
+	if (Skies.Num() != Ticks.Num() || Ticks.Num() == 0)
+	{
+		return FApexSkyNow();
+	}
+	int32 Index = 0;
+	double Alpha = 0.0;
+	Locate(Seconds, Index, Alpha);
+	return Skies[Index];
 }
 
 bool FApexReplayClip::LoadFromString(const FString& Json, FString& OutError)

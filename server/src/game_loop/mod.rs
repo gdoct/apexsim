@@ -218,6 +218,7 @@ pub(crate) async fn run_game_loop(
         broadcast::broadcast_road(&ctx, output.road).await;
         broadcast::deliver_lap_timing(&ctx, output.lap_timing).await;
         broadcast::broadcast_telemetry(&ctx, output.telemetry, tick_count).await;
+        showcase::fan_out(&ctx, output.streams).await;
 
         // Showcase channels: no physics, a cursor through a file per channel.
         showcase::advance(&ctx).await;

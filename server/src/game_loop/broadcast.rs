@@ -292,6 +292,7 @@ async fn build_lobby_state_with(
         car_configs,
         track_configs,
         showcase_available,
+        live_stream: true,
     })
 }
 

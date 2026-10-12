@@ -751,9 +751,9 @@ impl GameSession {
             GameMode::FreePractice => {
                 self.tick_free_practice(inputs);
             }
-            GameMode::Replay => {
-                self.tick_replay();
-            }
+            // Kept on the wire for old clients; replays are spectator
+            // streams a client plays itself, so a session never runs one.
+            GameMode::Replay => {}
             GameMode::Race => {
                 self.tick_racing(inputs);
             }
@@ -1470,13 +1470,6 @@ impl GameSession {
         }
         self.weekend_sent = Some(state.clone());
         Some(state)
-    }
-
-    /// Replay mode: Send telemetry from recorded data (view-only)
-    fn tick_replay(&mut self) {
-        // Replay mode is not yet implemented
-        // This would play back previously recorded telemetry data
-        // For now, do nothing
     }
 
     /// Race mode: full physics with lap counting, finish positions assigned

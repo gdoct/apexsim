@@ -206,6 +206,19 @@ pub enum ClientMessage {
     },
     /// Stop watching. Also implied by creating or joining a session.
     LeaveSpectate,
+    /// Watch a live session as a spectator stream (`crate::session_stream`):
+    /// the same records a showcase or a replay is made of, with the lap
+    /// timing and pit stops so far and the road as it is caught up first.
+    /// Answered with `SpectatorJoined { kind: Live }` and the stream's
+    /// records, or an `Error` for an unknown session. Not a seat in the
+    /// session: the viewer is not a participant. Ended by `LeaveSpectate`.
+    SpectateSession {
+        #[serde(
+            serialize_with = "serialize_uuid_as_string",
+            deserialize_with = "deserialize_uuid_from_string"
+        )]
+        session_id: SessionId,
+    },
     /// A driver whose car is stuck asks for it back (`crate::recovery`):
     /// onto the track where it is, or to its pit box (the garage in a
     /// hotlap or qualifying session), held there for the time cost.
@@ -434,6 +447,11 @@ pub struct LobbyStateData {
     /// that predates the field.
     #[serde(default)]
     pub showcase_available: bool,
+    /// A live session can be watched as a spectator stream
+    /// (`SpectateSession`) instead of through `JoinAsSpectator`'s racer
+    /// telemetry. Left off the wire from a server that predates it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub live_stream: bool,
 }
 
 /// What a spectator stream is of.
@@ -2191,11 +2209,16 @@ mod tests {
         let spectate_any =
             rmp_serde::to_vec_named(&ClientMessage::SpectateShowcase { id: None }).unwrap();
         let leave = rmp_serde::to_vec_named(&ClientMessage::LeaveSpectate).unwrap();
+        let watch = rmp_serde::to_vec_named(&ClientMessage::SpectateSession {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+        })
+        .unwrap();
+        println!("C_SpectateSession: {}", hex(&watch));
         println!("C_ListShowcases: {}", hex(&list));
         println!("C_SpectateShowcase: {}", hex(&spectate));
         println!("C_SpectateShowcaseAny: {}", hex(&spectate_any));
         println!("C_LeaveSpectate: {}", hex(&leave));
-        for bytes in [&list, &spectate, &spectate_any, &leave] {
+        for bytes in [&list, &spectate, &spectate_any, &leave, &watch] {
             let _: ClientMessage = rmp_serde::from_slice(bytes).unwrap();
         }
         // An older client's message, without the id, reads as "any".
@@ -2307,6 +2330,7 @@ mod tests {
                 centerline: vec![],
             }],
             showcase_available: true,
+            live_stream: true,
         });
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         let text = String::from_utf8_lossy(&bytes);

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
+#include "ApexSpectatorStream.h"
 
 class FApexStreamFile;
 
@@ -61,6 +62,19 @@ public:
 	/** A roster the race director can spawn the field from. */
 	FApexSessionRoster MakeRoster() const;
 
+	/**
+	 * The sky as the stream carried it `Seconds` into the clip (the rain
+	 * arriving, the clock moving); `bValid` is false from a clip with none,
+	 * and the header's fixed conditions are the sky then.
+	 */
+	FApexSkyNow SkyAt(double Seconds) const;
+
+	/** The tick `Seconds` into the clip. */
+	int64 TickAt(double Seconds) const { return Ticks.Num() > 0 ? Ticks[0] + static_cast<int64>(FMath::Max(Seconds, 0.0) * TickRate) : 0; }
+
+	/** The road-state slices the stream carried, in file order (empty from a clip with none). */
+	const TArray<FApexStreamRoad>& GetRoads() const { return Roads; }
+
 	FApexSessionConditions GetConditions() const { return Conditions; }
 	const FString& GetTrackStem() const { return TrackStem; }
 	const FString& GetTrackId() const { return TrackId; }
@@ -106,4 +120,7 @@ private:
 	TArray<int32> CountdownMs;
 	/** Frames x cars x FieldsPerCar, flat. */
 	TArray<float> Values;
+	/** The sky of each frame, parallel to Ticks (empty when no frame had one). */
+	TArray<FApexSkyNow> Skies;
+	TArray<FApexStreamRoad> Roads;
 };

@@ -161,11 +161,15 @@ impl Default for PhysicsSettings {
 /// kept across sessions (`crate::records`). Off means nothing is written and
 /// nothing is read; the server still times and broadcasts every lap.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct RecordsSettings {
     pub enabled: bool,
     /// Folder for `lap_records.json` and the `ghosts/` traces beside it,
     /// relative to the working directory.
     pub dir: String,
+    /// Folder the server writes its replays to: an `.apxs` per finished
+    /// session and a `.meta.json` beside it (`crate::stream_recorder`).
+    pub replay_dir: String,
 }
 
 impl Default for RecordsSettings {
@@ -173,6 +177,7 @@ impl Default for RecordsSettings {
         Self {
             enabled: true,
             dir: "./records".to_string(),
+            replay_dir: "./replays".to_string(),
         }
     }
 }
@@ -408,6 +413,7 @@ impl ServerConfig {
         );
         env_parse("APEXSIM_SHOWCASE_ENABLED", &mut self.showcase.enabled);
         env_string("APEXSIM_SHOWCASE_DIR", &mut self.showcase.dir);
+        env_string("APEXSIM_REPLAY_DIR", &mut self.records.replay_dir);
         env_parse(
             "APEXSIM_DEBUG_STAND_IN_DRIVER",
             &mut self.debug.stand_in_driver,
@@ -525,6 +531,20 @@ mod tests {
         let toml_str = toml::to_string(&config).unwrap();
         assert!(toml_str.contains("tick_rate_hz"));
         assert!(toml_str.contains("tcp_bind"));
+    }
+
+    /// A server.toml from before the replay folder was a setting has a
+    /// `[records]` table without it; it loads with the default.
+    #[test]
+    fn a_records_table_without_the_replay_dir_still_loads() {
+        let toml_str = toml::to_string(&ServerConfig::default()).unwrap().replace(
+            "replay_dir = \"./replays\"
+",
+            "",
+        );
+        assert!(!toml_str.contains("replay_dir"));
+        let config: ServerConfig = toml::from_str(&toml_str).unwrap();
+        assert_eq!(config.records.replay_dir, "./replays");
     }
 
     /// An older server.toml may still carry the `[ai]` table, which nothing

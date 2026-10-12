@@ -37,6 +37,11 @@ RUST_LOG=debug cargo test <name>                   # with logging
   servers skip AC-imported tracks in a debug build
   (`[content] skip_imported_tracks`) and disable the admin dashboard unless
   they test it.
+- `cargo run --example host_race -- 127.0.0.1:9000 5 5 600` joins a running
+  server as a host, starts a five-lap race with five AI and stays 600 s, so
+  something can be watched (`-ApexWatchSession`, a stream check, a screenshot
+  run). Point the game at a scratch server with `-ApexSettingsDir=`
+  ([game/client.md](game/client.md)) instead of the player's `settings.yml`.
 - `tests/determinism_test.rs` asserts bit-identical runs on both road
   backends; see [architecture.md](architecture.md#determinism) for the rules
   it enforces.

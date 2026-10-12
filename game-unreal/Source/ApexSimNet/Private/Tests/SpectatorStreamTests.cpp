@@ -487,6 +487,8 @@ bool FApexSpectatorProtocolTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("SpectateShowcase bytes"), Same(ApexProtocol::EncodeSpectateShowcase(TEXT("Zandvoort.gt3.day")), C_SpectateShowcase, UE_ARRAY_COUNT(C_SpectateShowcase)));
 	TestTrue(TEXT("SpectateShowcase (any) bytes"), Same(ApexProtocol::EncodeSpectateShowcase(FString()), C_SpectateShowcaseAny, UE_ARRAY_COUNT(C_SpectateShowcaseAny)));
 	TestTrue(TEXT("LeaveSpectate bytes"), Same(ApexProtocol::EncodeLeaveSpectate(), C_LeaveSpectate, UE_ARRAY_COUNT(C_LeaveSpectate)));
+	TestTrue(TEXT("SpectateSession bytes"), Same(ApexProtocol::EncodeSpectateSession(TEXT("01234567-89ab-cdef-0123-456789abcdef")),
+		C_SpectateSession, UE_ARRAY_COUNT(C_SpectateSession)));
 
 	FApexServerMessage Message;
 	FString Error;

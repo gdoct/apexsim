@@ -74,7 +74,8 @@ Every section and its keys (defaults from `config.rs`):
   `--log-level`, which wins over the file.
 - `[auth]` - `mode = "dev"` accepts any token (logged as a warning); `mode =
   "token"` accepts only one of `tokens`.
-- `[records]` - `enabled`, `dir` (`./records`): lap records, ghosts and the
+- `[records]` - `enabled`, `dir` (`./records`), `replay_dir` (`./replays`,
+  `APEXSIM_REPLAY_DIR`): lap records, ghosts and the
   stored qualifying results ([sessions.md](sessions.md)).
 - `[physics]` - `road_contact = "mesh"` (default) or `"centerline"`
   ([../content/road-mesh.md](../content/road-mesh.md)).
@@ -217,8 +218,8 @@ ssh from `deploy/deploy.user.psd1` (gitignored; start from
 
 `[records] dir`: `lap_records.json`, `ghosts/*.msgpack`, `qualifying.json`
 and by default the dashboard's `bans.json` (a corrupt records file is logged
-and treated as empty). `./replays/`: a replay per finished race, streamed to
-`.recording_<session>.frames` while racing. `[logging] file_dir` when file
+and treated as empty). `./replays/`: a replay (`.apxs` plus a `.meta.json`) per finished race,
+streamed to `.recording_<session>.blocks` while racing. `[logging] file_dir` when file
 logging is on.
 
 ## Shutdown

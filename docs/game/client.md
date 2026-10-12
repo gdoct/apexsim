@@ -171,7 +171,9 @@ rewrites it when those values change in game.
 - Location: next to the executable. `Game/settings.yml` in a release,
   `game-unreal/settings.yml` (gitignored) in the editor. In a package
   `FPaths::ProjectDir()` is `<Release>/Game/ApexSim/`, so the file is in its
-  parent.
+  parent. `-ApexSettingsDir=<folder>` reads and writes `<folder>/settings.yml`
+  instead: a test run against its own server (a scratch folder with
+  `server: port: 9100`) neither reads nor rewrites the player's file.
 - The file wins over the save slots for the values it covers.
   `UApexSettingsSubsystem` and `UApexMenuFlowSubsystem` declare it as an
   `InitializeDependency`, adopt its values on load and push back on save.

@@ -66,6 +66,9 @@ pub(crate) struct TickOutput {
     /// over TCP to its drivers and spectators (`SessionRosterOut` is reused
     /// as the generic reliable per-session delivery).
     pub road: Vec<SessionRosterOut>,
+    /// The records of the sessions watched as streams this tick, for their
+    /// viewers (`showcase::fan_out`).
+    pub streams: Vec<crate::showcase::ChannelOutput>,
 }
 
 /// Advance all sessions one tick and return the payloads to broadcast.
@@ -94,9 +97,7 @@ pub(crate) async fn tick_sessions(
     let lobby = &state.lobby;
     let reconnect_grace_seconds = state.config.server.reconnect_grace_seconds as u64;
 
-    // Collect replay operations to execute after iteration
-    let mut replay_starts = Vec::new();
-    let mut replay_frames = Vec::new();
+    // Replays finished this tick, written out once the loop is done.
     let mut replay_stops = Vec::new();
 
     // Collect sessions to remove (empty or finished)
@@ -106,6 +107,7 @@ pub(crate) async fn tick_sessions(
     let mut rosters_out = Vec::new();
     let mut lap_timing_out: Vec<LapTimingOut> = Vec::new();
     let mut road_out: Vec<SessionRosterOut> = Vec::new();
+    let mut stream_out: Vec<crate::showcase::ChannelOutput> = Vec::new();
     // Every session sends the next slice of its road on the same beat.
     let road_send_ticks =
         ((crate::road_state::ROAD_SEND_SECONDS * tick_rate as f32).round() as u64).max(1);
@@ -220,8 +222,17 @@ pub(crate) async fn tick_sessions(
         let replay_starting = !is_demo_session
             && ((prev_state != SessionState::Racing && new_state == SessionState::Racing)
                 || (phase_started && new_state == SessionState::Racing));
+        let replay_stopping = !is_demo_session
+            && prev_state == SessionState::Racing
+            && new_state == SessionState::Finished;
+        let stream_wanted =
+            state.live.has_viewers(session_id) && !state.streams.contains_key(session_id);
         if player_names.is_none()
-            && (replay_starting || game_session.roster_is_dirty() || game_session.has_lap_events())
+            && (replay_starting
+                || replay_stopping
+                || stream_wanted
+                || game_session.roster_is_dirty()
+                || game_session.has_lap_events())
         {
             player_names = Some(
                 lobby
@@ -234,35 +245,40 @@ pub(crate) async fn tick_sessions(
         }
         let player_names = player_names.as_ref().unwrap_or(&empty_names);
 
-        // Collect replay recording operations. A demo is a menu backdrop, and
-        // every client idling in the menu would otherwise write a replay.
+        // Start a replay recording. A demo is a menu backdrop, and every
+        // client idling in the menu would otherwise write a replay.
         if replay_starting {
-            let participants: Vec<_> = game_session
-                .session
-                .participants
-                .iter()
-                .map(|(pid, cs)| crate::replay::ReplayParticipant {
-                    player_id: *pid,
-                    player_name: game_session
-                        .get_ai_profile(pid)
-                        .map(|p| p.name.clone())
-                        .or_else(|| player_names.get(pid).cloned())
-                        .unwrap_or_else(|| format!("Player-{}", &pid.to_string()[..8])),
-                    car_config_id: cs.car_config_id,
-                    finish_position: None,
-                    is_ai: game_session.is_ai_player(pid),
-                    livery: 0,
-                })
-                .collect();
-
-            let track_config_id = game_session.session.track_config_id;
-            let metadata = (
-                *session_id,
-                track_config_id,
+            let participants = replay_participants(game_session, player_names);
+            // A session already watched has its stream; the recording joins it.
+            let stream = state.streams.entry(*session_id).or_insert_with(|| {
+                crate::session_stream::SessionStream::new(
+                    game_session,
+                    REPLAY_FRAME_HZ,
+                    player_names,
+                )
+            });
+            let track = &game_session.track_config;
+            let metadata = crate::replay::ReplayMetadata {
+                session_id: *session_id,
+                track_config_id: track.id,
+                track_name: track.name.clone(),
+                recorded_at: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |d| d.as_secs()),
+                duration_ticks: 0,
+                tick_rate,
                 participants,
-                game_session.session.conditions,
-            );
-            replay_starts.push(metadata);
+                conditions: game_session.session.conditions,
+                race_start_tick: None,
+                track_stem: track
+                    .source_path
+                    .as_deref()
+                    .and_then(|p| std::path::Path::new(p).file_stem())
+                    .map(|s| s.to_string_lossy().into_owned()),
+                track_length_m: game_session.track_length_m(),
+            };
+            state.replay.start(game_session, stream, metadata);
+            debug!("Started replay recording for session {}", session_id);
         }
 
         // Roster: membership changed → announce the car-index mapping used
@@ -280,9 +296,63 @@ pub(crate) async fn tick_sessions(
             .collect();
         // Timing lines crossed this tick. Reliable, and never for a demo:
         // its AI field is menu scenery and nobody is watching the splits.
-        if game_session.has_lap_events() {
+        let lap_events = game_session.take_lap_events();
+        let pit_starts = game_session.take_pit_events();
+        // The spectator stream of a session being recorded: this tick's
+        // events, frame, slow state and road.
+        if stream_wanted {
+            state.streams.insert(
+                *session_id,
+                crate::session_stream::SessionStream::new(
+                    game_session,
+                    REPLAY_FRAME_HZ,
+                    player_names,
+                ),
+            );
+        }
+        if let Some(stream) = state.streams.get_mut(session_id) {
+            let roster_changed = game_session.roster_is_dirty();
+            let out = stream.tick(
+                game_session,
+                &lap_events,
+                &pit_starts,
+                player_names,
+                roster_changed,
+            );
+            state.replay.record(session_id, &out.records);
+            if state.live.has_viewers(session_id) {
+                let mut channel = crate::showcase::ChannelOutput {
+                    viewers: state.live.viewers(session_id),
+                    ..Default::default()
+                };
+                for record in out.records {
+                    let body = Bytes::from(record.body);
+                    if record.kind == crate::spectator::RECORD_FRAME {
+                        channel.frames.push(body);
+                    } else {
+                        channel.reliable.push(body);
+                    }
+                }
+                let newcomers = state.live.take_newcomers(session_id);
+                if !newcomers.is_empty() {
+                    let catch_up: Vec<Bytes> = stream
+                        .catch_up(game_session)
+                        .into_iter()
+                        .map(Bytes::from)
+                        .collect();
+                    for player in newcomers {
+                        channel.catch_up.push((player, catch_up.clone()));
+                    }
+                }
+                stream_out.push(channel);
+            } else if !state.replay.is_recording(session_id) {
+                // Nobody watches and nothing records: the stream stops.
+                state.streams.remove(session_id);
+            }
+        }
+        if !lap_events.is_empty() {
             let track_id = game_session.track_config.id;
-            let events = game_session.take_lap_events();
+            let events = lap_events;
             if sends_timing {
                 for out in events {
                     let Some(car_index) = game_session.car_index_of(&out.player_id) else {
@@ -352,7 +422,7 @@ pub(crate) async fn tick_sessions(
 
         // Pit stops the crews started this tick: what each one does, for
         // the pit-stop panel. Reliable, like the timing.
-        for (player_id, mut service) in game_session.take_pit_events() {
+        for (player_id, mut service) in pit_starts {
             if is_demo_session {
                 continue;
             }
@@ -466,20 +536,14 @@ pub(crate) async fn tick_sessions(
             }
         }
 
-        // Collect a replay frame on every telemetry tick while racing: the
-        // frames the clients saw. The recorder streams them to disk.
-        if !is_demo_session && new_state == SessionState::Racing && telemetry_tick {
-            if let ServerMessage::Telemetry(tel) = game_session.get_telemetry() {
-                replay_frames.push((*session_id, game_session.session.current_tick, tel));
-            }
-        }
-
-        // Collect replay stops when session finishes
-        if !is_demo_session
-            && prev_state == SessionState::Racing
-            && new_state == SessionState::Finished
-        {
-            replay_stops.push((*session_id, game_session.session.race_start_tick));
+        // The replay is complete when the session finishes.
+        if replay_stopping {
+            replay_stops.push((
+                *session_id,
+                game_session.session.race_start_tick,
+                game_session.session.game_mode,
+                replay_participants(game_session, player_names),
+            ));
         }
 
         // Log state changes
@@ -508,65 +572,20 @@ pub(crate) async fn tick_sessions(
         }
     }
 
-    // Execute collected replay operations
-    for (session_id, track_config_id, participants, conditions) in replay_starts {
-        use crate::replay::ReplayMetadata;
-
-        let track = state.track_configs.get(&track_config_id);
-        let track_name = track
-            .map(|t| t.name.clone())
-            .unwrap_or_else(|| "Unknown Track".to_string());
-        let track_stem = track.and_then(|t| t.source_path.as_deref()).and_then(|p| {
-            std::path::Path::new(p)
-                .file_stem()
-                .map(|s| s.to_string_lossy().into_owned())
-        });
-        let track_length_m = track
-            .and_then(|t| t.centerline.last())
-            .map(|p| p.distance_from_start_m)
-            .unwrap_or(0.0);
-
-        let metadata = ReplayMetadata {
-            session_id,
-            track_config_id,
-            track_name,
-            recorded_at: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-            duration_ticks: 0,
-            tick_rate,
-            participants,
-            conditions,
-            race_start_tick: None,
-            track_stem,
-            track_length_m,
+    for (session_id, race_start_tick, game_mode, results) in replay_stops {
+        state.streams.remove(&session_id);
+        let Some(recording) = state.replay.take(&session_id) else {
+            warn!("No active recording for session {}", session_id);
+            continue;
         };
-
-        state.replay.start_recording(metadata).await;
-        debug!("Started replay recording for session {}", session_id);
-    }
-
-    for (session_id, tick, telemetry) in replay_frames {
-        state.replay.record_frame(session_id, tick, telemetry).await;
-    }
-
-    for (session_id, race_start_tick) in replay_stops {
-        match state
-            .replay
-            .stop_recording(session_id, race_start_tick)
-            .await
-        {
-            Ok(replay_path) => {
-                debug!(
-                    "Replay saved for session {} to {:?}",
-                    session_id, replay_path
-                );
+        let dir = state.replay.dir().to_path_buf();
+        // Written off the loop: a long race is a long file to assemble.
+        tokio::task::spawn_blocking(move || {
+            match recording.finish(&dir, results, race_start_tick, game_mode) {
+                Ok(path) => debug!("Replay saved for session {} to {:?}", session_id, path),
+                Err(e) => warn!("Failed to save replay for session {}: {}", session_id, e),
             }
-            Err(e) => {
-                warn!("Failed to save replay for session {}: {}", session_id, e);
-            }
-        }
+        });
     }
 
     for (session_id, session_state) in state_changes {
@@ -594,10 +613,13 @@ pub(crate) async fn tick_sessions(
         }
         // A session removed mid-race never finishes its recording.
         let sessions = &state.sessions;
-        state
-            .replay
-            .discard_recordings_except(|id| sessions.contains_key(id))
-            .await;
+        state.replay.discard_except(|id| sessions.contains_key(id));
+        state.streams.retain(|id, _| sessions.contains_key(id));
+        for gone in state.live.watched_sessions() {
+            if !sessions.contains_key(&gone) {
+                state.live.forget_session(&gone);
+            }
+        }
     }
 
     TickOutput {
@@ -605,6 +627,7 @@ pub(crate) async fn tick_sessions(
         rosters: rosters_out,
         lap_timing: lap_timing_out,
         road: road_out,
+        streams: stream_out,
     }
 }
 
@@ -668,6 +691,34 @@ pub(crate) async fn cleanup_finished_sessions(ctx: &GameLoopCtx, tick_count: u64
             std::sync::atomic::Ordering::Relaxed,
         );
     }
+}
+
+/// Frames a second a server replay is recorded at: the showcases' rate.
+const REPLAY_FRAME_HZ: u16 = 30;
+
+/// A session's cars as a replay lists them, with the places they have been
+/// classified in so far.
+fn replay_participants(
+    session: &crate::game_session::GameSession,
+    names: &HashMap<PlayerId, String>,
+) -> Vec<crate::replay::ReplayParticipant> {
+    session
+        .session
+        .participants
+        .iter()
+        .map(|(pid, car)| crate::replay::ReplayParticipant {
+            player_id: *pid,
+            player_name: session
+                .get_ai_profile(pid)
+                .map(|p| p.name.clone())
+                .or_else(|| names.get(pid).cloned())
+                .unwrap_or_else(|| format!("Player-{}", &pid.to_string()[..8])),
+            car_config_id: car.car_config_id,
+            finish_position: car.finish_position,
+            is_ai: session.is_ai_player(pid),
+            livery: 0,
+        })
+        .collect()
 }
 
 #[cfg(test)]

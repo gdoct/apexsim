@@ -1133,6 +1133,14 @@ struct APEXSIMNET_API FApexLobbyState
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	bool bShowcaseAvailable = false;
+
+	/**
+	 * A live session can be watched as a spectator stream (`SpectateSession`):
+	 * the lap timing and pit stops so far come with it, which the racers'
+	 * telemetry never carried. False from a server that predates it.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	bool bLiveStream = false;
 };
 
 /** What a spectator stream is of (`SpectatorKind`, network.rs). */

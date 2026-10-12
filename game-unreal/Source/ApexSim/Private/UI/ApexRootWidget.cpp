@@ -2483,10 +2483,38 @@ void UApexRootWidget::WatchSession(const FString& SessionId)
 		ShowToast(TEXT("Not connected to a server yet"), true);
 		return;
 	}
+	if (Net->IsLiveStreamAvailable())
+	{
+		WatchLiveStream(SessionId);
+		return;
+	}
 	bWatchJoinPending = true;
 	WatchTower = ApexSpectate::ETowerMode::Interval;
 	bWatchOverlayHidden = false;
 	Net->JoinAsSpectator(SessionId);
+}
+
+bool UApexRootWidget::WatchLiveStream(const FString& SessionId)
+{
+	UApexDemoModeSubsystem* Demo = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>() : nullptr;
+	if (!Demo || IsWatching() || bRaceViewActive)
+	{
+		return false;
+	}
+	FString Error;
+	if (!Demo->WatchLive(SessionId, Error))
+	{
+		ShowToast(FString::Printf(TEXT("Cannot watch this race: %s"), *Error), true);
+		return false;
+	}
+	if (!WatchBackdrop())
+	{
+		Demo->StopLive();
+		return false;
+	}
+	bWatchingLiveStream = true;
+	PushWatchState();
+	return true;
 }
 
 void UApexRootWidget::StopWatching()
@@ -2499,11 +2527,14 @@ void UApexRootWidget::StopWatching()
 	WatchKind = EWatchKind::None;
 	const bool bWasReplay = bWatchingReplay;
 	bWatchingReplay = false;
-	if (bWasReplay)
+	const bool bWasLiveStream = bWatchingLiveStream;
+	bWatchingLiveStream = false;
+	if (bWasReplay || bWasLiveStream)
 	{
 		if (UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>())
 		{
 			Demo->StopReplay();
+			Demo->StopLive();
 		}
 	}
 	if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
@@ -2586,6 +2617,7 @@ void UApexRootWidget::PushWatchState()
 		const UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>();
 		const EApexBackdropSource From = Demo ? Demo->GetSource() : EApexBackdropSource::None;
 		Source = From == EApexBackdropSource::Replay ? TEXT("replay")
+			: From == EApexBackdropSource::Live        ? TEXT("live")
 			: From == EApexBackdropSource::Showcase    ? TEXT("showcase")
 			: From == EApexBackdropSource::LocalFile   ? TEXT("file")
 													   : TEXT("demo");

@@ -175,8 +175,16 @@ public:
 	 */
 	bool WatchBackdrop();
 
-	/** Spectate a live session from the browser: JoinAsSpectator, then the race view without a car. */
+	/**
+	 * Spectate a live session from the browser: as a stream (SpectateSession,
+	 * the lap timing and pit stops so far with it) when the server offers
+	 * one, else JoinAsSpectator and the race view without a car.
+	 */
 	void WatchSession(const FString& SessionId);
+
+	/** Watch a live session as a stream in the watch view; false, with a toast, when it cannot be. */
+	bool WatchLiveStream(const FString& SessionId);
+	bool IsWatchingLiveStream() const { return WatchKind == EWatchKind::Backdrop && bWatchingLiveStream; }
 
 	/**
 	 * Play a saved replay (UApexReplayRecorder) in the watch view, with its
@@ -459,6 +467,8 @@ private:
 	bool bWatchJoinPending = false;
 	/** The backdrop being watched is a replay the player chose. */
 	bool bWatchingReplay = false;
+	/** The watched race is a live session's stream (WatchLiveStream). */
+	bool bWatchingLiveStream = false;
 	ApexSpectate::ETowerMode WatchTower = ApexSpectate::ETowerMode::Interval;
 	bool bWatchOverlayHidden = false;
 	/** Whether the director's backdrop was up last frame, to notice the next race begin. */

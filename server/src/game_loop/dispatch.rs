@@ -65,6 +65,7 @@ pub(crate) async fn handle_message(
         ClientMessage::CreateSession { .. }
             | ClientMessage::JoinSession { .. }
             | ClientMessage::JoinAsSpectator { .. }
+            | ClientMessage::SpectateSession { .. }
     ) {
         showcase::handle_leave(ctx, connection_id).await;
     }
@@ -182,6 +183,9 @@ pub(crate) async fn handle_message(
         }
         ClientMessage::LeaveSpectate => {
             showcase::handle_leave(ctx, connection_id).await;
+        }
+        ClientMessage::SpectateSession { session_id } => {
+            showcase::handle_spectate_session(ctx, connection_id, session_id).await;
         }
         ClientMessage::Disconnect => {
             handle_disconnect(ctx, connection_id).await;

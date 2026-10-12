@@ -322,7 +322,15 @@ public:
 	 */
 	void SpectateShowcase(const FString& Id = FString());
 
-	/** Stop watching a showcase, or withdraw a request for one. */
+	/**
+	 * Watch a live session as a spectator stream (the lap timing and pit stops
+	 * so far come with it): OnSpectatorJoined, then the stream's records through
+	 * OnSpectatorRecords, like a showcase. Not a seat in the session. Ended by
+	 * LeaveSpectate.
+	 */
+	void SpectateSession(const FString& SessionId);
+
+	/** Stop watching a showcase or a session, or withdraw a request for one. */
 	void LeaveSpectate();
 
 	/** A showcase was joined and not left. */
@@ -333,6 +341,8 @@ public:
 	const TArray<FApexShowcaseSummary>& GetShowcases() const { return CachedShowcases; }
 	/** The lobby says the server plays showcases. */
 	bool IsShowcaseAvailable() const { return CachedLobbyState.bShowcaseAvailable; }
+	/** The lobby says a live session can be watched as a stream (SpectateSession). */
+	bool IsLiveStreamAvailable() const { return CachedLobbyState.bLiveStream; }
 
 	FApexOnShowcases OnShowcases;
 	FApexOnSpectatorJoined OnSpectatorJoined;

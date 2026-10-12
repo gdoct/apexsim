@@ -151,6 +151,22 @@ bool UApexSpectatorSubsystem::WatchShowcase(const FString& Id)
 	return true;
 }
 
+bool UApexSpectatorSubsystem::WatchLive(const FString& SessionId)
+{
+	Stop();
+	UApexNetSubsystem* Net = GetNet();
+	if (!Net || !Net->IsAuthenticated())
+	{
+		return false;
+	}
+	Source = EApexSpectatorSource::Net;
+	bLiveSource = true;
+	SourceName = SessionId;
+	bLoading = true;
+	Net->SpectateSession(SessionId);
+	return true;
+}
+
 void UApexSpectatorSubsystem::Stop()
 {
 	if (Source == EApexSpectatorSource::Net)
@@ -169,6 +185,7 @@ void UApexSpectatorSubsystem::Stop()
 		bFeeding = false;
 	}
 	Source = EApexSpectatorSource::None;
+	bLiveSource = false;
 	SourceName.Reset();
 	bLoading = false;
 	bFailed = false;
@@ -288,8 +305,11 @@ void UApexSpectatorSubsystem::HandleSpectatorJoined(const FString& InStreamId, c
 		return;
 	}
 	StreamId = InStreamId;
-	SourceName = ShowcaseId;
-	UE_LOG(LogApexSim, Log, TEXT("Spectator: watching showcase %s"), *ShowcaseId);
+	if (!bLiveSource)
+	{
+		SourceName = ShowcaseId;
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Spectator: watching %s %s"), bLiveSource ? TEXT("session") : TEXT("showcase"), *SourceName);
 }
 
 void UApexSpectatorSubsystem::HandleSpectatorRecords(TArrayView<const uint8> Run)
@@ -438,7 +458,7 @@ void UApexSpectatorSubsystem::Drain()
 
 FString UApexSpectatorSubsystem::DescribeState() const
 {
-	const TCHAR* SourceText = Source == EApexSpectatorSource::File ? TEXT("file") : Source == EApexSpectatorSource::Net ? TEXT("showcase") : TEXT("none");
+	const TCHAR* SourceText = Source == EApexSpectatorSource::File ? TEXT("file") : Source == EApexSpectatorSource::Net ? (bLiveSource ? TEXT("live session") : TEXT("showcase")) : TEXT("none");
 	FString Line = FString::Printf(TEXT("Spectator: source %s %s"), SourceText, *SourceName);
 	if (bLoading)
 	{

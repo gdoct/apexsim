@@ -9,8 +9,11 @@
 
 use super::GameLoopCtx;
 use crate::data::{ConnectionId, PlayerId};
-use crate::network::{spectator_record_message, MessagePriority, ServerMessage, ShowcasesData};
-use crate::showcase::{LoadRequest, LoadedStream};
+use crate::network::{
+    spectator_record_message, MessagePriority, ServerMessage, ShowcasesData, SpectatorJoinedData,
+    SpectatorKind,
+};
+use crate::showcase::{ChannelOutput, LoadRequest, LoadedStream};
 use bytes::Bytes;
 use std::sync::atomic::Ordering;
 use tracing::{debug, warn};
@@ -64,6 +67,51 @@ pub(crate) async fn handle_spectate(
     }
 }
 
+/// Watch a live session as a stream (`SpectateSession`). The viewer is sent
+/// the catch-up on the next tick; see `tick_sessions`.
+pub(crate) async fn handle_spectate_session(
+    ctx: &GameLoopCtx,
+    connection_id: ConnectionId,
+    session_id: crate::data::SessionId,
+) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    if conn_info.in_session.is_some() {
+        ctx.send_error(
+            connection_id,
+            400,
+            "Leave the session before watching another",
+        )
+        .await;
+        return;
+    }
+    {
+        let mut state = ctx.state.write().await;
+        if !state.sessions.contains_key(&session_id) {
+            drop(state);
+            ctx.send_error(connection_id, 404, "No such session").await;
+            return;
+        }
+        state.showcase.leave(&conn_info.player_id);
+        state.live.join(conn_info.player_id, session_id);
+    }
+    debug!(
+        "Player {} watches session {} as a stream",
+        conn_info.player_name, session_id
+    );
+    let _ = ctx
+        .send(
+            connection_id,
+            ServerMessage::SpectatorJoined(SpectatorJoinedData {
+                stream_id: session_id,
+                kind: SpectatorKind::Live,
+                showcase_id: String::new(),
+            }),
+        )
+        .await;
+}
+
 pub(crate) async fn handle_leave(ctx: &GameLoopCtx, connection_id: ConnectionId) {
     if let Some(conn_info) = ctx.connection(connection_id).await {
         leave(ctx, conn_info.player_id).await;
@@ -74,17 +122,17 @@ pub(crate) async fn handle_leave(ctx: &GameLoopCtx, connection_id: ConnectionId)
 /// session create or join, or because they are gone.
 pub(crate) async fn leave(ctx: &GameLoopCtx, player_id: PlayerId) {
     // Nearly always nobody: look before taking the write lock.
-    if ctx
-        .state
-        .read()
-        .await
-        .showcase
-        .watching(&player_id)
-        .is_none()
     {
-        return;
+        let state = ctx.state.read().await;
+        if state.showcase.watching(&player_id).is_none()
+            && state.live.watching(&player_id).is_none()
+        {
+            return;
+        }
     }
-    ctx.state.write().await.showcase.leave(&player_id);
+    let mut state = ctx.state.write().await;
+    state.showcase.leave(&player_id);
+    state.live.leave(&player_id);
 }
 
 /// Inflate a channel's file off the loop and hand it to the channel.
@@ -108,7 +156,15 @@ pub(crate) async fn advance(ctx: &GameLoopCtx) {
     for request in loads {
         spawn_load(ctx, request);
     }
+    fan_out(ctx, outputs).await;
+}
 
+/// Send what channels (a showcase's, a live session's) hand back: a
+/// newcomer's catch-up as one message, then the records of the tick.
+pub(crate) async fn fan_out(ctx: &GameLoopCtx, outputs: Vec<ChannelOutput>) {
+    if outputs.is_empty() {
+        return;
+    }
     let transport = ctx.transport.read().await;
     for out in outputs {
         for (player_id, bodies) in &out.catch_up {

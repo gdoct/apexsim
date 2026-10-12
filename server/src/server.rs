@@ -9,7 +9,6 @@ use crate::{
     health::HealthState,
     lobby::LobbyManager,
     metrics::ServerMetrics,
-    replay::ReplayManager,
     track_content::TrackContent,
     track_loader::TrackLoader,
     transport::TransportLayer,
@@ -34,7 +33,14 @@ pub struct ServerState {
     pub sessions: HashMap<SessionId, GameSession>,
     pub players: HashMap<PlayerId, Player>,
     pub lobby: LobbyManager,
-    pub replay: ReplayManager,
+    /// The server's own replays: live sessions written to disk as spectator
+    /// streams (`crate::stream_recorder`).
+    pub replay: crate::stream_recorder::StreamRecorders,
+    /// The spectator-stream producer of each session being recorded or
+    /// watched live (`crate::session_stream`).
+    pub streams: HashMap<SessionId, crate::session_stream::SessionStream>,
+    /// Who watches which session as a stream.
+    pub live: crate::session_stream::LiveWatchers,
     /// Lap records across sessions (`crate::records`). Behind an `Arc` so
     /// the game loop can write a record after dropping the state lock: the
     /// store does its own locking and its own disk IO.
@@ -92,6 +98,7 @@ impl ServerState {
 
         let showcase =
             crate::showcase::ShowcaseState::load(&config.showcase, &car_configs, &track_configs);
+        let replay_dir = std::path::PathBuf::from(&config.records.replay_dir);
 
         Self {
             showcase,
@@ -102,7 +109,9 @@ impl ServerState {
             sessions: HashMap::new(),
             players: HashMap::new(),
             lobby: LobbyManager::new(),
-            replay: ReplayManager::new(std::path::PathBuf::from("./replays")),
+            replay: crate::stream_recorder::StreamRecorders::new(replay_dir),
+            streams: HashMap::new(),
+            live: crate::session_stream::LiveWatchers::default(),
             records: Arc::new(records),
         }
     }

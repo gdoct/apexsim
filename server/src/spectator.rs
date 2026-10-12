@@ -657,7 +657,17 @@ impl StreamRoster {
     /// The roster of a session: its cars in car-index order, liveries dealt
     /// as a live session's roster deals them.
     pub fn from_session(session: &GameSession, epoch: u32, revision: u16) -> Self {
-        let roster = session.build_roster(&std::collections::HashMap::new());
+        Self::from_session_named(session, epoch, revision, &std::collections::HashMap::new())
+    }
+
+    /// [`Self::from_session`] with the humans' names, as the lobby holds them.
+    pub fn from_session_named(
+        session: &GameSession,
+        epoch: u32,
+        revision: u16,
+        names: &std::collections::HashMap<PlayerId, String>,
+    ) -> Self {
+        let roster = session.build_roster(names);
         Self {
             epoch,
             revision,

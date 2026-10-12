@@ -3,6 +3,7 @@
 #include "ApexNetSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "ApexSpectatorStream.h"
+#include "ApexSpectatorWriter.h"
 #include "Race/ApexReplayClip.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -119,6 +120,71 @@ bool FApexReplayClipStreamTest::RunTest(const FString& Parameters)
 	const FApexSessionRoster Roster = Clip.MakeRoster();
 	TestEqual(TEXT("clip roster"), Roster.Entries.Num(), 2);
 	TestTrue(TEXT("clip roster car"), Roster.Entries.Num() == 2 && Roster.Entries[0].CarConfigId == TEXT("11111111-2222-3333-4444-555555555555"));
+	return true;
+}
+
+// A clip made from a stream keeps what the stream carried besides the cars:
+// the sky as it moved and the road slices, so a filmed clip is not a sunny
+// day on a dry road.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexReplayClipWorldTest, "ApexSim.Replay.Clip.World", ApexTestFlags)
+
+bool FApexReplayClipWorldTest::RunTest(const FString& Parameters)
+{
+	FApexStreamFile Source;
+	FString Error;
+	if (!Source.LoadFromBytes(TArray<uint8>(ApexBackdropTest::StreamFileBytes, UE_ARRAY_COUNT(ApexBackdropTest::StreamFileBytes)), Error))
+	{
+		AddError(Error);
+		return false;
+	}
+	TArray<TArray<uint8>> Bodies;
+	Source.ReadAll(Bodies, Error);
+	const int64 Last = Source.GetHeader().EndTick;
+
+	FApexStreamWriter Writer(Source.GetHeader().TickRate);
+	// The file's own records up to its midpoint, then a rainy state and a
+	// slice of road, then the rest.
+	const int64 Mid = (Source.GetHeader().StartTick + Last) / 2;
+	bool bInserted = false;
+	for (const TArray<uint8>& Body : Bodies)
+	{
+		int64 Tick = 0;
+		ApexSpectator::RecordTick(Body, Tick);
+		if (!bInserted && Tick >= Mid)
+		{
+			bInserted = true;
+			FApexStreamState State;
+			State.Epoch = Source.GetHeader().Epoch;
+			State.Tick = Tick;
+			State.Sky.bValid = true;
+			State.Sky.Weather = EApexWeather::HeavyRain;
+			State.Sky.RainPct = 80;
+			State.Sky.ClockS = 15 * 3600;
+			Writer.Add(Tick, ApexSpectator::EncodeState(State));
+			FApexStreamRoad Road;
+			Road.Epoch = Source.GetHeader().Epoch;
+			Road.Tick = Tick;
+			Road.Road.LapM = 100.0f;
+			Road.Road.CellM = 10.0f;
+			Road.Road.Bins = 2;
+			Road.Road.FirstCell = 0;
+			Road.Road.Rows.Init(7, 2 * Road.Road.RowBytes());
+			Writer.Add(Tick, ApexSpectator::EncodeRoad(Road));
+		}
+		Writer.Add(Tick, Body);
+	}
+	const TArray<uint8> Bytes = Writer.ToBytes(Source.GetHeader(), Source.GetRoster(),
+		Source.HasPath() ? &Source.GetPath() : nullptr, Source.GetPreamble());
+	FApexStreamFile File;
+	TestTrue(TEXT("the made stream loads"), File.LoadFromBytes(TArray<uint8>(Bytes), Error));
+	FApexReplayClip Clip;
+	TestTrue(TEXT("and loads as a clip"), Clip.LoadFromStream(File, Error));
+	TestEqual(TEXT("one road slice"), Clip.GetRoads().Num(), 1);
+	TestTrue(TEXT("the slice is the file's"), Clip.GetRoads().Num() == 1 && Clip.GetRoads()[0].Tick >= Mid && Clip.GetRoads()[0].Road.IsValid());
+	TestFalse(TEXT("no sky before the state"), Clip.SkyAt(0.0).bValid);
+	const FApexSkyNow Late = Clip.SkyAt(Clip.GetDurationSeconds());
+	TestTrue(TEXT("the rain after it"), Late.bValid && Late.Weather == EApexWeather::HeavyRain && Late.RainPct == 80 && Late.ClockS == 15 * 3600);
+	TestEqual(TEXT("TickAt starts at the first frame"), Clip.TickAt(0.0), Source.GetHeader().StartTick);
 	return true;
 }
 

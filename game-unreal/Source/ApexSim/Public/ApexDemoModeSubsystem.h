@@ -25,6 +25,8 @@ enum class EApexBackdropSource : uint8
 	DemoSession,
 	/** A replay the player chose (UApexReplayRecorder): it stays until they leave it. */
 	Replay,
+	/** A live session the player chose to watch as a stream (SpectateSession): it stays until they leave it. */
+	Live,
 };
 
 /**
@@ -104,6 +106,20 @@ public:
 	/** Back to the ordinary backdrop. */
 	void StopReplay();
 	bool IsPlayingReplay() const { return Source == EApexBackdropSource::Replay; }
+
+	/**
+	 * Put a live session on the director as a spectator stream (the server's
+	 * SpectateSession) in place of the backdrop: the lap timing and pit stops
+	 * so far come with it. Stays until StopLive. False with a reason when it
+	 * cannot be watched (gone from the lobby, or a circuit this machine has
+	 * no export of).
+	 */
+	bool WatchLive(const FString& SessionId, FString& OutError);
+	/** Back to the ordinary backdrop. */
+	void StopLive();
+	bool IsWatchingLive() const { return Source == EApexBackdropSource::Live; }
+	/** A source the player chose, which the backdrop's reasons to move on do not touch. */
+	bool IsPlayerChoice() const { return Source == EApexBackdropSource::Replay || Source == EApexBackdropSource::Live; }
 
 	/**
 	 * Which local showcase file to play for a track, if any: the track's own

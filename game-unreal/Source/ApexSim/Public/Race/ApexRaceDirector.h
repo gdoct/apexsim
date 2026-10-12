@@ -817,6 +817,13 @@ private:
 	TSharedPtr<const FApexReplayClip> ReplayClip;
 	ApexReplayCam::FSettings ReplayCamera;
 	FApexSessionConditions ReplayConditions;
+	/** The clip's sky at ReplayTime (the stream's State records), the way a live frame's is the net's. */
+	FApexSkyNow ReplaySkyNow;
+	/** The clip's road slices laid so far (an index into its Roads), and the tick they reached. */
+	int32 ReplayRoadCursor = 0;
+	int64 ReplayRoadTick = -1;
+	/** The clip's sky and road at ReplayTime: slices up to it laid in order, the map started over after a jump back. */
+	void UpdateReplayWorld();
 	/** The car the replay's cameras follow; see ResolveReplayFollow. */
 	int32 ReplayFollowIndex = INDEX_NONE;
 	/** The pan camera's eased aim and lens. */

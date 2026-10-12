@@ -78,6 +78,8 @@ public:
 
 	/** Watch the server's showcase channel `Id` (empty: the server's first). */
 	bool WatchShowcase(const FString& Id);
+	/** Watch the live session `SessionId` as a stream (the server's SpectateSession). */
+	bool WatchLive(const FString& SessionId);
 
 	/** Stop whatever plays and end the backdrop feed. */
 	void Stop();
@@ -133,6 +135,8 @@ private:
 	FDelegateHandle RecordsHandle;
 
 	EApexSpectatorSource Source = EApexSpectatorSource::None;
+	/** The net source is a live session, not a showcase channel. */
+	bool bLiveSource = false;
 	FString SourceName;
 	bool bLoading = false;
 	bool bFailed = false;

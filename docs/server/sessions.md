@@ -220,11 +220,18 @@ Laps / Time switch along `ApexRaceLength::LadderMinutes` (5 min to 24 h;
 HUD `race.timed`, `race.time_left_s`, `race.final_lap`, `lap.final`,
 `fmt_clock` (see [HUD modding](../game/hud-modding.md)).
 
-The server's replay of a long race streams compressed frames from a writer
-thread (`replay::ReplayRecorder`, `replays/.recording_<session>.frames`); a
-full queue drops frames rather than stall the loop, and a session removed
-without finishing has its recording discarded by the 5 s orphan sweep
-(format: [spectator](../game/spectator.md)).
+The server's replay of a session is a spectator stream (`.apxs`). When the
+lights go out `tick_sessions` makes the session's `SessionStream`
+(`session_stream.rs`, the one producer the render tool and live spectators use
+too) and starts a recording (`stream_recorder.rs`); every tick the stream's
+records (events, frames at 30 Hz, the slow state, the road) are added to it.
+A writer thread compresses each second into `replays/.recording_<session>.blocks`;
+a full queue drops blocks rather than stall the loop, and finishing the race
+assembles `replay_<session>_<unix>.apxs` (preamble, blocks, index) with a
+`.meta.json` beside it holding the classification, which the dashboard's
+History lists. A session removed without finishing has its recording discarded
+by the 5 s orphan sweep. The client's Replays screen plays a copy of the file
+as it does its own (format: [spectator](../game/spectator.md)).
 
 ## Starting order and qualifying
 
