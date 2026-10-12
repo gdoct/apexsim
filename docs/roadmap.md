@@ -62,7 +62,7 @@ loop below depends on a stable client.
 
 | Item | Type | Notes |
 |---|---|---|
-| GPU hang in a race | bug | A Silverstone race (`-ApexAutoRace`, 5 AI, TV camera, road state off) stopped with `DXGI_ERROR_DEVICE_HUNG` about 10 s after the track was shown, and a Suzuka race did the same; reruns ran. Seen alongside the VSM "Non-Nanite Marking Job Queue overflow" message ([proposals/nanite-shadows.md](proposals/nanite-shadows.md)); the cause is not known. |
+| GPU hang in a race | bug | A Silverstone race (`-ApexAutoRace`, 5 AI, TV camera, road state off) stopped with `DXGI_ERROR_DEVICE_HUNG` about 10 s after the track was shown, and a Suzuka race did the same; reruns ran. Seen alongside the VSM "Non-Nanite Marking Job Queue overflow" message ([proposals/nanite-shadows.md](proposals/nanite-shadows.md)); the cause is not known. Four more Silverstone runs of 100 s (2026-10-12, same switches, road state on) ran clean and each logged the overflow message once, so the hang needs more than the message; a longer loop, or the other circuit it hit (Suzuka), is the next try. |
 
 ### Spectator stream v2
 
