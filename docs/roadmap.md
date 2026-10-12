@@ -52,8 +52,7 @@ the race result and the backdrop result.
 
 ## P2: depth
 
-Suggested order: the stream revision comes before hotlap watch replays,
-and the track geometry pass comes before circuit dressing (the refresh
+Suggested order: the track geometry pass comes before circuit dressing (the refresh
 order re-exports the scene).
 
 ### GPU hang
@@ -65,18 +64,15 @@ loop below depends on a stable client.
 |---|---|---|
 | GPU hang in a race | bug | A Silverstone race (`-ApexAutoRace`, 5 AI, TV camera, road state off) stopped with `DXGI_ERROR_DEVICE_HUNG` about 10 s after the track was shown, and a Suzuka race did the same; reruns ran. Seen alongside the VSM "Non-Nanite Marking Job Queue overflow" message ([proposals/nanite-shadows.md](proposals/nanite-shadows.md)); the cause is not known. |
 
-### Spectator stream v2 and replay controls
+### Spectator stream v2
 
-One `.apxs` format revision. Keyframes (full state every N seconds) and
-delta frames fix the mid-file joiner, carry the race clock, sky, pit
-service, road state and tyre state, and let the server write its own
-replays in the same format. The client controls build on the new format.
-It is a wire change: golden bytes on both sides in one commit, and old
-showcase files need re-recording.
+The format revision is built (the `State` record, the joiner's catch-up,
+server replays as `.apxs`, live sessions as streams, the watch controls);
+see [game/spectator.md](game/spectator.md). What is left of it:
 
 | Item | Type | Notes |
 |---|---|---|
-| Stream format | feature | No delta or keyframe encoding of frames. `SessionKind::Demo` is kept only for old servers and can go once showcases are everywhere. The promo pipeline records no audio. |
+| Stream format | task | `SessionKind::Demo` is kept only for old servers and can go once showcases are everywhere. The promo pipeline records no audio. (Frames stay whole: no delta encoding, see [spectator.md](game/spectator.md).) |
 | Streams and replays carry too little | feature | A stream's rows and `State` records leave out the ghost and the driver feedback, so a replay has no tyre or kerb sound (slip, slide and contact surface are in no stream). |
 
 ### Hotlap and lap records
