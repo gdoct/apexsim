@@ -455,7 +455,9 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			TEXT("sky.clock"), TEXT("sky.clock_s"), TEXT("sky.weather"), TEXT("sky.rain"), TEXT("sky.cloud"),
 			TEXT("sky.road_water"), TEXT("sky.air_c"), TEXT("sky.track_c"), TEXT("sky.wind_kph"),
 			TEXT("sky.wind_rel_deg"), TEXT("sky.wind_from"), TEXT("sky.rubber"), TEXT("sky.time_scale"),
-			TEXT("sky.next_weather"), TEXT("sky.next_in_s"), TEXT("sky.snow"), TEXT("sky.snowfall") };
+			TEXT("sky.next_weather"), TEXT("sky.next_in_s"), TEXT("sky.snow"), TEXT("sky.snowfall"),
+			TEXT("sky.next2_weather"), TEXT("sky.next2_in_s"), TEXT("sky.next3_weather"), TEXT("sky.next3_in_s"),
+			TEXT("sky.forecast") };
 		const FApexSkyNow& Sky = Frame.Sky;
 		Out.Set(TEXT("sky.live"), Sky.bValid);
 		Out.Set(TEXT("sky.wet"), Sky.bValid && Sky.RoadWaterPct >= 5);
@@ -491,6 +493,44 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			{
 				Out.SetNone(TEXT("sky.next_weather"));
 				Out.SetNone(TEXT("sky.next_in_s"));
+			}
+			// The changes after the next, and the whole sky ahead as one line.
+			auto Weather = [](int32 Index) { return FApexSessionConditions::WeatherLabel(static_cast<EApexWeather>(Index)); };
+			auto Minutes = [](int32 Seconds) { return FString::Printf(TEXT("%d min"), FMath::Max(1, FMath::RoundToInt(Seconds / 60.0f))); };
+			FString Ahead;
+			if (Sky.HasNextChange())
+			{
+				Ahead = FString::Printf(TEXT("%s in %s"), *Weather(Sky.NextWeather), *Minutes(Sky.NextInS));
+			}
+			if (Sky.HasNext2Change())
+			{
+				Out.Set(TEXT("sky.next2_weather"), Weather(Sky.Next2Weather));
+				Out.Set(TEXT("sky.next2_in_s"), Sky.Next2InS);
+				Ahead += FString::Printf(TEXT(", %s in %s"), *Weather(Sky.Next2Weather), *Minutes(Sky.Next2InS));
+			}
+			else
+			{
+				Out.SetNone(TEXT("sky.next2_weather"));
+				Out.SetNone(TEXT("sky.next2_in_s"));
+			}
+			if (Sky.HasNext3Change())
+			{
+				Out.Set(TEXT("sky.next3_weather"), Weather(Sky.Next3Weather));
+				Out.Set(TEXT("sky.next3_in_s"), Sky.Next3InS);
+				Ahead += FString::Printf(TEXT(", %s in %s"), *Weather(Sky.Next3Weather), *Minutes(Sky.Next3InS));
+			}
+			else
+			{
+				Out.SetNone(TEXT("sky.next3_weather"));
+				Out.SetNone(TEXT("sky.next3_in_s"));
+			}
+			if (Ahead.IsEmpty())
+			{
+				Out.SetNone(TEXT("sky.forecast"));
+			}
+			else
+			{
+				Out.Set(TEXT("sky.forecast"), Ahead);
 			}
 			// The wind seen from the local car. Both angles are counter-
 			// clockwise in the server frame; the relative one is turned

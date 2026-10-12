@@ -1619,7 +1619,7 @@ impl CarExtra {
 /// viewer who joins or seeks mid-file has the latest within a fraction of a
 /// second. The body is
 /// `[9, epoch, tick, sky, race_clock, entry_size, extras bin]`; `sky` is nil
-/// or `SkyNow`'s 15 fields in order, `race_clock` nil or `[left_ms,
+/// or `SkyNow`'s 19 fields in order, `race_clock` nil or `[left_ms,
 /// final_lap]`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StreamState {
@@ -1637,7 +1637,7 @@ impl StreamState {
         wr::u32_fixed(&mut out, self.tick);
         match &self.sky {
             Some(s) => {
-                wr::array(&mut out, 15);
+                wr::array(&mut out, 19);
                 wr::uint(&mut out, s.clock_s as u64);
                 wr::uint(&mut out, s.weather as u64);
                 wr::uint(&mut out, s.rain_pct as u64);
@@ -1653,6 +1653,10 @@ impl StreamState {
                 wr::uint(&mut out, s.next_in_s as u64);
                 wr::uint(&mut out, s.line_snow_pct as u64);
                 wr::uint(&mut out, s.snowfall_pct as u64);
+                wr::uint(&mut out, s.next2_weather as u64);
+                wr::uint(&mut out, s.next2_in_s as u64);
+                wr::uint(&mut out, s.next3_weather as u64);
+                wr::uint(&mut out, s.next3_in_s as u64);
             }
             None => wr::nil(&mut out),
         }
@@ -1701,12 +1705,20 @@ impl StreamState {
                 next_in_s: rd.uint()? as u32,
                 ..Default::default()
             };
-            // The snow came after the first stream files: older ones end here.
+            // The snow and the forecast came after the first stream files:
+            // older ones end sooner.
             let mut read = 13;
             if n >= 15 {
                 sky.line_snow_pct = rd.uint()? as u8;
                 sky.snowfall_pct = rd.uint()? as u8;
                 read = 15;
+            }
+            if n >= 19 {
+                sky.next2_weather = rd.uint()? as u8;
+                sky.next2_in_s = rd.uint()? as u32;
+                sky.next3_weather = rd.uint()? as u8;
+                sky.next3_in_s = rd.uint()? as u32;
+                read = 19;
             }
             rd.skip_rest(n, read)?;
             Some(sky)
@@ -2834,6 +2846,10 @@ mod tests {
                 next_in_s: 600,
                 line_snow_pct: 35,
                 snowfall_pct: 100,
+                next2_weather: 1,
+                next2_in_s: 2400,
+                next3_weather: 0,
+                next3_in_s: 5400,
             }),
             race_clock: Some(crate::network::RaceClock {
                 left_ms: 754_300,

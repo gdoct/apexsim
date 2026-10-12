@@ -250,6 +250,8 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 			&& S.Sky.RainPct == 40 && S.Sky.CloudPct == 90 && S.Sky.RoadWaterPct == 55 && S.Sky.AirC == -2 && S.Sky.TrackC == 11
 			&& S.Sky.WindKph == 18 && S.Sky.WindToDeg == 270 && S.Sky.LineRubberPct == 62 && S.Sky.TimeScale == 4
 			&& S.Sky.LineSnowPct == 35 && S.Sky.SnowfallPct == 100);
+		TestTrue(TEXT("state forecast ahead"), S.Sky.HasNext2Change() && S.Sky.Next2Weather == (int32)EApexWeather::Cloudy
+			&& S.Sky.Next2InS == 2400 && S.Sky.HasNext3Change() && S.Sky.Next3Weather == (int32)EApexWeather::Sunny && S.Sky.Next3InS == 5400);
 		TestTrue(TEXT("state forecast"), S.Sky.HasNextChange() && S.Sky.NextWeather == (int32)EApexWeather::Overcast && S.Sky.NextInS == 600);
 		TestTrue(TEXT("state race clock"), S.RaceLeftMs == 754300 && S.RaceFinalLap == 0);
 		if (TestEqual(TEXT("state cars"), S.Cars.Num(), 2))

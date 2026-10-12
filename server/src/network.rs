@@ -1176,7 +1176,8 @@ impl Serialize for CompactTelemetry {
 /// road under it holds, positional like the rest of `CompactTelemetry`:
 /// `[clock_s, weather, rain_pct, cloud_pct, road_water_pct, air_c,
 /// track_c, wind_kph, wind_to_deg, line_rubber_pct, time_scale,
-/// next_weather, next_in_s, line_snow_pct, snowfall_pct]`.
+/// next_weather, next_in_s, line_snow_pct, snowfall_pct, next2_weather,
+/// next2_in_s, next3_weather, next3_in_s]`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SkyNow {
     /// The day's clock, seconds after midnight.
@@ -1214,6 +1215,16 @@ pub struct SkyNow {
     /// Snow falling, percent of steady snowfall.
     #[serde(default)]
     pub snowfall_pct: u8,
+    /// The second and third changes the forecast holds after the next, with
+    /// the seconds until each; `_in_s` 0 when the forecast holds no more.
+    #[serde(default)]
+    pub next2_weather: u8,
+    #[serde(default)]
+    pub next2_in_s: u32,
+    #[serde(default)]
+    pub next3_weather: u8,
+    #[serde(default)]
+    pub next3_in_s: u32,
 }
 
 impl SkyNow {
@@ -1239,6 +1250,17 @@ impl SkyNow {
             0
         };
         let next = live.next_change(session_s);
+        let mut later = live.changes_after(session_s, 3).skip(1);
+        let (second, third) = (later.next(), later.next());
+        let eta = |c: Option<crate::conditions::WeatherChange>| {
+            c.map_or((0u8, 0u32), |c| {
+                (
+                    c.weather as u8,
+                    (c.at_s - session_s).max(1.0).round() as u32,
+                )
+            })
+        };
+        let ((next2_weather, next2_in_s), (next3_weather, next3_in_s)) = (eta(second), eta(third));
         Self {
             clock_s: ((live.clock_min * 60.0).floor() as u32) % 86_400,
             weather: live.weather as u8,
@@ -1255,6 +1277,10 @@ impl SkyNow {
             next_in_s: next.map_or(0, |c| (c.at_s - session_s).max(1.0).round() as u32),
             line_snow_pct: pct(live.line_snow),
             snowfall_pct: pct(live.snowfall),
+            next2_weather,
+            next2_in_s,
+            next3_weather,
+            next3_in_s,
         }
     }
 }
@@ -3826,6 +3852,10 @@ mod tests {
             next_in_s: 1250,
             line_snow_pct: 0,
             snowfall_pct: 0,
+            next2_weather: Weather::Overcast as u8,
+            next2_in_s: 2400,
+            next3_weather: Weather::Cloudy as u8,
+            next3_in_s: 4200,
         };
         let frame = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,

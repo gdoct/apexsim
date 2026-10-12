@@ -292,6 +292,9 @@ figures then stand for the sky. Percentages are whole numbers.
 | `sky.time_scale` | how fast the clock runs (0 frozen, 1 real time, 24 a day an hour) |
 | `sky.next_weather` | the forecast's next weather (*null* while the sky holds) |
 | `sky.next_in_s` | seconds of session until it arrives (*null* as above) |
+| `sky.next2_weather`, `sky.next2_in_s` | the change after that and when (*null* when the forecast holds no more) |
+| `sky.next3_weather`, `sky.next3_in_s` | and the one after (*null* as above) |
+| `sky.forecast` | the sky ahead as one line, "Light rain in 12 min, Overcast in 41 min" (*null* while it holds) |
 
 ### Watching a race
 

@@ -368,7 +368,9 @@ namespace ApexSpectatorCodec
 				|| !ReadI32(Reader, S.WindKph) || !ReadI32(Reader, S.WindToDeg) || !ReadI32(Reader, S.LineRubberPct)
 				|| !ReadI32(Reader, S.TimeScale) || !ReadI32(Reader, NextWeather) || !ReadI32(Reader, S.NextInS)
 				|| (Fields >= 15 && (!ReadI32(Reader, S.LineSnowPct) || !ReadI32(Reader, S.SnowfallPct)))
-				|| !SkipRest(Reader, Fields, Fields >= 15 ? 15 : 13))
+				|| (Fields >= 19 && (!ReadI32(Reader, S.Next2Weather) || !ReadI32(Reader, S.Next2InS)
+					|| !ReadI32(Reader, S.Next3Weather) || !ReadI32(Reader, S.Next3InS)))
+				|| !SkipRest(Reader, Fields, Fields >= 19 ? 19 : (Fields >= 15 ? 15 : 13)))
 			{
 				return false;
 			}

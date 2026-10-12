@@ -2108,8 +2108,10 @@ namespace
 	 * `SkyNow` (network.rs), positional: `[clock_s, weather, rain_pct,
 	 * cloud_pct, road_water_pct, air_c, track_c, wind_kph, wind_to_deg,
 	 * line_rubber_pct, time_scale, next_weather, next_in_s, line_snow_pct,
-	 * snowfall_pct]`. The last two came with snow and are optional; fields
-	 * past the fifteen are skipped; an array shorter than thirteen is refused.
+	 * snowfall_pct, next2_weather, next2_in_s, next3_weather, next3_in_s]`.
+	 * The snow pair and the forecast's second and third changes came later
+	 * and are optional; fields past the nineteen are skipped; an array
+	 * shorter than thirteen is refused.
 	 */
 	bool ParseSkyNow(FMsgPackReader& Reader, FApexSkyNow& Out)
 	{
@@ -2160,6 +2162,15 @@ namespace
 				return false;
 			}
 			Read += 2;
+		}
+		if (Fields >= SkyNowFieldCount + 6)
+		{
+			if (!ReadU(Out.Next2Weather, MAX_uint8) || !ReadU(Out.Next2InS, MAX_int32)
+				|| !ReadU(Out.Next3Weather, MAX_uint8) || !ReadU(Out.Next3InS, MAX_int32))
+			{
+				return false;
+			}
+			Read += 4;
 		}
 		for (int32 Extra = Read; Extra < Fields; ++Extra)
 		{

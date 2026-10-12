@@ -155,6 +155,15 @@ public:
 	void SetHeadlights(bool bOn, bool bFullBeam = false);
 	bool HasHeadlights() const { return bHeadlightsOn; }
 
+	/**
+	 * The rain light: the red lamp (the `car_rainlight` material slot) a car
+	 * runs steadily in the wet so the cars behind find it in the spray. The
+	 * director sets it from the sky (rain, snow or a wet road), the same for
+	 * every car. A body without the slot has none.
+	 */
+	void SetRainLight(bool bOn);
+	bool HasRainLight() const { return bRainLightOn; }
+
 	UStaticMeshComponent* GetMeshComponent() const { return CarMesh; }
 
 	/** Calls `Fn` for each wheel component, e.g. to hide them from a capture. */
@@ -365,6 +374,14 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> TailLightMaterial;
 	FLinearColor TailLightColor = FLinearColor::Red;
+
+	/** The mesh's `car_rainlight` slot as a dynamic instance, lit by SetRainLight. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> RainLightMaterial;
+	FLinearColor RainLightColor = FLinearColor::Red;
+	bool bRainLightOn = false;
+	/** Writes the rain light's emissive for bRainLightOn. */
+	void ApplyRainLight();
 
 	/** A livery's instances are on the paint, accent and logo slots. */
 	bool bLiveryApplied = false;

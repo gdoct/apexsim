@@ -246,6 +246,8 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("sky next in"), Sky.NextInS, 1250);
 			TestEqual(TEXT("sky line snow (the optional field, 0)"), Sky.LineSnowPct, 0);
 			TestEqual(TEXT("sky snowfall"), Sky.SnowfallPct, 0);
+			TestTrue(TEXT("the sky after next"), Sky.HasNext2Change() && Sky.Next2Weather == (int32)EApexWeather::Overcast && Sky.Next2InS == 2400);
+			TestTrue(TEXT("and after that"), Sky.HasNext3Change() && Sky.Next3Weather == (int32)EApexWeather::Cloudy && Sky.Next3InS == 4200);
 			TestTrue(TEXT("sky has a next change"), Sky.HasNextChange());
 			// 300° counter-clockwise from +X: along +X and toward -Y (the right).
 			const FVector2D Wind = Sky.WindServerMps();

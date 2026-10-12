@@ -664,6 +664,7 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 			}
 			Car->SetCarIndex(Entry.CarIndex);
 			Car->SetHeadlights(bRaceViewActive && Sky.bHeadlights);
+			Car->SetRainLight(bRaceViewActive && IsWetSky());
 			if (const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr)
 			{
 				Car->SetMixVolumes(Values->EngineVolume, Values->OtherCarsVolume, Values->RoadVolume);
@@ -831,6 +832,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 			Actor->SetRoadWater(TyreWaterFor(Car));
 			// The lights are the server's: the driver's switch, or the sky.
 			Actor->SetHeadlights(bRaceViewActive && (Car.bHeadlights || Car.bHeadlightFlash), Car.bHeadlightFlash);
+			Actor->SetRainLight(bRaceViewActive && IsWetSky());
 			// Someone else's car parked in its hotlap garage is out of the
 			// way on the server and not drawn here; the player's own stays,
 			// it is what the garage view looks at.
@@ -1715,6 +1717,7 @@ void AApexRaceDirector::ApplyRaceEnvironment()
 		if (Pair.Value)
 		{
 			Pair.Value->SetHeadlights(Sky.bHeadlights);
+			Pair.Value->SetRainLight(IsWetSky());
 		}
 	}
 
@@ -1924,6 +1927,7 @@ void AApexRaceDirector::RestoreMenuEnvironment()
 		if (Pair.Value)
 		{
 			Pair.Value->SetHeadlights(false);
+			Pair.Value->SetRainLight(false);
 		}
 	}
 	Sky = ApexSky::FSkyState();

@@ -630,6 +630,8 @@ private:
 	void ApplyRoadWetness();
 	/** The ground, verges, curbs and the road without per-bin snow whitened by Sky.SnowCover (SnowMids). */
 	void ApplySnowCover();
+	/** Rain, snow or a wet road in the sky as lit: the cars run their rain lights. */
+	bool IsWetSky() const { return Sky.RainIntensity > 0.0f || Sky.SnowIntensity > 0.0f || Sky.bWetRoad; }
 	/** The flags on the track's flag poles streamed downwind, eased, at most once a second. */
 	void UpdateFlags(float DeltaSeconds, bool bForce);
 	/** Put every flag pole back as the track was built (before the track goes back). */

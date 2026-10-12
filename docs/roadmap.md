@@ -97,8 +97,8 @@ forecast change.
 |---|---|---|
 | Road state on screen: what is left | feature | The pit lane, curbs and run-off are wet by the lap's one figure, not per bin (their UV `u` is not the lap's station). Puddles have no lateral position on the server, so a puddle covers the cell's width. |
 | Road state never checked by hand | task | A rubbered start has been seen (Silverstone, `-ApexTrackRubber=100`, overhead at the line): the band is where the server lays it, about 9% darker. A green start, a drying line after rain, puddles, marbles and debris have not been looked at. The colour and gloss figures in `ApplyRoadStateGraph` are first guesses. |
-| Forecast on screen | feature | Nothing shows the weather ahead: no forecast on the create screen, no radar; the HUD names only the next change (`sky.*`). |
-| Rain light | feature | Cars carry a `car_rainlight` material slot but nothing drives it. |
+| Forecast on screen | feature | The `conditions` HUD component lists the next three changes (`sky.next*`, `sky.forecast`); the create screen shows no forecast (it is worked out from the session's id, which does not exist yet) and there is no radar or longer outlook. |
+| Rain light | task | Built: the rain light glows steadily while the sky is wet (`apexsim.car.RainLightNits`), the same on every car. Not seen on screen; a body with no `car_rainlight` slot has none. |
 
 ### Snow
 

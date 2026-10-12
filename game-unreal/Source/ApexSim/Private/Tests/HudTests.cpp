@@ -909,7 +909,7 @@ bool FApexHudDataSkyTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("no sky: not wet"), HudValue(Data, TEXT("sky.wet")).AsBool());
 	for (const TCHAR* Name : {TEXT("sky.clock"), TEXT("sky.weather"), TEXT("sky.air_c"), TEXT("sky.wind_kph"),
 			 TEXT("sky.wind_rel_deg"), TEXT("sky.rubber"), TEXT("sky.next_weather"), TEXT("sky.next_in_s"),
-			 TEXT("sky.snow"), TEXT("sky.snowfall")})
+			 TEXT("sky.snow"), TEXT("sky.snowfall"), TEXT("sky.next2_weather"), TEXT("sky.next3_in_s"), TEXT("sky.forecast")})
 	{
 		TestTrue(*FString::Printf(TEXT("no sky: %s null"), Name), HudValue(Data, Name).IsNone());
 	}
@@ -932,6 +932,10 @@ bool FApexHudDataSkyTest::RunTest(const FString& Parameters)
 	Sky.TimeScale = 24;
 	Sky.NextWeather = static_cast<int32>(EApexWeather::HeavyRain);
 	Sky.NextInS = 1250;
+	Sky.Next2Weather = static_cast<int32>(EApexWeather::Overcast);
+	Sky.Next2InS = 2400;
+	Sky.Next3Weather = static_cast<int32>(EApexWeather::Snow);
+	Sky.Next3InS = 4200;
 	ApexHudData::Build(In, Memory, Data);
 	TestTrue(TEXT("live"), HudValue(Data, TEXT("sky.live")).AsBool());
 	TestTrue(TEXT("wet"), HudValue(Data, TEXT("sky.wet")).AsBool());
@@ -948,6 +952,11 @@ bool FApexHudDataSkyTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("time scale"), HudValue(Data, TEXT("sky.time_scale")).AsNumber(), 24.0);
 	TestEqual(TEXT("next weather"), HudValue(Data, TEXT("sky.next_weather")).AsString(), FString(TEXT("Heavy rain")));
 	TestEqual(TEXT("next in"), HudValue(Data, TEXT("sky.next_in_s")).AsNumber(), 1250.0);
+	TestEqual(TEXT("then"), HudValue(Data, TEXT("sky.next2_weather")).AsString(), FString(TEXT("Overcast")));
+	TestEqual(TEXT("then in"), HudValue(Data, TEXT("sky.next2_in_s")).AsNumber(), 2400.0);
+	TestEqual(TEXT("and then"), HudValue(Data, TEXT("sky.next3_weather")).AsString(), FString(TEXT("Snow")));
+	TestEqual(TEXT("the sky ahead as a line"), HudValue(Data, TEXT("sky.forecast")).AsString(),
+		FString(TEXT("Heavy rain in 21 min, Overcast in 40 min, Snow in 70 min")));
 	TestTrue(TEXT("wind goes to the car's right"), FMath::IsNearlyEqual(HudValue(Data, TEXT("sky.wind_rel_deg")).AsNumber(), 90.0, 0.01));
 	TestEqual(TEXT("so it comes from the left"), HudValue(Data, TEXT("sky.wind_from")).AsString(), FString(TEXT("the left")));
 

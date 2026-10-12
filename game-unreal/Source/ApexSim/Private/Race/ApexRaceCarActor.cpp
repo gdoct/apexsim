@@ -46,6 +46,13 @@ namespace
 		TEXT("Brightness of a car's tail (running) lights in daylight, as an emissive multiplier"),
 		ECVF_Default);
 
+	/** The rain light, lit in the wet: steady, as bright as a brake light so it shows through the spray. */
+	TAutoConsoleVariable<float> CVarRainLightNits(
+		TEXT("apexsim.car.RainLightNits"),
+		3000.0f,
+		TEXT("Brightness of a car's rain light while it rains, as an emissive multiplier"),
+		ECVF_Default);
+
 	/**
 	 * How far behind the newest telemetry frame a car is drawn, in frames.
 	 * Two frames (33 ms at 60Hz) rides out the usual lumping of arrivals;
@@ -87,6 +94,8 @@ namespace
 	const FName BrakeLightSlot(TEXT("car_brakelight"));
 	/** ... and its running lights (always on while racing). */
 	const FName TailLightSlot(TEXT("car_taillight"));
+	/** ... and the rain light, lit in the wet. */
+	const FName RainLightSlot(TEXT("car_rainlight"));
 
 	/**
 	 * The Interchange glTF parent's emissive colour. Its `EmissiveStrength`
@@ -258,6 +267,8 @@ void AApexRaceCarActor::SetCarMesh(UStaticMesh* MeshToShow)
 	};
 	BrakeLightMaterial = LightSlot(BrakeLightSlot, BrakeLightColor);
 	TailLightMaterial = LightSlot(TailLightSlot, TailLightColor);
+	RainLightMaterial = LightSlot(RainLightSlot, RainLightColor);
+	ApplyRainLight();
 	// Force the next update to write the parameter: the imported material ships lit.
 	bBrakeLightsOn = true;
 	TailLightState = -1;
@@ -456,6 +467,26 @@ void AApexRaceCarActor::UpdateBrakeLights()
 		// Running lights stay on whatever the pedal does; only the level changes with the sky.
 		TailLightMaterial->SetVectorParameterValue(EmissiveFactorParam, TailLightColor * Running);
 	}
+}
+
+void AApexRaceCarActor::SetRainLight(bool bOn)
+{
+	if (bOn == bRainLightOn)
+	{
+		return;
+	}
+	bRainLightOn = bOn;
+	ApplyRainLight();
+}
+
+void AApexRaceCarActor::ApplyRainLight()
+{
+	if (!RainLightMaterial)
+	{
+		return;
+	}
+	const FLinearColor Glow = bRainLightOn ? RainLightColor * CVarRainLightNits.GetValueOnGameThread() : FLinearColor::Black;
+	RainLightMaterial->SetVectorParameterValue(EmissiveFactorParam, Glow);
 }
 
 void AApexRaceCarActor::SetHeadlights(bool bOn, bool bFullBeam)

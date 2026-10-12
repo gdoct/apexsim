@@ -314,10 +314,11 @@ as `lap_flags` bits 5 and 6 (`LAP_FLAG_HEADLIGHTS`,
   --nocapture` ->
   `ApexGolden::C_CreateSessionAir` / `S_SessionJoinedAir` /
   `C_CreateSessionSky` / `S_SessionJoinedSky`.
-- `CompactTelemetry.sky` (`network::SkyNow`, 15 positional fields: clock,
+- `CompactTelemetry.sky` (`network::SkyNow`, 19 positional fields: clock,
   weather, rain, cloud, road water, air, track, the wind now and where it
   blows toward, line rubber, time scale, next weather and when, then the
-  snow on the line and the snowfall, both percent), appended
+  snow on the line and the snowfall, both percent, then the second and
+  third changes ahead with their ETAs), appended
   after `race_clock` (nil then when there is no race clock); every frame.
   Golden: `ApexUdpGolden::S_TelemetryCompactSky`.
 - `PlayerInput.headlights` / `flash`: `cargo test
@@ -374,6 +375,10 @@ See [protocol.md](protocol.md) for the append-only rules.
   ice, B the verge, from `SnowRows`): white from 0.9 cover, dark slush on a
   packed line (0.65 to 0.75), ice a dark mirror. A base baked before snow has
   no `SnowCover`, so `-run=ApexMaterialBake` bakes it again unasked.
+- Rain lights: a car's `car_rainlight` material slot glows steadily
+  (`apexsim.car.RainLightNits`, 3000) while the sky is wet, snowy or the road
+  holds water (`AApexRaceDirector::IsWetSky`, `AApexRaceCarActor::SetRainLight`);
+  a body without the slot has none.
 - Car headlights: `AApexRaceCarActor::SetHeadlights`
   (`apexsim.car.HeadlightLumens`), from the telemetry bits; a flash is held
   at least 0.2 s so a tap shows.

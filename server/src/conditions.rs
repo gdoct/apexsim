@@ -243,6 +243,16 @@ impl LiveConditions {
         self.forecast.iter().find(|c| c.at_s > at_s).copied()
     }
 
+    /// The changes after `at_s`, soonest first, at most `n` of them: what a
+    /// driver reads the sky ahead off.
+    pub fn changes_after(&self, at_s: f32, n: usize) -> impl Iterator<Item = WeatherChange> + '_ {
+        self.forecast
+            .iter()
+            .filter(move |c| c.at_s > at_s)
+            .take(n)
+            .copied()
+    }
+
     /// The sun's elevation now, degrees.
     pub fn sun_elevation_deg(&self) -> f32 {
         sun_elevation_deg(self.latitude_deg, self.clock_min)
@@ -407,6 +417,49 @@ mod tests {
         // A fast clock packs the changes in, never closer than the minimum.
         let fast = forecast(&picked(Weather::Cloudy, 13, 60, 2), 5);
         assert!(fast.len() > a.len());
+    }
+
+    #[test]
+    fn the_sky_ahead_names_the_next_three_changes_with_their_etas() {
+        let mut live = LiveConditions::new(picked(Weather::Sunny, 13, 1, 2), 50.0, 0.0, 3);
+        live.forecast = vec![
+            WeatherChange {
+                at_s: 600.0,
+                weather: Weather::Cloudy,
+            },
+            WeatherChange {
+                at_s: 1800.0,
+                weather: Weather::LightRain,
+            },
+            WeatherChange {
+                at_s: 2400.0,
+                weather: Weather::HeavyRain,
+            },
+            WeatherChange {
+                at_s: 4000.0,
+                weather: Weather::Overcast,
+            },
+        ];
+        let sky = crate::network::SkyNow::of(&live, [0.0, 0.0], 100.0);
+        assert_eq!(
+            (sky.next_weather, sky.next_in_s),
+            (Weather::Cloudy as u8, 500)
+        );
+        assert_eq!(
+            (sky.next2_weather, sky.next2_in_s),
+            (Weather::LightRain as u8, 1700)
+        );
+        assert_eq!(
+            (sky.next3_weather, sky.next3_in_s),
+            (Weather::HeavyRain as u8, 2300)
+        );
+        // Past the third: only the last change is left, and none after it.
+        let late = crate::network::SkyNow::of(&live, [0.0, 0.0], 2500.0);
+        assert_eq!(
+            (late.next_weather, late.next_in_s),
+            (Weather::Overcast as u8, 1500)
+        );
+        assert_eq!((late.next2_in_s, late.next3_in_s), (0, 0));
     }
 
     #[test]

@@ -2344,7 +2344,23 @@ struct APEXSIMNET_API FApexSkyNow
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
 	int32 SnowfallPct = 0;
 
+	/** The second and third changes the forecast holds after the next, and the
+	 * seconds until each (0 when it holds no more). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 Next2Weather = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 Next2InS = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 Next3Weather = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 Next3InS = 0;
+
 	bool HasNextChange() const { return NextWeather >= 0 && NextInS > 0; }
+	bool HasNext2Change() const { return HasNextChange() && Next2InS > 0 && Next2Weather < FApexSessionConditions::WeatherCount; }
+	bool HasNext3Change() const { return HasNext2Change() && Next3InS > 0 && Next3Weather < FApexSessionConditions::WeatherCount; }
 
 	/** Hours since midnight, fractional. */
 	float Hours() const { return static_cast<float>(ClockS) / 3600.0f; }
@@ -2385,7 +2401,9 @@ struct APEXSIMNET_API FApexSkyNow
 			&& AirC == Other.AirC && TrackC == Other.TrackC && WindKph == Other.WindKph
 			&& WindToDeg == Other.WindToDeg && LineRubberPct == Other.LineRubberPct
 			&& TimeScale == Other.TimeScale && NextWeather == Other.NextWeather && NextInS == Other.NextInS
-			&& LineSnowPct == Other.LineSnowPct && SnowfallPct == Other.SnowfallPct;
+			&& LineSnowPct == Other.LineSnowPct && SnowfallPct == Other.SnowfallPct
+			&& Next2Weather == Other.Next2Weather && Next2InS == Other.Next2InS
+			&& Next3Weather == Other.Next3Weather && Next3InS == Other.Next3InS;
 	}
 	bool operator!=(const FApexSkyNow& Other) const { return !(*this == Other); }
 };
