@@ -261,8 +261,11 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("extra brakes"), A.BrakeC[0] == 410 && A.BrakeC[3] == 395 && A.BrakeWear[2] == 9);
 			TestTrue(TEXT("extra tank"), A.FuelDl == 412 && A.WaterC == 96);
 			TestTrue(TEXT("extra hybrid"), A.ErsPct == 70 && A.ErsLapPct == 45 && A.ErsStintPct == 255 && A.TowPct == 8);
+			TestTrue(TEXT("extra damage centres"), A.bHasDamageAt && A.DamageAt[0] == -64 && A.DamageAt[1] == 0 && A.DamageAt[2] == 127 && A.DamageAt[3] == 32);
 			FApexCarTelemetry Car;
 			A.ApplyTo(Car);
+			TestTrue(TEXT("damage centres on telemetry"), Car.bHasDamageAt && FMath::IsNearlyEqual(Car.DamageAt[2], 1.0f)
+				&& FMath::IsNearlyEqual(Car.DamageAt[0], -64.0f / 127.0f, 1e-4f));
 			TestTrue(TEXT("extra on telemetry"), FMath::IsNearlyEqual(Car.FuelLiters, 41.2f) && FMath::IsNearlyEqual(Car.TyrePressureKpa[1], 163.0f)
 				&& FMath::IsNearlyEqual(Car.FlatSpot[1], 0.35f) && FMath::IsNearlyEqual(Car.BrakeTempC[1], 430.0f)
 				&& FMath::IsNearlyEqual(Car.TyreInnerC[1], 82.0f) && FMath::IsNearlyEqual(Car.TyreOuterC[1], 92.0f)

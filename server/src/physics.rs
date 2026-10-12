@@ -3722,6 +3722,15 @@ fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount: f32) {
         car.last_hit_pct = damage_amount;
         car.last_hit_angle = angle;
     }
+    // Where along its face the zone was hit, for the dent.
+    let (zone, at) = crate::damage::hit_zone(angle);
+    let before = match zone {
+        crate::damage::HitZone::Front => car.damage.front_damage_percent,
+        crate::damage::HitZone::Rear => car.damage.rear_damage_percent,
+        crate::damage::HitZone::Left => car.damage.left_damage_percent,
+        crate::damage::HitZone::Right => car.damage.right_damage_percent,
+    };
+    car.damage.hit_at.note(zone, at, before, damage_amount);
     if !(PI / 4.0..=7.0 * PI / 4.0).contains(&angle) {
         car.damage.front_damage_percent =
             (car.damage.front_damage_percent + damage_amount).min(100.0);

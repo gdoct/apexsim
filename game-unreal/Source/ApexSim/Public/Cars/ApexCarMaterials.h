@@ -99,32 +99,32 @@ namespace ApexCarMaterials
 	 * each tyre still shows its own state (FApexCarWheelSet writes it). The
 	 * class tyres carry no UVs, so the tread is laid from the mesh's own
 	 * position: the axle on X, `theta` round it from +Y toward +Z. Starts at
-	 * 16, past the damage graph's (ApexDamage::CpdCount), which the rims'
+	 * 18, past the damage graph's (ApexDamage::CpdCount), which the rims'
 	 * opaque parent reads from the same component.
 	 */
 	namespace TyreCpd
 	{
 		/** The tyre's radius and half width in the mesh's own units. */
-		inline constexpr int32 RadiusLocal = 16;
-		inline constexpr int32 HalfWidthLocal = 17;
+		inline constexpr int32 RadiusLocal = 18;
+		inline constexpr int32 HalfWidthLocal = 19;
 		/** The same as drawn, world cm. */
-		inline constexpr int32 RadiusCm = 18;
-		inline constexpr int32 HalfWidthCm = 19;
+		inline constexpr int32 RadiusCm = 20;
+		inline constexpr int32 HalfWidthCm = 21;
 		/** 0 slick, 1 intermediate, 2 wet (ApexWheels::TreadIndex). */
-		inline constexpr int32 Tread = 20;
+		inline constexpr int32 Tread = 22;
 		/** +1 or -1: which way `theta` rolls forward, so a directional tread points the same way on both sides. */
-		inline constexpr int32 Chevron = 21;
+		inline constexpr int32 Chevron = 23;
 		/** 0..1 each. */
-		inline constexpr int32 Wear = 22;
-		inline constexpr int32 Wetness = 23;
-		inline constexpr int32 FlatSpot = 24;
+		inline constexpr int32 Wear = 24;
+		inline constexpr int32 Wetness = 25;
+		inline constexpr int32 FlatSpot = 26;
 		/** Where the flat spot is, `theta` radians. */
-		inline constexpr int32 FlatSpotAngle = 25;
+		inline constexpr int32 FlatSpotAngle = 27;
 		/** How far a deflated tyre squats, world cm. */
-		inline constexpr int32 SagCm = 26;
-		/** The compound's ring on the sidewalls, linear RGB (27..29, 30 unused); black for none. */
-		inline constexpr int32 BandColour = 27;
-		inline constexpr int32 Count = 31;
+		inline constexpr int32 SagCm = 28;
+		/** The compound's ring on the sidewalls, linear RGB (29..31, 32 unused); black for none. */
+		inline constexpr int32 BandColour = 29;
+		inline constexpr int32 Count = 33;
 	}
 
 	/** `/Game/Materials/Car/<Name>`. */

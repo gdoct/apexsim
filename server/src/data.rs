@@ -1405,6 +1405,19 @@ pub struct SuspensionTelemetry {
     pub rear_right_damper_force_n: f32,
 }
 
+/// Where along each body zone's face the hits landed, -1 to 1, weighted by
+/// the damage each did: the nose and the tail across the car (positive to the
+/// left), the left and right flanks along it (positive forward). 0 for a zone
+/// not hit, or hit dead centre. The client dents the zone there instead of
+/// across the whole face (`crate::damage::hit_zone`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+pub struct HitCentres {
+    pub front: f32,
+    pub rear: f32,
+    pub left: f32,
+    pub right: f32,
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct DamageState {
     pub front_damage_percent: f32,
@@ -1418,6 +1431,9 @@ pub struct DamageState {
     #[serde(default)]
     pub engine_wear_percent: f32,
     pub is_drivable: bool,
+    /// Where the zones were hit; see [`HitCentres`].
+    #[serde(default)]
+    pub hit_at: HitCentres,
 }
 
 // --- Car Dynamics State (Per-Tick, Server Authoritative) ---

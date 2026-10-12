@@ -39,7 +39,7 @@
 //! and a repair takes the engine back to it, since no crew rebuilds an
 //! engine in a pit box.
 
-use crate::data::DamageState;
+use crate::data::{DamageState, HitCentres};
 
 /// Closing speed under which contact does no damage, m/s.
 pub const IMPACT_THRESHOLD_MPS: f32 = 2.5;
@@ -175,6 +175,65 @@ pub fn radiator_factor(damage: &DamageState) -> f32 {
 /// The power a damaged engine keeps.
 pub fn engine_power_factor(damage: &DamageState) -> f32 {
     1.0 - ENGINE_POWER_LOSS * share(damage.engine_damage_percent).powf(ENGINE_LOSS_EXPONENT)
+}
+
+/// Which body zone a hit from `angle` (radians counter-clockwise from the
+/// car's nose, 0..2 pi) lands in, and where along its face: the nose and the
+/// tail across the car, positive to the left, and the flanks along it,
+/// positive forward, each from -1 to 1 over the zone's 90 degrees.
+pub fn hit_zone(angle: f32) -> (HitZone, f32) {
+    use std::f32::consts::PI;
+    let angle = angle.rem_euclid(2.0 * PI);
+    if !(PI / 4.0..=7.0 * PI / 4.0).contains(&angle) {
+        // Past the nose to the left is positive.
+        let signed = if angle > PI { angle - 2.0 * PI } else { angle };
+        (HitZone::Front, (signed / (PI / 4.0)).clamp(-1.0, 1.0))
+    } else if (PI / 4.0..3.0 * PI / 4.0).contains(&angle) {
+        (
+            HitZone::Left,
+            ((PI / 2.0 - angle) / (PI / 4.0)).clamp(-1.0, 1.0),
+        )
+    } else if (3.0 * PI / 4.0..5.0 * PI / 4.0).contains(&angle) {
+        (HitZone::Rear, ((PI - angle) / (PI / 4.0)).clamp(-1.0, 1.0))
+    } else {
+        (
+            HitZone::Right,
+            ((angle - 3.0 * PI / 2.0) / (PI / 4.0)).clamp(-1.0, 1.0),
+        )
+    }
+}
+
+/// A body zone of the car.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HitZone {
+    Front,
+    Rear,
+    Left,
+    Right,
+}
+
+impl HitCentres {
+    /// Fold a hit that put `added` percent of damage on `zone` at `at` into
+    /// the zone's centre, given the `before` percent it already carried:
+    /// the mean of every hit, weighted by what it did.
+    pub fn note(&mut self, zone: HitZone, at: f32, before: f32, added: f32) {
+        let centre = match zone {
+            HitZone::Front => &mut self.front,
+            HitZone::Rear => &mut self.rear,
+            HitZone::Left => &mut self.left,
+            HitZone::Right => &mut self.right,
+        };
+        let total = before.max(0.0) + added.max(0.0);
+        if total > 0.0 {
+            *centre = ((*centre * before.max(0.0) + at * added.max(0.0)) / total).clamp(-1.0, 1.0);
+        }
+    }
+
+    /// The four centres as the wire carries them: -1..1 in 127ths.
+    pub fn to_wire(self) -> [i8; 4] {
+        let q = |v: f32| (v * 127.0).round().clamp(-127.0, 127.0) as i8;
+        [q(self.front), q(self.rear), q(self.left), q(self.right)]
+    }
 }
 
 impl DamageState {
@@ -339,11 +398,73 @@ mod tests {
     }
 
     #[test]
+    fn a_hit_lands_in_a_zone_and_somewhere_along_its_face() {
+        use std::f32::consts::PI;
+        // Dead ahead is the middle of the nose; a little to the left is
+        // positive, to the right negative.
+        let (zone, at) = hit_zone(0.0);
+        assert_eq!(zone, HitZone::Front);
+        assert!(at.abs() < 1e-6);
+        let (zone, at) = hit_zone(PI / 8.0);
+        assert_eq!(zone, HitZone::Front);
+        assert!((at - 0.5).abs() < 1e-5, "{at}");
+        let (zone, at) = hit_zone(2.0 * PI - PI / 8.0);
+        assert_eq!(zone, HitZone::Front);
+        assert!((at + 0.5).abs() < 1e-5, "{at}");
+        // The left flank: its front corner is +1, its rear corner -1.
+        let (zone, at) = hit_zone(PI / 4.0 + 0.001);
+        assert_eq!(zone, HitZone::Left);
+        assert!(at > 0.99, "{at}");
+        let (zone, at) = hit_zone(3.0 * PI / 4.0 - 0.001);
+        assert_eq!(zone, HitZone::Left);
+        assert!(at < -0.99, "{at}");
+        // The tail: to the left is positive, as the nose.
+        let (zone, at) = hit_zone(PI - PI / 8.0);
+        assert_eq!(zone, HitZone::Rear);
+        assert!((at - 0.5).abs() < 1e-5, "{at}");
+        // The right flank: front corner +1, rear corner -1.
+        let (zone, at) = hit_zone(7.0 * PI / 4.0 - 0.001);
+        assert_eq!(zone, HitZone::Right);
+        assert!(at > 0.99, "{at}");
+    }
+
+    #[test]
+    fn the_centre_of_a_zone_is_the_damage_weighted_mean_of_its_hits() {
+        let mut centres = HitCentres::default();
+        // A first hit of 10% at +1 on a clean nose: all of it.
+        centres.note(HitZone::Front, 1.0, 0.0, 10.0);
+        assert_eq!(centres.front, 1.0);
+        // A second of 10% at -1 on a nose with 10% already: the middle.
+        centres.note(HitZone::Front, -1.0, 10.0, 10.0);
+        assert!(centres.front.abs() < 1e-6);
+        // A hit of 30% at +0.5 on a nose with 20%: pulled toward it.
+        centres.note(HitZone::Front, 0.5, 20.0, 30.0);
+        assert!((centres.front - 0.3).abs() < 1e-5, "{}", centres.front);
+        // The others are untouched, and the wire is 127ths.
+        assert_eq!(centres.rear, 0.0);
+        assert_eq!(centres.to_wire(), [38, 0, 0, 0]);
+        assert_eq!(
+            HitCentres {
+                front: -1.0,
+                rear: 1.0,
+                left: 0.5,
+                right: -0.5
+            }
+            .to_wire(),
+            [-127, 127, 64, -64]
+        );
+    }
+
+    #[test]
     fn a_repair_undoes_the_hits_but_not_the_wear() {
         let mut d = DamageState {
             is_drivable: true,
             front_damage_percent: 40.0,
             engine_damage_percent: 10.0,
+            hit_at: HitCentres {
+                front: 0.8,
+                ..Default::default()
+            },
             ..Default::default()
         };
         d.wear_engine(5.0);
@@ -351,6 +472,7 @@ mod tests {
         assert!((d.engine_wear_percent - 5.0).abs() < 1e-6);
         let r = d.repaired();
         assert_eq!(r.front_damage_percent, 0.0);
+        assert_eq!(r.hit_at, HitCentres::default(), "the dent is mended");
         assert!((r.engine_damage_percent - 5.0).abs() < 1e-6, "{r:?}");
         assert!((r.engine_wear_percent - 5.0).abs() < 1e-6);
         assert!(r.is_drivable);

@@ -402,7 +402,7 @@ namespace ApexSpectatorCodec
 		{
 			return false;
 		}
-		EntrySize = FMath::Max(EntrySize, ApexSpectator::ExtraSize);
+		EntrySize = FMath::Max(EntrySize, ApexSpectator::ExtraSizeMin);
 		for (int32 Offset = 0; Offset + EntrySize <= Entries.Num(); Offset += EntrySize)
 		{
 			FApexStreamCarExtra Extra;
@@ -730,7 +730,7 @@ FApexStreamCarRow FApexStreamCarRow::FromTelemetry(const FApexCarTelemetry& T)
 
 bool FApexStreamCarExtra::Read(const uint8* B, int32 Len, FApexStreamCarExtra& Out)
 {
-	if (Len < ApexSpectator::ExtraSize)
+	if (Len < ApexSpectator::ExtraSizeMin)
 	{
 		return false;
 	}
@@ -753,6 +753,11 @@ bool FApexStreamCarExtra::Read(const uint8* B, int32 Len, FApexStreamCarExtra& O
 	Out.ErsLapPct = B[33];
 	Out.ErsStintPct = B[34];
 	Out.TowPct = B[35];
+	Out.bHasDamageAt = Len >= ApexSpectator::ExtraSize;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		Out.DamageAt[i] = Out.bHasDamageAt ? static_cast<int8>(B[36 + i]) : 0;
+	}
 	return true;
 }
 
@@ -778,6 +783,10 @@ void FApexStreamCarExtra::Write(TArray<uint8>& Out) const
 	B[33] = ErsLapPct;
 	B[34] = ErsStintPct;
 	B[35] = TowPct;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		B[36 + i] = static_cast<uint8>(DamageAt[i]);
+	}
 }
 
 void FApexStreamCarExtra::ApplyTo(FApexCarTelemetry& Car) const
@@ -791,6 +800,14 @@ void FApexStreamCarExtra::ApplyTo(FApexCarTelemetry& Car) const
 		Car.WaterTempC = WaterC;
 	}
 	Car.TowShare = TowPct / 100.0f;
+	if (bHasDamageAt)
+	{
+		Car.bHasDamageAt = true;
+		for (int32 i = 0; i < 4; ++i)
+		{
+			Car.DamageAt[i] = FMath::Clamp(static_cast<float>(DamageAt[i]) / 127.0f, -1.0f, 1.0f);
+		}
+	}
 	for (int32 i = 0; i < 4; ++i)
 	{
 		Car.TyrePressureKpa[i] = TyreKpa[i] == 0 ? -1.0f : TyreKpa[i];
@@ -836,6 +853,11 @@ FApexStreamCarExtra FApexStreamCarExtra::FromTelemetry(const FApexCarTelemetry& 
 	Out.ErsLapPct = Byte(Car.ErsLapPct, 255);
 	Out.ErsStintPct = Byte(Car.ErsStintPct, 255);
 	Out.TowPct = Car.TowShare < 0.0f ? 0 : static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(Car.TowShare * 100.0f), 0, 100));
+	Out.bHasDamageAt = true;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		Out.DamageAt[i] = static_cast<int8>(FMath::Clamp(FMath::RoundToInt(Car.DamageAt[i] * 127.0f), -127, 127));
+	}
 	return Out;
 }
 

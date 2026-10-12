@@ -2169,6 +2169,13 @@ struct APEXSIMNET_API FApexCarTelemetry
 	 * at 100 has put the car out. */
 	float DamagePct[5] = {-1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
 
+	/** Where along each zone's face the hits landed, -1 to 1 (`damage_at`):
+	 * front and rear across the car (positive left), left and right along it
+	 * (positive forward). All 0 with bHasDamageAt false when the server does
+	 * not send it, and the whole face is dented. */
+	float DamageAt[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	bool bHasDamageAt = false;
+
 	bool HasDamage() const { return DamagePct[0] >= 0.0f; }
 
 	/** The hybrid (server hybrid.rs): the battery's charge and the lap's

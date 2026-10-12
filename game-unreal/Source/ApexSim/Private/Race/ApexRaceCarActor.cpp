@@ -132,18 +132,27 @@ namespace
 		TEXT("1: damaged cars smoke, steam, spark and throw off parts; 0: dents only"),
 		ECVF_Default);
 
-	/** "60,40,30,20,80" -> five percentages; false unless it is five numbers. */
-	bool ParseDamagePreview(const FString& Text, float Out[ApexDamage::NumZones])
+	/**
+	 * "60,40,30,20,80" -> five percentages; "60,40,30,20,80,-0.5,0,1,0.25"
+	 * also where each zone was hit (-1 to 1, `OutAt`, with `bOutHasAt`).
+	 * False unless it is five or nine numbers.
+	 */
+	bool ParseDamagePreview(const FString& Text, float Out[ApexDamage::NumZones], float OutAt[4], bool& bOutHasAt)
 	{
 		TArray<FString> Parts;
 		Text.ParseIntoArray(Parts, TEXT(","), true);
-		if (Parts.Num() != ApexDamage::NumZones)
+		if (Parts.Num() != ApexDamage::NumZones && Parts.Num() != ApexDamage::NumZones + 4)
 		{
 			return false;
 		}
 		for (int32 i = 0; i < ApexDamage::NumZones; ++i)
 		{
 			Out[i] = FCString::Atof(*Parts[i].TrimStartAndEnd());
+		}
+		bOutHasAt = Parts.Num() > ApexDamage::NumZones;
+		for (int32 i = 0; bOutHasAt && i < 4; ++i)
+		{
+			OutAt[i] = FMath::Clamp(FCString::Atof(*Parts[ApexDamage::NumZones + i].TrimStartAndEnd()), -1.0f, 1.0f);
 		}
 		return true;
 	}
@@ -743,6 +752,8 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car, int64 Serve
 	CurrentLap = Car.CurrentLap;
 	CurrentLapTimeMs = Car.CurrentLapTimeMs;
 	FMemory::Memcpy(TelemetryDamagePct, Car.DamagePct, sizeof(TelemetryDamagePct));
+	FMemory::Memcpy(TelemetryDamageAt, Car.DamageAt, sizeof(TelemetryDamageAt));
+	bTelemetryDamageAt = Car.bHasDamageAt;
 	WaterTempC = Car.WaterTempC;
 	bColliding = Car.bIsColliding;
 	for (int32 Wheel = 0; Wheel < ApexWheels::NumWheels; ++Wheel)
@@ -976,15 +987,25 @@ void AApexRaceCarActor::ApplyDamageFrame()
 
 void AApexRaceCarActor::ApplyDents(const ApexDamage::FShares& Shares)
 {
-	auto Write = [&Shares](UStaticMeshComponent& Component) {
+	const float* At = TelemetryDamageAt;
+	const bool bLocal = bTelemetryDamageAt;
+	auto Write = [&Shares, At, bLocal](UStaticMeshComponent& Component) {
 		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdFront, ApexDamage::Visual(Shares.Zone[ApexDamage::Front]));
 		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdRear, ApexDamage::Visual(Shares.Zone[ApexDamage::Rear]));
 		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdLeft, ApexDamage::Visual(Shares.Zone[ApexDamage::Left]));
 		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdRight, ApexDamage::Visual(Shares.Zone[ApexDamage::Right]));
+		// Where along each face: the nose and tail across the car, the flanks along it.
+		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdAtFront, At[0]);
+		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdAtRear, At[1]);
+		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdAtLeft, At[2]);
+		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdAtRight, At[3]);
+		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdLocal, bLocal ? 1.0f : 0.0f);
 	};
 	Write(*CarMesh);
 	ForEachDamagePartComponent(Write);
 	DrawnDents = Shares;
+	FMemory::Memcpy(DrawnDamageAt, TelemetryDamageAt, sizeof(DrawnDamageAt));
+	bDrawnDamageAt = bTelemetryDamageAt;
 }
 
 AApexCarEffectsActor* AApexRaceCarActor::GetEffects()
@@ -1004,25 +1025,31 @@ FVector AApexRaceCarActor::ZonePoint(int32 Zone, FVector& OutNormal)
 	const FVector E = Bounds.BoxExtent;
 	FRandomStream& R = DamageRandom;
 	const double Height = O.Z - E.Z + 2.0 * E.Z * R.FRandRange(0.12f, 0.5f);
+	// Where along the face the sparks start: round the hit, else anywhere on the middle of it.
+	auto Along = [this, &R](int32 Face) {
+		return bTelemetryDamageAt
+			? FMath::Clamp(TelemetryDamageAt[Face] + R.FRandRange(-0.25f, 0.25f), -0.95f, 0.95f)
+			: R.FRandRange(-0.6f, 0.6f);
+	};
 	// The body mesh's frame: nose +Y, left +X, floor at Z = 0.
 	FVector Local;
 	FVector Normal;
 	switch (Zone)
 	{
 	case ApexDamage::Front:
-		Local = FVector(O.X + E.X * R.FRandRange(-0.6f, 0.6f), O.Y + E.Y * 0.97, Height);
+		Local = FVector(O.X + E.X * Along(0), O.Y + E.Y * 0.97, Height);
 		Normal = FVector(0.0, 1.0, 0.25);
 		break;
 	case ApexDamage::Rear:
-		Local = FVector(O.X + E.X * R.FRandRange(-0.6f, 0.6f), O.Y - E.Y * 0.97, Height);
+		Local = FVector(O.X + E.X * Along(1), O.Y - E.Y * 0.97, Height);
 		Normal = FVector(0.0, -1.0, 0.25);
 		break;
 	case ApexDamage::Left:
-		Local = FVector(O.X + E.X * 0.95, O.Y + E.Y * R.FRandRange(-0.6f, 0.6f), Height);
+		Local = FVector(O.X + E.X * 0.95, O.Y + E.Y * Along(2), Height);
 		Normal = FVector(1.0, 0.0, 0.25);
 		break;
 	case ApexDamage::Right:
-		Local = FVector(O.X - E.X * 0.95, O.Y + E.Y * R.FRandRange(-0.6f, 0.6f), Height);
+		Local = FVector(O.X - E.X * 0.95, O.Y + E.Y * Along(3), Height);
 		Normal = FVector(-1.0, 0.0, 0.25);
 		break;
 	default:
@@ -1128,22 +1155,33 @@ void AApexRaceCarActor::UpdateDamage(float DeltaSeconds)
 {
 	ApexDamage::FShares Shares = ApexDamage::FromPercent(TelemetryDamagePct);
 	float Preview[ApexDamage::NumZones];
-	if (ParseDamagePreview(CVarDamagePreview.GetValueOnGameThread(), Preview))
+	float PreviewAt[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	bool bPreviewAt = false;
+	if (ParseDamagePreview(CVarDamagePreview.GetValueOnGameThread(), Preview, PreviewAt, bPreviewAt))
 	{
 		Shares = ApexDamage::FromPercent(Preview);
+		// Nine numbers say where it was hit too; five dent the whole face.
+		bTelemetryDamageAt = bPreviewAt;
+		FMemory::Memcpy(TelemetryDamageAt, PreviewAt, sizeof(TelemetryDamageAt));
 	}
 	const ApexDamage::FShares Before = DamageShares;
 	DamageShares = Shares;
 	SinceLastHit += DeltaSeconds;
 
-	// The dents: written only when a zone has moved, which is a hit or a repair.
+	// The dents: written only when a zone has moved, which is a hit or a repair,
+	// or where a zone was hit has (a hit lands off the old centre).
+	bool bDentsChanged = bTelemetryDamageAt != bDrawnDamageAt;
 	for (int32 Zone = 0; Zone < ApexDamage::Engine; ++Zone)
 	{
-		if (FMath::Abs(Shares.Zone[Zone] - DrawnDents.Zone[Zone]) > 0.0005f)
+		bDentsChanged |= FMath::Abs(Shares.Zone[Zone] - DrawnDents.Zone[Zone]) > 0.0005f;
+		if (Zone < 4)
 		{
-			ApplyDents(Shares);
-			break;
+			bDentsChanged |= FMath::Abs(TelemetryDamageAt[Zone] - DrawnDamageAt[Zone]) > 0.004f;
 		}
+	}
+	if (bDentsChanged)
+	{
+		ApplyDents(Shares);
 	}
 
 	const bool bEffects = bDamageSeen && bHasTarget && !IsHidden() && CVarDamageEffects.GetValueOnGameThread() != 0;

@@ -418,6 +418,12 @@ private:
 	int32 DrsFlapPart = INDEX_NONE;
 	/** The newest telemetry's damage, percent; negative when the server sends none. */
 	float TelemetryDamagePct[ApexDamage::NumZones] = {-1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
+	/** Where each body zone was hit (`FApexCarTelemetry::DamageAt`), and whether the server says. */
+	float TelemetryDamageAt[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	bool bTelemetryDamageAt = false;
+	/** ... and as the dents were last written (-2: never). */
+	float DrawnDamageAt[4] = {-2.0f, -2.0f, -2.0f, -2.0f};
+	bool bDrawnDamageAt = false;
 	/** What the car shows, and what it showed when the dents were last written. */
 	ApexDamage::FShares DamageShares;
 	ApexDamage::FShares DrawnDents;

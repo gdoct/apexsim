@@ -127,7 +127,7 @@ telemetry append.
 
 | Item | Type | Notes |
 |---|---|---|
-| Visible damage detail | feature | One dent pattern per zone (no hit point on the wire), cosmetic debris the cars drive through, engine smoke always from the tail, no windscreen cracks or hanging parts, the DRS flap and driver never dented, wheels not drawn toed. |
+| Visible damage detail | feature | A zone's dent is centred on where it was hit (the damage-weighted mean of its hits), so two separate hits on one face are one dent between them; cosmetic debris the cars drive through, engine smoke always from the tail, no windscreen cracks or hanging parts, the DRS flap and driver never dented, wheels not drawn toed. |
 
 ### Track geometry pass
 

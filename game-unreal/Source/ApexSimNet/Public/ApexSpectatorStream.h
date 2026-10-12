@@ -41,7 +41,9 @@ namespace ApexSpectator
 	constexpr uint8 RecordState = 9;
 
 	/** Bytes of one car in a state record as written now; a newer writer only appends. */
-	constexpr int32 ExtraSize = 36;
+	constexpr int32 ExtraSize = 40;
+	/** ... and as the first streams wrote it (no damage centres): still read. */
+	constexpr int32 ExtraSizeMin = 36;
 	/** `FApexStreamCarExtra::FuelDl` of a tank the stream does not know. */
 	constexpr uint16 FuelUnknown = 0xFFFF;
 	/** `FApexStreamCarExtra::BrakeWear` of a brake the stream does not know. */
@@ -230,8 +232,8 @@ struct APEXSIMNET_API FApexStreamRoad
 };
 
 /**
- * What one car carries that moves slowly (`spectator::CarExtra`): 36 bytes,
- * little-endian, one per car in a state record. Zero (255 for the brake wear,
+ * What one car carries that moves slowly (`spectator::CarExtra`): 40 bytes (36
+ * in a stream from before the damage centres), little-endian, one per car in a state record. Zero (255 for the brake wear,
  * 0xFFFF for the tank) is "the stream does not know".
  */
 struct APEXSIMNET_API FApexStreamCarExtra
@@ -251,6 +253,10 @@ struct APEXSIMNET_API FApexStreamCarExtra
 	uint8 ErsLapPct = 255;
 	uint8 ErsStintPct = 255;
 	uint8 TowPct = 0;
+	/** Where each zone was hit, 127ths: front, rear (across, + left), left, right (along, + forward). */
+	int8 DamageAt[4] = {0, 0, 0, 0};
+	/** The entry had the damage centres (a 40-byte one). */
+	bool bHasDamageAt = false;
 
 	static bool Read(const uint8* Bytes, int32 Len, FApexStreamCarExtra& Out);
 	/** The entry written back as its ApexSpectator::ExtraSize bytes, for tests. */

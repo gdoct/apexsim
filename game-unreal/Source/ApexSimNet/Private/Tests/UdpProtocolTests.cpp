@@ -803,11 +803,18 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("FL round"), Car.FlatSpot[0], 0.0f);
 			TestEqual(TEXT("FR flat-spotted"), Car.FlatSpot[1], 0.4f);
 			TestEqual(TEXT("RR the worst"), Car.FlatSpot[3], 1.0f);
+			// 44 fields: where each zone was hit, 127ths of the half face.
+			TestTrue(TEXT("damage centres"), Car.bHasDamageAt);
+			TestTrue(TEXT("the nose was hit right of centre"), FMath::IsNearlyEqual(Car.DamageAt[0], -64.0f / 127.0f, 1e-4f));
+			TestEqual(TEXT("the tail not at all"), Car.DamageAt[1], 0.0f);
+			TestEqual(TEXT("the left flank at its nose end"), Car.DamageAt[2], 1.0f);
+			TestTrue(TEXT("the right flank a little forward"), FMath::IsNearlyEqual(Car.DamageAt[3], 32.0f / 127.0f, 1e-4f));
 		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactRecover, Spots, Error)
 			&& Spots.Telemetry.Cars.Num() == 1)
 		{
 			TestEqual(TEXT("no flat spots from an older server"), Spots.Telemetry.Cars[0].FlatSpot[3], 0.0f);
+			TestFalse(TEXT("nor damage centres: the whole face is dented"), Spots.Telemetry.Cars[0].bHasDamageAt);
 		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactZones, Recover, Error)
 			&& Recover.Telemetry.Cars.Num() == 1)

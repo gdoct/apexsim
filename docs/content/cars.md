@@ -390,14 +390,22 @@ wing carry it along. The DRS rule is server-side
 ## Visible damage
 
 The server sends five percentages per car (front, rear, left, right,
-engine); everything visible is worked out from them on the client
-(`Race/ApexCarDamage.h`), with nothing else on the wire.
+engine) and where along each body zone's face the hits landed
+(`DamageState::hit_at`: the damage-weighted mean of the hits, -1 to 1, the nose
+and tail across the car with the left positive, the flanks along it with
+forward positive; `damage::hit_zone` works it from the collision angle;
+`CompactCarState.damage_at` and the stream's `CarExtra`); everything visible
+is worked out from those on the client (`Race/ApexCarDamage.h`).
 
 - **Dents and scuffs** are in the four car parents (`BuildCarDamage` in
   `ApexTrackMaterialGraphs.cpp`): custom primitive data on the body
   (`ApexDamage::Cpd*`: each zone's visual amount, the body's box in its mesh
-  frame, a seed) drives a world position offset that dents a zone by up to
-  `DamageDentCm`, with faceted shading and scuffed paint. Imported-track
+  frame, a seed, where each zone was hit and whether the car says) drives a
+  world position offset that dents a zone by up to `DamageDentCm`, with
+  faceted shading and scuffed paint. The dent is a patch round the hit, as
+  wide as the damage is deep (a tap is a dent the size of a hand, a write-off
+  reaches the corners); a server without the centres dents the whole face
+  as before. The tyre graph's own primitive data starts at 18, past these. Imported-track
   scenery shares the parents and has the offset switched off
   (`SetEvaluateWorldPositionOffset(false)`).
 - **Parts** come off. `[[damage_part]]` boxes split the body GLB at runtime
@@ -428,8 +436,8 @@ engine); everything visible is worked out from them on the client
   assets): oil smoke from 35% engine damage, steam from a damaged nose with
   the coolant past 104 °C, sparks on a hit and while scraping a wall.
 
-`apexsim.car.DamagePreview "F,R,L,Rt,E"` (percent; empty for telemetry)
-overrides every car's damage, `apexsim.car.DamageEffects 0` keeps only the
+`apexsim.car.DamagePreview "F,R,L,Rt,E[,aF,aR,aL,aRt]"` (percent, then where
+each zone was hit, -1 to 1; empty for telemetry) overrides every car's damage, `apexsim.car.DamageEffects 0` keeps only the
 dents; `-ApexExecAfter="22=apexsim.car.DamagePreview 60,50,35,20,85"` does it
 mid-run so the parts fly on camera.
 

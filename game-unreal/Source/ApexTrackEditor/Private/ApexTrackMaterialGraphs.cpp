@@ -991,6 +991,12 @@ namespace
 		UMaterialExpression* Centre = G.PrimitiveVector(TEXT("DamageCentre"), ApexDamage::CpdCentre, FLinearColor(0.0f, 0.0f, 60.0f));
 		UMaterialExpression* Extent = G.PrimitiveVector(TEXT("DamageExtent"), ApexDamage::CpdExtent, FLinearColor(100.0f, 250.0f, 60.0f));
 		UMaterialExpression* Seed = G.PrimitiveScalar(TEXT("DamageSeed"), ApexDamage::CpdSeed);
+		// Where each zone was hit, and whether the car says (0: the whole face).
+		UMaterialExpression* AtFront = G.PrimitiveScalar(TEXT("DamageAtFront"), ApexDamage::CpdAtFront);
+		UMaterialExpression* AtRear = G.PrimitiveScalar(TEXT("DamageAtRear"), ApexDamage::CpdAtRear);
+		UMaterialExpression* AtLeft = G.PrimitiveScalar(TEXT("DamageAtLeft"), ApexDamage::CpdAtLeft);
+		UMaterialExpression* AtRight = G.PrimitiveScalar(TEXT("DamageAtRight"), ApexDamage::CpdAtRight);
+		UMaterialExpression* Local1 = G.PrimitiveScalar(TEXT("DamageLocal"), ApexDamage::CpdLocal);
 		UMaterialExpressionScalarParameter* Dent = AddExpr<UMaterialExpressionScalarParameter>(Parent);
 		Dent->ParameterName = ApexCarMaterials::DamageDentCm;
 		Dent->DefaultValue = 15.0f;
@@ -1010,16 +1016,25 @@ namespace
 		// The seed moves the noise kilometres along: another car, another crumple.
 		UMaterialExpression* NoisePos = G.Add(Local, G.Mul(Seed, G.C3(91700.0f, 53300.0f, 37100.0f)));
 
-		// A zone's weight here: its amount, faded in over its reach of its face.
-		auto Zone = [&G](UMaterialExpression* Toward, UMaterialExpression* Amount) {
+		// A zone's weight here: its amount, faded in over its reach of its face,
+		// and where it was hit: round `At` along the face, a patch as wide as
+		// the damage is deep (a tap is a dent the size of a hand, a write-off
+		// reaches the corners). `Local1` 0 spreads it over the whole face, as a
+		// server that does not say where did.
+		auto Zone = [&G, Local1](UMaterialExpression* Toward, UMaterialExpression* Amount,
+						UMaterialExpression* Along, UMaterialExpression* At) {
 			UMaterialExpression* Reach = G.Add(G.C(0.15f), G.Mul(Amount, G.C(0.3f)));
 			UMaterialExpression* Into = G.Sat(G.Div(G.Sub(Toward, G.Sub(G.C(1.0f), Reach)), Reach));
-			return G.Mul(G.Smooth(Into), Amount);
+			UMaterialExpression* Half = G.Add(G.C(0.35f), G.Mul(Amount, G.C(0.9f)));
+			UMaterialExpression* Off = G.Div(G.Sub(Along, At), Half);
+			UMaterialExpression* Patch = G.Sat(G.Sub(G.C(1.0f), G.Mul(Off, Off)));
+			UMaterialExpression* Where = G.Lerp(G.C(1.0f), G.Smooth(Patch), Local1);
+			return G.Mul(G.Mul(G.Smooth(Into), Amount), Where);
 		};
-		UMaterialExpression* WFront = Zone(Py, Front);
-		UMaterialExpression* WRear = Zone(G.Mul(Py, G.C(-1.0f)), Rear);
-		UMaterialExpression* WLeft = Zone(Px, Left);
-		UMaterialExpression* WRight = Zone(G.Mul(Px, G.C(-1.0f)), Right);
+		UMaterialExpression* WFront = Zone(Py, Front, Px, AtFront);
+		UMaterialExpression* WRear = Zone(G.Mul(Py, G.C(-1.0f)), Rear, Px, AtRear);
+		UMaterialExpression* WLeft = Zone(Px, Left, Py, AtLeft);
+		UMaterialExpression* WRight = Zone(G.Mul(Px, G.C(-1.0f)), Right, Py, AtRight);
 		UMaterialExpression* Weight = G.Add(G.Add(WFront, WRear), G.Add(WLeft, WRight));
 
 		// Pushed in toward the middle, unevenly.

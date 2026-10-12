@@ -75,7 +75,9 @@ pub const RECORD_STATE: u8 = 9;
 /// Seconds between two [`StreamState`] records of a stream.
 pub const STATE_EVERY_S: f32 = 0.25;
 /// Bytes of one car in a [`StreamState`]'s `extras` as this build writes them.
-pub const EXTRA_SIZE: usize = 36;
+pub const EXTRA_SIZE: usize = 40;
+/// ... and as the first streams wrote them (no damage centres): still read.
+pub const EXTRA_SIZE_MIN: usize = 36;
 /// `CarExtra::fuel_dl` when the stream does not know the tank.
 pub const FUEL_UNKNOWN: u16 = u16::MAX;
 /// `CarExtra::brake_wear` of a brake the stream does not know.
@@ -1520,8 +1522,8 @@ impl StreamRoad {
 /// What a car carries that moves slowly: its tyres' pressures and flat
 /// spots, the brakes, the tank, the coolant, the hybrid. A [`StreamState`]
 /// holds one per car, so a viewer's HUD, a tyre's flat spot and a brake's
-/// glow follow the car without every 30 Hz row growing. 36 bytes,
-/// little-endian:
+/// glow follow the car without every 30 Hz row growing. 40 bytes (a stream
+/// from before the last field has 36), little-endian:
 ///
 /// | Offset | Type | Field |
 /// |---|---|---|
@@ -1537,6 +1539,7 @@ impl StreamRoad {
 /// | 33 | u8 | hybrid lap budget, percent, 255 none |
 /// | 34 | u8 | hybrid stint budget, percent, 255 none |
 /// | 35 | u8 | tow, percent |
+/// | 36 | i8 x 4 | where each zone was hit, -127..127: front, rear (across, + left), left, right (along, + forward) |
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CarExtra {
     pub car_index: u8,
@@ -1551,6 +1554,7 @@ pub struct CarExtra {
     pub ers_lap_pct: u8,
     pub ers_stint_pct: u8,
     pub tow_pct: u8,
+    pub damage_at: [i8; 4],
 }
 
 impl CarExtra {
@@ -1569,6 +1573,7 @@ impl CarExtra {
             ers_lap_pct: c.ers_lap_pct,
             ers_stint_pct: c.ers_stint_pct,
             tow_pct: c.tow_pct,
+            damage_at: c.damage_at,
         }
     }
 
@@ -1588,11 +1593,12 @@ impl CarExtra {
         out.push(self.ers_lap_pct);
         out.push(self.ers_stint_pct);
         out.push(self.tow_pct);
+        out.extend(self.damage_at.map(|v| v as u8));
         debug_assert_eq!(out.len() - start, EXTRA_SIZE);
     }
 
     pub fn read(entry: &[u8]) -> Option<Self> {
-        if entry.len() < EXTRA_SIZE {
+        if entry.len() < EXTRA_SIZE_MIN {
             return None;
         }
         let u16_at = |o: usize| u16::from_le_bytes([entry[o], entry[o + 1]]);
@@ -1609,6 +1615,16 @@ impl CarExtra {
             ers_lap_pct: entry[33],
             ers_stint_pct: entry[34],
             tow_pct: entry[35],
+            damage_at: if entry.len() >= EXTRA_SIZE {
+                [
+                    entry[36] as i8,
+                    entry[37] as i8,
+                    entry[38] as i8,
+                    entry[39] as i8,
+                ]
+            } else {
+                [0; 4]
+            },
         })
     }
 }
@@ -1737,7 +1753,7 @@ impl StreamState {
             rd.skip_rest(n, 2)?;
             Some(clock)
         };
-        let entry_size = (rd.uint()? as usize).max(EXTRA_SIZE);
+        let entry_size = (rd.uint()? as usize).max(EXTRA_SIZE_MIN);
         let cars = rd
             .bin()?
             .chunks_exact(entry_size)
@@ -2860,6 +2876,7 @@ mod tests {
                     car_index: 0,
                     tyre_kpa: [162, 163, 158, 159],
                     flat_spot: [0, 35, 0, 0],
+                    damage_at: [-64, 0, 127, 32],
                     brake_c: [410, 430, 380, 395],
                     fuel_dl: 412,
                     water_c: 96,
@@ -2874,6 +2891,7 @@ mod tests {
                     car_index: 1,
                     tyre_kpa: [0; 4],
                     flat_spot: [0; 4],
+                    damage_at: [0, 0, 0, 0],
                     brake_c: [0; 4],
                     fuel_dl: FUEL_UNKNOWN,
                     water_c: 0,

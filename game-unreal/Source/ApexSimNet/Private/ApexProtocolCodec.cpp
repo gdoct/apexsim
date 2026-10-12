@@ -1562,7 +1562,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 43;
+	constexpr int32 CompactCarFieldCount = 44;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -2086,6 +2086,38 @@ namespace
 						Out.FlatSpot[Tyre] = FMath::Clamp(static_cast<float>(Raw) / 100.0f, 0.0f, 1.0f);
 					}
 				}
+				return true;
+			});
+		}
+		// Where each zone was hit, appended after the flat spots: four signed
+		// bytes, 127ths of the zone's half face.
+		Out.bHasDamageAt = false;
+		for (float& At : Out.DamageAt)
+		{
+			At = 0.0f;
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				int32 Count = 0;
+				if (!Reader.ReadArrayHeader(Count))
+				{
+					return false;
+				}
+				int64 Signed = 0;
+				for (int32 Zone = 0; Zone < Count; ++Zone)
+				{
+					if (!Reader.ReadInt64(Signed))
+					{
+						return false;
+					}
+					if (Zone < 4)
+					{
+						Out.DamageAt[Zone] = FMath::Clamp(static_cast<float>(Signed) / 127.0f, -1.0f, 1.0f);
+					}
+				}
+				Out.bHasDamageAt = Count >= 4;
 				return true;
 			});
 		}

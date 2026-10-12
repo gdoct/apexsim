@@ -1057,6 +1057,12 @@ pub struct CompactCarState {
     /// after `recover_ds`; all 0 from an older server.
     #[serde(default)]
     pub flat_spot: [u8; 4],
+    /// Where along each body zone's face the hits landed (`DamageState::hit_at`),
+    /// front, rear, left, right, -127 to 127 for -1 to 1 (the nose and the tail
+    /// across the car, positive left; the flanks along it, positive forward).
+    /// Appended after `flat_spot`; all 0 from an older server.
+    #[serde(default)]
+    pub damage_at: [i8; 4],
 }
 
 /// `slide_flags`: a sliding tyre is bit `i`, a locked one bit `i + 4`.
@@ -1380,6 +1386,7 @@ impl CompactCarState {
                 .tires
                 .each()
                 .map(|t| (t.flat_spot.clamp(0.0, 1.0) * 100.0).round() as u8),
+            damage_at: state.damage.hit_at.to_wire(),
         }
     }
 }
@@ -2641,6 +2648,12 @@ mod tests {
         state.damage.front_damage_percent = 23.4;
         state.damage.left_damage_percent = 7.6;
         state.damage.engine_damage_percent = 100.0;
+        state.damage.hit_at = crate::data::HitCentres {
+            front: -0.5,
+            rear: 0.0,
+            left: 1.0,
+            right: 0.25,
+        };
         state.ers_charge_pct = 64;
         state.ers_budget_pct = 255;
         state.ers_mode = crate::hybrid::ErsMode::Attack as u8;
@@ -2690,10 +2703,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 43-field array: 0xDC 0x00 0x2B is the array-16 header.
+        // The car is a 44-field array: 0xDC 0x00 0x2C is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x2B]),
-            "CompactCarState must stay 43 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x2C]),
+            "CompactCarState must stay 44 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -2723,6 +2736,11 @@ mod tests {
                 assert_eq!(car.ers_stint_pct, 73);
                 assert_eq!(car.recover_ds, 63, "6.34 s of hold left");
                 assert_eq!(car.flat_spot, [0, 40, 0, 100], "percent of the worst");
+                assert_eq!(
+                    car.damage_at,
+                    [-64, 0, 127, 32],
+                    "127ths of the zone's half face"
+                );
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);
             }
