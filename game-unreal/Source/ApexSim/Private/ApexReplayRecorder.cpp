@@ -162,6 +162,8 @@ void UApexReplayRecorder::Begin()
 	GameMode = EApexGameMode::Lobby;
 	Finished.Reset();
 	bStoppedForSize = false;
+	LastStateTick = -1;
+	WrittenPitServices.Reset();
 	PendingRoads.Reset();
 	if (const UApexNetSubsystem* Net = GetNet())
 	{
@@ -316,6 +318,42 @@ void UApexReplayRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	}
 	Writer.Add(Tick, ApexSpectator::EncodeFrame(Out));
 	++FramesWritten;
+
+	// The slow state a few times a second, as the server's streams carry it:
+	// the sky, a timed race's clock, each car's tyres, brakes and tank.
+	if (LastStateTick < 0 || Tick - LastStateTick >= EstimateTickRate() / 4)
+	{
+		LastStateTick = Tick;
+		FApexStreamState State;
+		State.Tick = Tick;
+		State.Sky = Frame.Sky;
+		State.RaceLeftMs = Frame.RaceLeftMs;
+		State.RaceFinalLap = Frame.RaceFinalLap;
+		for (const FApexCarTelemetry& Car : Frame.Cars)
+		{
+			State.Cars.Add(FApexStreamCarExtra::FromTelemetry(Car));
+		}
+		Writer.Add(Tick, ApexSpectator::EncodeState(State));
+	}
+	// A stop the crew started since the last frame.
+	if (const UApexNetSubsystem* Net = GetNet())
+	{
+		for (const TPair<int32, FApexPitService>& Stop : Net->GetPitServices())
+		{
+			const FApexPitService* Seen = WrittenPitServices.Find(Stop.Key);
+			if (Seen && Seen->TotalS == Stop.Value.TotalS && Seen->PitBox == Stop.Value.PitBox && Seen->FuelL == Stop.Value.FuelL
+				&& Seen->TyresS == Stop.Value.TyresS && Seen->Compound == Stop.Value.Compound && Seen->RepairS == Stop.Value.RepairS)
+			{
+				continue;
+			}
+			WrittenPitServices.Add(Stop.Key, Stop.Value);
+			FApexStreamEvent Event;
+			Event.Tick = Tick;
+			Event.Kind = ApexSpectator::EventPitService;
+			Event.PitService = Stop.Value;
+			Writer.Add(Tick, ApexSpectator::EncodeEvent(Event));
+		}
+	}
 	// The join's road, filed under the first frame it can be.
 	for (const FApexRoadState& Road : PendingRoads)
 	{

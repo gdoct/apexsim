@@ -419,6 +419,9 @@ void UApexSpectatorSubsystem::Drain()
 		case ApexSpectator::EventLapTiming:
 			Net->FeedBackdropLapTiming(Event.LapTiming);
 			break;
+		case ApexSpectator::EventPitService:
+			Net->FeedBackdropPitService(Event.PitService);
+			break;
 		default:
 			break;
 		}

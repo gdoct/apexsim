@@ -4136,12 +4136,17 @@ impl GameSession {
             countdown_ms,
             car_states,
             race_clock: self.race_clock(),
-            sky: Some(crate::network::SkyNow::of(
-                &self.sky,
-                self.track_config.track_surface.wind_now_mps,
-                self.session.current_tick as f32 / self.tick_rate_hz.max(1) as f32,
-            )),
+            sky: Some(self.sky_now()),
         }
+    }
+
+    /// The sky as it is now, as telemetry and the spectator stream carry it.
+    pub fn sky_now(&self) -> crate::network::SkyNow {
+        crate::network::SkyNow::of(
+            &self.sky,
+            self.track_config.track_surface.wind_now_mps,
+            self.session.current_tick as f32 / self.tick_rate_hz.max(1) as f32,
+        )
     }
 
     /// The livery a driver wears, as they picked it. Clamped to the car's

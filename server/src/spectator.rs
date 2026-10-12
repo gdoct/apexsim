@@ -27,6 +27,7 @@
 //! | 6 | [`Index`] | `[6, [[first_tick, offset, records], ...]]` (file only) |
 //! | 7 | [`StreamPath`] | `[7, epoch, spacing_m, bin points]` |
 //! | 8 | [`StreamRoad`] | `[8, epoch, tick, lap_m, cell_m, bins, half_span_m, first_cell, rows bin, debris bin, geometry bin]` |
+//! | 9 | [`StreamState`] | `[9, epoch, tick, sky, race_clock, entry_size, extras bin]` |
 //!
 //! Golden bytes for the client's codec come from
 //! `cargo test spectator_wire_format -- --nocapture`
@@ -69,6 +70,16 @@ pub const RECORD_BLOCK: u8 = 5;
 pub const RECORD_INDEX: u8 = 6;
 pub const RECORD_PATH: u8 = 7;
 pub const RECORD_ROAD: u8 = 8;
+pub const RECORD_STATE: u8 = 9;
+
+/// Seconds between two [`StreamState`] records of a stream.
+pub const STATE_EVERY_S: f32 = 0.25;
+/// Bytes of one car in a [`StreamState`]'s `extras` as this build writes them.
+pub const EXTRA_SIZE: usize = 36;
+/// `CarExtra::fuel_dl` when the stream does not know the tank.
+pub const FUEL_UNKNOWN: u16 = u16::MAX;
+/// `CarExtra::brake_wear` of a brake the stream does not know.
+pub const BRAKE_WEAR_UNKNOWN: u8 = u8::MAX;
 
 /// `CarRow::status` bits.
 pub const STATUS_ON_TRACK: u8 = 1;
@@ -291,7 +302,7 @@ pub fn record_epoch(body: &[u8]) -> Option<u32> {
 pub fn record_tick(body: &[u8]) -> Option<u32> {
     match (record_type(body)?, body) {
         (
-            RECORD_FRAME | RECORD_EVENT | RECORD_ROAD,
+            RECORD_FRAME | RECORD_EVENT | RECORD_ROAD | RECORD_STATE,
             [_, _, 0xCE, _, _, _, _, 0xCE, a, b, c, d, ..],
         ) => Some(u32::from_be_bytes([*a, *b, *c, *d])),
         _ => None,
@@ -1065,6 +1076,7 @@ pub const EVENT_FINISH: u8 = 4;
 pub const EVENT_RETIRED: u8 = 5;
 pub const EVENT_PIT_STOP: u8 = 6;
 pub const EVENT_CONTACT: u8 = 7;
+pub const EVENT_PIT_SERVICE: u8 = 8;
 
 /// `PitStop` phases.
 pub const PIT_ENTERED: u8 = 0;
@@ -1104,6 +1116,9 @@ pub enum EventKind {
         other: u8,
         speed_cms: u16,
     },
+    /// A crew started work on a car at its box: the plan the pit-stop panel
+    /// shows (`PitServiceData`, whose `car_index` is the stream's).
+    PitService(crate::network::PitServiceData),
     /// A kind this build does not know; kept so a file passes through.
     Unknown(u8),
 }
@@ -1182,6 +1197,19 @@ impl StreamEvent {
                 wr::uint(&mut out, *car_index as u64);
                 wr::uint(&mut out, *other as u64);
                 wr::uint(&mut out, *speed_cms as u64);
+            }
+            EventKind::PitService(p) => {
+                wr::uint(&mut out, EVENT_PIT_SERVICE as u64);
+                wr::array(&mut out, 9);
+                wr::uint(&mut out, p.car_index as u64);
+                wr::uint(&mut out, p.pit_box as u64);
+                wr::f32(&mut out, p.tyres_s);
+                wr::uint(&mut out, p.compound as u64);
+                wr::f32(&mut out, p.fuel_s);
+                wr::f32(&mut out, p.fuel_l);
+                wr::f32(&mut out, p.repair_s);
+                wr::f32(&mut out, p.repair_pct);
+                wr::f32(&mut out, p.total_s);
             }
             EventKind::Unknown(kind) => {
                 wr::uint(&mut out, *kind as u64);
@@ -1280,6 +1308,25 @@ impl StreamEvent {
                     speed_cms: rd.uint()? as u16,
                 };
                 rd.skip_rest(n, 3)?;
+                event
+            }
+            EVENT_PIT_SERVICE => {
+                let n = rd.array()?;
+                if n < 9 {
+                    return malformed("pit service of too few fields");
+                }
+                let event = EventKind::PitService(crate::network::PitServiceData {
+                    car_index: rd.uint()? as u8,
+                    pit_box: rd.uint()? as u8,
+                    tyres_s: rd.f32()?,
+                    compound: rd.uint()? as u8,
+                    fuel_s: rd.f32()?,
+                    fuel_l: rd.f32()?,
+                    repair_s: rd.f32()?,
+                    repair_pct: rd.f32()?,
+                    total_s: rd.f32()?,
+                });
+                rd.skip_rest(n, 9)?;
                 event
             }
             other => {
@@ -1445,6 +1492,223 @@ impl StreamRoad {
     }
 }
 
+// --- State --------------------------------------------------------------------
+
+/// What a car carries that moves slowly: its tyres' pressures and flat
+/// spots, the brakes, the tank, the coolant, the hybrid. A [`StreamState`]
+/// holds one per car, so a viewer's HUD, a tyre's flat spot and a brake's
+/// glow follow the car without every 30 Hz row growing. 36 bytes,
+/// little-endian:
+///
+/// | Offset | Type | Field |
+/// |---|---|---|
+/// | 0 | u8 | car index |
+/// | 1 | u8 x 4 | tyre pressure, kPa, FL FR RL RR; 0 unknown |
+/// | 5 | u8 x 4 | flat spot, percent of the worst |
+/// | 9 | u16 x 4 | brake temperature, °C; 0 unknown |
+/// | 17 | u16 | fuel, tenths of a litre; [`FUEL_UNKNOWN`] unknown |
+/// | 19 | u8 | coolant, °C; 0 unknown |
+/// | 20 | u8 x 8 | tread shoulders, °C, inner then outer per tyre; 0 unknown |
+/// | 28 | u8 x 4 | brake wear, percent; [`BRAKE_WEAR_UNKNOWN`] unknown |
+/// | 32 | u8 | hybrid charge, percent, 255 none |
+/// | 33 | u8 | hybrid lap budget, percent, 255 none |
+/// | 34 | u8 | hybrid stint budget, percent, 255 none |
+/// | 35 | u8 | tow, percent |
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CarExtra {
+    pub car_index: u8,
+    pub tyre_kpa: [u8; 4],
+    pub flat_spot: [u8; 4],
+    pub brake_c: [u16; 4],
+    pub fuel_dl: u16,
+    pub water_c: u8,
+    pub tyre_c_edges: [u8; 8],
+    pub brake_wear: [u8; 4],
+    pub ers_pct: u8,
+    pub ers_lap_pct: u8,
+    pub ers_stint_pct: u8,
+    pub tow_pct: u8,
+}
+
+impl CarExtra {
+    pub fn from_car_state(state: &CarState, car_index: u8) -> Self {
+        let c = crate::network::CompactCarState::from_car_state(state, car_index);
+        Self {
+            car_index,
+            tyre_kpa: c.tyre_kpa,
+            flat_spot: c.flat_spot,
+            brake_c: c.brake_c,
+            fuel_dl: c.fuel_dl,
+            water_c: c.water_c,
+            tyre_c_edges: c.tyre_c_edges,
+            brake_wear: c.brake_wear,
+            ers_pct: c.ers_pct,
+            ers_lap_pct: c.ers_lap_pct,
+            ers_stint_pct: c.ers_stint_pct,
+            tow_pct: c.tow_pct,
+        }
+    }
+
+    pub fn write(&self, out: &mut Vec<u8>) {
+        let start = out.len();
+        out.push(self.car_index);
+        out.extend_from_slice(&self.tyre_kpa);
+        out.extend_from_slice(&self.flat_spot);
+        for b in self.brake_c {
+            out.extend_from_slice(&b.to_le_bytes());
+        }
+        out.extend_from_slice(&self.fuel_dl.to_le_bytes());
+        out.push(self.water_c);
+        out.extend_from_slice(&self.tyre_c_edges);
+        out.extend_from_slice(&self.brake_wear);
+        out.push(self.ers_pct);
+        out.push(self.ers_lap_pct);
+        out.push(self.ers_stint_pct);
+        out.push(self.tow_pct);
+        debug_assert_eq!(out.len() - start, EXTRA_SIZE);
+    }
+
+    pub fn read(entry: &[u8]) -> Option<Self> {
+        if entry.len() < EXTRA_SIZE {
+            return None;
+        }
+        let u16_at = |o: usize| u16::from_le_bytes([entry[o], entry[o + 1]]);
+        Some(Self {
+            car_index: entry[0],
+            tyre_kpa: entry[1..5].try_into().ok()?,
+            flat_spot: entry[5..9].try_into().ok()?,
+            brake_c: [u16_at(9), u16_at(11), u16_at(13), u16_at(15)],
+            fuel_dl: u16_at(17),
+            water_c: entry[19],
+            tyre_c_edges: entry[20..28].try_into().ok()?,
+            brake_wear: entry[28..32].try_into().ok()?,
+            ers_pct: entry[32],
+            ers_lap_pct: entry[33],
+            ers_stint_pct: entry[34],
+            tow_pct: entry[35],
+        })
+    }
+}
+
+/// The slow state of a stream, a few times a second: the sky as it is now,
+/// a timed race's clock and the [`CarExtra`] of every car. Self-contained
+/// like a frame, and a stream repeats it every [`STATE_EVERY_S`], so a
+/// viewer who joins or seeks mid-file has the latest within a fraction of a
+/// second. The body is
+/// `[9, epoch, tick, sky, race_clock, entry_size, extras bin]`; `sky` is nil
+/// or `SkyNow`'s 13 fields in order, `race_clock` nil or `[left_ms,
+/// final_lap]`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StreamState {
+    pub epoch: u32,
+    pub tick: u32,
+    pub sky: Option<crate::network::SkyNow>,
+    pub race_clock: Option<crate::network::RaceClock>,
+    pub cars: Vec<CarExtra>,
+}
+
+impl StreamState {
+    pub fn encode(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(48 + self.cars.len() * EXTRA_SIZE);
+        begin(&mut out, 7, RECORD_STATE, self.epoch);
+        wr::u32_fixed(&mut out, self.tick);
+        match &self.sky {
+            Some(s) => {
+                wr::array(&mut out, 13);
+                wr::uint(&mut out, s.clock_s as u64);
+                wr::uint(&mut out, s.weather as u64);
+                wr::uint(&mut out, s.rain_pct as u64);
+                wr::uint(&mut out, s.cloud_pct as u64);
+                wr::uint(&mut out, s.road_water_pct as u64);
+                wr::sint(&mut out, s.air_c as i64);
+                wr::sint(&mut out, s.track_c as i64);
+                wr::uint(&mut out, s.wind_kph as u64);
+                wr::uint(&mut out, s.wind_to_deg as u64);
+                wr::uint(&mut out, s.line_rubber_pct as u64);
+                wr::uint(&mut out, s.time_scale as u64);
+                wr::uint(&mut out, s.next_weather as u64);
+                wr::uint(&mut out, s.next_in_s as u64);
+            }
+            None => wr::nil(&mut out),
+        }
+        match &self.race_clock {
+            Some(c) => {
+                wr::array(&mut out, 2);
+                wr::uint(&mut out, c.left_ms as u64);
+                wr::uint(&mut out, c.final_lap as u64);
+            }
+            None => wr::nil(&mut out),
+        }
+        wr::uint(&mut out, EXTRA_SIZE as u64);
+        let mut bytes = Vec::with_capacity(self.cars.len() * EXTRA_SIZE);
+        for car in &self.cars {
+            car.write(&mut bytes);
+        }
+        wr::bin(&mut out, &bytes);
+        out
+    }
+
+    fn decode(rd: &mut Rd, len: usize, epoch: u32) -> Result<Self, StreamError> {
+        if len < 7 {
+            return malformed("state of too few fields");
+        }
+        let tick = rd.uint()? as u32;
+        let sky = if rd.is_nil() {
+            None
+        } else {
+            let n = rd.array()?;
+            if n < 13 {
+                return malformed("sky of too few fields");
+            }
+            let sky = crate::network::SkyNow {
+                clock_s: rd.uint()? as u32,
+                weather: rd.uint()? as u8,
+                rain_pct: rd.uint()? as u8,
+                cloud_pct: rd.uint()? as u8,
+                road_water_pct: rd.uint()? as u8,
+                air_c: rd.sint()? as i8,
+                track_c: rd.sint()? as i8,
+                wind_kph: rd.uint()? as u8,
+                wind_to_deg: rd.uint()? as u16,
+                line_rubber_pct: rd.uint()? as u8,
+                time_scale: rd.uint()? as u8,
+                next_weather: rd.uint()? as u8,
+                next_in_s: rd.uint()? as u32,
+            };
+            rd.skip_rest(n, 13)?;
+            Some(sky)
+        };
+        let race_clock = if rd.is_nil() {
+            None
+        } else {
+            let n = rd.array()?;
+            if n < 2 {
+                return malformed("race clock of too few fields");
+            }
+            let clock = crate::network::RaceClock {
+                left_ms: rd.uint()? as u32,
+                final_lap: rd.uint()? as u16,
+            };
+            rd.skip_rest(n, 2)?;
+            Some(clock)
+        };
+        let entry_size = (rd.uint()? as usize).max(EXTRA_SIZE);
+        let cars = rd
+            .bin()?
+            .chunks_exact(entry_size)
+            .filter_map(CarExtra::read)
+            .collect();
+        rd.skip_rest(len, 7)?;
+        Ok(Self {
+            epoch,
+            tick,
+            sky,
+            race_clock,
+            cars,
+        })
+    }
+}
+
 // --- File-only records ------------------------------------------------------------
 
 /// About a second of framed records, zlib-compressed.
@@ -1581,6 +1845,7 @@ pub enum Record {
     Index(Index),
     Path(StreamPath),
     Road(StreamRoad),
+    State(StreamState),
     /// A record type this build does not know.
     Unknown(u8),
 }
@@ -1597,7 +1862,7 @@ impl Record {
             RECORD_BLOCK => Ok(Record::Block(Block::decode(&mut rd, len)?)),
             RECORD_INDEX => Ok(Record::Index(Index::decode(&mut rd, len)?)),
             RECORD_HEADER | RECORD_ROSTER | RECORD_FRAME | RECORD_EVENT | RECORD_PATH
-            | RECORD_ROAD => {
+            | RECORD_ROAD | RECORD_STATE => {
                 let epoch = rd.uint()? as u32;
                 Ok(match kind {
                     RECORD_HEADER => Record::Header(StreamHeader::decode(&mut rd, len, epoch)?),
@@ -1605,7 +1870,8 @@ impl Record {
                     RECORD_FRAME => Record::Frame(StreamFrame::decode(&mut rd, len, epoch)?),
                     RECORD_EVENT => Record::Event(StreamEvent::decode(&mut rd, len, epoch)?),
                     RECORD_PATH => Record::Path(StreamPath::decode(&mut rd, len, epoch)?),
-                    _ => Record::Road(StreamRoad::decode(&mut rd, len, epoch)?),
+                    RECORD_ROAD => Record::Road(StreamRoad::decode(&mut rd, len, epoch)?),
+                    _ => Record::State(StreamState::decode(&mut rd, len, epoch)?),
                 })
             }
             other => Ok(Record::Unknown(other)),
@@ -1622,6 +1888,7 @@ impl Record {
             Record::Index(r) => r.encode(),
             Record::Path(r) => r.encode(),
             Record::Road(r) => r.encode(),
+            Record::State(r) => r.encode(),
             Record::Unknown(kind) => {
                 let mut out = Vec::new();
                 wr::array(&mut out, 2);
@@ -1956,6 +2223,47 @@ impl BroadcastEncoder {
             debris: session.debris.iter().map(|d| [d.x, d.y]).collect(),
             geometry,
         })
+    }
+
+    /// The slow state of the session now: sky, a timed race's clock, every
+    /// car's tyres, brakes and tank. Due every [`STATE_EVERY_S`].
+    pub fn state(&self, session: &GameSession) -> StreamState {
+        StreamState {
+            epoch: self.epoch,
+            tick: session.session.current_tick,
+            sky: Some(session.sky_now()),
+            race_clock: session.race_clock(),
+            cars: session
+                .session
+                .participants
+                .values()
+                .enumerate()
+                .map(|(i, state)| CarExtra::from_car_state(state, i as u8))
+                .collect(),
+        }
+    }
+
+    /// The pit stops the crews started (`GameSession::take_pit_events`) as
+    /// events, with the stream's car indices.
+    pub fn pit_services(
+        &self,
+        session: &GameSession,
+        started: &[(PlayerId, crate::network::PitServiceData)],
+    ) -> Vec<StreamEvent> {
+        started
+            .iter()
+            .filter_map(|(player_id, data)| {
+                let car_index = session.car_index_of(player_id)?;
+                Some(StreamEvent {
+                    epoch: self.epoch,
+                    tick: session.session.current_tick,
+                    kind: EventKind::PitService(crate::network::PitServiceData {
+                        car_index,
+                        ..data.clone()
+                    }),
+                })
+            })
+            .collect()
     }
 
     pub fn sectors(&self, session: &GameSession) -> StreamEvent {
@@ -2467,6 +2775,126 @@ mod tests {
         assert_eq!(Record::decode(&path.encode()).unwrap(), Record::Path(path));
     }
 
+    fn sample_state() -> StreamState {
+        StreamState {
+            epoch: 3,
+            tick: 9000,
+            sky: Some(crate::network::SkyNow {
+                clock_s: 14 * 3600 + 30 * 60,
+                weather: 3,
+                rain_pct: 40,
+                cloud_pct: 90,
+                road_water_pct: 55,
+                air_c: -2,
+                track_c: 11,
+                wind_kph: 18,
+                wind_to_deg: 270,
+                line_rubber_pct: 62,
+                time_scale: 4,
+                next_weather: 2,
+                next_in_s: 600,
+            }),
+            race_clock: Some(crate::network::RaceClock {
+                left_ms: 754_300,
+                final_lap: 0,
+            }),
+            cars: vec![
+                CarExtra {
+                    car_index: 0,
+                    tyre_kpa: [162, 163, 158, 159],
+                    flat_spot: [0, 35, 0, 0],
+                    brake_c: [410, 430, 380, 395],
+                    fuel_dl: 412,
+                    water_c: 96,
+                    tyre_c_edges: [80, 90, 82, 92, 78, 88, 79, 89],
+                    brake_wear: [12, 12, 9, 9],
+                    ers_pct: 70,
+                    ers_lap_pct: 45,
+                    ers_stint_pct: 255,
+                    tow_pct: 8,
+                },
+                CarExtra {
+                    car_index: 1,
+                    tyre_kpa: [0; 4],
+                    flat_spot: [0; 4],
+                    brake_c: [0; 4],
+                    fuel_dl: FUEL_UNKNOWN,
+                    water_c: 0,
+                    tyre_c_edges: [0; 8],
+                    brake_wear: [BRAKE_WEAR_UNKNOWN; 4],
+                    ers_pct: 255,
+                    ers_lap_pct: 255,
+                    ers_stint_pct: 255,
+                    tow_pct: 0,
+                },
+            ],
+        }
+    }
+
+    fn sample_pit_service() -> StreamEvent {
+        StreamEvent {
+            epoch: 3,
+            tick: 9500,
+            kind: EventKind::PitService(crate::network::PitServiceData {
+                car_index: 4,
+                pit_box: 2,
+                tyres_s: 2.5,
+                compound: 1,
+                fuel_s: 6.0,
+                fuel_l: 30.0,
+                repair_s: 0.0,
+                repair_pct: 0.0,
+                total_s: 8.5,
+            }),
+        }
+    }
+
+    #[test]
+    fn the_state_and_a_pit_service_round_trip() {
+        let state = sample_state();
+        let bytes = state.encode();
+        assert_eq!(record_type(&bytes), Some(RECORD_STATE));
+        assert_eq!(record_tick(&bytes), Some(9000));
+        assert_eq!(
+            Record::decode(&bytes).unwrap(),
+            Record::State(state.clone())
+        );
+        // No sky and no clock (a converted replay) is a state too.
+        let bare = StreamState {
+            sky: None,
+            race_clock: None,
+            cars: vec![],
+            ..state
+        };
+        assert_eq!(Record::decode(&bare.encode()).unwrap(), Record::State(bare));
+        // A newer writer's longer entries and extra fields are skipped.
+        let mut body = Vec::new();
+        wr::array(&mut body, 8);
+        wr::uint(&mut body, RECORD_STATE as u64);
+        wr::u32_fixed(&mut body, 1);
+        wr::u32_fixed(&mut body, 16);
+        wr::nil(&mut body);
+        wr::nil(&mut body);
+        wr::uint(&mut body, EXTRA_SIZE as u64 + 2);
+        let mut entries = Vec::new();
+        for car in sample_state().cars {
+            car.write(&mut entries);
+            entries.extend_from_slice(&[7, 7]);
+        }
+        wr::bin(&mut body, &entries);
+        wr::str(&mut body, "from the future");
+        let Record::State(read) = Record::decode(&body).unwrap() else {
+            panic!("not a state");
+        };
+        assert_eq!(read.cars, sample_state().cars);
+
+        let service = sample_pit_service();
+        assert_eq!(
+            Record::decode(&service.encode()).unwrap(),
+            Record::Event(service)
+        );
+    }
+
     #[test]
     fn the_epoch_is_patched_in_place() {
         let mut frame = encode_frames(0, 4808, 0, SessionState::Racing, Some(1500), &[])
@@ -2499,6 +2927,7 @@ mod tests {
                 points: vec![],
             }
             .encode(),
+            sample_state().encode(),
         ] {
             assert!(patch_epoch(&mut body, 77));
             assert_eq!(record_epoch(&body), Some(77));
@@ -2805,8 +3234,18 @@ mod tests {
                 .collect(),
         }
         .encode();
+        let state = sample_state().encode();
+        let pit_service = sample_pit_service().encode();
         let file = sample_content().to_bytes().unwrap();
 
+        println!(
+            "\tinline constexpr uint8 State[] = {{\n\t\t{}\n\t}};\n",
+            hex(&state)
+        );
+        println!(
+            "\tinline constexpr uint8 EventPitService[] = {{\n\t\t{}\n\t}};\n",
+            hex(&pit_service)
+        );
         println!(
             "\tinline constexpr uint8 Header[] = {{\n\t\t{}\n\t}};\n",
             hex(&header)

@@ -361,6 +361,8 @@ public:
 	void FeedBackdropLapTiming(const FApexLapTiming& Timing);
 	/** A stream's `Road` record, out through OnRoadState as a live slice is. */
 	void FeedBackdropRoad(const FApexRoadState& Road);
+	/** A crew started a stop in the fed stream (the pit-stop panel's plan). */
+	void FeedBackdropPitService(const FApexPitService& Stop);
 	void EndBackdropFeed();
 	bool IsBackdropFeedActive() const { return bBackdropFeed; }
 

@@ -258,6 +258,7 @@ void UApexNetSubsystem::BeginBackdropFeed(const FApexSessionConditions& Conditio
 	DemoSessionState = EApexSessionState::Lobby;
 	CurrentConditions = Conditions;
 	CachedRoster = FApexSessionRoster();
+	PitServices.Reset();
 	ClearLapTiming();
 	UE_LOG(LogApexSimNet, Log, TEXT("Backdrop feed begins (%s)"), *Conditions.Describe());
 	OnDemoSessionChanged.Broadcast(true);
@@ -291,6 +292,15 @@ void UApexNetSubsystem::FeedBackdropRoad(const FApexRoadState& Road)
 		return;
 	}
 	OnRoadState.Broadcast(Road);
+}
+
+void UApexNetSubsystem::FeedBackdropPitService(const FApexPitService& Stop)
+{
+	if (!bBackdropFeed)
+	{
+		return;
+	}
+	PitServices.Add(Stop.CarIndex, Stop);
 }
 
 void UApexNetSubsystem::FeedBackdropSectors(const FApexTrackSectors& Sectors)

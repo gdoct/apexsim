@@ -19,11 +19,13 @@ namespace ApexSpectator
 	APEXSIMNET_API TArray<uint8> EncodeRoster(const FApexStreamRoster& Roster);
 	/** One part holding every row: a file is not cut to a datagram's size. */
 	APEXSIMNET_API TArray<uint8> EncodeFrame(const FApexStreamFrame& Frame);
-	/** LapTiming, TrackSectors, SessionState, Finish, Retired, PitStop and Contact; empty for another kind. */
+	/** LapTiming, TrackSectors, SessionState, Finish, Retired, PitStop, Contact and PitService; empty for another kind. */
 	APEXSIMNET_API TArray<uint8> EncodeEvent(const FApexStreamEvent& Event);
 	APEXSIMNET_API TArray<uint8> EncodePath(const FApexStreamPath& Path);
 	/** A road slice, as `spectator::StreamRoad::encode`. */
 	APEXSIMNET_API TArray<uint8> EncodeRoad(const FApexStreamRoad& Road);
+	/** The slow state, as `spectator::StreamState::encode`. */
+	APEXSIMNET_API TArray<uint8> EncodeState(const FApexStreamState& State);
 }
 
 /**

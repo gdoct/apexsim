@@ -38,6 +38,14 @@ namespace ApexSpectator
 	constexpr uint8 RecordIndex = 6;
 	constexpr uint8 RecordPath = 7;
 	constexpr uint8 RecordRoad = 8;
+	constexpr uint8 RecordState = 9;
+
+	/** Bytes of one car in a state record as written now; a newer writer only appends. */
+	constexpr int32 ExtraSize = 36;
+	/** `FApexStreamCarExtra::FuelDl` of a tank the stream does not know. */
+	constexpr uint16 FuelUnknown = 0xFFFF;
+	/** `FApexStreamCarExtra::BrakeWear` of a brake the stream does not know. */
+	constexpr uint8 BrakeWearUnknown = 255;
 
 	constexpr uint8 EventLapTiming = 1;
 	constexpr uint8 EventTrackSectors = 2;
@@ -46,6 +54,7 @@ namespace ApexSpectator
 	constexpr uint8 EventRetired = 5;
 	constexpr uint8 EventPitStop = 6;
 	constexpr uint8 EventContact = 7;
+	constexpr uint8 EventPitService = 8;
 
 	/** `FApexStreamCarRow::Status` bits. */
 	constexpr uint8 StatusOnTrack = 1;
@@ -194,6 +203,8 @@ struct APEXSIMNET_API FApexStreamEvent
 	/** Contact: the other car (255 unknown) and the car's speed, cm/s. */
 	int32 Other = 255;
 	int32 SpeedCms = 0;
+	/** PitService: the crew's plan for the stop; its CarIndex is the stream's. */
+	FApexPitService PitService;
 };
 
 /** The centerline every `SpacingM`, where a broadcast camera stands. */
@@ -216,6 +227,55 @@ struct APEXSIMNET_API FApexStreamRoad
 	int64 Tick = 0;
 	/** SessionId is left empty: a stream's road is its own. */
 	FApexRoadState Road;
+};
+
+/**
+ * What one car carries that moves slowly (`spectator::CarExtra`): 36 bytes,
+ * little-endian, one per car in a state record. Zero (255 for the brake wear,
+ * 0xFFFF for the tank) is "the stream does not know".
+ */
+struct APEXSIMNET_API FApexStreamCarExtra
+{
+	int32 CarIndex = 0;
+	uint8 TyreKpa[4] = {0, 0, 0, 0};
+	/** Percent of the worst flat spot. */
+	uint8 FlatSpot[4] = {0, 0, 0, 0};
+	uint16 BrakeC[4] = {0, 0, 0, 0};
+	uint16 FuelDl = ApexSpectator::FuelUnknown;
+	uint8 WaterC = 0;
+	/** Tread shoulders, inner then outer per tyre. */
+	uint8 TyreEdgesC[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+	uint8 BrakeWear[4] = {255, 255, 255, 255};
+	/** Hybrid charge, lap budget, stint budget: 255 for none. */
+	uint8 ErsPct = 255;
+	uint8 ErsLapPct = 255;
+	uint8 ErsStintPct = 255;
+	uint8 TowPct = 0;
+
+	static bool Read(const uint8* Bytes, int32 Len, FApexStreamCarExtra& Out);
+	/** The entry written back as its ApexSpectator::ExtraSize bytes, for tests. */
+	void Write(TArray<uint8>& Out) const;
+	/** Fill what a row leaves unknown: pressures, flat spots, brakes, tank, coolant, edges, hybrid, tow. */
+	void ApplyTo(FApexCarTelemetry& Car) const;
+	/** A live car's extras, the way the server's encoder takes them: how a client-side replay writes its state records. */
+	static FApexStreamCarExtra FromTelemetry(const FApexCarTelemetry& Car);
+};
+
+/**
+ * The slow state of a stream (`spectator::StreamState`, record 9): the sky as
+ * it is now, a timed race's clock and the extras of every car, a few times a
+ * second.
+ */
+struct APEXSIMNET_API FApexStreamState
+{
+	uint32 Epoch = 0;
+	int64 Tick = 0;
+	/** `Sky.bValid` is false when the record carried none. */
+	FApexSkyNow Sky;
+	/** -1 when the record carried no clock. */
+	int32 RaceLeftMs = -1;
+	int32 RaceFinalLap = 0;
+	TArray<FApexStreamCarExtra> Cars;
 };
 
 struct APEXSIMNET_API FApexStreamBlock
@@ -244,6 +304,7 @@ struct APEXSIMNET_API FApexStreamRecord
 	FApexStreamEvent Event;
 	FApexStreamPath Path;
 	FApexStreamRoad Road;
+	FApexStreamState State;
 	FApexStreamBlock Block;
 	TArray<FApexStreamIndexEntry> Index;
 };
@@ -355,6 +416,9 @@ public:
 	/** Road slices of the current epoch since the last call, in order. */
 	TArray<FApexStreamRoad> TakeRoads();
 
+	/** The latest slow state of the current epoch (the sky, the race clock, each car's extras); null before the first. */
+	const FApexStreamState* GetState() const { return bHasState ? &State : nullptr; }
+
 	/** Frames thrown away for a wrong epoch or revision. */
 	int32 GetDroppedFrames() const { return DroppedFrames; }
 	/** Frames completed with a part missing. */
@@ -370,6 +434,8 @@ private:
 	bool bHasPath = false;
 	bool bHeaderChanged = false;
 	bool bRosterChanged = false;
+	bool bHasState = false;
+	FApexStreamState State;
 	FApexStreamHeader Header;
 	FApexStreamRoster Roster;
 	FApexStreamPath Path;

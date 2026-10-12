@@ -1133,6 +1133,7 @@ pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
     let tick_rate = race_opts.tick_rate.max(1);
     let record_every = frame_spacing(tick_rate, race_opts.record_hz);
     let frame_dt = record_every as f32 / tick_rate as f32;
+    let state_every = ((crate::spectator::STATE_EVERY_S * tick_rate as f32).round() as u32).max(1);
     let max_ticks = (race_opts.max_seconds.max(1.0) * tick_rate as f32) as u32
         + race_opts.countdown_seconds as u32 * tick_rate as u32;
     let tail_ticks = (opts.tail_seconds.max(0.0) * tick_rate as f32) as u32;
@@ -1153,6 +1154,15 @@ pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
         let laps = race.take_lap_events();
         for event in encoder.observe(&race, &laps) {
             records.push((tick, event.encode()));
+        }
+        let pit_starts = race.take_pit_events();
+        for event in encoder.pit_services(&race, &pit_starts) {
+            records.push((tick, event.encode()));
+        }
+        // The slow state: the sky, a timed race's clock, every car's tyres
+        // and tank, a few times a second.
+        if tick.is_multiple_of(state_every) {
+            records.push((tick, encoder.state(&race).encode()));
         }
         if tick.is_multiple_of(record_every) {
             let rows = BroadcastEncoder::rows(&race);
@@ -1703,7 +1713,7 @@ mod tests {
     /// same arguments and seed write the same file, byte for byte.
     #[test]
     fn a_seeded_render_is_byte_identical() {
-        use crate::spectator::{Record, StreamFile, RECORD_FRAME};
+        use crate::spectator::{Record, StreamFile, FUEL_UNKNOWN, RECORD_FRAME};
         let opts = short_render();
         let first = render_stream(&opts).expect("renders");
         let bytes = first.content.to_bytes().unwrap();
@@ -1760,6 +1770,24 @@ mod tests {
         assert!(last
             .cars(h.row_size as usize)
             .all(|car| car.station_m() > 100.0 && car.speed_mps() > 10.0));
+        // The slow state, four times a second: the sky the race ran under,
+        // and every car's tyres and tank.
+        let states: Vec<_> = records
+            .iter()
+            .filter_map(|b| match Record::decode(b).unwrap() {
+                Record::State(s) => Some(s),
+                _ => None,
+            })
+            .collect();
+        assert!(states.len() > 40, "{}", states.len());
+        assert!(states.windows(2).all(|w| w[1].tick == w[0].tick + 60));
+        let sky = states[0].sky.expect("a render carries the sky");
+        assert_eq!(sky.weather, Weather::Overcast as u8);
+        let late = states.last().unwrap();
+        assert_eq!(late.cars.len(), 3);
+        assert!(late.cars.iter().all(|c| c.tyre_kpa.iter().all(|k| *k > 50)
+            && c.fuel_dl > 0
+            && c.fuel_dl != FUEL_UNKNOWN));
         // The lights going out is the first thing that happens.
         let first_event = records
             .iter()

@@ -238,6 +238,48 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("road is usable"), R.IsValid());
 	}
 
+	// The slow state: the sky, the race clock, each car's tyres and tank.
+	if (TestTrue(TEXT("state decodes"), ApexSpectator::DecodeRecord(View(State, UE_ARRAY_COUNT(State)), Record, Error)))
+	{
+		const FApexStreamState& S = Record.State;
+		TestEqual(TEXT("state type"), (int32)Record.Type, (int32)ApexSpectator::RecordState);
+		TestEqual(TEXT("state tick"), S.Tick, (int64)9000);
+		int64 StateTick = 0;
+		TestTrue(TEXT("state tick read in place"), ApexSpectator::RecordTick(View(State, UE_ARRAY_COUNT(State)), StateTick) && StateTick == 9000);
+		TestTrue(TEXT("state sky"), S.Sky.bValid && S.Sky.ClockS == 14 * 3600 + 30 * 60 && S.Sky.Weather == EApexWeather::LightRain
+			&& S.Sky.RainPct == 40 && S.Sky.CloudPct == 90 && S.Sky.RoadWaterPct == 55 && S.Sky.AirC == -2 && S.Sky.TrackC == 11
+			&& S.Sky.WindKph == 18 && S.Sky.WindToDeg == 270 && S.Sky.LineRubberPct == 62 && S.Sky.TimeScale == 4);
+		TestTrue(TEXT("state forecast"), S.Sky.HasNextChange() && S.Sky.NextWeather == (int32)EApexWeather::Overcast && S.Sky.NextInS == 600);
+		TestTrue(TEXT("state race clock"), S.RaceLeftMs == 754300 && S.RaceFinalLap == 0);
+		if (TestEqual(TEXT("state cars"), S.Cars.Num(), 2))
+		{
+			const FApexStreamCarExtra& A = S.Cars[0];
+			TestTrue(TEXT("extra tyres"), A.TyreKpa[0] == 162 && A.TyreKpa[3] == 159 && A.FlatSpot[1] == 35);
+			TestTrue(TEXT("extra brakes"), A.BrakeC[0] == 410 && A.BrakeC[3] == 395 && A.BrakeWear[2] == 9);
+			TestTrue(TEXT("extra tank"), A.FuelDl == 412 && A.WaterC == 96);
+			TestTrue(TEXT("extra hybrid"), A.ErsPct == 70 && A.ErsLapPct == 45 && A.ErsStintPct == 255 && A.TowPct == 8);
+			FApexCarTelemetry Car;
+			A.ApplyTo(Car);
+			TestTrue(TEXT("extra on telemetry"), FMath::IsNearlyEqual(Car.FuelLiters, 41.2f) && FMath::IsNearlyEqual(Car.TyrePressureKpa[1], 163.0f)
+				&& FMath::IsNearlyEqual(Car.FlatSpot[1], 0.35f) && FMath::IsNearlyEqual(Car.BrakeTempC[1], 430.0f)
+				&& FMath::IsNearlyEqual(Car.TyreInnerC[1], 82.0f) && FMath::IsNearlyEqual(Car.TyreOuterC[1], 92.0f)
+				&& Car.HasHybrid() && FMath::IsNearlyEqual(Car.ErsChargePct, 70.0f) && Car.ErsStintPct < 0.0f
+				&& FMath::IsNearlyEqual(Car.TowShare, 0.08f));
+			// The second car's unknowns stay unknown.
+			FApexCarTelemetry Other;
+			S.Cars[1].ApplyTo(Other);
+			TestTrue(TEXT("unknown extra stays unknown"), Other.FuelLiters < 0.0f && Other.TyrePressureKpa[0] < 0.0f
+				&& Other.BrakeTempC[0] < 0.0f && Other.BrakeWearPct[0] < 0.0f && !Other.HasHybrid() && Other.WaterTempC < 0.0f);
+		}
+	}
+
+	TestTrue(TEXT("pit service decodes"), ApexSpectator::DecodeRecord(View(EventPitService, UE_ARRAY_COUNT(EventPitService)), Record, Error));
+	TestEqual(TEXT("pit service kind"), (int32)Record.Event.Kind, (int32)ApexSpectator::EventPitService);
+	TestEqual(TEXT("pit service tick"), Record.Event.Tick, (int64)9500);
+	TestTrue(TEXT("pit service plan"), Record.Event.PitService.CarIndex == 4 && Record.Event.PitService.PitBox == 2
+		&& Record.Event.PitService.Compound == 1 && FMath::IsNearlyEqual(Record.Event.PitService.TyresS, 2.5f)
+		&& FMath::IsNearlyEqual(Record.Event.PitService.FuelL, 30.0f) && FMath::IsNearlyEqual(Record.Event.PitService.TotalS, 8.5f));
+
 	// Rubbish is refused; an unknown record type is reported, not refused.
 	const uint8 Rubbish[] = { 0xC0, 0x01 };
 	TestFalse(TEXT("rubbish refused"), ApexSpectator::DecodeRecord(View(Rubbish, 2), Record, Error));
@@ -372,6 +414,27 @@ bool FApexSpectatorPlayerTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("incomplete has its rows"), Frames.Num() == 2 && Frames[0].Cars.Num() == 2 && Frames[1].Cars.Num() == 2);
 	TestEqual(TEXT("one incomplete"), Player.GetIncompleteFrames(), 1);
 
+	// The slow state rides on the frames after it: the sky, the race clock and
+	// each car's tank, and a state of another epoch does not.
+	{
+		TArray<uint8> StaleState(State, UE_ARRAY_COUNT(State));
+		StaleState[6] = 9;
+		Player.Apply(StaleState, Error);
+		TestTrue(TEXT("a stale state is ignored"), Player.GetState() == nullptr);
+		Player.Apply(View(State, UE_ARRAY_COUNT(State)), Error);
+		TestTrue(TEXT("the state is held"), Player.GetState() != nullptr && Player.GetState()->Tick == 9000);
+		Player.Apply(TickOf(FrameWith(3, 1, 0, 1), 9008), Error);
+		const TArray<FApexTelemetryFrame> WithState = Player.TakeFrames();
+		if (TestEqual(TEXT("a frame after the state"), WithState.Num(), 1))
+		{
+			const FApexTelemetryFrame& F = WithState[0];
+			TestTrue(TEXT("frame sky"), F.Sky.bValid && F.Sky.RainPct == 40 && F.Sky.Weather == EApexWeather::LightRain);
+			TestTrue(TEXT("frame race clock"), F.HasRaceClock() && F.RaceLeftMs == 754300);
+			TestTrue(TEXT("frame car extras"), F.Cars.Num() == 2 && FMath::IsNearlyEqual(F.Cars[0].FuelLiters, 41.2f)
+				&& F.Cars[1].FuelLiters < 0.0f);
+		}
+	}
+
 	// Events pass with the epoch; an event of another epoch does not.
 	Player.Apply(View(EventLapTiming, UE_ARRAY_COUNT(EventLapTiming)), Error);
 	TArray<uint8> Stale(EventLapTiming, UE_ARRAY_COUNT(EventLapTiming));
@@ -503,6 +566,7 @@ bool FApexSpectatorWriterTest::RunTest(const FString& Parameters)
 		case ApexSpectator::RecordEvent: Bytes = ApexSpectator::EncodeEvent(Record.Event); break;
 		case ApexSpectator::RecordPath: Bytes = ApexSpectator::EncodePath(Record.Path); break;
 		case ApexSpectator::RecordRoad: Bytes = ApexSpectator::EncodeRoad(Record.Road); break;
+		case ApexSpectator::RecordState: Bytes = ApexSpectator::EncodeState(Record.State); break;
 		default: break;
 		}
 		TestTrue(*FString::Printf(TEXT("%s encodes as the server does"), What), Bytes == TArray<uint8>(Golden, Num));
@@ -515,6 +579,8 @@ bool FApexSpectatorWriterTest::RunTest(const FString& Parameters)
 	RoundTrip(TEXT("contact"), EventContact, UE_ARRAY_COUNT(EventContact));
 	RoundTrip(TEXT("path"), Path, UE_ARRAY_COUNT(Path));
 	RoundTrip(TEXT("road"), Road, UE_ARRAY_COUNT(Road));
+	RoundTrip(TEXT("state"), State, UE_ARRAY_COUNT(State));
+	RoundTrip(TEXT("pit service"), EventPitService, UE_ARRAY_COUNT(EventPitService));
 
 	// A row through the telemetry a race director reads and back is the row.
 	{

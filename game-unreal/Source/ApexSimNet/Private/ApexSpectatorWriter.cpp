@@ -173,6 +173,21 @@ namespace ApexSpectator
 			W.WriteUInt(static_cast<uint64>(FMath::Max(0, E.Other)));
 			W.WriteUInt(static_cast<uint64>(FMath::Max(0, E.SpeedCms)));
 			break;
+		case EventPitService:
+		{
+			const FApexPitService& P = E.PitService;
+			W.WriteArrayHeader(9);
+			W.WriteUInt(static_cast<uint64>(FMath::Max(0, P.CarIndex)));
+			W.WriteUInt(static_cast<uint64>(FMath::Max(0, P.PitBox)));
+			W.WriteFloat(P.TyresS);
+			W.WriteUInt(static_cast<uint64>(FMath::Max(0, P.Compound)));
+			W.WriteFloat(P.FuelS);
+			W.WriteFloat(P.FuelL);
+			W.WriteFloat(P.RepairS);
+			W.WriteFloat(P.RepairPct);
+			W.WriteFloat(P.TotalS);
+			break;
+		}
 		default:
 			return TArray<uint8>();
 		}
@@ -195,6 +210,54 @@ namespace ApexSpectator
 		BeginRecord(W, 4, RecordPath, P.Epoch);
 		W.WriteFloat(P.SpacingM);
 		W.WriteBinary(Points);
+		return MoveTemp(W.GetBuffer());
+	}
+
+	TArray<uint8> EncodeState(const FApexStreamState& S)
+	{
+		TArray<uint8> Cars;
+		Cars.Reserve(S.Cars.Num() * ExtraSize);
+		for (const FApexStreamCarExtra& Car : S.Cars)
+		{
+			Car.Write(Cars);
+		}
+		FMsgPackWriter W(64 + Cars.Num());
+		BeginRecord(W, 7, RecordState, S.Epoch);
+		W.WriteUInt32Fixed(static_cast<uint32>(S.Tick));
+		if (S.Sky.bValid)
+		{
+			const FApexSkyNow& K = S.Sky;
+			W.WriteArrayHeader(13);
+			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.ClockS, 0, 86399)));
+			W.WriteUInt(static_cast<uint64>(K.Weather));
+			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.RainPct, 0, 255)));
+			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.CloudPct, 0, 255)));
+			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.RoadWaterPct, 0, 255)));
+			W.WriteInt(FMath::Clamp(K.AirC, -128, 127));
+			W.WriteInt(FMath::Clamp(K.TrackC, -128, 127));
+			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.WindKph, 0, 255)));
+			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.WindToDeg, 0, 359)));
+			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.LineRubberPct, 0, 255)));
+			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.TimeScale, 0, 255)));
+			W.WriteUInt(K.NextWeather < 0 ? 255 : static_cast<uint64>(K.NextWeather));
+			W.WriteUInt(static_cast<uint64>(FMath::Max(0, K.NextInS)));
+		}
+		else
+		{
+			W.WriteNil();
+		}
+		if (S.RaceLeftMs >= 0)
+		{
+			W.WriteArrayHeader(2);
+			W.WriteUInt(static_cast<uint64>(S.RaceLeftMs));
+			W.WriteUInt(static_cast<uint64>(FMath::Max(0, S.RaceFinalLap)));
+		}
+		else
+		{
+			W.WriteNil();
+		}
+		W.WriteUInt(ExtraSize);
+		W.WriteBinary(Cars);
 		return MoveTemp(W.GetBuffer());
 	}
 

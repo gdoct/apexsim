@@ -322,10 +322,91 @@ namespace ApexSpectatorCodec
 			}
 			Known = 3;
 			break;
+		case ApexSpectator::EventPitService:
+		{
+			FApexPitService& P = Out.PitService;
+			if (Fields < 9 || !ReadI32(Reader, P.CarIndex) || !ReadI32(Reader, P.PitBox) || !Reader.ReadFloat(P.TyresS)
+				|| !ReadI32(Reader, P.Compound) || !Reader.ReadFloat(P.FuelS) || !Reader.ReadFloat(P.FuelL)
+				|| !Reader.ReadFloat(P.RepairS) || !Reader.ReadFloat(P.RepairPct) || !Reader.ReadFloat(P.TotalS))
+			{
+				return false;
+			}
+			Out.CarIndex = P.CarIndex;
+			Known = 9;
+			break;
+		}
 		default:
 			break;
 		}
 		return SkipRest(Reader, Fields, Known) && SkipRest(Reader, Count, 5);
+	}
+
+	/** `[9, epoch, tick, sky, race_clock, entry_size, extras bin]`; sky and clock nil when absent. */
+	bool ParseState(FMsgPackReader& Reader, int32 Count, uint32 Epoch, FApexStreamState& Out)
+	{
+		if (Count < 7)
+		{
+			return false;
+		}
+		Out.Epoch = Epoch;
+		if (!ReadI64(Reader, Out.Tick))
+		{
+			return false;
+		}
+		if (!Reader.TryReadNil())
+		{
+			int32 Fields = 0;
+			if (!Reader.ReadArrayHeader(Fields) || Fields < 13)
+			{
+				return false;
+			}
+			FApexSkyNow& S = Out.Sky;
+			int32 Weather = 0;
+			int32 NextWeather = 0;
+			if (!ReadI32(Reader, S.ClockS) || !ReadI32(Reader, Weather) || !ReadI32(Reader, S.RainPct) || !ReadI32(Reader, S.CloudPct)
+				|| !ReadI32(Reader, S.RoadWaterPct) || !ReadI32(Reader, S.AirC) || !ReadI32(Reader, S.TrackC)
+				|| !ReadI32(Reader, S.WindKph) || !ReadI32(Reader, S.WindToDeg) || !ReadI32(Reader, S.LineRubberPct)
+				|| !ReadI32(Reader, S.TimeScale) || !ReadI32(Reader, NextWeather) || !ReadI32(Reader, S.NextInS)
+				|| !SkipRest(Reader, Fields, 13))
+			{
+				return false;
+			}
+			S.bValid = true;
+			S.Weather = Weather < FApexSessionConditions::WeatherCount ? static_cast<EApexWeather>(Weather) : EApexWeather::Sunny;
+			S.ClockS = FMath::Clamp(S.ClockS, 0, 86399);
+			S.WindToDeg %= 360;
+			// The server writes 255 for a forecast that holds.
+			S.NextWeather = NextWeather < FApexSessionConditions::WeatherCount ? NextWeather : -1;
+			if (S.NextWeather < 0)
+			{
+				S.NextInS = 0;
+			}
+		}
+		if (!Reader.TryReadNil())
+		{
+			int32 Fields = 0;
+			if (!Reader.ReadArrayHeader(Fields) || Fields < 2 || !ReadI32(Reader, Out.RaceLeftMs)
+				|| !ReadI32(Reader, Out.RaceFinalLap) || !SkipRest(Reader, Fields, 2))
+			{
+				return false;
+			}
+		}
+		int32 EntrySize = 0;
+		TArrayView<const uint8> Entries;
+		if (!ReadI32(Reader, EntrySize) || !Reader.ReadBinary(Entries))
+		{
+			return false;
+		}
+		EntrySize = FMath::Max(EntrySize, ApexSpectator::ExtraSize);
+		for (int32 Offset = 0; Offset + EntrySize <= Entries.Num(); Offset += EntrySize)
+		{
+			FApexStreamCarExtra Extra;
+			if (FApexStreamCarExtra::Read(Entries.GetData() + Offset, EntrySize, Extra))
+			{
+				Out.Cars.Add(Extra);
+			}
+		}
+		return SkipRest(Reader, Count, 7);
 	}
 
 	bool ParsePath(FMsgPackReader& Reader, int32 Count, uint32 Epoch, FApexStreamPath& Out)
@@ -630,6 +711,117 @@ FApexStreamCarRow FApexStreamCarRow::FromTelemetry(const FApexCarTelemetry& T)
 	return Row;
 }
 
+bool FApexStreamCarExtra::Read(const uint8* B, int32 Len, FApexStreamCarExtra& Out)
+{
+	if (Len < ApexSpectator::ExtraSize)
+	{
+		return false;
+	}
+	auto U16 = [B](int32 O) { uint16 V; FMemory::Memcpy(&V, B + O, 2); return V; };
+	Out.CarIndex = B[0];
+	for (int32 i = 0; i < 4; ++i)
+	{
+		Out.TyreKpa[i] = B[1 + i];
+		Out.FlatSpot[i] = B[5 + i];
+		Out.BrakeC[i] = U16(9 + 2 * i);
+		Out.BrakeWear[i] = B[28 + i];
+	}
+	Out.FuelDl = U16(17);
+	Out.WaterC = B[19];
+	for (int32 i = 0; i < 8; ++i)
+	{
+		Out.TyreEdgesC[i] = B[20 + i];
+	}
+	Out.ErsPct = B[32];
+	Out.ErsLapPct = B[33];
+	Out.ErsStintPct = B[34];
+	Out.TowPct = B[35];
+	return true;
+}
+
+void FApexStreamCarExtra::Write(TArray<uint8>& Out) const
+{
+	const int32 Start = Out.AddUninitialized(ApexSpectator::ExtraSize);
+	uint8* B = Out.GetData() + Start;
+	B[0] = static_cast<uint8>(CarIndex);
+	for (int32 i = 0; i < 4; ++i)
+	{
+		B[1 + i] = TyreKpa[i];
+		B[5 + i] = FlatSpot[i];
+		FMemory::Memcpy(B + 9 + 2 * i, &BrakeC[i], 2);
+		B[28 + i] = BrakeWear[i];
+	}
+	FMemory::Memcpy(B + 17, &FuelDl, 2);
+	B[19] = WaterC;
+	for (int32 i = 0; i < 8; ++i)
+	{
+		B[20 + i] = TyreEdgesC[i];
+	}
+	B[32] = ErsPct;
+	B[33] = ErsLapPct;
+	B[34] = ErsStintPct;
+	B[35] = TowPct;
+}
+
+void FApexStreamCarExtra::ApplyTo(FApexCarTelemetry& Car) const
+{
+	if (FuelDl != ApexSpectator::FuelUnknown)
+	{
+		Car.FuelLiters = FuelDl / 10.0f;
+	}
+	if (WaterC != 0)
+	{
+		Car.WaterTempC = WaterC;
+	}
+	Car.TowShare = TowPct / 100.0f;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		Car.TyrePressureKpa[i] = TyreKpa[i] == 0 ? -1.0f : TyreKpa[i];
+		Car.FlatSpot[i] = FlatSpot[i] / 100.0f;
+		Car.BrakeTempC[i] = BrakeC[i] == 0 ? -1.0f : BrakeC[i];
+		Car.BrakeWearPct[i] = BrakeWear[i] == ApexSpectator::BrakeWearUnknown ? -1.0f : BrakeWear[i];
+		Car.TyreInnerC[i] = TyreEdgesC[2 * i] == 0 ? -1.0f : TyreEdgesC[2 * i];
+		Car.TyreOuterC[i] = TyreEdgesC[2 * i + 1] == 0 ? -1.0f : TyreEdgesC[2 * i + 1];
+	}
+	if (ErsPct != 255)
+	{
+		Car.ErsChargePct = ErsPct;
+	}
+	if (ErsLapPct != 255)
+	{
+		Car.ErsLapPct = ErsLapPct;
+	}
+	if (ErsStintPct != 255)
+	{
+		Car.ErsStintPct = ErsStintPct;
+	}
+}
+
+FApexStreamCarExtra FApexStreamCarExtra::FromTelemetry(const FApexCarTelemetry& Car)
+{
+	auto Byte = [](float V, uint8 Unknown) { return V < 0.0f ? Unknown : static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(V), 0, 254)); };
+	FApexStreamCarExtra Out;
+	Out.CarIndex = Car.CarIndex;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		Out.TyreKpa[i] = Car.TyrePressureKpa[i] < 0.0f ? 0 : static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(Car.TyrePressureKpa[i]), 1, 255));
+		Out.FlatSpot[i] = static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(Car.FlatSpot[i] * 100.0f), 0, 100));
+		Out.BrakeC[i] = Car.BrakeTempC[i] < 0.0f ? 0 : static_cast<uint16>(FMath::Clamp(FMath::RoundToInt(Car.BrakeTempC[i]), 1, 65535));
+		Out.BrakeWear[i] = Car.BrakeWearPct[i] < 0.0f ? ApexSpectator::BrakeWearUnknown
+			: static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(Car.BrakeWearPct[i]), 0, 100));
+		Out.TyreEdgesC[2 * i] = Car.TyreInnerC[i] < 0.0f ? 0 : static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(Car.TyreInnerC[i]), 1, 255));
+		Out.TyreEdgesC[2 * i + 1] = Car.TyreOuterC[i] < 0.0f ? 0 : static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(Car.TyreOuterC[i]), 1, 255));
+	}
+	Out.FuelDl = Car.FuelLiters < 0.0f ? ApexSpectator::FuelUnknown
+		: static_cast<uint16>(FMath::Clamp(FMath::RoundToInt(Car.FuelLiters * 10.0f), 0, 0xFFFE));
+	Out.WaterC = Car.WaterTempC < 0.0f ? 0 : static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(Car.WaterTempC), 1, 255));
+	Out.ErsPct = Byte(Car.ErsChargePct, 255);
+	Out.ErsLapPct = Byte(Car.ErsLapPct, 255);
+	Out.ErsStintPct = Byte(Car.ErsStintPct, 255);
+	Out.TowPct = Car.TowShare < 0.0f ? 0 : static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(Car.TowShare * 100.0f), 0, 100));
+	return Out;
+}
+
 TArray<FApexStreamCarRow> FApexStreamFrame::Cars(int32 RowSize) const
 {
 	const int32 Stride = FMath::Max(RowSize, ApexSpectator::RowSizeV1);
@@ -691,7 +883,7 @@ namespace ApexSpectator
 	bool RecordTick(TArrayView<const uint8> Body, int64& OutTick)
 	{
 		const uint8 Type = RecordType(Body);
-		if ((Type != RecordFrame && Type != RecordEvent) || Body.Num() < 12 || Body[2] != MsgPack::UInt32
+		if ((Type != RecordFrame && Type != RecordEvent && Type != RecordRoad && Type != RecordState) || Body.Num() < 12 || Body[2] != MsgPack::UInt32
 			|| Body[7] != MsgPack::UInt32)
 		{
 			return false;
@@ -738,6 +930,7 @@ namespace ApexSpectator
 		case RecordEvent:
 		case RecordPath:
 		case RecordRoad:
+		case RecordState:
 		{
 			uint32 Epoch = 0;
 			if (!ReadU32(Reader, Epoch))
@@ -752,6 +945,7 @@ namespace ApexSpectator
 			case RecordFrame:  bOk = ParseFrame(Reader, Count, Epoch, Out.Frame); break;
 			case RecordEvent:  bOk = ParseEvent(Reader, Count, Epoch, Out.Event); break;
 			case RecordRoad:   bOk = ParseRoad(Reader, Count, Epoch, Out.Road); break;
+			case RecordState:  bOk = ParseState(Reader, Count, Epoch, Out.State); break;
 			default:           bOk = ParsePath(Reader, Count, Epoch, Out.Path); break;
 			}
 			break;
@@ -1096,6 +1290,7 @@ bool FApexSpectatorPlayer::Apply(TArrayView<const uint8> Body, FString& OutError
 		bHeaderChanged = true;
 		bHasRoster = false;
 		bHasPath = false;
+		bHasState = false;
 		bPending = false;
 		Frames.Reset();
 		Events.Reset();
@@ -1127,6 +1322,14 @@ bool FApexSpectatorPlayer::Apply(TArrayView<const uint8> Body, FString& OutError
 		if (bHasHeader && Record.Road.Epoch == Header.Epoch)
 		{
 			Roads.Add(MoveTemp(Record.Road));
+		}
+		return true;
+	case ApexSpectator::RecordState:
+		if (bHasHeader && Record.State.Epoch == Header.Epoch)
+		{
+			// Only the latest is kept: the frames after it carry it.
+			State = MoveTemp(Record.State);
+			bHasState = true;
 		}
 		return true;
 	case ApexSpectator::RecordFrame:
@@ -1201,7 +1404,24 @@ void FApexSpectatorPlayer::Flush()
 	Out.Cars.Reserve(Rows.Num());
 	for (const FApexStreamCarRow& Row : Rows)
 	{
-		Out.Cars.Add(Row.ToTelemetry());
+		FApexCarTelemetry& Car = Out.Cars.Add_GetRef(Row.ToTelemetry());
+		if (bHasState)
+		{
+			for (const FApexStreamCarExtra& Extra : State.Cars)
+			{
+				if (Extra.CarIndex == Row.CarIndex)
+				{
+					Extra.ApplyTo(Car);
+					break;
+				}
+			}
+		}
+	}
+	if (bHasState)
+	{
+		Out.Sky = State.Sky;
+		Out.RaceLeftMs = State.RaceLeftMs;
+		Out.RaceFinalLap = State.RaceFinalLap;
 	}
 	++AppliedFrames;
 }

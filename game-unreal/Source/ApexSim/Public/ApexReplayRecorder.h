@@ -145,6 +145,10 @@ private:
 	/** The join's burst of road state, which comes before any frame has a tick to file it under. */
 	TArray<FApexRoadState> PendingRoads;
 	int32 FramesWritten = 0;
+	/** The tick of the last slow-state record (the sky, the clock, each car's tyres and tank). */
+	int64 LastStateTick = -1;
+	/** The pit stops already written, by car index, to tell a new one from a stop seen again. */
+	TMap<int32, FApexPitService> WrittenPitServices;
 	EApexSessionState LastState = EApexSessionState::Lobby;
 	EApexGameMode GameMode = EApexGameMode::Lobby;
 	TSet<int32> Finished;

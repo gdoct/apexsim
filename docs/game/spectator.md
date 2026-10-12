@@ -46,6 +46,13 @@ and readers skip what they do not know (`a_newer_writers_extra_fields_are_skippe
 | 6 | `Index` | file only | first tick and offset of every block |
 | 7 | `Path` | TCP, with the header | the centerline every 10 m, for the TV cameras of a viewer with no lobby |
 | 8 | `Road` | TCP | tick, a slice of the road state (lap, cell length, bins, half span, first cell, rows, debris, geometry): the `RoadState` message's payload ([../server/conditions.md](../server/conditions.md#the-road-on-screen)) |
+| 9 | `State` | TCP | tick, the sky as it is now (`SkyNow`), a timed race's clock, and per car the slow figures a row leaves out (`CarExtra`: tyre pressures, flat spots, brake temperatures and wear, tank, coolant, tread shoulders, hybrid, tow); four times a second |
+
+**Joining mid-file.** What a frame does not hold is caught up from the
+records already played: a showcase channel sends a newcomer, after the
+preamble, the timing lines crossed so far, the road as the file last laid
+each of its slices and the latest `State` (`showcase::catch_up_bodies`); a
+file seek on the client applies every record on the way but the frames.
 
 **Epoch.** The second element of every viewer-facing record is the epoch,
 always written as a full `uint 32`, so it sits at bytes 3..7 of the body. A
@@ -55,8 +62,10 @@ showcase that loops stamps a new epoch into the file's bytes
 counts roster changes within an epoch. The client drops a frame whose epoch or
 revision is not the one it holds (`FApexSpectatorPlayer`).
 
-**Frames are self-contained.** No frame refers to another, so a lost datagram
-costs one frame and a viewer can join or a file seek anywhere. A field too
+**Frames are self-contained.** No frame refers to another (there are no delta
+frames: zlib across a block already folds the repetition away, and a delta
+would need acknowledgements on UDP), so a lost datagram costs one frame and a
+viewer can join or a file seek anywhere. A field too
 large for one datagram (more than `MAX_ROWS_PER_PART`, 26 cars) is sent in
 parts of the same tick; the client applies whatever parts arrived once a newer
 tick comes.
@@ -65,15 +74,29 @@ tick comes.
 `ROW_SIZE_V1`, which still plays with the tyres unknown): status bits, pose
 in mm and angles, speed, steering, pedals, gear, rpm, lap, station, finish
 position, the lap / pit / ERS flag bytes as in `CompactCarState`, compound,
-the five damage percentages, tyre wear and tread temperature. That is all a
-spectator draws; pressures, brake temperatures, fuel and feedback are left
-out, and the client sets them to "unknown" (-1). Layout: `spectator.rs`.
+the five damage percentages, tyre wear and tread temperature. Pressures,
+flat spots, brake temperatures, fuel and the hybrid ride in the `State`
+record instead; the driver feedback (slip, forces, contact surfaces) is in
+no stream, and the client leaves what it lacks "unknown" (-1). Layout:
+`spectator.rs`.
+
+**The state record** carries what changes too slowly to ride every 30 Hz
+row: `SkyNow` (so a showcase, a replay and the backdrop show the sky the race
+ran through, rain arriving and the clock moving, not the sky it started
+under), a timed race's `RaceClock`, and one 36-byte `CarExtra` per car (layout
+in `spectator.rs`). The player keeps the latest and puts it on every frame it
+completes (`Frame.Sky`, `RaceLeftMs`, each car's pressures, flat spots, brakes
+and tank), so the race director, the HUD and the tyre material need nothing
+special. `BroadcastEncoder::state` makes it, `STATE_EVERY_S` (0.25 s) is its
+rate.
 
 **Events**: `LapTiming` (the `LapTiming` message's own fields),
 `TrackSectors`, `SessionState`, `Finish`, `Retired`, `PitStop` (entered,
 serviced, left), `Contact` (a car started colliding: the TV director's
-incident cue). `BroadcastEncoder::observe` raises them from one tick's state
-to the next.
+incident cue), `PitService` (the crew's plan as a car stops at its box, which
+the pit-stop panel shows; `BroadcastEncoder::pit_services`).
+`BroadcastEncoder::observe` raises the others from one tick's state to the
+next.
 
 **The file** is `"APXS"` + u16 version, then a plain preamble (`Header`,
 `Roster`, `Path`, `TrackSectors` event: what `info` and the client's catalog
@@ -324,6 +347,9 @@ switch reference: the header of `ApexReplaySubsystem.h` and
 
 - Every viewer-facing record must keep the epoch as a full `uint 32` at bytes
   3..7, or showcase looping (which patches bytes, never decodes) breaks.
+- A record that supersedes earlier ones (`Road`, `State`) must be safe to
+  catch up from its latest copy, and a road slice is replaced only by one of
+  the same cells (`catch_up_bodies` keys on first cell and length).
 - Only append fields to records and the car row; bump `ROW_SIZE`, never
   reorder. A reader must keep skipping trailing bytes it does not know.
 - A test fixture whose roster revision differs from its frames' has every

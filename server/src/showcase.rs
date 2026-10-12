@@ -28,7 +28,10 @@ use tracing::{info, warn};
 use crate::config::{ShowcaseMode, ShowcaseSettings};
 use crate::data::*;
 use crate::network::{ShowcaseSummary, SpectatorJoinedData, SpectatorKind};
-use crate::spectator::{self, StreamFile, StreamHeader, StreamRoster, RECORD_EVENT, RECORD_FRAME};
+use crate::spectator::{
+    self, StreamFile, StreamHeader, StreamRoster, RECORD_EVENT, RECORD_FRAME, RECORD_ROAD,
+    RECORD_STATE,
+};
 
 /// One rendered race the server can play, read from its file's first few
 /// kilobytes at startup.
@@ -417,10 +420,9 @@ impl ShowcaseState {
                     .map(|body| Bytes::copy_from_slice(body))
                     .collect();
                 catch_up.extend(
-                    loaded.records[..channel.cursor]
-                        .iter()
-                        .filter(|r| r.kind == RECORD_EVENT && is_lap_timing(&r.body))
-                        .map(|r| Bytes::copy_from_slice(&r.body)),
+                    catch_up_bodies(&loaded.records[..channel.cursor])
+                        .into_iter()
+                        .map(Bytes::copy_from_slice),
                 );
                 for player in std::mem::take(&mut channel.newcomers) {
                     out.catch_up.push((player, catch_up.clone()));
@@ -464,6 +466,36 @@ fn start(channel: &mut Channel, entries: &[ShowcaseEntry], next_epoch: &mut u32)
     channel.frame_ticks = 0;
     channel.last_frame_tick = None;
     channel.newcomers = channel.viewers.clone();
+}
+
+/// What a viewer who joins `played` records into the content is sent after
+/// the preamble, in file order: the timing lines crossed so far, the road as
+/// the file last laid each of its slices (a slice a later one of the same
+/// cells replaced is skipped, so the order still ends on the newest), and
+/// the latest [`spectator::StreamState`] (the sky, the race clock, the
+/// tyres and tanks). Frames and the other events are transient.
+fn catch_up_bodies(played: &[TimedRecord]) -> Vec<&[u8]> {
+    let mut road_seen: BTreeSet<(u32, usize)> = BTreeSet::new();
+    let mut keep: Vec<&TimedRecord> = Vec::new();
+    let mut state: Option<&TimedRecord> = None;
+    // Newest first, so a slice is kept the first time its cells are seen.
+    for record in played.iter().rev() {
+        match record.kind {
+            RECORD_EVENT if is_lap_timing(&record.body) => keep.push(record),
+            RECORD_STATE if state.is_none() => state = Some(record),
+            RECORD_ROAD => {
+                if let Ok(spectator::Record::Road(road)) = spectator::Record::decode(&record.body) {
+                    if road_seen.insert((road.first_cell, road.rows.len())) {
+                        keep.push(record);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    keep.reverse();
+    keep.extend(state);
+    keep.into_iter().map(|r| r.body.as_slice()).collect()
 }
 
 fn is_lap_timing(body: &[u8]) -> bool {
@@ -679,6 +711,91 @@ mod tests {
 
     fn epoch_of(body: &Bytes) -> u32 {
         spectator::record_epoch(body).unwrap()
+    }
+
+    fn road_slice(first_cell: u32, cells: usize, tick: u32, mark: u8) -> TimedRecord {
+        let body = spectator::StreamRoad {
+            epoch: 0,
+            tick,
+            lap_m: 1000.0,
+            cell_m: 10.0,
+            bins: 1,
+            half_span_m: 8.0,
+            first_cell,
+            rows: vec![mark; cells],
+            debris: vec![],
+            geometry: vec![],
+        }
+        .encode();
+        TimedRecord {
+            tick,
+            kind: spectator::RECORD_ROAD,
+            body,
+        }
+    }
+
+    fn state_at(tick: u32, clock_s: u32) -> TimedRecord {
+        let body = spectator::StreamState {
+            epoch: 0,
+            tick,
+            sky: Some(crate::network::SkyNow {
+                clock_s,
+                ..Default::default()
+            }),
+            race_clock: None,
+            cars: vec![],
+        }
+        .encode();
+        TimedRecord {
+            tick,
+            kind: spectator::RECORD_STATE,
+            body,
+        }
+    }
+
+    #[test]
+    fn a_joiner_is_caught_up_on_the_road_and_the_latest_state() {
+        // The whole lap at the start, a slice laid again later, two states.
+        let played = vec![
+            road_slice(0, 4, 8, 1),
+            road_slice(4, 4, 8, 2),
+            state_at(8, 100),
+            road_slice(0, 4, 400, 3),
+            state_at(400, 200),
+            TimedRecord {
+                tick: 410,
+                kind: RECORD_FRAME,
+                body: vec![0x90],
+            },
+        ];
+        let bodies = catch_up_bodies(&played);
+        let kinds: Vec<u8> = bodies
+            .iter()
+            .map(|b| spectator::record_type(b).unwrap())
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![
+                spectator::RECORD_ROAD,
+                spectator::RECORD_ROAD,
+                spectator::RECORD_STATE
+            ],
+            "frames are transient; a replaced slice and an old state are skipped"
+        );
+        // The slice at cell 0 is the newer one, and the file's order puts it
+        // last of the roads: it overlays and is not overlaid.
+        let marks: Vec<(u32, u8)> = bodies[..2]
+            .iter()
+            .map(|b| match Record::decode(b).unwrap() {
+                Record::Road(r) => (r.first_cell, r.rows[0]),
+                _ => unreachable!(),
+            })
+            .collect();
+        assert_eq!(marks, vec![(4, 2), (0, 3)]);
+        let Record::State(state) = Record::decode(bodies[2]).unwrap() else {
+            panic!("not a state");
+        };
+        assert_eq!(state.sky.unwrap().clock_s, 200);
     }
 
     #[test]
