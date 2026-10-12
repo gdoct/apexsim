@@ -383,10 +383,12 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 	EApexDamageLevel Damage,
 	int32 AiSkill,
 	int32 RaceSeconds,
-	const TArray<FString>& GridOrder)
+	const TArray<FString>& GridOrder,
+	int32 QualifyingSeconds,
+	const FApexWeekendFormat& Weekend)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d race_seconds=%d locked_assists=%d conditions=%s damage=%d ai_skill=%d"),
-		*TrackConfigId, MaxPlayers, AiCount, LapLimit, RaceSeconds, AllowedAssists.CountLocked(), *Conditions.Describe(),
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d race_seconds=%d qualifying_seconds=%d locked_assists=%d conditions=%s damage=%d ai_skill=%d"),
+		*TrackConfigId, MaxPlayers, AiCount, LapLimit, RaceSeconds, QualifyingSeconds, AllowedAssists.CountLocked(), *Conditions.Describe(),
 		static_cast<int32>(Damage), AiSkill);
 	// The server holds one session per player: the menu's demo goes first,
 	// and the server takes a showcase viewer off their channel by itself.
@@ -406,7 +408,9 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 		Damage,
 		AiSkill,
 		RaceSeconds,
-		GridOrder));
+		GridOrder,
+		QualifyingSeconds,
+		Weekend));
 }
 
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
@@ -574,6 +578,12 @@ void UApexNetSubsystem::StartCountdown(int32 Seconds, EApexGameMode NextMode)
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> StartCountdown %d"), Seconds);
 	SendPayload(ApexProtocol::EncodeStartCountdown(
 		static_cast<uint16>(FMath::Clamp(Seconds, 0, 65535)), NextMode));
+}
+
+void UApexNetSubsystem::AdvanceWeekend()
+{
+	UE_LOG(LogApexSimNet, Log, TEXT("-> AdvanceWeekend"));
+	SendPayload(ApexProtocol::EncodeAdvanceWeekend());
 }
 
 void UApexNetSubsystem::SetDriverAids(
@@ -1088,12 +1098,16 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentDamage = Message.Damage;
 		CurrentAiSkill = Message.AiSkill;
 		CurrentRaceSeconds = Message.RaceSeconds;
+		CurrentQualifyingSeconds = Message.QualifyingSeconds;
+		CurrentWeekend = Message.Weekend;
+		// The session's WeekendState follows its SessionJoined.
+		CurrentWeekendState = FApexWeekendState();
 		DiscardTelemetryOfPreviousSession();
 		// In a session now: the seat held for us is this one or given up.
 		ClearRejoinOffer();
-		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d Conditions=%s Damage=%d AiSkill=%d RaceSeconds=%d"),
+		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d Conditions=%s Damage=%d AiSkill=%d RaceSeconds=%d QualifyingSeconds=%d"),
 			*CurrentSessionId, Message.GridPosition, CurrentAllowedAssists.CountLocked(), *CurrentConditions.Describe(),
-			static_cast<int32>(CurrentDamage), CurrentAiSkill, CurrentRaceSeconds);
+			static_cast<int32>(CurrentDamage), CurrentAiSkill, CurrentRaceSeconds, CurrentQualifyingSeconds);
 		OnSessionJoined.Broadcast(CurrentSessionId, Message.GridPosition);
 
 		// The cached lobby state predates this session, so anything resolving the
@@ -1127,6 +1141,9 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentDamage = EApexDamageLevel::Full;
 		CurrentAiSkill = ApexAiSkill::Mixed;
 		CurrentRaceSeconds = 0;
+		CurrentQualifyingSeconds = 0;
+		CurrentWeekend = FApexWeekendFormat();
+		CurrentWeekendState = FApexWeekendState();
 		CachedRoster = FApexSessionRoster();
 		ClearRacingLine();
 		ClearLapTiming();
@@ -1268,6 +1285,21 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- GhostLap %d sample(s), %d ms"),
 			CachedGhostLap.Samples.Num(), CachedGhostLap.LapTimeMs);
 		OnGhostLap.Broadcast(CachedGhostLap);
+		break;
+
+	case EApexServerMessageType::WeekendState:
+		// A new phase is a fresh timing sheet, as the server's is: the last
+		// round's bests and purple sectors are not this one's.
+		if (CurrentWeekendState.bValid
+			&& (CurrentWeekendState.Phase != Message.WeekendState.Phase || CurrentWeekendState.Round != Message.WeekendState.Round))
+		{
+			TimingBoard.Reset(TimingBoard.SectorCount);
+		}
+		CurrentWeekendState = Message.WeekendState;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- WeekendState phase=%d round=%d/%d finished=%d advancing=%d eliminated=%d"),
+			static_cast<int32>(CurrentWeekendState.Phase), CurrentWeekendState.Round, CurrentWeekendState.Rounds,
+			CurrentWeekendState.bFinished ? 1 : 0, CurrentWeekendState.Advancing, CurrentWeekendState.Eliminated.Num());
+		OnWeekendStateChanged.Broadcast();
 		break;
 
 	case EApexServerMessageType::QualifyingResults:

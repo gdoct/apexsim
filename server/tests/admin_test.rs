@@ -619,6 +619,8 @@ async fn a_live_session_is_listed_with_cars_timing_and_a_track_outline() {
         ai_skill: None,
         race_seconds: None,
         grid_order: Vec::new(),
+        qualifying_seconds: None,
+        weekend: None,
     })
     .await;
     host.until(|m| matches!(m, ServerMessage::SessionJoined(_)).then_some(()))
@@ -836,6 +838,8 @@ async fn serve_demo_dashboard() {
         ai_skill: None,
         race_seconds: None,
         grid_order: Vec::new(),
+        qualifying_seconds: None,
+        weekend: None,
     })
     .await;
     host.until(|m| matches!(m, ServerMessage::SessionJoined(_)).then_some(()))

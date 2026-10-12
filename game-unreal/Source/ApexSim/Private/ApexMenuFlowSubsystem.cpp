@@ -87,6 +87,11 @@ void UApexMenuFlowSubsystem::LoadProfile()
 	CreateLapLimit = Profile->LapLimit;
 	bCreateTimedRace = Profile->bTimedRace;
 	CreateRaceMinutes = FMath::Clamp(Profile->RaceMinutes, ApexRaceLength::MinSeconds / 60, ApexRaceLength::MaxSeconds / 60);
+	CreateQualifyingMinutes = ApexQualifyingLength::Clamp(Profile->QualifyingMinutes * 60) / 60;
+	bCreateWeekend = Profile->bWeekend;
+	CreateWeekendPracticeMinutes = ApexQualifyingLength::Clamp(Profile->WeekendPracticeMinutes * 60) / 60;
+	CreateWeekendRounds = FMath::Clamp(Profile->WeekendRounds, 1, FApexWeekendFormat::MaxRounds);
+	CreateWeekendRoundMinutes = FMath::Max(1, ApexQualifyingLength::Clamp(Profile->WeekendRoundMinutes * 60) / 60);
 	CreateStartingMode = Profile->StartingMode;
 	CreateSessionKind = Profile->SessionKind;
 	CreateAllowedAssists = Profile->AllowedAssists;
@@ -123,8 +128,48 @@ TArray<FString> UApexMenuFlowSubsystem::GridOrderToSend(int32 GridCeiling) const
 	return ApexCreateSession::Normalise(CreateGridOrder, Grid.Ai, Grid.Field);
 }
 
+FApexWeekendFormat UApexMenuFlowSubsystem::WeekendToSend() const
+{
+	FApexWeekendFormat Format;
+	if (!IsCreatingWeekend())
+	{
+		return Format;
+	}
+	Format.PracticeSeconds = CreateWeekendPracticeMinutes * 60;
+	for (int32 Round = 0; Round < FMath::Clamp(CreateWeekendRounds, 1, FApexWeekendFormat::MaxRounds); ++Round)
+	{
+		Format.QualifyingSeconds.Add(CreateWeekendRoundMinutes * 60);
+	}
+	return Format.Clamped();
+}
+
+FString UApexMenuFlowSubsystem::DescribeWeekend() const
+{
+	if (!IsCreatingWeekend())
+	{
+		return FString();
+	}
+	TArray<FString> Parts;
+	if (CreateWeekendPracticeMinutes > 0)
+	{
+		Parts.Add(FString::Printf(TEXT("Practice %s"), *ApexRaceLength::Describe(CreateWeekendPracticeMinutes * 60)));
+	}
+	const int32 Rounds = FMath::Clamp(CreateWeekendRounds, 1, FApexWeekendFormat::MaxRounds);
+	Parts.Add(Rounds > 1
+		? FString::Printf(TEXT("Q1-Q%d %s each"), Rounds, *ApexRaceLength::Describe(CreateWeekendRoundMinutes * 60))
+		: FString::Printf(TEXT("Qualifying %s"), *ApexRaceLength::Describe(CreateWeekendRoundMinutes * 60)));
+	const int32 RaceSeconds = EffectiveRaceSeconds();
+	Parts.Add(FString::Printf(TEXT("Race %s"), *(RaceSeconds > 0 ? ApexRaceLength::Describe(RaceSeconds) : FString::Printf(TEXT("%d laps"), CreateLapLimit))));
+	return FString::Join(Parts, TEXT(" · "));
+}
+
 FString UApexMenuFlowSubsystem::DescribeRaceLength() const
 {
+	if (CreateStartingMode == EApexGameMode::Qualification)
+	{
+		const int32 Qualifying = EffectiveQualifyingSeconds();
+		return Qualifying > 0 ? ApexRaceLength::Describe(Qualifying) : FString(TEXT("Open"));
+	}
 	if (CreateStartingMode != EApexGameMode::Race)
 	{
 		return FString();
@@ -150,6 +195,11 @@ void UApexMenuFlowSubsystem::SaveProfile()
 	Profile->LapLimit = CreateLapLimit;
 	Profile->bTimedRace = bCreateTimedRace;
 	Profile->RaceMinutes = CreateRaceMinutes;
+	Profile->QualifyingMinutes = CreateQualifyingMinutes;
+	Profile->bWeekend = bCreateWeekend;
+	Profile->WeekendPracticeMinutes = CreateWeekendPracticeMinutes;
+	Profile->WeekendRounds = CreateWeekendRounds;
+	Profile->WeekendRoundMinutes = CreateWeekendRoundMinutes;
 	Profile->StartingMode = CreateStartingMode;
 	Profile->SessionKind = CreateSessionKind;
 	Profile->AllowedAssists = CreateAllowedAssists;
@@ -257,6 +307,7 @@ FString UApexMenuFlowSubsystem::GetGameModeName(EApexGameMode Mode)
 	case EApexGameMode::FreePractice:  return TEXT("Free practice");
 	case EApexGameMode::Replay:        return TEXT("Replay");
 	case EApexGameMode::Qualification: return TEXT("Qualifying");
+	case EApexGameMode::Practice:      return TEXT("Practice");
 	case EApexGameMode::Race:          return TEXT("Race");
 	case EApexGameMode::Hotlap:        return TEXT("Hotlap");
 	default:                           return TEXT("Unknown");

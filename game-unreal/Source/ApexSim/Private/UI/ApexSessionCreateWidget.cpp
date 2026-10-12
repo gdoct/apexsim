@@ -82,6 +82,8 @@ namespace
 		EApexGameMode Mode;
 		const TCHAR* Label;
 		const TCHAR* Description;
+		/** A race weekend: practice and knockout qualifying before the race (Mode is Race). */
+		bool bWeekend = false;
 	};
 
 	// Replay is left out because nothing drives it yet (Qualification times
@@ -95,7 +97,13 @@ namespace
 		{ EApexGameMode::Hotlap,       TEXT("Hotlap"),        TEXT("Flying laps") },
 		{ EApexGameMode::Qualification, TEXT("Qualifying"),   TEXT("Sets the grid") },
 		{ EApexGameMode::Race,         TEXT("Race"),          TEXT("Grid start") },
+		{ EApexGameMode::Race,         TEXT("Weekend"),       TEXT("Practice to flag"), true },
 	};
+
+	/** A weekend's practice choices, minutes; 0 is none. */
+	const int32 WeekendPracticeChoices[] = { 0, 10, 20, 30, 60 };
+	/** Each knockout round's length choices, minutes. */
+	const int32 WeekendRoundChoices[] = { 5, 8, 10, 12, 15, 20 };
 
 	const TCHAR* ModeLabel(EApexGameMode Mode)
 	{
@@ -323,13 +331,23 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 		Out.Add(LapsPlus);
 		const UApexMenuFlowSubsystem* Flow = GetFlow();
 		AddAll(Flow && Flow->bCreateTimedRace ? DurationPresetButtons : LapPresetButtons);
+		if (Flow && Flow->CreateStartingMode == EApexGameMode::Qualification)
+		{
+			AddAll(QualifyingLengthButtons);
+		}
+		if (Flow && Flow->IsCreatingWeekend())
+		{
+			AddAll(WeekendPracticeButtons);
+			AddAll(WeekendRoundsButtons);
+			AddAll(WeekendRoundLengthButtons);
+		}
 		Out.Add(FieldMinus);
 		Out.Add(FieldPlus);
 		Out.Add(AiMinus);
 		Out.Add(AiPlus);
 		Out.Add(AiSkillMinus);
 		Out.Add(AiSkillPlus);
-		if (const UApexMenuFlowSubsystem* OrderFlow = GetFlow(); OrderFlow && OrderFlow->CreateStartingMode == EApexGameMode::Race)
+		if (const UApexMenuFlowSubsystem* OrderFlow = GetFlow(); OrderFlow && OrderFlow->CreateStartingMode == EApexGameMode::Race && !OrderFlow->IsCreatingWeekend())
 		{
 			Out.Add(YourSlotEarlier);
 			Out.Add(YourSlotLater);
@@ -990,6 +1008,46 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		ApexUI::AddV(Section, ApexUI::MakeSized(*WidgetTree, Row, -1.0f, 62.0f));
 		ApexUI::AddV(Section, ApexUI::MakeSized(*WidgetTree, Presets, -1.0f, 54.0f), FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		LengthSection = Section;
+		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+	}
+
+	// --- Qualifying length ----------------------------------------------------------
+	{
+		UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>();
+		UTextBlock* Info = nullptr;
+		ApexUI::AddV(Section, MakeCaption(TEXT("Qualifying length"), &Info), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		QualifyingInfoText = Info;
+		TArray<FString> Chips;
+		for (const int32 Minutes : ApexQualifyingLength::ChoiceMinutes())
+		{
+			Chips.Add(Minutes > 0 ? ApexRaceLength::Describe(Minutes * 60) : FString(TEXT("Open")));
+		}
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Session"), Chips, QualifyingLengthButtons));
+		QualifyingSection = Section;
+		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+	}
+
+	// --- Race weekend -----------------------------------------------------------------
+	{
+		UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>();
+		UTextBlock* Info = nullptr;
+		ApexUI::AddV(Section, MakeCaption(TEXT("Race weekend"), &Info), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		WeekendInfoText = Info;
+		TArray<FString> Practice;
+		for (const int32 Minutes : WeekendPracticeChoices)
+		{
+			Practice.Add(Minutes > 0 ? ApexRaceLength::Describe(Minutes * 60) : FString(TEXT("None")));
+		}
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Practice"), Practice, WeekendPracticeButtons), FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Qualifying"), { TEXT("One round"), TEXT("Q1 · Q2"), TEXT("Q1 · Q2 · Q3") }, WeekendRoundsButtons),
+			FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		TArray<FString> RoundLengths;
+		for (const int32 Minutes : WeekendRoundChoices)
+		{
+			RoundLengths.Add(ApexRaceLength::Describe(Minutes * 60));
+		}
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Each round"), RoundLengths, WeekendRoundLengthButtons));
+		WeekendSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
 
@@ -1720,7 +1778,7 @@ void UApexSessionCreateWidget::RefreshSettings()
 			continue;
 		}
 		const FString Summary = Tab == 0
-			? FString(ModeLabel(Mode)).ToUpper()
+			? (Flow->IsCreatingWeekend() ? FString(TEXT("RACE WEEKEND")) : FString(ModeLabel(Mode)).ToUpper())
 			: FString::Printf(TEXT("%s · %s"), *Conditions.ClockText(), *FApexSessionConditions::WeatherLabel(Conditions.Weather).ToUpper());
 		TabButtons[Tab]->SetBadge(Summary, ApexUI::Palette::TextSecondary);
 	}
@@ -1730,8 +1788,30 @@ void UApexSessionCreateWidget::RefreshSettings()
 	{
 		if (ModeButtons[Index])
 		{
-			ModeButtons[Index]->SetSelected(ModeOptions[Index].Mode == Mode);
+			ModeButtons[Index]->SetSelected(ModeOptions[Index].Mode == Mode
+				&& ModeOptions[Index].bWeekend == Flow->IsCreatingWeekend());
 		}
+	}
+
+	if (WeekendSection)
+	{
+		WeekendSection->SetVisibility(Flow->IsCreatingWeekend() ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	for (int32 Index = 0; Index < WeekendPracticeButtons.Num(); ++Index)
+	{
+		WeekendPracticeButtons[Index]->SetSelected(WeekendPracticeChoices[Index] == Flow->CreateWeekendPracticeMinutes);
+	}
+	for (int32 Index = 0; Index < WeekendRoundsButtons.Num(); ++Index)
+	{
+		WeekendRoundsButtons[Index]->SetSelected(Index + 1 == Flow->CreateWeekendRounds);
+	}
+	for (int32 Index = 0; Index < WeekendRoundLengthButtons.Num(); ++Index)
+	{
+		WeekendRoundLengthButtons[Index]->SetSelected(WeekendRoundChoices[Index] == Flow->CreateWeekendRoundMinutes);
+	}
+	if (WeekendInfoText)
+	{
+		WeekendInfoText->SetText(FText::FromString(Flow->DescribeWeekend().ToUpper()));
 	}
 
 	if (LengthSection)
@@ -1805,6 +1885,26 @@ void UApexSessionCreateWidget::RefreshSettings()
 			}
 		}
 		LengthInfoText->SetText(FText::FromString(FString::Join(Parts, TEXT(" · "))));
+	}
+
+	const bool bQualifying = Mode == EApexGameMode::Qualification;
+	if (QualifyingSection)
+	{
+		QualifyingSection->SetVisibility(bQualifying ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	const TArray<int32>& QualifyingChoices = ApexQualifyingLength::ChoiceMinutes();
+	for (int32 Index = 0; Index < QualifyingLengthButtons.Num(); ++Index)
+	{
+		if (QualifyingLengthButtons[Index] && QualifyingChoices.IsValidIndex(Index))
+		{
+			QualifyingLengthButtons[Index]->SetSelected(QualifyingChoices[Index] == Flow->CreateQualifyingMinutes);
+		}
+	}
+	if (QualifyingInfoText)
+	{
+		QualifyingInfoText->SetText(FText::FromString(Flow->EffectiveQualifyingSeconds() > 0
+			? TEXT("THEN THE FLAG · LAPS UNDER WAY COUNT")
+			: TEXT("NO CLOCK · RUNS UNTIL THE HOST STARTS THE RACE")));
 	}
 
 	// A hotlap has no field: every driver goes out from their own garage.
@@ -2308,8 +2408,8 @@ void UApexSessionCreateWidget::RefreshFooter()
 		const FApexSessionConditions C = Flow->CreateConditions.Clamped();
 
 		TArray<FString> Parts;
-		Parts.Add(FString(ModeLabel(Mode)).ToUpper());
-		if (Mode == EApexGameMode::Race)
+		Parts.Add(Flow->IsCreatingWeekend() ? FString(TEXT("RACE WEEKEND")) : FString(ModeLabel(Mode)).ToUpper());
+		if (Mode == EApexGameMode::Race || Mode == EApexGameMode::Qualification)
 		{
 			Parts.Add(Flow->DescribeRaceLength().ToUpper());
 		}
@@ -2625,7 +2725,8 @@ void UApexSessionCreateWidget::RefreshStartOrder()
 		return;
 	}
 
-	const bool bRace = Flow->CreateStartingMode == EApexGameMode::Race;
+	// A weekend's grid is its qualifying's.
+	const bool bRace = Flow->CreateStartingMode == EApexGameMode::Race && !Flow->IsCreatingWeekend();
 	if (StartOrderSection)
 	{
 		StartOrderSection->SetVisibility(bRace ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
@@ -2901,7 +3002,9 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Flow->CreateDamage,
 			Flow->CreateAiSkill,
 			Flow->EffectiveRaceSeconds(),
-			Flow->GridOrderToSend(MaxPlayersCeiling));
+			Flow->IsCreatingWeekend() ? TArray<FString>() : Flow->GridOrderToSend(MaxPlayersCeiling),
+			Flow->EffectiveQualifyingSeconds(),
+			Flow->WeekendToSend());
 		return;
 	}
 
@@ -2915,6 +3018,7 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (const int32 Mode = ApexNav::IndexOf(ModeButtons, Button); Mode != INDEX_NONE)
 	{
 		Flow->CreateStartingMode = ModeOptions[Mode].Mode;
+		Flow->bCreateWeekend = ModeOptions[Mode].bWeekend;
 		Changed();
 		return;
 	}
@@ -2947,6 +3051,31 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (const int32 Duration = ApexNav::IndexOf(DurationPresetButtons, Button); Duration != INDEX_NONE)
 	{
 		Flow->CreateRaceMinutes = DurationPresets[Duration].Minutes;
+		Changed();
+		return;
+	}
+	if (const int32 Practice = ApexNav::IndexOf(WeekendPracticeButtons, Button); Practice != INDEX_NONE)
+	{
+		Flow->CreateWeekendPracticeMinutes = WeekendPracticeChoices[Practice];
+		Changed();
+		return;
+	}
+	if (const int32 Rounds = ApexNav::IndexOf(WeekendRoundsButtons, Button); Rounds != INDEX_NONE)
+	{
+		Flow->CreateWeekendRounds = Rounds + 1;
+		Changed();
+		return;
+	}
+	if (const int32 RoundLength = ApexNav::IndexOf(WeekendRoundLengthButtons, Button); RoundLength != INDEX_NONE)
+	{
+		Flow->CreateWeekendRoundMinutes = WeekendRoundChoices[RoundLength];
+		Changed();
+		return;
+	}
+	if (const int32 Choice = ApexNav::IndexOf(QualifyingLengthButtons, Button);
+		Choice != INDEX_NONE && ApexQualifyingLength::ChoiceMinutes().IsValidIndex(Choice))
+	{
+		Flow->CreateQualifyingMinutes = ApexQualifyingLength::ChoiceMinutes()[Choice];
 		Changed();
 		return;
 	}

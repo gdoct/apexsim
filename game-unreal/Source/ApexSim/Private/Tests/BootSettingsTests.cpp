@@ -21,6 +21,7 @@ bool FApexBootSettingsRoundTripTest::RunTest(const FString& Parameters)
 	Written.bVSync = true;
 	Written.FrameLimit = 0;
 	Written.Screens = 3;
+	Written.GraphicsApi = TEXT("dx11");
 	Written.ServerHost = TEXT("race.example.net");
 	Written.ServerPort = 9100;
 	Written.bShowLauncher = false;
@@ -39,6 +40,7 @@ bool FApexBootSettingsRoundTripTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("vsync survives"), Read.bVSync);
 	TestEqual(TEXT("uncapped frame limit survives"), Read.FrameLimit, 0);
 	TestEqual(TEXT("a triple survives"), Read.Screens, 3);
+	TestEqual(TEXT("the graphics API survives"), Read.GraphicsApi, Written.GraphicsApi);
 	TestEqual(TEXT("host survives"), Read.ServerHost, Written.ServerHost);
 	TestEqual(TEXT("port survives"), Read.ServerPort, Written.ServerPort);
 	TestFalse(TEXT("the launcher's show flag survives the game's rewrite"), Read.bShowLauncher);

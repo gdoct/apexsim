@@ -214,9 +214,12 @@ pub(crate) async fn tick_sessions(
             state_changes.push((*session_id, listed));
         }
 
+        // A weekend's phase begins between ticks (`AdvanceWeekend`), already
+        // racing by the time the tick sees it: each phase is its own replay.
+        let phase_started = game_session.take_phase_started();
         let replay_starting = !is_demo_session
-            && prev_state != SessionState::Racing
-            && new_state == SessionState::Racing;
+            && ((prev_state != SessionState::Racing && new_state == SessionState::Racing)
+                || (phase_started && new_state == SessionState::Racing));
         if player_names.is_none()
             && (replay_starting || game_session.roster_is_dirty() || game_session.has_lap_events())
         {
@@ -372,6 +375,19 @@ pub(crate) async fn tick_sessions(
                 session_id: *session_id,
                 player_recipients: player_recipients.clone(),
                 msg: ServerMessage::SessionRoster(roster),
+            });
+        }
+
+        // A race weekend: a round that finished this tick is ranked now that
+        // its last laps are classified, and the weekend's state goes to the
+        // whole session whenever it changed (after the roster, whose car
+        // indices it uses).
+        game_session.settle_weekend();
+        if let Some(weekend) = game_session.take_weekend_state() {
+            rosters_out.push(SessionRosterOut {
+                session_id: *session_id,
+                player_recipients: player_recipients.clone(),
+                msg: ServerMessage::WeekendState(weekend),
             });
         }
 
@@ -624,9 +640,13 @@ pub(crate) async fn cleanup_finished_sessions(ctx: &GameLoopCtx, tick_count: u64
     // Cleanup finished sessions (older than timeout)
     let timeout_seconds = state_write.config.server.session_timeout_seconds as u64;
     state_write.sessions.retain(|id, session| {
+        // A weekend waiting for its host between phases stays while anyone
+        // is there to advance it; the reconnect grace ends it when all are
+        // away.
+        let waiting = session.awaits_weekend_advance() && session.has_connected_driver();
         let expired = finished_session_expired(
             &mut session.finished_since_loop_tick,
-            session.session.state == SessionState::Finished,
+            session.session.state == SessionState::Finished && !waiting,
             tick_count,
             tick_rate as u64,
             timeout_seconds,

@@ -95,6 +95,8 @@ impl LobbyTestClient {
             ai_skill: None,
             race_seconds: None,
             grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
         };
 
         self.send_message(&msg).await?;

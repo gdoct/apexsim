@@ -30,6 +30,7 @@ namespace
 		case EApexGameMode::Hotlap: return TEXT("Hotlap");
 		case EApexGameMode::FreePractice: return TEXT("Practice");
 		case EApexGameMode::Qualification: return TEXT("Qualifying");
+		case EApexGameMode::Practice: return TEXT("Practice");
 		case EApexGameMode::Race: return TEXT("Race");
 		default: return TEXT("Session");
 		}

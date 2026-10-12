@@ -106,6 +106,8 @@ async fn the_hosts_start_order_grids_the_race() {
             // The second AI on pole, then the host; the guest and the first
             // AI are left out and start behind in the order they were seated.
             grid_order: vec!["@ai:2".into(), "@host".into()],
+            qualifying_seconds: None,
+            weekend: None,
         })
         .await?;
         let joined = host.wait_joined().await?;

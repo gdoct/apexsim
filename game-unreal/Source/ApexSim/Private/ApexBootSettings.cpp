@@ -200,6 +200,18 @@ void ApexBootSettingsIo::Parse(const FString& Text, FApexBootSettings& InOut)
 				WarnBadValue(LineNumber, TEXT("screens"), Value, TEXT("expected 1 (one monitor) or 3 (a triple)"));
 			}
 		}
+		else if (Path == TEXT("display.graphics_api"))
+		{
+			const FString Api = Value.ToLower();
+			if (Api == TEXT("auto") || Api == TEXT("dx12") || Api == TEXT("dx11"))
+			{
+				InOut.GraphicsApi = Api;
+			}
+			else
+			{
+				WarnBadValue(LineNumber, TEXT("graphics_api"), Value, TEXT("expected auto, dx12 or dx11"));
+			}
+		}
 		else if (Path == TEXT("server.host"))
 		{
 			if (Value.IsEmpty())
@@ -285,6 +297,11 @@ FString ApexBootSettingsIo::Serialise(const FApexBootSettings& Settings)
 		TEXT("  # the three monitors standing in a row and each shows its own view. The\n")
 		TEXT("  # rig's measurements are under Settings > Graphics > Screens.\n")
 		TEXT("  screens: %d\n")
+		TEXT("  # auto | dx12 | dx11: the DirectX the game renders with, read when it\n")
+		TEXT("  # starts. auto is DirectX 12 where the graphics card supports it. dx11\n")
+		TEXT("  # is for a card or driver that draws the scene wrongly under DirectX 12;\n")
+		TEXT("  # it looks plainer. -dx11 or -dx12 on the command line wins.\n")
+		TEXT("  graphics_api: %s\n")
 		TEXT("\n")
 		TEXT("server:\n")
 		TEXT("  # The server the game connects to when it starts. 127.0.0.1 is a server\n")
@@ -312,6 +329,7 @@ FString ApexBootSettingsIo::Serialise(const FApexBootSettings& Settings)
 		Settings.bVSync ? TEXT("true") : TEXT("false"),
 		Settings.FrameLimit,
 		Settings.Screens,
+		*Settings.GraphicsApi,
 		*Settings.ServerHost,
 		Settings.ServerPort,
 		ApexTls::ModeName(Settings.ServerTls.Mode),

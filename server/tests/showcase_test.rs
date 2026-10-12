@@ -318,6 +318,8 @@ async fn a_showcase_is_played_to_everyone_on_one_clock() {
             ai_skill: None,
             race_seconds: None,
             grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
         })
         .await;
     first

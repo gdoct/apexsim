@@ -108,6 +108,38 @@ public:
 	int32 CreateRaceMinutes = 60;
 
 	/**
+	 * Qualifying's length, minutes (ApexQualifyingLength::ChoiceMinutes); 0
+	 * is open qualifying, which runs until the host starts the race. A timed
+	 * one ends with the chequered flag and its results screen.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateQualifyingMinutes = 15;
+
+	/**
+	 * The race is a race weekend: practice (CreateWeekendPracticeMinutes, 0
+	 * for none), CreateWeekendRounds knockout qualifying rounds of
+	 * CreateWeekendRoundMinutes each, then the race over the race's own
+	 * length. CreateStartingMode stays Race; the host moves it on.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	bool bCreateWeekend = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateWeekendPracticeMinutes = 20;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateWeekendRounds = 3;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateWeekendRoundMinutes = 10;
+
+	bool IsCreatingWeekend() const { return bCreateWeekend && CreateStartingMode == EApexGameMode::Race; }
+	/** The weekend CreateSession carries: no rounds unless a weekend is being made. */
+	FApexWeekendFormat WeekendToSend() const;
+	/** "Practice 20 min · Q1-Q3 10 min each · Race 12 laps"; empty for no weekend. */
+	FString DescribeWeekend() const;
+
+	/**
 	 * What a created session actually gets. A hotlap has no field and no
 	 * distance: whatever the sliders hold, it is made with no AI and no lap
 	 * limit, and the sliders keep their values for the next race. Only a
@@ -123,7 +155,13 @@ public:
 		return CreateStartingMode == EApexGameMode::Race && bCreateTimedRace
 			? ApexRaceLength::Clamp(CreateRaceMinutes * 60) : 0;
 	}
-	/** "5 LAPS", "2 h": the race length the way the menus say it (empty for anything but a race). */
+	/** Qualifying's length as the server gets it: 0 for open qualifying, and for any other mode. */
+	int32 EffectiveQualifyingSeconds() const
+	{
+		return CreateStartingMode == EApexGameMode::Qualification
+			? ApexQualifyingLength::Clamp(CreateQualifyingMinutes * 60) : 0;
+	}
+	/** "5 LAPS", "2 h", "15 min", "Open": the race's (or qualifying's) length the way the menus say it; empty for other modes. */
 	FString DescribeRaceLength() const;
 
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")

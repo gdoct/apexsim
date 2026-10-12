@@ -95,6 +95,8 @@ pub(crate) async fn handle_message(
             ai_skill,
             race_seconds,
             grid_order,
+            qualifying_seconds,
+            weekend,
         } => {
             handle_create_session(
                 ctx,
@@ -110,6 +112,8 @@ pub(crate) async fn handle_message(
                 ai_skill,
                 race_seconds,
                 grid_order,
+                qualifying_seconds,
+                weekend,
             )
             .await;
         }
@@ -181,6 +185,9 @@ pub(crate) async fn handle_message(
         }
         ClientMessage::Disconnect => {
             handle_disconnect(ctx, connection_id).await;
+        }
+        ClientMessage::AdvanceWeekend => {
+            handle_advance_weekend(ctx, connection_id).await;
         }
         ClientMessage::PlayerInput {
             throttle,
@@ -306,6 +313,8 @@ async fn handle_create_session(
     ai_skill: Option<u8>,
     race_seconds: Option<u32>,
     grid_order: Vec<String>,
+    qualifying_seconds: Option<u32>,
+    weekend: Option<crate::weekend::WeekendFormat>,
 ) {
     let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
@@ -420,6 +429,8 @@ async fn handle_create_session(
     if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
         game_session.set_damage(damage);
         game_session.set_grid_order(grid_order);
+        game_session.set_weekend(weekend);
+        game_session.set_qualifying_seconds(qualifying_seconds);
         game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
     }
 
@@ -539,6 +550,11 @@ async fn handle_create_session(
         let damage = game_session.session.damage;
         let ai_skill = game_session.session.ai_skill;
         let race_seconds = game_session.session.race_seconds;
+        let qualifying_seconds = game_session.session.qualifying_seconds;
+        let weekend = game_session.session.weekend.clone();
+        let weekend_state = game_session
+            .weekend_state()
+            .map(ServerMessage::WeekendState);
         drop(state_write);
         let _ = ctx
             .send(
@@ -552,9 +568,14 @@ async fn handle_create_session(
                     damage,
                     ai_skill,
                     race_seconds,
+                    qualifying_seconds,
+                    weekend,
                 }),
             )
             .await;
+        if let Some(msg) = weekend_state {
+            let _ = ctx.send(connection_id, msg).await;
+        }
         if let Some(msg) = racing_line {
             let _ = ctx.send(connection_id, msg).await;
         }
@@ -597,7 +618,7 @@ async fn start_demo_session(
     session_id: SessionId,
     session_kind: SessionKind,
 ) {
-    let (conditions, ai_skill, race_seconds) = state_write
+    let (conditions, ai_skill, race_seconds, qualifying_seconds) = state_write
         .sessions
         .get(&session_id)
         .map(|s| {
@@ -605,6 +626,7 @@ async fn start_demo_session(
                 s.session.conditions,
                 s.session.ai_skill,
                 s.session.race_seconds,
+                s.session.qualifying_seconds,
             )
         })
         .unwrap_or_default();
@@ -681,6 +703,8 @@ async fn start_demo_session(
                 damage: DamageLevel::Full,
                 ai_skill,
                 race_seconds,
+                qualifying_seconds,
+                weekend: None,
             }),
         )
         .await;
@@ -793,6 +817,11 @@ async fn handle_join_session(
         let damage = game_session.session.damage;
         let ai_skill = game_session.session.ai_skill;
         let race_seconds = game_session.session.race_seconds;
+        let qualifying_seconds = game_session.session.qualifying_seconds;
+        let weekend = game_session.session.weekend.clone();
+        let weekend_state = game_session
+            .weekend_state()
+            .map(ServerMessage::WeekendState);
         drop(state_write);
         let _ = ctx
             .send(
@@ -806,9 +835,14 @@ async fn handle_join_session(
                     damage,
                     ai_skill,
                     race_seconds,
+                    qualifying_seconds,
+                    weekend,
                 }),
             )
             .await;
+        if let Some(msg) = weekend_state {
+            let _ = ctx.send(connection_id, msg).await;
+        }
         if let Some(msg) = racing_line {
             let _ = ctx.send(connection_id, msg).await;
         }
@@ -864,8 +898,15 @@ async fn rejoin_session(
         damage: game_session.session.damage,
         ai_skill: game_session.session.ai_skill,
         race_seconds: game_session.session.race_seconds,
+        qualifying_seconds: game_session.session.qualifying_seconds,
+        weekend: game_session.session.weekend.clone(),
     });
     let mut messages = vec![joined];
+    messages.extend(
+        game_session
+            .weekend_state()
+            .map(ServerMessage::WeekendState),
+    );
     messages.extend(racing_line_message(game_session, session_id, car_id));
     messages.extend(setup_sheet_message(game_session, session_id, car_id));
     messages.extend(timing_messages(
@@ -1071,6 +1112,9 @@ async fn handle_join_as_spectator(
         damage,
         ai_skill,
         race_seconds,
+        qualifying_seconds,
+        weekend,
+        weekend_state,
         sectors,
         road,
     ) = {
@@ -1086,6 +1130,9 @@ async fn handle_join_as_spectator(
             damage,
             ai_skill,
             race_seconds,
+            qualifying_seconds,
+            weekend,
+            weekend_state,
             sectors,
             road,
         ) = state_write
@@ -1104,6 +1151,9 @@ async fn handle_join_as_spectator(
                     s.session.damage,
                     s.session.ai_skill,
                     s.session.race_seconds,
+                    s.session.qualifying_seconds,
+                    s.session.weekend.clone(),
+                    s.weekend_state().map(ServerMessage::WeekendState),
                     Some(ServerMessage::TrackSectors(TrackSectorsData {
                         session_id,
                         track_length_m: s.track_length_m(),
@@ -1121,6 +1171,9 @@ async fn handle_join_as_spectator(
             damage,
             ai_skill,
             race_seconds,
+            qualifying_seconds,
+            weekend,
+            weekend_state,
             sectors,
             road,
         )
@@ -1143,9 +1196,14 @@ async fn handle_join_as_spectator(
                     damage,
                     ai_skill,
                     race_seconds,
+                    qualifying_seconds,
+                    weekend,
                 }),
             )
             .await;
+        if let Some(msg) = weekend_state {
+            let _ = ctx.send(connection_id, msg).await;
+        }
         // Where the sector lines are, so the spectator's timing board can
         // place every car; the roster follows with the next tick.
         if let Some(msg) = sectors {
@@ -1445,6 +1503,60 @@ async fn handle_start_countdown(
             if let Err(e) = ctx.send(conn_id, countdown_msg.clone()).await {
                 warn!("Failed to send countdown start to player: {:?}", e);
             }
+        }
+    }
+}
+
+/// The host moves a race weekend on (`GameSession::advance_weekend`).
+/// Anyone else gets `Error 403`; a session that is not a weekend, a phase
+/// still running or a race already begun `Error 409`. The session hears the
+/// new mode as `GameModeChanged` (`Countdown` into the race); the new
+/// `WeekendState` follows with the next tick.
+async fn handle_advance_weekend(ctx: &GameLoopCtx, connection_id: ConnectionId) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        return;
+    };
+    let mut state_write = ctx.state.write().await;
+    let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
+        return;
+    };
+    if game_session.session.host_player_id != conn_info.player_id {
+        drop(state_write);
+        ctx.send_error(
+            connection_id,
+            403,
+            "Only the session host can advance the weekend",
+        )
+        .await;
+        return;
+    }
+    if let Err(reason) = game_session.advance_weekend() {
+        drop(state_write);
+        ctx.send_error(connection_id, 409, reason).await;
+        return;
+    }
+    let mode = game_session.session.game_mode;
+    debug!(
+        "Player {} advanced session {} to {:?}",
+        conn_info.player_name, session_id, mode
+    );
+    let humans: Vec<PlayerId> = game_session
+        .session
+        .participants
+        .keys()
+        .filter(|id| !game_session.session.ai_player_ids.contains(id))
+        .copied()
+        .collect();
+    let spectators = state_write.lobby.get_session_spectators(session_id).await;
+    drop(state_write);
+
+    let msg = ServerMessage::GameModeChanged { mode };
+    for player_id in humans.into_iter().chain(spectators) {
+        if let Some(conn_id) = ctx.player_connection(player_id).await {
+            let _ = ctx.send(conn_id, msg.clone()).await;
         }
     }
 }

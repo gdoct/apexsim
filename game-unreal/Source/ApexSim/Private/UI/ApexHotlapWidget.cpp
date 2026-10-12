@@ -340,15 +340,78 @@ void UApexHotlapWidget::NativeOnInitialized()
 void UApexHotlapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-	if (View == EApexHotlapView::Garage && bQualifying && bBoardOpen)
+	if (View == EApexHotlapView::Garage && bQualifying)
 	{
 		BoardRefreshIn -= InDeltaTime;
 		if (BoardRefreshIn <= 0.0f)
 		{
 			BoardRefreshIn = 0.25f;
-			RefreshBoard();
+			RefreshQualifyingClock();
+			if (bBoardOpen)
+			{
+				RefreshBoard();
+			}
 		}
 	}
+}
+
+void UApexHotlapWidget::RefreshQualifyingClock()
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (!Net || bMenuMode)
+	{
+		return;
+	}
+	// A timed session's clock is the server's (the race clock's field); at
+	// zero the flag is out and the server keeps every car in. A car knocked
+	// out of a weekend's qualifying stays in too.
+	const FApexTelemetryFrame& Frame = Net->GetLatestTelemetry();
+	const bool bTimed = Frame.HasRaceClock();
+	const bool bFlag = bTimed && Frame.RaceLeftMs <= 0;
+	const FApexKnockedOut* Out = bPractice ? nullptr : Net->GetWeekendState().FindEliminated(Net->GetLocalCarIndex());
+	const FString Name = OutlapSessionName();
+	if (GarageCaption)
+	{
+		const int32 Left = (Frame.RaceLeftMs + 999) / 1000;
+		GarageCaption->SetText(FText::FromString(!bTimed ? Name
+			: bFlag ? FString::Printf(TEXT("%s · CHEQUERED FLAG"), *Name)
+			: Left >= 3600 ? FString::Printf(TEXT("%s · %d:%02d:%02d LEFT"), *Name, Left / 3600, Left / 60 % 60, Left % 60)
+			: FString::Printf(TEXT("%s · %d:%02d LEFT"), *Name, Left / 60, Left % 60)));
+	}
+	if (GoOutButton)
+	{
+		GoOutButton->SetIsEnabled(!bFlag && !Out);
+		GoOutButton->SetLabel(Out ? FString::Printf(TEXT("OUT IN Q%d · P%d ON THE GRID"), Out->Round, Out->GridPosition)
+			: bFlag ? FString::Printf(TEXT("%s IS OVER"), *Name)
+			: FString(TEXT("GO OUT FOR A LAP")));
+	}
+}
+
+FString UApexHotlapWidget::OutlapSessionName() const
+{
+	if (bPractice)
+	{
+		return TEXT("PRACTICE");
+	}
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const FApexWeekendState* Weekend = Net && Net->GetWeekendState().bValid ? &Net->GetWeekendState() : nullptr;
+	if (Weekend && Weekend->Phase == EApexWeekendPhase::Qualifying && Weekend->Rounds > 1)
+	{
+		return FString::Printf(TEXT("QUALIFYING %d OF %d"), Weekend->Round, Weekend->Rounds);
+	}
+	return TEXT("QUALIFYING");
+}
+
+void UApexHotlapWidget::SetPractice(bool bInPractice)
+{
+	if (bPractice == bInPractice)
+	{
+		return;
+	}
+	bPractice = bInPractice;
+	ApplyQualifyingRows();
 }
 
 void UApexHotlapWidget::NativeConstruct()
@@ -1419,11 +1482,11 @@ void UApexHotlapWidget::ApplyQualifyingRows()
 	}
 	if (SheetTitle)
 	{
-		SheetTitle->SetText(FText::FromString(bQualifying ? TEXT("QUALIFYING") : TEXT("HOTLAP")));
+		SheetTitle->SetText(FText::FromString(bPractice ? TEXT("PRACTICE") : bQualifying ? TEXT("QUALIFYING") : TEXT("HOTLAP")));
 	}
 	if (GarageCaption)
 	{
-		GarageCaption->SetText(FText::FromString(bMenuMode ? TEXT("SETUPS") : bQualifying ? TEXT("QUALIFYING") : TEXT("HOTLAP")));
+		GarageCaption->SetText(FText::FromString(bMenuMode ? TEXT("SETUPS") : bQualifying ? OutlapSessionName() : TEXT("HOTLAP")));
 	}
 	if (GarageNote)
 	{
@@ -1437,6 +1500,11 @@ void UApexHotlapWidget::ApplyQualifyingRows()
 	{
 		GoOutButton->SetLabel(bMenuMode ? TEXT("DONE")
 			: bQualifying ? TEXT("GO OUT FOR A LAP") : TEXT("GO OUT ON TRACK"));
+		GoOutButton->SetIsEnabled(true);
+	}
+	if (bQualifying)
+	{
+		RefreshQualifyingClock();
 	}
 }
 

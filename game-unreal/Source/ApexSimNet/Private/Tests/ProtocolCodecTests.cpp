@@ -181,6 +181,24 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Reduced, ApexAiSkill::Mixed, 0);
 		CheckBytes(TEXT("CreateSession over laps has no race_seconds"), Laps, ApexGolden::C_CreateSessionDamage);
 	}
+	CheckBytes(TEXT("CreateSession with timed qualifying"),
+		ApexProtocol::EncodeCreateSession(
+			TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+			TArray<FString>(), 900),
+		ApexGolden::C_CreateSessionQualifyingTime);
+	{
+		FApexWeekendFormat Weekend;
+		Weekend.PracticeSeconds = 1800;
+		Weekend.QualifyingSeconds = { 1080, 900, 720 };
+		CheckBytes(TEXT("CreateSession for a race weekend"),
+			ApexProtocol::EncodeCreateSession(
+				TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+				FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+				TArray<FString>(), 0, Weekend),
+			ApexGolden::C_CreateSessionWeekend);
+	}
+	CheckBytes(TEXT("AdvanceWeekend"), ApexProtocol::EncodeAdvanceWeekend(), ApexGolden::C_AdvanceWeekend);
 
 	{
 		FApexCarSetup Setup;
@@ -434,6 +452,61 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 		if (Decode(TEXT("SessionJoined over laps"), ApexGolden::S_SessionJoinedAiSkill, Laps))
 		{
 			TestEqual(TEXT("RaceSeconds (0 when absent)"), Laps.RaceSeconds, 0);
+		}
+	}
+
+	{
+		// Timed qualifying's length is named only when the host picked one.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined with timed qualifying"), ApexGolden::S_SessionJoinedQualifyingTime, Message))
+		{
+			TestEqual(TEXT("QualifyingSeconds"), Message.QualifyingSeconds, 900);
+			TestEqual(TEXT("QualifyingSeconds.RaceSeconds"), Message.RaceSeconds, 0);
+		}
+		FApexServerMessage Open;
+		if (Decode(TEXT("SessionJoined, open qualifying"), ApexGolden::S_SessionJoinedAiSkill, Open))
+		{
+			TestEqual(TEXT("QualifyingSeconds (0 when absent)"), Open.QualifyingSeconds, 0);
+		}
+	}
+
+	{
+		// A race weekend's format, and where it stands.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined for a race weekend"), ApexGolden::S_SessionJoinedWeekend, Message))
+		{
+			TestTrue(TEXT("Weekend"), Message.Weekend.IsWeekend());
+			TestEqual(TEXT("Weekend.PracticeSeconds"), Message.Weekend.PracticeSeconds, 1800);
+			TestEqual(TEXT("Weekend.Rounds"), Message.Weekend.Rounds(), 3);
+			if (Message.Weekend.Rounds() == 3)
+			{
+				TestEqual(TEXT("Weekend.Q1"), Message.Weekend.QualifyingSeconds[0], 1080);
+				TestEqual(TEXT("Weekend.Q3"), Message.Weekend.QualifyingSeconds[2], 720);
+			}
+		}
+		FApexServerMessage Plain;
+		if (Decode(TEXT("SessionJoined, no weekend"), ApexGolden::S_SessionJoinedAiSkill, Plain))
+		{
+			TestFalse(TEXT("no weekend when absent"), Plain.Weekend.IsWeekend());
+		}
+		FApexServerMessage State;
+		if (Decode(TEXT("WeekendState"), ApexGolden::S_WeekendState, State))
+		{
+			TestEqual(TEXT("WeekendState type"), State.Type, EApexServerMessageType::WeekendState);
+			const FApexWeekendState& W = State.WeekendState;
+			TestTrue(TEXT("WeekendState.bValid"), W.bValid);
+			TestEqual(TEXT("WeekendState.Phase"), W.Phase, EApexWeekendPhase::Qualifying);
+			TestEqual(TEXT("WeekendState.Round"), W.Round, 2);
+			TestEqual(TEXT("WeekendState.Rounds"), W.Rounds, 3);
+			TestFalse(TEXT("WeekendState.bFinished"), W.bFinished);
+			TestEqual(TEXT("WeekendState.Advancing"), W.Advancing, 10);
+			if (TestEqual(TEXT("WeekendState.Eliminated"), W.Eliminated.Num(), 1))
+			{
+				TestEqual(TEXT("Eliminated.CarIndex"), W.Eliminated[0].CarIndex, 7);
+				TestEqual(TEXT("Eliminated.Round"), W.Eliminated[0].Round, 1);
+				TestEqual(TEXT("Eliminated.GridPosition"), W.Eliminated[0].GridPosition, 16);
+				TestEqual(TEXT("Eliminated.LapTimeMs"), W.Eliminated[0].LapTimeMs, 91234);
+			}
 		}
 	}
 

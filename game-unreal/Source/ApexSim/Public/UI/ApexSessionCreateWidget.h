@@ -215,6 +215,16 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> LapPresetButtons;
 	/** The timed race's presets, in the same place; one set shows at a time. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> DurationPresetButtons;
+	/** Shown for qualifying only: Open, or a clock (ApexQualifyingLength::ChoiceMinutes). */
+	UPROPERTY(Transient) TObjectPtr<UWidget> QualifyingSection;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> QualifyingInfoText;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> QualifyingLengthButtons;
+	/** Shown for a race weekend only: practice, the knockout's rounds, each round's length. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendSection;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeekendInfoText;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendPracticeButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendRoundsButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendRoundLengthButtons;
 	/** Hidden for a hotlap, which has no field. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> FieldSection;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FieldInfoText;

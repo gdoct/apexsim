@@ -28,6 +28,12 @@ pub const FINISH_GRACE_LAPS: f32 = 2.0;
 /// finished unclassified, so a car stuck in a gravel trap (or a player who
 /// walked away) cannot hold the session open forever.
 pub const FINISH_GRACE_MIN_SECONDS: u32 = 60;
+/// A timed qualifying session ends at most this many laps (the slowest
+/// car's estimate) after its chequered flag comes out...
+pub const QUALIFYING_FLAG_GRACE_LAPS: f32 = 2.0;
+/// ...but never sooner than this: the cars still out by then are put in
+/// their garages and the session is over.
+pub const QUALIFYING_FLAG_GRACE_MIN_SECONDS: u32 = 60;
 /// Skill of the server driver that takes a human's car round on the
 /// cool-down lap after they finish: unhurried, off the racing pace.
 const COOLDOWN_SKILL: u8 = 75;
@@ -211,6 +217,18 @@ pub struct GameSession {
     /// Each driver's best legal qualifying lap, ms, and the tick it was set
     /// on (the earlier of two equal times starts ahead).
     qualifying: std::collections::BTreeMap<PlayerId, (u32, u32)>,
+    /// The tick this session last entered `GameMode::Qualification` or
+    /// `GameMode::Practice`: a timed session's clock runs from it
+    /// (`timed_elapsed_ticks`).
+    timed_start_tick: Option<u32>,
+    /// A race weekend's progress (`crate::weekend`); unused outside one.
+    weekend: crate::weekend::WeekendProgress,
+    /// The `WeekendState` last handed out (`take_weekend_state`), so it
+    /// goes out again only when a field changes.
+    weekend_sent: Option<crate::network::WeekendStateData>,
+    /// A weekend phase began between ticks (`advance_weekend`): the game
+    /// loop starts its replay (`take_phase_started`).
+    phase_started: bool,
     /// Set when session membership changed since the last roster broadcast;
     /// starts true so the roster goes out once when the session first ticks.
     roster_dirty: bool,
@@ -586,6 +604,10 @@ impl GameSession {
             tick_rate_hz: DEFAULT_TICK_RATE_HZ,
             driver_names: std::collections::BTreeMap::new(),
             qualifying: std::collections::BTreeMap::new(),
+            timed_start_tick: None,
+            weekend: Default::default(),
+            weekend_sent: None,
+            phase_started: false,
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
@@ -642,6 +664,10 @@ impl GameSession {
             tick_rate_hz: DEFAULT_TICK_RATE_HZ,
             driver_names: std::collections::BTreeMap::new(),
             qualifying: std::collections::BTreeMap::new(),
+            timed_start_tick: None,
+            weekend: Default::default(),
+            weekend_sent: None,
+            phase_started: false,
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
@@ -731,10 +757,10 @@ impl GameSession {
             GameMode::Race => {
                 self.tick_racing(inputs);
             }
-            GameMode::Qualification | GameMode::Hotlap => {
-                // Qualifying runs like a hotlap: every human starts in the
-                // garage, frozen and out of the collision passes, until
-                // they go out; the AI drive on.
+            GameMode::Qualification | GameMode::Hotlap | GameMode::Practice => {
+                // Qualifying and timed practice run like a hotlap: every
+                // human starts in the garage, frozen and out of the
+                // collision passes, until they go out; the AI drive on.
                 self.tick_hotlap(inputs);
             }
         }
@@ -1041,6 +1067,10 @@ impl GameSession {
         let ai_ids: std::collections::HashSet<PlayerId> =
             self.session.ai_player_ids.iter().copied().collect();
         let current_tick = self.session.current_tick;
+        let track_length = crate::laps::track_length_m(&self.track_config);
+        // Cars that crossed the start line this tick: after a timed
+        // qualifying session's clock, each of them takes the flag.
+        let mut crossed: Vec<PlayerId> = Vec::new();
 
         for state in self.session.participants.values_mut() {
             if state.in_garage {
@@ -1052,6 +1082,7 @@ impl GameSession {
                 .copied()
                 .unwrap_or_default();
             if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
+                let old_progress = state.track_progress;
                 physics::update_car_3d(state, config, &input, &self.track_config, dt);
                 let is_ai = ai_ids.contains(&state.player_id);
                 sample_ghost_trace(
@@ -1077,6 +1108,12 @@ impl GameSession {
                         event,
                     );
                 }
+                if track_length > 0.0
+                    && old_progress > track_length * 0.8
+                    && state.track_progress < track_length * 0.2
+                {
+                    crossed.push(state.player_id);
+                }
             }
         }
 
@@ -1090,6 +1127,349 @@ impl GameSession {
             .collect();
         physics::check_collisions_refs(&mut state_refs, &self.car_configs);
         physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
+
+        if self.session.game_mode.has_outlap() {
+            self.update_chequered_flag(&crossed);
+        }
+    }
+
+    /// A timed qualifying or practice session after its clock: each car
+    /// crossing the
+    /// line takes the chequered flag and goes to its garage (the lap it
+    /// just completed is already timed and queued in `lap_events`, so it
+    /// still classifies). The session is finished once every car is in its
+    /// garage or undrivable, or at the deadline set when the flag came out
+    /// (max([`QUALIFYING_FLAG_GRACE_MIN_SECONDS`],
+    /// [`QUALIFYING_FLAG_GRACE_LAPS`] x the slowest car's lap)), when the
+    /// cars still out are garaged.
+    fn update_chequered_flag(&mut self, crossed: &[PlayerId]) {
+        if !self.chequered_flag_out() || self.session.state == SessionState::Finished {
+            return;
+        }
+        if self.finish_deadline_tick.is_none() {
+            let rate = self.tick_rate_hz as f32;
+            let slowest_lap_s = self
+                .session
+                .participants
+                .values()
+                .filter(|s| !s.in_garage)
+                .map(|s| {
+                    s.last_lap_time_ms
+                        .or(s.best_lap_time_ms)
+                        .filter(|ms| *ms > 0)
+                        .map(|ms| ms as f32 / 1000.0)
+                        .or_else(|| self.lap_seconds.get(&s.car_config_id).copied())
+                        .unwrap_or(FALLBACK_LAP_SECONDS)
+                })
+                .fold(0.0f32, f32::max);
+            let grace_ticks = ((slowest_lap_s * QUALIFYING_FLAG_GRACE_LAPS * rate) as u32)
+                .max(QUALIFYING_FLAG_GRACE_MIN_SECONDS * self.tick_rate_hz as u32);
+            self.finish_deadline_tick = Some(self.session.current_tick + grace_ticks);
+            tracing::info!(
+                "Session {}: the {:?} clock has run out; the chequered flag is out",
+                self.session.id,
+                self.session.game_mode
+            );
+        }
+        for player_id in crossed {
+            let _ = self.hotlap_relocate(player_id, HotlapDestination::Garage, false);
+        }
+        let at_deadline = self
+            .finish_deadline_tick
+            .is_some_and(|deadline| self.session.current_tick >= deadline);
+        if at_deadline {
+            let still_out: Vec<PlayerId> = self
+                .session
+                .participants
+                .values()
+                .filter(|s| !s.in_garage)
+                .map(|s| s.player_id)
+                .collect();
+            for player_id in still_out {
+                let _ = self.hotlap_relocate(&player_id, HotlapDestination::Garage, false);
+            }
+        }
+        let all_in = self
+            .session
+            .participants
+            .values()
+            .all(|s| s.in_garage || !s.damage.is_drivable);
+        if at_deadline || all_in {
+            self.session.state = SessionState::Finished;
+        }
+    }
+
+    /// Ticks since this session entered its timed mode (qualifying or
+    /// practice); 0 outside them.
+    fn timed_elapsed_ticks(&self) -> u64 {
+        match self.timed_start_tick {
+            Some(start) if self.session.game_mode.has_outlap() => {
+                self.session.current_tick.saturating_sub(start) as u64
+            }
+            _ => 0,
+        }
+    }
+
+    /// The length of the timed session running now, s: a weekend's
+    /// practice or current qualifying round, or a plain session's
+    /// `qualifying_seconds`. `None` for open-ended qualifying or practice
+    /// and outside them.
+    fn timed_session_seconds(&self) -> Option<u32> {
+        let weekend = self.session.weekend.as_ref();
+        match self.session.game_mode {
+            GameMode::Practice => weekend
+                .map(|w| w.practice_seconds)
+                .filter(|seconds| *seconds > 0),
+            GameMode::Qualification => match weekend {
+                Some(w) => w
+                    .qualifying_seconds
+                    .get((self.weekend.round as usize).saturating_sub(1))
+                    .copied(),
+                None => self.session.qualifying_seconds,
+            },
+            _ => None,
+        }
+    }
+
+    /// The timed session's length in ticks; `None` when it is open-ended.
+    fn timed_length_ticks(&self) -> Option<u64> {
+        self.timed_session_seconds()
+            .map(|s| s as u64 * self.tick_rate_hz as u64)
+    }
+
+    /// The chequered flag is out: a timed qualifying or practice session
+    /// whose clock has run out. Cars take it at their next crossing of the
+    /// line, and none may go out again.
+    pub fn chequered_flag_out(&self) -> bool {
+        self.session.game_mode.has_outlap()
+            && self
+                .timed_length_ticks()
+                .is_some_and(|length| self.timed_elapsed_ticks() >= length)
+    }
+
+    /// Set the length of a timed qualifying session
+    /// (`CreateSession.qualifying_seconds`, clamped by
+    /// `data::clamp_qualifying_seconds`); `None` for open-ended qualifying.
+    /// A weekend's rounds carry their own lengths, so it is ignored there.
+    pub fn set_qualifying_seconds(&mut self, seconds: Option<u32>) {
+        self.session.qualifying_seconds = if self.session.weekend.is_some() {
+            None
+        } else {
+            crate::data::clamp_qualifying_seconds(seconds)
+        };
+    }
+
+    // --- A race weekend --------------------------------------------------
+
+    /// Make this session a race weekend (`CreateSession.weekend`, clamped
+    /// by `WeekendFormat::clamp`), or a plain session with `None`. A
+    /// weekend's rounds carry their own lengths: `qualifying_seconds` goes.
+    pub fn set_weekend(&mut self, format: Option<crate::weekend::WeekendFormat>) {
+        self.session.weekend = format.map(crate::weekend::WeekendFormat::clamp);
+        if self.session.weekend.is_some() {
+            self.session.qualifying_seconds = None;
+        }
+        self.weekend = Default::default();
+        self.weekend_sent = None;
+    }
+
+    /// Whether this session is a race weekend.
+    pub fn is_weekend(&self) -> bool {
+        self.session.weekend.is_some()
+    }
+
+    /// The host moves the weekend on (`ClientMessage::AdvanceWeekend`):
+    /// from the lobby to practice (or Q1 when there is none), from finished
+    /// practice to Q1, from a finished round to the next, and from the
+    /// finished final round into the race's countdown
+    /// ([`START_SESSION_COUNTDOWN_SECONDS`]), gridded by the weekend.
+    /// Refused (the reason) outside a weekend, while a phase runs, and once
+    /// the race has begun.
+    pub fn advance_weekend(&mut self) -> Result<(), &'static str> {
+        use crate::weekend::WeekendPhase;
+        let Some(format) = self.session.weekend.clone() else {
+            return Err("Not a race weekend");
+        };
+        self.settle_weekend();
+        let finished = self.session.state == SessionState::Finished;
+        match self.weekend.phase {
+            WeekendPhase::Lobby if format.practice_seconds > 0 => self.begin_practice(),
+            WeekendPhase::Lobby => self.begin_round(1),
+            WeekendPhase::Practice if finished => self.begin_round(1),
+            WeekendPhase::Practice => return Err("Practice is still running"),
+            WeekendPhase::Qualifying if !finished => return Err("Qualifying is still running"),
+            WeekendPhase::Qualifying if (self.weekend.round as usize) < format.rounds() => {
+                self.begin_round(self.weekend.round + 1)
+            }
+            WeekendPhase::Qualifying => {
+                self.start_countdown_mode(START_SESSION_COUNTDOWN_SECONDS, GameMode::Race)
+            }
+            WeekendPhase::Race => return Err("The race has begun"),
+        }
+        Ok(())
+    }
+
+    /// Timed practice begins: every human in the garage, the AI out.
+    fn begin_practice(&mut self) {
+        self.weekend.phase = crate::weekend::WeekendPhase::Practice;
+        self.weekend.round = 0;
+        self.set_game_mode(GameMode::Practice);
+        self.send_ai_out();
+        self.phase_started = true;
+    }
+
+    /// Qualifying round `round` (1-based) begins with an empty
+    /// classification and its own clock: every human in the garage, the AI
+    /// still taking part out, the knocked-out cars garaged for good. Q1
+    /// sizes the knockout on the cars seated now.
+    fn begin_round(&mut self, round: u8) {
+        let rounds = self.session.weekend.as_ref().map_or(1, |w| w.rounds());
+        if round == 1 {
+            self.weekend.sizes =
+                crate::weekend::knockout_sizes(self.session.participants.len(), rounds);
+            self.weekend.eliminated.clear();
+            self.weekend.final_order.clear();
+        }
+        self.weekend.phase = crate::weekend::WeekendPhase::Qualifying;
+        self.weekend.round = round;
+        self.weekend.round_closed = false;
+        self.set_game_mode(GameMode::Qualification);
+        self.garage_eliminated();
+        self.send_ai_out();
+        self.phase_started = true;
+    }
+
+    /// Every knocked-out car to its garage, AI too: it stays there.
+    fn garage_eliminated(&mut self) {
+        let out: Vec<PlayerId> = self
+            .weekend
+            .eliminated
+            .iter()
+            .map(|e| e.player_id)
+            .collect();
+        for player_id in out {
+            let _ = self.hotlap_relocate(&player_id, HotlapDestination::Garage, false);
+        }
+    }
+
+    /// Every AI car still taking part goes out of its garage onto its
+    /// outlap, in seating order (the queue at the pit exit follows the
+    /// participants' `BTreeMap` order).
+    fn send_ai_out(&mut self) {
+        let ai: Vec<PlayerId> = self
+            .session
+            .participants
+            .keys()
+            .filter(|id| self.session.ai_player_ids.contains(id))
+            .filter(|id| self.weekend.eliminated_in(id).is_none())
+            .copied()
+            .collect();
+        for player_id in ai {
+            let _ = self.hotlap_relocate(&player_id, HotlapDestination::Track, false);
+        }
+    }
+
+    /// Rank a weekend's qualifying round once it has finished: its cars by
+    /// this round's best legal lap (no time behind every time, then seating
+    /// order), the ones beyond the next round's size knocked out, or the
+    /// final's order the front of the grid. Runs after the tick's laps are
+    /// classified (`game_loop::tick`), and before any advance.
+    pub fn settle_weekend(&mut self) {
+        if self.session.weekend.is_none()
+            || self.weekend.phase != crate::weekend::WeekendPhase::Qualifying
+            || self.weekend.round_closed
+            || self.session.state != SessionState::Finished
+        {
+            return;
+        }
+        let rounds = self.session.weekend.as_ref().map_or(1, |w| w.rounds());
+        let taking_part: Vec<&CarState> = self
+            .session
+            .participants
+            .values()
+            .filter(|s| self.weekend.eliminated_in(&s.player_id).is_none())
+            .collect();
+        let mut ranking: Vec<(PlayerId, u32)> = self
+            .qualifying_order()
+            .into_iter()
+            .filter(|id| taking_part.iter().any(|s| s.player_id == *id))
+            .map(|id| (id, self.qualifying.get(&id).map_or(0, |(ms, _)| *ms)))
+            .collect();
+        let mut no_time: Vec<&CarState> = taking_part
+            .into_iter()
+            .filter(|s| !self.qualifying.contains_key(&s.player_id))
+            .collect();
+        no_time.sort_by_key(|s| (s.grid_position, s.player_id));
+        ranking.extend(no_time.into_iter().map(|s| (s.player_id, 0)));
+        self.weekend.close_round(&ranking, rounds);
+        self.garage_eliminated();
+    }
+
+    /// Whether this weekend waits for its host between phases: a practice
+    /// or qualifying round has finished. Such a session is not removed by
+    /// `[server] session_timeout_seconds` while a human is connected.
+    pub fn awaits_weekend_advance(&self) -> bool {
+        use crate::weekend::WeekendPhase;
+        self.is_weekend()
+            && matches!(
+                self.weekend.phase,
+                WeekendPhase::Practice | WeekendPhase::Qualifying
+            )
+            && self.session.state == SessionState::Finished
+    }
+
+    /// A weekend phase began since the last call (the game loop starts a
+    /// replay for it).
+    pub fn take_phase_started(&mut self) -> bool {
+        std::mem::take(&mut self.phase_started)
+    }
+
+    /// The weekend's progress.
+    pub fn weekend_progress(&self) -> &crate::weekend::WeekendProgress {
+        &self.weekend
+    }
+
+    /// Where the weekend stands, for the wire; `None` outside a weekend.
+    /// A knocked-out car that has left the session is left out.
+    pub fn weekend_state(&self) -> Option<crate::network::WeekendStateData> {
+        use crate::weekend::WeekendPhase;
+        let format = self.session.weekend.as_ref()?;
+        let phase = self.weekend.phase;
+        Some(crate::network::WeekendStateData {
+            phase: phase as u8,
+            round: if phase == WeekendPhase::Qualifying {
+                self.weekend.round
+            } else {
+                0
+            },
+            rounds: format.rounds() as u8,
+            finished: phase != WeekendPhase::Lobby && self.session.state == SessionState::Finished,
+            advancing: self.weekend.advancing().min(u8::MAX as usize) as u8,
+            eliminated: self
+                .weekend
+                .eliminated
+                .iter()
+                .filter_map(|e| {
+                    Some(crate::network::KnockedOutData {
+                        car_index: self.car_index_of(&e.player_id)?,
+                        round: e.round,
+                        grid_position: e.grid_position,
+                        lap_time_ms: e.lap_time_ms,
+                    })
+                })
+                .collect(),
+        })
+    }
+
+    /// The weekend's state when it changed since the last call (or was
+    /// never handed out), for the game loop to send to the whole session.
+    pub fn take_weekend_state(&mut self) -> Option<crate::network::WeekendStateData> {
+        let state = self.weekend_state()?;
+        if self.weekend_sent.as_ref() == Some(&state) {
+            return None;
+        }
+        self.weekend_sent = Some(state.clone());
+        Some(state)
     }
 
     /// Replay mode: Send telemetry from recorded data (view-only)
@@ -1201,13 +1581,22 @@ impl GameSession {
     /// when they may. A running practice, hotlap or qualifying session takes
     /// drivers (a hotlap or qualifying driver arrives in the garage); a race
     /// takes them until the green light, and a finished session none. A
-    /// spectator (`JoinAsSpectator`) is never refused for this.
+    /// race weekend takes none once Q1 has begun. A spectator
+    /// (`JoinAsSpectator`) is never refused for this.
     pub fn refuses_drivers(&self) -> Option<&'static str> {
         if self.session.state == SessionState::Finished {
             return Some("Session has finished");
         }
         if self.session.game_mode == GameMode::Race {
             return Some("A race is under way: watch it instead");
+        }
+        if self.is_weekend()
+            && matches!(
+                self.weekend.phase,
+                crate::weekend::WeekendPhase::Qualifying | crate::weekend::WeekendPhase::Race
+            )
+        {
+            return Some("Qualifying has begun: watch the weekend instead");
         }
         None
     }
@@ -1341,12 +1730,24 @@ impl GameSession {
                     }
                 }
             }
-            GameMode::Qualification | GameMode::Hotlap => {
+            GameMode::Qualification | GameMode::Hotlap | GameMode::Practice => {
                 // Every driver starts in the garage, with the setup screen;
                 // the AI (if any) is left where it stands and drives on.
                 self.session.state = SessionState::Racing;
                 self.session.demo_lap_progress = None;
                 self.finish_deadline_tick = None;
+                if mode.has_outlap() {
+                    // A timed session's clock starts now; entering
+                    // qualifying again is a fresh session with a fresh
+                    // classification.
+                    self.timed_start_tick = Some(self.session.current_tick);
+                    if mode == GameMode::Qualification && self.timed_session_seconds().is_some() {
+                        self.qualifying.clear();
+                    }
+                    if self.timed_session_seconds().is_some() {
+                        self.clear_timing_sheets();
+                    }
+                }
                 let humans: Vec<PlayerId> = self
                     .session
                     .participants
@@ -1548,8 +1949,22 @@ impl GameSession {
         cold_tyres: bool,
     ) -> Result<(), &'static str> {
         let mode = self.session.game_mode;
-        if !matches!(mode, GameMode::Hotlap | GameMode::Qualification) {
+        if !mode.uses_garages() {
             return Err("Not a hotlap or qualifying session");
+        }
+        if destination == HotlapDestination::Track {
+            if self.chequered_flag_out() {
+                return Err(if mode == GameMode::Practice {
+                    "Practice is over"
+                } else {
+                    "Qualifying is over"
+                });
+            }
+            if mode == GameMode::Qualification {
+                if let Some(round) = self.weekend.eliminated_in(player_id) {
+                    return Err(crate::weekend::eliminated_reason(round));
+                }
+            }
         }
         let Some(state) = self.session.participants.get(player_id) else {
             return Err("No car in this session");
@@ -1565,7 +1980,7 @@ impl GameSession {
                     .ok_or("Track has no grid")?;
                 (slot.x, slot.y, slot.z, slot.yaw_rad)
             }
-            HotlapDestination::Track if mode == GameMode::Qualification => self
+            HotlapDestination::Track if mode.has_outlap() => self
                 .qualifying_outlap_pose(player_id)
                 .ok_or("Track has no centerline")?,
             HotlapDestination::Track => self
@@ -1606,7 +2021,7 @@ impl GameSession {
         fresh.laps.best_splits_ms = state.laps.best_splits_ms;
         fresh.in_garage = in_garage;
         // A qualifying car put on the track has its outlap to drive first.
-        fresh.outlap = !in_garage && mode == GameMode::Qualification;
+        fresh.outlap = !in_garage && mode.has_outlap();
         fresh.fuel_liters = fuel;
         fit_tyres(
             &mut fresh,
@@ -1614,7 +2029,7 @@ impl GameSession {
             &self.tuned_configs,
             &self.track_config,
             // The outlap is a qualifying car's warm-up: it leaves cold.
-            if cold_tyres || mode == GameMode::Qualification {
+            if cold_tyres || mode.has_outlap() {
                 TyreStart::Garage
             } else {
                 TyreStart::Warm
@@ -1644,9 +2059,12 @@ impl GameSession {
     ) -> Result<(), &'static str> {
         use crate::recovery::{RecoverDestination, Recovery};
         let mode = self.session.game_mode;
-        let garage_mode = matches!(mode, GameMode::Hotlap | GameMode::Qualification);
+        let garage_mode = mode.uses_garages();
         match mode {
-            GameMode::FreePractice | GameMode::Hotlap | GameMode::Qualification => {}
+            GameMode::FreePractice
+            | GameMode::Hotlap
+            | GameMode::Qualification
+            | GameMode::Practice => {}
             GameMode::Race if self.session.state == SessionState::Racing => {}
             _ => return Err("No recovery outside a running session"),
         }
@@ -1864,6 +2282,12 @@ impl GameSession {
     /// Start countdown mode with custom duration. The stored `next_mode` is
     /// transitioned to automatically when the countdown reaches zero.
     pub fn start_countdown_mode(&mut self, countdown_seconds: u16, next_mode: GameMode) {
+        if next_mode == GameMode::Race && self.is_weekend() {
+            // However the host got here, the weekend is at its race now.
+            self.settle_weekend();
+            self.weekend.phase = crate::weekend::WeekendPhase::Race;
+            self.weekend.round = 0;
+        }
         if next_mode == GameMode::Race {
             // A race starts from the grid: after a finished race (or practice)
             // the cars are wherever they stopped, with their laps and finish
@@ -2083,7 +2507,7 @@ impl GameSession {
             GameMode::Race => {
                 self.race_laps(car_id) * (1.0 + RACE_FUEL_MARGIN) + RACE_FUEL_RESERVE_LAPS
             }
-            GameMode::Hotlap | GameMode::Qualification => HOTLAP_FUEL_LAPS,
+            GameMode::Hotlap | GameMode::Qualification | GameMode::Practice => HOTLAP_FUEL_LAPS,
             _ => capacity / lap,
         };
         ((laps + knob).max(MIN_FUEL_LAPS) * lap).min(capacity)
@@ -2287,6 +2711,15 @@ impl GameSession {
     /// stands).
     fn grid_order_ids(&self) -> Option<Vec<PlayerId>> {
         let drivers = self.seated_drivers();
+        if let Some(grid) = self.weekend.grid().filter(|_| self.is_weekend()) {
+            let mut by_slot: Vec<&crate::grid_order::Seated> = drivers.iter().collect();
+            by_slot.sort_by_key(|d| (d.grid_position, d.id));
+            let gridded: Vec<PlayerId> = grid
+                .into_iter()
+                .filter(|id| drivers.iter().any(|d| d.id == *id))
+                .collect();
+            return Some(crate::grid_order::complete(&by_slot, gridded));
+        }
         if !self.session.grid_order.is_empty() {
             return Some(crate::grid_order::resolve(
                 &drivers,
@@ -2358,7 +2791,42 @@ impl GameSession {
         classified.into_iter().map(|(id, _)| *id).collect()
     }
 
-    /// This session's classification as the store keeps it.
+    /// The qualifying classification, front first, each driver with the
+    /// lap that placed them (0 for none). A plain session's is its order;
+    /// a weekend's is combined: the round running (or the final, once
+    /// ranked) by its laps, then every knocked-out car by grid slot with
+    /// its round's lap.
+    fn classified_laps(&self) -> Vec<(PlayerId, u32)> {
+        let lap = |id: &PlayerId| self.qualifying.get(id).map_or(0, |(ms, _)| *ms);
+        if !self.is_weekend() {
+            return self
+                .qualifying_order()
+                .into_iter()
+                .map(|id| (id, lap(&id)))
+                .collect();
+        }
+        let front: Vec<(PlayerId, u32)> = if self.weekend.final_order.is_empty() {
+            self.qualifying_order()
+                .into_iter()
+                .filter(|id| self.weekend.eliminated_in(id).is_none())
+                .map(|id| (id, lap(&id)))
+                .collect()
+        } else {
+            self.weekend.final_order.clone()
+        };
+        front
+            .into_iter()
+            .chain(
+                self.weekend
+                    .eliminated
+                    .iter()
+                    .map(|e| (e.player_id, e.lap_time_ms)),
+            )
+            .collect()
+    }
+
+    /// This session's classification as the store keeps it (a weekend's
+    /// combined, `classified_laps`), drivers with a time only.
     pub fn qualifying_result(&self) -> crate::records::QualifyingResult {
         let class = self
             .session
@@ -2367,14 +2835,15 @@ impl GameSession {
             .map(|c| c.class.clone())
             .unwrap_or_default();
         let entries = self
-            .qualifying_order()
+            .classified_laps()
             .into_iter()
-            .filter_map(|id| {
+            .filter(|(_, ms)| *ms > 0)
+            .filter_map(|(id, lap_time_ms)| {
                 let state = self.session.participants.get(&id)?;
                 Some(crate::records::QualifyingEntry {
                     name: self.driver_name(&id),
                     car_config_id: state.car_config_id,
-                    lap_time_ms: self.qualifying.get(&id)?.0,
+                    lap_time_ms,
                     is_ai: self.session.ai_player_ids.contains(&id),
                 })
             })
@@ -2386,6 +2855,24 @@ impl GameSession {
             class,
             recorded_at: String::new(),
             entries,
+        }
+    }
+
+    /// A fresh timed session (a qualifying round, a weekend's practice):
+    /// every car's last and best laps and the session's bests are this
+    /// session's, not the one before, so telemetry and `LapTiming` report
+    /// what the round itself has seen.
+    fn clear_timing_sheets(&mut self) {
+        self.session_best_lap_ms = None;
+        self.session_best_splits_ms = [None; SECTOR_COUNT];
+        for state in self.session.participants.values_mut() {
+            state.best_lap_time_ms = None;
+            state.last_lap_time_ms = None;
+            state.laps.last_invalid = false;
+            state.laps.last_splits_ms = [0; SECTOR_COUNT];
+            state.laps.best_lap_ms = None;
+            state.laps.best_lap_splits_ms = [0; SECTOR_COUNT];
+            state.laps.best_splits_ms = [None; SECTOR_COUNT];
         }
     }
 
@@ -3148,8 +3635,19 @@ impl GameSession {
     }
 
     /// Where a timed race's clock stands, for telemetry: `None` unless the
-    /// session is a timed race counting into or running its race.
+    /// session is a timed race counting into or running its race, or a
+    /// timed qualifying session running (`final_lap` 0, `left_ms` 0 once
+    /// the chequered flag is out).
     pub fn race_clock(&self) -> Option<RaceClock> {
+        if self.session.game_mode.has_outlap() {
+            let length = self.timed_length_ticks()?;
+            let left_ticks = length.saturating_sub(self.timed_elapsed_ticks());
+            return Some(RaceClock {
+                left_ms: (left_ticks * 1000 / self.tick_rate_hz.max(1) as u64).min(u32::MAX as u64)
+                    as u32,
+                final_lap: 0,
+            });
+        }
         let length = self.race_length_ticks()?;
         let elapsed = match self.session.game_mode {
             GameMode::Race => self.race_elapsed_ticks(),
@@ -4832,6 +5330,662 @@ mod tests {
         quicker.last_lap_time_ms = Some(60_000);
         assert_eq!(game_session.laps_left(&quicker), 30, "its own pace wins");
         assert_eq!(game_session.race_seconds_left(), Some(1800.0));
+    }
+
+    /// A timed qualifying session with two humans, both in their garages
+    /// as it begins: `seconds` long, entered now.
+    fn timed_qualifying(seconds: u32) -> (GameSession, PlayerId, PlayerId) {
+        let mut game_session = create_test_session();
+        game_session.set_qualifying_seconds(Some(seconds));
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let (a, b) = (Uuid::from_u128(1), Uuid::from_u128(2));
+        game_session.add_player(a, car_id).unwrap();
+        game_session.add_player(b, car_id).unwrap();
+        game_session.set_game_mode(GameMode::Qualification);
+        assert!(game_session.session.participants[&a].in_garage);
+        assert!(game_session.session.participants[&b].in_garage);
+        (game_session, a, b)
+    }
+
+    /// Put a car just past the line at speed, as if it had been short of
+    /// it the tick before, on a clean flying lap 2 begun `lap_s` ago, and
+    /// drive it on until the crossing counts (or it is put in its garage).
+    /// Returns the ticks it took.
+    fn drive_over_the_line(game_session: &mut GameSession, id: PlayerId, lap_s: u32) -> u32 {
+        let length = game_session.track_length_m();
+        let point = game_session
+            .track_config
+            .centerline
+            .iter()
+            .find(|p| p.distance_from_start_m >= 2.0)
+            .cloned()
+            .unwrap();
+        let tick = game_session.session.current_tick;
+        let rate = game_session.tick_rate_hz as u32;
+        let state = game_session.session.participants.get_mut(&id).unwrap();
+        place_still(state, point.x, point.y, point.z, point.heading_rad);
+        let speed = 30.0;
+        state.vel_x = speed * point.heading_rad.cos();
+        state.vel_y = speed * point.heading_rad.sin();
+        state.speed_mps = speed;
+        state.track_progress = length - 1.0;
+        state.outlap = false;
+        state.current_lap = 2;
+        state.next_checkpoint = u8::MAX;
+        state.lap_start_tick = tick.saturating_sub(lap_s * rate);
+        state.laps.invalid = false;
+        state.laps.splits_ms = [20_000, 20_000, 0];
+        state.laps.sector_start_tick = tick.saturating_sub(20 * rate);
+        let input = PlayerInputData {
+            throttle: 0.3,
+            ..Default::default()
+        };
+        let inputs: HashMap<PlayerId, PlayerInputData> = [(id, input)].into_iter().collect();
+        for n in 1..=rate {
+            game_session.tick(&inputs);
+            let state = &game_session.session.participants[&id];
+            if state.in_garage || state.current_lap > 2 {
+                return n;
+            }
+        }
+        panic!("the car never reached the line");
+    }
+
+    /// What the game loop does with the timing lines crossed: a valid lap
+    /// goes through `note_qualifying_lap` (`game_loop::tick`).
+    fn classify_laps(game_session: &mut GameSession) -> usize {
+        let mut laps = 0;
+        for out in game_session.take_lap_events() {
+            if let (Some(ms), true) = (out.event.lap_time_ms, out.event.valid) {
+                game_session.note_qualifying_lap(out.player_id, ms);
+                laps += 1;
+            }
+        }
+        laps
+    }
+
+    #[test]
+    fn open_ended_qualifying_has_no_clock_and_never_ends() {
+        let mut game_session = create_test_session();
+        game_session.set_qualifying_seconds(Some(0));
+        assert_eq!(game_session.session.qualifying_seconds, None);
+        game_session.set_game_mode(GameMode::Qualification);
+        game_session.session.current_tick += 10 * 3600 * DEFAULT_TICK_RATE_HZ as u32;
+        game_session.tick(&HashMap::new());
+        assert_eq!(game_session.race_clock(), None);
+        assert!(!game_session.chequered_flag_out());
+        assert_eq!(game_session.session.state, SessionState::Racing);
+    }
+
+    #[test]
+    fn qualifying_seconds_are_clamped() {
+        assert_eq!(crate::data::clamp_qualifying_seconds(None), None);
+        assert_eq!(crate::data::clamp_qualifying_seconds(Some(0)), None);
+        assert_eq!(crate::data::clamp_qualifying_seconds(Some(5)), Some(60));
+        assert_eq!(crate::data::clamp_qualifying_seconds(Some(900)), Some(900));
+        assert_eq!(
+            crate::data::clamp_qualifying_seconds(Some(24 * 3600)),
+            Some(crate::data::MAX_QUALIFYING_SECONDS)
+        );
+    }
+
+    /// The qualifying clock counts down from entering the mode; at zero the
+    /// flag is out: a car on track takes it at its next crossing, the lap
+    /// it completes there still classifies, it goes to its garage, nobody
+    /// goes out again, and the session ends with every car in.
+    #[test]
+    fn the_flag_garages_a_car_at_its_next_crossing_and_that_lap_counts() {
+        let (mut game_session, a, b) = timed_qualifying(600);
+        let start = game_session.session.current_tick;
+        let length_ticks = 600 * DEFAULT_TICK_RATE_HZ as u32;
+        assert_eq!(
+            game_session.race_clock(),
+            Some(RaceClock {
+                left_ms: 600_000,
+                final_lap: 0
+            })
+        );
+        game_session
+            .hotlap_relocate(&a, HotlapDestination::Track, false)
+            .unwrap();
+        game_session.tick(&HashMap::new());
+        let clock = game_session.race_clock().unwrap();
+        assert!(
+            clock.left_ms < 600_000 && clock.left_ms > 599_000,
+            "{clock:?}"
+        );
+        assert_eq!(clock.final_lap, 0);
+        // The race's own clock and laps are untouched by qualifying.
+        assert_eq!(game_session.race_seconds_left(), None);
+
+        // Before the flag a crossing is just a lap.
+        game_session.session.current_tick += 100 * DEFAULT_TICK_RATE_HZ as u32;
+        drive_over_the_line(&mut game_session, a, 61);
+        assert!(!game_session.session.participants[&a].in_garage);
+        assert_eq!(classify_laps(&mut game_session), 1);
+
+        // The clock runs out: the flag is out, the car still on track runs on.
+        game_session.session.current_tick = start + length_ticks - 1;
+        game_session.tick(&HashMap::new());
+        assert!(game_session.chequered_flag_out());
+        assert_eq!(
+            game_session.race_clock(),
+            Some(RaceClock {
+                left_ms: 0,
+                final_lap: 0
+            })
+        );
+        assert!(!game_session.session.participants[&a].in_garage);
+        assert_eq!(game_session.session.state, SessionState::Racing);
+        assert_eq!(
+            game_session.hotlap_relocate(&b, HotlapDestination::Track, false),
+            Err("Qualifying is over")
+        );
+
+        // Its next crossing: the flag, a faster lap, and the garage.
+        game_session.note_qualifying_lap(b, 59_000);
+        assert_eq!(game_session.qualifying_order(), vec![b, a]);
+        drive_over_the_line(&mut game_session, a, 58);
+        assert!(game_session.session.participants[&a].in_garage);
+        assert_eq!(classify_laps(&mut game_session), 1);
+        assert!(game_session.qualifying[&a].0 < 59_000);
+        assert_eq!(game_session.qualifying_order(), vec![a, b]);
+        assert_eq!(game_session.session.state, SessionState::Finished);
+        // The clock stays at zero and nobody goes out.
+        game_session.tick(&HashMap::new());
+        assert_eq!(game_session.race_clock().unwrap().left_ms, 0);
+        assert!(game_session
+            .hotlap_relocate(&a, HotlapDestination::Track, false)
+            .is_err());
+    }
+
+    /// A car that never comes back to the line is brought in at the
+    /// deadline after the flag, and the session ends with it.
+    #[test]
+    fn timed_qualifying_ends_at_the_deadline_after_the_flag() {
+        let (mut game_session, a, b) = timed_qualifying(60);
+        let start = game_session.session.current_tick;
+        for id in [a, b] {
+            game_session
+                .hotlap_relocate(&id, HotlapDestination::Track, false)
+                .unwrap();
+        }
+        game_session.session.current_tick = start + 60 * DEFAULT_TICK_RATE_HZ as u32 - 1;
+        game_session.tick(&HashMap::new());
+        let flag_tick = game_session.session.current_tick;
+        let deadline = game_session.finish_deadline_tick.expect("a deadline");
+        assert!(
+            deadline >= flag_tick + QUALIFYING_FLAG_GRACE_MIN_SECONDS * DEFAULT_TICK_RATE_HZ as u32
+        );
+        assert_eq!(game_session.session.state, SessionState::Racing);
+
+        game_session.session.current_tick = deadline - 1;
+        game_session.tick(&HashMap::new());
+        assert_eq!(game_session.session.state, SessionState::Finished);
+        assert!(game_session
+            .session
+            .participants
+            .values()
+            .all(|s| s.in_garage));
+        assert_eq!(
+            game_session.take_state_change(),
+            Some(SessionState::Finished)
+        );
+    }
+
+    /// Qualifying entered again is a fresh session: the clock from full
+    /// and an empty classification.
+    #[test]
+    fn qualifying_again_restarts_the_clock_and_the_classification() {
+        let (mut game_session, a, b) = timed_qualifying(60);
+        game_session.note_qualifying_lap(a, 90_000);
+        // The round's own timing sheet, as telemetry would carry it.
+        if let Some(state) = game_session.session.participants.get_mut(&a) {
+            state.best_lap_time_ms = Some(90_000);
+            state.laps.best_lap_ms = Some(90_000);
+            state.laps.best_splits_ms = [Some(30_000); SECTOR_COUNT];
+        }
+        game_session.session_best_lap_ms = Some(90_000);
+        game_session.session.current_tick += 60 * DEFAULT_TICK_RATE_HZ as u32;
+        game_session.tick(&HashMap::new());
+        assert_eq!(game_session.session.state, SessionState::Finished);
+
+        game_session.set_game_mode(GameMode::Qualification);
+        // A new round's bests are its own, not the last round's.
+        let car = &game_session.session.participants[&a];
+        assert_eq!(car.best_lap_time_ms, None);
+        assert_eq!(car.laps.best_lap_ms, None);
+        assert_eq!(car.laps.best_splits_ms, [None; SECTOR_COUNT]);
+        assert_eq!(game_session.session_best_lap_ms, None);
+        assert_eq!(game_session.session.state, SessionState::Racing);
+        assert!(!game_session.chequered_flag_out());
+        assert_eq!(game_session.race_clock().unwrap().left_ms, 60_000);
+        assert!(game_session.qualifying_order().is_empty());
+        assert!(game_session.finish_deadline_tick.is_none());
+        assert!(game_session
+            .hotlap_relocate(&b, HotlapDestination::Track, false)
+            .is_ok());
+    }
+
+    /// After a finished qualifying session the host counts into the race:
+    /// the cars leave their garages for the grid in qualifying order.
+    #[test]
+    fn a_race_after_finished_qualifying_grids_from_the_result() {
+        let (mut game_session, a, b) = timed_qualifying(60);
+        game_session.note_qualifying_lap(a, 91_000);
+        game_session.note_qualifying_lap(b, 89_000);
+        game_session.session.current_tick += 60 * DEFAULT_TICK_RATE_HZ as u32;
+        game_session.tick(&HashMap::new());
+        assert_eq!(game_session.session.state, SessionState::Finished);
+
+        game_session.start_countdown_mode(3, GameMode::Race);
+        assert_eq!(game_session.session.state, SessionState::Countdown);
+        assert_eq!(game_session.race_clock(), None, "a race over laps");
+        let car = |gs: &GameSession, id: &PlayerId| gs.session.participants[id].clone();
+        assert_eq!(car(&game_session, &b).grid_position, 1);
+        assert_eq!(car(&game_session, &a).grid_position, 2);
+        assert!(!car(&game_session, &a).in_garage && !car(&game_session, &b).in_garage);
+        for _ in 0..(3 * DEFAULT_TICK_RATE_HZ as u32 + 1) {
+            game_session.tick(&HashMap::new());
+        }
+        assert_eq!(game_session.session.game_mode, GameMode::Race);
+        assert_eq!(game_session.session.state, SessionState::Racing);
+    }
+
+    // --- A race weekend --------------------------------------------------
+
+    /// A weekend of `n` humans (ids 1..=n, seated in that order, named
+    /// A, B, C...): `practice` s of practice (0 for none), then rounds of
+    /// `rounds` s each.
+    fn weekend_of(n: u128, practice: u32, rounds: &[u32]) -> (GameSession, Vec<PlayerId>) {
+        let mut game_session = create_test_session();
+        game_session.set_weekend(Some(crate::weekend::WeekendFormat {
+            practice_seconds: practice,
+            qualifying_seconds: rounds.to_vec(),
+        }));
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let ids: Vec<PlayerId> = (1..=n).map(Uuid::from_u128).collect();
+        for (i, id) in ids.iter().enumerate() {
+            let name = ((b'A' + i as u8) as char).to_string();
+            game_session.set_driver_name(*id, &name);
+            assert!(game_session.add_player(*id, car_id).is_some());
+        }
+        game_session.session.host_player_id = ids[0];
+        (game_session, ids)
+    }
+
+    /// Run the clock of the timed phase out with every car in its garage:
+    /// the flag is out and the phase is over on that tick.
+    fn run_out_the_clock(game_session: &mut GameSession) {
+        let length = game_session.timed_length_ticks().expect("a timed phase") as u32;
+        game_session.session.current_tick = game_session.timed_start_tick.unwrap() + length - 1;
+        game_session.tick(&HashMap::new());
+        assert!(game_session.chequered_flag_out());
+    }
+
+    /// The phase's laps are in and the round is over, as the game loop
+    /// leaves it after the tick.
+    fn end_phase(game_session: &mut GameSession) {
+        run_out_the_clock(game_session);
+        assert_eq!(game_session.session.state, SessionState::Finished);
+        game_session.settle_weekend();
+    }
+
+    #[test]
+    fn a_weekend_format_is_clamped_and_replaces_the_qualifying_length() {
+        let mut game_session = create_test_session();
+        game_session.set_weekend(Some(crate::weekend::WeekendFormat {
+            practice_seconds: 30,
+            qualifying_seconds: vec![600, 0, 9_000, 600],
+        }));
+        game_session.set_qualifying_seconds(Some(300));
+        assert_eq!(game_session.session.qualifying_seconds, None);
+        assert_eq!(
+            game_session.session.weekend,
+            Some(crate::weekend::WeekendFormat {
+                practice_seconds: 60,
+                qualifying_seconds: vec![600, 60, 7200],
+            })
+        );
+        let state = game_session.weekend_state().unwrap();
+        assert_eq!(
+            (state.phase, state.round, state.rounds, state.finished),
+            (0, 0, 3, false)
+        );
+        assert_eq!(state.advancing, 0);
+        assert!(state.eliminated.is_empty());
+        assert!(create_test_session().weekend_state().is_none());
+    }
+
+    /// Practice has qualifying's clock and flag, but nothing it does
+    /// classifies for the grid or is stored as qualifying.
+    #[test]
+    fn practice_has_a_clock_and_a_flag_and_classifies_nothing() {
+        let (mut game_session, ids) = weekend_of(2, 600, &[600]);
+        let (a, b) = (ids[0], ids[1]);
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.session.game_mode, GameMode::Practice);
+        assert_eq!(game_session.session.state, SessionState::Racing);
+        assert!(game_session.take_phase_started());
+        assert!(!game_session.take_phase_started());
+        assert_eq!(
+            game_session.race_clock(),
+            Some(RaceClock {
+                left_ms: 600_000,
+                final_lap: 0
+            })
+        );
+        assert!(game_session.session.participants[&a].in_garage);
+        let state = game_session.weekend_state().unwrap();
+        assert_eq!((state.phase, state.round, state.finished), (1, 0, false));
+
+        // Out of the garage as in qualifying: the outlap, on cold tyres.
+        game_session
+            .hotlap_relocate(&a, HotlapDestination::Track, false)
+            .unwrap();
+        assert!(game_session.session.participants[&a].outlap);
+        assert!(game_session.refuses_drivers().is_none());
+
+        // A lap before the flag is timed but classifies nobody.
+        game_session.session.current_tick += 100 * DEFAULT_TICK_RATE_HZ as u32;
+        drive_over_the_line(&mut game_session, a, 61);
+        assert_eq!(classify_laps(&mut game_session), 1);
+        assert!(game_session.qualifying_order().is_empty());
+        assert!(game_session.qualifying_result().entries.is_empty());
+
+        // The flag: the car on track takes it at the line, nobody goes out.
+        let start = game_session.timed_start_tick.unwrap();
+        game_session.session.current_tick = start + 600 * DEFAULT_TICK_RATE_HZ as u32 - 1;
+        game_session.tick(&HashMap::new());
+        assert!(game_session.chequered_flag_out());
+        assert_eq!(game_session.race_clock().unwrap().left_ms, 0);
+        assert_eq!(game_session.session.state, SessionState::Racing);
+        assert_eq!(
+            game_session.hotlap_relocate(&b, HotlapDestination::Track, false),
+            Err("Practice is over")
+        );
+        drive_over_the_line(&mut game_session, a, 58);
+        assert!(game_session.session.participants[&a].in_garage);
+        assert_eq!(classify_laps(&mut game_session), 1);
+        assert!(game_session.qualifying_order().is_empty());
+        assert_eq!(game_session.session.state, SessionState::Finished);
+        let state = game_session.weekend_state().unwrap();
+        assert_eq!((state.phase, state.finished), (1, true));
+        assert!(game_session.awaits_weekend_advance());
+    }
+
+    #[test]
+    fn advancing_is_refused_outside_a_weekend_while_a_phase_runs_and_after_the_race() {
+        assert_eq!(
+            create_test_session().advance_weekend(),
+            Err("Not a race weekend")
+        );
+        let (mut game_session, _) = weekend_of(2, 600, &[600]);
+        game_session.advance_weekend().unwrap();
+        assert_eq!(
+            game_session.advance_weekend(),
+            Err("Practice is still running")
+        );
+        end_phase(&mut game_session);
+        game_session.advance_weekend().unwrap();
+        assert_eq!(
+            game_session.advance_weekend(),
+            Err("Qualifying is still running")
+        );
+        end_phase(&mut game_session);
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.session.state, SessionState::Countdown);
+        assert_eq!(game_session.advance_weekend(), Err("The race has begun"));
+        for _ in 0..=START_SESSION_COUNTDOWN_SECONDS as u32 * DEFAULT_TICK_RATE_HZ as u32 {
+            game_session.tick(&HashMap::new());
+        }
+        assert_eq!(game_session.session.game_mode, GameMode::Race);
+        assert_eq!(game_session.advance_weekend(), Err("The race has begun"));
+    }
+
+    #[test]
+    fn a_weekend_without_practice_starts_at_q1() {
+        let (mut game_session, _) = weekend_of(2, 0, &[600]);
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.session.game_mode, GameMode::Qualification);
+        let state = game_session.weekend_state().unwrap();
+        assert_eq!(
+            (state.phase, state.round, state.rounds, state.advancing),
+            (2, 1, 1, 0)
+        );
+        assert_eq!(game_session.race_clock().unwrap().left_ms, 600_000);
+    }
+
+    /// Lobby, practice, Q1 (two knocked out, one of them with no time),
+    /// Q2, the race: each phase's clock, the knockout's grid slots, the
+    /// eliminated cars kept in, the race gridded by the weekend and the
+    /// combined classification stored.
+    #[test]
+    fn a_weekend_runs_practice_a_knockout_and_grids_the_race() {
+        let (mut game_session, ids) = weekend_of(4, 300, &[600, 480]);
+        let (a, b, c, d) = (ids[0], ids[1], ids[2], ids[3]);
+        // Asked-for orders give way to the weekend's grid.
+        game_session.set_grid_order(vec!["D".into(), "C".into()]);
+
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.race_clock().unwrap().left_ms, 300_000);
+        end_phase(&mut game_session);
+
+        // Q1: four cars, two go through.
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.session.game_mode, GameMode::Qualification);
+        assert_eq!(game_session.session.state, SessionState::Racing);
+        assert_eq!(game_session.weekend_progress().sizes, vec![4, 2]);
+        assert_eq!(game_session.race_clock().unwrap().left_ms, 600_000);
+        assert!(game_session.refuses_drivers().is_some());
+        let state = game_session.weekend_state().unwrap();
+        assert_eq!(
+            (state.phase, state.round, state.rounds, state.advancing),
+            (2, 1, 2, 2)
+        );
+        game_session.note_qualifying_lap(a, 80_000);
+        game_session.note_qualifying_lap(c, 81_000);
+        game_session.note_qualifying_lap(b, 82_000);
+        end_phase(&mut game_session);
+        let state = game_session.weekend_state().unwrap();
+        assert!(state.finished);
+        assert_eq!(
+            state.eliminated,
+            vec![
+                crate::network::KnockedOutData {
+                    car_index: 1,
+                    round: 1,
+                    grid_position: 3,
+                    lap_time_ms: 82_000,
+                },
+                crate::network::KnockedOutData {
+                    car_index: 3,
+                    round: 1,
+                    grid_position: 4,
+                    lap_time_ms: 0,
+                },
+            ]
+        );
+
+        // Q2: a fresh clock and classification; the knocked out stay in.
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.race_clock().unwrap().left_ms, 480_000);
+        assert!(game_session.qualifying_order().is_empty());
+        let state = game_session.weekend_state().unwrap();
+        assert_eq!(
+            (state.round, state.advancing, state.finished),
+            (2, 0, false)
+        );
+        assert_eq!(state.eliminated.len(), 2);
+        assert_eq!(
+            game_session.hotlap_relocate(&b, HotlapDestination::Track, false),
+            Err("Eliminated in Q1")
+        );
+        assert_eq!(
+            game_session.hotlap_relocate(&d, HotlapDestination::Track, false),
+            Err("Eliminated in Q1")
+        );
+        assert!(game_session.session.participants[&b].in_garage);
+        game_session
+            .hotlap_relocate(&a, HotlapDestination::Track, false)
+            .unwrap();
+        game_session
+            .hotlap_relocate(&a, HotlapDestination::Garage, false)
+            .unwrap();
+        game_session.note_qualifying_lap(c, 79_000);
+        game_session.note_qualifying_lap(a, 79_500);
+        end_phase(&mut game_session);
+        assert_eq!(
+            game_session.weekend_progress().grid(),
+            Some(vec![c, a, b, d])
+        );
+
+        // The stored result: the grid, each with the lap that placed them,
+        // the car with no time left out.
+        let stored: Vec<(String, u32)> = game_session
+            .qualifying_result()
+            .entries
+            .into_iter()
+            .map(|e| (e.name, e.lap_time_ms))
+            .collect();
+        assert_eq!(
+            stored,
+            vec![
+                ("C".to_string(), 79_000),
+                ("A".to_string(), 79_500),
+                ("B".to_string(), 82_000)
+            ]
+        );
+
+        // The race grids by the weekend, over the asked-for order.
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.session.state, SessionState::Countdown);
+        assert_eq!(game_session.session.next_mode, Some(GameMode::Race));
+        let state = game_session.weekend_state().unwrap();
+        assert_eq!((state.phase, state.round, state.finished), (3, 0, false));
+        assert_eq!(state.eliminated.len(), 2);
+        let slots: Vec<u8> = [c, a, b, d]
+            .iter()
+            .map(|id| slot(&game_session, id))
+            .collect();
+        assert_eq!(slots, vec![1, 2, 3, 4]);
+        assert!(game_session
+            .session
+            .participants
+            .values()
+            .all(|s| !s.in_garage));
+    }
+
+    /// Two cars with no time are knocked out in seating order.
+    #[test]
+    fn cars_with_no_time_go_out_in_seating_order() {
+        let (mut game_session, ids) = weekend_of(5, 0, &[600, 600, 600]);
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.weekend_progress().sizes, vec![5, 4, 3]);
+        for (id, ms) in ids.iter().zip([83_000, 82_000, 0, 81_000, 0]) {
+            game_session.note_qualifying_lap(*id, ms);
+        }
+        end_phase(&mut game_session);
+        let out = &game_session.weekend_progress().eliminated;
+        assert_eq!(out.len(), 1);
+        assert_eq!((out[0].player_id, out[0].grid_position), (ids[4], 5));
+        assert_eq!(out[0].lap_time_ms, 0);
+        // Q2: of the four left, the slowest (the other with no time) goes.
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.weekend_state().unwrap().advancing, 3);
+        for (id, ms) in ids.iter().zip([80_000, 80_500, 0, 79_000]) {
+            game_session.note_qualifying_lap(*id, ms);
+        }
+        end_phase(&mut game_session);
+        let out: Vec<(PlayerId, u8, u8)> = game_session
+            .weekend_progress()
+            .eliminated
+            .iter()
+            .map(|e| (e.player_id, e.round, e.grid_position))
+            .collect();
+        assert_eq!(out, vec![(ids[2], 2, 4), (ids[4], 1, 5)]);
+    }
+
+    /// The AI go out of their garages at each round's start; a knocked-out
+    /// AI car stays in its garage.
+    #[test]
+    fn the_ai_go_out_each_round_and_a_knocked_out_ai_stays_in() {
+        use crate::ai_driver::generate_default_ai_profiles;
+        let track = TrackConfig::default();
+        let car = CarConfig::default();
+        let car_id = car.id;
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car.id, car);
+        let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Multiplayer, 8, 3, 3);
+        let mut game_session = GameSession::with_ai_profiles(
+            session,
+            track,
+            car_configs,
+            generate_default_ai_profiles(3),
+        );
+        game_session.set_weekend(Some(crate::weekend::WeekendFormat {
+            practice_seconds: 0,
+            qualifying_seconds: vec![600, 600],
+        }));
+        game_session.spawn_ai_drivers();
+        let human = Uuid::from_u128(1);
+        game_session.add_player(human, car_id).unwrap();
+
+        game_session.advance_weekend().unwrap();
+        let ai = game_session.session.ai_player_ids.clone();
+        for id in &ai {
+            let car = &game_session.session.participants[id];
+            assert!(!car.in_garage && car.outlap, "AI out on its outlap");
+        }
+        assert!(game_session.session.participants[&human].in_garage);
+        // The cars still out take the flag at the deadline.
+        game_session.note_qualifying_lap(human, 80_000);
+        game_session.note_qualifying_lap(ai[0], 81_000);
+        let start = game_session.timed_start_tick.unwrap();
+        game_session.session.current_tick = start + 600 * DEFAULT_TICK_RATE_HZ as u32 - 1;
+        game_session.tick(&HashMap::new());
+        let deadline = game_session.finish_deadline_tick.unwrap();
+        game_session.session.current_tick = deadline - 1;
+        game_session.tick(&HashMap::new());
+        assert_eq!(game_session.session.state, SessionState::Finished);
+        game_session.settle_weekend();
+        let out: Vec<PlayerId> = game_session
+            .weekend_progress()
+            .eliminated
+            .iter()
+            .map(|e| e.player_id)
+            .collect();
+        assert_eq!(out.len(), 2);
+        assert!(!out.contains(&human) && !out.contains(&ai[0]));
+
+        game_session.advance_weekend().unwrap();
+        assert!(!game_session.session.participants[&ai[0]].in_garage);
+        for id in &out {
+            assert!(game_session.session.participants[id].in_garage);
+            assert_eq!(
+                game_session.hotlap_relocate(id, HotlapDestination::Track, false),
+                Err("Eliminated in Q1")
+            );
+        }
+        for _ in 0..10 {
+            game_session.tick(&HashMap::new());
+        }
+        for id in &out {
+            assert!(game_session.session.participants[id].in_garage);
+        }
+    }
+
+    /// The weekend's state is handed out once per change.
+    #[test]
+    fn the_weekend_state_goes_out_when_it_changes() {
+        let (mut game_session, _) = weekend_of(2, 0, &[600]);
+        assert_eq!(game_session.take_weekend_state().unwrap().phase, 0);
+        assert!(game_session.take_weekend_state().is_none());
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.take_weekend_state().unwrap().phase, 2);
+        assert!(game_session.take_weekend_state().is_none());
+        run_out_the_clock(&mut game_session);
+        assert!(game_session.take_weekend_state().unwrap().finished);
     }
 
     #[test]

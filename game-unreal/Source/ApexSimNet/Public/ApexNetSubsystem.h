@@ -34,6 +34,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnCarSetupSheet, const FApexCar
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnUdpReady);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionStateChanged, EApexSessionState, NewState);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnRejoinOfferChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnWeekendStateChanged);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnDemoSessionChanged, bool /*bJoined*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnShowcases, const TArray<FApexShowcaseSummary>&);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FApexOnSpectatorJoined, const FString& /*StreamId*/, const FString& /*ShowcaseId*/);
@@ -145,6 +146,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
 	FApexOnQualifyingResults OnQualifyingResults;
 
+	/** A race weekend's state arrived or changed (read it with GetWeekendState). */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Weekend")
+	FApexOnWeekendStateChanged OnWeekendStateChanged;
+
 	/** The garage's reference card for the joined car arrived (after SessionJoined). */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Net")
 	FApexOnCarSetupSheet OnCarSetupSheet;
@@ -227,7 +232,9 @@ public:
 	 * much damage every car in it takes, AI included. AiSkill: the AI
 	 * field's level (ApexAiSkill; -1 for every level, novice to ace).
 	 * RaceSeconds: a timed race's length (ApexRaceLength), LapLimit then
-	 * ignored; 0 for a race over LapLimit laps.
+	 * ignored; 0 for a race over LapLimit laps. CreateSessionWithOrder also
+	 * takes QualifyingSeconds: a timed qualifying's length
+	 * (ApexQualifyingLength); 0 for open qualifying.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void CreateSession(
@@ -259,7 +266,9 @@ public:
 		EApexDamageLevel Damage,
 		int32 AiSkill,
 		int32 RaceSeconds,
-		const TArray<FString>& GridOrder);
+		const TArray<FString>& GridOrder,
+		int32 QualifyingSeconds = 0,
+		const FApexWeekendFormat& Weekend = FApexWeekendFormat());
 
 	/**
 	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
@@ -410,6 +419,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void StartCountdown(int32 Seconds, EApexGameMode NextMode);
 
+	/** The host moves a race weekend on: to its first session from the lobby, then each in turn, then the race. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Weekend")
+	void AdvanceWeekend();
+
 	/**
 	 * Driver aids the server runs for this player. Both live on the server
 	 * because they need what the protocol never sends: the automatic gearbox
@@ -492,6 +505,20 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	int32 GetSessionRaceSeconds() const { return CurrentRaceSeconds; }
+
+	/**
+	 * A timed qualifying's length in the session this client is in, from its
+	 * SessionJoined (ApexQualifyingLength): 0 for open qualifying, and outside one.
+	 */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
+	int32 GetSessionQualifyingSeconds() const { return CurrentQualifyingSeconds; }
+
+	/** The race weekend the session is, from its SessionJoined; no rounds when it is none. */
+	const FApexWeekendFormat& GetSessionWeekend() const { return CurrentWeekend; }
+	bool IsWeekendSession() const { return CurrentWeekend.IsWeekend(); }
+
+	/** Where the session's race weekend stands; bValid false until the server sends it. */
+	const FApexWeekendState& GetWeekendState() const { return CurrentWeekendState; }
 
 	// --- State ----------------------------------------------------------------
 
@@ -767,6 +794,9 @@ private:
 	EApexDamageLevel CurrentDamage = EApexDamageLevel::Full;
 	int32 CurrentAiSkill = ApexAiSkill::Mixed;
 	int32 CurrentRaceSeconds = 0;
+	int32 CurrentQualifyingSeconds = 0;
+	FApexWeekendFormat CurrentWeekend;
+	FApexWeekendState CurrentWeekendState;
 
 	// --- Demo session -----------------------------------------------------------
 

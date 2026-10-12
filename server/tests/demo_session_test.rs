@@ -105,6 +105,8 @@ async fn test_demo_session_is_a_private_ai_race_watched_by_its_creator() {
         ai_skill: None,
         race_seconds: None,
         grid_order: Vec::new(),
+        qualifying_seconds: None,
+        weekend: None,
     })
     .await;
 

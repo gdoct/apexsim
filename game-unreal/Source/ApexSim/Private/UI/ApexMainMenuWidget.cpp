@@ -1159,7 +1159,9 @@ void UApexMainMenuWidget::RefreshHero()
 			: FString::Printf(
 				TEXT("%s · %s · %d AI"),
 				*UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode),
-				*(Flow->bCreateTimedRace ? ApexRaceLength::Describe(Flow->CreateRaceMinutes * 60)
+				*(Flow->IsCreatingWeekend() ? FString(TEXT("Weekend · ")) + Flow->DescribeRaceLength()
+					: Flow->CreateStartingMode == EApexGameMode::Qualification ? Flow->DescribeRaceLength()
+					: Flow->bCreateTimedRace ? ApexRaceLength::Describe(Flow->CreateRaceMinutes * 60)
 					: FString::Printf(TEXT("%d laps"), Flow->CreateLapLimit)),
 				Flow->CreateAiCount)));
 	}
@@ -1476,7 +1478,9 @@ void UApexMainMenuWidget::StartRememberedSession()
 		Flow->CreateDamage,
 		Flow->CreateAiSkill,
 		Flow->EffectiveRaceSeconds(),
-		Flow->GridOrderToSend(ApexCreateSession::GridCeiling));
+		Flow->IsCreatingWeekend() ? TArray<FString>() : Flow->GridOrderToSend(ApexCreateSession::GridCeiling),
+		Flow->EffectiveQualifyingSeconds(),
+		Flow->WeekendToSend());
 }
 
 void UApexMainMenuWidget::HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail)

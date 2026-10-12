@@ -232,7 +232,7 @@ ApexHudLayouts::FContext UApexHudWidget::GetContext() const
 	{
 		Context.bWatching = Data->GetBool(TEXT("spectate.active"));
 		const FString Mode = Data->GetText(TEXT("session.mode"));
-		Context.bGarageMode = Mode == TEXT("hotlap") || Mode == TEXT("qualifying");
+		Context.bGarageMode = Mode == TEXT("hotlap") || Mode == TEXT("qualifying") || Mode == TEXT("timed_practice");
 	}
 	if (const UGameInstance* GameInstance = GetGameInstance())
 	{

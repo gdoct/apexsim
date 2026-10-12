@@ -39,7 +39,11 @@ namespace ApexProtocol
 		EApexDamageLevel Damage = EApexDamageLevel::Full,
 		int32 AiSkill = ApexAiSkill::Mixed,
 		int32 RaceSeconds = 0,
-		const TArray<FString>& GridOrder = TArray<FString>());
+		const TArray<FString>& GridOrder = TArray<FString>(),
+		int32 QualifyingSeconds = 0,
+		const FApexWeekendFormat& Weekend = FApexWeekendFormat());
+	/** The host moves a race weekend on to its next session (no fields). */
+	APEXSIMNET_API TArray<uint8> EncodeAdvanceWeekend();
 	/** Asks for the qualifying results stored for a track; answered with QualifyingResults. */
 	APEXSIMNET_API TArray<uint8> EncodeRequestQualifyingResults(const FString& TrackConfigId);
 	APEXSIMNET_API TArray<uint8> EncodeJoinSession(const FString& SessionId);

@@ -241,7 +241,7 @@ player's, or while watching, the car on screen (every `car.*`, `lap.*`,
 | `hud.gamepad` | the last input came from a pad: key hints should show its buttons |
 | `session.track_name` | the circuit's display name |
 | `session.car_name` | the local car's display name |
-| `session.mode` | `race`, `qualifying`, `practice`, `hotlap`, `countdown`, `lobby`, `sandbox`, `demo_lap`, `replay` |
+| `session.mode` | `race`, `qualifying`, `practice`, `timed_practice` (a race weekend's practice, run from the garage), `hotlap`, `countdown`, `lobby`, `sandbox`, `demo_lap`, `replay` |
 | `session.mode_name` | the same as the menus show it ("Race") |
 | `session.is_race`, `session.is_hotlap` | shortcuts on the mode |
 | `session.conditions` | the sky in words, "Light rain · 21:30 · wind 12 km/h" (*null* outside a session) |
@@ -312,8 +312,8 @@ swap places on screen every frame.
 | `race.position` | the local car's place, from 1 (*null* without a car) |
 | `race.car_count` | cars in the session |
 | `race.leader_lap` | the leader's lap, as `lap.display` (*null* with no cars) |
-| `race.timed` | the race runs to a clock rather than a lap count |
-| `race.time_left_s` | a timed race's clock: all of it on the grid, counting from green, 0 once out (*null* in any other session) |
+| `race.timed` | the race runs to a clock rather than a lap count; also true in timed qualifying and a weekend's practice |
+| `race.time_left_s` | a timed race's clock: all of it on the grid, counting from green, 0 once out; timed qualifying's from the start of qualifying, 0 once the flag is out (*null* in any other session) |
 | `race.final_lap` | the lap a timed race ends on, the leader's lap when the clock ran out (*null* until then, and outside a timed race) |
 | `gap.ahead_name`, `gap.behind_name` | the drivers either side (*null* at either end) |
 | `gap.ahead_s`, `gap.behind_s` | the gap to them at the local car's speed (*null* when the circuit's length is unknown) |
@@ -575,8 +575,9 @@ switches, saves as new, renames, deletes and binds them; bindings live in
   "classes": { "Formula": "Wing" } }   // by the class names the menus show
 ```
 
-Most specific wins: watching, then hotlap and qualifying, then the car's
-class, then everywhere else (Default when unset).
+Most specific wins: watching, then hotlap and qualifying (a race weekend's
+timed practice too), then the car's class, then everywhere else (Default
+when unset).
 `UApexHudWidget::RefreshContext` swaps the layout when the place changes
 (from `spectate.active`, `session.mode` and the pending car's class).
 

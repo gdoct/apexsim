@@ -141,7 +141,10 @@ not place, with the reason.
   and smoothed, read against its own leg, pushed out to a pit wall's apron
   where mapped too close, blended onto the road edge at both ends, bends under
   30 m rounded (`round_tight_bends`), at least 24 boxes (`PIT_GRID_BOXES`),
-  seated on its own leg's road edge (`nearest_cross_section_near`). `PitZone`
+  seated on its own leg's road edge (`nearest_cross_section_near`), and off
+  the road any stretch steeper than 8% eased into a ramp
+  (`ease_steep_grades`): a lane cutting from one leg's side to another's
+  (Spa's exit past La Source) otherwise steps between their heights. `PitZone`
   keeps everything dressed off the lane, its apron and the garage depth. The
   server side is in [../server/pit-lane.md](../server/pit-lane.md).
 - **Surroundings** (`dress::surroundings`): car-park cars and lamps, camp-site

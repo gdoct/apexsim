@@ -214,6 +214,7 @@ struct Settings
     bool vsync = false;
     int frameLimit = 0;
     int screens = 1;
+    std::string graphicsApi = "auto";  // auto | dx12 | dx11; the game's boot module applies it
     std::string host = "127.0.0.1";
     int port = kServerPort;
     // Not edited here, only carried through the rewrite (the game owns them):
@@ -261,6 +262,7 @@ static bool LoadSettings(const fs::path& path, Settings& out)
             else if (key == "vsync") out.vsync = (val == "true");
             else if (key == "frame_limit") out.frameLimit = atoi(val.c_str());
             else if (key == "screens") out.screens = atoi(val.c_str()) == 3 ? 3 : 1;
+            else if (key == "graphics_api" && (val == "auto" || val == "dx12" || val == "dx11")) out.graphicsApi = val;
         }
         else if (section == "server")
         {
@@ -314,6 +316,11 @@ static bool SaveSettings(const fs::path& path, const Settings& s)
         "  # the three monitors standing in a row and each shows its own view. The\n"
         "  # rig's measurements are under Settings > Graphics > Screens.\n"
         "  screens: %d\n"
+        "  # auto | dx12 | dx11: the DirectX the game renders with, read when it\n"
+        "  # starts. auto is DirectX 12 where the graphics card supports it. dx11\n"
+        "  # is for a card or driver that draws the scene wrongly under DirectX 12;\n"
+        "  # it looks plainer. -dx11 or -dx12 on the command line wins.\n"
+        "  graphics_api: %s\n"
         "\n"
         "server:\n"
         "  # The server the game connects to when it starts. 127.0.0.1 is a server\n"
@@ -336,7 +343,7 @@ static bool SaveSettings(const fs::path& path, const Settings& s)
         "  # false: launcher.exe starts the game straight away, without a server, and\n"
         "  # shows no window. Run launcher.exe --show to bring the window back.\n"
         "  show: %s\n",
-        s.resX, s.resY, s.mode.c_str(), s.vsync ? "true" : "false", s.frameLimit, s.screens,
+        s.resX, s.resY, s.mode.c_str(), s.vsync ? "true" : "false", s.frameLimit, s.screens, s.graphicsApi.c_str(),
         s.host.c_str(), s.port, s.tls.c_str(), s.tlsVerify.c_str(), s.tlsFingerprint.c_str(),
         s.showLauncher ? "true" : "false");
     std::ofstream f(path, std::ios::binary | std::ios::trunc);
@@ -914,8 +921,10 @@ static void CloseDialogWindow(HWND hw)
 
 // ---- Edit configuration
 
-enum { IdHost = 200, IdPort, IdRes, IdMode, IdLimit, IdScreens, IdVsync };
+enum { IdHost = 200, IdPort, IdRes, IdMode, IdLimit, IdScreens, IdApi, IdVsync };
 static const char* kModes[] = { "fullscreen", "borderless", "windowed" };
+static const char* kApis[] = { "auto", "dx12", "dx11" };
+static const wchar_t* kApiLabels[] = { L"Automatic", L"DirectX 12", L"DirectX 11 (older GPUs)" };
 static HFONT gCfgFont;
 
 static LRESULT CALLBACK ConfigProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
@@ -933,7 +942,7 @@ static LRESULT CALLBACK ConfigProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
         Ctl(hw, L"STATIC", L"Port", 0, 28, 70, 120, 20, 0, dpi);
         Ctl(hw, L"EDIT", std::to_wstring(s.port).c_str(), WS_BORDER | WS_TABSTOP | ES_NUMBER, 160, 67, 100, 24, IdPort, dpi);
 
-        Ctl(hw, L"BUTTON", L"Graphics", BS_GROUPBOX, 12, 112, 436, 206, 0, dpi);
+        Ctl(hw, L"BUTTON", L"Graphics", BS_GROUPBOX, 12, 112, 436, 238, 0, dpi);
         Ctl(hw, L"STATIC", L"Resolution", 0, 28, 140, 120, 20, 0, dpi);
         wchar_t res[32];
         swprintf_s(res, L"%dx%d", s.resX, s.resY);
@@ -951,11 +960,20 @@ static LRESULT CALLBACK ConfigProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
         SendMessageW(scr, CB_ADDSTRING, 0, (LPARAM)L"1  (one monitor)");
         SendMessageW(scr, CB_ADDSTRING, 0, (LPARAM)L"3  (triple monitors)");
         SendMessageW(scr, CB_SETCURSEL, s.screens == 3 ? 1 : 0, 0);
-        HWND vs = Ctl(hw, L"BUTTON", L"V-Sync", BS_AUTOCHECKBOX | WS_TABSTOP, 160, 278, 140, 22, IdVsync, dpi);
+        Ctl(hw, L"STATIC", L"Graphics API", 0, 28, 276, 120, 20, 0, dpi);
+        HWND api = Ctl(hw, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL, 160, 273, 200, 100, IdApi, dpi);
+        int ai = 0;
+        for (int i = 0; i < 3; ++i)
+        {
+            SendMessageW(api, CB_ADDSTRING, 0, (LPARAM)kApiLabels[i]);
+            if (s.graphicsApi == kApis[i]) ai = i;
+        }
+        SendMessageW(api, CB_SETCURSEL, ai, 0);
+        HWND vs = Ctl(hw, L"BUTTON", L"V-Sync", BS_AUTOCHECKBOX | WS_TABSTOP, 160, 310, 140, 22, IdVsync, dpi);
         SendMessageW(vs, BM_SETCHECK, s.vsync ? BST_CHECKED : BST_UNCHECKED, 0);
 
-        Ctl(hw, L"BUTTON", L"Save", BS_DEFPUSHBUTTON | WS_TABSTOP, 252, 332, 90, 30, IDOK, dpi);
-        Ctl(hw, L"BUTTON", L"Cancel", BS_PUSHBUTTON | WS_TABSTOP, 352, 332, 90, 30, IDCANCEL, dpi);
+        Ctl(hw, L"BUTTON", L"Save", BS_DEFPUSHBUTTON | WS_TABSTOP, 252, 364, 90, 30, IDOK, dpi);
+        Ctl(hw, L"BUTTON", L"Cancel", BS_PUSHBUTTON | WS_TABSTOP, 352, 364, 90, 30, IDCANCEL, dpi);
         SetFontAll(hw, gCfgFont);
         SetFocus(GetDlgItem(hw, IdHost));
         return 0;
@@ -982,6 +1000,7 @@ static LRESULT CALLBACK ConfigProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
             n.host = host; n.port = port; n.resX = x; n.resY = y; n.frameLimit = limit;
             n.mode = kModes[std::max(0, (int)SendDlgItemMessageW(hw, IdMode, CB_GETCURSEL, 0, 0))];
             n.screens = SendDlgItemMessageW(hw, IdScreens, CB_GETCURSEL, 0, 0) == 1 ? 3 : 1;
+            n.graphicsApi = kApis[std::max(0, (int)SendDlgItemMessageW(hw, IdApi, CB_GETCURSEL, 0, 0))];
             n.vsync = SendDlgItemMessageW(hw, IdVsync, BM_GETCHECK, 0, 0) == BST_CHECKED;
             if (!SaveSettings(g.env.settings, n))
             {
@@ -1341,7 +1360,7 @@ static void Activate(int i)
     case BtnLaunch: g.menuOpen = false; LaunchAsync(false); break;
     case BtnArrow: g.menuOpen = !g.menuOpen; break;
     case BtnServer: g.menuOpen = false; LaunchAsync(true); break;
-    case BtnConfig: CreateDialogWindow(L"ApexCfg", L"Edit configuration", 460, 380, g.dpi); break;
+    case BtnConfig: CreateDialogWindow(L"ApexCfg", L"Edit configuration", 460, 412, g.dpi); break;
     case BtnContent: CreateDialogWindow(L"ApexContent", L"Manage content", 640, 500, g.dpi); break;
     case BtnShow:
     {

@@ -440,7 +440,7 @@
     },
     "screen-hud-editor-zoom.webp": {
       "src": "site/shots/hud-editor.webp",
-      "sha256": "e7193f0f07081379d4b3f758b05d229503ec1e01417c4e976e7123f8820d7df0",
+      "sha256": "003177e694593194b26894c20397fbe705e9e9c45e006ec2ccb054114bb1095e",
       "params": {
         "width": 1920,
         "quality": 86
@@ -448,7 +448,7 @@
     },
     "screen-hud-editor.webp": {
       "src": "site/shots/hud-editor.webp",
-      "sha256": "e7193f0f07081379d4b3f758b05d229503ec1e01417c4e976e7123f8820d7df0",
+      "sha256": "003177e694593194b26894c20397fbe705e9e9c45e006ec2ccb054114bb1095e",
       "params": {
         "width": 1280,
         "quality": 86
@@ -456,7 +456,7 @@
     },
     "screen-hud-zoom.webp": {
       "src": "site/shots/hud-chase.webp",
-      "sha256": "569ed32513e9c490de64b274e379fe57372a7d9d30492d8e1fcefb6ca1ac6bfa",
+      "sha256": "89a171e44aa3d9c1e7db36509a98b9ac3425bfac8ad450fad2a694381f5cfa4f",
       "params": {
         "width": 1920,
         "quality": 86
@@ -464,7 +464,7 @@
     },
     "screen-hud.webp": {
       "src": "site/shots/hud-chase.webp",
-      "sha256": "569ed32513e9c490de64b274e379fe57372a7d9d30492d8e1fcefb6ca1ac6bfa",
+      "sha256": "89a171e44aa3d9c1e7db36509a98b9ac3425bfac8ad450fad2a694381f5cfa4f",
       "params": {
         "width": 1280,
         "quality": 86
@@ -472,7 +472,7 @@
     },
     "screen-menu-zoom.webp": {
       "src": "site/shots/menu-demo.webp",
-      "sha256": "a4445f9c2032025501db3dece1a7eee0b0fe939fda548159eae38e9211c8c073",
+      "sha256": "b285b76e0f89fd68ac1727e00ffd9f31be27f7280aae87bc94e7034d6f652e2d",
       "params": {
         "width": 1920,
         "quality": 86
@@ -480,7 +480,7 @@
     },
     "screen-menu.webp": {
       "src": "site/shots/menu-demo.webp",
-      "sha256": "a4445f9c2032025501db3dece1a7eee0b0fe939fda548159eae38e9211c8c073",
+      "sha256": "b285b76e0f89fd68ac1727e00ffd9f31be27f7280aae87bc94e7034d6f652e2d",
       "params": {
         "width": 1280,
         "quality": 86
@@ -548,7 +548,7 @@
     },
     "shot-pack-zoom.webp": {
       "src": "site/shots/marina-night.webp",
-      "sha256": "973a657915141f90a65ce6ec224b7e5e0cdbd142a9b23c6e16585c2501923ecb",
+      "sha256": "61bf369ab2311931d869da966b177643fc11964dc6fc46a442ca784530d19c4c",
       "params": {
         "width": 1920,
         "quality": 86
@@ -556,14 +556,14 @@
     },
     "shot-pack.webp": {
       "src": "site/shots/marina-night.webp",
-      "sha256": "973a657915141f90a65ce6ec224b7e5e0cdbd142a9b23c6e16585c2501923ecb",
+      "sha256": "61bf369ab2311931d869da966b177643fc11964dc6fc46a442ca784530d19c4c",
       "params": {
         "width": 1000
       }
     },
     "shot-rain-zoom.webp": {
       "src": "site/shots/rain.webp",
-      "sha256": "cc7070d02365d60cff6d80eb55e360937dcf54b2f4fcf7119f5e87db8316aa38",
+      "sha256": "6d159e9633571f91be5183679774923e7d69e9c2ef224af38475161f06244d1d",
       "params": {
         "width": 1920,
         "quality": 86
@@ -571,14 +571,14 @@
     },
     "shot-rain.webp": {
       "src": "site/shots/rain.webp",
-      "sha256": "cc7070d02365d60cff6d80eb55e360937dcf54b2f4fcf7119f5e87db8316aa38",
+      "sha256": "6d159e9633571f91be5183679774923e7d69e9c2ef224af38475161f06244d1d",
       "params": {
         "width": 1000
       }
     },
     "shot-sunset-zoom.webp": {
       "src": "site/shots/night-lights.webp",
-      "sha256": "0ec5e4cdeda2f3bf7bc396c5f66d34e942cf2861c874ea09df8b04397bd363e5",
+      "sha256": "fdba78ebc84c08bbc926f94530180521f084f37ffd94b50b6a92a04308212d9f",
       "params": {
         "width": 1920,
         "quality": 86
@@ -586,7 +586,7 @@
     },
     "shot-sunset.webp": {
       "src": "site/shots/night-lights.webp",
-      "sha256": "0ec5e4cdeda2f3bf7bc396c5f66d34e942cf2861c874ea09df8b04397bd363e5",
+      "sha256": "fdba78ebc84c08bbc926f94530180521f084f37ffd94b50b6a92a04308212d9f",
       "params": {
         "width": 1000
       }

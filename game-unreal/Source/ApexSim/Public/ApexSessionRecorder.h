@@ -30,6 +30,10 @@ struct FApexCarResult
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
 	TArray<float> LapTimes;
 
+	/** Per lap in LapTimes: inside track limits, as the server judged it. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
+	TArray<bool> LapValid;
+
 	/** Zero when no lap was completed. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
 	float BestLapSeconds = 0.0f;
@@ -40,6 +44,10 @@ struct FApexCarResult
 	/** The splits that best lap was made of, seconds; empty until it is set. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
 	TArray<float> BestLapSplitsSeconds;
+
+	/** The car's best time in each sector, whatever lap it came from, seconds; 0 for a sector not yet timed. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
+	TArray<float> BestSectorsSeconds;
 
 	/** Laps the car completed inside track limits, as the server judged them. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Results")
@@ -115,6 +123,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Results")
 	int32 GetRaceSeconds() const { return RaceSeconds; }
 
+	/** A timed qualifying's length (ApexQualifyingLength); 0 for open qualifying. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Results")
+	int32 GetQualifyingSeconds() const { return QualifyingSeconds; }
+
 	/**
 	 * How much the local best beat the previous personal best by; positive means
 	 * an improvement. Zero when there was no previous time or no improvement.
@@ -148,12 +160,15 @@ private:
 
 	/** Per car: the lap number seen last frame, to spot the counter rolling over. */
 	TMap<int32, int32> LastLapNumber;
+	/** Per car: the last lap time seen last frame, to spot a lap that ended in the garage. */
+	TMap<int32, int32> LastLapTimeSeen;
 
 	FString TrackId;
 	float TrackLengthM = 0.0f;
 	EApexGameMode RecordedMode = EApexGameMode::Lobby;
 	int32 LapLimit = 0;
 	int32 RaceSeconds = 0;
+	int32 QualifyingSeconds = 0;
 	float PersonalBestDelta = 0.0f;
 	bool bRecording = false;
 };

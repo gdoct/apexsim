@@ -1356,12 +1356,17 @@ void UApexRootWidget::HandleTelemetryForHotlap(const FApexTelemetryFrame& Frame)
 	{
 		return;
 	}
-	// Hotlap and qualifying share the garage; qualifying adds the scoreboard.
+	// Hotlap, qualifying and a weekend's practice share the garage; the last
+	// two go out on an outlap and add the scoreboard.
 	const bool bHotlap = ApexIsGarageMode(Frame.GameMode);
-	const bool bQualifying = Frame.GameMode == EApexGameMode::Qualification;
-	if (bHotlap && HotlapPanel && HotlapPanel->IsQualifying() != bQualifying)
+	const bool bQualifying = ApexIsOutlapMode(Frame.GameMode);
+	if (bHotlap && HotlapPanel)
 	{
-		HotlapPanel->SetQualifying(bQualifying);
+		HotlapPanel->SetPractice(Frame.GameMode == EApexGameMode::Practice);
+		if (HotlapPanel->IsQualifying() != bQualifying)
+		{
+			HotlapPanel->SetQualifying(bQualifying);
+		}
 	}
 	if (bHotlap != bHotlapSession)
 	{
@@ -1701,6 +1706,21 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	{
 		Flow->CreateRaceMinutes = RaceMinutes;
 	}
+	// -ApexQualifyingMinutes=N: qualifying of N minutes (0 open); the profile's otherwise.
+	FParse::Value(FCommandLine::Get(), TEXT("ApexQualifyingMinutes="), Flow->CreateQualifyingMinutes);
+	// -ApexWeekend=P,R,M: a race weekend of P minutes' practice (0 none), R
+	// qualifying rounds of M minutes; the race is -ApexLaps / -ApexRaceMinutes.
+	FString WeekendText;
+	Flow->bCreateWeekend = FParse::Value(FCommandLine::Get(), TEXT("ApexWeekend="), WeekendText, /*bShouldStopOnSeparator=*/false);
+	if (Flow->bCreateWeekend)
+	{
+		TArray<FString> Fields;
+		WeekendText.ParseIntoArray(Fields, TEXT(","));
+		Flow->CreateWeekendPracticeMinutes = Fields.IsValidIndex(0) ? FCString::Atoi(*Fields[0]) : 0;
+		Flow->CreateWeekendRounds = Fields.IsValidIndex(1) ? FMath::Clamp(FCString::Atoi(*Fields[1]), 1, FApexWeekendFormat::MaxRounds) : 1;
+		Flow->CreateWeekendRoundMinutes = Fields.IsValidIndex(2) ? FMath::Max(1, FCString::Atoi(*Fields[2])) : 10;
+		Flow->CreateStartingMode = EApexGameMode::Race;
+	}
 
 	UE_LOG(LogApexSim, Log, TEXT("-ApexAutoRace: creating '%s' on '%s' with %d AI over %d lap(s)"),
 		*Car.Name, *Track.Name, AutoRaceAiCount, AutoRaceLaps);
@@ -1803,8 +1823,8 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	{
 		AiSkill = ApexAiSkill::Clamp(AiSkill);
 	}
-	Net->CreateSession(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions, Damage,
-		AiSkill, Flow->EffectiveRaceSeconds());
+	Net->CreateSessionWithOrder(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions, Damage,
+		AiSkill, Flow->EffectiveRaceSeconds(), TArray<FString>(), Flow->EffectiveQualifyingSeconds(), Flow->WeekendToSend());
 }
 
 void UApexRootWidget::HandleUdpReady()
@@ -1828,6 +1848,13 @@ void UApexRootWidget::StartRequestedSession()
 	// StartCountdown rather than StartSession: StartSession sets a countdown but
 	// stores no mode to transition into, so the session sits frozen when it
 	// expires.
+	// A race weekend runs its own order: the first push starts practice (or Q1).
+	if (Net->IsWeekendSession())
+	{
+		UE_LOG(LogApexSim, Log, TEXT("One-click start: the weekend's first session"));
+		Net->AdvanceWeekend();
+		return;
+	}
 	UE_LOG(LogApexSim, Log, TEXT("One-click start: counting into mode %d"),
 		static_cast<int32>(Flow->AutoStartMode));
 	Net->StartCountdown(AutoStartCountdownSeconds, Flow->AutoStartMode);
@@ -1970,6 +1997,13 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 	{
 		if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
 		{
+			// A race weekend runs its own order: start its first session.
+			if (Net->IsWeekendSession())
+			{
+				UE_LOG(LogApexSim, Log, TEXT("-ApexAutoRace: session joined, starting the weekend"));
+				Net->AdvanceWeekend();
+				return;
+			}
 			// See the note in ApexSessionLobbyWidget: StartSession alone never
 			// leaves Countdown.
 			UE_LOG(LogApexSim, Log, TEXT("-ApexAutoRace: session joined, counting into mode %d"),
@@ -2010,6 +2044,7 @@ bool UApexRootWidget::IsDrivingMode(EApexGameMode Mode)
 	case EApexGameMode::Race:
 	case EApexGameMode::Replay:
 	case EApexGameMode::Hotlap:
+	case EApexGameMode::Practice:
 		return true;
 	default:
 		return false;

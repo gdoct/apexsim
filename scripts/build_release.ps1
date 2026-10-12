@@ -748,6 +748,11 @@ display:
   # the three monitors standing in a row and each shows its own view. The
   # rig's measurements are under Settings > Graphics > Screens.
   screens: 1
+  # auto | dx12 | dx11: the DirectX the game renders with, read when it
+  # starts. auto is DirectX 12 where the graphics card supports it. dx11
+  # is for a card or driver that draws the scene wrongly under DirectX 12;
+  # it looks plainer. -dx11 or -dx12 on the command line wins.
+  graphics_api: auto
 
 server:
   # The server the game connects to when it starts. 127.0.0.1 is a server
@@ -831,6 +836,8 @@ SYSTEM REQUIREMENTS
     graphics may run on the Low preset (Settings > Graphics), which the game
     picks on its own for one, but this has not been tested.
     16 GB of RAM. A wheel, a gamepad or a keyboard.
+    If the game draws wrongly, set the Graphics API to DirectX 11 in the
+    launcher's Edit configuration.
 
 SETTINGS
 

@@ -69,6 +69,7 @@ namespace
 		case EApexGameMode::FreePractice: return TEXT("practice");
 		case EApexGameMode::Replay: return TEXT("replay");
 		case EApexGameMode::Qualification: return TEXT("qualifying");
+		case EApexGameMode::Practice: return TEXT("timed_practice");
 		case EApexGameMode::Race: return TEXT("race");
 		case EApexGameMode::Hotlap: return TEXT("hotlap");
 		default: return TEXT("unknown");
@@ -678,8 +679,10 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("lap.display"), ApexRace::DisplayLap(Local->CurrentLap, In.LapLimit));
 		const int32 LapsToFlag = HudLapsToFlag(In, Frame, *Local);
 		Out.Values.FindOrAdd(TEXT("lap.laps_left")) = LapsToFlag >= 0 ? FApexHudValue::Of(LapsToFlag) : FApexHudValue();
-		// Certain only once a timed race's clock has run out.
-		const bool bLastKnown = !bTimed || Frame.RaceFinalLap > 0;
+		// Certain only once a timed race's clock has run out; in timed
+		// qualifying the lap under way at the flag is the last.
+		const bool bLastKnown = !bTimed || Frame.RaceFinalLap > 0
+			|| (ApexIsOutlapMode(Frame.GameMode) && Frame.RaceLeftMs == 0);
 		Out.Set(TEXT("lap.final"), LapsToFlag == 1 && bLastKnown);
 		Out.Set(TEXT("lap.time_s"), Local->CurrentLapTimeMs / 1000.0);
 		Out.Set(TEXT("lap.invalid"), Local->bLapInvalid);

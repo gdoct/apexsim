@@ -89,6 +89,10 @@ const PIT_LANE_ROUND_PASSES: usize = 400;
 /// How far along the lane its mapped offset is smoothed, m (Gaussian
 /// sigma): a GPS trace's wander, not the lane's shape.
 const PIT_LANE_SMOOTH_M: f32 = 12.0;
+/// Steeper than this, rise over run, a stretch of lane off the road is
+/// eased into a ramp ([`ease_steep_grades`]), in at most this many passes.
+const PIT_LANE_MAX_GRADE: f32 = 0.08;
+const PIT_LANE_GRADE_PASSES: usize = 4000;
 /// Least room between the road edge and the lane's edge through the
 /// lane's middle: enough to stand the pit wall in
 /// (`ue_export`'s `PIT_TAPER_WALL_MIN_M`).
@@ -667,16 +671,18 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
     // Each node at the height of the road beside where it ended up — the
     // edge, or the road itself on a taper over it — not beside where it was
     // mapped: moved, a node on a slope was a metre off its verge.
-    let nodes: Vec<[f32; 3]> = nodes
+    let seated: Vec<([f32; 3], bool)> = nodes
         .iter()
         .zip(&frame)
         .map(|(n, (mapped_at, _))| {
             let (sample, lat) =
                 nearest_cross_section_near(path, n[0], n[1], mapped_at.station_m, PIT_LEG_WINDOW_M);
             let on_road = lat.clamp(-sample.width_right_m, sample.width_left_m);
-            [n[0], n[1], offset_point(&sample, on_road).2]
+            ([n[0], n[1], offset_point(&sample, on_road).2], on_road == lat)
         })
         .collect();
+    let pinned: Vec<bool> = seated.iter().map(|s| s.1).collect();
+    let nodes = ease_steep_grades(seated.into_iter().map(|s| s.0).collect(), &pinned);
 
     // The garages line the stretch between the tapers.
     let clear = (length - 2.0 * taper).max(0.0);
@@ -693,6 +699,42 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
         speed_limit_kmh: PIT_SPEED_LIMIT_KMH,
         authored: true,
     })
+}
+
+/// `nodes` with every stretch steeper than [`PIT_LANE_MAX_GRADE`] eased
+/// out into a ramp, the ends and the `pinned` nodes (those over the road,
+/// which must stay on it) kept. Off the road the nearest road can change
+/// legs from one node to the next: Spa's exit, cutting past La Source from
+/// the pit straight's side to the downhill's banked low edge, stepped down
+/// 3.6 m in 2 m, and the ground with it. Only a node beside a too-steep
+/// step moves, to between its neighbours, so a lane on a steady slope stays
+/// at its road's height.
+fn ease_steep_grades(mut nodes: Vec<[f32; 3]>, pinned: &[bool]) -> Vec<[f32; 3]> {
+    let n = nodes.len();
+    if n < 3 {
+        return nodes;
+    }
+    let run = |a: &[f32; 3], b: &[f32; 3]| (b[0] - a[0]).hypot(b[1] - a[1]).max(1e-3);
+    for _ in 0..PIT_LANE_GRADE_PASSES {
+        let mut moved = false;
+        for i in 1..n - 1 {
+            if pinned[i] {
+                continue;
+            }
+            let (a, b) = (run(&nodes[i - 1], &nodes[i]), run(&nodes[i], &nodes[i + 1]));
+            let (z0, z, z1) = (nodes[i - 1][2], nodes[i][2], nodes[i + 1][2]);
+            let steepest = ((z - z0) / a).abs().max(((z1 - z) / b).abs());
+            let between = (z0 * b + z1 * a) / (a + b);
+            if steepest > PIT_LANE_MAX_GRADE && (between - z).abs() > 1e-3 {
+                nodes[i][2] = between;
+                moved = true;
+            }
+        }
+        if !moved {
+            break;
+        }
+    }
+    nodes
 }
 
 /// A polyline resampled every `step` metres along itself, both ends kept.

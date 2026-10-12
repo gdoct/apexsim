@@ -35,6 +35,7 @@ void UApexSessionRecorder::BeginRecording()
 {
 	Results.Reset();
 	LastLapNumber.Reset();
+	LastLapTimeSeen.Reset();
 	PersonalBestDelta = 0.0f;
 	bRecording = true;
 
@@ -44,6 +45,9 @@ void UApexSessionRecorder::BeginRecording()
 		TrackId = Flow->GetPendingTrackId();
 		LapLimit = Flow->EffectiveLapLimit();
 		RaceSeconds = Flow->EffectiveRaceSeconds();
+		QualifyingSeconds = Flow->EffectiveQualifyingSeconds();
+		// The create screen's guess; the telemetry's own mode replaces it
+		// (RecordFrame), for a guest and for a race after qualifying.
 		RecordedMode = Flow->CreateStartingMode;
 
 		FApexTrackCatalogRow Row;
@@ -57,6 +61,7 @@ void UApexSessionRecorder::BeginRecording()
 		if (Net->IsInSession())
 		{
 			RaceSeconds = Net->GetSessionRaceSeconds();
+			QualifyingSeconds = Net->GetSessionQualifyingSeconds();
 			if (RaceSeconds > 0)
 			{
 				LapLimit = 0;
@@ -240,6 +245,20 @@ void UApexSessionRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 void UApexSessionRecorder::RecordFrame(const FApexTelemetryFrame& Frame)
 {
 	const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	// What is being driven, as the server says: the create screen's mode is
+	// not a guest's, and a session can run qualifying and then its race.
+	switch (Frame.GameMode)
+	{
+	case EApexGameMode::FreePractice:
+	case EApexGameMode::Qualification:
+	case EApexGameMode::Practice:
+	case EApexGameMode::Race:
+	case EApexGameMode::Hotlap:
+		RecordedMode = Frame.GameMode;
+		break;
+	default:
+		break;
+	}
 	for (const FApexCarTelemetry& Car : Frame.Cars)
 	{
 		FApexCarResult& Result = FindOrAddCar(Car.CarIndex);
@@ -267,11 +286,21 @@ void UApexSessionRecorder::RecordFrame(const FApexTelemetryFrame& Frame)
 
 		// The server times the laps and judges track limits, so the completed
 		// lap and the best come straight off the wire; the client only has to
-		// notice the counter move to know a lap is new.
+		// notice the counter move to know a lap is new. Lap 0 to 1 is no lap:
+		// the grid crossing the line, or the end of a qualifying outlap, whose
+		// last lap time is the one from before the garage.
+		// A car the server puts in its garage on the tick it crosses the line
+		// (qualifying's flag) arrives with its counter reset: the lap shows
+		// only as a new last lap time.
 		const int32* PreviousLap = LastLapNumber.Find(Car.CarIndex);
-		if (PreviousLap && Car.CurrentLap > *PreviousLap && Car.LastLapTimeMs > 0)
+		const int32* PreviousLastMs = LastLapTimeSeen.Find(Car.CarIndex);
+		const bool bCounted = PreviousLap && *PreviousLap >= 1 && Car.CurrentLap > *PreviousLap;
+		const bool bEndedInGarage = PreviousLap && *PreviousLap >= 1 && Car.bInGarage && Car.CurrentLap < *PreviousLap
+			&& PreviousLastMs && *PreviousLastMs != Car.LastLapTimeMs;
+		if ((bCounted || bEndedInGarage) && Car.LastLapTimeMs > 0)
 		{
 			Result.LapTimes.Add(Car.LastLapTimeMs / 1000.0f);
+			Result.LapValid.Add(!Car.bLastLapInvalid);
 			if (!Car.bLastLapInvalid)
 			{
 				++Result.ValidLaps;
@@ -289,11 +318,17 @@ void UApexSessionRecorder::RecordFrame(const FApexTelemetryFrame& Frame)
 					{
 						Result.BestLapSplitsSeconds.Add(SplitMs / 1000.0f);
 					}
+					Result.BestSectorsSeconds.Reset(Timing->BestSplitsMs.Num());
+					for (int32 SectorMs : Timing->BestSplitsMs)
+					{
+						Result.BestSectorsSeconds.Add(SectorMs / 1000.0f);
+					}
 				}
 			}
 		}
 
 		LastLapNumber.Add(Car.CarIndex, Car.CurrentLap);
+		LastLapTimeSeen.Add(Car.CarIndex, Car.LastLapTimeMs);
 	}
 
 	// Kept in order as it goes: a driver who has finished watches the results

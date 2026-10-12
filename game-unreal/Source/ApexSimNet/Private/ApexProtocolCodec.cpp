@@ -478,6 +478,111 @@ namespace
 	}
 
 	/** `SessionJoinedData` — PascalCase keys. */
+	bool ReadSmallUInt(FMsgPackReader& Reader, int32& Out, uint64 Max = MAX_int32)
+	{
+		uint64 Raw = 0;
+		if (!Reader.ReadUInt64(Raw))
+		{
+			return false;
+		}
+		Out = static_cast<int32>(FMath::Min<uint64>(Raw, Max));
+		return true;
+	}
+
+	/** `WeekendFormat` (network.rs) — snake_case keys. */
+	bool ParseWeekendFormat(FMsgPackReader& Reader, FApexWeekendFormat& Out)
+	{
+		if (Reader.TryReadNil())
+		{
+			return true;
+		}
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("practice_seconds"))        { bOk = ReadSmallUInt(Reader, Out.PracticeSeconds); }
+			else if (Key == TEXT("qualifying_seconds")) { bOk = ParseArrayOf(Reader, Out.QualifyingSeconds, [](FMsgPackReader& R, int32& Seconds) { return ReadSmallUInt(R, Seconds); }); }
+			else                                        { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		Out = Out.Clamped();
+		return true;
+	}
+
+	/** `KnockedOut` (network.rs). */
+	bool ParseKnockedOut(FMsgPackReader& Reader, FApexKnockedOut& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("CarIndex"))          { bOk = ReadSmallUInt(Reader, Out.CarIndex, 255); }
+			else if (Key == TEXT("Round"))        { bOk = ReadSmallUInt(Reader, Out.Round, 255); }
+			else if (Key == TEXT("GridPosition")) { bOk = ReadSmallUInt(Reader, Out.GridPosition, 255); }
+			else if (Key == TEXT("LapTimeMs"))    { bOk = ReadSmallUInt(Reader, Out.LapTimeMs); }
+			else                                  { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `WeekendStateData` (network.rs). */
+	bool ParseWeekendState(FMsgPackReader& Reader, FApexWeekendState& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			int32 Value = 0;
+			if (Key == TEXT("Phase"))           { bOk = ReadSmallUInt(Reader, Value, 3); Out.Phase = static_cast<EApexWeekendPhase>(Value); }
+			else if (Key == TEXT("Round"))      { bOk = ReadSmallUInt(Reader, Out.Round, 255); }
+			else if (Key == TEXT("Rounds"))     { bOk = ReadSmallUInt(Reader, Out.Rounds, 255); }
+			else if (Key == TEXT("Finished"))   { bOk = Reader.ReadBool(Out.bFinished); }
+			else if (Key == TEXT("Advancing"))  { bOk = ReadSmallUInt(Reader, Out.Advancing, 255); }
+			else if (Key == TEXT("Eliminated")) { bOk = ParseArrayOf(Reader, Out.Eliminated, &ParseKnockedOut); }
+			else                                { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		Out.bValid = true;
+		return true;
+	}
+
 	bool ParseSessionJoined(FMsgPackReader& Reader, FApexServerMessage& Out)
 	{
 		int32 FieldCount = 0;
@@ -502,6 +607,8 @@ namespace
 			else if (Key == TEXT("Damage"))            { bOk = Reader.ReadUInt64(Raw); Out.Damage = static_cast<EApexDamageLevel>(FMath::Min<uint64>(Raw, 2)); }
 			else if (Key == TEXT("AiSkill"))           { bOk = Reader.ReadUInt64(Raw); Out.AiSkill = ApexAiSkill::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
 			else if (Key == TEXT("RaceSeconds"))       { bOk = Reader.ReadUInt64(Raw); Out.RaceSeconds = ApexRaceLength::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32))); }
+			else if (Key == TEXT("QualifyingSeconds")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingSeconds = ApexQualifyingLength::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32))); }
+			else if (Key == TEXT("Weekend"))           { bOk = ParseWeekendFormat(Reader, Out.Weekend); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -2222,6 +2329,7 @@ namespace
 		if (Variant == TEXT("UdpHandshakeAck"))    { return EApexServerMessageType::UdpHandshakeAck; }
 		if (Variant == TEXT("TelemetryCompact"))   { return EApexServerMessageType::TelemetryCompact; }
 		if (Variant == TEXT("DriverFeedback"))     { return EApexServerMessageType::DriverFeedback; }
+		if (Variant == TEXT("WeekendState"))       { return EApexServerMessageType::WeekendState; }
 		if (Variant == TEXT("RejoinAvailable"))    { return EApexServerMessageType::RejoinAvailable; }
 		if (Variant == TEXT("RoadState"))          { return EApexServerMessageType::RoadState; }
 
@@ -2280,6 +2388,8 @@ namespace
 
 		case EApexServerMessageType::QualifyingResults:
 			return ParseQualifyingResults(Reader, Out);
+		case EApexServerMessageType::WeekendState:
+			return ParseWeekendState(Reader, Out.WeekendState);
 		case EApexServerMessageType::CarSetupSheet:
 			return ParseCarSetupSheet(Reader, Out.CarSetupSheet);
 
@@ -2447,19 +2557,26 @@ namespace ApexProtocol
 		EApexDamageLevel Damage,
 		int32 AiSkill,
 		int32 RaceSeconds,
-		const TArray<FString>& GridOrder)
+		const TArray<FString>& GridOrder,
+		int32 QualifyingSeconds,
+		const FApexWeekendFormat& Weekend)
 	{
-		// Full damage, the mixed AI field and a race over laps are left
-		// off, as the server does: an older server's create, and every
-		// create that picks none of them, keep their bytes.
+		// Full damage, the mixed AI field, a race over laps and open
+		// qualifying are left off, as the server does: an older server's
+		// create, and every create that picks none of them, keep their bytes.
 		const bool bDamage = Damage != EApexDamageLevel::Full;
 		const int32 Skill = ApexAiSkill::Clamp(AiSkill);
 		const bool bAiSkill = Skill != ApexAiSkill::Mixed;
 		const int32 Seconds = ApexRaceLength::Clamp(RaceSeconds);
 		const bool bTimed = Seconds > 0;
 		const bool bGrid = !GridOrder.IsEmpty();
+		const int32 QualifyingLength = ApexQualifyingLength::Clamp(QualifyingSeconds);
+		const bool bTimedQualifying = QualifyingLength > 0;
+		const FApexWeekendFormat WeekendFormat = Weekend.Clamped();
+		const bool bWeekend = WeekendFormat.IsWeekend();
 		FMsgPackWriter Writer(320);
-		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0) + (bTimed ? 1 : 0) + (bGrid ? 1 : 0));
+		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0) + (bTimed ? 1 : 0) + (bGrid ? 1 : 0)
+			+ (bTimedQualifying ? 1 : 0) + (bWeekend ? 1 : 0));
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -2500,6 +2617,25 @@ namespace ApexProtocol
 				Writer.WriteString(Reference);
 			}
 		}
+		if (bTimedQualifying)
+		{
+			Writer.WriteString("qualifying_seconds");
+			Writer.WriteUInt(static_cast<uint32>(QualifyingLength));
+		}
+		if (bWeekend)
+		{
+			// Practice (0 for none), then each qualifying round's length.
+			Writer.WriteString("weekend");
+			Writer.WriteMapHeader(2);
+			Writer.WriteString("practice_seconds");
+			Writer.WriteUInt(static_cast<uint32>(WeekendFormat.PracticeSeconds));
+			Writer.WriteString("qualifying_seconds");
+			Writer.WriteArrayHeader(WeekendFormat.QualifyingSeconds.Num());
+			for (const int32 RoundSeconds : WeekendFormat.QualifyingSeconds)
+			{
+				Writer.WriteUInt(static_cast<uint32>(RoundSeconds));
+			}
+		}
 		return MoveTemp(Writer.GetBuffer());
 	}
 
@@ -2532,6 +2668,7 @@ namespace ApexProtocol
 
 	TArray<uint8> EncodeLeaveSession() { return EncodeUnitVariant("LeaveSession"); }
 	TArray<uint8> EncodeStartSession() { return EncodeUnitVariant("StartSession"); }
+	TArray<uint8> EncodeAdvanceWeekend() { return EncodeUnitVariant("AdvanceWeekend"); }
 	TArray<uint8> EncodeDisconnect()   { return EncodeUnitVariant("Disconnect"); }
 
 	TArray<uint8> EncodeSetGameMode(EApexGameMode Mode)

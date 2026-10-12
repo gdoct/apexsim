@@ -163,6 +163,12 @@ public:
 	/** The session is a qualifying one: the scoreboard page exists, the hotlap-only rows go. */
 	void SetQualifying(bool bInQualifying);
 	bool IsQualifying() const { return bQualifying; }
+	/**
+	 * The qualifying garage serves a race weekend's practice too: the same
+	 * outlap and scoreboard, its own name. SetQualifying(true) with this set.
+	 */
+	void SetPractice(bool bInPractice);
+	bool IsPractice() const { return bPractice; }
 
 	/** Shows the scoreboard (true) or the setup sheet. Closing it stops watching. */
 	void SetBoardOpen(bool bOpen);
@@ -246,6 +252,8 @@ private:
 
 	/** The board's rows from the roster and the newest telemetry. */
 	void RefreshBoard();
+	/** Qualifying's clock on the garage caption, and no going out once the flag is out. */
+	void RefreshQualifyingClock();
 	/** Garage card or scoreboard, and the toggles' selection. */
 	void ApplyPage();
 	void ApplyQualifyingRows();
@@ -315,6 +323,9 @@ private:
 	int32 BestMs = 0;
 
 	bool bQualifying = false;
+	bool bPractice = false;
+	/** The garage's name for the session: QUALIFYING, Q2, PRACTICE. */
+	FString OutlapSessionName() const;
 	bool bBoardOpen = false;
 	bool bMenuMode = false;
 	int32 WatchedCar = INDEX_NONE;

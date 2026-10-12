@@ -5,6 +5,8 @@
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/CommandLine.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 
@@ -546,11 +548,77 @@ namespace ApexStartupSplash
 	}
 }
 
+/**
+ * settings.yml's `display.graphics_api` (auto | dx12 | dx11) as -dx12 / -dx11
+ * on the command line. The engine picks its renderer from the command line in
+ * RHIInit, after PostConfigInit modules load and long before the game's own
+ * UApexBootSettingsSubsystem exists, so the key is read here with a scan of
+ * its own rather than ApexBootSettingsIo (which this module cannot reach).
+ * The file's location is UApexBootSettingsSubsystem::FilePath's.
+ */
+namespace ApexGraphicsApi
+{
+	FString ReadSetting()
+	{
+		const FString Dir = FPlatformProperties::RequiresCookedData()
+			? FPaths::Combine(FPaths::ProjectDir(), TEXT(".."))
+			: FPaths::ProjectDir();
+		TArray<FString> Lines;
+		if (!FFileHelper::LoadFileToStringArray(Lines, *FPaths::Combine(Dir, TEXT("settings.yml"))))
+		{
+			return FString();
+		}
+		bool bInDisplay = false;
+		for (const FString& Line : Lines)
+		{
+			const FString Trimmed = Line.TrimStartAndEnd();
+			if (Trimmed.IsEmpty() || Trimmed.StartsWith(TEXT("#")))
+			{
+				continue;
+			}
+			if (Line[0] != TEXT(' ') && Line[0] != TEXT('\t'))
+			{
+				bInDisplay = Trimmed == TEXT("display:");
+				continue;
+			}
+			FString Key, Value;
+			if (bInDisplay && Trimmed.Split(TEXT(":"), &Key, &Value) && Key.TrimEnd() == TEXT("graphics_api"))
+			{
+				return Value.TrimStartAndEnd().TrimQuotes().ToLower();
+			}
+		}
+		return FString();
+	}
+
+	void Apply()
+	{
+		if (GIsEditor || IsRunningCommandlet())
+		{
+			return;
+		}
+		const TCHAR* const CommandLine = FCommandLine::Get();
+		// The engine refuses two of these at once; one already given wins.
+		for (const TCHAR* Flag : { TEXT("d3d11"), TEXT("dx11"), TEXT("d3d12"), TEXT("dx12"), TEXT("vulkan"), TEXT("opengl") })
+		{
+			if (FParse::Param(CommandLine, Flag))
+			{
+				return;
+			}
+		}
+		const FString Api = ReadSetting();
+		if (Api == TEXT("dx11") || Api == TEXT("dx12"))
+		{
+			FCommandLine::Append(*FString::Printf(TEXT(" -%s"), *Api));
+		}
+	}
+}
+
 class FApexSimBootModule : public IModuleInterface
 {
 public:
 	virtual void StartupModule() override
 	{
+		ApexGraphicsApi::Apply();
 		ApexStartupSplash::Start();
 	}
 

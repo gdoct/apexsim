@@ -213,6 +213,146 @@ namespace ApexRaceLength
 }
 
 /**
+ * A timed qualifying session's length, as CreateSession's
+ * `qualifying_seconds` and SessionJoined's `QualifyingSeconds` carry it
+ * (data.rs `clamp_qualifying_seconds`): seconds from the moment qualifying
+ * begins, 0 for open qualifying (no clock, no flag), which is left off the
+ * wire. When the clock runs out every car on track takes the chequered flag
+ * at its next crossing of the line, and the session finishes.
+ */
+namespace ApexQualifyingLength
+{
+	/** `MIN_QUALIFYING_SECONDS` / `MAX_QUALIFYING_SECONDS`. */
+	constexpr int32 MinSeconds = 60;
+	constexpr int32 MaxSeconds = 2 * 3600;
+
+	/** The create screen's choices, minutes; 0 is open qualifying. */
+	inline const TArray<int32>& ChoiceMinutes()
+	{
+		static const TArray<int32> Choices = { 0, 10, 15, 20, 30, 60 };
+		return Choices;
+	}
+
+	/** Seconds the server would keep: 0 (open) for none, else inside the bounds. */
+	inline int32 Clamp(int32 Seconds)
+	{
+		return Seconds <= 0 ? 0 : FMath::Clamp(Seconds, MinSeconds, MaxSeconds);
+	}
+}
+
+/**
+ * A race weekend, as CreateSession's `weekend` and SessionJoined's `Weekend`
+ * carry it (network.rs `WeekendFormat`): timed practice (0 for none), then
+ * one to three timed qualifying rounds run as a knockout, then the race over
+ * the session's own laps or time. The host moves it on (AdvanceWeekend).
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexWeekendFormat
+{
+	GENERATED_BODY()
+
+	static constexpr int32 MaxRounds = 3;
+
+	/** Practice's length, seconds (ApexQualifyingLength bounds); 0 for no practice. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	int32 PracticeSeconds = 0;
+
+	/** Each qualifying round's length, seconds; empty when the session is no weekend. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	TArray<int32> QualifyingSeconds;
+
+	bool IsWeekend() const { return QualifyingSeconds.Num() > 0; }
+	int32 Rounds() const { return QualifyingSeconds.Num(); }
+
+	/** As the server keeps it: lengths in bounds, at most MaxRounds rounds. */
+	FApexWeekendFormat Clamped() const
+	{
+		FApexWeekendFormat Out;
+		Out.PracticeSeconds = ApexQualifyingLength::Clamp(PracticeSeconds);
+		for (int32 Index = 0; Index < FMath::Min(QualifyingSeconds.Num(), MaxRounds); ++Index)
+		{
+			Out.QualifyingSeconds.Add(FMath::Max(ApexQualifyingLength::MinSeconds, ApexQualifyingLength::Clamp(QualifyingSeconds[Index])));
+		}
+		return Out;
+	}
+};
+
+/** Mirrors the weekend phase byte of `WeekendState` (network.rs). */
+UENUM(BlueprintType)
+enum class EApexWeekendPhase : uint8
+{
+	Lobby      = 0,
+	Practice   = 1,
+	Qualifying = 2,
+	Race       = 3,
+};
+
+/** A car knocked out of qualifying: where it starts, and the time that put it there. */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexKnockedOut
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	int32 CarIndex = -1;
+
+	/** The round it went out in, 1-based. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	int32 Round = 0;
+
+	/** Its grid slot, 1-based. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	int32 GridPosition = 0;
+
+	/** Its best legal lap in that round, ms; 0 for no time. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	int32 LapTimeMs = 0;
+};
+
+/**
+ * Where a race weekend stands (`WeekendState`, sent on join and on every
+ * change): the phase, the qualifying round, whether the host may move on,
+ * and who is out.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexWeekendState
+{
+	GENERATED_BODY()
+
+	/** False until the session sends one (it is no weekend, or an older server). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bValid = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	EApexWeekendPhase Phase = EApexWeekendPhase::Lobby;
+
+	/** The qualifying round, 1-based; 0 outside qualifying. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	int32 Round = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	int32 Rounds = 0;
+
+	/** The phase has ended and the host may move the weekend on. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bFinished = false;
+
+	/** How many cars go through from this round; 0 in the final round and outside qualifying. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	int32 Advancing = 0;
+
+	/** Every car knocked out so far, in grid order. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	TArray<FApexKnockedOut> Eliminated;
+
+	const FApexKnockedOut* FindEliminated(int32 CarIndex) const
+	{
+		return Eliminated.FindByPredicate([CarIndex](const FApexKnockedOut& Out) { return Out.CarIndex == CarIndex; });
+	}
+	bool IsFinalRound() const { return Phase == EApexWeekendPhase::Qualifying && Round >= Rounds; }
+};
+
+/**
  * Mirrors `CarSetup` (car_setup.rs): the garage setup as *clicks* per knob,
  * one signed integer each, so neither the wire nor the client needs the
  * car's base figures — the server turns "+2" into newtons per metre against
@@ -753,15 +893,28 @@ enum class EApexGameMode : uint8
 	 * ticked nor collided with, so several drivers can hotlap side by side.
 	 */
 	Hotlap        = 8,
+	/**
+	 * A race weekend's timed practice: run from the garage as qualifying is
+	 * (out from the pit exit on an outlap), timed, but nothing it sets
+	 * counts for the grid.
+	 */
+	Practice      = 9,
 };
 
 /**
- * Hotlap and qualifying run on the same garage rules: every human starts in
- * the garage, the car is frozen until it goes out, and the setup is tuned there.
+ * Hotlap, qualifying and a weekend's practice run on the same garage rules:
+ * every human starts in the garage, the car is frozen until it goes out, and
+ * the setup is tuned there.
  */
 inline bool ApexIsGarageMode(EApexGameMode Mode)
 {
-	return Mode == EApexGameMode::Hotlap || Mode == EApexGameMode::Qualification;
+	return Mode == EApexGameMode::Hotlap || Mode == EApexGameMode::Qualification || Mode == EApexGameMode::Practice;
+}
+
+/** The timed garage sessions, which go out from the pit exit on an outlap: qualifying and a weekend's practice. */
+inline bool ApexIsOutlapMode(EApexGameMode Mode)
+{
+	return Mode == EApexGameMode::Qualification || Mode == EApexGameMode::Practice;
 }
 
 
@@ -2428,6 +2581,8 @@ enum class EApexServerMessageType : uint8
 	UdpHandshakeAck,
 	TelemetryCompact,
 	DriverFeedback,
+	/** A race weekend's phase, round and knockouts. */
+	WeekendState,
 	/** Full named-encoding Telemetry — replays only; the wire uses the compact form. */
 	IgnoredVariant,
 	/** A seat is held for us in a session we lost the connection to (SessionId, TrackId, SessionKind). */
@@ -2497,6 +2652,12 @@ struct APEXSIMNET_API FApexServerMessage
 	int32 AiSkill = ApexAiSkill::Mixed;
 	/** SessionJoined::RaceSeconds, a timed race's length (ApexRaceLength); 0 for a race over laps. */
 	int32 RaceSeconds = 0;
+	/** SessionJoined::QualifyingSeconds, a timed qualifying's length (ApexQualifyingLength); 0 for open qualifying. */
+	int32 QualifyingSeconds = 0;
+	/** SessionJoined::Weekend; no rounds when the session is no race weekend. */
+	FApexWeekendFormat Weekend;
+	/** WeekendState. */
+	FApexWeekendState WeekendState;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

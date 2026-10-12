@@ -189,6 +189,35 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// Timed qualifying's clock rides in the race clock's field, final lap 0.
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("TelemetryCompact with a qualifying clock decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactQualifyingClock, Message, Error)))
+		{
+			const FApexTelemetryFrame& Frame = Message.Telemetry;
+			TestEqual(TEXT("qualifying clock mode"), Frame.GameMode, EApexGameMode::Qualification);
+			TestTrue(TEXT("qualifying has a clock"), Frame.HasRaceClock());
+			TestEqual(TEXT("qualifying time left"), Frame.RaceLeftMs, 754321);
+			TestEqual(TEXT("qualifying has no final lap"), Frame.RaceFinalLap, 0);
+		}
+	}
+
+	// A weekend's practice: mode 9, the same clock.
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("TelemetryCompact in practice decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactPracticeClock, Message, Error)))
+		{
+			const FApexTelemetryFrame& Frame = Message.Telemetry;
+			TestEqual(TEXT("practice mode"), Frame.GameMode, EApexGameMode::Practice);
+			TestTrue(TEXT("practice is a garage mode"), ApexIsGarageMode(Frame.GameMode));
+			TestEqual(TEXT("practice time left"), Frame.RaceLeftMs, 754321);
+		}
+	}
+
 	// The sky now: a seventh field, with the race clock nil before it.
 	{
 		FApexServerMessage Message;

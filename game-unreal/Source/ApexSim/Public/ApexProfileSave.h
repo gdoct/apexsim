@@ -56,6 +56,23 @@ public:
 	UPROPERTY()
 	int32 RaceMinutes = 60;
 
+	/** Qualifying this player creates runs this long, minutes; 0 is open qualifying. */
+	UPROPERTY()
+	int32 QualifyingMinutes = 15;
+
+	/** A race this player creates is a race weekend: practice, knockout qualifying, the race. */
+	UPROPERTY()
+	bool bWeekend = false;
+
+	UPROPERTY()
+	int32 WeekendPracticeMinutes = 20;
+
+	UPROPERTY()
+	int32 WeekendRounds = 3;
+
+	UPROPERTY()
+	int32 WeekendRoundMinutes = 10;
+
 	UPROPERTY()
 	EApexGameMode StartingMode = EApexGameMode::FreePractice;
 

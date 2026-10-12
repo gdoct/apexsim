@@ -139,6 +139,8 @@ impl TestClient {
             ai_skill: None,
             race_seconds: None,
             grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
         };
 
         self.send_tcp_message(&msg).await?;

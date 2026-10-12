@@ -39,6 +39,15 @@ struct FApexBootSettings
 	 */
 	int32 Screens = 1;
 
+	/**
+	 * `display.graphics_api`: auto | dx12 | dx11. Not used once the game is
+	 * up: the renderer is chosen before any of this runs, so ApexSimBoot reads
+	 * the key from the file itself and turns it into -dx12 / -dx11 on the
+	 * command line. Here so the game's rewrite keeps it and the launcher can
+	 * set it.
+	 */
+	FString GraphicsApi = TEXT("auto");
+
 	FString ServerHost = TEXT("127.0.0.1");
 
 	int32 ServerPort = 9000;

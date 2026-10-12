@@ -92,22 +92,25 @@ removed when its last driver or spectator leaves, and a finished one
 `session_timeout_seconds` after it finished), and nothing about it survives
 a restart but the lap records and the stored qualifying results
 (`records/qualifying.json`). Within one session, Qualification -> Race
-grids from the qualifying classification (see
-[sessions](server/sessions.md)).
+grids from the qualifying classification, and a race weekend runs timed
+practice, one to three knockout qualifying rounds and the race as phases of
+one session, advanced by the host (see
+[sessions](server/sessions.md#race-weekend)).
 
 | Gap | Effort | Impact |
 |---|---|---|
-| No event: nothing groups practice, qualifying and the race on one track and car class, with a name, an entry list and a schedule (start time per session, in real days). | Med | High |
+| No event across days: a race weekend is one session with phases, live only while someone is in it. Nothing groups sessions on one track and car class with a name, an entry list and a schedule (start time per session, in real days). | Med | High |
 | Sessions are not persisted: an event, its entry list, each session's state and its results must survive server restarts and empty hours (stored beside `records/`, deterministic ids). | Med | High |
 | Entries are not stable drivers: a player is a per-connection id and records key on the name, so the same driver must be recognised across days (an account or token identity, with car and livery fixed for the event). | Med | High |
-| Qualifying has no length or format: it runs until the host moves on, so the classification is whatever stands then. No session timer and no results screen after it (the garage scoreboard is live only; the result shows afterwards as a chip in the next race's Starting order row). | Low | Med |
+| Qualifying is a timed session or a weekend's knockout rounds (Q1/Q2/Q3). No one-lap shoot-out, no single-car runs with a fixed order, no 107% rule, and no tyre or lap allowance. | Low | Med |
 | In qualifying a car is put at the pit exit (`qualifying_outlap_pose`, a teleport): it does not drive down the pit lane, so there is no limiter or queue at the exit light, and the HUD shows race-style standings by track position. | Med | Low |
 | The start order matches drivers by name (`grid_order::resolve`): a stored result's humans are found again only under the same name, and a no-show closes the grid up rather than leaving the slot empty. | Low | Low |
 | No schedule: a session opening, counting in and starting at its time whether or not everyone is there, with a late joiner going out from the pit lane. Needs a lobby view of upcoming sessions and a countdown. | Med | Med |
-| No per-session rules within an event: practice length, qualifying format, race length, conditions per day (a different forecast each day), assists and damage. | Low | Med |
+| No per-phase rules beyond lengths: a weekend sets practice and round lengths, but conditions per day (a different forecast each day), assists and damage are the session's for every phase. | Low | Med |
+| A weekend takes no new drivers between phases: the session is `Finished` while it waits for the host, and the lobby refuses joins into a finished session, so a driver can join only in its lobby or running practice. | Low | Low |
 | AI entries in an event need fixed identities and levels across the days, a qualifying run of their own, and their results kept like a human's. | Med | Med |
 | Setups and tyre sets do not carry between sessions (no parc fermé, no tyre allocation per weekend). | Med | Low |
-| No event results: the practice times, the qualifying sheet and the race classification as one weekend record, shown in the client and exported. | Med | Med |
+| No weekend results record: practice times, the combined qualifying sheet (stored) and the race classification are not kept together as one record, shown in the client or exported. | Med | Med |
 | Replays and the timing board are per session; an event's replays and sheets should be browsable together. | Low | Low |
 
 ## Driver feedback

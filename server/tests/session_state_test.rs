@@ -115,6 +115,8 @@ async fn host_session(
         ai_skill: None,
         race_seconds: None,
         grid_order: Vec::new(),
+        qualifying_seconds: None,
+        weekend: None,
     })
     .await?;
     let joined = host.wait_joined().await?;

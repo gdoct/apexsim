@@ -105,7 +105,9 @@ the whole lap's `RoadState` and, in a hotlap watch, `TrackCorners`. A
 session then sends a `RoadState` slice every 2 s
 ([conditions.md](conditions.md#the-road-on-screen)). Session rules travel inside
 `CreateSession` and are echoed in `SessionJoined`
-([sessions.md](sessions.md)).
+([sessions.md](sessions.md)). A race weekend's members also get
+`WeekendState` after `SessionJoined` and whenever it changes
+([sessions.md](sessions.md#race-weekend)).
 
 ## Encodings
 
@@ -126,7 +128,8 @@ session then sends a `RoadState` slice every 2 s
 - A new named field is `#[serde(default)]` and, where it has a default
   meaning, `skip_serializing_if` it is the default, so a message that does
   not use it keeps its old bytes (`CreateSession.race_seconds`,
-  `grid_order`, `damage`, `ai_skill`...). An older peer ignores unknown keys.
+  `grid_order`, `damage`, `ai_skill`, `qualifying_seconds`, `weekend`...).
+  An older peer ignores unknown keys.
 - A new positional field goes at the end of its struct. The client's decoder
   skips trailing elements it does not know (`ApexSim.Net.MsgPack.SkipValue`),
   so an older client survives a newer server. `CompactTelemetry` has a
@@ -167,7 +170,7 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 | Telemetry, feedback, input | `telemetry_compact_wire_format`, `driver_feedback_wire_format`, `player_input_drs_wire_format`, `player_input_headlights_wire_format`, `udp_seal_wire_format` (udp_seal.rs: the seal around every inbound datagram) |
 | Lap timing, line, corners | `lap_timing_wire_format`, `racing_line_wire_format`, `track_corners_wire_format` |
 | Road state | `road_state_wire_format` |
-| Session rules | `assists_wire_format`, `session_damage_wire_format`, `race_time_wire_format`, `session_ai_skill_wire_format`, `conditions_air_wire_format`, `sky_wire_format`, `grid_wire_format` |
+| Session rules | `assists_wire_format`, `session_damage_wire_format`, `race_time_wire_format`, `qualifying_time_wire_format` (`CreateSession.qualifying_seconds`, `SessionJoined.QualifyingSeconds`, a qualifying `race_clock`), `weekend_wire_format` (`CreateSession.weekend`, `SessionJoined.Weekend`, `WeekendState`, `AdvanceWeekend`, a `GameMode::Practice` frame with its clock), `session_ai_skill_wire_format`, `conditions_air_wire_format`, `sky_wire_format`, `grid_wire_format` |
 | Garage, pit, hotlap | `car_setup_wire_format`, `car_setup_sheet_wire_format`, `pit_service_wire_format`, `hotlap_wire_format`, `recover_wire_format` |
 | Reconnect | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`) |
 | Spectator | `showcase_wire_format` (network.rs), `spectator_wire_format` (spectator.rs) |

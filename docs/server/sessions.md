@@ -3,7 +3,8 @@
 A session is one track, one set of rules and the cars on it, ticked by the
 server as a `GameSession`. This doc covers session kinds, states and game
 modes, the rules a host sets on create, race start and finish (over laps or
-against a clock), starting order and qualifying, lap timing and records,
+against a clock), starting order and qualifying, the race weekend (practice,
+knockout qualifying and the race in one session), lap timing and records,
 recovering a stuck car, the hotlap mode with its ghost, and the watched
 hotlap. The client pieces that
 belong to these rules are described briefly beside them.
@@ -12,12 +13,15 @@ belong to these rules are described briefly beside them.
 
 - `server/src/data.rs`: `SessionKind`, `SessionState`, `GameMode`,
   `RaceSession`, `DamageLevel`, `AllowedAssists`, `DriverAids`,
-  `clamp_race_seconds`
+  `clamp_race_seconds`, `clamp_qualifying_seconds`
 - `server/src/game_session.rs`: per-mode ticks (`tick_*`), `set_game_mode`,
   `start_countdown_mode`, `line_up_on_grid`, `assign_finish_positions`,
   `update_race_clock`, `apply_grid_order`, `note_qualifying_lap`,
-  `hotlap_relocate`, the watched hotlap (`start_hotlap_watch`,
-  `update_hotlap_watch`, `hotlap_watch_driver`)
+  `update_chequered_flag`, `hotlap_relocate`, the race weekend
+  (`advance_weekend`, `settle_weekend`, `weekend_state`), the watched hotlap
+  (`start_hotlap_watch`, `update_hotlap_watch`, `hotlap_watch_driver`)
+- `server/src/weekend.rs`: `WeekendFormat`, `knockout_sizes`,
+  `WeekendProgress`
 - `server/src/server.rs`: `ServerState::create_session` (resolves the
   conditions, clamps the rules, seeds the AI, starts a watched hotlap)
 - `server/src/game_loop/dispatch.rs`: message handlers;
@@ -65,7 +69,8 @@ Two separate fields on `RaceSession`:
   decides what is sent: rosters, telemetry and driver feedback go out only in
   `Countdown`, `Racing` and `Finished`; a replay records while `Racing`. A
   `Finished` session is removed after `[server] session_timeout_seconds`
-  unless started again.
+  unless started again, except a race weekend waiting for its host between
+  phases while a human is connected (`awaits_weekend_advance`).
 - `game_mode: GameMode` decides what `GameSession::tick` simulates:
 
 | Mode | Value | Tick | On entry (`set_game_mode`) |
@@ -76,9 +81,10 @@ Two separate fields on `RaceSession`:
 | `DemoLap` | 3 | an AI drives with full physics | humans removed from the cars and made spectators; an AI spawned if none |
 | `FreePractice` | 4 | full physics, collisions, lap timing | state `Racing`, refuelled for practice |
 | `Replay` | 5 | nothing (placeholder, never built) | |
-| `Qualification` | 6 | `tick_hotlap` (see "Qualifying") | as Hotlap |
+| `Qualification` | 6 | `tick_hotlap` (see "Qualifying"); a timed session's flag and finish (`update_chequered_flag`) | as Hotlap; the qualifying clock starts (a timed session's classification starts empty) |
 | `Race` | 7 | `tick_racing`: physics, race clock, classification, finish | state `Racing`, `race_start_tick`, pole's lap starts on green, auto boxes take first |
 | `Hotlap` | 8 | like practice, but cars `in_garage` are neither ticked nor collided | state `Racing`, every human put in the garage |
+| `Practice` | 9 | `tick_hotlap` with qualifying's outlap, clock and flag (`update_chequered_flag`); laps timed, nothing classified (see "Race weekend") | as Qualification, the classification untouched |
 
 **Changing mode is the host's** (anyone else gets `Error 403`, and both
 broadcast `GameModeChanged`): `SetGameMode { mode }` switches at once, with
@@ -86,8 +92,10 @@ no transition rules; `StartCountdown { countdown_seconds, next_mode }` runs
 `start_countdown_mode` (capped at `MAX_COUNTDOWN_SECONDS`, 60), which hands
 over to `next_mode` at zero. A countdown into `Race` first calls
 `line_up_on_grid`: every car back on its slot in start order, clean (laps,
-times, finish position, damage), with race fuel and grid tyres, keeping its
-aids and damage rule. The create screen offers Free practice, Sandbox,
+times, finish position, damage), out of its garage, with race fuel and grid
+tyres, keeping its aids and damage rule. A countdown is taken from any
+state, a finished session included: a finished qualifying session goes on
+to its race this way. The create screen offers Free practice, Sandbox,
 Hotlap, Qualifying and Race; the client never counts into a hotlap
 (`UApexNetSubsystem::StartCountdown` sends `SetGameMode` for it).
 `StartSession` (host only) is a countdown into a race: from `Lobby` it runs
@@ -101,7 +109,8 @@ sandbox, hotlap or qualifying session takes one (a hotlap or qualifying
 driver arrives in the garage, as the drivers there when it began did), a
 race takes them until the green light (a car joining in the countdown gets
 the next free grid slot), and a race under way or a finished session
-refuses with `Error 409`. `JoinAsSpectator` is never refused for the
+refuses with `Error 409`. A race weekend takes drivers in its lobby and
+its running practice, and refuses them once Q1 has begun. `JoinAsSpectator` is never refused for the
 session's state. The lobby's listing (`SessionSummary.State`) follows the
 session: the tick hands each change of state to the lobby
 (`GameSession::take_state_change`, `LobbyManager::set_session_state`).
@@ -142,7 +151,13 @@ mixed field). `ai_driver::field_skills` spreads the field over
 one; what skill changes is in [AI](ai.md). Client: the "AI level" stepper
 (`CreateAiSkill`, `ApexAiSkill::Label`), `GetSessionAiSkill`.
 
-**Length**: `lap_limit`, or `race_seconds` (below).
+**Length**: `lap_limit`, or `race_seconds` (below). A qualifying session's
+own length is `qualifying_seconds` (`Option<u32>`, clamped by
+`clamp_qualifying_seconds` to `MIN_QUALIFYING_SECONDS` 60 ..
+`MAX_QUALIFYING_SECONDS` 2 h; absent or zero is open-ended qualifying), see
+"Timed qualifying" below. A race weekend (`weekend`, see "Race weekend")
+carries its own practice and round lengths, and `qualifying_seconds` is
+ignored beside it.
 
 ## Race start and finish
 
@@ -197,7 +212,8 @@ the race. Fuel and the AI's stop plan count laps from the clock (see
 [AI](ai.md)).
 
 Wire: `CompactTelemetry.race_clock` (`RaceClock { left_ms, final_lap }`,
-only in a timed race counting in or running). Client: the create screen's
+only in a timed race counting in or running, or in timed qualifying with
+`final_lap` 0). Client: the create screen's
 Laps / Time switch along `ApexRaceLength::LadderMinutes` (5 min to 24 h;
 `bCreateTimedRace`, `CreateRaceMinutes`, `EffectiveRaceSeconds()`),
 `FApexTelemetryFrame::RaceLeftMs` / `RaceFinalLap`, `GetSessionRaceSeconds`,
@@ -244,8 +260,36 @@ puts the car at the pit exit (`qualifying_outlap_pose`: the lane's
 `exit_station_m` when in the first half of the lap, plus
 `QUALIFYING_OUT_PAST_LINE_M` 30 m; a teleport, not a drive down the lane),
 always on cold tyres, with `CarState::outlap` set so lap 1 starts only at the
-next crossing of the line. There is no session length or qualifying results
-screen.
+next crossing of the line.
+
+**Timed qualifying.** Without `qualifying_seconds` qualifying is open-ended:
+no clock, no flag, never `Finished`; the host moves on when they like. With
+it:
+
+- The clock starts on the tick the session enters `Qualification`
+  (`set_game_mode` records `timed_start_tick`; ticks, never wall time).
+  Entering `Qualification` again restarts the clock and, in timed
+  qualifying, empties the classification (open-ended qualifying keeps it). Telemetry carries it in `race_clock` as `RaceClock {
+  left_ms, final_lap: 0 }` while in `Qualification`; `left_ms` counts down
+  to 0 and stays there, and 0 means the chequered flag is out
+  (`chequered_flag_out`). The race's own clock (`race_seconds_left`,
+  `laps_left`) never sees it.
+- After the flag every car on track (not `in_garage`) takes it at its next
+  crossing of the line, the end of an outlap included: the lap it completes
+  there is timed and classified as any other (`note_lap_event` queues it
+  before the car moves, and `tick.rs` classifies it after the tick), then
+  the car goes to its garage (`hotlap_relocate` to `Garage`, AI cars too).
+  A car in its garage when the flag comes out is done. Going out again
+  (`hotlap_relocate` to `Track`) is refused with "Qualifying is over".
+- The flag sets a deadline at max(`QUALIFYING_FLAG_GRACE_MIN_SECONDS` 60,
+  `QUALIFYING_FLAG_GRACE_LAPS` 2 x the slowest lap of the cars still out:
+  its last lap, else its best, else its planned lap, else 120 s). The
+  session goes `Finished` when every car is in its garage or undrivable, or
+  at the deadline, when the cars still out are garaged. The replay stops
+  and the lobby hears `Finished` as for a race.
+- From there the host counts into the race in the same session
+  (`StartCountdown { next_mode: Race }`): `line_up_on_grid` takes the cars
+  out of their garages and grids them by the classification.
 
 **Client.** The create screen's Race tab has a Starting order row
 (`ApexCreateSession::`): chips for the seating order, a "Custom" order and
@@ -262,6 +306,147 @@ garage (`UApexHotlapWidget::SetQualifying`) drops the replay, ghost and tyre
 toggles and has TUNE | SCOREBOARD: the scoreboard (`ApexBoard::Build`) lists
 every car fastest first, and clicking one (`OnWatchCar`) points the spectator
 camera at it (`SetSpectating`, `FocusCar`).
+
+The create screen's Qualifying length row (`QualifyingLengthButtons`,
+`ApexQualifyingLength::ChoiceMinutes`: Open, 10, 15, 20, 30 or 60 min, kept
+as `CreateQualifyingMinutes` in the profile) sends `qualifying_seconds`
+(`EffectiveQualifyingSeconds`); `-ApexQualifyingMinutes=N` sets it for an
+auto race. In timed qualifying the garage caption counts the clock down and
+reads CHEQUERED FLAG at zero, when GO OUT is disabled
+(`UApexHotlapWidget::RefreshQualifyingClock`), and the HUD's `race.timed` /
+`race.time_left_s` carry it. On `Finished` the root widget opens
+`UApexSessionResultsWidget`, which lays out qualifying from
+`ApexBoard::Sheet`: grid order (no time at the back), gap to pole and to
+the car ahead, each best lap's sectors with the fastest of anyone's in
+purple, and valid/total laps; the side panel gives the driver's grid slot,
+best lap, sectors against pole (against P2 for pole) and ideal lap (best
+sectors added up). Its primary button is the host's Start the race
+(`StartCountdown(5, Race)`), "Waiting for the host" for the rest. The
+session recorder takes the mode from telemetry, not the create screen, so a
+guest's and a same-session race's results are laid out for what was driven.
+
+## Race weekend
+
+A session can be a race weekend: optional timed practice, one to three
+timed qualifying rounds run as a knockout, then the race, on one track with
+one field. The host moves from one phase to the next; nothing advances on
+its own.
+
+**Format.** `CreateSession.weekend` (`WeekendFormat { practice_seconds,
+qualifying_seconds: Vec<u32> }`, `weekend.rs`) is clamped by
+`WeekendFormat::clamp`: practice 0 is none, else 60 s .. 2 h; one to
+`MAX_ROUNDS` (3) rounds, extra ones dropped and none made one of
+`DEFAULT_ROUND_SECONDS` (900), each 60 s .. 2 h. The race's length stays
+`lap_limit` / `race_seconds`. The clamped format is kept as
+`RaceSession::weekend` and echoed in `SessionJoined.Weekend`;
+`qualifying_seconds` is dropped beside it.
+
+**Phases** (`WeekendProgress::phase`: 0 lobby, 1 practice, 2 qualifying, 3
+race). `AdvanceWeekend` (host only, else `Error 403`;
+`GameSession::advance_weekend`) moves:
+
+- lobby -> practice, or Q1 when there is none;
+- practice finished -> Q1;
+- Qk finished, k < rounds -> Q(k+1);
+- final round finished -> `start_countdown_mode(START_SESSION_COUNTDOWN_SECONDS,
+  Race)`, gridded by the weekend.
+
+It is refused with `Error 409` while a phase runs (not the lobby, not
+`Finished`), once the race has begun, and in a session that is not a
+weekend. The session hears `GameModeChanged` (`Practice`, `Qualification`,
+or `Countdown` into the race). A countdown into the race by any other route
+(`StartCountdown`, `StartSession`) also puts the weekend at its race.
+
+**Practice** is `GameMode::Practice`: run on `tick_hotlap` as qualifying is
+(humans in the garage, going out is the outlap from the pit exit on cold
+tyres, fuelled for `HOTLAP_FUEL_LAPS`), with qualifying's clock and
+chequered flag on `practice_seconds` (`race_clock` with `final_lap` 0, the
+flag at 0, each car on track garaged at its next crossing with that lap
+counted, no going out after the flag ("Practice is over"), `Finished` when
+every car is in or undrivable, or at the deadline). Laps are timed and
+sectors sent and records (`lap_records.json`) are kept, but
+`note_qualifying_lap` ignores them: nothing classifies for the grid and
+nothing goes to `qualifying.json`. The timed modes share one clock
+(`timed_start_tick`, `timed_session_seconds`, `chequered_flag_out`).
+
+**Each round starts fresh**: `set_game_mode(Qualification)` empties the
+classification and starts the round's clock; every human is in the garage,
+the AI still taking part are sent out onto their outlaps (`send_ai_out`, in
+seating order; at practice too), and the knocked-out cars, AI included, are
+garaged and stay there: `hotlap_relocate` to `Track` is refused with
+"Eliminated in Q1" / "Eliminated in Q2".
+
+**Knockout sizes**: `weekend::knockout_sizes(field, rounds)`, the number of
+cars in each round, taken when Q1 begins from the cars seated then. With
+two rounds or more the final has `ceil(field / 2)`; the cars between are
+knocked out evenly over the earlier rounds, any remainder in the earliest;
+one round is the whole field; never below 1. 20 cars over 3 rounds: 20, 15,
+10; 22: 22, 16, 11; 4: 4, 3, 2; 5 over 2: 5, 3.
+
+**End of a round** (`settle_weekend`, run by the game loop after the tick's
+laps are classified, and by an advance): the round's cars are ranked by
+this round's best legal lap, cars with no time behind every time in seating
+(grid slot) order. Before the final, the ones beyond the next round's size
+are knocked out (`WeekendProgress::eliminated`, kept in grid order), taking
+grid slots `next + 1 ..` in that order with that round's lap (0 for none).
+The final's order is the front of the grid (`final_order`).
+
+**The race grid** (`WeekendProgress::grid`): the final round's order, then
+the knocked-out cars by grid slot. `apply_grid_order` takes it before a
+requested `grid_order` and before the plain qualifying order; a driver who
+has left closes the grid up, as elsewhere.
+
+**Stored qualifying.** Each improved lap submits the weekend's combined
+classification (`classified_laps`): the round running (or, once ranked, the
+final) by its laps, then every knocked-out car by grid slot with the lap of
+the round that placed it; drivers with no time are left out. One entry per
+session in `qualifying.json`, as for a plain session.
+
+**Between phases** the session is `Finished`. It is not removed by
+`[server] session_timeout_seconds` while a human is connected; with every
+human away the reconnect grace ends it as any session. Each phase is its
+own replay: the replay stops on `Finished`, and a phase begun by an advance
+(already `Racing` when the tick sees it, `take_phase_started`) starts a new
+one.
+
+**Joining**: drivers are taken in the lobby and in running practice; once
+Q1 has begun `JoinSession` is refused (`Error 409`). Spectators are always
+taken.
+
+**`WeekendState`** (`WeekendStateData`, PascalCase map keys like its
+neighbours): `Phase`, `Round` (1-based, 0 outside qualifying), `Rounds`,
+`Finished` (the phase has ended: the session is `Finished`; from practice or
+a round the host may advance, in the race it means the race is over),
+`Advancing` (cars going through from this round, 0 in the final and outside
+qualifying) and `Eliminated` (`KnockedOutData { CarIndex, Round,
+GridPosition, LapTimeMs }`, every car knocked out so far in grid order, a car
+that left the session dropped). Reliable, to every member of the session,
+drivers and spectators: right after `SessionJoined` (create, join, rejoin,
+spectate) and from the tick whenever a field changes
+(`take_weekend_state`), after the roster whose car indices it uses.
+
+**Client.** The create screen's Weekend mode tile (`FModeOption::bWeekend`;
+`CreateStartingMode` stays `Race`, `bCreateWeekend` on the flow) shows the
+Race length row and a Race weekend section: practice (None, 10, 20, 30, 60
+min), the knockout's rounds (one to three) and each round's length (5 to 20
+min), kept in the profile and sent as `WeekendToSend()`; a weekend sends no
+`grid_order` and hides the Starting order row. `UApexNetSubsystem` keeps the
+format (`GetSessionWeekend`, `IsWeekendSession`) and the state
+(`GetWeekendState`, `OnWeekendStateChanged`); `AdvanceWeekend()` sends the
+message. The lobby's start, the main menu's one-click start and an auto race
+send `AdvanceWeekend` instead of a countdown, and the lobby hides its mode
+and countdown pickers and lists the weekend. Practice uses the qualifying
+garage (`ApexIsOutlapMode`; `UApexHotlapWidget::SetPractice` names it
+PRACTICE, a round reads QUALIFYING 2 OF 3); a car knocked out has GO OUT
+replaced by OUT IN Q1 · P12 ON THE GRID. After each phase
+`UApexSessionResultsWidget` shows its timesheet (practice: FASTEST, no grid;
+a round: the cars still in it, then a red KNOCKED OUT IN Qn cut taken from
+the server's list once the round is over, then the cars out in earlier rounds
+at their grid slots; the final: the grid) and the host's primary button names
+the next session (Start Q1, Start Q2, Start the race; "Waiting for the host"
+for the rest, enabled only when `Finished`). The HUD's `session.mode` is
+`timed_practice` in practice, which binds to the hotlap/qualifying layout.
+`-ApexWeekend=P,R,M` runs one from an auto race.
 
 ## Lap timing, track limits and records
 
@@ -468,7 +653,9 @@ starts one at launch.
 
 ```bash
 cd server
-cargo test --lib game_session                 # mode ticks, timed race, grid order, qualifying
+cargo test --lib game_session                 # mode ticks, timed race, grid order, qualifying, timed qualifying, weekend
+cargo test --lib weekend                      # knockout sizes, format clamp, round closing
+cargo test --test weekend_test                # a weekend from the lobby to the race over the wire
 cargo test --test race_flow_test              # incl. test_timed_race_flow_to_the_flag_monza
 cargo test --test session_conditions_test     # rules echoed and enforced end to end
 cargo test --test grid_order_test             # start order, stored results, over the wire
@@ -484,7 +671,8 @@ cargo test --release --test hotlap_test generate_ghost_fixture -- --ignored     
 
 Golden bytes ([protocol](protocol.md)): `cargo test <name> -- --nocapture`
 for `assists_wire_format`, `session_damage_wire_format`,
-`session_ai_skill_wire_format`, `race_time_wire_format`, `grid_wire_format`,
+`session_ai_skill_wire_format`, `race_time_wire_format`,
+`qualifying_time_wire_format`, `weekend_wire_format`, `grid_wire_format`,
 `lap_timing_wire_format`, `telemetry_compact_wire_format`,
 `hotlap_wire_format`, `recover_wire_format`, `track_corners_wire_format`,
 `rejoin_wire_format`.

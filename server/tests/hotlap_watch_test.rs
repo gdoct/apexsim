@@ -324,6 +324,8 @@ fn create_hotlap_watch(track: TrackConfigId) -> ClientMessage {
         ai_skill: None,
         race_seconds: None,
         grid_order: Vec::new(),
+        qualifying_seconds: None,
+        weekend: None,
     }
 }
 

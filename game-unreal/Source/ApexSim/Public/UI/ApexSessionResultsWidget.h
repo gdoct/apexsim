@@ -6,7 +6,9 @@
 
 #include "ApexSessionResultsWidget.generated.h"
 
+struct FApexCarResult;
 class UApexButtonWidget;
+class UHorizontalBox;
 class UTextBlock;
 class UVerticalBox;
 class UWidget;
@@ -20,6 +22,12 @@ class UWidget;
  * The screen also opens the moment the local driver takes the flag, while the
  * rest of the field is still racing. Until the session ends it is provisional:
  * the table follows the running order and fills in as the others finish.
+ *
+ * After qualifying it is the qualifying sheet (ApexBoard::Sheet): the grid in
+ * order, gap to pole and to the car ahead, each best lap's sectors with the
+ * fastest in purple, and the driver's own grid slot, sectors against pole and
+ * ideal lap. Its primary action is the host's: start the race, which grids
+ * from this classification.
  */
 UCLASS()
 class APEXSIM_API UApexSessionResultsWidget : public UApexScreenWidget
@@ -47,8 +55,29 @@ private:
 
 	void RefreshTable();
 	void RefreshSidePanel();
+	/** The table's column captions, which differ between a race and qualifying. */
+	void RefreshTableHeader(bool bQualifying);
+	void FillRaceRows(bool bLive);
+	void FillQualifyingRows();
+	/** The local driver's qualifying: grid slot, gap to pole, sectors, ideal lap. */
+	void FillQualifyingSummary(const FApexCarResult& Local);
+	/** The primary button: Drive again, or after qualifying the host's Start the race. */
+	void RefreshPrimaryAction();
+
+	/** The session recorded is laid out as a timesheet: qualifying, or a weekend's practice. */
+	bool IsTimesheet() const;
+	bool IsPractice() const;
+	/** The header's status: what was run, and whether it is final. */
+	FString SessionTitle(bool bLive) const;
+	/** The weekend's state while it is in qualifying, for the knockout's cut; null otherwise. */
+	const FApexWeekendState* KnockoutRound() const;
+	/** "Start Q2", "Start the race": the weekend's next session; empty when there is none to start. */
+	FString NextWeekendSession() const;
+	/** This client created the session (the protocol names the host, not their id). */
+	bool IsSessionHost() const;
 
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
+	UFUNCTION() void HandleWeekendStateChanged();
 	/** The Save replay button's state from the replay recorder. */
 	void RefreshSaveReplay();
 
@@ -59,6 +88,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeaderTrackText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeaderFormatText;
 
+	UPROPERTY(Transient) TObjectPtr<UHorizontalBox> TableHeaderRow;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> TableBox;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> SummaryBox;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> LapChartBox;

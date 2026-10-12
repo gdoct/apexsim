@@ -2609,6 +2609,29 @@ pub enum GameMode {
     /// Cars in the garage are neither ticked nor collided with, so several
     /// drivers can hotlap side by side on one track.
     Hotlap = 8,
+    /// Timed practice, a race weekend's first phase: run like qualifying
+    /// (garages, an outlap from the pit exit on cold tyres, timed laps and
+    /// sectors, a clock and a chequered flag), but nothing classifies for
+    /// the grid or goes to the stored qualifying results.
+    Practice = 9,
+}
+
+impl GameMode {
+    /// Every human starts in a garage and goes out with `HotlapRelocate`:
+    /// hotlap, qualifying and timed practice (`GameSession::tick_hotlap`).
+    pub fn uses_garages(self) -> bool {
+        matches!(
+            self,
+            GameMode::Hotlap | GameMode::Qualification | GameMode::Practice
+        )
+    }
+
+    /// Going out is an outlap from the pit exit on cold tyres, and a length
+    /// set for the session puts a clock and a chequered flag on it:
+    /// qualifying and timed practice.
+    pub fn has_outlap(self) -> bool {
+        matches!(self, GameMode::Qualification | GameMode::Practice)
+    }
 }
 
 /// Where a hotlap driver asks to be put.
@@ -2634,6 +2657,21 @@ pub fn clamp_race_seconds(seconds: Option<u32>) -> Option<u32> {
     seconds
         .filter(|s| *s > 0)
         .map(|s| s.clamp(MIN_RACE_SECONDS, MAX_RACE_SECONDS))
+}
+
+/// The shortest timed qualifying session a host can set
+/// (`CreateSession.qualifying_seconds`).
+pub const MIN_QUALIFYING_SECONDS: u32 = 60;
+/// The longest: two hours.
+pub const MAX_QUALIFYING_SECONDS: u32 = 2 * 3600;
+
+/// A timed qualifying session's length as a session keeps it: `None`
+/// (open-ended qualifying) for none or zero, otherwise held between
+/// [`MIN_QUALIFYING_SECONDS`] and [`MAX_QUALIFYING_SECONDS`].
+pub fn clamp_qualifying_seconds(seconds: Option<u32>) -> Option<u32> {
+    seconds
+        .filter(|s| *s > 0)
+        .map(|s| s.clamp(MIN_QUALIFYING_SECONDS, MAX_QUALIFYING_SECONDS))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2680,6 +2718,17 @@ pub struct RaceSession {
     /// (`GameSession::race_clock`).
     #[serde(default)]
     pub race_seconds: Option<u32>,
+    /// A timed qualifying session's length, from entering
+    /// `GameMode::Qualification` (`clamp_qualifying_seconds`); `None` for
+    /// open-ended qualifying, which never finishes. When it runs out the
+    /// chequered flag is out (`GameSession::race_clock`).
+    #[serde(default)]
+    pub qualifying_seconds: Option<u32>,
+    /// A race weekend's format (`crate::weekend`), clamped; `None` for a
+    /// plain session. A weekend's rounds carry their own lengths, so
+    /// `qualifying_seconds` is `None` beside it.
+    #[serde(default)]
+    pub weekend: Option<crate::weekend::WeekendFormat>,
     pub current_tick: u32,
     pub countdown_ticks_remaining: Option<u16>,
     /// Game mode to transition to when the countdown reaches zero.
@@ -2718,6 +2767,8 @@ impl RaceSession {
             ai_count,
             lap_limit,
             race_seconds: None,
+            qualifying_seconds: None,
+            weekend: None,
             current_tick: 0,
             countdown_ticks_remaining: None,
             next_mode: None,

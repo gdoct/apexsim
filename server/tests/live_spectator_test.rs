@@ -102,6 +102,8 @@ async fn a_spectator_joining_mid_race_gets_the_roster_and_the_sectors() {
             ai_skill: None,
             race_seconds: None,
             grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
         })
         .await?;
         let joined = host.wait_joined().await?;

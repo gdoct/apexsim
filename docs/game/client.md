@@ -162,7 +162,7 @@ are in [input-and-ffb.md](input-and-ffb.md). Three traps live in the shell:
 
 The few settings a player may need before the game is usable live in a
 plain-text file instead of the save slot: `display` (`resolution`,
-`window_mode`, `vsync`, `frame_limit`, `screens`), `server` (`host`, `port`,
+`window_mode`, `vsync`, `frame_limit`, `screens`, `graphics_api`), `server` (`host`, `port`,
 `tls`, `tls_verify`, `tls_fingerprint`) and `launcher` (`show`). `UApexBootSettingsSubsystem` (`ApexBootSettings.h`)
 reads it at game-instance startup, creates it when absent (seeded from the
 desktop's display mode, or from the save slots on an existing install) and
@@ -211,6 +211,16 @@ rewrites it when those values change in game.
     `AuthSuccess` delivered over TLS.
   - `launcher.exe` carries the three keys through its own rewrite (it does
     not edit them).
+- `display.graphics_api: auto | dx12 | dx11` (default `auto`) picks the
+  renderer. The engine chooses it from the command line in `RHIInit`, before
+  any game module with UObjects loads, so `ApexSimBoot` (PostConfigInit)
+  reads the key with its own line scan (`ApexGraphicsApi`) and appends
+  `-dx12` / `-dx11`; an RHI switch already on the command line wins, and the
+  editor and commandlets ignore it. The game only carries it through
+  rewrites (`GraphicsApi`). `dx11` runs the SM5 shaders (no Nanite, no
+  virtual shadow maps): the fallback for a GPU or driver that renders
+  wrongly under DX12. The launcher sets it in Edit configuration > Graphics
+  API. The engine's `LogRHI: RHI D3D11 ... will be used` confirms it.
 - `launcher.show` belongs to `launcher.exe` (`launcher/main.cpp`): false
   makes the launcher start the game at once without a window;
   `launcher.exe --show` turns it back on. The game only carries it through
@@ -377,7 +387,11 @@ Note `-ExecCmds` separates commands with commas, so
 Creates a session and counts it in with no input (never starts the demo):
 `-ApexTrack=<stem>`, `-ApexCar=<name>` (else the lobby's first),
 `-ApexAiCount=N`, `-ApexLaps=N`, `-ApexCountdown=N`, `-ApexRaceMinutes=N`,
-`-ApexMode=<EApexGameMode>` (6 qualifying, 7 race, 8 hotlap), `-ApexNoStart`
+`-ApexMode=<EApexGameMode>` (6 qualifying, 7 race, 8 hotlap),
+`-ApexQualifyingMinutes=N` (0 open), `-ApexWeekend=P,R,M` (a race weekend:
+P minutes' practice, 0 for none, R knockout rounds of M minutes; the race is
+`-ApexLaps` / `-ApexRaceMinutes`, and the start is the weekend's first
+session), `-ApexNoStart`
 (stop in the lobby), `-ApexAiSkill=N`, `-ApexDamage=off|reduced|full`,
 `-ApexLockAssists=abs,tc,gearbox,steering,line`, sky
 `-ApexWeather=sunny|cloudy|overcast|lightrain|heavyrain`,

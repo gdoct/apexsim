@@ -208,6 +208,7 @@ fn mode_label(mode: GameMode) -> &'static str {
         GameMode::Qualification => "Qualifying",
         GameMode::Race => "Race",
         GameMode::Hotlap => "Hotlap",
+        GameMode::Practice => "Timed practice",
     }
 }
 
@@ -254,6 +255,8 @@ async fn sessions(ctx: &AdminContext, with_demo: bool) -> Resp {
                     "ai": gs.ai_profiles.len(),
                     "laps": gs.session.lap_limit,
                     "race_seconds": gs.session.race_seconds,
+                    "qualifying_seconds": gs.session.qualifying_seconds,
+                    "weekend": gs.session.weekend,
                     "elapsed_s": elapsed,
                     "demo": gs.session.session_kind.is_watch_only(),
                 }),
@@ -295,7 +298,7 @@ async fn session_detail(ctx: &AdminContext, id: SessionId) -> Resp {
     let lap_len = crate::laps::track_length_m(&gs.track_config).max(1.0);
     let in_timing_mode = matches!(
         s.game_mode,
-        GameMode::Qualification | GameMode::Hotlap | GameMode::FreePractice
+        GameMode::Qualification | GameMode::Hotlap | GameMode::FreePractice | GameMode::Practice
     );
 
     // The fastest legal split of each sector among all cars, for the purple.
@@ -446,6 +449,8 @@ async fn session_detail(ctx: &AdminContext, id: SessionId) -> Resp {
         "state": state_label(s.state),
         "laps": s.lap_limit,
         "race_seconds": s.race_seconds,
+        "qualifying_seconds": s.qualifying_seconds,
+        "weekend": s.weekend,
         "time_left_s": clock.map(|c| c.left_ms as f64 / 1000.0),
         "leader_lap": leader_lap,
         "elapsed_s": session_elapsed_s(gs),

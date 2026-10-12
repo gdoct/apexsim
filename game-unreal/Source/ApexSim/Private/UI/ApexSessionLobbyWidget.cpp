@@ -336,7 +336,24 @@ void UApexSessionLobbyWidget::RefreshHeader()
 		// settings say nothing about the host's); a lap count as before.
 		const FString Mode = UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode).ToUpper();
 		const int32 RaceSeconds = Net->GetSessionRaceSeconds();
-		FormatText->SetText(FText::FromString(RaceSeconds > 0
+		// A race weekend: its sessions, as the session was made.
+		const FApexWeekendFormat& Weekend = Net->GetSessionWeekend();
+		TArray<FString> Parts;
+		if (Weekend.IsWeekend())
+		{
+			Parts.Add(TEXT("RACE WEEKEND"));
+			if (Weekend.PracticeSeconds > 0)
+			{
+				Parts.Add(FString::Printf(TEXT("PRACTICE %s"), *ApexRaceLength::Describe(Weekend.PracticeSeconds).ToUpper()));
+			}
+			Parts.Add(Weekend.Rounds() > 1
+				? FString::Printf(TEXT("Q1-Q%d %s"), Weekend.Rounds(), *ApexRaceLength::Describe(Weekend.QualifyingSeconds[0]).ToUpper())
+				: FString::Printf(TEXT("QUALIFYING %s"), *ApexRaceLength::Describe(Weekend.QualifyingSeconds[0]).ToUpper()));
+			Parts.Add(RaceSeconds > 0 ? FString::Printf(TEXT("RACE %s"), *ApexRaceLength::Describe(RaceSeconds).ToUpper())
+				: FString::Printf(TEXT("RACE %d LAPS"), Flow->CreateLapLimit));
+		}
+		FormatText->SetText(FText::FromString(Parts.Num() > 0 ? FString::Join(Parts, TEXT(" · "))
+			: RaceSeconds > 0
 			? FString::Printf(TEXT("%s · %s"), *Mode, *ApexRaceLength::Describe(RaceSeconds).ToUpper())
 			: Flow->EffectiveLapLimit() > 0
 			? FString::Printf(TEXT("%s · %d LAPS"), *Mode, Flow->CreateLapLimit)
@@ -552,9 +569,16 @@ void UApexSessionLobbyWidget::RefreshSidePanel()
 		HostControlsBox->SetVisibility(bHost ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
+	// A race weekend runs its own order: no mode to pick, nothing to count in.
+	const bool bWeekend = Net->IsWeekendSession();
 	if (ModeButton)
 	{
+		ModeButton->SetVisibility(bWeekend ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 		ModeButton->SetBadge(UApexMenuFlowSubsystem::GetGameModeName(Flow->CreateStartingMode), ApexUI::Palette::TextSecondary);
+	}
+	if (CountdownButton)
+	{
+		CountdownButton->SetVisibility(bWeekend ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	}
 	if (CountdownButton)
 	{
@@ -707,6 +731,13 @@ void UApexSessionLobbyWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		// StartCountdown, not StartSession: StartSession sets a countdown but
 		// stores no mode to transition into, so the session freezes when it
 		// expires and can never reach racing.
+		// A race weekend runs its own order: start sends it to its first session.
+		if (Net->IsWeekendSession())
+		{
+			UE_LOG(LogApexSim, Log, TEXT("Lobby start: the weekend's first session"));
+			Net->AdvanceWeekend();
+			return;
+		}
 		UE_LOG(LogApexSim, Log, TEXT("Lobby start: %d s countdown into mode %d"),
 			CountdownSeconds, static_cast<int32>(Flow->CreateStartingMode));
 		Net->StartCountdown(CountdownSeconds, Flow->CreateStartingMode);
