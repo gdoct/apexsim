@@ -142,6 +142,7 @@ protected:
 	UFUNCTION() void HandleShadowsChanged(FString Item, ESelectInfo::Type SelectType);
 	UFUNCTION() void HandleAntiAliasingChanged(FString Item, ESelectInfo::Type SelectType);
 	UFUNCTION() void HandleTexturesChanged(FString Item, ESelectInfo::Type SelectType);
+	UFUNCTION() void HandleLightingChanged(FString Item, ESelectInfo::Type SelectType);
 
 private:
 	// --- Construction ---------------------------------------------------------
@@ -369,6 +370,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> ShadowsBox;
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> AntiAliasingBox;
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> TexturesBox;
+	UPROPERTY(Transient) TObjectPtr<UComboBoxString> LightingBox;
 
 	UPROPERTY(Transient) TObjectPtr<USlider> WheelForceSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> WheelForceFill;

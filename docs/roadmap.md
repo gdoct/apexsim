@@ -70,6 +70,7 @@ None open.
 | Wind dial labels | bug | The create screen's wind dial names its directions AHD / AL / L / BL / BHD...: terse, though the caption above it spells the pick out. |
 | HUD brake colours | feature | The HUD colours brakes by temperature alone; the client does not know carbon from steel. |
 | Triple screens | feature | No five-wide row (`MaxSplitscreenPlayers` would need 5), no second monitor for telemetry, no shared exposure across the three views. |
+| Integrated GPUs | task | The LOW preset (Lumen, virtual shadow maps and distance-field shadows off) and the integrated-GPU first-run default are seen only on an RTX 3080 at LOW. No integrated GPU (Intel Iris Xe / Arc, AMD Radeon 680M / 780M) has run the game yet, so the frame rate there and whether `GRHIDeviceIsIntegrated` picks LOW are unknown. Until one has, the requirements say a discrete GPU is recommended. |
 | Mesh distance fields for runtime tracks | task | Runtime-built track meshes have no mesh distance fields, so software Lumen and DF shadows see the road and terrain less well than cooked levels; worth an A/B against an `-ImportLevels` level. |
 | Server dashboard | feature | Not built: a schedule view, start / stop / restart, a broadcast message, content upload and toggles, ping per player, fastest lap and laps in History, kicking an AI car, live config. |
 | Launcher importer offline | task | The launcher's AC import fetches its Python packages from PyPI on first use, so an offline machine cannot import; the launcher's import button has not been clicked by hand. |

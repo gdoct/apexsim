@@ -122,6 +122,9 @@ public:
 	void SetTextureQuality(int32 Bucket);
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetLightingQuality(int32 Bucket);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetMotionBlur(float Amount01);
 
 	/** Modes the display actually supports, widest first. Cached after the first call. */
@@ -441,6 +444,15 @@ private:
 
 	/** Marks the preset Custom when a quality row no longer matches it. */
 	void ReconcilePreset();
+
+	/**
+	 * Sets every quality row to Preset's bucket (Custom leaves them alone).
+	 * Does not apply or broadcast.
+	 */
+	void SetPresetRows(EApexGraphicsPreset Preset);
+
+	/** Low on an integrated GPU, the shipped default elsewhere. */
+	static EApexGraphicsPreset MachineDefaultPreset();
 
 	UApexBootSettingsSubsystem* GetBoot() const;
 

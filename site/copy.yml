@@ -463,6 +463,13 @@ cta:
     ./scripts/initialize_content.ps1
     <i># build, start a local server and play (Windows)</i>
     ./scripts/play_editor.ps1 -Build
+  requirements:
+    title: System requirements
+    items:
+      - Windows 10 or 11, 64-bit (x64)
+      - A DirectX&nbsp;12 GPU, discrete recommended
+      - 16&nbsp;GB of RAM, 4&nbsp;GB of disk
+      - A wheel, a gamepad or a keyboard
 
 footer:
   logo: logo.png

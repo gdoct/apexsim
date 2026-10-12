@@ -28,6 +28,8 @@ public class ApexSim : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"RenderCore",
+			// Whether the GPU is integrated, which picks the first-run preset.
+			"RHI",
 			// UApexUiSoundWave derives from USoundWave, whose vtable reaches
 			// IAudioProxyDataFactory; that symbol is exported from here.
 			"AudioExtensions",

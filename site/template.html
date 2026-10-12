@@ -228,6 +228,11 @@
       <a class="btn" href="{{ site.repo }}/blob/main/README.md">Read the README</a>
     </div>
     <pre>{{ cta.commands }}</pre>
+{%- if cta.requirements %}
+    <div class="reqs"><b>{{ cta.requirements.title }}</b><ul>
+{%- for r in cta.requirements['items'] %}<li>{{ r }}</li>{% endfor -%}
+    </ul></div>
+{%- endif %}
   </div>
 </section>
 

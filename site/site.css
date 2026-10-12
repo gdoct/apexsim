@@ -294,6 +294,9 @@ dialog.lightbox.single .prev,dialog.lightbox.single .next{display:none}
 .cta .ctas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
 .cta pre{display:inline-block;text-align:left;margin-top:34px;font:500 13px/1.7 var(--mono);background:rgba(0,0,0,.55);border:1px solid var(--line2);padding:16px 20px;color:#c9ced5;max-width:100%;overflow:auto}
 .cta pre i{font-style:normal;color:var(--dim)}
+.cta .reqs{margin-top:34px;font:500 13px/1.7 var(--mono);color:#c9ced5}
+.cta .reqs b{display:block;margin-bottom:8px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.cta .reqs ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:6px 26px}
 footer{border-top:1px solid var(--line);padding:40px 0 48px;color:var(--dim);font:500 12.5px/1.7 var(--mono)}
 footer .wrap{display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap}
 footer img{height:56px;width:auto;margin-bottom:10px}

@@ -258,6 +258,21 @@ public:
 	UPROPERTY()
 	int32 TextureQuality = 3;
 
+	/**
+	 * Global illumination and reflections. 0 turns Lumen off altogether (and,
+	 * with shadows at 0, virtual shadow maps and distance fields): the path for
+	 * an integrated GPU.
+	 */
+	UPROPERTY()
+	int32 LightingQuality = 3;
+
+	/**
+	 * View distance, post-processing, effects, foliage and shading. No row of
+	 * its own: the preset sets it, and Custom keeps the last preset's value.
+	 */
+	UPROPERTY()
+	int32 DetailQuality = 3;
+
 	/** 0..1, driving r.MotionBlurQuality and the post-process amount. */
 	UPROPERTY()
 	float MotionBlur = 0.3f;

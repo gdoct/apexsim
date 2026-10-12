@@ -225,6 +225,30 @@ and `Session`: an in-memory handshake against an OpenSSL server with a fresh
 self-signed certificate, pinned / wrongly pinned / CA-verified / unverified,
 and a plaintext frame answering the hello).
 
+## Graphics quality (`UApexSettingsSubsystem::ApplyGraphics`)
+
+Settings > Graphics > Preset (LOW, MEDIUM, HIGH, ULTRA, CUSTOM) puts every
+quality row in one engine scalability bucket, 0..3: Shadows, Anti-aliasing,
+Textures, Lighting (`sg.GlobalIlluminationQuality` and
+`sg.ReflectionQuality`), and a detail value with no row of its own
+(`DetailQuality`: view distance, post-processing, effects, foliage,
+shading). Changing a row by hand makes the preset CUSTOM, which keeps the
+detail value of the last preset. A fresh slot is HIGH, but with Textures,
+Lighting and detail at 3, the engine's own default for those groups.
+
+LOW is the path for integrated graphics. Lighting 0 turns Lumen off (no
+Lumen GI, no Lumen reflections, no distance-field AO). Shadows 0 turns off
+distance-field shadows and swaps virtual shadow maps for cascaded shadow maps
+(`r.Shadow.Virtual.Enable` at game-setting priority over the project's 1).
+MEDIUM keeps cheap Lumen GI and turns Lumen reflections off. On a first run,
+and on Reset to defaults, a GPU the RHI reports as integrated
+(`GRHIDeviceIsIntegrated`) starts on LOW.
+
+Nothing in the project renders on the CPU. D3D12's WARP adapter (Microsoft's
+software rasterizer) can run the engine, but far too slowly to drive. The
+release targets Windows 10/11 x64 with a DirectX 12 GPU; Windows on Arm is
+not supported ([roadmap.md](../roadmap.md)).
+
 ## Triple monitors (`UApexMultiViewSubsystem`, `ApexMultiView.h`, `ApexSideView.h`)
 
 Settings > Graphics > Screens: SINGLE or TRIPLE (`display.screens: 1 | 3`,

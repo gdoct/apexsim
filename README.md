@@ -42,6 +42,19 @@ Download the latest zip from the
 edits the network and graphics settings. To host for others, run
 `Server\apexsim-server.exe` ([docs/server/operations.md](docs/server/operations.md)).
 
+### System requirements
+
+- Windows 10 or 11, 64-bit (x64). Windows on Arm (Snapdragon X) is not
+  supported.
+- A DirectX 12 GPU. A discrete graphics card is recommended. Integrated
+  graphics may run the game on the Low preset, which the game picks on its own
+  for an integrated GPU, but this has not been tested.
+- 16 GB of RAM.
+- 4 GB of free disk space (the game is about 1.6 GB unpacked).
+- A wheel, a gamepad or a keyboard.
+
+There is no CPU (software) rendering: the game draws through the GPU.
+
 ## Building from source
 
 You need Rust, Python 3 (numpy, Pillow, PyYAML) and Unreal Engine 5.8 on

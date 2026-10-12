@@ -932,6 +932,11 @@ UWidget* UApexSettingsWidget::BuildGraphicsPage()
 	AntiAliasingBox->OnSelectionChanged.AddDynamic(this, &UApexSettingsWidget::HandleAntiAliasingChanged);
 	AddV(Right, MakeRow(TEXT("Anti-aliasing"), FString(), MakeSized(*WidgetTree, AntiAliasingBox, DropdownWidth, -1.0f)),
 		FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	LightingBox = MakeDropdown(*WidgetTree, QualityNames, 3);
+	LightingBox->OnSelectionChanged.AddDynamic(this, &UApexSettingsWidget::HandleLightingChanged);
+	AddV(Right, MakeRow(TEXT("Lighting"), TEXT("LOW turns off global illumination, for integrated graphics."),
+		MakeSized(*WidgetTree, LightingBox, DropdownWidth, -1.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 	// Field of view lives on the camera page with the seat it belongs to.
 
 	AddH(Grid, Left, FMargin(0.0f, 0.0f, 14.0f, 0.0f), VAlign_Top, 1.0f);
@@ -2068,6 +2073,10 @@ void UApexSettingsWidget::RefreshFromSettings()
 	{
 		TexturesBox->SetSelectedIndex(FMath::Clamp(Values->TextureQuality, 0, QualityNames.Num() - 1));
 	}
+	if (LightingBox)
+	{
+		LightingBox->SetSelectedIndex(FMath::Clamp(Values->LightingQuality, 0, QualityNames.Num() - 1));
+	}
 
 	if (GamepadStateText)
 	{
@@ -2710,6 +2719,17 @@ void UApexSettingsWidget::HandleTexturesChanged(FString Item, ESelectInfo::Type 
 	if (UApexSettingsSubsystem* Settings = GetSettings())
 	{
 		Settings->SetTextureQuality(TexturesBox->GetSelectedIndex());
+	}
+	RefreshFromSettings();
+}
+
+void UApexSettingsWidget::HandleLightingChanged(FString Item, ESelectInfo::Type SelectType)
+{
+	if (bRefreshing || !LightingBox) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
+	if (UApexSettingsSubsystem* Settings = GetSettings())
+	{
+		Settings->SetLightingQuality(LightingBox->GetSelectedIndex());
 	}
 	RefreshFromSettings();
 }

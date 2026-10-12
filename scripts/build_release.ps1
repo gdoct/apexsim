@@ -824,6 +824,14 @@ WHAT IS IN HERE
                        Run Server\apexsim-server.exe on its own to host;
                        Server\server.md has its options.
 
+SYSTEM REQUIREMENTS
+
+    Windows 10 or 11, 64-bit (x64); Windows on Arm is not supported.
+    A DirectX 12 GPU: a discrete graphics card is recommended. Integrated
+    graphics may run on the Low preset (Settings > Graphics), which the game
+    picks on its own for one, but this has not been tested.
+    16 GB of RAM. A wheel, a gamepad or a keyboard.
+
 SETTINGS
 
     The first run writes Game\settings.yml next to ApexSim.exe, holding the

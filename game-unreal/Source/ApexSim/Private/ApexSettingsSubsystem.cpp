@@ -15,6 +15,7 @@
 #include "Input/ApexInputConfig.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "RHIGlobals.h"
 #include "Race/ApexRaceDirector.h"
 
 namespace
@@ -101,6 +102,12 @@ void UApexSettingsSubsystem::Load()
 	{
 		Settings = Cast<UApexSettingsSave>(
 			UGameplayStatics::CreateSaveGameObject(UApexSettingsSave::StaticClass()));
+		// A first run: High is too much for a GPU that shares the CPU's memory.
+		if (Settings && MachineDefaultPreset() != Settings->Preset)
+		{
+			Settings->Preset = MachineDefaultPreset();
+			SetPresetRows(Settings->Preset);
+		}
 	}
 
 	UApexBootSettingsSubsystem* Boot = GetBoot();
@@ -316,19 +323,34 @@ void UApexSettingsSubsystem::SetGraphicsPreset(EApexGraphicsPreset Preset)
 	}
 
 	Settings->Preset = Preset;
-
-	const int32 Bucket = PresetBucket(Preset);
-	if (Bucket >= 0)
-	{
-		// One change, not four: the rows are moving because the preset moved.
-		bApplyingPreset = true;
-		Settings->ShadowQuality = Bucket;
-		Settings->AntiAliasingQuality = Bucket;
-		Settings->TextureQuality = Bucket;
-		bApplyingPreset = false;
-	}
+	SetPresetRows(Preset);
 
 	Changed(EApexSettingsGroup::Graphics);
+}
+
+void UApexSettingsSubsystem::SetPresetRows(EApexGraphicsPreset Preset)
+{
+	const int32 Bucket = PresetBucket(Preset);
+	if (!Settings || Bucket < 0)
+	{
+		return;
+	}
+
+	// One change, not five: the rows are moving because the preset moved.
+	bApplyingPreset = true;
+	Settings->ShadowQuality = Bucket;
+	Settings->AntiAliasingQuality = Bucket;
+	Settings->TextureQuality = Bucket;
+	Settings->LightingQuality = Bucket;
+	Settings->DetailQuality = Bucket;
+	bApplyingPreset = false;
+}
+
+EApexGraphicsPreset UApexSettingsSubsystem::MachineDefaultPreset()
+{
+	// Set by the RHI from the adapter (UMA on D3D12), before any game module's
+	// subsystems exist.
+	return GRHIDeviceIsIntegrated ? EApexGraphicsPreset::Low : GetDefault<UApexSettingsSave>()->Preset;
 }
 
 void UApexSettingsSubsystem::SetDisplayMode(int32 WindowMode)
@@ -383,6 +405,14 @@ void UApexSettingsSubsystem::SetTextureQuality(int32 Bucket)
 	Changed(EApexSettingsGroup::Graphics);
 }
 
+void UApexSettingsSubsystem::SetLightingQuality(int32 Bucket)
+{
+	if (!Settings || Settings->LightingQuality == Bucket) { return; }
+	Settings->LightingQuality = Bucket;
+	ReconcilePreset();
+	Changed(EApexSettingsGroup::Graphics);
+}
+
 void UApexSettingsSubsystem::SetMotionBlur(float Amount01)
 {
 	const float Clamped = FMath::Clamp(Amount01, 0.0f, 1.0f);
@@ -402,7 +432,8 @@ void UApexSettingsSubsystem::ReconcilePreset()
 	if (Bucket >= 0
 		&& (Settings->ShadowQuality != Bucket
 			|| Settings->AntiAliasingQuality != Bucket
-			|| Settings->TextureQuality != Bucket))
+			|| Settings->TextureQuality != Bucket
+			|| Settings->LightingQuality != Bucket))
 	{
 		Settings->Preset = EApexGraphicsPreset::Custom;
 	}
@@ -447,10 +478,26 @@ void UApexSettingsSubsystem::ApplyGraphics()
 	User->SetShadowQuality(Settings->ShadowQuality);
 	User->SetAntiAliasingQuality(Settings->AntiAliasingQuality);
 	User->SetTextureQuality(Settings->TextureQuality);
+	// Lighting 0 is the integrated-GPU path: the engine's GI and reflection
+	// buckets 0 turn Lumen off (1 keeps cheap Lumen GI, no Lumen reflections).
+	User->SetGlobalIlluminationQuality(Settings->LightingQuality);
+	User->SetReflectionQuality(Settings->LightingQuality);
+	User->SetViewDistanceQuality(Settings->DetailQuality);
+	User->SetPostProcessingQuality(Settings->DetailQuality);
+	User->SetVisualEffectQuality(Settings->DetailQuality);
+	User->SetFoliageQuality(Settings->DetailQuality);
+	User->SetShadingQuality(Settings->DetailQuality);
 
 	// bCheckForCommandLineOverrides off: a -ResX on the command line would
 	// otherwise silently win over the resolution the player just picked.
 	User->ApplySettings(/*bCheckForCommandLineOverrides*/ false);
+
+	// Shadow bucket 0 still renders virtual shadow maps; Low swaps them for
+	// cascaded shadow maps, which an integrated GPU can afford.
+	if (IConsoleVariable* Virtual = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Enable")))
+	{
+		Virtual->Set(Settings->ShadowQuality > 0 ? 1 : 0, ECVF_SetByGameSetting);
+	}
 
 	// Motion blur has no GameUserSettings row; it is a scalability cvar plus the
 	// post-process amount, and the design exposes it as a continuous slider
@@ -1262,6 +1309,13 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->ShadowQuality = Defaults->ShadowQuality;
 		Settings->AntiAliasingQuality = Defaults->AntiAliasingQuality;
 		Settings->TextureQuality = Defaults->TextureQuality;
+		Settings->LightingQuality = Defaults->LightingQuality;
+		Settings->DetailQuality = Defaults->DetailQuality;
+		if (MachineDefaultPreset() != Defaults->Preset)
+		{
+			Settings->Preset = MachineDefaultPreset();
+			SetPresetRows(Settings->Preset);
+		}
 		Settings->MotionBlur = Defaults->MotionBlur;
 		Settings->TripleScreenWidthCm = Defaults->TripleScreenWidthCm;
 		Settings->TripleBezelCm = Defaults->TripleBezelCm;
