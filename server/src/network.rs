@@ -809,6 +809,10 @@ pub struct SessionSummary {
     /// Weather and time of day, for the session browser.
     #[serde(default)]
     pub conditions: SessionConditions,
+    /// How much damage the cars take here, for the session browser. Full
+    /// (the default) is left off the wire.
+    #[serde(default, skip_serializing_if = "DamageLevel::is_full")]
+    pub damage: DamageLevel,
     /// The race distance in laps, so a spectator's HUD can count down to it.
     /// Appended; 0 from an older server.
     #[serde(default)]
@@ -2439,6 +2443,7 @@ mod tests {
                 max_players: 8,
                 state: SessionState::Lobby,
                 conditions: SessionConditions::DEFAULT,
+                damage: DamageLevel::Full,
                 lap_limit: 5,
                 race_seconds: None,
             }],
@@ -3211,6 +3216,38 @@ mod tests {
         assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION);
         assert_eq!(aids_bytes, GOLDEN_C_SET_DRIVER_AIDS);
         assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_ASSISTS);
+    }
+
+    /// A listed session names its damage rule, and Full stays off the wire.
+    #[test]
+    fn test_session_summary_names_a_damage_rule() {
+        let summary = |damage| SessionSummary {
+            id: Uuid::nil(),
+            track_name: String::new(),
+            track_file: String::new(),
+            track_id: Uuid::nil(),
+            host_name: String::new(),
+            session_kind: SessionKind::Multiplayer,
+            player_count: 1,
+            max_players: 8,
+            state: SessionState::Lobby,
+            conditions: SessionConditions::DEFAULT,
+            damage,
+            lap_limit: 3,
+            race_seconds: None,
+        };
+        let reduced = rmp_serde::to_vec_named(&summary(DamageLevel::Reduced)).unwrap();
+        let full = rmp_serde::to_vec_named(&summary(DamageLevel::Full)).unwrap();
+        let has = |bytes: &[u8]| {
+            bytes
+                .windows(7)
+                .any(|w| w == [0xa6, b'D', b'a', b'm', b'a', b'g', b'e'])
+        };
+        assert!(has(&reduced) && !has(&full));
+        let back: SessionSummary = rmp_serde::from_slice(&reduced).unwrap();
+        assert_eq!(back.damage, DamageLevel::Reduced);
+        let back: SessionSummary = rmp_serde::from_slice(&full).unwrap();
+        assert_eq!(back.damage, DamageLevel::Full);
     }
 
     /// The session's damage rule: a create that picks reduced damage and

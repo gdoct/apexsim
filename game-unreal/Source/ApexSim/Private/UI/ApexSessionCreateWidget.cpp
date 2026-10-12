@@ -166,10 +166,12 @@ namespace
 	constexpr int32 WindPresetCount = UE_ARRAY_COUNT(WindPresetsKph);
 
 	/** The dial's eight points, from ahead round to the left (the track
-	 * frame turns counter-clockwise), and what each is called on its chip. */
+	 * frame turns counter-clockwise), and what each is called on its chip:
+	 * the points of a compass seen from the start line, F for ahead, B for
+	 * behind (the caption above the dial spells the pick out in words). */
 	constexpr int32 WindFromCount = 8;
 	const TCHAR* WindFromChips[WindFromCount] = {
-		TEXT("AHD"), TEXT("AL"), TEXT("L"), TEXT("BL"), TEXT("BHD"), TEXT("BR"), TEXT("R"), TEXT("AR") };
+		TEXT("AHEAD"), TEXT("A-LEFT"), TEXT("LEFT"), TEXT("B-LEFT"), TEXT("BEHIND"), TEXT("B-RIGHT"), TEXT("RIGHT"), TEXT("A-RIGHT") };
 
 	/** What the air temperature feels like, under a fixed figure. */
 	const TCHAR* DescribeAir(int32 Celsius)
@@ -1420,8 +1422,9 @@ UWidget* UApexSessionCreateWidget::BuildConditionsTab()
 
 		// The dial: where the wind comes from, round the start straight
 		// (ahead at the top), with a vane pointing into it.
-		constexpr float Dial = 184.0f;
-		constexpr float Chip = 34.0f;
+		constexpr float Dial = 232.0f;
+		constexpr float ChipW = 56.0f;
+		constexpr float ChipH = 28.0f;
 		UOverlay* Face = WidgetTree->ConstructWidget<UOverlay>();
 		AddFill(Face, ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(),
 			ApexUI::MakeBrush(PanelWell, ApexUI::Palette::Border, 1.0f, Dial * 0.5f)));
@@ -1450,16 +1453,16 @@ UWidget* UApexSessionCreateWidget::BuildConditionsTab()
 			Spec.Label = WindFromChips[Index];
 			Spec.Variant = EApexButtonVariant::Ghost;
 			Spec.bCentreLabel = true;
-			Spec.LabelSize = 11.0f;
-			Spec.Height = Chip;
+			Spec.LabelSize = 10.0f;
+			Spec.Height = ChipH;
 			UApexButtonWidget* Button = MakeButton(Spec);
 			// From the left is counter-clockwise from ahead, as in the track's
 			// frame: the left of the dial.
 			const float Angle = FMath::DegreesToRadians(Index * 45.0f);
 			UCanvasPanelSlot* ChipSlot = Canvas->AddChildToCanvas(Button);
-			ChipSlot->SetAnchors(FAnchors(0.5f - FMath::Sin(Angle) * 0.39f, 0.5f - FMath::Cos(Angle) * 0.39f));
+			ChipSlot->SetAnchors(FAnchors(0.5f - FMath::Sin(Angle) * 0.36f, 0.5f - FMath::Cos(Angle) * 0.36f));
 			ChipSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-			ChipSlot->SetSize(FVector2D(Chip, Chip));
+			ChipSlot->SetSize(FVector2D(ChipW, ChipH));
 			WindFromButtons.Add(Button);
 		}
 		AddFill(Face, Canvas);

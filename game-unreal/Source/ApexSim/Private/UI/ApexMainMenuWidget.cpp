@@ -61,6 +61,7 @@ namespace
 		const FName GoTracks(TEXT("GoTracks"));
 		const FName Rejoin(TEXT("Rejoin"));
 		const FName GoCreate(TEXT("GoCreate"));
+		const FName Weekend(TEXT("Weekend"));
 		const FName QuitBack(TEXT("QuitBack"));
 		const FName QuitExit(TEXT("QuitExit"));
 	}
@@ -426,8 +427,6 @@ UVerticalBox* UApexMainMenuWidget::BuildPage(EPage Page)
 {
 	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
 
-	// Rows that exist in the plan (docs/game/client.md) but have no game
-	// behind them yet: greyed, no focus, listed under "Not implemented yet".
 	auto Row = [&](const TCHAR* Label, FName Id)
 	{
 		FApexButtonSpec Spec;
@@ -435,14 +434,6 @@ UVerticalBox* UApexMainMenuWidget::BuildPage(EPage Page)
 		Spec.Label = Label;
 		Spec.ActionId = Id;
 		AddColumnButton(Column, Spec, true);
-	};
-	auto Unavailable = [&](const TCHAR* Label)
-	{
-		FApexButtonSpec Locked;
-		Locked.Variant = EApexButtonVariant::Locked;
-		Locked.Badge = TEXT("Not yet");
-		Locked.Label = Label;
-		AddColumnButton(Column, Locked, true);
 	};
 	auto Heading = [&](const TCHAR* Text)
 	{
@@ -489,7 +480,7 @@ UVerticalBox* UApexMainMenuWidget::BuildPage(EPage Page)
 	case EPage::Create:
 		Heading(TEXT("Drive / Create session"));
 		Row(TEXT("Quick"), Action::Quick);
-		Unavailable(TEXT("Race weekend"));
+		Row(TEXT("Race weekend"), Action::Weekend);
 		Row(TEXT("Custom"), Action::Create);
 		break;
 
@@ -1391,6 +1382,17 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	}
 	else if (Id == Action::Create)
 	{
+		ShowScreen(EApexScreen::SessionCreate);
+	}
+	else if (Id == Action::Weekend)
+	{
+		// The create screen opened on its Race weekend mode: practice,
+		// knockout qualifying, then the race.
+		if (UApexMenuFlowSubsystem* Flow = GetFlow())
+		{
+			Flow->CreateStartingMode = EApexGameMode::Race;
+			Flow->bCreateWeekend = true;
+		}
 		ShowScreen(EApexScreen::SessionCreate);
 	}
 	else if (Id == Action::Garage)

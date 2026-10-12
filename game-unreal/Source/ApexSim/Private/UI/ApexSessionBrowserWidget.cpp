@@ -223,6 +223,15 @@ void UApexSessionBrowserWidget::ApplyRow(int32 Index, const FApexSessionSummary&
 	}
 	Parts.Add(FString::Printf(TEXT("%s · %s"),
 		*FApexSessionConditions::WeatherLabel(Session.Conditions.Weather), *Session.Conditions.ClockText()));
+	// Damage is on by default: only a softer or absent rule is worth the words.
+	if (Session.Damage == EApexDamageLevel::Reduced)
+	{
+		Parts.Add(TEXT("reduced damage"));
+	}
+	else if (Session.Damage == EApexDamageLevel::Off)
+	{
+		Parts.Add(TEXT("no damage"));
+	}
 
 	FLinearColor BadgeColour;
 	FApexButtonSpec Spec;

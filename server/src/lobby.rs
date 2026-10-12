@@ -33,6 +33,8 @@ pub struct LobbySessionInfo {
     pub track_config_id: TrackConfigId,
     pub session_kind: SessionKind,
     pub conditions: SessionConditions,
+    /// How much damage every car takes, for the session browser.
+    pub damage: DamageLevel,
     /// The race distance in laps, for the session browser and a spectator's HUD.
     pub lap_limit: u8,
     /// A timed race's length in seconds (`lap_limit` is then 0).
@@ -383,6 +385,7 @@ impl LobbyManager {
                 max_players: s.max_players,
                 state: s.state,
                 conditions: s.conditions,
+                damage: s.damage,
                 lap_limit: s.lap_limit,
                 race_seconds: s.race_seconds,
             })
@@ -493,6 +496,7 @@ mod tests {
             track_config_id: Uuid::new_v4(),
             session_kind: SessionKind::Multiplayer,
             conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
             lap_limit: 3,
             race_seconds: None,
             max_players: 8,
@@ -539,6 +543,7 @@ mod tests {
             track_config_id: Uuid::new_v4(),
             session_kind: SessionKind::Multiplayer,
             conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
             lap_limit: 3,
             race_seconds: None,
             max_players: 8,
@@ -588,6 +593,7 @@ mod tests {
             track_config_id: Uuid::new_v4(),
             session_kind: SessionKind::Multiplayer,
             conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
             lap_limit: 3,
             race_seconds: None,
             max_players: 8,

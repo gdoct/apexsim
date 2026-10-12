@@ -175,10 +175,8 @@ Shell screens. All of them go through one pad walk at the end.
 
 | Item | Type | Notes |
 |---|---|---|
-| Main menu rows not built | feature | Race weekend is greyed "Not yet"; the session browser has no recorded sessions or filters; no replay export; no car stats view (the row opens car select); no direct jump into a track guide (it opens the track picker). |
-| Damage rule in the session browser | feature | `SessionSummary` does not carry the session's damage rule, so the browser cannot show it. |
+| Main menu rows not built | feature | The session browser has no recorded sessions or filters; no replay export; no car stats view (the row opens car select); no direct jump into a track guide (it opens the track picker). |
 | HUD layouts | feature | No per-track layout bindings, no layout picker outside the HUD editor, and the layout manager's pad navigation has not been checked on a pad: it opens on L only and Reset all has no pad button. The HUD editor is not in the pad walk (its pad map is its own). The several layouts (manager, bindings, switching by place) have never been checked by hand. |
-| Wind dial labels | bug | The create screen's wind dial names its directions AHD / AL / L / BL / BHD...: terse, though the caption above it spells the pick out. |
 
 ### Controls and rigs
 

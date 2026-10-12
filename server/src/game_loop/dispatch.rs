@@ -483,6 +483,7 @@ async fn handle_create_session(
         lap_limit,
         race_seconds,
         track_config_id,
+        damage,
         max_players,
         current_player_count: 0, // join_session will increment this
         spectator_count: 0,

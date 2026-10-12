@@ -142,7 +142,9 @@ Full), the same for every car, AI included: stamped as
 `CarState::damage_level` when seated (`set_damage` for the AI seated at
 creation) and multiplying every accrual by `DamageLevel::scale` (0,
 `REDUCED_SHARE` 0.5, 1). Client: `UApexMenuFlowSubsystem::CreateDamage`,
-`GetSessionDamage`, HUD `damage.level`. The model is in
+`GetSessionDamage`, HUD `damage.level`. The lobby lists it
+(`SessionSummary.damage`, left off the wire when Full) and the session browser
+names a softer rule ("reduced damage", "no damage"). The model is in
 [vehicle physics](vehicle-physics.md).
 
 **AI level**: `ai_skill` (`Option<u8>`, clamped to 70-110; absent is the

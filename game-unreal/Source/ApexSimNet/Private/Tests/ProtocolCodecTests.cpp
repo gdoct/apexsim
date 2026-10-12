@@ -1049,6 +1049,25 @@ bool FApexProtocolLapTimingDecodeTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("no snow rows without snow"), Road.HasSnow());
 	}
 
+	// A session listed with the damage rule its host picked (a Full rule is left
+	// off the wire, and reads as Full).
+	{
+		const uint8 Listed[] = {
+			0x82, 0xA4, 't', 'y', 'p', 'e', 0xAA, 'L', 'o', 'b', 'b', 'y', 'S', 't', 'a', 't', 'e',
+			0xA4, 'd', 'a', 't', 'a', 0x81, 0xB1, 'A', 'v', 'a', 'i', 'l', 'a', 'b', 'l', 'e', 'S', 'e', 's', 's', 'i', 'o', 'n', 's',
+			0x92, 0x81, 0xA6, 'D', 'a', 'm', 'a', 'g', 'e', 0x01, 0x80 };
+		FApexServerMessage Listing;
+		if (TestTrue(TEXT("a lobby listing with a damage rule decodes"),
+				ApexProtocol::DecodeServerMessage(TArrayView<const uint8>(Listed, UE_ARRAY_COUNT(Listed)), Listing, Error)))
+		{
+			if (TestEqual(TEXT("two sessions"), Listing.LobbyState.AvailableSessions.Num(), 2))
+			{
+				TestEqual(TEXT("reduced damage"), (int32)Listing.LobbyState.AvailableSessions[0].Damage, (int32)EApexDamageLevel::Reduced);
+				TestEqual(TEXT("a session without the field is full damage"), (int32)Listing.LobbyState.AvailableSessions[1].Damage, (int32)EApexDamageLevel::Full);
+			}
+		}
+	}
+
 	FApexServerMessage SnowMessage;
 	if (TestTrue(TEXT("RoadState with snow decodes"),
 			ApexProtocol::DecodeServerMessage(ApexGolden::S_RoadStateSnow, SnowMessage, Error)))

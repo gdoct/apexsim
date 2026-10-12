@@ -1031,6 +1031,10 @@ struct APEXSIMNET_API FApexSessionSummary
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	FApexSessionConditions Conditions;
 
+	/** How much damage the cars take here; Full (the default) from an older server. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	EApexDamageLevel Damage = EApexDamageLevel::Full;
+
 	/** The race distance in laps; 0 from an older server, and in a timed race. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	int32 LapLimit = 0;

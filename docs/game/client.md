@@ -115,8 +115,8 @@ the remembered session) and **Change setup** (the create screen). The right
   select), Replays (the replays screen), Tracks (Watch hotlap,
   `StartHotlapWatch`; See track guide opens the track picker). The Garage and
   Tracks pages turn the hero into a list of cars or tracks with a detail panel.
-- **Drive**: Create session (Quick = the remembered session; Race weekend,
-  greyed "Not yet"; Custom = the create screen), Browse sessions (live
+- **Drive**: Create session (Quick = the remembered session; Race weekend
+  opens the create screen on its Race weekend mode; Custom = the create screen), Browse sessions (live
   sessions: watch or join), Connect to server.
 - **Watch a race**: the menu's backdrop race full screen (`WatchBackdrop`).
 - **Settings**: the settings overlay.
