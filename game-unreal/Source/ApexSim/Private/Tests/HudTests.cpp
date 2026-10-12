@@ -908,7 +908,8 @@ bool FApexHudDataSkyTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("no sky: not live"), HudValue(Data, TEXT("sky.live")).AsBool());
 	TestFalse(TEXT("no sky: not wet"), HudValue(Data, TEXT("sky.wet")).AsBool());
 	for (const TCHAR* Name : {TEXT("sky.clock"), TEXT("sky.weather"), TEXT("sky.air_c"), TEXT("sky.wind_kph"),
-			 TEXT("sky.wind_rel_deg"), TEXT("sky.rubber"), TEXT("sky.next_weather"), TEXT("sky.next_in_s")})
+			 TEXT("sky.wind_rel_deg"), TEXT("sky.rubber"), TEXT("sky.next_weather"), TEXT("sky.next_in_s"),
+			 TEXT("sky.snow"), TEXT("sky.snowfall")})
 	{
 		TestTrue(*FString::Printf(TEXT("no sky: %s null"), Name), HudValue(Data, Name).IsNone());
 	}
@@ -926,6 +927,8 @@ bool FApexHudDataSkyTest::RunTest(const FString& Parameters)
 	Sky.WindKph = 23;
 	Sky.WindToDeg = 270;	// toward -Y: the car's right, so from its left
 	Sky.LineRubberPct = 64;
+	Sky.LineSnowPct = 35;
+	Sky.SnowfallPct = 80;
 	Sky.TimeScale = 24;
 	Sky.NextWeather = static_cast<int32>(EApexWeather::HeavyRain);
 	Sky.NextInS = 1250;
@@ -940,6 +943,8 @@ bool FApexHudDataSkyTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("air"), HudValue(Data, TEXT("sky.air_c")).AsNumber(), -2.0);
 	TestEqual(TEXT("track"), HudValue(Data, TEXT("sky.track_c")).AsNumber(), 14.0);
 	TestEqual(TEXT("rubber"), HudValue(Data, TEXT("sky.rubber")).AsNumber(), 64.0);
+	TestEqual(TEXT("snow on the line"), HudValue(Data, TEXT("sky.snow")).AsNumber(), 35.0);
+	TestEqual(TEXT("snowfall"), HudValue(Data, TEXT("sky.snowfall")).AsNumber(), 80.0);
 	TestEqual(TEXT("time scale"), HudValue(Data, TEXT("sky.time_scale")).AsNumber(), 24.0);
 	TestEqual(TEXT("next weather"), HudValue(Data, TEXT("sky.next_weather")).AsString(), FString(TEXT("Heavy rain")));
 	TestEqual(TEXT("next in"), HudValue(Data, TEXT("sky.next_in_s")).AsNumber(), 1250.0);

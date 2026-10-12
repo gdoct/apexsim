@@ -48,7 +48,7 @@ and readers skip what they do not know (`a_newer_writers_extra_fields_are_skippe
 | 5 | `Block` | file only | a second of records, zlib |
 | 6 | `Index` | file only | first tick and offset of every block |
 | 7 | `Path` | TCP, with the header | the centerline every 10 m, for the TV cameras of a viewer with no lobby |
-| 8 | `Road` | TCP | tick, a slice of the road state (lap, cell length, bins, half span, first cell, rows, debris, geometry): the `RoadState` message's payload ([../server/conditions.md](../server/conditions.md#the-road-on-screen)) |
+| 8 | `Road` | TCP | tick, a slice of the road state (lap, cell length, bins, half span, first cell, rows, debris, geometry, snow rows): the `RoadState` message's payload ([../server/conditions.md](../server/conditions.md#the-road-on-screen)) |
 | 9 | `State` | TCP | tick, the sky as it is now (`SkyNow`), a timed race's clock, and per car the slow figures a row leaves out (`CarExtra`: tyre pressures, flat spots, brake temperatures and wear, tank, coolant, tread shoulders, hybrid, tow); four times a second |
 
 **Joining mid-file.** What a frame does not hold is caught up from the

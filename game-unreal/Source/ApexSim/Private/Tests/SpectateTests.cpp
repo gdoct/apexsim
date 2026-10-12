@@ -162,8 +162,9 @@ bool FApexSpectateHotlapChoicesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("an empty list"), StepIndex(0, 2, 1), 0);
 
 	TestEqual(TEXT("sunny, then cloudy"), (int32)StepWeather(EApexWeather::Sunny, 1), (int32)EApexWeather::Cloudy);
-	TestEqual(TEXT("heavy rain, then sunny again"), (int32)StepWeather(EApexWeather::HeavyRain, 1), (int32)EApexWeather::Sunny);
-	TestEqual(TEXT("before sunny is heavy rain"), (int32)StepWeather(EApexWeather::Sunny, -1), (int32)EApexWeather::HeavyRain);
+	TestEqual(TEXT("heavy rain, then snow"), (int32)StepWeather(EApexWeather::HeavyRain, 1), (int32)EApexWeather::Snow);
+	TestEqual(TEXT("snow, then sunny again"), (int32)StepWeather(EApexWeather::Snow, 1), (int32)EApexWeather::Sunny);
+	TestEqual(TEXT("before sunny is snow"), (int32)StepWeather(EApexWeather::Sunny, -1), (int32)EApexWeather::Snow);
 
 	TestEqual(TEXT("an hour on"), StepTimeOfDay(13 * 60, 1), 14 * 60);
 	TestEqual(TEXT("an hour earlier keeps the quarter hour"), StepTimeOfDay(13 * 60 + 15, -1), 12 * 60 + 15);

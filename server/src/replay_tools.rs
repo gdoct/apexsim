@@ -1048,8 +1048,9 @@ pub fn parse_weather(text: &str) -> Result<Weather, String> {
         "overcast" | "2" => Ok(Weather::Overcast),
         "lightrain" | "rain" | "3" => Ok(Weather::LightRain),
         "heavyrain" | "storm" | "4" => Ok(Weather::HeavyRain),
+        "snow" | "5" => Ok(Weather::Snow),
         _ => Err(format!(
-            "unknown weather '{text}' (sunny, cloudy, overcast, lightrain, heavyrain)"
+            "unknown weather '{text}' (sunny, cloudy, overcast, lightrain, heavyrain, snow)"
         )),
     }
 }
@@ -2085,7 +2086,7 @@ mod tests {
         assert!(parse_time_of_day("25:00").is_err());
         assert_eq!(parse_weather("light rain").unwrap(), Weather::LightRain);
         assert_eq!(parse_weather("HeavyRain").unwrap(), Weather::HeavyRain);
-        assert!(parse_weather("snow").is_err());
+        assert!(parse_weather("hail").is_err());
     }
 
     #[test]

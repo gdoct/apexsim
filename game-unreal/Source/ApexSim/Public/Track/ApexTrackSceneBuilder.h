@@ -78,6 +78,8 @@ namespace ApexTrackMaterials
 	 * exposes `TextureAmount`) rather than the noise-tile fallback.
 	 */
 	APEXSIM_API bool HasGroundTextures(const UMaterialInterface* Base);
+	/** Whether a base parent has the `SnowCover` parameter (one baked before snow has not). */
+	APEXSIM_API bool HasSnowCover(const UMaterialInterface* Base);
 }	 // namespace ApexTrackMaterials
 
 /** Parameter overrides for one material instance. */

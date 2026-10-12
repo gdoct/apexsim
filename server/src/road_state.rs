@@ -43,6 +43,19 @@
 //! [`RoadState::sample`] is what a tyre finds under it: the water and what
 //! the road grips against the road the session was baked for. The physics
 //! reads it per wheel and tells the AI through `CarState::surface_grip_share`.
+//! Snow is a fourth layer on the same bins. Under a snow sky ([`SNOWFALL_RATE`])
+//! the road's **cover**, 0..1, builds toward 1 and the grip falls with it
+//! ([`snow_grip`]: bare asphalt 1.0, covered 0.55); the baked road of a snow
+//! session is the covered one (`Weather::Snow`'s 0.55), so everything is
+//! against it. Every wheel pass packs its bin down toward [`SNOW_FLOOR`] (a
+//! driven line grips some 1.3 times the field's first lap, [`SNOW_CLEAR_PER_PASS`]);
+//! the fall builds it again, a track over 0 °C melts it ([`SNOW_MELT_PER_C`]),
+//! and the water on a bin the cars have cleared freezes when the track is
+//! under [`FREEZE_C`]: **ice**, 0..1, that costs [`ICE_GRIP_LOSS`] of the grip
+//! until the track thaws. The verge, which no wheel clears, keeps its own
+//! cover per cell. Rubber and marbles lay on a snowy bin as little as on a
+//! wet one.
+//!
 //! Everything is a function of the cars' positions and the session clock,
 //! visited in the participants' order, so the sim stays deterministic; the
 //! state steps every [`STEP_TICKS`] ticks.
@@ -69,6 +82,9 @@ pub const DEPTH_BYTE: f32 = 100.0;
 /// Bytes of one cell on the wire: its water depth, then [`BINS`] bins of
 /// rubber, marbles and dry.
 pub const ROW_BYTES: usize = 1 + 3 * BINS;
+/// Bytes of one cell's snow on the wire ([`RoadState::write_snow_rows`]): the
+/// verge, then a bin's cover and ice.
+pub const SNOW_ROW_BYTES: usize = 1 + 2 * BINS;
 /// Bytes of one cell's geometry on the wire ([`RoadState::write_geometry`]).
 pub const GEOMETRY_BYTES: usize = 16;
 /// Cells sent in one round-robin `RoadState` message while racing: the
@@ -126,6 +142,38 @@ pub const WET_RUBBER_GRIP: f32 = 0.06;
 pub const START_LINE_HALF_M: f32 = 2.0;
 const START_LINE_FADE_M: f32 = 1.5;
 
+/// The water a snow sky keeps on the road, in the weather's units: the slush
+/// under the flakes (`Weather::Snow.water()`), which the treaded tyre's
+/// territory is read off.
+pub const SNOW_WATER: f32 = 0.3;
+/// Share of the gap to full cover the snowfall closes per second: a bare
+/// road is white in ten minutes.
+pub const SNOWFALL_RATE: f32 = 0.004;
+/// Share of the cover above [`SNOW_FLOOR`] one wheel's pass packs down.
+pub const SNOW_CLEAR_PER_PASS: f32 = 0.08;
+/// The cover a driven line is packed to and no further: a film of snow and
+/// slush that grips (1 - 0.45 * 0.65) / 0.55 = 1.29 times a covered road.
+pub const SNOW_FLOOR: f32 = 0.65;
+/// What full cover costs the road's grip: bare 1.0, covered 1 - this.
+pub const SNOW_COVER_GRIP: f32 = 0.45;
+/// Share of the cover a degree of track temperature melts per second.
+pub const SNOW_MELT_PER_C: f32 = 0.0004;
+/// The track freezes the water on it below this, °C.
+pub const FREEZE_C: f32 = -1.0;
+/// Share of the gap to solid ice a freezing, watery bin closes per second.
+pub const ICE_FREEZE_RATE: f32 = 0.002;
+/// Ice melts this share per degree of track temperature per second.
+pub const ICE_THAW_PER_C: f32 = 0.0006;
+/// What solid ice costs the grip.
+pub const ICE_GRIP_LOSS: f32 = 0.5;
+/// A bin under more cover than this has no bare water to freeze.
+const ICE_COVER_MAX: f32 = 0.9;
+/// Falling snow covers the water before it freezes: no ice forms in a
+/// snowfall of this much or more.
+const ICE_SNOWFALL_MAX: f32 = 0.1;
+/// A bin with less water than this does not freeze.
+const ICE_WATER_MIN: f32 = 0.05;
+
 /// What one car's pass sheds as marbles into every bin of the cell.
 pub const MARBLES_PER_PASS: f32 = 0.0015;
 /// Share of the marbles in its bin one wheel's pass sweeps away.
@@ -178,6 +226,16 @@ pub fn line_dry_ceiling(rain: f32) -> f32 {
     (1.0 - rain.clamp(0.0, 1.0) * 0.8).max(0.0)
 }
 
+/// The grip snow and ice leave a road, against the road baked at
+/// `baked_cover`: the cover's own (bare 1.0, covered `1 - SNOW_COVER_GRIP`)
+/// against the baked one, less the ice. 1.0 for a road without either,
+/// whatever the sky.
+pub fn snow_grip(cover: f32, ice: f32, baked_cover: f32) -> f32 {
+    let cover_grip = 1.0 - SNOW_COVER_GRIP * cover.clamp(0.0, 1.0);
+    let baked = 1.0 - SNOW_COVER_GRIP * baked_cover.clamp(0.0, 1.0);
+    cover_grip / baked * (1.0 - ICE_GRIP_LOSS * ice.clamp(0.0, 1.0))
+}
+
 /// The grip the rubber gives, against the reference, on a road with
 /// `water` on it.
 pub fn rubber_grip(rubber: f32, water: f32) -> f32 {
@@ -222,6 +280,9 @@ pub struct Cell {
     pub depth: f32,
     /// How low the road lies here against its surroundings, 0..1.
     pub low: f32,
+    /// The snow on the verge, 0..1: no wheel clears it.
+    #[serde(default)]
+    pub verge_snow: f32,
     /// The raceline's lateral offset at the cell, m, positive right.
     pub line_lateral_m: f32,
     /// The centerline at the cell's middle, and the unit vector to its left.
@@ -244,15 +305,35 @@ pub struct RoadState {
     /// The rain falling now, in the weather's units: what the water feeds
     /// toward. Set by the session from its live conditions.
     pub rain: f32,
+    /// The snow falling now, 0 or 1 (`Weather::snowfall`, eased by the
+    /// session like `rain`).
+    #[serde(default)]
+    pub snowfall: f32,
+    /// The asphalt now, °C: it melts the snow and thaws the ice, and below
+    /// [`FREEZE_C`] it freezes the water on it. Set by the session.
+    #[serde(default)]
+    pub track_c: f32,
     /// The water the session's road grip was baked at
     /// (`TrackSurface::baked_water`): every grip figure is against it.
     pub baked_water: f32,
+    /// The cover the road's grip was baked at (`TrackSurface::baked_snow`).
+    #[serde(default)]
+    pub baked_snow: f32,
     pub lap_m: f32,
     pub cells: Vec<Cell>,
     /// Per bin, [`BINS`] to a cell, cell after cell.
     pub dry: Vec<f32>,
     pub rubber: Vec<f32>,
     pub marbles: Vec<f32>,
+    /// Snow cover and ice per bin, 0..1.
+    #[serde(default)]
+    pub snow: Vec<f32>,
+    #[serde(default)]
+    pub ice: Vec<f32>,
+    /// Whether any snow or ice lies on the road or is falling (as of the
+    /// last step): a road without leaves the snow grip out of the sample.
+    #[serde(skip)]
+    snowy: bool,
     /// Wheel passes per bin since the last step.
     #[serde(skip)]
     wheel_passes: Vec<u16>,
@@ -266,7 +347,9 @@ impl RoadState {
     /// `rubber` (0 green to 1 fully rubbered; [`RUBBER_REFERENCE`] is what
     /// the cars were calibrated on).
     pub fn new(track: &TrackConfig, rubber: f32) -> Self {
-        let rain = track.track_surface.water.max(0.0);
+        let baked_snow = track.track_surface.baked_snow.clamp(0.0, 1.0);
+        // The slush a snow sky keeps on the road is its own water, not rain.
+        let rain = (track.track_surface.water - SNOW_WATER * baked_snow).max(0.0);
         let lap_m = crate::laps::track_length_m(track).max(CELL_M);
         let n = (lap_m / CELL_M).ceil().max(1.0) as usize;
         let mut cells = vec![Cell::default(); n];
@@ -307,7 +390,16 @@ impl RoadState {
             }
             let mean = sum / count.max(1.0);
             cells[i].low = ((mean - zs[i]) / LOW_DEPTH_M).clamp(0.0, 1.0);
-            cells[i].depth = Self::standing_depth(rain, cells[i].low);
+            cells[i].depth = Self::standing_depth(rain + SNOW_WATER * baked_snow, cells[i].low);
+            cells[i].verge_snow = baked_snow;
+        }
+        let mut snow_bins = vec![0.0; n * BINS];
+        if baked_snow > 0.0 {
+            for (i, cell) in cells.iter().enumerate() {
+                for b in cell.first as usize..=cell.last as usize {
+                    snow_bins[i * BINS + b] = baked_snow;
+                }
+            }
         }
         let mut rubber_bins = vec![0.0; n * BINS];
         // The line carries the host's level; the road off it no more than
@@ -326,12 +418,18 @@ impl RoadState {
         }
         Self {
             rain,
+            snowfall: baked_snow,
+            track_c: track.track_surface.track_temperature_c,
             baked_water: track.track_surface.baked_water,
+            baked_snow,
             lap_m,
             cells,
             dry: vec![0.0; n * BINS],
             rubber: rubber_bins,
             marbles: vec![0.0; n * BINS],
+            snow: snow_bins,
+            ice: vec![0.0; n * BINS],
+            snowy: baked_snow > 0.0,
             wheel_passes: vec![0; n * BINS],
         }
     }
@@ -391,6 +489,33 @@ impl RoadState {
         }
     }
 
+    /// Pack the snow of the same `count` cells from `first_cell`
+    /// ([`SNOW_ROW_BYTES`] each): the verge's cover, then per bin the cover
+    /// and the ice, bytes over 0..1. A separate field of the `RoadState`
+    /// message, so a client from before snow reads the rows it knows.
+    pub fn write_snow_rows(&self, first_cell: usize, count: usize, out: &mut Vec<u8>) {
+        let n = self.cells.len();
+        if n == 0 {
+            return;
+        }
+        let q = |v: f32| (v * 255.0).round().clamp(0.0, 255.0) as u8;
+        for k in 0..count {
+            let i = (first_cell + k) % n;
+            out.push(q(self.cells[i].verge_snow));
+            let base = i * BINS;
+            for b in 0..BINS {
+                out.push(q(self.snow[base + b]));
+                out.push(q(self.ice[base + b]));
+            }
+        }
+    }
+
+    /// Whether any snow or ice lies anywhere on the road, or is falling:
+    /// a session without leaves the snow field off the wire.
+    pub fn has_snow(&self) -> bool {
+        self.baked_snow > 0.0 || self.snowy
+    }
+
     pub fn cell_index(&self, station_m: f32) -> usize {
         let n = self.cells.len().max(1);
         ((station_m.rem_euclid(self.lap_m.max(1.0)) / CELL_M) as usize).min(n - 1)
@@ -434,9 +559,18 @@ impl RoadState {
         let marbles = Self::bin_value(&self.marbles, base, across);
         let baked = self.baked_water;
         let wet = road_grip_for(water) / road_grip_for(baked).max(1e-3);
-        let grip = wet * rubber_grip(rubber, water) * (1.0 - MARBLE_GRIP * marbles.clamp(0.0, 1.0));
+        let mut grip =
+            wet * rubber_grip(rubber, water) * (1.0 - MARBLE_GRIP * marbles.clamp(0.0, 1.0));
+        // Snow and ice only move a road that has some or was baked with it.
+        let mut verge = 1.0;
+        if self.baked_snow > 0.0 || self.snowy {
+            let cover = Self::bin_value(&self.snow, base, across);
+            let ice = Self::bin_value(&self.ice, base, across);
+            grip *= snow_grip(cover, ice, self.baked_snow);
+            verge = snow_grip(cell.verge_snow, 0.0, self.baked_snow);
+        }
         // The grass holds the cell's water: nobody dries it.
-        let off_grip = road_grip_for(cell.depth) * off_track_grip_for(cell.depth)
+        let off_grip = road_grip_for(cell.depth) * off_track_grip_for(cell.depth) * verge
             / (road_grip_for(baked) * off_track_grip_for(baked)).max(1e-3);
         RoadSample {
             water,
@@ -505,6 +639,21 @@ impl RoadState {
         sum / self.cells.len() as f32
     }
 
+    /// The snow cover on the raceline across the lap, the cells' mean at
+    /// the line, 0..1: what a driver deciding on tyres and a pace looks at.
+    pub fn mean_line_snow(&self) -> f32 {
+        if self.cells.is_empty() {
+            return 0.0;
+        }
+        let sum: f32 = self
+            .cells
+            .iter()
+            .enumerate()
+            .map(|(i, c)| Self::bin_value(&self.snow, i * BINS, Self::across(c, c.line_lateral_m)))
+            .sum();
+        sum / self.cells.len() as f32
+    }
+
     /// Lateral offset of `(x, y)` from the centerline at the cell holding
     /// `station_m`, m, positive right.
     pub fn lateral_of(&self, station_m: f32, x: f32, y: f32) -> f32 {
@@ -541,10 +690,19 @@ impl RoadState {
     /// rubber and marbles, and the rain's rewetting and washing.
     pub fn step(&mut self, dt: f32, evaporation: f32) {
         let rain = self.rain.max(0.0);
-        let ceiling = line_dry_ceiling(rain);
+        let snowfall = self.snowfall.max(0.0);
+        // Water falls as rain, or as the slush under the snow.
+        let falling = rain + SNOW_WATER * snowfall;
+        let ceiling = line_dry_ceiling(falling);
         let drain = DRAIN_RATE * evaporation.max(0.0);
+        let freezing = self.track_c < FREEZE_C;
+        let warm = self.track_c.max(0.0);
+        let melt = SNOW_MELT_PER_C * warm * dt;
+        let thaw = ICE_THAW_PER_C * warm * dt;
+        let settle = (SNOWFALL_RATE * snowfall * dt).min(1.0);
+        let mut any_snow = false;
         for (i, cell) in self.cells.iter_mut().enumerate() {
-            let target = Self::standing_depth(rain, cell.low);
+            let target = Self::standing_depth(falling, cell.low);
             // The rain fills toward the standing depth; the drainage takes
             // what stands above it (everything, once the rain has gone),
             // slowly in a dip. In steady rain a cell holds its standing
@@ -555,6 +713,14 @@ impl RoadState {
             let excess = (cell.depth - target).max(0.0);
             cell.depth -= excess * (drain * (1.0 - 0.7 * cell.low) * dt).min(1.0);
             cell.depth = cell.depth.max(0.0);
+            if snowfall > 0.0 || cell.verge_snow > 0.0 {
+                // The verge: no wheel clears it.
+                cell.verge_snow += (1.0 - cell.verge_snow) * settle;
+                if melt > 0.0 {
+                    cell.verge_snow = (cell.verge_snow - melt).max(0.0);
+                }
+                any_snow |= cell.verge_snow > 0.0;
+            }
             let wet = (cell.depth / 0.5).clamp(0.0, 1.0);
             cell.passes = 0;
             let car_passes = std::mem::take(&mut cell.shed);
@@ -578,16 +744,44 @@ impl RoadState {
                 // The passes wipe the water; the rain wets it again.
                 let dry = &mut self.dry[k];
                 *dry += (1.0 - *dry) * (DRY_PER_PASS * passes).min(1.0);
-                *dry -= *dry * REWET_RATE * rain * dt;
+                *dry -= *dry * REWET_RATE * falling * dt;
                 *dry = dry.clamp(0.0, ceiling);
+                // Snow settles, the passes pack it down to a driven line,
+                // a warm track melts it; the water on a cleared bin freezes
+                // on a cold one.
+                let cover = &mut self.snow[k];
+                if snowfall > 0.0 {
+                    *cover += (1.0 - *cover) * settle;
+                }
+                if *cover > SNOW_FLOOR && passes > 0.0 {
+                    *cover -= (*cover - SNOW_FLOOR) * (SNOW_CLEAR_PER_PASS * passes).min(1.0);
+                }
+                if *cover > 0.0 && melt > 0.0 {
+                    *cover = (*cover - melt).max(0.0);
+                }
+                let cover = *cover;
+                let ice = &mut self.ice[k];
+                if freezing
+                    && cover < ICE_COVER_MAX
+                    && snowfall < ICE_SNOWFALL_MAX
+                    && cell.depth * (1.0 - *dry) > ICE_WATER_MIN
+                {
+                    *ice += (1.0 - *ice) * (ICE_FREEZE_RATE * dt).min(1.0);
+                } else if *ice > 0.0 && thaw > 0.0 {
+                    *ice = (*ice - thaw).max(0.0);
+                }
+                any_snow |= cover > 0.0 || *ice > 0.0;
+                // Snow on a bin keeps the rubber and the marbles off it as
+                // water does.
+                let gate = 1.0 - wet.max(cover);
                 // Dry passes lay rubber; rain washes it.
                 let rubber = &mut self.rubber[k];
-                *rubber += (1.0 - *rubber) * (RUBBER_PER_PASS * passes * (1.0 - wet)).min(1.0);
+                *rubber += (1.0 - *rubber) * (RUBBER_PER_PASS * passes * gate).min(1.0);
                 *rubber -= *rubber * (RUBBER_WASH * rain * dt).min(1.0);
                 *rubber = rubber.clamp(0.0, 1.0);
                 // Every car sheds over the cell; every wheel sweeps its bin.
                 let marbles = &mut self.marbles[k];
-                *marbles += MARBLES_PER_PASS * car_passes * (1.0 - wet);
+                *marbles += MARBLES_PER_PASS * car_passes * gate;
                 *marbles *= (1.0 - MARBLE_SWEEP).powf(passes);
                 *marbles -= *marbles * (MARBLE_WASH * rain * dt).min(1.0);
                 *marbles = marbles.clamp(0.0, 1.0);
@@ -596,6 +790,7 @@ impl RoadState {
                 self.wheel_passes[base + b] = 0;
             }
         }
+        self.snowy = snowfall > 0.0 || any_snow;
     }
 }
 
@@ -725,6 +920,142 @@ mod tests {
             }
             road.step(dt, 1.0);
         }
+    }
+
+    /// The dipped track baked under a snow sky: slush on the road, a
+    /// covered road's grip, the asphalt at `track_c`.
+    fn snowy_track(track_c: f32) -> TrackConfig {
+        let mut track = dipped_track(SNOW_WATER);
+        track.track_surface.baked_snow = 1.0;
+        track.track_surface.track_temperature_c = track_c;
+        track
+    }
+
+    #[test]
+    fn snow_costs_grip_by_its_cover_and_ice_by_its_own() {
+        assert_eq!(snow_grip(0.0, 0.0, 0.0), 1.0, "bare against bare");
+        assert_eq!(snow_grip(1.0, 0.0, 1.0), 1.0, "covered against covered");
+        assert!(
+            (snow_grip(1.0, 0.0, 0.0) - 0.55).abs() < 1e-6,
+            "snow on a dry bake"
+        );
+        assert!(
+            (snow_grip(SNOW_FLOOR, 0.0, 1.0) - 1.286).abs() < 1e-3,
+            "a driven line"
+        );
+        assert!((snow_grip(1.0, 1.0, 1.0) - 0.5).abs() < 1e-6, "ice");
+        assert!(snow_grip(0.0, 0.0, 1.0) > 1.8, "melted off a covered bake");
+    }
+
+    #[test]
+    fn a_snow_session_starts_covered_and_grips_as_baked() {
+        let road = RoadState::new(&snowy_track(-3.0), RUBBER_REFERENCE);
+        assert_eq!(road.snowfall, 1.0);
+        assert_eq!(road.rain, 0.0, "the slush is not rain");
+        assert!(road.has_snow());
+        for lateral in [-5.0, 2.0, 6.0] {
+            let s = road.sample(500.0, lateral);
+            assert!((s.grip - 1.0).abs() < 1e-4, "at {lateral}: {}", s.grip);
+            assert!((s.water - SNOW_WATER).abs() < 0.02, "slush: {}", s.water);
+        }
+        assert!((road.mean_line_snow() - 1.0).abs() < 1e-6);
+        // A dry road has none of it.
+        let dry = RoadState::new(&dipped_track(0.0), RUBBER_REFERENCE);
+        assert!(!dry.has_snow() && dry.mean_line_snow() == 0.0);
+    }
+
+    #[test]
+    fn the_cars_pack_a_line_that_grips_a_third_again_and_the_snow_keeps_falling_beside_it() {
+        let mut road = RoadState::new(&snowy_track(-3.0), RUBBER_REFERENCE);
+        // Twenty cars, twenty laps in half an hour of snow.
+        drive(&mut road, 2.0, 400, 1800.0);
+        let line = road.sample(500.0, 2.8).grip;
+        let beside = road.sample(500.0, -5.0).grip;
+        println!("snow after 400 passes: line {line:.3}, beside it {beside:.3}");
+        assert!(line > 1.15 && line < 1.4, "a driven line: {line}");
+        assert!((beside - 1.0).abs() < 0.03, "untouched snow: {beside}");
+        assert!(road.mean_line_snow() < 0.8 && road.mean_line_snow() > SNOW_FLOOR - 0.01);
+        // The line is a snowy bin: rubber lays on it far slower than on a
+        // dry one.
+        let mut dry = RoadState::new(&dipped_track(0.0), RUBBER_REFERENCE);
+        drive(&mut dry, 2.0, 400, 1800.0);
+        let k = road.cell_index(500.0) * BINS + bin_of(2.8).unwrap();
+        assert!(
+            road.rubber[k] < dry.rubber[k] - 0.05,
+            "{} against {}",
+            road.rubber[k],
+            dry.rubber[k]
+        );
+    }
+
+    #[test]
+    fn a_dry_road_under_new_snow_loses_grip_to_the_covered_figure() {
+        let mut road = RoadState::new(&dipped_track(0.0), RUBBER_REFERENCE);
+        road.track_c = -3.0;
+        assert_eq!(road.sample(500.0, 0.0).grip, 1.0);
+        road.snowfall = 1.0;
+        for _ in 0..900 {
+            road.step(1.0, 1.0);
+        }
+        let s = road.sample(500.0, 0.0);
+        assert!(road.has_snow());
+        assert!(s.grip < 0.6 && s.grip > 0.5, "{}", s.grip);
+        assert!(road.mean_line_snow() > 0.95);
+        assert!(road.sample(500.0, 12.0).off_grip < 0.5, "the verge too");
+        // The snow stops; a track over freezing melts it away.
+        road.snowfall = 0.0;
+        road.track_c = 3.0;
+        for _ in 0..1800 {
+            road.step(1.0, 1.0);
+        }
+        assert!(road.mean_line_snow() < 0.01, "{}", road.mean_line_snow());
+        assert!(road.sample(500.0, 0.0).grip > 0.99, "bare again");
+        assert!(
+            !road.has_snow(),
+            "nothing left: the sample is neutral again"
+        );
+    }
+
+    #[test]
+    fn the_water_on_a_cleared_line_freezes_on_a_cold_track_and_thaws_after() {
+        let mut road = RoadState::new(&snowy_track(-6.0), RUBBER_REFERENCE);
+        drive(&mut road, 2.0, 100, 900.0);
+        // The snow stops falling overnight; the line stays cold and wet.
+        road.snowfall = 0.0;
+        road.rain = 0.2;
+        drive(&mut road, 2.0, 60, 1800.0);
+        let k = road.cell_index(500.0) * BINS + bin_of(2.8).unwrap();
+        let ice = road.ice[k];
+        let line = road.sample(500.0, 2.8).grip;
+        println!("frozen: ice {ice:.2}, line grip {line:.2}");
+        assert!(ice > 0.5, "the line froze: {ice}");
+        assert!(line < 1.2, "ice takes the packed line's advantage: {line}");
+        // The sun comes up and the track climbs over freezing.
+        road.track_c = 4.0;
+        for _ in 0..1800 {
+            road.step(1.0, 1.0);
+        }
+        assert!(road.ice[k] < 0.05, "thawed: {}", road.ice[k]);
+    }
+
+    #[test]
+    fn write_snow_rows_packs_the_verge_then_the_bins_cover_and_ice() {
+        let mut road = RoadState::new(&snowy_track(-3.0), RUBBER_REFERENCE);
+        drive(&mut road, 2.0, 100, 900.0);
+        let n = road.cell_count();
+        let first = n - 1;
+        let mut bytes = Vec::new();
+        road.write_snow_rows(first, 2, &mut bytes);
+        assert_eq!(bytes.len(), 2 * SNOW_ROW_BYTES);
+        assert_eq!(bytes[0], 255, "the verge is white");
+        let b = bin_of(2.8).unwrap();
+        let k = first * BINS + b;
+        assert_eq!(
+            bytes[1 + 2 * b],
+            (road.snow[k] * 255.0).round().clamp(0.0, 255.0) as u8
+        );
+        assert!(bytes[1 + 2 * b] < 255, "the line is packed");
+        assert_eq!(bytes[1 + 2 * b + 1], 0, "and not frozen");
     }
 
     #[test]

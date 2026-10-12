@@ -1773,9 +1773,10 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 		else if (Key == TEXT("overcast"))  { Conditions.Weather = EApexWeather::Overcast; }
 		else if (Key == TEXT("lightrain") || Key == TEXT("rain")) { Conditions.Weather = EApexWeather::LightRain; }
 		else if (Key == TEXT("heavyrain")) { Conditions.Weather = EApexWeather::HeavyRain; }
+		else if (Key == TEXT("snow"))      { Conditions.Weather = EApexWeather::Snow; }
 		else
 		{
-			UE_LOG(LogApexSim, Warning, TEXT("-ApexWeather: unknown weather '%s' (sunny, cloudy, overcast, lightrain, heavyrain)"), *WeatherName);
+			UE_LOG(LogApexSim, Warning, TEXT("-ApexWeather: unknown weather '%s' (sunny, cloudy, overcast, lightrain, heavyrain, snow)"), *WeatherName);
 		}
 	}
 	FString Clock;
@@ -3322,6 +3323,7 @@ void UApexRootWidget::ApplyHotlapWatchCommandLine()
 			: Key == TEXT("overcast") ? EApexWeather::Overcast
 			: (Key == TEXT("lightrain") || Key == TEXT("rain")) ? EApexWeather::LightRain
 			: Key == TEXT("heavyrain") ? EApexWeather::HeavyRain
+			: Key == TEXT("snow") ? EApexWeather::Snow
 			: EApexWeather::Sunny;
 	}
 	if (FParse::Value(FCommandLine::Get(), TEXT("ApexTimeOfDay="), Value))

@@ -1064,6 +1064,10 @@ pub struct TrackSurface {
     /// state works out is against this one (`crate::road_state`).
     #[serde(default)]
     pub baked_water: f32,
+    /// Whether the road's grip was baked snow-covered (1 under a snow
+    /// sky, else 0): the snow grip the road state works out is against it.
+    #[serde(default)]
+    pub baked_snow: f32,
     /// The air's density against the reference day the cars are filed at
     /// (`SessionConditions::air_density_ratio`): the aero and a combustion
     /// engine's torque are scaled by it. 1.0 on a default day at sea level.
@@ -1117,6 +1121,7 @@ impl Default for TrackSurface {
             wet: false,
             water: 0.0,
             baked_water: 0.0,
+            baked_snow: 0.0,
             air_density_ratio: 1.0,
             wind_mps: [0.0; 2],
             wind_now_mps: [0.0; 2],
@@ -2140,23 +2145,57 @@ pub enum Weather {
     Overcast = 2,
     LightRain = 3,
     HeavyRain = 4,
+    /// Snow falling on a cold road (`crate::road_state`'s snow cover).
+    Snow = 5,
 }
 
 impl Weather {
-    pub const ALL: [Weather; 5] = [
+    pub const ALL: [Weather; 6] = [
         Weather::Sunny,
         Weather::Cloudy,
         Weather::Overcast,
         Weather::LightRain,
         Weather::HeavyRain,
+        Weather::Snow,
     ];
+
+    /// The air a snow sky sits under its overcast sibling, °C: the same
+    /// swing over the day, 17 degrees colder.
+    pub const SNOW_AIR_DROP_C: f32 = 17.0;
+    /// The warmest air a host may pick under snow, °C.
+    pub const SNOW_MAX_AIR_C: i8 = 2;
 
     pub fn from_u8(value: u8) -> Option<Weather> {
         Weather::ALL.get(value as usize).copied()
     }
 
+    /// Whether rain is falling.
     pub fn is_wet(self) -> bool {
         matches!(self, Weather::LightRain | Weather::HeavyRain)
+    }
+
+    pub fn is_snow(self) -> bool {
+        self == Weather::Snow
+    }
+
+    /// Rain falling, in the weather's water units (`water` less the slush a
+    /// snow sky keeps on the road).
+    pub fn rainfall(self) -> f32 {
+        if self.is_wet() {
+            self.water()
+        } else {
+            0.0
+        }
+    }
+
+    /// Snow falling, 0 or 1 (1 is steady snowfall, the road's cover builds
+    /// from it: `road_state::SNOWFALL_RATE`).
+    pub fn snowfall(self) -> f32 {
+        if self.is_snow() {
+            1.0
+        } else {
+            0.0
+        }
     }
 
     /// What the asphalt's grip is multiplied by. Dry weather leaves the
@@ -2170,6 +2209,12 @@ impl Weather {
             Weather::Overcast => 0.98,
             Weather::LightRain => 0.86,
             Weather::HeavyRain => 0.74,
+            // The baked road is a snow-covered one: the racing line and
+            // the AI's speed profile are built for it, and the cars crawl
+            // from lap one (`road_state::snow_grip` clears it). The AI field
+            // races it cleanly down to about 0.55; under that the racing
+            // line's envelope gives out on the cold tyres.
+            Weather::Snow => 0.55,
         }
     }
 
@@ -2179,6 +2224,9 @@ impl Weather {
         match self {
             Weather::LightRain => 0.5,
             Weather::HeavyRain => 1.0,
+            // The slush on the road: a treaded tyre's territory, not the
+            // full wet's.
+            Weather::Snow => crate::road_state::SNOW_WATER,
             _ => 0.0,
         }
     }
@@ -2189,15 +2237,18 @@ impl Weather {
         match self {
             Weather::LightRain => 0.85,
             Weather::HeavyRain => 0.75,
+            Weather::Snow => 1.0,
             _ => 1.0,
         }
     }
 
-    /// Wet grass and gravel, on top of `road_grip_factor`.
+    /// Wet grass and gravel, on top of `road_grip_factor` (a snowy verge
+    /// is a wall of slush).
     pub fn off_track_grip_factor(self) -> f32 {
         match self {
             Weather::LightRain => 0.85,
             Weather::HeavyRain => 0.7,
+            Weather::Snow => 1.0,
             _ => 1.0,
         }
     }
@@ -2210,6 +2261,7 @@ impl Weather {
             Weather::Overcast => 0.85,
             Weather::LightRain => 0.9,
             Weather::HeavyRain => 1.0,
+            Weather::Snow => 1.0,
         }
     }
 
@@ -2220,6 +2272,7 @@ impl Weather {
             Weather::Overcast => "overcast",
             Weather::LightRain => "light rain",
             Weather::HeavyRain => "heavy rain",
+            Weather::Snow => "snow",
         }
     }
 }
@@ -2312,7 +2365,14 @@ impl SessionConditions {
         Self {
             weather: self.weather,
             time_of_day_minutes: self.time_of_day_minutes % Self::MINUTES_PER_DAY,
-            air_temp_c: self.air_temp_c.map(|t| t.clamp(cold, hot)),
+            air_temp_c: self.air_temp_c.map(|t| {
+                let hot = if self.weather.is_snow() {
+                    hot.min(Weather::SNOW_MAX_AIR_C)
+                } else {
+                    hot
+                };
+                t.clamp(cold, hot)
+            }),
             humidity_pct: self.humidity_pct.map(|h| h.min(100)),
             wind_kph: self.wind_kph.map(|w| w.min(Self::MAX_WIND_KPH)),
             wind_from_deg: self.wind_from_deg.map(|d| d % 360),
@@ -2373,6 +2433,7 @@ impl SessionConditions {
             Weather::Overcast => 70,
             Weather::LightRain => 90,
             Weather::HeavyRain => 97,
+            Weather::Snow => 85,
         }
     }
 
@@ -2384,6 +2445,7 @@ impl SessionConditions {
             Weather::Overcast => 15,
             Weather::LightRain => 18,
             Weather::HeavyRain => 28,
+            Weather::Snow => 10,
         }
     }
 
@@ -2432,9 +2494,10 @@ impl SessionConditions {
         let latitude = track.latitude_deg();
         track.track_surface.air_temperature_c = self.air_temperature_c();
         track.track_surface.track_temperature_c = self.track_temperature_c_at(latitude);
-        track.track_surface.wet = self.weather.is_wet();
+        track.track_surface.wet = self.weather.is_wet() || self.weather.is_snow();
         track.track_surface.water = self.weather.water();
         track.track_surface.baked_water = self.weather.water();
+        track.track_surface.baked_snow = self.weather.snowfall();
         let altitude = track.metadata.altitude_m.unwrap_or(0.0);
         track.track_surface.air_density_ratio = self.air_density_ratio(altitude);
         // The wind's direction is taken from the start straight: the
@@ -2490,6 +2553,8 @@ impl SessionConditions {
             Weather::Overcast => (0.5, -1.5),
             Weather::LightRain => (0.4, -3.0),
             Weather::HeavyRain => (0.3, -4.0),
+            // Overcast's own day, 17 degrees colder: -4 to 1 °C.
+            Weather::Snow => (0.4, -2.5 - Weather::SNOW_AIR_DROP_C),
         };
         COOLEST_C + SWING_C * (0.5 + (day - 0.5) * swing) + offset
     }
@@ -2504,7 +2569,7 @@ impl SessionConditions {
     /// The asphalt, °C, under the sun of a circuit `latitude_deg` north.
     pub fn track_temperature_c_at(&self, latitude_deg: f32) -> f32 {
         let air = self.air_temperature_c();
-        if self.weather.is_wet() {
+        if self.weather.is_wet() || self.weather.is_snow() {
             return air - 1.0;
         }
         let sun = sun_elevation_deg(latitude_deg, self.time_of_day_minutes as f32);
@@ -2515,7 +2580,7 @@ impl SessionConditions {
     /// as the sun goes (under 6°) and in the rain, the client's
     /// `FSkyState::bHeadlights`.
     pub fn headlights_needed(&self) -> bool {
-        self.sun_elevation_deg() < 6.0 || self.weather.is_wet()
+        self.sun_elevation_deg() < 6.0 || self.weather.is_wet() || self.weather.is_snow()
     }
 
     pub fn is_night(&self) -> bool {
@@ -2965,6 +3030,13 @@ mod tests {
         assert!(Weather::HeavyRain.road_grip_factor() < Weather::LightRain.road_grip_factor());
         assert!(Weather::HeavyRain.curb_grip_factor() < 1.0);
         assert!(!Weather::Overcast.is_wet() && Weather::LightRain.is_wet());
+        assert!(!Weather::Snow.is_wet() && Weather::Snow.is_snow());
+        assert_eq!(Weather::from_u8(5), Some(Weather::Snow));
+        assert_eq!(Weather::from_u8(6), None);
+        assert_eq!(Weather::Snow.road_grip_factor(), 0.55);
+        assert_eq!(Weather::Snow.rainfall(), 0.0);
+        assert_eq!(Weather::Snow.snowfall(), 1.0);
+        assert_eq!(Weather::HeavyRain.snowfall(), 0.0);
     }
 
     #[test]
@@ -2982,7 +3054,8 @@ mod tests {
         assert!(wrapped.is_night());
         assert!(!SessionConditions::DEFAULT.is_night());
         assert_eq!(Weather::from_u8(4), Some(Weather::HeavyRain));
-        assert_eq!(Weather::from_u8(5), None);
+        assert_eq!(Weather::from_u8(5), Some(Weather::Snow));
+        assert_eq!(Weather::from_u8(6), None);
     }
 
     #[test]

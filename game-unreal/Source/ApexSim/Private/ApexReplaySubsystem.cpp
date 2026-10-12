@@ -55,6 +55,7 @@ namespace ApexReplayArgs
 		if (Key == TEXT("overcast")) { Out = EApexWeather::Overcast; return true; }
 		if (Key == TEXT("lightrain") || Key == TEXT("rain")) { Out = EApexWeather::LightRain; return true; }
 		if (Key == TEXT("heavyrain") || Key == TEXT("storm")) { Out = EApexWeather::HeavyRain; return true; }
+		if (Key == TEXT("snow")) { Out = EApexWeather::Snow; return true; }
 		return false;
 	}
 

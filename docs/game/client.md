@@ -396,7 +396,7 @@ P minutes' practice, 0 for none, R knockout rounds of M minutes; the race is
 session), `-ApexNoStart`
 (stop in the lobby), `-ApexAiSkill=N`, `-ApexDamage=off|reduced|full`,
 `-ApexLockAssists=abs,tc,gearbox,steering,line`, sky
-`-ApexWeather=sunny|cloudy|overcast|lightrain|heavyrain`,
+`-ApexWeather=sunny|cloudy|overcast|lightrain|heavyrain|snow`,
 `-ApexTimeOfDay=HH:MM`, `-ApexTimeScale=N`, `-ApexChangeable=N`,
 `-ApexTrackRubber=N`. In the race: `-ApexView=cockpit|chase|tv|roof|close|near|far`,
 `-ApexRacingLine=...`, the shot camera switches ([cameras.md](cameras.md)).

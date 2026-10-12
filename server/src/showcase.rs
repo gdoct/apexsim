@@ -725,6 +725,7 @@ mod tests {
             rows: vec![mark; cells],
             debris: vec![],
             geometry: vec![],
+            snow_rows: vec![],
         }
         .encode();
         TimedRecord {

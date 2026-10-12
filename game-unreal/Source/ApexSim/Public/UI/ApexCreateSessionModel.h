@@ -260,6 +260,8 @@ namespace ApexCreateSession
 		case EApexWeather::Overcast:  Swing = 0.5f; Offset = -1.5f; break;
 		case EApexWeather::LightRain: Swing = 0.4f; Offset = -3.0f; break;
 		case EApexWeather::HeavyRain: Swing = 0.3f; Offset = -4.0f; break;
+		// Overcast's own day, 17 degrees colder (`Weather::SNOW_AIR_DROP_C`).
+		case EApexWeather::Snow:      Swing = 0.4f; Offset = -2.5f - 17.0f; break;
 		default: break;
 		}
 		return CoolestC + SwingC * (0.5f + (Day - 0.5f) * Swing) + Offset;
@@ -279,7 +281,7 @@ namespace ApexCreateSession
 	inline float TrackTempC(const FApexSessionConditions& C)
 	{
 		const float Air = static_cast<float>(AirTempC(C));
-		if (C.IsWet())
+		if (C.IsWet() || C.IsSnow())
 		{
 			return Air - 1.0f;
 		}
@@ -298,7 +300,8 @@ namespace ApexCreateSession
 		case EApexWeather::Cloudy:    return 12;
 		case EApexWeather::Overcast:  return 15;
 		case EApexWeather::LightRain: return 18;
-		case EApexWeather::HeavyRain: return 28;
+			case EApexWeather::HeavyRain: return 28;
+		case EApexWeather::Snow:      return 10;
 		default:                      return 8;
 		}
 	}
@@ -388,6 +391,7 @@ namespace ApexCreateSession
 		case EApexWeather::Overcast:  return 98;
 		case EApexWeather::LightRain: return 86;
 		case EApexWeather::HeavyRain: return 74;
+		case EApexWeather::Snow:      return 55;
 		default:                      return 100;
 		}
 	}
@@ -413,6 +417,7 @@ namespace ApexCreateSession
 		case EApexWeather::Overcast:  return { FColor(0x5D, 0x64, 0x6B), FColor(0x9A, 0xA1, 0xA7), 0.7f, 0.0f };
 		case EApexWeather::LightRain: return { FColor(0x45, 0x4C, 0x54), FColor(0x7B, 0x83, 0x8B), 0.8f, 0.45f };
 		case EApexWeather::HeavyRain: return { FColor(0x2B, 0x31, 0x37), FColor(0x5A, 0x61, 0x68), 0.9f, 1.0f };
+		case EApexWeather::Snow:      return { FColor(0x7C, 0x8B, 0x9E), FColor(0xD9, 0xDF, 0xE6), 0.85f, 0.0f };
 		default:                      return { FColor(0x3D, 0x78, 0xC4), FColor(0xA9, 0xCB, 0xE6), 0.0f, 0.0f };
 		}
 	}

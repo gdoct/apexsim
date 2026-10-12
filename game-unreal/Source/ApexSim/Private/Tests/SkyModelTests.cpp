@@ -139,8 +139,72 @@ bool FApexSkyDeriveWeatherTest::RunTest(const FString& Parameters)
 
 	// The weather labels and the describe string the browser shows.
 	TestEqual(TEXT("label"), FApexSessionConditions::WeatherLabel(EApexWeather::HeavyRain), FString(TEXT("Heavy rain")));
+	TestEqual(TEXT("snow label"), FApexSessionConditions::WeatherLabel(EApexWeather::Snow), FString(TEXT("Snow")));
 	TestEqual(TEXT("describe"), At(EApexWeather::LightRain, 21, 30).Describe(), FString(TEXT("Light rain · 21:30")));
 	TestTrue(TEXT("default is a sunny afternoon"), FApexSessionConditions().IsDefault());
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// Snow: flakes instead of streaks, a white ground, a colder grade, lights on;
+// a live sky is lit between overcast and snow by how hard it is snowing.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexSkySnowTest,
+	"ApexSim.Sky.Snow",
+	ApexTestFlags)
+
+bool FApexSkySnowTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexSky;
+
+	const FSkyState Overcast = Derive(At(EApexWeather::Overcast, 11));
+	const FSkyState Snow = Derive(At(EApexWeather::Snow, 11));
+	TestTrue(TEXT("snow is a flake sky, not rain"), Snow.SnowIntensity == 1.0f && Snow.RainIntensity == 0.0f);
+	TestTrue(TEXT("a fixed snow sky is white"), Snow.SnowCover == 1.0f && Overcast.SnowCover == 0.0f);
+	TestTrue(TEXT("snow takes no more of the sun than overcast"), Snow.LightIntensity <= Overcast.LightIntensity);
+	TestTrue(TEXT("snow casts no shadows"), !Snow.bCastShadows);
+	TestTrue(TEXT("snow fogs thicker than overcast"), Snow.FogDensity > Overcast.FogDensity);
+	TestTrue(TEXT("snow drains the colour"), Snow.Saturation < Overcast.Saturation);
+	TestTrue(TEXT("snow turns the lights on by day"), Snow.bHeadlights && !Overcast.bHeadlights);
+	TestTrue(TEXT("the slush gives the road a sheen"), Snow.bWetRoad && Snow.RoadWetness > 0.0f && Snow.RoadWetness < 1.0f);
+	TestEqual(TEXT("weather count"), FApexSessionConditions::WeatherCount, 6);
+
+	// The air under snow is held to 2 degrees.
+	FApexSessionConditions Warm = At(EApexWeather::Snow, 11);
+	Warm.AirTempC = 20;
+	TestEqual(TEXT("air held under snow"), Warm.Clamped().AirTempC, FApexSessionConditions::MaxSnowAirTempC);
+
+	// A live sky: snowing at half strength sits halfway between overcast and
+	// snow; the cover follows the line, not the weather.
+	FApexSkyNow Now;
+	Now.bValid = true;
+	Now.ClockS = 11 * 3600;
+	Now.Weather = EApexWeather::Snow;
+	Now.CloudPct = 100;
+	Now.RoadWaterPct = 30;
+	Now.AirC = -2;
+	Now.SnowfallPct = 50;
+	Now.LineSnowPct = 80;
+	const FSkyState Half = DeriveLive(At(EApexWeather::Snow, 11), Now);
+	TestTrue(TEXT("half a snowfall is half the flakes"), FMath::IsNearlyEqual(Half.SnowIntensity, 0.5f, 0.01f));
+	TestTrue(TEXT("the ground is as white as the line"), FMath::IsNearlyEqual(Half.SnowCover, 0.8f, 0.01f));
+	TestTrue(TEXT("no rain in it"), Half.RainIntensity == 0.0f);
+	TestTrue(TEXT("lit between overcast and snow"), Half.FogDensity > Overcast.FogDensity && Half.FogDensity < Snow.FogDensity);
+	TestTrue(TEXT("the road is as wet as its slush"), FMath::IsNearlyEqual(Half.RoadWetness, 0.6f, 0.01f) && Half.bWetRoad);
+
+	// The snow melts off a warm road: no flakes, the cover going.
+	Now.Weather = EApexWeather::Overcast;
+	Now.SnowfallPct = 0;
+	Now.LineSnowPct = 20;
+	const FSkyState Melting = DeriveLive(At(EApexWeather::Snow, 11), Now);
+	TestTrue(TEXT("no flakes in a thaw"), Melting.SnowIntensity == 0.0f && FMath::IsNearlyEqual(Melting.SnowCover, 0.2f, 0.01f));
+
+	// Moving the snow far enough relights the world.
+	FApexSkyNow Later = Now;
+	Later.LineSnowPct = 30;
+	TestTrue(TEXT("a few percent of cover is a new sky"), LiveSkyMoved(Now, Later));
 	return true;
 }
 
@@ -303,9 +367,12 @@ bool FApexSkyDemoRollTest::RunTest(const FString& Parameters)
 		else { ++Night; }
 	}
 
+	// Snow is for a host to pick: the backdrop's draw never rolls it.
 	for (int32 Index = 0; Index < FApexSessionConditions::WeatherCount; ++Index)
 	{
-		TestTrue(FString::Printf(TEXT("weather %d comes up"), Index), WeatherSeen[Index] > 0);
+		const bool bSnow = Index == static_cast<int32>(EApexWeather::Snow);
+		TestTrue(FString::Printf(TEXT("weather %d %s"), Index, bSnow ? TEXT("never comes up") : TEXT("comes up")),
+			bSnow ? WeatherSeen[Index] == 0 : WeatherSeen[Index] > 0);
 	}
 	TestTrue(TEXT("on quarter hours within the day"), bQuarterHours);
 	TestTrue(TEXT("rain one race in ten"), Dry > Rolls * 87 / 100 && Dry < Rolls * 93 / 100);

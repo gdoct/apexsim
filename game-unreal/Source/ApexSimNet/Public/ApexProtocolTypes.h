@@ -656,6 +656,8 @@ enum class EApexWeather : uint8
 	Overcast  = 2,
 	LightRain = 3,
 	HeavyRain = 4,
+	/** Snow on a cold road. An older client shows it as sunny; a newer one as snow. */
+	Snow      = 5,
 };
 
 /**
@@ -672,7 +674,7 @@ struct APEXSIMNET_API FApexSessionConditions
 
 	static constexpr int32 MinutesPerDay = 24 * 60;
 	static constexpr int32 DefaultTimeOfDayMinutes = 13 * 60;
-	static constexpr int32 WeatherCount = 5;
+	static constexpr int32 WeatherCount = 6;
 
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
 	EApexWeather Weather = EApexWeather::Sunny;
@@ -688,6 +690,8 @@ struct APEXSIMNET_API FApexSessionConditions
 	static constexpr int32 Auto = -1;
 	static constexpr int32 MinAirTempC = -5;
 	static constexpr int32 MaxAirTempC = 45;
+	/** The warmest air a host may pick under snow (`Weather::SNOW_MAX_AIR_C`). */
+	static constexpr int32 MaxSnowAirTempC = 2;
 	static constexpr int32 MaxWindKph = 60;
 
 	/** Air temperature, °C; AutoAirTemp when left to the weather. */
@@ -786,7 +790,7 @@ struct APEXSIMNET_API FApexSessionConditions
 		Out.TimeOfDayMinutes = ((TimeOfDayMinutes % MinutesPerDay) + MinutesPerDay) % MinutesPerDay;
 		if (Out.HasAirTemp())
 		{
-			Out.AirTempC = FMath::Clamp(Out.AirTempC, MinAirTempC, MaxAirTempC);
+			Out.AirTempC = FMath::Clamp(Out.AirTempC, MinAirTempC, Out.IsSnow() ? MaxSnowAirTempC : MaxAirTempC);
 		}
 		Out.HumidityPct = Out.HumidityPct < 0 ? Auto : FMath::Min(Out.HumidityPct, 100);
 		Out.WindKph = Out.WindKph < 0 ? Auto : FMath::Min(Out.WindKph, MaxWindKph);
@@ -798,6 +802,7 @@ struct APEXSIMNET_API FApexSessionConditions
 	}
 
 	bool IsWet() const { return Weather == EApexWeather::LightRain || Weather == EApexWeather::HeavyRain; }
+	bool IsSnow() const { return Weather == EApexWeather::Snow; }
 	bool IsDefault() const
 	{
 		return Weather == EApexWeather::Sunny && TimeOfDayMinutes == DefaultTimeOfDayMinutes
@@ -825,6 +830,7 @@ struct APEXSIMNET_API FApexSessionConditions
 		case EApexWeather::Overcast:  return TEXT("Overcast");
 		case EApexWeather::LightRain: return TEXT("Light rain");
 		case EApexWeather::HeavyRain: return TEXT("Heavy rain");
+		case EApexWeather::Snow:      return TEXT("Snow");
 		default:                      return TEXT("Sunny");
 		}
 	}
@@ -1556,6 +1562,12 @@ struct APEXSIMNET_API FApexRoadState
 	float HalfSpanM = 16.0f;
 	int32 FirstCell = 0;
 	TArray<uint8> Rows;
+	/**
+	 * The snow of the same cells (`SnowRows`): SnowRowBytes() each, the verge's
+	 * cover then per bin the cover and the ice, bytes over 0..1. Empty in a
+	 * session without snow, and from a server that predates it.
+	 */
+	TArray<uint8> SnowRows;
 	/** Debris pieces on the road now, server frame, metres. */
 	TArray<FVector2D> Debris;
 	/**
@@ -1579,6 +1591,9 @@ struct APEXSIMNET_API FApexRoadState
 		}
 	}
 
+	/** Bytes of one cell of SnowRows: the verge, then cover and ice per bin. */
+	int32 SnowRowBytes() const { return 1 + 2 * FMath::Max(Bins, 0); }
+	bool HasSnow() const { return SnowRows.Num() >= SnowRowBytes() && SnowRowBytes() > 1; }
 	/** Bytes of one cell: its depth, then rubber/marbles/dry per bin. */
 	int32 RowBytes() const { return 1 + 3 * FMath::Max(Bins, 0); }
 	/** Whole cells in Rows. */
@@ -2320,6 +2335,15 @@ struct APEXSIMNET_API FApexSkyNow
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
 	int32 NextInS = 0;
 
+	/** Snow cover on the racing line, the lap's mean, percent; 0 without snow
+	 * (and from a server that predates it). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 LineSnowPct = 0;
+
+	/** Snow falling, percent of steady snowfall. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 SnowfallPct = 0;
+
 	bool HasNextChange() const { return NextWeather >= 0 && NextInS > 0; }
 
 	/** Hours since midnight, fractional. */
@@ -2360,7 +2384,8 @@ struct APEXSIMNET_API FApexSkyNow
 			&& RainPct == Other.RainPct && CloudPct == Other.CloudPct && RoadWaterPct == Other.RoadWaterPct
 			&& AirC == Other.AirC && TrackC == Other.TrackC && WindKph == Other.WindKph
 			&& WindToDeg == Other.WindToDeg && LineRubberPct == Other.LineRubberPct
-			&& TimeScale == Other.TimeScale && NextWeather == Other.NextWeather && NextInS == Other.NextInS;
+			&& TimeScale == Other.TimeScale && NextWeather == Other.NextWeather && NextInS == Other.NextInS
+			&& LineSnowPct == Other.LineSnowPct && SnowfallPct == Other.SnowfallPct;
 	}
 	bool operator!=(const FApexSkyNow& Other) const { return !(*this == Other); }
 };

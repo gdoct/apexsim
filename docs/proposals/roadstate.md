@@ -55,7 +55,16 @@ phases 2 and 3 build on:
   `M_ApexTrackRoad` draws them on the road. Snow on the road is a second
   state texture (or a wider texel) in the same graph.
 
-## Phase 2: snow on the server
+## Phase 2: snow on the server (built 2026-10-12)
+
+Built as designed, except the figures the AI forced: the covered road bakes
+0.55 and not 0.40 (the survey's field piles up under about 0.5), so
+`SNOW_COVER_GRIP` is 0.45 (bare 1.0, covered 0.55), a packed line grips 1.29
+times the covered road (not 1.5), and the curb and verge factors are 1.0 (the
+verge's own cover moves its grip instead). Ice forms only while no snow is
+falling. The state of the art is in
+[../server/conditions.md](../server/conditions.md#snow-on-the-road); the text
+below is the design as first worked out.
 
 ### The weather
 
@@ -145,7 +154,12 @@ every multiplier 1.0). An optional `[tires] snow_grip` per compound
   Compare the dry survey to the commit before: it must not move.
 - Determinism test bit-identical.
 
-## Phase 3: snow on the client
+## Phase 3: snow on the client (built 2026-10-12, first slice)
+
+The flakes, the Snow sky row, the create tile, the `SnowCover` ground
+parameter and the road's per-bin `RoadSnow` texture are built; the prop snow
+blend and spray are not (the roadmap's Snow row). The design as first worked
+out:
 
 - **Falling snow**: `AApexRainActor` gets a flake mode (`SetSnow(Intensity)`):
   slower fall (`FallSpeedCmPerS` 120), a short fat streak, white, unlit,

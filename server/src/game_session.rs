@@ -3104,11 +3104,20 @@ impl GameSession {
             return;
         }
         let session_s = self.session.current_tick as f32 / rate as f32;
-        let (water, rubber) = match self.track_config.road_state.as_ref() {
-            Some(road) => (road.mean_water(), road.mean_line_rubber()),
-            None => (self.track_config.track_surface.water, self.sky.line_rubber),
+        let (water, rubber, snow) = match self.track_config.road_state.as_ref() {
+            Some(road) => (
+                road.mean_water(),
+                road.mean_line_rubber(),
+                road.mean_line_snow(),
+            ),
+            None => (
+                self.track_config.track_surface.water,
+                self.sky.line_rubber,
+                self.sky.line_snow,
+            ),
         };
         self.sky.line_rubber = rubber;
+        self.sky.line_snow = snow;
         self.sky.step(session_s, 1.0, water);
         if self.sky.is_static() {
             return;
@@ -3122,6 +3131,8 @@ impl GameSession {
         surface.wet = water > crate::conditions::WET_FROM_WATER;
         if let Some(road) = self.track_config.road_state.as_mut() {
             road.rain = self.sky.rain;
+            road.snowfall = self.sky.snowfall;
+            road.track_c = self.sky.track_c;
         }
     }
 

@@ -244,6 +244,8 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("sky time scale"), Sky.TimeScale, 24);
 			TestEqual(TEXT("sky next weather"), Sky.NextWeather, static_cast<int32>(EApexWeather::HeavyRain));
 			TestEqual(TEXT("sky next in"), Sky.NextInS, 1250);
+			TestEqual(TEXT("sky line snow (the optional field, 0)"), Sky.LineSnowPct, 0);
+			TestEqual(TEXT("sky snowfall"), Sky.SnowfallPct, 0);
 			TestTrue(TEXT("sky has a next change"), Sky.HasNextChange());
 			// 300° counter-clockwise from +X: along +X and toward -Y (the right).
 			const FVector2D Wind = Sky.WindServerMps();

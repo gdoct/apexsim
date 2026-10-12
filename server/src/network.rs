@@ -530,8 +530,14 @@ pub struct SpectatorJoinedData {
 /// own framing, `[u32 big-endian length][body]` each: MessagePack `bin` on
 /// the wire, so records read from a file are forwarded without being
 /// decoded, and a joining viewer's whole preamble is one message.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RecordBytes(pub Vec<u8>);
+
+impl RecordBytes {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
 
 impl Serialize for RecordBytes {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -1170,7 +1176,7 @@ impl Serialize for CompactTelemetry {
 /// road under it holds, positional like the rest of `CompactTelemetry`:
 /// `[clock_s, weather, rain_pct, cloud_pct, road_water_pct, air_c,
 /// track_c, wind_kph, wind_to_deg, line_rubber_pct, time_scale,
-/// next_weather, next_in_s]`.
+/// next_weather, next_in_s, line_snow_pct, snowfall_pct]`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SkyNow {
     /// The day's clock, seconds after midnight.
@@ -1201,6 +1207,13 @@ pub struct SkyNow {
     pub next_weather: u8,
     /// Seconds of session until then, 0 when it holds.
     pub next_in_s: u32,
+    /// The snow cover on the racing line, the lap's mean, percent; 0 in a
+    /// session without snow.
+    #[serde(default)]
+    pub line_snow_pct: u8,
+    /// Snow falling, percent of steady snowfall.
+    #[serde(default)]
+    pub snowfall_pct: u8,
 }
 
 impl SkyNow {
@@ -1240,6 +1253,8 @@ impl SkyNow {
             time_scale: live.start.clock_scale(),
             next_weather: next.map_or(255, |c| c.weather as u8),
             next_in_s: next.map_or(0, |c| (c.at_s - session_s).max(1.0).round() as u32),
+            line_snow_pct: pct(live.line_snow),
+            snowfall_pct: pct(live.snowfall),
         }
     }
 }
@@ -1549,6 +1564,11 @@ pub struct RoadStateData {
     /// little-endian `f32`, server frame). A bin's lateral is measured from
     /// it, positive right.
     pub geometry: RecordBytes,
+    /// The snow of the same cells, `RoadState::SNOW_ROW_BYTES` each: the
+    /// verge's cover, then per bin the cover and the ice. Left off the wire
+    /// for a road with no snow, and skipped by a client from before it.
+    #[serde(default, skip_serializing_if = "RecordBytes::is_empty")]
+    pub snow_rows: RecordBytes,
 }
 
 /// A car crossed a timing line.
@@ -2909,6 +2929,7 @@ mod tests {
             rows: RecordBytes(rows.clone()),
             debris: vec![[12.5, -3.25], [900.0, 4.0]],
             geometry: RecordBytes(geometry.clone()),
+            snow_rows: RecordBytes(vec![]),
         });
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         println!(
@@ -2928,7 +2949,39 @@ mod tests {
                 assert_eq!(data.debris[1], [900.0, 4.0]);
                 assert_eq!(data.lap_m, 5793.0);
                 assert_eq!(data.geometry.0, geometry);
+                assert!(data.snow_rows.is_empty(), "left off the wire without snow");
             }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        // The same road under snow: the verge, then per bin the cover and
+        // the ice, for the same two cells of four bins.
+        let snow_rows = vec![
+            255, 255, 0, 200, 0, 128, 0, 60, 90, // cell 0
+            0, 0, 0, 0, 0, 0, 0, 0, 0, // cell 1
+        ];
+        let snowy = ServerMessage::RoadState(RoadStateData {
+            session_id,
+            lap_m: 5793.0,
+            cell_m: 10.0,
+            bins: 4,
+            half_span_m: 16.0,
+            first_cell: 7,
+            rows: RecordBytes(rows.clone()),
+            debris: vec![[12.5, -3.25], [900.0, 4.0]],
+            geometry: RecordBytes(geometry),
+            snow_rows: RecordBytes(snow_rows.clone()),
+        });
+        let snowy_bytes = rmp_serde::to_vec_named(&snowy).unwrap();
+        println!(
+            "S_RoadStateSnow: {}",
+            snowy_bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        match rmp_serde::from_slice::<ServerMessage>(&snowy_bytes).unwrap() {
+            ServerMessage::RoadState(data) => assert_eq!(data.snow_rows.0, snow_rows),
             other => panic!("Wrong message type: {other:?}"),
         }
     }
@@ -3771,6 +3824,8 @@ mod tests {
             time_scale: 24,
             next_weather: Weather::HeavyRain as u8,
             next_in_s: 1250,
+            line_snow_pct: 0,
+            snowfall_pct: 0,
         };
         let frame = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,

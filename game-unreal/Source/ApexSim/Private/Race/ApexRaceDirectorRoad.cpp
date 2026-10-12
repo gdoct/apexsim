@@ -96,8 +96,11 @@ void AApexRaceDirector::UpdateRoadState()
 	{
 		RoadStateTexture = nullptr;
 		RoadGeometryTexture = nullptr;
+		RoadSnowTexture = nullptr;
 		if (RoadMap.IsValid())
 		{
+			RoadSnowTexture = ApexRoadStateDraw::MakeTexture(
+				RoadMap.NumCells(), RoadMap.NumBins(), PF_B8G8R8A8, TF_Bilinear);
 			RoadStateTexture = ApexRoadStateDraw::MakeTexture(
 				RoadMap.NumCells(), RoadMap.NumBins(), PF_B8G8R8A8, TF_Bilinear);
 			// One texel a cell, read whole: the bins are measured from it.
@@ -112,9 +115,10 @@ void AApexRaceDirector::UpdateRoadState()
 	{
 		ApexRoadStateDraw::Upload(RoadStateTexture, RoadMap.GetState(), RoadMap.NumCells(), RoadMap.NumBins());
 		ApexRoadStateDraw::Upload(RoadGeometryTexture, RoadMap.GetGeometry(), RoadMap.NumCells(), 1);
+		ApexRoadStateDraw::Upload(RoadSnowTexture, RoadMap.GetSnow(), RoadMap.NumCells(), RoadMap.NumBins());
 	}
 	const bool bWanted = IsRoadStateLive() && ApexRoadStateDraw::CVarRoadDraw.GetValueOnGameThread();
-	if (bWanted != bRoadStateShown)
+	if (bWanted != bRoadStateShown || (bWanted && RoadMap.HasSnow() != bRoadSnowShown))
 	{
 		bRoadStateParamsStale = true;
 	}
@@ -130,11 +134,15 @@ void AApexRaceDirector::PushRoadStateParameters()
 	static const FName StateParam(TEXT("RoadState"));
 	static const FName GeometryParam(TEXT("RoadGeometry"));
 	static const FName AmountParam(TEXT("RoadStateAmount"));
+	static const FName SnowParam(TEXT("RoadSnow"));
+	static const FName SnowAmountParam(TEXT("RoadSnowAmount"));
 	static const FName UParam(TEXT("RoadStateU"));
 	static const FName HalfSpanParam(TEXT("RoadStateHalfSpanM"));
 
 	const bool bLive = IsRoadStateLive() && RoadStateTexture && RoadGeometryTexture
 		&& ApexRoadStateDraw::CVarRoadDraw.GetValueOnGameThread();
+	// The road draws its own snow once the server says there is some.
+	const bool bSnowLive = bLive && RoadSnowTexture && RoadMap.HasSnow();
 	for (auto It = RoadStateMids.CreateIterator(); It; ++It)
 	{
 		UMaterialInstanceDynamic* Mid = It->Get();
@@ -142,6 +150,11 @@ void AApexRaceDirector::PushRoadStateParameters()
 		{
 			It.RemoveCurrent();
 			continue;
+		}
+		Mid->SetScalarParameterValue(SnowAmountParam, bSnowLive ? 1.0f : 0.0f);
+		if (bSnowLive)
+		{
+			Mid->SetTextureParameterValue(SnowParam, RoadSnowTexture);
 		}
 		if (bLive)
 		{
@@ -153,6 +166,12 @@ void AApexRaceDirector::PushRoadStateParameters()
 		Mid->SetScalarParameterValue(AmountParam, bLive ? 1.0f : 0.0f);
 	}
 	bRoadStateParamsStale = false;
+	if (bRoadSnowShown != bSnowLive)
+	{
+		bRoadSnowShown = bSnowLive;
+		// The road's lap-wide cover steps back from (or onto) the per-bin one.
+		ApplySnowCover();
+	}
 	if (RoadStateMids.Num() > 0)
 	{
 		int32 Rubbered = 0;
@@ -160,8 +179,9 @@ void AApexRaceDirector::PushRoadStateParameters()
 		{
 			Rubbered += Texel.R > 200 ? 1 : 0;
 		}
-		UE_LOG(LogApexSim, Log, TEXT("Road state to %d road material(s): %s, %d of %d cells known, %d bins rubbered past 0.8"),
-			RoadStateMids.Num(), bLive ? TEXT("drawn") : TEXT("off"), RoadMap.NumKnownCells(), RoadMap.NumCells(), Rubbered);
+		UE_LOG(LogApexSim, Log, TEXT("Road state to %d road material(s): %s, %d of %d cells known, %d bins rubbered past 0.8, snow %s"),
+			RoadStateMids.Num(), bLive ? TEXT("drawn") : TEXT("off"), RoadMap.NumKnownCells(), RoadMap.NumCells(), Rubbered,
+			bSnowLive ? TEXT("drawn") : TEXT("off"));
 	}
 	if (bRoadStateShown != bLive)
 	{
@@ -248,6 +268,7 @@ void AApexRaceDirector::ForgetRoadStateOnTrack()
 	RoadStateMids.Reset();
 	bRoadStateParamsStale = true;
 	bRoadStateShown = false;
+	bRoadSnowShown = false;
 	bRoadDebrisLaid = false;
 	if (RoadDebris)
 	{

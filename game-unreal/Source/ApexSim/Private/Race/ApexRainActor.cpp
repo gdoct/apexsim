@@ -5,6 +5,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -38,6 +39,7 @@ AApexRainActor::AApexRainActor()
 	if (MaterialFinder.Succeeded())
 	{
 		Streaks->SetMaterial(0, MaterialFinder.Object);
+		DropMaterial = MaterialFinder.Object;
 	}
 
 	Random.Initialize(1337);
@@ -45,6 +47,35 @@ AApexRainActor::AApexRainActor()
 
 void AApexRainActor::SetIntensity(float Intensity)
 {
+	SetDensity(Intensity, /*bFlakes*/ false);
+}
+
+void AApexRainActor::SetSnow(float Intensity)
+{
+	SetDensity(Intensity, /*bFlakes*/ true);
+}
+
+void AApexRainActor::SetDensity(float Intensity, bool bFlakes)
+{
+	if (bSnow != bFlakes && DropMaterial)
+	{
+		// Flakes are bright white, whatever the light: a white copy of the
+		// basic shape, lifted past 1 so the exposure still reads it as snow.
+		if (bFlakes && !FlakeMaterial)
+		{
+			FlakeMaterial = UMaterialInstanceDynamic::Create(DropMaterial, this);
+			FlakeMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(3.0f, 3.0f, 3.0f));
+		}
+		if (bFlakes && FlakeMaterial)
+		{
+			Streaks->SetMaterial(0, FlakeMaterial);
+		}
+		else
+		{
+			Streaks->SetMaterial(0, DropMaterial);
+		}
+	}
+	bSnow = bFlakes;
 	RainIntensity = FMath::Clamp(Intensity, 0.0f, 1.0f);
 	const int32 Wanted = FMath::RoundToInt(RainIntensity * MaxStreaks);
 	EnsureStreaks(Wanted);
@@ -137,15 +168,17 @@ void AApexRainActor::Tick(float DeltaSeconds)
 	// The drops drift with the wind (a little breeze when none is known, so
 	// the fall is never dead vertical), eased over a second or so.
 	Drift = FMath::VInterpTo(Drift, TargetDrift, DeltaSeconds, 1.5f);
-	const FVector Fall(Drift.X, Drift.Y, -FallSpeedCmPerS);
+	const FVector Fall(Drift.X, Drift.Y, bSnow ? -SnowFallSpeedCmPerS : -FallSpeedCmPerS);
 	// What the camera sees: the drop's motion less its own.
 	const FVector Apparent = Fall - CameraVelocity;
 	const float ApparentSpeed = FMath::Max(Apparent.Size(), 1.0f);
-	const float Length = FMath::Clamp(ApparentSpeed * ShutterSeconds, 12.0f, 160.0f);
+	// A flake is a speck until the camera's speed stretches it.
+	const float Length = FMath::Clamp(ApparentSpeed * ShutterSeconds, bSnow ? 4.0f : 12.0f, 160.0f);
 	const FRotator Aim = Apparent.Rotation();
 	// The cube is 100 cm; the streak lies along its local X, which `Rotation`
 	// points down the apparent velocity.
-	const FVector Scale(Length / 100.0f, StreakThicknessCm / 100.0f, StreakThicknessCm / 100.0f);
+	const float Thickness = bSnow ? FlakeThicknessCm : StreakThicknessCm;
+	const FVector Scale(Length / 100.0f, Thickness / 100.0f, Thickness / 100.0f);
 
 	for (int32 Index = 0; Index < ActiveStreaks; ++Index)
 	{

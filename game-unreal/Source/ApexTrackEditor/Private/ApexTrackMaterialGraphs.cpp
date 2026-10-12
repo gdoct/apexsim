@@ -63,6 +63,10 @@ namespace
 	const TCHAR* kDetailTexture =
 		TEXT("/Engine/EngineMaterials/Good64x64TilingNoiseHighFreq.Good64x64TilingNoiseHighFreq");
 
+	/** What snow looks like: a cool white a little under 1, and rough. */
+	const FLinearColor kSnowAlbedo(0.78f, 0.80f, 0.84f);
+	constexpr float kSnowRoughness = 0.85f;
+
 	/** A placeholder for the texture parameters the instances fill in. */
 	const TCHAR* kDefaultTexture = TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture");
 
@@ -126,6 +130,7 @@ namespace
 	 */
 	void ApplyRoadStateGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
 		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness, UMaterialExpression*& InOutNormal);
+	void ApplySnowGraph(UMaterial* Parent, UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness);
 
 	/**
 	 * `bRoadState` builds `M_ApexTrackRoad`: the same surface, with the
@@ -661,6 +666,8 @@ namespace
 		{
 			ApplyRoadStateGraph(Parent, TexCoord, WorldPos, FinalAlbedo, FinalRoughness, FinalNormal);
 		}
+		// Snow over every surface that is told it has some.
+		ApplySnowGraph(Parent, FinalAlbedo, FinalRoughness);
 
 		UMaterialExpressionClamp* RoughOut = AddExpr<UMaterialExpressionClamp>(Parent);
 		RoughOut->Input.Expression = FinalRoughness;
@@ -1581,6 +1588,9 @@ return o;
 		};
 
 		UMaterialExpression* Amount = Param(TEXT("RoadStateAmount"), 0.0f);
+		// Whether the snow texture is drawn (0 until the server says there is
+		// snow: the road then takes the lap's one `SnowCover` instead).
+		UMaterialExpression* SnowAmount = Param(TEXT("RoadSnowAmount"), 0.0f);
 		// 1 / (cell length x cells in the texture): station metres to `u`.
 		UMaterialExpression* PerMetre = Param(TEXT("RoadStateU"), 0.0f);
 		UMaterialExpression* HalfSpan = Param(TEXT("RoadStateHalfSpanM"), 16.0f);
@@ -1632,6 +1642,50 @@ return o;
 			UMaterialExpression* Calm = G.Lerp(InOutNormal, Flat, G.Mul(Puddle, Amount));
 			InOutNormal = G.Normalize(Calm);
 		}
+
+		// Snow, per bin: R the cover, G the ice (`RoadSnow`, the same cells and
+		// bins as `RoadState`). A bin is white from 0.9 cover and bare under
+		// 0.6, so a line the field has packed (about 0.65 to 0.75) is a dark
+		// slush between white edges, and ice is a dark mirror.
+		UMaterialExpression* SnowState = Sample(TEXT("RoadSnow"), G.Append(U, V));
+		UMaterialExpression* Cover = Channel(SnowState, 1);
+		UMaterialExpression* Ice = Channel(SnowState, 2);
+		UMaterialExpression* White = G.Mul(G.Sat(G.Mul(G.Sub(Cover, G.C(0.6f)), G.C(3.0f))), SnowAmount);
+		UMaterialExpression* Frozen = G.Mul(Ice, SnowAmount);
+		UMaterialExpression* SnowWhite = G.C3(kSnowAlbedo.R, kSnowAlbedo.G, kSnowAlbedo.B);
+		UMaterialExpression* Snowy = G.Lerp(InOutAlbedo, SnowWhite, White);
+		// Ice darkens what is under it, and the snow roughens.
+		InOutAlbedo = G.Mul(Snowy, G.Sub(G.C(1.0f), G.Mul(Frozen, G.C(0.35f))));
+		UMaterialExpression* Roughened = G.Lerp(InOutRoughness, G.C(kSnowRoughness), White);
+		InOutRoughness = G.Lerp(Roughened, G.C(0.05f), Frozen);
+		if (InOutNormal)
+		{
+			UMaterialExpression* Flat = G.C3(0.0f, 0.0f, 1.0f);
+			InOutNormal = G.Normalize(G.Lerp(InOutNormal, Flat, G.Mul(G.Max(White, Frozen), G.C(0.8f))));
+		}
+	}
+
+	/**
+	 * Snow over a surface (every track material but the car parents): the
+	 * `SnowCover` parameter, 0 (the default) to 1, whitens everything that
+	 * faces up. The race director sets it from the sky on the ground, the
+	 * verges and the curbs (a share of it on the curbs, which keep some of
+	 * their paint); the road takes the lap's one figure only when it has no
+	 * per-bin snow (ApplyRoadStateGraph).
+	 */
+	void ApplySnowGraph(UMaterial* Parent, UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness)
+	{
+		const FGraph G{Parent};
+		UMaterialExpressionScalarParameter* Cover = AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		Cover->ParameterName = TEXT("SnowCover");
+		Cover->DefaultValue = 0.0f;
+		// How far a surface faces the sky: the geometry's world normal's Z,
+		// from a slope of about 60 degrees (nothing) to 25 (all of it).
+		UMaterialExpression* Up = G.Mask(AddExpr<UMaterialExpressionVertexNormalWS>(Parent), false, false, true);
+		UMaterialExpression* Faces = G.Sat(G.Mul(G.Sub(Up, G.C(0.5f)), G.C(3.0f)));
+		UMaterialExpression* Amount = G.Mul(Faces, Cover);
+		InOutAlbedo = G.Lerp(InOutAlbedo, G.C3(kSnowAlbedo.R, kSnowAlbedo.G, kSnowAlbedo.B), Amount);
+		InOutRoughness = G.Lerp(InOutRoughness, G.C(kSnowRoughness), Amount);
 	}
 }	 // namespace
 
@@ -1657,6 +1711,12 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 			UE_LOG(LogApexTrackImport, Display, TEXT("    %s was baked %s the ground textures; baking it again"),
 				ApexTrackMaterials::BaseName,
 				GroundSetImported() ? TEXT("without") : TEXT("with"));
+			bRebakeBase = true;
+		}
+		else if (!ApexTrackMaterials::HasSnowCover(Current.Base))
+		{
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s was baked before snow (no SnowCover); baking it again"),
+				ApexTrackMaterials::BaseName);
 			bRebakeBase = true;
 		}
 		else if (const FString Stale = StaleGroundSampler(Current.Base); !Stale.IsEmpty())

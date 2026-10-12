@@ -49,9 +49,9 @@ echoed in `SessionJoined.Conditions` and listed in every `SessionSummary`.
 
 | Field | Meaning | Absent |
 |---|---|---|
-| `weather` | sunny, cloudy, overcast, light rain, heavy rain | sunny |
+| `weather` | sunny, cloudy, overcast, light rain, heavy rain, snow | sunny |
 | `time_of_day_minutes` | local clock, wrapped onto one day | 13:00 |
-| `air_temp_c` | -5..45 °C | from weather and hour |
+| `air_temp_c` | -5..45 °C (at most 2 under snow) | from weather and hour |
 | `humidity_pct` | 0..100 (no host control; auto only) | from weather |
 | `wind_kph` | 0..60, the mean it gusts about | from weather |
 | `wind_from_deg` | from the start straight's direction: 0 head-on, 90 from its left | hashed from the session id |
@@ -63,7 +63,8 @@ Every optional field is skipped on the wire when `None`, so an old client's
 create and an old server's join keep their bytes. `clamp` holds each figure
 to its range. `create_session` (`server.rs`) calls `resolve(session id)`,
 which names every air figure (auto values: air 13-23 °C over the day, damped
-under cloud, in whole degrees; humidity 50-97%; wind 8-28 km/h by weather),
+under cloud, in whole degrees; humidity 50-97%; wind 8-28 km/h by weather; snow's air -4 to 1 °C, wind
+10 km/h, humidity 85%),
 so the join and the listing always say what is simulated. `replay_tools`
 seeds the same resolution from `--seed`.
 
@@ -73,12 +74,13 @@ seeds the same resolution from `--seed`.
 track: every centerline sample's `grip_modifier`, `track_surface.base_grip`
 (which the racing line and the AI's speed profile read), `curb_grip` and
 `off_track_grip` are multiplied by the weather's factors
-(`Weather::road_grip_factor`: overcast 0.98, light rain 0.86, heavy 0.74;
-`curb_grip_factor` and `off_track_grip_factor` on top in the rain). It also
-sets the temperatures, `wet`, `water` / `baked_water` (0 dry, 0.5 light, 1
-heavy: which tyre grips is read off it, see
+(`Weather::road_grip_factor`: overcast 0.98, light rain 0.86, heavy 0.74,
+snow 0.55; `curb_grip_factor` and `off_track_grip_factor` on top in the
+rain). It also sets the temperatures, `wet`, `water` / `baked_water` (0 dry,
+0.5 light, 1 heavy, 0.3 under snow: which tyre grips is read off it, see
 [vehicle-physics.md](vehicle-physics.md)), the air density ratio and the
-wind turned onto the track. Physics, AI and racing line then follow with no
+wind turned onto the track, and `baked_snow` (1 under snow: the road was
+baked covered). Physics, AI and racing line then follow with no
 branch in the tick, and a dry, sunny session is the track file to the bit
 (the bake returns early when the factors are 1).
 
@@ -147,6 +149,15 @@ resolved conditions, the track's latitude and altitude and the session id.
   track calls for) and `wet` (`conditions::WET_FROM_WATER`, 0.05), and hands
   the falling rain to the road (`RoadState::rain`).
 
+- **Snow** is a winter sky (`is_winter`: the host picked snow, or overcast
+  with the air under `WINTER_BELOW_C`, 1 °C). Its forecast swings only
+  between overcast and snow (never into rain, so a summer sky stays rain), and
+  its air keeps the winter's cold either way: snow's own day is overcast's
+  17 degrees colder (`Weather::SNOW_AIR_DROP_C`), and an overcast winter sky
+  is held that far down too. Snowfall eases in over `RAIN_EASE_S` like rain
+  (`LiveConditions::snowfall`; `rain` is 0 under snow), and the lights come
+  on as in rain.
+
 A session whose clock and sky both hold (`is_static`) bakes nothing after
 creation: it is the static bake above, plus the road state.
 
@@ -175,9 +186,44 @@ Per bin:
 - **dry**: how much of the cell's water the wheels have wiped there,
   rewetted by the rain, never past `line_dry_ceiling(rain)`.
 
+- **snow** 0..1 (the cover) and **ice** 0..1: see below.
+
 Per cell, the **water depth**: fed toward the falling rain, deeper by
 `PUDDLE_GAIN` where the road lies `LOW_DEPTH_M` below its surroundings along
 the lap, drained above that. Water over 1 is standing water.
+
+### Snow on the road
+
+Under a snow sky the road's grip is the *covered* road's: `Weather::Snow`
+bakes 0.55 (the racing line and the AI's speed profile are planned for it, and
+the field races it cleanly down to about that figure at Silverstone, Monza
+and Spa; at 0.5 and under the line's envelope gives out on the cold tyres).
+`RoadState::snow_grip(cover, ice, baked_cover)` is the cover's grip
+(`1 - SNOW_COVER_GRIP * cover`: bare 1.0, covered 0.55) against the baked
+cover, less the ice, and is multiplied into the sample's `grip`, so the road
+is exactly as baked at the start of a snow session and a dry-baked road
+under new snow falls to the covered figure.
+
+- The cover builds toward 1 under snowfall (`SNOWFALL_RATE`: ten minutes
+  from bare to 90%). Every wheel pass packs its bin down toward
+  `SNOW_FLOOR` (0.65, a film that grips 1.29 times a covered road) by
+  `SNOW_CLEAR_PER_PASS`, so a field drives a darker, quicker line through the
+  white that the snowfall keeps trying to cover.
+- A track over 0 °C melts it (`SNOW_MELT_PER_C` of the cover per degree per
+  second, ice thaws too). The verge, which no wheel clears, keeps a cover per
+  cell (`Cell::verge_snow`) that moves the grass's grip the same way.
+- The water on a bin the cars have cleared freezes into **ice** when the
+  track is under `FREEZE_C` (-1 °C), the cover is under 0.9 and no snow is
+  falling: the line freezes overnight and costs `ICE_GRIP_LOSS` (half) of
+  its grip until it thaws.
+- The slush is `SNOW_WATER` (0.3) of standing water while it snows (the
+  `Weather::Snow.water()` that picks the tyre and that the dry line wipes),
+  so `Compound::grip_on` and the AI's crossover choose treaded tyres with no
+  snow branch. Rubber and marbles lay on a snowy bin as little as on a wet
+  one.
+- `mean_line_snow` is the line's mean cover: telemetry's `line_snow_pct`.
+  Nothing moves in a session without snow (`snowy` false, every figure
+  multiplies by 1.0): the dry bake and the determinism test are unchanged.
 
 `RoadState::sample(station, lateral)` is what a tyre finds: `water` (for
 the compound's grip), `grip` (water against the baked water, times rubber
@@ -268,17 +314,23 @@ as `lap_flags` bits 5 and 6 (`LAP_FLAG_HEADLIGHTS`,
   --nocapture` ->
   `ApexGolden::C_CreateSessionAir` / `S_SessionJoinedAir` /
   `C_CreateSessionSky` / `S_SessionJoinedSky`.
-- `CompactTelemetry.sky` (`network::SkyNow`, 13 positional fields: clock,
+- `CompactTelemetry.sky` (`network::SkyNow`, 15 positional fields: clock,
   weather, rain, cloud, road water, air, track, the wind now and where it
-  blows toward, line rubber, time scale, next weather and when), appended
+  blows toward, line rubber, time scale, next weather and when, then the
+  snow on the line and the snowfall, both percent), appended
   after `race_clock` (nil then when there is no race clock); every frame.
   Golden: `ApexUdpGolden::S_TelemetryCompactSky`.
 - `PlayerInput.headlights` / `flash`: `cargo test
   player_input_headlights_wire_format -- --nocapture` ->
   `ApexUdpGolden::C_PlayerInput`.
 - `RoadState`: `cargo test road_state_wire_format -- --nocapture` ->
-  `ApexGolden::S_RoadState`; the stream's `Road` record in
-  `spectator_wire_format` -> `ApexSpectatorGolden::Road`.
+  `ApexGolden::S_RoadState` and `S_RoadStateSnow`; the stream's `Road` record
+  in `spectator_wire_format` -> `ApexSpectatorGolden::Road`. Snow rides in a
+  `SnowRows` field (named, left off the wire with no snow: `write_snow_rows`,
+  `SNOW_ROW_BYTES` a cell, the verge's cover then each bin's cover and ice) and
+  the stream record's twelfth element; the existing rows keep their layout.
+  `Weather::Snow` is the sixth `Weather` byte (an older client shows a sunny
+  sky).
 
 See [protocol.md](protocol.md) for the append-only rules.
 
@@ -308,13 +360,26 @@ See [protocol.md](protocol.md) for the append-only rules.
   `apexsim.lights.Max` (90) within `apexsim.lights.Range` of the camera
   (`ApexStreetLights.h`), and the emissive lamp faces glow.
 - Rain is `AApexRainActor`: up to 1500 streaks of the engine cube in a box
-  that follows the camera, drifting with the wind (no particle assets).
+  that follows the camera, drifting with the wind (no particle assets). The
+  same box is snow (`SetSnow`): bright white flakes that fall at 1.2 m/s,
+  short and fat until the camera's speed stretches them.
+- Snow on screen: `ApexSky` lights a snow sky as an overcast one made flatter,
+  cooler and thicker in fog (`SnowIntensity`, `SnowCover`; a live sky blends
+  overcast to snow by `snowfall_pct` and takes the cover from `line_snow_pct`).
+  `M_ApexTrackBase` has a `SnowCover` parameter (0 default) that whitens
+  whatever faces up (the geometry's world normal); the director sets it on
+  the ground, verges, curbs and wear bands (`SnowMids`, curbs half, wear bands
+  a third: they keep some paint), not on buildings and props. The road
+  (`M_ApexTrackRoad`) draws the per-bin `RoadSnow` texture instead (R cover, G
+  ice, B the verge, from `SnowRows`): white from 0.9 cover, dark slush on a
+  packed line (0.65 to 0.75), ice a dark mirror. A base baked before snow has
+  no `SnowCover`, so `-run=ApexMaterialBake` bakes it again unasked.
 - Car headlights: `AApexRaceCarActor::SetHeadlights`
   (`apexsim.car.HeadlightLumens`), from the telemetry bits; a flash is held
   at least 0.2 s so a tap shows.
 - HUD data points `sky.*` and the `conditions` component (off by default):
   [../game/hud-modding.md](../game/hud-modding.md).
-- Unattended: `-ApexAutoRace -ApexWeather=heavyrain -ApexTimeOfDay=22:15
+- Unattended: `-ApexAutoRace -ApexWeather=heavyrain|snow -ApexTimeOfDay=22:15
   -ApexTimeScale=N -ApexChangeable=N -ApexTrackRubber=N`.
 
 ## Checking it

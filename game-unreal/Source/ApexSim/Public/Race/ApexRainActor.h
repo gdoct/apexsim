@@ -6,6 +6,8 @@
 #include "ApexRainActor.generated.h"
 
 class UInstancedStaticMeshComponent;
+class UMaterialInstanceDynamic;
+class UMaterialInterface;
 
 /**
  * Rain, drawn as streaks around whichever camera is active.
@@ -17,6 +19,10 @@ class UInstancedStaticMeshComponent;
  * stream past as they would; a streak is stretched along its apparent
  * velocity (fall speed against the camera's own), which is what a shutter
  * makes of rain at speed. The density is the session's `RainIntensity`.
+ *
+ * The same box is snow when asked (`SetSnow`): white flakes that fall at
+ * 1.2 m/s, short and fat, drifting with the wind. The density is the
+ * session's `SnowIntensity`.
  */
 UCLASS()
 class APEXSIM_API AApexRainActor : public AActor
@@ -31,6 +37,9 @@ public:
 	/** 0 stops the rain (and hides the streaks); 1 is a downpour. */
 	void SetIntensity(float Intensity);
 	float GetIntensity() const { return RainIntensity; }
+	/** Flakes instead of drops, 0 none .. 1 steady snowfall. */
+	void SetSnow(float Intensity);
+	bool IsSnow() const { return bSnow; }
 
 	/**
 	 * The wind the drops drift with, Unreal world cm/s (only its horizontal
@@ -43,6 +52,8 @@ public:
 	void ClearWind();
 
 private:
+	/** Sets the count of falling streaks (drops or flakes) and the look. */
+	void SetDensity(float Intensity, bool bFlakes);
 	/** Puts the active streaks somewhere in the box the first time they are needed. */
 	void EnsureStreaks(int32 Count);
 	/** The box's centre this frame: the camera, nudged along where it is going. */
@@ -50,11 +61,18 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> Streaks;
+	/** The engine's basic shape material the streaks start with, and a bright white copy for flakes. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> DropMaterial;
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> FlakeMaterial;
 
 	/** World-space position of every streak, active or not. */
 	TArray<FVector> Positions;
 	TArray<FTransform> Transforms;
 	float RainIntensity = 0.0f;
+	/** Whether the streaks are flakes. */
+	bool bSnow = false;
 	int32 ActiveStreaks = 0;
 
 	/** The breeze from before the wind was on the wire, cm/s (ClearWind's). */
@@ -77,6 +95,9 @@ private:
 	static constexpr float HalfHeightCm = 900.0f;
 	/** Terminal velocity of a drop, cm/s. */
 	static constexpr float FallSpeedCmPerS = 900.0f;
+	/** A flake's, cm/s. */
+	static constexpr float SnowFallSpeedCmPerS = 120.0f;
+	static constexpr float FlakeThicknessCm = 3.5f;
 	/** How long a shutter sees a drop for: sets the streak's length from its speed. */
 	static constexpr float ShutterSeconds = 1.0f / 60.0f;
 	static constexpr float StreakThicknessCm = 1.6f;

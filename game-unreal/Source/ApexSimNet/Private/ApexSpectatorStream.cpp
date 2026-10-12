@@ -367,10 +367,13 @@ namespace ApexSpectatorCodec
 				|| !ReadI32(Reader, S.RoadWaterPct) || !ReadI32(Reader, S.AirC) || !ReadI32(Reader, S.TrackC)
 				|| !ReadI32(Reader, S.WindKph) || !ReadI32(Reader, S.WindToDeg) || !ReadI32(Reader, S.LineRubberPct)
 				|| !ReadI32(Reader, S.TimeScale) || !ReadI32(Reader, NextWeather) || !ReadI32(Reader, S.NextInS)
-				|| !SkipRest(Reader, Fields, 13))
+				|| (Fields >= 15 && (!ReadI32(Reader, S.LineSnowPct) || !ReadI32(Reader, S.SnowfallPct)))
+				|| !SkipRest(Reader, Fields, Fields >= 15 ? 15 : 13))
 			{
 				return false;
 			}
+			S.LineSnowPct = FMath::Clamp(S.LineSnowPct, 0, 255);
+			S.SnowfallPct = FMath::Clamp(S.SnowfallPct, 0, 255);
 			S.bValid = true;
 			S.Weather = Weather < FApexSessionConditions::WeatherCount ? static_cast<EApexWeather>(Weather) : EApexWeather::Sunny;
 			S.ClockS = FMath::Clamp(S.ClockS, 0, 86399);
@@ -470,7 +473,19 @@ namespace ApexSpectatorCodec
 			Road.Debris.Add(FVector2D(X / 1000.0, Y / 1000.0));
 		}
 		Road.SetGeometryBytes(Geometry);
-		return SkipRest(Reader, Count, 11);
+		// Streams from before snow end here.
+		int32 Read = 11;
+		if (Count >= 12)
+		{
+			TArrayView<const uint8> Snow;
+			if (!Reader.ReadBinary(Snow))
+			{
+				return false;
+			}
+			Road.SnowRows = TArray<uint8>(Snow.GetData(), Snow.Num());
+			Read = 12;
+		}
+		return SkipRest(Reader, Count, Read);
 	}
 
 	bool ParseBlock(FMsgPackReader& Reader, int32 Count, FApexStreamBlock& Out)

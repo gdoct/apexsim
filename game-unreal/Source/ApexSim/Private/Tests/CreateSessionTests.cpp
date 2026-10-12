@@ -180,6 +180,12 @@ bool FApexCreateSessionAirTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("dry grip"), GripPercent(EApexWeather::Sunny), 100);
 	TestEqual(TEXT("overcast grip"), GripPercent(EApexWeather::Overcast), 98);
 	TestEqual(TEXT("heavy rain grip"), GripPercent(EApexWeather::HeavyRain), 74);
+	TestEqual(TEXT("snow grip"), GripPercent(EApexWeather::Snow), 55);
+	TestEqual(TEXT("auto wind in snow"), WindKph(CreateAt(EApexWeather::Snow, 13)), 10);
+	TestEqual(TEXT("snow at its warmest hour"), AirTempC(CreateAt(EApexWeather::Snow, 15)), 1);
+	TestEqual(TEXT("snow before dawn"), AirTempC(CreateAt(EApexWeather::Snow, 3)), -4);
+	TestEqual(TEXT("a snowy track is a degree under the air"),
+		FMath::RoundToInt(TrackTempC(CreateAt(EApexWeather::Snow, 13))), AirTempC(CreateAt(EApexWeather::Snow, 13)) - 1);
 	return true;
 }
 

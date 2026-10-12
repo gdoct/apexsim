@@ -973,6 +973,11 @@ pub(crate) fn road_state_message(
     road.write_rows(first_cell % n, count, &mut rows);
     let mut geometry = Vec::with_capacity(count * crate::road_state::GEOMETRY_BYTES);
     road.write_geometry(first_cell % n, count, &mut geometry);
+    let mut snow_rows = Vec::new();
+    if road.has_snow() {
+        snow_rows.reserve(count * crate::road_state::SNOW_ROW_BYTES);
+        road.write_snow_rows(first_cell % n, count, &mut snow_rows);
+    }
     let debris = game_session
         .debris
         .iter()
@@ -988,6 +993,7 @@ pub(crate) fn road_state_message(
         rows: crate::network::RecordBytes(rows),
         debris,
         geometry: crate::network::RecordBytes(geometry),
+        snow_rows: crate::network::RecordBytes(snow_rows),
     }))
 }
 

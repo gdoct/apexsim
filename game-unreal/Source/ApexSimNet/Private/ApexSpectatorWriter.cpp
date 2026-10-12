@@ -227,7 +227,7 @@ namespace ApexSpectator
 		if (S.Sky.bValid)
 		{
 			const FApexSkyNow& K = S.Sky;
-			W.WriteArrayHeader(13);
+			W.WriteArrayHeader(15);
 			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.ClockS, 0, 86399)));
 			W.WriteUInt(static_cast<uint64>(K.Weather));
 			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.RainPct, 0, 255)));
@@ -241,6 +241,8 @@ namespace ApexSpectator
 			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.TimeScale, 0, 255)));
 			W.WriteUInt(K.NextWeather < 0 ? 255 : static_cast<uint64>(K.NextWeather));
 			W.WriteUInt(static_cast<uint64>(FMath::Max(0, K.NextInS)));
+			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.LineSnowPct, 0, 255)));
+			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.SnowfallPct, 0, 255)));
 		}
 		else
 		{
@@ -281,8 +283,8 @@ namespace ApexSpectator
 			const float V[4] = {G.X, G.Y, G.Z, G.W};
 			FMemory::Memcpy(Geometry.GetData() + i * 16, V, 16);
 		}
-		FMsgPackWriter W(48 + Road.Rows.Num() + Debris.Num() + Geometry.Num());
-		BeginRecord(W, 11, RecordRoad, R.Epoch);
+		FMsgPackWriter W(48 + Road.Rows.Num() + Road.SnowRows.Num() + Debris.Num() + Geometry.Num());
+		BeginRecord(W, 12, RecordRoad, R.Epoch);
 		W.WriteUInt32Fixed(static_cast<uint32>(R.Tick));
 		W.WriteFloat(Road.LapM);
 		W.WriteFloat(Road.CellM);
@@ -292,6 +294,7 @@ namespace ApexSpectator
 		W.WriteBinary(Road.Rows);
 		W.WriteBinary(Debris);
 		W.WriteBinary(Geometry);
+		W.WriteBinary(Road.SnowRows);
 		return MoveTemp(W.GetBuffer());
 	}
 }

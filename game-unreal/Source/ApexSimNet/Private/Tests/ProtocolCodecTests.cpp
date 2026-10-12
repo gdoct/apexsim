@@ -1046,6 +1046,25 @@ bool FApexProtocolLapTimingDecodeTest::RunTest(const FString& Parameters)
 			&& Road.Geometry[0] == FVector4f(100.0f, -20.0f, 0.0f, 1.0f)
 			&& Road.Geometry[1] == FVector4f(110.0f, -20.0f, 0.0f, 1.0f));
 		TestTrue(TEXT("usable"), Road.IsValid());
+		TestFalse(TEXT("no snow rows without snow"), Road.HasSnow());
+	}
+
+	FApexServerMessage SnowMessage;
+	if (TestTrue(TEXT("RoadState with snow decodes"),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_RoadStateSnow, SnowMessage, Error)))
+	{
+		const FApexRoadState& Road = SnowMessage.RoadState;
+		TestEqual(TEXT("the rows are read as before"), Road.Rows.Num(), 26);
+		TestEqual(TEXT("a snow row is the verge and two bytes a bin"), Road.SnowRowBytes(), 9);
+		if (TestTrue(TEXT("snow rows"), Road.HasSnow() && Road.SnowRows.Num() == 18))
+		{
+			TestEqual(TEXT("cell 0 verge"), (int32)Road.SnowRows[0], 255);
+			// Bin 2 of cell 0: cover 128, ice 0.
+			TestEqual(TEXT("bin cover"), (int32)Road.SnowRows[1 + 2 * 2], 128);
+			TestEqual(TEXT("bin ice"), (int32)Road.SnowRows[1 + 2 * 2 + 1], 0);
+			TestEqual(TEXT("the last bin's ice"), (int32)Road.SnowRows[1 + 2 * 3 + 1], 90);
+			TestEqual(TEXT("cell 1 is bare"), (int32)Road.SnowRows[9], 0);
+		}
 	}
 
 	return true;

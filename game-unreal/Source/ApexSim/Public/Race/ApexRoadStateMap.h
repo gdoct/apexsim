@@ -19,6 +19,9 @@
  *    lateral is -dot(world - point, left) / 100, positive right, which is
  *    `RoadState::lateral_of` in the server's frame.
  *
+ * The snow rides a second map of the same size (`RoadSnow`): R the bin's
+ * cover, G its ice, B the cell's verge cover, all 0 without snow.
+ *
  * A cell no slice has reached yet holds the neutral state (rubber at the
  * calibrated half, dry, no marbles), so it draws as built whatever bin a
  * pixel lands in. Pure data: no world, no textures (the race director owns
@@ -53,6 +56,10 @@ public:
 
 	/** The state, row by row (bin), a texel per cell; NumCells x NumBins. */
 	const TArray<FColor>& GetState() const { return State; }
+	/** The snow, laid out as the state: a texel per bin per cell (see the class note). */
+	const TArray<FColor>& GetSnow() const { return Snow; }
+	/** Whether any cell holds snow or ice (or the last slice said so). */
+	bool HasSnow() const { return SnowyCells > 0; }
 	/** The geometry, a texel per cell, Unreal frame (see the class note). */
 	const TArray<FLinearColor>& GetGeometry() const { return Geometry; }
 	/** The debris the last slice reported, server frame, metres. */
@@ -92,6 +99,10 @@ private:
 	float HalfSpanM = 0.0f;
 	int32 KnownCells = 0;
 	TArray<FColor> State;
+	TArray<FColor> Snow;
+	/** Per cell: it holds snow or ice. */
+	TBitArray<> Snowy;
+	int32 SnowyCells = 0;
 	TArray<FLinearColor> Geometry;
 	TBitArray<> Known;
 	TArray<FVector2D> Debris;

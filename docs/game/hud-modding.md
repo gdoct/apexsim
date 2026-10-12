@@ -287,6 +287,8 @@ figures then stand for the sky. Percentages are whole numbers.
 | `sky.wind_rel_deg` | where the wind blows *toward*, degrees clockwise from the local car's nose, -180 to 180: 0 a tailwind, ±180 a headwind (*null* in a calm or with no car) |
 | `sky.wind_from` | where it comes from, seen from the local car: "ahead", "ahead-left", "the left", ... "behind" (*null* as above) |
 | `sky.rubber` | rubber on the racing line, the lap's mean, percent: 50 the track cars are set up on, 0 green, 100 rubbered in |
+| `sky.snow` | snow cover on the racing line, the lap's mean, percent: 100 an untouched covered road, about 70 a line the field has driven, 0 bare |
+| `sky.snowfall` | snow falling, percent of steady snowfall (0 outside a snow sky) |
 | `sky.time_scale` | how fast the clock runs (0 frozen, 1 real time, 24 a day an hour) |
 | `sky.next_weather` | the forecast's next weather (*null* while the sky holds) |
 | `sky.next_in_s` | seconds of session until it arrives (*null* as above) |

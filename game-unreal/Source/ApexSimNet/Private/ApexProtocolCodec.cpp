@@ -1179,6 +1179,15 @@ namespace
 					Out.SetGeometryBytes(Bytes);
 				}
 			}
+			else if (Key == TEXT("SnowRows"))
+			{
+				TArrayView<const uint8> Bytes;
+				bOk = Reader.ReadBinary(Bytes);
+				if (bOk)
+				{
+					Out.SnowRows = TArray<uint8>(Bytes.GetData(), Bytes.Num());
+				}
+			}
 			else if (Key == TEXT("Debris"))
 			{
 				int32 Count = 0;
@@ -2098,8 +2107,9 @@ namespace
 	/**
 	 * `SkyNow` (network.rs), positional: `[clock_s, weather, rain_pct,
 	 * cloud_pct, road_water_pct, air_c, track_c, wind_kph, wind_to_deg,
-	 * line_rubber_pct, time_scale, next_weather, next_in_s]`. Fields past the
-	 * thirteen are skipped; a shorter array is refused.
+	 * line_rubber_pct, time_scale, next_weather, next_in_s, line_snow_pct,
+	 * snowfall_pct]`. The last two came with snow and are optional; fields
+	 * past the fifteen are skipped; an array shorter than thirteen is refused.
 	 */
 	bool ParseSkyNow(FMsgPackReader& Reader, FApexSkyNow& Out)
 	{
@@ -2142,7 +2152,16 @@ namespace
 		{
 			return false;
 		}
-		for (int32 Extra = SkyNowFieldCount; Extra < Fields; ++Extra)
+		int32 Read = SkyNowFieldCount;
+		if (Fields >= SkyNowFieldCount + 2)
+		{
+			if (!ReadU(Out.LineSnowPct, MAX_uint8) || !ReadU(Out.SnowfallPct, MAX_uint8))
+			{
+				return false;
+			}
+			Read += 2;
+		}
+		for (int32 Extra = Read; Extra < Fields; ++Extra)
 		{
 			if (!Reader.SkipValue()) { return false; }
 		}

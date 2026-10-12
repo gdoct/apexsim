@@ -102,12 +102,13 @@ forecast change.
 
 ### Snow
 
-A server rules change plus a client look. It follows Wet weather on
-screen, because it reuses the road-state material and the forecast.
+Built (server rules, the sky, flakes, a white ground and a per-bin snow road;
+[server/conditions.md](server/conditions.md#snow-on-the-road)). What is left is
+the look.
 
 | Item | Type | Notes |
 |---|---|---|
-| Snow | feature | No snow weather: no grip, slush, ice or melt rules on the server and no snowy look on the client. Worked out in [proposals/roadstate.md](proposals/roadstate.md) (phases 2 and 3). |
+| Snow: props and the sky | feature | Buildings, grandstands and trees keep their summer look under snow (a top-down snow blend in the prop materials); the sky has no cloud layer (a snow day is a deep blue gradient lit as overcast); flakes are lit grey-blue cubes, not white sprites; no spray behind the cars. Seen once on the Silverstone straight (a dark packed line in white, flakes streaking past a fast camera); ice, a melt and a night have not been seen on screen. |
 
 ### Tyres on screen
 

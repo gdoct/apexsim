@@ -109,7 +109,10 @@ pub fn update(
     if total <= 0.0 {
         return;
     }
-    let wet = matches!(weather, Weather::LightRain | Weather::HeavyRain);
+    let wet = matches!(
+        weather,
+        Weather::LightRain | Weather::HeavyRain | Weather::Snow
+    );
     let race = race_rules(mode);
     let field: Vec<(PlayerId, f32)> = participants
         .values()

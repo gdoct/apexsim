@@ -65,6 +65,40 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
         .apply_to_track(&mut track);
         track.track_surface.air_density_ratio = 1.0;
     }
+    // `SURVEY_GRIP=0.55` scales the baked road grip by that, for finding
+    // where the field stops coping.
+    if let Some(grip) = std::env::var("SURVEY_GRIP")
+        .ok()
+        .and_then(|v| v.parse::<f32>().ok())
+    {
+        for point in &mut track.centerline {
+            point.grip_modifier *= grip;
+        }
+        track.track_surface.base_grip *= grip;
+    }
+    // `SURVEY_WEATHER=snow` (or rain, lightrain, heavyrain...) bakes that
+    // sky onto the track, with the road state it leaves: the racing line
+    // and the AI's speed profile are built for it.
+    if let Ok(name) = std::env::var("SURVEY_WEATHER") {
+        let weather = apexsim_server::data::Weather::ALL
+            .into_iter()
+            .find(|w| w.name().replace(' ', "") == name.to_lowercase().replace(' ', ""))
+            .unwrap_or_else(|| panic!("SURVEY_WEATHER={name}: no such weather"));
+        // `SURVEY_AIR_C=15` holds the air there, whatever the weather's own.
+        let air = std::env::var("SURVEY_AIR_C")
+            .ok()
+            .and_then(|v| v.parse::<i8>().ok());
+        let mut conditions = apexsim_server::data::SessionConditions {
+            weather,
+            air_temp_c: air,
+            ..apexsim_server::data::SessionConditions::DEFAULT
+        }
+        .resolve(1);
+        if air.is_some() {
+            conditions.air_temp_c = air;
+        }
+        conditions.apply_to_track(&mut track);
+    }
     let car = CarLoader::load_from_file(&repo(&format!("content/cars/default/{car}/car.toml")))
         .expect("car loads");
     let car_id = car.id;
@@ -97,6 +131,9 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
         3,
     );
     let mut race = GameSession::with_ai_profiles(session, track, cars, profiles);
+    if std::env::var("DBG_NO_ROAD").is_ok() {
+        race.track_config.road_state = None;
+    }
     race.set_tick_rate(TICK_RATE);
     race.spawn_ai_drivers();
     assert_eq!(race.session.participants.len(), ai_count as usize);

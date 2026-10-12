@@ -12,7 +12,11 @@
 //! (`crate::road_state`: water rising in the dips, then draining, a line
 //! the cars dry). The air follows the hour and the cloud, and the asphalt
 //! lags it ([`TRACK_EASE_S`]: it holds heat), cools in the evening and
-//! sits under the air while it is wet.
+//! sits under the air while it is wet. Snow falls the same way (it builds
+//! over [`RAIN_EASE_S`] and the road's cover follows, `crate::road_state`),
+//! but only in a winter sky: a forecast that starts in snow, or overcast
+//! with the air under [`WINTER_BELOW_C`], swings between overcast and snow and
+//! never into rain, and its air keeps the winter's cold either way.
 //!
 //! The session steps it once a second, before the physics
 //! (`GameSession::update_sky`), and bakes the result onto its own copy of
@@ -39,6 +43,9 @@ pub const AIR_EASE_S: f32 = 600.0;
 pub const TRACK_EASE_S: f32 = 900.0;
 /// The road counts as wet from this much water on it.
 pub const WET_FROM_WATER: f32 = 0.05;
+/// An overcast start with the air under this, °C, is a winter sky: its
+/// forecast swings between overcast and snow.
+pub const WINTER_BELOW_C: f32 = 1.0;
 /// A forecast changes the weather no sooner than this, s of session time,
 /// however fast the clock runs: rain takes minutes to arrive.
 const MIN_GAP_S: f32 = 240.0;
@@ -73,6 +80,32 @@ pub fn forecast(start: &SessionConditions, seed: u64) -> Vec<WeatherChange> {
         _ => (15.0, 45.0),
     };
     let scale = start.clock_scale().max(1) as f32;
+    if is_winter(start) {
+        // Overcast and snow, snowier when the host started in it and when
+        // the sky is stormy.
+        let home_lean = if start.weather.is_snow() { 0.15 } else { -0.15 };
+        let p_snow = (0.5 + 0.1 * (level as f32 - 2.0) + home_lean).clamp(0.1, 0.9);
+        let mut weather = start.weather;
+        let mut at_s = 0.0f32;
+        let mut out = Vec::new();
+        for k in 0..MAX_CHANGES as u64 {
+            let gap_min = gap_lo + (gap_hi - gap_lo) * hash01(seed, 0xF0_0000 + 3 * k);
+            at_s += (gap_min * 60.0 / scale).max(MIN_GAP_S);
+            if at_s > HORIZON_S {
+                break;
+            }
+            let next = if hash01(seed, 0xF0_0001 + 3 * k) < p_snow {
+                Weather::Snow
+            } else {
+                Weather::Overcast
+            };
+            if next != weather {
+                weather = next;
+                out.push(WeatherChange { at_s, weather });
+            }
+        }
+        return out;
+    }
     let home = start.weather as i32;
     let mut weather = home;
     let mut at_s = 0.0f32;
@@ -106,6 +139,13 @@ pub fn forecast(start: &SessionConditions, seed: u64) -> Vec<WeatherChange> {
     out
 }
 
+/// Whether a session started under `start` has a winter sky: snow, or an
+/// overcast one with the air under [`WINTER_BELOW_C`].
+pub fn is_winter(start: &SessionConditions) -> bool {
+    start.weather.is_snow()
+        || (start.weather == Weather::Overcast && start.air_temperature_c() < WINTER_BELOW_C)
+}
+
 /// The conditions as they are now.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LiveConditions {
@@ -123,6 +163,8 @@ pub struct LiveConditions {
     /// Rain falling, in the weather's water units (0 dry, 0.5 light, 1
     /// heavy), eased toward the weather's.
     pub rain: f32,
+    /// Snow falling, 0 or 1, eased toward the weather's the same way.
+    pub snowfall: f32,
     /// Cloud cover, 0..1, eased toward the weather's.
     pub cloud: f32,
     /// The air and the asphalt, °C.
@@ -134,6 +176,10 @@ pub struct LiveConditions {
     /// measured them (`crate::road_state`), for telemetry.
     pub road_water: f32,
     pub line_rubber: f32,
+    /// The snow cover on the line, 0..1 (`RoadState::mean_line_snow`).
+    pub line_snow: f32,
+    /// Whether the sky is a winter one ([`is_winter`]).
+    winter: bool,
     /// What the host's air temperature puts on the weather's own, °C.
     air_offset_c: f32,
 }
@@ -145,6 +191,7 @@ impl LiveConditions {
     pub fn new(start: SessionConditions, latitude_deg: f32, altitude_m: f32, seed: u64) -> Self {
         let air_c = start.air_temperature_c();
         let track_c = start.track_temperature_c_at(latitude_deg);
+        let winter = is_winter(&start);
         Self {
             start,
             latitude_deg,
@@ -152,15 +199,29 @@ impl LiveConditions {
             forecast: forecast(&start, seed),
             clock_min: (start.time_of_day_minutes % SessionConditions::MINUTES_PER_DAY) as f32,
             weather: start.weather,
-            rain: start.weather.water(),
+            rain: start.weather.rainfall(),
+            snowfall: start.weather.snowfall(),
             cloud: start.weather.cloud(),
             air_c,
             track_c,
             density_ratio: start.air_density_ratio(altitude_m),
             road_water: start.weather.water(),
             line_rubber: start.track_rubber(),
-            air_offset_c: air_c - start.auto_air_temperature_c(),
+            line_snow: start.weather.snowfall(),
+            winter,
+            air_offset_c: air_c - Self::auto_air_c(&start, winter),
         }
+    }
+
+    /// The weather's and the clock's own air, °C, for `conditions`: a winter
+    /// sky that is not snowing sits as far under its overcast as snow does.
+    fn auto_air_c(conditions: &SessionConditions, winter: bool) -> f32 {
+        let drop = if winter && !conditions.weather.is_snow() {
+            Weather::SNOW_AIR_DROP_C
+        } else {
+            0.0
+        };
+        conditions.auto_air_temperature_c() - drop
     }
 
     /// Whether the sky moves at all.
@@ -190,7 +251,7 @@ impl LiveConditions {
     /// Whether a car's lights are on when nobody has touched the switch:
     /// as the sun goes (under 6°) and in the rain.
     pub fn headlights_needed(&self) -> bool {
-        self.sun_elevation_deg() < 6.0 || self.rain > 0.1
+        self.sun_elevation_deg() < 6.0 || self.rain > 0.1 || self.snowfall > 0.1
     }
 
     /// How fast the road dries against a mild sky: more under a high sun
@@ -229,14 +290,15 @@ impl LiveConditions {
         let ease = |value: &mut f32, target: f32, tau: f32| {
             *value += (target - *value) * (dt / tau).min(1.0);
         };
-        ease(&mut self.rain, self.weather.water(), RAIN_EASE_S);
+        ease(&mut self.rain, self.weather.rainfall(), RAIN_EASE_S);
+        ease(&mut self.snowfall, self.weather.snowfall(), RAIN_EASE_S);
         ease(&mut self.cloud, self.weather.cloud(), CLOUD_EASE_S);
         // The air and the asphalt warm and cool by the day's clock: at 24x
         // the evening comes in an hour, and so does its chill.
         let day_ease = |value: &mut f32, target: f32, tau: f32| {
             *value += (target - *value) * (dt * scale.max(1.0) / tau).min(1.0);
         };
-        let air = self.now().auto_air_temperature_c() + self.air_offset_c;
+        let air = Self::auto_air_c(&self.now(), self.winter) + self.air_offset_c;
         day_ease(&mut self.air_c, air, AIR_EASE_S);
         // Dry asphalt sits over the air by what the sun puts in through the
         // cloud; water on it holds it a degree under the air.
@@ -345,6 +407,70 @@ mod tests {
         // A fast clock packs the changes in, never closer than the minimum.
         let fast = forecast(&picked(Weather::Cloudy, 13, 60, 2), 5);
         assert!(fast.len() > a.len());
+    }
+
+    #[test]
+    fn a_winter_forecast_swings_between_overcast_and_snow_and_never_rains() {
+        let snow = SessionConditions {
+            weather: Weather::Snow,
+            time_scale: Some(1),
+            changeable: Some(2),
+            ..SessionConditions::DEFAULT
+        }
+        .resolve(7);
+        assert!(is_winter(&snow));
+        let a = forecast(&snow, 41);
+        assert_eq!(a, forecast(&snow, 41));
+        assert!(a.len() > 3);
+        assert!(a
+            .iter()
+            .all(|c| matches!(c.weather, Weather::Overcast | Weather::Snow)));
+        assert!(a.windows(2).all(|w| w[0].weather != w[1].weather));
+        // An overcast sky is winter only when the air is under 1 degree.
+        let cold = SessionConditions {
+            weather: Weather::Overcast,
+            air_temp_c: Some(-2),
+            changeable: Some(2),
+            time_scale: Some(1),
+            ..SessionConditions::DEFAULT
+        }
+        .resolve(7);
+        assert!(is_winter(&cold));
+        assert!(forecast(&cold, 41).iter().any(|c| c.weather.is_snow()));
+        let mild = SessionConditions {
+            air_temp_c: Some(12),
+            ..cold
+        };
+        assert!(!is_winter(&mild));
+        assert!(forecast(&mild, 41).iter().all(|c| !c.weather.is_snow()));
+    }
+
+    #[test]
+    fn snow_falls_over_minutes_and_the_winter_air_stays_cold_through_the_forecast() {
+        let start = SessionConditions {
+            weather: Weather::Overcast,
+            air_temp_c: Some(-3),
+            time_of_day_minutes: 10 * 60,
+            time_scale: Some(1),
+            changeable: Some(3),
+            ..SessionConditions::DEFAULT
+        }
+        .resolve(5);
+        let mut live = LiveConditions::new(start, 50.0, 0.0, 5);
+        let first = *live.forecast.iter().find(|c| c.weather.is_snow()).unwrap();
+        assert_eq!(live.snowfall, 0.0);
+        let (mut s, mut lowest, mut highest) = (0.0, live.air_c, live.air_c);
+        while s < first.at_s + 600.0 {
+            s += 1.0;
+            live.step(s, 1.0, 0.0);
+            lowest = lowest.min(live.air_c);
+            highest = highest.max(live.air_c);
+        }
+        assert_eq!(live.weather, first.weather);
+        assert!(live.snowfall > 0.2, "ten minutes on: {}", live.snowfall);
+        assert_eq!(live.rain, 0.0, "snow is not rain");
+        assert!(live.headlights_needed());
+        assert!(highest < 4.0 && lowest > -12.0, "{lowest}..{highest}");
     }
 
     #[test]

@@ -39,6 +39,43 @@ namespace ApexRoadStateMapTest
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexRoadStateMapTest, "ApexSim.Race.RoadStateMap", ApexTestFlags)
 
+// The snow rides along: a slice with snow rows fills the snow map (cover and
+// ice per bin, the verge in B), one without says there is none.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexRoadStateMapSnowTest, "ApexSim.Race.RoadStateMap.Snow", ApexTestFlags)
+
+bool FApexRoadStateMapSnowTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexRoadStateMapTest;
+	FApexRoadStateMap Map;
+	FApexRoadState Snowy = Slice(2, 2);
+	// A snow row is the verge, then cover and ice per bin: cell 2 white with a
+	// frozen bin 5, cell 3 bare.
+	const int32 RowBytes = Snowy.SnowRowBytes();
+	TestEqual(TEXT("a snow row is 65 bytes at 32 bins"), RowBytes, 65);
+	Snowy.SnowRows.SetNumZeroed(2 * RowBytes);
+	Snowy.SnowRows[0] = 255;
+	for (int32 b = 0; b < 32; ++b)
+	{
+		Snowy.SnowRows[1 + 2 * b] = 200;
+	}
+	Snowy.SnowRows[1 + 2 * 5 + 1] = 90;
+	TestTrue(TEXT("a slice with snow applies"), Map.Apply(Snowy));
+	TestTrue(TEXT("the map has snow"), Map.HasSnow());
+	const FColor Cover = Map.GetSnow()[5 * Map.NumCells() + 2];
+	TestEqual(TEXT("cover in R"), (int32)Cover.R, 200);
+	TestEqual(TEXT("ice in G"), (int32)Cover.G, 90);
+	TestEqual(TEXT("the verge in B"), (int32)Cover.B, 255);
+	TestEqual(TEXT("opaque"), (int32)Cover.A, 255);
+	TestEqual(TEXT("cell 3 is bare"), Map.GetSnow()[5 * Map.NumCells() + 3], FColor(0, 0, 0, 255));
+
+	// The server leaves the field off once the road is bare: the same cells
+	// without snow rows clear it.
+	TestTrue(TEXT("the slice without snow applies"), Map.Apply(Slice(2, 2)));
+	TestFalse(TEXT("the snow is gone"), Map.HasSnow());
+	TestEqual(TEXT("cell 2 is bare again"), Map.GetSnow()[5 * Map.NumCells() + 2], FColor(0, 0, 0, 255));
+	return true;
+}
+
 bool FApexRoadStateMapTest::RunTest(const FString& Parameters)
 {
 	using namespace ApexRoadStateMapTest;

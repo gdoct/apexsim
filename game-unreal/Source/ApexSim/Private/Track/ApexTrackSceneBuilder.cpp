@@ -1043,6 +1043,19 @@ bool ApexTrackMaterials::HasGroundTextures(const UMaterialInterface* Base)
 	return Infos.ContainsByPredicate([](const FMaterialParameterInfo& Info) { return Info.Name == TextureAmount; });
 }
 
+bool ApexTrackMaterials::HasSnowCover(const UMaterialInterface* Base)
+{
+	if (!Base)
+	{
+		return false;
+	}
+	TArray<FMaterialParameterInfo> Infos;
+	TArray<FGuid> Ids;
+	Base->GetAllScalarParameterInfo(Infos, Ids);
+	static const FName SnowCover(TEXT("SnowCover"));
+	return Infos.ContainsByPredicate([](const FMaterialParameterInfo& Info) { return Info.Name == SnowCover; });
+}
+
 float FApexMaterialParams::FindScalar(const TCHAR* Name, float Default) const
 {
 	const FName Wanted(Name);

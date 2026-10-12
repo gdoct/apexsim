@@ -219,3 +219,93 @@ fn a_changing_sky_is_deterministic() {
         assert_eq!((sa.pos_x, sa.pos_y), (sb.pos_x, sb.pos_y));
     }
 }
+
+/// A snow session: the road starts covered and grips as baked, six cars
+/// pack a line that grips a third more than the untouched snow beside it,
+/// telemetry carries the snow, and a replay of the same session is the same.
+#[test]
+fn snow_covers_the_road_and_the_field_packs_a_line() {
+    let conditions = SessionConditions {
+        weather: Weather::Snow,
+        ..SessionConditions::DEFAULT
+    };
+    let (mut gs, ids) = race(conditions, 6);
+    let surface = &gs.track_config.track_surface;
+    assert_eq!(surface.baked_snow, 1.0);
+    assert!(surface.wet && surface.air_temperature_c <= 2.0);
+    assert!((surface.base_grip - Weather::Snow.road_grip_factor()).abs() < 1e-6);
+    let road = gs.track_config.road_state.as_ref().unwrap();
+    assert!((road.mean_line_snow() - 1.0).abs() < 1e-6);
+    assert!(
+        (road.sample(300.0, 0.0).grip - 1.0).abs() < 1e-3,
+        "as baked"
+    );
+    run(&mut gs, &ids, 240, |_| {});
+    let road = gs.track_config.road_state.as_ref().unwrap();
+    println!(
+        "Monza in snow after 4 min: line cover {:.2}, air {:.1} °C",
+        road.mean_line_snow(),
+        gs.track_config.track_surface.air_temperature_c
+    );
+    assert!(road.mean_line_snow() < 0.99, "the line is packed");
+    assert!(road.mean_line_snow() > apexsim_server::road_state::SNOW_FLOOR - 0.01);
+    let sky = gs.get_compact_telemetry().sky.expect("a sky");
+    assert_eq!(sky.weather, Weather::Snow as u8);
+    assert!(sky.line_snow_pct > 60 && sky.snowfall_pct == 100, "{sky:?}");
+    assert_eq!(sky.rain_pct, 0, "snow is not rain");
+    assert!(gs.sky.headlights_needed());
+    // The same session again is the same.
+    let (mut again, ids2) = race(conditions, 6);
+    run(&mut again, &ids2, 240, |_| {});
+    assert_eq!(gs.track_config.road_state, again.track_config.road_state);
+}
+
+/// A winter sky that changes: it starts overcast and cold, the forecast
+/// brings snow, the road whitens, and the flakes stop with the weather.
+#[test]
+fn a_winter_forecast_brings_snow_onto_a_bare_road() {
+    let conditions = SessionConditions {
+        weather: Weather::Overcast,
+        air_temp_c: Some(-3),
+        changeable: Some(2),
+        ..SessionConditions::DEFAULT
+    };
+    let (mut gs, ids) = race(conditions, 2);
+    gs.sky.forecast = vec![
+        WeatherChange {
+            at_s: 20.0,
+            weather: Weather::Snow,
+        },
+        WeatherChange {
+            at_s: 700.0,
+            weather: Weather::Overcast,
+        },
+    ];
+    assert_eq!(gs.track_config.road_state.as_ref().unwrap().snowfall, 0.0);
+    let grip0 = gs
+        .track_config
+        .road_state
+        .as_ref()
+        .unwrap()
+        .sample(300.0, 0.0)
+        .grip;
+    run(&mut gs, &ids, 600, |_| {});
+    let road = gs.track_config.road_state.as_ref().unwrap();
+    println!(
+        "overcast -> snow: snowfall {:.2}, cover on the line {:.2}, grip {grip0:.2} -> {:.2}",
+        road.snowfall,
+        road.mean_line_snow(),
+        road.sample(300.0, 0.0).grip
+    );
+    assert_eq!(gs.sky.weather, Weather::Snow);
+    assert!(road.snowfall > 0.9 && road.has_snow());
+    assert!(
+        road.sample(300.0, 4.0).grip < grip0 * 0.7,
+        "the road whitens"
+    );
+    assert!(
+        gs.sky.air_c < 3.0,
+        "the winter air stays cold: {}",
+        gs.sky.air_c
+    );
+}

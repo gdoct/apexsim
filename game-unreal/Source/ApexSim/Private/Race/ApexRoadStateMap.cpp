@@ -21,6 +21,9 @@ bool FApexRoadStateMap::Apply(const FApexRoadState& Slice)
 		CellM = Slice.CellM;
 		HalfSpanM = Slice.HalfSpanM;
 		State.Init(NeutralTexel(), Cells * Bins);
+		Snow.Init(FColor(0, 0, 0, 255), Cells * Bins);
+		Snowy.Init(false, Cells);
+		SnowyCells = 0;
 		Geometry.Init(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f), Cells);
 		Known.Init(false, Cells);
 		KnownCells = 0;
@@ -38,6 +41,27 @@ bool FApexRoadStateMap::Apply(const FApexRoadState& Slice)
 		{
 			const uint8* B = Row + 1 + 3 * Bin;
 			State[Bin * Cells + Cell] = FColor(B[0], B[1], B[2], Depth);
+		}
+		// The cell's snow, if the slice carries any; a slice without says there
+		// is none (the server leaves the field off once the road is bare).
+		bool bCellSnowy = false;
+		const int32 SnowRowBytes = Slice.SnowRowBytes();
+		const bool bSliceSnow = Slice.HasSnow() && Slice.SnowRows.Num() >= (k + 1) * SnowRowBytes;
+		for (int32 Bin = 0; Bin < Bins; ++Bin)
+		{
+			FColor Texel(0, 0, 0, 255);
+			if (bSliceSnow)
+			{
+				const uint8* S = Slice.SnowRows.GetData() + k * SnowRowBytes;
+				Texel = FColor(S[1 + 2 * Bin], S[2 + 2 * Bin], S[0], 255);
+				bCellSnowy |= Texel.R > 0 || Texel.G > 0 || Texel.B > 0;
+			}
+			Snow[Bin * Cells + Cell] = Texel;
+		}
+		if (Snowy[Cell] != bCellSnowy)
+		{
+			Snowy[Cell] = bCellSnowy;
+			SnowyCells += bCellSnowy ? 1 : -1;
 		}
 		// Server frame (metres, +Y left) into Unreal's (cm, +Y right): the
 		// point moves, the left vector only flips its Y.

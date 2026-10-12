@@ -477,6 +477,7 @@ impl StreamHeader {
             2 => Weather::Overcast,
             3 => Weather::LightRain,
             4 => Weather::HeavyRain,
+            5 => Weather::Snow,
             other => return malformed(format!("weather {other}")),
         };
         let time_of_day_minutes = rd.uint()? as u16;
@@ -1425,8 +1426,9 @@ impl StreamPath {
 /// over the lap while a stream is recorded, so a viewer of a showcase, a
 /// replay or the menu backdrop sees the road evolve. The body is
 /// `[8, epoch, tick, lap_m, cell_m, bins, half_span_m, first_cell, rows bin,
-/// debris bin, geometry bin]`, debris `[x, y]` pairs in millimetres like a
-/// [`StreamPath`], geometry as `RoadState::write_geometry` packs it.
+/// debris bin, geometry bin, snow rows bin]`, debris `[x, y]` pairs in
+/// millimetres like a [`StreamPath`], geometry as `RoadState::write_geometry`
+/// packs it and the snow as `RoadState::write_snow_rows` (empty without snow).
 #[derive(Debug, Clone, PartialEq)]
 pub struct StreamRoad {
     pub epoch: u32,
@@ -1439,6 +1441,7 @@ pub struct StreamRoad {
     pub rows: Vec<u8>,
     pub debris: Vec<[f32; 2]>,
     pub geometry: Vec<u8>,
+    pub snow_rows: Vec<u8>,
 }
 
 impl StreamRoad {
@@ -1449,7 +1452,7 @@ impl StreamRoad {
             debris.extend_from_slice(&metres_to_mm(*y).to_le_bytes());
         }
         let mut out = Vec::with_capacity(self.rows.len() + debris.len() + 32);
-        begin(&mut out, 11, RECORD_ROAD, self.epoch);
+        begin(&mut out, 12, RECORD_ROAD, self.epoch);
         wr::u32_fixed(&mut out, self.tick);
         wr::f32(&mut out, self.lap_m);
         wr::f32(&mut out, self.cell_m);
@@ -1459,6 +1462,7 @@ impl StreamRoad {
         wr::bin(&mut out, &self.rows);
         wr::bin(&mut out, &debris);
         wr::bin(&mut out, &self.geometry);
+        wr::bin(&mut out, &self.snow_rows);
         out
     }
 
@@ -1486,7 +1490,15 @@ impl StreamRoad {
             })
             .collect();
         let geometry = rd.bin()?.to_vec();
-        rd.skip_rest(len, 11)?;
+        // Streams from before snow end here.
+        let mut read = 11;
+        let snow_rows = if len >= 12 {
+            read = 12;
+            rd.bin()?.to_vec()
+        } else {
+            Vec::new()
+        };
+        rd.skip_rest(len, read)?;
         Ok(Self {
             epoch,
             tick,
@@ -1498,6 +1510,7 @@ impl StreamRoad {
             rows,
             debris,
             geometry,
+            snow_rows,
         })
     }
 }
@@ -1606,7 +1619,7 @@ impl CarExtra {
 /// viewer who joins or seeks mid-file has the latest within a fraction of a
 /// second. The body is
 /// `[9, epoch, tick, sky, race_clock, entry_size, extras bin]`; `sky` is nil
-/// or `SkyNow`'s 13 fields in order, `race_clock` nil or `[left_ms,
+/// or `SkyNow`'s 15 fields in order, `race_clock` nil or `[left_ms,
 /// final_lap]`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StreamState {
@@ -1624,7 +1637,7 @@ impl StreamState {
         wr::u32_fixed(&mut out, self.tick);
         match &self.sky {
             Some(s) => {
-                wr::array(&mut out, 13);
+                wr::array(&mut out, 15);
                 wr::uint(&mut out, s.clock_s as u64);
                 wr::uint(&mut out, s.weather as u64);
                 wr::uint(&mut out, s.rain_pct as u64);
@@ -1638,6 +1651,8 @@ impl StreamState {
                 wr::uint(&mut out, s.time_scale as u64);
                 wr::uint(&mut out, s.next_weather as u64);
                 wr::uint(&mut out, s.next_in_s as u64);
+                wr::uint(&mut out, s.line_snow_pct as u64);
+                wr::uint(&mut out, s.snowfall_pct as u64);
             }
             None => wr::nil(&mut out),
         }
@@ -1670,7 +1685,7 @@ impl StreamState {
             if n < 13 {
                 return malformed("sky of too few fields");
             }
-            let sky = crate::network::SkyNow {
+            let mut sky = crate::network::SkyNow {
                 clock_s: rd.uint()? as u32,
                 weather: rd.uint()? as u8,
                 rain_pct: rd.uint()? as u8,
@@ -1684,8 +1699,16 @@ impl StreamState {
                 time_scale: rd.uint()? as u8,
                 next_weather: rd.uint()? as u8,
                 next_in_s: rd.uint()? as u32,
+                ..Default::default()
             };
-            rd.skip_rest(n, 13)?;
+            // The snow came after the first stream files: older ones end here.
+            let mut read = 13;
+            if n >= 15 {
+                sky.line_snow_pct = rd.uint()? as u8;
+                sky.snowfall_pct = rd.uint()? as u8;
+                read = 15;
+            }
+            rd.skip_rest(n, read)?;
             Some(sky)
         };
         let race_clock = if rd.is_nil() {
@@ -2221,6 +2244,11 @@ impl BroadcastEncoder {
         road.write_rows(first_cell % n, count, &mut rows);
         let mut geometry = Vec::with_capacity(count * crate::road_state::GEOMETRY_BYTES);
         road.write_geometry(first_cell % n, count, &mut geometry);
+        let mut snow_rows = Vec::new();
+        if road.has_snow() {
+            snow_rows.reserve(count * crate::road_state::SNOW_ROW_BYTES);
+            road.write_snow_rows(first_cell % n, count, &mut snow_rows);
+        }
         Some(StreamRoad {
             epoch: self.epoch,
             tick: session.session.current_tick,
@@ -2232,6 +2260,7 @@ impl BroadcastEncoder {
             rows,
             debris: session.debris.iter().map(|d| [d.x, d.y]).collect(),
             geometry,
+            snow_rows,
         })
     }
 
@@ -2803,6 +2832,8 @@ mod tests {
                 time_scale: 4,
                 next_weather: 2,
                 next_in_s: 600,
+                line_snow_pct: 35,
+                snowfall_pct: 100,
             }),
             race_clock: Some(crate::network::RaceClock {
                 left_ms: 754_300,
@@ -3242,6 +3273,10 @@ mod tests {
                 .iter()
                 .flat_map(|v| v.to_le_bytes())
                 .collect(),
+            snow_rows: vec![
+                255, 255, 0, 200, 0, 128, 0, 60, 90, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
         }
         .encode();
         let state = sample_state().encode();
@@ -3304,7 +3339,7 @@ mod tests {
         assert_eq!(&lap[..2], &[0x95, RECORD_EVENT]);
         assert_eq!(&roster[..2], &[0x94, RECORD_ROSTER]);
         assert_eq!(&path[..2], &[0x94, RECORD_PATH]);
-        assert_eq!(&road[..7], &[0x9B, RECORD_ROAD, 0xCE, 0, 0, 0, 3]);
+        assert_eq!(&road[..7], &[0x9C, RECORD_ROAD, 0xCE, 0, 0, 0, 3]);
         // It round-trips through the generic decoder.
         match Record::decode(&road).unwrap() {
             Record::Road(r) => {
@@ -3313,6 +3348,8 @@ mod tests {
                 assert_eq!(r.rows.len(), 26);
                 assert_eq!(r.debris, vec![[12.5, -3.25], [900.0, 4.0]]);
                 assert_eq!(r.geometry.len(), 32);
+                assert_eq!(r.snow_rows.len(), 18);
+                assert_eq!(r.snow_rows[0], 255);
             }
             other => panic!("not a road record: {other:?}"),
         }

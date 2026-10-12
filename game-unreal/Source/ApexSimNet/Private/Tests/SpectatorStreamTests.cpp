@@ -248,7 +248,8 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("state tick read in place"), ApexSpectator::RecordTick(View(State, UE_ARRAY_COUNT(State)), StateTick) && StateTick == 9000);
 		TestTrue(TEXT("state sky"), S.Sky.bValid && S.Sky.ClockS == 14 * 3600 + 30 * 60 && S.Sky.Weather == EApexWeather::LightRain
 			&& S.Sky.RainPct == 40 && S.Sky.CloudPct == 90 && S.Sky.RoadWaterPct == 55 && S.Sky.AirC == -2 && S.Sky.TrackC == 11
-			&& S.Sky.WindKph == 18 && S.Sky.WindToDeg == 270 && S.Sky.LineRubberPct == 62 && S.Sky.TimeScale == 4);
+			&& S.Sky.WindKph == 18 && S.Sky.WindToDeg == 270 && S.Sky.LineRubberPct == 62 && S.Sky.TimeScale == 4
+			&& S.Sky.LineSnowPct == 35 && S.Sky.SnowfallPct == 100);
 		TestTrue(TEXT("state forecast"), S.Sky.HasNextChange() && S.Sky.NextWeather == (int32)EApexWeather::Overcast && S.Sky.NextInS == 600);
 		TestTrue(TEXT("state race clock"), S.RaceLeftMs == 754300 && S.RaceFinalLap == 0);
 		if (TestEqual(TEXT("state cars"), S.Cars.Num(), 2))

@@ -1850,16 +1850,24 @@ void AApexRaceDirector::ApplySkyLighting()
 		Settings.ColorContrast = FVector4(Sky.Contrast, Sky.Contrast, Sky.Contrast, 1.0f);
 		// Wet air blooms the lights; a night's few lights bloom most.
 		Settings.bOverride_BloomIntensity = true;
-		Settings.BloomIntensity = Sky.RainIntensity > 0.0f ? 0.55f : (Sky.bMoon ? 0.45f : 0.3f);
+		Settings.BloomIntensity = Sky.RainIntensity > 0.0f || Sky.SnowIntensity > 0.0f ? 0.55f : (Sky.bMoon ? 0.45f : 0.3f);
 	}
 
-	if (Sky.RainIntensity > 0.0f && !Rain)
+	if ((Sky.RainIntensity > 0.0f || Sky.SnowIntensity > 0.0f) && !Rain)
 	{
 		Rain = World->SpawnActor<AApexRainActor>(AApexRainActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
 	}
 	if (Rain)
 	{
-		Rain->SetIntensity(Sky.RainIntensity);
+		// One box of falling specks, drops or flakes.
+		if (Sky.SnowIntensity > 0.0f)
+		{
+			Rain->SetSnow(Sky.SnowIntensity);
+		}
+		else
+		{
+			Rain->SetIntensity(Sky.RainIntensity);
+		}
 		// The drops drift with the wind (none from an older server: the
 		// actor's own breeze).
 		if (LitSky.bValid)
@@ -2023,6 +2031,42 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 									Wet->K2_GetScalarParameterValue(TEXT("Roughness")),
 									Wet->K2_GetScalarParameterValue(TEXT("RoughnessNoise"))));
 							}
+						}
+					}
+				}
+			}
+
+			// Snow whitens the ground, the verges, the curbs and the road family
+			// (not the buildings and props, which keep their look).
+			if (Sky.SnowCover > 0.0f || bSkyMoves)
+			{
+				for (int32 Slot = 0, Slots = Mesh->GetNumMaterials(); Slot < Slots; ++Slot)
+				{
+					const UMaterialInterface* Material = Mesh->GetMaterial(Slot);
+					if (!Material)
+					{
+						continue;
+					}
+					const FString Name = Material->GetName();
+					float Share = 0.0f;
+					if (Name.StartsWith(TEXT("MI_surface")) || Name.StartsWith(TEXT("MI_ground")) || Name.StartsWith(TEXT("MI_ac_"))
+						|| Name.StartsWith(TEXT("MI_road")) || Name.StartsWith(TEXT("MI_pit_lane")))
+					{
+						Share = 1.0f;
+					}
+					else if (Name.StartsWith(TEXT("MI_curb")))
+					{
+						Share = 0.5f;
+					}
+					else if (Name.StartsWith(TEXT("MI_wear_")))
+					{
+						Share = 0.3f;
+					}
+					if (Share > 0.0f)
+					{
+						if (UMaterialInstanceDynamic* Mid = Mesh->CreateDynamicMaterialInstance(Slot))
+						{
+							SnowMids.Add(Mid, Share);
 						}
 					}
 				}
@@ -2192,6 +2236,7 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 	UpdateStreetLights(0.0f, /*bForce*/ true);
 	ApplyNightGlow();
 	ApplyRoadWetness();
+	ApplySnowCover();
 	UpdateFlags(0.0f, /*bForce*/ true);
 
 	UE_LOG(LogApexSim, Log, TEXT("Track level conditions applied: fog %.4f, %d road slots at wetness %.2f, %d floodlights, %d lamp faces, %d flag poles"),
@@ -2219,6 +2264,24 @@ void AApexRaceDirector::ApplyRoadWetness()
 		const float Wetness = bPerBin && RoadStateMids.Contains(Mid) ? 0.0f : LapWetness;
 		Mid->SetScalarParameterValue(RoughnessParam, FMath::Lerp(It.Value().X, ApexSky::WetRoadRoughness, Wetness));
 		Mid->SetScalarParameterValue(RoughnessNoiseParam, FMath::Lerp(It.Value().Y, ApexSky::WetRoadRoughnessNoise, Wetness));
+	}
+}
+
+void AApexRaceDirector::ApplySnowCover()
+{
+	static const FName CoverParam(TEXT("SnowCover"));
+	const float Cover = FMath::Clamp(Sky.SnowCover, 0.0f, 1.0f);
+	for (auto It = SnowMids.CreateIterator(); It; ++It)
+	{
+		UMaterialInstanceDynamic* Mid = It.Key().Get();
+		if (!Mid)
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+		// A road that draws its own snow per bin takes none of the lap's.
+		const bool bOwn = bRoadSnowShown && RoadStateMids.Contains(Mid);
+		Mid->SetScalarParameterValue(CoverParam, bOwn ? 0.0f : Cover * It.Value());
 	}
 }
 
@@ -2294,6 +2357,7 @@ void AApexRaceDirector::UpdateLiveSky(float DeltaSeconds)
 	}
 	ApplyNightGlow();
 	ApplyRoadWetness();
+	ApplySnowCover();
 }
 
 void AApexRaceDirector::UpdateStreetLights(float DeltaSeconds, bool bForce)
@@ -3176,6 +3240,7 @@ void AApexRaceDirector::UnloadTrackLevel()
 	ForgetRoadStateOnTrack();
 	// The track went back with its materials reset; its looks are forgotten.
 	RoadDryLook.Reset();
+	SnowMids.Reset();
 	LampBaseGlow.Reset();
 	NightGlowMids.Reset();
 	VerifiedTrackId.Reset();

@@ -628,6 +628,8 @@ private:
 	void UpdateLiveSky(float DeltaSeconds);
 	/** Each road-family material from its own dry roughness toward the wet sheen, by Sky.RoadWetness. */
 	void ApplyRoadWetness();
+	/** The ground, verges, curbs and the road without per-bin snow whitened by Sky.SnowCover (SnowMids). */
+	void ApplySnowCover();
 	/** The flags on the track's flag poles streamed downwind, eased, at most once a second. */
 	void UpdateFlags(float DeltaSeconds, bool bForce);
 	/** Put every flag pole back as the track was built (before the track goes back). */
@@ -1012,6 +1014,12 @@ private:
 	 * a dry one) and forgotten when it goes back, which resets them.
 	 */
 	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, FVector2f> RoadDryLook;
+	/**
+	 * The materials snow whitens (the ground, the verges, the curbs, the
+	 * road family), each with the share of `Sky.SnowCover` it takes: curbs
+	 * and wear bands keep some of their paint. Kept as RoadDryLook is.
+	 */
+	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, float> SnowMids;
 	/** The floodlight lamp faces with their emissive strength as built. */
 	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, float> LampBaseGlow;
 
@@ -1053,12 +1061,17 @@ private:
 	TObjectPtr<UTexture2D> RoadStateTexture;
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> RoadGeometryTexture;
+	/** The road's snow and ice per bin (`RoadSnow`), as big as RoadStateTexture. */
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> RoadSnowTexture;
 	/** The road's materials made from `M_ApexTrackRoad`, taken in ApplyTrackLevelConditions. */
 	TArray<TWeakObjectPtr<UMaterialInstanceDynamic>> RoadStateMids;
 	/** The parameters must go to RoadStateMids again (new textures, new materials, live or not). */
 	bool bRoadStateParamsStale = true;
 	/** RoadStateAmount as last pushed. */
 	bool bRoadStateShown = false;
+	/** RoadSnowAmount as last pushed: the road draws its own snow, per bin. */
+	bool bRoadSnowShown = false;
 	UPROPERTY(Transient)
 	TObjectPtr<UInstancedStaticMeshComponent> RoadDebris;
 	/** The pieces have been laid on the track on show (cleared when it goes). */

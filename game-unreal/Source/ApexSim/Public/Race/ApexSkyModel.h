@@ -127,6 +127,11 @@ namespace ApexSky
 
 		/** 0 dry .. 1 a downpour. */
 		float RainIntensity = 0.0f;
+		/** 0 none .. 1 steady snowfall: the flakes in the air. */
+		float SnowIntensity = 0.0f;
+		/** 0 bare .. 1 white: how far the ground has gone to snow. A fixed
+		 * snow sky is fully covered; a live one follows the server's cover. */
+		float SnowCover = 0.0f;
 		/** The road's material roughness; 0.9 is the baked dry value. */
 		float RoadRoughness = 0.9f;
 		/** How far the road has gone from its baked dry look toward the wet
@@ -172,6 +177,7 @@ namespace ApexSky
 		case EApexWeather::Overcast:  return 0.22f;
 		case EApexWeather::LightRain: return 0.14f;
 		case EApexWeather::HeavyRain: return 0.08f;
+		case EApexWeather::Snow:      return 0.2f;
 		default:                      return 1.0f;
 		}
 	}
@@ -186,7 +192,8 @@ namespace ApexSky
 		const float Elev = S.Sun.ElevationDeg;
 		const float Day = Daylight(Elev);
 		const float Direct = DirectSunFactor(C.Weather);
-		const bool bOvercast = C.Weather == EApexWeather::Overcast || C.IsWet();
+		const bool bOvercast = C.Weather == EApexWeather::Overcast || C.IsWet() || C.IsSnow();
+		const bool bFalling = C.IsWet() || C.IsSnow();
 
 		S.bMoon = Elev < MoonBelowElevationDeg;
 		if (S.bMoon)
@@ -234,9 +241,11 @@ namespace ApexSky
 		case EApexWeather::Overcast:  S.FogDensity = 0.0035f; S.FogColor = FLinearColor(0.52f, 0.54f, 0.57f); break;
 		case EApexWeather::LightRain: S.FogDensity = 0.0055f; S.FogColor = FLinearColor(0.46f, 0.48f, 0.51f); break;
 		case EApexWeather::HeavyRain: S.FogDensity = 0.0095f; S.FogColor = FLinearColor(0.40f, 0.42f, 0.45f); break;
+		// A white, cool haze, as thick as light rain's.
+		case EApexWeather::Snow:      S.FogDensity = 0.0060f; S.FogColor = FLinearColor(0.60f, 0.64f, 0.70f); break;
 		default: break;
 		}
-		S.FogStartDistanceCm = C.IsWet() ? 1000.0f : 3000.0f;
+		S.FogStartDistanceCm = bFalling ? 1000.0f : 3000.0f;
 		S.FogHeightFalloff = 0.2f;
 		S.FogColor *= FMath::Lerp(0.012f, 1.0f, Day);
 
@@ -246,17 +255,24 @@ namespace ApexSky
 		const float DayMin = bOvercast ? 8.0f : 10.0f;
 		S.ExposureMinEv = FMath::Lerp(NightMin, DayMin, Day);
 		S.ExposureMaxEv = FMath::Lerp(8.0f, 15.0f, Day);
-		S.ExposureBias = -0.4f + (C.IsWet() ? -0.15f : 0.0f);
-		S.Saturation = C.IsWet() ? 0.82f : (bOvercast ? 0.9f : 1.0f);
-		S.Contrast = C.IsWet() ? 0.96f : 1.0f;
+		// Snow fills the frame with a bright, flat white that the metering
+		// would take for the whole scene's key: the bias comes up from rain's
+		// and the colour goes out of the scene.
+		S.ExposureBias = -0.4f + (C.IsWet() ? -0.15f : 0.0f) + (C.IsSnow() ? 0.25f : 0.0f);
+		S.Saturation = C.IsSnow() ? 0.7f : C.IsWet() ? 0.82f : (bOvercast ? 0.9f : 1.0f);
+		S.Contrast = bFalling ? 0.96f : 1.0f;
 
 		S.RainIntensity = C.Weather == EApexWeather::LightRain ? 0.4f : (C.Weather == EApexWeather::HeavyRain ? 1.0f : 0.0f);
-		S.bWetRoad = C.IsWet();
-		S.RoadWetness = S.bWetRoad ? 1.0f : 0.0f;
+		S.SnowIntensity = C.IsSnow() ? 1.0f : 0.0f;
+		S.SnowCover = S.SnowIntensity;
+		// The slush on a snowy road is the server's 0.3 water: a wet sheen
+		// of 0.6 (`DeriveLive` reads it off the road water).
+		S.bWetRoad = C.IsWet() || C.IsSnow();
+		S.RoadWetness = C.IsWet() ? 1.0f : (C.IsSnow() ? 0.6f : 0.0f);
 		S.RoadRoughness = FMath::Lerp(DryRoadRoughness, WetRoadRoughness, S.RoadWetness);
 
 		// Lights come on as the sun goes, and in the rain as they do on a race day.
-		S.bHeadlights = Elev < 6.0f || C.IsWet();
+		S.bHeadlights = Elev < 6.0f || bFalling;
 		S.bFloodlights = Elev < 4.0f;
 		S.LampGlow = S.bFloodlights ? FMath::Lerp(60.0f, 6.0f, Day) : 0.0f;
 		S.WindowGlow = WindowGlowAt(Day);
@@ -308,6 +324,8 @@ namespace ApexSky
 		S.Saturation = FMath::Lerp(A.Saturation, B.Saturation, T);
 		S.Contrast = FMath::Lerp(A.Contrast, B.Contrast, T);
 		S.RainIntensity = FMath::Lerp(A.RainIntensity, B.RainIntensity, T);
+		S.SnowIntensity = FMath::Lerp(A.SnowIntensity, B.SnowIntensity, T);
+		S.SnowCover = FMath::Lerp(A.SnowCover, B.SnowCover, T);
 		S.LampGlow = FMath::Lerp(A.LampGlow, B.LampGlow, T);
 		S.WindowGlow = FMath::Lerp(A.WindowGlow, B.WindowGlow, T);
 		return S;
@@ -325,6 +343,25 @@ namespace ApexSky
 	inline FSkyState DeriveLive(const FApexSessionConditions& Session, const FApexSkyNow& Now, const FSkySite& Site = FSkySite())
 	{
 		FApexSessionConditions C = Now.AsConditions(Session);
+		// A winter sky (snow in the air, or the forecast's snow just ended)
+		// is lit between overcast and snow by how hard it is snowing; the
+		// ground is as white as the road's line.
+		if (Now.Weather == EApexWeather::Snow || Now.SnowfallPct > 0 || Now.LineSnowPct > 0)
+		{
+			const float Fall = FMath::Clamp(static_cast<float>(Now.SnowfallPct) / 100.0f, 0.0f, 1.0f);
+			C.Weather = EApexWeather::Overcast;
+			const FSkyState Plain = Derive(C, Site);
+			C.Weather = EApexWeather::Snow;
+			const FSkyState Snowy = Derive(C, Site);
+			FSkyState W = Blend(Plain, Snowy, Fall);
+			W.SnowIntensity = Fall;
+			W.SnowCover = FMath::Clamp(static_cast<float>(Now.LineSnowPct) / 100.0f, 0.0f, 1.0f);
+			W.RainIntensity = 0.0f;
+			W.RoadWetness = FMath::Clamp(static_cast<float>(Now.RoadWaterPct) / 50.0f, 0.0f, 1.0f);
+			W.bWetRoad = Now.RoadWaterPct >= 5;
+			W.RoadRoughness = FMath::Lerp(DryRoadRoughness, WetRoadRoughness, W.RoadWetness);
+			return W;
+		}
 		const float Rung = WeatherLadder(Now.CloudPct / 100.0f, Now.RainPct / 100.0f);
 		const int32 Low = FMath::Clamp(FMath::FloorToInt(Rung), 0, FApexSessionConditions::WeatherCount - 1);
 		const int32 High = FMath::Min(Low + 1, FApexSessionConditions::WeatherCount - 1);
@@ -392,6 +429,9 @@ namespace ApexSky
 			|| FMath::Abs(Now.RainPct - Lit.RainPct) >= 3
 			|| FMath::Abs(Now.CloudPct - Lit.CloudPct) >= 3
 			|| FMath::Abs(Now.RoadWaterPct - Lit.RoadWaterPct) >= 3
-			|| ((Now.RainPct == 0) != (Lit.RainPct == 0));
+			|| FMath::Abs(Now.SnowfallPct - Lit.SnowfallPct) >= 3
+			|| FMath::Abs(Now.LineSnowPct - Lit.LineSnowPct) >= 3
+			|| ((Now.RainPct == 0) != (Lit.RainPct == 0))
+			|| ((Now.SnowfallPct == 0) != (Lit.SnowfallPct == 0));
 	}
 }
