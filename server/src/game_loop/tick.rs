@@ -287,11 +287,15 @@ pub(crate) async fn tick_sessions(
             new_state,
             SessionState::Countdown | SessionState::Racing | SessionState::Finished
         );
+        // A held seat's driver is sent nothing until `JoinSession` resumes
+        // it: a resumed connection sits in the menu with the rejoin banner.
         let player_recipients: Vec<PlayerId> = game_session
             .session
             .participants
             .keys()
-            .filter(|pid| !game_session.session.ai_player_ids.contains(pid))
+            .filter(|pid| {
+                !game_session.session.ai_player_ids.contains(pid) && !game_session.is_away(pid)
+            })
             .cloned()
             .collect();
         // Timing lines crossed this tick. Reliable, and never for a demo:
@@ -514,12 +518,22 @@ pub(crate) async fn tick_sessions(
         let mut driver_feedback = Vec::new();
         if telemetry_tick {
             let server_tick = game_session.session.current_tick;
-            for player_id in &player_recipients {
+            // An away driver's feedback is drained too, so a resumed seat
+            // does not open with what the server's driving left behind.
+            let humans: Vec<PlayerId> = game_session
+                .session
+                .participants
+                .keys()
+                .filter(|pid| !game_session.session.ai_player_ids.contains(pid))
+                .cloned()
+                .collect();
+            for player_id in &humans {
+                let away = game_session.is_away(player_id);
                 let Some(car) = game_session.session.participants.get_mut(player_id) else {
                     continue;
                 };
                 let feedback = car.feedback.take(server_tick);
-                if !should_broadcast {
+                if !should_broadcast || away {
                     continue;
                 }
                 match rmp_serde::to_vec(&ServerMessage::DriverFeedback(feedback)) {

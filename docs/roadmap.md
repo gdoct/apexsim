@@ -36,15 +36,6 @@ All of it is in the held-seat path (`tick.rs` recipients,
 `resolve_recipients`, the resume token, the rejoin banner), with one roster
 change for the away flag.
 
-- **(bug)** A resumed connection is put into the held race. A resumed
-  `Authenticate` holds the seat and sends `RejoinAvailable`, but the tick's
-  telemetry recipients are every non-AI participant (`tick.rs`,
-  `player_recipients`), and `resolve_recipients` sends to any player whose
-  lobby session matches, held seats included. The resumed client gets the
-  held race's telemetry and enters the race view without choosing to rejoin
-  (a game killed by `make_shots.py` puts the next run started within the
-  grace into the killed run's hotlap). Held seats get no telemetry until
-  `JoinSession` resumes them.
 - A short drop rejoins by itself instead of going back to the menu.
 - The rejoin banner can give the seat up.
 - The roster carries an away flag, so other drivers see that a car is

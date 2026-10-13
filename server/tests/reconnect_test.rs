@@ -395,3 +395,55 @@ async fn an_unknown_resume_token_is_a_new_player() {
     .expect("test timed out")
     .unwrap();
 }
+
+#[tokio::test]
+async fn a_resumed_driver_is_sent_nothing_of_the_race_until_they_rejoin() {
+    timeout(TEST_TIMEOUT, async {
+        let server = start_server(60).await;
+        let (mut host, lobby) = Client::connect("Host", server.tcp_addr, None).await?;
+        let session_id = seat(&mut host, &lobby, None).await?;
+        let (mut guest, lobby) = Client::connect("Guest", server.tcp_addr, None).await?;
+        seat(&mut guest, &lobby, Some(session_id)).await?;
+        host.send(&ClientMessage::StartCountdown {
+            countdown_seconds: 1,
+            next_mode: GameMode::Race,
+        })
+        .await?;
+
+        let (guest_id, token) = (guest.player_id, guest.resume_token.clone());
+        drop(guest);
+        eventually(&server, Duration::from_secs(5), "the guest is away", |s| {
+            is_away(s, session_id, guest_id)
+        })
+        .await?;
+
+        // Back in the menu with the offer: no telemetry, roster or timing of
+        // the held race reaches it, even with the race running.
+        let (mut back, _) = Client::connect("Guest", server.tcp_addr, Some(&token)).await?;
+        back.wait_rejoin().await?;
+        let quiet_until = Instant::now() + Duration::from_millis(2500);
+        while let Ok(msg) = tokio::time::timeout_at(quiet_until, recv(&mut back.tcp)).await {
+            match msg? {
+                ServerMessage::TelemetryCompact(_)
+                | ServerMessage::DriverFeedback(_)
+                | ServerMessage::SessionRoster(_)
+                | ServerMessage::LapTiming(_)
+                | ServerMessage::RoadState(_) => {
+                    return Err("a held seat was sent the race".into());
+                }
+                _ => {}
+            }
+        }
+
+        // Rejoined: the race comes back.
+        back.send(&ClientMessage::JoinSession { session_id })
+            .await?;
+        back.wait_joined().await?;
+        back.wait_for(|m| matches!(m, ServerMessage::TelemetryCompact(_)).then_some(()))
+            .await?;
+        Res::Ok(())
+    })
+    .await
+    .expect("test timed out")
+    .unwrap();
+}

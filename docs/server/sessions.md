@@ -518,7 +518,10 @@ client a `resume_token`; a client that connects again with it in
   (`away_input`, steering aid off as after the flag), or parks it in its
   garage in a hotlap or qualifying session. A lap the server drives is never
   a record. The lobby keeps the seat counted (`LobbyManager::hold_seat`), so
-  the session is not given away beyond its size.
+  the session is not given away beyond its size. A held seat's player is
+  sent nothing of the session (telemetry, driver feedback, roster, timing,
+  road state) until `JoinSession` resumes it: a resumed client sits in the
+  menu with the offer, not in the race.
 - **Offer and rejoin.** On a resumed `Authenticate` the server sends
   `RejoinAvailable { session_id, track_id, session_kind }` after the lobby
   state. `JoinSession` with that id takes the seat back (`resume_seat`): the
