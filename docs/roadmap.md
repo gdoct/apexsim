@@ -85,7 +85,7 @@ stream v2 controls.
 | Item | Type | Notes |
 |---|---|---|
 | Hotlap polish | feature | The ghost is opaque and tinted (`AApexGhostCarActor` tints its own instances); the replay's trackside shots are placed geometrically (`CutReplayShot`), not from the TV director's cameras; a multiplayer hotlap has no leaderboard across drivers (the garage scoreboard is shown in qualifying only). |
-| Hotlap watch | feature | The driver's ladder level (after a crash or a struck lap) is not remembered between watches (a per-track, per-car, per-sky cache would skip the bad laps). Stock setup, tyre and sky only (weather and hour; no wind, air temperature or rubber picks, no saved setup), no pause, seek or speed, no ghost and no replay. The `hotlap_watch` HUD scene is not in the HUD editor, and a corner's number is the detector's, not the circuit's official turn number (the dossier does not hold one). |
+| Hotlap watch | feature | The remembered ladder level is per track, car and weather (not hour, wind or air), is kept only while the server runs, and never climbs back. Stock setup, tyre and sky only (weather and hour; no wind, air temperature or rubber picks, no saved setup), no pause, seek or speed, no ghost and no replay. The `hotlap_watch` HUD scene is not in the HUD editor, and a corner's number is the detector's, not the circuit's official turn number (the dossier does not hold one). |
 
 ### Wet weather on screen
 

@@ -651,6 +651,10 @@ without it, then `HOTLAP_WATCH_SKILL_STEP` (3) a step to
 `HOTLAP_WATCH_FLOOR_SKILL` (80). A crash (`HOTLAP_WATCH_CRASH_PCT` 1% in a
 body zone, undrivable or towed) or `HOTLAP_WATCH_STUCK_S` (8 s) without
 headway steps it and resets the car to the run-up; a struck lap steps it.
+The level reached is kept in `ServerState::watch_levels`, keyed by track, car
+and weather (`hotlap_watch_key`), and the next watch of that key starts at it
+(`set_hotlap_watch_level`): the bad laps are not driven again. It is only
+ever eased down, and goes with a server restart.
 
 **Corners** (`track_guide::wire_corners` -> `TrackCorners`): the guide's
 `detect_corners` in lap order, named from the dossier's `display_name`

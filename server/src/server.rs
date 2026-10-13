@@ -31,6 +31,11 @@ pub struct ServerState {
     /// so the game loop can load one off the loop, without the state lock.
     pub track_content: Arc<TrackContent>,
     pub sessions: HashMap<SessionId, GameSession>,
+    /// How far down its ladder (`GameSession::hotlap_watch_level`) a watched
+    /// hotlap's driver had come the last time this track, car and weather
+    /// were watched: the next watch starts there and skips the laps that
+    /// went wrong. Only ever eased down; it lives as long as the server.
+    pub watch_levels: HashMap<(TrackConfigId, CarConfigId, u8), u8>,
     pub players: HashMap<PlayerId, Player>,
     pub lobby: LobbyManager,
     /// The server's own replays: live sessions written to disk as spectator
@@ -107,6 +112,7 @@ impl ServerState {
             track_configs,
             track_content: Arc::new(track_content),
             sessions: HashMap::new(),
+            watch_levels: HashMap::new(),
             players: HashMap::new(),
             lobby: LobbyManager::new(),
             replay: crate::stream_recorder::StreamRecorders::new(replay_dir),
@@ -413,6 +419,12 @@ impl ServerState {
             let corners = crate::track_guide::wire_corners(&game_session.track_config, path);
             game_session.set_track_corners(corners);
             game_session.start_hotlap_watch();
+            if let Some(level) = game_session
+                .hotlap_watch_key()
+                .and_then(|key| self.watch_levels.get(&key))
+            {
+                game_session.set_hotlap_watch_level(*level);
+            }
         }
 
         self.sessions.insert(session_id, game_session);

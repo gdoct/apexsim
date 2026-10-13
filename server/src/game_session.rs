@@ -1789,6 +1789,31 @@ impl GameSession {
         self.hotlap_watch.level
     }
 
+    /// What a watched hotlap's ladder level is kept under between watches:
+    /// the track, the car that laps and the weather.
+    pub fn hotlap_watch_key(&self) -> Option<(TrackConfigId, CarConfigId, u8)> {
+        let car = self
+            .session
+            .ai_player_ids
+            .first()
+            .and_then(|id| self.session.participants.get(id))?
+            .car_config_id;
+        Some((
+            self.session.track_config_id,
+            car,
+            self.session.conditions.weather as u8,
+        ))
+    }
+
+    /// Start the watched driver `level` steps down the ladder, as an earlier
+    /// watch of the same lap left it.
+    pub fn set_hotlap_watch_level(&mut self, level: u8) {
+        self.hotlap_watch.level = 0;
+        for _ in 0..level {
+            self.ease_hotlap_watch_driver();
+        }
+    }
+
     /// Give the watcher's HUD the track's corners.
     pub fn set_track_corners(&mut self, corners: Vec<crate::network::CornerData>) {
         self.track_corners = corners;
@@ -1870,9 +1895,7 @@ impl GameSession {
             // redline at this speed; the box shifts from there.
             let mut gear = 1;
             for (g, ratio) in config.gear_ratios.iter().enumerate().skip(1) {
-                if omega_rpm * ratio.abs() * config.final_drive_ratio
-                    <= config.redline_rpm * 0.85
-                {
+                if omega_rpm * ratio.abs() * config.final_drive_ratio <= config.redline_rpm * 0.85 {
                     gear = g as i8;
                 }
             }

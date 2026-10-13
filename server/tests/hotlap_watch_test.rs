@@ -491,3 +491,25 @@ fn watch_probe() {
         }
     }
 }
+
+#[test]
+fn a_watch_can_start_down_the_ladder_where_an_earlier_one_left_off() {
+    let (mut gs, driver) = watched_hotlap("posh-gt3rs", SessionConditions::DEFAULT);
+    assert_eq!(gs.hotlap_watch_level(), 0);
+    let key = gs.hotlap_watch_key().expect("a key for the cache");
+    assert_eq!(key.1, gs.session.participants[&driver].car_config_id);
+
+    gs.set_hotlap_watch_level(1);
+    assert_eq!(gs.hotlap_watch_level(), 1);
+    let profile = &gs.ai_profiles[&driver];
+    assert!(!profile.exact_line, "off the exact line");
+    assert_eq!(
+        profile.skill_level, HOTLAP_WATCH_SKILL,
+        "level 1 is still the top skill"
+    );
+
+    // Setting it again starts from the top, not on top of itself.
+    gs.set_hotlap_watch_level(3);
+    assert_eq!(gs.hotlap_watch_level(), 3);
+    assert!(gs.ai_profiles[&driver].skill_level < HOTLAP_WATCH_SKILL);
+}
