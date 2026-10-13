@@ -116,7 +116,7 @@ with `from_m`/`to_m`, else a tyre bridge; `brand` from the kit's fictional
 brands). `MANUAL_LANDMARKS` (`kind` must be one `dress.rs` maps to an asset,
 see its landmark table; an unknown kind is dropped silently; `tourism=artwork`
 becomes a `statue` only where declared here). `MANUAL_PIT_LANE` (wins over
-OSM outright), `MANUAL_STRUCTURES`, `MANUAL_STRUCTURE_ASSETS`,
+OSM outright), `PIT_LANE_REACH_M` (how far from the track a mapped pit lane may run before it is clipped, 70 m by default; Silverstone's cuts 102 m across the inside of Club), `MANUAL_STRUCTURES`, `MANUAL_STRUCTURE_ASSETS`,
 `MANUAL_WOODS`, `MANUAL_FURNITURE`, `MANUAL_DECAL_RUNS`, `MANUAL_GRAFFITI`.
 
 Prefer a manual entry to a code change. A change to `extract()` or the fit
@@ -138,7 +138,9 @@ not place, with the reason.
 - **Footprints** of stands and buildings are probed whole against every leg
   (`clear_footprint`) and stepped back up to 25 m or left out.
 - **Pit lane** (`build_pit_lane`): the dossier polyline resampled every 4 m
-  and smoothed, read against its own leg, pushed out to a pit wall's apron
+  and smoothed, read against its own leg (a point the window finds over
+  `PIT_LEG_LOST_M` off is looked for again where the lane's progress from
+  entry to exit puts it), pushed out to a pit wall's apron
   where mapped too close, blended onto the road edge at both ends, bends under
   30 m rounded (`round_tight_bends`), at least 24 boxes (`PIT_GRID_BOXES`),
   seated on its own leg's road edge (`nearest_cross_section_near`), and off

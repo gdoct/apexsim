@@ -587,6 +587,23 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
     let exit_from = mapped
         .len()
         .saturating_sub((taper / PIT_LANE_STEP_M) as usize + 1);
+    // Where the lane's own progress puts each point along the course: from
+    // the station beside its entry to the one beside its exit. A lane that
+    // runs far from the course loses its leg in the window (Silverstone's,
+    // cutting a hundred metres inside Club, stayed matched to Vale and was
+    // seated at Vale's height all along the Hamilton straight, three metres
+    // under it); a point the window puts further off than PIT_LEG_LOST_M is
+    // looked for again around there, and the nearer of the two kept.
+    let total = path.total_length_m();
+    let entry_s = nearest_cross_section(path, mapped[0][0], mapped[0][1]).0.station_m;
+    let last = mapped[mapped.len() - 1];
+    let exit_s = nearest_cross_section(path, last[0], last[1]).0.station_m;
+    let span = if path.is_closed() {
+        (exit_s - entry_s).rem_euclid(total)
+    } else {
+        exit_s - entry_s
+    };
+    let off = |p: &[f32; 2], (sample, _): &(PathSample, f32)| (p[0] - sample.pos.0).hypot(p[1] - sample.pos.1);
     let mut station: Option<f32> = None;
     let frame: Vec<(PathSample, f32)> = mapped
         .iter()
@@ -594,13 +611,28 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
         .map(|(i, p)| {
             let found = match station {
                 _ if i >= exit_from => nearest_cross_section(path, p[0], p[1]),
-                Some(s) => nearest_cross_section_near(
-                    path,
-                    p[0],
-                    p[1],
-                    s + PIT_LANE_STEP_M,
-                    PIT_LEG_WINDOW_M,
-                ),
+                Some(s) => {
+                    let near = nearest_cross_section_near(
+                        path,
+                        p[0],
+                        p[1],
+                        s + PIT_LANE_STEP_M,
+                        PIT_LEG_WINDOW_M,
+                    );
+                    if off(p, &near) <= PIT_LEG_LOST_M {
+                        near
+                    } else {
+                        let along = entry_s + span * i as f32 / (mapped.len() - 1) as f32;
+                        let along = if path.is_closed() { along.rem_euclid(total) } else { along };
+                        let again =
+                            nearest_cross_section_near(path, p[0], p[1], along, PIT_LEG_WINDOW_M);
+                        if off(p, &again) < off(p, &near) {
+                            again
+                        } else {
+                            near
+                        }
+                    }
+                }
                 None => nearest_cross_section(path, p[0], p[1]),
             };
             station = Some(found.0.station_m);
@@ -1840,6 +1872,9 @@ fn nearest_cross_section(path: &CenterlinePath, x: f32, y: f32) -> (PathSample, 
 /// How far along the course from where the lane's progress says it is the
 /// nearest cross-section may be looked for, metres either way.
 const PIT_LEG_WINDOW_M: f32 = 80.0;
+/// A lane point the window finds further from its leg than this, metres,
+/// is looked for again where the lane's progress puts it.
+const PIT_LEG_LOST_M: f32 = 60.0;
 
 /// [`nearest_cross_section`] restricted to the samples within `window`
 /// of station `around` (wrapping on a loop), so a lane running beside one

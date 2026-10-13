@@ -167,7 +167,6 @@ three at a curved box row (Silverstone) with a car stopped at its box.
 | Item | Type | Notes |
 |---|---|---|
 | Curved pit box row | bug | Built: garages on the inside of a bend are scaled down (to 0.85 at the least) so the modules touch. Seen 2026-10-13 at Silverstone (last six boxes, scales 0.99 to 0.85): the row reads continuous from the lane and from above. At the floor a bend tighter than about a 130 m radius would still overlap a little. |
-| Silverstone pit entry | content | The lane leaves the road beside the start grid, about 60 m before the line, at a shallow angle with the grid boxes painted over the junction; from the driver's seat out of the last corner nothing shows an entry (no painted entry line, no opening). The real Wing pit lane leaves before Club. Needs the dossier's lane polyline started before Club (or `build_pit_lane`'s entry taper laid longer) and the refresh order run, then the pit surveys. |
 | Pit stop panel over the speed readout | bug | At 1600x900 with the LMP2 (Fugazzi) the `pit_stop` component's panel sits on top of the centre speed and gear readout; with the F1 car's layout it clears it. |
 
 ### Menus and HUD layouts

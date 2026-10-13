@@ -672,6 +672,17 @@ MANUAL_PIT_LANE: dict[str, dict] = {
     "Melbourne": dict(from_m=0.0, to_m=380.0, side="right", gap_m=8.0),
 }
 
+# How far from the track a mapped pit lane may run and still be the pit
+# lane, m (`pit_lane_from` clips each chain to its longest stretch within
+# this; 70 m by default, which cuts away a road that merely touches a lane).
+# Silverstone's lane (OSM way chain from Vale to Abbey, 1129 m) leaves the
+# track at the exit of Vale and cuts across the inside of Club up to 102 m
+# from it before running behind the Wing; at 70 m the entry was clipped off
+# and the lane was blended onto the track beside the grid instead.
+PIT_LANE_REACH_M: dict[str, float] = {
+    "Silverstone": 120.0,
+}
+
 # Buildings OSM maps only as a tagless multipolygon relation (a ring of
 # `barrier=fence` ways with the real tags on the relation, not any member),
 # which extract()'s structures scan -- way-only, like the rest of this
@@ -2149,6 +2160,8 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         if p is not None and len(p) > 2:
             pit_ways.append(p)
 
+    reach_m = PIT_LANE_REACH_M.get(stem, 70.0)
+
     def pit_lane_from(ways: list[np.ndarray]) -> dict | None:
         # A circuit has more than one lane tagged "pit" (Spa's support pit
         # lane, the Bugatti lanes at Le Mans, the roads behind the garages),
@@ -2159,7 +2172,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         for run in chain_ways(ways):
             run = densify(run, 8.0, closed=False)
             d, _ = track.grid.query(run, max_rings=4)
-            near = d < 70.0
+            near = d < reach_m
             span = None
             i = 0
             while i < len(run):
