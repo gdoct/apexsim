@@ -1292,6 +1292,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	UpdateHeadMotion(DeltaSeconds);
 	UpdateLook(DeltaSeconds);
 	UpdateCockpitCamera();
+	UpdatePitCamera();
 	UpdateCarAudio();
 	if (bGhostReplay)
 	{
@@ -2769,8 +2770,9 @@ void AApexRaceDirector::ApplyCameraMode()
 	// A shot pose outranks both driving cameras, and everything that re-applies
 	// the mode (a new followed car, C, a settings change) comes through here,
 	// which is what keeps it parked.
-	// The finish move flies the TV camera itself (UpdateFinishCamera).
-	const bool bTvCamera = bTvView || bFinishPanorama;
+	// The finish move flies the TV camera itself (UpdateFinishCamera), and so
+	// does the pit pose (UpdatePitCamera).
+	const bool bTvCamera = bTvView || bFinishPanorama || bPitCameraPose;
 	CockpitCamera->SetActive(bCockpitView && !bTvCamera && !bShotCameraPose);
 	ChaseCamera->SetActive(!bCockpitView && !bTvCamera && !bShotCameraPose);
 	TvCamera->SetActive(bTvCamera && !bShotCameraPose);

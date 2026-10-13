@@ -13,11 +13,12 @@ in [spectator.md](spectator.md); triple-screen side views in
 - `game-unreal/Source/ApexSim/Public/Race/`: `ApexCockpitRig.h`,
   `ApexCockpitLayout.h`, `ApexChaseView.h`, `ApexShotCamera.h`,
   `ApexRaceCoordinate.h`, `ApexTvDirector.h`, `ApexLobbyCamera.h`, `ApexFinishCamera.h`,
-  `ApexRaceDirector.h`
+  `ApexPitCamera.h`, `ApexRaceDirector.h`
 - `UI/ApexCockpitDashWidget.h`, `UI/ApexMirrorWidget.h`
 - `ApexDemoModeSubsystem.h` (module root)
 - Tests: `Private/Tests/CockpitLayoutTests.cpp`, `ChaseViewTests.cpp`,
-  `ShotCameraTests.cpp`, `TvDirectorTests.cpp`, `LobbyCameraTests.cpp`, `FinishCameraTests.cpp`
+  `ShotCameraTests.cpp`, `TvDirectorTests.cpp`, `LobbyCameraTests.cpp`, `FinishCameraTests.cpp`,
+  `PitCameraTests.cpp`
 
 ## Camera modes
 
@@ -84,6 +85,20 @@ chase FOV, the spring arm's lag speeds and a lag clamp
   walks the whole ladder in one unattended run.
 
 Tests: `ApexSim.Camera.ChaseLadder`, `ApexSim.Camera.ChaseCycle`.
+
+## Pit box pose (`ApexPitCamera`, `AApexRaceDirector::UpdatePitCamera`)
+
+The boom has no collision test, and seen off it a car stopped at its box was
+half hidden by a garage column. So in the chase view, while the player's own
+car stands at its box (the crew at work, or under 1.5 m/s within 4 m of the
+spot; held until it pulls away past 3 m/s), the TV camera takes a pose in the
+lane: a metre inside the lane's far edge (the pit wall's, away from the
+garages), 4.5 m ahead of the spot, 1.7 m over the car, looking back at it.
+The place comes from the server's `PitBox` (the spot's yaw and its side of
+the lane's middle). The boom's lag is held off for two frames on the way
+back. Not in the cockpit, TV, shot, replay or watch views.
+
+Tests: `ApexSim.Camera.PitBox`.
 
 ## Screenshot camera (`ShotCamera`, `Race/ApexShotCamera.h`)
 

@@ -167,7 +167,6 @@ three at a curved box row (Silverstone) with a car stopped at its box.
 | Item | Type | Notes |
 |---|---|---|
 | Curved pit box row | bug | Built: garages on the inside of a bend are scaled down (to 0.85 at the least) so the modules touch. Silverstone's last six boxes curve tightly (scales 0.99 to 0.85); at the floor a bend tighter than about a 130 m radius still overlaps a little, and the garage is not seen on screen yet. |
-| Chase camera at the box | bug | Reproduced 2026-10-12 (`-ApexAutoRace -ApexView=far -ApexExecAfter="12=apexsim.recover pits"`, Silverstone, shot at 35 s): the boom has no collision test, so a car stopped at its box is seen past a garage column (half hidden) and the garage's wall at its side. Tried and dropped: turning the boom's collision test on in the pit lane puts the camera under the ground (the track's collision is traces-only), and lifting the boom 2.6 m puts it in the canopy. Needs a pit pose of its own (a camera in the lane, clear of the columns). |
 
 ### Menus and HUD layouts
 

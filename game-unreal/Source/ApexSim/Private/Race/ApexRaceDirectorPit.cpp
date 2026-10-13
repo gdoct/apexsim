@@ -10,7 +10,11 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "Camera/CameraComponent.h"
+#include "GameFramework/SpringArmComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Race/ApexPitCamera.h"
+#include "Race/ApexRaceCarActor.h"
 #include "Race/ApexRaceCoordinate.h"
 
 namespace ApexPitBoxMarker
@@ -126,6 +130,52 @@ void AApexRaceDirector::UpdatePitBoxMarker()
 	}
 }
 
+void AApexRaceDirector::UpdatePitCamera()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	const FApexPitBox* Box = Net ? &Net->GetOwnPitBox() : nullptr;
+	const AApexRaceCarActor* Local = Net ? FindCar(Net->GetLocalCarIndex()) : nullptr;
+	bool bHold = false;
+	FVector SpotCm = FVector::ZeroVector;
+	// The player's own car in the chase view: the cockpit sees its own pit
+	// board, and the TV and shot cameras have poses of their own.
+	if (Box && Box->bValid && Local && FollowedCar == Local && !bCockpitView && !bTvView && !bFinishPanorama
+		&& !bShotCameraPose && !bReplayView && !bDemoView && !bSpectating && bLocalInPitLane)
+	{
+		SpotCm = ApexRace::ServerToUnrealPosition(Box->Position);
+		const float DistanceM = FVector::Dist2D(Local->GetActorLocation(), SpotCm) / ApexRace::MetresToCentimetres;
+		bHold = ApexPitCamera::Holds(bPitCameraPose, bLocalPitServicing, DistanceM, GetFollowedSpeedKph() / 3.6f);
+	}
+
+	if (bHold != bPitCameraPose)
+	{
+		bPitCameraPose = bHold;
+		ApplyCameraMode();
+		if (!bHold)
+		{
+			// Back on the boom: its lag would swing it in from where it was
+			// left when the pose took over.
+			CameraBoom->bEnableCameraLag = false;
+			CameraBoom->bEnableCameraRotationLag = false;
+			BoomSnapFrames = 2;
+		}
+		UE_LOG(LogApexSim, Log, TEXT("Pit camera %s"), bHold ? TEXT("on: the car is at its box") : TEXT("off"));
+	}
+	if (!bPitCameraPose)
+	{
+		return;
+	}
+
+	const FVector Car = Local->GetActorLocation();
+	FVector Camera = ApexRace::ServerToUnrealPosition(
+		ApexPitCamera::Position(Box->Position, Box->YawRad, Box->LateralM, Box->LaneWidthM));
+	Camera.Z = Car.Z + ApexPitCamera::HeightCm;
+	const FVector Aim = Car + FVector(0.0, 0.0, ApexPitCamera::AimHeightCm);
+	TvCamera->SetWorldLocationAndRotation(Camera, (Aim - Camera).Rotation());
+	TvCamera->SetFieldOfView(ApexPitCamera::FovDeg);
+	TvCamera->PostProcessSettings.DepthOfFieldFocalDistance = 0.0f;
+}
+
 void AApexRaceDirector::ForgetPitBoxMarker()
 {
 	if (PitBoxMarker)
@@ -134,6 +184,11 @@ void AApexRaceDirector::ForgetPitBoxMarker()
 		PitBoxMarker->SetVisibility(false);
 	}
 	PitBoxMarkerLaidFor = -1;
+	if (bPitCameraPose)
+	{
+		bPitCameraPose = false;
+		ApplyCameraMode();
+	}
 	bLocalInPitLane = false;
 	bLocalPitAutopilot = false;
 	bLocalPitServicing = false;

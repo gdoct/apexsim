@@ -1102,6 +1102,15 @@ private:
 	TObjectPtr<UInstancedStaticMeshComponent> PitBoxMarker;
 	/** The box the marker's pieces stand at; -1 before any. */
 	int32 PitBoxMarkerLaidFor = -1;
+
+	/**
+	 * In the chase view, while the player's car stands at its box, frame it
+	 * from the lane (`ApexPitCamera`) on the TV camera rather than off the
+	 * boom, which put a garage column in front of it.
+	 */
+	void UpdatePitCamera();
+	/** The pit pose has the view this frame (ApplyCameraMode reads it). */
+	bool bPitCameraPose = false;
 	/**
 	 * The night pass's material instances (`ApexProps::NightGlowOf`: lit
 	 * windows, the wheel's light strips, the lit panels) with the emissive
