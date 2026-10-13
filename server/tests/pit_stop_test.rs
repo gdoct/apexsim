@@ -503,6 +503,20 @@ fn a_driver_is_told_their_box_once() {
     );
     gs.tick(&HashMap::new());
     assert!(gs.take_pit_box_news().is_empty(), "told once");
+    assert!(!pit_box.manual, "on the autopilot");
+
+    // Switched to the manual pit lane: told again, so the client marks the box.
+    gs.set_driver_aids(
+        &player,
+        DriverAids {
+            pit_autopilot: Some(false),
+            ..Default::default()
+        },
+    );
+    let news = gs.take_pit_box_news();
+    assert_eq!(news.len(), 1);
+    assert!(news[0].1.manual);
+    assert!(gs.take_pit_box_news().is_empty());
 }
 
 #[test]

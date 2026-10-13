@@ -1431,6 +1431,7 @@ bool FApexProtocolPitBoxTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("lateral"), Box.LateralM, -2.5f);
 	TestEqual(TEXT("width"), Box.LaneWidthM, 12.0f);
 	TestEqual(TEXT("radius"), Box.RadiusM, 2.5f);
+	TestFalse(TEXT("on the autopilot (left off the wire)"), Box.bManual);
 	return true;
 }
 

@@ -1689,6 +1689,10 @@ pub struct PitBoxData {
     pub lane_width_m: f32,
     /// The car's middle stops within this of the spot, m.
     pub radius_m: f32,
+    /// The driver drives the pit lane themselves (the pit autopilot is off):
+    /// the client marks the box. Sent again whenever it changes.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub manual: bool,
 }
 
 impl LapTimingData {
@@ -2911,6 +2915,7 @@ mod tests {
             lateral_m: -2.5,
             lane_width_m: 12.0,
             radius_m: 2.5,
+            manual: false,
         });
         fn hex(bytes: &[u8]) -> String {
             bytes
@@ -2925,6 +2930,7 @@ mod tests {
             ServerMessage::PitBox(data) => {
                 assert_eq!(data.pit_box, 4);
                 assert_eq!((data.x, data.y, data.lateral_m), (120.5, -36.25, -2.5));
+                assert!(!data.manual, "the autopilot, left off the wire");
             }
             other => panic!("Wrong message type: {other:?}"),
         }

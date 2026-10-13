@@ -233,7 +233,8 @@ SIGINT or SIGTERM marks `/health` unhealthy, sends every client `Error 503
 a server people race on. `stand_in_driver = true` has an AI drive every
 human's car; `events = "<s of green>:<host|all|car index>:<action>;..."`
 fires `wear=P`, `puncture=FL`, `leak=FL:KPA`, `flatspot=FL:S`,
-`damage=<zone>:P`, `brakewear=P`, `pit`, `boost=S` or `aids=off` at a time
+`damage=<zone>:P`, `brakewear=P`, `pit`, `boost=S`, `aids=off` or
+`pitlane=manual` (the pit autopilot off) at a time
 of green. Not applied to demo sessions. Tests: `tests/debug_hooks_test.rs`.
 
 ## Traps

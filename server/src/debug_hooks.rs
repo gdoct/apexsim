@@ -16,7 +16,8 @@
 //!   left right engine; 100 retires the car), `brakewear=P`, `pit` (the
 //!   next pass of the lane is a stop), `boost=S` (a stand-in holds the
 //!   overtake button for S seconds), `aids=off` (ABS and traction control
-//!   off: a stand-in then locks and spins its wheels).
+//!   off: a stand-in then locks and spins its wheels), `pitlane=manual`
+//!   (the pit autopilot off, as the Assists tab's Pit lane MANUAL).
 
 use crate::data::{CarState, TireData};
 
@@ -63,6 +64,8 @@ pub enum Action {
     Boost(f32),
     /// ABS and traction control off.
     AidsOff,
+    /// The pit autopilot off: the driver drives the pit lane.
+    ManualPits,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -149,6 +152,7 @@ pub fn parse_event(text: &str) -> Option<DebugEvent> {
         "pit" => Action::Pit,
         "boost" => Action::Boost(next().parse().ok()?),
         "aids" if next().eq_ignore_ascii_case("off") => Action::AidsOff,
+        "pitlane" if next().eq_ignore_ascii_case("manual") => Action::ManualPits,
         _ => return None,
     };
     if !at_s.is_finite() || at_s < 0.0 {
@@ -204,6 +208,7 @@ pub fn apply(action: Action, state: &mut CarState) {
             state.abs = Some(false);
             state.traction_control = Some(crate::data::TractionControl::Off);
         }
+        Action::ManualPits => state.manual_pits = true,
     }
 }
 
@@ -228,6 +233,8 @@ mod tests {
         assert_eq!(hooks.events[4].target, Target::Car(3));
         assert_eq!(hooks.events[4].action, Action::Damage(Zone::Front, 100.0));
         assert!(hooks.is_active());
+        let manual = DebugHooks::from_settings(false, "0:host:pitlane=manual");
+        assert_eq!(manual.events[0].action, Action::ManualPits);
         assert!(!DebugHooks::from_settings(false, "").is_active());
     }
 

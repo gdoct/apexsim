@@ -1736,6 +1736,10 @@ struct APEXSIMNET_API FApexPitBox
 	/** The car's middle must stop within this of the spot, m. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	float RadiusM = 0.0f;
+
+	/** The driver drives the pit lane themselves (the pit autopilot is off): the box is marked. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bManual = false;
 };
 
 /**

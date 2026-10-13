@@ -31,8 +31,13 @@ namespace ApexPitBoxMarker
 	constexpr float PostAheadM = LengthM / 2.0f + 0.8f;
 	constexpr float PostHeightM = 1.4f;
 	constexpr float BoardM = 0.55f;
-	/** How far above and below the spot the ground is looked for, cm. */
-	constexpr float TraceReachCm = 400.0f;
+	/**
+	 * The ground is looked for from just above the spot (the server's height
+	 * is the lane's own) down this far, cm. From higher up the trace found
+	 * the garage's canopy and laid the outline on top of it.
+	 */
+	constexpr float TraceAboveCm = 60.0f;
+	constexpr float TraceBelowCm = 300.0f;
 	const FLinearColor Colour(1.0f, 0.72f, 0.02f);
 
 	/** One piece: its middle (server frame, m, off the spot along and across the box and up) and its size (m). */
@@ -60,11 +65,12 @@ void AApexRaceDirector::UpdatePitBoxMarker()
 	const FApexPitBox* Box = Net ? &Net->GetOwnPitBox() : nullptr;
 	const AApexRaceCarActor* Local = Net ? FindCar(Net->GetLocalCarIndex()) : nullptr;
 	// Only the driver's own box, only while they drive the lane themselves
-	// and the crew have yet to see them: the autopilot needs no marker, and
-	// a car leaving its box would drive out through it.
-	const bool bShow = Box && Box->bValid && bTrackConditionsApplied && !bReplayView && !bDemoView && !bSpectating
-		&& Local && FollowedCar == Local && bLocalInPitLane && !bLocalPitAutopilot && !bLocalPitServicing
-		&& !bLocalServicedThisVisit;
+	// (the server says so: before a takeover the autopilot's flag is off for
+	// everyone) and the crew have yet to see them: a car leaving its box
+	// would drive out through it.
+	const bool bShow = Box && Box->bValid && Box->bManual && bTrackConditionsApplied && !bReplayView && !bDemoView
+		&& !bSpectating && Local && FollowedCar == Local && bLocalInPitLane && !bLocalPitAutopilot
+		&& !bLocalPitServicing && !bLocalServicedThisVisit;
 	if (!bShow)
 	{
 		if (PitBoxMarker && PitBoxMarker->IsVisible())
@@ -103,12 +109,30 @@ void AApexRaceDirector::UpdatePitBoxMarker()
 		// On the ground under the spot; the server's height when there is none to find.
 		FVector Spot = ApexRace::ServerToUnrealPosition(Box->Position);
 		FCollisionQueryParams Query(SCENE_QUERY_STAT(ApexPitBoxMarker), /*bTraceComplex*/ false, this);
-		FHitResult Hit;
-		if (UWorld* World = GetWorld(); World && World->LineTraceSingleByObjectType(Hit,
-				Spot + FVector(0.0, 0.0, ApexPitBoxMarker::TraceReachCm),
-				Spot - FVector(0.0, 0.0, ApexPitBoxMarker::TraceReachCm), FCollisionObjectQueryParams(ECC_WorldStatic), Query))
+		// A car parked on the spot (towed there) is not the ground.
+		for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Car : Cars)
 		{
-			Spot = Hit.ImpactPoint;
+			Query.AddIgnoredActor(Car.Value.Get());
+		}
+		// A trace that starts inside something (the pit building's collision
+		// reaches over the lane) reports where it started: that is skipped
+		// and the trace made again.
+		UWorld* World = GetWorld();
+		for (int32 Try = 0; World && Try < 4; ++Try)
+		{
+			FHitResult Hit;
+			if (!World->LineTraceSingleByObjectType(Hit, Spot + FVector(0.0, 0.0, ApexPitBoxMarker::TraceAboveCm),
+					Spot - FVector(0.0, 0.0, ApexPitBoxMarker::TraceBelowCm), FCollisionObjectQueryParams(ECC_WorldStatic), Query))
+			{
+				break;
+			}
+			if (!Hit.bStartPenetrating)
+			{
+				Spot = Hit.ImpactPoint;
+				break;
+			}
+			UE_LOG(LogApexSim, Verbose, TEXT("Pit box marker: the trace starts inside %s"), *GetNameSafe(Hit.GetComponent()));
+			Query.AddIgnoredComponent(Hit.GetComponent());
 		}
 		const float Cos = FMath::Cos(Box->YawRad);
 		const float Sin = FMath::Sin(Box->YawRad);

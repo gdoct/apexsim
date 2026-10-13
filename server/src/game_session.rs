@@ -284,8 +284,9 @@ pub struct GameSession {
     lap_events: Vec<SessionLapEvent>,
     /// Pit stops started since the clients were last told.
     pit_events: Vec<(PlayerId, crate::network::PitServiceData)>,
-    /// The humans told where their pit box is (`take_pit_box_news`).
-    pit_box_told: std::collections::BTreeSet<PlayerId>,
+    /// The humans told where their pit box is (`take_pit_box_news`), and
+    /// whether they drive the lane themselves as they were told it.
+    pit_box_told: std::collections::BTreeMap<PlayerId, bool>,
     /// The lap each car is driving, sampled for a ghost. Human drivers only:
     /// a record is a driver's own, and the AI never sets one.
     lap_traces: HashMap<PlayerId, Vec<GhostSample>>,
@@ -632,7 +633,7 @@ impl GameSession {
             race_end: RaceEnd::default(),
             lap_events: Vec::new(),
             pit_events: Vec::new(),
-            pit_box_told: std::collections::BTreeSet::new(),
+            pit_box_told: std::collections::BTreeMap::new(),
             lap_traces: HashMap::new(),
             session_best_lap_ms: None,
             session_best_splits_ms: [None; SECTOR_COUNT],
@@ -693,7 +694,7 @@ impl GameSession {
             race_end: RaceEnd::default(),
             lap_events: Vec::new(),
             pit_events: Vec::new(),
-            pit_box_told: std::collections::BTreeSet::new(),
+            pit_box_told: std::collections::BTreeMap::new(),
             lap_traces: HashMap::new(),
             session_best_lap_ms: None,
             session_best_splits_ms: [None; SECTOR_COUNT],
@@ -3684,7 +3685,8 @@ impl GameSession {
     }
 
     /// Each human whose box has been dealt and who has not been told where
-    /// it is (since joining, or rejoining), with their box.
+    /// it is (since joining, or rejoining), or whose pit autopilot has been
+    /// switched since, with their box.
     pub fn take_pit_box_news(&mut self) -> Vec<(PlayerId, crate::network::PitBoxData)> {
         let Some(lane) = self.track_config.pit_lane.as_ref() else {
             return Vec::new();
@@ -3695,7 +3697,7 @@ impl GameSession {
                 continue;
             };
             if self.session.ai_player_ids.contains(&state.player_id)
-                || self.pit_box_told.contains(&state.player_id)
+                || self.pit_box_told.get(&state.player_id) == Some(&state.manual_pits)
             {
                 continue;
             }
@@ -3711,11 +3713,12 @@ impl GameSession {
                     lateral_m: lane.box_lateral_m(spot),
                     lane_width_m: lane.width_m,
                     radius_m: crate::pit::BOX_RADIUS_M,
+                    manual: state.manual_pits,
                 },
             ));
         }
-        for (player_id, _) in &news {
-            self.pit_box_told.insert(*player_id);
+        for (player_id, pit_box) in &news {
+            self.pit_box_told.insert(*player_id, pit_box.manual);
         }
         news
     }

@@ -1360,8 +1360,9 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 
 	case EApexServerMessageType::PitBox:
 		OwnPitBox = Message.PitBox;
-		UE_LOG(LogApexSimNet, Log, TEXT("<- PitBox %d at (%.1f, %.1f)m, %.1f m off the lane's middle"),
-			OwnPitBox.PitBox + 1, OwnPitBox.Position.X, OwnPitBox.Position.Y, OwnPitBox.LateralM);
+		UE_LOG(LogApexSimNet, Log, TEXT("<- PitBox %d at (%.1f, %.1f)m, %.1f m off the lane's middle, %s"),
+			OwnPitBox.PitBox + 1, OwnPitBox.Position.X, OwnPitBox.Position.Y, OwnPitBox.LateralM,
+			OwnPitBox.bManual ? TEXT("manual pit lane") : TEXT("pit autopilot"));
 		break;
 
 	case EApexServerMessageType::PitService:

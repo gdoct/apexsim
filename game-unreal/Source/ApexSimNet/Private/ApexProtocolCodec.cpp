@@ -1324,6 +1324,7 @@ namespace
 			else if (Key == TEXT("LateralM"))     { bOk = Reader.ReadFloat(Out.LateralM); }
 			else if (Key == TEXT("LaneWidthM"))   { bOk = Reader.ReadFloat(Out.LaneWidthM); }
 			else if (Key == TEXT("RadiusM"))      { bOk = Reader.ReadFloat(Out.RadiusM); }
+			else if (Key == TEXT("Manual"))       { bOk = Reader.ReadBool(Out.bManual); }
 			else { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
