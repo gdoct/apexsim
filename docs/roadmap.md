@@ -166,8 +166,7 @@ three at a curved box row (Silverstone) with a car stopped at its box.
 | Item | Type | Notes |
 |---|---|---|
 | Curved pit box row | bug | On a curved box row (Silverstone) the 6 m garage modules overlap on the inside of the bend. |
-| Chase camera inside the garage | bug | When a car stops at its box or is towed there, the chase camera ends up in a pillar or the garage wall and the car is hidden. |
-| Garage windows at night | content | No emissive garage windows at night. |
+| Chase camera at the box | bug | Reproduced 2026-10-12 (`-ApexAutoRace -ApexView=far -ApexExecAfter="12=apexsim.recover pits"`, Silverstone, shot at 35 s): the boom has no collision test, so a car stopped at its box is seen past a garage column (half hidden) and the garage's wall at its side. Tried and dropped: turning the boom's collision test on in the pit lane puts the camera under the ground (the track's collision is traces-only), and lifting the boom 2.6 m puts it in the canopy. Needs a pit pose of its own (a camera in the lane, clear of the columns). |
 
 ### Menus and HUD layouts
 
