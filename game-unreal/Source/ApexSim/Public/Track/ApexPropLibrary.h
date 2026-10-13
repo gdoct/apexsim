@@ -221,7 +221,9 @@ namespace ApexProps
 	 * (positive outside the corner) the wedge whose front radius is nearest
 	 * is used — `_curve6` at 95 m, `_curve12` at 48 m, `_curve6_in` on the
 	 * inside — and the bays are turned about the wedges' common centre so
-	 * they share their side edges; the large family is straight only.
+	 * they share their side edges; the large family is straight only, and
+	 * the stadium family (`bay_10m_stadium_roof`, `end_cap_stadium`) has only
+	 * the outside `_stadium_curve6` wedge.
 	 * `bWedge` reports whether a wedge was chosen. See docs/content/props.md.
 	 * A non-bay stand (`scaffold_10m`, `banking_seats`) is the module
 	 * repeated at the same pitch, straight, with no caps.

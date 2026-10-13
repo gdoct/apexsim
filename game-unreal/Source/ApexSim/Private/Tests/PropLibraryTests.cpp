@@ -176,6 +176,15 @@ bool FApexPropStraightStandTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("no turn"), Layout.Bays[2].GetRotation().IsIdentity(1e-6));
 	}
 
+	// The stadium family keeps its name and its own cap, and has no inside wedge.
+	bWedge = true;
+	const ApexProps::FStandLayout Stadium =
+		ApexProps::LayoutGrandstand(TEXT("bay_10m_stadium_roof"), 30.0f, TOptional<float>(-60.0f), &bWedge);
+	TestFalse(TEXT("stadium inside a bend is straight"), bWedge);
+	TestEqual(TEXT("stadium bay"), Stadium.BayAsset, FString(TEXT("bay_10m_stadium_roof")));
+	TestEqual(TEXT("stadium cap"), Stadium.CapAsset, FString(TEXT("end_cap_stadium")));
+	TestEqual(TEXT("stadium bays"), Stadium.Bays.Num(), 3);
+
 	// The large family never curves, and a stand keeps at least one bay.
 	const ApexProps::FStandLayout Large =
 		ApexProps::LayoutGrandstand(TEXT("bay_10m_large"), 4.0f, TOptional<float>(60.0f), &bWedge);
@@ -223,6 +232,7 @@ bool FApexPropWedgeStandTest::RunTest(const FString& Parameters)
 		{TEXT("bay_10m_roof"), 95.0f, TEXT("bay_10m_curve6_roof"), 6.0f},
 		{TEXT("bay_10m"), 140.0f, TEXT("bay_10m_curve6"), 6.0f},
 		{TEXT("bay_10m_roof"), -60.0f, TEXT("bay_10m_curve6_in_roof"), 6.0f},
+		{TEXT("bay_10m_stadium_roof"), 60.0f, TEXT("bay_10m_stadium_curve6_roof"), 6.0f},
 	};
 	for (const FCase& Case : Cases)
 	{

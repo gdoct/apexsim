@@ -369,8 +369,12 @@ are `circuit_style.rs` ([circuits.md](circuits.md)).
   behind the pivot; a new deep asset centred on its footprint stands half in
   the road.
 - The stadium family (`bay_10m_stadium_roof`, `bay_10m_stadium_curve6_roof`,
-  `end_cap_stadium`) is in the kit but `LayoutGrandstand` does not know it:
-  a stand naming it is laid as `bay_10m_roof` bays. No shipped scene uses it.
+  `end_cap_stadium`) is laid by `LayoutGrandstand`: 10 m pitch like the rest,
+  the 6 degree wedge outside a bend, straight bays inside one, its own cap.
+  It has no crowd twin (the plain bay is used with spectators on). No
+  shipped scene uses it, and the wedge's shared edges are assumed to be the
+  other families' (the bay is 10.6 m long in the kit table): look at one on
+  a corner before relying on it.
 - `sign/hillside_letters` is geometry spelling a real circuit's name
   (default text in `build_batch_e_kit.py`); no scene places it, and placing
   it as is would put a trademark on screen ([naming.md](naming.md)).

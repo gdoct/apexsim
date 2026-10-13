@@ -153,7 +153,7 @@ finishes the two circuits. Check each circuit by hand in the running game.
 |---|---|---|
 | Mandarina Bay unfinished | content | No corner names (the dossier has one "corner", the circuit itself), the F1 pit building prop (`building_pit_street`) is not placed, no quay rail along the water and no catch fence pass. The circuit has not been seen in the running game. |
 | Nordschleife unfinished | content | Numbered marshal posts, the track-over-road bridges (B257 at Breidscheid), rock cuttings, spectator hedges and banks, camp villages, the timing gantry as a crossing, more German signs and the T13 gates, the Hohe Acht tower, vertical graffiti on barriers, skid-mark decals. |
-| Stadium grandstand family | content | `bay_10m_stadium_roof`, `bay_10m_stadium_curve6_roof` and `end_cap_stadium` are in the kit, but `ApexProps::LayoutGrandstand` does not lay them (a stand naming them gets `bay_10m_roof` bays); `grandstand/stair_tower` was never built. |
+| Stadium grandstand family | content | `LayoutGrandstand` lays the stadium bays and cap (no scene names them yet, and a stadium wedge on a corner has not been looked at); `grandstand/stair_tower` was never built. |
 | Kit pieces never placed | content | Kerb markers, sausage kerbs, the podium and the hillside letters exist in the kit but no pass lays them. |
 | `sign/hillside_letters` spells a trademark | content | The unplaced GLB reads "RED BULL RING"; it needs a display-name text before any scene uses it. |
 | Dressing tooling | task | No `ats-dress --explain` or per-prop source stamp; no `ats-export --strict` that fails on a dropped facet; no aerial-imagery tracing aid for dossiers. |

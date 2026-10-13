@@ -443,17 +443,27 @@ namespace ApexProps
 		}
 		const bool bRoof = Asset.EndsWith(TEXT("_roof"));
 		const bool bLarge = Asset.Contains(TEXT("_large"));
+		const bool bStadium = Asset.Contains(TEXT("_stadium"));
 
 		// Wedge choice: the family whose front radius is nearest the bend's,
 		// on the inside always the one inside wedge there is. The large
-		// bays come straight only.
+		// bays come straight only; the stadium bays have the one wedge, the
+		// 6 degree one outside a corner, and are straight on the inside.
 		float ThetaDeg = 0.0f;
 		FString Variant;
 		if (!bLarge && RadiusM.IsSet() && FMath::Abs(RadiusM.GetValue()) <= StraightRadiusM
 			&& FMath::Abs(RadiusM.GetValue()) > KINDA_SMALL_NUMBER)
 		{
 			const float R = RadiusM.GetValue();
-			if (R < 0.0f)
+			if (bStadium)
+			{
+				if (R > 0.0f)
+				{
+					ThetaDeg = 6.0f;
+					Variant = TEXT("_curve6");
+				}
+			}
+			else if (R < 0.0f)
 			{
 				ThetaDeg = -6.0f;
 				Variant = TEXT("_curve6_in");
@@ -474,9 +484,9 @@ namespace ApexProps
 			*bWedge = ThetaDeg != 0.0f;
 		}
 
-		Layout.BayAsset = FString(TEXT("bay_10m")) + (bLarge ? TEXT("_large") : TEXT("")) + Variant
-			+ (bRoof ? TEXT("_roof") : TEXT(""));
-		Layout.CapAsset = bLarge ? TEXT("end_cap_large") : TEXT("end_cap");
+		Layout.BayAsset = FString(TEXT("bay_10m")) + (bLarge ? TEXT("_large") : TEXT(""))
+			+ (bStadium ? TEXT("_stadium") : TEXT("")) + Variant + (bRoof ? TEXT("_roof") : TEXT(""));
+		Layout.CapAsset = bLarge ? TEXT("end_cap_large") : bStadium ? TEXT("end_cap_stadium") : TEXT("end_cap");
 
 		const float HalfPitchCm = BayPitchM * 50.0f;
 		const float CapOffsetCm = HalfPitchCm + 50.0f;
