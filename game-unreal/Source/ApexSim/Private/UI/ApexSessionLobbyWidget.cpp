@@ -387,7 +387,15 @@ void UApexSessionLobbyWidget::RefreshGrid()
 	const int32 MaxSlots = bHasSession ? Session.MaxPlayers : Flow->CreateMaxPlayers;
 
 	TArray<FApexRosterEntry> Entries = Net->GetSessionRoster().Entries;
-	Entries.Sort([](const FApexRosterEntry& A, const FApexRosterEntry& B) { return A.CarIndex < B.CarIndex; });
+	// In the order the race will start: the roster's grid slot (the host's
+	// order, the weekend's grid or qualifying), car index from an older
+	// server that sends none.
+	Entries.Sort([](const FApexRosterEntry& A, const FApexRosterEntry& B)
+	{
+		const int32 SlotA = A.GridSlot > 0 ? A.GridSlot : MAX_int32;
+		const int32 SlotB = B.GridSlot > 0 ? B.GridSlot : MAX_int32;
+		return SlotA != SlotB ? SlotA < SlotB : A.CarIndex < B.CarIndex;
+	});
 
 	const FApexLobbyState& Lobby = Net->GetCachedLobbyState();
 
@@ -438,6 +446,10 @@ void UApexSessionLobbyWidget::RefreshGrid()
 		if (bHasSession && Session.HostName.Equals(Entry.PlayerName, ESearchCase::IgnoreCase) && !Entry.bIsAi)
 		{
 			ApexUI::AddH(NameRow, ApexUI::MakeText(*WidgetTree, TEXT("HOST"), ApexUI::Font::Mono(9.0f, 120), ApexUI::Palette::TextSecondary), FMargin(10.0f, 0.0f, 0.0f, 0.0f));
+		}
+		if (Entry.bAway)
+		{
+			ApexUI::AddH(NameRow, ApexUI::MakeText(*WidgetTree, TEXT("AWAY"), ApexUI::Font::Mono(9.0f, 120), ApexUI::Palette::TextMuted), FMargin(10.0f, 0.0f, 0.0f, 0.0f));
 		}
 
 		ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, NameRow, 300.0f, -1.0f), FMargin(), VAlign_Center);

@@ -306,14 +306,20 @@ it:
 **Client.** The create screen's Race tab has a Starting order row
 (`ApexCreateSession::`): chips for the seating order, a "Custom" order and
 the track's three newest stored results (`RequestQualifyingResults`,
-`OnQualifyingResults`), a "Your grid slot" stepper, and a grid preview where
+`OnQualifyingResults`), a Driver picker and Grid slot stepper (keyboard and
+pad: pick any driver, default you, and step it earlier or later;
+`MovingRef`), and a grid preview where
 drivers are dragged between slots (handled in `NativeOnMouseButtonDown/Move/Up`;
 the slot buttons are hit-test invisible because a button activates on the
 press). `ApexCreateSession::OrderFromResult` maps a stored result: host by
 name, the result's AI to this session's AI in qualifying order, other humans
 by name. The order lives on the flow (`CreateGridOrder`, `CreateGridResultId`,
 `CreateGridTrackId`), resets with the track, and is sent through
-`GridOrderToSend` (empty for the plain seating order). In qualifying the
+`GridOrderToSend` (empty for the plain seating order). The roster announces
+each car's start slot before the cars are lined up (`RosterEntry.GridSlot`
+from `GameSession::starting_slots`: the order `apply_grid_order` will seat,
+refreshed when a qualifying lap or a weekend round changes it), and the
+session lobby's GRID list is in that order. In qualifying the
 garage (`UApexHotlapWidget::SetQualifying`) drops the replay, ghost and tyre
 toggles and has TUNE | SCOREBOARD: the scoreboard (`ApexBoard::Build`) lists
 every car fastest first, and clicking one (`OnWatchCar`) points the spectator

@@ -232,6 +232,15 @@ struct APEXSIM_API FApexHudMemory
 		int32 TyresFromLap = 1;
 		int32 Compound = -1;
 		bool bWasServicing = false;
+		/** The lap counter last seen, for the race time below. */
+		int32 LastLap = -1;
+		/** Laps timed into RaceTimeMs, and their sum: the car's race time. */
+		int32 TimedLaps = 0;
+		int64 RaceTimeMs = 0;
+		/** Every lap of it was seen (first seen on the grid or lap 1, none skipped). */
+		bool bWholeRace = false;
+		/** Took the flag: the cool-down lap after it is not timed. */
+		bool bFinished = false;
 	};
 	TMap<int32, FCarHistory> Cars;
 

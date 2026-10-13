@@ -58,7 +58,7 @@ Shipped components: `track_info`, `race_state`, `status`, `minimap`,
 `ers` (a hybrid only);
 off until added in the editor: `relative`, `speed_gear`, `conditions`; while
 watching: `spectator_tower`, `spectator_driver`, `spectator_controls`,
-`spectator_replay`; the `hotlap_watch` scene: `hotlap_header`,
+`spectator_replay`, `spectator_results` (once the race is over); the `hotlap_watch` scene: `hotlap_header`,
 `hotlap_corner`, `hotlap_timing`, `hotlap_car`, `hotlap_controls`.
 
 ## Quick start
@@ -333,6 +333,7 @@ swap places on screen every frame.
 | `race.position` | the local car's place, from 1 (*null* without a car) |
 | `race.car_count` | cars in the session |
 | `race.leader_lap` | the leader's lap, as `lap.display` (*null* with no cars) |
+| `race.finished` | the session is over (the flag is out and every car is in, or the finish deadline passed) |
 | `race.timed` | the race runs to a clock rather than a lap count; also true in timed qualifying and a weekend's practice |
 | `race.time_left_s` | a timed race's clock: all of it on the grid, counting from green, 0 once out; timed qualifying's from the start of qualifying, 0 once the flag is out (*null* in any other session) |
 | `race.final_lap` | the lap a timed race ends on, the leader's lap when the clock ran out (*null* until then, and outside a timed race) |
@@ -507,6 +508,9 @@ the furthest round).
 | `item.tyre_age_laps` | laps on that set |
 | `item.tyre_wear_pct` | its most worn tyre, % |
 | `item.pit_stops` | stops made since the HUD first saw it |
+| `item.race_time_s` | a finisher's race time, its laps' times added up (*null* before the flag, or when the HUD did not see every lap) |
+| `item.finish_gap_s` | a finisher's gap to the winner at the flag, on the same lap (*null* for the winner, a lapped car, or as above) |
+| `item.finish_laps_down` | laps a finisher was down on the winner (0 on the same lap, or unknown) |
 
 **`sectors`**: the local car's lap in progress (just past the line, the lap it
 finished).

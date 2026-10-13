@@ -2478,6 +2478,10 @@ bool UApexRootWidget::WatchBackdrop()
 	}
 	WatchKind = EWatchKind::Backdrop;
 	WatchIdleSeconds = 0.0f;
+	if (UApexDemoModeSubsystem* Watched = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>() : nullptr)
+	{
+		Watched->SetWatched(true);
+	}
 	bWatchDemoUp = false;
 	bWatchOverlayHidden = false;
 	WatchTower = ApexSpectate::ETowerMode::Interval;
@@ -2539,6 +2543,10 @@ void UApexRootWidget::StopWatching()
 		return;
 	}
 	WatchKind = EWatchKind::None;
+	if (UApexDemoModeSubsystem* Watched = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>() : nullptr)
+	{
+		Watched->SetWatched(false);
+	}
 	const bool bWasReplay = bWatchingReplay;
 	bWatchingReplay = false;
 	const bool bWasLiveStream = bWatchingLiveStream;

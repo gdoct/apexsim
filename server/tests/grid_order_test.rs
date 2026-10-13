@@ -126,6 +126,15 @@ async fn the_hosts_start_order_grids_the_race() {
             })
             .await?;
         guest.wait_joined().await?;
+        // What the lobby's roster announces before anyone is lined up.
+        let announced = server
+            .state
+            .read()
+            .await
+            .sessions
+            .get(&joined.session_id)
+            .ok_or("no session")?
+            .starting_slots();
 
         host.send(&ClientMessage::StartCountdown {
             countdown_seconds: 5,
@@ -150,6 +159,13 @@ async fn the_hosts_start_order_grids_the_race() {
             .ok_or("no guest")?;
         let guest_slot = slot(guest_id);
         assert!(behind[0] >= 3 && guest_slot >= 3 && behind[0] != guest_slot);
+        for (id, car) in &session.session.participants {
+            assert_eq!(
+                announced.get(id).copied(),
+                Some(car.grid_position),
+                "the lobby announced the grid the race used"
+            );
+        }
         Ok::<(), Box<dyn std::error::Error>>(())
     })
     .await;

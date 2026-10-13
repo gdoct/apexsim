@@ -351,6 +351,8 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 		Out.Add(AiSkillPlus);
 		if (const UApexMenuFlowSubsystem* OrderFlow = GetFlow(); OrderFlow && OrderFlow->CreateStartingMode == EApexGameMode::Race && !OrderFlow->IsCreatingWeekend())
 		{
+			Out.Add(MovingPrev);
+			Out.Add(MovingNext);
 			Out.Add(YourSlotEarlier);
 			Out.Add(YourSlotLater);
 			AddAll(StartOrderButtons);
@@ -1118,8 +1120,22 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		ApexUI::AddV(Section, MakeCaption(TEXT("Starting order"), &Info), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
 		StartOrderInfoText = Info;
 
+		// Which driver the slot stepper below moves: you, unless another is picked.
+		UHorizontalBox* DriverRow = WidgetTree->ConstructWidget<UHorizontalBox>();
+		ApexUI::AddH(DriverRow, ApexUI::MakeText(*WidgetTree, TEXT("Driver"), ApexUI::Font::Display(17.0f), ApexUI::Palette::TextPrimary),
+			FMargin(), VAlign_Center, 1.0f);
+		UApexButtonWidget* Prev = nullptr;
+		UApexButtonWidget* Next = nullptr;
+		UTextBlock* Name = nullptr;
+		ApexUI::AddH(DriverRow, MakeStepper(Prev, Name, Next, 42.0f, 200.0f, 17.0f));
+		MovingPrev = Prev;
+		MovingNext = Next;
+		MovingNameText = Name;
+		ApexUI::AddV(Section, ApexUI::MakePanel(*WidgetTree, DriverRow, FMargin(16.0f, 6.0f, 6.0f, 6.0f),
+			ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f)), FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+
 		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
-		UTextBlock* Label = ApexUI::MakeText(*WidgetTree, TEXT("Your grid slot"), ApexUI::Font::Display(17.0f), ApexUI::Palette::TextPrimary);
+		UTextBlock* Label = ApexUI::MakeText(*WidgetTree, TEXT("Grid slot"), ApexUI::Font::Display(17.0f), ApexUI::Palette::TextPrimary);
 		ApexUI::AddH(Row, Label, FMargin(), VAlign_Center, 1.0f);
 		UApexButtonWidget* Earlier = nullptr;
 		UApexButtonWidget* Later = nullptr;
@@ -2284,9 +2300,9 @@ void UApexSessionCreateWidget::RefreshGridPreview()
 			NumberColour = ApexUI::Palette::TextDisabled;
 			break;
 		}
-		// A driver picked up by a click, or dragged, stands out; so does the
-		// slot a drag would drop it on.
-		if (bOccupied && (Index == PickedSlot || Index == DragFrom))
+		// A driver picked up by a click, dragged, or picked for the steppers
+		// stands out; so does the slot a drag would drop it on.
+		if (bOccupied && (Index == PickedSlot || Index == DragFrom || (!MovingRef.IsEmpty() && Entries[Index].Ref == MovingRef)))
 		{
 			Outline = ApexUI::Palette::TextPrimary;
 		}
@@ -2504,6 +2520,12 @@ void UApexSessionCreateWidget::SetAiCount(int32 Count)
 }
 
 // --- The start order -------------------------------------------------------------
+
+int32 UApexSessionCreateWidget::MovingIndex(const TArray<FString>& Order) const
+{
+	const int32 At = MovingRef.IsEmpty() ? INDEX_NONE : Order.IndexOfByKey(MovingRef);
+	return At != INDEX_NONE ? At : Order.IndexOfByKey(ApexCreateSession::HostRef());
+}
 
 TArray<FString> UApexSessionCreateWidget::CurrentOrder() const
 {
@@ -2869,7 +2891,14 @@ void UApexSessionCreateWidget::RefreshStartOrder()
 		StartOrderButtons[Index]->SetSelected(bSelected);
 	}
 
-	const int32 Mine = Order.IndexOfByKey(ApexCreateSession::HostRef());
+	const int32 Mine = MovingIndex(Order);
+	if (MovingNameText)
+	{
+		const TArray<ApexCreateSession::FGridEntry> Drivers = ApexCreateSession::Entries(Order);
+		MovingNameText->SetText(FText::FromString(Drivers.IsValidIndex(Mine) ? Drivers[Mine].Label : FString(TEXT("YOU"))));
+	}
+	if (MovingPrev) { MovingPrev->SetIsEnabled(Order.Num() > 1); }
+	if (MovingNext) { MovingNext->SetIsEnabled(Order.Num() > 1); }
 	if (YourSlotValueText)
 	{
 		YourSlotValueText->SetText(FText::FromString(FString::Printf(TEXT("P%d"), Mine + 1)));
@@ -3115,11 +3144,25 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		ClickSlot(Position);
 		return;
 	}
+	if (Button == MovingPrev || Button == MovingNext)
+	{
+		// Pick the driver one slot up or down the grid, wrapping round.
+		const TArray<FString> Order = CurrentOrder();
+		if (Order.Num() > 0)
+		{
+			const int32 At = MovingIndex(Order);
+			const int32 To = (At + (Button == MovingNext ? 1 : Order.Num() - 1)) % Order.Num();
+			MovingRef = Order[To];
+			RefreshStartOrder();
+			RefreshGridPreview();
+		}
+		return;
+	}
 	if (Button == YourSlotEarlier || Button == YourSlotLater)
 	{
 		TArray<FString> Order = CurrentOrder();
-		const int32 Mine = Order.IndexOfByKey(ApexCreateSession::HostRef());
-		if (ApexCreateSession::MoveEntry(Order, Mine, Mine + (Button == YourSlotLater ? 1 : -1)))
+		const int32 At = MovingIndex(Order);
+		if (ApexCreateSession::MoveEntry(Order, At, At + (Button == YourSlotLater ? 1 : -1)))
 		{
 			StoreOrder(Order, FString());
 			Changed();

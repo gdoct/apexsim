@@ -215,6 +215,21 @@ void FApexHudMemory::SampleField(const FApexTelemetryFrame& Frame)
 			// First seen: the set on it is taken to be the one it started on.
 			History = &Cars.Add(Car.CarIndex);
 			History->Compound = Car.Compound;
+			History->bWholeRace = Car.CurrentLap <= 1 && Car.FinishPosition <= 0;
+		}
+		// The race time, lap by lap off the server's timing, until the flag
+		// (the server classifies a car on the frame its last lap rolls over,
+		// so that lap still counts).
+		if (!History->bFinished)
+		{
+			if (History->LastLap >= 1 && Car.CurrentLap > History->LastLap && Car.LastLapTimeMs > 0)
+			{
+				History->RaceTimeMs += Car.LastLapTimeMs;
+				++History->TimedLaps;
+				History->bWholeRace &= Car.CurrentLap == History->LastLap + 1;
+			}
+			History->LastLap = Car.CurrentLap;
+			History->bFinished = Car.FinishPosition > 0;
 		}
 		// A stop is counted as the car comes to rest in its box; the new set
 		// is on when the crew is done.
@@ -267,7 +282,8 @@ const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
 			TEXT("finished"), TEXT("finish_position"), TEXT("lap"), TEXT("gap_leader_s"), TEXT("gap_s"), TEXT("interval_s"),
 			TEXT("laps_down"), TEXT("best_lap_s"), TEXT("last_lap_s"), TEXT("last_lap_invalid"), TEXT("is_session_best"),
 			TEXT("speed_kph"), TEXT("in_pit"), TEXT("on_track"), TEXT("servicing"), TEXT("retired"), TEXT("car_name"),
-			TEXT("compound"), TEXT("tyre_age_laps"), TEXT("tyre_wear_pct"), TEXT("pit_stops")}},
+			TEXT("compound"), TEXT("tyre_age_laps"), TEXT("tyre_wear_pct"), TEXT("pit_stops"), TEXT("away"),
+			TEXT("race_time_s"), TEXT("finish_gap_s"), TEXT("finish_laps_down")}},
 		{TEXT("sectors"), {TEXT("number"), TEXT("time_s"), TEXT("best_s"), TEXT("session_best_s"), TEXT("state"),
 			TEXT("is_current")}},
 		{TEXT("tyres"), {TEXT("key"), TEXT("name"), TEXT("temp_c"), TEXT("pressure_kpa"), TEXT("wear_pct"),
@@ -644,6 +660,17 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	const int32 LocalPlace = Order.IndexOfByPredicate([](const FHudStanding& Entry) { return Entry.bIsLocal; });
 	const bool bLengthKnown = In.TrackLengthM > 0.0f;
 
+	// The winner's race, for the gaps at the flag.
+	const FApexHudMemory::FCarHistory* WinnerHistory = nullptr;
+	for (const FHudStanding& Entry : Order)
+	{
+		if (Entry.Car->FinishPosition == 1)
+		{
+			WinnerHistory = Memory.Cars.Find(Entry.Car->CarIndex);
+		}
+	}
+	const bool bWinnerTimed = WinnerHistory && WinnerHistory->bFinished && WinnerHistory->bWholeRace;
+
 	TArray<FApexHudRecord>& Standings = Out.Lists.FindOrAdd(TEXT("standings"));
 	Standings.Reset(Order.Num());
 	for (int32 Place = 0; Place < Order.Num(); ++Place)
@@ -697,6 +724,15 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			: FApexHudValue());
 		Row.Add(TEXT("tyre_wear_pct"), HudWorstWear(Car));
 		Row.Add(TEXT("pit_stops"), FApexHudValue::Of(History ? History->PitStops : 0));
+		// At the flag: the car's race time, and its gap to the winner (time on
+		// the same lap, else laps).
+		const bool bTimedFinish = History && History->bFinished && History->bWholeRace && Car.FinishPosition > 0;
+		Row.Add(TEXT("race_time_s"), bTimedFinish ? FApexHudValue::Of(History->RaceTimeMs / 1000.0) : FApexHudValue());
+		const int32 LapsDown = bTimedFinish && bWinnerTimed ? FMath::Max(0, WinnerHistory->TimedLaps - History->TimedLaps) : 0;
+		Row.Add(TEXT("finish_gap_s"), bTimedFinish && bWinnerTimed && Car.FinishPosition > 1 && LapsDown == 0
+			? FApexHudValue::Of(FMath::Max<int64>(0, History->RaceTimeMs - WinnerHistory->RaceTimeMs) / 1000.0)
+			: FApexHudValue());
+		Row.Add(TEXT("finish_laps_down"), FApexHudValue::Of(LapsDown));
 	}
 
 	Out.Values.FindOrAdd(TEXT("race.position")) = LocalPlace >= 0 ? FApexHudValue::Of(LocalPlace + 1) : FApexHudValue();
@@ -727,6 +763,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	// leader takes the flag on.
 	const bool bTimed = Frame.HasRaceClock();
 	Out.Set(TEXT("race.timed"), bTimed);
+	Out.Set(TEXT("race.finished"), Frame.SessionState == EApexSessionState::Finished);
 	Out.Set(TEXT("race.time_left_s"), bTimed ? FApexHudValue::Of(Frame.RaceLeftMs / 1000.0) : FApexHudValue());
 	Out.Set(TEXT("race.final_lap"), bTimed && Frame.RaceFinalLap > 0 ? FApexHudValue::Of(Frame.RaceFinalLap) : FApexHudValue());
 	if (Local)

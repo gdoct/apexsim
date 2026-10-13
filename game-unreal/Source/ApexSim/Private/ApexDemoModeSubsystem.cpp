@@ -61,6 +61,8 @@ namespace
 
 	/** Seconds a finished backdrop race lingers on its cool-down laps before the next. */
 	constexpr float FinishedLingerSeconds = 6.0f;
+	/** The same while the player watches it full screen, with its results up. */
+	constexpr float WatchedFinishedLingerSeconds = 30.0f;
 	/** How long a connection under way, or a channel list asked for, is given before a local file plays instead. */
 	constexpr float ServerGraceSeconds = 3.0f;
 
@@ -868,7 +870,7 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 		SkippedPendingTrack = Flow && Flow->HasPendingTrack() ? Flow->GetPendingTrackId() : FString();
 		Restart(TEXT("the next one was asked for"));
 	}
-	else if (FinishedFor > FinishedLingerSeconds)
+	else if (FinishedFor > (bWatched ? WatchedFinishedLingerSeconds : FinishedLingerSeconds))
 	{
 		Restart(TEXT("the race is over"));
 	}

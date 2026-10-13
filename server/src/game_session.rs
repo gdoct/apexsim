@@ -1414,6 +1414,7 @@ impl GameSession {
         ranking.extend(no_time.into_iter().map(|s| (s.player_id, 0)));
         self.weekend.close_round(&ranking, rounds);
         self.garage_eliminated();
+        self.roster_dirty = true;
     }
 
     /// Whether this weekend waits for its host between phases: a practice
@@ -2824,6 +2825,28 @@ impl GameSession {
         Some(crate::grid_order::complete(&by_slot, classified))
     }
 
+    /// Each car's place on the grid the next start will use, 1 = pole: the
+    /// order `apply_grid_order` will seat (host order, weekend grid or
+    /// qualifying), else the slots the cars hold. What the roster announces,
+    /// so a lobby lists the grid before the cars are lined up on it.
+    pub fn starting_slots(&self) -> HashMap<PlayerId, u8> {
+        if let Some(order) = self
+            .grid_order_ids()
+            .filter(|o| o.len() <= self.track_config.start_positions.len())
+        {
+            return order
+                .into_iter()
+                .enumerate()
+                .map(|(i, id)| (id, (i + 1) as u8))
+                .collect();
+        }
+        self.session
+            .participants
+            .iter()
+            .map(|(id, s)| (*id, s.grid_position))
+            .collect()
+    }
+
     /// Seat the drivers on the grid slots in start order. A session with no
     /// requested order and no qualifying keeps the slots it has.
     pub fn apply_grid_order(&mut self) {
@@ -2864,6 +2887,8 @@ impl GameSession {
         }
         self.qualifying
             .insert(player_id, (lap_time_ms, self.session.current_tick));
+        // The grid the roster announces follows the classification.
+        self.roster_dirty = true;
         Some(self.qualifying_result())
     }
 
@@ -4334,6 +4359,7 @@ impl GameSession {
         // taking the next one of its list, so a field of the same car is not
         // a row of clones.
         let mut dealt: HashMap<CarConfigId, u8> = HashMap::new();
+        let slots = self.starting_slots();
         let entries = self
             .session
             .participants
@@ -4372,7 +4398,7 @@ impl GameSession {
                     car_config_id: state.car_config_id,
                     livery,
                     away: self.away.contains(player_id),
-                    grid_slot: state.grid_position,
+                    grid_slot: slots.get(player_id).copied().unwrap_or(state.grid_position),
                 }
             })
             .collect();

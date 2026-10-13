@@ -269,10 +269,20 @@ private:
 	FString QualifyingRequestedFor;
 	/** -ApexCreateLoadResult= is applied once. */
 	bool bLoadedFromSwitch = false;
-	/** Your slot, earlier and later; the keyboard's and pad's way to move up the grid. */
+	/**
+	 * The keyboard's and pad's way to rearrange the grid: pick a driver
+	 * (previous / next), then step its slot earlier or later.
+	 */
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> MovingPrev;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> MovingNext;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> MovingNameText;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> YourSlotEarlier;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> YourSlotLater;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> YourSlotValueText;
+	/** The order entry those steppers move (`@host`, `@ai:2`, a name); empty for your own car. */
+	FString MovingRef;
+	/** Where MovingRef sits in `Order`, falling back to your own car. */
+	int32 MovingIndex(const TArray<FString>& Order) const;
 	/** The driver a click picked up (0-based slot), INDEX_NONE for none. */
 	int32 PickedSlot = INDEX_NONE;
 	/** While the mouse is down on a driver: where it started and which slot it is over. */

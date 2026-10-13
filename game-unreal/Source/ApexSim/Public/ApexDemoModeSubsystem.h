@@ -82,6 +82,13 @@ public:
 	bool IsDemoExpected() const;
 
 	/**
+	 * The player is watching the backdrop full screen: a finished race
+	 * stays up for its results (the `spectator_results` HUD component) for
+	 * longer before the next one, and the next-race key moves on sooner.
+	 */
+	void SetWatched(bool bInWatched) { bWatched = bInWatched; }
+
+	/**
 	 * A sky for one demo session, in quarter hours like the create screen.
 	 * Weighted so the menu is mostly over dry daylight: weather sunny 38,
 	 * cloudy 30, overcast 22, light rain 6, heavy rain 4 (out of 100: rain
@@ -221,6 +228,7 @@ private:
 	float RunningFor = 0.0f;
 	/** Seconds its race has been over. */
 	float FinishedFor = 0.0f;
+	bool bWatched = false;
 	/** Consecutive requests that came to nothing, for the back-off. */
 	int32 Failures = 0;
 	bool bWarnedNoTracks = false;

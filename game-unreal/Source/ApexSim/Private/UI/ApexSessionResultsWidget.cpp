@@ -21,6 +21,7 @@
 #include "Race/ApexQualifyingBoard.h"
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexNavigation.h"
+#include "UI/ApexRaceResultsWidget.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -528,18 +529,13 @@ void UApexSessionResultsWidget::FillRaceRows(bool bLive)
 	UApexMenuFlowSubsystem* Flow = GetFlow();
 	const TArray<FApexCarResult>& Results = Recorder->GetResults();
 
-	// Once anyone has taken the flag the server's classification is the result,
-	// and a car without a position has not finished (yet).
-	const bool bClassified = Results.ContainsByPredicate([](const FApexCarResult& Result) { return Result.FinishPosition > 0; });
-
-	// The gap column is measured against the quickest lap set by anyone.
-	float LeaderBest = 0.0f;
-	for (const FApexCarResult& Result : Results)
+	// The gap column is the gap at the flag, as the finish overlay reads it:
+	// the winner's race time, a finisher's time (or laps) behind it, and ON
+	// TRACK or DNF for a car without a flag.
+	TMap<int32, FString> GapByCar;
+	for (const ApexRaceResults::FRow& Line : ApexRaceResults::BuildRows(Results, Net->GetPlayerId(), bLive))
 	{
-		if (Result.BestLapSeconds > 0.0f && (LeaderBest <= 0.0f || Result.BestLapSeconds < LeaderBest))
-		{
-			LeaderBest = Result.BestLapSeconds;
-		}
+		GapByCar.Add(Line.CarIndex, Line.Time);
 	}
 
 	for (int32 Index = 0; Index < Results.Num(); ++Index)
@@ -579,20 +575,8 @@ void UApexSessionResultsWidget::FillRaceRows(bool bLive)
 			RowColour,
 			ColBest));
 
-		FString Gap = TEXT("—");
-		if (bClassified && Result.FinishPosition == 0)
-		{
-			Gap = bLive ? TEXT("ON TRACK") : TEXT("DNF");
-		}
-		else if (bHasLap && LeaderBest > 0.0f)
-		{
-			const float Delta = Result.BestLapSeconds - LeaderBest;
-			Gap = Delta <= 0.0f ? TEXT("—") : FString::Printf(TEXT("+%.3f"), Delta);
-		}
-		else if (!bHasLap)
-		{
-			Gap = TEXT("DNF");
-		}
+		const FString* GapText = GapByCar.Find(Result.CarIndex);
+		const FString Gap = GapText ? *GapText : FString(TEXT("—"));
 		ApexUI::AddH(Row, MakeCell(*WidgetTree, Gap, ApexUI::Font::Mono(11.0f), ApexUI::Palette::TextMuted, ColGap));
 
 		ApexUI::AddH(Row, ApexUI::MakeText(*WidgetTree, FString::FromInt(Result.LapsCompleted()), ApexUI::Font::Mono(12.0f), ApexUI::Palette::TextSecondary));

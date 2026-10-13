@@ -1,0 +1,55 @@
+// The result of a watched race once the session is over: the field in
+// classified order, the winner's race time, everyone else's gap at the flag
+// (or the laps they were down), and each car's best lap. Stays up while the
+// finished race lingers before the next one.
+{
+  "name": "Race result",
+  "region": "center",
+  "order": 5,
+  "visible": "=spectate.active && race.finished && !hotlap.active",
+  "root": {
+    "type": "column", "width": 620,
+    "children": [
+      {
+        "type": "panel", "padding": [18, 10], "background": "accent", "direction": "row",
+        "children": [
+          { "type": "text", "fill": 1, "valign": "center", "font": "display", "size": 24, "tracking": 20, "upper": true,
+            "color": "on_accent", "text": "=session.track_name != '' ? session.track_name : 'Race'" },
+          { "type": "text", "valign": "center", "font": "mono", "size": 13, "color": "on_accent", "text": "RESULT" }
+        ]
+      },
+      {
+        "type": "panel", "padding": [18, 5], "background": "surface_hover", "direction": "row",
+        "children": [
+          { "type": "label", "width": 34, "text": "Pos" },
+          { "type": "label", "fill": 1, "margin": [12, 0, 0, 0], "text": "Driver" },
+          { "type": "label", "width": 130, "justify": "right", "text": "Time" },
+          { "type": "label", "width": 110, "justify": "right", "text": "Best lap" }
+        ]
+      },
+      {
+        "type": "panel",
+        "repeat": { "list": "standings", "max": 20 },
+        "height": 30, "margin": [0, 1, 0, 0], "padding": [18, 0],
+        "background": "=item.is_local ? 'accent' : alpha('surface', 0.94)",
+        "children": [{
+          "type": "row", "valign": "center",
+          "children": [
+            { "type": "text", "width": 34, "font": "mono", "size": 13, "text": "{item.position}",
+              "color": "=item.is_local ? 'on_accent' : 'text_muted'" },
+            { "type": "text", "fill": 1, "margin": [12, 0, 0, 0], "font": "body", "size": 14,
+              "text": "=upper(item.name)", "bold": "=item.position == 1",
+              "color": "=item.is_local ? 'on_accent' : item.finished ? 'text' : 'text_disabled'" },
+            // The winner's time; the others' gap at the flag, or laps down.
+            { "type": "text", "width": 130, "font": "mono", "size": 13, "justify": "right",
+              "text": "=item.retired ? 'DNF' : !item.finished ? 'ON TRACK' : item.position == 1 ? (has(item.race_time_s) ? fmt_time(item.race_time_s) : 'WINNER') : item.finish_laps_down > 0 ? '+' + item.finish_laps_down + (item.finish_laps_down > 1 ? ' LAPS' : ' LAP') : has(item.finish_gap_s) ? fmt_gap(item.finish_gap_s) : 'FINISHED'",
+              "color": "=item.is_local ? 'on_accent' : item.retired ? 'error' : 'text_secondary'" },
+            { "type": "text", "width": 110, "font": "mono", "size": 13, "justify": "right",
+              "text": "=has(item.best_lap_s) ? fmt_time(item.best_lap_s) : '-'",
+              "color": "=item.is_local ? 'on_accent' : item.is_session_best ? 'session_best' : 'text_secondary'" }
+          ]
+        }]
+      }
+    ]
+  }
+}
