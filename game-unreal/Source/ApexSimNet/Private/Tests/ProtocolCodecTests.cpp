@@ -1408,4 +1408,30 @@ bool FApexProtocolPitServiceTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexProtocolPitBoxTest,
+	"ApexSim.Net.Protocol.PitBox",
+	ApexTestFlags)
+
+bool FApexProtocolPitBoxTest::RunTest(const FString& Parameters)
+{
+	FString Error;
+	FApexServerMessage Message;
+	if (!TestTrue(FString::Printf(TEXT("PitBox decodes (%s)"), *Error),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_PitBox, Message, Error)))
+	{
+		return false;
+	}
+	TestEqual(TEXT("type"), Message.Type, EApexServerMessageType::PitBox);
+	const FApexPitBox& Box = Message.PitBox;
+	TestTrue(TEXT("valid"), Box.bValid);
+	TestEqual(TEXT("box"), Box.PitBox, 4);
+	TestEqual(TEXT("spot"), Box.Position, FVector(120.5, -36.25, 2.0));
+	TestEqual(TEXT("yaw"), Box.YawRad, 1.5f);
+	TestEqual(TEXT("lateral"), Box.LateralM, -2.5f);
+	TestEqual(TEXT("width"), Box.LaneWidthM, 12.0f);
+	TestEqual(TEXT("radius"), Box.RadiusM, 2.5f);
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

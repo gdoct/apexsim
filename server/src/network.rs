@@ -712,6 +712,12 @@ pub enum ServerMessage {
     // phase has ended, and the cars knocked out so far. Sent to the whole
     // session after `SessionJoined` and whenever it changes.
     WeekendState(WeekendStateData),
+
+    // TCP - The driver's own pit box: where its stop spot is and how it
+    // sits in the lane. Sent to each human once their box is dealt, and
+    // again after a rejoin. What a driver who drives the lane themselves
+    // aims for, and where the camera stands while the crew works.
+    PitBox(PitBoxData),
 }
 
 impl ServerMessage {
@@ -746,6 +752,7 @@ impl ServerMessage {
             ServerMessage::SpectatorJoined(_) => MessagePriority::Critical,
             ServerMessage::SpectatorRecord(_) => MessagePriority::Critical,
             ServerMessage::WeekendState(_) => MessagePriority::Critical,
+            ServerMessage::PitBox(_) => MessagePriority::Critical,
 
             // Droppable messages - can be dropped when queue is full
             ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
@@ -1661,6 +1668,27 @@ pub struct PitServiceData {
     pub repair_pct: f32,
     /// The whole stop, s: the three parts added up.
     pub total_s: f32,
+}
+
+/// A driver's own pit box (`ServerMessage::PitBox`), in the server's
+/// frame: metres, yaw in radians, +Y left.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct PitBoxData {
+    /// The box, 0-based from the lane's entry end (`PitServiceData::pit_box`).
+    pub pit_box: u8,
+    /// The stop spot: where the car's middle stands for the crew, within
+    /// `pit::BOX_RADIUS_M`, facing down the lane.
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub yaw_rad: f32,
+    /// How far the spot is off the lane's middle, m, positive to the left
+    /// of the yaw: the garages are on that side, the fast lane on the other.
+    pub lateral_m: f32,
+    pub lane_width_m: f32,
+    /// The car's middle stops within this of the spot, m.
+    pub radius_m: f32,
 }
 
 impl LapTimingData {
@@ -2867,6 +2895,39 @@ mod tests {
         .unwrap();
         let decoded: SessionJoinedData = rmp_serde::from_slice(&joined).unwrap();
         assert_eq!(decoded.allowed_assists, AllowedAssists::ALL);
+    }
+
+    /// The driver's own box. Run
+    /// `cargo test pit_box_wire_format -- --nocapture` into the client's
+    /// `ApexGolden::S_PitBox` (ApexGoldenBlobs.h).
+    #[test]
+    fn test_pit_box_wire_format() {
+        let msg = ServerMessage::PitBox(PitBoxData {
+            pit_box: 4,
+            x: 120.5,
+            y: -36.25,
+            z: 2.0,
+            yaw_rad: 1.5,
+            lateral_m: -2.5,
+            lane_width_m: 12.0,
+            radius_m: 2.5,
+        });
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{b:02X}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let bytes = rmp_serde::to_vec_named(&msg).unwrap();
+        println!("S_PitBox: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::PitBox(data) => {
+                assert_eq!(data.pit_box, 4);
+                assert_eq!((data.x, data.y, data.lateral_m), (120.5, -36.25, -2.5));
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
     }
 
     /// The pit stop message and the pit flag bits. Run

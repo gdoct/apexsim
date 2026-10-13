@@ -1,0 +1,141 @@
+// The race director's pit box: the marker a driver who drives the pit lane
+// themselves stops in, where the server's `PitBox` says
+// (docs/server/pit-lane.md). The rest of the director is in
+// ApexRaceDirector.cpp.
+
+#include "Race/ApexRaceDirector.h"
+
+#include "ApexNetSubsystem.h"
+#include "ApexSim.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/World.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Race/ApexRaceCoordinate.h"
+
+namespace ApexPitBoxMarker
+{
+	/** The outline: about a car's footprint, so a car inside it is within the crew's radius. */
+	constexpr float LengthM = 5.0f;
+	constexpr float WidthM = 2.4f;
+	constexpr float LineM = 0.12f;
+	/** The stop line across the front, thicker than the rest. */
+	constexpr float StopLineM = 0.3f;
+	/** Painted lines stand this proud of the ground, so the road does not swallow them. */
+	constexpr float LineHeightM = 0.03f;
+	/** The lollipop in front of the nose: a pole and a board facing the car, seen from down the lane. */
+	constexpr float PostAheadM = LengthM / 2.0f + 0.8f;
+	constexpr float PostHeightM = 1.4f;
+	constexpr float BoardM = 0.55f;
+	/** How far above and below the spot the ground is looked for, cm. */
+	constexpr float TraceReachCm = 400.0f;
+	const FLinearColor Colour(1.0f, 0.72f, 0.02f);
+
+	/** One piece: its middle (server frame, m, off the spot along and across the box and up) and its size (m). */
+	struct FPiece
+	{
+		float Ahead;
+		float Left;
+		float Up;
+		FVector SizeM;
+	};
+
+	const FPiece Pieces[] = {
+		{0.0f, WidthM / 2.0f, LineHeightM / 2.0f, FVector(LengthM, LineM, LineHeightM)},
+		{0.0f, -WidthM / 2.0f, LineHeightM / 2.0f, FVector(LengthM, LineM, LineHeightM)},
+		{-LengthM / 2.0f, 0.0f, LineHeightM / 2.0f, FVector(LineM, WidthM, LineHeightM)},
+		{LengthM / 2.0f, 0.0f, LineHeightM / 2.0f, FVector(StopLineM, WidthM, LineHeightM)},
+		{PostAheadM, 0.0f, PostHeightM / 2.0f, FVector(0.06f, 0.06f, PostHeightM)},
+		{PostAheadM, 0.0f, PostHeightM + BoardM / 2.0f, FVector(0.04f, BoardM, BoardM)},
+	};
+}
+
+void AApexRaceDirector::UpdatePitBoxMarker()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	const FApexPitBox* Box = Net ? &Net->GetOwnPitBox() : nullptr;
+	const AApexRaceCarActor* Local = Net ? FindCar(Net->GetLocalCarIndex()) : nullptr;
+	// Only the driver's own box, only while they drive the lane themselves
+	// and the crew have yet to see them: the autopilot needs no marker, and
+	// a car leaving its box would drive out through it.
+	const bool bShow = Box && Box->bValid && bTrackConditionsApplied && !bReplayView && !bDemoView && !bSpectating
+		&& Local && FollowedCar == Local && bLocalInPitLane && !bLocalPitAutopilot && !bLocalPitServicing
+		&& !bLocalServicedThisVisit;
+	if (!bShow)
+	{
+		if (PitBoxMarker && PitBoxMarker->IsVisible())
+		{
+			PitBoxMarker->SetVisibility(false);
+		}
+		return;
+	}
+
+	if (!PitBoxMarker)
+	{
+		PitBoxMarker = NewObject<UInstancedStaticMeshComponent>(this, TEXT("PitBoxMarker"));
+		PitBoxMarker->SetUsingAbsoluteLocation(true);
+		PitBoxMarker->SetUsingAbsoluteRotation(true);
+		PitBoxMarker->SetUsingAbsoluteScale(true);
+		PitBoxMarker->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		PitBoxMarker->SetCastShadow(false);
+		PitBoxMarker->SetMobility(EComponentMobility::Movable);
+		if (UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")))
+		{
+			PitBoxMarker->SetStaticMesh(Cube);
+		}
+		if (UMaterialInterface* Shape = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+		{
+			UMaterialInstanceDynamic* Paint = UMaterialInstanceDynamic::Create(Shape, PitBoxMarker);
+			Paint->SetVectorParameterValue(TEXT("Color"), ApexPitBoxMarker::Colour);
+			PitBoxMarker->SetMaterial(0, Paint);
+		}
+		PitBoxMarker->SetupAttachment(GetRootComponent());
+		PitBoxMarker->RegisterComponent();
+	}
+
+	if (PitBoxMarkerLaidFor != Box->PitBox)
+	{
+		PitBoxMarker->ClearInstances();
+		// On the ground under the spot; the server's height when there is none to find.
+		FVector Spot = ApexRace::ServerToUnrealPosition(Box->Position);
+		FCollisionQueryParams Query(SCENE_QUERY_STAT(ApexPitBoxMarker), /*bTraceComplex*/ false, this);
+		FHitResult Hit;
+		if (UWorld* World = GetWorld(); World && World->LineTraceSingleByObjectType(Hit,
+				Spot + FVector(0.0, 0.0, ApexPitBoxMarker::TraceReachCm),
+				Spot - FVector(0.0, 0.0, ApexPitBoxMarker::TraceReachCm), FCollisionObjectQueryParams(ECC_WorldStatic), Query))
+		{
+			Spot = Hit.ImpactPoint;
+		}
+		const float Cos = FMath::Cos(Box->YawRad);
+		const float Sin = FMath::Sin(Box->YawRad);
+		const FRotator Yaw = ApexRace::ServerToUnrealRotation(Box->YawRad, 0.0f, 0.0f);
+		for (const ApexPitBoxMarker::FPiece& Piece : ApexPitBoxMarker::Pieces)
+		{
+			// Along and across the box in the server's frame (+Y left), then over.
+			const FVector Offset = ApexRace::ServerToUnrealPosition(FVector(
+				Piece.Ahead * Cos - Piece.Left * Sin, Piece.Ahead * Sin + Piece.Left * Cos, Piece.Up));
+			// The engine cube is a metre a side.
+			PitBoxMarker->AddInstance(FTransform(Yaw, Spot + Offset, Piece.SizeM), /*bWorldSpace*/ true);
+		}
+		PitBoxMarkerLaidFor = Box->PitBox;
+		UE_LOG(LogApexSim, Log, TEXT("Pit box %d marked at %s"), Box->PitBox + 1, *Spot.ToCompactString());
+	}
+	if (!PitBoxMarker->IsVisible())
+	{
+		PitBoxMarker->SetVisibility(true);
+	}
+}
+
+void AApexRaceDirector::ForgetPitBoxMarker()
+{
+	if (PitBoxMarker)
+	{
+		PitBoxMarker->ClearInstances();
+		PitBoxMarker->SetVisibility(false);
+	}
+	PitBoxMarkerLaidFor = -1;
+	bLocalInPitLane = false;
+	bLocalPitAutopilot = false;
+	bLocalPitServicing = false;
+	bLocalServicedThisVisit = false;
+}

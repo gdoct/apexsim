@@ -414,7 +414,8 @@ the car is in or, between corners, the next one; all *null* (and
 | `pit.autopilot` | the server drives the car along the pit route (the player's input is ignored) |
 | `pit.exit_closed` | the pit exit light is red |
 | `pit.held` | the car is waiting at the red exit light |
-| `pit.box` | the car's box, from 1, as its last stop named it (*null* until it has stopped) |
+| `pit.box` | the car's box, from 1: the driver's own once the server deals it, another car's as its last stop named it (*null* until then) |
+| `pit.box_ahead_m` | metres along the lane to the driver's own box's stop spot, negative once past it (*null* until the box is dealt, and for another car) |
 | `fuel.liters` | fuel in the tank |
 | `fuel.per_lap` | what the last whole lap burnt (*null* until one is measured) |
 | `fuel.laps` | laps of fuel at that rate |

@@ -886,6 +886,23 @@ bool FApexHudPitProgressTest::RunTest(const FString& Parameters)
 	ApexHudData::Build(In, Memory, Data);
 	TestTrue(TEXT("held"), HudValue(Data, TEXT("pit.held")).AsBool());
 	TestTrue(TEXT("exit closed"), HudValue(Data, TEXT("pit.exit_closed")).AsBool());
+
+	// The driver's own box, before any stop: named, and how far down the lane.
+	TestTrue(TEXT("no own box yet"), HudValue(Data, TEXT("pit.box_ahead_m")).IsNone());
+	Stops.Reset();
+	FApexPitBox Own;
+	Own.bValid = true;
+	Own.PitBox = 3;
+	Own.Position = FVector(150.0, 20.0, 0.0);
+	Own.YawRad = UE_HALF_PI;	// down the lane is the server's +Y
+	In.OwnPitBox = &Own;
+	Frame.Cars[0].Position = FVector(152.0, -40.0, 0.0);
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("own box, from 1"), HudValue(Data, TEXT("pit.box")).AsNumber(), 4.0);
+	TestTrue(TEXT("60 m to go"), FMath::IsNearlyEqual(HudValue(Data, TEXT("pit.box_ahead_m")).AsNumber(), 60.0, 1e-3));
+	Frame.Cars[0].Position = FVector(150.0, 25.0, 0.0);
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("past it"), HudValue(Data, TEXT("pit.box_ahead_m")).AsNumber() < 0.0);
 	return true;
 }
 

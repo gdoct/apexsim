@@ -148,6 +148,9 @@ struct APEXSIM_API FApexHudInputs
 
 	/** Each car's latest pit stop as its crew started it (`PitService`), by car index. */
 	const TMap<int32, FApexPitService>* PitServices = nullptr;
+
+	/** The driver's own box (`PitBox`); null when watching someone else's car. */
+	const FApexPitBox* OwnPitBox = nullptr;
 };
 
 /**

@@ -848,6 +848,11 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 			LocalErsMode = Car.ErsMode;
 			LocalLap = Car.CurrentLap;
 			LocalLapTimeMs = Car.CurrentLapTimeMs;
+			bLocalInPitLane = Car.bInPitLane;
+			bLocalPitAutopilot = Car.bPitAutopilot;
+			bLocalPitServicing = Car.bPitServicing;
+			// One visit, one stop: after the crew, out of the lane.
+			bLocalServicedThisVisit = Car.bInPitLane && (bLocalServicedThisVisit || Car.bPitServicing);
 		}
 		FCarProgress& Progress = CarProgress.FindOrAdd(Car.CarIndex);
 		Progress.Lap = Car.CurrentLap;
@@ -1245,6 +1250,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	UpdateLiveSky(DeltaSeconds);
 	ApplyTrackLevelConditions();
 	UpdateRoadState();
+	UpdatePitBoxMarker();
 	UpdateStreetLights(DeltaSeconds, /*bForce*/ false);
 	UpdateCameraFeel(DeltaSeconds);
 	if (bTvView)
@@ -3047,6 +3053,7 @@ void AApexRaceDirector::EndRaceView()
 	DestroyGhost();
 	bLocalInGarage = false;
 	LocalLap = 0;
+	ForgetPitBoxMarker();
 	// A shot is for one race; the next one re-reads the command line.
 	bShotCameraPose = false;
 	ApplyCameraMode();
@@ -3251,6 +3258,7 @@ void AApexRaceDirector::UnloadTrackLevel()
 	ForgetStartLights();
 	ForgetTrackLevelConditions();
 	ForgetRoadStateOnTrack();
+	ForgetPitBoxMarker();
 	// The track went back with its materials reset; its looks are forgotten.
 	RoadDryLook.Reset();
 	SnowMids.Reset();

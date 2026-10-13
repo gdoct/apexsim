@@ -439,6 +439,21 @@ pub(crate) async fn tick_sessions(
             });
         }
 
+        // Each driver's own box, once it is dealt: what a driver who drives
+        // the lane aims for, and the camera's place at the stop.
+        for (player_id, pit_box) in game_session.take_pit_box_news() {
+            if is_demo_session {
+                continue;
+            }
+            lap_timing_out.push(LapTimingOut {
+                session_id: *session_id,
+                player_recipients: vec![player_id],
+                msg: ServerMessage::PitBox(pit_box),
+                record: None,
+                qualifying: None,
+            });
+        }
+
         if game_session.take_roster_dirty() {
             let roster = game_session.build_roster(player_names);
             rosters_out.push(SessionRosterOut {

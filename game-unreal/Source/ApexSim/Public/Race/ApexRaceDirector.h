@@ -753,6 +753,12 @@ private:
 	bool bLocalInGarage = false;
 	int32 LocalLap = 0;
 	int32 LocalLapTimeMs = 0;
+	/** And about the pit lane, for the box marker. */
+	bool bLocalInPitLane = false;
+	bool bLocalPitAutopilot = false;
+	bool bLocalPitServicing = false;
+	/** The crew have serviced the local car since it came into the lane: its box needs no marking. */
+	bool bLocalServicedThisVisit = false;
 	/** Whether the server says the local car's headlights are on. */
 	bool bLocalHeadlights = false;
 	/**
@@ -1080,6 +1086,22 @@ private:
 	TObjectPtr<UInstancedStaticMeshComponent> RoadDebris;
 	/** The pieces have been laid on the track on show (cleared when it goes). */
 	bool bRoadDebrisLaid = false;
+
+	// --- The pit box (ApexRaceDirectorPit.cpp) ---
+
+	/**
+	 * Show the local driver's box (`UApexNetSubsystem::GetOwnPitBox`) while
+	 * they drive the pit lane themselves, from coming into the lane until the
+	 * crew have seen them: an outline on the ground, a stop line and a
+	 * lollipop board ahead of it. Laid once per box, on the ground found there.
+	 */
+	void UpdatePitBoxMarker();
+	/** Drop the marker (the track went, or the race view ended). */
+	void ForgetPitBoxMarker();
+	UPROPERTY(Transient)
+	TObjectPtr<UInstancedStaticMeshComponent> PitBoxMarker;
+	/** The box the marker's pieces stand at; -1 before any. */
+	int32 PitBoxMarkerLaidFor = -1;
 	/**
 	 * The night pass's material instances (`ApexProps::NightGlowOf`: lit
 	 * windows, the wheel's light strips, the lit panels) with the emissive

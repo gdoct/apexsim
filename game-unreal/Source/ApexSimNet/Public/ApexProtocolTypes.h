@@ -1704,6 +1704,41 @@ struct APEXSIMNET_API FApexPitService
 };
 
 /**
+ * `PitBoxData` (network.rs) — the local driver's own pit box, sent once the
+ * server deals it and again after a rejoin. In the server's frame: metres,
+ * yaw in radians, +Y left (ApexRace::ServerToUnrealPosition converts).
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexPitBox
+{
+	GENERATED_BODY()
+
+	/** Whether the server has said; nothing else here means anything until it has. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bValid = false;
+
+	/** The box, 0-based from the lane's entry end. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 PitBox = 0;
+
+	/** The stop spot: where the car's middle stands for the crew, facing down the lane. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FVector Position = FVector::ZeroVector;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float YawRad = 0.0f;
+
+	/** The spot's distance off the lane's middle, m, positive to the left of the yaw (the garage side). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float LateralM = 0.0f;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float LaneWidthM = 0.0f;
+
+	/** The car's middle must stop within this of the spot, m. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float RadiusM = 0.0f;
+};
+
+/**
  * `LapRecordData` (network.rs) — the driver's stored best on this track in
  * this car, sent on joining and again whenever they beat it.
  */
@@ -2684,6 +2719,8 @@ enum class EApexServerMessageType : uint8
 	RoadState,
 	/** A track's fastest laps, on request (`Leaderboard`). */
 	Leaderboard,
+	/** The local driver's own pit box (`PitBox`). */
+	PitBox,
 };
 
 /**
@@ -2757,6 +2794,7 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexWeekendFormat Weekend;
 	/** WeekendState. */
 	FApexWeekendState WeekendState;
+	FApexPitBox PitBox;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

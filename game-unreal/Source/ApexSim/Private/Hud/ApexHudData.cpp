@@ -935,7 +935,18 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		// countdown is telemetry's. The plan outlives the stop, so it is only
 		// read while the car is being serviced.
 		const FApexPitService* Stop = Local && In.PitServices ? In.PitServices->Find(Local->CarIndex) : nullptr;
-		Out.Set(TEXT("pit.box"), Stop ? FApexHudValue::Of(Stop->PitBox + 1) : FApexHudValue());
+		// The driver's own box is known from the start (`PitBox`); another
+		// car's only once its crew have named it.
+		const FApexPitBox* Own = Local && In.OwnPitBox && In.OwnPitBox->bValid ? In.OwnPitBox : nullptr;
+		Out.Set(TEXT("pit.box"), Stop ? FApexHudValue::Of(Stop->PitBox + 1)
+				: Own                 ? FApexHudValue::Of(Own->PitBox + 1)
+									  : FApexHudValue());
+		// Along the box's heading (down the lane): short of it, the way to
+		// go; past it, negative.
+		Out.Set(TEXT("pit.box_ahead_m"), Own
+				? FApexHudValue::Of((Own->Position.X - Local->Position.X) * FMath::Cos(Own->YawRad)
+					+ (Own->Position.Y - Local->Position.Y) * FMath::Sin(Own->YawRad))
+				: FApexHudValue());
 
 		const FApexPitStopProgress P = Stop && Local->bPitServicing
 			? ApexHudData::PitStopProgress(*Stop, Local->ServiceSecondsLeft, In.CompoundNames)

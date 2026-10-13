@@ -1,13 +1,14 @@
-// The pit stop: the autopilot taking the car down the lane, the crew's work
-// at the box part by part, and the red light at the exit. Only shown in the
-// pit lane, where nothing else needs the middle of the screen; it floats
-// under the race state and the virtual mirror's strip so it moves nothing.
+// The pit stop: the autopilot taking the car down the lane (or the way to the
+// box for a driver who drives it themselves), the crew's work at the box part
+// by part, and the red light at the exit. Only shown in the pit lane, where
+// nothing else needs the middle of the screen; it floats under the race state
+// and the virtual mirror's strip so it moves nothing.
 {
   "name": "Pit stop",
   "region": "top",
   "float": true,
   "margin": [0, 300, 0, 0],
-  "visible": "=(pit.autopilot && pit.in_lane) || pit.servicing || pit.held",
+  "visible": "=(pit.in_lane && (pit.autopilot || pit.limiter || pit.box_ahead_m > 0)) || pit.servicing || pit.held",
   "root": {
     "type": "panel", "width": 560, "padding": [22, 14], "background": "surface",
     "outline": "=pit.held ? 'error' : pit.servicing ? 'live' : 'accent'", "outline_width": 2,
@@ -44,6 +45,17 @@
         "children": [
           { "type": "text", "font": "display", "size": 32, "color": "accent", "text": "PIT LANE · AUTOPILOT" },
           { "type": "label", "margin": [0, 4, 0, 0], "text": "Hands off: the car drives the lane" }
+        ]
+      },
+
+      // --- Down the lane at the wheel: the way to the box, then out ---
+      {
+        "type": "column", "margin": [0, 10, 0, 0], "visible": "=!pit.autopilot && pit.in_lane && !pit.servicing && !pit.held",
+        "children": [
+          { "type": "text", "font": "display", "size": 32, "color": "accent",
+            "text": "=has(pit.box_ahead_m) && pit.box_ahead_m > 0 ? 'BOX ' + fmt(pit.box) + ' · IN ' + fmt(pit.box_ahead_m, 0) + ' M' : 'PIT LANE · LIMITER'" },
+          { "type": "label", "margin": [0, 4, 0, 0],
+            "text": "=has(pit.box_ahead_m) && pit.box_ahead_m > 0 ? 'Stop in the marked box for the crew' : 'Held to the limit to the exit line'" }
         ]
       },
 

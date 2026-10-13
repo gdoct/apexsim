@@ -710,6 +710,7 @@ void UApexNetSubsystem::ClearLapTiming()
 	CachedGhostLap = FApexGhostLap();
 	CachedSetupSheet = FApexCarSetupSheet();
 	PitServices.Reset();
+	OwnPitBox = FApexPitBox();
 	TimingBoard.Reset();
 }
 
@@ -1355,6 +1356,12 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- QualifyingResults %d for track %s"),
 			Message.QualifyingResults.Num(), *Message.QualifyingTrackId);
 		OnQualifyingResults.Broadcast(Message.QualifyingTrackId);
+		break;
+
+	case EApexServerMessageType::PitBox:
+		OwnPitBox = Message.PitBox;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- PitBox %d at (%.1f, %.1f)m, %.1f m off the lane's middle"),
+			OwnPitBox.PitBox + 1, OwnPitBox.Position.X, OwnPitBox.Position.Y, OwnPitBox.LateralM);
 		break;
 
 	case EApexServerMessageType::PitService:

@@ -166,9 +166,15 @@ Called inside `update_air` before the physics, and in the countdown.
   fuel / repair seconds in crew order, compound, litres, damage repaired,
   total), reliable, to every human in the session as the crew starts
   (`GameSession::take_pit_events`).
+- `ServerMessage::PitBox` (`PitBoxData`: the box, its stop spot and yaw,
+  the spot's distance off the lane's middle (positive left: the garage
+  side), the lane's width, `BOX_RADIUS_M`), reliable, to each human alone
+  once their box is dealt and again after `add_player` or `resume_seat`
+  (`GameSession::take_pit_box_news`).
 - Golden bytes: `cargo test --lib -- telemetry_compact_wire_format
-  pit_service_wire_format car_setup_wire_format --nocapture` ->
-  `ApexUdpGolden::S_TelemetryCompactPit`, `ApexGolden::S_PitService`,
+  pit_service_wire_format pit_box_wire_format car_setup_wire_format
+  --nocapture` -> `ApexUdpGolden::S_TelemetryCompactPit`,
+  `ApexGolden::S_PitService`, `ApexGolden::S_PitBox`,
   `ApexGolden::C_SetCarSetup` (the next-tyre knob). See
   [protocol.md](protocol.md).
 
@@ -176,10 +182,19 @@ Called inside `update_air` before the physics, and in the countdown.
 
 - `FApexCarTelemetry::TyreWearPct`, `Compound`, `bInPitLane`,
   `bPitLimiter`, `bPitServicing`, `bPitAutopilot`, `bPitExitClosed`,
-  `bPitHeld`, `ServiceSecondsLeft`; `UApexNetSubsystem::FindPitService`.
-- The `pit_stop` HUD component (`content/hud/default/pit_stop`, visible on
-  the autopilot in the lane, in service or held): PIT LANE / AUTOPILOT with
-  the box number, PIT EXIT CLOSED / WAIT, and during the stop the countdown,
+  `bPitHeld`, `ServiceSecondsLeft`; `UApexNetSubsystem::FindPitService`,
+  `GetOwnPitBox`.
+- The box marker (`AApexRaceDirector::UpdatePitBoxMarker`,
+  `ApexRaceDirectorPit.cpp`): for a driver on the manual pit lane, from
+  coming into the lane until the crew have serviced the car, a yellow
+  outline about a car's footprint on the ground at their box's spot, a stop
+  line across its front and a lollipop board ahead of it. Instanced engine
+  cubes, laid once per box on the ground traced there.
+- The `pit_stop` HUD component (`content/hud/default/pit_stop`, visible in
+  the lane on the autopilot, on the limiter or short of the box, in service
+  or held): PIT LANE / AUTOPILOT with
+  the box number, PIT EXIT CLOSED / WAIT, on the manual pit lane BOX n · IN
+  85 M (`pit.box_ahead_m`) then PIT LANE · LIMITER, and during the stop the countdown,
   the part under way and a bar of up to three segments sized by each part's
   share (`ApexHudData::PitStopProgress`). Data points `pit.*`:
   [../game/hud-modding.md](../game/hud-modding.md). The tyre row shows
@@ -210,6 +225,7 @@ narrows either, `PIT_TRACE=1` prints the trip.
 every 10 m between the lines on every circuit on the centerline backend.
 
 Client: `ApexSim.Hud.Pit.Progress`, `ApexSim.Net.Protocol.PitService`,
+`ApexSim.Net.Protocol.PitBox`,
 `ApexSim.Net.Udp.GoldenDecode`, `ApexSim.Spectator.PitFlags`.
 
 To put a stop on screen unattended, the `[debug]` hooks (`pit`, `wear=P`,

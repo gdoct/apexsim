@@ -665,6 +665,9 @@ public:
 	/** One car's latest stop, or null when it has made none this session. */
 	const FApexPitService* FindPitService(int32 CarIndex) const { return PitServices.Find(CarIndex); }
 
+	/** The local driver's own pit box (`PitBox`); not valid until the server deals it. */
+	const FApexPitBox& GetOwnPitBox() const { return OwnPitBox; }
+
 	/** The most recent telemetry frame, for anything that polls rather than binds. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	const FApexTelemetryFrame& GetLatestTelemetry() const { return LatestTelemetry; }
@@ -768,6 +771,7 @@ private:
 	TMap<FString, TArray<FApexLeaderboardEntry>> LeaderboardByKey;
 	FApexCarSetupSheet CachedSetupSheet;
 	TMap<int32, FApexPitService> PitServices;
+	FApexPitBox OwnPitBox;
 
 	/** Forget the session's timing sheet: a new session times from scratch. */
 	void ClearLapTiming();

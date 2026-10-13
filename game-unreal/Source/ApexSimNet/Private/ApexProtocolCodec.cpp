@@ -1298,6 +1298,42 @@ namespace
 		return true;
 	}
 
+	/** `PitBoxData` — PascalCase keys. */
+	bool ParsePitBox(FMsgPackReader& Reader, FApexPitBox& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			float Value = 0.0f;
+			if (Key == TEXT("PitBox"))            { bOk = Reader.ReadUInt64(Raw); Out.PitBox = static_cast<int32>(Raw); }
+			else if (Key == TEXT("X"))            { bOk = Reader.ReadFloat(Value); Out.Position.X = Value; }
+			else if (Key == TEXT("Y"))            { bOk = Reader.ReadFloat(Value); Out.Position.Y = Value; }
+			else if (Key == TEXT("Z"))            { bOk = Reader.ReadFloat(Value); Out.Position.Z = Value; }
+			else if (Key == TEXT("YawRad"))       { bOk = Reader.ReadFloat(Out.YawRad); }
+			else if (Key == TEXT("LateralM"))     { bOk = Reader.ReadFloat(Out.LateralM); }
+			else if (Key == TEXT("LaneWidthM"))   { bOk = Reader.ReadFloat(Out.LaneWidthM); }
+			else if (Key == TEXT("RadiusM"))      { bOk = Reader.ReadFloat(Out.RadiusM); }
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		Out.bValid = true;
+		return true;
+	}
+
 	/** `SetupKnobFigure` — PascalCase keys. */
 	bool ParseSetupKnobFigure(FMsgPackReader& Reader, FApexSetupKnobFigure& Out)
 	{
@@ -2466,6 +2502,7 @@ namespace
 		if (Variant == TEXT("TelemetryCompact"))   { return EApexServerMessageType::TelemetryCompact; }
 		if (Variant == TEXT("DriverFeedback"))     { return EApexServerMessageType::DriverFeedback; }
 		if (Variant == TEXT("WeekendState"))       { return EApexServerMessageType::WeekendState; }
+		if (Variant == TEXT("PitBox"))             { return EApexServerMessageType::PitBox; }
 		if (Variant == TEXT("RejoinAvailable"))    { return EApexServerMessageType::RejoinAvailable; }
 		if (Variant == TEXT("RoadState"))          { return EApexServerMessageType::RoadState; }
 		if (Variant == TEXT("Leaderboard"))        { return EApexServerMessageType::Leaderboard; }
@@ -2534,6 +2571,9 @@ namespace
 
 		case EApexServerMessageType::PitService:
 			return ParsePitService(Reader, Out.PitService);
+
+		case EApexServerMessageType::PitBox:
+			return ParsePitBox(Reader, Out.PitBox);
 
 		case EApexServerMessageType::Showcases:
 			return ParseShowcases(Reader, Out.Showcases);

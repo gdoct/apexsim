@@ -317,6 +317,7 @@ void UApexHudDataSubsystem::Refresh()
 		In.Roster = &Net->GetSessionRoster();
 		In.Timing = &Net->GetTimingBoard();
 		In.PitServices = &Net->GetPitServices();
+		In.OwnPitBox = bSpectating ? nullptr : &Net->GetOwnPitBox();
 		In.Sectors = &Net->GetTrackSectors();
 		In.Corners = &Net->GetTrackCorners();
 		In.bHotlapWatch = Net->IsHotlapWatch();

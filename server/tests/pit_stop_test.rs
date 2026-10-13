@@ -477,6 +477,35 @@ fn the_autopilot_puts_the_drivers_aids_back() {
 }
 
 #[test]
+fn a_driver_is_told_their_box_once() {
+    let Some((mut gs, player)) = practice() else {
+        return;
+    };
+    let lane = gs.track_config.pit_lane.clone().unwrap();
+    assert!(
+        gs.take_pit_box_news().is_empty(),
+        "no box dealt before a tick"
+    );
+    gs.tick(&HashMap::new());
+    let news = gs.take_pit_box_news();
+    assert_eq!(news.len(), 1);
+    let (who, pit_box) = &news[0];
+    assert_eq!(*who, player);
+    let spot = lane.box_at(pit_box.pit_box);
+    assert_eq!(
+        (pit_box.x, pit_box.y, pit_box.yaw_rad),
+        (spot.x, spot.y, spot.yaw_rad)
+    );
+    assert!(
+        pit_box.lateral_m.abs() > 0.5 && pit_box.lateral_m.abs() < pit_box.lane_width_m / 2.0,
+        "the spot is off the lane's middle, inside it: {}",
+        pit_box.lateral_m
+    );
+    gs.tick(&HashMap::new());
+    assert!(gs.take_pit_box_news().is_empty(), "told once");
+}
+
+#[test]
 fn a_driver_without_the_pit_autopilot_drives_the_lane_held_to_the_limit() {
     let Some((mut gs, player)) = practice() else {
         return;
