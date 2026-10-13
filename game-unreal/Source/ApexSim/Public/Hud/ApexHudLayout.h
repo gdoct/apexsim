@@ -77,8 +77,9 @@ struct APEXSIM_API FApexHudLayout
  * file like any other: it can be shared or edited by hand. Which one the HUD
  * wears is decided by `custom/layout_bindings.json`, from where the player is:
  *
- *   watching (a race, a replay, a hotlap) > hotlap or qualifying > the car's
- *   class (as the menus name it: Formula, GT3...) > everywhere else.
+ *   watching (a race, a replay, a hotlap) > hotlap or qualifying > the
+ *   circuit (as the menus name it) > the car's class (as the menus name it:
+ *   Formula, GT3...) > everywhere else.
  *
  * A context with no layout bound falls through to the next; everywhere else
  * is bound to "Default" until the player says otherwise.
@@ -96,6 +97,8 @@ namespace ApexHudLayouts
 		bool bGarageMode = false;
 		/** The player's car class as the menus show it ("Formula"); empty when unknown. */
 		FString CarClass;
+		/** The circuit as the menus show it ("Shiverstone Circuit"); empty when none is picked. */
+		FString Track;
 	};
 
 	struct APEXSIM_API FBindings
@@ -106,6 +109,8 @@ namespace ApexHudLayouts
 		FString Hotlap;
 		/** By display class. */
 		TMap<FString, FString> Classes;
+		/** By circuit, as the menus name it. */
+		TMap<FString, FString> Tracks;
 
 		/** The layout for a context, by the order above. Never empty. */
 		FString Resolve(const FContext& Context) const;

@@ -175,7 +175,7 @@ Shell screens. All of them go through one pad walk at the end.
 | Item | Type | Notes |
 |---|---|---|
 | Main menu rows not built | feature | The session browser has no recorded sessions or filters; no replay export; no car stats view (the row opens car select); no direct jump into a track guide (it opens the track picker). |
-| HUD layouts | feature | No per-track layout bindings, no layout picker outside the HUD editor, and the layout manager's pad navigation has not been checked on a pad: it opens on L only and Reset all has no pad button. The HUD editor is not in the pad walk (its pad map is its own). The several layouts (manager, bindings, switching by place) have never been checked by hand. |
+| HUD layouts | feature | Layouts bind per circuit as well as by class (2026-10-12); there is no layout picker outside the HUD editor, and the layout manager's pad navigation has not been checked on a pad: it opens on L only and Reset all has no pad button. The HUD editor is not in the pad walk (its pad map is its own). The several layouts (manager, bindings, switching by place) have never been checked by hand. |
 
 ### Controls and rigs
 

@@ -1275,7 +1275,19 @@ bool FApexHudLayoutBindingsTest::RunTest(const FString& Parameters)
 	Bindings.Watching.Empty();
 	TestEqual(TEXT("an unbound context falls through"), Bindings.Resolve(Watching), FString(TEXT("Clean")));
 
+	// A circuit beats the class and falls behind the garage modes.
+	Bindings.Tracks.Add(TEXT("Shiverstone Circuit"), TEXT("Fog"));
+	FContext AtShiverstone = InFormula;
+	AtShiverstone.Track = TEXT("shiverstone circuit");
+	TestEqual(TEXT("a circuit beats the class"), Bindings.Resolve(AtShiverstone), FString(TEXT("Fog")));
+	FContext ElsewhereInFormula = InFormula;
+	ElsewhereInFormula.Track = TEXT("Monza Park");
+	TestEqual(TEXT("another circuit falls to the class"), Bindings.Resolve(ElsewhereInFormula), FString(TEXT("Wing")));
+	Garage.Track = TEXT("Shiverstone Circuit");
+	TestEqual(TEXT("hotlap beats the circuit"), Bindings.Resolve(Garage), FString(TEXT("Clean")));
+
 	TestEqual(TEXT("where a layout is used"), Bindings.Describe(TEXT("Wing")), FString(TEXT("Formula")));
+	TestEqual(TEXT("a circuit is named"), Bindings.Describe(TEXT("Fog")), FString(TEXT("Shiverstone Circuit")));
 	TestEqual(TEXT("everywhere is named"), Bindings.Describe(TEXT("plain")), FString(TEXT("Everywhere else")));
 	TestTrue(TEXT("a layout nothing uses"), Bindings.Describe(TEXT("Spare")).IsEmpty());
 	FBindings Fresh;
@@ -1289,9 +1301,14 @@ bool FApexHudLayoutBindingsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("hotlap"), Back.Hotlap, FString(TEXT("Clean")));
 	TestTrue(TEXT("watching stays empty"), Back.Watching.IsEmpty());
 	TestEqual(TEXT("class"), Back.Classes.FindRef(TEXT("Formula")), FString(TEXT("Wing")));
+	TestEqual(TEXT("circuit"), Back.Tracks.FindRef(TEXT("Shiverstone Circuit")), FString(TEXT("Fog")));
 	TestTrue(TEXT("hand-written, with a comment"), Back.FromJson(TEXT("{ // mine\n \"watching\": \"A\", }"), Error) && Back.Watching == TEXT("A"));
 	TestFalse(TEXT("not JSON"), Back.FromJson(TEXT("{ nope"), Error));
 
+	Bindings.Rename(TEXT("fog"), TEXT("Thick Fog"));
+	TestEqual(TEXT("a rename follows to a circuit"), Bindings.Tracks.FindRef(TEXT("Shiverstone Circuit")), FString(TEXT("Thick Fog")));
+	Bindings.Forget(TEXT("Thick Fog"));
+	TestFalse(TEXT("a delete lets go of a circuit"), Bindings.Tracks.Contains(TEXT("Shiverstone Circuit")));
 	Bindings.Rename(TEXT("wing"), TEXT("Big Wing"));
 	TestEqual(TEXT("a rename follows"), Bindings.Classes.FindRef(TEXT("Formula")), FString(TEXT("Big Wing")));
 	Bindings.Forget(TEXT("Big Wing"));

@@ -593,12 +593,14 @@ switches, saves as new, renames, deletes and binds them; bindings live in
 
 ```jsonc
 { "version": 1, "everywhere": "Plain", "watching": "Stream", "hotlap": "Clean",
-  "classes": { "Formula": "Wing" } }   // by the class names the menus show
+  "classes": { "Formula": "Wing" },            // by the class names the menus show
+  "tracks": { "Shiverstone Circuit": "Fog" } } // by the circuit names the menus show
 ```
 
 Most specific wins: watching, then hotlap and qualifying (a race weekend's
-timed practice too), then the car's class, then everywhere else (Default
-when unset).
+timed practice too), then the circuit picked in the menus, then the car's
+class, then everywhere else (Default when unset). The layout manager offers
+"At <circuit>" for the circuit the menus have picked.
 `UApexHudWidget::RefreshContext` swaps the layout when the place changes
 (from `spectate.active`, `session.mode` and the pending car's class).
 
@@ -637,7 +639,7 @@ when unset).
   -ApexHudEditorSteps="select standings;move 500 -350;scale 0.25;save"`.
   Steps: `select <id>`, `move <dx> <dy>`, `scale <d>`, `toggle <id>`,
   `reset`, `layouts`, `layout <name>`, `saveas <name>`,
-  `bind everywhere|watching|hotlap|class:<Name>`, `grab <id> [corner]`,
+  `bind everywhere|watching|hotlap|class:<Name>|track:<Name>`, `grab <id> [corner]`,
   `dragby <dx> <dy>`, `release`, `save`, `cancel`. `grab` / `dragby` /
   `release` drive the real mouse path with synthesised Slate events.
 

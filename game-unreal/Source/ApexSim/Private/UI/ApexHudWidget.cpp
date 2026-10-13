@@ -243,6 +243,11 @@ ApexHudLayouts::FContext UApexHudWidget::GetContext() const
 			{
 				Context.CarClass = ApexCatalog::DisplayClass(Row.CarClass);
 			}
+			FApexTrackCatalogRow TrackRow;
+			if (Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), TrackRow))
+			{
+				Context.Track = TrackRow.DisplayName;
+			}
 		}
 	}
 	return Context;
@@ -255,7 +260,7 @@ bool UApexHudWidget::RefreshContext()
 		return false;
 	}
 	const ApexHudLayouts::FContext Context = GetContext();
-	const FString Key = FString::Printf(TEXT("%d|%d|%s"), Context.bWatching, Context.bGarageMode, *Context.CarClass);
+	const FString Key = FString::Printf(TEXT("%d|%d|%s|%s"), Context.bWatching, Context.bGarageMode, *Context.CarClass, *Context.Track);
 	if (Key == LastContextKey)
 	{
 		return false;

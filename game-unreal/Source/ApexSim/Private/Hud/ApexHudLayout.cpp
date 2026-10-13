@@ -304,6 +304,16 @@ FString ApexHudLayouts::FBindings::Resolve(const FContext& Context) const
 	{
 		return Hotlap;
 	}
+	if (!Context.Track.IsEmpty())
+	{
+		for (const TPair<FString, FString>& Entry : Tracks)
+		{
+			if (!Entry.Value.IsEmpty() && LayoutSameName(Entry.Key, Context.Track))
+			{
+				return Entry.Value;
+			}
+		}
+	}
 	if (!Context.CarClass.IsEmpty())
 	{
 		for (const TPair<FString, FString>& Entry : Classes)
@@ -342,6 +352,15 @@ FString ApexHudLayouts::FBindings::Describe(const FString& Layout) const
 			Parts.Add(Key);
 		}
 	}
+	Tracks.GetKeys(Keys);
+	Keys.Sort();
+	for (const FString& Key : Keys)
+	{
+		if (LayoutSameName(Tracks[Key], Layout))
+		{
+			Parts.Add(Key);
+		}
+	}
 	return FString::Join(Parts, TEXT(", "));
 }
 
@@ -361,12 +380,23 @@ void ApexHudLayouts::FBindings::Rename(const FString& From, const FString& To)
 	{
 		Swap(Entry.Value);
 	}
+	for (TPair<FString, FString>& Entry : Tracks)
+	{
+		Swap(Entry.Value);
+	}
 }
 
 void ApexHudLayouts::FBindings::Forget(const FString& Layout)
 {
 	Rename(Layout, FString());
 	for (auto It = Classes.CreateIterator(); It; ++It)
+	{
+		if (It.Value().IsEmpty())
+		{
+			It.RemoveCurrent();
+		}
+	}
+	for (auto It = Tracks.CreateIterator(); It; ++It)
 	{
 		if (It.Value().IsEmpty())
 		{
@@ -406,8 +436,22 @@ FString ApexHudLayouts::FBindings::ToJson() const
 	{
 		Lines.Add(FString::Printf(TEXT("  \"classes\": {\n%s\n  }"), *FString::Join(ClassLines, TEXT(",\n"))));
 	}
+	Tracks.GetKeys(Keys);
+	Keys.Sort();
+	TArray<FString> TrackLines;
+	for (const FString& Key : Keys)
+	{
+		if (!Tracks[Key].IsEmpty())
+		{
+			TrackLines.Add(FString::Printf(TEXT("    %s: %s"), *LayoutQuote(Key), *LayoutQuote(Tracks[Key])));
+		}
+	}
+	if (!TrackLines.IsEmpty())
+	{
+		Lines.Add(FString::Printf(TEXT("  \"tracks\": {\n%s\n  }"), *FString::Join(TrackLines, TEXT(",\n"))));
+	}
 	return FString::Printf(TEXT("{\n  // Which HUD layout applies where, written by the HUD editor. Names are files in layouts/ (or Default).\n")
-		TEXT("  // Watching beats hotlap and qualifying, which beats the car's class, which beats everywhere.\n%s\n}\n"),
+		TEXT("  // Watching beats hotlap and qualifying, which beats the circuit, which beats the car's class, which beats everywhere.\n%s\n}\n"),
 		*FString::Join(Lines, TEXT(",\n")));
 }
 
@@ -433,6 +477,17 @@ bool ApexHudLayouts::FBindings::FromJson(const FString& Text, FString& OutError)
 			if (Field.Value->TryGetString(Layout) && !Layout.IsEmpty())
 			{
 				Classes.Add(Field.Key, Layout);
+			}
+		}
+	}
+	if (Root->TryGetObjectField(TEXT("tracks"), Entries))
+	{
+		for (const TPair<FString, TSharedPtr<FJsonValue>>& Field : (*Entries)->Values)
+		{
+			FString Layout;
+			if (Field.Value->TryGetString(Layout) && !Layout.IsEmpty())
+			{
+				Tracks.Add(Field.Key, Layout);
 			}
 		}
 	}

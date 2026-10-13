@@ -1263,6 +1263,12 @@ void UApexHudEditorWidget::RebuildLayouts()
 	Places.Emplace(TEXT("everywhere"), TEXT("Everywhere else"));
 	Places.Emplace(TEXT("watching"), TEXT("Watching"));
 	Places.Emplace(TEXT("hotlap"), TEXT("Hotlap and qualifying"));
+	// The circuit the menus have picked: this layout for it, from where it is.
+	const FString TrackName = HudWidget ? HudWidget->GetContext().Track : FString();
+	if (!TrackName.IsEmpty())
+	{
+		Places.Emplace(FString(TEXT("track:")) + TrackName, FString::Printf(TEXT("At %s"), *TrackName));
+	}
 	TArray<FString> Classes;
 	if (const UApexCarContentSubsystem* Cars = UApexCarContentSubsystem::Get())
 	{
@@ -1296,6 +1302,11 @@ void UApexHudEditorWidget::RebuildLayouts()
 		else if (Key == TEXT("hotlap"))
 		{
 			bBound = Bindings.Hotlap.Equals(Current, ESearchCase::IgnoreCase);
+		}
+		else if (Key.StartsWith(TEXT("track:")))
+		{
+			const FString* Bound = Bindings.Tracks.Find(Key.RightChop(6));
+			bBound = Bound && Bound->Equals(Current, ESearchCase::IgnoreCase);
 		}
 		else if (const FString* Bound = Bindings.Classes.Find(Key.RightChop(6)))
 		{
@@ -1495,6 +1506,15 @@ bool UApexHudEditorWidget::ToggleBinding(const FString& Key)
 	else if (Key == TEXT("hotlap"))
 	{
 		Flip(Bindings.Hotlap);
+	}
+	else if (Key.StartsWith(TEXT("track:")))
+	{
+		FString& Bound = Bindings.Tracks.FindOrAdd(Key.RightChop(6));
+		Flip(Bound);
+		if (Bound.IsEmpty())
+		{
+			Bindings.Tracks.Remove(Key.RightChop(6));
+		}
 	}
 	else if (Key.StartsWith(TEXT("class:")))
 	{
