@@ -45,10 +45,11 @@
 //! reads it per wheel and tells the AI through `CarState::surface_grip_share`.
 //! Snow is a fourth layer on the same bins. Under a snow sky ([`SNOWFALL_RATE`])
 //! the road's **cover**, 0..1, builds toward 1 and the grip falls with it
-//! ([`snow_grip`]: bare asphalt 1.0, covered 0.55); the baked road of a snow
-//! session is the covered one (`Weather::Snow`'s 0.55), so everything is
-//! against it. Every wheel pass packs its bin down toward [`SNOW_FLOOR`] (a
-//! driven line grips some 1.3 times the field's first lap, [`SNOW_CLEAR_PER_PASS`]);
+//! ([`snow_grip`]: bare asphalt 1.0, covered 0.28, a film of it already most
+//! of that); the baked road of a snow session is the covered one
+//! (`Weather::Snow`'s 0.28), so everything is against it. Every wheel pass
+//! packs its bin down toward [`SNOW_FLOOR`] (a driven line grips some 1.5
+//! times the field's first lap, [`SNOW_CLEAR_PER_PASS`]);
 //! the fall builds it again, a track over 0 °C melts it ([`SNOW_MELT_PER_C`]),
 //! and the water on a bin the cars have cleared freezes when the track is
 //! under [`FREEZE_C`]: **ice**, 0..1, that costs [`ICE_GRIP_LOSS`] of the grip
@@ -152,10 +153,11 @@ pub const SNOWFALL_RATE: f32 = 0.004;
 /// Share of the cover above [`SNOW_FLOOR`] one wheel's pass packs down.
 pub const SNOW_CLEAR_PER_PASS: f32 = 0.08;
 /// The cover a driven line is packed to and no further: a film of snow and
-/// slush that grips (1 - 0.45 * 0.65) / 0.55 = 1.29 times a covered road.
+/// slush that grips (1 - 0.72 * 0.65^0.5) / 0.28 = 1.5 times a covered road.
 pub const SNOW_FLOOR: f32 = 0.65;
-/// What full cover costs the road's grip: bare 1.0, covered 1 - this.
-pub const SNOW_COVER_GRIP: f32 = 0.45;
+/// What full cover costs the road's grip: bare 1.0, covered 1 - this. A
+/// racing tyre on packed snow has a quarter to a third of its dry grip.
+pub const SNOW_COVER_GRIP: f32 = 0.72;
 /// Share of the cover a degree of track temperature melts per second.
 pub const SNOW_MELT_PER_C: f32 = 0.0004;
 /// The track freezes the water on it below this, °C.
@@ -164,8 +166,9 @@ pub const FREEZE_C: f32 = -1.0;
 pub const ICE_FREEZE_RATE: f32 = 0.002;
 /// Ice melts this share per degree of track temperature per second.
 pub const ICE_THAW_PER_C: f32 = 0.0006;
-/// What solid ice costs the grip.
-pub const ICE_GRIP_LOSS: f32 = 0.5;
+/// What solid ice costs the grip: a tenth of the dry road's under a
+/// covered bake.
+pub const ICE_GRIP_LOSS: f32 = 0.6;
 /// A bin under more cover than this has no bare water to freeze.
 const ICE_COVER_MAX: f32 = 0.9;
 /// Falling snow covers the water before it freezes: no ice forms in a
@@ -227,12 +230,13 @@ pub fn line_dry_ceiling(rain: f32) -> f32 {
 }
 
 /// The grip snow and ice leave a road, against the road baked at
-/// `baked_cover`: the cover's own (bare 1.0, covered `1 - SNOW_COVER_GRIP`)
-/// against the baked one, less the ice. 1.0 for a road without either,
-/// whatever the sky.
+/// `baked_cover`: the cover's own (bare 1.0, covered `1 - SNOW_COVER_GRIP`,
+/// by the root of the cover: a thin film is most of the way to a covered
+/// road) against the baked one, less the ice. 1.0 for a road without
+/// either, whatever the sky.
 pub fn snow_grip(cover: f32, ice: f32, baked_cover: f32) -> f32 {
-    let cover_grip = 1.0 - SNOW_COVER_GRIP * cover.clamp(0.0, 1.0);
-    let baked = 1.0 - SNOW_COVER_GRIP * baked_cover.clamp(0.0, 1.0);
+    let cover_grip = 1.0 - SNOW_COVER_GRIP * cover.clamp(0.0, 1.0).sqrt();
+    let baked = 1.0 - SNOW_COVER_GRIP * baked_cover.clamp(0.0, 1.0).sqrt();
     cover_grip / baked * (1.0 - ICE_GRIP_LOSS * ice.clamp(0.0, 1.0))
 }
 
@@ -936,15 +940,15 @@ mod tests {
         assert_eq!(snow_grip(0.0, 0.0, 0.0), 1.0, "bare against bare");
         assert_eq!(snow_grip(1.0, 0.0, 1.0), 1.0, "covered against covered");
         assert!(
-            (snow_grip(1.0, 0.0, 0.0) - 0.55).abs() < 1e-6,
+            (snow_grip(1.0, 0.0, 0.0) - 0.28).abs() < 1e-6,
             "snow on a dry bake"
         );
         assert!(
-            (snow_grip(SNOW_FLOOR, 0.0, 1.0) - 1.286).abs() < 1e-3,
+            (snow_grip(SNOW_FLOOR, 0.0, 1.0) - 1.498).abs() < 1e-3,
             "a driven line"
         );
-        assert!((snow_grip(1.0, 1.0, 1.0) - 0.5).abs() < 1e-6, "ice");
-        assert!(snow_grip(0.0, 0.0, 1.0) > 1.8, "melted off a covered bake");
+        assert!((snow_grip(1.0, 1.0, 1.0) - 0.4).abs() < 1e-6, "ice");
+        assert!(snow_grip(0.0, 0.0, 1.0) > 3.5, "melted off a covered bake");
     }
 
     #[test]
@@ -965,14 +969,14 @@ mod tests {
     }
 
     #[test]
-    fn the_cars_pack_a_line_that_grips_a_third_again_and_the_snow_keeps_falling_beside_it() {
+    fn the_cars_pack_a_line_that_grips_half_again_and_the_snow_keeps_falling_beside_it() {
         let mut road = RoadState::new(&snowy_track(-3.0), RUBBER_REFERENCE);
         // Twenty cars, twenty laps in half an hour of snow.
         drive(&mut road, 2.0, 400, 1800.0);
         let line = road.sample(500.0, 2.8).grip;
         let beside = road.sample(500.0, -5.0).grip;
         println!("snow after 400 passes: line {line:.3}, beside it {beside:.3}");
-        assert!(line > 1.15 && line < 1.4, "a driven line: {line}");
+        assert!(line > 1.3 && line < 1.6, "a driven line: {line}");
         assert!((beside - 1.0).abs() < 0.03, "untouched snow: {beside}");
         assert!(road.mean_line_snow() < 0.8 && road.mean_line_snow() > SNOW_FLOOR - 0.01);
         // The line is a snowy bin: rubber lays on it far slower than on a
@@ -999,7 +1003,8 @@ mod tests {
         }
         let s = road.sample(500.0, 0.0);
         assert!(road.has_snow());
-        assert!(s.grip < 0.6 && s.grip > 0.5, "{}", s.grip);
+        // The covered figure, less the slush on a road baked dry.
+        assert!(s.grip < 0.3 && s.grip > 0.24, "{}", s.grip);
         assert!(road.mean_line_snow() > 0.95);
         assert!(road.sample(500.0, 12.0).off_grip < 0.5, "the verge too");
         // The snow stops; a track over freezing melts it away.

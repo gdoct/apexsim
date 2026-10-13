@@ -75,7 +75,7 @@ track: every centerline sample's `grip_modifier`, `track_surface.base_grip`
 (which the racing line and the AI's speed profile read), `curb_grip` and
 `off_track_grip` are multiplied by the weather's factors
 (`Weather::road_grip_factor`: overcast 0.98, light rain 0.86, heavy 0.74,
-snow 0.55; `curb_grip_factor` and `off_track_grip_factor` on top in the
+snow 0.28; `curb_grip_factor` and `off_track_grip_factor` on top in the
 rain). It also sets the temperatures, `wet`, `water` / `baked_water` (0 dry,
 0.5 light, 1 heavy, 0.3 under snow: which tyre grips is read off it, see
 [vehicle-physics.md](vehicle-physics.md)), the air density ratio and the
@@ -195,18 +195,21 @@ the lap, drained above that. Water over 1 is standing water.
 ### Snow on the road
 
 Under a snow sky the road's grip is the *covered* road's: `Weather::Snow`
-bakes 0.55 (the racing line and the AI's speed profile are planned for it, and
-the field races it cleanly down to about that figure at Silverstone, Monza
-and Spa; at 0.5 and under the line's envelope gives out on the cold tyres).
+bakes 0.28, a racing tyre's quarter of its dry grip on packed snow, and less
+again on tyres that never reach their window at -3 °C. The racing line and
+the AI's speed profile are planned for it, and the field still does not race
+it cleanly: in the snow survey (Silverstone, Monza, Spa) the AI spends minutes
+off the road, piles up and retires cars inside three minutes.
 `RoadState::snow_grip(cover, ice, baked_cover)` is the cover's grip
-(`1 - SNOW_COVER_GRIP * cover`: bare 1.0, covered 0.55) against the baked
+(`1 - SNOW_COVER_GRIP * sqrt(cover)`: bare 1.0, covered 0.28, a thin film
+already most of the way there) against the baked
 cover, less the ice, and is multiplied into the sample's `grip`, so the road
 is exactly as baked at the start of a snow session and a dry-baked road
 under new snow falls to the covered figure.
 
 - The cover builds toward 1 under snowfall (`SNOWFALL_RATE`: ten minutes
   from bare to 90%). Every wheel pass packs its bin down toward
-  `SNOW_FLOOR` (0.65, a film that grips 1.29 times a covered road) by
+  `SNOW_FLOOR` (0.65, a film that grips 1.5 times a covered road) by
   `SNOW_CLEAR_PER_PASS`, so a field drives a darker, quicker line through the
   white that the snowfall keeps trying to cover.
 - A track over 0 °C melts it (`SNOW_MELT_PER_C` of the cover per degree per
@@ -214,8 +217,8 @@ under new snow falls to the covered figure.
   cell (`Cell::verge_snow`) that moves the grass's grip the same way.
 - The water on a bin the cars have cleared freezes into **ice** when the
   track is under `FREEZE_C` (-1 °C), the cover is under 0.9 and no snow is
-  falling: the line freezes overnight and costs `ICE_GRIP_LOSS` (half) of
-  its grip until it thaws.
+  falling: the line freezes overnight and costs `ICE_GRIP_LOSS` (0.6) of
+  its grip until it thaws: a covered bake's ice is a tenth of the dry road.
 - The slush is `SNOW_WATER` (0.3) of standing water while it snows (the
   `Weather::Snow.water()` that picks the tyre and that the dry line wipes),
   so `Compound::grip_on` and the AI's crossover choose treaded tyres with no

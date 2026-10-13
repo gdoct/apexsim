@@ -2243,12 +2243,12 @@ impl Weather {
             Weather::Overcast => 0.98,
             Weather::LightRain => 0.86,
             Weather::HeavyRain => 0.74,
-            // The baked road is a snow-covered one: the racing line and
-            // the AI's speed profile are built for it, and the cars crawl
-            // from lap one (`road_state::snow_grip` clears it). The AI field
-            // races it cleanly down to about 0.55; under that the racing
-            // line's envelope gives out on the cold tyres.
-            Weather::Snow => 0.55,
+            // The baked road is a snow-covered one, a quarter of the dry
+            // grip and more on cold tyres: the racing line and the AI's
+            // speed profile are built for it, the cars crawl from lap one
+            // (`road_state::snow_grip` clears a line) and the field does
+            // not race it cleanly.
+            Weather::Snow => 1.0 - crate::road_state::SNOW_COVER_GRIP,
         }
     }
 
@@ -3071,7 +3071,7 @@ mod tests {
         assert!(!Weather::Snow.is_wet() && Weather::Snow.is_snow());
         assert_eq!(Weather::from_u8(5), Some(Weather::Snow));
         assert_eq!(Weather::from_u8(6), None);
-        assert_eq!(Weather::Snow.road_grip_factor(), 0.55);
+        assert!((Weather::Snow.road_grip_factor() - 0.28).abs() < 1e-6);
         assert_eq!(Weather::Snow.rainfall(), 0.0);
         assert_eq!(Weather::Snow.snowfall(), 1.0);
         assert_eq!(Weather::HeavyRain.snowfall(), 0.0);
