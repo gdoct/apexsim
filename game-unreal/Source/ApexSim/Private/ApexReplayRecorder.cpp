@@ -93,6 +93,7 @@ void UApexReplayRecorder::Initialize(FSubsystemCollectionBase& Collection)
 		Net->OnSessionStateChanged.AddDynamic(this, &UApexReplayRecorder::HandleSessionStateChanged);
 		Net->OnDisconnected.AddDynamic(this, &UApexReplayRecorder::HandleDisconnected);
 		RoadStateHandle = Net->OnRoadState.AddUObject(this, &UApexReplayRecorder::HandleRoadState);
+		Net->OnGhostLap.AddDynamic(this, &UApexReplayRecorder::HandleGhostLap);
 	}
 }
 
@@ -110,6 +111,7 @@ void UApexReplayRecorder::Deinitialize()
 		Net->OnSessionStateChanged.RemoveDynamic(this, &UApexReplayRecorder::HandleSessionStateChanged);
 		Net->OnDisconnected.RemoveDynamic(this, &UApexReplayRecorder::HandleDisconnected);
 		Net->OnRoadState.Remove(RoadStateHandle);
+		Net->OnGhostLap.RemoveDynamic(this, &UApexReplayRecorder::HandleGhostLap);
 	}
 	Super::Deinitialize();
 }
@@ -302,9 +304,31 @@ void UApexReplayRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	Out.State = Frame.SessionState;
 	Out.CountdownMs = Frame.SessionState == EApexSessionState::Countdown ? Frame.CountdownMs : -1;
 	Out.Rows.Reserve(Frame.Cars.Num() * ApexSpectator::RowSize);
+	const UApexNetSubsystem* OwnNet = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const int32 OwnIndex = OwnNet ? OwnNet->GetLocalCarIndex() : -1;
 	for (const FApexCarTelemetry& Car : Frame.Cars)
 	{
-		FApexStreamCarRow::FromTelemetry(Car).Write(Out.Rows);
+		// The own car's wheels come from the driver feedback the server sends
+		// only to it; the other cars' stay unknown (the server's streams
+		// carry every car's).
+		if (Car.CarIndex == OwnIndex && OwnNet && OwnNet->GetDriverFeedback().ServerTick > 0
+			&& FPlatformTime::Seconds() - OwnNet->GetDriverFeedbackTime() < 0.5)
+		{
+			FApexCarTelemetry Own = Car;
+			const FApexDriverFeedback& Feel = OwnNet->GetDriverFeedback();
+			for (int32 Wheel = 0; Wheel < 4; ++Wheel)
+			{
+				Own.WheelSlipRatio[Wheel] = Feel.Wheels[Wheel].SlipRatio;
+				Own.WheelSlipAngle[Wheel] = Feel.Wheels[Wheel].SlipAngle;
+				Own.WheelSurface[Wheel] = Feel.Wheels[Wheel].Surface;
+			}
+			Own.bHasWheelFeel = true;
+			FApexStreamCarRow::FromTelemetry(Own).Write(Out.Rows);
+		}
+		else
+		{
+			FApexStreamCarRow::FromTelemetry(Car).Write(Out.Rows);
+		}
 		if (Car.FinishPosition > 0 && !Finished.Contains(Car.CarIndex))
 		{
 			Finished.Add(Car.CarIndex);
@@ -360,6 +384,18 @@ void UApexReplayRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 		WriteRoad(Tick, Road);
 	}
 	PendingRoads.Reset();
+}
+
+void UApexReplayRecorder::HandleGhostLap(const FApexGhostLap& Lap)
+{
+	if (!bRecording || !IsRecordableSession() || !Lap.IsValid() || LastTick < 0)
+	{
+		return;
+	}
+	FApexStreamGhost Ghost;
+	Ghost.Tick = LastTick;
+	Ghost.Lap = Lap;
+	Writer.Add(LastTick, ApexSpectator::EncodeGhost(Ghost));
 }
 
 void UApexReplayRecorder::HandleRoadState(const FApexRoadState& Road)

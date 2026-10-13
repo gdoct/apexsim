@@ -48,12 +48,17 @@ pub const FILE_VERSION: u16 = 1;
 /// Bytes of one car in a frame's `rows` as this build writes them. A later
 /// version only ever appends: a reader takes the fields it knows and skips
 /// the rest, and fills what an older stream's shorter rows lack as unknown.
-pub const ROW_SIZE: usize = 52;
+pub const ROW_SIZE: usize = 64;
 /// The first row layout's size (no tyres): the shortest row a reader takes.
 pub const ROW_SIZE_V1: usize = 44;
+/// The second layout (tyres, no wheels): read with the wheels unknown.
+pub const ROW_SIZE_V2: usize = 52;
+/// A wheel's slip in the row is its multiple of the tyre's peak times this,
+/// held to a byte (so ±2.54 peaks).
+pub const ROW_SLIP_SCALE: f32 = 50.0;
 /// Rows that fit one datagram under a 1 400 byte budget; a bigger field is
 /// sent in parts.
-pub const MAX_ROWS_PER_PART: usize = 26;
+pub const MAX_ROWS_PER_PART: usize = 21;
 /// `tyre_wear` of a tyre the stream does not know (a converted replay, a car
 /// before its set is fitted, a v1 row).
 pub const TYRE_WEAR_UNKNOWN: u8 = u8::MAX;
@@ -747,6 +752,17 @@ pub struct CarRow {
     pub ers_flags: u8,
     pub tyre_wear: [u8; 4],
     pub tyre_c: [u8; 4],
+    /// Each wheel's slip ratio and slip angle, FL FR RL RR, in
+    /// [`ROW_SLIP_SCALE`]ths of the tyre's peak (`CarState::wheel_slip_*`),
+    /// and the surface under it (0 road, 1 curb, 2 off): what a replay
+    /// sounds its tyres and kerbs by. All 0 in a row from before them.
+    pub wheel_slip_ratio: [i8; 4],
+    pub wheel_slip_angle: [i8; 4],
+    pub wheel_surface: [u8; 4],
+}
+
+fn slip_to_i8(v: f32) -> i8 {
+    (v * ROW_SLIP_SCALE).round().clamp(-127.0, 127.0) as i8
 }
 
 fn metres_to_mm(m: f32) -> i32 {
@@ -832,6 +848,9 @@ impl CarRow {
                 [TYRE_WEAR_UNKNOWN; 4]
             },
             tyre_c: crate::network::tyre_bytes(state).0,
+            wheel_slip_ratio: state.wheel_slip_ratio.map(slip_to_i8),
+            wheel_slip_angle: state.wheel_slip_angle.map(slip_to_i8),
+            wheel_surface: state.wheel_surface,
         }
     }
 
@@ -876,6 +895,9 @@ impl CarRow {
             ers_flags: 0,
             tyre_wear: [TYRE_WEAR_UNKNOWN; 4],
             tyre_c: [0; 4],
+            wheel_slip_ratio: [0; 4],
+            wheel_slip_angle: [0; 4],
+            wheel_surface: [0; 4],
         }
     }
 
@@ -905,6 +927,9 @@ impl CarRow {
         out.push(self.ers_flags);
         out.extend_from_slice(&self.tyre_wear);
         out.extend_from_slice(&self.tyre_c);
+        out.extend_from_slice(&self.wheel_slip_ratio.map(|v| v as u8));
+        out.extend_from_slice(&self.wheel_slip_angle.map(|v| v as u8));
+        out.extend_from_slice(&self.wheel_surface);
         debug_assert_eq!(out.len() - start, ROW_SIZE);
     }
 
@@ -915,12 +940,20 @@ impl CarRow {
         if row.len() < ROW_SIZE_V1 {
             return None;
         }
-        let tyres = row.len() >= ROW_SIZE;
+        let tyres = row.len() >= ROW_SIZE_V2;
+        let wheels = row.len() >= ROW_SIZE;
         let quad = |o: usize, unknown: u8| {
             if tyres {
                 [row[o], row[o + 1], row[o + 2], row[o + 3]]
             } else {
                 [unknown; 4]
+            }
+        };
+        let wheel_quad = |o: usize| {
+            if wheels {
+                [row[o], row[o + 1], row[o + 2], row[o + 3]]
+            } else {
+                [0; 4]
             }
         };
         let i32_at = |o: usize| i32::from_le_bytes([row[o], row[o + 1], row[o + 2], row[o + 3]]);
@@ -950,6 +983,9 @@ impl CarRow {
             ers_flags: row[43],
             tyre_wear: quad(44, TYRE_WEAR_UNKNOWN),
             tyre_c: quad(48, 0),
+            wheel_slip_ratio: wheel_quad(52).map(|v| v as i8),
+            wheel_slip_angle: wheel_quad(56).map(|v| v as i8),
+            wheel_surface: wheel_quad(60),
         })
     }
 
@@ -2665,6 +2701,9 @@ mod tests {
             ers_flags: 0x05,
             tyre_wear: [14, 16, 9, 11],
             tyre_c: [88, 91, 95, 97],
+            wheel_slip_ratio: [10, -60, 5, 0],
+            wheel_slip_angle: [40, 45, 70, 72],
+            wheel_surface: [0, 1, 0, 2],
         }
     }
 
@@ -2688,6 +2727,14 @@ mod tests {
         assert_eq!(bytes[43], 0x05);
         assert_eq!(&bytes[44..48], &[14, 16, 9, 11]);
         assert_eq!(&bytes[48..52], &[88, 91, 95, 97]);
+        assert_eq!(&bytes[52..56], &[10, 196, 5, 0]);
+        assert_eq!(&bytes[56..60], &[40, 45, 70, 72]);
+        assert_eq!(&bytes[60..64], &[0, 1, 0, 2]);
+        // A row from before the wheels (52 bytes) reads with them at zero.
+        let short = CarRow::read(&bytes[..ROW_SIZE_V2]).unwrap();
+        assert_eq!(short.tyre_c, row.tyre_c);
+        assert_eq!(short.wheel_slip_ratio, [0; 4]);
+        assert_eq!(short.wheel_surface, [0; 4]);
         // A longer row from a newer writer still reads.
         bytes.extend_from_slice(&[9, 9, 9, 9]);
         assert_eq!(CarRow::read(&bytes), Some(row));
@@ -2706,6 +2753,9 @@ mod tests {
             CarRow {
                 tyre_wear: row.tyre_wear,
                 tyre_c: row.tyre_c,
+                wheel_slip_ratio: row.wheel_slip_ratio,
+                wheel_slip_angle: row.wheel_slip_angle,
+                wheel_surface: row.wheel_surface,
                 ..old
             },
             row
@@ -3037,11 +3087,11 @@ mod tests {
             seen.extend(frame.cars(ROW_SIZE).map(|r| r.car_index));
         }
         assert_eq!(seen, (0..40).collect::<Vec<u8>>());
-        // Twenty cars: one datagram of about 1 060 bytes.
+        // Twenty cars: one datagram of about 1 300 bytes.
         let twenty = encode_frames(1, 240, 0, SessionState::Racing, None, &rows[..20]);
         assert_eq!(twenty.len(), 1);
         assert!(
-            twenty[0].len() < 1080 && twenty[0].len() > 1040,
+            twenty[0].len() < 1320 && twenty[0].len() > 1280,
             "{}",
             twenty[0].len()
         );

@@ -23,7 +23,11 @@ namespace ApexSpectator
 	constexpr uint8 FormatVersion = 1;
 	constexpr uint16 FileVersion = 1;
 	/** Bytes of one car in a frame as written now; a newer writer only appends. */
-	constexpr int32 RowSize = 52;
+	constexpr int32 RowSize = 64;
+	/** The second layout (tyres, no wheels): read with the wheels unknown. */
+	constexpr int32 RowSizeV2 = 52;
+	/** A wheel's slip in the row is its multiple of the tyre's peak times this (`spectator::ROW_SLIP_SCALE`). */
+	constexpr float RowSlipScale = 50.0f;
 	/** The first layout's row (no tyres): the shortest a reader takes. */
 	constexpr int32 RowSizeV1 = 44;
 	/** `FApexStreamCarRow::TyreWear` of a tyre the stream does not know. */
@@ -39,6 +43,8 @@ namespace ApexSpectator
 	constexpr uint8 RecordPath = 7;
 	constexpr uint8 RecordRoad = 8;
 	constexpr uint8 RecordState = 9;
+	/** The ghost of a hotlap replay (the record lap's trace): written by the client's recorder only. */
+	constexpr uint8 RecordGhost = 10;
 
 	/** Bytes of one car in a state record as written now; a newer writer only appends. */
 	constexpr int32 ExtraSize = 40;
@@ -156,6 +162,16 @@ struct APEXSIMNET_API FApexStreamCarRow
 	uint8 TyreWear[4] = {255, 255, 255, 255};
 	/** Tread temperature, °C as `CompactCarState.tyre_c`; 0 when unknown. */
 	uint8 TyreC[4] = {0, 0, 0, 0};
+	/**
+	 * Each wheel's slip ratio and slip angle in ApexSpectator::RowSlipScale-ths
+	 * of the tyre's peak, and the surface under it (0 road, 1 curb, 2 off),
+	 * FL FR RL RR: what a replay sounds its tyres and kerbs by. bWheels is
+	 * false, and all 0, from a row before them.
+	 */
+	int8 WheelSlipRatio[4] = {0, 0, 0, 0};
+	int8 WheelSlipAngle[4] = {0, 0, 0, 0};
+	uint8 WheelSurface[4] = {0, 0, 0, 0};
+	bool bWheels = false;
 
 	/** Read a row of at least ApexSpectator::RowSizeV1 bytes; what a newer writer appended is ignored. */
 	static bool Read(const uint8* Bytes, int32 Len, FApexStreamCarRow& Out);
@@ -300,10 +316,19 @@ struct APEXSIMNET_API FApexStreamIndexEntry
 	int32 Records = 0;
 };
 
+/** A hotlap replay's ghost: the record lap's trace, as `GhostLap` carried it (record 10). */
+struct APEXSIMNET_API FApexStreamGhost
+{
+	uint32 Epoch = 0;
+	int64 Tick = 0;
+	FApexGhostLap Lap;
+};
+
 /** Any one record, decoded. */
 struct APEXSIMNET_API FApexStreamRecord
 {
 	uint8 Type = 0;
+	FApexStreamGhost Ghost;
 	FApexStreamHeader Header;
 	FApexStreamRoster Roster;
 	FApexStreamFrame Frame;
@@ -421,6 +446,8 @@ public:
 	TArray<FApexStreamEvent> TakeEvents();
 	/** Road slices of the current epoch since the last call, in order. */
 	TArray<FApexStreamRoad> TakeRoads();
+	/** The ghosts (hotlap replays) applied since the last call. */
+	TArray<FApexStreamGhost> TakeGhosts();
 
 	/** The latest slow state of the current epoch (the sky, the race clock, each car's extras); null before the first. */
 	const FApexStreamState* GetState() const { return bHasState ? &State : nullptr; }
@@ -454,6 +481,7 @@ private:
 	TArray<FApexTelemetryFrame> Frames;
 	TArray<FApexStreamEvent> Events;
 	TArray<FApexStreamRoad> Roads;
+	TArray<FApexStreamGhost> Ghosts;
 	int32 DroppedFrames = 0;
 	int32 IncompleteFrames = 0;
 	int32 AppliedFrames = 0;

@@ -1361,7 +1361,9 @@ void AApexRaceDirector::EnsureGhost()
 	UWorld* World = GetWorld();
 	const UApexNetSubsystem* Net = GetNet();
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	if (!World || !Net || !bRaceViewActive || bDemoView || !Net->GetGhostLap().IsValid())
+	// A watched replay of a hotlap feeds its ghost through the backdrop
+	// (FeedBackdropGhost); the menu's own backdrop never has one.
+	if (!World || !Net || !(bRaceViewActive || bDemoView) || !Net->GetGhostLap().IsValid())
 	{
 		DestroyGhost();
 		return;
@@ -3641,6 +3643,7 @@ void AApexRaceDirector::UpdateCarAudio()
 	AApexRaceCarActor* Local = Net ? FindCar(Net->GetLocalCarIndex()) : nullptr;
 	if (!Local)
 	{
+		UpdateWatchedCarRoadSound();
 		return;
 	}
 	// Tracked even while silent, or the first frame back would replay old hits.
@@ -3683,6 +3686,54 @@ void AApexRaceDirector::UpdateCarAudio()
 	// that shakes the rim thumps in the ear, at the same beat.
 	Levels.FlatSpot = Signals.FlatSpot;
 	Local->UpdateRoadSound(Levels, Signals.BumpMps, Signals.ImpactMps);
+}
+
+void AApexRaceDirector::UpdateWatchedCarRoadSound()
+{
+	// Watching (a replay, a stream, a spectated session): the followed car
+	// sounds its tyres and kerbs from the wheels its row carries (a stream
+	// from before them is silent), as the own car does from its feedback.
+	const UApexNetSubsystem* Net = GetNet();
+	const int32 Focus = IsSpectating() && Net ? GetFocusCarIndex() : -1;
+	if (Focus != RoadSoundCarIndex)
+	{
+		if (AApexRaceCarActor* Previous = FindCar(RoadSoundCarIndex))
+		{
+			Previous->StopRoadSound();
+		}
+		RoadSoundCarIndex = Focus;
+	}
+	AApexRaceCarActor* Car = Focus >= 0 ? FindCar(Focus) : nullptr;
+	if (!Car)
+	{
+		return;
+	}
+	const FApexCarTelemetry* Telemetry = Net->GetLatestTelemetry().Cars.FindByPredicate(
+		[Focus](const FApexCarTelemetry& Candidate) { return Candidate.CarIndex == Focus; });
+	if (!Telemetry || !Telemetry->bHasWheelFeel || Telemetry->bInGarage)
+	{
+		Car->StopRoadSound();
+		return;
+	}
+	ApexRoadSynth::FInputs Levels;
+	Levels.SpeedMps = Telemetry->SpeedMps;
+	Levels.FrontSlide = FMath::Max(ApexRoadSynth::SquealFromSlipAngle(Telemetry->WheelSlipAngle[0]),
+		ApexRoadSynth::SquealFromSlipAngle(Telemetry->WheelSlipAngle[1]));
+	Levels.RearSlide = FMath::Max(ApexRoadSynth::SquealFromSlipAngle(Telemetry->WheelSlipAngle[2]),
+		ApexRoadSynth::SquealFromSlipAngle(Telemetry->WheelSlipAngle[3]));
+	for (int32 Wheel = 0; Wheel < 4; ++Wheel)
+	{
+		Levels.Lockup = FMath::Max(Levels.Lockup, ApexRoadSynth::LockupFromSlipRatio(Telemetry->WheelSlipRatio[Wheel]));
+		Levels.Wheelspin = FMath::Max(Levels.Wheelspin, ApexRoadSynth::WheelspinFromSlipRatio(Telemetry->WheelSlipRatio[Wheel]));
+		Levels.OffTrack += Telemetry->WheelSurface[Wheel] == EApexContactSurface::Off ? 0.25f : 0.0f;
+	}
+	auto OnCurb = [Telemetry](int32 Wheel) { return Telemetry->WheelSurface[Wheel] == EApexContactSurface::Curb ? 0.5f : 0.0f; };
+	Levels.CurbLeft = OnCurb(0) + OnCurb(2);
+	Levels.CurbRight = OnCurb(1) + OnCurb(3);
+	Levels.bWet = Sky.bWetRoad;
+	Levels.FlatSpot = FMath::Clamp(FMath::Max3(Telemetry->FlatSpot[0], Telemetry->FlatSpot[1],
+		0.5f * FMath::Max(Telemetry->FlatSpot[2], Telemetry->FlatSpot[3])), 0.0f, 1.0f);
+	Car->UpdateRoadSound(Levels, 0.0f, 0.0f);
 }
 
 void AApexRaceDirector::ApplyDemoWorldVisibility()

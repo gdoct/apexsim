@@ -308,6 +308,16 @@ void UApexNetSubsystem::FeedBackdropRoad(const FApexRoadState& Road)
 	OnRoadState.Broadcast(Road);
 }
 
+void UApexNetSubsystem::FeedBackdropGhost(const FApexGhostLap& Lap)
+{
+	if (!bBackdropFeed || !Lap.IsValid())
+	{
+		return;
+	}
+	CachedGhostLap = Lap;
+	OnGhostLap.Broadcast(CachedGhostLap);
+}
+
 void UApexNetSubsystem::FeedBackdropPitService(const FApexPitService& Stop)
 {
 	if (!bBackdropFeed)

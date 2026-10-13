@@ -267,6 +267,29 @@ namespace ApexSpectator
 		return MoveTemp(W.GetBuffer());
 	}
 
+	TArray<uint8> EncodeGhost(const FApexStreamGhost& G)
+	{
+		TArray<uint8> Samples;
+		Samples.SetNumUninitialized(G.Lap.Samples.Num() * 20);
+		for (int32 i = 0; i < G.Lap.Samples.Num(); ++i)
+		{
+			const FApexGhostSample& S = G.Lap.Samples[i];
+			const int32 TimeMs = S.TimeMs;
+			const float V[4] = {static_cast<float>(S.Position.X), static_cast<float>(S.Position.Y), static_cast<float>(S.Position.Z), S.YawRad};
+			FMemory::Memcpy(Samples.GetData() + i * 20, &TimeMs, 4);
+			FMemory::Memcpy(Samples.GetData() + i * 20 + 4, V, 16);
+		}
+		FMsgPackWriter W(64 + Samples.Num() + G.Lap.TrackId.Len() + G.Lap.CarConfigId.Len());
+		BeginRecord(W, 8, RecordGhost, G.Epoch);
+		W.WriteUInt32Fixed(static_cast<uint32>(G.Tick));
+		W.WriteUInt(static_cast<uint64>(FMath::Max(G.Lap.LapTimeMs, 0)));
+		W.WriteFloat(G.Lap.SampleHz);
+		W.WriteString(G.Lap.TrackId);
+		W.WriteString(G.Lap.CarConfigId);
+		W.WriteBinary(Samples);
+		return MoveTemp(W.GetBuffer());
+	}
+
 	TArray<uint8> EncodeRoad(const FApexStreamRoad& R)
 	{
 		const FApexRoadState& Road = R.Road;

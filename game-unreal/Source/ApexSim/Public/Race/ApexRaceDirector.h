@@ -783,6 +783,9 @@ private:
 	bool bGhostOverlapHidden = false;
 
 	bool bGhostReplay = false;
+	/** The watched car whose road sound plays while spectating (-1 none); see UpdateWatchedCarRoadSound. */
+	int32 RoadSoundCarIndex = -1;
+	void UpdateWatchedCarRoadSound();
 	float ReplayClockMs = 0.0f;
 	/** The shot on screen and how long it has run; see CutReplayShot. */
 	int32 ReplayShot = -1;

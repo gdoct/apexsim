@@ -454,6 +454,10 @@ void UApexSpectatorSubsystem::Drain()
 	{
 		Net->FeedBackdropRoad(Road.Road);
 	}
+	for (const FApexStreamGhost& Ghost : Player.TakeGhosts())
+	{
+		Net->FeedBackdropGhost(Ghost.Lap);
+	}
 }
 
 FString UApexSpectatorSubsystem::DescribeState() const

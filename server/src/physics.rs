@@ -1297,6 +1297,18 @@ pub fn update_car_3d(
     } else {
         1.0
     };
+    // Each wheel's slip and surface, for the driver's feedback and for the
+    // spectator stream's rows.
+    let wheel_slip_ratio = wheels.map(per_slip_ratio);
+    let wheel_slip_angle = wheels.map(per_slip_angle);
+    let wheel_surface = if is_airborne {
+        [ContactSurface::Road; 4]
+    } else {
+        wheel_states.map(|w| w.surface)
+    };
+    state.wheel_slip_ratio = wheel_slip_ratio;
+    state.wheel_slip_angle = wheel_slip_angle;
+    state.wheel_surface = wheel_surface.map(|s| s as u8);
     state.feedback.record_tick(&FeedbackTick {
         steer_torque: steering_column_torque(front_tyres, config, static_front_weight),
         steer_input: input.steering,
@@ -1309,13 +1321,9 @@ pub fn update_car_3d(
         ),
         front_load: (state.weight_front_left_n + state.weight_front_right_n)
             / static_front_weight.max(1.0),
-        slip_ratio: wheels.map(per_slip_ratio),
-        slip_angle: wheels.map(per_slip_angle),
-        surface: if is_airborne {
-            [ContactSurface::Road; 4]
-        } else {
-            wheel_states.map(|w| w.surface)
-        },
+        slip_ratio: wheel_slip_ratio,
+        slip_angle: wheel_slip_angle,
+        surface: wheel_surface,
         suspension_mps: wheel_states.map(|w| w.suspension_velocity_mps),
         abs_active: wheels.iter().any(|w| w.abs_active),
         tc_active: wheels.iter().any(|w| w.tc_active),

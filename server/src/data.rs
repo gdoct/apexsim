@@ -1679,6 +1679,17 @@ pub struct CarState {
     pub tyre_water: [f32; 4],
     #[serde(default)]
     pub tyre_marbles: [f32; 4],
+    /// Each wheel's slip this tick, FL FR RL RR, in multiples of the tyre's
+    /// peak (what the driver feedback carries), and the surface under it
+    /// (`feedback::ContactSurface` as a byte): the spectator stream's car
+    /// row carries them, so a replay sounds its tyres and kerbs. Set by the
+    /// physics each tick.
+    #[serde(default)]
+    pub wheel_slip_ratio: [f32; 4],
+    #[serde(default)]
+    pub wheel_slip_angle: [f32; 4],
+    #[serde(default)]
+    pub wheel_surface: [u8; 4],
     /// The hardest hit this car took since the pass that read it, percent
     /// of damage (`physics::apply_damage_to_car`): what sheds debris and
     /// what may puncture a tyre (`GameSession::update_debris`).
@@ -1918,6 +1929,9 @@ impl CarState {
             surface_grip_share: 1.0,
             tyre_water: [0.0; 4],
             tyre_marbles: [0.0; 4],
+            wheel_slip_ratio: [0.0; 4],
+            wheel_slip_angle: [0.0; 4],
+            wheel_surface: [0; 4],
             last_hit_pct: 0.0,
             last_hit_angle: 0.0,
             road_cell: 0,

@@ -2051,6 +2051,15 @@ struct APEXSIMNET_API FApexTimingBoard
  * Coordinates are the server's: right-handed, metres, +X along the track, +Y
  * left, angles counter-clockwise from +X.
  */
+enum class EApexContactSurface : uint8
+{
+	Road = 0,
+	/** Within the curb band past the road edge. */
+	Curb = 1,
+	/** Past the curbs: grass, gravel, the verge. */
+	Off  = 2,
+};
+
 USTRUCT(BlueprintType)
 struct APEXSIMNET_API FApexCarTelemetry
 {
@@ -2308,6 +2317,18 @@ struct APEXSIMNET_API FApexCarTelemetry
 	bool bTyrePunctured[4] = {false, false, false, false};
 	bool bTyreLeaking[4] = {false, false, false, false};
 
+	/**
+	 * Each wheel's slip ratio and slip angle in multiples of the tyre's peak
+	 * and the surface under it, FL FR RL RR: what the driver feedback tells
+	 * a car's own driver, carried for every car by a spectator stream's row
+	 * (bHasWheelFeel) so a replay sounds the watched car's tyres and kerbs.
+	 * Not in live telemetry.
+	 */
+	float WheelSlipRatio[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	float WheelSlipAngle[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	EApexContactSurface WheelSurface[4] = {EApexContactSurface::Road, EApexContactSurface::Road, EApexContactSurface::Road, EApexContactSurface::Road};
+	bool bHasWheelFeel = false;
+
 	/** "S", "M", "H", "I", "W" (server tyre_thermal::COMPOUNDS), or empty when unknown. */
 	static FString CompoundLetter(int32 InCompound)
 	{
@@ -2536,14 +2557,6 @@ struct APEXSIMNET_API FApexTelemetryFrame
 };
 
 /** What is under one tyre (`feedback::ContactSurface`). Ordered by roughness. */
-enum class EApexContactSurface : uint8
-{
-	Road = 0,
-	/** Within the curb band past the road edge. */
-	Curb = 1,
-	/** Past the curbs: grass, gravel, the verge. */
-	Off  = 2,
-};
 
 /** One wheel's share of FApexDriverFeedback. Transients are the peak since the previous message. */
 struct FApexWheelFeedback

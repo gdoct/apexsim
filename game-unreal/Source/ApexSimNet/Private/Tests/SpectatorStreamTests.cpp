@@ -135,9 +135,25 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("row ers"), (int32)Row.ErsFlags, 5);
 		TestTrue(TEXT("row tyre wear"), Row.TyreWear[0] == 14 && Row.TyreWear[1] == 16 && Row.TyreWear[2] == 9 && Row.TyreWear[3] == 11);
 		TestTrue(TEXT("row tyre temperatures"), Row.TyreC[0] == 88 && Row.TyreC[3] == 97);
+		// The wheels: slip in 50ths of the peak, the surface under each.
+		TestTrue(TEXT("row has wheels"), Row.bWheels);
+		TestTrue(TEXT("row wheel slip ratios"), Row.WheelSlipRatio[0] == 10 && Row.WheelSlipRatio[1] == -60 && Row.WheelSlipRatio[3] == 0);
+		TestTrue(TEXT("row wheel slip angles"), Row.WheelSlipAngle[2] == 70 && Row.WheelSlipAngle[3] == 72);
+		TestTrue(TEXT("row wheel surfaces"), Row.WheelSurface[1] == 1 && Row.WheelSurface[3] == 2);
 
 		const FApexCarTelemetry T = Row.ToTelemetry();
 		TestEqual(TEXT("telemetry index"), T.CarIndex, 1);
+		TestTrue(TEXT("telemetry wheel feel"), T.bHasWheelFeel && FMath::IsNearlyEqual(T.WheelSlipRatio[1], -1.2f)
+			&& FMath::IsNearlyEqual(T.WheelSlipAngle[2], 1.4f) && T.WheelSurface[1] == EApexContactSurface::Curb
+			&& T.WheelSurface[3] == EApexContactSurface::Off);
+		{
+			// Back to a row and the same bytes, wheels included.
+			TArray<uint8> Again;
+			FApexStreamCarRow::FromTelemetry(T).Write(Again);
+			TArray<uint8> Original;
+			Row.Write(Original);
+			TestTrue(TEXT("telemetry round trip keeps the wheels"), Again == Original);
+		}
 		TestTrue(TEXT("telemetry position"), T.Position.Equals(FVector(100.5, -20.25, 0.5), 1e-3));
 		TestTrue(TEXT("telemetry yaw"), FMath::IsNearlyEqual(T.YawRad, 1.5f, 1e-3f));
 		TestTrue(TEXT("telemetry roll"), FMath::IsNearlyEqual(T.RollRad, -0.25f, 1e-3f));
@@ -547,6 +563,51 @@ bool FApexSpectatorProtocolTest::RunTest(const FString& Parameters)
 // -----------------------------------------------------------------------------
 // Writer: what the client writes is what the server writes.
 // -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexSpectatorGhostTest, "ApexSim.Spectator.Ghost", ApexSpectatorTests::Flags)
+
+bool FApexSpectatorGhostTest::RunTest(const FString& Parameters)
+{
+	// A hotlap replay's ghost: the client's own record, written and read
+	// back, applied by the player under its epoch.
+	FApexStreamGhost Ghost;
+	Ghost.Epoch = 3;
+	Ghost.Tick = 4808;
+	Ghost.Lap.TrackId = TEXT("track-1");
+	Ghost.Lap.CarConfigId = TEXT("car-9");
+	Ghost.Lap.LapTimeMs = 91234;
+	Ghost.Lap.SampleHz = 20.0f;
+	for (int32 i = 0; i < 5; ++i)
+	{
+		FApexGhostSample& S = Ghost.Lap.Samples.AddDefaulted_GetRef();
+		S.TimeMs = i * 50;
+		S.Position = FVector(10.0 * i, -2.5, 0.25);
+		S.YawRad = 0.1f * i;
+	}
+	const TArray<uint8> Body = ApexSpectator::EncodeGhost(Ghost);
+	TestEqual(TEXT("ghost record type"), (int32)ApexSpectator::RecordType(Body), (int32)ApexSpectator::RecordGhost);
+	FApexStreamRecord Record;
+	FString Error;
+	TestTrue(*FString::Printf(TEXT("ghost decodes (%s)"), *Error), ApexSpectator::DecodeRecord(Body, Record, Error));
+	TestEqual(TEXT("ghost epoch"), (int32)Record.Ghost.Epoch, 3);
+	TestEqual(TEXT("ghost tick"), (int32)Record.Ghost.Tick, 4808);
+	TestEqual(TEXT("ghost lap"), Record.Ghost.Lap.LapTimeMs, 91234);
+	TestEqual(TEXT("ghost track"), Record.Ghost.Lap.TrackId, FString(TEXT("track-1")));
+	TestEqual(TEXT("ghost samples"), Record.Ghost.Lap.Samples.Num(), 5);
+	if (Record.Ghost.Lap.Samples.Num() == 5)
+	{
+		TestEqual(TEXT("ghost sample time"), Record.Ghost.Lap.Samples[4].TimeMs, 200);
+		TestTrue(TEXT("ghost sample pose"), Record.Ghost.Lap.Samples[4].Position.Equals(FVector(40.0, -2.5, 0.25), 1e-3)
+			&& FMath::IsNearlyEqual(Record.Ghost.Lap.Samples[4].YawRad, 0.4f));
+	}
+
+	FApexSpectatorPlayer Player;
+	TestTrue(TEXT("header applies"), Player.Apply(ApexSpectatorTests::View(ApexSpectatorGolden::Header, UE_ARRAY_COUNT(ApexSpectatorGolden::Header)), Error));
+	TestTrue(TEXT("ghost applies"), Player.Apply(Body, Error));
+	TestEqual(TEXT("one ghost taken"), Player.TakeGhosts().Num(), 1);
+	TestEqual(TEXT("then none"), Player.TakeGhosts().Num(), 0);
+	return true;
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexSpectatorWriterTest, "ApexSim.Spectator.Writer", ApexSpectatorTests::Flags)
 

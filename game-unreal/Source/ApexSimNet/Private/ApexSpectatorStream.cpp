@@ -441,6 +441,43 @@ namespace ApexSpectatorCodec
 	}
 
 	/** `[8, epoch, tick, lap_m, cell_m, bins, half_span_m, first_cell, rows bin, debris bin, geometry bin]`. */
+	/**
+	 * A ghost record: [10, epoch, tick, lap_time_ms, sample_hz, track_id,
+	 * car_config_id, bin of samples (each time_ms i32, x y z float, yaw
+	 * float, little-endian, 20 bytes)].
+	 */
+	bool ParseGhost(FMsgPackReader& Reader, int32 Count, uint32 Epoch, FApexStreamGhost& Out)
+	{
+		if (Count < 8)
+		{
+			return false;
+		}
+		Out.Epoch = Epoch;
+		uint64 LapMs = 0;
+		TArrayView<const uint8> Samples;
+		if (!ReadI64(Reader, Out.Tick) || !Reader.ReadUInt64(LapMs) || !Reader.ReadFloat(Out.Lap.SampleHz)
+			|| !Reader.ReadString(Out.Lap.TrackId) || !Reader.ReadString(Out.Lap.CarConfigId) || !Reader.ReadBinary(Samples))
+		{
+			return false;
+		}
+		Out.Lap.LapTimeMs = static_cast<int32>(FMath::Min<uint64>(LapMs, MAX_int32));
+		const int32 Num = Samples.Num() / 20;
+		Out.Lap.Samples.Reset(Num);
+		for (int32 i = 0; i < Num; ++i)
+		{
+			const uint8* P = Samples.GetData() + i * 20;
+			FApexGhostSample& Sample = Out.Lap.Samples.AddDefaulted_GetRef();
+			int32 TimeMs = 0;
+			float V[4];
+			FMemory::Memcpy(&TimeMs, P, 4);
+			FMemory::Memcpy(V, P + 4, 16);
+			Sample.TimeMs = TimeMs;
+			Sample.Position = FVector(V[0], V[1], V[2]);
+			Sample.YawRad = V[3];
+		}
+		return true;
+	}
+
 	bool ParseRoad(FMsgPackReader& Reader, int32 Count, uint32 Epoch, FApexStreamRoad& Out)
 	{
 		if (Count < 11)
@@ -576,12 +613,17 @@ bool FApexStreamCarRow::Read(const uint8* B, int32 Len, FApexStreamCarRow& Out)
 		Out.Damage[i] = B[38 + i];
 	}
 	Out.ErsFlags = B[43];
-	// Version 1 rows end here: their tyres stay unknown.
-	const bool bTyres = Len >= ApexSpectator::RowSize;
+	// Version 1 rows end here: their tyres stay unknown; version 2 rows
+	// end at the tyres, their wheels unknown.
+	const bool bTyres = Len >= ApexSpectator::RowSizeV2;
+	Out.bWheels = Len >= ApexSpectator::RowSize;
 	for (int32 i = 0; i < 4; ++i)
 	{
 		Out.TyreWear[i] = bTyres ? B[44 + i] : ApexSpectator::TyreWearUnknown;
 		Out.TyreC[i] = bTyres ? B[48 + i] : 0;
+		Out.WheelSlipRatio[i] = Out.bWheels ? static_cast<int8>(B[52 + i]) : 0;
+		Out.WheelSlipAngle[i] = Out.bWheels ? static_cast<int8>(B[56 + i]) : 0;
+		Out.WheelSurface[i] = Out.bWheels ? B[60 + i] : 0;
 	}
 	return true;
 }
@@ -621,6 +663,9 @@ void FApexStreamCarRow::Write(TArray<uint8>& Out) const
 	{
 		B[44 + i] = TyreWear[i];
 		B[48 + i] = TyreC[i];
+		B[52 + i] = static_cast<uint8>(WheelSlipRatio[i]);
+		B[56 + i] = static_cast<uint8>(WheelSlipAngle[i]);
+		B[60 + i] = WheelSurface[i];
 	}
 }
 
@@ -669,7 +714,11 @@ FApexCarTelemetry FApexStreamCarRow::ToTelemetry() const
 	{
 		T.TyreWearPct[i] = TyreWear[i] == ApexSpectator::TyreWearUnknown ? -1.0f : TyreWear[i];
 		T.TyreTempC[i] = TyreC[i] == 0 ? -1.0f : TyreC[i];
+		T.WheelSlipRatio[i] = WheelSlipRatio[i] / ApexSpectator::RowSlipScale;
+		T.WheelSlipAngle[i] = WheelSlipAngle[i] / ApexSpectator::RowSlipScale;
+		T.WheelSurface[i] = static_cast<EApexContactSurface>(FMath::Min<uint8>(WheelSurface[i], 2));
 	}
+	T.bHasWheelFeel = bWheels;
 	return T;
 }
 
@@ -724,6 +773,14 @@ FApexStreamCarRow FApexStreamCarRow::FromTelemetry(const FApexCarTelemetry& T)
 		Row.TyreWear[i] = T.TyreWearPct[i] < 0.0f ? ApexSpectator::TyreWearUnknown
 			: static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(T.TyreWearPct[i]), 0, 100));
 		Row.TyreC[i] = T.TyreTempC[i] < 0.0f ? 0 : static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(T.TyreTempC[i]), 1, 255));
+	}
+	// The wheels, when the car came with them (a row, or the own car's feedback).
+	Row.bWheels = T.bHasWheelFeel;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		Row.WheelSlipRatio[i] = static_cast<int8>(FMath::Clamp(FMath::RoundToInt(T.WheelSlipRatio[i] * ApexSpectator::RowSlipScale), -127, 127));
+		Row.WheelSlipAngle[i] = static_cast<int8>(FMath::Clamp(FMath::RoundToInt(T.WheelSlipAngle[i] * ApexSpectator::RowSlipScale), -127, 127));
+		Row.WheelSurface[i] = static_cast<uint8>(T.WheelSurface[i]);
 	}
 	return Row;
 }
@@ -922,7 +979,7 @@ namespace ApexSpectator
 	bool RecordTick(TArrayView<const uint8> Body, int64& OutTick)
 	{
 		const uint8 Type = RecordType(Body);
-		if ((Type != RecordFrame && Type != RecordEvent && Type != RecordRoad && Type != RecordState) || Body.Num() < 12 || Body[2] != MsgPack::UInt32
+		if ((Type != RecordFrame && Type != RecordEvent && Type != RecordRoad && Type != RecordState && Type != RecordGhost) || Body.Num() < 12 || Body[2] != MsgPack::UInt32
 			|| Body[7] != MsgPack::UInt32)
 		{
 			return false;
@@ -970,6 +1027,7 @@ namespace ApexSpectator
 		case RecordPath:
 		case RecordRoad:
 		case RecordState:
+		case RecordGhost:
 		{
 			uint32 Epoch = 0;
 			if (!ReadU32(Reader, Epoch))
@@ -985,6 +1043,7 @@ namespace ApexSpectator
 			case RecordEvent:  bOk = ParseEvent(Reader, Count, Epoch, Out.Event); break;
 			case RecordRoad:   bOk = ParseRoad(Reader, Count, Epoch, Out.Road); break;
 			case RecordState:  bOk = ParseState(Reader, Count, Epoch, Out.State); break;
+			case RecordGhost:  bOk = ParseGhost(Reader, Count, Epoch, Out.Ghost); break;
 			default:           bOk = ParsePath(Reader, Count, Epoch, Out.Path); break;
 			}
 			break;
@@ -1363,6 +1422,12 @@ bool FApexSpectatorPlayer::Apply(TArrayView<const uint8> Body, FString& OutError
 			Roads.Add(MoveTemp(Record.Road));
 		}
 		return true;
+	case ApexSpectator::RecordGhost:
+		if (bHasHeader && Record.Ghost.Epoch == Header.Epoch)
+		{
+			Ghosts.Add(MoveTemp(Record.Ghost));
+		}
+		return true;
 	case ApexSpectator::RecordState:
 		if (bHasHeader && Record.State.Epoch == Header.Epoch)
 		{
@@ -1483,5 +1548,12 @@ TArray<FApexStreamRoad> FApexSpectatorPlayer::TakeRoads()
 {
 	TArray<FApexStreamRoad> Out = MoveTemp(Roads);
 	Roads.Reset();
+	return Out;
+}
+
+TArray<FApexStreamGhost> FApexSpectatorPlayer::TakeGhosts()
+{
+	TArray<FApexStreamGhost> Out = MoveTemp(Ghosts);
+	Ghosts.Reset();
 	return Out;
 }

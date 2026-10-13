@@ -50,6 +50,7 @@ and readers skip what they do not know (`a_newer_writers_extra_fields_are_skippe
 | 7 | `Path` | TCP, with the header | the centerline every 10 m, for the TV cameras of a viewer with no lobby |
 | 8 | `Road` | TCP | tick, a slice of the road state (lap, cell length, bins, half span, first cell, rows, debris, geometry, snow rows): the `RoadState` message's payload ([../server/conditions.md](../server/conditions.md#the-road-on-screen)) |
 | 9 | `State` | TCP | tick, the sky as it is now (`SkyNow`), a timed race's clock, and per car the slow figures a row leaves out (`CarExtra`: tyre pressures, flat spots, brake temperatures and wear, tank, coolant, tread shoulders, hybrid, tow, where each body zone was hit); four times a second |
+| 10 | `Ghost` | file only | tick, the record lap's trace as `GhostLap` carried it (lap time, sample rate, track and car ids, a `bin` of 20-byte samples): written by the client's recorder when a hotlap's ghost arrives, so the replay has the ghost; the server's streams never carry one, and `apexsim-replay` skips it |
 
 **Joining mid-file.** What a frame does not hold is caught up from the
 records already played: a showcase channel sends a newcomer, after the
@@ -69,19 +70,26 @@ revision is not the one it holds (`FApexSpectatorPlayer`).
 frames: zlib across a block already folds the repetition away, and a delta
 would need acknowledgements on UDP), so a lost datagram costs one frame and a
 viewer can join or a file seek anywhere. A field too
-large for one datagram (more than `MAX_ROWS_PER_PART`, 26 cars) is sent in
+large for one datagram (more than `MAX_ROWS_PER_PART`, 21 cars) is sent in
 parts of the same tick; the client applies whatever parts arrived once a newer
 tick comes.
 
-**The car row** (`ROW_SIZE` 52 bytes, little-endian; 44 in a version 1 file,
-`ROW_SIZE_V1`, which still plays with the tyres unknown): status bits, pose
-in mm and angles, speed, steering, pedals, gear, rpm, lap, station, finish
-position, the lap / pit / ERS flag bytes as in `CompactCarState`, compound,
-the five damage percentages, tyre wear and tread temperature. Pressures,
-flat spots, brake temperatures, fuel and the hybrid ride in the `State`
-record instead; the driver feedback (slip, forces, contact surfaces) is in
-no stream, and the client leaves what it lacks "unknown" (-1). Layout:
-`spectator.rs`.
+**The car row** (`ROW_SIZE` 64 bytes, little-endian; 44 in a version 1 file,
+`ROW_SIZE_V1`, which still plays with the tyres unknown, 52 in one from
+before the wheels, `ROW_SIZE_V2`, which plays with the wheels unknown):
+status bits, pose in mm and angles, speed, steering, pedals, gear, rpm, lap,
+station, finish position, the lap / pit / ERS flag bytes as in
+`CompactCarState`, compound, the five damage percentages, tyre wear and
+tread temperature, then each wheel's slip ratio and slip angle
+(`ROW_SLIP_SCALE`-ths of the tyre's peak, as the driver feedback carries
+them, from `CarState::wheel_slip_*`) and the surface under it (0 road, 1
+curb, 2 off): what the watched car's road sound plays from in a replay
+(`AApexRaceDirector::UpdateWatchedCarRoadSound`). The client's recorder fills
+them for the own car from its driver feedback; the other cars of a
+client-recorded replay have none. Pressures, flat spots, brake temperatures,
+fuel and the hybrid ride in the `State` record instead; the steering forces
+are in no stream, and the client leaves what it lacks "unknown" (-1).
+Layout: `spectator.rs`.
 
 **The state record** carries what changes too slowly to ride every 30 Hz
 row: `SkyNow` (so a showcase, a replay and the backdrop show the sky the race

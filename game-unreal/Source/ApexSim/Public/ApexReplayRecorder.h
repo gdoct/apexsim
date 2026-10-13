@@ -103,6 +103,8 @@ private:
 	UFUNCTION() void HandleDisconnected(const FString& Reason);
 	/** A road-state slice, written as a stream `Road` record (held until the first frame gives it a tick). */
 	void HandleRoadState(const FApexRoadState& Road);
+	/** The record lap's trace arrived (a hotlap): written as a Ghost record, so the replay has the ghost. */
+	UFUNCTION() void HandleGhostLap(const FApexGhostLap& Lap);
 	void WriteRoad(int64 Tick, const FApexRoadState& Road);
 
 	UApexNetSubsystem* GetNet() const;

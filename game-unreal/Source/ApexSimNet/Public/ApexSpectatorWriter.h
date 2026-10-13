@@ -24,6 +24,8 @@ namespace ApexSpectator
 	APEXSIMNET_API TArray<uint8> EncodePath(const FApexStreamPath& Path);
 	/** A road slice, as `spectator::StreamRoad::encode`. */
 	APEXSIMNET_API TArray<uint8> EncodeRoad(const FApexStreamRoad& Road);
+	/** A hotlap replay's ghost (record 10, the client's own). */
+	APEXSIMNET_API TArray<uint8> EncodeGhost(const FApexStreamGhost& Ghost);
 	/** The slow state, as `spectator::StreamState::encode`. */
 	APEXSIMNET_API TArray<uint8> EncodeState(const FApexStreamState& State);
 }

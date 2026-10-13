@@ -142,6 +142,11 @@ The ghost, the hotlap replay and watch.
 - The `hotlap_watch` HUD scene is in the HUD editor.
 - Corners carry the circuit's official turn number in the dossier, not the
   detector's.
+- Never heard: a replay's tyre and kerb sound (the watched car's road sound
+  from its row's wheels, `UpdateWatchedCarRoadSound`) against the live run,
+  and a hotlap replay's ghost from its `Ghost` record. A client-recorded
+  replay carries the own car's wheels only; the other cars are silent in it,
+  where a server-rendered stream carries every car's.
 
 **Check:** a hotlap with ghost and replay; a server restart between two
 watches.

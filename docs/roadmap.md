@@ -54,13 +54,14 @@ The watch's seek, ghost and replay reuse the stream v2 controls
 A stream's rows and `State` records leave out the ghost and the driver
 feedback, so a replay is quieter and emptier than the race.
 
-- Streams carry the ghost and the driver feedback (slip, slide and contact
-  surface), so a replay has tyre and kerb sound.
-- The promo pipeline records audio.
+- The promo pipeline records audio: the frame dump runs slower than real
+  time while the audio mixer runs in real time, so a plain submix recording
+  drifts; it needs the mixer rendered in step with the frames (a
+  non-realtime audio render, as the Movie Render Queue does) or a second
+  real-time pass recorded through the submix and cut to the clip.
 
-**Check:** a replay of a race and a hotlap side by side with the live run,
-by ear; a promo clip with sound. (Frames stay whole: no delta encoding, see
-[game/spectator.md](game/spectator.md).)
+**Check:** a promo clip with sound. (Frames stay whole: no delta encoding,
+see [game/spectator.md](game/spectator.md).)
 
 ### 6. Kit pieces on track
 
