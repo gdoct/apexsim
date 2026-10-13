@@ -2653,6 +2653,7 @@ void AApexRaceDirector::PollDrivingInput()
 	Input.ErsMode = ErsModeSwitch;
 	Input.bErsBoost = Drive.bErsBoost;
 	Input.bHandbrake = Drive.bHandbrake;
+	Input.Clutch = Drive.bHasClutch ? Drive.Clutch : -1.0f;
 
 	Net->SetPlayerInput(Input);
 }

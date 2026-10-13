@@ -65,11 +65,11 @@ see [game/spectator.md](game/spectator.md).)
 
 ### 6. Kit pieces on track
 
-Prop-kit pieces that no `ats-dress` pass lays yet: kerb markers, sausage
-kerbs, the podium, the hillside letters (after their display-name fix in
-[follow-ups.md](follow-ups.md)).
+- The hillside letters (`sign/hillside_letters`), after their display-name
+  fix in [follow-ups.md](follow-ups.md): laid on the slope the dossier
+  names.
 
-**Check:** each circuit by hand in the running game; the track-editor tests.
+**Check:** the circuit by hand in the running game; the track-editor tests.
 
 ### 7. Nordschleife dressing
 

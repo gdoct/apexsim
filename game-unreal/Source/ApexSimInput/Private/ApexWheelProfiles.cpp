@@ -79,6 +79,11 @@ namespace ApexWheelProfiles
 			{ TEXT("asetek-invicta"),     TEXT("Asetek Invicta"),                 EDrive::Direct,  27.0f },
 
 			{ TEXT("vrs-dfp"),            TEXT("VRS DirectForce Pro"),            EDrive::Direct,  20.0f },
+			// PXN, from the maker's listings (not read off a device).
+			{ TEXT("pxn-v10"),            TEXT("PXN V10"),                        EDrive::Hybrid,  3.0f },
+			{ TEXT("pxn-v12-lite"),       TEXT("PXN V12 Lite"),                   EDrive::Direct,  6.0f },
+			{ TEXT("pxn-v12"),            TEXT("PXN V12"),                        EDrive::Direct,  6.0f },
+			{ TEXT("pxn-v99"),            TEXT("PXN V99"),                        EDrive::Direct,  10.0f },
 		};
 
 		/**
@@ -153,6 +158,11 @@ namespace ApexWheelProfiles
 			{ TEXT("asetek-la-prima"),     VendorAsetek,       { TEXT("LAPRIMA"), nullptr } },
 
 			{ TEXT("vrs-dfp"),             AnyVendor,          { TEXT("VRS"), TEXT("DIRECTFORCE") } },
+			// PXN names its bases "PXN V12 Lite" and so on; no vendor id is known here.
+			{ TEXT("pxn-v12-lite"),        AnyVendor,          { TEXT("PXN"), TEXT("V12LITE") } },
+			{ TEXT("pxn-v12"),             AnyVendor,          { TEXT("PXN"), TEXT("V12") } },
+			{ TEXT("pxn-v99"),             AnyVendor,          { TEXT("PXN"), TEXT("V99") } },
+			{ TEXT("pxn-v10"),             AnyVendor,          { TEXT("PXN"), TEXT("V10") } },
 		};
 
 		/** Upper case, letters and digits only: "FANATEC ClubSport Wheel Base V2.5" -> "FANATECCLUBSPORTWHEELBASEV25". */

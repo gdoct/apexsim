@@ -2321,6 +2321,37 @@ mod tests {
     /// `ApexUdpGolden::C_PlayerInput` (`cargo test
     /// player_input_headlights_wire_format -- --nocapture`). The switch left
     /// to the conditions is nil, the flash a bool, the mode a byte.
+    /// A clutch pedal: the client sends it as a float where it sent nil
+    /// (`ApexUdpGolden::C_PlayerInputClutch`; `cargo test
+    /// player_input_clutch_wire_format -- --nocapture`).
+    #[test]
+    fn test_player_input_clutch_wire_format() {
+        let msg = ClientMessage::PlayerInput {
+            server_tick_ack: 4242,
+            throttle: 1.0,
+            brake: 0.0,
+            steering: -0.5,
+            gear: Some(4),
+            clutch: Some(0.5),
+            drs: Some(false),
+            headlights: None,
+            flash: Some(false),
+            ers_mode: Some(1),
+            ers_boost: Some(false),
+            handbrake: Some(false),
+        };
+        let bytes = rmp_serde::to_vec_named(&msg).unwrap();
+        println!("C_PlayerInputClutch = {bytes:02x?}");
+        let key = b"\xa6clutch";
+        let at = bytes.windows(key.len()).position(|w| w == key).unwrap() + key.len();
+        assert_eq!(bytes[at], 0xca, "the clutch is a float");
+        assert_eq!(&bytes[at + 1..at + 5], &0.5f32.to_be_bytes());
+        match rmp_serde::from_slice::<ClientMessage>(&bytes).unwrap() {
+            ClientMessage::PlayerInput { clutch, .. } => assert_eq!(clutch, Some(0.5)),
+            _ => panic!("Wrong message type"),
+        }
+    }
+
     #[test]
     fn test_player_input_headlights_wire_format() {
         let mut msg = ClientMessage::PlayerInput {

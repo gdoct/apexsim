@@ -1411,6 +1411,7 @@ UWidget* UApexSettingsWidget::BuildWheelBindings()
 		{ TEXT("Steering"),    ApexInput::Actions::Steer,        ApexInput::Slot::Wheel,     true,  0 },
 		{ TEXT("Throttle"),    ApexInput::Actions::Throttle,     ApexInput::Slot::Wheel,     true,  0 },
 		{ TEXT("Brake"),       ApexInput::Actions::Brake,        ApexInput::Slot::Wheel,     true,  0 },
+		{ TEXT("Clutch"),      ApexInput::Actions::Clutch,       ApexInput::Slot::Wheel,     true,  0 },
 		{ TEXT("Shift up"),    ApexInput::Actions::GearUp,       ApexInput::Slot::Wheel,     false, 0 },
 		{ TEXT("Shift down"),  ApexInput::Actions::GearDown,     ApexInput::Slot::Wheel,     false, 0 },
 		{ TEXT("Camera"),      ApexInput::Actions::ToggleCamera, ApexInput::Slot::Wheel,     false, 1 },

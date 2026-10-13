@@ -22,6 +22,9 @@ struct APEXSIM_API FApexDriveInput
 	/** 0..1 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
 	float Brake = 0.0f;
+	/** The clutch pedal, 0..1, and whether one has been moved (else the server is sent nil). */
+	float Clutch = 0.0f;
+	bool bHasClutch = false;
 
 	/** -1..1, positive is right. The server's frame is the other way round. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Input")
@@ -208,6 +211,8 @@ private:
 	void HandleSteer(const struct FInputActionValue& Value);
 	void HandleThrottleReleased(const struct FInputActionValue& Value);
 	void HandleBrakeReleased(const struct FInputActionValue& Value);
+	void HandleClutch(const struct FInputActionValue& Value);
+	void HandleClutchReleased(const struct FInputActionValue& Value);
 	void HandleSteerReleased(const struct FInputActionValue& Value);
 	void HandleGearUp(const struct FInputActionValue& Value);
 	void HandleGearDown(const struct FInputActionValue& Value);

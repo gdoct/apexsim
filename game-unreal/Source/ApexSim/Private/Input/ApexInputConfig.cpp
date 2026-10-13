@@ -100,6 +100,7 @@ namespace ApexInput
 			{ Actions::Steer,        Slot::Wheel,      TEXT("Steering"),    FKey(), false, EColumn::Wheel },
 			{ Actions::Throttle,     Slot::Wheel,      TEXT("Throttle"),    FKey(), false, EColumn::Wheel },
 			{ Actions::Brake,        Slot::Wheel,      TEXT("Brake"),       FKey(), false, EColumn::Wheel },
+			{ Actions::Clutch,       Slot::Wheel,      TEXT("Clutch"),      FKey(), false, EColumn::Wheel },
 			{ Actions::GearUp,       Slot::Wheel,      TEXT("Shift up"),    FKey(), false, EColumn::Wheel },
 			{ Actions::GearDown,     Slot::Wheel,      TEXT("Shift down"),  FKey(), false, EColumn::Wheel },
 			{ Actions::ToggleCamera, Slot::Wheel,      TEXT("Camera"),      FKey(), false, EColumn::Wheel },
@@ -525,6 +526,7 @@ UApexInputConfig* UApexInputConfig::Create(UObject* Outer)
 
 	Config->Steer = MakeAction(Config, TEXT("IA_Steer"), EInputActionValueType::Axis1D);
 	Config->Throttle = MakeAction(Config, TEXT("IA_Throttle"), EInputActionValueType::Axis1D);
+	Config->Clutch = MakeAction(Config, TEXT("IA_Clutch"), EInputActionValueType::Axis1D);
 	Config->Brake = MakeAction(Config, TEXT("IA_Brake"), EInputActionValueType::Axis1D);
 	Config->GearUp = MakeAction(Config, TEXT("IA_GearUp"), EInputActionValueType::Boolean);
 	Config->GearDown = MakeAction(Config, TEXT("IA_GearDown"), EInputActionValueType::Boolean);
@@ -562,6 +564,7 @@ UInputAction* UApexInputConfig::FindAction(FName ActionId) const
 {
 	if (ActionId == ApexInput::Actions::Throttle)     { return Throttle; }
 	if (ActionId == ApexInput::Actions::Brake)        { return Brake; }
+	if (ActionId == ApexInput::Actions::Clutch)       { return Clutch; }
 	if (ActionId == ApexInput::Actions::Steer)        { return Steer; }
 	if (ActionId == ApexInput::Actions::GearUp)       { return GearUp; }
 	if (ActionId == ApexInput::Actions::GearDown)     { return GearDown; }

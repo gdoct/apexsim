@@ -31,6 +31,8 @@ namespace ApexInput
 	{
 		inline const FName Throttle     = TEXT("Throttle");
 		inline const FName Brake        = TEXT("Brake");
+		/** The clutch pedal, 0..1; wheel column only, unbound by default. */
+		inline const FName Clutch       = TEXT("Clutch");
 		inline const FName Steer        = TEXT("Steer");
 		inline const FName GearUp       = TEXT("GearUp");
 		inline const FName GearDown     = TEXT("GearDown");
@@ -470,6 +472,10 @@ public:
 	/** Digital, held. Goes to the server as `PlayerInput.handbrake`. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> Handbrake;
+
+	/** Axis 0..1, a wheel's clutch pedal. Goes to the server as `PlayerInput.clutch`. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> Clutch;
 
 	/** Digital, held: reverse, then gears 1 to 8 of an H-pattern shifter (`HGearAction`). */
 	UPROPERTY(Transient)

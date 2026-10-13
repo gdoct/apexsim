@@ -50,6 +50,7 @@ is one entry in that table.
 | `ErsMode` | press | M | D-pad right | `PlayerInput.ers_mode` |
 | `ErsBoost` | held | Space | A | `PlayerInput.ers_boost` |
 | `Handbrake` | held | Left Ctrl | B | `PlayerInput.handbrake` (rear tyres lock: [vehicle physics](../server/vehicle-physics.md)) |
+| `Clutch` | axis 0..1 | | | `PlayerInput.clutch` (the crank transmits proportionally less torque; wheel column only, unbound; nil until a pedal has moved, which the server takes as its own gearbox's) |
 | `RecoverTrack` / `RecoverPits` | press | R / unbound | unbound | `RecoverCar` (the pause menu's BACK TO TRACK / BACK TO PITS; the server says whether the car may) |
 | `HGearReverse`, `HGear1` to `HGear8` | held | | | `PlayerInput.gear`, absolute (wheel column only, unbound) |
 | `PauseMenu` | press | Escape | Start | local |
@@ -294,7 +295,7 @@ base's peak and drive type:
 `ApexWheelProfiles::Detect` matches the USB vendor id (`FDeviceInfo::VendorId`)
 and tokens in the product name (upper case, letters and digits only; the first
 rule wins, so `CLUBSPORTDD` is tried before the belt ClubSports). The table
-covers Fanatec, Logitech, Thrustmaster, Moza, Simucube 2, Simagic (Alpha family and EVO), Cammus, Asetek and VRS bases (the last four from the makers' published peaks and the product names they are listed under, not read off a device). Peaks are
+covers Fanatec, Logitech, Thrustmaster, Moza, Simucube 2, Simagic (Alpha family and EVO), Cammus, Asetek, VRS and PXN bases (the last five from the makers' published peaks and the product names they are listed under, not read off a device; PXN's rules match any vendor id, by name). Peaks are
 the makers' published figures, or the commonly measured figure where none is
 published (Logitech, Thrustmaster's belt and hybrid bases). Simucube shares a
 vendor id, so its rules also need `SIMUCUBE` in the name.

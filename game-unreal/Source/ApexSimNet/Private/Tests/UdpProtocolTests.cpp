@@ -89,6 +89,14 @@ bool FApexUdpGoldenEncodeTest::RunTest(const FString& Parameters)
 	CheckBytes(TEXT("PlayerInput"),
 		ApexProtocol::EncodePlayerInput(4242, Input),
 		ApexUdpGolden::C_PlayerInput);
+	{
+		// A clutch pedal goes as a float where the shell without one sends nil.
+		FApexPlayerInput Pedal = Input;
+		Pedal.Clutch = 0.5f;
+		CheckBytes(TEXT("PlayerInput with a clutch"),
+			ApexProtocol::EncodePlayerInput(4242, Pedal),
+			ApexUdpGolden::C_PlayerInputClutch);
+	}
 
 	// Every bool, the nil switch and the mode are one byte, so a held button
 	// or a set switch is the same message with that byte changed (server:

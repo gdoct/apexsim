@@ -3116,10 +3116,17 @@ namespace ApexProtocol
 		{
 			Writer.WriteNil();
 		}
-		// Clutch is always nil: the shell has no clutch input, and the server
-		// treats None as "leave it alone".
+		// The clutch pedal when the shell has one (a wheel's Clutch slot);
+		// nil without, which the server treats as "leave it alone".
 		Writer.WriteString("clutch");
-		Writer.WriteNil();
+		if (Input.HasClutch())
+		{
+			Writer.WriteFloat(FMath::Clamp(Input.Clutch, 0.0f, 1.0f));
+		}
+		else
+		{
+			Writer.WriteNil();
+		}
 		// The DRS button, last so a server from before the field reads the
 		// message as before (`cargo test player_input_drs_wire_format`).
 		Writer.WriteString("drs");

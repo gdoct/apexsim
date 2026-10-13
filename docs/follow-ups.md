@@ -182,7 +182,12 @@ pads and screens.
 
 - `ApexFfb::MixGamepad` handles the GameInput motor layout (the plugin puts
   the small channels on the trigger motors).
-- On hardware: an H-pattern shifter on the `HGear*` slots; the handbrake's
+- On hardware: a clutch pedal on the wheel tab's `Clutch` slot (sent as
+  `PlayerInput.clutch`; whether its throw and the server's torque cut feel
+  right); the PXN profiles (V10, V12, V12 Lite, V99: names and peaks from the
+  maker's listings, no vendor id, so they match by name alone). Gomez Sim
+  Industries and Heusinkveld make rims and pedals, not bases, so they get
+  no profile. An H-pattern shifter on the `HGear*` slots; the handbrake's
   feel (`HANDBRAKE_SHARE`, how fast the tail comes round); the
   `ApexWheelProfiles` name rules against what real bases report; the peak
   torques and the gear / hybrid minimum forces (5% / 3%) felt on a base.

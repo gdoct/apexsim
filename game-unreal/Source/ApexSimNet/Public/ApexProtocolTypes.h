@@ -2725,6 +2725,15 @@ struct APEXSIMNET_API FApexPlayerInput
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
 	bool bHandbrake = false;
 
+	/**
+	 * The clutch pedal, 0 released .. 1 pressed (`PlayerInput.clutch`: the
+	 * crank transmits proportionally less torque); negative when the shell
+	 * has no clutch pedal, and then nil on the wire, which the server takes
+	 * as "leave it alone" (the auto gearbox's own).
+	 */
+	float Clutch = -1.0f;
+	bool HasClutch() const { return Clutch >= 0.0f; }
+
 	bool HasGear() const { return Gear != -128; }
 };
 

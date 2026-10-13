@@ -132,6 +132,11 @@ void AApexPlayerController::SetupInputComponent()
 		InputConfig->Brake, ETriggerEvent::Triggered, this, &AApexPlayerController::HandleBrake);
 	Input->BindAction(InputConfig->Brake, ETriggerEvent::Completed, this,
 		&AApexPlayerController::HandleBrakeReleased);
+	if (InputConfig->Clutch)
+	{
+		Input->BindAction(InputConfig->Clutch, ETriggerEvent::Triggered, this, &AApexPlayerController::HandleClutch);
+		Input->BindAction(InputConfig->Clutch, ETriggerEvent::Completed, this, &AApexPlayerController::HandleClutchReleased);
+	}
 	Input->BindAction(
 		InputConfig->Steer, ETriggerEvent::Triggered, this, &AApexPlayerController::HandleSteer);
 	Input->BindAction(InputConfig->Steer, ETriggerEvent::Completed, this,
@@ -511,6 +516,17 @@ void AApexPlayerController::HandleBrake(const FInputActionValue& Value)
 void AApexPlayerController::HandleBrakeReleased(const FInputActionValue&)
 {
 	DriveInput.Brake = 0.0f;
+}
+
+void AApexPlayerController::HandleClutch(const FInputActionValue& Value)
+{
+	DriveInput.Clutch = FMath::Clamp(Value.Get<float>(), 0.0f, 1.0f);
+	DriveInput.bHasClutch = true;
+}
+
+void AApexPlayerController::HandleClutchReleased(const FInputActionValue&)
+{
+	DriveInput.Clutch = 0.0f;
 }
 
 void AApexPlayerController::HandleSteer(const FInputActionValue& Value)
