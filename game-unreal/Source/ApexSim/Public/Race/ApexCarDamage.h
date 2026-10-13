@@ -88,6 +88,13 @@ namespace ApexDamage
 	/** The body zone a part belongs to, as an index into `FShares::Zone`. */
 	APEXSIM_API int32 ZoneIndex(EApexDamageZone Zone);
 
+	/**
+	 * How far a part hangs before it comes off, 0..1: nothing under half its
+	 * `DetachPct`, dangling fully at it (then it is thrown). A repair puts
+	 * it straight.
+	 */
+	APEXSIM_API float HangShare(const FApexDamagePartSpec& Part, const FShares& Shares);
+
 	/** Whether a part is still on the car: its zone's damage short of `DetachPct`. */
 	APEXSIM_API bool IsAttached(const FApexDamagePartSpec& Part, const FShares& Shares);
 

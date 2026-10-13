@@ -965,6 +965,30 @@ namespace
 	};
 
 	/** What the damage graph hands the car parent's outputs. */
+	/** One input pin of a custom node. */
+	struct FCustomPin
+	{
+		const TCHAR* Name;
+		UMaterialExpression* Expression;
+	};
+
+	UMaterialExpressionCustom* AddCustom(UMaterial* Material, const TCHAR* Description, const FString& Code,
+		ECustomMaterialOutputType Type, const TArray<FCustomPin>& Inputs)
+	{
+		UMaterialExpressionCustom* E = AddExpr<UMaterialExpressionCustom>(Material);
+		E->Description = Description;
+		E->Code = Code;
+		E->OutputType = Type;
+		E->Inputs.Reset();
+		for (const FCustomPin& Pin : Inputs)
+		{
+			FCustomInput& In = E->Inputs.AddDefaulted_GetRef();
+			In.InputName = Pin.Name;
+			In.Input.Expression = Pin.Expression;
+		}
+		return E;
+	}
+
 	struct FCarDamage
 	{
 		/** World position offset: the dents and the crumple. */
@@ -974,7 +998,41 @@ namespace
 		/** How scuffed the paint is here, 0..1, and what shows through. */
 		UMaterialExpression* Scuff = nullptr;
 		UMaterialExpression* ScuffColor = nullptr;
+		/** Cracks, 0..1: a spider web round where the nose or the tail was hit (the glass draws it). */
+		UMaterialExpression* Crack = nullptr;
 	};
+
+	/**
+	 * Cracked glass: radial lines and rings round where the nose (toward
+	 * +Y) or the tail was hit, denser and wider the harder the hit, from
+	 * the body's box coordinates. `Local1` 0 (a server with no hit centres)
+	 * puts the web mid-glass.
+	 */
+	const TCHAR* kGlassCrack = TEXT(R"HLSL(
+struct ApxWeb
+{
+	float W(float2 d, float amt, float seed)
+	{
+		float r = length(d);
+		float a = atan2(d.y, d.x);
+		float spokes = 10.0 + floor(amt * 8.0);
+		float sp = frac(a * 0.15915494 * spokes + seed);
+		float line = 1.0 - smoothstep(0.0, 0.02 + 0.012 * r, min(sp, 1.0 - sp));
+		float rg = frac(r * (5.0 + 3.0 * amt) + seed * 3.0);
+		float ring = 1.0 - smoothstep(0.0, 0.03, min(rg, 1.0 - rg));
+		float reach = 0.25 + amt * 0.9;
+		return max(line, ring * 0.8) * saturate((reach - r) / 0.15) * saturate(amt * 3.0);
+	}
+};
+ApxWeb Wb;
+float3 q = (P - Centre) / max(Extent, 1.0);
+float amtF = saturate(Front * 1.3) * saturate(q.y * 2.0 + 0.5);
+float amtR = saturate(Rear * 1.3) * saturate(-q.y * 2.0 + 0.5);
+float2 cF = float2(AtFront * Local1, 0.35);
+float2 cR = float2(AtRear * Local1, 0.35);
+float2 g = float2(q.x, q.z);
+return saturate(max(Wb.W(g - cF, amtF, frac(Seed * 0.731)), Wb.W(g - cR, amtR, frac(Seed * 0.731) + 0.37)));
+)HLSL");
 
 	/**
 	 * The damage every car parent draws (ApexCarDamage.h): the body's custom
@@ -1079,6 +1137,10 @@ namespace
 		Out.Scuff = G.Mul(G.Sat(G.Mul(G.Sub(G.Add(G.Mul(Weight, G.C(1.2f)), Patches), G.C(1.0f)), G.C(3.0f))), G.C(0.8f));
 		UMaterialExpression* Streaks = G.Noise(G.Mul(NoisePos, G.C3(1.0f, 0.12f, 1.0f)), 0.35f, 1);
 		Out.ScuffColor = G.Lerp(G.C3(0.03f, 0.03f, 0.032f), G.C3(0.3f, 0.3f, 0.29f), G.Sat(G.Mul(G.Sub(Streaks, G.C(0.7f)), G.C(6.0f))));
+		Out.Crack = AddCustom(Parent, TEXT("ApexGlassCrack"), kGlassCrack, CMOT_Float1,
+			{{TEXT("P"), Local}, {TEXT("Centre"), Centre}, {TEXT("Extent"), Extent}, {TEXT("Front"), Front},
+				{TEXT("Rear"), Rear}, {TEXT("AtFront"), AtFront}, {TEXT("AtRear"), AtRear}, {TEXT("Local1"), Local1},
+				{TEXT("Seed"), Seed}});
 		return Out;
 	}
 
@@ -1199,7 +1261,11 @@ namespace
 			break;
 		}
 		case ECarParent::Translucent:
-			EditorOnly->Opacity.Expression = Alpha;
+			// Glass cracks where the nose or the tail was hit: pale lines
+			// that go opaque, rough where the glass crazed.
+			EditorOnly->BaseColor.Expression = G.Lerp(BaseColor, G.C3(0.80f, 0.82f, 0.86f), Damage.Crack);
+			EditorOnly->Roughness.Expression = G.Lerp(CarScalar(Parent, ApexCarMaterials::RoughnessFactor, 1.0f), G.C(0.6f), Damage.Crack);
+			EditorOnly->Opacity.Expression = G.Max(Alpha, G.Mul(Damage.Crack, G.C(0.85f)));
 			Parent->BlendMode = BLEND_Translucent;
 			// Glass wants its reflections lit per pixel, not the volume's blur.
 			Parent->TranslucencyLightingMode = TLM_SurfacePerPixelLighting;
@@ -1377,29 +1443,6 @@ o += Axle * (lat >= 0.0 ? 1.0 : -1.0) * band * Sag * 0.6 * saturate(abs(lat) / m
 return o;
 )HLSL");
 
-	/** One input pin of a custom node. */
-	struct FCustomPin
-	{
-		const TCHAR* Name;
-		UMaterialExpression* Expression;
-	};
-
-	UMaterialExpressionCustom* AddCustom(UMaterial* Material, const TCHAR* Description, const FString& Code,
-		ECustomMaterialOutputType Type, const TArray<FCustomPin>& Inputs)
-	{
-		UMaterialExpressionCustom* E = AddExpr<UMaterialExpressionCustom>(Material);
-		E->Description = Description;
-		E->Code = Code;
-		E->OutputType = Type;
-		E->Inputs.Reset();
-		for (const FCustomPin& Pin : Inputs)
-		{
-			FCustomInput& In = E->Inputs.AddDefaulted_GetRef();
-			In.InputName = Pin.Name;
-			In.Input.Expression = Pin.Expression;
-		}
-		return E;
-	}
 
 	/**
 	 * `M_ApexCarTyre`, the `wheel_tyre` slot's parent: the opaque car
@@ -2109,15 +2152,28 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 		const FString PackageName = ApexCarMaterials::PackageName(Car.Key);
 		if (!bForce && FPackageName::DoesPackageExist(PackageName))
 		{
-			// One baked before the damage graph draws no dents: bake it again.
+			// One baked before the damage graph draws no dents, and a glass
+			// parent from before the cracks none: bake it again.
 			const UMaterialInterface* Existing = LoadObject<UMaterialInterface>(nullptr, *ApexCarMaterials::ObjectPath(Car.Key));
 			float Dent = 0.0f;
+			bool bCracks = Car.Value != ECarParent::Translucent;
+			if (Existing && !bCracks)
+			{
+				if (const UMaterial* Graph = Existing->GetMaterial())
+				{
+					for (const TObjectPtr<UMaterialExpression>& Expression : Graph->GetExpressions())
+					{
+						const UMaterialExpressionCustom* Custom = Cast<UMaterialExpressionCustom>(Expression.Get());
+						bCracks |= Custom && Custom->Code.Contains(TEXT("ApxWeb"));
+					}
+				}
+			}
 			if (!Existing
-				|| Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::DamageDentCm), Dent))
+				|| (bCracks && Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::DamageDentCm), Dent)))
 			{
 				continue;
 			}
-			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no damage graph; baking it again"), Car.Key);
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no damage graph or no cracks; baking it again"), Car.Key);
 		}
 		const ECarParent Kind = Car.Value;
 		if (!BakeAs(PackageName, [Kind, White](UMaterial* M) { BuildCar(M, Kind, White); }, OutError))

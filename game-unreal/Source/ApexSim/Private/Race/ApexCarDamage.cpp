@@ -34,6 +34,16 @@ namespace ApexDamage
 		return Shares.Zone[ZoneIndex(Part.Zone)] * 100.0f < Part.DetachPct;
 	}
 
+	float HangShare(const FApexDamagePartSpec& Part, const FShares& Shares)
+	{
+		if (Part.DetachPct <= 0.0f || !IsAttached(Part, Shares))
+		{
+			return 0.0f;
+		}
+		const float Half = Part.DetachPct * 0.5f;
+		return FMath::Clamp((Shares.Zone[ZoneIndex(Part.Zone)] * 100.0f - Half) / FMath::Max(Half, 1.0f), 0.0f, 1.0f);
+	}
+
 	float EngineSmokeRate(const FShares& Shares)
 	{
 		const float Engine = Shares.Zone[ApexDamage::Engine];

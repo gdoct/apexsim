@@ -427,9 +427,16 @@ is worked out from those on the client (`Race/ApexCarDamage.h`).
   the body (`AApexRaceCarActor::SetDamageParts`) until the zone passes
   `detach_pct`, then thrown off as an `AApexCarDebrisActor` (ballistic,
   `ApexDamage::StepDebris`, ground by trace against the track's collision,
-  40 s, at most 40 pieces). A repair puts it back; a part holding the DRS
-  hinge takes the flap. The body keeps the whole model's bounds, so the
-  cockpit, lights and turntable do not move.
+  40 s, at most 40 pieces). From half its `detach_pct` a part hangs first
+  (`ApexDamage::HangShare`, `UpdateHangingParts`): hinged on the edge nearest
+  the body, its loose end droops up to 22° and flutters, straight again
+  after a repair. A part holding the DRS hinge takes the flap. The body
+  keeps the whole model's bounds, so the cockpit, lights and turntable do
+  not move.
+- **Glass cracks**: the translucent parent draws a spider web (`kGlassCrack`,
+  radial lines and rings) round where the nose or the tail was hit, denser
+  and wider the harder the hit, as pale lines that go opaque. A glass parent
+  baked before the cracks is baked again by `-run=ApexMaterialBake`.
 
   ```toml
   [[damage_part]]

@@ -180,7 +180,9 @@ always takes the weather's tyre; when it changes is in [AI](ai.md).
 - **Punctures** (`tyre_thermal::puncture`): a tyre worn to 100%; a hit of `PUNCTURE_HIT_PCT`
   or more (chance grows with the hit); debris (`GameSession::debris`, shed by hits of
   `DEBRIS_HIT_PCT`, picked up within `DEBRIS_REACH_M` with `DEBRIS_PUNCTURE_CHANCE`;
-  `update_debris`). Half are slow leaks (`TireData::leak_kpa_per_s`) charged through the
+  `update_debris`; the piece also strikes the bodywork over that wheel, `DEBRIS_STRIKE_PCT`
+  at 50 m/s on the nose or the tail, and scrubs `DEBRIS_STRIKE_SCRUB` of the speed, so a
+  car does not drive through debris unmarked). Half are slow leaks (`TireData::leak_kpa_per_s`) charged through the
   pressure curve until flat at `PUNCTURE_FLAT_KPA`. Punctured: grip `PUNCTURE_GRIP` (0.35),
   pressure `PUNCTURED_KPA`, rolling drag `PUNCTURE_ROLLING_RESISTANCE` of its load.
 

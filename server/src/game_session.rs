@@ -76,6 +76,12 @@ pub const PUNCTURE_HIT_MAX_CHANCE: f32 = 0.6;
 pub const DEBRIS_LIFE_S: f32 = 90.0;
 pub const MAX_DEBRIS: usize = 32;
 pub const DEBRIS_REACH_M: f32 = 1.0;
+/// A piece a wheel runs over strikes the bodywork over it: this much damage
+/// at 50 m/s (less slower, a quarter of it at least), on the nose for a
+/// front wheel and the tail for a rear one, and this share of the car's
+/// speed scrubbed off.
+pub const DEBRIS_STRIKE_PCT: f32 = 3.0;
+pub const DEBRIS_STRIKE_SCRUB: f32 = 0.01;
 pub const DEBRIS_PUNCTURE_CHANCE: f32 = 0.3;
 /// Half the punctures are slow: a leak of this many kPa/s at most and at
 /// least, which has the tyre flat in half a lap to a few laps.
@@ -3401,6 +3407,20 @@ impl GameSession {
                         let leak = slow_leak(seed);
                         tyre_thermal::puncture(state.tires.each_mut()[i], leak);
                     }
+                    // The piece strikes the bodywork over the wheel: a dent
+                    // on the nose or the tail, a little on that side, and
+                    // a jolt that scrubs some speed.
+                    let strike = DEBRIS_STRIKE_PCT * (state.speed_mps / 50.0).clamp(0.25, 1.0);
+                    let angle = match i {
+                        0 => 0.3,
+                        1 => -0.3,
+                        2 => std::f32::consts::PI - 0.3,
+                        _ => std::f32::consts::PI + 0.3,
+                    };
+                    crate::physics::apply_damage_to_car(state, angle, strike);
+                    state.vel_x *= 1.0 - DEBRIS_STRIKE_SCRUB;
+                    state.vel_y *= 1.0 - DEBRIS_STRIKE_SCRUB;
+                    state.speed_mps *= 1.0 - DEBRIS_STRIKE_SCRUB;
                     break;
                 }
             }

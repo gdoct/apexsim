@@ -37,13 +37,6 @@ None open.
 
 ## P2: depth
 
-### 3. Damage
-
-- Debris the cars collide with, not only drive through.
-- Windscreen cracks and hanging parts.
-
-**Check:** a seeded pileup replay screenshotted before and after.
-
 ### 4. Hotlap
 
 The watch's seek, ghost and replay reuse the stream v2 controls

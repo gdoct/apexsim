@@ -118,6 +118,13 @@ The car parents, the damage actor and the importer's damage tables.
 - The DRS flap and the driver can be dented; wheels are drawn toed.
 - The AC car importer writes `[[damage_part]]` tables, so AC imports shed
   parts.
+- Never seen in the running game: a part hanging before it comes off
+  (`UpdateHangingParts`: the hinge edge, the 22° droop and the flutter are
+  guesses), the glass cracks (`kGlassCrack`: the web's spokes, rings and
+  reach, and whether it lands on the windscreen rather than a side window on
+  a given model) and a debris strike's dent. Four unattended runs (snow and
+  heavy rain, chase and watch cameras) left the player's car unhit or exited
+  silently (the GPU-hang item in package 13).
 
 **Check:** a seeded pileup replay screenshotted before and after; one AC
 import re-run and crashed.

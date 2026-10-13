@@ -514,6 +514,18 @@ fn a_hard_hit_sheds_debris_the_next_car_picks_up() {
     // car's centre), so only the other car can pick it up.
     gs.tick(&idle);
     assert!(gs.debris.is_empty(), "picked up: {:?}", gs.debris);
+    // The piece struck the nose over the wheel and scrubbed some speed.
+    let other = &gs.session.participants[&OTHER];
+    assert!(
+        other.damage.front_damage_percent > 0.0,
+        "the nose took the strike: {:?}",
+        other.damage
+    );
+    assert!(
+        other.speed_mps < 20.0,
+        "the strike scrubbed speed: {}",
+        other.speed_mps
+    );
     let punctured = gs.session.participants[&OTHER]
         .tires
         .each()

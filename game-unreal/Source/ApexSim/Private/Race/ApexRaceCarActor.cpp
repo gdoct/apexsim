@@ -1018,6 +1018,7 @@ void AApexRaceCarActor::SetDamageParts(const TArray<FApexDamagePartSpec>& Specs,
 	}
 	DamagePartSpecs = Count > 0 ? Specs : TArray<FApexDamagePartSpec>();
 	DamagePartOn.Init(true, Count);
+	DamagePartHang.Init(0.0f, DamagePartOn.Num());
 
 	// The flap goes with the wing it is hinged on.
 	DrsFlapPart = INDEX_NONE;
@@ -1210,6 +1211,56 @@ void AApexRaceCarActor::EmitSparks(int32 Zone, int32 Count)
 	}
 }
 
+void AApexRaceCarActor::UpdateHangingParts(float DeltaSeconds)
+{
+	HangClock += FMath::Max(DeltaSeconds, 0.0f);
+	for (int32 i = 0; i < DamagePartMeshes.Num() && i < DamagePartHang.Num(); ++i)
+	{
+		UStaticMeshComponent* Part = DamagePartMeshes[i].Get();
+		if (!Part)
+		{
+			continue;
+		}
+		const float Hang = DamagePartHang[i];
+		if (Hang <= 0.0f || !Part->GetStaticMesh())
+		{
+			if (!Part->GetRelativeTransform().Equals(FTransform::Identity))
+			{
+				Part->SetRelativeTransform(FTransform::Identity);
+			}
+			continue;
+		}
+		// Hinged on the edge nearest the body (a nose part on its rear edge,
+		// a flank on its inner one), the loose end drooping by how far gone
+		// the zone is and fluttering in the wind. The mesh is in the body's
+		// frame: nose +Y, left +X, up +Z.
+		const FBoxSphereBounds Bounds = Part->GetStaticMesh()->GetBounds();
+		const float Angle = Hang * 22.0f + FMath::Sin(HangClock * 9.0f + i * 1.7f) * Hang * 3.0f;
+		FVector Hinge = Bounds.Origin;
+		FRotator Rot = FRotator::ZeroRotator;
+		switch (DamagePartSpecs[i].Zone)
+		{
+		case EApexDamageZone::Rear:
+			Hinge.Y += Bounds.BoxExtent.Y;
+			Rot.Roll = Angle;
+			break;
+		case EApexDamageZone::Left:
+			Hinge.X -= Bounds.BoxExtent.X;
+			Rot.Pitch = Angle;
+			break;
+		case EApexDamageZone::Right:
+			Hinge.X += Bounds.BoxExtent.X;
+			Rot.Pitch = -Angle;
+			break;
+		default:
+			Hinge.Y -= Bounds.BoxExtent.Y;
+			Rot.Roll = -Angle;
+			break;
+		}
+		Part->SetRelativeTransform(FTransform(-Hinge) * FTransform(Rot) * FTransform(Hinge));
+	}
+}
+
 void AApexRaceCarActor::ThrowPart(int32 Index)
 {
 	UStaticMeshComponent* Part = DamagePartMeshes.IsValidIndex(Index) ? DamagePartMeshes[Index].Get() : nullptr;
@@ -1300,11 +1351,16 @@ void AApexRaceCarActor::UpdateDamage(float DeltaSeconds)
 				ThrowPart(i);
 			}
 		}
+		if (DamagePartHang.IsValidIndex(i))
+		{
+			DamagePartHang[i] = bOn ? ApexDamage::HangShare(DamagePartSpecs[i], Shares) : 0.0f;
+		}
 	}
 	if (bPartsChanged)
 	{
 		ApplyPartVisibility();
 	}
+	UpdateHangingParts(DeltaSeconds);
 
 	// A zone that jumped took a hit: sparks off its face.
 	if (bDamageSeen)

@@ -3737,7 +3737,7 @@ fn obb_overlap(
 /// from takes it, and a hit to the nose dents the engine behind it too
 /// (`crate::damage`), scaled by the driver's damage level. A zone at 100%
 /// puts the car out.
-fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount: f32) {
+pub(crate) fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount: f32) {
     let damage_amount = damage_amount * car.damage_scale();
     if damage_amount <= 0.0 {
         return;

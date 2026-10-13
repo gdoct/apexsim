@@ -417,6 +417,11 @@ private:
 	TArray<FApexDamagePartSpec> DamagePartSpecs;
 	/** Per part: drawn on the car (not thrown off). */
 	TArray<bool> DamagePartOn;
+	/** How far each part dangles (ApexDamage::HangShare), and the clock its flutter runs on. */
+	TArray<float> DamagePartHang;
+	float HangClock = 0.0f;
+	/** Tilts each hanging part down about the edge it hangs from, fluttering; straight at 0. */
+	void UpdateHangingParts(float DeltaSeconds);
 	/** The part that carries the DRS flap's hinge, or INDEX_NONE. */
 	int32 DrsFlapPart = INDEX_NONE;
 	/** The newest telemetry's damage, percent; negative when the server sends none. */
