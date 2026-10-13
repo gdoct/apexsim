@@ -252,6 +252,9 @@ For people running a server for others
 - `ats-dress --explain` and a per-prop source stamp.
 - `ats-export --strict`, which fails on a dropped facet.
 - An aerial-imagery tracing aid for dossiers.
+- Before the next release: re-render the showcases and track guides of the
+  circuits the 2026-10-13 geometry pass changed (every circuit but Moscow
+  Raceway, Shanghai and Yas Marina); they were built from the old geometry.
 - `ats-export --keep-sidecars` help text lists `pit` (it accepts it).
 - `dem_elevation.py` handles a circuit that crosses itself (Suzuka: the DEM
   sees only the bridge, so the fit closes the crossover), and Shanghai's and
