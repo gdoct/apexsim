@@ -164,6 +164,12 @@ the same `ApexProps` code.
 - **(trademark)** `sign/hillside_letters` spells "RED BULL RING"; it gets a
   display-name text before any scene uses it.
 - Curved pit box rows: whatever the screen pass finds at tight bends.
+- Kerb markers, sausage kerbs and the pit podium (2026-10-14) were seen
+  only at a distance in a Montreal chase shot. The sausage rule (inside
+  curb of a bend under 80 m radius, curbs of 6 to 60 m) lays 660 pieces on
+  the Nordschleife and 240 at Marina Bay, where the AI survey moved a
+  little (more off-road and sliding, no retirements); look at both by hand
+  and tighten the rule if they catch the AI.
 
 **Check:** each circuit by hand in the running game; the track-editor tests.
 
