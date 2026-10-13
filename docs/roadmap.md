@@ -254,9 +254,9 @@ For people running a server for others
 - An aerial-imagery tracing aid for dossiers.
 - `ats-export --keep-sidecars` help text lists `pit` (it accepts it).
 - `dem_elevation.py` handles a circuit that crosses itself (Suzuka: the DEM
-  sees only the bridge, so the fit closes the crossover), and Shanghai's
-  surface model is checked against a bare-earth one; both still drive their
-  invented z.
+  sees only the bridge, so the fit closes the crossover), and Shanghai's and
+  Monza's surface models are checked against a bare-earth one (grandstands,
+  the park's canopy); all three still drive their invented z.
 - `initialize_content.ps1` checks `<Stem>.pit.msgpack` with the other
   sidecars.
 - The launcher's AC import works offline (it fetches its Python packages

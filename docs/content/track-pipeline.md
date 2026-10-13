@@ -208,7 +208,9 @@ lap (250 m half-power wavelength) reweighted so samples 1.5 m above it count
 as canopy, node 0 kept exactly (the sidecar's datum), the raceline carried by
 the road's change. Every circuit with a DEM sidecar is re-derived except
 Shanghai (its 11 m of relief on a flat site is grandstands the surface model
-reads as ground) and Suzuka (below). On a wooded circuit the model reads
+reads as ground), Monza (the park's canopy: 140 samples read as trees, and
+the fit moved the racecraft, tyre-window and mesh-agreement tests) and
+Suzuka (below). On a wooded circuit the model reads
 trees over whole stretches: look at the fit before trusting `--report`. A
 circuit that crosses itself cannot be fitted as it stands: the DEM sees only
 the bridge, and at Suzuka the fit closed the crossover from 12.3 m of
@@ -234,8 +236,8 @@ within 250 m), signed by the bend's hand, held over the bend's core
 (curvature at least 35% of peak) with smoothstep ramps of 30 m or 4 m per
 degree, whichever is longer (72 m for 18°), so the edges twist in
 gradually; banking near no bend is dropped. Every circuit is re-laid. Spa's
-invented 18° bank was removed rather than re-laid (it would have landed on
-La Source, which is flat).
+invented 18° bank and Monza's 10° were removed rather than re-laid (they
+would have landed on La Source and the Parabolica, both flat).
 
 ## Elevation model and horizon (`dem_fetch.py`)
 
