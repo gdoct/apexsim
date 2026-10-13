@@ -397,7 +397,9 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
   the car.toml), which bends Balanced's "lap left" to `1 - lap_share^(1 - deploy_early)`
   (`spend_target`; exactly the even pace at 0), so a positive map spends the budget earlier;
   `ers_start_mode` is put on the car with the tyres (`fit_tyres`: AI and stock Balanced).
-  A client that has pressed the ERS key keeps sending its own mode, which wins.
+  The ERS key changes the mode for the current run: the client sends the picked mode
+  (`PlayerInput.ers_mode`) until telemetry shows the car in it, then sends none, so the
+  next run starts in the setup's mode again.
 - `charge_full` refills with the tyres. The racing line counts the motor above the minimum
   speed at full power (`plan_power_w`). The AI drives Balanced and boosts within
   `AI_BOOST_GAP_S` of the car ahead.

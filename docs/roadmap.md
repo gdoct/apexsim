@@ -57,19 +57,13 @@ totals; a lap by hand at Spa and Monza.
 
 ### 2. Race-day fixes
 
-Two small bugs a driver meets in an ordinary race.
+A small bug a driver meets in an ordinary race.
 
 - **(bug)** At 1600x900 with the LMP2 (Fugazzi) the `pit_stop` component's
   panel sits on top of the centre speed and gear readout; with the F1 car's
   layout it clears it.
-- **(bug)** The ERS mode switched in the car is not kept into the next run,
-  and once the key is pressed the client's mode overrides the setup's
-  starting mode for the rest of the session. The setup's starting mode
-  applies at each run start; the key changes only the current run.
 
-**Check:** a pit stop in the LMP2 at 1600x900 (`-ApexScreenshotAfter`); two
-runs in one session with an ERS change in the first and a setup change
-between them.
+**Check:** a pit stop in the LMP2 at 1600x900 (`-ApexScreenshotAfter`).
 
 ## P2: depth
 

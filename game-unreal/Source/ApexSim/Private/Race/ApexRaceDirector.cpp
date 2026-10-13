@@ -846,6 +846,12 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 			bLocalInGarage = Car.bInGarage;
 			bLocalHeadlights = Car.bHeadlights;
 			LocalErsMode = Car.ErsMode;
+			// A switch is sent until the car is in the mode, then no more: the
+			// mode is the run's, and the next run starts in the setup's.
+			if (ErsModeSwitch >= 0 && Car.ErsMode == ErsModeSwitch)
+			{
+				ErsModeSwitch = -1;
+			}
 			LocalLap = Car.CurrentLap;
 			LocalLapTimeMs = Car.CurrentLapTimeMs;
 			bLocalInPitLane = Car.bInPitLane;

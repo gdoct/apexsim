@@ -768,8 +768,9 @@ private:
 	 */
 	int32 HeadlightSwitch = -1;
 	/** The local car's hybrid mode as the server last reported it (-1: no
-	 * hybrid), and the mode the player picked (`FApexPlayerInput::ErsMode`,
-	 * -1 until the first press: the car's default). Reset with the lights. */
+	 * hybrid), and the mode the player picked (`FApexPlayerInput::ErsMode`),
+	 * sent until telemetry shows the car in it, -1 otherwise (the car keeps
+	 * its own, and a new run starts in the setup's). Reset with the lights. */
 	int32 LocalErsMode = -1;
 	int32 ErsModeSwitch = -1;
 	/** The H-pattern gear last sent (-3: none yet, so the first poll sends it). */
