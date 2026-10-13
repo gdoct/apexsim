@@ -147,6 +147,7 @@ pub(crate) async fn handle_message(
             steering_assist,
             abs,
             traction_control,
+            pit_autopilot,
         } => {
             handle_set_driver_aids(
                 ctx,
@@ -156,6 +157,7 @@ pub(crate) async fn handle_message(
                     steering_assist,
                     abs,
                     traction_control,
+                    pit_autopilot,
                 },
             )
             .await;
@@ -1364,12 +1366,13 @@ async fn handle_set_driver_aids(ctx: &GameLoopCtx, connection_id: ConnectionId, 
     if let Some(applied) = game_session.set_driver_aids(&conn_info.player_id, aids) {
         let on_off = |on: bool| if on { "on" } else { "off" };
         tracing::debug!(
-            "Player {} auto gearbox {}, steering assist {}, abs {:?}, traction control {:?}",
+            "Player {} auto gearbox {}, steering assist {}, abs {:?}, traction control {:?}, pit autopilot {:?}",
             conn_info.player_id,
             on_off(applied.auto_gearbox),
             on_off(applied.steering_assist),
             applied.abs,
-            applied.traction_control
+            applied.traction_control,
+            applied.pit_autopilot
         );
     }
 }

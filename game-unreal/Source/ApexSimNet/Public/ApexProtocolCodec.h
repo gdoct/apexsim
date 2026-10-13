@@ -61,7 +61,8 @@ namespace ApexProtocol
 	 * (EncodeCreateSession).
 	 */
 	APEXSIMNET_API TArray<uint8> EncodeSetDriverAids(
-		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl);
+		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl,
+		bool bPitAutopilot = true);
 	/** Every knob is sent, clamped here as the server will clamp it again. */
 	APEXSIMNET_API TArray<uint8> EncodeSetCarSetup(const FApexCarSetup& Setup);
 	/** A hotlap driver asks to be put in the garage or out on the run-up. */

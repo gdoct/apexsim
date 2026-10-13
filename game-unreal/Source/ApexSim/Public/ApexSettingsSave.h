@@ -206,6 +206,14 @@ public:
 	UPROPERTY()
 	bool bSteeringAssist = true;
 
+	/**
+	 * The pit autopilot (SetDriverAids pit_autopilot): over the pit entry line
+	 * the server drives the car to its box and out to the exit line. Off, the
+	 * driver drives the lane, held to its limit, and stops in the marked box.
+	 */
+	UPROPERTY()
+	bool bPitAutopilot = true;
+
 	/** The dotted line on the road: green flat out, amber at the limit, red braking. */
 	UPROPERTY()
 	EApexRacingLine RacingLine = EApexRacingLine::Off;

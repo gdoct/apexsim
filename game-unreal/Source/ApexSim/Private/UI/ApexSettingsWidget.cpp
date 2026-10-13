@@ -111,6 +111,7 @@ namespace
 	const FName SegAbs        = TEXT("Abs");
 	const FName SegGearbox    = TEXT("Gearbox");
 	const FName SegSteering   = TEXT("Steering");
+	const FName SegPitAutopilot = TEXT("PitAutopilot");
 	const FName SegRacingLine = TEXT("RacingLine");
 	const FName SegAssistPreset = TEXT("AssistPreset");
 
@@ -727,6 +728,14 @@ UWidget* UApexSettingsWidget::BuildAssistsPage()
 		TEXT("Less lock as speed rises, so the stick can't overdrive the tyres. Pad and keyboard only: a wheel always steers directly."),
 		MakeSegment(SegSteering, { TEXT("FULL LOCK"), TEXT("SPEED SENSITIVE") }, 1, 178.0f),
 		FString(), 0.0f, MakeAssistLockBadge(SegSteering)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	// Not in the presets and never locked: driving the lane yourself is no
+	// advantage. The limiter holds the limit either way.
+	AddV(Page, MakeRow(
+		TEXT("Pit lane"),
+		TEXT("AUTOPILOT drives the car from the entry line to its box and out to the exit line. MANUAL leaves the lane to you, held to the limit: stop in the marked box."),
+		MakeSegment(SegPitAutopilot, { TEXT("MANUAL"), TEXT("AUTOPILOT") }, 1, 178.0f),
+		FString(), 0.0f), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 
 	// Damage is not here: it is the session's rule, picked by the host on
 	// the create screen and the same for every car.
@@ -1986,6 +1995,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegAbs, Values->bAbs ? 1 : 0);
 	SetSegment(SegGearbox, Values->bAutoGearbox ? 1 : 0);
 	SetSegment(SegSteering, Values->bSteeringAssist ? 1 : 0);
+	SetSegment(SegPitAutopilot, Values->bPitAutopilot ? 1 : 0);
 	SetSegment(SegRacingLine, static_cast<int32>(Values->RacingLine));
 	RefreshAssistPreset();
 	RefreshAssistLocks();
@@ -2350,6 +2360,7 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	else if (Id == SegAbs)        { Settings->SetAbs(Index == 1); RefreshAssistPreset(); }
 	else if (Id == SegGearbox)    { Settings->SetAutoGearbox(Index == 1); RefreshAssistPreset(); }
 	else if (Id == SegSteering)   { Settings->SetSteeringAssist(Index == 1); RefreshAssistPreset(); }
+	else if (Id == SegPitAutopilot) { Settings->SetPitAutopilot(Index == 1); }
 	else if (Id == SegRacingLine) { Settings->SetRacingLine(static_cast<EApexRacingLine>(Index)); RefreshAssistPreset(); }
 	else if (Id == SegUnits)      { Settings->SetUnits(static_cast<EApexUnits>(Index)); }
 	else if (Id == SegHud)        { Settings->SetHudDetail(static_cast<EApexHudDetail>(Index)); }

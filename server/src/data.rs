@@ -1471,6 +1471,10 @@ pub struct CarState {
     /// `traction_control_enabled` (as `Low`).
     #[serde(default)]
     pub traction_control: Option<TractionControl>,
+    /// The driver drives the pit lane themselves: the pit autopilot never
+    /// takes the car (`ClientMessage::SetDriverAids`'s `pit_autopilot`).
+    #[serde(default)]
+    pub manual_pits: bool,
     /// How much damage this car takes: the session's rule
     /// (`RaceSession::damage`), stamped on every car it seats, AI included;
     /// `None` (a car no session seated) is full damage. Read through
@@ -1782,6 +1786,7 @@ impl CarState {
             steering_assist: self.steering_assist,
             abs: self.abs,
             traction_control: self.traction_control,
+            pit_autopilot: Some(!self.manual_pits),
         }
     }
 
@@ -1792,12 +1797,19 @@ impl CarState {
 
     /// Set the aids; the automatic box starts its timers afresh.
     pub fn set_driver_aids(&mut self, aids: DriverAids) {
-        self.auto_gearbox = aids.auto_gearbox;
-        self.auto_shift_hold_ticks = 0;
-        self.auto_reverse_ticks = 0;
-        self.steering_assist = aids.steering_assist;
+        if let Some(restore) = self.pit.restore_aids.as_mut() {
+            // The pit autopilot holds the gearbox and the steering aid: the
+            // driver's new choice is what it hands back.
+            *restore = [aids.auto_gearbox, aids.steering_assist];
+        } else {
+            self.auto_gearbox = aids.auto_gearbox;
+            self.auto_shift_hold_ticks = 0;
+            self.auto_reverse_ticks = 0;
+            self.steering_assist = aids.steering_assist;
+        }
         self.abs = aids.abs;
         self.traction_control = aids.traction_control;
+        self.manual_pits = aids.pit_autopilot == Some(false);
     }
 
     pub fn new(player_id: PlayerId, car_config_id: CarConfigId, grid_slot: &GridSlot) -> Self {
@@ -1811,6 +1823,7 @@ impl CarState {
             steering_assist: false,
             abs: None,
             traction_control: None,
+            manual_pits: false,
             damage_level: None,
 
             // 3D Position
@@ -2079,6 +2092,9 @@ pub struct DriverAids {
     pub abs: Option<bool>,
     /// `None` keeps the car's own `traction_control_enabled` (as `Low`).
     pub traction_control: Option<TractionControl>,
+    /// The pit autopilot: `Some(false)` leaves the pit lane to the driver
+    /// (the limiter still holds the limit); `None` keeps it on.
+    pub pit_autopilot: Option<bool>,
 }
 
 /// Which driving aids a session's host lets its drivers use, fixed when the
@@ -2145,6 +2161,8 @@ impl AllowedAssists {
             } else {
                 Some(TractionControl::Off)
             },
+            // Driving the lane yourself is never an advantage to forbid.
+            pit_autopilot: asked.pit_autopilot,
         }
     }
 }

@@ -610,11 +610,12 @@ void UApexNetSubsystem::AdvanceWeekend()
 }
 
 void UApexNetSubsystem::SetDriverAids(
-	bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl)
+	bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl, bool bPitAutopilot)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetDriverAids auto_gearbox=%d steering_assist=%d abs=%d traction_control=%d"),
-		bAutoGearbox ? 1 : 0, bSteeringAssist ? 1 : 0, bAbs ? 1 : 0, static_cast<int32>(TractionControl));
-	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist, bAbs, TractionControl));
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetDriverAids auto_gearbox=%d steering_assist=%d abs=%d traction_control=%d pit_autopilot=%d"),
+		bAutoGearbox ? 1 : 0, bSteeringAssist ? 1 : 0, bAbs ? 1 : 0, static_cast<int32>(TractionControl),
+		bPitAutopilot ? 1 : 0);
+	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist, bAbs, TractionControl, bPitAutopilot));
 }
 
 void UApexNetSubsystem::RecoverCar(EApexRecoverDestination Destination)

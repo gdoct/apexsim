@@ -101,7 +101,11 @@ Called inside `update_air` before the physics, and in the countdown.
   `PitState::box_index`.
 - **Limiter.** Between the limit lines `PitState::limiter` is set and
   `update_car_3d` scales the throttle by `clamp(limit - speed, 0, 1)`: it
-  fades out over the last m/s below the limit.
+  fades out over the last m/s below the limit. A car more than
+  `LIMITER_BRAKE_FROM_MPS` (1 m/s) over it is braked, harder the further
+  over (full at 6 m/s more), at most `LIMITER_BRAKE_MAX` (0.6) of the pedal:
+  there are no penalties, so this is what holds a driver who drives the
+  lane themselves to the limit.
 - **Autopilot.** A human's car that crosses the pit entry line (the first
   limit line, by the speed-limit board: on the lane, within
   `TAKEOVER_WINDOW_M` (40 m) past the line, past the road edge on the lane's
@@ -112,6 +116,12 @@ Called inside `update_air` before the physics, and in the countdown.
   back at the end. The entry and exit tapers are the driver's. The AI's
   route runs on to the lane's end (`pit::route_end_m`): its racing line
   knows nothing of the exit taper.
+- **Manual pit lane.** A driver whose `SetDriverAids` sent `pit_autopilot:
+  false` (`CarState::manual_pits`; Settings > Assists > Pit lane) is never
+  taken over: they drive the lane on the limiter, stop within
+  `BOX_RADIUS_M` of their box's spot for the crew (the same service rule
+  as the autopilot's), and drive out. A recovery to the pits leaves such a
+  car at its box for the crew, not on the autopilot.
   `pit_autopilot_inputs` replaces its input with `pit::drive_input`; the
   driver's headlights and flash still count. The AI enters the same route
   from `plan_ai_stops`.

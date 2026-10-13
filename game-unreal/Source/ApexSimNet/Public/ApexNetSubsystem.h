@@ -444,7 +444,8 @@ public:
 	 * joining a session and whenever they change.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
-	void SetDriverAids(bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl);
+	void SetDriverAids(bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl,
+		bool bPitAutopilot = true);
 
 	/**
 	 * The garage setup for this player's car, as clicks per knob. The server

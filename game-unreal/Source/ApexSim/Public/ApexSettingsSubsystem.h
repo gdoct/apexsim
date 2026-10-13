@@ -75,6 +75,9 @@ public:
 	void SetSteeringAssist(bool bAssist);
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetPitAutopilot(bool bAutopilot);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetRacingLine(EApexRacingLine Line);
 
 	/** The hotlap ghost car on or off (Gameplay group). */

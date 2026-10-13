@@ -2267,7 +2267,9 @@ impl GameSession {
                 continue;
             }
             state.recovery = None;
-            if recovery.destination == RecoverDestination::Pits {
+            // A driver who drives the lane themselves is serviced where the
+            // car stands, and drives it out.
+            if recovery.destination == RecoverDestination::Pits && !state.manual_pits {
                 // The crew's car now: serviced at the box and driven out.
                 state.pit.driving = true;
                 state.pit.restore_aids = Some([state.auto_gearbox, state.steering_assist]);
@@ -3517,6 +3519,7 @@ impl GameSession {
             // autopilot's until the exit line: to its own box, serviced,
             // and out.
             if !is_ai
+                && !state.manual_pits
                 && !pit.driving
                 && !pit.serviced
                 && state.finish_position.is_none()
@@ -6595,6 +6598,7 @@ mod tests {
             steering_assist: true,
             abs: Some(true),
             traction_control: Some(TractionControl::High),
+            pit_autopilot: Some(true),
         };
 
         let mut strict = create_test_session();
@@ -6618,6 +6622,7 @@ mod tests {
                 steering_assist: false,
                 abs: Some(false),
                 traction_control: Some(TractionControl::Off),
+                pit_autopilot: Some(true),
             }
         );
         assert_eq!(strict.session.participants[&player].driver_aids(), applied);
@@ -6682,6 +6687,7 @@ mod tests {
                 steering_assist: true,
                 abs: Some(true),
                 traction_control: Some(TractionControl::High),
+                pit_autopilot: Some(true),
             },
         );
         session.line_up_on_grid();

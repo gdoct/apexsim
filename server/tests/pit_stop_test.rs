@@ -476,6 +476,76 @@ fn the_autopilot_puts_the_drivers_aids_back() {
     );
 }
 
+#[test]
+fn a_driver_without_the_pit_autopilot_drives_the_lane_held_to_the_limit() {
+    let Some((mut gs, player)) = practice() else {
+        return;
+    };
+    let lane = gs.track_config.pit_lane.clone().unwrap();
+    gs.set_driver_aids(
+        &player,
+        DriverAids {
+            auto_gearbox: true,
+            pit_autopilot: Some(false),
+            ..Default::default()
+        },
+    );
+    // Over the entry line 10 m/s too fast, the throttle held open.
+    on_the_lane(
+        &mut gs,
+        &player,
+        lane.limit_start_m - 3.0,
+        lane.speed_limit_mps + 10.0,
+    );
+    let flat_out = PlayerInputData {
+        throttle: 1.0,
+        ..Default::default()
+    };
+    let inputs: HashMap<PlayerId, PlayerInputData> = [(player, flat_out)].into();
+    for _ in 0..(HZ * 3) {
+        gs.tick(&inputs);
+        assert!(
+            !gs.session.participants[&player].pit.driving,
+            "never the autopilot's"
+        );
+    }
+    let s = &gs.session.participants[&player];
+    assert!(s.pit.limiter, "between the lines");
+    assert!(
+        s.speed_mps < lane.speed_limit_mps + 1.5,
+        "braked down to the limit: {:.1} m/s against {:.1}",
+        s.speed_mps,
+        lane.speed_limit_mps
+    );
+
+    // Stopped at its own box, the crew work; the car is the driver's after.
+    let spot = *lane.box_at(gs.session.participants[&player].pit.box_index.unwrap());
+    {
+        let state = gs.session.participants.get_mut(&player).unwrap();
+        state.pos_x = spot.x;
+        state.pos_y = spot.y;
+        state.yaw_rad = spot.yaw_rad;
+        state.vel_x = 0.0;
+        state.vel_y = 0.0;
+        state.speed_mps = 0.0;
+        state.tires.front_left.wear_percent = 60.0;
+    }
+    let held = PlayerInputData {
+        brake: 1.0,
+        ..Default::default()
+    };
+    let inputs: HashMap<PlayerId, PlayerInputData> = [(player, held)].into();
+    gs.tick(&inputs);
+    let seconds = gs.session.participants[&player].pit.service_left_s;
+    assert!(gs.session.participants[&player].pit.servicing, "serviced");
+    for _ in 0..((seconds + 0.5) * HZ as f32) as usize {
+        gs.tick(&inputs);
+    }
+    let s = &gs.session.participants[&player];
+    assert!(s.pit.serviced && !s.pit.servicing && !s.pit.driving);
+    assert_eq!(s.tires.front_left.wear_percent, 0.0);
+}
+
 /// Every circuit's lane under the autopilot: a GT3 driven in, to its box,
 /// serviced and out. Prints a line per circuit; fails on any that does not
 /// make the whole trip.

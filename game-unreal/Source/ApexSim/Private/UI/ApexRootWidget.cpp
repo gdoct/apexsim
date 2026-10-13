@@ -1896,7 +1896,8 @@ void UApexRootWidget::SendDriverAids()
 		Values->bAutoGearbox,
 		Values->bSteeringAssist && !bAidsSentForWheel,
 		Values->bAbs,
-		static_cast<EApexTractionControl>(Values->TractionControl));
+		static_cast<EApexTractionControl>(Values->TractionControl),
+		Values->bPitAutopilot);
 }
 
 void UApexRootWidget::SendCarSetup()

@@ -78,11 +78,10 @@ recorded in one of the two.
 | No pit stop choices during a race and no pit request button: a stop always changes tyres (to the setup's next compound), fuels to need and repairs everything. | Med | Med |
 | No driver swaps or fixed stint lengths. | Med | Low |
 | An F1 in a race longer than its tank: the start fill is capped, no stop adds fuel, and the AI's lift-and-coast saves at most `MAX_FUEL_SAVE_COAST_S` a lap, so a car short by more runs dry. | Low | Low |
-| No penalties of any kind: no pit-lane speeding penalty (the limiter is forced), no drive-through or stop-go, no collision penalty and no race-start ghosting. | High | Med |
+| No penalties of any kind: no pit-lane speeding penalty (the limiter is forced, and brakes a car over the limit), nothing stops a driver on a manual pit lane leaving past a red exit light, no drive-through or stop-go, no collision penalty and no race-start ghosting. | High | Med |
 | No flags and no flag state on the wire: no yellow at an incident, no blue for a car about to be lapped, no safety car (so no lane closure). The trackside panels' `ApexEmissive_*` slots glow at a fixed level. | High | Med |
 | Boxes are dealt in seating order (`pit::deal_box`), not by team. | Low | Low |
 | A retired car jumps to its box after `TOW_AFTER_S`: no recovery vehicle, no marshals. Without a pit lane it stays where it stopped, out of everyone's way. | Med | Low |
-| The pit autopilot takes over wherever the driver crosses the road edge (`pit::takes_over`); a car that dives across the mouth runs 3-4 m off the lane's middle before it settles. | Low | Low |
 | The session's damage rule (`DamageLevel`) has no "visual only" level. | Low | Low |
 
 ## Race weekends: sessions across days

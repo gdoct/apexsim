@@ -178,6 +178,10 @@ pub enum ClientMessage {
         /// Traction control level; absent keeps the car's own.
         #[serde(default)]
         traction_control: Option<TractionControl>,
+        /// The pit autopilot; `false` leaves the pit lane to the driver.
+        /// Absent (an older client) keeps it on.
+        #[serde(default)]
+        pit_autopilot: Option<bool>,
     },
     /// The garage setup for this player's car, as clicks per knob
     /// (`car_setup::CarSetup`). Sent on joining a session and whenever a
@@ -2021,10 +2025,12 @@ mod tests {
                 steering_assist,
                 abs,
                 traction_control,
+                pit_autopilot,
             } => {
                 assert!(auto_gearbox && !steering_assist);
                 assert_eq!(abs, None, "an old client leaves the car's own ABS");
                 assert_eq!(traction_control, None);
+                assert_eq!(pit_autopilot, None, "and the pit autopilot on");
             }
             _ => panic!("Wrong message type"),
         }
@@ -2034,6 +2040,7 @@ mod tests {
             steering_assist: true,
             abs: Some(false),
             traction_control: Some(TractionControl::High),
+            pit_autopilot: Some(false),
         };
         let bytes = rmp_serde::to_vec_named(&both).unwrap();
         match rmp_serde::from_slice(&bytes).unwrap() {
@@ -2042,10 +2049,12 @@ mod tests {
                 steering_assist,
                 abs,
                 traction_control,
+                pit_autopilot,
             } => {
                 assert!(!auto_gearbox && steering_assist);
                 assert_eq!(abs, Some(false));
                 assert_eq!(traction_control, Some(TractionControl::High));
+                assert_eq!(pit_autopilot, Some(false));
             }
             _ => panic!("Wrong message type"),
         }
@@ -3202,6 +3211,7 @@ mod tests {
             steering_assist: true,
             abs: Some(false),
             traction_control: Some(TractionControl::High),
+            pit_autopilot: Some(false),
         };
         let aids_bytes = rmp_serde::to_vec_named(&aids).unwrap();
         println!("C_SetDriverAids: {}", hex(&aids_bytes));
@@ -4555,11 +4565,12 @@ mod tests {
     ];
     const GOLDEN_C_SET_DRIVER_AIDS: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x74, 0x44, 0x72, 0x69, 0x76, 0x65,
-        0x72, 0x41, 0x69, 0x64, 0x73, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x84, 0xAC, 0x61, 0x75, 0x74,
+        0x72, 0x41, 0x69, 0x64, 0x73, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x85, 0xAC, 0x61, 0x75, 0x74,
         0x6F, 0x5F, 0x67, 0x65, 0x61, 0x72, 0x62, 0x6F, 0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65,
         0x72, 0x69, 0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC3, 0xA3, 0x61, 0x62,
         0x73, 0xC2, 0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E,
-        0x74, 0x72, 0x6F, 0x6C, 0x02,
+        0x74, 0x72, 0x6F, 0x6C, 0x02, 0xAD, 0x70, 0x69, 0x74, 0x5F, 0x61, 0x75, 0x74, 0x6F, 0x70,
+        0x69, 0x6C, 0x6F, 0x74, 0xC2,
     ];
     const GOLDEN_C_CREATE_SESSION_DAMAGE: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x65,

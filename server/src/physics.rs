@@ -24,6 +24,12 @@ pub const AIR_DENSITY: f32 = 1.225;
 
 /// Minimum speed threshold for calculations (m/s)
 const MIN_SPEED_THRESHOLD: f32 = 0.1;
+/// The pit limiter brakes a car over the lane's limit by more than this, m/s,
+/// harder the further over (full at `LIMITER_BRAKE_SPAN_MPS` more), never
+/// past `LIMITER_BRAKE_MAX` of the pedal.
+const LIMITER_BRAKE_FROM_MPS: f32 = 1.0;
+const LIMITER_BRAKE_SPAN_MPS: f32 = 6.0;
+const LIMITER_BRAKE_MAX: f32 = 0.6;
 
 /// Height above track surface before considered airborne (m)
 const AIRBORNE_HEIGHT_THRESHOLD_M: f32 = 0.05;
@@ -262,11 +268,20 @@ pub fn update_car_3d(
         std::mem::swap(&mut auto_input.throttle, &mut auto_input.brake);
     }
     // The pit limiter: between the lane's lines the throttle fades out over
-    // the last metre per second below the limit and is gone above it.
+    // the last metre per second below the limit and is gone above it. A car
+    // that crosses the entry line too fast is braked down to the limit:
+    // nothing else (there are no penalties) stops a driver who drives the
+    // lane themselves from racing past the crews.
     if state.pit.limiter {
         if let Some(lane) = &track.pit_lane {
             let margin = lane.speed_limit_mps - state.speed_mps;
             auto_input.throttle *= margin.clamp(0.0, 1.0);
+            let over = -margin - LIMITER_BRAKE_FROM_MPS;
+            if over > 0.0 {
+                auto_input.brake = auto_input
+                    .brake
+                    .max((over / LIMITER_BRAKE_SPAN_MPS).min(LIMITER_BRAKE_MAX));
+            }
         }
     }
     let input = &auto_input;

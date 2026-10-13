@@ -149,7 +149,7 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexGolden::C_StartCountdown);
 
 	CheckBytes(TEXT("SetDriverAids"),
-		ApexProtocol::EncodeSetDriverAids(true, true, false, EApexTractionControl::High),
+		ApexProtocol::EncodeSetDriverAids(true, true, false, EApexTractionControl::High, false),
 		ApexGolden::C_SetDriverAids);
 	CheckBytes(TEXT("CreateSession with damage"),
 		ApexProtocol::EncodeCreateSession(

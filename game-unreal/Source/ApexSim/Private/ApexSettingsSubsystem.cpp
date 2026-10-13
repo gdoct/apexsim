@@ -237,6 +237,13 @@ void UApexSettingsSubsystem::SetSteeringAssist(bool bAssist)
 	Changed(EApexSettingsGroup::Assists);
 }
 
+void UApexSettingsSubsystem::SetPitAutopilot(bool bAutopilot)
+{
+	if (!Settings || Settings->bPitAutopilot == bAutopilot) { return; }
+	Settings->bPitAutopilot = bAutopilot;
+	Changed(EApexSettingsGroup::Assists);
+}
+
 void UApexSettingsSubsystem::SetRacingLine(EApexRacingLine Line)
 {
 	if (!Settings || Settings->RacingLine == Line) { return; }
@@ -1300,6 +1307,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->bAbs = Defaults->bAbs;
 		Settings->bAutoGearbox = Defaults->bAutoGearbox;
 		Settings->bSteeringAssist = Defaults->bSteeringAssist;
+		Settings->bPitAutopilot = Defaults->bPitAutopilot;
 		Settings->RacingLine = Defaults->RacingLine;
 		break;
 

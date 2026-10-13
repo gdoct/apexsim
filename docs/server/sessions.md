@@ -127,7 +127,7 @@ traction_control, auto_gearbox, steering_assist, racing_line }`, all
 default true). The server enforces it with `AllowedAssists::clamp` when a car
 is seated and on every `SetDriverAids`, and sends no `RacingLine` when the
 line is forbidden. The aids themselves are per driver: `SetDriverAids {
-auto_gearbox, steering_assist, abs, traction_control }`, sent by
+auto_gearbox, steering_assist, abs, traction_control, pit_autopilot }`, sent by
 `UApexRootWidget::SendDriverAids` on join and on any change in the settings
 Assists tab. They run on the server (only it has the tyres); ABS and TC are
 `Option`s on `CarState`, `None` meaning "as the car.toml says" (the AI, an
@@ -135,7 +135,10 @@ old client). TC LOW holds a spinning wheel at peak slip; HIGH also caps drive
 at what the friction circle leaves beside the lateral force
 (`TC_HIGH_LATERAL_MARGIN`, `physics.rs`). The client dims a locked row
 (`GetAllowedAssists`, `RefreshAssistLocks`) and keeps the player's choice for
-the next session.
+the next session. `pit_autopilot` (absent: on) is never locked and is in no
+preset: off, the driver drives the pit lane ([pit-lane.md](pit-lane.md)). An
+aids change while the pit autopilot holds the car goes into the aids it hands
+back.
 
 **Damage**: `damage` (`DamageLevel` `Off` / `Reduced` / `Full`, default
 Full), the same for every car, AI included: stamped as

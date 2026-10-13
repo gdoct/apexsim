@@ -2846,10 +2846,11 @@ namespace ApexProtocol
 	}
 
 	TArray<uint8> EncodeSetDriverAids(
-		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl)
+		bool bAutoGearbox, bool bSteeringAssist, bool bAbs, EApexTractionControl TractionControl,
+		bool bPitAutopilot)
 	{
-		FMsgPackWriter Writer(112);
-		BeginDataVariant(Writer, "SetDriverAids", 4);
+		FMsgPackWriter Writer(128);
+		BeginDataVariant(Writer, "SetDriverAids", 5);
 		Writer.WriteString("auto_gearbox");
 		Writer.WriteBool(bAutoGearbox);
 		Writer.WriteString("steering_assist");
@@ -2860,6 +2861,8 @@ namespace ApexProtocol
 		Writer.WriteBool(bAbs);
 		Writer.WriteString("traction_control");
 		Writer.WriteUInt(static_cast<uint8>(TractionControl));
+		Writer.WriteString("pit_autopilot");
+		Writer.WriteBool(bPitAutopilot);
 		return MoveTemp(Writer.GetBuffer());
 	}
 
