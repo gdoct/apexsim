@@ -1671,6 +1671,14 @@ pub struct CarState {
     /// reads it through `tyre_grip_share`.
     #[serde(default = "default_one_f32")]
     pub surface_grip_share: f32,
+    /// The road under each tyre, FL FR RL RR, as the physics last sampled
+    /// it (`crate::road_state`): the water in the weather's units and the
+    /// marbles 0..1. Telemetry carries them per tyre, so a client draws
+    /// each tyre's own water and pickup. Set by the physics each tick.
+    #[serde(default)]
+    pub tyre_water: [f32; 4],
+    #[serde(default)]
+    pub tyre_marbles: [f32; 4],
     /// The hardest hit this car took since the pass that read it, percent
     /// of damage (`physics::apply_damage_to_car`): what sheds debris and
     /// what may puncture a tyre (`GameSession::update_debris`).
@@ -1908,6 +1916,8 @@ impl CarState {
             racecraft: crate::racecraft::Racecraft::default(),
             aero_load_share: 1.0,
             surface_grip_share: 1.0,
+            tyre_water: [0.0; 4],
+            tyre_marbles: [0.0; 4],
             last_hit_pct: 0.0,
             last_hit_angle: 0.0,
             road_cell: 0,

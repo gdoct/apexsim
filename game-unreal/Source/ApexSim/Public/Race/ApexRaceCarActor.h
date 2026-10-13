@@ -116,6 +116,9 @@ public:
 	 */
 	void SetRoadWater(float WaterPct) { RoadWaterPct = FMath::Max(WaterPct, 0.0f); }
 
+	/** The tyres' working window (the catalog row's): what the tread's heat and blistering are read against. */
+	void SetTyreWindow(float OptimalC, float WindowC);
+
 	/** The driver's component when the car has one, for tinting. */
 	UStaticMeshComponent* GetDriverComponent() const { return Driver.HasDriver() ? Driver.GetComponent() : nullptr; }
 
@@ -458,7 +461,20 @@ private:
 	float TyrePressureKpa[ApexWheels::NumWheels] = {-1.0f, -1.0f, -1.0f, -1.0f};
 	float TyreFlatSpot[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
 	float RoadWaterPct = 0.0f;
+	/** The car's tyres' wetness: the mean (the spray) and each tyre's own, from the water under it when the server sends it. */
 	float TyreWetness = 0.0f;
+	float WheelWetness[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
+	/** The newest telemetry's road under each tyre (water percent, negative unknown; marbles 0..1), tread temperature and state. */
+	float TyreWaterPct[ApexWheels::NumWheels] = {-1.0f, -1.0f, -1.0f, -1.0f};
+	float TyreMarbles[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
+	float TyreTempC[ApexWheels::NumWheels] = {-1.0f, -1.0f, -1.0f, -1.0f};
+	bool bTyrePunctured[ApexWheels::NumWheels] = {false, false, false, false};
+	/** The looks integrated from them: rubber picked up, blistering, and the heat against the window. */
+	float TyrePickup[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
+	float TyreBlister[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
+	float TyreHeat[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
+	float TyreOptimalC = 90.0f;
+	float TyreWindowC = 10.0f;
 	void TakeTyreTelemetry(const FApexCarTelemetry& Car);
 	/** Draws the tyres' wear, water, flat spots and deflation (FApexCarWheelSet::SetTyreSurface). */
 	void UpdateTyreSurface(float DeltaSeconds);

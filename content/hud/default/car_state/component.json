@@ -133,11 +133,13 @@
                 { "type": "text", "margin": [0, 1, 0, 0], "font": "mono", "size": 10, "color": "text_muted",
                   "visible": "=has(item.inner_c)",
                   "text": "=has(item.inner_c) ? fmt(item.inner_c) + '·' + fmt(item.outer_c) : ''" },
-                // A punctured tyre reads 15 kPa and a slow leak is flat by
-                // 60 (the server's PUNCTURE_FLAT_KPA): under that it says so.
+                // A puncture as the server calls it: FLAT once the tyre is
+                // down to its carcass (a punctured tyre reads 15 kPa, and a
+                // slow leak is flat by 60, the server's PUNCTURE_FLAT_KPA),
+                // LEAK with the pressure while the air is still going.
                 { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11,
-                  "text": "=!has(item.pressure_kpa) ? '—' : item.pressure_kpa < 60 ? 'FLAT' : fmt(item.pressure_kpa) + ' kPa'",
-                  "color": "=has(item.pressure_kpa) && item.pressure_kpa < 60 ? 'error' : 'text_muted'" },
+                  "text": "=!has(item.pressure_kpa) ? '—' : (item.flat || item.pressure_kpa < 60) ? 'FLAT' : item.leak ? 'LEAK ' + fmt(item.pressure_kpa) : fmt(item.pressure_kpa) + ' kPa'",
+                  "color": "=has(item.pressure_kpa) && (item.flat || item.pressure_kpa < 60) ? 'error' : item.leak ? 'accent' : 'text_muted'" },
                 // Wear on a line of its own: beside the pressure it pushed the
                 // fourth tyre off the panel. Past the cliff (70%) it is the story.
                 { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11, "visible": "=has(item.wear_pct)",

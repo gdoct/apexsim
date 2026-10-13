@@ -827,6 +827,15 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("the tail not at all"), Car.DamageAt[1], 0.0f);
 			TestEqual(TEXT("the left flank at its nose end"), Car.DamageAt[2], 1.0f);
 			TestTrue(TEXT("the right flank a little forward"), FMath::IsNearlyEqual(Car.DamageAt[3], 32.0f / 127.0f, 1e-4f));
+			// 45-47 fields: the road under each tyre and each tyre's state.
+			TestTrue(TEXT("the road under the tyres is sent"), Car.bHasTyreRoad);
+			TestEqual(TEXT("FL damp"), Car.TyreWaterPct[0], 5.0f);
+			TestEqual(TEXT("FR in a puddle"), Car.TyreWaterPct[1], 130.0f);
+			TestEqual(TEXT("FR over marbles"), Car.TyreMarbles[1], 0.5f);
+			TestEqual(TEXT("RL clean"), Car.TyreMarbles[2], 0.0f);
+			TestTrue(TEXT("FR leaking, not flat"), Car.bTyreLeaking[1] && !Car.bTyrePunctured[1]);
+			TestTrue(TEXT("RR flat, not leaking"), Car.bTyrePunctured[3] && !Car.bTyreLeaking[3]);
+			TestFalse(TEXT("FL sound"), Car.bTyreLeaking[0] || Car.bTyrePunctured[0]);
 		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactRecover, Spots, Error)
 			&& Spots.Telemetry.Cars.Num() == 1)

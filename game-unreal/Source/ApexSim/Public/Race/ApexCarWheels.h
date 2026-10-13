@@ -149,6 +149,12 @@ struct FApexTyreSurface
 	float FlatSpot = 0.0f;
 	/** Running pressure, kPa; negative when unknown, drawn round. */
 	float PressureKpa = -1.0f;
+	/** Rubber picked up off the road, 0..1 (AApexRaceCarActor integrates the marbles under the tyre). */
+	float Pickup = 0.0f;
+	/** Blistering, 0..1: how long the tread has run over its window. */
+	float Blister = 0.0f;
+	/** The tread against its window, -1 cold .. 1 well over (0 in it). */
+	float Heat = 0.0f;
 };
 
 /**

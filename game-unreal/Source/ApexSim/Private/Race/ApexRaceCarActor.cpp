@@ -348,27 +348,74 @@ void AApexRaceCarActor::UpdateTyreLook()
 	Wheels.SetTyreLook(Kind);
 }
 
+void AApexRaceCarActor::SetTyreWindow(float OptimalC, float WindowC)
+{
+	TyreOptimalC = OptimalC > 0.0f ? OptimalC : 90.0f;
+	TyreWindowC = WindowC > 0.0f ? WindowC : 10.0f;
+}
+
 void AApexRaceCarActor::TakeTyreTelemetry(const FApexCarTelemetry& Car)
 {
 	for (int32 Wheel = 0; Wheel < ApexWheels::NumWheels; ++Wheel)
 	{
-		TyreWear[Wheel] = Car.TyreWearPct[Wheel] >= 0.0f ? Car.TyreWearPct[Wheel] / 100.0f : -1.0f;
+		const float Wear = Car.TyreWearPct[Wheel] >= 0.0f ? Car.TyreWearPct[Wheel] / 100.0f : -1.0f;
+		// A fresh set (the wear dropped): what the old one picked up and
+		// blistered went with it.
+		if (Wear >= 0.0f && TyreWear[Wheel] >= 0.0f && Wear < TyreWear[Wheel] - 0.05f)
+		{
+			TyrePickup[Wheel] = 0.0f;
+			TyreBlister[Wheel] = 0.0f;
+		}
+		TyreWear[Wheel] = Wear;
 		TyrePressureKpa[Wheel] = Car.TyrePressureKpa[Wheel];
 		TyreFlatSpot[Wheel] = Car.FlatSpot[Wheel];
+		TyreWaterPct[Wheel] = Car.bHasTyreRoad ? Car.TyreWaterPct[Wheel] : -1.0f;
+		TyreMarbles[Wheel] = Car.bHasTyreRoad ? Car.TyreMarbles[Wheel] : 0.0f;
+		TyreTempC[Wheel] = Car.TyreTempC[Wheel];
+		bTyrePunctured[Wheel] = Car.bTyrePunctured[Wheel];
 	}
 }
 
 void AApexRaceCarActor::UpdateTyreSurface(float DeltaSeconds)
 {
-	// One figure for the car: the road state is read under its middle.
-	TyreWetness = ApexWheels::WetnessStep(TyreWetness, ApexWheels::WetnessForWater(RoadWaterPct), DeltaSeconds);
+	// Each tyre soaks up the water under it (a newer server says it per
+	// tyre; else the road state's cell under the car's middle stands in
+	// for all four), and the car's spray goes by the mean.
+	float Sum = 0.0f;
 	for (int32 Wheel = 0; Wheel < ApexWheels::NumWheels; ++Wheel)
 	{
+		const float Water = TyreWaterPct[Wheel] >= 0.0f ? TyreWaterPct[Wheel] : RoadWaterPct;
+		WheelWetness[Wheel] = ApexWheels::WetnessStep(WheelWetness[Wheel], ApexWheels::WetnessForWater(Water), DeltaSeconds);
+		Sum += WheelWetness[Wheel];
+	}
+	TyreWetness = Sum / ApexWheels::NumWheels;
+	const float Dt = FMath::Max(DeltaSeconds, 0.0f);
+	for (int32 Wheel = 0; Wheel < ApexWheels::NumWheels; ++Wheel)
+	{
+		// Pickup: marbles under the tyre stick to a hot tread in a few
+		// seconds and are flung off over a lap; a wet road washes it.
+		const float Picked = TyreMarbles[Wheel] * 0.6f - TyrePickup[Wheel] * (0.03f + 0.5f * WheelWetness[Wheel]);
+		TyrePickup[Wheel] = FMath::Clamp(TyrePickup[Wheel] + Picked * Dt, 0.0f, 1.0f);
+		// Heat against the window: 0 in it, 1 a window over its top, -1 a window under.
+		if (TyreTempC[Wheel] >= 0.0f)
+		{
+			TyreHeat[Wheel] = FMath::Clamp((TyreTempC[Wheel] - TyreOptimalC) / FMath::Max(2.0f * TyreWindowC, 1.0f), -1.0f, 1.0f);
+			// Blisters grow while the tread runs over its window: a minute
+			// at a window over blisters it through.
+			const float Over = (TyreTempC[Wheel] - (TyreOptimalC + TyreWindowC)) / FMath::Max(TyreWindowC, 1.0f);
+			if (Over > 0.0f)
+			{
+				TyreBlister[Wheel] = FMath::Clamp(TyreBlister[Wheel] + Over * Dt / 60.0f, 0.0f, 1.0f);
+			}
+		}
 		FApexTyreSurface Surface;
 		Surface.Wear = FMath::Max(TyreWear[Wheel], 0.0f);
-		Surface.Wetness = TyreWetness;
+		Surface.Wetness = WheelWetness[Wheel];
 		Surface.FlatSpot = TyreFlatSpot[Wheel];
 		Surface.PressureKpa = TyrePressureKpa[Wheel];
+		Surface.Pickup = TyrePickup[Wheel];
+		Surface.Blister = TyreBlister[Wheel];
+		Surface.Heat = TyreHeat[Wheel];
 		Wheels.SetTyreSurface(static_cast<ApexWheels::EWheel>(Wheel), Surface);
 	}
 }

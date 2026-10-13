@@ -290,7 +290,7 @@ const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
 			TEXT("is_current")}},
 		{TEXT("tyres"), {TEXT("key"), TEXT("name"), TEXT("temp_c"), TEXT("pressure_kpa"), TEXT("wear_pct"),
 			TEXT("brake_c"), TEXT("state"), TEXT("brake_state"), TEXT("inner_c"), TEXT("outer_c"), TEXT("brake_wear_pct"),
-			TEXT("sliding"), TEXT("locked")}},
+			TEXT("sliding"), TEXT("locked"), TEXT("flat"), TEXT("leak"), TEXT("puncture"), TEXT("water_pct")}},
 		{TEXT("damage"), {TEXT("key"), TEXT("name"), TEXT("pct"), TEXT("flash")}},
 	};
 	return Fields;
@@ -1221,6 +1221,14 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			Row.Add(TEXT("brake_wear_pct"), HudKnown(BrakeWear, BrakeWear >= 0.0f));
 			Row.Add(TEXT("sliding"), FApexHudValue::Of(Local && Local->bTyreSliding[Tyre]));
 			Row.Add(TEXT("locked"), FApexHudValue::Of(Local && Local->bTyreLocked[Tyre]));
+			// A puncture as the server calls it (not read off the pressure):
+			// flat, or a slow leak still under way; the road under the tyre.
+			const bool bFlat = Local && Local->bTyrePunctured[Tyre];
+			const bool bLeak = Local && Local->bTyreLeaking[Tyre];
+			Row.Add(TEXT("flat"), FApexHudValue::Of(bFlat));
+			Row.Add(TEXT("leak"), FApexHudValue::Of(bLeak));
+			Row.Add(TEXT("puncture"), bFlat ? FApexHudValue::Of(TEXT("flat")) : bLeak ? FApexHudValue::Of(TEXT("leak")) : FApexHudValue());
+			Row.Add(TEXT("water_pct"), HudKnown(Local && Local->bHasTyreRoad ? Local->TyreWaterPct[Tyre] : -1.0f, Local && Local->bHasTyreRoad));
 
 			// The same figures by name, for a layout that places each tyre itself.
 			for (const TPair<FName, FApexHudValue>& Field : Row)

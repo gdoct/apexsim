@@ -533,6 +533,9 @@ finished).
 | `item.temp_c` | tread temperature (the mean of three zones) |
 | `item.pressure_kpa` | running pressure |
 | `item.wear_pct` | wear, %; grip falls away past 70 |
+| `item.flat`, `item.leak` | the server's puncture state: down to the carcass, or a slow leak still letting air out (false from a server that predates them) |
+| `item.puncture` | the same as a word, `flat` or `leak` (*null* for a sound tyre) |
+| `item.water_pct` | water under the tyre, percent of what a downpour leaves on a flat road, over 100 standing water (*null* from a server that sends only the car's one figure) |
 | `item.brake_c` | the brake on that corner |
 | `item.state` | the tread against the window: `cold`, `ok`, `hot`, `over` (15 °C past it), `unknown` |
 | `item.brake_state` | `cold` (under 150), `ok`, `hot` (850+), `over` (1000+), `unknown` |

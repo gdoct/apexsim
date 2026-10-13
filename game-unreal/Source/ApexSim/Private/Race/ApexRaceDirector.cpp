@@ -764,6 +764,7 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 		Car->SetCockpitSpec(Row.CarClass, Row.Cockpit);
 		Car->SetEngineSound(Row.EngineSound, Row.CarClass);
 		Car->SetCompounds(Row.Compounds);
+		Car->SetTyreWindow(Row.TyreOptimalC, Row.TyreWindowC);
 	}
 	else
 	{

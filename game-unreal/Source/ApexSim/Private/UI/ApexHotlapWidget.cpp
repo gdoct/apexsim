@@ -121,7 +121,7 @@ namespace
 	const FCompoundSpec Compounds[] = {
 		{ 1,  TEXT("SOFT"),   TEXT("Most grip, shortest life."),  TEXT("+3% GRIP · 1.8x WEAR · -6°C"),
 			FLinearColor::FromSRGBColor(FColor(0xE0, 0x4B, 0x3C)), 0.94f, 0.30f },
-		{ 0,  TEXT("MEDIUM"), TEXT("The car's own tyre."),        TEXT("AS FILED · WET: THE RAIN TYRE"),
+		{ 0,  TEXT("MEDIUM"), TEXT("The car's own tyre."),        TEXT("AS FILED · RAIN: WET · DAMP: INTER"),
 			FLinearColor::FromSRGBColor(FColor(0xE8, 0xBA, 0x3A)), 0.80f, 0.55f },
 		{ -1, TEXT("HARD"),   TEXT("Slow to warm, lasts longest."), TEXT("-3% GRIP · 0.55x WEAR · +6°C"),
 			Ink, 0.66f, 1.00f },
@@ -538,6 +538,22 @@ TArray<FApexGarageCompound> UApexHotlapWidget::CompoundCardsFor(const FApexCarSe
 	{
 		Slicks += IsRain(Name) ? 0 : 1;
 	}
+	// Which treaded tyres the car fits in the rain (the server's crossover
+	// picks by the water on the line): the first wet and the first inter it
+	// lists, named on the reference card.
+	FString RainName;
+	FString DampName;
+	for (const FString& Name : Sheet->Compounds)
+	{
+		if (RainName.IsEmpty() && Name.Contains(TEXT("wet")))
+		{
+			RainName = Name.ToUpper();
+		}
+		else if (DampName.IsEmpty() && Name.Contains(TEXT("inter")))
+		{
+			DampName = Name.ToUpper();
+		}
+	}
 	int32 SlickIndex = 0;
 	for (int32 Index = 0; Index < Sheet->Compounds.Num(); ++Index)
 	{
@@ -571,7 +587,27 @@ TArray<FApexGarageCompound> UApexHotlapWidget::CompoundCardsFor(const FApexCarSe
 			Card.Life = FMath::Lerp(0.30f, 1.00f, T);
 			++SlickIndex;
 		}
-		Card.Figures = bReference ? TEXT("AS FILED  ·  THE REFERENCE") : TEXT("ONE OF THIS CAR'S OWN COMPOUNDS");
+		// The reference card names the tyres it comes off for in the rain.
+		if (!bReference)
+		{
+			Card.Figures = TEXT("ONE OF THIS CAR'S OWN COMPOUNDS");
+		}
+		else if (RainName.IsEmpty() && DampName.IsEmpty())
+		{
+			Card.Figures = TEXT("AS FILED  ·  NO RAIN TYRE");
+		}
+		else
+		{
+			Card.Figures = TEXT("AS FILED");
+			if (!RainName.IsEmpty())
+			{
+				Card.Figures += TEXT("  ·  RAIN: ") + RainName;
+			}
+			if (!DampName.IsEmpty())
+			{
+				Card.Figures += TEXT("  ·  DAMP: ") + DampName;
+			}
+		}
 	}
 	return Cards;
 }

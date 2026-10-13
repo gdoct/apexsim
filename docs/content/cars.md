@@ -269,11 +269,24 @@ local position: `theta` round the axle (X) from +Y toward +Z, the radius and
 - **Flat spots** (`flat_spot`): a glazed lighter patch, longer the deeper the
   spot, laid at the wheel's contact angle when the spot first appears
   (`ApexWheels::ContactTheta`; one per tyre).
-- **Water**: the race director hands each car the water under it
-  (`TyreWaterFor`: the road state's cell, else the drawn sky's road wetness;
-  rain falling counts as 40% of its intensity), and the tyres soak it up in
-  about 1.5 s and dry over about 20 s (`ApexWheels::WetnessStep`): darker and
+- **Water**: each tyre soaks up the water under it, which a newer server
+  sends per tyre (`tyre_water`, the physics' own road sample at the wheel);
+  from an older one the race director's figure for the car stands in for
+  all four (`TyreWaterFor`: the road state's cell, else the drawn sky's road
+  wetness; rain falling counts as 40% of its intensity). Soaked in about
+  1.5 s and dried over about 20 s (`ApexWheels::WetnessStep`): darker and
   glossy, water standing in the grooves.
+- **Pickup** (`tyre_marbles`): the marbles under the tyre stick to the tread
+  in a few seconds and are flung off over a lap, washed off on a wet road
+  (`AApexRaceCarActor::UpdateTyreSurface`): lighter, matte crumbs across
+  the tread. A fresh set (the wear dropping) starts clean.
+- **Heat and blisters** (`tyre_c` against the catalog row's window,
+  `SetTyreWindow`): a tread over its optimal goes glossy and a shade
+  browner; one run a window over its top blisters, dark torn pits on the
+  shoulders, through in about a minute and kept until the set is changed.
+- **Sidewall bulge**: on a deflated tyre the sidewall's normal is turned out
+  along the axle where the tread meets the road, so the light shows the
+  bulge the squat makes.
 - **Deflation** (`tyre_kpa`): round down to 100 kPa, flat at the server's
   `PUNCTURED_KPA` (`ApexWheels::DeflatedShare`). A flat tyre squats 9% of its
   radius: the hub drops by that and the graph's WPO flattens the tread onto

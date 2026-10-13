@@ -264,6 +264,8 @@ pub struct RoadSample {
     pub off_grip: f32,
     /// A painted curb's further share against the baked one.
     pub curb_grip: f32,
+    /// Marbles lying there, 0..1: what a tyre picks up.
+    pub marbles: f32,
 }
 
 impl RoadSample {
@@ -274,6 +276,7 @@ impl RoadSample {
         wet_grip: 1.0,
         off_grip: 1.0,
         curb_grip: 1.0,
+        marbles: 0.0,
     };
 }
 
@@ -582,6 +585,7 @@ impl RoadState {
             wet_grip: wet,
             off_grip,
             curb_grip: curb_grip_for(water) / curb_grip_for(baked).max(1e-3),
+            marbles: marbles.clamp(0.0, 1.0),
         }
     }
 

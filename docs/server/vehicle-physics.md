@@ -479,7 +479,10 @@ reordered; effects are the `*_PER_CLICK` consts):
 `CompactCarState` (positional, appended only; [protocol](protocol.md)): `fuel_dl`, `tyre_c`,
 `tyre_kpa`, `tow_pct`, `tyre_wear`, `compound`, `brake_c`, `water_c`, `damage`, `ers_pct`,
 `ers_lap_pct`, `ers_flags`, `tyre_c_edges`, `brake_wear`, `slide_flags`, `ers_stint_pct`,
-`recover_ds` ([sessions](sessions.md#recovering-a-stuck-car)), `flat_spot` (pit fields: [pit lane](pit-lane.md)); `PlayerInput.drs` / `ers_mode` / `ers_boost`;
+`recover_ds` ([sessions](sessions.md#recovering-a-stuck-car)), `flat_spot`, `damage_at`,
+`tyre_water`, `tyre_marbles` (the road under each tyre, `CarState::tyre_water` /
+`tyre_marbles`, percent), `tyre_state` (bit 0 punctured, bit 1 a slow leak under way)
+(pit fields: [pit lane](pit-lane.md)); `PlayerInput.drs` / `ers_mode` / `ers_boost`;
 `DriverFeedback.flat_spot`. Golden bytes (in `server/`, `-- --nocapture`): `cargo test
 telemetry_compact_wire_format` -> `ApexUdpGolden::S_TelemetryCompactFlatSpot` (the older
 `S_TelemetryCompact{Fuel,Tyres,Tow,Heat,Damage,Ers,Zones,Recover}` stay on the client as older servers'

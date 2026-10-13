@@ -333,6 +333,9 @@ void FApexCarWheelSet::WriteTyreData(int32 Index)
 		Band.G,
 		Band.B,
 		0.0f,
+		Surface.Pickup,
+		Surface.Blister,
+		Surface.Heat,
 	};
 	// Only what changed: each write re-sends the component's render state.
 	for (int32 i = 0; i < static_cast<int32>(UE_ARRAY_COUNT(Values)); ++i)
@@ -357,6 +360,9 @@ void FApexCarWheelSet::SetTyreSurface(ApexWheels::EWheel Wheel, const FApexTyreS
 	Next.Wear = FMath::Clamp(Next.Wear, 0.0f, 1.0f);
 	Next.Wetness = FMath::Clamp(Next.Wetness, 0.0f, 1.0f);
 	Next.FlatSpot = FMath::Clamp(Next.FlatSpot, 0.0f, 1.0f);
+	Next.Pickup = FMath::Clamp(Next.Pickup, 0.0f, 1.0f);
+	Next.Blister = FMath::Clamp(Next.Blister, 0.0f, 1.0f);
+	Next.Heat = FMath::Clamp(Next.Heat, -1.0f, 1.0f);
 	// A new flat spot is ground where the locked wheel touches the road
 	// now: it does not turn while it is locked. One per tyre; a fresh set
 	// (or one worn round again) lays the next wherever it locks.

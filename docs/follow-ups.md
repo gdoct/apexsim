@@ -91,15 +91,22 @@ snow session at Silverstone.
 
 ### 4. Tyre state per tyre
 
-Built tyre state that the client gets as one figure per car or per tyre.
-Rides on the per-tyre telemetry append in the roadmap's tyre package: build
-the two together.
+Built tyre state the client draws or prints from telemetry.
 
-- Per-tyre water (today one figure per car, read under its middle).
 - More than one flat spot per tyre, each where its lock-up happened (a
   second lock-up deepens the first today).
+- Never seen in the running game: a puncture's FLAT and a slow leak's LEAK
+  read-out (`item.flat` / `item.leak`, checked only through the golden
+  frame), pickup, blisters and the heat tint on the tread, the sidewall
+  bulge of a deflated tyre, and a car that lists its own compounds on the
+  garage's reference card (the default list's card was seen).
+- Pickup, blistering and the heat tint are integrated on the client from
+  the marbles and tread temperature the server sends
+  (`AApexRaceCarActor::UpdateTyreSurface`); their rates are guesses, and a
+  spectator joining late starts them from zero.
 
-**Check:** golden bytes on both sides; two lock-ups on one tyre on screen.
+**Check:** golden bytes on both sides; two lock-ups on one tyre on screen;
+a puncture, a leak and a long stint's tyres in a chase shot.
 
 ### 5. Damage
 

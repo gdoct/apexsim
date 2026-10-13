@@ -124,7 +124,13 @@ namespace ApexCarMaterials
 		inline constexpr int32 SagCm = 28;
 		/** The compound's ring on the sidewalls, linear RGB (29..31, 32 unused); black for none. */
 		inline constexpr int32 BandColour = 29;
-		inline constexpr int32 Count = 33;
+		/** Rubber picked up off the road, 0..1: crumbs across the tread. */
+		inline constexpr int32 Pickup = 33;
+		/** Blistering, 0..1: torn pits on the shoulders of an overheated tread. */
+		inline constexpr int32 Blister = 34;
+		/** How hot the tread runs against its window, -1 cold .. 1 well over: a hot tread goes glossy and browner. */
+		inline constexpr int32 Heat = 35;
+		inline constexpr int32 Count = 36;
 	}
 
 	/** `/Game/Materials/Car/<Name>`. */

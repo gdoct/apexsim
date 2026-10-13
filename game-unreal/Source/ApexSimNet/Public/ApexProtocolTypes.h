@@ -2294,6 +2294,20 @@ struct APEXSIMNET_API FApexCarTelemetry
 	 */
 	float FlatSpot[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
+	/**
+	 * The road under each tyre, FL FR RL RR (`tyre_water`, `tyre_marbles`):
+	 * the water as a percent of what a downpour leaves on a flat road (over
+	 * 100 standing water), and the marbles 0..1. Negative water with
+	 * bHasTyreRoad false from a server that predates them (the car's one
+	 * figure, the road state's cell under it, stands in).
+	 */
+	float TyreWaterPct[4] = {-1.0f, -1.0f, -1.0f, -1.0f};
+	float TyreMarbles[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	bool bHasTyreRoad = false;
+	/** Each tyre's state (`tyre_state`): down to its carcass, or losing air through a slow leak. */
+	bool bTyrePunctured[4] = {false, false, false, false};
+	bool bTyreLeaking[4] = {false, false, false, false};
+
 	/** "S", "M", "H", "I", "W" (server tyre_thermal::COMPOUNDS), or empty when unknown. */
 	static FString CompoundLetter(int32 InCompound)
 	{

@@ -80,8 +80,9 @@ struct WheelContact {
     contact: RoadContact,
     grip_modifier: f32,
     /// Water on the road under this tyre (`crate::road_state`'s sample
-    /// at the wheel).
+    /// at the wheel), and the marbles lying there.
     water: f32,
+    marbles: f32,
 }
 
 /// The plane the body settles on over its four contact patches, in the
@@ -556,6 +557,7 @@ pub fn update_car_3d(
         let hub_ref = hub_z + local_x * prev_pitch_slope + local_y * prev_roll_slope;
         let road = road_under(local_x, local_y);
         let water = road.water;
+        let marbles = road.marbles;
         // Wheels sit within a couple meters of the car: the car's own
         // nearest index is an excellent hint.
         let sample = query_track_surface(
@@ -591,6 +593,7 @@ pub fn update_car_3d(
                     contact,
                     grip_modifier: ctx.grip_modifier * patch * wet,
                     water,
+                    marbles,
                 }
             }
             None => WheelContact {
@@ -600,6 +603,7 @@ pub fn update_car_3d(
                 contact: RoadContact::Road,
                 grip_modifier: track_ctx.grip_modifier * road.grip,
                 water,
+                marbles,
             },
         }
     };
@@ -613,6 +617,9 @@ pub fn update_car_3d(
         contact_under(rear_axle_x, config.track_width_rear_m / 2.0),
         contact_under(rear_axle_x, -config.track_width_rear_m / 2.0),
     ];
+    // What each tyre runs on, for telemetry.
+    state.tyre_water = std::array::from_fn(|i| contacts[i].water);
+    state.tyre_marbles = std::array::from_fn(|i| contacts[i].marbles);
 
     // The body settles on the plane its four springs agree on: through the
     // contacts on a grade or a bank (every corner compressed alike, so a

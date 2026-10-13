@@ -1300,6 +1300,23 @@ c = lerp(c, c * 2.2 + 0.015, grain * 0.6);
 float glaze = spot * (0.45 + 0.55 * saturate(Flat));
 c = lerp(c, float3(0.075, 0.077, 0.085), glaze);
 r = lerp(r, 0.32, glaze);
+// Hot: a tread run over its window goes glossy and a shade browner; cold
+// rubber keeps its look.
+float hot = saturate(Heat) * onTread;
+c = lerp(c, c * float3(1.3, 1.15, 1.0) + 0.006, hot * 0.6);
+r = lerp(r, 0.45, hot * 0.5);
+// Pickup: crumbs of rubber off the road stuck across the tread, lighter and matte.
+float2 pc = floor(float2(u * max(round(sTot * 90.0), 1.0), v * 22.0));
+float hp = frac(sin(dot(pc, float2(41.731, 17.113))) * 43758.5453);
+float pick = step(1.0 - 0.55 * saturate(Pickup), hp) * onTread * (1.0 - fade);
+c = lerp(c, c * 2.6 + 0.02, pick * 0.7);
+r = lerp(r, 0.98, pick);
+// Blisters: dark, torn pits on the shoulders where the tread overheated.
+float2 bc = floor(float2(u * max(round(sTot * 48.0), 1.0), v * 12.0));
+float hb = frac(sin(dot(bc, float2(63.726, 9.151))) * 43758.5453);
+float blister = step(1.0 - 0.5 * saturate(Blister), hb) * onTread * smoothstep(0.35, 0.6, av) * (1.0 - fade);
+c = lerp(c, float3(0.02, 0.02, 0.022), blister * 0.8);
+r = lerp(r, 0.7, blister);
 // Wet: darker and glossy, the sidewalls a little less; water stands in the grooves.
 float w = saturate(Wet) * lerp(0.75, 1.0, onTread);
 c *= lerp(1.0, 0.55, w);
@@ -1315,6 +1332,13 @@ return float4(c, saturate(r));
 	 */
 	const TCHAR* kTyreNormal = TEXT(R"HLSL(
 float3 n = normalize(Nv);
+// A deflated tyre's sidewall bulges out along the axle where it meets the
+// road (the squat moves the vertices, this turns the light on the bulge).
+if (Sag > 0.01 && Rcm > 0.0)
+{
+	float bulge = smoothstep(Rcm - 3.5 * Sag, Rcm, -Rel.z) * smoothstep(0.85, 0.95, av) * saturate(Sag / (0.05 * Rcm));
+	n = normalize(n + normalize(Xw) * (v < 0.0 ? -1.0 : 1.0) * bulge * 0.9);
+}
 if (Tread < 0.5 || onTread <= 0.0 || fade >= 1.0)
 {
 	return n;
@@ -1435,12 +1459,16 @@ return o;
 				{TEXT("Tread"), Tread}, {TEXT("Chev"), Chev}, {TEXT("Wear"), Wear}, {TEXT("Flat"), Flat},
 				{TEXT("FlatA"), FlatA}, {TEXT("Depth"), Depth}, {TEXT("Base"), Base}, {TEXT("Rough"), Rough},
 				{TEXT("Wet"), Wet}, {TEXT("Band"), G.PrimitiveVector(TEXT("TyreBandColour"), Cpd::BandColour, FLinearColor::Black)},
-				{TEXT("BandW"), CarScalar(Parent, ApexCarMaterials::TyreBandWidth, 0.035f)}});
+				{TEXT("BandW"), CarScalar(Parent, ApexCarMaterials::TyreBandWidth, 0.035f)},
+				{TEXT("Pickup"), G.PrimitiveScalar(TEXT("TyrePickup"), Cpd::Pickup)},
+				{TEXT("Blister"), G.PrimitiveScalar(TEXT("TyreBlister"), Cpd::Blister)},
+				{TEXT("Heat"), G.PrimitiveScalar(TEXT("TyreHeat"), Cpd::Heat)}});
 		UMaterialExpressionCustom* Normal = AddCustom(Parent, TEXT("ApexTyreNormal"), Prelude + kTyreNormal, CMOT_Float3,
 			{{TEXT("P"), Local}, {TEXT("Rm"), Rm}, {TEXT("Hm"), Hm}, {TEXT("Rcm"), Rcm}, {TEXT("Hcm"), Hcm},
 				{TEXT("Tread"), Tread}, {TEXT("Chev"), Chev}, {TEXT("Wear"), Wear}, {TEXT("Flat"), Flat},
 				{TEXT("FlatA"), FlatA}, {TEXT("Depth"), Depth}, {TEXT("Nv"), AddExpr<UMaterialExpressionVertexNormalWS>(Parent)},
-				{TEXT("Xw"), Axis(1.0f, 0.0f, 0.0f)}, {TEXT("Yw"), Axis(0.0f, 1.0f, 0.0f)}, {TEXT("Zw"), Axis(0.0f, 0.0f, 1.0f)}});
+				{TEXT("Xw"), Axis(1.0f, 0.0f, 0.0f)}, {TEXT("Yw"), Axis(0.0f, 1.0f, 0.0f)}, {TEXT("Zw"), Axis(0.0f, 0.0f, 1.0f)},
+				{TEXT("Sag"), Sag}, {TEXT("Rel"), G.Transform(Local, TRANSFORMSOURCE_Local, TRANSFORM_World)}});
 		UMaterialExpressionCustom* Squat = AddCustom(Parent, TEXT("ApexTyreSag"), kTyreSag, CMOT_Float3,
 			{{TEXT("Rel"), G.Transform(Local, TRANSFORMSOURCE_Local, TRANSFORM_World)},
 				{TEXT("Axle"), G.Normalize(Axis(1.0f, 0.0f, 0.0f))}, {TEXT("Sag"), Sag}, {TEXT("Rcm"), Rcm},
@@ -2102,14 +2130,28 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 	bool bBakeTyre = bForce || !FPackageName::DoesPackageExist(TyrePackage);
 	if (!bBakeTyre)
 	{
-		// One baked before the compound ring draws none: bake it again.
+		// One baked before the compound ring, or before the pickup, blisters
+		// and heat (a custom node that reads `TyrePickup`), draws none: bake it again.
 		const UMaterialInterface* Existing = LoadObject<UMaterialInterface>(nullptr, *ApexCarMaterials::ObjectPath(ApexCarMaterials::TyreName));
 		float Width = 0.0f;
 		bBakeTyre = Existing
 			&& !Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::TyreBandWidth), Width);
+		if (!bBakeTyre && Existing)
+		{
+			bool bPickup = false;
+			if (const UMaterial* Graph = Existing->GetMaterial())
+			{
+				for (const TObjectPtr<UMaterialExpression>& Expression : Graph->GetExpressions())
+				{
+					const UMaterialExpressionCustom* Custom = Cast<UMaterialExpressionCustom>(Expression.Get());
+					bPickup |= Custom && Custom->Code.Contains(TEXT("Pickup"));
+				}
+			}
+			bBakeTyre = !bPickup;
+		}
 		if (bBakeTyre)
 		{
-			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no compound ring; baking it again"), ApexCarMaterials::TyreName);
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no compound ring or no pickup; baking it again"), ApexCarMaterials::TyreName);
 		}
 	}
 	if (bBakeTyre)

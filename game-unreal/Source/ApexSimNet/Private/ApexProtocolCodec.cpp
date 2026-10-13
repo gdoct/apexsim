@@ -1607,7 +1607,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 44;
+	constexpr int32 CompactCarFieldCount = 47;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -2163,6 +2163,65 @@ namespace
 					}
 				}
 				Out.bHasDamageAt = Count >= 4;
+				return true;
+			});
+		}
+		// The road under each tyre and each tyre's state, appended after the
+		// hit centres: the water (percent, 255 and over standing), the
+		// marbles (percent) and the state bits (1 punctured, 2 leaking).
+		Out.bHasTyreRoad = false;
+		for (int32 Tyre = 0; Tyre < 4; ++Tyre)
+		{
+			Out.TyreWaterPct[Tyre] = -1.0f;
+			Out.TyreMarbles[Tyre] = 0.0f;
+			Out.bTyrePunctured[Tyre] = false;
+			Out.bTyreLeaking[Tyre] = false;
+		}
+		auto ReadFour = [&](TFunctionRef<void(int32, uint64)> Take)
+		{
+			int32 Count = 0;
+			if (!Reader.ReadArrayHeader(Count))
+			{
+				return false;
+			}
+			for (int32 Tyre = 0; Tyre < Count; ++Tyre)
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				if (Tyre < 4)
+				{
+					Take(Tyre, Raw);
+				}
+			}
+			return Count >= 4;
+		};
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				Out.bHasTyreRoad = ReadFour([&Out](int32 Tyre, uint64 Value) { Out.TyreWaterPct[Tyre] = static_cast<float>(Value); });
+				return true;
+			});
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				ReadFour([&Out](int32 Tyre, uint64 Value) { Out.TyreMarbles[Tyre] = FMath::Clamp(static_cast<float>(Value) / 100.0f, 0.0f, 1.0f); });
+				return true;
+			});
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				ReadFour([&Out](int32 Tyre, uint64 Value)
+				{
+					Out.bTyrePunctured[Tyre] = (Value & 1) != 0;
+					Out.bTyreLeaking[Tyre] = (Value & 2) != 0;
+				});
 				return true;
 			});
 		}

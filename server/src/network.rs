@@ -1087,7 +1087,25 @@ pub struct CompactCarState {
     /// Appended after `flat_spot`; all 0 from an older server.
     #[serde(default)]
     pub damage_at: [i8; 4],
+    /// The road under each tyre, FL FR RL RR: the water, percent of what
+    /// a downpour leaves on a flat road (`CarState::tyre_water` x 100,
+    /// held to 255), and the marbles, percent. Appended after `damage_at`;
+    /// all 0 from an older server, which a client reads as "not sent".
+    #[serde(default)]
+    pub tyre_water: [u8; 4],
+    #[serde(default)]
+    pub tyre_marbles: [u8; 4],
+    /// Each tyre's state bits, FL FR RL RR: bit 0 punctured (down to its
+    /// carcass, `TireData::punctured`), bit 1 a slow leak under way
+    /// (`leak_kpa_per_s` > 0 and not yet flat). Appended after
+    /// `tyre_marbles`; all 0 from an older server.
+    #[serde(default)]
+    pub tyre_state: [u8; 4],
 }
+
+/// `tyre_state` bits.
+pub const TYRE_STATE_PUNCTURED: u8 = 1;
+pub const TYRE_STATE_LEAKING: u8 = 2;
 
 /// `slide_flags`: a sliding tyre is bit `i`, a locked one bit `i + 4`.
 pub const SLIDE_FLAG_LOCKED_SHIFT: u8 = 4;
@@ -1411,6 +1429,21 @@ impl CompactCarState {
                 .each()
                 .map(|t| (t.flat_spot.clamp(0.0, 1.0) * 100.0).round() as u8),
             damage_at: state.damage.hit_at.to_wire(),
+            tyre_water: state
+                .tyre_water
+                .map(|w| (w.max(0.0) * 100.0).round().min(255.0) as u8),
+            tyre_marbles: state
+                .tyre_marbles
+                .map(|m| (m.clamp(0.0, 1.0) * 100.0).round() as u8),
+            tyre_state: state.tires.each().map(|t| {
+                let mut bits = 0;
+                if t.punctured {
+                    bits |= TYRE_STATE_PUNCTURED;
+                } else if t.leak_kpa_per_s > 0.0 {
+                    bits |= TYRE_STATE_LEAKING;
+                }
+                bits
+            }),
         }
     }
 }
@@ -2750,6 +2783,13 @@ mod tests {
         {
             tyre.flat_spot = spot;
         }
+        // The road under each tyre and its state: the front right on a
+        // puddle over marbles with a slow leak, the rear right flat.
+        state.tyre_water = [0.05, 1.3, 0.0, 0.0];
+        state.tyre_marbles = [0.0, 0.5, 0.0, 0.0];
+        state.tires.front_right.leak_kpa_per_s = 2.0;
+        state.tires.rear_right.punctured = true;
+        state.tires.rear_right.leak_kpa_per_s = 2.0;
 
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,
@@ -2770,10 +2810,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 44-field array: 0xDC 0x00 0x2C is the array-16 header.
+        // The car is a 47-field array: 0xDC 0x00 0x2F is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x2C]),
-            "CompactCarState must stay 44 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x2F]),
+            "CompactCarState must stay 47 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {

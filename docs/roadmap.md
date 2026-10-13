@@ -37,22 +37,6 @@ None open.
 
 ## P2: depth
 
-### 2. Tyres and brakes on screen
-
-The tyre material and the tyre read-outs share per-tyre state from
-telemetry: send it per tyre once (a positional telemetry append), then draw
-and print it. The per-tyre water and flat spots in
-[follow-ups.md](follow-ups.md) ride on the same append.
-
-- Tread detail: sidewall bulge in the normal, pickup and marbles on the
-  tread, blistering, heat colour.
-- Puncture read-out: today a puncture shows only as FLAT under the tyre (red
-  under 60 kPa) and in the wear, and a slow leak only as falling pressure.
-- The garage's stock compound card says which wet tyre it fits in the rain.
-
-**Check:** golden bytes on both sides; a puncture and a slow leak on screen;
-the wet-tyre card in the garage.
-
 ### 3. Damage
 
 - Debris the cars collide with, not only drive through.
