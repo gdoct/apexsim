@@ -241,6 +241,58 @@ fn an_ai_on_worn_tyres_pits_and_races_on() {
     );
 }
 
+/// A driver who lost their connection mid-race: the server drives their car
+/// (`away_input`) and plans its stops as an AI's, so worn tyres take it to
+/// its box rather than round and round until they or the tank give out.
+#[test]
+fn an_away_drivers_car_is_brought_in_for_its_stop() {
+    let track = monza();
+    if track.pit_lane.is_none() {
+        return;
+    }
+    let car = gt3();
+    let car_id = car.id;
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car);
+    let session = RaceSession::new(
+        Uuid::from_u128(1),
+        Uuid::nil(),
+        SessionKind::Multiplayer,
+        8,
+        0,
+        4,
+    );
+    let mut gs = GameSession::new(session, track, car_configs);
+    let player = Uuid::from_u128(100);
+    gs.add_player(player, car_id).expect("seat");
+    gs.start_countdown_mode(1, GameMode::Race);
+    for t in gs
+        .session
+        .participants
+        .get_mut(&player)
+        .unwrap()
+        .tires
+        .each_mut()
+    {
+        t.wear_percent = 72.0;
+    }
+    assert!(gs.hold_seat(&player), "the seat is held");
+
+    for _ in 0..(HZ * 60 * 8) {
+        let inputs: HashMap<PlayerId, PlayerInputData> = [(player, gs.away_input(&player))].into();
+        gs.tick(&inputs);
+        if gs.session.participants[&player].pit.stops > 0 {
+            break;
+        }
+    }
+    let s = &gs.session.participants[&player];
+    assert_eq!(s.pit.stops, 1, "the server pitted the away car");
+    assert!(
+        s.tires.each().iter().all(|t| t.wear_percent < 20.0),
+        "fresh tyres"
+    );
+}
+
 /// What became of one human's trip down a pit lane under the autopilot.
 #[derive(Debug, Default)]
 struct Trip {

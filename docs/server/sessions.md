@@ -516,8 +516,11 @@ client a `resume_token`; a client that connects again with it in
   the seat instead of removing the car (`GameSession::hold_seat`): the car
   stays in the session and the server drives it with the cool-down driver
   (`away_input`, steering aid off as after the flag), or parks it in its
-  garage in a hotlap or qualifying session. A lap the server drives is never
-  a record. The lobby keeps the seat counted (`LobbyManager::hold_seat`), so
+  garage in a hotlap or qualifying session. In a race the server plans and
+  drives the car's stops as an AI's (`plan_ai_stops`, out to the lane's
+  end), so a long race does not run its tank or tyres out. The roster marks
+  the car `Away`, so the other drivers' towers show it. A lap the server
+  drives is never a record. The lobby keeps the seat counted (`LobbyManager::hold_seat`), so
   the session is not given away beyond its size. A held seat's player is
   sent nothing of the session (telemetry, driver feedback, roster, timing,
   road state) until `JoinSession` resumes it: a resumed client sits in the
@@ -531,8 +534,8 @@ client a `resume_token`; a client that connects again with it in
   connection; its end is then ignored (the player is already back).
 - **Giving it up.** Creating or joining another session (not a demo or a
   watched hotlap) gives the held seat up (`give_up_seat`), as do
-  `Disconnect` and a dashboard kick (the kick also forgets the resume
-  token). `LeaveSession` leaves what the connection is in, never a seat
+  `Disconnect`, `GiveUpSeat` (the menu banner's Give up seat) and a
+  dashboard kick (the kick also forgets the resume token). `LeaveSession` leaves what the connection is in, never a seat
   held elsewhere: the menu sends it with nothing joined.
 - **The last driver.** While any human in the session is connected, held
   seats wait for as long as the session runs. Once every human is away the
@@ -548,7 +551,10 @@ and keeps the offer (`HasRejoinOffer`, `OnRejoinOfferChanged`) until a join,
 a lost connection, or the session leaving the lobby's list. The main menu
 shows it as a banner over the hero ([client.md](../game/client.md#main-menu-uiapexmainmenuwidgetcpp)).
 A lost connection takes the client back to the menu; a rejoin's first frame
-opens the race view again.
+opens the race view again. A drop from a session the player was driving in
+rejoins by itself when the offer comes within
+`UApexNetSubsystem::AutoRejoinWindowSeconds` (30 s) of the drop; a later
+one waits for the banner.
 
 ## Recovering a stuck car
 

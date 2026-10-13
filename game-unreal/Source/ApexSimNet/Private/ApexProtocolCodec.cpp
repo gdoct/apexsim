@@ -929,6 +929,8 @@ namespace
 			else if (Key == TEXT("IsAi"))       { bOk = Reader.ReadBool(Out.bIsAi); }
 			else if (Key == TEXT("CarConfigId")) { bOk = Reader.ReadString(Out.CarConfigId); }
 			else if (Key == TEXT("Livery"))     { bOk = Reader.ReadUInt64(Raw); Out.Livery = static_cast<int32>(Raw); }
+			else if (Key == TEXT("Away"))       { bOk = Reader.ReadBool(Out.bAway); }
+			else if (Key == TEXT("GridSlot"))   { bOk = Reader.ReadUInt64(Raw); Out.GridSlot = static_cast<int32>(Raw); }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -2864,6 +2866,7 @@ namespace ApexProtocol
 	TArray<uint8> EncodeLeaveSession() { return EncodeUnitVariant("LeaveSession"); }
 	TArray<uint8> EncodeStartSession() { return EncodeUnitVariant("StartSession"); }
 	TArray<uint8> EncodeAdvanceWeekend() { return EncodeUnitVariant("AdvanceWeekend"); }
+	TArray<uint8> EncodeGiveUpSeat()   { return EncodeUnitVariant("GiveUpSeat"); }
 	TArray<uint8> EncodeDisconnect()   { return EncodeUnitVariant("Disconnect"); }
 
 	TArray<uint8> EncodeSetGameMode(EApexGameMode Mode)

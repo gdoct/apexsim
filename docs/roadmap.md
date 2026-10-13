@@ -30,23 +30,7 @@ None open.
 
 ## P1: core racing experience
 
-### 1. Reconnect
-
-All of it is in the held-seat path (`tick.rs` recipients,
-`resolve_recipients`, the resume token, the rejoin banner), with one roster
-change for the away flag.
-
-- A short drop rejoins by itself instead of going back to the menu.
-- The rejoin banner can give the seat up.
-- The roster carries an away flag, so other drivers see that a car is
-  server-driven.
-- The away driver pits, so a long race does not run its tank dry.
-
-**Check:** kill a client mid-race, restart within the grace and see the
-banner, not the race; rejoin; give the seat up; drop the network for a few
-seconds and see it rejoin by itself.
-
-### 2. Race results and grid
+### 1. Race results and grid
 
 The results widget and the roster. A grid slot on the roster serves the
 lobby list; the gap at the flag fixes both the race and the backdrop result.
@@ -65,7 +49,7 @@ lobby list; the gap at the flag fixes both the race and the backdrop result.
 **Check:** a qualifying + race weekend with AI, read the lobby grid, the
 race result and a backdrop race's result; pad walk the create screen.
 
-### 3. Track geometry pass
+### 2. Track geometry pass
 
 Every item changes what the cars drive on, so they all go through the
 refresh order ([content/track-pipeline.md](content/track-pipeline.md)) once,
@@ -90,7 +74,7 @@ refresh re-exports the scene).
 backends (centerline and road mesh) against the commit before, comparing
 totals; a lap by hand at Spa and Monza.
 
-### 4. Race-day fixes
+### 3. Race-day fixes
 
 Two small bugs a driver meets in an ordinary race.
 
@@ -108,12 +92,13 @@ between them.
 
 ## P2: depth
 
-### 5. Look at what is built: screen pass
+### 4. Look at what is built: screen pass
 
 Features that are built but have never been looked at in the running game.
 One unattended screenshot batch (`-ApexAutoRace`, `-ApexExecAfter`,
 `-ApexScreenshotAfter`, `-ApexCameraLookAt`) covers all of them, and what
-it finds feeds packages 6 to 11. Do it before them.
+it finds feeds the look packages after it (weather, tyres, damage, dressing).
+Do it before them.
 
 - Road state: a green start, a drying line after rain, puddles, marbles and
   debris (only a rubbered start has been seen: Silverstone,
@@ -133,7 +118,7 @@ it finds feeds packages 6 to 11. Do it before them.
 **Check:** the batch's screenshots, each item judged and either deleted or
 turned into a bullet in the package that owns it.
 
-### 6. Weather look
+### 5. Weather look
 
 What a wet or snowy race looks like on the client.
 
@@ -153,7 +138,7 @@ What a wet or snowy race looks like on the client.
 **Check:** the screen pass's weather shots again, with a rain-to-dry and a
 snow session at Silverstone.
 
-### 7. Tyres and brakes on screen
+### 6. Tyres and brakes on screen
 
 The tyre material and the tyre read-outs share per-tyre state from
 telemetry: send it per tyre once (a positional telemetry append), then draw
@@ -171,7 +156,7 @@ and print it.
 **Check:** golden bytes on both sides; a puncture, a slow leak and a lock-up
 on screen; the wet-tyre card in the garage.
 
-### 8. Damage
+### 7. Damage
 
 The car parents, the damage actor and the importer's damage tables.
 
@@ -187,7 +172,7 @@ The car parents, the damage actor and the importer's damage tables.
 **Check:** a seeded pileup replay screenshotted before and after; one AC
 import re-run and crashed.
 
-### 9. Hotlap and lap records
+### 8. Hotlap and lap records
 
 A single driver's laps: the ghost, the hotlap replay and watch, and the
 in-session board. The watch's seek, ghost and replay reuse the stream v2
@@ -211,7 +196,7 @@ controls ([game/spectator.md](game/spectator.md)).
 **Check:** a hotlap with ghost and replay; two clients in one hotlap
 session; a server restart between two watches.
 
-### 10. Replays carry everything
+### 9. Replays carry everything
 
 A stream's rows and `State` records leave out the ghost and the driver
 feedback, so a replay is quieter and emptier than the race.
@@ -224,7 +209,7 @@ feedback, so a replay is quieter and emptier than the race.
 by ear; a promo clip with sound. (Frames stay whole: no delta encoding, see
 [game/spectator.md](game/spectator.md).)
 
-### 11. Circuit dressing
+### 10. Circuit dressing
 
 Prop-kit and `ats-dress` work, after the geometry pass. Laid by the same
 `ApexProps` code.
@@ -242,7 +227,7 @@ Prop-kit and `ats-dress` work, after the geometry pass. Laid by the same
 
 **Check:** each circuit by hand in the running game; the track-editor tests.
 
-### 12. Nordschleife dressing
+### 11. Nordschleife dressing
 
 One circuit, a long list; its own package so it does not hold up the rest.
 
@@ -253,7 +238,7 @@ One circuit, a long list; its own package so it does not hold up the rest.
 
 **Check:** a lap by hand and a TV-camera lap in the running game.
 
-### 13. Menus and HUD layouts
+### 12. Menus and HUD layouts
 
 Shell screens and the HUD editor. All of it goes through one pad walk
 (`ApexSim.UI.PadWalk`) at the end.
@@ -268,7 +253,7 @@ Shell screens and the HUD editor. All of it goes through one pad walk
 
 **Check:** the pad walk, then the same screens with a real pad.
 
-### 14. Wheels, pads and rigs
+### 13. Wheels, pads and rigs
 
 The code that is left in the input path, then one session with real wheels,
 a shifter, pads and screens.
@@ -287,7 +272,7 @@ a shifter, pads and screens.
 
 ## P3: nice to have
 
-### 15. Car content
+### 14. Car content
 
 Car data that the client and the shipped cars do not use yet.
 
@@ -301,7 +286,7 @@ Car data that the client and the shipped cars do not use yet.
 **Check:** server physics and class calibration tests (a car.toml edit moves
 them, and changes its content checksum); the HUD on a carbon and a steel car.
 
-### 16. Server dashboard
+### 15. Server dashboard
 
 For people running a server for others
 ([server/operations.md](server/operations.md)).
@@ -312,7 +297,7 @@ For people running a server for others
 
 **Check:** run a session from the dashboard alone.
 
-### 17. Content tooling
+### 16. Content tooling
 
 - `ats-dress --explain` and a per-prop source stamp.
 - `ats-export --strict`, which fails on a dropped facet.
@@ -326,7 +311,7 @@ For people running a server for others
 **Check:** the track-editor tests; a fresh-clone `initialize_content.ps1`;
 the launcher import with the network off.
 
-### 18. Rendering and platforms
+### 17. Rendering and platforms
 
 - Increase GPU stability. Two races have stopped with
   `DXGI_ERROR_DEVICE_HUNG` about 10 s after the track was shown (Silverstone
@@ -351,7 +336,7 @@ the launcher import with the network off.
 
 **Check:** needs the hardware; the A/B is two screenshots.
 
-### 19. Cleanup
+### 18. Cleanup
 
 Small and independent. Do one or two alongside whatever package touches
 the same files.

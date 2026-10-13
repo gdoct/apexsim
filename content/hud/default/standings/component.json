@@ -26,7 +26,10 @@
             { "type": "text", "fill": 1, "margin": [14, 0, 0, 0], "font": "body", "size": 14,
               "text": "=item.is_player ? 'YOU' : upper(item.name)",
               "bold": "=item.is_local",
-              "color": "=item.is_local ? 'on_accent' : 'text'" },
+              "color": "=item.is_local ? 'on_accent' : item.away ? 'text_muted' : 'text'" },
+            // A driver who lost their connection: the server drives the car.
+            { "type": "text", "margin": [8, 0, 0, 0], "font": "body", "size": 11, "bold": true,
+              "visible": "=item.away", "text": "AWAY", "color": "text_muted" },
             // The leader's cell carries a lap time; everyone else's the gap to
             // them. A gap means nothing once a car has taken the flag, or
             // once it is out.

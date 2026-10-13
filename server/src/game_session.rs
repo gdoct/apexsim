@@ -2657,6 +2657,8 @@ impl GameSession {
             return false;
         };
         if self.away.insert(*player_id) {
+            // The roster tells the other drivers the car is the server's.
+            self.roster_dirty = true;
             if let std::collections::hash_map::Entry::Vacant(held) =
                 self.held_steering_assist.entry(*player_id)
             {
@@ -3457,8 +3459,10 @@ impl GameSession {
 
         let ai_ids: std::collections::HashSet<PlayerId> =
             self.session.ai_player_ids.iter().copied().collect();
-        // A debug stand-in drives its stops as the AI does, out to the lane's end.
+        // A debug stand-in, and the server driving an away driver's car,
+        // drive their stops as the AI does, out to the lane's end.
         let stand_in = self.debug.stand_in_driver;
+        let away = &self.away;
         let centerline = &self.track_config.centerline;
         let mut arrived: Vec<PlayerId> = Vec::new();
         let mut finished: Vec<PlayerId> = Vec::new();
@@ -3488,6 +3492,7 @@ impl GameSession {
                 at = lane.locate(state.pos_x, state.pos_y, None);
             }
             let is_ai = ai_ids.contains(&state.player_id);
+            let drives_as_ai = is_ai || stand_in || away.contains(&state.player_id);
             // How far past the road edge on the lane's side the car is.
             let off_road = state
                 .nearest_centerline_idx
@@ -3526,7 +3531,7 @@ impl GameSession {
             // A human's car that crosses the pit entry line is the
             // autopilot's until the exit line: to its own box, serviced,
             // and out.
-            if !is_ai
+            if !drives_as_ai
                 && !state.manual_pits
                 && !pit.driving
                 && !pit.serviced
@@ -3597,7 +3602,7 @@ impl GameSession {
             // end (the AI's).
             if pit.driving
                 && pit.serviced
-                && at.station_m >= crate::pit::route_end_m(lane, is_ai || stand_in)
+                && at.station_m >= crate::pit::route_end_m(lane, drives_as_ai)
             {
                 pit.driving = false;
                 pit.held = false;
@@ -3633,12 +3638,14 @@ impl GameSession {
             .participants
             .values()
             // A debug stand-in plans and drives its stops as the AI does,
-            // run-up included (`stand_in_input`).
+            // run-up included (`stand_in_input`), and so does the server
+            // driving an away driver's car.
             .filter(|s| {
                 s.pit.driving
                     && !s.in_garage
                     && !self.is_ai_player(&s.player_id)
                     && !self.debug.stand_in_driver
+                    && !self.away.contains(&s.player_id)
             })
             .filter_map(|state| {
                 let config = self.car_configs.get(&state.car_config_id)?;
@@ -3985,6 +3992,10 @@ impl GameSession {
                     .filter(|id| !self.is_ai_player(id))
                     .copied(),
             );
+        } else {
+            // So does the server driving an away driver's car: a long race
+            // does not run its tank dry while they are gone.
+            ai_ids.extend(self.away.iter().copied());
         }
         for ai_id in ai_ids {
             let Some(state) = self.session.participants.get(&ai_id) else {
@@ -4360,6 +4371,8 @@ impl GameSession {
                     is_ai,
                     car_config_id: state.car_config_id,
                     livery,
+                    away: self.away.contains(player_id),
+                    grid_slot: state.grid_position,
                 }
             })
             .collect();

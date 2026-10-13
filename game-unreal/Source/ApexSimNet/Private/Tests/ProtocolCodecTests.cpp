@@ -199,6 +199,7 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 			ApexGolden::C_CreateSessionWeekend);
 	}
 	CheckBytes(TEXT("AdvanceWeekend"), ApexProtocol::EncodeAdvanceWeekend(), ApexGolden::C_AdvanceWeekend);
+	CheckBytes(TEXT("GiveUpSeat"), ApexProtocol::EncodeGiveUpSeat(), ApexGolden::C_GiveUpSeat);
 
 	{
 		FApexCarSetup Setup;

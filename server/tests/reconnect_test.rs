@@ -447,3 +447,39 @@ async fn a_resumed_driver_is_sent_nothing_of_the_race_until_they_rejoin() {
     .expect("test timed out")
     .unwrap();
 }
+
+#[tokio::test]
+async fn the_rejoin_offer_can_be_turned_down() {
+    timeout(TEST_TIMEOUT, async {
+        let server = start_server(60).await;
+        let (mut host, lobby) = Client::connect("Host", server.tcp_addr, None).await?;
+        let session_id = seat(&mut host, &lobby, None).await?;
+        let (mut guest, lobby) = Client::connect("Guest", server.tcp_addr, None).await?;
+        seat(&mut guest, &lobby, Some(session_id)).await?;
+        let (guest_id, token) = (guest.player_id, guest.resume_token.clone());
+        drop(guest);
+        eventually(&server, Duration::from_secs(5), "the guest is away", |s| {
+            is_away(s, session_id, guest_id)
+        })
+        .await?;
+
+        let (mut back, _) = Client::connect("Guest", server.tcp_addr, Some(&token)).await?;
+        back.wait_rejoin().await?;
+        back.send(&ClientMessage::GiveUpSeat).await?;
+        eventually(
+            &server,
+            Duration::from_secs(5),
+            "the guest's car is gone",
+            |s| {
+                s.sessions
+                    .get(&session_id)
+                    .is_some_and(|gs| !gs.session.participants.contains_key(&guest_id))
+            },
+        )
+        .await?;
+        Res::Ok(())
+    })
+    .await
+    .expect("test timed out")
+    .unwrap();
+}

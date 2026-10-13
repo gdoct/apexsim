@@ -86,6 +86,8 @@ namespace
 		/** Speed the gaps are read at, m/s. */
 		float Speed = 0.0f;
 		bool bIsLocal = false;
+		/** The driver lost their connection; the server drives the car. */
+		bool bAway = false;
 	};
 
 	/** Milliseconds as seconds, null when the server has no time. */
@@ -578,6 +580,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 				[&Car](const FApexRosterEntry& Candidate) { return Candidate.CarIndex == Car.CarIndex; }))
 		{
 			Entry.Name = Row->PlayerName;
+			Entry.bAway = Row->bAway;
 		}
 		if (Entry.Name.IsEmpty())
 		{
@@ -683,6 +686,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Row.Add(TEXT("on_track"), FApexHudValue::Of(Car.bIsOnTrack));
 		Row.Add(TEXT("servicing"), FApexHudValue::Of(Car.bPitServicing));
 		Row.Add(TEXT("retired"), FApexHudValue::Of(HudRetired(Car)));
+		Row.Add(TEXT("away"), FApexHudValue::Of(Entry.bAway));
 		const FString* Model = In.CarNames ? In.CarNames->Find(Car.CarIndex) : nullptr;
 		Row.Add(TEXT("car_name"), Model && !Model->IsEmpty() ? FApexHudValue::Of(*Model) : FApexHudValue());
 		const FString Letter = FApexCarTelemetry::CompoundLetter(Car.Compound);

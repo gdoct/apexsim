@@ -198,6 +198,9 @@ pub(crate) async fn handle_message(
         ClientMessage::Disconnect => {
             handle_disconnect(ctx, connection_id).await;
         }
+        ClientMessage::GiveUpSeat => {
+            handle_give_up_seat(ctx, connection_id).await;
+        }
         ClientMessage::AdvanceWeekend => {
             handle_advance_weekend(ctx, connection_id).await;
         }
@@ -281,6 +284,17 @@ async fn held_seat(
 ) -> Option<SessionId> {
     let seat = state.lobby.get_player_session(conn_info.player_id).await?;
     (conn_info.in_session != Some(seat)).then_some(seat)
+}
+
+/// The menu's rejoin banner turned down: the held seat is given up.
+async fn handle_give_up_seat(ctx: &GameLoopCtx, connection_id: ConnectionId) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let mut state_write = ctx.state.write().await;
+    if let Some(seat) = held_seat(&state_write, &conn_info).await {
+        lifecycle::give_up_seat(&mut state_write, conn_info.player_id, seat).await;
+    }
 }
 
 async fn handle_select_car(

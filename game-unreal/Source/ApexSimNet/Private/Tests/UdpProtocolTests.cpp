@@ -173,7 +173,25 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 				TestTrue(TEXT("entry 1 is AI"), Message.Roster.Entries[1].bIsAi);
 				// The blob predates the car id: an older server's roster still decodes.
 				TestTrue(TEXT("no car id in an old roster"), Message.Roster.Entries[1].CarConfigId.IsEmpty());
+				TestFalse(TEXT("an old roster has nobody away"), Message.Roster.Entries[0].bAway);
+				TestEqual(TEXT("an old roster has no grid slot"), Message.Roster.Entries[0].GridSlot, 0);
 			}
+		}
+	}
+
+	// The away flag and the grid slot.
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("SessionRoster with away and grid decodes (%s)"), *Error),
+				ApexProtocol::DecodeServerMessage(ApexUdpGolden::S_SessionRosterAwayGrid, Message, Error))
+			&& TestEqual(TEXT("two entries"), Message.Roster.Entries.Num(), 2))
+		{
+			TestTrue(TEXT("entry 0 is away"), Message.Roster.Entries[0].bAway);
+			TestEqual(TEXT("entry 0 starts second"), Message.Roster.Entries[0].GridSlot, 2);
+			TestFalse(TEXT("entry 1 is here"), Message.Roster.Entries[1].bAway);
+			TestEqual(TEXT("entry 1 starts on pole"), Message.Roster.Entries[1].GridSlot, 1);
+			TestEqual(TEXT("entry 1 name"), Message.Roster.Entries[1].PlayerName, FString(TEXT("Luna Swift")));
 		}
 	}
 

@@ -491,6 +491,7 @@ the furthest round).
 | `item.is_player` | the player's own car (never while watching) |
 | `item.finished`, `item.finish_position` | has taken the flag, and where |
 | `item.retired` | out of the race |
+| `item.away` | the driver lost their connection; the server drives the car until they rejoin |
 | `item.lap` | lap, as `lap.display` |
 | `item.gap_leader_s` | seconds behind the leader (*null* for the leader, or when the length is unknown) |
 | `item.interval_s` | seconds behind the car one place ahead (*null* as above) |

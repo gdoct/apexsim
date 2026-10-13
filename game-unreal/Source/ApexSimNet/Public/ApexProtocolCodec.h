@@ -44,6 +44,8 @@ namespace ApexProtocol
 		const FApexWeekendFormat& Weekend = FApexWeekendFormat());
 	/** The host moves a race weekend on to its next session (no fields). */
 	APEXSIMNET_API TArray<uint8> EncodeAdvanceWeekend();
+	/** `GiveUpSeat`: turn down the rejoin offer; the held seat's car leaves its session. */
+	APEXSIMNET_API TArray<uint8> EncodeGiveUpSeat();
 	/** Asks for a track's fastest laps (a car id, or empty for every car); answered with Leaderboard. */
 	APEXSIMNET_API TArray<uint8> EncodeRequestLeaderboard(const FString& TrackConfigId, const FString& CarConfigId);
 	/** Asks for the qualifying results stored for a track; answered with QualifyingResults. */

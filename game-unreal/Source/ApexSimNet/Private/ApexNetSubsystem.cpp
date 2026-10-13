@@ -138,6 +138,7 @@ void UApexNetSubsystem::Connect(const FString& InHost, int32 InPort, const FStri
 		GConfig->GetString(ResumeSection, *ResumeKey(Host, Port), ResumeToken, GGameUserSettingsIni);
 	}
 	ClearRejoinOffer();
+	AutoRejoinSessionId.Reset();
 	PlayerId.Reset();
 	CurrentSessionId.Reset();
 	bSessionSpectator = false;
@@ -455,6 +456,17 @@ void UApexNetSubsystem::RejoinSession()
 	}
 	UE_LOG(LogApexSimNet, Log, TEXT("Rejoining session %s"), *RejoinSessionId);
 	JoinSession(RejoinSessionId);
+}
+
+void UApexNetSubsystem::GiveUpSeat()
+{
+	if (!HasRejoinOffer())
+	{
+		return;
+	}
+	UE_LOG(LogApexSimNet, Log, TEXT("-> GiveUpSeat %s"), *RejoinSessionId);
+	SendPayload(ApexProtocol::EncodeGiveUpSeat());
+	ClearRejoinOffer();
 }
 
 void UApexNetSubsystem::SetRejoinOffer(const FString& SessionId, const FString& TrackId, EApexSessionKind Kind)
@@ -816,6 +828,9 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		const bool bAuthRejected = ConnectionState == EApexConnectionState::Failed;
 
 		TeardownConnection();
+		// Driving when it dropped: a quick way back rejoins by itself.
+		AutoRejoinSessionId = IsInSession() && !bSessionSpectator ? CurrentSessionId : FString();
+		AutoRejoinUntilSeconds = FPlatformTime::Seconds() + AutoRejoinWindowSeconds;
 		PlayerId.Reset();
 		CurrentSessionId.Reset();
 		bSessionSpectator = false;
@@ -1071,6 +1086,12 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- RejoinAvailable SessionId=%s TrackId=%s Kind=%d"),
 			*Message.SessionId, *Message.TrackId, static_cast<int32>(Message.SessionKind));
 		SetRejoinOffer(Message.SessionId, Message.TrackId, Message.SessionKind);
+		if (Message.SessionId == AutoRejoinSessionId && FPlatformTime::Seconds() <= AutoRejoinUntilSeconds)
+		{
+			UE_LOG(LogApexSimNet, Log, TEXT("Back within %.0f s of the drop: rejoining by itself"), AutoRejoinWindowSeconds);
+			RejoinSession();
+		}
+		AutoRejoinSessionId.Reset();
 		break;
 
 	case EApexServerMessageType::SessionJoined:

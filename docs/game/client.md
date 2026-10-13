@@ -125,9 +125,11 @@ While the server holds a seat for the player in a session they lost the
 connection to (`UApexNetSubsystem::HasRejoinOffer`,
 [sessions.md](../server/sessions.md#reconnecting)), a banner over the hero
 says "You are still in a race at <circuit>" with "Click here to rejoin"
-(`RejoinSession`). It takes focus when it appears (Enter or pad A rejoins);
-Up from the hero's actions reaches it and Down leaves it. It goes when the
-offer does: a join, a lost connection, or the session no longer listed.
+(`RejoinSession`), and beside it Give up seat (`GiveUpSeat`). It takes
+focus when it appears (Enter or pad A rejoins); Right moves to Give up seat
+and on to the rail, Up from the hero's actions reaches it and Down leaves
+it. It goes when the offer does: a join, giving the seat up, a lost
+connection, or the session no longer listed.
 
 Keys: Tab / shoulders cross columns, Back (pad B) steps up a page, Escape
 opens a "Back to main menu / Exit game" overlay, pad Start (or the pause key)

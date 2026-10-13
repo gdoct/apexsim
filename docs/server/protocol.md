@@ -172,7 +172,8 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 | Road state | `road_state_wire_format` |
 | Session rules | `assists_wire_format`, `session_damage_wire_format`, `race_time_wire_format`, `qualifying_time_wire_format` (`CreateSession.qualifying_seconds`, `SessionJoined.QualifyingSeconds`, a qualifying `race_clock`), `weekend_wire_format` (`CreateSession.weekend`, `SessionJoined.Weekend`, `WeekendState`, `AdvanceWeekend`, a `GameMode::Practice` frame with its clock), `session_ai_skill_wire_format`, `conditions_air_wire_format`, `sky_wire_format`, `grid_wire_format` |
 | Garage, pit, hotlap | `car_setup_wire_format`, `car_setup_sheet_wire_format`, `pit_service_wire_format`, `hotlap_wire_format`, `recover_wire_format` |
-| Reconnect | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`) |
+| Reconnect | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`, `GiveUpSeat`) |
+| Roster | `roster_wire_format` (`RosterEntry.Away`, `RosterEntry.GridSlot`) |
 | Spectator | `showcase_wire_format` (network.rs), `spectator_wire_format` (spectator.rs) |
 
 `test_lobby_summaries_carry_content_crc` pins the lobby's checksum fields

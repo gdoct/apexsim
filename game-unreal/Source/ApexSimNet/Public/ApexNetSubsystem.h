@@ -593,6 +593,16 @@ public:
 	/** Takes the offered seat back (JoinSession with its id). */
 	void RejoinSession();
 
+	/** Turns the offer down (GiveUpSeat): our car leaves that session. */
+	void GiveUpSeat();
+
+	/**
+	 * A drop shorter than this, from a session we drove in, takes the seat
+	 * back by itself when the server offers it; a longer one leaves the
+	 * offer to the menu's banner.
+	 */
+	static constexpr double AutoRejoinWindowSeconds = 30.0;
+
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	const FApexLobbyState& GetCachedLobbyState() const { return CachedLobbyState; }
 
@@ -811,6 +821,9 @@ private:
 	EApexSessionKind RejoinSessionKind = EApexSessionKind::Multiplayer;
 	void SetRejoinOffer(const FString& SessionId, const FString& TrackId, EApexSessionKind Kind);
 	void ClearRejoinOffer();
+	/** The session we were driving in when the connection dropped, and until when an offer of it is taken up unasked. */
+	FString AutoRejoinSessionId;
+	double AutoRejoinUntilSeconds = 0.0;
 	FApexTlsOptions TlsOptions;
 	FString PlayerId;
 

@@ -60,6 +60,7 @@ namespace
 		const FName ListItem(TEXT("ListItem"));
 		const FName GoTracks(TEXT("GoTracks"));
 		const FName Rejoin(TEXT("Rejoin"));
+		const FName GiveUpSeat(TEXT("GiveUpSeat"));
 		const FName GoCreate(TEXT("GoCreate"));
 		const FName Weekend(TEXT("Weekend"));
 		const FName QuitBack(TEXT("QuitBack"));
@@ -578,7 +579,18 @@ UWidget* UApexMainMenuWidget::BuildHero()
 	RejoinButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	RejoinButton->Setup(RejoinSpec);
 	RejoinButton->OnActivated.AddDynamic(this, &UApexMainMenuWidget::HandleButtonActivated);
-	RejoinBanner = ApexUI::MakeSized(*WidgetTree, RejoinButton, 840.0f, -1.0f);
+	// Beside it, the way to turn the seat down.
+	FApexButtonSpec GiveUpSpec;
+	GiveUpSpec.ActionId = Action::GiveUpSeat;
+	GiveUpSpec.Variant = EApexButtonVariant::Ghost;
+	GiveUpSpec.Label = TEXT("Give up seat");
+	GiveUpSeatButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	GiveUpSeatButton->Setup(GiveUpSpec);
+	GiveUpSeatButton->OnActivated.AddDynamic(this, &UApexMainMenuWidget::HandleButtonActivated);
+	UHorizontalBox* RejoinRow = WidgetTree->ConstructWidget<UHorizontalBox>();
+	ApexUI::AddH(RejoinRow, ApexUI::MakeSized(*WidgetTree, RejoinButton, 680.0f, -1.0f), FMargin(), VAlign_Fill);
+	ApexUI::AddH(RejoinRow, GiveUpSeatButton, FMargin(12.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+	RejoinBanner = RejoinRow;
 	RejoinBanner->SetVisibility(ESlateVisibility::Collapsed);
 	ApexUI::AddV(Hero, RejoinBanner, FMargin(0.0f, 0.0f, 0.0f, 28.0f), HAlign_Left);
 
@@ -976,6 +988,7 @@ void UApexMainMenuWidget::RefreshRejoin()
 	if (!bOffer || !RejoinButton)
 	{
 		bOnRejoin = false;
+		bOnGiveUpSeat = false;
 		return;
 	}
 
@@ -1027,6 +1040,7 @@ void UApexMainMenuWidget::HandleRejoinOfferChanged()
 	if (bShown != bOnRejoin && GetRoot() && GetRoot()->GetCurrentScreen() == EApexScreen::MainMenu && !bQuitOpen)
 	{
 		bOnRejoin = bShown;
+		bOnGiveUpSeat = false;
 		if (bShown)
 		{
 			ActiveColumn = 0;
@@ -1323,6 +1337,13 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		if (UApexNetSubsystem* Net = GetNet())
 		{
 			Net->RejoinSession();
+		}
+	}
+	else if (Id == Action::GiveUpSeat)
+	{
+		if (UApexNetSubsystem* Net = GetNet())
+		{
+			Net->GiveUpSeat();
 		}
 	}
 	else if (Id == Action::GoGarage)  { ShowPage(EPage::Garage); }
@@ -1631,17 +1652,32 @@ bool UApexMainMenuWidget::HandleNavigation(EUINavigation Direction, UWidget* Sou
 		}
 	}
 
-	if (Source && Source == RejoinButton.Get())
+	if (Source && (Source == RejoinButton.Get() || Source == GiveUpSeatButton.Get()))
 	{
 		ActiveColumn = 0;
+		const bool bFromGiveUp = Source == GiveUpSeatButton.Get();
 		switch (Direction)
 		{
 		case EUINavigation::Down:
 			bOnRejoin = false;
+			bOnGiveUpSeat = false;
+			ApplyFocus();
+			return true;
+		case EUINavigation::Left:
+			bOnGiveUpSeat = false;
 			ApplyFocus();
 			return true;
 		case EUINavigation::Right:
-			ActiveColumn = 1;
+			// Rejoin, then Give up seat, then the rail.
+			if (bFromGiveUp)
+			{
+				bOnGiveUpSeat = false;
+				ActiveColumn = 1;
+			}
+			else
+			{
+				bOnGiveUpSeat = true;
+			}
 			ApplyFocus();
 			return true;
 		default:
@@ -1655,6 +1691,7 @@ bool UApexMainMenuWidget::HandleNavigation(EUINavigation Direction, UWidget* Sou
 		ActiveColumn = 0;
 		HeroIndex = HeroAt;
 		bOnRejoin = false;
+		bOnGiveUpSeat = false;
 
 		switch (Direction)
 		{
@@ -1763,7 +1800,8 @@ void UApexMainMenuWidget::ApplyFocus()
 		}
 	}
 
-	if (ActiveColumn == 0 && bOnRejoin && IsRejoinShown() && ApexNav::Focus(RejoinButton))
+	if (ActiveColumn == 0 && bOnRejoin && IsRejoinShown()
+		&& ApexNav::Focus(bOnGiveUpSeat ? GiveUpSeatButton : RejoinButton))
 	{
 		return;
 	}

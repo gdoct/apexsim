@@ -250,6 +250,10 @@ pub enum ClientMessage {
     /// to the race's countdown. `Error 403` for anyone else; `Error 409`
     /// while a phase runs, once the race has begun, or outside a weekend.
     AdvanceWeekend,
+    /// Give up the seat held for this player in a session they lost the
+    /// connection to (the menu's rejoin banner): the car leaves the
+    /// session. Nothing happens when no seat is held.
+    GiveUpSeat,
 
     // UDP - Binds the sender's UDP address to the TCP connection that was
     // issued `token` in `AuthSuccess`. Server replies `UdpHandshakeAck` over
@@ -1474,6 +1478,18 @@ pub struct RosterEntry {
     /// tables. Always within the car's own list.
     #[serde(default)]
     pub livery: u8,
+    /// The driver lost their connection and the server drives the car
+    /// until they rejoin (a held seat). Left off the wire when false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub away: bool,
+    /// The car's starting place, 1 = pole: the order the race lines up in.
+    /// 0 (left off the wire) when the session has not dealt one.
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub grid_slot: u8,
+}
+
+fn is_zero_u8(value: &u8) -> bool {
+    *value == 0
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -4266,6 +4282,13 @@ mod tests {
             other => panic!("Wrong message type: {other:?}"),
         }
 
+        let give_up = rmp_serde::to_vec_named(&ClientMessage::GiveUpSeat).unwrap();
+        println!("C_GiveUpSeat: {}", hex(&give_up));
+        assert!(matches!(
+            rmp_serde::from_slice::<ClientMessage>(&give_up).unwrap(),
+            ClientMessage::GiveUpSeat
+        ));
+
         let rejoin = ServerMessage::RejoinAvailable(RejoinData {
             session_id: player_id,
             track_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
@@ -4278,6 +4301,54 @@ mod tests {
             ServerMessage::RejoinAvailable(data) => {
                 assert_eq!(data.session_id, player_id);
                 assert_eq!(data.session_kind, SessionKind::Multiplayer);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
+    /// The roster's away flag and grid slot, pinned on the client as
+    /// `ApexUdpGolden::S_SessionRosterAwayGrid`. `cargo test
+    /// roster_wire_format -- --nocapture` prints it.
+    #[test]
+    fn test_roster_wire_format() {
+        let entry =
+            |car_index: u8, name: &str, is_ai: bool, away: bool, grid_slot: u8| RosterEntry {
+                car_index,
+                player_id: Uuid::from_u128(car_index as u128 + 1),
+                player_name: name.to_string(),
+                is_ai,
+                car_config_id: Uuid::parse_str("99999999-8888-7777-6666-555555555555").unwrap(),
+                livery: 0,
+                away,
+                grid_slot,
+            };
+        // Present and on the grid: no away key; no slot: no grid key.
+        let plain = rmp_serde::to_vec_named(&entry(0, "Player", false, false, 0)).unwrap();
+        let text = String::from_utf8_lossy(&plain);
+        assert!(!text.contains("Away") && !text.contains("GridSlot"));
+
+        let roster = ServerMessage::SessionRoster(SessionRosterData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            entries: vec![
+                entry(0, "Player", false, true, 2),
+                entry(1, "Luna Swift", true, false, 1),
+            ],
+        });
+        let bytes = rmp_serde::to_vec_named(&roster).unwrap();
+        println!(
+            "S_SessionRosterAwayGrid: {}",
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::SessionRoster(data) => {
+                assert!(data.entries[0].away);
+                assert_eq!(data.entries[0].grid_slot, 2);
+                assert!(!data.entries[1].away);
+                assert_eq!(data.entries[1].grid_slot, 1);
             }
             other => panic!("Wrong message type: {other:?}"),
         }

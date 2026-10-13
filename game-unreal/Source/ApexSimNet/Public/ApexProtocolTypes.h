@@ -1342,6 +1342,14 @@ struct APEXSIMNET_API FApexRosterEntry
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	int32 Livery = 0;
+
+	/** The driver lost their connection; the server drives the car until they rejoin. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bAway = false;
+
+	/** The car's starting place, 1 = pole; 0 when the session has not dealt one (or an older server). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 GridSlot = 0;
 };
 
 /** `SessionRosterData` (network.rs:470) — PascalCase keys, TCP. */

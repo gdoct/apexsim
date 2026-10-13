@@ -88,8 +88,12 @@ private:
 	bool IsRejoinShown() const;
 	UPROPERTY(Transient) TObjectPtr<UWidget> RejoinBanner;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> RejoinButton;
+	/** Beside the banner: turns the offer down (GiveUpSeat). */
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> GiveUpSeatButton;
 	/** Focus is on the banner rather than the hero's actions (column 0). */
 	bool bOnRejoin = false;
+	/** On the banner, focus is on Give up seat rather than Rejoin. */
+	bool bOnGiveUpSeat = false;
 
 	// --- Keyboard navigation --------------------------------------------------
 
