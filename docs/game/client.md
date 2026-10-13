@@ -58,6 +58,12 @@ and widget factories), so layouts are reviewable as diffs.
   still comes from its `/Game/UI/Screens/WBP_*` blueprint.
   `EApexScreen` values are appended, never inserted (the switcher is indexed
   by them).
+- Toasts (`UApexToastWidget`) are the top layer of the root, bottom centre,
+  hit-test invisible, so they show over the menus and the race HUD without
+  taking focus; a toast lasts 4 s. A `ServerNotice` from the operator (a
+  dashboard broadcast, or the admin ending the session) arrives as
+  `UApexNetSubsystem::OnServerNotice` and shows as `Server: <message>` for
+  8 s, in the normal colour with the Notice cue. A later toast replaces it.
 - `UApexMenuFlowSubsystem` holds menu state the protocol has no message for:
   pending car and track, the create screen's choices (persisted on the profile,
   `ApexProfileSave.h`), the server address, catalog lookups and the content

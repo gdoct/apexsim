@@ -11,7 +11,9 @@ command line and every `APEXSIM_*` environment variable are listed in
   (`ServerConfig`, defaults, `validate`, `apply_env_overrides`), `server.rs`
   (`run_server_from`), `health.rs` and `metrics.rs` (health port).
 - `server/src/admin/` - the web dashboard (`mod.rs` auth and TLS, `api.rs`
-  views, `bans.rs`, `logbuf.rs`, `sampler.rs`, the page in `web/`).
+  views, `hosted.rs` sessions the server runs, `schedule.rs`, `content.rs`
+  switched-off content and uploads, `bans.rs`, `logbuf.rs`, `sampler.rs`,
+  the page in `web/`).
 - `server/src/debug_hooks.rs` - `[debug]` stand-in driver and timed events.
 - `server/Dockerfile`, `Dockerfile.content`, `docker-compose.yml`,
   `docker-entrypoint.sh`, `server.docker.toml`; `scripts/deploy_server.ps1`.
@@ -181,17 +183,70 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   game port's when those files exist, else a self-signed one written beside
   `bans_file` as `admin-selfsigned.crt/.key`.
 - **Views** (`api.rs`): overview, live sessions and any car's telemetry,
-  timing, players (kick, ban, unban), history (recorded sessions from
-  `replays/`), logs (a ring buffer of `log_buffer_lines`, fed by
-  `admin::logbuf::LogBufferLayer`; filter, download), performance (1 s
-  samples over 2 minutes), config (edits the `server.toml` the process was
-  started from: validated as at startup, `.bak` kept, atomic write; takes
-  effect at the next start), content (read-only).
+  timing, sessions (host, start, stop, restart, broadcast; below), schedule
+  (below), players (ping, kick, ban, unban, and removing an AI car from its
+  session), history (recorded sessions from `replays/`, each with its laps,
+  fastest lap and every car's best and laps; CSV export), logs (a ring
+  buffer of `log_buffer_lines`, fed by `admin::logbuf::LogBufferLayer`;
+  filter, download), performance (1 s samples over 2 minutes), config
+  (below), content (below).
+- **Hosted sessions** (`hosted.rs`): the Sessions view opens a session the
+  server runs, from the same settings a player's create screen has (track,
+  the car whose class the AI races in, player slots, AI cars and level,
+  laps, a timed race or a weekend, weather, time of day, damage). Its host is
+  the server (`hosted::SERVER_HOST_ID`, which no connection has), its lobby
+  host name the name given; players find it in the session list and join.
+  It stays with nobody in it (`GameSession::hosted`,
+  `LobbySessionInfo::persistent`) and only the dashboard moves it: START
+  (into the countdown, or a weekend's first phase), NEXT PHASE (a weekend
+  between phases waits for it), RESTART (ends it and opens it again with
+  the same settings, in its lobby: players go back to the menu and join
+  again) and STOP. START and STOP work on a player's session too. STOP and
+  RESTART send everyone in the session a `ServerNotice` with the reason and
+  a `SessionLeft`. A broadcast sends a `ServerNotice` to everyone connected
+  or to one session.
+- **Schedule** (`schedule.rs`, kept in `[admin] schedule_file`): an entry is
+  a hosted session's settings, a start time, how many minutes before it the
+  session opens in the lobby, and once, daily or weekly. A task checks it
+  every second: it opens the session at the open time, starts it at the
+  start time and moves the entry on to its next time (a one-off is done),
+  and while that session runs it moves a weekend on as each phase ends
+  (unless the entry says to wait for NEXT PHASE). An occurrence more than 10
+  minutes late to open (the server was down) is skipped and noted; one ended
+  before its start counts as cancelled. Times are Unix seconds, so a daily
+  entry keeps to UTC across a change of the clocks; the page shows them in
+  the browser's time.
+- **Content** (`content.rs`): every car and track can be switched off (kept
+  in `[admin] content_file`): the lobby leaves it out, a select or create
+  naming it is refused with `Error 403`, and the AI field is never dealt it
+  (`GameSession::ai_excluded_cars`); a session already on it runs on.
+  Uploads go one file per request into `custom/` and load at once: a
+  `car.toml` to `cars/custom/<car name>/`, a track's YAML and its sidecars
+  to `tracks/custom/<Stem>/` (sidecars first: the YAML puts it in the
+  catalog, and a re-uploaded sidecar is read again by the next session on
+  the track). A file the server cannot parse is refused before anything is
+  replaced, and an upload never takes a loaded car's or track's id unless it
+  is the same custom file again. Players need the same files to race on
+  them (the client renders from its own content), and the content checksum
+  tells them when theirs differ.
+- **Config** edits the `server.toml` the process was started from:
+  validated as at startup, `.bak` kept, atomic write. The keys in
+  `config::LIVE_KEYS` apply as it is saved (`[server]` max_sessions,
+  session_timeout_seconds, reconnect_grace_seconds; `[auth]`, read at each
+  `Authenticate`; `[logging] level`, unless `RUST_LOG` or `--log-level`
+  set it; `[admin] log_buffer_lines`; `[debug]`, from the next session); an
+  `APEXSIM_` variable still wins. The save answers which keys applied and
+  which wait for a restart.
 - **Bans** match IP or name at `Authenticate` and persist in `bans_file`. A
   kick sends `Error 403` and closes the connection through the normal
   disconnect path (`TransportLayer::kick_player`).
 
-Tests: `server/tests/admin_test.rs`. `cargo test --test admin_test
+- **Ping** is the game's own measure of its heartbeat round trip,
+  reported in the next `Heartbeat` (`ping_ms`); a client that does not
+  report one shows none.
+
+Tests: `server/tests/admin_test.rs` (`a_session_is_run_from_the_dashboard_alone`
+is the end-to-end check). `cargo test --test admin_test
 serve_demo_dashboard -- --ignored --nocapture` serves it on 19003/19004
 (token `demo`) over a live AI race.
 
@@ -217,8 +272,9 @@ ssh from `deploy/deploy.user.psd1` (gitignored; start from
 ## Files the server writes
 
 `[records] dir`: `lap_records.json`, `ghosts/*.msgpack`, `qualifying.json`
-and by default the dashboard's `bans.json` (a corrupt records file is logged
-and treated as empty). `./replays/`: a replay (`.apxs` plus a `.meta.json`) per finished race,
+and by default the dashboard's `bans.json`, `content.json` (switched-off
+content) and `schedule.json` (a corrupt records file is logged and treated
+as empty). `./replays/`: a replay (`.apxs` plus a `.meta.json`) per finished race,
 streamed to `.recording_<session>.blocks` while racing. `[logging] file_dir` when file
 logging is on.
 
@@ -244,4 +300,9 @@ of green. Not applied to demo sessions. Tests: `tests/debug_hooks_test.rs`.
   a frame length, before it reconnects in plaintext. Harmless.
 - A self-signed certificate without a matching `tls_fingerprint` is refused
   by the game and it does not retry (the same certificate would fail again).
-- The dashboard's Config view reloads nothing: every change needs a restart.
+- The dashboard's Config view applies only `config::LIVE_KEYS`; a binding,
+  the tick rate, TLS, content folders and the rest need a restart (the save
+  says which).
+- A hosted session never ends by itself in its lobby: STOP it, or let the
+  schedule start it. A finished one is removed after
+  `session_timeout_seconds` as any is.

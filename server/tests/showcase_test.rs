@@ -81,7 +81,11 @@ impl Client {
                 self.last_heartbeat = Instant::now();
                 self.heartbeat_tick += 1;
                 let client_tick = self.heartbeat_tick;
-                self.send(&ClientMessage::Heartbeat { client_tick }).await;
+                self.send(&ClientMessage::Heartbeat {
+                    client_tick,
+                    ping_ms: None,
+                })
+                .await;
             }
             if let Some(found) = pick(self.recv().await) {
                 return found;

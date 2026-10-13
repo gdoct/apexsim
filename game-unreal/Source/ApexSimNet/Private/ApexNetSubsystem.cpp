@@ -992,7 +992,7 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		{
 			TimeSinceHeartbeat = 0.0f;
 			HeartbeatSentSeconds = FPlatformTime::Seconds();
-			Connection->Send(ApexProtocol::EncodeHeartbeat(++ClientTick));
+			Connection->Send(ApexProtocol::EncodeHeartbeat(++ClientTick, PingMs));
 		}
 	}
 
@@ -1263,6 +1263,13 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		bSpectatorJoinRequested = false;
 		UE_LOG(LogApexSimNet, Warning, TEXT("<- Error %d: %s"), Message.ErrorCode, *Message.Reason);
 		OnServerError.Broadcast(Message.ErrorCode, Message.Reason);
+		break;
+
+	case EApexServerMessageType::ServerNotice:
+		// Not the Error path: a notice answers no request, so the pending
+		// flags stay as they are.
+		UE_LOG(LogApexSimNet, Log, TEXT("<- ServerNotice: %s"), *Message.Reason);
+		OnServerNotice.Broadcast(Message.Reason);
 		break;
 
 	case EApexServerMessageType::PlayerDisconnected:

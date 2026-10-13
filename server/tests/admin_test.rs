@@ -46,6 +46,16 @@ async fn start_dashboard_with(
     config.admin.token = TOKEN.into();
     // The ban list and the generated certificate live beside it.
     config.admin.bans_file = dir.path().join("bans.json").to_string_lossy().into_owned();
+    config.admin.content_file = dir
+        .path()
+        .join("content.json")
+        .to_string_lossy()
+        .into_owned();
+    config.admin.schedule_file = dir
+        .path()
+        .join("schedule.json")
+        .to_string_lossy()
+        .into_owned();
     tweak(&mut config);
     let server = run_server_from(config, config_path).await.unwrap();
     let admin = server.admin.clone().expect("dashboard enabled");
@@ -680,6 +690,517 @@ async fn a_live_session_is_listed_with_cars_timing_and_a_track_outline() {
     );
 }
 
+async fn post(d: &Dashboard, path: &str, body: &serde_json::Value) -> Reply {
+    http(d.http, "POST", path, &bearer(), Some(&body.to_string())).await
+}
+
+/// The first track and car the dashboard offers.
+async fn some_track_and_car(d: &Dashboard) -> (String, String) {
+    let content = get(d, "/api/content").await.json();
+    let first = |k: &str| {
+        content[k]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|x| x["enabled"] == true)
+            .map(|x| x["id"].as_str().unwrap().to_string())
+            .unwrap()
+    };
+    (first("tracks"), first("cars"))
+}
+
+async fn wait_for(mut check: impl AsyncFnMut() -> bool, what: &str) {
+    for _ in 0..100 {
+        if check().await {
+            return;
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+    panic!("timed out waiting for {what}");
+}
+
+/// The roadmap's check: a session run from the dashboard alone. Opened with
+/// no player in it, it stays; a player finds it in the lobby and joins; the
+/// dashboard sees their ping, talks to them, takes an AI car out, starts
+/// it and ends it.
+#[tokio::test]
+async fn a_session_is_run_from_the_dashboard_alone() {
+    let d = start_dashboard().await;
+    let (track, car) = some_track_and_car(&d).await;
+    let spec = serde_json::json!({
+        "name": "Sunday Cup", "track_id": track, "car_id": car,
+        "player_slots": 2, "ai_count": 2, "lap_limit": 2,
+    });
+    let opened = post(&d, "/api/sessions", &spec).await;
+    assert_eq!(opened.status, 200, "{}", opened.body);
+    let id = opened.json()["id"].as_str().unwrap().to_string();
+
+    // Nobody is in it, and it stays.
+    sleep(Duration::from_millis(400)).await;
+    let list = get(&d, "/api/sessions").await.json();
+    let row = &list["sessions"][0];
+    assert_eq!(row["id"], id.as_str());
+    assert_eq!(
+        (row["hosted"].clone(), row["restartable"].clone()),
+        (true.into(), true.into())
+    );
+    assert_eq!(
+        (
+            row["state"].as_str(),
+            row["humans"].as_u64(),
+            row["ai"].as_u64()
+        ),
+        (Some("lobby"), Some(0), Some(2))
+    );
+
+    // A player sees it in the lobby, hosted by the server, and joins.
+    let (mut racer, _) = Racer::connect(d.server.tcp_addr, "Racer").await.unwrap();
+    let host = racer
+        .until(|m| match m {
+            ServerMessage::LobbyState(l) => l
+                .available_sessions
+                .iter()
+                .find(|s| s.id.to_string() == id)
+                .map(|s| s.host_name.clone()),
+            _ => None,
+        })
+        .await
+        .expect("listed in the lobby");
+    assert_eq!(host, "Sunday Cup");
+    racer
+        .send(&ClientMessage::SelectCar {
+            car_config_id: car.parse().unwrap(),
+            livery: 0,
+        })
+        .await;
+    racer
+        .send(&ClientMessage::JoinSession {
+            session_id: id.parse().unwrap(),
+        })
+        .await;
+    racer
+        .until(|m| matches!(m, ServerMessage::SessionJoined(_)).then_some(()))
+        .await
+        .expect("joined");
+
+    // Its ping, as the game reports it.
+    racer
+        .send(&ClientMessage::Heartbeat {
+            client_tick: 1,
+            ping_ms: Some(37),
+        })
+        .await;
+    wait_for(
+        async || {
+            get(&d, "/api/players").await.json()["players"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|p| p["name"] == "Racer" && p["ping_ms"] == 37)
+        },
+        "the reported ping",
+    )
+    .await;
+
+    // A message to the session reaches the player.
+    let sent = post(
+        &d,
+        "/api/broadcast",
+        &serde_json::json!({ "message": "Green in two minutes", "session": id }),
+    )
+    .await
+    .json();
+    assert_eq!(sent["sent"], 1);
+    let notice = racer
+        .until(|m| match m {
+            ServerMessage::ServerNotice { message } => Some(message.clone()),
+            _ => None,
+        })
+        .await;
+    assert_eq!(notice.as_deref(), Some("Green in two minutes"));
+
+    // One AI car out.
+    let players = get(&d, "/api/players").await.json();
+    let ai = players["players"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["role"] == "AI" && p["session"] == id.as_str())
+        .unwrap()["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let removed = post(
+        &d,
+        &format!("/api/sessions/{id}/ai/{ai}/remove"),
+        &serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(removed.status, 200, "{}", removed.body);
+    let detail = get(&d, &format!("/api/sessions/{id}")).await.json();
+    assert_eq!(detail["cars"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        post(
+            &d,
+            &format!("/api/sessions/{id}/ai/{ai}/remove"),
+            &serde_json::json!({})
+        )
+        .await
+        .status,
+        409,
+        "gone already"
+    );
+
+    // Start: the player hears the countdown.
+    let started = post(
+        &d,
+        &format!("/api/sessions/{id}/start"),
+        &serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(started.status, 200, "{}", started.body);
+    assert_eq!(started.json()["phase"], "race");
+    racer
+        .until(|m| matches!(m, ServerMessage::SessionStarting { .. }).then_some(()))
+        .await
+        .expect("SessionStarting");
+    assert_eq!(
+        post(
+            &d,
+            &format!("/api/sessions/{id}/start"),
+            &serde_json::json!({})
+        )
+        .await
+        .status,
+        409
+    );
+
+    // Stop: the player is told why and sent back to the menu.
+    let stopped = post(
+        &d,
+        &format!("/api/sessions/{id}/stop"),
+        &serde_json::json!({ "reason": "That's all for today" }),
+    )
+    .await;
+    assert_eq!(stopped.status, 200, "{}", stopped.body);
+    let reason = racer
+        .until(|m| match m {
+            ServerMessage::ServerNotice { message } => Some(message.clone()),
+            _ => None,
+        })
+        .await;
+    assert_eq!(reason.as_deref(), Some("That's all for today"));
+    racer
+        .until(|m| matches!(m, ServerMessage::SessionLeft).then_some(()))
+        .await
+        .expect("SessionLeft");
+    let left = get(&d, "/api/sessions").await.json();
+    assert!(left["sessions"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_hosted_session_restarts_with_its_settings() {
+    let d = start_dashboard().await;
+    let (track, car) = some_track_and_car(&d).await;
+    let spec =
+        serde_json::json!({ "track_id": track, "car_id": car, "ai_count": 3, "lap_limit": 4 });
+    let first = post(&d, "/api/sessions?start=1", &spec).await.json();
+    assert_eq!(first["started"], "race");
+    let id = first["id"].as_str().unwrap();
+
+    let again = post(
+        &d,
+        &format!("/api/sessions/{id}/restart"),
+        &serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(again.status, 200, "{}", again.body);
+    let new_id = again.json()["id"].as_str().unwrap().to_string();
+    assert_ne!(new_id, id);
+    let list = get(&d, "/api/sessions").await.json();
+    let rows = list["sessions"].as_array().unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["id"], new_id.as_str());
+    assert_eq!(
+        (
+            rows[0]["state"].as_str(),
+            rows[0]["ai"].as_u64(),
+            rows[0]["laps"].as_u64()
+        ),
+        (Some("lobby"), Some(3), Some(4))
+    );
+
+    // Unknown ones are refused.
+    let nobody = "00000000-0000-0000-0000-000000000001";
+    assert_eq!(
+        post(
+            &d,
+            &format!("/api/sessions/{nobody}/restart"),
+            &serde_json::json!({})
+        )
+        .await
+        .status,
+        409
+    );
+    assert_eq!(
+        post(
+            &d,
+            &format!("/api/sessions/{nobody}/stop"),
+            &serde_json::json!({})
+        )
+        .await
+        .status,
+        409
+    );
+    assert_eq!(
+        post(
+            &d,
+            "/api/sessions",
+            &serde_json::json!({ "track_id": nobody, "car_id": car })
+        )
+        .await
+        .status,
+        409
+    );
+    assert_eq!(
+        post(&d, "/api/sessions", &serde_json::json!({ "laps": 3 }))
+            .await
+            .status,
+        400
+    );
+}
+
+#[tokio::test]
+async fn switched_off_content_is_not_offered() {
+    let d = start_dashboard().await;
+    let (track, car) = some_track_and_car(&d).await;
+    let off = post(
+        &d,
+        "/api/content/toggle",
+        &serde_json::json!({ "id": car, "enabled": false }),
+    )
+    .await;
+    assert_eq!(off.status, 200, "{}", off.body);
+    let content = get(&d, "/api/content").await.json();
+    let row = content["cars"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == car.as_str())
+        .unwrap()
+        .clone();
+    assert_eq!(row["enabled"], false);
+    let kept = std::fs::read_to_string(d.dir.path().join("content.json")).unwrap();
+    assert!(kept.contains(&car), "kept in [admin] content_file");
+
+    // Not in the lobby, refused on select and on a hosted create.
+    let (mut racer, _) = Racer::connect(d.server.tcp_addr, "Racer").await.unwrap();
+    let offered = racer
+        .until(|m| match m {
+            ServerMessage::LobbyState(l) => {
+                Some(l.car_configs.iter().any(|c| c.id.to_string() == car))
+            }
+            _ => None,
+        })
+        .await;
+    assert_eq!(offered, Some(false));
+    racer
+        .send(&ClientMessage::SelectCar {
+            car_config_id: car.parse().unwrap(),
+            livery: 0,
+        })
+        .await;
+    let code = racer
+        .until(|m| match m {
+            ServerMessage::Error { code, .. } => Some(*code),
+            _ => None,
+        })
+        .await;
+    assert_eq!(code, Some(403));
+    let refused = post(
+        &d,
+        "/api/sessions",
+        &serde_json::json!({ "track_id": track, "car_id": car }),
+    )
+    .await;
+    assert_eq!(refused.status, 409);
+
+    let on = post(
+        &d,
+        "/api/content/toggle",
+        &serde_json::json!({ "id": car, "enabled": true }),
+    )
+    .await;
+    assert_eq!(on.status, 200);
+    assert!(!d
+        .server
+        .state
+        .read()
+        .await
+        .disabled_content
+        .contains(&car.parse().unwrap()));
+}
+
+#[tokio::test]
+async fn a_scheduled_session_opens_ahead_and_starts_on_time() {
+    let d = start_dashboard().await;
+    let (track, car) = some_track_and_car(&d).await;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let entry = serde_json::json!({
+        "spec": { "name": "Nightly", "track_id": track, "car_id": car, "ai_count": 2 },
+        "start_at": now + 3, "open_minutes": 1, "repeat": "daily",
+    });
+    let saved = post(&d, "/api/schedule", &entry).await;
+    assert_eq!(saved.status, 200, "{}", saved.body);
+
+    // Inside its open window: the session is in the lobby before its start.
+    wait_for(
+        async || get(&d, "/api/schedule").await.json()["entries"][0]["status"] == "open",
+        "the entry to open its session",
+    )
+    .await;
+    let list = get(&d, "/api/sessions").await.json();
+    assert_eq!(list["sessions"][0]["state"], "lobby");
+    assert_eq!(list["sessions"][0]["hosted"], true);
+
+    // At its time it starts, and the entry moves on a day.
+    wait_for(
+        async || get(&d, "/api/schedule").await.json()["entries"][0]["status"] == "running",
+        "the scheduled start",
+    )
+    .await;
+    let entries = get(&d, "/api/schedule").await.json();
+    let e = &entries["entries"][0];
+    assert_eq!(e["start_at"].as_u64(), Some(now + 3 + 86_400));
+    assert_eq!(e["enabled"], true);
+    let list = get(&d, "/api/sessions").await.json();
+    assert_ne!(list["sessions"][0]["state"], "lobby");
+
+    let id = e["id"].as_str().unwrap();
+    let del = http(
+        d.http,
+        "DELETE",
+        &format!("/api/schedule/{id}"),
+        &bearer(),
+        None,
+    )
+    .await;
+    assert_eq!(del.status, 200);
+    assert!(get(&d, "/api/schedule").await.json()["entries"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+}
+
+#[tokio::test]
+async fn cars_and_tracks_upload_into_custom_and_load_at_once() {
+    let content = tempfile::tempdir().unwrap();
+    let cars = content.path().join("cars");
+    let tracks = content.path().join("tracks");
+    std::fs::create_dir_all(cars.join("default")).unwrap();
+    std::fs::create_dir_all(tracks.join("default")).unwrap();
+    let shipped = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../content/cars/default/ashton-marvin-amr26/car.toml"),
+    )
+    .unwrap();
+    std::fs::create_dir_all(cars.join("default/amr")).unwrap();
+    std::fs::write(cars.join("default/amr/car.toml"), &shipped).unwrap();
+    let (cars_dir, tracks_dir) = (
+        cars.to_string_lossy().into_owned(),
+        tracks.to_string_lossy().into_owned(),
+    );
+    let d = start_dashboard_with(
+        move |c| {
+            c.content.cars_dir = cars_dir;
+            c.content.tracks_dir = tracks_dir;
+        },
+        None,
+    )
+    .await;
+    let upload = |kind: &'static str, name: &'static str, body: String| {
+        let d = &d;
+        async move {
+            http(
+                d.http,
+                "POST",
+                &format!("/api/content/upload?kind={kind}&name={name}"),
+                &bearer(),
+                Some(&body),
+            )
+            .await
+        }
+    };
+
+    // A car keeps its own id; a shipped car's id is refused.
+    let refused = upload(
+        "car",
+        "car.toml",
+        shipped.replace("Ashton Marvin AMR26", "Copy"),
+    )
+    .await;
+    assert_eq!(refused.status, 422, "{}", refused.body);
+    let own = shipped
+        .replace(
+            "cd10083c-7f03-454a-b7f9-427025fce254",
+            "0f0f0f0f-1111-4222-8333-444444444444",
+        )
+        .replace("name = \"Ashton Marvin AMR26\"", "name = \"Club Special\"");
+    let car = upload("car", "car.toml", own.clone()).await;
+    assert_eq!(car.status, 200, "{}", car.body);
+    assert_eq!(car.json()["name"], "Club Special");
+    assert!(cars.join("custom/Club Special/car.toml").is_file());
+    // The same car again replaces itself.
+    assert_eq!(upload("car", "car.toml", own).await.status, 200);
+    assert_eq!(
+        upload("car", "car.toml", "not = [toml".into()).await.status,
+        422
+    );
+
+    // A track: a sidecar, then its YAML, which puts it in the catalog.
+    let yaml = "name: Square\ntrack_id: 6f1c2c4e-3b1f-4c8a-9d57-1a2b3c4d5e6f\nnodes:\n  \
+                - { x: 0.0, y: 0.0 }\n  - { x: 300.0, y: 0.0 }\n  - { x: 300.0, y: 300.0 }\n  \
+                - { x: 0.0, y: 300.0 }\ndefault_width: 12.0\nclosed_loop: true\n";
+    assert_eq!(
+        upload("track", "Square.notes.txt", "hello".into())
+            .await
+            .status,
+        200
+    );
+    assert_eq!(
+        upload("track", "..%2Fescape.yaml", yaml.into())
+            .await
+            .status,
+        422
+    );
+    let track = upload("track", "Square.yaml", yaml.into()).await;
+    assert_eq!(track.status, 200, "{}", track.body);
+    assert_eq!(track.json()["track"]["name"], "Square");
+    assert!(tracks.join("custom/Square/Square.notes.txt").is_file());
+    let broken = upload("track", "Square.yaml", "nodes: [".into()).await;
+    assert_eq!(broken.status, 422);
+    assert_eq!(
+        std::fs::read_to_string(tracks.join("custom/Square/Square.yaml")).unwrap(),
+        yaml,
+        "a file that does not load leaves the old one"
+    );
+
+    let listed = get(&d, "/api/content").await.json();
+    assert!(listed["cars"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|c| c["name"] == "Club Special"));
+    assert!(listed["tracks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|t| t["name"] == "Square" && t["source"] == "CUSTOM"));
+}
+
 #[tokio::test]
 async fn the_config_editor_validates_backs_up_and_reports_what_changed() {
     let dir = tempfile::tempdir().unwrap();
@@ -731,9 +1252,25 @@ async fn the_config_editor_validates_backs_up_and_reports_what_changed() {
         "the previous file is kept"
     );
 
+    assert_eq!(
+        body["restart_keys"],
+        serde_json::json!(["server.tick_rate_hz"])
+    );
+    assert_eq!(body["applied"], serde_json::json!([]));
+
     // Saving the same text again changes nothing.
     let again = put(&faster).await.json();
     assert_eq!(again["restart_required"], false);
+
+    // A live key goes into force as it is saved, with no restart.
+    let fewer = faster.replace("max_sessions = 8", "max_sessions = 3");
+    assert_ne!(fewer, faster);
+    let live = put(&fewer).await.json();
+    assert_eq!(live["applied"], serde_json::json!(["server.max_sessions"]));
+    assert_eq!(live["restart_required"], false);
+    assert_eq!(d.server.state.read().await.config.server.max_sessions, 3);
+    // ... while what needs a restart has not moved.
+    assert_eq!(d.server.state.read().await.config.server.tick_rate_hz, 420);
 }
 
 #[tokio::test]
@@ -863,10 +1400,16 @@ async fn serve_demo_dashboard() {
     let mut tick = 0u32;
     while tokio::time::Instant::now() < end {
         tick += 1;
-        host.send(&ClientMessage::Heartbeat { client_tick: tick })
-            .await;
+        host.send(&ClientMessage::Heartbeat {
+            client_tick: tick,
+            ping_ms: Some(24),
+        })
+        .await;
         lurker
-            .send(&ClientMessage::Heartbeat { client_tick: tick })
+            .send(&ClientMessage::Heartbeat {
+                client_tick: tick,
+                ping_ms: Some(61),
+            })
             .await;
         let _ = timeout(Duration::from_millis(400), async {
             while host.recv().await.is_some() {}

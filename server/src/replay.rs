@@ -44,6 +44,12 @@ pub struct ReplayParticipant {
     /// The livery worn, as the roster carries it (0 = as authored).
     #[serde(default)]
     pub livery: u8,
+    /// The car's fastest legal lap, ms, as the session ended.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub best_lap_ms: Option<u32>,
+    /// Laps the car completed.
+    #[serde(default)]
+    pub laps: u16,
 }
 
 /// A single frame of replay data

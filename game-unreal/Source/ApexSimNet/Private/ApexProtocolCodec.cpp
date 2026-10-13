@@ -2509,6 +2509,7 @@ namespace
 		if (Variant == TEXT("RejoinAvailable"))    { return EApexServerMessageType::RejoinAvailable; }
 		if (Variant == TEXT("RoadState"))          { return EApexServerMessageType::RoadState; }
 		if (Variant == TEXT("Leaderboard"))        { return EApexServerMessageType::Leaderboard; }
+		if (Variant == TEXT("ServerNotice"))       { return EApexServerMessageType::ServerNotice; }
 
 		// The named-encoding `Telemetry` is only used for server-side replays;
 		// the wire carries TelemetryCompact.
@@ -2599,6 +2600,7 @@ namespace
 		case EApexServerMessageType::GameModeChanged:
 		case EApexServerMessageType::CountdownUpdate:
 		case EApexServerMessageType::Error:
+		case EApexServerMessageType::ServerNotice:
 			return ParseInlineVariantFields(Reader, Out);
 
 		default:
@@ -2636,12 +2638,19 @@ namespace ApexProtocol
 		return MoveTemp(Writer.GetBuffer());
 	}
 
-	TArray<uint8> EncodeHeartbeat(uint32 ClientTick)
+	TArray<uint8> EncodeHeartbeat(uint32 ClientTick, int32 PingMs)
 	{
-		FMsgPackWriter Writer(32);
-		BeginDataVariant(Writer, "Heartbeat", 1);
+		// Without a measured ping the bytes are those of every earlier client.
+		const bool bPing = PingMs >= 0;
+		FMsgPackWriter Writer(48);
+		BeginDataVariant(Writer, "Heartbeat", bPing ? 2 : 1);
 		Writer.WriteString("client_tick");
 		Writer.WriteUInt(ClientTick);
+		if (bPing)
+		{
+			Writer.WriteString("ping_ms");
+			Writer.WriteUInt(static_cast<uint64>(PingMs));
+		}
 		return MoveTemp(Writer.GetBuffer());
 	}
 

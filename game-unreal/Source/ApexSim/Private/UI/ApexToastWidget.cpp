@@ -40,12 +40,17 @@ void UApexToastWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 
 void UApexToastWidget::Show(const FString& Message, bool bIsError)
 {
+	ShowFor(Message, bIsError, DisplaySeconds);
+}
+
+void UApexToastWidget::ShowFor(const FString& Message, bool bIsError, float Seconds)
+{
 	if (MessageText)
 	{
 		MessageText->SetText(FText::FromString(Message));
 		MessageText->SetColorAndOpacity(bIsError ? ErrorColor : NormalColor);
 	}
-	RemainingSeconds = DisplaySeconds;
+	RemainingSeconds = Seconds;
 	// HitTestInvisible, not Visible: a toast must never eat a click aimed at
 	// the button underneath it.
 	SetVisibility(ESlateVisibility::HitTestInvisible);

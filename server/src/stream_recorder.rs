@@ -451,6 +451,8 @@ mod tests {
             finish_position: Some(1),
             is_ai: true,
             livery: 0,
+            best_lap_ms: None,
+            laps: 0,
         }];
         let path = recording
             .finish(

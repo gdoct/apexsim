@@ -3,6 +3,21 @@ use std::fs;
 use std::path::Path;
 use tracing::{error, info};
 
+/// The settings a running server takes from a config saved on the dashboard
+/// (`ServerConfig::take_live`): each is read where it is used, never cached
+/// at startup. Every other key needs a restart.
+pub const LIVE_KEYS: &[&str] = &[
+    "server.max_sessions",
+    "server.session_timeout_seconds",
+    "server.reconnect_grace_seconds",
+    "auth.mode",
+    "auth.tokens",
+    "logging.level",
+    "admin.log_buffer_lines",
+    "debug.stand_in_driver",
+    "debug.events",
+];
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
     pub server: ServerSettings,
@@ -47,6 +62,10 @@ pub struct AdminSettings {
     pub redirect_http_to_https: bool,
     /// Where the ban list is kept.
     pub bans_file: String,
+    /// Where the cars and tracks switched off on the dashboard are kept.
+    pub content_file: String,
+    /// Where the dashboard's schedule of sessions is kept.
+    pub schedule_file: String,
     /// Log lines kept for the Logs view.
     pub log_buffer_lines: usize,
 }
@@ -62,6 +81,8 @@ impl Default for AdminSettings {
             token: String::new(),
             redirect_http_to_https: false,
             bans_file: "./records/bans.json".to_string(),
+            content_file: "./records/content.json".to_string(),
+            schedule_file: "./records/schedule.json".to_string(),
             log_buffer_lines: 5000,
         }
     }
@@ -428,6 +449,45 @@ impl ServerConfig {
     }
 
     /// Sanity-check the configuration. Returns all problems found.
+    /// Every `section.key` whose value differs between two configs, sorted.
+    pub fn changed_keys(&self, other: &ServerConfig) -> Vec<String> {
+        fn flat(config: &ServerConfig) -> std::collections::BTreeMap<String, toml::Value> {
+            let mut out = std::collections::BTreeMap::new();
+            if let Ok(toml::Value::Table(table)) = toml::Value::try_from(config) {
+                for (section, value) in table {
+                    match value {
+                        toml::Value::Table(keys) => {
+                            for (key, v) in keys {
+                                out.insert(format!("{section}.{key}"), v);
+                            }
+                        }
+                        v => {
+                            out.insert(section, v);
+                        }
+                    }
+                }
+            }
+            out
+        }
+        let (a, b) = (flat(self), flat(other));
+        let mut keys: Vec<String> = a.keys().chain(b.keys()).cloned().collect();
+        keys.sort();
+        keys.dedup();
+        keys.into_iter().filter(|k| a.get(k) != b.get(k)).collect()
+    }
+
+    /// Take the settings a running server applies without a restart
+    /// ([`LIVE_KEYS`]) from `saved`, leaving every other one as it started.
+    pub fn take_live(&mut self, saved: &ServerConfig) {
+        self.server.max_sessions = saved.server.max_sessions;
+        self.server.session_timeout_seconds = saved.server.session_timeout_seconds;
+        self.server.reconnect_grace_seconds = saved.server.reconnect_grace_seconds;
+        self.auth = saved.auth.clone();
+        self.logging.level = saved.logging.level.clone();
+        self.admin.log_buffer_lines = saved.admin.log_buffer_lines;
+        self.debug = saved.debug.clone();
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         let mut errors = Vec::new();
 

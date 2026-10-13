@@ -17,12 +17,15 @@ use crate::data::{TrackConfig, TrackConfigId};
 use crate::track_loader::TrackLoader;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock};
 use tracing::{info, warn};
 
 pub struct TrackContent {
     road_contact: RoadContactMode,
-    tracks: HashMap<TrackConfigId, Slot>,
+    /// Behind a lock so a track uploaded on the dashboard can be
+    /// registered while the server runs; a slot is cloned out before any
+    /// load, so the lock is never held across a disk read.
+    tracks: RwLock<HashMap<TrackConfigId, Arc<Slot>>>,
 }
 
 struct Slot {
@@ -35,31 +38,44 @@ impl TrackContent {
     pub fn new(road_contact: RoadContactMode) -> Self {
         Self {
             road_contact,
-            tracks: HashMap::new(),
+            tracks: RwLock::new(HashMap::new()),
         }
     }
 
     /// Register the file a catalog track was read from. A track registered
-    /// without one (built in memory) has no sidecars to load.
-    pub fn register(&mut self, id: TrackConfigId, path: PathBuf) {
-        self.tracks.insert(
+    /// without one (built in memory) has no sidecars to load. Registering
+    /// one again (a re-upload) drops what was loaded: the next session
+    /// reads the new files, sessions already running keep theirs.
+    pub fn register(&self, id: TrackConfigId, path: PathBuf) {
+        self.write().insert(
             id,
-            Slot {
+            Arc::new(Slot {
                 path,
                 complete: OnceLock::new(),
-            },
+            }),
         );
     }
 
+    fn slot(&self, id: TrackConfigId) -> Option<Arc<Slot>> {
+        self.tracks
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&id)
+            .cloned()
+    }
+
+    fn write(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<TrackConfigId, Arc<Slot>>> {
+        self.tracks.write().unwrap_or_else(|e| e.into_inner())
+    }
+
     /// The file a catalog track was read from.
-    pub fn path_of(&self, id: TrackConfigId) -> Option<&std::path::Path> {
-        self.tracks.get(&id).map(|slot| slot.path.as_path())
+    pub fn path_of(&self, id: TrackConfigId) -> Option<PathBuf> {
+        self.slot(id).map(|slot| slot.path.clone())
     }
 
     /// Whether a session on this track would have to wait for a disk read.
     pub fn needs_loading(&self, id: TrackConfigId) -> bool {
-        self.tracks
-            .get(&id)
+        self.slot(id)
             .is_some_and(|slot| slot.complete.get().is_none())
     }
 
@@ -68,7 +84,7 @@ impl TrackContent {
     /// `game_loop::track_loads` first, which leaves this a lookup. Two
     /// callers asking at once load once, the second waiting for the first.
     pub fn complete(&self, catalog: &TrackConfig) -> Arc<TrackConfig> {
-        let Some(slot) = self.tracks.get(&catalog.id) else {
+        let Some(slot) = self.slot(catalog.id) else {
             return Arc::new(catalog.clone());
         };
         slot.complete
@@ -128,7 +144,7 @@ mod tests {
         let path = write_track(dir.path());
         let catalog = TrackLoader::load_catalog_entry(&path).unwrap();
 
-        let mut content = TrackContent::new(RoadContactMode::Mesh);
+        let content = TrackContent::new(RoadContactMode::Mesh);
         content.register(catalog.id, path);
         assert!(content.needs_loading(catalog.id));
         let first = content.complete(&catalog);
@@ -152,7 +168,7 @@ mod tests {
         let catalog = TrackLoader::load_catalog_entry(&path).unwrap();
         assert!(catalog.walls.is_none() && catalog.road_mesh.is_none());
 
-        let mut content = TrackContent::new(RoadContactMode::Mesh);
+        let content = TrackContent::new(RoadContactMode::Mesh);
         content.register(catalog.id, path);
         let complete = content.complete(&catalog);
         assert_eq!(complete.id, full.id);

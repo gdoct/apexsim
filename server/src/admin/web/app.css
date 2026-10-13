@@ -86,8 +86,9 @@ select.input { font-family: var(--sans); font-size: 18px; background: var(--well
 .sm-mono { font-size: 10px; color: #6d757a; }
 .muted { color: var(--muted); }
 .empty { padding: 18px; font-size: 18px; color: var(--muted); }
+.kv-cells { display: contents; }
 .kv { display: flex; flex-wrap: wrap; gap: 1px; background: var(--line); border: 1px solid var(--line); }
-.kv > div { flex: 1 1 110px; padding: 12px 18px; background: var(--panel); display: flex; flex-direction: column; gap: 4px; }
+.kv > div:not(.kv-cells), .kv-cells > div { flex: 1 1 110px; padding: 12px 18px; background: var(--panel); display: flex; flex-direction: column; gap: 4px; }
 .kv .v { font-size: 24px; font-weight: 600; }
 .sb { color: var(--purple); } .pb { color: var(--green); } .bad { color: var(--red); } .warn { color: var(--amber); } .good { color: var(--green); }
 .legend { display: flex; flex-wrap: wrap; gap: 20px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); }
@@ -137,7 +138,15 @@ select.input { font-family: var(--sans); font-size: 18px; background: var(--well
 .side-note { flex: 1 1 260px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
 .side-note .it { display: flex; justify-content: space-between; gap: 12px; font-size: 18px; color: var(--text-2); }
 .side-note .tag { font-family: var(--mono); font-size: 11px; color: var(--amber); }
-.dropzone { padding: 26px; text-align: center; border: 1px dashed #2f363a; font-size: 18px; color: var(--muted); }
+.dropzone { display: block; padding: 26px; text-align: center; border: 1px dashed #2f363a; font-size: 18px; color: var(--muted); cursor: pointer; }
+.dropzone:hover { border-color: var(--line-strong); color: var(--text-3); }
+
+/* session and schedule forms */
+.form { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px 16px; padding: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field .input { width: 100%; height: 40px; }
+.field input.input { font-family: var(--sans); font-size: 18px; }
+.acts-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 0 16px 16px; }
 
 /* modal, toast, login */
 .modal-bg { position: fixed; inset: 0; z-index: 50; background: rgba(10,11,12,0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 24px; }

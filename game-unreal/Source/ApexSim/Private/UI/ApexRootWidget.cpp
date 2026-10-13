@@ -394,6 +394,7 @@ void UApexRootWidget::NativeConstruct()
 		Net->OnUdpReady.AddDynamic(this, &UApexRootWidget::HandleUdpReady);
 		Net->OnDisconnected.AddDynamic(this, &UApexRootWidget::HandleDisconnected);
 		Net->OnServerError.AddDynamic(this, &UApexRootWidget::HandleServerError);
+		Net->OnServerNotice.AddDynamic(this, &UApexRootWidget::HandleServerNotice);
 		Net->OnSessionJoined.AddDynamic(this, &UApexRootWidget::HandleSessionJoined);
 		Net->OnSessionLeft.AddDynamic(this, &UApexRootWidget::HandleSessionLeft);
 		Net->OnGameModeChanged.AddDynamic(this, &UApexRootWidget::HandleGameModeChanged);
@@ -747,6 +748,7 @@ void UApexRootWidget::NativeDestruct()
 		Net->OnUdpReady.RemoveDynamic(this, &UApexRootWidget::HandleUdpReady);
 		Net->OnDisconnected.RemoveDynamic(this, &UApexRootWidget::HandleDisconnected);
 		Net->OnServerError.RemoveDynamic(this, &UApexRootWidget::HandleServerError);
+		Net->OnServerNotice.RemoveDynamic(this, &UApexRootWidget::HandleServerNotice);
 		Net->OnSessionJoined.RemoveDynamic(this, &UApexRootWidget::HandleSessionJoined);
 		Net->OnSessionLeft.RemoveDynamic(this, &UApexRootWidget::HandleSessionLeft);
 		Net->OnGameModeChanged.RemoveDynamic(this, &UApexRootWidget::HandleGameModeChanged);
@@ -1612,6 +1614,24 @@ void UApexRootWidget::HandleDisconnected(const FString& Reason)
 void UApexRootWidget::HandleServerError(int32 Code, const FString& Message)
 {
 	ShowToast(FString::Printf(TEXT("Server error %d: %s"), Code, *Message), true);
+}
+
+void UApexRootWidget::HandleServerNotice(const FString& Message)
+{
+	// The toast is the top layer of the shell, above the race HUD, and
+	// hit-test invisible: it shows while driving without taking focus off
+	// the viewport. Twice a toast's time, so a driver can look up and read it.
+	static constexpr float NoticeSeconds = 8.0f;
+	const FString Text = FString::Printf(TEXT("Server: %s"), *Message);
+	ApexUiAudio::Play(this, EApexUiSound::Notice);
+	if (ToastPanel)
+	{
+		ToastPanel->ShowFor(Text, false, NoticeSeconds);
+	}
+	else
+	{
+		UE_LOG(LogApexSim, Log, TEXT("ToastPanel (no widget): %s"), *Text);
+	}
 }
 
 void UApexRootWidget::HandleLobbyStateForAutoRace(const FApexLobbyState& LobbyState)

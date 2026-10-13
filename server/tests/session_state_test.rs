@@ -295,7 +295,10 @@ async fn the_heartbeat_ack_carries_the_servers_tick() {
             let mut ticks = Vec::new();
             for _ in 0..2 {
                 client
-                    .send(&ClientMessage::Heartbeat { client_tick: 1 })
+                    .send(&ClientMessage::Heartbeat {
+                        client_tick: 1,
+                        ping_ms: None,
+                    })
                     .await?;
                 loop {
                     match timeout(Duration::from_secs(5), client.recv()).await?? {

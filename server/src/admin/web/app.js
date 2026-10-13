@@ -127,12 +127,14 @@ function showLogin() {
 const VIEWS = [
   { id: 'live', code: '01', title: 'Live session', sub: 'TRACK MAP AND TELEMETRY' },
   { id: 'timing', code: '02', title: 'Timing', sub: 'SECTORS AND GAPS' },
-  { id: 'players', code: '03', title: 'Players', sub: 'CONNECTIONS AND BANS' },
-  { id: 'history', code: '04', title: 'History', sub: 'RECORDED SESSIONS' },
-  { id: 'logs', code: '05', title: 'Logs', sub: 'SERVER OUTPUT' },
-  { id: 'perf', code: '06', title: 'Performance', sub: 'TICK LOOP AND PROCESS' },
-  { id: 'config', code: '07', title: 'Config', sub: 'SERVER.TOML' },
-  { id: 'content', code: '08', title: 'Content', sub: 'TRACKS AND CARS' },
+  { id: 'sessions', code: '03', title: 'Sessions', sub: 'HOST, START, STOP, BROADCAST' },
+  { id: 'schedule', code: '04', title: 'Schedule', sub: 'SESSIONS AT SET TIMES' },
+  { id: 'players', code: '05', title: 'Players', sub: 'CONNECTIONS AND BANS' },
+  { id: 'history', code: '06', title: 'History', sub: 'RECORDED SESSIONS' },
+  { id: 'logs', code: '07', title: 'Logs', sub: 'SERVER OUTPUT' },
+  { id: 'perf', code: '08', title: 'Performance', sub: 'TICK LOOP AND PROCESS' },
+  { id: 'config', code: '09', title: 'Config', sub: 'SERVER.TOML' },
+  { id: 'content', code: '10', title: 'Content', sub: 'TRACKS AND CARS' },
 ];
 
 function mountShell() {
@@ -235,15 +237,25 @@ async function pollDetail() {
   return true;
 }
 
-function sessionSelect() {
-  if (feed.sessions.length < 2) return '';
-  return `<select class="input" id="sess-pick" style="height:36px">${feed.sessions.map(s =>
-    `<option value="${s.id}" ${s.id === feed.id ? 'selected' : ''}>${esc(s.track)} · ${esc(s.mode)} · ${s.humans}+${s.ai}</option>`).join('')}</select>`;
+/* The session picker in `slot`. Redrawn only when the list or the pick
+   changes, and never while it has focus: the views repaint every 0.5-1 s,
+   and a select rebuilt under the mouse closes before anything is chosen. */
+function paintSessionPick(slot) {
+  if (!slot) return;
+  const pick = $('#sess-pick', slot);
+  if (pick && document.activeElement === pick) return;
+  const label = s => `${s.track} · ${s.mode} · ${s.humans}+${s.ai}`;
+  const key = feed.id + '|' + feed.sessions.map(s => s.id + ':' + label(s)).join('|');
+  if (slot.dataset.key === key) return;
+  slot.dataset.key = key;
+  slot.style.display = feed.sessions.length < 2 ? 'none' : '';
+  slot.innerHTML = feed.sessions.length < 2 ? '' : `<select class="input" id="sess-pick" style="height:36px">${feed.sessions.map(s =>
+    `<option value="${s.id}" ${s.id === feed.id ? 'selected' : ''}>${esc(label(s))}</option>`).join('')}</select>`;
 }
 
 function bindSessionPick(root) {
   root.addEventListener('change', e => {
-    if (e.target.id === 'sess-pick') { feed.id = e.target.value; feed.car = null; feed.trace = []; }
+    if (e.target.id === 'sess-pick') { feed.id = e.target.value; feed.car = null; feed.trace = []; feed.detail = null; e.target.blur(); }
   });
 }
 
@@ -276,7 +288,8 @@ PAGES.live = el => {
       return;
     }
     if (!$('#live-kv')) {
-      root.innerHTML = `<div class="kv" id="live-kv"></div><div class="live">
+      root.innerHTML = `<div class="kv"><div class="kv-cells" id="live-kv"></div>
+        <div id="live-pick" style="flex:1 1 180px;justify-content:center;align-items:flex-end"></div></div><div class="live">
         <div class="panel map-panel"><div class="panel-head"><span class="eyebrow">TRACK MAP · CLICK A CAR FOR TELEMETRY</span>
           <span class="legend"><span><i style="background:${AMBER};border-radius:50%"></i>SELECTED</span><span><i style="background:#e8eaea;border-radius:50%"></i>DRIVER</span><span><i style="border:1px solid #8f9599;border-radius:50%"></i>AI</span></span></div>
           <div class="map-wrap"><div class="map" id="map"><svg viewBox="0 0 1000 600" id="map-svg"></svg><div id="map-over"></div></div></div></div>
@@ -298,8 +311,8 @@ PAGES.live = el => {
       <div><span class="eyebrow">SESSION</span><span class="v">${esc(d.mode)}</span></div>
       <div><span class="eyebrow">LEADER LAP</span><span class="v">${d.leader_lap}${length}</span></div>
       <div><span class="eyebrow">ELAPSED</span><span class="v mono" style="font-size:21px;padding-top:3px">${fmtDur(d.elapsed_s)}</span></div>
-      <div><span class="eyebrow">CONDITIONS</span><span class="v">${Math.round(d.air_c)} °C · ${esc(d.weather)} · ${fmtClock(d.time_of_day_minutes)}</span></div>
-      ${feed.sessions.length > 1 ? `<div style="flex:1 1 180px;justify-content:center;align-items:flex-end">${sessionSelect()}</div>` : ''}`;
+      <div><span class="eyebrow">CONDITIONS</span><span class="v">${Math.round(d.air_c)} °C · ${esc(d.weather)} · ${fmtClock(d.time_of_day_minutes)}</span></div>`;
+    paintSessionPick($('#live-pick'));
   }
 
   function paintMap(d) {
@@ -404,7 +417,7 @@ PAGES.timing = el => {
   const sectorColour = f => f === 'sb' ? PURPLE : f === 'pb' ? GREEN : 'inherit';
   function paint() {
     const d = feed.detail;
-    $('#sess-slot').innerHTML = sessionSelect();
+    paintSessionPick($('#sess-slot'));
     if (!d) { $('#timing').innerHTML = `<div class="empty">${feed.sessions.length ? 'Loading…' : 'No active session.'}</div>`; return; }
     const best = bestOverall(d);
     $('#timing').innerHTML = `<div class="row head" style="${cols}"><span>POS</span><span>NO</span><span>DRIVER</span><span>LAPS</span><span>GAP</span><span>INT</span><span>S1</span><span>S2</span><span>S3</span><span>LAST</span><span>BEST</span></div>` +
@@ -423,24 +436,219 @@ PAGES.timing = el => {
   every(1000, async () => { await pollDetail(); paint(); });
 };
 
+// ---------------------------------------------------------------- session form (sessions + schedule)
+/* The settings of a hosted session, as /api/sessions and /api/schedule take
+   them (HostedSpec on the server). `content` is /api/content. */
+function specForm(content, spec = {}) {
+  const on = list => list.filter(x => x.enabled);
+  const opt = (v, label, sel) => `<option value="${esc(v)}" ${sel ? 'selected' : ''}>${esc(label)}</option>`;
+  const c = spec.conditions || {};
+  const tod = c.time_of_day_minutes ?? 840;
+  const format = spec.weekend ? 'weekend' : spec.race_seconds ? 'timed' : 'laps';
+  const wk = spec.weekend || { practice_seconds: 900, qualifying_seconds: [600] };
+  const skill = spec.ai_skill ?? '';
+  return `<div class="form">
+    <label class="field"><span class="eyebrow">NAME IN THE LOBBY</span><input class="input" data-f="name" maxlength="40" placeholder="Server" value="${esc(spec.name || '')}"></label>
+    <label class="field"><span class="eyebrow">TRACK</span><select class="input" data-f="track_id">${on(content.tracks).map(t => opt(t.id, t.name, t.id === spec.track_id)).join('')}</select></label>
+    <label class="field"><span class="eyebrow">CLASS OF</span><select class="input" data-f="car_id">${on(content.cars).map(x => opt(x.id, x.name + (x.class ? ' · ' + x.class : ''), x.id === spec.car_id)).join('')}</select></label>
+    <label class="field"><span class="eyebrow">PLAYER SLOTS</span><input class="input" type="number" min="1" max="30" data-f="player_slots" value="${spec.player_slots ?? 12}"></label>
+    <label class="field"><span class="eyebrow">AI CARS</span><input class="input" type="number" min="0" max="30" data-f="ai_count" value="${spec.ai_count ?? 8}"></label>
+    <label class="field"><span class="eyebrow">AI LEVEL</span><select class="input" data-f="ai_skill">${opt('', 'Mixed field', skill === '')}${[70, 80, 90, 100, 110].map(v => opt(v, String(v), skill === v)).join('')}</select></label>
+    <label class="field"><span class="eyebrow">FORMAT</span><select class="input" data-f="format">${opt('laps', 'Race over laps', format === 'laps')}${opt('timed', 'Timed race', format === 'timed')}${opt('weekend', 'Weekend: practice, qualifying, race', format === 'weekend')}</select></label>
+    <label class="field" data-show="laps weekend"><span class="eyebrow">LAPS</span><input class="input" type="number" min="1" max="255" data-f="lap_limit" value="${spec.lap_limit ?? 10}"></label>
+    <label class="field" data-show="timed"><span class="eyebrow">RACE MINUTES</span><input class="input" type="number" min="1" max="1440" data-f="race_min" value="${spec.race_seconds ? Math.round(spec.race_seconds / 60) : 20}"></label>
+    <label class="field" data-show="weekend"><span class="eyebrow">PRACTICE MINUTES (0: NONE)</span><input class="input" type="number" min="0" max="120" data-f="practice_min" value="${Math.round(wk.practice_seconds / 60)}"></label>
+    <label class="field" data-show="weekend"><span class="eyebrow">QUALIFYING ROUNDS, MINUTES</span><input class="input" data-f="rounds" placeholder="12, 10, 8" value="${wk.qualifying_seconds.map(s => Math.round(s / 60)).join(', ')}"></label>
+    <label class="field"><span class="eyebrow">WEATHER</span><select class="input" data-f="weather">${(content.weather || []).map(w => opt(w.id, w.name[0].toUpperCase() + w.name.slice(1), w.id === (c.weather ?? 0))).join('')}</select></label>
+    <label class="field"><span class="eyebrow">TIME OF DAY</span><input class="input" type="time" data-f="tod" value="${fmtClock(tod)}"></label>
+    <label class="field"><span class="eyebrow">DAMAGE</span><select class="input" data-f="damage">${opt(2, 'Full', (spec.damage ?? 2) === 2)}${opt(1, 'Reduced', spec.damage === 1)}${opt(0, 'Off', spec.damage === 0)}</select></label>
+  </div>`;
+}
+
+function bindSpecForm(root) {
+  const sync = () => {
+    const f = $('[data-f="format"]', root).value;
+    root.querySelectorAll('[data-show]').forEach(x => { x.style.display = x.dataset.show.split(' ').includes(f) ? '' : 'none'; });
+  };
+  root.addEventListener('change', e => { if (e.target.dataset.f === 'format') sync(); });
+  sync();
+}
+
+function readSpec(root) {
+  const v = k => $(`[data-f="${k}"]`, root).value;
+  const n = k => Math.max(0, parseInt(v(k), 10) || 0);
+  const format = v('format');
+  const [h, m] = (v('tod') || '14:00').split(':').map(x => parseInt(x, 10) || 0);
+  const spec = {
+    name: v('name').trim(), track_id: v('track_id'), car_id: v('car_id'),
+    player_slots: n('player_slots'), ai_count: n('ai_count'), ai_skill: v('ai_skill') === '' ? null : n('ai_skill'),
+    lap_limit: Math.max(1, n('lap_limit')), race_seconds: null, weekend: null,
+    conditions: { weather: n('weather'), time_of_day_minutes: h * 60 + m }, damage: n('damage'),
+  };
+  if (format === 'timed') spec.race_seconds = Math.max(1, n('race_min')) * 60;
+  if (format === 'weekend') spec.weekend = {
+    practice_seconds: n('practice_min') * 60,
+    qualifying_seconds: v('rounds').split(/[ ,]+/).map(x => parseInt(x, 10)).filter(x => x > 0).slice(0, 3).map(x => x * 60),
+  };
+  if (!spec.track_id || !spec.car_id) throw new Error('No track or car is switched on.');
+  return spec;
+}
+
+// ---------------------------------------------------------------- sessions
+PAGES.sessions = el => {
+  el.innerHTML = `<div class="stack">
+    <div class="panel scroll-x"><div style="min-width:860px" id="slist"><div class="empty">Loading…</div></div></div>
+    <div class="panel"><div class="panel-head"><span class="eyebrow">BROADCAST · SHOWN TO PLAYERS IN THE GAME FOR 8 S</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;padding:16px"><input class="input" id="bc-msg" maxlength="300" placeholder="Message" style="flex:3 1 280px;font-family:var(--sans);font-size:18px;height:40px">
+        <select class="input" id="bc-to" style="flex:1 1 200px"></select><button class="btn primary" id="bc-send" style="height:40px">SEND</button></div></div>
+    <div class="panel" id="host"><div class="panel-head"><span class="eyebrow">HOST A SESSION · THE SERVER RUNS IT, PLAYERS JOIN FROM THE LOBBY</span></div><div class="empty">Loading…</div></div></div>`;
+  const cols = 'grid-template-columns:minmax(150px,1.3fr) minmax(110px,1fr) 100px 80px 90px minmax(280px,auto)';
+  let sessions = [];
+  function paint() {
+    $('#slist').innerHTML = `<div class="row head" style="${cols}"><span>TRACK</span><span>HOST</span><span>SESSION</span><span>CARS</span><span>RUNNING</span><span></span></div>` +
+      (sessions.map(s => `<div class="row" style="${cols}">
+        <span class="name">${esc(s.track)}</span>
+        <span style="font-size:11px;letter-spacing:.1em;color:${s.hosted ? AMBER : 'var(--text-2)'}">${s.hosted ? 'SERVER' : 'PLAYER'}</span>
+        <span style="font-family:var(--sans);font-size:17px">${esc(s.mode)}${s.state === s.mode.toLowerCase() ? '' : ' · ' + esc(s.state)}</span>
+        <span>${s.humans}+${s.ai}</span><span>${fmtDur(s.elapsed_s).replace(/^00:/, '')}</span>
+        <span style="display:flex;justify-content:flex-end;gap:6px">
+          ${s.state === 'lobby' ? `<button class="btn sm primary" data-act="start" data-id="${s.id}">START</button>` : ''}
+          ${s.awaits_advance ? `<button class="btn sm primary" data-act="advance" data-id="${s.id}">NEXT PHASE</button>` : ''}
+          ${s.restartable ? `<button class="btn sm" data-act="restart" data-id="${s.id}" data-name="${esc(s.track)}">RESTART</button>` : ''}
+          <button class="btn sm danger" data-act="stop" data-id="${s.id}" data-name="${esc(s.track)}">STOP</button></span></div>`).join('')
+      || '<div class="empty">No sessions. Host one below, or schedule one.</div>');
+    const to = $('#bc-to'), keep = to.value;
+    to.innerHTML = `<option value="">Everyone connected</option>` + sessions.map(s => `<option value="${s.id}">${esc(s.track)} · ${esc(s.mode)}</option>`).join('');
+    if ([...to.options].some(o => o.value === keep)) to.value = keep;
+  }
+  async function load() { sessions = (await api('/api/sessions')).sessions; paint(); }
+  el.addEventListener('click', async e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    try {
+      if (b.dataset.act) {
+        const { act, id, name } = b.dataset;
+        let body = {};
+        if (act === 'stop' || act === 'restart') {
+          const r = await modal({
+            eyebrow: act === 'stop' ? 'STOP SESSION' : 'RESTART SESSION', title: (act === 'stop' ? 'Stop ' : 'Restart ') + name + '?',
+            body: act === 'stop' ? 'It ends now. Everyone in it goes back to the menu and is shown the reason.'
+              : 'It ends now and opens again in its lobby with the same settings. Players go back to the menu and join it again.',
+            confirm: act === 'stop' ? 'STOP' : 'RESTART', danger: true, reason: act === 'stop' });
+          if (!r.ok) return;
+          body = { reason: r.reason };
+        }
+        const res = await api(`/api/sessions/${id}/${act}`, { method: 'POST', body });
+        toast({ start: 'Started: ' + res.phase, advance: 'Moved on to ' + res.phase, stop: 'Session stopped', restart: 'Session reopened in its lobby' }[act]);
+        load();
+      } else if (b.id === 'bc-send') {
+        const message = $('#bc-msg').value.trim();
+        if (!message) return;
+        const res = await api('/api/broadcast', { method: 'POST', body: { message, session: $('#bc-to').value || undefined } });
+        $('#bc-msg').value = '';
+        toast('Sent to ' + res.sent + (res.sent === 1 ? ' player' : ' players'));
+      } else if (b.dataset.open) {
+        const res = await api('/api/sessions' + (b.dataset.open === 'start' ? '?start=1' : ''), { method: 'POST', body: readSpec($('#host')) });
+        toast(res.started ? 'Session open and started' : 'Session open: players can join it now');
+        load();
+      }
+    } catch (err) { if (!(err instanceof AuthError)) toast(err.message, true); }
+  });
+  $('#bc-msg').addEventListener('keydown', e => { if (e.key === 'Enter') $('#bc-send').click(); });
+  api('/api/content').then(c => {
+    const host = $('#host');
+    host.innerHTML = host.firstElementChild.outerHTML + specForm(c) +
+      `<div class="acts-row"><button class="btn" data-open="lobby">OPEN</button><button class="btn primary" data-open="start">OPEN AND START</button></div>`;
+    bindSpecForm(host);
+  }).catch(err => { if (!(err instanceof AuthError)) toast(err.message, true); });
+  every(2000, load);
+};
+
+// ---------------------------------------------------------------- schedule
+PAGES.schedule = el => {
+  el.innerHTML = `<div class="stack">
+    <div class="panel scroll-x"><div style="min-width:900px" id="sched"><div class="empty">Loading…</div></div></div>
+    <div class="panel" id="sched-form"><div class="empty">Loading…</div></div></div>`;
+  const cols = 'grid-template-columns:150px minmax(150px,1.3fr) minmax(130px,1fr) 80px 100px minmax(150px,1fr) 150px';
+  let entries = [], content = null, editing = null;
+  const local = unix => { const d = new Date(unix * 1000); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+  const statusColour = s => s === 'open' || s === 'running' ? GREEN : s === 'done' ? 'var(--muted)' : AMBER;
+  function paintList() {
+    $('#sched').innerHTML = `<div class="row head" style="${cols}"><span>STARTS</span><span>NAME · TRACK</span><span>CLASS OF</span><span>REPEAT</span><span>STATUS</span><span>NOTE</span><span></span></div>` +
+      (entries.map(e => `<div class="row" style="${cols}">
+        <span>${fmtDate(e.start_at)}</span>
+        <span style="display:flex;flex-direction:column;gap:1px"><span class="name">${esc(e.spec.name || 'Server')}</span><span class="sm-mono">${esc(e.track || '?')}</span></span>
+        <span style="font-family:var(--sans);font-size:17px">${esc(e.car || '?')}</span>
+        <span>${e.repeat.toUpperCase()}</span>
+        <span style="font-size:11px;letter-spacing:.1em;color:${statusColour(e.status)}">${e.status.toUpperCase()}</span>
+        <span class="muted" title="${esc(e.last_error || '')}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.last_error || (e.status === 'scheduled' ? 'opens ' + fmtDate(e.opens_at) : ''))}</span>
+        <span style="display:flex;justify-content:flex-end;gap:6px"><button class="btn sm" data-edit="${e.id}">EDIT</button><button class="btn sm danger" data-del="${e.id}">DELETE</button></span></div>`).join('')
+      || '<div class="empty">Nothing scheduled. A scheduled session opens in the lobby ahead of its start and starts on its own.</div>');
+  }
+  function paintForm() {
+    const e = editing || {};
+    const start = e.start_at || Math.ceil(Date.now() / 1000 / 3600 + 1) * 3600;
+    $('#sched-form').innerHTML = `<div class="panel-head"><span class="eyebrow">${editing ? 'EDIT ENTRY' : 'NEW ENTRY'}</span>${editing ? '<button class="btn sm quiet" id="sf-new">NEW INSTEAD</button>' : ''}</div>
+      <div class="form">
+        <label class="field"><span class="eyebrow">STARTS (LOCAL TIME)</span><input class="input" type="datetime-local" id="sf-start" value="${local(start)}"></label>
+        <label class="field"><span class="eyebrow">OPENS, MINUTES BEFORE</span><input class="input" type="number" min="0" max="1440" id="sf-open" value="${e.open_minutes ?? 10}"></label>
+        <label class="field"><span class="eyebrow">REPEAT</span><select class="input" id="sf-repeat">${['once', 'daily', 'weekly'].map(r => `<option value="${r}" ${r === (e.repeat || 'once') ? 'selected' : ''}>${r[0].toUpperCase() + r.slice(1)}</option>`).join('')}</select></label>
+        <label class="field"><span class="eyebrow">WEEKEND PHASES</span><select class="input" id="sf-auto"><option value="1">Move on by themselves</option><option value="0" ${e.auto_advance === false ? 'selected' : ''}>Wait for NEXT PHASE</option></select></label>
+      </div>${specForm(content, e.spec)}
+      <div class="acts-row"><button class="btn primary" id="sf-save">${editing ? 'SAVE' : 'SCHEDULE'}</button></div>`;
+    bindSpecForm($('#sched-form'));
+  }
+  async function load() { entries = (await api('/api/schedule')).entries; paintList(); }
+  el.addEventListener('click', async ev => {
+    const b = ev.target.closest('button');
+    if (!b) return;
+    try {
+      if (b.dataset.edit) { editing = entries.find(x => x.id === b.dataset.edit) || null; paintForm(); $('#sched-form').scrollIntoView({ behavior: 'smooth' }); }
+      else if (b.id === 'sf-new') { editing = null; paintForm(); }
+      else if (b.dataset.del) {
+        const r = await modal({ eyebrow: 'DELETE ENTRY', title: 'Delete this entry?', body: 'A session it already opened stays; stop it on the Sessions view.', confirm: 'DELETE', danger: true });
+        if (!r.ok) return;
+        await api('/api/schedule/' + b.dataset.del, { method: 'DELETE' });
+        if (editing && editing.id === b.dataset.del) { editing = null; paintForm(); }
+        load();
+      } else if (b.id === 'sf-save') {
+        const start = new Date($('#sf-start').value).getTime() / 1000;
+        if (!isFinite(start)) throw new Error('Pick a start time.');
+        const body = {
+          spec: readSpec($('#sched-form')), start_at: Math.round(start), open_minutes: Math.max(0, parseInt($('#sf-open').value, 10) || 0),
+          repeat: $('#sf-repeat').value, auto_advance: $('#sf-auto').value === '1', enabled: true,
+        };
+        if (editing) body.id = editing.id;
+        await api('/api/schedule', { method: 'POST', body });
+        toast(editing ? 'Saved' : 'Scheduled');
+        editing = null; paintForm(); load();
+      }
+    } catch (err) { if (!(err instanceof AuthError)) toast(err.message, true); }
+  });
+  api('/api/content').then(c => { content = c; paintForm(); }).catch(err => { if (!(err instanceof AuthError)) toast(err.message, true); });
+  every(3000, load);
+};
+
 // ---------------------------------------------------------------- players
 PAGES.players = el => {
   el.innerHTML = `<div class="stack">
     <div class="panel scroll-x"><div style="min-width:860px" id="plist"></div></div>
     <div class="stack" style="gap:10px"><div class="eyebrow" id="ban-title">BAN LIST</div><div class="panel scroll-x"><div style="min-width:700px" id="blist"></div></div></div></div>`;
-  const pcols = 'grid-template-columns:minmax(170px,1.4fr) 92px minmax(130px,1fr) minmax(120px,1fr) 90px 130px 150px';
+  const pcols = 'grid-template-columns:minmax(170px,1.4fr) 92px minmax(130px,1fr) minmax(120px,1fr) 90px 70px 130px 150px';
   let data = null;
   function paint() {
     if (!data) return;
-    $('#plist').innerHTML = `<div class="row head" style="${pcols}"><span>PLAYER</span><span>ROLE</span><span>CAR</span><span>SESSION</span><span>ONLINE</span><span>ADDRESS</span><span></span></div>` +
+    $('#plist').innerHTML = `<div class="row head" style="${pcols}"><span>PLAYER</span><span>ROLE</span><span>CAR</span><span>SESSION</span><span>ONLINE</span><span>PING</span><span>ADDRESS</span><span></span></div>` +
       (data.players.map(p => `<div class="row" style="${pcols}">
         <span class="name">${esc(p.name)}</span>
         <span style="font-size:11px;letter-spacing:.1em;color:${p.role === 'HOST' ? AMBER : p.role === 'AI' ? 'var(--muted)' : 'var(--text-2)'}">${p.role}</span>
         <span style="font-family:var(--sans);font-size:17px">${esc(p.car || '—')}</span>
         <span style="font-family:var(--sans);font-size:17px">${esc(p.track || '—')}</span>
         <span class="${p.last_seen_ms > 2500 ? 'warn' : ''}" title="${p.human ? 'last heartbeat ' + p.last_seen_ms + ' ms ago' : ''}">${p.human ? fmtDur(p.online_s).replace(/^00:/, '') : '—'}</span>
+        <span class="${p.ping_ms > 150 ? 'warn' : ''}" title="${p.human && p.ping_ms == null ? 'the game has not reported one' : ''}">${p.ping_ms != null ? p.ping_ms + ' ms' : '—'}</span>
         <span class="muted">${esc(p.address || '—')}</span>
-        <span style="display:flex;justify-content:flex-end;gap:6px">${p.human ? `<button class="btn sm" data-kick="${p.id}" data-name="${esc(p.name)}">KICK</button><button class="btn sm danger" data-ban="${p.id}" data-name="${esc(p.name)}">BAN</button>` : ''}</span></div>`).join('') || '<div class="empty">Nobody is connected.</div>');
+        <span style="display:flex;justify-content:flex-end;gap:6px">${p.human ? `<button class="btn sm" data-kick="${p.id}" data-name="${esc(p.name)}">KICK</button><button class="btn sm danger" data-ban="${p.id}" data-name="${esc(p.name)}">BAN</button>`
+          : `<button class="btn sm quiet" data-ai="${p.id}" data-session="${p.session}" data-name="${esc(p.name)}">REMOVE</button>`}</span></div>`).join('') || '<div class="empty">Nobody is connected.</div>');
     $('#ban-title').textContent = 'BAN LIST · ' + data.bans.length;
     $('#blist').innerHTML = data.bans.map(b => `<div class="row" style="grid-template-columns:minmax(150px,1fr) minmax(160px,1.4fr) 130px 110px 90px">
         <span class="name">${esc(b.name)}</span><span style="font-family:var(--sans);font-size:17px">${esc(b.reason)}</span>
@@ -461,6 +669,12 @@ PAGES.players = el => {
         await api(`/api/players/${id}/${ban ? 'ban' : 'kick'}`, { method: 'POST', body: { reason: r.reason } });
         toast((ban ? 'Banned ' : 'Kicked ') + t.dataset.name);
         load();
+      } else if (t.dataset.ai) {
+        const r = await modal({ eyebrow: 'REMOVE AI CAR', title: 'Remove ' + t.dataset.name + '?', body: 'The car leaves the session now, from the grid or from the track.', confirm: 'REMOVE', danger: true });
+        if (!r.ok) return;
+        await api(`/api/sessions/${t.dataset.session}/ai/${t.dataset.ai}/remove`, { method: 'POST', body: {} });
+        toast('Removed ' + t.dataset.name);
+        load();
       } else if (t.dataset.unban) {
         await api('/api/bans/remove', { method: 'POST', body: { name: t.dataset.name, ip: t.dataset.ip } });
         toast('Unbanned ' + t.dataset.name);
@@ -474,17 +688,19 @@ PAGES.players = el => {
 // ---------------------------------------------------------------- history
 PAGES.history = el => {
   el.innerHTML = `<div class="panel scroll-x"><div style="min-width:860px" id="hist"><div class="empty">Loading…</div></div></div>`;
-  const cols = 'grid-template-columns:130px minmax(150px,1.2fr) 90px 90px 70px minmax(130px,1fr) 24px';
+  const cols = 'grid-template-columns:130px minmax(150px,1.2fr) 90px 90px 60px 60px minmax(130px,1fr) minmax(150px,1fr) 24px';
   let rows = [], open = null;
   function paint() {
-    $('#hist').innerHTML = `<div class="row head" style="${cols}"><span>DATE</span><span>TRACK</span><span>KIND</span><span>DURATION</span><span>CARS</span><span>WINNER</span><span></span></div>` +
+    $('#hist').innerHTML = `<div class="row head" style="${cols}"><span>DATE</span><span>TRACK</span><span>KIND</span><span>DURATION</span><span>CARS</span><span>LAPS</span><span>WINNER</span><span>FASTEST LAP</span><span></span></div>` +
       (rows.map(h => `<div style="border-bottom:1px solid var(--line-soft);${open === h.id ? 'background:#0f1214' : ''}">
         <div class="row click" data-h="${h.id}" style="${cols};border-bottom:0;color:var(--text-3)">
           <span>${fmtDate(h.recorded_at)}</span><span class="name">${esc(h.track)}</span><span style="font-family:var(--sans);font-size:17px">${esc(h.kind)}</span>
-          <span>${fmtDur(h.duration_s).replace(/^00:/, '')}</span><span>${h.cars}</span><span style="font-family:var(--sans);font-size:18px;color:var(--text)">${esc(h.winner || '—')}</span>
+          <span>${fmtDur(h.duration_s).replace(/^00:/, '')}</span><span>${h.cars}</span><span>${h.laps || '—'}</span><span style="font-family:var(--sans);font-size:18px;color:var(--text)">${esc(h.winner || '—')}</span>
+          <span>${h.fastest ? `<span class="sb">${fmtLap(h.fastest.ms)}</span> <span style="font-family:var(--sans);font-size:16px">${esc(h.fastest.name)}</span>` : '—'}</span>
           <span class="muted">${open === h.id ? '▾' : '▸'}</span></div>
-        ${open === h.id ? `<div style="padding:4px 16px 16px 158px"><div>${h.results.map(x => `<div class="row" style="grid-template-columns:36px minmax(140px,220px) minmax(120px,1fr);padding:5px 0">
-            <span class="muted">${x.pos ?? '—'}</span><span class="name" style="font-size:17px">${esc(x.name)}${x.ai ? ' <span class="sm-mono">AI</span>' : ''}</span><span style="font-family:var(--sans);font-size:17px">${esc(x.car || '')}</span></div>`).join('')}</div>
+        ${open === h.id ? `<div style="padding:4px 16px 16px 158px"><div>${h.results.map(x => `<div class="row" style="grid-template-columns:36px minmax(140px,220px) minmax(120px,1fr) 60px 100px;padding:5px 0">
+            <span class="muted">${x.pos ?? '—'}</span><span class="name" style="font-size:17px">${esc(x.name)}${x.ai ? ' <span class="sm-mono">AI</span>' : ''}</span><span style="font-family:var(--sans);font-size:17px">${esc(x.car || '')}</span>
+            <span>${x.laps ?? '—'}</span><span class="${h.fastest && x.best_ms === h.fastest.ms ? 'sb' : ''}">${fmtLap(x.best_ms)}</span></div>`).join('')}</div>
           <div style="margin-top:12px"><button class="btn sm" data-csv="${h.id}">EXPORT CSV</button></div></div>` : ''}</div>`).join('') || '<div class="empty">No recorded sessions yet. Races are recorded to the replays folder when they finish.</div>');
   }
   el.addEventListener('click', e => {
@@ -492,7 +708,7 @@ PAGES.history = el => {
     if (csv) {
       const h = rows.find(r => r.id === csv.dataset.csv);
       const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-      const text = ['position,driver,ai,car', ...h.results.map(x => [x.pos ?? '', q(x.name), x.ai, q(x.car)].join(','))].join('\n');
+      const text = ['position,driver,ai,car,laps,best_lap_ms', ...h.results.map(x => [x.pos ?? '', q(x.name), x.ai, q(x.car), x.laps ?? '', x.best_ms ?? ''].join(','))].join('\n');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
       a.download = `${h.track}-${h.id.slice(0, 8)}.csv`;
@@ -608,8 +824,11 @@ PAGES.config = el => {
       <span style="display:flex;gap:6px"><button class="btn quiet" id="revert">REVERT</button><button class="btn primary" id="save">SAVE</button></span></div>
       <textarea id="cfg" spellcheck="false"></textarea></div>
     <div class="panel side-note"><div class="eyebrow">WHEN CHANGES APPLY</div>
-      <div class="it"><span>every setting in the file</span><span class="tag">RESTART</span></div>
-      <div style="font-size:16px;line-height:1.4;color:var(--muted)">The server reads <span class="mono" style="font-size:13px">server.toml</span> once, at startup. Saving checks the file the way startup does and refuses a file the server would not start with. Restart the server yourself to apply it.</div>
+      <div class="it"><span>[server] max_sessions, session_timeout_seconds, reconnect_grace_seconds</span><span class="tag">NOW</span></div>
+      <div class="it"><span>[auth], [logging] level, [admin] log_buffer_lines</span><span class="tag">NOW</span></div>
+      <div class="it"><span>[debug]</span><span class="tag">NEXT SESSION</span></div>
+      <div class="it"><span>everything else</span><span class="tag">RESTART</span></div>
+      <div style="font-size:16px;line-height:1.4;color:var(--muted)">Saving checks the file the way startup does and refuses a file the server would not start with. The settings marked NOW apply as you save (an <span class="mono" style="font-size:13px">APEXSIM_</span> variable or <span class="mono" style="font-size:13px">--log-level</span> still wins); restart the server yourself for the rest.</div>
       <div style="font-size:16px;line-height:1.4;color:var(--muted);border-top:1px solid var(--line);padding-top:12px">The previous file is kept as <span class="mono" style="font-size:13px">server.toml.bak</span> on every save.</div></div></div>`;
   let saved = '';
   const ta = $('#cfg');
@@ -628,7 +847,8 @@ PAGES.config = el => {
     try {
       const r = await api('/api/config', { method: 'PUT', body: { text: ta.value } });
       saved = ta.value; dirty();
-      toast(r.restart_required ? 'Saved (' + r.changed.join(', ') + '). Restart the server to apply.' : 'Saved. Nothing changed.');
+      const now = r.applied.length ? 'Applied now: ' + r.applied.join(', ') + '. ' : '';
+      toast(r.restart_required ? now + 'Restart the server for: ' + r.restart_keys.join(', ') + '.' : r.changed.length ? 'Saved. ' + (now || 'Applied.') : 'Saved. Nothing changed.');
     } catch (err) { if (!(err instanceof AuthError)) toast(err.message, true); }
   });
   api('/api/config').then(r => { $('#cfg-name').textContent = r.path; ta.value = saved = r.text; dirty(); })
@@ -640,19 +860,53 @@ PAGES.content = el => {
   let data = { tracks: [], cars: [] }, tab = 'tracks';
   el.innerHTML = `<div class="stack"><div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px">
       <div class="seg big" id="ctabs"></div><span class="eyebrow">WHAT THE SERVER OFFERS · CLIENTS NEED THE SAME FILES</span></div>
-    <div class="panel scroll-x"><div style="min-width:720px" id="clist"></div></div></div>`;
+    <div class="panel scroll-x"><div style="min-width:820px" id="clist"></div></div>
+    <label class="dropzone" id="drop"><input type="file" id="files" multiple hidden>
+      <span id="drop-text"></span></label></div>`;
   function paint() {
     $('#ctabs').innerHTML = [['tracks', 'Tracks'], ['cars', 'Cars']].map(([k, l]) => `<button data-t="${k}" class="${tab === k ? 'on' : ''}">${l}<span class="n">${data[k].length}</span></button>`).join('');
     const tracks = tab === 'tracks';
-    const cols = tracks ? 'grid-template-columns:minmax(180px,1.5fr) 100px 110px minmax(160px,1.5fr) 90px' : 'grid-template-columns:minmax(180px,1.5fr) 100px 110px minmax(160px,1.5fr) 90px';
-    $('#clist').innerHTML = `<div class="row head" style="${cols}"><span>NAME</span><span>${tracks ? 'LENGTH' : 'CLASS'}</span><span>SOURCE</span><span>FILE</span><span>CRC</span></div>` +
-      data[tab].map(it => `<div class="row" style="${cols}"><span class="name">${esc(it.name)}</span>
+    const cols = 'grid-template-columns:minmax(180px,1.5fr) 100px 110px minmax(160px,1.5fr) 90px 80px';
+    $('#clist').innerHTML = `<div class="row head" style="${cols}"><span>NAME</span><span>${tracks ? 'LENGTH' : 'CLASS'}</span><span>SOURCE</span><span>FILE</span><span>CRC</span><span>OFFERED</span></div>` +
+      data[tab].map(it => `<div class="row" style="${cols}${it.enabled ? '' : ';opacity:.55'}"><span class="name">${esc(it.name)}</span>
         <span>${tracks ? (it.length_m / 1000).toFixed(2) + ' km' : esc(it.class || '—')}</span>
         <span style="font-size:11px;letter-spacing:.1em;color:${it.source === 'CUSTOM' ? AMBER : 'var(--muted)'}">${it.source}</span>
-        <span class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.file)}">${esc(it.file)}</span><span class="muted">${it.crc}</span></div>`).join('') || '<div class="empty">Nothing loaded.</div>';
+        <span class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.file)}">${esc(it.file)}</span><span class="muted">${it.crc}</span>
+        <button class="btn sm ${it.enabled ? '' : 'quiet'}" data-toggle="${it.id}" data-on="${it.enabled ? 0 : 1}" style="justify-self:end">${it.enabled ? 'ON' : 'OFF'}</button></div>`).join('') || '<div class="empty">Nothing loaded.</div>';
+    $('#drop-text').innerHTML = tracks
+      ? 'DROP A TRACK HERE, OR CLICK: its <span class="mono">&lt;Track&gt;.yaml</span> and the sidecars beside it (<span class="mono">&lt;Track&gt;.road.msgpack</span>…). It goes to <span class="mono">tracks/custom/&lt;Track&gt;/</span>.'
+      : 'DROP A <span class="mono">car.toml</span> HERE, OR CLICK. It goes to <span class="mono">cars/custom/&lt;car name&gt;/</span>.';
   }
-  el.addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) { tab = b.dataset.t; paint(); } });
-  api('/api/content').then(r => { data = r; paint(); }).catch(err => { if (!(err instanceof AuthError)) toast(err.message, true); });
+  const load = () => api('/api/content').then(r => { data = r; paint(); });
+  async function upload(files) {
+    // Sidecars first: the YAML is what puts the track in the catalog.
+    const list = [...files].sort((a, b) => /\.ya?ml$/i.test(a.name) - /\.ya?ml$/i.test(b.name));
+    const kind = tab === 'tracks' ? 'track' : 'car';
+    for (const f of list) {
+      $('#drop-text').textContent = 'UPLOADING ' + f.name + '…';
+      try {
+        const res = await fetch(`/api/content/upload?kind=${kind}&name=${encodeURIComponent(f.name)}`, { method: 'POST', credentials: 'same-origin', body: f });
+        const r = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(f.name + ': ' + (r.error || res.statusText));
+        toast(r.name ? 'Loaded car ' + r.name : r.track ? 'Loaded track ' + r.track.name : 'Uploaded ' + f.name);
+      } catch (err) { toast(err.message, true); break; }
+    }
+    load().catch(() => {});
+  }
+  el.addEventListener('click', async e => {
+    const b = e.target.closest('[data-t]'); if (b) { tab = b.dataset.t; paint(); return; }
+    const t = e.target.closest('[data-toggle]');
+    if (t) {
+      try { await api('/api/content/toggle', { method: 'POST', body: { id: t.dataset.toggle, enabled: t.dataset.on === '1' } }); await load(); }
+      catch (err) { if (!(err instanceof AuthError)) toast(err.message, true); }
+    }
+  });
+  const drop = $('#drop');
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.style.borderColor = AMBER; });
+  drop.addEventListener('dragleave', () => { drop.style.borderColor = ''; });
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.style.borderColor = ''; upload(e.dataTransfer.files); });
+  $('#files').addEventListener('change', e => { upload(e.target.files); e.target.value = ''; });
+  load().catch(err => { if (!(err instanceof AuthError)) toast(err.message, true); });
 };
 
 boot();

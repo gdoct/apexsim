@@ -21,6 +21,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionStarting, int32, Count
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnGameModeChanged, EApexGameMode, NewMode);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnCountdownUpdate, int32, SecondsRemaining);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FApexOnServerError, int32, Code, const FString&, Message);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnServerNotice, const FString&, Message);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPlayerDisconnected, const FString&, PlayerId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnDisconnected, const FString&, Reason);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionRosterUpdated, const FApexSessionRoster&, Roster);
@@ -100,6 +101,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Net")
 	FApexOnServerError OnServerError;
+
+	/** An operator's message for the player (`ServerNotice`): a dashboard broadcast, or why the admin ended the session. Not an error: no request is answered by it. */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Net")
+	FApexOnServerNotice OnServerNotice;
 
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Net")
 	FApexOnPlayerDisconnected OnPlayerDisconnected;

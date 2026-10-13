@@ -113,6 +113,9 @@ pub struct ConnectionSnapshot {
     pub since_heartbeat: Duration,
     pub in_session: Option<SessionId>,
     pub udp_bound: bool,
+    /// The client's own measure of its round trip; `None` from a client
+    /// that does not report one, and before its first.
+    pub ping_ms: Option<u32>,
 }
 
 #[derive(Debug, Error)]
@@ -162,12 +165,18 @@ pub enum TransportEvent {
     },
 }
 
+/// The `[auth]` policy, swapped in place when the dashboard saves a new one
+/// (`TransportLayer::set_auth`); read at each `Authenticate`.
+type SharedAuth = Arc<std::sync::RwLock<AuthSettings>>;
+
 #[derive(Debug, Clone)]
 pub struct ConnectionInfo {
     pub player_id: PlayerId,
     pub player_name: String,
     pub connected_at: Instant,
     pub last_heartbeat: Instant,
+    /// The round trip the client last reported in a `Heartbeat`, ms.
+    pub ping_ms: Option<u32>,
     pub tcp_addr: SocketAddr,
     pub tcp_tx: mpsc::Sender<OutboundFrame>,
     pub in_session: Option<SessionId>,
@@ -279,7 +288,7 @@ pub struct TransportLayer {
     heartbeat_timeout: Duration,
 
     // Token validation policy for `Authenticate`
-    auth: AuthSettings,
+    auth: SharedAuth,
 
     // Metrics
     pub metrics: TransportMetrics,
@@ -379,7 +388,7 @@ impl TransportLayer {
             shutdown_tx,
             shutdown_rx: Some(shutdown_rx),
             heartbeat_timeout: Duration::from_millis(heartbeat_timeout_ms),
-            auth,
+            auth: Arc::new(std::sync::RwLock::new(auth)),
             metrics: TransportMetrics::new(),
         })
     }
@@ -455,7 +464,7 @@ impl TransportLayer {
         event_tx: mpsc::Sender<TransportEvent>,
         tls_acceptor: Option<TlsAcceptor>,
         registry: ConnRegistry,
-        auth: AuthSettings,
+        auth: SharedAuth,
         udp_port: u16,
     ) {
         loop {
@@ -496,7 +505,7 @@ impl TransportLayer {
         event_tx: mpsc::Sender<TransportEvent>,
         tls_acceptor: Option<TlsAcceptor>,
         registry: ConnRegistry,
-        auth: AuthSettings,
+        auth: SharedAuth,
         udp_port: u16,
     ) -> Result<(), TransportError> {
         // Generate unique connection ID
@@ -557,7 +566,7 @@ impl TransportLayer {
         mut conn_rx: mpsc::Receiver<OutboundFrame>,
         event_tx: mpsc::Sender<TransportEvent>,
         registry: ConnRegistry,
-        auth: AuthSettings,
+        auth: SharedAuth,
         udp_port: u16,
     ) -> Result<(), TransportError>
     where
@@ -700,11 +709,15 @@ impl TransportLayer {
                                                 .await;
                                             break;
                                         }
-                                        let token_ok = match auth.mode {
-                                            AuthMode::Dev => true,
-                                            AuthMode::Token => {
-                                                !token.is_empty()
-                                                    && auth.tokens.iter().any(|t| t == token)
+                                        let token_ok = {
+                                            let auth =
+                                                auth.read().unwrap_or_else(|e| e.into_inner());
+                                            match auth.mode {
+                                                AuthMode::Dev => true,
+                                                AuthMode::Token => {
+                                                    !token.is_empty()
+                                                        && auth.tokens.iter().any(|t| t == token)
+                                                }
                                             }
                                         };
                                         if !token_ok {
@@ -770,6 +783,7 @@ impl TransportLayer {
                                             player_name: player_name.clone(),
                                             connected_at: Instant::now(),
                                             last_heartbeat: Instant::now(),
+                                            ping_ms: None,
                                             tcp_addr: addr,
                                             tcp_tx: conn_tx.clone(),
                                             in_session: None,
@@ -837,7 +851,7 @@ impl TransportLayer {
                                             warn!("Failed to send AuthSuccess to slow client {}, disconnecting", addr);
                                             break;
                                         }
-                                    } else if let ClientMessage::Heartbeat { .. } = &msg {
+                                    } else if let ClientMessage::Heartbeat { ping_ms, .. } = &msg {
                                         // Update last heartbeat time
                                         if let Some(conn) = registry
                                             .connections
@@ -846,6 +860,9 @@ impl TransportLayer {
                                             .get_mut(&connection_id)
                                         {
                                             conn.last_heartbeat = Instant::now();
+                                            if ping_ms.is_some() {
+                                                conn.ping_ms = *ping_ms;
+                                            }
                                         }
 
                                         // Send heartbeat ack (droppable - can be skipped if queue full)
@@ -1247,8 +1264,15 @@ impl TransportLayer {
                 since_heartbeat: now.duration_since(c.last_heartbeat),
                 in_session: c.in_session,
                 udp_bound: c.udp_addr.is_some(),
+                ping_ms: c.ping_ms,
             })
             .collect()
+    }
+
+    /// Put a new `[auth]` policy in force for every `Authenticate` from now
+    /// on; players already in keep their connection.
+    pub fn set_auth(&self, auth: AuthSettings) {
+        *self.auth.write().unwrap_or_else(|e| e.into_inner()) = auth;
     }
 
     /// Tell a player why and drop their connection. The reader task ends and
@@ -1510,6 +1534,7 @@ mod tests {
             player_name: name.to_string(),
             connected_at: Instant::now(),
             last_heartbeat: Instant::now(),
+            ping_ms: None,
             tcp_addr: addr,
             tcp_tx: conn_tx,
             in_session: None,
@@ -1541,7 +1566,7 @@ mod tests {
             shutdown_tx,
             shutdown_rx: Some(shutdown_rx),
             heartbeat_timeout: Duration::from_secs(30),
-            auth: AuthSettings::default(),
+            auth: Arc::new(std::sync::RwLock::new(AuthSettings::default())),
             metrics: TransportMetrics::new(),
         }
     }

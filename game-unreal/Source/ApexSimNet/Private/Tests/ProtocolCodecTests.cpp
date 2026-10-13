@@ -85,6 +85,12 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeHeartbeat(300),
 		ApexGolden::C_Heartbeat);
 
+	// A measured ping rides along as `ping_ms`; without one (above) the bytes
+	// are those of every earlier client.
+	CheckBytes(TEXT("Heartbeat with ping"),
+		ApexProtocol::EncodeHeartbeat(300, 42),
+		ApexGolden::C_HeartbeatPing);
+
 	CheckBytes(TEXT("SelectCar"),
 		ApexProtocol::EncodeSelectCar(CarId),
 		ApexGolden::C_SelectCar);
@@ -604,6 +610,16 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 		{
 			TestEqual(TEXT("HeartbeatAck type"), Message.Type, EApexServerMessageType::HeartbeatAck);
 			TestEqual(TEXT("HeartbeatAck.server_tick"), Message.ServerTick, static_cast<int64>(4242));
+		}
+	}
+
+	{
+		FApexServerMessage Message;
+		if (Decode(TEXT("ServerNotice"), ApexGolden::S_ServerNotice, Message))
+		{
+			TestEqual(TEXT("ServerNotice type"), Message.Type, EApexServerMessageType::ServerNotice);
+			TestEqual(TEXT("ServerNotice.message"), Message.Reason, FString(TEXT("Race starts in 5 minutes")));
+			TestEqual(TEXT("ServerNotice carries no error code"), Message.ErrorCode, 0);
 		}
 	}
 

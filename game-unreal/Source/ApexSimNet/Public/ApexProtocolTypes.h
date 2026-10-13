@@ -2733,6 +2733,8 @@ enum class EApexServerMessageType : uint8
 	Leaderboard,
 	/** The local driver's own pit box (`PitBox`). */
 	PitBox,
+	/** An operator's message to the player (`ServerNotice`; text in Reason). */
+	ServerNotice,
 };
 
 /**
@@ -2778,7 +2780,7 @@ struct APEXSIMNET_API FApexServerMessage
 	/** SpectatorRecord: stream records in the stream's own `[u32 length][body]` framing. */
 	TArray<uint8> SpectatorRecords;
 
-	/** AuthFailure::reason, or Error::message. */
+	/** AuthFailure::reason, Error::message, or ServerNotice::message. */
 	FString Reason;
 	/** SessionJoined::SessionId, or RejoinAvailable::SessionId. */
 	FString SessionId;

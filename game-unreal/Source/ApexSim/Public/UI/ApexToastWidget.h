@@ -21,6 +21,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
 	void Show(const FString& Message, bool bIsError);
 
+	/** Show for `Seconds` instead of DisplaySeconds (a server notice stays up longer than a toast). */
+	void ShowFor(const FString& Message, bool bIsError, float Seconds);
+
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
 	void Hide();
 

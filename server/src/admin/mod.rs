@@ -9,13 +9,19 @@
 //!
 //! - [`api`]: the JSON endpoints, built from the live server state
 //! - [`bans`]: the ban list `Authenticate` consults
+//! - [`content`]: switched-off content and uploads
+//! - [`hosted`]: sessions the server runs itself
 //! - [`logbuf`]: the log ring the Logs view reads
 //! - [`sampler`]: the Performance view's history
+//! - [`schedule`]: hosted sessions opened and started at set times
 
 pub mod api;
 pub mod bans;
+pub mod content;
+pub mod hosted;
 pub mod logbuf;
 pub mod sampler;
+pub mod schedule;
 
 use crate::config::AdminSettings;
 use crate::health::HealthState;
@@ -41,6 +47,23 @@ use tracing::{debug, info, warn};
 
 type Resp = Response<Full<Bytes>>;
 
+/// Puts a new log level in force, when the binary set one up: only while
+/// `[logging] level` is the level in force (no `RUST_LOG`, no
+/// `--log-level`).
+type LogLevelHook = Box<dyn Fn(&str) -> Result<(), String> + Send + Sync>;
+static LOG_LEVEL_HOOK: std::sync::OnceLock<LogLevelHook> = std::sync::OnceLock::new();
+
+/// Called once by the binary, which owns the tracing subscriber.
+pub fn set_log_level_hook(hook: LogLevelHook) {
+    let _ = LOG_LEVEL_HOOK.set(hook);
+}
+
+/// Apply a saved `[logging] level`: `None` when something else sets the
+/// level (it then waits for a restart).
+fn apply_log_level(level: &str) -> Option<Result<(), String>> {
+    LOG_LEVEL_HOOK.get().map(|hook| hook(level))
+}
+
 /// How long a login lasts.
 const SESSION_TTL: Duration = Duration::from_secs(12 * 3600);
 /// Wrong tokens from one address before it is told to wait.
@@ -48,6 +71,8 @@ const MAX_LOGIN_FAILURES: u32 = 5;
 const LOGIN_LOCKOUT: Duration = Duration::from_secs(60);
 /// Largest request body any endpoint takes (the config file is the biggest).
 const MAX_BODY_BYTES: usize = 512 * 1024;
+/// Largest content upload (one track sidecar: a road mesh runs to tens of MB).
+const MAX_UPLOAD_BYTES: usize = 256 * 1024 * 1024;
 
 /// Everything the endpoints read, shared by both listeners.
 pub struct AdminContext {
@@ -63,6 +88,11 @@ pub struct AdminContext {
     /// from one; the Config view edits it.
     pub config_path: Option<PathBuf>,
     pub started: Instant,
+    /// The game loop's handles, for the operations that act on sessions
+    /// (`hosted`): they lock and send as a loop handler does.
+    pub(crate) loop_ctx: Arc<crate::game_loop::GameLoopCtx>,
+    pub hosted: Arc<hosted::HostedSessions>,
+    pub schedule: Arc<schedule::Schedule>,
     sessions: Mutex<HashMap<String, Instant>>,
     failures: Mutex<HashMap<IpAddr, (u32, Instant)>>,
     pub http_addr: Mutex<Option<SocketAddr>>,
@@ -119,7 +149,28 @@ pub async fn start(inputs: AdminInputs) -> Result<Option<AdminHandle>, Box<dyn s
         Arc::clone(&history),
     );
 
+    let loop_ctx = {
+        let st = inputs.state.read().await;
+        Arc::new(crate::game_loop::GameLoopCtx {
+            state: Arc::clone(&inputs.state),
+            transport: Arc::clone(&inputs.transport),
+            metrics: Arc::clone(&inputs.metrics),
+            tick_rate: st.config.server.tick_rate_hz,
+            telemetry_divisor: st.config.network.telemetry_divisor.max(1) as u64,
+        })
+    };
+    let hosted = Arc::new(hosted::HostedSessions::default());
+    let schedule = Arc::new(schedule::Schedule::open(&settings.schedule_file));
+    schedule::spawn(
+        Arc::clone(&schedule),
+        Arc::clone(&loop_ctx),
+        Arc::clone(&hosted),
+    );
+
     let ctx = Arc::new(AdminContext {
+        loop_ctx,
+        hosted,
+        schedule,
         settings: settings.clone(),
         token: token.clone(),
         state: inputs.state,
@@ -431,10 +482,12 @@ async fn route(req: Request<Incoming>, peer: SocketAddr, secure: bool, ctx: &Adm
 
     let query = req.uri().query().unwrap_or("").to_string();
     let body = if method == Method::POST || method == Method::PUT || method == Method::DELETE {
-        match Limited::new(req.into_body(), MAX_BODY_BYTES)
-            .collect()
-            .await
-        {
+        let limit = if path == "/api/content/upload" {
+            MAX_UPLOAD_BYTES
+        } else {
+            MAX_BODY_BYTES
+        };
+        match Limited::new(req.into_body(), limit).collect().await {
             Ok(b) => b.to_bytes(),
             Err(_) => return api::error(StatusCode::PAYLOAD_TOO_LARGE, "request body too large"),
         }

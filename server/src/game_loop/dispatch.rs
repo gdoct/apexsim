@@ -309,6 +309,16 @@ async fn handle_select_car(
             conn_info.player_id, car_config_id, livery
         );
         let state_read = ctx.state.read().await;
+        if state_read.disabled_content.contains(&car_config_id) {
+            drop(state_read);
+            ctx.send_error(
+                connection_id,
+                403,
+                "That car is switched off on this server",
+            )
+            .await;
+            return;
+        }
         state_read
             .lobby
             .set_player_car(conn_info.player_id, car_config_id)
@@ -400,6 +410,20 @@ async fn handle_create_session(
                 state_write.lobby.unregister_session(old).await;
             }
         }
+    }
+
+    // The dashboard's switched-off content is refused (a demo picks its own).
+    let switched_off = state_write.disabled_content.contains(&track_config_id)
+        || (!is_demo && car_id.is_some_and(|id| state_write.disabled_content.contains(&id)));
+    if switched_off {
+        drop(state_write);
+        ctx.send_error(
+            connection_id,
+            403,
+            "That track or car is switched off on this server",
+        )
+        .await;
+        return;
     }
 
     // Get host's selected car
@@ -512,6 +536,7 @@ async fn handle_create_session(
         },
         password_hash: None,
         created_at: std::time::Instant::now(),
+        persistent: false,
     };
 
     state_write.lobby.register_session(session_info).await;

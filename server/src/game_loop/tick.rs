@@ -137,7 +137,11 @@ pub(crate) async fn tick_sessions(
         // watched hotlap exists to show them.
         let sends_timing = game_session.session.session_kind != SessionKind::Demo;
 
-        if real_player_count == 0 && !is_demo_lap_with_ai && !is_demo_session {
+        // A hosted session is the server's: it runs (or waits in its lobby)
+        // with nobody in it, until the dashboard ends it.
+        let is_hosted = game_session.hosted;
+
+        if real_player_count == 0 && !is_demo_lap_with_ai && !is_demo_session && !is_hosted {
             debug!(
                 "Session {} has no real players, marking for removal",
                 session_id
@@ -148,7 +152,7 @@ pub(crate) async fn tick_sessions(
 
         // Every human here has lost their connection: their seats are held
         // for the grace period, then the session ends.
-        let orphaned = !is_demo_session && !game_session.has_connected_driver();
+        let orphaned = !is_demo_session && !is_hosted && !game_session.has_connected_driver();
         if finished_session_expired(
             &mut game_session.orphaned_since_loop_tick,
             orphaned,
@@ -710,7 +714,9 @@ pub(crate) async fn cleanup_finished_sessions(ctx: &GameLoopCtx, tick_count: u64
         // A weekend waiting for its host between phases stays while anyone
         // is there to advance it; the reconnect grace ends it when all are
         // away.
-        let waiting = session.awaits_weekend_advance() && session.has_connected_driver();
+        // A hosted weekend waits for the dashboard (or its schedule) instead.
+        let waiting =
+            session.awaits_weekend_advance() && (session.hosted || session.has_connected_driver());
         let expired = finished_session_expired(
             &mut session.finished_since_loop_tick,
             session.session.state == SessionState::Finished && !waiting,
@@ -761,6 +767,8 @@ fn replay_participants(
             finish_position: car.finish_position,
             is_ai: session.is_ai_player(pid),
             livery: 0,
+            best_lap_ms: car.best_lap_time_ms.filter(|ms| *ms > 0),
+            laps: session.laps_completed(pid),
         })
         .collect()
 }

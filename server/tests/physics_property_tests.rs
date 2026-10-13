@@ -215,7 +215,7 @@ proptest! {
     ) {
         let messages = vec![
             ClientMessage::Authenticate { token, player_name, protocol_version: 2, resume_token: None },
-            ClientMessage::Heartbeat { client_tick },
+            ClientMessage::Heartbeat { client_tick, ping_ms: None },
             ClientMessage::PlayerInput {
                 server_tick_ack,
                 throttle,

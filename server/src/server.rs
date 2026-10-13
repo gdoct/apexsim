@@ -52,6 +52,10 @@ pub struct ServerState {
     pub records: Arc<crate::records::RecordStore>,
     /// Rendered races played to clients in the menu (`crate::showcase`).
     pub showcase: crate::showcase::ShowcaseState,
+    /// Cars and tracks switched off on the dashboard
+    /// (`crate::admin::content`): left out of the lobby, refused on select
+    /// and create, and never dealt to the AI.
+    pub disabled_content: std::collections::BTreeSet<uuid::Uuid>,
 }
 
 impl ServerState {
@@ -78,10 +82,10 @@ impl ServerState {
         // Load custom tracks from configured directory
         let tracks_dir = config.content.tracks_dir.clone();
         debug!("Loading tracks from {}...", tracks_dir);
-        let mut track_content = TrackContent::new(config.physics.road_contact);
+        let track_content = TrackContent::new(config.physics.road_contact);
         Self::load_custom_tracks(
             &mut track_configs,
-            &mut track_content,
+            &track_content,
             &tracks_dir,
             config.content.skip_imported_tracks,
         );
@@ -105,8 +109,11 @@ impl ServerState {
             crate::showcase::ShowcaseState::load(&config.showcase, &car_configs, &track_configs);
         let replay_dir = std::path::PathBuf::from(&config.records.replay_dir);
 
+        let disabled_content = crate::admin::content::load_disabled(&config.admin.content_file);
+
         Self {
             showcase,
+            disabled_content,
             config,
             car_configs,
             track_configs,
@@ -128,7 +135,7 @@ impl ServerState {
     /// claiming one id is kept does not depend on which parsed first.
     fn load_custom_tracks(
         track_configs: &mut HashMap<TrackConfigId, TrackConfig>,
-        track_content: &mut TrackContent,
+        track_content: &TrackContent,
         tracks_dir_str: &str,
         skip_imported: bool,
     ) {
@@ -407,7 +414,8 @@ impl ServerState {
             game_session.set_debug_hooks(hooks);
         }
 
-        // Spawn AI drivers immediately
+        // Spawn AI drivers immediately, in no car switched off here.
+        game_session.ai_excluded_cars = self.disabled_content.iter().copied().collect();
         if ai_count > 0 {
             game_session.spawn_ai_drivers();
             debug!("Spawned {} AI drivers for session {}", ai_count, session_id);
@@ -416,7 +424,8 @@ impl ServerState {
         // A watched hotlap starts at once, with the corners for its HUD.
         if session_kind == SessionKind::HotlapWatch {
             let path = self.track_content.path_of(track_config_id);
-            let corners = crate::track_guide::wire_corners(&game_session.track_config, path);
+            let corners =
+                crate::track_guide::wire_corners(&game_session.track_config, path.as_deref());
             game_session.set_track_corners(corners);
             game_session.start_hotlap_watch();
             if let Some(level) = game_session
@@ -613,13 +622,8 @@ mod tests {
         write("custom", "Mine", "0d9f8e7c-6b5a-4f3e-8d2c-1b0a9f8e7d6c");
 
         let mut configs = HashMap::new();
-        let mut content = TrackContent::new(crate::config::RoadContactMode::Centerline);
-        ServerState::load_custom_tracks(
-            &mut configs,
-            &mut content,
-            tracks.to_str().unwrap(),
-            false,
-        );
+        let content = TrackContent::new(crate::config::RoadContactMode::Centerline);
+        ServerState::load_custom_tracks(&mut configs, &content, tracks.to_str().unwrap(), false);
         for id in configs.keys() {
             assert!(content.needs_loading(*id), "each kept track is registered");
         }
@@ -641,8 +645,8 @@ mod tests {
         // asked, as the debug-build test servers do; the rest still load.
         std::fs::write(tracks.join("custom/Mine/Mine.import.json"), "{}").unwrap();
         let mut configs = HashMap::new();
-        let mut content = TrackContent::new(crate::config::RoadContactMode::Centerline);
-        ServerState::load_custom_tracks(&mut configs, &mut content, tracks.to_str().unwrap(), true);
+        let content = TrackContent::new(crate::config::RoadContactMode::Centerline);
+        ServerState::load_custom_tracks(&mut configs, &content, tracks.to_str().unwrap(), true);
         let sources: Vec<String> = configs
             .values()
             .map(|t| t.source_path.clone().unwrap_or_default())

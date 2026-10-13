@@ -254,9 +254,12 @@ async fn build_lobby_state_with(
     let state_read = ctx.state.read().await;
 
     // Get car and track configs
+    // What the dashboard switched off is not offered.
+    let offered = |id: &uuid::Uuid| !state_read.disabled_content.contains(id);
     let car_configs: Vec<CarConfigSummary> = state_read
         .car_configs
         .values()
+        .filter(|c| offered(&c.id))
         .map(|c| CarConfigSummary {
             id: c.id,
             name: c.name.clone(),
@@ -270,6 +273,7 @@ async fn build_lobby_state_with(
     let track_configs: Vec<TrackConfigSummary> = state_read
         .track_configs
         .values()
+        .filter(|t| offered(&t.id))
         .map(|t| TrackConfigSummary {
             id: t.id,
             name: t.name.clone(),

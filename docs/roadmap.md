@@ -64,6 +64,9 @@ Do it before them.
   down to 0.85 and may still overlap a little).
 - HUD layouts: the layout manager, per-circuit and per-class bindings and
   switching by place, by hand.
+- A dashboard broadcast (`ServerNotice`) in the menus and over the race
+  HUD, and a session the dashboard ends while driving (notice, then back to
+  the menu).
 
 **Check:** the batch's screenshots, each item judged and either deleted or
 turned into a bullet in the package that owns it.
@@ -241,11 +244,14 @@ them, and changes its content checksum); the HUD on a carbon and a steel car.
 For people running a server for others
 ([server/operations.md](server/operations.md)).
 
-- A schedule view; start, stop and restart; a broadcast message; content
-  upload and toggles; ping per player; fastest lap and laps in History;
-  kicking an AI car; live config.
+- Restarting a hosted session seats its players in the new one, instead of
+  sending them back to the menu to join again (the client has never been
+  seen taking a `SessionJoined` it did not ask for).
+- Restarting the server process itself from the dashboard, for the config
+  keys that need it.
 
-**Check:** run a session from the dashboard alone.
+**Check:** a player stays in the car through a dashboard RESTART; a saved
+tick rate in force without touching the machine.
 
 ### 14. Content tooling
 

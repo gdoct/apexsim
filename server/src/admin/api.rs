@@ -6,6 +6,8 @@
 //! holds the game loop up.
 
 use super::bans::BanEntry;
+use super::hosted::{self, HostedSpec};
+use super::schedule::ScheduleEntry;
 use super::{logbuf, AdminContext, Resp};
 use crate::data::*;
 use crate::game_session::GameSession;
@@ -105,6 +107,36 @@ pub async fn handle(
             Ok(id) => session_detail(ctx, id).await,
             Err(_) => error(StatusCode::BAD_REQUEST, "bad session id"),
         },
+        (&Method::POST, ["sessions"]) => {
+            open_session(ctx, &body, param(&q, "start") == Some("1")).await
+        }
+        (&Method::POST, ["sessions", id, action @ ("start" | "advance" | "stop" | "restart")]) => {
+            match id.parse::<Uuid>() {
+                Ok(id) => session_action(ctx, id, action, &body).await,
+                Err(_) => error(StatusCode::BAD_REQUEST, "bad session id"),
+            }
+        }
+        (&Method::POST, ["sessions", id, "ai", ai, "remove"]) => {
+            match (id.parse::<Uuid>(), ai.parse::<Uuid>()) {
+                (Ok(id), Ok(ai)) => match hosted::remove_ai(&ctx.loop_ctx, id, ai).await {
+                    Ok(name) => ok(json!({ "ok": true, "name": name })),
+                    Err(why) => error(StatusCode::CONFLICT, &why),
+                },
+                _ => error(StatusCode::BAD_REQUEST, "bad id"),
+            }
+        }
+        (&Method::POST, ["broadcast"]) => broadcast(ctx, &body).await,
+        (&Method::GET, ["schedule"]) => schedule_list(ctx).await,
+        (&Method::POST, ["schedule"]) => schedule_put(ctx, &body).await,
+        (&Method::DELETE, ["schedule", id]) => match id.parse::<Uuid>() {
+            Ok(id) => match ctx.schedule.remove(id) {
+                Some(_) => ok(json!({ "ok": true })),
+                None => error(StatusCode::NOT_FOUND, "no such entry"),
+            },
+            Err(_) => error(StatusCode::BAD_REQUEST, "bad id"),
+        },
+        (&Method::POST, ["content", "toggle"]) => content_toggle(ctx, &body).await,
+        (&Method::POST, ["content", "upload"]) => content_upload(ctx, &q, body).await,
         (&Method::GET, ["players"]) => players(ctx).await,
         (&Method::POST, ["players", id, action @ ("kick" | "ban")]) => match id.parse::<Uuid>() {
             Ok(id) => remove_player(ctx, id, *action == "ban", &body).await,
@@ -117,7 +149,7 @@ pub async fn handle(
         (&Method::GET, ["logs", "download"]) => logs_download(&q),
         (&Method::GET, ["perf"]) => perf(ctx).await,
         (&Method::GET, ["config"]) => config_get(ctx),
-        (&Method::PUT, ["config"]) => config_put(ctx, &body),
+        (&Method::PUT, ["config"]) => config_put(ctx, &body).await,
         (&Method::GET, ["content"]) => content(ctx).await,
         _ => error(StatusCode::NOT_FOUND, "no such endpoint"),
     }
@@ -259,6 +291,9 @@ async fn sessions(ctx: &AdminContext, with_demo: bool) -> Resp {
                     "weekend": gs.session.weekend,
                     "elapsed_s": elapsed,
                     "demo": gs.session.session_kind.is_watch_only(),
+                    "hosted": gs.hosted,
+                    "restartable": ctx.hosted.spec(gs.session.id).is_some(),
+                    "awaits_advance": gs.awaits_weekend_advance(),
                 }),
             )
         })
@@ -457,6 +492,9 @@ async fn session_detail(ctx: &AdminContext, id: SessionId) -> Resp {
         "weather": s.conditions.weather.name(),
         "air_c": s.conditions.air_temperature_c(),
         "time_of_day_minutes": s.conditions.time_of_day_minutes,
+        "hosted": gs.hosted,
+        "restartable": ctx.hosted.spec(s.id).is_some(),
+        "awaits_advance": gs.awaits_weekend_advance(),
         "outline": outline,
         "cars": rows_json,
     }))
@@ -503,6 +541,7 @@ async fn players(ctx: &AdminContext) -> Resp {
             "address": c.address.ip().to_string(),
             "online_s": c.connected_for.as_secs(),
             "last_seen_ms": c.since_heartbeat.as_millis() as u64,
+            "ping_ms": c.ping_ms,
             "udp": c.udp_bound,
         }));
     }
@@ -525,6 +564,7 @@ async fn players(ctx: &AdminContext) -> Resp {
                 "human": false,
                 "car": car,
                 "track": gs.track_config.name,
+                "session": gs.session.id,
             }));
         }
     }
@@ -633,6 +673,11 @@ fn read_history(
             .iter()
             .find(|p| p.finish_position == Some(1))
             .map(|p| p.player_name.clone());
+        let fastest = m
+            .participants
+            .iter()
+            .filter(|p| p.best_lap_ms.is_some_and(|ms| ms > 0))
+            .min_by_key(|p| p.best_lap_ms);
         out.push(json!({
             "id": m.session_id,
             "recorded_at": m.recorded_at,
@@ -642,11 +687,15 @@ fn read_history(
             "cars": m.participants.len(),
             "humans": m.participants.iter().filter(|p| !p.is_ai).count(),
             "winner": winner,
+            "fastest": fastest.map(|p| json!({ "name": p.player_name, "ms": p.best_lap_ms })),
+            "laps": m.participants.iter().map(|p| p.laps).max().unwrap_or(0),
             "results": results.iter().map(|p| json!({
                 "pos": p.finish_position,
                 "name": p.player_name,
                 "ai": p.is_ai,
                 "car": car_names.get(&p.car_config_id),
+                "laps": p.laps,
+                "best_ms": p.best_lap_ms,
             })).collect::<Vec<_>>(),
         }));
     }
@@ -787,7 +836,7 @@ fn changed_sections(old: &str, new: &toml::Table) -> Vec<String> {
         .collect()
 }
 
-fn config_put(ctx: &AdminContext, body: &Bytes) -> Resp {
+async fn config_put(ctx: &AdminContext, body: &Bytes) -> Resp {
     let Some(path) = &ctx.config_path else {
         return error(
             StatusCode::NOT_FOUND,
@@ -834,13 +883,267 @@ fn config_put(ctx: &AdminContext, body: &Bytes) -> Resp {
             &format!("cannot write {}: {}", path.display(), e),
         );
     }
-    tracing::info!("Admin saved {} (changed: {:?})", path.display(), changed);
-    ok(json!({ "ok": true, "changed": changed, "restart_required": !changed.is_empty() }))
+    // What the save changed, key by key, against the file as it was; the
+    // live ones go into force now, the rest wait for a restart.
+    let old: Option<crate::config::ServerConfig> = toml::from_str(&previous).ok();
+    let keys = old.map_or_else(Vec::new, |old| old.changed_keys(&parsed));
+    let (mut applied, mut restart): (Vec<String>, Vec<String>) = keys
+        .into_iter()
+        .partition(|k| crate::config::LIVE_KEYS.contains(&k.as_str()));
+    if !applied.is_empty() {
+        let auth = {
+            let mut st = ctx.state.write().await;
+            st.config.take_live(&parsed);
+            // An environment override still wins, as at startup.
+            st.config.apply_env_overrides();
+            st.config.auth.clone()
+        };
+        ctx.transport.read().await.set_auth(auth);
+        logbuf::set_capacity(parsed.admin.log_buffer_lines);
+        if applied.iter().any(|k| k == "logging.level") {
+            match super::apply_log_level(&parsed.logging.level) {
+                Some(Ok(())) => {}
+                Some(Err(e)) => {
+                    tracing::warn!("Log level {:?} not applied: {}", parsed.logging.level, e)
+                }
+                None => {
+                    // RUST_LOG or --log-level sets the level for this run.
+                    applied.retain(|k| k != "logging.level");
+                    restart.push("logging.level".to_string());
+                }
+            }
+        }
+    }
+    tracing::info!(
+        "Admin saved {} (changed: {:?}; applied now: {:?}; at restart: {:?})",
+        path.display(),
+        changed,
+        applied,
+        restart
+    );
+    ok(json!({
+        "ok": true,
+        "changed": changed,
+        "applied": applied,
+        "restart_keys": restart,
+        "restart_required": !restart.is_empty(),
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// Hosted sessions, broadcast and schedule
+// ---------------------------------------------------------------------------
+
+async fn open_session(ctx: &AdminContext, body: &Bytes, start_now: bool) -> Resp {
+    let spec: HostedSpec = match serde_json::from_slice(body) {
+        Ok(s) => s,
+        Err(e) => return error(StatusCode::BAD_REQUEST, &format!("session settings: {}", e)),
+    };
+    let id = match hosted::open(&ctx.loop_ctx, &ctx.hosted, spec).await {
+        Ok(id) => id,
+        Err(why) => return error(StatusCode::CONFLICT, &why),
+    };
+    let started = if start_now {
+        match hosted::start(&ctx.loop_ctx, id).await {
+            Ok(phase) => Some(phase),
+            Err(why) => return error(StatusCode::CONFLICT, &why),
+        }
+    } else {
+        None
+    };
+    ok(json!({ "ok": true, "id": id, "started": started }))
+}
+
+async fn session_action(ctx: &AdminContext, id: SessionId, action: &str, body: &Bytes) -> Resp {
+    let lc = &ctx.loop_ctx;
+    let result: Result<Value, String> = match action {
+        "start" => hosted::start(lc, id)
+            .await
+            .map(|phase| json!({ "phase": phase })),
+        "advance" => hosted::advance(lc, id)
+            .await
+            .map(|phase| json!({ "phase": phase })),
+        "restart" => hosted::restart(lc, &ctx.hosted, id)
+            .await
+            .map(|new_id| json!({ "id": new_id })),
+        _ => {
+            let reason = serde_json::from_slice::<Value>(body)
+                .ok()
+                .and_then(|v| v.get("reason").and_then(|r| r.as_str()).map(str::to_string))
+                .map(|r| r.trim().chars().take(200).collect::<String>())
+                .filter(|r| !r.is_empty())
+                .unwrap_or_else(|| "The server admin ended this session".to_string());
+            hosted::stop(lc, &ctx.hosted, id, &reason)
+                .await
+                .map(|_| json!({}))
+        }
+    };
+    match result {
+        Ok(mut v) => {
+            v["ok"] = json!(true);
+            ok(v)
+        }
+        Err(why) => error(StatusCode::CONFLICT, &why),
+    }
+}
+
+async fn broadcast(ctx: &AdminContext, body: &Bytes) -> Resp {
+    let v: Value = serde_json::from_slice(body).unwrap_or(Value::Null);
+    let message: String = v
+        .get("message")
+        .and_then(|m| m.as_str())
+        .unwrap_or("")
+        .trim()
+        .chars()
+        .take(300)
+        .collect();
+    if message.is_empty() {
+        return error(StatusCode::BAD_REQUEST, "the message is empty");
+    }
+    let to = match v.get("session").and_then(|s| s.as_str()) {
+        Some(id) => match id.parse::<Uuid>() {
+            Ok(id) => hosted::Audience::Session(id),
+            Err(_) => return error(StatusCode::BAD_REQUEST, "bad session id"),
+        },
+        None => hosted::Audience::Everyone,
+    };
+    let sent = hosted::broadcast(&ctx.loop_ctx, to, &message).await;
+    ok(json!({ "ok": true, "sent": sent }))
+}
+
+async fn schedule_list(ctx: &AdminContext) -> Resp {
+    let (tracks, cars) = {
+        let st = ctx.state.read().await;
+        let tracks: std::collections::HashMap<Uuid, String> = st
+            .track_configs
+            .values()
+            .map(|t| (t.id, t.name.clone()))
+            .collect();
+        let cars: std::collections::HashMap<Uuid, String> = st
+            .car_configs
+            .values()
+            .map(|c| (c.id, c.name.clone()))
+            .collect();
+        (tracks, cars)
+    };
+    let now = super::schedule::unix_now();
+    let rows: Vec<Value> = ctx
+        .schedule
+        .entries()
+        .into_iter()
+        .map(|e| {
+            let status = if e.open_session.is_some() {
+                "open"
+            } else if e.running_session.is_some() {
+                "running"
+            } else if !e.enabled {
+                "done"
+            } else {
+                "scheduled"
+            };
+            let mut v = serde_json::to_value(&e).unwrap_or(Value::Null);
+            v["opens_at"] = json!(e.opens_at());
+            v["status"] = json!(status);
+            v["track"] = json!(tracks.get(&e.spec.track_id));
+            v["car"] = json!(cars.get(&e.spec.car_id));
+            v
+        })
+        .collect();
+    ok(json!({ "entries": rows, "now": now }))
+}
+
+async fn schedule_put(ctx: &AdminContext, body: &Bytes) -> Resp {
+    let entry: ScheduleEntry = match serde_json::from_slice(body) {
+        Ok(e) => e,
+        Err(e) => return error(StatusCode::BAD_REQUEST, &format!("schedule entry: {}", e)),
+    };
+    {
+        let st = ctx.state.read().await;
+        if !st.track_configs.contains_key(&entry.spec.track_id) {
+            return error(StatusCode::BAD_REQUEST, "no such track");
+        }
+        if !st.car_configs.contains_key(&entry.spec.car_id) {
+            return error(StatusCode::BAD_REQUEST, "no such car");
+        }
+    }
+    let saved = ctx.schedule.upsert(entry);
+    tracing::info!(
+        "Admin scheduled {:?} at {} ({:?})",
+        saved.spec.name,
+        saved.start_at,
+        saved.repeat
+    );
+    ok(json!({ "ok": true, "entry": saved }))
 }
 
 // ---------------------------------------------------------------------------
 // Content
 // ---------------------------------------------------------------------------
+
+async fn content_toggle(ctx: &AdminContext, body: &Bytes) -> Resp {
+    let v: Value = serde_json::from_slice(body).unwrap_or(Value::Null);
+    let Some(id) = v
+        .get("id")
+        .and_then(|i| i.as_str())
+        .and_then(|i| i.parse::<Uuid>().ok())
+    else {
+        return error(StatusCode::BAD_REQUEST, "expected an id and enabled");
+    };
+    let enabled = v.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true);
+    let mut st = ctx.state.write().await;
+    let name = st
+        .track_configs
+        .get(&id)
+        .map(|t| t.name.clone())
+        .or_else(|| st.car_configs.get(&id).map(|c| c.name.clone()));
+    let Some(name) = name else {
+        return error(StatusCode::NOT_FOUND, "no such car or track");
+    };
+    if enabled {
+        st.disabled_content.remove(&id);
+    } else {
+        st.disabled_content.insert(id);
+    }
+    let set = st.disabled_content.clone();
+    drop(st);
+    if let Err(e) = super::content::save_disabled(&ctx.settings.content_file, &set) {
+        return error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            &format!("cannot write {}: {}", ctx.settings.content_file, e),
+        );
+    }
+    tracing::info!(
+        "Admin switched {} {}",
+        name,
+        if enabled { "on" } else { "off" }
+    );
+    ok(json!({ "ok": true, "enabled": enabled }))
+}
+
+async fn content_upload(ctx: &AdminContext, q: &[(String, String)], body: Bytes) -> Resp {
+    let kind = param(q, "kind").unwrap_or("").to_string();
+    let name = param(q, "name").unwrap_or("").to_string();
+    if body.is_empty() {
+        return error(StatusCode::BAD_REQUEST, "the file is empty");
+    }
+    let state = std::sync::Arc::clone(&ctx.state);
+    // Parsing and writing are disk work: off the runtime, the state lock
+    // taken inside only to check and add (never across a write).
+    let result = tokio::task::spawn_blocking(move || match kind.as_str() {
+        "car" => super::content::upload_car(&state, &body),
+        "track" => super::content::upload_track_file(&state, &name, &body),
+        _ => Err("kind is car or track".to_string()),
+    })
+    .await
+    .unwrap_or_else(|_| Err("the upload failed".to_string()));
+    match result {
+        Ok(mut v) => {
+            v["ok"] = json!(true);
+            ok(v)
+        }
+        Err(why) => error(StatusCode::UNPROCESSABLE_ENTITY, &why),
+    }
+}
 
 async fn content(ctx: &AdminContext) -> Resp {
     let st = ctx.state.read().await;
@@ -863,6 +1166,7 @@ async fn content(ctx: &AdminContext) -> Resp {
                 "source": source_of(&src),
                 "length_m": crate::laps::track_length_m(t),
                 "crc": format!("{:08x}", t.content_crc),
+                "enabled": !st.disabled_content.contains(&t.id),
             })
         })
         .collect();
@@ -878,11 +1182,16 @@ async fn content(ctx: &AdminContext) -> Resp {
                 "file": c.model,
                 "source": source_of(&c.model),
                 "crc": format!("{:08x}", c.content_crc),
+                "enabled": !st.disabled_content.contains(&c.id),
             })
         })
         .collect();
     cars.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
-    ok(json!({ "tracks": tracks, "cars": cars }))
+    let weather: Vec<Value> = Weather::ALL
+        .iter()
+        .map(|w| json!({ "id": *w as u8, "name": w.name() }))
+        .collect();
+    ok(json!({ "tracks": tracks, "cars": cars, "weather": weather }))
 }
 
 #[cfg(test)]

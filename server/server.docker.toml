@@ -75,3 +75,5 @@ http_bind = "0.0.0.0:9003"
 https_bind = "0.0.0.0:9004"
 redirect_http_to_https = true
 bans_file = "/data/records/bans.json"
+content_file = "/data/records/content.json"
+schedule_file = "/data/records/schedule.json"

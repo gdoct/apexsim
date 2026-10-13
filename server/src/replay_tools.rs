@@ -282,6 +282,8 @@ pub fn simulate_race(opts: &SimulateOptions) -> Result<(ReplayMetadata, Vec<Repl
             finish_position: None,
             is_ai: true,
             livery: 0,
+            best_lap_ms: None,
+            laps: 0,
         })
         .collect();
 
@@ -1906,6 +1908,8 @@ mod tests {
                     finish_position: None,
                     is_ai: true,
                     livery: 0,
+                    best_lap_ms: None,
+                    laps: 0,
                 })
                 .collect(),
             conditions: SessionConditions::DEFAULT,

@@ -550,6 +550,7 @@ impl TestClientMinimal {
         self.heartbeat_tick += 1;
         let msg = ClientMessage::Heartbeat {
             client_tick: self.heartbeat_tick,
+            ping_ms: None,
         };
         self.send_message(&msg).await
     }

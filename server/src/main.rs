@@ -29,8 +29,19 @@ fn init_tracing(
     cli_log_level: Option<&str>,
 ) -> Option<tracing_appender::non_blocking::WorkerGuard> {
     let level = cli_log_level.unwrap_or(&config.logging.level);
-    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(level));
+    let from_env = tracing_subscriber::EnvFilter::try_from_default_env().ok();
+    // The file's level is in force when neither RUST_LOG nor --log-level
+    // overrides it, and then a level saved on the dashboard replaces it live.
+    let file_in_charge = from_env.is_none() && cli_log_level.is_none();
+    let env_filter = from_env.unwrap_or_else(|| tracing_subscriber::EnvFilter::new(level));
+    let (env_filter, filter_handle) = tracing_subscriber::reload::Layer::new(env_filter);
+    if file_in_charge {
+        apexsim_server::admin::set_log_level_hook(Box::new(move |level: &str| {
+            let filter =
+                tracing_subscriber::EnvFilter::try_new(level).map_err(|e| e.to_string())?;
+            filter_handle.reload(filter).map_err(|e| e.to_string())
+        }));
+    }
 
     let console_layer = config
         .logging

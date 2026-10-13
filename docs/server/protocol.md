@@ -97,6 +97,12 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
    connection silent for `heartbeat_timeout_ms` (5 s) while it is in a
    session, 30 s while it is in the lobby. `HeartbeatAck.server_tick` is
    the game loop's tick count (wrapping `u32`, not a session's tick).
+   `Heartbeat.ping_ms` carries the round trip the client measured from the
+   last ack (left off before the first), for the dashboard's player list.
+
+At any time the server may send `ServerNotice { message }`: the operator's
+words (a dashboard broadcast, or why a session was ended), which the client
+shows as an 8 s toast over whatever is on screen.
 
 Joining a session: `SelectCar`, then `CreateSession` or `JoinSession`, answered
 by `SessionJoined`, a `SessionRoster` (car index to player, reliable, resent

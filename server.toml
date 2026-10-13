@@ -88,4 +88,8 @@ road_contact = "mesh"
 #token = ""
 #redirect_http_to_https = false
 #bans_file = "./records/bans.json"
+# The cars and tracks switched off on the Content view.
+#content_file = "./records/content.json"
+# The Schedule view's sessions.
+#schedule_file = "./records/schedule.json"
 #log_buffer_lines = 5000

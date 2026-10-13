@@ -59,6 +59,10 @@ pub enum ClientMessage {
     },
     Heartbeat {
         client_tick: u32,
+        /// The round trip of the client's last heartbeat, ms, for the
+        /// dashboard's player list. Left off the wire before the first.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ping_ms: Option<u32>,
     },
     SelectCar {
         #[serde(
@@ -722,6 +726,10 @@ pub enum ServerMessage {
     // again after a rejoin. What a driver who drives the lane themselves
     // aims for, and where the camera stands while the crew works.
     PitBox(PitBoxData),
+
+    // TCP - A message from the server's operator (the dashboard's
+    // broadcast, or a session it ends), for the client to show as it is.
+    ServerNotice { message: String },
 }
 
 impl ServerMessage {
@@ -757,6 +765,7 @@ impl ServerMessage {
             ServerMessage::SpectatorRecord(_) => MessagePriority::Critical,
             ServerMessage::WeekendState(_) => MessagePriority::Critical,
             ServerMessage::PitBox(_) => MessagePriority::Critical,
+            ServerMessage::ServerNotice { .. } => MessagePriority::Critical,
 
             // Droppable messages - can be dropped when queue is full
             ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
@@ -4301,6 +4310,50 @@ mod tests {
             ServerMessage::RejoinAvailable(data) => {
                 assert_eq!(data.session_id, player_id);
                 assert_eq!(data.session_kind, SessionKind::Multiplayer);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
+    /// The heartbeat's round trip and the operator's notice, pinned on the
+    /// client as `ApexGolden::C_HeartbeatPing` and `S_ServerNotice`. `cargo
+    /// test server_notice_wire_format -- --nocapture` prints them.
+    #[test]
+    fn test_server_notice_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        // Without a round trip the bytes are those of every earlier client.
+        let plain = rmp_serde::to_vec_named(&ClientMessage::Heartbeat {
+            client_tick: 300,
+            ping_ms: None,
+        })
+        .unwrap();
+        assert!(!String::from_utf8_lossy(&plain).contains("ping_ms"));
+        let ping = rmp_serde::to_vec_named(&ClientMessage::Heartbeat {
+            client_tick: 300,
+            ping_ms: Some(42),
+        })
+        .unwrap();
+        println!("C_HeartbeatPing: {}", hex(&ping));
+        match rmp_serde::from_slice::<ClientMessage>(&ping).unwrap() {
+            ClientMessage::Heartbeat { ping_ms, .. } => assert_eq!(ping_ms, Some(42)),
+            other => panic!("Wrong message type: {other:?}"),
+        }
+
+        let notice = ServerMessage::ServerNotice {
+            message: "Race starts in 5 minutes".to_string(),
+        };
+        assert_eq!(notice.priority(), MessagePriority::Critical);
+        let bytes = rmp_serde::to_vec_named(&notice).unwrap();
+        println!("S_ServerNotice: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::ServerNotice { message } => {
+                assert_eq!(message, "Race starts in 5 minutes")
             }
             other => panic!("Wrong message type: {other:?}"),
         }

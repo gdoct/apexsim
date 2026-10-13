@@ -253,6 +253,13 @@ pub struct GameSession {
     /// away (`away`): `game_loop::tick` ends the session when none is back
     /// within `[server] reconnect_grace_seconds`.
     pub(crate) orphaned_since_loop_tick: Option<u64>,
+    /// Run by the server from the dashboard (`crate::admin::hosted`), not
+    /// by a player: it stays without a human in it, and the dashboard or
+    /// its schedule starts and ends it. Nothing in the tick reads it.
+    pub hosted: bool,
+    /// Cars the AI field is not dealt (switched off on the dashboard);
+    /// empty, the field is the host class's every car.
+    pub ai_excluded_cars: std::collections::BTreeSet<CarConfigId>,
     /// Humans whose connection was lost: their seat is held for them to
     /// come back to (`hold_seat` / `resume_seat`) and the server drives
     /// their car meanwhile (`away_input`), or parks it in its garage in a
@@ -623,6 +630,8 @@ impl GameSession {
             finish_deadline_tick: None,
             finished_since_loop_tick: None,
             orphaned_since_loop_tick: None,
+            hosted: false,
+            ai_excluded_cars: std::collections::BTreeSet::new(),
             away: std::collections::BTreeSet::new(),
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
@@ -684,6 +693,8 @@ impl GameSession {
             finish_deadline_tick: None,
             finished_since_loop_tick: None,
             orphaned_since_loop_tick: None,
+            hosted: false,
+            ai_excluded_cars: std::collections::BTreeSet::new(),
             away: std::collections::BTreeSet::new(),
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
@@ -2643,6 +2654,19 @@ impl GameSession {
         self.liveries.remove(player_id);
     }
 
+    /// Take an AI car out of the session (the dashboard's kick): off the
+    /// grid or off the track, out of the roster with the next tick. False
+    /// when the id is not one of this session's AI drivers.
+    pub fn remove_ai(&mut self, player_id: &PlayerId) -> bool {
+        if !self.session.ai_player_ids.contains(player_id) {
+            return false;
+        }
+        self.session.ai_player_ids.retain(|id| id != player_id);
+        self.ai_profiles.remove(player_id);
+        self.remove_player(player_id);
+        true
+    }
+
     /// Hold a human's seat after their connection was lost: the car stays
     /// in the session, driven by the server (`away_input`, steering the rack
     /// itself as the cool-down driver does) or, in a hotlap or qualifying
@@ -3833,6 +3857,23 @@ impl GameSession {
         })
     }
 
+    /// Laps a car has completed: those it had at the flag once it has
+    /// finished (the cool-down lap after it is not counted), else so far.
+    pub fn laps_completed(&self, player_id: &PlayerId) -> u16 {
+        if let Some((_, finisher)) = self
+            .race_end
+            .finishers
+            .iter()
+            .find(|entry| entry.0 == player_id)
+        {
+            return finisher.laps;
+        }
+        self.session
+            .participants
+            .get(player_id)
+            .map_or(0, |s| s.current_lap.saturating_sub(1))
+    }
+
     /// The lap whose completion wins the race: the distance in a race over
     /// laps, and in a timed race the final lap once its clock has run out.
     fn finish_lap(&self) -> Option<u16> {
@@ -4603,7 +4644,8 @@ impl GameSession {
             tracing::error!("Cannot spawn AI drivers: no car configurations loaded");
             return;
         };
-        let field = class_field(&self.car_configs, anchor);
+        let mut field = class_field(&self.car_configs, anchor);
+        field.retain(|id| *id == anchor || !self.ai_excluded_cars.contains(id));
         // Carry on the rotation from the AI already on the grid, so a later
         // spawn does not stack the same car again.
         let mut next_car = self.session.ai_player_ids.len();

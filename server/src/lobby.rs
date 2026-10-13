@@ -46,6 +46,16 @@ pub struct LobbySessionInfo {
     pub visibility: SessionVisibility,
     pub password_hash: Option<String>,
     pub created_at: std::time::Instant,
+    /// Run by the server (the dashboard's hosted sessions): it stays when
+    /// its last player leaves, until the dashboard ends it.
+    pub persistent: bool,
+}
+
+impl LobbySessionInfo {
+    /// Nobody seated or watching, in a session that ends when that happens.
+    fn is_empty(&self) -> bool {
+        !self.persistent && self.current_player_count == 0 && self.spectator_count == 0
+    }
 }
 
 /// Consolidated lobby state, guarded by a single lock so multi-map
@@ -106,7 +116,7 @@ impl LobbyManager {
             if let Some(session_id) = state.player_sessions.remove(&player_id) {
                 if let Some(session) = state.sessions.get_mut(&session_id) {
                     session.current_player_count = session.current_player_count.saturating_sub(1);
-                    if session.current_player_count == 0 && session.spectator_count == 0 {
+                    if session.is_empty() {
                         empty_session_id = Some(session_id);
                     }
                 }
@@ -115,7 +125,7 @@ impl LobbyManager {
             if let Some(session_id) = state.spectators.remove(&player_id) {
                 if let Some(session) = state.sessions.get_mut(&session_id) {
                     session.spectator_count = session.spectator_count.saturating_sub(1);
-                    if session.current_player_count == 0 && session.spectator_count == 0 {
+                    if session.is_empty() {
                         empty_session_id = Some(session_id);
                     }
                 }
@@ -146,7 +156,7 @@ impl LobbyManager {
         let session_id = state.player_sessions.remove(&player_id)?;
         let session = state.sessions.get_mut(&session_id)?;
         session.current_player_count = session.current_player_count.saturating_sub(1);
-        (session.current_player_count == 0 && session.spectator_count == 0).then_some(session_id)
+        session.is_empty().then_some(session_id)
     }
 
     /// Stop watching a session, keeping any seat the player holds as a
@@ -156,7 +166,7 @@ impl LobbyManager {
         let session_id = state.spectators.remove(&player_id)?;
         let session = state.sessions.get_mut(&session_id)?;
         session.spectator_count = session.spectator_count.saturating_sub(1);
-        (session.current_player_count == 0 && session.spectator_count == 0).then_some(session_id)
+        session.is_empty().then_some(session_id)
     }
 
     /// Every player seated in a session, connected or holding their seat.
@@ -336,7 +346,7 @@ impl LobbyManager {
             // Update session player count
             if let Some(session) = state.sessions.get_mut(&session_id) {
                 session.current_player_count = session.current_player_count.saturating_sub(1);
-                if session.current_player_count == 0 && session.spectator_count == 0 {
+                if session.is_empty() {
                     empty_session_id = Some(session_id);
                 }
             }
@@ -349,7 +359,7 @@ impl LobbyManager {
             // Update spectator count
             if let Some(session) = state.sessions.get_mut(&session_id) {
                 session.spectator_count = session.spectator_count.saturating_sub(1);
-                if session.current_player_count == 0 && session.spectator_count == 0 {
+                if session.is_empty() {
                     empty_session_id = Some(session_id);
                 }
             }
@@ -506,6 +516,7 @@ mod tests {
             visibility: SessionVisibility::Public,
             password_hash: None,
             created_at: std::time::Instant::now(),
+            persistent: false,
         };
 
         lobby.register_session(session_info).await;
@@ -553,6 +564,7 @@ mod tests {
             visibility: SessionVisibility::Public,
             password_hash: None,
             created_at: std::time::Instant::now(),
+            persistent: false,
         };
         lobby.register_session(session_info).await;
 
@@ -603,6 +615,7 @@ mod tests {
             visibility: SessionVisibility::Public,
             password_hash: None,
             created_at: std::time::Instant::now(),
+            persistent: false,
         };
         lobby.register_session(session_info).await;
 
