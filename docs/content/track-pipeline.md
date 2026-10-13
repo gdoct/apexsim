@@ -441,11 +441,14 @@ failed build is handed back (`DropFailedTrack`) and the circuit marked broken
 until the next rescan.
 
 **Materials** are the only cooked track content:
-`/Game/Materials/Track/{M_ApexTrackBase,M_ApexTrackRoad,M_ApexEmissive,M_ApexBrand,M_ApexDecal}`
+`/Game/Materials/Track/{M_ApexTrackBase,M_ApexTrackRoad,M_ApexEmissive,M_ApexBrand,M_ApexDecal,M_ApexCloudLayer,MPC_ApexSky}`
 (`M_ApexTrackRoad` is the base plus the road state, for the `road` family
-only),
-by `-run=ApexMaterialBake [-force]`. Without them a track draws in flat
-colours and the log says so.
+only; `M_ApexCloudLayer` the cloud dome; `MPC_ApexSky` the collection the
+prop materials read the snow from),
+by `-run=ApexMaterialBake [-force]`, which also puts the snow blend on the
+prop parents under `/Game/Props/_Parents`
+([../server/conditions.md](../server/conditions.md)). Without them a track
+draws in flat colours and the log says so.
 
 ## Adding a new circuit
 

@@ -383,6 +383,23 @@ See [protocol.md](protocol.md) for the append-only rules.
   that follows the camera, drifting with the wind (no particle assets). The
   same box is snow (`SetSnow`): bright white flakes that fall at 1.2 m/s,
   short and fat until the camera's speed stretches them.
+- Cloud is `AApexCloudLayerActor`: a dome of the engine sphere round the
+  camera drawn with `M_ApexCloudLayer` (unlit, translucent; baked by
+  `-run=ApexMaterialBake`), which carries each view ray up to a plane
+  1.5 km over the camera and reads a world-space noise there, so the cloud
+  stands still over the circuit and drifts only with the wind. Cloud shows
+  where the noise clears `1 - CloudCover`; from 0.8 the sheet is whole, and
+  thicker cloud is darker. `ApexSky::FSkyState::CloudCover` is
+  `Weather::cloud`'s rung (cloudy 0.5, overcast 0.85, rain 0.9 / 1, snow 1)
+  for a fixed sky and the server's eased `cloud_pct` for a live one;
+  `CloudLook` lights it (`CloudColor`, `CloudBrightness` in cd/m²: a few
+  thousand under a high sun, near nothing at night). The dome hides itself
+  under a clear sky and spawns with the first sky that has cloud.
+- Spray: on a wet road each car throws pale puffs back and up from behind
+  its wheels (`AApexRaceCarActor::UpdateSpray`, the rears twice as often),
+  into the same smoke rings as the tyre smoke, as much as its tyres are wet
+  (`TyreWetness`, the road state's water under the car soaked up and dried
+  off) and it is fast (nothing under 12 m/s, full at 62).
 - Snow on screen: `ApexSky` lights a snow sky as an overcast one made flatter,
   cooler and thicker in fog (`SnowIntensity`, `SnowCover`; a live sky blends
   overcast to snow by `snowfall_pct` and takes the cover from `line_snow_pct`).
@@ -394,6 +411,17 @@ See [protocol.md](protocol.md) for the append-only rules.
   ice, B the verge, from `SnowRows`): white from 0.9 cover, dark slush on a
   packed line (0.65 to 0.75), ice a dark mirror. A base baked before snow has
   no `SnowCover`, so `-run=ApexMaterialBake` bakes it again unasked.
+- Snow on the props: buildings, stands, barriers and trees read the lap's
+  cover from the parameter collection `MPC_ApexSky` (`SnowCover`, written by
+  `AApexRaceDirector::SetSkyCollectionSnow` with `ApplySnowCover`, 0 again
+  when the track goes), so a kit's thousands of instances need no dynamic
+  material. The material bake and the prop import put the blend into every
+  prop parent under `/Game/Props/_Parents` that lacks it
+  (`ApexTrackMaterialGraphs::SnowOnProps`: the parent's base colour and
+  roughness go to snow by the cover over what faces up, plus the instance's
+  `SnowFloor`), and set `SnowFloor` 0.4 on the masked tree-card instances
+  under `/Game/Props/tree`, whose cards are vertical and would take none.
+  A project without the collection draws the props as before.
 - Rain lights: a car's `car_rainlight` material slot glows steadily
   (`apexsim.car.RainLightNits`, 3000) while the sky is wet, snowy or the road
   holds water (`AApexRaceDirector::IsWetSky`, `AApexRaceCarActor::SetRainLight`);

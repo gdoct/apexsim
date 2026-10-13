@@ -47,6 +47,16 @@
 #include "Materials/MaterialExpressionVertexColor.h"
 #include "Materials/MaterialExpressionVertexNormalWS.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "Materials/MaterialExpressionCameraPositionWS.h"
+#include "Materials/MaterialExpressionCollectionParameter.h"
+#include "Materials/MaterialExpressionGetMaterialAttributes.h"
+#include "Materials/MaterialExpressionSetMaterialAttributes.h"
+#include "Materials/MaterialExpressionTime.h"
+#include "Materials/MaterialInstanceConstant.h"
+#include "Materials/MaterialParameterCollection.h"
+#include "Modules/ModuleManager.h"
+#include "Track/ApexPropLibrary.h"
 #include "Misc/PackageName.h"
 #include "Race/ApexCarDamage.h"
 #include "Track/ApexGroundMaterials.h"
@@ -1702,6 +1712,255 @@ return o;
 		InOutAlbedo = G.Lerp(InOutAlbedo, G.C3(kSnowAlbedo.R, kSnowAlbedo.G, kSnowAlbedo.B), Amount);
 		InOutRoughness = G.Lerp(InOutRoughness, G.C(kSnowRoughness), Amount);
 	}
+
+	// --- The sky's parameter collection, the cloud dome and snow on the props ------
+
+	const TCHAR* kSnowCoverParam = TEXT("SnowCover");
+	const TCHAR* kCloudCoverParam = TEXT("CloudCover");
+	/** The per-instance floor under the faces-up blend: a leaf card is vertical and whitens by this. */
+	const TCHAR* kSnowFloorParam = TEXT("SnowFloor");
+	constexpr float kTreeSnowFloor = 0.4f;
+
+	/** Saves `Asset`'s package to its file; the asset registry already knows it. */
+	bool SaveAssetPackage(UPackage* Package, UObject* Asset, FString& OutError)
+	{
+		const FString FileName =
+			FPackageName::LongPackageNameToFilename(Package->GetName(), FPackageName::GetAssetPackageExtension());
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+		SaveArgs.SaveFlags = SAVE_NoError;
+		if (!UPackage::SavePackage(Package, Asset, *FileName, SaveArgs))
+		{
+			OutError = FString::Printf(TEXT("failed to save %s"), *FileName);
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * `MPC_ApexSky` (ApexTrackMaterials::SkyCollectionName), made when it is
+	 * missing: `SnowCover` and `CloudCover`, 0 by default, which the race
+	 * director sets for the whole world at once.
+	 */
+	UMaterialParameterCollection* EnsureSkyCollection(FString& OutError)
+	{
+		const FString PackageName = ApexTrackMaterials::PackageName(ApexTrackMaterials::SkyCollectionName);
+		const FString ObjectPath = ApexTrackMaterials::ObjectPath(ApexTrackMaterials::SkyCollectionName);
+		if (FPackageName::DoesPackageExist(PackageName))
+		{
+			if (UMaterialParameterCollection* Existing = LoadObject<UMaterialParameterCollection>(nullptr, *ObjectPath))
+			{
+				return Existing;
+			}
+		}
+		UPackage* Package = MakeMaterialPackage(PackageName);
+		if (!Package)
+		{
+			OutError = FString::Printf(TEXT("could not create package %s"), *PackageName);
+			return nullptr;
+		}
+		UMaterialParameterCollection* Collection = NewObject<UMaterialParameterCollection>(
+			Package, ApexTrackMaterials::SkyCollectionName, RF_Public | RF_Standalone);
+		for (const TCHAR* Name : {kSnowCoverParam, kCloudCoverParam})
+		{
+			FCollectionScalarParameter Scalar;
+			Scalar.ParameterName = Name;
+			Scalar.DefaultValue = 0.0f;
+			Collection->ScalarParameters.Add(Scalar);
+		}
+		Collection->PostEditChange();
+		FAssetRegistryModule::AssetCreated(Collection);
+		Package->MarkPackageDirty();
+		if (!SaveAssetPackage(Package, Collection, OutError))
+		{
+			return nullptr;
+		}
+		UE_LOG(LogApexTrackImport, Display, TEXT("    baked %s"), *PackageName);
+		return Collection;
+	}
+
+	/**
+	 * `M_ApexCloudLayer` (ApexTrackMaterials::CloudName): the cloud over the
+	 * circuit, on the inside of `AApexCloudLayerActor`'s dome. Unlit and
+	 * translucent: each pixel's view ray is carried up to a plane
+	 * `CloudHeight` above the camera, and a noise read at that world point
+	 * (so the cloud stands still as the camera moves, and drifts only with
+	 * `CloudWind`) is cloud where it clears `1 - CloudCover`; from 0.8 cover
+	 * the sheet is whole. Thicker cloud is darker; it fades out at the
+	 * horizon, where the fog is. `CloudColor` x `CloudBrightness` (cd/m²) is
+	 * what the sky model says a cloud is lit to now.
+	 */
+	void BuildCloudLayer(UMaterial* Parent)
+	{
+		const FGraph G{Parent};
+		auto Param = [Parent](const TCHAR* Name, float Default) {
+			UMaterialExpressionScalarParameter* P = AddExpr<UMaterialExpressionScalarParameter>(Parent);
+			P->ParameterName = Name;
+			P->DefaultValue = Default;
+			return P;
+		};
+		UMaterialExpression* Cover = Param(TEXT("CloudCover"), 0.0f);
+		UMaterialExpression* Height = Param(TEXT("CloudHeight"), 150000.0f);
+		UMaterialExpression* Brightness = Param(TEXT("CloudBrightness"), 2000.0f);
+		UMaterialExpressionVectorParameter* Color = AddExpr<UMaterialExpressionVectorParameter>(Parent);
+		Color->ParameterName = TEXT("CloudColor");
+		Color->DefaultValue = FLinearColor(0.7f, 0.72f, 0.76f);
+		UMaterialExpressionVectorParameter* Wind = AddExpr<UMaterialExpressionVectorParameter>(Parent);
+		Wind->ParameterName = TEXT("CloudWind");
+		Wind->DefaultValue = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+		UMaterialExpression* WorldPos = AddExpr<UMaterialExpressionWorldPosition>(Parent);
+		UMaterialExpression* CamPos = AddExpr<UMaterialExpressionCameraPositionWS>(Parent);
+		UMaterialExpression* Dir = G.Normalize(G.Sub(WorldPos, CamPos));
+		UMaterialExpression* Up = G.Mask(Dir, false, false, true);
+		// Where the view ray meets the cloud plane, in the world.
+		UMaterialExpression* Reach = G.Div(Height, G.Max(Up, G.C(0.03f)));
+		UMaterialExpression* Hit = G.Add(G.Mask(CamPos, true, true, false), G.Mul(G.Mask(Dir, true, true, false), Reach));
+		// The wind up there, stronger than at the ground.
+		UMaterialExpression* Time = AddExpr<UMaterialExpressionTime>(Parent);
+		UMaterialExpression* Drift = G.Mul(G.Mask(Wind, true, true, false), G.Mul(Time, G.C(8.0f)));
+		UMaterialExpression* P = G.Append(G.Sub(Hit, Drift), G.C(0.0f));
+		// Big soft masses with a finer grain on them: 90 m and 25 m.
+		UMaterialExpression* Shape = G.Add(G.Mul(G.Noise(P, 1.0f / 9000.0f, 4), G.C(0.8f)), G.Mul(G.Noise(P, 1.0f / 2500.0f, 2), G.C(0.2f)));
+		UMaterialExpression* Edge = G.Sat(G.Mul(G.Sub(Shape, G.Sub(G.C(1.0f), Cover)), G.C(5.0f)));
+		UMaterialExpression* Sheet = G.Sat(G.Div(G.Sub(Cover, G.C(0.8f)), G.C(0.15f)));
+		UMaterialExpression* Alpha = G.Max(Edge, Sheet);
+		UMaterialExpression* Fade = G.Sat(G.Mul(G.Sub(Up, G.C(0.02f)), G.C(6.0f)));
+		// Thicker is darker; the sheet keeps a little texture.
+		UMaterialExpression* Shade = G.Lerp(G.C(1.1f), G.C(0.72f), G.Sat(G.Mul(G.Sub(Shape, G.C(0.3f)), G.C(1.4f))));
+
+		UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
+		EditorOnly->EmissiveColor.Expression = G.Mul(G.Mul(Color, Shade), Brightness);
+		EditorOnly->Opacity.Expression = G.Mul(Alpha, Fade);
+		Parent->MaterialDomain = MD_Surface;
+		Parent->BlendMode = BLEND_Translucent;
+		Parent->SetShadingModel(MSM_Unlit);
+		Parent->TwoSided = true;
+		Parent->PostEditChange();
+	}
+
+	/** Whether a prop parent already reads the sky's snow. */
+	bool HasPropSnow(const UMaterial* Parent)
+	{
+		for (const TObjectPtr<UMaterialExpression>& Expression : Parent->GetExpressions())
+		{
+			const UMaterialExpressionCollectionParameter* Read = Cast<UMaterialExpressionCollectionParameter>(Expression.Get());
+			if (Read && Read->ParameterName == kSnowCoverParam)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Puts the snow blend into a prop parent (an Interchange glTF parent
+	 * copied under `_Parents`): base colour and roughness go to snow by
+	 * `SnowCover` (the collection's) over what faces up, plus the
+	 * instance's `SnowFloor`. The parent's own graph is kept and wrapped,
+	 * through its material attributes when it uses them. False when it
+	 * already has the blend.
+	 */
+	bool InjectPropSnow(UMaterial* Parent, UMaterialParameterCollection* Sky)
+	{
+		if (HasPropSnow(Parent))
+		{
+			return false;
+		}
+		const FGraph G{Parent};
+		UMaterialExpressionCollectionParameter* Cover = AddExpr<UMaterialExpressionCollectionParameter>(Parent);
+		Cover->Collection = Sky;
+		Cover->ParameterName = kSnowCoverParam;
+		Cover->ParameterId = Sky->GetParameterId(kSnowCoverParam);
+		UMaterialExpressionScalarParameter* Floor = AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		Floor->ParameterName = kSnowFloorParam;
+		Floor->DefaultValue = 0.0f;
+		UMaterialExpression* Up = G.Mask(AddExpr<UMaterialExpressionVertexNormalWS>(Parent), false, false, true);
+		UMaterialExpression* Faces = G.Sat(G.Mul(G.Sub(Up, G.C(0.5f)), G.C(3.0f)));
+		UMaterialExpression* Amount = G.Mul(G.Sat(G.Add(Faces, Floor)), Cover);
+		UMaterialExpression* White = G.C3(kSnowAlbedo.R, kSnowAlbedo.G, kSnowAlbedo.B);
+		UMaterialExpression* Rough = G.C(kSnowRoughness);
+
+		UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
+		auto Wrap = [&](const FExpressionInput& Old, UMaterialExpression* Fallback, UMaterialExpression* Target) {
+			UMaterialExpressionLinearInterpolate* L = AddExpr<UMaterialExpressionLinearInterpolate>(Parent);
+			if (Old.Expression)
+			{
+				L->A = Old;
+			}
+			else
+			{
+				L->A.Expression = Fallback;
+			}
+			L->B.Expression = Target;
+			L->Alpha.Expression = Amount;
+			return L;
+		};
+		if (Parent->bUseMaterialAttributes)
+		{
+			UMaterialExpressionGetMaterialAttributes* Get = AddExpr<UMaterialExpressionGetMaterialAttributes>(Parent);
+			Get->MaterialAttributes = EditorOnly->MaterialAttributes;
+			const int32 BaseOut = Get->CreateOrGetOutputAttribute(MP_BaseColor);
+			const int32 RoughOut = Get->CreateOrGetOutputAttribute(MP_Roughness);
+			FExpressionInput OldBase;
+			OldBase.Expression = Get;
+			OldBase.OutputIndex = BaseOut;
+			FExpressionInput OldRough;
+			OldRough.Expression = Get;
+			OldRough.OutputIndex = RoughOut;
+			UMaterialExpressionSetMaterialAttributes* Set = AddExpr<UMaterialExpressionSetMaterialAttributes>(Parent);
+			if (Set->Inputs.IsEmpty())
+			{
+				Set->Inputs.AddDefaulted();
+			}
+			Set->Inputs[0] = EditorOnly->MaterialAttributes;
+			Set->ConnectInputAttribute(MP_BaseColor, Wrap(OldBase, nullptr, White));
+			Set->ConnectInputAttribute(MP_Roughness, Wrap(OldRough, nullptr, Rough));
+			EditorOnly->MaterialAttributes.Expression = Set;
+			EditorOnly->MaterialAttributes.OutputIndex = 0;
+		}
+		else
+		{
+			const FLinearColor Flat(EditorOnly->BaseColor.Constant);
+			UMaterialExpression* Base = Wrap(EditorOnly->BaseColor, G.C3(Flat.R, Flat.G, Flat.B), White);
+			EditorOnly->BaseColor = FColorMaterialInput();
+			EditorOnly->BaseColor.Expression = Base;
+			UMaterialExpression* Roughness = Wrap(EditorOnly->Roughness, G.C(EditorOnly->Roughness.Constant), Rough);
+			EditorOnly->Roughness = FScalarMaterialInput();
+			EditorOnly->Roughness.Expression = Roughness;
+		}
+		Parent->PreEditChange(nullptr);
+		Parent->PostEditChange();
+		return true;
+	}
+
+	/** `SnowFloor` on the masked (leaf card) instances under `<PropsRoot>/tree` that have none. */
+	int32 SnowFloorOnTrees(IAssetRegistry& Registry, const FString& PropsRoot, TSet<UPackage*>& Dirty)
+	{
+		TArray<FAssetData> Assets;
+		Registry.GetAssetsByPath(FName(*(PropsRoot / TEXT("tree"))), Assets, /*bRecursive*/ true);
+		const FMaterialParameterInfo Info(kSnowFloorParam);
+		int32 Changed = 0;
+		for (const FAssetData& Asset : Assets)
+		{
+			if (Asset.AssetClassPath != UMaterialInstanceConstant::StaticClass()->GetClassPathName())
+			{
+				continue;
+			}
+			UMaterialInstanceConstant* Instance = Cast<UMaterialInstanceConstant>(Asset.GetAsset());
+			if (!Instance || Instance->GetBlendMode() != BLEND_Masked
+				|| Instance->ScalarParameterValues.ContainsByPredicate(
+					[&Info](const FScalarParameterValue& Value) { return Value.ParameterInfo == Info; }))
+			{
+				continue;
+			}
+			Instance->SetScalarParameterValueEditorOnly(Info, kTreeSnowFloor);
+			Instance->PostEditChange();
+			Dirty.Add(Instance->GetOutermost());
+			++Changed;
+		}
+		return Changed;
+	}
 }	 // namespace
 
 bool ApexTrackMaterialGraphs::GroundSetImported()
@@ -1874,6 +2133,70 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 	{
 		UE_LOG(LogApexTrackImport, Display, TEXT("    the car parent materials under %s are up to date"),
 			ApexCarMaterials::Folder);
+	}
+
+	// The sky: its parameter collection, the cloud dome's parent, and the
+	// snow blend on whatever prop parents the project holds.
+	if (!EnsureSkyCollection(OutError))
+	{
+		return false;
+	}
+	if (bForce || !ParentExists(ApexTrackMaterials::CloudName))
+	{
+		if (!BakeOne(ApexTrackMaterials::CloudName, [](UMaterial* M) { BuildCloudLayer(M); }, OutError))
+		{
+			return false;
+		}
+	}
+	int32 Snowed = 0;
+	if (!ApexTrackMaterialGraphs::SnowOnProps(ApexProps::DefaultRoot, Snowed, OutError))
+	{
+		return false;
+	}
+	if (Snowed > 0)
+	{
+		UE_LOG(LogApexTrackImport, Display, TEXT("    snow blend put on %d prop material(s) under %s"), Snowed, ApexProps::DefaultRoot);
+	}
+	return true;
+}
+
+bool ApexTrackMaterialGraphs::SnowOnProps(const FString& PropsRoot, int32& OutChanged, FString& OutError)
+{
+	OutChanged = 0;
+	IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
+	const FString ParentsPath = PropsRoot / TEXT("_Parents");
+	Registry.ScanPathsSynchronous({ParentsPath, PropsRoot / TEXT("tree")}, /*bForceRescan*/ true);
+	TArray<FAssetData> Parents;
+	Registry.GetAssetsByPath(FName(*ParentsPath), Parents, /*bRecursive*/ false);
+	if (Parents.IsEmpty())
+	{
+		// No props imported yet: the prop import puts the blend on as it makes them.
+		return true;
+	}
+	UMaterialParameterCollection* Sky = EnsureSkyCollection(OutError);
+	if (!Sky)
+	{
+		return false;
+	}
+	TSet<UPackage*> Dirty;
+	for (const FAssetData& Asset : Parents)
+	{
+		UMaterial* Parent = Cast<UMaterial>(Asset.GetAsset());
+		if (Parent && InjectPropSnow(Parent, Sky))
+		{
+			Dirty.Add(Parent->GetOutermost());
+			++OutChanged;
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s takes the sky's snow"), *Parent->GetPathName());
+		}
+	}
+	OutChanged += SnowFloorOnTrees(Registry, PropsRoot, Dirty);
+	for (UPackage* Package : Dirty)
+	{
+		UObject* Asset = Package->FindAssetInPackage();
+		if (!SaveAssetPackage(Package, Asset, OutError))
+		{
+			return false;
+		}
 	}
 	return true;
 }

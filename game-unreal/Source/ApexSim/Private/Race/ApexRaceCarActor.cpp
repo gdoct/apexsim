@@ -426,6 +426,58 @@ void AApexRaceCarActor::UpdateTyreSmoke(float DeltaSeconds)
 	}
 }
 
+void AApexRaceCarActor::UpdateSpray(float DeltaSeconds)
+{
+	// The water the tyres throw up: as much as the tyres are wet (the road
+	// state's water under the car, soaked up and dried off by
+	// ApexWheels::WetnessStep) and the car is fast; nothing under 12 m/s.
+	// Pale, short-lived puffs thrown back and up from behind each wheel,
+	// the rears twice as often (they run in the fronts' wake), that fall
+	// back to the road.
+	const float Speed = static_cast<float>(Root->ComponentVelocity.Size()) / 100.0f;
+	if (TyreWetness < 0.15f || Speed < 12.0f || DeltaSeconds <= 0.0f)
+	{
+		SprayOwed = 0.0f;
+		return;
+	}
+	AApexCarEffectsActor* Fx = GetEffects();
+	if (!Fx || !Fx->CanDraw())
+	{
+		return;
+	}
+	const float Pace = FMath::Clamp((Speed - 12.0f) / 50.0f, 0.0f, 1.0f);
+	SprayOwed += 36.0f * TyreWetness * Pace * DeltaSeconds;
+	if (SprayOwed < 1.0f)
+	{
+		return;
+	}
+	const FVector CarVelocity = Root->ComponentVelocity;
+	const FVector Back = -GetActorForwardVector();
+	FRandomStream& R = DamageRandom;
+	for (; SprayOwed >= 1.0f; SprayOwed -= 1.0f)
+	{
+		// Two in three from a rear wheel.
+		const int32 Pick = R.RandRange(0, 5);
+		const int32 Wheel = Pick < 2 ? Pick : 2 + (Pick & 1);
+		FVector Patch;
+		if (!Wheels.ContactPatch(static_cast<ApexWheels::EWheel>(Wheel), Patch))
+		{
+			continue;
+		}
+		ApexDamage::FPuff Puff;
+		Puff.Location = Patch + Back * R.FRandRange(20.0f, 60.0f) + FVector(0.0f, 0.0f, R.FRandRange(4.0f, 14.0f));
+		Puff.Velocity = CarVelocity * 0.45 + FVector(0.0, 0.0, R.FRandRange(120.0f, 260.0f)) + R.GetUnitVector() * 60.0;
+		Puff.Life = R.FRandRange(0.5f, 0.9f);
+		Puff.StartSize = 18.0f;
+		Puff.EndSize = R.FRandRange(150.0f, 240.0f);
+		Puff.Shade = FMath::Clamp(0.84f + R.FRandRange(-0.05f, 0.05f), 0.0f, 1.0f);
+		Puff.Opacity = 0.16f + 0.14f * TyreWetness * Pace;
+		Puff.Drag = 3.5f;
+		Puff.Gravity = 0.12f;
+		Fx->Emit(Puff);
+	}
+}
+
 void AApexRaceCarActor::SetWheels(const FApexWheelSpec& Spec)
 {
 	if (Spec == Wheels.GetSpec() && Wheels.HasWheels() == Spec.IsUsable())
@@ -877,6 +929,7 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	DrsFlap.Update(bDrsOpen, DeltaSeconds);
 	UpdateDamage(DeltaSeconds);
 	UpdateTyreSmoke(DeltaSeconds);
+	UpdateSpray(DeltaSeconds);
 	UpdateTyreLook();
 	UpdateTyreSurface(DeltaSeconds);
 

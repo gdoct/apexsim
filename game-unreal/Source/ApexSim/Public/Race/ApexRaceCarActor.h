@@ -446,6 +446,9 @@ private:
 	float TyreSmokeOwed[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
 	/** Smoke off each wheel whose tyre the server says is sliding hard enough. */
 	void UpdateTyreSmoke(float DeltaSeconds);
+	/** Spray: the water the tyres throw up on a wet road at speed (TyreWetness x speed), puffs owed per car. */
+	float SprayOwed = 0.0f;
+	void UpdateSpray(float DeltaSeconds);
 	/** The newest telemetry's compound index (-1 unknown) and the car's compound list, for the tyres' look. */
 	int32 TelemetryCompound = -1;
 	TArray<FApexCompoundSpec> Compounds;

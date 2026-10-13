@@ -122,6 +122,11 @@ bool FApexSkyDeriveWeatherTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("sky light scales up under cloud"), Overcast.SkyLightIntensity > Cloudy.SkyLightIntensity && Cloudy.SkyLightIntensity > Sunny.SkyLightIntensity);
 	TestTrue(TEXT("fog thickens"), Sunny.FogDensity < Cloudy.FogDensity && Cloudy.FogDensity < Overcast.FogDensity
 		&& Overcast.FogDensity < Light.FogDensity && Light.FogDensity < Heavy.FogDensity);
+	// The cloud dome: the server's covers, lit bright by day and darker the thicker.
+	TestTrue(TEXT("cloud cover climbs the ladder"), Sunny.CloudCover == 0.0f && Cloudy.CloudCover == 0.5f
+		&& Overcast.CloudCover == 0.85f && Light.CloudCover == 0.9f && Heavy.CloudCover == 1.0f);
+	TestTrue(TEXT("a day's cloud is bright"), Cloudy.CloudBrightness > 500.0f);
+	TestTrue(TEXT("a sheet is darker than scattered cloud"), Overcast.CloudColor.R < Cloudy.CloudColor.R);
 	TestTrue(TEXT("sunny casts shadows"), Sunny.bCastShadows && Cloudy.bCastShadows);
 	TestFalse(TEXT("overcast casts none"), Overcast.bCastShadows || Light.bCastShadows || Heavy.bCastShadows);
 	TestTrue(TEXT("cloud widens the source"), Overcast.LightSourceAngleDeg > Sunny.LightSourceAngleDeg);
@@ -163,6 +168,7 @@ bool FApexSkySnowTest::RunTest(const FString& Parameters)
 	const FSkyState Snow = Derive(At(EApexWeather::Snow, 11));
 	TestTrue(TEXT("snow is a flake sky, not rain"), Snow.SnowIntensity == 1.0f && Snow.RainIntensity == 0.0f);
 	TestTrue(TEXT("a fixed snow sky is white"), Snow.SnowCover == 1.0f && Overcast.SnowCover == 0.0f);
+	TestTrue(TEXT("a snow sky is one sheet of cloud"), Snow.CloudCover == 1.0f);
 	TestTrue(TEXT("snow takes no more of the sun than overcast"), Snow.LightIntensity <= Overcast.LightIntensity);
 	TestTrue(TEXT("snow casts no shadows"), !Snow.bCastShadows);
 	TestTrue(TEXT("snow fogs thicker than overcast"), Snow.FogDensity > Overcast.FogDensity);

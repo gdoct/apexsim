@@ -23,6 +23,16 @@ namespace ApexTrackMaterialGraphs
 	 */
 	bool Bake(bool bForce, FString& OutError);
 
+	/**
+	 * Snow on the props: every prop parent under `<PropsRoot>/_Parents` that
+	 * has none gets the snow blend (`SnowCover` from `MPC_ApexSky` over what
+	 * faces up, plus the instance's own `SnowFloor`), and the masked tree
+	 * instances under `<PropsRoot>/tree` get a `SnowFloor`, so leaf cards
+	 * whiten too. Writes the collection when it is missing. `OutChanged` is
+	 * how many assets were rewritten; nothing to do is not an error.
+	 */
+	bool SnowOnProps(const FString& PropsRoot, int32& OutChanged, FString& OutError);
+
 	/** `Bake(false)`, then load the parents. */
 	bool EnsureParents(FApexTrackParents& Out, FString& OutError);
 

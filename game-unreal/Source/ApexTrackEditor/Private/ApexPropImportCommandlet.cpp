@@ -2,6 +2,7 @@
 
 #include "Track/ApexPropLibrary.h"
 #include "ApexTrackEditorModule.h"
+#include "ApexTrackMaterialGraphs.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Engine/StaticMesh.h"
@@ -1016,6 +1017,21 @@ int32 UApexPropImportCommandlet::Main(const FString& Params)
 		|| Options.Kinds.Contains(ApexProps::DecalKind))
 	{
 		ImportLooseTextures(Options, Stats, WholeKinds);
+	}
+
+	// The sky's snow on the parents just copied and the leaf cards just made
+	// (the material bake does the same for a project that already has them).
+	{
+		int32 Snowed = 0;
+		if (!ApexTrackMaterialGraphs::SnowOnProps(Options.DestRoot, Snowed, Error))
+		{
+			UE_LOG(LogApexTrackImport, Error, TEXT("%s"), *Error);
+			++Stats.Failures;
+		}
+		else if (Snowed > 0)
+		{
+			UE_LOG(LogApexTrackImport, Display, TEXT("  snow blend put on %d prop material(s)"), Snowed);
+		}
 	}
 
 	UE_LOG(LogApexTrackImport, Display,

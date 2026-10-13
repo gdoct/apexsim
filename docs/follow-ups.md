@@ -72,7 +72,19 @@ Rough edges of the client's road state and snow.
   run-off are wet by the lap's one figure (their UV `u` is not the lap's
   station). A puddle covers its cell's width (puddles have no lateral
   position on the server).
-- Snowflakes are lit grey-blue cubes; they become white sprites.
+- Snowflakes are lit grey-blue cubes; they become white sprites (against
+  the cloud sheet they read as dark specks).
+- The cloud dome's figures are first guesses from two Silverstone shots: the
+  sheet's brightness (`ApexSky::CloudLook`, 4500 cd/m² x sun), its colour, the
+  noise scales and the 0.8 cover from which it is whole. Scattered cloud
+  (cloudy 0.5) has not been looked at; nor the dome at night or in the
+  menu's backdrop.
+- Spray (`UpdateSpray`) was judged from one chase shot at Silverstone in heavy
+  rain: a pale haze behind the car. Its rate, size and opacity are by eye.
+- Snow on the props was seen on one tree and the pit buildings at a distance;
+  the `SnowFloor` 0.4 on tree cards and the faces-up blend on walls, roofs and
+  barriers have not been looked at close up, nor an AC-imported circuit's
+  props.
 
 **Check:** the screen pass's weather shots again, with a rain-to-dry and a
 snow session at Silverstone.
@@ -184,6 +196,11 @@ them, and changes its content checksum); car select with a livery preview.
 - Before the next release: re-render the showcases and track guides of the
   circuits the 2026-10-13 geometry pass changed (every circuit but Moscow
   Raceway, Shanghai and Yas Marina); they were built from the old geometry.
+  **(bug)** Until then the backdrop skips them all and restarts on the three
+  left, and in an unattended run (`-ApexWatch`, `-ApexWatchSession`) the
+  game exits silently a few seconds after "Demo view ended", with nothing in
+  the log and no crash report; a race with `-ApexNoDemo` runs. Seen on
+  2026-10-14 with and without the weather-look changes.
 - `ats-export --keep-sidecars` help text lists `pit` (it accepts it).
 - `dem_elevation.py` handles a circuit that crosses itself (Suzuka: the DEM
   sees only the bridge, so the fit closes the crossover), and Shanghai's and

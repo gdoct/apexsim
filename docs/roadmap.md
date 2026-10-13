@@ -37,21 +37,6 @@ None open.
 
 ## P2: depth
 
-### 1. Weather look
-
-What a wet or snowy race looks like on the client. Do it after the screen
-pass in [follow-ups.md](follow-ups.md).
-
-- Snow on props: buildings, grandstands and trees get a top-down snow blend
-  in the prop materials.
-- Snow sky: a cloud layer (a snow day is a deep blue gradient lit as
-  overcast today); spray behind the cars.
-- Forecast: the create screen shows the forecast (it is worked out from the
-  session's id, which does not exist yet there); a radar or longer outlook
-  beyond the `conditions` HUD component's next three changes.
-
-**Check:** a rain-to-dry and a snow session at Silverstone, screenshotted.
-
 ### 2. Tyres and brakes on screen
 
 The tyre material and the tyre read-outs share per-tyre state from

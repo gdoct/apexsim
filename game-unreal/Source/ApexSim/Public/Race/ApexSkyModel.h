@@ -132,6 +132,12 @@ namespace ApexSky
 		/** 0 bare .. 1 white: how far the ground has gone to snow. A fixed
 		 * snow sky is fully covered; a live one follows the server's cover. */
 		float SnowCover = 0.0f;
+		/** Cloud cover, 0..1 (`Weather::cloud`: cloudy 0.5, overcast 0.85; a
+		 * live sky's is the server's eased figure): what the cloud dome draws. */
+		float CloudCover = 0.0f;
+		/** The cloud's colour as lit now, and how bright, cd/m². */
+		FLinearColor CloudColor = FLinearColor(0.7f, 0.72f, 0.76f);
+		float CloudBrightness = 0.0f;
 		/** The road's material roughness; 0.9 is the baked dry value. */
 		float RoadRoughness = 0.9f;
 		/** How far the road has gone from its baked dry look toward the wet
@@ -165,6 +171,35 @@ namespace ApexSky
 	inline float WindowGlowAt(float Day)
 	{
 		return 1.0f - FMath::SmoothStep(0.0f, 0.5f, FMath::Clamp(Day, 0.0f, 1.0f));
+	}
+
+	/** `Weather::cloud`: the cover each weather settles at. */
+	inline float CloudCoverOf(EApexWeather Weather)
+	{
+		switch (Weather)
+		{
+		case EApexWeather::Sunny:     return 0.0f;
+		case EApexWeather::Cloudy:    return 0.5f;
+		case EApexWeather::Overcast:  return 0.85f;
+		case EApexWeather::LightRain: return 0.9f;
+		case EApexWeather::HeavyRain: return 1.0f;
+		case EApexWeather::Snow:      return 1.0f;
+		default:                      return 0.0f;
+		}
+	}
+
+	/**
+	 * What a cloud is lit to by the sun at `ElevationDeg`, cd/m²: a few
+	 * thousand under a high sun, down with the airmass toward the horizon,
+	 * near nothing at night. Scattered cloud is lit white; a sheet is darker
+	 * and bluer, and the dimmer the thicker.
+	 */
+	inline void CloudLook(float ElevationDeg, float Cover, FLinearColor& OutColor, float& OutBrightness)
+	{
+		const float Day = Daylight(ElevationDeg);
+		const float Sun = FMath::Max(0.15f, FMath::Sin(FMath::DegreesToRadians(FMath::Max(ElevationDeg, 0.0f))));
+		OutBrightness = FMath::Lerp(0.02f, 4500.0f * Sun, Day);
+		OutColor = FMath::Lerp(FLinearColor(0.93f, 0.94f, 0.96f), FLinearColor(0.66f, 0.68f, 0.72f), FMath::Clamp(Cover, 0.0f, 1.0f));
 	}
 
 	/** Sunlight through the cloud: what is left of the direct beam. */
@@ -232,6 +267,9 @@ namespace ApexSky
 		// Cloud makes the sky itself the lamp: the capture follows the dimmer
 		// sun, so the ambient is scaled back up to a flat, bright overcast.
 		S.SkyLightIntensity = FMath::Lerp(1.0f, 2.6f, 1.0f - Direct);
+		// The cloud itself, for the dome.
+		S.CloudCover = CloudCoverOf(C.Weather);
+		CloudLook(Elev, S.CloudCover, S.CloudColor, S.CloudBrightness);
 
 		// Fog: thicker with the weather, its colour the sky's, dark at night.
 		switch (C.Weather)
@@ -326,6 +364,9 @@ namespace ApexSky
 		S.RainIntensity = FMath::Lerp(A.RainIntensity, B.RainIntensity, T);
 		S.SnowIntensity = FMath::Lerp(A.SnowIntensity, B.SnowIntensity, T);
 		S.SnowCover = FMath::Lerp(A.SnowCover, B.SnowCover, T);
+		S.CloudCover = FMath::Lerp(A.CloudCover, B.CloudCover, T);
+		S.CloudColor = FMath::Lerp(A.CloudColor, B.CloudColor, T);
+		S.CloudBrightness = FMath::Lerp(A.CloudBrightness, B.CloudBrightness, T);
 		S.LampGlow = FMath::Lerp(A.LampGlow, B.LampGlow, T);
 		S.WindowGlow = FMath::Lerp(A.WindowGlow, B.WindowGlow, T);
 		return S;
@@ -356,6 +397,8 @@ namespace ApexSky
 			FSkyState W = Blend(Plain, Snowy, Fall);
 			W.SnowIntensity = Fall;
 			W.SnowCover = FMath::Clamp(static_cast<float>(Now.LineSnowPct) / 100.0f, 0.0f, 1.0f);
+			W.CloudCover = FMath::Clamp(static_cast<float>(Now.CloudPct) / 100.0f, 0.0f, 1.0f);
+			CloudLook(W.Sun.ElevationDeg, W.CloudCover, W.CloudColor, W.CloudBrightness);
 			W.RainIntensity = 0.0f;
 			W.RoadWetness = FMath::Clamp(static_cast<float>(Now.RoadWaterPct) / 50.0f, 0.0f, 1.0f);
 			W.bWetRoad = Now.RoadWaterPct >= 5;
@@ -374,6 +417,9 @@ namespace ApexSky
 		{
 			S.RainIntensity = 0.0f;
 		}
+		// The cloud as the server eases it, not the rung's.
+		S.CloudCover = FMath::Clamp(static_cast<float>(Now.CloudPct) / 100.0f, 0.0f, 1.0f);
+		CloudLook(S.Sun.ElevationDeg, S.CloudCover, S.CloudColor, S.CloudBrightness);
 		// The water: a road counts as wet from 5% of a heavy rain's (the
 		// server's `WET_FROM_WATER`), the sheen full by a light rain's.
 		S.RoadWetness = FMath::Clamp(static_cast<float>(Now.RoadWaterPct) / 50.0f, 0.0f, 1.0f);

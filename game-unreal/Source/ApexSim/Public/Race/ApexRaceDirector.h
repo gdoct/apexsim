@@ -20,6 +20,8 @@ class AApexGhostCarActor;
 class AApexRaceCarActor;
 class AApexRacingLineActor;
 class AApexRainActor;
+class AApexCloudLayerActor;
+class UMaterialParameterCollection;
 class ADirectionalLight;
 class APostProcessVolume;
 class ASkyLight;
@@ -993,6 +995,19 @@ private:
 	TObjectPtr<APostProcessVolume> SkyPostProcess;
 	UPROPERTY(Transient)
 	TObjectPtr<AApexRainActor> Rain;
+	/** The cloud dome, spawned with the first sky that has cloud (`ApexSky::FSkyState::CloudCover`). */
+	UPROPERTY(Transient)
+	TObjectPtr<AApexCloudLayerActor> Clouds;
+	/**
+	 * `MPC_ApexSky`, which every prop material reads the snow from
+	 * (ApexTrackMaterials::SkyCollectionName); looked up once, null in a
+	 * project baked before it existed.
+	 */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialParameterCollection> SkyCollection;
+	bool bSkyCollectionLooked = false;
+	/** The props' snow: writes `SnowCover` into the collection (ApplySnowCover; 0 when the track goes). */
+	void SetSkyCollectionSnow(float Cover);
 	/** Carries the spot lights placed on the level's floodlight masts. */
 	UPROPERTY(Transient)
 	TObjectPtr<AActor> FloodlightRig;

@@ -190,7 +190,12 @@ What it does, per GLB, through Interchange (the engine's glTF stack):
 - The glTF materials come in as instances of the engine's glTF parent, which
   has neither the Nanite nor the instanced-mesh usage flag; a cooked build
   does not set those on the fly, so each instance is re-parented onto a
-  flagged copy under `/Game/Props/_Parents`.
+  flagged copy under `/Game/Props/_Parents`. The copy also takes the sky's
+  snow (`ApexTrackMaterialGraphs::SnowOnProps`, run at the end of every
+  import and by the material bake): a `SnowCover` read from `MPC_ApexSky`
+  whitens what faces up, plus a per-instance `SnowFloor` that the masked
+  instances under `tree/` get at 0.4 so leaf cards whiten too
+  ([../server/conditions.md](../server/conditions.md)).
 - Masked textures get `bDoScaleMipsForAlphaCoverage` (threshold 0.5), or the
   mips average the leaves away and trees thin to twigs at distance.
 - The loose PNGs come with their kind: `T_brand_<name>` and `T_marker_<n>`

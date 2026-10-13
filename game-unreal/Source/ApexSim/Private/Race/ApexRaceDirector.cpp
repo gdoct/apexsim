@@ -43,6 +43,9 @@
 #include "Race/ApexRaceCoordinate.h"
 #include "Race/ApexRacingLineActor.h"
 #include "Race/ApexRainActor.h"
+#include "Race/ApexCloudLayer.h"
+#include "Kismet/KismetMaterialLibrary.h"
+#include "Materials/MaterialParameterCollection.h"
 #include "Race/ApexReplayClip.h"
 #include "Race/ApexShotCamera.h"
 #include "Race/ApexStreetLights.h"
@@ -1896,6 +1899,21 @@ void AApexRaceDirector::ApplySkyLighting()
 			Rain->ClearWind();
 		}
 	}
+	// The cloud over the circuit: scattered on a cloudy day, one sheet from
+	// overcast on; the dome hides itself under a clear sky.
+	if (Sky.CloudCover > 0.0f && !Clouds)
+	{
+		Clouds = World->SpawnActor<AApexCloudLayerActor>(AApexCloudLayerActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
+	}
+	if (Clouds)
+	{
+		Clouds->SetSky(Sky.CloudCover, Sky.CloudColor, Sky.CloudBrightness);
+		if (LitSky.bValid)
+		{
+			const FVector2D Wind = LitSky.WindServerMps();
+			Clouds->SetWind(ApexRace::ServerToUnrealPosition(FVector(Wind.X, Wind.Y, 0.0)));
+		}
+	}
 	if (RacingLine)
 	{
 		RacingLine->SetWet(Sky.bWetRoad);
@@ -1935,6 +1953,11 @@ void AApexRaceDirector::RestoreMenuEnvironment()
 	{
 		Rain->SetIntensity(0.0f);
 	}
+	if (Clouds)
+	{
+		Clouds->SetSky(0.0f, FLinearColor::White, 0.0f);
+	}
+	SetSkyCollectionSnow(0.0f);
 	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
 	{
 		if (Pair.Value)
@@ -2300,6 +2323,31 @@ void AApexRaceDirector::ApplySnowCover()
 		const bool bOwn = bRoadSnowShown && RoadStateMids.Contains(Mid);
 		Mid->SetScalarParameterValue(CoverParam, bOwn ? 0.0f : Cover * It.Value());
 	}
+	// The props (buildings, stands, trees) read the lap's cover from the collection.
+	SetSkyCollectionSnow(Cover);
+}
+
+void AApexRaceDirector::SetSkyCollectionSnow(float Cover)
+{
+	if (!bSkyCollectionLooked)
+	{
+		bSkyCollectionLooked = true;
+		const FString Package = ApexTrackMaterials::PackageName(ApexTrackMaterials::SkyCollectionName);
+		if (FPackageName::DoesPackageExist(Package))
+		{
+			SkyCollection = LoadObject<UMaterialParameterCollection>(
+				nullptr, *ApexTrackMaterials::ObjectPath(ApexTrackMaterials::SkyCollectionName));
+		}
+		if (!SkyCollection)
+		{
+			UE_LOG(LogApexSim, Log, TEXT("No %s: the props take no snow (bake it with -run=ApexMaterialBake)"),
+				ApexTrackMaterials::SkyCollectionName);
+		}
+	}
+	if (SkyCollection)
+	{
+		UKismetMaterialLibrary::SetScalarParameterValue(this, SkyCollection, TEXT("SnowCover"), FMath::Clamp(Cover, 0.0f, 1.0f));
+	}
 }
 
 void AApexRaceDirector::UpdateLiveSky(float DeltaSeconds)
@@ -2313,10 +2361,18 @@ void AApexRaceDirector::UpdateLiveSky(float DeltaSeconds)
 	const FApexSkyNow& Now = bReplayView ? ReplaySkyNow : Net->GetLatestSky();
 
 	// The rain drifts with the gusts, every frame; it is one vector.
-	if (Rain && Now.bValid)
+	if (Now.bValid && (Rain || Clouds))
 	{
 		const FVector2D Wind = Now.WindServerMps();
-		Rain->SetWind(ApexRace::ServerToUnrealPosition(FVector(Wind.X, Wind.Y, 0.0)));
+		const FVector WindCm = ApexRace::ServerToUnrealPosition(FVector(Wind.X, Wind.Y, 0.0));
+		if (Rain)
+		{
+			Rain->SetWind(WindCm);
+		}
+		if (Clouds)
+		{
+			Clouds->SetWind(WindCm);
+		}
 	}
 	UpdateFlags(DeltaSeconds, /*bForce*/ false);
 
@@ -3270,6 +3326,7 @@ void AApexRaceDirector::UnloadTrackLevel()
 	// The track went back with its materials reset; its looks are forgotten.
 	RoadDryLook.Reset();
 	SnowMids.Reset();
+	SetSkyCollectionSnow(0.0f);
 	LampBaseGlow.Reset();
 	NightGlowMids.Reset();
 	VerifiedTrackId.Reset();

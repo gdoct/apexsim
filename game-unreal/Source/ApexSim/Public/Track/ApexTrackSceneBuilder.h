@@ -60,6 +60,14 @@ namespace ApexTrackMaterials
 	inline const TCHAR* const BrandName = TEXT("M_ApexBrand");
 	inline const TCHAR* const DecalName = TEXT("M_ApexDecal");
 	inline const TCHAR* const RoadName = TEXT("M_ApexTrackRoad");
+	/** `M_ApexCloudLayer`: the unlit cloud dome (`AApexCloudLayerActor`). */
+	inline const TCHAR* const CloudName = TEXT("M_ApexCloudLayer");
+	/**
+	 * `MPC_ApexSky`: the parameter collection the prop materials read the
+	 * sky from (`SnowCover`, `CloudCover`); the race director writes it, so
+	 * a kit's thousands of instances need no dynamic material of their own.
+	 */
+	inline const TCHAR* const SkyCollectionName = TEXT("MPC_ApexSky");
 
 	/** Whether `Material` is made from `M_ApexTrackRoad` (it can draw the road state). */
 	APEXSIM_API bool IsRoadStateMaterial(const UMaterialInterface* Material);
