@@ -1,5 +1,7 @@
 #include "UI/ApexRootWidget.h"
 
+#include "UI/ApexCreateSessionModel.h"
+
 #include "ApexDemoModeSubsystem.h"
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
@@ -1381,6 +1383,16 @@ void UApexRootWidget::HandleTelemetryForHotlap(const FApexTelemetryFrame& Frame)
 		{
 			HotlapPanel->SetQualifying(bQualifying);
 		}
+		// A hotlap shared with another human gets the board across drivers.
+		int32 Humans = 0;
+		if (Net)
+		{
+			for (const FApexRosterEntry& Entry : Net->GetSessionRoster().Entries)
+			{
+				Humans += Entry.bIsAi ? 0 : 1;
+			}
+		}
+		HotlapPanel->SetSharedHotlap(!bQualifying && Humans >= 2);
 	}
 	if (bHotlap != bHotlapSession)
 	{
@@ -2814,7 +2826,18 @@ void UApexRootWidget::RunWatchCommand(const ApexSpectate::FCommand& Command)
 		case EAction::PreviousTrack:  ChangeHotlapWatch(EHotlapChoice::Track, -1); return;
 		case EAction::NextTrack:
 		case EAction::NextRace:       ChangeHotlapWatch(EHotlapChoice::Track, 1); return;
-		case EAction::Position:       return;
+		// A live lap has no transport: the seek keys move the air, the speed
+		// keys the wind, and the number row 1-3 the track's rubber.
+		case EAction::SeekBack:       ChangeHotlapWatch(EHotlapChoice::AirTemp, -1); return;
+		case EAction::SeekForward:    ChangeHotlapWatch(EHotlapChoice::AirTemp, 1); return;
+		case EAction::Slower:         ChangeHotlapWatch(EHotlapChoice::Wind, -1); return;
+		case EAction::Faster:         ChangeHotlapWatch(EHotlapChoice::Wind, 1); return;
+		case EAction::Position:
+			if (Command.Position >= 1 && Command.Position <= ApexCreateSession::TrackRubberCount)
+			{
+				ChangeHotlapWatch(EHotlapChoice::Rubber, Command.Position - 1);
+			}
+			return;
 		default:                      break;
 		}
 	}
@@ -3233,6 +3256,39 @@ void UApexRootWidget::ChangeHotlapWatch(EHotlapChoice Choice, int32 Direction)
 		HotlapConditions.TimeOfDayMinutes = ApexSpectate::StepTimeOfDay(HotlapConditions.TimeOfDayMinutes, Direction);
 		Message = FString::Printf(TEXT("Time of day: %s"), *HotlapConditions.ClockText());
 		break;
+	case EHotlapChoice::AirTemp:
+	{
+		// From what the server would name for the weather, two degrees a press.
+		const int32 Now = ApexCreateSession::AirTempC(HotlapConditions.Clamped());
+		HotlapConditions.AirTempC = FMath::Clamp(Now + 2 * Direction, FApexSessionConditions::MinAirTempC, FApexSessionConditions::MaxAirTempC);
+		Message = FString::Printf(TEXT("Air: %d °C"), HotlapConditions.Clamped().AirTempC);
+		break;
+	}
+	case EHotlapChoice::Wind:
+	{
+		static const int32 Steps[] = {0, 8, 15, 25, 40, 60};
+		constexpr int32 Count = UE_ARRAY_COUNT(Steps);
+		const int32 Now = ApexCreateSession::WindKph(HotlapConditions);
+		int32 At = 0;
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			if (Steps[Index] <= Now)
+			{
+				At = Index;
+			}
+		}
+		At = FMath::Clamp(At + Direction, 0, Count - 1);
+		HotlapConditions.WindKph = Steps[At];
+		Message = Steps[At] == 0 ? FString(TEXT("Wind: calm")) : FString::Printf(TEXT("Wind: %d km/h"), Steps[At]);
+		break;
+	}
+	case EHotlapChoice::Rubber:
+	{
+		const int32 Pick = FMath::Clamp(Direction, 0, ApexCreateSession::TrackRubberCount - 1);
+		ApexCreateSession::SetTrackRubber(HotlapConditions, Pick);
+		Message = FString::Printf(TEXT("Track: %s"), ApexCreateSession::TrackRubberChipLabel(Pick));
+		break;
+	}
 	}
 	ShowToast(Message);
 	ApexUiAudio::Play(this, EApexUiSound::Adjust);

@@ -164,6 +164,14 @@ public:
 	void SetQualifying(bool bInQualifying);
 	bool IsQualifying() const { return bQualifying; }
 	/**
+	 * A hotlap session with another human in it: the scoreboard page exists
+	 * here too (every driver's best, fastest first), the hotlap rows stay.
+	 */
+	void SetSharedHotlap(bool bInShared);
+	bool IsSharedHotlap() const { return bSharedHotlap; }
+	/** Whether the garage has its scoreboard page: qualifying, practice, or a shared hotlap. */
+	bool HasBoard() const { return bQualifying || bSharedHotlap; }
+	/**
 	 * The qualifying garage serves a race weekend's practice too: the same
 	 * outlap and scoreboard, its own name. SetQualifying(true) with this set.
 	 */
@@ -323,6 +331,7 @@ private:
 	int32 BestMs = 0;
 
 	bool bQualifying = false;
+	bool bSharedHotlap = false;
 	bool bPractice = false;
 	/** The garage's name for the session: QUALIFYING, Q2, PRACTICE. */
 	FString OutlapSessionName() const;

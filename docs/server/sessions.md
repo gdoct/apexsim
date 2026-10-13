@@ -323,7 +323,9 @@ session lobby's GRID list is in that order. In qualifying the
 garage (`UApexHotlapWidget::SetQualifying`) drops the replay, ghost and tyre
 toggles and has TUNE | SCOREBOARD: the scoreboard (`ApexBoard::Build`) lists
 every car fastest first, and clicking one (`OnWatchCar`) points the spectator
-camera at it (`SetSpectating`, `FocusCar`).
+camera at it (`SetSpectating`, `FocusCar`). A hotlap session with another
+human in it (`SetSharedHotlap`, from the roster) has the same page, with
+the hotlap rows kept.
 
 The create screen's Qualifying length row (`QualifyingLengthButtons`,
 `ApexQualifyingLength::ChoiceMinutes`: Open, 10, 15, 20, 30 or 60 min, kept
@@ -684,8 +686,12 @@ ever eased down, and goes with a server restart.
 last sky; `SelectCar`, then the create, taken like `JoinAsSpectator`. The
 lobby does not list the session, so the net subsystem answers
 `FindSessionById` from the summary it made. Left / Right car, `W` weather,
-`[` / `]` hour, Page Up / Down circuit, batched for 0.8 s
-(`HotlapRestartAt`); unanswered in 15 s returns to the menu. The HUD is the
+`[` / `]` hour, Page Up / Down circuit, and, since a live lap has no
+transport, the watch's seek keys the air (two degrees a press, from what
+the server would name), its speed keys the wind (calm, 8, 15, 25, 40,
+60 km/h) and the number row 1-3 the rubber (green, normal, rubbered), all
+batched for 0.8 s (`HotlapRestartAt`); unanswered in 15 s returns to the
+menu. The HUD is the
 `hotlap_watch` scene: while `hotlap.active` only the `hotlap_*` components
 show (see [HUD modding](../game/hud-modding.md)). `-ApexWatchHotlap
 -ApexTrack=<stem> -ApexCar=<name> -ApexWeather=<sky> -ApexTimeOfDay=HH:MM`

@@ -245,6 +245,12 @@ public:
 		Track,
 		Weather,
 		TimeOfDay,
+		/** The air two degrees warmer or cooler. */
+		AirTemp,
+		/** The wind a step stronger or lighter (calm to 60 km/h). */
+		Wind,
+		/** The track's rubber: `Direction` is the pick itself, 0 green, 1 normal, 2 rubbered. */
+		Rubber,
 	};
 
 	/** Step one of the hotlap's choices `Direction` places on (wrapping) and, after a moment, start the lap over for it. */

@@ -42,13 +42,12 @@ None open.
 The watch's seek, ghost and replay reuse the stream v2 controls
 ([game/spectator.md](game/spectator.md)).
 
-- A multiplayer hotlap has an in-session board across drivers (the garage
-  scoreboard is shown in qualifying only).
-- Hotlap watch: picks beyond stock setup, tyre and sky (wind, air
-  temperature, rubber, a saved setup); pause, seek and speed; a ghost and a
-  replay.
+- Hotlap watch: a saved setup as a pick (the watched car is the server's
+  AI, which takes no `SetCarSetup`); pause, seek and speed, a ghost and a
+  replay, which need the watch on the live-stream route (`WatchLiveStream`)
+  rather than a joined session.
 
-**Check:** two clients in one hotlap session; a watch with each pick.
+**Check:** a watch with each pick.
 
 ### 5. Replays carry everything
 

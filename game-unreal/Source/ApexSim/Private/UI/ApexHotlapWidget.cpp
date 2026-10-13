@@ -340,7 +340,7 @@ void UApexHotlapWidget::NativeOnInitialized()
 void UApexHotlapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-	if (View == EApexHotlapView::Garage && bQualifying)
+	if (View == EApexHotlapView::Garage && HasBoard())
 	{
 		BoardRefreshIn -= InDeltaTime;
 		if (BoardRefreshIn <= 0.0f)
@@ -1444,7 +1444,7 @@ void UApexHotlapWidget::ApplyView()
 void UApexHotlapWidget::ApplyPage()
 {
 	const bool bGarageUp = View == EApexHotlapView::Garage;
-	const bool bBoard = bGarageUp && bQualifying && bBoardOpen;
+	const bool bBoard = bGarageUp && HasBoard() && bBoardOpen;
 	if (Garage)
 	{
 		Garage->SetVisibility(bGarageUp && !bBoard ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
@@ -1455,7 +1455,7 @@ void UApexHotlapWidget::ApplyPage()
 	}
 	if (GaragePageToggle)
 	{
-		GaragePageToggle->SetVisibility(bQualifying ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		GaragePageToggle->SetVisibility(HasBoard() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	for (UApexButtonWidget* Tune : { GarageTuneButton.Get(), BoardTuneButton.Get() })
 	{
@@ -1483,6 +1483,20 @@ void UApexHotlapWidget::StopWatching()
 		WatchedCar = INDEX_NONE;
 		OnWatchCar.Broadcast(INDEX_NONE);
 	}
+}
+
+void UApexHotlapWidget::SetSharedHotlap(bool bInShared)
+{
+	if (bSharedHotlap == bInShared)
+	{
+		return;
+	}
+	bSharedHotlap = bInShared;
+	if (!HasBoard())
+	{
+		bBoardOpen = false;
+	}
+	ApplyPage();
 }
 
 void UApexHotlapWidget::SetQualifying(bool bInQualifying)
@@ -1573,7 +1587,7 @@ bool UApexHotlapWidget::HandleBack()
 
 void UApexHotlapWidget::SetBoardOpen(bool bOpen)
 {
-	bOpen = bOpen && bQualifying;
+	bOpen = bOpen && HasBoard();
 	if (bBoardOpen == bOpen)
 	{
 		return;
@@ -1728,7 +1742,7 @@ void UApexHotlapWidget::ApplyTab()
 
 void UApexHotlapWidget::FocusDefault()
 {
-	if (View == EApexHotlapView::Garage && bQualifying && bBoardOpen && BoardRowButtons.IsValidIndex(0))
+	if (View == EApexHotlapView::Garage && HasBoard() && bBoardOpen && BoardRowButtons.IsValidIndex(0))
 	{
 		ApexNav::Focus(BoardRowButtons[0]);
 		return;
