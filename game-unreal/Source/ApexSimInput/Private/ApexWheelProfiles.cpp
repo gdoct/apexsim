@@ -12,6 +12,12 @@ namespace ApexWheelProfiles
 		// Granite Devices' boards sit on a shared vendor id (MCS Electronics),
 		// so a Simucube is only a Simucube when its name says so as well.
 		constexpr uint16 VendorSimucube = 0x16D0;
+		constexpr uint16 VendorCammus = 0x3416;
+		constexpr uint16 VendorAsetek = 0x2433;
+		// Simagic and VRS boards report the shared STMicroelectronics id (0x0483)
+		// on some models and their own on others, so their rules take any
+		// vendor and the name has to say the maker as well as the model.
+		constexpr uint16 AnyVendor = 0xFFFF;
 
 		const FProfile Profiles[] = {
 			{ TEXT("generic"),            TEXT("Generic"),                        EDrive::Unknown, 0.0f },
@@ -56,6 +62,23 @@ namespace ApexWheelProfiles
 			{ TEXT("simucube-2-sport"),   TEXT("Simucube 2 Sport"),               EDrive::Direct,  17.0f },
 			{ TEXT("simucube-2-pro"),     TEXT("Simucube 2 Pro"),                 EDrive::Direct,  25.0f },
 			{ TEXT("simucube-2-ultimate"), TEXT("Simucube 2 Ultimate"),           EDrive::Direct,  32.0f },
+
+			{ TEXT("simagic-m10"),        TEXT("Simagic M10"),                    EDrive::Direct,  10.0f },
+			{ TEXT("simagic-alpha-mini"), TEXT("Simagic Alpha Mini"),             EDrive::Direct,  10.0f },
+			{ TEXT("simagic-alpha"),      TEXT("Simagic Alpha"),                  EDrive::Direct,  15.0f },
+			{ TEXT("simagic-alpha-u"),    TEXT("Simagic Alpha U"),                EDrive::Direct,  23.0f },
+			{ TEXT("simagic-evo-sport"),  TEXT("Simagic Alpha EVO Sport"),        EDrive::Direct,  9.0f },
+			{ TEXT("simagic-evo"),        TEXT("Simagic Alpha EVO"),              EDrive::Direct,  12.0f },
+			{ TEXT("simagic-evo-pro"),    TEXT("Simagic Alpha EVO Pro"),          EDrive::Direct,  18.0f },
+
+			{ TEXT("cammus-c5"),          TEXT("Cammus C5"),                      EDrive::Direct,  5.0f },
+			{ TEXT("cammus-c12"),         TEXT("Cammus C12"),                     EDrive::Direct,  12.0f },
+
+			{ TEXT("asetek-la-prima"),    TEXT("Asetek La Prima"),                EDrive::Direct,  12.0f },
+			{ TEXT("asetek-forte"),       TEXT("Asetek Forte"),                   EDrive::Direct,  18.0f },
+			{ TEXT("asetek-invicta"),     TEXT("Asetek Invicta"),                 EDrive::Direct,  27.0f },
+
+			{ TEXT("vrs-dfp"),            TEXT("VRS DirectForce Pro"),            EDrive::Direct,  20.0f },
 		};
 
 		/**
@@ -112,6 +135,24 @@ namespace ApexWheelProfiles
 			{ TEXT("simucube-2-ultimate"), VendorSimucube,     { TEXT("SIMUCUBE"), TEXT("ULTIMATE") } },
 			{ TEXT("simucube-2-pro"),      VendorSimucube,     { TEXT("SIMUCUBE"), TEXT("PRO") } },
 			{ TEXT("simucube-2-sport"),    VendorSimucube,     { TEXT("SIMUCUBE"), TEXT("SPORT") } },
+
+			// The longer names first: "EVOPRO" holds "EVO", "ALPHAMINI" holds "ALPHA".
+			{ TEXT("simagic-evo-pro"),     AnyVendor,          { TEXT("SIMAGIC"), TEXT("EVOPRO") } },
+			{ TEXT("simagic-evo-sport"),   AnyVendor,          { TEXT("SIMAGIC"), TEXT("EVOSPORT") } },
+			{ TEXT("simagic-evo"),         AnyVendor,          { TEXT("SIMAGIC"), TEXT("ALPHAEVO") } },
+			{ TEXT("simagic-alpha-mini"),  AnyVendor,          { TEXT("SIMAGIC"), TEXT("ALPHAMINI") } },
+			{ TEXT("simagic-alpha-u"),     AnyVendor,          { TEXT("SIMAGIC"), TEXT("ALPHAU") } },
+			{ TEXT("simagic-alpha"),       AnyVendor,          { TEXT("SIMAGIC"), TEXT("ALPHA") } },
+			{ TEXT("simagic-m10"),         AnyVendor,          { TEXT("SIMAGIC"), TEXT("M10") } },
+
+			{ TEXT("cammus-c12"),          VendorCammus,       { TEXT("C12"), nullptr } },
+			{ TEXT("cammus-c5"),           VendorCammus,       { TEXT("C5"), nullptr } },
+
+			{ TEXT("asetek-invicta"),      VendorAsetek,       { TEXT("INVICTA"), nullptr } },
+			{ TEXT("asetek-forte"),        VendorAsetek,       { TEXT("FORTE"), nullptr } },
+			{ TEXT("asetek-la-prima"),     VendorAsetek,       { TEXT("LAPRIMA"), nullptr } },
+
+			{ TEXT("vrs-dfp"),             AnyVendor,          { TEXT("VRS"), TEXT("DIRECTFORCE") } },
 		};
 
 		/** Upper case, letters and digits only: "FANATEC ClubSport Wheel Base V2.5" -> "FANATECCLUBSPORTWHEELBASEV25". */
@@ -184,7 +225,7 @@ namespace ApexWheelProfiles
 		}
 		for (const FRule& Rule : Rules)
 		{
-			if (Rule.VendorId != VendorId)
+			if (Rule.VendorId != AnyVendor && Rule.VendorId != VendorId)
 			{
 				continue;
 			}

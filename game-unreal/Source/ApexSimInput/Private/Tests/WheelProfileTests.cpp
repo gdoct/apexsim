@@ -50,6 +50,22 @@ bool FApexWheelProfilesDetectTest::RunTest(const FString& Parameters)
 		{ TEXT("MOZA R21 Base"),                            0x346E, TEXT("moza-r21") },
 		{ TEXT("Simucube 2 Pro"),                           0x16D0, TEXT("simucube-2-pro") },
 		{ TEXT("Simucube 2 Ultimate"),                      0x16D0, TEXT("simucube-2-ultimate") },
+		{ TEXT("SIMAGIC Alpha EVO Pro"),                    0x3670, TEXT("simagic-evo-pro") },
+		{ TEXT("Simagic Alpha EVO Sport"),                  0x3670, TEXT("simagic-evo-sport") },
+		{ TEXT("SIMAGIC Alpha EVO"),                        0x3670, TEXT("simagic-evo") },
+		{ TEXT("Simagic Alpha Mini"),                       0x0483, TEXT("simagic-alpha-mini") },
+		{ TEXT("Simagic Alpha U"),                          0x0483, TEXT("simagic-alpha-u") },
+		{ TEXT("Simagic Alpha"),                            0x0483, TEXT("simagic-alpha") },
+		{ TEXT("Simagic M10"),                              0x0483, TEXT("simagic-m10") },
+		{ TEXT("Simagic P-HPR Pedals"),                     0x0483, TEXT("generic") },
+		{ TEXT("CAMMUS C12"),                               0x3416, TEXT("cammus-c12") },
+		{ TEXT("Cammus C5"),                                0x3416, TEXT("cammus-c5") },
+		{ TEXT("Asetek SimSports Invicta"),                 0x2433, TEXT("asetek-invicta") },
+		{ TEXT("Asetek SimSports Forte"),                   0x2433, TEXT("asetek-forte") },
+		{ TEXT("Asetek SimSports La Prima"),                0x2433, TEXT("asetek-la-prima") },
+		{ TEXT("VRS DirectForce Pro"),                      0x0483, TEXT("vrs-dfp") },
+		// A bare STM id is not a Simagic: the name has to say so.
+		{ TEXT("Alpha Controller"),                         0x0483, TEXT("generic") },
 		// The vendor id is shared, so the name has to say Simucube.
 		{ TEXT("Pro Controller"),                           0x16D0, TEXT("generic") },
 		// The right name from the wrong maker is not that base.

@@ -294,7 +294,7 @@ base's peak and drive type:
 `ApexWheelProfiles::Detect` matches the USB vendor id (`FDeviceInfo::VendorId`)
 and tokens in the product name (upper case, letters and digits only; the first
 rule wins, so `CLUBSPORTDD` is tried before the belt ClubSports). The table
-covers Fanatec, Logitech, Thrustmaster, Moza and Simucube 2 bases. Peaks are
+covers Fanatec, Logitech, Thrustmaster, Moza, Simucube 2, Simagic (Alpha family and EVO), Cammus, Asetek and VRS bases (the last four from the makers' published peaks and the product names they are listed under, not read off a device). Peaks are
 the makers' published figures, or the commonly measured figure where none is
 published (Logitech, Thrustmaster's belt and hybrid bases). Simucube shares a
 vendor id, so its rules also need `SIMUCUBE` in the name.
