@@ -16364,7 +16364,744 @@
       "text": "Curva Alberello"
     },
     {
-      "id": 126741,
+      "id": 136933,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 91.87,
+      "y": 932.3,
+      "z": 1.14,
+      "yaw_rad": 0.4,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136934,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 114.52,
+      "y": 981.29,
+      "z": 1.25,
+      "yaw_rad": 1.89,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136935,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 331.07,
+      "y": 1512.02,
+      "z": 1.85,
+      "yaw_rad": 0.29,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136936,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 373.94,
+      "y": 1523.45,
+      "z": 1.89,
+      "yaw_rad": 0.23,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136937,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 798.12,
+      "y": 1558.99,
+      "z": 2.26,
+      "yaw_rad": 0.04,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136938,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 833.46,
+      "y": 1596.87,
+      "z": 2.31,
+      "yaw_rad": 0.85,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136939,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 854.35,
+      "y": 1607.54,
+      "z": 2.33,
+      "yaw_rad": 0.16,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136940,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 916.72,
+      "y": 1621.97,
+      "z": 2.38,
+      "yaw_rad": 0.3,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136941,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 1231.93,
+      "y": 1622.68,
+      "z": 2.53,
+      "yaw_rad": -1.45,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136942,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 1236.55,
+      "y": 1578.73,
+      "z": 2.54,
+      "yaw_rad": -1.48,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136943,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 1222.92,
+      "y": 1343.1,
+      "z": 2.63,
+      "yaw_rad": -2.65,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136944,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 1184.59,
+      "y": 1321.79,
+      "z": 2.64,
+      "yaw_rad": -2.63,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136945,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 412.04,
+      "y": 734.62,
+      "z": 2.74,
+      "yaw_rad": -2.41,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136946,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 404.08,
+      "y": 679.89,
+      "z": 2.68,
+      "yaw_rad": -1.49,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136947,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 357.56,
+      "y": 570.85,
+      "z": 2.55,
+      "yaw_rad": -2.52,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136948,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 331.01,
+      "y": 511.5,
+      "z": 2.47,
+      "yaw_rad": -1.71,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136949,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": -9.92,
+      "y": -280.7,
+      "z": 0.64,
+      "yaw_rad": 1.64,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136950,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": -11.35,
+      "y": -236.35,
+      "z": 0.53,
+      "yaw_rad": 1.58,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136951,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 86.01,
+      "y": 901.08,
+      "z": 1.09,
+      "yaw_rad": 1.52,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136952,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 118.83,
+      "y": 928.1,
+      "z": 1.17,
+      "yaw_rad": 0.48,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136980,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 86.34,
+      "y": 902.0,
+      "z": 1.09,
+      "yaw_rad": 1.51,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136981,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 86.45,
+      "y": 903.78,
+      "z": 1.1,
+      "yaw_rad": 1.48,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136982,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 86.62,
+      "y": 905.56,
+      "z": 1.1,
+      "yaw_rad": 1.44,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136983,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 86.83,
+      "y": 907.25,
+      "z": 1.11,
+      "yaw_rad": 1.39,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136984,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 87.12,
+      "y": 908.88,
+      "z": 1.11,
+      "yaw_rad": 1.33,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136985,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 87.51,
+      "y": 910.48,
+      "z": 1.11,
+      "yaw_rad": 1.27,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136986,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 87.96,
+      "y": 911.98,
+      "z": 1.11,
+      "yaw_rad": 1.2,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136987,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 88.48,
+      "y": 913.45,
+      "z": 1.11,
+      "yaw_rad": 1.13,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136988,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 89.05,
+      "y": 914.86,
+      "z": 1.12,
+      "yaw_rad": 1.04,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136989,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 89.74,
+      "y": 916.16,
+      "z": 1.12,
+      "yaw_rad": 0.95,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136990,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 90.55,
+      "y": 917.4,
+      "z": 1.12,
+      "yaw_rad": 0.86,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136991,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 91.43,
+      "y": 918.54,
+      "z": 1.12,
+      "yaw_rad": 0.76,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136992,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 92.49,
+      "y": 919.54,
+      "z": 1.12,
+      "yaw_rad": 0.66,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136993,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 93.68,
+      "y": 920.42,
+      "z": 1.13,
+      "yaw_rad": 0.57,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136994,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 94.92,
+      "y": 921.2,
+      "z": 1.13,
+      "yaw_rad": 0.48,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136995,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 96.32,
+      "y": 921.92,
+      "z": 1.14,
+      "yaw_rad": 0.4,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136996,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 97.78,
+      "y": 922.48,
+      "z": 1.14,
+      "yaw_rad": 0.33,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136997,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 99.41,
+      "y": 922.81,
+      "z": 1.14,
+      "yaw_rad": 0.27,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136998,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 101.13,
+      "y": 923.08,
+      "z": 1.14,
+      "yaw_rad": 0.23,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 136999,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 102.84,
+      "y": 923.45,
+      "z": 1.14,
+      "yaw_rad": 0.19,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137076,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 104.78,
+      "y": 923.84,
+      "z": 1.15,
+      "yaw_rad": 0.18,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137077,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 106.72,
+      "y": 924.21,
+      "z": 1.15,
+      "yaw_rad": 0.18,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137078,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 108.82,
+      "y": 924.61,
+      "z": 1.16,
+      "yaw_rad": 0.2,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137079,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 110.99,
+      "y": 925.08,
+      "z": 1.16,
+      "yaw_rad": 0.24,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137080,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 113.21,
+      "y": 925.66,
+      "z": 1.16,
+      "yaw_rad": 0.29,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137081,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 115.54,
+      "y": 926.39,
+      "z": 1.16,
+      "yaw_rad": 0.36,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137082,
+      "kind": "barrier",
+      "asset": "sausage_kerb_2m",
+      "x": 117.81,
+      "y": 927.3,
+      "z": 1.16,
+      "yaw_rad": 0.43,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137083,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 132.5,
+      "y": 963.81,
+      "z": 1.21,
+      "yaw_rad": 1.85,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137084,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 118.96,
+      "y": 1005.66,
+      "z": 1.27,
+      "yaw_rad": 1.85,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137085,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 104.75,
+      "y": 1078.09,
+      "z": 1.37,
+      "yaw_rad": 1.66,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137086,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 105.24,
+      "y": 1137.98,
+      "z": 1.44,
+      "yaw_rad": 1.49,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137087,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 119.97,
+      "y": 1284.21,
+      "z": 1.57,
+      "yaw_rad": 1.34,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137088,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 355.52,
+      "y": 1506.42,
+      "z": 1.87,
+      "yaw_rad": 0.26,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137089,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 834.87,
+      "y": 1572.17,
+      "z": 2.29,
+      "yaw_rad": 1.27,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137090,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 878.16,
+      "y": 1599.31,
+      "z": 2.35,
+      "yaw_rad": 0.19,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137091,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 899.16,
+      "y": 1603.96,
+      "z": 2.36,
+      "yaw_rad": 0.28,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137092,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 941.38,
+      "y": 1617.27,
+      "z": 2.4,
+      "yaw_rad": 0.32,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137093,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 1129.84,
+      "y": 1680.06,
+      "z": 2.48,
+      "yaw_rad": 0.27,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137094,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 1222.82,
+      "y": 1598.44,
+      "z": 2.54,
+      "yaw_rad": -1.46,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137095,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 1241.85,
+      "y": 1396.47,
+      "z": 2.61,
+      "yaw_rad": -1.48,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137096,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 1198.35,
+      "y": 1342.14,
+      "z": 2.64,
+      "yaw_rad": -2.63,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137097,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 389.63,
+      "y": 699.36,
+      "z": 2.7,
+      "yaw_rad": -1.42,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137098,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 331.97,
+      "y": 566.13,
+      "z": 2.53,
+      "yaw_rad": -2.25,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137099,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 320.07,
+      "y": 535.17,
+      "z": 2.5,
+      "yaw_rad": -1.7,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137100,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 314.27,
+      "y": 491.49,
+      "z": 2.45,
+      "yaw_rad": -1.69,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137101,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 221.9,
+      "y": -408.57,
+      "z": 1.51,
+      "yaw_rad": -1.72,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137102,
+      "kind": "misc",
+      "asset": "kerb_marker",
+      "x": 2.46,
+      "y": -258.05,
+      "z": 0.58,
+      "yaw_rad": 1.6,
+      "scale": 1.0,
+      "text": null
+    },
+    {
+      "id": 137000,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 58.852573,
@@ -16375,7 +17112,7 @@
       "text": null
     },
     {
-      "id": 126742,
+      "id": 137001,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 58.578705,
@@ -16386,7 +17123,7 @@
       "text": null
     },
     {
-      "id": 126743,
+      "id": 137002,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 59.21952,
@@ -16397,7 +17134,7 @@
       "text": null
     },
     {
-      "id": 126744,
+      "id": 137003,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 59.57195,
@@ -16408,7 +17145,7 @@
       "text": null
     },
     {
-      "id": 126745,
+      "id": 137004,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 59.91165,
@@ -16419,7 +17156,7 @@
       "text": null
     },
     {
-      "id": 126746,
+      "id": 137005,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 60.238953,
@@ -16430,7 +17167,7 @@
       "text": null
     },
     {
-      "id": 126747,
+      "id": 137006,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 60.55593,
@@ -16441,7 +17178,7 @@
       "text": null
     },
     {
-      "id": 126748,
+      "id": 137007,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 60.86356,
@@ -16452,7 +17189,7 @@
       "text": null
     },
     {
-      "id": 126749,
+      "id": 137008,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 61.15873,
@@ -16463,7 +17200,7 @@
       "text": null
     },
     {
-      "id": 126750,
+      "id": 137009,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 61.42926,
@@ -16474,7 +17211,7 @@
       "text": null
     },
     {
-      "id": 126751,
+      "id": 137010,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 61.678272,
@@ -16485,7 +17222,7 @@
       "text": null
     },
     {
-      "id": 126752,
+      "id": 137011,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 61.768196,
@@ -16496,7 +17233,7 @@
       "text": null
     },
     {
-      "id": 126753,
+      "id": 137012,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 61.47577,
@@ -16507,7 +17244,7 @@
       "text": null
     },
     {
-      "id": 126754,
+      "id": 137013,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 61.133545,
@@ -16518,7 +17255,7 @@
       "text": null
     },
     {
-      "id": 126755,
+      "id": 137014,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 60.87975,
@@ -16529,7 +17266,7 @@
       "text": null
     },
     {
-      "id": 126756,
+      "id": 137015,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 92.10142,
@@ -16540,7 +17277,7 @@
       "text": null
     },
     {
-      "id": 126757,
+      "id": 137016,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 92.858,
@@ -16551,7 +17288,7 @@
       "text": null
     },
     {
-      "id": 126758,
+      "id": 137017,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 90.92541,
@@ -16562,7 +17299,7 @@
       "text": null
     },
     {
-      "id": 126759,
+      "id": 137018,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 89.52565,
@@ -16573,7 +17310,7 @@
       "text": null
     },
     {
-      "id": 126760,
+      "id": 137019,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 249.48071,
@@ -16584,7 +17321,7 @@
       "text": null
     },
     {
-      "id": 126761,
+      "id": 137020,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 249.69714,
@@ -16595,7 +17332,7 @@
       "text": null
     },
     {
-      "id": 126762,
+      "id": 137021,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 249.08025,
@@ -16606,7 +17343,7 @@
       "text": null
     },
     {
-      "id": 126763,
+      "id": 137022,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 248.52916,
@@ -16617,7 +17354,7 @@
       "text": null
     },
     {
-      "id": 126764,
+      "id": 137023,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 247.26483,
@@ -16628,7 +17365,7 @@
       "text": null
     },
     {
-      "id": 126765,
+      "id": 137024,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 246.93858,
@@ -16639,7 +17376,7 @@
       "text": null
     },
     {
-      "id": 126766,
+      "id": 137025,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 246.91507,
@@ -16650,7 +17387,7 @@
       "text": null
     },
     {
-      "id": 126767,
+      "id": 137026,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 246.49246,
@@ -16661,7 +17398,7 @@
       "text": null
     },
     {
-      "id": 126768,
+      "id": 137027,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 246.06354,
@@ -16672,7 +17409,7 @@
       "text": null
     },
     {
-      "id": 126769,
+      "id": 137028,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 245.64322,
@@ -16683,7 +17420,7 @@
       "text": null
     },
     {
-      "id": 126770,
+      "id": 137029,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 245.71286,
@@ -16694,7 +17431,7 @@
       "text": null
     },
     {
-      "id": 126771,
+      "id": 137030,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 245.25801,
@@ -16705,7 +17442,7 @@
       "text": null
     },
     {
-      "id": 126772,
+      "id": 137031,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 244.76761,
@@ -16716,7 +17453,7 @@
       "text": null
     },
     {
-      "id": 126773,
+      "id": 137032,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 244.7029,
@@ -16727,7 +17464,7 @@
       "text": null
     },
     {
-      "id": 126774,
+      "id": 137033,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 244.73611,
@@ -16738,7 +17475,7 @@
       "text": null
     },
     {
-      "id": 126775,
+      "id": 137034,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 244.75066,
@@ -16749,7 +17486,7 @@
       "text": null
     },
     {
-      "id": 126776,
+      "id": 137035,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 244.55084,
@@ -16760,7 +17497,7 @@
       "text": null
     },
     {
-      "id": 126777,
+      "id": 137036,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 244.31555,
@@ -16771,7 +17508,7 @@
       "text": null
     },
     {
-      "id": 126778,
+      "id": 137037,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 439.67426,
@@ -16782,7 +17519,7 @@
       "text": null
     },
     {
-      "id": 126779,
+      "id": 137038,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 441.94086,
@@ -16793,7 +17530,7 @@
       "text": null
     },
     {
-      "id": 126780,
+      "id": 137039,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 436.64932,
@@ -16804,7 +17541,7 @@
       "text": null
     },
     {
-      "id": 126781,
+      "id": 137040,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 433.62375,
@@ -16815,7 +17552,7 @@
       "text": null
     },
     {
-      "id": 126782,
+      "id": 137041,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 430.60065,
@@ -16826,7 +17563,7 @@
       "text": null
     },
     {
-      "id": 126783,
+      "id": 137042,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 427.58307,
@@ -16837,7 +17574,7 @@
       "text": null
     },
     {
-      "id": 126784,
+      "id": 137043,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 424.1396,
@@ -16848,7 +17585,7 @@
       "text": null
     },
     {
-      "id": 126785,
+      "id": 137044,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 421.48483,
@@ -16859,7 +17596,7 @@
       "text": null
     },
     {
-      "id": 126786,
+      "id": 137045,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 409.90726,
@@ -16870,7 +17607,7 @@
       "text": null
     },
     {
-      "id": 126787,
+      "id": 137046,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 411.59103,
@@ -16881,7 +17618,7 @@
       "text": null
     },
     {
-      "id": 126788,
+      "id": 137047,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 407.62585,
@@ -16892,7 +17629,7 @@
       "text": null
     },
     {
-      "id": 126789,
+      "id": 137048,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 405.29877,
@@ -16903,7 +17640,7 @@
       "text": null
     },
     {
-      "id": 126790,
+      "id": 137049,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 402.92105,
@@ -16914,7 +17651,7 @@
       "text": null
     },
     {
-      "id": 126791,
+      "id": 137050,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 400.15433,
@@ -16925,7 +17662,7 @@
       "text": null
     },
     {
-      "id": 126792,
+      "id": 137051,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 397.15863,
@@ -16936,7 +17673,7 @@
       "text": null
     },
     {
-      "id": 126793,
+      "id": 137052,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 394.2664,
@@ -16947,7 +17684,7 @@
       "text": null
     },
     {
-      "id": 126794,
+      "id": 137053,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 391.34528,
@@ -16958,7 +17695,7 @@
       "text": null
     },
     {
-      "id": 126795,
+      "id": 137054,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 388.4549,
@@ -16969,7 +17706,7 @@
       "text": null
     },
     {
-      "id": 126796,
+      "id": 137055,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 385.6224,
@@ -16980,7 +17717,7 @@
       "text": null
     },
     {
-      "id": 126797,
+      "id": 137056,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 383.00128,
@@ -16991,7 +17728,7 @@
       "text": null
     },
     {
-      "id": 126798,
+      "id": 137057,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 380.6486,
@@ -17002,7 +17739,7 @@
       "text": null
     },
     {
-      "id": 126799,
+      "id": 137058,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 378.48615,
@@ -17013,7 +17750,7 @@
       "text": null
     },
     {
-      "id": 126800,
+      "id": 137059,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 376.63913,
@@ -17024,7 +17761,7 @@
       "text": null
     },
     {
-      "id": 126801,
+      "id": 137060,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 375.55405,
@@ -17035,7 +17772,7 @@
       "text": null
     },
     {
-      "id": 126802,
+      "id": 137061,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 99.90576,
@@ -17046,7 +17783,7 @@
       "text": null
     },
     {
-      "id": 126803,
+      "id": 137062,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 99.24099,
@@ -17057,7 +17794,7 @@
       "text": null
     },
     {
-      "id": 126804,
+      "id": 137063,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 103.52364,
@@ -17068,7 +17805,7 @@
       "text": null
     },
     {
-      "id": 126805,
+      "id": 137064,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 106.510826,
@@ -17079,7 +17816,7 @@
       "text": null
     },
     {
-      "id": 126806,
+      "id": 137065,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 744.4879,
@@ -17090,7 +17827,7 @@
       "text": null
     },
     {
-      "id": 126807,
+      "id": 137066,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 741.4878,
@@ -17101,7 +17838,7 @@
       "text": null
     },
     {
-      "id": 126808,
+      "id": 137067,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 748.4879,
@@ -17112,7 +17849,7 @@
       "text": null
     },
     {
-      "id": 126809,
+      "id": 137068,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 752.48804,
@@ -17123,7 +17860,7 @@
       "text": null
     },
     {
-      "id": 126810,
+      "id": 137069,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 756.4882,
@@ -17134,7 +17871,7 @@
       "text": null
     },
     {
-      "id": 126811,
+      "id": 137070,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 760.48785,
@@ -17145,7 +17882,7 @@
       "text": null
     },
     {
-      "id": 126812,
+      "id": 137071,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 764.48615,
@@ -17156,7 +17893,7 @@
       "text": null
     },
     {
-      "id": 126813,
+      "id": 137072,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 768.47516,
@@ -17167,7 +17904,7 @@
       "text": null
     },
     {
-      "id": 126814,
+      "id": 137073,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 772.45966,
@@ -17178,7 +17915,7 @@
       "text": null
     },
     {
-      "id": 126815,
+      "id": 137074,
       "kind": "tire_wall",
       "asset": "tires_4m",
       "x": 776.43744,
@@ -17189,7 +17926,7 @@
       "text": null
     },
     {
-      "id": 126816,
+      "id": 137075,
       "kind": "tire_wall",
       "asset": "tires_corner",
       "x": 779.39197,
@@ -128674,5 +129411,5 @@
       "text": null
     }
   ],
-  "next_id": 136933
+  "next_id": 137103
 }

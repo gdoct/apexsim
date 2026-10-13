@@ -68,9 +68,9 @@ what it owns on every run. Ownership is by **kind** for whole kinds and by
 
 | Pass | Owns |
 |---|---|
-| `ats-dress` (`dress.rs`) | Kinds grandstand, building, attraction, bridge, light, vehicle, sky; the pit lane (`authored: true`); landmark assets (`dress::dressed_prop`, e.g. `misc/bull_statue`); the surroundings assets (`dress::surroundings::OWNED`: car-park cars and lamps, tents and campers, houses and barns, chapels, pylons, marshal posts, `corner_sign`, fallback `floodlight_tower`s, forest impostors); furniture runs (`lay_furniture`); road decals from the dossier |
+| `ats-dress` (`dress.rs`) | Kinds grandstand, building, attraction, bridge, light, vehicle, sky; the pit lane (`authored: true`); landmark assets (`dress::dressed_prop`, e.g. `misc/bull_statue`); the surroundings assets (`dress::surroundings::OWNED`: car-park cars and lamps, tents and campers, houses and barns, chapels, pylons, marshal posts, `corner_sign`, fallback `floodlight_tower`s, forest impostors, and the track edge's `kerb_marker` at each curb's ends and `sausage_kerb_2m` behind the inside curb of a bend under 80 m radius, `lay_kerb_pieces`); furniture runs (`lay_furniture`); road decals from the dossier |
 | `ats-groom` (`groom.rs`) | Barriers, tyre walls, Tecpro, fences and their end caps (by asset); hoardings (`HOARDING_ASSETS`); braking and distance boards; tree belts, near trees and ground scatter; German signs on the Nordschleife (`GERMAN_SIGN_ASSETS`) |
-| `ats-export` | Nothing in the `.ats`: it generates the pit complex (garages, box kits, pit walls, pit signs), road paint, DRS lines and boards, terrain and horizon in the export only |
+| `ats-export` | Nothing in the `.ats`: it generates the pit complex (garages, box kits, pit walls, pit signs, the podium on the middle garage's roof), road paint, DRS lines and boards, terrain and horizon in the export only |
 
 `ats-dress` grooms after dressing (`--no-groom` to skip); `ats-groom` run
 alone loads the dossier itself (`groom_scene_with`). Grooming re-seats dressed

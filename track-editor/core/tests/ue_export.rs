@@ -2368,7 +2368,11 @@ fn bent_pit_scene(bend_m: f32) -> (TrackFile, AtsScene) {
         let drop = (x - 160.0).powi(2) / (2.0 * bend_m.abs());
         // A bend away from the track drops; the other way starts further out
         // and comes back toward it.
-        let y = if bend_m > 0.0 { -20.0 - drop } else { -100.0 + drop };
+        let y = if bend_m > 0.0 {
+            -20.0 - drop
+        } else {
+            -100.0 + drop
+        };
         lane.nodes.push([x, y, 0.0]);
     }
     lane.nodes.extend([[420.0, -12.0, 0.0], [460.0, -3.0, 0.0]]);
@@ -2399,5 +2403,8 @@ fn garages_on_the_inside_of_a_bend_are_scaled_not_overlapped() {
         "inside of a 400 m bend: {inside:?}"
     );
     let outside = scales(&bent_pit_scene(-400.0));
-    assert!(outside[3..8].iter().all(|s| *s == 1.0), "outside: {outside:?}");
+    assert!(
+        outside[3..8].iter().all(|s| *s == 1.0),
+        "outside: {outside:?}"
+    );
 }

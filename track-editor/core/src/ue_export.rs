@@ -4474,6 +4474,19 @@ fn bake_pit_complex(
             out.push(end);
         }
     }
+    if garages {
+        // The podium on the roof of the row's middle garage: the kit's
+        // `building/podium` is floored at the garage's roof, on the same
+        // pivot as the module under it (the roof-deck building has its own).
+        let s = row_start + ((boxes / 2) as f32 + 0.5) * PIT_MODULE_M;
+        out.push(pit_module(
+            lane,
+            ("building", "podium"),
+            s,
+            box_edge,
+            face_left,
+        ));
+    }
 
     // The pit wall stands in the apron between the lane and the road: half
     // way across it, capped so the wall face never reaches the road edge

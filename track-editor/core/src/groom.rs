@@ -722,6 +722,9 @@ pub fn groom_props_with_dem(
         }
 
         match prop.kind {
+            // A sausage kerb the dressing pass laid behind a curb is a
+            // piece, not a wall run: it stays where that pass put it.
+            PropKind::Barrier if crate::dress::always_dress_owned(&prop) => kept.push(prop),
             PropKind::TireWall | PropKind::Barrier => {
                 // Walls are not groomed one by one: sparse dashes at a
                 // uniform offset read as a phantom second circuit. They are
@@ -1064,7 +1067,10 @@ fn snap_boards_to_barriers(
 ) -> usize {
     let rails: Vec<(f32, f32)> = props
         .iter()
-        .filter(|p| matches!(p.kind, PropKind::Barrier | PropKind::TireWall))
+        .filter(|p| {
+            matches!(p.kind, PropKind::Barrier | PropKind::TireWall)
+                && !crate::dress::always_dress_owned(p)
+        })
         .map(|p| (p.x, p.y))
         .collect();
     let mut moved = 0;

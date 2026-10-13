@@ -119,6 +119,9 @@ pub struct DressReport {
     pub pit_lane: bool,
     /// Tarmac run-off bands given the circuit's painted stripes.
     pub painted_runoff: usize,
+    /// Kerb markers at the curbs' ends and sausage kerbs behind the inside
+    /// curbs of tight bends (`surroundings::lay_kerb_pieces`).
+    pub kerb_pieces: usize,
     /// Road graffiti laid from the dossier as `.ats` decals.
     pub graffiti: usize,
     /// Dossier entries that could not be placed, with the reason.
@@ -127,7 +130,12 @@ pub struct DressReport {
 
 impl DressReport {
     pub fn placed(&self) -> usize {
-        self.stand_props + self.buildings + self.bridges + self.landmarks + self.surroundings
+        self.stand_props
+            + self.buildings
+            + self.bridges
+            + self.landmarks
+            + self.surroundings
+            + self.kerb_pieces
     }
 }
 
@@ -311,6 +319,12 @@ pub fn dress_scene_with_dem(
     );
     report.surroundings = extras.len();
     laid.extend(extras);
+    // The kit's pieces on the track's own edge: a marker post at each
+    // end of a curb, and sausage kerbs behind the inside curb of a tight
+    // bend (a `kerb` wall in the sim: a jolt, never a stop).
+    let kerb_pieces = surroundings::lay_kerb_pieces(&path, &terrain, &scene.curbs);
+    report.kerb_pieces = kerb_pieces.len();
+    laid.extend(kerb_pieces);
 
     // Nothing dressed stands in the water. A bridge, a sky prop and a
     // landmark that is meant to stand over it (the double helix) keep
@@ -595,7 +609,9 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
     // under it); a point the window puts further off than PIT_LEG_LOST_M is
     // looked for again around there, and the nearer of the two kept.
     let total = path.total_length_m();
-    let entry_s = nearest_cross_section(path, mapped[0][0], mapped[0][1]).0.station_m;
+    let entry_s = nearest_cross_section(path, mapped[0][0], mapped[0][1])
+        .0
+        .station_m;
     let last = mapped[mapped.len() - 1];
     let exit_s = nearest_cross_section(path, last[0], last[1]).0.station_m;
     let span = if path.is_closed() {
@@ -603,7 +619,9 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
     } else {
         exit_s - entry_s
     };
-    let off = |p: &[f32; 2], (sample, _): &(PathSample, f32)| (p[0] - sample.pos.0).hypot(p[1] - sample.pos.1);
+    let off = |p: &[f32; 2], (sample, _): &(PathSample, f32)| {
+        (p[0] - sample.pos.0).hypot(p[1] - sample.pos.1)
+    };
     let mut station: Option<f32> = None;
     let frame: Vec<(PathSample, f32)> = mapped
         .iter()
@@ -623,7 +641,11 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
                         near
                     } else {
                         let along = entry_s + span * i as f32 / (mapped.len() - 1) as f32;
-                        let along = if path.is_closed() { along.rem_euclid(total) } else { along };
+                        let along = if path.is_closed() {
+                            along.rem_euclid(total)
+                        } else {
+                            along
+                        };
                         let again =
                             nearest_cross_section_near(path, p[0], p[1], along, PIT_LEG_WINDOW_M);
                         if off(p, &again) < off(p, &near) {
@@ -710,7 +732,10 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
             let (sample, lat) =
                 nearest_cross_section_near(path, n[0], n[1], mapped_at.station_m, PIT_LEG_WINDOW_M);
             let on_road = lat.clamp(-sample.width_right_m, sample.width_left_m);
-            ([n[0], n[1], offset_point(&sample, on_road).2], on_road == lat)
+            (
+                [n[0], n[1], offset_point(&sample, on_road).2],
+                on_road == lat,
+            )
         })
         .collect();
     let pinned: Vec<bool> = seated.iter().map(|s| s.1).collect();
@@ -2013,7 +2038,7 @@ mod surroundings {
     /// run, so it has to recognise its own output; and because it shares
     /// kinds with hand-placed props (a `sign` is also a distance board, a
     /// `misc` is also a bollard) ownership is by asset, not by kind.
-    pub const OWNED: [&str; 31] = [
+    pub const OWNED: [&str; 33] = [
         "car_a",
         "car_b",
         "car_c",
@@ -2050,7 +2075,102 @@ mod surroundings {
         "finish_tower_scaffold",
         "walkway_planter_4m",
         "pit_entry_board",
+        // The track edge's own pieces (`lay_kerb_pieces`).
+        "kerb_marker",
+        "sausage_kerb_2m",
     ];
+
+    /// A curb shorter than this gets no marker posts.
+    const KERB_MARKER_MIN_CURB_M: f32 = 4.0;
+    /// How far past the curb's outer edge its marker post stands, m.
+    const KERB_MARKER_BEYOND_M: f32 = 0.3;
+    /// Sausage kerbs go behind the inside curb of a bend tighter than this
+    /// radius, m, over a curb no longer than `SAUSAGE_MAX_CURB_M` (an apex
+    /// or a chicane, not a sweeper), one `sausage_kerb_2m` every
+    /// `SAUSAGE_PITCH_M` from a metre in to a metre short.
+    const SAUSAGE_MAX_RADIUS_M: f32 = 80.0;
+    const SAUSAGE_MIN_CURB_M: f32 = 6.0;
+    const SAUSAGE_MAX_CURB_M: f32 = 60.0;
+    const SAUSAGE_PITCH_M: f32 = 2.0;
+    /// The sausage kerb's near face sits this far past the curb's outer edge, m (the piece is 0.5 m deep).
+    const SAUSAGE_BEYOND_M: f32 = 0.35;
+
+    /// Kerb markers and sausage kerbs for the scene's curbs. Both are
+    /// owned by this pass (`OWNED`), so a re-dress lays them again rather
+    /// than doubling them.
+    pub fn lay_kerb_pieces(
+        path: &CenterlinePath,
+        terrain: &TerrainHeightfield,
+        curbs: &[crate::ats::Curb],
+    ) -> Vec<Prop> {
+        let total = path.total_length_m();
+        if total <= 0.0 {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        let mut place = |kind: PropKind, asset: &str, station: f32, side: Side, beyond: f32| {
+            let sample = path.sample_at(station.rem_euclid(total));
+            let lat = signed_lat(&sample, side, beyond);
+            let (x, y, _) = offset_point(&sample, lat);
+            if terrain.in_water(x, y) {
+                return;
+            }
+            out.push(Prop {
+                id: 0,
+                kind,
+                asset: asset.to_string(),
+                x: round2(x),
+                y: round2(y),
+                z: round2(seat_z(terrain, &sample, lat, x, y)),
+                yaw_rad: round2(sample.heading_rad),
+                scale: 1.0,
+                text: None,
+                length_m: None,
+            });
+        };
+        for curb in curbs {
+            let len = (curb.end_m - curb.start_m).rem_euclid(total);
+            if len < KERB_MARKER_MIN_CURB_M {
+                continue;
+            }
+            let beyond = curb.width_m.max(0.0) + KERB_MARKER_BEYOND_M;
+            place(
+                PropKind::Misc,
+                "kerb_marker",
+                curb.start_m,
+                curb.side,
+                beyond,
+            );
+            place(PropKind::Misc, "kerb_marker", curb.end_m, curb.side, beyond);
+
+            if !(SAUSAGE_MIN_CURB_M..=SAUSAGE_MAX_CURB_M).contains(&len) {
+                continue;
+            }
+            // The bend's inside: a left turn (positive curvature) is on the left.
+            let k =
+                crate::track_path::curvature_at(path, (curb.start_m + len / 2.0).rem_euclid(total));
+            if k.abs() < 1.0 / SAUSAGE_MAX_RADIUS_M {
+                continue;
+            }
+            let inside = if k > 0.0 { Side::Left } else { Side::Right };
+            if curb.side != inside {
+                continue;
+            }
+            let beyond = curb.width_m.max(0.0) + SAUSAGE_BEYOND_M + 0.25;
+            let mut d = 1.0;
+            while d + 1.0 <= len {
+                place(
+                    PropKind::Barrier,
+                    "sausage_kerb_2m",
+                    curb.start_m + d,
+                    curb.side,
+                    beyond,
+                );
+                d += SAUSAGE_PITCH_M;
+            }
+        }
+        out
+    }
 
     /// Village buildings are `building` kind, which the dressing pass
     /// already owns wholesale, so they need no entry in [`OWNED`].
@@ -3296,6 +3416,56 @@ mod tests {
                 prop.y
             );
         }
+    }
+
+    #[test]
+    fn curbs_get_marker_posts_and_tight_inside_curbs_sausage_kerbs() {
+        let track = track();
+        let mut scene = scene(&track);
+        let layout = layout();
+        // The fixture's first bend (station 800 on) turns left at 70 m: a
+        // curb on its inside (left) gets sausage kerbs, one on the straight
+        // (station 100-140, right) only its markers.
+        for (id, side, start, end) in [
+            (1, Side::Left, 820.0, 860.0),
+            (2, Side::Right, 100.0, 140.0),
+        ] {
+            scene.curbs.push(crate::ats::Curb {
+                id,
+                side,
+                start_m: start,
+                end_m: end,
+                width_m: 1.0,
+                style: "red_white".to_string(),
+            });
+        }
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        let markers = scene
+            .props
+            .iter()
+            .filter(|p| p.asset == "kerb_marker")
+            .count();
+        let sausages: Vec<&Prop> = scene
+            .props
+            .iter()
+            .filter(|p| p.asset == "sausage_kerb_2m")
+            .collect();
+        assert_eq!(markers, 4, "a marker post at each end of each curb");
+        assert_eq!(
+            sausages.len(),
+            20,
+            "20 pieces over 40 m behind the inside curb: {}",
+            sausages.len()
+        );
+        assert!(
+            sausages
+                .iter()
+                .all(|p| p.kind == PropKind::Barrier && p.x > 790.0),
+            "sausage kerbs only at the bend"
+        );
+        let before = scene.props.len();
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        assert_eq!(scene.props.len(), before, "a re-dress lays the same pieces");
     }
 
     #[test]
