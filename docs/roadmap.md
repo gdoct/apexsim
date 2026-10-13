@@ -108,7 +108,7 @@ the look.
 
 | Item | Type | Notes |
 |---|---|---|
-| Snow: props and the sky | feature | Buildings, grandstands and trees keep their summer look under snow (a top-down snow blend in the prop materials); the sky has no cloud layer (a snow day is a deep blue gradient lit as overcast); flakes are lit grey-blue cubes, not white sprites; no spray behind the cars. Seen once on the Silverstone straight (a dark packed line in white, flakes streaking past a fast camera); ice, a melt and a night have not been seen on screen. |
+| Snow: props and the sky | feature | Buildings, grandstands and trees keep their summer look under snow (a top-down snow blend in the prop materials); the sky has no cloud layer (a snow day is a deep blue gradient lit as overcast); flakes are lit grey-blue cubes, not white sprites; no spray behind the cars. Seen on the Silverstone straight (a dark packed line in white, flakes streaking past a fast camera) and at dusk and at 01:00 (headlights on white ground, TV camera, 2026-10-13); ice and a melt have not been seen on screen. |
 
 ### Tyres on screen
 
