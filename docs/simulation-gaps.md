@@ -4,13 +4,15 @@ What the simulation and the racing rules still leave out, grouped by area.
 Each gap has an **effort** (how hard to build and land safely) and an
 **impact** (how much it changes driving and racing), both Low / Med / High.
 Built features are documented under docs/ (see the [index](README.md)); this
-file only lists what is missing. Product, UI, tooling and bug items live in
-the [roadmap](roadmap.md).
+file only lists what is missing. Product, UI and tooling features not started
+live in the [roadmap](roadmap.md); bugs, edge cases and verification left on
+built product features live in [follow-ups.md](follow-ups.md).
 
 Keep it current: when a gap is closed, delete its row; when a feature leaves
 something for later, add a row here (simulation, racing rules, driver
-feedback) or to the roadmap (everything else). Every deferred item is
-recorded in one of the two.
+feedback), to the follow-ups (anything else left on a built feature) or to
+the roadmap (a feature not started). Every deferred item is recorded in
+exactly one of the three.
 
 ## Car physics
 

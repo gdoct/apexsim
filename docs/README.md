@@ -1,7 +1,7 @@
 # ApexSim documentation
 
 Each doc describes what is built, where its code is, how to check it, and
-its traps. What is *not* built lives in the two backlogs. `index.html` and
+its traps. What is *not* built lives in the three backlogs. `index.html` and
 `assets/` in this folder are the generated marketing page (GitHub Pages);
 see [marketing-site.md](marketing-site.md).
 
@@ -13,7 +13,8 @@ see [marketing-site.md](marketing-site.md).
 ## Backlogs
 
 - [simulation-gaps.md](simulation-gaps.md): what the simulation and the racing rules still leave out.
-- [roadmap.md](roadmap.md): product bugs, features, content and tooling not yet done.
+- [roadmap.md](roadmap.md): product features, content and tooling not started yet.
+- [follow-ups.md](follow-ups.md): what is left on built features: bugs, edge cases, unverified behaviour, cleanup.
 
 ## Server (`server/`)
 

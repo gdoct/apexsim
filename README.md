@@ -31,8 +31,8 @@ circuits and the game in motion.
   imported. See [MODDING.md](MODDING.md).
 
 The project is in active development. What is not built yet is listed in
-[docs/simulation-gaps.md](docs/simulation-gaps.md) and
-[docs/roadmap.md](docs/roadmap.md).
+[docs/simulation-gaps.md](docs/simulation-gaps.md),
+[docs/follow-ups.md](docs/follow-ups.md) and [docs/roadmap.md](docs/roadmap.md).
 
 ## Playing
 

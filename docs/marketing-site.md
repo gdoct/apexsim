@@ -65,8 +65,8 @@ The build cannot tell when prose is stale, so it watches the docs instead.
 (heading to next heading) of those docs into `site/copy.lock.json`; `--stale`
 lists the sections new, changed or removed since. In CI that is a warning, not
 a failure. The `/site-refresh` command is the rewrite pass: read the stale
-sections, update `copy.yml` against the code, [simulation gaps](simulation-gaps.md)
-and the [roadmap](roadmap.md) (promise nothing deferred), rebuild, look at the
+sections, update `copy.yml` against the code, [simulation gaps](simulation-gaps.md),
+[follow-ups](follow-ups.md) and the [roadmap](roadmap.md) (promise nothing deferred), rebuild, look at the
 page, then `--reviewed`, `--check` and the unit tests. It does not commit.
 
 ### In-engine pictures (`site/shots.yml` -> `site/shots/<id>.webp`)

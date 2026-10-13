@@ -267,7 +267,7 @@ and on Reset to defaults, a GPU the RHI reports as integrated
 Nothing in the project renders on the CPU. D3D12's WARP adapter (Microsoft's
 software rasterizer) can run the engine, but far too slowly to drive. The
 release targets Windows 10/11 x64 with a DirectX 12 GPU; Windows on Arm is
-not supported ([roadmap.md](../roadmap.md)).
+not supported ([follow-ups.md](../follow-ups.md)).
 
 ## Triple monitors (`UApexMultiViewSubsystem`, `ApexMultiView.h`, `ApexSideView.h`)
 

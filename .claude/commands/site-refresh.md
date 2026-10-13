@@ -12,8 +12,8 @@ Refresh the marketing page. Its source is `site/`, its generator
    feature card whose subject changed, add one for a major new feature, drop
    a claim that stopped being true. Keep the voice of the existing copy:
    concrete, short, no superlatives. Check each claim against the code or
-   the doc before writing it, and against docs/simulation-gaps.md and
-   docs/roadmap.md so the page promises nothing that is deferred.
+   the doc before writing it, and against docs/simulation-gaps.md,
+   docs/follow-ups.md and docs/roadmap.md so the page promises nothing that is deferred.
    Never type a number the build can supply (`{{ n.* }}`), and name circuits
    only through `{{ name('<Stem>') }}`.
    The feature grid is laid out in rows of two wide cards or three normal
