@@ -641,8 +641,10 @@ are ignored. The host gets `SessionJoined`, `TrackSectors` and
 without a `SessionLeft`.
 
 **The lap**: `GameMode::Hotlap` from the first tick. The car is put on the
-run-up and held on the brake for `HOTLAP_WATCH_HOLD_S` (6 s), then laps for
-ever, refitted at each crossing (fuel, tyres and brakes at optimum, damage
+run-up and held on the brake for `HOTLAP_WATCH_HOLD_S` (6 s), then let go
+at `HOTLAP_WATCH_ROLL_FRAC` (90%) of the AI speed plan's speed for its place
+(`roll_hotlap_watch_car`, with a gear to match), so the first timed lap is the
+same lap as the rest and not a standing start; it laps for ever, refitted at each crossing (fuel, tyres and brakes at optimum, damage
 off). The exact line is not always drivable at 110, so the driver eases down
 a ladder (`hotlap_watch_driver`): level 0 the exact line, 1 the same skill
 without it, then `HOTLAP_WATCH_SKILL_STEP` (3) a step to

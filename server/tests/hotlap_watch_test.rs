@@ -154,9 +154,11 @@ fn a_watched_hotlap_laps_the_track_alone_lap_after_lap() {
             (second - third).abs() < 0.5 && (third - fourth).abs() < 0.5,
             "laps drift: {laps:?}"
         );
+        // The first is from the run-up at speed, not a standing start: the
+        // same lap to within a second or so, not the slowest by ten.
         assert!(
-            laps[0].0 >= second - 0.01,
-            "the lap from the run-up is not the quickest: {laps:?}"
+            (laps[0].0 - second).abs() < 2.0,
+            "the lap from the run-up is not the same lap: {laps:?}"
         );
     }
 

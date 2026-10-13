@@ -146,6 +146,9 @@ pub const HOTLAP_WATCH_SKILL: u8 = 110;
 /// Seconds the car waits on the run-up before it sets off, so the watcher's
 /// client has the track up (and the camera on the car) for the lap.
 pub const HOTLAP_WATCH_HOLD_S: f32 = 6.0;
+/// Share of the AI plan's speed the car is let go at when the hold ends, so
+/// it is under the plan and the driver brings it up.
+const HOTLAP_WATCH_ROLL_FRAC: f32 = 0.9;
 /// A watched car that makes no headway for this long is put back on the
 /// run-up (`GameSession::update_hotlap_watch`): the AI backs out of a wall
 /// by itself, this is for the day it cannot.
@@ -160,6 +163,9 @@ struct HotlapWatch {
     active: bool,
     /// Tick until which the car is held on the run-up.
     hold_until_tick: u32,
+    /// The car has been let go from the hold and put at speed
+    /// ([`GameSession::roll_hotlap_watch_car`]).
+    rolled: bool,
     /// Ticks the car has stood still (not held) so far.
     stuck_ticks: u32,
     /// The lap counter last tick: a change is the car crossing the line.
@@ -1835,6 +1841,51 @@ impl GameSession {
             self.session.current_tick + (HOTLAP_WATCH_HOLD_S * self.tick_rate_hz as f32) as u32;
         self.hotlap_watch.stuck_ticks = 0;
         self.hotlap_watch.last_lap = None;
+        self.hotlap_watch.rolled = false;
+    }
+
+    /// Let a held car go at the speed the AI's plan has for its place on the
+    /// run-up: a hotlap's first timed lap starts at the line at speed, as
+    /// every later one does, and not from a standstill 300 m before it.
+    fn roll_hotlap_watch_car(&mut self) {
+        let ids: Vec<PlayerId> = self.session.ai_player_ids.clone();
+        for id in ids {
+            let Some(state) = self.session.participants.get(&id) else {
+                continue;
+            };
+            let Some(profile) = self.ai_speed_profile(state.car_config_id, state.fuel_liters)
+            else {
+                continue;
+            };
+            if profile.speed_mps.is_empty() || profile.spacing_m <= 0.0 {
+                continue;
+            }
+            let at = (state.track_progress / profile.spacing_m).round() as usize;
+            let speed = profile.speed_mps[at % profile.speed_mps.len()] * HOTLAP_WATCH_ROLL_FRAC;
+            let Some(config) = self.car_configs.get(&state.car_config_id) else {
+                continue;
+            };
+            let omega_rpm = speed / config.wheel_radius_m.max(0.1) * 60.0 / std::f32::consts::TAU;
+            // The highest gear that keeps the engine under 85% of the
+            // redline at this speed; the box shifts from there.
+            let mut gear = 1;
+            for (g, ratio) in config.gear_ratios.iter().enumerate().skip(1) {
+                if omega_rpm * ratio.abs() * config.final_drive_ratio
+                    <= config.redline_rpm * 0.85
+                {
+                    gear = g as i8;
+                }
+            }
+            let (sin, cos) = state.yaw_rad.sin_cos();
+            let omega = speed / config.wheel_radius_m.max(0.1);
+            if let Some(state) = self.session.participants.get_mut(&id) {
+                state.vel_x = speed * cos;
+                state.vel_y = speed * sin;
+                state.speed_mps = speed;
+                state.wheel_angular_vel = [omega; 4];
+                state.gear = gear;
+            }
+        }
     }
 
     /// After each tick of a watched hotlap: a car that has just crossed the
@@ -1851,6 +1902,10 @@ impl GameSession {
         let ids: Vec<PlayerId> = self.session.ai_player_ids.clone();
         let stuck_limit = (HOTLAP_WATCH_STUCK_S * self.tick_rate_hz as f32) as u32;
         let held = self.session.current_tick < self.hotlap_watch.hold_until_tick;
+        if !held && !self.hotlap_watch.rolled {
+            self.hotlap_watch.rolled = true;
+            self.roll_hotlap_watch_car();
+        }
         let mut crashed = false;
         let mut struck = false;
         for id in ids {
