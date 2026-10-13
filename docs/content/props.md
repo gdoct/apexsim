@@ -302,7 +302,10 @@ gantry is the fallback.
 
 `ats-export` generates it from the pit lane (`ue_export.rs`): a
 `pit/garage_6m` per box on the far side of the lane at 6 m pitch with a
-`pit/box_kit` on the same pivot, `garage_end` beyond each end, `pit_wall_6m`
+`pit/box_kit` on the same pivot (on the inside of a bend a garage and the
+end blocks are scaled to the share of the lane's circle their back stands on,
+`garage_scale`, floor 0.85, so the 6 m modules touch rather than overlap),
+`garage_end` beyond each end, `pit_wall_6m`
 on the road side over the box span and `pit_wall_plain_6m` over the rest of
 the lane wherever there is an apron of `PIT_TAPER_WALL_MIN_M`; on a street
 circuit `pit_building_roofdeck`, `pit_wall_gantry_6m` and

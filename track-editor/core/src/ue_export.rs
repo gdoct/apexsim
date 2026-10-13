@@ -3918,6 +3918,31 @@ const GARAGE_PLATE_HEIGHT_M: f32 = 3.2;
 /// Pit modules tile at this pitch along the lane (`garage_6m`,
 /// `pit_wall_6m`).
 const PIT_MODULE_M: f32 = 6.0;
+/// Depth of a garage module (`garage_6m`, `garage_end`) from its door, metres.
+const GARAGE_DEPTH_M: f32 = 14.2;
+/// Least a garage is scaled to on a bend, so a tight lane does not shrink
+/// it past recognition.
+const GARAGE_MIN_SCALE: f32 = 0.85;
+/// Scale of a garage module standing at `station_m` on `lane`, on the lane's
+/// `side` (+1 left, -1 right), its door `half` metres from the lane's middle.
+/// Modules tile at the lane's pitch, but on the inside of a bend the
+/// garage's back is on a smaller circle, so its 6 m width overlaps the next
+/// one's by `width x depth / radius`: scaled to the back circle's share of
+/// the lane's, it just touches. 1 on a straight, on the outside of a bend
+/// (modules gap there instead) and where the overlap is under a centimetre
+/// or two.
+fn garage_scale(lane: &CenterlinePath, station_m: f32, side: f32, half: f32) -> f32 {
+    let kappa = curvature_at(lane, station_m);
+    if kappa * side <= 0.0 {
+        return 1.0;
+    }
+    let scale = 1.0 - kappa.abs() * (half + GARAGE_DEPTH_M);
+    if scale > 0.995 {
+        return 1.0;
+    }
+    round(scale.max(GARAGE_MIN_SCALE), 3)
+}
+
 /// Asset the pre-kit scenes used for pit garages; superseded by the
 /// generated complex whenever the scene has a pit lane.
 const LEGACY_PIT_GARAGE_ASSET: &str = "pit_garage";
@@ -4364,13 +4389,9 @@ fn bake_pit_complex(
     for i in 0..boxes {
         let s = row_start + (i as f32 + 0.5) * PIT_MODULE_M;
         if garages {
-            out.push(pit_module(
-                lane,
-                ("pit", "garage_6m"),
-                s,
-                box_edge,
-                face_left,
-            ));
+            let mut garage = pit_module(lane, ("pit", "garage_6m"), s, box_edge, face_left);
+            garage.scale = garage_scale(lane, s, side, half);
+            out.push(garage);
         }
         // The crew's kit on the working lane in front of the door, on the
         // same pivot: it is authored to reach 2.6 m out from the garage.
@@ -4381,13 +4402,9 @@ fn bake_pit_complex(
         row_start + row + PIT_MODULE_M / 2.0,
     ] {
         if garages && s - PIT_MODULE_M / 2.0 >= start && s + PIT_MODULE_M / 2.0 <= end {
-            out.push(pit_module(
-                lane,
-                ("pit", "garage_end"),
-                s,
-                box_edge,
-                face_left,
-            ));
+            let mut end = pit_module(lane, ("pit", "garage_end"), s, box_edge, face_left);
+            end.scale = garage_scale(lane, s, side, half);
+            out.push(end);
         }
     }
 

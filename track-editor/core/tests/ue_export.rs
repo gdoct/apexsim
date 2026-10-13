@@ -2355,3 +2355,49 @@ fn a_desert_circuit_draws_its_land_as_sand() {
     );
     assert_eq!(sand.meshes.len(), green.meshes.len());
 }
+
+/// The stadium's pit lane with its parallel stretch bent into a long arc of
+/// `bend_m` radius: right of the road's direction when positive (away from
+/// the track, garages on the inside), left when negative.
+fn bent_pit_scene(bend_m: f32) -> (TrackFile, AtsScene) {
+    let (track, mut scene) = stadium_scene();
+    let lane = scene.pit_lane.as_mut().unwrap();
+    lane.nodes = vec![[100.0, -3.0, 0.0], [140.0, -12.0, 0.0]];
+    for i in 0..=8 {
+        let x = 160.0 + 30.0 * i as f32;
+        let drop = (x - 160.0).powi(2) / (2.0 * bend_m.abs());
+        // A bend away from the track drops; the other way starts further out
+        // and comes back toward it.
+        let y = if bend_m > 0.0 { -20.0 - drop } else { -100.0 + drop };
+        lane.nodes.push([x, y, 0.0]);
+    }
+    lane.nodes.extend([[420.0, -12.0, 0.0], [460.0, -3.0, 0.0]]);
+    (track, scene)
+}
+
+/// On the inside of a bend a garage's back is on a smaller circle, so
+/// modules at the lane's pitch overlap there: they are scaled to touch, and
+/// left alone on a straight and on the outside of a bend.
+#[test]
+fn garages_on_the_inside_of_a_bend_are_scaled_not_overlapped() {
+    let scales = |scene: &(TrackFile, AtsScene)| -> Vec<f32> {
+        let baked = ue_export::bake(&scene.0, &scene.1).unwrap();
+        props_with(&baked, "pit", "garage_6m")
+            .iter()
+            .map(|g| g.scale)
+            .collect()
+    };
+    let straight = scales(&stadium_scene());
+    assert!(straight.iter().all(|s| *s == 1.0), "straight: {straight:?}");
+
+    // The lane is on the track's right and the garages further right: a lane
+    // bending right has them on the inside.
+    let inside = scales(&bent_pit_scene(400.0));
+    assert_eq!(inside.len(), 10);
+    assert!(
+        inside.iter().any(|s| *s < 0.99 && *s > 0.9),
+        "inside of a 400 m bend: {inside:?}"
+    );
+    let outside = scales(&bent_pit_scene(-400.0));
+    assert!(outside[3..8].iter().all(|s| *s == 1.0), "outside: {outside:?}");
+}
