@@ -1,5 +1,7 @@
 #include "Hud/ApexHudData.h"
 
+#include "UI/ApexCreateSessionModel.h"
+
 #include "ApexErs.h"
 #include "Race/ApexRaceCoordinate.h"
 
@@ -475,7 +477,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			TEXT("sky.wind_rel_deg"), TEXT("sky.wind_from"), TEXT("sky.rubber"), TEXT("sky.time_scale"),
 			TEXT("sky.next_weather"), TEXT("sky.next_in_s"), TEXT("sky.snow"), TEXT("sky.snowfall"),
 			TEXT("sky.next2_weather"), TEXT("sky.next2_in_s"), TEXT("sky.next3_weather"), TEXT("sky.next3_in_s"),
-			TEXT("sky.forecast") };
+			TEXT("sky.forecast"), TEXT("sky.outlook") };
 		const FApexSkyNow& Sky = Frame.Sky;
 		Out.Set(TEXT("sky.live"), Sky.bValid);
 		Out.Set(TEXT("sky.wet"), Sky.bValid && Sky.RoadWaterPct >= 5);
@@ -549,6 +551,57 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			else
 			{
 				Out.Set(TEXT("sky.forecast"), Ahead);
+			}
+			// The sky beyond the three changes telemetry carries, from the
+			// client's own copy of the forecast (ApexCreateSession::Forecast,
+			// laid out from the session's seed as the server lays it): the
+			// next two changes place the session on it, and what follows the
+			// three is the outlook, a change a line.
+			FString Outlook;
+			if (In.bHasConditions && Sky.HasNext2Change())
+			{
+				const TArray<ApexCreateSession::FForecastChange> Changes = ApexCreateSession::Forecast(
+					In.Conditions, ApexCreateSession::SessionSeed(In.Conditions, In.SessionId));
+				const float Gap = static_cast<float>(Sky.Next2InS - Sky.NextInS);
+				for (int32 K = 0; K + 1 < Changes.Num(); ++K)
+				{
+					if (static_cast<int32>(Changes[K].Weather) != Sky.NextWeather
+						|| static_cast<int32>(Changes[K + 1].Weather) != Sky.Next2Weather
+						|| FMath::Abs((Changes[K + 1].AtS - Changes[K].AtS) - Gap) > 1.5f)
+					{
+						continue;
+					}
+					const int32 First = K + (Sky.HasNext3Change() ? 3 : 2);
+					constexpr int32 Shown = 6;
+					TArray<FString> Lines;
+					for (int32 Index = First; Index < Changes.Num() && Lines.Num() < Shown; ++Index)
+					{
+						const int32 InS = FMath::RoundToInt(Changes[Index].AtS - Changes[K].AtS) + Sky.NextInS;
+						if (Sky.TimeScale > 0)
+						{
+							const int32 Clock = ((Sky.ClockS + InS * Sky.TimeScale) / 60) % FApexSessionConditions::MinutesPerDay;
+							Lines.Add(FString::Printf(TEXT("%s at %02d:%02d"), *Weather(static_cast<int32>(Changes[Index].Weather)), Clock / 60, Clock % 60));
+						}
+						else
+						{
+							Lines.Add(FString::Printf(TEXT("%s in %s"), *Weather(static_cast<int32>(Changes[Index].Weather)), *Minutes(InS)));
+						}
+					}
+					if (Changes.Num() - First > Shown)
+					{
+						Lines.Add(TEXT("..."));
+					}
+					Outlook = FString::Join(Lines, TEXT("\n"));
+					break;
+				}
+			}
+			if (Outlook.IsEmpty())
+			{
+				Out.SetNone(TEXT("sky.outlook"));
+			}
+			else
+			{
+				Out.Set(TEXT("sky.outlook"), Outlook);
 			}
 			// The wind seen from the local car. Both angles are counter-
 			// clockwise in the server frame; the relative one is turned

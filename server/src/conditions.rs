@@ -337,6 +337,52 @@ mod tests {
         .resolve(7)
     }
 
+    /// The forecast the client's create screen shows is its own port of
+    /// `forecast` (`ApexCreateSession::Forecast`), pinned against these
+    /// figures (`ApexSim.UI.CreateSession.Forecast`): a change here moves
+    /// that test too. `cargo test the_forecast_reference -- --nocapture`
+    /// prints them.
+    #[test]
+    fn the_forecast_reference() {
+        const SEED: u64 = 0x0123_4567_89AB_CDEF;
+        let summer = SessionConditions {
+            sky_seed: Some(SEED),
+            ..picked(Weather::Cloudy, 15, 4, 2)
+        };
+        let out = forecast(&summer, summer.sky_seed_or(1));
+        for c in &out {
+            println!("summer {:?} s {:?}", c.at_s, c.weather);
+        }
+        let first: Vec<(f32, Weather)> = out.iter().take(5).map(|c| (c.at_s, c.weather)).collect();
+        assert_eq!(
+            first,
+            vec![
+                (979.83295, Weather::Sunny),
+                (1437.4385, Weather::Cloudy),
+                (2386.9404, Weather::Overcast),
+                (3194.0688, Weather::LightRain),
+                (3735.432, Weather::Overcast),
+            ]
+        );
+        let winter = SessionConditions {
+            sky_seed: Some(SEED),
+            ..picked(Weather::Snow, 9, 1, 3)
+        };
+        let out = forecast(&winter, winter.sky_seed_or(1));
+        for c in &out {
+            println!("winter {:?} s {:?}", c.at_s, c.weather);
+        }
+        let first: Vec<(f32, Weather)> = out.iter().take(3).map(|c| (c.at_s, c.weather)).collect();
+        assert_eq!(
+            first,
+            vec![
+                (21565.688, Weather::Overcast),
+                (23245.703, Weather::Snow),
+                (24461.414, Weather::Overcast),
+            ]
+        );
+    }
+
     #[test]
     fn a_held_sky_never_moves() {
         let start = SessionConditions::DEFAULT.resolve(7);

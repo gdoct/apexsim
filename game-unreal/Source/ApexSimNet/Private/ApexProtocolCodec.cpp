@@ -139,6 +139,12 @@ namespace
 				bOk = Reader.ReadUInt64(Raw);
 				Out.TrackRubberPct = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint8));
 			}
+			else if (Key == TEXT("sky_seed"))
+			{
+				bOk = Reader.ReadUInt64(Raw);
+				Out.SkySeed = Raw;
+				Out.bHasSkySeed = true;
+			}
 			else
 			{
 				bOk = Reader.SkipValue();
@@ -2694,7 +2700,8 @@ namespace ApexProtocol
 		const FApexSessionConditions Clamped = Conditions.Clamped();
 		Writer.WriteMapHeader(2 + (Clamped.HasAirTemp() ? 1 : 0) + (Clamped.HumidityPct >= 0 ? 1 : 0)
 			+ (Clamped.HasWind() ? 1 : 0) + (Clamped.HasWindDirection() ? 1 : 0)
-			+ (Clamped.HasTimeScale() ? 1 : 0) + (Clamped.HasChangeable() ? 1 : 0) + (Clamped.HasTrackRubber() ? 1 : 0));
+			+ (Clamped.HasTimeScale() ? 1 : 0) + (Clamped.HasChangeable() ? 1 : 0) + (Clamped.HasTrackRubber() ? 1 : 0)
+			+ (Clamped.HasSkySeed() ? 1 : 0));
 		Writer.WriteString("weather");
 		Writer.WriteUInt(static_cast<uint8>(Clamped.Weather));
 		Writer.WriteString("time_of_day_minutes");
@@ -2734,6 +2741,11 @@ namespace ApexProtocol
 		{
 			Writer.WriteString("track_rubber_pct");
 			Writer.WriteUInt(static_cast<uint8>(Clamped.TrackRubberPct));
+		}
+		if (Clamped.HasSkySeed())
+		{
+			Writer.WriteString("sky_seed");
+			Writer.WriteUInt(Clamped.SkySeed);
 		}
 	}
 

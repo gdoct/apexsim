@@ -302,6 +302,9 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ChangeableButtons;
 	/** The track's rubber at the start: green, normal, rubbered. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> TrackRubberButtons;
+	/** The forecast the pick and its seed lay out (ApexCreateSession::Forecast), and a button for another seed. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ForecastText;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ForecastRollButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AirAutoButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AirMinus;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AirPlus;

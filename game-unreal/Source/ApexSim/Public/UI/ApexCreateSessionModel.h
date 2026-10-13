@@ -383,6 +383,197 @@ namespace ApexCreateSession
 		C.TrackRubberPct = TrackRubberPicks[FMath::Clamp(Index, 0, TrackRubberCount - 1)];
 	}
 
+	// --- The forecast ---------------------------------------------------------
+	//
+	// The server lays the weather's changes out from a seed
+	// (`crate::conditions::forecast`): the host's `sky_seed`, else the
+	// session's id. With a seed of its own the create screen shows the same
+	// list before the session exists, and the HUD the whole of it once in
+	// one (the sky's telemetry carries the next three). A port, to the bit:
+	// `ApexSim.UI.CreateSession.Forecast` pins it against the Rust's own
+	// `the_forecast_reference`.
+
+	/** `wind::hash01`: a hash of (seed, salt) onto 0..1, splitmix64. */
+	inline float Hash01(uint64 Seed, uint64 Salt)
+	{
+		uint64 Z = Seed ^ (Salt * 0x9E3779B97F4A7C15ull);
+		Z += 0x9E3779B97F4A7C15ull;
+		Z = (Z ^ (Z >> 30)) * 0xBF58476D1CE4E5B9ull;
+		Z = (Z ^ (Z >> 27)) * 0x94D049BB133111EBull;
+		Z ^= Z >> 31;
+		return static_cast<float>(Z >> 40) / 16777216.0f;
+	}
+
+	/** `conditions::WINTER_BELOW_C`: an overcast start under this air is a winter sky. */
+	constexpr float WinterBelowC = 1.0f;
+	/** `conditions::MIN_GAP_S`: no change sooner than this, s of session. */
+	constexpr float ForecastMinGapS = 240.0f;
+	/** `conditions::HORIZON_S`: how far ahead the forecast is laid out, s of session. */
+	constexpr float ForecastHorizonS = 26.0f * 3600.0f;
+	constexpr int32 ForecastMaxChanges = 400;
+
+	/** `conditions::is_winter`: snow, or overcast with the air under WinterBelowC
+	 * (the air as the server resolves it: the host's figure, else the weather's). */
+	inline bool IsWinter(const FApexSessionConditions& In)
+	{
+		const FApexSessionConditions C = In.Clamped();
+		return C.IsSnow() || (C.Weather == EApexWeather::Overcast && static_cast<float>(AirTempC(C)) < WinterBelowC);
+	}
+
+	/** One change: from `AtS` seconds into the session the weather is `Weather`. */
+	struct FForecastChange
+	{
+		float AtS = 0.0f;
+		EApexWeather Weather = EApexWeather::Sunny;
+	};
+
+	/**
+	 * `conditions::forecast` for a session starting under `In` from `Seed`:
+	 * empty unless the weather changes. Each step lasts a stretch of the day
+	 * (40 to 120 minutes settled, 25 to 75 changeable, 15 to 45 stormy; run
+	 * through the clock's scale, never under ForecastMinGapS) and moves the
+	 * sky one step wetter or drier (two now and then above settled), drawn
+	 * back toward the host's pick; a winter sky swings between overcast and
+	 * snow instead.
+	 */
+	inline TArray<FForecastChange> Forecast(const FApexSessionConditions& In, uint64 Seed)
+	{
+		TArray<FForecastChange> Out;
+		const FApexSessionConditions C = In.Clamped();
+		const int32 Level = C.WeatherChanges() ? C.Changeable : 0;
+		if (Level == 0)
+		{
+			return Out;
+		}
+		const float GapLo = Level == 1 ? 40.0f : Level == 2 ? 25.0f : 15.0f;
+		const float GapHi = Level == 1 ? 120.0f : Level == 2 ? 75.0f : 45.0f;
+		const float Scale = static_cast<float>(FMath::Max(C.ClockRuns() ? C.TimeScale : 0, 1));
+		auto Gap = [&](uint64 K)
+		{
+			const float GapMin = GapLo + (GapHi - GapLo) * Hash01(Seed, 0xF00000ull + 3 * K);
+			return FMath::Max(GapMin * 60.0f / Scale, ForecastMinGapS);
+		};
+		if (IsWinter(C))
+		{
+			const float HomeLean = C.IsSnow() ? 0.15f : -0.15f;
+			const float PSnow = FMath::Clamp(0.5f + 0.1f * (static_cast<float>(Level) - 2.0f) + HomeLean, 0.1f, 0.9f);
+			EApexWeather Weather = C.Weather;
+			float AtS = 0.0f;
+			for (uint64 K = 0; K < static_cast<uint64>(ForecastMaxChanges); ++K)
+			{
+				AtS += Gap(K);
+				if (AtS > ForecastHorizonS)
+				{
+					break;
+				}
+				const EApexWeather Next = Hash01(Seed, 0xF00001ull + 3 * K) < PSnow ? EApexWeather::Snow : EApexWeather::Overcast;
+				if (Next != Weather)
+				{
+					Weather = Next;
+					Out.Add({AtS, Weather});
+				}
+			}
+			return Out;
+		}
+		const int32 Home = static_cast<int32>(C.Weather);
+		int32 Weather = Home;
+		float AtS = 0.0f;
+		for (uint64 K = 0; K < static_cast<uint64>(ForecastMaxChanges); ++K)
+		{
+			AtS += Gap(K);
+			if (AtS > ForecastHorizonS)
+			{
+				break;
+			}
+			const float Lean = 0.1f * (static_cast<float>(Level) - 2.0f) - 0.15f * static_cast<float>(Weather - Home);
+			const bool bWetter = Hash01(Seed, 0xF00001ull + 3 * K) < FMath::Clamp(0.5f + Lean, 0.1f, 0.9f);
+			const bool bTwo = Level > 1 && Hash01(Seed, 0xF00002ull + 3 * K) < 0.15f * static_cast<float>(Level - 1);
+			const int32 Step = bTwo ? 2 : 1;
+			int32 Next = bWetter ? Weather + Step : Weather - Step;
+			if (Next < 0 || Next > 4)
+			{
+				Next = bWetter ? Weather - 1 : Weather + 1;
+			}
+			Weather = FMath::Clamp(Next, 0, 4);
+			Out.Add({AtS, static_cast<EApexWeather>(Weather)});
+		}
+		return Out;
+	}
+
+	/**
+	 * `Uuid::as_u64_pair().0` of a session id ("01234567-89ab-cdef-..."): its
+	 * first eight bytes as a big-endian integer, the seed a session with no
+	 * `sky_seed` is laid out from. 0 for anything that is not a UUID.
+	 */
+	inline uint64 SeedOfSessionId(const FString& SessionId)
+	{
+		uint64 Seed = 0;
+		int32 Digits = 0;
+		for (int32 Index = 0; Index < SessionId.Len() && Digits < 16; ++Index)
+		{
+			const TCHAR Ch = SessionId[Index];
+			if (Ch == TEXT('-'))
+			{
+				continue;
+			}
+			if (!FChar::IsHexDigit(Ch))
+			{
+				return 0;
+			}
+			Seed = (Seed << 4) | static_cast<uint64>(FParse::HexDigit(Ch));
+			++Digits;
+		}
+		return Digits == 16 ? Seed : 0;
+	}
+
+	/** The seed a joined session's sky is laid out from: the host's, else its id's. */
+	inline uint64 SessionSeed(const FApexSessionConditions& C, const FString& SessionId)
+	{
+		return C.HasSkySeed() ? C.SkySeed : SeedOfSessionId(SessionId);
+	}
+
+	/** A fresh seed for the create screen (never 0, so it reads as set). */
+	inline uint64 NewSkySeed()
+	{
+		const FGuid Guid = FGuid::NewGuid();
+		const uint64 Seed = (static_cast<uint64>(Guid.A) << 32) | static_cast<uint64>(Guid.B);
+		return Seed == 0 ? 1 : Seed;
+	}
+
+	/** The day's clock at `AtS` seconds into a session starting under `C`, "14:12". */
+	inline FString ClockAt(const FApexSessionConditions& C, float AtS)
+	{
+		const int32 Scale = C.ClockRuns() ? C.TimeScale : 0;
+		const int32 Minutes = C.Clamped().TimeOfDayMinutes + FMath::FloorToInt(AtS * static_cast<float>(Scale) / 60.0f);
+		const int32 Wrapped = ((Minutes % FApexSessionConditions::MinutesPerDay) + FApexSessionConditions::MinutesPerDay)
+			% FApexSessionConditions::MinutesPerDay;
+		return FString::Printf(TEXT("%02d:%02d"), Wrapped / 60, Wrapped % 60);
+	}
+
+	/**
+	 * The forecast as the create screen prints it: "14:12 Cloudy / 14:40
+	 * Light rain / 15:03 Overcast ...", the first `Shown` changes with the
+	 * day's clock when it runs (else the session's "+12 min"); empty when
+	 * the sky holds or the forecast is empty.
+	 */
+	inline FString ForecastLine(const FApexSessionConditions& C, const TArray<FForecastChange>& Changes, int32 Shown = 8)
+	{
+		TArray<FString> Parts;
+		for (int32 Index = 0; Index < Changes.Num() && Index < Shown; ++Index)
+		{
+			const FForecastChange& Change = Changes[Index];
+			const FString When = C.ClockRuns() ? ClockAt(C, Change.AtS)
+				: FString::Printf(TEXT("+%d min"), FMath::Max(1, FMath::RoundToInt(Change.AtS / 60.0f)));
+			Parts.Add(FString::Printf(TEXT("%s %s"), *When, *FApexSessionConditions::WeatherLabel(Change.Weather)));
+		}
+		FString Line = FString::Join(Parts, TEXT("  /  "));
+		if (Changes.Num() > Shown)
+		{
+			Line += TEXT("  ...");
+		}
+		return Line;
+	}
+
 	/** The road's grip under this weather, percent: `Weather::road_grip_factor`. */
 	inline int32 GripPercent(EApexWeather Weather)
 	{

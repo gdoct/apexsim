@@ -327,6 +327,7 @@ void UApexHudDataSubsystem::Refresh()
 		In.PingMs = Net->GetPingMs();
 		In.Conditions = Net->GetSessionConditions();
 		In.bHasConditions = Net->IsInSession() || Net->IsInDemoSession();
+		In.SessionId = Net->GetCurrentSessionId();
 		// The session's damage rule, the same for every car.
 		In.DamageLevel = Net->GetSessionDamage();
 		RefreshCarNames();

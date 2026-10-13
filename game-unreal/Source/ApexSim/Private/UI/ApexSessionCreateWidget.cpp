@@ -370,6 +370,7 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 		AddAll(WeatherButtons);
 		AddAll(ChangeableButtons);
 		AddAll(TrackRubberButtons);
+		Out.Add(ForecastRollButton);
 		Out.Add(AirAutoButton);
 		Out.Add(AirMinus);
 		Out.Add(AirPlus);
@@ -1381,7 +1382,22 @@ UWidget* UApexSessionCreateWidget::BuildConditionsTab()
 			Rubber.Add(ApexCreateSession::TrackRubberChipLabel(Index));
 		}
 		ApexUI::AddV(Tab, MakeChipRow(TEXT("Weather changes"), Changes, ChangeableButtons), FMargin(0.0f, 0.0f, 0.0f, 6.0f));
-		ApexUI::AddV(Tab, MakeChipRow(TEXT("Track"), Rubber, TrackRubberButtons), FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+		ApexUI::AddV(Tab, MakeChipRow(TEXT("Track"), Rubber, TrackRubberButtons), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+
+		// The forecast the pick lays out (ApexCreateSession::Forecast: the
+		// server's own, from the seed the create sends), and another seed.
+		FApexButtonSpec RollSpec;
+		RollSpec.Label = TEXT("ANOTHER");
+		RollSpec.Variant = EApexButtonVariant::Ghost;
+		RollSpec.bCentreLabel = true;
+		RollSpec.LabelSize = 12.0f;
+		RollSpec.Height = 26.0f;
+		ForecastRollButton = MakeButton(RollSpec);
+		ApexUI::AddV(Tab, MakeCaption(TEXT("Forecast"), nullptr, ApexUI::MakeSized(*WidgetTree, ForecastRollButton, 96.0f, 26.0f)),
+			FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+		ForecastText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(11.0f, 100), ApexUI::Palette::TextSecondary);
+		ForecastText->SetAutoWrapText(true);
+		ApexUI::AddV(Tab, ForecastText, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
 
 	// --- The air: temperature and wind -------------------------------------------
@@ -2024,6 +2040,32 @@ void UApexSessionCreateWidget::RefreshSettings()
 		for (int32 Index = 0; Index < TrackRubberButtons.Num(); ++Index)
 		{
 			if (TrackRubberButtons[Index]) { TrackRubberButtons[Index]->SetSelected(Index == Rubber); }
+		}
+		if (ForecastText)
+		{
+			FString Line;
+			if (!Conditions.WeatherChanges())
+			{
+				Line = TEXT("The sky holds.");
+			}
+			else if (!Conditions.HasSkySeed())
+			{
+				// A profile from before seeds: the server lays it out from the session's id.
+				Line = TEXT("Laid out when the session is made.");
+			}
+			else
+			{
+				Line = ApexCreateSession::ForecastLine(Conditions, ApexCreateSession::Forecast(Conditions, Conditions.SkySeed));
+				if (Line.IsEmpty())
+				{
+					Line = TEXT("No change through the day.");
+				}
+			}
+			ForecastText->SetText(FText::FromString(Line));
+		}
+		if (ForecastRollButton)
+		{
+			ForecastRollButton->SetIsEnabled(Conditions.WeatherChanges());
 		}
 	}
 
@@ -3258,7 +3300,23 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	}
 	if (const int32 Changes = ApexNav::IndexOf(ChangeableButtons, Button); Changes != INDEX_NONE)
 	{
-		ApexCreateSession::SetChangeable(Flow->CreateConditions, Changes);
+		FApexSessionConditions& C = Flow->CreateConditions;
+		ApexCreateSession::SetChangeable(C, Changes);
+		// A changing sky gets a seed of its own, so its forecast can be shown
+		// here; a sky that holds sends none.
+		C.bHasSkySeed = Changes > 0;
+		if (C.bHasSkySeed && C.SkySeed == 0)
+		{
+			C.SkySeed = ApexCreateSession::NewSkySeed();
+		}
+		Changed();
+		return;
+	}
+	if (Button == ForecastRollButton)
+	{
+		FApexSessionConditions& C = Flow->CreateConditions;
+		C.SkySeed = ApexCreateSession::NewSkySeed();
+		C.bHasSkySeed = C.WeatherChanges();
 		Changed();
 		return;
 	}

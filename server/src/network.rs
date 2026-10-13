@@ -2446,6 +2446,7 @@ mod tests {
                     time_scale: None,
                     changeable: None,
                     track_rubber_pct: None,
+                    sky_seed: None,
                 },
                 duration_s: 259.5,
                 cars: 16,
@@ -3888,6 +3889,7 @@ mod tests {
             time_scale: None,
             changeable: None,
             track_rubber_pct: None,
+            sky_seed: None,
         };
         let create = ClientMessage::CreateSession {
             track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
@@ -3960,6 +3962,7 @@ mod tests {
             time_scale: Some(24),
             changeable: Some(2),
             track_rubber_pct: Some(90),
+            sky_seed: None,
             ..SessionConditions::DEFAULT
         };
         let create = |conditions| ClientMessage::CreateSession {
@@ -4003,6 +4006,20 @@ mod tests {
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedSky: {}", hex(&joined_bytes));
+
+        // The host's own seed rides last among the sky's keys, and comes
+        // back in the echo; a create without one keeps the bytes above.
+        let seeded = SessionConditions {
+            sky_seed: Some(0x0123_4567_89AB_CDEF),
+            ..sky
+        };
+        let seeded_bytes = rmp_serde::to_vec_named(&create(seeded)).unwrap();
+        println!("C_CreateSessionSkySeed: {}", hex(&seeded_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&seeded_bytes).unwrap() {
+            ClientMessage::CreateSession { conditions, .. } => assert_eq!(conditions, seeded),
+            _ => panic!("Wrong message type"),
+        }
+        assert!(!String::from_utf8_lossy(&create_bytes).contains("sky_seed"));
 
         let now = SkyNow {
             clock_s: 15 * 3600 + 30 * 60 + 15,

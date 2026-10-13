@@ -117,7 +117,7 @@ fn live_sky(session: &RaceSession, track: &TrackConfig) -> crate::conditions::Li
         session.conditions,
         track.latitude_deg(),
         track.metadata.altitude_m.unwrap_or(0.0),
-        session.id.as_u64_pair().0,
+        session.conditions.sky_seed_or(session.id.as_u64_pair().0),
     )
 }
 

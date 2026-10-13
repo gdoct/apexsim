@@ -140,6 +140,15 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Sky.Changeable clamped"), Held.Changeable, FApexSessionConditions::MaxChangeable);
 		TestEqual(TEXT("Sky.TrackRubberPct clamped"), Held.TrackRubberPct, 100);
 		TestFalse(TEXT("Sky is not the default"), Sky.IsDefault());
+
+		// The host's own seed for the forecast rides last among the sky's keys.
+		FApexSessionConditions Seeded = Sky;
+		Seeded.SkySeed = 0x0123456789ABCDEFull;
+		Seeded.bHasSkySeed = true;
+		CheckBytes(TEXT("CreateSession with a seeded sky"),
+			ApexProtocol::EncodeCreateSession(TrackId, 8, 3, 5, EApexSessionKind::Multiplayer, FApexAllowedAssists(), Seeded),
+			ApexGolden::C_CreateSessionSkySeed);
+		TestTrue(TEXT("a seed is not the sky it was rolled for"), Seeded != Sky);
 	}
 
 	CheckBytes(TEXT("JoinSession"),

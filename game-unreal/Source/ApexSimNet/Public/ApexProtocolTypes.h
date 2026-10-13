@@ -735,7 +735,18 @@ struct APEXSIMNET_API FApexSessionConditions
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
 	int32 TrackRubberPct = Auto;
 
+	/** The seed the server lays the forecast and the wind's direction out
+	 * from (`sky_seed`, `crate::conditions::forecast`): the session's id
+	 * when unset (`bHasSkySeed` false, and then left off the wire). The
+	 * create screen sets one so it can show the forecast before the
+	 * session exists, and roll another. */
+	UPROPERTY()
+	uint64 SkySeed = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bHasSkySeed = false;
+
 	bool HasAirTemp() const { return AirTempC != AutoAirTemp; }
+	bool HasSkySeed() const { return bHasSkySeed; }
 	bool HasWind() const { return WindKph >= 0; }
 	bool HasWindDirection() const { return WindFromDeg >= 0; }
 	bool HasTimeScale() const { return TimeScale >= 0; }
@@ -807,7 +818,7 @@ struct APEXSIMNET_API FApexSessionConditions
 	{
 		return Weather == EApexWeather::Sunny && TimeOfDayMinutes == DefaultTimeOfDayMinutes
 			&& !HasAirTemp() && HumidityPct < 0 && !HasWind() && !HasWindDirection()
-			&& !HasTimeScale() && !HasChangeable() && !HasTrackRubber();
+			&& !HasTimeScale() && !HasChangeable() && !HasTrackRubber() && !HasSkySeed();
 	}
 
 	/** Hours since midnight, fractional. */
@@ -875,7 +886,8 @@ struct APEXSIMNET_API FApexSessionConditions
 			&& AirTempC == Other.AirTempC && HumidityPct == Other.HumidityPct
 			&& WindKph == Other.WindKph && WindFromDeg == Other.WindFromDeg
 			&& TimeScale == Other.TimeScale && Changeable == Other.Changeable
-			&& TrackRubberPct == Other.TrackRubberPct;
+			&& TrackRubberPct == Other.TrackRubberPct
+			&& bHasSkySeed == Other.bHasSkySeed && (!bHasSkySeed || SkySeed == Other.SkySeed);
 	}
 	bool operator!=(const FApexSessionConditions& Other) const { return !(*this == Other); }
 };

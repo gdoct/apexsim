@@ -295,6 +295,7 @@ figures then stand for the sky. Percentages are whole numbers.
 | `sky.next2_weather`, `sky.next2_in_s` | the change after that and when (*null* when the forecast holds no more) |
 | `sky.next3_weather`, `sky.next3_in_s` | and the one after (*null* as above) |
 | `sky.forecast` | the sky ahead as one line, "Light rain in 12 min, Overcast in 41 min" (*null* while it holds) |
+| `sky.outlook` | the changes beyond those three, a line each, "Overcast at 14:12" with the day's clock (or "in 25 min" while it is frozen), up to six and "..." (*null* when the forecast holds no more, or the client cannot place the session on it) |
 
 ### Watching a race
 

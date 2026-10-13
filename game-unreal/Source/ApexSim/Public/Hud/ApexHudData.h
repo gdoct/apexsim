@@ -66,6 +66,8 @@ struct APEXSIM_API FApexHudInputs
 	FString ModeName;
 	FApexSessionConditions Conditions;
 	bool bHasConditions = false;
+	/** The session's id (SessionJoined): with Conditions, the seed its forecast is laid out from. */
+	FString SessionId;
 	/** Heartbeat round trip, ms; negative before the first. */
 	int32 PingMs = -1;
 

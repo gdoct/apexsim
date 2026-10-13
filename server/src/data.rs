@@ -2356,6 +2356,13 @@ pub struct SessionConditions {
     /// rubbered in by a weekend of racing (`crate::road_state`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub track_rubber_pct: Option<u8>,
+    /// The seed the forecast and the wind's direction are worked out from
+    /// (`crate::conditions::forecast`, `resolve`): the session's id when
+    /// absent. A host sets one to see the forecast before the session
+    /// exists (the create screen shows it, and can roll another), and a
+    /// replay or a test to get a known sky back.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sky_seed: Option<u64>,
 }
 
 impl Default for SessionConditions {
@@ -2376,6 +2383,7 @@ impl SessionConditions {
         time_scale: None,
         changeable: None,
         track_rubber_pct: None,
+        sky_seed: None,
     };
     pub const MINUTES_PER_DAY: u16 = 24 * 60;
 
@@ -2413,7 +2421,14 @@ impl SessionConditions {
             time_scale: self.time_scale.map(|t| t.min(Self::MAX_TIME_SCALE)),
             changeable: self.changeable.map(|c| c.min(Self::MAX_CHANGEABLE)),
             track_rubber_pct: self.track_rubber_pct.map(|r| r.min(100)),
+            sky_seed: self.sky_seed,
         }
+    }
+
+    /// The seed the sky is laid out from: the host's `sky_seed`, else the
+    /// session's (`session_seed`, the first half of its id).
+    pub fn sky_seed_or(&self, session_seed: u64) -> u64 {
+        self.sky_seed.unwrap_or(session_seed)
     }
 
     /// The day's clock speed, 0 when it stands still.

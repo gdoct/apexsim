@@ -35,7 +35,10 @@
         "text": "=sky.next2_weather + ' in ' + fmt_clock(sky.next2_in_s)" },
       { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 12, "color": "text_muted",
         "visible": "=has(sky.next3_weather)",
-        "text": "=sky.next3_weather + ' in ' + fmt_clock(sky.next3_in_s)" }
+        "text": "=sky.next3_weather + ' in ' + fmt_clock(sky.next3_in_s)" },
+      { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11, "color": "text_muted",
+        "visible": "=has(sky.outlook)",
+        "text": "=sky.outlook" }
     ]
   }
 }

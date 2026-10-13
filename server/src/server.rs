@@ -364,7 +364,7 @@ impl ServerState {
         // Every figure of the air named (what the host left to the weather
         // worked out now, the wind's direction from the session's id), so
         // the session echoes and lists what it simulates.
-        let conditions = conditions.resolve(session.id.as_u64_pair().0);
+        let conditions = conditions.resolve(conditions.sky_seed_or(session.id.as_u64_pair().0));
         // The session's own copy of the track carries the weather's grip,
         // the air's density and the wind: one bake here, no branch in the
         // tick.

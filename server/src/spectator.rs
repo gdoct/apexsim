@@ -514,6 +514,7 @@ impl StreamHeader {
             time_scale: None,
             changeable: None,
             track_rubber_pct: None,
+            sky_seed: None,
         };
 
         let session_kind = match rd.uint()? {
@@ -2596,6 +2597,7 @@ mod tests {
                 time_scale: None,
                 changeable: None,
                 track_rubber_pct: None,
+                sky_seed: None,
             },
             session_kind: SessionKind::Multiplayer,
             game_mode: GameMode::Race,

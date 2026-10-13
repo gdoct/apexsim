@@ -58,6 +58,7 @@ echoed in `SessionJoined.Conditions` and listed in every `SessionSummary`.
 | `time_scale` | 0 the clock holds, 1 real time, up to 60 | holds |
 | `changeable` | 0 the sky holds, 1 settled, 2 changeable, 3 stormy | holds |
 | `track_rubber_pct` | rubber on the line at the start: 0 green, 50 calibrated, 100 rubbered | 50 |
+| `sky_seed` | the seed the forecast and the wind's direction are laid out from (`sky_seed_or`) | the session's id |
 
 Every optional field is skipped on the wire when `None`, so an old client's
 create and an old server's join keep their bytes. `clamp` holds each figure
@@ -138,7 +139,10 @@ resolved conditions, the track's latitude and altitude and the session id.
 - With `changeable` set the weather follows `forecast(start, session id)`:
   one weather step at a time (sometimes two above settled), drawn back
   toward the host's pick, a stormy sky leaning wet, never sooner than 4
-  minutes of session apart however fast the clock runs.
+  minutes of session apart however fast the clock runs. The seed is the
+  host's `sky_seed` when the create named one, else the first half of the
+  session's id (`SessionConditions::sky_seed_or`), so a host who picked a
+  seed on the create screen gets the forecast it showed.
 - Rain eases toward the weather's over `RAIN_EASE_S` (3 min), cloud over
   `CLOUD_EASE_S` (5 min). The air follows the hour and the cloud with the
   host's offset kept (`AIR_EASE_S`); the asphalt lags over `TRACK_EASE_S`
@@ -316,7 +320,8 @@ as `lap_flags` bits 5 and 6 (`LAP_FLAG_HEADLIGHTS`,
   assists_wire_format conditions_air_wire_format sky_wire_format
   --nocapture` ->
   `ApexGolden::C_CreateSessionAir` / `S_SessionJoinedAir` /
-  `C_CreateSessionSky` / `S_SessionJoinedSky`.
+  `C_CreateSessionSky` / `S_SessionJoinedSky` / `C_CreateSessionSkySeed`
+  (a create with the host's `sky_seed`, last among the sky's keys).
 - `CompactTelemetry.sky` (`network::SkyNow`, 19 positional fields: clock,
   weather, rain, cloud, road water, air, track, the wind now and where it
   blows toward, line rubber, time scale, next weather and when, then the
@@ -348,7 +353,18 @@ See [protocol.md](protocol.md) for the append-only rules.
 - The create screen's Conditions tab: weather tiles, time-of-day slider,
   air temperature stepper with AUTO, wind strength list and an eight-way
   direction dial, Clock (frozen to 60x), Weather changes and Track rubber
-  rows.
+  rows, and under them the Forecast: the changes the pick lays out with the
+  day's clock at each (`ApexCreateSession::Forecast`, a port of
+  `conditions::forecast` to the bit, pinned by
+  `ApexSim.UI.CreateSession.Forecast` against the Rust's
+  `the_forecast_reference`). Picking a changeable sky gives the create a
+  `sky_seed` of its own (`NewSkySeed`); ANOTHER rolls a new one; a sky that
+  holds sends none.
+- The HUD's `sky.outlook`: the changes beyond the three telemetry carries,
+  from the same port laid out from the session's seed
+  (`ApexCreateSession::SessionSeed`: the host's `sky_seed`, else the first
+  half of the session id, `SeedOfSessionId`). The next two changes place the
+  session on the list; nothing is shown until they match.
 - The race director lights by `ApexSky::Derive` (static sky) or
   `ApexSky::DeriveLive` (blended from the server's cloud and rain,
   relit only when `LiveSkyMoved` says so); `FSkySite` (latitude, north from

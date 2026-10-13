@@ -293,4 +293,77 @@ bool FApexCreateSessionAssistPresetsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+// The forecast: a port of the server's, laid out from the create's seed.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCreateSessionForecastTest,
+	"ApexSim.UI.CreateSession.Forecast",
+	ApexTestFlags)
+
+bool FApexCreateSessionForecastTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexCreateSession;
+
+	// The Rust's `the_forecast_reference` (server/src/conditions.rs): the
+	// same picks and seed give the same changes to the bit, or one side
+	// shows a sky the other will not run.
+	constexpr uint64 Seed = 0x0123456789ABCDEFull;
+	FApexSessionConditions Summer = CreateAt(EApexWeather::Cloudy, 15);
+	Summer.TimeScale = 4;
+	Summer.Changeable = 2;
+	const TArray<FForecastChange> S = Forecast(Summer, Seed);
+	TestTrue(TEXT("a changeable summer sky has changes"), S.Num() >= 5);
+	if (S.Num() >= 5)
+	{
+		const float AtS[5] = {979.83295f, 1437.4385f, 2386.9404f, 3194.0688f, 3735.432f};
+		const EApexWeather W[5] = {EApexWeather::Sunny, EApexWeather::Cloudy, EApexWeather::Overcast, EApexWeather::LightRain, EApexWeather::Overcast};
+		for (int32 Index = 0; Index < 5; ++Index)
+		{
+			TestTrue(*FString::Printf(TEXT("summer change %d at %.5f (got %.5f)"), Index, AtS[Index], S[Index].AtS), S[Index].AtS == AtS[Index]);
+			TestEqual(*FString::Printf(TEXT("summer change %d weather"), Index), S[Index].Weather, W[Index]);
+		}
+	}
+
+	FApexSessionConditions Winter = CreateAt(EApexWeather::Snow, 9);
+	Winter.TimeScale = 1;
+	Winter.Changeable = 3;
+	TestTrue(TEXT("snow is a winter sky"), IsWinter(Winter));
+	TestFalse(TEXT("a cloudy afternoon is not"), IsWinter(Summer));
+	const TArray<FForecastChange> Wi = Forecast(Winter, Seed);
+	TestTrue(TEXT("a stormy winter sky has changes"), Wi.Num() >= 3);
+	if (Wi.Num() >= 3)
+	{
+		const float AtS[3] = {21565.688f, 23245.703f, 24461.414f};
+		const EApexWeather W[3] = {EApexWeather::Overcast, EApexWeather::Snow, EApexWeather::Overcast};
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			TestTrue(*FString::Printf(TEXT("winter change %d at %.3f (got %.3f)"), Index, AtS[Index], Wi[Index].AtS), Wi[Index].AtS == AtS[Index]);
+			TestEqual(*FString::Printf(TEXT("winter change %d weather"), Index), Wi[Index].Weather, W[Index]);
+		}
+	}
+
+	// A sky that holds has no forecast.
+	TestEqual(TEXT("a held sky"), Forecast(CreateAt(EApexWeather::Cloudy, 15), Seed).Num(), 0);
+
+	// The seed a session with no sky_seed uses: the first half of its id.
+	TestEqual(TEXT("a session id's seed"), SeedOfSessionId(TEXT("01234567-89ab-cdef-0123-456789abcdef")), Seed);
+	TestEqual(TEXT("not a uuid"), SeedOfSessionId(TEXT("nope")), static_cast<uint64>(0));
+	FApexSessionConditions Seeded = Summer;
+	Seeded.SkySeed = 42;
+	Seeded.bHasSkySeed = true;
+	TestEqual(TEXT("the host's seed wins"), SessionSeed(Seeded, TEXT("01234567-89ab-cdef-0123-456789abcdef")), static_cast<uint64>(42));
+	TestEqual(TEXT("else the id's"), SessionSeed(Summer, TEXT("01234567-89ab-cdef-0123-456789abcdef")), Seed);
+	TestTrue(TEXT("a new seed is set"), NewSkySeed() != 0);
+
+	// The screen's line: the day's clock at each change (15:00 + 979.8 s x 4).
+	TestEqual(TEXT("the clock at the first change"), ClockAt(Summer, S.IsEmpty() ? 0.0f : S[0].AtS), FString(TEXT("16:05")));
+	const FString Line = ForecastLine(Summer, S, 2);
+	TestTrue(*FString::Printf(TEXT("the line starts with the first change: %s"), *Line), Line.StartsWith(TEXT("16:05 Sunny")));
+	TestTrue(TEXT("and says there is more"), Line.EndsWith(TEXT("...")));
+	TestTrue(TEXT("a held clock counts session minutes"), ForecastLine(CreateAt(EApexWeather::Cloudy, 15), S, 1).StartsWith(TEXT("+16 min Sunny")));
+	return true;
+}
+
 #endif
