@@ -38,6 +38,8 @@ recorded in one of the two.
 |---|---|---|
 | Rubber is laid per wheel pass, not by the tyre's slip energy, and marbles are shed by the car's lateral g (`road_state::shed_for_lateral_g`), not by tyre wear; a tyre driven through marbles does not pick them up (no grip lost for a lap after a run off line). | Med | Low |
 | The forecast is worked out from the session's id (`conditions::forecast`): a host cannot write one. | Med | Low |
+| The road has no crown or bumps: the road mesh's cross-section is flat edge to edge (`ue_export` `road`) and the centerline backend's surface is the bank plane, so a car rides a road with no drainage camber, ripples or seams. A crown has to land on both backends at once. | Med | Med |
+| Grass, gravel and sand are one off-track surface to the sim (`RoadContact::Off`: `off_track_grip`, the same drag): a gravel trap does not bog a car down more than a lawn, and a desert's sand aprons drive as grass. | Med | Med |
 | The wind's mean and the humidity hold for the session whatever the weather does (`GameSession::update_wind` only gusts about the start figure): a storm front brings no gale. | Low | Low |
 | The day is late May everywhere (no date, no season) and solar noon is 13:00 (`data::SOLAR_NOON_HOURS`) whatever the circuit's longitude and time zone. | Low | Low |
 | Overnight cooling has no dew or fog; an evening session at a humid circuit is as clear as noon. | Med | Low |

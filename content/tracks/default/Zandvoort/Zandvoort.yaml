@@ -1,5 +1,5 @@
 name: Circuit Zandvoort
-display_name: 'Zandervoort'
+display_name: Zandervoort
 track_id: 261e1302-935c-4a5a-96c4-ed2418703b3e
 nodes:
 - x: -1.68
@@ -13,7 +13,7 @@ nodes:
   surface_type: Asphalt
 - x: 0.15
   y: 2.77
-  z: -0.0
+  z: -0.02
   width: null
   width_left: 5.295
   width_right: 5.099
@@ -22,7 +22,7 @@ nodes:
   surface_type: Asphalt
 - x: 1.99
   y: 7.42
-  z: -0.0
+  z: -0.05
   width: null
   width_left: 5.319
   width_right: 5.125
@@ -31,7 +31,7 @@ nodes:
   surface_type: Asphalt
 - x: 3.82
   y: 12.07
-  z: 0.0
+  z: -0.07
   width: null
   width_left: 5.343
   width_right: 5.15
@@ -40,7 +40,7 @@ nodes:
   surface_type: Asphalt
 - x: 5.66
   y: 16.72
-  z: 0.0
+  z: -0.08
   width: null
   width_left: 5.367
   width_right: 5.175
@@ -49,7 +49,7 @@ nodes:
   surface_type: Asphalt
 - x: 7.49
   y: 21.37
-  z: 0.0
+  z: -0.09
   width: null
   width_left: 5.391
   width_right: 5.2
@@ -58,7 +58,7 @@ nodes:
   surface_type: Asphalt
 - x: 9.33
   y: 26.03
-  z: -0.0
+  z: -0.1
   width: null
   width_left: 5.415
   width_right: 5.226
@@ -67,7 +67,7 @@ nodes:
   surface_type: Asphalt
 - x: 11.16
   y: 30.68
-  z: -0.0
+  z: -0.1
   width: null
   width_left: 5.439
   width_right: 5.251
@@ -76,7 +76,7 @@ nodes:
   surface_type: Asphalt
 - x: 13.0
   y: 35.33
-  z: -0.0
+  z: -0.09
   width: null
   width_left: 5.462
   width_right: 5.276
@@ -85,7 +85,7 @@ nodes:
   surface_type: Asphalt
 - x: 14.83
   y: 39.98
-  z: -0.0
+  z: -0.07
   width: null
   width_left: 5.486
   width_right: 5.301
@@ -94,7 +94,7 @@ nodes:
   surface_type: Asphalt
 - x: 16.67
   y: 44.63
-  z: 0.0
+  z: -0.05
   width: null
   width_left: 5.51
   width_right: 5.327
@@ -103,7 +103,7 @@ nodes:
   surface_type: Asphalt
 - x: 18.5
   y: 49.28
-  z: 0.0
+  z: -0.02
   width: null
   width_left: 5.534
   width_right: 5.352
@@ -112,7 +112,7 @@ nodes:
   surface_type: Asphalt
 - x: 20.34
   y: 53.93
-  z: -0.0
+  z: 0.02
   width: null
   width_left: 5.558
   width_right: 5.377
@@ -121,7 +121,7 @@ nodes:
   surface_type: Asphalt
 - x: 22.17
   y: 58.58
-  z: -0.0
+  z: 0.07
   width: null
   width_left: 5.582
   width_right: 5.402
@@ -130,7 +130,7 @@ nodes:
   surface_type: Asphalt
 - x: 24.0
   y: 63.23
-  z: 0.0
+  z: 0.13
   width: null
   width_left: 5.606
   width_right: 5.428
@@ -139,7 +139,7 @@ nodes:
   surface_type: Asphalt
 - x: 25.84
   y: 67.88
-  z: -0.0
+  z: 0.19
   width: null
   width_left: 5.63
   width_right: 5.453
@@ -148,7 +148,7 @@ nodes:
   surface_type: Asphalt
 - x: 27.67
   y: 72.53
-  z: -0.0
+  z: 0.26
   width: null
   width_left: 5.654
   width_right: 5.478
@@ -157,7 +157,7 @@ nodes:
   surface_type: Asphalt
 - x: 29.5
   y: 77.18
-  z: 0.0
+  z: 0.34
   width: null
   width_left: 5.678
   width_right: 5.503
@@ -166,7 +166,7 @@ nodes:
   surface_type: Asphalt
 - x: 31.33
   y: 81.83
-  z: -0.0
+  z: 0.42
   width: null
   width_left: 5.702
   width_right: 5.529
@@ -175,7 +175,7 @@ nodes:
   surface_type: Asphalt
 - x: 33.17
   y: 86.48
-  z: -0.0
+  z: 0.5
   width: null
   width_left: 5.726
   width_right: 5.554
@@ -184,7 +184,7 @@ nodes:
   surface_type: Asphalt
 - x: 35.0
   y: 91.13
-  z: 0.0
+  z: 0.58
   width: null
   width_left: 5.75
   width_right: 5.579
@@ -193,7 +193,7 @@ nodes:
   surface_type: Asphalt
 - x: 36.83
   y: 95.78
-  z: -0.0
+  z: 0.66
   width: null
   width_left: 5.774
   width_right: 5.604
@@ -202,7 +202,7 @@ nodes:
   surface_type: Asphalt
 - x: 38.66
   y: 100.44
-  z: 0.0
+  z: 0.75
   width: null
   width_left: 5.798
   width_right: 5.63
@@ -211,7 +211,7 @@ nodes:
   surface_type: Asphalt
 - x: 40.49
   y: 105.09
-  z: -0.0
+  z: 0.83
   width: null
   width_left: 5.822
   width_right: 5.655
@@ -220,7 +220,7 @@ nodes:
   surface_type: Asphalt
 - x: 42.32
   y: 109.74
-  z: -0.0
+  z: 0.91
   width: null
   width_left: 5.845
   width_right: 5.68
@@ -229,7 +229,7 @@ nodes:
   surface_type: Asphalt
 - x: 44.15
   y: 114.39
-  z: 0.0
+  z: 0.98
   width: null
   width_left: 5.869
   width_right: 5.706
@@ -238,7 +238,7 @@ nodes:
   surface_type: Asphalt
 - x: 45.98
   y: 119.04
-  z: 0.0
+  z: 1.05
   width: null
   width_left: 5.893
   width_right: 5.731
@@ -247,7 +247,7 @@ nodes:
   surface_type: Asphalt
 - x: 47.81
   y: 123.69
-  z: -0.0
+  z: 1.12
   width: null
   width_left: 5.917
   width_right: 5.756
@@ -256,7 +256,7 @@ nodes:
   surface_type: Asphalt
 - x: 49.64
   y: 128.34
-  z: 0.0
+  z: 1.18
   width: null
   width_left: 5.941
   width_right: 5.781
@@ -265,7 +265,7 @@ nodes:
   surface_type: Asphalt
 - x: 51.47
   y: 133.0
-  z: -0.0
+  z: 1.23
   width: null
   width_left: 5.965
   width_right: 5.807
@@ -274,7 +274,7 @@ nodes:
   surface_type: Asphalt
 - x: 53.3
   y: 137.65
-  z: -0.0
+  z: 1.28
   width: null
   width_left: 5.989
   width_right: 5.832
@@ -283,7 +283,7 @@ nodes:
   surface_type: Asphalt
 - x: 55.13
   y: 142.3
-  z: 0.0
+  z: 1.33
   width: null
   width_left: 6.013
   width_right: 5.857
@@ -292,7 +292,7 @@ nodes:
   surface_type: Asphalt
 - x: 56.96
   y: 146.95
-  z: 0.0
+  z: 1.36
   width: null
   width_left: 6.037
   width_right: 5.882
@@ -301,7 +301,7 @@ nodes:
   surface_type: Asphalt
 - x: 58.79
   y: 151.6
-  z: -0.0
+  z: 1.39
   width: null
   width_left: 6.061
   width_right: 5.908
@@ -310,7 +310,7 @@ nodes:
   surface_type: Asphalt
 - x: 60.62
   y: 156.26
-  z: -0.0
+  z: 1.42
   width: null
   width_left: 6.085
   width_right: 5.933
@@ -319,7 +319,7 @@ nodes:
   surface_type: Asphalt
 - x: 62.44
   y: 160.91
-  z: -0.0
+  z: 1.44
   width: null
   width_left: 6.109
   width_right: 5.958
@@ -328,7 +328,7 @@ nodes:
   surface_type: Asphalt
 - x: 64.27
   y: 165.56
-  z: -0.0
+  z: 1.45
   width: null
   width_left: 6.133
   width_right: 5.983
@@ -337,7 +337,7 @@ nodes:
   surface_type: Asphalt
 - x: 66.1
   y: 170.21
-  z: 0.0
+  z: 1.46
   width: null
   width_left: 6.157
   width_right: 6.009
@@ -346,7 +346,7 @@ nodes:
   surface_type: Asphalt
 - x: 67.93
   y: 174.86
-  z: 0.0
+  z: 1.47
   width: null
   width_left: 6.181
   width_right: 6.034
@@ -355,7 +355,7 @@ nodes:
   surface_type: Asphalt
 - x: 69.76
   y: 179.52
-  z: 0.0
+  z: 1.46
   width: null
   width_left: 6.205
   width_right: 6.059
@@ -364,7 +364,7 @@ nodes:
   surface_type: Asphalt
 - x: 71.59
   y: 184.17
-  z: -0.0
+  z: 1.46
   width: null
   width_left: 6.229
   width_right: 6.084
@@ -373,7 +373,7 @@ nodes:
   surface_type: Asphalt
 - x: 73.42
   y: 188.82
-  z: -0.0
+  z: 1.45
   width: null
   width_left: 6.252
   width_right: 6.11
@@ -382,7 +382,7 @@ nodes:
   surface_type: Asphalt
 - x: 75.25
   y: 193.47
-  z: 0.0
+  z: 1.44
   width: null
   width_left: 6.276
   width_right: 6.135
@@ -391,7 +391,7 @@ nodes:
   surface_type: Asphalt
 - x: 77.08
   y: 198.12
-  z: 0.01
+  z: 1.42
   width: null
   width_left: 6.3
   width_right: 6.16
@@ -400,7 +400,7 @@ nodes:
   surface_type: Asphalt
 - x: 78.91
   y: 202.78
-  z: 0.02
+  z: 1.4
   width: null
   width_left: 6.324
   width_right: 6.185
@@ -409,7 +409,7 @@ nodes:
   surface_type: Asphalt
 - x: 80.74
   y: 207.43
-  z: 0.04
+  z: 1.38
   width: null
   width_left: 6.348
   width_right: 6.211
@@ -418,7 +418,7 @@ nodes:
   surface_type: Asphalt
 - x: 82.57
   y: 212.08
-  z: 0.07
+  z: 1.35
   width: null
   width_left: 6.372
   width_right: 6.236
@@ -427,7 +427,7 @@ nodes:
   surface_type: Asphalt
 - x: 84.4
   y: 216.73
-  z: 0.1
+  z: 1.33
   width: null
   width_left: 6.396
   width_right: 6.261
@@ -436,7 +436,7 @@ nodes:
   surface_type: Asphalt
 - x: 86.23
   y: 221.39
-  z: 0.12
+  z: 1.31
   width: null
   width_left: 6.42
   width_right: 6.286
@@ -445,7 +445,7 @@ nodes:
   surface_type: Asphalt
 - x: 88.06
   y: 226.04
-  z: 0.15
+  z: 1.28
   width: null
   width_left: 6.444
   width_right: 6.312
@@ -454,7 +454,7 @@ nodes:
   surface_type: Asphalt
 - x: 89.89
   y: 230.69
-  z: 0.17
+  z: 1.26
   width: null
   width_left: 6.468
   width_right: 6.337
@@ -463,7 +463,7 @@ nodes:
   surface_type: Asphalt
 - x: 91.72
   y: 235.35
-  z: 0.2
+  z: 1.24
   width: null
   width_left: 6.492
   width_right: 6.362
@@ -472,7 +472,7 @@ nodes:
   surface_type: Asphalt
 - x: 93.55
   y: 240.0
-  z: 0.22
+  z: 1.23
   width: null
   width_left: 6.516
   width_right: 6.388
@@ -481,7 +481,7 @@ nodes:
   surface_type: Asphalt
 - x: 95.39
   y: 244.65
-  z: 0.25
+  z: 1.22
   width: null
   width_left: 6.54
   width_right: 6.413
@@ -490,7 +490,7 @@ nodes:
   surface_type: Asphalt
 - x: 97.23
   y: 249.3
-  z: 0.27
+  z: 1.21
   width: null
   width_left: 6.564
   width_right: 6.438
@@ -499,7 +499,7 @@ nodes:
   surface_type: Asphalt
 - x: 99.06
   y: 253.95
-  z: 0.29
+  z: 1.21
   width: null
   width_left: 6.588
   width_right: 6.463
@@ -508,7 +508,7 @@ nodes:
   surface_type: Asphalt
 - x: 100.9
   y: 258.6
-  z: 0.32
+  z: 1.21
   width: null
   width_left: 6.612
   width_right: 6.489
@@ -517,7 +517,7 @@ nodes:
   surface_type: Asphalt
 - x: 102.72
   y: 263.25
-  z: 0.35
+  z: 1.21
   width: null
   width_left: 6.635
   width_right: 6.514
@@ -526,7 +526,7 @@ nodes:
   surface_type: Asphalt
 - x: 104.55
   y: 267.91
-  z: 0.37
+  z: 1.22
   width: null
   width_left: 6.659
   width_right: 6.539
@@ -535,7 +535,7 @@ nodes:
   surface_type: Asphalt
 - x: 106.37
   y: 272.57
-  z: 0.39
+  z: 1.24
   width: null
   width_left: 6.683
   width_right: 6.564
@@ -544,7 +544,7 @@ nodes:
   surface_type: Asphalt
 - x: 108.2
   y: 277.23
-  z: 0.42
+  z: 1.25
   width: null
   width_left: 6.707
   width_right: 6.59
@@ -553,7 +553,7 @@ nodes:
   surface_type: Asphalt
 - x: 110.05
   y: 281.89
-  z: 0.44
+  z: 1.28
   width: null
   width_left: 6.731
   width_right: 6.615
@@ -562,7 +562,7 @@ nodes:
   surface_type: Asphalt
 - x: 111.91
   y: 286.54
-  z: 0.47
+  z: 1.3
   width: null
   width_left: 6.755
   width_right: 6.64
@@ -571,7 +571,7 @@ nodes:
   surface_type: Asphalt
 - x: 113.79
   y: 291.17
-  z: 0.49
+  z: 1.34
   width: null
   width_left: 6.779
   width_right: 6.665
@@ -580,7 +580,7 @@ nodes:
   surface_type: Asphalt
 - x: 115.65
   y: 295.8
-  z: 0.52
+  z: 1.37
   width: null
   width_left: 6.803
   width_right: 6.691
@@ -589,7 +589,7 @@ nodes:
   surface_type: Asphalt
 - x: 117.49
   y: 300.42
-  z: 0.54
+  z: 1.41
   width: null
   width_left: 6.827
   width_right: 6.716
@@ -598,7 +598,7 @@ nodes:
   surface_type: Asphalt
 - x: 119.29
   y: 305.06
-  z: 0.57
+  z: 1.45
   width: null
   width_left: 6.851
   width_right: 6.741
@@ -607,7 +607,7 @@ nodes:
   surface_type: Asphalt
 - x: 121.03
   y: 309.74
-  z: 0.59
+  z: 1.49
   width: null
   width_left: 6.875
   width_right: 6.766
@@ -616,7 +616,7 @@ nodes:
   surface_type: Asphalt
 - x: 122.77
   y: 314.46
-  z: 0.62
+  z: 1.54
   width: null
   width_left: 6.899
   width_right: 6.792
@@ -625,7 +625,7 @@ nodes:
   surface_type: Asphalt
 - x: 124.58
   y: 319.17
-  z: 0.64
+  z: 1.58
   width: null
   width_left: 6.923
   width_right: 6.816
@@ -634,7 +634,7 @@ nodes:
   surface_type: Asphalt
 - x: 126.55
   y: 323.83
-  z: 0.67
+  z: 1.63
   width: null
   width_left: 7.006
   width_right: 6.669
@@ -643,7 +643,7 @@ nodes:
   surface_type: Asphalt
 - x: 128.81
   y: 328.32
-  z: 0.69
+  z: 1.67
   width: null
   width_left: 7.089
   width_right: 6.522
@@ -652,7 +652,7 @@ nodes:
   surface_type: Asphalt
 - x: 131.47
   y: 332.5
-  z: 0.72
+  z: 1.71
   width: null
   width_left: 6.226
   width_right: 6.522
@@ -661,7 +661,7 @@ nodes:
   surface_type: Asphalt
 - x: 134.62
   y: 336.23
-  z: 0.74
+  z: 1.75
   width: null
   width_left: 6.062
   width_right: 6.092
@@ -670,7 +670,7 @@ nodes:
   surface_type: Asphalt
 - x: 138.28
   y: 339.4
-  z: 0.77
+  z: 1.78
   width: null
   width_left: 6.289
   width_right: 5.677
@@ -679,7 +679,7 @@ nodes:
   surface_type: Asphalt
 - x: 142.43
   y: 341.93
-  z: 0.79
+  z: 1.8
   width: null
   width_left: 6.23
   width_right: 5.848
@@ -688,7 +688,7 @@ nodes:
   surface_type: Asphalt
 - x: 146.99
   y: 343.79
-  z: 0.82
+  z: 1.83
   width: null
   width_left: 6.065
   width_right: 6.038
@@ -697,7 +697,7 @@ nodes:
   surface_type: Asphalt
 - x: 151.85
   y: 345.0
-  z: 0.84
+  z: 1.84
   width: null
   width_left: 6.029
   width_right: 5.885
@@ -706,7 +706,7 @@ nodes:
   surface_type: Asphalt
 - x: 156.9
   y: 345.62
-  z: 0.87
+  z: 1.85
   width: null
   width_left: 5.821
   width_right: 6.132
@@ -715,7 +715,7 @@ nodes:
   surface_type: Asphalt
 - x: 162.0
   y: 345.71
-  z: 0.89
+  z: 1.85
   width: null
   width_left: 5.924
   width_right: 6.058
@@ -724,7 +724,7 @@ nodes:
   surface_type: Asphalt
 - x: 167.06
   y: 345.33
-  z: 0.92
+  z: 1.85
   width: null
   width_left: 6.178
   width_right: 5.807
@@ -733,7 +733,7 @@ nodes:
   surface_type: Asphalt
 - x: 172.01
   y: 344.5
-  z: 0.94
+  z: 1.84
   width: null
   width_left: 6.23
   width_right: 5.789
@@ -742,7 +742,7 @@ nodes:
   surface_type: Asphalt
 - x: 176.8
   y: 343.2
-  z: 0.97
+  z: 1.82
   width: null
   width_left: 6.193
   width_right: 5.869
@@ -751,7 +751,7 @@ nodes:
   surface_type: Asphalt
 - x: 181.39
   y: 341.4
-  z: 0.99
+  z: 1.8
   width: null
   width_left: 6.121
   width_right: 5.987
@@ -760,7 +760,7 @@ nodes:
   surface_type: Asphalt
 - x: 185.74
   y: 339.09
-  z: 1.01
+  z: 1.77
   width: null
   width_left: 6.218
   width_right: 5.914
@@ -769,7 +769,7 @@ nodes:
   surface_type: Asphalt
 - x: 189.79
   y: 336.25
-  z: 1.04
+  z: 1.73
   width: null
   width_left: 6.207
   width_right: 5.948
@@ -778,7 +778,7 @@ nodes:
   surface_type: Asphalt
 - x: 193.48
   y: 332.88
-  z: 1.06
+  z: 1.68
   width: null
   width_left: 6.105
   width_right: 6.07
@@ -787,7 +787,7 @@ nodes:
   surface_type: Asphalt
 - x: 196.73
   y: 329.05
-  z: 1.09
+  z: 1.63
   width: null
   width_left: 5.965
   width_right: 6.207
@@ -796,7 +796,7 @@ nodes:
   surface_type: Asphalt
 - x: 199.45
   y: 324.81
-  z: 1.11
+  z: 1.57
   width: null
   width_left: 6.233
   width_right: 5.742
@@ -805,7 +805,7 @@ nodes:
   surface_type: Asphalt
 - x: 201.55
   y: 320.27
-  z: 1.14
+  z: 1.51
   width: null
   width_left: 6.084
   width_right: 5.591
@@ -814,7 +814,7 @@ nodes:
   surface_type: Asphalt
 - x: 202.97
   y: 315.5
-  z: 1.16
+  z: 1.44
   width: null
   width_left: 5.825
   width_right: 5.646
@@ -823,7 +823,7 @@ nodes:
   surface_type: Asphalt
 - x: 203.68
   y: 310.61
-  z: 1.19
+  z: 1.36
   width: null
   width_left: 5.71
   width_right: 5.785
@@ -832,7 +832,7 @@ nodes:
   surface_type: Asphalt
 - x: 203.72
   y: 305.66
-  z: 1.21
+  z: 1.28
   width: null
   width_left: 5.643
   width_right: 5.801
@@ -841,7 +841,7 @@ nodes:
   surface_type: Asphalt
 - x: 203.16
   y: 300.73
-  z: 1.24
+  z: 1.2
   width: null
   width_left: 5.577
   width_right: 5.651
@@ -850,7 +850,7 @@ nodes:
   surface_type: Asphalt
 - x: 202.09
   y: 295.84
-  z: 1.26
+  z: 1.11
   width: null
   width_left: 5.608
   width_right: 5.363
@@ -859,7 +859,7 @@ nodes:
   surface_type: Asphalt
 - x: 200.64
   y: 291.02
-  z: 1.29
+  z: 1.02
   width: null
   width_left: 5.6
   width_right: 5.182
@@ -868,7 +868,7 @@ nodes:
   surface_type: Asphalt
 - x: 198.97
   y: 286.27
-  z: 1.31
+  z: 0.93
   width: null
   width_left: 5.539
   width_right: 5.142
@@ -877,7 +877,7 @@ nodes:
   surface_type: Asphalt
 - x: 197.17
   y: 281.57
-  z: 1.34
+  z: 0.83
   width: null
   width_left: 5.479
   width_right: 5.102
@@ -886,7 +886,7 @@ nodes:
   surface_type: Asphalt
 - x: 195.34
   y: 276.91
-  z: 1.36
+  z: 0.74
   width: null
   width_left: 5.418
   width_right: 5.062
@@ -895,7 +895,7 @@ nodes:
   surface_type: Asphalt
 - x: 193.53
   y: 272.27
-  z: 1.39
+  z: 0.65
   width: null
   width_left: 5.358
   width_right: 5.022
@@ -904,7 +904,7 @@ nodes:
   surface_type: Asphalt
 - x: 191.76
   y: 267.62
-  z: 1.41
+  z: 0.56
   width: null
   width_left: 5.297
   width_right: 4.982
@@ -913,7 +913,7 @@ nodes:
   surface_type: Asphalt
 - x: 190.03
   y: 262.95
-  z: 1.44
+  z: 0.46
   width: null
   width_left: 5.236
   width_right: 4.942
@@ -922,7 +922,7 @@ nodes:
   surface_type: Asphalt
 - x: 188.32
   y: 258.27
-  z: 1.46
+  z: 0.37
   width: null
   width_left: 5.176
   width_right: 4.903
@@ -931,7 +931,7 @@ nodes:
   surface_type: Asphalt
 - x: 186.6
   y: 253.58
-  z: 1.49
+  z: 0.28
   width: null
   width_left: 5.115
   width_right: 4.863
@@ -940,7 +940,7 @@ nodes:
   surface_type: Asphalt
 - x: 184.88
   y: 248.89
-  z: 1.51
+  z: 0.2
   width: null
   width_left: 5.055
   width_right: 4.823
@@ -949,7 +949,7 @@ nodes:
   surface_type: Asphalt
 - x: 183.14
   y: 244.2
-  z: 1.53
+  z: 0.11
   width: null
   width_left: 4.994
   width_right: 4.783
@@ -958,7 +958,7 @@ nodes:
   surface_type: Asphalt
 - x: 181.38
   y: 239.51
-  z: 1.56
+  z: 0.03
   width: null
   width_left: 4.934
   width_right: 4.743
@@ -967,7 +967,7 @@ nodes:
   surface_type: Asphalt
 - x: 179.6
   y: 234.84
-  z: 1.58
+  z: -0.05
   width: null
   width_left: 4.873
   width_right: 4.703
@@ -976,7 +976,7 @@ nodes:
   surface_type: Asphalt
 - x: 177.81
   y: 230.17
-  z: 1.6
+  z: -0.12
   width: null
   width_left: 4.813
   width_right: 4.664
@@ -985,7 +985,7 @@ nodes:
   surface_type: Asphalt
 - x: 176.02
   y: 225.5
-  z: 1.63
+  z: -0.2
   width: null
   width_left: 4.752
   width_right: 4.624
@@ -994,7 +994,7 @@ nodes:
   surface_type: Asphalt
 - x: 174.21
   y: 220.83
-  z: 1.65
+  z: -0.26
   width: null
   width_left: 4.692
   width_right: 4.584
@@ -1003,7 +1003,7 @@ nodes:
   surface_type: Asphalt
 - x: 172.4
   y: 216.17
-  z: 1.67
+  z: -0.33
   width: null
   width_left: 4.631
   width_right: 4.544
@@ -1012,7 +1012,7 @@ nodes:
   surface_type: Asphalt
 - x: 170.58
   y: 211.5
-  z: 1.7
+  z: -0.39
   width: null
   width_left: 4.571
   width_right: 4.504
@@ -1021,7 +1021,7 @@ nodes:
   surface_type: Asphalt
 - x: 168.77
   y: 206.84
-  z: 1.72
+  z: -0.44
   width: null
   width_left: 4.51
   width_right: 4.464
@@ -1030,7 +1030,7 @@ nodes:
   surface_type: Asphalt
 - x: 166.96
   y: 202.17
-  z: 1.74
+  z: -0.49
   width: null
   width_left: 4.45
   width_right: 4.424
@@ -1039,7 +1039,7 @@ nodes:
   surface_type: Asphalt
 - x: 165.19
   y: 197.49
-  z: 1.77
+  z: -0.54
   width: null
   width_left: 4.389
   width_right: 4.385
@@ -1048,7 +1048,7 @@ nodes:
   surface_type: Asphalt
 - x: 163.44
   y: 192.81
-  z: 1.79
+  z: -0.57
   width: null
   width_left: 4.329
   width_right: 4.345
@@ -1057,7 +1057,7 @@ nodes:
   surface_type: Asphalt
 - x: 161.75
   y: 188.11
-  z: 1.81
+  z: -0.61
   width: null
   width_left: 4.268
   width_right: 4.305
@@ -1066,7 +1066,7 @@ nodes:
   surface_type: Asphalt
 - x: 160.11
   y: 183.39
-  z: 1.84
+  z: -0.63
   width: null
   width_left: 4.272
   width_right: 4.19
@@ -1075,7 +1075,7 @@ nodes:
   surface_type: Asphalt
 - x: 158.54
   y: 178.65
-  z: 1.86
+  z: -0.66
   width: null
   width_left: 4.323
   width_right: 4.021
@@ -1084,7 +1084,7 @@ nodes:
   surface_type: Asphalt
 - x: 157.05
   y: 173.89
-  z: 1.88
+  z: -0.67
   width: null
   width_left: 4.318
   width_right: 4.128
@@ -1093,7 +1093,7 @@ nodes:
   surface_type: Asphalt
 - x: 155.64
   y: 169.1
-  z: 1.9
+  z: -0.68
   width: null
   width_left: 4.3
   width_right: 4.247
@@ -1102,7 +1102,7 @@ nodes:
   surface_type: Asphalt
 - x: 154.33
   y: 164.28
-  z: 1.93
+  z: -0.69
   width: null
   width_left: 4.212
   width_right: 4.406
@@ -1111,7 +1111,7 @@ nodes:
   surface_type: Asphalt
 - x: 153.13
   y: 159.43
-  z: 1.95
+  z: -0.69
   width: null
   width_left: 4.107
   width_right: 4.493
@@ -1120,7 +1120,7 @@ nodes:
   surface_type: Asphalt
 - x: 152.04
   y: 154.55
-  z: 1.97
+  z: -0.69
   width: null
   width_left: 3.996
   width_right: 4.555
@@ -1129,7 +1129,7 @@ nodes:
   surface_type: Asphalt
 - x: 151.07
   y: 149.64
-  z: 2.0
+  z: -0.69
   width: null
   width_left: 4.003
   width_right: 4.46
@@ -1138,7 +1138,7 @@ nodes:
   surface_type: Asphalt
 - x: 150.22
   y: 144.71
-  z: 2.02
+  z: -0.68
   width: null
   width_left: 4.045
   width_right: 4.332
@@ -1147,7 +1147,7 @@ nodes:
   surface_type: Asphalt
 - x: 149.49
   y: 139.76
-  z: 2.04
+  z: -0.66
   width: null
   width_left: 4.113
   width_right: 4.374
@@ -1156,7 +1156,7 @@ nodes:
   surface_type: Asphalt
 - x: 148.88
   y: 134.8
-  z: 2.07
+  z: -0.65
   width: null
   width_left: 4.23
   width_right: 4.291
@@ -1165,7 +1165,7 @@ nodes:
   surface_type: Asphalt
 - x: 148.38
   y: 129.83
-  z: 2.09
+  z: -0.63
   width: null
   width_left: 4.336
   width_right: 4.183
@@ -1174,7 +1174,7 @@ nodes:
   surface_type: Asphalt
 - x: 148.0
   y: 124.86
-  z: 2.11
+  z: -0.6
   width: null
   width_left: 4.294
   width_right: 4.14
@@ -1183,7 +1183,7 @@ nodes:
   surface_type: Asphalt
 - x: 147.72
   y: 119.89
-  z: 2.14
+  z: -0.58
   width: null
   width_left: 4.285
   width_right: 4.2
@@ -1192,7 +1192,7 @@ nodes:
   surface_type: Asphalt
 - x: 147.55
   y: 114.91
-  z: 2.16
+  z: -0.54
   width: null
   width_left: 4.294
   width_right: 4.313
@@ -1201,7 +1201,7 @@ nodes:
   surface_type: Asphalt
 - x: 147.47
   y: 109.93
-  z: 2.18
+  z: -0.51
   width: null
   width_left: 4.313
   width_right: 4.273
@@ -1210,7 +1210,7 @@ nodes:
   surface_type: Asphalt
 - x: 147.49
   y: 104.94
-  z: 2.21
+  z: -0.47
   width: null
   width_left: 4.335
   width_right: 4.175
@@ -1219,7 +1219,7 @@ nodes:
   surface_type: Asphalt
 - x: 147.58
   y: 99.93
-  z: 2.23
+  z: -0.43
   width: null
   width_left: 4.357
   width_right: 4.077
@@ -1228,7 +1228,7 @@ nodes:
   surface_type: Asphalt
 - x: 147.74
   y: 94.92
-  z: 2.25
+  z: -0.38
   width: null
   width_left: 4.316
   width_right: 4.132
@@ -1237,7 +1237,7 @@ nodes:
   surface_type: Asphalt
 - x: 147.94
   y: 89.89
-  z: 2.28
+  z: -0.33
   width: null
   width_left: 4.266
   width_right: 4.206
@@ -1246,7 +1246,7 @@ nodes:
   surface_type: Asphalt
 - x: 148.13
   y: 84.85
-  z: 2.3
+  z: -0.27
   width: null
   width_left: 4.217
   width_right: 4.281
@@ -1255,7 +1255,7 @@ nodes:
   surface_type: Asphalt
 - x: 148.25
   y: 79.82
-  z: 2.32
+  z: -0.21
   width: null
   width_left: 4.167
   width_right: 4.355
@@ -1264,7 +1264,7 @@ nodes:
   surface_type: Asphalt
 - x: 148.23
   y: 74.8
-  z: 2.35
+  z: -0.15
   width: null
   width_left: 4.137
   width_right: 4.352
@@ -1273,7 +1273,7 @@ nodes:
   surface_type: Asphalt
 - x: 148.0
   y: 69.81
-  z: 2.37
+  z: -0.08
   width: null
   width_left: 4.126
   width_right: 4.281
@@ -1282,7 +1282,7 @@ nodes:
   surface_type: Asphalt
 - x: 147.48
   y: 64.85
-  z: 2.39
+  z: -0.02
   width: null
   width_left: 4.132
   width_right: 4.275
@@ -1291,7 +1291,7 @@ nodes:
   surface_type: Asphalt
 - x: 146.61
   y: 59.96
-  z: 2.41
+  z: 0.05
   width: null
   width_left: 4.205
   width_right: 4.31
@@ -1300,7 +1300,7 @@ nodes:
   surface_type: Asphalt
 - x: 145.35
   y: 55.14
-  z: 2.44
+  z: 0.12
   width: null
   width_left: 4.498
   width_right: 4.205
@@ -1309,7 +1309,7 @@ nodes:
   surface_type: Asphalt
 - x: 143.68
   y: 50.45
-  z: 2.46
+  z: 0.18
   width: null
   width_left: 4.624
   width_right: 4.146
@@ -1318,7 +1318,7 @@ nodes:
   surface_type: Asphalt
 - x: 141.58
   y: 45.92
-  z: 2.48
+  z: 0.25
   width: null
   width_left: 4.747
   width_right: 4.172
@@ -1327,7 +1327,7 @@ nodes:
   surface_type: Asphalt
 - x: 139.06
   y: 41.6
-  z: 2.51
+  z: 0.31
   width: null
   width_left: 4.889
   width_right: 4.262
@@ -1336,7 +1336,7 @@ nodes:
   surface_type: Asphalt
 - x: 136.14
   y: 37.56
-  z: 2.53
+  z: 0.37
   width: null
   width_left: 4.983
   width_right: 4.418
@@ -1345,7 +1345,7 @@ nodes:
   surface_type: Asphalt
 - x: 132.85
   y: 33.84
-  z: 2.55
+  z: 0.43
   width: null
   width_left: 4.599
   width_right: 4.451
@@ -1354,7 +1354,7 @@ nodes:
   surface_type: Asphalt
 - x: 129.22
   y: 30.48
-  z: 2.58
+  z: 0.48
   width: null
   width_left: 4.398
   width_right: 4.451
@@ -1363,7 +1363,7 @@ nodes:
   surface_type: Asphalt
 - x: 125.29
   y: 27.48
-  z: 2.6
+  z: 0.52
   width: null
   width_left: 4.409
   width_right: 4.418
@@ -1372,7 +1372,7 @@ nodes:
   surface_type: Asphalt
 - x: 121.09
   y: 24.82
-  z: 2.62
+  z: 0.56
   width: null
   width_left: 4.278
   width_right: 4.355
@@ -1381,7 +1381,7 @@ nodes:
   surface_type: Asphalt
 - x: 116.69
   y: 22.47
-  z: 2.65
+  z: 0.59
   width: null
   width_left: 4.348
   width_right: 4.27
@@ -1390,7 +1390,7 @@ nodes:
   surface_type: Asphalt
 - x: 112.13
   y: 20.35
-  z: 2.67
+  z: 0.62
   width: null
   width_left: 4.427
   width_right: 4.184
@@ -1399,133 +1399,133 @@ nodes:
   surface_type: Asphalt
 - x: 107.47
   y: 18.4
-  z: 2.69
+  z: 0.63
   width: null
   width_left: 4.507
   width_right: 4.099
-  banking: 0.0
+  banking: -0.0007
   friction: 1.0
   surface_type: Asphalt
 - x: 102.77
   y: 16.55
-  z: 2.72
+  z: 0.64
   width: null
   width_left: 4.545
   width_right: 4.048
-  banking: 0.0
+  banking: -0.0083
   friction: 1.0
   surface_type: Asphalt
 - x: 98.06
   y: 14.73
-  z: 2.74
+  z: 0.64
   width: null
   width_left: 4.463
   width_right: 4.095
-  banking: 0.0
+  banking: -0.0233
   friction: 1.0
   surface_type: Asphalt
 - x: 93.37
   y: 12.92
-  z: 2.76
+  z: 0.64
   width: null
   width_left: 4.381
   width_right: 4.142
-  banking: 0.0
+  banking: -0.0445
   friction: 1.0
   surface_type: Asphalt
 - x: 88.71
   y: 11.1
-  z: 2.79
+  z: 0.62
   width: null
   width_left: 4.3
   width_right: 4.189
-  banking: 0.0
+  banking: -0.0703
   friction: 1.0
   surface_type: Asphalt
 - x: 84.07
   y: 9.29
-  z: 2.81
+  z: 0.6
   width: null
   width_left: 4.218
   width_right: 4.236
-  banking: 0.0
+  banking: -0.0996
   friction: 1.0
   surface_type: Asphalt
 - x: 79.44
   y: 7.49
-  z: 2.83
+  z: 0.58
   width: null
   width_left: 4.136
   width_right: 4.284
-  banking: 0.0
+  banking: -0.131
   friction: 1.0
   surface_type: Asphalt
 - x: 74.8
   y: 5.74
-  z: 2.85
+  z: 0.54
   width: null
   width_left: 4.055
   width_right: 4.331
-  banking: 0.0
+  banking: -0.1633
   friction: 1.0
   surface_type: Asphalt
 - x: 70.14
   y: 4.05
-  z: 2.88
+  z: 0.51
   width: null
   width_left: 4.105
   width_right: 4.278
-  banking: 0.0
+  banking: -0.1954
   friction: 1.0
   surface_type: Asphalt
 - x: 65.44
   y: 2.42
-  z: 2.9
+  z: 0.46
   width: null
   width_left: 4.24
   width_right: 4.16
-  banking: -0.0222
+  banking: -0.2262
   friction: 1.0
   surface_type: Asphalt
 - x: 60.7
   y: 0.87
-  z: 2.92
+  z: 0.42
   width: null
   width_left: 4.375
   width_right: 4.042
-  banking: -0.0796
+  banking: -0.2542
   friction: 1.0
   surface_type: Asphalt
 - x: 55.93
   y: -0.65
-  z: 2.95
+  z: 0.37
   width: null
   width_left: 4.423
   width_right: 4.038
-  banking: -0.1551
+  banking: -0.2784
   friction: 1.0
   surface_type: Asphalt
 - x: 51.13
   y: -2.18
-  z: 2.97
+  z: 0.32
   width: null
   width_left: 4.314
   width_right: 4.236
-  banking: -0.2315
+  banking: -0.2974
   friction: 1.0
   surface_type: Asphalt
 - x: 46.35
   y: -3.78
-  z: 2.99
+  z: 0.27
   width: null
   width_left: 4.205
   width_right: 4.434
-  banking: -0.2905
+  banking: -0.3098
   friction: 1.0
   surface_type: Asphalt
 - x: 41.62
   y: -5.55
-  z: 3.02
+  z: 0.22
   width: null
   width_left: 4.096
   width_right: 4.632
@@ -1534,7 +1534,7 @@ nodes:
   surface_type: Asphalt
 - x: 37.02
   y: -7.58
-  z: 3.04
+  z: 0.17
   width: null
   width_left: 4.242
   width_right: 4.635
@@ -1543,7 +1543,7 @@ nodes:
   surface_type: Asphalt
 - x: 32.64
   y: -9.97
-  z: 3.06
+  z: 0.12
   width: null
   width_left: 4.392
   width_right: 4.623
@@ -1552,7 +1552,7 @@ nodes:
   surface_type: Asphalt
 - x: 28.59
   y: -12.8
-  z: 3.09
+  z: 0.08
   width: null
   width_left: 4.509
   width_right: 4.606
@@ -1561,7 +1561,7 @@ nodes:
   surface_type: Asphalt
 - x: 24.99
   y: -16.13
-  z: 3.11
+  z: 0.04
   width: null
   width_left: 4.185
   width_right: 4.888
@@ -1570,7 +1570,7 @@ nodes:
   surface_type: Asphalt
 - x: 21.94
   y: -19.97
-  z: 3.13
+  z: 0.0
   width: null
   width_left: 4.211
   width_right: 4.673
@@ -1579,7 +1579,7 @@ nodes:
   surface_type: Asphalt
 - x: 19.53
   y: -24.27
-  z: 3.16
+  z: -0.03
   width: null
   width_left: 4.435
   width_right: 4.222
@@ -1588,7 +1588,7 @@ nodes:
   surface_type: Asphalt
 - x: 17.81
   y: -28.94
-  z: 3.18
+  z: -0.05
   width: null
   width_left: 4.545
   width_right: 4.444
@@ -1597,7 +1597,7 @@ nodes:
   surface_type: Asphalt
 - x: 16.8
   y: -33.86
-  z: 3.2
+  z: -0.07
   width: null
   width_left: 4.573
   width_right: 4.564
@@ -1606,7 +1606,7 @@ nodes:
   surface_type: Asphalt
 - x: 16.51
   y: -38.9
-  z: 3.23
+  z: -0.07
   width: null
   width_left: 4.705
   width_right: 4.818
@@ -1615,7 +1615,7 @@ nodes:
   surface_type: Asphalt
 - x: 16.91
   y: -43.91
-  z: 3.25
+  z: -0.07
   width: null
   width_left: 4.754
   width_right: 5.06
@@ -1624,7 +1624,7 @@ nodes:
   surface_type: Asphalt
 - x: 17.96
   y: -48.8
-  z: 3.27
+  z: -0.06
   width: null
   width_left: 4.584
   width_right: 5.137
@@ -1633,7 +1633,7 @@ nodes:
   surface_type: Asphalt
 - x: 19.64
   y: -53.48
-  z: 3.29
+  z: -0.04
   width: null
   width_left: 4.452
   width_right: 4.896
@@ -1642,7 +1642,7 @@ nodes:
   surface_type: Asphalt
 - x: 21.92
   y: -57.9
-  z: 3.32
+  z: -0.01
   width: null
   width_left: 4.511
   width_right: 4.802
@@ -1651,7 +1651,7 @@ nodes:
   surface_type: Asphalt
 - x: 24.75
   y: -62.01
-  z: 3.34
+  z: 0.03
   width: null
   width_left: 4.612
   width_right: 4.744
@@ -1660,7 +1660,7 @@ nodes:
   surface_type: Asphalt
 - x: 28.09
   y: -65.75
-  z: 3.37
+  z: 0.08
   width: null
   width_left: 4.685
   width_right: 4.67
@@ -1669,7 +1669,7 @@ nodes:
   surface_type: Asphalt
 - x: 31.9
   y: -69.06
-  z: 3.39
+  z: 0.14
   width: null
   width_left: 4.498
   width_right: 4.762
@@ -1678,7 +1678,7 @@ nodes:
   surface_type: Asphalt
 - x: 36.09
   y: -71.85
-  z: 3.41
+  z: 0.2
   width: null
   width_left: 4.469
   width_right: 4.797
@@ -1687,7 +1687,7 @@ nodes:
   surface_type: Asphalt
 - x: 40.58
   y: -74.04
-  z: 3.43
+  z: 0.27
   width: null
   width_left: 4.788
   width_right: 4.672
@@ -1696,7 +1696,7 @@ nodes:
   surface_type: Asphalt
 - x: 45.29
   y: -75.55
-  z: 3.45
+  z: 0.35
   width: null
   width_left: 4.612
   width_right: 4.864
@@ -1705,7 +1705,7 @@ nodes:
   surface_type: Asphalt
 - x: 50.13
   y: -76.35
-  z: 3.48
+  z: 0.43
   width: null
   width_left: 4.321
   width_right: 5.13
@@ -1714,7 +1714,7 @@ nodes:
   surface_type: Asphalt
 - x: 55.03
   y: -76.45
-  z: 3.54
+  z: 0.52
   width: null
   width_left: 4.341
   width_right: 4.952
@@ -1723,7 +1723,7 @@ nodes:
   surface_type: Asphalt
 - x: 59.92
   y: -75.93
-  z: 3.62
+  z: 0.61
   width: null
   width_left: 4.29
   width_right: 4.752
@@ -1732,7 +1732,7 @@ nodes:
   surface_type: Asphalt
 - x: 64.78
   y: -74.9
-  z: 3.72
+  z: 0.71
   width: null
   width_left: 4.15
   width_right: 4.543
@@ -1741,133 +1741,133 @@ nodes:
   surface_type: Asphalt
 - x: 69.58
   y: -73.48
-  z: 3.83
+  z: 0.82
   width: null
   width_left: 4.132
   width_right: 4.46
-  banking: -0.2909
+  banking: -0.3099
   friction: 1.0
   surface_type: Asphalt
 - x: 74.34
   y: -71.82
-  z: 3.95
+  z: 0.93
   width: null
   width_left: 4.159
   width_right: 4.424
-  banking: -0.2321
+  banking: -0.2976
   friction: 1.0
   surface_type: Asphalt
 - x: 79.05
   y: -70.03
-  z: 4.06
+  z: 1.04
   width: null
   width_left: 4.186
   width_right: 4.388
-  banking: -0.1558
+  banking: -0.2786
   friction: 1.0
   surface_type: Asphalt
 - x: 83.73
   y: -68.2
-  z: 4.17
+  z: 1.16
   width: null
   width_left: 4.213
   width_right: 4.352
-  banking: -0.0799
+  banking: -0.2544
   friction: 1.0
   surface_type: Asphalt
 - x: 88.4
   y: -66.38
-  z: 4.28
+  z: 1.29
   width: null
   width_left: 4.24
   width_right: 4.316
-  banking: -0.0222
+  banking: -0.2262
   friction: 1.0
   surface_type: Asphalt
 - x: 93.07
   y: -64.59
-  z: 4.39
+  z: 1.42
   width: null
   width_left: 4.268
   width_right: 4.28
-  banking: 0.0
+  banking: -0.1952
   friction: 1.0
   surface_type: Asphalt
 - x: 97.74
   y: -62.83
-  z: 4.49
+  z: 1.55
   width: null
   width_left: 4.295
   width_right: 4.244
-  banking: 0.0
+  banking: -0.1629
   friction: 1.0
   surface_type: Asphalt
 - x: 102.43
   y: -61.11
-  z: 4.6
+  z: 1.69
   width: null
   width_left: 4.322
   width_right: 4.208
-  banking: 0.0
+  banking: -0.1303
   friction: 1.0
   surface_type: Asphalt
 - x: 107.12
   y: -59.4
-  z: 4.71
+  z: 1.83
   width: null
   width_left: 4.349
   width_right: 4.172
-  banking: 0.0
+  banking: -0.0988
   friction: 1.0
   surface_type: Asphalt
 - x: 111.81
   y: -57.72
-  z: 4.82
+  z: 1.97
   width: null
   width_left: 4.377
   width_right: 4.136
-  banking: 0.0
+  banking: -0.0696
   friction: 1.0
   surface_type: Asphalt
 - x: 116.52
   y: -56.04
-  z: 4.92
+  z: 2.11
   width: null
   width_left: 4.404
   width_right: 4.1
-  banking: 0.0
+  banking: -0.0439
   friction: 1.0
   surface_type: Asphalt
 - x: 121.23
   y: -54.38
-  z: 5.03
+  z: 2.25
   width: null
   width_left: 4.431
   width_right: 4.064
-  banking: 0.0
+  banking: -0.023
   friction: 1.0
   surface_type: Asphalt
 - x: 125.94
   y: -52.73
-  z: 5.13
+  z: 2.39
   width: null
   width_left: 4.458
   width_right: 4.028
-  banking: 0.0
+  banking: -0.0082
   friction: 1.0
   surface_type: Asphalt
 - x: 130.66
   y: -51.09
-  z: 5.24
+  z: 2.53
   width: null
   width_left: 4.485
   width_right: 3.992
-  banking: 0.0
+  banking: -0.0007
   friction: 1.0
   surface_type: Asphalt
 - x: 135.39
   y: -49.47
-  z: 5.34
+  z: 2.66
   width: null
   width_left: 4.513
   width_right: 3.956
@@ -1876,7 +1876,7 @@ nodes:
   surface_type: Asphalt
 - x: 140.12
   y: -47.86
-  z: 5.45
+  z: 2.79
   width: null
   width_left: 4.456
   width_right: 4.007
@@ -1885,7 +1885,7 @@ nodes:
   surface_type: Asphalt
 - x: 144.87
   y: -46.27
-  z: 5.55
+  z: 2.91
   width: null
   width_left: 4.372
   width_right: 4.087
@@ -1894,7 +1894,7 @@ nodes:
   surface_type: Asphalt
 - x: 149.62
   y: -44.71
-  z: 5.65
+  z: 3.02
   width: null
   width_left: 4.288
   width_right: 4.167
@@ -1903,7 +1903,7 @@ nodes:
   surface_type: Asphalt
 - x: 154.39
   y: -43.17
-  z: 5.75
+  z: 3.13
   width: null
   width_left: 4.203
   width_right: 4.247
@@ -1912,7 +1912,7 @@ nodes:
   surface_type: Asphalt
 - x: 159.16
   y: -41.68
-  z: 5.85
+  z: 3.23
   width: null
   width_left: 4.12
   width_right: 4.298
@@ -1921,7 +1921,7 @@ nodes:
   surface_type: Asphalt
 - x: 163.95
   y: -40.22
-  z: 5.95
+  z: 3.32
   width: null
   width_left: 4.036
   width_right: 4.334
@@ -1930,7 +1930,7 @@ nodes:
   surface_type: Asphalt
 - x: 168.75
   y: -38.81
-  z: 6.05
+  z: 3.4
   width: null
   width_left: 3.953
   width_right: 4.37
@@ -1939,7 +1939,7 @@ nodes:
   surface_type: Asphalt
 - x: 173.56
   y: -37.46
-  z: 6.15
+  z: 3.48
   width: null
   width_left: 3.869
   width_right: 4.405
@@ -1948,7 +1948,7 @@ nodes:
   surface_type: Asphalt
 - x: 178.38
   y: -36.16
-  z: 6.25
+  z: 3.54
   width: null
   width_left: 4.031
   width_right: 4.254
@@ -1957,7 +1957,7 @@ nodes:
   surface_type: Asphalt
 - x: 183.22
   y: -34.92
-  z: 6.35
+  z: 3.6
   width: null
   width_left: 4.244
   width_right: 4.064
@@ -1966,7 +1966,7 @@ nodes:
   surface_type: Asphalt
 - x: 188.07
   y: -33.74
-  z: 6.44
+  z: 3.64
   width: null
   width_left: 4.456
   width_right: 3.874
@@ -1975,7 +1975,7 @@ nodes:
   surface_type: Asphalt
 - x: 192.94
   y: -32.63
-  z: 6.54
+  z: 3.68
   width: null
   width_left: 4.512
   width_right: 3.876
@@ -1984,7 +1984,7 @@ nodes:
   surface_type: Asphalt
 - x: 197.82
   y: -31.59
-  z: 6.63
+  z: 3.72
   width: null
   width_left: 4.51
   width_right: 3.951
@@ -1993,7 +1993,7 @@ nodes:
   surface_type: Asphalt
 - x: 202.71
   y: -30.61
-  z: 6.72
+  z: 3.74
   width: null
   width_left: 4.507
   width_right: 4.026
@@ -2002,7 +2002,7 @@ nodes:
   surface_type: Asphalt
 - x: 207.62
   y: -29.7
-  z: 6.81
+  z: 3.75
   width: null
   width_left: 4.497
   width_right: 4.115
@@ -2011,7 +2011,7 @@ nodes:
   surface_type: Asphalt
 - x: 212.54
   y: -28.84
-  z: 6.9
+  z: 3.75
   width: null
   width_left: 4.481
   width_right: 4.216
@@ -2020,7 +2020,7 @@ nodes:
   surface_type: Asphalt
 - x: 217.47
   y: -28.05
-  z: 6.99
+  z: 3.75
   width: null
   width_left: 4.438
   width_right: 4.345
@@ -2029,7 +2029,7 @@ nodes:
   surface_type: Asphalt
 - x: 222.42
   y: -27.31
-  z: 7.08
+  z: 3.73
   width: null
   width_left: 4.297
   width_right: 4.57
@@ -2038,7 +2038,7 @@ nodes:
   surface_type: Asphalt
 - x: 227.38
   y: -26.64
-  z: 7.17
+  z: 3.71
   width: null
   width_left: 4.157
   width_right: 4.794
@@ -2047,7 +2047,7 @@ nodes:
   surface_type: Asphalt
 - x: 232.35
   y: -26.04
-  z: 7.26
+  z: 3.67
   width: null
   width_left: 4.423
   width_right: 4.806
@@ -2056,7 +2056,7 @@ nodes:
   surface_type: Asphalt
 - x: 237.32
   y: -25.51
-  z: 7.34
+  z: 3.63
   width: null
   width_left: 4.733
   width_right: 4.795
@@ -2065,7 +2065,7 @@ nodes:
   surface_type: Asphalt
 - x: 242.31
   y: -25.05
-  z: 7.42
+  z: 3.57
   width: null
   width_left: 4.968
   width_right: 4.804
@@ -2074,7 +2074,7 @@ nodes:
   surface_type: Asphalt
 - x: 247.3
   y: -24.69
-  z: 7.51
+  z: 3.5
   width: null
   width_left: 4.985
   width_right: 4.87
@@ -2083,7 +2083,7 @@ nodes:
   surface_type: Asphalt
 - x: 252.29
   y: -24.42
-  z: 7.59
+  z: 3.43
   width: null
   width_left: 5.003
   width_right: 4.936
@@ -2092,7 +2092,7 @@ nodes:
   surface_type: Asphalt
 - x: 257.29
   y: -24.25
-  z: 7.67
+  z: 3.34
   width: null
   width_left: 5.02
   width_right: 4.961
@@ -2101,7 +2101,7 @@ nodes:
   surface_type: Asphalt
 - x: 262.28
   y: -24.2
-  z: 7.74
+  z: 3.24
   width: null
   width_left: 5.038
   width_right: 4.971
@@ -2110,7 +2110,7 @@ nodes:
   surface_type: Asphalt
 - x: 267.28
   y: -24.27
-  z: 7.82
+  z: 3.13
   width: null
   width_left: 5.101
   width_right: 4.8
@@ -2119,7 +2119,7 @@ nodes:
   surface_type: Asphalt
 - x: 272.26
   y: -24.46
-  z: 7.89
+  z: 3.01
   width: null
   width_left: 5.164
   width_right: 4.628
@@ -2128,7 +2128,7 @@ nodes:
   surface_type: Asphalt
 - x: 277.23
   y: -24.8
-  z: 7.97
+  z: 2.89
   width: null
   width_left: 5.156
   width_right: 4.505
@@ -2137,7 +2137,7 @@ nodes:
   surface_type: Asphalt
 - x: 282.19
   y: -25.29
-  z: 8.04
+  z: 2.75
   width: null
   width_left: 5.0
   width_right: 4.486
@@ -2146,7 +2146,7 @@ nodes:
   surface_type: Asphalt
 - x: 287.14
   y: -25.92
-  z: 8.11
+  z: 2.61
   width: null
   width_left: 4.845
   width_right: 4.466
@@ -2155,7 +2155,7 @@ nodes:
   surface_type: Asphalt
 - x: 292.06
   y: -26.69
-  z: 8.18
+  z: 2.46
   width: null
   width_left: 4.579
   width_right: 4.474
@@ -2164,7 +2164,7 @@ nodes:
   surface_type: Asphalt
 - x: 296.98
   y: -27.58
-  z: 8.25
+  z: 2.31
   width: null
   width_left: 4.286
   width_right: 4.488
@@ -2173,7 +2173,7 @@ nodes:
   surface_type: Asphalt
 - x: 301.88
   y: -28.57
-  z: 8.31
+  z: 2.15
   width: null
   width_left: 3.993
   width_right: 4.503
@@ -2182,7 +2182,7 @@ nodes:
   surface_type: Asphalt
 - x: 306.77
   y: -29.63
-  z: 8.38
+  z: 1.99
   width: null
   width_left: 3.982
   width_right: 4.404
@@ -2191,7 +2191,7 @@ nodes:
   surface_type: Asphalt
 - x: 311.66
   y: -30.73
-  z: 8.44
+  z: 1.83
   width: null
   width_left: 4.017
   width_right: 4.285
@@ -2200,7 +2200,7 @@ nodes:
   surface_type: Asphalt
 - x: 316.54
   y: -31.84
-  z: 8.5
+  z: 1.66
   width: null
   width_left: 4.051
   width_right: 4.167
@@ -2209,7 +2209,7 @@ nodes:
   surface_type: Asphalt
 - x: 321.43
   y: -32.94
-  z: 8.56
+  z: 1.5
   width: null
   width_left: 4.095
   width_right: 4.096
@@ -2218,7 +2218,7 @@ nodes:
   surface_type: Asphalt
 - x: 326.32
   y: -34.02
-  z: 8.62
+  z: 1.33
   width: null
   width_left: 4.158
   width_right: 4.133
@@ -2227,7 +2227,7 @@ nodes:
   surface_type: Asphalt
 - x: 331.21
   y: -35.07
-  z: 8.68
+  z: 1.16
   width: null
   width_left: 4.222
   width_right: 4.169
@@ -2236,7 +2236,7 @@ nodes:
   surface_type: Asphalt
 - x: 336.11
   y: -36.08
-  z: 8.73
+  z: 1.0
   width: null
   width_left: 4.286
   width_right: 4.205
@@ -2245,7 +2245,7 @@ nodes:
   surface_type: Asphalt
 - x: 341.01
   y: -37.06
-  z: 8.78
+  z: 0.84
   width: null
   width_left: 4.3
   width_right: 4.225
@@ -2254,7 +2254,7 @@ nodes:
   surface_type: Asphalt
 - x: 345.91
   y: -38.0
-  z: 8.83
+  z: 0.68
   width: null
   width_left: 4.24
   width_right: 4.219
@@ -2263,7 +2263,7 @@ nodes:
   surface_type: Asphalt
 - x: 350.82
   y: -38.9
-  z: 8.88
+  z: 0.53
   width: null
   width_left: 4.181
   width_right: 4.214
@@ -2272,7 +2272,7 @@ nodes:
   surface_type: Asphalt
 - x: 355.74
   y: -39.77
-  z: 8.93
+  z: 0.38
   width: null
   width_left: 4.121
   width_right: 4.209
@@ -2281,7 +2281,7 @@ nodes:
   surface_type: Asphalt
 - x: 360.66
   y: -40.61
-  z: 8.98
+  z: 0.24
   width: null
   width_left: 4.062
   width_right: 4.204
@@ -2290,7 +2290,7 @@ nodes:
   surface_type: Asphalt
 - x: 365.59
   y: -41.41
-  z: 9.02
+  z: 0.11
   width: null
   width_left: 4.003
   width_right: 4.198
@@ -2299,7 +2299,7 @@ nodes:
   surface_type: Asphalt
 - x: 370.53
   y: -42.18
-  z: 9.06
+  z: -0.02
   width: null
   width_left: 3.995
   width_right: 4.181
@@ -2308,7 +2308,7 @@ nodes:
   surface_type: Asphalt
 - x: 375.47
   y: -42.94
-  z: 9.1
+  z: -0.14
   width: null
   width_left: 4.092
   width_right: 4.141
@@ -2317,7 +2317,7 @@ nodes:
   surface_type: Asphalt
 - x: 380.42
   y: -43.67
-  z: 9.14
+  z: -0.26
   width: null
   width_left: 4.19
   width_right: 4.1
@@ -2326,7 +2326,7 @@ nodes:
   surface_type: Asphalt
 - x: 385.38
   y: -44.38
-  z: 9.18
+  z: -0.36
   width: null
   width_left: 4.121
   width_right: 4.194
@@ -2335,7 +2335,7 @@ nodes:
   surface_type: Asphalt
 - x: 390.35
   y: -45.05
-  z: 9.21
+  z: -0.46
   width: null
   width_left: 3.948
   width_right: 4.371
@@ -2344,7 +2344,7 @@ nodes:
   surface_type: Asphalt
 - x: 395.32
   y: -45.63
-  z: 9.24
+  z: -0.55
   width: null
   width_left: 3.916
   width_right: 4.443
@@ -2353,7 +2353,7 @@ nodes:
   surface_type: Asphalt
 - x: 400.3
   y: -46.09
-  z: 9.27
+  z: -0.63
   width: null
   width_left: 4.015
   width_right: 4.418
@@ -2362,7 +2362,7 @@ nodes:
   surface_type: Asphalt
 - x: 405.27
   y: -46.36
-  z: 9.3
+  z: -0.71
   width: null
   width_left: 4.118
   width_right: 4.385
@@ -2371,7 +2371,7 @@ nodes:
   surface_type: Asphalt
 - x: 410.24
   y: -46.42
-  z: 9.33
+  z: -0.77
   width: null
   width_left: 4.258
   width_right: 4.282
@@ -2380,7 +2380,7 @@ nodes:
   surface_type: Asphalt
 - x: 415.21
   y: -46.23
-  z: 9.35
+  z: -0.83
   width: null
   width_left: 4.398
   width_right: 4.178
@@ -2389,7 +2389,7 @@ nodes:
   surface_type: Asphalt
 - x: 420.18
   y: -45.8
-  z: 9.38
+  z: -0.88
   width: null
   width_left: 4.298
   width_right: 4.224
@@ -2398,7 +2398,7 @@ nodes:
   surface_type: Asphalt
 - x: 425.13
   y: -45.15
-  z: 9.4
+  z: -0.93
   width: null
   width_left: 4.108
   width_right: 4.323
@@ -2407,7 +2407,7 @@ nodes:
   surface_type: Asphalt
 - x: 430.08
   y: -44.31
-  z: 9.42
+  z: -0.97
   width: null
   width_left: 4.07
   width_right: 4.344
@@ -2416,7 +2416,7 @@ nodes:
   surface_type: Asphalt
 - x: 435.0
   y: -43.33
-  z: 9.43
+  z: -1.0
   width: null
   width_left: 4.125
   width_right: 4.316
@@ -2425,7 +2425,7 @@ nodes:
   surface_type: Asphalt
 - x: 439.91
   y: -42.23
-  z: 9.45
+  z: -1.03
   width: null
   width_left: 4.177
   width_right: 4.281
@@ -2434,7 +2434,7 @@ nodes:
   surface_type: Asphalt
 - x: 444.77
   y: -41.02
-  z: 9.46
+  z: -1.04
   width: null
   width_left: 4.223
   width_right: 4.231
@@ -2443,7 +2443,7 @@ nodes:
   surface_type: Asphalt
 - x: 449.59
   y: -39.67
-  z: 9.47
+  z: -1.06
   width: null
   width_left: 4.249
   width_right: 4.201
@@ -2452,7 +2452,7 @@ nodes:
   surface_type: Asphalt
 - x: 454.35
   y: -38.18
-  z: 9.48
+  z: -1.06
   width: null
   width_left: 4.175
   width_right: 4.266
@@ -2461,7 +2461,7 @@ nodes:
   surface_type: Asphalt
 - x: 459.03
   y: -36.52
-  z: 9.49
+  z: -1.06
   width: null
   width_left: 4.089
   width_right: 4.326
@@ -2470,7 +2470,7 @@ nodes:
   surface_type: Asphalt
 - x: 463.65
   y: -34.66
-  z: 9.5
+  z: -1.05
   width: null
   width_left: 3.972
   width_right: 4.371
@@ -2479,7 +2479,7 @@ nodes:
   surface_type: Asphalt
 - x: 468.19
   y: -32.62
-  z: 9.5
+  z: -1.03
   width: null
   width_left: 3.886
   width_right: 4.383
@@ -2488,7 +2488,7 @@ nodes:
   surface_type: Asphalt
 - x: 472.67
   y: -30.41
-  z: 9.5
+  z: -1.0
   width: null
   width_left: 4.184
   width_right: 3.976
@@ -2497,7 +2497,7 @@ nodes:
   surface_type: Asphalt
 - x: 477.09
   y: -28.07
-  z: 9.5
+  z: -0.96
   width: null
   width_left: 4.182
   width_right: 3.99
@@ -2506,7 +2506,7 @@ nodes:
   surface_type: Asphalt
 - x: 481.47
   y: -25.64
-  z: 9.5
+  z: -0.92
   width: null
   width_left: 4.098
   width_right: 4.119
@@ -2515,7 +2515,7 @@ nodes:
   surface_type: Asphalt
 - x: 485.82
   y: -23.16
-  z: 9.5
+  z: -0.86
   width: null
   width_left: 4.014
   width_right: 4.249
@@ -2524,7 +2524,7 @@ nodes:
   surface_type: Asphalt
 - x: 490.13
   y: -20.63
-  z: 9.5
+  z: -0.79
   width: null
   width_left: 3.93
   width_right: 4.379
@@ -2533,7 +2533,7 @@ nodes:
   surface_type: Asphalt
 - x: 494.43
   y: -18.07
-  z: 9.5
+  z: -0.7
   width: null
   width_left: 3.952
   width_right: 4.371
@@ -2542,7 +2542,7 @@ nodes:
   surface_type: Asphalt
 - x: 498.69
   y: -15.48
-  z: 9.5
+  z: -0.61
   width: null
   width_left: 4.062
   width_right: 4.249
@@ -2551,7 +2551,7 @@ nodes:
   surface_type: Asphalt
 - x: 502.93
   y: -12.83
-  z: 9.5
+  z: -0.5
   width: null
   width_left: 4.173
   width_right: 4.126
@@ -2560,7 +2560,7 @@ nodes:
   surface_type: Asphalt
 - x: 507.13
   y: -10.13
-  z: 9.5
+  z: -0.38
   width: null
   width_left: 4.283
   width_right: 4.004
@@ -2569,7 +2569,7 @@ nodes:
   surface_type: Asphalt
 - x: 511.29
   y: -7.36
-  z: 9.5
+  z: -0.25
   width: null
   width_left: 4.144
   width_right: 4.089
@@ -2578,7 +2578,7 @@ nodes:
   surface_type: Asphalt
 - x: 515.41
   y: -4.54
-  z: 9.5
+  z: -0.11
   width: null
   width_left: 4.003
   width_right: 4.176
@@ -2587,7 +2587,7 @@ nodes:
   surface_type: Asphalt
 - x: 519.52
   y: -1.69
-  z: 9.5
+  z: 0.04
   width: null
   width_left: 3.862
   width_right: 4.263
@@ -2596,7 +2596,7 @@ nodes:
   surface_type: Asphalt
 - x: 523.61
   y: 1.18
-  z: 9.5
+  z: 0.2
   width: null
   width_left: 3.903
   width_right: 4.166
@@ -2605,7 +2605,7 @@ nodes:
   surface_type: Asphalt
 - x: 527.71
   y: 4.03
-  z: 9.5
+  z: 0.38
   width: null
   width_left: 4.047
   width_right: 3.966
@@ -2614,7 +2614,7 @@ nodes:
   surface_type: Asphalt
 - x: 531.84
   y: 6.84
-  z: 9.5
+  z: 0.56
   width: null
   width_left: 4.161
   width_right: 3.819
@@ -2623,7 +2623,7 @@ nodes:
   surface_type: Asphalt
 - x: 536.02
   y: 9.58
-  z: 9.5
+  z: 0.75
   width: null
   width_left: 4.167
   width_right: 3.869
@@ -2632,7 +2632,7 @@ nodes:
   surface_type: Asphalt
 - x: 540.26
   y: 12.23
-  z: 9.5
+  z: 0.94
   width: null
   width_left: 4.106
   width_right: 4.004
@@ -2641,7 +2641,7 @@ nodes:
   surface_type: Asphalt
 - x: 544.56
   y: 14.77
-  z: 9.5
+  z: 1.14
   width: null
   width_left: 4.031
   width_right: 4.127
@@ -2650,7 +2650,7 @@ nodes:
   surface_type: Asphalt
 - x: 548.93
   y: 17.2
-  z: 9.5
+  z: 1.35
   width: null
   width_left: 4.026
   width_right: 4.102
@@ -2659,7 +2659,7 @@ nodes:
   surface_type: Asphalt
 - x: 553.38
   y: 19.49
-  z: 9.5
+  z: 1.56
   width: null
   width_left: 4.004
   width_right: 4.048
@@ -2668,7 +2668,7 @@ nodes:
   surface_type: Asphalt
 - x: 557.9
   y: 21.64
-  z: 9.5
+  z: 1.77
   width: null
   width_left: 4.001
   width_right: 3.997
@@ -2677,7 +2677,7 @@ nodes:
   surface_type: Asphalt
 - x: 562.48
   y: 23.64
-  z: 9.5
+  z: 1.99
   width: null
   width_left: 4.032
   width_right: 3.949
@@ -2686,7 +2686,7 @@ nodes:
   surface_type: Asphalt
 - x: 567.12
   y: 25.49
-  z: 9.5
+  z: 2.21
   width: null
   width_left: 4.119
   width_right: 3.951
@@ -2695,7 +2695,7 @@ nodes:
   surface_type: Asphalt
 - x: 571.81
   y: 27.2
-  z: 9.5
+  z: 2.42
   width: null
   width_left: 4.235
   width_right: 3.978
@@ -2704,7 +2704,7 @@ nodes:
   surface_type: Asphalt
 - x: 576.55
   y: 28.77
-  z: 9.5
+  z: 2.64
   width: null
   width_left: 4.32
   width_right: 4.095
@@ -2713,7 +2713,7 @@ nodes:
   surface_type: Asphalt
 - x: 581.34
   y: 30.21
-  z: 9.5
+  z: 2.86
   width: null
   width_left: 4.389
   width_right: 4.258
@@ -2722,7 +2722,7 @@ nodes:
   surface_type: Asphalt
 - x: 586.16
   y: 31.53
-  z: 9.5
+  z: 3.07
   width: null
   width_left: 4.434
   width_right: 4.369
@@ -2731,7 +2731,7 @@ nodes:
   surface_type: Asphalt
 - x: 591.01
   y: 32.75
-  z: 9.5
+  z: 3.28
   width: null
   width_left: 4.439
   width_right: 4.398
@@ -2740,7 +2740,7 @@ nodes:
   surface_type: Asphalt
 - x: 595.89
   y: 33.87
-  z: 9.5
+  z: 3.49
   width: null
   width_left: 4.443
   width_right: 4.428
@@ -2749,7 +2749,7 @@ nodes:
   surface_type: Asphalt
 - x: 600.79
   y: 34.88
-  z: 9.5
+  z: 3.69
   width: null
   width_left: 4.407
   width_right: 4.342
@@ -2758,7 +2758,7 @@ nodes:
   surface_type: Asphalt
 - x: 605.71
   y: 35.77
-  z: 9.5
+  z: 3.89
   width: null
   width_left: 4.346
   width_right: 4.185
@@ -2767,7 +2767,7 @@ nodes:
   surface_type: Asphalt
 - x: 610.64
   y: 36.52
-  z: 9.5
+  z: 4.09
   width: null
   width_left: 4.284
   width_right: 4.027
@@ -2776,7 +2776,7 @@ nodes:
   surface_type: Asphalt
 - x: 615.6
   y: 37.1
-  z: 9.5
+  z: 4.28
   width: null
   width_left: 4.379
   width_right: 4.053
@@ -2785,7 +2785,7 @@ nodes:
   surface_type: Asphalt
 - x: 620.57
   y: 37.5
-  z: 9.5
+  z: 4.46
   width: null
   width_left: 4.483
   width_right: 4.089
@@ -2794,7 +2794,7 @@ nodes:
   surface_type: Asphalt
 - x: 625.55
   y: 37.73
-  z: 9.5
+  z: 4.64
   width: null
   width_left: 4.408
   width_right: 4.175
@@ -2803,7 +2803,7 @@ nodes:
   surface_type: Asphalt
 - x: 630.54
   y: 37.79
-  z: 9.5
+  z: 4.8
   width: null
   width_left: 4.331
   width_right: 4.261
@@ -2812,7 +2812,7 @@ nodes:
   surface_type: Asphalt
 - x: 635.54
   y: 37.71
-  z: 9.5
+  z: 4.96
   width: null
   width_left: 4.272
   width_right: 4.305
@@ -2821,7 +2821,7 @@ nodes:
   surface_type: Asphalt
 - x: 640.55
   y: 37.52
-  z: 9.5
+  z: 5.11
   width: null
   width_left: 4.246
   width_right: 4.266
@@ -2830,7 +2830,7 @@ nodes:
   surface_type: Asphalt
 - x: 645.55
   y: 37.27
-  z: 9.5
+  z: 5.25
   width: null
   width_left: 4.22
   width_right: 4.228
@@ -2839,7 +2839,7 @@ nodes:
   surface_type: Asphalt
 - x: 650.55
   y: 36.98
-  z: 9.5
+  z: 5.38
   width: null
   width_left: 4.195
   width_right: 4.189
@@ -2848,7 +2848,7 @@ nodes:
   surface_type: Asphalt
 - x: 655.54
   y: 36.67
-  z: 9.5
+  z: 5.49
   width: null
   width_left: 4.169
   width_right: 4.151
@@ -2857,7 +2857,7 @@ nodes:
   surface_type: Asphalt
 - x: 660.53
   y: 36.35
-  z: 9.5
+  z: 5.6
   width: null
   width_left: 4.143
   width_right: 4.113
@@ -2866,7 +2866,7 @@ nodes:
   surface_type: Asphalt
 - x: 665.51
   y: 36.03
-  z: 9.5
+  z: 5.69
   width: null
   width_left: 4.209
   width_right: 4.205
@@ -2875,7 +2875,7 @@ nodes:
   surface_type: Asphalt
 - x: 670.5
   y: 35.71
-  z: 9.5
+  z: 5.76
   width: null
   width_left: 4.277
   width_right: 4.298
@@ -2884,7 +2884,7 @@ nodes:
   surface_type: Asphalt
 - x: 675.48
   y: 35.39
-  z: 9.5
+  z: 5.83
   width: null
   width_left: 4.344
   width_right: 4.392
@@ -2893,7 +2893,7 @@ nodes:
   surface_type: Asphalt
 - x: 680.47
   y: 35.08
-  z: 9.5
+  z: 5.88
   width: null
   width_left: 4.411
   width_right: 4.485
@@ -2902,7 +2902,7 @@ nodes:
   surface_type: Asphalt
 - x: 685.46
   y: 34.77
-  z: 9.5
+  z: 5.91
   width: null
   width_left: 4.478
   width_right: 4.578
@@ -2911,7 +2911,7 @@ nodes:
   surface_type: Asphalt
 - x: 690.45
   y: 34.49
-  z: 9.5
+  z: 5.93
   width: null
   width_left: 4.545
   width_right: 4.672
@@ -2920,7 +2920,7 @@ nodes:
   surface_type: Asphalt
 - x: 695.44
   y: 34.25
-  z: 9.5
+  z: 5.94
   width: null
   width_left: 4.612
   width_right: 4.765
@@ -2929,7 +2929,7 @@ nodes:
   surface_type: Asphalt
 - x: 700.43
   y: 34.04
-  z: 9.5
+  z: 5.93
   width: null
   width_left: 4.679
   width_right: 4.859
@@ -2938,7 +2938,7 @@ nodes:
   surface_type: Asphalt
 - x: 705.43
   y: 33.87
-  z: 9.5
+  z: 5.9
   width: null
   width_left: 4.711
   width_right: 4.912
@@ -2947,7 +2947,7 @@ nodes:
   surface_type: Asphalt
 - x: 710.43
   y: 33.74
-  z: 9.5
+  z: 5.87
   width: null
   width_left: 4.62
   width_right: 4.827
@@ -2956,7 +2956,7 @@ nodes:
   surface_type: Asphalt
 - x: 715.44
   y: 33.64
-  z: 9.5
+  z: 5.81
   width: null
   width_left: 4.53
   width_right: 4.743
@@ -2965,7 +2965,7 @@ nodes:
   surface_type: Asphalt
 - x: 720.44
   y: 33.56
-  z: 9.5
+  z: 5.75
   width: null
   width_left: 4.439
   width_right: 4.658
@@ -2974,7 +2974,7 @@ nodes:
   surface_type: Asphalt
 - x: 725.45
   y: 33.47
-  z: 9.5
+  z: 5.67
   width: null
   width_left: 4.348
   width_right: 4.574
@@ -2983,7 +2983,7 @@ nodes:
   surface_type: Asphalt
 - x: 730.45
   y: 33.37
-  z: 9.5
+  z: 5.58
   width: null
   width_left: 4.258
   width_right: 4.489
@@ -2992,7 +2992,7 @@ nodes:
   surface_type: Asphalt
 - x: 735.46
   y: 33.23
-  z: 9.5
+  z: 5.48
   width: null
   width_left: 4.167
   width_right: 4.405
@@ -3001,7 +3001,7 @@ nodes:
   surface_type: Asphalt
 - x: 740.45
   y: 33.03
-  z: 9.5
+  z: 5.36
   width: null
   width_left: 4.211
   width_right: 4.286
@@ -3010,7 +3010,7 @@ nodes:
   surface_type: Asphalt
 - x: 745.44
   y: 32.76
-  z: 9.5
+  z: 5.24
   width: null
   width_left: 4.392
   width_right: 4.134
@@ -3019,7 +3019,7 @@ nodes:
   surface_type: Asphalt
 - x: 750.41
   y: 32.37
-  z: 9.5
+  z: 5.11
   width: null
   width_left: 4.572
   width_right: 3.981
@@ -3028,7 +3028,7 @@ nodes:
   surface_type: Asphalt
 - x: 755.36
   y: 31.85
-  z: 9.5
+  z: 4.97
   width: null
   width_left: 4.65
   width_right: 3.878
@@ -3037,7 +3037,7 @@ nodes:
   surface_type: Asphalt
 - x: 760.29
   y: 31.15
-  z: 9.5
+  z: 4.82
   width: null
   width_left: 4.616
   width_right: 3.899
@@ -3046,7 +3046,7 @@ nodes:
   surface_type: Asphalt
 - x: 765.17
   y: 30.27
-  z: 9.5
+  z: 4.66
   width: null
   width_left: 4.459
   width_right: 4.058
@@ -3055,7 +3055,7 @@ nodes:
   surface_type: Asphalt
 - x: 770.02
   y: 29.16
-  z: 9.5
+  z: 4.5
   width: null
   width_left: 4.252
   width_right: 4.231
@@ -3064,7 +3064,7 @@ nodes:
   surface_type: Asphalt
 - x: 774.81
   y: 27.83
-  z: 9.5
+  z: 4.33
   width: null
   width_left: 4.18
   width_right: 4.26
@@ -3073,7 +3073,7 @@ nodes:
   surface_type: Asphalt
 - x: 779.54
   y: 26.26
-  z: 9.5
+  z: 4.15
   width: null
   width_left: 4.158
   width_right: 4.236
@@ -3082,7 +3082,7 @@ nodes:
   surface_type: Asphalt
 - x: 784.2
   y: 24.44
-  z: 9.5
+  z: 3.97
   width: null
   width_left: 4.268
   width_right: 4.119
@@ -3091,7 +3091,7 @@ nodes:
   surface_type: Asphalt
 - x: 788.77
   y: 22.39
-  z: 9.5
+  z: 3.79
   width: null
   width_left: 4.251
   width_right: 4.08
@@ -3100,7 +3100,7 @@ nodes:
   surface_type: Asphalt
 - x: 793.24
   y: 20.12
-  z: 9.5
+  z: 3.61
   width: null
   width_left: 3.975
   width_right: 4.203
@@ -3109,7 +3109,7 @@ nodes:
   surface_type: Asphalt
 - x: 797.6
   y: 17.62
-  z: 9.5
+  z: 3.43
   width: null
   width_left: 4.021
   width_right: 4.216
@@ -3118,7 +3118,7 @@ nodes:
   surface_type: Asphalt
 - x: 801.84
   y: 14.92
-  z: 9.5
+  z: 3.24
   width: null
   width_left: 4.103
   width_right: 4.222
@@ -3127,7 +3127,7 @@ nodes:
   surface_type: Asphalt
 - x: 805.94
   y: 12.02
-  z: 9.5
+  z: 3.06
   width: null
   width_left: 4.225
   width_right: 4.226
@@ -3136,7 +3136,7 @@ nodes:
   surface_type: Asphalt
 - x: 809.89
   y: 8.92
-  z: 9.5
+  z: 2.88
   width: null
   width_left: 4.237
   width_right: 4.235
@@ -3145,7 +3145,7 @@ nodes:
   surface_type: Asphalt
 - x: 813.68
   y: 5.63
-  z: 9.5
+  z: 2.7
   width: null
   width_left: 4.191
   width_right: 4.249
@@ -3154,7 +3154,7 @@ nodes:
   surface_type: Asphalt
 - x: 817.29
   y: 2.17
-  z: 9.5
+  z: 2.52
   width: null
   width_left: 4.16
   width_right: 4.283
@@ -3163,7 +3163,7 @@ nodes:
   surface_type: Asphalt
 - x: 820.71
   y: -1.48
-  z: 9.5
+  z: 2.36
   width: null
   width_left: 4.094
   width_right: 4.332
@@ -3172,7 +3172,7 @@ nodes:
   surface_type: Asphalt
 - x: 823.94
   y: -5.29
-  z: 9.5
+  z: 2.19
   width: null
   width_left: 4.032
   width_right: 4.351
@@ -3181,7 +3181,7 @@ nodes:
   surface_type: Asphalt
 - x: 826.95
   y: -9.27
-  z: 9.5
+  z: 2.04
   width: null
   width_left: 4.384
   width_right: 3.868
@@ -3190,7 +3190,7 @@ nodes:
   surface_type: Asphalt
 - x: 829.75
   y: -13.39
-  z: 9.5
+  z: 1.9
   width: null
   width_left: 4.341
   width_right: 3.924
@@ -3199,7 +3199,7 @@ nodes:
   surface_type: Asphalt
 - x: 832.33
   y: -17.66
-  z: 9.5
+  z: 1.76
   width: null
   width_left: 4.272
   width_right: 4.092
@@ -3208,7 +3208,7 @@ nodes:
   surface_type: Asphalt
 - x: 834.68
   y: -22.05
-  z: 9.5
+  z: 1.63
   width: null
   width_left: 4.457
   width_right: 4.085
@@ -3217,7 +3217,7 @@ nodes:
   surface_type: Asphalt
 - x: 836.79
   y: -26.56
-  z: 9.5
+  z: 1.52
   width: null
   width_left: 4.341
   width_right: 4.044
@@ -3226,7 +3226,7 @@ nodes:
   surface_type: Asphalt
 - x: 838.67
   y: -31.17
-  z: 9.5
+  z: 1.42
   width: null
   width_left: 4.294
   width_right: 3.951
@@ -3235,7 +3235,7 @@ nodes:
   surface_type: Asphalt
 - x: 840.32
   y: -35.88
-  z: 9.51
+  z: 1.32
   width: null
   width_left: 4.297
   width_right: 3.873
@@ -3244,7 +3244,7 @@ nodes:
   surface_type: Asphalt
 - x: 841.73
   y: -40.66
-  z: 9.51
+  z: 1.24
   width: null
   width_left: 4.14
   width_right: 3.942
@@ -3253,7 +3253,7 @@ nodes:
   surface_type: Asphalt
 - x: 842.9
   y: -45.51
-  z: 9.51
+  z: 1.18
   width: null
   width_left: 4.063
   width_right: 4.032
@@ -3262,7 +3262,7 @@ nodes:
   surface_type: Asphalt
 - x: 843.82
   y: -50.42
-  z: 9.47
+  z: 1.12
   width: null
   width_left: 4.038
   width_right: 4.113
@@ -3271,7 +3271,7 @@ nodes:
   surface_type: Asphalt
 - x: 844.49
   y: -55.36
-  z: 9.4
+  z: 1.08
   width: null
   width_left: 4.147
   width_right: 4.079
@@ -3280,7 +3280,7 @@ nodes:
   surface_type: Asphalt
 - x: 844.9
   y: -60.34
-  z: 9.28
+  z: 1.05
   width: null
   width_left: 4.148
   width_right: 4.221
@@ -3289,7 +3289,7 @@ nodes:
   surface_type: Asphalt
 - x: 845.06
   y: -65.33
-  z: 9.14
+  z: 1.03
   width: null
   width_left: 4.158
   width_right: 4.272
@@ -3298,7 +3298,7 @@ nodes:
   surface_type: Asphalt
 - x: 844.96
   y: -70.33
-  z: 8.98
+  z: 1.02
   width: null
   width_left: 4.184
   width_right: 4.222
@@ -3307,7 +3307,7 @@ nodes:
   surface_type: Asphalt
 - x: 844.6
   y: -75.32
-  z: 8.83
+  z: 1.02
   width: null
   width_left: 4.224
   width_right: 4.123
@@ -3316,7 +3316,7 @@ nodes:
   surface_type: Asphalt
 - x: 843.99
   y: -80.29
-  z: 8.68
+  z: 1.04
   width: null
   width_left: 4.096
   width_right: 4.229
@@ -3325,7 +3325,7 @@ nodes:
   surface_type: Asphalt
 - x: 843.13
   y: -85.23
-  z: 8.54
+  z: 1.06
   width: null
   width_left: 4.084
   width_right: 4.214
@@ -3334,7 +3334,7 @@ nodes:
   surface_type: Asphalt
 - x: 842.03
   y: -90.12
-  z: 8.4
+  z: 1.1
   width: null
   width_left: 4.175
   width_right: 4.126
@@ -3343,7 +3343,7 @@ nodes:
   surface_type: Asphalt
 - x: 840.68
   y: -94.95
-  z: 8.25
+  z: 1.14
   width: null
   width_left: 4.39
   width_right: 4.017
@@ -3352,7 +3352,7 @@ nodes:
   surface_type: Asphalt
 - x: 839.11
   y: -99.7
-  z: 8.11
+  z: 1.2
   width: null
   width_left: 4.387
   width_right: 4.07
@@ -3361,7 +3361,7 @@ nodes:
   surface_type: Asphalt
 - x: 837.33
   y: -104.37
-  z: 7.96
+  z: 1.26
   width: null
   width_left: 4.431
   width_right: 4.045
@@ -3370,7 +3370,7 @@ nodes:
   surface_type: Asphalt
 - x: 835.34
   y: -108.95
-  z: 7.82
+  z: 1.33
   width: null
   width_left: 4.435
   width_right: 4.002
@@ -3379,7 +3379,7 @@ nodes:
   surface_type: Asphalt
 - x: 833.18
   y: -113.44
-  z: 7.68
+  z: 1.4
   width: null
   width_left: 4.377
   width_right: 3.951
@@ -3388,7 +3388,7 @@ nodes:
   surface_type: Asphalt
 - x: 830.86
   y: -117.85
-  z: 7.54
+  z: 1.49
   width: null
   width_left: 4.319
   width_right: 3.9
@@ -3397,7 +3397,7 @@ nodes:
   surface_type: Asphalt
 - x: 828.41
   y: -122.2
-  z: 7.4
+  z: 1.57
   width: null
   width_left: 4.261
   width_right: 3.849
@@ -3406,7 +3406,7 @@ nodes:
   surface_type: Asphalt
 - x: 825.85
   y: -126.49
-  z: 7.26
+  z: 1.66
   width: null
   width_left: 4.204
   width_right: 3.798
@@ -3415,7 +3415,7 @@ nodes:
   surface_type: Asphalt
 - x: 823.21
   y: -130.74
-  z: 7.12
+  z: 1.76
   width: null
   width_left: 4.173
   width_right: 3.811
@@ -3424,7 +3424,7 @@ nodes:
   surface_type: Asphalt
 - x: 820.52
   y: -134.95
-  z: 6.98
+  z: 1.86
   width: null
   width_left: 4.154
   width_right: 3.852
@@ -3433,7 +3433,7 @@ nodes:
   surface_type: Asphalt
 - x: 817.79
   y: -139.14
-  z: 6.84
+  z: 1.96
   width: null
   width_left: 4.135
   width_right: 3.894
@@ -3442,7 +3442,7 @@ nodes:
   surface_type: Asphalt
 - x: 815.03
   y: -143.31
-  z: 6.71
+  z: 2.06
   width: null
   width_left: 4.115
   width_right: 3.935
@@ -3451,7 +3451,7 @@ nodes:
   surface_type: Asphalt
 - x: 812.25
   y: -147.46
-  z: 6.57
+  z: 2.15
   width: null
   width_left: 4.096
   width_right: 3.976
@@ -3460,7 +3460,7 @@ nodes:
   surface_type: Asphalt
 - x: 809.45
   y: -151.61
-  z: 6.43
+  z: 2.25
   width: null
   width_left: 4.077
   width_right: 4.018
@@ -3469,7 +3469,7 @@ nodes:
   surface_type: Asphalt
 - x: 806.65
   y: -155.74
-  z: 6.3
+  z: 2.34
   width: null
   width_left: 4.067
   width_right: 4.043
@@ -3478,7 +3478,7 @@ nodes:
   surface_type: Asphalt
 - x: 803.83
   y: -159.87
-  z: 6.17
+  z: 2.43
   width: null
   width_left: 4.073
   width_right: 4.035
@@ -3487,7 +3487,7 @@ nodes:
   surface_type: Asphalt
 - x: 801.01
   y: -164.0
-  z: 6.04
+  z: 2.51
   width: null
   width_left: 4.078
   width_right: 4.028
@@ -3496,7 +3496,7 @@ nodes:
   surface_type: Asphalt
 - x: 798.19
   y: -168.12
-  z: 5.91
+  z: 2.59
   width: null
   width_left: 4.084
   width_right: 4.021
@@ -3505,7 +3505,7 @@ nodes:
   surface_type: Asphalt
 - x: 795.38
   y: -172.25
-  z: 5.78
+  z: 2.66
   width: null
   width_left: 4.09
   width_right: 4.014
@@ -3514,7 +3514,7 @@ nodes:
   surface_type: Asphalt
 - x: 792.57
   y: -176.39
-  z: 5.65
+  z: 2.72
   width: null
   width_left: 4.096
   width_right: 4.006
@@ -3523,7 +3523,7 @@ nodes:
   surface_type: Asphalt
 - x: 789.78
   y: -180.54
-  z: 5.52
+  z: 2.77
   width: null
   width_left: 4.084
   width_right: 4.016
@@ -3532,7 +3532,7 @@ nodes:
   surface_type: Asphalt
 - x: 787.01
   y: -184.71
-  z: 5.39
+  z: 2.82
   width: null
   width_left: 4.035
   width_right: 4.062
@@ -3541,7 +3541,7 @@ nodes:
   surface_type: Asphalt
 - x: 784.26
   y: -188.89
-  z: 5.27
+  z: 2.85
   width: null
   width_left: 3.985
   width_right: 4.108
@@ -3550,7 +3550,7 @@ nodes:
   surface_type: Asphalt
 - x: 781.54
   y: -193.09
-  z: 5.15
+  z: 2.87
   width: null
   width_left: 3.936
   width_right: 4.154
@@ -3559,7 +3559,7 @@ nodes:
   surface_type: Asphalt
 - x: 778.86
   y: -197.31
-  z: 5.03
+  z: 2.88
   width: null
   width_left: 3.912
   width_right: 4.187
@@ -3568,7 +3568,7 @@ nodes:
   surface_type: Asphalt
 - x: 776.24
   y: -201.57
-  z: 4.91
+  z: 2.88
   width: null
   width_left: 3.905
   width_right: 4.213
@@ -3577,7 +3577,7 @@ nodes:
   surface_type: Asphalt
 - x: 773.68
   y: -205.87
-  z: 4.79
+  z: 2.87
   width: null
   width_left: 3.963
   width_right: 4.226
@@ -3586,7 +3586,7 @@ nodes:
   surface_type: Asphalt
 - x: 771.21
   y: -210.21
-  z: 4.67
+  z: 2.85
   width: null
   width_left: 4.136
   width_right: 4.218
@@ -3595,7 +3595,7 @@ nodes:
   surface_type: Asphalt
 - x: 768.83
   y: -214.59
-  z: 4.55
+  z: 2.82
   width: null
   width_left: 4.338
   width_right: 4.326
@@ -3604,7 +3604,7 @@ nodes:
   surface_type: Asphalt
 - x: 766.54
   y: -219.02
-  z: 4.44
+  z: 2.77
   width: null
   width_left: 4.577
   width_right: 4.587
@@ -3613,7 +3613,7 @@ nodes:
   surface_type: Asphalt
 - x: 764.35
   y: -223.5
-  z: 4.33
+  z: 2.72
   width: null
   width_left: 4.816
   width_right: 4.847
@@ -3622,7 +3622,7 @@ nodes:
   surface_type: Asphalt
 - x: 762.23
   y: -228.01
-  z: 4.22
+  z: 2.65
   width: null
   width_left: 5.141
   width_right: 5.174
@@ -3631,7 +3631,7 @@ nodes:
   surface_type: Asphalt
 - x: 760.18
   y: -232.56
-  z: 4.11
+  z: 2.58
   width: null
   width_left: 5.484
   width_right: 5.514
@@ -3640,7 +3640,7 @@ nodes:
   surface_type: Asphalt
 - x: 758.16
   y: -237.14
-  z: 4.0
+  z: 2.49
   width: null
   width_left: 5.826
   width_right: 5.854
@@ -3649,7 +3649,7 @@ nodes:
   surface_type: Asphalt
 - x: 756.17
   y: -241.73
-  z: 3.9
+  z: 2.4
   width: null
   width_left: 6.169
   width_right: 6.194
@@ -3658,7 +3658,7 @@ nodes:
   surface_type: Asphalt
 - x: 754.17
   y: -246.34
-  z: 3.8
+  z: 2.3
   width: null
   width_left: 6.512
   width_right: 6.534
@@ -3667,7 +3667,7 @@ nodes:
   surface_type: Asphalt
 - x: 752.14
   y: -250.94
-  z: 3.69
+  z: 2.19
   width: null
   width_left: 6.854
   width_right: 6.875
@@ -3676,7 +3676,7 @@ nodes:
   surface_type: Asphalt
 - x: 750.07
   y: -255.52
-  z: 3.59
+  z: 2.08
   width: null
   width_left: 6.928
   width_right: 6.929
@@ -3685,7 +3685,7 @@ nodes:
   surface_type: Asphalt
 - x: 747.95
   y: -260.06
-  z: 3.5
+  z: 1.96
   width: null
   width_left: 6.955
   width_right: 6.935
@@ -3694,7 +3694,7 @@ nodes:
   surface_type: Asphalt
 - x: 745.8
   y: -264.57
-  z: 3.4
+  z: 1.84
   width: null
   width_left: 6.983
   width_right: 6.941
@@ -3703,7 +3703,7 @@ nodes:
   surface_type: Asphalt
 - x: 743.62
   y: -269.04
-  z: 3.31
+  z: 1.71
   width: null
   width_left: 7.011
   width_right: 6.947
@@ -3712,7 +3712,7 @@ nodes:
   surface_type: Asphalt
 - x: 741.44
   y: -273.49
-  z: 3.22
+  z: 1.57
   width: null
   width_left: 7.038
   width_right: 6.953
@@ -3721,7 +3721,7 @@ nodes:
   surface_type: Asphalt
 - x: 739.29
   y: -277.95
-  z: 3.13
+  z: 1.44
   width: null
   width_left: 7.062
   width_right: 6.959
@@ -3730,7 +3730,7 @@ nodes:
   surface_type: Asphalt
 - x: 737.2
   y: -282.46
-  z: 3.04
+  z: 1.3
   width: null
   width_left: 6.995
   width_right: 6.957
@@ -3739,7 +3739,7 @@ nodes:
   surface_type: Asphalt
 - x: 735.16
   y: -287.04
-  z: 2.96
+  z: 1.16
   width: null
   width_left: 6.927
   width_right: 6.954
@@ -3748,7 +3748,7 @@ nodes:
   surface_type: Asphalt
 - x: 733.15
   y: -291.67
-  z: 2.88
+  z: 1.02
   width: null
   width_left: 6.86
   width_right: 6.952
@@ -3757,7 +3757,7 @@ nodes:
   surface_type: Asphalt
 - x: 731.1
   y: -296.32
-  z: 2.79
+  z: 0.88
   width: null
   width_left: 6.793
   width_right: 6.949
@@ -3766,7 +3766,7 @@ nodes:
   surface_type: Asphalt
 - x: 728.92
   y: -300.9
-  z: 2.71
+  z: 0.73
   width: null
   width_left: 6.725
   width_right: 6.947
@@ -3775,7 +3775,7 @@ nodes:
   surface_type: Asphalt
 - x: 726.49
   y: -305.31
-  z: 2.64
+  z: 0.59
   width: null
   width_left: 6.838
   width_right: 6.816
@@ -3784,7 +3784,7 @@ nodes:
   surface_type: Asphalt
 - x: 723.73
   y: -309.42
-  z: 2.56
+  z: 0.45
   width: null
   width_left: 7.124
   width_right: 6.657
@@ -3793,7 +3793,7 @@ nodes:
   surface_type: Asphalt
 - x: 720.54
   y: -313.11
-  z: 2.49
+  z: 0.31
   width: null
   width_left: 7.008
   width_right: 6.919
@@ -3802,7 +3802,7 @@ nodes:
   surface_type: Asphalt
 - x: 716.9
   y: -316.31
-  z: 2.43
+  z: 0.17
   width: null
   width_left: 6.563
   width_right: 6.936
@@ -3811,7 +3811,7 @@ nodes:
   surface_type: Asphalt
 - x: 712.81
   y: -318.96
-  z: 2.36
+  z: 0.04
   width: null
   width_left: 7.057
   width_right: 6.33
@@ -3820,7 +3820,7 @@ nodes:
   surface_type: Asphalt
 - x: 708.35
   y: -321.07
-  z: 2.3
+  z: -0.09
   width: null
   width_left: 7.072
   width_right: 6.497
@@ -3829,7 +3829,7 @@ nodes:
   surface_type: Asphalt
 - x: 703.6
   y: -322.66
-  z: 2.23
+  z: -0.22
   width: null
   width_left: 7.14
   width_right: 6.586
@@ -3838,7 +3838,7 @@ nodes:
   surface_type: Asphalt
 - x: 698.67
   y: -323.79
-  z: 2.17
+  z: -0.34
   width: null
   width_left: 7.236
   width_right: 6.635
@@ -3847,7 +3847,7 @@ nodes:
   surface_type: Asphalt
 - x: 693.66
   y: -324.54
-  z: 2.12
+  z: -0.46
   width: null
   width_left: 6.882
   width_right: 7.056
@@ -3856,7 +3856,7 @@ nodes:
   surface_type: Asphalt
 - x: 688.62
   y: -324.96
-  z: 2.06
+  z: -0.57
   width: null
   width_left: 6.647
   width_right: 7.328
@@ -3865,7 +3865,7 @@ nodes:
   surface_type: Asphalt
 - x: 683.6
   y: -325.13
-  z: 2.01
+  z: -0.67
   width: null
   width_left: 6.932
   width_right: 7.024
@@ -3874,7 +3874,7 @@ nodes:
   surface_type: Asphalt
 - x: 678.62
   y: -325.09
-  z: 1.96
+  z: -0.77
   width: null
   width_left: 7.218
   width_right: 6.721
@@ -3883,7 +3883,7 @@ nodes:
   surface_type: Asphalt
 - x: 673.66
   y: -324.89
-  z: 1.91
+  z: -0.86
   width: null
   width_left: 7.143
   width_right: 6.832
@@ -3892,7 +3892,7 @@ nodes:
   surface_type: Asphalt
 - x: 668.71
   y: -324.59
-  z: 1.87
+  z: -0.94
   width: null
   width_left: 7.059
   width_right: 6.953
@@ -3901,7 +3901,7 @@ nodes:
   surface_type: Asphalt
 - x: 663.76
   y: -324.22
-  z: 1.83
+  z: -1.01
   width: null
   width_left: 7.031
   width_right: 7.018
@@ -3910,7 +3910,7 @@ nodes:
   surface_type: Asphalt
 - x: 658.78
   y: -323.82
-  z: 1.79
+  z: -1.08
   width: null
   width_left: 7.138
   width_right: 6.947
@@ -3919,7 +3919,7 @@ nodes:
   surface_type: Asphalt
 - x: 653.8
   y: -323.4
-  z: 1.75
+  z: -1.14
   width: null
   width_left: 7.244
   width_right: 6.875
@@ -3928,7 +3928,7 @@ nodes:
   surface_type: Asphalt
 - x: 648.8
   y: -322.96
-  z: 1.71
+  z: -1.19
   width: null
   width_left: 7.17
   width_right: 6.929
@@ -3937,7 +3937,7 @@ nodes:
   surface_type: Asphalt
 - x: 643.8
   y: -322.49
-  z: 1.68
+  z: -1.23
   width: null
   width_left: 7.054
   width_right: 7.011
@@ -3946,7 +3946,7 @@ nodes:
   surface_type: Asphalt
 - x: 638.82
   y: -321.94
-  z: 1.65
+  z: -1.27
   width: null
   width_left: 6.939
   width_right: 7.093
@@ -3955,7 +3955,7 @@ nodes:
   surface_type: Asphalt
 - x: 633.86
   y: -321.29
-  z: 1.62
+  z: -1.3
   width: null
   width_left: 6.893
   width_right: 7.122
@@ -3964,7 +3964,7 @@ nodes:
   surface_type: Asphalt
 - x: 628.93
   y: -320.49
-  z: 1.6
+  z: -1.32
   width: null
   width_left: 6.942
   width_right: 7.079
@@ -3973,7 +3973,7 @@ nodes:
   surface_type: Asphalt
 - x: 624.04
   y: -319.52
-  z: 1.58
+  z: -1.34
   width: null
   width_left: 6.996
   width_right: 7.03
@@ -3982,7 +3982,7 @@ nodes:
   surface_type: Asphalt
 - x: 619.19
   y: -318.38
-  z: 1.56
+  z: -1.35
   width: null
   width_left: 7.274
   width_right: 6.783
@@ -3991,7 +3991,7 @@ nodes:
   surface_type: Asphalt
 - x: 614.39
   y: -317.04
-  z: 1.55
+  z: -1.36
   width: null
   width_left: 7.552
   width_right: 6.537
@@ -4000,7 +4000,7 @@ nodes:
   surface_type: Asphalt
 - x: 609.63
   y: -315.54
-  z: 1.53
+  z: -1.37
   width: null
   width_left: 7.267
   width_right: 6.759
@@ -4009,7 +4009,7 @@ nodes:
   surface_type: Asphalt
 - x: 604.92
   y: -313.87
-  z: 1.51
+  z: -1.37
   width: null
   width_left: 6.923
   width_right: 7.03
@@ -4018,7 +4018,7 @@ nodes:
   surface_type: Asphalt
 - x: 600.26
   y: -312.06
-  z: 1.5
+  z: -1.37
   width: null
   width_left: 6.884
   width_right: 7.123
@@ -4027,7 +4027,7 @@ nodes:
   surface_type: Asphalt
 - x: 595.66
   y: -310.12
-  z: 1.49
+  z: -1.36
   width: null
   width_left: 6.891
   width_right: 7.19
@@ -4036,7 +4036,7 @@ nodes:
   surface_type: Asphalt
 - x: 591.1
   y: -308.07
-  z: 1.51
+  z: -1.35
   width: null
   width_left: 6.938
   width_right: 7.14
@@ -4045,7 +4045,7 @@ nodes:
   surface_type: Asphalt
 - x: 586.59
   y: -305.92
-  z: 1.58
+  z: -1.35
   width: null
   width_left: 7.008
   width_right: 7.021
@@ -4054,7 +4054,7 @@ nodes:
   surface_type: Asphalt
 - x: 582.13
   y: -303.67
-  z: 1.68
+  z: -1.33
   width: null
   width_left: 7.134
   width_right: 6.893
@@ -4063,7 +4063,7 @@ nodes:
   surface_type: Asphalt
 - x: 577.73
   y: -301.32
-  z: 1.82
+  z: -1.32
   width: null
   width_left: 7.356
   width_right: 6.749
@@ -4072,7 +4072,7 @@ nodes:
   surface_type: Asphalt
 - x: 573.38
   y: -298.86
-  z: 1.98
+  z: -1.31
   width: null
   width_left: 7.293
   width_right: 6.804
@@ -4081,7 +4081,7 @@ nodes:
   surface_type: Asphalt
 - x: 569.08
   y: -296.31
-  z: 2.14
+  z: -1.29
   width: null
   width_left: 7.126
   width_right: 6.932
@@ -4090,7 +4090,7 @@ nodes:
   surface_type: Asphalt
 - x: 564.84
   y: -293.66
-  z: 2.29
+  z: -1.27
   width: null
   width_left: 6.958
   width_right: 7.06
@@ -4099,7 +4099,7 @@ nodes:
   surface_type: Asphalt
 - x: 560.66
   y: -290.91
-  z: 2.43
+  z: -1.26
   width: null
   width_left: 6.927
   width_right: 7.039
@@ -4108,7 +4108,7 @@ nodes:
   surface_type: Asphalt
 - x: 556.53
   y: -288.08
-  z: 2.57
+  z: -1.24
   width: null
   width_left: 6.961
   width_right: 6.945
@@ -4117,7 +4117,7 @@ nodes:
   surface_type: Asphalt
 - x: 552.45
   y: -285.18
-  z: 2.72
+  z: -1.23
   width: null
   width_left: 6.995
   width_right: 6.856
@@ -4126,7 +4126,7 @@ nodes:
   surface_type: Asphalt
 - x: 548.41
   y: -282.24
-  z: 2.86
+  z: -1.21
   width: null
   width_left: 7.018
   width_right: 6.963
@@ -4135,7 +4135,7 @@ nodes:
   surface_type: Asphalt
 - x: 544.43
   y: -279.24
-  z: 3.01
+  z: -1.19
   width: null
   width_left: 7.042
   width_right: 7.071
@@ -4144,7 +4144,7 @@ nodes:
   surface_type: Asphalt
 - x: 540.49
   y: -276.2
-  z: 3.15
+  z: -1.18
   width: null
   width_left: 7.143
   width_right: 7.045
@@ -4153,7 +4153,7 @@ nodes:
   surface_type: Asphalt
 - x: 536.64
   y: -273.06
-  z: 3.3
+  z: -1.17
   width: null
   width_left: 7.301
   width_right: 6.921
@@ -4162,7 +4162,7 @@ nodes:
   surface_type: Asphalt
 - x: 532.9
   y: -269.78
-  z: 3.44
+  z: -1.15
   width: null
   width_left: 7.459
   width_right: 6.796
@@ -4171,7 +4171,7 @@ nodes:
   surface_type: Asphalt
 - x: 529.32
   y: -266.28
-  z: 3.58
+  z: -1.14
   width: null
   width_left: 7.424
   width_right: 6.8
@@ -4180,7 +4180,7 @@ nodes:
   surface_type: Asphalt
 - x: 526.01
   y: -262.5
-  z: 3.72
+  z: -1.12
   width: null
   width_left: 7.125
   width_right: 6.982
@@ -4189,7 +4189,7 @@ nodes:
   surface_type: Asphalt
 - x: 523.06
   y: -258.39
-  z: 3.85
+  z: -1.11
   width: null
   width_left: 6.955
   width_right: 7.046
@@ -4198,7 +4198,7 @@ nodes:
   surface_type: Asphalt
 - x: 520.62
   y: -253.97
-  z: 3.99
+  z: -1.09
   width: null
   width_left: 6.947
   width_right: 6.962
@@ -4207,7 +4207,7 @@ nodes:
   surface_type: Asphalt
 - x: 518.82
   y: -249.27
-  z: 4.13
+  z: -1.07
   width: null
   width_left: 7.008
   width_right: 6.882
@@ -4216,7 +4216,7 @@ nodes:
   surface_type: Asphalt
 - x: 517.8
   y: -244.4
-  z: 4.26
+  z: -1.06
   width: null
   width_left: 7.126
   width_right: 6.727
@@ -4225,7 +4225,7 @@ nodes:
   surface_type: Asphalt
 - x: 517.64
   y: -239.49
-  z: 4.4
+  z: -1.04
   width: null
   width_left: 7.127
   width_right: 6.76
@@ -4234,7 +4234,7 @@ nodes:
   surface_type: Asphalt
 - x: 518.39
   y: -234.68
-  z: 4.53
+  z: -1.01
   width: null
   width_left: 6.976
   width_right: 6.96
@@ -4243,7 +4243,7 @@ nodes:
   surface_type: Asphalt
 - x: 520.02
   y: -230.1
-  z: 4.66
+  z: -0.99
   width: null
   width_left: 7.012
   width_right: 6.644
@@ -4252,7 +4252,7 @@ nodes:
   surface_type: Asphalt
 - x: 522.44
   y: -225.83
-  z: 4.78
+  z: -0.97
   width: null
   width_left: 7.03
   width_right: 6.697
@@ -4261,7 +4261,7 @@ nodes:
   surface_type: Asphalt
 - x: 525.51
   y: -221.92
-  z: 4.91
+  z: -0.94
   width: null
   width_left: 7.076
   width_right: 6.723
@@ -4270,7 +4270,7 @@ nodes:
   surface_type: Asphalt
 - x: 529.08
   y: -218.36
-  z: 5.03
+  z: -0.92
   width: null
   width_left: 7.116
   width_right: 6.755
@@ -4279,7 +4279,7 @@ nodes:
   surface_type: Asphalt
 - x: 532.96
   y: -215.1
-  z: 5.16
+  z: -0.89
   width: null
   width_left: 6.938
   width_right: 7.006
@@ -4288,7 +4288,7 @@ nodes:
   surface_type: Asphalt
 - x: 537.03
   y: -212.09
-  z: 5.28
+  z: -0.87
   width: null
   width_left: 6.844
   width_right: 7.135
@@ -4297,7 +4297,7 @@ nodes:
   surface_type: Asphalt
 - x: 541.21
   y: -209.27
-  z: 5.4
+  z: -0.84
   width: null
   width_left: 7.016
   width_right: 6.882
@@ -4306,7 +4306,7 @@ nodes:
   surface_type: Asphalt
 - x: 545.44
   y: -206.61
-  z: 5.52
+  z: -0.82
   width: null
   width_left: 7.189
   width_right: 6.63
@@ -4315,7 +4315,7 @@ nodes:
   surface_type: Asphalt
 - x: 549.74
   y: -204.1
-  z: 5.63
+  z: -0.79
   width: null
   width_left: 7.245
   width_right: 6.583
@@ -4324,7 +4324,7 @@ nodes:
   surface_type: Asphalt
 - x: 554.11
   y: -201.77
-  z: 5.74
+  z: -0.77
   width: null
   width_left: 7.166
   width_right: 6.776
@@ -4333,7 +4333,7 @@ nodes:
   surface_type: Asphalt
 - x: 558.59
   y: -199.64
-  z: 5.85
+  z: -0.74
   width: null
   width_left: 7.066
   width_right: 6.962
@@ -4342,7 +4342,7 @@ nodes:
   surface_type: Asphalt
 - x: 563.19
   y: -197.76
-  z: 5.96
+  z: -0.72
   width: null
   width_left: 6.952
   width_right: 7.142
@@ -4351,7 +4351,7 @@ nodes:
   surface_type: Asphalt
 - x: 567.91
   y: -196.16
-  z: 6.07
+  z: -0.69
   width: null
   width_left: 6.998
   width_right: 7.104
@@ -4360,7 +4360,7 @@ nodes:
   surface_type: Asphalt
 - x: 572.74
   y: -194.84
-  z: 6.17
+  z: -0.67
   width: null
   width_left: 7.135
   width_right: 6.943
@@ -4369,7 +4369,7 @@ nodes:
   surface_type: Asphalt
 - x: 577.64
   y: -193.78
-  z: 6.28
+  z: -0.65
   width: null
   width_left: 7.272
   width_right: 6.782
@@ -4378,7 +4378,7 @@ nodes:
   surface_type: Asphalt
 - x: 582.59
   y: -192.93
-  z: 6.38
+  z: -0.63
   width: null
   width_left: 7.157
   width_right: 6.832
@@ -4387,7 +4387,7 @@ nodes:
   surface_type: Asphalt
 - x: 587.55
   y: -192.22
-  z: 6.47
+  z: -0.6
   width: null
   width_left: 7.032
   width_right: 6.891
@@ -4396,7 +4396,7 @@ nodes:
   surface_type: Asphalt
 - x: 592.52
   y: -191.58
-  z: 6.57
+  z: -0.58
   width: null
   width_left: 6.907
   width_right: 6.95
@@ -4405,7 +4405,7 @@ nodes:
   surface_type: Asphalt
 - x: 597.47
   y: -190.93
-  z: 6.66
+  z: -0.56
   width: null
   width_left: 6.782
   width_right: 7.008
@@ -4414,7 +4414,7 @@ nodes:
   surface_type: Asphalt
 - x: 602.4
   y: -190.22
-  z: 6.75
+  z: -0.54
   width: null
   width_left: 6.656
   width_right: 7.067
@@ -4423,7 +4423,7 @@ nodes:
   surface_type: Asphalt
 - x: 607.32
   y: -189.41
-  z: 6.83
+  z: -0.51
   width: null
   width_left: 6.584
   width_right: 7.078
@@ -4432,7 +4432,7 @@ nodes:
   surface_type: Asphalt
 - x: 612.21
   y: -188.48
-  z: 6.91
+  z: -0.49
   width: null
   width_left: 6.88
   width_right: 6.754
@@ -4441,7 +4441,7 @@ nodes:
   surface_type: Asphalt
 - x: 617.09
   y: -187.46
-  z: 6.99
+  z: -0.47
   width: null
   width_left: 6.909
   width_right: 6.736
@@ -4450,7 +4450,7 @@ nodes:
   surface_type: Asphalt
 - x: 621.95
   y: -186.33
-  z: 7.07
+  z: -0.45
   width: null
   width_left: 6.792
   width_right: 6.885
@@ -4459,7 +4459,7 @@ nodes:
   surface_type: Asphalt
 - x: 626.8
   y: -185.13
-  z: 7.15
+  z: -0.42
   width: null
   width_left: 6.731
   width_right: 6.995
@@ -4468,7 +4468,7 @@ nodes:
   surface_type: Asphalt
 - x: 631.63
   y: -183.85
-  z: 7.22
+  z: -0.4
   width: null
   width_left: 6.705
   width_right: 7.081
@@ -4477,7 +4477,7 @@ nodes:
   surface_type: Asphalt
 - x: 636.45
   y: -182.52
-  z: 7.29
+  z: -0.38
   width: null
   width_left: 6.778
   width_right: 7.031
@@ -4486,7 +4486,7 @@ nodes:
   surface_type: Asphalt
 - x: 641.25
   y: -181.12
-  z: 7.35
+  z: -0.36
   width: null
   width_left: 6.889
   width_right: 6.926
@@ -4495,7 +4495,7 @@ nodes:
   surface_type: Asphalt
 - x: 646.03
   y: -179.65
-  z: 7.42
+  z: -0.34
   width: null
   width_left: 7.001
   width_right: 6.822
@@ -4504,7 +4504,7 @@ nodes:
   surface_type: Asphalt
 - x: 650.79
   y: -178.1
-  z: 7.48
+  z: -0.33
   width: null
   width_left: 6.915
   width_right: 6.911
@@ -4513,7 +4513,7 @@ nodes:
   surface_type: Asphalt
 - x: 655.52
   y: -176.48
-  z: 7.53
+  z: -0.31
   width: null
   width_left: 6.797
   width_right: 7.032
@@ -4522,7 +4522,7 @@ nodes:
   surface_type: Asphalt
 - x: 660.23
   y: -174.77
-  z: 7.59
+  z: -0.3
   width: null
   width_left: 6.679
   width_right: 7.152
@@ -4531,7 +4531,7 @@ nodes:
   surface_type: Asphalt
 - x: 664.9
   y: -172.98
-  z: 7.64
+  z: -0.29
   width: null
   width_left: 6.677
   width_right: 7.144
@@ -4540,7 +4540,7 @@ nodes:
   surface_type: Asphalt
 - x: 669.54
   y: -171.11
-  z: 7.68
+  z: -0.28
   width: null
   width_left: 6.948
   width_right: 6.832
@@ -4549,7 +4549,7 @@ nodes:
   surface_type: Asphalt
 - x: 674.15
   y: -169.16
-  z: 7.73
+  z: -0.28
   width: null
   width_left: 7.22
   width_right: 6.519
@@ -4558,7 +4558,7 @@ nodes:
   surface_type: Asphalt
 - x: 678.69
   y: -167.1
-  z: 7.77
+  z: -0.28
   width: null
   width_left: 7.059
   width_right: 6.652
@@ -4567,7 +4567,7 @@ nodes:
   surface_type: Asphalt
 - x: 683.16
   y: -164.9
-  z: 7.81
+  z: -0.28
   width: null
   width_left: 6.679
   width_right: 7.01
@@ -4576,7 +4576,7 @@ nodes:
   surface_type: Asphalt
 - x: 687.51
   y: -162.49
-  z: 7.84
+  z: -0.28
   width: null
   width_left: 6.3
   width_right: 7.367
@@ -4585,7 +4585,7 @@ nodes:
   surface_type: Asphalt
 - x: 691.69
   y: -159.82
-  z: 7.87
+  z: -0.29
   width: null
   width_left: 6.459
   width_right: 7.318
@@ -4594,7 +4594,7 @@ nodes:
   surface_type: Asphalt
 - x: 695.64
   y: -156.83
-  z: 7.9
+  z: -0.3
   width: null
   width_left: 6.631
   width_right: 7.235
@@ -4603,7 +4603,7 @@ nodes:
   surface_type: Asphalt
 - x: 699.31
   y: -153.49
-  z: 7.92
+  z: -0.32
   width: null
   width_left: 6.768
   width_right: 7.092
@@ -4612,7 +4612,7 @@ nodes:
   surface_type: Asphalt
 - x: 702.65
   y: -149.79
-  z: 7.94
+  z: -0.33
   width: null
   width_left: 6.943
   width_right: 6.881
@@ -4621,7 +4621,7 @@ nodes:
   surface_type: Asphalt
 - x: 705.6
   y: -145.75
-  z: 7.96
+  z: -0.35
   width: null
   width_left: 7.155
   width_right: 6.597
@@ -4630,7 +4630,7 @@ nodes:
   surface_type: Asphalt
 - x: 708.16
   y: -141.43
-  z: 7.98
+  z: -0.37
   width: null
   width_left: 7.081
   width_right: 6.711
@@ -4639,7 +4639,7 @@ nodes:
   surface_type: Asphalt
 - x: 710.29
   y: -136.87
-  z: 7.99
+  z: -0.39
   width: null
   width_left: 6.949
   width_right: 6.913
@@ -4648,7 +4648,7 @@ nodes:
   surface_type: Asphalt
 - x: 711.98
   y: -132.15
-  z: 8.0
+  z: -0.42
   width: null
   width_left: 6.712
   width_right: 7.275
@@ -4657,7 +4657,7 @@ nodes:
   surface_type: Asphalt
 - x: 713.24
   y: -127.31
-  z: 8.0
+  z: -0.44
   width: null
   width_left: 6.6
   width_right: 7.271
@@ -4666,7 +4666,7 @@ nodes:
   surface_type: Asphalt
 - x: 714.03
   y: -122.39
-  z: 7.99
+  z: -0.46
   width: null
   width_left: 6.584
   width_right: 7.233
@@ -4675,7 +4675,7 @@ nodes:
   surface_type: Asphalt
 - x: 714.35
   y: -117.44
-  z: 7.98
+  z: -0.48
   width: null
   width_left: 6.721
   width_right: 7.183
@@ -4684,7 +4684,7 @@ nodes:
   surface_type: Asphalt
 - x: 714.17
   y: -112.47
-  z: 7.97
+  z: -0.5
   width: null
   width_left: 6.829
   width_right: 7.151
@@ -4693,7 +4693,7 @@ nodes:
   surface_type: Asphalt
 - x: 713.48
   y: -107.54
-  z: 7.95
+  z: -0.52
   width: null
   width_left: 6.916
   width_right: 7.131
@@ -4702,7 +4702,7 @@ nodes:
   surface_type: Asphalt
 - x: 712.24
   y: -102.7
-  z: 7.93
+  z: -0.54
   width: null
   width_left: 6.984
   width_right: 6.929
@@ -4711,7 +4711,7 @@ nodes:
   surface_type: Asphalt
 - x: 710.47
   y: -98.02
-  z: 7.92
+  z: -0.55
   width: null
   width_left: 7.023
   width_right: 6.713
@@ -4720,7 +4720,7 @@ nodes:
   surface_type: Asphalt
 - x: 708.16
   y: -93.58
-  z: 7.9
+  z: -0.57
   width: null
   width_left: 6.892
   width_right: 7.013
@@ -4729,7 +4729,7 @@ nodes:
   surface_type: Asphalt
 - x: 705.34
   y: -89.46
-  z: 7.89
+  z: -0.58
   width: null
   width_left: 6.739
   width_right: 7.275
@@ -4738,7 +4738,7 @@ nodes:
   surface_type: Asphalt
 - x: 702.05
   y: -85.72
-  z: 7.87
+  z: -0.58
   width: null
   width_left: 6.546
   width_right: 7.465
@@ -4747,7 +4747,7 @@ nodes:
   surface_type: Asphalt
 - x: 698.34
   y: -82.41
-  z: 7.86
+  z: -0.59
   width: null
   width_left: 6.678
   width_right: 7.379
@@ -4756,7 +4756,7 @@ nodes:
   surface_type: Asphalt
 - x: 694.28
   y: -79.55
-  z: 7.84
+  z: -0.59
   width: null
   width_left: 7.159
   width_right: 6.996
@@ -4765,7 +4765,7 @@ nodes:
   surface_type: Asphalt
 - x: 689.92
   y: -77.16
-  z: 7.83
+  z: -0.59
   width: null
   width_left: 7.064
   width_right: 7.046
@@ -4774,7 +4774,7 @@ nodes:
   surface_type: Asphalt
 - x: 685.33
   y: -75.21
-  z: 7.81
+  z: -0.59
   width: null
   width_left: 6.846
   width_right: 7.189
@@ -4783,7 +4783,7 @@ nodes:
   surface_type: Asphalt
 - x: 680.57
   y: -73.69
-  z: 7.8
+  z: -0.59
   width: null
   width_left: 6.834
   width_right: 7.133
@@ -4792,7 +4792,7 @@ nodes:
   surface_type: Asphalt
 - x: 675.71
   y: -72.55
-  z: 7.78
+  z: -0.58
   width: null
   width_left: 6.865
   width_right: 7.037
@@ -4801,7 +4801,7 @@ nodes:
   surface_type: Asphalt
 - x: 670.77
   y: -71.72
-  z: 7.77
+  z: -0.57
   width: null
   width_left: 6.839
   width_right: 7.088
@@ -4810,7 +4810,7 @@ nodes:
   surface_type: Asphalt
 - x: 665.8
   y: -71.15
-  z: 7.75
+  z: -0.56
   width: null
   width_left: 6.787
   width_right: 7.209
@@ -4819,7 +4819,7 @@ nodes:
   surface_type: Asphalt
 - x: 660.82
   y: -70.73
-  z: 7.73
+  z: -0.55
   width: null
   width_left: 6.82
   width_right: 7.175
@@ -4828,7 +4828,7 @@ nodes:
   surface_type: Asphalt
 - x: 655.84
   y: -70.42
-  z: 7.72
+  z: -0.54
   width: null
   width_left: 6.952
   width_right: 6.962
@@ -4837,7 +4837,7 @@ nodes:
   surface_type: Asphalt
 - x: 650.86
   y: -70.12
-  z: 7.7
+  z: -0.53
   width: null
   width_left: 6.998
   width_right: 6.793
@@ -4846,7 +4846,7 @@ nodes:
   surface_type: Asphalt
 - x: 645.88
   y: -69.82
-  z: 7.69
+  z: -0.51
   width: null
   width_left: 6.881
   width_right: 6.707
@@ -4855,7 +4855,7 @@ nodes:
   surface_type: Asphalt
 - x: 640.9
   y: -69.47
-  z: 7.67
+  z: -0.49
   width: null
   width_left: 6.763
   width_right: 6.621
@@ -4864,7 +4864,7 @@ nodes:
   surface_type: Asphalt
 - x: 635.92
   y: -69.09
-  z: 7.66
+  z: -0.48
   width: null
   width_left: 6.646
   width_right: 6.535
@@ -4873,7 +4873,7 @@ nodes:
   surface_type: Asphalt
 - x: 630.94
   y: -68.68
-  z: 7.64
+  z: -0.46
   width: null
   width_left: 6.528
   width_right: 6.449
@@ -4882,7 +4882,7 @@ nodes:
   surface_type: Asphalt
 - x: 625.96
   y: -68.26
-  z: 7.63
+  z: -0.44
   width: null
   width_left: 6.411
   width_right: 6.363
@@ -4891,7 +4891,7 @@ nodes:
   surface_type: Asphalt
 - x: 620.97
   y: -67.85
-  z: 7.61
+  z: -0.43
   width: null
   width_left: 6.293
   width_right: 6.277
@@ -4900,7 +4900,7 @@ nodes:
   surface_type: Asphalt
 - x: 615.98
   y: -67.47
-  z: 7.6
+  z: -0.41
   width: null
   width_left: 6.175
   width_right: 6.192
@@ -4909,7 +4909,7 @@ nodes:
   surface_type: Asphalt
 - x: 610.99
   y: -67.11
-  z: 7.58
+  z: -0.39
   width: null
   width_left: 6.032
   width_right: 6.093
@@ -4918,7 +4918,7 @@ nodes:
   surface_type: Asphalt
 - x: 606.0
   y: -66.78
-  z: 7.56
+  z: -0.38
   width: null
   width_left: 5.842
   width_right: 5.973
@@ -4927,7 +4927,7 @@ nodes:
   surface_type: Asphalt
 - x: 601.0
   y: -66.48
-  z: 7.55
+  z: -0.37
   width: null
   width_left: 5.652
   width_right: 5.852
@@ -4936,7 +4936,7 @@ nodes:
   surface_type: Asphalt
 - x: 596.01
   y: -66.2
-  z: 7.53
+  z: -0.36
   width: null
   width_left: 5.575
   width_right: 5.791
@@ -4945,7 +4945,7 @@ nodes:
   surface_type: Asphalt
 - x: 591.01
   y: -65.96
-  z: 7.52
+  z: -0.35
   width: null
   width_left: 5.551
   width_right: 5.734
@@ -4954,7 +4954,7 @@ nodes:
   surface_type: Asphalt
 - x: 586.01
   y: -65.75
-  z: 7.5
+  z: -0.34
   width: null
   width_left: 5.58
   width_right: 5.65
@@ -4963,7 +4963,7 @@ nodes:
   surface_type: Asphalt
 - x: 581.02
   y: -65.59
-  z: 7.49
+  z: -0.33
   width: null
   width_left: 5.609
   width_right: 5.565
@@ -4972,7 +4972,7 @@ nodes:
   surface_type: Asphalt
 - x: 576.02
   y: -65.49
-  z: 7.47
+  z: -0.33
   width: null
   width_left: 5.638
   width_right: 5.481
@@ -4981,7 +4981,7 @@ nodes:
   surface_type: Asphalt
 - x: 571.03
   y: -65.44
-  z: 7.46
+  z: -0.33
   width: null
   width_left: 5.59
   width_right: 5.534
@@ -4990,7 +4990,7 @@ nodes:
   surface_type: Asphalt
 - x: 566.03
   y: -65.46
-  z: 7.44
+  z: -0.33
   width: null
   width_left: 5.477
   width_right: 5.705
@@ -4999,7 +4999,7 @@ nodes:
   surface_type: Asphalt
 - x: 561.04
   y: -65.54
-  z: 7.43
+  z: -0.33
   width: null
   width_left: 5.364
   width_right: 5.876
@@ -5008,7 +5008,7 @@ nodes:
   surface_type: Asphalt
 - x: 556.05
   y: -65.68
-  z: 7.41
+  z: -0.33
   width: null
   width_left: 5.483
   width_right: 5.782
@@ -5017,7 +5017,7 @@ nodes:
   surface_type: Asphalt
 - x: 551.07
   y: -65.9
-  z: 7.39
+  z: -0.34
   width: null
   width_left: 5.659
   width_right: 5.623
@@ -5026,7 +5026,7 @@ nodes:
   surface_type: Asphalt
 - x: 546.08
   y: -66.17
-  z: 7.38
+  z: -0.34
   width: null
   width_left: 6.094
   width_right: 6.015
@@ -5035,7 +5035,7 @@ nodes:
   surface_type: Asphalt
 - x: 541.1
   y: -66.5
-  z: 7.36
+  z: -0.35
   width: null
   width_left: 6.577
   width_right: 6.506
@@ -5044,7 +5044,7 @@ nodes:
   surface_type: Asphalt
 - x: 536.12
   y: -66.88
-  z: 7.35
+  z: -0.35
   width: null
   width_left: 6.7
   width_right: 6.677
@@ -5053,7 +5053,7 @@ nodes:
   surface_type: Asphalt
 - x: 531.14
   y: -67.32
-  z: 7.33
+  z: -0.36
   width: null
   width_left: 6.493
   width_right: 6.553
@@ -5062,7 +5062,7 @@ nodes:
   surface_type: Asphalt
 - x: 526.16
   y: -67.8
-  z: 7.32
+  z: -0.36
   width: null
   width_left: 6.286
   width_right: 6.43
@@ -5071,7 +5071,7 @@ nodes:
   surface_type: Asphalt
 - x: 521.19
   y: -68.31
-  z: 7.3
+  z: -0.36
   width: null
   width_left: 6.079
   width_right: 6.306
@@ -5080,7 +5080,7 @@ nodes:
   surface_type: Asphalt
 - x: 516.21
   y: -68.86
-  z: 7.29
+  z: -0.36
   width: null
   width_left: 5.872
   width_right: 6.182
@@ -5089,7 +5089,7 @@ nodes:
   surface_type: Asphalt
 - x: 511.24
   y: -69.43
-  z: 7.27
+  z: -0.35
   width: null
   width_left: 5.664
   width_right: 6.058
@@ -5098,7 +5098,7 @@ nodes:
   surface_type: Asphalt
 - x: 506.27
   y: -70.03
-  z: 7.26
+  z: -0.34
   width: null
   width_left: 5.457
   width_right: 5.935
@@ -5107,7 +5107,7 @@ nodes:
   surface_type: Asphalt
 - x: 501.31
   y: -70.64
-  z: 7.24
+  z: -0.33
   width: null
   width_left: 5.416
   width_right: 5.896
@@ -5116,7 +5116,7 @@ nodes:
   surface_type: Asphalt
 - x: 496.34
   y: -71.27
-  z: 7.22
+  z: -0.31
   width: null
   width_left: 5.654
   width_right: 6.002
@@ -5125,7 +5125,7 @@ nodes:
   surface_type: Asphalt
 - x: 491.38
   y: -71.91
-  z: 7.21
+  z: -0.29
   width: null
   width_left: 5.892
   width_right: 6.107
@@ -5134,7 +5134,7 @@ nodes:
   surface_type: Asphalt
 - x: 486.42
   y: -72.56
-  z: 7.19
+  z: -0.26
   width: null
   width_left: 6.13
   width_right: 6.212
@@ -5143,7 +5143,7 @@ nodes:
   surface_type: Asphalt
 - x: 481.47
   y: -73.22
-  z: 7.18
+  z: -0.23
   width: null
   width_left: 6.368
   width_right: 6.318
@@ -5152,7 +5152,7 @@ nodes:
   surface_type: Asphalt
 - x: 476.51
   y: -73.9
-  z: 7.16
+  z: -0.19
   width: null
   width_left: 6.522
   width_right: 6.381
@@ -5161,7 +5161,7 @@ nodes:
   surface_type: Asphalt
 - x: 471.56
   y: -74.59
-  z: 7.15
+  z: -0.15
   width: null
   width_left: 6.332
   width_right: 6.27
@@ -5170,7 +5170,7 @@ nodes:
   surface_type: Asphalt
 - x: 466.62
   y: -75.31
-  z: 7.13
+  z: -0.1
   width: null
   width_left: 6.142
   width_right: 6.158
@@ -5179,7 +5179,7 @@ nodes:
   surface_type: Asphalt
 - x: 461.68
   y: -76.04
-  z: 7.12
+  z: -0.05
   width: null
   width_left: 5.952
   width_right: 6.047
@@ -5188,7 +5188,7 @@ nodes:
   surface_type: Asphalt
 - x: 456.74
   y: -76.81
-  z: 7.1
+  z: 0.01
   width: null
   width_left: 5.762
   width_right: 5.936
@@ -5197,7 +5197,7 @@ nodes:
   surface_type: Asphalt
 - x: 451.81
   y: -77.62
-  z: 7.09
+  z: 0.07
   width: null
   width_left: 5.571
   width_right: 5.824
@@ -5206,7 +5206,7 @@ nodes:
   surface_type: Asphalt
 - x: 446.89
   y: -78.47
-  z: 7.07
+  z: 0.14
   width: null
   width_left: 5.381
   width_right: 5.713
@@ -5215,7 +5215,7 @@ nodes:
   surface_type: Asphalt
 - x: 441.98
   y: -79.35
-  z: 7.05
+  z: 0.21
   width: null
   width_left: 5.239
   width_right: 5.621
@@ -5224,7 +5224,7 @@ nodes:
   surface_type: Asphalt
 - x: 437.07
   y: -80.27
-  z: 7.04
+  z: 0.28
   width: null
   width_left: 5.267
   width_right: 5.595
@@ -5233,7 +5233,7 @@ nodes:
   surface_type: Asphalt
 - x: 432.17
   y: -81.23
-  z: 7.02
+  z: 0.35
   width: null
   width_left: 5.295
   width_right: 5.57
@@ -5242,7 +5242,7 @@ nodes:
   surface_type: Asphalt
 - x: 427.27
   y: -82.24
-  z: 7.01
+  z: 0.43
   width: null
   width_left: 5.323
   width_right: 5.544
@@ -5251,7 +5251,7 @@ nodes:
   surface_type: Asphalt
 - x: 422.38
   y: -83.3
-  z: 6.99
+  z: 0.51
   width: null
   width_left: 5.351
   width_right: 5.518
@@ -5260,7 +5260,7 @@ nodes:
   surface_type: Asphalt
 - x: 417.5
   y: -84.42
-  z: 6.98
+  z: 0.59
   width: null
   width_left: 5.365
   width_right: 5.515
@@ -5269,7 +5269,7 @@ nodes:
   surface_type: Asphalt
 - x: 412.64
   y: -85.61
-  z: 6.96
+  z: 0.66
   width: null
   width_left: 5.377
   width_right: 5.517
@@ -5278,7 +5278,7 @@ nodes:
   surface_type: Asphalt
 - x: 407.8
   y: -86.88
-  z: 6.95
+  z: 0.74
   width: null
   width_left: 5.389
   width_right: 5.518
@@ -5287,7 +5287,7 @@ nodes:
   surface_type: Asphalt
 - x: 402.99
   y: -88.23
-  z: 6.93
+  z: 0.82
   width: null
   width_left: 5.401
   width_right: 5.519
@@ -5296,7 +5296,7 @@ nodes:
   surface_type: Asphalt
 - x: 398.2
   y: -89.65
-  z: 6.92
+  z: 0.89
   width: null
   width_left: 5.432
   width_right: 5.52
@@ -5305,7 +5305,7 @@ nodes:
   surface_type: Asphalt
 - x: 393.42
   y: -91.1
-  z: 6.9
+  z: 0.96
   width: null
   width_left: 5.463
   width_right: 5.52
@@ -5314,7 +5314,7 @@ nodes:
   surface_type: Asphalt
 - x: 388.64
   y: -92.54
-  z: 6.88
+  z: 1.03
   width: null
   width_left: 5.495
   width_right: 5.52
@@ -5323,7 +5323,7 @@ nodes:
   surface_type: Asphalt
 - x: 383.84
   y: -93.96
-  z: 6.87
+  z: 1.1
   width: null
   width_left: 5.526
   width_right: 5.52
@@ -5332,7 +5332,7 @@ nodes:
   surface_type: Asphalt
 - x: 379.03
   y: -95.31
-  z: 6.85
+  z: 1.17
   width: null
   width_left: 5.557
   width_right: 5.521
@@ -5341,7 +5341,7 @@ nodes:
   surface_type: Asphalt
 - x: 374.2
   y: -96.6
-  z: 6.84
+  z: 1.23
   width: null
   width_left: 5.554
   width_right: 5.517
@@ -5350,7 +5350,7 @@ nodes:
   surface_type: Asphalt
 - x: 369.35
   y: -97.85
-  z: 6.82
+  z: 1.28
   width: null
   width_left: 5.549
   width_right: 5.513
@@ -5359,7 +5359,7 @@ nodes:
   surface_type: Asphalt
 - x: 364.51
   y: -99.1
-  z: 6.81
+  z: 1.34
   width: null
   width_left: 5.545
   width_right: 5.509
@@ -5368,7 +5368,7 @@ nodes:
   surface_type: Asphalt
 - x: 359.68
   y: -100.4
-  z: 6.79
+  z: 1.38
   width: null
   width_left: 5.531
   width_right: 5.51
@@ -5377,7 +5377,7 @@ nodes:
   surface_type: Asphalt
 - x: 354.88
   y: -101.78
-  z: 6.78
+  z: 1.43
   width: null
   width_left: 5.452
   width_right: 5.546
@@ -5386,7 +5386,7 @@ nodes:
   surface_type: Asphalt
 - x: 350.12
   y: -103.28
-  z: 6.76
+  z: 1.46
   width: null
   width_left: 5.374
   width_right: 5.582
@@ -5395,7 +5395,7 @@ nodes:
   surface_type: Asphalt
 - x: 345.41
   y: -104.9
-  z: 6.74
+  z: 1.49
   width: null
   width_left: 5.341
   width_right: 5.649
@@ -5404,7 +5404,7 @@ nodes:
   surface_type: Asphalt
 - x: 340.72
   y: -106.62
-  z: 6.73
+  z: 1.51
   width: null
   width_left: 5.936
   width_right: 6.154
@@ -5413,7 +5413,7 @@ nodes:
   surface_type: Asphalt
 - x: 336.05
   y: -108.4
-  z: 6.71
+  z: 1.53
   width: null
   width_left: 6.53
   width_right: 6.658
@@ -5422,7 +5422,7 @@ nodes:
   surface_type: Asphalt
 - x: 331.39
   y: -110.21
-  z: 6.7
+  z: 1.54
   width: null
   width_left: 7.125
   width_right: 7.163
@@ -5431,7 +5431,7 @@ nodes:
   surface_type: Asphalt
 - x: 326.73
   y: -112.02
-  z: 6.68
+  z: 1.54
   width: null
   width_left: 7.169
   width_right: 7.177
@@ -5440,7 +5440,7 @@ nodes:
   surface_type: Asphalt
 - x: 322.05
   y: -113.81
-  z: 6.67
+  z: 1.53
   width: null
   width_left: 6.979
   width_right: 6.985
@@ -5449,7 +5449,7 @@ nodes:
   surface_type: Asphalt
 - x: 317.36
   y: -115.56
-  z: 6.65
+  z: 1.52
   width: null
   width_left: 6.79
   width_right: 6.792
@@ -5458,7 +5458,7 @@ nodes:
   surface_type: Asphalt
 - x: 312.66
   y: -117.28
-  z: 6.64
+  z: 1.5
   width: null
   width_left: 6.601
   width_right: 6.599
@@ -5467,7 +5467,7 @@ nodes:
   surface_type: Asphalt
 - x: 307.96
   y: -119.0
-  z: 6.62
+  z: 1.47
   width: null
   width_left: 6.412
   width_right: 6.406
@@ -5476,7 +5476,7 @@ nodes:
   surface_type: Asphalt
 - x: 303.27
   y: -120.72
-  z: 6.61
+  z: 1.43
   width: null
   width_left: 6.223
   width_right: 6.214
@@ -5485,7 +5485,7 @@ nodes:
   surface_type: Asphalt
 - x: 298.58
   y: -122.47
-  z: 6.59
+  z: 1.39
   width: null
   width_left: 6.034
   width_right: 6.021
@@ -5494,7 +5494,7 @@ nodes:
   surface_type: Asphalt
 - x: 293.91
   y: -124.25
-  z: 6.57
+  z: 1.34
   width: null
   width_left: 5.844
   width_right: 5.828
@@ -5503,7 +5503,7 @@ nodes:
   surface_type: Asphalt
 - x: 289.26
   y: -126.08
-  z: 6.56
+  z: 1.28
   width: null
   width_left: 5.779
   width_right: 5.816
@@ -5512,7 +5512,7 @@ nodes:
   surface_type: Asphalt
 - x: 284.63
   y: -127.94
-  z: 6.54
+  z: 1.22
   width: null
   width_left: 5.849
   width_right: 6.002
@@ -5521,7 +5521,7 @@ nodes:
   surface_type: Asphalt
 - x: 280.01
   y: -129.84
-  z: 6.53
+  z: 1.15
   width: null
   width_left: 5.92
   width_right: 6.188
@@ -5530,7 +5530,7 @@ nodes:
   surface_type: Asphalt
 - x: 275.4
   y: -131.77
-  z: 6.51
+  z: 1.08
   width: null
   width_left: 5.99
   width_right: 6.375
@@ -5539,7 +5539,7 @@ nodes:
   surface_type: Asphalt
 - x: 270.81
   y: -133.73
-  z: 6.5
+  z: 1.0
   width: null
   width_left: 6.061
   width_right: 6.561
@@ -5548,7 +5548,7 @@ nodes:
   surface_type: Asphalt
 - x: 266.23
   y: -135.71
-  z: 6.48
+  z: 0.92
   width: null
   width_left: 6.131
   width_right: 6.747
@@ -5557,7 +5557,7 @@ nodes:
   surface_type: Asphalt
 - x: 261.67
   y: -137.73
-  z: 6.47
+  z: 0.83
   width: null
   width_left: 6.212
   width_right: 6.916
@@ -5566,7 +5566,7 @@ nodes:
   surface_type: Asphalt
 - x: 257.13
   y: -139.79
-  z: 6.45
+  z: 0.73
   width: null
   width_left: 6.4
   width_right: 6.896
@@ -5575,7 +5575,7 @@ nodes:
   surface_type: Asphalt
 - x: 252.6
   y: -141.89
-  z: 6.44
+  z: 0.64
   width: null
   width_left: 6.588
   width_right: 6.877
@@ -5584,7 +5584,7 @@ nodes:
   surface_type: Asphalt
 - x: 248.09
   y: -144.05
-  z: 6.42
+  z: 0.53
   width: null
   width_left: 6.776
   width_right: 6.857
@@ -5593,7 +5593,7 @@ nodes:
   surface_type: Asphalt
 - x: 243.58
   y: -146.26
-  z: 6.4
+  z: 0.42
   width: null
   width_left: 6.964
   width_right: 6.837
@@ -5602,7 +5602,7 @@ nodes:
   surface_type: Asphalt
 - x: 239.08
   y: -148.5
-  z: 6.39
+  z: 0.31
   width: null
   width_left: 7.152
   width_right: 6.817
@@ -5611,7 +5611,7 @@ nodes:
   surface_type: Asphalt
 - x: 234.58
   y: -150.76
-  z: 6.37
+  z: 0.2
   width: null
   width_left: 7.327
   width_right: 6.982
@@ -5620,7 +5620,7 @@ nodes:
   surface_type: Asphalt
 - x: 230.1
   y: -153.02
-  z: 6.36
+  z: 0.08
   width: null
   width_left: 7.481
   width_right: 7.413
@@ -5629,7 +5629,7 @@ nodes:
   surface_type: Asphalt
 - x: 225.66
   y: -155.27
-  z: 6.34
+  z: -0.04
   width: null
   width_left: 7.636
   width_right: 7.844
@@ -5638,7 +5638,7 @@ nodes:
   surface_type: Asphalt
 - x: 221.27
   y: -157.54
-  z: 6.33
+  z: -0.16
   width: null
   width_left: 7.791
   width_right: 8.276
@@ -5647,7 +5647,7 @@ nodes:
   surface_type: Asphalt
 - x: 216.96
   y: -159.86
-  z: 6.31
+  z: -0.28
   width: null
   width_left: 7.724
   width_right: 8.296
@@ -5656,7 +5656,7 @@ nodes:
   surface_type: Asphalt
 - x: 212.74
   y: -162.27
-  z: 6.3
+  z: -0.4
   width: null
   width_left: 7.553
   width_right: 8.123
@@ -5665,7 +5665,7 @@ nodes:
   surface_type: Asphalt
 - x: 208.61
   y: -164.83
-  z: 6.28
+  z: -0.53
   width: null
   width_left: 7.382
   width_right: 7.95
@@ -5674,7 +5674,7 @@ nodes:
   surface_type: Asphalt
 - x: 204.53
   y: -167.51
-  z: 6.27
+  z: -0.65
   width: null
   width_left: 7.211
   width_right: 7.777
@@ -5683,7 +5683,7 @@ nodes:
   surface_type: Asphalt
 - x: 200.43
   y: -170.25
-  z: 6.25
+  z: -0.77
   width: null
   width_left: 7.039
   width_right: 7.604
@@ -5692,7 +5692,7 @@ nodes:
   surface_type: Asphalt
 - x: 196.24
   y: -172.91
-  z: 6.23
+  z: -0.88
   width: null
   width_left: 6.868
   width_right: 7.431
@@ -5701,7 +5701,7 @@ nodes:
   surface_type: Asphalt
 - x: 191.9
   y: -175.26
-  z: 6.22
+  z: -1.0
   width: null
   width_left: 6.697
   width_right: 7.258
@@ -5710,7 +5710,7 @@ nodes:
   surface_type: Asphalt
 - x: 187.39
   y: -177.1
-  z: 6.2
+  z: -1.11
   width: null
   width_left: 6.551
   width_right: 7.078
@@ -5719,7 +5719,7 @@ nodes:
   surface_type: Asphalt
 - x: 182.72
   y: -178.2
-  z: 6.19
+  z: -1.21
   width: null
   width_left: 6.764
   width_right: 6.789
@@ -5728,7 +5728,7 @@ nodes:
   surface_type: Asphalt
 - x: 178.02
   y: -178.41
-  z: 6.17
+  z: -1.31
   width: null
   width_left: 6.945
   width_right: 6.203
@@ -5737,7 +5737,7 @@ nodes:
   surface_type: Asphalt
 - x: 173.43
   y: -177.66
-  z: 6.16
+  z: -1.41
   width: null
   width_left: 7.243
   width_right: 6.339
@@ -5746,7 +5746,7 @@ nodes:
   surface_type: Asphalt
 - x: 169.13
   y: -175.94
-  z: 6.14
+  z: -1.5
   width: null
   width_left: 6.911
   width_right: 6.636
@@ -5755,7 +5755,7 @@ nodes:
   surface_type: Asphalt
 - x: 165.26
   y: -173.33
-  z: 6.13
+  z: -1.58
   width: null
   width_left: 6.883
   width_right: 7.071
@@ -5764,7 +5764,7 @@ nodes:
   surface_type: Asphalt
 - x: 161.91
   y: -169.97
-  z: 6.11
+  z: -1.66
   width: null
   width_left: 6.805
   width_right: 7.181
@@ -5773,7 +5773,7 @@ nodes:
   surface_type: Asphalt
 - x: 159.04
   y: -166.03
-  z: 6.1
+  z: -1.73
   width: null
   width_left: 6.715
   width_right: 7.152
@@ -5782,7 +5782,7 @@ nodes:
   surface_type: Asphalt
 - x: 156.5
   y: -161.75
-  z: 6.08
+  z: -1.79
   width: null
   width_left: 6.624
   width_right: 7.123
@@ -5791,7 +5791,7 @@ nodes:
   surface_type: Asphalt
 - x: 154.08
   y: -157.37
-  z: 6.07
+  z: -1.85
   width: null
   width_left: 6.533
   width_right: 7.093
@@ -5800,7 +5800,7 @@ nodes:
   surface_type: Asphalt
 - x: 151.52
   y: -153.13
-  z: 6.05
+  z: -1.9
   width: null
   width_left: 6.443
   width_right: 7.064
@@ -5809,7 +5809,7 @@ nodes:
   surface_type: Asphalt
 - x: 148.63
   y: -149.25
-  z: 6.04
+  z: -1.94
   width: null
   width_left: 6.016
   width_right: 6.723
@@ -5818,7 +5818,7 @@ nodes:
   surface_type: Asphalt
 - x: 145.25
   y: -145.88
-  z: 6.02
+  z: -1.97
   width: null
   width_left: 5.369
   width_right: 6.197
@@ -5827,7 +5827,7 @@ nodes:
   surface_type: Asphalt
 - x: 141.36
   y: -143.14
-  z: 6.0
+  z: -2.0
   width: null
   width_left: 5.483
   width_right: 5.813
@@ -5836,7 +5836,7 @@ nodes:
   surface_type: Asphalt
 - x: 136.99
   y: -141.09
-  z: 5.98
+  z: -2.03
   width: null
   width_left: 5.65
   width_right: 5.615
@@ -5845,7 +5845,7 @@ nodes:
   surface_type: Asphalt
 - x: 132.27
   y: -139.74
-  z: 5.95
+  z: -2.05
   width: null
   width_left: 5.556
   width_right: 5.607
@@ -5854,7 +5854,7 @@ nodes:
   surface_type: Asphalt
 - x: 127.32
   y: -139.09
-  z: 5.92
+  z: -2.06
   width: null
   width_left: 5.33
   width_right: 5.642
@@ -5863,7 +5863,7 @@ nodes:
   surface_type: Asphalt
 - x: 122.27
   y: -139.11
-  z: 5.89
+  z: -2.07
   width: null
   width_left: 5.067
   width_right: 5.431
@@ -5872,7 +5872,7 @@ nodes:
   surface_type: Asphalt
 - x: 117.24
   y: -139.75
-  z: 5.85
+  z: -2.07
   width: null
   width_left: 4.831
   width_right: 5.131
@@ -5881,7 +5881,7 @@ nodes:
   surface_type: Asphalt
 - x: 112.31
   y: -141.0
-  z: 5.82
+  z: -2.08
   width: null
   width_left: 4.83
   width_right: 4.822
@@ -5890,7 +5890,7 @@ nodes:
   surface_type: Asphalt
 - x: 107.58
   y: -142.83
-  z: 5.79
+  z: -2.07
   width: null
   width_left: 4.689
   width_right: 4.742
@@ -5899,7 +5899,7 @@ nodes:
   surface_type: Asphalt
 - x: 103.15
   y: -145.24
-  z: 5.76
+  z: -2.07
   width: null
   width_left: 4.429
   width_right: 4.859
@@ -5908,7 +5908,7 @@ nodes:
   surface_type: Asphalt
 - x: 99.11
   y: -148.2
-  z: 5.73
+  z: -2.06
   width: null
   width_left: 4.321
   width_right: 4.934
@@ -5917,7 +5917,7 @@ nodes:
   surface_type: Asphalt
 - x: 95.6
   y: -151.68
-  z: 5.7
+  z: -2.05
   width: null
   width_left: 4.52
   width_right: 4.649
@@ -5926,7 +5926,7 @@ nodes:
   surface_type: Asphalt
 - x: 92.72
   y: -155.65
-  z: 5.67
+  z: -2.04
   width: null
   width_left: 4.649
   width_right: 4.528
@@ -5935,7 +5935,7 @@ nodes:
   surface_type: Asphalt
 - x: 90.55
   y: -160.02
-  z: 5.64
+  z: -2.03
   width: null
   width_left: 4.596
   width_right: 4.667
@@ -5944,7 +5944,7 @@ nodes:
   surface_type: Asphalt
 - x: 89.1
   y: -164.7
-  z: 5.61
+  z: -2.01
   width: null
   width_left: 4.596
   width_right: 4.703
@@ -5953,7 +5953,7 @@ nodes:
   surface_type: Asphalt
 - x: 88.35
   y: -169.59
-  z: 5.58
+  z: -1.99
   width: null
   width_left: 4.552
   width_right: 4.812
@@ -5962,7 +5962,7 @@ nodes:
   surface_type: Asphalt
 - x: 88.21
   y: -174.59
-  z: 5.55
+  z: -1.98
   width: null
   width_left: 4.429
   width_right: 4.788
@@ -5971,7 +5971,7 @@ nodes:
   surface_type: Asphalt
 - x: 88.54
   y: -179.62
-  z: 5.52
+  z: -1.96
   width: null
   width_left: 4.484
   width_right: 4.874
@@ -5980,7 +5980,7 @@ nodes:
   surface_type: Asphalt
 - x: 89.21
   y: -184.63
-  z: 5.48
+  z: -1.94
   width: null
   width_left: 4.568
   width_right: 4.96
@@ -5989,7 +5989,7 @@ nodes:
   surface_type: Asphalt
 - x: 90.09
   y: -189.59
-  z: 5.45
+  z: -1.92
   width: null
   width_left: 4.566
   width_right: 4.955
@@ -5998,7 +5998,7 @@ nodes:
   surface_type: Asphalt
 - x: 91.06
   y: -194.51
-  z: 5.42
+  z: -1.91
   width: null
   width_left: 4.564
   width_right: 4.95
@@ -6007,7 +6007,7 @@ nodes:
   surface_type: Asphalt
 - x: 92.06
   y: -199.4
-  z: 5.39
+  z: -1.89
   width: null
   width_left: 4.563
   width_right: 4.945
@@ -6016,7 +6016,7 @@ nodes:
   surface_type: Asphalt
 - x: 93.06
   y: -204.27
-  z: 5.36
+  z: -1.88
   width: null
   width_left: 4.561
   width_right: 4.94
@@ -6025,7 +6025,7 @@ nodes:
   surface_type: Asphalt
 - x: 94.05
   y: -209.15
-  z: 5.33
+  z: -1.86
   width: null
   width_left: 4.559
   width_right: 4.934
@@ -6034,7 +6034,7 @@ nodes:
   surface_type: Asphalt
 - x: 95.02
   y: -214.05
-  z: 5.3
+  z: -1.85
   width: null
   width_left: 4.558
   width_right: 4.929
@@ -6043,7 +6043,7 @@ nodes:
   surface_type: Asphalt
 - x: 95.98
   y: -218.96
-  z: 5.27
+  z: -1.84
   width: null
   width_left: 4.556
   width_right: 4.924
@@ -6052,7 +6052,7 @@ nodes:
   surface_type: Asphalt
 - x: 96.94
   y: -223.87
-  z: 5.24
+  z: -1.83
   width: null
   width_left: 4.555
   width_right: 4.919
@@ -6061,7 +6061,7 @@ nodes:
   surface_type: Asphalt
 - x: 97.89
   y: -228.79
-  z: 5.21
+  z: -1.82
   width: null
   width_left: 4.553
   width_right: 4.914
@@ -6070,7 +6070,7 @@ nodes:
   surface_type: Asphalt
 - x: 98.84
   y: -233.7
-  z: 5.17
+  z: -1.82
   width: null
   width_left: 4.551
   width_right: 4.909
@@ -6079,7 +6079,7 @@ nodes:
   surface_type: Asphalt
 - x: 99.77
   y: -238.61
-  z: 5.14
+  z: -1.82
   width: null
   width_left: 4.55
   width_right: 4.904
@@ -6088,7 +6088,7 @@ nodes:
   surface_type: Asphalt
 - x: 100.7
   y: -243.52
-  z: 5.11
+  z: -1.82
   width: null
   width_left: 4.548
   width_right: 4.898
@@ -6097,7 +6097,7 @@ nodes:
   surface_type: Asphalt
 - x: 101.63
   y: -248.43
-  z: 5.08
+  z: -1.82
   width: null
   width_left: 4.546
   width_right: 4.893
@@ -6106,7 +6106,7 @@ nodes:
   surface_type: Asphalt
 - x: 102.56
   y: -253.34
-  z: 5.05
+  z: -1.82
   width: null
   width_left: 4.545
   width_right: 4.888
@@ -6115,7 +6115,7 @@ nodes:
   surface_type: Asphalt
 - x: 103.5
   y: -258.25
-  z: 5.02
+  z: -1.83
   width: null
   width_left: 4.543
   width_right: 4.883
@@ -6124,7 +6124,7 @@ nodes:
   surface_type: Asphalt
 - x: 104.45
   y: -263.16
-  z: 4.99
+  z: -1.83
   width: null
   width_left: 4.542
   width_right: 4.878
@@ -6133,7 +6133,7 @@ nodes:
   surface_type: Asphalt
 - x: 105.4
   y: -268.06
-  z: 4.96
+  z: -1.83
   width: null
   width_left: 4.54
   width_right: 4.873
@@ -6142,7 +6142,7 @@ nodes:
   surface_type: Asphalt
 - x: 106.37
   y: -272.97
-  z: 4.93
+  z: -1.84
   width: null
   width_left: 4.538
   width_right: 4.868
@@ -6151,7 +6151,7 @@ nodes:
   surface_type: Asphalt
 - x: 107.33
   y: -277.88
-  z: 4.9
+  z: -1.84
   width: null
   width_left: 4.537
   width_right: 4.862
@@ -6160,7 +6160,7 @@ nodes:
   surface_type: Asphalt
 - x: 108.3
   y: -282.78
-  z: 4.87
+  z: -1.84
   width: null
   width_left: 4.535
   width_right: 4.857
@@ -6169,7 +6169,7 @@ nodes:
   surface_type: Asphalt
 - x: 109.26
   y: -287.69
-  z: 4.84
+  z: -1.85
   width: null
   width_left: 4.534
   width_right: 4.852
@@ -6178,7 +6178,7 @@ nodes:
   surface_type: Asphalt
 - x: 110.23
   y: -292.59
-  z: 4.8
+  z: -1.85
   width: null
   width_left: 4.532
   width_right: 4.847
@@ -6187,7 +6187,7 @@ nodes:
   surface_type: Asphalt
 - x: 111.19
   y: -297.5
-  z: 4.77
+  z: -1.85
   width: null
   width_left: 4.53
   width_right: 4.842
@@ -6196,7 +6196,7 @@ nodes:
   surface_type: Asphalt
 - x: 112.15
   y: -302.4
-  z: 4.74
+  z: -1.85
   width: null
   width_left: 4.529
   width_right: 4.837
@@ -6205,7 +6205,7 @@ nodes:
   surface_type: Asphalt
 - x: 113.1
   y: -307.31
-  z: 4.71
+  z: -1.85
   width: null
   width_left: 4.527
   width_right: 4.832
@@ -6214,7 +6214,7 @@ nodes:
   surface_type: Asphalt
 - x: 114.05
   y: -312.22
-  z: 4.68
+  z: -1.85
   width: null
   width_left: 4.525
   width_right: 4.826
@@ -6223,7 +6223,7 @@ nodes:
   surface_type: Asphalt
 - x: 115.0
   y: -317.13
-  z: 4.65
+  z: -1.85
   width: null
   width_left: 4.524
   width_right: 4.821
@@ -6232,7 +6232,7 @@ nodes:
   surface_type: Asphalt
 - x: 115.94
   y: -322.04
-  z: 4.62
+  z: -1.84
   width: null
   width_left: 4.522
   width_right: 4.816
@@ -6241,7 +6241,7 @@ nodes:
   surface_type: Asphalt
 - x: 116.88
   y: -326.95
-  z: 4.59
+  z: -1.83
   width: null
   width_left: 4.521
   width_right: 4.811
@@ -6250,7 +6250,7 @@ nodes:
   surface_type: Asphalt
 - x: 117.82
   y: -331.86
-  z: 4.56
+  z: -1.82
   width: null
   width_left: 4.519
   width_right: 4.806
@@ -6259,7 +6259,7 @@ nodes:
   surface_type: Asphalt
 - x: 118.75
   y: -336.77
-  z: 4.53
+  z: -1.81
   width: null
   width_left: 4.517
   width_right: 4.801
@@ -6268,7 +6268,7 @@ nodes:
   surface_type: Asphalt
 - x: 119.69
   y: -341.68
-  z: 4.5
+  z: -1.79
   width: null
   width_left: 4.516
   width_right: 4.795
@@ -6277,7 +6277,7 @@ nodes:
   surface_type: Asphalt
 - x: 120.62
   y: -346.59
-  z: 4.46
+  z: -1.77
   width: null
   width_left: 4.514
   width_right: 4.79
@@ -6286,7 +6286,7 @@ nodes:
   surface_type: Asphalt
 - x: 121.56
   y: -351.5
-  z: 4.43
+  z: -1.75
   width: null
   width_left: 4.512
   width_right: 4.785
@@ -6295,7 +6295,7 @@ nodes:
   surface_type: Asphalt
 - x: 122.5
   y: -356.41
-  z: 4.4
+  z: -1.73
   width: null
   width_left: 4.511
   width_right: 4.78
@@ -6304,7 +6304,7 @@ nodes:
   surface_type: Asphalt
 - x: 123.45
   y: -361.32
-  z: 4.37
+  z: -1.7
   width: null
   width_left: 4.509
   width_right: 4.775
@@ -6313,7 +6313,7 @@ nodes:
   surface_type: Asphalt
 - x: 124.42
   y: -366.23
-  z: 4.34
+  z: -1.66
   width: null
   width_left: 4.508
   width_right: 4.77
@@ -6322,7 +6322,7 @@ nodes:
   surface_type: Asphalt
 - x: 125.39
   y: -371.13
-  z: 4.31
+  z: -1.63
   width: null
   width_left: 4.506
   width_right: 4.765
@@ -6331,7 +6331,7 @@ nodes:
   surface_type: Asphalt
 - x: 126.38
   y: -376.03
-  z: 4.28
+  z: -1.59
   width: null
   width_left: 4.504
   width_right: 4.759
@@ -6340,7 +6340,7 @@ nodes:
   surface_type: Asphalt
 - x: 127.36
   y: -380.93
-  z: 4.25
+  z: -1.55
   width: null
   width_left: 4.503
   width_right: 4.754
@@ -6349,7 +6349,7 @@ nodes:
   surface_type: Asphalt
 - x: 128.34
   y: -385.82
-  z: 4.22
+  z: -1.5
   width: null
   width_left: 4.501
   width_right: 4.749
@@ -6358,7 +6358,7 @@ nodes:
   surface_type: Asphalt
 - x: 129.31
   y: -390.72
-  z: 4.19
+  z: -1.46
   width: null
   width_left: 4.499
   width_right: 4.744
@@ -6367,7 +6367,7 @@ nodes:
   surface_type: Asphalt
 - x: 130.28
   y: -395.62
-  z: 4.15
+  z: -1.41
   width: null
   width_left: 4.498
   width_right: 4.739
@@ -6376,7 +6376,7 @@ nodes:
   surface_type: Asphalt
 - x: 131.25
   y: -400.53
-  z: 4.12
+  z: -1.37
   width: null
   width_left: 4.496
   width_right: 4.734
@@ -6385,7 +6385,7 @@ nodes:
   surface_type: Asphalt
 - x: 132.21
   y: -405.45
-  z: 4.09
+  z: -1.33
   width: null
   width_left: 4.495
   width_right: 4.729
@@ -6394,7 +6394,7 @@ nodes:
   surface_type: Asphalt
 - x: 133.13
   y: -410.38
-  z: 4.06
+  z: -1.28
   width: null
   width_left: 4.59
   width_right: 4.683
@@ -6403,7 +6403,7 @@ nodes:
   surface_type: Asphalt
 - x: 133.99
   y: -415.32
-  z: 4.03
+  z: -1.24
   width: null
   width_left: 4.72
   width_right: 4.623
@@ -6412,7 +6412,7 @@ nodes:
   surface_type: Asphalt
 - x: 134.72
   y: -420.28
-  z: 4.0
+  z: -1.2
   width: null
   width_left: 4.923
   width_right: 4.457
@@ -6421,7 +6421,7 @@ nodes:
   surface_type: Asphalt
 - x: 135.24
   y: -425.23
-  z: 3.97
+  z: -1.17
   width: null
   width_left: 5.176
   width_right: 4.219
@@ -6430,7 +6430,7 @@ nodes:
   surface_type: Asphalt
 - x: 135.46
   y: -430.19
-  z: 3.94
+  z: -1.13
   width: null
   width_left: 5.035
   width_right: 4.345
@@ -6439,7 +6439,7 @@ nodes:
   surface_type: Asphalt
 - x: 135.32
   y: -435.13
-  z: 3.91
+  z: -1.1
   width: null
   width_left: 4.798
   width_right: 4.52
@@ -6448,7 +6448,7 @@ nodes:
   surface_type: Asphalt
 - x: 134.75
   y: -440.04
-  z: 3.88
+  z: -1.07
   width: null
   width_left: 4.485
   width_right: 4.74
@@ -6457,7 +6457,7 @@ nodes:
   surface_type: Asphalt
 - x: 133.74
   y: -444.9
-  z: 3.85
+  z: -1.05
   width: null
   width_left: 4.557
   width_right: 4.971
@@ -6466,7 +6466,7 @@ nodes:
   surface_type: Asphalt
 - x: 132.29
   y: -449.67
-  z: 3.82
+  z: -1.02
   width: null
   width_left: 4.317
   width_right: 5.116
@@ -6475,7 +6475,7 @@ nodes:
   surface_type: Asphalt
 - x: 130.41
   y: -454.33
-  z: 3.78
+  z: -1.0
   width: null
   width_left: 4.713
   width_right: 4.238
@@ -6484,7 +6484,7 @@ nodes:
   surface_type: Asphalt
 - x: 128.15
   y: -458.83
-  z: 3.75
+  z: -0.98
   width: null
   width_left: 4.717
   width_right: 4.493
@@ -6493,7 +6493,7 @@ nodes:
   surface_type: Asphalt
 - x: 125.53
   y: -463.13
-  z: 3.72
+  z: -0.96
   width: null
   width_left: 4.446
   width_right: 4.832
@@ -6502,7 +6502,7 @@ nodes:
   surface_type: Asphalt
 - x: 122.57
   y: -467.18
-  z: 3.69
+  z: -0.94
   width: null
   width_left: 5.135
   width_right: 4.407
@@ -6511,7 +6511,7 @@ nodes:
   surface_type: Asphalt
 - x: 119.27
   y: -470.92
-  z: 3.66
+  z: -0.93
   width: null
   width_left: 5.028
   width_right: 4.54
@@ -6520,7 +6520,7 @@ nodes:
   surface_type: Asphalt
 - x: 115.64
   y: -474.3
-  z: 3.63
+  z: -0.91
   width: null
   width_left: 4.847
   width_right: 4.692
@@ -6529,7 +6529,7 @@ nodes:
   surface_type: Asphalt
 - x: 111.68
   y: -477.28
-  z: 3.6
+  z: -0.9
   width: null
   width_left: 4.742
   width_right: 4.796
@@ -6538,7 +6538,7 @@ nodes:
   surface_type: Asphalt
 - x: 107.42
   y: -479.81
-  z: 3.57
+  z: -0.89
   width: null
   width_left: 4.883
   width_right: 4.993
@@ -6547,7 +6547,7 @@ nodes:
   surface_type: Asphalt
 - x: 102.9
   y: -481.88
-  z: 3.54
+  z: -0.89
   width: null
   width_left: 4.671
   width_right: 5.144
@@ -6556,7 +6556,7 @@ nodes:
   surface_type: Asphalt
 - x: 98.19
   y: -483.51
-  z: 3.51
+  z: -0.88
   width: null
   width_left: 4.496
   width_right: 4.997
@@ -6565,7 +6565,7 @@ nodes:
   surface_type: Asphalt
 - x: 93.34
   y: -484.74
-  z: 3.48
+  z: -0.88
   width: null
   width_left: 5.074
   width_right: 4.346
@@ -6574,7 +6574,7 @@ nodes:
   surface_type: Asphalt
 - x: 88.42
   y: -485.64
-  z: 3.44
+  z: -0.87
   width: null
   width_left: 5.375
   width_right: 4.216
@@ -6583,133 +6583,133 @@ nodes:
   surface_type: Asphalt
 - x: 83.47
   y: -486.26
-  z: 3.41
+  z: -0.87
   width: null
   width_left: 5.017
   width_right: 4.6
-  banking: 0.0
+  banking: 0.0008
   friction: 1.0
   surface_type: Asphalt
 - x: 78.5
   y: -486.7
-  z: 3.38
+  z: -0.87
   width: null
   width_left: 4.723
   width_right: 4.913
-  banking: 0.0
+  banking: 0.0085
   friction: 1.0
   surface_type: Asphalt
 - x: 73.53
   y: -487.02
-  z: 3.35
+  z: -0.87
   width: null
   width_left: 4.744
   width_right: 4.873
-  banking: 0.0
+  banking: 0.0235
   friction: 1.0
   surface_type: Asphalt
 - x: 68.55
   y: -487.27
-  z: 3.32
+  z: -0.86
   width: null
   width_left: 4.766
   width_right: 4.832
-  banking: 0.0
+  banking: 0.0445
   friction: 1.0
   surface_type: Asphalt
 - x: 63.56
   y: -487.5
-  z: 3.29
+  z: -0.86
   width: null
   width_left: 4.787
   width_right: 4.792
-  banking: 0.0
+  banking: 0.0703
   friction: 1.0
   surface_type: Asphalt
 - x: 58.57
   y: -487.73
-  z: 3.26
+  z: -0.85
   width: null
   width_left: 4.809
   width_right: 4.752
-  banking: 0.0
+  banking: 0.0996
   friction: 1.0
   surface_type: Asphalt
 - x: 53.56
   y: -487.97
-  z: 3.23
+  z: -0.85
   width: null
   width_left: 4.83
   width_right: 4.712
-  banking: 0.0
+  banking: 0.1313
   friction: 1.0
   surface_type: Asphalt
 - x: 48.55
   y: -488.22
-  z: 3.2
+  z: -0.84
   width: null
   width_left: 4.852
   width_right: 4.671
-  banking: 0.0
+  banking: 0.1641
   friction: 1.0
   surface_type: Asphalt
 - x: 43.55
   y: -488.48
-  z: 3.17
+  z: -0.84
   width: null
   width_left: 4.874
   width_right: 4.631
-  banking: 0.0
+  banking: 0.1965
   friction: 1.0
   surface_type: Asphalt
 - x: 38.56
   y: -488.73
-  z: 3.14
+  z: -0.83
   width: null
   width_left: 4.895
   width_right: 4.591
-  banking: 0.0238
+  banking: 0.2273
   friction: 1.0
   surface_type: Asphalt
 - x: 33.58
   y: -488.98
-  z: 3.1
+  z: -0.83
   width: null
   width_left: 4.917
   width_right: 4.55
-  banking: 0.0822
+  banking: 0.2552
   friction: 1.0
   surface_type: Asphalt
 - x: 28.6
   y: -489.21
-  z: 3.07
+  z: -0.82
   width: null
   width_left: 4.938
   width_right: 4.51
-  banking: 0.1576
+  banking: 0.2791
   friction: 1.0
   surface_type: Asphalt
 - x: 23.62
   y: -489.39
-  z: 3.04
+  z: -0.81
   width: null
   width_left: 4.943
   width_right: 4.494
-  banking: 0.233
+  banking: 0.2978
   friction: 1.0
   surface_type: Asphalt
 - x: 18.63
   y: -489.52
-  z: 3.01
+  z: -0.8
   width: null
   width_left: 4.871
   width_right: 4.592
-  banking: 0.291
+  banking: 0.3099
   friction: 1.0
   surface_type: Asphalt
 - x: 13.64
   y: -489.57
-  z: 2.98
+  z: -0.79
   width: null
   width_left: 4.799
   width_right: 4.69
@@ -6718,7 +6718,7 @@ nodes:
   surface_type: Asphalt
 - x: 8.63
   y: -489.52
-  z: 2.95
+  z: -0.78
   width: null
   width_left: 4.707
   width_right: 4.791
@@ -6727,7 +6727,7 @@ nodes:
   surface_type: Asphalt
 - x: 3.62
   y: -489.36
-  z: 2.92
+  z: -0.77
   width: null
   width_left: 4.545
   width_right: 4.905
@@ -6736,7 +6736,7 @@ nodes:
   surface_type: Asphalt
 - x: -1.38
   y: -489.08
-  z: 2.89
+  z: -0.75
   width: null
   width_left: 4.419
   width_right: 4.987
@@ -6745,7 +6745,7 @@ nodes:
   surface_type: Asphalt
 - x: -6.38
   y: -488.66
-  z: 2.86
+  z: -0.74
   width: null
   width_left: 4.555
   width_right: 4.833
@@ -6754,7 +6754,7 @@ nodes:
   surface_type: Asphalt
 - x: -11.35
   y: -488.09
-  z: 2.83
+  z: -0.72
   width: null
   width_left: 4.685
   width_right: 4.681
@@ -6763,7 +6763,7 @@ nodes:
   surface_type: Asphalt
 - x: -16.3
   y: -487.35
-  z: 2.8
+  z: -0.7
   width: null
   width_left: 4.799
   width_right: 4.536
@@ -6772,7 +6772,7 @@ nodes:
   surface_type: Asphalt
 - x: -21.21
   y: -486.45
-  z: 2.76
+  z: -0.67
   width: null
   width_left: 4.853
   width_right: 4.463
@@ -6781,7 +6781,7 @@ nodes:
   surface_type: Asphalt
 - x: -26.09
   y: -485.37
-  z: 2.73
+  z: -0.65
   width: null
   width_left: 4.755
   width_right: 4.576
@@ -6790,7 +6790,7 @@ nodes:
   surface_type: Asphalt
 - x: -30.92
   y: -484.12
-  z: 2.7
+  z: -0.62
   width: null
   width_left: 4.768
   width_right: 4.582
@@ -6799,7 +6799,7 @@ nodes:
   surface_type: Asphalt
 - x: -35.7
   y: -482.69
-  z: 2.67
+  z: -0.59
   width: null
   width_left: 4.848
   width_right: 4.522
@@ -6808,7 +6808,7 @@ nodes:
   surface_type: Asphalt
 - x: -40.42
   y: -481.08
-  z: 2.64
+  z: -0.56
   width: null
   width_left: 4.905
   width_right: 4.498
@@ -6817,7 +6817,7 @@ nodes:
   surface_type: Asphalt
 - x: -45.08
   y: -479.3
-  z: 2.61
+  z: -0.52
   width: null
   width_left: 4.948
   width_right: 4.487
@@ -6826,7 +6826,7 @@ nodes:
   surface_type: Asphalt
 - x: -49.67
   y: -477.34
-  z: 2.58
+  z: -0.49
   width: null
   width_left: 4.879
   width_right: 4.568
@@ -6835,7 +6835,7 @@ nodes:
   surface_type: Asphalt
 - x: -54.18
   y: -475.21
-  z: 2.55
+  z: -0.45
   width: null
   width_left: 4.797
   width_right: 4.658
@@ -6844,7 +6844,7 @@ nodes:
   surface_type: Asphalt
 - x: -58.61
   y: -472.91
-  z: 2.52
+  z: -0.41
   width: null
   width_left: 4.683
   width_right: 4.765
@@ -6853,7 +6853,7 @@ nodes:
   surface_type: Asphalt
 - x: -62.96
   y: -470.44
-  z: 2.49
+  z: -0.37
   width: null
   width_left: 4.597
   width_right: 4.83
@@ -6862,7 +6862,7 @@ nodes:
   surface_type: Asphalt
 - x: -67.21
   y: -467.81
-  z: 2.46
+  z: -0.32
   width: null
   width_left: 4.624
   width_right: 4.72
@@ -6871,7 +6871,7 @@ nodes:
   surface_type: Asphalt
 - x: -71.36
   y: -465.03
-  z: 2.43
+  z: -0.27
   width: null
   width_left: 4.657
   width_right: 4.629
@@ -6880,7 +6880,7 @@ nodes:
   surface_type: Asphalt
 - x: -75.4
   y: -462.09
-  z: 2.39
+  z: -0.22
   width: null
   width_left: 4.703
   width_right: 4.584
@@ -6889,7 +6889,7 @@ nodes:
   surface_type: Asphalt
 - x: -79.33
   y: -459.01
-  z: 2.36
+  z: -0.17
   width: null
   width_left: 4.591
   width_right: 4.692
@@ -6898,7 +6898,7 @@ nodes:
   surface_type: Asphalt
 - x: -83.15
   y: -455.78
-  z: 2.33
+  z: -0.11
   width: null
   width_left: 4.495
   width_right: 4.79
@@ -6907,7 +6907,7 @@ nodes:
   surface_type: Asphalt
 - x: -86.84
   y: -452.41
-  z: 2.3
+  z: -0.05
   width: null
   width_left: 4.618
   width_right: 4.7
@@ -6916,7 +6916,7 @@ nodes:
   surface_type: Asphalt
 - x: -90.41
   y: -448.91
-  z: 2.27
+  z: 0.01
   width: null
   width_left: 4.828
   width_right: 4.501
@@ -6925,7 +6925,7 @@ nodes:
   surface_type: Asphalt
 - x: -93.84
   y: -445.27
-  z: 2.24
+  z: 0.07
   width: null
   width_left: 5.105
   width_right: 4.212
@@ -6934,7 +6934,7 @@ nodes:
   surface_type: Asphalt
 - x: -97.13
   y: -441.51
-  z: 2.21
+  z: 0.14
   width: null
   width_left: 4.728
   width_right: 4.502
@@ -6943,7 +6943,7 @@ nodes:
   surface_type: Asphalt
 - x: -100.28
   y: -437.62
-  z: 2.18
+  z: 0.22
   width: null
   width_left: 4.503
   width_right: 4.692
@@ -6952,7 +6952,7 @@ nodes:
   surface_type: Asphalt
 - x: -103.28
   y: -433.62
-  z: 2.15
+  z: 0.29
   width: null
   width_left: 4.508
   width_right: 4.728
@@ -6961,7 +6961,7 @@ nodes:
   surface_type: Asphalt
 - x: -106.12
   y: -429.5
-  z: 2.12
+  z: 0.37
   width: null
   width_left: 4.614
   width_right: 4.668
@@ -6970,7 +6970,7 @@ nodes:
   surface_type: Asphalt
 - x: -108.8
   y: -425.28
-  z: 2.08
+  z: 0.44
   width: null
   width_left: 4.82
   width_right: 4.513
@@ -6979,7 +6979,7 @@ nodes:
   surface_type: Asphalt
 - x: -111.32
   y: -420.96
-  z: 2.05
+  z: 0.52
   width: null
   width_left: 4.784
   width_right: 4.574
@@ -6988,7 +6988,7 @@ nodes:
   surface_type: Asphalt
 - x: -113.67
   y: -416.55
-  z: 2.02
+  z: 0.6
   width: null
   width_left: 4.702
   width_right: 4.674
@@ -6997,7 +6997,7 @@ nodes:
   surface_type: Asphalt
 - x: -115.86
   y: -412.06
-  z: 2.0
+  z: 0.68
   width: null
   width_left: 4.695
   width_right: 4.708
@@ -7006,7 +7006,7 @@ nodes:
   surface_type: Asphalt
 - x: -117.88
   y: -407.49
-  z: 1.97
+  z: 0.76
   width: null
   width_left: 4.717
   width_right: 4.717
@@ -7015,7 +7015,7 @@ nodes:
   surface_type: Asphalt
 - x: -119.72
   y: -402.84
-  z: 1.95
+  z: 0.84
   width: null
   width_left: 4.745
   width_right: 4.673
@@ -7024,7 +7024,7 @@ nodes:
   surface_type: Asphalt
 - x: -121.38
   y: -398.13
-  z: 1.92
+  z: 0.92
   width: null
   width_left: 4.775
   width_right: 4.621
@@ -7033,7 +7033,7 @@ nodes:
   surface_type: Asphalt
 - x: -122.86
   y: -393.37
-  z: 1.9
+  z: 1.01
   width: null
   width_left: 4.922
   width_right: 4.599
@@ -7042,7 +7042,7 @@ nodes:
   surface_type: Asphalt
 - x: -124.16
   y: -388.55
-  z: 1.88
+  z: 1.09
   width: null
   width_left: 5.032
   width_right: 4.577
@@ -7051,7 +7051,7 @@ nodes:
   surface_type: Asphalt
 - x: -125.26
   y: -383.69
-  z: 1.86
+  z: 1.17
   width: null
   width_left: 5.061
   width_right: 4.597
@@ -7060,7 +7060,7 @@ nodes:
   surface_type: Asphalt
 - x: -126.18
   y: -378.79
-  z: 1.83
+  z: 1.26
   width: null
   width_left: 4.887
   width_right: 4.804
@@ -7069,7 +7069,7 @@ nodes:
   surface_type: Asphalt
 - x: -126.9
   y: -373.85
-  z: 1.81
+  z: 1.35
   width: null
   width_left: 4.719
   width_right: 4.655
@@ -7078,7 +7078,7 @@ nodes:
   surface_type: Asphalt
 - x: -127.43
   y: -368.9
-  z: 1.79
+  z: 1.44
   width: null
   width_left: 4.593
   width_right: 4.516
@@ -7087,7 +7087,7 @@ nodes:
   surface_type: Asphalt
 - x: -127.77
   y: -363.92
-  z: 1.76
+  z: 1.52
   width: null
   width_left: 4.602
   width_right: 4.611
@@ -7096,7 +7096,7 @@ nodes:
   surface_type: Asphalt
 - x: -127.92
   y: -358.94
-  z: 1.74
+  z: 1.61
   width: null
   width_left: 4.548
   width_right: 4.759
@@ -7105,7 +7105,7 @@ nodes:
   surface_type: Asphalt
 - x: -127.9
   y: -353.94
-  z: 1.72
+  z: 1.7
   width: null
   width_left: 4.53
   width_right: 4.812
@@ -7114,7 +7114,7 @@ nodes:
   surface_type: Asphalt
 - x: -127.7
   y: -348.95
-  z: 1.69
+  z: 1.78
   width: null
   width_left: 4.569
   width_right: 4.747
@@ -7123,7 +7123,7 @@ nodes:
   surface_type: Asphalt
 - x: -127.34
   y: -343.95
-  z: 1.67
+  z: 1.87
   width: null
   width_left: 4.569
   width_right: 4.658
@@ -7132,7 +7132,7 @@ nodes:
   surface_type: Asphalt
 - x: -126.81
   y: -338.97
-  z: 1.65
+  z: 1.95
   width: null
   width_left: 4.609
   width_right: 4.573
@@ -7141,7 +7141,7 @@ nodes:
   surface_type: Asphalt
 - x: -126.13
   y: -334.0
-  z: 1.62
+  z: 2.02
   width: null
   width_left: 4.716
   width_right: 4.504
@@ -7150,7 +7150,7 @@ nodes:
   surface_type: Asphalt
 - x: -125.3
   y: -329.05
-  z: 1.6
+  z: 2.09
   width: null
   width_left: 4.741
   width_right: 4.458
@@ -7159,7 +7159,7 @@ nodes:
   surface_type: Asphalt
 - x: -124.32
   y: -324.13
-  z: 1.58
+  z: 2.15
   width: null
   width_left: 4.63
   width_right: 4.449
@@ -7168,7 +7168,7 @@ nodes:
   surface_type: Asphalt
 - x: -123.2
   y: -319.24
-  z: 1.55
+  z: 2.2
   width: null
   width_left: 4.558
   width_right: 4.425
@@ -7177,7 +7177,7 @@ nodes:
   surface_type: Asphalt
 - x: -121.95
   y: -314.39
-  z: 1.53
+  z: 2.25
   width: null
   width_left: 4.705
   width_right: 4.321
@@ -7186,7 +7186,7 @@ nodes:
   surface_type: Asphalt
 - x: -120.56
   y: -309.58
-  z: 1.51
+  z: 2.28
   width: null
   width_left: 4.754
   width_right: 4.473
@@ -7195,7 +7195,7 @@ nodes:
   surface_type: Asphalt
 - x: -119.05
   y: -304.82
-  z: 1.48
+  z: 2.31
   width: null
   width_left: 4.769
   width_right: 4.68
@@ -7204,7 +7204,7 @@ nodes:
   surface_type: Asphalt
 - x: -117.44
   y: -300.1
-  z: 1.46
+  z: 2.32
   width: null
   width_left: 4.771
   width_right: 4.829
@@ -7213,133 +7213,133 @@ nodes:
   surface_type: Asphalt
 - x: -115.75
   y: -295.41
-  z: 1.44
+  z: 2.33
   width: null
   width_left: 4.761
   width_right: 4.896
-  banking: 0.2911
+  banking: 0.3099
   friction: 1.0
   surface_type: Asphalt
 - x: -113.99
   y: -290.75
-  z: 1.41
+  z: 2.32
   width: null
   width_left: 4.736
   width_right: 4.861
-  banking: 0.2332
+  banking: 0.2978
   friction: 1.0
   surface_type: Asphalt
 - x: -112.18
   y: -286.11
-  z: 1.39
+  z: 2.31
   width: null
   width_left: 4.711
   width_right: 4.826
-  banking: 0.1579
+  banking: 0.2792
   friction: 1.0
   surface_type: Asphalt
 - x: -110.36
   y: -281.47
-  z: 1.37
+  z: 2.28
   width: null
   width_left: 4.686
   width_right: 4.791
-  banking: 0.0824
+  banking: 0.2553
   friction: 1.0
   surface_type: Asphalt
 - x: -108.52
   y: -276.83
-  z: 1.35
+  z: 2.25
   width: null
   width_left: 4.683
   width_right: 4.777
-  banking: 0.024
+  banking: 0.2273
   friction: 1.0
   surface_type: Asphalt
 - x: -106.69
   y: -272.18
-  z: 1.32
+  z: 2.21
   width: null
   width_left: 4.68
   width_right: 4.764
-  banking: 0.0
+  banking: 0.1965
   friction: 1.0
   surface_type: Asphalt
 - x: -104.88
   y: -267.52
-  z: 1.3
+  z: 2.15
   width: null
   width_left: 4.677
   width_right: 4.75
-  banking: 0.0
+  banking: 0.1642
   friction: 1.0
   surface_type: Asphalt
 - x: -103.07
   y: -262.86
-  z: 1.28
+  z: 2.1
   width: null
   width_left: 4.675
   width_right: 4.737
-  banking: 0.0
+  banking: 0.1316
   friction: 1.0
   surface_type: Asphalt
 - x: -101.28
   y: -258.18
-  z: 1.25
+  z: 2.04
   width: null
   width_left: 4.672
   width_right: 4.724
-  banking: 0.0
+  banking: 0.0999
   friction: 1.0
   surface_type: Asphalt
 - x: -99.49
   y: -253.51
-  z: 1.23
+  z: 1.97
   width: null
   width_left: 4.669
   width_right: 4.711
-  banking: 0.0
+  banking: 0.0705
   friction: 1.0
   surface_type: Asphalt
 - x: -97.71
   y: -248.83
-  z: 1.21
+  z: 1.9
   width: null
   width_left: 4.667
   width_right: 4.697
-  banking: 0.0
+  banking: 0.0446
   friction: 1.0
   surface_type: Asphalt
 - x: -95.93
   y: -244.15
-  z: 1.18
+  z: 1.82
   width: null
   width_left: 4.664
   width_right: 4.684
-  banking: 0.0
+  banking: 0.0235
   friction: 1.0
   surface_type: Asphalt
 - x: -94.15
   y: -239.48
-  z: 1.16
+  z: 1.74
   width: null
   width_left: 4.662
   width_right: 4.671
-  banking: 0.0
+  banking: 0.0085
   friction: 1.0
   surface_type: Asphalt
 - x: -92.37
   y: -234.8
-  z: 1.14
+  z: 1.67
   width: null
   width_left: 4.659
   width_right: 4.658
-  banking: 0.0
+  banking: 0.0008
   friction: 1.0
   surface_type: Asphalt
 - x: -90.58
   y: -230.13
-  z: 1.11
+  z: 1.58
   width: null
   width_left: 4.656
   width_right: 4.645
@@ -7348,7 +7348,7 @@ nodes:
   surface_type: Asphalt
 - x: -88.8
   y: -225.46
-  z: 1.09
+  z: 1.5
   width: null
   width_left: 4.654
   width_right: 4.631
@@ -7357,7 +7357,7 @@ nodes:
   surface_type: Asphalt
 - x: -87.01
   y: -220.79
-  z: 1.07
+  z: 1.42
   width: null
   width_left: 4.651
   width_right: 4.618
@@ -7366,7 +7366,7 @@ nodes:
   surface_type: Asphalt
 - x: -85.23
   y: -216.12
-  z: 1.04
+  z: 1.33
   width: null
   width_left: 4.648
   width_right: 4.605
@@ -7375,7 +7375,7 @@ nodes:
   surface_type: Asphalt
 - x: -83.44
   y: -211.45
-  z: 1.02
+  z: 1.25
   width: null
   width_left: 4.646
   width_right: 4.592
@@ -7384,7 +7384,7 @@ nodes:
   surface_type: Asphalt
 - x: -81.65
   y: -206.78
-  z: 1.0
+  z: 1.16
   width: null
   width_left: 4.643
   width_right: 4.578
@@ -7393,7 +7393,7 @@ nodes:
   surface_type: Asphalt
 - x: -79.86
   y: -202.11
-  z: 0.97
+  z: 1.08
   width: null
   width_left: 4.64
   width_right: 4.565
@@ -7402,7 +7402,7 @@ nodes:
   surface_type: Asphalt
 - x: -78.07
   y: -197.45
-  z: 0.95
+  z: 1.0
   width: null
   width_left: 4.638
   width_right: 4.552
@@ -7411,7 +7411,7 @@ nodes:
   surface_type: Asphalt
 - x: -76.28
   y: -192.78
-  z: 0.93
+  z: 0.92
   width: null
   width_left: 4.635
   width_right: 4.539
@@ -7420,7 +7420,7 @@ nodes:
   surface_type: Asphalt
 - x: -74.49
   y: -188.12
-  z: 0.9
+  z: 0.84
   width: null
   width_left: 4.632
   width_right: 4.526
@@ -7429,7 +7429,7 @@ nodes:
   surface_type: Asphalt
 - x: -72.69
   y: -183.45
-  z: 0.88
+  z: 0.77
   width: null
   width_left: 4.63
   width_right: 4.512
@@ -7438,7 +7438,7 @@ nodes:
   surface_type: Asphalt
 - x: -70.89
   y: -178.79
-  z: 0.86
+  z: 0.71
   width: null
   width_left: 4.627
   width_right: 4.499
@@ -7447,7 +7447,7 @@ nodes:
   surface_type: Asphalt
 - x: -69.09
   y: -174.13
-  z: 0.83
+  z: 0.65
   width: null
   width_left: 4.624
   width_right: 4.486
@@ -7456,7 +7456,7 @@ nodes:
   surface_type: Asphalt
 - x: -67.29
   y: -169.46
-  z: 0.81
+  z: 0.59
   width: null
   width_left: 4.622
   width_right: 4.473
@@ -7465,7 +7465,7 @@ nodes:
   surface_type: Asphalt
 - x: -65.49
   y: -164.8
-  z: 0.79
+  z: 0.54
   width: null
   width_left: 4.619
   width_right: 4.459
@@ -7474,7 +7474,7 @@ nodes:
   surface_type: Asphalt
 - x: -63.69
   y: -160.14
-  z: 0.77
+  z: 0.5
   width: null
   width_left: 4.617
   width_right: 4.446
@@ -7483,7 +7483,7 @@ nodes:
   surface_type: Asphalt
 - x: -61.88
   y: -155.48
-  z: 0.74
+  z: 0.46
   width: null
   width_left: 4.614
   width_right: 4.433
@@ -7492,7 +7492,7 @@ nodes:
   surface_type: Asphalt
 - x: -60.07
   y: -150.82
-  z: 0.72
+  z: 0.42
   width: null
   width_left: 4.611
   width_right: 4.42
@@ -7501,7 +7501,7 @@ nodes:
   surface_type: Asphalt
 - x: -58.27
   y: -146.16
-  z: 0.7
+  z: 0.39
   width: null
   width_left: 4.609
   width_right: 4.407
@@ -7510,7 +7510,7 @@ nodes:
   surface_type: Asphalt
 - x: -56.46
   y: -141.5
-  z: 0.67
+  z: 0.37
   width: null
   width_left: 4.606
   width_right: 4.393
@@ -7519,7 +7519,7 @@ nodes:
   surface_type: Asphalt
 - x: -54.64
   y: -136.84
-  z: 0.65
+  z: 0.35
   width: null
   width_left: 4.603
   width_right: 4.38
@@ -7528,7 +7528,7 @@ nodes:
   surface_type: Asphalt
 - x: -52.83
   y: -132.18
-  z: 0.63
+  z: 0.33
   width: null
   width_left: 4.601
   width_right: 4.367
@@ -7537,7 +7537,7 @@ nodes:
   surface_type: Asphalt
 - x: -51.02
   y: -127.52
-  z: 0.6
+  z: 0.31
   width: null
   width_left: 4.625
   width_right: 4.392
@@ -7546,7 +7546,7 @@ nodes:
   surface_type: Asphalt
 - x: -49.2
   y: -122.87
-  z: 0.58
+  z: 0.3
   width: null
   width_left: 4.649
   width_right: 4.417
@@ -7555,7 +7555,7 @@ nodes:
   surface_type: Asphalt
 - x: -47.39
   y: -118.21
-  z: 0.56
+  z: 0.29
   width: null
   width_left: 4.672
   width_right: 4.443
@@ -7564,7 +7564,7 @@ nodes:
   surface_type: Asphalt
 - x: -45.57
   y: -113.55
-  z: 0.53
+  z: 0.28
   width: null
   width_left: 4.696
   width_right: 4.468
@@ -7573,7 +7573,7 @@ nodes:
   surface_type: Asphalt
 - x: -43.75
   y: -108.9
-  z: 0.51
+  z: 0.28
   width: null
   width_left: 4.72
   width_right: 4.493
@@ -7582,7 +7582,7 @@ nodes:
   surface_type: Asphalt
 - x: -41.93
   y: -104.24
-  z: 0.49
+  z: 0.27
   width: null
   width_left: 4.744
   width_right: 4.518
@@ -7591,7 +7591,7 @@ nodes:
   surface_type: Asphalt
 - x: -40.11
   y: -99.58
-  z: 0.46
+  z: 0.27
   width: null
   width_left: 4.768
   width_right: 4.544
@@ -7600,7 +7600,7 @@ nodes:
   surface_type: Asphalt
 - x: -38.28
   y: -94.93
-  z: 0.44
+  z: 0.27
   width: null
   width_left: 4.792
   width_right: 4.569
@@ -7609,7 +7609,7 @@ nodes:
   surface_type: Asphalt
 - x: -36.46
   y: -90.27
-  z: 0.42
+  z: 0.27
   width: null
   width_left: 4.816
   width_right: 4.594
@@ -7618,7 +7618,7 @@ nodes:
   surface_type: Asphalt
 - x: -34.64
   y: -85.62
-  z: 0.39
+  z: 0.26
   width: null
   width_left: 4.84
   width_right: 4.619
@@ -7627,7 +7627,7 @@ nodes:
   surface_type: Asphalt
 - x: -32.81
   y: -80.97
-  z: 0.37
+  z: 0.26
   width: null
   width_left: 4.864
   width_right: 4.645
@@ -7636,7 +7636,7 @@ nodes:
   surface_type: Asphalt
 - x: -30.99
   y: -76.31
-  z: 0.35
+  z: 0.26
   width: null
   width_left: 4.888
   width_right: 4.67
@@ -7645,7 +7645,7 @@ nodes:
   surface_type: Asphalt
 - x: -29.16
   y: -71.66
-  z: 0.32
+  z: 0.25
   width: null
   width_left: 4.912
   width_right: 4.695
@@ -7654,7 +7654,7 @@ nodes:
   surface_type: Asphalt
 - x: -27.33
   y: -67.0
-  z: 0.3
+  z: 0.25
   width: null
   width_left: 4.936
   width_right: 4.72
@@ -7663,7 +7663,7 @@ nodes:
   surface_type: Asphalt
 - x: -25.5
   y: -62.35
-  z: 0.28
+  z: 0.24
   width: null
   width_left: 4.96
   width_right: 4.746
@@ -7672,7 +7672,7 @@ nodes:
   surface_type: Asphalt
 - x: -23.67
   y: -57.7
-  z: 0.26
+  z: 0.23
   width: null
   width_left: 4.984
   width_right: 4.771
@@ -7681,7 +7681,7 @@ nodes:
   surface_type: Asphalt
 - x: -21.84
   y: -53.05
-  z: 0.23
+  z: 0.22
   width: null
   width_left: 5.008
   width_right: 4.796
@@ -7708,7 +7708,7 @@ nodes:
   surface_type: Asphalt
 - x: -16.35
   y: -39.09
-  z: 0.16
+  z: 0.18
   width: null
   width_left: 5.079
   width_right: 4.872
@@ -7717,7 +7717,7 @@ nodes:
   surface_type: Asphalt
 - x: -14.52
   y: -34.44
-  z: 0.14
+  z: 0.16
   width: null
   width_left: 5.103
   width_right: 4.897
@@ -7726,7 +7726,7 @@ nodes:
   surface_type: Asphalt
 - x: -12.69
   y: -29.78
-  z: 0.12
+  z: 0.14
   width: null
   width_left: 5.127
   width_right: 4.923
@@ -7735,7 +7735,7 @@ nodes:
   surface_type: Asphalt
 - x: -10.85
   y: -25.13
-  z: 0.09
+  z: 0.12
   width: null
   width_left: 5.151
   width_right: 4.948
@@ -7744,7 +7744,7 @@ nodes:
   surface_type: Asphalt
 - x: -9.02
   y: -20.48
-  z: 0.07
+  z: 0.09
   width: null
   width_left: 5.175
   width_right: 4.973
@@ -7753,7 +7753,7 @@ nodes:
   surface_type: Asphalt
 - x: -7.19
   y: -15.83
-  z: 0.04
+  z: 0.07
   width: null
   width_left: 5.199
   width_right: 4.998
@@ -7762,7 +7762,7 @@ nodes:
   surface_type: Asphalt
 - x: -5.35
   y: -11.18
-  z: 0.02
+  z: 0.05
   width: null
   width_left: 5.223
   width_right: 5.024
@@ -7771,7 +7771,7 @@ nodes:
   surface_type: Asphalt
 - x: -3.52
   y: -6.53
-  z: 0.01
+  z: 0.02
   width: null
   width_left: 5.247
   width_right: 5.049
@@ -7788,2518 +7788,2518 @@ raceline:
   z: 0.0
 - x: -4.0
   y: 4.4
-  z: 0.0
+  z: -0.02
 - x: -2.19
   y: 9.06
-  z: 0.0
+  z: -0.05
 - x: -0.38
   y: 13.72
-  z: 0.0
+  z: -0.07
 - x: 1.43
   y: 18.39
-  z: 0.0
+  z: -0.08
 - x: 3.23
   y: 23.05
-  z: 0.0
+  z: -0.09
 - x: 5.04
   y: 27.71
-  z: 0.0
+  z: -0.1
 - x: 6.85
   y: 32.37
-  z: 0.0
+  z: -0.1
 - x: 8.66
   y: 37.03
-  z: 0.0
+  z: -0.09
 - x: 10.46
   y: 41.69
-  z: 0.0
+  z: -0.07
 - x: 12.27
   y: 46.35
-  z: 0.0
+  z: -0.05
 - x: 14.08
   y: 51.02
-  z: 0.0
+  z: -0.02
 - x: 15.89
   y: 55.68
-  z: 0.0
+  z: 0.02
 - x: 17.7
   y: 60.34
-  z: 0.0
+  z: 0.07
 - x: 19.5
   y: 65.0
-  z: 0.0
+  z: 0.13
 - x: 21.31
   y: 69.66
-  z: 0.0
+  z: 0.19
 - x: 23.12
   y: 74.32
-  z: 0.0
+  z: 0.26
 - x: 24.93
   y: 78.98
-  z: 0.0
+  z: 0.34
 - x: 26.73
   y: 83.65
-  z: 0.0
+  z: 0.42
 - x: 28.54
   y: 88.31
-  z: 0.0
+  z: 0.5
 - x: 30.35
   y: 92.97
-  z: 0.0
+  z: 0.58
 - x: 32.16
   y: 97.63
-  z: 0.0
+  z: 0.66
 - x: 33.97
   y: 102.29
-  z: 0.0
+  z: 0.75
 - x: 35.77
   y: 106.95
-  z: 0.0
+  z: 0.83
 - x: 37.58
   y: 111.61
-  z: 0.0
+  z: 0.91
 - x: 39.39
   y: 116.28
-  z: 0.0
+  z: 0.98
 - x: 41.2
   y: 120.94
-  z: 0.0
+  z: 1.05
 - x: 43.01
   y: 125.6
-  z: 0.0
+  z: 1.12
 - x: 44.82
   y: 130.26
-  z: 0.0
+  z: 1.18
 - x: 46.62
   y: 134.92
-  z: 0.0
+  z: 1.23
 - x: 48.43
   y: 139.58
-  z: 0.0
+  z: 1.28
 - x: 50.24
   y: 144.24
-  z: 0.0
+  z: 1.33
 - x: 52.05
   y: 148.91
-  z: 0.0
+  z: 1.36
 - x: 53.86
   y: 153.57
-  z: 0.0
+  z: 1.39
 - x: 55.66
   y: 158.23
-  z: 0.0
+  z: 1.42
 - x: 57.47
   y: 162.89
-  z: 0.0
+  z: 1.44
 - x: 59.28
   y: 167.55
-  z: 0.0
+  z: 1.45
 - x: 61.09
   y: 172.21
-  z: 0.0
+  z: 1.46
 - x: 62.9
   y: 176.87
-  z: 0.0
+  z: 1.47
 - x: 64.71
   y: 181.53
-  z: 0.0
+  z: 1.46
 - x: 66.51
   y: 186.2
-  z: 0.0
+  z: 1.46
 - x: 68.32
   y: 190.86
-  z: 0.0
+  z: 1.45
 - x: 70.13
   y: 195.52
-  z: 0.0
+  z: 1.44
 - x: 71.94
   y: 200.18
-  z: 0.0
+  z: 1.41
 - x: 73.75
   y: 204.84
-  z: 0.022
+  z: 1.402
 - x: 75.56
   y: 209.5
-  z: 0.047
+  z: 1.387
 - x: 77.36
   y: 214.16
-  z: 0.071
+  z: 1.351
 - x: 79.17
   y: 218.82
-  z: 0.096
+  z: 1.326
 - x: 80.98
   y: 223.49
-  z: 0.121
+  z: 1.311
 - x: 82.79
   y: 228.15
-  z: 0.146
+  z: 1.276
 - x: 84.6
   y: 232.81
-  z: 0.171
+  z: 1.261
 - x: 86.41
   y: 237.47
-  z: 0.196
+  z: 1.236
 - x: 88.22
   y: 242.13
-  z: 0.221
+  z: 1.231
 - x: 90.03
   y: 246.79
-  z: 0.245
+  z: 1.215
 - x: 91.84
   y: 251.45
-  z: 0.27
+  z: 1.21
 - x: 93.65
   y: 256.11
-  z: 0.295
+  z: 1.215
 - x: 95.46
   y: 260.77
-  z: 0.32
+  z: 1.21
 - x: 97.27
   y: 265.43
-  z: 0.345
+  z: 1.205
 - x: 99.06
   y: 270.09
-  z: 0.37
+  z: 1.22
 - x: 100.85
   y: 274.76
-  z: 0.395
+  z: 1.245
 - x: 102.65
   y: 279.44
-  z: 0.419
+  z: 1.249
 - x: 104.48
   y: 284.1
-  z: 0.444
+  z: 1.284
 - x: 106.37
   y: 288.74
-  z: 0.469
+  z: 1.299
 - x: 108.32
   y: 293.34
-  z: 0.494
+  z: 1.344
 - x: 110.35
   y: 297.9
-  z: 0.519
+  z: 1.369
 - x: 112.45
   y: 302.4
-  z: 0.544
+  z: 1.414
 - x: 114.66
   y: 306.84
-  z: 0.569
+  z: 1.449
 - x: 117.03
   y: 311.21
-  z: 0.593
+  z: 1.493
 - x: 119.63
   y: 315.51
-  z: 0.618
+  z: 1.537
 - x: 122.53
   y: 319.66
-  z: 0.643
+  z: 1.582
 - x: 125.75
   y: 323.6
-  z: 0.668
+  z: 1.626
 - x: 129.29
   y: 327.24
-  z: 0.693
+  z: 1.67
 - x: 133.08
   y: 330.5
-  z: 0.717
+  z: 1.706
 - x: 137.1
   y: 333.36
-  z: 0.742
+  z: 1.752
 - x: 141.33
   y: 335.81
-  z: 0.767
+  z: 1.777
 - x: 145.8
   y: 337.86
-  z: 0.792
+  z: 1.802
 - x: 150.5
   y: 339.47
-  z: 0.817
+  z: 1.822
 - x: 155.4
   y: 340.56
-  z: 0.866
+  z: 1.852
 - x: 160.43
   y: 341.03
-  z: 0.891
+  z: 1.856
 - x: 165.48
   y: 340.82
-  z: 0.916
+  z: 1.851
 - x: 170.44
   y: 339.93
-  z: 0.941
+  z: 1.843
 - x: 175.24
   y: 338.45
-  z: 0.965
+  z: 1.813
 - x: 179.82
   y: 336.44
-  z: 0.99
+  z: 1.79
 - x: 184.11
   y: 333.93
-  z: 1.015
+  z: 1.752
 - x: 188.02
   y: 330.91
-  z: 1.04
+  z: 1.698
 - x: 191.49
   y: 327.37
-  z: 1.09
+  z: 1.653
 - x: 194.44
   y: 323.34
-  z: 1.114
+  z: 1.586
 - x: 196.85
   y: 318.92
-  z: 1.139
+  z: 1.51
 - x: 198.72
   y: 314.26
-  z: 1.163
+  z: 1.429
 - x: 200.09
   y: 309.47
-  z: 1.188
+  z: 1.336
 - x: 201.0
   y: 304.61
-  z: 1.213
+  z: 1.253
 - x: 201.49
   y: 299.69
-  z: 1.238
+  z: 1.168
 - x: 201.58
   y: 294.72
-  z: 1.263
+  z: 1.084
 - x: 201.3
   y: 289.7
-  z: 1.288
+  z: 0.996
 - x: 200.68
   y: 284.68
-  z: 1.313
+  z: 0.91
 - x: 199.75
   y: 279.73
-  z: 1.338
+  z: 0.811
 - x: 198.55
   y: 274.85
-  z: 1.362
+  z: 0.724
 - x: 197.14
   y: 270.06
-  z: 1.387
+  z: 0.63
 - x: 195.59
   y: 265.34
-  z: 1.412
+  z: 0.541
 - x: 193.92
   y: 260.65
-  z: 1.437
+  z: 0.439
 - x: 192.18
   y: 255.98
-  z: 1.462
+  z: 0.352
 - x: 190.38
   y: 251.31
-  z: 1.487
+  z: 0.26
 - x: 188.53
   y: 246.66
-  z: 1.511
+  z: 0.183
 - x: 186.64
   y: 242.02
-  z: 1.534
+  z: 0.096
 - x: 184.72
   y: 237.4
-  z: 1.557
+  z: 0.011
 - x: 182.79
   y: 232.79
-  z: 1.58
+  z: -0.064
 - x: 180.84
   y: 228.18
-  z: 1.603
+  z: -0.134
 - x: 178.9
   y: 223.58
-  z: 1.627
+  z: -0.215
 - x: 176.97
   y: 218.97
-  z: 1.65
+  z: -0.273
 - x: 175.06
   y: 214.35
-  z: 1.673
+  z: -0.34
 - x: 173.18
   y: 209.72
-  z: 1.696
+  z: -0.404
 - x: 171.32
   y: 205.08
-  z: 1.719
+  z: -0.451
 - x: 169.49
   y: 200.42
-  z: 1.743
+  z: -0.499
 - x: 167.7
   y: 195.75
-  z: 1.766
+  z: -0.552
 - x: 165.97
   y: 191.06
-  z: 1.789
+  z: -0.58
 - x: 164.29
   y: 186.35
-  z: 1.812
+  z: -0.616
 - x: 162.68
   y: 181.62
-  z: 1.835
+  z: -0.644
 - x: 161.15
   y: 176.86
-  z: 1.859
+  z: -0.667
 - x: 159.71
   y: 172.07
-  z: 1.882
+  z: -0.674
 - x: 158.36
   y: 167.26
-  z: 1.905
+  z: -0.684
 - x: 157.11
   y: 162.42
-  z: 1.928
+  z: -0.697
 - x: 155.96
   y: 157.55
-  z: 1.951
+  z: -0.694
 - x: 154.94
   y: 152.66
-  z: 1.974
+  z: -0.694
 - x: 154.04
   y: 147.74
-  z: 1.998
+  z: -0.695
 - x: 153.27
   y: 142.8
-  z: 2.021
+  z: -0.679
 - x: 152.65
   y: 137.84
-  z: 2.044
+  z: -0.662
 - x: 152.14
   y: 132.87
-  z: 2.067
+  z: -0.653
 - x: 151.74
   y: 127.88
-  z: 2.09
+  z: -0.627
 - x: 151.43
   y: 122.9
-  z: 2.114
+  z: -0.6
 - x: 151.18
   y: 117.9
-  z: 2.137
+  z: -0.575
 - x: 150.97
   y: 112.91
-  z: 2.16
+  z: -0.536
 - x: 150.79
   y: 107.91
-  z: 2.183
+  z: -0.503
 - x: 150.62
   y: 102.91
-  z: 2.206
+  z: -0.466
 - x: 150.42
   y: 97.91
-  z: 2.229
+  z: -0.418
 - x: 150.16
   y: 92.91
-  z: 2.252
+  z: -0.37
 - x: 149.81
   y: 87.93
-  z: 2.276
+  z: -0.318
 - x: 149.32
   y: 82.96
-  z: 2.299
+  z: -0.256
 - x: 148.67
   y: 78.01
-  z: 2.323
+  z: -0.196
 - x: 147.82
   y: 73.09
-  z: 2.346
+  z: -0.137
 - x: 146.75
   y: 68.2
-  z: 2.369
+  z: -0.067
 - x: 145.43
   y: 63.36
-  z: 2.392
+  z: 0.0
 - x: 143.84
   y: 58.61
-  z: 2.415
+  z: 0.071
 - x: 141.97
   y: 53.97
-  z: 2.438
+  z: 0.136
 - x: 139.77
   y: 49.49
-  z: 2.485
+  z: 0.233
 - x: 137.23
   y: 45.2
-  z: 2.508
+  z: 0.297
 - x: 134.33
   y: 41.15
-  z: 2.531
+  z: 0.359
 - x: 131.08
   y: 37.36
-  z: 2.554
+  z: 0.425
 - x: 127.51
   y: 33.85
-  z: 2.577
+  z: 0.474
 - x: 123.67
   y: 30.64
-  z: 2.6
+  z: 0.519
 - x: 119.6
   y: 27.72
-  z: 2.623
+  z: 0.563
 - x: 115.36
   y: 25.06
-  z: 2.646
+  z: 0.586
 - x: 110.97
   y: 22.67
-  z: 2.669
+  z: 0.619
 - x: 106.48
   y: 20.49
-  z: 2.693
+  z: 0.632
 - x: 101.9
   y: 18.51
-  z: 2.716
+  z: 0.636
 - x: 97.26
   y: 16.69
-  z: 2.74
+  z: 0.64
 - x: 92.55
   y: 14.99
-  z: 2.763
+  z: 0.643
 - x: 87.81
   y: 13.38
-  z: 2.786
+  z: 0.616
 - x: 83.04
   y: 11.83
-  z: 2.809
+  z: 0.599
 - x: 78.26
   y: 10.3
-  z: 2.832
+  z: 0.581
 - x: 73.5
   y: 8.77
-  z: 2.855
+  z: 0.543
 - x: 68.76
   y: 7.2
-  z: 2.878
+  z: 0.504
 - x: 64.06
   y: 5.55
-  z: 2.901
+  z: 0.457
 - x: 59.4
   y: 3.81
-  z: 2.925
+  z: 0.419
 - x: 54.77
   y: 1.96
-  z: 2.948
+  z: 0.364
 - x: 50.19
   y: -0.05
-  z: 2.971
+  z: 0.318
 - x: 45.68
   y: -2.26
-  z: 2.995
+  z: 0.273
 - x: 41.32
   y: -4.76
-  z: 3.018
+  z: 0.219
 - x: 37.18
   y: -7.59
-  z: 3.041
+  z: 0.173
 - x: 33.34
   y: -10.81
-  z: 3.064
+  z: 0.125
 - x: 29.87
   y: -14.43
-  z: 3.087
+  z: 0.075
 - x: 26.85
   y: -18.42
-  z: 3.11
+  z: 0.032
 - x: 24.32
   y: -22.72
-  z: 3.133
+  z: -0.012
 - x: 22.34
   y: -27.27
-  z: 3.156
+  z: -0.049
 - x: 21.0
   y: -32.03
-  z: 3.179
+  z: -0.07
 - x: 20.36
   y: -36.92
-  z: 3.226
+  z: -0.064
 - x: 20.46
   y: -41.88
-  z: 3.249
+  z: -0.066
 - x: 21.33
   y: -46.82
-  z: 3.272
+  z: -0.057
 - x: 22.94
   y: -51.61
-  z: 3.295
+  z: -0.035
 - x: 25.24
   y: -56.14
-  z: 3.318
+  z: -0.01
 - x: 28.15
   y: -60.27
-  z: 3.341
+  z: 0.035
 - x: 31.6
   y: -63.89
-  z: 3.364
+  z: 0.085
 - x: 35.51
   y: -66.93
-  z: 3.388
+  z: 0.152
 - x: 39.79
   y: -69.37
-  z: 3.411
+  z: 0.223
 - x: 44.36
   y: -71.26
-  z: 3.458
+  z: 0.338
 - x: 49.14
   y: -72.65
-  z: 3.481
+  z: 0.42
 - x: 54.06
   y: -73.61
-  z: 3.516
+  z: 0.492
 - x: 59.04
   y: -74.15
-  z: 3.624
+  z: 0.613
 - x: 64.05
   y: -74.25
-  z: 3.733
+  z: 0.723
 - x: 69.05
   y: -73.91
-  z: 3.841
+  z: 0.831
 - x: 74.01
   y: -73.2
-  z: 3.95
+  z: 0.932
 - x: 78.92
   y: -72.17
-  z: 4.06
+  z: 1.04
 - x: 83.77
   y: -70.93
-  z: 4.169
+  z: 1.157
 - x: 88.57
   y: -69.54
-  z: 4.278
+  z: 1.284
 - x: 93.33
   y: -68.02
-  z: 4.386
+  z: 1.412
 - x: 98.04
   y: -66.41
-  z: 4.494
+  z: 1.548
 - x: 102.73
   y: -64.7
-  z: 4.602
+  z: 1.686
 - x: 107.41
   y: -62.95
-  z: 4.709
+  z: 1.823
 - x: 112.1
   y: -61.18
-  z: 4.815
+  z: 1.96
 - x: 116.78
   y: -59.42
-  z: 4.922
+  z: 2.105
 - x: 121.47
   y: -57.68
-  z: 5.027
+  z: 2.242
 - x: 126.17
   y: -55.97
-  z: 5.133
+  z: 2.386
 - x: 130.88
   y: -54.29
-  z: 5.237
+  z: 2.522
 - x: 135.59
   y: -52.63
-  z: 5.342
+  z: 2.657
 - x: 140.32
   y: -51.0
-  z: 5.446
+  z: 2.783
 - x: 145.05
   y: -49.39
-  z: 5.549
+  z: 2.906
 - x: 149.8
   y: -47.82
-  z: 5.651
+  z: 3.019
 - x: 154.56
   y: -46.29
-  z: 5.753
+  z: 3.131
 - x: 159.33
   y: -44.79
-  z: 5.854
+  z: 3.234
 - x: 164.12
   y: -43.35
-  z: 5.954
+  z: 3.325
 - x: 168.92
   y: -41.95
-  z: 6.054
+  z: 3.407
 - x: 173.73
   y: -40.6
-  z: 6.152
+  z: 3.485
 - x: 178.56
   y: -39.31
-  z: 6.25
+  z: 3.545
 - x: 183.41
   y: -38.08
-  z: 6.346
+  z: 3.601
 - x: 188.27
   y: -36.91
-  z: 6.442
+  z: 3.647
 - x: 193.14
   y: -35.8
-  z: 6.536
+  z: 3.682
 - x: 198.03
   y: -34.76
-  z: 6.63
+  z: 3.724
 - x: 202.94
   y: -33.79
-  z: 6.722
+  z: 3.747
 - x: 207.86
   y: -32.89
-  z: 6.814
+  z: 3.759
 - x: 212.79
   y: -32.06
-  z: 6.904
+  z: 3.759
 - x: 217.73
   y: -31.3
-  z: 6.994
+  z: 3.758
 - x: 222.68
   y: -30.61
-  z: 7.082
+  z: 3.736
 - x: 227.64
   y: -30.01
-  z: 7.169
+  z: 3.712
 - x: 232.61
   y: -29.48
-  z: 7.255
+  z: 3.668
 - x: 237.59
   y: -29.03
-  z: 7.34
+  z: 3.631
 - x: 242.58
   y: -28.67
-  z: 7.423
+  z: 3.573
 - x: 247.57
   y: -28.38
-  z: 7.505
+  z: 3.493
 - x: 252.57
   y: -28.18
-  z: 7.586
+  z: 3.421
 - x: 257.57
   y: -28.07
-  z: 7.665
+  z: 3.327
 - x: 262.57
   y: -28.05
-  z: 7.743
+  z: 3.23
 - x: 267.57
   y: -28.14
-  z: 7.82
+  z: 3.113
 - x: 272.56
   y: -28.32
-  z: 7.895
+  z: 2.992
 - x: 277.55
   y: -28.6
-  z: 7.968
+  z: 2.859
 - x: 282.54
   y: -28.98
-  z: 8.04
+  z: 2.716
 - x: 287.52
   y: -29.45
-  z: 8.111
+  z: 2.57
 - x: 292.49
   y: -30.0
-  z: 8.18
+  z: 2.415
 - x: 297.45
   y: -30.62
-  z: 8.247
+  z: 2.26
 - x: 302.4
   y: -31.29
-  z: 8.313
+  z: 2.103
 - x: 307.35
   y: -32.01
-  z: 8.378
+  z: 1.94
 - x: 312.29
   y: -32.77
-  z: 8.441
+  z: 1.782
 - x: 317.23
   y: -33.57
-  z: 8.502
+  z: 1.616
 - x: 322.16
   y: -34.38
-  z: 8.562
+  z: 1.455
 - x: 327.09
   y: -35.21
-  z: 8.62
+  z: 1.284
 - x: 332.02
   y: -36.04
-  z: 8.676
+  z: 1.114
 - x: 336.95
   y: -36.87
-  z: 8.73
+  z: 0.959
 - x: 341.89
   y: -37.68
-  z: 8.783
+  z: 0.802
 - x: 346.82
   y: -38.46
-  z: 8.834
+  z: 0.645
 - x: 351.77
   y: -39.22
-  z: 8.883
+  z: 0.493
 - x: 356.72
   y: -39.93
-  z: 8.93
+  z: 0.342
 - x: 361.67
   y: -40.6
-  z: 8.976
+  z: 0.202
 - x: 366.63
   y: -41.21
-  z: 9.019
+  z: 0.075
 - x: 371.59
   y: -41.78
-  z: 9.061
+  z: -0.051
 - x: 376.57
   y: -42.29
-  z: 9.101
+  z: -0.171
 - x: 381.55
   y: -42.74
-  z: 9.14
+  z: -0.288
 - x: 386.54
   y: -43.11
-  z: 9.176
+  z: -0.389
 - x: 391.53
   y: -43.39
-  z: 9.211
+  z: -0.482
 - x: 396.53
   y: -43.55
-  z: 9.243
+  z: -0.569
 - x: 401.53
   y: -43.57
-  z: 9.274
+  z: -0.65
 - x: 406.53
   y: -43.44
-  z: 9.303
+  z: -0.729
 - x: 411.52
   y: -43.15
-  z: 9.329
+  z: -0.794
 - x: 416.5
   y: -42.74
-  z: 9.354
+  z: -0.851
 - x: 421.47
   y: -42.21
-  z: 9.377
+  z: -0.907
 - x: 426.42
   y: -41.57
-  z: 9.398
+  z: -0.954
 - x: 431.35
   y: -40.78
-  z: 9.417
+  z: -0.988
 - x: 436.26
   y: -39.83
-  z: 9.434
+  z: -1.016
 - x: 441.12
   y: -38.67
-  z: 9.45
+  z: -1.038
 - x: 445.95
   y: -37.34
-  z: 9.463
+  z: -1.05
 - x: 450.74
   y: -35.85
-  z: 9.474
+  z: -1.06
 - x: 455.49
   y: -34.26
-  z: 9.483
+  z: -1.062
 - x: 460.19
   y: -32.57
-  z: 9.495
+  z: -1.055
 - x: 464.85
   y: -30.79
-  z: 9.499
+  z: -1.04
 - x: 469.46
   y: -28.89
-  z: 9.5
+  z: -1.013
 - x: 474.02
   y: -26.87
-  z: 9.5
+  z: -0.977
 - x: 478.55
   y: -24.73
-  z: 9.5
+  z: -0.937
 - x: 483.03
   y: -22.49
-  z: 9.5
+  z: -0.885
 - x: 487.49
   y: -20.18
-  z: 9.5
+  z: -0.819
 - x: 491.9
   y: -17.84
-  z: 9.5
+  z: -0.737
 - x: 496.29
   y: -15.45
-  z: 9.5
+  z: -0.646
 - x: 500.66
   y: -13.04
-  z: 9.5
+  z: -0.545
 - x: 505.01
   y: -10.58
-  z: 9.5
+  z: -0.428
 - x: 509.34
   y: -8.1
-  z: 9.5
+  z: -0.303
 - x: 513.68
   y: -5.6
-  z: 9.5
+  z: -0.167
 - x: 518.01
   y: -3.08
-  z: 9.5
+  z: -0.021
 - x: 522.33
   y: -0.58
-  z: 9.5
+  z: 0.134
 - x: 526.67
   y: 1.91
-  z: 9.5
+  z: 0.306
 - x: 531.02
   y: 4.38
-  z: 9.5
+  z: 0.487
 - x: 535.38
   y: 6.81
-  z: 9.5
+  z: 0.674
 - x: 539.77
   y: 9.21
-  z: 9.5
+  z: 0.866
 - x: 544.2
   y: 11.54
-  z: 9.5
+  z: 1.065
 - x: 548.65
   y: 13.81
-  z: 9.5
+  z: 1.274
 - x: 553.15
   y: 16.0
-  z: 9.5
+  z: 1.488
 - x: 557.69
   y: 18.09
-  z: 9.5
+  z: 1.702
 - x: 562.27
   y: 20.09
-  z: 9.5
+  z: 1.924
 - x: 566.9
   y: 21.97
-  z: 9.5
+  z: 2.148
 - x: 571.57
   y: 23.74
-  z: 9.5
+  z: 2.365
 - x: 576.29
   y: 25.39
-  z: 9.5
+  z: 2.586
 - x: 581.04
   y: 26.95
-  z: 9.5
+  z: 2.809
 - x: 585.83
   y: 28.41
-  z: 9.5
+  z: 3.025
 - x: 590.64
   y: 29.78
-  z: 9.5
+  z: 3.237
 - x: 595.48
   y: 31.03
-  z: 9.5
+  z: 3.449
 - x: 600.35
   y: 32.17
-  z: 9.5
+  z: 3.653
 - x: 605.24
   y: 33.18
-  z: 9.5
+  z: 3.856
 - x: 610.16
   y: 34.08
-  z: 9.5
+  z: 4.06
 - x: 615.09
   y: 34.88
-  z: 9.5
+  z: 4.254
 - x: 620.04
   y: 35.61
-  z: 9.5
+  z: 4.438
 - x: 625.0
   y: 36.26
-  z: 9.5
+  z: 4.62
 - x: 629.97
   y: 36.84
-  z: 9.5
+  z: 4.782
 - x: 634.94
   y: 37.33
-  z: 9.5
+  z: 4.941
 - x: 639.92
   y: 37.72
-  z: 9.5
+  z: 5.091
 - x: 644.91
   y: 38.01
-  z: 9.5
+  z: 5.231
 - x: 649.91
   y: 38.23
-  z: 9.5
+  z: 5.361
 - x: 654.91
   y: 38.38
-  z: 9.5
+  z: 5.474
 - x: 659.91
   y: 38.5
-  z: 9.5
+  z: 5.583
 - x: 664.91
   y: 38.57
-  z: 9.5
+  z: 5.676
 - x: 669.91
   y: 38.6
-  z: 9.5
+  z: 5.749
 - x: 674.9
   y: 38.58
-  z: 9.5
+  z: 5.819
 - x: 679.9
   y: 38.53
-  z: 9.5
+  z: 5.872
 - x: 684.9
   y: 38.43
-  z: 9.5
+  z: 5.905
 - x: 689.9
   y: 38.31
-  z: 9.5
+  z: 5.927
 - x: 694.9
   y: 38.15
-  z: 9.5
+  z: 5.939
 - x: 699.9
   y: 37.95
-  z: 9.5
+  z: 5.931
 - x: 704.89
   y: 37.71
-  z: 9.5
+  z: 5.904
 - x: 709.88
   y: 37.42
-  z: 9.5
+  z: 5.874
 - x: 714.87
   y: 37.07
-  z: 9.5
+  z: 5.817
 - x: 719.85
   y: 36.65
-  z: 9.5
+  z: 5.758
 - x: 724.83
   y: 36.16
-  z: 9.5
+  z: 5.681
 - x: 729.79
   y: 35.59
-  z: 9.5
+  z: 5.593
 - x: 734.75
   y: 34.94
-  z: 9.5
+  z: 5.496
 - x: 739.69
   y: 34.19
-  z: 9.5
+  z: 5.38
 - x: 744.62
   y: 33.33
-  z: 9.5
+  z: 5.261
 - x: 749.52
   y: 32.35
-  z: 9.5
+  z: 5.133
 - x: 754.4
   y: 31.24
-  z: 9.5
+  z: 4.994
 - x: 759.24
   y: 30.0
-  z: 9.5
+  z: 4.845
 - x: 764.05
   y: 28.62
-  z: 9.5
+  z: 4.683
 - x: 768.81
   y: 27.09
-  z: 9.5
+  z: 4.52
 - x: 773.52
   y: 25.42
-  z: 9.5
+  z: 4.346
 - x: 778.17
   y: 23.59
-  z: 9.5
+  z: 4.161
 - x: 782.75
   y: 21.59
-  z: 9.5
+  z: 3.976
 - x: 787.25
   y: 19.42
-  z: 9.5
+  z: 3.79
 - x: 791.67
   y: 17.08
-  z: 9.5
+  z: 3.605
 - x: 795.98
   y: 14.55
-  z: 9.5
+  z: 3.419
 - x: 800.19
   y: 11.84
-  z: 9.5
+  z: 3.225
 - x: 804.26
   y: 8.94
-  z: 9.5
+  z: 3.039
 - x: 808.2
   y: 5.86
-  z: 9.5
+  z: 2.854
 - x: 811.98
   y: 2.59
-  z: 9.5
+  z: 2.668
 - x: 815.59
   y: -0.87
-  z: 9.5
+  z: 2.486
 - x: 819.01
   y: -4.51
-  z: 9.5
+  z: 2.319
 - x: 822.23
   y: -8.34
-  z: 9.5
+  z: 2.148
 - x: 825.23
   y: -12.33
-  z: 9.5
+  z: 1.996
 - x: 828.0
   y: -16.49
-  z: 9.5
+  z: 1.851
 - x: 830.53
   y: -20.81
-  z: 9.5
+  z: 1.71
 - x: 832.8
   y: -25.26
-  z: 9.5
+  z: 1.583
 - x: 834.82
   y: -29.84
-  z: 9.5
+  z: 1.474
 - x: 836.57
   y: -34.52
-  z: 9.5
+  z: 1.366
 - x: 838.06
   y: -39.29
-  z: 9.5
+  z: 1.265
 - x: 839.28
   y: -44.14
-  z: 9.5
+  z: 1.194
 - x: 840.25
   y: -49.04
-  z: 9.5
+  z: 1.157
 - x: 840.95
   y: -53.99
-  z: 9.415
+  z: 1.085
 - x: 841.4
   y: -58.97
-  z: 9.269
+  z: 1.012
 - x: 841.6
   y: -63.96
-  z: 9.124
+  z: 0.983
 - x: 841.56
   y: -68.96
-  z: 8.978
+  z: 0.984
 - x: 841.28
   y: -73.96
-  z: 8.833
+  z: 0.995
 - x: 840.77
   y: -78.94
-  z: 8.687
+  z: 1.021
 - x: 840.04
   y: -83.88
-  z: 8.542
+  z: 1.042
 - x: 839.09
   y: -88.79
-  z: 8.397
+  z: 1.079
 - x: 837.94
   y: -93.65
-  z: 8.253
+  z: 1.129
 - x: 836.6
   y: -98.46
-  z: 8.109
+  z: 1.188
 - x: 835.08
   y: -103.22
-  z: 7.965
+  z: 1.258
 - x: 833.4
   y: -107.93
-  z: 7.823
+  z: 1.33
 - x: 831.57
   y: -112.59
-  z: 7.681
+  z: 1.401
 - x: 829.61
   y: -117.19
-  z: 7.54
+  z: 1.492
 - x: 827.52
   y: -121.73
-  z: 7.399
+  z: 1.571
 - x: 825.32
   y: -126.22
-  z: 7.259
+  z: 1.661
 - x: 823.03
   y: -130.66
-  z: 7.12
+  z: 1.761
 - x: 820.64
   y: -135.06
-  z: 6.981
+  z: 1.862
 - x: 818.18
   y: -139.41
-  z: 6.843
+  z: 1.963
 - x: 815.66
   y: -143.73
-  z: 6.706
+  z: 2.056
 - x: 813.09
   y: -148.02
-  z: 6.57
+  z: 2.15
 - x: 810.47
   y: -152.28
-  z: 6.435
+  z: 2.254
 - x: 807.82
   y: -156.51
-  z: 6.301
+  z: 2.34
 - x: 805.14
   y: -160.73
-  z: 6.168
+  z: 2.427
 - x: 802.44
   y: -164.94
-  z: 6.036
+  z: 2.505
 - x: 799.73
   y: -169.14
-  z: 5.905
+  z: 2.584
 - x: 797.02
   y: -173.35
-  z: 5.776
+  z: 2.656
 - x: 794.32
   y: -177.56
-  z: 5.648
+  z: 2.718
 - x: 791.64
   y: -181.77
-  z: 5.52
+  z: 2.77
 - x: 788.98
   y: -186.01
-  z: 5.395
+  z: 2.825
 - x: 786.35
   y: -190.26
-  z: 5.27
+  z: 2.85
 - x: 783.76
   y: -194.54
-  z: 5.147
+  z: 2.868
 - x: 781.23
   y: -198.85
-  z: 5.025
+  z: 2.877
 - x: 778.77
   y: -203.2
-  z: 4.905
+  z: 2.877
 - x: 776.39
   y: -207.6
-  z: 4.787
+  z: 2.87
 - x: 774.09
   y: -212.04
-  z: 4.67
+  z: 2.854
 - x: 771.87
   y: -216.52
-  z: 4.555
+  z: 2.829
 - x: 769.71
   y: -221.03
-  z: 4.441
+  z: 2.776
 - x: 767.6
   y: -225.56
-  z: 4.33
+  z: 2.724
 - x: 765.53
   y: -230.11
-  z: 4.219
+  z: 2.653
 - x: 763.47
   y: -234.66
-  z: 4.111
+  z: 2.583
 - x: 761.43
   y: -239.22
-  z: 4.004
+  z: 2.495
 - x: 759.38
   y: -243.79
-  z: 3.899
+  z: 2.399
 - x: 757.32
   y: -248.36
-  z: 3.796
+  z: 2.296
 - x: 755.24
   y: -252.91
-  z: 3.694
+  z: 2.193
 - x: 753.09
   y: -257.44
-  z: 3.595
+  z: 2.082
 - x: 750.88
   y: -261.91
-  z: 3.497
+  z: 1.955
 - x: 748.57
   y: -266.33
-  z: 3.402
+  z: 1.839
 - x: 746.17
   y: -270.68
-  z: 3.308
+  z: 1.704
 - x: 743.7
   y: -275.0
-  z: 3.217
+  z: 1.564
 - x: 741.16
   y: -279.31
-  z: 3.129
+  z: 1.434
 - x: 738.54
   y: -283.6
-  z: 3.042
+  z: 1.296
 - x: 735.81
   y: -287.83
-  z: 2.958
+  z: 1.152
 - x: 732.92
   y: -291.95
-  z: 2.876
+  z: 1.013
 - x: 729.84
   y: -295.89
-  z: 2.795
+  z: 0.883
 - x: 726.54
   y: -299.64
-  z: 2.714
+  z: 0.733
 - x: 723.04
   y: -303.19
-  z: 2.636
+  z: 0.584
 - x: 719.36
   y: -306.56
-  z: 2.563
+  z: 0.443
 - x: 715.53
   y: -309.76
-  z: 2.493
+  z: 0.287
 - x: 711.54
   y: -312.76
-  z: 2.361
+  z: 0.06
 - x: 707.39
   y: -315.51
-  z: 2.297
+  z: -0.081
 - x: 703.06
   y: -317.97
-  z: 2.234
+  z: -0.21
 - x: 698.55
   y: -320.1
-  z: 2.174
+  z: -0.331
 - x: 693.89
   y: -321.95
-  z: 2.116
+  z: -0.458
 - x: 689.13
   y: -323.55
-  z: 2.061
+  z: -0.563
 - x: 684.3
   y: -324.94
-  z: 2.008
+  z: -0.665
 - x: 679.43
   y: -326.13
-  z: 1.959
+  z: -0.762
 - x: 674.53
   y: -327.12
-  z: 1.912
+  z: -0.85
 - x: 669.6
   y: -327.9
-  z: 1.867
+  z: -0.934
 - x: 664.65
   y: -328.47
-  z: 1.825
+  z: -1.008
 - x: 659.67
   y: -328.82
-  z: 1.785
+  z: -1.077
 - x: 654.68
   y: -328.97
-  z: 1.748
+  z: -1.137
 - x: 649.68
   y: -328.91
-  z: 1.713
+  z: -1.184
 - x: 644.68
   y: -328.67
-  z: 1.681
+  z: -1.226
 - x: 639.69
   y: -328.24
-  z: 1.651
+  z: -1.266
 - x: 634.72
   y: -327.64
-  z: 1.624
+  z: -1.296
 - x: 629.79
   y: -326.86
-  z: 1.6
+  z: -1.32
 - x: 624.88
   y: -325.91
-  z: 1.578
+  z: -1.342
 - x: 620.01
   y: -324.81
-  z: 1.559
+  z: -1.356
 - x: 615.17
   y: -323.54
-  z: 1.559
+  z: -1.351
 - x: 610.38
   y: -322.12
-  z: 1.543
+  z: -1.362
 - x: 605.63
   y: -320.56
-  z: 1.529
+  z: -1.363
 - x: 600.93
   y: -318.86
-  z: 1.518
+  z: -1.358
 - x: 596.27
   y: -317.04
-  z: 1.51
+  z: -1.353
 - x: 591.66
   y: -315.1
-  z: 1.504
+  z: -1.349
 - x: 587.09
   y: -313.06
-  z: 1.501
+  z: -1.38
 - x: 582.57
   y: -310.92
-  z: 1.544
+  z: -1.407
 - x: 578.11
   y: -308.67
-  z: 1.692
+  z: -1.349
 - x: 573.7
   y: -306.32
-  z: 1.839
+  z: -1.332
 - x: 569.36
   y: -303.85
-  z: 1.987
+  z: -1.329
 - x: 565.08
   y: -301.25
-  z: 2.134
+  z: -1.316
 - x: 560.89
   y: -298.52
-  z: 2.281
+  z: -1.295
 - x: 556.8
   y: -295.65
-  z: 2.428
+  z: -1.274
 - x: 552.8
   y: -292.63
-  z: 2.575
+  z: -1.246
 - x: 548.92
   y: -289.47
-  z: 2.72
+  z: -1.238
 - x: 545.19
   y: -286.15
-  z: 2.865
+  z: -1.211
 - x: 541.63
   y: -282.67
-  z: 3.01
+  z: -1.193
 - x: 538.28
   y: -279.0
-  z: 3.153
+  z: -1.176
 - x: 535.17
   y: -275.12
-  z: 3.296
+  z: -1.167
 - x: 532.33
   y: -271.01
-  z: 3.437
+  z: -1.142
 - x: 529.77
   y: -266.66
-  z: 3.577
+  z: -1.128
 - x: 527.55
   y: -262.09
-  z: 3.716
+  z: -1.111
 - x: 525.74
   y: -257.35
-  z: 3.854
+  z: -1.097
 - x: 524.42
   y: -252.51
-  z: 3.992
+  z: -1.088
 - x: 523.68
   y: -247.62
-  z: 4.128
+  z: -1.087
 - x: 523.55
   y: -242.71
-  z: 4.264
+  z: -1.093
 - x: 524.03
   y: -237.82
-  z: 4.528
+  z: -0.99
 - x: 525.07
   y: -232.97
-  z: 4.656
+  z: -0.994
 - x: 526.65
   y: -228.22
-  z: 4.781
+  z: -0.983
 - x: 528.73
   y: -223.65
-  z: 4.908
+  z: -0.963
 - x: 531.3
   y: -219.34
-  z: 5.035
+  z: -0.936
 - x: 534.32
   y: -215.35
-  z: 5.16
+  z: -0.909
 - x: 537.74
   y: -211.68
-  z: 5.281
+  z: -0.884
 - x: 541.47
   y: -208.3
-  z: 5.4
+  z: -0.855
 - x: 545.43
   y: -205.18
-  z: 5.517
+  z: -0.834
 - x: 549.55
   y: -202.29
-  z: 5.631
+  z: -0.801
 - x: 553.78
   y: -199.65
-  z: 5.744
+  z: -0.776
 - x: 558.14
   y: -197.26
-  z: 5.854
+  z: -0.745
 - x: 562.62
   y: -195.14
-  z: 5.963
+  z: -0.722
 - x: 567.21
   y: -193.27
-  z: 6.07
+  z: -0.691
 - x: 571.91
   y: -191.59
-  z: 6.175
+  z: -0.663
 - x: 576.68
   y: -190.08
-  z: 6.276
+  z: -0.648
 - x: 581.51
   y: -188.7
-  z: 6.375
+  z: -0.628
 - x: 586.38
   y: -187.46
-  z: 6.472
+  z: -0.591
 - x: 591.27
   y: -186.35
-  z: 6.566
+  z: -0.575
 - x: 596.17
   y: -185.36
-  z: 6.657
+  z: -0.556
 - x: 601.08
   y: -184.47
-  z: 6.746
+  z: -0.539
 - x: 606.0
   y: -183.63
-  z: 6.832
+  z: -0.506
 - x: 610.93
   y: -182.8
-  z: 6.915
+  z: -0.484
 - x: 615.85
   y: -181.95
-  z: 6.995
+  z: -0.465
 - x: 620.77
   y: -181.05
-  z: 7.073
+  z: -0.448
 - x: 625.68
   y: -180.12
-  z: 7.147
+  z: -0.425
 - x: 630.59
   y: -179.15
-  z: 7.219
+  z: -0.403
 - x: 635.49
   y: -178.13
-  z: 7.288
+  z: -0.384
 - x: 640.38
   y: -177.04
-  z: 7.353
+  z: -0.361
 - x: 645.23
   y: -175.85
-  z: 7.416
+  z: -0.348
 - x: 650.05
   y: -174.52
-  z: 7.476
+  z: -0.337
 - x: 654.82
   y: -173.05
-  z: 7.533
+  z: -0.312
 - x: 659.54
   y: -171.41
-  z: 7.587
+  z: -0.307
 - x: 664.2
   y: -169.61
-  z: 7.637
+  z: -0.297
 - x: 668.8
   y: -167.65
-  z: 7.684
+  z: -0.283
 - x: 673.31
   y: -165.51
-  z: 7.728
+  z: -0.288
 - x: 677.72
   y: -163.15
-  z: 7.769
+  z: -0.288
 - x: 681.98
   y: -160.53
-  z: 7.806
+  z: -0.291
 - x: 686.05
   y: -157.61
-  z: 7.84
+  z: -0.291
 - x: 689.91
   y: -154.41
-  z: 7.871
+  z: -0.304
 - x: 693.52
   y: -150.92
-  z: 7.898
+  z: -0.321
 - x: 696.86
   y: -147.2
-  z: 7.943
+  z: -0.319
 - x: 699.89
   y: -143.26
-  z: 7.961
+  z: -0.343
 - x: 702.55
   y: -139.09
-  z: 7.976
+  z: -0.372
 - x: 704.79
   y: -134.67
-  z: 7.987
+  z: -0.395
 - x: 706.54
   y: -129.99
-  z: 7.995
+  z: -0.428
 - x: 707.73
   y: -125.08
-  z: 7.999
+  z: -0.444
 - x: 708.33
   y: -120.04
-  z: 7.997
+  z: -0.457
 - x: 708.33
   y: -114.98
-  z: 7.966
+  z: -0.501
 - x: 707.74
   y: -110.02
-  z: 7.951
+  z: -0.519
 - x: 706.57
   y: -105.22
-  z: 7.935
+  z: -0.535
 - x: 704.84
   y: -100.61
-  z: 7.919
+  z: -0.551
 - x: 702.59
   y: -96.19
-  z: 7.904
+  z: -0.566
 - x: 699.87
   y: -91.97
-  z: 7.888
+  z: -0.575
 - x: 696.73
   y: -88.01
-  z: 7.858
+  z: -0.592
 - x: 693.23
   y: -84.37
-  z: 7.843
+  z: -0.593
 - x: 689.44
   y: -81.11
-  z: 7.827
+  z: -0.595
 - x: 685.4
   y: -78.24
-  z: 7.812
+  z: -0.592
 - x: 681.15
   y: -75.7
-  z: 7.796
+  z: -0.596
 - x: 676.72
   y: -73.43
-  z: 7.781
+  z: -0.586
 - x: 672.14
   y: -71.4
-  z: 7.765
+  z: -0.58
 - x: 667.45
   y: -69.6
-  z: 7.75
+  z: -0.569
 - x: 662.66
   y: -68.05
-  z: 7.734
+  z: -0.556
 - x: 657.81
   y: -66.77
-  z: 7.719
+  z: -0.548
 - x: 652.93
   y: -65.73
-  z: 7.703
+  z: -0.538
 - x: 648.01
   y: -64.9
-  z: 7.688
+  z: -0.523
 - x: 643.07
   y: -64.22
-  z: 7.673
+  z: -0.501
 - x: 638.11
   y: -63.66
-  z: 7.657
+  z: -0.49
 - x: 633.13
   y: -63.18
-  z: 7.642
+  z: -0.472
 - x: 628.14
   y: -62.77
-  z: 7.626
+  z: -0.454
 - x: 623.15
   y: -62.44
-  z: 7.611
+  z: -0.44
 - x: 618.16
   y: -62.17
-  z: 7.595
+  z: -0.426
 - x: 613.16
   y: -61.97
-  z: 7.58
+  z: -0.405
 - x: 608.17
   y: -61.8
-  z: 7.564
+  z: -0.387
 - x: 603.17
   y: -61.67
-  z: 7.549
+  z: -0.379
 - x: 598.17
   y: -61.58
-  z: 7.533
+  z: -0.369
 - x: 593.17
   y: -61.52
-  z: 7.518
+  z: -0.36
 - x: 588.17
   y: -61.5
-  z: 7.502
+  z: -0.35
 - x: 583.17
   y: -61.52
-  z: 7.487
+  z: -0.341
 - x: 578.17
   y: -61.58
-  z: 7.471
+  z: -0.337
 - x: 573.17
   y: -61.68
-  z: 7.456
+  z: -0.338
 - x: 568.18
   y: -61.83
-  z: 7.441
+  z: -0.338
 - x: 563.18
   y: -62.02
-  z: 7.425
+  z: -0.339
 - x: 558.19
   y: -62.24
-  z: 7.41
+  z: -0.339
 - x: 553.19
   y: -62.51
-  z: 7.394
+  z: -0.341
 - x: 548.2
   y: -62.82
-  z: 7.379
+  z: -0.346
 - x: 543.21
   y: -63.17
-  z: 7.363
+  z: -0.352
 - x: 538.23
   y: -63.56
-  z: 7.348
+  z: -0.357
 - x: 533.25
   y: -63.99
-  z: 7.332
+  z: -0.363
 - x: 528.27
   y: -64.46
-  z: 7.317
+  z: -0.368
 - x: 523.3
   y: -64.97
-  z: 7.302
+  z: -0.368
 - x: 518.33
   y: -65.52
-  z: 7.286
+  z: -0.369
 - x: 513.36
   y: -66.1
-  z: 7.271
+  z: -0.364
 - x: 508.4
   y: -66.71
-  z: 7.271
+  z: -0.339
 - x: 503.44
   y: -67.36
-  z: 7.255
+  z: -0.33
 - x: 498.49
   y: -68.04
-  z: 7.24
+  z: -0.31
 - x: 493.54
   y: -68.76
-  z: 7.224
+  z: -0.291
 - x: 488.6
   y: -69.51
-  z: 7.209
+  z: -0.267
 - x: 483.66
   y: -70.3
-  z: 7.193
+  z: -0.237
 - x: 478.73
   y: -71.12
-  z: 7.178
+  z: -0.203
 - x: 473.8
   y: -71.97
-  z: 7.162
+  z: -0.164
 - x: 468.88
   y: -72.85
-  z: 7.147
+  z: -0.119
 - x: 463.97
   y: -73.76
-  z: 7.131
+  z: -0.07
 - x: 459.06
   y: -74.71
-  z: 7.116
+  z: -0.016
 - x: 454.16
   y: -75.7
-  z: 7.101
+  z: 0.044
 - x: 449.26
   y: -76.72
-  z: 7.085
+  z: 0.108
 - x: 444.38
   y: -77.78
-  z: 7.07
+  z: 0.182
 - x: 439.5
   y: -78.88
-  z: 7.054
+  z: 0.252
 - x: 434.63
   y: -80.0
-  z: 7.039
+  z: 0.321
 - x: 429.76
   y: -81.16
-  z: 7.023
+  z: 0.395
 - x: 424.9
   y: -82.33
-  z: 7.008
+  z: 0.475
 - x: 420.05
   y: -83.55
-  z: 6.992
+  z: 0.554
 - x: 415.21
   y: -84.81
-  z: 6.977
+  z: 0.629
 - x: 410.39
   y: -86.12
-  z: 6.961
+  z: 0.702
 - x: 405.58
   y: -87.49
-  z: 6.946
+  z: 0.782
 - x: 400.79
   y: -88.91
-  z: 6.93
+  z: 0.857
 - x: 396.0
   y: -90.34
-  z: 6.915
+  z: 0.927
 - x: 391.21
   y: -91.77
-  z: 6.9
+  z: 1.002
 - x: 386.42
   y: -93.2
-  z: 6.884
+  z: 1.071
 - x: 381.62
   y: -94.64
-  z: 6.869
+  z: 1.141
 - x: 376.85
   y: -96.12
-  z: 6.853
+  z: 1.205
 - x: 372.09
   y: -97.66
-  z: 6.838
+  z: 1.26
 - x: 367.36
   y: -99.27
-  z: 6.822
+  z: 1.314
 - x: 362.64
   y: -100.92
-  z: 6.807
+  z: 1.364
 - x: 357.93
   y: -102.6
-  z: 6.791
+  z: 1.409
 - x: 353.22
   y: -104.27
-  z: 6.776
+  z: 1.449
 - x: 348.51
   y: -105.95
-  z: 6.76
+  z: 1.484
 - x: 343.81
   y: -107.65
-  z: 6.745
+  z: 1.51
 - x: 339.12
   y: -109.39
-  z: 6.73
+  z: 1.53
 - x: 334.46
   y: -111.19
-  z: 6.714
+  z: 1.544
 - x: 329.81
   y: -113.04
-  z: 6.699
+  z: 1.549
 - x: 325.18
   y: -114.93
-  z: 6.683
+  z: 1.543
 - x: 320.56
   y: -116.84
-  z: 6.668
+  z: 1.533
 - x: 315.95
   y: -118.77
-  z: 6.652
+  z: 1.517
 - x: 311.34
   y: -120.71
-  z: 6.637
+  z: 1.492
 - x: 306.74
   y: -122.67
-  z: 6.621
+  z: 1.457
 - x: 302.16
   y: -124.65
-  z: 6.606
+  z: 1.416
 - x: 297.58
   y: -126.66
-  z: 6.59
+  z: 1.375
 - x: 293.02
   y: -128.71
-  z: 6.575
+  z: 1.32
 - x: 288.47
   y: -130.79
-  z: 6.559
+  z: 1.259
 - x: 283.93
   y: -132.91
-  z: 6.529
+  z: 1.178
 - x: 279.41
   y: -135.05
-  z: 6.513
+  z: 1.107
 - x: 274.91
   y: -137.22
-  z: 6.498
+  z: 1.031
 - x: 270.42
   y: -139.4
-  z: 6.482
+  z: 0.95
 - x: 265.94
   y: -141.61
-  z: 6.467
+  z: 0.864
 - x: 261.48
   y: -143.86
-  z: 6.451
+  z: 0.767
 - x: 257.04
   y: -146.15
-  z: 6.436
+  z: 0.671
 - x: 252.61
   y: -148.48
-  z: 6.42
+  z: 0.568
 - x: 248.19
   y: -150.85
-  z: 6.405
+  z: 0.462
 - x: 243.77
   y: -153.24
-  z: 6.389
+  z: 0.35
 - x: 239.36
   y: -155.64
-  z: 6.374
+  z: 0.241
 - x: 234.96
   y: -158.01
-  z: 6.358
+  z: 0.124
 - x: 230.58
   y: -160.36
-  z: 6.343
+  z: 0.004
 - x: 226.25
   y: -162.7
-  z: 6.327
+  z: -0.12
 - x: 221.96
   y: -165.04
-  z: 6.312
+  z: -0.242
 - x: 217.7
   y: -167.41
-  z: 6.297
+  z: -0.369
 - x: 213.43
   y: -169.82
-  z: 6.281
+  z: -0.5
 - x: 209.1
   y: -172.2
-  z: 6.266
+  z: -0.627
 - x: 204.64
   y: -174.38
-  z: 6.251
+  z: -0.742
 - x: 200.01
   y: -176.09
-  z: 6.235
+  z: -0.842
 - x: 195.18
   y: -177.03
-  z: 6.219
+  z: -0.948
 - x: 190.21
   y: -177.04
-  z: 6.219
+  z: -1.042
 - x: 185.14
   y: -176.17
-  z: 6.203
+  z: -1.144
 - x: 180.08
   y: -174.69
-  z: 6.188
+  z: -1.268
 - x: 175.09
   y: -172.92
-  z: 6.159
+  z: -1.414
 - x: 170.25
   y: -171.03
-  z: 6.128
+  z: -1.539
 - x: 165.63
   y: -168.97
-  z: 6.112
+  z: -1.641
 - x: 161.32
   y: -166.55
-  z: 6.097
+  z: -1.713
 - x: 157.35
   y: -163.63
-  z: 6.081
+  z: -1.772
 - x: 153.72
   y: -160.23
-  z: 6.066
+  z: -1.831
 - x: 150.3
   y: -156.62
-  z: 6.05
+  z: -1.887
 - x: 146.88
   y: -153.13
-  z: 6.035
+  z: -1.936
 - x: 143.25
   y: -150.02
-  z: 6.02
+  z: -1.968
 - x: 139.24
   y: -147.45
-  z: 6.004
+  z: -1.996
 - x: 134.81
   y: -145.48
-  z: 5.978
+  z: -2.03
 - x: 130.02
   y: -144.1
-  z: 5.948
+  z: -2.045
 - x: 125.02
   y: -143.36
-  z: 5.917
+  z: -2.054
 - x: 119.95
   y: -143.33
-  z: 5.855
+  z: -2.079
 - x: 114.95
   y: -144.08
-  z: 5.823
+  z: -2.082
 - x: 110.14
   y: -145.64
-  z: 5.792
+  z: -2.075
 - x: 105.64
   y: -147.96
-  z: 5.762
+  z: -2.07
 - x: 101.57
   y: -150.93
-  z: 5.731
+  z: -2.058
 - x: 98.02
   y: -154.41
-  z: 5.701
+  z: -2.043
 - x: 95.03
   y: -158.3
-  z: 5.67
+  z: -2.029
 - x: 92.58
   y: -162.51
-  z: 5.638
+  z: -2.014
 - x: 90.62
   y: -167.01
-  z: 5.607
+  z: -1.992
 - x: 89.11
   y: -171.75
-  z: 5.577
+  z: -1.976
 - x: 88.04
   y: -176.68
-  z: 5.546
+  z: -1.963
 - x: 87.42
   y: -181.71
-  z: 5.515
+  z: -1.942
 - x: 87.23
   y: -186.77
-  z: 5.484
+  z: -1.919
 - x: 87.43
   y: -191.8
-  z: 5.453
+  z: -1.904
 - x: 87.92
   y: -196.78
-  z: 5.422
+  z: -1.892
 - x: 88.61
   y: -201.72
-  z: 5.391
+  z: -1.876
 - x: 89.42
   y: -206.63
-  z: 5.36
+  z: -1.864
 - x: 90.29
   y: -211.53
-  z: 5.33
+  z: -1.847
 - x: 91.23
   y: -216.42
-  z: 5.299
+  z: -1.838
 - x: 92.22
   y: -221.32
-  z: 5.268
+  z: -1.829
 - x: 93.27
   y: -226.21
-  z: 5.237
+  z: -1.82
 - x: 94.37
   y: -231.1
-  z: 5.206
+  z: -1.811
 - x: 95.5
   y: -235.98
-  z: 5.175
+  z: -1.805
 - x: 96.66
   y: -240.85
-  z: 5.144
+  z: -1.806
 - x: 97.83
   y: -245.71
-  z: 5.113
+  z: -1.807
 - x: 99.02
   y: -250.56
-  z: 5.082
+  z: -1.808
 - x: 100.22
   y: -255.41
-  z: 5.051
+  z: -1.813
 - x: 101.44
   y: -260.26
-  z: 5.02
+  z: -1.821
 - x: 102.68
   y: -265.1
-  z: 4.989
+  z: -1.822
 - x: 103.93
   y: -269.94
-  z: 4.958
+  z: -1.826
 - x: 105.21
   y: -274.78
-  z: 4.928
+  z: -1.833
 - x: 106.49
   y: -279.61
-  z: 4.897
+  z: -1.834
 - x: 107.77
   y: -284.44
-  z: 4.866
+  z: -1.838
 - x: 109.06
   y: -289.27
-  z: 4.835
+  z: -1.843
 - x: 110.35
   y: -294.11
-  z: 4.804
+  z: -1.837
 - x: 111.64
   y: -298.94
-  z: 4.773
+  z: -1.838
 - x: 112.92
   y: -303.77
-  z: 4.742
+  z: -1.839
 - x: 114.2
   y: -308.6
-  z: 4.711
+  z: -1.84
 - x: 115.47
   y: -313.44
-  z: 4.68
+  z: -1.841
 - x: 116.73
   y: -318.27
-  z: 4.649
+  z: -1.839
 - x: 117.98
   y: -323.11
-  z: 4.618
+  z: -1.831
 - x: 119.22
   y: -327.96
-  z: 4.587
+  z: -1.822
 - x: 120.44
   y: -332.81
-  z: 4.557
+  z: -1.812
 - x: 121.64
   y: -337.66
-  z: 4.526
+  z: -1.8
 - x: 122.82
   y: -342.52
-  z: 4.495
+  z: -1.778
 - x: 123.97
   y: -347.39
-  z: 4.464
+  z: -1.752
 - x: 125.1
   y: -352.26
-  z: 4.433
+  z: -1.733
 - x: 126.2
   y: -357.13
-  z: 4.402
+  z: -1.711
 - x: 127.28
   y: -362.02
-  z: 4.371
+  z: -1.679
 - x: 128.34
   y: -366.9
-  z: 4.34
+  z: -1.643
 - x: 129.36
   y: -371.8
-  z: 4.309
+  z: -1.611
 - x: 130.34
   y: -376.7
-  z: 4.278
+  z: -1.572
 - x: 131.25
   y: -381.61
-  z: 4.247
+  z: -1.53
 - x: 132.08
   y: -386.54
-  z: 4.216
+  z: -1.484
 - x: 132.81
   y: -391.49
-  z: 4.186
+  z: -1.438
 - x: 133.45
   y: -396.45
-  z: 4.155
+  z: -1.385
 - x: 133.98
   y: -401.42
-  z: 4.124
+  z: -1.347
 - x: 134.4
   y: -406.41
-  z: 4.093
+  z: -1.306
 - x: 134.67
   y: -411.39
-  z: 4.062
+  z: -1.26
 - x: 134.75
   y: -416.39
-  z: 4.031
+  z: -1.223
 - x: 134.61
   y: -421.38
-  z: 4.0
+  z: -1.187
 - x: 134.19
   y: -426.37
-  z: 3.969
+  z: -1.156
 - x: 133.49
   y: -431.34
-  z: 3.938
+  z: -1.117
 - x: 132.51
   y: -436.27
-  z: 3.908
+  z: -1.084
 - x: 131.28
   y: -441.12
-  z: 3.877
+  z: -1.055
 - x: 129.81
   y: -445.87
-  z: 3.847
+  z: -1.028
 - x: 128.07
   y: -450.5
-  z: 3.815
+  z: -0.997
 - x: 125.98
   y: -455.01
-  z: 3.752
+  z: -0.999
 - x: 123.49
   y: -459.36
-  z: 3.721
+  z: -0.977
 - x: 120.6
   y: -463.51
-  z: 3.691
+  z: -0.953
 - x: 117.34
   y: -467.4
-  z: 3.661
+  z: -0.937
 - x: 113.8
   y: -470.98
-  z: 3.631
+  z: -0.914
 - x: 110.04
   y: -474.22
-  z: 3.6
+  z: -0.901
 - x: 106.08
   y: -477.13
-  z: 3.568
+  z: -0.891
 - x: 101.92
   y: -479.73
-  z: 3.537
+  z: -0.891
 - x: 97.54
   y: -482.05
-  z: 3.506
+  z: -0.882
 - x: 92.96
   y: -484.11
-  z: 3.475
+  z: -0.882
 - x: 88.22
   y: -485.89
-  z: 3.445
+  z: -0.864
 - x: 83.38
   y: -487.39
-  z: 3.414
+  z: -0.865
 - x: 78.5
   y: -488.62
-  z: 3.383
+  z: -0.866
 - x: 73.61
   y: -489.61
-  z: 3.352
+  z: -0.868
 - x: 68.7
   y: -490.41
-  z: 3.321
+  z: -0.859
 - x: 63.77
   y: -491.07
-  z: 3.29
+  z: -0.86
 - x: 58.82
   y: -491.6
-  z: 3.259
+  z: -0.852
 - x: 53.84
   y: -492.03
-  z: 3.228
+  z: -0.852
 - x: 48.85
   y: -492.34
-  z: 3.197
+  z: -0.844
 - x: 43.84
   y: -492.53
-  z: 3.166
+  z: -0.845
 - x: 38.83
   y: -492.61
-  z: 3.136
+  z: -0.835
 - x: 33.83
   y: -492.57
-  z: 3.105
+  z: -0.826
 - x: 28.83
   y: -492.43
-  z: 3.074
+  z: -0.817
 - x: 23.84
   y: -492.19
-  z: 3.043
+  z: -0.808
 - x: 18.85
   y: -491.84
-  z: 3.012
+  z: -0.8
 - x: 13.88
   y: -491.37
-  z: 2.981
+  z: -0.791
 - x: 8.92
   y: -490.78
-  z: 2.95
+  z: -0.783
 - x: 3.97
   y: -490.07
-  z: 2.919
+  z: -0.774
 - x: -0.96
   y: -489.23
-  z: 2.888
+  z: -0.756
 - x: -5.87
   y: -488.27
-  z: 2.857
+  z: -0.747
 - x: -10.75
   y: -487.19
-  z: 2.826
+  z: -0.729
 - x: -15.6
   y: -485.98
-  z: 2.796
+  z: -0.708
 - x: -20.42
   y: -484.64
-  z: 2.765
+  z: -0.67
 - x: -25.2
   y: -483.18
-  z: 2.734
+  z: -0.649
 - x: -29.94
   y: -481.58
-  z: 2.703
+  z: -0.62
 - x: -34.63
   y: -479.86
-  z: 2.672
+  z: -0.589
 - x: -39.27
   y: -478.0
-  z: 2.641
+  z: -0.559
 - x: -43.86
   y: -476.01
-  z: 2.61
+  z: -0.518
 - x: -48.39
   y: -473.9
-  z: 2.579
+  z: -0.487
 - x: -52.86
   y: -471.66
-  z: 2.549
+  z: -0.444
 - x: -57.26
   y: -469.28
-  z: 2.518
+  z: -0.403
 - x: -61.58
   y: -466.77
-  z: 2.487
+  z: -0.361
 - x: -65.82
   y: -464.12
-  z: 2.456
+  z: -0.31
 - x: -69.97
   y: -461.33
-  z: 2.425
+  z: -0.256
 - x: -74.02
   y: -458.4
-  z: 2.394
+  z: -0.197
 - x: -77.96
   y: -455.32
-  z: 2.363
+  z: -0.143
 - x: -81.78
   y: -452.09
-  z: 2.332
+  z: -0.081
 - x: -85.46
   y: -448.72
-  z: 2.301
+  z: -0.02
 - x: -89.01
   y: -445.2
-  z: 2.27
+  z: 0.041
 - x: -92.41
   y: -441.53
-  z: 2.239
+  z: 0.106
 - x: -95.65
   y: -437.72
-  z: 2.209
+  z: 0.183
 - x: -98.73
   y: -433.78
-  z: 2.178
+  z: 0.261
 - x: -101.65
   y: -429.72
-  z: 2.147
+  z: 0.337
 - x: -104.4
   y: -425.55
-  z: 2.116
+  z: 0.419
 - x: -106.98
   y: -421.27
-  z: 2.054
+  z: 0.473
 - x: -109.39
   y: -416.89
-  z: 2.023
+  z: 0.555
 - x: -111.62
   y: -412.41
-  z: 1.994
+  z: 0.633
 - x: -113.68
   y: -407.86
-  z: 1.971
+  z: 0.719
 - x: -115.56
   y: -403.23
-  z: 1.948
+  z: 0.803
 - x: -117.26
   y: -398.52
-  z: 1.925
+  z: 0.89
 - x: -118.78
   y: -393.76
-  z: 1.901
+  z: 0.979
 - x: -120.11
   y: -388.94
-  z: 1.878
+  z: 1.062
 - x: -121.25
   y: -384.07
-  z: 1.855
+  z: 1.143
 - x: -122.21
   y: -379.17
-  z: 1.832
+  z: 1.239
 - x: -122.99
   y: -374.23
-  z: 1.809
+  z: 1.332
 - x: -123.61
   y: -369.27
-  z: 1.786
+  z: 1.422
 - x: -124.06
   y: -364.29
-  z: 1.763
+  z: 1.512
 - x: -124.36
   y: -359.3
-  z: 1.739
+  z: 1.601
 - x: -124.51
   y: -354.3
-  z: 1.716
+  z: 1.691
 - x: -124.52
   y: -349.3
-  z: 1.693
+  z: 1.78
 - x: -124.39
   y: -344.3
-  z: 1.67
+  z: 1.869
 - x: -124.12
   y: -339.31
-  z: 1.647
+  z: 1.948
 - x: -123.73
   y: -334.32
-  z: 1.623
+  z: 2.024
 - x: -123.22
   y: -329.35
-  z: 1.6
+  z: 2.092
 - x: -122.59
   y: -324.39
-  z: 1.577
+  z: 2.149
 - x: -121.84
   y: -319.45
-  z: 1.554
+  z: 2.206
 - x: -120.99
   y: -314.52
-  z: 1.53
+  z: 2.251
 - x: -120.04
   y: -309.62
-  z: 1.507
+  z: 2.278
 - x: -118.99
   y: -304.73
-  z: 1.484
+  z: 2.315
 - x: -117.85
   y: -299.86
-  z: 1.461
+  z: 2.322
 - x: -116.63
   y: -295.01
-  z: 1.438
+  z: 2.328
 - x: -115.34
   y: -290.18
-  z: 1.415
+  z: 2.325
 - x: -113.99
   y: -285.37
-  z: 1.391
+  z: 2.311
 - x: -112.56
   y: -280.57
-  z: 1.368
+  z: 2.278
 - x: -111.08
   y: -275.8
-  z: 1.345
+  z: 2.245
 - x: -109.54
   y: -271.04
-  z: 1.322
+  z: 2.212
 - x: -107.96
   y: -266.3
-  z: 1.299
+  z: 2.149
 - x: -106.34
   y: -261.57
-  z: 1.276
+  z: 2.096
 - x: -104.69
   y: -256.85
-  z: 1.252
+  z: 2.042
 - x: -103.01
   y: -252.14
-  z: 1.229
+  z: 1.969
 - x: -101.29
   y: -247.44
-  z: 1.206
+  z: 1.896
 - x: -99.56
   y: -242.76
-  z: 1.183
+  z: 1.823
 - x: -97.8
   y: -238.08
-  z: 1.16
+  z: 1.74
 - x: -96.02
   y: -233.4
-  z: 1.136
+  z: 1.666
 - x: -94.24
   y: -228.73
-  z: 1.113
+  z: 1.583
 - x: -92.44
   y: -224.06
-  z: 1.09
+  z: 1.5
 - x: -90.65
   y: -219.4
-  z: 1.067
+  z: 1.417
 - x: -88.86
   y: -214.73
-  z: 1.044
+  z: 1.334
 - x: -87.07
   y: -210.06
-  z: 1.02
+  z: 1.25
 - x: -85.28
   y: -205.39
-  z: 0.997
+  z: 1.157
 - x: -83.48
   y: -200.73
-  z: 0.974
+  z: 1.084
 - x: -81.68
   y: -196.06
-  z: 0.951
+  z: 1.001
 - x: -79.88
   y: -191.4
-  z: 0.928
+  z: 0.918
 - x: -78.08
   y: -186.73
-  z: 0.904
+  z: 0.844
 - x: -76.28
   y: -182.07
-  z: 0.881
+  z: 0.771
 - x: -74.48
   y: -177.41
-  z: 0.858
+  z: 0.708
 - x: -72.68
   y: -172.74
-  z: 0.835
+  z: 0.655
 - x: -70.87
   y: -168.08
-  z: 0.812
+  z: 0.592
 - x: -69.07
   y: -163.42
-  z: 0.788
+  z: 0.538
 - x: -67.26
   y: -158.75
-  z: 0.765
+  z: 0.495
 - x: -65.46
   y: -154.09
-  z: 0.742
+  z: 0.462
 - x: -63.65
   y: -149.43
-  z: 0.719
+  z: 0.419
 - x: -61.84
   y: -144.77
-  z: 0.696
+  z: 0.386
 - x: -60.04
   y: -140.11
-  z: 0.673
+  z: 0.373
 - x: -58.23
   y: -135.45
-  z: 0.649
+  z: 0.349
 - x: -56.42
   y: -130.78
-  z: 0.626
+  z: 0.326
 - x: -54.61
   y: -126.12
-  z: 0.603
+  z: 0.313
 - x: -52.81
   y: -121.46
-  z: 0.58
+  z: 0.3
 - x: -51.0
   y: -116.8
-  z: 0.557
+  z: 0.287
 - x: -49.19
   y: -112.14
-  z: 0.533
+  z: 0.283
 - x: -47.38
   y: -107.48
-  z: 0.51
+  z: 0.28
 - x: -45.57
   y: -102.81
-  z: 0.487
+  z: 0.267
 - x: -43.77
   y: -98.15
-  z: 0.464
+  z: 0.274
 - x: -41.96
   y: -93.49
-  z: 0.441
+  z: 0.271
 - x: -40.15
   y: -88.83
-  z: 0.417
+  z: 0.267
 - x: -38.34
   y: -84.17
-  z: 0.394
+  z: 0.264
 - x: -36.54
   y: -79.51
-  z: 0.371
+  z: 0.261
 - x: -34.73
   y: -74.85
-  z: 0.348
+  z: 0.258
 - x: -32.92
   y: -70.18
-  z: 0.325
+  z: 0.255
 - x: -31.11
   y: -65.52
-  z: 0.301
+  z: 0.251
 - x: -29.31
   y: -60.86
-  z: 0.278
+  z: 0.238
 - x: -27.5
   y: -56.2
-  z: 0.255
+  z: 0.225
 - x: -25.69
   y: -51.54
-  z: 0.232
+  z: 0.222
 - x: -23.88
   y: -46.88
   z: 0.209
@@ -10308,28 +10308,28 @@ raceline:
   z: 0.186
 - x: -20.27
   y: -37.55
-  z: 0.162
+  z: 0.182
 - x: -18.46
   y: -32.89
-  z: 0.139
+  z: 0.159
 - x: -16.65
   y: -28.23
-  z: 0.116
+  z: 0.136
 - x: -14.84
   y: -23.57
-  z: 0.093
+  z: 0.123
 - x: -13.04
   y: -18.91
-  z: 0.07
+  z: 0.09
 - x: -11.23
   y: -14.25
-  z: 0.046
+  z: 0.076
 - x: -9.42
   y: -9.58
-  z: 0.023
+  z: 0.053
 - x: -7.61
   y: -4.92
-  z: 0.0
+  z: 0.01
 drs_zones:
 - detection_m: 2450.3
   start_m: 2729.9
@@ -10341,7 +10341,7 @@ metadata:
   country: Netherlands
   city: Zandvoort
   length_m: 4313.488
-  description: 'Modelled on the circuit in the dunes at Zandvoort, Netherlands.'
+  description: Modelled on the circuit in the dunes at Zandvoort, Netherlands.
   year_built: 1948
   category: DTM
   environment_type: plains

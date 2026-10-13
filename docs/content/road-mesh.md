@@ -49,11 +49,15 @@ a circuit whose road mesh is missing.
   **multiplier** on the grip the class already has on that track (1.0 = the
   track's own figure); a generated mesh writes 1.0 everywhere, an importer
   scales from its own table. `valid_track` is "inside the track limits".
-  `pit_lane` is informational; the server reads the class from `contact`.
+  `pit_lane` makes a surface the pit lane whatever its `contact`
+  (`RoadContact::from_surface`).
 - `source`: which generator wrote it, logged at load.
 
 A generated mesh is the road at 1 m, the bands at their own steps, and the
-pit lane: Monza is about 185 k triangles, 4 MB.
+pit lane: Monza is about 185 k triangles, 4 MB. A paved city's grass bands
+(`Ground::Paved`) are `runoff_paved`: asphalt grip, off the track for the
+lap; `bake_curb_bands` counts them in the run-off reach too, so the
+centerline backend agrees.
 
 ## The bake (`ats-export`)
 

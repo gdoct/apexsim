@@ -3286,9 +3286,13 @@ impl RoadContact {
 
     /// What a road mesh surface is to the sim. A road or curb surface an
     /// importer marks outside the track limits drives as run-off: asphalt,
-    /// but off the track for the lap.
+    /// but off the track for the lap. A surface flagged `pit_lane` is the
+    /// pit lane whatever its contact class.
     pub fn from_surface(surface: &crate::road_mesh::RoadSurface) -> Self {
         use crate::road_mesh::{CONTACT_CURB, CONTACT_OFF, CONTACT_PIT_LANE, CONTACT_RUNOFF};
+        if surface.pit_lane {
+            return RoadContact::PitLane;
+        }
         match surface.contact {
             CONTACT_CURB if surface.valid_track => RoadContact::Curb,
             CONTACT_CURB | CONTACT_RUNOFF => RoadContact::Runoff,
@@ -7159,6 +7163,15 @@ mod tests {
         );
         let pit = RoadContact::from_surface(&surface(CONTACT_PIT_LANE, false));
         assert_eq!(pit, RoadContact::PitLane);
+        let flagged = RoadSurface {
+            pit_lane: true,
+            ..surface(CONTACT_ROAD, false)
+        };
+        assert_eq!(
+            RoadContact::from_surface(&flagged),
+            RoadContact::PitLane,
+            "the flag wins over the class"
+        );
         assert!(!pit.off_track(), "a lap with a stop in it counts");
         assert_eq!(pit.feedback(), ContactSurface::Road);
 

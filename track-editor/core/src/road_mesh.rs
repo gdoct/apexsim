@@ -67,7 +67,7 @@ pub struct RoadSurface {
     pub friction: f32,
     /// Inside the track limits: a wheel here is not off the track.
     pub valid_track: bool,
-    /// The pit lane. Nothing reads it yet.
+    /// The pit lane: the server drives it as one whatever `contact` says.
     pub pit_lane: bool,
 }
 
@@ -180,6 +180,15 @@ impl RoadMeshBuilder {
         }
         self.file.surfaces.push(surface);
         (self.file.surfaces.len() - 1) as u16
+    }
+
+    /// Give every triangle of surface `key` another surface instead (a
+    /// paved city's grass aprons drive as run-off). Nothing when no
+    /// triangle has it.
+    pub fn restyle(&mut self, key: &str, surface: RoadSurface) {
+        if let Some(entry) = self.file.surfaces.iter_mut().find(|s| s.key == key) {
+            *entry = surface;
+        }
     }
 
     pub fn source_mut(&mut self) -> &mut String {

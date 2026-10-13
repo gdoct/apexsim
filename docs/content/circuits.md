@@ -57,10 +57,11 @@ How the fields act:
   tightest radius is at least `VANGRAIL_TRIPLE_RADIUS_M` (400 m),
   `vangrail_4m_fence` where people stand behind it, `vangrail_end` closing a
   run. `VANGRAIL_ASSETS` lists them for the groomer's ownership test.
-- **Ground.** `Sand` and `Paved` change only the look: `ats-export` gives the
-  terrain, horizon and grass-band materials a `ground_set` and tint (sand in
+- **Ground.** `ats-export` gives the terrain, horizon and grass-band
+  materials of a `Sand` or `Paved` circuit a `ground_set` and tint (sand in
   `DESERT_SAND_COLOR`; the **asphalt** set in `PAVED_COLOR`) and the groomer
-  scatters no verge clumps. The server still drives the aprons as grass.
+  scatters no verge clumps. A paved city's grass aprons also drive as tarmac
+  run-off (`runoff_paved`); a desert's still drive as grass.
 - **Signs.** `German` lays red-white chevrons round the outside of every
   corner tighter than 160 m, a kilometre board every kilometre, bend and
   danger warnings before the tightest corners and the "overtake on the left"
@@ -108,8 +109,11 @@ Nordschleife` routes the lap over OSM's `highway=raceway` ways, waypoint by
 waypoint (`LAPS["Nordschleife"]`: OSM's own locality nodes per section, in
 race order), resamples to 5 m nodes, takes widths from the ways' `width`
 tags (9 m elsewhere) and solves a minimum-curvature raceline. The spec also
-holds the start offset and the banking spans (the Karussell and the
-Mini-Karussell, negative: both are left-handers). The YAML starts flat;
+holds the start offset, the banking spans (the Karussell and the
+Mini-Karussell, negative: both are left-handers) and the surface spans (the
+Karussell's bowl: `Concrete`, friction 0.95; `osm_centerline.py
+Nordschleife --surfaces` re-applies them to the YAML as it stands). The
+YAML starts flat;
 `dem_fetch.py` and `dem_elevation.py` give it its z. The OSM extract is large
 and was cut from the planet file into `.cache/osm/Nordschleife.0.json`, so
 `osm_layout.py` and `dem_fetch.py` run with `--offline`.

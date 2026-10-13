@@ -103,9 +103,9 @@ pub enum Flora {
     Tropical,
 }
 
-/// What the land beside the road is drawn as. Only the look: the server
-/// still drives the aprons as grass, so a desert's off-track grip and
-/// drag are the same as everywhere else's.
+/// What the land beside the road is drawn as. A paved city's grass aprons
+/// also drive as tarmac run-off; a desert's still drive as grass (the
+/// server has one off-track surface for grass, gravel and sand alike).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ground {
     Grass,

@@ -30,32 +30,7 @@ None open.
 
 ## P1: core racing experience
 
-### 1. Track geometry pass
-
-Every item changes what the cars drive on, so they all go through the
-refresh order ([content/track-pipeline.md](content/track-pipeline.md)) once,
-and showcases and guides go stale once. Comes before circuit dressing (the
-refresh re-exports the scene).
-
-- Banking: `ats-bank` has re-laid only Zandvoort; `ats-bank --all --dry-run`
-  still moves or re-signs spans at Monza, Spa (an invented 18 degree bank),
-  Suzuka, IMS, Hockenheim, Mexico City, Austin and others. Run it on all.
-- **(bug)** A banked surface meets the flat road with a step; the bank
-  blends in and out over a length.
-- Centerline elevation from the DEM (`scripts/dem_elevation.py`) for every
-  circuit, not only Spa; `--report` ranks them; wooded circuits need a look
-  at the fit first.
-- Kerbs and verges in the road mesh: no crown or bumps today;
-  `RoadSurface.pit_lane` is written but never read; the desert and paved
-  ground styles drive as grass.
-- `surface_type: Concrete` is read by the bake, so the Nordschleife
-  Karussell's bowl drives as concrete, not asphalt.
-
-**Check:** the AI survey (`survey_ai_races_on_every_circuit`) on both
-backends (centerline and road mesh) against the commit before, comparing
-totals; a lap by hand at Spa and Monza.
-
-### 2. Race-day fixes
+### 1. Race-day fixes
 
 A small bug a driver meets in an ordinary race.
 
@@ -67,7 +42,7 @@ A small bug a driver meets in an ordinary race.
 
 ## P2: depth
 
-### 3. Look at what is built: screen pass
+### 2. Look at what is built: screen pass
 
 Features that are built but have never been looked at in the running game.
 One unattended screenshot batch (`-ApexAutoRace`, `-ApexExecAfter`,
@@ -93,7 +68,7 @@ Do it before them.
 **Check:** the batch's screenshots, each item judged and either deleted or
 turned into a bullet in the package that owns it.
 
-### 4. Weather look
+### 3. Weather look
 
 What a wet or snowy race looks like on the client.
 
@@ -113,7 +88,7 @@ What a wet or snowy race looks like on the client.
 **Check:** the screen pass's weather shots again, with a rain-to-dry and a
 snow session at Silverstone.
 
-### 5. Tyres and brakes on screen
+### 4. Tyres and brakes on screen
 
 The tyre material and the tyre read-outs share per-tyre state from
 telemetry: send it per tyre once (a positional telemetry append), then draw
@@ -131,7 +106,7 @@ and print it.
 **Check:** golden bytes on both sides; a puncture, a slow leak and a lock-up
 on screen; the wet-tyre card in the garage.
 
-### 6. Damage
+### 5. Damage
 
 The car parents, the damage actor and the importer's damage tables.
 
@@ -147,7 +122,7 @@ The car parents, the damage actor and the importer's damage tables.
 **Check:** a seeded pileup replay screenshotted before and after; one AC
 import re-run and crashed.
 
-### 7. Hotlap and lap records
+### 6. Hotlap and lap records
 
 A single driver's laps: the ghost, the hotlap replay and watch, and the
 in-session board. The watch's seek, ghost and replay reuse the stream v2
@@ -171,7 +146,7 @@ controls ([game/spectator.md](game/spectator.md)).
 **Check:** a hotlap with ghost and replay; two clients in one hotlap
 session; a server restart between two watches.
 
-### 8. Replays carry everything
+### 7. Replays carry everything
 
 A stream's rows and `State` records leave out the ghost and the driver
 feedback, so a replay is quieter and emptier than the race.
@@ -184,7 +159,7 @@ feedback, so a replay is quieter and emptier than the race.
 by ear; a promo clip with sound. (Frames stay whole: no delta encoding, see
 [game/spectator.md](game/spectator.md).)
 
-### 9. Circuit dressing
+### 8. Circuit dressing
 
 Prop-kit and `ats-dress` work, after the geometry pass. Laid by the same
 `ApexProps` code.
@@ -202,7 +177,7 @@ Prop-kit and `ats-dress` work, after the geometry pass. Laid by the same
 
 **Check:** each circuit by hand in the running game; the track-editor tests.
 
-### 10. Nordschleife dressing
+### 9. Nordschleife dressing
 
 One circuit, a long list; its own package so it does not hold up the rest.
 
@@ -213,7 +188,7 @@ One circuit, a long list; its own package so it does not hold up the rest.
 
 **Check:** a lap by hand and a TV-camera lap in the running game.
 
-### 11. Menus and HUD layouts
+### 10. Menus and HUD layouts
 
 Shell screens and the HUD editor. All of it goes through one pad walk
 (`ApexSim.UI.PadWalk`) at the end.
@@ -228,7 +203,7 @@ Shell screens and the HUD editor. All of it goes through one pad walk
 
 **Check:** the pad walk, then the same screens with a real pad.
 
-### 12. Wheels, pads and rigs
+### 11. Wheels, pads and rigs
 
 The code that is left in the input path, then one session with real wheels,
 a shifter, pads and screens.
@@ -247,7 +222,7 @@ a shifter, pads and screens.
 
 ## P3: nice to have
 
-### 13. Car content
+### 12. Car content
 
 Car data that the client and the shipped cars do not use yet.
 
@@ -261,7 +236,7 @@ Car data that the client and the shipped cars do not use yet.
 **Check:** server physics and class calibration tests (a car.toml edit moves
 them, and changes its content checksum); the HUD on a carbon and a steel car.
 
-### 14. Server dashboard
+### 13. Server dashboard
 
 For people running a server for others
 ([server/operations.md](server/operations.md)).
@@ -272,12 +247,16 @@ For people running a server for others
 
 **Check:** run a session from the dashboard alone.
 
-### 15. Content tooling
+### 14. Content tooling
 
 - `ats-dress --explain` and a per-prop source stamp.
 - `ats-export --strict`, which fails on a dropped facet.
 - An aerial-imagery tracing aid for dossiers.
 - `ats-export --keep-sidecars` help text lists `pit` (it accepts it).
+- `dem_elevation.py` handles a circuit that crosses itself (Suzuka: the DEM
+  sees only the bridge, so the fit closes the crossover), and Shanghai's
+  surface model is checked against a bare-earth one; both still drive their
+  invented z.
 - `initialize_content.ps1` checks `<Stem>.pit.msgpack` with the other
   sidecars.
 - The launcher's AC import works offline (it fetches its Python packages
@@ -286,7 +265,7 @@ For people running a server for others
 **Check:** the track-editor tests; a fresh-clone `initialize_content.ps1`;
 the launcher import with the network off.
 
-### 16. Rendering and platforms
+### 15. Rendering and platforms
 
 - Increase GPU stability. Two races have stopped with
   `DXGI_ERROR_DEVICE_HUNG` about 10 s after the track was shown (Silverstone
@@ -311,7 +290,7 @@ the launcher import with the network off.
 
 **Check:** needs the hardware; the A/B is two screenshots.
 
-### 17. Cleanup
+### 16. Cleanup
 
 Small and independent. Do one or two alongside whatever package touches
 the same files.

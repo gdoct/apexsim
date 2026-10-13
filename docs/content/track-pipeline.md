@@ -206,8 +206,13 @@ the AI drive whatever z says. The script re-derives node z from the DEM
 sidecar: the median across the road at each node, a Whittaker fit along the
 lap (250 m half-power wavelength) reweighted so samples 1.5 m above it count
 as canopy, node 0 kept exactly (the sidecar's datum), the raceline carried by
-the road's change. Only Spa has been re-derived. On a wooded circuit the model
-reads trees over whole stretches: look at the fit before trusting `--report`.
+the road's change. Every circuit with a DEM sidecar is re-derived except
+Shanghai (its 11 m of relief on a flat site is grandstands the surface model
+reads as ground) and Suzuka (below). On a wooded circuit the model reads
+trees over whole stretches: look at the fit before trusting `--report`. A
+circuit that crosses itself cannot be fitted as it stands: the DEM sees only
+the bridge, and at Suzuka the fit closed the crossover from 12.3 m of
+clearance to 1.2 m.
 
 **Smoothing** (`ats-smooth`, `track_smooth.rs`). GPS traces at 5 m nodes turn
 noise into curvature. Node positions are filtered by a Savitzky-Golay
@@ -226,8 +231,11 @@ edge in the road mesh, the server's surface elevation and the gravity pull
 alike, so a right-hander banks positive. Each banked span keeps its angle and
 is re-laid over the bend it belongs to (most overlapping turn, else nearest
 within 250 m), signed by the bend's hand, held over the bend's core
-(curvature at least 35% of peak) with 30 m ramps; banking near no bend is
-dropped. Only Zandvoort has been re-laid; `--all --dry-run` lists the rest.
+(curvature at least 35% of peak) with smoothstep ramps of 30 m or 4 m per
+degree, whichever is longer (72 m for 18°), so the edges twist in
+gradually; banking near no bend is dropped. Every circuit is re-laid. Spa's
+invented 18° bank was removed rather than re-laid (it would have landed on
+La Source, which is flat).
 
 ## Elevation model and horizon (`dem_fetch.py`)
 

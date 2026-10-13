@@ -40,8 +40,18 @@ const BEND_MERGE_GAP_M: f32 = 30.0;
 /// Within a matched bend the banking holds where the curvature is at least
 /// this share of the bend's peak; the rest is the ramp.
 const BEND_CORE_SHARE: f32 = 0.35;
-/// Ramp in and out of a banked bend, metres.
+/// Ramp in and out of a banked bend, metres: at least this, and longer
+/// the steeper the bank ([`RAMP_M_PER_DEG`]), so the edges twist into it
+/// gradually rather than stepping up.
 const RAMP_M: f32 = 30.0;
+/// Ramp length per degree of bank, metres: an 18° bank ramps over 72 m,
+/// lifting a 6 m half-width's edge by under 3 cm per metre.
+const RAMP_M_PER_DEG: f32 = 4.0;
+
+/// The ramp either side of a bend banked `magnitude_rad`, metres.
+fn ramp_m(magnitude_rad: f32) -> f32 {
+    RAMP_M.max(magnitude_rad.abs().to_degrees() * RAMP_M_PER_DEG)
+}
 /// A span that overlaps no bend is given to the nearest one only when it
 /// is at most this far away, metres.
 const MAX_MATCH_GAP_M: f32 = 250.0;
@@ -274,6 +284,7 @@ pub fn realign_banking(track: &mut TrackFile) -> Option<BankReport> {
         // the left edge, which is what a right-hander (negative
         // curvature) wants, so the sign is against the hand.
         let angle = -bend.hand * magnitude;
+        let ramp = ramp_m(magnitude);
         let span = bend.to_m - bend.from_m;
         let in_bend = |s: f32| {
             let d = ahead(bend.from_m, s, total, closed);
@@ -303,10 +314,10 @@ pub fn realign_banking(track: &mut TrackFile) -> Option<BankReport> {
                 1.0
             } else {
                 let gap = before.min(after);
-                if gap >= RAMP_M {
+                if gap >= ramp {
                     0.0
                 } else {
-                    let t = 1.0 - gap / RAMP_M;
+                    let t = 1.0 - gap / ramp;
                     t * t * (3.0 - 2.0 * t)
                 }
             };
@@ -447,6 +458,13 @@ mod tests {
         assert!((bank_at(&track, -60.0, 0.0) + 0.3).abs() < 1e-3);
         // The first bend was never banked and still is not.
         assert_eq!(bank_at(&track, 360.0, 0.0), 0.0);
+    }
+
+    #[test]
+    fn a_steep_bank_ramps_in_over_a_longer_run() {
+        assert_eq!(ramp_m(3f32.to_radians()), RAMP_M);
+        assert!((ramp_m(18f32.to_radians()) - 72.0).abs() < 1e-3);
+        assert!((ramp_m(-18f32.to_radians()) - 72.0).abs() < 1e-3);
     }
 
     #[test]

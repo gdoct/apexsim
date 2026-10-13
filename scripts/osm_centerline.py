@@ -80,6 +80,11 @@ LAPS: dict[str, dict] = {
         # left-handers, so negative (the right edge lifted); `ats-bank`
         # re-lays them over their bends.
         "banking": [(11905.0, 12105.0, -0.21), (16845.0, 16965.0, -0.12)],
+        # (from, to, surface_type, friction) in the final stations: the
+        # Karussell's bowl is concrete slabs, a touch less grippy than the
+        # asphalt either side. `--surfaces` re-applies these to the YAML
+        # as it stands, without rebuilding the lap.
+        "surfaces": [(11930.0, 12060.0, "Concrete", 0.95)],
         "waypoints": [
             (6.95077, 50.33783),  # Start-Ziel T13
             (6.94162, 50.33820),  # Hatzenbach
@@ -451,6 +456,41 @@ def banking_of(spec: dict, n: int) -> np.ndarray:
     return bank
 
 
+def surface_of(spec: dict, station: float) -> tuple[str, float]:
+    """The surface type and friction the spec gives a node at `station`."""
+    for lo, hi, kind, friction in spec.get("surfaces", ()):
+        if lo <= station <= hi:
+            return kind, friction
+    return "Asphalt", 1.0
+
+
+def apply_surfaces(stem: str, spec: dict) -> int:
+    """Set every node's `friction` and `surface_type` lines from the spec's
+    surface spans, by the node's 2D station, leaving the rest of the file
+    (z from the DEM, the banking `ats-bank` laid) as it is. Returns the
+    number of nodes changed."""
+    path = track_dir(stem) / f"{stem}.yaml"
+    text = path.read_text(encoding="utf-8")
+    nodes = yaml.safe_load(text)["nodes"]
+    xy = np.array([(n["x"], n["y"]) for n in nodes])
+    stations = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(xy, axis=0).T))])
+    wanted = [surface_of(spec, float(s)) for s in stations]
+    lines = text.split("\n")
+    body_end = next(i for i, line in enumerate(lines) if line.startswith("checkpoints:"))
+    fr = [i for i in range(body_end) if lines[i].startswith("  friction: ")]
+    st = [i for i in range(body_end) if lines[i].startswith("  surface_type: ")]
+    if len(fr) != len(nodes) or len(st) != len(nodes):
+        raise SystemExit(f"{path}: expected one friction and surface_type line per node")
+    changed = 0
+    for k, (kind, friction) in enumerate(wanted):
+        f_line, s_line = f"  friction: {friction}", f"  surface_type: {kind}"
+        if lines[fr[k]] != f_line or lines[st[k]] != s_line:
+            changed += 1
+        lines[fr[k]], lines[st[k]] = f_line, s_line
+    path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    return changed
+
+
 def write_yaml(stem: str, spec: dict, b: dict) -> Path:
     r2 = lambda v: round(float(v), 2) + 0.0  # no "-0.0"
     nodes = [
@@ -462,10 +502,10 @@ def write_yaml(stem: str, spec: dict, b: dict) -> Path:
             "width_left": round(float(hw), 3),
             "width_right": round(float(hw), 3),
             "banking": round(float(bank), 4) + 0.0,
-            "friction": 1.0,
-            "surface_type": "Asphalt",
+            "friction": surface_of(spec, k * STEP_M)[1],
+            "surface_type": surface_of(spec, k * STEP_M)[0],
         }
-        for p, hw, bank in zip(b["local"], b["half"], b["banking"])
+        for k, (p, hw, bank) in enumerate(zip(b["local"], b["half"], b["banking"]))
     ]
     raceline = [{"x": r2(p[0]), "y": r2(p[1]), "z": 0.0} for p in b["race"]]
     data = {
@@ -512,9 +552,13 @@ def main() -> int:
     ap.add_argument("stem")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--plot")
+    ap.add_argument("--surfaces", action="store_true", help="only re-apply the spec's surface spans to the YAML")
     args = ap.parse_args()
     if args.stem not in LAPS:
         raise SystemExit(f"no lap spec for {args.stem}; add one to LAPS")
+    if args.surfaces:
+        print(f"== {args.stem}: {apply_surfaces(args.stem, LAPS[args.stem])} node(s) changed")
+        return 0
     b = build(args.stem)
     print(f"== {args.stem}: {b['report']}")
     if args.plot:

@@ -1,5 +1,5 @@
 name: Nürburgring Nordschleife
-display_name: 'Nürburger Mordschleife'
+display_name: Nürburger Mordschleife
 track_id: 7648a87e-a67d-43c2-b92a-84022cc3ca75
 nodes:
 - x: 0.0
@@ -21410,7 +21410,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: 0.0
+  banking: -0.0025
   friction: 1.0
   surface_type: Asphalt
 - x: 745.38
@@ -21419,7 +21419,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: 0.0
+  banking: -0.0158
   friction: 1.0
   surface_type: Asphalt
 - x: 746.63
@@ -21428,7 +21428,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: 0.0
+  banking: -0.0381
   friction: 1.0
   surface_type: Asphalt
 - x: 748.02
@@ -21437,7 +21437,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: 0.0
+  banking: -0.0667
   friction: 1.0
   surface_type: Asphalt
 - x: 749.51
@@ -21446,7 +21446,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: -0.0152
+  banking: -0.0985
   friction: 1.0
   surface_type: Asphalt
 - x: 751.09
@@ -21455,7 +21455,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: -0.0539
+  banking: -0.131
   friction: 1.0
   surface_type: Asphalt
 - x: 752.72
@@ -21464,7 +21464,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: -0.1044
+  banking: -0.1612
   friction: 1.0
   surface_type: Asphalt
 - x: 754.35
@@ -21473,7 +21473,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: -0.1552
+  banking: -0.1864
   friction: 1.0
   surface_type: Asphalt
 - x: 755.87
@@ -21482,7 +21482,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: -0.1943
+  banking: -0.2036
   friction: 1.0
   surface_type: Asphalt
 - x: 757.17
@@ -21492,8 +21492,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 758.09
   y: -4489.59
   z: -65.93
@@ -21501,8 +21501,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 758.5
   y: -4484.64
   z: -65.75
@@ -21510,8 +21510,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 758.27
   y: -4479.7
   z: -65.57
@@ -21519,8 +21519,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 757.33
   y: -4474.84
   z: -65.4
@@ -21528,8 +21528,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 755.66
   y: -4470.17
   z: -65.23
@@ -21537,8 +21537,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 753.28
   y: -4465.78
   z: -65.07
@@ -21546,8 +21546,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 750.26
   y: -4461.77
   z: -64.92
@@ -21555,8 +21555,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 746.69
   y: -4458.24
   z: -64.78
@@ -21564,8 +21564,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 742.65
   y: -4455.27
   z: -64.65
@@ -21573,8 +21573,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 738.23
   y: -4452.91
   z: -64.53
@@ -21582,8 +21582,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 733.52
   y: -4451.24
   z: -64.42
@@ -21591,8 +21591,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 728.63
   y: -4450.29
   z: -64.32
@@ -21600,8 +21600,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 723.66
   y: -4450.09
   z: -64.23
@@ -21609,8 +21609,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 718.73
   y: -4450.64
   z: -64.16
@@ -21618,8 +21618,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 713.94
   y: -4451.95
   z: -64.1
@@ -21627,8 +21627,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 709.39
   y: -4453.96
   z: -64.05
@@ -21636,8 +21636,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 705.18
   y: -4456.64
   z: -64.01
@@ -21645,8 +21645,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 701.37
   y: -4459.91
   z: -63.99
@@ -21654,8 +21654,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 698.04
   y: -4463.69
   z: -63.98
@@ -21663,8 +21663,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 695.28
   y: -4467.91
   z: -63.99
@@ -21672,8 +21672,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 693.16
   y: -4472.46
   z: -64.01
@@ -21681,8 +21681,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 691.77
   y: -4477.23
   z: -64.04
@@ -21690,8 +21690,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 691.15
   y: -4482.12
   z: -64.09
@@ -21699,8 +21699,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 691.3
   y: -4487.04
   z: -64.15
@@ -21708,8 +21708,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 692.14
   y: -4491.92
   z: -64.22
@@ -21717,8 +21717,8 @@ nodes:
   width_left: 4.5
   width_right: 4.5
   banking: -0.21
-  friction: 1.0
-  surface_type: Asphalt
+  friction: 0.95
+  surface_type: Concrete
 - x: 693.55
   y: -4496.7
   z: -64.31
@@ -21734,7 +21734,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: -0.1943
+  banking: -0.2036
   friction: 1.0
   surface_type: Asphalt
 - x: 697.39
@@ -21743,7 +21743,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: -0.1551
+  banking: -0.1864
   friction: 1.0
   surface_type: Asphalt
 - x: 699.48
@@ -21752,7 +21752,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: -0.1043
+  banking: -0.1611
   friction: 1.0
   surface_type: Asphalt
 - x: 701.51
@@ -21761,7 +21761,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: -0.0537
+  banking: -0.1308
   friction: 1.0
   surface_type: Asphalt
 - x: 703.42
@@ -21770,7 +21770,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: -0.0151
+  banking: -0.0984
   friction: 1.0
   surface_type: Asphalt
 - x: 705.14
@@ -21779,7 +21779,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: 0.0
+  banking: -0.0665
   friction: 1.0
   surface_type: Asphalt
 - x: 706.64
@@ -21788,7 +21788,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: 0.0
+  banking: -0.038
   friction: 1.0
   surface_type: Asphalt
 - x: 707.89
@@ -21797,7 +21797,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: 0.0
+  banking: -0.0157
   friction: 1.0
   surface_type: Asphalt
 - x: 708.84
@@ -21806,7 +21806,7 @@ nodes:
   width: null
   width_left: 4.5
   width_right: 4.5
-  banking: 0.0
+  banking: -0.0025
   friction: 1.0
   surface_type: Asphalt
 - x: 709.47
@@ -49860,7 +49860,7 @@ metadata:
   country: Germany
   city: Nürburg
   length_m: 20764.258
-  description: 'Modelled on the 20.8 km northern loop at Nürburg, through the forests of Germany''s Eifel hills.'
+  description: Modelled on the 20.8 km northern loop at Nürburg, through the forests of Germany's Eifel hills.
   year_built: 1927
   category: Endurance
   environment_type: forest

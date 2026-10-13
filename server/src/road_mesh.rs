@@ -78,7 +78,8 @@ pub struct RoadSurface {
     pub friction: f32,
     /// Inside the track limits: a wheel here is not off the track.
     pub valid_track: bool,
-    /// The pit lane. Nothing reads it yet.
+    /// The pit lane: drives as it (`RoadContact::PitLane`) whatever
+    /// `contact` says.
     pub pit_lane: bool,
 }
 

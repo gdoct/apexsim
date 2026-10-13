@@ -71,7 +71,9 @@ is the server's: metres, right-handed, origin at the start/finish line,
 left edge, so a right-hander banks positive), `friction` (grip multiplier,
 default 1.0) and `surface_type` (`Asphalt`, `Concrete`, `Curb`, `Grass`,
 `Gravel`, `Sand`, `Wet`; anything else is asphalt). Real circuits are 5 m
-nodes.
+nodes. The bake draws a `Concrete` stretch of road as its own strip
+(`road_concrete`, a paler road material) and the server drives it as road
+with the nodes' friction.
 
 The server samples the nodes with a uniform Catmull-Rom spline at about 1 m
 spacing (2 to 50 points a segment). Widths and banking are interpolated

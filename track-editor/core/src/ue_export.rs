@@ -70,7 +70,7 @@ use crate::strip_layout::{
 };
 use crate::terrain::{self, GroundHeightfield, TerrainHeightfield, Underpass};
 use crate::track_data::TrackFile;
-use crate::track_path::{curvature_at, offset_point, CenterlinePath, PathSample};
+use crate::track_path::{curvature_at, offset_point, surface_color, CenterlinePath, PathSample};
 
 pub const UE_SCENE_FORMAT: &str = "apex-ue-scene";
 /// 2: the vertex data moved out of the JSON into a `<Stem>.uemesh` blob
@@ -634,6 +634,7 @@ fn bake_curb_bands(
     path: &CenterlinePath,
     curbs: &[Curb],
     surfaces: &[Surface],
+    paved_grass: bool,
 ) -> Option<CurbBands> {
     let total = path.total_length_m();
     if !(total.is_finite() && total > 0.0) {
@@ -679,14 +680,16 @@ fn bake_curb_bands(
     }
 
     // The tarmac run-off: the outer reach of every asphalt or concrete
-    // band, sampled at the same stations.
+    // band, sampled at the same stations. A paved city's grass bands are
+    // paving ([`Bake::paved_ground`]) and count too.
     let mut runoff_left = vec![0u16; count];
     let mut runoff_right = vec![0u16; count];
     for surface in surfaces {
-        if !matches!(
+        let paved = matches!(
             surface.kind,
             crate::ats::SurfaceKind::AsphaltRunoff | crate::ats::SurfaceKind::Concrete
-        ) {
+        ) || (paved_grass && surface.kind == crate::ats::SurfaceKind::Grass);
+        if !paved {
             continue;
         }
         let Some((start, end)) = resolve_span(path, surface.start_m, surface.end_m) else {
@@ -1349,7 +1352,13 @@ pub fn bake_all_with_options(
     let ground = terrain
         .as_ref()
         .map(|field| field.bake_ground_sidecar(terrain::GROUND_SIDECAR_CELL_M));
-    let curbs = bake_curb_bands(&path, &band_curbs, &band_surfaces);
+    let ground_style = CircuitStyle::for_scene(scene).ground;
+    let curbs = bake_curb_bands(
+        &path,
+        &band_curbs,
+        &band_surfaces,
+        ground_style == Ground::Paved,
+    );
     let props = bake_props(
         track,
         scene,
@@ -1360,7 +1369,7 @@ pub fn bake_all_with_options(
         terrain.as_ref(),
     );
     let walls = bake_walls(&props, &path, terrain.as_ref());
-    match CircuitStyle::for_scene(scene).ground {
+    match ground_style {
         Ground::Sand => bake.sand_ground(),
         Ground::Paved => bake.paved_ground(),
         Ground::Grass => {}
@@ -1801,9 +1810,14 @@ impl Bake<'_> {
         self.restyle_ground("sand", DESERT_SAND_COLOR);
     }
 
-    /// A city: the same keys sample the asphalt set in a pavement grey.
+    /// A city: the same keys sample the asphalt set in a pavement grey,
+    /// and the grass aprons drive as tarmac run-off (asphalt grip, off the
+    /// track for the lap), as `bake_curb_bands` tells the centerline
+    /// backend.
     fn paved_ground(&mut self) {
         self.restyle_ground("asphalt", crate::circuit_style::PAVED_COLOR);
+        let grass = RoadSurface::off(crate::ats::SurfaceKind::Grass.label()).key;
+        self.physics.restyle(&grass, RoadSurface::runoff("paved"));
     }
 
     fn restyle_ground(&mut self, set: &str, color: [f32; 4]) {
@@ -2598,26 +2612,51 @@ fn resolve_span(path: &CenterlinePath, start_m: f32, end_m: f32) -> Option<(f32,
 
 impl Bake<'_> {
     fn road(&mut self, path: &CenterlinePath) {
-        let key = "road";
-        self.register(key, "road", [0.24, 0.24, 0.26, 1.0]);
+        // Asphalt, except where the nodes say concrete (the Karussell's
+        // bowl): that stretch is a strip of its own, `road_concrete`, a
+        // road-family material in concrete's paler tint (the client keeps
+        // the asphalt texture set on it: the concrete set on ground keys
+        // once hung the GPU). Both drive as road; the grip is the nodes'
+        // friction, which the server reads off the centerline on either
+        // backend.
+        let concrete = surface_spans(path, "concrete");
+        let total = path.total_length_m();
+        let mut pieces: Vec<(f32, f32, bool)> = Vec::new();
+        let mut cursor = 0.0f32;
+        for &(a, b) in &concrete {
+            if a > cursor + 0.01 {
+                pieces.push((cursor, a, false));
+            }
+            pieces.push((a, b, true));
+            cursor = cursor.max(b);
+        }
+        if cursor < total - 0.01 {
+            pieces.push((cursor, total, false));
+        }
+        if !concrete.is_empty() {
+            self.register("road_concrete", "road", surface_color(Some("concrete")));
+        }
+        self.register("road", "road", [0.24, 0.24, 0.26, 1.0]);
         let surface = self.physics.surface(RoadSurface::road());
-        self.strip_physics(
-            path,
-            0.0,
-            path.total_length_m(),
-            STEP_M,
-            key,
-            PhysicsStrip {
-                surface,
-                flatten: false,
-                clip_to_road: false,
-            },
-            |sample, _, out| {
-                out.push(ProfilePoint::lifted(sample.width_left_m, 0.0));
-                out.push(ProfilePoint::lifted(-sample.width_right_m, 0.0));
-            },
-            |_, _, p| p.2,
-        );
+        for (start, end, is_concrete) in pieces {
+            self.strip_physics(
+                path,
+                start,
+                end,
+                STEP_M,
+                if is_concrete { "road_concrete" } else { "road" },
+                PhysicsStrip {
+                    surface,
+                    flatten: false,
+                    clip_to_road: false,
+                },
+                |sample, _, out| {
+                    out.push(ProfilePoint::lifted(sample.width_left_m, 0.0));
+                    out.push(ProfilePoint::lifted(-sample.width_right_m, 0.0));
+                },
+                |_, _, p| p.2,
+            );
+        }
     }
 
     /// White lines along both road edges, the full length of the circuit,
@@ -4021,6 +4060,34 @@ fn bake_prop(p: &Prop, path: &CenterlinePath) -> UeProp {
         radius_m,
         span_m,
     }
+}
+
+/// The stretches of the path whose nodes are of surface `kind`
+/// (`surface_type` in the track file), as (from, to) stations in order.
+/// A node's surface holds over the segment it starts, so the samples carry
+/// it as their preview colour: equal colour, same surface.
+fn surface_spans(path: &CenterlinePath, kind: &str) -> Vec<(f32, f32)> {
+    let colour = surface_color(Some(kind));
+    let samples = path.samples();
+    let mut spans: Vec<(f32, f32)> = Vec::new();
+    let mut open: Option<f32> = None;
+    for (i, s) in samples.iter().enumerate() {
+        let on = s.surface_color == colour;
+        match (on, open) {
+            (true, None) => open = Some(s.station_m),
+            (false, Some(from)) => {
+                spans.push((from, s.station_m));
+                open = None;
+            }
+            _ => {}
+        }
+        if i + 1 == samples.len() {
+            if let Some(from) = open {
+                spans.push((from, path.total_length_m()));
+            }
+        }
+    }
+    spans
 }
 
 /// The two colours of a painted run-off style, or `None` for a style the
