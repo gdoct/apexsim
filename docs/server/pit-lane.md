@@ -102,11 +102,16 @@ Called inside `update_air` before the physics, and in the countdown.
 - **Limiter.** Between the limit lines `PitState::limiter` is set and
   `update_car_3d` scales the throttle by `clamp(limit - speed, 0, 1)`: it
   fades out over the last m/s below the limit.
-- **Autopilot.** A human's car that drives into the lane (on it, short of
-  the first limit line, past the road edge on the lane's side, pointing down
-  it: `pit::takes_over`) becomes the server's until the lane's end:
-  `PitState::driving`, its automatic gearbox on and steering aid off, the
-  driver's own values kept in `restore_aids` and put back at the end.
+- **Autopilot.** A human's car that crosses the pit entry line (the first
+  limit line, by the speed-limit board: on the lane, within
+  `TAKEOVER_WINDOW_M` (40 m) past the line, past the road edge on the lane's
+  side, pointing down it: `pit::takes_over`) becomes the server's until it
+  is `HANDBACK_PAST_LINE_M` (1 m) past the exit line (the last limit line,
+  by the exit light): `PitState::driving`, its automatic gearbox on and
+  steering aid off, the driver's own values kept in `restore_aids` and put
+  back at the end. The entry and exit tapers are the driver's. The AI's
+  route runs on to the lane's end (`pit::route_end_m`): its racing line
+  knows nothing of the exit taper.
   `pit_autopilot_inputs` replaces its input with `pit::drive_input`; the
   driver's headlights and flash still count. The AI enters the same route
   from `plan_ai_stops`.

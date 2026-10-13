@@ -71,6 +71,13 @@ pub const AI_PIT_HANDOVER_M: f32 = 10.0;
 /// How hard the AI slows on the pit route, m/s²: to the limit by the first
 /// line, to a stop at its box, and on the run-up to the lane's own speed.
 const LANE_DECEL: f32 = 4.0;
+/// A human's car is taken over within this far past the pit entry line, m
+/// (a car that crossed it pointing across the lane is taken once it
+/// straightens).
+pub const TAKEOVER_WINDOW_M: f32 = 40.0;
+/// And handed back this far past the pit exit line, m: past it the lane is
+/// the driver's again, as is the exit taper back onto the track.
+pub const HANDBACK_PAST_LINE_M: f32 = 1.0;
 /// The fastest it drives any of the pit route, m/s.
 const LANE_TOP_SPEED_MPS: f32 = 45.0;
 
@@ -659,19 +666,35 @@ pub fn exit_closed(
     })
 }
 
-/// Whether a human's car has just driven into the pit lane, so the pit
-/// autopilot takes it over: on the lane, short of its first limit line,
-/// past the track's road edge on the lane's side by `off_road_m` (negative
-/// while it is still on the road), and pointing down the lane.
+/// Whether a human's car has just crossed the pit entry line, so the pit
+/// autopilot takes it over: on the lane, at or just past its first limit
+/// line (the line painted across it, by the speed-limit board), past the
+/// track's road edge on the lane's side by `off_road_m` (negative while it
+/// is still on the road), and pointing down the lane. The entry taper up
+/// to the line is the driver's: taken at the lane's mouth, the car was
+/// driven over the road beside the racing cars.
 pub fn takes_over(lane: &PitLane, at: &LanePoint, yaw_rad: f32, off_road_m: f32) -> bool {
     if at.distance_m > lane.width_m / 2.0 + 1.0 || off_road_m < 0.3 {
         return false;
     }
-    if at.station_m < 0.5 || at.station_m > lane.limit_start_m.max(40.0) {
+    let line = lane.limit_start_m.max(0.5);
+    if at.station_m < line || at.station_m > line + TAKEOVER_WINDOW_M {
         return false;
     }
     let (_, _, heading) = lane.frame_at(at.station_m);
     (yaw_rad - heading).cos() > 0.3
+}
+
+/// Where the pit autopilot hands a car back, as a station along the lane:
+/// a human's just past the exit line, the AI's at the lane's end (its
+/// racing line knows nothing of the exit taper).
+pub fn route_end_m(lane: &PitLane, is_ai: bool) -> f32 {
+    let lane_end = lane.length_m - 3.0;
+    if is_ai {
+        lane_end
+    } else {
+        (lane.limit_end_m + HANDBACK_PAST_LINE_M).min(lane_end)
+    }
 }
 
 /// Where the pit route runs across the lane at `s`, m from the middle
@@ -879,6 +902,30 @@ mod tests {
         };
         lane.finish().unwrap();
         lane
+    }
+
+    #[test]
+    fn the_autopilot_runs_from_the_entry_line_to_the_exit_line() {
+        let lane = straight_lane();
+        let take = |station: f32, off_road: f32| {
+            let at = lane.locate(station, -20.0, None);
+            takes_over(&lane, &at, 0.0, off_road)
+        };
+        assert!(!take(10.0, 3.0), "the entry taper is the driver's");
+        assert!(!take(39.5, 3.0), "short of the line");
+        assert!(take(40.2, 3.0), "over the line");
+        assert!(
+            take(70.0, 3.0),
+            "a car that crossed it askew, once straight"
+        );
+        assert!(!take(40.2, -1.0), "not while on the road");
+        assert!(!take(90.0, 3.0), "not deep in the lane");
+        assert_eq!(
+            route_end_m(&lane, false),
+            161.0,
+            "a human's: past the exit line"
+        );
+        assert_eq!(route_end_m(&lane, true), 197.0, "the AI's: the lane's end");
     }
 
     #[test]

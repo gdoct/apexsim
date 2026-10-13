@@ -417,10 +417,7 @@ fn a_human_driving_into_the_pit_lane_is_driven_to_their_box_and_out() {
         "tyres and repairs: {:.1} s",
         trip.service_s
     );
-    assert!(
-        trip.handed_back_s.is_some(),
-        "handed back at the lane's end"
-    );
+    assert!(trip.handed_back_s.is_some(), "handed back at the exit line");
     assert!(
         trip.worst_off_m < 2.5,
         "{:.1} m off the lane's middle",
@@ -436,15 +433,20 @@ fn the_autopilot_puts_the_drivers_aids_back() {
         return;
     };
     let lane = gs.track_config.pit_lane.clone().unwrap();
-    on_the_lane(&mut gs, &player, lane.limit_start_m - 12.0, 12.0);
+    on_the_lane(&mut gs, &player, lane.limit_start_m - 3.0, 12.0);
     {
         let s = gs.session.participants.get_mut(&player).unwrap();
         s.auto_gearbox = false;
         s.steering_assist = true;
     }
     let inputs: HashMap<PlayerId, PlayerInputData> = [(player, PlayerInputData::default())].into();
-    // Placed against the road by its first physics step, taken the next.
-    for _ in 0..3 {
+    // The driver's own up to the entry line, taken over it.
+    gs.tick(&inputs);
+    assert!(
+        !gs.session.participants[&player].pit.driving,
+        "short of the entry line"
+    );
+    for _ in 0..HZ {
         gs.tick(&inputs);
     }
     let s = &gs.session.participants[&player];
@@ -462,6 +464,11 @@ fn the_autopilot_puts_the_drivers_aids_back() {
     assert!(
         !s.pit.driving && s.pit.stops == 1,
         "out of the lane, one stop"
+    );
+    let past = s.pit.lane_station_m - lane.limit_end_m;
+    assert!(
+        (0.0..5.0).contains(&past),
+        "handed back at the exit line, not the lane's end: {past:.1} m past it"
     );
     assert!(
         !s.auto_gearbox && s.steering_assist,

@@ -139,6 +139,7 @@ repeated re-exports, and showcases and guides go stale only once.
 | Item | Type | Notes |
 |---|---|---|
 | Misplaced banking on most circuits | content | `ats-bank` has re-laid only Zandvoort. `ats-bank --all --dry-run` still moves or re-signs spans at Monza, Spa (an invented 18 degree bank), Suzuka, IMS, Hockenheim, Mexico City, Austin and others. Run it, then the rest of the refresh order. |
+| Banked surface | content | Banked surfaces do not connect properly to normal road surface; there is a sudden transition. instead it should be gradual. |
 | Centerline elevation from the DEM | content | Only Spa's centerline `z` has been re-derived (`scripts/dem_elevation.py`); every other circuit drives invented keyframes. `--report` ranks them; wooded circuits need a look at the fit first. |
 | Kerb and verge geometry in the road mesh | feature | The road mesh has no crown or bumps; `RoadSurface.pit_lane` is written but never read. The desert and paved ground styles are look-only: the server drives those aprons as grass. |
 | Karussell concrete | content | `surface_type: Concrete` is not read by the bake, so the Nordschleife Karussell's bowl drives as asphalt. |
@@ -167,6 +168,7 @@ three at a curved box row (Silverstone) with a car stopped at its box.
 |---|---|---|
 | Curved pit box row | bug | Built: garages on the inside of a bend are scaled down (to 0.85 at the least) so the modules touch. Silverstone's last six boxes curve tightly (scales 0.99 to 0.85); at the floor a bend tighter than about a 130 m radius still overlaps a little, and the garage is not seen on screen yet. |
 | Chase camera at the box | bug | Reproduced 2026-10-12 (`-ApexAutoRace -ApexView=far -ApexExecAfter="12=apexsim.recover pits"`, Silverstone, shot at 35 s): the boom has no collision test, so a car stopped at its box is seen past a garage column (half hidden) and the garage's wall at its side. Tried and dropped: turning the boom's collision test on in the pit lane puts the camera under the ground (the track's collision is traces-only), and lifting the boom 2.6 m puts it in the canopy. Needs a pit pose of its own (a camera in the lane, clear of the columns). |
+| Pit lane manual drive | feature | it should be possible to enable manual driving in the pit lane, with a speed limit. this requires a placeholder box to be displayed at the pit position so the player knows where to drive to. |
 
 ### Menus and HUD layouts
 

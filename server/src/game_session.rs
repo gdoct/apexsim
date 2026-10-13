@@ -3447,6 +3447,8 @@ impl GameSession {
 
         let ai_ids: std::collections::HashSet<PlayerId> =
             self.session.ai_player_ids.iter().copied().collect();
+        // A debug stand-in drives its stops as the AI does, out to the lane's end.
+        let stand_in = self.debug.stand_in_driver;
         let centerline = &self.track_config.centerline;
         let mut arrived: Vec<PlayerId> = Vec::new();
         let mut finished: Vec<PlayerId> = Vec::new();
@@ -3511,8 +3513,9 @@ impl GameSession {
                 // Out of the lane: the next visit is a new stop.
                 pit.serviced = false;
             }
-            // A human's car that drives into the lane is the autopilot's
-            // until the lane's end: to its own box, serviced, and out.
+            // A human's car that crosses the pit entry line is the
+            // autopilot's until the exit line: to its own box, serviced,
+            // and out.
             if !is_ai
                 && !pit.driving
                 && !pit.serviced
@@ -3579,8 +3582,12 @@ impl GameSession {
                 state.angular_vel_yaw = 0.0;
             }
             let pit = &mut state.pit;
-            // The route ends past the lane's last line.
-            if pit.driving && pit.serviced && at.station_m >= lane.length_m - 3.0 {
+            // The route ends past the exit line (a human's) or the lane's
+            // end (the AI's).
+            if pit.driving
+                && pit.serviced
+                && at.station_m >= crate::pit::route_end_m(lane, is_ai || stand_in)
+            {
                 pit.driving = false;
                 pit.held = false;
                 match pit.restore_aids.take() {
