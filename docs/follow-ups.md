@@ -104,9 +104,6 @@ the same `ApexProps` code.
   along the water, a catch fence pass.
 - Stadium grandstands: a scene names the stadium bays and cap that
   `LayoutGrandstand` lays; `grandstand/stair_tower` is built.
-- **(trademark)** `sign/hillside_letters` spells "RED BULL RING"; it gets a
-  display-name text before any scene uses it (the Nordschleife package in
-  the [roadmap](roadmap.md) waits on it).
 
 **Check:** each circuit by hand in the running game; the track-editor tests.
 

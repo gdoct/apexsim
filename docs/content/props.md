@@ -380,6 +380,8 @@ are `circuit_style.rs` ([circuits.md](circuits.md)).
   shipped scene uses it, and the wedge's shared edges are assumed to be the
   other families' (the bay is 10.6 m long in the kit table): look at one on
   a corner before relying on it.
-- `sign/hillside_letters` is geometry spelling a real circuit's name
-  (default text in `build_batch_e_kit.py`); no scene places it, and placing
-  it as is would put a trademark on screen ([naming.md](naming.md)).
+- `sign/hillside_letters` is geometry: the letters are modelled, not a
+  texture, so what they spell is fixed when the GLB is built (`TEXT` in
+  `build_batch_e_kit.py`, "MORDSCHLEIFE", the Nordschleife's display name).
+  It must spell a display name, never a real circuit's name
+  ([naming.md](naming.md)); another circuit's letters are another asset key.

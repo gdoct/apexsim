@@ -92,9 +92,10 @@ pub const KIT: &[KitAsset] = kit![
     Sign "pit_speed_limit" 0.9 x 0.3 x 2.8,
     Sign "pit_exit_light" 0.6 x 0.4 x 4.2,
     Sign "flag_pole" 1.8 x 0.5 x 8.1,
-    // Standing letters on the slope above T1 (Spielberg); rebuilt per
-    // circuit from `text`, centred on its footprint.
-    Sign "hillside_letters" 47.0 x 0.8 x 4.7,
+    // Standing letters spelling the Nordschleife's display name
+    // ("MORDSCHLEIFE", never a real name: docs/content/naming.md), laid on
+    // the slope its dossier names; centred on its footprint.
+    Sign "hillside_letters" 43.4 x 0.8 x 4.7,
     // Marina Bay street furniture; the signal head lamps are the emissive
     // `signal_red/amber/green` slots (mast arm reaches towards the road on -Y).
     Sign "traffic_signal_pole" 0.7 x 3.6 x 6.4,

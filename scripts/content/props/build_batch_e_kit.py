@@ -10,10 +10,10 @@ r"""Batch E - kit rules for the real-layout dossiers (docs/content/props.md step
   building/podium              pit-roof podium + backdrop (floor at 9.95 m, over garage_6m)
   misc/tyre_stack              loose tyre stacks
   misc/gate_4m                 steel field gate
-  sign/hillside_letters        big standing letters, TEXT-driven (default "RED BULL RING")
+  sign/hillside_letters        big standing letters, TEXT-driven (default "MORDSCHLEIFE")
 
     ASSET = "all"          # or one key of BUILD
-    TEXT = "RED BULL RING" # hillside_letters
+    TEXT = "MORDSCHLEIFE"  # hillside_letters
     exec(open(r"E:\apexsim\scripts\content\props\build_batch_e_kit.py").read())
 """
 import bpy, math, os, importlib.util, sys, random
@@ -34,7 +34,10 @@ except NameError:
 try:
     TEXT
 except NameError:
-    TEXT = "RED BULL RING"
+    # What the letters spell is on screen, so it is a display name, never a
+    # real circuit's (docs/content/naming.md): the Nordschleife's
+    # "Nürburger Mordschleife". Another circuit's letters are another asset.
+    TEXT = "MORDSCHLEIFE"
 
 # shared slots (names already known to the importer where they exist)
 def mats():
@@ -322,7 +325,8 @@ def gate_4m():
 # ----------------------------------------------------------- sign/hillside_letters
 def hillside_letters():
     """Free-standing letters (6 m tall, 0.8 m deep) on short steel legs, read
-    from the road (-Y). Rebuild with TEXT = "..." for another circuit."""
+    from the road (-Y). TEXT is a display name (see above); another circuit's
+    letters get their own asset key rather than a rebuild of this one."""
     m = mats()
     b = B("hillside_letters")
     white = M("letters_white", (0.95, 0.95, 0.93), roughness=0.5)
