@@ -577,8 +577,9 @@ Settings is hidden, not closed, while it runs.
 | Remove it | the **-** on its corner | Del | Y |
 | Add a removed one | **+ Add panel** | Ins | A |
 | Put it back where it shipped | | R | X |
+| Every panel back where it shipped | Reset all | Shift+R | L3 |
 | Hide the toolbar | Hide | H | Back |
-| Layout manager | Layout | L | |
+| Layout manager | Layout | L | R3 |
 | Save / cancel | Save / Cancel | Enter / Esc | Start / B |
 
 A dragged panel snaps to the gutters, centre lines and other panels' edges

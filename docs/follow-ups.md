@@ -138,14 +138,6 @@ the same `ApexProps` code.
 
 **Check:** each circuit by hand in the running game; the track-editor tests.
 
-### 7. HUD editor on a pad
-
-- The layout manager opens on more than L, and Reset all has a pad button.
-- The HUD editor is in the pad walk (`ApexSim.UI.PadWalk`; its pad map is
-  its own).
-
-**Check:** the pad walk, then the same screens with a real pad.
-
 ## P3: nice to have
 
 ### 9. Car content

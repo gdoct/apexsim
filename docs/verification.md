@@ -158,6 +158,8 @@ unverified.
 - The handbrake's feel (`HANDBRAKE_SHARE`, how fast the tail comes round).
 - A pad under the GameInput plugin (not enabled in the project): the light
   motor on `RightLarge`, the triggers quiet (`ApexFfb::ToPadChannels`).
+- The HUD editor on a real pad: R3 for the layout manager, L3 for Reset
+  all (pressed through by the pad walk, not yet by hand).
 
 ## 4. Platforms and GPUs
 

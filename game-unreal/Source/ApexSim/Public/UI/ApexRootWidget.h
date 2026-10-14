@@ -134,6 +134,9 @@ public:
 	/** True while the HUD editor is up: it owns the mouse and the keys. */
 	bool IsHudEditorOpen() const;
 
+	/** The HUD editor, open or not (the pad walk drives it). */
+	UApexHudEditorWidget* GetHudEditor() const { return HudEditor; }
+
 	/**
 	 * Lays the HUD out (UApexHudEditorWidget). From the settings overlay it
 	 * steps aside and comes back when the editor closes; opened on its own

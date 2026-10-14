@@ -1,6 +1,7 @@
 #include "ApexTestCommon.h"
 #include "ApexSim.h"
 #include "ApexMenuFlowSubsystem.h"
+#include "UI/ApexHudEditorWidget.h"
 #include "UI/ApexSettingsWidget.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -35,7 +36,62 @@ namespace ApexPadWalkTest
 		TFunction<void(UApexRootWidget&)> Open;
 		/** Puts things back if Back did not. */
 		TFunction<void(UApexRootWidget&)> Close;
+		/**
+		 * A surface whose pad map is its own (the D-pad is not navigation
+		 * there): pressed through by this instead of walked, adding a
+		 * problem for every key that does not do its job.
+		 */
+		TFunction<void(UApexRootWidget&, TArray<FString>&)> Script;
 	};
+
+	/**
+	 * The HUD editor's pad map: RB picks a panel, A opens the add list and B
+	 * shuts it, R3 opens the layout manager and B shuts it, L3 resets every
+	 * panel. Nothing is saved: Back then leaves without saving.
+	 */
+	void PadHudEditor(UApexRootWidget& Root, TArray<FString>& Problems)
+	{
+		UApexHudEditorWidget* Editor = Root.GetHudEditor();
+		if (!Editor || !Editor->IsOpen())
+		{
+			Problems.Add(TEXT("did not open"));
+			return;
+		}
+		const auto Press = [&Root](const FKey& Key)
+		{
+			Root.FocusDefault();
+			return ApexPadWalk::PressKey(Key);
+		};
+		Press(EKeys::Gamepad_RightShoulder);
+		if (Editor->GetSelected() == INDEX_NONE)
+		{
+			Problems.Add(TEXT("RB picks no panel"));
+		}
+		Press(EKeys::Gamepad_FaceButton_Bottom);
+		if (!Editor->IsAddListOpen())
+		{
+			Problems.Add(TEXT("A does not open the add list"));
+		}
+		Press(EKeys::Gamepad_FaceButton_Right);
+		if (Editor->IsAddListOpen() || !Editor->IsOpen())
+		{
+			Problems.Add(TEXT("B does not shut the add list (and only it)"));
+		}
+		Press(EKeys::Gamepad_RightThumbstick);
+		if (!Editor->IsLayoutsOpen())
+		{
+			Problems.Add(TEXT("R3 does not open the layout manager"));
+		}
+		Press(EKeys::Gamepad_FaceButton_Right);
+		if (Editor->IsLayoutsOpen() || !Editor->IsOpen())
+		{
+			Problems.Add(TEXT("B does not shut the layout manager (and only it)"));
+		}
+		if (!Press(EKeys::Gamepad_LeftThumbstick))
+		{
+			Problems.Add(TEXT("L3 (reset all) is not handled"));
+		}
+	}
 
 	UApexRootWidget* FindRoot()
 	{
@@ -86,6 +142,16 @@ namespace ApexPadWalkTest
 		Out.Add({ TEXT("Car setups"), {}, true,
 			[](UApexRootWidget& Root) { Root.OpenSetupEditor(); },
 			[](UApexRootWidget& Root) { Root.CloseSetupEditor(); } });
+		Out.Add({ TEXT("HUD editor"), {}, true,
+			[](UApexRootWidget& Root) { Root.OpenHudEditor(); },
+			[](UApexRootWidget& Root)
+			{
+				if (UApexHudEditorWidget* Editor = Root.GetHudEditor())
+				{
+					Editor->Close(false);
+				}
+			},
+			&PadHudEditor });
 		return Out;
 	}
 
@@ -141,6 +207,28 @@ bool FApexPadWalkStep::Update()
 		Run->bOpened = true;
 		// Focus lands a tick after a switch; layout needs a frame or two more.
 		Run->WaitUntil = FPlatformTime::Seconds() + 0.75;
+		return false;
+	}
+	if (Stop.Script)
+	{
+		TArray<FString> Problems;
+		Stop.Script(*Root, Problems);
+		UE_LOG(LogApexSim, Display, TEXT("PadWalk %s: its own pad map, %d problem(s)"), Stop.Name, Problems.Num());
+		for (const FString& Problem : Problems)
+		{
+			Test->AddError(FString::Printf(TEXT("%s: %s"), Stop.Name, *Problem));
+		}
+		if (Stop.bBackLeaves && !ApexPadWalk::BackLeaves(*Root))
+		{
+			Test->AddError(FString::Printf(TEXT("%s: pad B does not leave it"), Stop.Name));
+		}
+		if (Stop.Close)
+		{
+			Stop.Close(*Root);
+		}
+		++Run->Index;
+		Run->bOpened = false;
+		Run->WaitUntil = FPlatformTime::Seconds() + 0.3;
 		return false;
 	}
 	if (!Run->Walker)

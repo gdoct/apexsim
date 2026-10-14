@@ -1780,10 +1780,16 @@ FReply UApexHudEditorWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 		}
 		return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 	}
-	if (Key == EKeys::L)
+	if (Key == EKeys::L || Key == EKeys::Gamepad_RightThumbstick)
 	{
 		OpenLayouts();
 		FocusDefault();
+		return FReply::Handled();
+	}
+	// Every panel back to the shipped place; B (Cancel) still discards it.
+	if ((Key == EKeys::R && bShift) || Key == EKeys::Gamepad_LeftThumbstick)
+	{
+		ResetAll();
 		return FReply::Handled();
 	}
 

@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/EditableTextBox.h"
+#include "Components/ScrollBox.h"
 #include "Components/Slider.h"
 #include "Containers/Ticker.h"
 #include "Framework/Application/SlateApplication.h"
@@ -250,6 +251,24 @@ namespace ApexPadWalk
 		{
 			Finish();
 			return true;
+		}
+		// Focus that lands off the fold scrolls the box into view with an
+		// animation: a press while it runs measures rows still on the move,
+		// where a player's thumb would have waited for them.
+		bool bScrolling = false;
+		if (On->WidgetTree)
+		{
+			On->WidgetTree->ForEachWidget([&bScrolling](UWidget* Widget)
+			{
+				if (const UScrollBox* Scroll = Cast<UScrollBox>(Widget); Scroll && Scroll->GetIsScrolling())
+				{
+					bScrolling = true;
+				}
+			});
+		}
+		if (bScrolling)
+		{
+			return false;
 		}
 		if (bPageShown)
 		{

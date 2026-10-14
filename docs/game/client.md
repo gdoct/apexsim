@@ -442,10 +442,13 @@ Hotlap: `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`,
 
 Walks every menu screen and overlay by pad alone: main menu, connect,
 session browser, create session, car select, track select, session lobby,
-loading, results, replays, settings, pause menu, car setups. For each it checks that focus
+loading, results, replays, settings, pause menu, car setups, HUD editor. For each it checks that focus
 lands on a control, that the D-pad and the right shoulder (pages and tabs)
 reach every control a pad could focus, and that pad B leaves where it should
-(not the main menu, lobby or results). Keys go through `FSlateApplication`
+(not the main menu, lobby or results). The HUD editor's D-pad moves panels,
+so its stop presses through its own pad map instead (`FPadWalkStop::Script`:
+RB picks a panel, A/B the add list, R3/B the layout manager, L3 resets) and
+closes without saving. Keys go through `FSlateApplication`
 as a pad's do, one control a frame, so scrolled rows and new pages are laid
 out as for a player. Accept is never pressed and Left/Right never on a
 slider, so nothing is chosen; a car's livery may change.
