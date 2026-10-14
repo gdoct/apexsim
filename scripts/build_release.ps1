@@ -710,6 +710,11 @@ New-Item -ItemType Directory -Force -Path $ImporterDir | Out-Null
 foreach ($f in 'ac_import.py', 'ac_car_import.py', 'track_dirs.py', 'generate_track_previews.py', 'importer-requirements.txt') {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $f) -Destination $ImporterDir -Force
 }
+# The car importer finds each body's damage parts with the shipped cars' tool,
+# from where it sits in a checkout.
+$PartsDir = Join-Path $ImporterDir 'content\cars'
+New-Item -ItemType Directory -Force -Path $PartsDir | Out-Null
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'content\cars\damage_parts.py') -Destination $PartsDir -Force
 foreach ($pkg in 'ac_import', 'ac_car_import') {
     $dest = Join-Path $ImporterDir $pkg
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $pkg) -Destination $dest -Recurse -Force

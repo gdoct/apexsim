@@ -493,11 +493,13 @@ def add_damage_parts(out_dir: Path) -> list[str]:
     and written into its car.toml: the parts' names, or none for a class it
     has no rules for (or a body it cannot read)."""
     import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        "apex_damage_parts", SCRIPTS / "content" / "cars" / "damage_parts.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
     try:
+        # Beside the importers in a checkout (scripts/content/cars) and in a
+        # release (Tools/importer/content/cars).
+        spec = importlib.util.spec_from_file_location(
+            "apex_damage_parts", SCRIPTS / "content" / "cars" / "damage_parts.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
         _, parts, _ = mod.parts_for(str(out_dir))
     except (SystemExit, Exception) as e:  # noqa: BLE001 - a part is a nicety, never a failed import
         print(f"    no damage parts: {e}")
