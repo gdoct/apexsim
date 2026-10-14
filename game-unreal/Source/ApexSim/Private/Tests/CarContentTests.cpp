@@ -477,7 +477,9 @@ bool FApexCarTomlClientTablesTest::RunTest(const FString& Parameters)
 		"[tires]\n"
 		"optimal_temperature_c = 105.0   # an endurance compound\n"
 		"temperature_window_c = 13.0\n"
-		"blanket_temperature_c = 70.0\n");
+		"blanket_temperature_c = 70.0\n"
+		"[damage]\n"
+		"engine_m = 1.15   # front-mid\n");
 	FApexCarToml Car;
 	FString Error;
 	TestTrue(TEXT("parses"), ApexCarToml::Parse(Text, Car, Error));
@@ -490,12 +492,14 @@ bool FApexCarTomlClientTablesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("eye"), Car.Cockpit.Eye, FVector(10.0, -20.0, 95.5));
 	TestEqual(TEXT("tyre window middle"), Car.TyreOptimalC, 105.0f);
 	TestEqual(TEXT("tyre window half-width"), Car.TyreWindowC, 13.0f);
+	TestTrue(TEXT("the engine's place"), Car.bHasEngineM && FMath::IsNearlyEqual(Car.EngineM, 1.15f));
 
 	FApexCarToml Plain;
 	TestTrue(TEXT("no tables parses"), ApexCarToml::Parse(TEXT("id = \"a\"\nname = \"b\"\n"), Plain, Error));
 	TestFalse(TEXT("no preview"), Plain.Preview.bPresent);
 	TestFalse(TEXT("no cockpit"), Plain.bHasCockpit);
 	TestEqual(TEXT("the server's default window"), Plain.TyreOptimalC, 90.0f);
+	TestFalse(TEXT("no engine place: smoke from the tail"), Plain.bHasEngineM);
 
 	FApexCarToml Bad;
 	TestFalse(TEXT("zero scale is an error"), ApexCarToml::Parse(TEXT("id = \"a\"\nname = \"b\"\n[preview]\nscale = 0\n"), Bad, Error));

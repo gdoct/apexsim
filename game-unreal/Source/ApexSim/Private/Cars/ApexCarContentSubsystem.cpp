@@ -401,6 +401,8 @@ void UApexCarContentSubsystem::ScanNow()
 					}
 				}
 				Row.DrsFlap = ApexCarToml::MakeDrsFlapSpec(Toml);
+				Row.bHasEngineM = Toml.bHasEngineM;
+				Row.EngineM = Toml.EngineM;
 				if (Toml.DrsFlap.IsPresent())
 				{
 					Row.DrsFlap.RuntimeModel = CarFile(CarDir, Toml.DrsFlap.Model, Folder, TEXT("its DRS flap"));

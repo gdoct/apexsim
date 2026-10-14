@@ -766,6 +766,7 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 		Car->SetEngineSound(Row.EngineSound, Row.CarClass);
 		Car->SetCompounds(Row.Compounds);
 		Car->SetTyreWindow(Row.TyreOptimalC, Row.TyreWindowC);
+		Car->SetEnginePosition(Row.bHasEngineM, Row.EngineM);
 	}
 	else
 	{
@@ -774,6 +775,7 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 		Car->SetCockpitSpec(FString(), FApexCockpitOverrides());
 		Car->SetEngineSound(FApexEngineSoundSpec(), FString());
 		Car->SetCompounds({});
+		Car->SetEnginePosition(false, 0.0f);
 	}
 	// A car with no catalog row, or whose body will not load, is drawn as
 	// the player's own rather than not at all (the cars are not cooked, so

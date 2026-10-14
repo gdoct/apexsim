@@ -64,6 +64,7 @@ if a car.toml names a file that is not there.
 | `[driver]` | client | the driver figure's GLB |
 | `[drs_flap]` | client | the F1 flap's GLB and hinge |
 | `[[damage_part]]` | client | boxes of the body that come off |
+| `[damage]` | client | `engine_m`: where the engine sits, metres ahead of the model origin as the axles are (engine smoke comes from there; unset, from the tail) |
 | `[[livery]]` | client (server: names only) | repaints |
 | `[sound]` | client | the engine synth's description |
 
@@ -463,7 +464,10 @@ is worked out from those on the client (`Race/ApexCarDamage.h`).
   its rules miss). Re-run it after a body changes.
 - **Smoke, steam and sparks**: `AApexCarEffectsActor` (one per world) draws
   puffs on instanced engine shapes with `M_ApexCarSmoke` (no particle
-  assets): oil smoke from 35% engine damage, steam from a damaged nose with
+  assets): oil smoke from 35% engine damage, out of the engine bay where
+  `[damage] engine_m` puts it (the front-engined Murcetes-AMD GT3 sets it;
+  every other shipped car's engine is behind the driver and smokes from
+  the tail), steam from a damaged nose with
   the coolant past 104 °C, sparks on a hit and while scraping a wall.
 
 `apexsim.car.DamagePreview "F,R,L,Rt,E[,aF,aR,aL,aRt]"` (percent, then where

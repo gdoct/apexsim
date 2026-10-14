@@ -88,6 +88,8 @@ public:
 	 * An unusable spec draws none: the body carries its whole wing.
 	 */
 	void SetDrsFlap(const FApexDrsFlapSpec& Spec);
+	/** Where the engine sits, metres ahead of the model origin; unset (the default), at the tail. */
+	void SetEnginePosition(bool bKnown, float AheadM) { bHasEngineM = bKnown; EngineM = AheadM; }
 
 	/** The flap's component when the car has one, for tinting and capture flags. */
 	UStaticMeshComponent* GetDrsFlapComponent() const { return DrsFlap.HasFlap() ? DrsFlap.GetComponent() : nullptr; }
@@ -476,6 +478,9 @@ private:
 	bool bTyrePunctured[ApexWheels::NumWheels] = {false, false, false, false};
 	/** The server sends the pickup and blisters (TyrePickup, TyreBlister) rather than the car working them out. */
 	bool bTyreSurfaceSent = false;
+	/** SetEnginePosition: where a damaged engine smokes from. */
+	bool bHasEngineM = false;
+	float EngineM = 0.0f;
 	/** The looks integrated from them (or sent): rubber picked up, blistering, and the heat against the window. */
 	float TyrePickup[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
 	float TyreBlister[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};

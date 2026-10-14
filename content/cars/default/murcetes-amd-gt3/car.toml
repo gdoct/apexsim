@@ -240,6 +240,12 @@ detach_pct = 55
 min_m = [-2.530, -1.159, 1.040]   # forward, left, up
 max_m = [-1.880, 1.159, 1.435]
 
+# Where the engine sits, metres ahead of the model origin as the axles are:
+# a front-mid V8 just behind the front axle. A damaged engine smokes from
+# there (client only); without it, from the tail.
+[damage]
+engine_m = 1.15
+
 # --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
 

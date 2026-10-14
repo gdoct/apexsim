@@ -503,6 +503,16 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	FApexDrsFlapSpec DrsFlap;
 
 	/**
+	 * Where the engine sits, metres ahead of the model origin (car.toml
+	 * `[damage] engine_m`): a damaged engine smokes from there. Unset
+	 * (bHasEngineM false), from the tail. Never saved.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Car")
+	bool bHasEngineM = false;
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Car")
+	float EngineM = 0.0f;
+
+	/**
 	 * The driver in the seat (the generated cars; an unusable spec draws
 	 * none). Derived from car.toml, like the flap.
 	 */

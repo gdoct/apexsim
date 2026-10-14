@@ -356,6 +356,11 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 			else if (Key == TEXT("front_width_m")) { W.FrontWidthM = Number; }
 			else if (Key == TEXT("rear_width_m")) { W.RearWidthM = Number; }
 		}
+		else if (Table == TEXT("damage") && Key == TEXT("engine_m"))
+		{
+			Out.bHasEngineM = true;
+			Out.EngineM = FCString::Atof(*Value);
+		}
 		else if (Table == TEXT("drs_flap"))
 		{
 			FApexCarDrsFlapToml& D = Out.DrsFlap;

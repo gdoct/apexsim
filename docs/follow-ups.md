@@ -44,7 +44,6 @@ The car parents, the damage actor and the importer's damage tables.
 
 - Two hits on one face are two dents (today a zone's dent is centred on the
   damage-weighted mean of its hits).
-- Engine smoke from the engine, not always the tail.
 - The DRS flap and the driver can be dented; wheels are drawn toed.
 - The AC car importer writes `[[damage_part]]` tables, so AC imports shed
   parts.

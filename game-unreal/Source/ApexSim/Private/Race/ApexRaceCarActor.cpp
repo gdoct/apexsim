@@ -1412,15 +1412,17 @@ void AApexRaceCarActor::UpdateDamage(float DeltaSeconds)
 	const FVector CarVelocity = Root->ComponentVelocity;
 	FRandomStream& R = DamageRandom;
 
-	// Oil smoke out of the back of the car: the engine bay and the exhaust.
+	// Oil smoke out of the engine bay and the exhaust: where car.toml says
+	// the engine is, else the back of the car.
 	SmokeOwed += ApexDamage::EngineSmokeRate(Shares) * DeltaSeconds;
+	const double EngineY = bHasEngineM ? FMath::Clamp(EngineM * 100.0, O.Y - E.Y * 0.88, O.Y + E.Y * 0.88) : O.Y - E.Y * 0.88;
 	const float Shade = ApexDamage::EngineSmokeShade(Shares);
 	const bool bOut = Shares.Zone[ApexDamage::Engine] >= 1.0f;
 	for (; SmokeOwed >= 1.0f; SmokeOwed -= 1.0f)
 	{
 		ApexDamage::FPuff Puff;
 		Puff.Location = Frame.TransformPosition(
-			FVector(O.X + E.X * R.FRandRange(-0.15f, 0.15f), O.Y - E.Y * 0.88, O.Z - E.Z + 2.0 * E.Z * R.FRandRange(0.4f, 0.65f)));
+			FVector(O.X + E.X * R.FRandRange(-0.15f, 0.15f), EngineY, O.Z - E.Z + 2.0 * E.Z * R.FRandRange(0.4f, 0.65f)));
 		Puff.Velocity = CarVelocity * 0.25 + FVector(0.0, 0.0, 70.0) + R.GetUnitVector() * 40.0;
 		Puff.Life = 2.8f * R.FRandRange(0.8f, 1.2f);
 		Puff.StartSize = 20.0f;

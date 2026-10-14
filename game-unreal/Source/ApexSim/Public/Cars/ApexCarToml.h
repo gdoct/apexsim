@@ -191,6 +191,13 @@ struct FApexCarToml
 	 * has the frame); empty for none.
 	 */
 	FString SteeringWheelModel;
+	/**
+	 * `[damage] engine_m`: where the engine sits, metres ahead of (+) or
+	 * behind (-) the model origin as the axles are: a damaged engine smokes
+	 * from there. Unset, from the tail.
+	 */
+	bool bHasEngineM = false;
+	float EngineM = 0.0f;
 };
 
 namespace ApexCarToml
