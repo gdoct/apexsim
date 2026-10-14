@@ -1,6 +1,11 @@
 #include "ApexReplaySubsystem.h"
 
 #include "ApexMenuFlowSubsystem.h"
+#include "Audio/ApexWavFile.h"
+#include "AudioDevice.h"
+#include "AudioMixerDevice.h"
+#include "AudioMixerSubmix.h"
+#include "AudioMixerPlatformNonRealtime.h"
 #include "ApexSim.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
@@ -11,6 +16,7 @@
 #include "GameFramework/GameUserSettings.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/PlatformTime.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/App.h"
@@ -155,6 +161,7 @@ bool UApexReplaySubsystem::ParseCommandLine()
 		RecordDir = FPaths::ConvertRelativePathToFull(RecordDir);
 		IFileManager::Get().MakeDirectory(*RecordDir, true);
 		bExitWhenDone = !FParse::Param(Cmd, TEXT("ApexReplayNoExit"));
+		bRecordAudio = FParse::Param(Cmd, TEXT("ApexReplayAudio"));
 	}
 
 	Clip = MakeShared<FApexReplayClip>();
@@ -298,6 +305,7 @@ bool UApexReplaySubsystem::ParseCommandLine()
 			IFileManager::Get().Delete(*(RecordDir / Name));
 		}
 		IFileManager::Get().Delete(*(RecordDir / TEXT("replay_done.json")));
+		IFileManager::Get().Delete(*(RecordDir / TEXT("audio.wav")));
 	}
 	if (FParse::Value(Cmd, TEXT("ApexReplayRes="), Text))
 	{
@@ -375,6 +383,90 @@ void UApexReplaySubsystem::HideShell()
 	}
 }
 
+void UApexReplaySubsystem::StartAudio()
+{
+	UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	FAudioDevice* Device = World ? World->GetAudioDeviceRaw() : nullptr;
+	Audio::FMixerDevice* Mixer = static_cast<Audio::FMixerDevice*>(Device);
+	Audio::IAudioMixerPlatformInterface* Platform = Mixer ? Mixer->GetAudioMixerPlatform() : nullptr;
+	if (!Platform || !Platform->IsNonRealtime())
+	{
+		// The ordinary mixer runs on the wall clock, which a frame dump does
+		// not keep: what it heard would drift off the pictures.
+		AudioNote = TEXT("no sound recorded: run with -deterministicaudio");
+		UE_LOG(LogApexSim, Warning, TEXT("Replay: %s"), *AudioNote);
+		return;
+	}
+	const TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe> Main = Mixer->GetMasterSubmix().Pin();
+	if (!Main)
+	{
+		AudioNote = TEXT("no sound recorded: the mixer has no main submix");
+		return;
+	}
+	// A recorded replay is never in the background, whatever the window.
+	FApp::SetUnfocusedVolumeMultiplier(1.0f);
+	Main->OnStartRecordingOutput(static_cast<float>(EndSeconds - StartSeconds) + 1.0f);
+	bAudioRecording = true;
+	UE_LOG(LogApexSim, Log, TEXT("Replay: recording the sound from frame %d"), FrameIndex);
+}
+
+void UApexReplaySubsystem::StepAudio()
+{
+	UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	Audio::FMixerDevice* Mixer = static_cast<Audio::FMixerDevice*>(World ? World->GetAudioDeviceRaw() : nullptr);
+	Audio::IAudioMixerPlatformInterface* Platform = Mixer ? Mixer->GetAudioMixerPlatform() : nullptr;
+	if (!Platform || !Platform->IsNonRealtime())
+	{
+		return;
+	}
+	if (!bAudioStepping)
+	{
+		if (IConsoleVariable* EveryTick = IConsoleManager::Get().FindConsoleVariable(TEXT("au.nrt.RenderEveryTick")))
+		{
+			EveryTick->Set(0, ECVF_SetByCode);
+		}
+		bAudioStepping = true;
+	}
+	// What the game thread changed this frame, then this frame's time of sound.
+	Mixer->Update(true);
+	static_cast<Audio::FMixerPlatformNonRealtime*>(Platform)->RenderAudio(FApp::GetDeltaTime());
+}
+
+void UApexReplaySubsystem::StopAudio()
+{
+	if (!bAudioRecording)
+	{
+		return;
+	}
+	bAudioRecording = false;
+	UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	Audio::FMixerDevice* Mixer = static_cast<Audio::FMixerDevice*>(World ? World->GetAudioDeviceRaw() : nullptr);
+	const TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe> Main = Mixer ? Mixer->GetMasterSubmix().Pin() : nullptr;
+	if (!Main)
+	{
+		AudioNote = TEXT("no sound recorded: the mixer went away");
+		return;
+	}
+	float SampleRate = 48000.0f;
+	float Channels = 2.0f;
+	const Audio::FAlignedFloatBuffer& Recorded = Main->OnStopRecordingOutput(Channels, SampleRate);
+	// Exactly as long as the pictures: frames at Fps, the game's own time.
+	const int32 Rate = FMath::RoundToInt(SampleRate);
+	const int32 Count = FMath::Max(1, FMath::RoundToInt(Channels));
+	const int32 Frames = FMath::RoundToInt(static_cast<double>(FrameIndex) / Fps * Rate);
+	const TArray<uint8> Wav = ApexWav::Encode16(TConstArrayView<float>(Recorded.GetData(), Recorded.Num()), Count, Rate, Frames);
+	if (FFileHelper::SaveArrayToFile(Wav, *(RecordDir / TEXT("audio.wav"))))
+	{
+		AudioFile = TEXT("audio.wav");
+		UE_LOG(LogApexSim, Log, TEXT("Replay: %.2f s of sound (%.2f s recorded), %d Hz x %d to %s"),
+			static_cast<double>(Frames) / Rate, static_cast<double>(Recorded.Num() / Count) / Rate, Rate, Count, *AudioFile);
+	}
+	else
+	{
+		AudioNote = TEXT("no sound recorded: audio.wav could not be written");
+	}
+}
+
 void UApexReplaySubsystem::RequestFrame()
 {
 	const FString Path = RecordDir / FString::Printf(TEXT("frame_%06d.png"), FrameIndex);
@@ -396,6 +488,14 @@ void UApexReplaySubsystem::WriteManifest()
 	Root->SetStringField(TEXT("camera"), ApexReplayCam::ModeName(Camera.Mode));
 	Root->SetStringField(TEXT("conditions"), Conditions.Describe());
 	Root->SetNumberField(TEXT("render_seconds"), FPlatformTime::Seconds() - RecordStartedAt);
+	if (!AudioFile.IsEmpty())
+	{
+		Root->SetStringField(TEXT("audio"), AudioFile);
+	}
+	else if (!AudioNote.IsEmpty())
+	{
+		Root->SetStringField(TEXT("audio_note"), AudioNote);
+	}
 	FString Json;
 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Json);
 	FJsonSerializer::Serialize(Root, Writer);
@@ -408,6 +508,10 @@ void UApexReplaySubsystem::Tick(float DeltaTime)
 	// loading frame would otherwise count as a whole frame's worth.
 	PhaseSeconds = static_cast<float>(ApexReplayArgs::Now() - PhaseStartedAt);
 	++PhaseFrames;
+	if (bRecordAudio && !RecordDir.IsEmpty())
+	{
+		StepAudio();
+	}
 	auto Enter = [this](EPhase Next)
 	{
 		Phase = Next;
@@ -491,6 +595,10 @@ void UApexReplaySubsystem::Tick(float DeltaTime)
 			// tick; this frame is drawn after us, and that draw is the capture.
 			if (Now >= StartSeconds - 1.0e-6 && FrameIndex < TotalFrames)
 			{
+				if (FrameIndex == 0 && bRecordAudio)
+				{
+					StartAudio();
+				}
 				RequestFrame();
 				if (FrameIndex % Fps == 0)
 				{
@@ -500,6 +608,8 @@ void UApexReplaySubsystem::Tick(float DeltaTime)
 			}
 			if (FrameIndex >= TotalFrames)
 			{
+				// The sound stops with the last frame's tick.
+				StopAudio();
 				Enter(EPhase::Finishing);
 			}
 			return;

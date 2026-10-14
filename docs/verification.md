@@ -116,6 +116,11 @@ seeded pileup replay screenshotted before and after.
 - A replay's tyre and kerb sound (the watched car's road sound from its
   row's wheels, `UpdateWatchedCarRoadSound`) against the live run.
 - A hotlap replay's ghost from its `Ghost` record.
+- A promo clip's sound by ear ([marketing-site.md](marketing-site.md)):
+  measured on one 5 s onboard cut at Spa (the note follows the car's rpm
+  within two frames, 5.00 s of sound for 5.00 s of frames), never listened
+  to; a slowed shot's lowered pitch; the clip and music levels of a whole
+  cut (`clip_volume` 0.7).
 
 ## 3. Hardware session: wheels, pedals, shifter
 

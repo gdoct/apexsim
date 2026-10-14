@@ -44,6 +44,12 @@ public class ApexSim : ModuleRules
 			"PhysicsCore",
 			// Runtime cars: the PNGs and JPEGs inside a car GLB, and the livery logos.
 			"ImageWrapper",
+			// A recorded replay's sound (`-ApexReplayAudio`): the mixer's main
+			// submix recorded, on the non-realtime mixer `-deterministicaudio`
+			// loads, rendered a frame's time per frame.
+			"AudioMixer",
+			"AudioMixerCore",
+			"NonRealtimeAudioRenderer",
 		});
 	}
 }

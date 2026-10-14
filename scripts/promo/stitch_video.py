@@ -212,6 +212,12 @@ def probe_seconds(ffmpeg: str, path: Path) -> float:
     return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
 
 
+def has_audio(ffmpeg: str, path: Path) -> bool:
+    """Whether a clip has a sound track (one rendered before the sound did not)."""
+    result = subprocess.run([ffmpeg, "-hide_banner", "-i", str(path)], capture_output=True, text=True)
+    return "Audio:" in result.stderr
+
+
 def filter_script_args(ffmpeg: str, graph: Path) -> list[str]:
     """ffmpeg 7 reads a graph from a file with `-/filter_complex`; older ones with `-filter_complex_script`."""
     try:
@@ -290,6 +296,7 @@ def main() -> None:
             make_caption(caption, size, caption_text, font, brag_text)
         segments.append({
             "kind": "clip", "file": file, "seconds": seconds, "caption": caption,
+            "audio": has_audio(ffmpeg, file) if not args.dry_run else True,
             "transition": entry.get("transition", default_transition),
             "crossfade": float(entry.get("crossfade_s", default_fade)),
         })
@@ -332,6 +339,7 @@ def main() -> None:
             filters.append(f"{chain},settb=AVTB,fps={fps}[s{k}]")
             continue
         i = add_input("-i", str(seg["file"]))
+        seg["input"] = i
         chain = f"[{i}:v]{norm},trim=duration={seconds:.3f},setpts=PTS-STARTPTS"
         if graded:
             chain += "," + ",".join(graded)
@@ -351,6 +359,8 @@ def main() -> None:
     # longer than a third of either side.
     current = "s0"
     length = segments[0]["seconds"]
+    starts = [0.0]
+    fades = [0.0]
     for k in range(1, len(segments)):
         seg = segments[k]
         fade = min(seg["crossfade"], segments[k - 1]["seconds"] / 3, seg["seconds"] / 3)
@@ -361,6 +371,32 @@ def main() -> None:
                        f"offset={offset:.3f}[{out}]")
         current = out
         length = offset + seg["seconds"]
+        starts.append(offset)
+        fades.append(fade)
+
+    # Each clip's own sound where it plays in the cut, faded across the same
+    # cross-fades as its pictures, under the music.
+    clip_sounds = []
+    for k, seg in enumerate(segments):
+        if seg["kind"] != "clip" or not seg.get("audio"):
+            continue
+        fade_in = fades[k]
+        fade_out = fades[k + 1] if k + 1 < len(segments) else min(1.0, seg["seconds"] / 4)
+        delay = round(starts[k] * 1000)
+        chain = f"[{seg['input']}:a]atrim=duration={seg['seconds']:.3f},asetpts=PTS-STARTPTS"
+        if fade_in > 0:
+            chain += f",afade=t=in:st=0:d={fade_in:.3f}"
+        # Padded to the whole cut: every input of the mix lasts as long, so
+        # amix's 1/n (which any ffmpeg applies) is the same throughout.
+        chain += (f",afade=t=out:st={max(seg['seconds'] - fade_out, 0):.3f}:d={fade_out:.3f},"
+                  f"aformat=sample_rates=48000:channel_layouts=stereo,adelay={delay}|{delay},"
+                  f"apad,atrim=0:{length:.3f}[a{k}]")
+        filters.append(chain)
+        clip_sounds.append(f"[a{k}]")
+    clip_volume = float(edit.get("clip_volume", 0.7))
+    if clip_sounds:
+        filters.append(f"{''.join(clip_sounds)}amix=inputs={len(clip_sounds)}:duration=first,"
+                       f"volume={clip_volume * len(clip_sounds):.3f}[clips]")
 
     music = repo_path(args.music or edit.get("music"))
     if music and not music.exists():
@@ -369,10 +405,15 @@ def main() -> None:
         m = add_input("-i", str(music))
         volume = float(edit.get("music_volume", 0.9))
         fade_out = min(3.0, length / 4)
+        music_out = "music" if clip_sounds else "aout"
         filters.append(
             f"[{m}:a]atrim=0:{length:.3f},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=1.0,"
             f"afade=t=out:st={length - fade_out:.3f}:d={fade_out:.3f},volume={volume},"
-            f"aformat=sample_rates=48000:channel_layouts=stereo[aout]")
+            f"aformat=sample_rates=48000:channel_layouts=stereo[{music_out}]")
+        if clip_sounds:
+            filters.append("[music][clips]amix=inputs=2:duration=first,volume=2[aout]")
+    elif clip_sounds:
+        filters.append("[clips]anull[aout]")
     else:
         # A silent track: most players and uploads expect one.
         a = add_input("-f", "lavfi", "-t", f"{length:.3f}", "-i", "anullsrc=r=48000:cl=stereo")

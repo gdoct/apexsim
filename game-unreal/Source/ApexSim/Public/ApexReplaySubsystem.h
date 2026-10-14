@@ -26,7 +26,11 @@ class FApexReplayClip;
  * `-ApexReplayDuration` seconds is written as `<dir>/frame_000000.png`… at
  * a fixed timestep of `-ApexReplayFps` (60), so the result is exact however
  * slowly the machine renders; `<dir>/replay_done.json` says what was
- * written, and the game quits (unless `-ApexReplayNoExit`).
+ * written, and the game quits (unless `-ApexReplayNoExit`). With
+ * `-ApexReplayAudio` and `-deterministicaudio` (the engine's non-realtime
+ * mixer, which renders each frame's time of sound as the frame is made) the
+ * main submix is recorded over the same frames into `<dir>/audio.wav`,
+ * exactly as long as them.
  *
  * The camera: `-ApexReplayCam=tv|fixed|pan|chase|cockpit` (ApexReplayCam),
  * `-ApexReplayFollow=leader|nearest|<car index>`, `-ApexReplayShot=<tv shot>`,
@@ -109,4 +113,22 @@ private:
 	FIntPoint Resolution = FIntPoint::ZeroValue;
 	bool bExitWhenDone = true;
 	double RecordStartedAt = 0.0;
+
+	/** `-ApexReplayAudio`: record the sound too. */
+	bool bRecordAudio = false;
+	/** The main submix is being recorded, on the non-realtime mixer. */
+	bool bAudioRecording = false;
+	/** What became of the sound, for the manifest: the file name, or empty with why. */
+	FString AudioFile;
+	FString AudioNote;
+	void StartAudio();
+	void StopAudio();
+	/**
+	 * Render one frame's time of sound on the non-realtime mixer. Its own
+	 * per-tick render steps by the delta it saw at start-up, not the fixed
+	 * one, so it is switched off and the run steps it (as the Movie Render
+	 * Queue does).
+	 */
+	void StepAudio();
+	bool bAudioStepping = false;
 };

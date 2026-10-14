@@ -8,8 +8,10 @@ Every shot in `scripts/promo/shots.yml` goes through four stages:
           work out the camera (`pose`) and cut a short clip file
           (`cut ... --out <id>.apxs`)                         -> out/promo/cuts/
   render  launch the game on the clip (`-ApexReplay=`), which plays it at a
-          fixed timestep and writes every frame as a PNG     -> out/promo/frames/<id>/
-  encode  ffmpeg the frames into a clip                       -> out/promo/clips/<id>.mp4
+          fixed timestep and writes every frame as a PNG, and the sound
+          rendered in step with them (`-deterministicaudio`) as audio.wav
+                                                              -> out/promo/frames/<id>/
+  encode  ffmpeg the frames and the sound into a clip          -> out/promo/clips/<id>.mp4
   (stitch_video.py then cuts the clips into the video.)
 
 Planning runs anywhere the Rust toolchain does. Rendering needs the game
@@ -37,6 +39,7 @@ import shutil
 import subprocess
 import sys
 import time
+import wave
 from pathlib import Path
 
 try:
@@ -453,7 +456,9 @@ def render(plan: dict, game: list[str], out: Path, resolution: tuple[int, int], 
         args += [
             f"-ApexReplayRecord={frames}",
             f"-ApexReplayFps={plan['record_fps']}",
-            "-nosound", "-unattended",
+            # The engine's non-realtime mixer: each frame's time of sound is
+            # rendered as the frame is, so the engine note stays on the car.
+            "-deterministicaudio", "-ApexReplayAudio", "-unattended",
             f"-log=ApexReplay_{plan['id']}.log",
         ]
     command = [*game, *args]
@@ -485,7 +490,8 @@ def render(plan: dict, game: list[str], out: Path, resolution: tuple[int, int], 
         log(f"  {plan['id']}: the game reported: {result.get('error')}")
         return False
     count = len(list(frames.glob("frame_*.png")))
-    log(f"  {count} frames in {time.monotonic() - started:.0f} s")
+    sound = "with sound" if result.get("audio") else f"silent ({result.get('audio_note', 'no audio.wav')})"
+    log(f"  {count} frames in {time.monotonic() - started:.0f} s, {sound}")
     return count > 0
 
 
@@ -499,11 +505,26 @@ def encode(plan: dict, out: Path, ffmpeg: str, codec: str, dry_run: bool) -> Pat
     else:
         target = clips / f"{plan['id']}.mp4"
         video = ["-c:v", "libx264", "-preset", "slow", "-crf", "14", "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
-    # Recorded at record_fps, played at fps: that is the slow motion.
+    # Recorded at record_fps, played at fps: that is the slow motion. The
+    # sound lasts as long as the frames at record_fps; slowed with them, it
+    # drops in pitch as a slowed recording does.
+    wav = frames / "audio.wav"
+    sound: list[str] = []
+    if wav.exists() or dry_run:
+        slowmo = float(plan.get("slowmo", 1.0))
+        rate = 48000
+        if wav.exists():
+            with wave.open(str(wav)) as w:
+                rate = w.getframerate()
+        stretch = [] if slowmo >= 0.999 else ["-af", f"asetrate={rate * slowmo:.0f},aresample={rate}"]
+        sound = ["-i", str(wav), "-map", "0:v", "-map", "1:a", *stretch,
+                 *(["-c:a", "pcm_s16le"] if codec == "prores" else ["-c:a", "aac", "-b:a", "256k"]),
+                 "-shortest"]
     command = [
         ffmpeg, "-y", "-loglevel", "error",
         "-framerate", str(plan["fps"]),
         "-i", str(frames / "frame_%06d.png"),
+        *sound,
         *video,
         "-r", str(plan["fps"]),
         str(target),

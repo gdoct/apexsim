@@ -391,7 +391,9 @@ track by the clip's stem and spawns its roster, and every car is placed with
 director's own game-time clock. The clip also keeps the stream's sky (`SkyAt`)
 and road slices (`GetRoads`); `UpdateReplayWorld` hands them to the director
 as the clock reaches them, and lays the road again from the start after a jump
-back, so a clip films the rain arriving and the line drying. `-ApexReplayRecord=<dir>` sets a fixed
+back, so a clip films the rain arriving and the line drying. `-ApexReplayAudio` (with `-deterministicaudio`) also writes the
+sound, rendered in step with the frames, as `<dir>/audio.wav`
+([marketing site](../marketing-site.md)). `-ApexReplayRecord=<dir>` sets a fixed
 timestep (`-ApexReplayFps`) and writes every frame as a PNG. Camera and
 switch reference: the header of `ApexReplaySubsystem.h` and
 [marketing site](../marketing-site.md).

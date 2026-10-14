@@ -230,6 +230,8 @@ edit:
   font: null                  # a .ttf/.otf path; null picks Segoe UI / Arial / DejaVu Sans Bold
   music: null                 # e.g. assets/music/track.mp3 (you supply it; faded in and out)
   music_volume: 0.9
+  # Each clip's own sound (engines, tyres), under the music.
+  clip_volume: 0.7
   title:
     text: null                # the splash art carries the logo; set a text for a plain card
     subtitle: "420 Hz. Every corner. Every sky."

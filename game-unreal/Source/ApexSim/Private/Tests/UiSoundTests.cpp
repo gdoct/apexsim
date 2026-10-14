@@ -1,5 +1,6 @@
 #include "ApexTestCommon.h"
 #include "Audio/ApexUiSound.h"
+#include "Audio/ApexWavFile.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -108,6 +109,35 @@ bool FApexUiSoundRateIndependenceTest::RunTest(const FString& Parameters)
 	ApexUiSynth::Render(EApexUiSound::Accept, 0.0f, Samples);
 	TestEqual(TEXT("zero rate renders nothing"), Samples.Num(), 0);
 
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexWavFileTest,
+	"ApexSim.Audio.Wav",
+	ApexTestFlags)
+
+bool FApexWavFileTest::RunTest(const FString& Parameters)
+{
+	// A recorded replay's sound, cut and padded to its pictures.
+	const float Stereo[] = { 0.5f, -0.5f, 1.0f, -1.0f, 2.0f, 0.0f };
+	const TArray<uint8> Cut = ApexWav::Encode16(TConstArrayView<float>(Stereo, 6), 2, 48000, 2);
+	TestEqual(TEXT("header and two frames"), Cut.Num(), 44 + 2 * 2 * 2);
+	TestTrue(TEXT("a RIFF WAVE"), FMemory::Memcmp(Cut.GetData(), "RIFF", 4) == 0 && FMemory::Memcmp(Cut.GetData() + 8, "WAVE", 4) == 0);
+	auto At16 = [&Cut](int32 Offset) { return static_cast<int16>(Cut[Offset] | (Cut[Offset + 1] << 8)); };
+	auto At32 = [&Cut](int32 Offset) { return static_cast<int32>(Cut[Offset] | (Cut[Offset + 1] << 8) | (Cut[Offset + 2] << 16) | (Cut[Offset + 3] << 24)); };
+	TestEqual(TEXT("two channels"), (int32)At16(22), 2);
+	TestEqual(TEXT("48 kHz"), At32(24), 48000);
+	TestEqual(TEXT("its data's size"), At32(40), 8);
+	TestEqual(TEXT("a half"), (int32)At16(44), 16384);
+	TestEqual(TEXT("full scale down"), (int32)At16(50), -32767);
+
+	const TArray<uint8> Padded = ApexWav::Encode16(TConstArrayView<float>(Stereo, 6), 2, 48000, 5);
+	TestEqual(TEXT("padded to five frames"), Padded.Num(), 44 + 5 * 4);
+	TestEqual(TEXT("an over-range sample is clipped"), (int32)static_cast<int16>(Padded[52] | (Padded[53] << 8)), 32767);
+	TestEqual(TEXT("silence after the end"), (int32)static_cast<int16>(Padded[60] | (Padded[61] << 8)), 0);
 	return true;
 }
 

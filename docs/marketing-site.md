@@ -121,8 +121,14 @@ iterate on.
 - *render* starts the game per clip with `-ApexReplayRecord=`; it writes
   `frame_000000.png` onward and `replay_done.json`, then quits. Game time steps
   exactly one frame per frame, so render speed does not affect the result.
-- *encode*: H.264 (CRF 14) by default, `--codec prores` for an editor;
-  `--keep-frames` keeps the PNGs.
+  The run has `-deterministicaudio -ApexReplayAudio`: the engine's
+  non-realtime mixer renders each frame's time of sound with the frame
+  (`UApexReplaySubsystem::StepAudio`), and the main submix goes to
+  `audio.wav`, cut to the frames' length (`"audio"` in the manifest, or
+  `"audio_note"` saying why there is none).
+- *encode*: H.264 (CRF 14) and AAC by default, `--codec prores` (PCM sound)
+  for an editor; `--keep-frames` keeps the PNGs. A slow-motion shot's sound is
+  slowed with it (`asetrate`), so it drops in pitch as a slowed recording does.
 - `--preview <id>` plays one shot live and looping (no recording) to tune its
   camera; `apexsim.cam.*` and `apexsim.tv.*` work meanwhile. `--dry-run`
   plans and prints the commands.
@@ -155,7 +161,9 @@ iterate on.
   normal one: every frame is real.
 - **Edit**: the `sequence` in play order with per-shot `transition` (an ffmpeg
   `xfade` name) and `crossfade_s`, `title` and `end` cards, `captions`,
-  `grade`, `font`, `music`.
+  `grade`, `font`, `music`, `music_volume` (0.9) and `clip_volume` (0.7): each
+  clip's own sound plays under its pictures, faded across the same
+  cross-fades, mixed under the music.
 
 By hand, the same steps are the `apexsim-replay` commands in
 [spectator](game/spectator.md) followed by
@@ -186,7 +194,13 @@ the header of `ApexReplaySubsystem.h`.
   visibility and does not.
 - A ui run rewrites the profile's "continue where you left off" car, track
   and mode.
-- No audio is recorded (audio runs in real time, the frame dump does not):
-  put music over the cut.
+- The sound needs `-deterministicaudio`: the ordinary mixer runs on the wall
+  clock, which a frame dump does not keep. The non-realtime mixer's own
+  per-tick render steps by the delta it saw at start-up, not the fixed one
+  (twice the sound for a 60 fps clip), so the replay run switches it off
+  (`au.nrt.RenderEveryTick 0`) and steps it itself.
+- Clips rendered before the sound are silent: render them again.
+- `stitch_video.py` keeps to filters any ffmpeg has (no `amix` `normalize`):
+  every clip's sound is padded to the whole cut, so `amix`'s 1/n is constant.
 - A shot's weather override is visual only; simulate the race in the rain for
   rain driving.

@@ -39,20 +39,7 @@ None open.
 
 ## P2: depth
 
-### 1. Promo clips with sound
-
-The promo pipeline dumps frames slower than real time while the audio
-mixer runs in real time, so a plain submix recording drifts.
-
-- The mixer rendered in step with the frames (a non-realtime audio render,
-  as the Movie Render Queue does), or a second real-time pass recorded
-  through the submix and cut to the clip.
-
-**Check:** a promo clip whose engine note stays on the car through the
-whole clip. (Frames stay whole: no delta encoding, see
-[game/spectator.md](game/spectator.md).)
-
-### 2. Nordschleife dressing
+### 1. Nordschleife dressing
 
 One circuit, a long list; its own package so it does not hold up the rest.
 
@@ -67,7 +54,7 @@ One circuit, a long list; its own package so it does not hold up the rest.
 **Check:** a lap by hand and a TV-camera lap in the running game; the
 track-editor tests.
 
-### 3. Menus
+### 2. Menus
 
 Shell screens. All of it goes through one pad walk
 (`ApexSim.UI.PadWalk`) at the end.
@@ -82,7 +69,7 @@ Shell screens. All of it goes through one pad walk
 
 ## P3: nice to have
 
-### 4. Car content
+### 3. Car content
 
 - The GT3 and LMP2 class wheels get sidewall lettering.
 - The HUD colours brakes by material as well as temperature (the client
@@ -90,7 +77,7 @@ Shell screens. All of it goes through one pad walk
 
 **Check:** the HUD on a carbon and a steel car; the wheels in car select.
 
-### 5. Server dashboard
+### 4. Server dashboard
 
 For people running a server for others
 ([server/operations.md](server/operations.md)).
@@ -100,7 +87,7 @@ For people running a server for others
 
 **Check:** a saved tick rate in force without touching the machine.
 
-### 6. Content tooling
+### 5. Content tooling
 
 - `ats-dress --explain` and a per-prop source stamp.
 - `ats-export --strict`, which fails on a dropped facet.
