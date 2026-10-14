@@ -2,6 +2,7 @@
 """Paint the road graffiti the Nordschleife is known for.
 
     python scripts/content/props/gen_graffiti.py          # -> content/props/decal/graffiti/*.png
+                                                          #    and _textures/rail_tag_*.png
     python scripts/content/props/gen_graffiti.py --sheet  # also a contact sheet in _preview/
 
 Fans paint the Nordschleife's tarmac before every 24-hour race: names,
@@ -117,18 +118,20 @@ def _rng(name: str) -> np.random.Generator:
 
 
 class Canvas:
-    """Paint coverage per colour layer, composited at the end."""
+    """Paint coverage per colour layer, composited at the end. `size` is
+    (width, height) in pixels: the road's 1024 x 512 unless given."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, size: tuple[int, int] = (W, H)):
         self.name = name
         self.rng = _rng(name)
+        self.w, self.h = size
         self.layers: list[tuple[tuple[float, float, float], np.ndarray]] = []
-        yy, xx = np.mgrid[0:H, 0:W]
+        yy, xx = np.mgrid[0 : self.h, 0 : self.w]
         self.xx = xx.astype(np.float32)
         self.yy = yy.astype(np.float32)
 
     def layer(self, color) -> np.ndarray:
-        a = np.zeros((H, W), np.float32)
+        a = np.zeros((self.h, self.w), np.float32)
         self.layers.append((color, a))
         return a
 
@@ -136,6 +139,7 @@ class Canvas:
         """A sprayed line through `pts` (pixels): a soft round nozzle stamped
         along it, its width and pressure wandering, with flecks either side."""
         rng = self.rng
+        W, H = self.w, self.h
         pts = [np.asarray(p, np.float32) for p in pts]
         if len(pts) == 1:
             pts = pts * 2
@@ -203,16 +207,17 @@ class Canvas:
         if fill:
             from PIL import ImageDraw
 
-            m = Image.new("L", (W, H), 0)
+            m = Image.new("L", (self.w, self.h), 0)
             for pts in pts_all:
                 ImageDraw.Draw(m).polygon(pts, fill=230)
             np.maximum(a, np.asarray(m, np.float32) / 255.0, out=a)
 
-    def finish(self) -> Image.Image:
+    def finish(self, tyre_tracks: bool = True) -> Image.Image:
         """Composite the layers and wear the coat: paint thins in blotches,
-        and most where the tyres run (bands along the road, i.e. vertical
-        in the picture)."""
+        and (on the road, `tyre_tracks`) most where the tyres run: bands
+        along the road, i.e. vertical in the picture."""
         rng = self.rng
+        W, H = self.w, self.h
         # Blotchy wear from two octaves of value noise.
         wear = np.ones((H, W), np.float32)
         for cells, amp in ((8, 0.35), (32, 0.25)):
@@ -220,7 +225,7 @@ class Canvas:
             img = Image.fromarray((g * 255).astype(np.uint8)).resize((W, H), Image.BICUBIC)
             wear -= amp * (np.asarray(img, np.float32) / 255.0)
         # Two tyre tracks at random places across the road.
-        for _ in range(2):
+        for _ in range(2 if tyre_tracks else 0):
             x0 = rng.uniform(0.2, 0.8) * W
             band = np.exp(-(((self.xx - x0) / (W * 0.07)) ** 2))
             wear -= 0.35 * band
@@ -352,10 +357,102 @@ PICTURES = {
 }
 
 
+# ------------------------------------------------------------------ skid marks
+# Rubber, not paint: the black streaks a locked or sliding tyre leaves in a
+# braking zone, one pair per picture (the two wheel tracks of a car, 1.6 m
+# apart across a decal 2.6 m wide). They ride in the graffiti set so the
+# importer brings them in with it; the dossier lays them along the racing
+# line into the tightest corners (`osm_layout.skid_marks`).
+RUBBER = (0.035, 0.035, 0.04)
+SKID_TRACKS = (0.19, 0.81)  # the wheel tracks' centres across the picture
+
+
+def _skid(lock_at: float, release_at: float, drift: float, width: float = 80.0):
+    """A pair of streaks from `lock_at` to `release_at` (0 is the near end,
+    the bottom of the picture; 1 the far end), darkest just after the lock
+    and fading as the brake comes off, drifting `drift` px across."""
+
+    def paint(c: Canvas):
+        rng = c.rng
+        a = c.layer(RUBBER)
+        for track in SKID_TRACKS:
+            x0 = W * track + rng.normal(0, 6)
+            n = 28
+            pts = []
+            for i in range(n + 1):
+                t = lock_at + (release_at - lock_at) * i / n
+                x = x0 + drift * (t - lock_at) / max(release_at - lock_at, 1e-3) + rng.normal(0, 1.5)
+                pts.append((x, H * (1.0 - t)))
+            for i in range(n):
+                f = i / n
+                # Dark right after the lock, thinning out to nothing.
+                pressure = 0.95 * min(1.0, f * 6.0 + 0.35) * (1.0 - f) ** 0.6
+                if pressure > 0.05:
+                    c.stroke(a, [pts[i], pts[i + 1]], width * (0.85 + 0.15 * (1.0 - f)), pressure)
+
+    return paint
+
+
+SKID_MARKS = {
+    "skid_long": _skid(0.04, 0.96, 10.0),
+    "skid_short": _skid(0.30, 0.92, -6.0),
+    "skid_late": _skid(0.10, 0.62, 14.0, 74.0),
+}
+PICTURES.update(SKID_MARKS)
+
+
+# ------------------------------------------------------------------ rail tags
+# The crowd's tags on the guard rail itself: textures for the kit's
+# `board/rail_tag_*` overlays (scripts/content/props/build_nordschleife_kit.py),
+# which wrap them round the double rail's two W-beams. 4 m x 0.76 m of rail,
+# so 1024 x 192; written to content/props/_textures/. Invented, like the road
+# pictures.
+RAIL = (1024, 192)
+RAIL_DIR = ROOT / "_textures"
+
+
+def _tag(lines, color=WHITE, outline=None, heart=False):
+    def paint(c: Canvas):
+        out = c.layer(outline) if outline else None
+        a = c.layer(color)
+        if heart:
+            h = c.layer(RED)
+            s = c.h * 0.8 / 6.0
+            cx, cy = c.w * 0.5, c.h * 0.5
+            pts = [(cx + (gx - 2) * s, cy - (gy - 3) * s) for gx, gy in HEART[0]]
+            c.stroke(h, pts, s * 1.2)
+        n = len(lines)
+        span = c.w * (0.40 if heart else 0.86) / n
+        for i, line in enumerate(lines):
+            if heart:
+                cx = c.w * (0.22 if i == 0 else 0.78)
+            else:
+                cx = c.w * 0.07 + span * (i + 0.5)
+            c.text(a, line, cx, c.h * 0.5, c.h * 0.62, span, slant=0.2, outline=out)
+
+    return paint
+
+
+RAIL_TAGS = {
+    "kalle": _tag(["KALLE 24"], WHITE, outline=RED),
+    "eifel": _tag(["EIFEL"], YELLOW, outline=BLUE),
+    "vollgas": _tag(["VOLLGAS!"], ORANGE),
+    "hup": _tag(["HUP", "HUP"], ORANGE, outline=WHITE),
+    "moppel": _tag(["MOPPEL"], GREEN, outline=WHITE),
+    "hearts": _tag(["JO", "ANNA"], WHITE, heart=True),
+}
+
+
 def paint(name: str) -> Image.Image:
     c = Canvas(name)
     PICTURES[name](c)
-    return c.finish()
+    return c.finish(tyre_tracks=name not in SKID_MARKS)
+
+
+def paint_rail_tag(name: str) -> Image.Image:
+    c = Canvas("rail_" + name, RAIL)
+    RAIL_TAGS[name](c)
+    return c.finish(tyre_tracks=False)
 
 
 def main() -> int:
@@ -367,10 +464,20 @@ def main() -> int:
     names = args.names or sorted(PICTURES)
     images = []
     for name in names:
+        if name not in PICTURES:
+            continue
         img = paint(name)
         img.save(OUT_DIR / f"{name}.png", optimize=True)
         images.append((name, img))
         print(f"  {name}.png")
+    RAIL_DIR.mkdir(parents=True, exist_ok=True)
+    for name in sorted(RAIL_TAGS):
+        if args.names and f"rail_{name}" not in args.names:
+            continue
+        img = paint_rail_tag(name)
+        img.save(RAIL_DIR / f"rail_tag_{name}.png", optimize=True)
+        images.append((f"rail_{name}", img.resize((W, H // 2))))
+        print(f"  _textures/rail_tag_{name}.png")
     if args.sheet:
         cols = 5
         rows = (len(images) + cols - 1) // cols

@@ -2,12 +2,20 @@ r"""Nordschleife kit: German guard rail, German signs, Burg Nürburg.
 
 Run inside Blender (Text Editor or console):
 
-    ASSET = "all"        # or one of ASSETS
+    ASSET = "all"        # or one of ASSETS, or several: "a,b,c"
     exec(open(r"E:\apexsim\scripts\content\props\build_nordschleife_kit.py").read())
 
-or headless with the `bpy` module (APEXSIM_ROOT = the repo):
+or headless (the user may have a file of their own open in Blender):
 
-    APEXSIM_ROOT=/path/to/apexsim python -c "exec(open('scripts/content/props/build_nordschleife_kit.py').read())"
+    "C:\Program Files\Blender Foundation\Blender 5.1\blender.exe" -b --factory-startup ^
+        --python-expr "ASSET='all'; exec(open(r'E:\apexsim\scripts\content\props\build_nordschleife_kit.py', encoding='utf-8').read())"
+
+Blender's own Python has no PIL, so the sign faces and number plates are
+painted first by the system Python, which has no `bpy`:
+
+    python scripts/content/props/build_nordschleife_kit.py      # -> _textures/, board/markers/
+
+and the Blender run loads the PNGs it finds.
 
 Writes content/props/<kind>/<asset>.glb for every asset below, the sign
 textures they carry to content/props/_textures/, the km board faces to
@@ -40,17 +48,55 @@ their post).
   round keep (Bergfried) with its crenellated viewing top, the ring of the
   inner ward, the broken outer curtain wall with a gate tower. Centred on
   its footprint; a 6 m plinth below the pivot hides the hillside slope.
+
+The dressing pieces (docs/content/circuits.md, Nordschleife):
+
+- **marshal_post_numbered** (`sign`): the kit's `marshal_post` with the
+  post's number board in front of it; the number is the prop's `text` on
+  the `board_marker` slot (`post12` -> T_marker_post12, written to
+  board/markers/ here).
+- **de_descent / de_climb** (Zeichen 108 / 110) with the grade on a plate
+  under the triangle (`board_marker`, `grade12` -> T_marker_grade12), and
+  **de_double_curve_left / _right** (Zeichen 105).
+- **rail_tag_<name>** (`board`): the crowd's tags painted on the double
+  rail, a masked sheet wrapped round both W-beams of a `vangrail_4m`
+  module (laid on one by the groomer). Textures from gen_graffiti.py.
+- **track_bridge_10m** (`bridge`): the parapets and fascias of a bridge
+  carrying the lap over a road (the B 257 at Quiddelbach and Breidscheid),
+  tiled along the span; authored for a 15 m road, scaled to the real one.
+- **overpass_concrete** (`bridge`): a forest track's concrete beam bridge
+  over the lap, its abutments set back behind the rails.
+- **toll_gate_lane** (`misc`): a Touristenfahrten toll lane, booth and
+  lift arm, the arm along local X; centred.
+- **stone_lookout_tower** (`building`): the 16 m stone lookout tower on
+  the Hohe Acht; centred, a plinth below the pivot.
+- **spectator_bank_10m** (`misc`): an earth bank with a hedge on its
+  crest, where the crowd stands behind the rail; symmetric and centred.
+- **camp_scaffold_tower**, **camp_gazebo**, **camp_flag_pole** (`misc`):
+  the 24-hour camps' home-built scaffold towers, pop-up gazebos and flag
+  poles (`flag_cloth`, the flag code as `text`).
 """
-import bpy, bmesh, math, os, importlib.util, sys
-from mathutils import Vector
+import math, os, importlib.util, sys
+
+try:
+    import bpy, bmesh
+    from mathutils import Vector
+except ImportError:  # the system Python: paint the textures only
+    bpy = None
+try:
+    import PIL  # noqa: F401
+    HAVE_PIL = True
+except ImportError:  # Blender's Python: load what the system Python painted
+    HAVE_PIL = False
 
 _ROOT = os.environ.get("APEXSIM_ROOT", r"E:\apexsim")
 os.environ.setdefault("APEXSIM_ROOT", _ROOT)
-_s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "scripts", "content", "props", "apex_props.py"))
-apex = importlib.util.module_from_spec(_s); sys.modules["apex"] = apex; _s.loader.exec_module(apex)
-_t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "scripts", "content", "props", "apex_tex.py"))
-tex = importlib.util.module_from_spec(_t); sys.modules["apex_tex"] = tex; _t.loader.exec_module(tex)
-B, M = apex.Builder, tex.kit_material
+if bpy is not None:
+    _s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "scripts", "content", "props", "apex_props.py"))
+    apex = importlib.util.module_from_spec(_s); sys.modules["apex"] = apex; _s.loader.exec_module(apex)
+    _t = importlib.util.spec_from_file_location("apex_tex", os.path.join(_ROOT, "scripts", "content", "props", "apex_tex.py"))
+    tex = importlib.util.module_from_spec(_t); sys.modules["apex_tex"] = tex; _t.loader.exec_module(tex)
+    B, M = apex.Builder, tex.kit_material
 
 PROPS = os.path.join(_ROOT, "content", "props")
 TEX_DIR = os.path.join(PROPS, "_textures")
@@ -68,6 +114,25 @@ ASSETS = [
     ("board", "de_danger"),
     ("board", "de_overtake_left"),
     ("building", "castle_ruin"),
+    ("sign", "marshal_post_numbered"),
+    ("board", "de_descent"),
+    ("board", "de_climb"),
+    ("board", "de_double_curve_left"),
+    ("board", "de_double_curve_right"),
+    ("board", "rail_tag_kalle"),
+    ("board", "rail_tag_eifel"),
+    ("board", "rail_tag_vollgas"),
+    ("board", "rail_tag_hup"),
+    ("board", "rail_tag_moppel"),
+    ("board", "rail_tag_hearts"),
+    ("bridge", "track_bridge_10m"),
+    ("bridge", "overpass_concrete"),
+    ("misc", "toll_gate_lane"),
+    ("building", "stone_lookout_tower"),
+    ("misc", "spectator_bank_10m"),
+    ("misc", "camp_scaffold_tower"),
+    ("misc", "camp_gazebo"),
+    ("misc", "camp_flag_pole"),
 ]
 try:
     ASSET
@@ -95,6 +160,14 @@ def _save(img, name):
     return p
 
 
+def _painted(path):
+    """In Blender (no PIL): the PNG the system Python painted, which has to
+    be there."""
+    if not os.path.exists(path):
+        raise SystemExit(f"{path} is missing: run this script with the system Python first")
+    return path
+
+
 RED = (200, 16, 30)
 WHITE = (245, 245, 240)
 BLUE = (0, 72, 150)
@@ -104,6 +177,8 @@ YELLOW = (250, 200, 20)
 
 def chevron_texture():
     """Zeichen 625: white board, red chevrons pointing right (+u)."""
+    if not HAVE_PIL:
+        return _painted(os.path.join(TEX_DIR, "sign_chevron_col.png"))
     from PIL import Image, ImageDraw
     w, h = 1024, 256
     img = Image.new("RGB", (w, h), WHITE)
@@ -118,6 +193,8 @@ def chevron_texture():
 
 def triangle_sign(name, draw_inside):
     """A German danger sign (Zeichen 1xx): white triangle, red border."""
+    if not HAVE_PIL:
+        return _painted(os.path.join(TEX_DIR, name + ".png"))
     from PIL import Image, ImageDraw
     s = 512
     img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
@@ -148,6 +225,8 @@ def _danger(d, s):
 
 def overtake_texture():
     """The Touristenfahrten board: blue, white text, arrow to the left."""
+    if not HAVE_PIL:
+        return _painted(os.path.join(TEX_DIR, "sign_de_overtake_col.png"))
     from PIL import Image, ImageDraw
     w, h = 768, 512
     img = Image.new("RGB", (w, h), BLUE)
@@ -166,8 +245,11 @@ def km_textures():
     """The kilometre boards' faces, one per km: black number on yellow,
     `km` under it. Written where the marker set lives, so ApexPropImport
     brings them in as T_marker_km<N> (the prop's text is `km<N>`)."""
-    from PIL import Image, ImageDraw
     out = os.path.join(PROPS, "board", "markers")
+    if not HAVE_PIL:
+        _painted(os.path.join(out, "km1.png"))
+        return out
+    from PIL import Image, ImageDraw
     for n in range(1, 21):
         img = Image.new("RGB", (768, 1024), YELLOW)
         d = ImageDraw.Draw(img)
@@ -399,6 +481,371 @@ def castle_ruin():
     return b.finish()
 
 
+# ------------------------------------------------------- the dressing pieces
+
+
+def import_glb(kind, asset):
+    """Import one of the kit's own GLBs; returns (every new object, the mesh objects)."""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(PROPS, kind, asset + ".glb"))
+    new = [o for o in bpy.data.objects if o not in before]
+    return new, [o for o in new if o.type == 'MESH']
+
+
+def absorb(b, objects):
+    """Copy mesh objects into Builder `b` in world space, materials and UVs kept."""
+    for ob in objects:
+        me = ob.data
+        uv = me.uv_layers.active
+        mw = ob.matrix_world
+        verts = [b.bm.verts.new(mw @ v.co) for v in me.vertices]
+        for poly in me.polygons:
+            mat = ob.material_slots[poly.material_index].material if ob.material_slots else None
+            try:
+                f = b.bm.faces.new([verts[i] for i in poly.vertices])
+            except ValueError:
+                continue
+            f.material_index = b.slot(mat)
+            if uv is not None:
+                for loop, li in zip(f.loops, poly.loop_indices):
+                    loop[b.uv].uv = uv.data[li].uv
+            b.keep.add(f)
+
+
+def world_bounds(objects):
+    pts = [o.matrix_world @ Vector(c) for o in objects for c in o.bound_box]
+    lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+    hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+    return lo, hi
+
+
+def borrow_material(kind, asset, name):
+    """A material of an existing kit GLB, by slot name, so a new piece of the
+    same kind looks like its neighbours (the importer shares slots by name
+    across a kind, so it has to be the same material anyway)."""
+    m = bpy.data.materials.get(name)
+    if m is not None and m.get("apex_borrowed"):
+        return m
+    new, _ = import_glb(kind, asset)
+    got = bpy.data.materials.get(name)
+    for ob in new:
+        bpy.data.objects.remove(ob)
+    if got is not None:
+        got["apex_borrowed"] = True
+    return got
+
+
+def plate_texture(path, text, size=(512, 256)):
+    """A white plate with a black border and black text."""
+    if not HAVE_PIL:
+        return _painted(path)
+    from PIL import Image, ImageDraw
+    w, h = size
+    img = Image.new("RGB", size, WHITE)
+    d = ImageDraw.Draw(img)
+    d.rectangle([6, 6, w - 7, h - 7], outline=BLACK, width=12)
+    f = _font(int(h * 0.62))
+    tw = d.textlength(text, font=f)
+    d.text(((w - tw) / 2, h * 0.13), text, fill=BLACK, font=f)
+    img.save(path)
+    return path
+
+
+def post_textures():
+    """The marshal posts' number boards, post1..post120, in the marker set
+    (imported as T_marker_post<N>)."""
+    out = os.path.join(PROPS, "board", "markers")
+    for n in range(1, 121):
+        plate_texture(os.path.join(out, f"post{n}.png"), str(n))
+    return os.path.join(out, "post1.png")
+
+
+def grade_textures():
+    """The grade plates under the hill signs, grade5..grade25 (T_marker_grade<N>)."""
+    out = os.path.join(PROPS, "board", "markers")
+    for n in range(5, 26):
+        plate_texture(os.path.join(out, f"grade{n}.png"), f"{n} %")
+    return os.path.join(out, "grade10.png")
+
+
+def marshal_post_numbered():
+    """The kit's marshal post with its number board on two posts in front
+    of it, read from the road."""
+    new, meshes = import_glb("sign", "marshal_post")
+    lo, hi = world_bounds(meshes)
+    b = B("marshal_post_numbered")
+    absorb(b, meshes)
+    for ob in new:
+        bpy.data.objects.remove(ob)
+    face = apex.image_material("board_marker", post_textures(), roughness=0.4)
+    pm, bk = M("board_post"), M("board_back")
+    w, h, bottom = 1.3, 0.65, 1.9
+    cx = (lo.x + hi.x) / 2
+    y = lo.y - 0.35
+    for x in (cx - 0.5, cx + 0.5):
+        b.cylinder(pm, (x, y + 0.05, 0.0), 0.03, bottom + h, segs=8)
+    b.quad_uv(face, [(cx - w / 2, y - 0.005, bottom), (cx + w / 2, y - 0.005, bottom),
+                     (cx + w / 2, y - 0.005, bottom + h), (cx - w / 2, y - 0.005, bottom + h)],
+              [(0, 0), (1, 0), (1, 1), (0, 1)])
+    b.box(bk, (cx - w / 2, y, bottom), (cx + w / 2, y + 0.02, bottom + h))
+    return b.finish()
+
+
+def _slope_symbol(d, s, down):
+    """Zeichen 108 / 110: a black wedge, falling (108) or rising (110) to the right."""
+    left, right, base, top = 185, s - 160, s - 125, s - 235
+    if down:
+        d.polygon([(left, top), (right, base), (left, base)], fill=BLACK)
+    else:
+        d.polygon([(left, base), (right, top), (right, base)], fill=BLACK)
+
+
+def _double_curve(d, s, left_first):
+    """Zeichen 105: the arrow bends one way, then back."""
+    sign = -1 if left_first else 1
+    x = s / 2
+    pts = [(x - sign * 20, s - 140), (x - sign * 20, s - 185), (x + sign * 38, s - 240),
+           (x + sign * 38, s - 275), (x - sign * 28, s - 325)]
+    d.line(pts, fill=BLACK, width=30, joint="curve")
+    tip = (x - sign * 52, s - 360)
+    d.polygon([tip, (x - sign * 2, s - 350), (x - sign * 50, s - 298)], fill=BLACK)
+
+
+TRIANGLES = {
+    "de_curve_left": lambda d, s: _curve(d, s, True),
+    "de_curve_right": lambda d, s: _curve(d, s, False),
+    "de_danger": lambda d, s: _danger(d, s),
+    "de_double_curve_left": lambda d, s: _double_curve(d, s, True),
+    "de_double_curve_right": lambda d, s: _double_curve(d, s, False),
+    "de_descent": lambda d, s: _slope_symbol(d, s, True),
+    "de_climb": lambda d, s: _slope_symbol(d, s, False),
+}
+
+
+def paint_textures():
+    """Every PNG this kit carries, painted with PIL (the system Python)."""
+    chevron_texture()
+    overtake_texture()
+    km_textures()
+    post_textures()
+    grade_textures()
+    for name, draw in TRIANGLES.items():
+        triangle_sign("sign_" + name + "_col", draw)
+    print("painted the Nordschleife kit's textures")
+
+
+def hill_sign(name, down):
+    """A gradient warning: the triangle (masked, its own slot) and the grade
+    on a plate under it (`board_marker`, the prop's `text`)."""
+    col = triangle_sign("sign_" + name + "_col", lambda d, s: _slope_symbol(d, s, down))
+    mat = apex.image_material("sign_" + name, col, roughness=0.35, masked=True)
+    plate = apex.image_material("board_marker", grade_textures(), roughness=0.4)
+    b = B(name)
+    pm, bk = M("board_post"), M("board_back")
+    b.cylinder(pm, (0.0, 0.04, 0.0), 0.035, 2.6, segs=8)
+    s, bottom = 0.9, 1.75
+    b.quad_uv(mat, [(-s / 2, -0.005, bottom), (s / 2, -0.005, bottom), (s / 2, -0.005, bottom + s), (-s / 2, -0.005, bottom + s)],
+              [(0, 0), (1, 0), (1, 1), (0, 1)])
+    top = bottom + s * (1 - 18 / 512)
+    b.sheet(bk, (-s / 2 + 0.02, 0.006, bottom + s * 50 / 512), (s / 2 - 0.02, 0.006, bottom + s * 50 / 512), (0.0, 0.006, top), (0.0, 0.006, top))
+    pw, ph, pb = 0.6, 0.3, 1.38
+    b.quad_uv(plate, [(-pw / 2, -0.005, pb), (pw / 2, -0.005, pb), (pw / 2, -0.005, pb + ph), (-pw / 2, -0.005, pb + ph)],
+              [(0, 0), (1, 0), (1, 1), (0, 1)])
+    b.box(bk, (-pw / 2, 0.0, pb), (pw / 2, 0.02, pb + ph))
+    return b.finish()
+
+
+def rail_tag(name):
+    """A tag painted on a double rail module: the road faces of both
+    W-beams (z 0.40 and 0.85), 4 mm proud of the steel, the picture running
+    over the pair as if the gap between them were not there."""
+    mat = apex.image_material(name, os.path.join(TEX_DIR, name + ".png"), roughness=0.55, masked=True)
+    b = B(name)
+    f = [(0.0, 0.0), (-BEAM_D, 0.075), (-0.02, 0.155), (-BEAM_D, 0.235), (0.0, BEAM_H)]
+    z_lo, z_hi = 0.40, 0.85 + BEAM_H
+    x0, x1 = -1.97, 1.97
+    for z0 in (0.40, 0.85):
+        for (dy0, dz0), (dy1, dz1) in zip(f[:-1], f[1:]):
+            ya, za = BEAM_Y + dy0 - 0.004, z0 + dz0
+            yb, zb = BEAM_Y + dy1 - 0.004, z0 + dz1
+            va, vb = (za - z_lo) / (z_hi - z_lo), (zb - z_lo) / (z_hi - z_lo)
+            b.quad_uv(mat, [(x0, ya, za), (x1, ya, za), (x1, yb, zb), (x0, yb, zb)],
+                      [(0, va), (1, va), (1, vb), (0, vb)])
+    return b.finish(recalc=False)
+
+
+def track_bridge_10m():
+    """A 10 m module of a bridge carrying the lap: on each side a concrete
+    parapet with a steel railing, its fascia beam dropping below the deck.
+    Authored for a 15 m road (`span_m / 15` scales local Y), the parapets
+    13.6-14.2 m out, so on the Nordschleife's 9 m they stand just behind
+    the rail."""
+    b = B("track_bridge_10m")
+    conc, dark, steel = M("bridge_concrete"), M("bridge_dark"), M("bridge_steel")
+    x0, x1 = -5.0, 5.0
+    for side in (-1, 1):
+        yi, yo, co = side * 13.6, side * 14.2, side * 14.35
+        b.box(conc, (x0, min(yi, yo), -1.6), (x1, max(yi, yo), 0.95))
+        b.box(conc, (x0, min(yo, co), 0.75), (x1, max(yo, co), 0.95))
+        b.box(dark, (x0, min(yo, co), 0.70), (x1, max(yo, co), 0.75))
+        yr = side * 13.9
+        for i in range(5):
+            x = x0 + 1.0 + i * 2.0
+            b.box(steel, (x - 0.03, yr - 0.03, 0.95), (x + 0.03, yr + 0.03, 1.55))
+        for z in (1.25, 1.52):
+            b.box(steel, (x0, yr - 0.025, z), (x1, yr + 0.025, z + 0.05))
+    b.box(dark, (x0, -13.6, -1.6), (x1, 13.6, -1.45))
+    return b.finish()
+
+
+def overpass_concrete():
+    """A forest track's concrete beam bridge over the lap: a 5 m deck 5.4 m
+    over the road with railings, on abutments 14-16.5 m out (for a 15 m
+    road; scaled like every bridge), with wing walls."""
+    b = B("overpass_concrete")
+    conc, dark, steel = M("bridge_concrete"), M("bridge_dark"), M("bridge_steel")
+    dw = 2.5
+    deck_lo, deck_hi = 5.4, 6.3
+    b.box(conc, (-dw, -16.5, deck_lo), (dw, 16.5, deck_hi))
+    b.box(dark, (-dw + 0.3, -14.0, deck_lo - 0.05), (dw - 0.3, 14.0, deck_lo))
+    for side in (-1, 1):
+        lo_y, hi_y = min(side * 14.0, side * 16.5), max(side * 14.0, side * 16.5)
+        b.box(conc, (-dw - 0.6, lo_y, -2.0), (dw + 0.6, hi_y, deck_lo))
+        b.box(conc, (-dw - 3.6, lo_y, -2.0), (-dw - 0.6, hi_y, deck_lo - 1.5))
+        b.box(conc, (dw + 0.6, lo_y, -2.0), (dw + 3.6, hi_y, deck_lo - 1.5))
+    for x in (-dw + 0.05, dw - 0.05):
+        for i in range(17):
+            y = -16.0 + i * 2.0
+            b.box(steel, (x - 0.03, y - 0.03, deck_hi), (x + 0.03, y + 0.03, deck_hi + 1.1))
+        for z in (deck_hi + 0.55, deck_hi + 1.05):
+            b.box(steel, (x - 0.025, -16.5, z), (x + 0.025, 16.5, z + 0.05))
+    return b.finish()
+
+
+def toll_gate_lane():
+    """A toll lane at the Touristenfahrten entrance: a booth, a pedestal and
+    a red and white lift arm along +X, down. Centred on its 5.4 m footprint."""
+    b = B("toll_gate_lane")
+    white = M("toll_white", (0.9, 0.9, 0.88), roughness=0.5)
+    red = M("toll_red", (0.75, 0.08, 0.06), roughness=0.5)
+    glass = M("toll_glass", (0.18, 0.22, 0.27), roughness=0.1)
+    dark = M("bridge_dark")
+    b.box(white, (-2.7, -0.7, 0.0), (-1.3, 0.7, 1.1))
+    b.box(glass, (-2.7, -0.7, 1.1), (-1.3, 0.7, 2.2))
+    b.box(white, (-2.7, -0.7, 2.2), (-1.3, 0.7, 2.4))
+    b.box(dark, (-2.8, -0.8, 2.4), (-1.2, 0.8, 2.6))
+    b.box(white, (-1.0, -0.2, 0.0), (-0.6, 0.2, 1.05))
+    b.box(dark, (-0.95, -0.15, 1.05), (-0.65, 0.15, 1.15))
+    n = 7
+    for i in range(n):
+        xa = -0.7 + i * 3.4 / n
+        b.box(red if i % 2 == 0 else white, (xa, -0.05, 0.98), (xa + 3.4 / n, 0.05, 1.08))
+    return b.finish()
+
+
+def stone_lookout_tower():
+    """The Kaiser-Wilhelm-Turm on the Hohe Acht (1909, 16.3 m): a square
+    stone tower with a battlemented viewing top and a stair turret on one
+    corner. Centred; 4 m of plinth below the pivot for the summit's slope."""
+    b = B("stone_lookout_tower")
+    stone, dark = M("house_stone"), M("castle_basalt", (0.22, 0.21, 0.2), roughness=0.9)
+    base, w = -4.0, 2.6
+    b.box(stone, (-w, -w, base), (w, w, 14.6))
+    b.box(stone, (-w - 0.25, -w - 0.25, 14.6), (w + 0.25, w + 0.25, 15.1))
+    for i in range(5):
+        t = -w - 0.25 + i * (2 * w + 0.5 - 0.55) / 4
+        for a0, a1, b0, b1 in ((t, t + 0.55, -w - 0.25, -w + 0.15), (t, t + 0.55, w - 0.15, w + 0.25),
+                               (-w - 0.25, -w + 0.15, t, t + 0.55), (w - 0.15, w + 0.25, t, t + 0.55)):
+            b.box(stone, (a0, b0, 15.1), (a1, b1, 16.3))
+    b.cylinder(stone, (w, w, base), 1.1, 16.0 - base, segs=12)
+    b.cylinder(dark, (w, w, 16.0), 1.2, 0.3, segs=12)
+    b.box(dark, (-0.6, -w - 0.02, 0.0), (0.6, -w + 0.1, 2.4))
+    for z in (5.0, 9.0, 12.5):
+        for x in (-1.2, 1.2):
+            b.box(dark, (x - 0.25, -w - 0.02, z), (x + 0.25, -w + 0.1, z + 1.1))
+    return b.finish()
+
+
+def spectator_bank_10m():
+    """An earth bank where the crowd stands, a hedge along its crest: 10 m
+    long, 3.6 m across, 1.05 m high, symmetric about its long axis so it
+    reads the same whichever way it is turned. The flanks run 1 m below
+    the pivot to meet a sloping verge."""
+    b = B("spectator_bank_10m")
+    grass = M("bank_grass", (0.23, 0.33, 0.13), roughness=0.95)
+    hedge = borrow_material("fence", "hedge_4m", "hedge_green") or M("hedge_green", (0.12, 0.25, 0.08), roughness=0.9)
+    prof = [(-1.8, -1.0), (-1.8, 0.0), (-0.7, 1.05), (0.7, 1.05), (1.8, 0.0), (1.8, -1.0)]
+    b.extrude_profile(grass, prof, -5.0, 5.0, closed=True)
+    for x in (-5.0, 5.0):
+        ring = [b.bm.verts.new((x, y, z)) for y, z in prof]
+        f = b.bm.faces.new(ring if x > 0 else list(reversed(ring)))
+        f.material_index = b.slot(grass)
+    for i in range(10):
+        x = -4.5 + i
+        hgt = 0.9 + 0.25 * abs(math.sin(i * 1.9))
+        b.box(hedge, (x - 0.55, -0.45, 1.0), (x + 0.55, 0.45, 1.0 + hgt))
+    return b.finish()
+
+
+def camp_scaffold_tower():
+    """A camp's home-built viewing tower: scaffold tubes, plank decks at
+    2.2 m and 4.4 m, a tarpaulin over the top and a banner. 3 x 2.4 m, centred."""
+    b = B("camp_scaffold_tower")
+    tube, plank = M("armco_galv"), M("scaffold_plank")
+    tarp = M("camp_tarp", (0.12, 0.30, 0.62), roughness=0.8)
+    banner = M("camp_banner", (0.9, 0.85, 0.2), roughness=0.8)
+    xs, ys = (-1.5, 1.5), (-1.2, 1.2)
+    for x in xs:
+        for y in ys:
+            b.cylinder(tube, (x, y, 0.0), 0.024, 6.4, segs=6)
+    for z in (2.2, 4.4):
+        b.box(plank, (-1.55, -1.25, z), (1.55, 1.25, z + 0.06))
+        for y in ys:
+            b.cylinder(tube, (-1.5, y, z + 1.0), 0.02, 3.0, segs=6, axis='X')
+        for x in xs:
+            b.cylinder(tube, (x, -1.2, z + 1.0), 0.02, 2.4, segs=6, axis='Y')
+    for y in ys:
+        b.bar(tube, (-1.5, y, 0.1), (1.5, y, 2.2), 0.02)
+        b.bar(tube, (1.5, y, 2.3), (-1.5, y, 4.4), 0.02)
+    b.box(tarp, (-1.6, -1.3, 6.3), (1.6, 1.3, 6.36))
+    b.box(tarp, (-1.6, -0.05, 6.36), (1.6, 0.05, 6.7))
+    b.box(banner, (-1.4, -1.24, 4.55), (1.4, -1.22, 5.35))
+    return b.finish()
+
+
+def camp_gazebo():
+    """A 3 x 3 m pop-up gazebo: four legs, a peaked canvas roof, a valance."""
+    b = B("camp_gazebo")
+    leg = M("armco_galv")
+    canvas = M("camp_canvas", (0.85, 0.85, 0.82), roughness=0.85)
+    for x in (-1.5, 1.5):
+        for y in (-1.5, 1.5):
+            b.cylinder(leg, (x, y, 0.0), 0.025, 2.2, segs=6)
+    corners = [(-1.55, -1.55), (1.55, -1.55), (1.55, 1.55), (-1.55, 1.55)]
+    top = b.bm.verts.new((0.0, 0.0, 2.95))
+    s = b.slot(canvas)
+    for (ax, ay), (bx, by) in zip(corners, corners[1:] + corners[:1]):
+        va = b.bm.verts.new((ax, ay, 2.2))
+        vb = b.bm.verts.new((bx, by, 2.2))
+        b.bm.faces.new((va, vb, top)).material_index = s
+        b.box(canvas, (min(ax, bx) - 0.01, min(ay, by) - 0.01, 1.95), (max(ax, bx) + 0.01, max(ay, by) + 0.01, 2.2))
+    return b.finish()
+
+
+def camp_flag_pole():
+    """A fan's flag on a 6 m pole; the cloth is the `flag_cloth` slot, so the
+    flag code is the prop's `text` (T_flag_<cc>)."""
+    b = B("camp_flag_pole")
+    pole = M("armco_galv")
+    cloth = borrow_material("sign", "flag_pole", "flag_cloth") or M("flag_cloth", (0.8, 0.8, 0.8))
+    b.cylinder(pole, (0.0, 0.0, 0.0), 0.03, 6.0, segs=8)
+    b.quad_uv(cloth, [(0.05, 0.0, 4.4), (1.85, 0.0, 4.4), (1.85, 0.0, 5.6), (0.05, 0.0, 5.6)],
+              [(0, 0), (1, 0), (1, 1), (0, 1)])
+    b.quad_uv(cloth, [(1.85, 0.003, 4.4), (0.05, 0.003, 4.4), (0.05, 0.003, 5.6), (1.85, 0.003, 5.6)],
+              [(1, 0), (0, 0), (0, 1), (1, 1)])
+    return b.finish(recalc=False)
+
+
 # ------------------------------------------------------------------ driver
 
 BUILD = {
@@ -414,6 +861,21 @@ BUILD = {
     "de_danger": lambda: triangle("de_danger", _danger),
     "de_overtake_left": overtake,
     "castle_ruin": castle_ruin,
+    "marshal_post_numbered": marshal_post_numbered,
+    "de_descent": lambda: hill_sign("de_descent", True),
+    "de_climb": lambda: hill_sign("de_climb", False),
+    "de_double_curve_left": lambda: triangle("de_double_curve_left", TRIANGLES["de_double_curve_left"]),
+    "de_double_curve_right": lambda: triangle("de_double_curve_right", TRIANGLES["de_double_curve_right"]),
+    **{f"rail_tag_{n}": (lambda n=n: rail_tag(f"rail_tag_{n}"))
+       for n in ("kalle", "eifel", "vollgas", "hup", "moppel", "hearts")},
+    "track_bridge_10m": track_bridge_10m,
+    "overpass_concrete": overpass_concrete,
+    "toll_gate_lane": toll_gate_lane,
+    "stone_lookout_tower": stone_lookout_tower,
+    "spectator_bank_10m": spectator_bank_10m,
+    "camp_scaffold_tower": camp_scaffold_tower,
+    "camp_gazebo": camp_gazebo,
+    "camp_flag_pole": camp_flag_pole,
 }
 
 
@@ -430,8 +892,9 @@ def run(which="all"):
         if m is not None:
             m.name = name + "_borrowed"
     done = []
+    wanted = {w.strip() for w in which.split(",")}
     for kind, asset in ASSETS:
-        if which not in ("all", asset):
+        if "all" not in wanted and asset not in wanted:
             continue
         ob = BUILD[asset]()
         # Spread them out in the saved scene; export puts each at the origin.
@@ -443,4 +906,7 @@ def run(which="all"):
     return done
 
 
-run(ASSET)
+if bpy is None:
+    paint_textures()
+else:
+    run(ASSET)

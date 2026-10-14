@@ -84,13 +84,16 @@ depth x height, metres). By family:
   (baked as a `kerb` wall: the sim jolts, never stops, a car), the
   Nordschleife `vangrail_*`, street `quay_rail_4m`, `spectator_handrail_4m`;
   boards (`hoarding_3m`, `hoarding_6m`, `braking_marker`, `light_panel`,
-  `corner_sign`, `led_ribbon_3m`, `roof_wordmark_block`, German signs); signs
-  (`marshal_post`, `flag_pole`, pit signs, `garage_number_board`, street
-  signals); fences (`mesh_4m`, `catch_fence_6m`, `wood_4m`, `hedge_4m` ...).
+  `corner_sign`, `led_ribbon_3m`, `roof_wordmark_block`, German signs, the
+  `rail_tag_*` graffiti sheets that wrap a `vangrail_4m` module's beams);
+  signs (`marshal_post`, `marshal_post_numbered`, `flag_pole`, pit signs,
+  `garage_number_board`, street signals, `hillside_letters`); fences
+  (`mesh_4m`, `catch_fence_6m`, `wood_4m`, `hedge_4m` ...).
 - **Overhead**: bridges the road runs **under** (`start_gantry`,
   `truss_bridge`, `tyre_bridge`, `timing_gantry`, `span_building`,
-  `viaduct_deck`, `sign_gantry`, `linkbridge_covered`, `banner_gantry`) and
-  **on** (`bridge_arch_steel`, `bridge_deck_wide`); lights
+  `viaduct_deck`, `sign_gantry`, `linkbridge_covered`, `banner_gantry`,
+  `overpass_concrete`) and **on** (`bridge_arch_steel`, `bridge_deck_wide`,
+  the parapets-only `track_bridge_10m`); lights
   (`floodlight_tower`, `lamp_post`, `lamp_arm_twin`, `lamp_globe_pole`,
   `lamp_balloon_tether[_orange]`, `pit_light_truss_6m`).
 - **Pit complex**: `garage_6m[_closed]`, `garage_end`, `pit_wall_6m`,
@@ -99,16 +102,17 @@ depth x height, metres). By family:
 - **Spectators**: stand bays (below), `scaffold_10m`, `banking_seats`, the
   street stand family; attractions (`video_screen`, `ferris_wheel`,
   `camera_tower`, `fanzone_stage`, `food_stall_6m`, `ticket_gate`, tents,
-  `portaloo_row`).
+  `portaloo_row`); the Nordschleife's misc `spectator_bank_10m` and camp
+  pieces (`camp_scaffold_tower`, `camp_gazebo`, `camp_flag_pole`).
 - **Buildings**: paddock (`hospitality_3f`, `media_centre`, `control_tower`,
   `clubhouse`, `podium`), `observation_tower`, Styrian village houses, barn
-  and chapel, `castle_ruin`, the `skyline_*` city backdrop, the Marina Bay
-  landmarks.
+  and chapel, `castle_ruin`, `stone_lookout_tower`, the `skyline_*` city
+  backdrop, the Marina Bay landmarks.
 - **Landscape**: card trees (`broadleaf_s/m/l`, `conifer_m/l`, `poplar`,
   `bush_cluster`, near-LOD `*_near`, `raintree_l`, palms), far-wood
   billboards (`forest_impostor[_conifer]`), ground scatter (`grass_clump`,
   `wildflower_clump`, `scrub_clump`, `rock_cluster`), vehicles, misc
-  furniture, `power_pylon`, `bull_statue`.
+  furniture, `power_pylon`, `bull_statue`, `toll_gate_lane`.
 - **Sky**: `blimp`, `balloon`, `helicopter`.
 
 Variants the builder picks by itself are not in `KIT` and not named by any
@@ -132,8 +136,10 @@ there before using it as a `text`.
   `props.rs` footprints and the groomer assume that. Thin modules (barriers,
   tyre walls, fences, boards) and free-standing pieces (`control_tower`,
   `camera_tower`, `ferris_wheel`, `tent_6m`, `observation_tower`,
-  `skyline_*`, `castle_ruin`, `bull_statue`, the Marina Bay landmarks) are
-  centred on their footprint. Bridges: the road centre on the ground, span
+  `skyline_*`, `castle_ruin`, `stone_lookout_tower`, `bull_statue`, the
+  Marina Bay landmarks, the Nordschleife's misc pieces) are centred on
+  their footprint. `marshal_post` and `marshal_post_numbered` pivot on
+  their road-facing edge, the number board 0.35 m in front of it. Bridges: the road centre on the ground, span
   across local Y. Sky props: origin at the hull centre. `pit_light_truss_6m`
   pivots at its bottom centre (placed at mounting height).
 - **Modules** tile on 2 / 4 / 6 m multiples. Corner and end pieces
@@ -238,8 +244,10 @@ turns out to be on their local -Y.
   `balloon_envelope`; `IsBrandSlot`) with an `M_ApexBrand` instance showing
   `T_brand_<text>`;
 - `board_marker` takes `T_marker_<text>` (braking markers 50-200,
-  `km_marker` `km<N>`, `garage_number_board` 1-24);
-- `flag_cloth` takes `T_flag_<text>` (`nl`, `de`, ... `chequer`);
+  `km_marker` `km<N>`, `garage_number_board` 1-24, `marshal_post_numbered`
+  `post<N>` 1-120, the gradient signs' plates `grade<N>` 5-25);
+- `flag_cloth` takes `T_flag_<text>` (`nl`, `de`, ... `chequer`; also
+  `camp_flag_pole`);
 - unknown text keeps the imported default and logs once per track.
 
 **Emissive slots** (`IsEmissiveSlot`): `gantry_lamp`, `led_panel`,
@@ -333,7 +341,10 @@ grid under material key `decal_<set>_<name>`, drawn with `M_ApexDecal`
 (masked by the PNG's alpha). Source PNGs are
 `content/props/decal/<set>/<name>.png` (graffiti 1024 x 512 RGBA, drawn as a
 driver sees them: top is the far end); `gen_graffiti.py [--sheet]` paints the
-shipped graffiti, `gen_marina_decals.py` the Marina Bay set. A decal whose
+shipped graffiti, the skid marks (`graffiti/skid_*`: rubber, a pair of wheel
+tracks across a 2.6 m decal; they ride in the graffiti set so the importer
+needs no new one) and the rail tags' textures
+(`_textures/rail_tag_*.png`), `gen_marina_decals.py` the Marina Bay set. A decal whose
 texture is not imported is left out with a warning. `decal` is not a
 `PropKind`: the groomer and `KIT` know nothing of it.
 

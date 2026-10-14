@@ -86,9 +86,27 @@ pub const KIT: &[KitAsset] = kit![
     Board "de_curve_right" 0.9 x 0.1 x 2.65,
     Board "de_danger" 0.9 x 0.1 x 2.65,
     Board "de_overtake_left" 1.5 x 0.1 x 2.4,
+    // Zeichen 108 / 110 with the grade on a plate under the triangle
+    // (`text` on the marker slot: `grade12` -> T_marker_grade12), and
+    // Zeichen 105, the double bend.
+    Board "de_descent" 0.9 x 0.1 x 2.65,
+    Board "de_climb" 0.9 x 0.1 x 2.65,
+    Board "de_double_curve_left" 0.9 x 0.1 x 2.65,
+    Board "de_double_curve_right" 0.9 x 0.1 x 2.65,
+    // The crowd's tags on the double guard rail: a masked sheet on the
+    // W-beams of a `vangrail_4m` module, laid on one by the groomer.
+    Board "rail_tag_kalle" 3.9 x 0.1 x 1.2,
+    Board "rail_tag_eifel" 3.9 x 0.1 x 1.2,
+    Board "rail_tag_vollgas" 3.9 x 0.1 x 1.2,
+    Board "rail_tag_hup" 3.9 x 0.1 x 1.2,
+    Board "rail_tag_moppel" 3.9 x 0.1 x 1.2,
+    Board "rail_tag_hearts" 3.9 x 0.1 x 1.2,
     Board "roof_wordmark_block" 40.0 x 0.6 x 7.5,
     Board "led_ribbon_3m" 3.0 x 0.15 x 0.9,
     Sign "marshal_post" 3.2 x 2.4 x 4.8,
+    // The same post with its number board in front (`text` `post<N>` on
+    // the marker slot); the board stands 0.35 m on the road side.
+    Sign "marshal_post_numbered" 3.2 x 2.8 x 4.8,
     Sign "pit_speed_limit" 0.9 x 0.3 x 2.8,
     Sign "pit_exit_light" 0.6 x 0.4 x 4.2,
     Sign "flag_pole" 1.8 x 0.5 x 8.1,
@@ -124,6 +142,11 @@ pub const KIT: &[KitAsset] = kit![
     Bridge "sign_gantry" 1.5 x 19.2 x 7.5,
     Bridge "linkbridge_covered" 4.2 x 19.8 x 8.6,
     Bridge "banner_gantry" 3.0 x 20.0 x 7.0,
+    // The Nordschleife's: a 10 m module of the parapets of a bridge
+    // carrying the lap over a road (tiled along the span), and a forest
+    // track's concrete overpass. Authored for a 15 m road like the rest.
+    Bridge "track_bridge_10m" 10.0 x 28.7 x 1.6,
+    Bridge "overpass_concrete" 12.2 x 33.0 x 7.4,
     Light "floodlight_tower" 4.9 x 3.0 x 30.3,
     Light "lamp_post" 0.6 x 2.5 x 8.1,
     // Street lamp with an arm to each side (Marina Bay median/verge lighting).
@@ -158,6 +181,8 @@ pub const KIT: &[KitAsset] = kit![
     Building "chapel" 8.5 x 22.5 x 23.5,
     // Burg Nürburg, a landmark centred on its footprint like the tower.
     Building "castle_ruin" 70.0 x 56.0 x 32.0,
+    // The Hohe Acht's lookout tower (16.3 m), centred.
+    Building "stone_lookout_tower" 6.7 x 6.7 x 16.3,
     Building "skyline_slab_a" 24.1 x 16.1 x 96.2,
     Building "skyline_pyramid" 20.1 x 20.1 x 112.0,
     Building "skyline_podium" 40.2 x 30.2 x 121.2,
@@ -268,6 +293,15 @@ pub const KIT: &[KitAsset] = kit![
     Misc "stair_zigzag_scaffold" 14.0 x 5.0 x 8.0,
     Misc "finish_tower_scaffold" 4.0 x 4.0 x 7.0,
     Misc "walkway_planter_4m" 4.0 x 1.2 x 1.2,
+    // The Nordschleife's: one lane of the Touristenfahrten toll gate (arm
+    // along local X), an earth bank with a hedge behind the rail, and the
+    // 24-hour camps' scaffold towers, gazebos and flag poles (`flag_cloth`,
+    // the flag code as `text`). All centred.
+    Misc "toll_gate_lane" 5.5 x 1.6 x 2.6,
+    Misc "spectator_bank_10m" 10.1 x 3.6 x 2.2,
+    Misc "camp_scaffold_tower" 3.2 x 2.6 x 6.7,
+    Misc "camp_gazebo" 3.1 x 3.1 x 3.0,
+    Misc "camp_flag_pole" 1.9 x 0.1 x 6.0,
     // Sky: origin at the hull centre, sized round it.
     Sky "blimp" 60.0 x 19.5 x 19.7,
     Sky "balloon" 16.0 x 16.0 x 22.1,
