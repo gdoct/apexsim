@@ -5,6 +5,7 @@ tables into its car.toml (docs/content/cars.md, Damage parts).
     python scripts/content/cars/damage_parts.py posh-gt3rs       # one car
     python scripts/content/cars/damage_parts.py --dry-run        # print the tables, write nothing
     python scripts/content/cars/damage_parts.py --preview        # also draw build/damage_parts/<folder>.png
+    python scripts/content/cars/damage_parts.py content/cars/custom/X   # a car by its folder (an import's)
 
 Needs numpy (and matplotlib for --preview). Plain Python, not Blender: it
 reads the body GLB the builders wrote.
@@ -94,14 +95,46 @@ def load_triangles(path):
             return raw[:, :size].copy().view(dtype).reshape(a["count"], n)
         return np.frombuffer(blob, dtype=dtype, count=a["count"] * n, offset=start).reshape(a["count"], n)
 
+    def local_matrix(node):
+        if "matrix" in node:
+            return np.array(node["matrix"], dtype=np.float64).reshape(4, 4).T
+        m = np.eye(4)
+        if "scale" in node:
+            m = np.diag(list(node["scale"]) + [1.0]) @ m
+        if "rotation" in node:
+            x, y, z, w = node["rotation"]
+            r = np.array([
+                [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+            ])
+            rot = np.eye(4)
+            rot[:3, :3] = r
+            m = rot @ m
+        if "translation" in node:
+            t = np.eye(4)
+            t[:3, 3] = node["translation"]
+            m = t @ m
+        return m
+
+    # Every mesh node in the scene's tree, with its transform down from the
+    # root (an imported car's nodes carry them; the builders' are flat).
     tris = []
-    for node in gltf["nodes"]:
+    scene = gltf.get("scenes", [{}])[gltf.get("scene", 0)] if gltf.get("scenes") else {}
+    roots = scene.get("nodes", list(range(len(gltf["nodes"]))))
+    stack = [(i, np.eye(4)) for i in roots]
+    while stack:
+        index, parent = stack.pop()
+        node = gltf["nodes"][index]
+        world = parent @ local_matrix(node)
+        stack += [(child, world) for child in node.get("children", [])]
         if "mesh" not in node:
             continue
-        if any(k in node for k in ("matrix", "rotation", "scale")) or any(node.get("translation", [0, 0, 0])):
-            sys.exit("%s: a node with a transform; this script reads the builders' flat GLBs only" % path)
         for prim in gltf["meshes"][node["mesh"]]["primitives"]:
+            if prim.get("mode", 4) != 4:
+                continue
             pos = accessor(prim["attributes"]["POSITION"]).astype(np.float64)
+            pos = pos @ world[:3, :3].T + world[:3, 3]
             idx = accessor(prim["indices"]).ravel() if "indices" in prim else np.arange(len(pos))
             tris.append(pos[idx].reshape(-1, 3, 3))
     corners = np.concatenate(tris)
@@ -227,7 +260,9 @@ def rear_wing(c, car, folder):
 
 
 def parts_for(folder):
-    car_dir = os.path.join(CARS_DIR, folder)
+    # A folder under content/cars/default, or a car's folder by path (an
+    # importer's, in content/cars/custom).
+    car_dir = folder if os.path.isabs(folder) or os.sep in folder or "/" in folder else os.path.join(CARS_DIR, folder)
     car = read_toml(os.path.join(car_dir, "car.toml"))
     cls = car.get("class", "")
     if cls not in DETACH or "front_axle_m" not in car:
@@ -336,7 +371,8 @@ def main(argv):
         if dry:
             print("# %s\n%s" % (folder, "\n".join(block)))
         else:
-            write_tables(os.path.join(CARS_DIR, folder, "car.toml"), block)
+            car_dir = folder if os.path.isabs(folder) or os.sep in folder or "/" in folder else os.path.join(CARS_DIR, folder)
+            write_tables(os.path.join(car_dir, "car.toml"), block)
             print("%-28s %s" % (folder, summary))
         if want_preview:
             print("    ", preview(folder, parts, geometry[0]))

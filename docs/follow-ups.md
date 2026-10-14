@@ -45,8 +45,6 @@ The car parents, the damage actor and the importer's damage tables.
 - Two hits on one face are two dents (today a zone's dent is centred on the
   damage-weighted mean of its hits).
 - The DRS flap and the driver can be dented; wheels are drawn toed.
-- The AC car importer writes `[[damage_part]]` tables, so AC imports shed
-  parts.
 
 **Check:** a seeded pileup replay screenshotted before and after; one AC
 import re-run and crashed.

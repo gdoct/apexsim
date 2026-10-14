@@ -237,6 +237,11 @@ car.toml also to `Server/content/cars/custom`):
   content CRC check compare them), a `[source]` table, and every figure
   commented with the AC key it came from. Laid out for the client's
   line-based TOML parser (no comment after a header, arrays on one line).
+  For a class with rules (GT3, LMP2, Hypercar, F1) it also gets the
+  `[[damage_part]]` tables `scripts/content/cars/damage_parts.py` finds in
+  the written body (the nose or front wing, the rear wing), as the shipped
+  cars have, so an import sheds parts in a crash; the parts are listed in
+  the report (`damage_parts`). The finder walks the GLB's node transforms.
 - `<Stem>.glb`: the body, seated with its tyres on y = 0 and the origin
   midway between the axles; textures embedded (JPEG opaque, PNG when
   sampled by a blended or masked material).

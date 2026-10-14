@@ -458,7 +458,7 @@ is worked out from those on the client (`Race/ApexCarDamage.h`).
   max_m = [3.125, 1.012, 0.500]
   ```
 
-  `python scripts/content/cars/damage_parts.py [folder ...] [--preview]`
+  `python scripts/content/cars/damage_parts.py [folder or path ...] [--preview]`
   (`--preview` draws `build/damage_parts/<folder>.png`) writes the shipped
   cars' wing and nose tables from their geometry (`MANUAL_REAR_WING` for what
   its rules miss). Re-run it after a body changes.

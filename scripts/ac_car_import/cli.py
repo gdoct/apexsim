@@ -471,6 +471,9 @@ def import_car(car_dir: Path, opts: Options) -> Result:
     for rel, data in liv.files.items():
         sizes[rel] = len(data)
     (out_dir / "car.toml").write_bytes(toml_text.encode("utf-8"))
+    # Boxes of the body that come off in a crash, as the shipped cars have.
+    report["damage_parts"] = add_damage_parts(out_dir)
+    toml_text = (out_dir / "car.toml").read_bytes().decode("utf-8")
     # Read back what the client will read.
     for rel in [f"{stem}.glb", "wheels/front.glb", "wheels/rear.glb"] + (["steering_wheel.glb"] if steer_glb else []):
         read_glb_json(out_dir / rel)
@@ -482,6 +485,27 @@ def import_car(car_dir: Path, opts: Options) -> Result:
         (opts.server_dir / stem).mkdir(parents=True, exist_ok=True)
         (opts.server_dir / stem / "car.toml").write_bytes(toml_text.encode("utf-8"))
     return Result(stem, ok, summary, checks, warnings)
+
+
+def add_damage_parts(out_dir: Path) -> list[str]:
+    """The `[[damage_part]]` tables for the imported body, found from its
+    geometry as the shipped cars' are (scripts/content/cars/damage_parts.py)
+    and written into its car.toml: the parts' names, or none for a class it
+    has no rules for (or a body it cannot read)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "apex_damage_parts", SCRIPTS / "content" / "cars" / "damage_parts.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    try:
+        _, parts, _ = mod.parts_for(str(out_dir))
+    except (SystemExit, Exception) as e:  # noqa: BLE001 - a part is a nicety, never a failed import
+        print(f"    no damage parts: {e}")
+        return []
+    if not parts:
+        return []
+    mod.write_tables(str(out_dir / "car.toml"), mod.table_lines(parts))
+    return [p[0] for p in parts]
 
 
 def _json(o):
