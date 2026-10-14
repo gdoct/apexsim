@@ -31,7 +31,7 @@ class APEXSIM_API UApexScreenWidget : public UApexNavigableWidget
 	GENERATED_BODY()
 
 public:
-	/** Called by WBP_Root every time this screen becomes the visible one. */
+	/** Called by the root widget every time this screen becomes the visible one. */
 	virtual void OnScreenActivated();
 	/** Called when the switcher moves away from this screen. */
 	virtual void OnScreenDeactivated();

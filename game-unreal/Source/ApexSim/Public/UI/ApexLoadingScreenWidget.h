@@ -8,11 +8,11 @@
 class UTextBlock;
 
 /**
- * Placeholder screen shown while something is in flight. The shell has nothing
- * slow enough to need it yet; it exists so the switcher index layout is stable
- * once loading a track actually takes time.
+ * Placeholder screen shown while something is in flight: one centred line
+ * on the menu background. The shell has nothing slow enough to need it yet;
+ * it keeps its EApexScreen slot so the switcher's indices stay put.
  */
-UCLASS(Abstract)
+UCLASS()
 class APEXSIM_API UApexLoadingScreenWidget : public UApexScreenWidget
 {
 	GENERATED_BODY()
@@ -24,6 +24,8 @@ public:
 	void SetMessage(const FString& Message);
 
 protected:
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ApexSim|UI")
+	virtual void NativeOnInitialized() override;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> MessageText;
 };

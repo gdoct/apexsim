@@ -380,7 +380,7 @@ hardware.
   controller names the viewport as the widget to focus and
   `FApexMenuInputProcessor` puts focus back on it whenever an event arrives while
   driving. Focus left in the shell routes events through the focusable
-  `WBP_Root`, whose default Slate handler eats the left stick, D-pad and arrows
+  root widget, whose default Slate handler eats the left stick, D-pad and arrows
   as menu navigation: pad steering dies while throttle and shoulders still work.
 - **Game mode override.** A Blueprint game mode can serialise its own
   `PlayerControllerClass` and silently win; `AApexMenuGameModeBase` logs an

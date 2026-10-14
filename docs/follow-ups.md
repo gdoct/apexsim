@@ -153,6 +153,17 @@ the same `ApexProps` code.
 
 **Check:** the input tests; a pad under the GameInput plugin.
 
+### 14. Car motion buffer tests
+
+- **(bug)** `ApexSim.Motion` fails four of its seven tests headless
+  (`SteadyStreamIsSmooth`, `LumpyArrivalsStaySmooth`,
+  `LostFramesAreDeadReckoned`, `StallHoldsThenResyncs`: the clean stream
+  extrapolates, steps across a gap up to 37x). Seen 2026-10-14; the motion
+  code is unchanged since the 420 Hz commit.
+
+**Check:** `Automation RunTests ApexSim.Motion` headless; a race watched
+for stutter.
+
 ## P3: nice to have
 
 ### 9. Car content
@@ -208,8 +219,6 @@ the launcher import with the network off.
 Small and independent. Do one or two alongside whatever package touches
 the same files.
 
-- Unused: `WBP_SessionBrowser`, `WBP_SessionRow` and `UApexSessionRowWidget`
-  (the browser is C++; `WBP_Root` still references the first).
 - Wire: `SessionKind::Sandbox` has no behaviour and no client sends it;
   `SessionKind::Demo` is kept only for old servers and can go once
   showcases are everywhere.

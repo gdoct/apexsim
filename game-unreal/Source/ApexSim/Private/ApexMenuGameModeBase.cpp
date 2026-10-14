@@ -46,9 +46,8 @@ void AApexMenuGameModeBase::BeginPlay()
 			*PlayerController->GetClass()->GetName());
 	}
 
-	// The shell builds itself in C++ now, so a blueprint subclass is optional:
-	// WBP_Root still works (it derives from this class and contributes nothing
-	// but its class), and so does having no override at all.
+	// The shell builds itself in C++, so a blueprint subclass is optional and
+	// none is set: unset is the C++ root itself.
 	TSubclassOf<UApexRootWidget> ClassToUse = RootWidgetClass;
 	if (!ClassToUse)
 	{

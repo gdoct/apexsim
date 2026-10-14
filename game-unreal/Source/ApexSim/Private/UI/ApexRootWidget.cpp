@@ -44,6 +44,7 @@
 #include "UI/ApexMenuInputProcessor.h"
 #include "UI/ApexPauseMenuWidget.h"
 #include "UI/ApexLeaderboardWidget.h"
+#include "UI/ApexLoadingScreenWidget.h"
 #include "UI/ApexReplaysWidget.h"
 #include "UI/ApexSessionBrowserWidget.h"
 #include "UI/ApexScreenWidget.h"
@@ -59,27 +60,6 @@
 
 namespace
 {
-	/**
-	 * Screens still living in their original widget blueprints.
-	 *
-	 * The redesign replaces these one at a time; until a screen's C++ class
-	 * exists, ResolveScreenClass loads the `.uasset` so the switcher keeps an
-	 * entry at every EApexScreen index.
-	 */
-	const TCHAR* LegacyScreenPath(EApexScreen Screen)
-	{
-		switch (Screen)
-		{
-		case EApexScreen::ConnectDialog:  return TEXT("/Game/UI/Screens/WBP_ConnectDialog.WBP_ConnectDialog_C");
-		case EApexScreen::SessionCreate:  return TEXT("/Game/UI/Screens/WBP_SessionCreate.WBP_SessionCreate_C");
-		case EApexScreen::CarSelect:      return TEXT("/Game/UI/Screens/WBP_CarSelect.WBP_CarSelect_C");
-		case EApexScreen::TrackSelect:    return TEXT("/Game/UI/Screens/WBP_TrackSelect.WBP_TrackSelect_C");
-		case EApexScreen::SessionLobby:   return TEXT("/Game/UI/Screens/WBP_SessionLobby.WBP_SessionLobby_C");
-		case EApexScreen::Loading:        return TEXT("/Game/UI/Screens/WBP_LoadingScreen.WBP_LoadingScreen_C");
-		default:                          return nullptr;
-		}
-	}
-
 	/** Seconds between a one-click start and the lights going out. */
 	constexpr int32 AutoStartCountdownSeconds = 3;
 
@@ -289,18 +269,11 @@ UClass* UApexRootWidget::ResolveScreenClass(EApexScreen Screen)
 	case EApexScreen::SessionBrowser:
 		return UApexSessionBrowserWidget::StaticClass();
 
+	case EApexScreen::Loading:
+		return UApexLoadingScreenWidget::StaticClass();
+
 	default:
 		break;
-	}
-
-	if (const TCHAR* Path = LegacyScreenPath(Screen))
-	{
-		if (UClass* Loaded = LoadClass<UApexScreenWidget>(nullptr, Path))
-		{
-			return Loaded;
-		}
-		UE_LOG(LogApexSim, Warning, TEXT("Screen %d has no C++ class and its blueprint (%s) failed to load"),
-			static_cast<int32>(Screen), Path);
 	}
 
 	// A blank screen still has to occupy the slot: the switcher is indexed by
@@ -1582,7 +1555,7 @@ void UApexRootWidget::ActivateScreen(EApexScreen Screen)
 {
 	if (!ScreenHost)
 	{
-		UE_LOG(LogApexSim, Warning, TEXT("WBP_Root has no ScreenHost; navigation is inert"));
+		UE_LOG(LogApexSim, Warning, TEXT("The root widget has no ScreenHost; navigation is inert"));
 		return;
 	}
 

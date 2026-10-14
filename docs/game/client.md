@@ -48,14 +48,16 @@ commands are in [building.md](../building.md).
 The whole shell is built in C++ (`UI/ApexUIStyle.h` for the palette, fonts
 and widget factories), so layouts are reviewable as diffs.
 
-- `AApexMenuGameModeBase` creates the root widget and forces
-  `PlayerControllerClass` to `AApexPlayerController`.
+- `AApexMenuGameModeBase` creates the root widget (`UApexRootWidget`
+  itself: `BP_ApexMenuGameMode` sets no `RootWidgetClass`) and forces
+  `PlayerControllerClass` to `AApexPlayerController`. `/Game/UI` holds only
+  the track preview textures; there are no widget blueprints.
 - `UApexRootWidget` is the frame: background, a `UWidgetSwitcher` indexed by
   `EApexScreen` (`ApexMenuFlowSubsystem.h`), toasts, a back stack, and the
   race-time layers (HUD, pause menu, settings overlay, hotlap garage, track
   guide, HUD editor). Escape and every Back button go through it.
-  `ResolveScreenClass` maps a screen to its C++ class; the loading screen
-  still comes from its `/Game/UI/Screens/WBP_*` blueprint.
+  `ResolveScreenClass` maps every screen to its C++ class (the loading
+  screen, `UApexLoadingScreenWidget`, is one centred line).
   `EApexScreen` values are appended, never inserted (the switcher is indexed
   by them).
 - Toasts (`UApexToastWidget`) are the top layer of the root, bottom centre,
@@ -112,11 +114,7 @@ in the pending car (SelectCar, then JoinSession; without a car it opens car
 select; a full or finished session says so). Right from a row is its Watch
 button, lit while a race is being driven (`WatchSession`). Rows are rebuilt
 only when sessions come or go and refreshed in place otherwise, so a
-broadcast never moves the pad's place. `WBP_SessionBrowser` and
-`WBP_SessionRow` (`UApexSessionRowWidget`) are no longer loaded; `WBP_Root`
-still references the first, so its designer widgets must not share a name
-with the class's members (`RefreshButton`, `StatusText` would break its
-compile).
+broadcast never moves the pad's place.
 
 ### Main menu (`UI/ApexMainMenuWidget.cpp`)
 

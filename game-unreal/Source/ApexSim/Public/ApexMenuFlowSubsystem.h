@@ -12,7 +12,7 @@ class UApexBootSettingsSubsystem;
 class UApexProfileSave;
 class UDataTable;
 
-/** The screens the shell can show. Order matches the WidgetSwitcher in WBP_Root. */
+/** The screens the shell can show, in the order of UApexRootWidget's switcher (append only). */
 UENUM(BlueprintType)
 enum class EApexScreen : uint8
 {
