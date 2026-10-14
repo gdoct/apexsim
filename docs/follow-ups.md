@@ -115,15 +115,14 @@ them, and changes its content checksum).
 
 ### 11. Content tooling
 
-- Before the next release: re-render the showcases and track guides of the
-  circuits the 2026-10-13 geometry pass changed (every circuit but Moscow
-  Raceway, Shanghai, Monza and Yas Marina); they were built from the old
-  geometry. **(bug)** Until then the backdrop skips them all and restarts
-  on the three left, and in an unattended run (`-ApexWatch`,
-  `-ApexWatchSession`) the game exits silently a few seconds after "Demo
-  view ended", with nothing in the log and no crash report; a race with
-  `-ApexNoDemo` runs. Seen on 2026-10-14 with and without the weather-look
-  changes.
+- **(bug, not reproduced)** On 2026-10-14, with most showcases stale, an
+  unattended run (`-ApexWatch`, `-ApexWatchSession`) exited silently a few
+  seconds after "Demo view ended", with nothing in the log and no crash
+  report. On 2026-10-15 a `-ApexWatch` run against a server holding only
+  stale showcases skipped them, played a local file, restarted on another
+  track and kept running; with fresh showcases a 7-minute run was clean.
+  If it comes back, the run's `-abslog` and the Windows event log are the
+  places to look.
 - `dem_elevation.py` handles a circuit that crosses itself (Suzuka: the DEM
   sees only the bridge, so the fit closes the crossover), and Shanghai's and
   Monza's surface models are checked against a bare-earth one (grandstands,
