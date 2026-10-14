@@ -697,7 +697,12 @@ in a pale blue at 35% opacity with a faint glow, the slot's own picture kept
 under it (without the baked parent it falls back to tinting the car's own
 instances), muted, hidden while it overlaps the player, toggled by
 `bGhostCar`. REPLAY LAP (`AApexRaceDirector::BeginGhostReplay`) drives the
-ghost round in real time with cutting cameras (`CutReplayShot`). While it
+ghost round in real time with cutting cameras (`CutReplayShot`): chase,
+trackside, onboard, trackside. The trackside shots come from a TV director
+of their own (`GhostTv`: the circuit's path, the ghost alone, held to
+`ApexTv::EShot::Trackside`), so the camera stands where the broadcast's
+would, on the ground with a clear view; the replay cuts on when that
+director has done with the shot, or after 10 s. While it
 runs the HUD is about the ghost (`UApexHudDataSubsystem`, from
 `GetGhostReplaySamples`): the watched car's speed, steering, gear, revs,
 pedals and lap clock are the ghost's. A streamed ghost carries its pose

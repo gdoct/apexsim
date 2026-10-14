@@ -70,8 +70,10 @@ import re-run and crashed.
 
 The ghost, the hotlap replay and watch.
 
-- The hotlap replay's trackside shots come from the TV director's cameras,
-  not `CutReplayShot`'s geometric placement.
+- The TV director's line-of-sight check (`FWorldQueries::IsClear`, a trace
+  against world statics) misses buildings with no collision: a trackside
+  shot at Norisring stood behind one for seconds in the hotlap replay
+  (`GhostTv`), and the broadcast camera would do the same there.
 - Corners carry the circuit's official turn number in the dossier, not the
   detector's.
 

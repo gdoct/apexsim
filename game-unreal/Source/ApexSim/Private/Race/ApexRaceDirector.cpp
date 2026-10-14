@@ -1578,6 +1578,11 @@ bool AApexRaceDirector::BeginGhostReplay()
 	bGhostOverlapHidden = false;
 	Ghost->SetGhostVisible(true);
 	Ghost->SetClockMs(0.0f);
+	// Seeded the same each time: the same lap is filmed the same way.
+	GhostTv.Reset(1);
+	GhostTv.SetPath(Tv.GetPath());
+	GhostTv.ForceShot(ApexTv::EShot::Trackside);
+	bGhostTvPrevValid = false;
 	// The camera moves onto the ghost; the boom's lag swings it there.
 	UpdateCameraTarget();
 	CutReplayShot();
@@ -1614,6 +1619,40 @@ void AApexRaceDirector::EndGhostReplay()
 	UE_LOG(LogApexSim, Log, TEXT("Ghost replay ended"));
 }
 
+bool AApexRaceDirector::TickGhostTv(float DeltaSeconds, ApexTv::FPose& OutPose)
+{
+	UWorld* World = GetWorld();
+	if (!World || !Ghost)
+	{
+		return false;
+	}
+	ApexTv::FCar Car;
+	Car.CarIndex = 0;
+	Car.Location = Ghost->GetActorLocation();
+	Car.Rotation = Ghost->GetActorRotation();
+	Car.Velocity = bGhostTvPrevValid && DeltaSeconds > 0.0f
+		? (Car.Location - GhostTvPrevLocation) / DeltaSeconds
+		: Car.Rotation.Vector() * Ghost->GetSpeedMps() * ApexRace::MetresToCentimetres;
+	Car.Body = Ghost->GetBodyBox();
+	Car.EyeLocal = Ghost->GetCockpitLayout().Eye;
+	GhostTvPrevLocation = Car.Location;
+	bGhostTvPrevValid = true;
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ApexGhostTvCamera), /*bTraceComplex*/ true, this);
+	const FCollisionObjectQueryParams Statics(ECC_WorldStatic);
+	const ApexTv::FWorldQueries Queries = MakeCameraQueries(World, Params, Statics);
+	const TArray<ApexTv::FCar> Field{Car};
+	if (!GhostTv.Tick(Field, false, FMath::Max(DeltaSeconds, 1.0f / 120.0f), World->GetRealTimeSeconds(), Queries, OutPose))
+	{
+		return false;
+	}
+	if (GhostTvCuts < 0)
+	{
+		GhostTvCuts = GhostTv.GetCutCount();
+	}
+	return true;
+}
+
 void AApexRaceDirector::CutReplayShot()
 {
 	// Chase, trackside, onboard, trackside, and round again: the two
@@ -1624,12 +1663,26 @@ void AApexRaceDirector::CutReplayShot()
 	const bool bTrackside = ReplayShot == 1 || ReplayShot == 3;
 	bShotCameraPose = bTrackside;
 	bCockpitView = ReplayShot == 2;
-	if (bTrackside && Ghost)
+	GhostTvCuts = -1;
+	if (bTrackside && Ghost && GhostTv.GetPath().Points.Num() >= 2)
 	{
-		// Well ahead of the car, off to one side and a little up, on a long
-		// lens, looking back at it: the ghost drives toward the camera for a
-		// few seconds and past it. Aimed here as well as every frame, so the
-		// cut never shows a frame of the old aim.
+		// The broadcast's trackside camera, on the ghost: placed at the cut,
+		// so a frame now aims it before the switch shows.
+		GhostTv.RequestCut();
+		ApexTv::FPose Pose;
+		if (TickGhostTv(0.0f, Pose))
+		{
+			ShotCamera->SetWorldLocationAndRotation(Pose.Location, Pose.Rotation);
+			ShotCamera->SetFieldOfView(Pose.FovDeg);
+			ReplayCameraLocation = Pose.Location;
+		}
+	}
+	else if (bTrackside && Ghost)
+	{
+		// No circuit path for a director (none sent yet): well ahead of the
+		// car, off to one side and a little up, on a long lens, looking back
+		// at it. Aimed here as well as every frame, so the cut never shows a
+		// frame of the old aim.
 		const FVector Forward = Ghost->GetActorForwardVector();
 		const FVector Right = Ghost->GetActorRightVector();
 		ReplayCameraLocation = Ghost->GetActorLocation() + Forward * ReplayTracksideAheadCm + Right * 1200.0f + FVector(0.0f, 0.0f, 320.0f);
@@ -1672,7 +1725,20 @@ void AApexRaceDirector::UpdateGhostReplay(float DeltaSeconds)
 
 	ReplayShotSeconds += DeltaSeconds;
 	const bool bTrackside = ReplayShot == 1 || ReplayShot == 3;
-	if (bTrackside)
+	ApexTv::FPose TvPose;
+	if (bTrackside && GhostTvCuts >= 0 && TickGhostTv(DeltaSeconds, TvPose))
+	{
+		ShotCamera->SetWorldLocationAndRotation(TvPose.Location, TvPose.Rotation);
+		ShotCamera->SetFieldOfView(TvPose.FovDeg);
+		ReplayCameraLocation = TvPose.Location;
+		// The director cuts once its shot has said what it had to (the car
+		// gone past, or out of sight): the replay moves on then.
+		if ((GhostTv.GetCutCount() > GhostTvCuts && ReplayShotSeconds > 2.0f) || ReplayShotSeconds > 10.0f)
+		{
+			CutReplayShot();
+		}
+	}
+	else if (bTrackside)
 	{
 		const FVector ToGhost = Ghost->GetActorLocation() - ReplayCameraLocation;
 		ShotCamera->SetWorldRotation(ToGhost.Rotation());

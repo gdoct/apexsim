@@ -149,6 +149,8 @@ namespace ApexTv
 
 		void Reset(int32 Seed);
 		void SetPath(const TArray<FVector2D>& CenterlineMetres);
+		/** Another director's path (a replay filmed on the same circuit). */
+		void SetPath(const FPath& InPath) { Path = InPath; }
 		const FPath& GetPath() const { return Path; }
 		FTuning& Tuning() { return Settings; }
 

@@ -828,6 +828,19 @@ private:
 	// --- Broadcast camera and demo --------------------------------------------------
 
 	ApexTv::FDirector Tv;
+	/**
+	 * The ghost replay's trackside shots: a director of their own on the
+	 * same circuit, filming the ghost alone and held to its trackside shot,
+	 * so the camera stands where the broadcast's would (off the road, on the
+	 * ground, a clear view) rather than at a fixed offset from the car.
+	 */
+	ApexTv::FDirector GhostTv;
+	/** GhostTv's cuts when the trackside shot began (-1 before its first frame). */
+	int32 GhostTvCuts = -1;
+	FVector GhostTvPrevLocation = FVector::ZeroVector;
+	bool bGhostTvPrevValid = false;
+	/** One GhostTv frame on the ghost; false when it has nothing to film (no circuit path). */
+	bool TickGhostTv(float DeltaSeconds, ApexTv::FPose& OutPose);
 	bool bTvView = false;
 	/** The TV director has placed the camera at least once since the view began. */
 	bool bHasTvPose = false;
