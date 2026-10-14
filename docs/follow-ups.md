@@ -38,18 +38,6 @@ Rough edges of the client's road state and snow.
 
 **Check:** a rain-to-dry and a snow session at Silverstone, screenshotted.
 
-### 3. Tyre state per tyre
-
-Built tyre state the client draws or prints from telemetry.
-
-- Pickup, blistering and the heat tint are integrated on the client from
-  the marbles and tread temperature the server sends
-  (`AApexRaceCarActor::UpdateTyreSurface`); their rates are guesses, and a
-  spectator joining late starts them from zero.
-
-**Check:** golden bytes on both sides; two lock-ups on one tyre on screen;
-a late joiner's watched tyres against the driver's.
-
 ### 4. Damage
 
 The car parents, the damage actor and the importer's damage tables.

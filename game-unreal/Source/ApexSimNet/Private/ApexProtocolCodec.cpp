@@ -1614,7 +1614,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 47;
+	constexpr int32 CompactCarFieldCount = 49;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -2183,7 +2183,10 @@ namespace
 			Out.TyreMarbles[Tyre] = 0.0f;
 			Out.bTyrePunctured[Tyre] = false;
 			Out.bTyreLeaking[Tyre] = false;
+			Out.TyrePickup[Tyre] = 0.0f;
+			Out.TyreBlister[Tyre] = 0.0f;
 		}
+		Out.bHasTyreSurface = false;
 		auto ReadFour = [&](TFunctionRef<void(int32, uint64)> Take)
 		{
 			int32 Count = 0;
@@ -2229,6 +2232,23 @@ namespace
 					Out.bTyrePunctured[Tyre] = (Value & 1) != 0;
 					Out.bTyreLeaking[Tyre] = (Value & 2) != 0;
 				});
+				return true;
+			});
+		}
+		// Each tyre's pickup and blistering, percent, appended after the state bits.
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				Out.bHasTyreSurface = ReadFour([&Out](int32 Tyre, uint64 Value) { Out.TyrePickup[Tyre] = FMath::Clamp(static_cast<float>(Value) / 100.0f, 0.0f, 1.0f); });
+				return true;
+			});
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				ReadFour([&Out](int32 Tyre, uint64 Value) { Out.TyreBlister[Tyre] = FMath::Clamp(static_cast<float>(Value) / 100.0f, 0.0f, 1.0f); });
 				return true;
 			});
 		}

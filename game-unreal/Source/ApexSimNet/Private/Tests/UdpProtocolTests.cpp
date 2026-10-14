@@ -859,12 +859,18 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("FR leaking, not flat"), Car.bTyreLeaking[1] && !Car.bTyrePunctured[1]);
 			TestTrue(TEXT("RR flat, not leaking"), Car.bTyrePunctured[3] && !Car.bTyreLeaking[3]);
 			TestFalse(TEXT("FL sound"), Car.bTyreLeaking[0] || Car.bTyrePunctured[0]);
+			// 48-49 fields: each tyre's pickup and blistering.
+			TestTrue(TEXT("the tyres' surface is sent"), Car.bHasTyreSurface);
+			TestTrue(TEXT("FR picked up rubber"), FMath::IsNearlyEqual(Car.TyrePickup[1], 0.34f, 1e-4f));
+			TestEqual(TEXT("FL clean"), Car.TyrePickup[0], 0.0f);
+			TestEqual(TEXT("RL half blistered"), Car.TyreBlister[2], 0.5f);
 		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactRecover, Spots, Error)
 			&& Spots.Telemetry.Cars.Num() == 1)
 		{
 			TestEqual(TEXT("no flat spots from an older server"), Spots.Telemetry.Cars[0].FlatSpot[3], 0.0f);
 			TestFalse(TEXT("nor damage centres: the whole face is dented"), Spots.Telemetry.Cars[0].bHasDamageAt);
+			TestFalse(TEXT("nor the tyres' surface: the car works it out"), Spots.Telemetry.Cars[0].bHasTyreSurface);
 		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactZones, Recover, Error)
 			&& Recover.Telemetry.Cars.Num() == 1)

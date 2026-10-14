@@ -2335,6 +2335,15 @@ struct APEXSIMNET_API FApexCarTelemetry
 	/** Each tyre's state (`tyre_state`): down to its carcass, or losing air through a slow leak. */
 	bool bTyrePunctured[4] = {false, false, false, false};
 	bool bTyreLeaking[4] = {false, false, false, false};
+	/**
+	 * Each tyre's picked-up rubber and blistering, 0..1 (`tyre_pickup`,
+	 * `tyre_blister`, the server's TireData): the same for everyone
+	 * watching. bHasTyreSurface false from a server that predates them (and
+	 * on a stream), when the car works them out itself.
+	 */
+	float TyrePickup[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	float TyreBlister[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	bool bHasTyreSurface = false;
 
 	/**
 	 * Each wheel's slip ratio and slip angle in multiples of the tyre's peak

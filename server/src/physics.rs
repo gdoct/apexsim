@@ -1182,6 +1182,7 @@ pub fn update_car_3d(
             outer_push: (sign * w.fy / load_n.max(1.0)).clamp(-3.0, 3.0),
             wake_loss: wake_loss.clamp(0.0, 1.0),
             water: contacts[i].water,
+            marbles: contacts[i].marbles,
         }
     };
     let work = [

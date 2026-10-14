@@ -1144,6 +1144,14 @@ pub struct CompactCarState {
     /// `tyre_marbles`; all 0 from an older server.
     #[serde(default)]
     pub tyre_state: [u8; 4],
+    /// Each tyre's picked-up rubber and blistering, percent, FL FR RL RR
+    /// (`TireData::pickup`, `blister`): drawn on the tyre for every car, the
+    /// same for everyone watching. Appended after `tyre_state`; all 0 from
+    /// an older server, which a client reads as "not sent".
+    #[serde(default)]
+    pub tyre_pickup: [u8; 4],
+    #[serde(default)]
+    pub tyre_blister: [u8; 4],
 }
 
 /// `tyre_state` bits.
@@ -1487,6 +1495,14 @@ impl CompactCarState {
                 }
                 bits
             }),
+            tyre_pickup: state
+                .tires
+                .each()
+                .map(|t| (t.pickup.clamp(0.0, 1.0) * 100.0).round() as u8),
+            tyre_blister: state
+                .tires
+                .each()
+                .map(|t| (t.blister.clamp(0.0, 1.0) * 100.0).round() as u8),
         }
     }
 }
@@ -2901,6 +2917,9 @@ mod tests {
         state.tires.front_right.leak_kpa_per_s = 2.0;
         state.tires.rear_right.punctured = true;
         state.tires.rear_right.leak_kpa_per_s = 2.0;
+        // Rubber picked up on the front right, the rear left blistering.
+        state.tires.front_right.pickup = 0.336;
+        state.tires.rear_left.blister = 0.5;
 
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,
@@ -2921,10 +2940,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 47-field array: 0xDC 0x00 0x2F is the array-16 header.
+        // The car is a 49-field array: 0xDC 0x00 0x31 is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x2F]),
-            "CompactCarState must stay 47 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x31]),
+            "CompactCarState must stay 49 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -2954,6 +2973,8 @@ mod tests {
                 assert_eq!(car.ers_stint_pct, 73);
                 assert_eq!(car.recover_ds, 63, "6.34 s of hold left");
                 assert_eq!(car.flat_spot, [0, 40, 0, 100], "percent of the worst");
+                assert_eq!(car.tyre_pickup, [0, 34, 0, 0], "percent picked up");
+                assert_eq!(car.tyre_blister, [0, 0, 50, 0], "percent blistered");
                 assert_eq!(
                     car.damage_at,
                     [-64, 0, 127, 32],

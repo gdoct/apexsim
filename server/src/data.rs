@@ -1341,6 +1341,15 @@ pub struct TireData {
     /// has gone (`tyre_thermal::puncture`).
     #[serde(default)]
     pub leak_kpa_per_s: f32,
+    /// Rubber picked up off the road, 0..1 (`tyre_thermal::step`): the
+    /// marbles under the tyre stick to its tread and are flung off over a
+    /// lap, a wet road washes them. Looks only: no grip.
+    #[serde(default)]
+    pub pickup: f32,
+    /// Blistering, 0..1: how long the tread has run over its window (a
+    /// minute a window over blisters it through). Looks only: no grip.
+    #[serde(default)]
+    pub blister: f32,
     #[serde(default)]
     pub pressure_loss_kpa: f32,
 }

@@ -487,6 +487,8 @@ pub struct TyreWork {
     pub wake_loss: f32,
     /// Water on the road under this tyre (`TrackSurface::water`, locally).
     pub water: f32,
+    /// Marbles on the road under this tyre, 0..1 (`RoadState`).
+    pub marbles: f32,
 }
 
 impl TyreWork {
@@ -558,6 +560,16 @@ pub fn thermal_grip_factor(
 }
 
 /// The middle of a compound's window on this car's tyre, °C.
+/// Rubber a tyre picks up per second on a road all marbles, as a share of
+/// a tread covered.
+const PICKUP_PER_S: f32 = 0.6;
+/// Share of the pickup flung off per second, and washed off per second
+/// more on a road wet through.
+const PICKUP_SHED_PER_S: f32 = 0.03;
+const PICKUP_WASH_PER_S: f32 = 0.5;
+/// Seconds a tread run a whole window over its top takes to blister through.
+const BLISTER_SECONDS: f32 = 60.0;
+
 pub fn optimum_c(tire: &TireConfig, compound: &Compound) -> f32 {
     tire.optimal_temperature_c + compound.optimal_shift_c
 }
@@ -653,6 +665,8 @@ pub fn fit(
         tyre.core_temperature_c = temperature_c;
         tyre.wear_percent = 0.0;
         tyre.flat_spot = 0.0;
+        tyre.pickup = 0.0;
+        tyre.blister = 0.0;
         tyre.punctured = false;
         tyre.leak_kpa_per_s = 0.0;
         tyre.pressure_loss_kpa = 0.0;
@@ -797,6 +811,15 @@ pub fn step(
         tyre.flat_spot =
             (tyre.flat_spot + FLAT_SPOT_PER_MJ * grind * dt * 1e-6 * compound.wear_scale).min(1.0);
     }
+    // Looks only: the marbles under the tyre stick to its tread and are
+    // flung off over a lap, faster on a wet road; the tread blisters while
+    // it runs over its window.
+    let wet = work.water.clamp(0.0, 1.0);
+    let picked = PICKUP_PER_S * work.marbles.clamp(0.0, 1.0)
+        - tyre.pickup * (PICKUP_SHED_PER_S + PICKUP_WASH_PER_S * wet);
+    tyre.pickup = (tyre.pickup + picked * dt).clamp(0.0, 1.0);
+    let windows_over = over / tire.temperature_window_c.max(1.0);
+    tyre.blister = (tyre.blister + windows_over * dt / BLISTER_SECONDS).clamp(0.0, 1.0);
     // A slow puncture lets the air out as it rolls.
     if tyre.leak_kpa_per_s > 0.0 && !tyre.punctured {
         tyre.pressure_loss_kpa += tyre.leak_kpa_per_s * dt;

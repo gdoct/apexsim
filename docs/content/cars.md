@@ -281,14 +281,19 @@ local position: `theta` round the axle (X) from +Y toward +Z, the radius and
   wetness; rain falling counts as 40% of its intensity). Soaked in about
   1.5 s and dried over about 20 s (`ApexWheels::WetnessStep`): darker and
   glossy, water standing in the grooves.
-- **Pickup** (`tyre_marbles`): the marbles under the tyre stick to the tread
-  in a few seconds and are flung off over a lap, washed off on a wet road
-  (`AApexRaceCarActor::UpdateTyreSurface`): lighter, matte crumbs across
-  the tread. A fresh set (the wear dropping) starts clean.
+- **Pickup** (`tyre_pickup`): the marbles under the tyre stick to the
+  tread in a few seconds and are flung off over a lap, washed off on a wet
+  road: lighter, matte crumbs across the tread. The server works it out
+  (`TireData::pickup`, `tyre_thermal::step`, looks only) and sends it, so
+  every viewer and a late joiner see the same tyre; from an older server
+  or on a stream the car integrates the same sums from `tyre_marbles`
+  (`AApexRaceCarActor::UpdateTyreSurface`). A fresh set starts clean.
 - **Heat and blisters** (`tyre_c` against the catalog row's window,
-  `SetTyreWindow`): a tread over its optimal goes glossy and a shade
-  browner; one run a window over its top blisters, dark torn pits on the
-  shoulders, through in about a minute and kept until the set is changed.
+  `SetTyreWindow`; `tyre_blister`): a tread over its optimal goes glossy and
+  a shade browner; one run a window over its top blisters, dark torn pits
+  on the shoulders, through in about a minute and kept until the set is
+  changed. The blistering is the server's (`TireData::blister`) as the
+  pickup is, the car's own sum without it.
 - **Sidewall bulge**: on a deflated tyre the sidewall's normal is turned out
   along the axle where the tread meets the road, so the light shows the
   bulge the squat makes.

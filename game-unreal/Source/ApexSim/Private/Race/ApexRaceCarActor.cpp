@@ -373,6 +373,14 @@ void AApexRaceCarActor::TakeTyreTelemetry(const FApexCarTelemetry& Car)
 		TyreMarbles[Wheel] = Car.bHasTyreRoad ? Car.TyreMarbles[Wheel] : 0.0f;
 		TyreTempC[Wheel] = Car.TyreTempC[Wheel];
 		bTyrePunctured[Wheel] = Car.bTyrePunctured[Wheel];
+		// A newer server works the pickup and the blisters out itself, the
+		// same for everyone; else the car integrates them below.
+		if (Car.bHasTyreSurface)
+		{
+			TyrePickup[Wheel] = Car.TyrePickup[Wheel];
+			TyreBlister[Wheel] = Car.TyreBlister[Wheel];
+		}
+		bTyreSurfaceSent = Car.bHasTyreSurface;
 	}
 }
 
@@ -394,8 +402,12 @@ void AApexRaceCarActor::UpdateTyreSurface(float DeltaSeconds)
 	{
 		// Pickup: marbles under the tyre stick to a hot tread in a few
 		// seconds and are flung off over a lap; a wet road washes it.
-		const float Picked = TyreMarbles[Wheel] * 0.6f - TyrePickup[Wheel] * (0.03f + 0.5f * WheelWetness[Wheel]);
-		TyrePickup[Wheel] = FMath::Clamp(TyrePickup[Wheel] + Picked * Dt, 0.0f, 1.0f);
+		// (The server's figures, when it sends them, are the same sums.)
+		if (!bTyreSurfaceSent)
+		{
+			const float Picked = TyreMarbles[Wheel] * 0.6f - TyrePickup[Wheel] * (0.03f + 0.5f * WheelWetness[Wheel]);
+			TyrePickup[Wheel] = FMath::Clamp(TyrePickup[Wheel] + Picked * Dt, 0.0f, 1.0f);
+		}
 		// Heat against the window: 0 in it, 1 a window over its top, -1 a window under.
 		if (TyreTempC[Wheel] >= 0.0f)
 		{
@@ -403,7 +415,7 @@ void AApexRaceCarActor::UpdateTyreSurface(float DeltaSeconds)
 			// Blisters grow while the tread runs over its window: a minute
 			// at a window over blisters it through.
 			const float Over = (TyreTempC[Wheel] - (TyreOptimalC + TyreWindowC)) / FMath::Max(TyreWindowC, 1.0f);
-			if (Over > 0.0f)
+			if (Over > 0.0f && !bTyreSurfaceSent)
 			{
 				TyreBlister[Wheel] = FMath::Clamp(TyreBlister[Wheel] + Over * Dt / 60.0f, 0.0f, 1.0f);
 			}

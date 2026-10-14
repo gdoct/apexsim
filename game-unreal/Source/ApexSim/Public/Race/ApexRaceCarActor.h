@@ -474,7 +474,9 @@ private:
 	float TyreMarbles[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
 	float TyreTempC[ApexWheels::NumWheels] = {-1.0f, -1.0f, -1.0f, -1.0f};
 	bool bTyrePunctured[ApexWheels::NumWheels] = {false, false, false, false};
-	/** The looks integrated from them: rubber picked up, blistering, and the heat against the window. */
+	/** The server sends the pickup and blisters (TyrePickup, TyreBlister) rather than the car working them out. */
+	bool bTyreSurfaceSent = false;
+	/** The looks integrated from them (or sent): rubber picked up, blistering, and the heat against the window. */
 	float TyrePickup[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
 	float TyreBlister[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
 	float TyreHeat[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
