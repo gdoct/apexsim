@@ -136,6 +136,13 @@ namespace ApexWheels
 	 * world transform: where a wheel locked now grinds its flat spot.
 	 */
 	APEXSIM_API float ContactTheta(const FTransform& WheelWorld);
+
+	/**
+	 * A second flat spot in the one slot left for it
+	 * (ApexCarMaterials::TyreCpd::FlatSpot2): round(depth x 255) x 1024 +
+	 * round(theta / 2pi x 1023), exact in a float. 0 for none.
+	 */
+	APEXSIM_API float PackFlatSpot(float Depth, float Theta);
 }
 
 /** One tyre's state as drawn (FApexCarWheelSet::SetTyreSurface). */
@@ -145,8 +152,10 @@ struct FApexTyreSurface
 	float Wear = 0.0f;
 	/** Water on the tyre, 0..1 (ApexWheels::WetnessStep). */
 	float Wetness = 0.0f;
-	/** Flat-spot depth, 0..1 of the worst (`flat_spot`). */
+	/** Flat-spot depth, 0..1 of the worst (`flat_spot`): every spot on the tyre together. */
 	float FlatSpot = 0.0f;
+	/** A steadily rising clock, seconds: a rise after a pause is a new lock-up, and a new spot. */
+	double TimeSeconds = 0.0;
 	/** Running pressure, kPa; negative when unknown, drawn round. */
 	float PressureKpa = -1.0f;
 	/** Rubber picked up off the road, 0..1 (AApexRaceCarActor integrates the marbles under the tyre). */
@@ -207,6 +216,12 @@ struct APEXSIM_API FApexCarWheelSet
 	 * tread stays on the road. Only changed values are written.
 	 */
 	void SetTyreSurface(ApexWheels::EWheel Wheel, const FApexTyreSurface& Surface);
+	/** How deep a tyre's first or second flat spot is (each lock-up its own), 0..1. */
+	float GetFlatSpotDepth(ApexWheels::EWheel Wheel, int32 Spot) const
+	{
+		const int32 Index = static_cast<int32>(Wheel);
+		return Index >= 0 && Index < ApexWheels::NumWheels && (Spot == 0 || Spot == 1) ? FlatSpotDepth[Index][Spot] : 0.0f;
+	}
 	const FApexTyreSurface& GetTyreSurface(ApexWheels::EWheel Wheel) const { return Surfaces[static_cast<int32>(Wheel)]; }
 
 	/** How far a wheel's hub is dropped for a deflated tyre, cm in the body's frame. */
@@ -242,5 +257,16 @@ private:
 	FApexTyreSurface Surfaces[ApexWheels::NumWheels];
 	/** Each flat spot's `theta` (ApexWheels::ContactTheta). */
 	float FlatSpotTheta[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
+	/**
+	 * The server sends one depth per tyre; each lock-up (a rise after a
+	 * pause) grinds its own spot where the wheel touched the road then. Up
+	 * to two per tyre: spot 0 at FlatSpotTheta, spot 1 here; a third
+	 * lock-up deepens whichever is nearer.
+	 */
+	float FlatSpotDepth[ApexWheels::NumWheels][2] = {};
+	float FlatSpot2Theta[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
+	/** Which spot the lock-up under way is grinding, and when it last rose. */
+	int32 FlatSpotGrinding[ApexWheels::NumWheels] = {-1, -1, -1, -1};
+	double FlatSpotRoseAt[ApexWheels::NumWheels] = {-1.0, -1.0, -1.0, -1.0};
 	float SagCm[ApexWheels::NumWheels] = {0.0f, 0.0f, 0.0f, 0.0f};
 };

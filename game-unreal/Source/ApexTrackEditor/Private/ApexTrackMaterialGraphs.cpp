@@ -1335,8 +1335,15 @@ float fade = saturate((aa - 0.02) / 0.04);
 float keep = 1.0 - 0.85 * saturate(Wear);
 float dth = abs(atan2(sin(th - FlatA), cos(th - FlatA)));
 float flatLen = 0.10 + 0.22 * saturate(Flat);
-float spot = (Flat > 0.01 ? 1.0 : 0.0) * (1.0 - smoothstep(flatLen * 0.7, flatLen, dth * RW / (2.0 * HW)))
-	* onTread * (1.0 - smoothstep(0.7, 0.9, av));
+float spot1 = (Flat > 0.01 ? 1.0 : 0.0) * (1.0 - smoothstep(flatLen * 0.7, flatLen, dth * RW / (2.0 * HW)));
+// A second lock-up's spot, packed as depth x 255 x 1024 + theta in 1024ths of a turn.
+float flat2 = floor(Flat2 / 1024.0) / 255.0;
+float flatA2 = (Flat2 - floor(Flat2 / 1024.0) * 1024.0) / 1023.0 * 6.28318531;
+float dth2 = abs(atan2(sin(th - flatA2), cos(th - flatA2)));
+float flatLen2 = 0.10 + 0.22 * saturate(flat2);
+float spot2 = (flat2 > 0.01 ? 1.0 : 0.0) * (1.0 - smoothstep(flatLen2 * 0.7, flatLen2, dth2 * RW / (2.0 * HW)));
+float spot = max(spot1, spot2) * onTread * (1.0 - smoothstep(0.7, 0.9, av));
+float flatHere = spot1 >= spot2 ? Flat : flat2;
 float g = lerp(Tr.G(u, av, Tread, Chev, aa, sTot), Tr.Cover(Tread), fade) * onTread * keep * (1.0 - 0.7 * spot);
 )HLSL");
 
@@ -1363,7 +1370,7 @@ float h2 = frac(sin(dot(cell, float2(12.9898, 78.233))) * 43758.5453);
 float grain = smoothstep(0.45, 0.9, Wear) * step(0.72, h2) * onTread * (1.0 - fade);
 c = lerp(c, c * 2.2 + 0.015, grain * 0.6);
 // A flat spot: a glazed, lighter patch where the locked tyre slid.
-float glaze = spot * (0.45 + 0.55 * saturate(Flat));
+float glaze = spot * (0.45 + 0.55 * saturate(flatHere));
 c = lerp(c, float3(0.075, 0.077, 0.085), glaze);
 r = lerp(r, 0.32, glaze);
 // Hot: a tread run over its window goes glossy and a shade browner; cold
@@ -1485,6 +1492,7 @@ return o;
 		UMaterialExpression* Wet = G.PrimitiveScalar(TEXT("TyreWetness"), Cpd::Wetness);
 		UMaterialExpression* Flat = G.PrimitiveScalar(TEXT("TyreFlatSpot"), Cpd::FlatSpot);
 		UMaterialExpression* FlatA = G.PrimitiveScalar(TEXT("TyreFlatSpotAngle"), Cpd::FlatSpotAngle);
+		UMaterialExpression* Flat2 = G.PrimitiveScalar(TEXT("TyreFlatSpot2"), Cpd::FlatSpot2);
 		UMaterialExpression* Sag = G.PrimitiveScalar(TEXT("TyreSagCm"), Cpd::SagCm);
 
 		// The undeformed position in the wheel mesh's frame: the tread turns with the wheel.
@@ -1500,7 +1508,7 @@ return o;
 		UMaterialExpressionCustom* Surface = AddCustom(Parent, TEXT("ApexTyreSurface"), Prelude + kTyreSurface, CMOT_Float4,
 			{{TEXT("P"), Local}, {TEXT("Rm"), Rm}, {TEXT("Hm"), Hm}, {TEXT("Rcm"), Rcm}, {TEXT("Hcm"), Hcm},
 				{TEXT("Tread"), Tread}, {TEXT("Chev"), Chev}, {TEXT("Wear"), Wear}, {TEXT("Flat"), Flat},
-				{TEXT("FlatA"), FlatA}, {TEXT("Depth"), Depth}, {TEXT("Base"), Base}, {TEXT("Rough"), Rough},
+				{TEXT("FlatA"), FlatA}, {TEXT("Flat2"), Flat2}, {TEXT("Depth"), Depth}, {TEXT("Base"), Base}, {TEXT("Rough"), Rough},
 				{TEXT("Wet"), Wet}, {TEXT("Band"), G.PrimitiveVector(TEXT("TyreBandColour"), Cpd::BandColour, FLinearColor::Black)},
 				{TEXT("BandW"), CarScalar(Parent, ApexCarMaterials::TyreBandWidth, 0.035f)},
 				{TEXT("Pickup"), G.PrimitiveScalar(TEXT("TyrePickup"), Cpd::Pickup)},
@@ -1509,7 +1517,7 @@ return o;
 		UMaterialExpressionCustom* Normal = AddCustom(Parent, TEXT("ApexTyreNormal"), Prelude + kTyreNormal, CMOT_Float3,
 			{{TEXT("P"), Local}, {TEXT("Rm"), Rm}, {TEXT("Hm"), Hm}, {TEXT("Rcm"), Rcm}, {TEXT("Hcm"), Hcm},
 				{TEXT("Tread"), Tread}, {TEXT("Chev"), Chev}, {TEXT("Wear"), Wear}, {TEXT("Flat"), Flat},
-				{TEXT("FlatA"), FlatA}, {TEXT("Depth"), Depth}, {TEXT("Nv"), AddExpr<UMaterialExpressionVertexNormalWS>(Parent)},
+				{TEXT("FlatA"), FlatA}, {TEXT("Flat2"), Flat2}, {TEXT("Depth"), Depth}, {TEXT("Nv"), AddExpr<UMaterialExpressionVertexNormalWS>(Parent)},
 				{TEXT("Xw"), Axis(1.0f, 0.0f, 0.0f)}, {TEXT("Yw"), Axis(0.0f, 1.0f, 0.0f)}, {TEXT("Zw"), Axis(0.0f, 0.0f, 1.0f)},
 				{TEXT("Sag"), Sag}, {TEXT("Rel"), G.Transform(Local, TRANSFORMSOURCE_Local, TRANSFORM_World)}});
 		UMaterialExpressionCustom* Squat = AddCustom(Parent, TEXT("ApexTyreSag"), kTyreSag, CMOT_Float3,

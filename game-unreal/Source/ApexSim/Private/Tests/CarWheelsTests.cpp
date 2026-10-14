@@ -224,6 +224,43 @@ bool FApexWheelsTyreSurfaceTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("still wet two seconds after leaving the water"), ApexWheels::WetnessStep(1.0f, 0.0f, 2.0f) > 0.85f);
 	TestTrue(TEXT("dry a minute later"), ApexWheels::WetnessStep(1.0f, 0.0f, 60.0f) < 0.1f);
 
+	// Each lock-up grinds its own spot: a rise after a pause starts the
+	// second, a rise straight after deepens the one being ground, and the
+	// tyre wearing round takes them down alike.
+	{
+		FApexCarWheelSet Set;
+		const ApexWheels::EWheel FL = ApexWheels::EWheel::FrontLeft;
+		auto Feed = [&Set, FL](float Depth, double At)
+		{
+			FApexTyreSurface S;
+			S.FlatSpot = Depth;
+			S.TimeSeconds = At;
+			Set.SetTyreSurface(FL, S);
+		};
+		Feed(0.10f, 1.0);
+		Feed(0.20f, 1.2);
+		TestTrue(TEXT("one lock-up, one spot"), FMath::IsNearlyEqual(Set.GetFlatSpotDepth(FL, 0), 0.20f, 1e-4f)
+			&& Set.GetFlatSpotDepth(FL, 1) == 0.0f);
+		Feed(0.20f, 3.0);
+		Feed(0.30f, 4.0);
+		TestTrue(TEXT("a second lock-up, a second spot"), FMath::IsNearlyEqual(Set.GetFlatSpotDepth(FL, 0), 0.20f, 1e-4f)
+			&& FMath::IsNearlyEqual(Set.GetFlatSpotDepth(FL, 1), 0.10f, 1e-4f));
+		Feed(0.15f, 5.0);
+		TestTrue(TEXT("wear takes both down alike"), FMath::IsNearlyEqual(Set.GetFlatSpotDepth(FL, 0), 0.10f, 1e-4f)
+			&& FMath::IsNearlyEqual(Set.GetFlatSpotDepth(FL, 1), 0.05f, 1e-4f));
+		Feed(0.0f, 6.0);
+		TestTrue(TEXT("a fresh set starts over"), Set.GetFlatSpotDepth(FL, 0) == 0.0f && Set.GetFlatSpotDepth(FL, 1) == 0.0f);
+	}
+	// The second spot's slot packs depth and angle and gives them back.
+	{
+		const float Packed = ApexWheels::PackFlatSpot(0.4f, 1.0f);
+		const float Depth = FMath::FloorToFloat(Packed / 1024.0f) / 255.0f;
+		const float Theta = (Packed - FMath::FloorToFloat(Packed / 1024.0f) * 1024.0f) / 1023.0f * UE_TWO_PI;
+		TestTrue(TEXT("packed depth"), FMath::IsNearlyEqual(Depth, 0.4f, 0.005f));
+		TestTrue(TEXT("packed angle"), FMath::IsNearlyEqual(Theta, 1.0f, 0.01f));
+		TestEqual(TEXT("no spot packs to nothing"), ApexWheels::PackFlatSpot(0.0f, 2.0f), 0.0f);
+	}
+
 	// Where a wheel touches the road, as the tyre parent's theta: an
 	// unturned wheel (axle on X) touches at -Z, theta -90 degrees; turned a
 	// quarter about its axle (+Y up toward +Z), the patch is on its -Y.

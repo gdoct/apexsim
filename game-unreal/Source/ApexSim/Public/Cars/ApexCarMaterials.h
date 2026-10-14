@@ -122,8 +122,13 @@ namespace ApexCarMaterials
 		inline constexpr int32 FlatSpotAngle = 27;
 		/** How far a deflated tyre squats, world cm. */
 		inline constexpr int32 SagCm = 28;
-		/** The compound's ring on the sidewalls, linear RGB (29..31, 32 unused); black for none. */
+		/** The compound's ring on the sidewalls, linear RGB (29..31); black for none. */
 		inline constexpr int32 BandColour = 29;
+		/**
+		 * A second flat spot, packed into one float (every slot is taken):
+		 * round(depth x 255) x 1024 + round(theta / 2pi x 1023). 0 for none.
+		 */
+		inline constexpr int32 FlatSpot2 = 32;
 		/** Rubber picked up off the road, 0..1: crumbs across the tread. */
 		inline constexpr int32 Pickup = 33;
 		/** Blistering, 0..1: torn pits on the shoulders of an overheated tread. */

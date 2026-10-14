@@ -266,8 +266,14 @@ local position: `theta` round the axle (X) from +Y toward +Z, the radius and
 - **Wear** (`tyre_wear`): lighter, matte streaks round the tread, and from
   45% grained specks.
 - **Flat spots** (`flat_spot`): a glazed lighter patch, longer the deeper the
-  spot, laid at the wheel's contact angle when the spot first appears
-  (`ApexWheels::ContactTheta`; one per tyre).
+  spot, laid at the wheel's contact angle when it is ground
+  (`ApexWheels::ContactTheta`). The server sends one depth per tyre; the
+  wheel set splits it by lock-up (`FApexCarWheelSet::SetTyreSurface`: a rise
+  more than 0.5 s after the last one starts a new spot, a third deepens the
+  nearer one, wear takes them down alike), up to two per tyre. The second
+  rides in the tyre data's one free slot (`TyreCpd::FlatSpot2`, packed by
+  `ApexWheels::PackFlatSpot`). A late joiner sees the depth so far as one
+  spot.
 - **Water**: each tyre soaks up the water under it, which a newer server
   sends per tyre (`tyre_water`, the physics' own road sample at the wheel);
   from an older one the race director's figure for the car stands in for

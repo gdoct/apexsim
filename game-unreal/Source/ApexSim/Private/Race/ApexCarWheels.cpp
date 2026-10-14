@@ -164,6 +164,18 @@ float ApexWheels::WetnessStep(float Current, float Target, float DeltaSeconds)
 	return Current + (Target - Current) * (1.0f - FMath::Exp(-DeltaSeconds / TimeConstantS));
 }
 
+float ApexWheels::PackFlatSpot(float Depth, float Theta)
+{
+	const int32 D = FMath::RoundToInt(FMath::Clamp(Depth, 0.0f, 1.0f) * 255.0f);
+	if (D <= 0)
+	{
+		return 0.0f;
+	}
+	const float Turn = FMath::Fmod(Theta, UE_TWO_PI);
+	const int32 A = FMath::RoundToInt((Turn < 0.0f ? Turn + UE_TWO_PI : Turn) / UE_TWO_PI * 1023.0f);
+	return static_cast<float>(D * 1024 + FMath::Clamp(A, 0, 1023));
+}
+
 float ApexWheels::ContactTheta(const FTransform& WheelWorld)
 {
 	const FVector Down = WheelWorld.InverseTransformVectorNoScale(FVector::DownVector);
@@ -326,13 +338,13 @@ void FApexCarWheelSet::WriteTyreData(int32 Index)
 		ApexWheels::IsLeft(Which) ? -1.0f : 1.0f,
 		Surface.Wear,
 		Surface.Wetness,
-		Surface.FlatSpot,
+		FlatSpotDepth[Index][0],
 		FlatSpotTheta[Index],
 		SagCm[Index] * BodyScale,
 		Band.R,
 		Band.G,
 		Band.B,
-		0.0f,
+		ApexWheels::PackFlatSpot(FlatSpotDepth[Index][1], FlatSpot2Theta[Index]),
 		Surface.Pickup,
 		Surface.Blister,
 		Surface.Heat,
@@ -363,14 +375,56 @@ void FApexCarWheelSet::SetTyreSurface(ApexWheels::EWheel Wheel, const FApexTyreS
 	Next.Pickup = FMath::Clamp(Next.Pickup, 0.0f, 1.0f);
 	Next.Blister = FMath::Clamp(Next.Blister, 0.0f, 1.0f);
 	Next.Heat = FMath::Clamp(Next.Heat, -1.0f, 1.0f);
-	// A new flat spot is ground where the locked wheel touches the road
-	// now: it does not turn while it is locked. One per tyre; a fresh set
-	// (or one worn round again) lays the next wherever it locks.
+	// A flat spot is ground where the locked wheel touches the road: it does
+	// not turn while it is locked. Each lock-up (the depth rising again after
+	// a pause) is a spot of its own; a fresh set (or one worn round again)
+	// starts over.
 	constexpr float NewSpot = 0.02f;
-	if (Next.FlatSpot >= NewSpot && Surfaces[Index].FlatSpot < NewSpot && Components.IsValidIndex(Index) && Components[Index])
+	constexpr double LockUpGapSeconds = 0.5;
+	float (&Depth)[2] = FlatSpotDepth[Index];
+	const float Before = Surfaces[Index].FlatSpot;
+	if (Next.FlatSpot < NewSpot)
 	{
-		FlatSpotTheta[Index] = ApexWheels::ContactTheta(Components[Index]->GetComponentTransform());
+		Depth[0] = Depth[1] = 0.0f;
+		FlatSpotGrinding[Index] = -1;
 	}
+	else if (Next.FlatSpot > Before)
+	{
+		const bool bNewLockUp = FlatSpotGrinding[Index] < 0 || Next.TimeSeconds - FlatSpotRoseAt[Index] > LockUpGapSeconds;
+		const float Theta = Components.IsValidIndex(Index) && Components[Index]
+			? ApexWheels::ContactTheta(Components[Index]->GetComponentTransform()) : 0.0f;
+		if (bNewLockUp)
+		{
+			if (Depth[0] <= 0.0f)
+			{
+				FlatSpotGrinding[Index] = 0;
+				FlatSpotTheta[Index] = Theta;
+			}
+			else if (Depth[1] <= 0.0f)
+			{
+				FlatSpotGrinding[Index] = 1;
+				FlatSpot2Theta[Index] = Theta;
+			}
+			else
+			{
+				// A third lock-up: the nearer of the two grinds on.
+				auto Gap = [Theta](float A) { return FMath::Abs(FMath::FindDeltaAngleRadians(Theta, A)); };
+				FlatSpotGrinding[Index] = Gap(FlatSpotTheta[Index]) <= Gap(FlatSpot2Theta[Index]) ? 0 : 1;
+			}
+		}
+		// A late joiner's first sight of a spot is all of it at once.
+		Depth[FlatSpotGrinding[Index]] += Next.FlatSpot - (Depth[0] + Depth[1] > 0.0f ? Before : 0.0f);
+		FlatSpotRoseAt[Index] = Next.TimeSeconds;
+	}
+	else if (Next.FlatSpot < Before && Before > 0.0f)
+	{
+		// Wear rounding the tyre off takes every spot down alike.
+		const float Scale = Next.FlatSpot / Before;
+		Depth[0] *= Scale;
+		Depth[1] *= Scale;
+	}
+	Depth[0] = FMath::Clamp(Depth[0], 0.0f, 1.0f);
+	Depth[1] = FMath::Clamp(Depth[1], 0.0f, 1.0f);
 	Surfaces[Index] = Next;
 	const float Sag = ApexWheels::DeflatedShare(Next.PressureKpa) * ApexWheels::MaxSagShare * ApexWheels::RadiusM(Spec, Wheel) * 100.0f;
 	if (FMath::Abs(Sag - SagCm[Index]) > 0.05f)

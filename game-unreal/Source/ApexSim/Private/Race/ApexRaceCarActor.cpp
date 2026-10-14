@@ -412,6 +412,7 @@ void AApexRaceCarActor::UpdateTyreSurface(float DeltaSeconds)
 		Surface.Wear = FMath::Max(TyreWear[Wheel], 0.0f);
 		Surface.Wetness = WheelWetness[Wheel];
 		Surface.FlatSpot = TyreFlatSpot[Wheel];
+		Surface.TimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 		Surface.PressureKpa = TyrePressureKpa[Wheel];
 		Surface.Pickup = TyrePickup[Wheel];
 		Surface.Blister = TyreBlister[Wheel];

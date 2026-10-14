@@ -21,6 +21,10 @@ One batch (`-ApexAutoRace`, `-ApexExecAfter`, `-ApexScreenshotAfter`,
 `-ApexCameraLookAt`, [game/client.md](game/client.md)) covers all of these.
 Each shot is judged against what the feature's doc says it draws.
 
+**Tyres:** two lock-ups on one tyre (a stand-in driver with two
+`flatspot=` debug events some seconds apart) drawn as two glazed patches
+at different places round the tread (`TyreCpd::FlatSpot2`).
+
 **Road state and weather** ([server/conditions.md](server/conditions.md),
 [game/client.md](game/client.md)):
 

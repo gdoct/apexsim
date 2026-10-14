@@ -42,8 +42,6 @@ Rough edges of the client's road state and snow.
 
 Built tyre state the client draws or prints from telemetry.
 
-- More than one flat spot per tyre, each where its lock-up happened (a
-  second lock-up deepens the first today).
 - Pickup, blistering and the heat tint are integrated on the client from
   the marbles and tread temperature the server sends
   (`AApexRaceCarActor::UpdateTyreSurface`); their rates are guesses, and a
