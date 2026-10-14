@@ -7,9 +7,9 @@ namespace
 {
 	using namespace ApexMotion;
 
-	constexpr double TickRate = 240.0;
-	/** The server's default telemetry divisor: a frame every 4 ticks. */
-	constexpr int64 Spacing = 4;
+	/** The server's defaults: 420 Hz ticks, a frame every 7th (60 Hz). */
+	constexpr double TickRate = 420.0;
+	constexpr int64 Spacing = 7;
 	constexpr double MotionFrameSeconds = Spacing / TickRate;
 
 	/** A car driving +X at a steady speed, sampled at frame `n`. */
@@ -329,7 +329,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 bool FApexCarMotionRateTest::RunTest(const FString& Parameters)
 {
 	// A server on 120Hz ticks with a divisor of 2 still broadcasts at 60Hz;
-	// the buffer must learn the rate rather than assume 240.
+	// the buffer must learn the rate rather than assume 420.
 	FRun Run;
 	const double Rate = 120.0;
 	const int64 Div = 2;

@@ -153,17 +153,6 @@ the same `ApexProps` code.
 
 **Check:** the input tests; a pad under the GameInput plugin.
 
-### 14. Car motion buffer tests
-
-- **(bug)** `ApexSim.Motion` fails four of its seven tests headless
-  (`SteadyStreamIsSmooth`, `LumpyArrivalsStaySmooth`,
-  `LostFramesAreDeadReckoned`, `StallHoldsThenResyncs`: the clean stream
-  extrapolates, steps across a gap up to 37x). Seen 2026-10-14; the motion
-  code is unchanged since the 420 Hz commit.
-
-**Check:** `Automation RunTests ApexSim.Motion` headless; a race watched
-for stutter.
-
 ## P3: nice to have
 
 ### 9. Car content
