@@ -697,7 +697,13 @@ in a pale blue at 35% opacity with a faint glow, the slot's own picture kept
 under it (without the baked parent it falls back to tinting the car's own
 instances), muted, hidden while it overlaps the player, toggled by
 `bGhostCar`. REPLAY LAP (`AApexRaceDirector::BeginGhostReplay`) drives the
-ghost round in real time with cutting cameras (`CutReplayShot`).
+ghost round in real time with cutting cameras (`CutReplayShot`). While it
+runs the HUD is about the ghost (`UApexHudDataSubsystem`, from
+`GetGhostReplaySamples`): the watched car's speed, steering, gear, revs,
+pedals and lap clock are the ghost's. A streamed ghost carries its pose
+only, so its speed is read from how far it went, its pedals from the speed
+changing, and its gear and revs from what the live car showed at that
+speed (`GearAtSpeed`); the sector splits stay the live board's.
 
 ## Watching a hotlap
 

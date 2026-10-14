@@ -357,6 +357,14 @@ public:
 	bool BeginGhostReplay();
 	void EndGhostReplay();
 	bool IsGhostReplayActive() const { return bGhostReplay; }
+	/**
+	 * While REPLAY LAP runs: the ghost now and `StepMs` and twice that
+	 * before, for the HUD's view of the lap being replayed (a streamed
+	 * ghost carries only its pose, so its speed is read from these). False
+	 * outside the replay or in its lead-in.
+	 */
+	bool GetGhostReplaySamples(FApexGhostSample& Now, FApexGhostSample& Before, FApexGhostSample& Earlier,
+		float StepMs = 100.0f) const;
 	/** Milliseconds into the replayed lap; negative during the lead-in at the line. */
 	float GetGhostReplayTimeMs() const { return ReplayClockMs; }
 	/** The lap being replayed, ms; 0 when none. */

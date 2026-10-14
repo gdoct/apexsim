@@ -326,6 +326,54 @@ void UApexHudDataSubsystem::Refresh()
 		In.Frame = &Net->GetLatestTelemetry();
 		// Watching, the HUD is about the car on screen.
 		In.LocalCarIndex = bSpectating ? Director->GetFocusCarIndex() : Net->GetLocalCarIndex();
+		FApexGhostSample Now, Before, Earlier;
+		if (Director && Director->IsGhostReplayActive() && Director->GetGhostReplaySamples(Now, Before, Earlier))
+		{
+			// The lap again: the HUD is about the ghost being driven round.
+			GhostReplayFrame = *In.Frame;
+			const int32 Index = In.LocalCarIndex;
+			if (FApexCarTelemetry* Car = GhostReplayFrame.Cars.FindByPredicate(
+					[Index](const FApexCarTelemetry& C) { return C.CarIndex == Index; }))
+			{
+				auto Speed = [](const FApexGhostSample& A, const FApexGhostSample& B)
+				{
+					// A streamed ghost has its pose only: its speed is how far it went.
+					if (B.SpeedMps > 0.0f || B.TimeMs <= A.TimeMs)
+					{
+						return B.SpeedMps;
+					}
+					return static_cast<float>(FVector::Dist(A.Position, B.Position) * 1000.0 / (B.TimeMs - A.TimeMs));
+				};
+				const float SpeedNow = Speed(Before, Now);
+				const float SpeedBefore = Speed(Earlier, Before);
+				const float Seconds = FMath::Max(0.001f, (Now.TimeMs - Before.TimeMs) / 1000.0f);
+				const float Accel = (SpeedNow - SpeedBefore) / Seconds;
+				Car->SpeedMps = SpeedNow;
+				Car->Steering = Now.Steering;
+				Car->Throttle = FMath::Clamp(Accel / 4.0f, 0.0f, 1.0f);
+				Car->Brake = FMath::Clamp(-Accel / 15.0f, 0.0f, 1.0f);
+				Car->CurrentLapTimeMs = Now.TimeMs;
+				if (Now.Gear != 0)
+				{
+					Car->Gear = Now.Gear;
+					Car->EngineRpm = Now.EngineRpm;
+				}
+				else if (const TPair<int32, float>* Seen = GearAtSpeed.Find(FMath::RoundToInt(SpeedNow / 2.0f)))
+				{
+					Car->Gear = Seen->Key;
+					Car->EngineRpm = Seen->Value;
+				}
+				In.Frame = &GhostReplayFrame;
+			}
+		}
+		else if (const FApexCarTelemetry* Live = In.Frame->Cars.FindByPredicate(
+					 [Index = In.LocalCarIndex](const FApexCarTelemetry& C) { return C.CarIndex == Index; }))
+		{
+			if (Live->Gear > 0)
+			{
+				GearAtSpeed.Add(FMath::RoundToInt(Live->SpeedMps / 2.0f), {Live->Gear, Live->EngineRpm});
+			}
+		}
 		LastFrame = In.Frame;
 		LastLocalIndex = In.LocalCarIndex;
 		In.Roster = &Net->GetSessionRoster();
@@ -378,6 +426,7 @@ void UApexHudDataSubsystem::Refresh()
 		if (CarId != CatalogCarId)
 		{
 			CatalogCarId = CarId;
+			GearAtSpeed.Reset();
 			FApexCarCatalogRow CarRow;
 			const bool bRow = Flow->GetCarCatalogRow(CatalogCarId, CarRow);
 			TyreOptimalC = bRow ? CarRow.TyreOptimalC : 90.0f;

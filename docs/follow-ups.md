@@ -74,8 +74,6 @@ The ghost, the hotlap replay and watch.
   not `CutReplayShot`'s geometric placement.
 - Corners carry the circuit's official turn number in the dossier, not the
   detector's.
-- A watch's lap again (R) drives the ghost round with the HUD still on the
-  live car: the HUD has no view of the lap being replayed.
 
 **Check:** a hotlap with ghost and replay; a server restart between two
 watches.

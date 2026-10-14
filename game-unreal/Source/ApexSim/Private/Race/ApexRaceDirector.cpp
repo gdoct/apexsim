@@ -1534,6 +1534,23 @@ int32 AApexRaceDirector::GetGhostLapTimeMs() const
 	return Ghost ? Ghost->GetLapTimeMs() : 0;
 }
 
+bool AApexRaceDirector::GetGhostReplaySamples(FApexGhostSample& Now, FApexGhostSample& Before,
+	FApexGhostSample& Earlier, float StepMs) const
+{
+	if (!bGhostReplay || !Ghost)
+	{
+		return false;
+	}
+	const float Ms = Ghost->GetClockMs();
+	if (Ms < 0.0f)
+	{
+		return false;
+	}
+	return Ghost->GetSampleAtMs(Ms, Now)
+		&& Ghost->GetSampleAtMs(FMath::Max(0.0f, Ms - StepMs), Before)
+		&& Ghost->GetSampleAtMs(FMath::Max(0.0f, Ms - 2.0f * StepMs), Earlier);
+}
+
 bool AApexRaceDirector::BeginGhostReplay()
 {
 	EnsureGhost();

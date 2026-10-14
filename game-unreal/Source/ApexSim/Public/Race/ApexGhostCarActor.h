@@ -56,6 +56,8 @@ public:
 
 	/** The pose the lap has at the clock, in the server frame; false when off the lap. */
 	bool GetCurrentSample(FApexGhostSample& Out) const;
+	/** The pose the lap has `Ms` into it; false without a lap. */
+	bool GetSampleAtMs(float Ms, FApexGhostSample& Out) const { return Lap.IsValid() && Lap.SampleAt(Ms, Out); }
 
 private:
 	void Show(bool bVisible);

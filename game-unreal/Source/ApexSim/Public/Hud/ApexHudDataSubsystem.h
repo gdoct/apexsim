@@ -102,6 +102,14 @@ private:
 	/** The frame the data was last built from, for the minimap's blips. */
 	const FApexTelemetryFrame* LastFrame = nullptr;
 	int32 LastLocalIndex = -1;
+	/**
+	 * While a watched hotlap's lap again runs: the latest frame with the
+	 * watched car standing in for the ghost (its speed, gear, pedals and
+	 * lap clock), so the HUD shows the lap being replayed.
+	 */
+	FApexTelemetryFrame GhostReplayFrame;
+	/** The gear and revs the watched car showed at each 2 m/s of speed: a streamed ghost carries neither. */
+	TMap<int32, TPair<int32, float>> GearAtSpeed;
 	bool bRaceActive = false;
 	double RaceStartSeconds = 0.0;
 
