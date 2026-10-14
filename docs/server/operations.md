@@ -285,7 +285,8 @@ ssh from `deploy/deploy.user.psd1` (gitignored; start from
 
 ## Files the server writes
 
-`[records] dir`: `lap_records.json`, `ghosts/*.msgpack`, `qualifying.json`
+`[records] dir`: `lap_records.json`, `ghosts/*.msgpack`, `qualifying.json`,
+the watched hotlaps' `watch_levels.json` and `watch_ghosts/*.msgpack`,
 and by default the dashboard's `bans.json`, `content.json` (switched-off
 content) and `schedule.json` (a corrupt records file is logged and treated
 as empty). `./replays/`: a replay (`.apxs` plus a `.meta.json`) per finished race,

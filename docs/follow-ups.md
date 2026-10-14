@@ -74,8 +74,6 @@ The ghost, the hotlap replay and watch.
   tints its own instances).
 - The hotlap replay's trackside shots come from the TV director's cameras,
   not `CutReplayShot`'s geometric placement.
-- Hotlap watch: the remembered ladder level is kept across server restarts,
-  is keyed by hour, wind and air as well, and climbs back.
 - The `hotlap_watch` HUD scene is in the HUD editor.
 - Corners carry the circuit's official turn number in the dossier, not the
   detector's.
@@ -84,8 +82,6 @@ The ghost, the hotlap replay and watch.
   transport now).
 - A watch's lap again (R) drives the ghost round with the HUD still on the
   live car: the HUD has no view of the lap being replayed.
-- The watch ghosts (`ServerState::watch_ghosts`) go with a server restart,
-  as the ladder levels do.
 
 **Check:** a hotlap with ghost and replay; a server restart between two
 watches.

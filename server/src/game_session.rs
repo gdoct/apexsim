@@ -189,6 +189,35 @@ struct HotlapWatch {
     /// the scale, which some circuits' rails and stands do not leave room
     /// for; each step after is a driver a little less exact.
     level: u8,
+    /// Legal laps driven in a row at this level: [`HOTLAP_WATCH_CLIMB_LAPS`]
+    /// of them take the driver a step back up.
+    clean_laps: u8,
+}
+
+/// Clean laps in a row after which a watched hotlap's driver climbs a step
+/// back up the ladder: a hiccup (a gust, a kerb taken badly) need not cost
+/// the rest of the watch, and a remembered level is not a life sentence.
+pub const HOTLAP_WATCH_CLIMB_LAPS: u8 = 3;
+
+/// The sky a watched hotlap is driven under, folded into one number
+/// (FNV-1a over the hour, the air and the wind): the ladder is kept per sky,
+/// since a lap that held at noon may not in a crosswind at dusk.
+fn sky_key(conditions: &SessionConditions) -> u64 {
+    let c = conditions.clamp();
+    let wind_from = c.wind_from_deg.unwrap_or(u16::MAX);
+    [
+        (c.time_of_day_minutes & 0xff) as u8,
+        (c.time_of_day_minutes >> 8) as u8,
+        c.air_temp_c.map_or(0x80, |t| t as u8),
+        c.humidity_pct.unwrap_or(0xff),
+        c.wind_kph.unwrap_or(0xff),
+        (wind_from & 0xff) as u8,
+        (wind_from >> 8) as u8,
+    ]
+    .iter()
+    .fold(0xcbf2_9ce4_8422_2325u64, |hash, &byte| {
+        (hash ^ byte as u64).wrapping_mul(0x0100_0000_01b3)
+    })
 }
 
 /// A setup's clicks folded into one number (FNV-1a), so a watched hotlap's
@@ -1936,9 +1965,10 @@ impl GameSession {
     }
 
     /// What a watched hotlap's ladder level is kept under between watches:
-    /// the track, the car that laps, the weather and the setup
-    /// ([`setup_key`]). The ghost is kept under the first two.
-    pub fn hotlap_watch_key(&self) -> Option<(TrackConfigId, CarConfigId, u8, u64)> {
+    /// the track, the car that laps, the weather, the setup ([`setup_key`])
+    /// and the rest of the sky ([`sky_key`]: hour, air, wind). The ghost is
+    /// kept under the first two.
+    pub fn hotlap_watch_key(&self) -> Option<(TrackConfigId, CarConfigId, u8, u64, u64)> {
         let car = self
             .session
             .ai_player_ids
@@ -1950,6 +1980,7 @@ impl GameSession {
             car,
             self.session.conditions.weather as u8,
             self.hotlap_watch.setup_key,
+            sky_key(&self.session.conditions),
         ))
     }
 
@@ -1994,6 +2025,10 @@ impl GameSession {
     /// watch of the same lap left it.
     pub fn set_hotlap_watch_level(&mut self, level: u8) {
         self.hotlap_watch.level = 0;
+        self.hotlap_watch.clean_laps = 0;
+        for profile in self.ai_profiles.values_mut() {
+            *profile = hotlap_watch_driver(profile, 0);
+        }
         for _ in 0..level {
             self.ease_hotlap_watch_driver();
         }
@@ -2147,6 +2182,7 @@ impl GameSession {
         }
         let mut crashed = false;
         let mut struck = false;
+        let mut clean_lap = false;
         for id in ids {
             let Some(state) = self.session.participants.get(&id) else {
                 continue;
@@ -2182,6 +2218,8 @@ impl GameSession {
             }
             if crossed_line {
                 struck |= state.laps.last_invalid;
+                // A timed lap closed (the first crossing ends the run-up).
+                clean_lap |= !state.laps.last_invalid && state.current_lap >= 2;
                 let fuel = self.start_fuel_liters(&id, car_id, GameMode::Hotlap);
                 if let Some(state) = self.session.participants.get_mut(&id) {
                     state.fuel_liters = fuel;
@@ -2202,6 +2240,13 @@ impl GameSession {
         }
         if crashed || struck {
             self.ease_hotlap_watch_driver();
+        } else if clean_lap {
+            self.hotlap_watch.clean_laps = self.hotlap_watch.clean_laps.saturating_add(1);
+            if self.hotlap_watch.clean_laps >= HOTLAP_WATCH_CLIMB_LAPS
+                && self.hotlap_watch.level > 0
+            {
+                self.set_hotlap_watch_level(self.hotlap_watch.level - 1);
+            }
         }
         if crashed {
             self.send_hotlap_watch_out();
@@ -2210,6 +2255,7 @@ impl GameSession {
 
     /// One step down the ladder for the watched driver.
     fn ease_hotlap_watch_driver(&mut self) {
+        self.hotlap_watch.clean_laps = 0;
         let level = self.hotlap_watch.level.saturating_add(1);
         let floor_level =
             2 + (HOTLAP_WATCH_SKILL - HOTLAP_WATCH_FLOOR_SKILL).div_ceil(HOTLAP_WATCH_SKILL_STEP);

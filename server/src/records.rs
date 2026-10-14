@@ -109,6 +109,36 @@ fn qualifying_path(dir: &Path) -> PathBuf {
 
 type RecordKey = (String, TrackConfigId, CarConfigId);
 
+/// How far down its ladder each watched hotlap's driver was last left
+/// (`watch_levels.json`), by [`watch_level_key`].
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct WatchLevelsFile {
+    version: u32,
+    levels: BTreeMap<String, u8>,
+}
+
+/// What a watched hotlap's ladder level is kept under on disk: its track,
+/// car, weather, setup and sky (`GameSession::hotlap_watch_key`).
+pub fn watch_level_key(key: &(TrackConfigId, CarConfigId, u8, u64, u64)) -> String {
+    format!(
+        "{}:{}:{}:{:016x}:{:016x}",
+        key.0.simple(),
+        key.1.simple(),
+        key.2,
+        key.3,
+        key.4
+    )
+}
+
+fn watch_levels_path(dir: &Path) -> PathBuf {
+    dir.join("watch_levels.json")
+}
+
+fn watch_ghost_path(dir: &Path, track: TrackConfigId, car: CarConfigId) -> PathBuf {
+    dir.join("watch_ghosts")
+        .join(format!("{}-{}.msgpack", track.simple(), car.simple()))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct RecordsFile {
     version: u32,
@@ -126,6 +156,10 @@ pub struct RecordStore {
     records: RwLock<BTreeMap<RecordKey, LapRecord>>,
     /// Qualifying results, newest first (`qualifying.json`).
     qualifying: RwLock<Vec<QualifyingResult>>,
+    /// Watched hotlaps' ladder levels (`watch_levels.json`).
+    watch_levels: RwLock<BTreeMap<String, u8>>,
+    /// The fastest watched lap per track and car (`watch_ghosts/`).
+    watch_ghosts: RwLock<BTreeMap<(TrackConfigId, CarConfigId), GhostLap>>,
 }
 
 impl RecordStore {
@@ -136,6 +170,8 @@ impl RecordStore {
             dir: None,
             records: RwLock::new(BTreeMap::new()),
             qualifying: RwLock::new(Vec::new()),
+            watch_levels: RwLock::new(BTreeMap::new()),
+            watch_ghosts: RwLock::new(BTreeMap::new()),
         }
     }
 
@@ -144,7 +180,9 @@ impl RecordStore {
     /// the server from racing.
     pub fn open(dir: impl AsRef<Path>) -> Self {
         let dir = dir.as_ref().to_path_buf();
-        if let Err(e) = std::fs::create_dir_all(dir.join("ghosts")) {
+        if let Err(e) = std::fs::create_dir_all(dir.join("ghosts"))
+            .and_then(|()| std::fs::create_dir_all(dir.join("watch_ghosts")))
+        {
             warn!("Lap records disabled: cannot create {}: {e}", dir.display());
             return Self::in_memory();
         }
@@ -177,10 +215,124 @@ impl RecordStore {
             },
             Err(_) => Vec::new(),
         };
+        let watch_levels = match std::fs::read(watch_levels_path(&dir)) {
+            Ok(bytes) => match serde_json::from_slice::<WatchLevelsFile>(&bytes) {
+                Ok(file) => file.levels,
+                Err(e) => {
+                    warn!("Ignoring unreadable watch levels: {e}");
+                    BTreeMap::new()
+                }
+            },
+            Err(_) => BTreeMap::new(),
+        };
+        let mut watch_ghosts = BTreeMap::new();
+        if let Ok(entries) = std::fs::read_dir(dir.join("watch_ghosts")) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                let Some((track, car)) = name
+                    .strip_suffix(".msgpack")
+                    .and_then(|stem| stem.split_once('-'))
+                    .and_then(|(t, c)| Some((t.parse().ok()?, c.parse().ok()?)))
+                else {
+                    continue;
+                };
+                match std::fs::read(entry.path())
+                    .ok()
+                    .and_then(|bytes| rmp_serde::from_slice::<GhostLap>(&bytes).ok())
+                {
+                    Some(ghost) => {
+                        watch_ghosts.insert((track, car), ghost);
+                    }
+                    None => warn!("Ignoring unreadable watch ghost {name}"),
+                }
+            }
+        }
         Self {
             dir: Some(dir),
             records: RwLock::new(records),
             qualifying: RwLock::new(qualifying),
+            watch_levels: RwLock::new(watch_levels),
+            watch_ghosts: RwLock::new(watch_ghosts),
+        }
+    }
+
+    /// How far down its ladder a watched hotlap of this key was left
+    /// (`GameSession::hotlap_watch_key`, [`watch_level_key`]).
+    pub fn watch_level(&self, key: &str) -> Option<u8> {
+        self.watch_levels.read().ok()?.get(key).copied()
+    }
+
+    /// Keep where a watched hotlap's ladder was left (0, the top, is kept
+    /// as nothing) and write `watch_levels.json`.
+    pub fn keep_watch_level(&self, key: String, level: u8) {
+        {
+            let Ok(mut levels) = self.watch_levels.write() else {
+                return;
+            };
+            let changed = if level == 0 {
+                levels.remove(&key).is_some()
+            } else {
+                levels.insert(key, level) != Some(level)
+            };
+            if !changed {
+                return;
+            }
+        }
+        let Some(dir) = &self.dir else { return };
+        let Ok(levels) = self.watch_levels.read() else {
+            return;
+        };
+        let file = WatchLevelsFile {
+            version: 1,
+            levels: levels.clone(),
+        };
+        drop(levels);
+        let path = watch_levels_path(dir);
+        let tmp = path.with_extension("json.tmp");
+        match serde_json::to_vec_pretty(&file) {
+            Ok(bytes) => {
+                if let Err(e) =
+                    std::fs::write(&tmp, bytes).and_then(|()| std::fs::rename(&tmp, &path))
+                {
+                    warn!("Cannot write watch levels {}: {e}", path.display());
+                }
+            }
+            Err(e) => warn!("Cannot encode watch levels: {e}"),
+        }
+    }
+
+    /// The fastest lap a watched hotlap has driven on this track in this car.
+    pub fn watch_ghost(&self, track: TrackConfigId, car: CarConfigId) -> Option<GhostLap> {
+        self.watch_ghosts.read().ok()?.get(&(track, car)).cloned()
+    }
+
+    /// Keep `ghost` as the watch ghost of this track and car when it is the
+    /// fastest yet, and write it to `watch_ghosts/`.
+    pub fn keep_watch_ghost(&self, track: TrackConfigId, car: CarConfigId, ghost: &GhostLap) {
+        {
+            let Ok(mut ghosts) = self.watch_ghosts.write() else {
+                return;
+            };
+            if ghosts
+                .get(&(track, car))
+                .is_some_and(|kept| kept.lap_time_ms <= ghost.lap_time_ms)
+            {
+                return;
+            }
+            ghosts.insert((track, car), ghost.clone());
+        }
+        let Some(dir) = &self.dir else { return };
+        let path = watch_ghost_path(dir, track, car);
+        let tmp = path.with_extension("msgpack.tmp");
+        match rmp_serde::to_vec_named(ghost) {
+            Ok(bytes) => {
+                if let Err(e) =
+                    std::fs::write(&tmp, bytes).and_then(|()| std::fs::rename(&tmp, &path))
+                {
+                    warn!("Cannot write watch ghost {}: {e}", path.display());
+                }
+            }
+            Err(e) => warn!("Cannot encode watch ghost: {e}"),
         }
     }
 
@@ -499,6 +651,35 @@ mod tests {
                 engine_rpm: 9000.0,
             }],
         }
+    }
+
+    #[test]
+    fn watch_levels_and_ghosts_outlive_the_server() {
+        let dir = std::env::temp_dir().join(format!("apexsim-watch-{}", Uuid::new_v4()));
+        let (track, car) = (Uuid::new_v4(), Uuid::new_v4());
+        let key = watch_level_key(&(track, car, 0, 0, 7));
+        {
+            let store = RecordStore::open(&dir);
+            store.keep_watch_level(key.clone(), 3);
+            store.keep_watch_ghost(track, car, &ghost(90_000));
+            // A slower lap is not the ghost.
+            store.keep_watch_ghost(track, car, &ghost(95_000));
+        }
+        let store = RecordStore::open(&dir);
+        assert_eq!(store.watch_level(&key), Some(3));
+        assert_eq!(
+            store.watch_ghost(track, car).map(|g| g.lap_time_ms),
+            Some(90_000)
+        );
+        // Back at the top, nothing is kept.
+        store.keep_watch_level(key.clone(), 0);
+        assert_eq!(RecordStore::open(&dir).watch_level(&key), None);
+        // Another sky is another ladder.
+        assert_eq!(
+            store.watch_level(&watch_level_key(&(track, car, 0, 0, 8))),
+            None
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

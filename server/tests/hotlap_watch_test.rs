@@ -19,7 +19,9 @@ use uuid::Uuid;
 use apexsim_server::ai_driver::AiDriverProfile;
 use apexsim_server::car_loader::CarLoader;
 use apexsim_server::data::*;
-use apexsim_server::game_session::{GameSession, HOTLAP_WATCH_HOLD_S, HOTLAP_WATCH_SKILL};
+use apexsim_server::game_session::{
+    GameSession, HOTLAP_WATCH_CLIMB_LAPS, HOTLAP_WATCH_HOLD_S, HOTLAP_WATCH_SKILL,
+};
 use apexsim_server::network::{ClientMessage, LobbyStateData, ServerMessage};
 use apexsim_server::track_guide::wire_corners;
 use apexsim_server::track_loader::TrackLoader;
@@ -581,6 +583,44 @@ fn the_fastest_watched_lap_is_the_ghost_and_the_stream_carries_it() {
         .catch_up(&gs)
         .iter()
         .any(|body| apexsim_server::spectator::record_type(body) == Some(RECORD_GHOST)));
+}
+
+/// A driver eased down by an earlier watch climbs back a step after
+/// `HOTLAP_WATCH_CLIMB_LAPS` legal laps in a row.
+#[test]
+fn clean_laps_climb_the_ladder_back() {
+    let (mut gs, driver) = watched_hotlap("posh-gt3rs", SessionConditions::DEFAULT);
+    if gs.track_config.curbs.is_none() {
+        eprintln!("Monza has no curbs sidecar: the laps are struck, nothing to climb on");
+        return;
+    }
+    gs.set_hotlap_watch_level(2);
+    let laps = drive_laps(&mut gs, driver, HOTLAP_WATCH_CLIMB_LAPS as usize, 600);
+    assert!(laps.iter().all(|(_, valid)| *valid), "{laps:?}");
+    assert_eq!(gs.hotlap_watch_level(), 1, "a step back up: {laps:?}");
+}
+
+/// The ladder is kept per sky: another hour, air or wind is another key.
+#[test]
+fn another_sky_is_another_ladder() {
+    let (noon, _) = watched_hotlap("posh-gt3rs", SessionConditions::DEFAULT);
+    let dusk = SessionConditions {
+        time_of_day_minutes: 19 * 60,
+        ..SessionConditions::DEFAULT
+    };
+    let (evening, _) = watched_hotlap("posh-gt3rs", dusk);
+    let windy = SessionConditions {
+        wind_kph: Some(40),
+        ..SessionConditions::DEFAULT
+    };
+    let (gusty, _) = watched_hotlap("posh-gt3rs", windy);
+    let (a, b, c) = (
+        noon.hotlap_watch_key().unwrap(),
+        evening.hotlap_watch_key().unwrap(),
+        gusty.hotlap_watch_key().unwrap(),
+    );
+    assert_eq!((a.0, a.1, a.2, a.3), (b.0, b.1, b.2, b.3));
+    assert!(a.4 != b.4 && a.4 != c.4 && b.4 != c.4);
 }
 
 #[test]

@@ -736,18 +736,22 @@ without it, then `HOTLAP_WATCH_SKILL_STEP` (3) a step to
 `HOTLAP_WATCH_FLOOR_SKILL` (80). A crash (`HOTLAP_WATCH_CRASH_PCT` 1% in a
 body zone, undrivable or towed) or `HOTLAP_WATCH_STUCK_S` (8 s) without
 headway steps it and resets the car to the run-up; a struck lap steps it.
-The level reached is kept in `ServerState::watch_levels`, keyed by track, car,
-weather and setup (`hotlap_watch_key`; a setup's clicks folded by
-`setup_key`, 0 stock), and the next watch of that key starts at it
-(`resume_hotlap_watch`): the bad laps are not driven again. It is only ever
-eased down, and goes with a server restart.
+`HOTLAP_WATCH_CLIMB_LAPS` (3) legal laps in a row climb it a step back up.
+The level a watch is left at is kept by the record store
+(`RecordStore::keep_watch_level`, `<records dir>/watch_levels.json`, so a
+server restart keeps it; in memory when records are off), keyed by track,
+car, weather, setup and sky (`hotlap_watch_key`; a setup's clicks folded by
+`setup_key`, 0 stock; the hour, air and wind by `sky_key`;
+`records::watch_level_key` spells it out), and the next watch of that key
+starts at it (`resume_hotlap_watch`): the bad laps are not driven again.
 
 **The ghost.** The watched car's laps are traced as a human's are
 (`sample_ghost_trace`, `GHOST_SAMPLE_HZ`, up to `MAX_GHOST_SAMPLES`, ten
 minutes). A legal lap faster than the ghost becomes the ghost
 (`update_hotlap_watch`). The fastest one per track and car is kept in
-`ServerState::watch_ghosts` (`keep_hotlap_watch`, before a watch's session
-goes and at cleanup), and the next watch of that track and car starts with
+the record store (`RecordStore::keep_watch_ghost`,
+`<records dir>/watch_ghosts/<track>-<car>.msgpack`; `keep_hotlap_watch`,
+before a watch's session goes and at cleanup), and the next watch of that track and car starts with
 it, whatever the setup or sky. The stream carries it as a `Ghost` record
 each time it is replaced, and in a newcomer's catch-up
 ([spectator](../game/spectator.md)). A watch's laps never reach the record

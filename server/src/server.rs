@@ -31,15 +31,6 @@ pub struct ServerState {
     /// so the game loop can load one off the loop, without the state lock.
     pub track_content: Arc<TrackContent>,
     pub sessions: HashMap<SessionId, GameSession>,
-    /// How far down its ladder (`GameSession::hotlap_watch_level`) a watched
-    /// hotlap's driver had come the last time this track, car and weather
-    /// were watched: the next watch starts there and skips the laps that
-    /// went wrong. Only ever eased down; it lives as long as the server.
-    pub watch_levels: HashMap<(TrackConfigId, CarConfigId, u8, u64), u8>,
-    /// The fastest legal lap a watched hotlap has driven, per track and car,
-    /// since the server started: the next watch of them shows it as the
-    /// ghost (`GameSession::set_hotlap_watch_ghost`).
-    pub watch_ghosts: HashMap<(TrackConfigId, CarConfigId), crate::records::GhostLap>,
     /// The health port, when it serves the replay folder
     /// (`[records] serve_replays`): what `LobbyState.recordings_port` says.
     pub recordings_port: Option<u16>,
@@ -67,8 +58,11 @@ pub struct ServerState {
 
 impl ServerState {
     /// What a watched hotlap's session leaves for the next watch of it, kept
-    /// before the session goes: the ladder level reached (the deepest yet
-    /// for its key) and its ghost (the fastest yet for its track and car).
+    /// before the session goes, in the record store (on disk beside the lap
+    /// records, so a server restart keeps it): the ladder level it was left
+    /// at for its key (`GameSession::hotlap_watch_key`: track, car, weather,
+    /// setup and sky) and its ghost when the fastest yet for its track and
+    /// car.
     pub fn keep_hotlap_watch(&mut self, session_id: &SessionId) {
         let Some(session) = self.sessions.get(session_id) else {
             return;
@@ -79,18 +73,12 @@ impl ServerState {
         let Some(key) = session.hotlap_watch_key() else {
             return;
         };
-        if session.hotlap_watch_level() > 0 {
-            let kept = self.watch_levels.entry(key).or_insert(0);
-            *kept = (*kept).max(session.hotlap_watch_level());
-        }
+        self.records.keep_watch_level(
+            crate::records::watch_level_key(&key),
+            session.hotlap_watch_level(),
+        );
         if let Some((_, ghost)) = session.hotlap_watch_ghost() {
-            let faster = self
-                .watch_ghosts
-                .get(&(key.0, key.1))
-                .is_none_or(|kept| ghost.lap_time_ms < kept.lap_time_ms);
-            if faster {
-                self.watch_ghosts.insert((key.0, key.1), ghost.clone());
-            }
+            self.records.keep_watch_ghost(key.0, key.1, ghost);
         }
     }
 
@@ -129,8 +117,10 @@ impl ServerState {
         else {
             return;
         };
-        let level = self.watch_levels.get(&key).copied();
-        let ghost = self.watch_ghosts.get(&(key.0, key.1)).cloned();
+        let level = self
+            .records
+            .watch_level(&crate::records::watch_level_key(&key));
+        let ghost = self.records.watch_ghost(key.0, key.1);
         if let Some(session) = self.sessions.get_mut(session_id) {
             if let Some(level) = level {
                 session.set_hotlap_watch_level(level);
@@ -201,8 +191,6 @@ impl ServerState {
             track_configs,
             track_content: Arc::new(track_content),
             sessions: HashMap::new(),
-            watch_levels: HashMap::new(),
-            watch_ghosts: HashMap::new(),
             recordings_port: None,
             players: HashMap::new(),
             lobby: LobbyManager::new(),
