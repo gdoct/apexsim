@@ -92,7 +92,16 @@ and widget factories), so layouts are reviewable as diffs.
 
 ### Session browser (`UI/ApexSessionBrowserWidget.cpp`)
 
-Drive > Browse sessions: the live sessions from the latest `LobbyState`.
+Drive > Browse sessions: the live sessions from the latest `LobbyState`,
+filtered by the pills under the car bar (F or pad X steps them; Shift+F
+back): All, Joinable (not full, not over), Racing (a race under way) and
+Recorded (`ApexBrowser::Passes`). Recorded lists the server's recordings of
+finished sessions from its health port (`LobbyState.recordings_port`,
+`GET /recordings`, [operations](../server/operations.md); R fetches again):
+the circuit's catalog name (never the file's `name`), when, kind, cars, laps,
+length and winner, badged Recorded, In replays (already fetched) or Old (from
+before streams, not watchable). Enter on one fetches the `.apxs` into
+`Saved/Replays/` (`/recordings/<file>`) and watches it like any replay.
 The header has Back and Refresh (R, pad Y; the server also broadcasts every
 two seconds) with the session and live counts; under it the car the player
 would join in, Change car (car select, returning here) and Create session.
@@ -117,9 +126,13 @@ the remembered session) and **Change setup** (the create screen). The right
 "rail" is a tree of pages:
 
 - **Garage**: Garage (Manage car setups opens the hotlap garage's setup sheet
-  over the menu, `UApexRootWidget::OpenSetupEditor`; View car stats opens car
-  select), Replays (the replays screen), Tracks (Watch hotlap,
-  `StartHotlapWatch`; See track guide opens the track picker). The Garage and
+  over the menu, `UApexRootWidget::OpenSetupEditor`; View car stats turns
+  the list's detail panel into the highlighted car's stat sheet and back:
+  horsepower, power to weight, engine, redline, tyre window, liveries,
+  compounds, saved setups and the quickest lap on one), Replays (the replays
+  screen), Tracks (Watch hotlap, `StartHotlapWatch`; See track guide opens
+  the picked circuit's guide straight away, the track picker only when it
+  has none). The Garage and
   Tracks pages turn the hero into a list of cars or tracks with a detail panel.
 - **Drive**: Create session (Quick = the remembered session; Race weekend
   opens the create screen on its Race weekend mode; Custom = the create screen), Browse sessions (live

@@ -2,6 +2,18 @@
 
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexReplayRecorder.h"
+#include "ApexSim.h"
+#include "Dom/JsonObject.h"
+#include "HAL/FileManager.h"
+#include "HttpModule.h"
+#include "Interfaces/IHttpRequest.h"
+#include "Interfaces/IHttpResponse.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "UI/ApexSegmentedWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Catalog/ApexCatalogRows.h"
 #include "Components/Border.h"
@@ -63,6 +75,57 @@ namespace
 		case EApexSessionState::Racing:    OutColour = Palette::Accent; return TEXT("Racing");
 		default:                           OutColour = Palette::Live;   return TEXT("Lobby");
 		}
+	}
+}
+
+namespace ApexBrowser
+{
+	bool Passes(const FApexSessionSummary& Session, EFilter Filter)
+	{
+		switch (Filter)
+		{
+		case EFilter::Joinable:
+			return Session.State != EApexSessionState::Finished && Session.PlayerCount < Session.MaxPlayers;
+		case EFilter::Racing:
+			return Session.IsWatchable();
+		case EFilter::Recorded:
+			return false;
+		default:
+			return true;
+		}
+	}
+
+	bool ParseRecordings(const FString& Json, TArray<FRecording>& Out)
+	{
+		Out.Reset();
+		TSharedPtr<FJsonObject> Root;
+		const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
+		const TArray<TSharedPtr<FJsonValue>>* Sessions = nullptr;
+		if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid() || !Root->TryGetArrayField(TEXT("sessions"), Sessions))
+		{
+			return false;
+		}
+		for (const TSharedPtr<FJsonValue>& Value : *Sessions)
+		{
+			const TSharedPtr<FJsonObject> Row = Value.IsValid() ? Value->AsObject() : nullptr;
+			if (!Row.IsValid())
+			{
+				continue;
+			}
+			FRecording& R = Out.AddDefaulted_GetRef();
+			Row->TryGetStringField(TEXT("id"), R.Id);
+			Row->TryGetStringField(TEXT("file"), R.File);
+			Row->TryGetStringField(TEXT("track"), R.Track);
+			Row->TryGetStringField(TEXT("track_id"), R.TrackId);
+			Row->TryGetStringField(TEXT("kind"), R.Kind);
+			Row->TryGetStringField(TEXT("winner"), R.Winner);
+			Row->TryGetNumberField(TEXT("recorded_at"), R.RecordedAt);
+			Row->TryGetNumberField(TEXT("duration_s"), R.DurationS);
+			Row->TryGetNumberField(TEXT("cars"), R.Cars);
+			Row->TryGetNumberField(TEXT("humans"), R.Humans);
+			Row->TryGetNumberField(TEXT("laps"), R.Laps);
+		}
+		return true;
 	}
 }
 
@@ -149,8 +212,17 @@ void UApexSessionBrowserWidget::BuildLayout()
 
 	UVerticalBox* Body = WidgetTree->ConstructWidget<UVerticalBox>();
 	AddV(Body, Bar);
+
+	// What the list shows: every live session, the joinable ones, the races
+	// under way, or the finished races the server recorded.
+	FilterPills = WidgetTree->ConstructWidget<UApexSegmentedWidget>();
+	FilterPills->ControlId = TEXT("Browser.Filter");
+	FilterPills->Setup({ TEXT("ALL"), TEXT("JOINABLE"), TEXT("RACING"), TEXT("RECORDED") }, 0, 132.0f);
+	FilterPills->OnChosen.AddDynamic(this, &UApexSessionBrowserWidget::HandleFilterChosen);
+	AddV(Body, FilterPills, FMargin(0.0f, 22.0f, 0.0f, 0.0f), HAlign_Left);
+
 	StatusLine = MakeText(*WidgetTree, FString(), Font::Mono(12.0f, 60), Palette::TextSecondary);
-	AddV(Body, StatusLine, FMargin(0.0f, 22.0f, 0.0f, 12.0f));
+	AddV(Body, StatusLine, FMargin(0.0f, 18.0f, 0.0f, 12.0f));
 
 	EmptyText = MakeText(*WidgetTree,
 		TEXT("No sessions on this server yet. Create one, and drivers who connect will find it here."),
@@ -164,7 +236,7 @@ void UApexSessionBrowserWidget::BuildLayout()
 	AddV(Page, MakePanel(*WidgetTree, Body, FMargin(Metrics::PageGutter, 28.0f, Metrics::PageGutter, 12.0f),
 		MakeBrush(FLinearColor::Transparent)), FMargin(), HAlign_Fill, 1.0f);
 	AddV(Page, MakeKeyHintBar(*WidgetTree,
-		{ { TEXT("Enter"), TEXT("Join") }, { TEXT("→"), TEXT("Watch") }, { TEXT("R"), TEXT("Refresh") } },
+		{ { TEXT("Enter"), TEXT("Join") }, { TEXT("→"), TEXT("Watch") }, { TEXT("F"), TEXT("Filter") }, { TEXT("R"), TEXT("Refresh") } },
 		{ { TEXT("Esc"), TEXT("Back") } }));
 
 	WidgetTree->RootWidget = MakePanel(*WidgetTree, Page, FMargin(), MakeBrush(Palette::Background));
@@ -257,6 +329,225 @@ void UApexSessionBrowserWidget::ApplyRow(int32 Index, const FApexSessionSummary&
 	WatchButtons[Index]->Setup(WatchSpec);
 }
 
+void UApexSessionBrowserWidget::SetFilter(ApexBrowser::EFilter InFilter)
+{
+	Filter = InFilter;
+	if (FilterPills)
+	{
+		FilterPills->SetSelectedIndex(static_cast<int32>(Filter));
+	}
+	// A different set of rows, from the top.
+	Shown.Reset();
+	LastFocused = 0;
+	if (Filter == ApexBrowser::EFilter::Recorded)
+	{
+		RebuildRecordingRows();
+		FetchRecordings();
+	}
+	else
+	{
+		List->ClearChildren();
+		Rows.Reset();
+		WatchButtons.Reset();
+		RefreshList();
+	}
+}
+
+void UApexSessionBrowserWidget::HandleFilterChosen(UApexSegmentedWidget* Control, int32 Index)
+{
+	SetFilter(static_cast<ApexBrowser::EFilter>(FMath::Clamp(Index, 0, static_cast<int32>(ApexBrowser::EFilter::Count) - 1)));
+}
+
+void UApexSessionBrowserWidget::FetchRecordings()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	const int32 Port = Net ? Net->GetCachedLobbyState().RecordingsPort : 0;
+	if (!Net || Net->GetConnectionState() != EApexConnectionState::Authenticated)
+	{
+		RecordingsNote = TEXT("NOT CONNECTED: CONNECT TO A SERVER FROM THE MAIN MENU");
+		RebuildRecordingRows();
+		return;
+	}
+	if (Port <= 0)
+	{
+		RecordingsNote = TEXT("THIS SERVER DOES NOT SHARE ITS RECORDINGS");
+		RebuildRecordingRows();
+		return;
+	}
+	if (bFetchingRecordings)
+	{
+		return;
+	}
+	bFetchingRecordings = true;
+	RecordingsNote = TEXT("ASKING THE SERVER FOR ITS RECORDINGS");
+	RebuildRecordingRows();
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+	Request->SetURL(FString::Printf(TEXT("http://%s:%d/recordings"), *Net->GetServerHost(), Port));
+	Request->SetVerb(TEXT("GET"));
+	Request->SetTimeout(10.0f);
+	TWeakObjectPtr<UApexSessionBrowserWidget> Weak(this);
+	Request->OnProcessRequestComplete().BindLambda([Weak](FHttpRequestPtr, FHttpResponsePtr Response, bool bOk)
+	{
+		UApexSessionBrowserWidget* Self = Weak.Get();
+		if (!Self)
+		{
+			return;
+		}
+		Self->bFetchingRecordings = false;
+		TArray<ApexBrowser::FRecording> Parsed;
+		if (bOk && Response.IsValid() && Response->GetResponseCode() == 200
+			&& ApexBrowser::ParseRecordings(Response->GetContentAsString(), Parsed))
+		{
+			Self->Recordings = MoveTemp(Parsed);
+			Self->RecordingsNote = Self->Recordings.IsEmpty() ? TEXT("NO RECORDED SESSIONS ON THIS SERVER YET")
+				: TEXT("ENTER WATCHES A RECORDING: IT IS FETCHED INTO YOUR REPLAYS FIRST");
+		}
+		else
+		{
+			Self->RecordingsNote = TEXT("THE SERVER'S RECORDINGS COULD NOT BE FETCHED (ITS HEALTH PORT MAY BE LOCAL ONLY)");
+		}
+		if (Self->Filter == ApexBrowser::EFilter::Recorded)
+		{
+			Self->RebuildRecordingRows();
+		}
+	});
+	Request->ProcessRequest();
+}
+
+void UApexSessionBrowserWidget::RebuildRecordingRows()
+{
+	using namespace ApexUI;
+	if (!List)
+	{
+		return;
+	}
+	const bool bHadFocus = HasFocusedDescendants();
+	List->ClearChildren();
+	Rows.Reset();
+	WatchButtons.Reset();
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	for (int32 Index = 0; Index < Recordings.Num(); ++Index)
+	{
+		const ApexBrowser::FRecording& R = Recordings[Index];
+		// The catalog's display name; the file's `name` is the real circuit's
+		// and never goes on screen (docs/content/naming.md).
+		FString TrackName = TEXT("A circuit not installed here");
+		FApexTrackCatalogRow TrackRow;
+		if (Flow && !R.TrackId.IsEmpty() && Flow->GetTrackCatalogRow(R.TrackId, TrackRow) && !TrackRow.DisplayName.IsEmpty())
+		{
+			TrackName = TrackRow.DisplayName;
+		}
+		TArray<FString> Parts;
+		Parts.Add(FDateTime::FromUnixTimestamp(R.RecordedAt).ToString(TEXT("%Y-%m-%d %H:%M")));
+		Parts.Add(R.Kind.IsEmpty() ? FString(TEXT("Session")) : R.Kind);
+		Parts.Add(FString::Printf(TEXT("%d car%s"), R.Cars, R.Cars == 1 ? TEXT("") : TEXT("s")));
+		if (R.Laps > 0)
+		{
+			Parts.Add(FString::Printf(TEXT("%d laps"), R.Laps));
+		}
+		Parts.Add(UApexMenuFlowSubsystem::FormatLapTime(static_cast<float>(R.DurationS)));
+		if (!R.Winner.IsEmpty())
+		{
+			Parts.Add(FString::Printf(TEXT("won by %s"), *R.Winner));
+		}
+		const bool bHere = !R.File.IsEmpty() && IFileManager::Get().FileExists(*(UApexReplayRecorder::ReplayDirectory() / R.File));
+
+		UApexButtonWidget* Row = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		Row->OnActivated.AddDynamic(this, &UApexSessionBrowserWidget::HandleButtonActivated);
+		FApexButtonSpec Spec;
+		Spec.Label = TrackName;
+		Spec.SubLabel = FString::Join(Parts, TEXT("  ·  "));
+		Spec.Badge = R.File.IsEmpty() ? TEXT("Old") : bHere ? TEXT("In replays") : TEXT("Recorded");
+		Spec.BadgeColour = R.File.IsEmpty() ? Palette::TextMuted : bHere ? Palette::Live : Palette::Accent;
+		Spec.Variant = R.File.IsEmpty() ? EApexButtonVariant::Locked : EApexButtonVariant::Panel;
+		Spec.LabelSize = 20.0f;
+		Spec.Height = RowHeight;
+		Spec.ActionId = ActionBrowserRow;
+		Row->Setup(Spec);
+		Rows.Add(Row);
+		List->AddChild(Row);
+		if (UScrollBoxSlot* LineSlot = Cast<UScrollBoxSlot>(Row->Slot))
+		{
+			LineSlot->SetPadding(FMargin(0.0f, Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f));
+		}
+	}
+	LastFocused = Rows.Num() > 0 ? FMath::Clamp(LastFocused, 0, Rows.Num() - 1) : 0;
+	if (CountText)
+	{
+		CountText->SetText(FText::FromString(FString::Printf(TEXT("%d RECORDING%s"), Recordings.Num(), Recordings.Num() == 1 ? TEXT("") : TEXT("S"))));
+	}
+	if (StatusLine)
+	{
+		StatusLine->SetText(FText::FromString(bDownloading ? FString(TEXT("FETCHING THE RECORDING")) : RecordingsNote));
+		StatusLine->SetVisibility(RecordingsNote.IsEmpty() && !bDownloading ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (EmptyText)
+	{
+		EmptyText->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	// Onto the first row once there are rows, as a filter switched by key
+	// leaves the screen itself focused.
+	if (IsActiveScreen() && (bHadFocus || HasAnyUserFocus()))
+	{
+		FocusDefault();
+	}
+}
+
+void UApexSessionBrowserWidget::WatchRecording(int32 Index)
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Recordings.IsValidIndex(Index) || bDownloading || !Net)
+	{
+		return;
+	}
+	const ApexBrowser::FRecording& R = Recordings[Index];
+	if (R.File.IsEmpty())
+	{
+		ShowToast(TEXT("A recording from before streams: it cannot be watched here"), true);
+		return;
+	}
+	const FString Path = UApexReplayRecorder::ReplayDirectory() / R.File;
+	if (IFileManager::Get().FileExists(*Path))
+	{
+		if (UApexRootWidget* Root = GetRoot())
+		{
+			Root->WatchReplay(Path);
+		}
+		return;
+	}
+	bDownloading = true;
+	RebuildRecordingRows();
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+	Request->SetURL(FString::Printf(TEXT("http://%s:%d/recordings/%s"), *Net->GetServerHost(),
+		Net->GetCachedLobbyState().RecordingsPort, *R.File));
+	Request->SetVerb(TEXT("GET"));
+	Request->SetTimeout(120.0f);
+	TWeakObjectPtr<UApexSessionBrowserWidget> Weak(this);
+	Request->OnProcessRequestComplete().BindLambda([Weak, Path](FHttpRequestPtr, FHttpResponsePtr Response, bool bOk)
+	{
+		UApexSessionBrowserWidget* Self = Weak.Get();
+		if (!Self)
+		{
+			return;
+		}
+		Self->bDownloading = false;
+		const bool bGot = bOk && Response.IsValid() && Response->GetResponseCode() == 200 && Response->GetContent().Num() > 8
+			&& FFileHelper::SaveArrayToFile(Response->GetContent(), *Path);
+		Self->RebuildRecordingRows();
+		if (!bGot)
+		{
+			Self->ShowToast(TEXT("The recording could not be fetched"), true);
+			return;
+		}
+		UE_LOG(LogApexSim, Log, TEXT("Session browser: fetched %s (%d bytes)"), *Path, Response->GetContent().Num());
+		if (UApexRootWidget* Root = Self->GetRoot())
+		{
+			Root->WatchReplay(Path);
+		}
+	});
+	Request->ProcessRequest();
+}
+
 void UApexSessionBrowserWidget::RefreshList()
 {
 	using namespace ApexUI;
@@ -266,8 +557,20 @@ void UApexSessionBrowserWidget::RefreshList()
 	{
 		return;
 	}
+	if (Filter == ApexBrowser::EFilter::Recorded)
+	{
+		// The recordings are fetched on asking, not with every lobby broadcast.
+		return;
+	}
 
-	const TArray<FApexSessionSummary>& Sessions = Net->GetCachedLobbyState().AvailableSessions;
+	TArray<FApexSessionSummary> Sessions;
+	for (const FApexSessionSummary& Session : Net->GetCachedLobbyState().AvailableSessions)
+	{
+		if (ApexBrowser::Passes(Session, Filter))
+		{
+			Sessions.Add(Session);
+		}
+	}
 	bool bSameSet = Sessions.Num() == Shown.Num();
 	for (int32 Index = 0; bSameSet && Index < Sessions.Num(); ++Index)
 	{
@@ -352,6 +655,9 @@ void UApexSessionBrowserWidget::RefreshList()
 	}
 	if (EmptyText)
 	{
+		EmptyText->SetText(FText::FromString(Filter == ApexBrowser::EFilter::All
+			? TEXT("No sessions on this server yet. Create one, and drivers who connect will find it here.")
+			: TEXT("No session here matches the filter.")));
 		EmptyText->SetVisibility(Sessions.Num() == 0 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 }
@@ -378,7 +684,11 @@ bool UApexSessionBrowserWidget::HandleNavigation(EUINavigation Direction, UWidge
 		// dim one is not focusable, and the move then stays on the row.
 		if (Direction == EUINavigation::Right)
 		{
-			ApexNav::Focus(WatchButtons[RowAt]);
+			// (A recording's row has none.)
+			if (WatchButtons.IsValidIndex(RowAt))
+			{
+				ApexNav::Focus(WatchButtons[RowAt]);
+			}
 			return true;
 		}
 	}
@@ -409,11 +719,22 @@ FReply UApexSessionBrowserWidget::NativeOnKeyDown(const FGeometry& InGeometry, c
 		Refresh();
 		return FReply::Handled();
 	}
+	if (!InKeyEvent.IsRepeat() && (Key == EKeys::F || Key == EKeys::Gamepad_FaceButton_Left))
+	{
+		const int32 Count = static_cast<int32>(ApexBrowser::EFilter::Count);
+		SetFilter(static_cast<ApexBrowser::EFilter>((static_cast<int32>(Filter) + (InKeyEvent.IsShiftDown() ? Count - 1 : 1)) % Count));
+		return FReply::Handled();
+	}
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
 void UApexSessionBrowserWidget::Refresh()
 {
+	if (Filter == ApexBrowser::EFilter::Recorded)
+	{
+		FetchRecordings();
+		return;
+	}
 	// RequestLobbyState debounces: the server allows ten control messages a
 	// second, and broadcasts a fresh snapshot every two seconds anyway.
 	if (UApexNetSubsystem* Net = GetNet())
@@ -498,7 +819,14 @@ void UApexSessionBrowserWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (const int32 RowAt = ApexNav::IndexOf(Rows, Button); RowAt != INDEX_NONE)
 	{
 		LastFocused = RowAt;
-		Join(RowAt);
+		if (Filter == ApexBrowser::EFilter::Recorded)
+		{
+			WatchRecording(RowAt);
+		}
+		else
+		{
+			Join(RowAt);
+		}
 	}
 	else if (const int32 WatchAt = ApexNav::IndexOf(WatchButtons, Button); WatchAt != INDEX_NONE)
 	{

@@ -13,6 +13,7 @@
 #include "ApexSpectatorSubsystem.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
+#include "Hud/ApexHudLayout.h"
 #include "Hud/ApexHudDataSubsystem.h"
 #include "UObject/UObjectIterator.h"
 #include "Components/Border.h"
@@ -336,6 +337,7 @@ void UApexRootWidget::BuildShell()
 	SettingsOverlay = WidgetTree->ConstructWidget<UApexSettingsWidget>();
 	SettingsOverlay->OnClosed.AddDynamic(this, &UApexRootWidget::HandleSettingsClosed);
 	SettingsOverlay->OnEditHudLayout.AddDynamic(this, &UApexRootWidget::OpenHudEditor);
+	SettingsOverlay->OnHudLayoutChosen.AddDynamic(this, &UApexRootWidget::HandleHudLayoutChosen);
 	HudEditor = WidgetTree->ConstructWidget<UApexHudEditorWidget>();
 	HudEditor->OnClosed.AddDynamic(this, &UApexRootWidget::HandleHudEditorClosed);
 
@@ -1031,6 +1033,18 @@ bool UApexRootWidget::IsRaceOverlayOpen() const
 bool UApexRootWidget::IsHudEditorOpen() const
 {
 	return HudEditor && HudEditor->IsOpen();
+}
+
+void UApexRootWidget::HandleHudLayoutChosen()
+{
+	// The bindings as the settings saved them; the HUD puts on what they give here.
+	ApexHudLayouts::FBindings Bindings;
+	FString Error;
+	Bindings.Load(Error);
+	if (Hud)
+	{
+		Hud->SetBindings(Bindings);
+	}
 }
 
 void UApexRootWidget::OpenHudEditor()

@@ -6,6 +6,7 @@
 #include "ApexSim.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
+#include "Guide/ApexTrackGuideSubsystem.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
@@ -808,6 +809,58 @@ void UApexMainMenuWidget::RefreshListDetail(int32 Index)
 			{ TEXT("Power"), bRow && Car.MaxPowerKw > 0.0f ? FString::Printf(TEXT("%d kW"), FMath::RoundToInt(Car.MaxPowerKw)) : FString(TEXT("—")) },
 			{ TEXT("Mass"),  bRow && Car.MassKg > 0.0f ? FString::Printf(TEXT("%d kg"), FMath::RoundToInt(Car.MassKg)) : FString(TEXT("—")) },
 		});
+		if (bCarStats && bRow)
+		{
+			// The stat sheet: what the car.toml says of its engine, its tyres
+			// and its weight, and what the player has done with it.
+			const float Hp = Car.MaxPowerKw * 1.341f;
+			const FApexEngineSoundSpec& Engine = Car.EngineSound;
+			FString Layout = TEXT("—");
+			if (Engine.Cylinders > 0)
+			{
+				Layout = FString::Printf(TEXT("%d cyl%s%s"), Engine.Cylinders, Engine.bCrossplane ? TEXT(", cross-plane") : TEXT(""),
+					Engine.bTurbo ? TEXT(", turbo") : TEXT(""));
+			}
+			AddStats({
+				{ TEXT("Horsepower"), Hp > 0.0f ? FString::Printf(TEXT("%d hp"), FMath::RoundToInt(Hp)) : FString(TEXT("—")) },
+				{ TEXT("Power / weight"), Car.MaxPowerKw > 0.0f && Car.MassKg > 0.0f
+					? FString::Printf(TEXT("%d hp/t"), FMath::RoundToInt(Hp / Car.MassKg * 1000.0f)) : FString(TEXT("—")) },
+				{ TEXT("Engine"), Layout },
+			});
+			FString Compounds;
+			for (const FApexCompoundSpec& Compound : Car.Compounds)
+			{
+				Compounds += (Compounds.IsEmpty() ? TEXT("") : TEXT(", ")) + Compound.Name;
+			}
+			AddStats({
+				{ TEXT("Redline"), Engine.RedlineRpm > 0.0f ? FString::Printf(TEXT("%d rpm"), FMath::RoundToInt(Engine.RedlineRpm)) : FString(TEXT("—")) },
+				{ TEXT("Tyre window"), FString::Printf(TEXT("%d °C ± %d"), FMath::RoundToInt(Car.TyreOptimalC), FMath::RoundToInt(Car.TyreWindowC)) },
+				{ TEXT("Liveries"), FString::FromInt(1 + Car.Liveries.Num()) },
+			});
+			if (!Compounds.IsEmpty())
+			{
+				AddV(ListDetail, MakeText(*WidgetTree, FString::Printf(TEXT("COMPOUNDS  %s"), *Compounds.ToUpper()), Font::Mono(11.0f, 120), Palette::TextMuted),
+					FMargin(0.0f, 14.0f, 0.0f, 0.0f));
+			}
+			const UApexSettingsSubsystem* Settings = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+			const TArray<FApexSavedSetup> Setups = Settings ? Settings->GetSavedSetups(DetailShownId) : TArray<FApexSavedSetup>();
+			int32 BestSetupMs = 0;
+			FString BestSetup;
+			for (const FApexSavedSetup& Saved : Setups)
+			{
+				if (Saved.BestLapMs > 0 && (BestSetupMs == 0 || Saved.BestLapMs < BestSetupMs))
+				{
+					BestSetupMs = Saved.BestLapMs;
+					BestSetup = Saved.Name;
+				}
+			}
+			AddStats({
+				{ TEXT("Saved setups"), FString::FromInt(Setups.Num()) },
+				{ TEXT("Quickest on"), BestSetupMs > 0
+					? FString::Printf(TEXT("%s, %s"), *BestSetup, *UApexMenuFlowSubsystem::FormatLapTime(BestSetupMs / 1000.0f))
+					: FString(TEXT("No lap yet")) },
+			});
+		}
 		return;
 	}
 
@@ -1418,11 +1471,11 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	}
 	else if (Id == Action::Garage)
 	{
-		if (Root)
-		{
-			Root->ScreenAfterCarSelect = EApexScreen::MainMenu;
-		}
-		ShowScreen(EApexScreen::CarSelect);
+		// The highlighted car's full stat sheet in the list's detail panel
+		// (again: back to its card); car select is where cars are picked.
+		bCarStats = !bCarStats;
+		DetailShownId.Reset();
+		RefreshListDetail(ListIndex);
 	}
 	else if (Id == Action::Setups)
 	{
@@ -1433,6 +1486,17 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	}
 	else if (Id == Action::Tracks)
 	{
+		// Straight into the picked circuit's guide when it has one (the
+		// menu stays underneath, so closing it comes back here); the track
+		// picker, with its GUIDE chips, when it has none.
+		const UApexMenuFlowSubsystem* Flow = GetFlow();
+		const UApexTrackGuideSubsystem* Guide = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackGuideSubsystem>() : nullptr;
+		FApexTrackCatalogRow Row;
+		if (Root && Flow && Guide && Flow->HasPendingTrack() && Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row)
+			&& Guide->HasGuide(Row.YamlBaseName) && Root->OpenTrackGuide(Row.YamlBaseName))
+		{
+			return;
+		}
 		if (Root)
 		{
 			Root->ScreenAfterTrackSelect = EApexScreen::MainMenu;

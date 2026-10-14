@@ -413,6 +413,12 @@ namespace
 			{
 				bOk = Reader.ReadBool(Out.bLiveStream);
 			}
+			else if (Key == TEXT("RecordingsPort"))
+			{
+				uint64 Port = 0;
+				bOk = Reader.ReadUInt64(Port);
+				Out.RecordingsPort = static_cast<int32>(FMath::Min<uint64>(Port, 65535));
+			}
 			else
 			{
 				bOk = Reader.SkipValue();

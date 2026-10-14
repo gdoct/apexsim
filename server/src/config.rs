@@ -191,6 +191,10 @@ pub struct RecordsSettings {
     /// Folder the server writes its replays to: an `.apxs` per finished
     /// session and a `.meta.json` beside it (`crate::stream_recorder`).
     pub replay_dir: String,
+    /// The health port lists them (`/recordings`) and hands each out
+    /// (`/recordings/<file>`), and `LobbyState.recordings_port` tells the
+    /// clients: the session browser's Recorded list.
+    pub serve_replays: bool,
 }
 
 impl Default for RecordsSettings {
@@ -199,6 +203,7 @@ impl Default for RecordsSettings {
             enabled: true,
             dir: "./records".to_string(),
             replay_dir: "./replays".to_string(),
+            serve_replays: true,
         }
     }
 }

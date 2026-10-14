@@ -594,6 +594,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	const FString& GetPlayerName() const { return PlayerName; }
+	/** The server's address as connected to (its health port serves the recordings). */
+	const FString& GetServerHost() const { return Host; }
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	const FString& GetCurrentSessionId() const { return CurrentSessionId; }

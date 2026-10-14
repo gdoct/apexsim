@@ -54,22 +54,9 @@ One circuit, a long list; its own package so it does not hold up the rest.
 **Check:** a lap by hand and a TV-camera lap in the running game; the
 track-editor tests.
 
-### 2. Menus
-
-Shell screens. All of it goes through one pad walk
-(`ApexSim.UI.PadWalk`) at the end.
-
-- Session browser: recorded sessions and filters.
-- Replay export.
-- A car stats view (the row opens car select today).
-- A direct jump into a track guide (it opens the track picker today).
-- A HUD layout picker outside the HUD editor.
-
-**Check:** the pad walk, then the same screens with a real pad.
-
 ## P3: nice to have
 
-### 3. Car content
+### 2. Car content
 
 - The GT3 and LMP2 class wheels get sidewall lettering.
 - The HUD colours brakes by material as well as temperature (the client
@@ -77,7 +64,7 @@ Shell screens. All of it goes through one pad walk
 
 **Check:** the HUD on a carbon and a steel car; the wheels in car select.
 
-### 4. Server dashboard
+### 3. Server dashboard
 
 For people running a server for others
 ([server/operations.md](server/operations.md)).
@@ -87,7 +74,7 @@ For people running a server for others
 
 **Check:** a saved tick rate in force without touching the machine.
 
-### 5. Content tooling
+### 4. Content tooling
 
 - `ats-dress --explain` and a per-prop source stamp.
 - `ats-export --strict`, which fails on a dropped facet.

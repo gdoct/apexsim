@@ -163,6 +163,8 @@ private:
 	TArray<FString> ListIds;
 	int32 ListIndex = 0;
 	bool bListShowsCars = false;
+	/** The car list's detail is the full stat sheet (View car stats), not the card. */
+	bool bCarStats = false;
 
 	EPage CurrentPage = EPage::Root;
 	bool bQuitOpen = false;

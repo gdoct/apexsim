@@ -90,10 +90,10 @@ void UApexReplaysWidget::BuildLayout()
 
 	// The keys for the keyboard and the buttons for the pad, one bar each.
 	KeyboardHints = MakeKeyHintBar(*WidgetTree,
-		{ { TEXT("Enter"), TEXT("Watch") }, { TEXT("K"), TEXT("Keep") }, { TEXT("Del"), TEXT("Delete") } },
+		{ { TEXT("Enter"), TEXT("Watch") }, { TEXT("K"), TEXT("Keep") }, { TEXT("E"), TEXT("Export") }, { TEXT("Del"), TEXT("Delete") } },
 		{ { TEXT("Esc"), TEXT("Back") } });
 	PadHints = MakeKeyHintBar(*WidgetTree,
-		{ { TEXT("A"), TEXT("Watch") }, { TEXT("X"), TEXT("Keep") }, { TEXT("Y"), TEXT("Delete") } },
+		{ { TEXT("A"), TEXT("Watch") }, { TEXT("X"), TEXT("Keep") }, { TEXT("View"), TEXT("Export") }, { TEXT("Y"), TEXT("Delete") } },
 		{ { TEXT("B"), TEXT("Back") } });
 	PadHints->SetVisibility(ESlateVisibility::Collapsed);
 	AddV(Card, KeyboardHints, FMargin(0.0f, 18.0f, 0.0f, 0.0f));
@@ -296,6 +296,21 @@ FReply UApexReplaysWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FK
 	if (Row != INDEX_NONE && (Key == EKeys::K || Key == EKeys::Gamepad_FaceButton_Left))
 	{
 		KeepRow(Row);
+		return FReply::Handled();
+	}
+	if (Row != INDEX_NONE && !InKeyEvent.IsRepeat() && (Key == EKeys::E || Key == EKeys::Gamepad_Special_Left))
+	{
+		// Out of the game's folders, to share or keep.
+		FString Path;
+		if (Replays.IsValidIndex(Row) && UApexReplayRecorder::ExportReplay(Replays[Row], Path))
+		{
+			ApexUiAudio::Play(this, EApexUiSound::Accept);
+			ShowToast(FString::Printf(TEXT("Exported to %s"), *Path));
+		}
+		else
+		{
+			ShowToast(TEXT("Could not export this replay"), true);
+		}
 		return FReply::Handled();
 	}
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);

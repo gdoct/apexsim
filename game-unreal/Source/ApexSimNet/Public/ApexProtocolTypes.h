@@ -1163,6 +1163,14 @@ struct APEXSIMNET_API FApexLobbyState
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	bool bLiveStream = false;
+
+	/**
+	 * The port of the server's health endpoint when it hands out its
+	 * recordings of finished sessions (`/recordings`, on the address
+	 * connected to); 0 when it does not.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	int32 RecordingsPort = 0;
 };
 
 /** What a spectator stream is of (`SpectatorKind`, network.rs). */

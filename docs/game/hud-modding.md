@@ -559,6 +559,11 @@ finished).
 
 ## The HUD editor and layouts
 
+Settings > Gameplay > Layout picks the saved layout the HUD wears everywhere
+without opening the editor (`UApexSettingsWidget::HudLayoutStepper`: it
+writes the bindings' `everywhere`, so a layout bound to watching, a hotlap, a
+class or a circuit still wins there).
+
 Settings > Gameplay > HUD layout > Edit layout, or `apexsim.hud.Edit`
 (`UI/ApexHudEditorWidget`). It lays the HUD out over the race, or outside a
 race over `FApexHudPreview`, a made-up race fed through the same `Build`.

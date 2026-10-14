@@ -704,6 +704,14 @@ bool FApexProtocolLobbyStateDecodeTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("LobbyState type"), Message.Type, EApexServerMessageType::LobbyState);
 
 	const FApexLobbyState& Lobby = Message.LobbyState;
+	TestEqual(TEXT("no recordings port from an older lobby"), Lobby.RecordingsPort, 0);
+	{
+		FApexServerMessage WithPort;
+		TestTrue(TEXT("a lobby with its recordings port decodes"),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_LobbyStateRecordings, WithPort, Error));
+		TestEqual(TEXT("its recordings port"), WithPort.LobbyState.RecordingsPort, 9002);
+		TestTrue(TEXT("and the live stream"), WithPort.LobbyState.bLiveStream);
+	}
 
 	// Non-empty arrays are the actual assertion: a mis-cased key yields an
 	// empty list with no error, which is exactly the failure this pins down.

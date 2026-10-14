@@ -50,6 +50,9 @@ public class ApexSim : ModuleRules
 			"AudioMixer",
 			"AudioMixerCore",
 			"NonRealtimeAudioRenderer",
+			// The session browser's Recorded list: the server's health port
+			// hands out its recordings over HTTP.
+			"HTTP",
 		});
 	}
 }

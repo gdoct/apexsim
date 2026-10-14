@@ -722,6 +722,24 @@ bool UApexReplayRecorder::DeleteReplay(const FString& Path)
 	return IFileManager::Get().Delete(*Path);
 }
 
+FString UApexReplayRecorder::ExportDirectory()
+{
+	return FPaths::ConvertRelativePathToFull(FPaths::Combine(FPlatformProcess::UserDir(), TEXT("ApexSim"), TEXT("Replays")));
+}
+
+bool UApexReplayRecorder::ExportReplay(const FApexReplayInfo& Info, FString& OutPath)
+{
+	const FString Dir = ExportDirectory();
+	IFileManager::Get().MakeDirectory(*Dir, true);
+	const FString Base = MakeReplayName(Info.When, Info.Header.Track.DisplayName, Info.Header.GameMode);
+	OutPath = FPaths::Combine(Dir, Base + TEXT(".apxs"));
+	for (int32 Copy = 2; IFileManager::Get().FileExists(*OutPath) && Copy < 100; ++Copy)
+	{
+		OutPath = FPaths::Combine(Dir, FString::Printf(TEXT("%s (%d).apxs"), *Base, Copy));
+	}
+	return IFileManager::Get().Copy(*OutPath, *Info.Path, /*bReplace*/ false) == COPY_OK;
+}
+
 void UApexReplayRecorder::PruneRecent()
 {
 	TArray<FString> Files;

@@ -501,6 +501,11 @@ pub struct LobbyStateData {
     /// telemetry. Left off the wire from a server that predates it.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub live_stream: bool,
+    /// The port of the server's health endpoint when it hands out its
+    /// recordings of finished sessions (`/recordings`, on the address the
+    /// client connected to). Left off the wire when it does not.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recordings_port: Option<u16>,
 }
 
 /// What a spectator stream is of.
@@ -2585,6 +2590,37 @@ mod tests {
         let text = String::from_utf8_lossy(&showcases_bytes);
         assert!(text.contains("TrackName") && text.contains("Viewers"));
     }
+    /// A lobby that hands out its recordings names the port
+    /// (`ApexGolden::S_LobbyStateRecordings`):
+    /// `cargo test recordings_wire_format -- --nocapture`.
+    #[test]
+    fn test_recordings_wire_format() {
+        let lobby = |recordings_port| {
+            ServerMessage::LobbyState(LobbyStateData {
+                players_in_lobby: vec![],
+                available_sessions: vec![],
+                car_configs: vec![],
+                track_configs: vec![],
+                showcase_available: false,
+                live_stream: true,
+                recordings_port,
+            })
+        };
+        let bytes = rmp_serde::to_vec_named(&lobby(Some(9002))).unwrap();
+        let hex = bytes
+            .iter()
+            .map(|b| format!("0x{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!("S_LobbyStateRecordings: {hex}");
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::LobbyState(l) => assert_eq!(l.recordings_port, Some(9002)),
+            _ => panic!("wrong message type"),
+        }
+        let none = rmp_serde::to_vec_named(&lobby(None)).unwrap();
+        assert!(!String::from_utf8_lossy(&none).contains("RecordingsPort"));
+    }
+
     /// The lobby summaries carry each content file's checksum, and a client
     /// that predates the field must still read the message.
     #[test]
@@ -2622,6 +2658,7 @@ mod tests {
             }],
             showcase_available: true,
             live_stream: true,
+            recordings_port: None,
         });
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         let text = String::from_utf8_lossy(&bytes);

@@ -103,6 +103,13 @@ seeded pileup replay screenshotted before and after.
   to the menu).
 - The launcher's AC import button, never clicked by hand; the import with
   the network off (it fetches its Python packages from PyPI on first use).
+- The menus package of 2026-10-14: the car stat sheet (Garage > Garage >
+  View car stats), the HUD layout picker (Settings > Gameplay > Layout)
+  switching the HUD in a race, See track guide opening the guide, and
+  replay export, never on screen; the browser's filter pills by mouse (the
+  unattended click did not land on any button of that run). The Recorded
+  list, its fetch and its replay were seen unattended against a local
+  server; the pad walk reaches every new control.
 - A streamed hotlap watch on a saved setup (S with setups saved for the
   car; only the stock lap and the "no saved setup" toast were run), and its
   keys and transport from a pad. Seen unattended at Monza: pause, ten

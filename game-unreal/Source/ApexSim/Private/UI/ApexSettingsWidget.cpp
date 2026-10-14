@@ -27,6 +27,7 @@
 #include "Engine/GameInstance.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GenericPlatform/GenericApplication.h"
+#include "Hud/ApexHudLayout.h"
 #include "Input/ApexInputConfig.h"
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexRootWidget.h"
@@ -677,6 +678,25 @@ UWidget* UApexSettingsWidget::BuildGameplayPage()
 			TEXT("HUD layout"),
 			TEXT("Move, resize, add and remove the HUD's panels."),
 			MakeSized(*WidgetTree, Edit, 178.0f, 44.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+	}
+
+	// Which saved layout the HUD wears everywhere, without the editor (its
+	// layout manager still binds them by place, which wins over this).
+	{
+		UApexStepperWidget* Stepper = WidgetTree->ConstructWidget<UApexStepperWidget>();
+		Stepper->ControlId = TEXT("HudLayout");
+		HudLayoutNames = ApexHudLayouts::List();
+		Stepper->Setup(0, FMath::Max(HudLayoutNames.Num() - 1, 0), 0, 220.0f);
+		Stepper->Formatter = [this](int32 Value)
+		{
+			return HudLayoutNames.IsValidIndex(Value) ? HudLayoutNames[Value] : FString(ApexHudLayouts::DefaultName);
+		};
+		Stepper->OnChanged.AddDynamic(this, &UApexSettingsWidget::HandleHudLayoutStepped);
+		HudLayoutStepper = Stepper;
+		AddV(Page, MakeRow(
+			TEXT("Layout"),
+			TEXT("The saved HUD layout used everywhere. A layout the editor's layout manager binds to watching, a hotlap, a class or a circuit still wins there."),
+			Stepper), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 	}
 
 	AddV(Page, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
@@ -1971,6 +1991,39 @@ void UApexSettingsWidget::ShowTab(EApexSettingsTab Tab)
 
 // --- Refresh ----------------------------------------------------------------
 
+void UApexSettingsWidget::RefreshHudLayoutPicker()
+{
+	if (!HudLayoutStepper)
+	{
+		return;
+	}
+	// The editor may have saved, renamed or deleted layouts since.
+	HudLayoutNames = ApexHudLayouts::List();
+	ApexHudLayouts::FBindings Bindings;
+	FString Error;
+	Bindings.Load(Error);
+	const int32 At = HudLayoutNames.IndexOfByPredicate([&Bindings](const FString& Name) { return Name.Equals(Bindings.Everywhere, ESearchCase::IgnoreCase); });
+	HudLayoutStepper->Setup(0, FMath::Max(HudLayoutNames.Num() - 1, 0), At == INDEX_NONE ? 0 : At, 220.0f);
+}
+
+void UApexSettingsWidget::HandleHudLayoutStepped(UApexStepperWidget* Stepper, int32 Value)
+{
+	if (bRefreshing || !HudLayoutNames.IsValidIndex(Value))
+	{
+		return;
+	}
+	ApexHudLayouts::FBindings Bindings;
+	FString Error;
+	Bindings.Load(Error);
+	Bindings.Everywhere = Value == 0 ? FString() : HudLayoutNames[Value];
+	if (!Bindings.Save())
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("HUD layout bindings could not be saved"));
+	}
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
+	OnHudLayoutChosen.Broadcast();
+}
+
 void UApexSettingsWidget::RefreshFromSettings()
 {
 	const UApexSettingsSubsystem* Subsystem = GetSettings();
@@ -1983,6 +2036,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 	// Every setter below is a write that would otherwise be reported as a change
 	// the player made.
 	TGuardValue<bool> Guard(bRefreshing, true);
+	RefreshHudLayoutPicker();
 
 	auto SetSegment = [this](FName Id, int32 Index)
 	{

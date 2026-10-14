@@ -638,69 +638,11 @@ async fn history(ctx: &AdminContext) -> Resp {
             .collect();
         (st.replay.dir().to_path_buf(), names)
     };
-    let rows = tokio::task::spawn_blocking(move || read_history(&dir, &car_names))
-        .await
-        .unwrap_or_default();
+    let rows =
+        tokio::task::spawn_blocking(move || crate::stream_recorder::history(&dir, &car_names))
+            .await
+            .unwrap_or_default();
     ok(json!({ "sessions": rows }))
-}
-
-fn read_history(
-    dir: &Path,
-    car_names: &std::collections::HashMap<CarConfigId, String>,
-) -> Vec<Value> {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return Vec::new();
-    };
-    let mut files: Vec<(SystemTime, std::path::PathBuf)> = entries
-        .flatten()
-        .filter(|e| {
-            let n = e.file_name();
-            crate::stream_recorder::is_listed_file(&n.to_string_lossy())
-        })
-        .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
-        .collect();
-    files.sort_by_key(|f| std::cmp::Reverse(f.0));
-    files.truncate(200);
-
-    let mut out = Vec::new();
-    for (_, path) in files {
-        let Some(m) = crate::stream_recorder::read_listing(&path) else {
-            continue;
-        };
-        let mut results: Vec<_> = m.participants.iter().collect();
-        results.sort_by_key(|p| p.finish_position.unwrap_or(u8::MAX));
-        let winner = results
-            .iter()
-            .find(|p| p.finish_position == Some(1))
-            .map(|p| p.player_name.clone());
-        let fastest = m
-            .participants
-            .iter()
-            .filter(|p| p.best_lap_ms.is_some_and(|ms| ms > 0))
-            .min_by_key(|p| p.best_lap_ms);
-        out.push(json!({
-            "id": m.session_id,
-            "recorded_at": m.recorded_at,
-            "track": m.track_name,
-            "kind": if m.race_start_tick.is_some() { "Race" } else { "Session" },
-            "duration_s": m.duration_ticks as f64 / m.tick_rate.max(1) as f64,
-            "cars": m.participants.len(),
-            "humans": m.participants.iter().filter(|p| !p.is_ai).count(),
-            "winner": winner,
-            "fastest": fastest.map(|p| json!({ "name": p.player_name, "ms": p.best_lap_ms })),
-            "laps": m.participants.iter().map(|p| p.laps).max().unwrap_or(0),
-            "results": results.iter().map(|p| json!({
-                "pos": p.finish_position,
-                "name": p.player_name,
-                "ai": p.is_ai,
-                "car": car_names.get(&p.car_config_id),
-                "laps": p.laps,
-                "best_ms": p.best_lap_ms,
-            })).collect::<Vec<_>>(),
-        }));
-    }
-    out.sort_by_key(|v| std::cmp::Reverse(v["recorded_at"].as_u64().unwrap_or(0)));
-    out
 }
 
 // ---------------------------------------------------------------------------

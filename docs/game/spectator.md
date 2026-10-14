@@ -368,7 +368,9 @@ When the session ends the file goes to `Saved/Replays/Recent/` (the newest
 `MaxRecent`, 10, kept). SAVE REPLAY (pause menu, hotlap garage,
 `apexsim.replay.Save`) keeps it in `Saved/Replays/`; the results screen's
 Save replay keeps the whole session (`KeepThisSession`). The Replays screen
-(`UApexReplaysWidget`) lists both: Enter watches, K keeps a recent one, Delete
+(`UApexReplaysWidget`) lists both: Enter watches, K keeps a recent one, E
+(pad View) exports one to `<Documents>/ApexSim/Replays` under its
+`MakeReplayName` (`UApexReplayRecorder::ExportReplay`), Delete
 removes one. Playing is `UApexDemoModeSubsystem::PlayReplay` (backdrop source
 `Replay`: no loop, never moved on from) with `UApexSpectatorSubsystem`'s
 `SetPaused`, `SetPlaybackRate` and `SeekTo` (forward applies the timing on the

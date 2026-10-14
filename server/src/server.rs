@@ -40,6 +40,9 @@ pub struct ServerState {
     /// since the server started: the next watch of them shows it as the
     /// ghost (`GameSession::set_hotlap_watch_ghost`).
     pub watch_ghosts: HashMap<(TrackConfigId, CarConfigId), crate::records::GhostLap>,
+    /// The health port, when it serves the replay folder
+    /// (`[records] serve_replays`): what `LobbyState.recordings_port` says.
+    pub recordings_port: Option<u16>,
     pub players: HashMap<PlayerId, Player>,
     pub lobby: LobbyManager,
     /// The server's own replays: live sessions written to disk as spectator
@@ -200,6 +203,7 @@ impl ServerState {
             sessions: HashMap::new(),
             watch_levels: HashMap::new(),
             watch_ghosts: HashMap::new(),
+            recordings_port: None,
             players: HashMap::new(),
             lobby: LobbyManager::new(),
             replay: crate::stream_recorder::StreamRecorders::new(replay_dir),
@@ -595,10 +599,18 @@ pub async fn run_server_from(
     let health_addr = health_listener.local_addr()?;
     let health_state_clone = health_state.clone();
     let health_metrics = Arc::clone(&metrics);
+    let recordings = config.records.serve_replays.then(|| Arc::clone(&state));
+    if recordings.is_some() {
+        state.write().await.recordings_port = Some(health_addr.port());
+    }
     tokio::spawn(async move {
-        if let Err(e) =
-            crate::health::serve_health(health_listener, health_state_clone, Some(health_metrics))
-                .await
+        if let Err(e) = crate::health::serve_health(
+            health_listener,
+            health_state_clone,
+            Some(health_metrics),
+            recordings,
+        )
+        .await
         {
             warn!("Health server error: {}", e);
         }

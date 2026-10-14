@@ -86,6 +86,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
 	FApexOnSettingsEditHud OnEditHudLayout;
 
+	/** Fires when Gameplay > HUD layout picks another layout: the HUD takes the bindings again. */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
+	FApexOnSettingsEditHud OnHudLayoutChosen;
+
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
 	void Open(EApexSettingsTab Tab = EApexSettingsTab::Gameplay);
 
@@ -397,6 +401,12 @@ private:
 	 * index + 1) and peak torque (0 = the profile's, else newton-metres),
 	 * with the line saying what they add up to.
 	 */
+	/** Gameplay > Layout: the layout used everywhere (ApexHudLayouts::List() index), outside the HUD editor. */
+	UPROPERTY(Transient) TObjectPtr<UApexStepperWidget> HudLayoutStepper;
+	/** The layouts on disk when the stepper was last set up. */
+	TArray<FString> HudLayoutNames;
+	UFUNCTION() void HandleHudLayoutStepped(UApexStepperWidget* Stepper, int32 Value);
+	void RefreshHudLayoutPicker();
 	UPROPERTY(Transient) TObjectPtr<UApexStepperWidget> WheelProfileStepper;
 	UPROPERTY(Transient) TObjectPtr<UApexStepperWidget> WheelPeakStepper;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WheelProfileNote;

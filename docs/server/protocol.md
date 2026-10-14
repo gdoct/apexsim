@@ -183,7 +183,7 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 | Garage, pit, hotlap | `car_setup_wire_format`, `car_setup_sheet_wire_format`, `pit_service_wire_format`, `hotlap_wire_format`, `hotlap_watch_wire_format` (`CreateSession.watch`), `recover_wire_format` |
 | Reconnect | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`, `GiveUpSeat`) |
 | Roster | `roster_wire_format` (`RosterEntry.Away`, `RosterEntry.GridSlot`) |
-| Spectator | `showcase_wire_format` (network.rs), `spectator_wire_format` (spectator.rs) |
+| Spectator | `showcase_wire_format` (network.rs), `spectator_wire_format` (spectator.rs), `recordings_wire_format` (`LobbyState.recordings_port`) |
 
 `test_lobby_summaries_carry_content_crc` pins the lobby's checksum fields
 ([../architecture.md](../architecture.md#content-checksums)).

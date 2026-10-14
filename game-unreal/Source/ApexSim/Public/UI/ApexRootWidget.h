@@ -142,6 +142,9 @@ public:
 	 */
 	UFUNCTION()
 	void OpenHudEditor();
+	/** Settings > Gameplay > Layout picked a layout: the HUD takes the bindings again. */
+	UFUNCTION()
+	void HandleHudLayoutChosen();
 
 	/**
 	 * Opens or closes the pause menu.

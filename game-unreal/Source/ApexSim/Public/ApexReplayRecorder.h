@@ -83,6 +83,14 @@ public:
 	/** Move a recent replay into the kept ones. */
 	static bool KeepReplay(const FString& Path, FString& OutNewPath);
 	static bool DeleteReplay(const FString& Path);
+	/** `<Documents>/ApexSim/Replays`: where a replay is exported to, outside the game's own folders. */
+	static FString ExportDirectory();
+	/**
+	 * Copy a replay out to ExportDirectory under a name from what it is
+	 * (MakeReplayName), " (2)" and on when that is taken: a file to share or
+	 * keep, which any copy of the game plays from its Replays folder.
+	 */
+	static bool ExportReplay(const FApexReplayInfo& Info, FString& OutPath);
 	/** "2026-10-03 14.05 Zandervoort Hotlap": a file name from what the replay is. */
 	static FString MakeReplayName(const FDateTime& When, const FString& Track, EApexGameMode Mode);
 

@@ -49,7 +49,7 @@ All three run at 420 Hz.
 |---|---|---|
 | 9000/tcp | `[network] tcp_bind` | Login, lobby, sessions, reliable messages |
 | 9001/udp | `[network] udp_bind` | Telemetry out, input in, after the UDP handshake |
-| 9002/tcp | `[network] health_bind` | `/health`, `/ready`, `/metrics`, `/showcase` |
+| 9002/tcp | `[network] health_bind` | `/health`, `/ready`, `/metrics`, `/showcase`, `/recordings` |
 | 9003/tcp | `[admin] http_bind` | Dashboard over HTTP (empty: off) |
 | 9004/tcp | `[admin] https_bind` | Dashboard over HTTPS (empty: off) |
 
@@ -78,7 +78,10 @@ Every section and its keys (defaults from `config.rs`):
   "token"` accepts only one of `tokens`.
 - `[records]` - `enabled`, `dir` (`./records`), `replay_dir` (`./replays`,
   `APEXSIM_REPLAY_DIR`): lap records, ghosts and the
-  stored qualifying results ([sessions.md](sessions.md)).
+  stored qualifying results ([sessions.md](sessions.md)); `serve_replays`
+  (true): the health port hands out the replay folder's recordings and the
+  lobby says so (`LobbyState.recordings_port`), for the session browser's
+  Recorded list. A `health_bind` on loopback keeps them to this machine.
 - `[physics]` - `road_contact = "mesh"` (default) or `"centerline"`
   ([../content/road-mesh.md](../content/road-mesh.md)).
 - `[showcase]` - `enabled`, `dir` (`./showcase`), `playlist`, `mode`
@@ -163,6 +166,11 @@ On `health_bind`:
   `apexsim_clients_disconnected_backpressure`, `apexsim_showcase_frames_sent`,
   `apexsim_showcase_viewers`, and the `apexsim_tick_duration_us` histogram.
 - `/showcase` - JSON status of the showcase channels.
+- `/recordings` - the finished sessions in the replay folder, newest first, at
+  most 200, as the dashboard's history lists them (`stream_recorder::history`,
+  with each one's `file` and `track_id`); `/recordings/<file>` is that
+  stream. Only the recorder's own `replay_*.apxs` names are served
+  (`is_served_stream`). Off with `[records] serve_replays = false`.
 
 The loop also warns for every tick over budget and when the rate over 5 s
 falls under 90% ([../architecture.md](../architecture.md#tick-timing-on-windows)).

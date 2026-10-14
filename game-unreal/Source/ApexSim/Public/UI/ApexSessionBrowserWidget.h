@@ -7,8 +7,49 @@
 #include "ApexSessionBrowserWidget.generated.h"
 
 class UApexButtonWidget;
+class UApexSegmentedWidget;
 class UScrollBox;
 class UTextBlock;
+
+/** The session browser's rules, pure for the tests (`ApexSim.UI.SessionBrowser`). */
+namespace ApexBrowser
+{
+	/** What the list shows: the live sessions, some of them, or the server's recordings. */
+	enum class EFilter : uint8
+	{
+		All,
+		/** Not full, not over: Enter puts you on the grid or in the lobby. */
+		Joinable,
+		/** A race being driven: what Watch is for. */
+		Racing,
+		/** Finished sessions the server recorded (`/recordings`). */
+		Recorded,
+		Count,
+	};
+
+	APEXSIM_API bool Passes(const FApexSessionSummary& Session, EFilter Filter);
+
+	/** One of the server's recordings, as `/recordings` lists it. */
+	struct FRecording
+	{
+		FString Id;
+		/** The stream to fetch (`/recordings/<File>`); empty for one from before streams. */
+		FString File;
+		/** The server's track id: the catalog's display name is shown, never `Track`, the file's own name. */
+		FString TrackId;
+		FString Track;
+		FString Kind;
+		int64 RecordedAt = 0;
+		double DurationS = 0.0;
+		int32 Cars = 0;
+		int32 Humans = 0;
+		int32 Laps = 0;
+		FString Winner;
+	};
+
+	/** `/recordings`' JSON, newest first; false when it is not that. */
+	APEXSIM_API bool ParseRecordings(const FString& Json, TArray<FRecording>& Out);
+}
 
 /**
  * The live sessions on the server (the latest LobbyState), built in C++ in
@@ -47,6 +88,14 @@ private:
 	void Join(int32 Index);
 	void Watch(int32 Index);
 	void Refresh();
+	/** Show another filter (the row of pills, F or pad X). */
+	void SetFilter(ApexBrowser::EFilter InFilter);
+	/** Ask the server's health port for its recordings. */
+	void FetchRecordings();
+	/** Watch a recording: fetched into the Replays folder first unless it is there already. */
+	void WatchRecording(int32 Index);
+	void RebuildRecordingRows();
+	UFUNCTION() void HandleFilterChosen(UApexSegmentedWidget* Control, int32 Index);
 
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
 	UFUNCTION() void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
@@ -68,4 +117,12 @@ private:
 	/** The sessions the rows show, in their order. */
 	TArray<FApexSessionSummary> Shown;
 	int32 LastFocused = 0;
+
+	UPROPERTY(Transient) TObjectPtr<UApexSegmentedWidget> FilterPills;
+	ApexBrowser::EFilter Filter = ApexBrowser::EFilter::All;
+	/** The server's recordings as last fetched, and whether a fetch or a download is under way. */
+	TArray<ApexBrowser::FRecording> Recordings;
+	bool bFetchingRecordings = false;
+	bool bDownloading = false;
+	FString RecordingsNote;
 };

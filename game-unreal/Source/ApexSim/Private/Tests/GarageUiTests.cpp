@@ -6,6 +6,8 @@
 #include "UI/ApexHotlapWidget.h"
 #include "UI/ApexUIStyle.h"
 
+#include "UI/ApexSessionBrowserWidget.h"
+
 #if WITH_DEV_AUTOMATION_TESTS
 
 // -----------------------------------------------------------------------------
@@ -73,6 +75,47 @@ bool FApexUiFillWeightTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("at 0.8"), Filled->GetSize().Value, 0.8f);
 	TestEqual(TEXT("the rest at 0.2"), Rest->GetSize().Value, 0.2f);
 	TestEqual(TEXT("no weight is automatic"), Auto->GetSize().SizeRule, ESlateSizeRule::Automatic);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexSessionBrowserFilterTest, "ApexSim.UI.SessionBrowser", ApexTestFlags)
+
+bool FApexSessionBrowserFilterTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexBrowser;
+	FApexSessionSummary Lobby;
+	Lobby.State = EApexSessionState::Lobby;
+	Lobby.PlayerCount = 2;
+	Lobby.MaxPlayers = 8;
+	FApexSessionSummary Full = Lobby;
+	Full.PlayerCount = 8;
+	FApexSessionSummary Racing = Lobby;
+	Racing.State = EApexSessionState::Racing;
+	FApexSessionSummary Over = Lobby;
+	Over.State = EApexSessionState::Finished;
+
+	TestTrue(TEXT("all shows a full one"), Passes(Full, EFilter::All));
+	TestTrue(TEXT("a lobby with room is joinable"), Passes(Lobby, EFilter::Joinable));
+	TestFalse(TEXT("a full one is not"), Passes(Full, EFilter::Joinable));
+	TestFalse(TEXT("nor one that is over"), Passes(Over, EFilter::Joinable));
+	TestTrue(TEXT("a race under way is racing"), Passes(Racing, EFilter::Racing));
+	TestFalse(TEXT("a lobby is not"), Passes(Lobby, EFilter::Racing));
+	TestFalse(TEXT("the recorded list has no live session"), Passes(Racing, EFilter::Recorded));
+
+	TArray<FRecording> Rows;
+	TestTrue(TEXT("the server's list parses"), ParseRecordings(TEXT(
+		"{\"sessions\":[{\"id\":\"77\",\"file\":\"replay_77_1760000000.apxs\",\"track\":\"Monzarella\","
+		"\"kind\":\"Race\",\"recorded_at\":1760000000,\"duration_s\":612.5,\"cars\":12,\"humans\":1,"
+		"\"laps\":5,\"winner\":\"Nils\",\"fastest\":null,\"results\":[]},{\"id\":\"old\",\"file\":null}]}"), Rows));
+	if (TestEqual(TEXT("two rows"), Rows.Num(), 2))
+	{
+		TestEqual(TEXT("its file"), Rows[0].File, FString(TEXT("replay_77_1760000000.apxs")));
+		TestEqual(TEXT("its cars"), Rows[0].Cars, 12);
+		TestEqual(TEXT("its winner"), Rows[0].Winner, FString(TEXT("Nils")));
+		TestTrue(TEXT("its length"), FMath::IsNearlyEqual(Rows[0].DurationS, 612.5));
+		TestTrue(TEXT("one from before streams has no file"), Rows[1].File.IsEmpty());
+	}
+	TestFalse(TEXT("anything else is refused"), ParseRecordings(TEXT("Not Found"), Rows));
 	return true;
 }
 
