@@ -1216,6 +1216,12 @@ static void StartImport(HWND hw)
     fs::path venv = VenvDir();
     fs::path venvPy = venv / L"Scripts" / L"python.exe";
     fs::path stamp = venv / L"importer-requirements.installed.txt";
+    // A release carries the packages as wheels for each Python it supports
+    // (Tools\importer\wheels), so a PC with no internet can import too;
+    // PyPI is the fallback, for a Python the wheels do not cover.
+    fs::path wheels = tools / L"wheels";
+    std::error_code wheelsError;
+    bool haveWheels = fs::is_directory(wheels, wheelsError);
     bool haveVenv = Exists(venvPy);
     bool upToDate = haveVenv && Exists(stamp) && ReadAll(stamp) == ReadAll(req);
 
@@ -1226,10 +1232,22 @@ static void StartImport(HWND hw)
     std::wstring line;
     if (!upToDate)
     {
-        line += L"echo Setting up the importer (first use or updated requirements; needs an internet connection)... && ";
+        line += haveWheels
+            ? L"echo Setting up the importer (first use or updated requirements)... && "
+            : L"echo Setting up the importer (first use or updated requirements; needs an internet connection)... && ";
         line += L"echo If this fails, delete " + q + venv.wstring() + q + L" and try again. && ";
         if (!haveVenv) line += py + L" -m venv " + q + venv.wstring() + q + L" && ";
-        line += q + venvPy.wstring() + q + L" -m pip install --disable-pip-version-check -r " + q + req.wstring() + q + L" && ";
+        const std::wstring pip = q + venvPy.wstring() + q + L" -m pip install --disable-pip-version-check ";
+        const std::wstring fromIndex = pip + L"-r " + q + req.wstring() + q;
+        if (haveWheels)
+        {
+            line += L"(" + pip + L"--no-index --find-links " + q + wheels.wstring() + q + L" -r " + q + req.wstring() + q +
+                L" || " + fromIndex + L") && ";
+        }
+        else
+        {
+            line += fromIndex + L" && ";
+        }
         line += L"copy /Y " + q + req.wstring() + q + L" " + q + stamp.wstring() + q + L" >nul && ";
     }
     line += q + venvPy.wstring() + q + L" " + q + (tools / (car ? L"ac_car_import.py" : L"ac_import.py")).wstring() + q + L" ";

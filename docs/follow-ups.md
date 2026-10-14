@@ -130,8 +130,6 @@ them, and changes its content checksum).
   sees only the bridge, so the fit closes the crossover), and Shanghai's and
   Monza's surface models are checked against a bare-earth one (grandstands,
   the park's canopy); all three still drive their invented z.
-- The launcher's AC import works offline (it fetches its Python packages
-  from PyPI on first use).
 
 **Check:** the track-editor tests; a fresh-clone `initialize_content.ps1`;
 the launcher import with the network off.

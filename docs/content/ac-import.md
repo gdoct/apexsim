@@ -346,7 +346,11 @@ under the player's own Python; nothing is frozen into an exe.
 - The packages live in a venv at `%LOCALAPPDATA%\ApexSim\importer-venv`,
   made on first use and reinstalled when `importer-requirements.txt`
   differs from the copy stamped in the venv
-  (`importer-requirements.installed.txt`). That step needs internet.
+  (`importer-requirements.installed.txt`). A package installs them from
+  its own wheels first (`Tools/importer/wheels`, win_amd64 for Python
+  3.11, 3.12 and 3.13, `pip install --no-index --find-links`), so a PC
+  with no internet can import; only a Python the wheels do not cover (or
+  a checkout, which has none) needs PyPI.
 - The player picks a folder; `DetectKind` decides car or track (a folder
   named `cars` / `tracks` means `--all`; `data.acd` or `ui/ui_car.json` a
   car; `ui/ui_track.json` or `ai/` a track; else it asks). One console runs
@@ -354,8 +358,11 @@ under the player's own Python; nothing is frozen into an exe.
   package the launcher passes `--root <install>`.
 - A package carries `Tools/importer/` (`ac_import.py`, `ac_car_import.py`,
   the two packages without `tests`, `track_dirs.py`,
-  `generate_track_previews.py`, `importer-requirements.txt`), copied by
-  `build_release.ps1`. A checkout runs from `scripts/`.
+  `generate_track_previews.py`, `importer-requirements.txt`,
+  `content/cars/damage_parts.py` for the car importer's damage parts, and
+  `wheels/`, which `pip download` fills while the release is built; a build
+  with no network ships none and warns), copied by `build_release.ps1`. A
+  checkout runs from `scripts/`.
 - `--root` sends the client's files to `Game/Tracks` / `Game/Cars/custom`
   and the server's to `Server/content/{tracks,cars}/custom`, and checks
   stems and ids against `Server/content/*/default`. A taken name is asked
@@ -425,5 +432,3 @@ Client automation: `ApexSim.Track.Dds.Parse`, `ApexSim.Track.Reader.Version3`,
 - Front-axle ERS and AC's older `kers.ini`; ERS delivery profiles and aero
   controllers are read as their authored figures, with a warning.
 - `--lod B` exists but is untested.
-- Offline machines cannot import from the launcher (packages come from PyPI
-  on first use).

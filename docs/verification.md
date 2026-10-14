@@ -186,3 +186,6 @@ unverified.
   Asus Zenbook A14 under x64 emulation DirectX 12 showed only the sky and
   DirectX 11 (`display.graphics_api: dx11`) drew about one frame a second,
   then hung. No log came off the machine.
+- The launcher's AC import on a PC with the network off: the venv set up
+  from the release's `Tools/importer/wheels` (checked only as the same
+  `pip --no-index` command against downloaded wheels).

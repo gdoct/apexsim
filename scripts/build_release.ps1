@@ -722,6 +722,23 @@ foreach ($pkg in 'ac_import', 'ac_car_import') {
     Get-ChildItem -LiteralPath $dest -Recurse -Force -Directory |
         Where-Object { $_.Name -in 'tests', '__pycache__' } | Remove-Item -Recurse -Force
 }
+# The importers' packages as wheels for each Python the launcher accepts, so
+# a PC with no internet can import too (the launcher installs from them
+# first, PyPI after). A build without the network ships none, and says so.
+$WheelsDir = Join-Path $ImporterDir 'wheels'
+New-Item -ItemType Directory -Force -Path $WheelsDir | Out-Null
+$requirements = Join-Path $PSScriptRoot 'importer-requirements.txt'
+$wheelsOk = $true
+foreach ($version in '3.11', '3.12', '3.13') {
+    & python -m pip download --disable-pip-version-check -q -r $requirements -d $WheelsDir `
+        --only-binary=:all: --platform win_amd64 --python-version $version --implementation cp
+    if ($LASTEXITCODE -ne 0) { $wheelsOk = $false }
+}
+if ($wheelsOk) {
+    Write-Detail "Tools\importer\wheels: $((Get-ChildItem -LiteralPath $WheelsDir -Filter *.whl).Count) wheels for Python 3.11-3.13"
+} else {
+    Write-Warning 'Could not download the importer wheels: the launcher will fetch the packages from PyPI on first use'
+}
 Write-Detail 'Tools\importer copied'
 
 # A sample rather than a live settings.yml: the client creates the real file on
