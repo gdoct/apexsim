@@ -18,7 +18,9 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "ImageUtils.h"
 #include "TimerManager.h"
 #include "Race/ApexCarLivery.h"
 #include "UI/ApexButtonWidget.h"
@@ -232,6 +234,10 @@ UWidget* UApexCarSelectWidget::BuildStage()
 	LiveryButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	LiveryButton->Setup(LiverySpec);
 	LiveryButton->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
+	// The livery's own picture, when it ships one, just before its name.
+	LiveryPreview = WidgetTree->ConstructWidget<UImage>();
+	LiveryPreview->SetVisibility(ESlateVisibility::Collapsed);
+	ApexUI::AddH(ActionRow, ApexUI::MakeSized(*WidgetTree, LiveryPreview, 96.0f, 54.0f), FMargin(16.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
 	ApexUI::AddH(ActionRow, ApexUI::MakeSized(*WidgetTree, LiveryButton, 300.0f, -1.0f), FMargin(16.0f, 0.0f, 0.0f, 0.0f));
 
 	// No setup system exists yet, so the button says so rather than doing nothing.
@@ -679,6 +685,7 @@ void UApexCarSelectWidget::RefreshLiveryButton()
 	{
 		SelectedLivery = 0;
 		LiveryButton->SetVisibility(ESlateVisibility::Collapsed);
+		RefreshLiveryPreview(nullptr);
 		return;
 	}
 	SelectedLivery = FMath::Clamp(SelectedLivery, 0, Row.Liveries.Num());
@@ -686,6 +693,38 @@ void UApexCarSelectWidget::RefreshLiveryButton()
 	LiveryButton->SetLabel(ApexLivery::DisplayName(Row, SelectedLivery));
 	LiveryButton->SetBadge(FString::Printf(TEXT("%d / %d"), SelectedLivery + 1, Row.Liveries.Num() + 1),
 		ApexUI::Palette::TextMuted);
+	RefreshLiveryPreview(ApexLivery::Find(Row, SelectedLivery));
+}
+
+void UApexCarSelectWidget::RefreshLiveryPreview(const FApexCarLivery* Livery)
+{
+	if (!LiveryPreview)
+	{
+		return;
+	}
+	UTexture2D* Texture = nullptr;
+	if (Livery && !Livery->RuntimePreview.IsEmpty())
+	{
+		if (const TObjectPtr<UTexture2D>* Known = LiveryPreviewTextures.Find(Livery->RuntimePreview))
+		{
+			Texture = *Known;
+		}
+		else
+		{
+			// A file that will not read is remembered too, as nothing.
+			Texture = FImageUtils::ImportFileAsTexture2D(Livery->RuntimePreview);
+			if (!Texture)
+			{
+				UE_LOG(LogApexSim, Warning, TEXT("Livery preview %s could not be read"), *Livery->RuntimePreview);
+			}
+			LiveryPreviewTextures.Add(Livery->RuntimePreview, Texture);
+		}
+	}
+	if (Texture)
+	{
+		LiveryPreview->SetBrushFromTexture(Texture);
+	}
+	LiveryPreview->SetVisibility(Texture ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 }
 
 // ---------------------------------------------------------------------------

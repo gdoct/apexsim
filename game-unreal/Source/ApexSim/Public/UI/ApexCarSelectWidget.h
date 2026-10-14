@@ -12,6 +12,7 @@ class UHorizontalBox;
 class UImage;
 class UProgressBar;
 class UScrollBox;
+class UTexture2D;
 class UTextBlock;
 class UVerticalBox;
 class UWidget;
@@ -70,6 +71,8 @@ private:
 	void CycleLivery(int32 Step);
 	/** The livery button's label and badge, hidden for a car without liveries. */
 	void RefreshLiveryButton();
+	/** Shows `Livery`'s picture beside its button, or hides the slot (no livery, no picture). */
+	void RefreshLiveryPreview(const struct FApexCarLivery* Livery);
 
 	/** Focus has to wait a tick after the tree changes; see the main menu. */
 	void RequestRowFocus();
@@ -97,6 +100,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> NameText;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> HeaderBackButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> LiveryButton;
+	/** The livery's own picture (`preview` in car.toml), beside its button when it has one. */
+	UPROPERTY(Transient) TObjectPtr<UImage> LiveryPreview;
+	/** Previews read so far, by file: stepping back and forth reads each once. */
+	UPROPERTY(Transient) TMap<FString, TObjectPtr<UTexture2D>> LiveryPreviewTextures;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PowerValue;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeightValue;

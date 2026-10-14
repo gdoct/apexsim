@@ -380,7 +380,7 @@ struct APEXSIM_API FApexCarLivery
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Livery")
 	TArray<FApexLiveryTexture> RuntimeTextures;
 
-	/** A picture of the car in this livery (`preview`), for a menu that wants one; nothing draws it yet. Never saved. */
+	/** A picture of the car in this livery (`preview`): car select shows it beside the livery's name. Never saved. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Livery")
 	FString RuntimePreview;
 

@@ -364,7 +364,7 @@ logo = "textures/livery_forest.png"   # optional: replaces car_logo
 name = "Gulf"
 skin = "skins/gulf/Skin_00.png"   # BaseColorTexture of every car_skin* slot
 textures = ["EXT_RIM=skins/gulf/EXT_RIM.png", "INT_Banner=skins/gulf/banner.jpg"]
-preview = "skins/gulf/preview.jpg"    # carried on the row; nothing draws it yet
+preview = "skins/gulf/preview.jpg"    # optional: shown beside the livery in car select
 ```
 
 A table needs a `name` and one of `paint`, `skin` or `textures`. `textures`

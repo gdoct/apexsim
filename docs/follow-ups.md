@@ -141,12 +141,11 @@ the same `ApexProps` code.
 
 Car data that is built but that the client and the shipped cars do not use.
 
-- The livery `preview` image (parsed onto the row) is drawn in car select.
 - Shipped car.toml files set their tyre pressure keys and their own
   `[[tires.compound]]` / `[brakes]` tables (all run on defaults today).
 
 **Check:** server physics and class calibration tests (a car.toml edit moves
-them, and changes its content checksum); car select with a livery preview.
+them, and changes its content checksum).
 
 ### 10. Server dashboard
 
