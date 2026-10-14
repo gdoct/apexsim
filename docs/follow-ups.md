@@ -193,7 +193,6 @@ them, and changes its content checksum); car select with a livery preview.
   view ended", with nothing in the log and no crash report; a race with
   `-ApexNoDemo` runs. Seen on 2026-10-14 with and without the weather-look
   changes.
-- `ats-export --keep-sidecars` help text lists `pit` (it accepts it).
 - `dem_elevation.py` handles a circuit that crosses itself (Suzuka: the DEM
   sees only the bridge, so the fit closes the crossover), and Shanghai's and
   Monza's surface models are checked against a bare-earth one (grandstands,

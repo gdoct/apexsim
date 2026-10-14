@@ -1,8 +1,8 @@
 //! Batch-bake tracks into the `.uescene.json` manifest and `.uemesh` mesh
 //! blob the Unreal client builds each circuit from at runtime, plus the
 //! `.ground.msgpack` heightfield, `.curbs.msgpack` track limits,
-//! `.walls.msgpack` barriers and `.road.msgpack` road mesh the server
-//! reads from beside each YAML.
+//! `.walls.msgpack` barriers, `.road.msgpack` road mesh and `.pit.msgpack`
+//! pit lane the server reads from beside each YAML.
 //!
 //! ```text
 //! ats-export --all                          # every track under content/tracks/{default,custom}
@@ -38,7 +38,7 @@ fn main() -> ExitCode {
             "--flat-curbs" => options.bake.flat_curbs = true,
             "--keep-sidecars" => {
                 let Some(list) = iter.next() else {
-                    eprintln!("--keep-sidecars needs a list (ground,curbs,walls,road or all)");
+                    eprintln!("--keep-sidecars needs a list (ground,curbs,walls,road,pit or all)");
                     return ExitCode::FAILURE;
                 };
                 for key in list.split(',').map(str::trim).filter(|k| !k.is_empty()) {
@@ -47,7 +47,7 @@ fn main() -> ExitCode {
                     } else if let Some(sidecar) = Sidecar::from_key(key) {
                         options.keep_sidecars.push(sidecar);
                     } else {
-                        eprintln!("unknown sidecar {key:?} (ground, curbs, walls, road, all)");
+                        eprintln!("unknown sidecar {key:?} (ground, curbs, walls, road, pit, all)");
                         return ExitCode::FAILURE;
                     }
                 }
@@ -197,14 +197,14 @@ usage: ats-export [--all] [--out DIR] [--flat-curbs] [--keep-sidecars LIST] [TRA
                  sidecars are its importer's)
   --out, -o DIR  destination for the .uescene.json manifest and the .uemesh mesh blob
                  beside it (default: build/tracks); the .ground.msgpack,
-                 .curbs.msgpack, .walls.msgpack and .road.msgpack sidecars always land
-                 beside the YAML
+                 .curbs.msgpack, .walls.msgpack, .road.msgpack and .pit.msgpack
+                 sidecars always land beside the YAML
   --flat-curbs   bake the curbs into the road mesh flat at the road edge's height
                  (the rendered curbs keep their profile), to compare the mesh sim
                  against the centerline one without the curbs' shape in the way
   --keep-sidecars LIST
                  leave these sidecars as they are on disk instead of baking them
-                 (comma list of ground, curbs, walls, road, or all). A track's .ats
+                 (comma list of ground, curbs, walls, road, pit, or all). A track's .ats
                  can declare the same for itself in \"external_sidecars\", which
                  every run honours
 ";
