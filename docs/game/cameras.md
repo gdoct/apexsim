@@ -124,7 +124,9 @@ Tests: `ApexSim.Camera.ParseNumberList`, `ApexSim.Camera.ServerFramePose`.
 ## TV director (`ApexTv::FDirector`, `Race/ApexTvDirector.h`)
 
 Pure logic with ground and visibility traces injected, so it is tested on a
-synthetic ring. It picks a subject (battles, the leader, a car in trouble:
+synthetic ring. In the game (`MakeCameraQueries`) visibility is a complex
+trace against world statics both ways, camera to car and back: a camera put
+down inside a mesh (a pit wall, a building) sees out of it one way only. It picks a subject (battles, the leader, a car in trouble:
 off track or stopped, at most once per 12 s) and cuts between shots
 (`EShot`): grid, trackside (a long lens off the road on the outside of the
 bend, ahead of the car), helicopter, tracking, chase, onboard, nose and

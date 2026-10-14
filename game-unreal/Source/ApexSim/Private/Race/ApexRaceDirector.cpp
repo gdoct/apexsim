@@ -364,7 +364,7 @@ namespace
 	/**
 	 * The ground and line of sight the broadcast and lobby cameras ask about:
 	 * the first static hit below that is not a prop, and nothing static in the
-	 * way. The functions hold references to the query params, which must
+	 * way either way. The functions hold references to the query params, which must
 	 * outlive them.
 	 */
 	ApexTv::FWorldQueries MakeCameraQueries(UWorld* World, const FCollisionQueryParams& Params, const FCollisionObjectQueryParams& Statics)
@@ -385,9 +385,13 @@ namespace
 			}
 			return false;
 		};
+		// Both ways: a trace that starts inside a mesh (a camera put down in a
+		// pit wall or a building) never meets its faces from within and
+		// reads as clear; the trace back from the target hits them outside.
 		Queries.IsClear = [World, &Params, &Statics](const FVector& From, const FVector& To)
 		{
-			return !World->LineTraceTestByObjectType(From, To, Statics, Params);
+			return !World->LineTraceTestByObjectType(From, To, Statics, Params)
+				&& !World->LineTraceTestByObjectType(To, From, Statics, Params);
 		};
 		return Queries;
 	}
