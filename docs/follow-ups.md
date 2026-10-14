@@ -70,8 +70,6 @@ import re-run and crashed.
 
 The ghost, the hotlap replay and watch.
 
-- The ghost is see-through, not opaque and tinted (`AApexGhostCarActor`
-  tints its own instances).
 - The hotlap replay's trackside shots come from the TV director's cameras,
   not `CutReplayShot`'s geometric placement.
 - Corners carry the circuit's official turn number in the dossier, not the

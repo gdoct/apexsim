@@ -1,6 +1,7 @@
 #include "Race/ApexGhostCarActor.h"
 
 #include "Cars/ApexCarContentSubsystem.h"
+#include "Cars/ApexCarMaterials.h"
 #include "Components/StaticMeshComponent.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -23,12 +24,49 @@ namespace
 	/** A cold, slightly luminous car: unmistakably not a competitor. */
 	const FLinearColor GhostTint(0.55f, 0.85f, 1.0f, 1.0f);
 	const FLinearColor GhostGlow(0.10f, 0.28f, 0.40f, 1.0f);
+	/** How much of the road shows through it: a lap to chase, not a car to hit. */
+	constexpr float GhostOpacity = 0.35f;
+
+	/** The car parents' glass (`M_ApexCarTranslucent`), null on a project that has not baked it. */
+	UMaterialInterface* GhostParent()
+	{
+		static TWeakObjectPtr<UMaterialInterface> Cached;
+		if (!Cached.IsValid())
+		{
+			Cached = ApexCarMaterials::LoadParents().Translucent;
+		}
+		return Cached.Get();
+	}
 
 	void TintComponent(UStaticMeshComponent& Component)
 	{
 		const int32 Slots = Component.GetNumMaterials();
+		UMaterialInterface* Glass = GhostParent();
 		for (int32 Slot = 0; Slot < Slots; ++Slot)
 		{
+			// See-through: every slot drawn as the car parents' glass, in the
+			// ghost's colour, the slot's own picture (a livery, a logo) kept
+			// faintly under it. Its own instance, outered to the ghost's part.
+			if (Glass)
+			{
+				UTexture* Picture = nullptr;
+				if (UMaterialInterface* Current = Component.GetMaterial(Slot))
+				{
+					Current->GetTextureParameterValue(FHashedMaterialParameterInfo(ApexCarMaterials::BaseColorTexture), Picture);
+				}
+				UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(Glass, &Component);
+				Mid->SetVectorParameterValue(ApexCarMaterials::BaseColorFactor,
+					FLinearColor(GhostTint.R, GhostTint.G, GhostTint.B, GhostOpacity));
+				if (Picture)
+				{
+					Mid->SetTextureParameterValue(ApexCarMaterials::BaseColorTexture, Picture);
+				}
+				Mid->SetVectorParameterValue(ApexCarMaterials::EmissiveFactor, GhostGlow);
+				Mid->SetScalarParameterValue(ApexCarMaterials::MetallicFactor, 0.0f);
+				Mid->SetScalarParameterValue(ApexCarMaterials::RoughnessFactor, 0.4f);
+				Component.SetMaterial(Slot, Mid);
+				continue;
+			}
 			// The ghost's own instance, never the body's shared one: that
 			// would tint the real car the record was set in.
 			if (UMaterialInstanceDynamic* Mid = ApexCarContent::OwnMaterialInstance(Component, Slot))

@@ -691,9 +691,11 @@ is off and it owns the keys (`IsGarageOpen`, honoured by
 `FApexMenuInputProcessor`); on track the pause menu gains BACK TO GARAGE.
 Other drivers' garaged cars are hidden. `AApexGhostCarActor` is a race car
 actor posed by `FApexGhostLap::SampleAt` on a clock run from the local lap
-time, so it is where the record lap was at this point of this lap; tinted and
-glowing rather than translucent (runtime car materials cannot go
-translucent), muted, hidden while it overlaps the player, toggled by
+time, so it is where the record lap was at this point of this lap; see-through:
+every slot is an instance of the car parents' glass (`M_ApexCarTranslucent`)
+in a pale blue at 35% opacity with a faint glow, the slot's own picture kept
+under it (without the baked parent it falls back to tinting the car's own
+instances), muted, hidden while it overlaps the player, toggled by
 `bGhostCar`. REPLAY LAP (`AApexRaceDirector::BeginGhostReplay`) drives the
 ghost round in real time with cutting cameras (`CutReplayShot`).
 
