@@ -15,7 +15,7 @@
 //! is only ever read-locked from this loop.
 
 mod broadcast;
-mod dispatch;
+pub(crate) mod dispatch;
 mod lifecycle;
 mod showcase;
 mod tick;

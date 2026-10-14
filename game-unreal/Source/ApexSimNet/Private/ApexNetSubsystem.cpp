@@ -1210,68 +1210,76 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			OnDemoSessionChanged.Broadcast(true);
 			break;
 		}
-		bSessionRequestPending = false;
-		// A menu backdrop still playing ends here, before this session's
-		// state goes in: the demo subsystem stops it only once it hears of
-		// the join, after the roster and sectors that follow this message
-		// have arrived, and ending the feed then wiped them (and the sky),
-		// leaving the player in a race view with no cars.
-		EndBackdropFeed();
-		// Seated as a spectator: no car of our own, every car is someone else's.
-		bSessionSpectator = bSpectatorJoinRequested;
-		bSpectatorJoinRequested = false;
-		bHotlapWatch = Message.SessionKind == EApexSessionKind::HotlapWatch;
-		bHotlapWatchRequested = false;
-		if (bHotlapWatch)
 		{
-			HotlapWatchSummary.Id = Message.SessionId;
-			HotlapWatchSummary.Conditions = Message.Conditions;
-		}
-		CachedCorners = FApexTrackCorners();
-		if (bHotlapWatch)
-		{
-			// A hotlap being watched is replaced without a SessionLeft in
-			// between (another car, another sky), so nothing has put the old
-			// one's state back: the new session starts from the lobby, and
-			// its first frame is what opens the race view again.
-			if (CurrentSessionState != EApexSessionState::Lobby)
+			// Moved by the server (a dashboard restart seats everyone in the new
+			// session): a join for another session than ours that nobody here
+			// asked for. A spectator is seated at grid position 0.
+			const bool bServerMove = !bSessionRequestPending && !bSpectatorJoinRequested && !bHotlapWatchRequested
+				&& !CurrentSessionId.IsEmpty() && CurrentSessionId != Message.SessionId;
+			bSessionRequestPending = false;
+			// A menu backdrop still playing ends here, before this session's
+			// state goes in: the demo subsystem stops it only once it hears of
+			// the join, after the roster and sectors that follow this message
+			// have arrived, and ending the feed then wiped them (and the sky),
+			// leaving the player in a race view with no cars.
+			EndBackdropFeed();
+			// Seated as a spectator: no car of our own, every car is someone else's.
+			bSessionSpectator = bServerMove ? Message.GridPosition == 0 : bSpectatorJoinRequested;
+			bSpectatorJoinRequested = false;
+			bHotlapWatch = Message.SessionKind == EApexSessionKind::HotlapWatch;
+			bHotlapWatchRequested = false;
+			if (bHotlapWatch)
 			{
-				CurrentSessionState = EApexSessionState::Lobby;
-				OnSessionStateChanged.Broadcast(CurrentSessionState);
+				HotlapWatchSummary.Id = Message.SessionId;
+				HotlapWatchSummary.Conditions = Message.Conditions;
 			}
-			if (CurrentGameMode != EApexGameMode::Lobby)
+			CachedCorners = FApexTrackCorners();
+			if (bHotlapWatch || bServerMove)
 			{
-				CurrentGameMode = EApexGameMode::Lobby;
-				OnGameModeChanged.Broadcast(CurrentGameMode);
+				// A hotlap being watched is replaced without a SessionLeft in
+				// between (another car, another sky), and so is a session the
+				// server restarted, so nothing has put the old one's state back:
+				// the new session starts from the lobby, and its first frame is
+				// what opens the race view again.
+				if (CurrentSessionState != EApexSessionState::Lobby)
+				{
+					CurrentSessionState = EApexSessionState::Lobby;
+					OnSessionStateChanged.Broadcast(CurrentSessionState);
+				}
+				if (CurrentGameMode != EApexGameMode::Lobby)
+				{
+					CurrentGameMode = EApexGameMode::Lobby;
+					OnGameModeChanged.Broadcast(CurrentGameMode);
+				}
 			}
+
+			// different track or car.
+			ClearRacingLine();
+			ClearLapTiming();
+			CurrentSessionId = Message.SessionId;
+			CurrentAllowedAssists = Message.AllowedAssists;
+			CurrentConditions = Message.Conditions;
+			CurrentDamage = Message.Damage;
+			CurrentAiSkill = Message.AiSkill;
+			CurrentRaceSeconds = Message.RaceSeconds;
+			CurrentQualifyingSeconds = Message.QualifyingSeconds;
+			CurrentWeekend = Message.Weekend;
+			// The session's WeekendState follows its SessionJoined.
+			CurrentWeekendState = FApexWeekendState();
+			DiscardTelemetryOfPreviousSession();
+			// In a session now: the seat held for us is this one or given up.
+			ClearRejoinOffer();
+			UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d Conditions=%s Damage=%d AiSkill=%d RaceSeconds=%d QualifyingSeconds=%d"),
+				*CurrentSessionId, Message.GridPosition, CurrentAllowedAssists.CountLocked(), *CurrentConditions.Describe(),
+				static_cast<int32>(CurrentDamage), CurrentAiSkill, CurrentRaceSeconds, CurrentQualifyingSeconds);
+			OnSessionJoined.Broadcast(CurrentSessionId, Message.GridPosition);
+
+			// The cached lobby state predates this session, so anything resolving the
+			// session by id against it — the track level, the lobby screen — misses
+			// until the next periodic broadcast. Refresh right away.
+			TimeSinceLobbyRequest = LobbyStateDebounceSeconds;
+			RequestLobbyState();
 		}
-
-		// different track or car.
-		ClearRacingLine();
-		ClearLapTiming();
-		CurrentSessionId = Message.SessionId;
-		CurrentAllowedAssists = Message.AllowedAssists;
-		CurrentConditions = Message.Conditions;
-		CurrentDamage = Message.Damage;
-		CurrentAiSkill = Message.AiSkill;
-		CurrentRaceSeconds = Message.RaceSeconds;
-		CurrentQualifyingSeconds = Message.QualifyingSeconds;
-		CurrentWeekend = Message.Weekend;
-		// The session's WeekendState follows its SessionJoined.
-		CurrentWeekendState = FApexWeekendState();
-		DiscardTelemetryOfPreviousSession();
-		// In a session now: the seat held for us is this one or given up.
-		ClearRejoinOffer();
-		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d Conditions=%s Damage=%d AiSkill=%d RaceSeconds=%d QualifyingSeconds=%d"),
-			*CurrentSessionId, Message.GridPosition, CurrentAllowedAssists.CountLocked(), *CurrentConditions.Describe(),
-			static_cast<int32>(CurrentDamage), CurrentAiSkill, CurrentRaceSeconds, CurrentQualifyingSeconds);
-		OnSessionJoined.Broadcast(CurrentSessionId, Message.GridPosition);
-
-		// The cached lobby state predates this session, so anything resolving the
-		// session by id against it — the track level, the lobby screen — misses
-		// until the next periodic broadcast. Refresh right away.
-		TimeSinceLobbyRequest = LobbyStateDebounceSeconds;
-		RequestLobbyState();
 		break;
 
 	case EApexServerMessageType::SessionLeft:

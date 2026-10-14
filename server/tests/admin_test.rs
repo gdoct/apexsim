@@ -905,9 +905,48 @@ async fn a_hosted_session_restarts_with_its_settings() {
     let (track, car) = some_track_and_car(&d).await;
     let spec =
         serde_json::json!({ "track_id": track, "car_id": car, "ai_count": 3, "lap_limit": 4 });
-    let first = post(&d, "/api/sessions?start=1", &spec).await.json();
-    assert_eq!(first["started"], "race");
-    let id = first["id"].as_str().unwrap();
+    let opened = post(&d, "/api/sessions", &spec).await.json();
+    let id = opened["id"].as_str().unwrap().to_string();
+    let id = id.as_str();
+
+    // A driver and a spectator in it.
+    let (mut driver, _) = Racer::connect(d.server.tcp_addr, "Driver").await.unwrap();
+    driver
+        .send(&ClientMessage::SelectCar {
+            car_config_id: car.parse().unwrap(),
+            livery: 0,
+        })
+        .await;
+    driver
+        .send(&ClientMessage::JoinSession {
+            session_id: id.parse().unwrap(),
+        })
+        .await;
+    let seat = driver
+        .until(|m| match m {
+            ServerMessage::SessionJoined(j) => Some(j.your_grid_position),
+            _ => None,
+        })
+        .await
+        .expect("the driver joins");
+    assert!(seat > 0);
+    let (mut watcher, _) = Racer::connect(d.server.tcp_addr, "Watcher").await.unwrap();
+    watcher
+        .send(&ClientMessage::JoinAsSpectator {
+            session_id: id.parse().unwrap(),
+        })
+        .await;
+    watcher
+        .until(|m| matches!(m, ServerMessage::SessionJoined(_)).then_some(()))
+        .await
+        .expect("the spectator joins");
+    let started = post(
+        &d,
+        &format!("/api/sessions/{id}/start"),
+        &serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(started.status, 200, "{}", started.body);
 
     let again = post(
         &d,
@@ -918,6 +957,29 @@ async fn a_hosted_session_restarts_with_its_settings() {
     assert_eq!(again.status, 200, "{}", again.body);
     let new_id = again.json()["id"].as_str().unwrap().to_string();
     assert_ne!(new_id, id);
+
+    // Both are in the new one at once, with no SessionLeft in between: the
+    // driver in a car, the spectator watching.
+    let moved = |m: &ServerMessage| match m {
+        ServerMessage::SessionLeft => Some(None),
+        ServerMessage::SessionJoined(j) => {
+            Some(Some((j.session_id.to_string(), j.your_grid_position)))
+        }
+        _ => None,
+    };
+    let (driven, seat) = driver
+        .until(moved)
+        .await
+        .flatten()
+        .expect("the driver is seated again");
+    assert_eq!(driven, new_id);
+    assert!(seat > 0);
+    let (watched, none) = watcher
+        .until(moved)
+        .await
+        .flatten()
+        .expect("the spectator watches again");
+    assert_eq!((watched.as_str(), none), (new_id.as_str(), 0));
     let list = get(&d, "/api/sessions").await.json();
     let rows = list["sessions"].as_array().unwrap();
     assert_eq!(rows.len(), 1);
@@ -930,6 +992,7 @@ async fn a_hosted_session_restarts_with_its_settings() {
         ),
         (Some("lobby"), Some(3), Some(4))
     );
+    assert_eq!(rows[0]["humans"].as_u64(), Some(1));
 
     // Unknown ones are refused.
     let nobody = "00000000-0000-0000-0000-000000000001";

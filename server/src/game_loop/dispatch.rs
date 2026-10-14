@@ -837,7 +837,7 @@ async fn start_demo_session(
         .await;
 }
 
-async fn handle_join_session(
+pub(crate) async fn handle_join_session(
     ctx: &GameLoopCtx,
     connection_id: ConnectionId,
     session_id: SessionId,
@@ -1224,7 +1224,7 @@ async fn rollback_failed_join(
     }
 }
 
-async fn handle_join_as_spectator(
+pub(crate) async fn handle_join_as_spectator(
     ctx: &GameLoopCtx,
     connection_id: ConnectionId,
     session_id: SessionId,

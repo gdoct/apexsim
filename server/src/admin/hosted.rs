@@ -316,6 +316,18 @@ pub(crate) async fn stop(
     id: SessionId,
     reason: &str,
 ) -> Result<(), String> {
+    end(ctx, hosted, id, reason, true).await
+}
+
+/// Remove a session, telling everyone in it `reason`; `send_back` also sends
+/// them `SessionLeft` (a restart seats them again instead).
+async fn end(
+    ctx: &GameLoopCtx,
+    hosted: &HostedSessions,
+    id: SessionId,
+    reason: &str,
+    send_back: bool,
+) -> Result<(), String> {
     let mut st = ctx.state.write().await;
     if !st.sessions.contains_key(&id) {
         return Err("no such session".into());
@@ -339,21 +351,28 @@ pub(crate) async fn stop(
                     },
                 )
                 .await;
-            let _ = ctx.send(conn, ServerMessage::SessionLeft).await;
+            if send_back {
+                let _ = ctx.send(conn, ServerMessage::SessionLeft).await;
+            }
             ctx.set_player_session(conn, None).await;
         }
     }
     info!(
-        "Admin ended session {} ({} players sent back): {}",
+        "Admin ended session {} ({} players {}): {}",
         id,
         players.len(),
+        if send_back { "sent back" } else { "moving on" },
         reason
     );
     Ok(())
 }
 
 /// End a hosted session and open it again with the same settings, in its
-/// lobby: the players in it are sent back to the menu to join the new one.
+/// lobby. Its connected drivers are seated in the new one as a join would
+/// seat them (their car and livery, the session's rules, the racing line),
+/// and its spectators watch it; the client takes that `SessionJoined`
+/// without a `SessionLeft` in between. A driver whose seat was being held
+/// (disconnected) is not carried over.
 pub(crate) async fn restart(
     ctx: &GameLoopCtx,
     hosted: &HostedSessions,
@@ -362,14 +381,35 @@ pub(crate) async fn restart(
     let Some(spec) = hosted.spec(id) else {
         return Err("only a session the server hosts can be restarted".into());
     };
-    stop(
-        ctx,
-        hosted,
-        id,
-        "The server is restarting this session: join it again from the session list",
-    )
-    .await?;
-    open(ctx, hosted, spec).await
+    let (drivers, spectators) = {
+        let st = ctx.state.read().await;
+        let drivers: Vec<PlayerId> = st
+            .sessions
+            .get(&id)
+            .map(|gs| {
+                gs.session
+                    .participants
+                    .keys()
+                    .filter(|p| !gs.session.ai_player_ids.contains(p) && !gs.is_away(p))
+                    .copied()
+                    .collect()
+            })
+            .unwrap_or_default();
+        (drivers, st.lobby.get_session_spectators(id).await)
+    };
+    end(ctx, hosted, id, "The server restarted this session", false).await?;
+    let new_id = open(ctx, hosted, spec).await?;
+    for player in drivers {
+        if let Some(conn) = ctx.player_connection(player).await {
+            crate::game_loop::dispatch::handle_join_session(ctx, conn, new_id).await;
+        }
+    }
+    for player in spectators {
+        if let Some(conn) = ctx.player_connection(player).await {
+            crate::game_loop::dispatch::handle_join_as_spectator(ctx, conn, new_id).await;
+        }
+    }
+    Ok(new_id)
 }
 
 /// Take an AI car out of a session.

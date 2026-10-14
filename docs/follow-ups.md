@@ -147,14 +147,6 @@ Car data that is built but that the client and the shipped cars do not use.
 **Check:** server physics and class calibration tests (a car.toml edit moves
 them, and changes its content checksum).
 
-### 10. Server dashboard
-
-- Restarting a hosted session seats its players in the new one, instead of
-  sending them back to the menu to join again (the client has never taken
-  a `SessionJoined` it did not ask for).
-
-**Check:** a player stays in the car through a dashboard RESTART.
-
 ### 11. Content tooling
 
 - Before the next release: re-render the showcases and track guides of the

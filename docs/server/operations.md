@@ -208,11 +208,17 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   `LobbySessionInfo::persistent`) and only the dashboard moves it: START
   (into the countdown, or a weekend's first phase), NEXT PHASE (a weekend
   between phases waits for it), RESTART (ends it and opens it again with
-  the same settings, in its lobby: players go back to the menu and join
-  again) and STOP. START and STOP work on a player's session too. STOP and
-  RESTART send everyone in the session a `ServerNotice` with the reason and
-  a `SessionLeft`. A broadcast sends a `ServerNotice` to everyone connected
-  or to one session.
+  the same settings, in its lobby) and STOP. START and STOP work on a
+  player's session too. STOP sends everyone in the session a `ServerNotice`
+  with the reason and a `SessionLeft`. RESTART (`hosted::restart`) sends the
+  notice and then seats them in the new session as a join would: each
+  connected driver in their car (`handle_join_session`), each spectator
+  watching (`handle_join_as_spectator`), with no `SessionLeft` in between;
+  a driver whose seat was being held is not carried over. The client takes
+  a `SessionJoined` for another session that it did not ask for as that
+  move (`UApexNetSubsystem`: back to the lobby state, a spectator if seated
+  at grid position 0). A broadcast sends a `ServerNotice` to everyone
+  connected or to one session.
 - **Schedule** (`schedule.rs`, kept in `[admin] schedule_file`): an entry is
   a hosted session's settings, a start time, how many minutes before it the
   session opens in the lobby, and once, daily or weekly. A task checks it
