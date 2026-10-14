@@ -86,11 +86,6 @@ The ghost, the hotlap replay and watch.
   live car: the HUD has no view of the lap being replayed.
 - The watch ghosts (`ServerState::watch_ghosts`) go with a server restart,
   as the ladder levels do.
-- A watched hotlap at the Nordschleife never closes a lap: the probe
-  (`watch_probe`, the Fugazzi LMP2) eases the driver to the bottom of the
-  ladder and the car sits stopped near T13 in the running game. Not from
-  the 2026-10-14 dressing (no road, curb or wall changed); the sausage
-  kerbs of 2026-10-13 are a suspect.
 
 **Check:** a hotlap with ghost and replay; a server restart between two
 watches.

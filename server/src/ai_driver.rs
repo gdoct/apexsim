@@ -266,7 +266,11 @@ enum RacingLineRef<'a> {
 /// The point of `speeds` the car is at: the profile is the same loop
 /// resampled evenly from the same first point, so the line distance is
 /// close to right and the nearest point around it settles the rest.
-fn profile_point(state: &CarState, speeds: &RacingLineProfile, d_line: f32) -> Option<usize> {
+pub(crate) fn profile_point(
+    state: &CarState,
+    speeds: &RacingLineProfile,
+    d_line: f32,
+) -> Option<usize> {
     let n = speeds.points.len();
     if n == 0 || speeds.spacing_m <= 0.0 {
         return None;

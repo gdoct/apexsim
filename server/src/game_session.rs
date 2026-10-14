@@ -2070,8 +2070,21 @@ impl GameSession {
             if profile.speed_mps.is_empty() || profile.spacing_m <= 0.0 {
                 continue;
             }
-            let at = (state.track_progress / profile.spacing_m).round() as usize;
-            let speed = profile.speed_mps[at % profile.speed_mps.len()] * HOTLAP_WATCH_ROLL_FRAC;
+            // The profile runs along the racing line, not the centerline the
+            // car's progress is measured on (at the Nordschleife 135 m
+            // shorter): the car's place on it is found as the AI finds its
+            // own, from the progress scaled to the line's length.
+            let line_m = profile.spacing_m * profile.speed_mps.len() as f32;
+            let lap_m = self.track_length_m();
+            let guess = if lap_m > 0.0 {
+                state.track_progress * line_m / lap_m
+            } else {
+                state.track_progress
+            };
+            let Some(at) = crate::ai_driver::profile_point(state, profile, guess) else {
+                continue;
+            };
+            let speed = profile.speed_mps[at] * HOTLAP_WATCH_ROLL_FRAC;
             let Some(config) = self.car_configs.get(&state.car_config_id) else {
                 continue;
             };
