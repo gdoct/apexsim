@@ -2139,8 +2139,7 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 						continue;
 					}
 					const FString Name = Material->GetName();
-					if (Name.StartsWith(TEXT("MI_road")) || Name.StartsWith(TEXT("MI_pit_lane"))
-						|| Name.StartsWith(TEXT("MI_wear_")))
+					if (Name.StartsWith(TEXT("MI_road")) || Name.StartsWith(TEXT("MI_pit_lane")))
 					{
 						if (UMaterialInstanceDynamic* Wet = Mesh->CreateDynamicMaterialInstance(Slot))
 						{
@@ -2176,10 +2175,6 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 					else if (Name.StartsWith(TEXT("MI_curb")))
 					{
 						Share = 0.5f;
-					}
-					else if (Name.StartsWith(TEXT("MI_wear_")))
-					{
-						Share = 0.3f;
 					}
 					if (Share > 0.0f)
 					{

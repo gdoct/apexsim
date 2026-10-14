@@ -211,8 +211,6 @@ the same files.
 - Unused: `WBP_SessionBrowser`, `WBP_SessionRow` and `UApexSessionRowWidget`
   (the browser is C++; `WBP_Root` still references the first).
 - `L_Menu` still names `/Game/Cars/RB20/SM_RB20` as `DefaultCarMesh`.
-- `ApexRaceDirector.cpp` still matches `MI_wear_*` road bands that no
-  exporter writes.
 - Wire: `SessionKind::Sandbox` has no behaviour and no client sends it;
   `SessionKind::Demo` is kept only for old servers and can go once
   showcases are everywhere.
