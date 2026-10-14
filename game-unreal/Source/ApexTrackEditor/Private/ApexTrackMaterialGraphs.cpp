@@ -1017,11 +1017,11 @@ struct ApxWeb
 		float a = atan2(d.y, d.x);
 		float spokes = 10.0 + floor(amt * 8.0);
 		float sp = frac(a * 0.15915494 * spokes + seed);
-		float line = 1.0 - smoothstep(0.0, 0.02 + 0.012 * r, min(sp, 1.0 - sp));
+		float spoke = 1.0 - smoothstep(0.0, 0.02 + 0.012 * r, min(sp, 1.0 - sp));
 		float rg = frac(r * (5.0 + 3.0 * amt) + seed * 3.0);
 		float ring = 1.0 - smoothstep(0.0, 0.03, min(rg, 1.0 - rg));
 		float reach = 0.25 + amt * 0.9;
-		return max(line, ring * 0.8) * saturate((reach - r) / 0.15) * saturate(amt * 3.0);
+		return max(spoke, ring * 0.8) * saturate((reach - r) / 0.15) * saturate(amt * 3.0);
 	}
 };
 ApxWeb Wb;

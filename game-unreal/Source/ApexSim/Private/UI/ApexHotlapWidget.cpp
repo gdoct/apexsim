@@ -76,7 +76,7 @@ namespace
 	const FName ActionDelete     = TEXT("Hotlap.Delete");
 	const FName ActionRename     = TEXT("Hotlap.Rename");
 	const FName ActionReady      = TEXT("Grid.Ready");
-	const FName ActionLivery     = TEXT("Grid.Livery");
+	const FName ActionGridLivery     = TEXT("Grid.Livery");
 	const FName ActionStartNow   = TEXT("Grid.StartNow");
 
 	/** The grid list's rows: a full field. */
@@ -129,7 +129,7 @@ namespace
 		float Grip;
 		float Life;
 	};
-	const FCompoundSpec Compounds[] = {
+	const FCompoundSpec GridCompounds[] = {
 		{ 1,  TEXT("SOFT"),   TEXT("Most grip, shortest life."),  TEXT("+3% GRIP · 1.8x WEAR · -6°C"),
 			FLinearColor::FromSRGBColor(FColor(0xE0, 0x4B, 0x3C)), 0.94f, 0.30f },
 		{ 0,  TEXT("MEDIUM"), TEXT("The car's own tyre."),        TEXT("AS FILED · RAIN: WET · DAMP: INTER"),
@@ -578,7 +578,7 @@ TArray<FApexGarageCompound> UApexHotlapWidget::CompoundCardsFor(const FApexCarSe
 	}
 	if (!Sheet || !Sheet->HasCompounds() || bDefaultList)
 	{
-		for (const FCompoundSpec& Default : Compounds)
+		for (const FCompoundSpec& Default : GridCompounds)
 		{
 			FApexGarageCompound& Card = Cards.AddDefaulted_GetRef();
 			Card.Clicks = Default.Clicks;
@@ -837,7 +837,7 @@ UWidget* UApexHotlapWidget::BuildActionColumn()
 	// The race's grid: ready, the paint, and the host's start (SetGridMode).
 	ReadyButton = MakeActionButton(TEXT("READY"), FString(), ActionReady, EApexButtonVariant::Primary, 72.0f, 20.0f);
 	AddV(Column, ReadyButton);
-	LiveryButton = MakeActionButton(TEXT("LIVERY"), FString(), ActionLivery, EApexButtonVariant::Panel, 64.0f, 20.0f);
+	LiveryButton = MakeActionButton(TEXT("LIVERY"), FString(), ActionGridLivery, EApexButtonVariant::Panel, 64.0f, 20.0f);
 	AddV(Column, LiveryButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	StartNowButton = MakeActionButton(TEXT("START NOW"), TEXT("Host"), ActionStartNow, EApexButtonVariant::Panel, 64.0f, 20.0f);
 	AddV(Column, StartNowButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
@@ -2640,7 +2640,7 @@ void UApexHotlapWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		ToggleReady();
 		RefreshGrid();
 	}
-	else if (Id == ActionLivery)
+	else if (Id == ActionGridLivery)
 	{
 		CycleLivery(1);
 	}
