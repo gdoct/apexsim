@@ -591,6 +591,7 @@ fn game_mode_from(v: u8) -> GameMode {
         7 => GameMode::Race,
         8 => GameMode::Hotlap,
         9 => GameMode::Practice,
+        10 => GameMode::Grid,
         _ => GameMode::Lobby,
     }
 }

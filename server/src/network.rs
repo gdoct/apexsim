@@ -279,6 +279,23 @@ pub enum ClientMessage {
     /// connection to (the menu's rejoin banner): the car leaves the
     /// session. Nothing happens when no seat is held.
     GiveUpSeat,
+    /// The host puts the race's grid up (`GameMode::Grid`): the cars line
+    /// up on their slots and wait for every driver's `SetReady`, then count
+    /// `countdown_seconds` into the race. `Error 403` for anyone else.
+    OpenGrid {
+        countdown_seconds: u16,
+    },
+    /// A driver on the grid is ready to start, or not any more. Ignored
+    /// outside `GameMode::Grid`; the roster carries it (`RosterEntry.Ready`).
+    SetReady {
+        ready: bool,
+    },
+    /// The livery this driver's car wears from now on, in a session (as
+    /// `SelectCar.livery` picks it before one): 0 the car as authored, 1..
+    /// its `[[livery]]` tables. The roster carries it to everyone.
+    SetLivery {
+        livery: u8,
+    },
 
     // UDP - Binds the sender's UDP address to the TCP connection that was
     // issued `token` in `AuthSuccess`. Server replies `UdpHandshakeAck` over
@@ -1554,6 +1571,11 @@ pub struct RosterEntry {
     /// 0 (left off the wire) when the session has not dealt one.
     #[serde(default, skip_serializing_if = "is_zero_u8")]
     pub grid_slot: u8,
+    /// On the grid before the countdown (`GameMode::Grid`): the driver said
+    /// they are ready. Left off the wire when false, and always false
+    /// outside the grid.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ready: bool,
 }
 
 fn is_zero_u8(value: &u8) -> bool {
@@ -4531,6 +4553,7 @@ mod tests {
                 livery: 0,
                 away,
                 grid_slot,
+                ready: false,
             };
         // Present and on the grid: no away key; no slot: no grid key.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false, false, 0)).unwrap();
@@ -4559,6 +4582,78 @@ mod tests {
                 assert_eq!(data.entries[0].grid_slot, 2);
                 assert!(!data.entries[1].away);
                 assert_eq!(data.entries[1].grid_slot, 1);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
+    /// The race's grid before the countdown: `OpenGrid`, `SetReady`,
+    /// `SetLivery`, a roster with a driver ready and the `Grid` mode, pinned
+    /// on the client as `ApexGolden::C_OpenGrid`, `C_SetReady`, `C_SetLivery`,
+    /// `S_GameModeChangedGrid` and `ApexUdpGolden::S_SessionRosterReady`.
+    /// `cargo test ready_grid_wire_format -- --nocapture` prints them.
+    #[test]
+    fn test_ready_grid_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let open = rmp_serde::to_vec_named(&ClientMessage::OpenGrid {
+            countdown_seconds: 10,
+        })
+        .unwrap();
+        println!("C_OpenGrid: {}", hex(&open));
+        assert!(matches!(
+            rmp_serde::from_slice::<ClientMessage>(&open).unwrap(),
+            ClientMessage::OpenGrid {
+                countdown_seconds: 10
+            }
+        ));
+        let ready = rmp_serde::to_vec_named(&ClientMessage::SetReady { ready: true }).unwrap();
+        println!("C_SetReady: {}", hex(&ready));
+        assert!(matches!(
+            rmp_serde::from_slice::<ClientMessage>(&ready).unwrap(),
+            ClientMessage::SetReady { ready: true }
+        ));
+        let livery = rmp_serde::to_vec_named(&ClientMessage::SetLivery { livery: 2 }).unwrap();
+        println!("C_SetLivery: {}", hex(&livery));
+        assert!(matches!(
+            rmp_serde::from_slice::<ClientMessage>(&livery).unwrap(),
+            ClientMessage::SetLivery { livery: 2 }
+        ));
+        let mode = rmp_serde::to_vec_named(&ServerMessage::GameModeChanged {
+            mode: GameMode::Grid,
+        })
+        .unwrap();
+        println!("S_GameModeChangedGrid: {}", hex(&mode));
+
+        let entry = |car_index: u8, name: &str, ready: bool| RosterEntry {
+            car_index,
+            player_id: Uuid::from_u128(car_index as u128 + 1),
+            player_name: name.to_string(),
+            is_ai: false,
+            car_config_id: Uuid::parse_str("99999999-8888-7777-6666-555555555555").unwrap(),
+            livery: 1,
+            away: false,
+            grid_slot: car_index + 1,
+            ready,
+        };
+        // Not ready: no key, so a roster off the grid keeps its bytes.
+        let plain = rmp_serde::to_vec_named(&entry(0, "Player", false)).unwrap();
+        assert!(!String::from_utf8_lossy(&plain).contains("Ready"));
+        let roster = ServerMessage::SessionRoster(SessionRosterData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            entries: vec![entry(0, "Player", true), entry(1, "Guest", false)],
+        });
+        let bytes = rmp_serde::to_vec_named(&roster).unwrap();
+        println!("S_SessionRosterReady: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::SessionRoster(data) => {
+                assert!(data.entries[0].ready);
+                assert!(!data.entries[1].ready);
             }
             other => panic!("Wrong message type: {other:?}"),
         }

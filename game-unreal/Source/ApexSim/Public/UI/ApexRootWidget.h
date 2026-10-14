@@ -554,6 +554,8 @@ private:
 	bool bGarageOpen = false;
 	/** The session's mode is Hotlap; the hotlap layer is live. */
 	bool bHotlapSession = false;
+	/** The race's grid is up (EApexGameMode::Grid): the garage card is its grid card. */
+	bool bGridSession = false;
 	/** The winner's flag has been announced for this race. */
 	bool bWinnerAnnounced = false;
 	/** The local car has taken the flag in this race. */

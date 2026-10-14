@@ -76,7 +76,7 @@ pub fn crossed(from: f32, to: f32, line: f32, total: f32) -> bool {
 /// Which game modes race under the gap rule. Practice, qualifying and the
 /// hotlap open the flap in every zone.
 pub fn race_rules(mode: GameMode) -> bool {
-    matches!(mode, GameMode::Race | GameMode::Countdown)
+    matches!(mode, GameMode::Race | GameMode::Countdown | GameMode::Grid)
 }
 
 /// Seconds to the nearest car ahead of `me` on the road, or `None` when

@@ -290,7 +290,7 @@ pub(crate) async fn advance(ctx: &GameLoopCtx, id: SessionId) -> Result<&'static
 
 fn mode_name(mode: GameMode) -> &'static str {
     match mode {
-        GameMode::Countdown | GameMode::Race => "race",
+        GameMode::Countdown | GameMode::Grid | GameMode::Race => "race",
         GameMode::Practice => "practice",
         GameMode::Qualification => "qualifying",
         _ => "session",

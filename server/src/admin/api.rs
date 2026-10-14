@@ -234,6 +234,7 @@ fn mode_label(mode: GameMode) -> &'static str {
         GameMode::Lobby => "Lobby",
         GameMode::Sandbox => "Sandbox",
         GameMode::Countdown => "Countdown",
+        GameMode::Grid => "Grid",
         GameMode::DemoLap => "Demo lap",
         GameMode::FreePractice => "Practice",
         GameMode::Replay => "Replay",

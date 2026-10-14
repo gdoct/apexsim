@@ -943,6 +943,7 @@ namespace
 			else if (Key == TEXT("Livery"))     { bOk = Reader.ReadUInt64(Raw); Out.Livery = static_cast<int32>(Raw); }
 			else if (Key == TEXT("Away"))       { bOk = Reader.ReadBool(Out.bAway); }
 			else if (Key == TEXT("GridSlot"))   { bOk = Reader.ReadUInt64(Raw); Out.GridSlot = static_cast<int32>(Raw); }
+			else if (Key == TEXT("Ready"))      { bOk = Reader.ReadBool(Out.bReady); }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -2985,6 +2986,33 @@ namespace ApexProtocol
 		BeginDataVariant(Writer, "SetGameMode", 1);
 		Writer.WriteString("mode");
 		Writer.WriteUInt(static_cast<uint8>(Mode));
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeOpenGrid(uint16 CountdownSeconds)
+	{
+		FMsgPackWriter Writer(48);
+		BeginDataVariant(Writer, "OpenGrid", 1);
+		Writer.WriteString("countdown_seconds");
+		Writer.WriteUInt(CountdownSeconds);
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeSetReady(bool bReady)
+	{
+		FMsgPackWriter Writer(32);
+		BeginDataVariant(Writer, "SetReady", 1);
+		Writer.WriteString("ready");
+		Writer.WriteBool(bReady);
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeSetLivery(uint8 Livery)
+	{
+		FMsgPackWriter Writer(32);
+		BeginDataVariant(Writer, "SetLivery", 1);
+		Writer.WriteString("livery");
+		Writer.WriteUInt(Livery);
 		return MoveTemp(Writer.GetBuffer());
 	}
 

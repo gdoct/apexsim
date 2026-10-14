@@ -1240,7 +1240,7 @@ void UApexRootWidget::SetGarageOpen(bool bOpen)
 		return;
 	}
 	bGarageOpen = bOpen;
-	if (HotlapPanel && bHotlapSession)
+	if (HotlapPanel && (bHotlapSession || bGridSession))
 	{
 		HotlapPanel->SetView(bOpen ? EApexHotlapView::Garage : EApexHotlapView::Track);
 	}
@@ -1438,14 +1438,31 @@ void UApexRootWidget::HandleTelemetryForHotlap(const FApexTelemetryFrame& Frame)
 			SetGarageOpen(false);
 		}
 	}
-	if (!bHotlap)
+	// The race's grid: the same card, up for every driver until the countdown.
+	const bool bGrid = Frame.GameMode == EApexGameMode::Grid;
+	if (bGrid != bGridSession)
 	{
-		return;
+		bGridSession = bGrid;
+		if (HotlapPanel)
+		{
+			HotlapPanel->SetGridMode(bGrid);
+			HotlapPanel->SetActive(bGrid);
+		}
+		if (!bGrid)
+		{
+			SetGarageOpen(false);
+		}
 	}
 	const int32 LocalIndex = Net->GetLocalCarIndex();
 	const FApexCarTelemetry* Local = Frame.Cars.FindByPredicate(
 		[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; });
-	if (!Local)
+	if (bGrid)
+	{
+		// A spectator has no car on the grid, and no card.
+		SetGarageOpen(Local != nullptr);
+		return;
+	}
+	if (!bHotlap || !Local)
 	{
 		return;
 	}
@@ -1928,7 +1945,7 @@ void UApexRootWidget::StartRequestedSession()
 	}
 	UE_LOG(LogApexSim, Log, TEXT("One-click start: counting into mode %d"),
 		static_cast<int32>(Flow->AutoStartMode));
-	Net->StartCountdown(AutoStartCountdownSeconds, Flow->AutoStartMode);
+	Net->BeginSession(AutoStartCountdownSeconds, Flow->AutoStartMode);
 }
 
 void UApexRootWidget::SendDriverAids()
@@ -2110,6 +2127,7 @@ bool UApexRootWidget::IsDrivingMode(EApexGameMode Mode)
 	switch (Mode)
 	{
 	case EApexGameMode::Countdown:
+	case EApexGameMode::Grid:
 	case EApexGameMode::DemoLap:
 	case EApexGameMode::FreePractice:
 	case EApexGameMode::Qualification:
@@ -2417,8 +2435,8 @@ void UApexRootWidget::HandleRaceResultsAction(EApexRaceResultsAction Action)
 			ShowToast(TEXT("Still binding the telemetry channel — try again in a moment"), true);
 			return;
 		}
-		// The countdown that follows ends the finish view (ResetFinishWatch).
-		Net->StartCountdown(5, Flow->CreateStartingMode);
+		// The grid (or countdown) that follows ends the finish view (ResetFinishWatch).
+		Net->BeginSession(5, Flow->CreateStartingMode);
 		return;
 	}
 	case EApexRaceResultsAction::BackToLobby:
@@ -2477,8 +2495,10 @@ void UApexRootWidget::SetRaceViewActive(bool bActive)
 		SetPaused(false);
 		SetGarageOpen(false);
 		bHotlapSession = false;
+		bGridSession = false;
 		if (HotlapPanel)
 		{
+			HotlapPanel->SetGridMode(false);
 			HotlapPanel->SetActive(false);
 		}
 		RequestFocusDefault();

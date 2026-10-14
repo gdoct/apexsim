@@ -163,6 +163,10 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeStartCountdown(10, EApexGameMode::Race),
 		ApexGolden::C_StartCountdown);
 
+	CheckBytes(TEXT("OpenGrid"), ApexProtocol::EncodeOpenGrid(10), ApexGolden::C_OpenGrid);
+	CheckBytes(TEXT("SetReady"), ApexProtocol::EncodeSetReady(true), ApexGolden::C_SetReady);
+	CheckBytes(TEXT("SetLivery"), ApexProtocol::EncodeSetLivery(2), ApexGolden::C_SetLivery);
+
 	CheckBytes(TEXT("SetDriverAids"),
 		ApexProtocol::EncodeSetDriverAids(true, true, false, EApexTractionControl::High, false),
 		ApexGolden::C_SetDriverAids);
@@ -656,6 +660,14 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("GameModeChanged type"), Message.Type, EApexServerMessageType::GameModeChanged);
 			// Serialize_repr means this arrives as the integer 2, not "Countdown".
 			TestEqual(TEXT("GameModeChanged.mode"), Message.GameMode, EApexGameMode::Countdown);
+		}
+	}
+
+	{
+		FApexServerMessage Message;
+		if (Decode(TEXT("GameModeChanged to the grid"), ApexGolden::S_GameModeChangedGrid, Message))
+		{
+			TestEqual(TEXT("GameModeChanged.mode is the grid"), Message.GameMode, EApexGameMode::Grid);
 		}
 	}
 

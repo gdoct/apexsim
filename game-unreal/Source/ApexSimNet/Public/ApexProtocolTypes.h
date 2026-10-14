@@ -917,6 +917,13 @@ enum class EApexGameMode : uint8
 	 * counts for the grid.
 	 */
 	Practice      = 9,
+	/**
+	 * The race's grid before its countdown: the cars stand on their slots
+	 * with no clock while each driver picks setup, tyres and livery and says
+	 * they are ready (SetReady). Once every connected driver is, the server
+	 * counts into the race; the host's StartCountdown starts it at once.
+	 */
+	Grid          = 10,
 };
 
 /**
@@ -1370,6 +1377,10 @@ struct APEXSIMNET_API FApexRosterEntry
 	/** The car's starting place, 1 = pole; 0 when the session has not dealt one (or an older server). */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	int32 GridSlot = 0;
+
+	/** On the race's grid (EApexGameMode::Grid): the driver said they are ready. False everywhere else. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bReady = false;
 };
 
 /** `SessionRosterData` (network.rs:470) — PascalCase keys, TCP. */

@@ -8,6 +8,8 @@
 #include "ApexSim.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
+#include "Catalog/ApexCatalogRows.h"
+#include "Race/ApexCarLivery.h"
 #include "Race/ApexQualifyingBoard.h"
 #include "Components/Border.h"
 #include "Components/EditableTextBox.h"
@@ -73,6 +75,15 @@ namespace
 	const FName ActionOverwrite  = TEXT("Hotlap.Overwrite");
 	const FName ActionDelete     = TEXT("Hotlap.Delete");
 	const FName ActionRename     = TEXT("Hotlap.Rename");
+	const FName ActionReady      = TEXT("Grid.Ready");
+	const FName ActionLivery     = TEXT("Grid.Livery");
+	const FName ActionStartNow   = TEXT("Grid.StartNow");
+
+	/** The grid list's rows: a full field. */
+	constexpr int32 GridRowCount = 24;
+	constexpr float GridRowHeight = 26.0f;
+	/** START NOW's countdown, s: as the lobby's shortest. */
+	constexpr int32 StartNowSeconds = 5;
 
 	/** The garage design's own tones: a cool near-black card with hairlines of the text colour. */
 	const FLinearColor CardFill  = FLinearColor::FromSRGBColor(FColor(16, 19, 21)).CopyWithNewOpacity(0.92f);
@@ -263,6 +274,51 @@ static FAutoConsoleCommand GHotlapBoardCommand(
 		}
 	}));
 
+// `apexsim.grid.Ready` toggles ready on the race's grid, `apexsim.grid.Livery`
+// steps the livery and `apexsim.grid.StartNow` is the host's START NOW, for
+// unattended checks.
+static FAutoConsoleCommand GGridReadyCommand(
+	TEXT("apexsim.grid.Ready"),
+	TEXT("On the race's grid: say ready, or take it back."),
+	FConsoleCommandDelegate::CreateLambda([]()
+	{
+		for (TObjectIterator<UApexHotlapWidget> It; It; ++It)
+		{
+			if (It->GetWorld() && It->IsGridMode())
+			{
+				It->ToggleReady();
+			}
+		}
+	}));
+
+static FAutoConsoleCommand GGridLiveryCommand(
+	TEXT("apexsim.grid.Livery"),
+	TEXT("On the race's grid: the car's next livery."),
+	FConsoleCommandDelegate::CreateLambda([]()
+	{
+		for (TObjectIterator<UApexHotlapWidget> It; It; ++It)
+		{
+			if (It->GetWorld() && It->IsGridMode())
+			{
+				It->CycleLivery(1);
+			}
+		}
+	}));
+
+static FAutoConsoleCommand GGridStartNowCommand(
+	TEXT("apexsim.grid.StartNow"),
+	TEXT("On the race's grid, as host: count down now, ready or not."),
+	FConsoleCommandDelegate::CreateLambda([]()
+	{
+		for (TObjectIterator<UApexHotlapWidget> It; It; ++It)
+		{
+			if (It->GetWorld() && It->IsGridMode())
+			{
+				It->StartNow();
+			}
+		}
+	}));
+
 static FAutoConsoleCommand GHotlapWatchCommand(
 	TEXT("apexsim.hotlap.Watch"),
 	TEXT("Watch the car on a scoreboard row (0-based), from the qualifying garage."),
@@ -340,6 +396,15 @@ void UApexHotlapWidget::NativeOnInitialized()
 void UApexHotlapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	if (View == EApexHotlapView::Garage && bGridMode)
+	{
+		GridRefreshIn -= InDeltaTime;
+		if (GridRefreshIn <= 0.0f)
+		{
+			GridRefreshIn = 0.25f;
+			RefreshGrid();
+		}
+	}
 	if (View == EApexHotlapView::Garage && HasBoard())
 	{
 		BoardRefreshIn -= InDeltaTime;
@@ -737,7 +802,8 @@ UWidget* UApexHotlapWidget::BuildGarageHeader()
 	GarageCaption = Caption(*WidgetTree, TEXT("Hotlap"), Palette::Accent);
 	AddV(Title, GarageCaption);
 	UHorizontalBox* TitleLine = WidgetTree->ConstructWidget<UHorizontalBox>();
-	AddH(TitleLine, MakeText(*WidgetTree, TEXT("GARAGE"), Font::Display(44.0f, 10), Ink), FMargin(), VAlign_Bottom);
+	GarageTitle = MakeText(*WidgetTree, TEXT("GARAGE"), Font::Display(44.0f, 10), Ink);
+	AddH(TitleLine, GarageTitle, FMargin(), VAlign_Bottom);
 	GarageSubtitle = MakeText(*WidgetTree, FString(), Font::Mono(13.0f, 60), Ink.CopyWithNewOpacity(0.75f));
 	AddH(TitleLine, GarageSubtitle, FMargin(22.0f, 0.0f, 0.0f, 8.0f), VAlign_Bottom);
 	AddV(Title, TitleLine, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
@@ -768,6 +834,13 @@ UWidget* UApexHotlapWidget::BuildGarageHeader()
 UWidget* UApexHotlapWidget::BuildActionColumn()
 {
 	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
+	// The race's grid: ready, the paint, and the host's start (SetGridMode).
+	ReadyButton = MakeActionButton(TEXT("READY"), FString(), ActionReady, EApexButtonVariant::Primary, 72.0f, 20.0f);
+	AddV(Column, ReadyButton);
+	LiveryButton = MakeActionButton(TEXT("LIVERY"), FString(), ActionLivery, EApexButtonVariant::Panel, 64.0f, 20.0f);
+	AddV(Column, LiveryButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	StartNowButton = MakeActionButton(TEXT("START NOW"), TEXT("Host"), ActionStartNow, EApexButtonVariant::Panel, 64.0f, 20.0f);
+	AddV(Column, StartNowButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	GoOutButton = MakeActionButton(TEXT("GO OUT ON TRACK"), FString(), ActionGoOut, EApexButtonVariant::Primary, 72.0f, 20.0f);
 	AddV(Column, GoOutButton);
 	ReplayButton = MakeActionButton(TEXT("REPLAY LAP"), TEXT("No lap yet"), ActionReplay, EApexButtonVariant::Panel, 64.0f, 20.0f);
@@ -786,7 +859,33 @@ UWidget* UApexHotlapWidget::BuildActionColumn()
 	ResetButton = MakeActionButton(TEXT("RESET SETUP"), TEXT("Stock"), ActionResetSetup, EApexButtonVariant::Panel, 64.0f, 20.0f);
 	AddV(Column, ResetButton);
 
-	AddV(Column, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
+	ActionSpacer = WidgetTree->ConstructWidget<UVerticalBox>();
+	AddV(Column, ActionSpacer, FMargin(), HAlign_Fill, 1.0f);
+
+	// The grid in start order, each driver's ready mark beside the name.
+	UVerticalBox* Grid = WidgetTree->ConstructWidget<UVerticalBox>();
+	AddV(Grid, Caption(*WidgetTree, TEXT("Starting grid")), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+	UVerticalBox* Rows = WidgetTree->ConstructWidget<UVerticalBox>();
+	for (int32 Index = 0; Index < GridRowCount; ++Index)
+	{
+		UHorizontalBox* Cells = WidgetTree->ConstructWidget<UHorizontalBox>();
+		UTextBlock* Pos = MakeText(*WidgetTree, FString(), Font::Mono(11.0f), InkMuted);
+		UTextBlock* Name = MakeText(*WidgetTree, FString(), Font::Body(14.0f), Ink);
+		UTextBlock* State = MakeText(*WidgetTree, FString(), Font::Mono(10.0f, 80), InkFaint);
+		AddH(Cells, MakeSized(*WidgetTree, Pos, 38.0f, -1.0f), FMargin(), VAlign_Center);
+		AddH(Cells, Name, FMargin(), VAlign_Center, 1.0f);
+		AddH(Cells, State, FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+		UWidget* Row = MakeSized(*WidgetTree, Cells, -1.0f, GridRowHeight);
+		GridRowRoots.Add(Row);
+		GridRowPos.Add(Pos);
+		GridRowName.Add(Name);
+		GridRowState.Add(State);
+		AddV(Rows, Row);
+	}
+	AddV(Grid, ScrollPage(*WidgetTree, Rows), FMargin(), HAlign_Fill, 1.0f);
+	GridSection = Grid;
+	AddV(Column, Grid, FMargin(0.0f, 0.0f, 0.0f, 16.0f), HAlign_Fill, 1.0f);
+
 	UTextBlock* Note = MakeText(*WidgetTree,
 		TEXT("The car spawns on the run-up before the line, so the first lap is a flying one. Fuel and tyres are put in here, in the garage."),
 		Font::Body(14.0f), InkMuted);
@@ -1518,10 +1617,10 @@ void UApexHotlapWidget::ApplyQualifyingRows()
 {
 	// Qualifying: no record-lap replay or ghost, and the tyres always leave
 	// cold (the outlap is the warm-up); the title and the note say so.
-	const ESlateVisibility HotlapOnly = (bQualifying || bMenuMode) ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
+	const ESlateVisibility HotlapOnly = (bQualifying || bMenuMode || bGridMode) ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
 	if (SaveReplayButton)
 	{
-		SaveReplayButton->SetVisibility(bMenuMode ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+		SaveReplayButton->SetVisibility(bMenuMode || bGridMode ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	}
 	for (UApexButtonWidget* Button : { ReplayButton.Get(), GhostButton.Get(), TyresButton.Get() })
 	{
@@ -1555,6 +1654,220 @@ void UApexHotlapWidget::ApplyQualifyingRows()
 	if (bQualifying)
 	{
 		RefreshQualifyingClock();
+	}
+	ApplyGridRows();
+}
+
+void UApexHotlapWidget::ApplyGridRows()
+{
+	const ESlateVisibility GridOnly = bGridMode ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+	for (UWidget* Widget : { static_cast<UWidget*>(ReadyButton.Get()), static_cast<UWidget*>(LiveryButton.Get()),
+			static_cast<UWidget*>(StartNowButton.Get()), GridSection.Get() })
+	{
+		if (Widget)
+		{
+			Widget->SetVisibility(GridOnly);
+		}
+	}
+	if (ActionSpacer)
+	{
+		ActionSpacer->SetVisibility(bGridMode ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+	}
+	if (GoOutButton)
+	{
+		GoOutButton->SetVisibility(bGridMode ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+	}
+	if (GarageTitle)
+	{
+		GarageTitle->SetText(FText::FromString(bGridMode ? TEXT("GRID") : TEXT("GARAGE")));
+	}
+	if (bGridMode)
+	{
+		if (GarageNote)
+		{
+			GarageNote->SetText(FText::FromString(
+				TEXT("Set the car, the tyres it starts on and its paint, then say ready. The countdown starts when every driver is; the host can start it sooner, and whoever is not ready starts as set here.")));
+		}
+		RefreshGrid();
+	}
+}
+
+void UApexHotlapWidget::SetGridMode(bool bInGrid)
+{
+	if (bGridMode == bInGrid)
+	{
+		return;
+	}
+	bGridMode = bInGrid;
+	bReadySent = false;
+	GridRefreshIn = 0.0f;
+	ApplyQualifyingRows();
+	if (View == EApexHotlapView::Garage)
+	{
+		RefreshSetup();
+		RefreshSubtitle();
+	}
+}
+
+bool UApexHotlapWidget::IsHost() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	FApexSessionSummary Session;
+	// The protocol names the host, not its id (as the session lobby does).
+	return Net && Net->FindSessionById(Net->GetCurrentSessionId(), Session)
+		&& Session.HostName.Equals(Net->GetPlayerName(), ESearchCase::IgnoreCase);
+}
+
+const FApexRosterEntry* UApexHotlapWidget::GetLocalEntry() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (!Net)
+	{
+		return nullptr;
+	}
+	const int32 LocalIndex = Net->GetLocalCarIndex();
+	return Net->GetSessionRoster().Entries.FindByPredicate(
+		[LocalIndex](const FApexRosterEntry& Entry) { return Entry.CarIndex == LocalIndex; });
+}
+
+void UApexHotlapWidget::RefreshGrid()
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const UApexMenuFlowSubsystem* Flow = GameInstance ? GameInstance->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+	if (!Net || !bGridMode)
+	{
+		return;
+	}
+	const FApexRosterEntry* Local = GetLocalEntry();
+	TArray<const FApexRosterEntry*> Order;
+	for (const FApexRosterEntry& Entry : Net->GetSessionRoster().Entries)
+	{
+		Order.Add(&Entry);
+	}
+	// Start order; a car with no slot dealt goes to the back.
+	Order.Sort([](const FApexRosterEntry& A, const FApexRosterEntry& B)
+	{
+		const int32 SlotA = A.GridSlot > 0 ? A.GridSlot : MAX_int32;
+		const int32 SlotB = B.GridSlot > 0 ? B.GridSlot : MAX_int32;
+		return SlotA != SlotB ? SlotA < SlotB : A.CarIndex < B.CarIndex;
+	});
+	int32 Drivers = 0;
+	int32 Ready = 0;
+	for (int32 Row = 0; Row < GridRowRoots.Num(); ++Row)
+	{
+		const FApexRosterEntry* Entry = Order.IsValidIndex(Row) ? Order[Row] : nullptr;
+		GridRowRoots[Row]->SetVisibility(Entry ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		if (!Entry)
+		{
+			continue;
+		}
+		const bool bMine = Entry == Local;
+		GridRowPos[Row]->SetText(FText::FromString(Entry->GridSlot > 0 ? FString::Printf(TEXT("P%d"), Entry->GridSlot) : FString(TEXT("--"))));
+		GridRowName[Row]->SetText(FText::FromString(Entry->PlayerName.ToUpper()));
+		GridRowName[Row]->SetColorAndOpacity(FSlateColor(bMine ? Palette::Accent : Ink));
+		FString State;
+		FLinearColor StateColour = InkFaint;
+		if (Entry->bIsAi)
+		{
+			State = TEXT("AI");
+		}
+		else if (Entry->bAway)
+		{
+			State = TEXT("AWAY");
+		}
+		else
+		{
+			++Drivers;
+			Ready += Entry->bReady ? 1 : 0;
+			State = Entry->bReady ? TEXT("READY") : TEXT("SETTING UP");
+			StateColour = Entry->bReady ? Palette::Live : InkMuted;
+		}
+		GridRowState[Row]->SetText(FText::FromString(State));
+		GridRowState[Row]->SetColorAndOpacity(FSlateColor(StateColour));
+	}
+
+	const bool bReady = Local && Local->bReady;
+	if (Local)
+	{
+		// The roster is the truth once it has caught up with the click.
+		bReadySent = bReady;
+	}
+	if (ReadyButton)
+	{
+		ReadyButton->SetLabel(bReady ? TEXT("READY  ✓") : TEXT("READY"));
+		ReadyButton->SetSelected(bReady);
+		ReadyButton->SetBadge(Drivers > 0 ? FString::Printf(TEXT("%d of %d ready"), Ready, Drivers) : FString(),
+			bReady ? Palette::Live : InkMuted);
+	}
+	if (StartNowButton)
+	{
+		const bool bHost = IsHost();
+		StartNowButton->SetVisibility(bHost ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		StartNowButton->SetBadge(Ready < Drivers ? TEXT("Others start as set") : TEXT("Everyone is ready"), InkMuted);
+	}
+	if (LiveryButton)
+	{
+		FApexCarCatalogRow CarRow;
+		const FString CarId = Local && !Local->CarConfigId.IsEmpty() ? Local->CarConfigId : GetCarId();
+		const bool bHasRow = Flow && Flow->GetCarCatalogRow(CarId, CarRow);
+		if (!bHasRow || CarRow.Liveries.Num() == 0)
+		{
+			LiveryButton->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		else
+		{
+			const int32 Livery = Local ? FMath::Clamp(Local->Livery, 0, CarRow.Liveries.Num()) : 0;
+			LiveryButton->SetVisibility(ESlateVisibility::Visible);
+			LiveryButton->SetLabel(ApexLivery::DisplayName(CarRow, Livery).ToUpper());
+			LiveryButton->SetBadge(FString::Printf(TEXT("Livery %d / %d"), Livery + 1, CarRow.Liveries.Num() + 1), InkMuted);
+		}
+	}
+	if (GarageCaption)
+	{
+		GarageCaption->SetText(FText::FromString(Local && Local->GridSlot > 0
+			? FString::Printf(TEXT("RACE · STARTING P%d"), Local->GridSlot) : FString(TEXT("RACE"))));
+	}
+}
+
+void UApexHotlapWidget::ToggleReady()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (!Net || !bGridMode)
+	{
+		return;
+	}
+	bReadySent = !bReadySent;
+	Net->SetReady(bReadySent);
+}
+
+void UApexHotlapWidget::CycleLivery(int32 Step)
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const UApexMenuFlowSubsystem* Flow = GameInstance ? GameInstance->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+	const FApexRosterEntry* Local = GetLocalEntry();
+	FApexCarCatalogRow CarRow;
+	const FString CarId = Local && !Local->CarConfigId.IsEmpty() ? Local->CarConfigId : GetCarId();
+	if (!Net || !Flow || !Flow->GetCarCatalogRow(CarId, CarRow) || CarRow.Liveries.Num() == 0)
+	{
+		return;
+	}
+	const int32 Count = CarRow.Liveries.Num() + 1;
+	const int32 Current = Local ? Local->Livery : Net->GetPendingLivery();
+	Net->SetLivery(((Current + Step) % Count + Count) % Count);
+}
+
+void UApexHotlapWidget::StartNow()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (Net && bGridMode && IsHost())
+	{
+		Net->StartCountdown(StartNowSeconds, EApexGameMode::Race);
 	}
 }
 
@@ -1747,7 +2060,8 @@ void UApexHotlapWidget::FocusDefault()
 		ApexNav::Focus(BoardRowButtons[0]);
 		return;
 	}
-	if (View != EApexHotlapView::Garage || !(GoOutButton && ApexNav::Focus(GoOutButton)))
+	UApexButtonWidget* First = bGridMode ? ReadyButton.Get() : GoOutButton.Get();
+	if (View != EApexHotlapView::Garage || !(First && ApexNav::Focus(First)))
 	{
 		SetKeyboardFocus();
 	}
@@ -2320,6 +2634,19 @@ void UApexHotlapWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (Id == ActionGoOut)
 	{
 		OnAction.Broadcast(bMenuMode ? EApexHotlapAction::CloseEditor : EApexHotlapAction::GoOut);
+	}
+	else if (Id == ActionReady)
+	{
+		ToggleReady();
+		RefreshGrid();
+	}
+	else if (Id == ActionLivery)
+	{
+		CycleLivery(1);
+	}
+	else if (Id == ActionStartNow)
+	{
+		StartNow();
 	}
 	else if (Id == ActionReplay)
 	{

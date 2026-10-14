@@ -496,6 +496,7 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
   `apexsim.sky.SunStepDeg`, `apexsim.lights.Max|Range`.
 - HUD: `apexsim.hud.Reload|Data|Edit|EditStep` ([hud-modding.md](hud-modding.md)).
 - Hotlap: `apexsim.hotlap.Out|Garage|Replay|Stop|Tab|Board|Watch`.
+- The race's grid: `apexsim.grid.Ready|Livery|StartNow`.
 - Replays: `apexsim.replay.Save|List`. Guide: `apexsim.guide.*`.
 - Display: `apexsim.view.Screens`, `apexsim.splash.MaxSeconds`.
 - Menus: `apexsim.ui.Texts|Click|Mouse|Key` (above), `apexsim.ui.PadWalk`.

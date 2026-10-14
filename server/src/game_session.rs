@@ -316,6 +316,12 @@ pub struct GameSession {
     /// The livery each human driver picked (`SelectCar`); AI drivers are
     /// dealt one in `build_roster`. Looked up by key only.
     liveries: HashMap<PlayerId, u8>,
+    /// The humans who said they are ready on the grid (`GameMode::Grid`),
+    /// cleared each time the grid goes up and when the countdown begins.
+    ready: std::collections::BTreeSet<PlayerId>,
+    /// The countdown the grid hands over to once every driver is ready
+    /// (`OpenGrid.countdown_seconds`), s.
+    grid_countdown_seconds: u16,
     /// Timing lines crossed since the game loop last drained them.
     lap_events: Vec<SessionLapEvent>,
     /// Pit stops started since the clients were last told.
@@ -668,6 +674,8 @@ impl GameSession {
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
             liveries: HashMap::new(),
+            ready: std::collections::BTreeSet::new(),
+            grid_countdown_seconds: START_SESSION_COUNTDOWN_SECONDS,
             car_setups: HashMap::new(),
             lap_fuel: HashMap::new(),
             lap_seconds: HashMap::new(),
@@ -731,6 +739,8 @@ impl GameSession {
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
             liveries: HashMap::new(),
+            ready: std::collections::BTreeSet::new(),
+            grid_countdown_seconds: START_SESSION_COUNTDOWN_SECONDS,
             car_setups: HashMap::new(),
             lap_fuel: HashMap::new(),
             lap_seconds: HashMap::new(),
@@ -799,6 +809,9 @@ impl GameSession {
             GameMode::Countdown => {
                 self.tick_countdown(inputs);
             }
+            GameMode::Grid => {
+                self.tick_grid(inputs);
+            }
             GameMode::DemoLap => {
                 self.tick_demolap(inputs);
             }
@@ -860,6 +873,23 @@ impl GameSession {
         if self.session.game_mode != GameMode::Countdown {
             return;
         }
+        self.hold_cars_on_grid(inputs);
+    }
+
+    /// The grid before the countdown: held as in the countdown, with no
+    /// clock. Once every connected human is ready the countdown starts.
+    fn tick_grid(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
+        self.update_pits();
+        if self.grid_is_ready() {
+            self.start_countdown_mode(self.grid_countdown_seconds, GameMode::Race);
+            return;
+        }
+        self.hold_cars_on_grid(inputs);
+    }
+
+    /// Cars are held where they stand, no physics: the drivers can only
+    /// pick a gear and rev their engines.
+    fn hold_cars_on_grid(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         let dt = self.dt();
         for state in self.session.participants.values_mut() {
             let input = inputs.get(&state.player_id).copied().unwrap_or_default();
@@ -867,6 +897,19 @@ impl GameSession {
                 physics::update_car_on_grid(state, config, &input, dt);
             }
         }
+    }
+
+    /// Whether the grid may count down: at least one human is connected,
+    /// and every connected one is ready. A driver away (a held seat) is not
+    /// waited for.
+    fn grid_is_ready(&self) -> bool {
+        let mut connected = self
+            .session
+            .participants
+            .keys()
+            .filter(|id| !self.session.ai_player_ids.contains(id) && !self.away.contains(id))
+            .peekable();
+        connected.peek().is_some() && connected.all(|id| self.ready.contains(id))
     }
 
     /// Demo lap mode: AI driver demonstrates the track
@@ -1625,6 +1668,42 @@ impl GameSession {
         true
     }
 
+    /// `OpenGrid`: the race's grid goes up (`GameMode::Grid`), from any
+    /// state, as a countdown is taken from any: every car on its slot as
+    /// for the start (`line_up_on_grid`), nobody ready yet. When everyone
+    /// is, `countdown_seconds` (capped at [`MAX_COUNTDOWN_SECONDS`]) count
+    /// into the race.
+    pub fn open_grid(&mut self, countdown_seconds: u16) {
+        self.grid_countdown_seconds = countdown_seconds.min(MAX_COUNTDOWN_SECONDS);
+        self.set_game_mode(GameMode::Grid);
+    }
+
+    /// A driver on the grid says they are ready, or takes it back. False
+    /// (and nothing changes) outside `GameMode::Grid` or for anyone not
+    /// driving a car here.
+    pub fn set_ready(&mut self, player_id: PlayerId, ready: bool) -> bool {
+        if self.session.game_mode != GameMode::Grid
+            || self.is_ai_player(&player_id)
+            || !self.session.participants.contains_key(&player_id)
+        {
+            return false;
+        }
+        let changed = if ready {
+            self.ready.insert(player_id)
+        } else {
+            self.ready.remove(&player_id)
+        };
+        if changed {
+            self.roster_dirty = true;
+        }
+        true
+    }
+
+    /// Whether this driver said they are ready on the grid.
+    pub fn is_ready(&self, player_id: &PlayerId) -> bool {
+        self.session.game_mode == GameMode::Grid && self.ready.contains(player_id)
+    }
+
     /// Why a human may not join this session as a driver now, or `None`
     /// when they may. A running practice, hotlap or qualifying session takes
     /// drivers (a hotlap or qualifying driver arrives in the garage); a race
@@ -1756,6 +1835,17 @@ impl GameSession {
                 // Default 10 second countdown as per spec
                 self.session.countdown_ticks_remaining = Some(self.tick_rate_hz * 10);
                 self.session.state = SessionState::Countdown;
+            }
+            GameMode::Grid => {
+                // The field lines up as for the start. The state is the
+                // countdown one, so the cars are sent and drivers may still
+                // join, but no clock runs until everyone is ready.
+                self.line_up_on_grid();
+                self.session.state = SessionState::Countdown;
+                self.session.countdown_ticks_remaining = None;
+                self.session.next_mode = Some(GameMode::Race);
+                self.ready.clear();
+                self.roster_dirty = true;
             }
             GameMode::Race => {
                 // The race starts now: mark the session racing and remember
@@ -2473,6 +2563,10 @@ impl GameSession {
             // positions still set.
             self.line_up_on_grid();
         }
+        if !self.ready.is_empty() {
+            self.ready.clear();
+            self.roster_dirty = true;
+        }
         self.session.game_mode = GameMode::Countdown;
         self.session.state = SessionState::Countdown;
         self.session.countdown_ticks_remaining = Some(
@@ -2592,7 +2686,7 @@ impl GameSession {
         let refuel = car.in_garage
             || matches!(
                 self.session.game_mode,
-                GameMode::Lobby | GameMode::Countdown
+                GameMode::Lobby | GameMode::Countdown | GameMode::Grid
             );
         let base = self.car_configs.get(&car_id)?;
         if applied.changes_car() {
@@ -2699,6 +2793,7 @@ impl GameSession {
         match self.session.game_mode {
             GameMode::Lobby => GameMode::Race,
             GameMode::Countdown => self.session.next_mode.unwrap_or(GameMode::Race),
+            GameMode::Grid => GameMode::Race,
             mode => mode,
         }
     }
@@ -2741,6 +2836,9 @@ impl GameSession {
         self.car_setups.remove(player_id);
         self.lap_traces.remove(player_id);
         self.liveries.remove(player_id);
+        if self.ready.remove(player_id) {
+            self.roster_dirty = true;
+        }
     }
 
     /// Take an AI car out of the session (the dashboard's kick): off the
@@ -3577,10 +3675,11 @@ impl GameSession {
 
         // The exit light: shut before a race's start, and while a car on
         // the track is about to pass where the lane rejoins it.
-        let before_the_start = self.session.game_mode == GameMode::Countdown
-            || (self.session.game_mode == GameMode::Race
-                && self.session.state != SessionState::Racing
-                && self.session.state != SessionState::Finished);
+        let before_the_start =
+            matches!(self.session.game_mode, GameMode::Countdown | GameMode::Grid)
+                || (self.session.game_mode == GameMode::Race
+                    && self.session.state != SessionState::Racing
+                    && self.session.state != SessionState::Finished);
         let traffic: Vec<(f32, f32)> = self
             .session
             .participants
@@ -3950,6 +4049,7 @@ impl GameSession {
         let elapsed = match self.session.game_mode {
             GameMode::Race => self.race_elapsed_ticks(),
             GameMode::Countdown if self.session.next_mode == Some(GameMode::Race) => 0,
+            GameMode::Grid => 0,
             _ => return None,
         };
         let left_ticks = length.saturating_sub(elapsed);
@@ -4543,6 +4643,7 @@ impl GameSession {
                     livery,
                     away: self.away.contains(player_id),
                     grid_slot: slots.get(player_id).copied().unwrap_or(state.grid_position),
+                    ready: self.is_ready(player_id),
                 }
             })
             .collect();
@@ -5444,6 +5545,94 @@ mod tests {
             game_session.session.countdown_ticks_remaining,
             Some(DEFAULT_TICK_RATE_HZ * 10)
         );
+    }
+
+    #[test]
+    fn test_grid_waits_for_every_connected_driver_then_counts_down() {
+        let mut game_session = create_test_session();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let (a, b) = (Uuid::from_u128(1), Uuid::from_u128(2));
+        game_session.add_player(a, car_id).unwrap();
+        game_session.add_player(b, car_id).unwrap();
+        // Nobody can be ready before the grid is up.
+        assert!(!game_session.set_ready(a, true));
+
+        game_session.open_grid(3);
+        assert_eq!(game_session.session.game_mode, GameMode::Grid);
+        assert_eq!(game_session.session.state, SessionState::Countdown);
+        assert_eq!(game_session.session.countdown_ticks_remaining, None);
+        let none = HashMap::new();
+        for _ in 0..DEFAULT_TICK_RATE_HZ * 5 {
+            game_session.tick(&none);
+        }
+        assert_eq!(
+            game_session.session.game_mode,
+            GameMode::Grid,
+            "no clock on the grid"
+        );
+
+        // One ready is not enough; the roster says who is.
+        assert!(game_session.set_ready(a, true));
+        game_session.tick(&none);
+        assert_eq!(game_session.session.game_mode, GameMode::Grid);
+        let roster = game_session.build_roster(&HashMap::new());
+        let ready = |id: PlayerId| {
+            roster
+                .entries
+                .iter()
+                .find(|e| e.player_id == id)
+                .unwrap()
+                .ready
+        };
+        assert!(ready(a) && !ready(b));
+
+        // A driver away is not waited for.
+        game_session.away.insert(b);
+        game_session.tick(&none);
+        assert_eq!(game_session.session.game_mode, GameMode::Countdown);
+        assert_eq!(
+            game_session.session.countdown_ticks_remaining,
+            Some(DEFAULT_TICK_RATE_HZ * 3)
+        );
+        assert_eq!(game_session.session.next_mode, Some(GameMode::Race));
+        let roster = game_session.build_roster(&HashMap::new());
+        assert!(
+            roster.entries.iter().all(|e| !e.ready),
+            "ready ends with the grid"
+        );
+        for _ in 0..DEFAULT_TICK_RATE_HZ * 4 {
+            game_session.tick(&none);
+        }
+        assert_eq!(game_session.session.game_mode, GameMode::Race);
+    }
+
+    #[test]
+    fn test_grid_with_nobody_ready_starts_when_the_host_counts_down() {
+        let mut game_session = create_test_session();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let a = Uuid::from_u128(1);
+        game_session.add_player(a, car_id).unwrap();
+        game_session.open_grid(10);
+        game_session.tick(&HashMap::new());
+        assert_eq!(game_session.session.game_mode, GameMode::Grid);
+        game_session.start_countdown_mode(5, GameMode::Race);
+        assert_eq!(game_session.session.game_mode, GameMode::Countdown);
+        assert!(!game_session.set_ready(a, true), "the grid is gone");
+    }
+
+    #[test]
+    fn test_grid_ready_leaves_with_the_driver() {
+        let mut game_session = create_test_session();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let (a, b) = (Uuid::from_u128(1), Uuid::from_u128(2));
+        game_session.add_player(a, car_id).unwrap();
+        game_session.add_player(b, car_id).unwrap();
+        game_session.open_grid(5);
+        assert!(game_session.set_ready(b, true));
+        // The one driver not ready leaves: the rest are, so it counts down.
+        game_session.remove_player(&a);
+        game_session.tick(&HashMap::new());
+        assert_eq!(game_session.session.game_mode, GameMode::Countdown);
     }
 
     /// Two humans racing on the default oval, lap limit 3.

@@ -200,6 +200,21 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestFalse(TEXT("entry 1 is here"), Message.Roster.Entries[1].bAway);
 			TestEqual(TEXT("entry 1 starts on pole"), Message.Roster.Entries[1].GridSlot, 1);
 			TestEqual(TEXT("entry 1 name"), Message.Roster.Entries[1].PlayerName, FString(TEXT("Luna Swift")));
+			TestFalse(TEXT("off the grid nobody is ready"), Message.Roster.Entries[0].bReady);
+		}
+	}
+
+	// Ready on the race's grid.
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("SessionRoster with ready decodes (%s)"), *Error),
+				ApexProtocol::DecodeServerMessage(ApexUdpGolden::S_SessionRosterReady, Message, Error))
+			&& TestEqual(TEXT("two entries on the grid"), Message.Roster.Entries.Num(), 2))
+		{
+			TestTrue(TEXT("entry 0 is ready"), Message.Roster.Entries[0].bReady);
+			TestFalse(TEXT("entry 1 is not"), Message.Roster.Entries[1].bReady);
+			TestEqual(TEXT("entry 1 livery"), Message.Roster.Entries[1].Livery, 1);
 		}
 	}
 

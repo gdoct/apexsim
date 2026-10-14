@@ -256,7 +256,7 @@ player's, or while watching, the car on screen (every `car.*`, `lap.*`,
 | `hud.gamepad` | the last input came from a pad: key hints should show its buttons |
 | `session.track_name` | the circuit's display name |
 | `session.car_name` | the local car's display name |
-| `session.mode` | `race`, `qualifying`, `practice`, `timed_practice` (a race weekend's practice, run from the garage), `hotlap`, `countdown`, `lobby`, `sandbox`, `demo_lap`, `replay` |
+| `session.mode` | `race`, `qualifying`, `practice`, `timed_practice` (a race weekend's practice, run from the garage), `hotlap`, `grid` (the race's grid before the countdown), `countdown`, `lobby`, `sandbox`, `demo_lap`, `replay` |
 | `session.mode_name` | the same as the menus show it ("Race") |
 | `session.is_race`, `session.is_hotlap` | shortcuts on the mode |
 | `session.conditions` | the sky in words, "Light rain · 21:30 · wind 12 km/h" (*null* outside a session) |

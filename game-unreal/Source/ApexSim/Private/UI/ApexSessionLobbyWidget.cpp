@@ -752,7 +752,7 @@ void UApexSessionLobbyWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		}
 		UE_LOG(LogApexSim, Log, TEXT("Lobby start: %d s countdown into mode %d"),
 			CountdownSeconds, static_cast<int32>(Flow->CreateStartingMode));
-		Net->StartCountdown(CountdownSeconds, Flow->CreateStartingMode);
+		Net->BeginSession(CountdownSeconds, Flow->CreateStartingMode);
 		return;
 	}
 }

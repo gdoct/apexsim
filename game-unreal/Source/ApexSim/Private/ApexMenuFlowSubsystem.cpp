@@ -303,6 +303,7 @@ FString UApexMenuFlowSubsystem::GetGameModeName(EApexGameMode Mode)
 	case EApexGameMode::Lobby:         return TEXT("Lobby");
 	case EApexGameMode::Sandbox:       return TEXT("Sandbox");
 	case EApexGameMode::Countdown:     return TEXT("Countdown");
+	case EApexGameMode::Grid:          return TEXT("Grid");
 	case EApexGameMode::DemoLap:       return TEXT("Demo lap");
 	case EApexGameMode::FreePractice:  return TEXT("Free practice");
 	case EApexGameMode::Replay:        return TEXT("Replay");

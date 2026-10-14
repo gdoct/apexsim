@@ -679,6 +679,35 @@ void UApexNetSubsystem::StartCountdown(int32 Seconds, EApexGameMode NextMode)
 		static_cast<uint16>(FMath::Clamp(Seconds, 0, 65535)), NextMode));
 }
 
+void UApexNetSubsystem::OpenGrid(int32 Seconds)
+{
+	UE_LOG(LogApexSimNet, Log, TEXT("-> OpenGrid %d"), Seconds);
+	SendPayload(ApexProtocol::EncodeOpenGrid(static_cast<uint16>(FMath::Clamp(Seconds, 0, 65535))));
+}
+
+void UApexNetSubsystem::BeginSession(int32 Seconds, EApexGameMode NextMode)
+{
+	if (NextMode == EApexGameMode::Race)
+	{
+		OpenGrid(Seconds);
+		return;
+	}
+	StartCountdown(Seconds, NextMode);
+}
+
+void UApexNetSubsystem::SetReady(bool bReady)
+{
+	UE_LOG(LogApexSimNet, Log, TEXT("-> SetReady %d"), bReady ? 1 : 0);
+	SendPayload(ApexProtocol::EncodeSetReady(bReady));
+}
+
+void UApexNetSubsystem::SetLivery(int32 Livery)
+{
+	SetPendingLivery(Livery);
+	UE_LOG(LogApexSimNet, Log, TEXT("-> SetLivery %d"), PendingLivery);
+	SendPayload(ApexProtocol::EncodeSetLivery(static_cast<uint8>(PendingLivery)));
+}
+
 void UApexNetSubsystem::AdvanceWeekend()
 {
 	UE_LOG(LogApexSimNet, Log, TEXT("-> AdvanceWeekend"));

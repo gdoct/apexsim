@@ -1270,7 +1270,7 @@ void UApexSessionResultsWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			return;
 		}
 		// After qualifying: the race, gridded by the server from the result.
-		Net->StartCountdown(5, IsTimesheet() && !IsPractice() ? EApexGameMode::Race : Flow->CreateStartingMode);
+		Net->BeginSession(5, IsTimesheet() && !IsPractice() ? EApexGameMode::Race : Flow->CreateStartingMode);
 		return;
 	}
 

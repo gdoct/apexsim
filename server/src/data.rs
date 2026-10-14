@@ -2752,6 +2752,12 @@ pub enum GameMode {
     /// sectors, a clock and a chequered flag), but nothing classifies for
     /// the grid or goes to the stored qualifying results.
     Practice = 9,
+    /// The race's grid before its countdown: the cars stand on their slots
+    /// as in `Countdown`, with no clock, while each human picks setup, tyres
+    /// and livery and says they are ready (`ClientMessage::SetReady`). When
+    /// every connected human is, the countdown into the race starts on its
+    /// own; the host's `StartCountdown` starts it at once.
+    Grid = 10,
 }
 
 impl GameMode {

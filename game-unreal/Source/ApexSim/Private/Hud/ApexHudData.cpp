@@ -67,6 +67,7 @@ namespace
 		case EApexGameMode::Lobby: return TEXT("lobby");
 		case EApexGameMode::Sandbox: return TEXT("sandbox");
 		case EApexGameMode::Countdown: return TEXT("countdown");
+		case EApexGameMode::Grid: return TEXT("grid");
 		case EApexGameMode::DemoLap: return TEXT("demo_lap");
 		case EApexGameMode::FreePractice: return TEXT("practice");
 		case EApexGameMode::Replay: return TEXT("replay");

@@ -118,6 +118,14 @@ seeded pileup replay screenshotted before and after.
   keys and transport from a pad. Seen unattended at Monza: pause, ten
   seconds back, 2x back to live, the ghost of the first lap and its
   replay.
+- The race's grid card ([server/sessions.md](server/sessions.md#the-races-grid)),
+  never on screen: the grid mode of the garage card over the lined-up
+  field (READY, the livery, START NOW, the grid list), the car repainting
+  behind it on a livery change, the card closing as the countdown starts,
+  and its pad and keyboard focus. Two clients on one server: the guest's
+  card, the ready marks crossing over, and START NOW closing a card that
+  is not ready. Only the server side (`ready_grid_test`) and the codec
+  have run.
 
 ## 2. Listen: replays against the live run
 

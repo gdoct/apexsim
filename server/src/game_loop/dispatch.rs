@@ -206,6 +206,15 @@ pub(crate) async fn handle_message(
         ClientMessage::AdvanceWeekend => {
             handle_advance_weekend(ctx, connection_id).await;
         }
+        ClientMessage::OpenGrid { countdown_seconds } => {
+            handle_open_grid(ctx, connection_id, countdown_seconds).await;
+        }
+        ClientMessage::SetReady { ready } => {
+            handle_set_ready(ctx, connection_id, ready).await;
+        }
+        ClientMessage::SetLivery { livery } => {
+            handle_set_livery(ctx, connection_id, livery).await;
+        }
         ClientMessage::PlayerInput {
             throttle,
             brake,
@@ -1624,6 +1633,89 @@ async fn handle_start_countdown(
                 warn!("Failed to send countdown start to player: {:?}", e);
             }
         }
+    }
+}
+
+/// The host puts the race's grid up (`GameSession::open_grid`): the
+/// session hears `GameModeChanged { Grid }`; the countdown follows in
+/// telemetry once every driver is ready. Anyone else gets `Error 403`.
+async fn handle_open_grid(ctx: &GameLoopCtx, connection_id: ConnectionId, countdown_seconds: u16) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        return;
+    };
+    let mut state_write = ctx.state.write().await;
+    let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
+        return;
+    };
+    if game_session.session.host_player_id != conn_info.player_id {
+        drop(state_write);
+        ctx.send_error(
+            connection_id,
+            403,
+            "Only the session host can open the grid",
+        )
+        .await;
+        return;
+    }
+    game_session.open_grid(countdown_seconds);
+    debug!(
+        "Player {} opened the grid of session {} ({} s countdown)",
+        conn_info.player_name, session_id, countdown_seconds
+    );
+    let participants: Vec<PlayerId> = game_session.session.participants.keys().copied().collect();
+    let spectators = state_write.lobby.get_session_spectators(session_id).await;
+    drop(state_write);
+
+    let msg = ServerMessage::GameModeChanged {
+        mode: GameMode::Grid,
+    };
+    for player_id in participants.into_iter().chain(spectators) {
+        if let Some(conn_id) = ctx.player_connection(player_id).await {
+            let _ = ctx.send(conn_id, msg.clone()).await;
+        }
+    }
+}
+
+/// A driver on the grid is ready, or not (`GameSession::set_ready`); the
+/// next roster says so. Ignored outside the grid.
+async fn handle_set_ready(ctx: &GameLoopCtx, connection_id: ConnectionId, ready: bool) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        return;
+    };
+    let mut state_write = ctx.state.write().await;
+    let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
+        return;
+    };
+    if game_session.set_ready(conn_info.player_id, ready) {
+        debug!(
+            "Player {} ready on the grid: {}",
+            conn_info.player_name, ready
+        );
+    }
+}
+
+/// A driver repaints their car in a session: kept for the session (the
+/// roster carries it) and for the next one, as `SelectCar` would.
+async fn handle_set_livery(ctx: &GameLoopCtx, connection_id: ConnectionId, livery: u8) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let mut state_write = ctx.state.write().await;
+    state_write
+        .lobby
+        .set_player_livery(conn_info.player_id, livery)
+        .await;
+    if let Some(game_session) = conn_info
+        .in_session
+        .and_then(|id| state_write.sessions.get_mut(&id))
+    {
+        game_session.set_livery(conn_info.player_id, livery);
     }
 }
 

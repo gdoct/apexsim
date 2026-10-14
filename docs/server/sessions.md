@@ -2,8 +2,8 @@
 
 A session is one track, one set of rules and the cars on it, ticked by the
 server as a `GameSession`. This doc covers session kinds, states and game
-modes, the rules a host sets on create, race start and finish (over laps or
-against a clock), starting order and qualifying, the race weekend (practice,
+modes, the rules a host sets on create, the race's grid before the
+countdown, race start and finish (over laps or against a clock), starting order and qualifying, the race weekend (practice,
 knockout qualifying and the race in one session), lap timing and records,
 recovering a stuck car, the hotlap mode with its ghost, and the watched
 hotlap. The client pieces that
@@ -85,6 +85,7 @@ Two separate fields on `RaceSession`:
 | `Race` | 7 | `tick_racing`: physics, race clock, classification, finish | state `Racing`, `race_start_tick`, pole's lap starts on green, auto boxes take first |
 | `Hotlap` | 8 | like practice, but cars `in_garage` are neither ticked nor collided | state `Racing`, every human put in the garage |
 | `Practice` | 9 | `tick_hotlap` with qualifying's outlap, clock and flag (`update_chequered_flag`); laps timed, nothing classified (see "Race weekend") | as Qualification, the classification untouched |
+| `Grid` | 10 | `tick_grid`: cars held as in `Countdown`, pit exit red, no clock; once every connected human is ready, `start_countdown_mode(grid_countdown_seconds, Race)` (see "The race's grid") | `line_up_on_grid`, state `Countdown`, nobody ready |
 
 **Changing mode is the host's** (anyone else gets `Error 403`, and both
 broadcast `GameModeChanged`): `SetGameMode { mode }` switches at once, with
@@ -98,6 +99,8 @@ state, a finished session included: a finished qualifying session goes on
 to its race this way. The create screen offers Free practice, Sandbox,
 Hotlap, Qualifying and Race; the client never counts into a hotlap
 (`UApexNetSubsystem::StartCountdown` sends `SetGameMode` for it).
+`OpenGrid { countdown_seconds }` (host only) puts the race's grid up
+instead of counting at once (see "The race's grid").
 `StartSession` (host only) is a countdown into a race: from `Lobby` it runs
 `start_countdown_mode(START_SESSION_COUNTDOWN_SECONDS, Race)` (5 s) and
 sends `SessionStarting { countdown_seconds: 5 }`; for a session already
@@ -163,6 +166,48 @@ own length is `qualifying_seconds` (`Option<u32>`, clamped by
 "Timed qualifying" below. A race weekend (`weekend`, see "Race weekend")
 carries its own practice and round lengths, and `qualifying_seconds` is
 ignored beside it.
+
+## The race's grid
+
+Before a race the cars stand on the grid while each driver sets the car up,
+picks the tyres it starts on and its livery, and says they are ready.
+
+- `OpenGrid { countdown_seconds }` (host only, else `Error 403`; from any
+  state, as a countdown is) runs `open_grid`: `GameMode::Grid`, the field
+  lined up as for the start, state `Countdown` (so telemetry flows and
+  drivers may still join, seated on the next slot), nobody ready. The
+  session hears `GameModeChanged { Grid }`.
+- `SetReady { ready }` (`set_ready`) marks a seated human ready or not; it is
+  ignored outside the grid. The roster carries it (`RosterEntry.ready`, left
+  off the wire when false and always false off the grid).
+- When every connected human is ready (`grid_is_ready`: a driver away on a
+  held seat is not waited for, and at least one human must be connected),
+  the tick starts `countdown_seconds` (capped at `MAX_COUNTDOWN_SECONDS`)
+  into the race. A driver leaving who was the only one not ready lets it
+  start too. The countdown reaches clients in telemetry.
+- The host's `StartCountdown` while the grid is up counts down at once: the
+  ones not ready start on what they have set.
+- Setup and tyres are `SetCarSetup` as anywhere (the compound is its
+  `tyre_compound` knob). `start_countdown_mode` lines the field up again, so
+  the tyres fitted are the compound set by then, with the fuel knob's fill.
+  `SetLivery { livery }` repaints a driver's car in the session (the roster
+  carries it) and keeps it for their next `SelectCar`.
+
+**Client.** The menus start every race through the grid
+(`UApexNetSubsystem::BeginSession`: `OpenGrid` for a race, `StartCountdown`
+for anything else): the session lobby's Start, the one-click start, Drive
+again and the results screen's next race. `-ApexAutoRace` still counts
+straight in. While telemetry says `Grid`, `UApexRootWidget` opens the hotlap
+garage card in grid mode (`UApexHotlapWidget::SetGridMode`) for a driver
+with a car: the setup tabs, and down the left READY (with "n of m ready"),
+the livery (hidden for a car with one), START NOW for the host
+(`StartCountdown(5, Race)`) and the grid in start order with each driver's
+mark (READY, SETTING UP, AWAY, AI). The card closes when the countdown
+starts. Console: `apexsim.grid.Ready`, `apexsim.grid.Livery`,
+`apexsim.grid.StartNow`.
+
+A race weekend's race is not gridded this way: the final round's end, and
+the host's advance, count straight in.
 
 ## Race start and finish
 
@@ -752,6 +797,7 @@ cargo test --test weekend_test                # a weekend from the lobby to the 
 cargo test --test race_flow_test              # incl. test_timed_race_flow_to_the_flag_monza
 cargo test --test session_conditions_test     # rules echoed and enforced end to end
 cargo test --test grid_order_test             # start order, stored results, over the wire
+cargo test --test ready_grid_test             # the race's grid: OpenGrid, SetReady, the countdown
 cargo test --test reconnect_test              # held seat, resume, takeover, grace, Disconnect
 cargo test --test lap_timing_test             # sectors and track limits round Monza
 cargo test --test hotlap_test                 # garage, run-up, queue, cold tyres, qualifying outlap

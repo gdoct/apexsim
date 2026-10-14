@@ -267,7 +267,8 @@ void UApexReplayRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 		FirstTick = Tick;
 	}
 	LastTick = Tick;
-	if (Frame.GameMode != EApexGameMode::Lobby && Frame.GameMode != EApexGameMode::Countdown)
+	if (Frame.GameMode != EApexGameMode::Lobby && Frame.GameMode != EApexGameMode::Countdown
+		&& Frame.GameMode != EApexGameMode::Grid)
 	{
 		GameMode = Frame.GameMode;
 	}

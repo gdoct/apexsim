@@ -455,6 +455,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void StartCountdown(int32 Seconds, EApexGameMode NextMode);
 
+	/**
+	 * Host: puts the race's grid up (OpenGrid). Every driver gets the grid
+	 * card; once all are ready the server counts Seconds into the race. A
+	 * StartCountdown while it is up starts the race for everyone at once.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void OpenGrid(int32 Seconds);
+
+	/**
+	 * Host: how the menus start a session. A race goes through its grid
+	 * (OpenGrid), so every driver picks setup, tyres and livery and says
+	 * ready; anything else is counted into (StartCountdown).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void BeginSession(int32 Seconds, EApexGameMode NextMode);
+
+	/** On the race's grid: this driver is ready to start, or not any more (SetReady). */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void SetReady(bool bReady);
+
+	/**
+	 * Repaints our car in the session (SetLivery) and keeps the pick as the
+	 * pending livery, so the next SelectCar carries it too.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void SetLivery(int32 Livery);
+
 	/** The host moves a race weekend on: to its first session from the lobby, then each in turn, then the race. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Weekend")
 	void AdvanceWeekend();

@@ -71,6 +71,12 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeDisconnect();
 	APEXSIMNET_API TArray<uint8> EncodeSetGameMode(EApexGameMode Mode);
 	APEXSIMNET_API TArray<uint8> EncodeStartCountdown(uint16 CountdownSeconds, EApexGameMode NextMode);
+	/** The host puts the race's grid up; it counts CountdownSeconds into the race once every driver is ready. */
+	APEXSIMNET_API TArray<uint8> EncodeOpenGrid(uint16 CountdownSeconds);
+	/** A driver on the grid is ready to start, or not any more. */
+	APEXSIMNET_API TArray<uint8> EncodeSetReady(bool bReady);
+	/** The livery this driver's car wears from now on, in a session: 0 as authored, 1.. its liveries. */
+	APEXSIMNET_API TArray<uint8> EncodeSetLivery(uint8 Livery);
 	/**
 	 * ABS and traction control are the driver's own; the session's allowed
 	 * set is applied by the server. Damage is no aid: it is the session's

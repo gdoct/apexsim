@@ -122,8 +122,16 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnHotlapWatch, int32, CarIndex)
  * view on that car (OnWatchCar; the shell points the race director's
  * spectator camera at it) until the sheet is back or the car goes out.
  *
+ * **The race's grid** (SetGridMode, the server's EApexGameMode::Grid) uses the
+ * same card before a race: the setup tabs as ever (the Tyres tab picks the
+ * starting compound), and down the left READY, the livery, the host's
+ * START NOW and the grid in start order with each driver's ready mark. The
+ * server counts down once every driver is ready; START NOW counts down at
+ * once and whoever is not ready starts on what they have set.
+ *
  * The card acts through OnAction; relocating the car and starting a replay
- * are the shell's and the race director's to carry out.
+ * are the shell's and the race director's to carry out. The grid's buttons
+ * talk to the server themselves (SetReady, SetLivery, StartCountdown).
  */
 UCLASS()
 class APEXSIM_API UApexHotlapWidget : public UApexNavigableWidget
@@ -177,6 +185,19 @@ public:
 	 */
 	void SetPractice(bool bInPractice);
 	bool IsPractice() const { return bPractice; }
+
+	/**
+	 * The card is the race's grid before the countdown: READY, the livery,
+	 * the host's START NOW and the grid list take the hotlap rows' place.
+	 */
+	void SetGridMode(bool bInGrid);
+	bool IsGridMode() const { return bGridMode; }
+	/** The grid's READY: says ready, or takes it back (also `apexsim.grid.Ready`). */
+	void ToggleReady();
+	/** The grid's livery button: the car's next paint scheme, or the previous for -1. */
+	void CycleLivery(int32 Step);
+	/** The host's START NOW: the countdown begins for everyone, ready or not. */
+	void StartNow();
 
 	/** Shows the scoreboard (true) or the setup sheet. Closing it stops watching. */
 	void SetBoardOpen(bool bOpen);
@@ -260,6 +281,14 @@ private:
 
 	/** The board's rows from the roster and the newest telemetry. */
 	void RefreshBoard();
+	/** The grid list, the READY and livery buttons and the caption, from the roster. */
+	void RefreshGrid();
+	/** The hotlap rows or the grid rows, as the mode says. */
+	void ApplyGridRows();
+	/** Whether we host the session (the session summary names its host). */
+	bool IsHost() const;
+	/** Our own roster entry, or null before the roster names our car. */
+	const FApexRosterEntry* GetLocalEntry() const;
 	/** Qualifying's clock on the garage caption, and no going out once the flag is out. */
 	void RefreshQualifyingClock();
 	/** Garage card or scoreboard, and the toggles' selection. */
@@ -337,6 +366,10 @@ private:
 	FString OutlapSessionName() const;
 	bool bBoardOpen = false;
 	bool bMenuMode = false;
+	bool bGridMode = false;
+	/** What we last told the server about being ready on the grid. */
+	bool bReadySent = false;
+	float GridRefreshIn = 0.0f;
 	int32 WatchedCar = INDEX_NONE;
 	float BoardRefreshIn = 0.0f;
 	/** The car index each board row shows (INDEX_NONE for an unused row). */
@@ -396,6 +429,19 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> SaveReplayButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> TyresButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ResetButton;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> GarageTitle;
+	/** The action column's filler under its buttons; the grid list takes its room. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> ActionSpacer;
+
+	// The race's grid.
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ReadyButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> LiveryButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> StartNowButton;
+	UPROPERTY(Transient) TObjectPtr<UWidget> GridSection;
+	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> GridRowRoots;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> GridRowPos;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> GridRowName;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> GridRowState;
 	UPROPERTY(Transient) TMap<int32, TObjectPtr<UApexStepperWidget>> SetupSteppers;
 
 	// Tabs.
