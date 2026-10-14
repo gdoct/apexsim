@@ -414,15 +414,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCameraComponent> TvCamera;
 
-	/**
-	 * Fallback mesh for cars with no catalog row, or whose body will not
-	 * load; skipped when its package is gone (L_Menu's names a car since
-	 * removed). `/Game/Cars` is not cooked, so a packaged game never has it;
-	 * past it, such a car is drawn as the player's own.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ApexSim|Race")
-	TSoftObjectPtr<UStaticMesh> DefaultCarMesh;
-
 private:
 	UFUNCTION()
 	void HandleRosterUpdated(const FApexSessionRoster& Roster);

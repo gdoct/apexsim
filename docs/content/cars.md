@@ -504,7 +504,6 @@ scripted drive to `Saved/Audio/<folder>.wav` for tuning:
   one on export silently disables a livery, light or mirror.
 - Hand edits below the liveries' marker, or to a generated table above it,
   are lost on the next `liveries.py`, build or `damage_parts.py` run.
-- `L_Menu` still sets the race director's `DefaultCarMesh` to
-  `/Game/Cars/RB20/SM_RB20`, which no longer exists; the director skips a
-  missing fallback, so an unknown car is drawn as the player's own. Clear the
-  field next time the level is open in the editor.
+- A car with no catalog row, or whose body will not load, is drawn as the
+  player's own: the cars are not cooked, so there is no other mesh to fall
+  back on.

@@ -775,13 +775,9 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 		Car->SetEngineSound(FApexEngineSoundSpec(), FString());
 		Car->SetCompounds({});
 	}
-	// Tested first: L_Menu's still names a car that has since been removed.
-	if (!Mesh && !DefaultCarMesh.IsNull() && FPackageName::DoesPackageExist(DefaultCarMesh.ToSoftObjectPath().GetLongPackageName()))
-	{
-		Mesh = DefaultCarMesh.LoadSynchronous();
-	}
-	// No cooked fallback in a packaged game (the cars are not cooked): an
-	// unknown car is drawn as the player's own rather than not at all.
+	// A car with no catalog row, or whose body will not load, is drawn as
+	// the player's own rather than not at all (the cars are not cooked, so
+	// there is no other mesh to fall back on).
 	FApexCarCatalogRow Own;
 	if (!Mesh && Flow && Flow->HasPendingCar() && !Flow->GetPendingCarId().Equals(CarId, ESearchCase::IgnoreCase)
 		&& Flow->GetCarCatalogRow(Flow->GetPendingCarId(), Own))
@@ -2124,10 +2120,9 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 			}
 
 			// Wet road: the tarmac's sheen comes up on every material of the
-			// bake's road family: the road and pit lane, and the rubbered
-			// wear bands the racing line runs on (`wear_core`, `wear_edge`).
-			// Each is remembered with its dry look; ApplyRoadWetness below
-			// sets them all.
+			// bake's road family, the road and the pit lane. Each is
+			// remembered with its dry look; ApplyRoadWetness below sets them
+			// all.
 			if (Sky.bWetRoad || bSkyMoves)
 			{
 				const int32 Slots = Mesh->GetNumMaterials();
