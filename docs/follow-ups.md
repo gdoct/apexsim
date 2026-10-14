@@ -36,8 +36,6 @@ Rough edges of the client's road state and snow.
   run-off are wet by the lap's one figure (their UV `u` is not the lap's
   station). A puddle covers its cell's width (puddles have no lateral
   position on the server).
-- Snowflakes are lit grey-blue cubes; they become white sprites (against
-  the cloud sheet they read as dark specks).
 
 **Check:** a rain-to-dry and a snow session at Silverstone, screenshotted.
 

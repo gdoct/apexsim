@@ -40,6 +40,12 @@ public:
 	/** Flakes instead of drops, 0 none .. 1 steady snowfall. */
 	void SetSnow(float Intensity);
 	bool IsSnow() const { return bSnow; }
+	/**
+	 * How bright the flakes glow, cd/m²: the cloud sheet's own luminance
+	 * (`FSkyState::CloudBrightness`), so a flake reads white against it at
+	 * whatever exposure the sky sets, by day and by night.
+	 */
+	void SetFlakeLuminance(float Nits);
 
 	/**
 	 * The wind the drops drift with, Unreal world cm/s (only its horizontal
@@ -61,11 +67,16 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> Streaks;
-	/** The engine's basic shape material the streaks start with, and a bright white copy for flakes. */
+	/**
+	 * The engine's basic shape material the streaks start with, and a white
+	 * self-lit one for flakes (an `M_ApexEmissive` instance; a white copy
+	 * of the drops' when the track parents are not baked).
+	 */
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInterface> DropMaterial;
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> FlakeMaterial;
+	float FlakeLuminance = 0.0f;
 
 	/** World-space position of every streak, active or not. */
 	TArray<FVector> Positions;

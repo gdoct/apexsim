@@ -7,6 +7,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Track/ApexTrackSceneBuilder.h"
 #include "UObject/ConstructorHelpers.h"
 
 AApexRainActor::AApexRainActor()
@@ -59,12 +60,27 @@ void AApexRainActor::SetDensity(float Intensity, bool bFlakes)
 {
 	if (bSnow != bFlakes && DropMaterial)
 	{
-		// Flakes are bright white, whatever the light: a white copy of the
-		// basic shape, lifted past 1 so the exposure still reads it as snow.
+		// Flakes are white specks whatever the light: lit, they took the
+		// blue-grey of an overcast sky and read as dark dots against the
+		// cloud sheet. A white emissive instance glows at the cloud's own
+		// luminance; without the baked parent, a white copy of the drops'.
 		if (bFlakes && !FlakeMaterial)
 		{
-			FlakeMaterial = UMaterialInstanceDynamic::Create(DropMaterial, this);
-			FlakeMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(3.0f, 3.0f, 3.0f));
+			const FString EmissivePath = FString::Printf(TEXT("%s/%s.%s"),
+				ApexTrackMaterials::Folder, ApexTrackMaterials::EmissiveName, ApexTrackMaterials::EmissiveName);
+			if (UMaterialInterface* Emissive = LoadObject<UMaterialInterface>(nullptr, *EmissivePath, nullptr, LOAD_NoWarn | LOAD_Quiet))
+			{
+				FlakeMaterial = UMaterialInstanceDynamic::Create(Emissive, this);
+				FlakeMaterial->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.9f, 0.9f, 0.9f));
+				FlakeMaterial->SetVectorParameterValue(TEXT("EmissiveColor"), FLinearColor::White);
+				FlakeMaterial->SetScalarParameterValue(TEXT("Roughness"), 1.0f);
+				FlakeMaterial->SetScalarParameterValue(TEXT("EmissiveStrength"), FlakeLuminance);
+			}
+			else
+			{
+				FlakeMaterial = UMaterialInstanceDynamic::Create(DropMaterial, this);
+				FlakeMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(3.0f, 3.0f, 3.0f));
+			}
 		}
 		if (bFlakes && FlakeMaterial)
 		{
@@ -91,6 +107,16 @@ void AApexRainActor::SetDensity(float Intensity, bool bFlakes)
 	ActiveStreaks = Wanted;
 	Streaks->SetVisibility(ActiveStreaks > 0);
 	SetActorTickEnabled(ActiveStreaks > 0);
+}
+
+void AApexRainActor::SetFlakeLuminance(float Nits)
+{
+	// A touch over the cloud, so the flake is the brighter of the two.
+	FlakeLuminance = 1.1f * FMath::Max(Nits, 0.0f);
+	if (FlakeMaterial)
+	{
+		FlakeMaterial->SetScalarParameterValue(TEXT("EmissiveStrength"), FlakeLuminance);
+	}
 }
 
 void AApexRainActor::SetWind(const FVector& WindCmPerS)

@@ -381,8 +381,13 @@ See [protocol.md](protocol.md) for the append-only rules.
   (`ApexStreetLights.h`), and the emissive lamp faces glow.
 - Rain is `AApexRainActor`: up to 1500 streaks of the engine cube in a box
   that follows the camera, drifting with the wind (no particle assets). The
-  same box is snow (`SetSnow`): bright white flakes that fall at 1.2 m/s,
-  short and fat until the camera's speed stretches them.
+  same box is snow (`SetSnow`): flakes that fall at 1.2 m/s, short and fat
+  until the camera's speed stretches them. They are a white `M_ApexEmissive`
+  instance glowing at 1.1x the cloud sheet's luminance (`SetFlakeLuminance`
+  from `FSkyState::CloudBrightness`), so they read white against the cloud
+  at any exposure; lit, they took the sky's blue-grey and read as dark
+  specks. Without the baked parent they fall back to a white copy of the
+  drops' material.
 - Cloud is `AApexCloudLayerActor`: a dome of the engine sphere round the
   camera drawn with `M_ApexCloudLayer` (unlit, translucent; baked by
   `-run=ApexMaterialBake`), which carries each view ray up to a plane

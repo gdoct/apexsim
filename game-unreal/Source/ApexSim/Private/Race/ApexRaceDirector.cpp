@@ -1956,6 +1956,7 @@ void AApexRaceDirector::ApplySkyLighting()
 		// One box of falling specks, drops or flakes.
 		if (Sky.SnowIntensity > 0.0f)
 		{
+			Rain->SetFlakeLuminance(Sky.CloudBrightness);
 			Rain->SetSnow(Sky.SnowIntensity);
 		}
 		else
