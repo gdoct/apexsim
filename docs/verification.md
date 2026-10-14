@@ -82,7 +82,10 @@ seeded pileup replay screenshotted before and after.
   circuit it changed: every circuit but Moscow Raceway, Shanghai, Monza and
   Yas Marina.
 - The Nordschleife dressing ([content/circuits.md](content/circuits.md)),
-  never imported or seen: the numbered posts and the grade plates read
+  imported and baked on 2026-10-14 and seen only in four unattended shots
+  (Brünnchen's bank and hedge, which still read a lighter green than the
+  grass beside them; road graffiti; a marshal post), never driven by hand
+  or followed by the TV camera round a lap: the numbered posts and the grade plates read
   from the road; the rail tags wrap the W-beams on both sides of the road
   (not flipped off the rail, not floating); the skid marks show through
   `M_ApexDecal`'s mask; the track bridges' parapets stand behind the rail

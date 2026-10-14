@@ -39,24 +39,11 @@ None open.
 
 ## P2: depth
 
-### 1. Nordschleife dressing
-
-One circuit, a long list; its own package so it does not hold up the rest.
-
-- Numbered marshal posts, the track-over-road bridges (B257 at Breidscheid),
-  rock cuttings, spectator hedges and banks, camp villages, the timing
-  gantry as a crossing, more German signs and the T13 gates, the Hohe Acht
-  tower, vertical graffiti on barriers, skid-mark decals.
-- The hillside letters (`sign/hillside_letters`) laid on the slope the
-  dossier names, once their display-name text exists
-  ([follow-ups.md](follow-ups.md), circuit dressing).
-
-**Check:** a lap by hand and a TV-camera lap in the running game; the
-track-editor tests.
+None open.
 
 ## P3: nice to have
 
-### 2. Car content
+### 1. Car content
 
 - The GT3 and LMP2 class wheels get sidewall lettering.
 - The HUD colours brakes by material as well as temperature (the client
@@ -64,7 +51,7 @@ track-editor tests.
 
 **Check:** the HUD on a carbon and a steel car; the wheels in car select.
 
-### 3. Server dashboard
+### 2. Server dashboard
 
 For people running a server for others
 ([server/operations.md](server/operations.md)).
@@ -74,7 +61,7 @@ For people running a server for others
 
 **Check:** a saved tick rate in force without touching the machine.
 
-### 4. Content tooling
+### 3. Content tooling
 
 - `ats-dress --explain` and a per-prop source stamp.
 - `ats-export --strict`, which fails on a dropped facet.
