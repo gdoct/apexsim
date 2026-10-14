@@ -222,8 +222,12 @@ station for the road texture.
 A pad can only shake, so a slide has to be described: front slide on the light
 motor, rear slide on the heavy one (understeer and oversteer never feel alike),
 kerb ribs at a speed-set rate, ABS/TC pulse trains, grass noise, and decaying
-thumps for bumps, contact, shifts and flat spots. It assumes XInput's channel
-layout (under the GameInput plugin the Small channels are the trigger motors).
+thumps for bumps, contact, shifts and flat spots. `ApexFfb::ToPadChannels`
+puts the two motors on the channels the pad backend reads: XInput (the
+engine's default) takes the heavy motor from a Large channel and the light
+one from a Small one; under the GameInput plugin (`GameInputBase` loaded)
+the light motor is `RightLarge` and the Small channels are the trigger
+motors, which stay quiet.
 Strength: the Controls tab's "Pad vibration" (`UApexSettingsSave::Vibration`)
 through `ApexFfb::GainFromStrength`; 0.5 plays the effects as designed.
 

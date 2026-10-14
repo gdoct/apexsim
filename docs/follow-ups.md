@@ -146,13 +146,6 @@ the same `ApexProps` code.
 
 **Check:** the pad walk, then the same screens with a real pad.
 
-### 8. Input path
-
-- `ApexFfb::MixGamepad` handles the GameInput motor layout (the plugin puts
-  the small channels on the trigger motors).
-
-**Check:** the input tests; a pad under the GameInput plugin.
-
 ## P3: nice to have
 
 ### 9. Car content

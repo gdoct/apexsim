@@ -10,6 +10,7 @@
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
+#include "Modules/ModuleManager.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "HAL/IConsoleManager.h"
 #include "Input/ApexInputConfig.h"
@@ -269,9 +270,14 @@ void AApexPlayerController::UpdateForceFeedback(IInputInterface* InputInterface,
 	// XInput, the engine's pad backend on Windows, drives the heavy motor from
 	// the larger of the two Large channels and the light one from the Small
 	// channels. Under the GameInput plugin the Small channels are the trigger
-	// motors instead; it is not enabled in this project.
-	Values.LeftLarge = FMath::Max(Values.LeftLarge, Driving.Low);
-	Values.LeftSmall = FMath::Max(Values.LeftSmall, Driving.High);
+	// motors, and the light motor is RightLarge.
+	static const ApexFfb::EPadMotors Motors = FModuleManager::Get().IsModuleLoaded(TEXT("GameInputBase"))
+		? ApexFfb::EPadMotors::GameInput : ApexFfb::EPadMotors::XInput;
+	const ApexFfb::FPadChannels Channels = ApexFfb::ToPadChannels(Driving, Motors);
+	Values.LeftLarge = FMath::Max(Values.LeftLarge, Channels.LeftLarge);
+	Values.LeftSmall = FMath::Max(Values.LeftSmall, Channels.LeftSmall);
+	Values.RightLarge = FMath::Max(Values.RightLarge, Channels.RightLarge);
+	Values.RightSmall = FMath::Max(Values.RightSmall, Channels.RightSmall);
 
 	InputInterface->SetForceFeedbackChannelValues(ControllerId, bForceFeedbackEnabled ? Values : FForceFeedbackValues());
 }

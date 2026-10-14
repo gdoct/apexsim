@@ -188,6 +188,30 @@ namespace ApexFfb
 	/** One frame of rumble. `Gain` from GainFromStrength. */
 	APEXSIM_API FRumble MixGamepad(const FSignals& Signals, FGamepadState& State, float DeltaSeconds, float Gain);
 
+	/** Which pad backend reads the engine's four force-feedback channels. */
+	enum class EPadMotors : uint8
+	{
+		/** XInput (the engine's default): the larger Large channel drives the heavy motor, the larger Small one the light motor. */
+		XInput,
+		/** The GameInput plugin: LeftLarge the heavy motor, RightLarge the light one, the Small channels the trigger motors. */
+		GameInput,
+	};
+
+	/** The engine's four channels (`FForceFeedbackValues`), as plain floats. */
+	struct FPadChannels
+	{
+		float LeftLarge = 0.0f;
+		float LeftSmall = 0.0f;
+		float RightLarge = 0.0f;
+		float RightSmall = 0.0f;
+	};
+
+	/**
+	 * A frame of rumble on the channels `Motors` plays it from: the heavy
+	 * motor for Low, the light one for High, and the triggers left quiet.
+	 */
+	APEXSIM_API FPadChannels ToPadChannels(const FRumble& Rumble, EPadMotors Motors);
+
 	/** A wheelbase's settings, 0..1 each (UApexSettingsSave's wheel block). */
 	struct FWheelTuning
 	{

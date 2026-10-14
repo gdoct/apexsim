@@ -156,6 +156,8 @@ unverified.
   a base.
 - An H-pattern shifter on the `HGear*` slots.
 - The handbrake's feel (`HANDBRAKE_SHARE`, how fast the tail comes round).
+- A pad under the GameInput plugin (not enabled in the project): the light
+  motor on `RightLarge`, the triggers quiet (`ApexFfb::ToPadChannels`).
 
 ## 4. Platforms and GPUs
 

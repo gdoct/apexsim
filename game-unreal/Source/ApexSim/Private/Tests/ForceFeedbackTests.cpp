@@ -1157,4 +1157,30 @@ bool FApexFfbWheelProfileTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbPadMotorsTest,
+	"ApexSim.Input.ForceFeedback.PadMotors",
+	ApexTestFlags)
+
+bool FApexFfbPadMotorsTest::RunTest(const FString& Parameters)
+{
+	ApexFfb::FRumble Rumble;
+	Rumble.Low = 0.7f;
+	Rumble.High = 0.3f;
+
+	// XInput: the heavy motor from a Large channel, the light one from a Small.
+	const ApexFfb::FPadChannels X = ApexFfb::ToPadChannels(Rumble, ApexFfb::EPadMotors::XInput);
+	TestEqual(TEXT("XInput heavy motor"), X.LeftLarge, 0.7f);
+	TestEqual(TEXT("XInput light motor"), X.LeftSmall, 0.3f);
+	TestEqual(TEXT("XInput leaves the right channels"), X.RightLarge + X.RightSmall, 0.0f);
+
+	// GameInput: the Small channels are the triggers, which stay quiet.
+	const ApexFfb::FPadChannels G = ApexFfb::ToPadChannels(Rumble, ApexFfb::EPadMotors::GameInput);
+	TestEqual(TEXT("GameInput heavy motor"), G.LeftLarge, 0.7f);
+	TestEqual(TEXT("GameInput light motor"), G.RightLarge, 0.3f);
+	TestEqual(TEXT("GameInput triggers quiet"), G.LeftSmall + G.RightSmall, 0.0f);
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

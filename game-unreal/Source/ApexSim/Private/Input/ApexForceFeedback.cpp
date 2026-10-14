@@ -483,6 +483,21 @@ namespace ApexFfb
 		return 2.0f * FMath::Clamp(Strength01, 0.0f, 1.0f);
 	}
 
+	FPadChannels ToPadChannels(const FRumble& Rumble, EPadMotors Motors)
+	{
+		FPadChannels Channels;
+		Channels.LeftLarge = Rumble.Low;
+		if (Motors == EPadMotors::GameInput)
+		{
+			Channels.RightLarge = Rumble.High;
+		}
+		else
+		{
+			Channels.LeftSmall = Rumble.High;
+		}
+		return Channels;
+	}
+
 	FRumble MixGamepad(const FSignals& Signals, FGamepadState& State, float DeltaSeconds, float Gain)
 	{
 		const float Dt = FMath::Clamp(DeltaSeconds, 0.0f, 0.1f);
