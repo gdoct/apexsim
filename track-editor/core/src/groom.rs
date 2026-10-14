@@ -701,6 +701,7 @@ pub fn groom_props_with_dem(
     let mut original_barriers: Vec<Prop> = Vec::new();
     let mut original_trees: Vec<Prop> = Vec::new();
     let mut original_hoardings: Vec<Prop> = Vec::new();
+    let mut original_tags: Vec<Prop> = Vec::new();
     for mut prop in std::mem::take(&mut scene.props) {
         // Generated furniture is owned by its pass: set aside, re-laid
         // below, and adopted back unchanged when the layout still matches.
@@ -710,6 +711,10 @@ pub fn groom_props_with_dem(
         }
         if owned_by_hoarding_pass(&prop) {
             original_hoardings.push(prop);
+            continue;
+        }
+        if owned_by_rail_tag_pass(&prop) {
+            original_tags.push(prop);
             continue;
         }
         if owned_by_barrier_pass(&prop) {
@@ -979,6 +984,16 @@ pub fn groom_props_with_dem(
         ));
     }
 
+    // The crowd's tags are painted on the rails themselves.
+    let tags = lay_rail_tags(&path, &props, &scene.decals);
+    report.boards += tags.len();
+    props.extend(adopt(
+        scene,
+        original_tags,
+        tags,
+        &mut report.boards_rebuilt,
+    ));
+
     // Boards go on the barriers, so they wait until every wall and armco
     // segment is in its final place.
     report.pushed += snap_boards_to_barriers(&path, &terrain, &mut props);
@@ -1083,8 +1098,10 @@ fn snap_boards_to_barriers(
         p.kind == PropKind::Board
             && !crate::dress::always_dress_owned(p)
             && !owned_by_hoarding_pass(p)
-            // The German signs are laid behind their rail already.
+            // The German signs are laid behind their rail already, and a
+            // tag is painted on its rail.
             && !GERMAN_SIGN_ASSETS.contains(&p.asset.as_str())
+            && !owned_by_rail_tag_pass(p)
     }) {
         let Some((rx, ry)) = rails
             .iter()
@@ -1523,7 +1540,7 @@ fn lay_distance_boards(
 
 /// Every sign the German pass lays. It owns them by asset, like the
 /// distance boards it stands in for.
-pub const GERMAN_SIGN_ASSETS: [&str; 7] = [
+pub const GERMAN_SIGN_ASSETS: [&str; 11] = [
     "chevron_left",
     "chevron_right",
     "km_marker",
@@ -1531,6 +1548,10 @@ pub const GERMAN_SIGN_ASSETS: [&str; 7] = [
     "de_curve_right",
     "de_danger",
     "de_overtake_left",
+    "de_descent",
+    "de_climb",
+    "de_double_curve_left",
+    "de_double_curve_right",
 ];
 /// A corner tighter than this (peak radius, metres) gets red-white
 /// chevron boards round its outside.
@@ -1555,6 +1576,21 @@ const OVERTAKE_EVERY_M: f32 = 3000.0;
 /// How far past the barrier minimum a sign is first put; the board snap
 /// then stands it just behind the nearest rail.
 const SIGN_PAST_BARRIER_M: f32 = 0.8;
+/// A bend whose core turns both ways, each way tighter than this radius,
+/// gets the double-bend sign (Zeichen 105) in place of the single one.
+const DOUBLE_CURVE_RADIUS_M: f32 = 130.0;
+/// A hill steeper than this (over [`GRADE_CHORD_M`] of road) for at least
+/// [`GRADE_MIN_RUN_M`] gets its gradient sign (Zeichen 108 / 110, the
+/// steepest grade on its plate) [`GRADE_BEFORE_M`] before it; hills of one
+/// sense less than [`GRADE_MERGE_M`] apart are one hill.
+const GRADE_SIGN_MIN: f32 = 0.08;
+const GRADE_CHORD_M: f32 = 100.0;
+const GRADE_STEP_M: f32 = 10.0;
+const GRADE_MIN_RUN_M: f32 = 120.0;
+const GRADE_MERGE_M: f32 = 150.0;
+const GRADE_BEFORE_M: f32 = 60.0;
+/// The plates the kit has (`grade5` .. `grade25`).
+const GRADE_PLATES: std::ops::RangeInclusive<i32> = 5..=25;
 
 /// The Nordschleife's roadside signs in place of braking boards:
 /// chevrons round the outside of every tight corner (pointing the way it
@@ -1573,13 +1609,15 @@ fn lay_german_signs(
 ) -> Vec<Prop> {
     let total = path.total_length_m();
     let radius = prop_radius(PropKind::Board);
+    // A spectator bank is a low mound behind the sign's line: the sign
+    // stands in front of it.
     let slabs: Vec<Slab> = others
         .iter()
         .filter(|p| {
             !matches!(
                 p.kind,
                 PropKind::Barrier | PropKind::TireWall | PropKind::Tree
-            )
+            ) && p.asset != "spectator_bank_10m"
         })
         .map(|p| Slab::of(path, p))
         .collect();
@@ -1680,10 +1718,25 @@ fn lay_german_signs(
         }
         let peak_radius = 1.0 / run.peak_kappa;
         if peak_radius < WARNING_RADIUS_M {
-            let asset = if run.entry_kappa > 0.0 {
-                "de_curve_left"
-            } else {
-                "de_curve_right"
+            // A complex that turns hard both ways is a double bend, named
+            // by the way it turns first.
+            let first_hard = (0..=steps)
+                .map(|i| {
+                    curvature_at(
+                        path,
+                        run.start_m + (run.end_m - run.start_m) * i as f32 / steps as f32,
+                    )
+                })
+                .filter(|k| k.abs() >= 1.0 / DOUBLE_CURVE_RADIUS_M)
+                .fold((None, false), |(first, both), k| match first {
+                    None => (Some(k.signum()), false),
+                    Some(f) => (Some(f), both || k.signum() != f),
+                });
+            let asset = match first_hard {
+                (Some(f), true) if f > 0.0 => "de_double_curve_left",
+                (Some(_), true) => "de_double_curve_right",
+                _ if run.entry_kappa > 0.0 => "de_curve_left",
+                _ => "de_curve_right",
             };
             place(
                 &mut out,
@@ -1717,6 +1770,162 @@ fn lay_german_signs(
     while s < total - OVERTAKE_FIRST_M / 2.0 {
         place(&mut out, "de_overtake_left", s, Side::Right, None);
         s += OVERTAKE_EVERY_M;
+    }
+    for hill in grade_runs(path) {
+        let asset = if hill.grade < 0.0 {
+            "de_descent"
+        } else {
+            "de_climb"
+        };
+        let percent = (hill.grade.abs() * 100.0).round() as i32;
+        let percent = percent.clamp(*GRADE_PLATES.start(), *GRADE_PLATES.end());
+        place(
+            &mut out,
+            asset,
+            hill.start_m - GRADE_BEFORE_M,
+            Side::Right,
+            Some(format!("grade{percent}")),
+        );
+    }
+    out
+}
+
+/// One hill: where it starts and ends along the lap and its steepest
+/// grade over [`GRADE_CHORD_M`] (negative going down).
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct GradeRun {
+    start_m: f32,
+    end_m: f32,
+    grade: f32,
+}
+
+/// The hills steep enough for a sign, from the centerline's own heights.
+fn grade_runs(path: &CenterlinePath) -> Vec<GradeRun> {
+    let total = path.total_length_m();
+    let steps = (total / GRADE_STEP_M).floor().max(1.0) as usize;
+    let z = |s: f32| path.sample_at(s.rem_euclid(total)).pos.2;
+    let grade = |s: f32| (z(s + GRADE_CHORD_M / 2.0) - z(s - GRADE_CHORD_M / 2.0)) / GRADE_CHORD_M;
+    let mut runs: Vec<GradeRun> = Vec::new();
+    let mut open: Option<GradeRun> = None;
+    for i in 0..=steps {
+        let s = i as f32 * GRADE_STEP_M;
+        let g = if i < steps { grade(s) } else { 0.0 };
+        let steep = g.abs() >= GRADE_SIGN_MIN;
+        match open.as_mut() {
+            Some(run) if steep && run.grade.signum() == g.signum() => {
+                run.end_m = s;
+                if g.abs() > run.grade.abs() {
+                    run.grade = g;
+                }
+            }
+            _ => {
+                if let Some(run) = open.take() {
+                    runs.push(run);
+                }
+                if steep {
+                    open = Some(GradeRun {
+                        start_m: s,
+                        end_m: s,
+                        grade: g,
+                    });
+                }
+            }
+        }
+    }
+    let mut merged: Vec<GradeRun> = Vec::new();
+    for run in runs {
+        match merged.last_mut() {
+            Some(prev)
+                if prev.grade.signum() == run.grade.signum()
+                    && run.start_m - prev.end_m < GRADE_MERGE_M =>
+            {
+                prev.end_m = run.end_m;
+                if run.grade.abs() > prev.grade.abs() {
+                    prev.grade = run.grade;
+                }
+            }
+            _ => merged.push(run),
+        }
+    }
+    merged.retain(|run| run.end_m - run.start_m >= GRADE_MIN_RUN_M);
+    merged
+}
+
+// ---- Graffiti on the rails ----------------------------------------------------
+
+/// The tags the crowd paints on the guard rail (`board/rail_tag_*`). The
+/// rail pass owns them by asset.
+pub const RAIL_TAG_ASSETS: [&str; 6] = [
+    "rail_tag_kalle",
+    "rail_tag_eifel",
+    "rail_tag_vollgas",
+    "rail_tag_hup",
+    "rail_tag_moppel",
+    "rail_tag_hearts",
+];
+/// The rail modules a tag fits (the double rail: beams at 0.40 and 0.85 m).
+const RAIL_TAGGED_RAILS: [&str; 2] = ["vangrail_4m", "vangrail_4m_fence"];
+/// A rail module within this of a stretch of road graffiti is in the
+/// crowd's reach, and this share of those get a tag.
+const RAIL_TAG_REACH_M: f32 = 40.0;
+const RAIL_TAG_SHARE: f32 = 0.15;
+
+fn owned_by_rail_tag_pass(prop: &Prop) -> bool {
+    prop.kind == PropKind::Board && RAIL_TAG_ASSETS.contains(&prop.asset.as_str())
+}
+
+/// A deterministic value in 0..1 from a position (no RNG near the pass).
+fn position_roll(x: f32, y: f32, salt: u32) -> f32 {
+    let mut h = (x * 100.0).round() as i32 as u32;
+    h = h.wrapping_mul(2_654_435_761) ^ ((y * 100.0).round() as i32 as u32);
+    h = h.wrapping_mul(2_246_822_519) ^ salt.wrapping_mul(0x9E37_79B9);
+    h ^= h >> 15;
+    h = h.wrapping_mul(0x85EB_CA6B);
+    h ^= h >> 13;
+    (h % 10_000) as f32 / 10_000.0
+}
+
+/// Tags on the double rail where the crowd paints the road: a share of
+/// the modules within [`RAIL_TAG_REACH_M`] of the scene's road graffiti
+/// (the `graffiti/` decals but the skid marks), each on its module's own
+/// pivot and yaw so it wraps the beams.
+fn lay_rail_tags(path: &CenterlinePath, props: &[Prop], decals: &[crate::ats::Decal]) -> Vec<Prop> {
+    let total = path.total_length_m();
+    let spans: Vec<(f32, f32)> = decals
+        .iter()
+        .filter(|d| d.image.starts_with("graffiti/") && !d.image.starts_with("graffiti/skid_"))
+        .map(|d| {
+            (
+                d.start_m - RAIL_TAG_REACH_M,
+                d.length_m + 2.0 * RAIL_TAG_REACH_M,
+            )
+        })
+        .collect();
+    if spans.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    for rail in props
+        .iter()
+        .filter(|p| p.kind == PropKind::Barrier && RAIL_TAGGED_RAILS.contains(&p.asset.as_str()))
+    {
+        let (sample, _, along) = nearest_cross_section(path, rail.x, rail.y);
+        let station = sample.station_m + along;
+        let near = spans
+            .iter()
+            .any(|(from, len)| (station - from).rem_euclid(total) <= *len);
+        if !near || position_roll(rail.x, rail.y, 61) >= RAIL_TAG_SHARE {
+            continue;
+        }
+        let pick = (position_roll(rail.x, rail.y, 62) * RAIL_TAG_ASSETS.len() as f32) as usize;
+        out.push(Prop {
+            id: 0,
+            kind: PropKind::Board,
+            asset: RAIL_TAG_ASSETS[pick % RAIL_TAG_ASSETS.len()].to_string(),
+            text: None,
+            length_m: None,
+            ..rail.clone()
+        });
     }
     out
 }
@@ -2970,6 +3179,89 @@ mod tests {
 
     fn of_kind(scene: &AtsScene, kind: PropKind) -> Vec<&Prop> {
         scene.props.iter().filter(|p| p.kind == kind).collect()
+    }
+
+    #[test]
+    fn a_steep_hill_gets_its_gradient_sign() {
+        // The stadium, but the first straight climbs 10 % from x = 200 to
+        // x = 500 and the return straight comes back down.
+        let mut track = track();
+        let lift = |x: f32| ((x - 200.0).clamp(0.0, 300.0)) * 0.10;
+        for node in &mut track.nodes {
+            node.z = lift(node.x.clamp(0.0, 800.0));
+        }
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let hills = grade_runs(&path);
+        let climb = hills.iter().find(|h| h.grade > 0.0).expect("no climb");
+        assert!((climb.grade - 0.10).abs() < 0.015, "{climb:?}");
+        assert!(climb.start_m > 120.0 && climb.start_m < 260.0, "{climb:?}");
+        assert!(hills.iter().any(|h| h.grade < 0.0), "no descent: {hills:?}");
+        // Laid as Zeichen 110 with the grade on its plate.
+        let signs = lay_german_signs(
+            &path,
+            &seating_terrain(
+                &path,
+                &AtsScene::new_for_track(&track, "Nordschleife.yaml"),
+                None,
+            )
+            .unwrap(),
+            None,
+            &[],
+            &CircuitStyle::NORDSCHLEIFE,
+        );
+        let up: Vec<&Prop> = signs.iter().filter(|p| p.asset == "de_climb").collect();
+        assert_eq!(up.len(), 1, "{signs:?}");
+        assert_eq!(up[0].text.as_deref(), Some("grade10"));
+        // A flat lap has none.
+        let flat = CenterlinePath::from_track(&self::track()).unwrap();
+        assert!(grade_runs(&flat).is_empty());
+    }
+
+    #[test]
+    fn the_crowd_tags_the_double_rail_where_it_paints_the_road() {
+        let track = track();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        // A double rail down the whole first straight, 4 m modules.
+        let rails: Vec<Prop> = (0..200)
+            .map(|i| Prop {
+                asset: "vangrail_4m".to_string(),
+                yaw_rad: 0.0,
+                ..prop(PropKind::Barrier, i as f32 * 4.0 + 2.0, -10.0, 0.0)
+            })
+            .collect();
+        let decal = |image: &str, start_m: f32| crate::ats::Decal {
+            id: 0,
+            image: image.to_string(),
+            start_m,
+            length_m: 16.0,
+            lat_m: 0.0,
+            width_m: 6.0,
+            reversed: false,
+        };
+        // Graffiti from 300 m to 316 m; skid marks at 600 m do not count.
+        let decals = [
+            decal("graffiti/vollgas", 300.0),
+            decal("graffiti/skid_long", 600.0),
+        ];
+        let tags = lay_rail_tags(&path, &rails, &decals);
+        assert!(!tags.is_empty());
+        for tag in &tags {
+            assert!(RAIL_TAG_ASSETS.contains(&tag.asset.as_str()));
+            assert_eq!(tag.kind, PropKind::Board);
+            assert!(
+                (300.0 - RAIL_TAG_REACH_M - 4.0..=316.0 + RAIL_TAG_REACH_M + 4.0).contains(&tag.x),
+                "a tag at {} is out of the crowd's reach",
+                tag.x
+            );
+            // On its module's own pivot, so it wraps the beams.
+            assert!(rails
+                .iter()
+                .any(|r| (r.x, r.y, r.yaw_rad) == (tag.x, tag.y, tag.yaw_rad)));
+        }
+        // The same rails, the same tags.
+        assert_eq!(tags, lay_rail_tags(&path, &rails, &decals));
+        // No road graffiti, no tags.
+        assert!(lay_rail_tags(&path, &rails, &decals[1..]).is_empty());
     }
 
     #[test]

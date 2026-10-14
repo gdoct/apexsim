@@ -111,6 +111,36 @@ the same `ApexProps` code.
   along the water, a catch fence pass.
 - Stadium grandstands: a scene names the stadium bays and cap that
   `LayoutGrandstand` lays; `grandstand/stair_tower` is built.
+- Nordschleife: rock cuttings. OSM maps no cliff, bare rock or cutting
+  along the lap, and the DEM is a surface model that reads the forest's
+  canopy as a slope, so no rule can tell a cutting from a tree line; it
+  needs a bare-earth terrain model (Rhineland-Palatinate's DGM1) or a
+  surveyed list of the cuttings, then a rock-face kit piece.
+- Nordschleife: the lap's bridges over the K 73, the B 257 (Quiddelbach,
+  Breidscheid), the L 92 and the L 93 are parapets only
+  (`track_bridge_10m`). The ground under the lap is not cut away, so the
+  road beneath is not there: it needs an `Underpass` for a dossier road in
+  `terrain.rs` (a slot under the deck, as at Suzuka), the road drawn in it,
+  and the AI survey.
+- Nordschleife: the marshal posts are numbered in lap order from the
+  line, not with the real post numbers (OSM maps one, "Posten 44", by the
+  GP circuit); a real list goes in a dossier table.
+- Nordschleife: the toll lanes stand on the grass: the entrance's access
+  lanes and car park are not drawn (no dossier road is baked).
+- Nordschleife: the event car parks by the GP complex (the A and D lots
+  near T13 and Hohenrain) get spectator banks like the real spectator car
+  parks; only names with `Lager` or `Compound` are left out.
+- Camp sites off the fan lap pitch their tents in a row: the walk in
+  `dress::surroundings::camp_sites` uses one irrational step for both
+  coordinates (0.618 x 1.618 is 1). The fan lap uses the R2 sequence
+  (`r2_point`); switching every circuit moves their tents, which are walls
+  (`attraction`), so it goes with a re-dress and an AI survey of those
+  circuits.
+- Nordschleife: the OSM extract the dossier was fitted from is gone from
+  `.cache/osm/`, so the surveyed layers cannot be refitted; a fresh
+  extract (the map API tiles in `.cache/osm/nordschleife_tiles/` are
+  newer than the cut) would change the woods and barriers, and so the
+  walls: a refit is a groom and an AI survey of its own.
 
 **Check:** each circuit by hand in the running game; the track-editor tests.
 

@@ -35,13 +35,13 @@ corner's barrier may stand (`straight_barrier_min_m`,
 distance band, trees per 12 m cell, share of empty cells), `Flora`
 (`Temperate`, `Desert`, `Tropical`), `Ground` (`Grass`, `Sand`, `Paved`),
 `RoadSigns` (`BrakingBoards`, `German`), and flags for the floodlight ring,
-the pit lane, city buildings, verge ground cover and the generated pit
-garages.
+the pit lane, city buildings, verge ground cover, the generated pit
+garages and the fan dressing (`fan_dressing`, below).
 
 | Style | Circuits (stem) | What differs from `DEFAULT` |
 |---|---|---|
 | `DEFAULT` | every other circuit | Armco 7 m (straights) / 14 m (corners) off the road, hoardings, temperate tree belt 22-90 m, braking boards, floodlight ring, pit lane and garages |
-| `NORDSCHLEIFE` | `Nordschleife` | German guard rail 3 / 4.5 m off, no hoardings, dense forest 8.5-110 m with no clearings, German signs, no floodlight ring, no pit lane |
+| `NORDSCHLEIFE` | `Nordschleife` | German guard rail 3 / 4.5 m off, no hoardings, dense forest 8.5-110 m with no clearings, German signs, no floodlight ring, no pit lane, the fan dressing |
 | `STREET` | `MarinaBay` | Tecpro 3 / 5 m off, no tree belt, tropical flora, paved ground, no floodlight ring, city buildings, no ground cover, no generated garages |
 | `DESERT` | `YasMarina` | desert flora (palms and scrub whatever the wood is mapped as) |
 | `SAKHIR` | `Sakhir` | desert flora in sparse clumps (two in three cells empty) on `Ground::Sand` |
@@ -64,9 +64,23 @@ How the fields act:
   run-off (`runoff_paved`); a desert's still drive as grass.
 - **Signs.** `German` lays red-white chevrons round the outside of every
   corner tighter than 160 m, a kilometre board every kilometre, bend and
-  danger warnings before the tightest corners and the "overtake on the left"
-  board every 3 km (`CHEVRON_*`, `DANGER_*`, `OVERTAKE_*` in `groom.rs`; the
-  `board/de_*` and chevron assets), and no braking boards.
+  danger warnings before the tightest corners (Zeichen 105, the double bend,
+  where a corner complex turns both ways tighter than 130 m), the gradient
+  warnings (Zeichen 108 / 110, the steepest grade on a plate under the
+  triangle: `text` `grade<N>`) before every hill of 8% or more over 100 m
+  of road for 120 m, and the "overtake on the left" board every 3 km
+  (`CHEVRON_*`, `DANGER_*`, `DOUBLE_CURVE_*`, `GRADE_*`, `OVERTAKE_*` in
+  `groom.rs`; the `board/de_*` and chevron assets), and no braking boards.
+  The grades come from the centerline's z, so they follow the DEM fit.
+- **Fan dressing** (`fan_dressing`, `dress.rs` `surroundings`): each marshal
+  post is `marshal_post_numbered`, numbered round the lap from the line
+  (`text` `post<N>`); every mapped camp site gets its camp village (a
+  scaffold tower, gazebo or flag pole per two tent pitches; flags `de`,
+  `nl`, `be`, `ch`, `at`); and every car park or camp site that comes
+  within 60 m of the road edge lines the stretch it borders, on its side,
+  with `spectator_bank_10m` earth banks (a hedge on the crest) 8 m past
+  the edge. A car park OSM names as a paddock, depot or compound
+  (`Fahrerlager`, `... Lager`, `Compound`) is left out.
 - **City buildings.** A city circuit's buildings are `skyline_*` blocks by
   footprint (`dress::city_building_asset`), twin-arm street lamps are laid
   every 40 m alternating sides (`lay_street_lamps`), and the dossier keeps
@@ -120,12 +134,54 @@ and was cut from the planet file into `.cache/osm/Nordschleife.0.json`, so
 
 **Scene.** `seed_scene.py Nordschleife` starts the `.ats`, then the usual
 `ats-dress` and `ats-export`. The dossier carries 40-odd named sections as
-corners, the woods, barrier runs, the road bridges, Burg Nürburg
-(`MANUAL_LANDMARKS`, anchored on OSM's `historic=castle` outline, laid as
-`building/castle_ruin`) and the graffiti runs (`MANUAL_GRAFFITI`). The kit
-pieces it needs (vangrail, German signs) are built by
-`scripts/content/props/build_nordschleife_kit.py` (headless `bpy`: run it
-with `python -I`).
+corners, the woods, barrier runs, the road crossings and the graffiti runs
+(`MANUAL_GRAFFITI`). The kit pieces it needs are built by
+`scripts/content/props/build_nordschleife_kit.py`: run it with the system
+Python first (it paints the sign faces and number plates with PIL), then
+in Blender, headless (`blender -b --factory-startup --python-expr
+"ASSET='all'; exec(...)"`; Blender's Python has no PIL). The rail tags'
+textures and the skid marks come from `gen_graffiti.py`.
+
+**Dossier tables** (`osm_layout.py`, keyed `"Nordschleife"`), every entry
+anchored on an OSM node or way (lon, lat) and named by its id in the
+comment:
+- `MANUAL_LANDMARKS`: Burg Nürburg (`castle`, `building/castle_ruin`), the
+  Kaiser-Wilhelm-Turm on the Hohe Acht (`lookout_tower`,
+  `building/stone_lookout_tower`, 1.4 km off the road), the three
+  Touristenfahrten toll lanes at the entrance off the Döttinger Höhe
+  (`toll_gate`, `misc/toll_gate_lane`, arm across its lane by `yaw_across`;
+  OSM's `fee=yes` lanes, at 19.2 km, not at T13 itself), and the hillside
+  letters (`hillside_letters`, `sign/hillside_letters`: MORDSCHLEIFE, the
+  display name; invented, the real circuit has none) on the open meadow
+  230 m right of the Döttinger Höhe, broadside to the straight.
+- `MANUAL_CROSSINGS`: the lap's own bridges over the K 73, the B 257 at
+  Quiddelbach and at Breidscheid, the L 92 and the L 93 (`deck_track`,
+  `from_at` / `to_at` on the raceway way's ends: `bridge/track_bridge_10m`
+  tiled over the span, parapets just behind the rail) and the gantry on the
+  Döttinger Höhe a Touristenfahrten lap is timed to (`timing`,
+  `bridge/timing_gantry`, a kit brand). `CROSSING_KINDS` makes OSM's two
+  forest-track bridges over the lap (3965 m, 19702 m) `overpass`
+  (`bridge/overpass_concrete`).
+- Skid marks (`skid_marks`, `SKID_*`): into every corner tighter than 70 m,
+  one to three 24 m streaks ending 8 m before the turn-in, on the racing
+  line, whole on the tarmac; `graffiti/skid_*` decals in the dossier's
+  `graffiti` list.
+
+**Refreshing the dossier.** The OSM extract the dossier was fitted from was
+cut from the planet file and is no longer in `.cache/osm/`, so a full
+`osm_layout.py Nordschleife --offline` cannot run. The hand-authored layers
+are re-applied without it: `python scripts/osm_layout.py Nordschleife
+--manual-only` rebuilds the authored landmarks and crossings, the graffiti,
+decal runs and skid marks and the furniture through the georeference the
+DEM sidecar records (the dossier's own fit), leaving every surveyed layer
+byte for byte (`--all --manual-only --dry-run` reports every other dossier
+unchanged). Features were looked up in OSM's map API, tiled over the bbox
+into `.cache/osm/nordschleife_tiles/` (reference only, newer than the cut).
+
+**Groomed on the rails.** The groomer paints `board/rail_tag_*` on 15% of
+the double-rail modules (`vangrail_4m`, `vangrail_4m_fence`) within 40 m
+of any road graffiti (`RAIL_TAG_*` in `groom.rs`), each on its module's own
+pivot and yaw so the sheet wraps the W-beams.
 
 **No pit lane.** The lane OSM maps at T13 merges into the road across the
 start area and its walls stood on the racing line, so the style lays none and
@@ -136,6 +192,8 @@ the circuit has no pit sidecar (no pit stops).
 that leaves the road is more likely to be pinned against one.
 
 **Traps.**
+- The track bridges are parapets only: the ground under the lap is not cut
+  away, so the road it crosses is not there to see ([follow-ups.md](../follow-ups.md)).
 - The Nordschleife is wooded end to end: the DEM is a surface model and reads
   the canopy. Check a re-derived profile against the known relief (about
   300 m between Breidscheid and the Hohe Acht section) before trusting it.

@@ -170,6 +170,11 @@ pub struct CircuitStyle {
     /// its own (Marina Bay's `pit_building_roofdeck`, with its own doors)
     /// has none, and a team stand on the pit wall in their place.
     pub pit_garages: bool,
+    /// The endurance crowd's lap (`dress`): each marshal post carries its
+    /// number, the camp sites are villages (scaffold towers, gazebos,
+    /// flags), and earth banks with a hedge stand behind the rail beside
+    /// every car park and camp the dossier maps close to the road.
+    pub fan_dressing: bool,
 }
 
 impl CircuitStyle {
@@ -194,6 +199,7 @@ impl CircuitStyle {
         city_buildings: false,
         ground_cover: true,
         pit_garages: true,
+        fan_dressing: false,
     };
 
     /// The Nordschleife: guard rail close to a narrow road, forest right
@@ -218,6 +224,7 @@ impl CircuitStyle {
         city_buildings: false,
         ground_cover: true,
         pit_garages: true,
+        fan_dressing: true,
     };
 
     /// Marina Bay: a street circuit between buildings and water. Concrete

@@ -81,6 +81,16 @@ seeded pileup replay screenshotted before and after.
   ramps, the Karussell in concrete, paved aprons as run-off) on each
   circuit it changed: every circuit but Moscow Raceway, Shanghai, Monza and
   Yas Marina.
+- The Nordschleife dressing ([content/circuits.md](content/circuits.md)),
+  never imported or seen: the numbered posts and the grade plates read
+  from the road; the rail tags wrap the W-beams on both sides of the road
+  (not flipped off the rail, not floating); the skid marks show through
+  `M_ApexDecal`'s mask; the track bridges' parapets stand behind the rail
+  and the overpasses' abutments clear it at the 9 m road's scale; the
+  gantry, the toll lanes and the camp villages; the spectator banks on a
+  sloping verge; the lookout tower on the Hohe Acht seen from the Hohe
+  Acht section; the hillside letters seen from the Döttinger Höhe (or
+  hidden by the trees between).
 
 **Menus, HUD and dashboard** ([game/client.md](game/client.md),
 [game/hud-modding.md](game/hud-modding.md),

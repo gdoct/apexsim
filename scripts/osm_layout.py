@@ -506,6 +506,34 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
         dict(name="Press Centre Wing", station_m=15.0, kind="arch", brand="piretti"),
         dict(name="Sky Restaurant Wing", station_m=335.0, kind="arch", brand="piretti"),
     ],
+    # The Nordschleife's own bridges over the public roads it crosses: OSM
+    # maps each as a `highway=raceway` way with `bridge=yes` (which the scan
+    # above skips as "the road's own bridge"), the road under it crossing
+    # it. Anchored on the way's two end nodes (lon, lat), so the span stays
+    # where it is when the centerline moves; `deck_track` tiles parapets
+    # over it. The overhead advertising bridge on the Doettinger Hoehe is the
+    # "gantry" a Touristenfahrten lap is timed to; OSM has it as way
+    # 1391805026 (`advertising=billboard`, layer 1), its real sponsor's
+    # lettering replaced by a kit brand.
+    "Nordschleife": [
+        # way 41395673, over the K 73 just past the line.
+        dict(name="K 73 bridge", kind="deck_track",
+             from_at=(6.9491256, 50.3387732), to_at=(6.9488824, 50.3389832)),
+        # way 41395681, over the B 257 at Quiddelbach.
+        dict(name="Quiddelbach bridge", kind="deck_track",
+             from_at=(6.9302948, 50.3425517), to_at=(6.9295538, 50.3428825)),
+        # way 41395647, over the B 257 (Trierer Strasse) at Breidscheid.
+        dict(name="Breidscheid bridge", kind="deck_track",
+             from_at=(6.9499778, 50.3768618), to_at=(6.9501051, 50.3769996)),
+        # way 41395652, over the L 92 at the foot of the Doettinger Hoehe.
+        dict(name="L 92 bridge", kind="deck_track",
+             from_at=(6.9831675, 50.3526741), to_at=(6.9828358, 50.352546)),
+        # way 41395668, over the L 93 (Hauptstrasse) before T13.
+        dict(name="L 93 bridge", kind="deck_track",
+             from_at=(6.9515089, 50.3378554), to_at=(6.951275, 50.337751)),
+        # way 1391805026's midpoint.
+        dict(name="Gantry", kind="timing", at=(6.98077, 50.35175), brand="northwind"),
+    ],
 }
 
 # What the dossier's OSM-derived crossings are called for a circuit whose
@@ -513,6 +541,10 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
 # covered link, and a "road" is an expressway viaduct.
 CROSSING_KINDS: dict[str, dict[str, str]] = {
     "MarinaBay": {"footbridge": "link", "road": "viaduct"},
+    # The Nordschleife's two overhead crossings (stations 3965 and 19702:
+    # OSM ways 41795617 and 29898554) are forest tracks (`highway=track`,
+    # 3 m) on concrete bridges, not a sponsor's tyre arch.
+    "Nordschleife": {"road": "overpass"},
 }
 
 # A street circuit's bridges that carry the lap itself (`bridge=yes` ways of
@@ -553,6 +585,11 @@ LANDMARK_KINDS: dict[str, dict[str, str]] = {
 # 31010481 "Nürburg (Ruine)" (lon, lat).
 NUERBURG_CASTLE = (6.95352, 50.34674)
 
+# The meadow on the slope beside the Doettinger Hoehe the hillside letters
+# stand on (see MANUAL_LANDMARKS): the mean of OSM way 496321264's
+# (`landuse=meadow`) outline.
+HILLSIDE_MEADOW_AT = (6.979309, 50.353606)
+
 MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # The skyline across the water that is on every picture of the circuit,
     # at the positions OSM has them (lon, lat). All of them stand 300-500 m
@@ -572,6 +609,30 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # toward the village.
     "Nordschleife": [
         dict(kind="castle", name="Burg Nürburg", at=NUERBURG_CASTLE, yaw_rad=0.6),
+        # The Kaiser-Wilhelm-Turm, the 16.3 m stone lookout tower (1909) on
+        # the Hohe Acht summit, 1.4 km off the Hohe Acht section: OSM way
+        # 699590411 (`man_made=tower`, `tower:type=observation`), its
+        # outline's centroid.
+        dict(kind="lookout_tower", name="Kaiser-Wilhelm-Turm", at=(7.01126, 50.38608)),
+        # The Touristenfahrten toll lanes at the entrance off the
+        # Doettinger Hoehe: OSM's three `barrier=lift_gate` nodes 370475173,
+        # 7179480525 and 7179480528 on the `fee=yes` service lanes (ways
+        # 42746353, 769107219, 769107220); `yaw_across` is each lane's next
+        # node, the arm lying across the lane.
+        dict(kind="toll_gate", name="Toll lane 1", at=(6.9657432, 50.3459721),
+             yaw_across=(6.9662091, 50.3461626)),
+        dict(kind="toll_gate", name="Toll lane 2", at=(6.9657153, 50.3459997),
+             yaw_across=(6.9661841, 50.346192)),
+        dict(kind="toll_gate", name="Toll lane 3", at=(6.9656896, 50.346033),
+             yaw_across=(6.9660839, 50.3461904)),
+        # The hillside letters (`sign/hillside_letters`, the circuit's
+        # display name; invented, the real circuit has none) on the open
+        # slope right of the Doettinger Hoehe, in view down the whole
+        # straight: the meadow HILLSIDE_MEADOW_AT names, which rises 13 m
+        # over the road 230 m off it (the DEM over open ground). Turned
+        # broadside to the line of sight from the straight before it.
+        dict(kind="hillside_letters", name="Hillside letters", at=HILLSIDE_MEADOW_AT,
+             broadside_to_m=17600.0),
     ],
     # The airship over the pits is as much a part of the 24 Hours as the
     # fairground at the Esses (which OSM does have, as a big wheel).
@@ -2391,19 +2452,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
                     "source": "authored",
                 }
             )
-    for spec in MANUAL_CROSSINGS.get(stem, []):
-        crossings.append(dict(spec, source="authored"))
-    crossings.sort(key=lambda c: c["station_m"])
-    dedup = []
-    for c in crossings:
-        if dedup and abs(c["station_m"] - dedup[-1]["station_m"]) < 25:
-            # The same crossing mapped twice: an authored entry is there on
-            # purpose (it says what the structure *is*), so it wins.
-            if c.get("source") == "authored" and dedup[-1].get("source") != "authored":
-                dedup[-1] = c
-            continue
-        dedup.append(c)
-    crossings = dedup
+    crossings = dedup_crossings(crossings + manual_crossings(stem, track, osm, to_track))
 
     landmarks = []
     for nid, t in osm.node_tags.items():
@@ -2503,53 +2552,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
                 continue
             unique.append(l)
         landmarks = unique
-    for spec in MANUAL_LANDMARKS.get(stem, []):
-        if "at" in spec:
-            # Anchored on the map rather than beside the road: a castle on
-            # its hill half a kilometre away is where it is, not "40 m to
-            # the left of station N".
-            p = to_track(np.array([enu(*spec["at"], osm.lon0, osm.lat0)]))[0]
-            s_at, lat_at = track.locate(p[None, :])
-            spec = {**spec, "station_m": round(float(s_at[0]), 1),
-                    "side": "left" if lat_at[0] > 0 else "right"}
-        else:
-            p = track.offset_point(spec["station_m"], spec["side"], spec.get("offset_m", 40.0))
-        # A hand-placed landmark is an estimate standing in for a fact.
-        # Once the automatic scan finds the same thing -- same kind, within
-        # MANUAL_LANDMARK_YIELD_M -- the survey wins and the estimate is
-        # dropped, so the entry can stay in the table for circuits and OSM
-        # versions that still need it.
-        if any(
-            l["kind"] == spec["kind"]
-            and l.get("source") != "authored"
-            and math.hypot(*(np.array(l["centre"]) - p)) < MANUAL_LANDMARK_YIELD_M
-            for l in landmarks
-        ):
-            continue
-        entry = {
-            "kind": spec["kind"],
-            "name": spec.get("name"),
-            "source": "authored",
-            "station_m": spec["station_m"],
-            "side": spec["side"],
-            "centre": round_pts(p[None, :])[0],
-        }
-        if spec.get("brand"):
-            entry["brand"] = spec["brand"]
-        if "altitude_m" in spec:
-            entry["altitude_m"] = spec["altitude_m"]
-        if "yaw_rad" in spec:
-            entry["yaw_rad"] = spec["yaw_rad"]
-        if "yaw_toward" in spec:
-            # Long axis along the line from the landmark to this point.
-            q = to_track(np.array([enu(*spec["yaw_toward"], osm.lon0, osm.lat0)]))[0]
-            entry["yaw_rad"] = round(math.atan2(q[1] - p[1], q[0] - p[0]), 4)
-        if "broadside_to_m" in spec:
-            # Long axis across the line of sight from that station.
-            eye = track.offset_point(spec["broadside_to_m"], "left", -track.half_width(spec["broadside_to_m"], "left"))
-            sight = p - eye
-            entry["yaw_rad"] = round(math.atan2(sight[1], sight[0]) + math.pi / 2, 4)
-        landmarks.append(entry)
+    landmarks += manual_landmarks(stem, track, osm, to_track, landmarks)
     landmarks.sort(key=lambda e: e["station_m"])
 
     woods = []
@@ -2601,17 +2604,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
     # crossings dedup above; only fires when a manual landmark actually
     # lands within a building's footprint, so it is a no-op for every
     # dossier without one.
-    if any(l.get("source") == "authored" for l in landmarks):
-        kept = []
-        for s in structures:
-            near = any(
-                l.get("source") == "authored" and math.hypot(*(np.array(s["centre"]) - np.array(l["centre"])))
-                < max(s["length_m"], s["depth_m"]) / 2 + 5.0
-                for l in landmarks
-            )
-            if not near:
-                kept.append(s)
-        structures = kept
+    structures = drop_structures_under_landmarks(structures, landmarks)
 
     return {
         "format": LAYOUT_FORMAT,
@@ -2632,7 +2625,8 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         **extract_surroundings(stem, track, osm, xy),
         **(
             {"graffiti": g}
-            if (g := manual_graffiti(stem, track, osm, to_track) + manual_decal_runs(stem, track))
+            if (g := manual_graffiti(stem, track, osm, to_track) + manual_decal_runs(stem, track)
+                + skid_marks(stem, track))
             else {}
         ),
         **(
@@ -2641,6 +2635,74 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             else {}
         ),
     }
+
+
+# Skid marks: rubber laid by locked and sliding tyres into the tightest
+# corners, on the racing line through the braking zone. Generated for these
+# circuits from the centerline's own corners (`drs_zones.Corners`): every
+# corner tighter than SKID_RADIUS_M gets one to three streaks
+# (`graffiti/skid_*`, gen_graffiti.py), ending SKID_END_BEFORE_M before the
+# turn-in, SKID_LENGTH_M long, 2.6 m wide (a car's two wheel tracks).
+SKID_MARK_STEMS = frozenset({"Nordschleife"})
+SKID_RADIUS_M = 70.0
+SKID_LENGTH_M = 24.0
+SKID_WIDTH_M = 2.6
+SKID_END_BEFORE_M = 8.0
+SKID_IMAGES = ("skid_long", "skid_short", "skid_late")
+
+
+def raceline_lateral(track: Track):
+    """The racing line's offset from the centerline (positive left) as a
+    function of station, from the YAML's raceline points."""
+    line = track.data.get("raceline") or []
+    if len(line) < 3:
+        return lambda s: 0.0
+    pts = np.array([[p["x"], p["y"]] for p in line], dtype=float)
+    s, lat = track.locate(pts)
+    order = np.argsort(s)
+    s, lat = s[order], lat[order]
+    return lambda q: float(np.interp(q % track.total, s, lat, period=track.total))
+
+
+def skid_marks(stem: str, track: Track) -> list[dict]:
+    """Skid marks into every tight corner of a `SKID_MARK_STEMS` circuit,
+    in the dossier's `graffiti` list (`ats-dress` lays them as decals)."""
+    if stem not in SKID_MARK_STEMS:
+        return []
+    import drs_zones as dz
+
+    corners = dz.Corners(dz.load(stem))
+    lateral = raceline_lateral(track)
+    out = []
+    for i, (entry, exit_, _sign) in enumerate(corners.runs):
+        inside = (corners.mid >= entry) & (corners.mid <= exit_)
+        if not inside.any():
+            continue
+        peak = float(np.max(np.abs(corners.kappa[inside])))
+        if peak < 1.0 / SKID_RADIUS_M:
+            continue
+        # One to three streaks, the tightest corners the most.
+        n = 1 + (peak >= 1.0 / 45.0) + (peak >= 1.0 / 30.0)
+        for k in range(n):
+            end = entry - SKID_END_BEFORE_M - k * (SKID_LENGTH_M * 0.7)
+            start = end - SKID_LENGTH_M
+            mid = start + SKID_LENGTH_M / 2
+            # On the line, but whole on the tarmac (a decal trimmed to the
+            # road would squeeze the two tracks together).
+            room_l = track.half_width(mid, "left") - SKID_WIDTH_M / 2 - 0.3
+            room_r = track.half_width(mid, "right") - SKID_WIDTH_M / 2 - 0.3
+            lat = min(max(lateral(mid) + (0.25, -0.2, 0.1)[k], -room_r), room_l)
+            out.append(
+                {
+                    "image": f"graffiti/{SKID_IMAGES[(i + k) % len(SKID_IMAGES)]}",
+                    "station_m": round(start % track.total, 1),
+                    "lat_m": round(lat, 2),
+                    "length_m": SKID_LENGTH_M,
+                    "width_m": SKID_WIDTH_M,
+                    "name": "Skid marks",
+                }
+            )
+    return out
 
 
 def manual_decal_runs(stem: str, track: Track) -> list[dict]:
@@ -2709,6 +2771,126 @@ def manual_graffiti(stem: str, track: Track, osm: Osm, to_track) -> list[dict]:
                 }
             )
     return out
+
+
+def manual_landmarks(stem: str, track: Track, osm, to_track, landmarks: list[dict]) -> list[dict]:
+    """`MANUAL_LANDMARKS` as dossier entries, each `source: authored`. An
+    entry is anchored on the map (`at`, lon/lat) or beside the road
+    (`station_m`, `side`, `offset_m`); `landmarks` are what the scan found,
+    which an estimate yields to. `osm` needs only `lon0` / `lat0`."""
+    out: list[dict] = []
+    for spec in MANUAL_LANDMARKS.get(stem, []):
+        if "at" in spec:
+            # Anchored on the map rather than beside the road: a castle on
+            # its hill half a kilometre away is where it is, not "40 m to
+            # the left of station N".
+            p = to_track(np.array([enu(*spec["at"], osm.lon0, osm.lat0)]))[0]
+            s_at, lat_at = track.locate(p[None, :])
+            spec = {**spec, "station_m": round(float(s_at[0]), 1),
+                    "side": "left" if lat_at[0] > 0 else "right"}
+        else:
+            p = track.offset_point(spec["station_m"], spec["side"], spec.get("offset_m", 40.0))
+        # A hand-placed landmark is an estimate standing in for a fact.
+        # Once the automatic scan finds the same thing -- same kind, within
+        # MANUAL_LANDMARK_YIELD_M -- the survey wins and the estimate is
+        # dropped, so the entry can stay in the table for circuits and OSM
+        # versions that still need it.
+        if any(
+            l["kind"] == spec["kind"]
+            and l.get("source") != "authored"
+            and math.hypot(*(np.array(l["centre"]) - p)) < MANUAL_LANDMARK_YIELD_M
+            for l in landmarks
+        ):
+            continue
+        entry = {
+            "kind": spec["kind"],
+            "name": spec.get("name"),
+            "source": "authored",
+            "station_m": spec["station_m"],
+            "side": spec["side"],
+            "centre": round_pts(p[None, :])[0],
+        }
+        if spec.get("brand"):
+            entry["brand"] = spec["brand"]
+        if "altitude_m" in spec:
+            entry["altitude_m"] = spec["altitude_m"]
+        if "yaw_rad" in spec:
+            entry["yaw_rad"] = spec["yaw_rad"]
+        if "yaw_toward" in spec:
+            # Long axis along the line from the landmark to this point.
+            q = to_track(np.array([enu(*spec["yaw_toward"], osm.lon0, osm.lat0)]))[0]
+            entry["yaw_rad"] = round(math.atan2(q[1] - p[1], q[0] - p[0]), 4)
+        if "yaw_across" in spec:
+            # Long axis across the line from the landmark to this point (a
+            # toll lane's arm across its lane).
+            q = to_track(np.array([enu(*spec["yaw_across"], osm.lon0, osm.lat0)]))[0]
+            entry["yaw_rad"] = round(math.atan2(q[1] - p[1], q[0] - p[0]) + math.pi / 2, 4)
+        if "broadside_to_m" in spec:
+            # Long axis across the line of sight from that station.
+            eye = track.offset_point(spec["broadside_to_m"], "left", -track.half_width(spec["broadside_to_m"], "left"))
+            sight = p - eye
+            entry["yaw_rad"] = round(math.atan2(sight[1], sight[0]) + math.pi / 2, 4)
+        out.append(entry)
+    return out
+
+
+def manual_crossings(stem: str, track: Track, osm, to_track) -> list[dict]:
+    """`MANUAL_CROSSINGS` as dossier entries. A station may be given as a
+    map anchor instead (`at`, or `from_at` / `to_at` for a span: lon/lat),
+    projected onto the centerline through the fit like the graffiti."""
+    out = []
+    for spec in MANUAL_CROSSINGS.get(stem, []):
+        entry = {k: v for k, v in spec.items() if k not in ("at", "from_at", "to_at")}
+
+        def station(at):
+            s, _ = track.locate(to_track(np.array([enu(*at, osm.lon0, osm.lat0)])))
+            return float(s[0])
+
+        if "at" in spec:
+            entry["station_m"] = round(station(spec["at"]), 1)
+        if "from_at" in spec and "to_at" in spec:
+            lo, hi = station(spec["from_at"]), station(spec["to_at"])
+            # In race order, whichever way the way was drawn.
+            if (hi - lo) % track.total > track.total / 2:
+                lo, hi = hi, lo
+            span = (hi - lo) % track.total
+            entry["from_m"] = round(lo, 1)
+            entry["to_m"] = round(lo + span, 1)
+            entry["station_m"] = round((lo + span / 2) % track.total, 1)
+        out.append(dict(entry, source="authored"))
+    return out
+
+
+def dedup_crossings(crossings: list[dict]) -> list[dict]:
+    """In station order, one entry per crossing: the same crossing mapped
+    twice within 25 m keeps the authored entry (it says what the structure
+    *is*)."""
+    crossings = sorted(crossings, key=lambda c: c["station_m"])
+    dedup = []
+    for c in crossings:
+        if dedup and abs(c["station_m"] - dedup[-1]["station_m"]) < 25:
+            if c.get("source") == "authored" and dedup[-1].get("source") != "authored":
+                dedup[-1] = c
+            continue
+        dedup.append(c)
+    return dedup
+
+
+def drop_structures_under_landmarks(structures: list[dict], landmarks: list[dict]) -> list[dict]:
+    """An authored landmark and an OSM building can be the same real
+    structure: keep the landmark, drop the building row."""
+    if not any(l.get("source") == "authored" for l in landmarks):
+        return structures
+    kept = []
+    for s in structures:
+        near = any(
+            l.get("source") == "authored" and math.hypot(*(np.array(s["centre"]) - np.array(l["centre"])))
+            < max(s["length_m"], s["depth_m"]) / 2 + 5.0
+            for l in landmarks
+        )
+        if not near:
+            kept.append(s)
+    return kept
 
 
 # ----------------------------------------------------------- georeferencing
@@ -2822,6 +3004,63 @@ def rename_dossiers(stems: list[str], dry_run: bool) -> int:
     return 0
 
 
+def reapply_manual(stems: list[str], dry_run: bool) -> int:
+    """`--manual-only`: re-apply the hand-authored layers (MANUAL_LANDMARKS,
+    MANUAL_CROSSINGS and CROSSING_KINDS, the graffiti, decal runs and skid
+    marks, MANUAL_FURNITURE) to a checked-in dossier without the OSM
+    extract, through the georeference the DEM sidecar records (the same fit
+    the dossier was built from, `dem_fetch.py`). Everything the extract
+    gave is left byte for byte. A circuit without a DEM sidecar is skipped."""
+    import msgpack
+
+    for stem in stems:
+        out = track_dir(stem) / f"{stem}.layout.json"
+        dem_path = track_dir(stem) / f"{stem}.dem.msgpack"
+        if not out.exists() or not dem_path.exists():
+            print(f"{stem}: no dossier or no DEM sidecar, skipped")
+            continue
+        georef = msgpack.unpackb(dem_path.read_bytes(), raw=False)["georef"]
+        a = np.array(georef["a"], dtype=float).reshape(2, 2)
+        t = np.array(georef["t"], dtype=float)
+        to_track = lambda p: np.asarray(p, dtype=float).reshape(-1, 2) @ a.T + t  # noqa: E731
+
+        class Frame:
+            lon0 = georef["lon0"]
+            lat0 = georef["lat0"]
+
+        layout = json.loads(out.read_text(encoding="utf-8"))
+        track = Track(stem)
+        scanned = [l for l in layout.get("landmarks", []) if l.get("source") != "authored"]
+        landmarks = scanned + manual_landmarks(stem, track, Frame, to_track, scanned)
+        landmarks.sort(key=lambda e: e["station_m"])
+        kinds = CROSSING_KINDS.get(stem, {})
+        # The scan's crossings, and the street circuits' lap bridges (laid
+        # from OSM as `deck_*`, marked authored), stay; the table's go.
+        surveyed = [
+            dict(c, kind=kinds.get(c["kind"], c["kind"]))
+            for c in layout.get("crossings", [])
+            if c.get("source") != "authored" or c["kind"] in ("deck_arch", "deck_wide")
+        ]
+        crossings = dedup_crossings(surveyed + manual_crossings(stem, track, Frame, to_track))
+        graffiti = manual_graffiti(stem, track, Frame, to_track) + manual_decal_runs(stem, track) + skid_marks(stem, track)
+        furniture = MANUAL_FURNITURE.get(stem, []) + generated_furniture(stem) if stem in MANUAL_FURNITURE else []
+        new = dict(layout)
+        new["landmarks"] = landmarks
+        new["crossings"] = crossings
+        new["structures"] = drop_structures_under_landmarks(layout.get("structures", []), landmarks)
+        for key, value in (("graffiti", graffiti), ("furniture", furniture)):
+            if value:
+                new[key] = value
+            else:
+                new.pop(key, None)
+        changed = [k for k in new if new.get(k) != layout.get(k)] + [k for k in layout if k not in new]
+        print(f"{stem}: {len(landmarks)} landmarks, {len(crossings)} crossings, {len(graffiti)} decals"
+              + (f"; changed: {', '.join(changed)}" if changed else "; unchanged"))
+        if not dry_run and changed:
+            out.write_text(json.dumps(new, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("tracks", nargs="*", help="track stems, e.g. Monza")
@@ -2834,6 +3073,12 @@ def main() -> int:
         help="re-apply the display names (CORNER_DISPLAY, the YAML's display_name) "
         "to the existing dossiers without refetching",
     )
+    ap.add_argument(
+        "--manual-only",
+        action="store_true",
+        help="re-apply the hand-authored layers (landmarks, crossings, graffiti, furniture) "
+        "to the existing dossiers without the OSM extract, through the DEM sidecar's georeference",
+    )
     args = ap.parse_args()
 
     stems = sorted(BBOXES) if args.all else args.tracks
@@ -2842,6 +3087,8 @@ def main() -> int:
         return 1
     if args.names_only:
         return rename_dossiers(stems, args.dry_run)
+    if args.manual_only:
+        return reapply_manual(stems, args.dry_run)
     for stem in stems:
         if stem not in BBOXES:
             raise SystemExit(f"no bbox for {stem}; add one to BBOXES")

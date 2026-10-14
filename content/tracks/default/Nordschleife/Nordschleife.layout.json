@@ -1057,17 +1057,123 @@
  ],
  "crossings": [
   {
+   "name": "K 73 bridge",
+   "kind": "deck_track",
+   "from_m": 73.8,
+   "to_m": 102.9,
+   "station_m": 88.3,
+   "source": "authored"
+  },
+  {
+   "name": "Quiddelbach bridge",
+   "kind": "deck_track",
+   "from_m": 1807.2,
+   "to_m": 1871.4,
+   "station_m": 1839.3,
+   "source": "authored"
+  },
+  {
    "name": null,
    "station_m": 3965.0,
-   "kind": "road"
+   "kind": "overpass"
+  },
+  {
+   "name": "Breidscheid bridge",
+   "kind": "deck_track",
+   "from_m": 7919.1,
+   "to_m": 7936.9,
+   "station_m": 7928.0,
+   "source": "authored"
+  },
+  {
+   "name": "L 92 bridge",
+   "kind": "deck_track",
+   "from_m": 17774.4,
+   "to_m": 17801.9,
+   "station_m": 17788.1,
+   "source": "authored"
+  },
+  {
+   "name": "Gantry",
+   "kind": "timing",
+   "brand": "northwind",
+   "station_m": 17973.3,
+   "source": "authored"
   },
   {
    "name": null,
    "station_m": 19702.1,
-   "kind": "road"
+   "kind": "overpass"
+  },
+  {
+   "name": "L 93 bridge",
+   "kind": "deck_track",
+   "from_m": 20618.0,
+   "to_m": 20638.3,
+   "station_m": 20628.1,
+   "source": "authored"
   }
  ],
  "landmarks": [
+  {
+   "kind": "lookout_tower",
+   "name": "Kaiser-Wilhelm-Turm",
+   "source": "authored",
+   "station_m": 13533.1,
+   "side": "left",
+   "centre": [
+    511.31,
+    -6861.5
+   ]
+  },
+  {
+   "kind": "hillside_letters",
+   "name": "Hillside letters",
+   "source": "authored",
+   "station_m": 17955.1,
+   "side": "right",
+   "centre": [
+    -339.45,
+    -2678.97
+   ],
+   "yaw_rad": 2.2846
+  },
+  {
+   "kind": "toll_gate",
+   "name": "Toll lane 3",
+   "source": "authored",
+   "station_m": 19218.8,
+   "side": "right",
+   "centre": [
+    -220.68,
+    -1401.4
+   ],
+   "yaw_rad": -0.2505
+  },
+  {
+   "kind": "toll_gate",
+   "name": "Toll lane 1",
+   "source": "authored",
+   "station_m": 19219.2,
+   "side": "right",
+   "centre": [
+    -228.11,
+    -1399.11
+   ],
+   "yaw_rad": -0.2396
+  },
+  {
+   "kind": "toll_gate",
+   "name": "Toll lane 2",
+   "source": "authored",
+   "station_m": 19219.3,
+   "side": "right",
+   "centre": [
+    -224.56,
+    -1399.97
+   ],
+   "yaw_rad": -0.2382
+  },
   {
    "kind": "castle",
    "name": "Burg Nürburg",
@@ -66089,6 +66195,446 @@
    "length_m": 16.0,
    "width_m": 6.5,
    "name": "Döttinger Höhe"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 95.5,
+   "lat_m": -2.78,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 78.7,
+   "lat_m": -2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 61.9,
+   "lat_m": -2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 830.1,
+   "lat_m": -1.72,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 885.0,
+   "lat_m": 2.69,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 1049.9,
+   "lat_m": -2.15,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 1129.8,
+   "lat_m": 1.15,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 1194.8,
+   "lat_m": -2.0,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 1178.0,
+   "lat_m": -2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 1369.7,
+   "lat_m": 2.16,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 1469.6,
+   "lat_m": -0.99,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 3729.3,
+   "lat_m": 2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 4954.0,
+   "lat_m": 1.69,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 5063.9,
+   "lat_m": -0.69,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 5047.1,
+   "lat_m": -2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 5173.7,
+   "lat_m": 2.48,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 5156.9,
+   "lat_m": 2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 6068.4,
+   "lat_m": -2.46,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 6183.3,
+   "lat_m": 0.3,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 6353.3,
+   "lat_m": 2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 6336.5,
+   "lat_m": 2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 6738.1,
+   "lat_m": 2.17,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 7237.9,
+   "lat_m": 2.39,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 7297.9,
+   "lat_m": -2.39,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 7281.1,
+   "lat_m": -2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 7264.3,
+   "lat_m": -1.21,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 7392.5,
+   "lat_m": 1.37,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 7807.4,
+   "lat_m": -2.39,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 8022.2,
+   "lat_m": 2.43,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 8005.4,
+   "lat_m": 2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 8782.1,
+   "lat_m": 2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 11461.7,
+   "lat_m": 2.61,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 11444.9,
+   "lat_m": 2.78,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 11891.3,
+   "lat_m": -2.73,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 11874.5,
+   "lat_m": -2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 12436.0,
+   "lat_m": -0.67,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 12670.9,
+   "lat_m": -2.41,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 12765.8,
+   "lat_m": 0.43,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 12905.8,
+   "lat_m": 2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 13465.5,
+   "lat_m": 2.45,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 13890.4,
+   "lat_m": -1.53,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 14095.3,
+   "lat_m": 1.18,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 14300.2,
+   "lat_m": 2.85,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 14580.0,
+   "lat_m": -2.84,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 15189.8,
+   "lat_m": 2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 16554.5,
+   "lat_m": -0.15,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 16809.4,
+   "lat_m": -2.8,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 16792.6,
+   "lat_m": -2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 17199.3,
+   "lat_m": 2.41,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 20429.1,
+   "lat_m": 2.79,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 20412.3,
+   "lat_m": 2.9,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 20504.0,
+   "lat_m": -1.53,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_long",
+   "station_m": 20598.9,
+   "lat_m": 1.91,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_short",
+   "station_m": 20582.1,
+   "lat_m": 1.65,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
+  },
+  {
+   "image": "graffiti/skid_late",
+   "station_m": 20565.3,
+   "lat_m": 2.83,
+   "length_m": 24.0,
+   "width_m": 2.6,
+   "name": "Skid marks"
   }
  ]
 }

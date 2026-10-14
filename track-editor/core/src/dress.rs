@@ -155,12 +155,22 @@ pub fn dressed_kind(kind: PropKind) -> bool {
     )
 }
 
-/// The `misc` assets [`lay_landmark`] can produce. `misc` as a kind is not
-/// owned by this pass — bollards, kerb markers and generators are placed
+/// The `misc` and `sign` assets [`lay_landmark`] can produce. Neither kind
+/// is owned by this pass — bollards, kerb markers and flag poles are placed
 /// by hand — but a landmark laid from the dossier is, or every re-dress
 /// would stack another statue on the same spot and grooming would treat
 /// the surveyed position as a guess it may push.
-const LANDMARK_MISC_ASSETS: [&str; 1] = ["bull_statue"];
+const LANDMARK_ASSETS: [(PropKind, &str); 3] = [
+    (PropKind::Misc, "bull_statue"),
+    (PropKind::Misc, "toll_gate_lane"),
+    (PropKind::Sign, "hillside_letters"),
+];
+
+fn is_landmark_asset(prop: &Prop) -> bool {
+    LANDMARK_ASSETS
+        .iter()
+        .any(|(kind, asset)| prop.kind == *kind && prop.asset == *asset)
+}
 
 /// True for a prop this pass owns: every prop of a [`dressed_kind`], plus
 /// the `misc` landmarks. Use this, not `dressed_kind`, when there is a
@@ -179,14 +189,11 @@ const LANDMARK_MISC_ASSETS: [&str; 1] = ["bull_statue"];
 /// every groom, which `grooming_every_real_track_twice_changes_nothing`
 /// caught.
 pub fn always_dress_owned(prop: &Prop) -> bool {
-    surroundings::owns(prop)
-        || (prop.kind == PropKind::Misc && LANDMARK_MISC_ASSETS.contains(&prop.asset.as_str()))
+    surroundings::owns(prop) || is_landmark_asset(prop)
 }
 
 pub fn dressed_prop(prop: &Prop) -> bool {
-    dressed_kind(prop.kind)
-        || (prop.kind == PropKind::Misc && LANDMARK_MISC_ASSETS.contains(&prop.asset.as_str()))
-        || surroundings::owns(prop)
+    dressed_kind(prop.kind) || is_landmark_asset(prop) || surroundings::owns(prop)
 }
 
 /// Apply `layout` to `scene`. Returns `None` for a degenerate centerline.
@@ -316,6 +323,7 @@ pub fn dress_scene_with_dem(
         dem,
         !has_lighting && style.floodlights,
         bare,
+        style.fan_dressing,
     );
     report.surroundings = extras.len();
     laid.extend(extras);
@@ -1487,8 +1495,9 @@ fn lay_structure(
 /// road width, so nothing here needs to know how wide the bridge is.
 ///
 /// Most things cross *over* the road (a footbridge, the tyre arch, a
-/// viaduct, a sign gantry). A `deck_*` crossing is the other way round: the
-/// road runs *on* the bridge, over water, and the dossier gives the
+/// viaduct, a sign gantry, a timing gantry, a concrete overpass). A
+/// `deck_*` crossing is the other way round: the road runs *on* the bridge
+/// (over water, or over another road for `deck_track`), and the dossier gives the
 /// stations it spans (`from_m`..`to_m`). The deck is tiled along them,
 /// module after module, each at the road's height with its own heading, so
 /// a long bridge curves with the road. The bake leaves ground out of the
@@ -1513,6 +1522,11 @@ fn lay_crossing(path: &CenterlinePath, crossing: &Crossing) -> Vec<Prop> {
     let deck = match crossing.kind.as_str() {
         "deck_arch" => Some("bridge_arch_steel"),
         "deck_wide" => Some("bridge_deck_wide"),
+        // The lap carried over a road on a bridge of its own (the B 257 at
+        // Quiddelbach and Breidscheid): parapets and fascias over the span.
+        // The ground under it is not cut away, so it is no `.ats` bridge
+        // span (see `lay_water_and_bridges`).
+        "deck_track" => Some("track_bridge_10m"),
         _ => None,
     };
     if let (Some(asset), Some(from), Some(to)) = (deck, crossing.from_m, crossing.to_m) {
@@ -1532,6 +1546,11 @@ fn lay_crossing(path: &CenterlinePath, crossing: &Crossing) -> Vec<Prop> {
         // An elevated expressway over the road.
         "viaduct" => "viaduct_deck",
         "gantry" => "sign_gantry",
+        // The gantry a lap is timed to (the Nordschleife's on the
+        // Döttinger Höhe).
+        "timing" => "timing_gantry",
+        // A lane or forest track's concrete bridge over the road.
+        "overpass" => "overpass_concrete",
         _ => "tyre_bridge",
     };
     vec![one(asset, crossing.station_m)]
@@ -1743,6 +1762,12 @@ fn lay_landmark(
         "tower" => (PropKind::Building, "control_tower"),
         // Burg Nürburg: a castle on its hill, centred on its footprint.
         "castle" => (PropKind::Building, "castle_ruin"),
+        // The Hohe Acht's stone lookout tower, centred on its footprint.
+        "lookout_tower" => (PropKind::Building, "stone_lookout_tower"),
+        // Standing letters on a slope, spelling the circuit's display name.
+        "hillside_letters" => (PropKind::Sign, "hillside_letters"),
+        // One lane of a toll gate (the Touristenfahrten entrance).
+        "toll_gate" => (PropKind::Misc, "toll_gate_lane"),
         "statue" => (PropKind::Misc, "bull_statue"),
         "floodlight" => (PropKind::Light, "floodlight_tower"),
         "blimp" => (PropKind::Sky, "blimp"),
@@ -2038,7 +2063,7 @@ mod surroundings {
     /// run, so it has to recognise its own output; and because it shares
     /// kinds with hand-placed props (a `sign` is also a distance board, a
     /// `misc` is also a bollard) ownership is by asset, not by kind.
-    pub const OWNED: [&str; 33] = [
+    pub const OWNED: [&str; 38] = [
         "car_a",
         "car_b",
         "car_c",
@@ -2049,6 +2074,7 @@ mod surroundings {
         "food_stall_6m",
         "ticket_gate",
         "marshal_post",
+        "marshal_post_numbered",
         "corner_sign",
         "power_pylon",
         "lamp_post",
@@ -2078,7 +2104,38 @@ mod surroundings {
         // The track edge's own pieces (`lay_kerb_pieces`).
         "kerb_marker",
         "sausage_kerb_2m",
+        // The endurance crowd's (`CircuitStyle::fan_dressing`): the banks
+        // behind the rail and the camp villages' pieces.
+        "spectator_bank_10m",
+        "camp_scaffold_tower",
+        "camp_gazebo",
+        "camp_flag_pole",
     ];
+
+    /// The marshal posts' number boards go up to this (`post<N>` marker
+    /// textures, `build_nordschleife_kit.py`); a post past it has none.
+    const MARSHAL_NUMBERS: usize = 120;
+    /// The fan dressing's camp village: one piece (a scaffold tower, a
+    /// gazebo or a flag pole) per this many tent pitches, each at least
+    /// `CAMP_PIECE_CLEAR_M` from every other piece of the camp.
+    const CAMP_PITCHES_PER_PIECE: usize = 2;
+    const CAMP_PIECE_CLEAR_M: f32 = 4.5;
+    /// The flags the crowd brings (`sign/flags`): the Eifel's neighbours.
+    pub(super) const FAN_FLAGS: [&str; 6] = ["de", "nl", "be", "ch", "at", "de"];
+    /// A car park or camp site any part of which is within this of the
+    /// road edge is where a crowd stands: earth banks go behind the rail
+    /// along the stretch it borders, on its side.
+    const SPECTATOR_AREA_REACH_M: f32 = 60.0;
+    /// Words in a car park's OSM name that make it a paddock (`Fahrerlager`),
+    /// a depot (`Marshals Lager`, `Industrielager`) or a compound, not a
+    /// spectator car park.
+    const SPECTATOR_AREA_NOT: [&str; 2] = ["lager", "compound"];
+    /// The banks' centre line past the road edge (the bank is 3.6 m deep,
+    /// so its near foot is 6.2 m out, behind a rail at 3-4.5 m), their
+    /// pitch, and the longest stretch one area lines.
+    const SPECTATOR_BANK_BEYOND_M: f32 = 8.0;
+    const SPECTATOR_BANK_PITCH_M: f32 = 10.5;
+    const SPECTATOR_BANK_MAX_RUN_M: f32 = 320.0;
 
     /// A curb shorter than this gets no marker posts.
     const KERB_MARKER_MIN_CURB_M: f32 = 4.0;
@@ -2204,6 +2261,8 @@ mod surroundings {
         layout: &'a Layout,
         /// A desert or dune circuit: nothing grows on the slopes.
         bare: bool,
+        /// The endurance crowd's lap (`CircuitStyle::fan_dressing`).
+        fan: bool,
     }
 
     impl Ctx<'_> {
@@ -2266,16 +2325,21 @@ mod surroundings {
         dem: Option<&DemFile>,
         night_lighting: bool,
         bare: bool,
+        fan: bool,
     ) -> Vec<Prop> {
         let ctx = Ctx {
             path,
             terrain,
             layout,
             bare,
+            fan,
         };
         let mut out = Vec::new();
         car_parks(&ctx, &mut out);
         camp_sites(&ctx, &mut out);
+        if fan {
+            spectator_banks(&ctx, &mut out);
+        }
         village(&ctx, &mut out);
         points_of_interest(&ctx, &mut out);
         forests(&ctx, dem, &mut out);
@@ -2362,13 +2426,25 @@ mod surroundings {
             let (cx, cy) = area.centre();
             let span = area.area_m2().sqrt().max(20.0);
             let mut placed = 0;
+            let mut taken: Vec<(f32, f32)> = Vec::new();
             for i in 0..pitches * 4 {
                 if placed >= pitches {
                     break;
                 }
-                let t = i as f32 * 0.618_034; // a low-discrepancy walk
-                let x = cx + (t.fract() - 0.5) * span;
-                let y = cy + ((t * 1.618).fract() - 0.5) * span;
+                // A low-discrepancy walk. Its two coordinates are nearly
+                // the same sequence (0.618 x 1.618 is 1), so the pitches
+                // come out in a row; the fan lap's camps, which are
+                // villages, take the R2 sequence instead, which fills the
+                // area (`r2_point`).
+                let (x, y) = if ctx.fan {
+                    r2_point(cx, cy, span, i, 0.5)
+                } else {
+                    let t = i as f32 * 0.618_034;
+                    (
+                        cx + (t.fract() - 0.5) * span,
+                        cy + ((t * 1.618).fract() - 0.5) * span,
+                    )
+                };
                 if !area.contains(x, y) {
                     continue;
                 }
@@ -2383,6 +2459,7 @@ mod surroundings {
                     } else {
                         PropKind::Vehicle
                     };
+                    taken.push((prop.x, prop.y));
                     out.push(Prop {
                         kind,
                         asset: asset.to_string(),
@@ -2390,6 +2467,9 @@ mod surroundings {
                     });
                     placed += 1;
                 }
+            }
+            if ctx.fan {
+                camp_village(ctx, area, pitches, &mut taken, out);
             }
         }
 
@@ -2407,6 +2487,150 @@ mod surroundings {
                     PropKind::Attraction
                 };
                 if let Some(prop) = ctx.place(kind, asset, x, y, None) {
+                    out.push(prop);
+                }
+            }
+        }
+    }
+
+    /// Point `i` of the R2 low-discrepancy sequence (Roberts 2018: steps of
+    /// 1/g and 1/g² for the plastic number g) over a `span` square round
+    /// (cx, cy), starting at `phase`: it fills a square evenly, where one
+    /// irrational step used for both coordinates lines the points up.
+    fn r2_point(cx: f32, cy: f32, span: f32, i: usize, phase: f32) -> (f32, f32) {
+        let (a1, a2) = (0.754_877_7_f64, 0.569_840_3_f64);
+        let u = (phase as f64 + a1 * i as f64).fract() as f32;
+        let v = (phase as f64 + a2 * i as f64).fract() as f32;
+        (cx + (u - 0.5) * span, cy + (v - 0.5) * span)
+    }
+
+    /// The rest of a 24-hour camp among its tents: home-built scaffold
+    /// towers to watch from, pop-up gazebos and the crowd's flags, on a
+    /// second low-discrepancy walk of the area, clear of what is there.
+    fn camp_village(
+        ctx: &Ctx,
+        area: &crate::layout::Area,
+        pitches: usize,
+        taken: &mut Vec<(f32, f32)>,
+        out: &mut Vec<Prop>,
+    ) {
+        let (cx, cy) = area.centre();
+        let span = area.area_m2().sqrt().max(20.0);
+        let wanted = pitches / CAMP_PITCHES_PER_PIECE;
+        let mut placed = 0;
+        for i in 0..wanted * 6 {
+            if placed >= wanted {
+                break;
+            }
+            let (x, y) = r2_point(cx, cy, span, i, 0.27);
+            if !area.contains(x, y)
+                || taken
+                    .iter()
+                    .any(|(tx, ty)| (tx - x).hypot(ty - y) < CAMP_PIECE_CLEAR_M)
+            {
+                continue;
+            }
+            let r = roll(x, y, 23);
+            let asset = if r < 0.25 {
+                "camp_scaffold_tower"
+            } else if r < 0.65 {
+                "camp_gazebo"
+            } else {
+                "camp_flag_pole"
+            };
+            let yaw = roll(x, y, 24) * TAU;
+            if let Some(mut prop) = ctx.place(PropKind::Misc, asset, x, y, Some(yaw)) {
+                if asset == "camp_flag_pole" {
+                    let flag = FAN_FLAGS
+                        [(roll(x, y, 25) * FAN_FLAGS.len() as f32) as usize % FAN_FLAGS.len()];
+                    prop.text = Some(flag.to_string());
+                }
+                taken.push((prop.x, prop.y));
+                out.push(prop);
+                placed += 1;
+            }
+        }
+    }
+
+    /// Earth banks with a hedge on top, behind the rail along every stretch
+    /// a mapped car park or camp site borders: on the Nordschleife the
+    /// crowd parks and camps where it watches (Brünnchen, Pflanzgarten,
+    /// Breidscheid ...), so the areas say where the banks are and on which
+    /// side. A car park OSM names as a paddock, depot or compound
+    /// (`SPECTATOR_AREA_NOT`: the GP complex's beside T13) is not one.
+    fn spectator_banks(ctx: &Ctx, out: &mut Vec<Prop>) {
+        let total = ctx.path.total_length_m();
+        let mut laid: Vec<(f32, f32)> = Vec::new();
+        let for_spectators = |a: &&crate::layout::Area| {
+            matches!(a.kind.as_str(), "parking" | "camp_site")
+                && !a.name.as_deref().is_some_and(|name| {
+                    let name = name.to_lowercase();
+                    SPECTATOR_AREA_NOT.iter().any(|word| name.contains(word))
+                })
+        };
+        for area in ctx.layout.areas.iter().filter(for_spectators) {
+            // Where along the lap, and on which side, the area comes
+            // within reach of the road: its outline walked every 5 m.
+            let mut hits: Vec<(f32, Side)> = Vec::new();
+            let n = area.ring.len();
+            for i in 0..n {
+                let (a, b) = (area.ring[i], area.ring[(i + 1) % n]);
+                let len = (b[0] - a[0]).hypot(b[1] - a[1]);
+                let steps = (len / 5.0).ceil().max(1.0) as usize;
+                for k in 0..steps {
+                    let f = k as f32 / steps as f32;
+                    let (x, y) = (a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f);
+                    let (sample, lat) = nearest_cross_section(ctx.path, x, y);
+                    let side = side_of(lat);
+                    if lat.abs() - side_half_width(&sample, side) <= SPECTATOR_AREA_REACH_M {
+                        hits.push((sample.station_m, side));
+                    }
+                }
+            }
+            let Some(&(s0, _)) = hits.first() else {
+                continue;
+            };
+            let left = hits.iter().filter(|(_, s)| *s == Side::Left).count();
+            let side = if left * 2 >= hits.len() {
+                Side::Left
+            } else {
+                Side::Right
+            };
+            // Stations unwrapped round the first hit, so a car park across
+            // the start line is one stretch.
+            let rel = |s: f32| (s - s0 + total / 2.0).rem_euclid(total) - total / 2.0;
+            let (lo, hi) = hits
+                .iter()
+                .filter(|(_, s)| *s == side)
+                .fold((f32::MAX, f32::MIN), |(lo, hi), (s, _)| {
+                    (lo.min(rel(*s)), hi.max(rel(*s)))
+                });
+            let (lo, hi) = (lo + 4.0, hi.min(lo + SPECTATOR_BANK_MAX_RUN_M) - 4.0);
+            if hi - lo < SPECTATOR_BANK_PITCH_M * 0.5 {
+                continue;
+            }
+            let count = ((hi - lo) / SPECTATOR_BANK_PITCH_M).floor() as usize + 1;
+            let first = (lo + hi) / 2.0 - SPECTATOR_BANK_PITCH_M * (count as f32 - 1.0) / 2.0;
+            for i in 0..count {
+                let station = (s0 + first + i as f32 * SPECTATOR_BANK_PITCH_M).rem_euclid(total);
+                let sample = ctx.path.sample_at(station);
+                let lat = signed_lat(&sample, side, SPECTATOR_BANK_BEYOND_M);
+                let point = offset_point(&sample, lat);
+                if laid
+                    .iter()
+                    .any(|(x, y)| (x - point.0).hypot(y - point.1) < SPECTATOR_BANK_PITCH_M * 0.6)
+                {
+                    continue;
+                }
+                if let Some(prop) = ctx.place_clear(
+                    PropKind::Misc,
+                    "spectator_bank_10m",
+                    point.0,
+                    point.1,
+                    Some(sample.heading_rad),
+                    TRACKSIDE_CLEAR_M,
+                ) {
+                    laid.push((prop.x, prop.y));
                     out.push(prop);
                 }
             }
@@ -2586,6 +2810,13 @@ mod surroundings {
             station += MARSHAL_SPACING_M;
         }
         stations.sort_by(f32::total_cmp);
+        // On the fan lap the posts are numbered round the lap from the line.
+        let asset = if ctx.fan {
+            "marshal_post_numbered"
+        } else {
+            "marshal_post"
+        };
+        let mut number = 0;
         for station in stations {
             let sample = ctx.path.sample_at(station);
             // Outside of the bend, which is where a marshal post stands.
@@ -2596,14 +2827,20 @@ mod surroundings {
             };
             let lat = signed_lat(&sample, side, MARSHAL_BEYOND_BARRIER_M + 8.0);
             let point = offset_point(&sample, lat);
-            if let Some(prop) = ctx.place_clear(
+            if let Some(mut prop) = ctx.place_clear(
                 PropKind::Sign,
-                "marshal_post",
+                asset,
                 point.0,
                 point.1,
                 Some(sample.heading_rad),
                 TRACKSIDE_CLEAR_M,
             ) {
+                if ctx.fan {
+                    number += 1;
+                    if number <= MARSHAL_NUMBERS {
+                        prop.text = Some(format!("post{number}"));
+                    }
+                }
                 out.push(prop);
             }
         }
@@ -3505,6 +3742,180 @@ mod tests {
             scene.props.iter().any(|p| p.asset == "marshal_post"),
             "no marshal posts"
         );
+    }
+
+    #[test]
+    fn the_fan_lap_numbers_its_posts_banks_its_car_parks_and_builds_camp_villages() {
+        let track = track();
+        // The Nordschleife's style is the fan dressing.
+        let mut scene = AtsScene::new_for_track(&track, "Nordschleife.yaml");
+        let mut layout = layout();
+        let square = |x0: f32, y0: f32, x1: f32, y1: f32| {
+            vec![[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]
+        };
+        // A car park 20 m right of the first straight, a paddock beside it,
+        // and a camp site well back.
+        for (kind, name, ring) in [
+            ("parking", "Spectators", square(300.0, -26.0, 400.0, -70.0)),
+            (
+                "parking",
+                "Historisches Fahrerlager",
+                square(500.0, -26.0, 600.0, -70.0),
+            ),
+            ("camp_site", "Camp", square(200.0, -150.0, 400.0, -300.0)),
+        ] {
+            layout.areas.push(crate::layout::Area {
+                kind: kind.to_string(),
+                name: Some(name.to_string()),
+                ring,
+            });
+        }
+        dress_scene(&track, &mut scene, &layout).unwrap();
+
+        let posts: Vec<&Prop> = scene
+            .props
+            .iter()
+            .filter(|p| p.kind == PropKind::Sign && p.asset.starts_with("marshal_post"))
+            .collect();
+        assert!(!posts.is_empty());
+        assert!(posts.iter().all(|p| p.asset == "marshal_post_numbered"));
+        let mut numbers: Vec<u32> = posts
+            .iter()
+            .map(|p| {
+                p.text
+                    .as_deref()
+                    .and_then(|t| t.strip_prefix("post"))
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            })
+            .collect();
+        numbers.sort_unstable();
+        assert_eq!(numbers, (1..=posts.len() as u32).collect::<Vec<_>>());
+
+        let banks: Vec<&Prop> = scene
+            .props
+            .iter()
+            .filter(|p| p.asset == "spectator_bank_10m")
+            .collect();
+        assert!(
+            banks.len() >= 6,
+            "{} banks beside a 100 m car park",
+            banks.len()
+        );
+        for bank in &banks {
+            assert!(
+                bank.y < -10.0 && bank.y > -20.0,
+                "a bank at {},{}",
+                bank.x,
+                bank.y
+            );
+            assert!(
+                (290.0..=410.0).contains(&bank.x),
+                "a bank by the paddock at {}",
+                bank.x
+            );
+        }
+
+        let village: Vec<&Prop> = scene
+            .props
+            .iter()
+            .filter(|p| p.asset.starts_with("camp_"))
+            .collect();
+        assert!(!village.is_empty(), "no camp village");
+        for piece in &village {
+            assert!((200.0..=400.0).contains(&piece.x) && (-300.0..=-150.0).contains(&piece.y));
+            if piece.asset == "camp_flag_pole" {
+                assert!(surroundings::FAN_FLAGS.contains(&piece.text.as_deref().unwrap_or("")));
+            }
+        }
+
+        // A circuit without the fan dressing keeps its plain posts.
+        let mut plain = make_scene(&track);
+        dress_scene(&track, &mut plain, &layout).unwrap();
+        assert!(plain
+            .props
+            .iter()
+            .any(|p| p.asset == "marshal_post" && p.text.is_none()));
+        assert!(!plain
+            .props
+            .iter()
+            .any(|p| p.asset == "spectator_bank_10m" || p.asset.starts_with("camp_")));
+
+        // And it is all owned: a second dress lays the same.
+        let once = scene.props.clone();
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        assert_eq!(once, scene.props);
+    }
+
+    #[test]
+    fn the_lap_over_a_road_has_parapets_and_keeps_its_ground() {
+        let track = track();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let crossing = Crossing {
+            name: Some("B 257".to_string()),
+            station_m: 230.0,
+            kind: "deck_track".to_string(),
+            brand: None,
+            from_m: Some(200.0),
+            to_m: Some(260.0),
+        };
+        let tiles = lay_crossing(&path, &crossing);
+        assert_eq!(tiles.len(), 6);
+        assert!(tiles.iter().all(|p| p.asset == "track_bridge_10m"));
+        // Not a bridge span: the ground under it stays.
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        layout.crossings.push(crossing.clone());
+        lay_water_and_bridges(&mut scene, &layout);
+        assert!(scene.bridges.is_empty());
+        // The gantry and a forest track's bridge are one prop each.
+        for (kind, asset) in [
+            ("timing", "timing_gantry"),
+            ("overpass", "overpass_concrete"),
+        ] {
+            let one = lay_crossing(
+                &path,
+                &Crossing {
+                    kind: kind.to_string(),
+                    from_m: None,
+                    to_m: None,
+                    ..crossing.clone()
+                },
+            );
+            assert_eq!(one.len(), 1);
+            assert_eq!(one[0].asset, asset);
+        }
+    }
+
+    #[test]
+    fn the_nordschleife_landmarks_are_laid_once_and_owned() {
+        let track = track();
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        for (kind, centre) in [
+            ("lookout_tower", [400.0, -900.0]),
+            ("toll_gate", [300.0, -30.0]),
+            ("hillside_letters", [500.0, -250.0]),
+        ] {
+            layout.landmarks.push(Landmark {
+                kind: kind.to_string(),
+                name: None,
+                station_m: 0.0,
+                side: Side::Right,
+                centre,
+                brand: None,
+                yaw_rad: Some(0.3),
+                altitude_m: None,
+            });
+        }
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        for asset in ["stone_lookout_tower", "toll_gate_lane", "hillside_letters"] {
+            let laid: Vec<&Prop> = scene.props.iter().filter(|p| p.asset == asset).collect();
+            assert_eq!(laid.len(), 1, "{asset}");
+            assert!(dressed_prop(laid[0]), "{asset}");
+        }
     }
 
     #[test]

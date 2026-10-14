@@ -68,8 +68,8 @@ what it owns on every run. Ownership is by **kind** for whole kinds and by
 
 | Pass | Owns |
 |---|---|
-| `ats-dress` (`dress.rs`) | Kinds grandstand, building, attraction, bridge, light, vehicle, sky; the pit lane (`authored: true`); landmark assets (`dress::dressed_prop`, e.g. `misc/bull_statue`); the surroundings assets (`dress::surroundings::OWNED`: car-park cars and lamps, tents and campers, houses and barns, chapels, pylons, marshal posts, `corner_sign`, fallback `floodlight_tower`s, forest impostors, and the track edge's `kerb_marker` at each curb's ends and `sausage_kerb_2m` behind the inside curb of a bend under 80 m radius, `lay_kerb_pieces`); furniture runs (`lay_furniture`); road decals from the dossier |
-| `ats-groom` (`groom.rs`) | Barriers, tyre walls, Tecpro, fences and their end caps (by asset); hoardings (`HOARDING_ASSETS`); braking and distance boards; tree belts, near trees and ground scatter; German signs on the Nordschleife (`GERMAN_SIGN_ASSETS`) |
+| `ats-dress` (`dress.rs`) | Kinds grandstand, building, attraction, bridge, light, vehicle, sky; the pit lane (`authored: true`); landmark assets (`dress::LANDMARK_ASSETS`: `misc/bull_statue`, `misc/toll_gate_lane`, `sign/hillside_letters`); the surroundings assets (`dress::surroundings::OWNED`: car-park cars and lamps, tents and campers, houses and barns, chapels, pylons, marshal posts (numbered ones too), `corner_sign`, fallback `floodlight_tower`s, forest impostors, the fan dressing's banks and camp pieces, and the track edge's `kerb_marker` at each curb's ends and `sausage_kerb_2m` behind the inside curb of a bend under 80 m radius, `lay_kerb_pieces`); furniture runs (`lay_furniture`); road decals from the dossier |
+| `ats-groom` (`groom.rs`) | Barriers, tyre walls, Tecpro, fences and their end caps (by asset); hoardings (`HOARDING_ASSETS`); braking and distance boards; tree belts, near trees and ground scatter; German signs on the Nordschleife (`GERMAN_SIGN_ASSETS`); the graffiti tags on the rails (`RAIL_TAG_ASSETS`) |
 | `ats-export` | Nothing in the `.ats`: it generates the pit complex (garages, box kits, pit walls, pit signs, the podium on the middle garage's roof), road paint, DRS lines and boards, terrain and horizon in the export only |
 
 `ats-dress` grooms after dressing (`--no-groom` to skip); `ats-groom` run
@@ -85,6 +85,7 @@ OpenStreetMap (ODbL; the attribution travels in the file):
 ```bash
 python scripts/osm_layout.py --all          # or: Monza Spa [--offline] [--dry-run]
 python scripts/osm_layout.py --all --names-only   # re-apply CORNER_DISPLAY / display_name only
+python scripts/osm_layout.py <Stem> --manual-only # re-apply the MANUAL_* layers only (no extract)
 ```
 
 **Fit.** The OSM extract is georeferenced onto the track frame by an FFT
@@ -110,10 +111,13 @@ claims is counted in `unclassified`, so a circuit's gaps show in the file.
 survive a refetch; each entry's comment names its source. `MANUAL_STANDS`
 (`name`, `from_m`/`to_m`, `side` as `left`/`right` driving the lap or
 `outside`/`inside` of the bend, `depth_m`, optional `gap_m`, `covered`; the
-front is laid along the centerline). `MANUAL_CROSSINGS` (`station_m`, `kind`
-`footbridge`/`link`/`viaduct`/`gantry`, road-carrying `deck_arch`/`deck_wide`
-with `from_m`/`to_m`, else a tyre bridge; `brand` from the kit's fictional
-brands). `MANUAL_LANDMARKS` (`kind` must be one `dress.rs` maps to an asset,
+front is laid along the centerline). `MANUAL_CROSSINGS` (`station_m`, or a
+map anchor `at` / `from_at` + `to_at` (lon, lat); `kind`
+`footbridge`/`link`/`viaduct`/`gantry`/`timing`/`overpass`, road-carrying
+`deck_arch`/`deck_wide` with `from_m`/`to_m` (ground left out of the span),
+the lap's own bridge over a road `deck_track` (parapets, ground kept), else
+a tyre bridge; `brand` from the kit's fictional brands; `CROSSING_KINDS`
+renames the scan's kinds per circuit). `MANUAL_LANDMARKS` (`kind` must be one `dress.rs` maps to an asset,
 see its landmark table; an unknown kind is dropped silently; `tourism=artwork`
 becomes a `statue` only where declared here). `MANUAL_PIT_LANE` (wins over
 OSM outright), `PIT_LANE_REACH_M` (how far from the track a mapped pit lane may run before it is clipped, 70 m by default; Silverstone's cuts 102 m across the inside of Club), `MANUAL_STRUCTURES`, `MANUAL_STRUCTURE_ASSETS`,
@@ -121,6 +125,13 @@ OSM outright), `PIT_LANE_REACH_M` (how far from the track a mapped pit lane may 
 
 Prefer a manual entry to a code change. A change to `extract()` or the fit
 must leave the other dossiers unchanged (re-run `--all --offline` and diff).
+
+**Without the extract** (`--manual-only`): the hand-authored layers (the
+authored landmarks and crossings, graffiti, decal runs and skid marks,
+furniture) are rebuilt from the tables through the georeference the DEM
+sidecar records, which is the dossier's own fit; the surveyed layers are
+left byte for byte. A circuit with no DEM sidecar is skipped. With no table
+changed, `--all --manual-only --dry-run` reports every dossier unchanged.
 
 ## Dressing (`ats-dress`)
 
