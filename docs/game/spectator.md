@@ -50,7 +50,7 @@ and readers skip what they do not know (`a_newer_writers_extra_fields_are_skippe
 | 7 | `Path` | TCP, with the header | the centerline every 10 m, for the TV cameras of a viewer with no lobby |
 | 8 | `Road` | TCP | tick, a slice of the road state (lap, cell length, bins, half span, first cell, rows, debris, geometry, snow rows): the `RoadState` message's payload ([../server/conditions.md](../server/conditions.md#the-road-on-screen)) |
 | 9 | `State` | TCP | tick, the sky as it is now (`SkyNow`), a timed race's clock, and per car the slow figures a row leaves out (`CarExtra`: tyre pressures, flat spots, brake temperatures and wear, tank, coolant, tread shoulders, hybrid, tow, where each body zone was hit); four times a second |
-| 10 | `Ghost` | file only | tick, the record lap's trace as `GhostLap` carried it (lap time, sample rate, track and car ids, a `bin` of 20-byte samples): written by the client's recorder when a hotlap's ghost arrives, so the replay has the ghost; the server's streams never carry one, and `apexsim-replay` skips it |
+| 10 | `Ghost` | TCP | tick, a lap's trace as `GhostLap` carries it (lap time, sample rate, track and car ids, a `bin` of 20-byte samples: ms, x, y, z, yaw): a watched hotlap's fastest lap on the server's live stream (`StreamGhost`, each time it is replaced, and in the catch-up), and the record lap in a client-recorded hotlap replay (the recorder writes it when a hotlap's ghost arrives); `apexsim-replay`'s renders carry none |
 
 **Joining mid-file.** What a frame does not hold is caught up from the
 records already played: a showcase channel sends a newcomer, after the
@@ -226,7 +226,10 @@ A newcomer is excluded from the tick it joins in; it gets
 `SessionStream::catch_up` instead: header, roster, path and sector lines, every
 timing and pit event so far (`History`), the road as last laid and the latest
 slow state. So a mid-race joiner sees the earlier laps and counts the earlier
-stops, which the racer telemetry (`JoinAsSpectator`) never carried.
+stops, which the racer telemetry (`JoinAsSpectator`) never carried. A
+watched hotlap is put on its stream at its create (`watch.stream`,
+[sessions](../server/sessions.md#watching-a-hotlap)), with its ghost in the
+catch-up.
 
 ## The client player and the menu backdrop
 
@@ -238,7 +241,14 @@ one of two sources:
   their tick. At the end the preamble is applied again, which the player takes
   as a new epoch: the cars jump back to the grid cleanly.
 - **Net**: `UApexNetSubsystem` routes `SpectatorJoined`, `SpectatorRecord`
-  and frame datagrams (`PopSpectatorRecord`) to `OnSpectatorRecords`.
+  and frame datagrams (`PopSpectatorRecord`) to `OnSpectatorRecords`. A
+  showcase is applied as it arrives. A live session's stream is also kept
+  (the **timeshift**: `KeepLive`, every body with its tick, frames trimmed
+  oldest first past `LiveBufferCapBytes`, 256 MB). At the live edge it plays
+  as it comes in. Paused, slower than real time or seeked back, it plays the
+  kept records on its own clock, as a file does, until it catches up
+  (`CanTimeshift`, `IsAtLiveEdge`, `GetSecondsBehindLive`). A seek back
+  starts from the first kept record, the catch-up's header.
 
 Either way the result goes out as the net subsystem's **backdrop feed**
 (`BeginBackdropFeed`, `FeedBackdropRoster`, `FeedBackdropTelemetry`,
@@ -314,9 +324,10 @@ row, the left and right arrows and the D-pad's up and down (they also step cars)
 | T | View | timing tower column |
 | H | R3 | hide the overlay |
 | N | L3 | the next race (the backdrop) |
-| Space | A | pause a replay |
-| comma / full stop | LT / RT | ten seconds back / on in a replay |
+| Space | A | pause a replay or a live stream |
+| comma / full stop | LT / RT | ten seconds back / on in a replay or a live stream (no further than its edge) |
 | - / = | D-pad left / right | slower / faster (0.25x to 4x) |
+| S, R, G | D-pad up, down | a watched hotlap's setup, its fastest lap again, its ghost ([sessions](../server/sessions.md#watching-a-hotlap)); elsewhere the D-pad's up and down step cars |
 | Backspace | B | stop watching |
 | Esc | Start | the pause menu |
 
@@ -330,7 +341,15 @@ in use (`OnInputDeviceChanged`).
 
 The HUD follows the watched car and shows the race's own circuit and
 distance; the `spectate.*` and `replay.*` data points and the `spectator_*`
-components are in [HUD modding](hud-modding.md). Console: `apexsim.watch
+components are in [HUD modding](hud-modding.md). A live stream's transport is
+the replay's (`replay.live`, LIVE or how far behind it plays).
+
+A ghost on the feed (a streamed hotlap's, a hotlap replay's) rides beside the
+watched car (`AApexRaceDirector::UpdateWatchGhost`). Its clock is the car's
+lap time on the stream's ticks: the tick it last crossed the line
+(`FCarProgress::LapStartTick`) to the latest frame's, so it pauses and changes
+speed with the stream. It hides within 3 m of the car. `BeginGhostReplay`
+also runs in the watch view, with the TV director off until it ends. Console: `apexsim.watch
 [start|stop|next|prev|car N|camera|auto|tower|overlay|race|pause|back|forward|faster|slower]`.
 Unattended: `-ApexWatch` (the backdrop), `-ApexWatchSession` (the first race
 on the server), `-ApexWatchReplay=<file|latest>`, with `-ApexWatchCamera=`,

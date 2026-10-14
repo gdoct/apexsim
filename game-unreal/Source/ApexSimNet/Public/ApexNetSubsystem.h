@@ -412,10 +412,26 @@ public:
 	 * session's entry in the lobby, which does not list it.
 	 */
 	void CreateHotlapWatch(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
-		const FApexSessionConditions& Conditions);
+		const FApexSessionConditions& Conditions, const FApexCarSetup* Setup = nullptr);
 
-	/** The session is a watched hotlap (SessionKind::HotlapWatch), from its join until it is left. */
-	bool IsHotlapWatch() const { return bHotlapWatch; }
+	/**
+	 * Watch a hotlap as a stream (a server with LobbyState.LiveStream): the
+	 * same create as CreateHotlapWatch, with `watch.stream`, answered like
+	 * SpectateSession (OnSpectatorJoined, then the stream's records through
+	 * OnSpectatorRecords) and the corners. No session is joined; the server
+	 * ends the hotlap when it is left (LeaveSpectate), and asking again
+	 * replaces it. `Setup`, when given, is what the car runs.
+	 */
+	void SpectateHotlapWatch(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
+		const FApexSessionConditions& Conditions, const FApexCarSetup* Setup = nullptr);
+
+	/**
+	 * A watched hotlap (SessionKind::HotlapWatch) is on: joined, from its join
+	 * until it is left, or watched as a stream, from the ask until LeaveSpectate.
+	 */
+	bool IsHotlapWatch() const { return bHotlapWatch || bHotlapWatchStream; }
+	/** The watched hotlap comes as a stream (SpectateHotlapWatch). */
+	bool IsHotlapWatchStream() const { return bHotlapWatchStream; }
 
 	/** The session joined was joined as a spectator: there is no local car in it. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
@@ -770,6 +786,8 @@ private:
 	bool bHotlapWatchRequested = false;
 	/** The session joined is a watched hotlap. */
 	bool bHotlapWatch = false;
+	/** The watched hotlap is a stream (SpectateHotlapWatch), until LeaveSpectate. */
+	bool bHotlapWatchStream = false;
 	/** What the lobby would list for it, had it been listed (FindSessionById). */
 	FApexSessionSummary HotlapWatchSummary;
 

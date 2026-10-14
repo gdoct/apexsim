@@ -324,6 +324,7 @@ async fn a_showcase_is_played_to_everyone_on_one_clock() {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         })
         .await;
     first

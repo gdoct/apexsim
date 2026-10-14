@@ -391,6 +391,7 @@ async fn relocate_is_refused_in_practice_and_a_new_driver_has_no_ghost() {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         })
         .await?;
         host.wait_for(|m| match m {

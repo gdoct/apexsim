@@ -332,6 +332,7 @@ fn create_hotlap_watch(track: TrackConfigId) -> ClientMessage {
         grid_order: Vec::new(),
         qualifying_seconds: None,
         weekend: None,
+        watch: None,
     }
 }
 
@@ -516,4 +517,202 @@ fn a_watch_can_start_down_the_ladder_where_an_earlier_one_left_off() {
     gs.set_hotlap_watch_level(3);
     assert_eq!(gs.hotlap_watch_level(), 3);
     assert!(gs.ai_profiles[&driver].skill_level < HOTLAP_WATCH_SKILL);
+}
+
+#[test]
+fn the_fastest_watched_lap_is_the_ghost_and_the_stream_carries_it() {
+    use apexsim_server::session_stream::SessionStream;
+    use apexsim_server::spectator::{Record, RECORD_GHOST};
+
+    let (mut gs, driver) = watched_hotlap("posh-gt3rs", SessionConditions::DEFAULT);
+    let kerbs = gs.track_config.curbs.is_some();
+    let names = HashMap::new();
+    let mut stream = SessionStream::new(&gs, 30, &names);
+    let mut ghosts = Vec::new();
+    let mut laps = Vec::new();
+    for _ in 0..(HZ * 400) {
+        let inputs: HashMap<PlayerId, PlayerInputData> =
+            [(driver, gs.generate_ai_input(&driver))].into();
+        gs.tick(&inputs);
+        let events = gs.take_lap_events();
+        for event in &events {
+            if let Some(ms) = event.event.lap_time_ms {
+                laps.push((ms, event.event.valid));
+            }
+        }
+        let out = stream.tick(&gs, &events, &[], &names, false);
+        ghosts.extend(
+            out.records
+                .into_iter()
+                .filter(|r| r.kind == RECORD_GHOST)
+                .map(|r| r.body),
+        );
+        if laps.len() >= 3 {
+            break;
+        }
+    }
+    let best_legal = laps
+        .iter()
+        .filter(|(_, valid)| *valid)
+        .map(|(ms, _)| *ms)
+        .min();
+    let Some(best) = best_legal else {
+        assert!(!kerbs, "no legal lap in {laps:?}");
+        eprintln!("Monza has no curbs sidecar: every lap struck, no ghost to check");
+        return;
+    };
+    let (_, kept) = gs.hotlap_watch_ghost().expect("a ghost after a legal lap");
+    assert_eq!(kept.lap_time_ms, best, "the fastest legal lap: {laps:?}");
+    // One record each time a faster lap replaced the ghost, the last the best.
+    assert!(!ghosts.is_empty());
+    let Record::Ghost(last) = Record::decode(ghosts.last().unwrap()).unwrap() else {
+        panic!("not a ghost record");
+    };
+    assert_eq!(last.lap_time_ms, best);
+    assert_eq!(last.track_id, gs.session.track_config_id.to_string());
+    let expected = (best as f32 / 1000.0 * 20.0) as usize;
+    assert!(
+        last.samples.len().abs_diff(expected) <= 2,
+        "{} samples for a {best} ms lap",
+        last.samples.len()
+    );
+    // A viewer joining now is sent it with the catch-up.
+    assert!(stream
+        .catch_up(&gs)
+        .iter()
+        .any(|body| apexsim_server::spectator::record_type(body) == Some(RECORD_GHOST)));
+}
+
+#[test]
+fn a_setup_is_a_ladder_of_its_own() {
+    use apexsim_server::car_setup::CarSetup;
+    let (mut gs, driver) = watched_hotlap("posh-gt3rs", SessionConditions::DEFAULT);
+    let stock = gs.hotlap_watch_key().unwrap();
+    assert_eq!(stock.3, 0, "stock is key 0");
+    let soft = CarSetup {
+        rear_wing: 2,
+        ..CarSetup::default()
+    };
+    gs.set_hotlap_watch_setup(soft);
+    let tuned = gs.hotlap_watch_key().unwrap();
+    assert_ne!(tuned.3, 0);
+    assert_eq!((tuned.0, tuned.1, tuned.2), (stock.0, stock.1, stock.2));
+    assert_eq!(gs.car_setup(&driver), soft.clamp(), "the car runs it");
+}
+
+fn create_streamed_hotlap_watch(track: TrackConfigId) -> ClientMessage {
+    let ClientMessage::CreateSession {
+        track_config_id,
+        max_players,
+        ai_count,
+        lap_limit,
+        session_kind,
+        allowed_assists,
+        conditions,
+        damage,
+        ai_skill,
+        race_seconds,
+        grid_order,
+        qualifying_seconds,
+        weekend,
+        ..
+    } = create_hotlap_watch(track)
+    else {
+        unreachable!()
+    };
+    ClientMessage::CreateSession {
+        track_config_id,
+        max_players,
+        ai_count,
+        lap_limit,
+        session_kind,
+        allowed_assists,
+        conditions,
+        damage,
+        ai_skill,
+        race_seconds,
+        grid_order,
+        qualifying_seconds,
+        weekend,
+        watch: Some(apexsim_server::network::HotlapWatchOptions {
+            stream: true,
+            setup: Some(apexsim_server::car_setup::CarSetup {
+                rear_wing: 1,
+                ..Default::default()
+            }),
+        }),
+    }
+}
+
+#[tokio::test]
+async fn test_a_hotlap_watched_as_a_stream_goes_with_its_viewer() {
+    let server = common::start_test_server().await;
+    let (mut host, lobby) = Client::connect("StreamWatcher", server.tcp_addr).await;
+    let car = lobby.car_configs.first().expect("a car").id;
+    let track = lobby
+        .track_configs
+        .iter()
+        .find(|t| t.name.contains("Monza"))
+        .or(lobby.track_configs.first())
+        .expect("a track")
+        .id;
+    host.send(&ClientMessage::SelectCar {
+        car_config_id: car,
+        livery: 0,
+    })
+    .await;
+    host.send(&create_streamed_hotlap_watch(track)).await;
+
+    let (mut joined, mut corners, mut header) = (None, None, false);
+    while joined.is_none() || corners.is_none() || !header {
+        match host.recv_until(Some).await {
+            ServerMessage::SpectatorJoined(data) => joined = Some(data),
+            ServerMessage::TrackCorners(data) => corners = Some(data),
+            ServerMessage::SpectatorRecord(bytes) => {
+                header |= bytes.0.windows(2).any(|w| w[1] == 1 && w[0] & 0xF0 == 0x90);
+            }
+            ServerMessage::SessionJoined(_) => panic!("a streamed watch is not joined"),
+            ServerMessage::Error { message, .. } => panic!("creation failed: {message}"),
+            _ => {}
+        }
+    }
+    let joined = joined.unwrap();
+    assert_eq!(corners.unwrap().session_id, joined.stream_id);
+    let session_id = joined.stream_id;
+    {
+        let state = server.state.read().await;
+        let game = &state.sessions[&session_id];
+        assert_eq!(game.session.session_kind, SessionKind::HotlapWatch);
+        let driver = *game.session.participants.keys().next().unwrap();
+        assert_eq!(
+            game.car_setup(&driver).rear_wing,
+            1,
+            "the car runs the setup"
+        );
+        let host_id = game.session.host_player_id;
+        assert_eq!(state.live.watching(&host_id), Some(session_id));
+    }
+
+    // Another watch replaces it.
+    host.send(&create_streamed_hotlap_watch(track)).await;
+    let second = host
+        .recv_until(|msg| match msg {
+            ServerMessage::SpectatorJoined(data) => Some(data),
+            _ => None,
+        })
+        .await;
+    assert_ne!(second.stream_id, session_id);
+    {
+        let state = server.state.read().await;
+        assert!(!state.sessions.contains_key(&session_id));
+        assert!(state.sessions.contains_key(&second.stream_id));
+    }
+
+    // Stopping watching ends it.
+    host.send(&ClientMessage::LeaveSpectate).await;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !server.state.read().await.sessions.is_empty() {
+        assert!(Instant::now() < deadline, "the watch outlived its viewer");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
 }

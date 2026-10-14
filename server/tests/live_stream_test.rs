@@ -109,6 +109,7 @@ async fn a_live_session_is_watched_as_a_stream_and_recorded() {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         })
         .await?;
         let joined = host.wait_joined().await?;

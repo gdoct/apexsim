@@ -2821,7 +2821,8 @@ namespace ApexProtocol
 		int32 RaceSeconds,
 		const TArray<FString>& GridOrder,
 		int32 QualifyingSeconds,
-		const FApexWeekendFormat& Weekend)
+		const FApexWeekendFormat& Weekend,
+		const FHotlapWatchOptions* Watch)
 	{
 		// Full damage, the mixed AI field, a race over laps and open
 		// qualifying are left off, as the server does: an older server's
@@ -2838,7 +2839,7 @@ namespace ApexProtocol
 		const bool bWeekend = WeekendFormat.IsWeekend();
 		FMsgPackWriter Writer(320);
 		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0) + (bTimed ? 1 : 0) + (bGrid ? 1 : 0)
-			+ (bTimedQualifying ? 1 : 0) + (bWeekend ? 1 : 0));
+			+ (bTimedQualifying ? 1 : 0) + (bWeekend ? 1 : 0) + (Watch ? 1 : 0));
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -2896,6 +2897,29 @@ namespace ApexProtocol
 			for (const int32 RoundSeconds : WeekendFormat.QualifyingSeconds)
 			{
 				Writer.WriteUInt(static_cast<uint32>(RoundSeconds));
+			}
+		}
+		if (Watch)
+		{
+			// Each part only when set, as the server leaves them off.
+			Writer.WriteString("watch");
+			Writer.WriteMapHeader((Watch->bStream ? 1 : 0) + (Watch->bHasSetup ? 1 : 0));
+			if (Watch->bStream)
+			{
+				Writer.WriteString("stream");
+				Writer.WriteBool(true);
+			}
+			if (Watch->bHasSetup)
+			{
+				FApexCarSetup Clamped = Watch->Setup;
+				Clamped.Clamp();
+				Writer.WriteString("setup");
+				Writer.WriteMapHeader(FApexCarSetup::KnobCount);
+				for (int32 Index = 0; Index < FApexCarSetup::KnobCount; ++Index)
+				{
+					Writer.WriteString(ApexCarSetup::Knob(Index).Key);
+					Writer.WriteInt(Clamped.GetClick(Index));
+				}
 			}
 		}
 		return MoveTemp(Writer.GetBuffer());

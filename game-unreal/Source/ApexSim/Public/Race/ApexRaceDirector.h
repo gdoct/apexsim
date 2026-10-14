@@ -465,6 +465,14 @@ private:
 	void UpdateGhost(float DeltaSeconds);
 	/** Advance the replay's clock and cut its cameras. */
 	void UpdateGhostReplay(float DeltaSeconds);
+	/**
+	 * The ghost beside the watched car in the watch view (a streamed hotlap,
+	 * a hotlap's replay): its clock is the watched car's lap time, measured
+	 * on the stream's ticks, so it pauses and changes speed with the stream.
+	 */
+	void UpdateWatchGhost(float DeltaSeconds);
+	/** The TV camera's state before a ghost replay in the watch view, to go back to after it. */
+	bool bReplayTvWas = false;
 	/** Put the replay's camera on its next shot. */
 	void CutReplayShot();
 	AApexRaceCarActor* FindCar(int32 CarIndex) const;
@@ -930,6 +938,8 @@ private:
 		float StationM = 0.0f;
 		bool bOnTrack = true;
 		int32 FinishPosition = 0;
+		/** The frame tick its lap began on (a stream's rows carry no lap time); -1 before a change was seen. */
+		int64 LapStartTick = -1;
 	};
 	TMap<int32, FCarProgress> CarProgress;
 

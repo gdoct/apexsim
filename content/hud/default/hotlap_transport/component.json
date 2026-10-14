@@ -1,0 +1,46 @@
+// A streamed hotlap's transport (the timeshift): LIVE, or how far behind the
+// lap plays, paused or at another speed, and a bar over what has been
+// watched. A click on the bar goes there; the keys are the replay's. Part
+// of the `hotlap_watch` scene.
+{
+  "name": "Hotlap: transport",
+  "scene": "hotlap_watch",
+  "region": "bottom",
+  "order": 10,
+  "margin": [0, 0, 0, 24],
+  "visible": "=replay.live",
+  "root": {
+    "type": "panel", "width": 420, "padding": [12, 8], "background": "=alpha('background', 0.72)",
+    "children": [{
+      "type": "column",
+      "children": [
+        {
+          "type": "row", "valign": "center",
+          "children": [
+            { "type": "panel", "valign": "center", "padding": [8, 2],
+              "background": "=replay.paused ? 'accent' : replay.behind_s > 0.5 ? 'surface_hover' : 'live'",
+              "children": [{ "type": "text", "font": "mono", "size": 11, "tracking": 80, "bold": true,
+                "color": "=replay.paused ? 'on_accent' : replay.behind_s > 0.5 ? 'text' : 'on_accent'",
+                "text": "=replay.paused ? 'PAUSED' : replay.behind_s > 0.5 ? '-' + fmt_time(replay.behind_s) : 'LIVE'" }] },
+            { "type": "spacer", "fill": 1 },
+            { "type": "text", "valign": "center", "font": "mono", "size": 13,
+              "color": "=replay.rate == 1 ? 'text_muted' : 'accent'",
+              "text": "=fmt(replay.rate, replay.rate < 1 ? 2 : 0) + '×'" }
+          ]
+        },
+        {
+          "type": "panel", "margin": [0, 4, 0, 0], "padding": [0, 6], "click": "watch.seek",
+          "children": [{ "type": "bar", "height": 4, "value": "=replay.progress", "color": "accent", "background": "border" }]
+        },
+        {
+          "type": "row", "halign": "right", "margin": [0, 6, 0, 0],
+          "children": [
+            { "type": "keycap", "text": "=watch.key.play_pause + ' PAUSE'" },
+            { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.seek + ' 10 S'" },
+            { "type": "keycap", "margin": [6, 0, 0, 0], "text": "=watch.key.speed + ' SPEED'" }
+          ]
+        }
+      ]
+    }]
+  }
+}

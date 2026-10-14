@@ -124,6 +124,7 @@ async fn the_first_session_on_a_track_loads_its_sidecars_and_keeps_message_order
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         })
         .await?;
         host.send(&ClientMessage::LeaveSession).await?;

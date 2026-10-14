@@ -504,6 +504,7 @@ impl TestClientMinimal {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         };
         self.send_message(&msg).await?;
 
@@ -857,6 +858,7 @@ async fn run_multi_client_test(
         grid_order: Vec::new(),
         qualifying_seconds: None,
         weekend: None,
+        watch: None,
     };
     clients[0].send_message(&create_msg).await?;
 

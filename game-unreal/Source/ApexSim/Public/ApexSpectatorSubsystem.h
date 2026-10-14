@@ -56,30 +56,47 @@ public:
 	 */
 	bool PlayFile(const FString& Path, bool bInLoop = true);
 
-	// --- Playback of a file (a replay) -------------------------------------------
+	// --- Playback of a file (a replay) or a live stream held back ------------------
 
+	/**
+	 * A live session's stream is kept as it arrives (the timeshift), so it
+	 * pauses, seeks and changes speed like a file, between its first record
+	 * and the live edge; at the edge it plays as it comes in. Showcases do not.
+	 */
+	bool CanTimeshift() const { return Source == EApexSpectatorSource::Net && bLiveSource && LiveRecords.Num() > 0; }
 	/** Speed of the file's clock: 1 real time, 0.25 to 4. */
 	void SetPlaybackRate(float Rate);
 	float GetPlaybackRate() const { return PlaybackRate; }
-	void SetPaused(bool bInPaused) { bPaused = bInPaused; }
+	void SetPaused(bool bInPaused);
 	bool IsPaused() const { return bPaused; }
 	/**
 	 * Jump to `Seconds` from the content's start. Forward, the records on the
 	 * way are applied (the timing, any roster change) but only the last frame;
-	 * back, the preamble is applied again first, which resets the timing.
+	 * back, the preamble is applied again first, which resets the timing. A
+	 * live stream past its edge goes back to live.
 	 */
 	void SeekTo(double Seconds);
-	/** Seconds from the content's start, and its length; 0 without a file. */
+	/** Seconds from the content's start, and its length (a live stream's: so far); 0 without one. */
 	double GetPlaybackSeconds() const;
 	double GetDurationSeconds() const;
 	/** A file that does not loop has reached its end. */
 	bool IsAtEnd() const;
+	/** A live stream plays as it comes in (not paused, not behind). */
+	bool IsAtLiveEdge() const { return !CanTimeshift() || bAtLiveEdge; }
+	/** Seconds a live stream is played behind its edge; 0 at the edge. */
+	double GetSecondsBehindLive() const;
 	bool IsLooping() const { return bLoop; }
 
 	/** Watch the server's showcase channel `Id` (empty: the server's first). */
 	bool WatchShowcase(const FString& Id);
 	/** Watch the live session `SessionId` as a stream (the server's SpectateSession). */
 	bool WatchLive(const FString& SessionId);
+	/**
+	 * Watch a hotlap the server drives for this viewer, as a stream
+	 * (UApexNetSubsystem::SpectateHotlapWatch); `Setup` is what the car runs.
+	 */
+	bool WatchHotlap(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
+		const FApexSessionConditions& Conditions, const FApexCarSetup* Setup);
 
 	/** Stop whatever plays and end the backdrop feed. */
 	void Stop();
@@ -160,4 +177,23 @@ private:
 	float PlaybackRate = 1.0f;
 	/** The timed records' ticks, parallel to Loaded->Records. */
 	TArray<int64> RecordTicks;
+
+	// --- Live source, kept for the timeshift ---
+	/** Every record body received, in order, and its tick (the last tick before it for an untimed one). */
+	TArray<TArray<uint8>> LiveRecords;
+	TArray<int64> LiveTicks;
+	int64 LiveBytes = 0;
+	/** The next record to apply, the play clock (ticks) and the first frame's tick. */
+	int32 LiveCursor = 0;
+	double LiveClock = 0.0;
+	int64 LiveStartTick = -1;
+	bool bAtLiveEdge = true;
+	/** Append the records of a run to the buffer. */
+	void KeepLive(TArrayView<const uint8> Run);
+	/** Apply the kept records up to `Tick`; only the last tick's frames when `bSkipFrames`. */
+	void ApplyLiveUpTo(double Tick, bool bSkipFrames);
+	/** Drop the oldest frames once the buffer is over its cap (a long watch of a full field). */
+	void TrimLive();
+	int64 LiveEdgeTick() const { return LiveTicks.IsEmpty() ? 0 : LiveTicks.Last(); }
+	int32 LiveTickRate() const;
 };

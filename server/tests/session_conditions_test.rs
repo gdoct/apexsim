@@ -124,6 +124,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -297,6 +298,7 @@ async fn the_hosts_damage_rule_holds_for_every_car() {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -374,6 +376,7 @@ async fn the_hosts_ai_level_sets_the_field() {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -435,6 +438,7 @@ async fn the_hosts_race_time_is_echoed_and_listed() {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         })
         .await?;
         let joined = host.wait_joined().await?;

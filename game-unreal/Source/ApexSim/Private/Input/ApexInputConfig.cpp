@@ -96,6 +96,11 @@ namespace ApexInput
 			{ Actions::WatchTimeLater,   1, TEXT("Hour later"),   EKeys::RightBracket,              false, EColumn::Keyboard },
 			{ Actions::WatchPreviousTrack, 1, TEXT("Previous circuit"), EKeys::PageUp,              false, EColumn::Keyboard },
 			{ Actions::WatchNextTrack,   1, TEXT("Next circuit"), EKeys::PageDown,                  false, EColumn::Keyboard },
+			{ Actions::WatchSetup,       0, TEXT("Setup"),        EKeys::Gamepad_DPad_Up,           false, EColumn::Gamepad  },
+			{ Actions::WatchSetup,       1, TEXT("Setup"),        EKeys::S,                         false, EColumn::Keyboard },
+			{ Actions::WatchReplayLap,   0, TEXT("Replay lap"),   EKeys::Gamepad_DPad_Down,         false, EColumn::Gamepad  },
+			{ Actions::WatchReplayLap,   1, TEXT("Replay lap"),   EKeys::R,                         false, EColumn::Keyboard },
+			{ Actions::WatchGhost,       1, TEXT("Ghost"),        EKeys::G,                         false, EColumn::Keyboard },
 
 			{ Actions::Steer,        Slot::Wheel,      TEXT("Steering"),    FKey(), false, EColumn::Wheel },
 			{ Actions::Throttle,     Slot::Wheel,      TEXT("Throttle"),    FKey(), false, EColumn::Wheel },

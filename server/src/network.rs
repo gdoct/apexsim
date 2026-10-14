@@ -38,6 +38,22 @@ where
 /// and does the same, so neither pairing needs refusing at `Authenticate`.
 pub const PROTOCOL_VERSION: u8 = 2;
 
+/// How a watched hotlap is watched and what its car runs (`CreateSession`'s
+/// `watch`).
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+pub struct HotlapWatchOptions {
+    /// Put the creator on the session's spectator stream
+    /// (`SpectatorJoined`, then the records, as `SpectateSession` does)
+    /// instead of the racer telemetry of `JoinAsSpectator`; the session
+    /// ends when they stop watching it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub stream: bool,
+    /// The setup the AI car runs (clamped as `SetCarSetup` is); stock when
+    /// absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub setup: Option<CarSetup>,
+}
+
 // --- Client to Server Messages ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
@@ -126,6 +142,11 @@ pub enum ClientMessage {
         /// a plain session.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         weekend: Option<crate::weekend::WeekendFormat>,
+        /// A watched hotlap's own choices (`SessionKind::HotlapWatch`
+        /// only): the creator watches it as a stream, and the AI car runs
+        /// a setup. Left off the wire when absent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        watch: Option<HotlapWatchOptions>,
     },
     /// Asks for a track's fastest laps (`records::RecordStore::leaderboard`):
     /// each driver's best with each car, or in one car (`car_config_id`).
@@ -3354,6 +3375,7 @@ mod tests {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSession: {}", hex(&create_bytes));
@@ -3470,6 +3492,7 @@ mod tests {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionDamage: {}", hex(&create_bytes));
@@ -3513,6 +3536,7 @@ mod tests {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         };
         let full_bytes = rmp_serde::to_vec_named(&full).unwrap();
         assert!(!full_bytes.windows(6).any(|w| w == b"damage"));
@@ -3554,6 +3578,7 @@ mod tests {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(7200))).unwrap();
         println!("C_CreateSessionRaceTime: {}", hex(&create_bytes));
@@ -3657,6 +3682,7 @@ mod tests {
             grid_order: Vec::new(),
             qualifying_seconds,
             weekend: None,
+            watch: None,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(900))).unwrap();
         println!("C_CreateSessionQualifyingTime: {}", hex(&create_bytes));
@@ -3763,6 +3789,7 @@ mod tests {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend,
+            watch: None,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(format.clone()))).unwrap();
         println!("C_CreateSessionWeekend: {}", hex(&create_bytes));
@@ -3881,6 +3908,7 @@ mod tests {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAiSkill: {}", hex(&create_bytes));
@@ -3924,6 +3952,7 @@ mod tests {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         };
         let mixed_bytes = rmp_serde::to_vec_named(&mixed).unwrap();
         assert!(!mixed_bytes.windows(8).any(|w| w == b"ai_skill"));
@@ -3976,6 +4005,7 @@ mod tests {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAir: {}", hex(&create_bytes));
@@ -4050,6 +4080,7 @@ mod tests {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(sky)).unwrap();
         println!("C_CreateSessionSky: {}", hex(&create_bytes));
@@ -4177,6 +4208,7 @@ mod tests {
             grid_order,
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         };
         // No order: the bytes of every earlier create.
         let plain = rmp_serde::to_vec_named(&create(Vec::new())).unwrap();
@@ -4496,6 +4528,63 @@ mod tests {
     }
 
     /// `cargo test hotlap_wire_format -- --nocapture` prints them.
+    /// The bytes of a `CreateSession` for a hotlap watched as a stream on a
+    /// setup (`ApexGolden::C_CreateSessionHotlapWatchStream`):
+    /// `cargo test hotlap_watch_wire_format -- --nocapture`.
+    #[test]
+    fn test_hotlap_watch_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let create = |watch| ClientMessage::CreateSession {
+            track_config_id: Uuid::from_u128(7),
+            max_players: 1,
+            ai_count: 1,
+            lap_limit: 3,
+            session_kind: SessionKind::HotlapWatch,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch,
+        };
+        let setup = CarSetup {
+            tyre_pressure_front: -2,
+            rear_wing: 3,
+            ..CarSetup::default()
+        };
+        let options = HotlapWatchOptions {
+            stream: true,
+            setup: Some(setup),
+        };
+        let bytes = rmp_serde::to_vec_named(&create(Some(options))).unwrap();
+        println!("C_CreateSessionHotlapWatchStream: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&bytes).unwrap() {
+            ClientMessage::CreateSession { watch, .. } => assert_eq!(watch, Some(options)),
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        // Absent, nothing of it is written: older bytes are unchanged.
+        let plain = rmp_serde::to_vec_named(&create(None)).unwrap();
+        assert!(!String::from_utf8_lossy(&plain).contains("watch"));
+        // An empty block is just the key.
+        let empty = rmp_serde::to_vec_named(&create(Some(HotlapWatchOptions::default()))).unwrap();
+        assert!(!String::from_utf8_lossy(&empty).contains("stream"));
+        match rmp_serde::from_slice::<ClientMessage>(&empty).unwrap() {
+            ClientMessage::CreateSession { watch, .. } => {
+                assert_eq!(watch, Some(HotlapWatchOptions::default()))
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
     #[test]
     fn test_hotlap_wire_format() {
         fn hex(bytes: &[u8]) -> String {

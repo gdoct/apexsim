@@ -29,6 +29,18 @@ namespace ApexProtocol
 	/** `Livery`: 0 the car as authored, 1.. the car's `[[livery]]` tables. */
 	APEXSIMNET_API TArray<uint8> EncodeSelectCar(const FString& CarConfigId, int32 Livery = 0);
 	APEXSIMNET_API TArray<uint8> EncodeRequestLobbyState();
+	/**
+	 * A watched hotlap's own choices (CreateSession's `watch`, written only
+	 * when given): watched as a stream (SpectatorJoined and the records, not
+	 * a SessionJoined) and the setup its car runs.
+	 */
+	struct FHotlapWatchOptions
+	{
+		bool bStream = false;
+		bool bHasSetup = false;
+		FApexCarSetup Setup;
+	};
+
 	APEXSIMNET_API TArray<uint8> EncodeCreateSession(
 		const FString& TrackConfigId,
 		uint8 MaxPlayers,
@@ -42,7 +54,8 @@ namespace ApexProtocol
 		int32 RaceSeconds = 0,
 		const TArray<FString>& GridOrder = TArray<FString>(),
 		int32 QualifyingSeconds = 0,
-		const FApexWeekendFormat& Weekend = FApexWeekendFormat());
+		const FApexWeekendFormat& Weekend = FApexWeekendFormat(),
+		const FHotlapWatchOptions* Watch = nullptr);
 	/** The host moves a race weekend on to its next session (no fields). */
 	APEXSIMNET_API TArray<uint8> EncodeAdvanceWeekend();
 	/** `GiveUpSeat`: turn down the rejoin offer; the held seat's car leaves its session. */

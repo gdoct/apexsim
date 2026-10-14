@@ -96,6 +96,7 @@ impl DemoLapTestClient {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         };
 
         self.send_message(&msg).await?;

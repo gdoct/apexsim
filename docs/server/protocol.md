@@ -113,7 +113,10 @@ session then sends a `RoadState` slice every 2 s
 `CreateSession` and are echoed in `SessionJoined`
 ([sessions.md](sessions.md)). A race weekend's members also get
 `WeekendState` after `SessionJoined` and whenever it changes
-([sessions.md](sessions.md#race-weekend)).
+([sessions.md](sessions.md#race-weekend)). A hotlap watched as a stream
+(`CreateSession.watch.stream`) is answered as `SpectateSession` is instead:
+`SpectatorJoined`, `TrackCorners` and the stream's records, no `SessionJoined`
+([sessions.md](sessions.md#watching-a-hotlap)).
 
 ## Encodings
 
@@ -177,7 +180,7 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 | Lap timing, line, corners | `lap_timing_wire_format`, `racing_line_wire_format`, `track_corners_wire_format` |
 | Road state | `road_state_wire_format` |
 | Session rules | `assists_wire_format`, `session_damage_wire_format`, `race_time_wire_format`, `qualifying_time_wire_format` (`CreateSession.qualifying_seconds`, `SessionJoined.QualifyingSeconds`, a qualifying `race_clock`), `weekend_wire_format` (`CreateSession.weekend`, `SessionJoined.Weekend`, `WeekendState`, `AdvanceWeekend`, a `GameMode::Practice` frame with its clock), `session_ai_skill_wire_format`, `conditions_air_wire_format`, `sky_wire_format`, `grid_wire_format` |
-| Garage, pit, hotlap | `car_setup_wire_format`, `car_setup_sheet_wire_format`, `pit_service_wire_format`, `hotlap_wire_format`, `recover_wire_format` |
+| Garage, pit, hotlap | `car_setup_wire_format`, `car_setup_sheet_wire_format`, `pit_service_wire_format`, `hotlap_wire_format`, `hotlap_watch_wire_format` (`CreateSession.watch`), `recover_wire_format` |
 | Reconnect | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`, `GiveUpSeat`) |
 | Roster | `roster_wire_format` (`RosterEntry.Away`, `RosterEntry.GridSlot`) |
 | Spectator | `showcase_wire_format` (network.rs), `spectator_wire_format` (spectator.rs) |

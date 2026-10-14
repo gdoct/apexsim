@@ -160,6 +160,7 @@ async fn seat(
                     grid_order: Vec::new(),
                     qualifying_seconds: None,
                     weekend: None,
+                    watch: None,
                 })
                 .await?
         }

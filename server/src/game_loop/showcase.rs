@@ -130,9 +130,7 @@ pub(crate) async fn leave(ctx: &GameLoopCtx, player_id: PlayerId) {
             return;
         }
     }
-    let mut state = ctx.state.write().await;
-    state.showcase.leave(&player_id);
-    state.live.leave(&player_id);
+    ctx.state.write().await.stop_watching(&player_id).await;
 }
 
 /// Inflate a channel's file off the loop and hand it to the channel.

@@ -428,8 +428,13 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	Out.Set(TEXT("watch.key.seek"), In.WatchKeys.Seek);
 	Out.Set(TEXT("watch.key.speed"), In.WatchKeys.Speed);
 	Out.Set(TEXT("watch.key.pause_menu"), In.WatchKeys.PauseMenu);
+	Out.Set(TEXT("watch.key.setup"), In.WatchKeys.Setup);
+	Out.Set(TEXT("watch.key.replay_lap"), In.WatchKeys.ReplayLap);
+	Out.Set(TEXT("watch.key.ghost"), In.WatchKeys.Ghost);
 	Out.Set(TEXT("spectate.waiting"), In.bSpectating && Frame.Cars.Num() == 0);
 	Out.Set(TEXT("hotlap.active"), In.bSpectating && In.bHotlapWatch);
+	Out.Set(TEXT("hotlap.setup"), In.bSpectating && In.bHotlapWatch
+		? FApexHudValue::Of(In.HotlapSetup.IsEmpty() ? FString(TEXT("stock")) : In.HotlapSetup) : FApexHudValue());
 
 	Out.Set(TEXT("replay.active"), In.bReplay);
 	Out.Set(TEXT("replay.time_s"), In.bReplay ? FApexHudValue::Of(In.ReplaySeconds) : FApexHudValue());
@@ -440,6 +445,8 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	Out.Set(TEXT("replay.rate"), In.bReplay ? FApexHudValue::Of(In.ReplayRate) : FApexHudValue());
 	Out.Set(TEXT("replay.paused"), In.bReplay && In.bReplayPaused);
 	Out.Set(TEXT("replay.ended"), In.bReplay && In.bReplayEnded);
+	Out.Set(TEXT("replay.live"), In.bReplay && In.bReplayLive);
+	Out.Set(TEXT("replay.behind_s"), In.bReplay && In.bReplayLive ? FApexHudValue::Of(In.ReplayBehindSeconds) : FApexHudValue());
 
 	Out.Set(TEXT("session.track_name"), In.TrackName);
 	Out.Set(TEXT("session.car_name"), In.CarName);

@@ -76,6 +76,7 @@ pub const RECORD_INDEX: u8 = 6;
 pub const RECORD_PATH: u8 = 7;
 pub const RECORD_ROAD: u8 = 8;
 pub const RECORD_STATE: u8 = 9;
+pub const RECORD_GHOST: u8 = 10;
 
 /// Seconds between two [`StreamState`] records of a stream.
 pub const STATE_EVERY_S: f32 = 0.25;
@@ -309,7 +310,7 @@ pub fn record_epoch(body: &[u8]) -> Option<u32> {
 pub fn record_tick(body: &[u8]) -> Option<u32> {
     match (record_type(body)?, body) {
         (
-            RECORD_FRAME | RECORD_EVENT | RECORD_ROAD | RECORD_STATE,
+            RECORD_FRAME | RECORD_EVENT | RECORD_ROAD | RECORD_STATE | RECORD_GHOST,
             [_, _, 0xCE, _, _, _, _, 0xCE, a, b, c, d, ..],
         ) => Some(u32::from_be_bytes([*a, *b, *c, *d])),
         _ => None,
@@ -1931,6 +1932,110 @@ impl Index {
     }
 }
 
+// --- Ghost --------------------------------------------------------------------
+
+/// A lap to race against: a watched hotlap's fastest (the server's live
+/// stream) or a hotlap replay's record lap (the client's recorder), as
+/// `GhostLap` carries it, with each sample's pose cut to position and yaw.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StreamGhost {
+    pub epoch: u32,
+    pub tick: u32,
+    pub lap_time_ms: u32,
+    pub sample_hz: f32,
+    pub track_id: String,
+    pub car_config_id: String,
+    /// Milliseconds into the lap, then x, y, z (m) and yaw (rad).
+    pub samples: Vec<(i32, [f32; 4])>,
+}
+
+/// Bytes per ghost sample: the time, i32, then four f32s, little-endian.
+pub const GHOST_SAMPLE_SIZE: usize = 20;
+
+impl StreamGhost {
+    pub fn from_lap(
+        epoch: u32,
+        tick: u32,
+        track_id: TrackConfigId,
+        car_config_id: CarConfigId,
+        lap: &crate::records::GhostLap,
+    ) -> Self {
+        Self {
+            epoch,
+            tick,
+            lap_time_ms: lap.lap_time_ms,
+            sample_hz: lap.sample_hz,
+            track_id: track_id.to_string(),
+            car_config_id: car_config_id.to_string(),
+            samples: lap
+                .samples
+                .iter()
+                .map(|s| {
+                    (
+                        s.t_ms.min(i32::MAX as u32) as i32,
+                        [s.x, s.y, s.z, s.yaw_rad],
+                    )
+                })
+                .collect(),
+        }
+    }
+
+    /// `[10, epoch, tick, lap_time_ms, sample_hz, track_id, car_config_id,
+    /// bin of samples]`, as the client's `ApexSpectatorWriter::EncodeGhost`.
+    pub fn encode(&self) -> Vec<u8> {
+        let mut samples = Vec::with_capacity(self.samples.len() * GHOST_SAMPLE_SIZE);
+        for (t_ms, pose) in &self.samples {
+            samples.extend_from_slice(&t_ms.to_le_bytes());
+            for v in pose {
+                samples.extend_from_slice(&v.to_le_bytes());
+            }
+        }
+        let mut out = Vec::with_capacity(samples.len() + 96);
+        begin(&mut out, 8, RECORD_GHOST, self.epoch);
+        wr::u32_fixed(&mut out, self.tick);
+        wr::uint(&mut out, self.lap_time_ms as u64);
+        wr::f32(&mut out, self.sample_hz);
+        wr::str(&mut out, &self.track_id);
+        wr::str(&mut out, &self.car_config_id);
+        wr::bin(&mut out, &samples);
+        out
+    }
+
+    fn decode(rd: &mut Rd, len: usize, epoch: u32) -> Result<Self, StreamError> {
+        if len < 8 {
+            return malformed("ghost of too few fields");
+        }
+        let tick = rd.uint()? as u32;
+        let lap_time_ms = rd.uint()? as u32;
+        let sample_hz = rd.f32()?;
+        let track_id = rd.str()?;
+        let car_config_id = rd.str()?;
+        let samples = rd
+            .bin()?
+            .as_chunks::<GHOST_SAMPLE_SIZE>()
+            .0
+            .iter()
+            .map(|c| {
+                let f = |at: usize| f32::from_le_bytes([c[at], c[at + 1], c[at + 2], c[at + 3]]);
+                (
+                    i32::from_le_bytes([c[0], c[1], c[2], c[3]]),
+                    [f(4), f(8), f(12), f(16)],
+                )
+            })
+            .collect();
+        rd.skip_rest(len, 8)?;
+        Ok(Self {
+            epoch,
+            tick,
+            lap_time_ms,
+            sample_hz,
+            track_id,
+            car_config_id,
+            samples,
+        })
+    }
+}
+
 // --- Any record ---------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1944,6 +2049,7 @@ pub enum Record {
     Path(StreamPath),
     Road(StreamRoad),
     State(StreamState),
+    Ghost(StreamGhost),
     /// A record type this build does not know.
     Unknown(u8),
 }
@@ -1960,7 +2066,7 @@ impl Record {
             RECORD_BLOCK => Ok(Record::Block(Block::decode(&mut rd, len)?)),
             RECORD_INDEX => Ok(Record::Index(Index::decode(&mut rd, len)?)),
             RECORD_HEADER | RECORD_ROSTER | RECORD_FRAME | RECORD_EVENT | RECORD_PATH
-            | RECORD_ROAD | RECORD_STATE => {
+            | RECORD_ROAD | RECORD_STATE | RECORD_GHOST => {
                 let epoch = rd.uint()? as u32;
                 Ok(match kind {
                     RECORD_HEADER => Record::Header(StreamHeader::decode(&mut rd, len, epoch)?),
@@ -1969,6 +2075,7 @@ impl Record {
                     RECORD_EVENT => Record::Event(StreamEvent::decode(&mut rd, len, epoch)?),
                     RECORD_PATH => Record::Path(StreamPath::decode(&mut rd, len, epoch)?),
                     RECORD_ROAD => Record::Road(StreamRoad::decode(&mut rd, len, epoch)?),
+                    RECORD_GHOST => Record::Ghost(StreamGhost::decode(&mut rd, len, epoch)?),
                     _ => Record::State(StreamState::decode(&mut rd, len, epoch)?),
                 })
             }
@@ -1987,6 +2094,7 @@ impl Record {
             Record::Path(r) => r.encode(),
             Record::Road(r) => r.encode(),
             Record::State(r) => r.encode(),
+            Record::Ghost(r) => r.encode(),
             Record::Unknown(kind) => {
                 let mut out = Vec::new();
                 wr::array(&mut out, 2);
@@ -3288,6 +3396,28 @@ mod tests {
     /// The golden bytes the client's codec is tested against:
     /// `cargo test spectator_wire_format -- --nocapture`, pasted into
     /// `ApexSpectatorGoldenBlobs.h`.
+    fn sample_ghost() -> StreamGhost {
+        StreamGhost {
+            epoch: 3,
+            tick: 9000,
+            lap_time_ms: 82_615,
+            sample_hz: 20.0,
+            track_id: "00000000-0000-0000-0000-000000000007".to_string(),
+            car_config_id: "00000000-0000-0000-0000-000000000009".to_string(),
+            samples: vec![(0, [1.0, 2.0, 0.5, 0.25]), (50, [3.5, -2.0, 0.75, -1.5])],
+        }
+    }
+
+    #[test]
+    fn a_ghost_round_trips_and_has_its_tick_in_place() {
+        let ghost = sample_ghost();
+        let body = ghost.encode();
+        assert_eq!(record_type(&body), Some(RECORD_GHOST));
+        assert_eq!(record_epoch(&body), Some(3));
+        assert_eq!(record_tick(&body), Some(9000));
+        assert_eq!(Record::decode(&body).unwrap(), Record::Ghost(ghost));
+    }
+
     #[test]
     fn spectator_wire_format() {
         let header = sample_header().encode();
@@ -3368,6 +3498,19 @@ mod tests {
         let state = sample_state().encode();
         let pit_service = sample_pit_service().encode();
         let file = sample_content().to_bytes().unwrap();
+        let ghost = sample_ghost().encode();
+
+        println!(
+            "	inline constexpr uint8 Ghost[] = {{
+		{}
+	}};
+",
+            hex(&ghost)
+        );
+        assert_eq!(
+            &ghost[..12],
+            &[0x98, RECORD_GHOST, 0xCE, 0, 0, 0, 3, 0xCE, 0, 0, 0x23, 0x28]
+        );
 
         println!(
             "\tinline constexpr uint8 State[] = {{\n\t\t{}\n\t}};\n",

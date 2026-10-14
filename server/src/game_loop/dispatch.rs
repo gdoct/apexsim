@@ -98,6 +98,7 @@ pub(crate) async fn handle_message(
             grid_order,
             qualifying_seconds,
             weekend,
+            watch,
         } => {
             handle_create_session(
                 ctx,
@@ -115,6 +116,7 @@ pub(crate) async fn handle_message(
                 grid_order,
                 qualifying_seconds,
                 weekend,
+                watch.unwrap_or_default(),
             )
             .await;
         }
@@ -353,6 +355,7 @@ async fn handle_create_session(
     grid_order: Vec<String>,
     qualifying_seconds: Option<u32>,
     weekend: Option<crate::weekend::WeekendFormat>,
+    watch: crate::network::HotlapWatchOptions,
 ) {
     let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
@@ -391,7 +394,8 @@ async fn handle_create_session(
     if is_hotlap_watch {
         // One session per player: a hotlap being watched makes way for the
         // next (another car, another sky), without a word to the client,
-        // which is asking for the replacement.
+        // which is asking for the replacement. (One watched as a stream went
+        // with the implied `LeaveSpectate`: `showcase::leave`.)
         if let Some(old) = state_write
             .lobby
             .get_spectating_session(conn_info.player_id)
@@ -406,6 +410,7 @@ async fn handle_create_session(
                     .lobby
                     .leave_session(conn_info.player_id, connection_id)
                     .await;
+                state_write.keep_hotlap_watch(&old);
                 state_write.sessions.remove(&old);
                 state_write.lobby.unregister_session(old).await;
             }
@@ -485,6 +490,17 @@ async fn handle_create_session(
         game_session.set_qualifying_seconds(qualifying_seconds);
         game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
     }
+    if is_hotlap_watch {
+        if let Some(setup) = watch.setup {
+            if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
+                game_session.set_hotlap_watch_setup(setup);
+            }
+        }
+        // What an earlier watch of this circuit and car left: the driver as
+        // far down the ladder as it went (for this weather and setup), and
+        // the fastest lap anyone watched, as the ghost.
+        state_write.resume_hotlap_watch(&session_id);
+    }
 
     // Register session in lobby
     let track_name = state_write
@@ -541,6 +557,10 @@ async fn handle_create_session(
 
     state_write.lobby.register_session(session_info).await;
 
+    if is_hotlap_watch && watch.stream {
+        start_streamed_hotlap_watch(ctx, state_write, &conn_info, connection_id, session_id).await;
+        return;
+    }
     if is_demo {
         start_demo_session(
             ctx,
@@ -659,6 +679,45 @@ async fn handle_create_session(
 /// Seconds of grid before a demo race goes green: long enough for the
 /// client's broadcast camera to open on the grid.
 const DEMO_COUNTDOWN_SECONDS: u16 = 8;
+
+/// Second half of creating a `HotlapWatch` watched as a stream: the creator
+/// goes on the session's spectator stream, as `SpectateSession` puts a
+/// viewer (`SpectatorJoined`, then the catch-up and the records as it
+/// ticks), with the corners for the HUD ahead of it. Not a participant and
+/// not a spectator of the session: nothing holds a seat, and the session
+/// goes when they stop watching (`showcase::leave`).
+async fn start_streamed_hotlap_watch(
+    ctx: &GameLoopCtx,
+    mut state_write: tokio::sync::RwLockWriteGuard<'_, crate::server::ServerState>,
+    conn_info: &ConnectionInfo,
+    connection_id: ConnectionId,
+    session_id: SessionId,
+) {
+    let corners = state_write
+        .sessions
+        .get(&session_id)
+        .and_then(|s| s.track_corners_message(session_id));
+    state_write.showcase.leave(&conn_info.player_id);
+    state_write.live.join(conn_info.player_id, session_id);
+    drop(state_write);
+    debug!(
+        "Hotlap watch {} streamed to player {}",
+        session_id, conn_info.player_name
+    );
+    let _ = ctx
+        .send(
+            connection_id,
+            ServerMessage::SpectatorJoined(crate::network::SpectatorJoinedData {
+                stream_id: session_id,
+                kind: crate::network::SpectatorKind::Live,
+                showcase_id: String::new(),
+            }),
+        )
+        .await;
+    if let Some(msg) = corners {
+        let _ = ctx.send(connection_id, msg).await;
+    }
+}
 
 /// Second half of creating a `SessionKind::Demo` or `HotlapWatch`: the host
 /// watches as a spectator (so no car of theirs is on the grid). A demo's AI

@@ -1,5 +1,6 @@
-// A saved replay's transport: where it is, how fast, paused or over, and its
-// keys. Floats under the watched car's card, where the mirror would be.
+// A saved replay's transport, or a live stream's held back (`replay.live`:
+// LIVE, or how far behind it plays): where it is, how fast, paused or over,
+// and its keys. Floats under the watched car's card, where the mirror would be.
 {
   "name": "Replay transport",
   "region": "top",
@@ -18,7 +19,7 @@
               "background": "=replay.ended ? 'surface_hover' : replay.paused ? 'accent' : 'live'",
               "children": [{ "type": "text", "font": "mono", "size": 11, "tracking": 80, "bold": true,
                 "color": "=replay.ended ? 'text_secondary' : 'on_accent'",
-                "text": "=replay.ended ? 'END' : replay.paused ? 'PAUSED' : 'REPLAY'" }] },
+                "text": "=replay.ended ? 'END' : replay.paused ? 'PAUSED' : replay.live ? (replay.behind_s > 0.5 ? '-' + fmt_time(replay.behind_s) : 'LIVE') : 'REPLAY'" }] },
             { "type": "text", "margin": [12, 0, 0, 0], "valign": "center", "font": "mono", "size": 14,
               "text": "=fmt_time(replay.time_s) + '  /  ' + fmt_time(replay.duration_s)" },
             { "type": "spacer", "fill": 1 },

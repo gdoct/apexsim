@@ -297,6 +297,7 @@ async fn start_free_practice(client: &mut ProtocolTestClient) {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         })
         .await;
     client
@@ -419,6 +420,7 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         })
         .await;
     client

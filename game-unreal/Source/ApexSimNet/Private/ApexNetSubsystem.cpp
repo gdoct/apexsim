@@ -219,6 +219,7 @@ void UApexNetSubsystem::SpectateShowcase(const FString& Id)
 	}
 	// One backdrop at a time: the server's demo session goes first.
 	LeaveDemoSession();
+	bHotlapWatchStream = false;
 	UE_LOG(LogApexSimNet, Log, TEXT("-> SpectateShowcase %s"), Id.IsEmpty() ? TEXT("(first)") : *Id);
 	bSpectateRequested = true;
 	bSpectating = false;
@@ -232,6 +233,7 @@ void UApexNetSubsystem::SpectateSession(const FString& SessionId)
 		return;
 	}
 	LeaveDemoSession();
+	bHotlapWatchStream = false;
 	UE_LOG(LogApexSimNet, Log, TEXT("-> SpectateSession %s"), *SessionId);
 	bSpectateRequested = true;
 	bSpectating = false;
@@ -256,6 +258,7 @@ void UApexNetSubsystem::ResetSpectate()
 {
 	bSpectating = false;
 	bSpectateRequested = false;
+	bHotlapWatchStream = false;
 	if (UdpConnection)
 	{
 		UdpConnection->DiscardQueuedSpectatorRecords();
@@ -509,8 +512,58 @@ void UApexNetSubsystem::JoinAsSpectator(const FString& SessionId)
 	SendPayload(ApexProtocol::EncodeJoinAsSpectator(SessionId));
 }
 
+namespace
+{
+	FApexSessionSummary HotlapSummary(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
+		const FApexSessionConditions& Conditions)
+	{
+		FApexSessionSummary Summary;
+		Summary.TrackId = TrackConfigId;
+		Summary.TrackName = TrackName;
+		Summary.TrackFile = FString::Printf(TEXT("tracks/default/%s/%s.yaml"), *TrackStem, *TrackStem);
+		Summary.SessionKind = EApexSessionKind::HotlapWatch;
+		Summary.State = EApexSessionState::Racing;
+		Summary.Conditions = Conditions;
+		Summary.MaxPlayers = 1;
+		return Summary;
+	}
+
+	ApexProtocol::FHotlapWatchOptions HotlapOptions(bool bStream, const FApexCarSetup* Setup)
+	{
+		ApexProtocol::FHotlapWatchOptions Options;
+		Options.bStream = bStream;
+		Options.bHasSetup = Setup != nullptr;
+		if (Setup)
+		{
+			Options.Setup = *Setup;
+		}
+		return Options;
+	}
+}
+
+void UApexNetSubsystem::SpectateHotlapWatch(const FString& TrackConfigId, const FString& TrackName,
+	const FString& TrackStem, const FApexSessionConditions& Conditions, const FApexCarSetup* Setup)
+{
+	if (!IsAuthenticated() || (!CurrentSessionId.IsEmpty() && !bInDemoSession))
+	{
+		return;
+	}
+	UE_LOG(LogApexSimNet, Log, TEXT("-> CreateSession (hotlap watch, as a stream) track=%s conditions=%s%s"),
+		*TrackConfigId, *Conditions.Describe(), Setup ? TEXT(" with a setup") : TEXT(""));
+	LeaveDemoSession();
+	bSpectateRequested = true;
+	bSpectating = false;
+	bHotlapWatchStream = true;
+	CachedCorners = FApexTrackCorners();
+	HotlapWatchSummary = HotlapSummary(TrackConfigId, TrackName, TrackStem, Conditions);
+	const ApexProtocol::FHotlapWatchOptions Options = HotlapOptions(true, Setup);
+	SendPayload(ApexProtocol::EncodeCreateSession(TrackConfigId, 1, 1, 3, EApexSessionKind::HotlapWatch,
+		FApexAllowedAssists(), Conditions, EApexDamageLevel::Full, ApexAiSkill::Mixed, 0, TArray<FString>(), 0,
+		FApexWeekendFormat(), &Options));
+}
+
 void UApexNetSubsystem::CreateHotlapWatch(const FString& TrackConfigId, const FString& TrackName,
-	const FString& TrackStem, const FApexSessionConditions& Conditions)
+	const FString& TrackStem, const FApexSessionConditions& Conditions, const FApexCarSetup* Setup)
 {
 	UE_LOG(LogApexSimNet, Log, TEXT("-> CreateSession (hotlap watch) track=%s conditions=%s"),
 		*TrackConfigId, *Conditions.Describe());
@@ -523,15 +576,16 @@ void UApexNetSubsystem::CreateHotlapWatch(const FString& TrackConfigId, const FS
 	bHotlapWatchRequested = true;
 	SessionRequestSentSeconds = FPlatformTime::Seconds();
 
-	HotlapWatchSummary = FApexSessionSummary();
-	HotlapWatchSummary.TrackId = TrackConfigId;
-	HotlapWatchSummary.TrackName = TrackName;
-	HotlapWatchSummary.TrackFile = FString::Printf(TEXT("tracks/default/%s.yaml"), *TrackStem);
-	HotlapWatchSummary.SessionKind = EApexSessionKind::HotlapWatch;
-	HotlapWatchSummary.State = EApexSessionState::Racing;
-	HotlapWatchSummary.Conditions = Conditions;
-	HotlapWatchSummary.MaxPlayers = 1;
+	HotlapWatchSummary = HotlapSummary(TrackConfigId, TrackName, TrackStem, Conditions);
 
+	if (Setup)
+	{
+		const ApexProtocol::FHotlapWatchOptions Options = HotlapOptions(false, Setup);
+		SendPayload(ApexProtocol::EncodeCreateSession(TrackConfigId, 1, 1, 3, EApexSessionKind::HotlapWatch,
+			FApexAllowedAssists(), Conditions, EApexDamageLevel::Full, ApexAiSkill::Mixed, 0, TArray<FString>(), 0,
+			FApexWeekendFormat(), &Options));
+		return;
+	}
 	SendPayload(ApexProtocol::EncodeCreateSession(
 		TrackConfigId, 1, 1, 3, EApexSessionKind::HotlapWatch, FApexAllowedAssists(), Conditions));
 }
@@ -757,7 +811,7 @@ bool UApexNetSubsystem::FindSessionById(const FString& SessionId, FApexSessionSu
 		}
 	}
 	// A watched hotlap is unlisted: the summary made when it was asked for.
-	if (bHotlapWatch && !SessionId.IsEmpty() && HotlapWatchSummary.Id.Equals(SessionId, ESearchCase::IgnoreCase))
+	if (IsHotlapWatch() && !SessionId.IsEmpty() && HotlapWatchSummary.Id.Equals(SessionId, ESearchCase::IgnoreCase))
 	{
 		OutSession = HotlapWatchSummary;
 		return true;
@@ -1431,6 +1485,10 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		if (UdpConnection)
 		{
 			UdpConnection->DiscardQueuedSpectatorRecords();
+		}
+		if (bHotlapWatchStream)
+		{
+			HotlapWatchSummary.Id = Message.StreamId;
 		}
 		UE_LOG(LogApexSimNet, Log, TEXT("<- SpectatorJoined showcase %s stream %s"), *Message.ShowcaseId, *Message.StreamId);
 		OnSpectatorJoined.Broadcast(Message.StreamId, Message.ShowcaseId);

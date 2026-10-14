@@ -6,6 +6,7 @@
 #include "ApexNetSubsystem.h"
 #include "ApexPlayerController.h"
 #include "ApexSettingsSubsystem.h"
+#include "ApexSpectatorSubsystem.h"
 #include "ApexSim.h"
 #include "Camera/CameraComponent.h"
 #include "Cars/ApexCarContentSubsystem.h"
@@ -865,6 +866,10 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 			bLocalServicedThisVisit = Car.bInPitLane && (bLocalServicedThisVisit || Car.bPitServicing);
 		}
 		FCarProgress& Progress = CarProgress.FindOrAdd(Car.CarIndex);
+		if (Progress.Lap != Car.CurrentLap)
+		{
+			Progress.LapStartTick = Frame.ServerTick;
+		}
 		Progress.Lap = Car.CurrentLap;
 		Progress.StationM = Car.TrackProgress;
 		Progress.bOnTrack = Car.bIsOnTrack;
@@ -1292,11 +1297,20 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 			// The menu owns input; nothing here drives, looks or swaps cameras.
 			return;
 		}
-		// Watched: the spectator's chase and onboard cameras ride the car.
+		// Watched: the spectator's chase and onboard cameras ride the car,
+		// and a hotlap's ghost rides beside it.
 		UpdateHeadMotion(DeltaSeconds);
 		UpdateLook(DeltaSeconds);
 		UpdateCockpitCamera();
 		UpdateCarAudio();
+		if (bGhostReplay)
+		{
+			UpdateGhostReplay(DeltaSeconds);
+		}
+		else
+		{
+			UpdateWatchGhost(DeltaSeconds);
+		}
 		return;
 	}
 	UpdateHeadMotion(DeltaSeconds);
@@ -1382,8 +1396,10 @@ void AApexRaceDirector::EnsureGhost()
 	}
 	Ghost->SetCarIndex(-1);
 	Ghost->SetDisplayName(TEXT("Ghost"));
-	// The record was set in the car the player is in: the ghost is that car.
-	ApplyCatalogMesh(Ghost, Flow ? Flow->GetPendingCarId() : FString());
+	// The car the lap was driven in (a streamed hotlap's says so); a record
+	// was set in the car the player is in.
+	const FString& LapCar = Net->GetGhostLap().CarConfigId;
+	ApplyCatalogMesh(Ghost, !LapCar.IsEmpty() ? LapCar : Flow ? Flow->GetPendingCarId() : FString());
 	Ghost->ApplyGhostLook();
 	Ghost->SetLap(Net->GetGhostLap());
 	bGhostClockValid = false;
@@ -1468,6 +1484,55 @@ void AApexRaceDirector::UpdateGhost(float DeltaSeconds)
 	Ghost->SetGhostVisible(!bGhostOverlapHidden);
 }
 
+void AApexRaceDirector::UpdateWatchGhost(float DeltaSeconds)
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Ghost)
+	{
+		EnsureGhost();
+		if (!Ghost)
+		{
+			return;
+		}
+	}
+	const UApexSettingsSave* Values = GetSettings() ? GetSettings()->Get() : nullptr;
+	const AApexRaceCarActor* Watched = FindCar(SpectatorFocus);
+	const FCarProgress* Progress = CarProgress.Find(SpectatorFocus);
+	const UApexSpectatorSubsystem* Stream = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>() : nullptr;
+	const int32 TickRate = Stream && Stream->HasHeader() ? Stream->GetHeader().TickRate : 0;
+	const bool bWanted = Net && Watched && Progress && Progress->Lap > 0 && Progress->LapStartTick >= 0 && TickRate > 0
+		&& (!Values || Values->bGhostCar);
+	if (!bWanted)
+	{
+		Ghost->SetClockMs(-1.0f);
+		bGhostClockValid = false;
+		return;
+	}
+	// The watched car's lap time on the stream's own ticks: it stands still
+	// while the stream is paused and runs at the stream's speed.
+	const float TargetMs = static_cast<float>(Net->GetLatestTelemetry().ServerTick - Progress->LapStartTick) * 1000.0f / TickRate;
+	const float Rate = Stream->IsPaused() && !Stream->IsAtLiveEdge() ? 0.0f : Stream->GetPlaybackRate();
+	if (!bGhostClockValid || FMath::Abs(TargetMs - GhostClockMs) > 500.0f)
+	{
+		GhostClockMs = TargetMs;
+		bGhostClockValid = true;
+	}
+	else
+	{
+		GhostClockMs += DeltaSeconds * 1000.0f * Rate;
+		GhostClockMs += (TargetMs - GhostClockMs) * FMath::Min(1.0f, DeltaSeconds * 4.0f);
+	}
+	Ghost->SetClockMs(FMath::Max(0.0f, GhostClockMs));
+
+	// Never inside the watched car: hidden close up, back once clear.
+	const float Distance = static_cast<float>(FVector::Dist(Watched->GetActorLocation(), Ghost->GetActorLocation()));
+	if (bGhostOverlapHidden ? Distance > GhostShowDistanceCm : Distance < GhostHideDistanceCm)
+	{
+		bGhostOverlapHidden = !bGhostOverlapHidden;
+	}
+	Ghost->SetGhostVisible(!bGhostOverlapHidden);
+}
+
 int32 AApexRaceDirector::GetGhostLapTimeMs() const
 {
 	return Ghost ? Ghost->GetLapTimeMs() : 0;
@@ -1476,7 +1541,8 @@ int32 AApexRaceDirector::GetGhostLapTimeMs() const
 bool AApexRaceDirector::BeginGhostReplay()
 {
 	EnsureGhost();
-	if (!Ghost || !Ghost->HasLap() || !bRaceViewActive)
+	// Driving, or watching a stream with a ghost (a streamed hotlap).
+	if (!Ghost || !Ghost->HasLap() || !(bRaceViewActive || (bDemoView && bSpectating)))
 	{
 		return false;
 	}
@@ -1485,6 +1551,9 @@ bool AApexRaceDirector::BeginGhostReplay()
 		return true;
 	}
 	bGhostReplay = true;
+	// The replay's own cuts, not the TV director's.
+	bReplayTvWas = bTvView;
+	bTvView = false;
 	ReplayClockMs = -ReplayLeadInSeconds * 1000.0f;
 	ReplayShot = -1;
 	ReplayShotSeconds = 0.0f;
@@ -1513,6 +1582,13 @@ void AApexRaceDirector::EndGhostReplay()
 	bShotCameraPose = false;
 	bCockpitView = bReplayCockpitWas;
 	ChaseLevel = ReplayChaseLevelWas;
+	if (bReplayTvWas)
+	{
+		bTvView = true;
+		bHasTvPose = false;
+		Tv.RequestCut();
+		bReplayTvWas = false;
+	}
 	ShotCamera->SetFieldOfView(ReplayShotCameraRestFov);
 	if (Ghost)
 	{

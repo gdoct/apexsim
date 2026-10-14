@@ -11,6 +11,12 @@
 
 namespace
 {
+	/**
+	 * The most a live stream's timeshift keeps before its oldest frames go:
+	 * hours of a hotlap, an hour or so of a full field.
+	 */
+	constexpr int64 LiveBufferCapBytes = 256ll * 1024 * 1024;
+
 	FAutoConsoleCommandWithWorldAndArgs SpectateInfoCommand(
 		TEXT("apexsim.spectate.Info"),
 		TEXT("Print what the spectator player is doing: source, epoch, frames applied and dropped."),
@@ -167,6 +173,23 @@ bool UApexSpectatorSubsystem::WatchLive(const FString& SessionId)
 	return true;
 }
 
+bool UApexSpectatorSubsystem::WatchHotlap(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
+	const FApexSessionConditions& Conditions, const FApexCarSetup* Setup)
+{
+	Stop();
+	UApexNetSubsystem* Net = GetNet();
+	if (!Net || !Net->IsAuthenticated())
+	{
+		return false;
+	}
+	Source = EApexSpectatorSource::Net;
+	bLiveSource = true;
+	SourceName = FString::Printf(TEXT("hotlap at %s"), *TrackStem);
+	bLoading = true;
+	Net->SpectateHotlapWatch(TrackConfigId, TrackName, TrackStem, Conditions, Setup);
+	return true;
+}
+
 void UApexSpectatorSubsystem::Stop()
 {
 	if (Source == EApexSpectatorSource::Net)
@@ -202,15 +225,163 @@ void UApexSpectatorSubsystem::Stop()
 	bLoop = true;
 	bPaused = false;
 	PlaybackRate = 1.0f;
+	LiveRecords.Reset();
+	LiveTicks.Reset();
+	LiveBytes = 0;
+	LiveCursor = 0;
+	LiveClock = 0.0;
+	LiveStartTick = -1;
+	bAtLiveEdge = true;
 }
 
 void UApexSpectatorSubsystem::SetPlaybackRate(float Rate)
 {
 	PlaybackRate = FMath::Clamp(Rate, 0.25f, 4.0f);
+	if (CanTimeshift() && PlaybackRate < 1.0f)
+	{
+		// Slower than it comes in: the stream falls behind its edge.
+		if (bAtLiveEdge)
+		{
+			LiveClock = static_cast<double>(LiveEdgeTick());
+		}
+		bAtLiveEdge = false;
+	}
+}
+
+void UApexSpectatorSubsystem::SetPaused(bool bInPaused)
+{
+	bPaused = bInPaused;
+	if (bPaused && CanTimeshift())
+	{
+		if (bAtLiveEdge)
+		{
+			LiveClock = static_cast<double>(LiveEdgeTick());
+		}
+		bAtLiveEdge = false;
+	}
+}
+
+int32 UApexSpectatorSubsystem::LiveTickRate() const
+{
+	return Player.HasHeader() && Player.GetHeader().TickRate > 0 ? Player.GetHeader().TickRate : 420;
+}
+
+double UApexSpectatorSubsystem::GetSecondsBehindLive() const
+{
+	if (!CanTimeshift() || bAtLiveEdge)
+	{
+		return 0.0;
+	}
+	return FMath::Max(0.0, (static_cast<double>(LiveEdgeTick()) - LiveClock) / LiveTickRate());
+}
+
+void UApexSpectatorSubsystem::KeepLive(TArrayView<const uint8> Run)
+{
+	// [u32 big-endian length][body], as the TCP message and a datagram carry them.
+	int32 At = 0;
+	int64 Last = LiveTicks.IsEmpty() ? 0 : LiveTicks.Last();
+	while (At + 4 <= Run.Num())
+	{
+		const int32 Length = static_cast<int32>((static_cast<uint32>(Run[At]) << 24) | (static_cast<uint32>(Run[At + 1]) << 16)
+			| (static_cast<uint32>(Run[At + 2]) << 8) | static_cast<uint32>(Run[At + 3]));
+		At += 4;
+		if (Length < 0 || At + Length > Run.Num())
+		{
+			break;
+		}
+		TArray<uint8> Body(Run.GetData() + At, Length);
+		At += Length;
+		int64 Tick = Last;
+		ApexSpectator::RecordTick(Body, Tick);
+		// A frame part late off UDP (an older tick) stays in arrival order:
+		// the player drops what it has passed anyway.
+		Last = FMath::Max(Last, Tick);
+		if (LiveStartTick < 0 && ApexSpectator::RecordType(Body) == ApexSpectator::RecordFrame)
+		{
+			LiveStartTick = Tick;
+		}
+		LiveBytes += Body.Num();
+		LiveTicks.Add(Last);
+		LiveRecords.Add(MoveTemp(Body));
+	}
+	if (LiveBytes > LiveBufferCapBytes)
+	{
+		TrimLive();
+	}
+}
+
+void UApexSpectatorSubsystem::TrimLive()
+{
+	// The oldest frames go, down to three quarters of the cap; everything
+	// else (the header, the roster, the timing so far) stays, so a seek to
+	// the start still knows the race.
+	int64 ToFree = LiveBytes - LiveBufferCapBytes * 3 / 4;
+	TArray<TArray<uint8>> Kept;
+	TArray<int64> KeptTicks;
+	Kept.Reserve(LiveRecords.Num());
+	KeptTicks.Reserve(LiveRecords.Num());
+	int32 DroppedBeforeCursor = 0;
+	LiveStartTick = -1;
+	for (int32 Index = 0; Index < LiveRecords.Num(); ++Index)
+	{
+		const bool bFrame = ApexSpectator::RecordType(LiveRecords[Index]) == ApexSpectator::RecordFrame;
+		if (bFrame && ToFree > 0)
+		{
+			ToFree -= LiveRecords[Index].Num();
+			LiveBytes -= LiveRecords[Index].Num();
+			DroppedBeforeCursor += Index < LiveCursor ? 1 : 0;
+			continue;
+		}
+		if (bFrame && LiveStartTick < 0)
+		{
+			LiveStartTick = LiveTicks[Index];
+		}
+		Kept.Add(MoveTemp(LiveRecords[Index]));
+		KeptTicks.Add(LiveTicks[Index]);
+	}
+	LiveRecords = MoveTemp(Kept);
+	LiveTicks = MoveTemp(KeptTicks);
+	LiveCursor = FMath::Max(0, LiveCursor - DroppedBeforeCursor);
+	LiveClock = FMath::Max(LiveClock, static_cast<double>(LiveStartTick));
+}
+
+void UApexSpectatorSubsystem::ApplyLiveUpTo(double Tick, bool bSkipFrames)
+{
+	FString Error;
+	int32 LastFrameTickStart = INDEX_NONE;
+	while (LiveCursor < LiveRecords.Num() && static_cast<double>(LiveTicks[LiveCursor]) <= Tick)
+	{
+		const TArray<uint8>& Body = LiveRecords[LiveCursor];
+		if (bSkipFrames && ApexSpectator::RecordType(Body) == ApexSpectator::RecordFrame)
+		{
+			if (LastFrameTickStart == INDEX_NONE || LiveTicks[LastFrameTickStart] != LiveTicks[LiveCursor])
+			{
+				LastFrameTickStart = LiveCursor;
+			}
+		}
+		else if (!Player.Apply(Body, Error))
+		{
+			UE_LOG(LogApexSim, Verbose, TEXT("Spectator: a record did not decode: %s"), *Error);
+		}
+		++LiveCursor;
+	}
+	for (int32 Index = LastFrameTickStart; Index != INDEX_NONE && Index < LiveCursor; ++Index)
+	{
+		if (LiveTicks[Index] == LiveTicks[LastFrameTickStart]
+			&& ApexSpectator::RecordType(LiveRecords[Index]) == ApexSpectator::RecordFrame)
+		{
+			Player.Apply(LiveRecords[Index], Error);
+		}
+	}
 }
 
 double UApexSpectatorSubsystem::GetPlaybackSeconds() const
 {
+	if (CanTimeshift())
+	{
+		const double At = bAtLiveEdge ? static_cast<double>(LiveEdgeTick()) : LiveClock;
+		return LiveStartTick < 0 ? 0.0 : FMath::Max(0.0, (At - static_cast<double>(LiveStartTick)) / LiveTickRate());
+	}
 	if (Source != EApexSpectatorSource::File || !Loaded || !Loaded->bOk)
 	{
 		return 0.0;
@@ -221,6 +392,10 @@ double UApexSpectatorSubsystem::GetPlaybackSeconds() const
 
 double UApexSpectatorSubsystem::GetDurationSeconds() const
 {
+	if (CanTimeshift())
+	{
+		return LiveStartTick < 0 ? 0.0 : FMath::Max(0.0, static_cast<double>(LiveEdgeTick() - LiveStartTick) / LiveTickRate());
+	}
 	return Source == EApexSpectatorSource::File && Loaded && Loaded->bOk ? Loaded->File.GetHeader().DurationSeconds() : 0.0;
 }
 
@@ -231,6 +406,29 @@ bool UApexSpectatorSubsystem::IsAtEnd() const
 
 void UApexSpectatorSubsystem::SeekTo(double Seconds)
 {
+	if (CanTimeshift())
+	{
+		const double Start = static_cast<double>(FMath::Max<int64>(LiveStartTick, 0));
+		const double Edge = static_cast<double>(LiveEdgeTick());
+		const double From = bAtLiveEdge ? Edge : LiveClock;
+		const double Target = FMath::Clamp(Start + FMath::Max(0.0, Seconds) * LiveTickRate(), Start, Edge);
+		if (Target < From)
+		{
+			// Back: from the first record (the catch-up's header, which
+			// starts the timing over) forward to the target.
+			LiveCursor = 0;
+		}
+		ApplyLiveUpTo(Target, /*bSkipFrames*/ true);
+		LiveClock = Target;
+		// Past the edge is live again, unless paused there.
+		bAtLiveEdge = Target >= Edge && !bPaused;
+		if (bAtLiveEdge)
+		{
+			PlaybackRate = 1.0f;
+		}
+		Drain();
+		return;
+	}
 	if (Source != EApexSpectatorSource::File || bLoading || bFailed || !Loaded || !Loaded->bOk)
 	{
 		return;
@@ -318,6 +516,18 @@ void UApexSpectatorSubsystem::HandleSpectatorRecords(TArrayView<const uint8> Run
 	{
 		return;
 	}
+	if (bLiveSource)
+	{
+		// Kept for the timeshift; played at once at the live edge.
+		KeepLive(Run);
+		if (bAtLiveEdge)
+		{
+			ApplyLiveUpTo(static_cast<double>(LiveEdgeTick()), /*bSkipFrames*/ false);
+			LiveClock = static_cast<double>(LiveEdgeTick());
+		}
+		Drain();
+		return;
+	}
 	FString Error;
 	if (!Player.ApplyFramed(Run, Error))
 	{
@@ -328,6 +538,25 @@ void UApexSpectatorSubsystem::HandleSpectatorRecords(TArrayView<const uint8> Run
 
 bool UApexSpectatorSubsystem::Tick(float DeltaSeconds)
 {
+	if (CanTimeshift() && !bAtLiveEdge && !bFailed)
+	{
+		// Behind the edge: the kept records on the play clock, until it
+		// catches up (faster than real time, or a seek past the edge).
+		if (!bPaused)
+		{
+			LiveClock += static_cast<double>(DeltaSeconds) * LiveTickRate() * PlaybackRate;
+		}
+		const double Edge = static_cast<double>(LiveEdgeTick());
+		LiveClock = FMath::Min(LiveClock, Edge);
+		ApplyLiveUpTo(LiveClock, /*bSkipFrames*/ false);
+		if (!bPaused && PlaybackRate >= 1.0f && LiveCursor >= LiveRecords.Num() && LiveClock >= Edge)
+		{
+			bAtLiveEdge = true;
+			PlaybackRate = 1.0f;
+		}
+		Drain();
+		return true;
+	}
 	if (Source == EApexSpectatorSource::File && bLoading && Loading.IsValid() && Loading.IsReady())
 	{
 		Loaded = Loading.Get();
@@ -410,6 +639,10 @@ void UApexSpectatorSubsystem::Drain()
 	}
 	if (Player.TakeHeaderChanged())
 	{
+		if (Source == EApexSpectatorSource::Net)
+		{
+			bLoading = false;
+		}
 		const FApexStreamHeader& Header = Player.GetHeader();
 		if (StreamId.IsEmpty())
 		{
@@ -483,6 +716,12 @@ FString UApexSpectatorSubsystem::DescribeState() const
 	if (Source == EApexSpectatorSource::File && Loaded)
 	{
 		Line += FString::Printf(TEXT("; at tick %.0f of %lld, loop %d"), Clock, Loaded->File.GetHeader().EndTick, Loops);
+	}
+	if (CanTimeshift())
+	{
+		Line += FString::Printf(TEXT("; timeshift %d record(s), %.1f MB, "), LiveRecords.Num(), LiveBytes / (1024.0 * 1024.0));
+		Line += bAtLiveEdge ? FString(TEXT("live"))
+			: FString::Printf(TEXT("%.1f s behind%s at %.2fx"), GetSecondsBehindLive(), bPaused ? TEXT(", paused") : TEXT(""), PlaybackRate);
 	}
 	return Line;
 }

@@ -1802,6 +1802,9 @@ UWidget* UApexSettingsWidget::BuildBindingsGrid()
 		{ TEXT("Hour later"),   ApexInput::Actions::WatchTimeLater,   -1, 1, TEXT("Watched hotlap"), true },
 		{ TEXT("Previous circuit"), ApexInput::Actions::WatchPreviousTrack, -1, 1, TEXT("Watched hotlap"), true },
 		{ TEXT("Next circuit"), ApexInput::Actions::WatchNextTrack,   -1, 1, TEXT("Watched hotlap"), true },
+		{ TEXT("Setup"),        ApexInput::Actions::WatchSetup,        0, 1, TEXT("Watched hotlap"), true },
+		{ TEXT("Replay lap"),   ApexInput::Actions::WatchReplayLap,    0, 1, TEXT("Watched hotlap"), true },
+		{ TEXT("Ghost"),        ApexInput::Actions::WatchGhost,       -1, 1, TEXT("Watched hotlap"), true },
 	};
 
 	UHorizontalBox* Grid = WidgetTree->ConstructWidget<UHorizontalBox>();

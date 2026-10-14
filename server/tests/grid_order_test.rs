@@ -108,6 +108,7 @@ async fn the_hosts_start_order_grids_the_race() {
             grid_order: vec!["@ai:2".into(), "@host".into()],
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         })
         .await?;
         let joined = host.wait_joined().await?;

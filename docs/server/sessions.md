@@ -656,9 +656,22 @@ weather, hour and circuit is one request.
 **Session**: `CreateSession` with `HotlapWatch` makes one AI car
 (`AiDriverProfile::new("Hotlap", HOTLAP_WATCH_SKILL)`, skill 110, in the
 host's selected car, `exact_line`); `max_players`, `ai_count` and `ai_skill`
-are ignored. The host gets `SessionJoined`, `TrackSectors` and
-`TrackCorners`. A second such create from the same player replaces the first
-without a `SessionLeft`.
+are ignored. Its `watch` block (`network::HotlapWatchOptions`, left off the
+wire when absent) holds the rest:
+
+- `setup`: the car runs it (`set_hotlap_watch_setup`: clamped as `SetCarSetup`
+  is, the tuned config, the pressures fitted again).
+- `stream`: the host watches on the session's spectator stream, as
+  `SpectateSession` puts a viewer (`start_streamed_hotlap_watch`):
+  `SpectatorJoined`, then `TrackCorners`, then the catch-up and the records.
+  Nothing is joined. `ServerState::stop_watching` removes the session when
+  the host stops watching it: `LeaveSpectate`, a disconnect, or the leave a
+  create or join implies, which is also how a second watch replaces the
+  first.
+
+Without `stream` the host gets `SessionJoined`, `TrackSectors`, `TrackCorners`
+and the racer telemetry. A second create from the same player replaces the
+first without a `SessionLeft`.
 
 **The lap**: `GameMode::Hotlap` from the first tick. The car is put on the
 run-up and held on the brake for `HOTLAP_WATCH_HOLD_S` (6 s), then let go
@@ -671,31 +684,63 @@ without it, then `HOTLAP_WATCH_SKILL_STEP` (3) a step to
 `HOTLAP_WATCH_FLOOR_SKILL` (80). A crash (`HOTLAP_WATCH_CRASH_PCT` 1% in a
 body zone, undrivable or towed) or `HOTLAP_WATCH_STUCK_S` (8 s) without
 headway steps it and resets the car to the run-up; a struck lap steps it.
-The level reached is kept in `ServerState::watch_levels`, keyed by track, car
-and weather (`hotlap_watch_key`), and the next watch of that key starts at it
-(`set_hotlap_watch_level`): the bad laps are not driven again. It is only
-ever eased down, and goes with a server restart.
+The level reached is kept in `ServerState::watch_levels`, keyed by track, car,
+weather and setup (`hotlap_watch_key`; a setup's clicks folded by
+`setup_key`, 0 stock), and the next watch of that key starts at it
+(`resume_hotlap_watch`): the bad laps are not driven again. It is only ever
+eased down, and goes with a server restart.
+
+**The ghost.** The watched car's laps are traced as a human's are
+(`sample_ghost_trace`, `GHOST_SAMPLE_HZ`, up to `MAX_GHOST_SAMPLES`, ten
+minutes). A legal lap faster than the ghost becomes the ghost
+(`update_hotlap_watch`). The fastest one per track and car is kept in
+`ServerState::watch_ghosts` (`keep_hotlap_watch`, before a watch's session
+goes and at cleanup), and the next watch of that track and car starts with
+it, whatever the setup or sky. The stream carries it as a `Ghost` record
+each time it is replaced, and in a newcomer's catch-up
+([spectator](../game/spectator.md)). A watch's laps never reach the record
+store.
 
 **Corners** (`track_guide::wire_corners` -> `TrackCorners`): the guide's
 `detect_corners` in lap order, named from the dossier's `display_name`
 (`name_corners`; else "Turn N" on the client). See
 [track guide](../content/track-guide.md).
 
-**Client** (`UApexRootWidget::StartHotlapWatch` / `ChangeHotlapWatch`,
-`UApexNetSubsystem::CreateHotlapWatch`): the pending circuit and car and the
-last sky; `SelectCar`, then the create, taken like `JoinAsSpectator`. The
-lobby does not list the session, so the net subsystem answers
-`FindSessionById` from the summary it made. Left / Right car, `W` weather,
-`[` / `]` hour, Page Up / Down circuit, and, since a live lap has no
-transport, the watch's seek keys the air (two degrees a press, from what
-the server would name), its speed keys the wind (calm, 8, 15, 25, 40,
-60 km/h) and the number row 1-3 the rubber (green, normal, rubbered), all
-batched for 0.8 s (`HotlapRestartAt`); unanswered in 15 s returns to the
-menu. The HUD is the
-`hotlap_watch` scene: while `hotlap.active` only the `hotlap_*` components
-show (see [HUD modding](../game/hud-modding.md)). `-ApexWatchHotlap
+**Client** (`UApexRootWidget::StartHotlapWatch` / `ChangeHotlapWatch`): the
+pending circuit and car, the last sky, and stock. `SelectCar` comes first,
+then the create. Against a server with `LobbyState.LiveStream` it is
+streamed (`bHotlapStreamRoute`: `UApexDemoModeSubsystem::WatchHotlap` ->
+`UApexSpectatorSubsystem::WatchHotlap` ->
+`UApexNetSubsystem::SpectateHotlapWatch`) and played on the backdrop feed
+like a live session. The timeshift gives it pause, seek and speed, and its
+ghost rides beside the car. Against an older server it is joined like
+`JoinAsSpectator` (`CreateHotlapWatch`). The lobby does not list the session,
+so the net subsystem answers `FindSessionById` from the summary it made.
+
+The keys:
+- Left / Right: the car.
+- `W`: the weather.
+- `[` / `]`: the hour.
+- Page Up / Down: the circuit.
+- `S` / D-pad up: the setup (the garage's saved setups for the car, then stock).
+- 1-3: the rubber (green, normal, rubbered).
+- 4 / 5: the air, two degrees a press from what the server would name.
+- 6 / 7: the wind (calm, 8, 15, 25, 40, 60 km/h).
+
+All of these are batched for 0.8 s (`HotlapRestartAt`).
+
+Streamed, the replay keys are a transport. `R` / D-pad down drives the ghost
+round with the replay's cutting cameras (`ReplayHotlapLap`,
+`AApexRaceDirector::BeginGhostReplay`), and `G` turns the ghost on or off
+(`bGhostCar`). Joined, there is no transport: the seek keys move the air and
+the speed keys the wind.
+
+A watch with no answer in 15 s, or a stream that ends, returns to the menu.
+The HUD is the `hotlap_watch` scene: while `hotlap.active` only the
+`hotlap_*` components show (`hotlap_transport` is the stream's;
+see [HUD modding](../game/hud-modding.md)). `-ApexWatchHotlap
 -ApexTrack=<stem> -ApexCar=<name> -ApexWeather=<sky> -ApexTimeOfDay=HH:MM`
-starts one at launch.
+starts one at launch; `apexsim.watch setup|replaylap|ghost` work as the keys do.
 
 ## Checking it
 
@@ -712,7 +757,7 @@ cargo test --test lap_timing_test             # sectors and track limits round M
 cargo test --test hotlap_test                 # garage, run-up, queue, cold tyres, qualifying outlap
 cargo test --test recovery_test               # back to track, a taken spot, back to pits, refused moving
 cargo test --lib recovery                     # spot choice, traffic release
-cargo test --test hotlap_watch_test           # hold, laps, determinism, corners, over the wire
+cargo test --test hotlap_watch_test           # hold, laps, determinism, corners, ghost, setup, over the wire, as a stream
 cargo test --release --test hotlap_watch_test watch_probe -- --ignored --nocapture   # WATCH_TRACKS/CARS/LAPS
 cargo test --release --test hotlap_test generate_ghost_fixture -- --ignored          # APEXSIM_GHOST_DIR, APEXSIM_GHOST_PLAYER
 ```
@@ -722,7 +767,7 @@ for `assists_wire_format`, `session_damage_wire_format`,
 `session_ai_skill_wire_format`, `race_time_wire_format`,
 `qualifying_time_wire_format`, `weekend_wire_format`, `grid_wire_format`,
 `lap_timing_wire_format`, `telemetry_compact_wire_format`,
-`hotlap_wire_format`, `recover_wire_format`, `track_corners_wire_format`,
+`hotlap_wire_format`, `hotlap_watch_wire_format`, `recover_wire_format`, `track_corners_wire_format`,
 `rejoin_wire_format`.
 
 Client tests: `ApexSim.UI.CreateSession.StartOrder`,

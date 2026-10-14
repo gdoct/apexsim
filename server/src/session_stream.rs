@@ -16,9 +16,10 @@ use crate::data::*;
 use crate::game_session::{GameSession, SessionLapEvent};
 use crate::network::PitServiceData;
 use crate::spectator::{
-    BroadcastEncoder, CarRow, Record, StreamHeader, StreamPath, StreamRoster, EVENT_FINISH,
-    EVENT_LAP_TIMING, EVENT_PIT_SERVICE, EVENT_PIT_STOP, EVENT_RETIRED, EVENT_SESSION_STATE,
-    RECORD_EVENT, RECORD_FRAME, RECORD_ROAD, RECORD_ROSTER, RECORD_STATE, STATE_EVERY_S,
+    BroadcastEncoder, CarRow, Record, StreamGhost, StreamHeader, StreamPath, StreamRoster,
+    EVENT_FINISH, EVENT_LAP_TIMING, EVENT_PIT_SERVICE, EVENT_PIT_STOP, EVENT_RETIRED,
+    EVENT_SESSION_STATE, RECORD_EVENT, RECORD_FRAME, RECORD_GHOST, RECORD_ROAD, RECORD_ROSTER,
+    RECORD_STATE, STATE_EVERY_S,
 };
 
 /// The most timing and pit events a stream remembers for newcomers: an
@@ -45,7 +46,8 @@ pub struct StreamTick {
 
 /// What a viewer who joins a stream part-way needs that no frame holds
 /// (the same rule `showcase::catch_up_bodies` applies to a file): the timing
-/// and pit events so far, the road as last laid, the latest slow state.
+/// and pit events so far, the road as last laid, the latest slow state and
+/// a watched hotlap's ghost.
 #[derive(Default)]
 struct History {
     events: Vec<Vec<u8>>,
@@ -54,6 +56,7 @@ struct History {
     /// slice replaces only one of the same cells.
     roads: Vec<((u32, usize), Vec<u8>)>,
     state: Option<Vec<u8>>,
+    ghost: Option<Vec<u8>>,
 }
 
 impl History {
@@ -69,6 +72,7 @@ impl History {
                 _ => {}
             },
             RECORD_STATE => self.state = Some(body.to_vec()),
+            RECORD_GHOST => self.ghost = Some(body.to_vec()),
             RECORD_ROAD => {
                 if let Ok(Record::Road(road)) = Record::decode(body) {
                     let key = (road.first_cell, road.rows.len());
@@ -89,6 +93,9 @@ pub struct SessionStream {
     roster: StreamRoster,
     road_burst_done: bool,
     history: History,
+    /// The watched hotlap's ghost revision last written
+    /// (`GameSession::hotlap_watch_ghost`).
+    ghost_revision: Option<u32>,
 }
 
 impl SessionStream {
@@ -108,6 +115,7 @@ impl SessionStream {
             roster,
             road_burst_done: false,
             history: History::default(),
+            ghost_revision: None,
         }
     }
 
@@ -124,8 +132,8 @@ impl SessionStream {
 
     /// Everything a viewer joining now is sent, in order, before the records
     /// of the ticks to come: the preamble (header, roster, path, sector
-    /// lines), the timing and pit events so far, the road as last laid and
-    /// the latest slow state.
+    /// lines), the timing and pit events so far, the road as last laid, the
+    /// latest slow state and a watched hotlap's ghost.
     pub fn catch_up(&self, session: &GameSession) -> Vec<Vec<u8>> {
         let mut bodies = vec![
             self.header(session, &Self::track_stem(session)).encode(),
@@ -137,6 +145,7 @@ impl SessionStream {
         bodies.extend(self.history.session_state.iter().cloned());
         bodies.extend(self.history.roads.iter().map(|(_, body)| body.clone()));
         bodies.extend(self.history.state.iter().cloned());
+        bodies.extend(self.history.ghost.iter().cloned());
         bodies
     }
 
@@ -205,6 +214,28 @@ impl SessionStream {
                 self.encoder.roster_revision = next.revision;
                 push(RECORD_ROSTER, next.encode());
                 self.roster = next;
+            }
+        }
+        // A watched hotlap's ghost, each time a faster lap replaces it (and
+        // the one an earlier watch left, at once).
+        if let Some((revision, lap)) = session.hotlap_watch_ghost() {
+            if self.ghost_revision != Some(revision) {
+                self.ghost_revision = Some(revision);
+                let car = session
+                    .session
+                    .ai_player_ids
+                    .first()
+                    .and_then(|id| session.session.participants.get(id))
+                    .map(|c| c.car_config_id)
+                    .unwrap_or_default();
+                let ghost = StreamGhost::from_lap(
+                    self.encoder.epoch,
+                    tick,
+                    session.session.track_config_id,
+                    car,
+                    lap,
+                );
+                push(RECORD_GHOST, ghost.encode());
             }
         }
         // The slow state: the sky, a timed race's clock, every car's tyres

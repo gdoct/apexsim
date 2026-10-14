@@ -98,8 +98,13 @@ bool FApexSpectateKeysTest::RunTest(const FString& Parameters)
 	// The pad's D-pad sets a replay's speed; up and down still step through the field.
 	TestEqual(TEXT("D-pad left is slower"), ActionOf(EKeys::Gamepad_DPad_Left), (int32)EAction::Slower);
 	TestEqual(TEXT("D-pad right is faster"), ActionOf(EKeys::Gamepad_DPad_Right), (int32)EAction::Faster);
-	TestEqual(TEXT("D-pad up is the car ahead"), ActionOf(EKeys::Gamepad_DPad_Up), (int32)EAction::PreviousCar);
-	TestEqual(TEXT("D-pad down is the car behind"), ActionOf(EKeys::Gamepad_DPad_Down), (int32)EAction::NextCar);
+	// D-pad up and down are a watched hotlap's setup and lap again; the shell
+	// steps through the field with them anywhere else (RunWatchCommand).
+	TestEqual(TEXT("D-pad up is the setup"), ActionOf(EKeys::Gamepad_DPad_Up), (int32)EAction::Setup);
+	TestEqual(TEXT("D-pad down is the lap again"), ActionOf(EKeys::Gamepad_DPad_Down), (int32)EAction::ReplayLap);
+	TestEqual(TEXT("S the setup"), ActionOf(EKeys::S), (int32)EAction::Setup);
+	TestEqual(TEXT("R the lap again"), ActionOf(EKeys::R), (int32)EAction::ReplayLap);
+	TestEqual(TEXT("G the ghost"), ActionOf(EKeys::G), (int32)EAction::Ghost);
 	TestEqual(TEXT("the left arrow still steps"), ActionOf(EKeys::Left), (int32)EAction::PreviousCar);
 
 	// A rebound key is the new one's, and the old one is nobody's.
@@ -130,7 +135,7 @@ bool FApexSpectateKeysTest::RunTest(const FString& Parameters)
 				Seen.Add(Def.DefaultKey);
 			}
 		}
-		for (uint8 Raw = static_cast<uint8>(EAction::PreviousCar); Raw <= static_cast<uint8>(EAction::NextTrack); ++Raw)
+		for (uint8 Raw = static_cast<uint8>(EAction::PreviousCar); Raw <= static_cast<uint8>(EAction::Ghost); ++Raw)
 		{
 			if (Raw == static_cast<uint8>(EAction::Position))
 			{

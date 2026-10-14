@@ -302,6 +302,15 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 		&& Record.Event.PitService.Compound == 1 && FMath::IsNearlyEqual(Record.Event.PitService.TyresS, 2.5f)
 		&& FMath::IsNearlyEqual(Record.Event.PitService.FuelL, 30.0f) && FMath::IsNearlyEqual(Record.Event.PitService.TotalS, 8.5f));
 
+	// The ghost a watched hotlap's stream carries (spectator.rs StreamGhost).
+	TestTrue(TEXT("ghost decodes"), ApexSpectator::DecodeRecord(View(Ghost, UE_ARRAY_COUNT(Ghost)), Record, Error));
+	TestEqual(TEXT("ghost type"), (int32)Record.Type, (int32)ApexSpectator::RecordGhost);
+	TestEqual(TEXT("ghost tick"), Record.Ghost.Tick, (int64)9000);
+	TestEqual(TEXT("ghost lap"), Record.Ghost.Lap.LapTimeMs, 82615);
+	TestEqual(TEXT("ghost car"), Record.Ghost.Lap.CarConfigId, FString(TEXT("00000000-0000-0000-0000-000000000009")));
+	TestTrue(TEXT("ghost samples"), Record.Ghost.Lap.Samples.Num() == 2 && Record.Ghost.Lap.Samples[1].TimeMs == 50
+		&& Record.Ghost.Lap.Samples[1].Position.Equals(FVector(3.5, -2.0, 0.75)) && FMath::IsNearlyEqual(Record.Ghost.Lap.Samples[1].YawRad, -1.5f));
+
 	// Rubbish is refused; an unknown record type is reported, not refused.
 	const uint8 Rubbish[] = { 0xC0, 0x01 };
 	TestFalse(TEXT("rubbish refused"), ApexSpectator::DecodeRecord(View(Rubbish, 2), Record, Error));
@@ -636,6 +645,7 @@ bool FApexSpectatorWriterTest::RunTest(const FString& Parameters)
 		case ApexSpectator::RecordPath: Bytes = ApexSpectator::EncodePath(Record.Path); break;
 		case ApexSpectator::RecordRoad: Bytes = ApexSpectator::EncodeRoad(Record.Road); break;
 		case ApexSpectator::RecordState: Bytes = ApexSpectator::EncodeState(Record.State); break;
+		case ApexSpectator::RecordGhost: Bytes = ApexSpectator::EncodeGhost(Record.Ghost); break;
 		default: break;
 		}
 		TestTrue(*FString::Printf(TEXT("%s encodes as the server does"), What), Bytes == TArray<uint8>(Golden, Num));
@@ -650,6 +660,7 @@ bool FApexSpectatorWriterTest::RunTest(const FString& Parameters)
 	RoundTrip(TEXT("road"), Road, UE_ARRAY_COUNT(Road));
 	RoundTrip(TEXT("state"), State, UE_ARRAY_COUNT(State));
 	RoundTrip(TEXT("pit service"), EventPitService, UE_ARRAY_COUNT(EventPitService));
+	RoundTrip(TEXT("ghost"), Ghost, UE_ARRAY_COUNT(Ghost));
 
 	// A row through the telemetry a race director reads and back is the row.
 	{

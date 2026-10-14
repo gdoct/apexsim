@@ -227,6 +227,18 @@ namespace
 			{
 				Command.Action = ApexSpectate::EAction::Slower;
 			}
+			else if (Verb == TEXT("setup"))
+			{
+				Command.Action = ApexSpectate::EAction::Setup;
+			}
+			else if (Verb == TEXT("replaylap"))
+			{
+				Command.Action = ApexSpectate::EAction::ReplayLap;
+			}
+			else if (Verb == TEXT("ghost"))
+			{
+				Command.Action = ApexSpectate::EAction::Ghost;
+			}
 			else
 			{
 				UE_LOG(LogApexSim, Warning, TEXT("apexsim.watch: unknown '%s'"), *Verb);
@@ -2588,8 +2600,13 @@ void UApexRootWidget::StopWatching()
 		if (UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>())
 		{
 			Demo->StopReplay();
+			// A streamed hotlap's session goes with the stream (LeaveSpectate).
 			Demo->StopLive();
 		}
+	}
+	if (bHotlapWatchWanted && Was == EWatchKind::Backdrop)
+	{
+		EndHotlapWatch();
 	}
 	if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
 	{
@@ -2670,7 +2687,8 @@ void UApexRootWidget::PushWatchState()
 	{
 		const UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>();
 		const EApexBackdropSource From = Demo ? Demo->GetSource() : EApexBackdropSource::None;
-		Source = From == EApexBackdropSource::Replay ? TEXT("replay")
+		Source = bHotlapWatchWanted && bHotlapStreamRoute ? TEXT("hotlap")
+			: From == EApexBackdropSource::Replay ? TEXT("replay")
 			: From == EApexBackdropSource::Live        ? TEXT("live")
 			: From == EApexBackdropSource::Showcase    ? TEXT("showcase")
 			: From == EApexBackdropSource::LocalFile   ? TEXT("file")
@@ -2814,8 +2832,40 @@ void UApexRootWidget::RunWatchCommand(const ApexSpectate::FCommand& Command)
 	// buttons stand in for the weather, the hour and the circuit).
 	if (bHotlapWatchWanted)
 	{
+		// The number row past the rubber: the air (4 cooler, 5 warmer) and
+		// the wind (6 lighter, 7 stronger), on either route.
+		if (Command.Action == EAction::Position && Command.Position >= 4 && Command.Position <= 7)
+		{
+			const int32 Step = Command.Position % 2 == 0 ? -1 : 1;
+			ChangeHotlapWatch(Command.Position <= 5 ? EHotlapChoice::AirTemp : EHotlapChoice::Wind, Step);
+			return;
+		}
 		switch (Command.Action)
 		{
+		case EAction::Setup:          ChangeHotlapWatch(EHotlapChoice::Setup, 1); return;
+		case EAction::ReplayLap:      ReplayHotlapLap(); return;
+		case EAction::Ghost:
+			if (UApexSettingsSubsystem* Settings = GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>(); Settings && Settings->Get())
+			{
+				Settings->SetGhostCar(!Settings->Get()->bGhostCar);
+				ShowToast(Settings->Get()->bGhostCar ? TEXT("Ghost on") : TEXT("Ghost off"));
+				ApexUiAudio::Play(this, EApexUiSound::Adjust);
+			}
+			return;
+		// Streamed, the transport is a transport (below).
+		case EAction::PlayPause:
+		case EAction::SeekBack:
+		case EAction::SeekForward:
+		case EAction::Slower:
+		case EAction::Faster:
+			if (bHotlapStreamRoute)
+			{
+				break;
+			}
+			ChangeHotlapWatch(Command.Action == EAction::SeekBack || Command.Action == EAction::SeekForward
+				? EHotlapChoice::AirTemp : EHotlapChoice::Wind,
+				Command.Action == EAction::SeekBack || Command.Action == EAction::Slower ? -1 : 1);
+			return;
 		case EAction::PreviousCar:    ChangeHotlapWatch(EHotlapChoice::Car, -1); return;
 		case EAction::NextCar:        ChangeHotlapWatch(EHotlapChoice::Car, 1); return;
 		case EAction::Weather:
@@ -2826,12 +2876,7 @@ void UApexRootWidget::RunWatchCommand(const ApexSpectate::FCommand& Command)
 		case EAction::PreviousTrack:  ChangeHotlapWatch(EHotlapChoice::Track, -1); return;
 		case EAction::NextTrack:
 		case EAction::NextRace:       ChangeHotlapWatch(EHotlapChoice::Track, 1); return;
-		// A live lap has no transport: the seek keys move the air, the speed
-		// keys the wind, and the number row 1-3 the track's rubber.
-		case EAction::SeekBack:       ChangeHotlapWatch(EHotlapChoice::AirTemp, -1); return;
-		case EAction::SeekForward:    ChangeHotlapWatch(EHotlapChoice::AirTemp, 1); return;
-		case EAction::Slower:         ChangeHotlapWatch(EHotlapChoice::Wind, -1); return;
-		case EAction::Faster:         ChangeHotlapWatch(EHotlapChoice::Wind, 1); return;
+		// The number row 1-3: the track's rubber.
 		case EAction::Position:
 			if (Command.Position >= 1 && Command.Position <= ApexCreateSession::TrackRubberCount)
 			{
@@ -2842,13 +2887,21 @@ void UApexRootWidget::RunWatchCommand(const ApexSpectate::FCommand& Command)
 		}
 	}
 
-	switch (Command.Action)
+	// Outside a hotlap the setup and replay keys are the D-pad's up and down:
+	// they step through the field.
+	EAction Action = Command.Action;
+	if (!bHotlapWatchWanted)
+	{
+		Action = Action == EAction::Setup ? EAction::PreviousCar : Action == EAction::ReplayLap ? EAction::NextCar : Action;
+	}
+
+	switch (Action)
 	{
 	case EAction::PreviousCar:
 	case EAction::NextCar:
 		if (bLive)
 		{
-			Director->StepFocus(Command.Action == EAction::NextCar ? 1 : -1);
+			Director->StepFocus(Action == EAction::NextCar ? 1 : -1);
 			ApexUiAudio::Play(this, EApexUiSound::Move);
 		}
 		break;
@@ -2896,7 +2949,8 @@ void UApexRootWidget::RunWatchCommand(const ApexSpectate::FCommand& Command)
 	case EAction::Faster:
 	{
 		UApexSpectatorSubsystem* Spectator = GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>();
-		if (!IsWatchingReplay() || !Spectator)
+		// A replay, or a live stream held back (the timeshift).
+		if (!Spectator || !(IsWatchingReplay() || (IsWatchingLiveStream() && Spectator->CanTimeshift())))
 		{
 			break;
 		}
@@ -3169,6 +3223,9 @@ bool UApexRootWidget::StartHotlapWatch()
 	}
 	HotlapTrackId = PickOption(Tracks, Flow->GetPendingTrackId())->Id;
 	HotlapCarId = PickOption(Cars, Flow->GetPendingCarId())->Id;
+	HotlapSetupId.Invalidate();
+	// A server that streams a live session streams this one too.
+	bHotlapStreamRoute = Net->IsLiveStreamAvailable();
 	if (!bHotlapConditionsKnown)
 	{
 		// The first watch is under the sky of the last session set up; after
@@ -3200,9 +3257,48 @@ void UApexRootWidget::SendHotlapWatchRequest()
 	Flow->GetTrackCatalogRow(HotlapTrackId, Row);
 	UE_LOG(LogApexSim, Log, TEXT("Hotlap watch: track '%s', car '%s', %s"),
 		*Row.YamlBaseName, *HotlapCarId, *HotlapConditions.Describe());
+	// The saved setup picked, if it is still there.
+	const FApexCarSetup* Setup = nullptr;
+	FApexSavedSetup Saved;
+	if (HotlapSetupId.IsValid())
+	{
+		const UApexSettingsSubsystem* Settings = GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>();
+		for (const FApexSavedSetup& Each : Settings ? Settings->GetSavedSetups(HotlapCarId) : TArray<FApexSavedSetup>())
+		{
+			if (Each.Id == HotlapSetupId)
+			{
+				Saved = Each;
+				Setup = &Saved.Setup;
+			}
+		}
+	}
+	if (UApexHudDataSubsystem* HudData = GetGameInstance()->GetSubsystem<UApexHudDataSubsystem>())
+	{
+		HudData->SetHotlapSetup(Setup ? Saved.Name : FString());
+	}
 	// SelectCar before CreateSession, the order the rest of the shell uses.
 	Net->SelectCar(HotlapCarId);
-	Net->CreateHotlapWatch(HotlapTrackId, Row.DisplayName, Row.YamlBaseName, HotlapConditions);
+	if (bHotlapStreamRoute)
+	{
+		UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>();
+		FString Error;
+		if (!Demo || !Demo->WatchHotlap(HotlapTrackId, Row.DisplayName, Row.YamlBaseName, HotlapConditions, Setup, Error))
+		{
+			ShowToast(FString::Printf(TEXT("Cannot watch the hotlap: %s"), *Error), true);
+			StopWatching();
+			EndHotlapWatch();
+			return;
+		}
+		if (!IsWatching())
+		{
+			WatchBackdrop();
+			bWatchingLiveStream = true;
+		}
+	}
+	else
+	{
+		Net->CreateHotlapWatch(HotlapTrackId, Row.DisplayName, Row.YamlBaseName, HotlapConditions, Setup);
+	}
 	bHotlapJoinPending = true;
 	HotlapRequestedAt = FPlatformTime::Seconds();
 	HotlapRestartAt = -1.0;
@@ -3231,7 +3327,33 @@ void UApexRootWidget::ChangeHotlapWatch(EHotlapChoice Choice, int32 Direction)
 		const int32 At = Cars.IndexOfByPredicate([this](const FHotlapOption& Option) { return Option.Id == HotlapCarId; });
 		const FHotlapOption& Next = Cars[ApexSpectate::StepIndex(Cars.Num(), At == INDEX_NONE ? 0 : At, Direction)];
 		HotlapCarId = Next.Id;
+		// Setups are a car's own.
+		HotlapSetupId.Invalidate();
 		Message = FString::Printf(TEXT("Car: %s"), *Next.Name);
+		break;
+	}
+	case EHotlapChoice::Setup:
+	{
+		const UApexSettingsSubsystem* Settings = GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>();
+		const TArray<FApexSavedSetup> Saved = Settings ? Settings->GetSavedSetups(HotlapCarId) : TArray<FApexSavedSetup>();
+		if (Saved.IsEmpty())
+		{
+			ShowToast(TEXT("No saved setup for this car: save one in the garage"), true);
+			return;
+		}
+		// Stock, then each saved setup, then stock again.
+		const int32 At = Saved.IndexOfByPredicate([this](const FApexSavedSetup& Each) { return Each.Id == HotlapSetupId; });
+		const int32 Next = ApexSpectate::StepIndex(Saved.Num() + 1, At + 1, Direction);
+		if (Next == 0)
+		{
+			HotlapSetupId.Invalidate();
+			Message = TEXT("Setup: stock");
+		}
+		else
+		{
+			HotlapSetupId = Saved[Next - 1].Id;
+			Message = FString::Printf(TEXT("Setup: %s"), *Saved[Next - 1].Name);
+		}
 		break;
 	}
 	case EHotlapChoice::Track:
@@ -3303,16 +3425,45 @@ void UApexRootWidget::RestartHotlapWatch()
 	HotlapRestartAt = -1.0;
 	// The old lap ends the way a race does (the server replaces its session
 	// without a word, so nothing else will say so); the shell stays out of
-	// sight until the new one is up (ApplyWatchLayers).
-	SetRaceViewActive(false);
+	// sight until the new one is up (ApplyWatchLayers). A stream is replaced
+	// on the backdrop feed, which the watch view rides out.
+	if (!bHotlapStreamRoute)
+	{
+		SetRaceViewActive(false);
+	}
 	ApplyWatchLayers();
 	SendHotlapWatchRequest();
+}
+
+void UApexRootWidget::ReplayHotlapLap()
+{
+	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	if (!Director)
+	{
+		return;
+	}
+	if (Director->IsGhostReplayActive())
+	{
+		Director->EndGhostReplay();
+		ApexUiAudio::Play(this, EApexUiSound::Back);
+		return;
+	}
+	if (Director->BeginGhostReplay())
+	{
+		ShowToast(FString::Printf(TEXT("The fastest lap: %s"), *UApexMenuFlowSubsystem::FormatLapTime(Director->GetGhostLapTimeMs() / 1000.0f)));
+		ApexUiAudio::Play(this, EApexUiSound::Accept);
+	}
+	else
+	{
+		ShowToast(TEXT("No lap to replay yet"), true);
+	}
 }
 
 void UApexRootWidget::EndHotlapWatch()
 {
 	bHotlapWatchWanted = false;
 	bHotlapJoinPending = false;
+	bHotlapStreamRoute = false;
 	HotlapRestartAt = -1.0;
 	// The watch chose its own car; the player's pick is the garage's again.
 	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
@@ -3340,13 +3491,36 @@ void UApexRootWidget::UpdateHotlapWatch()
 		RestartHotlapWatch();
 		return;
 	}
+	if (bHotlapStreamRoute)
+	{
+		const UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>();
+		const UApexSpectatorSubsystem* Spectator = GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>();
+		if (!Demo || !Demo->IsWatchingLive())
+		{
+			// The stream was refused or ended: the demo has gone back to its
+			// own backdrop, which is not what was asked for.
+			UE_LOG(LogApexSim, Warning, TEXT("Hotlap watch: the stream ended (%s)"), Spectator ? *Spectator->GetFailure() : TEXT("?"));
+			ShowToast(TEXT("The server did not start the hotlap"), true);
+			StopWatching();
+			EndHotlapWatch();
+			return;
+		}
+		if (bHotlapJoinPending && Spectator && Spectator->HasHeader())
+		{
+			bHotlapJoinPending = false;
+		}
+	}
 	// An answer that never comes: back to the menu rather than a blank screen.
 	constexpr double GiveUpAfterSeconds = 15.0;
 	if (bHotlapJoinPending && HotlapRequestedAt >= 0.0 && Now - HotlapRequestedAt > GiveUpAfterSeconds)
 	{
 		UE_LOG(LogApexSim, Warning, TEXT("Hotlap watch: the server did not start it within %.0f s"), GiveUpAfterSeconds);
 		ShowToast(TEXT("The server did not start the hotlap"), true);
-		if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
+		if (bHotlapStreamRoute)
+		{
+			StopWatching();
+		}
+		else if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
 		{
 			Net->LeaveSession();
 		}

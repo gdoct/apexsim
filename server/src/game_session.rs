@@ -164,9 +164,17 @@ const HOTLAP_WATCH_STUCK_MPS: f32 = 1.5;
 
 /// A watched hotlap (`SessionKind::HotlapWatch`): the session's one AI car
 /// laps the track alone, every lap on fresh tyres and a fresh tank.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 struct HotlapWatch {
     active: bool,
+    /// The setup the car runs ([`GameSession::set_hotlap_watch_setup`]),
+    /// as [`setup_key`]; 0 stock.
+    setup_key: u64,
+    /// The fastest legal lap watched of this circuit and car (an earlier
+    /// watch's, or this one's), the ghost the stream carries, and a count
+    /// that moves each time it is replaced.
+    ghost: Option<GhostLap>,
+    ghost_revision: u32,
     /// Tick until which the car is held on the run-up.
     hold_until_tick: u32,
     /// The car has been let go from the hold and put at speed
@@ -181,6 +189,21 @@ struct HotlapWatch {
     /// the scale, which some circuits' rails and stands do not leave room
     /// for; each step after is a driver a little less exact.
     level: u8,
+}
+
+/// A setup's clicks folded into one number (FNV-1a), so a watched hotlap's
+/// ladder is kept per setup: a stock car's level says nothing of a softer
+/// one's. 0 for the stock setup.
+fn setup_key(setup: &CarSetup) -> u64 {
+    if setup.is_stock() {
+        return 0;
+    }
+    setup
+        .clicks()
+        .iter()
+        .fold(0xcbf2_9ce4_8422_2325u64, |hash, &click| {
+            (hash ^ click as u8 as u64).wrapping_mul(0x0100_0000_01b3)
+        })
 }
 
 /// The skill at the end of the ladder a watched hotlap's driver eases down.
@@ -402,14 +425,16 @@ pub struct SessionLapEvent {
     /// The fastest anyone has gone in this session.
     pub session_best_lap: bool,
     pub session_best_sector: bool,
-    /// The lap's trace, taken when a human driver set a personal best on a
-    /// legal lap. The store decides whether it beats their record.
+    /// The lap's trace, taken when a human driver (or a watched hotlap's
+    /// car) set a personal best on a legal lap. The store decides whether
+    /// it beats a human's record.
     pub ghost: Option<GhostLap>,
 }
 
-/// Longest ghost trace held for one car: five minutes at [`GHOST_SAMPLE_HZ`].
+/// Longest ghost trace held for one car: ten minutes at [`GHOST_SAMPLE_HZ`]
+/// (a Nordschleife lap in a road car).
 /// A car parked on the road must not grow a buffer without end.
-const MAX_GHOST_SAMPLES: usize = (GHOST_SAMPLE_HZ as usize) * 300;
+const MAX_GHOST_SAMPLES: usize = (GHOST_SAMPLE_HZ as usize) * 600;
 
 /// Take one car's timing-line crossing: update the session bests, take the
 /// ghost trace when the lap earned one, and queue the event for the loop.
@@ -461,9 +486,10 @@ fn note_lap_event(
     });
 }
 
-/// Append this tick's pose to a human driver's ghost trace, at
-/// [`GHOST_SAMPLE_HZ`]. Called before the progress update, so the sample's
-/// time is measured against the lap the car is still on.
+/// Append this tick's pose to a human driver's ghost trace (or a watched
+/// hotlap's car's: `is_ai` false for it), at [`GHOST_SAMPLE_HZ`]. Called
+/// before the progress update, so the sample's time is measured against the
+/// lap the car is still on.
 fn sample_ghost_trace(
     traces: &mut HashMap<PlayerId, Vec<GhostSample>>,
     state: &CarState,
@@ -880,7 +906,7 @@ impl GameSession {
                     sample_ghost_trace(
                         &mut self.lap_traces,
                         state,
-                        is_ai,
+                        is_ai && !self.hotlap_watch.active,
                         current_tick,
                         self.tick_rate_hz,
                     );
@@ -896,7 +922,7 @@ impl GameSession {
                             &mut self.session_best_lap_ms,
                             &mut self.session_best_splits_ms,
                             state.player_id,
-                            is_ai,
+                            is_ai && !self.hotlap_watch.active,
                             event,
                         );
                     }
@@ -1052,7 +1078,7 @@ impl GameSession {
                 sample_ghost_trace(
                     &mut self.lap_traces,
                     state,
-                    is_ai,
+                    is_ai && !self.hotlap_watch.active,
                     current_tick,
                     self.tick_rate_hz,
                 );
@@ -1071,7 +1097,7 @@ impl GameSession {
                         &mut self.session_best_lap_ms,
                         &mut self.session_best_splits_ms,
                         state.player_id,
-                        is_ai,
+                        is_ai && !self.hotlap_watch.active,
                         event,
                     );
                 }
@@ -1116,7 +1142,7 @@ impl GameSession {
                 sample_ghost_trace(
                     &mut self.lap_traces,
                     state,
-                    is_ai,
+                    is_ai && !self.hotlap_watch.active,
                     current_tick,
                     self.tick_rate_hz,
                 );
@@ -1132,7 +1158,7 @@ impl GameSession {
                         &mut self.session_best_lap_ms,
                         &mut self.session_best_splits_ms,
                         state.player_id,
-                        is_ai,
+                        is_ai && !self.hotlap_watch.active,
                         event,
                     );
                 }
@@ -1545,7 +1571,7 @@ impl GameSession {
                 sample_ghost_trace(
                     &mut self.lap_traces,
                     state,
-                    is_ai,
+                    is_ai && !self.hotlap_watch.active,
                     current_tick,
                     self.tick_rate_hz,
                 );
@@ -1564,7 +1590,7 @@ impl GameSession {
                         &mut self.session_best_lap_ms,
                         &mut self.session_best_splits_ms,
                         state.player_id,
-                        is_ai,
+                        is_ai && !self.hotlap_watch.active,
                         event,
                     );
                 }
@@ -1813,8 +1839,9 @@ impl GameSession {
     }
 
     /// What a watched hotlap's ladder level is kept under between watches:
-    /// the track, the car that laps and the weather.
-    pub fn hotlap_watch_key(&self) -> Option<(TrackConfigId, CarConfigId, u8)> {
+    /// the track, the car that laps, the weather and the setup
+    /// ([`setup_key`]). The ghost is kept under the first two.
+    pub fn hotlap_watch_key(&self) -> Option<(TrackConfigId, CarConfigId, u8, u64)> {
         let car = self
             .session
             .ai_player_ids
@@ -1825,7 +1852,45 @@ impl GameSession {
             self.session.track_config_id,
             car,
             self.session.conditions.weather as u8,
+            self.hotlap_watch.setup_key,
         ))
+    }
+
+    /// The watched car runs `setup` (clamped as `SetCarSetup` is): its
+    /// tuned config, its pressures on the next fit, its tank.
+    pub fn set_hotlap_watch_setup(&mut self, setup: CarSetup) {
+        let ids: Vec<PlayerId> = self.session.ai_player_ids.clone();
+        let mut applied = setup.clamp();
+        for id in ids {
+            if let Some(set) = self.set_car_setup(&id, setup) {
+                applied = set;
+            }
+            if let Some(state) = self.session.participants.get_mut(&id) {
+                fit_tyres(
+                    state,
+                    &self.car_configs,
+                    &self.tuned_configs,
+                    &self.track_config,
+                    TyreStart::Warm,
+                    &self.car_setups,
+                );
+            }
+        }
+        self.hotlap_watch.setup_key = setup_key(&applied);
+    }
+
+    /// Start with `ghost` as the lap to beat (an earlier watch's best).
+    pub fn set_hotlap_watch_ghost(&mut self, ghost: GhostLap) {
+        self.hotlap_watch.ghost = Some(ghost);
+        self.hotlap_watch.ghost_revision = self.hotlap_watch.ghost_revision.wrapping_add(1);
+    }
+
+    /// The watched hotlap's ghost and its revision (see [`HotlapWatch`]).
+    pub fn hotlap_watch_ghost(&self) -> Option<(u32, &GhostLap)> {
+        self.hotlap_watch
+            .ghost
+            .as_ref()
+            .map(|g| (self.hotlap_watch.ghost_revision, g))
     }
 
     /// Start the watched driver `level` steps down the ladder, as an earlier
@@ -1944,6 +2009,24 @@ impl GameSession {
     fn update_hotlap_watch(&mut self) {
         if self.session.game_mode != GameMode::Hotlap {
             return;
+        }
+        // A legal lap faster than the ghost is the ghost now. (The events
+        // wait for the loop to take them; a slower or equal one changes
+        // nothing, so a second look at the same event does not either.)
+        let faster = self
+            .lap_events
+            .iter()
+            .filter_map(|e| e.ghost.as_ref())
+            .filter(|g| {
+                self.hotlap_watch
+                    .ghost
+                    .as_ref()
+                    .is_none_or(|kept| g.lap_time_ms < kept.lap_time_ms)
+            })
+            .min_by_key(|g| g.lap_time_ms)
+            .cloned();
+        if let Some(ghost) = faster {
+            self.set_hotlap_watch_ghost(ghost);
         }
         let ids: Vec<PlayerId> = self.session.ai_player_ids.clone();
         let stuck_limit = (HOTLAP_WATCH_STUCK_S * self.tick_rate_hz as f32) as u32;

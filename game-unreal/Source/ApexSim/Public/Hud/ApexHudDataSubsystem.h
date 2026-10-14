@@ -75,6 +75,8 @@ public:
 	 * director's.
 	 */
 	void SetWatchState(const FString& Source, const FString& TowerMode);
+	/** The watched hotlap's setup, for `hotlap.setup`: a saved setup's name, empty for stock. */
+	void SetHotlapSetup(const FString& Name) { HotlapSetup = Name; }
 	/** The last input came from a gamepad: the hints show its buttons. */
 	void SetGamepadActive(bool bActive) { bGamepad = bActive; }
 
@@ -124,6 +126,7 @@ private:
 	FString CarNamesKey;
 
 	FString WatchSource;
+	FString HotlapSetup;
 	FString TowerMode = TEXT("interval");
 	bool bGamepad = false;
 };

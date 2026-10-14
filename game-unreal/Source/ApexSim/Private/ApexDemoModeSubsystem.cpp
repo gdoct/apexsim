@@ -739,6 +739,50 @@ bool UApexDemoModeSubsystem::WatchLive(const FString& SessionId, FString& OutErr
 	return true;
 }
 
+bool UApexDemoModeSubsystem::WatchHotlap(const FString& InTrackId, const FString& TrackName, const FString& Stem,
+	const FApexSessionConditions& Conditions, const FApexCarSetup* Setup, FString& OutError)
+{
+	UApexNetSubsystem* Net = GetNet();
+	UApexSpectatorSubsystem* Spectator = GetSpectator();
+	if (!Net || !Spectator)
+	{
+		OutError = TEXT("the game is not ready");
+		return false;
+	}
+	const AApexRaceDirector* Director = GetDirector();
+	if (!Director || Net->IsInSession() || Net->IsSessionRequestPending()
+		|| (Director->IsRaceViewActive() && !Director->IsDemoViewActive()))
+	{
+		OutError = TEXT("leave the session first");
+		return false;
+	}
+	const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
+	if (!Content || !Content->HasTrack(Stem))
+	{
+		OutError = FString::Printf(TEXT("%s is not installed on this machine"), *TrackName);
+		return false;
+	}
+	Teardown(*Net);
+	TrackId = InTrackId;
+	TrackStem = Stem;
+	Centerline.Reset();
+	FApexTrackConfigSummary Track;
+	if (Net->FindTrackById(TrackId, Track))
+	{
+		Centerline = Track.Centerline;
+	}
+	if (!Spectator->WatchHotlap(InTrackId, TrackName, Stem, Conditions, Setup))
+	{
+		OutError = TEXT("not connected to the server");
+		return false;
+	}
+	Source = EApexBackdropSource::Live;
+	Cooldown = 0.0f;
+	Failures = 0;
+	UE_LOG(LogApexSim, Log, TEXT("Demo mode: watching a hotlap at %s as a stream"), *Stem);
+	return true;
+}
+
 void UApexDemoModeSubsystem::StopLive()
 {
 	if (Source != EApexBackdropSource::Live)

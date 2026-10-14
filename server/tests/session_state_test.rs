@@ -117,6 +117,7 @@ async fn host_session(
         grid_order: Vec::new(),
         qualifying_seconds: None,
         weekend: None,
+        watch: None,
     })
     .await?;
     let joined = host.wait_joined().await?;

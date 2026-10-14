@@ -110,6 +110,15 @@ namespace ApexSpectate
 		TimeLater,
 		PreviousTrack,
 		NextTrack,
+		/**
+		 * A watched hotlap's: the next saved setup for its car (stock after
+		 * the last), the watched lap again (the ghost driven round), the
+		 * ghost shown or not. Elsewhere the setup key is the car ahead and
+		 * the replay key the car behind (they are the D-pad's up and down).
+		 */
+		Setup,
+		ReplayLap,
+		Ghost,
 	};
 
 	struct FCommand
@@ -134,7 +143,8 @@ namespace ApexSpectate
 	 * Backspace / B leave; a replay's transport on Space / A (pause), comma
 	 * and full stop / the triggers (ten seconds back and on) and - / = or the
 	 * D-pad's left and right (slower, faster); a hotlap's choices on W
-	 * (weather), [ and ] (the hour) and Page Up / Page Down (the circuit).
+	 * (weather), [ and ] (the hour), Page Up / Page Down (the circuit), S /
+	 * D-pad up (the setup), R / D-pad down (the lap again) and G (the ghost).
 	 * Not rebindable: 1-9 and 0 pick P1-P10, and the left and right arrows
 	 * and the D-pad's up and down also step through the field. The pause key
 	 * is not here: it opens the pause menu as in a race.

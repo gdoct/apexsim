@@ -111,6 +111,10 @@ struct APEXSIM_API FApexHudInputs
 		/** Slower and faster, side by side. */
 		FString Speed;
 		FString PauseMenu;
+		/** A watched hotlap's setup, lap again and ghost keys. */
+		FString Setup;
+		FString ReplayLap;
+		FString Ghost;
 	};
 	FWatchKeys WatchKeys;
 
@@ -127,6 +131,8 @@ struct APEXSIM_API FApexHudInputs
 
 	/** The race on screen is a watched hotlap (SessionKind::HotlapWatch): one AI car lapping alone. */
 	bool bHotlapWatch = false;
+	/** The watched hotlap's setup: a saved setup's name, or empty for stock. */
+	FString HotlapSetup;
 	/** The track's corners (`TrackCorners`), for `corner.*`; null or not valid when none were sent. */
 	const FApexTrackCorners* Corners = nullptr;
 
@@ -137,6 +143,9 @@ struct APEXSIM_API FApexHudInputs
 	float ReplayRate = 1.0f;
 	bool bReplayPaused = false;
 	bool bReplayEnded = false;
+	/** The transport is a live stream's (the timeshift), and how far behind its edge it plays. */
+	bool bReplayLive = false;
+	double ReplayBehindSeconds = 0.0;
 
 	/** Each car's model by car index, from the roster and the car catalog; null when not known. */
 	const TMap<int32, FString>* CarNames = nullptr;

@@ -156,10 +156,26 @@ bool FApexHotlapWatchHudDataTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("no corner"), HotlapHudValue(Data, TEXT("corner.number")).IsNone());
 	TestFalse(TEXT("so none inside"), HotlapHudValue(Data, TEXT("corner.inside")).AsBool());
 
+	// The setup, stock by default; streamed, the transport against the live edge.
+	TestEqual(TEXT("stock"), HotlapHudValue(Data, TEXT("hotlap.setup")).AsString(), FString(TEXT("stock")));
+	TestFalse(TEXT("not streamed"), HotlapHudValue(Data, TEXT("replay.live")).AsBool());
+	TestTrue(TEXT("so no behind"), HotlapHudValue(Data, TEXT("replay.behind_s")).IsNone());
+	In.HotlapSetup = TEXT("Low wing");
+	In.bReplay = true;
+	In.bReplayLive = true;
+	In.bReplayPaused = true;
+	In.ReplayBehindSeconds = 12.5;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("a saved setup"), HotlapHudValue(Data, TEXT("hotlap.setup")).AsString(), FString(TEXT("Low wing")));
+	TestTrue(TEXT("streamed"), HotlapHudValue(Data, TEXT("replay.live")).AsBool());
+	TestTrue(TEXT("held"), HotlapHudValue(Data, TEXT("replay.paused")).AsBool());
+	TestEqual(TEXT("behind its edge"), HotlapHudValue(Data, TEXT("replay.behind_s")).AsNumber(), 12.5);
+
 	// Driving, not watching: not the hotlap scene whatever the net says.
 	In.bSpectating = false;
 	ApexHudData::Build(In, Memory, Data);
 	TestFalse(TEXT("only a watcher has the scene"), HotlapHudValue(Data, TEXT("hotlap.active")).AsBool());
+	TestTrue(TEXT("nor a setup"), HotlapHudValue(Data, TEXT("hotlap.setup")).IsNone());
 	return true;
 }
 
@@ -167,7 +183,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHotlapWatchSceneTest, "ApexSim.Hotlap.Scen
 
 bool FApexHotlapWatchSceneTest::RunTest(const FString& Parameters)
 {
-	// The shipped scene: its five components load clean and belong to it, and
+	// The shipped scene: its six components load clean and belong to it, and
 	// none of the ordinary HUD's does.
 	const FString Dir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT(".."), TEXT("content/hud")));
 	TArray<FApexHudComponentDef> Components;
@@ -183,7 +199,7 @@ bool FApexHotlapWatchSceneTest::RunTest(const FString& Parameters)
 	}
 
 	for (const TCHAR* Id : {TEXT("hotlap_header"), TEXT("hotlap_corner"), TEXT("hotlap_timing"), TEXT("hotlap_car"),
-			 TEXT("hotlap_controls")})
+			 TEXT("hotlap_controls"), TEXT("hotlap_transport")})
 	{
 		const FApexHudComponentDef* Found = Components.FindByPredicate([Id](const FApexHudComponentDef& C) { return C.Id == Id; });
 		TestTrue(*FString::Printf(TEXT("has %s"), Id), Found != nullptr);

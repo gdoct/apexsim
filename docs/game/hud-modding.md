@@ -59,7 +59,8 @@ Shipped components: `track_info`, `race_state`, `status`, `minimap`,
 off until added in the editor: `relative`, `speed_gear`, `conditions`; while
 watching: `spectator_tower`, `spectator_driver`, `spectator_controls`,
 `spectator_replay`, `spectator_results` (once the race is over); the `hotlap_watch` scene: `hotlap_header`,
-`hotlap_corner`, `hotlap_timing`, `hotlap_car`, `hotlap_controls`.
+`hotlap_corner`, `hotlap_timing`, `hotlap_car`, `hotlap_controls`,
+`hotlap_transport` (a streamed hotlap's).
 
 ## Quick start
 
@@ -315,8 +316,12 @@ then; `standings`, `race_state`, `track_info`, `status` and `mirror` hide.
 | `spectate.waiting` | watching, between two races (no cars yet) |
 | `watch.key.cars`, `watch.key.camera`, `watch.key.auto`, `watch.key.tower`, `watch.key.overlay`, `watch.key.next_race`, `watch.key.leave`, `watch.key.play_pause`, `watch.key.pause_menu` | the keys of the watch view as the player has bound them (Settings > Controls), for the device in use: the pad's buttons once a pad is, else the keyboard's, as the hints print them (`C`, `LB`); `watch.key.cars` is the car ahead's and the car behind's side by side |
 | `watch.key.seek`, `watch.key.speed` | a replay's ten seconds back and on, and its slower and faster, side by side |
+| `watch.key.setup`, `watch.key.replay_lap`, `watch.key.ghost` | a watched hotlap's next setup, its fastest lap again, and the ghost on or off |
 | `hotlap.active` | a watched hotlap: one AI car lapping alone; turns the `hotlap_watch` scene on |
-| `replay.active` | a saved replay is playing |
+| `hotlap.setup` | the watched car's setup: a saved setup's name, or `stock` (*null* outside a watched hotlap) |
+| `replay.active` | a saved replay is playing, or a live stream with a transport (`replay.live`) |
+| `replay.live` | the transport is a live stream's, held back as it comes in: it pauses, seeks and changes speed up to the live edge |
+| `replay.behind_s` | seconds a live stream plays behind its edge, 0 at it (*null* unless `replay.live`) |
 | `replay.time_s`, `replay.duration_s` | how far into it, and how long it runs (*null* outside a replay) |
 | `replay.progress` | `replay.time_s` over `replay.duration_s`, 0 to 1 |
 | `replay.rate` | playback speed: 0.25, 0.5, 1, 2 or 4 |

@@ -228,10 +228,13 @@ public:
 	 * starts on the pending circuit and car, under the weather and hour last
 	 * watched, and shows a minimal HUD (`scene: hotlap_watch`): the lap and
 	 * its sectors, the car's speed, gear and pedals, the corner it is at.
-	 * The car (arrows), the weather (W), the hour ([ and ]) and the circuit
-	 * (Page Up and Down) can be changed while watching: each change starts
-	 * the lap over for the new choice. False, with a toast, when it cannot
-	 * be started.
+	 * The car (arrows), the weather (W), the hour ([ and ]), the circuit
+	 * (Page Up and Down) and the car's setup (S: the garage's saved setups
+	 * for the car, then stock) can be changed while watching: each change
+	 * starts the lap over for the new choice. Against a server with the live
+	 * stream it comes as a stream (UApexDemoModeSubsystem::WatchHotlap), so
+	 * it pauses, seeks and changes speed, and its fastest lap is a ghost (R
+	 * replays it). False, with a toast, when it cannot be started.
 	 */
 	bool StartHotlapWatch();
 
@@ -251,6 +254,8 @@ public:
 		Wind,
 		/** The track's rubber: `Direction` is the pick itself, 0 green, 1 normal, 2 rubbered. */
 		Rubber,
+		/** The next of the car's saved setups, stock after the last. */
+		Setup,
 	};
 
 	/** Step one of the hotlap's choices `Direction` places on (wrapping) and, after a moment, start the lap over for it. */
@@ -509,6 +514,12 @@ private:
 	double HotlapRequestedAt = -1.0;
 	/** The session was asked for and has not been joined. */
 	bool bHotlapJoinPending = false;
+	/** The saved setup the car runs (UApexSettingsSubsystem::GetSavedSetups); invalid for stock. */
+	FGuid HotlapSetupId;
+	/** The hotlap comes as a stream (the server has it), with a transport and a ghost. */
+	bool bHotlapStreamRoute = false;
+	/** The watched lap again: the ghost driven round with cutting cameras. */
+	void ReplayHotlapLap();
 
 	/** Ask the server for the hotlap as chosen (select the car, create the session). */
 	void SendHotlapWatchRequest();

@@ -282,6 +282,9 @@ void UApexHudDataSubsystem::Refresh()
 			In.WatchKeys.Seek = Name(WatchSeekBack) + TEXT(" ") + Name(WatchSeekForward);
 			In.WatchKeys.Speed = Name(WatchSlower) + TEXT(" ") + Name(WatchFaster);
 			In.WatchKeys.PauseMenu = Name(PauseMenu);
+			In.WatchKeys.Setup = Name(WatchSetup);
+			In.WatchKeys.ReplayLap = Name(WatchReplayLap);
+			In.WatchKeys.Ghost = Name(WatchGhost);
 		}
 		In.SpectateSource = WatchSource.IsEmpty() ? FString(bBackdrop ? TEXT("demo") : TEXT("live")) : WatchSource;
 		In.SpectateCamera = ApexSpectate::CameraName(Director->GetSpectatorCamera());
@@ -296,6 +299,17 @@ void UApexHudDataSubsystem::Refresh()
 			In.ReplayRate = Spectator->GetPlaybackRate();
 			In.bReplayPaused = Spectator->IsPaused();
 			In.bReplayEnded = Spectator->IsAtEnd();
+		}
+		else if (bBackdrop && Demo && Demo->IsWatchingLive() && Spectator && Spectator->CanTimeshift())
+		{
+			// A live stream held back: the same transport, against its edge.
+			In.bReplay = true;
+			In.bReplayLive = true;
+			In.ReplaySeconds = Spectator->GetPlaybackSeconds();
+			In.ReplayDurationSeconds = Spectator->GetDurationSeconds();
+			In.ReplayRate = Spectator->GetPlaybackRate();
+			In.bReplayPaused = Spectator->IsPaused();
+			In.ReplayBehindSeconds = Spectator->GetSecondsBehindLive();
 		}
 	}
 	In.SpectateTowerMode = TowerMode;
@@ -321,6 +335,7 @@ void UApexHudDataSubsystem::Refresh()
 		In.Sectors = &Net->GetTrackSectors();
 		In.Corners = &Net->GetTrackCorners();
 		In.bHotlapWatch = Net->IsHotlapWatch();
+		In.HotlapSetup = HotlapSetup;
 		// The backdrop's mode is its frames'; the net subsystem keeps a demo out of its own.
 		In.GameMode = bBackdrop && In.Frame->GameMode != EApexGameMode::Lobby ? In.Frame->GameMode : Net->GetGameMode();
 		In.ModeName = UApexMenuFlowSubsystem::GetGameModeName(In.GameMode);

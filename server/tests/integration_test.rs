@@ -142,6 +142,7 @@ impl TestClient {
             grid_order: Vec::new(),
             qualifying_seconds: None,
             weekend: None,
+            watch: None,
         };
 
         self.send_tcp_message(&msg).await?;

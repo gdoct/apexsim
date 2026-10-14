@@ -695,20 +695,16 @@ pub(crate) async fn cleanup_finished_sessions(ctx: &GameLoopCtx, tick_count: u64
 
     // Cleanup finished sessions (older than timeout)
     let timeout_seconds = state_write.config.server.session_timeout_seconds as u64;
-    // A watched hotlap's driver, as eased down so far, is kept for the next
-    // watch of the same track, car and weather.
-    let levels: Vec<_> = state_write
+    // A watched hotlap's driver, as eased down so far, and its fastest lap
+    // are kept for the next watch of the same track and car.
+    let watches: Vec<SessionId> = state_write
         .sessions
-        .values()
-        .filter(|s| s.is_hotlap_watch() && s.hotlap_watch_level() > 0)
-        .filter_map(|s| {
-            s.hotlap_watch_key()
-                .map(|key| (key, s.hotlap_watch_level()))
-        })
+        .iter()
+        .filter(|(_, s)| s.is_hotlap_watch())
+        .map(|(id, _)| *id)
         .collect();
-    for (key, level) in levels {
-        let kept = state_write.watch_levels.entry(key).or_insert(0);
-        *kept = (*kept).max(level);
+    for id in watches {
+        state_write.keep_hotlap_watch(&id);
     }
     state_write.sessions.retain(|id, session| {
         // A weekend waiting for its host between phases stays while anyone

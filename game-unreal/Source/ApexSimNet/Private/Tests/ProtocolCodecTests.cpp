@@ -213,6 +213,23 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 				TArray<FString>(), 0, Weekend),
 			ApexGolden::C_CreateSessionWeekend);
 	}
+	{
+		// A hotlap watched as a stream, on a setup (`watch`).
+		ApexProtocol::FHotlapWatchOptions Watch;
+		Watch.bStream = true;
+		Watch.bHasSetup = true;
+		for (int32 Index = 0; Index < FApexCarSetup::KnobCount; ++Index)
+		{
+			const FString Key = ApexCarSetup::Knob(Index).Key;
+			Watch.Setup.Clicks[Index] = Key == TEXT("tyre_pressure_front") ? -2 : Key == TEXT("rear_wing") ? 3 : 0;
+		}
+		CheckBytes(TEXT("CreateSession for a hotlap watched as a stream"),
+			ApexProtocol::EncodeCreateSession(
+				TEXT("00000000-0000-0000-0000-000000000007"), 1, 1, 3, EApexSessionKind::HotlapWatch,
+				FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+				TArray<FString>(), 0, FApexWeekendFormat(), &Watch),
+			ApexGolden::C_CreateSessionHotlapWatchStream);
+	}
 	CheckBytes(TEXT("AdvanceWeekend"), ApexProtocol::EncodeAdvanceWeekend(), ApexGolden::C_AdvanceWeekend);
 	CheckBytes(TEXT("GiveUpSeat"), ApexProtocol::EncodeGiveUpSeat(), ApexGolden::C_GiveUpSeat);
 
