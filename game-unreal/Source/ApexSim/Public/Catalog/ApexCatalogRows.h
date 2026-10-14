@@ -78,6 +78,20 @@ struct APEXSIM_API FApexWheelSpec
 	float MaxSteerRad = 0.0f;
 
 	/**
+	 * Static camber (negative: the top in) and toe (positive: toe-in) per
+	 * axle, radians: `[suspension] camber_*_deg` / `toe_*_deg`. The set-up
+	 * the car comes with, not the driver's own; never saved.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Wheels")
+	float FrontCamberRad = 0.0f;
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Wheels")
+	float RearCamberRad = 0.0f;
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Wheels")
+	float FrontToeRad = 0.0f;
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Wheels")
+	float RearToeRad = 0.0f;
+
+	/**
 	 * The wheel GLB a car found on disk draws — the class wheel
 	 * (`<cars>/../wheels/<model>.glb`) or one in the car's own folder (a
 	 * `model` ending in `.glb` or holding a `/`; ApexCarToml::IsCarLocalWheel)
@@ -114,6 +128,8 @@ struct APEXSIM_API FApexWheelSpec
 			&& FrontRadiusM == Other.FrontRadiusM && RearRadiusM == Other.RearRadiusM
 			&& FrontWidthM == Other.FrontWidthM && RearWidthM == Other.RearWidthM
 			&& MaxSteerRad == Other.MaxSteerRad && RuntimeModel == Other.RuntimeModel
+			&& FrontCamberRad == Other.FrontCamberRad && RearCamberRad == Other.RearCamberRad
+			&& FrontToeRad == Other.FrontToeRad && RearToeRad == Other.RearToeRad
 			&& RearMesh == Other.RearMesh && RearRuntimeModel == Other.RearRuntimeModel;
 	}
 	bool operator!=(const FApexWheelSpec& Other) const { return !(*this == Other); }

@@ -155,6 +155,11 @@ struct FApexCarToml
 	float MassKg = 0.0f;
 	float MaxPowerKw = 0.0f;
 	float MaxSteerRad = 0.0f;
+	/** `[suspension]` static camber and toe per axle, degrees (toe-in positive); 0 when the car does not say. */
+	float CamberFrontDeg = 0.0f;
+	float CamberRearDeg = 0.0f;
+	float ToeFrontDeg = 0.0f;
+	float ToeRearDeg = 0.0f;
 	/**
 	 * The `[tires]` table's working window, °C: the middle and half-width
 	 * (the server's `tyre_thermal` defaults when the car does not say).

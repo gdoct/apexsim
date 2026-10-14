@@ -75,6 +75,45 @@ bool FApexWheelsPlacementTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexWheelsCamberToeTest, "ApexSim.Wheels.CamberToe", ApexTestFlags)
+
+bool FApexWheelsCamberToeTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexWheelsTest;
+
+	FApexWheelSpec Spec = F1Spec();
+	Spec.FrontCamberRad = FMath::DegreesToRadians(-3.0f);
+	Spec.RearToeRad = FMath::DegreesToRadians(0.5f);
+
+	// Negative camber leans the top of each front wheel in, toward the middle.
+	for (const EWheel Wheel : {EWheel::FrontLeft, EWheel::FrontRight})
+	{
+		const bool bLeft = ApexWheels::IsLeft(Wheel);
+		const FVector Hub = Place(Spec, Wheel, 0.0f, 0.0f, FVector::ZeroVector);
+		const FVector Top = Place(Spec, Wheel, 0.0f, 0.0f, FVector(0.0f, 0.0f, 36.0f)) - Hub;
+		TestTrue(FString::Printf(TEXT("%s top leans in"), bLeft ? TEXT("left") : TEXT("right")), bLeft ? Top.X < 0.0 : Top.X > 0.0);
+		TestEqual(TEXT("by the camber"), FMath::RadiansToDegrees(FMath::Atan2(FMath::Abs(Top.X), Top.Z)), 3.0, 0.01);
+	}
+
+	// Toe-in swings the front of each rear wheel toward the middle; the front
+	// pair, with none, point straight ahead.
+	for (const EWheel Wheel : {EWheel::RearLeft, EWheel::RearRight, EWheel::FrontLeft})
+	{
+		const bool bLeft = ApexWheels::IsLeft(Wheel);
+		const FVector Lead(0.0f, bLeft ? 36.0f : -36.0f, 0.0f);
+		const FVector Hub = Place(Spec, Wheel, 0.0f, 0.0f, FVector::ZeroVector);
+		const FVector Front = Place(Spec, Wheel, 0.0f, 0.0f, Lead) - Hub;
+		if (ApexWheels::IsFront(Wheel))
+		{
+			TestEqual(TEXT("no toe, straight ahead"), Front.X, 0.0, 0.01);
+			continue;
+		}
+		TestTrue(TEXT("rear toe-in points the front in"), bLeft ? Front.X < 0.0 : Front.X > 0.0);
+		TestEqual(TEXT("by the toe"), FMath::RadiansToDegrees(FMath::Atan2(FMath::Abs(Front.X), Front.Y)), 0.5, 0.01);
+	}
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexWheelsSteerTest, "ApexSim.Wheels.Steer", ApexTestFlags)
 
 bool FApexWheelsSteerTest::RunTest(const FString& Parameters)

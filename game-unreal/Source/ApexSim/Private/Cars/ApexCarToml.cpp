@@ -202,6 +202,10 @@ FApexWheelSpec ApexCarToml::MakeWheelSpec(const FApexCarToml& Toml)
 	Spec.FrontWidthM = W.FrontWidthM;
 	Spec.RearWidthM = W.RearWidthM;
 	Spec.MaxSteerRad = Toml.MaxSteerRad;
+	Spec.FrontCamberRad = FMath::DegreesToRadians(Toml.CamberFrontDeg);
+	Spec.RearCamberRad = FMath::DegreesToRadians(Toml.CamberRearDeg);
+	Spec.FrontToeRad = FMath::DegreesToRadians(Toml.ToeFrontDeg);
+	Spec.RearToeRad = FMath::DegreesToRadians(Toml.ToeRearDeg);
 	return Spec;
 }
 
@@ -340,6 +344,14 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 		else if (Table == TEXT("physics") && Key == TEXT("max_steering_angle_rad"))
 		{
 			Out.MaxSteerRad = FCString::Atof(*Value);
+		}
+		else if (Table == TEXT("suspension"))
+		{
+			const float Number = FCString::Atof(*Value);
+			if (Key == TEXT("camber_front_deg")) { Out.CamberFrontDeg = Number; }
+			else if (Key == TEXT("camber_rear_deg")) { Out.CamberRearDeg = Number; }
+			else if (Key == TEXT("toe_front_deg")) { Out.ToeFrontDeg = Number; }
+			else if (Key == TEXT("toe_rear_deg")) { Out.ToeRearDeg = Number; }
 		}
 		else if (Table == TEXT("wheels"))
 		{

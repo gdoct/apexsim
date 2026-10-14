@@ -325,6 +325,9 @@ void AApexRaceCarActor::SetDrsFlap(const FApexDrsFlapSpec& Spec)
 	}
 	DrsFlap.SetSpec(Spec);
 	bDrsOpen = false;
+	// The flap dents with the tail it sits on.
+	ApplyDamageFrame();
+	ApplyDents(DamageShares);
 }
 
 void AApexRaceCarActor::SetDriver(const FApexDriverSpec& Spec)
@@ -334,6 +337,9 @@ void AApexRaceCarActor::SetDriver(const FApexDriverSpec& Spec)
 		return;
 	}
 	Driver.SetSpec(Spec);
+	// The driver dents with the body round him.
+	ApplyDamageFrame();
+	ApplyDents(DamageShares);
 }
 
 void AApexRaceCarActor::SetDriverVisible(bool bVisible)
@@ -1097,13 +1103,30 @@ void AApexRaceCarActor::ApplyDamageFrame()
 	const FVector Extent = Bounds.BoxExtent.ComponentMax(FVector(1.0));
 	// Two cars of a model should not crumple alike.
 	const float Seed = FMath::Frac(static_cast<float>(GetUniqueID()) * 0.6180339f);
-	auto Write = [&](UStaticMeshComponent& Component) {
-		Component.SetCustomPrimitiveDataVector4(ApexDamage::CpdCentre, FVector4(Bounds.Origin, 0.0));
+	auto WriteAt = [&](UStaticMeshComponent& Component, const FVector& Centre) {
+		Component.SetCustomPrimitiveDataVector4(ApexDamage::CpdCentre, FVector4(Centre, 0.0));
 		Component.SetCustomPrimitiveDataVector4(ApexDamage::CpdExtent, FVector4(Extent, 0.0));
 		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdSeed, Seed);
 	};
-	Write(*CarMesh);
-	ForEachDamagePartComponent(Write);
+	auto Write = [&](UStaticMeshComponent& Component) { WriteAt(Component, Bounds.Origin); };
+	ForEachDentedComponent(Write);
+	// The flap's mesh has its origin at the hinge: the body's box seen from
+	// there, shut (the dents ride with it as it opens).
+	if (UStaticMeshComponent* Flap = GetDrsFlapComponent())
+	{
+		WriteAt(*Flap, Bounds.Origin - ApexDrs::FlapTransform(DrsFlap.GetSpec(), 0.0f).GetLocation());
+	}
+}
+
+void AApexRaceCarActor::ForEachDentedComponent(TFunctionRef<void(UStaticMeshComponent&)> Fn) const
+{
+	Fn(*CarMesh);
+	ForEachDamagePartComponent(Fn);
+	// The driver's mesh is in the body's frame.
+	if (UStaticMeshComponent* Figure = GetDriverComponent())
+	{
+		Fn(*Figure);
+	}
 }
 
 static_assert(ApexDamage::NoSecondDent == FApexCarTelemetry::NoSecondDent, "the material's default is the wire's none");
@@ -1130,8 +1153,11 @@ void AApexRaceCarActor::ApplyDents(const ApexDamage::FShares& Shares)
 			Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdAt2Front + Zone, At2[Zone]);
 		}
 	};
-	Write(*CarMesh);
-	ForEachDamagePartComponent(Write);
+	ForEachDentedComponent(Write);
+	if (UStaticMeshComponent* Flap = GetDrsFlapComponent())
+	{
+		Write(*Flap);
+	}
 	DrawnDents = Shares;
 	FMemory::Memcpy(DrawnDamageAt, TelemetryDamageAt, sizeof(DrawnDamageAt));
 	FMemory::Memcpy(DrawnDamageAt2, TelemetryDamageAt2, sizeof(DrawnDamageAt2));

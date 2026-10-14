@@ -64,6 +64,15 @@ namespace ApexWheels
 		// as Unreal's yaw for a left turn in the actor's own frame.
 		const FQuat Steer = bFront ? FQuat(FVector::ZAxisVector, -SteerRad) : FQuat::Identity;
 
+		// Toe-in swings the front of each wheel toward the middle: the left
+		// one's +Y toward -X, a positive turn about Z, the right one's the
+		// other way. Negative camber leans the top in: about +Y, +Z goes to
+		// (sin a, 0, cos a), so the left wheel turns by the camber and the
+		// right by its negative.
+		const float Toe = bFront ? Spec.FrontToeRad : Spec.RearToeRad;
+		const float Camber = bFront ? Spec.FrontCamberRad : Spec.RearCamberRad;
+		const FQuat Set = FQuat(FVector::ZAxisVector, bLeft ? Toe : -Toe) * FQuat(FVector::YAxisVector, bLeft ? Camber : -Camber);
+
 		const FVector Extent = WheelMeshBounds.BoxExtent;
 		const FVector Scale(
 			Extent.X > KINDA_SMALL_NUMBER ? Width * 50.0f / Extent.X : 1.0f,
@@ -72,7 +81,7 @@ namespace ApexWheels
 
 		// Scale in the wheel's own frame (before any turn), so it stays
 		// width along the axle whatever the spin and steer.
-		return FTransform(Steer * Base * Spin, Hub, Scale);
+		return FTransform(Steer * Set * Base * Spin, Hub, Scale);
 	}
 
 	FBox WheelsBox(const FApexWheelSpec& Spec)

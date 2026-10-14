@@ -136,6 +136,8 @@ public:
 
 	/** Calls `Fn` for each damage part's component, on the car or not, e.g. to hide them from a capture. */
 	void ForEachDamagePartComponent(TFunctionRef<void(UStaticMeshComponent&)> Fn) const;
+	/** The body, its damage parts and the driver: every mesh in the body's frame that dents (not the DRS flap, at its hinge). */
+	void ForEachDentedComponent(TFunctionRef<void(UStaticMeshComponent&)> Fn) const;
 
 	/** The damage as last drawn, 0..1 per zone (front, rear, left, right, engine). */
 	const ApexDamage::FShares& GetDamageShares() const { return DamageShares; }

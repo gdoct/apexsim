@@ -57,7 +57,9 @@ at different places round the tread (`TyreCpd::FlatSpot2`).
   default list's card was seen).
 
 **Damage** ([server/vehicle-physics.md](server/vehicle-physics.md)): a
-seeded pileup replay screenshotted before and after.
+seeded pileup replay screenshotted before and after. A dented DRS flap
+(a rear hit short of the wing's `detach_pct`, from a camera that sees the
+wing), and the static camber on the wheels close up.
 
 - A part hanging before it comes off (`UpdateHangingParts`: the hinge edge,
   the 22° droop and the flutter are guesses).

@@ -38,15 +38,6 @@ Rough edges of the client's road state and snow.
 
 **Check:** a rain-to-dry and a snow session at Silverstone, screenshotted.
 
-### 4. Damage
-
-The car parents, the damage actor and the importer's damage tables.
-
-- The DRS flap and the driver can be dented; wheels are drawn toed.
-
-**Check:** a seeded pileup replay screenshotted before and after; one AC
-import re-run and crashed.
-
 ### 5. Hotlap and lap records
 
 The ghost, the hotlap replay and watch.

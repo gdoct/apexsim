@@ -58,7 +58,7 @@ if a car.toml names a file that is not there.
 | Table | Read by | What it holds |
 |---|---|---|
 | top level: `id`, `name`, `model`, `class`, ... | both | `id` (a UUID) is the catalog key, and with the name all the wire carries; `class` sets the AI field and the client's class defaults |
-| `[physics]`, `[aero]`, `[tires]`, `[[tires.compound]]`, `[engine]`, `[[engine.torque_curve]]`, `[transmission]`, `[drivetrain]`, `[differential]`, `[fuel]`, `[hybrid]`, `[suspension]`, `[brakes]` | server | the car model: [../server/vehicle-physics.md](../server/vehicle-physics.md). The client also reads `[physics] mass_kg`, `max_steering_angle_rad`, `[engine]` idle/redline/limiter, `[tires]` window and each compound's `name` / `kind` |
+| `[physics]`, `[aero]`, `[tires]`, `[[tires.compound]]`, `[engine]`, `[[engine.torque_curve]]`, `[transmission]`, `[drivetrain]`, `[differential]`, `[fuel]`, `[hybrid]`, `[suspension]`, `[brakes]` | server | the car model: [../server/vehicle-physics.md](../server/vehicle-physics.md). The client also reads `[physics] mass_kg`, `max_steering_angle_rad`, `[suspension]` camber and toe, `[engine]` idle/redline/limiter, `[tires]` window and each compound's `name` / `kind` |
 | `[wheels]` | client | where the road wheels go (below) |
 | `[cockpit]`, `[preview]` | client | eye, steering wheel, mirrors; turntable framing |
 | `[driver]` | client | the driver figure's GLB |
@@ -234,8 +234,10 @@ and slot names; anything else is a class wheel.
 
 `FApexCarWheelSet` (`Race/ApexCarWheels.h`) hangs four copies off the body,
 sizes each from the mesh bounds to its axle's diameter and width, turns the
-right-hand pair half round (not mirrored) so the face is outboard, steers the
-fronts by `steering x max_steering_angle_rad` and rolls all four by how far
+right-hand pair half round (not mirrored) so the face is outboard, leans and
+turns each by its axle's `[suspension]` static camber and toe
+(`camber_*_deg`, `toe_*_deg`: the car's own figures, not the driver's set-up),
+steers the fronts by `steering x max_steering_angle_rad` and rolls all four by how far
 the drawn car moved along its nose, capped at `apexsim.car.WheelMaxDegPerFrame`
 (12) a frame so the spokes do not strobe. A row without wheels draws none.
 
@@ -438,7 +440,9 @@ face) from it, which starts the second (`HitCentres::second`, `damage_at2`,
   data starts at 18, where the second dents are on the body: a wheel has no
   damage amounts, so its rim draws none. `apexsim.car.DamagePreview` takes
   five, nine or thirteen numbers (the percentages, the centres, the second
-  centres). Imported-track
+  centres). The driver (in the body's frame) and the DRS flap (the box
+  written from its hinge) carry the same data, so they dent with the body
+  round them. Imported-track
   scenery shares the parents and has the offset switched off
   (`SetEvaluateWorldPositionOffset(false)`).
 - **Parts** come off. `[[damage_part]]` boxes split the body GLB at runtime
