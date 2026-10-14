@@ -47,7 +47,9 @@ namespace ApexSpectator
 	constexpr uint8 RecordGhost = 10;
 
 	/** Bytes of one car in a state record as written now; a newer writer only appends. */
-	constexpr int32 ExtraSize = 40;
+	constexpr int32 ExtraSize = 44;
+	/** ... as streams wrote it before the second dents (one dent a zone): still read ... */
+	constexpr int32 ExtraSizeOneDent = 40;
 	/** ... and as the first streams wrote it (no damage centres): still read. */
 	constexpr int32 ExtraSizeMin = 36;
 	/** `FApexStreamCarExtra::FuelDl` of a tank the stream does not know. */
@@ -271,8 +273,10 @@ struct APEXSIMNET_API FApexStreamCarExtra
 	uint8 TowPct = 0;
 	/** Where each zone was hit, 127ths: front, rear (across, + left), left, right (along, + forward). */
 	int8 DamageAt[4] = {0, 0, 0, 0};
-	/** The entry had the damage centres (a 40-byte one). */
+	/** The entry had the damage centres (a 40-byte one or longer). */
 	bool bHasDamageAt = false;
+	/** Each zone's second dent, as DamageAt; -128 for a zone with one (and from an older entry). */
+	int8 DamageAt2[4] = {-128, -128, -128, -128};
 
 	static bool Read(const uint8* Bytes, int32 Len, FApexStreamCarExtra& Out);
 	/** The entry written back as its ApexSpectator::ExtraSize bytes, for tests. */

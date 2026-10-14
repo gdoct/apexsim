@@ -94,8 +94,8 @@ Layout: `spectator.rs`.
 **The state record** carries what changes too slowly to ride every 30 Hz
 row: `SkyNow` (so a showcase, a replay and the backdrop show the sky the race
 ran through, rain arriving and the clock moving, not the sky it started
-under), a timed race's `RaceClock`, and one 40-byte `CarExtra` per car (36 in a stream
-from before the damage centres; layout in `spectator.rs`). The player keeps the latest and puts it on every frame it
+under), a timed race's `RaceClock`, and one 44-byte `CarExtra` per car (40 in a stream
+from before the second dents, 36 from before the damage centres; layout in `spectator.rs`). The player keeps the latest and puts it on every frame it
 completes (`Frame.Sky`, `RaceLeftMs`, each car's pressures, flat spots, brakes
 and tank), so the race director, the HUD and the tyre material need nothing
 special. `BroadcastEncoder::state` makes it, `STATE_EVERY_S` (0.25 s) is its

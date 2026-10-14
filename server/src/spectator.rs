@@ -81,7 +81,9 @@ pub const RECORD_GHOST: u8 = 10;
 /// Seconds between two [`StreamState`] records of a stream.
 pub const STATE_EVERY_S: f32 = 0.25;
 /// Bytes of one car in a [`StreamState`]'s `extras` as this build writes them.
-pub const EXTRA_SIZE: usize = 40;
+pub const EXTRA_SIZE: usize = 44;
+/// ... as streams wrote them before the second dents (still read: one dent a zone) ...
+pub const EXTRA_SIZE_ONE_DENT: usize = 40;
 /// ... and as the first streams wrote them (no damage centres): still read.
 pub const EXTRA_SIZE_MIN: usize = 36;
 /// `CarExtra::fuel_dl` when the stream does not know the tank.
@@ -1593,6 +1595,8 @@ pub struct CarExtra {
     pub ers_stint_pct: u8,
     pub tow_pct: u8,
     pub damage_at: [i8; 4],
+    /// Each zone's second dent (`CompactCarState::damage_at2`).
+    pub damage_at2: [i8; 4],
 }
 
 impl CarExtra {
@@ -1612,6 +1616,7 @@ impl CarExtra {
             ers_stint_pct: c.ers_stint_pct,
             tow_pct: c.tow_pct,
             damage_at: c.damage_at,
+            damage_at2: c.damage_at2,
         }
     }
 
@@ -1632,6 +1637,7 @@ impl CarExtra {
         out.push(self.ers_stint_pct);
         out.push(self.tow_pct);
         out.extend(self.damage_at.map(|v| v as u8));
+        out.extend(self.damage_at2.map(|v| v as u8));
         debug_assert_eq!(out.len() - start, EXTRA_SIZE);
     }
 
@@ -1653,7 +1659,7 @@ impl CarExtra {
             ers_lap_pct: entry[33],
             ers_stint_pct: entry[34],
             tow_pct: entry[35],
-            damage_at: if entry.len() >= EXTRA_SIZE {
+            damage_at: if entry.len() >= EXTRA_SIZE_ONE_DENT {
                 [
                     entry[36] as i8,
                     entry[37] as i8,
@@ -1662,6 +1668,16 @@ impl CarExtra {
                 ]
             } else {
                 [0; 4]
+            },
+            damage_at2: if entry.len() >= EXTRA_SIZE {
+                [
+                    entry[40] as i8,
+                    entry[41] as i8,
+                    entry[42] as i8,
+                    entry[43] as i8,
+                ]
+            } else {
+                [crate::damage::NO_SECOND_DENT; 4]
             },
         })
     }
@@ -3037,6 +3053,7 @@ mod tests {
                     tyre_kpa: [162, 163, 158, 159],
                     flat_spot: [0, 35, 0, 0],
                     damage_at: [-64, 0, 127, 32],
+                    damage_at2: [-128, -128, -95, -128],
                     brake_c: [410, 430, 380, 395],
                     fuel_dl: 412,
                     water_c: 96,
@@ -3052,6 +3069,7 @@ mod tests {
                     tyre_kpa: [0; 4],
                     flat_spot: [0; 4],
                     damage_at: [0, 0, 0, 0],
+                    damage_at2: [-128; 4],
                     brake_c: [0; 4],
                     fuel_dl: FUEL_UNKNOWN,
                     water_c: 0,
@@ -3122,6 +3140,12 @@ mod tests {
             panic!("not a state");
         };
         assert_eq!(read.cars, sample_state().cars);
+        // An entry from before the second dents: one dent a zone.
+        let mut entry = Vec::new();
+        sample_state().cars[0].write(&mut entry);
+        let one = CarExtra::read(&entry[..EXTRA_SIZE_ONE_DENT]).unwrap();
+        assert_eq!(one.damage_at, [-64, 0, 127, 32]);
+        assert_eq!(one.damage_at2, [crate::damage::NO_SECOND_DENT; 4]);
 
         let service = sample_pit_service();
         assert_eq!(

@@ -1152,6 +1152,16 @@ pub struct CompactCarState {
     pub tyre_pickup: [u8; 4],
     #[serde(default)]
     pub tyre_blister: [u8; 4],
+    /// Each body zone's second dent, front, rear, left, right, as `damage_at`
+    /// (`HitCentres::second`), or `damage::NO_SECOND_DENT` (-128) for a
+    /// zone with one. Appended after `tyre_blister`; an older server sends
+    /// none, which a client reads as one dent a zone.
+    #[serde(default = "no_second_dents")]
+    pub damage_at2: [i8; 4],
+}
+
+fn no_second_dents() -> [i8; 4] {
+    [crate::damage::NO_SECOND_DENT; 4]
 }
 
 /// `tyre_state` bits.
@@ -1503,6 +1513,7 @@ impl CompactCarState {
                 .tires
                 .each()
                 .map(|t| (t.blister.clamp(0.0, 1.0) * 100.0).round() as u8),
+            damage_at2: state.damage.hit_at.to_wire_second(),
         }
     }
 }
@@ -2880,6 +2891,9 @@ mod tests {
             rear: 0.0,
             left: 1.0,
             right: 0.25,
+            // A second dent at the left flank's rear corner.
+            second: [0.0, 0.0, -0.75, 0.0],
+            second_pct: [0.0, 0.0, 3.0, 0.0],
         };
         state.ers_charge_pct = 64;
         state.ers_budget_pct = 255;
@@ -2940,10 +2954,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 49-field array: 0xDC 0x00 0x31 is the array-16 header.
+        // The car is a 50-field array: 0xDC 0x00 0x32 is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x31]),
-            "CompactCarState must stay 49 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x32]),
+            "CompactCarState must stay 50 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -2979,6 +2993,11 @@ mod tests {
                     car.damage_at,
                     [-64, 0, 127, 32],
                     "127ths of the zone's half face"
+                );
+                assert_eq!(
+                    car.damage_at2,
+                    [-128, -128, -95, -128],
+                    "a second dent on the left flank only"
                 );
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);

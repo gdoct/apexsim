@@ -810,10 +810,11 @@ bool FApexStreamCarExtra::Read(const uint8* B, int32 Len, FApexStreamCarExtra& O
 	Out.ErsLapPct = B[33];
 	Out.ErsStintPct = B[34];
 	Out.TowPct = B[35];
-	Out.bHasDamageAt = Len >= ApexSpectator::ExtraSize;
+	Out.bHasDamageAt = Len >= ApexSpectator::ExtraSizeOneDent;
 	for (int32 i = 0; i < 4; ++i)
 	{
 		Out.DamageAt[i] = Out.bHasDamageAt ? static_cast<int8>(B[36 + i]) : 0;
+		Out.DamageAt2[i] = Len >= ApexSpectator::ExtraSize ? static_cast<int8>(B[40 + i]) : -128;
 	}
 	return true;
 }
@@ -843,6 +844,7 @@ void FApexStreamCarExtra::Write(TArray<uint8>& Out) const
 	for (int32 i = 0; i < 4; ++i)
 	{
 		B[36 + i] = static_cast<uint8>(DamageAt[i]);
+		B[40 + i] = static_cast<uint8>(DamageAt2[i]);
 	}
 }
 
@@ -863,6 +865,8 @@ void FApexStreamCarExtra::ApplyTo(FApexCarTelemetry& Car) const
 		for (int32 i = 0; i < 4; ++i)
 		{
 			Car.DamageAt[i] = FMath::Clamp(static_cast<float>(DamageAt[i]) / 127.0f, -1.0f, 1.0f);
+			Car.DamageAt2[i] = DamageAt2[i] == -128 ? FApexCarTelemetry::NoSecondDent
+				: FMath::Clamp(static_cast<float>(DamageAt2[i]) / 127.0f, -1.0f, 1.0f);
 		}
 	}
 	for (int32 i = 0; i < 4; ++i)
@@ -914,6 +918,8 @@ FApexStreamCarExtra FApexStreamCarExtra::FromTelemetry(const FApexCarTelemetry& 
 	for (int32 i = 0; i < 4; ++i)
 	{
 		Out.DamageAt[i] = static_cast<int8>(FMath::Clamp(FMath::RoundToInt(Car.DamageAt[i] * 127.0f), -127, 127));
+		Out.DamageAt2[i] = Car.DamageAt2[i] > 1.5f ? -128
+			: static_cast<int8>(FMath::Clamp(FMath::RoundToInt(Car.DamageAt2[i] * 127.0f), -127, 127));
 	}
 	return Out;
 }

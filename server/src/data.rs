@@ -1414,13 +1414,20 @@ pub struct SuspensionTelemetry {
 /// the damage each did: the nose and the tail across the car (positive to the
 /// left), the left and right flanks along it (positive forward). 0 for a zone
 /// not hit, or hit dead centre. The client dents the zone there instead of
-/// across the whole face (`crate::damage::hit_zone`).
+/// across the whole face (`crate::damage::hit_zone`). A hit too far along the
+/// face from the first dent starts a second one (`second`, front, rear, left,
+/// right), which later hits near it fold into; `second_pct` is the damage it
+/// carries, 0 for a zone with one dent.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 pub struct HitCentres {
     pub front: f32,
     pub rear: f32,
     pub left: f32,
     pub right: f32,
+    #[serde(default)]
+    pub second: [f32; 4],
+    #[serde(default)]
+    pub second_pct: [f32; 4],
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]

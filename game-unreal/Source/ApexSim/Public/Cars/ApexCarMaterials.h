@@ -99,8 +99,9 @@ namespace ApexCarMaterials
 	 * each tyre still shows its own state (FApexCarWheelSet writes it). The
 	 * class tyres carry no UVs, so the tread is laid from the mesh's own
 	 * position: the axle on X, `theta` round it from +Y toward +Z. Starts at
-	 * 18, past the damage graph's (ApexDamage::CpdCount), which the rims'
-	 * opaque parent reads from the same component.
+	 * 18, past the damage graph's first dents, which the rims' opaque parent
+	 * reads from the same component (its second dents share these slots, and
+	 * draw nothing on a wheel, whose damage amounts are 0).
 	 */
 	namespace TyreCpd
 	{

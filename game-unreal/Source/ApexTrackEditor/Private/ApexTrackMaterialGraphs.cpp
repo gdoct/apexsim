@@ -942,11 +942,11 @@ namespace
 			return Mul(Mul(X, X), Sub(C(3.0f), Mul(C(2.0f), X)));
 		}
 		/** A scalar parameter read from the primitive's custom data at `Index`. */
-		UMaterialExpression* PrimitiveScalar(const TCHAR* Name, int32 Index) const
+		UMaterialExpression* PrimitiveScalar(const TCHAR* Name, int32 Index, float Default = 0.0f) const
 		{
 			UMaterialExpressionScalarParameter* E = AddExpr<UMaterialExpressionScalarParameter>(M);
 			E->ParameterName = Name;
-			E->DefaultValue = 0.0f;
+			E->DefaultValue = Default;
 			E->bUseCustomPrimitiveData = true;
 			E->PrimitiveDataIndex = static_cast<uint8>(Index);
 			return E;
@@ -1065,6 +1065,11 @@ return saturate(max(Wb.W(g - cF, amtF, frac(Seed * 0.731)), Wb.W(g - cR, amtR, f
 		UMaterialExpression* AtLeft = G.PrimitiveScalar(TEXT("DamageAtLeft"), ApexDamage::CpdAtLeft);
 		UMaterialExpression* AtRight = G.PrimitiveScalar(TEXT("DamageAtRight"), ApexDamage::CpdAtRight);
 		UMaterialExpression* Local1 = G.PrimitiveScalar(TEXT("DamageLocal"), ApexDamage::CpdLocal);
+		// Each zone's second dent: off the face (NoSecondDent) for none.
+		UMaterialExpression* At2Front = G.PrimitiveScalar(TEXT("DamageAt2Front"), ApexDamage::CpdAt2Front, ApexDamage::NoSecondDent);
+		UMaterialExpression* At2Rear = G.PrimitiveScalar(TEXT("DamageAt2Rear"), ApexDamage::CpdAt2Rear, ApexDamage::NoSecondDent);
+		UMaterialExpression* At2Left = G.PrimitiveScalar(TEXT("DamageAt2Left"), ApexDamage::CpdAt2Left, ApexDamage::NoSecondDent);
+		UMaterialExpression* At2Right = G.PrimitiveScalar(TEXT("DamageAt2Right"), ApexDamage::CpdAt2Right, ApexDamage::NoSecondDent);
 		UMaterialExpressionScalarParameter* Dent = AddExpr<UMaterialExpressionScalarParameter>(Parent);
 		Dent->ParameterName = ApexCarMaterials::DamageDentCm;
 		Dent->DefaultValue = 15.0f;
@@ -1087,22 +1092,26 @@ return saturate(max(Wb.W(g - cF, amtF, frac(Seed * 0.731)), Wb.W(g - cR, amtR, f
 		// A zone's weight here: its amount, faded in over its reach of its face,
 		// and where it was hit: round `At` along the face, a patch as wide as
 		// the damage is deep (a tap is a dent the size of a hand, a write-off
-		// reaches the corners). `Local1` 0 spreads it over the whole face, as a
-		// server that does not say where did.
+		// reaches the corners), and the same round its second dent `At2`, if
+		// it has one. `Local1` 0 spreads it over the whole face, as a server
+		// that does not say where did.
 		auto Zone = [&G, Local1](UMaterialExpression* Toward, UMaterialExpression* Amount,
-						UMaterialExpression* Along, UMaterialExpression* At) {
+						UMaterialExpression* Along, UMaterialExpression* At, UMaterialExpression* At2) {
 			UMaterialExpression* Reach = G.Add(G.C(0.15f), G.Mul(Amount, G.C(0.3f)));
 			UMaterialExpression* Into = G.Sat(G.Div(G.Sub(Toward, G.Sub(G.C(1.0f), Reach)), Reach));
 			UMaterialExpression* Half = G.Add(G.C(0.35f), G.Mul(Amount, G.C(0.9f)));
-			UMaterialExpression* Off = G.Div(G.Sub(Along, At), Half);
-			UMaterialExpression* Patch = G.Sat(G.Sub(G.C(1.0f), G.Mul(Off, Off)));
+			auto PatchAt = [&G, Along, Half](UMaterialExpression* Centre) {
+				UMaterialExpression* Off = G.Div(G.Sub(Along, Centre), Half);
+				return G.Sat(G.Sub(G.C(1.0f), G.Mul(Off, Off)));
+			};
+			UMaterialExpression* Patch = G.Max(PatchAt(At), PatchAt(At2));
 			UMaterialExpression* Where = G.Lerp(G.C(1.0f), G.Smooth(Patch), Local1);
 			return G.Mul(G.Mul(G.Smooth(Into), Amount), Where);
 		};
-		UMaterialExpression* WFront = Zone(Py, Front, Px, AtFront);
-		UMaterialExpression* WRear = Zone(G.Mul(Py, G.C(-1.0f)), Rear, Px, AtRear);
-		UMaterialExpression* WLeft = Zone(Px, Left, Py, AtLeft);
-		UMaterialExpression* WRight = Zone(G.Mul(Px, G.C(-1.0f)), Right, Py, AtRight);
+		UMaterialExpression* WFront = Zone(Py, Front, Px, AtFront, At2Front);
+		UMaterialExpression* WRear = Zone(G.Mul(Py, G.C(-1.0f)), Rear, Px, AtRear, At2Rear);
+		UMaterialExpression* WLeft = Zone(Px, Left, Py, AtLeft, At2Left);
+		UMaterialExpression* WRight = Zone(G.Mul(Px, G.C(-1.0f)), Right, Py, AtRight, At2Right);
 		UMaterialExpression* Weight = G.Add(G.Add(WFront, WRear), G.Add(WLeft, WRight));
 
 		// Pushed in toward the middle, unevenly.

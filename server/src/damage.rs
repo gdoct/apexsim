@@ -212,28 +212,71 @@ pub enum HitZone {
     Right,
 }
 
+/// How far along a face (of its -1..1) a hit must land from the zone's
+/// first dent to start a second one rather than fold into it.
+pub const SECOND_DENT_APART: f32 = 0.6;
+
+/// A zone's second centre on the wire when it has none (`HitCentres::to_wire_second`).
+pub const NO_SECOND_DENT: i8 = i8::MIN;
+
 impl HitCentres {
     /// Fold a hit that put `added` percent of damage on `zone` at `at` into
-    /// the zone's centre, given the `before` percent it already carried:
-    /// the mean of every hit, weighted by what it did.
+    /// the zone's dents, given the `before` percent it already carried: the
+    /// nearer dent's centre moves to the mean of its hits, weighted by what
+    /// each did, unless the zone has one dent and the hit lands more than
+    /// [`SECOND_DENT_APART`] from it, which starts the second.
     pub fn note(&mut self, zone: HitZone, at: f32, before: f32, added: f32) {
-        let centre = match zone {
+        let added = added.max(0.0);
+        if added <= 0.0 {
+            return;
+        }
+        let i = zone as usize;
+        let second_pct = self.second_pct[i];
+        let first_pct = (before.max(0.0) - second_pct).max(0.0);
+        let first = match zone {
             HitZone::Front => &mut self.front,
             HitZone::Rear => &mut self.rear,
             HitZone::Left => &mut self.left,
             HitZone::Right => &mut self.right,
         };
-        let total = before.max(0.0) + added.max(0.0);
-        if total > 0.0 {
-            *centre = ((*centre * before.max(0.0) + at * added.max(0.0)) / total).clamp(-1.0, 1.0);
+        let fold = |centre: f32, weight: f32| {
+            ((centre * weight + at * added) / (weight + added)).clamp(-1.0, 1.0)
+        };
+        if second_pct <= 0.0 {
+            if first_pct > 0.0 && (at - *first).abs() > SECOND_DENT_APART {
+                self.second[i] = at.clamp(-1.0, 1.0);
+                self.second_pct[i] = added;
+            } else {
+                *first = fold(*first, first_pct);
+            }
+        } else if (at - *first).abs() <= (at - self.second[i]).abs() {
+            *first = fold(*first, first_pct);
+        } else {
+            self.second[i] = fold(self.second[i], second_pct);
+            self.second_pct[i] = second_pct + added;
         }
     }
 
     /// The four centres as the wire carries them: -1..1 in 127ths.
     pub fn to_wire(self) -> [i8; 4] {
-        let q = |v: f32| (v * 127.0).round().clamp(-127.0, 127.0) as i8;
-        [q(self.front), q(self.rear), q(self.left), q(self.right)]
+        [self.front, self.rear, self.left, self.right].map(quantise_centre)
     }
+
+    /// The four second centres as the wire carries them, [`NO_SECOND_DENT`]
+    /// for a zone with one dent.
+    pub fn to_wire_second(self) -> [i8; 4] {
+        std::array::from_fn(|i| {
+            if self.second_pct[i] > 0.0 {
+                quantise_centre(self.second[i])
+            } else {
+                NO_SECOND_DENT
+            }
+        })
+    }
+}
+
+fn quantise_centre(v: f32) -> i8 {
+    (v * 127.0).round().clamp(-127.0, 127.0) as i8
 }
 
 impl DamageState {
@@ -429,30 +472,61 @@ mod tests {
     }
 
     #[test]
-    fn the_centre_of_a_zone_is_the_damage_weighted_mean_of_its_hits() {
+    fn a_dent_centre_is_the_damage_weighted_mean_of_its_hits() {
         let mut centres = HitCentres::default();
-        // A first hit of 10% at +1 on a clean nose: all of it.
-        centres.note(HitZone::Front, 1.0, 0.0, 10.0);
-        assert_eq!(centres.front, 1.0);
-        // A second of 10% at -1 on a nose with 10% already: the middle.
-        centres.note(HitZone::Front, -1.0, 10.0, 10.0);
-        assert!(centres.front.abs() < 1e-6);
-        // A hit of 30% at +0.5 on a nose with 20%: pulled toward it.
-        centres.note(HitZone::Front, 0.5, 20.0, 30.0);
-        assert!((centres.front - 0.3).abs() < 1e-5, "{}", centres.front);
-        // The others are untouched, and the wire is 127ths.
+        // A first hit of 10% at +0.5 on a clean nose: all of it.
+        centres.note(HitZone::Front, 0.5, 0.0, 10.0);
+        assert_eq!(centres.front, 0.5);
+        // A second of 10% at 0 on a nose with 10% already: the middle.
+        centres.note(HitZone::Front, 0.0, 10.0, 10.0);
+        assert!((centres.front - 0.25).abs() < 1e-6, "{}", centres.front);
+        // A hit of 30% at +0.6 on a nose with 20%: pulled toward it.
+        centres.note(HitZone::Front, 0.6, 20.0, 30.0);
+        assert!((centres.front - 0.46).abs() < 1e-5, "{}", centres.front);
+        // One dent, the others untouched, and the wire is 127ths.
         assert_eq!(centres.rear, 0.0);
-        assert_eq!(centres.to_wire(), [38, 0, 0, 0]);
+        assert_eq!(centres.to_wire(), [58, 0, 0, 0]);
+        assert_eq!(centres.to_wire_second(), [NO_SECOND_DENT; 4]);
         assert_eq!(
             HitCentres {
                 front: -1.0,
                 rear: 1.0,
                 left: 0.5,
-                right: -0.5
+                right: -0.5,
+                ..Default::default()
             }
             .to_wire(),
             [-127, 127, 64, -64]
         );
+    }
+
+    #[test]
+    fn a_hit_far_from_the_first_dent_is_a_second() {
+        let mut centres = HitCentres::default();
+        // The left flank hit at its front corner, then at its rear one.
+        centres.note(HitZone::Left, 0.8, 0.0, 10.0);
+        centres.note(HitZone::Left, -0.6, 10.0, 6.0);
+        assert_eq!(centres.left, 0.8, "the first dent stays put");
+        assert_eq!((centres.second[2], centres.second_pct[2]), (-0.6, 6.0));
+        // A hit near the second folds into it, one near the first into that.
+        centres.note(HitZone::Left, -1.0, 16.0, 6.0);
+        assert!(
+            (centres.second[2] + 0.8).abs() < 1e-6,
+            "{:?}",
+            centres.second
+        );
+        assert_eq!(centres.second_pct[2], 12.0);
+        centres.note(HitZone::Left, 0.4, 22.0, 10.0);
+        assert!((centres.left - 0.6).abs() < 1e-6, "{}", centres.left);
+        assert_eq!(centres.second_pct[2], 12.0);
+        assert_eq!(
+            centres.to_wire_second(),
+            [NO_SECOND_DENT, NO_SECOND_DENT, -102, NO_SECOND_DENT]
+        );
+        // A miss changes nothing.
+        let before = centres;
+        centres.note(HitZone::Left, -1.0, 32.0, 0.0);
+        assert_eq!(centres, before);
     }
 
     #[test]
@@ -463,6 +537,8 @@ mod tests {
             engine_damage_percent: 10.0,
             hit_at: HitCentres {
                 front: 0.8,
+                second: [-0.7, 0.0, 0.0, 0.0],
+                second_pct: [12.0, 0.0, 0.0, 0.0],
                 ..Default::default()
             },
             ..Default::default()

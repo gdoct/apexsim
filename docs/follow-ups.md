@@ -42,8 +42,6 @@ Rough edges of the client's road state and snow.
 
 The car parents, the damage actor and the importer's damage tables.
 
-- Two hits on one face are two dents (today a zone's dent is centred on the
-  damage-weighted mean of its hits).
 - The DRS flap and the driver can be dented; wheels are drawn toed.
 
 **Check:** a seeded pileup replay screenshotted before and after; one AC

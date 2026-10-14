@@ -415,21 +415,30 @@ wing carry it along. The DRS rule is server-side
 
 The server sends five percentages per car (front, rear, left, right,
 engine) and where along each body zone's face the hits landed
-(`DamageState::hit_at`: the damage-weighted mean of the hits, -1 to 1, the nose
-and tail across the car with the left positive, the flanks along it with
-forward positive; `damage::hit_zone` works it from the collision angle;
-`CompactCarState.damage_at` and the stream's `CarExtra`); everything visible
-is worked out from those on the client (`Race/ApexCarDamage.h`).
+(`DamageState::hit_at`, -1 to 1, the nose and tail across the car with the
+left positive, the flanks along it with forward positive; `damage::hit_zone`
+works it from the collision angle; `CompactCarState.damage_at` and the
+stream's `CarExtra`). A zone has up to two dents: a hit folds into the nearer
+one, moving its centre to the damage-weighted mean of its hits, unless the
+zone has one and the hit lands more than `SECOND_DENT_APART` (0.6 of the
+face) from it, which starts the second (`HitCentres::second`, `damage_at2`,
+-128 for none). Everything visible is worked out from those on the client
+(`Race/ApexCarDamage.h`).
 
 - **Dents and scuffs** are in the four car parents (`BuildCarDamage` in
   `ApexTrackMaterialGraphs.cpp`): custom primitive data on the body
   (`ApexDamage::Cpd*`: each zone's visual amount, the body's box in its mesh
-  frame, a seed, where each zone was hit and whether the car says) drives a
+  frame, a seed, where each zone was hit, whether the car says, and each
+  zone's second dent, off the face (`NoSecondDent`, 9) for none) drives a
   world position offset that dents a zone by up to `DamageDentCm`, with
   faceted shading and scuffed paint. The dent is a patch round the hit, as
   wide as the damage is deep (a tap is a dent the size of a hand, a write-off
-  reaches the corners); a server without the centres dents the whole face
-  as before. The tyre graph's own primitive data starts at 18, past these. Imported-track
+  reaches the corners), and the same round a second dent; a server without
+  the centres dents the whole face as before. The tyre graph's own primitive
+  data starts at 18, where the second dents are on the body: a wheel has no
+  damage amounts, so its rim draws none. `apexsim.car.DamagePreview` takes
+  five, nine or thirteen numbers (the percentages, the centres, the second
+  centres). Imported-track
   scenery shares the parents and has the offset switched off
   (`SetEvaluateWorldPositionOffset(false)`).
 - **Parts** come off. `[[damage_part]]` boxes split the body GLB at runtime

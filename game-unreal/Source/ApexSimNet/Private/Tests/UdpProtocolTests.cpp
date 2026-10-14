@@ -864,6 +864,9 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("FR picked up rubber"), FMath::IsNearlyEqual(Car.TyrePickup[1], 0.34f, 1e-4f));
 			TestEqual(TEXT("FL clean"), Car.TyrePickup[0], 0.0f);
 			TestEqual(TEXT("RL half blistered"), Car.TyreBlister[2], 0.5f);
+			// 50 fields: each zone's second dent.
+			TestTrue(TEXT("a second dent at the left flank's rear"), FMath::IsNearlyEqual(Car.DamageAt2[2], -95.0f / 127.0f, 1e-4f));
+			TestEqual(TEXT("one dent on the nose"), Car.DamageAt2[0], FApexCarTelemetry::NoSecondDent);
 		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactRecover, Spots, Error)
 			&& Spots.Telemetry.Cars.Num() == 1)
@@ -871,6 +874,7 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("no flat spots from an older server"), Spots.Telemetry.Cars[0].FlatSpot[3], 0.0f);
 			TestFalse(TEXT("nor damage centres: the whole face is dented"), Spots.Telemetry.Cars[0].bHasDamageAt);
 			TestFalse(TEXT("nor the tyres' surface: the car works it out"), Spots.Telemetry.Cars[0].bHasTyreSurface);
+			TestEqual(TEXT("nor second dents"), Spots.Telemetry.Cars[0].DamageAt2[2], FApexCarTelemetry::NoSecondDent);
 		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactZones, Recover, Error)
 			&& Recover.Telemetry.Cars.Num() == 1)

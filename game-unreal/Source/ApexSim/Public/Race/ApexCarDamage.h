@@ -8,8 +8,9 @@
  * Damage). The server sends five percentages per car (`DamagePct`: front,
  * rear, left, right, engine) and, since a hit has a place, where along each
  * body zone's face the hits landed (`DamageAt`: front and rear across the
- * car, left and right along it, -1 to 1); everything here is worked out from
- * those nine numbers (a server without the second four dents a whole face).
+ * car, left and right along it, -1 to 1) and each zone's second dent
+ * (`DamageAt2`); everything here is worked out from those numbers (a server
+ * without the centres dents a whole face).
  *
  *  - **Dents and scuffs** are drawn by the car parent materials
  *    (`ApexCarMaterials`): the body's custom primitive data carries each
@@ -40,8 +41,12 @@ namespace ApexDamage
 	 * BuildCar): the four body zones' visual amounts, the body's centre and
 	 * half extents in its mesh frame (cm; a vector parameter takes four
 	 * slots), a per-car seed so two cars do not dent alike, where each zone
-	 * was hit (-1 to 1: the nose and tail across, the flanks along) and whether
-	 * the car knows it (0: dent the whole face, as a server without it).
+	 * was hit (-1 to 1: the nose and tail across, the flanks along), whether
+	 * the car knows it (0: dent the whole face, as a server without it) and
+	 * each zone's second dent (`FApexCarTelemetry::NoSecondDent`, off the
+	 * face, for none). A wheel's component holds the tyre's own data from 18
+	 * (ApexCarMaterials::TyreCpd) and no damage amounts, so its rim reads
+	 * them as second dents with nothing to dent.
 	 */
 	inline constexpr int32 CpdFront = 0;
 	inline constexpr int32 CpdRear = 1;
@@ -55,7 +60,13 @@ namespace ApexDamage
 	inline constexpr int32 CpdAtLeft = 15;
 	inline constexpr int32 CpdAtRight = 16;
 	inline constexpr int32 CpdLocal = 17;
-	inline constexpr int32 CpdCount = 18;
+	inline constexpr int32 CpdAt2Front = 18;
+	inline constexpr int32 CpdAt2Rear = 19;
+	inline constexpr int32 CpdAt2Left = 20;
+	inline constexpr int32 CpdAt2Right = 21;
+	inline constexpr int32 CpdCount = 22;
+	/** A second-dent slot of a zone with one dent: off the face (`FApexCarTelemetry::NoSecondDent`). */
+	inline constexpr float NoSecondDent = 9.0f;
 
 	/** Each zone's damage as a share, 0..1; an unknown zone (negative) is undamaged. */
 	struct FShares

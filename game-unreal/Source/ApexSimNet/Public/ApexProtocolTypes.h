@@ -2263,6 +2263,12 @@ struct APEXSIMNET_API FApexCarTelemetry
 	float DamageAt[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	bool bHasDamageAt = false;
 
+	/** Each zone's second dent, where a hit landed too far from the first to
+	 * fold into it (`damage_at2`), -1 to 1 as DamageAt; NoSecondDent for a
+	 * zone with one dent, and from a server that does not send it. */
+	static constexpr float NoSecondDent = 9.0f;
+	float DamageAt2[4] = {NoSecondDent, NoSecondDent, NoSecondDent, NoSecondDent};
+
 	bool HasDamage() const { return DamagePct[0] >= 0.0f; }
 
 	/** The hybrid (server hybrid.rs): the battery's charge and the lap's

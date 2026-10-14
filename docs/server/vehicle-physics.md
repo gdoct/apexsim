@@ -483,7 +483,9 @@ reordered; effects are the `*_PER_CLICK` consts):
 `ers_lap_pct`, `ers_flags`, `tyre_c_edges`, `brake_wear`, `slide_flags`, `ers_stint_pct`,
 `recover_ds` ([sessions](sessions.md#recovering-a-stuck-car)), `flat_spot`, `damage_at`,
 `tyre_water`, `tyre_marbles` (the road under each tyre, `CarState::tyre_water` /
-`tyre_marbles`, percent), `tyre_state` (bit 0 punctured, bit 1 a slow leak under way)
+`tyre_marbles`, percent), `tyre_state` (bit 0 punctured, bit 1 a slow leak under way),
+`tyre_pickup`, `tyre_blister`, `damage_at2` (each zone's second dent,
+[cars](../content/cars.md#visible-damage))
 (pit fields: [pit lane](pit-lane.md)); `PlayerInput.drs` / `ers_mode` / `ers_boost`;
 `DriverFeedback.flat_spot`. Golden bytes (in `server/`, `-- --nocapture`): `cargo test
 telemetry_compact_wire_format` -> `ApexUdpGolden::S_TelemetryCompactFlatSpot` (the older

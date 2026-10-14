@@ -282,6 +282,8 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 			A.ApplyTo(Car);
 			TestTrue(TEXT("damage centres on telemetry"), Car.bHasDamageAt && FMath::IsNearlyEqual(Car.DamageAt[2], 1.0f)
 				&& FMath::IsNearlyEqual(Car.DamageAt[0], -64.0f / 127.0f, 1e-4f));
+			TestTrue(TEXT("a second dent on the left flank only"), A.DamageAt2[0] == -128 && A.DamageAt2[2] == -95
+				&& FMath::IsNearlyEqual(Car.DamageAt2[2], -95.0f / 127.0f, 1e-4f) && Car.DamageAt2[0] == FApexCarTelemetry::NoSecondDent);
 			TestTrue(TEXT("extra on telemetry"), FMath::IsNearlyEqual(Car.FuelLiters, 41.2f) && FMath::IsNearlyEqual(Car.TyrePressureKpa[1], 163.0f)
 				&& FMath::IsNearlyEqual(Car.FlatSpot[1], 0.35f) && FMath::IsNearlyEqual(Car.BrakeTempC[1], 430.0f)
 				&& FMath::IsNearlyEqual(Car.TyreInnerC[1], 82.0f) && FMath::IsNearlyEqual(Car.TyreOuterC[1], 92.0f)

@@ -434,6 +434,9 @@ private:
 	/** ... and as the dents were last written (-2: never). */
 	float DrawnDamageAt[4] = {-2.0f, -2.0f, -2.0f, -2.0f};
 	bool bDrawnDamageAt = false;
+	/** Each body zone's second dent (`FApexCarTelemetry::DamageAt2`), and as last written. */
+	float TelemetryDamageAt2[4] = {FApexCarTelemetry::NoSecondDent, FApexCarTelemetry::NoSecondDent, FApexCarTelemetry::NoSecondDent, FApexCarTelemetry::NoSecondDent};
+	float DrawnDamageAt2[4] = {-2.0f, -2.0f, -2.0f, -2.0f};
 	/** What the car shows, and what it showed when the dents were last written. */
 	ApexDamage::FShares DamageShares;
 	ApexDamage::FShares DrawnDents;

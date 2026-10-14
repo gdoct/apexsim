@@ -122,7 +122,8 @@ namespace
 	TAutoConsoleVariable<FString> CVarDamagePreview(
 		TEXT("apexsim.car.DamagePreview"),
 		TEXT(""),
-		TEXT("Damage drawn on every car instead of the server's: \"front,rear,left,right,engine\" percent; empty for the telemetry"),
+		TEXT("Damage drawn on every car instead of the server's: \"front,rear,left,right,engine\" percent, then optionally where each body zone was hit")
+		TEXT(" (four more, -1..1) and each one's second dent (four more, 9 for none); empty for the telemetry"),
 		ECVF_Default);
 
 	/** Smoke, steam, sparks and thrown parts; dents are drawn either way. */
@@ -137,11 +138,11 @@ namespace
 	 * also where each zone was hit (-1 to 1, `OutAt`, with `bOutHasAt`).
 	 * False unless it is five or nine numbers.
 	 */
-	bool ParseDamagePreview(const FString& Text, float Out[ApexDamage::NumZones], float OutAt[4], bool& bOutHasAt)
+	bool ParseDamagePreview(const FString& Text, float Out[ApexDamage::NumZones], float OutAt[4], float OutAt2[4], bool& bOutHasAt)
 	{
 		TArray<FString> Parts;
 		Text.ParseIntoArray(Parts, TEXT(","), true);
-		if (Parts.Num() != ApexDamage::NumZones && Parts.Num() != ApexDamage::NumZones + 4)
+		if (Parts.Num() != ApexDamage::NumZones && Parts.Num() != ApexDamage::NumZones + 4 && Parts.Num() != ApexDamage::NumZones + 8)
 		{
 			return false;
 		}
@@ -153,6 +154,11 @@ namespace
 		for (int32 i = 0; bOutHasAt && i < 4; ++i)
 		{
 			OutAt[i] = FMath::Clamp(FCString::Atof(*Parts[ApexDamage::NumZones + i].TrimStartAndEnd()), -1.0f, 1.0f);
+		}
+		for (int32 i = 0; i < 4; ++i)
+		{
+			const float At2 = Parts.Num() > ApexDamage::NumZones + 4 ? FCString::Atof(*Parts[ApexDamage::NumZones + 4 + i].TrimStartAndEnd()) : 9.0f;
+			OutAt2[i] = At2 > 1.5f ? FApexCarTelemetry::NoSecondDent : FMath::Clamp(At2, -1.0f, 1.0f);
 		}
 		return true;
 	}
@@ -865,6 +871,7 @@ void AApexRaceCarActor::ApplyTelemetry(const FApexCarTelemetry& Car, int64 Serve
 	CurrentLapTimeMs = Car.CurrentLapTimeMs;
 	FMemory::Memcpy(TelemetryDamagePct, Car.DamagePct, sizeof(TelemetryDamagePct));
 	FMemory::Memcpy(TelemetryDamageAt, Car.DamageAt, sizeof(TelemetryDamageAt));
+	FMemory::Memcpy(TelemetryDamageAt2, Car.DamageAt2, sizeof(TelemetryDamageAt2));
 	bTelemetryDamageAt = Car.bHasDamageAt;
 	WaterTempC = Car.WaterTempC;
 	bColliding = Car.bIsColliding;
@@ -1099,11 +1106,14 @@ void AApexRaceCarActor::ApplyDamageFrame()
 	ForEachDamagePartComponent(Write);
 }
 
+static_assert(ApexDamage::NoSecondDent == FApexCarTelemetry::NoSecondDent, "the material's default is the wire's none");
+
 void AApexRaceCarActor::ApplyDents(const ApexDamage::FShares& Shares)
 {
 	const float* At = TelemetryDamageAt;
+	const float* At2 = TelemetryDamageAt2;
 	const bool bLocal = bTelemetryDamageAt;
-	auto Write = [&Shares, At, bLocal](UStaticMeshComponent& Component) {
+	auto Write = [&Shares, At, At2, bLocal](UStaticMeshComponent& Component) {
 		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdFront, ApexDamage::Visual(Shares.Zone[ApexDamage::Front]));
 		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdRear, ApexDamage::Visual(Shares.Zone[ApexDamage::Rear]));
 		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdLeft, ApexDamage::Visual(Shares.Zone[ApexDamage::Left]));
@@ -1114,11 +1124,17 @@ void AApexRaceCarActor::ApplyDents(const ApexDamage::FShares& Shares)
 		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdAtLeft, At[2]);
 		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdAtRight, At[3]);
 		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdLocal, bLocal ? 1.0f : 0.0f);
+		// Each face's second dent; NoSecondDent lies off the face, so it draws nothing.
+		for (int32 Zone = 0; Zone < 4; ++Zone)
+		{
+			Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdAt2Front + Zone, At2[Zone]);
+		}
 	};
 	Write(*CarMesh);
 	ForEachDamagePartComponent(Write);
 	DrawnDents = Shares;
 	FMemory::Memcpy(DrawnDamageAt, TelemetryDamageAt, sizeof(DrawnDamageAt));
+	FMemory::Memcpy(DrawnDamageAt2, TelemetryDamageAt2, sizeof(DrawnDamageAt2));
 	bDrawnDamageAt = bTelemetryDamageAt;
 }
 
@@ -1320,13 +1336,15 @@ void AApexRaceCarActor::UpdateDamage(float DeltaSeconds)
 	ApexDamage::FShares Shares = ApexDamage::FromPercent(TelemetryDamagePct);
 	float Preview[ApexDamage::NumZones];
 	float PreviewAt[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	float PreviewAt2[4];
 	bool bPreviewAt = false;
-	if (ParseDamagePreview(CVarDamagePreview.GetValueOnGameThread(), Preview, PreviewAt, bPreviewAt))
+	if (ParseDamagePreview(CVarDamagePreview.GetValueOnGameThread(), Preview, PreviewAt, PreviewAt2, bPreviewAt))
 	{
 		Shares = ApexDamage::FromPercent(Preview);
-		// Nine numbers say where it was hit too; five dent the whole face.
+		// Nine numbers say where it was hit too, thirteen a second dent; five dent the whole face.
 		bTelemetryDamageAt = bPreviewAt;
 		FMemory::Memcpy(TelemetryDamageAt, PreviewAt, sizeof(TelemetryDamageAt));
+		FMemory::Memcpy(TelemetryDamageAt2, PreviewAt2, sizeof(TelemetryDamageAt2));
 	}
 	const ApexDamage::FShares Before = DamageShares;
 	DamageShares = Shares;
@@ -1341,6 +1359,7 @@ void AApexRaceCarActor::UpdateDamage(float DeltaSeconds)
 		if (Zone < 4)
 		{
 			bDentsChanged |= FMath::Abs(TelemetryDamageAt[Zone] - DrawnDamageAt[Zone]) > 0.004f;
+			bDentsChanged |= FMath::Abs(TelemetryDamageAt2[Zone] - DrawnDamageAt2[Zone]) > 0.004f;
 		}
 	}
 	if (bDentsChanged)
