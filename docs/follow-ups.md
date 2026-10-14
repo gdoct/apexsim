@@ -74,7 +74,6 @@ The ghost, the hotlap replay and watch.
   tints its own instances).
 - The hotlap replay's trackside shots come from the TV director's cameras,
   not `CutReplayShot`'s geometric placement.
-- The `hotlap_watch` HUD scene is in the HUD editor.
 - Corners carry the circuit's official turn number in the dossier, not the
   detector's.
 - A watch's lap again (R) drives the ghost round with the HUD still on the

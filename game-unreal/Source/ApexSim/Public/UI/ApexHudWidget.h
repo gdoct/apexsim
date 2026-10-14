@@ -81,6 +81,11 @@ public:
 	void BeginEditing();
 	void EndEditing();
 	bool IsEditing() const { return bEditing; }
+	/**
+	 * The editor lays out the scene that was up when it opened (a watched
+	 * hotlap's `hotlap_watch`) rather than the ordinary HUD.
+	 */
+	bool IsEditingScene() const { return bEditing && bEditingScene; }
 
 	const FApexHudLayout& GetLayout() const { return Layout; }
 	/** Applies a layout (rebuilding the tree); it is saved by the editor, not here. */
@@ -207,6 +212,7 @@ private:
 	/** Behind the panels while laying out from the menu, so they are not drawn over the menu's own screens. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> EditBackdrop;
 	bool bEditing = false;
+	bool bEditingScene = false;
 	/** Counts frames of UpdateNode, to tell which clickable elements are shown now. */
 	uint32 HudFrame = 1;
 

@@ -399,9 +399,9 @@ void UApexHudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		const FApexHudComponentDef& Component = Components[Index];
 		// A scene (a watched hotlap) replaces the HUD: its components are the
 		// only ones shown while it is up, and they are not shown outside it.
-		// The editor lays out the ordinary HUD.
-		const bool bSceneUp = !bEditing && Hud->GetBool(TEXT("hotlap.active"));
-		if (bEditing ? !Component.Scene.IsEmpty() : (Component.Scene.IsEmpty() == bSceneUp))
+		// The editor lays out whichever was up when it opened.
+		const bool bSceneUp = bEditing ? bEditingScene : Hud->GetBool(TEXT("hotlap.active"));
+		if (Component.Scene.IsEmpty() == bSceneUp)
 		{
 			SetNodeVisible(Nodes[Root], false);
 			continue;
@@ -1069,6 +1069,8 @@ void UApexHudWidget::BeginEditing()
 	bEditing = true;
 	if (UApexHudDataSubsystem* Hud = GetHudData())
 	{
+		// Read before the preview's stand-in values take over.
+		bEditingScene = Hud->GetBool(TEXT("hotlap.active"));
 		Hud->SetPreview(true);
 	}
 	// Outside a race the preview has its own outline for the map.
@@ -1092,6 +1094,7 @@ void UApexHudWidget::EndEditing()
 		return;
 	}
 	bEditing = false;
+	bEditingScene = false;
 	// The layout the bindings give for here applies again, whichever was being edited.
 	LastContextKey.Reset();
 	if (UApexHudDataSubsystem* Hud = GetHudData())

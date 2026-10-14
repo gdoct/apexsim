@@ -118,7 +118,11 @@ than adding to it. There is one, `hotlap_watch` (a watched hotlap, see
 [sessions](../server/sessions.md)): while `hotlap.active` is true only that
 scene's components show; outside it they never do. A `custom/` component with
 a shipped id replaces it as anywhere; your own with `"scene":
-"hotlap_watch"` joins them. The HUD editor lays out only the ordinary HUD.
+"hotlap_watch"` joins them. The HUD editor lays out what is up when it
+opens: opened during a watched hotlap (the pause menu's settings, or
+`apexsim.hud.Edit`) it moves, sizes, removes and adds the scene's
+components (`UApexHudWidget::IsEditingScene`), anywhere else the ordinary
+HUD's. Both are kept in the same layout, by component id.
 
 ## Elements
 

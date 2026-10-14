@@ -429,7 +429,9 @@ void UApexHudEditorWidget::BuildCard()
 bool UApexHudEditorWidget::IsEditable(int32 Index) const
 {
 	const UApexHudWidget* HudWidget = Hud.Get();
-	return HudWidget && HudWidget->GetComponents().IsValidIndex(Index) && HudWidget->GetComponents()[Index].Scene.IsEmpty();
+	// The scene up when the editor opened (a watched hotlap's), else the ordinary HUD.
+	return HudWidget && HudWidget->GetComponents().IsValidIndex(Index)
+		&& HudWidget->GetComponents()[Index].Scene.IsEmpty() != HudWidget->IsEditingScene();
 }
 
 void UApexHudEditorWidget::RebuildRemoveButtons()
