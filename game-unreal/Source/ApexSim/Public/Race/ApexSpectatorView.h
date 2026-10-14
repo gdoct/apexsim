@@ -119,6 +119,16 @@ namespace ApexSpectate
 		Setup,
 		ReplayLap,
 		Ghost,
+		/**
+		 * A watched hotlap's air a step cooler and warmer and its wind a
+		 * step lighter and stronger: the right stick's four directions, not
+		 * rebindable (the number row's 4 to 7 do the same as positions).
+		 * Nothing in any other view.
+		 */
+		AirCooler,
+		AirWarmer,
+		WindLighter,
+		WindStronger,
 	};
 
 	struct FCommand

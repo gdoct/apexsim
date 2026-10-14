@@ -147,6 +147,23 @@ namespace ApexSpectate
 		{
 			Command.Action = EAction::Slower;
 		}
+		// The right stick: a watched hotlap's air (up, down) and wind (right, left).
+		else if (Key == EKeys::Gamepad_RightStick_Up)
+		{
+			Command.Action = EAction::AirWarmer;
+		}
+		else if (Key == EKeys::Gamepad_RightStick_Down)
+		{
+			Command.Action = EAction::AirCooler;
+		}
+		else if (Key == EKeys::Gamepad_RightStick_Right)
+		{
+			Command.Action = EAction::WindStronger;
+		}
+		else if (Key == EKeys::Gamepad_RightStick_Left)
+		{
+			Command.Action = EAction::WindLighter;
+		}
 		else if (Key == EKeys::Add)
 		{
 			Command.Action = EAction::Faster;

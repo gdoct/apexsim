@@ -328,6 +328,7 @@ row, the left and right arrows and the D-pad's up and down (they also step cars)
 | comma / full stop | LT / RT | ten seconds back / on in a replay or a live stream (no further than its edge) |
 | - / = | D-pad left / right | slower / faster (0.25x to 4x) |
 | S, R, G | D-pad up, down | a watched hotlap's setup, its fastest lap again, its ghost ([sessions](../server/sessions.md#watching-a-hotlap)); elsewhere the D-pad's up and down step cars |
+| 4 / 5, 6 / 7 | right stick down / up, left / right | a watched hotlap's air a step cooler / warmer and wind a step lighter / stronger (`EAction::AirCooler` and friends, not rebindable; console `apexsim.watch air- air+ wind- wind+`) |
 | Backspace | B | stop watching |
 | Esc | Start | the pause menu |
 

@@ -220,6 +220,13 @@ namespace
 			{
 				Command.Action = ApexSpectate::EAction::Ghost;
 			}
+			else if (Verb == TEXT("air-") || Verb == TEXT("air+") || Verb == TEXT("wind-") || Verb == TEXT("wind+"))
+			{
+				Command.Action = Verb == TEXT("air-") ? ApexSpectate::EAction::AirCooler
+					: Verb == TEXT("air+") ? ApexSpectate::EAction::AirWarmer
+					: Verb == TEXT("wind-") ? ApexSpectate::EAction::WindLighter
+					: ApexSpectate::EAction::WindStronger;
+			}
 			else
 			{
 				UE_LOG(LogApexSim, Warning, TEXT("apexsim.watch: unknown '%s'"), *Verb);
@@ -2850,6 +2857,11 @@ void UApexRootWidget::RunWatchCommand(const ApexSpectate::FCommand& Command)
 		switch (Command.Action)
 		{
 		case EAction::Setup:          ChangeHotlapWatch(EHotlapChoice::Setup, 1); return;
+		// The right stick, streamed or not (the transport has the rest).
+		case EAction::AirCooler:      ChangeHotlapWatch(EHotlapChoice::AirTemp, -1); return;
+		case EAction::AirWarmer:      ChangeHotlapWatch(EHotlapChoice::AirTemp, 1); return;
+		case EAction::WindLighter:    ChangeHotlapWatch(EHotlapChoice::Wind, -1); return;
+		case EAction::WindStronger:   ChangeHotlapWatch(EHotlapChoice::Wind, 1); return;
 		case EAction::ReplayLap:      ReplayHotlapLap(); return;
 		case EAction::Ghost:
 			if (UApexSettingsSubsystem* Settings = GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>(); Settings && Settings->Get())

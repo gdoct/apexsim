@@ -105,6 +105,11 @@ bool FApexSpectateKeysTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("S the setup"), ActionOf(EKeys::S), (int32)EAction::Setup);
 	TestEqual(TEXT("R the lap again"), ActionOf(EKeys::R), (int32)EAction::ReplayLap);
 	TestEqual(TEXT("G the ghost"), ActionOf(EKeys::G), (int32)EAction::Ghost);
+	// The right stick is a watched hotlap's air and wind, whatever is bound.
+	TestEqual(TEXT("right stick up the air warmer"), ActionOf(EKeys::Gamepad_RightStick_Up), (int32)EAction::AirWarmer);
+	TestEqual(TEXT("right stick down the air cooler"), ActionOf(EKeys::Gamepad_RightStick_Down), (int32)EAction::AirCooler);
+	TestEqual(TEXT("right stick right the wind stronger"), ActionOf(EKeys::Gamepad_RightStick_Right), (int32)EAction::WindStronger);
+	TestEqual(TEXT("right stick left the wind lighter"), ActionOf(EKeys::Gamepad_RightStick_Left), (int32)EAction::WindLighter);
 	TestEqual(TEXT("the left arrow still steps"), ActionOf(EKeys::Left), (int32)EAction::PreviousCar);
 
 	// A rebound key is the new one's, and the old one is nobody's.
