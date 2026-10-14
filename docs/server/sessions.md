@@ -206,8 +206,9 @@ mark (READY, SETTING UP, AWAY, AI). The card closes when the countdown
 starts. Console: `apexsim.grid.Ready`, `apexsim.grid.Livery`,
 `apexsim.grid.StartNow`.
 
-A race weekend's race is not gridded this way: the final round's end, and
-the host's advance, count straight in.
+A race weekend's race goes up on the same grid: the host's advance after
+the final round opens it (see "Race weekend"), so drivers change tyres,
+setup and livery between qualifying and the race.
 
 ## Race start and finish
 
@@ -413,14 +414,18 @@ race). `AdvanceWeekend` (host only, else `Error 403`;
 - lobby -> practice, or Q1 when there is none;
 - practice finished -> Q1;
 - Qk finished, k < rounds -> Q(k+1);
-- final round finished -> `start_countdown_mode(START_SESSION_COUNTDOWN_SECONDS,
-  Race)`, gridded by the weekend.
+- final round finished -> `open_grid(START_SESSION_COUNTDOWN_SECONDS)`,
+  gridded by the weekend: the race's grid card, counted in once every
+  driver is ready. With no driver connected (a hosted weekend nobody is in)
+  there is nobody to say ready, and it is
+  `start_countdown_mode(START_SESSION_COUNTDOWN_SECONDS, Race)` instead.
 
 It is refused with `Error 409` while a phase runs (not the lobby, not
 `Finished`), once the race has begun, and in a session that is not a
 weekend. The session hears `GameModeChanged` (`Practice`, `Qualification`,
-or `Countdown` into the race). A countdown into the race by any other route
-(`StartCountdown`, `StartSession`) also puts the weekend at its race.
+`Grid`, or `Countdown` into the race). A grid or a countdown into the race
+by any other route (`OpenGrid`, `StartCountdown`, `StartSession`) also puts
+the weekend at its race (`enter_weekend_race`).
 
 **Practice** is `GameMode::Practice`: run on `tick_hotlap` as qualifying is
 (humans in the garage, going out is the outlap from the pit exit on cold

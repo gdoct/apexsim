@@ -34,11 +34,6 @@ A small bug a driver meets in an ordinary race.
 
 **Check:** a pit stop in the LMP2 at 1600x900 (`-ApexScreenshotAfter`).
 
-- A race weekend's race skips the grid card: the final round's end and the
-  host's advance count straight into it (`start_countdown_mode`), so a
-  driver cannot change tyres or livery between qualifying and the race.
-  Routing it through `open_grid` moves `weekend_test`'s countdown checks.
-
 ## P2: depth
 
 ### 2. Road state and snow on screen

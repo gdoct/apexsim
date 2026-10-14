@@ -1378,8 +1378,11 @@ impl GameSession {
     /// The host moves the weekend on (`ClientMessage::AdvanceWeekend`):
     /// from the lobby to practice (or Q1 when there is none), from finished
     /// practice to Q1, from a finished round to the next, and from the
-    /// finished final round into the race's countdown
-    /// ([`START_SESSION_COUNTDOWN_SECONDS`]), gridded by the weekend.
+    /// finished final round onto the race's grid ([`Self::open_grid`],
+    /// [`START_SESSION_COUNTDOWN_SECONDS`] once every driver is ready),
+    /// gridded by the weekend, so drivers change tyres, setup and livery
+    /// after qualifying. With no driver connected there is nobody to say
+    /// ready, and the race is counted straight in.
     /// Refused (the reason) outside a weekend, while a phase runs, and once
     /// the race has begun.
     pub fn advance_weekend(&mut self) -> Result<(), &'static str> {
@@ -1397,6 +1400,9 @@ impl GameSession {
             WeekendPhase::Qualifying if !finished => return Err("Qualifying is still running"),
             WeekendPhase::Qualifying if (self.weekend.round as usize) < format.rounds() => {
                 self.begin_round(self.weekend.round + 1)
+            }
+            WeekendPhase::Qualifying if self.has_connected_driver() => {
+                self.open_grid(START_SESSION_COUNTDOWN_SECONDS)
             }
             WeekendPhase::Qualifying => {
                 self.start_countdown_mode(START_SESSION_COUNTDOWN_SECONDS, GameMode::Race)
@@ -1674,6 +1680,7 @@ impl GameSession {
     /// is, `countdown_seconds` (capped at [`MAX_COUNTDOWN_SECONDS`]) count
     /// into the race.
     pub fn open_grid(&mut self, countdown_seconds: u16) {
+        self.enter_weekend_race();
         self.grid_countdown_seconds = countdown_seconds.min(MAX_COUNTDOWN_SECONDS);
         self.set_game_mode(GameMode::Grid);
     }
@@ -2551,13 +2558,8 @@ impl GameSession {
     /// Start countdown mode with custom duration. The stored `next_mode` is
     /// transitioned to automatically when the countdown reaches zero.
     pub fn start_countdown_mode(&mut self, countdown_seconds: u16, next_mode: GameMode) {
-        if next_mode == GameMode::Race && self.is_weekend() {
-            // However the host got here, the weekend is at its race now.
-            self.settle_weekend();
-            self.weekend.phase = crate::weekend::WeekendPhase::Race;
-            self.weekend.round = 0;
-        }
         if next_mode == GameMode::Race {
+            self.enter_weekend_race();
             // A race starts from the grid: after a finished race (or practice)
             // the cars are wherever they stopped, with their laps and finish
             // positions still set.
@@ -2574,6 +2576,16 @@ impl GameSession {
                 .min(u16::MAX as u32) as u16,
         );
         self.session.next_mode = Some(next_mode);
+    }
+
+    /// However the host got to the race's grid or countdown, a weekend is
+    /// at its race now. Nothing outside a weekend.
+    fn enter_weekend_race(&mut self) {
+        if self.is_weekend() {
+            self.settle_weekend();
+            self.weekend.phase = crate::weekend::WeekendPhase::Race;
+            self.weekend.round = 0;
+        }
     }
 
     /// Transition from Countdown to another mode
@@ -6252,13 +6264,35 @@ mod tests {
         );
         end_phase(&mut game_session);
         game_session.advance_weekend().unwrap();
+        // The race's grid card: tyres, setup and livery after qualifying.
+        assert_eq!(game_session.session.game_mode, GameMode::Grid);
         assert_eq!(game_session.session.state, SessionState::Countdown);
         assert_eq!(game_session.advance_weekend(), Err("The race has begun"));
-        for _ in 0..=START_SESSION_COUNTDOWN_SECONDS as u32 * DEFAULT_TICK_RATE_HZ as u32 {
+        let humans: Vec<PlayerId> = game_session.session.participants.keys().copied().collect();
+        for id in &humans {
+            assert!(game_session.set_ready(*id, true));
+        }
+        for _ in 0..=START_SESSION_COUNTDOWN_SECONDS as u32 * DEFAULT_TICK_RATE_HZ as u32 + 1 {
             game_session.tick(&HashMap::new());
         }
         assert_eq!(game_session.session.game_mode, GameMode::Race);
         assert_eq!(game_session.advance_weekend(), Err("The race has begun"));
+    }
+
+    /// With no driver connected to say ready, the weekend's race is counted
+    /// straight in rather than waiting on an empty grid.
+    #[test]
+    fn a_weekend_with_nobody_connected_counts_its_race_straight_in() {
+        let (mut game_session, ids) = weekend_of(2, 0, &[600]);
+        game_session.advance_weekend().unwrap();
+        end_phase(&mut game_session);
+        for id in &ids {
+            assert!(game_session.hold_seat(id));
+        }
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.session.game_mode, GameMode::Countdown);
+        assert_eq!(game_session.session.next_mode, Some(GameMode::Race));
+        assert_eq!(game_session.weekend_state().unwrap().phase, 3);
     }
 
     #[test]

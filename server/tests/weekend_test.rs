@@ -261,13 +261,15 @@ async fn a_weekend_runs_from_the_lobby_to_the_race_over_the_wire() {
         }
         host.wait_weekend(|w| w.round == 3 && w.finished).await?;
 
-        // The race: counted in, gridded by the weekend.
+        // The race: its grid goes up (tyres, setup and livery after
+        // qualifying), gridded by the weekend.
         host.send(&ClientMessage::AdvanceWeekend).await?;
         let race = host.wait_weekend(|w| w.phase == 3).await?;
         assert_eq!(race.eliminated.len(), 2);
         {
             let state = server.state.read().await;
             let session = state.sessions.get(&session_id).ok_or("no session")?;
+            assert_eq!(session.session.game_mode, GameMode::Grid);
             assert_eq!(session.session.next_mode, Some(GameMode::Race));
             let slot = |id: &PlayerId| session.session.participants[id].grid_position;
             assert_eq!((slot(&guest_id), slot(&host_id)), (1, 2));

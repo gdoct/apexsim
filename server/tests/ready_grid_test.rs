@@ -166,7 +166,9 @@ async fn the_grid_waits_for_every_driver_then_counts_into_the_race() {
         for client in [&mut host, &mut guest] {
             client
                 .wait_for("GameModeChanged Grid", |m| match m {
-                    ServerMessage::GameModeChanged { mode } if mode == GameMode::Grid => Some(()),
+                    ServerMessage::GameModeChanged {
+                        mode: GameMode::Grid,
+                    } => Some(()),
                     _ => None,
                 })
                 .await?;
