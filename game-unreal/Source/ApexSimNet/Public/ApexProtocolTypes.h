@@ -63,7 +63,7 @@ enum class EApexSessionKind : uint8
 {
 	Multiplayer = 0,
 	Practice    = 1,
-	Sandbox     = 2,
+	// 2 was Sandbox, which had no behaviour; never reuse it.
 	/**
 	 * An AI-only race this client watches behind its menu: unlisted and
 	 * unjoinable. Created by UApexDemoModeSubsystem; the net subsystem keeps

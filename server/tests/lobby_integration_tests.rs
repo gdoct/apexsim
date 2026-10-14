@@ -928,11 +928,7 @@ async fn test_session_kinds() {
 
     let result = timeout(TEST_TIMEOUT, async {
         let server = common::start_test_server().await;
-        let kinds = [
-            SessionKind::Practice,
-            SessionKind::Sandbox,
-            SessionKind::Multiplayer,
-        ];
+        let kinds = [SessionKind::Practice, SessionKind::Multiplayer];
 
         for kind in kinds {
             let mut client =

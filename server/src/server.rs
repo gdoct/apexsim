@@ -841,7 +841,7 @@ mod tests {
                 host_id,
                 car_id,
                 track_id,
-                SessionKind::Sandbox,
+                SessionKind::Multiplayer,
                 8,
                 0,
                 3,

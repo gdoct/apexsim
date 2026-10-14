@@ -2020,7 +2020,7 @@ pub enum SessionKind {
     #[default]
     Multiplayer = 0,
     Practice = 1,
-    Sandbox = 2,
+    // 2 was Sandbox, which had no behaviour; never reuse it.
     /// An AI-only race the creator watches: the backdrop behind a client's
     /// menu. Unlisted, unjoinable, spectated by its creator, counted straight
     /// into a race, and never recorded as a replay. It ends when its last

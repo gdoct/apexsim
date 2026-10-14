@@ -525,7 +525,6 @@ impl StreamHeader {
 
         let session_kind = match rd.uint()? {
             1 => SessionKind::Practice,
-            2 => SessionKind::Sandbox,
             3 => SessionKind::Demo,
             4 => SessionKind::HotlapWatch,
             _ => SessionKind::Multiplayer,

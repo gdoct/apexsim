@@ -1068,7 +1068,6 @@ void UApexMainMenuWidget::RefreshRejoin()
 	Spec.ActionId = Action::Rejoin;
 	Spec.Variant = EApexButtonVariant::Panel;
 	const TCHAR* What = Net->GetRejoinSessionKind() == EApexSessionKind::Practice ? TEXT("practice session")
-		: Net->GetRejoinSessionKind() == EApexSessionKind::Sandbox ? TEXT("sandbox session")
 		: TEXT("race");
 	Spec.Label = TrackName.IsEmpty()
 		? FString::Printf(TEXT("You are still in a %s"), What)

@@ -49,7 +49,6 @@ namespace
 		switch (Kind)
 		{
 		case EApexSessionKind::Practice:    return TEXT("Practice");
-		case EApexSessionKind::Sandbox:     return TEXT("Sandbox");
 		case EApexSessionKind::Multiplayer: return TEXT("Multiplayer");
 		default:                            return TEXT("Session");
 		}

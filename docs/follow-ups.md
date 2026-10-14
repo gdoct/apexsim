@@ -208,8 +208,8 @@ the launcher import with the network off.
 Small and independent. Do one or two alongside whatever package touches
 the same files.
 
-- Wire: `SessionKind::Sandbox` has no behaviour and no client sends it;
-  `SessionKind::Demo` is kept only for old servers and can go once
-  showcases are everywhere.
+- Wire: `SessionKind::Demo` is kept only for old servers and can go once
+  showcases are everywhere (today the backdrop still falls back to it
+  while the showcases are stale; see package 11).
 
 **Check:** server and client build and tests.

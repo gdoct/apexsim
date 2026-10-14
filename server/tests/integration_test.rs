@@ -909,8 +909,8 @@ async fn test_joining_player_receives_track_sectors_and_record() {
 }
 
 #[tokio::test]
-async fn test_sandbox_session_workflow() {
-    println!("=== Sandbox Session Workflow Test ===");
+async fn test_solo_session_workflow() {
+    println!("=== Solo Session Workflow Test ===");
     println!();
 
     let result = timeout(TEST_TIMEOUT, async {
@@ -919,7 +919,7 @@ async fn test_sandbox_session_workflow() {
 
         // Create a test client
         println!("Creating test client...");
-        let mut client = TestClient::connect("SandboxPlayer", server.tcp_addr).await?;
+        let mut client = TestClient::connect("SoloPlayer", server.tcp_addr).await?;
 
         // Authenticate
         println!("Authenticating client...");
@@ -951,15 +951,15 @@ async fn test_sandbox_session_workflow() {
         println!("Selecting car...");
         client.select_car(car_id).await?;
 
-        // Create a sandbox session
-        println!("Creating sandbox session...");
+        // Create a solo session
+        println!("Creating solo session...");
         let session_id = client
-            .create_session(track_id, 1, SessionKind::Sandbox)
+            .create_session(track_id, 1, SessionKind::Practice)
             .await?;
-        println!("Sandbox session created: {}", session_id);
+        println!("Solo session created: {}", session_id);
 
         // Start the session
-        println!("Starting sandbox session...");
+        println!("Starting solo session...");
         client.start_session().await?;
 
         // Wait for SessionStarting message (skipping interleaved broadcasts
@@ -1019,7 +1019,7 @@ async fn test_sandbox_session_workflow() {
             if let Some((tick, car_count)) = client.receive_telemetry().await? {
                 println!("✓ Telemetry received! tick={}, cars={}", tick, car_count);
                 telemetry_received = true;
-                assert_eq!(car_count, 1, "Expected 1 car in sandbox session");
+                assert_eq!(car_count, 1, "Expected 1 car in solo session");
                 break;
             }
 
@@ -1031,7 +1031,7 @@ async fn test_sandbox_session_workflow() {
             "Did not receive telemetry (race may not have started)"
         );
 
-        println!("✓ Sandbox session workflow completed successfully!");
+        println!("✓ Solo session workflow completed successfully!");
 
         Ok::<(), Box<dyn std::error::Error>>(())
     })

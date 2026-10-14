@@ -49,7 +49,7 @@ belong to these rules are described briefly beside them.
 |---|---|---|
 | `Multiplayer` | 0 | A normal, listed session. |
 | `Practice` | 1 | Same as Multiplayer on the server; the client uses it for single-player sessions. |
-| `Sandbox` | 2 | Same as Multiplayer (no client sends it). |
+| (none) | 2 | Retired (was `Sandbox`, which had no behaviour); refused, never reused. |
 | `Demo` | 3 | The menu's backdrop race: AI only, counted straight into a race (`DEMO_COUNTDOWN_SECONDS`, 8), no timing lines sent. |
 | `HotlapWatch` | 4 | One AI car lapping alone for its creator (see "Watching a hotlap"); timing lines are sent. |
 
