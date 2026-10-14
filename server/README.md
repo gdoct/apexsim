@@ -28,9 +28,7 @@ track YAML).
   (rubber, marbles, water), `wind.rs`.
 - **Content**: `car_loader.rs`, `track_loader.rs`, `track_content.rs` (lazy
   sidecar loading), `content_crc.rs`, and the sidecar readers `ground.rs`,
-  `curbs.rs`, `walls.rs`, `road_mesh.rs`. Legacy: `procgen/` (terrain for
-  `--generate-terrain`) and `track_mesh.rs` (used only by
-  `examples/track_export.rs`).
+  `curbs.rs`, `walls.rs`, `road_mesh.rs`.
 - **Spectating and offline tools**: `spectator.rs`, `showcase.rs`,
   `replay.rs`, `replay_tools.rs`, `track_guide.rs`; binaries in `bin/`
   (`apexsim_replay.rs`, `convert_track.rs`).

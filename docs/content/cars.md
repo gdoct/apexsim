@@ -100,8 +100,7 @@ car.toml and rewrites its generated tables; `APEX_EXPORT=0` skips the export.
 The variant scripts hold only shape and livery data; everything mechanical
 is in `carlib.py`, so a fix there lands on every generated car. `textures.py`
 (plain Python) writes the shared texture kit (carbon twill, sponsor atlas,
-number panels, tyre lettering; all names invented). `build_yotota.py` is an
-older single-car script nothing calls; `build_lmp2.py` builds the Yotota.
+number panels, tyre lettering; all names invented).
 
 **Frame.** Nose on -Y, ground at z = 0, metres, driver on +X; exported glTF
 +Y up, the nose lands along Unreal local Y and `AApexRaceCarActor` yaws the

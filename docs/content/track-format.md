@@ -94,10 +94,9 @@ scenery hint `ats-dress` and `ats-groom` read), and the location written by
 (places the sun), `longitude_deg`.
 
 `terrain_seed`, `terrain_scale`, `terrain_detail`, `terrain_blend_width`,
-`object_density` and `decal_profile` belong to the server's older
-procedural-terrain path (`server/src/procgen/`, `--generate-terrain`,
-`*.terrain.msgpack` caches); the shipped circuits carry them as nulls and
-the pipeline does not use them.
+`object_density` and `decal_profile` are read by nothing: the shipped
+circuits carry them as nulls, and both YAML models keep them so a rewrite
+does not drop them from a player's track.
 
 ### Who rewrites the YAML
 

@@ -217,10 +217,7 @@ Small and independent. Do one or two alongside whatever package touches
 the same files.
 
 - Unused: `WBP_SessionBrowser`, `WBP_SessionRow` and `UApexSessionRowWidget`
-  (the browser is C++; `WBP_Root` still references the first); `procgen/`
-  (`--generate-terrain`); `track_mesh.rs` (used only by
-  `examples/track_export.rs`); `scripts/content/cars/build_yotota.py`
-  (superseded by `build_lmp2.py`).
+  (the browser is C++; `WBP_Root` still references the first).
 - `L_Menu` still names `/Game/Cars/RB20/SM_RB20` as `DefaultCarMesh`.
 - `ApexRaceDirector.cpp` still matches `MI_wear_*` road bands that no
   exporter writes.

@@ -916,9 +916,6 @@ pub struct TrackConfig {
     /// Track metadata
     #[serde(default)]
     pub metadata: TrackMetadata,
-    /// Optional procedural world data
-    #[serde(default)]
-    pub procedural_world: Option<crate::procgen::ProceduralWorldData>,
     /// Baked ground heightfield exported by the track editor alongside the
     /// Unreal scene (`<Track>.ground.msgpack`). Off the asphalt the sim
     /// follows this instead of the centerline elevation, so the car rests on
@@ -1210,7 +1207,6 @@ impl Default for TrackConfig {
             checkpoints: Vec::new(),
             sectors: Vec::new(),
             metadata: TrackMetadata::default(),
-            procedural_world: None,
             ground: None,
             curbs: None,
             walls: None,

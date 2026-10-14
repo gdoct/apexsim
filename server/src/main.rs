@@ -1,7 +1,7 @@
 use apexsim_server::config::ServerConfig;
 use apexsim_server::server::run_server_from;
 use clap::Parser;
-use tracing::{error, info};
+use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -15,10 +15,6 @@ struct Args {
     /// Override log level (trace|debug|info|warn|error)
     #[arg(short, long)]
     log_level: Option<String>,
-
-    /// Generate procedural terrain for all tracks with environment_type metadata
-    #[arg(long)]
-    generate_terrain: bool,
 }
 
 /// Initialize tracing: console output plus optional JSON-lines file output
@@ -105,26 +101,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Starting ApexSim Racing Server v0.1.0");
     info!("Configuration loaded from: {}", args.config);
-
-    // Check if we're in terrain generation mode
-    if args.generate_terrain {
-        info!("🌍 TERRAIN GENERATION MODE");
-        info!("Generating procedural terrain for all tracks...");
-
-        use apexsim_server::procgen;
-        let result = procgen::terrain::generate_all_terrain(&config.content.tracks_dir);
-
-        match result {
-            Ok(count) => {
-                info!("✅ Successfully generated terrain for {} track(s)", count);
-                return Ok(());
-            }
-            Err(e) => {
-                error!("❌ Terrain generation failed: {}", e);
-                return Err(e.into());
-            }
-        }
-    }
 
     info!("TCP bind: {}", config.network.tcp_bind);
     info!("UDP bind: {}", config.network.udp_bind);

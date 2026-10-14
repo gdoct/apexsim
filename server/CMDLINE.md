@@ -30,7 +30,6 @@ directory.
 |---|---|---|
 | `-c`, `--config <PATH>` | `./server.toml` | The configuration file. If it does not exist the server starts on the built-in defaults and says so on stderr and in the log. If it exists but does not parse, or fails validation, the server refuses to start. |
 | `-l`, `--log-level <LEVEL>` | `[logging] level` from the config (`info`) | Log level: `trace`, `debug`, `info`, `warn` or `error`. Also accepts a `tracing` filter such as `apexsim_server=debug,warn`. |
-| `--generate-terrain` | off | Generate procedural terrain for every track under `[content] tracks_dir` whose metadata has an `environment_type`, write it to the cache files, and exit without starting the server. |
 | `-h`, `--help` | | Print the options and exit. |
 | `-V`, `--version` | | Print the version and exit. |
 

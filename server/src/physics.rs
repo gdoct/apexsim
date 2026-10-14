@@ -6900,7 +6900,6 @@ mod tests {
             checkpoints: Vec::new(),
             sectors: Vec::new(),
             metadata: TrackMetadata::default(),
-            procedural_world: None,
             ground: None,
             curbs: None,
             walls: None,
