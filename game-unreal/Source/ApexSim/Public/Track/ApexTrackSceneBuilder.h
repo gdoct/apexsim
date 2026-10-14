@@ -60,6 +60,13 @@ namespace ApexTrackMaterials
 	inline const TCHAR* const BrandName = TEXT("M_ApexBrand");
 	inline const TCHAR* const DecalName = TEXT("M_ApexDecal");
 	inline const TCHAR* const RoadName = TEXT("M_ApexTrackRoad");
+	/**
+	 * Whether a material key beside the road draws the road state's water
+	 * from the road's cells (`RoadStateOffRoad`): the curbs and the paved
+	 * run-off, whose UV `u` is the lap's station as the road's is. The pit
+	 * lane's `u` is its own station, and the server keeps no state there.
+	 */
+	APEXSIM_API bool ReadsRoadStateOffRoad(const FString& Family, const FString& Key);
 	/** `M_ApexCloudLayer`: the unlit cloud dome (`AApexCloudLayerActor`). */
 	inline const TCHAR* const CloudName = TEXT("M_ApexCloudLayer");
 	/**

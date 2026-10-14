@@ -151,8 +151,10 @@ void AApexRaceDirector::PushRoadStateParameters()
 			It.RemoveCurrent();
 			continue;
 		}
-		Mid->SetScalarParameterValue(SnowAmountParam, bSnowLive ? 1.0f : 0.0f);
-		if (bSnowLive)
+		// Off the road the snow is the lap's figure (ApplySnowCover).
+		const bool bOwnSnow = bSnowLive && !OffRoadStateMids.Contains(Mid);
+		Mid->SetScalarParameterValue(SnowAmountParam, bOwnSnow ? 1.0f : 0.0f);
+		if (bOwnSnow)
 		{
 			Mid->SetTextureParameterValue(SnowParam, RoadSnowTexture);
 		}
@@ -266,6 +268,7 @@ void AApexRaceDirector::ForgetRoadStateOnTrack()
 	// The materials went back with the track; the textures and the map stay
 	// for the next track view of the same session.
 	RoadStateMids.Reset();
+	OffRoadStateMids.Reset();
 	bRoadStateParamsStale = true;
 	bRoadStateShown = false;
 	bRoadSnowShown = false;

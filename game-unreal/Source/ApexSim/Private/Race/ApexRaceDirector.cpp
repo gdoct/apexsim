@@ -2115,6 +2115,10 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 					if (UMaterialInstanceDynamic* Mid = Mesh->CreateDynamicMaterialInstance(Slot))
 					{
 						RoadStateMids.AddUnique(Mid);
+						if (Mid->K2_GetScalarParameterValue(TEXT("RoadStateOffRoad")) > 0.5f)
+						{
+							OffRoadStateMids.Add(Mid);
+						}
 						bRoadStateParamsStale = true;
 					}
 				}
@@ -2389,8 +2393,9 @@ void AApexRaceDirector::ApplySnowCover()
 			It.RemoveCurrent();
 			continue;
 		}
-		// A road that draws its own snow per bin takes none of the lap's.
-		const bool bOwn = bRoadSnowShown && RoadStateMids.Contains(Mid);
+		// A road that draws its own snow per bin takes none of the lap's; the
+		// curbs and run-off beside it, which share its water, keep the lap's.
+		const bool bOwn = bRoadSnowShown && RoadStateMids.Contains(Mid) && !OffRoadStateMids.Contains(Mid);
 		Mid->SetScalarParameterValue(CoverParam, bOwn ? 0.0f : Cover * It.Value());
 	}
 	// The props (buildings, stands, trees) read the lap's cover from the collection.

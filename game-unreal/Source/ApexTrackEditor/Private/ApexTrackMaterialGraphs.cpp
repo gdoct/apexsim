@@ -1641,6 +1641,12 @@ return o;
 	 * crumbs where they lie; water darkens and glosses the bins the wheels
 	 * have not wiped, so a dry line appears between wet edges; standing
 	 * water over the rain's depth goes mirror-smooth and flat.
+	 *
+	 * `RoadStateOffRoad` 1 is a surface beside the road that shares its
+	 * cells (curbs, paved run-off: their `u` is the lap's station too): it
+	 * takes the cell's water and puddles but no rubber, marbles or dry line,
+	 * which the server keeps only over the road's own bins, and its snow is
+	 * the lap's figure (the director leaves `RoadSnowAmount` at 0 on it).
 	 */
 	void ApplyRoadStateGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
 		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness, UMaterialExpression*& InOutNormal)
@@ -1690,6 +1696,8 @@ return o;
 		// 1 / (cell length x cells in the texture): station metres to `u`.
 		UMaterialExpression* PerMetre = Param(TEXT("RoadStateU"), 0.0f);
 		UMaterialExpression* HalfSpan = Param(TEXT("RoadStateHalfSpanM"), 16.0f);
+		UMaterialExpression* OffRoad = Param(TEXT("RoadStateOffRoad"), 0.0f);
+		UMaterialExpression* OnRoad = G.Sub(G.C(1.0f), OffRoad);
 
 		// The cell: `u` from the station.
 		UMaterialExpression* Station = G.Mask(TexCoord, true, false, false);
@@ -1704,9 +1712,10 @@ return o;
 		UMaterialExpression* RightM = G.Mul(LeftCm, G.C(-0.01f));
 		UMaterialExpression* V = G.Div(G.Add(RightM, HalfSpan), G.Mul(HalfSpan, G.C(2.0f)));
 		UMaterialExpression* State = Sample(TEXT("RoadState"), G.Append(U, V));
-		UMaterialExpression* Rubber = Channel(State, 1);
-		UMaterialExpression* Marbles = Channel(State, 2);
-		UMaterialExpression* Dry = Channel(State, 3);
+		// Off the road: rubber held at the neutral half, no marbles, no dry line.
+		UMaterialExpression* Rubber = G.Lerp(G.C(0.5f), Channel(State, 1), OnRoad);
+		UMaterialExpression* Marbles = G.Mul(Channel(State, 2), OnRoad);
+		UMaterialExpression* Dry = G.Mul(Channel(State, 3), OnRoad);
 		UMaterialExpression* Depth = G.Mul(Channel(State, 4), G.C(2.55f));
 
 		// Water the wheels have not wiped: the road's own wet threshold (0.5

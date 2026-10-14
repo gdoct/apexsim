@@ -282,10 +282,17 @@ uploads the map into two transient textures:
   vector in Unreal axes (the server's Y flipped). Nearest, so a pixel uses
   its own cell's point, as the server does.
 
-Only the road itself (`family` `road`) is made from `M_ApexTrackRoad`, the
-base graph plus `ApplyRoadStateGraph`; the pit lane, curbs and bands stay
-on `M_ApexTrackBase` and pay nothing. The road mesh's UV0 `u` is metres of
-station, which picks the cell (`RoadStateU` = 1 / (cell length x cells));
+The road itself (`family` `road`) is made from `M_ApexTrackRoad`, the base
+graph plus `ApplyRoadStateGraph`, and so are the curbs and the paved run-off
+(`surface_concrete`, `surface_asphalt_runoff`, `surface_astroturf`;
+`ApexTrackMaterials::ReadsRoadStateOffRoad`), with `RoadStateOffRoad` 1:
+they take their cell's water and puddles but hold rubber at the neutral
+half and draw no marbles or dry line (the server keeps those over the
+road's bins only), and keep the lap's snow figure. The pit lane (its `u` is
+its own station, and the server keeps no state on it), the grass and the
+other bands stay on `M_ApexTrackBase` and pay nothing. Every mesh swept
+along the centerline has UV0 `u` in metres of lap station, which picks the
+cell (`RoadStateU` = 1 / (cell length x cells));
 `-dot(world - point, left)` is the lateral, which picks the bin. Its `v` is
 arc length across the strip from its first edge, not a lateral, so it is not
 used. `RoadStateAmount` is 0 until the first slice arrives, which leaves the

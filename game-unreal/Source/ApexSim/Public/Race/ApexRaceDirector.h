@@ -1096,6 +1096,8 @@ private:
 	TObjectPtr<UTexture2D> RoadSnowTexture;
 	/** The road's materials made from `M_ApexTrackRoad`, taken in ApplyTrackLevelConditions. */
 	TArray<TWeakObjectPtr<UMaterialInstanceDynamic>> RoadStateMids;
+	/** Those of RoadStateMids beside the road (`RoadStateOffRoad`): the curbs and paved run-off. */
+	TSet<TWeakObjectPtr<UMaterialInstanceDynamic>> OffRoadStateMids;
 	/** The parameters must go to RoadStateMids again (new textures, new materials, live or not). */
 	bool bRoadStateParamsStale = true;
 	/** RoadStateAmount as last pushed. */

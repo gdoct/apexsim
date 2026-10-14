@@ -1023,6 +1023,13 @@ FApexTrackParents ApexTrackMaterials::LoadParents()
 	return Parents;
 }
 
+bool ApexTrackMaterials::ReadsRoadStateOffRoad(const FString& Family, const FString& Key)
+{
+	return Family == TEXT("curb")
+		|| (Family == TEXT("surface")
+			&& (Key == TEXT("surface_concrete") || Key == TEXT("surface_asphalt_runoff") || Key == TEXT("surface_astroturf")));
+}
+
 bool ApexTrackMaterials::IsRoadStateMaterial(const UMaterialInterface* Material)
 {
 	// GetBaseMaterial is not const; it only walks the parent chain.
@@ -1369,10 +1376,17 @@ bool FApexTrackSceneBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 
 		Base.A = 1.0f;
 		Params.Vector(TEXT("BaseColor"), Base);
-		// The road itself draws the road state; the pit lane keeps the base
-		// (its UV `u` is its own station, not the lap's).
-		UMaterialInterface* Parent = Source.Family == TEXT("road") && Parents.Road && CVarTrackRoadMaterial.GetValueOnGameThread()
-			? Parents.Road.Get() : Parents.Base.Get();
+		// The road itself draws the road state, and the curbs and paved
+		// run-off its water; the pit lane keeps the base (its UV `u` is its
+		// own station, not the lap's).
+		const bool bOffRoad = ApexTrackMaterials::ReadsRoadStateOffRoad(Source.Family, Source.Key);
+		const bool bRoadState = Parents.Road && CVarTrackRoadMaterial.GetValueOnGameThread()
+			&& (Source.Family == TEXT("road") || bOffRoad);
+		if (bRoadState && bOffRoad)
+		{
+			Params.Scalar(TEXT("RoadStateOffRoad"), 1.0f);
+		}
+		UMaterialInterface* Parent = bRoadState ? Parents.Road.Get() : Parents.Base.Get();
 		UMaterialInterface* Instance = Factory.MakeMaterial(Source.Key, Parent, Params);
 		if (!Instance)
 		{
