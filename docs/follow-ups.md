@@ -24,15 +24,7 @@ None open.
 
 ## P1: core racing experience
 
-### 1. Race-day fixes
-
-A small bug a driver meets in an ordinary race.
-
-- **(bug)** At 1600x900 with the LMP2 (Fugazzi) the `pit_stop` component's
-  panel sits on top of the centre speed and gear readout; with the F1 car's
-  layout it clears it.
-
-**Check:** a pit stop in the LMP2 at 1600x900 (`-ApexScreenshotAfter`).
+None open.
 
 ## P2: depth
 
