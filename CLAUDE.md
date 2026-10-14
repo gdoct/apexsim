@@ -107,8 +107,10 @@ The client, the commandlets and the content scripts (`initialize_content.ps1`,
   present tense; history belongs in git, not in the doc.
 - Anything left for later goes in [docs/simulation-gaps.md](docs/simulation-gaps.md)
   (simulation and racing rules), [docs/follow-ups.md](docs/follow-ups.md)
-  (bugs, edge cases, verification and cleanup left on a built feature) or
-  [docs/roadmap.md](docs/roadmap.md) (product, UI, content and tooling
-  features not started); delete the row when it is done.
+  (bugs, edge cases and cleanup left on a built feature),
+  [docs/verification.md](docs/verification.md) (built but not yet seen in
+  the game, heard or felt on hardware) or [docs/roadmap.md](docs/roadmap.md)
+  (product, UI, content and tooling features not started); delete the row
+  when it is done.
 - This file holds only rules that bind changes anywhere in the repo. Feature
   detail goes in the topic doc, not here.

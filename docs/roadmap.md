@@ -1,11 +1,12 @@
 # Roadmap
 
 Product features, content and tooling that are not started yet. What is
-left on a feature that is built (bugs, edge cases, verification, cleanup)
-is in [follow-ups.md](follow-ups.md); simulation and racing-rule gaps
-(physics, tyres, AI, pit and race rules, race weekends) are in
-[simulation-gaps.md](simulation-gaps.md). An item lives in exactly one of
-the three.
+left on a feature that is built (bugs, edge cases, cleanup) is in
+[follow-ups.md](follow-ups.md); what is built but has not been seen, heard
+or felt yet is in [verification.md](verification.md); simulation and
+racing-rule gaps (physics, tyres, AI, pit and race rules, race weekends)
+are in [simulation-gaps.md](simulation-gaps.md). An item lives in exactly
+one of the four.
 
 The backlog is a list of **work packages**. A package is one go: the items
 in it touch the same code, the same wire change or the same content
@@ -13,8 +14,9 @@ refresh, so they are built on one branch, verified with one check and
 committed together. Each package says what it is for, what is in it, and
 how it is checked. A package is done when its items are built and its
 check has been run. When an item is built, delete its bullet (anything it
-leaves behind goes to [follow-ups.md](follow-ups.md)); when a package has
-none left, delete the package. Git history keeps what was done.
+leaves behind goes to [follow-ups.md](follow-ups.md) or
+[verification.md](verification.md)); when a package has none left, delete
+the package. Git history keeps what was done.
 
 Ideas that have no scope or check yet are not packages; they wait under
 [Not yet scoped](#not-yet-scoped) until someone writes them one.
@@ -37,41 +39,34 @@ None open.
 
 ## P2: depth
 
-### 4. Hotlap
+### 1. Hotlap watch on the live stream
 
-The watch's seek, ghost and replay reuse the stream v2 controls
-([game/spectator.md](game/spectator.md)).
+The hotlap watch joins a session and drives the server's AI, which takes
+no `SetCarSetup` and has no transport. Moving it onto the live-stream
+route (`WatchLiveStream`, [game/spectator.md](game/spectator.md)) gives it
+the stream v2 controls.
 
-- Hotlap watch: a saved setup as a pick (the watched car is the server's
-  AI, which takes no `SetCarSetup`); pause, seek and speed, a ghost and a
-  replay, which need the watch on the live-stream route (`WatchLiveStream`)
-  rather than a joined session.
+- A saved setup as a pick.
+- Pause, seek and speed.
+- A ghost and a replay of the watched lap.
 
-**Check:** a watch with each pick.
+**Check:** a watch with each pick, paused and seeked, with its ghost and
+its replay.
 
-### 5. Replays carry everything
+### 2. Promo clips with sound
 
-A stream's rows and `State` records leave out the ghost and the driver
-feedback, so a replay is quieter and emptier than the race.
+The promo pipeline dumps frames slower than real time while the audio
+mixer runs in real time, so a plain submix recording drifts.
 
-- The promo pipeline records audio: the frame dump runs slower than real
-  time while the audio mixer runs in real time, so a plain submix recording
-  drifts; it needs the mixer rendered in step with the frames (a
-  non-realtime audio render, as the Movie Render Queue does) or a second
-  real-time pass recorded through the submix and cut to the clip.
+- The mixer rendered in step with the frames (a non-realtime audio render,
+  as the Movie Render Queue does), or a second real-time pass recorded
+  through the submix and cut to the clip.
 
-**Check:** a promo clip with sound. (Frames stay whole: no delta encoding,
-see [game/spectator.md](game/spectator.md).)
+**Check:** a promo clip whose engine note stays on the car through the
+whole clip. (Frames stay whole: no delta encoding, see
+[game/spectator.md](game/spectator.md).)
 
-### 6. Kit pieces on track
-
-- The hillside letters (`sign/hillside_letters`), after their display-name
-  fix in [follow-ups.md](follow-ups.md): laid on the slope the dossier
-  names.
-
-**Check:** the circuit by hand in the running game; the track-editor tests.
-
-### 7. Nordschleife dressing
+### 3. Nordschleife dressing
 
 One circuit, a long list; its own package so it does not hold up the rest.
 
@@ -79,10 +74,14 @@ One circuit, a long list; its own package so it does not hold up the rest.
   rock cuttings, spectator hedges and banks, camp villages, the timing
   gantry as a crossing, more German signs and the T13 gates, the Hohe Acht
   tower, vertical graffiti on barriers, skid-mark decals.
+- The hillside letters (`sign/hillside_letters`) laid on the slope the
+  dossier names, once their display-name text exists
+  ([follow-ups.md](follow-ups.md), circuit dressing).
 
-**Check:** a lap by hand and a TV-camera lap in the running game.
+**Check:** a lap by hand and a TV-camera lap in the running game; the
+track-editor tests.
 
-### 8. Menus
+### 4. Menus
 
 Shell screens. All of it goes through one pad walk
 (`ApexSim.UI.PadWalk`) at the end.
@@ -95,18 +94,9 @@ Shell screens. All of it goes through one pad walk
 
 **Check:** the pad walk, then the same screens with a real pad.
 
-### 9. Wheels and pedals
-
-- A clutch pedal is sent.
-- More wheelbase makers in `ApexWheelProfiles` (PXN, Gomez, Heusinkveld
-  direct drives...); they mix as Generic today.
-
-**Check:** the input tests; the hardware session in
-[follow-ups.md](follow-ups.md).
-
 ## P3: nice to have
 
-### 10. Car content
+### 5. Car content
 
 - The GT3 and LMP2 class wheels get sidewall lettering.
 - The HUD colours brakes by material as well as temperature (the client
@@ -114,17 +104,17 @@ Shell screens. All of it goes through one pad walk
 
 **Check:** the HUD on a carbon and a steel car; the wheels in car select.
 
-### 11. Server dashboard
+### 6. Server dashboard
 
 For people running a server for others
 ([server/operations.md](server/operations.md)).
 
 - Restarting the server process itself from the dashboard, for the config
-  keys that need it.
+  keys that need it (the config reply lists them today).
 
 **Check:** a saved tick rate in force without touching the machine.
 
-### 12. Content tooling
+### 7. Content tooling
 
 - `ats-dress --explain` and a per-prop source stamp.
 - `ats-export --strict`, which fails on a dropped facet.

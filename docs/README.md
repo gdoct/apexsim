@@ -14,7 +14,8 @@ see [marketing-site.md](marketing-site.md).
 
 - [simulation-gaps.md](simulation-gaps.md): what the simulation and the racing rules still leave out.
 - [roadmap.md](roadmap.md): product features, content and tooling not started yet.
-- [follow-ups.md](follow-ups.md): what is left on built features: bugs, edge cases, unverified behaviour, cleanup.
+- [follow-ups.md](follow-ups.md): what is left on built features: bugs, edge cases, cleanup.
+- [verification.md](verification.md): built features nobody has seen in the game, heard or felt on hardware yet, grouped by the run that checks them.
 
 ## Server (`server/`)
 
