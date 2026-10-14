@@ -527,5 +527,8 @@ Commit the YAML, `.ats`, dossier, DEM sidecar and script table changes.
   with wrong station and side.
 - Grooming re-seats props on the ground; a raised dressed prop needs an entry
   in `dress::fixed_lift_m`.
-- Runtime-built meshes have no mesh distance fields, so software Lumen and DF
-  shadows see the road and terrain less well than kit props.
+- Runtime-built meshes have no mesh distance fields (neither the fast nor
+  the full `BuildFromMeshDescriptions` makes them, and a cooked game cannot),
+  so software Lumen and DF shadows see the road and terrain less well than
+  kit props. `ShowFlag.VisualizeMeshDistanceFields 1` (from `-ApexExecAfter`)
+  shows what has one.

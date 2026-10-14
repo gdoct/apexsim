@@ -120,9 +120,18 @@ the launcher import with the network off.
 
 ### 12. Rendering
 
-- Runtime-built track meshes get mesh distance fields, or an A/B against an
-  `-ImportLevels` level shows they do not need them (software Lumen and DF
-  shadows see the road and terrain less well today).
+- Runtime-built track meshes have no mesh distance fields, so software
+  Lumen and DF shadows see the road and terrain less well than the kit
+  props. Neither build path gives them any: on 2026-10-15
+  `ShowFlag.VisualizeMeshDistanceFields 1` at Norisring showed the road and
+  terrain missing after the fast build and after a full
+  `BuildFromMeshDescriptions` alike (in `-game` from the editor; a cooked
+  game cannot build them at all), while an `-ImportLevels` import of the
+  same circuit built them. What is left is the A/B: the race in an imported
+  level against the runtime one, which needs the race director to load
+  `/Game/Tracks/<Track>/L_<Track>` instead of building (the menu game mode
+  takes over a level opened with `-game`). If it shows they matter, the
+  ways out are shipping baked levels or hardware ray-traced Lumen.
 
 **Check:** the A/B is two screenshots.
 
