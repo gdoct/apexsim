@@ -78,9 +78,12 @@ How the fields act:
   scaffold tower, gazebo or flag pole per two tent pitches; flags `de`,
   `nl`, `be`, `ch`, `at`); and every car park or camp site that comes
   within 60 m of the road edge lines the stretch it borders, on its side,
-  with `spectator_bank_10m` earth banks (a hedge on the crest) 8 m past
-  the edge. A car park OSM names as a paddock, depot or compound
-  (`Fahrerlager`, `... Lager`, `Compound`) is left out.
+  with `spectator_bank_10m` turf banks (0.6 m high, a low hedge of bush
+  cards on the crest) centred 11 m past the edge, clear of the rail and of
+  a trackside camera's line to the car. Not a spectator car park: one OSM
+  names as a paddock, depot or compound (`Fahrerlager`, `... Lager`,
+  `Compound`), an event lot named by its code (`A1`, `D10`: the GP
+  complex's), or anything within 300 m of the line (T13).
 - **City buildings.** A city circuit's buildings are `skyline_*` blocks by
   footprint (`dress::city_building_asset`), twin-arm street lamps are laid
   every 40 m alternating sides (`lay_street_lamps`), and the dossier keeps

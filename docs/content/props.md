@@ -102,7 +102,8 @@ depth x height, metres). By family:
 - **Spectators**: stand bays (below), `scaffold_10m`, `banking_seats`, the
   street stand family; attractions (`video_screen`, `ferris_wheel`,
   `camera_tower`, `fanzone_stage`, `food_stall_6m`, `ticket_gate`, tents,
-  `portaloo_row`); the Nordschleife's misc `spectator_bank_10m` and camp
+  `portaloo_row`); the Nordschleife's misc `spectator_bank_10m` (turf from
+  the ground set's grass, `bank_grass`, and the tree kit's bush cards) and camp
   pieces (`camp_scaffold_tower`, `camp_gazebo`, `camp_flag_pole`).
 - **Buildings**: paddock (`hospitality_3f`, `media_centre`, `control_tower`,
   `clubhouse`, `podium`), `observation_tower`, Styrian village houses, barn

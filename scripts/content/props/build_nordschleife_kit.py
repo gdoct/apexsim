@@ -70,8 +70,9 @@ The dressing pieces (docs/content/circuits.md, Nordschleife):
   lift arm, the arm along local X; centred.
 - **stone_lookout_tower** (`building`): the 16 m stone lookout tower on
   the Hohe Acht; centred, a plinth below the pivot.
-- **spectator_bank_10m** (`misc`): an earth bank with a hedge on its
-  crest, where the crowd stands behind the rail; symmetric and centred.
+- **spectator_bank_10m** (`misc`): a low rounded turf bank (the ground
+  set's grass) with a hedge of bush cards on its crest, where the crowd
+  stands behind the rail; symmetric and centred.
 - **camp_scaffold_tower**, **camp_gazebo**, **camp_flag_pole** (`misc`):
   the 24-hour camps' home-built scaffold towers, pop-up gazebos and flag
   poles (`flag_cloth`, the flag code as `text`).
@@ -492,12 +493,13 @@ def import_glb(kind, asset):
     return new, [o for o in new if o.type == 'MESH']
 
 
-def absorb(b, objects):
-    """Copy mesh objects into Builder `b` in world space, materials and UVs kept."""
+def absorb(b, objects, transform=None):
+    """Copy mesh objects into Builder `b` in world space (then `transform`,
+    a 4x4 Matrix, if given), materials and UVs kept."""
     for ob in objects:
         me = ob.data
         uv = me.uv_layers.active
-        mw = ob.matrix_world
+        mw = ob.matrix_world if transform is None else transform @ ob.matrix_world
         verts = [b.bm.verts.new(mw @ v.co) for v in me.vertices]
         for poly in me.polygons:
             mat = ob.material_slots[poly.material_index].material if ob.material_slots else None
@@ -766,24 +768,64 @@ def stone_lookout_tower():
     return b.finish()
 
 
+def bank_grass():
+    """The verge's own mown turf (apex_tex.turf, the ground set's grass),
+    taken from its mean-0.5 form to a grass albedo near what the terrain
+    draws, tiled over 2 m."""
+    import numpy as np
+    color, rough, height, ns = tex.turf()
+    # sRGB values (to_image writes them as they are): about 0.06, 0.11,
+    # 0.02 linear, a third of the flat green that read as too bright.
+    albedo = np.clip(color * 2.0 * np.array([0.26, 0.35, 0.14]), 0, 1)
+    return tex.pbr_material("bank_grass", (albedo, rough, height, ns), tile_m=2.0)
+
+
 def spectator_bank_10m():
-    """An earth bank where the crowd stands, a hedge along its crest: 10 m
-    long, 3.6 m across, 1.05 m high, symmetric about its long axis so it
-    reads the same whichever way it is turned. The flanks run 1 m below
-    the pivot to meet a sloping verge."""
+    """An earth bank where the crowd stands: a low, rounded mound of turf
+    10 m long, 5 m across and 0.6 m high, its ends easing down so a row of
+    them reads as one bank, with a low hedge of the kit's own bush cards
+    along the crest. Symmetric about its long axis, so it reads the same
+    whichever way it is turned; skirts run 0.8 m below the pivot to meet a
+    sloping verge."""
     b = B("spectator_bank_10m")
-    grass = M("bank_grass", (0.23, 0.33, 0.13), roughness=0.95)
-    hedge = borrow_material("fence", "hedge_4m", "hedge_green") or M("hedge_green", (0.12, 0.25, 0.08), roughness=0.9)
-    prof = [(-1.8, -1.0), (-1.8, 0.0), (-0.7, 1.05), (0.7, 1.05), (1.8, 0.0), (1.8, -1.0)]
-    b.extrude_profile(grass, prof, -5.0, 5.0, closed=True)
-    for x in (-5.0, 5.0):
-        ring = [b.bm.verts.new((x, y, z)) for y, z in prof]
-        f = b.bm.faces.new(ring if x > 0 else list(reversed(ring)))
-        f.material_index = b.slot(grass)
-    for i in range(10):
-        x = -4.5 + i
-        hgt = 0.9 + 0.25 * abs(math.sin(i * 1.9))
-        b.box(hedge, (x - 0.55, -0.45, 1.0), (x + 0.55, 0.45, 1.0 + hgt))
+    grass = bank_grass()
+    half, crest = 2.5, 0.6
+    ys = [half * (2 * j / 12 - 1) for j in range(13)]
+    xs = [-5.0 + 0.5 * i for i in range(21)]
+
+    def z(x, y):
+        across = 0.5 + 0.5 * math.cos(math.pi * y / half)
+        end = min(1.0, (5.0 - abs(x)) / 1.4)
+        end = 0.35 + 0.65 * end * end * (3 - 2 * end)
+        return crest * across * end
+
+    s = b.slot(grass)
+    grid_v = [[b.bm.verts.new((x, y, z(x, y))) for y in ys] for x in xs]
+    for i in range(len(xs) - 1):
+        for j in range(len(ys) - 1):
+            f = b.bm.faces.new((grid_v[i][j], grid_v[i + 1][j], grid_v[i + 1][j + 1], grid_v[i][j + 1]))
+            f.material_index = s
+    # Skirts down into the ground on the four sides.
+    def skirt(edge, out):
+        low = [b.bm.verts.new((v.co.x + out[0], v.co.y + out[1], -0.8)) for v in edge]
+        for k in range(len(edge) - 1):
+            f = b.bm.faces.new((edge[k], edge[k + 1], low[k + 1], low[k]))
+            f.material_index = s
+    skirt([row[0] for row in grid_v], (0.0, -0.3))
+    skirt([row[-1] for row in grid_v], (0.0, 0.3))
+    skirt(grid_v[0], (-0.3, 0.0))
+    skirt(grid_v[-1], (0.3, 0.0))
+    # The hedge: bush clusters at a third of their size along the crest.
+    # One import, five copies: importing it again would bring its
+    # materials in again as `.001` slots.
+    from mathutils import Matrix
+    new, meshes = import_glb("tree", "bush_cluster")
+    for k, x in enumerate((-4.0, -2.0, 0.0, 2.0, 4.0)):
+        sc = 0.30 + 0.04 * ((k * 7) % 3) / 2
+        m = Matrix.Translation((x + 0.15 * ((k * 5) % 3 - 1), 0.0, crest * 0.85)) @ Matrix.Rotation(k * 1.3, 4, 'Z') @ Matrix.Scale(sc, 4)
+        absorb(b, meshes, m)
+    for ob in new:
+        bpy.data.objects.remove(ob)
     return b.finish()
 
 

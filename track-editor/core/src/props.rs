@@ -298,7 +298,7 @@ pub const KIT: &[KitAsset] = kit![
     // 24-hour camps' scaffold towers, gazebos and flag poles (`flag_cloth`,
     // the flag code as `text`). All centred.
     Misc "toll_gate_lane" 5.5 x 1.6 x 2.6,
-    Misc "spectator_bank_10m" 10.1 x 3.6 x 2.2,
+    Misc "spectator_bank_10m" 10.6 x 5.6 x 1.4,
     Misc "camp_scaffold_tower" 3.2 x 2.6 x 6.7,
     Misc "camp_gazebo" 3.1 x 3.1 x 3.0,
     Misc "camp_flag_pole" 1.9 x 0.1 x 6.0,

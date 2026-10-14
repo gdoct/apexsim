@@ -2130,10 +2130,14 @@ mod surroundings {
     /// a depot (`Marshals Lager`, `Industrielager`) or a compound, not a
     /// spectator car park.
     const SPECTATOR_AREA_NOT: [&str; 2] = ["lager", "compound"];
-    /// The banks' centre line past the road edge (the bank is 3.6 m deep,
-    /// so its near foot is 6.2 m out, behind a rail at 3-4.5 m), their
-    /// pitch, and the longest stretch one area lines.
-    const SPECTATOR_BANK_BEYOND_M: f32 = 8.0;
+    /// No banks this close to the start line: the start area is the GP
+    /// complex (T13 and its grandstand), not a spectator bank.
+    const SPECTATOR_START_CLEAR_M: f32 = 300.0;
+    /// The banks' centre line past the road edge (the bank is 5 m across,
+    /// so its near foot is 8.5 m out, well behind a rail at 3-4.5 m and out
+    /// of a trackside camera's line to the car), their pitch, and the
+    /// longest stretch one area lines.
+    const SPECTATOR_BANK_BEYOND_M: f32 = 11.0;
     const SPECTATOR_BANK_PITCH_M: f32 = 10.5;
     const SPECTATOR_BANK_MAX_RUN_M: f32 = 320.0;
 
@@ -2552,20 +2556,32 @@ mod surroundings {
         }
     }
 
+    /// An event car park named by its lot code, a letter and a number
+    /// (`A1`, `D10`, `A5 + A6`), as a circuit complex numbers its lots.
+    fn is_lot_code(name: &str) -> bool {
+        let mut chars = name.trim().chars();
+        matches!(
+            (chars.next(), chars.next()),
+            (Some(a), Some(b)) if a.is_ascii_uppercase() && b.is_ascii_digit()
+        )
+    }
+
     /// Earth banks with a hedge on top, behind the rail along every stretch
     /// a mapped car park or camp site borders: on the Nordschleife the
     /// crowd parks and camps where it watches (Brünnchen, Pflanzgarten,
     /// Breidscheid ...), so the areas say where the banks are and on which
-    /// side. A car park OSM names as a paddock, depot or compound
-    /// (`SPECTATOR_AREA_NOT`: the GP complex's beside T13) is not one.
+    /// side. Not a spectator car park: one OSM names as a paddock, depot or
+    /// compound (`SPECTATOR_AREA_NOT`), an event lot named by its code
+    /// (`A1`, `D10`, `A5 + A6`: the GP complex's, `is_lot_code`), and
+    /// anything within `SPECTATOR_START_CLEAR_M` of the line.
     fn spectator_banks(ctx: &Ctx, out: &mut Vec<Prop>) {
         let total = ctx.path.total_length_m();
         let mut laid: Vec<(f32, f32)> = Vec::new();
         let for_spectators = |a: &&crate::layout::Area| {
             matches!(a.kind.as_str(), "parking" | "camp_site")
                 && !a.name.as_deref().is_some_and(|name| {
-                    let name = name.to_lowercase();
-                    SPECTATOR_AREA_NOT.iter().any(|word| name.contains(word))
+                    let lower = name.to_lowercase();
+                    is_lot_code(name) || SPECTATOR_AREA_NOT.iter().any(|word| lower.contains(word))
                 })
         };
         for area in ctx.layout.areas.iter().filter(for_spectators) {
@@ -2613,6 +2629,9 @@ mod surroundings {
             let first = (lo + hi) / 2.0 - SPECTATOR_BANK_PITCH_M * (count as f32 - 1.0) / 2.0;
             for i in 0..count {
                 let station = (s0 + first + i as f32 * SPECTATOR_BANK_PITCH_M).rem_euclid(total);
+                if station.min(total - station) < SPECTATOR_START_CLEAR_M {
+                    continue;
+                }
                 let sample = ctx.path.sample_at(station);
                 let lat = signed_lat(&sample, side, SPECTATOR_BANK_BEYOND_M);
                 let point = offset_point(&sample, lat);
@@ -3757,6 +3776,7 @@ mod tests {
         // and a camp site well back.
         for (kind, name, ring) in [
             ("parking", "Spectators", square(300.0, -26.0, 400.0, -70.0)),
+            ("parking", "D10", square(620.0, -26.0, 720.0, -70.0)),
             (
                 "parking",
                 "Historisches Fahrerlager",

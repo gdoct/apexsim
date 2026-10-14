@@ -127,9 +127,6 @@ the same `ApexProps` code.
   GP circuit); a real list goes in a dossier table.
 - Nordschleife: the toll lanes stand on the grass: the entrance's access
   lanes and car park are not drawn (no dossier road is baked).
-- Nordschleife: the event car parks by the GP complex (the A and D lots
-  near T13 and Hohenrain) get spectator banks like the real spectator car
-  parks; only names with `Lager` or `Compound` are left out.
 - Camp sites off the fan lap pitch their tents in a row: the walk in
   `dress::surroundings::camp_sites` uses one irrational step for both
   coordinates (0.618 x 1.618 is 1). The fan lap uses the R2 sequence
