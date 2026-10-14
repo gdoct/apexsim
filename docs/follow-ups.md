@@ -197,8 +197,6 @@ them, and changes its content checksum); car select with a livery preview.
   sees only the bridge, so the fit closes the crossover), and Shanghai's and
   Monza's surface models are checked against a bare-earth one (grandstands,
   the park's canopy); all three still drive their invented z.
-- `initialize_content.ps1` checks `<Stem>.pit.msgpack` with the other
-  sidecars.
 - The launcher's AC import works offline (it fetches its Python packages
   from PyPI on first use).
 

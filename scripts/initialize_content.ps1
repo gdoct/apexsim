@@ -197,10 +197,13 @@ $missingTracks = @($trackFiles | Where-Object {
     $stem = $_.BaseName
     $dir = $_.DirectoryName
     # The export the game builds the circuit from (one from before the mesh
-    # blob has no .uemesh), its preview, and the server's sidecars.
+    # blob has no .uemesh), its preview, and the server's sidecars (the pit
+    # lane's only for a scene that lays one).
     $noExport = -not (Test-Path (Join-Path $ExportDir "$stem.uemesh"))
     $noPreview = -not (Test-Path (Join-Path $ExportDir "previews\$stem.png"))
-    $noSidecar = @($Sidecars | Where-Object {
+    $wanted = @($Sidecars)
+    if (Test-ApexTrackHasPitLane -TrackFile $_.FullName) { $wanted += 'pit' }
+    $noSidecar = @($wanted | Where-Object {
         -not (Test-Path (Join-Path $dir "$stem.$_.msgpack"))
     }).Count -gt 0
     $noExport -or $noPreview -or $noSidecar

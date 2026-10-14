@@ -72,6 +72,16 @@ function Test-ApexImportedTrack {
     return [bool](($head -join "`n") -match '"imported"\s*:\s*"[^"]+"')
 }
 
+# Whether a track's .ats scene lays a pit lane, so its export writes a
+# <Stem>.pit.msgpack (a circuit with none has no pit sidecar). The scene is
+# megabytes, so the key is matched in the text rather than parsed.
+function Test-ApexTrackHasPitLane {
+    param([Parameter(Mandatory)][string]$TrackFile)
+    $ats = [IO.Path]::ChangeExtension($TrackFile, '.ats')
+    if (-not (Test-Path -LiteralPath $ats)) { return $false }
+    return [bool]([IO.File]::ReadAllText($ats) -match '"pit_lane"\s*:\s*\{')
+}
+
 # The command that rebuilds an imported track, from its <Stem>.import.json
 # (the importer writes it there), or $null when there is no report.
 function Get-ApexImportedTrackRebuild {

@@ -164,7 +164,8 @@ is safe on an existing checkout. Stages, in order:
    when one is missing or stage 3 ran (`-force` with `-Force`).
 5. `-run=ApexPropImport -all` when any kit GLB has no mesh.
 6. `build_track_levels.ps1 -Release -SkipMaterials -SkipShowcase` for every
-   circuit missing its export, its preview or a server sidecar. No circuit is
+   circuit missing its export, its preview or a server sidecar (ground,
+   curbs, walls, road, and pit when its `.ats` lays a pit lane). No circuit is
    rebaked because stage 3 or 5 ran: the game dresses a circuit with what
    `/Game` holds when it builds it.
 7. The showcases of `content/showcase.yml` (`apexsim-replay render`) that are
