@@ -93,6 +93,11 @@ seeded pileup replay screenshotted before and after.
   to the menu).
 - The launcher's AC import button, never clicked by hand; the import with
   the network off (it fetches its Python packages from PyPI on first use).
+- A streamed hotlap watch on a saved setup (S with setups saved for the
+  car; only the stock lap and the "no saved setup" toast were run), and its
+  keys and transport from a pad. Seen unattended at Monza: pause, ten
+  seconds back, 2x back to live, the ghost of the first lap and its
+  replay.
 
 ## 2. Listen: replays against the live run
 

@@ -90,6 +90,13 @@ The ghost, the hotlap replay and watch.
 - The `hotlap_watch` HUD scene is in the HUD editor.
 - Corners carry the circuit's official turn number in the dossier, not the
   detector's.
+- A streamed hotlap watch has no pad keys for the air and the wind (they
+  are on the number row; the pad's seek and speed buttons are the
+  transport now).
+- A watch's lap again (R) drives the ghost round with the HUD still on the
+  live car: the HUD has no view of the lap being replayed.
+- The watch ghosts (`ServerState::watch_ghosts`) go with a server restart,
+  as the ladder levels do.
 
 **Check:** a hotlap with ghost and replay; a server restart between two
 watches.

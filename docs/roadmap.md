@@ -39,21 +39,7 @@ None open.
 
 ## P2: depth
 
-### 1. Hotlap watch on the live stream
-
-The hotlap watch joins a session and drives the server's AI, which takes
-no `SetCarSetup` and has no transport. Moving it onto the live-stream
-route (`WatchLiveStream`, [game/spectator.md](game/spectator.md)) gives it
-the stream v2 controls.
-
-- A saved setup as a pick.
-- Pause, seek and speed.
-- A ghost and a replay of the watched lap.
-
-**Check:** a watch with each pick, paused and seeked, with its ghost and
-its replay.
-
-### 2. Promo clips with sound
+### 1. Promo clips with sound
 
 The promo pipeline dumps frames slower than real time while the audio
 mixer runs in real time, so a plain submix recording drifts.
@@ -66,7 +52,7 @@ mixer runs in real time, so a plain submix recording drifts.
 whole clip. (Frames stay whole: no delta encoding, see
 [game/spectator.md](game/spectator.md).)
 
-### 3. Nordschleife dressing
+### 2. Nordschleife dressing
 
 One circuit, a long list; its own package so it does not hold up the rest.
 
@@ -81,7 +67,7 @@ One circuit, a long list; its own package so it does not hold up the rest.
 **Check:** a lap by hand and a TV-camera lap in the running game; the
 track-editor tests.
 
-### 4. Menus
+### 3. Menus
 
 Shell screens. All of it goes through one pad walk
 (`ApexSim.UI.PadWalk`) at the end.
@@ -96,7 +82,7 @@ Shell screens. All of it goes through one pad walk
 
 ## P3: nice to have
 
-### 5. Car content
+### 4. Car content
 
 - The GT3 and LMP2 class wheels get sidewall lettering.
 - The HUD colours brakes by material as well as temperature (the client
@@ -104,7 +90,7 @@ Shell screens. All of it goes through one pad walk
 
 **Check:** the HUD on a carbon and a steel car; the wheels in car select.
 
-### 6. Server dashboard
+### 5. Server dashboard
 
 For people running a server for others
 ([server/operations.md](server/operations.md)).
@@ -114,7 +100,7 @@ For people running a server for others
 
 **Check:** a saved tick rate in force without touching the machine.
 
-### 7. Content tooling
+### 6. Content tooling
 
 - `ats-dress --explain` and a per-prop source stamp.
 - `ats-export --strict`, which fails on a dropped facet.

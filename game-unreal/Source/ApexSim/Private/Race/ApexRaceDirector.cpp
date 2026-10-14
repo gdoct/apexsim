@@ -4084,6 +4084,12 @@ bool AApexRaceDirector::FocusPosition(int32 Position)
 
 int32 AApexRaceDirector::GetFocusCarIndex() const
 {
+	// A ghost replay in the watch view rides the ghost, which is no car of
+	// the session's: the HUD stays on the car being watched.
+	if (bGhostReplay && bSpectating && SpectatorFocus != INDEX_NONE)
+	{
+		return SpectatorFocus;
+	}
 	return FollowedCar ? FollowedCar->GetCarIndex() : INDEX_NONE;
 }
 
