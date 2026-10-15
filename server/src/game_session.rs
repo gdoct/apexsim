@@ -129,6 +129,12 @@ const STRATEGY_SALT: u64 = 0x5747_5241_5445_4759;
 /// And for its nerve on the weather's tyres (`pit::CrossoverContext::roll`).
 const CROSSOVER_SALT: u64 = 0x4352_4f53_534f_5652;
 
+/// The [`AI_POWER_PLAN_STEP`]s of power a car's engine damage has cost it.
+fn power_steps_lost(state: &CarState) -> u8 {
+    let lost = 1.0 - crate::damage::engine_power_factor(&state.damage);
+    (lost / AI_POWER_PLAN_STEP).round().clamp(0.0, 20.0) as u8
+}
+
 /// The laps a car has run in a race, the one it is on in part.
 fn laps_run(state: &CarState, total_m: f32) -> f32 {
     (state.current_lap.max(1) - 1) as f32
@@ -147,6 +153,9 @@ fn live_sky(session: &RaceSession, track: &TrackConfig) -> crate::conditions::Li
 /// The AI's speed plans per car: one for every this-many-th of its tank
 /// (`GameSession::ai_speed_profile`). Each is a millisecond or so to build.
 pub const AI_FUEL_PLAN_STEPS: usize = 10;
+/// A damaged engine's plan is built for its power to this share
+/// (`GameSession::plan_damaged_ai_speeds`): power lost in steps of 5%.
+pub const AI_POWER_PLAN_STEP: f32 = 0.05;
 
 /// Cars going out together are queued this far apart on the run-up.
 pub const HOTLAP_SPACING_M: f32 = 30.0;
@@ -285,6 +294,10 @@ pub struct GameSession {
     /// the tank drains and is never planned lighter than it is. Looked up by
     /// key only, never iterated.
     ai_speed_profiles: HashMap<CarConfigId, Vec<RacingLineProfile>>,
+    /// The same for a car whose engine damage has cost it power, by car,
+    /// [`AI_POWER_PLAN_STEP`]s of power lost and step of the tank: built as
+    /// the damage comes (`plan_damaged_ai_speeds`), one plan at a time.
+    ai_power_profiles: std::collections::BTreeMap<(CarConfigId, u8, usize), RacingLineProfile>,
     /// Simulation tick rate (Hz); the fixed timestep is `1 / tick_rate_hz`.
     tick_rate_hz: u16,
     /// The names of the humans seated, set as they join (the AI's are on
@@ -717,6 +730,7 @@ impl GameSession {
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
+            ai_power_profiles: std::collections::BTreeMap::new(),
             finish_deadline_tick: None,
             finished_since_loop_tick: None,
             orphaned_since_loop_tick: None,
@@ -785,6 +799,7 @@ impl GameSession {
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
+            ai_power_profiles: std::collections::BTreeMap::new(),
             finish_deadline_tick: None,
             finished_since_loop_tick: None,
             orphaned_since_loop_tick: None,
@@ -2253,8 +2268,7 @@ impl GameSession {
             let Some(state) = self.session.participants.get(&id) else {
                 continue;
             };
-            let Some(profile) = self.ai_speed_profile(state.car_config_id, state.fuel_liters)
-            else {
+            let Some(profile) = self.ai_speed_profile(state) else {
                 continue;
             };
             if profile.speed_mps.is_empty() || profile.spacing_m <= 0.0 {
@@ -3644,6 +3658,7 @@ impl GameSession {
         self.update_retirements();
         self.update_recoveries();
         self.update_pits();
+        self.plan_damaged_ai_speeds();
         self.update_drs();
         self.update_wind();
         self.update_road();
@@ -3686,7 +3701,7 @@ impl GameSession {
             .filter_map(|me| {
                 let profile = self.ai_profiles.get(&me.id)?;
                 let state = self.session.participants.get(&me.id)?;
-                let speeds = self.ai_speed_profile(state.car_config_id, state.fuel_liters);
+                let speeds = self.ai_speed_profile(state);
                 Some((
                     me.id,
                     crate::racecraft::decide(state, me, profile, speeds, &field, &ctx),
@@ -4749,7 +4764,7 @@ impl GameSession {
         }
         let fuel_save = self.fuel_save(state);
         let controller = AiDriverController::new(profile, &self.track_config, car_config)
-            .with_speed_profile(self.ai_speed_profile(state.car_config_id, state.fuel_liters))
+            .with_speed_profile(self.ai_speed_profile(state))
             .with_fuel_save(fuel_save.coast_s)
             .with_short_shift(fuel_save.short_shift);
         // BTreeMap order: the traffic list, and so the input, is
@@ -5308,14 +5323,9 @@ impl GameSession {
         }
     }
 
-    /// The AI's speed profile for `car_id` carrying `fuel_liters`: the one
-    /// planned at the next step of the tank at or above it.
-    fn ai_speed_profile(
-        &self,
-        car_id: CarConfigId,
-        fuel_liters: f32,
-    ) -> Option<&RacingLineProfile> {
-        let plans = self.ai_speed_profiles.get(&car_id)?;
+    /// The step of `car_id`'s tank a car carrying `fuel_liters` is planned
+    /// at: the next one at or above it.
+    fn fuel_plan_step(&self, car_id: CarConfigId, fuel_liters: f32) -> usize {
         let capacity = self
             .car_configs
             .get(&car_id)
@@ -5325,7 +5335,60 @@ impl GameSession {
         } else {
             0
         };
+        step.min(AI_FUEL_PLAN_STEPS)
+    }
+
+    /// The AI's speed profile for `state`: the one planned at the next step
+    /// of the tank at or above what it carries, and for the power its
+    /// engine has left (`plan_damaged_ai_speeds`) once damage has cost it
+    /// any.
+    fn ai_speed_profile(&self, state: &CarState) -> Option<&RacingLineProfile> {
+        let car_id = state.car_config_id;
+        let plans = self.ai_speed_profiles.get(&car_id)?;
+        let step = self.fuel_plan_step(car_id, state.fuel_liters);
+        let lost = power_steps_lost(state);
+        if lost > 0 {
+            if let Some(plan) = self.ai_power_profiles.get(&(car_id, lost, step)) {
+                return Some(plan);
+            }
+        }
         plans.get(step.min(plans.len().saturating_sub(1)))
+    }
+
+    /// Build the plans the AI needs for engines that damage has cost power
+    /// ([`AI_POWER_PLAN_STEP`]s of it, `damage::engine_power_factor`), the
+    /// car's own with its power cut to what is left: the straights, the
+    /// braking points and the coasting it plans from them are the car's as
+    /// it is. Each is built once, the tick after the damage.
+    fn plan_damaged_ai_speeds(&mut self) {
+        let wanted: std::collections::BTreeSet<(CarConfigId, u8, usize)> = self
+            .session
+            .participants
+            .values()
+            .filter(|s| self.ai_speed_profiles.contains_key(&s.car_config_id))
+            .filter_map(|s| {
+                let lost = power_steps_lost(s);
+                (lost > 0).then(|| {
+                    (
+                        s.car_config_id,
+                        lost,
+                        self.fuel_plan_step(s.car_config_id, s.fuel_liters),
+                    )
+                })
+            })
+            .filter(|key| !self.ai_power_profiles.contains_key(key))
+            .collect();
+        for (car_id, lost, step) in wanted {
+            let Some(car) = self.car_configs.get(&car_id) else {
+                continue;
+            };
+            let mut weak = car.clone();
+            weak.max_engine_power_w *= (1.0 - lost as f32 * AI_POWER_PLAN_STEP).max(0.0);
+            let fuel = car.fuel.capacity_liters.max(0.0) * step as f32 / AI_FUEL_PLAN_STEPS as f32;
+            if let Some(plan) = racing_line::build_laden(&self.track_config, &weak, fuel) {
+                self.ai_power_profiles.insert((car_id, lost, step), plan);
+            }
+        }
     }
 
     /// Spawn AI drivers using the provided profiles.
@@ -5438,6 +5501,64 @@ mod tests {
         let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Multiplayer, 8, 0, 3);
 
         GameSession::new(session, track, car_configs)
+    }
+
+    /// A car whose engine damage has cost it power drives a plan built for
+    /// what it has left: slower on the straights, the same through the
+    /// corners.
+    #[test]
+    fn a_damaged_engine_is_planned_at_the_power_it_has_left() {
+        let track = crate::track_loader::TrackLoader::load_from_file(
+            "../content/tracks/default/Monza/Monza.yaml",
+        )
+        .expect("Monza");
+        let car = crate::car_loader::CarLoader::load_from_file(std::path::Path::new(
+            "../content/cars/default/posh-gt3rs/car.toml",
+        ))
+        .expect("car");
+        let car_id = car.id;
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car_id, car);
+        let mut profile = AiDriverProfile::new("Plan AI", 95);
+        profile.id = Uuid::from_u128(7400);
+        profile.preferred_car_id = Some(car_id);
+        let driver = profile.id;
+        let session = RaceSession::new(
+            Uuid::from_u128(1),
+            Uuid::nil(),
+            SessionKind::Multiplayer,
+            8,
+            1,
+            3,
+        );
+        let mut gs = GameSession::with_ai_profiles(session, track, car_configs, vec![profile]);
+        gs.spawn_ai_drivers();
+        let top = |gs: &GameSession| {
+            let state = &gs.session.participants[&driver];
+            gs.ai_speed_profile(state)
+                .expect("a plan")
+                .speed_mps
+                .iter()
+                .copied()
+                .fold(0.0, f32::max)
+        };
+        let healthy = top(&gs);
+        gs.session
+            .participants
+            .get_mut(&driver)
+            .unwrap()
+            .damage
+            .engine_damage_percent = 80.0;
+        assert_eq!(top(&gs), healthy, "planned at full power until rebuilt");
+        gs.plan_damaged_ai_speeds();
+        let damaged = top(&gs);
+        assert!(
+            damaged < healthy - 2.0,
+            "a damaged engine's top speed: {damaged:.1} against {healthy:.1} m/s"
+        );
+        assert_eq!(gs.ai_power_profiles.len(), 1);
+        gs.plan_damaged_ai_speeds();
+        assert_eq!(gs.ai_power_profiles.len(), 1, "built once");
     }
 
     #[test]

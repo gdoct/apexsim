@@ -51,7 +51,13 @@ same ([architecture.md](../architecture.md), determinism).
   `racing_line::build_laden`, one per tenth of its tank; a car drives the
   one for the next tenth up from what it carries (`ai_speed_profile`), so
   it is never planned lighter than it is and gets quicker as the tank
-  drains.
+  drains. A car whose engine damage has cost it power
+  (`damage::engine_power_factor`, in `AI_POWER_PLAN_STEP` 5% steps)
+  drives a plan built for the power it has left
+  (`plan_damaged_ai_speeds`, in `update_air` after the pits: the car's
+  `max_engine_power_w` cut, one plan per car, step lost and step of the
+  tank, built the tick after the damage and kept), so its straights,
+  braking points and coasting are the car's as it is.
 
 ## The controller (`AiDriverController::generate_input_in_traffic`)
 
@@ -213,8 +219,9 @@ off by `Racecraft::blend`; the controller holds it across the road
   `SHORT_SHIFT_SHORT` 10% short short-shifts as well, fully at 25%. At
   Monza an F1 20% short burns 16% less a lap for about 4 s; 13% short, 13%
   less for 2.5 s (`fuel_test`).
-- **Damage**: no special driving; the aero loss reaches it through
-  `aero_load_share` and the steering pull through its steering loop.
+- **Damage**: a damaged engine is planned at its power (above, Plans);
+  the aero loss reaches the driver through `aero_load_share` and the
+  steering pull through its steering loop.
 
 Fuel, tyres, brakes and damage themselves: [vehicle-physics.md](vehicle-physics.md).
 
