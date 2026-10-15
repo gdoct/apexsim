@@ -484,7 +484,9 @@ fn drive_a_trip(track: TrackConfig, car: CarConfig, limit_s: f32) -> Option<Trip
         if s.pit.driving {
             trip.took_over = true;
         }
-        if !trip.took_over && t > 20.0 {
+        // Time to drive up to the entry line from the lane's mouth (an
+        // imported lane's mouth is a long way before it).
+        if !trip.took_over && t > 20.0 + lane.limit_start_m / 10.0 {
             break;
         }
         if s.pit.servicing {
@@ -715,6 +717,16 @@ fn a_driver_without_the_pit_autopilot_drives_the_lane_held_to_the_limit() {
     assert_eq!(s.tires.front_left.wear_percent, 0.0);
 }
 
+/// The folder the lane surveys walk: the shipped circuits, or with
+/// `PIT_CUSTOM=1` the player's imports (`content/tracks/custom`).
+fn survey_dir() -> String {
+    if std::env::var("PIT_CUSTOM").is_ok() {
+        "../content/tracks/custom".into()
+    } else {
+        "../content/tracks/default".into()
+    }
+}
+
 /// Every circuit's lane under the autopilot: a GT3 driven in, to its box,
 /// serviced and out. Prints a line per circuit; fails on any that does not
 /// make the whole trip.
@@ -728,11 +740,11 @@ fn pit_lane_survey() {
         .ok()
         .map(|v| v.split(',').map(|s| s.trim().to_string()).collect());
     let mut failed = Vec::new();
-    let mut stems: Vec<String> = std::fs::read_dir("../content/tracks/default")
+    let mut stems: Vec<String> = std::fs::read_dir(survey_dir())
         .expect("tracks")
         .filter_map(|e| {
             let stem = e.ok()?.file_name().to_string_lossy().into_owned();
-            std::path::Path::new("../content/tracks/default")
+            std::path::Path::new(&survey_dir())
                 .join(&stem)
                 .join(format!("{stem}.pit.msgpack"))
                 .is_file()
@@ -744,8 +756,7 @@ fn pit_lane_survey() {
         if only.as_ref().is_some_and(|o| !o.contains(&stem)) {
             continue;
         }
-        let Ok(track) =
-            TrackLoader::load_from_file(format!("../content/tracks/default/{stem}/{stem}.yaml"))
+        let Ok(track) = TrackLoader::load_from_file(format!("{}/{stem}/{stem}.yaml", survey_dir()))
         else {
             continue;
         };
@@ -858,11 +869,11 @@ fn ai_pit_survey() {
     let only: Option<Vec<String>> = std::env::var("PIT_TRACKS")
         .ok()
         .map(|v| v.split(',').map(|s| s.trim().to_string()).collect());
-    let mut stems: Vec<String> = std::fs::read_dir("../content/tracks/default")
+    let mut stems: Vec<String> = std::fs::read_dir(survey_dir())
         .expect("tracks")
         .filter_map(|e| {
             let stem = e.ok()?.file_name().to_string_lossy().into_owned();
-            std::path::Path::new("../content/tracks/default")
+            std::path::Path::new(&survey_dir())
                 .join(&stem)
                 .join(format!("{stem}.pit.msgpack"))
                 .is_file()
@@ -875,8 +886,7 @@ fn ai_pit_survey() {
         if only.as_ref().is_some_and(|o| !o.contains(&stem)) {
             continue;
         }
-        let Ok(track) =
-            TrackLoader::load_from_file(format!("../content/tracks/default/{stem}/{stem}.yaml"))
+        let Ok(track) = TrackLoader::load_from_file(format!("{}/{stem}/{stem}.yaml", survey_dir()))
         else {
             continue;
         };

@@ -214,6 +214,42 @@ class UiTrack:
     pitboxes: int | None = None
     run: str = ""
     tags: list[str] = field(default_factory=list)
+    #: From `geotags`, when the file carries real coordinates (most carry the
+    #: placeholder `["lat", "lon"]`).
+    latitude_deg: float | None = None
+    longitude_deg: float | None = None
+
+
+def parse_geotag(value, limit: float, positive: str, negative: str) -> float | None:
+    """One `geotags` entry as signed degrees, or None for what is not a
+    coordinate. Mods write decimal degrees (`"43.388938"`, `"-1.7903877"`),
+    degrees with a hemisphere (`"50.3356° N"`; the degree sign is often
+    a Latin-1 byte that arrives garbled), degrees and decimal minutes
+    (`"52 25.054"`) and degrees, minutes and seconds (`"26° 1′ 57″ N"`).
+    A hemisphere letter or a minus sign gives the sign; `limit` is 90 for a
+    latitude and 180 for a longitude."""
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    letters = re.findall(r"[A-Za-z]+", text)
+    # Words are not coordinates ("lat", "Circuit"): only a lone hemisphere letter may be there.
+    if any(w.upper() not in (positive, negative) or len(w) != 1 for w in letters) or len(letters) > 1:
+        return None
+    numbers = re.findall(r"\d+(?:[.,]\d+)?", text)
+    if not 1 <= len(numbers) <= 3:
+        return None
+    try:
+        parts = [float(n.replace(",", ".")) for n in numbers]
+    except ValueError:
+        return None
+    degrees = parts[0] + (parts[1] / 60.0 if len(parts) > 1 else 0.0) + (parts[2] / 3600.0 if len(parts) > 2 else 0.0)
+    if len(parts) > 1 and (parts[1] >= 60.0 or (len(parts) > 2 and parts[2] >= 60.0)):
+        return None
+    if letters and letters[0].upper() == negative or text.startswith("-"):
+        degrees = -degrees
+    return degrees if abs(degrees) <= limit else None
 
 
 def read_ui_track(path: Path | None) -> UiTrack:
@@ -244,6 +280,13 @@ def read_ui_track(path: Path | None) -> UiTrack:
     tags = data.get("tags")
     if isinstance(tags, list):
         out.tags = [str(t) for t in tags]
+    geotags = data.get("geotags")
+    if isinstance(geotags, list) and len(geotags) == 2:
+        lat = parse_geotag(geotags[0], 90.0, "N", "S")
+        lon = parse_geotag(geotags[1], 180.0, "E", "W")
+        # A pair of zeros is a placeholder, not the Gulf of Guinea.
+        if lat is not None and lon is not None and (lat != 0.0 or lon != 0.0):
+            out.latitude_deg, out.longitude_deg = round(lat, 5), round(lon, 5)
     return out
 
 

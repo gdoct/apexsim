@@ -38,8 +38,8 @@ both for a player who has no checkout.
   contact classes, walls, ground), `centerline.py` (spine, cross-sections,
   YAML), `scene.py` (mesh selection, material classification, merging),
   `textures.py` (DDS conversion), `export.py` (export manifest and blob),
-  `sidecars.py` (msgpack sidecars), `validate.py` (checks), `prompt.py`
-  (asking for a new name), `cli.py`.
+  `sidecars.py` (msgpack sidecars), `pit.py` (the pit sidecar),
+  `validate.py` (checks), `prompt.py` (asking for a new name), `cli.py`.
 - `scripts/ac_car_import.py` -> `scripts/ac_car_import/`: `acd.py`
   (`data.acd`), `data.py` (INIs, LUTs, `ui_car.json`, skins), `physics.py`
   (the mapping), `model.py` (part split, seating, lamps, mirrors,
@@ -73,12 +73,17 @@ Server, in `content/tracks/custom/<Stem>/`:
 
 - `<Stem>.yaml`: 5 m nodes (widths, z, banking), `raceline`, `sectors`,
   `spawn_points`, `drs_zones`, a fixed `track_id`, `name` /
-  `display_name`, `metadata` (`category: Imported`).
+  `display_name`, `metadata` (`category: Imported`, and `latitude_deg` /
+  `longitude_deg` when `ui_track.json`'s `geotags` hold real coordinates: most
+  AC tracks keep the placeholder `["lat", "lon"]` and get none, so the sun
+  stands at the server's 50 N; AC carries no altitude and no north).
 - `<Stem>.road.msgpack`, `.walls.msgpack`, `.ground.msgpack`,
-  `.curbs.msgpack`: the four sidecars, written by the importer.
-  No `<Stem>.pit.msgpack`: an imported track has no pit stops.
+  `.curbs.msgpack`: four sidecars, written by the importer, and
+  `<Stem>.pit.msgpack` (see "The pit lane") when the layout has an
+  `ai/pit_lane.ai` and `AC_PIT_n` markers; without one there are no pit stops.
 - `<Stem>.ats`: a minimal scene with `"imported": "ac"` and
-  `"external_sidecars": ["ground", "curbs", "walls", "road"]`.
+  `"external_sidecars": ["ground", "curbs", "walls", "road"]` (plus `"pit"`
+  with a pit sidecar).
 - `<Stem>.import.json`: the report (source folder and layout, tool
   version, the CRC of every AC file read, frame, physics surfaces and
   their friction, scene counts, every material's classification, textures,
@@ -165,6 +170,35 @@ replaces an earlier import); with no terminal the refusal stands.
   decoded with Pillow, resized, box-mipped and range-fit encoded to BC1
   (opaque) or BC3 (alpha) in numpy. A texture that fails to convert is a
   warning and its material draws flat.
+
+### The pit lane
+
+`pit.py` turns `ai/pit_lane.ai` (the line from the track through the lane and
+back) and the `AC_PIT_n` dummies into the server's `PitSidecar`
+([pit-lane](../server/pit-lane.md)):
+
+- **The lane** is the part of AC's line that is off the track (past the road's
+  edge by 0.5 m, measured on the road middle and widths), with 30 m of lead-in
+  at each end, resampled every 2 m, z from the physics under it. AC's line
+  starts and ends on the racing line, hundreds of metres before the lane
+  proper, and the server hands the AI to the lane at its first node.
+- **Stations** (`entry_station_m`, `exit_station_m`) are the arc length of the
+  YAML's nodes, the server's lap, not the AI line's: the road's middle is
+  longer (Red Bull Ring by 1.3%), and a station taken from the AI line put
+  the pit entry 50 m wrong.
+- **The speed limit** (80 km/h, AC's default: a session rule, not a file) holds over the lane's pit-surface triangles
+  (`IS_PITLANE` / a `PIT` key), else over the stretch clear of the track by
+  3 m; the lines are held at least 1 m past the road's edge, because the
+  server takes a human's car over at the first line only once it is past the
+  edge.
+- **Boxes** are the `AC_PIT_n` positions (the car's stop, on the working lane
+  5-11 m beside AC's through line), in order along the lane, facing down it.
+  The lane's width takes in the farthest (`width_m` = max(12 m, 2 x the
+  reach)): the server serves a car only within half the width of the lane's
+  line. Markers further than 20 m from the line are dropped with a warning.
+- No pit line, no markers, a line that never leaves the track or never has a
+  box by it: a warning and no sidecar. The report's `pit_lane` carries the
+  lane length, limit lines, boxes and width.
 
 ### Checks
 
@@ -415,6 +449,9 @@ cargo test --release --test imported_car_test -- --ignored --nocapture
 cargo test --release --test car_stability_test imported -- --ignored
 PROBE_CLASS=GT3 cargo test --release --test grip_probe_test silverstone_profile_lap_times -- --ignored --nocapture
 SURVEY_TRACKS=KsZandvoort cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture
+# every import's pit lane: a driven trip (autopilot, box, service, out) and an AI's stop
+PIT_CUSTOM=1 cargo test --release --test pit_stop_test pit_lane_survey -- --ignored --nocapture
+PIT_CUSTOM=1 cargo test --release --test pit_stop_test ai_pit_survey -- --ignored --nocapture
 ```
 
 Debug-build test servers skip imported tracks via `[content]
@@ -454,7 +491,10 @@ Client automation: `ApexSim.Track.Dds.Parse`, `ApexSim.Track.Reader.Version3`,
 ## Not supported
 
 - Tracks without `fast_lane.ai`; point-to-point stages (refused).
-- Pit stops on imported tracks (no pit sidecar is written).
+- Pit stops where a layout has no `pit_lane.ai` or `AC_PIT` markers; the
+  pit exit light and speed-limit boards (AC's scenery draws its own).
+- Altitude and north: AC carries neither, so an import races at sea-level air
+  density with the sun's compass at the default.
 - Kit props in place of AC scenery; night lighting from AC's lights; AC's
   normal, `txMaps` and detail maps (diffuse only).
 - A DRS flap split off a car's body: a DRS car gets the drag and downforce

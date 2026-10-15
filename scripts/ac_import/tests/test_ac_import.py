@@ -185,7 +185,14 @@ class SyntheticOval:
             a = -(10.0 + 8.0 * i) / r
             side = 2.5 if i % 2 == 0 else -2.5
             nodes.append(marker(f"AC_START_{i}", (r + side) * np.cos(a), (r + side) * np.sin(a), 1.5))
-        nodes.append(marker("AC_PIT_0", (r + 20.0), -50.0, 1.5))
+        # Four pit boxes along a pit lane 12 m outside the ring's middle, on
+        # the working lane 5 m further out; its surface is pit-lane physics.
+        for i in range(4):
+            a = 0.55 + 0.1 * i
+            nodes.append(marker(f"AC_PIT_{i}", (r + 17.0) * np.cos(a), (r + 17.0) * np.sin(a), 1.5))
+        p, t = self.ring(r + 8.0, r + 16.0, 0.0)
+        quads = np.arange(len(t)) // 2
+        nodes.append(mesh_node("1PIT_lane", p, t[(quads >= 12) & (quads < 66)], 0, renderable=False))
         from PIL import Image
         def png(colour):
             im = Image.new("RGBA", (16, 16), colour)
@@ -199,10 +206,11 @@ class SyntheticOval:
         (root / "data" / "surfaces.ini").write_text(
             "[SURFACE_0]\nKEY=ROAD\nFRICTION=0.98\nIS_VALID_TRACK=1\nIS_PITLANE=0\n"
             "[SURFACE_1]\nKEY=KERB\nFRICTION=0.95\nIS_VALID_TRACK=1\n"
-            "[SURFACE_2]\nKEY=GRASS\nFRICTION=0.6\nIS_VALID_TRACK=0\n", encoding="utf-8")
+            "[SURFACE_2]\nKEY=GRASS\nFRICTION=0.6\nIS_VALID_TRACK=0\n"
+            "[SURFACE_3]\nKEY=PIT\nFRICTION=0.95\nIS_VALID_TRACK=0\nIS_PITLANE=1\n", encoding="utf-8")
         (root / "data" / "drs_zones.ini").write_text("[ZONE_0]\nDETECTION=0.10\nSTART=0.20\nEND=0.40\n", encoding="utf-8")
         (root / "ui" / "ui_track.json").write_text(
-            '{\n\t"name": "Synthetic Oval",\n\t"country": "Nowhere",\n\t"city": "Test",\n\t"length": "1257",\n\t"pitboxes": "1",\n\t"run": "anticlockwise",\n}',
+            '{\n\t"name": "Synthetic Oval",\n\t"country": "Nowhere",\n\t"city": "Test",\n\t"length": "1257",\n\t"pitboxes": "1",\n\t"geotags": ["52 25.054", "16 47.855"],\n\t"run": "anticlockwise",\n}',
             encoding="utf-8")
         # The AI line on the ring, 1.5 m apart, offset 1 m to the outside so
         # the road-centre shift is exercised, starting 20 m before the line.
@@ -210,6 +218,12 @@ class SyntheticOval:
         angles = np.linspace(0, 2 * np.pi, n, endpoint=False) - 20.0 / r
         pts = np.array([self.ac((r + 1.0) * np.cos(a), (r + 1.0) * np.sin(a), 0.3) for a in angles])
         write_ai(root / "ai" / "fast_lane.ai", pts, side_left=7.0, side_right=5.0)
+        # The pit line: off the racing line at 0.15 rad, 12 m out from 0.30 to
+        # 1.50, back on it by 1.65 (counter-clockwise, like the lap).
+        a = np.linspace(0.15, 1.65, 120)
+        out = np.interp(a, [0.15, 0.30, 1.50, 1.65], [1.0, 12.0, 12.0, 1.0])
+        line = np.array([self.ac((r + o) * np.cos(x), (r + o) * np.sin(x), 0.3) for x, o in zip(a, out)])
+        write_ai(root / "ai" / "pit_lane.ai", line, side_left=0.0, side_right=0.0)
 
 
 class FrameTests(unittest.TestCase):
@@ -334,6 +348,32 @@ class ReaderTests(unittest.TestCase):
             self.assertEqual(ui.length_m, 5200.0)
             surfaces = ini.read_surfaces([])
             self.assertEqual(surfaces, {})
+
+    def test_geotags_in_every_form_mods_write_them(self):
+        lat = lambda v: ini.parse_geotag(v, 90.0, "N", "S")  # noqa: E731
+        lon = lambda v: ini.parse_geotag(v, 180.0, "E", "W")  # noqa: E731
+        self.assertAlmostEqual(lat("43.388938"), 43.388938)
+        self.assertAlmostEqual(lon("-1.7903877"), -1.7903877)
+        self.assertAlmostEqual(lat("50.3356� N"), 50.3356)  # the degree sign arrives garbled
+        self.assertAlmostEqual(lat("26° 1′ 57″ N"), 26 + 1 / 60 + 57 / 3600)
+        self.assertAlmostEqual(lon("103� 52' 3.9 E"), 103 + 52 / 60 + 3.9 / 3600)
+        self.assertAlmostEqual(lat("52 25.054"), 52 + 25.054 / 60)
+        self.assertAlmostEqual(lat("33.5 S"), -33.5)
+        self.assertAlmostEqual(lon("70.25 W"), -70.25)
+        for junk in ("lat", "lon", "Circuit", "...", "", "95", "12 75", None, 12):
+            self.assertIsNone(lat(junk), junk)
+
+    def test_ui_track_geotags_are_read_only_when_they_are_a_place(self):
+        with tempfile.TemporaryDirectory() as d:
+            for text, want in (('{"geotags": ["lat", "lon"]}', None), ('{"geotags": ["0", "0"]}', None),
+                               ('{"geotags": []}', None), ('{"geotags": ["12.5"]}', None), ('{}', None),
+                               ('{"geotags": ["48.8167632", "7.7841658"]}', (48.81676, 7.78417)),
+                               ('{"geotags": [\n"-33.5", "151.2"\n]}', (-33.5, 151.2))):
+                path = Path(d) / "ui_track.json"
+                path.write_text(text, encoding="utf-8")
+                ui = ini.read_ui_track(path)
+                got = None if ui.latitude_deg is None else (ui.latitude_deg, ui.longitude_deg)
+                self.assertEqual(got, want, text)
 
     def test_a_folder_without_models_ini_is_its_own_kn5(self):
         with tempfile.TemporaryDirectory() as d:
@@ -508,6 +548,35 @@ class TextureTests(unittest.TestCase):
 
 
 class ImportTests(unittest.TestCase):
+    def check_pit_lane(self, custom, report, doc, msgpack):
+        """The oval's pit line becomes the server's pit sidecar."""
+        pit = msgpack.unpackb((custom / "SynthOval.pit.msgpack").read_bytes(), raw=False)
+        self.assertEqual(pit["version"], 1)
+        self.assertEqual(pit["lane_side"], -1, "the lane is outside a counter-clockwise lap: on the right")
+        self.assertEqual(len(pit["boxes"]), 4)
+        stations = [b["lane_station_m"] for b in pit["boxes"]]
+        self.assertEqual(stations, sorted(stations), "boxes in order along the lane")
+        # About 1.5 rad of a 200 m ring, trimmed to where it is off the road, plus lead-ins.
+        self.assertTrue(150.0 < pit["length_m"] < 330.0, pit["length_m"])
+        self.assertTrue(0.0 < pit["limit_start_m"] < pit["boxes"][0]["lane_station_m"] < pit["boxes"][-1]["lane_station_m"]
+                        < pit["limit_end_m"] < pit["length_m"])
+        self.assertAlmostEqual(pit["speed_limit_mps"], 80.0 / 3.6, places=3)
+        self.assertGreaterEqual(pit["width_m"], 12.0)
+        # Stations are the server's: along the YAML nodes, the lane leaving the track after the
+        # start line and rejoining it later.
+        nodes = doc["nodes"]
+        lap = sum(np.hypot(b["x"] - a["x"], b["y"] - a["y"]) for a, b in zip(nodes, nodes[1:] + nodes[:1]))
+        self.assertTrue(0.0 < pit["entry_station_m"] < pit["exit_station_m"] < lap,
+                        (pit["entry_station_m"], pit["exit_station_m"], lap))
+        # A box stands on the working lane, 5 m outside the lane's line.
+        box = pit["boxes"][1]
+        near = min(pit["nodes"], key=lambda n: np.hypot(n[0] - box["x"], n[1] - box["y"]))
+        self.assertAlmostEqual(np.hypot(box["x"] - near[0], box["y"] - near[1]), 5.0, delta=1.0)
+        self.assertTrue(-0.5 < box["z"] < 0.5)
+        self.assertEqual(report["pit_lane"]["boxes"], 4)
+        ats = json.loads((custom / "SynthOval.ats").read_text(encoding="utf-8"))
+        self.assertIn("pit", ats["external_sidecars"])
+
     def test_the_synthetic_oval_imports_and_is_deterministic(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
@@ -540,6 +609,12 @@ class ImportTests(unittest.TestCase):
             self.assertEqual(doc["closed_loop"], True)
             self.assertEqual(len(doc["drs_zones"]), 1)
             self.assertAlmostEqual(doc["metadata"]["length_m"], 2 * np.pi * 201.0, delta=3.0)
+            # The geotags (degrees and decimal minutes) are the circuit's place.
+            self.assertAlmostEqual(doc["metadata"]["latitude_deg"], 52 + 25.054 / 60, places=4)
+            self.assertAlmostEqual(doc["metadata"]["longitude_deg"], 16 + 47.855 / 60, places=4)
+            manifest = json.loads((out / "SynthOval.uescene.json").read_text(encoding="utf-8"))
+            self.assertAlmostEqual(manifest["metadata"]["latitude_deg"], 52 + 25.054 / 60, places=4)
+            self.assertNotIn("north_yaw_deg", manifest["metadata"], "AC carries no north")
             # Counter-clockwise from above: the left edge (inside) is at +y.
             i = len(nodes) // 4
             self.assertGreater(nodes[i]["x"] * 0 + nodes[i]["y"], 0)
@@ -568,6 +643,7 @@ class ImportTests(unittest.TestCase):
             self.assertEqual(report["scene"]["dropped_lower_lods"], 1)
 
             import msgpack
+            self.check_pit_lane(custom, report, doc, msgpack)
             curbs = msgpack.unpackb((custom / "SynthOval.curbs.msgpack").read_bytes(), raw=False)
             self.assertEqual(curbs["version"], 2)
             self.assertGreater(max(curbs["left_cm"][:200]), 60, "the inside kerb is on the left over the first quarter")

@@ -147,6 +147,14 @@ the same `ApexProps` code.
   `off_gravel` / `off_sand` (`scripts/ac_import/physics.py`, where
   `ground_set_for` already tells them apart), then re-import.
 
+- Imported pit lanes (`ac_import/pit.py`): the AI pits on all seven imports
+  tried (Zandvoort, Silverstone, Spa, Barcelona, Red Bull Ring, Imola, Poznan:
+  `PIT_CUSTOM=1 ... ai_pit_survey`), but the scripted human in
+  `pit_lane_survey` is not taken over at Spa and Red Bull Ring: it cuts across
+  La Source's mouth into a wall, and at the Red Bull Ring it drives 4 m
+  inboard of AC's line, which is still on the road edge. The autopilot itself
+  is untried there.
+
 **Check:** the track-editor tests; a fresh-clone `initialize_content.ps1`;
 the launcher import with the network off.
 

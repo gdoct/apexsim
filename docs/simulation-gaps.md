@@ -118,7 +118,7 @@ one session, advanced by the host (see
 
 | Gap | Effort | Impact |
 |---|---|---|
-| Imported tracks have no pit sidecar (so no pit stops) and no `altitude_m` / latitude / longitude metadata or north in their export: they race at sea-level air density and the sun is the sky model's default. | Med | Med |
+| Imported tracks have no `altitude_m` and no north (AC carries neither), and most have no coordinates (only ~50 of AC's 175 layouts fill in `geotags`): they race at sea-level air density and the sun stands at the default latitude and compass. | Med | Med |
 | AC's own tyre heat model is not carried, only its temperature window (`ac_car_import/physics.py` `thermal_window`). | Med | Low |
 | AC's dynamic aero controllers (`aero.ini` `DYNAMIC_CONTROLLER`) are not modelled, and a DRS flap is not split off an imported body (the importer warns). | Med | Low |
 | AC's ERS delivery profiles (`ctrl_ers_*.ini`) and front-axle motors (`[FRONT_MOTORS]`) are not carried: a 919-style hypercar imports with its rear motor only. | Med | Low |

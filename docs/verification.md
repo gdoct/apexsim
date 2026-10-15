@@ -223,6 +223,15 @@ Mandarina Bay.
 - A pad under the GameInput plugin (not enabled in the project): the light
   motor on `RightLarge`, the triggers quiet (`ApexFfb::ToPadChannels`).
 
+**An imported circuit's pit stop.**
+
+- A human drives an AC-imported circuit's pit lane on screen: the speed
+  limit, the autopilot taking over at the first line, the car stopping at its
+  box among AC's own garages, the service, the hand-back at the exit line.
+  The sidecar's lane, limit lines and boxes are checked only by the server's
+  surveys (`PIT_CUSTOM=1 pit_stop_test`); AC's scenery draws the garages and
+  boards, the exit light is not drawn.
+
 **Last, with the network off.**
 
 - The launcher's AC import button, never clicked by hand, and the import

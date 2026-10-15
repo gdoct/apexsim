@@ -72,8 +72,9 @@ external), loaded by
 m, its length, `limit_start_m` / `limit_end_m` (lane stations),
 `entry_station_m` / `exit_station_m` (track stations), and a `PitBoxSpot`
 per box (the middle of its working lane, facing down it). Every shipped
-circuit but the Nordschleife has one; AC imports have none. A track without
-one has no pit stops.
+circuit but the Nordschleife has one; an AC import has one when the layout has a
+pit line and pit boxes ([../content/ac-import.md](../content/ac-import.md)). A
+track without one has no pit stops.
 
 ## The lane as a surface
 

@@ -133,7 +133,10 @@ are written by `python scripts/track_location.py --all` from each
 datum offset), with a `MANUAL` table for circuits without a DEM. The track
 editor's `TrackMetadata` carries the keys through its rewrites
 (`the_location_survives_a_rewrite_as_written`). Editing a YAML changes its
-content checksum: re-run `ats-export --all` after.
+content checksum: re-run `ats-export --all` after. An AC import gets
+`latitude_deg` and `longitude_deg` from `ui_track.json`'s geotags when the mod
+filled them in ([../content/ac-import.md](../content/ac-import.md)); AC carries
+no altitude or north.
 
 The server works the sun out at `TrackConfig::latitude_deg()` (50° N when
 the YAML has none) for the track temperature, the headlights and the

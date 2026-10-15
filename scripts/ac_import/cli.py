@@ -19,7 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import TOOL_VERSION, ai, centerline, ini, kn5, physics, scene, sidecars, textures, validate
+from . import TOOL_VERSION, ai, centerline, ini, kn5, physics, pit, scene, sidecars, textures, validate
 from .export import source_crc, ue_location, ue_yaw_deg, write_export
 from .prompt import StemTaken, retry_with_new_stem
 from .sidecars import CONTACT_NAMES
@@ -250,6 +250,22 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
     if not starts:
         warnings.append("no AC_START markers; the server lays a generated grid")
     pit_count = sum(1 for k in markers if k.startswith("AC_PIT_"))
+    pit_result = None
+    pit_ai_path = layout.ai_dir / "pit_lane.ai"
+    if pit_count and pit_ai_path.is_file():
+        try:
+            pit_ai = ai.read_ai(pit_ai_path)
+        except ai.AiError as e:
+            warnings.append(f"{pit_ai_path.name}: {e}; no pit stops")
+        else:
+            files_read[str(pit_ai_path.relative_to(layout.track_dir)).replace("\\", "/")] = source_crc_of(pit_ai_path)
+            box_keys = sorted((k for k in markers if re.fullmatch(r"AC_PIT_\d+", k)),
+                              key=lambda k: int(k[len("AC_PIT_"):]))
+            pit_result = pit.build(pit_ai, [markers[k] for k in box_keys], frame, spine, measured, world,
+                                   node_step=int(centerline.NODE_STEP_M), min_width_m=PIT_LANE_WIDTH_M)
+            warnings.extend(pit_result.warnings)
+    elif pit_count:
+        warnings.append("no ai/pit_lane.ai: the pit boxes are drawn, but the server has no pit lane (no pit stops)")
     drs_zones: list[tuple[float, float, float]] = []
     for z in drs:
         conv = lambda f: (f * spine.lap_m - spine.ai_start_station) % spine.lap_m  # noqa: E731
@@ -268,6 +284,11 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
         "category": "Imported",
         "environment_type": "plains",
     }
+    if ui.latitude_deg is not None:
+        # ui_track.json's geotags, when a mod fills them in: the server's sun,
+        # track temperature and headlights are worked out at this latitude.
+        metadata["latitude_deg"] = ui.latitude_deg
+        metadata["longitude_deg"] = ui.longitude_deg
     doc = centerline.track_yaml(spine, measured, raceline, name=name, display_name=display_name, track_id=track_id,
                                 sectors=sectors, spawn_xy=spawn_xy, drs_zones=drs_zones, metadata=metadata)
     yaml_text = centerline.dump_yaml(doc)
@@ -388,7 +409,8 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
         "textures": {tex: {"file": f, "how": c.how, "size": [c.width, c.height], "mips": c.mips,
                            "format": c.fourcc.decode("ascii")} for tex, (f, c) in sorted(texture_files.items())},
         "preview": preview_how,
-        "grid_slots": len(spawn_xy), "pit_boxes": pit_count, "sectors": sectors,
+        "grid_slots": len(spawn_xy), "pit_boxes": pit_count, "pit_lane": pit_result.report if pit_result else None,
+        "sectors": sectors,
         "drs_zones": len(drs_zones),
         "checks": [c.row() for c in checks],
         "warnings": warnings,
@@ -418,7 +440,7 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
         "markings": [],
         "pit_lane": None,
         "props": [],
-        "external_sidecars": ["ground", "curbs", "walls", "road"],
+        "external_sidecars": ["ground", "curbs", "walls", "road"] + (["pit"] if pit_result and pit_result.payload else []),
         "next_id": 1,
     }
     _write_text(custom / f"{stem}.ats", json.dumps(ats, indent=2) + "\n")
@@ -427,6 +449,11 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
         [{"key": s.key, "contact": s.contact, "friction": s.friction, "valid_track": s.valid_track,
           "pit_lane": s.pit_lane} for s in world.surfaces],
         f"ac-import {layout.label}"))
+    pit_path = custom / f"{stem}.pit.msgpack"
+    if pit_result and pit_result.payload:
+        sidecars.write_msgpack(pit_path, pit_result.payload)
+    elif pit_path.exists():
+        pit_path.unlink()  # a re-import with no lane must not keep the earlier import's
     sidecars.write_msgpack(custom / f"{stem}.walls.msgpack", sidecars.walls_payload(world.wall_segments, world.wall_kinds))
     sidecars.write_msgpack(custom / f"{stem}.ground.msgpack", sidecars.ground_payload(gx, gy, 4.0, heights))
     sidecars.write_msgpack(custom / f"{stem}.curbs.msgpack", sidecars.curbs_payload(
@@ -456,8 +483,13 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
                     "width_m": round(float(measured.width_left[0] + measured.width_right[0]), 3)}
     pit_lane = {"width_cm": PIT_LANE_WIDTH_M * 100.0, "box_count": int(pit_count or ui.pitboxes or 0),
                 "speed_limit_kmh": PIT_SPEED_LIMIT_KMH} if pit_count else None
+    if pit_result and pit_result.payload:
+        pit_lane = {"width_cm": round(pit_result.payload["width_m"] * 100.0, 1),
+                    "box_count": len(pit_result.payload["boxes"]), "speed_limit_kmh": PIT_SPEED_LIMIT_KMH}
     manifest_metadata = {"country": ui.country or None, "city": ui.city or None, "category": "Imported",
                          "environment_type": "plains", "description": metadata["description"]}
+    if ui.latitude_deg is not None:
+        manifest_metadata["latitude_deg"] = ui.latitude_deg
     write_export(out_dir, stem, track_id=track_id, track_name=name, display_name=display_name,
                  source_track=yaml_path.name, source_crc_value=crc, closed_loop=True, length_m=spine.lap_m,
                  metadata=manifest_metadata, materials=[s.manifest_entry() for s in material_rows],
