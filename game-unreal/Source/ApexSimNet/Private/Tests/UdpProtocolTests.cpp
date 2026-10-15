@@ -707,6 +707,40 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestFalse(TEXT("exit open"), Car.bPitExitClosed);
 			TestFalse(TEXT("not held"), Car.bPitHeld);
 		}
+		// The compound byte follows the wear, four whole percents (94 0C 0D 1F 64): a car's
+		// wet is index 4 of the five (and any index of a longer list), and
+		// only 255 (COMPOUND_UNKNOWN) is unknown.
+		{
+			TArray<uint8> Bytes(ApexUdpGolden::S_TelemetryCompactPit, UE_ARRAY_COUNT(ApexUdpGolden::S_TelemetryCompactPit));
+			const uint8 Wear[] = { 0x94, 0x0C, 0x0D, 0x1F, 0x64 };
+			int32 At = INDEX_NONE;
+			for (int32 i = 0; i + 5 < Bytes.Num() && At == INDEX_NONE; ++i)
+			{
+				At = FMemory::Memcmp(&Bytes[i], Wear, 5) == 0 ? i + 5 : INDEX_NONE;
+			}
+			if (TestTrue(TEXT("the compound byte is found"), At != INDEX_NONE)
+				&& TestEqual(TEXT("and holds the softs"), static_cast<int32>(Bytes[At]), 0))
+			{
+				for (const TPair<uint8, int32>& Case : { TPair<uint8, int32>(4, 4), TPair<uint8, int32>(6, 6), TPair<uint8, int32>(0xCC, -1) })
+				{
+					Bytes[At] = Case.Key;
+					// 0xCC is msgpack's uint8 marker: 255 takes two bytes.
+					TArray<uint8> Frame = Bytes;
+					if (Case.Key == 0xCC)
+					{
+						Frame.Insert(0xFF, At + 1);
+					}
+					FApexServerMessage Decoded;
+					if (TestTrue(FString::Printf(TEXT("compound %d decodes"), Case.Value),
+							ApexProtocol::DecodeUdpMessage(Frame, Decoded, Error))
+						&& Decoded.Telemetry.Cars.Num() == 1)
+					{
+						TestEqual(TEXT("compound index kept"), Decoded.Telemetry.Cars[0].Compound, Case.Value);
+					}
+				}
+				TestEqual(TEXT("the wet's letter"), FApexCarTelemetry::CompoundLetter(4), FString(TEXT("W")));
+			}
+		}
 		// The same frame with the autopilot, the red exit light and the hold
 		// bits set (pit_flags 63): the byte is the second last.
 		TArray<uint8> PitBits(ApexUdpGolden::S_TelemetryCompactPit, UE_ARRAY_COUNT(ApexUdpGolden::S_TelemetryCompactPit));

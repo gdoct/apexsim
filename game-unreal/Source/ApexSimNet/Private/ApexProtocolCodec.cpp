@@ -1307,7 +1307,7 @@ namespace
 			if (Key == TEXT("CarIndex"))        { bOk = Reader.ReadUInt64(Raw); Out.CarIndex = static_cast<int32>(Raw); }
 			else if (Key == TEXT("PitBox"))     { bOk = Reader.ReadUInt64(Raw); Out.PitBox = static_cast<int32>(Raw); }
 			else if (Key == TEXT("TyresS"))     { bOk = Reader.ReadFloat(Out.TyresS); }
-			else if (Key == TEXT("Compound"))   { bOk = Reader.ReadUInt64(Raw); Out.Compound = Raw <= 2 ? static_cast<int32>(Raw) : -1; }
+			else if (Key == TEXT("Compound"))   { bOk = Reader.ReadUInt64(Raw); Out.Compound = Raw < 255 ? static_cast<int32>(Raw) : -1; }
 			else if (Key == TEXT("FuelS"))      { bOk = Reader.ReadFloat(Out.FuelS); }
 			else if (Key == TEXT("FuelL"))      { bOk = Reader.ReadFloat(Out.FuelL); }
 			else if (Key == TEXT("RepairS"))    { bOk = Reader.ReadFloat(Out.RepairS); }
@@ -1855,7 +1855,7 @@ namespace
 				{
 					return false;
 				}
-				Out.Compound = Raw <= 2 ? static_cast<int32>(Raw) : -1;
+				Out.Compound = Raw < 255 ? static_cast<int32>(Raw) : -1;
 				return true;
 			});
 		}
