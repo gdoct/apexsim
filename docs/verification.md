@@ -33,9 +33,8 @@ track YAML and scene (low cells, grades, bends, a prop seen from the road).
 Each shot is judged against what the feature's doc says it draws.
 
 The geometry pass of 2026-10-13 (real elevation, banking with ramps, the
-Karussell in concrete, paved aprons as run-off) has been seen at Spa,
-Mandarina Bay and the Nordschleife; R8 sweeps the rest (every circuit but
-those, Moscow Raceway, Shanghai, Monza and Yas Marina).
+Karussell in concrete, paved aprons as run-off) has been seen on every
+circuit it changed (2026-10-15, R1-R8).
 
 ### R1. Spa, heavy rain, stand-in driver
 
@@ -68,8 +67,6 @@ Events: `flatspot=FL` at two times some seconds apart, a `leak=FR`, a
 - The static camber on the wheels close up.
 - A part hanging before it comes off (`UpdateHangingParts`: the hinge edge,
   the 22° droop): it droops fore and aft, so from the side.
-- A car that lists its own compounds on the garage's reference card (the
-  default list's card was seen; every shipped car lists its own now).
 
 ### R4. Snow at Spa, changeable, into the evening
 
@@ -126,16 +123,13 @@ that is hit in a seeded replay (`-ApexReplay`, `-ApexWatchCar`).
 - A part hanging from a real hit: its flutter (frames a fifth of a second
   apart).
 
-### R8. Geometry sweep: one short launch per remaining circuit
+### R8. Stadium stands and pit rows
 
-Silverstone, Austin, Brands Hatch, Budapest, Catalunya, Hockenheim, IMS, Le Mans,
-Melbourne, Mexico City, Montreal, Norisring, Nürburgring, Oschersleben,
-Sakhir, São Paulo, Sepang, Sochi, Spielberg, Suzuka, Zandvoort: one or two
-TV shots each at the steepest grade and the most banked corner (from the
-YAML). Run it with GPU crash dumps on: it is also the long unattended loop
-of the GPU stability item (section 3).
+`r8-ims` and `r8-mexicocity` aim at their `grandstand_corner`; the first
+pass put the camera at road level and in a chase view: aim again, from
+higher and further off. Run the R8 sweep with GPU crash dumps on: it is
+also the long unattended loop of the GPU stability item (section 3).
 
-- The geometry pass on each of these circuits.
 - A stadium grandstand wedge on a corner.
 - A curved pit box row tighter than about a 130 m radius (the garages
   scale down to 0.85 and may still overlap a little).
@@ -148,18 +142,13 @@ client on the same server for the grid card
 ([game/client.md](game/client.md), [game/hud-modding.md](game/hud-modding.md),
 [server/operations.md](server/operations.md)).
 
-- The menus package of 2026-10-14: the car stat sheet (Garage > Garage >
-  View car stats), the HUD layout picker (Settings > Gameplay > Layout)
-  switching the HUD in a race, See track guide opening the guide, and
-  replay export, never on screen; the browser's filter pills (the
-  unattended click did not land on any button of that run: find them with
-  `ui.Texts` first). The Recorded list, its fetch and its replay were seen
-  unattended against a local server; the pad walk reaches every new
-  control.
-- HUD layouts: per-circuit and per-class bindings and switching by place.
-- A dashboard broadcast (`ServerNotice`) in the menus and over the race
-  HUD, and a session the dashboard ends while driving (notice, then back
-  to the menu).
+Seen on 2026-10-15: the car stat sheet (with the car's own compounds),
+See track guide, replay export, the HUD layout picker's row, a dashboard
+broadcast in the menus and over the race HUD, and the dashboard ending a
+session while driving (notice, then the menu).
+
+- The layout picker switching the HUD in a race; per-circuit and per-class
+  bindings and switching by place.
 - A streamed hotlap watch on a saved setup (S with setups saved for the
   car; only the stock lap and the "no saved setup" toast were run). Seen
   unattended at Monza: pause, ten seconds back, 2x back to live, the ghost
@@ -209,6 +198,8 @@ Mandarina Bay.
 
 **Pad and mouse.**
 
+- The session browser's filter pills (All, Joinable, Racing, Recorded) by
+  mouse.
 - The HUD editor on a real pad: R3 for the layout manager, L3 for Reset
   all (pressed through by the pad walk, not yet by hand); the layout
   manager by hand.
