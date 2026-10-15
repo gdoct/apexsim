@@ -140,7 +140,8 @@ off by `Racecraft::blend`; the controller holds it across the road
   `AI_PIT_FLAT_SPOT`, a puncture or leak, `AI_PIT_DAMAGE` (25%) in a body
   zone or `AI_PIT_ENGINE_DAMAGE` (20%), or short of fuel with under
   `AI_PIT_FUEL_LAPS` (1.6) laps in the tank (only for a car the rules
-  refuel: not an F1). Compound: hard with 15+ laps left, the reference
+  refuel: not an F1; a stint energy limit counts as fuel,
+  `pit::usable_fuel_liters`). Compound: hard with 15+ laps left, the reference
   with 6+, soft otherwise; in the wet the weather's tyre. The car turns
   onto the pit route `AI_PIT_APPROACH_M` (250 m) before the lane, races the
   run-up held to the lane's mouth speed and hands over to `drive_input`

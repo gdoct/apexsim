@@ -570,6 +570,9 @@ struct FuelToml {
     density_kg_per_l: Option<f32>,
     #[serde(default)]
     tank_front_share: Option<f32>,
+    /// The whole car's energy per stint, MJ, fuel included (the WEC rule).
+    #[serde(default)]
+    stint_energy_mj: Option<f32>,
 }
 
 /// Camber gain for a car.toml that gives camber but no gain: about what
@@ -871,6 +874,7 @@ impl CarLoader {
                     .density_kg_per_l
                     .unwrap_or(FuelConfig::default().density_kg_per_l),
                 tank_front_share: fuel_toml.tank_front_share,
+                stint_energy_mj: fuel_toml.stint_energy_mj.filter(|e| *e > 0.0),
             },
             hybrid: HybridConfig {
                 enabled: hybrid_toml.enabled.unwrap_or(false),
@@ -1336,6 +1340,9 @@ impl CarLoader {
             }
         }
         in_range("suspension.camber_thrust", susp.camber_thrust, 0.0, 0.5);
+        if let Some(energy) = config.fuel.stint_energy_mj {
+            in_range("fuel.stint_energy_mj", energy, 1.0, 1.0e5);
+        }
         if let Some(stint) = config.hybrid.stint_kj {
             in_range("hybrid.stint_kj", stint, 1.0, 1.0e7);
         }

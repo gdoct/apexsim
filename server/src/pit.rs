@@ -372,6 +372,27 @@ pub fn service_seconds(config: &CarConfig, fuel_added_l: f32, damage_percent: f3
     plan_service(config, fuel_added_l, damage_percent, 0.0, 0.0).total_s()
 }
 
+/// The fuel a car may still burn this stint, L: its tank, or what the
+/// stint's energy left (`[fuel] stint_energy_mj`) holds where that is
+/// less (the motor's share counted as fuel).
+pub fn usable_fuel_liters(state: &CarState, config: &CarConfig) -> f32 {
+    let left = config.fuel.stint_left_mj(state.stint_energy_used_mj);
+    if left.is_finite() {
+        state.fuel_liters.min(config.fuel.liters_for_mj(left))
+    } else {
+        state.fuel_liters
+    }
+}
+
+/// The fuel worth carrying into a stint, L: `liters`, or no more than the
+/// stint's energy (`[fuel] stint_energy_mj`) can burn.
+pub fn stint_fuel_cap(config: &CarConfig, liters: f32) -> f32 {
+    match config.fuel.stint_energy_mj {
+        Some(mj) => liters.min(config.fuel.liters_for_mj(mj)),
+        None => liters,
+    }
+}
+
 /// The most worn of a car's brakes, percent.
 pub fn brake_wear_percent(state: &CarState) -> f32 {
     state.brake_wear_pct.iter().copied().fold(0.0, f32::max)
@@ -422,6 +443,18 @@ impl StopPick {
 /// tyres, a deep flat spot, a puncture (a leak counts, before it is flat),
 /// damage or a short tank.
 pub fn plan_stop(state: &CarState, laps_left: u32, lap_fuel_l: Option<f32>) -> Option<StopPick> {
+    plan_stop_on(state, state.fuel_liters, laps_left, lap_fuel_l)
+}
+
+/// [`plan_stop`] for a car that may still burn `fuel_l` this stint: its
+/// tank, or less where the stint's energy (`[fuel] stint_energy_mj`) runs
+/// out first (`usable_fuel_liters`).
+pub fn plan_stop_on(
+    state: &CarState,
+    fuel_l: f32,
+    laps_left: u32,
+    lap_fuel_l: Option<f32>,
+) -> Option<StopPick> {
     if laps_left == 0 {
         return None;
     }
@@ -442,8 +475,7 @@ pub fn plan_stop(state: &CarState, laps_left: u32, lap_fuel_l: Option<f32>) -> O
     .any(|z| *z >= AI_PIT_DAMAGE)
         || d.engine_damage_percent >= AI_PIT_ENGINE_DAMAGE;
     let short = lap_fuel_l.is_some_and(|lap| {
-        state.fuel_liters < lap * (laps_left as f32 + 0.8)
-            && state.fuel_liters < lap * AI_PIT_FUEL_LAPS
+        fuel_l < lap * (laps_left as f32 + 0.8) && fuel_l < lap * AI_PIT_FUEL_LAPS
     });
     if !(worn || damaged || short) {
         return None;

@@ -592,3 +592,53 @@ fn a_hard_hit_sheds_debris_the_next_car_picks_up() {
         .any(|t| t.punctured || t.leak_kpa_per_s > 0.0);
     println!("the car over the debris punctured: {punctured}");
 }
+
+/// `[fuel] stint_energy_mj`: the whole car's energy per stint. Spent, the
+/// engine cuts with fuel still in the tank, and a new stint (a stop)
+/// gives it back. Without the key the same run burns on.
+#[test]
+fn a_stint_energy_limit_cuts_the_engine_with_fuel_in_the_tank() {
+    let run = |limit: Option<f32>| {
+        let mut config = car("posh-gt3rs");
+        config.fuel.stint_energy_mj = limit;
+        let mut gs = seated(&config, monza(), 100.0, 30.0);
+        gs.session
+            .participants
+            .get_mut(&PLAYER)
+            .unwrap()
+            .fuel_liters = 50.0;
+        let flat = PlayerInputData {
+            throttle: 1.0,
+            ..Default::default()
+        };
+        drive(&mut gs, flat, HZ * 4);
+        let s = gs.session.participants[&PLAYER].clone();
+        // A stop: a new stint.
+        let state = gs.session.participants.get_mut(&PLAYER).unwrap();
+        apexsim_server::hybrid::new_stint(state, &config);
+        let fuel_before = state.fuel_liters;
+        drive(&mut gs, flat, HZ / 2);
+        let burnt_after_stop = fuel_before - gs.session.participants[&PLAYER].fuel_liters;
+        (s, burnt_after_stop)
+    };
+    let (free, _) = run(None);
+    let (limited, burnt_after_stop) = run(Some(2.0));
+    println!(
+        "free: {:.1} m/s, {:.2} L left, used {:.2} MJ; limited: {:.1} m/s, {:.2} L left, used {:.2} MJ; after the stop {:.3} L",
+        free.speed_mps,
+        free.fuel_liters,
+        free.stint_energy_used_mj,
+        limited.speed_mps,
+        limited.fuel_liters,
+        limited.stint_energy_used_mj,
+        burnt_after_stop
+    );
+    assert_eq!(free.stint_energy_used_mj, 0.0, "no key, nothing counted");
+    assert!(limited.stint_energy_used_mj >= 2.0 && limited.stint_energy_used_mj < 2.1);
+    assert!(
+        limited.fuel_liters > free.fuel_liters,
+        "fuel left in the tank"
+    );
+    assert!(limited.speed_mps < free.speed_mps - 2.0, "the engine cut");
+    assert!(burnt_after_stop > 0.01, "a new stint, a running engine");
+}

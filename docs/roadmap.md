@@ -85,6 +85,9 @@ rule echoes it in `SessionJoined` and the lobby shows it.
 - Disc wear on the HUD: `CarState::brake_disc_wear_pct` (a car with
   `[brakes] disc_wear_per_mj`) is server-side only; it needs a telemetry
   field and a data point beside `brake_wear`.
+- The stint energy left on the HUD: `[fuel] stint_energy_mj` counts the
+  whole car's energy per stint server-side only (`CarState::stint_energy_used_mj`);
+  it needs a telemetry field and a data point beside `ers_stint_pct`.
 
 **Check:** the HUD on a carbon and a steel car; the wheels in car select.
 

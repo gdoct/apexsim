@@ -147,19 +147,23 @@ pub fn charge_full(state: &mut CarState, config: &CarConfig) {
     new_stint(state, config);
 }
 
-/// A new stint's budget: a pit stop.
+/// A new stint's budget: a pit stop. The whole car's stint energy
+/// (`[fuel] stint_energy_mj`) starts again with it.
 pub fn new_stint(state: &mut CarState, config: &CarConfig) {
     state.ers_stint_kj = 0.0;
+    state.stint_energy_used_mj = 0.0;
     publish(state, config);
 }
 
-/// Energy the motor may still deploy this stint, kJ.
+/// Energy the motor may still deploy this stint, kJ: its own stint
+/// budget, and the whole car's (`[fuel] stint_energy_mj`).
 fn stint_left_kj(state: &CarState, config: &CarConfig) -> f32 {
     config
         .hybrid
         .stint_kj
         .map(|s| s - state.ers_stint_kj)
         .unwrap_or(f32::INFINITY)
+        .min(config.fuel.stint_left_mj(state.stint_energy_used_mj) * 1000.0)
 }
 
 /// Energy the overtake button may still spend this lap, kJ: its own
@@ -411,6 +415,9 @@ fn step(
         state.ers_deployed_kj += drawn_kj;
     }
     state.ers_stint_kj += drawn_kj;
+    if config.fuel.stint_energy_mj.is_some() {
+        state.stint_energy_used_mj += drawn_kj / 1000.0;
+    }
     state.ers_deploying = torque > 0.0;
     MotorOutput {
         crank_torque_nm: torque,

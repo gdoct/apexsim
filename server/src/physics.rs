@@ -2033,15 +2033,16 @@ fn calculate_engine_output(
     // What the combustion makes: nothing once the tank is dry, and what
     // the air it breathes allows (thin air at altitude, dense on a cold
     // morning; exactly the curve on the reference day).
-    let combustion_torque = if state.fuel_liters > 0.0 {
-        input.throttle
-            * torque_at_rpm
-            * limiter_cut
-            * engine_density_factor(config, air_density_ratio)
-            * heat_limit
-    } else {
-        0.0
-    };
+    let combustion_torque =
+        if state.fuel_liters > 0.0 && config.fuel.stint_left_mj(state.stint_energy_used_mj) > 0.0 {
+            input.throttle
+                * torque_at_rpm
+                * limiter_cut
+                * engine_density_factor(config, air_density_ratio)
+                * heat_limit
+        } else {
+            0.0
+        };
 
     // Net torque produced by engine (positive = drive, negative = braking)
     let mut engine_torque = combustion_torque - engine_brake;
@@ -3660,7 +3661,7 @@ fn update_fuel_consumption(
     combustion_torque: f32,
     dt: f32,
 ) {
-    if state.fuel_liters <= 0.0 {
+    if state.fuel_liters <= 0.0 || config.fuel.stint_left_mj(state.stint_energy_used_mj) <= 0.0 {
         state.fuel_consumption_lps = 0.0;
         return;
     }
@@ -3670,7 +3671,11 @@ fn update_fuel_consumption(
         None => fuel.burn_lps(combustion_torque * state.engine_rpm * (2.0 * PI / 60.0)),
     };
     state.fuel_consumption_lps = fuel.idle_consumption_lps + load;
+    let before = state.fuel_liters;
     state.fuel_liters = (state.fuel_liters - state.fuel_consumption_lps * dt).max(0.0);
+    if fuel.stint_energy_mj.is_some() {
+        state.stint_energy_used_mj += fuel.energy_mj(before - state.fuel_liters);
+    }
 }
 
 /// Check and resolve 3D OBB collisions between cars (owned-slice wrapper).

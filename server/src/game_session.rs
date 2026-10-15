@@ -3024,7 +3024,8 @@ impl GameSession {
             GameMode::Hotlap | GameMode::Qualification | GameMode::Practice => HOTLAP_FUEL_LAPS,
             _ => capacity / lap,
         };
-        ((laps + knob).max(MIN_FUEL_LAPS) * lap).min(capacity)
+        let car = &self.car_configs[&car_id];
+        crate::pit::stint_fuel_cap(car, ((laps + knob).max(MIN_FUEL_LAPS) * lap).min(capacity))
     }
 
     /// The run a car put on the grid now is being fuelled for: the mode
@@ -4475,6 +4476,8 @@ impl GameSession {
         } else {
             self.start_fuel_liters(player_id, car_id, mode)
         };
+        // A stint's energy limit: no more than the next stint can burn.
+        let fuel_target = crate::pit::stint_fuel_cap(&config, fuel_target).max(fuel_now);
         let plan = crate::pit::plan_service(
             &config,
             fuel_target - fuel_now,
@@ -4624,7 +4627,13 @@ impl GameSession {
                     }
                     continue;
                 }
-                if let Some(pick) = crate::pit::plan_stop(state, laps_left, lap_fuel) {
+                let usable = self
+                    .car_configs
+                    .get(&car_id)
+                    .map_or(state.fuel_liters, |c| {
+                        crate::pit::usable_fuel_liters(state, c)
+                    });
+                if let Some(pick) = crate::pit::plan_stop_on(state, usable, laps_left, lap_fuel) {
                     // In the rain the tyre is the weather's; either way one
                     // of the car's own.
                     let tyre = self

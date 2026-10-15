@@ -271,11 +271,19 @@ Monza.
 - **`fuel_load` knob**: laps over or under the fill, not a car figure, so `apply` ignores it
   and `changes_car()` (not `is_stock()`) decides on a tuned copy; it fills only in a hotlap
   garage or before the start.
+- **Stint energy** (`[fuel] stint_energy_mj`, the WEC's energy per stint; absent, no limit):
+  `CarState::stint_energy_used_mj` counts the fuel's chemical energy burnt (43 MJ/kg) plus
+  what the motor deploys, reset with the hybrid's stint (`hybrid::new_stint`: a stop, a grid,
+  the garage). Spent (`FuelConfig::stint_left_mj`), the engine cuts as on a dry tank and the
+  motor stops. Fills and refuels stop at what a stint can burn (`pit::stint_fuel_cap`); the
+  AI's short-of-fuel check reads `pit::usable_fuel_liters`. No shipped car names it; it is not
+  on the wire.
 - AI fuel plans and lift-and-coast: [AI](ai.md).
 - car.toml `[fuel]`: `capacity_liters`, `idle_consumption_lps`, `thermal_efficiency`,
-  `density_kg_per_l`, `tank_front_share`, `load_consumption_scale`.
+  `density_kg_per_l`, `tank_front_share`, `load_consumption_scale`, `stint_energy_mj`.
 - Tests: `tests/fuel_test.rs`; `a_full_tank_weighs_on_the_car`,
-  `a_dry_tank_stops_the_engine`, `the_engine_burns_by_the_power_it_makes`.
+  `a_dry_tank_stops_the_engine`, `the_engine_burns_by_the_power_it_makes`,
+  `a_stint_energy_limit_cuts_the_engine_with_fuel_in_the_tank`.
 
 ## Aero (`aero.rs`, `[aero]`)
 

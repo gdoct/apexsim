@@ -351,6 +351,13 @@ pub struct FuelConfig {
     /// lightens the car without moving its balance.
     #[serde(default)]
     pub tank_front_share: Option<f32>,
+    /// The whole car's energy per stint, MJ (the WEC's rule): the fuel's
+    /// chemical energy burnt plus what the hybrid's motor deploys, from a
+    /// pit stop, a grid or the garage to the next stop. Spent, the engine
+    /// cuts as on a dry tank and the motor stops. `None`, the default, is
+    /// no such limit.
+    #[serde(default)]
+    pub stint_energy_mj: Option<f32>,
 }
 
 fn default_thermal_efficiency() -> f32 {
@@ -370,6 +377,7 @@ impl Default for FuelConfig {
             thermal_efficiency: default_thermal_efficiency(),
             density_kg_per_l: default_fuel_density(),
             tank_front_share: None,
+            stint_energy_mj: None,
         }
     }
 }
@@ -378,6 +386,23 @@ impl FuelConfig {
     /// What `liters` of fuel weigh, kg.
     pub fn mass_kg(&self, liters: f32) -> f32 {
         liters.max(0.0) * self.density_kg_per_l
+    }
+
+    /// The fuel's chemical energy in `liters`, MJ.
+    pub fn energy_mj(&self, liters: f32) -> f32 {
+        self.mass_kg(liters) * FUEL_ENERGY_J_PER_KG * 1e-6
+    }
+
+    /// Litres holding `mj` of the fuel's chemical energy.
+    pub fn liters_for_mj(&self, mj: f32) -> f32 {
+        mj.max(0.0) * 1e6 / (FUEL_ENERGY_J_PER_KG * self.density_kg_per_l.max(0.1))
+    }
+
+    /// The stint's energy left, MJ, with `used_mj` spent: infinite without
+    /// a `stint_energy_mj`.
+    pub fn stint_left_mj(&self, used_mj: f32) -> f32 {
+        self.stint_energy_mj
+            .map_or(f32::INFINITY, |limit| limit - used_mj)
     }
 
     /// Litres per second the engine burns making `crank_power_w` at the
@@ -1806,6 +1831,10 @@ pub struct CarState {
     /// telemetry, percent (255: no stint limit).
     #[serde(default)]
     pub ers_stint_kj: f32,
+    /// The whole car's energy spent this stint, MJ, fuel and motor, on a
+    /// car with `[fuel] stint_energy_mj` (`FuelConfig::stint_left_mj`).
+    #[serde(default)]
+    pub stint_energy_used_mj: f32,
     #[serde(default)]
     pub ers_override_kj: f32,
     #[serde(default = "no_hybrid_pct")]
@@ -2041,6 +2070,7 @@ impl CarState {
             ers_charge_pct: 255,
             ers_budget_pct: 255,
             ers_stint_kj: 0.0,
+            stint_energy_used_mj: 0.0,
             ers_override_kj: 0.0,
             ers_stint_pct: 255,
             turbo_spool: 0.0,
