@@ -62,10 +62,10 @@
             // The compound on the car, in its usual colour.
             { "type": "panel", "valign": "center", "width": 22, "height": 22, "radius": 11, "margin": [8, 0, 0, 0],
               "background": "=item.is_local ? alpha('black', 0.25) : 'background'",
-              "outline": "=switch(item.compound, 'S', '#E8453C', 'M', '#F2C230', 'H', 'white', 'border')", "outline_width": 2,
+              "outline": "=switch(item.compound, 'S', '#E8453C', 'M', '#F2C230', 'H', 'white', 'I', '#3BB54A', 'W', '#2F7DE1', 'border')", "outline_width": 2,
               "children": [{ "type": "text", "halign": "center", "valign": "center", "font": "body", "size": 11, "bold": true,
                 "text": "=has(item.compound) ? item.compound : '·'",
-                "color": "=switch(item.compound, 'S', '#E8453C', 'M', '#F2C230', 'H', 'white', 'text_muted')" }] }
+                "color": "=switch(item.compound, 'S', '#E8453C', 'M', '#F2C230', 'H', 'white', 'I', '#3BB54A', 'W', '#2F7DE1', 'text_muted')" }] }
           ]
         }]
       },

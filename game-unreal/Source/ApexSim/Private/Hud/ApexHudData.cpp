@@ -777,7 +777,9 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Row.Add(TEXT("away"), FApexHudValue::Of(Entry.bAway));
 		const FString* Model = In.CarNames ? In.CarNames->Find(Car.CarIndex) : nullptr;
 		Row.Add(TEXT("car_name"), Model && !Model->IsEmpty() ? FApexHudValue::Of(*Model) : FApexHudValue());
-		const FString Letter = FApexCarTelemetry::CompoundLetter(Car.Compound);
+		// By the car's own list: a car that files "dry, wet" has its wet at 1.
+		const TArray<FString>* OwnCompounds = In.CarCompounds ? In.CarCompounds->Find(Car.CarIndex) : nullptr;
+		const FString Letter = FApexCarTelemetry::CompoundLetterFrom(OwnCompounds ? *OwnCompounds : TArray<FString>(), Car.Compound);
 		Row.Add(TEXT("compound"), Letter.IsEmpty() ? FApexHudValue() : FApexHudValue::Of(Letter));
 		const FApexHudMemory::FCarHistory* History = Memory.Cars.Find(Car.CarIndex);
 		Row.Add(TEXT("tyre_age_laps"), History && Letter.Len() > 0

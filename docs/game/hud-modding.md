@@ -514,7 +514,7 @@ the furthest round).
 | `item.speed_kph` | speed |
 | `item.in_pit`, `item.on_track` | |
 | `item.servicing` | stopped at its box |
-| `item.compound` | the compound letter (*null* when unknown) |
+| `item.compound` | the compound letter, by the car's own compounds as `tyre.compound` (*null* when unknown) |
 | `item.tyre_age_laps` | laps on that set |
 | `item.tyre_wear_pct` | its most worn tyre, % |
 | `item.pit_stops` | stops made since the HUD first saw it |

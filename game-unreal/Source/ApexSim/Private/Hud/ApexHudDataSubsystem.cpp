@@ -172,16 +172,22 @@ void UApexHudDataSubsystem::RefreshCarNames()
 	}
 	CarNamesKey = Key;
 	CarNames.Reset();
-	TMap<FString, FString> ByCarId;
+	CarCompounds.Reset();
+	TMap<FString, FApexCarCatalogRow> ByCarId;
 	for (const FApexRosterEntry& Entry : Roster.Entries)
 	{
-		FString* Known = ByCarId.Find(Entry.CarConfigId);
+		FApexCarCatalogRow* Known = ByCarId.Find(Entry.CarConfigId);
 		if (!Known)
 		{
 			FApexCarCatalogRow Row;
-			Known = &ByCarId.Add(Entry.CarConfigId, Flow->GetCarCatalogRow(Entry.CarConfigId, Row) ? Row.DisplayName : FString());
+			Known = &ByCarId.Add(Entry.CarConfigId, Flow->GetCarCatalogRow(Entry.CarConfigId, Row) ? Row : FApexCarCatalogRow());
 		}
-		CarNames.Add(Entry.CarIndex, *Known);
+		CarNames.Add(Entry.CarIndex, Known->DisplayName);
+		TArray<FString>& Names = CarCompounds.Add(Entry.CarIndex);
+		for (const FApexCompoundSpec& Compound : Known->Compounds)
+		{
+			Names.Add(Compound.Name);
+		}
 	}
 }
 
@@ -395,6 +401,7 @@ void UApexHudDataSubsystem::Refresh()
 		In.DamageLevel = Net->GetSessionDamage();
 		RefreshCarNames();
 		In.CarNames = &CarNames;
+		In.CarCompounds = &CarCompounds;
 	}
 	if (PreviousLocalIndex >= 0 && LastLocalIndex >= 0 && PreviousLocalIndex != LastLocalIndex)
 	{

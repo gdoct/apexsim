@@ -92,7 +92,7 @@ private:
 	 * player's pending pick. Its catalog length, name and race distance.
 	 */
 	void ResolveTrack(bool bBackdrop);
-	/** Each roster car's model name, read from the catalog when the roster changes. */
+	/** Each roster car's model name and compounds, read from the catalog when the roster changes. */
 	void RefreshCarNames();
 
 	FApexHudData Data;
@@ -131,6 +131,7 @@ private:
 	int32 HudLapLimit = -1;
 
 	TMap<int32, FString> CarNames;
+	TMap<int32, TArray<FString>> CarCompounds;
 	FString CarNamesKey;
 
 	FString WatchSource;
