@@ -106,7 +106,7 @@ one session, advanced by the host (see
 | Entries are not stable drivers: a player is a per-connection id and records key on the name, so the same driver must be recognised across days (an account or token identity, with car and livery fixed for the event). | Med | High |
 | Qualifying is a timed session or a weekend's knockout rounds (Q1/Q2/Q3). No one-lap shoot-out, no single-car runs with a fixed order, no 107% rule, and no tyre or lap allowance. | Low | Med |
 | In qualifying a car is put at the pit exit (`qualifying_outlap_pose`, a teleport): it does not drive down the pit lane, so there is no limiter or queue at the exit light, and the HUD shows race-style standings by track position. | Med | Low |
-| The start order matches drivers by name (`grid_order::resolve`): a stored result's humans are found again only under the same name, and a no-show closes the grid up rather than leaving the slot empty. | Low | Low |
+| The start order matches drivers by name (`grid_order::resolve`): a stored result's humans are found again only under the same name. | Low | Low |
 | No schedule: a session opening, counting in and starting at its time whether or not everyone is there, with a late joiner going out from the pit lane. Needs a lobby view of upcoming sessions and a countdown. | Med | Med |
 | No per-phase rules beyond lengths: a weekend sets practice and round lengths, but conditions per day (a different forecast each day), assists and damage are the session's for every phase. | Low | Med |
 | A weekend takes no new drivers between phases: the session is `Finished` while it waits for the host, and the lobby refuses joins into a finished session, so a driver can join only in its lobby or running practice. | Low | Low |

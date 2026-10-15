@@ -110,8 +110,9 @@ under way it is refused with `Error 409`.
 whether `JoinSession` may seat another driver now: a running practice,
 sandbox, hotlap or qualifying session takes one (a hotlap or qualifying
 driver arrives in the garage, as the drivers there when it began did), a
-race takes them until the green light (a car joining in the countdown gets
-the next free grid slot), and a race under way or a finished session
+race takes them until the green light (a car joining once the grid is up
+or in the countdown gets the slot behind the last car, so an empty slot
+stays empty), and a race under way or a finished session
 refuses with `Error 409`. A race weekend takes drivers in its lobby and
 its running practice, and refuses them once Q1 has begun. `JoinAsSpectator` is never refused for the
 session's state. The lobby's listing (`SessionSummary.State`) follows the
@@ -300,10 +301,20 @@ seating order) or a name (a human's or an AI's). `line_up_on_grid` calls
 
 - a requested order: listed drivers lead in order (`grid_order::resolve`,
   each claimed once, a name matching the first unclaimed driver of it),
-  unmatched references are skipped, the rest follow in seating order;
+  the rest follow in seating order;
 - else this session's qualifying: the classified lead, the rest behind
   (`grid_order::complete`);
 - else the seating order stands.
+
+**A no-show's slot stays empty**, as on a real grid: a name the order
+lists that nobody seated has, the host gone, or a qualifier who has left
+(the weekend's grid too) keeps their slot, and the cars behind start where
+they earned (`Option<PlayerId>` slots in `grid_order_ids`). A reference
+to no car at all (`@ai:N` past the session's AI) is skipped, and empty
+slots at the back go. An order longer than the track's grid closes its
+gaps from the back until it fits (`grid_order::fit`), and the seating
+order stands if even the drivers do not fit. The roster's `GridSlot` shows
+the gaps.
 
 Names come from `GameSession::set_driver_name` (on create and join) and the
 AI profiles.
@@ -470,7 +481,7 @@ The final's order is the front of the grid (`final_order`).
 **The race grid** (`WeekendProgress::grid`): the final round's order, then
 the knocked-out cars by grid slot. `apply_grid_order` takes it before a
 requested `grid_order` and before the plain qualifying order; a driver who
-has left closes the grid up, as elsewhere.
+has left leaves their slot empty, as elsewhere.
 
 **Stored qualifying.** Each improved lap submits the weekend's combined
 classification (`classified_laps`): the round running (or, once ranked, the

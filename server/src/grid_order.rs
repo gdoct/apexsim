@@ -10,9 +10,13 @@
 //! * `@ai:N` — the Nth AI car of the session (1-based, in seating order);
 //! * anything else — a driver by name, human or AI.
 //!
-//! A reference that matches nobody is skipped (a driver who did not show up
-//! closes the grid up), and every driver the list leaves out starts behind
-//! the listed ones, in the order they were seated.
+//! A driver a reference names who is not here (a name nobody seated has,
+//! the host gone) leaves their slot empty, as a car that does not take the
+//! start does: the cars behind keep their places. A reference to no car
+//! at all (`@ai:N` past the session's AI) is skipped. Every driver the
+//! list leaves out starts behind the listed ones, in the order they were
+//! seated. An order with more slots than the track has closes its gaps
+//! up from the back until it fits ([`fit`]).
 
 use crate::data::PlayerId;
 
@@ -46,55 +50,81 @@ pub fn sanitize(order: Vec<String>) -> Vec<String> {
         .collect()
 }
 
-/// Every seated driver in start order for `refs`: the ones a reference
-/// names, in the list's order (a driver is claimed once), then the rest by
-/// the slot they hold.
+/// The start order for `refs`, slot by slot from pole: the drivers a
+/// reference names, in the list's order (a driver is claimed once), an
+/// empty slot (`None`) for each one who is not here, then the rest by the
+/// slot they hold.
 pub fn resolve(
     drivers: &[Seated],
     host: PlayerId,
     ai_ids: &[PlayerId],
     refs: &[String],
-) -> Vec<PlayerId> {
+) -> Vec<Option<PlayerId>> {
     let mut by_slot: Vec<&Seated> = drivers.iter().collect();
     by_slot.sort_by_key(|d| (d.grid_position, d.id));
-    let mut taken: Vec<PlayerId> = Vec::with_capacity(drivers.len());
+    let seated = |id: &PlayerId| drivers.iter().any(|d| d.id == *id);
+    let mut slots: Vec<Option<PlayerId>> = Vec::with_capacity(drivers.len());
     for reference in refs {
-        let found = if reference == HOST_REF {
-            Some(host)
+        let claimed = |id: &PlayerId| slots.contains(&Some(*id));
+        // The host and an AI car are one driver each: named twice, the
+        // second is skipped. Not here, their slot stays empty.
+        let one = |id: PlayerId| (!claimed(&id)).then_some(Some(id).filter(seated));
+        let slot = if reference == HOST_REF {
+            one(host)
         } else if let Some(n) = reference.strip_prefix("@ai:") {
+            // A reference to no car of this session names nobody.
             n.parse::<usize>()
                 .ok()
                 .and_then(|n| n.checked_sub(1))
                 .and_then(|i| ai_ids.get(i).copied())
+                .and_then(one)
         } else {
-            by_slot
-                .iter()
-                .find(|d| d.name == *reference && !taken.contains(&d.id))
-                .map(|d| d.id)
+            Some(
+                by_slot
+                    .iter()
+                    .find(|d| d.name == *reference && !claimed(&d.id))
+                    .map(|d| d.id),
+            )
         };
-        if let Some(id) = found {
-            if !taken.contains(&id) && drivers.iter().any(|d| d.id == id) {
-                taken.push(id);
-            }
+        if let Some(slot) = slot {
+            slots.push(slot);
         }
     }
-    complete(&by_slot, taken)
+    complete(&by_slot, slots)
 }
 
-/// `first` followed by every other driver in `by_slot` order.
-pub fn complete(by_slot: &[&Seated], mut first: Vec<PlayerId>) -> Vec<PlayerId> {
+/// `first` followed by every other driver in `by_slot` order, with no
+/// empty slot at the back.
+pub fn complete(by_slot: &[&Seated], mut first: Vec<Option<PlayerId>>) -> Vec<Option<PlayerId>> {
     for d in by_slot {
-        if !first.contains(&d.id) {
-            first.push(d.id);
+        if !first.contains(&Some(d.id)) {
+            first.push(Some(d.id));
         }
     }
+    while first.last() == Some(&None) {
+        first.pop();
+    }
     first
+}
+
+/// `order` held to a grid of `slots`: its empty slots closed up from the
+/// back until it fits, or `None` when the drivers alone do not.
+pub fn fit(mut order: Vec<Option<PlayerId>>, slots: usize) -> Option<Vec<Option<PlayerId>>> {
+    while order.len() > slots {
+        let gap = order.iter().rposition(|s| s.is_none())?;
+        order.remove(gap);
+    }
+    Some(order)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use uuid::Uuid;
+
+    fn ids(list: &[PlayerId]) -> Vec<Option<PlayerId>> {
+        list.iter().copied().map(Some).collect()
+    }
 
     fn seat(name: &str, slot: u8) -> Seated {
         Seated {
@@ -109,7 +139,7 @@ mod tests {
         let (a, b, c, d) = (seat("Ann", 1), seat("Bo", 2), seat("Cy", 3), seat("Di", 4));
         let all = vec![a.clone(), b.clone(), c.clone(), d.clone()];
         let got = resolve(&all, a.id, &[], &["Cy".into(), "Di".into()]);
-        assert_eq!(got, vec![c.id, d.id, a.id, b.id]);
+        assert_eq!(got, ids(&[c.id, d.id, a.id, b.id]));
     }
 
     #[test]
@@ -117,11 +147,11 @@ mod tests {
         let (h, x, y) = (seat("Host", 1), seat("Max", 2), seat("Max", 3));
         let all = vec![h.clone(), x.clone(), y.clone()];
         let got = resolve(&all, h.id, &[x.id, y.id], &["@ai:2".into(), "@host".into()]);
-        assert_eq!(got, vec![y.id, h.id, x.id]);
+        assert_eq!(got, ids(&[y.id, h.id, x.id]));
     }
 
     #[test]
-    fn a_name_matches_each_driver_once_and_a_missing_one_closes_up() {
+    fn a_name_matches_each_driver_once_and_a_no_show_leaves_the_slot_empty() {
         let (x, y) = (seat("Max", 1), seat("Max", 2));
         let all = vec![x.clone(), y.clone()];
         let got = resolve(
@@ -130,9 +160,37 @@ mod tests {
             &[],
             &["Max".into(), "Ghost".into(), "Max".into()],
         );
-        assert_eq!(got, vec![x.id, y.id]);
+        assert_eq!(got, vec![Some(x.id), None, Some(y.id)]);
         let got = resolve(&all, x.id, &[], &["Max".into(), "Max".into()]);
-        assert_eq!(got, vec![x.id, y.id]);
+        assert_eq!(got, ids(&[x.id, y.id]));
+        // A third Max did not come: nobody is behind the slot, so it goes.
+        let got = resolve(&all, x.id, &[], &["Max".into(), "Max".into(), "Max".into()]);
+        assert_eq!(got, ids(&[x.id, y.id]));
+    }
+
+    #[test]
+    fn the_unlisted_start_behind_an_empty_slot() {
+        let (h, b) = (seat("Host", 1), seat("Bo", 2));
+        let all = vec![h.clone(), b.clone()];
+        let got = resolve(&all, h.id, &[], &["@host".into(), "Ghost".into()]);
+        assert_eq!(got, vec![Some(h.id), None, Some(b.id)]);
+        // The host gone, their pole stays empty.
+        let gone = vec![b.clone()];
+        let got = resolve(&gone, h.id, &[], &["@host".into(), "Bo".into()]);
+        assert_eq!(got, vec![None, Some(b.id)]);
+    }
+
+    #[test]
+    fn an_order_too_long_for_the_grid_closes_its_gaps_from_the_back() {
+        let (a, b, c) = (Uuid::from_u128(1), Uuid::from_u128(2), Uuid::from_u128(3));
+        let order = vec![Some(a), None, Some(b), None, Some(c)];
+        assert_eq!(fit(order.clone(), 5), Some(order.clone()));
+        assert_eq!(
+            fit(order.clone(), 4),
+            Some(vec![Some(a), None, Some(b), Some(c)])
+        );
+        assert_eq!(fit(order.clone(), 3), Some(ids(&[a, b, c])));
+        assert_eq!(fit(order, 2), None);
     }
 
     #[test]
@@ -145,7 +203,7 @@ mod tests {
             &[x.id],
             &["@ai:0".into(), "@ai:9".into(), "@ai:x".into()],
         );
-        assert_eq!(got, vec![h.id, x.id]);
+        assert_eq!(got, ids(&[h.id, x.id]));
     }
 
     #[test]

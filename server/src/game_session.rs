@@ -2663,7 +2663,9 @@ impl GameSession {
             return None;
         }
 
-        // Find available grid position
+        // Find available grid position: the first free one, but on a grid
+        // already lined up (the race's grid, its countdown) the slot behind
+        // the last car, so a no-show's empty slot stays empty.
         let mut used_positions: Vec<u8> = self
             .session
             .participants
@@ -2679,6 +2681,16 @@ impl GameSession {
             } else {
                 break;
             }
+        }
+        let behind = used_positions.last().map_or(1, |p| p.saturating_add(1));
+        if matches!(self.session.game_mode, GameMode::Grid | GameMode::Countdown)
+            && self
+                .track_config
+                .start_positions
+                .iter()
+                .any(|s| s.position == behind)
+        {
+            grid_position = behind;
         }
 
         let fuel = self.start_fuel_liters(&player_id, car_config_id, self.planned_mode());
@@ -3071,55 +3083,49 @@ impl GameSession {
             .collect()
     }
 
-    /// Whom the next race grids by, first to last: the host's own order
-    /// when there is one, else this session's qualifying result (drivers
-    /// with no time behind the classified), else nobody (the seating order
-    /// stands).
-    fn grid_order_ids(&self) -> Option<Vec<PlayerId>> {
+    /// Whom the next race grids by, slot by slot from pole: the weekend's
+    /// grid, else the host's own order when there is one, else this
+    /// session's qualifying result (drivers with no time behind the
+    /// classified), else nobody (the seating order stands). A driver the
+    /// order names who has gone leaves their slot empty (`None`): the cars
+    /// behind keep their places, as on a real grid. Held to the track's
+    /// slots (`grid_order::fit`); `None` when even the drivers do not fit.
+    fn grid_order_ids(&self) -> Option<Vec<Option<PlayerId>>> {
         let drivers = self.seated_drivers();
-        if let Some(grid) = self.weekend.grid().filter(|_| self.is_weekend()) {
-            let mut by_slot: Vec<&crate::grid_order::Seated> = drivers.iter().collect();
-            by_slot.sort_by_key(|d| (d.grid_position, d.id));
-            let gridded: Vec<PlayerId> = grid
-                .into_iter()
-                .filter(|id| drivers.iter().any(|d| d.id == *id))
-                .collect();
-            return Some(crate::grid_order::complete(&by_slot, gridded));
-        }
-        if !self.session.grid_order.is_empty() {
-            return Some(crate::grid_order::resolve(
+        let mut by_slot: Vec<&crate::grid_order::Seated> = drivers.iter().collect();
+        by_slot.sort_by_key(|d| (d.grid_position, d.id));
+        let here = |id: PlayerId| Some(id).filter(|id| drivers.iter().any(|d| d.id == *id));
+        let order = if let Some(grid) = self.weekend.grid().filter(|_| self.is_weekend()) {
+            crate::grid_order::complete(&by_slot, grid.into_iter().map(here).collect())
+        } else if !self.session.grid_order.is_empty() {
+            crate::grid_order::resolve(
                 &drivers,
                 self.session.host_player_id,
                 &self.session.ai_player_ids,
                 &self.session.grid_order,
-            ));
-        }
-        if self.qualifying.is_empty() {
+            )
+        } else if !self.qualifying.is_empty() {
+            crate::grid_order::complete(
+                &by_slot,
+                self.qualifying_order().into_iter().map(here).collect(),
+            )
+        } else {
             return None;
-        }
-        let mut by_slot: Vec<&crate::grid_order::Seated> = drivers.iter().collect();
-        by_slot.sort_by_key(|d| (d.grid_position, d.id));
-        let classified: Vec<PlayerId> = self
-            .qualifying_order()
-            .into_iter()
-            .filter(|id| drivers.iter().any(|d| d.id == *id))
-            .collect();
-        Some(crate::grid_order::complete(&by_slot, classified))
+        };
+        crate::grid_order::fit(order, self.track_config.start_positions.len())
     }
 
     /// Each car's place on the grid the next start will use, 1 = pole: the
     /// order `apply_grid_order` will seat (host order, weekend grid or
-    /// qualifying), else the slots the cars hold. What the roster announces,
-    /// so a lobby lists the grid before the cars are lined up on it.
+    /// qualifying, empty slots kept), else the slots the cars hold. What
+    /// the roster announces, so a lobby lists the grid before the cars are
+    /// lined up on it.
     pub fn starting_slots(&self) -> HashMap<PlayerId, u8> {
-        if let Some(order) = self
-            .grid_order_ids()
-            .filter(|o| o.len() <= self.track_config.start_positions.len())
-        {
+        if let Some(order) = self.grid_order_ids() {
             return order
                 .into_iter()
                 .enumerate()
-                .map(|(i, id)| (id, (i + 1) as u8))
+                .filter_map(|(i, id)| Some((id?, (i + 1) as u8)))
                 .collect();
         }
         self.session
@@ -3129,17 +3135,15 @@ impl GameSession {
             .collect()
     }
 
-    /// Seat the drivers on the grid slots in start order. A session with no
-    /// requested order and no qualifying keeps the slots it has.
+    /// Seat the drivers on the grid slots in start order, a no-show's slot
+    /// left empty. A session with no requested order and no qualifying
+    /// keeps the slots it has.
     pub fn apply_grid_order(&mut self) {
         let Some(order) = self.grid_order_ids() else {
             return;
         };
-        if order.len() > self.track_config.start_positions.len() {
-            return;
-        }
         for (i, id) in order.iter().enumerate() {
-            if let Some(state) = self.session.participants.get_mut(id) {
+            if let Some(state) = id.and_then(|id| self.session.participants.get_mut(&id)) {
                 state.grid_position = (i + 1) as u8;
             }
         }
@@ -7293,8 +7297,38 @@ mod tests {
     }
 
     #[test]
-    fn a_driver_who_is_not_there_closes_the_grid_up() {
+    fn a_driver_who_is_not_there_leaves_the_slot_empty() {
         let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.set_grid_order(vec!["Ghost".into(), "B".into(), "C".into()]);
+        assert_eq!(game_session.starting_slots()[&b], 2);
+        game_session.line_up_on_grid();
+        assert_eq!(
+            (
+                slot(&game_session, &b),
+                slot(&game_session, &c),
+                slot(&game_session, &a)
+            ),
+            (2, 3, 4)
+        );
+        // A qualifier who left: the slot they earned stays empty.
+        let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.set_game_mode(GameMode::Qualification);
+        game_session.note_qualifying_lap(a, 90_000);
+        game_session.note_qualifying_lap(b, 91_000);
+        game_session.note_qualifying_lap(c, 92_000);
+        game_session.remove_player(&a);
+        game_session.line_up_on_grid();
+        assert_eq!((slot(&game_session, &b), slot(&game_session, &c)), (2, 3));
+        // A driver joining once the grid is up starts behind the last car,
+        // not in the empty slot.
+        let (mut game_session, [_, _, _]) = three_drivers();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        game_session.set_grid_order(vec!["Ghost".into(), "B".into(), "C".into()]);
+        game_session.open_grid(5);
+        assert_eq!(game_session.add_player(Uuid::new_v4(), car_id), Some(5));
+        // A grid with no slot to spare closes up instead.
+        let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.track_config.start_positions.truncate(3);
         game_session.set_grid_order(vec!["Ghost".into(), "B".into(), "C".into()]);
         game_session.line_up_on_grid();
         assert_eq!(

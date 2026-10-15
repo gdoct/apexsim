@@ -160,6 +160,10 @@ session while driving (notice, then the menu).
   Two clients on one server: the guest's card, the ready marks crossing
   over, and START NOW closing a card that is not ready. Only the server
   side (`ready_grid_test`) and the codec have run.
+- An empty grid slot ([server/sessions.md](server/sessions.md#starting-order-and-qualifying)):
+  a Custom start order naming a driver who is not there, then the session
+  lobby's GRID list, the grid card's list and the lined-up field with the
+  gap kept. Only `grid_order` and `game_session` unit tests have run.
 
 ### R10. Spa, sunny, 13:00
 
