@@ -408,7 +408,10 @@ See [protocol.md](protocol.md) for the append-only rules.
   camera drawn with `M_ApexCloudLayer` (unlit, translucent; baked by
   `-run=ApexMaterialBake`), which carries each view ray up to a plane
   1.5 km over the camera and reads a world-space noise there, so the cloud
-  stands still over the circuit and drifts only with the wind. Cloud shows
+  stands still over the circuit and drifts only with the wind: the actor
+  adds the drift up each frame (`CloudOffset`, eight times the ground wind),
+  so a gust speeds the cloud up rather than shifting the whole sky by the
+  change in wind times the session's age. Cloud shows
   where the noise clears `1 - CloudCover`; from 0.8 the sheet is whole, and
   thicker cloud is darker. `ApexSky::FSkyState::CloudCover` is
   `Weather::cloud`'s rung (cloudy 0.5, overcast 0.85, rain 0.9 / 1, snow 1)

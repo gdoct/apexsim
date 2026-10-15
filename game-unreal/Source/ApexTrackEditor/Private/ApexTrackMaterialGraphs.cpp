@@ -1881,8 +1881,8 @@ return o;
 	 * circuit, on the inside of `AApexCloudLayerActor`'s dome. Unlit and
 	 * translucent: each pixel's view ray is carried up to a plane
 	 * `CloudHeight` above the camera, and a noise read at that world point
-	 * (so the cloud stands still as the camera moves, and drifts only with
-	 * `CloudWind`) is cloud where it clears `1 - CloudCover`; from 0.8 cover
+	 * (so the cloud stands still as the camera moves, and drifts only by
+	 * `CloudOffset`, the wind added up by the actor) is cloud where it clears `1 - CloudCover`; from 0.8 cover
 	 * the sheet is whole. Thicker cloud is darker; it fades out at the
 	 * horizon, where the fog is. `CloudColor` x `CloudBrightness` (cd/m²) is
 	 * what the sky model says a cloud is lit to now.
@@ -1902,9 +1902,9 @@ return o;
 		UMaterialExpressionVectorParameter* Color = AddExpr<UMaterialExpressionVectorParameter>(Parent);
 		Color->ParameterName = TEXT("CloudColor");
 		Color->DefaultValue = FLinearColor(0.7f, 0.72f, 0.76f);
-		UMaterialExpressionVectorParameter* Wind = AddExpr<UMaterialExpressionVectorParameter>(Parent);
-		Wind->ParameterName = TEXT("CloudWind");
-		Wind->DefaultValue = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		UMaterialExpressionVectorParameter* Offset = AddExpr<UMaterialExpressionVectorParameter>(Parent);
+		Offset->ParameterName = TEXT("CloudOffset");
+		Offset->DefaultValue = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 		UMaterialExpression* WorldPos = AddExpr<UMaterialExpressionWorldPosition>(Parent);
 		UMaterialExpression* CamPos = AddExpr<UMaterialExpressionCameraPositionWS>(Parent);
@@ -1913,10 +1913,8 @@ return o;
 		// Where the view ray meets the cloud plane, in the world.
 		UMaterialExpression* Reach = G.Div(Height, G.Max(Up, G.C(0.03f)));
 		UMaterialExpression* Hit = G.Add(G.Mask(CamPos, true, true, false), G.Mul(G.Mask(Dir, true, true, false), Reach));
-		// The wind up there, stronger than at the ground.
-		UMaterialExpression* Time = AddExpr<UMaterialExpressionTime>(Parent);
-		UMaterialExpression* Drift = G.Mul(G.Mask(Wind, true, true, false), G.Mul(Time, G.C(8.0f)));
-		UMaterialExpression* P = G.Append(G.Sub(Hit, Drift), G.C(0.0f));
+		// How far the wind has carried the cloud (AApexCloudLayerActor adds it up).
+		UMaterialExpression* P = G.Append(G.Sub(Hit, G.Mask(Offset, true, true, false)), G.C(0.0f));
 		// Big soft masses with a finer grain on them: 90 m and 25 m.
 		UMaterialExpression* Shape = G.Add(G.Mul(G.Noise(P, 1.0f / 9000.0f, 4), G.C(0.8f)), G.Mul(G.Noise(P, 1.0f / 2500.0f, 2), G.C(0.2f)));
 		UMaterialExpression* Edge = G.Sat(G.Mul(G.Sub(Shape, G.Sub(G.C(1.0f), Cover)), G.C(5.0f)));

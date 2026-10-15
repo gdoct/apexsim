@@ -72,14 +72,11 @@ void AApexCloudLayerActor::SetSky(float Cover, const FLinearColor& Color, float 
 	SetActorTickEnabled(bDrawn);
 }
 
-void AApexCloudLayerActor::SetWind(const FVector& WindCmPerS)
+void AApexCloudLayerActor::SetWind(const FVector& InWindCmPerS)
 {
-	if (Material)
-	{
-		// A cloud a kilometre and a half up drifts with the wind up there,
-		// which the material reads as a world offset growing with time.
-		Material->SetVectorParameterValue(TEXT("CloudWind"), FLinearColor(WindCmPerS.X, WindCmPerS.Y, 0.0f, 0.0f));
-	}
+	// Carried into the drift by Tick: the wind gusts every frame, and only
+	// its sum over time may move the cloud.
+	WindCmPerS = FVector2D(InWindCmPerS.X, InWindCmPerS.Y);
 }
 
 void AApexCloudLayerActor::Tick(float DeltaSeconds)
@@ -92,5 +89,11 @@ void AApexCloudLayerActor::Tick(float DeltaSeconds)
 	if (const APlayerCameraManager* Camera = UGameplayStatics::GetPlayerCameraManager(this, 0))
 	{
 		SetActorLocation(Camera->GetCameraLocation());
+	}
+	// A cloud a kilometre and a half up drifts with the wind up there.
+	DriftCm += WindCmPerS * WindAloft * FMath::Max(DeltaSeconds, 0.0f);
+	if (Material)
+	{
+		Material->SetVectorParameterValue(TEXT("CloudOffset"), FLinearColor(DriftCm.X, DriftCm.Y, 0.0f, 0.0f));
 	}
 }
