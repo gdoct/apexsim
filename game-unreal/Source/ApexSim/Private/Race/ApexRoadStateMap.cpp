@@ -32,15 +32,19 @@ bool FApexRoadStateMap::Apply(const FApexRoadState& Slice)
 	LapM = Slice.LapM;
 
 	const int32 RowBytes = Slice.RowBytes();
+	// The water per bin when the slice says where its puddles lie; else the
+	// cell's depth across the whole road.
+	const bool bWaterRows = Slice.HasWaterRows();
 	for (int32 k = 0; k < SliceCells; ++k)
 	{
 		const int32 Cell = (Slice.FirstCell + k) % Cells;
 		const uint8* Row = Slice.Rows.GetData() + k * RowBytes;
 		const uint8 Depth = Row[0];
+		const uint8* Water = bWaterRows ? Slice.WaterRows.GetData() + k * Slice.Bins : nullptr;
 		for (int32 Bin = 0; Bin < Bins; ++Bin)
 		{
 			const uint8* B = Row + 1 + 3 * Bin;
-			State[Bin * Cells + Cell] = FColor(B[0], B[1], B[2], Depth);
+			State[Bin * Cells + Cell] = FColor(B[0], B[1], B[2], Water ? Water[Bin] : Depth);
 		}
 		// The cell's snow, if the slice carries any; a slice without says there
 		// is none (the server leaves the field off once the road is bare).

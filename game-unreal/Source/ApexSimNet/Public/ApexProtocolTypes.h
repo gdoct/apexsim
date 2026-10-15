@@ -1611,6 +1611,14 @@ struct APEXSIMNET_API FApexRoadState
 	 * session without snow, and from a server that predates it.
 	 */
 	TArray<uint8> SnowRows;
+	/**
+	 * The water standing on each bin of the same cells (`WaterRows`): Bins
+	 * bytes each, in the rows' depth units (100 heavy rain on the flat), so
+	 * a puddle lies where it is across the road. Empty when no puddle
+	 * stands, and from a server that predates it: each row's depth then
+	 * covers its cell's width.
+	 */
+	TArray<uint8> WaterRows;
 	/** Debris pieces on the road now, server frame, metres. */
 	TArray<FVector2D> Debris;
 	/**
@@ -1637,6 +1645,8 @@ struct APEXSIMNET_API FApexRoadState
 	/** Bytes of one cell of SnowRows: the verge, then cover and ice per bin. */
 	int32 SnowRowBytes() const { return 1 + 2 * FMath::Max(Bins, 0); }
 	bool HasSnow() const { return SnowRows.Num() >= SnowRowBytes() && SnowRowBytes() > 1; }
+	/** Whether WaterRows holds every cell of Rows. */
+	bool HasWaterRows() const { return Bins > 0 && WaterRows.Num() >= NumCells() * Bins && NumCells() > 0; }
 	/** Bytes of one cell: its depth, then rubber/marbles/dry per bin. */
 	int32 RowBytes() const { return 1 + 3 * FMath::Max(Bins, 0); }
 	/** Whole cells in Rows. */

@@ -48,7 +48,7 @@ and readers skip what they do not know (`a_newer_writers_extra_fields_are_skippe
 | 5 | `Block` | file only | a second of records, zlib |
 | 6 | `Index` | file only | first tick and offset of every block |
 | 7 | `Path` | TCP, with the header | the centerline every 10 m, for the TV cameras of a viewer with no lobby |
-| 8 | `Road` | TCP | tick, a slice of the road state (lap, cell length, bins, half span, first cell, rows, debris, geometry, snow rows): the `RoadState` message's payload ([../server/conditions.md](../server/conditions.md#the-road-on-screen)) |
+| 8 | `Road` | TCP | tick, a slice of the road state (lap, cell length, bins, half span, first cell, rows, debris, geometry, snow rows, water rows): the `RoadState` message's payload ([../server/conditions.md](../server/conditions.md#the-road-on-screen)) |
 | 9 | `State` | TCP | tick, the sky as it is now (`SkyNow`), a timed race's clock, and per car the slow figures a row leaves out (`CarExtra`: tyre pressures, flat spots, brake temperatures and wear, tank, coolant, tread shoulders, hybrid, tow, where each body zone was hit); four times a second |
 | 10 | `Ghost` | TCP | tick, a lap's trace as `GhostLap` carries it (lap time, sample rate, track and car ids, a `bin` of 20-byte samples: ms, x, y, z, yaw): a watched hotlap's fastest lap on the server's live stream (`StreamGhost`, each time it is replaced, and in the catch-up), and the record lap in a client-recorded hotlap replay (the recorder writes it when a hotlap's ghost arrives); `apexsim-replay`'s renders carry none |
 

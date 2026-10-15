@@ -1090,6 +1090,11 @@ pub(crate) fn road_state_message(
         snow_rows.reserve(count * crate::road_state::SNOW_ROW_BYTES);
         road.write_snow_rows(first_cell % n, count, &mut snow_rows);
     }
+    let mut water_rows = Vec::new();
+    if road.has_puddles() {
+        water_rows.reserve(count * crate::road_state::BINS);
+        road.write_water_rows(first_cell % n, count, &mut water_rows);
+    }
     let debris = game_session
         .debris
         .iter()
@@ -1106,6 +1111,7 @@ pub(crate) fn road_state_message(
         debris,
         geometry: crate::network::RecordBytes(geometry),
         snow_rows: crate::network::RecordBytes(snow_rows),
+        water_rows: crate::network::RecordBytes(water_rows),
     }))
 }
 

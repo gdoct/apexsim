@@ -28,7 +28,9 @@ at different places round the tread (`TyreCpd::FlatSpot2`).
 **Road state and weather** ([server/conditions.md](server/conditions.md),
 [game/client.md](game/client.md)):
 
-- A green start, a drying line after rain, puddles, marbles and debris.
+- A green start, a drying line after rain, puddles (now lying across part
+  of the road: a heavy-rain shot down Eau Rouge's compression could not
+  tell the patch from the wet road at that distance), marbles and debris.
   Only a rubbered start has been seen (Silverstone, `-ApexTrackRubber=100`,
   the band about 9% darker); the colour and gloss figures in
   `ApplyRoadStateGraph` are first guesses.

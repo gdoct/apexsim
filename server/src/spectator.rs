@@ -1468,9 +1468,11 @@ impl StreamPath {
 /// over the lap while a stream is recorded, so a viewer of a showcase, a
 /// replay or the menu backdrop sees the road evolve. The body is
 /// `[8, epoch, tick, lap_m, cell_m, bins, half_span_m, first_cell, rows bin,
-/// debris bin, geometry bin, snow rows bin]`, debris `[x, y]` pairs in
-/// millimetres like a [`StreamPath`], geometry as `RoadState::write_geometry`
-/// packs it and the snow as `RoadState::write_snow_rows` (empty without snow).
+/// debris bin, geometry bin, snow rows bin, water rows bin]`, debris `[x, y]`
+/// pairs in millimetres like a [`StreamPath`], geometry as
+/// `RoadState::write_geometry` packs it, the snow as `RoadState::write_snow_rows`
+/// (empty without snow) and the water across the road as
+/// `RoadState::write_water_rows` (empty without a puddle).
 #[derive(Debug, Clone, PartialEq)]
 pub struct StreamRoad {
     pub epoch: u32,
@@ -1484,6 +1486,7 @@ pub struct StreamRoad {
     pub debris: Vec<[f32; 2]>,
     pub geometry: Vec<u8>,
     pub snow_rows: Vec<u8>,
+    pub water_rows: Vec<u8>,
 }
 
 impl StreamRoad {
@@ -1494,7 +1497,7 @@ impl StreamRoad {
             debris.extend_from_slice(&metres_to_mm(*y).to_le_bytes());
         }
         let mut out = Vec::with_capacity(self.rows.len() + debris.len() + 32);
-        begin(&mut out, 12, RECORD_ROAD, self.epoch);
+        begin(&mut out, 13, RECORD_ROAD, self.epoch);
         wr::u32_fixed(&mut out, self.tick);
         wr::f32(&mut out, self.lap_m);
         wr::f32(&mut out, self.cell_m);
@@ -1505,6 +1508,7 @@ impl StreamRoad {
         wr::bin(&mut out, &debris);
         wr::bin(&mut out, &self.geometry);
         wr::bin(&mut out, &self.snow_rows);
+        wr::bin(&mut out, &self.water_rows);
         out
     }
 
@@ -1540,6 +1544,13 @@ impl StreamRoad {
         } else {
             Vec::new()
         };
+        // ... and from before the puddles' place across the road here.
+        let water_rows = if len >= 13 {
+            read = 13;
+            rd.bin()?.to_vec()
+        } else {
+            Vec::new()
+        };
         rd.skip_rest(len, read)?;
         Ok(Self {
             epoch,
@@ -1553,6 +1564,7 @@ impl StreamRoad {
             debris,
             geometry,
             snow_rows,
+            water_rows,
         })
     }
 }
@@ -2438,6 +2450,11 @@ impl BroadcastEncoder {
             snow_rows.reserve(count * crate::road_state::SNOW_ROW_BYTES);
             road.write_snow_rows(first_cell % n, count, &mut snow_rows);
         }
+        let mut water_rows = Vec::new();
+        if road.has_puddles() {
+            water_rows.reserve(count * crate::road_state::BINS);
+            road.write_water_rows(first_cell % n, count, &mut water_rows);
+        }
         Some(StreamRoad {
             epoch: self.epoch,
             tick: session.session.current_tick,
@@ -2450,6 +2467,7 @@ impl BroadcastEncoder {
             debris: session.debris.iter().map(|d| [d.x, d.y]).collect(),
             geometry,
             snow_rows,
+            water_rows,
         })
     }
 
@@ -3517,6 +3535,10 @@ mod tests {
                 255, 255, 0, 200, 0, 128, 0, 60, 90, //
                 0, 0, 0, 0, 0, 0, 0, 0, 0,
             ],
+            water_rows: vec![
+                80, 160, 80, 80, //
+                0, 0, 0, 0,
+            ],
         }
         .encode();
         let state = sample_state().encode();
@@ -3592,7 +3614,7 @@ mod tests {
         assert_eq!(&lap[..2], &[0x95, RECORD_EVENT]);
         assert_eq!(&roster[..2], &[0x94, RECORD_ROSTER]);
         assert_eq!(&path[..2], &[0x94, RECORD_PATH]);
-        assert_eq!(&road[..7], &[0x9C, RECORD_ROAD, 0xCE, 0, 0, 0, 3]);
+        assert_eq!(&road[..7], &[0x9D, RECORD_ROAD, 0xCE, 0, 0, 0, 3]);
         // It round-trips through the generic decoder.
         match Record::decode(&road).unwrap() {
             Record::Road(r) => {
@@ -3603,6 +3625,7 @@ mod tests {
                 assert_eq!(r.geometry.len(), 32);
                 assert_eq!(r.snow_rows.len(), 18);
                 assert_eq!(r.snow_rows[0], 255);
+                assert_eq!(r.water_rows, vec![80, 160, 80, 80, 0, 0, 0, 0]);
             }
             other => panic!("not a road record: {other:?}"),
         }

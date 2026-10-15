@@ -19,7 +19,10 @@
 //!   centerline's elevation) drains slowly and holds [`PUDDLE_GAIN`] more,
 //!   so a dip stands in water deeper than the rain leaves on the flat
 //!   (`water` over 1 is a puddle, which costs every tyre:
-//!   `tyre_thermal::Compound::grip_on`);
+//!   `tyre_thermal::Compound::grip_on`). The puddle lies across part of
+//!   the road ([`RoadState::bin_depth`]): at the low edge of a banked dip,
+//!   at a seeded spot on a flat one, as wide as the dip is deep; the rest
+//!   of the cell holds the flat road's water;
 //!
 //! and per bin:
 //!
@@ -69,6 +72,17 @@ use crate::data::TrackConfig;
 pub const CELL_M: f32 = 10.0;
 /// The bins across a cell, m.
 pub const BIN_M: f32 = 1.0;
+/// A puddle's half-width across the road, m: the least, what a full dip
+/// adds, and the seeded spread on top.
+const PUDDLE_HALF_MIN_M: f32 = 1.5;
+const PUDDLE_HALF_LOW_M: f32 = 3.0;
+const PUDDLE_HALF_SPREAD_M: f32 = 1.5;
+/// Banking past which the water runs to the low edge, rad (half a degree).
+const PUDDLE_BANK_RAD: f32 = 0.009;
+/// The seeds of a puddle's place and width (`wind::hash01` salts).
+const PUDDLE_SPOT_SALT: u64 = 0x5055_4444_4c45;
+const PUDDLE_WIDTH_SALT: u64 = 0x5755_4444_4c45;
+
 /// How far either side of the centerline the bins reach at most, m.
 pub const HALF_SPAN_M: f32 = 16.0;
 /// Bins across a cell.
@@ -292,6 +306,12 @@ pub struct Cell {
     pub verge_snow: f32,
     /// The raceline's lateral offset at the cell, m, positive right.
     pub line_lateral_m: f32,
+    /// Where the cell's puddle lies across the road, m right of the
+    /// centerline, and its half-width, m (see [`RoadState::bin_depth`]).
+    #[serde(default)]
+    pub puddle_lateral_m: f32,
+    #[serde(default)]
+    pub puddle_half_m: f32,
     /// The centerline at the cell's middle, and the unit vector to its left.
     pub x: f32,
     pub y: f32,
@@ -380,6 +400,20 @@ impl RoadState {
             // Lateral is positive right: the right edge is at +right.
             cell.first = bin_of(-left).unwrap_or(0) as u8;
             cell.last = bin_of(right).unwrap_or(BINS - 1) as u8;
+            // The water runs to the low edge of a banked road (positive
+            // banking lowers the right); on a flat one it stands where the
+            // asphalt happens to sag, a seeded spot.
+            let bank = banking_at(track, station);
+            let spread = |salt| crate::wind::hash01(i as u64, salt);
+            cell.puddle_half_m =
+                PUDDLE_HALF_MIN_M + PUDDLE_HALF_SPREAD_M * spread(PUDDLE_WIDTH_SALT);
+            cell.puddle_lateral_m = if bank > PUDDLE_BANK_RAD {
+                right - 0.5 * cell.puddle_half_m
+            } else if bank < -PUDDLE_BANK_RAD {
+                -left + 0.5 * cell.puddle_half_m
+            } else {
+                -left + (left + right) * spread(PUDDLE_SPOT_SALT)
+            };
             let (lateral, found) = raceline_lateral_at(track, x, y, heading, hint);
             cell.line_lateral_m = lateral;
             hint = found;
@@ -397,6 +431,7 @@ impl RoadState {
             }
             let mean = sum / count.max(1.0);
             cells[i].low = ((mean - zs[i]) / LOW_DEPTH_M).clamp(0.0, 1.0);
+            cells[i].puddle_half_m += PUDDLE_HALF_LOW_M * cells[i].low;
             cells[i].depth = Self::standing_depth(rain + SNOW_WATER * baked_snow, cells[i].low);
             cells[i].verge_snow = baked_snow;
         }
@@ -444,6 +479,27 @@ impl RoadState {
     /// The depth a cell `low` settles at under `rain`.
     fn standing_depth(rain: f32, low: f32) -> f32 {
         rain * (1.0 + PUDDLE_GAIN * low)
+    }
+
+    /// The share of a cell's depth that stands at `lateral_m` (m right of
+    /// the centerline): all of it in the puddle, the flat road's share
+    /// (`1 / (1 + PUDDLE_GAIN x low)`) away from it, eased between. A cell
+    /// that is not low is the same all across.
+    fn depth_share(cell: &Cell, lateral_m: f32) -> f32 {
+        if cell.low <= 0.0 {
+            return 1.0;
+        }
+        let flat = 1.0 / (1.0 + PUDDLE_GAIN * cell.low);
+        let off = (lateral_m - cell.puddle_lateral_m) / cell.puddle_half_m.max(0.1);
+        let inside = (1.0 - off * off).max(0.0);
+        flat + (1.0 - flat) * inside * inside
+    }
+
+    /// The water standing on bin `b` of cell `i`, before the wheels dry it:
+    /// the cell's depth where its puddle lies, the flat road's elsewhere.
+    pub fn bin_depth(&self, i: usize, b: usize) -> f32 {
+        let cell = &self.cells[i];
+        cell.depth * Self::depth_share(cell, bin_centre(b))
     }
 
     /// How many cells the lap is cut into.
@@ -517,6 +573,35 @@ impl RoadState {
         }
     }
 
+    /// Pack the water standing on each bin of the same `count` cells from
+    /// `first_cell` ([`BINS`] bytes each, in [`DEPTH_BYTE`] units, before
+    /// the wheels dry it: [`RoadState::bin_depth`]), so a puddle is drawn
+    /// where it lies across the road. A separate field of the `RoadState`
+    /// message, left off for a road with no puddle standing
+    /// ([`RoadState::has_puddles`]); a client without it spreads the
+    /// cell's depth (the row's first byte) across the road.
+    pub fn write_water_rows(&self, first_cell: usize, count: usize, out: &mut Vec<u8>) {
+        let n = self.cells.len();
+        if n == 0 {
+            return;
+        }
+        for k in 0..count {
+            let i = (first_cell + k) % n;
+            let cell = &self.cells[i];
+            for b in 0..BINS {
+                let on_road = b >= cell.first as usize && b <= cell.last as usize;
+                let depth = if on_road { self.bin_depth(i, b) } else { 0.0 };
+                out.push((depth * DEPTH_BYTE).round().clamp(0.0, 255.0) as u8);
+            }
+        }
+    }
+
+    /// Whether water stands deeper in a dip than on the flat anywhere on
+    /// the lap: a road without leaves the per-bin water off the wire.
+    pub fn has_puddles(&self) -> bool {
+        self.cells.iter().any(|c| c.low > 0.0 && c.depth > 0.0)
+    }
+
     /// Whether any snow or ice lies anywhere on the road, or is falling:
     /// a session without leaves the snow field off the wire.
     pub fn has_snow(&self) -> bool {
@@ -561,7 +646,8 @@ impl RoadState {
         let base = i * BINS;
         let across = Self::across(cell, lateral_m);
         let dry = Self::bin_value(&self.dry, base, across);
-        let water = (cell.depth * (1.0 - dry)).max(0.0);
+        let lateral = (across.0 as f32 + across.2 + 0.5) * BIN_M - HALF_SPAN_M;
+        let water = (cell.depth * Self::depth_share(cell, lateral) * (1.0 - dry)).max(0.0);
         let rubber = Self::bin_value(&self.rubber, base, across);
         let marbles = Self::bin_value(&self.marbles, base, across);
         let baked = self.baked_water;
@@ -623,6 +709,7 @@ impl RoadState {
             .enumerate()
             .map(|(i, c)| {
                 c.depth
+                    * Self::depth_share(c, c.line_lateral_m)
                     * (1.0
                         - Self::bin_value(&self.dry, i * BINS, Self::across(c, c.line_lateral_m)))
             })
@@ -772,7 +859,8 @@ impl RoadState {
                 if freezing
                     && cover < ICE_COVER_MAX
                     && snowfall < ICE_SNOWFALL_MAX
-                    && cell.depth * (1.0 - *dry) > ICE_WATER_MIN
+                    && cell.depth * Self::depth_share(cell, bin_centre(b)) * (1.0 - *dry)
+                        > ICE_WATER_MIN
                 {
                     *ice += (1.0 - *ice) * (ICE_FREEZE_RATE * dt).min(1.0);
                 } else if *ice > 0.0 && thaw > 0.0 {
@@ -827,6 +915,15 @@ fn widths_at(track: &TrackConfig, station_m: f32) -> (f32, f32) {
         .partition_point(|p| p.distance_from_start_m < station_m)
         .min(cl.len() - 1);
     (cl[i].width_left_m.max(1.0), cl[i].width_right_m.max(1.0))
+}
+
+/// The road's banking at `station_m`, rad (positive lowers the right).
+fn banking_at(track: &TrackConfig, station_m: f32) -> f32 {
+    let cl = &track.centerline;
+    let i = cl
+        .partition_point(|p| p.distance_from_start_m < station_m)
+        .min(cl.len() - 1);
+    cl[i].banking_rad
 }
 
 /// The raceline's lateral offset from the centerline point `(cx, cy)`
@@ -1169,10 +1266,32 @@ mod tests {
     fn a_dip_holds_a_puddle_and_the_flat_holds_the_rain() {
         let road = RoadState::new(&dipped_track(0.5), RUBBER_REFERENCE);
         let flat = road.water_at(200.0, 0.0);
-        let dip = road.water_at(1000.0, 0.0);
         assert!((flat - 0.5).abs() < 0.02, "{flat}");
-        assert!(dip > 0.6, "a puddle: {dip}");
         assert!(road.puddle_at(1000.0) > 0.5 && road.puddle_at(200.0) < 0.05);
+        // The dip's puddle lies across part of the road: deep in it, the
+        // flat road's water beside it.
+        let cell = &road.cells[road.cell_index(1000.0)];
+        let (at, half) = (cell.puddle_lateral_m, cell.puddle_half_m);
+        assert!(half > 1.5, "{half}");
+        let dip = road.water_at(1000.0, at);
+        assert!(dip > 0.6, "a puddle: {dip}");
+        let beside = if at > 0.0 {
+            at - half - 1.0
+        } else {
+            at + half + 1.0
+        };
+        let dry_side = road.water_at(1000.0, beside);
+        assert!(
+            (dry_side - 0.5).abs() < 0.03,
+            "beside the puddle: {dry_side}"
+        );
+        // The wire carries it per bin.
+        let mut bins = Vec::new();
+        road.write_water_rows(road.cell_index(1000.0), 1, &mut bins);
+        assert_eq!(bins.len(), BINS);
+        let peak = bins.iter().copied().max().unwrap();
+        assert!(peak as f32 > 0.6 * DEPTH_BYTE, "{bins:?}");
+        assert!(road.has_puddles());
         // The baked water is the reference: the flat grips as baked.
         assert!((road.sample(200.0, 0.0).grip / rubber_grip(0.0, 0.5) - 1.0).abs() < 0.03);
         // Off the lap's end it wraps.

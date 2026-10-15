@@ -28,16 +28,6 @@ None open.
 
 ## P2: depth
 
-### 2. Road state and snow on screen
-
-Rough edges of the client's road state and snow.
-
-- A puddle covers its cell's width: the server keeps one water depth per
-  cell (`RoadState`), so a puddle has no lateral position; placing one
-  across the road is a per-bin depth on the wire.
-
-**Check:** a rain-to-dry and a snow session at Silverstone, screenshotted.
-
 ### 5. Hotlap and lap records
 
 The ghost, the hotlap replay and watch.

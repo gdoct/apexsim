@@ -728,6 +728,7 @@ mod tests {
             rows: vec![mark; cells],
             debris: vec![],
             geometry: vec![],
+            water_rows: vec![],
             snow_rows: vec![],
         }
         .encode();

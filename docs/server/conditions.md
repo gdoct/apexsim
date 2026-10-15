@@ -194,7 +194,13 @@ Per bin:
 
 Per cell, the **water depth**: fed toward the falling rain, deeper by
 `PUDDLE_GAIN` where the road lies `LOW_DEPTH_M` below its surroundings along
-the lap, drained above that. Water over 1 is standing water.
+the lap, drained above that. Water over 1 is standing water. The puddle of a
+low cell lies across part of the road (`RoadState::bin_depth`): at the low
+edge where the road is banked over half a degree (positive banking lowers
+the right), at a seeded spot (`wind::hash01` of the cell) on a flat one,
+1.5-3 m half-wide plus 3 m for a full dip; the rest of the cell holds the
+flat road's share (`1 / (1 + PUDDLE_GAIN x low)`). A tyre, the ice and the
+line's water read the bin's depth; the grass holds the cell's.
 
 ### Snow on the road
 
@@ -250,7 +256,10 @@ dry line between wet edges, mirror-flat puddles, and the debris lying on it.
 whole cells from `FirstCell`, wrapping the lap. Each cell is `ROW_BYTES`:
 its water depth as a byte (`DEPTH_BYTE`: 100 is heavy rain on the flat,
 over 100 a puddle), then for each of the `BINS` bins its rubber, marbles and
-dry, each a byte over 0..1. `Geometry` gives each cell's centerline point and
+dry, each a byte over 0..1. `WaterRows` (left off when no puddle stands)
+is the water on each bin before the wheels dry it, a `DEPTH_BYTE` byte per
+bin (`RoadState::write_water_rows`); the client fills the state texture's A
+from it, else from the cell's depth. `Geometry` gives each cell's centerline point and
 the unit vector to its left (four `f32`, server frame): the point and vector
 `RoadState::lateral_of` measures a bin from. `Debris` lists every piece on
 the road now. A joining driver, spectator or rejoiner gets the whole lap at

@@ -1195,6 +1195,15 @@ namespace
 					Out.SetGeometryBytes(Bytes);
 				}
 			}
+			else if (Key == TEXT("WaterRows"))
+			{
+				TArrayView<const uint8> Bytes;
+				bOk = Reader.ReadBinary(Bytes);
+				if (bOk)
+				{
+					Out.WaterRows = TArray<uint8>(Bytes.GetData(), Bytes.Num());
+				}
+			}
 			else if (Key == TEXT("SnowRows"))
 			{
 				TArrayView<const uint8> Bytes;

@@ -1754,6 +1754,12 @@ pub struct RoadStateData {
     /// for a road with no snow, and skipped by a client from before it.
     #[serde(default, skip_serializing_if = "RecordBytes::is_empty")]
     pub snow_rows: RecordBytes,
+    /// The water standing on each bin of the same cells, `road_state::BINS`
+    /// bytes each in the rows' depth units (`RoadState::write_water_rows`):
+    /// where a puddle lies across the road. Left off the wire when no
+    /// puddle stands; a client without it spreads each row's depth across.
+    #[serde(default, skip_serializing_if = "RecordBytes::is_empty")]
+    pub water_rows: RecordBytes,
 }
 
 /// A car crossed a timing line.
@@ -3283,6 +3289,7 @@ mod tests {
             debris: vec![[12.5, -3.25], [900.0, 4.0]],
             geometry: RecordBytes(geometry.clone()),
             snow_rows: RecordBytes(vec![]),
+            water_rows: RecordBytes(vec![]),
         });
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         println!(
@@ -3321,8 +3328,9 @@ mod tests {
             first_cell: 7,
             rows: RecordBytes(rows.clone()),
             debris: vec![[12.5, -3.25], [900.0, 4.0]],
-            geometry: RecordBytes(geometry),
+            geometry: RecordBytes(geometry.clone()),
             snow_rows: RecordBytes(snow_rows.clone()),
+            water_rows: RecordBytes(vec![]),
         });
         let snowy_bytes = rmp_serde::to_vec_named(&snowy).unwrap();
         println!(
@@ -3335,6 +3343,41 @@ mod tests {
         );
         match rmp_serde::from_slice::<ServerMessage>(&snowy_bytes).unwrap() {
             ServerMessage::RoadState(data) => assert_eq!(data.snow_rows.0, snow_rows),
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        // The same road with a puddle standing on cell 0's second bin
+        // (1.6 of heavy rain), the flat road's 0.8 either side.
+        let water_rows = vec![
+            80, 160, 80, 80, // cell 0
+            0, 0, 0, 0, // cell 1
+        ];
+        let puddled = ServerMessage::RoadState(RoadStateData {
+            session_id,
+            lap_m: 5793.0,
+            cell_m: 10.0,
+            bins: 4,
+            half_span_m: 16.0,
+            first_cell: 7,
+            rows: RecordBytes(rows.clone()),
+            debris: vec![[12.5, -3.25], [900.0, 4.0]],
+            geometry: RecordBytes(geometry),
+            snow_rows: RecordBytes(vec![]),
+            water_rows: RecordBytes(water_rows.clone()),
+        });
+        let puddled_bytes = rmp_serde::to_vec_named(&puddled).unwrap();
+        println!(
+            "S_RoadStatePuddle: {}",
+            puddled_bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        match rmp_serde::from_slice::<ServerMessage>(&puddled_bytes).unwrap() {
+            ServerMessage::RoadState(data) => {
+                assert_eq!(data.water_rows.0, water_rows);
+                assert!(data.snow_rows.is_empty());
+            }
             other => panic!("Wrong message type: {other:?}"),
         }
     }

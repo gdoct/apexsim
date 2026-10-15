@@ -39,6 +39,31 @@ namespace ApexRoadStateMapTest
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexRoadStateMapTest, "ApexSim.Race.RoadStateMap", ApexTestFlags)
 
+// A puddle lies where the slice says across the road: per-bin water fills
+// each bin's A; a slice without spreads the cell's depth across.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexRoadStateMapPuddleTest, "ApexSim.Race.RoadStateMap.Puddle", ApexTestFlags)
+
+bool FApexRoadStateMapPuddleTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexRoadStateMapTest;
+	FApexRoadStateMap Map;
+	FApexRoadState Wet = Slice(4, 2);
+	Wet.WaterRows.SetNumZeroed(2 * 32);
+	for (int32 b = 0; b < 32; ++b)
+	{
+		Wet.WaterRows[b] = b >= 20 && b <= 24 ? 160 : 40;
+	}
+	TestTrue(TEXT("a slice with water rows applies"), Map.Apply(Wet));
+	TestEqual(TEXT("in the puddle"), (int32)Map.StateAt(4, 22).A, 160);
+	TestEqual(TEXT("the flat beside it"), (int32)Map.StateAt(4, 10).A, 40);
+	TestEqual(TEXT("cell 5 dry"), (int32)Map.StateAt(5, 22).A, 0);
+	TestEqual(TEXT("the rest of the texel as before"), (int32)Map.StateAt(4, 22).R, 22 * 8);
+	TestTrue(TEXT("a slice without water rows applies"), Map.Apply(Slice(4, 2)));
+	TestEqual(TEXT("the cell's depth across"), (int32)Map.StateAt(4, 10).A, 40);
+	TestEqual(TEXT("and in the puddle's place"), (int32)Map.StateAt(4, 22).A, 40);
+	return true;
+}
+
 // The snow rides along: a slice with snow rows fills the snow map (cover and
 // ice per bin, the verge in B), one without says there is none.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexRoadStateMapSnowTest, "ApexSim.Race.RoadStateMap.Snow", ApexTestFlags)

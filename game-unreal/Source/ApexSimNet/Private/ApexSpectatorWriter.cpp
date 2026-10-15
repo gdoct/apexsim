@@ -310,8 +310,8 @@ namespace ApexSpectator
 			const float V[4] = {G.X, G.Y, G.Z, G.W};
 			FMemory::Memcpy(Geometry.GetData() + i * 16, V, 16);
 		}
-		FMsgPackWriter W(48 + Road.Rows.Num() + Road.SnowRows.Num() + Debris.Num() + Geometry.Num());
-		BeginRecord(W, 12, RecordRoad, R.Epoch);
+		FMsgPackWriter W(48 + Road.Rows.Num() + Road.SnowRows.Num() + Road.WaterRows.Num() + Debris.Num() + Geometry.Num());
+		BeginRecord(W, 13, RecordRoad, R.Epoch);
 		W.WriteUInt32Fixed(static_cast<uint32>(R.Tick));
 		W.WriteFloat(Road.LapM);
 		W.WriteFloat(Road.CellM);
@@ -322,6 +322,7 @@ namespace ApexSpectator
 		W.WriteBinary(Debris);
 		W.WriteBinary(Geometry);
 		W.WriteBinary(Road.SnowRows);
+		W.WriteBinary(Road.WaterRows);
 		return MoveTemp(W.GetBuffer());
 	}
 }

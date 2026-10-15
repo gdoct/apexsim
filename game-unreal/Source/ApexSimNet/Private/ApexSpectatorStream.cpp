@@ -524,6 +524,17 @@ namespace ApexSpectatorCodec
 			Road.SnowRows = TArray<uint8>(Snow.GetData(), Snow.Num());
 			Read = 12;
 		}
+		// ... and from before the puddles' place across the road here.
+		if (Count >= 13)
+		{
+			TArrayView<const uint8> Water;
+			if (!Reader.ReadBinary(Water))
+			{
+				return false;
+			}
+			Road.WaterRows = TArray<uint8>(Water.GetData(), Water.Num());
+			Read = 13;
+		}
 		return SkipRest(Reader, Count, Read);
 	}
 

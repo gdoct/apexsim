@@ -1147,6 +1147,22 @@ bool FApexProtocolLapTimingDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("the last bin's ice"), (int32)Road.SnowRows[1 + 2 * 3 + 1], 90);
 			TestEqual(TEXT("cell 1 is bare"), (int32)Road.SnowRows[9], 0);
 		}
+		TestFalse(TEXT("no water rows without a puddle"), Road.HasWaterRows());
+	}
+
+	FApexServerMessage PuddleMessage;
+	if (TestTrue(TEXT("RoadState with a puddle decodes"),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_RoadStatePuddle, PuddleMessage, Error)))
+	{
+		const FApexRoadState& Road = PuddleMessage.RoadState;
+		TestEqual(TEXT("the rows are read as before"), Road.Rows.Num(), 26);
+		if (TestTrue(TEXT("water rows, a byte a bin"), Road.HasWaterRows() && Road.WaterRows.Num() == 8))
+		{
+			TestEqual(TEXT("the puddle on cell 0's second bin"), (int32)Road.WaterRows[1], 160);
+			TestEqual(TEXT("the flat beside it"), (int32)Road.WaterRows[0], 80);
+			TestEqual(TEXT("cell 1 is dry"), (int32)Road.WaterRows[5], 0);
+		}
+		TestFalse(TEXT("and no snow"), Road.HasSnow());
 	}
 
 	return true;

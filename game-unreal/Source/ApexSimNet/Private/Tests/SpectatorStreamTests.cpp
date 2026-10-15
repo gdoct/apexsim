@@ -252,6 +252,7 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("road debris"), R.Debris.Num() == 2 && R.Debris[0].Equals(FVector2D(12.5, -3.25), 1e-3));
 		TestTrue(TEXT("road geometry"), R.Geometry.Num() == 2 && R.Geometry[1] == FVector4f(110.0f, -20.0f, 0.0f, 1.0f));
 		TestTrue(TEXT("road is usable"), R.IsValid());
+		TestTrue(TEXT("road water per bin"), R.HasWaterRows() && R.WaterRows[1] == 160 && R.WaterRows[4] == 0);
 	}
 
 	// The slow state: the sky, the race clock, each car's tyres and tank.
