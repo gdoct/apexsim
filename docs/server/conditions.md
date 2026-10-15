@@ -103,6 +103,17 @@ branch in the tick, and a dry, sunny session is the track file to the bit
   `wind_now_mps = wind::gusting(mean, session seconds)`: hash-based smooth
   noise, speed +-35% (`GUST_SHARE`), veering +-15° (`GUST_VEER_DEG`),
   gusts about 4 s long.
+- **The wind and the damp follow the weather**: under a changing sky the
+  mean (`LiveConditions::wind_kph`) eases over `WIND_EASE_S` (3 min) toward
+  the weather's own (`auto_wind_kph`) times the share of the start
+  weather's own the host picked (`wind_target_kph`: a calm pick stays calm,
+  twice the breeze is twice the storm's), and the humidity toward the
+  weather's own plus the host's offset (`humidity_target`), which the air's
+  density reads. `update_sky` bakes the mean onto the track
+  (`data::wind_onto_track`, the same turn as the bake's) once it has moved
+  off the start's figure, so a sky that keeps its weather keeps the bake's
+  wind to the bit. A front of heavy rain on a sunny start brings 8 km/h up
+  to 28. The direction holds.
 - **Physics through the air**: downforce from the flow along the car, drag
   along the relative airflow, and a side force on the flank from air
   crossing it. `CarState::aero_load_share` (tyre load with this downforce

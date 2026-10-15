@@ -41,6 +41,9 @@ pub const AIR_EASE_S: f32 = 600.0;
 /// The asphalt follows the air and the sun over this long, s of the day's
 /// clock.
 pub const TRACK_EASE_S: f32 = 900.0;
+/// The wind's mean and the humidity follow the weather over this long, s:
+/// a front's wind arrives with its rain.
+pub const WIND_EASE_S: f32 = 180.0;
 /// The road counts as wet from this much water on it.
 pub const WET_FROM_WATER: f32 = 0.05;
 /// An overcast start with the air under this, °C, is a winter sky: its
@@ -178,6 +181,13 @@ pub struct LiveConditions {
     pub line_rubber: f32,
     /// The snow cover on the line, 0..1 (`RoadState::mean_line_snow`).
     pub line_snow: f32,
+    /// The wind's mean now, km/h: the weather's own times the host's
+    /// share of it ([`LiveConditions::wind_target_kph`]), eased over
+    /// [`WIND_EASE_S`]. What the gusts blow about.
+    pub wind_kph: f32,
+    /// The air's relative humidity now, 0..1: the weather's own plus the
+    /// host's offset, eased over [`WIND_EASE_S`].
+    pub humidity: f32,
     /// Whether the sky is a winter one ([`is_winter`]).
     winter: bool,
     /// What the host's air temperature puts on the weather's own, °C.
@@ -208,6 +218,8 @@ impl LiveConditions {
             road_water: start.weather.water(),
             line_rubber: start.track_rubber(),
             line_snow: start.weather.snowfall(),
+            wind_kph: start.wind_kph.unwrap_or(start.auto_wind_kph()) as f32,
+            humidity: start.humidity(),
             winter,
             air_offset_c: air_c - Self::auto_air_c(&start, winter),
         }
@@ -222,6 +234,52 @@ impl LiveConditions {
             0.0
         };
         conditions.auto_air_temperature_c() - drop
+    }
+
+    /// The wind's mean the weather `weather` brings, km/h: its own
+    /// (`SessionConditions::auto_wind_kph`) times the share of the start
+    /// weather's own the host picked, so a calm pick stays calm and a gale
+    /// stays a gale, and a storm front blows harder than the sun before it.
+    /// The host's figure exactly while the weather is the start's.
+    pub fn wind_target_kph(&self, weather: Weather) -> f32 {
+        let picked = self.start.wind_kph.unwrap_or(self.start.auto_wind_kph()) as f32;
+        if weather == self.start.weather {
+            return picked;
+        }
+        let own = |w: Weather| {
+            SessionConditions {
+                weather: w,
+                ..SessionConditions::DEFAULT
+            }
+            .auto_wind_kph() as f32
+        };
+        (own(weather) * picked / own(self.start.weather).max(1.0)).clamp(0.0, 60.0)
+    }
+
+    /// The humidity the weather `weather` brings, 0..1: its own plus the
+    /// host's offset from the start weather's own. The start's exactly
+    /// while the weather is the start's.
+    pub fn humidity_target(&self, weather: Weather) -> f32 {
+        if weather == self.start.weather {
+            return self.start.humidity();
+        }
+        let own = |w: Weather| {
+            SessionConditions {
+                weather: w,
+                ..SessionConditions::DEFAULT
+            }
+            .auto_humidity_pct() as f32
+                / 100.0
+        };
+        (own(weather) + self.start.humidity() - own(self.start.weather)).clamp(0.0, 1.0)
+    }
+
+    /// The wind's mean now, m/s toward where it blows, in the start
+    /// straight's frame (`SessionConditions::wind_mps` at [`Self::wind_kph`]).
+    pub fn wind_mps(&self) -> [f32; 2] {
+        let speed = self.wind_kph / 3.6;
+        let from = (self.start.wind_from_deg.unwrap_or(0) as f32).to_radians();
+        [-speed * from.cos(), -speed * from.sin()]
     }
 
     /// Whether the sky moves at all.
@@ -303,6 +361,10 @@ impl LiveConditions {
         ease(&mut self.rain, self.weather.rainfall(), RAIN_EASE_S);
         ease(&mut self.snowfall, self.weather.snowfall(), RAIN_EASE_S);
         ease(&mut self.cloud, self.weather.cloud(), CLOUD_EASE_S);
+        let wind = self.wind_target_kph(self.weather);
+        ease(&mut self.wind_kph, wind, WIND_EASE_S);
+        let humidity = self.humidity_target(self.weather);
+        ease(&mut self.humidity, humidity, WIND_EASE_S);
         // The air and the asphalt warm and cool by the day's clock: at 24x
         // the evening comes in an hour, and so does its chill.
         let day_ease = |value: &mut f32, target: f32, tau: f32| {
@@ -316,9 +378,8 @@ impl LiveConditions {
         let wet = (road_water / 0.25).clamp(0.0, 1.0);
         let track = dry + (self.air_c - 1.0 - dry) * wet;
         day_ease(&mut self.track_c, track, TRACK_EASE_S);
-        let humidity = self.start.humidity();
         let reference = SessionConditions::DEFAULT.air_density(0.0);
-        self.density_ratio = air_density(self.altitude_m, self.air_c, humidity) / reference;
+        self.density_ratio = air_density(self.altitude_m, self.air_c, self.humidity) / reference;
     }
 }
 
@@ -605,5 +666,64 @@ mod tests {
             "{dry_track} -> {}",
             live.track_c
         );
+    }
+
+    #[test]
+    fn a_front_brings_its_wind_and_its_damp_air() {
+        let start = picked(Weather::Sunny, 13, 1, 3);
+        let mut live = LiveConditions::new(start, 50.0, 0.0, 3);
+        live.forecast = vec![WeatherChange {
+            at_s: 60.0,
+            weather: Weather::HeavyRain,
+        }];
+        assert_eq!(live.wind_kph, 8.0);
+        assert_eq!(live.humidity, 0.5);
+        let mut s = 0.0;
+        while s < 60.0 {
+            s += 1.0;
+            live.step(s, 1.0, 0.0);
+        }
+        // Still the sun's breeze to the bit until the front arrives.
+        assert!(live.wind_kph > 7.9 && live.wind_kph < 9.0);
+        while s < 60.0 + 900.0 {
+            s += 1.0;
+            live.step(s, 1.0, live.rain);
+        }
+        assert!(live.wind_kph > 27.0, "{}", live.wind_kph);
+        assert!(live.humidity > 0.95, "{}", live.humidity);
+        let [wx, wy] = live.wind_mps();
+        assert!(((wx * wx + wy * wy).sqrt() * 3.6 - live.wind_kph).abs() < 1e-3);
+        // A host's calm stays calm; a host's gale scales with the weather.
+        let calm = LiveConditions::new(
+            SessionConditions {
+                wind_kph: Some(0),
+                ..start
+            },
+            50.0,
+            0.0,
+            3,
+        );
+        assert_eq!(calm.wind_target_kph(Weather::HeavyRain), 0.0);
+        let windy = LiveConditions::new(
+            SessionConditions {
+                wind_kph: Some(16),
+                ..start
+            },
+            50.0,
+            0.0,
+            3,
+        );
+        assert_eq!(windy.wind_target_kph(Weather::HeavyRain), 56.0);
+        assert_eq!(windy.wind_target_kph(Weather::Sunny), 16.0);
+    }
+
+    #[test]
+    fn a_sky_that_keeps_its_weather_keeps_its_wind_to_the_bit() {
+        let mut live = LiveConditions::new(picked(Weather::Cloudy, 13, 4, 0), 50.0, 0.0, 3);
+        let (wind, humidity) = (live.wind_kph, live.humidity);
+        for s in 1..3600 {
+            live.step(s as f32, 1.0, 0.0);
+        }
+        assert_eq!((live.wind_kph, live.humidity), (wind, humidity));
     }
 }

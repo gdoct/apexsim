@@ -137,6 +137,8 @@ fn rain_from_the_forecast_wets_the_road_and_the_ai_stops_for_wets() {
         weather: Weather::HeavyRain,
     }];
     let track_c0 = gs.track_config.track_surface.track_temperature_c;
+    let speed = |w: [f32; 2]| (w[0] * w[0] + w[1] * w[1]).sqrt() * 3.6;
+    let wind0 = speed(gs.track_config.track_surface.wind_mps);
     let mut wets = 0;
     run(&mut gs, &ids, 600, |_| {});
     for id in &ids {
@@ -160,6 +162,13 @@ fn rain_from_the_forecast_wets_the_road_and_the_ai_stops_for_wets() {
     assert!(surface.water > 0.5 && surface.wet);
     assert!(surface.track_temperature_c < track_c0 - 4.0);
     assert!(gs.sky.headlights_needed());
+    // The front's wind came with it: the sun's 8 km/h breeze to a storm's.
+    let wind = speed(surface.wind_mps);
+    println!("wind {wind0:.1} -> {wind:.1} km/h");
+    assert!(
+        (wind0 - 8.0).abs() < 0.01 && wind > 26.0,
+        "{wind0} -> {wind}"
+    );
     assert_eq!(wets, ids.len(), "every AI came in for treaded tyres");
 }
 

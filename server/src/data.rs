@@ -2592,13 +2592,7 @@ impl SessionConditions {
         track.track_surface.baked_snow = self.weather.snowfall();
         let altitude = track.metadata.altitude_m.unwrap_or(0.0);
         track.track_surface.air_density_ratio = self.air_density_ratio(altitude);
-        // The wind's direction is taken from the start straight: the
-        // circuits keep their real orientation, so the line's heading is not
-        // +X on every track.
-        let heading = track.centerline.first().map_or(0.0, |p| p.heading_rad);
-        let [wx, wy] = self.wind_mps();
-        let (c, sn) = (heading.cos(), heading.sin());
-        track.track_surface.wind_mps = [wx * c - wy * sn, wx * sn + wy * c];
+        track.track_surface.wind_mps = wind_onto_track(track, self.wind_mps());
         track.track_surface.wind_now_mps = track.track_surface.wind_mps;
         let road = self.weather.road_grip_factor();
         if road == 1.0 && self.weather.curb_grip_factor() == 1.0 {
@@ -2679,6 +2673,15 @@ impl SessionConditions {
         let hour = self.time_of_day_minutes / 60;
         !(6..20).contains(&hour)
     }
+}
+
+/// A wind in the start straight's frame (x down the straight, y to its
+/// left) turned into the track's: the circuits keep their real
+/// orientation, so the line's heading is not +X on every track.
+pub fn wind_onto_track(track: &TrackConfig, [wx, wy]: [f32; 2]) -> [f32; 2] {
+    let heading = track.centerline.first().map_or(0.0, |p| p.heading_rad);
+    let (c, sn) = (heading.cos(), heading.sin());
+    [wx * c - wy * sn, wx * sn + wy * c]
 }
 
 /// The latitude the sky is worked out for when a circuit does not say

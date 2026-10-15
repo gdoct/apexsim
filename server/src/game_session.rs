@@ -3540,6 +3540,13 @@ impl GameSession {
         if self.sky.is_static() {
             return;
         }
+        // The wind's mean follows the weather (a front blows harder); the
+        // bake's own figure, to the bit, while it has not moved.
+        let start_wind = self.sky.wind_target_kph(self.sky.start.weather);
+        if self.sky.wind_kph != start_wind {
+            self.track_config.track_surface.wind_mps =
+                crate::data::wind_onto_track(&self.track_config, self.sky.wind_mps());
+        }
         let surface = &mut self.track_config.track_surface;
         surface.air_temperature_c = self.sky.air_c;
         surface.track_temperature_c = self.sky.track_c;
