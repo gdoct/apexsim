@@ -129,7 +129,9 @@ trace against world statics both ways, camera to car and back: a camera put
 down inside a mesh (a pit wall, a building) sees out of it one way only. It picks a subject (battles, the leader, a car in trouble:
 off track or stopped, at most once per 12 s) and cuts between shots
 (`EShot`): grid, trackside (a long lens off the road on the outside of the
-bend, ahead of the car), helicopter, tracking, chase, onboard, nose and
+bend, ahead of the car), helicopter (a low, raking orbit 45-70 m out and
+12-22 m up, looking down at 15-25 degrees; the race's opening one frames
+the front of the grid), tracking, chase, onboard, nose and
 reverse, with lag-compensated pans and depth of field. `LockTarget` holds it
 on one car (spectating, replays, the track guide).
 

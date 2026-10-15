@@ -684,13 +684,17 @@ namespace ApexTv
 
 		case EShot::Helicopter:
 		{
+			// A low, raking helicopter: looking down at 15-25 degrees, not
+			// near straight down from 50 m, where the cars were specks on a
+			// plain stretch of grass and tarmac and the shot read as cheap.
 			const bool bOpening = History.Num() > 0 && History[0] == EShot::Grid;
-			S.DistanceCm = Range(40.0, 65.0) * Metre;
-			S.HeightCm = (bOpening ? Range(45.0, 60.0) : Range(28.0, 50.0)) * Metre;
+			S.DistanceCm = Range(45.0, 70.0) * Metre;
+			S.HeightCm = (bOpening ? Range(15.0, 25.0) : Range(12.0, 22.0)) * Metre;
 			S.OrbitDeg = RandSign() * Range(35.0, 140.0);
 			S.OrbitRateDegPerS = RandSign() * Range(3.0, 7.0);
-			// The start wants the field in frame, not just the leader.
-			S.FrameFraction = static_cast<float>(bOpening ? 0.05 : Range(0.10, 0.18));
+			// The start wants the front of the field in frame, not the whole
+			// grid as a row of dots.
+			S.FrameFraction = static_cast<float>(bOpening ? 0.10 : Range(0.12, 0.18));
 			ShotLength = bOpening ? 8.0f : static_cast<float>(Range(6.0, 9.0));
 			break;
 		}
