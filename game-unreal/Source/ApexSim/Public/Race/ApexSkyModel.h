@@ -13,10 +13,11 @@
  * into light, fog and post-process settings; nothing here touches an actor,
  * so `ApexSim.Sky.*` can pin the numbers.
  *
- * One date serves every track, a late-spring day where, at the default
- * 50° N, the sun is up from a little after six to a little after nine in
- * the evening. Solar noon is 13:00, which is what a clock on summer time
- * says. Where the circuit is comes from its export (`FSkySite`: the
+ * The day is the session's date (`DayOfYear`), else a late-spring model
+ * day where, at the default 50° N, the sun is up from a little after six
+ * to a little after nine in the evening. Solar noon is the server's for the
+ * circuit (`SolarNoonMin`, from its longitude and time zone), else 13:00,
+ * what a clock on summer time says. Where the circuit is comes from its export (`FSkySite`: the
  * manifest's `latitude_deg` and `north_yaw_deg`); a track exported before
  * those keys is at 50° N with true north down the frame's +X, which is
  * how every circuit was lit until then. The server's `sun_elevation_deg`
@@ -66,13 +67,38 @@ namespace ApexSky
 		float AzimuthDeg = 180.0f;
 	};
 
-	/** Where the sun is at `Hours` after midnight on the model day, at
-	 * `LatitudeDeg` north (south negative). */
-	inline FSunPosition SunAt(float Hours, float LatitudeDeg = DefaultLatitudeDeg)
+	/** The sun's declination on day `Day` of the year, degrees (Cooper's
+	 * formula): the server's `data::sun_declination_deg` to the letter. */
+	inline float DeclinationOn(int32 Day)
+	{
+		const float N = static_cast<float>(FMath::Clamp(Day, 1, FApexSessionConditions::DaysPerYear));
+		return 23.44f * FMath::Sin((284.0f + N) / static_cast<float>(FApexSessionConditions::DaysPerYear) * UE_TWO_PI);
+	}
+
+	/** The session's solar noon, hours on its clock: the server's
+	 * `solar_noon_min` from where the circuit is, else 13:00. */
+	inline float SolarNoonOf(const FApexSessionConditions& C)
+	{
+		return C.HasSolarNoon()
+			? static_cast<float>(C.SolarNoonMin % FApexSessionConditions::MinutesPerDay) / 60.0f
+			: SolarNoonHours;
+	}
+
+	/** The session's declination: its date's, else the model day's. */
+	inline float DeclinationOf(const FApexSessionConditions& C)
+	{
+		return C.HasDate() ? DeclinationOn(C.DayOfYear) : DeclinationDeg;
+	}
+
+	/** Where the sun is at `Hours` after midnight at `LatitudeDeg` north
+	 * (south negative), the sun at its height at `NoonHours` on a day of
+	 * `DecDeg` declination (the model day's by default). */
+	inline FSunPosition SunAt(float Hours, float LatitudeDeg = DefaultLatitudeDeg,
+		float NoonHours = SolarNoonHours, float DecDeg = DeclinationDeg)
 	{
 		const float Lat = FMath::DegreesToRadians(FMath::Clamp(LatitudeDeg, -89.0f, 89.0f));
-		const float Dec = FMath::DegreesToRadians(DeclinationDeg);
-		const float HourAngle = FMath::DegreesToRadians((Hours - SolarNoonHours) * 15.0f);
+		const float Dec = FMath::DegreesToRadians(DecDeg);
+		const float HourAngle = FMath::DegreesToRadians((Hours - NoonHours) * 15.0f);
 
 		const float SinElev = FMath::Sin(Lat) * FMath::Sin(Dec) + FMath::Cos(Lat) * FMath::Cos(Dec) * FMath::Cos(HourAngle);
 		const float Elev = FMath::Asin(FMath::Clamp(SinElev, -1.0f, 1.0f));
@@ -221,7 +247,7 @@ namespace ApexSky
 	{
 		FSkyState S;
 		const FApexSessionConditions C = Conditions.Clamped();
-		S.Sun = SunAt(C.Hours(), Site.LatitudeDeg);
+		S.Sun = SunAt(C.Hours(), Site.LatitudeDeg, SolarNoonOf(C), DeclinationOf(C));
 		// The light's yaw is in the world; the sun's azimuth is from true north.
 		const float SunYawDeg = Site.WorldYawOfBearing(S.Sun.AzimuthDeg);
 		const float Elev = S.Sun.ElevationDeg;

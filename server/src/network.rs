@@ -2592,6 +2592,8 @@ mod tests {
                     changeable: None,
                     track_rubber_pct: None,
                     sky_seed: None,
+                    day_of_year: None,
+                    solar_noon_min: None,
                 },
                 duration_s: 259.5,
                 cars: 16,
@@ -4132,6 +4134,8 @@ mod tests {
             changeable: None,
             track_rubber_pct: None,
             sky_seed: None,
+            day_of_year: None,
+            solar_noon_min: None,
         };
         let create = ClientMessage::CreateSession {
             track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
@@ -4206,6 +4210,8 @@ mod tests {
             changeable: Some(2),
             track_rubber_pct: Some(90),
             sky_seed: None,
+            day_of_year: None,
+            solar_noon_min: None,
             ..SessionConditions::DEFAULT
         };
         let create = |conditions| ClientMessage::CreateSession {
@@ -4264,6 +4270,40 @@ mod tests {
             _ => panic!("Wrong message type"),
         }
         assert!(!String::from_utf8_lossy(&create_bytes).contains("sky_seed"));
+
+        // The host's date rides after the seed, and the echo names solar
+        // noon after it (the server's, from the track: 13:33 at Spa); a
+        // create or a join without either keeps the bytes above.
+        let dated = SessionConditions {
+            day_of_year: Some(200),
+            ..seeded
+        };
+        let dated_bytes = rmp_serde::to_vec_named(&create(dated)).unwrap();
+        println!("C_CreateSessionDate: {}", hex(&dated_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&dated_bytes).unwrap() {
+            ClientMessage::CreateSession { conditions, .. } => assert_eq!(conditions, dated),
+            _ => panic!("Wrong message type"),
+        }
+        assert!(!String::from_utf8_lossy(&seeded_bytes).contains("day_of_year"));
+        let sunned = SessionConditions {
+            solar_noon_min: Some(13 * 60 + 33),
+            ..dated
+        };
+        let sun_joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 3,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: sunned,
+            damage: Default::default(),
+            ai_skill: None,
+            race_seconds: None,
+            qualifying_seconds: None,
+            weekend: None,
+        });
+        let sun_bytes = rmp_serde::to_vec_named(&sun_joined).unwrap();
+        println!("S_SessionJoinedSun: {}", hex(&sun_bytes));
+        assert!(!String::from_utf8_lossy(&joined_bytes).contains("solar_noon_min"));
 
         let now = SkyNow {
             clock_s: 15 * 3600 + 30 * 60 + 15,

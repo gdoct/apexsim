@@ -43,7 +43,16 @@ None open.
 
 ## P3: nice to have
 
-### 1. Car content
+### 1. Session date
+
+- A Date row on the create screen's Conditions tab that sends
+  `day_of_year` (the server and the client's sky take it already,
+  [server/conditions.md](server/conditions.md)), and the tab's sun preview
+  (`ApexCreateSession::Look`) at the track's solar noon and the date.
+
+**Check:** a December create at Silverstone at 16:30 lights a dusk.
+
+### 2. Car content
 
 - The GT3 and LMP2 class wheels get sidewall lettering.
 - The HUD colours brakes by material as well as temperature (the client
@@ -51,7 +60,7 @@ None open.
 
 **Check:** the HUD on a carbon and a steel car; the wheels in car select.
 
-### 2. Server dashboard
+### 3. Server dashboard
 
 For people running a server for others
 ([server/operations.md](server/operations.md)).
@@ -61,7 +70,7 @@ For people running a server for others
 
 **Check:** a saved tick rate in force without touching the machine.
 
-### 3. Content tooling
+### 4. Content tooling
 
 - `ats-dress --explain` and a per-prop source stamp.
 - `ats-export --strict`, which fails on a dropped facet.

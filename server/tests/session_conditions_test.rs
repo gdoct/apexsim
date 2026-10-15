@@ -130,12 +130,23 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
         let joined = host.wait_joined().await?;
         // Clamped, and the air the host left to the weather named: the
         // server resolves it with the session's own id.
+        // Solar noon named from where the circuit is, before the air.
+        let site = {
+            let state = server.state.read().await;
+            let session = state.sessions.get(&joined.session_id).ok_or("no session")?;
+            session.track_config.clone()
+        };
         let expected = SessionConditions {
             weather: Weather::HeavyRain,
             time_of_day_minutes: 90,
             ..SessionConditions::DEFAULT
         }
+        .at_site(&site)
         .resolve(joined.session_id.as_u64_pair().0);
+        assert_eq!(
+            expected.solar_noon_min.is_some(),
+            site.metadata.longitude_deg.is_some()
+        );
         assert_eq!(
             joined.conditions, expected,
             "SessionJoined echoes the clamped, resolved conditions"
@@ -244,13 +255,15 @@ async fn a_session_created_without_conditions_is_a_sunny_afternoon() {
         host.tcp.flush().await?;
 
         let joined = host.wait_joined().await?;
-        assert_eq!(
-            joined.conditions,
-            SessionConditions::DEFAULT.resolve(joined.session_id.as_u64_pair().0),
-            "a sunny 13:00, its air named"
-        );
         let state = server.state.read().await;
         let session = state.sessions.get(&joined.session_id).ok_or("no session")?;
+        assert_eq!(
+            joined.conditions,
+            SessionConditions::DEFAULT
+                .at_site(&session.track_config)
+                .resolve(joined.session_id.as_u64_pair().0),
+            "a sunny 13:00, its air named and its sun placed"
+        );
         let shared = state.track_configs.get(&track_id).ok_or("no track")?;
         assert_eq!(
             session.track_config.track_surface.base_grip,

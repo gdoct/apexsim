@@ -59,6 +59,8 @@ echoed in `SessionJoined.Conditions` and listed in every `SessionSummary`.
 | `changeable` | 0 the sky holds, 1 settled, 2 changeable, 3 stormy | holds |
 | `track_rubber_pct` | rubber on the line at the start: 0 green, 50 calibrated, 100 rubbered | 50 |
 | `sky_seed` | the seed the forecast and the wind's direction are laid out from (`sky_seed_or`) | the session's id |
+| `day_of_year` | the date, 1..365: the sun's declination and summer time | the model day, 25 May (declination 20°) |
+| `solar_noon_min` | solar noon on the session's clock: the server's, from the track (`at_site`); a create's own is replaced | 13:00 |
 
 Every optional field is skipped on the wire when `None`, so an old client's
 create and an old server's join keep their bytes. `clamp` holds each figure
@@ -66,8 +68,10 @@ to its range. `create_session` (`server.rs`) calls `resolve(session id)`,
 which names every air figure (auto values: air 13-23 °C over the day, damped
 under cloud, in whole degrees; humidity 50-97%; wind 8-28 km/h by weather; snow's air -4 to 1 °C, wind
 10 km/h, humidity 85%),
-so the join and the listing always say what is simulated. `replay_tools`
-seeds the same resolution from `--seed`.
+so the join and the listing always say what is simulated. Before it,
+`at_site(track)` names `solar_noon_min` from where the circuit is (below),
+so the weather's own air follows the circuit's sun. `replay_tools` seeds
+the same resolution from `--seed`.
 
 ## The weather's grip (the bake)
 
@@ -133,8 +137,30 @@ content checksum: re-run `ats-export --all` after.
 
 The server works the sun out at `TrackConfig::latitude_deg()` (50° N when
 the YAML has none) for the track temperature, the headlights and the
-evaporation; the model day is late May with solar noon at 13:00, the
-client's `ApexSky::SunAt` to the letter. `ats-export` writes `latitude_deg`
+evaporation (`SessionConditions::sun_elevation_at`), the client's
+`ApexSky::SunAt` to the letter:
+
+- **The date** is the host's `day_of_year` (`sun_declination_deg`, Cooper's
+  formula: +23.4° at midsummer, -23.4° at midwinter), else the model day,
+  25 May, at exactly the old 20° declination. Nothing else follows the
+  season: the weather's own air is the same day's in December.
+- **Solar noon** is `data::solar_noon_minutes(latitude, longitude, day)` for
+  a track whose YAML names `longitude_deg`: 12:00 moved by the circuit's
+  distance from its zone's meridian, summer time and the equation of time.
+  The zone comes from `legal_clock`, a coarse map of where racing happens
+  (Britain, Ireland and Portugal on Greenwich time, the rest of western
+  Europe on Central European time, Eastern Europe, Singapore and Malaysia,
+  Mexico, Argentina, the US and Canadian zones by longitude, Australia's
+  with summer time in the south-east), else the meridian's own hour with no
+  summer time (the Gulf, Asia, Japan, Brazil). Summer time runs by the
+  European, North American or southern rule on the date. On the model day
+  Silverstone's noon is 13:01, Spa's 13:33, Monza's 13:20, Suzuka's 11:51,
+  Austin's 13:27, Melbourne's 12:17 (`solar_noon_stands_where_the_circuit_is`,
+  within three minutes of the almanac). A track without a longitude keeps
+  13:00. The weather's own air peaks two hours after solar noon.
+- The server sends both in `SessionJoined.Conditions`, and the client's
+  `ApexSky::Derive` reads them (`SolarNoonOf`, `DeclinationOf`), so the
+  client never needs the longitude. `ats-export` writes `latitude_deg`
 and `north_yaw_deg` (true north in the track frame, `DemGeoref::north_yaw_deg`)
 into the export manifest's `metadata`, so the client puts the sun where it
 stands over the real circuit; re-export a track for the client to see a
@@ -380,7 +406,9 @@ as `lap_flags` bits 5 and 6 (`LAP_FLAG_HEADLIGHTS`,
   --nocapture` ->
   `ApexGolden::C_CreateSessionAir` / `S_SessionJoinedAir` /
   `C_CreateSessionSky` / `S_SessionJoinedSky` / `C_CreateSessionSkySeed`
-  (a create with the host's `sky_seed`, last among the sky's keys).
+  (a create with the host's `sky_seed`, last among the sky's keys) /
+  `C_CreateSessionDate` (the host's `day_of_year` after it) /
+  `S_SessionJoinedSun` (the echo naming `solar_noon_min` last).
 - `CompactTelemetry.sky` (`network::SkyNow`, 19 positional fields: clock,
   weather, rain, cloud, road water, air, track, the wind now and where it
   blows toward, line rubber, time scale, next weather and when, then the

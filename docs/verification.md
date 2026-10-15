@@ -161,6 +161,14 @@ session while driving (notice, then the menu).
   over, and START NOW closing a card that is not ready. Only the server
   side (`ready_grid_test`) and the codec have run.
 
+### R10. Spa, sunny, 13:00
+
+`-ApexTrack=Spa -ApexWeather=sunny -ApexTimeOfDay=13:00`, a TV lap.
+
+- The sun at the circuit's own noon (`SessionJoined.Conditions.solar_noon_min`,
+  13:33 at Spa): at 13:00 it stands a little east of due south over the
+  circuit.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

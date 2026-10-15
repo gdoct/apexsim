@@ -194,6 +194,7 @@ pub fn start_race(opts: &SimulateOptions) -> Result<StartedRace, String> {
     // seeded race replays with the same wind.
     let conditions = opts
         .conditions
+        .at_site(&track)
         .resolve(opts.conditions.sky_seed_or(opts.seed.unwrap_or(0)));
     conditions.apply_to_track(&mut track);
 

@@ -257,6 +257,20 @@ bool FApexSkySiteTest::RunTest(const FString& Parameters)
 	// counter-clockwise yaw negated by the Y flip).
 	TestTrue(TEXT("north in the world"), FMath::IsNearlyEqual(Turned.WorldYawOfBearing(0.0f), -92.3f));
 	TestTrue(TEXT("east is a quarter turn clockwise of it"), FMath::IsNearlyEqual(Turned.WorldYawOfBearing(90.0f), -2.3f, 1e-3f));
+
+	// The server's solar noon and the host's date (`solar_noon_min`,
+	// `day_of_year`): the sun peaks at the circuit's noon, and a December
+	// day at 50 N is short and low (the server's `a_date_moves_the_sun`).
+	FApexSessionConditions SpaNoon = At(EApexWeather::Sunny, 13);
+	SpaNoon.TimeOfDayMinutes = 13 * 60 + 33;
+	SpaNoon.SolarNoonMin = 13 * 60 + 33;
+	TestTrue(TEXT("the sun peaks at the circuit's noon"),
+		FMath::IsNearlyEqual(Derive(SpaNoon).Sun.ElevationDeg, 60.0f, 0.01f));
+	FApexSessionConditions Winter = At(EApexWeather::Sunny, 13);
+	Winter.DayOfYear = 355;
+	TestTrue(TEXT("December's declination"), FMath::IsNearlyEqual(DeclinationOn(355), -23.44f, 0.1f));
+	TestTrue(TEXT("a December noon at 50 N is low"), FMath::IsNearlyEqual(Derive(Winter).Sun.ElevationDeg, 16.6f, 0.2f));
+	TestTrue(TEXT("no date is the model day"), FMath::IsNearlyEqual(DeclinationOf(At(EApexWeather::Sunny, 13)), DeclinationDeg));
 	return true;
 }
 

@@ -2406,6 +2406,20 @@ pub struct SessionConditions {
     /// replay or a test to get a known sky back.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sky_seed: Option<u64>,
+    /// The date, day of the year 1..=365 (1 January is 1): how high the
+    /// sun climbs and how long the day is (`sun_declination_deg`), and
+    /// whether the circuit keeps summer time. Absent, the model day: late
+    /// May ([`SUN_DECLINATION_DEG`], [`MODEL_DAY_OF_YEAR`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub day_of_year: Option<u16>,
+    /// Solar noon on the session's clock, minutes after midnight: the
+    /// server's to name, from where the circuit is
+    /// ([`SessionConditions::at_site`]: its longitude, its time zone,
+    /// summer time and the equation of time on the date). Absent (a track
+    /// that does not say where it is, or an older server), 13:00
+    /// ([`SOLAR_NOON_HOURS`]). A create's own is replaced.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub solar_noon_min: Option<u16>,
 }
 
 impl Default for SessionConditions {
@@ -2427,6 +2441,8 @@ impl SessionConditions {
         changeable: None,
         track_rubber_pct: None,
         sky_seed: None,
+        day_of_year: None,
+        solar_noon_min: None,
     };
     pub const MINUTES_PER_DAY: u16 = 24 * 60;
 
@@ -2465,7 +2481,56 @@ impl SessionConditions {
             changeable: self.changeable.map(|c| c.min(Self::MAX_CHANGEABLE)),
             track_rubber_pct: self.track_rubber_pct.map(|r| r.min(100)),
             sky_seed: self.sky_seed,
+            day_of_year: self.day_of_year.map(|d| d.clamp(1, DAYS_PER_YEAR)),
+            solar_noon_min: self.solar_noon_min.map(|m| m % Self::MINUTES_PER_DAY),
         }
+    }
+
+    /// These conditions over `track`: solar noon named from where the
+    /// circuit is (its `metadata.longitude_deg` and latitude,
+    /// [`solar_noon_minutes`]), or none (13:00) for a track that does not
+    /// say. The server calls it on create, after `resolve`, so the join
+    /// tells the client where the sun stands.
+    pub fn at_site(self, track: &TrackConfig) -> Self {
+        let longitude = track.metadata.longitude_deg.filter(|l| l.is_finite());
+        Self {
+            solar_noon_min: longitude
+                .map(|lon| solar_noon_minutes(track.latitude_deg(), lon, self.day())),
+            ..self
+        }
+    }
+
+    /// The day of the year the sky is worked out for.
+    pub fn day(&self) -> u16 {
+        self.day_of_year
+            .map_or(MODEL_DAY_OF_YEAR, |d| d.clamp(1, DAYS_PER_YEAR))
+    }
+
+    /// Solar noon on the session's clock, hours.
+    pub fn solar_noon_hours(&self) -> f32 {
+        self.solar_noon_min.map_or(SOLAR_NOON_HOURS, |m| {
+            (m % Self::MINUTES_PER_DAY) as f32 / 60.0
+        })
+    }
+
+    /// The sun's declination on the session's date, degrees: the model
+    /// day's [`SUN_DECLINATION_DEG`] exactly when no date is named.
+    pub fn sun_declination_deg(&self) -> f32 {
+        match self.day_of_year {
+            None => SUN_DECLINATION_DEG,
+            Some(_) => sun_declination_deg(self.day()),
+        }
+    }
+
+    /// The sun's elevation, degrees, at `minutes` on this session's day
+    /// over a circuit `latitude_deg` north.
+    pub fn sun_elevation_at(&self, latitude_deg: f32, minutes: f32) -> f32 {
+        sun_elevation_deg(
+            latitude_deg,
+            minutes,
+            self.solar_noon_hours(),
+            self.sun_declination_deg(),
+        )
     }
 
     /// The seed the sky is laid out from: the host's `sky_seed`, else the
@@ -2611,7 +2676,7 @@ impl SessionConditions {
     /// N, solar noon at 13:00 — so the server's idea of dusk is the one the
     /// player sees.
     pub fn sun_elevation_deg(&self) -> f32 {
-        sun_elevation_deg(DEFAULT_LATITUDE_DEG, self.time_of_day_minutes as f32)
+        self.sun_elevation_at(DEFAULT_LATITUDE_DEG, self.time_of_day_minutes as f32)
     }
 
     /// The air temperature, °C, for this weather at this hour, on the sky
@@ -2630,9 +2695,11 @@ impl SessionConditions {
     pub fn auto_air_temperature_c(&self) -> f32 {
         const COOLEST_C: f32 = 13.0;
         const SWING_C: f32 = 10.0;
-        const WARMEST_HOURS: f32 = 15.0;
+        // Two hours after solar noon: 15:00 where noon is 13:00.
+        const WARMEST_AFTER_NOON_H: f32 = 2.0;
+        let warmest = self.solar_noon_hours() + WARMEST_AFTER_NOON_H;
         let hours = (self.time_of_day_minutes % Self::MINUTES_PER_DAY) as f32 / 60.0;
-        let day = 0.5 + 0.5 * ((hours - WARMEST_HOURS) / 24.0 * std::f32::consts::TAU).cos();
+        let day = 0.5 + 0.5 * ((hours - warmest) / 24.0 * std::f32::consts::TAU).cos();
         let (swing, offset) = match self.weather {
             Weather::Sunny => (1.0, 0.0),
             Weather::Cloudy => (0.8, -0.5),
@@ -2658,7 +2725,7 @@ impl SessionConditions {
         if self.weather.is_wet() || self.weather.is_snow() {
             return air - 1.0;
         }
-        let sun = sun_elevation_deg(latitude_deg, self.time_of_day_minutes as f32);
+        let sun = self.sun_elevation_at(latitude_deg, self.time_of_day_minutes as f32);
         air + solar_gain_c(sun, self.weather.cloud())
     }
 
@@ -2689,21 +2756,159 @@ pub fn wind_onto_track(track: &TrackConfig, [wx, wy]: [f32; 2]) -> [f32; 2] {
 pub const DEFAULT_LATITUDE_DEG: f32 = 50.0;
 /// The model day's solar declination, degrees: a day in late May.
 pub const SUN_DECLINATION_DEG: f32 = 20.0;
-/// Solar noon on the local clock (summer time).
+/// The model day, day of the year: 25 May.
+pub const MODEL_DAY_OF_YEAR: u16 = 145;
+pub const DAYS_PER_YEAR: u16 = 365;
+/// Solar noon on the local clock (summer time) where the track does not
+/// say where it is.
 pub const SOLAR_NOON_HOURS: f32 = 13.0;
 /// What a high sun through a clear sky puts into the asphalt over the air.
 pub const SOLAR_GAIN_C: f32 = 20.0;
 
-/// The sun's elevation, degrees, `minutes` after midnight on the model
-/// day at `latitude_deg` north (south negative): the client's
-/// `ApexSky::SunAt` to the letter.
-pub fn sun_elevation_deg(latitude_deg: f32, minutes: f32) -> f32 {
+/// The sun's elevation, degrees, `minutes` after midnight at `latitude_deg`
+/// north (south negative), the sun at its height at `noon_hours` on a day
+/// of `declination_deg`: the client's `ApexSky::SunAt` to the letter.
+pub fn sun_elevation_deg(
+    latitude_deg: f32,
+    minutes: f32,
+    noon_hours: f32,
+    declination_deg: f32,
+) -> f32 {
     let hours = minutes.rem_euclid(SessionConditions::MINUTES_PER_DAY as f32) / 60.0;
     let lat = latitude_deg.clamp(-89.0, 89.0).to_radians();
-    let dec = SUN_DECLINATION_DEG.to_radians();
-    let hour_angle = ((hours - SOLAR_NOON_HOURS) * 15.0).to_radians();
+    let dec = declination_deg.to_radians();
+    let hour_angle = ((hours - noon_hours) * 15.0).to_radians();
     let sin_elev = lat.sin() * dec.sin() + lat.cos() * dec.cos() * hour_angle.cos();
     sin_elev.clamp(-1.0, 1.0).asin().to_degrees()
+}
+
+/// The sun's declination on day `day` of the year, degrees (Cooper's
+/// formula): +23.4 at midsummer in the north, -23.4 at midwinter. The
+/// client's `ApexSky::DeclinationOn`.
+pub fn sun_declination_deg(day: u16) -> f32 {
+    let n = day.clamp(1, DAYS_PER_YEAR) as f32;
+    23.44 * ((284.0 + n) / DAYS_PER_YEAR as f32 * std::f32::consts::TAU).sin()
+}
+
+/// The equation of time on day `day`, minutes: how far the sun runs ahead
+/// of the mean clock (+16 in early November, -14 in mid February).
+pub fn equation_of_time_min(day: u16) -> f32 {
+    let b = (day.clamp(1, DAYS_PER_YEAR) as f32 - 81.0) / 364.0 * std::f32::consts::TAU;
+    9.87 * (2.0 * b).sin() - 7.53 * b.cos() - 1.5 * b.sin()
+}
+
+/// Summer time: which part of the year, if any, a circuit's clocks go on
+/// an hour.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SummerTime {
+    None,
+    /// The European rule: the end of March to the end of October.
+    Europe,
+    /// The North American rule: the middle of March to the start of
+    /// November.
+    America,
+    /// The southern rule: the start of October to the start of April.
+    South,
+}
+
+impl SummerTime {
+    fn hours_on(self, day: u16) -> f32 {
+        let on = match self {
+            SummerTime::None => false,
+            SummerTime::Europe => (88..300).contains(&day),
+            SummerTime::America => (69..307).contains(&day),
+            SummerTime::South => !(95..278).contains(&day),
+        };
+        if on {
+            1.0
+        } else {
+            0.0
+        }
+    }
+}
+
+/// The legal clock over a circuit at `latitude_deg`, `longitude_deg`: hours
+/// over UTC in standard time and its summer time. A coarse map of where
+/// racing happens (most of Europe keeps Central European time well west of
+/// its meridian, Spain and France included; the Americas' zones are cut by
+/// longitude); elsewhere the meridian's own hour with no summer time, which
+/// is right for the Gulf, Asia, Japan and Brazil.
+fn legal_clock(latitude_deg: f32, longitude_deg: f32) -> (f32, SummerTime) {
+    let (lat, lon) = (latitude_deg, longitude_deg);
+    let within = |lat_lo: f32, lat_hi: f32, lon_lo: f32, lon_hi: f32| {
+        (lat_lo..lat_hi).contains(&lat) && (lon_lo..lon_hi).contains(&lon)
+    };
+    // Britain and Ireland, then Portugal: Greenwich time.
+    if within(49.8, 61.0, -11.0, 1.8) || within(36.8, 42.2, -9.6, -6.2) {
+        return (0.0, SummerTime::Europe);
+    }
+    // Spain to Poland, Italy to Norway: Central European time.
+    if within(35.0, 71.0, -9.6, 24.0) {
+        return (1.0, SummerTime::Europe);
+    }
+    // Finland, the Baltics, Romania, Greece: Eastern European time.
+    if within(34.5, 71.0, 24.0, 30.0) {
+        return (2.0, SummerTime::Europe);
+    }
+    // Singapore and Malaysia keep China's hour.
+    if within(-2.0, 8.0, 99.0, 120.0) {
+        return (8.0, SummerTime::None);
+    }
+    // Most of Mexico: Central time, no summer time since 2022.
+    if within(14.0, 25.8, -118.0, -86.0) {
+        return (-6.0, SummerTime::None);
+    }
+    // Argentina and Uruguay.
+    if within(-56.0, -21.0, -74.0, -53.0) {
+        return (-3.0, SummerTime::None);
+    }
+    // The United States and Canada, by zone.
+    if within(25.0, 72.0, -170.0, -50.0) {
+        let hours = if lon >= -67.0 && lat >= 43.0 {
+            -4.0
+        } else if lon >= -87.5 {
+            -5.0
+        } else if lon >= -102.0 {
+            -6.0
+        } else if lon >= -114.0 {
+            -7.0
+        } else {
+            -8.0
+        };
+        return (hours, SummerTime::America);
+    }
+    // Australia: the south-east keeps summer time, Queensland and the west
+    // do not.
+    if within(-44.0, -10.0, 113.0, 154.0) {
+        let hours = if lon >= 141.0 {
+            10.0
+        } else if lon >= 129.0 {
+            9.5
+        } else {
+            8.0
+        };
+        let summer = if lat < -28.2 && lon >= 129.0 {
+            SummerTime::South
+        } else {
+            SummerTime::None
+        };
+        return (hours, summer);
+    }
+    ((lon / 15.0).round(), SummerTime::None)
+}
+
+/// Solar noon on a circuit's legal clock, minutes after midnight, on day
+/// `day` of the year: 12:00 moved by the circuit's distance from its
+/// zone's meridian (four minutes a degree), summer time and the equation
+/// of time.
+pub fn solar_noon_minutes(latitude_deg: f32, longitude_deg: f32, day: u16) -> u16 {
+    let (zone_h, summer) = legal_clock(latitude_deg, longitude_deg);
+    let hours = 12.0 + zone_h + summer.hours_on(day)
+        - longitude_deg / 15.0
+        - equation_of_time_min(day) / 60.0;
+    (hours * 60.0)
+        .round()
+        .rem_euclid(SessionConditions::MINUTES_PER_DAY as f32) as u16
 }
 
 /// What the sun at `sun_elevation_deg` puts into dry asphalt through a sky

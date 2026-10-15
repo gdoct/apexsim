@@ -523,6 +523,8 @@ impl StreamHeader {
             changeable: None,
             track_rubber_pct: None,
             sky_seed: None,
+            day_of_year: None,
+            solar_noon_min: None,
         };
 
         let session_kind = match rd.uint()? {
@@ -2776,6 +2778,8 @@ mod tests {
                 changeable: None,
                 track_rubber_pct: None,
                 sky_seed: None,
+                day_of_year: None,
+                solar_noon_min: None,
             },
             session_kind: SessionKind::Multiplayer,
             game_mode: GameMode::Race,

@@ -149,6 +149,18 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 			ApexProtocol::EncodeCreateSession(TrackId, 8, 3, 5, EApexSessionKind::Multiplayer, FApexAllowedAssists(), Seeded),
 			ApexGolden::C_CreateSessionSkySeed);
 		TestTrue(TEXT("a seed is not the sky it was rolled for"), Seeded != Sky);
+
+		// The host's date rides after the seed; solar noon is the server's,
+		// so a create never sends one even when the conditions carry it.
+		FApexSessionConditions Dated = Seeded;
+		Dated.DayOfYear = 200;
+		Dated.SolarNoonMin = 13 * 60 + 33;
+		CheckBytes(TEXT("CreateSession with a date"),
+			ApexProtocol::EncodeCreateSession(TrackId, 8, 3, 5, EApexSessionKind::Multiplayer, FApexAllowedAssists(), Dated),
+			ApexGolden::C_CreateSessionDate);
+		FApexSessionConditions Late = Sky;
+		Late.DayOfYear = 999;
+		TestEqual(TEXT("Sky.DayOfYear clamped"), Late.Clamped().DayOfYear, FApexSessionConditions::DaysPerYear);
 	}
 
 	CheckBytes(TEXT("JoinSession"),
@@ -612,6 +624,24 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 		Green.Changeable = 0;
 		TestEqual(TEXT("A frozen clock and a fixed sky say nothing; a green track does"), Green.Describe(),
 			FString(TEXT("Sunny · 13:00 · green track")));
+	}
+
+	{
+		// The echo names the date and the circuit's solar noon; an older
+		// echo names neither (13:00 on the model day).
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined with the sun"), ApexGolden::S_SessionJoinedSun, Message))
+		{
+			TestEqual(TEXT("Sun.day_of_year"), Message.Conditions.DayOfYear, 200);
+			TestEqual(TEXT("Sun.solar_noon_min"), Message.Conditions.SolarNoonMin, 13 * 60 + 33);
+			TestTrue(TEXT("Sun.sky_seed kept"), Message.Conditions.HasSkySeed());
+		}
+		FApexServerMessage Older;
+		if (Decode(TEXT("SessionJoined without the sun"), ApexGolden::S_SessionJoinedSky, Older))
+		{
+			TestFalse(TEXT("no date"), Older.Conditions.HasDate());
+			TestFalse(TEXT("no solar noon"), Older.Conditions.HasSolarNoon());
+		}
 	}
 
 	{

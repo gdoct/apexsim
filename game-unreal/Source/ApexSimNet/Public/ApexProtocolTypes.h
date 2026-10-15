@@ -745,8 +745,25 @@ struct APEXSIMNET_API FApexSessionConditions
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
 	bool bHasSkySeed = false;
 
+	static constexpr int32 DaysPerYear = 365;
+
+	/** The date, day of the year 1..365 (`day_of_year`): how high the sun
+	 * climbs and how long the day is. Auto (and left off the wire) for the
+	 * model day, late May. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 DayOfYear = Auto;
+
+	/** Solar noon on the session's clock, minutes after midnight
+	 * (`solar_noon_min`): the server names it from where the circuit is
+	 * and echoes it in SessionJoined; a create never sends one. Auto for
+	 * 13:00 (`ApexSky::SolarNoonHours`). */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 SolarNoonMin = Auto;
+
 	bool HasAirTemp() const { return AirTempC != AutoAirTemp; }
 	bool HasSkySeed() const { return bHasSkySeed; }
+	bool HasDate() const { return DayOfYear >= 1; }
+	bool HasSolarNoon() const { return SolarNoonMin >= 0; }
 	bool HasWind() const { return WindKph >= 0; }
 	bool HasWindDirection() const { return WindFromDeg >= 0; }
 	bool HasTimeScale() const { return TimeScale >= 0; }
@@ -809,6 +826,8 @@ struct APEXSIMNET_API FApexSessionConditions
 		Out.TimeScale = Out.TimeScale < 0 ? Auto : FMath::Min(Out.TimeScale, MaxTimeScale);
 		Out.Changeable = Out.Changeable < 0 ? Auto : FMath::Min(Out.Changeable, MaxChangeable);
 		Out.TrackRubberPct = Out.TrackRubberPct < 0 ? Auto : FMath::Min(Out.TrackRubberPct, 100);
+		Out.DayOfYear = Out.DayOfYear < 0 ? Auto : FMath::Clamp(Out.DayOfYear, 1, DaysPerYear);
+		Out.SolarNoonMin = Out.SolarNoonMin < 0 ? Auto : Out.SolarNoonMin % MinutesPerDay;
 		return Out;
 	}
 
@@ -818,7 +837,8 @@ struct APEXSIMNET_API FApexSessionConditions
 	{
 		return Weather == EApexWeather::Sunny && TimeOfDayMinutes == DefaultTimeOfDayMinutes
 			&& !HasAirTemp() && HumidityPct < 0 && !HasWind() && !HasWindDirection()
-			&& !HasTimeScale() && !HasChangeable() && !HasTrackRubber() && !HasSkySeed();
+			&& !HasTimeScale() && !HasChangeable() && !HasTrackRubber() && !HasSkySeed()
+			&& !HasDate() && !HasSolarNoon();
 	}
 
 	/** Hours since midnight, fractional. */
@@ -887,7 +907,8 @@ struct APEXSIMNET_API FApexSessionConditions
 			&& WindKph == Other.WindKph && WindFromDeg == Other.WindFromDeg
 			&& TimeScale == Other.TimeScale && Changeable == Other.Changeable
 			&& TrackRubberPct == Other.TrackRubberPct
-			&& bHasSkySeed == Other.bHasSkySeed && (!bHasSkySeed || SkySeed == Other.SkySeed);
+			&& bHasSkySeed == Other.bHasSkySeed && (!bHasSkySeed || SkySeed == Other.SkySeed)
+			&& DayOfYear == Other.DayOfYear && SolarNoonMin == Other.SolarNoonMin;
 	}
 	bool operator!=(const FApexSessionConditions& Other) const { return !(*this == Other); }
 };

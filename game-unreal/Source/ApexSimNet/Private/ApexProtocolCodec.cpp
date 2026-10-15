@@ -145,6 +145,16 @@ namespace
 				Out.SkySeed = Raw;
 				Out.bHasSkySeed = true;
 			}
+			else if (Key == TEXT("day_of_year"))
+			{
+				bOk = Reader.ReadUInt64(Raw);
+				Out.DayOfYear = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16));
+			}
+			else if (Key == TEXT("solar_noon_min"))
+			{
+				bOk = Reader.ReadUInt64(Raw);
+				Out.SolarNoonMin = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16));
+			}
 			else
 			{
 				bOk = Reader.SkipValue();
@@ -2826,7 +2836,7 @@ namespace ApexProtocol
 		Writer.WriteMapHeader(2 + (Clamped.HasAirTemp() ? 1 : 0) + (Clamped.HumidityPct >= 0 ? 1 : 0)
 			+ (Clamped.HasWind() ? 1 : 0) + (Clamped.HasWindDirection() ? 1 : 0)
 			+ (Clamped.HasTimeScale() ? 1 : 0) + (Clamped.HasChangeable() ? 1 : 0) + (Clamped.HasTrackRubber() ? 1 : 0)
-			+ (Clamped.HasSkySeed() ? 1 : 0));
+			+ (Clamped.HasSkySeed() ? 1 : 0) + (Clamped.HasDate() ? 1 : 0));
 		Writer.WriteString("weather");
 		Writer.WriteUInt(static_cast<uint8>(Clamped.Weather));
 		Writer.WriteString("time_of_day_minutes");
@@ -2871,6 +2881,13 @@ namespace ApexProtocol
 		{
 			Writer.WriteString("sky_seed");
 			Writer.WriteUInt(Clamped.SkySeed);
+		}
+		// The host's date when picked; solar noon is the server's to name
+		// from the track, so a create never sends one.
+		if (Clamped.HasDate())
+		{
+			Writer.WriteString("day_of_year");
+			Writer.WriteUInt(static_cast<uint16>(Clamped.DayOfYear));
 		}
 	}
 

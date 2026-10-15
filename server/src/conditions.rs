@@ -28,7 +28,7 @@
 //! Telemetry carries the result to every client (`network::SkyNow`), which
 //! lights its world by it.
 
-use crate::data::{air_density, solar_gain_c, sun_elevation_deg, SessionConditions, Weather};
+use crate::data::{air_density, solar_gain_c, SessionConditions, Weather};
 use crate::wind::hash01;
 
 /// The rain builds toward the weather's and eases off over this long, s.
@@ -313,7 +313,8 @@ impl LiveConditions {
 
     /// The sun's elevation now, degrees.
     pub fn sun_elevation_deg(&self) -> f32 {
-        sun_elevation_deg(self.latitude_deg, self.clock_min)
+        self.start
+            .sun_elevation_at(self.latitude_deg, self.clock_min)
     }
 
     /// Whether a car's lights are on when nobody has touched the switch:
@@ -725,5 +726,92 @@ mod tests {
             live.step(s as f32, 1.0, 0.0);
         }
         assert_eq!((live.wind_kph, live.humidity), (wind, humidity));
+    }
+
+    /// Solar noon on the circuit's own clock on the model day (25 May),
+    /// against the almanac's figure for that date, within three minutes.
+    #[test]
+    fn solar_noon_stands_where_the_circuit_is() {
+        use crate::data::{solar_noon_minutes, MODEL_DAY_OF_YEAR};
+        let cases = [
+            ("Silverstone", 52.07, -1.02, 13 * 60 + 1),
+            ("Spa", 50.44, 5.98, 13 * 60 + 33),
+            ("Zandvoort", 52.39, 4.54, 13 * 60 + 39),
+            ("Barcelona", 41.57, 2.26, 13 * 60 + 48),
+            ("Monza", 45.62, 9.27, 13 * 60 + 20),
+            ("Suzuka", 34.84, 136.54, 11 * 60 + 51),
+            ("Austin", 30.13, -97.64, 13 * 60 + 28),
+            ("Mexico City", 19.40, -99.09, 12 * 60 + 33),
+            ("Interlagos", -23.70, -46.70, 12 * 60 + 4),
+            ("Melbourne", -37.85, 144.97, 12 * 60 + 17),
+            ("Marina Bay", 1.29, 103.86, 13 * 60),
+            ("Yas Marina", 24.47, 54.60, 12 * 60 + 18),
+        ];
+        for (name, lat, lon, almanac) in cases {
+            let noon = solar_noon_minutes(lat, lon, MODEL_DAY_OF_YEAR) as i32;
+            println!("{name}: {:02}:{:02}", noon / 60, noon % 60);
+            assert!(
+                (noon - almanac).abs() <= 3,
+                "{name}: {noon} against {almanac}"
+            );
+        }
+        // Summer time goes with the season: Silverstone in January, Melbourne
+        // in its own summer.
+        assert_eq!(solar_noon_minutes(52.07, -1.02, 15) / 60, 12);
+        assert_eq!(solar_noon_minutes(-37.85, 144.97, 15) / 60, 13);
+    }
+
+    /// A session with no date is the model day to the bit; a date moves
+    /// the sun's height and the length of the day.
+    #[test]
+    fn a_date_moves_the_sun_and_no_date_is_late_may() {
+        let may = SessionConditions::DEFAULT;
+        assert_eq!(may.sun_declination_deg(), crate::data::SUN_DECLINATION_DEG);
+        assert_eq!(may.solar_noon_hours(), crate::data::SOLAR_NOON_HOURS);
+        let winter = SessionConditions {
+            day_of_year: Some(355),
+            ..may
+        };
+        let summer = SessionConditions {
+            day_of_year: Some(172),
+            ..may
+        };
+        assert!((winter.sun_declination_deg() + 23.44).abs() < 0.1);
+        assert!((summer.sun_declination_deg() - 23.44).abs() < 0.1);
+        let noon = |c: &SessionConditions| c.sun_elevation_at(50.0, 13.0 * 60.0);
+        assert!((noon(&winter) - 16.6).abs() < 0.2, "{}", noon(&winter));
+        assert!(noon(&summer) > noon(&may));
+        // At 50° N a December 17:30 is night, a June one broad day.
+        assert!(winter.sun_elevation_at(50.0, 17.5 * 60.0) < 0.0);
+        assert!(summer.sun_elevation_at(50.0, 17.5 * 60.0) > 20.0);
+        // The asphalt feels it.
+        assert!(winter.track_temperature_c_at(50.0) < summer.track_temperature_c_at(50.0) - 5.0);
+    }
+
+    /// The server names solar noon from the track on create; a track that
+    /// does not say where it is keeps 13:00, and a create's own figure is
+    /// never kept.
+    #[test]
+    fn solar_noon_is_named_from_the_track() {
+        let mut track = crate::data::TrackConfig::default();
+        let asked = SessionConditions {
+            solar_noon_min: Some(600),
+            ..SessionConditions::DEFAULT
+        };
+        assert_eq!(asked.at_site(&track).solar_noon_min, None);
+        track.metadata.latitude_deg = Some(50.44);
+        track.metadata.longitude_deg = Some(5.98);
+        let spa = asked.at_site(&track);
+        assert!(spa
+            .solar_noon_min
+            .is_some_and(|m| (13 * 60 + 30..13 * 60 + 36).contains(&m)));
+        // Its air follows the later sun: 13:00 at Spa is a little cooler
+        // than 13:00 where noon is at 13:00, and the live sky agrees.
+        assert!(spa.auto_air_temperature_c() < SessionConditions::DEFAULT.auto_air_temperature_c());
+        let live = LiveConditions::new(spa.resolve(3), 50.44, 0.0, 3);
+        assert_eq!(
+            live.sun_elevation_deg(),
+            spa.sun_elevation_at(50.44, 13.0 * 60.0)
+        );
     }
 }
