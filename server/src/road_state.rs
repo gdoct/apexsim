@@ -679,20 +679,34 @@ impl RoadState {
         let rubber = Self::bin_value(&self.rubber, base, across);
         let marbles = Self::bin_value(&self.marbles, base, across);
         let baked = self.baked_water;
-        let wet = road_grip_for(water) / road_grip_for(baked).max(1e-3);
-        let mut grip =
-            wet * rubber_grip(rubber, water) * (1.0 - MARBLE_GRIP * marbles.clamp(0.0, 1.0));
+        let mut wet = road_grip_for(water) / road_grip_for(baked).max(1e-3);
+        let rubbered = rubber_grip(rubber, water) * (1.0 - MARBLE_GRIP * marbles.clamp(0.0, 1.0));
+        let mut grip = wet * rubbered;
+        // The grass holds the cell's water: nobody dries it.
+        let mut off_grip = road_grip_for(cell.depth) * off_track_grip_for(cell.depth)
+            / (road_grip_for(baked) * off_track_grip_for(baked)).max(1e-3);
         // Snow and ice only move a road that has some or was baked with it.
-        let mut verge = 1.0;
         if self.baked_snow > 0.0 || self.snowy {
             let cover = Self::bin_value(&self.snow, base, across);
             let ice = Self::bin_value(&self.ice, base, across);
-            grip *= snow_grip(cover, ice, self.baked_snow);
-            verge = snow_grip(cell.verge_snow, 0.0, self.baked_snow);
+            let verge = cell.verge_snow;
+            // The slush is the cover's own (its grip is in `snow_grip`):
+            // the water counts as water only as far as the road is bare,
+            // so a road melted clear grips as wet or dry asphalt does, and
+            // a covered one as the cover, whatever water is under it.
+            let under = |w: f32, c: f32| w * (1.0 - c.clamp(0.0, 1.0).sqrt());
+            let road = |w: f32, c: f32| road_grip_for(under(w, c));
+            let grass = |w: f32, c: f32| road(w, c) * off_track_grip_for(under(w, c));
+            let reference = road(baked, self.baked_snow).max(1e-3);
+            grip =
+                road(water, cover) / reference * rubbered * snow_grip(cover, ice, self.baked_snow);
+            // The run-off and the pit lane, which no racing wheel clears,
+            // carry the verge's cover: buried under a snowfall, bare once
+            // the track melts it.
+            wet = road(water, verge) / reference * snow_grip(verge, 0.0, self.baked_snow);
+            off_grip = grass(cell.depth, verge) / grass(baked, self.baked_snow).max(1e-3)
+                * snow_grip(verge, 0.0, self.baked_snow);
         }
-        // The grass holds the cell's water: nobody dries it.
-        let off_grip = road_grip_for(cell.depth) * off_track_grip_for(cell.depth) * verge
-            / (road_grip_for(baked) * off_track_grip_for(baked)).max(1e-3);
         RoadSample {
             water,
             grip,
@@ -1144,7 +1158,7 @@ fn raceline_lateral_at(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data::{RacelinePoint, TrackPoint};
+    use crate::data::{RacelinePoint, TrackPoint, Weather};
 
     /// A 2 km straight 16 m wide with a compression 3 m deep around 1000 m
     /// and a raceline 2 m right of the centerline.
@@ -1275,8 +1289,13 @@ mod tests {
         }
         let s = road.sample(500.0, 0.0);
         assert!(road.has_snow());
-        // The covered figure, less the slush on a road baked dry.
-        assert!(s.grip < 0.3 && s.grip > 0.24, "{}", s.grip);
+        // The covered figure: the slush is the cover's own.
+        assert!((s.grip - 0.28).abs() < 0.01, "{}", s.grip);
+        assert!(
+            s.wet_grip < 0.3,
+            "the run-off is buried too: {}",
+            s.wet_grip
+        );
         assert!(road.mean_line_snow() > 0.95);
         assert!(road.sample(500.0, 12.0).off_grip < 0.5, "the verge too");
         // The snow stops; a track over freezing melts it away.
@@ -1291,6 +1310,53 @@ mod tests {
             !road.has_snow(),
             "nothing left: the sample is neutral again"
         );
+    }
+
+    /// A snow session's road melted clear grips as asphalt does: wet while
+    /// the melt water stands, dry once it has drained, the covered bake's
+    /// 0.28 back to 1.0. The run-off and the pit lane melt with the verge.
+    #[test]
+    fn a_road_melted_clear_grips_as_asphalt_and_the_run_off_clears_with_it() {
+        let mut road = RoadState::new(&snowy_track(-3.0), RUBBER_REFERENCE);
+        let covered = Weather::Snow.road_grip_factor();
+        let start = road.sample(500.0, 0.0);
+        assert!((start.wet_grip - 1.0).abs() < 1e-6, "{}", start.wet_grip);
+        assert!((start.off_grip - 1.0).abs() < 1e-6, "{}", start.off_grip);
+        road.snowfall = 0.0;
+        road.track_c = 8.0;
+        let mut wet_seen = false;
+        for t in 0..7200 {
+            road.step(1.0, 1.0);
+            let s = road.sample(500.0, 0.0);
+            if t == 400 {
+                // Melted, the melt water still on it: wet asphalt.
+                let absolute = s.grip * covered;
+                let asphalt = road_grip_for(s.water);
+                println!(
+                    "melted at 400 s: water {:.2}, grip {absolute:.3} (asphalt {asphalt:.3})",
+                    s.water
+                );
+                wet_seen = s.water > 0.05;
+                assert!(road.mean_line_snow() < 0.01);
+                assert!((absolute - asphalt).abs() < 0.01, "{absolute} vs {asphalt}");
+            }
+        }
+        let s = road.sample(500.0, 0.0);
+        let absolute = s.grip * covered;
+        println!(
+            "drained: water {:.3}, grip {absolute:.3}, run-off {:.3}",
+            s.water,
+            s.wet_grip * covered
+        );
+        assert!(wet_seen, "the melt leaves water a while");
+        assert!(s.water < 0.01, "{}", s.water);
+        assert!((absolute - 1.0).abs() < 0.01, "bone dry: {absolute}");
+        assert!(
+            (s.wet_grip * covered - 1.0).abs() < 0.01,
+            "the run-off: {}",
+            s.wet_grip
+        );
+        assert!(s.off_grip > 3.0, "the grass is bare again: {}", s.off_grip);
     }
 
     #[test]

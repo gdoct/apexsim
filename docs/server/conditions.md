@@ -251,7 +251,14 @@ off the road, piles up and retires cars inside three minutes.
 already most of the way there) against the baked
 cover, less the ice, and is multiplied into the sample's `grip`, so the road
 is exactly as baked at the start of a snow session and a dry-baked road
-under new snow falls to the covered figure.
+under new snow falls to the covered figure. The slush is the cover's own:
+in a snowy sample the water counts as water only as far as the road is bare
+(times `1 - sqrt(cover)`, against the baked road worked out the same way), so
+a covered road grips as the cover whatever lies under it, and a road melted
+clear grips as wet asphalt while the melt water stands and as dry asphalt
+(the covered bake's 0.28 back to 1.0) once it has drained. The run-off and
+the pit lane (`wet_grip`), which no racing wheel clears, carry the verge's
+cover the same way: buried under a snowfall, bare once the track melts it.
 
 - The cover builds toward 1 under snowfall (`SNOWFALL_RATE`: ten minutes
   from bare to 90%). Every wheel pass packs its bin down toward

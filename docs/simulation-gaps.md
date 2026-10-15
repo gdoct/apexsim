@@ -43,7 +43,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 | The wind's direction holds for the session (only its mean follows the weather, `LiveConditions::wind_target_kph`): a front does not veer it. | Low | Low |
 | The day is late May everywhere (no date, no season) and solar noon is 13:00 (`data::SOLAR_NOON_HOURS`) whatever the circuit's longitude and time zone. | Low | Low |
 | Overnight cooling has no dew or fog; an evening session at a humid circuit is as clear as noon. | Med | Low |
-| Snow: a road that melts clear after a snow spell grips only as the packed line does (`snow_grip` is 1/0.28 of the covered road at most, 3.6, and the water on it then drains as after rain), not as bone-dry asphalt would; the run-off and the pit lane carry no cover or ice of their own (they grip as the baked road, the lane never clears); the verge's cover is one figure a cell. | Low | Low |
+| Snow: the run-off and the pit lane carry the verge's cover (one figure a cell, no ice): the cars in the pit lane never pack it, and the lane's own station is not the lap's, so it reads the cover of the lap cell beside it. | Low | Low |
 | Snow: the AI knows the snow's grip exactly (its speed profile is baked on the covered road, `surface_grip_share` reads the line) and still cannot hold 0.28 on cold tyres, so a snow race is a pile-up; it has no feel for a road it misjudges and no snow technique (slower, earlier, straighter inputs) that would let a careful driver get round. There is no winter compound (a car.toml `snow_grip`, studs) and no gritting or salting as a session rule; sleet (snow at 1 to 3 °C that lands as water) and hail are not modelled. | Med | Med |
 
 ## AI and strategy
