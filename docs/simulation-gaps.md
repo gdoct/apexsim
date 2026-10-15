@@ -30,7 +30,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 | Gap | Effort | Impact |
 |---|---|---|
 | The three tread zones take the heat's landing from camber, lateral force and pressure (`tyre_thermal::zone_shares`); toe scrub and the carcass's deflection under braking are not in it, and the grip reads the mean rather than penalising a spread. | Med | Low |
-| A slow puncture is a fixed leak rate (`TireData::leak_kpa_per_s`); the tyre's temperature and the leak's cause do not change it. | Low | Low |
 
 ## Track and environment
 

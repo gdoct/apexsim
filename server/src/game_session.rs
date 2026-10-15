@@ -83,9 +83,14 @@ pub const DEBRIS_REACH_M: f32 = 1.0;
 pub const DEBRIS_STRIKE_PCT: f32 = 3.0;
 pub const DEBRIS_STRIKE_SCRUB: f32 = 0.01;
 pub const DEBRIS_PUNCTURE_CHANCE: f32 = 0.3;
-/// Half the punctures are slow: a leak of this many kPa/s at most and at
-/// least, which has the tyre flat in half a lap to a few laps.
-const SLOW_LEAK_KPA_PER_S: (f32, f32) = (1.0, 6.0);
+/// Half the punctures are slow: a leak of this many kPa/s at least and at
+/// most at the set pressure (`tyre_thermal::leak_rate_kpa_per_s` moves it
+/// with the tyre's heat and pressure), by its cause. A piece of debris
+/// stuck in the tread is a small hole (the tyre flat in one to several
+/// laps); a hard hit cuts the sidewall or unseats the bead (flat in half
+/// a lap to a lap or two).
+const DEBRIS_LEAK_KPA_PER_S: (f32, f32) = (0.6, 3.5);
+const HIT_LEAK_KPA_PER_S: (f32, f32) = (2.0, 8.0);
 
 /// A piece of debris on the road.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -95,10 +100,11 @@ pub struct Debris {
     pub until_tick: u32,
 }
 
-/// How a hashed puncture goes: a slow leak (half the time), or at once.
-fn slow_leak(seed: u64) -> Option<f32> {
+/// How a hashed puncture goes: a slow leak (half the time) of a rate in
+/// `range` (its cause's), or at once.
+fn slow_leak(seed: u64, range: (f32, f32)) -> Option<f32> {
     if crate::wind::hash01(seed, 0x5107) < 0.5 {
-        let (lo, hi) = SLOW_LEAK_KPA_PER_S;
+        let (lo, hi) = range;
         Some(lo + (hi - lo) * crate::wind::hash01(seed, 0x5108))
     } else {
         None
@@ -3831,7 +3837,7 @@ impl GameSession {
                         (false, true) => 2,
                         (false, false) => 3,
                     };
-                    let leak = slow_leak(seed);
+                    let leak = slow_leak(seed, HIT_LEAK_KPA_PER_S);
                     tyre_thermal::puncture(state.tires.each_mut()[index], leak);
                 }
             }
@@ -3881,7 +3887,7 @@ impl GameSession {
                         ^ (state.player_id.as_u128() as u64).rotate_left(23)
                         ^ (d as u64).rotate_left(41);
                     if crate::wind::hash01(seed, 0xDEB) < DEBRIS_PUNCTURE_CHANCE {
-                        let leak = slow_leak(seed);
+                        let leak = slow_leak(seed, DEBRIS_LEAK_KPA_PER_S);
                         tyre_thermal::puncture(state.tires.each_mut()[i], leak);
                     }
                     // The piece strikes the bodywork over the wheel: a dent

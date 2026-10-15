@@ -211,7 +211,11 @@ always takes the weather's tyre; when it changes is in [AI](ai.md).
   `update_debris`; the piece also strikes the bodywork over that wheel, `DEBRIS_STRIKE_PCT`
   at 50 m/s on the nose or the tail, and scrubs `DEBRIS_STRIKE_SCRUB` of the speed, so a
   car does not drive through debris unmarked). Half are slow leaks (`TireData::leak_kpa_per_s`) charged through the
-  pressure curve until flat at `PUNCTURE_FLAT_KPA`. Punctured: grip `PUNCTURE_GRIP` (0.35),
+  pressure curve until flat at `PUNCTURE_FLAT_KPA`. The rate is the hole's, by its cause: debris
+  in the tread `DEBRIS_LEAK_KPA_PER_S` (0.6-3.5 kPa/s), a hit's cut sidewall or bead
+  `HIT_LEAK_KPA_PER_S` (2-8); `leak_rate_kpa_per_s` moves it as a fixed hole's flow, by
+  `sqrt(T/T_opt · p_abs/p_set,abs · p/p_set)`: a hot, full tyre leaks faster, and the leak slows
+  as the tyre goes down. Punctured: grip `PUNCTURE_GRIP` (0.35),
   pressure `PUNCTURED_KPA`, rolling drag `PUNCTURE_ROLLING_RESISTANCE` of its load.
 
 ### The AI and the tyres

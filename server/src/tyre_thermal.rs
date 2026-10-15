@@ -33,7 +33,9 @@
 //!   temperatures existed. A **puncture** takes the air out
 //!   ([`puncture`]): at once, or as a slow leak
 //!   ([`TireData::leak_kpa_per_s`]) that the pressure curve charges for
-//!   more every lap until the tyre is flat ([`PUNCTURE_FLAT_KPA`]).
+//!   more every lap until the tyre is flat ([`PUNCTURE_FLAT_KPA`]); the
+//!   leak runs faster in a hot, full tyre and slows as it goes down
+//!   ([`leak_rate_kpa_per_s`]).
 //!
 //! Heat in, per tyre: the slip power, `|Fx| · slip speed along + |Fy| ·
 //! slip speed across`, is what the tyre dissipates to make its force.
@@ -696,6 +698,29 @@ pub fn puncture(tyre: &mut TireData, leak_kpa_per_s: Option<f32>) {
     }
 }
 
+/// How fast a slow puncture is letting the air out now, kPa/s. The leak's
+/// rate (`TireData::leak_kpa_per_s`) is its hole's, filed at the set
+/// pressure with the gas at the optimum; through a fixed hole the gas
+/// goes as the root of the pressure across it times the gas's density,
+/// and a hotter gas pushes its pressure down faster for the mass lost, so
+/// the rate goes as `sqrt(T/T_opt · p_abs/p_set,abs · p/p_set)`: a hot,
+/// full tyre leaks faster, and the leak slows as the tyre goes down.
+pub fn leak_rate_kpa_per_s(
+    tyre: &TireData,
+    tire: &TireConfig,
+    compound: &Compound,
+    set_kpa: f32,
+) -> f32 {
+    let optimum = optimum_c(tire, compound);
+    let gauge = (pressure_kpa(tire, compound, set_kpa, tyre.core_temperature_c)
+        - tyre.pressure_loss_kpa)
+        .max(0.0);
+    let set = set_kpa.max(1.0);
+    let heat = (tyre.core_temperature_c + KELVIN).max(1.0) / (optimum + KELVIN).max(1.0);
+    let absolute = (gauge + ATMOSPHERE_KPA) / (set + ATMOSPHERE_KPA);
+    tyre.leak_kpa_per_s * (heat * absolute * gauge / set).sqrt()
+}
+
 /// What a car's tyres are at when it is sent out: its blankets, or the air
 /// when it has none (a blanket is never colder than the air).
 pub fn start_temperature_c(tire: &TireConfig, surface: &TrackSurface) -> f32 {
@@ -828,9 +853,10 @@ pub fn step(
     tyre.pickup = (tyre.pickup + picked * dt).clamp(0.0, 1.0);
     let windows_over = over / tire.temperature_window_c.max(1.0);
     tyre.blister = (tyre.blister + windows_over * dt / BLISTER_SECONDS).clamp(0.0, 1.0);
-    // A slow puncture lets the air out as it rolls.
+    // A slow puncture lets the air out as it rolls: faster hot and full,
+    // slower as the pressure behind the hole falls.
     if tyre.leak_kpa_per_s > 0.0 && !tyre.punctured {
-        tyre.pressure_loss_kpa += tyre.leak_kpa_per_s * dt;
+        tyre.pressure_loss_kpa += leak_rate_kpa_per_s(tyre, tire, compound, set_kpa) * dt;
     }
     refresh(tyre, tire, compound, set_kpa, work.water.max(surface.water));
 }
@@ -1532,6 +1558,31 @@ mod tests {
         let mut quick = at(opt, opt);
         puncture(&mut quick, None);
         assert!(quick.punctured);
+    }
+
+    #[test]
+    fn a_hot_tyre_leaks_faster_and_a_soft_one_slower() {
+        let t = tyre();
+        let m = medium();
+        let opt = t.optimal_temperature_c;
+        let mut at_opt = at(opt, opt);
+        refresh(&mut at_opt, &t, &m, 180.0, 0.0);
+        puncture(&mut at_opt, Some(4.0));
+        // At the set pressure and the optimum, the hole's own rate.
+        assert!((leak_rate_kpa_per_s(&at_opt, &t, &m, 180.0) - 4.0).abs() < 1e-4);
+        let mut hot = at(opt + 30.0, opt + 30.0);
+        puncture(&mut hot, Some(4.0));
+        let mut cold = at(opt - 50.0, opt - 50.0);
+        puncture(&mut cold, Some(4.0));
+        let (h, c) = (
+            leak_rate_kpa_per_s(&hot, &t, &m, 180.0),
+            leak_rate_kpa_per_s(&cold, &t, &m, 180.0),
+        );
+        assert!(h > 4.2 && c < 3.6, "hot {h}, cold {c}");
+        let mut down = at_opt;
+        down.pressure_loss_kpa = 100.0;
+        let d = leak_rate_kpa_per_s(&down, &t, &m, 180.0);
+        assert!(d < 0.75 * 4.0, "half down: {d}");
     }
 
     #[test]
