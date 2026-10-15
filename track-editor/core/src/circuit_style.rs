@@ -104,8 +104,8 @@ pub enum Flora {
 }
 
 /// What the land beside the road is drawn as. A paved city's grass aprons
-/// also drive as tarmac run-off; a desert's still drive as grass (the
-/// server has one off-track surface for grass, gravel and sand alike).
+/// also drive as tarmac run-off, a desert's as the desert floor
+/// (`off_desert` in the road mesh, `ground` in the curb sidecar).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ground {
     Grass,

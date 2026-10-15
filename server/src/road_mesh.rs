@@ -67,8 +67,9 @@ const MAX_CELLS: f32 = 2_000_000.0;
 /// One kind of surface: what the sim does with a wheel on it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RoadSurface {
-    /// `road`, `curb`, `runoff_asphalt`, `off_grass`, `pit_lane`, or an
-    /// importer's own key. Logged, never interpreted.
+    /// `road`, `curb`, `runoff_asphalt`, `off_grass`, `off_gravel`,
+    /// `pit_lane`, or an importer's own key. An `off_` key names the
+    /// ground (`RoadMesh::ground`); otherwise it is only logged.
     pub key: String,
     /// [`CONTACT_ROAD`] and friends.
     pub contact: u8,
@@ -136,6 +137,9 @@ pub struct RoadMesh {
     triangles: Vec<[u32; 3]>,
     triangle_surface: Vec<u16>,
     surfaces: Vec<RoadSurface>,
+    /// What each surface is as ground off the road, from its key
+    /// (`crate::physics::OffGround::from_surface_key`), read once at load.
+    grounds: Vec<crate::physics::OffGround>,
     planes: Vec<Plane>,
     source: String,
     /// Triangles the file held that had no footprint.
@@ -264,6 +268,10 @@ impl RoadMesh {
             vertices,
             triangles: kept,
             triangle_surface: kept_surface,
+            grounds: surfaces
+                .iter()
+                .map(|s| crate::physics::OffGround::from_surface_key(&s.key))
+                .collect(),
             surfaces,
             planes,
             source,
@@ -371,6 +379,13 @@ impl RoadMesh {
 
     pub fn surface(&self, idx: u16) -> &RoadSurface {
         &self.surfaces[idx as usize]
+    }
+
+    /// The ground a surface is to a tyre off the road: `off_gravel` is
+    /// gravel, `off_sand` sand, `off_desert` the desert floor, anything
+    /// else grass.
+    pub fn ground(&self, idx: u16) -> crate::physics::OffGround {
+        self.grounds[idx as usize]
     }
 
     pub fn triangle_count(&self) -> usize {

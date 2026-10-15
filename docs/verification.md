@@ -196,6 +196,9 @@ Mandarina Bay.
   `ApexWheelProfiles` name rules against what real bases report.
 - The sausage kerbs by hand on both circuits, and the Nordschleife's posts
   and grade plates read from the cockpit.
+- A gravel trap by hand (a Monza chicane run straight on) and Sakhir's
+  desert floor: how hard the trap bogs the car and whether it can be
+  driven out (`OffGround`, [server/vehicle-physics.md](server/vehicle-physics.md)).
 
 **Listen.** Start with the replay of the lap just driven.
 

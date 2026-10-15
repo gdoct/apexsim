@@ -1966,6 +1966,37 @@ fn curb_sidecar_covers_each_curb_span() {
     assert_eq!(at(&curbs.right_cm, 40.0), 0);
 }
 
+/// The gravel trap reaches the centerline backend as its inner and outer
+/// edge from the road edge, wedge and all, on its own side only.
+#[test]
+fn curb_sidecar_carries_the_gravel_trap() {
+    let track = test_track();
+    let scene = test_scene(&track);
+    let baked = ue_export::bake_all(&track, &scene).expect("test track must bake");
+    let curbs = baked.curbs.expect("a track with a length has curb bands");
+    let samples = curbs.left_cm.len();
+    for band in [
+        &curbs.gravel_left_cm,
+        &curbs.gravel_right_cm,
+        &curbs.sand_left_cm,
+        &curbs.sand_right_cm,
+    ] {
+        assert_eq!(band.len(), samples);
+    }
+    let at = |band: &[[u16; 2]], station_m: f32| {
+        band[(station_m / CURB_BAND_STEP_M).round() as usize % band.len()]
+    };
+    // Right, stations 40..120, 1.5 m from the edge, 8 m widening to 20 m.
+    assert_eq!(at(&curbs.gravel_right_cm, 40.0), [150, 950]);
+    assert_eq!(at(&curbs.gravel_right_cm, 80.0), [150, 1550]);
+    assert_eq!(at(&curbs.gravel_right_cm, 120.0), [150, 2150]);
+    assert_eq!(at(&curbs.gravel_right_cm, 39.0), [0, 0]);
+    assert_eq!(at(&curbs.gravel_right_cm, 121.0), [0, 0]);
+    assert_eq!(at(&curbs.gravel_left_cm, 80.0), [0, 0]);
+    assert!(curbs.sand_right_cm.iter().all(|s| *s == [0, 0]));
+    assert_eq!(curbs.ground, "", "a grass circuit's ground is grass");
+}
+
 /// Every shipped circuit must bake curb bands that fit the track and stay
 /// within the widths the editor allows, since the server trusts them as
 /// track limits without re-checking against the `.ats`.

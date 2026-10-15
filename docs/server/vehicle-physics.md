@@ -82,12 +82,34 @@ still while serviced) and the gearbox, limiter and DRS flap:
 | `Road` | the road's (weather, road state) | no |
 | `Curb` | `curb_grip` | no |
 | `Runoff` | `RUNOFF_GRIP_FACTOR` (0.95) x road | yes |
-| `Off` | grass/gravel, patchy (`grass_grip_patch`), rolling drag | yes |
+| `Off` | the ground's (`OffGround`), patchy (`grass_grip_patch`), rolling drag | yes |
 | `PitLane` | road | no (a lap with a stop counts) |
 
 Widths come from the curbs sidecar (centerline backend) or triangle tags (mesh,
 `RoadContact::from_surface`); on the centerline backend the pit sidecar's strip is `PitLane`
 (`on_pit_lane_strip`).
+
+### Off-track ground (`OffGround`)
+
+An `Off` tyre stands on one of four grounds. Grass keeps the track's own figures
+(`off_track_grip` 0.35, weather-scaled, and `off_track_rolling_resistance` 0.06 at any
+speed), so a track without trap data drives as before. The others scale the grass grip and
+plough with a rolling resistance (a share of the tyre's load) that rises linearly with the
+tyre's rolling speed from a standing figure to a full one at `TRAP_FULL_DRAG_MPS` (40 m/s):
+
+| Ground | Grip x grass | Rolling resistance, standing .. full | Reports |
+|---|---|---|---|
+| `Grass` (also astroturf and any unknown key) | 1.0 | the track's (0.06) | `Grass` |
+| `Gravel` (`off_gravel`) | 0.8 | 0.08 .. 0.40 | `Gravel` |
+| `Sand` (`off_sand`, a sand trap) | 0.7 | 0.10 .. 0.50 | `Sand` |
+| `Desert` (`off_desert`, a desert circuit's floor) | 0.9 | 0.07 .. 0.14 | `Sand` |
+
+A car into a gravel trap at speed is bogged down hard; one that has stopped in it can still
+crawl out, since the standing figure is below what a driven axle can push on that grip. On
+the mesh the ground is the triangle's surface key (`RoadMesh::ground`, read once at load);
+on the centerline backend, and wherever the mesh has nothing, it is the curb sidecar's trap
+bands (`CurbBands::trap_at`, a trap laid over the run-off reach as the bake draws it) and
+past them its `ground` (`CurbBands::base_ground`: `desert` on Sakhir).
 
 ### Collisions
 

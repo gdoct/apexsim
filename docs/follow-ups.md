@@ -141,6 +141,11 @@ the same `ApexProps` code.
   hold-still debug event) would make those checks a run. The stand-in, an
   AI, also pits for any leak and at a 0.6 flat spot, wear 70 or damage 25
   (`pit::plan_stop`), so the shot has to come within that lap.
+- The AC importer writes AC's own surface keys (`1SAND`, `GRAVEL`) into the
+  road mesh, so an imported track's traps drive as grass ground (with the
+  importer's friction, but grass's rolling drag): the key should become
+  `off_gravel` / `off_sand` (`scripts/ac_import/physics.py`, where
+  `ground_set_for` already tells them apart), then re-import.
 
 **Check:** the track-editor tests; a fresh-clone `initialize_content.ps1`;
 the launcher import with the network off.

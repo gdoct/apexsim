@@ -86,7 +86,11 @@ vertices are the rendered ones, with these differences:
 
 Surface classes: road and curbs are inside the track limits; run-off
 (`runoff_*`), grass, gravel, sand and astroturf bands (`off_*`) are not; the
-pit lane is class 4 with `valid_track: false`.
+pit lane is class 4 with `valid_track: false`. The `off_` key names the
+ground to the server (`off_gravel`, `off_sand`, `off_desert`; anything else
+drives as grass, see `OffGround` in
+[../server/vehicle-physics.md](../server/vehicle-physics.md)). A desert
+circuit (`Ground::Sand`) restyles its grass bands to `off_desert`.
 
 ## The query (`RoadMesh::contact_at`)
 
@@ -123,7 +127,9 @@ With a mesh and a hit it then replaces:
   facet that would otherwise pull and roll the car as if the road were
   banked.
 - grip: `track_context_of` multiplies the class's grip (weather and road
-  state included) by the surface's `friction`.
+  state included) by the surface's `friction`;
+- the ground of an `off_` surface (`RoadMesh::ground`): gravel, sand and
+  the desert floor have their own grip and rolling drag.
 
 Where the mesh has no triangle (past its outermost band, a hole, the clamped
 inside of a tight hairpin where the mesh road is narrower than the

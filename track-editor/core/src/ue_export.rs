@@ -596,7 +596,10 @@ struct PhysicsStrip {
 /// Station spacing of the curb sidecar, meters. Curbs run for tens of
 /// meters, so a metre of granularity at their ends costs nothing.
 pub const CURB_BAND_STEP_M: f32 = 1.0;
-pub const CURB_BANDS_VERSION: u32 = 2;
+pub const CURB_BANDS_VERSION: u32 = 3;
+/// The off-track ground of a desert circuit, as the road mesh's surface
+/// key (`off_desert`) and the curb sidecar's `ground` name it.
+pub const DESERT_GROUND: &str = "desert";
 
 /// The curbs as the *server* needs them (`<Track>.curbs.msgpack`, written
 /// with `rmp_serde::to_vec_named`): not geometry, just how far the curb
@@ -623,6 +626,23 @@ pub struct CurbBands {
     pub runoff_left_cm: Vec<u16>,
     #[serde(default)]
     pub runoff_right_cm: Vec<u16>,
+    /// Version 3: the gravel traps past each road edge, per sample
+    /// `[inner, outer]` in centimetres from the edge (`[0, 0]` where there
+    /// is none; overlapping traps keep their hull), so the centerline
+    /// backend drives a trap as gravel the way the road mesh does.
+    #[serde(default)]
+    pub gravel_left_cm: Vec<[u16; 2]>,
+    #[serde(default)]
+    pub gravel_right_cm: Vec<[u16; 2]>,
+    /// Version 3: the sand traps, as the gravel.
+    #[serde(default)]
+    pub sand_left_cm: Vec<[u16; 2]>,
+    #[serde(default)]
+    pub sand_right_cm: Vec<[u16; 2]>,
+    /// Version 3: what the ground past the bands is to drive on: empty for
+    /// grass, `desert` where the grass is drawn as sand ([`Ground::Sand`]).
+    #[serde(default)]
+    pub ground: String,
 }
 
 /// Flatten the scene's curb spans into the per-station bands the server
@@ -634,8 +654,9 @@ fn bake_curb_bands(
     path: &CenterlinePath,
     curbs: &[Curb],
     surfaces: &[Surface],
-    paved_grass: bool,
+    ground: Ground,
 ) -> Option<CurbBands> {
+    let paved_grass = ground == Ground::Paved;
     let total = path.total_length_m();
     if !(total.is_finite() && total > 0.0) {
         return None;
@@ -716,10 +737,56 @@ fn bake_curb_bands(
         }
     }
 
+    // The gravel and sand traps: each band's inner and outer edge from
+    // the road edge, sampled at the same stations.
+    let traps = |kind: crate::ats::SurfaceKind| {
+        let mut left = vec![[0u16; 2]; count];
+        let mut right = vec![[0u16; 2]; count];
+        for surface in surfaces.iter().filter(|s| s.kind == kind) {
+            let Some((start, end)) = resolve_span(path, surface.start_m, surface.end_m) else {
+                continue;
+            };
+            let band = match surface.side {
+                Side::Left => &mut left,
+                Side::Right => &mut right,
+            };
+            let first = (start / CURB_BAND_STEP_M).ceil() as i64;
+            let last = (end / CURB_BAND_STEP_M).floor() as i64;
+            for i in first..=last {
+                let station = i as f32 * CURB_BAND_STEP_M;
+                let t = ((station - start) / (end - start).max(1e-3)).clamp(0.0, 1.0);
+                let cm = |m: f32| (m.max(0.0) * 100.0).round().min(u16::MAX as f32) as u16;
+                let inner = cm(surface.inner_m);
+                let outer = cm(surface.inner_m + surface.width_at(t));
+                if outer <= inner {
+                    continue;
+                }
+                let idx = i.rem_euclid(count as i64) as usize;
+                band[idx] = if band[idx][1] == 0 {
+                    [inner, outer]
+                } else {
+                    [band[idx][0].min(inner), band[idx][1].max(outer)]
+                };
+            }
+        }
+        (left, right)
+    };
+    let (gravel_left, gravel_right) = traps(crate::ats::SurfaceKind::Gravel);
+    let (sand_left, sand_right) = traps(crate::ats::SurfaceKind::Sand);
+
     Some(CurbBands {
         version: CURB_BANDS_VERSION,
         runoff_left_cm: runoff_left,
         runoff_right_cm: runoff_right,
+        gravel_left_cm: gravel_left,
+        gravel_right_cm: gravel_right,
+        sand_left_cm: sand_left,
+        sand_right_cm: sand_right,
+        ground: if ground == Ground::Sand {
+            DESERT_GROUND.to_string()
+        } else {
+            String::new()
+        },
         step_m: CURB_BAND_STEP_M,
         left_cm: left,
         right_cm: right,
@@ -1355,12 +1422,7 @@ pub fn bake_all_with_options(
         .as_ref()
         .map(|field| field.bake_ground_sidecar(terrain::GROUND_SIDECAR_CELL_M));
     let ground_style = CircuitStyle::for_scene(scene).ground;
-    let curbs = bake_curb_bands(
-        &path,
-        &band_curbs,
-        &band_surfaces,
-        ground_style == Ground::Paved,
-    );
+    let curbs = bake_curb_bands(&path, &band_curbs, &band_surfaces, ground_style);
     let props = bake_props(
         track,
         scene,
@@ -1806,10 +1868,15 @@ struct Bake<'a> {
 impl Bake<'_> {
     /// A desert circuit ([`Ground::Sand`]): the land the exporter would
     /// draw as grass — the terrain, the horizon and the grass aprons —
-    /// samples the sand set instead, in the desert's own tint. Run after
-    /// everything is registered; the meshes and physics are untouched.
+    /// samples the sand set instead, in the desert's own tint, and the
+    /// grass aprons drive as the desert floor (`off_desert`), as
+    /// `bake_curb_bands` tells the centerline backend. Run after
+    /// everything is registered.
     fn sand_ground(&mut self) {
         self.restyle_ground("sand", DESERT_SAND_COLOR);
+        let grass = RoadSurface::off(crate::ats::SurfaceKind::Grass.label()).key;
+        self.physics
+            .restyle(&grass, RoadSurface::off(DESERT_GROUND));
     }
 
     /// A city: the same keys sample the asphalt set in a pavement grey,

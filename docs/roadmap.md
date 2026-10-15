@@ -95,7 +95,21 @@ For people running a server for others
 
 **Check:** a saved tick rate in force without touching the machine.
 
-### 4. Content tooling
+### 4. Gravel and sand on screen and in the ears
+
+The server drives gravel, sand and the desert floor as their own grounds
+(`OffGround`, [server/vehicle-physics.md](server/vehicle-physics.md)), but
+the client only hears and feels "off" (`ContactSurface::Off`).
+
+- A gravel or sand ground per wheel on the wire (an appended
+  `ContactSurface` value or field), then a dust plume and a stone-rattle /
+  sand-hiss layer in the road synth ([game/audio.md](game/audio.md)) and
+  the force feedback's off-track texture per ground.
+
+**Check:** a car run into a Monza gravel trap and onto Sakhir's floor,
+seen and heard; golden bytes on both sides.
+
+### 5. Content tooling
 
 - `ats-dress --explain` and a per-prop source stamp.
 - `ats-export --strict`, which fails on a dropped facet.

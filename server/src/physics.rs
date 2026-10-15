@@ -63,9 +63,10 @@ pub struct WheelState {
     /// own coefficient: the class's figure for the track (weather-scaled),
     /// times the road mesh surface's friction where there is one.
     pub grip_modifier: f32,
-    /// On the grass, gravel or sand (`RoadContact::Off`): this tyre is held
-    /// back by the off-track rolling resistance at its own patch.
-    pub on_soft_ground: bool,
+    /// On the grass, gravel or sand (`RoadContact::Off`), and which: this
+    /// tyre is held back by that ground's rolling resistance at its own
+    /// patch (`OffGround::rolling_resistance`).
+    pub soft_ground: Option<OffGround>,
 }
 
 /// A tyre's contact with the ground before the suspension is solved: where
@@ -78,6 +79,8 @@ struct WheelContact {
     local_y: f32,
     contact_z: f32,
     contact: RoadContact,
+    /// The ground under an `Off` tyre (grass elsewhere).
+    ground: OffGround,
     grip_modifier: f32,
     /// Water on the road under this tyre (`crate::road_state`'s sample
     /// at the wheel), and the marbles lying there.
@@ -219,6 +222,8 @@ struct SurfaceQuerySample {
 struct MeshHit {
     contact: RoadContact,
     friction: f32,
+    /// What an `Off` surface is (`RoadMesh::ground`).
+    ground: OffGround,
 }
 
 /// Update car physics for one simulation tick - main 3D physics function
@@ -570,7 +575,7 @@ pub fn update_car_3d(
         match sample {
             Some(s) => {
                 let ctx = track_context_of(track, &s);
-                let contact = road_contact(track, &s);
+                let (contact, ground) = surface_contact(track, &s);
                 // Grass is not a uniform surface: each tyre finds its own
                 // patch, so two wheels on it never grip alike.
                 let patch = if contact == RoadContact::Off {
@@ -591,6 +596,7 @@ pub fn update_car_3d(
                     local_y,
                     contact_z: s.elevation,
                     contact,
+                    ground,
                     grip_modifier: ctx.grip_modifier * patch * wet,
                     water,
                     marbles,
@@ -601,6 +607,7 @@ pub fn update_car_3d(
                 local_y,
                 contact_z: track_ctx.elevation,
                 contact: RoadContact::Road,
+                ground: OffGround::Grass,
                 grip_modifier: track_ctx.grip_modifier * road.grip,
                 water,
                 marbles,
@@ -742,7 +749,7 @@ pub fn update_car_3d(
             surface: contact.contact.feedback(),
             off_track: contact.contact.off_track(),
             grip_modifier: contact.grip_modifier,
-            on_soft_ground: contact.contact == RoadContact::Off,
+            soft_ground: (contact.contact == RoadContact::Off).then_some(contact.ground),
             ..Default::default()
         }
     };
@@ -1406,7 +1413,8 @@ pub fn update_car_3d(
 
     // Off-track rolling resistance (and a punctured tyre's), per tyre at
     // its own patch: a share of the tyre's load along the way it rolls,
-    // against its rolling speed.
+    // against its rolling speed. Grass takes the track's figure; gravel
+    // and sand plough harder the faster the tyre goes into them.
     // Two wheels on the grass drag that side, so the nose is pulled toward
     // the grass, as in a real car. Faded in over the first metre a second
     // of rolling speed so it never reverses a wheel at a standstill.
@@ -1430,16 +1438,8 @@ pub fn update_car_3d(
         let mut drag = (0.0f32, 0.0f32, 0.0f32);
         if !is_airborne {
             for i in 0..4 {
-                let rolling = if wheel_states[i].on_soft_ground {
-                    rolling
-                } else {
-                    0.0
-                } + if punctured[i] {
-                    crate::tyre_thermal::PUNCTURE_ROLLING_RESISTANCE
-                } else {
-                    0.0
-                };
-                if rolling <= 0.0 {
+                let soft = wheel_states[i].soft_ground;
+                if soft.is_none() && !punctured[i] {
                     continue;
                 }
                 let (x, y) = wheel_pos[i];
@@ -1448,6 +1448,15 @@ pub fn update_car_3d(
                 let patch_vx = v_long - state.angular_vel_yaw * y;
                 let patch_vy = v_lat + state.angular_vel_yaw * x;
                 let v_roll = patch_vx * cos_s + patch_vy * sin_s;
+                let rolling = soft.map_or(0.0, |g| g.rolling_resistance(rolling, v_roll.abs()))
+                    + if punctured[i] {
+                        crate::tyre_thermal::PUNCTURE_ROLLING_RESISTANCE
+                    } else {
+                        0.0
+                    };
+                if rolling <= 0.0 {
+                    continue;
+                }
                 let fade = v_roll.clamp(-1.0, 1.0);
                 let f = -rolling * wheel_load[i].max(0.0) * fade;
                 let (fx, fy) = (f * cos_s, f * sin_s);
@@ -3089,6 +3098,7 @@ fn query_track_surface(
         mesh: Some(MeshHit {
             contact,
             friction: surface.friction,
+            ground: mesh.ground(hit.surface),
         }),
         ..sample
     })
@@ -3341,6 +3351,80 @@ impl RoadContact {
     }
 }
 
+/// What a tyre off the road and the run-off stands on. Grass is the
+/// track's own off-track figures (`TrackSurface::off_track_grip`,
+/// `off_track_rolling_resistance`); the others scale its grip and plough
+/// with their own rolling resistance, which grows with the speed the tyre
+/// meets them at: a car into a gravel trap is bogged down hard, and one
+/// that has stopped in it can still crawl out. Unknown ground is grass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OffGround {
+    #[default]
+    Grass,
+    /// A gravel trap (`off_gravel`).
+    Gravel,
+    /// A sand trap (`off_sand`): loose, deeper than gravel.
+    Sand,
+    /// A desert circuit's floor (`off_desert`): packed sand where another
+    /// circuit has grass.
+    Desert,
+}
+
+/// Speed into the ground at which a trap's rolling resistance reaches its
+/// full figure, m/s (from its standing figure, linearly).
+pub const TRAP_FULL_DRAG_MPS: f32 = 40.0;
+
+impl OffGround {
+    /// A ground by the name the bake gives it (`gravel`, `sand`, `desert`;
+    /// a road mesh key without its `off_` prefix). Anything else is grass.
+    pub fn from_kind(kind: &str) -> Self {
+        match kind {
+            "gravel" => OffGround::Gravel,
+            "sand" => OffGround::Sand,
+            "desert" => OffGround::Desert,
+            _ => OffGround::Grass,
+        }
+    }
+
+    /// A road mesh surface key (`off_gravel`, ...): an importer's own key
+    /// that does not name one is grass.
+    pub fn from_surface_key(key: &str) -> Self {
+        key.strip_prefix("off_")
+            .map_or(OffGround::Grass, OffGround::from_kind)
+    }
+
+    /// Grip as a share of the track's grass figure.
+    pub fn grip_factor(self) -> f32 {
+        match self {
+            OffGround::Grass => 1.0,
+            OffGround::Gravel => 0.8,
+            OffGround::Sand => 0.7,
+            OffGround::Desert => 0.9,
+        }
+    }
+
+    /// Rolling resistance (a share of the tyre's load) at `speed_mps`
+    /// along the tyre; `grass` is the track's own figure.
+    pub fn rolling_resistance(self, grass: f32, speed_mps: f32) -> f32 {
+        let (standing, full) = match self {
+            OffGround::Grass => return grass,
+            OffGround::Gravel => (0.08, 0.40),
+            OffGround::Sand => (0.10, 0.50),
+            OffGround::Desert => (0.07, 0.14),
+        };
+        standing + (full - standing) * (speed_mps / TRAP_FULL_DRAG_MPS).clamp(0.0, 1.0)
+    }
+
+    /// The `SurfaceType` the car reports while on it.
+    fn surface_type(self) -> SurfaceType {
+        match self {
+            OffGround::Grass => SurfaceType::Grass,
+            OffGround::Gravel => SurfaceType::Gravel,
+            OffGround::Sand | OffGround::Desert => SurfaceType::Sand,
+        }
+    }
+}
+
 /// Grip of the tarmac run-off relative to the road: swept less often, no
 /// rubber laid on it.
 pub const RUNOFF_GRIP_FACTOR: f32 = 0.95;
@@ -3372,10 +3456,21 @@ pub fn grass_grip_patch(x: f32, y: f32) -> f32 {
 }
 
 fn road_contact(track: &TrackConfig, surface: &SurfaceQuerySample) -> RoadContact {
+    surface_contact(track, surface).0
+}
+
+/// The contact class under a sample and, off the road and run-off, the
+/// ground there (grass otherwise).
+fn surface_contact(track: &TrackConfig, surface: &SurfaceQuerySample) -> (RoadContact, OffGround) {
     // The mesh knows what it is standing on; the curb bands are only for
     // the centerline, and for wherever the mesh has nothing.
     if let Some(hit) = surface.mesh {
-        return hit.contact;
+        let ground = if hit.contact == RoadContact::Off {
+            hit.ground
+        } else {
+            OffGround::Grass
+        };
+        return (hit.contact, ground);
     }
     let half_width = if surface.lateral_offset >= 0.0 {
         surface.width_right
@@ -3384,7 +3479,7 @@ fn road_contact(track: &TrackConfig, surface: &SurfaceQuerySample) -> RoadContac
     };
     let overhang = surface.lateral_offset.abs() - half_width;
     if overhang <= 0.0 {
-        return RoadContact::Road;
+        return (RoadContact::Road, OffGround::Grass);
     }
     let station_m = track
         .centerline
@@ -3397,15 +3492,25 @@ fn road_contact(track: &TrackConfig, surface: &SurfaceQuerySample) -> RoadContac
         )
     });
     if overhang <= curb_width {
-        RoadContact::Curb
-    } else if surface.on_pit_lane {
+        return (RoadContact::Curb, OffGround::Grass);
+    }
+    if surface.on_pit_lane {
         // The road mesh draws the lane as a surface of its own; without
         // one the sidecar's strip is the lane, not the grass beside it.
-        RoadContact::PitLane
-    } else if overhang <= runoff_reach {
-        RoadContact::Runoff
+        return (RoadContact::PitLane, OffGround::Grass);
+    }
+    // A trap is laid over the run-off band, as the bake draws it.
+    let bands = track.curbs.as_ref();
+    if let Some(trap) = bands.and_then(|b| b.trap_at(station_m, surface.lateral_offset, overhang)) {
+        return (RoadContact::Off, trap);
+    }
+    if overhang <= runoff_reach {
+        (RoadContact::Runoff, OffGround::Grass)
     } else {
-        RoadContact::Off
+        (
+            RoadContact::Off,
+            bands.map_or(OffGround::Grass, |b| b.base_ground()),
+        )
     }
 }
 
@@ -3449,7 +3554,7 @@ pub fn probe_surface(
 /// The track context a surface sample gives a car standing on it.
 fn track_context_of(track: &TrackConfig, surface: &SurfaceQuerySample) -> TrackContext {
     let surface = *surface;
-    let contact = road_contact(track, &surface);
+    let (contact, ground) = surface_contact(track, &surface);
     // On the track as the physics means it — a surface with grip and no
     // grass drag. The tarmac run-off counts: it is asphalt. The lap's track
     // limits are judged per wheel (`WheelState::off_track`), where the
@@ -3467,7 +3572,14 @@ fn track_context_of(track: &TrackConfig, surface: &SurfaceQuerySample) -> TrackC
             surface.grip_modifier * RUNOFF_GRIP_FACTOR,
         ),
         RoadContact::PitLane => (SurfaceType::Asphalt, surface.grip_modifier),
-        RoadContact::Off => (SurfaceType::Grass, track.track_surface.off_track_grip),
+        RoadContact::Off => (
+            ground.surface_type(),
+            if ground == OffGround::Grass {
+                track.track_surface.off_track_grip
+            } else {
+                track.track_surface.off_track_grip * ground.grip_factor()
+            },
+        ),
     };
     let grip_modifier = grip_modifier * surface.mesh.map_or(1.0, |m| m.friction);
 
@@ -4432,6 +4544,7 @@ mod tests {
             right_cm: vec![(curb_m * 100.0) as u16; stations],
             runoff_left_cm: Vec::new(),
             runoff_right_cm: Vec::new(),
+            ..Default::default()
         });
         track
     }
@@ -4445,6 +4558,20 @@ mod tests {
             bands.version = 2;
             bands.runoff_left_cm = vec![0; stations];
             bands.runoff_right_cm = vec![(runoff_m * 100.0) as u16; stations];
+        }
+        track
+    }
+
+    /// The straight with a gravel trap `inner_m..outer_m` past its right
+    /// edge for the whole length, and no curb.
+    fn straight_track_with_right_gravel(inner_m: f32, outer_m: f32) -> TrackConfig {
+        let mut track = straight_track_with_right_curb(0.0);
+        let stations = track.centerline.len() * 4;
+        if let Some(bands) = track.curbs.as_mut() {
+            bands.version = 3;
+            bands.gravel_left_cm = vec![[0, 0]; stations];
+            bands.gravel_right_cm =
+                vec![[(inner_m * 100.0) as u16, (outer_m * 100.0) as u16]; stations];
         }
         track
     }
@@ -7006,6 +7133,7 @@ mod tests {
                 surface("curb", CONTACT_CURB, true),
                 surface("runoff_asphalt", CONTACT_RUNOFF, false),
                 surface("off_grass", CONTACT_OFF, false),
+                surface("off_gravel", CONTACT_OFF, false),
             ],
             source: "mesh_from_centerline".to_string(),
         };
@@ -7040,6 +7168,22 @@ mod tests {
                 }
                 if grass_m > 0.0 {
                     bands.push((sign * reach, sign * (reach + grass_m), 3));
+                }
+                // The gravel trap laid over the grass, after it.
+                if let Some(c) = track.curbs.as_ref() {
+                    let band = if sign > 0.0 {
+                        &c.gravel_right_cm
+                    } else {
+                        &c.gravel_left_cm
+                    };
+                    if let Some([inner, outer]) = band
+                        .get((station / c.step_m).round() as usize % band.len().max(1))
+                        .copied()
+                        .filter(|[i, o]| o > i)
+                    {
+                        let (inner, outer) = (inner as f32 * 0.01, outer as f32 * 0.01);
+                        bands.push((sign * (half + inner), sign * (half + outer), 4));
+                    }
                 }
             }
             for (l0, l1, s) in bands {
@@ -7501,6 +7645,105 @@ mod tests {
             straddling.angular_vel_yaw
         );
         assert!(straddling.speed_mps < on_road.speed_mps);
+    }
+
+    /// A gravel trap is its own ground on both backends: off the track,
+    /// less grip than the grass beside it, and it bogs a car down far
+    /// harder than the grass does.
+    #[test]
+    fn a_gravel_trap_bogs_a_car_down_harder_than_grass() {
+        // Road edge at -10 (right); gravel from 2 m to 30 m past it.
+        on_both_backends(straight_track_with_right_gravel(2.0, 30.0), 60.0, |track| {
+            let grass = context_at(track, -11.0);
+            let gravel = context_at(track, -20.0);
+            assert!(!grass.is_on_track && !gravel.is_on_track);
+            assert_eq!(grass.surface_type, SurfaceType::Grass);
+            assert_eq!(gravel.surface_type, SurfaceType::Gravel);
+            assert!(
+                (grass.grip_modifier - track.track_surface.off_track_grip).abs() < 1e-6,
+                "the grass keeps the track's figure: {}",
+                grass.grip_modifier
+            );
+            assert!(
+                (gravel.grip_modifier - grass.grip_modifier * OffGround::Gravel.grip_factor())
+                    .abs()
+                    < 1e-6
+            );
+            let past = context_at(track, -45.0);
+            assert_eq!(past.surface_type, SurfaceType::Grass, "past the trap");
+
+            let config = create_test_config();
+            let coast = |y: f32| {
+                let mut state = create_test_car_state();
+                state.pos_x = 100.0;
+                state.pos_y = y;
+                state.vel_x = 30.0;
+                state.speed_mps = 30.0;
+                state.gear = 0;
+                for _ in 0..crate::game_session::DEFAULT_TICK_RATE_HZ as usize {
+                    update_car_3d(
+                        &mut state,
+                        &config,
+                        &PlayerInputData::default(),
+                        track,
+                        1.0 / crate::game_session::DEFAULT_TICK_RATE_HZ as f32,
+                    );
+                }
+                state.speed_mps
+            };
+            let on_grass = coast(-55.0);
+            let in_gravel = coast(-20.0);
+            assert!(
+                30.0 - in_gravel > 3.0 * (30.0 - on_grass),
+                "a second coasting from 30 m/s: grass {on_grass}, gravel {in_gravel}"
+            );
+            assert!(in_gravel > 15.0, "but it is not a wall: {in_gravel}");
+        });
+    }
+
+    /// A trap ploughs harder the faster a tyre meets it, from a standing
+    /// figure a car can drive out against; grass is the track's figure at
+    /// any speed, and unknown ground is grass.
+    #[test]
+    fn trap_drag_grows_with_speed_and_grass_keeps_its_figure() {
+        for g in [OffGround::Gravel, OffGround::Sand, OffGround::Desert] {
+            let slow = g.rolling_resistance(0.06, 0.0);
+            let fast = g.rolling_resistance(0.06, 60.0);
+            assert!(slow < 0.15 && fast > slow, "{g:?}: {slow} .. {fast}");
+            assert!(fast > 0.06, "{g:?} drags more than grass at speed");
+        }
+        assert!(
+            OffGround::Sand.rolling_resistance(0.06, 30.0)
+                > OffGround::Gravel.rolling_resistance(0.06, 30.0)
+        );
+        assert_eq!(OffGround::Grass.rolling_resistance(0.06, 50.0), 0.06);
+        assert_eq!(OffGround::Grass.grip_factor(), 1.0);
+        assert_eq!(OffGround::from_surface_key("off_gravel"), OffGround::Gravel);
+        assert_eq!(OffGround::from_surface_key("off_sand"), OffGround::Sand);
+        assert_eq!(OffGround::from_surface_key("off_desert"), OffGround::Desert);
+        for key in ["off_grass", "off_astroturf", "road", "gravel", "ac_dirt"] {
+            assert_eq!(OffGround::from_surface_key(key), OffGround::Grass, "{key}");
+        }
+    }
+
+    /// A desert circuit's ground past the bands (`CurbBands::ground`) is
+    /// the desert floor, on the centerline backend and wherever the mesh
+    /// has nothing.
+    #[test]
+    fn a_desert_circuits_ground_is_its_floor() {
+        let mut track = straight_track_with_right_curb(0.0);
+        if let Some(b) = track.curbs.as_mut() {
+            b.ground = "desert".to_string();
+        }
+        let off = context_at(&track, -20.0);
+        assert_eq!(off.surface_type, SurfaceType::Sand);
+        assert!(
+            (off.grip_modifier
+                - track.track_surface.off_track_grip * OffGround::Desert.grip_factor())
+            .abs()
+                < 1e-6
+        );
+        assert_eq!(context_at(&track, -5.0).surface_type, SurfaceType::Asphalt);
     }
 
     /// The grass's grip varies over the ground within its bounds, the same

@@ -282,8 +282,13 @@ boards. The rule is in [../server/vehicle-physics.md](../server/vehicle-physics.
 ## Run-off and track limits
 
 An `asphalt_runoff` or `concrete` band beside a curb is tarmac run-off. The
-curb sidecar (version 2) carries per metre how far curbs and run-off reach
-past each edge (`CurbBands::runoff_at`). A wheel within the curb band is on
+curb sidecar (version 3) carries per metre how far curbs and run-off reach
+past each edge (`CurbBands::runoff_at`), each gravel and sand trap's inner
+and outer edge from the road edge (`gravel_*_cm`, `sand_*_cm`,
+`CurbBands::trap_at`), and the ground past the bands (`ground`: `desert`
+on a `Ground::Sand` circuit, empty for grass), so the centerline backend
+drives a trap as the road mesh does (`OffGround`,
+[../server/vehicle-physics.md](../server/vehicle-physics.md)). A wheel within the curb band is on
 track; past it but on run-off it is `RoadContact::Runoff` (asphalt grip times
 `RUNOFF_GRIP_FACTOR`, no grass drag) but off the track for the lap, judged per
 wheel. A band's `paint` style is baked as stripes; `ats-dress` paints corner
@@ -307,7 +312,7 @@ the track is created; each optional (a missing one is logged).
 | Sidecar | What | Without it |
 |---|---|---|
 | `<Stem>.ground.msgpack` | 4 m heightfield of the rendered ground, server frame (`ground.rs`) | Off-track height falls back to the centerline |
-| `<Stem>.curbs.msgpack` | Curb and run-off reach per metre (`curbs.rs`) | The road edge is the track limit; curbs read as grass |
+| `<Stem>.curbs.msgpack` | Curb and run-off reach, gravel and sand traps per metre, the off-track ground (`curbs.rs`) | The road edge is the track limit; curbs and traps read as grass |
 | `<Stem>.walls.msgpack` | Every barrier, fence and pit wall as segments, every stand, building and garage as its footprint's sides, underpass walls and parapets; base height, height, material (armco, tyres, concrete). Runs with ends under 4.5 m apart are joined (`walls.rs`, `physics::check_wall_collisions`) | Nothing stops a car off the road: barrier collision exists only on the server |
 | `<Stem>.road.msgpack` | The road as tagged triangles: see [road-mesh.md](road-mesh.md) | The centerline backend |
 | `<Stem>.pit.msgpack` | Lane centerline, limit lines, box spots, entry and exit stations (`ue_export::PitSidecar`) | No pit stops |

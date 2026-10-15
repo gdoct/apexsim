@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 /// Curb width outward from each road edge, sampled every [`CurbBands::step_m`]
 /// meters of centerline station. Sample `i` is the cross-section at station
 /// `i * step_m`; the value is in centimetres, 0 where that edge has no curb.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct CurbBands {
     pub version: u32,
     pub step_m: f32,
@@ -29,6 +29,22 @@ pub struct CurbBands {
     pub runoff_left_cm: Vec<u16>,
     #[serde(default)]
     pub runoff_right_cm: Vec<u16>,
+    /// Version 3: the gravel traps past each road edge, per sample
+    /// `[inner, outer]` centimetres from the edge, `[0, 0]` where there is
+    /// none. Empty in an older file, which reads as no gravel anywhere.
+    #[serde(default)]
+    pub gravel_left_cm: Vec<[u16; 2]>,
+    #[serde(default)]
+    pub gravel_right_cm: Vec<[u16; 2]>,
+    /// Version 3: the sand traps, as the gravel.
+    #[serde(default)]
+    pub sand_left_cm: Vec<[u16; 2]>,
+    #[serde(default)]
+    pub sand_right_cm: Vec<[u16; 2]>,
+    /// Version 3: the ground past the bands, as a road mesh surface's
+    /// kind (`desert`); empty is grass.
+    #[serde(default)]
+    pub ground: String,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -59,7 +75,7 @@ impl CurbBands {
     }
 
     pub fn validate(&self) -> Result<(), CurbLoadError> {
-        if !(1..=2).contains(&self.version) {
+        if !(1..=3).contains(&self.version) {
             return Err(CurbLoadError::Invalid(format!(
                 "unsupported version {}",
                 self.version
@@ -91,7 +107,63 @@ impl CurbBands {
                 self.left_cm.len()
             )));
         }
+        for (name, band) in [
+            ("gravel left", &self.gravel_left_cm),
+            ("gravel right", &self.gravel_right_cm),
+            ("sand left", &self.sand_left_cm),
+            ("sand right", &self.sand_right_cm),
+        ] {
+            if !band.is_empty() && band.len() != self.left_cm.len() {
+                return Err(CurbLoadError::Invalid(format!(
+                    "{} {name} samples against {} curb samples",
+                    band.len(),
+                    self.left_cm.len()
+                )));
+            }
+        }
         Ok(())
+    }
+
+    /// The trap ground at `overhang_m` past the road edge at `station_m`,
+    /// on the side `lateral_offset` points to: gravel where a gravel trap
+    /// is (laid over a sand one, as the bake draws it), sand where a sand
+    /// trap is, `None` elsewhere.
+    pub fn trap_at(
+        &self,
+        station_m: f32,
+        lateral_offset: f32,
+        overhang_m: f32,
+    ) -> Option<crate::physics::OffGround> {
+        use crate::physics::OffGround;
+        let right = lateral_offset >= 0.0;
+        let (gravel, sand) = if right {
+            (&self.gravel_right_cm, &self.sand_right_cm)
+        } else {
+            (&self.gravel_left_cm, &self.sand_left_cm)
+        };
+        let within = |band: &[[u16; 2]]| {
+            if band.is_empty() {
+                return false;
+            }
+            let sample = (station_m / self.step_m).round();
+            if !sample.is_finite() {
+                return false;
+            }
+            let [inner, outer] = band[(sample as i64).rem_euclid(band.len() as i64) as usize];
+            outer > inner && overhang_m >= inner as f32 * 0.01 && overhang_m <= outer as f32 * 0.01
+        };
+        if within(gravel) {
+            Some(OffGround::Gravel)
+        } else if within(sand) {
+            Some(OffGround::Sand)
+        } else {
+            None
+        }
+    }
+
+    /// The ground past the bands ([`CurbBands::ground`]).
+    pub fn base_ground(&self) -> crate::physics::OffGround {
+        crate::physics::OffGround::from_kind(&self.ground)
     }
 
     /// Number of station samples.
@@ -157,6 +229,11 @@ mod tests {
             right_cm: vec![100, 0, 0, 0],
             runoff_left_cm: vec![0, 800, 800, 0],
             runoff_right_cm: vec![0, 0, 0, 0],
+            gravel_left_cm: Vec::new(),
+            gravel_right_cm: vec![[0, 0], [200, 900], [200, 900], [0, 0]],
+            sand_left_cm: vec![[0, 0], [100, 500], [0, 0], [0, 0]],
+            sand_right_cm: Vec::new(),
+            ground: String::new(),
         }
     }
 
@@ -192,7 +269,10 @@ mod tests {
         b.right_cm.pop();
         assert!(b.validate().is_err());
         let mut b = bands();
-        b.version = 3;
+        b.version = 4;
+        assert!(b.validate().is_err());
+        let mut b = bands();
+        b.gravel_right_cm.pop();
         assert!(b.validate().is_err());
         let mut b = bands();
         b.step_m = 0.0;
@@ -207,6 +287,21 @@ mod tests {
         b.runoff_right_cm.clear();
         assert!(b.validate().is_ok());
         assert_eq!(b.runoff_at(1.0, -3.0), 0.0, "no run-off band reads as none");
+    }
+
+    #[test]
+    fn reads_the_traps_between_their_edges() {
+        use crate::physics::OffGround;
+        let b = bands();
+        assert_eq!(b.trap_at(1.0, 5.0, 1.0), None, "short of the gravel");
+        assert_eq!(b.trap_at(1.0, 5.0, 4.0), Some(OffGround::Gravel));
+        assert_eq!(b.trap_at(2.0, 5.0, 9.0), Some(OffGround::Gravel));
+        assert_eq!(b.trap_at(2.0, 5.0, 9.5), None, "past the gravel");
+        assert_eq!(b.trap_at(1.0, -5.0, 4.0), Some(OffGround::Sand));
+        assert_eq!(b.trap_at(2.0, -5.0, 4.0), None);
+        assert_eq!(b.trap_at(0.0, 5.0, 4.0), None);
+        assert_eq!(b.trap_at(f32::NAN, 5.0, 4.0), None);
+        assert_eq!(b.base_ground(), OffGround::Grass);
     }
 
     #[test]
