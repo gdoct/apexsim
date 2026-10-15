@@ -379,6 +379,15 @@ impl<'a> AiDriverController<'a> {
                 ..PlayerInputData::default()
             };
         }
+        if state.racecraft.waiting {
+            // Stopped off the road with a car coming: wait for it to pass.
+            return PlayerInputData {
+                brake: 1.0,
+                gear: Some(state.gear),
+                clutch: Some(1.0),
+                ..PlayerInputData::default()
+            };
+        }
         if state.gear < 0 {
             // Backed out: stop before first will go in (it does not while
             // the car rolls backwards, and in reverse the throttle would
@@ -516,8 +525,11 @@ impl<'a> AiDriverController<'a> {
         // slow right down and rotate (low-grip grass makes the turn radius
         // at speed larger than the distance to the road — the source of
         // endless orbiting), then drive back at a moderate pace.
+        // The leg of road the car left (`Racecraft::leg_idx`), not its lap
+        // position, which off the road can jump to another leg nearby.
         if !state.is_on_track {
-            let d_center = (state.track_progress + 20.0).rem_euclid(track_length.max(1e-3));
+            let from = crate::racecraft::leg_m(&state.racecraft, state, self.track_config);
+            let d_center = (from + 20.0).rem_euclid(track_length.max(1e-3));
             let center = self.find_nearest_centerline_point(d_center);
             tx = center.x;
             ty = center.y;
@@ -633,7 +645,8 @@ impl<'a> AiDriverController<'a> {
     /// ahead (backing, a car turns the other way from its wheels).
     fn back_out(&self, state: &CarState) -> PlayerInputData {
         let total = self.get_track_length();
-        let error = crate::racecraft::road_heading_error(state, self.track_config, total);
+        let from = crate::racecraft::leg_m(&state.racecraft, state, self.track_config);
+        let error = crate::racecraft::road_heading_error(state, self.track_config, from, total);
         let in_reverse = state.gear < 0;
         PlayerInputData {
             throttle: if in_reverse { 0.5 } else { 0.0 },

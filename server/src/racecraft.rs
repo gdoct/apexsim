@@ -27,8 +27,13 @@
 //!   the outside of the next corner and lifts a little.
 //! - **Recovery**: stuck against a wall or off the road at a crawl, the
 //!   driver backs out in reverse, swinging the nose toward the road, and
-//!   drives on. Before it a car pinned on a barrier sat there with its
-//!   foot down until its engine cooked. A car that cannot get back (on
+//!   drives on, steering for the leg of the road it left (followed through
+//!   the spell off it, [`Racecraft::leg_idx`], not the lap position, which
+//!   can jump to another leg nearby). It looks behind first: with a car
+//!   coming on that stretch it waits for the gap, up to
+//!   [`REJOIN_WAIT_MAX_S`], before backing out or setting off. Before it a
+//!   car pinned on a barrier sat there with its foot down until its engine
+//!   cooked. A car that cannot get back (on
 //!   snow it slides off every attempt) asks to be put back on the road
 //!   once it has been off it [`RESET_AFTER_S`] without gaining
 //!   [`RESET_HEADWAY_M`] of lap: the session recovers it as a driver's
@@ -145,6 +150,17 @@ const RECOVER_COOLDOWN_S: f32 = 3.0;
 /// of the road ahead, rad, having backed for at least this long, s.
 const REVERSE_DONE_HEADING_RAD: f32 = 0.6;
 const REVERSE_MIN_S: f32 = 0.8;
+/// A car stopped off the road or against a wall waits before it backs out
+/// or sets off while a racing car is coming on that stretch: within this
+/// far behind along the lap, m (or alongside), and this soon, s. It waits
+/// at most this long a spell, s, so a stream of traffic cannot hold it
+/// there for ever.
+const REJOIN_LOOK_M: f32 = 200.0;
+const REJOIN_GAP_S: f32 = 3.0;
+const REJOIN_WAIT_MAX_S: f32 = 6.0;
+/// Off the road the leg the car left is followed by the nearest
+/// centerline point within this many points of the last one.
+const LEG_SEARCH_POINTS: usize = 32;
 /// Off the road (or crawling against a wall) this long, s, without gaining
 /// this much lap, m, a car asks to be put back on the road.
 pub const RESET_AFTER_S: f32 = 15.0;
@@ -243,6 +259,18 @@ pub struct Racecraft {
     /// Seconds left of a missed upshift: the gear is held.
     #[serde(default)]
     pub missed_shift_s: f32,
+    /// The centerline point of the leg of road the car is on: the car's
+    /// own on the road, followed point by point off it, so a recovery
+    /// steers for the road it left even where the lap position has jumped
+    /// to another leg close by.
+    #[serde(default)]
+    pub leg_idx: Option<u32>,
+    /// Stopped off the road or against a wall, waiting for a car coming
+    /// to pass before backing out or setting off; and for how long, s.
+    #[serde(default)]
+    pub waiting: bool,
+    #[serde(default)]
+    pub wait_s: f32,
 }
 
 impl Default for Racecraft {
@@ -270,6 +298,9 @@ impl Default for Racecraft {
             lock_up_s: 0.0,
             wide_m: 0.0,
             missed_shift_s: 0.0,
+            leg_idx: None,
+            waiting: false,
+            wait_s: 0.0,
         }
     }
 }
@@ -505,7 +536,7 @@ pub fn decide(
     rc.pace = 1.0;
     rc.lock_up_s = (rc.lock_up_s - dt).max(0.0);
     rc.missed_shift_s = (rc.missed_shift_s - dt).max(0.0);
-    recover(&mut rc, state, ctx);
+    recover(&mut rc, state, me, field, ctx);
     if rc.reverse_s > 0.0 {
         return settle(back_to_racing(rc, 0.0), dt);
     }
@@ -944,10 +975,13 @@ fn start_tactic(
 
 /// Getting unstuck: count the time crawling against a wall or off the road,
 /// back out once it is long enough, and stop backing once clear and
-/// pointing at the road (or out of time).
-fn recover(rc: &mut Racecraft, state: &CarState, ctx: &Context<'_>) {
+/// pointing at the road (or out of time). Stopped with a car coming, wait
+/// for it first.
+fn recover(rc: &mut Racecraft, state: &CarState, me: &Rival, field: &[Rival], ctx: &Context<'_>) {
     let dt = ctx.dt;
     rc.recover_cooldown_s = (rc.recover_cooldown_s - dt).max(0.0);
+    rc.waiting = false;
+    follow_leg(rc, state, ctx.track);
     let out_of_it = state.pit.driving
         || state.in_garage
         || state.is_ghost()
@@ -958,6 +992,7 @@ fn recover(rc: &mut Racecraft, state: &CarState, ctx: &Context<'_>) {
         rc.reverse_s = 0.0;
         rc.off_road_s = 0.0;
         rc.wants_reset = false;
+        rc.wait_s = 0.0;
         return;
     }
     // The spell off the road, backing out included: one that gets nowhere
@@ -965,6 +1000,7 @@ fn recover(rc: &mut Racecraft, state: &CarState, ctx: &Context<'_>) {
     let off = !state.is_on_track || (state.is_colliding && state.speed_mps < STUCK_SPEED_MPS);
     if !off {
         rc.off_road_s = 0.0;
+        rc.wait_s = 0.0;
     } else {
         if rc.off_road_s <= 0.0
             || ahead_of(rc.off_road_from_m, state.track_progress, ctx.total_m) > RESET_HEADWAY_M
@@ -981,7 +1017,8 @@ fn recover(rc: &mut Racecraft, state: &CarState, ctx: &Context<'_>) {
         rc.reverse_s = (rc.reverse_s - dt).max(0.0);
         let backed = REVERSE_MAX_S - rc.reverse_s;
         let clear = !state.is_colliding
-            && road_heading_error(state, ctx.track, ctx.total_m).abs() < REVERSE_DONE_HEADING_RAD;
+            && road_heading_error(state, ctx.track, leg_m(rc, state, ctx.track), ctx.total_m).abs()
+                < REVERSE_DONE_HEADING_RAD;
         if backed >= REVERSE_MIN_S && clear {
             rc.reverse_s = 0.0;
         }
@@ -991,6 +1028,16 @@ fn recover(rc: &mut Racecraft, state: &CarState, ctx: &Context<'_>) {
         return;
     }
     let stuck = state.speed_mps < STUCK_SPEED_MPS && (state.is_colliding || !state.is_on_track);
+    // Look behind before moving: backing out or setting off in front of a
+    // car arriving puts the stopped car in its way.
+    if stuck
+        && rc.wait_s < REJOIN_WAIT_MAX_S
+        && traffic_coming(me, leg_m(rc, state, ctx.track), field, ctx.total_m)
+    {
+        rc.waiting = true;
+        rc.wait_s += dt;
+        return;
+    }
     rc.stuck_s = if stuck { rc.stuck_s + dt } else { 0.0 };
     if rc.stuck_s >= STUCK_AFTER_S && rc.recover_cooldown_s <= 0.0 {
         rc.stuck_s = 0.0;
@@ -998,10 +1045,61 @@ fn recover(rc: &mut Racecraft, state: &CarState, ctx: &Context<'_>) {
     }
 }
 
-/// How far the car points from the road 20 m ahead of it, rad (positive:
-/// the road is to its left).
-pub fn road_heading_error(state: &CarState, track: &TrackConfig, total_m: f32) -> f32 {
-    let ahead = (state.track_progress + 20.0).rem_euclid(total_m.max(1.0));
+/// Follow the leg of road the car is on ([`Racecraft::leg_idx`]): the
+/// car's own nearest point on the road, and off it (or against a wall) the
+/// nearest point within [`LEG_SEARCH_POINTS`] of the last, which never
+/// jumps to another leg however close it runs.
+fn follow_leg(rc: &mut Racecraft, state: &CarState, track: &TrackConfig) {
+    let line = &track.centerline;
+    let n = line.len();
+    let last = rc.leg_idx.map(|i| i as usize).filter(|&i| i < n);
+    let on_road = state.is_on_track && !state.is_colliding;
+    rc.leg_idx = match last {
+        Some(from) if !on_road && n > 2 * LEG_SEARCH_POINTS => {
+            let d2 =
+                |i: usize| (line[i].x - state.pos_x).powi(2) + (line[i].y - state.pos_y).powi(2);
+            let mut best = (from, d2(from));
+            for off in 1..=LEG_SEARCH_POINTS {
+                for i in [(from + off) % n, (from + n - off) % n] {
+                    let d = d2(i);
+                    if d < best.1 {
+                        best = (i, d);
+                    }
+                }
+            }
+            Some(best.0 as u32)
+        }
+        _ => state.nearest_centerline_idx,
+    };
+}
+
+/// Where along the lap the leg the car is on puts it, m: its own lap
+/// position until a leg has been followed.
+pub fn leg_m(rc: &Racecraft, state: &CarState, track: &TrackConfig) -> f32 {
+    rc.leg_idx
+        .and_then(|i| track.centerline.get(i as usize))
+        .map_or(state.track_progress, |p| p.distance_from_start_m)
+}
+
+/// A racing car coming on this stretch of road: behind `from_m` (or
+/// alongside) within [`REJOIN_LOOK_M`] and arriving within
+/// [`REJOIN_GAP_S`], and near in the world too (a lap position can be on
+/// another leg).
+fn traffic_coming(me: &Rival, from_m: f32, field: &[Rival], total_m: f32) -> bool {
+    field.iter().filter(|o| o.id != me.id && o.racing).any(|o| {
+        let behind = -ahead_of(from_m, o.progress_m, total_m);
+        let near = (o.pos.0 - me.pos.0).hypot(o.pos.1 - me.pos.1) < REJOIN_LOOK_M + 50.0;
+        behind > -10.0
+            && behind < REJOIN_LOOK_M
+            && near
+            && behind.max(0.0) / o.speed_mps.max(1.0) < REJOIN_GAP_S
+    })
+}
+
+/// How far the car points from the road 20 m ahead of `from_m` along the
+/// lap, rad (positive: the road is to its left).
+pub fn road_heading_error(state: &CarState, track: &TrackConfig, from_m: f32, total_m: f32) -> f32 {
+    let ahead = (from_m + 20.0).rem_euclid(total_m.max(1.0));
     let i = track
         .centerline
         .partition_point(|p| p.distance_from_start_m < ahead)
@@ -1289,5 +1387,150 @@ mod tests {
             );
             assert_eq!(rc.mistake, Mistake::None);
         }
+    }
+
+    /// A hairpin: out along y = 0 for 500 m, round a 15 m radius, back
+    /// along y = 30. The two legs run 30 m apart.
+    fn hairpin() -> TrackConfig {
+        let mut centerline = Vec::new();
+        let mut d = 0.0;
+        let mut push = |x: f32, y: f32, heading: f32, d: f32| {
+            centerline.push(crate::data::TrackPoint {
+                x,
+                y,
+                distance_from_start_m: d,
+                heading_rad: heading,
+                width_left_m: 6.0,
+                width_right_m: 6.0,
+                ..crate::data::TrackPoint::default()
+            });
+        };
+        for i in 0..250 {
+            push(i as f32 * 2.0, 0.0, 0.0, d);
+            d += 2.0;
+        }
+        for i in 0..24 {
+            let a = -std::f32::consts::FRAC_PI_2 + i as f32 * std::f32::consts::PI / 24.0;
+            push(
+                500.0 + 15.0 * a.cos(),
+                15.0 + 15.0 * a.sin(),
+                a + std::f32::consts::FRAC_PI_2,
+                d,
+            );
+            d += 15.0 * std::f32::consts::PI / 24.0;
+        }
+        for i in 0..250 {
+            push(500.0 - i as f32 * 2.0, 30.0, std::f32::consts::PI, d);
+            d += 2.0;
+        }
+        TrackConfig {
+            centerline,
+            ..TrackConfig::default()
+        }
+    }
+
+    /// Off the road a car keeps to the leg it left, though the other leg
+    /// is nearer and its lap position has jumped to it; on the road it is
+    /// its own nearest point again.
+    #[test]
+    fn off_the_road_the_leg_left_is_followed() {
+        let track = hairpin();
+        let mut state = CarState::new(
+            uuid::Uuid::new_v4(),
+            uuid::Uuid::new_v4(),
+            &TrackConfig::default().start_positions[0],
+        );
+        let mut rc = Racecraft::default();
+        (state.pos_x, state.pos_y) = (250.0, 0.0);
+        state.is_on_track = true;
+        state.nearest_centerline_idx = Some(125);
+        follow_leg(&mut rc, &state, &track);
+        assert_eq!(rc.leg_idx, Some(125));
+
+        // Slides across toward the other leg, past halfway to it.
+        state.is_on_track = false;
+        for step in 1..=20 {
+            state.pos_y = step as f32;
+            state.pos_x = 250.0 + step as f32;
+            follow_leg(&mut rc, &state, &track);
+        }
+        let back_leg = track
+            .centerline
+            .iter()
+            .position(|p| p.y == 30.0 && p.x <= 270.0)
+            .unwrap();
+        state.nearest_centerline_idx = Some(back_leg as u32);
+        state.track_progress = track.centerline[back_leg].distance_from_start_m;
+        follow_leg(&mut rc, &state, &track);
+        let leg = leg_m(&rc, &state, &track);
+        assert!((leg - 270.0).abs() < 3.0, "on the outbound leg: {leg}");
+        // Pointing back along the outbound leg, the road ahead is ahead.
+        state.yaw_rad = 0.0;
+        let error = road_heading_error(&state, &track, leg, 1500.0);
+        assert!(error.abs() < 1.0, "{error}");
+        let wrong = road_heading_error(&state, &track, state.track_progress, 1500.0);
+        assert!(wrong.abs() > 2.0, "the other leg is behind: {wrong}");
+
+        // Back on the road: its own nearest point.
+        state.is_on_track = true;
+        follow_leg(&mut rc, &state, &track);
+        assert_eq!(rc.leg_idx, Some(back_leg as u32));
+    }
+
+    /// Stopped off the road with a car coming, a driver waits for it
+    /// before backing out or setting off, but not for ever; with the road
+    /// clear it gets on with it.
+    #[test]
+    fn a_stopped_car_waits_for_a_gap() {
+        let track = hairpin();
+        let ctx = Context {
+            track: &track,
+            total_m: 1100.0,
+            race: true,
+            dt: 0.1,
+        };
+        let mut state = CarState::new(
+            uuid::Uuid::new_v4(),
+            uuid::Uuid::new_v4(),
+            &TrackConfig::default().start_positions[0],
+        );
+        (state.pos_x, state.pos_y) = (250.0, -8.0);
+        state.track_progress = 250.0;
+        state.nearest_centerline_idx = Some(125);
+        state.is_on_track = false;
+        state.speed_mps = 0.0;
+        let me = Rival::of(&state, 4.5, 2.0, ctx.total_m);
+        let coming = Rival {
+            id: uuid::Uuid::from_u64_pair(5, 5),
+            progress_m: 150.0,
+            pos: (150.0, 0.0),
+            speed_mps: 50.0,
+            racing: true,
+            ..me
+        };
+        let far = Rival {
+            progress_m: 900.0,
+            pos: (100.0, 30.0),
+            ..coming
+        };
+
+        let mut rc = Racecraft::default();
+        for _ in 0..20 {
+            recover(&mut rc, &state, &me, &[me, coming], &ctx);
+        }
+        assert!(rc.waiting, "{rc:?}");
+        assert_eq!(rc.stuck_s, 0.0, "not stuck while it waits");
+        assert_eq!(rc.reverse_s, 0.0);
+        for _ in 0..50 {
+            recover(&mut rc, &state, &me, &[me, coming], &ctx);
+        }
+        assert!(!rc.waiting, "waited long enough: {rc:?}");
+
+        let mut rc = Racecraft::default();
+        for _ in 0..20 {
+            recover(&mut rc, &state, &me, &[me, far], &ctx);
+        }
+        assert!(!rc.waiting, "the road behind is clear: {rc:?}");
+        assert!(rc.reverse_s > 0.0, "and it backs out: {rc:?}");
     }
 }

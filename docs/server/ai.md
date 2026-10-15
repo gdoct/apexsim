@@ -131,7 +131,16 @@ next `Brake` phase, its slowest point, the hand at the apex).
 - **Getting unstuck** (`recover`): under 2.5 m/s in contact or off the
   road for 1.5 s, the car reverses for up to 2.5 s steering its nose
   toward the road 20 m ahead (`AiDriverController::back_out`), stops, takes
-  first and drives on. A car that cannot get back (penned in, or on snow
+  first and drives on. Before it moves at all (backing out or setting
+  off) it looks behind: with a racing car within `REJOIN_LOOK_M` (200 m)
+  behind on that stretch, or alongside, arriving within `REJOIN_GAP_S`
+  (3 s), it waits on the brake (`Racecraft::waiting`), at most
+  `REJOIN_WAIT_MAX_S` (6 s) a spell. "The road ahead", backing out and off
+  the road, is on the leg the car left (`Racecraft::leg_idx`, `leg_m`):
+  its own nearest centerline point on the road, and off it the nearest
+  within 32 points of the last, so a car whose lap position jumps to
+  another leg running close by (Zandvoort's 887 m and 4282 m) still
+  steers for its own. A car that cannot get back (penned in, or on snow
   where every attempt slides off) asks to be put back once it has been off
   the road `RESET_AFTER_S` (15 s) without gaining `RESET_HEADWAY_M` (20 m)
   of lap (`Racecraft::wants_reset`): it brakes to a stop and the session
@@ -253,6 +262,10 @@ What the AI still lacks is in [../simulation-gaps.md](../simulation-gaps.md)
 - **Grip share goes in at the 0.75 power, not the root.** The physics
   would say root; the grip moves under the car through a corner as the
   tread heats, and with the root the AI left the road much more.
+- **Off the road, the lap position is not the leg.** The physics' nearest
+  point falls back to a whole-lap search when a car leaves its window, and
+  can land on another leg nearby; anything steering a car back to the
+  road reads `racecraft::leg_m`, not `track_progress`.
 - **Heading errors wrap with `rem_euclid`** (`normalize_angle`): `%` keeps
   the sign, and at Le Mans's westbound left-hander every car turned the
   wrong way across the +-PI seam.
