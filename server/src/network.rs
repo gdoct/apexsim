@@ -4471,6 +4471,7 @@ mod tests {
             race_seconds: None,
             qualifying_seconds: None,
             weekend: None,
+            qualifying_cutoff_pct: None,
         });
         let sun_bytes = rmp_serde::to_vec_named(&sun_joined).unwrap();
         println!("S_SessionJoinedSun: {}", hex(&sun_bytes));
