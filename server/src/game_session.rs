@@ -4890,6 +4890,7 @@ impl GameSession {
         crate::pit::StopContext {
             laps_left,
             lap_fuel_l,
+            usable_fuel_l: None,
             save_to_flag: lap_fuel_l.is_some() && self.saves_to_flag(state),
             stint_laps: laps_run(state, total_m) - state.pit.stint_start_laps,
             gap_ahead_s,

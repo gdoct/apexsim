@@ -622,8 +622,7 @@ pub fn plan_stop(state: &CarState, ctx: &StopContext) -> Option<StopPlan> {
     let fuel_l = ctx.usable_fuel_l.unwrap_or(state.fuel_liters);
     let fuel_needed = |lap: f32| fuel_l < lap * (laps_left as f32 + 0.8);
     let lap_fuel = ctx.lap_fuel_l.filter(|_| !ctx.save_to_flag);
-    let short =
-        lap_fuel.is_some_and(|lap| fuel_needed(lap) && fuel_l < lap * AI_PIT_FUEL_LAPS);
+    let short = lap_fuel.is_some_and(|lap| fuel_needed(lap) && fuel_l < lap * AI_PIT_FUEL_LAPS);
     let tyres_last = tyres_reach_flag(state, ctx.stint_laps, laps_left);
     let wear = worst_wear(state);
     if wear >= AI_PIT_WEAR {
