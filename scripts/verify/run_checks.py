@@ -28,6 +28,11 @@ clock, which starts as the session is created; the server's debug events
 count from the green, -ApexCountdown seconds (and about one more) later.
 A shot's `exec` commands run `lead` seconds (default 3) before its grab.
 
+A run may also drive the dashboard (`dashboard:` entries: `at`, `action`
+broadcast|stop, `message`): the runner logs in with the run's token and
+fires each at its game-clock time, which it reads off a marker command the
+run executes at 1 s and the client logs.
+
 Needs the ApexSimEditor target built and `cargo build --release` in server/
 (both are checked against the source and warned about), the content
 initialised, and the editor closed.
@@ -203,8 +208,15 @@ def shot_list(run: dict) -> list[dict]:
     return shots
 
 
+# Executed at 1 s by every run that drives the dashboard; its log line tells
+# the runner where the game clock stands.
+CLOCK_MARKER = "log LogApexVerifyClock Log"
+
+
 def exec_after(run: dict, shots: list[dict]) -> str:
     entries = []
+    if run.get("dashboard"):
+        entries.append((1.0, CLOCK_MARKER))
     for t, command in (run.get("exec") or {}).items() if isinstance(run.get("exec"), dict) else []:
         for c in command if isinstance(command, list) else [command]:
             entries.append((float(t), c))
@@ -242,6 +254,69 @@ def game_command(run: dict, shots: list[dict], game: list[str], work: Path, port
     return command
 
 
+class Dashboard:
+    """The run's server's dashboard over HTTP, logged in with its token."""
+
+    def __init__(self, port: int):
+        import http.cookiejar
+        import urllib.request
+        self.base = f"http://127.0.0.1:{port + 3}"
+        self.opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+        self.call("POST", "/api/login", {"token": ADMIN_TOKEN})
+
+    def call(self, method: str, path: str, body: dict | None = None):
+        import json
+        import urllib.request
+        data = json.dumps(body).encode() if body is not None else None
+        request = urllib.request.Request(self.base + path, data=data, method=method,
+                                         headers={"Content-Type": "application/json"})
+        with self.opener.open(request, timeout=10) as response:
+            text = response.read().decode() or "null"
+        return json.loads(text)
+
+    def act(self, entry: dict) -> str:
+        action = entry["action"]
+        if action == "broadcast":
+            sent = self.call("POST", "/api/broadcast", {"message": entry.get("message", "Verification run")})
+            return f"broadcast sent to {sent.get('sent')}"
+        if action == "stop":
+            sessions = self.call("GET", "/api/sessions").get("sessions") or []
+            ids = [s.get("id") for s in sessions if s.get("id")]
+            for sid in ids:
+                self.call("POST", f"/api/sessions/{sid}/stop", {"reason": entry.get("message", "Verification run")})
+            return f"stopped {len(ids)} session(s)"
+        raise ValueError(f"unknown dashboard action {action}")
+
+
+def drive_dashboard(run: dict, port: int, client_log: Path, stop) -> None:
+    """Fire the run's dashboard actions at their game-clock times (a thread)."""
+    entries = sorted(run.get("dashboard") or [], key=lambda e: float(e["at"]))
+    if not entries:
+        return
+    origin = None
+    while origin is None and not stop.is_set():
+        # The executed command's own line: the command line, logged at
+        # start-up, holds the marker's text too.
+        if client_log.is_file() and f"-ApexExecAfter: {CLOCK_MARKER}" in client_log.read_text(encoding="utf-8", errors="replace"):
+            # The marker runs at 1 s of the game clock.
+            origin = time.monotonic() - 1.0
+        else:
+            time.sleep(0.25)
+    if origin is None:
+        return
+    dashboard = Dashboard(port)
+    for entry in entries:
+        while not stop.is_set() and time.monotonic() - origin < float(entry["at"]):
+            time.sleep(0.1)
+        if stop.is_set():
+            return
+        try:
+            log(f"  dashboard at {entry['at']} s: {dashboard.act(entry)}")
+        except Exception as error:  # noqa: BLE001 - reported, the run goes on
+            log(f"  dashboard at {entry['at']} s failed: {error}")
+
+
 def take(run: dict, game: list[str], work: Path, port: int, dry_run: bool) -> bool:
     shots = shot_list(run)
     command = game_command(run, shots, game, work, port)
@@ -253,7 +328,14 @@ def take(run: dict, game: list[str], work: Path, port: int, dry_run: bool) -> bo
     folder.mkdir(parents=True)
     before = set(GRABS.glob("*.png")) if GRABS.is_dir() else set()
     started = time.monotonic()
+    client_log = CLIENT_LOGS / f"Verify_{run['id']}.log"
+    if client_log.is_file():
+        client_log.unlink()
     process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    import threading
+    stop_dashboard = threading.Event()
+    dashboard = threading.Thread(target=drive_dashboard, args=(run, port, client_log, stop_dashboard), daemon=True)
+    dashboard.start()
     grabs: list[Path] = []
     ok = True
     try:
@@ -276,6 +358,7 @@ def take(run: dict, game: list[str], work: Path, port: int, dry_run: bool) -> bo
                     log(f"  grab {len(grabs)}/{len(shots)} at {time.monotonic() - started:.0f} s: "
                         f"{shots[len(grabs) - 1].get('label', '')}")
     finally:
+        stop_dashboard.set()
         process.terminate()
         try:
             process.wait(timeout=20)

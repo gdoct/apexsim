@@ -475,6 +475,868 @@ runs:
         label: "TV camera"
         checks: "The TV camera round the Nordschleife"
 
+  - id: r8-silverstone
+    about: "R8. Geometry sweep: Shiverstone Circuit"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Silverstone
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 2.6% at 5235 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt 288.8 -442.1 7.8 282.4 -410.8 4.8"
+      - at: 17
+        label: "no banking; tightest bend r 25 m at 1045 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt 737.3 366.8 18.1 752.7 357.5 10.1"
+      - at: 22
+        label: "second grade 2.1% at 2715 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt 368.4 1164.3 10.7 399.5 1157.8 7.7"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-austin
+    about: "R8. Geometry sweep: Circuit of the Armadillos"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Austin
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 13.7% at 535 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt 410.5 -291.7 17.9 426.2 -320.7 14.9"
+      - at: 17
+        label: "most banked: 10 deg at 5025 m"
+        checks: "Geometry pass: banking with ramps / paved aprons as run-off"
+        exec: "apexsim.cam.LookAt 189.3 188.3 5.1 171.3 214.3 2.1"
+      - at: 22
+        label: "second grade 7.3% at 2215 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt 1470.0 359.3 19.7 1496.5 376.8 16.7"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-brandshatch
+    about: "R8. Geometry sweep: Brands Scratch"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=BrandsHatch
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 12.1% at 465 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt 302.7 -116.2 -3.1 291.0 -145.3 -6.1"
+      - at: 17
+        label: "most banked: 3 deg at 215 m"
+        checks: "Geometry pass: banking with ramps / paved aprons as run-off"
+        exec: "apexsim.cam.LookAt 173.5 68.8 2.0 203.2 58.4 -1.0"
+      - at: 22
+        label: "second grade 8.5% at 3285 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt -103.9 -395.1 17.1 -128.7 -376.5 14.1"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-budapest
+    about: "R8. Geometry sweep: Hungoverring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Budapest
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 6.9% at 1335 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt -83.1 381.5 -27.1 -77.2 412.5 -30.1"
+      - at: 17
+        label: "no banking; tightest bend r 24 m at 635 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt -494.1 402.1 -1.0 -478.4 412.3 -9.0"
+      - at: 22
+        label: "second grade 5.1% at 1765 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt 95.4 774.2 -23.0 121.8 791.2 -26.0"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-catalunya
+    about: "R8. Geometry sweep: Circuit de Barcelunatic"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Catalunya
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 7.9% at 4005 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt -147.6 416.4 17.6 -116.2 412.6 14.6"
+      - at: 17
+        label: "no banking; tightest bend r 24 m at 3495 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt -11.4 202.2 19.1 -4.6 219.4 11.1"
+      - at: 22
+        label: "second grade 6.6% at 2725 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt -448.2 -276.6 8.2 -451.5 -245.5 5.2"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-hockenheim
+    about: "R8. Geometry sweep: Hockeyheimring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Hockenheim
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 2.6% at 905 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt 288.0 648.8 5.9 279.3 618.0 2.9"
+      - at: 17
+        label: "most banked: 5 deg at 1695 m"
+        checks: "Geometry pass: banking with ramps / paved aprons as run-off"
+        exec: "apexsim.cam.LookAt 933.9 397.0 4.7 965.6 395.8 1.7"
+      - at: 22
+        label: "second grade 1.3% at 2595 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt 956.7 263.7 5.4 928.9 279.1 2.4"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-ims
+    about: "R8. Geometry sweep: Endianapolis Motor Speedway"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=IMS
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 0.3% at 545 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt 101.7 -480.2 4.8 120.3 -506.3 1.8"
+      - at: 17
+        label: "most banked: 9.2 deg at 345 m"
+        checks: "Geometry pass: banking with ramps / paved aprons as run-off"
+        exec: "apexsim.cam.LookAt 17.4 -313.0 4.1 11.7 -344.6 1.1"
+      - at: 22
+        label: "second grade 0.3% at 135 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt 13.8 -104.7 3.4 2.7 -135.0 0.4"
+      - at: 27
+        label: "grandstand_corner at 2613 m"
+        checks: "A stadium grandstand wedge on a corner"
+        exec: "apexsim.cam.LookAt 566.6 937.8 6.4 582.3 1058.5 3.3"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-lemans
+    about: "R8. Geometry sweep: Lemons – Circuit du Peuple"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=LeMans
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 6.2% at 6255 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt -2480.6 -2649.9 64.1 -2511.8 -2652.0 61.1"
+      - at: 17
+        label: "no banking; tightest bend r 27 m at 10155 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt -3154.6 -705.8 58.9 -3142.2 -694.4 50.9"
+      - at: 22
+        label: "second grade 5.9% at 1225 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt 1014.0 -433.4 78.8 1024.9 -463.3 75.8"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-melbourne
+    about: "R8. Geometry sweep: Albert Parkour Circuit"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Melbourne
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 3.3% at 1855 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt -188.9 1305.2 5.6 -159.1 1315.6 2.6"
+      - at: 17
+        label: "no banking; tightest bend r 26 m at 4675 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt 469.1 -224.2 7.6 453.7 -216.5 -0.4"
+      - at: 22
+        label: "second grade 2.6% at 575 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt -283.6 412.4 3.4 -298.6 440.6 0.4"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-mexicocity
+    about: "R8. Geometry sweep: Autódromo Hermanos Rodri-Queso"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MexicoCity
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 0.3% at 3695 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt -320.5 -106.9 4.3 -348.4 -93.2 1.3"
+      - at: 17
+        label: "most banked: 15 deg at 3755 m"
+        checks: "Geometry pass: banking with ramps / paved aprons as run-off"
+        exec: "apexsim.cam.LookAt -381.9 -104.6 4.2 -408.0 -86.9 1.2"
+      - at: 22
+        label: "second grade 0.2% at 4215 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt -92.4 28.1 3.1 -64.4 12.9 0.1"
+      - at: 27
+        label: "grandstand_corner at 1866 m"
+        checks: "A stadium grandstand wedge on a corner"
+        exec: "apexsim.cam.LookAt 700.9 -877.9 6.6 750.7 -860.3 3.7"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-montreal
+    about: "R8. Geometry sweep: Circuit Chilly Villeneuve"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Montreal
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 3.2% at 405 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt 47.8 -349.1 4.9 18.8 -337.5 1.9"
+      - at: 17
+        label: "no banking; tightest bend r 21 m at 2685 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt -429.7 1547.2 10.3 -413.9 1553.6 2.3"
+      - at: 22
+        label: "second grade 2.3% at 1455 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt -561.6 357.1 4.1 -558.1 388.1 1.1"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-norisring
+    about: "R8. Geometry sweep: Snorisring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Norisring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 3.3% at 1385 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt -199.2 228.8 4.9 -218.3 255.4 1.9"
+      - at: 17
+        label: "no banking; tightest bend r 19 m at 485 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt 373.7 -269.1 11.8 390.2 -276.6 3.8"
+      - at: 22
+        label: "second grade 2.5% at 645 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt 328.1 -191.1 5.9 311.3 -164.7 2.9"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-nuerburgring
+    about: "R8. Geometry sweep: Nürburgerring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Nuerburgring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 8.2% at 2605 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt -620.3 -845.3 -34.8 -599.5 -822.1 -37.8"
+      - at: 17
+        label: "no banking; tightest bend r 23 m at 395 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt -295.1 -262.2 -2.6 -303.0 -244.0 -10.6"
+      - at: 22
+        label: "second grade 7.2% at 4225 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt -29.3 284.6 -12.3 2.1 282.2 -15.3"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-oschersleben
+    about: "R8. Geometry sweep: Motorsport Arena Oskarsleben"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Oschersleben
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 2.4% at 845 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt -266.2 162.7 0.9 -237.6 150.1 -2.1"
+      - at: 17
+        label: "no banking; tightest bend r 36 m at 3335 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt 361.5 -85.0 9.3 344.5 -87.2 1.3"
+      - at: 22
+        label: "second grade 2.3% at 265 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt -226.0 55.6 0.5 -252.0 73.5 -2.5"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-sakhir
+    about: "R8. Geometry sweep: Bahrainless International Circuit"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Sakhir
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 4.8% at 2085 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt 430.8 279.8 7.9 404.3 262.5 4.9"
+      - at: 17
+        label: "no banking; tightest bend r 22 m at 735 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt 19.0 732.6 9.1 38.0 729.1 1.1"
+      - at: 22
+        label: "second grade 3.7% at 3705 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt 374.9 -63.5 10.3 394.7 -38.9 7.3"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-saopaulo
+    about: "R8. Geometry sweep: Autódromo Interlaggos"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SaoPaulo
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 11.2% at 385 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt 119.0 -330.6 -0.3 148.1 -318.0 -3.3"
+      - at: 17
+        label: "no banking; tightest bend r 26 m at 2765 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt 36.9 563.5 -5.6 54.5 559.6 -13.6"
+      - at: 22
+        label: "second grade 9.4% at 3475 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt 220.1 704.4 -11.7 188.4 709.0 -14.7"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-sepang
+    about: "R8. Geometry sweep: Shebang International Circuit"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Sepang
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 5.4% at 905 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt -582.6 80.1 -8.1 -581.5 112.1 -11.1"
+      - at: 17
+        label: "no banking; tightest bend r 21 m at 3165 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt 14.3 -162.4 1.8 -1.1 -171.6 -6.2"
+      - at: 22
+        label: "second grade 4.6% at 3265 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt 50.8 -206.7 0.6 68.1 -233.6 -2.4"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-sochi
+    about: "R8. Geometry sweep: Gnocchi Autodrom"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Sochi
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 1.5% at 5515 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt -153.7 92.7 3.1 -129.5 113.0 0.1"
+      - at: 17
+        label: "no banking; tightest bend r 27 m at 1195 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt -949.5 -607.1 6.0 -954.0 -590.0 -2.0"
+      - at: 22
+        label: "second grade 1.5% at 1075 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt -807.7 -567.8 1.8 -839.3 -566.3 -1.2"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-spielberg
+    about: "R8. Geometry sweep: Red Pull Ring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Spielberg
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 12.3% at 1295 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt -883.1 560.0 52.0 -897.5 587.9 49.0"
+      - at: 17
+        label: "no banking; tightest bend r 21 m at 1385 m from above"
+        checks: "Geometry pass: paved aprons as run-off"
+        exec: "apexsim.cam.LookAt -963.3 640.5 67.2 -952.9 654.3 59.2"
+      - at: 22
+        label: "second grade 9.2% at 395 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt -351.2 -105.2 12.7 -382.7 -103.5 9.7"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-suzuka
+    about: "R8. Geometry sweep: Sudoku Circuit"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Suzuka
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 2.7% at 2935 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt -727.4 230.6 -1.0 -759.0 234.5 -4.0"
+      - at: 17
+        label: "most banked: 5 deg at 3775 m"
+        checks: "Geometry pass: banking with ramps / paved aprons as run-off"
+        exec: "apexsim.cam.LookAt -1350.6 289.5 15.7 -1357.4 319.8 12.7"
+      - at: 22
+        label: "second grade 2.6% at 3365 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt -1062.9 22.0 10.1 -1089.6 38.4 7.1"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r8-zandvoort
+    about: "R8. Geometry sweep: Zandervoort"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Zandvoort
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "steepest grade 4.3% at 1495 m"
+        checks: "Geometry pass: real elevation"
+        exec: "apexsim.cam.LookAt 541.9 26.0 5.5 573.0 27.6 2.5"
+      - at: 17
+        label: "most banked: 18 deg at 845 m"
+        checks: "Geometry pass: banking with ramps / paved aprons as run-off"
+        exec: "apexsim.cam.LookAt 71.8 -1.1 3.2 41.1 -5.8 0.2"
+      - at: 22
+        label: "second grade 2.8% at 2085 m"
+        checks: "Geometry pass"
+        exec: "apexsim.cam.LookAt 753.1 -275.2 3.8 730.5 -297.6 0.8"
+      - at: 40
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
+  - id: r9a-menus
+    about: "R9. Menus: stat sheet, setups, track guide, replays, browser filters, a broadcast"
+    # No race: the menu over its backdrop. ui.Click counts matches from 0
+    # (the Garage page has the heading and the row: the row is #1). Each page
+    # is left by its own Back row: Escape on the root page opens the exit
+    # overlay. ui.Texts logs what was on screen before each step.
+    args:
+      - -ApexNoDemo
+    dashboard:
+      - at: 75
+        action: broadcast
+        message: "Verification run: a message from the dashboard"
+    exec:
+      5: ["apexsim.ui.Click Garage"]
+      7: ["apexsim.ui.Texts", "apexsim.ui.Click Garage #1"]
+      9: ["apexsim.ui.Texts", "apexsim.ui.Click View car stats"]
+      15: ["apexsim.ui.Key Escape"]
+      17: ["apexsim.ui.Texts", "apexsim.ui.Click Manage car setups"]
+      23: ["apexsim.ui.Key Escape"]
+      25: ["apexsim.ui.Texts", "apexsim.ui.Click Back"]
+      27: ["apexsim.ui.Texts", "apexsim.ui.Click Tracks"]
+      29: ["apexsim.ui.Texts", "apexsim.ui.Click See track guide"]
+      40: ["apexsim.ui.Key Escape"]
+      42: ["apexsim.ui.Texts", "apexsim.ui.Click Back"]
+      44: ["apexsim.ui.Texts", "apexsim.ui.Click Replays"]
+      52: ["apexsim.ui.Key E"]
+      58: ["apexsim.ui.Key Escape"]
+      60: ["apexsim.ui.Texts", "apexsim.ui.Click Back"]
+      62: ["apexsim.ui.Texts", "apexsim.ui.Click Drive"]
+      64: ["apexsim.ui.Texts", "apexsim.ui.Click Browse sessions"]
+      79: ["apexsim.ui.Texts", "apexsim.ui.Click Joinable"]
+      83: ["apexsim.ui.Click Recorded"]
+    shots:
+      - at: 12
+        label: "Garage > Garage > View car stats"
+        checks: "The car stat sheet (menus package of 2026-10-14)"
+      - at: 21
+        label: "Manage car setups"
+        checks: "A car's own compounds on the garage's reference card"
+      - at: 36
+        label: "See track guide"
+        checks: "See track guide opens the guide"
+      - at: 50
+        label: "Replays"
+        checks: "The replays list"
+      - at: 55
+        label: "Replays after E (export)"
+        checks: "Replay export"
+      - at: 70
+        label: "Session browser"
+        checks: "The browser"
+      - at: 77
+        label: "a broadcast arriving in the menus"
+        checks: "A dashboard broadcast (ServerNotice) in the menus"
+      - at: 81
+        label: "browser filter: Joinable (clicked)"
+        checks: "The browser's filter pills by mouse"
+      - at: 85
+        label: "browser filter: Recorded (clicked)"
+        checks: "The browser's filter pills by mouse"
+
+  - id: r9b-race-dashboard
+    about: "R9. In a race: the HUD layout picker, a broadcast over the HUD, the dashboard ending the session"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Silverstone
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=5
+      - -ApexCountdown=5
+      - -ApexView=chase
+      - -ApexOpenSettings=30
+      - -ApexSettingsTab=0
+    server:
+      stand_in: true
+    dashboard:
+      - at: 50
+        action: broadcast
+        message: "Verification run: race control message"
+      - at: 70
+        action: stop
+        message: "Verification run: the dashboard ends this session"
+    exec:
+      31: ["apexsim.ui.Texts"]
+      40: ["apexsim.ui.Key Escape"]
+      41: ["apexsim.ui.Key Escape"]
+    shots:
+      - at: 34
+        label: "Settings > Gameplay (Layout row)"
+        checks: "The HUD layout picker (Settings > Gameplay > Layout)"
+      - at: 52
+        label: "a broadcast over the race HUD"
+        checks: "A dashboard broadcast over the race HUD"
+      - at: 73
+        label: "the dashboard stopped the session"
+        checks: "A session the dashboard ends while driving: notice, then back to the menu"
+      - at: 80
+        label: "after the stop"
+        checks: "Back to the menu"
+
+  - id: diag-topview-evening
+    about: "diagnostic: the helicopter shot at 17:30, a lower sun (shadows that show)"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Nuerburgring
+      - -ApexCar=SF-26
+      - -ApexAiCount=7
+      - -ApexLaps=3
+      - -ApexCountdown=20
+      - -ApexTimeOfDay=17:30
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    exec:
+      3: ["apexsim.tv.Shot helicopter"]
+    shots:
+      - at: 10
+        label: "E: helicopter at 17:30 as it is"
+        checks: "a lower sun"
+      - at: 12
+        label: "F: at 17:30, depth of field off"
+        checks: "a lower sun, no depth of field"
+        exec: "apexsim.tv.DepthOfField 0"
+        lead: 1
+
+  # Diagnostic: why the TV's helicopter shot looks cheap (follow-ups, "Top
+  # view"). One held shot, one change per frame: depth of field (f/11 on a
+  # long lens reads as a miniature), the cars' LOD, and the sun's height.
+  - id: diag-topview
+    about: "diagnostic: the helicopter shot, A/B depth of field, LOD, sun"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Nuerburgring
+      - -ApexCar=SF-26
+      - -ApexAiCount=7
+      - -ApexLaps=3
+      - -ApexCountdown=20
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    exec:
+      3: ["apexsim.tv.Shot helicopter"]
+    shots:
+      - at: 10
+        label: "A: helicopter as it is (f/11 depth of field)"
+        checks: "baseline"
+      - at: 12
+        label: "B: depth of field off"
+        checks: "does the miniature look go?"
+        exec: "apexsim.tv.DepthOfField 0"
+        lead: 1
+      - at: 14
+        label: "C: depth of field off, cars forced to LOD 0"
+        checks: "car detail at distance"
+        exec: "r.ForceLOD 0"
+        lead: 1
+      - at: 16
+        label: "D: back to as it is"
+        checks: "baseline again (the orbit moved two seconds)"
+        exec: ["apexsim.tv.DepthOfField 1", "r.ForceLOD -1"]
+        lead: 1
+
   # Diagnostic: which compound a stock setup starts on in heavy rain, by the
   # HUD's own data points in the client log (no stand-in, then with one).
   - id: diag-wet-compound
