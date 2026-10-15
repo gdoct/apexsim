@@ -19,13 +19,14 @@
 //!   road), that the rain feeds toward [`RoadState::rain`] ([`RAIN_RATE`])
 //!   and drainage and the sun take away ([`DRAIN_RATE`]); a **low** cell
 //!   (the road a step below its surroundings along the lap, read off the
-//!   centerline's elevation) drains slowly and holds [`PUDDLE_GAIN`] more,
-//!   so a dip stands in water deeper than the rain leaves on the flat
-//!   (`water` over 1 is a puddle, which costs every tyre:
-//!   `tyre_thermal::Compound::grip_on`). The puddle lies across part of
-//!   the road ([`RoadState::bin_depth`]): at the low edge of a banked dip,
-//!   at a seeded spot on a flat one, as wide as the dip is deep; the rest
-//!   of the cell holds the flat road's water;
+//!   centerline's elevation, or a banked or cambered road's low edge,
+//!   [`edge_low`]) drains slowly and holds [`PUDDLE_GAIN`] more, so a dip
+//!   or the inside of a cambered corner stands in water deeper than the
+//!   rain leaves on the flat (`water` over 1 is a puddle, which costs every
+//!   tyre: `tyre_thermal::Compound::grip_on`). The puddle lies across part
+//!   of the road ([`RoadState::bin_depth`]): at the low edge of a banked
+//!   road, at a seeded spot on a flat one, as wide as a dip is deep; the
+//!   rest of the cell holds the flat road's water;
 //!
 //! and per bin:
 //!
@@ -86,6 +87,13 @@ const PUDDLE_HALF_LOW_M: f32 = 3.0;
 const PUDDLE_HALF_SPREAD_M: f32 = 1.5;
 /// Banking past which the water runs to the low edge, rad (half a degree).
 const PUDDLE_BANK_RAD: f32 = 0.009;
+/// A banked or cambered road's low edge holds water as a cell this low
+/// ([`RoadState::bin_depth`]'s puddle, at the edge) once the road leans
+/// [`EDGE_LOW_MAX`] times [`EDGE_BANK_FULL_RAD`] past [`PUDDLE_BANK_RAD`]
+/// (some 2 degrees): a stream along the kerb, never as deep as a real
+/// compression.
+pub const EDGE_LOW_MAX: f32 = 0.5;
+const EDGE_BANK_FULL_RAD: f32 = 0.05;
 /// The seeds of a puddle's place and width (`wind::hash01` salts).
 const PUDDLE_SPOT_SALT: u64 = 0x5055_4444_4c45;
 const PUDDLE_WIDTH_SALT: u64 = 0x5755_4444_4c45;
@@ -306,7 +314,8 @@ impl RoadSample {
 pub struct Cell {
     /// Water, in the weather's units (1 is heavy rain on a flat road).
     pub depth: f32,
-    /// How low the road lies here against its surroundings, 0..1.
+    /// How low the road lies here against its surroundings, 0..1: a dip
+    /// along the lap, or a banked road's low edge ([`edge_low`]).
     pub low: f32,
     /// The snow on the verge, 0..1: no wheel clears it.
     #[serde(default)]
@@ -392,11 +401,13 @@ impl RoadState {
         let n = (lap_m / CELL_M).ceil().max(1.0) as usize;
         let mut cells = vec![Cell::default(); n];
         let mut zs = Vec::with_capacity(n);
+        let mut banks = Vec::with_capacity(n);
         let mut hint = None;
         for (i, cell) in cells.iter_mut().enumerate() {
             let station = (i as f32 + 0.5) * CELL_M;
             if track.centerline.is_empty() {
                 zs.push(0.0);
+                banks.push(0.0);
                 cell.first = 0;
                 cell.last = (BINS - 1) as u8;
                 continue;
@@ -415,6 +426,7 @@ impl RoadState {
             // banking lowers the right); on a flat one it stands where the
             // asphalt happens to sag, a seeded spot.
             let bank = banking_at(track, station);
+            banks.push(bank);
             let spread = |salt| crate::wind::hash01(i as u64, salt);
             cell.puddle_half_m =
                 PUDDLE_HALF_MIN_M + PUDDLE_HALF_SPREAD_M * spread(PUDDLE_WIDTH_SALT);
@@ -430,7 +442,10 @@ impl RoadState {
             hint = found;
         }
         // How low each cell lies: the road's elevation against the mean of
-        // its surroundings along the lap.
+        // its surroundings along the lap, or, where the road is banked or
+        // cambered, its low edge, which the whole width drains to (a
+        // stream along the inside of a cambered corner); a dip widens its
+        // puddle, the edge's stays a strip.
         let reach_cells = (LOW_REACH_M / CELL_M).round().max(1.0) as i64;
         for i in 0..n {
             let mut sum = 0.0;
@@ -441,8 +456,9 @@ impl RoadState {
                 count += 1.0;
             }
             let mean = sum / count.max(1.0);
-            cells[i].low = ((mean - zs[i]) / LOW_DEPTH_M).clamp(0.0, 1.0);
-            cells[i].puddle_half_m += PUDDLE_HALF_LOW_M * cells[i].low;
+            let dip = ((mean - zs[i]) / LOW_DEPTH_M).clamp(0.0, 1.0);
+            cells[i].low = dip.max(edge_low(banks[i]));
+            cells[i].puddle_half_m += PUDDLE_HALF_LOW_M * dip;
             cells[i].depth = Self::standing_depth(rain + SNOW_WATER * baked_snow, cells[i].low);
             cells[i].verge_snow = baked_snow;
         }
@@ -1063,6 +1079,12 @@ fn widths_at(track: &TrackConfig, station_m: f32) -> (f32, f32) {
     (cl[i].width_left_m.max(1.0), cl[i].width_right_m.max(1.0))
 }
 
+/// How low the low edge of a road banked `bank_rad` lies, as a cell's
+/// `low`: none on a flat road, [`EDGE_LOW_MAX`] from some 2 degrees.
+pub fn edge_low(bank_rad: f32) -> f32 {
+    ((bank_rad.abs() - PUDDLE_BANK_RAD) / EDGE_BANK_FULL_RAD).clamp(0.0, EDGE_LOW_MAX)
+}
+
 /// The road's banking at `station_m`, rad (positive lowers the right).
 fn banking_at(track: &TrackConfig, station_m: f32) -> f32 {
     let cl = &track.centerline;
@@ -1529,6 +1551,42 @@ mod tests {
         assert!((road.sample(200.0, 0.0).grip / rubber_grip(0.0, 0.5) - 1.0).abs() < 0.03);
         // Off the lap's end it wraps.
         assert!((road.water_at(2000.0 + 200.0, 0.0) - flat).abs() < 0.03);
+    }
+
+    #[test]
+    fn a_cambered_corner_holds_water_along_its_low_edge() {
+        // The dipped track flattened, banked 4.5 degrees to the right
+        // (positive lowers the right) from 400 m to 600 m.
+        let mut track = dipped_track(0.5);
+        for p in track.centerline.iter_mut() {
+            p.z = 10.0;
+            if (400.0..600.0).contains(&p.distance_from_start_m) {
+                p.banking_rad = 0.08;
+            }
+        }
+        let road = RoadState::new(&track, RUBBER_REFERENCE);
+        assert_eq!(edge_low(0.0), 0.0);
+        assert_eq!(edge_low(-0.08), EDGE_LOW_MAX);
+        assert!(edge_low(0.02) > 0.0 && edge_low(0.02) < EDGE_LOW_MAX);
+        let cell = &road.cells[road.cell_index(500.0)];
+        assert_eq!(cell.low, EDGE_LOW_MAX);
+        assert!(cell.puddle_lateral_m > 5.0, "the right edge: {cell:?}");
+        let edge = road.water_at(500.0, 7.5);
+        let high = road.water_at(500.0, -6.0);
+        let flat = road.water_at(200.0, 7.5);
+        println!("banked: low edge {edge:.3}, high side {high:.3}; flat road {flat:.3}");
+        assert!(edge > 0.58, "a stream along the low edge: {edge}");
+        assert!((high - 0.5).abs() < 0.03, "the high side drains: {high}");
+        assert!((flat - 0.5).abs() < 0.02, "{flat}");
+        assert!(road.has_puddles());
+        assert_eq!(road.puddle_cells(), 0, "an edge is not a dip");
+        // In the dry nothing stands anywhere.
+        let mut dry = track.clone();
+        dry.track_surface.water = 0.0;
+        dry.track_surface.baked_water = 0.0;
+        let dry = RoadState::new(&dry, RUBBER_REFERENCE);
+        assert_eq!(dry.water_at(500.0, 7.5), 0.0);
+        assert_eq!(dry.sample(500.0, 7.5).grip, 1.0);
     }
 
     #[test]

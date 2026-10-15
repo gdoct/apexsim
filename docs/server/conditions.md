@@ -212,14 +212,20 @@ Per bin:
 - **snow** 0..1 (the cover) and **ice** 0..1: see below.
 
 Per cell, the **water depth**: fed toward the falling rain, deeper by
-`PUDDLE_GAIN` where the road lies `LOW_DEPTH_M` below its surroundings along
-the lap, drained above that. Water over 1 is standing water. The puddle of a
-low cell lies across part of the road (`RoadState::bin_depth`): at the low
-edge where the road is banked over half a degree (positive banking lowers
-the right), at a seeded spot (`wind::hash01` of the cell) on a flat one,
-1.5-3 m half-wide plus 3 m for a full dip; the rest of the cell holds the
-flat road's share (`1 / (1 + PUDDLE_GAIN x low)`). A tyre, the ice and the
-line's water read the bin's depth; the grass holds the cell's.
+`PUDDLE_GAIN` where the cell is low, drained above that. A cell is low where
+the road lies `LOW_DEPTH_M` below its surroundings along the lap, or where it
+is banked or cambered (`edge_low`): the whole width drains to the low edge,
+which holds water as a cell `EDGE_LOW_MAX` (0.5) low from some 2 degrees of
+banking, a stream along the inside of a cambered corner (and so never a
+`puddle_cells` dip). Water over 1 is standing water. The puddle of a low
+cell lies across part of the road (`RoadState::bin_depth`): at the low edge
+where the road is banked over half a degree (positive banking lowers the
+right), at a seeded spot (`wind::hash01` of the cell) on a flat one, 1.5-3 m
+half-wide plus 3 m for a full dip; the rest of the cell holds the flat
+road's share (`1 / (1 + PUDDLE_GAIN x low)`). A tyre, the ice and the line's
+water read the bin's depth; the grass holds the cell's. The road has no
+crown in the track data, so a crowned straight drains no differently from a
+flat one.
 
 ### Snow on the road
 
