@@ -335,6 +335,7 @@ fn create_hotlap_watch(track: TrackConfigId) -> ClientMessage {
         qualifying_seconds: None,
         weekend: None,
         watch: None,
+        qualifying_cutoff_pct: None,
     }
 }
 
@@ -681,6 +682,7 @@ fn create_streamed_hotlap_watch(track: TrackConfigId) -> ClientMessage {
                 ..Default::default()
             }),
         }),
+        qualifying_cutoff_pct: None,
     }
 }
 

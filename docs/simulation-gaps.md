@@ -104,7 +104,7 @@ one session, advanced by the host (see
 | No event across days: a race weekend is one session with phases, live only while someone is in it. Nothing groups sessions on one track and car class with a name, an entry list and a schedule (start time per session, in real days). | Med | High |
 | Sessions are not persisted: an event, its entry list, each session's state and its results must survive server restarts and empty hours (stored beside `records/`, deterministic ids). | Med | High |
 | Entries are not stable drivers: a player is a per-connection id and records key on the name, so the same driver must be recognised across days (an account or token identity, with car and livery fixed for the event). | Med | High |
-| Qualifying is a timed session or a weekend's knockout rounds (Q1/Q2/Q3). No one-lap shoot-out, no single-car runs with a fixed order, no 107% rule, and no tyre or lap allowance. | Low | Med |
+| Qualifying is a timed session or a weekend's knockout rounds (Q1/Q2/Q3). No one-lap shoot-out, no single-car runs with a fixed order, and no tyre or lap allowance. | Low | Med |
 | In qualifying a car is put at the pit exit (`qualifying_outlap_pose`, a teleport): it does not drive down the pit lane, so there is no limiter or queue at the exit light, and the HUD shows race-style standings by track position. | Med | Low |
 | The start order matches drivers by name (`grid_order::resolve`): a stored result's humans are found again only under the same name. | Low | Low |
 | No schedule: a session opening, counting in and starting at its time whether or not everyone is there, with a late joiner going out from the pit lane. Needs a lobby view of upcoming sessions and a countdown. | Med | Med |

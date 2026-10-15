@@ -97,6 +97,7 @@ impl DemoLapTestClient {
             qualifying_seconds: None,
             weekend: None,
             watch: None,
+            qualifying_cutoff_pct: None,
         };
 
         self.send_message(&msg).await?;

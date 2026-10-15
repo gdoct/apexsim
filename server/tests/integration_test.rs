@@ -143,6 +143,7 @@ impl TestClient {
             qualifying_seconds: None,
             weekend: None,
             watch: None,
+            qualifying_cutoff_pct: None,
         };
 
         self.send_tcp_message(&msg).await?;

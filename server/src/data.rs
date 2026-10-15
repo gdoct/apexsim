@@ -3093,6 +3093,20 @@ pub fn clamp_qualifying_seconds(seconds: Option<u32>) -> Option<u32> {
         .map(|s| s.clamp(MIN_QUALIFYING_SECONDS, MAX_QUALIFYING_SECONDS))
 }
 
+/// The tightest qualifying cut-off a host can set
+/// (`CreateSession.qualifying_cutoff_pct`), percent of pole: 101%.
+pub const MIN_QUALIFYING_CUTOFF_PCT: u16 = 101;
+/// The loosest: 150%.
+pub const MAX_QUALIFYING_CUTOFF_PCT: u16 = 150;
+
+/// The qualifying cut-off (the 107% rule) as a session keeps it: `None`
+/// (no cut-off) for none or zero, otherwise held between
+/// [`MIN_QUALIFYING_CUTOFF_PCT`] and [`MAX_QUALIFYING_CUTOFF_PCT`].
+pub fn clamp_qualifying_cutoff(pct: Option<u16>) -> Option<u16> {
+    pct.filter(|p| *p > 0)
+        .map(|p| p.clamp(MIN_QUALIFYING_CUTOFF_PCT, MAX_QUALIFYING_CUTOFF_PCT))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RaceSession {
     pub id: SessionId,
@@ -3148,6 +3162,12 @@ pub struct RaceSession {
     /// `qualifying_seconds` is `None` beside it.
     #[serde(default)]
     pub weekend: Option<crate::weekend::WeekendFormat>,
+    /// The qualifying cut-off, percent of pole (`clamp_qualifying_cutoff`;
+    /// 107 is the 107% rule): a car slower than this in qualifying, or with
+    /// no time, does not start the race (`GameSession::non_qualifiers`).
+    /// `None` for no cut-off.
+    #[serde(default)]
+    pub qualifying_cutoff_pct: Option<u16>,
     pub current_tick: u32,
     pub countdown_ticks_remaining: Option<u16>,
     /// Game mode to transition to when the countdown reaches zero.
@@ -3187,6 +3207,7 @@ impl RaceSession {
             lap_limit,
             race_seconds: None,
             qualifying_seconds: None,
+            qualifying_cutoff_pct: None,
             weekend: None,
             current_tick: 0,
             countdown_ticks_remaining: None,

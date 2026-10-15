@@ -124,6 +124,9 @@ pub struct WeekendProgress {
     /// The current round has been ranked (its eliminations or the final
     /// order are in).
     pub round_closed: bool,
+    /// Q1's ranking once closed, every car with its lap (0 for none): what
+    /// a qualifying cut-off is measured on.
+    pub first_round: Vec<(PlayerId, u32)>,
 }
 
 impl WeekendProgress {
@@ -195,6 +198,9 @@ impl WeekendProgress {
     /// of the grid.
     pub fn close_round(&mut self, ranking: &[(PlayerId, u32)], rounds: usize) {
         let round = self.round as usize;
+        if round == 1 {
+            self.first_round = ranking.to_vec();
+        }
         if round < rounds {
             let keep = self.sizes.get(round).copied().unwrap_or(ranking.len());
             for (i, (id, lap_time_ms)) in ranking.iter().enumerate().skip(keep) {

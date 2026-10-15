@@ -178,6 +178,20 @@ own length is `qualifying_seconds` (`Option<u32>`, clamped by
 carries its own practice and round lengths, and `qualifying_seconds` is
 ignored beside it.
 
+**Qualifying cut-off** (the 107% rule): `qualifying_cutoff_pct`
+(`Option<u16>`, `clamp_qualifying_cutoff` to 101..150 %; absent or 0 is
+none, the default). A car whose best qualifying lap is slower than that
+share of pole, or that set no time, does not start the race
+(`GameSession::non_qualifiers`): it takes no grid slot (the grid closes up
+over it; it did not qualify, it is not a no-show), and `line_up_on_grid`
+seats it behind the field and parks it out of the race
+(`park_non_qualifiers`: undrivable and towed, in its pit box when the track
+has a lane), so the race neither waits for it nor meets it. A plain
+session measures it on its own qualifying, a weekend on Q1 (which every
+car ran; a late entry ran none, so is out). Without qualifying, or with no
+time set by anyone, nobody is out. Echoed in
+`SessionJoined.QualifyingCutoffPct`; not listed in the lobby.
+
 ## The race's grid
 
 Before a race the cars stand on the grid while each driver sets the car up,
@@ -863,7 +877,7 @@ cargo test --release --test hotlap_test generate_ghost_fixture -- --ignored     
 Golden bytes ([protocol](protocol.md)): `cargo test <name> -- --nocapture`
 for `assists_wire_format`, `session_damage_wire_format`,
 `session_ai_skill_wire_format`, `race_time_wire_format`,
-`qualifying_time_wire_format`, `weekend_wire_format`, `grid_wire_format`,
+`qualifying_time_wire_format`, `qualifying_cutoff_wire_format`, `weekend_wire_format`, `grid_wire_format`,
 `lap_timing_wire_format`, `telemetry_compact_wire_format`,
 `hotlap_wire_format`, `hotlap_watch_wire_format`, `recover_wire_format`, `track_corners_wire_format`,
 `rejoin_wire_format`.

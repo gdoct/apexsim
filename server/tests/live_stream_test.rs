@@ -110,6 +110,7 @@ async fn a_live_session_is_watched_as_a_stream_and_recorded() {
             qualifying_seconds: None,
             weekend: None,
             watch: None,
+            qualifying_cutoff_pct: None,
         })
         .await?;
         let joined = host.wait_joined().await?;

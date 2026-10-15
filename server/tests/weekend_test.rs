@@ -140,6 +140,7 @@ async fn a_weekend_runs_from_the_lobby_to_the_race_over_the_wire() {
                 qualifying_seconds: vec![600, 600, 600, 600],
             }),
             watch: None,
+            qualifying_cutoff_pct: None,
         })
         .await?;
         let joined = host.wait_joined().await?;

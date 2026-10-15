@@ -298,6 +298,7 @@ async fn start_free_practice(client: &mut ProtocolTestClient) {
             qualifying_seconds: None,
             weekend: None,
             watch: None,
+            qualifying_cutoff_pct: None,
         })
         .await;
     client
@@ -421,6 +422,7 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
             qualifying_seconds: None,
             weekend: None,
             watch: None,
+            qualifying_cutoff_pct: None,
         })
         .await;
     client

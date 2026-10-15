@@ -127,6 +127,7 @@ async fn the_grid_waits_for_every_driver_then_counts_into_the_race() {
             qualifying_seconds: None,
             weekend: None,
             watch: None,
+            qualifying_cutoff_pct: None,
         })
         .await?;
         let joined = host.wait_joined().await?;

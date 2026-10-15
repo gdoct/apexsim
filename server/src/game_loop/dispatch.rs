@@ -99,6 +99,7 @@ pub(crate) async fn handle_message(
             qualifying_seconds,
             weekend,
             watch,
+            qualifying_cutoff_pct,
         } => {
             handle_create_session(
                 ctx,
@@ -117,6 +118,7 @@ pub(crate) async fn handle_message(
                 qualifying_seconds,
                 weekend,
                 watch.unwrap_or_default(),
+                qualifying_cutoff_pct,
             )
             .await;
         }
@@ -365,6 +367,7 @@ async fn handle_create_session(
     qualifying_seconds: Option<u32>,
     weekend: Option<crate::weekend::WeekendFormat>,
     watch: crate::network::HotlapWatchOptions,
+    qualifying_cutoff_pct: Option<u16>,
 ) {
     let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
@@ -497,6 +500,7 @@ async fn handle_create_session(
         game_session.set_grid_order(grid_order);
         game_session.set_weekend(weekend);
         game_session.set_qualifying_seconds(qualifying_seconds);
+        game_session.set_qualifying_cutoff(qualifying_cutoff_pct);
         game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
     }
     if is_hotlap_watch {
@@ -635,6 +639,7 @@ async fn handle_create_session(
         let race_seconds = game_session.session.race_seconds;
         let qualifying_seconds = game_session.session.qualifying_seconds;
         let weekend = game_session.session.weekend.clone();
+        let qualifying_cutoff_pct = game_session.session.qualifying_cutoff_pct;
         let weekend_state = game_session
             .weekend_state()
             .map(ServerMessage::WeekendState);
@@ -653,6 +658,7 @@ async fn handle_create_session(
                     race_seconds,
                     qualifying_seconds,
                     weekend,
+                    qualifying_cutoff_pct,
                 }),
             )
             .await;
@@ -827,6 +833,7 @@ async fn start_demo_session(
                 race_seconds,
                 qualifying_seconds,
                 weekend: None,
+                qualifying_cutoff_pct: None,
             }),
         )
         .await;
@@ -941,6 +948,7 @@ pub(crate) async fn handle_join_session(
         let race_seconds = game_session.session.race_seconds;
         let qualifying_seconds = game_session.session.qualifying_seconds;
         let weekend = game_session.session.weekend.clone();
+        let qualifying_cutoff_pct = game_session.session.qualifying_cutoff_pct;
         let weekend_state = game_session
             .weekend_state()
             .map(ServerMessage::WeekendState);
@@ -959,6 +967,7 @@ pub(crate) async fn handle_join_session(
                     race_seconds,
                     qualifying_seconds,
                     weekend,
+                    qualifying_cutoff_pct,
                 }),
             )
             .await;
@@ -1022,6 +1031,7 @@ async fn rejoin_session(
         race_seconds: game_session.session.race_seconds,
         qualifying_seconds: game_session.session.qualifying_seconds,
         weekend: game_session.session.weekend.clone(),
+        qualifying_cutoff_pct: game_session.session.qualifying_cutoff_pct,
     });
     let mut messages = vec![joined];
     messages.extend(
@@ -1248,6 +1258,7 @@ pub(crate) async fn handle_join_as_spectator(
         race_seconds,
         qualifying_seconds,
         weekend,
+        qualifying_cutoff_pct,
         weekend_state,
         sectors,
         road,
@@ -1266,6 +1277,7 @@ pub(crate) async fn handle_join_as_spectator(
             race_seconds,
             qualifying_seconds,
             weekend,
+            qualifying_cutoff_pct,
             weekend_state,
             sectors,
             road,
@@ -1287,6 +1299,7 @@ pub(crate) async fn handle_join_as_spectator(
                     s.session.race_seconds,
                     s.session.qualifying_seconds,
                     s.session.weekend.clone(),
+                    s.session.qualifying_cutoff_pct,
                     s.weekend_state().map(ServerMessage::WeekendState),
                     Some(ServerMessage::TrackSectors(TrackSectorsData {
                         session_id,
@@ -1307,6 +1320,7 @@ pub(crate) async fn handle_join_as_spectator(
             race_seconds,
             qualifying_seconds,
             weekend,
+            qualifying_cutoff_pct,
             weekend_state,
             sectors,
             road,
@@ -1332,6 +1346,7 @@ pub(crate) async fn handle_join_as_spectator(
                     race_seconds,
                     qualifying_seconds,
                     weekend,
+                    qualifying_cutoff_pct,
                 }),
             )
             .await;

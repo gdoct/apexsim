@@ -1377,6 +1377,62 @@ impl GameSession {
     /// (`CreateSession.qualifying_seconds`, clamped by
     /// `data::clamp_qualifying_seconds`); `None` for open-ended qualifying.
     /// A weekend's rounds carry their own lengths, so it is ignored there.
+    /// The qualifying cut-off (`CreateSession.qualifying_cutoff_pct`,
+    /// clamped): see [`Self::non_qualifiers`].
+    pub fn set_qualifying_cutoff(&mut self, pct: Option<u16>) {
+        self.session.qualifying_cutoff_pct = crate::data::clamp_qualifying_cutoff(pct);
+    }
+
+    /// The drivers the qualifying cut-off keeps off the race's grid: every
+    /// seated driver slower than `qualifying_cutoff_pct` of pole, or with no
+    /// time. A weekend's cut-off is taken on Q1, which every car ran (a
+    /// late entry ran none); a plain session's on its own qualifying. Empty
+    /// without a cut-off, before qualifying has classified anyone, or with
+    /// no time set at all.
+    pub fn non_qualifiers(&self) -> std::collections::BTreeSet<PlayerId> {
+        let mut out = std::collections::BTreeSet::new();
+        let Some(pct) = self.session.qualifying_cutoff_pct else {
+            return out;
+        };
+        let lap = |id: &PlayerId| -> u32 {
+            if self.is_weekend() {
+                self.weekend
+                    .first_round
+                    .iter()
+                    .find(|(p, _)| p == id)
+                    .map_or(0, |(_, ms)| *ms)
+            } else {
+                self.qualifying.get(id).map_or(0, |(ms, _)| *ms)
+            }
+        };
+        let ran = if self.is_weekend() {
+            !self.weekend.first_round.is_empty()
+        } else {
+            !self.qualifying.is_empty()
+        };
+        if !ran {
+            return out;
+        }
+        let Some(pole) = self
+            .session
+            .participants
+            .keys()
+            .map(lap)
+            .filter(|ms| *ms > 0)
+            .min()
+        else {
+            return out;
+        };
+        let cutoff = pole as u64 * pct as u64 / 100;
+        for id in self.session.participants.keys() {
+            let ms = lap(id);
+            if ms == 0 || ms as u64 > cutoff {
+                out.insert(*id);
+            }
+        }
+        out
+    }
+
     pub fn set_qualifying_seconds(&mut self, seconds: Option<u32>) {
         self.session.qualifying_seconds = if self.session.weekend.is_some() {
             None
@@ -1461,6 +1517,7 @@ impl GameSession {
                 crate::weekend::knockout_sizes(self.session.participants.len(), rounds);
             self.weekend.eliminated.clear();
             self.weekend.final_order.clear();
+            self.weekend.first_round.clear();
         }
         self.weekend.phase = crate::weekend::WeekendPhase::Qualifying;
         self.weekend.round = round;
@@ -3101,7 +3158,7 @@ impl GameSession {
         let mut by_slot: Vec<&crate::grid_order::Seated> = drivers.iter().collect();
         by_slot.sort_by_key(|d| (d.grid_position, d.id));
         let here = |id: PlayerId| Some(id).filter(|id| drivers.iter().any(|d| d.id == *id));
-        let order = if let Some(grid) = self.weekend.grid().filter(|_| self.is_weekend()) {
+        let mut order = if let Some(grid) = self.weekend.grid().filter(|_| self.is_weekend()) {
             crate::grid_order::complete(&by_slot, grid.into_iter().map(here).collect())
         } else if !self.session.grid_order.is_empty() {
             crate::grid_order::resolve(
@@ -3118,6 +3175,22 @@ impl GameSession {
         } else {
             return None;
         };
+        // The cut-off's non-qualifiers take no slot: the grid closes up
+        // over them (they did not qualify, they are not no-shows), and they
+        // are seated behind it, parked out of the race by the line-up.
+        let out = self.non_qualifiers();
+        if !out.is_empty() {
+            let behind: Vec<Option<PlayerId>> = order
+                .iter()
+                .filter(|s| s.is_some_and(|id| out.contains(&id)))
+                .copied()
+                .collect();
+            order.retain(|s| !s.is_some_and(|id| out.contains(&id)));
+            while order.last() == Some(&None) {
+                order.pop();
+            }
+            order.extend(behind);
+        }
         crate::grid_order::fit(order, self.track_config.start_positions.len())
     }
 
@@ -3337,6 +3410,31 @@ impl GameSession {
             *state = fresh;
         }
         self.held_steering_assist.clear();
+        self.park_non_qualifiers();
+    }
+
+    /// The cut-off's non-qualifiers (`non_qualifiers`) do not start: each
+    /// is out of the race from the line-up, parked in its pit box when the
+    /// track has a lane (else on its slot at the back), as a retired car
+    /// towed there is, so the race neither waits for it nor meets it.
+    fn park_non_qualifiers(&mut self) {
+        let out = self.non_qualifiers();
+        let lane = self.track_config.pit_lane.as_ref();
+        for id in out {
+            let Some(state) = self.session.participants.get_mut(&id) else {
+                continue;
+            };
+            state.damage.is_drivable = false;
+            state.towed = true;
+            state.retired_s = TOW_AFTER_S;
+            if let Some(lane) = lane.filter(|l| !l.boxes.is_empty()) {
+                let spot = lane.box_at(state.pit.box_index.unwrap_or(0));
+                state.pos_x = spot.x;
+                state.pos_y = spot.y;
+                state.pos_z = spot.z;
+                state.yaw_rad = spot.yaw_rad;
+            }
+        }
     }
 
     /// Switch on the debug-only hooks (`crate::debug_hooks`) for this
@@ -6580,6 +6678,66 @@ mod tests {
         assert!(game_session.refuses_drivers().is_none(), "the race's grid");
         game_session.session.state = SessionState::Finished;
         assert!(game_session.refuses_drivers().is_some(), "the race is over");
+    }
+
+    /// The 107% rule: a car slower than the cut-off of pole, or with no
+    /// time, takes no grid slot and is parked out of the race; without a
+    /// cut-off every car starts.
+    #[test]
+    fn the_qualifying_cutoff_keeps_slow_cars_off_the_grid() {
+        let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.set_qualifying_cutoff(Some(107));
+        assert!(
+            game_session.non_qualifiers().is_empty(),
+            "no qualifying yet"
+        );
+        game_session.set_game_mode(GameMode::Qualification);
+        game_session.note_qualifying_lap(c, 86_000);
+        game_session.note_qualifying_lap(a, 80_000);
+        game_session.note_qualifying_lap(b, 85_000);
+        let out: Vec<PlayerId> = game_session.non_qualifiers().into_iter().collect();
+        assert_eq!(out, vec![c], "85.0 is inside 107% of 80.0, 86.0 is not");
+        game_session.line_up_on_grid();
+        assert_eq!((slot(&game_session, &a), slot(&game_session, &b)), (1, 2));
+        let parked = &game_session.session.participants[&c];
+        assert!(!parked.damage.is_drivable && parked.towed);
+        assert!(game_session.session.participants[&a].damage.is_drivable);
+
+        let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.set_game_mode(GameMode::Qualification);
+        game_session.note_qualifying_lap(a, 80_000);
+        game_session.note_qualifying_lap(b, 99_000);
+        game_session.line_up_on_grid();
+        assert!(game_session.non_qualifiers().is_empty());
+        assert!(game_session
+            .session
+            .participants
+            .values()
+            .all(|s| s.damage.is_drivable));
+        let _ = c;
+
+        // A weekend measures it on Q1: no time is out too.
+        let (mut game_session, ids) = weekend_of(4, 0, &[600]);
+        game_session.set_qualifying_cutoff(Some(0));
+        assert_eq!(game_session.session.qualifying_cutoff_pct, None);
+        game_session.set_qualifying_cutoff(Some(300));
+        assert_eq!(game_session.session.qualifying_cutoff_pct, Some(150));
+        game_session.set_qualifying_cutoff(Some(107));
+        game_session.advance_weekend().unwrap();
+        for (id, ms) in ids.iter().zip([80_000, 90_000, 81_000, 0]) {
+            game_session.note_qualifying_lap(*id, ms);
+        }
+        end_phase(&mut game_session);
+        let out: Vec<PlayerId> = game_session.non_qualifiers().into_iter().collect();
+        assert_eq!(out, vec![ids[1], ids[3]]);
+        game_session.advance_weekend().unwrap();
+        assert_eq!(
+            (slot(&game_session, &ids[0]), slot(&game_session, &ids[2])),
+            (1, 2)
+        );
+        assert!(out
+            .iter()
+            .all(|id| !game_session.session.participants[id].damage.is_drivable));
     }
 
     /// Two cars with no time are knocked out in seating order.

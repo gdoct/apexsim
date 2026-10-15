@@ -125,6 +125,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             qualifying_seconds: None,
             weekend: None,
             watch: None,
+            qualifying_cutoff_pct: None,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -312,6 +313,7 @@ async fn the_hosts_damage_rule_holds_for_every_car() {
             qualifying_seconds: None,
             weekend: None,
             watch: None,
+            qualifying_cutoff_pct: None,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -390,10 +392,13 @@ async fn the_hosts_ai_level_sets_the_field() {
             qualifying_seconds: None,
             weekend: None,
             watch: None,
+            // The 107% rule rides along: kept and echoed as asked.
+            qualifying_cutoff_pct: Some(107),
         })
         .await?;
         let joined = host.wait_joined().await?;
         assert_eq!(joined.ai_skill, Some(MAX_SKILL_LEVEL), "echoed, clamped");
+        assert_eq!(joined.qualifying_cutoff_pct, Some(107));
 
         let state = server.state.read().await;
         let session = state.sessions.get(&joined.session_id).ok_or("no session")?;
@@ -452,6 +457,7 @@ async fn the_hosts_race_time_is_echoed_and_listed() {
             qualifying_seconds: None,
             weekend: None,
             watch: None,
+            qualifying_cutoff_pct: None,
         })
         .await?;
         let joined = host.wait_joined().await?;
