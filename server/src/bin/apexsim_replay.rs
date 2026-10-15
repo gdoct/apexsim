@@ -82,6 +82,11 @@ enum Command {
         /// Fix the grid (the AI drivers' ids): the same seed, the same race.
         #[arg(long)]
         seed: Option<u64>,
+        /// The AI field's level, 70-110: the field spread over 4 points
+        /// round it, as a host's AI level. Without it the mixed field,
+        /// novice to ace.
+        #[arg(long)]
+        ai_level: Option<u8>,
         #[arg(long)]
         out: PathBuf,
     },
@@ -146,6 +151,11 @@ enum Command {
         /// Render this many seeds, from --seed up, and keep the best.
         #[arg(long, default_value_t = 1)]
         seeds: u32,
+        /// The AI field's level, 70-110: the field spread over 4 points
+        /// round it, as a host's AI level. Without it the mixed field,
+        /// novice to ace.
+        #[arg(long)]
+        ai_level: Option<u8>,
         /// How the kept seed is chosen; `best` (least trouble, closest
         /// racing) is the only rule.
         #[arg(long, default_value = "best")]
@@ -621,6 +631,7 @@ fn run(args: Args) -> Result<(), String> {
             tick_rate,
             record_hz,
             seed,
+            ai_level,
             out,
         } => {
             let opts = SimulateOptions {
@@ -640,6 +651,7 @@ fn run(args: Args) -> Result<(), String> {
                 tick_rate,
                 record_hz,
                 seed,
+                ai_level,
             };
             let started = std::time::Instant::now();
             let (metadata, frames) = simulate_race(&opts)?;
@@ -673,6 +685,7 @@ fn run(args: Args) -> Result<(), String> {
             rate,
             seed,
             seeds,
+            ai_level,
             pick,
             from_tick,
             to_tick,
@@ -716,6 +729,7 @@ fn run(args: Args) -> Result<(), String> {
                     tick_rate,
                     record_hz: rate,
                     seed: Some(seed),
+                    ai_level,
                 },
                 tail_seconds: tail,
                 from_tick,

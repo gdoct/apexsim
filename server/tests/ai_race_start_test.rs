@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use apexsim_server::ai_driver::generate_default_ai_profiles;
+use apexsim_server::ai_driver::generate_ai_profiles;
 use apexsim_server::car_loader::CarLoader;
 use apexsim_server::data::*;
 use apexsim_server::game_session::GameSession;
@@ -105,7 +105,12 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
     let mut cars = HashMap::new();
     cars.insert(car.id, car);
 
-    let mut profiles = generate_default_ai_profiles(ai_count);
+    // `SURVEY_AI_LEVEL=95` seats the field at that level, as a host's AI
+    // level does (spread over 4 points round it); unset, the mixed field.
+    let level: Option<u8> = std::env::var("SURVEY_AI_LEVEL")
+        .ok()
+        .and_then(|s| s.parse().ok());
+    let mut profiles = generate_ai_profiles(ai_count, level);
     // The drivers' ids decide the grid (participants is ordered by id) and
     // seed the AI's noise, so random ids made every run a different race.
     // The Le Mans lap failed on CI about one run in four: in those fields

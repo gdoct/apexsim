@@ -591,13 +591,14 @@ void UApexNetSubsystem::CreateHotlapWatch(const FString& TrackConfigId, const FS
 }
 
 void UApexNetSubsystem::CreateDemoSession(const FString& TrackConfigId, int32 AiCount, int32 LapLimit,
-	const FApexSessionConditions& Conditions)
+	const FApexSessionConditions& Conditions, int32 AiSkill)
 {
 	if (bInDemoSession || bDemoRequested || !CurrentSessionId.IsEmpty() || !IsAuthenticated())
 	{
 		return;
 	}
-	UE_LOG(LogApexSimNet, Log, TEXT("-> CreateSession (demo) track=%s ai=%d laps=%d"), *TrackConfigId, AiCount, LapLimit);
+	UE_LOG(LogApexSimNet, Log, TEXT("-> CreateSession (demo) track=%s ai=%d laps=%d ai_skill=%d"), *TrackConfigId, AiCount, LapLimit,
+		ApexAiSkill::Clamp(AiSkill));
 	bDemoRequested = true;
 	DemoSessionState = EApexSessionState::Lobby;
 	const uint8 Field = static_cast<uint8>(FMath::Clamp(AiCount, 1, 255));
@@ -605,7 +606,7 @@ void UApexNetSubsystem::CreateDemoSession(const FString& TrackConfigId, int32 Ai
 	// allowed.
 	SendPayload(ApexProtocol::EncodeCreateSession(
 		TrackConfigId, Field, Field, static_cast<uint8>(FMath::Clamp(LapLimit, 1, 255)), EApexSessionKind::Demo,
-		FApexAllowedAssists(), Conditions));
+		FApexAllowedAssists(), Conditions, EApexDamageLevel::Full, ApexAiSkill::Clamp(AiSkill)));
 }
 
 void UApexNetSubsystem::LeaveDemoSession()

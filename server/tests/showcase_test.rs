@@ -137,6 +137,7 @@ fn render_into(dir: &Path, name: &str) -> std::path::PathBuf {
             tick_rate: 240,
             record_hz: 30,
             seed: Some(3),
+            ai_level: None,
         },
         tail_seconds: 0.0,
         from_tick: None,

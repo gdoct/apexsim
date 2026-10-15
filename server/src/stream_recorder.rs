@@ -485,6 +485,7 @@ mod tests {
             countdown_seconds: 1,
             record_hz: 30,
             seed: Some(3),
+            ai_level: None,
             tick_rate: 240,
             ..SimulateOptions::default()
         };
@@ -609,6 +610,7 @@ mod tests {
             cars_dir: root.join("content/cars/default"),
             ai_count: 1,
             seed: Some(1),
+            ai_level: None,
             ..crate::replay_tools::SimulateOptions::default()
         };
         let race = crate::replay_tools::start_race(&opts).expect("race").race;

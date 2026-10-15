@@ -271,9 +271,9 @@ function Get-ApexShowcasePlan {
             $sky = $list.Variants[$variant]
             $name = Get-ApexShowcaseName -Track $stem -Class $class -Variant $variant
             $outFile = Join-Path $outDir "$name.apxs"
-            $settings = [ordered]@{ cars = '20'; laps = '2'; seed = '0'; seeds = $null }
+            $settings = [ordered]@{ cars = '20'; laps = '2'; seed = '0'; seeds = $null; ai_level = $null }
             foreach ($key in @($list.Defaults.Keys)) { $settings[$key] = [string]$list.Defaults[$key] }
-            foreach ($key in 'cars', 'laps', 'seed', 'seeds') { if ($entry.Contains($key)) { $settings[$key] = [string]$entry[$key] } }
+            foreach ($key in 'cars', 'laps', 'seed', 'seeds', 'ai_level') { if ($entry.Contains($key)) { $settings[$key] = [string]$entry[$key] } }
 
             $relTrack = if ($trackFile) { $trackFile.Substring($RepoRoot.TrimEnd('\').Length + 1).Replace('\', '/') } else { "content/tracks/default/$stem/$stem.yaml" }
             $renderArgs = @('render', '--track', $relTrack, '--class', $class,
@@ -282,6 +282,7 @@ function Get-ApexShowcasePlan {
                 '--weather', [string]$sky['weather'], '--time', [string]$sky['time'],
                 '--seed', $settings['seed'])
             if ($settings['seeds'] -and [int]$settings['seeds'] -gt 1) { $renderArgs += @('--seeds', $settings['seeds']) }
+            if ($settings['ai_level']) { $renderArgs += @('--ai-level', $settings['ai_level']) }
             if ($sky.Contains('air')) { $renderArgs += @('--air', [string]$sky['air']) }
             if ($sky.Contains('wind')) { $renderArgs += @('--wind', [string]$sky['wind']) }
             if ($sky.Contains('wind_from')) { $renderArgs += @('--wind-from', [string]$sky['wind_from']) }

@@ -34,7 +34,11 @@ same ([architecture.md](../architecture.md), determinism).
   level)` seats the field: with the host's AI level (`CreateSession.ai_skill`,
   see [sessions.md](sessions.md)) spread evenly over `AI_FIELD_SPREAD` (4)
   points round it, shifted to stay inside 70-110; without one the mixed
-  field, novice to ace. Names come from a fixed list; ids are random v4 in
+  field, novice to ace. The same level is `--ai-level` on `apexsim-replay
+  render` and `simulate` (`SimulateOptions::ai_level`, a showcase's
+  `ai_level`), `apexsim.demo.AiSkill` for the client's demo race and
+  `SURVEY_AI_LEVEL` for the survey; every one defaults to the mixed
+  field, so showcases and guides replay as before. Names come from a fixed list; ids are random v4 in
   a live session.
 - **Cars.** The AI races in the host car's `class` (car.toml):
   `class_field` takes every car of that class, sorted by id and rotated to
@@ -192,6 +196,7 @@ passes. Environment:
 |---|---|
 | `SURVEY_TRACKS=Spa,Monza` | only these stems (a custom import too) |
 | `AI_TEST_SEED=n` | another seeded field (default 1); run 1-3 for a comparison |
+| `SURVEY_AI_LEVEL=95` | the field at that AI level (spread over 4 points round it), not the mixed field |
 | `SURVEY_ROAD_CONTACT=mesh` | drive the road meshes (default: centerline backend) |
 | `SURVEY_WIND_KPH=25` | race in wind |
 | `SURVEY_EVENTS=1` | log each contact with both cars' tactics, and long off-road spells |

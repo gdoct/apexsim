@@ -247,6 +247,7 @@ apexsim-replay simulate --track <YAML> --out <FILE> [OPTIONS]
 | `--tick-rate <HZ>` | `420` | Simulation rate. |
 | `--record-hz <HZ>` | `60` | Frames recorded per second of race. |
 | `--seed <N>` | random | Fixes the grid (the AI drivers' ids): the same seed, the same race. |
+| `--ai-level <N>` | mixed | The AI field's level, 70-110: the field spread over 4 points round it, as a host's AI level. Without it the mixed field, novice to ace. |
 
 ```bash
 apexsim-replay simulate --track content/tracks/default/Zandvoort/Zandvoort.yaml --car yotota-lmp2 \
@@ -291,6 +292,7 @@ apexsim-replay render --track <YAML> (--class <CLASS> | --car <CAR>) --out <FILE
 | `--rate <FPS>` | `30` | Frames per second of the stream. |
 | `--seed <N>` | `0` | The grid's seed: the same seed, the same file. |
 | `--seeds <N>` | `1` | Render this many seeds, from `--seed` up, and keep the best. |
+| `--ai-level <N>` | mixed | The AI field's level, 70-110: the field spread over 4 points round it, as a host's AI level. Without it the mixed field, novice to ace, which every shipped showcase uses. |
 | `--pick <RULE>` | `best` | How the kept seed is chosen; `best` is the only rule. |
 | `--from-tick <T>` / `--to-tick <T>` | whole race | Keep only a window of the race. |
 

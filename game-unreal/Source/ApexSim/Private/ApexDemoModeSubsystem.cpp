@@ -29,6 +29,12 @@ namespace
 		TEXT("Cars in a demo session (the circuit's grid may hold fewer); a showcase has its own field."),
 		ECVF_Default);
 
+	TAutoConsoleVariable<int32> CVarDemoAiSkill(
+		TEXT("apexsim.demo.AiSkill"),
+		-1,
+		TEXT("The demo session's AI level, 70-110 (the field spread over 4 points round it); -1 the mixed field, novice to ace."),
+		ECVF_Default);
+
 	TAutoConsoleVariable<int32> CVarDemoLaps(
 		TEXT("apexsim.demo.Laps"),
 		3,
@@ -614,7 +620,8 @@ bool UApexDemoModeSubsystem::StartDemoSession(UApexNetSubsystem& Net)
 		Conditions = RollConditions(Random);
 	}
 	UE_LOG(LogApexSim, Log, TEXT("Demo mode: starting an AI race on %s, %s"), *TrackStem, *Conditions.Describe());
-	Net.CreateDemoSession(TrackId, CVarDemoAiCount.GetValueOnGameThread(), CVarDemoLaps.GetValueOnGameThread(), Conditions);
+	Net.CreateDemoSession(TrackId, CVarDemoAiCount.GetValueOnGameThread(), CVarDemoLaps.GetValueOnGameThread(), Conditions,
+		CVarDemoAiSkill.GetValueOnGameThread());
 	Source = EApexBackdropSource::DemoSession;
 	return true;
 }

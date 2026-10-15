@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::ai_driver::generate_default_ai_profiles;
+use crate::ai_driver::generate_ai_profiles;
 use crate::car_loader::CarLoader;
 use crate::data::*;
 use crate::game_session::GameSession;
@@ -55,6 +55,11 @@ pub struct SimulateOptions {
     /// options and seed give the same race, tick for tick. `None` deals a
     /// fresh grid each run, as the server does.
     pub seed: Option<u64>,
+    /// The AI field's level, as a host's `CreateSession.ai_skill`: the field
+    /// spread round it (`ai_driver::field_skills`). `None` is the mixed
+    /// field, novice to ace, which every showcase and guide was rendered
+    /// with, so they replay as before.
+    pub ai_level: Option<u8>,
 }
 
 impl Default for SimulateOptions {
@@ -72,6 +77,7 @@ impl Default for SimulateOptions {
             tick_rate: crate::game_session::DEFAULT_TICK_RATE_HZ,
             record_hz: 60,
             seed: None,
+            ai_level: None,
         }
     }
 }
@@ -208,7 +214,7 @@ pub fn start_race(opts: &SimulateOptions) -> Result<StartedRace, String> {
     })?;
 
     let ai_count = opts.ai_count.max(1);
-    let mut profiles = generate_default_ai_profiles(ai_count);
+    let mut profiles = generate_ai_profiles(ai_count, opts.ai_level);
     if let Some(seed) = opts.seed {
         for (i, profile) in profiles.iter_mut().enumerate() {
             profile.id = seeded_id(seed, i as u64);
@@ -1608,6 +1614,7 @@ mod tests {
                 tick_rate: 240,
                 record_hz: 30,
                 seed: Some(11),
+                ai_level: None,
             },
             tail_seconds: 2.0,
             from_tick: None,
@@ -2156,6 +2163,34 @@ mod tests {
         assert!(landmark_point(&path, &track, "no such thing", 0.0).is_err());
     }
 
+    /// An AI level seats the field round it, as a host's level does; none
+    /// is the mixed field every showcase was rendered with.
+    #[test]
+    fn an_ai_level_seats_the_field_round_it() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let skills = |ai_level: Option<u8>| {
+            let opts = SimulateOptions {
+                track_path: root.join("content/tracks/default/Zandvoort/Zandvoort.yaml"),
+                cars_dir: root.join("content/cars"),
+                ai_count: 5,
+                seed: Some(1),
+                ai_level,
+                ..SimulateOptions::default()
+            };
+            let started = start_race(&opts).expect("race starts");
+            let mut skills: Vec<u8> = started
+                .race
+                .ai_profiles
+                .values()
+                .map(|p| p.skill_level)
+                .collect();
+            skills.sort_unstable();
+            skills
+        };
+        assert_eq!(skills(Some(95)), vec![93, 94, 95, 96, 97]);
+        assert_eq!(skills(None), crate::ai_driver::field_skills(5, None));
+    }
+
     /// The whole thing, on a real circuit: a short race, a window at a
     /// named corner, a cut that plays back. Two cars for a few laps.
     #[test]
@@ -2178,6 +2213,7 @@ mod tests {
             tick_rate: 240,
             record_hz: 30,
             seed: Some(7),
+            ai_level: None,
         };
         let (meta, frames) = simulate_race(&opts).expect("race simulates");
         // A seed makes the race repeat exactly.

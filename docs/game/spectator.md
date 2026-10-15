@@ -148,7 +148,9 @@ apexsim-replay guide ...    # the track guide, see track-guide.md
   (`--weather`, `--time`, `--air`, `--wind`, `--wind-from`); the AI drove it,
   so it travels resolved in the `Header`. `--seeds N --pick best` renders N
   seeds and keeps the best `RaceScore` (close racing for; contact, off-road
-  time and retirements against). Recorded at `--rate` (30). The same
+  time and retirements against). `--ai-level 95` races the field at that
+  AI level (`ai_driver::field_skills`, as a host's level); without it the
+  mixed field, novice to ace. Recorded at `--rate` (30). The same
   arguments write a byte-identical file (the session and host ids are seeded
   too).
 - **`info --check`** exits non-zero when the track's `source_crc` or a car's
@@ -168,7 +170,9 @@ apexsim-replay guide ...    # the track guide, see track-guide.md
 
 **Showcase files** are named `<Stem>.<class>.<variant>.apxs` (variant a sky:
 `day`, `dusk`, `rain`, `night`) and rendered into `build/showcase/`
-(gitignored) from `content/showcase.yml`. `build_track_levels.ps1` and
+(gitignored) from `content/showcase.yml` (an entry's `ai_level` becomes
+`--ai-level`; `info --check` does not see it change, so re-render with
+`-Force`). `build_track_levels.ps1` and
 `initialize_content.ps1` have a showcase stage (`-SkipShowcase`) that renders
 what is missing or stale by `info --check`. Packages copy them to
 `Game/Showcase/`; the release also to `Server/showcase/` with

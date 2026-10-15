@@ -203,7 +203,9 @@ finished race, a track change, `apexsim.spectate.Next` or
 
 - Off: `-ApexNoDemo` or `apexsim.demo.Enabled 0`; `-ApexAutoRace` never starts
   one; `-ApexNoShowcase` keeps to demo sessions; `-ApexShowcase=<file|id>`.
-- `apexsim.demo.AiCount` (10), `apexsim.demo.Laps` (3), `apexsim.demo.Restart`.
+- `apexsim.demo.AiCount` (10), `apexsim.demo.Laps` (3), `apexsim.demo.Restart`;
+  `apexsim.demo.AiSkill` (-1, the mixed field) sends a demo session's AI
+  level as the create's `ai_skill`, 70-110.
 - The startup splash waits on `IsDemoExpected` / `AApexRaceDirector::IsDemoReady`
   ([client.md](client.md#startup-splash-hold-apexsimboot-uapexstartupsplashsubsystem)).
 

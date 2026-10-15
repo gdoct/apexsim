@@ -280,9 +280,11 @@ public:
 	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
 	 * Answered with OnDemoSessionChanged, never with the session delegates.
 	 * The sky is the caller's; the joined demo echoes it in GetSessionConditions.
+	 * AiSkill: the field's level (ApexAiSkill; Mixed for novice to ace).
 	 */
 	void CreateDemoSession(const FString& TrackConfigId, int32 AiCount, int32 LapLimit,
-		const FApexSessionConditions& Conditions = FApexSessionConditions());
+		const FApexSessionConditions& Conditions = FApexSessionConditions(),
+		int32 AiSkill = ApexAiSkill::Mixed);
 
 	/** Leave the demo session, or withdraw a request for one. Nothing if there is neither. */
 	void LeaveDemoSession();
