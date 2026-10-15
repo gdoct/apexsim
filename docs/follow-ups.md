@@ -75,6 +75,12 @@ the same `ApexProps` code.
   extract (the map API tiles in `.cache/osm/nordschleife_tiles/` are
   newer than the cut) would change the woods and barriers, and so the
   walls: a refit is a groom and an AI survey of its own.
+- Spa: a large untextured white block stands left of Eau Rouge's
+  compression (seen from the road and from above, 2026-10-15 R1/R3 runs);
+  a prop or building without its material.
+- Nordschleife: open sea on the horizon. Past the terrain's edge the view
+  from the road (posts at 165 m, the descent, the Karussell) runs out to a
+  flat blue band: the Eifel is inland, the horizon wants hills or haze.
 
 **Check:** each circuit by hand in the running game; the track-editor tests.
 
@@ -94,6 +100,13 @@ the same `ApexProps` code.
   sees only the bridge, so the fit closes the crossover), and Shanghai's and
   Monza's surface models are checked against a bare-earth one (grandstands,
   the park's canopy); all three still drive their invented z.
+- Verification runs (`scripts/verify`): a tyre's tread (two flat spots,
+  pickup, blisters, a deflated sidewall) cannot be judged on a moving car,
+  and nothing freezes one unattended: `apexsim.recover` refuses a moving
+  car, and `-ApexReplay` has no pause. A pause at a replay time (or a
+  hold-still debug event) would make those checks a run. The stand-in, an
+  AI, also pits for any leak and at a 0.6 flat spot, wear 70 or damage 25
+  (`pit::plan_stop`), so the shot has to come within that lap.
 
 **Check:** the track-editor tests; a fresh-clone `initialize_content.ps1`;
 the launcher import with the network off.
@@ -112,6 +125,20 @@ the launcher import with the network off.
   `/Game/Tracks/<Track>/L_<Track>` instead of building (the menu game mode
   takes over a level opened with `-game`). If it shows they matter, the
   ways out are shipping baked levels or hardware ray-traced Lumen.
+
+- Puddles do not show: the fully low cell at Eau Rouge (1035 m, low 1.0)
+  and Spa's 0.71 cell look like the wet road round them in heavy and in
+  light rain, at road height and from above (2026-10-15). The water rows
+  reach the state texture's A; `ApplyRoadStateGraph`'s puddle term is too
+  weak against the wet road's own gloss, or not read.
+- At night under the floodlights (Mandarina Bay, 21:00) the road blows out
+  to a near-white yellow from the TV and overhead cameras: the asphalt's
+  texture is gone. Exposure against the floodlights' level.
+- The cloud dome at cloudy (0.5 cover) is an even field of small puffs,
+  more altocumulus than scattered cumulus: the noise scales in
+  `BuildCloudLayer` (90 m and 25 m) read small from the ground.
+- The chase-near camera behind the Bugotti Chiffon showed a dark blur
+  filling the frame once (snow run, 2026-10-15): the camera inside a body.
 
 **Check:** the A/B is two screenshots.
 

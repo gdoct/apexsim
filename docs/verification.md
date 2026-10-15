@@ -33,83 +33,68 @@ track YAML and scene (low cells, grades, bends, a prop seen from the road).
 Each shot is judged against what the feature's doc says it draws.
 
 The geometry pass of 2026-10-13 (real elevation, banking with ramps, the
-Karussell in concrete, paved aprons as run-off) is to be seen on every
-circuit but Moscow Raceway, Shanghai, Monza and Yas Marina: each run below
-looks at its own circuit's, and R8 sweeps the rest.
+Karussell in concrete, paved aprons as run-off) has been seen at Spa,
+Mandarina Bay and the Nordschleife; R8 sweeps the rest (every circuit but
+those, Moscow Raceway, Shanghai, Monza and Yas Marina).
 
 ### R1. Spa, heavy rain, stand-in driver
 
 Events: `flatspot=FL` at two times some seconds apart, a `leak=FR`, a
 `puncture=RR` late in the run.
 
-- Puddles, now lying across part of the road: a heavy-rain shot down Eau
-  Rouge's compression could not tell the patch from the wet road at that
-  distance, so a low, close camera on a low cell
-  ([server/conditions.md](server/conditions.md)).
-- Spray (`UpdateSpray`), judged so far from one chase shot at Silverstone
-  in heavy rain: its rate, size and opacity from the TV and close chase
-  cameras.
 - The rain light (`apexsim.car.RainLightNits`) in the wet; a body with no
   `car_rainlight` slot has none.
 - Two lock-ups on one tyre drawn as two glazed patches at different places
-  round the tread (`TyreCpd::FlatSpot2`), on a real wet tyre.
-- A puncture's FLAT and a slow leak's LEAK read-out (`item.flat` /
-  `item.leak`, checked only through the golden frame).
+  round the tread (`TyreCpd::FlatSpot2`). At racing speed the tread is a
+  blur and the stand-in pits at a 0.6 spot: it needs a car held still
+  ([follow-ups.md](follow-ups.md), content tooling).
+- A slow leak's LEAK read-out (`item.leak`, checked only through the golden
+  frame): grab it within the lap of the leak, before the stand-in pits.
 
 ### R2. Silverstone, cloudy, green start, long stint
 
 `-ApexWeather=cloudy -ApexTrackRubber=0`, a long race; events: `wear=`,
 `flatspot=`, `leak=`, `damage=rear:P` short of the wing's `detach_pct`.
 
-- A green start (shot on the grid) and marbles after some laps. Only a
-  rubbered start has been seen (`-ApexTrackRubber=100`, the band about 9%
-  darker); the colour and gloss figures in `ApplyRoadStateGraph` are first
-  guesses.
-- The cloud dome: its figures are first guesses from two Silverstone shots
-  (`ApexSky::CloudLook`, 4500 cd/m² x sun, its colour, the noise scales and
-  the 0.8 cover from which it is whole). Scattered cloud (cloudy 0.5).
+- Marbles, and the rubbered line laid by a race: five laps of twelve cars
+  from a green start lay about 0.24 rubber and 0.09 marbles
+  (`RUBBER_PER_PASS`, `MARBLES_PER_PASS`), too little to see; it takes a
+  race of about an hour. The colour and gloss figures in
+  `ApplyRoadStateGraph` are first guesses.
 - Pickup, blisters and the heat tint on the tread, the sidewall bulge of a
-  deflated tyre and a flat-spotted slick, in a chase shot after a long
-  stint ([server/vehicle-physics.md](server/vehicle-physics.md)).
-- A dented DRS flap, from a camera that sees the wing, and the static
-  camber on the wheels close up.
-- With `apexsim.car.DamagePreview`: a part hanging before it comes off
-  (`UpdateHangingParts`: the hinge edge, the 22° droop are guesses) and the
-  glass cracks (`kGlassCrack`: the web's spokes, rings and reach, and
-  whether it lands on the windscreen rather than a side window on a given
-  model).
+  deflated tyre and a flat-spotted slick, after a long stint
+  ([server/vehicle-physics.md](server/vehicle-physics.md)): a moving car
+  blurs them, so they wait for a car held still, as FlatSpot2 does.
+- The static camber on the wheels close up.
+- A part hanging before it comes off (`UpdateHangingParts`: the hinge edge,
+  the 22° droop): it droops fore and aft, so from the side.
 - A car that lists its own compounds on the garage's reference card (the
   default list's card was seen; every shipped car lists its own now).
 
-### R3. Silverstone, light rain
+### R4. Snow at Spa, changeable, into the evening
 
-- A drying line after rain: the dry line between wet edges after some
-  minutes of the field.
-- Spray in lighter rain, from the TV and cockpit cameras.
-
-### R4. Snow on an AC-imported circuit, changeable, into the night
-
-`-ApexWeather=snow -ApexChangeable=1 -ApexTimeScale=N` from late afternoon.
+`-ApexWeather=snow -ApexChangeable=1 -ApexTimeScale=30` from 15:00. No
+AC-imported circuit is installed; Spa stands in.
 
 - Snow: ice (once the snowfall stops and the line freezes) and a melt (may
   never come at winter temperatures; if it does not show, it is a
   test-only item and moves to [follow-ups.md](follow-ups.md)).
-- Snow on the props, seen so far on one tree and the pit buildings at a
-  distance: the `SnowFloor` 0.4 on tree cards and the faces-up blend on
-  walls, roofs and barriers close up, and an AC-imported circuit's props.
+- Snow on the props: the faces-up blend on walls, roofs and barriers close
+  up, from a camera looking down on them (tree cards have been seen), and
+  an AC-imported circuit's props. The first R4 race ended within five
+  minutes with the whole field stuck off the road, before the ice.
 
 ### R5. Mandarina Bay at night, cloudy
 
 `-ApexTrack=MarinaBay -ApexTimeOfDay=21:00 -ApexWeather=cloudy`, a TV lap
 plus `LookAt` stops ([content/props.md](content/props.md)).
 
-- Mandarina Bay, never seen in the running game, and its geometry.
-- The cloud dome at night.
-- Kerb markers, sausage kerbs and the pit podium, seen only at a distance
-  in a Montreal chase shot. The sausage rule (inside curb of a bend under
-  80 m radius, curbs of 6 to 60 m) lays 240 pieces here and 660 on the
-  Nordschleife, where the AI survey moved a little (more off-road and
-  sliding, no retirements): whether they catch the AI on the TV lap.
+- The cloud dome at night, from open ground (the pit building's ceiling
+  filled the first shot), and in the menu's backdrop.
+- The pit podium.
+- Whether the sausage kerbs catch the AI: they lay 240 pieces here and 660
+  on the Nordschleife, where the AI survey moved a little (more off-road
+  and sliding, no retirements). Seen on screen inside the tight bends.
 
 ### R6. Nordschleife, sunny, TV lap and dressing stops
 
@@ -119,15 +104,13 @@ baked on 2026-10-14 and seen only in four unattended shots (Brünnchen's bank
 and hedge, which still read a lighter green than the grass beside them; road
 graffiti; a marshal post).
 
-- The Karussell in concrete and the rest of the geometry.
-- The numbered posts and the grade plates, from road height.
-- The rail tags wrap the W-beams on both sides of the road (not flipped off
-  the rail, not floating).
-- The skid marks show through `M_ApexDecal`'s mask.
-- The track bridges' parapets stand behind the rail and the overpasses'
-  abutments clear it at the 9 m road's scale.
-- The gantry, the toll lanes and the camp villages; the spectator banks on
-  a sloping verge.
+Seen on 2026-10-15: the Karussell, skid marks, a track bridge's parapet,
+an overpass, the gantry, the camp villages, a rail tag on its beam. From
+30 m at 1080p the rest was too small or out of frame: closer cameras.
+
+- The numbered posts and the grade plates read from road height.
+- The rail tags on the other side of the road (not flipped, not floating).
+- The toll lanes; the spectator banks on a sloping verge.
 - The lookout tower on the Hohe Acht seen from the Hohe Acht section; the
   hillside letters seen from the Döttinger Höhe (or hidden by the trees
   between); Brünnchen's hedge colour.
@@ -145,7 +128,7 @@ that is hit in a seeded replay (`-ApexReplay`, `-ApexWatchCar`).
 
 ### R8. Geometry sweep: one short launch per remaining circuit
 
-Austin, Brands Hatch, Budapest, Catalunya, Hockenheim, IMS, Le Mans,
+Silverstone, Austin, Brands Hatch, Budapest, Catalunya, Hockenheim, IMS, Le Mans,
 Melbourne, Mexico City, Montreal, Norisring, Nürburgring, Oschersleben,
 Sakhir, São Paulo, Sepang, Sochi, Spielberg, Suzuka, Zandvoort: one or two
 TV shots each at the steepest grade and the most banked corner (from the
