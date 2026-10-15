@@ -45,7 +45,11 @@
 //! the default) that recovery stands in for the axle's hydraulic brakes,
 //! so the pedal decelerates the car the same whether the battery takes
 //! the energy or the discs do, and the discs run cooler for it; without
-//! it the recovery brakes the driven axle on top of the pads. Off the
+//! it the recovery brakes the driven axle on top of the pads. A car with
+//! `bbw_response_s` has hydraulics that follow the recovery with that
+//! time constant ([`bbw_offset_n`]), so the balance migrates while they
+//! catch up: rearward as the recovery comes in, forward as a filling
+//! battery takes it away. Off the
 //! throttle and off the brake it charges at [`COAST_SHARE`] of the regen
 //! power against the crank (a little more engine braking), and in Harvest
 //! mode on the throttle at [`HARVEST_SHARE`] of it, again against the
@@ -403,6 +407,30 @@ fn step(
         crank_torque_nm: torque,
         regen_w: 0.0,
     }
+}
+
+/// What brake-by-wire takes off each axle's hydraulics (front, rear), N,
+/// for `regen_axle_n`, the recovery's braking force on each axle this
+/// tick: the recovery itself, or on a car with `bbw_response_s` an
+/// estimate that follows it with that time constant, so the balance
+/// migrates while the hydraulics catch up (rearward as the recovery comes
+/// in, forward as it drops away with the battery full).
+pub fn bbw_offset_n(
+    state: &mut CarState,
+    config: &CarConfig,
+    regen_axle_n: [f32; 2],
+    dt: f32,
+) -> [f32; 2] {
+    let tau = config.hybrid.bbw_response_s;
+    if tau <= 0.0 {
+        state.bbw_offset_n = regen_axle_n;
+    } else {
+        let k = 1.0 - (-dt / tau).exp();
+        for (offset, regen) in state.bbw_offset_n.iter_mut().zip(regen_axle_n) {
+            *offset += (regen - *offset) * k;
+        }
+    }
+    state.bbw_offset_n
 }
 
 /// The deployment the plan may count on at `speed_mps`: the motor's power,

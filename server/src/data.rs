@@ -421,6 +421,14 @@ pub struct HybridConfig {
     /// Without it the recovery brakes the driven axle on top of the pads.
     #[serde(default = "default_true")]
     pub brake_by_wire: bool,
+    /// How long brake-by-wire takes to follow the recovery, s: the time
+    /// constant of the driven axle's hydraulics answering a change in what
+    /// the motor recovers (`hybrid::bbw_offset_n`). While it catches up the
+    /// balance migrates: rearward as the recovery comes in at the start of
+    /// a stop, forward as it drops away when the battery fills. 0 (the
+    /// default) follows it at once.
+    #[serde(default)]
+    pub bbw_response_s: f32,
     /// Balanced mode's spend curve (`crate::hybrid`), from the setup's
     /// deploy map, never the car.toml: 0 spends the lap budget evenly over
     /// the lap, positive earlier, negative later.
@@ -444,6 +452,7 @@ impl Default for HybridConfig {
             stint_kj: None,
             override_kj_per_lap: None,
             brake_by_wire: true,
+            bbw_response_s: 0.0,
             deploy_early: 0.0,
         }
     }
@@ -1643,6 +1652,11 @@ pub struct CarState {
     /// what the hybrid may recover under brake-by-wire (`crate::hybrid`).
     #[serde(default)]
     pub driven_axle_brake_w: f32,
+    /// What brake-by-wire is taking off each axle's hydraulics for the
+    /// recovery, N, front and rear: the recovery itself, or a lagging
+    /// estimate of it on a car with `bbw_response_s` (`crate::hybrid`).
+    #[serde(default)]
+    pub bbw_offset_n: [f32; 2],
     /// The ground's grade under the car, filtered, and the vertical
     /// acceleration the road's curvature along the path gives the body
     /// (positive into the road: a dip loads the car, a crest unloads it;
@@ -1963,6 +1977,7 @@ impl CarState {
             brake_temp_c: [20.0; 4],
             brake_wear_pct: [0.0; 4],
             driven_axle_brake_w: 0.0,
+            bbw_offset_n: [0.0; 2],
             ground_slope_f: 0.0,
             vertical_accel_mps2: 0.0,
             porpoise_phase: 0.0,

@@ -479,9 +479,10 @@ pub fn update_car_3d(
         brake_force * (1.0 - config.brake_bias_front),
     ];
     let hydraulic_axle = if config.hybrid.brake_by_wire {
+        let offset = crate::hybrid::bbw_offset_n(state, config, regen_axle, dt);
         [
-            (asked_axle[0] - regen_axle[0]).max(0.0),
-            (asked_axle[1] - regen_axle[1]).max(0.0),
+            (asked_axle[0] - offset[0]).max(0.0),
+            (asked_axle[1] - offset[1]).max(0.0),
         ]
     } else {
         asked_axle

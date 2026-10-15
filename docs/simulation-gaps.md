@@ -24,7 +24,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 | Porpoising is an oscillation of the downforce at a fixed frequency (`aero::PORPOISE_HZ`) with no body heave behind it; the car does not bounce on its springs. | Med | Low |
 | Brake pads are changed only at a pit stop that finds them past `brakes::PAD_CHANGE_PCT`: no pad choice at the stop, no disc wear separate from the pads. | Low | Low |
 | The hybrid's stint budget (`[hybrid] stint_kj`) is electric energy only: the WEC rule limits the whole car's energy per stint, fuel included. | Med | Low |
-| Brake-by-wire takes the recovery off the driven axle's hydraulics evenly: no front-rear migration of the balance as the battery fills. | Low | Low |
 
 ## Tyres
 

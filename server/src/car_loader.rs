@@ -606,6 +606,9 @@ struct HybridToml {
     /// brakes (default), or brakes on top of them.
     #[serde(default)]
     brake_by_wire: Option<bool>,
+    /// Brake-by-wire's time constant following the recovery, s.
+    #[serde(default)]
+    bbw_response_s: Option<f32>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -878,6 +881,7 @@ impl CarLoader {
                 stint_kj: hybrid_toml.stint_kj.filter(|b| *b > 0.0),
                 override_kj_per_lap: hybrid_toml.override_kj_per_lap.filter(|b| *b > 0.0),
                 brake_by_wire: hybrid_toml.brake_by_wire.unwrap_or(true),
+                bbw_response_s: hybrid_toml.bbw_response_s.unwrap_or(0.0).max(0.0),
                 deploy_early: 0.0,
             },
 
@@ -1323,6 +1327,12 @@ impl CarLoader {
         if let Some(stint) = config.hybrid.stint_kj {
             in_range("hybrid.stint_kj", stint, 1.0, 1.0e7);
         }
+        in_range(
+            "hybrid.bbw_response_s",
+            config.hybrid.bbw_response_s,
+            0.0,
+            1.0,
+        );
         if let Some(kj) = config.hybrid.override_kj_per_lap {
             in_range("hybrid.override_kj_per_lap", kj, 1.0, 1.0e6);
         }
@@ -2068,6 +2078,7 @@ regen_max_power_kw = 100.0
 stint_kj = 30000.0
 override_kj_per_lap = 1500.0
 brake_by_wire = false
+bbw_response_s = 0.08
 "
         );
         let config = load_toml_str(&toml).expect("loads");
@@ -2094,6 +2105,7 @@ brake_by_wire = false
         assert_eq!(config.hybrid.stint_kj, Some(30000.0));
         assert_eq!(config.hybrid.override_kj_per_lap, Some(1500.0));
         assert!(!config.hybrid.brake_by_wire);
+        assert_eq!(config.hybrid.bbw_response_s, 0.08);
         // Two references, or a compound without a name, is a load error.
         let bad = format!(
             "{BASE_TOML}
@@ -2111,6 +2123,7 @@ reference = true
         assert_eq!(plain.tire_config.compounds().len(), 5);
         assert!(plain.tire_config.compounds.is_empty());
         assert!(plain.hybrid.brake_by_wire);
+        assert_eq!(plain.hybrid.bbw_response_s, 0.0);
         assert_eq!(plain.suspension.roll_centre_front_m, None);
     }
 

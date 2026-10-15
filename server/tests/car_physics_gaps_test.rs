@@ -241,6 +241,65 @@ fn brake_by_wire_takes_the_recovered_energy_off_the_discs() {
     );
 }
 
+/// Brake-by-wire that takes time to follow the recovery
+/// (`bbw_response_s`): the battery fills a moment into the stop, the
+/// recovery drops away, and until the rear hydraulics catch up the rears
+/// brake less, so the balance migrates forward and the rear discs take
+/// less of the stop. At 0 it follows at once.
+#[test]
+fn a_slow_brake_by_wire_moves_the_balance_forward_as_the_battery_fills() {
+    let stop = |response_s: f32| {
+        let mut config = car("fugazzi-sf26");
+        config.hybrid.bbw_response_s = response_s;
+        let mut gs = seated(&config, monza(), 100.0, 80.0);
+        {
+            let s = gs.session.participants.get_mut(&PLAYER).unwrap();
+            s.gear = 7;
+            s.hybrid_battery_kwh = config.hybrid.battery_capacity_kwh - 0.01;
+        }
+        drive(&mut gs, PlayerInputData::default(), 2);
+        let brake = PlayerInputData {
+            brake: 0.6,
+            ..Default::default()
+        };
+        // The recovery fills the last 36 kJ in a fifth of a second; from
+        // then on the hydraulics alone brake the rears, once caught up.
+        drive(&mut gs, brake, HZ / 4);
+        let s = &gs.session.participants[&PLAYER];
+        let offset = s.bbw_offset_n[1];
+        let before = s.brake_temp_c;
+        drive(&mut gs, brake, HZ / 4);
+        let s = &gs.session.participants[&PLAYER];
+        let rear_rise = 0.5 * (s.brake_temp_c[2] + s.brake_temp_c[3] - before[2] - before[3]);
+        let front_rise = 0.5 * (s.brake_temp_c[0] + s.brake_temp_c[1] - before[0] - before[1]);
+        (rear_rise, front_rise, offset)
+    };
+    let quick = stop(0.0);
+    let slow = stop(0.3);
+    println!(
+        "bbw at once: rears +{:.1} °C, fronts +{:.1} °C, offset {:.0} N; slow: rears +{:.1} °C, fronts +{:.1} °C, offset {:.0} N",
+        quick.0, quick.1, quick.2, slow.0, slow.1, slow.2
+    );
+    assert_eq!(
+        quick.2, 0.0,
+        "at once: nothing taken off once the battery is full"
+    );
+    assert!(
+        slow.2 > 0.0,
+        "slow: still taking the gone recovery off the rears"
+    );
+    assert!(
+        slow.0 < 0.9 * quick.0,
+        "the rears do less while the hydraulics catch up: {:.1} vs {:.1}",
+        slow.0,
+        quick.0
+    );
+    assert!(
+        (slow.1 - quick.1).abs() < 0.1 * quick.1.max(1.0),
+        "the fronts as before"
+    );
+}
+
 /// A fall onto the road costs the car's ends by the fall's speed, nothing
 /// under the session's damage rule when that is off.
 #[test]

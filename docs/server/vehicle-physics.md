@@ -423,7 +423,10 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
 - **Recovery**: under braking up to `REGEN_AXLE_SHARE` (0.9) of the power the driven axle's
   tyres actually put down last tick (`CarState::driven_axle_brake_w`). With `brake_by_wire`
   (default true) it replaces that axle's hydraulics (the pedal feels the same, the discs run
-  cooler); without, it brakes on top. Coasting charges at `COAST_SHARE`; `heat_recovery_kw`
+  cooler); without, it brakes on top. `bbw_response_s` (default 0: at once) is how long the
+  hydraulics take to follow the recovery (`bbw_offset_n`, a first-order lag): while they catch
+  up the balance migrates, rearward as the recovery comes in at the start of a stop and
+  forward as it drops away when the battery fills. Coasting charges at `COAST_SHARE`; `heat_recovery_kw`
   (MGU-H) charges at full throttle.
 - **Setup** ([car setup](#car-setup-car_setuprs-setup_sheetrs)): `ers_regen` lowers
   `regen_max_power_kw` (down only: recovery is capped at `battery_max_charge_kw`, which
@@ -440,7 +443,8 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
 - car.toml `[hybrid]`: `enabled`, `battery_capacity_kwh`, `battery_max_discharge_kw` /
   `_charge_kw`, `motor_max_torque_nm`, `motor_max_power_kw`, `regen_max_power_kw` and the
   keys above.
-- Tests: `hybrid::tests`, `brake_by_wire_takes_the_recovered_energy_off_the_discs`.
+- Tests: `hybrid::tests`, `brake_by_wire_takes_the_recovered_energy_off_the_discs`,
+  `a_slow_brake_by_wire_moves_the_balance_forward_as_the_battery_fills`.
 
 ## DRS (`drs.rs`, `GameSession::update_drs`)
 
