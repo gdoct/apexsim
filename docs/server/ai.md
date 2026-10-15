@@ -21,7 +21,7 @@ same ([architecture.md](../architecture.md), determinism).
 - `server/src/game_session.rs` - `spawn_ai_drivers`, `class_field`,
   `plan_ai_speeds` / `ai_speed_profile`, `ai_input_for`,
   `update_racecraft`, `plan_ai_stops`, `fuel_save`, `refuels`,
-  `ai_wants_boost`.
+  `ai_ers`.
 - `server/src/pit.rs` - `plan_stop`, `tyres_for_the_track`, `fuel_save_for`,
   `run_up_input`,
   `drive_input` ([pit-lane.md](pit-lane.md)).
@@ -93,10 +93,14 @@ Built per tick in `ai_input_for` with the car's speed profile
   `with_short_shift(share)` upshifts up to `SHORT_SHIFT_DROP` (30%) before
   the usual shift point, where the engine's friction (which grows with
   revs) takes less of what the fuel makes.
-- **DRS** is asked for whenever `CarState::drs_allowed`; in a hybrid the
-  mode is Balanced and the overtake button is held in a race from lap 2
-  within `hybrid::AI_BOOST_GAP_S` (0.8 s) of the car ahead
-  (`ai_wants_boost`).
+- **DRS** is asked for whenever `CarState::drs_allowed`.
+- **Hybrid** (`ai_ers`, `hybrid::ai_ers`): in a race from lap 2 the
+  overtake button is held within `hybrid::AI_BOOST_GAP_S` (0.8 s) of the
+  car ahead, to attack, and within `AI_DEFEND_BOOST_GAP_S` (0.5 s) of the
+  car behind, to defend; with the battery under `AI_HARVEST_BELOW` (30%)
+  and nobody within `AI_ALONE_GAP_S` (2 s) either way the mode is Harvest,
+  so the motor is there in the next fight; Balanced otherwise, and always
+  before lap 2, outside a race and on the pit route.
 
 ## Racecraft (`racecraft.rs`)
 

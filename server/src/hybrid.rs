@@ -8,7 +8,8 @@
 //!
 //! - a **mode** (`ErsMode`, `PlayerInput.ers_mode`): *Harvest* never
 //!   deploys and charges from the engine on the throttle as well;
-//!   *Balanced* (the default, and the AI's) deploys at full throttle,
+//!   *Balanced* (the default, and the AI's but when it harvests alone:
+//!   [`ai_ers`]) deploys at full throttle,
 //!   eased back smoothly when it is spending the lap's budget faster than
 //!   the lap goes by, and eased out as the battery runs low; *Attack* deploys whenever the throttle is open until the budget
 //!   or the battery is gone;
@@ -87,8 +88,34 @@ impl ErsMode {
 /// An AI chasing a car closer than this presses the overtake button, s.
 pub const AI_BOOST_GAP_S: f32 = 0.8;
 
+/// An AI with a car closer than this behind presses the overtake button to
+/// defend, s.
+pub const AI_DEFEND_BOOST_GAP_S: f32 = 0.5;
+/// An AI with the battery under this share of its capacity, nobody within
+/// [`AI_ALONE_GAP_S`] ahead or behind, harvests on purpose: it gives up the
+/// motor while alone so it has it in the fight.
+pub const AI_HARVEST_BELOW: f32 = 0.3;
+pub const AI_ALONE_GAP_S: f32 = 2.0;
+
 /// The mode a car starts in and the AI drives in.
 pub const DEFAULT_MODE: u8 = ErsMode::Balanced as u8;
+
+/// The AI's mode and overtake button in a race, past its first lap:
+/// `charge` the battery's share, the gaps to the nearest cars ahead and
+/// behind on the road, s. The button to attack within [`AI_BOOST_GAP_S`] of
+/// the car ahead and to defend within [`AI_DEFEND_BOOST_GAP_S`] of the car
+/// behind; Harvest when low and alone; Balanced otherwise.
+pub fn ai_ers(charge: f32, gap_ahead_s: Option<f32>, gap_behind_s: Option<f32>) -> (ErsMode, bool) {
+    let within = |gap: Option<f32>, s: f32| gap.is_some_and(|g| g <= s);
+    if within(gap_ahead_s, AI_BOOST_GAP_S) || within(gap_behind_s, AI_DEFEND_BOOST_GAP_S) {
+        return (ErsMode::Balanced, true);
+    }
+    let alone = !within(gap_ahead_s, AI_ALONE_GAP_S) && !within(gap_behind_s, AI_ALONE_GAP_S);
+    if alone && charge < AI_HARVEST_BELOW {
+        return (ErsMode::Harvest, false);
+    }
+    (ErsMode::Balanced, false)
+}
 
 /// Off the throttle and the brake, the motor recovers this share of its
 /// regen power against the crank.
@@ -513,6 +540,21 @@ fn publish(state: &mut CarState, config: &CarConfig) {
 mod tests {
     use super::*;
     use crate::data::HybridConfig;
+
+    #[test]
+    fn the_ai_boosts_to_attack_and_defend_and_harvests_alone() {
+        use ErsMode::*;
+        assert_eq!(ai_ers(0.8, Some(0.5), None), (Balanced, true), "attack");
+        assert_eq!(ai_ers(0.8, None, Some(0.3)), (Balanced, true), "defend");
+        assert_eq!(ai_ers(0.8, Some(1.5), Some(1.0)), (Balanced, false));
+        assert_eq!(ai_ers(0.2, None, None), (Harvest, false), "low, alone");
+        assert_eq!(
+            ai_ers(0.2, Some(1.5), None),
+            (Balanced, false),
+            "low, but racing a car"
+        );
+        assert_eq!(ai_ers(0.2, Some(3.0), Some(5.0)), (Harvest, false));
+    }
 
     fn car(budget: Option<f32>) -> CarConfig {
         CarConfig {

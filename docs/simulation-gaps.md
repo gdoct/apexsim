@@ -54,8 +54,8 @@ seen). Every deferred item is recorded in exactly one of the four.
 | Mistakes come only under pressure (a car within 0.6 s behind, `racecraft::mistakes`), never from fatigue, a cold tyre or a wet patch, and none is a spin of the driver's own making (a lock-up or a wide line ends in one only through the physics). | Low | Low |
 | No mandatory stops (a session rule: a `CreateSession` field, the create screen, and the AI's plan counting it). | Med | Low |
 | The AI's stop plan reads the car ahead and behind on the road only: it does not work out where it would rejoin, nor race a rival's strategy (an overcut, a stop under a slow lap). | Med | Low |
-| The AI never harvests or saves hybrid energy on purpose (it drives Balanced), and does not defend with the overtake button (it presses it within `hybrid::AI_BOOST_GAP_S` of a car ahead). | Low | Low |
 | The AI's speed plan (`racing_line::build_laden`) counts a hybrid's motor at full power whatever the lap budget and the minimum deployment speed allow, and the AI caps itself at that plan times its skill's pace on the straights too: planned on the paced motor (as the player's aid is), an F1 AI lapped Monza 3 s slower than the car can. | Med | Low |
+| The AI's hybrid use is three rules on the gaps and the charge (`hybrid::ai_ers`): it does not save energy for a particular straight, nor change its deploy map. | Low | Low |
 | The AI's crossover reads the forecast only as when the sky next turns wet or dry (`pit::CrossoverContext`): not how hard it will rain, how long the line takes to dry, or what the cars around it are on. | Low | Low |
 | The AI drives the racing line whatever the road does: it does not move off a rubbered line to a wet one for grip, nor aim for the dry line in the rain. | Med | Low |
 | The AI's speed plan assumes full engine power after damage; it drives around damage only through its steering loop and aero share. | Low | Low |

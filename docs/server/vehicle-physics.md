@@ -463,8 +463,9 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
   to three rounds. A budget the lap never reaches plans as none. The AI's plan and the fuel
   estimate (`build_laden`) count the motor at full power everywhere: the AI caps itself at its
   plan times its skill's pace on the straights too, and on the paced plan an F1 AI lapped Monza
-  3 s slower. The AI drives Balanced and boosts within
-  `AI_BOOST_GAP_S` of the car ahead.
+  3 s slower. The AI boosts within `AI_BOOST_GAP_S` of the car ahead and
+  `AI_DEFEND_BOOST_GAP_S` of the car behind, and harvests when low and alone (`ai_ers`,
+  [AI](ai.md)).
 - car.toml `[hybrid]`: `enabled`, `battery_capacity_kwh`, `battery_max_discharge_kw` /
   `_charge_kw`, `motor_max_torque_nm`, `motor_max_power_kw`, `regen_max_power_kw` and the
   keys above.

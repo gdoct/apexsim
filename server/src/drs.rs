@@ -92,6 +92,24 @@ pub fn gap_ahead_s(me: &CarState, field: &[(PlayerId, f32)], total: f32) -> Opti
         .reduce(f32::min)
 }
 
+/// Seconds the nearest car behind `me` on the road is back, at its own
+/// speed, or `None` when nobody is within [`GAP_REACH_M`]. `field` holds
+/// each car's progress and speed.
+pub fn gap_behind_s(me: &CarState, field: &[(PlayerId, f32, f32)], total: f32) -> Option<f32> {
+    field
+        .iter()
+        .filter(|(id, _, _)| *id != me.player_id)
+        .map(|(_, progress, speed)| {
+            (
+                (me.track_progress - progress).rem_euclid(total),
+                speed.max(1.0),
+            )
+        })
+        .filter(|(d, _)| *d > 0.0 && *d <= GAP_REACH_M)
+        .map(|(d, speed)| d / speed)
+        .reduce(f32::min)
+}
+
 /// Run the rule over every car for this tick. `mode` and `weather` are the
 /// session's; the cars' `track_progress` is where the last tick left them.
 pub fn update(

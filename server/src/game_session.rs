@@ -4774,10 +4774,12 @@ impl GameSession {
             self.session.current_tick,
             self.tick_rate_hz,
         );
-        // The hybrid: balanced, and the overtake button when chasing.
+        // The hybrid: the overtake button to attack or defend, harvesting
+        // when low and alone (`hybrid::ai_ers`).
         if car_config.hybrid.enabled {
-            input.ers_mode = Some(crate::hybrid::DEFAULT_MODE);
-            input.ers_boost = self.ai_wants_boost(state);
+            let (mode, boost) = self.ai_ers(state, car_config);
+            input.ers_mode = Some(mode as u8);
+            input.ers_boost = boost;
         }
         if let Some((lane, to_lane)) = run_up {
             input = crate::pit::run_up_input(lane, to_lane, state.speed_mps, input);
@@ -4956,29 +4958,36 @@ impl GameSession {
         needed > 0.0 && 1.0 - capacity / needed > crate::pit::MAX_FUEL_SAVE_SHORT
     }
 
-    /// An AI in a race presses the overtake button within
-    /// [`crate::hybrid::AI_BOOST_GAP_S`] of the car ahead, from the second
-    /// lap, on the throttle.
-    fn ai_wants_boost(&self, state: &CarState) -> bool {
+    /// An AI's hybrid mode and overtake button: Balanced and the button
+    /// off before its second lap of a race, outside a race and on the pit
+    /// route; past that `hybrid::ai_ers` on its charge and the gaps to the
+    /// cars ahead and behind.
+    fn ai_ers(&self, state: &CarState, config: &CarConfig) -> (crate::hybrid::ErsMode, bool) {
+        let balanced = (crate::hybrid::ErsMode::Balanced, false);
         if !crate::drs::race_rules(self.session.game_mode)
             || state.current_lap < crate::drs::DRS_RACE_FROM_LAP
             || state.pit.driving
         {
-            return false;
+            return balanced;
         }
         let total = crate::laps::track_length_m(&self.track_config);
         if total <= 0.0 {
-            return false;
+            return balanced;
         }
-        let field: Vec<(PlayerId, f32)> = self
+        let field: Vec<(PlayerId, f32, f32)> = self
             .session
             .participants
             .values()
             .filter(|s| !s.in_garage && s.damage.is_drivable)
-            .map(|s| (s.player_id, s.track_progress))
+            .map(|s| (s.player_id, s.track_progress, s.speed_mps))
             .collect();
-        crate::drs::gap_ahead_s(state, &field, total)
-            .is_some_and(|g| g <= crate::hybrid::AI_BOOST_GAP_S)
+        let ahead: Vec<(PlayerId, f32)> = field.iter().map(|(id, p, _)| (*id, *p)).collect();
+        let charge = state.hybrid_battery_kwh / config.hybrid.battery_capacity_kwh.max(1e-6);
+        crate::hybrid::ai_ers(
+            charge,
+            crate::drs::gap_ahead_s(state, &ahead, total),
+            crate::drs::gap_behind_s(state, &field, total),
+        )
     }
 
     /// Generate AI input for a player using their AI profile.
