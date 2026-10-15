@@ -274,3 +274,5 @@ target-scratch/*
 deploy/deploy.user.psd1
 build/deploy/
 records/*
+out/verify/
+

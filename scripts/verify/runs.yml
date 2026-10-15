@@ -1,0 +1,500 @@
+# The unattended screen runs of docs/verification.md, section 1.
+# Run with scripts/verify/run_checks.py; the format is in its docstring.
+#
+# A run:
+#   id, about           names it; `about` names its section in verification.md
+#   resolution          WIDTHxHEIGHT (default 1920x1080)
+#   server.stand_in     an AI drives the player's car
+#   server.events       debug events, "<s of green>:<host|all|car>:<action>"
+#                       (docs/server/operations.md, Debug hooks)
+#   server.env          any other APEXSIM_* override
+#   args                the game's switches (docs/game/client.md)
+#   exec                {seconds: command or [commands]} with no shot of their own
+#   shots               at (s from the game's start), label, checks (the
+#                       verification.md item it is for), exec (commands run
+#                       `lead` s, default 3, before the grab)
+#
+# Shot times count from the race view's clock, which starts with the session
+# (the engine's own start-up comes before it); events count from the green,
+# which comes -ApexCountdown seconds (and about one more) after that. So a
+# shot at T sees green + T - countdown - 1.
+#
+# The stand-in is an AI and stops for what an AI stops for (server/src/pit.rs
+# plan_stop): any leak or puncture, a flat spot of 0.6, wear of 70%, 25% in a
+# damage zone. A stop fits new tyres and repairs: keep under those, or grab
+# within the lap of the event.
+#
+# Camera poses: python scripts/verify/spots.py <Track> --puddles N | --grade N
+# | --bank N | --at M | --near X,Y (server frame, the YAML's).
+
+runs:
+  - id: r1-spa-wet
+    about: "R1. Spa, heavy rain, stand-in driver"
+    # An F1 car's rear treads are hidden from the chase camera; the cockpit
+    # sees the front tyres' tops.
+    server:
+      stand_in: true
+      events:
+        - "10:host:flatspot=FL:0.3"
+        - "40:host:flatspot=FL:0.7"
+        - "60:host:leak=FR:0.3"
+        - "250:host:puncture=RL"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Spa
+      - -ApexCar=SF-26
+      - -ApexAiCount=9
+      - -ApexLaps=10
+      - -ApexCountdown=5
+      - -ApexWeather=heavyrain
+      - -ApexTimeOfDay=14:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    shots:
+      - at: 150
+        label: "cockpit: FL tread, two flat spots?"
+        checks: "Tyres: two lock-ups on one tyre (FlatSpot2); real wet tyre"
+        exec: "apexsim.cam.Chase cockpit"
+      - at: 152
+        label: "cockpit again (another turn of the wheel)"
+        checks: "FlatSpot2"
+      - at: 154.5
+        label: "cockpit, third"
+        checks: "FlatSpot2; LEAK read-out (leak FR from 60 s)"
+      - at: 165
+        label: "chase near: rain light, spray"
+        checks: "Rain light; spray from the chase camera"
+        exec: "apexsim.cam.Chase near"
+      - at: 175
+        label: "Eau Rouge low cell 1035 m, at road height"
+        checks: "Puddle across part of the road"
+        exec: "apexsim.cam.LookAt 303.3 -29.3 -24.6 303.6 -37.3 -25.4"
+      - at: 180
+        label: "Eau Rouge low cell 1035 m, from the other side"
+        checks: "Puddle across part of the road"
+        exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"
+      - at: 185
+        label: "Eau Rouge low cell 1035 m, from above"
+        checks: "Puddle across part of the road"
+        exec: "apexsim.cam.LookAt 289.0 -9.7 -20.4 303.6 -37.3 -25.4"
+      - at: 190
+        label: "Raidillon 1185 m (12.9% grade)"
+        checks: "Geometry pass: Spa's elevation"
+        exec: "apexsim.cam.LookAt 389.6 -101.1 -11.2 414.3 -133.7 -14.2"
+      - at: 205
+        label: "TV camera"
+        checks: "Spray from the TV camera; rain light"
+        exec: ["apexsim.cam.Release", "apexsim.tv.View 1"]
+        lead: 6
+      - at: 215
+        label: "TV camera, later"
+        checks: "Spray from the TV camera"
+      - at: 228
+        label: "TV camera, later"
+        checks: "Spray from the TV camera"
+      - at: 310
+        label: "chase near, HUD"
+        checks: "FLAT read-out (puncture RL at 250 s of green); LEAK"
+        exec: ["apexsim.tv.View 0", "apexsim.cam.Chase near"]
+        lead: 5
+      - at: 316
+        label: "cockpit, HUD"
+        checks: "FLAT and LEAK read-outs; FlatSpot2 still there"
+        exec: "apexsim.cam.Chase cockpit"
+
+  - id: r2-silverstone-stint
+    about: "R2. Silverstone, cloudy, green start, long stint"
+    # The same corner cameras at the green and ten minutes on: rubber 0 to
+    # marbles. Rear damage 40 is past half the rear wing's detach_pct (45):
+    # the wing hangs and the DRS flap is dented, still on the car.
+    server:
+      stand_in: true
+      events:
+        - "30:host:flatspot=FL:0.6"
+        - "60:host:damage=rear:40"
+        - "200:host:wear=70"
+        - "520:host:leak=RR:2"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Silverstone
+      - -ApexCar=SF-26
+      - -ApexAiCount=11
+      - -ApexLaps=30
+      - -ApexCountdown=5
+      - -ApexWeather=cloudy
+      - -ApexTimeOfDay=13:00
+      - -ApexTrackRubber=0
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    shots:
+      - at: 38
+        label: "corner 1045 m on the grid: a green road"
+        checks: "A green start (rubber 0)"
+        exec: "apexsim.cam.LookAt 741.1 347.8 12.6 752.7 357.5 10.1"
+      - at: 42
+        label: "corner 5515 m on the grid"
+        checks: "A green start"
+        exec: "apexsim.cam.LookAt 106.5 -197.6 4.0 94.2 -206.0 1.5"
+      - at: 46
+        label: "the sky: cloudy (0.5 cover)"
+        checks: "Cloud dome, scattered cloud"
+        exec: "apexsim.cam.LookAt 169.8 249.4 5.3 400 400 300"
+      - at: 130
+        label: "chase near: rear wing hanging, DRS flap dented"
+        checks: "Dented DRS flap; a part hanging (UpdateHangingParts)"
+        exec: ["apexsim.cam.Release", "apexsim.cam.Chase near"]
+      - at: 134
+        label: "chase close: rear wing and flap"
+        checks: "Dented DRS flap; hanging droop and flutter"
+        exec: "apexsim.cam.Chase close"
+      - at: 140
+        label: "cockpit: FL flat-spotted slick, front camber"
+        checks: "Flat-spotted slick; static camber"
+        exec: "apexsim.cam.Chase cockpit"
+      - at: 480
+        label: "cockpit after a long stint: tread pickup, blisters, heat"
+        checks: "Pickup, blisters, heat tint on the tread"
+      - at: 486
+        label: "chase close after a long stint"
+        checks: "Pickup, blisters, heat tint; camber"
+        exec: "apexsim.cam.Chase close"
+      - at: 600
+        label: "chase close: RR deflated (leak from 520 s)"
+        checks: "Sidewall bulge of a deflated tyre; LEAK read-out"
+      - at: 606
+        label: "chase near: the bulge"
+        checks: "Sidewall bulge"
+        exec: "apexsim.cam.Chase near"
+      - at: 615
+        label: "corner 1045 m after ten minutes"
+        checks: "Marbles off the line; rubbered line"
+        exec: "apexsim.cam.LookAt 741.1 347.8 12.6 752.7 357.5 10.1"
+      - at: 620
+        label: "corner 5515 m after ten minutes"
+        checks: "Marbles off the line"
+        exec: "apexsim.cam.LookAt 106.5 -197.6 4.0 94.2 -206.0 1.5"
+
+  - id: r3-spa-lightrain
+    about: "R3. Spa, light rain (puddles, drying line, lighter spray)"
+    # In light rain the flat road holds less water than a low cell, so a
+    # puddle should stand out where heavy rain made the whole road a mirror.
+    # The field wipes a dry line through the corners over the laps.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Spa
+      - -ApexCar=SF-26
+      - -ApexAiCount=11
+      - -ApexLaps=10
+      - -ApexCountdown=5
+      - -ApexWeather=lightrain
+      - -ApexTimeOfDay=14:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    server:
+      stand_in: true
+    shots:
+      - at: 120
+        label: "TV camera, light rain"
+        checks: "Spray in lighter rain"
+      - at: 135
+        label: "TV camera, light rain"
+        checks: "Spray in lighter rain"
+      - at: 150
+        label: "cockpit, light rain"
+        checks: "Spray in lighter rain from the cockpit"
+        exec: ["apexsim.tv.View 0", "apexsim.cam.Chase cockpit"]
+        lead: 5
+      - at: 400
+        label: "Eau Rouge low cell 1035 m, at road height"
+        checks: "Puddle across part of the road"
+        exec: "apexsim.cam.LookAt 303.3 -29.3 -24.6 303.6 -37.3 -25.4"
+      - at: 405
+        label: "Eau Rouge low cell 1035 m, from the other side"
+        checks: "Puddle across part of the road"
+        exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"
+      - at: 410
+        label: "Eau Rouge low cell 1035 m, from above"
+        checks: "Puddle across part of the road"
+        exec: "apexsim.cam.LookAt 289.0 -9.7 -20.4 303.6 -37.3 -25.4"
+      - at: 415
+        label: "low cell 6175 m (0.71), from above"
+        checks: "Puddle across part of the road"
+        exec: "apexsim.cam.LookAt 162.8 -739.9 -17.6 172.7 -721.1 -21.6"
+      - at: 420
+        label: "La Source hairpin 6795 m after six minutes"
+        checks: "A drying line after rain (dry line between wet edges)"
+        exec: "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2"
+      - at: 425
+        label: "bend 395 m after six minutes"
+        checks: "A drying line"
+        exec: "apexsim.cam.LookAt -195.4 323.5 11.0 -192.3 337.9 7.0"
+
+  - id: r4-spa-snow
+    about: "R4. Snow at Spa, changeable, into the evening; glass cracks on a hypercar"
+    # No AC-imported circuit is installed, so the imported props wait. A
+    # closed car for the glass: DamagePreview dents the player's car on the
+    # client alone (front, then rear). The clock runs 30x from 15:00, and the
+    # forecast may stop the snow: the line freezes once it has.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Spa
+      - -ApexCar=Chiffon
+      - -ApexAiCount=7
+      - -ApexLaps=12
+      - -ApexCountdown=5
+      - -ApexWeather=snow
+      - -ApexChangeable=1
+      - -ApexTimeScale=30
+      - -ApexTimeOfDay=15:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    server:
+      stand_in: true
+    shots:
+      - at: 15
+        label: "broadleaf tree close (tree cards, SnowFloor 0.4)"
+        checks: "Snow on tree cards close up"
+        exec: "apexsim.cam.LookAt 416.8 -139.3 -11.4 361.1 -171.7 -8.0"
+      - at: 20
+        label: "conifer close"
+        checks: "Snow on tree cards close up"
+        exec: "apexsim.cam.LookAt -136.6 326.6 6.9 -97.9 381.9 5.0"
+      - at: 25
+        label: "armco barrier close"
+        checks: "Faces-up snow on barriers"
+        exec: "apexsim.cam.LookAt -113.5 316.8 5.1 -90.7 338.7 3.5"
+      - at: 30
+        label: "grandstand roof"
+        checks: "Faces-up snow on roofs"
+        exec: "apexsim.cam.LookAt 115.2 167.8 -5.7 160.5 171.6 -2.0"
+      - at: 35
+        label: "media centre roof and walls"
+        checks: "Faces-up snow on roofs and walls"
+        exec: "apexsim.cam.LookAt 253.7 16.7 -15.0 270.8 -24.9 -18.0"
+      - at: 60
+        label: "chase near: front hit (preview 60%)"
+        checks: "Glass cracks round a front hit; on the windscreen?"
+        exec: ["apexsim.cam.Release", "apexsim.car.DamagePreview 60,0,0,0,0", "apexsim.cam.Chase near"]
+      - at: 63
+        label: "cockpit: the windscreen from inside"
+        checks: "Glass cracks: spokes, rings, reach"
+        exec: "apexsim.cam.Chase cockpit"
+      - at: 70
+        label: "chase close: rear hit (preview 60%)"
+        checks: "Glass cracks round a rear hit"
+        exec: ["apexsim.car.DamagePreview 0,60,0,0,0", "apexsim.cam.Chase close"]
+      - at: 75
+        label: "chase near: a 25% front, parts hanging"
+        checks: "A part hanging before it comes off"
+        exec: ["apexsim.car.DamagePreview 25,25,25,25,0", "apexsim.cam.Chase near"]
+      - at: 300
+        label: "La Source after five minutes of snow (evening)"
+        checks: "Snow: the driven line through the white; ice once the snow stops"
+        exec: ["apexsim.car.DamagePreview 0,0,0,0,0", "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2"]
+      - at: 305
+        label: "Eau Rouge after five minutes"
+        checks: "Snow and ice on the line"
+        exec: "apexsim.cam.LookAt 289.0 -9.7 -20.4 303.6 -37.3 -25.4"
+      - at: 560
+        label: "La Source at night (about 19:40)"
+        checks: "Ice on the line overnight; a melt"
+        exec: "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2"
+      - at: 565
+        label: "the night sky over Spa"
+        checks: "The cloud dome at night"
+        exec: "apexsim.cam.LookAt 289.0 -9.7 -20.4 600 200 300"
+
+  - id: r5-mandarina-night
+    about: "R5. Mandarina Bay at night, cloudy"
+    # Never seen in the running game. Sausage kerbs lie on the inside of
+    # bends under 80 m radius: the three tightest from above, then the TV
+    # camera round a lap with the field on them.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MarinaBay
+      - -ApexCar=SF-26
+      - -ApexAiCount=11
+      - -ApexLaps=5
+      - -ApexCountdown=5
+      - -ApexWeather=cloudy
+      - -ApexTimeOfDay=21:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    server:
+      stand_in: true
+    shots:
+      - at: 4
+        label: "the grid at night"
+        checks: "Mandarina Bay first sight; pit lane, pit podium"
+        exec: "apexsim.cam.LookAt 20.0 -21.0 10.0 60.0 0.0 0.0"
+        lead: 2
+      - at: 8
+        label: "the night sky, cloudy"
+        checks: "The cloud dome at night; scattered cloud"
+        exec: "apexsim.cam.LookAt 20.0 -21.0 10.0 300 200 250"
+        lead: 2
+      - at: 40
+        label: "bend 3065 m (r 23 m) from above"
+        checks: "Sausage kerbs; kerb markers"
+        exec: "apexsim.cam.LookAt -280.5 1236.9 8.7 -281.7 1219.3 0.7"
+      - at: 45
+        label: "bend 2025 m (r 23 m) from above"
+        checks: "Sausage kerbs; kerb markers"
+        exec: "apexsim.cam.LookAt 231.5 1024.3 8.0 241.4 1039.4 0.0"
+      - at: 50
+        label: "bend 3605 m (r 24 m) from above"
+        checks: "Sausage kerbs"
+        exec: "apexsim.cam.LookAt 217.5 1026.8 8.0 205.0 1013.8 0.0"
+      - at: 55
+        label: "the 3.8% grade at 2995 m"
+        checks: "Geometry pass: Mandarina Bay"
+        exec: "apexsim.cam.LookAt -220.2 1263.4 3.3 -240.2 1262.2 1.3"
+      - at: 100
+        label: "TV camera"
+        checks: "Mandarina Bay in the running game"
+        exec: "apexsim.cam.Release"
+      - at: 120
+        label: "TV camera"
+        checks: "Mandarina Bay; the field on the sausage kerbs"
+      - at: 140
+        label: "TV camera"
+        checks: "Mandarina Bay"
+      - at: 160
+        label: "TV camera"
+        checks: "Mandarina Bay"
+      - at: 180
+        label: "TV camera"
+        checks: "Mandarina Bay"
+      - at: 200
+        label: "TV camera"
+        checks: "Mandarina Bay"
+
+  - id: r6-nordschleife
+    about: "R6. Nordschleife, sunny, dressing stops and TV lap"
+    # Stops from the .ats and the layout dossier (spots.py --prop / --at),
+    # mostly from the road at a driver's eye height; then the TV camera.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Nordschleife
+      - -ApexCar=SF-26
+      - -ApexAiCount=11
+      - -ApexLaps=2
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=11:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    server:
+      stand_in: true
+    shots:
+      - at: 10
+        label: "marshal post 1 from the road (165 m)"
+        checks: "The numbered posts read from the road"
+        exec: "apexsim.cam.LookAt 133.4 -16.5 3.6 173.6 -20.0 2.0"
+      - at: 15
+        label: "grade plate: climb 12% (1939 m)"
+        checks: "The grade plates read from the road"
+        exec: "apexsim.cam.LookAt 1432.9 625.8 -66.4 1463.1 617.3 -66.1"
+      - at: 20
+        label: "grade plate: descent"
+        checks: "The grade plates read from the road"
+        exec: "apexsim.cam.LookAt 157.4 -12.3 2.9 178.7 14.0 1.0"
+      - at: 25
+        label: "rail tag on the W-beam (2189 m)"
+        checks: "Rail tags wrap the W-beams (not flipped, not floating)"
+        exec: "apexsim.cam.LookAt 1686.1 597.0 -44.0 1714.3 602.3 -42.8"
+      - at: 30
+        label: "rail tag, further on (3434 m)"
+        checks: "Rail tags on the other side of the road"
+        exec: "apexsim.cam.LookAt 2629.4 -129.3 -66.6 2653.2 -131.2 -67.7"
+      - at: 35
+        label: "rail tag (610 m)"
+        checks: "Rail tags"
+        exec: "apexsim.cam.LookAt 239.1 360.5 -32.9 264.0 377.2 -34.8"
+      - at: 40
+        label: "skid marks at 95 m from above"
+        checks: "Skid marks show through M_ApexDecal's mask"
+        exec: "apexsim.cam.LookAt 93.6 -2.6 6.5 106.2 -10.8 2.5"
+      - at: 45
+        label: "track bridge at 80 m (K 73)"
+        checks: "Bridge parapets stand behind the rail"
+        exec: "apexsim.cam.LookAt 49.9 -1.8 2.8 78.0 -5.7 7.0"
+      - at: 50
+        label: "overpass at 3964 m"
+        checks: "The overpass abutments clear the rail at the 9 m road"
+        exec: "apexsim.cam.LookAt 3038.6 -209.0 -95.4 3025.9 -237.4 -91.0"
+      - at: 55
+        label: "timing gantry (17974 m)"
+        checks: "The gantry"
+        exec: "apexsim.cam.LookAt -564.9 -2629.6 -70.2 -557.3 -2602.0 -66.0"
+      - at: 60
+        label: "toll lanes (19219 m)"
+        checks: "The toll lanes"
+        exec: "apexsim.cam.LookAt -246.6 -1426.0 -51.8 -220.7 -1401.4 -50.0"
+      - at: 65
+        label: "camp village at Pflanzgarten (15174 m)"
+        checks: "The camp villages"
+        exec: "apexsim.cam.LookAt -526.4 -4570.7 -85.5 -573.8 -4577.2 -83.9"
+      - at: 70
+        label: "spectator bank (15034 m)"
+        checks: "Spectator banks on a sloping verge"
+        exec: "apexsim.cam.LookAt -426.0 -4667.5 -78.2 -458.8 -4661.1 -80.8"
+      - at: 75
+        label: "Brünnchen bank and hedge (14348 m)"
+        checks: "Brünnchen's hedge colour against the grass"
+        exec: "apexsim.cam.LookAt -483.3 -5245.0 -79.9 -492.6 -5220.3 -82.9"
+      - at: 80
+        label: "Hohe Acht: toward the lookout tower"
+        checks: "The lookout tower seen from the Hohe Acht section"
+        exec: "apexsim.cam.LookAt 562.3 -5124.9 -22.8 511.3 -6861.5 -5.0"
+      - at: 85
+        label: "Döttinger Höhe: toward the hillside letters"
+        checks: "The hillside letters (or hidden by the trees)"
+        exec: "apexsim.cam.LookAt -463.5 -2241.2 -74.0 -339.5 -2679.0 -50.0"
+      - at: 90
+        label: "the Karussell from outside (11998 m)"
+        checks: "The Karussell in concrete; geometry pass"
+        exec: "apexsim.cam.LookAt 750.0 -4436.6 -56.2 721.4 -4450.3 -64.2"
+      - at: 120
+        label: "TV camera"
+        checks: "The TV camera round the Nordschleife"
+        exec: "apexsim.cam.Release"
+      - at: 145
+        label: "TV camera"
+        checks: "The TV camera round the Nordschleife"
+      - at: 170
+        label: "TV camera"
+        checks: "The TV camera round the Nordschleife"
+      - at: 195
+        label: "TV camera"
+        checks: "The TV camera round the Nordschleife"
+      - at: 220
+        label: "TV camera"
+        checks: "The TV camera round the Nordschleife"
+      - at: 245
+        label: "TV camera"
+        checks: "The TV camera round the Nordschleife"
+
+  # Diagnostic: which compound a stock setup starts on in heavy rain, by the
+  # HUD's own data points in the client log (no stand-in, then with one).
+  - id: diag-wet-compound
+    about: "diagnostic: the starting compound in heavy rain"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Spa
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=heavyrain
+      - -ApexView=chase
+    exec:
+      60: ["apexsim.hud.Data tyre", "apexsim.hud.Data item.compound", "apexsim.cam.Chase close"]
+      90: ["apexsim.hud.Data tyre"]
+    shots:
+      - at: 65
+        label: "chase close at green"
+        checks: "compound band and tread on a stock setup in heavy rain"
+      - at: 95
+        label: "chase close, later"
+        checks: "same"
