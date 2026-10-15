@@ -1343,7 +1343,8 @@ pub struct TireData {
     pub leak_kpa_per_s: f32,
     /// Rubber picked up off the road, 0..1 (`tyre_thermal::step`): the
     /// marbles under the tyre stick to its tread and are flung off over a
-    /// lap, a wet road washes them. Looks only: no grip.
+    /// lap, a wet road washes them. Costs up to
+    /// `tyre_thermal::PICKUP_GRIP_LOSS` of the tyre's grip.
     #[serde(default)]
     pub pickup: f32,
     /// Blistering, 0..1: how long the tread has run over its window (a
@@ -1714,6 +1715,11 @@ pub struct CarState {
     /// The road state's cell the car was last in (`GameSession::update_road`).
     #[serde(default)]
     pub road_cell: u32,
+    /// What the car's tyres did on the road since it last crossed into a
+    /// cell, and where their patches run (`crate::road_state::RoadWork`):
+    /// added up by the physics, laid as its passes by `update_road`.
+    #[serde(skip)]
+    pub road_work: crate::road_state::RoadWork,
     /// Which tyres are sliding hard (bits 0-3) and locked (bits 4-7), for
     /// the client's smoke (`network::CompactCarState::slide_flags`).
     #[serde(default)]
@@ -1947,6 +1953,7 @@ impl CarState {
             last_hit_pct: 0.0,
             last_hit_angle: 0.0,
             road_cell: 0,
+            road_work: Default::default(),
             slide_flags: 0,
             g_forces: GForces::default(),
             suspension: SuspensionTelemetry::default(),

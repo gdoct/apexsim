@@ -559,17 +559,22 @@ pub fn thermal_grip_factor(
     (1.0 - falloff * eased).max(1.0 - MAX_THERMAL_GRIP_LOSS)
 }
 
-/// The middle of a compound's window on this car's tyre, °C.
 /// Rubber a tyre picks up per second on a road all marbles, as a share of
-/// a tread covered.
+/// a tread covered. Marbles under [`PICKUP_FROM_MARBLES`] (the swept line's
+/// crumbs) stick to nothing.
 const PICKUP_PER_S: f32 = 0.6;
-/// Share of the pickup flung off per second, and washed off per second
-/// more on a road wet through.
-const PICKUP_SHED_PER_S: f32 = 0.03;
+pub const PICKUP_FROM_MARBLES: f32 = 0.1;
+/// Share of the pickup flung off per second (about a lap to shed most of
+/// it), and washed off per second more on a road wet through.
+const PICKUP_SHED_PER_S: f32 = 0.015;
 const PICKUP_WASH_PER_S: f32 = 0.5;
+/// Grip a tread covered in picked-up rubber loses: the crumbs ride between
+/// the tread and the road until they are flung off.
+pub const PICKUP_GRIP_LOSS: f32 = 0.06;
 /// Seconds a tread run a whole window over its top takes to blister through.
 const BLISTER_SECONDS: f32 = 60.0;
 
+/// The middle of a compound's window on this car's tyre, °C.
 pub fn optimum_c(tire: &TireConfig, compound: &Compound) -> f32 {
     tire.optimal_temperature_c + compound.optimal_shift_c
 }
@@ -599,7 +604,8 @@ pub fn grip_multiplier(
     let optimum = optimum_c(tire, compound);
     let used = compound.grip_on(water)
         * wear_grip_factor(tyre.wear_percent)
-        * (1.0 - FLAT_SPOT_GRIP_LOSS * tyre.flat_spot.clamp(0.0, 1.0));
+        * (1.0 - FLAT_SPOT_GRIP_LOSS * tyre.flat_spot.clamp(0.0, 1.0))
+        * (1.0 - PICKUP_GRIP_LOSS * tyre.pickup.clamp(0.0, 1.0));
     if tyre.punctured {
         return PUNCTURE_GRIP * tire.pressure_grip_factor(set_kpa) * used;
     }
@@ -811,11 +817,13 @@ pub fn step(
         tyre.flat_spot =
             (tyre.flat_spot + FLAT_SPOT_PER_MJ * grind * dt * 1e-6 * compound.wear_scale).min(1.0);
     }
-    // Looks only: the marbles under the tyre stick to its tread and are
-    // flung off over a lap, faster on a wet road; the tread blisters while
-    // it runs over its window.
+    // The marbles under the tyre stick to its tread (and cost it grip,
+    // `grip_multiplier`) and are flung off over a lap, faster on a wet
+    // road; the tread blisters while it runs over its window (looks only).
     let wet = work.water.clamp(0.0, 1.0);
-    let picked = PICKUP_PER_S * work.marbles.clamp(0.0, 1.0)
+    let marbles = (work.marbles - PICKUP_FROM_MARBLES).max(0.0) / (1.0 - PICKUP_FROM_MARBLES);
+    let rolling = if work.load_n > 1.0 { 1.0 } else { 0.0 };
+    let picked = PICKUP_PER_S * marbles * rolling * (1.0 - tyre.pickup)
         - tyre.pickup * (PICKUP_SHED_PER_S + PICKUP_WASH_PER_S * wet);
     tyre.pickup = (tyre.pickup + picked * dt).clamp(0.0, 1.0);
     let windows_over = over / tire.temperature_window_c.max(1.0);
@@ -1206,6 +1214,55 @@ mod tests {
             data.temperature_c
         };
         assert!(run(&wet) < run(&dry) - 5.0);
+    }
+
+    #[test]
+    fn a_tyre_through_the_marbles_picks_them_up_and_loses_grip_for_a_lap() {
+        let t = tyre();
+        let m = medium();
+        let surface = TrackSurface::default();
+        let dt = 1.0 / 240.0;
+        let roll = |marbles: f32| TyreWork {
+            load_n: 4_000.0,
+            speed_mps: 50.0,
+            air_mps: 50.0,
+            marbles,
+            ..Default::default()
+        };
+        let mut data = at(95.0, 95.0);
+        // The swept line's crumbs stick to nothing.
+        for _ in 0..240 * 30 {
+            step(&mut data, &roll(0.05), &t, &m, 180.0, &surface, dt);
+        }
+        assert_eq!(data.pickup, 0.0);
+        // A second off line through a bin half full of them.
+        for _ in 0..240 {
+            step(&mut data, &roll(0.5), &t, &m, 180.0, &surface, dt);
+        }
+        let picked = data.pickup;
+        let clean = grip_multiplier(
+            &t,
+            &m,
+            180.0,
+            &TireData {
+                pickup: 0.0,
+                ..data
+            },
+            0.0,
+        );
+        let loss = 1.0 - grip_multiplier(&t, &m, 180.0, &data, 0.0) / clean;
+        println!("picked up {picked:.2}: {:.1}% of the grip", 100.0 * loss);
+        assert!(picked > 0.2 && picked < 0.4, "{picked}");
+        assert!(loss > 0.01 && loss < 0.03, "{loss}");
+        // Back on the line it is flung off over a lap.
+        for _ in 0..240 * 30 {
+            step(&mut data, &roll(0.0), &t, &m, 180.0, &surface, dt);
+        }
+        assert!(data.pickup > 0.4 * picked && data.pickup < 0.8 * picked);
+        for _ in 0..240 * 90 {
+            step(&mut data, &roll(0.0), &t, &m, 180.0, &surface, dt);
+        }
+        assert!(data.pickup < 0.2 * picked, "{}", data.pickup);
     }
 
     #[test]

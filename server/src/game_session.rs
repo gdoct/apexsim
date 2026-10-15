@@ -3563,21 +3563,22 @@ impl GameSession {
         };
         for state in self.session.participants.values_mut() {
             if state.in_garage || state.towed || state.speed_mps < 3.0 {
+                // Nothing laid standing, in the garage or on the hook.
+                state.road_work.restart();
                 continue;
             }
             let cell = (state.track_progress.max(0.0) / crate::road_state::CELL_M) as u32;
             if cell != state.road_cell {
                 state.road_cell = cell;
-                // The wheels' paths either side of the car's middle.
-                let half = self.car_configs.get(&state.car_config_id).map_or(0.8, |c| {
-                    0.25 * (c.track_width_front_m + c.track_width_rear_m)
-                });
-                let lateral = road.lateral_of(state.track_progress, state.pos_x, state.pos_y);
-                road.note_pass(
-                    state.track_progress,
-                    &[lateral - half, lateral + half],
-                    crate::road_state::shed_for_lateral_g(state.g_forces.lateral_g),
-                );
+                // Each tyre lays its pass where its patch runs, by its load,
+                // its sliding and the tread it wore since the last cell.
+                let weight_n = self
+                    .car_configs
+                    .get(&state.car_config_id)
+                    .map_or(0.0, |c| c.mass_kg * crate::physics::GRAVITY);
+                let work = &state.road_work;
+                road.note_pass(state.track_progress, &work.passes(weight_n), work.shed());
+                state.road_work.restart();
             }
         }
         if self

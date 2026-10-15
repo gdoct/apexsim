@@ -31,7 +31,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 | Gap | Effort | Impact |
 |---|---|---|
 | The three tread zones take the heat's landing from camber, lateral force and pressure (`tyre_thermal::zone_shares`); toe scrub and the carcass's deflection under braking are not in it, and the grip reads the mean rather than penalising a spread. | Med | Low |
-| The road state's passes are laid at the car's middle plus and minus half its track (`GameSession::update_road`), not at each tyre's contact patch, and count the same whatever the tyre is doing. | Low | Low |
 | Puddles are read off the centerline's elevation along the lap (`road_state::LOW_DEPTH_M`): a road crowned to drain, a banking's low edge and a cambered corner's inside are not puddles to it. | Med | Low |
 | A slow puncture is a fixed leak rate (`TireData::leak_kpa_per_s`); the tyre's temperature and the leak's cause do not change it. | Low | Low |
 
@@ -39,7 +38,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 
 | Gap | Effort | Impact |
 |---|---|---|
-| Rubber is laid per wheel pass, not by the tyre's slip energy, and marbles are shed by the car's lateral g (`road_state::shed_for_lateral_g`), not by tyre wear; a tyre driven through marbles does not pick them up (no grip lost for a lap after a run off line). | Med | Low |
 | The forecast is worked out from the session's id (`conditions::forecast`): a host cannot write one. | Med | Low |
 | The road has no crown or bumps: the road mesh's cross-section is flat edge to edge (`ue_export` `road`) and the centerline backend's surface is the bank plane, so a car rides a road with no drainage camber, ripples or seams. A crown has to land on both backends at once. | Med | Med |
 | Grass, gravel and sand are one off-track surface to the sim (`RoadContact::Off`: `off_track_grip`, the same drag): a gravel trap does not bog a car down more than a lawn, and a desert's sand aprons drive as grass. | Med | Med |

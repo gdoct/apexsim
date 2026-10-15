@@ -67,7 +67,7 @@ still while serviced) and the gearbox, limiter and DRS flap:
   slip; a friction ellipse couples the directions. TC LOW holds peak slip; HIGH caps drive
   at what the friction circle leaves beside the lateral force. Per-wheel grip = surface x
   `tyre_thermal::grip_multiplier` (temperature, pressure, compound, wear, flat spot,
-  puncture) x camber grip x load sensitivity (`CarConfig::axle_tyre_mu`).
+  pickup, puncture) x camber grip x load sensitivity (`CarConfig::axle_tyre_mu`).
 - **After the solve**: tyre heat and wear, brake heat and wear, coolant, engine wear, the
   force-feedback record (`CarState::feedback`), per-wheel track limits
   (`WheelState::off_track`), kerb strikes and bottoming.
@@ -178,6 +178,11 @@ always takes the weather's tyre; when it changes is in [AI](ai.md).
   (`FLAT_SPOT_ROUNDING_PER_PERCENT`). Sent as `DriverFeedback.flat_spot` (wheel, pad and
   road sound play it) and, for every car, telemetry's `flat_spot` (drawn on the tyre,
   [cars](../content/cars.md#wheels)).
+- **Pickup**: a loaded tyre rolling over marbles past `PICKUP_FROM_MARBLES` (0.1; the
+  swept line's crumbs stick to nothing) picks them up into `TireData::pickup` (0..1),
+  which costs up to `PICKUP_GRIP_LOSS` (6%) of its grip and is flung off over about a lap
+  (`PICKUP_SHED_PER_S`, faster on a wet road): a second through a bin half full of marbles
+  costs some 1.5% for most of the next lap. Telemetry's `tyre_pickup` draws it.
 - **Punctures** (`tyre_thermal::puncture`): a tyre worn to 100%; a hit of `PUNCTURE_HIT_PCT`
   or more (chance grows with the hit); debris (`GameSession::debris`, shed by hits of
   `DEBRIS_HIT_PCT`, picked up within `DEBRIS_REACH_M` with `DEBRIS_PUNCTURE_CHANCE`;

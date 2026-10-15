@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 use tracing::debug;
 /// Gravity constant (m/s²)
-const GRAVITY: f32 = 9.81;
+pub(crate) const GRAVITY: f32 = 9.81;
 
 /// Air density at sea level (kg/m³)
 pub const AIR_DENSITY: f32 = 1.225;
@@ -620,6 +620,11 @@ pub fn update_car_3d(
     // What each tyre runs on, for telemetry.
     state.tyre_water = std::array::from_fn(|i| contacts[i].water);
     state.tyre_marbles = std::array::from_fn(|i| contacts[i].marbles);
+    // Where each patch runs on the road, for the passes it lays
+    // (`GameSession::update_road`): where it sampled the road just now.
+    state.road_work.patch_ahead_m = std::array::from_fn(|i| contacts[i].local_x);
+    state.road_work.patch_lateral_m =
+        std::array::from_fn(|i| track_ctx.lateral_offset - contacts[i].local_y);
 
     // The body settles on the plane its four springs agree on: through the
     // contacts on a grade or a bank (every corner compressed alike, so a
@@ -1191,7 +1196,18 @@ pub fn update_car_3d(
         tyre_work(2, &rl, state.weight_rear_left_n),
         tyre_work(3, &rr, state.weight_rear_right_n),
     ];
+    let worn_before = state.tires.each().map(|t| t.wear_percent);
     crate::tyre_thermal::step_all(state, &work, tyre_config, &track.track_surface, dt);
+    // What the tyres did to the road this tick: their sliding lays rubber,
+    // their load makes their passes, the tread they wore rolls off as
+    // marbles (`crate::road_state::RoadWork`).
+    let worn = state.tires.each().map(|t| t.wear_percent);
+    state.road_work.add(
+        dt,
+        std::array::from_fn(|i| work[i].slide_power_w()),
+        std::array::from_fn(|i| work[i].load_n),
+        std::array::from_fn(|i| worn[i] - worn_before[i]),
+    );
 
     // 10b. The brakes: each takes what its pads absorb (the pads' share of
     // the brake force the tyre carried, at the speed its wheel turns: none

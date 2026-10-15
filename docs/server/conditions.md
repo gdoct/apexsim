@@ -171,10 +171,27 @@ Every session's track carries a `RoadState` (`TrackConfig::road_state`,
 built by `with_road` from the baked water and the start's rubber). The lap
 is cut into 10 m cells (`CELL_M`), each cut across the road into 1 m bins
 (`BIN_M`, +-16 m, held to the road's width). A car crossing into a new cell
-(`update_road`; not in the garage, towed or under 3 m/s) lays a pass at each
-of its two wheel paths (`RoadState::lateral_of`, the car's middle +- half its
-track) and sheds marbles by how hard it corners (`shed_for_lateral_g`). The
-state steps every `STEP_TICKS`, draining by the sky's `evaporation()`.
+(`update_road`; not in the garage, towed or under 3 m/s) lays a pass for each
+tyre at its contact patch, in the cell and bin the physics last sampled the
+road for that tyre (`RoadWork::patch_ahead_m` / `patch_lateral_m`), by what
+the tyre did since the car's last cell (`CarState::road_work`, added up each
+tick after the tyre step):
+
+- its **load** makes its pass (`pass_weights`): four times its share of the
+  car's load, the load held to the car's weight at least, so a planted car
+  counts four passes whatever its downforce, the loaded outside wheels of a
+  corner more than the inside, a wheel in the air none. The pass is what
+  wipes the water, packs the snow and sweeps the marbles.
+- its **sliding** lays the rubber (`rubber_passes`): a pass's worth for
+  `RUBBER_SLIDE_J` (700 J, an AI GT3's mean through a 10 m cell of Monza),
+  up to six, so the braking zones and corners rubber in and a straight
+  next to nothing.
+- the tread the car's tyres **wore** is shed as marbles over the cell
+  (`shed_for_wear`): a pass's worth for `MARBLE_WEAR_PCT` (0.06% over the
+  four tyres), up to four, so the marbles come where the tyres work and
+  faster from a soft compound.
+
+The state steps every `STEP_TICKS`, draining by the sky's `evaporation()`.
 
 Per bin:
 - **rubber** 0..1: laid by dry passes, washed by rain. At the start the
@@ -186,7 +203,9 @@ Per bin:
   wet.
 - **marbles** 0..1: shed over the whole width, swept from a bin by each
   wheel through it, washed by rain; up to `MARBLE_GRIP` (15%) off. They
-  gather off the line in the corners.
+  gather off the line in the corners. A tyre driven through them picks them
+  up (`TireData::pickup`, a grip loss flung off over a lap:
+  [vehicle physics](vehicle-physics.md#wear-flat-spots-punctures)).
 - **dry**: how much of the cell's water the wheels have wiped there,
   rewetted by the rain, never past `line_dry_ceiling(rain)`.
 

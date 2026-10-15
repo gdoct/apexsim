@@ -9,8 +9,11 @@
 //! of it on every session's track: the lap cut into cells of [`CELL_M`],
 //! each cut across the road into bins of [`BIN_M`] (from [`HALF_SPAN_M`]
 //! right of the centerline to as far left, held to the road's own width),
-//! and every wheel that crosses into a cell lays its pass into the bin it
-//! runs in. Per cell:
+//! and every wheel that crosses into a cell lays its pass into the bin its
+//! contact patch runs in, by what the tyre did since the last cell
+//! ([`RoadWork`], added up by the physics): its load makes the pass (a
+//! lifted wheel lays nothing), its sliding lays the rubber, the tread its
+//! car wore is shed as marbles. Per cell:
 //!
 //! - **water**: a depth, in the weather's units (1 is heavy rain on a flat
 //!   road), that the rain feeds toward [`RoadState::rain`] ([`RAIN_RATE`])
@@ -30,7 +33,8 @@
 //!   ([`DRY_PER_PASS`]), wetted again by the rain ([`REWET_RATE`]); in
 //!   steady rain no bin gets drier than [`line_dry_ceiling`]. A car on a
 //!   line of its own dries its own line.
-//! - **rubber**, 0..1: laid by every dry pass ([`RUBBER_PER_PASS`]), washed
+//! - **rubber**, 0..1: laid by dry passes by the tyre's sliding
+//!   ([`RUBBER_PER_PASS`] for [`RUBBER_SLIDE_J`]), washed
 //!   off by rain ([`RUBBER_WASH`]). A session starts with the raceline
 //!   rubbered to the host's level (`SessionConditions::track_rubber`, half
 //!   way by default) across [`START_LINE_HALF_M`] either side of it, and
@@ -38,10 +42,13 @@
 //!   less; the reference is the level every car was calibrated on, so a
 //!   default start grips exactly as the track file says everywhere. Rubber grips ([`RUBBER_GRIP`] a unit) in the dry and
 //!   is greasy in the wet ([`WET_RUBBER_GRIP`]).
-//! - **marbles**, 0..1: every car's pass sheds a little over the whole
-//!   width of the road ([`MARBLES_PER_PASS`]), every wheel sweeps its own
-//!   bin clean ([`MARBLE_SWEEP`]), so they pile up off the line; the rain
-//!   washes them off. Marbles cost up to [`MARBLE_GRIP`] of the grip.
+//! - **marbles**, 0..1: every car sheds the tread its tyres wore over the
+//!   whole width of the road ([`MARBLES_PER_PASS`] for [`MARBLE_WEAR_PCT`]),
+//!   every wheel sweeps its own bin clean ([`MARBLE_SWEEP`]), so they pile
+//!   up off the line; the rain washes them off. Marbles cost up to
+//!   [`MARBLE_GRIP`] of the grip, and a tyre driven through them picks them
+//!   up (`tyre_thermal`: `TireData::pickup`, a grip loss that is flung off
+//!   over a lap).
 //!
 //! [`RoadState::sample`] is what a tyre finds under it: the water and what
 //! the road grips against the road the session was baked for. The physics
@@ -361,9 +368,13 @@ pub struct RoadState {
     /// last step): a road without leaves the snow grip out of the sample.
     #[serde(skip)]
     snowy: bool,
-    /// Wheel passes per bin since the last step.
+    /// Wheel passes per bin since the last step, in passes' worth (a
+    /// wheel on its share of the car's weight is one), and the rubber they
+    /// laid, in passes' worth of sliding.
     #[serde(skip)]
-    wheel_passes: Vec<u16>,
+    wheel_passes: Vec<f32>,
+    #[serde(skip)]
+    wheel_rubber: Vec<f32>,
 }
 
 impl RoadState {
@@ -472,7 +483,8 @@ impl RoadState {
             snow: snow_bins,
             ice: vec![0.0; n * BINS],
             snowy: baked_snow > 0.0,
-            wheel_passes: vec![0; n * BINS],
+            wheel_passes: vec![0.0; n * BINS],
+            wheel_rubber: vec![0.0; n * BINS],
         }
     }
 
@@ -759,11 +771,12 @@ impl RoadState {
         -((x - c.x) * c.left_x + (y - c.y) * c.left_y)
     }
 
-    /// A car crossed into the cell at `station_m` with its wheels running
-    /// at the `wheel_laterals` (m, positive right): each lays its pass in
-    /// its bin, and the car sheds its marbles over the cell, `shed` times a
-    /// pass's share (more the harder it corners: [`shed_for_lateral_g`]).
-    pub fn note_pass(&mut self, station_m: f32, wheel_laterals: &[f32], shed: f32) {
+    /// A car crossed into the cell at `station_m`: each of its `wheels`
+    /// lays its pass in the bin its patch runs in ([`WheelPass`]: how much
+    /// of a pass its load makes it, how much rubber its sliding lays), and
+    /// the car sheds `shed` passes' worth of marbles over the cell (the
+    /// tread its tyres wore since the last cell: [`shed_for_wear`]).
+    pub fn note_pass(&mut self, station_m: f32, wheels: &[WheelPass], shed: f32) {
         if self.cells.is_empty() {
             return;
         }
@@ -771,10 +784,11 @@ impl RoadState {
         let cell = &mut self.cells[i];
         cell.passes = cell.passes.saturating_add(1);
         cell.shed += shed.max(0.0);
-        for &lateral in wheel_laterals {
-            if let Some(b) = bin_of(lateral) {
-                let slot = &mut self.wheel_passes[i * BINS + b];
-                *slot = slot.saturating_add(1);
+        for wheel in wheels {
+            let j = self.cell_index(station_m + wheel.ahead_m);
+            if let Some(b) = bin_of(wheel.lateral_m) {
+                self.wheel_passes[j * BINS + b] += wheel.weight.max(0.0);
+                self.wheel_rubber[j * BINS + b] += wheel.rubber.max(0.0);
             }
         }
     }
@@ -825,17 +839,13 @@ impl RoadState {
                 let k = base + b;
                 // A wheel in this bin counts in full, one in the next bin
                 // either way in part.
-                let own = self.wheel_passes[k] as f32;
-                let near = if b > first {
-                    self.wheel_passes[k - 1] as f32
-                } else {
-                    0.0
-                } + if b < last {
-                    self.wheel_passes[k + 1] as f32
-                } else {
-                    0.0
+                let spread = |v: &[f32]| {
+                    let near = if b > first { v[k - 1] } else { 0.0 }
+                        + if b < last { v[k + 1] } else { 0.0 };
+                    v[k] + NEIGHBOUR_SHARE * near
                 };
-                let passes = own + NEIGHBOUR_SHARE * near;
+                let passes = spread(&self.wheel_passes);
+                let rubber_passes = spread(&self.wheel_rubber);
                 // The passes wipe the water; the rain wets it again.
                 let dry = &mut self.dry[k];
                 *dry += (1.0 - *dry) * (DRY_PER_PASS * passes).min(1.0);
@@ -872,7 +882,7 @@ impl RoadState {
                 let gate = 1.0 - wet.max(cover);
                 // Dry passes lay rubber; rain washes it.
                 let rubber = &mut self.rubber[k];
-                *rubber += (1.0 - *rubber) * (RUBBER_PER_PASS * passes * gate).min(1.0);
+                *rubber += (1.0 - *rubber) * (RUBBER_PER_PASS * rubber_passes * gate).min(1.0);
                 *rubber -= *rubber * (RUBBER_WASH * rain * dt).min(1.0);
                 *rubber = rubber.clamp(0.0, 1.0);
                 // Every car sheds over the cell; every wheel sweeps its bin.
@@ -883,18 +893,154 @@ impl RoadState {
                 *marbles = marbles.clamp(0.0, 1.0);
             }
             for b in first..=last {
-                self.wheel_passes[base + b] = 0;
+                self.wheel_passes[base + b] = 0.0;
+                self.wheel_rubber[base + b] = 0.0;
             }
         }
         self.snowy = snowfall > 0.0 || any_snow;
     }
 }
 
-/// How much a car cornering at `lateral_g` sheds as marbles, in passes'
-/// worth: a tyre working hard sheds rubber, one rolling straight almost
-/// none, so the marbles gather beside the line through the corners.
-pub fn shed_for_lateral_g(lateral_g: f32) -> f32 {
-    (0.1 + lateral_g.abs() / 1.5).min(2.0)
+/// One wheel's pass through a cell ([`RoadState::note_pass`]).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct WheelPass {
+    /// Where its contact patch runs: m along the lap ahead of the car's
+    /// station, m right of the centerline.
+    pub ahead_m: f32,
+    pub lateral_m: f32,
+    /// How much of a pass it makes, by the load on it: a wheel on its
+    /// share of the car's weight is one, a lifted one nothing
+    /// ([`pass_weights`]). What wipes the water, packs the snow and sweeps
+    /// the marbles.
+    pub weight: f32,
+    /// The rubber it lays, in passes' worth: its sliding against
+    /// [`RUBBER_SLIDE_J`] ([`rubber_passes`]).
+    pub rubber: f32,
+}
+
+impl WheelPass {
+    /// A wheel at `lateral_m` on its share of the weight, laying a pass's
+    /// rubber.
+    pub fn plain(lateral_m: f32) -> Self {
+        Self {
+            ahead_m: 0.0,
+            lateral_m,
+            weight: 1.0,
+            rubber: 1.0,
+        }
+    }
+}
+
+/// What one wheel did since its car last crossed into a cell, as the
+/// physics adds it up tick by tick ([`RoadWork::add`]).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct WheelRoadWork {
+    /// Energy its patch dissipated sliding, J.
+    pub slide_j: f32,
+    /// Its load over the time, N s.
+    pub load_ns: f32,
+    /// Tread it wore, percent.
+    pub wear_pct: f32,
+}
+
+/// A car's work on the road since it last crossed into a cell, and where
+/// its patches run (`CarState::road_work`): `GameSession::update_road`
+/// lays it as the car's passes when it crosses into the next.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct RoadWork {
+    /// FL FR RL RR.
+    pub wheels: [WheelRoadWork; 4],
+    pub seconds: f32,
+    /// Each patch as of the last tick: m along the lap ahead of the car's
+    /// station, m right of the centerline (where the physics samples the
+    /// road for that tyre).
+    pub patch_ahead_m: [f32; 4],
+    pub patch_lateral_m: [f32; 4],
+}
+
+impl RoadWork {
+    /// One tick of `dt`: each wheel's sliding power (W), load (N) and the
+    /// tread it wore (percent).
+    pub fn add(&mut self, dt: f32, slide_w: [f32; 4], load_n: [f32; 4], wear_pct: [f32; 4]) {
+        for (i, w) in self.wheels.iter_mut().enumerate() {
+            w.slide_j += slide_w[i].max(0.0) * dt;
+            w.load_ns += load_n[i].max(0.0) * dt;
+            w.wear_pct += wear_pct[i].max(0.0);
+        }
+        self.seconds += dt;
+    }
+
+    /// The four wheels' passes for a car weighing `weight_n`.
+    pub fn passes(&self, weight_n: f32) -> [WheelPass; 4] {
+        let weights = pass_weights(self, weight_n);
+        std::array::from_fn(|i| WheelPass {
+            ahead_m: self.patch_ahead_m[i],
+            lateral_m: self.patch_lateral_m[i],
+            weight: weights[i],
+            rubber: rubber_passes(self.wheels[i].slide_j),
+        })
+    }
+
+    /// The marbles the car shed since the last cell ([`shed_for_wear`]).
+    pub fn shed(&self) -> f32 {
+        shed_for_wear(self.wheels.iter().map(|w| w.wear_pct).sum())
+    }
+
+    /// Start the next cell's count, keeping where the patches run.
+    pub fn restart(&mut self) {
+        self.wheels = Default::default();
+        self.seconds = 0.0;
+    }
+}
+
+/// Each wheel's share of a pass by its mean load: four times its share of
+/// the car's load, the load held to the car's weight `weight_n` at least
+/// (downforce presses a car's passes no harder than its weight does, so a
+/// field counts as many passes as when every wheel counted alike; a wheel
+/// in the air counts nothing, the loaded outside wheels of a corner more
+/// than the inside).
+pub fn pass_weights(work: &RoadWork, weight_n: f32) -> [f32; 4] {
+    if work.seconds <= 0.0 {
+        return [0.0; 4];
+    }
+    let loads: [f32; 4] = std::array::from_fn(|i| work.wheels[i].load_ns / work.seconds);
+    let total = loads.iter().sum::<f32>().max(weight_n).max(1.0);
+    std::array::from_fn(|i| (4.0 * loads[i] / total).clamp(0.0, MAX_PASS_WEIGHT))
+}
+
+/// The most of a pass one wheel makes by its load.
+const MAX_PASS_WEIGHT: f32 = 2.5;
+
+/// The sliding energy one wheel spends through a cell that lays a pass's
+/// worth of rubber ([`RUBBER_PER_PASS`]), J: an AI GT3's mean over a lap
+/// of Monza (some 690 J), so a field lays about as much as when every pass
+/// counted alike, the most
+/// where the tyres work hardest (the braking zones, the corners) and next
+/// to none on a straight.
+pub const RUBBER_SLIDE_J: f32 = 700.0;
+/// The most rubber one wheel's pass lays, in passes' worth.
+const MAX_RUBBER_PASSES: f32 = 6.0;
+
+/// The rubber a wheel lays for `slide_j` of sliding, in passes' worth.
+pub fn rubber_passes(slide_j: f32) -> f32 {
+    (slide_j.max(0.0) / RUBBER_SLIDE_J).min(MAX_RUBBER_PASSES)
+}
+
+/// The tread a car's four tyres wear through a cell that sheds a pass's
+/// worth of marbles ([`MARBLES_PER_PASS`]), percent: an AI GT3 wears some
+/// 0.02% a cell at Monza, a third of a pass's worth, what it shed by its
+/// lateral g before the marbles came from the wear.
+pub const MARBLE_WEAR_PCT: f32 = 0.06;
+/// The most marbles a car sheds in one cell, in passes' worth.
+const MAX_SHED: f32 = 4.0;
+
+/// How much a car whose tyres wore `wear_pct` (percent, the four summed)
+/// since its last cell sheds as marbles, in passes' worth: the tread worn
+/// away is what rolls off as marbles, so a car sheds them where its tyres
+/// work (the corners, the braking zones) and by how fast its compound
+/// wears, and next to none rolling straight.
+pub fn shed_for_wear(wear_pct: f32) -> f32 {
+    (wear_pct.max(0.0) / MARBLE_WEAR_PCT).min(MAX_SHED)
 }
 
 /// The bin `lateral_m` (positive right) falls in, if it is within the span.
@@ -1019,7 +1165,10 @@ mod tests {
             for i in 0..n {
                 road.note_pass(
                     i as f32 * CELL_M + 1.0,
-                    &[lateral - 0.8, lateral + 0.8],
+                    &[
+                        WheelPass::plain(lateral - 0.8),
+                        WheelPass::plain(lateral + 0.8),
+                    ],
                     1.0,
                 );
             }
@@ -1247,6 +1396,90 @@ mod tests {
         assert!(road.marbles[k] < 0.05, "the wheels sweep their own path");
         // Off the road's width nothing is tracked: the bins stop at the edge.
         assert_eq!(road.sample(500.0, 15.0), road.sample(500.0, 9.0));
+    }
+
+    #[test]
+    fn a_wheel_counts_by_its_load_and_lays_rubber_by_its_sliding() {
+        let weight = 12_000.0;
+        let mut work = RoadWork::default();
+        // Cornering left: the right wheels carry most of it, the inside
+        // front is in the air; the outside front slides hardest.
+        work.add(
+            0.1,
+            [0.0, 7000.0, 500.0, 3500.0],
+            [0.0, 7000.0, 1000.0, 6000.0],
+            [0.0, 0.004, 0.0, 0.002],
+        );
+        let w = pass_weights(&work, weight);
+        assert_eq!(w[0], 0.0, "a lifted wheel lays nothing");
+        assert!(w[1] > 1.9 && w[3] > 1.5 && w[2] < 0.5, "{w:?}");
+        assert!((w.iter().sum::<f32>() - 4.0).abs() < 1e-4);
+        // Downforce presses the passes no harder than the weight does.
+        let mut fast = RoadWork::default();
+        fast.add(0.1, [0.0; 4], [6000.0; 4], [0.0; 4]);
+        assert_eq!(pass_weights(&fast, weight), [1.0; 4]);
+        // A car crawling on half its weight's load counts half.
+        let mut light = RoadWork::default();
+        light.add(0.1, [0.0; 4], [1500.0; 4], [0.0; 4]);
+        assert_eq!(pass_weights(&light, weight), [0.5; 4]);
+        assert_eq!(pass_weights(&RoadWork::default(), weight), [0.0; 4]);
+        let passes = work.passes(weight);
+        assert_eq!(passes[0].rubber, 0.0);
+        assert!((passes[1].rubber - 700.0 / RUBBER_SLIDE_J).abs() < 1e-4);
+        assert!((work.shed() - 0.006 / MARBLE_WEAR_PCT).abs() < 1e-4);
+        assert_eq!(shed_for_wear(0.0), 0.0, "rolling straight sheds nothing");
+        work.restart();
+        assert_eq!(work.seconds, 0.0);
+        assert_eq!(work.wheels[1], WheelRoadWork::default());
+    }
+
+    #[test]
+    fn a_line_driven_sliding_rubbers_in_and_one_rolled_only_dries() {
+        let mut road = RoadState::new(&dipped_track(0.0), RUBBER_REFERENCE);
+        let n = road.cells.len();
+        for _ in 0..200 {
+            for i in 0..n {
+                let pass = |lateral_m: f32, rubber: f32| WheelPass {
+                    ahead_m: 0.0,
+                    lateral_m,
+                    weight: 1.0,
+                    rubber,
+                };
+                road.note_pass(
+                    i as f32 * CELL_M + 1.0,
+                    &[pass(-5.0, 0.0), pass(5.0, 3.0)],
+                    0.0,
+                );
+            }
+            road.step(1.0, 1.0);
+        }
+        let rubber_at = |road: &RoadState, lateral: f32| {
+            road.rubber[road.cell_index(500.0) * BINS + bin_of(lateral).unwrap()]
+        };
+        let rolled = rubber_at(&road, -5.0);
+        let slid = rubber_at(&road, 5.0);
+        println!("200 passes: rolled {rolled:.3}, slid {slid:.3}");
+        assert!((rolled - RUBBER_REFERENCE).abs() < 1e-4, "{rolled}");
+        assert!(slid > RUBBER_REFERENCE + 0.3, "{slid}");
+        // No marbles shed, none lying.
+        assert!(road.marbles.iter().all(|m| *m == 0.0));
+    }
+
+    #[test]
+    fn a_wheel_lays_its_pass_in_the_cell_its_patch_is_in() {
+        let mut road = RoadState::new(&dipped_track(0.5), RUBBER_REFERENCE);
+        let front = WheelPass {
+            ahead_m: 6.0,
+            ..WheelPass::plain(3.0)
+        };
+        for _ in 0..20 {
+            road.note_pass(505.0, &[front], 0.0);
+            road.step(1.0, 1.0);
+        }
+        let i = road.cell_index(505.0);
+        let b = bin_of(3.0).unwrap();
+        assert_eq!(road.dry[i * BINS + b], 0.0, "the car's own cell");
+        assert!(road.dry[(i + 1) * BINS + b] > 0.3, "the patch's");
     }
 
     #[test]
