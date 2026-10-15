@@ -22,11 +22,21 @@
 //! **Pads** ([`BrakePads`], the setup's `brake_pads`): the standard set is
 //! the car as filed; a *sprint* set bites harder and wears faster, an
 //! *endurance* set the other way, and each moves the window. **Wear**
-//! (`CarState::brake_wear_pct`, [`wear_percent`]): the pads and discs
-//! wear by the energy they absorb, faster over the window, and a worn set
-//! grips less ([`wear_friction`]) until, worn out, it is metal on metal. A
-//! pit stop fits new pads when they are more than [`PAD_CHANGE_PCT`] worn
+//! (`CarState::brake_wear_pct`, [`wear_percent`]): the pads wear by the
+//! energy they absorb, faster over the window, and a worn set grips less
+//! ([`wear_friction`]) until, worn out, it is metal on metal. A pit stop
+//! fits new pads when they are more than [`PAD_CHANGE_PCT`] worn
 //! (`pit::plan_service`), which takes a crew [`PAD_CHANGE_S`].
+//!
+//! **Discs** (`CarState::brake_disc_wear_pct`, [`disc_wear_percent`]), on a
+//! car with `[brakes] disc_wear_per_mj` only: a disc wears by the energy it
+//! absorbs too, harder pads chewing it faster and much faster over its
+//! oxidation temperature ([`BrakeMaterial::disc_oxidation_c`]: carbon burns
+//! away in air). A thinner disc holds less heat
+//! ([`disc_capacity_scale`]) so it runs hotter for the same stop, and one
+//! worn past its life cracks ([`disc_friction`]). A stop changes discs (and
+//! the pads with them) past [`DISC_CHANGE_PCT`], which takes
+//! [`DISC_CHANGE_S`]. Without the key the discs never wear.
 
 use serde::{Deserialize, Serialize};
 
@@ -95,6 +105,57 @@ pub const WORN_OUT_FRICTION: f32 = 0.4;
 /// A pit stop changes pads worn past this, percent, and it takes this long.
 pub const PAD_CHANGE_PCT: f32 = 60.0;
 pub const PAD_CHANGE_S: f32 = 15.0;
+
+/// A stop changes discs worn past this, percent, and it takes this long
+/// (the pads go on with them).
+pub const DISC_CHANGE_PCT: f32 = 60.0;
+pub const DISC_CHANGE_S: f32 = 90.0;
+/// Share of its heat capacity a disc has lost worn out.
+const DISC_WORN_CAPACITY_LOSS: f32 = 0.4;
+/// Each degree over the disc's oxidation temperature wears it this much
+/// faster.
+const DISC_HOT_WEAR_PER_C: f32 = 0.01;
+
+/// The wear this tick puts on a disc, percent: `power_w` absorbed for
+/// `dt` at `temperature_c` against `pads`, on a car whose discs wear
+/// `per_mj` percent per megajoule.
+pub fn disc_wear_percent(
+    material: BrakeMaterial,
+    pads: BrakePads,
+    per_mj: f32,
+    power_w: f32,
+    temperature_c: f32,
+    dt: f32,
+) -> f32 {
+    let over = (temperature_c - material.disc_oxidation_c()).max(0.0);
+    per_mj.max(0.0)
+        * pads.wear_scale()
+        * power_w.max(0.0)
+        * dt
+        * 1e-6
+        * (1.0 + DISC_HOT_WEAR_PER_C * over)
+}
+
+/// What a disc `wear_percent` worn leaves of its heat capacity: 1.0 new.
+pub fn disc_capacity_scale(wear_percent: f32) -> f32 {
+    1.0 - DISC_WORN_CAPACITY_LOSS * (wear_percent / 100.0).clamp(0.0, 1.0)
+}
+
+/// What a disc `wear_percent` worn leaves of its brake's friction: all of
+/// it until it is worn out and cracks.
+pub fn disc_friction(wear_percent: f32) -> f32 {
+    if wear_percent >= 100.0 {
+        WORN_OUT_FRICTION
+    } else {
+        1.0
+    }
+}
+
+/// New discs all round, and new pads on them.
+pub fn fit_discs(state: &mut CarState) {
+    state.brake_disc_wear_pct = [0.0; 4];
+    fit_pads(state);
+}
 
 /// What a brake's friction is multiplied by at `wear_percent` worn.
 pub fn wear_friction(wear_percent: f32) -> f32 {
@@ -176,6 +237,14 @@ impl BrakeMaterial {
         }
     }
 
+    /// Over this a disc wears faster, °C: carbon oxidises, steel crazes.
+    pub fn disc_oxidation_c(self) -> f32 {
+        match self {
+            BrakeMaterial::Carbon => 650.0,
+            BrakeMaterial::Steel => 600.0,
+        }
+    }
+
     /// Where the pads grip fully, °C.
     pub fn window_c(self) -> (f32, f32) {
         match self {
@@ -254,7 +323,9 @@ pub fn fit(state: &mut CarState, temperature_c: f32) {
 }
 
 /// Advance one brake by `dt`: `power_w` in, the air (through a duct
-/// `duct_scale` times the car's own) and radiation out.
+/// `duct_scale` times the car's own) and radiation out, into a disc with
+/// `capacity_scale` of its heat capacity left ([`disc_capacity_scale`]).
+#[allow(clippy::too_many_arguments)]
 pub fn step(
     temperature_c: &mut f32,
     power_w: f32,
@@ -262,6 +333,7 @@ pub fn step(
     air_c: f32,
     material: BrakeMaterial,
     duct_scale: f32,
+    capacity_scale: f32,
     dt: f32,
 ) {
     let t = *temperature_c;
@@ -269,8 +341,9 @@ pub fn step(
     let convection = duct_scale.max(0.0) * (still + forced * speed_mps.abs()) * (t - air_c);
     let (tk, ak) = (t + KELVIN, air_c + KELVIN);
     let radiation = EMISSIVITY * STEFAN_BOLTZMANN * RADIATING_AREA_M2 * (tk.powi(4) - ak.powi(4));
-    *temperature_c =
-        t + (power_w.max(0.0) - convection - radiation) * dt / material.heat_capacity();
+    *temperature_c = t
+        + (power_w.max(0.0) - convection - radiation) * dt
+            / (material.heat_capacity() * capacity_scale.max(0.1));
 }
 
 impl CarState {
@@ -294,7 +367,10 @@ impl CarState {
         self.brake_temp_c
             .iter()
             .zip(self.brake_wear_pct)
-            .map(|(t, w)| material.friction_of(pads, *t + rise, w).min(1.0))
+            .zip(self.brake_disc_wear_pct)
+            .map(|((t, w), d)| {
+                (material.friction_of(pads, *t + rise, w) * disc_friction(d)).min(1.0)
+            })
             .fold(1.0, f32::min)
     }
 }
@@ -329,6 +405,7 @@ mod tests {
                 20.0,
                 BrakeMaterial::Carbon,
                 1.0,
+                1.0,
                 1.0 / 240.0,
             );
         }
@@ -341,6 +418,7 @@ mod tests {
                 85.0,
                 20.0,
                 BrakeMaterial::Carbon,
+                1.0,
                 1.0,
                 1.0 / 240.0,
             );
@@ -356,6 +434,7 @@ mod tests {
                 20.0,
                 BrakeMaterial::Carbon,
                 0.5,
+                1.0,
                 1.0 / 240.0,
             );
             step(
@@ -365,6 +444,7 @@ mod tests {
                 20.0,
                 BrakeMaterial::Carbon,
                 1.5,
+                1.0,
                 1.0 / 240.0,
             );
         }
@@ -404,6 +484,53 @@ mod tests {
         assert_eq!(wear_friction(0.0), 1.0);
         assert!(wear_friction(50.0) < 1.0 && wear_friction(50.0) > 0.9);
         assert_eq!(wear_friction(100.0), WORN_OUT_FRICTION);
+    }
+
+    #[test]
+    fn discs_wear_by_their_heat_and_a_thin_disc_runs_hotter() {
+        let carbon = BrakeMaterial::Carbon;
+        // No key, no wear.
+        assert_eq!(
+            disc_wear_percent(carbon, BrakePads::Standard, 0.0, 0.75e6, 900.0, 1.0),
+            0.0
+        );
+        let cool = disc_wear_percent(carbon, BrakePads::Standard, 0.02, 0.75e6, 500.0, 1.0);
+        let hot = disc_wear_percent(carbon, BrakePads::Standard, 0.02, 0.75e6, 950.0, 1.0);
+        let sprint = disc_wear_percent(carbon, BrakePads::Sprint, 0.02, 0.75e6, 500.0, 1.0);
+        assert!((cool - 0.015).abs() < 1e-6, "{cool}");
+        assert!(
+            hot > 3.0 * cool,
+            "carbon burns away over its oxidation: {hot}"
+        );
+        assert!(sprint > cool, "harder pads chew the disc");
+        assert_eq!(disc_capacity_scale(0.0), 1.0);
+        assert_eq!(disc_friction(99.0), 1.0);
+        assert_eq!(disc_friction(100.0), WORN_OUT_FRICTION);
+        // The same stop heats a worn disc further.
+        let (mut new, mut worn) = (450.0, 450.0);
+        for _ in 0..480 {
+            step(
+                &mut new,
+                0.375e6,
+                60.0,
+                20.0,
+                carbon,
+                1.0,
+                disc_capacity_scale(0.0),
+                1.0 / 240.0,
+            );
+            step(
+                &mut worn,
+                0.375e6,
+                60.0,
+                20.0,
+                carbon,
+                1.0,
+                disc_capacity_scale(80.0),
+                1.0 / 240.0,
+            );
+        }
+        assert!(worn > new + 100.0, "{new} vs {worn}");
     }
 
     #[test]

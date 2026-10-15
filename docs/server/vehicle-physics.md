@@ -326,11 +326,18 @@ planned in clean air. Test: `tests/slipstream_test.rs`.
   °C; sprint 1.04, 1.7x, +60 °C. **Wear** (`brake_wear_pct`) by absorbed energy, 10% bite
   lost over the life, `WORN_OUT_FRICTION` at 100%; a stop changes pads past
   `PAD_CHANGE_PCT`.
+- **Discs** (`[brakes] disc_wear_per_mj`, percent per MJ absorbed; absent, discs never wear):
+  `brake_disc_wear_pct` by absorbed energy times the pads' wear scale, 1% faster per °C over
+  `disc_oxidation_c` (carbon 650, steel 600). A worn disc holds less heat
+  (`disc_capacity_scale`, 40% less at 100%) so runs hotter; at 100% it cracks
+  (`WORN_OUT_FRICTION`). A stop past `DISC_CHANGE_PCT` fits discs and pads (`DISC_CHANGE_S`,
+  counted in the repair time). No shipped car names the key; disc wear is not on the wire.
 - **The AI** (`brake_share_of`) looks further ahead by the distance its pads lose. Trap:
   carbon is judged `CARBON_STOP_RISE_C` (100 °C) hotter than it is, since it comes in within
   the first moment of a stop; colder and the AI braked early everywhere, much hotter and it
   trusted cold grid carbon into turn 1.
-- Tests: `brakes::tests`, `tests/brake_heat_test.rs`, `the_rear_ducts_cool_the_rears_alone`.
+- Tests: `brakes::tests`, `tests/brake_heat_test.rs` (with
+  `discs_wear_apart_from_the_pads_and_a_thin_one_runs_hot`), `the_rear_ducts_cool_the_rears_alone`.
 
 ## Engine heat (`engine_heat.rs`)
 

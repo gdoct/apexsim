@@ -123,6 +123,11 @@ pub struct CarConfig {
     /// they grip with, how fast they wear and where they come in.
     #[serde(default)]
     pub brake_pads: crate::brakes::BrakePads,
+    /// How fast the discs wear, percent per megajoule absorbed in their
+    /// window (`[brakes] disc_wear_per_mj`; `crate::brakes::disc_wear_percent`).
+    /// 0, the default, is discs that never wear.
+    #[serde(default)]
+    pub brake_disc_wear_per_mj: f32,
 
     // Steering
     pub max_steering_angle_rad: f32,
@@ -862,6 +867,7 @@ impl Default for CarConfig {
             brake_duct_scale: 1.0,
             brake_duct_scale_rear: 1.0,
             brake_pads: crate::brakes::BrakePads::Standard,
+            brake_disc_wear_per_mj: 0.0,
 
             // Steering
             max_steering_angle_rad: 0.52, // ~30 degrees
@@ -1643,11 +1649,15 @@ pub struct CarState {
     #[serde(default)]
     pub pit: crate::pit::PitState,
     /// Each corner's brake, °C, FL FR RL RR (`crate::brakes`), and how worn
-    /// its pads and disc are, percent.
+    /// its pads are, percent.
     #[serde(default)]
     pub brake_temp_c: [f32; 4],
     #[serde(default)]
     pub brake_wear_pct: [f32; 4],
+    /// How worn each disc is, percent, apart from its pads: only on a car
+    /// with `brake_disc_wear_per_mj` (`crate::brakes`).
+    #[serde(default)]
+    pub brake_disc_wear_pct: [f32; 4],
     /// The braking power the driven axle's tyres put down last tick, W:
     /// what the hybrid may recover under brake-by-wire (`crate::hybrid`).
     #[serde(default)]
@@ -1976,6 +1986,7 @@ impl CarState {
             pit: crate::pit::PitState::default(),
             brake_temp_c: [20.0; 4],
             brake_wear_pct: [0.0; 4],
+            brake_disc_wear_pct: [0.0; 4],
             driven_axle_brake_w: 0.0,
             bbw_offset_n: [0.0; 2],
             ground_slope_f: 0.0,

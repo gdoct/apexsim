@@ -4452,6 +4452,7 @@ impl GameSession {
         let fuel_now = state.fuel_liters;
         let damage = crate::pit::damage_percent(state);
         let brake_wear = crate::pit::brake_wear_percent(state);
+        let disc_wear = crate::pit::disc_wear_percent(state);
         let pit_box = state.pit.box_index.unwrap_or(0);
         let mode = self.session.game_mode;
         let Some(config) = self.car_configs.get(&car_id).cloned() else {
@@ -4468,7 +4469,13 @@ impl GameSession {
         } else {
             self.start_fuel_liters(player_id, car_id, mode)
         };
-        let plan = crate::pit::plan_service(&config, fuel_target - fuel_now, damage, brake_wear);
+        let plan = crate::pit::plan_service(
+            &config,
+            fuel_target - fuel_now,
+            damage,
+            brake_wear,
+            disc_wear,
+        );
         if let Some(state) = self.session.participants.get_mut(player_id) {
             let pit = &mut state.pit;
             pit.servicing = true;
@@ -4477,6 +4484,7 @@ impl GameSession {
             pit.service_fuel_l = plan.fuel_l;
             pit.service_repair = plan.repair_pct > 0.0;
             pit.service_pads = plan.pads;
+            pit.service_discs = plan.discs;
         }
         self.pit_events.push((
             *player_id,
@@ -4516,13 +4524,16 @@ impl GameSession {
             // The hits, the heat and the missed shifts: not the wear.
             state.damage = state.damage.repaired();
         }
-        if state.pit.service_pads {
+        if state.pit.service_discs {
+            crate::brakes::fit_discs(state);
+        } else if state.pit.service_pads {
             crate::brakes::fit_pads(state);
         }
         // A new stint's energy (`crate::hybrid`).
         crate::hybrid::new_stint(state, &config);
         let pit = &mut state.pit;
         pit.service_pads = false;
+        pit.service_discs = false;
         pit.servicing = false;
         pit.service_left_s = 0.0;
         pit.service_repair = false;

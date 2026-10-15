@@ -143,9 +143,10 @@ Called inside `update_air` before the physics, and in the countdown.
   rules allow (not an F1; 0.5 L or more at `REFUEL_LPS` 2 L/s; in a race to
   the remaining distance with the race margin), then repairs (0.5% or more
   summed over the zones, `REPAIR_S_PER_PERCENT` 0.04 s a percent) and new
-  brake pads past `brakes::PAD_CHANGE_PCT`, both counted in the repair part.
+  brake pads past `brakes::PAD_CHANGE_PCT` (or discs and pads past
+  `DISC_CHANGE_PCT`, `DISC_CHANGE_S`), all counted in the repair part.
   `finish_service` fits the set at the car's start temperature, adds the
-  fuel, repairs (engine wear stays), fits pads and starts a new hybrid
+  fuel, repairs (engine wear stays), fits pads (or discs) and starts a new hybrid
   stint.
 - **Exit light** (`pit::exit_closed`, the same for every car): red before a
   race's start (countdown, or a race not yet racing) and while a car on the

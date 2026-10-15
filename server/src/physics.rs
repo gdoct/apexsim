@@ -492,7 +492,7 @@ pub fn update_car_3d(
             config.brake_pads,
             state.brake_temp_c[i],
             state.brake_wear_pct[i],
-        )
+        ) * crate::brakes::disc_friction(state.brake_disc_wear_pct[i])
     });
     // What the pads deliver at each wheel, and the whole braking force the
     // tyre is asked for (the motor's share on top).
@@ -1244,6 +1244,18 @@ pub fn update_car_3d(
                 dt,
             ))
         .min(100.0);
+        if config.brake_disc_wear_per_mj > 0.0 {
+            state.brake_disc_wear_pct[i] = (state.brake_disc_wear_pct[i]
+                + crate::brakes::disc_wear_percent(
+                    config.brake_material,
+                    config.brake_pads,
+                    config.brake_disc_wear_per_mj,
+                    absorbed,
+                    state.brake_temp_c[i],
+                    dt,
+                ))
+            .min(100.0);
+        }
         crate::brakes::step(
             &mut state.brake_temp_c[i],
             absorbed,
@@ -1251,6 +1263,7 @@ pub fn update_car_3d(
             air_c,
             config.brake_material,
             duct,
+            crate::brakes::disc_capacity_scale(state.brake_disc_wear_pct[i]),
             dt,
         );
     }

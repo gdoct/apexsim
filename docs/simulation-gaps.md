@@ -22,7 +22,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 | Roll centres are fixed heights: no migration with travel, no jacking, no instant centres; the roll axis is all the kinematics there are (`geometry.rs`). | High | Low |
 | The crest model reads the road's grade along the car's path only: a crest taken diagonally, a banking's roll-over and a kerb's step are not vertical accelerations to it. | Med | Low |
 | Porpoising is an oscillation of the downforce at a fixed frequency (`aero::PORPOISE_HZ`) with no body heave behind it; the car does not bounce on its springs. | Med | Low |
-| Brake pads are changed only at a pit stop that finds them past `brakes::PAD_CHANGE_PCT`: no pad choice at the stop, no disc wear separate from the pads. | Low | Low |
+| Brake pads and discs are changed only at a pit stop that finds them past `brakes::PAD_CHANGE_PCT` / `DISC_CHANGE_PCT`: no pad choice at the stop (it fits the set the setup names). | Low | Low |
 | The hybrid's stint budget (`[hybrid] stint_kj`) is electric energy only: the WEC rule limits the whole car's energy per stint, fuel included. | Med | Low |
 
 ## Tyres

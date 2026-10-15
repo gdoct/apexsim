@@ -176,7 +176,8 @@ struct SuspensionToml {
 /// Optional `[brakes]` section: what they are made of (`"carbon"` or
 /// `"steel"`); absent, the class's (`BrakeMaterial::for_class`). `pads`
 /// (`"endurance"`, `"standard"`, `"sprint"`) is the set the car is filed
-/// with; the setup's `brake_pads` knob moves it.
+/// with; the setup's `brake_pads` knob moves it. `disc_wear_per_mj` wears
+/// the discs apart from the pads.
 #[derive(Debug, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 struct BrakesToml {
@@ -184,6 +185,10 @@ struct BrakesToml {
     material: Option<crate::brakes::BrakeMaterial>,
     #[serde(default)]
     pads: Option<crate::brakes::BrakePads>,
+    /// Disc wear, percent per megajoule the brake absorbs in its window
+    /// (`crate::brakes::disc_wear_percent`); absent, the discs never wear.
+    #[serde(default)]
+    disc_wear_per_mj: Option<f32>,
 }
 
 /// Optional `[aero]` section: how the downforce answers ride height and
@@ -906,6 +911,7 @@ impl CarLoader {
                 .as_ref()
                 .and_then(|b| b.pads)
                 .unwrap_or_default(),
+            brake_disc_wear_per_mj: 0.0,
 
             // Steering
             max_steering_angle_rad: car_toml.physics.max_steering_angle_rad,
@@ -1045,6 +1051,12 @@ impl CarLoader {
             .as_ref()
             .and_then(|b| b.material)
             .unwrap_or_else(|| crate::brakes::BrakeMaterial::for_class(&config.class));
+        config.brake_disc_wear_per_mj = car_toml
+            .brakes
+            .as_ref()
+            .and_then(|b| b.disc_wear_per_mj)
+            .unwrap_or(0.0)
+            .max(0.0);
         config.aero = crate::aero::AeroConfig {
             ride_height_front_m: aero_toml
                 .ride_height_front_m
@@ -1327,6 +1339,12 @@ impl CarLoader {
         if let Some(stint) = config.hybrid.stint_kj {
             in_range("hybrid.stint_kj", stint, 1.0, 1.0e7);
         }
+        in_range(
+            "brakes.disc_wear_per_mj",
+            config.brake_disc_wear_per_mj,
+            0.0,
+            1.0,
+        );
         in_range(
             "hybrid.bbw_response_s",
             config.hybrid.bbw_response_s,
@@ -2056,6 +2074,7 @@ window_shift_c = -30.0
 [brakes]
 material = \"carbon\"
 pads = \"sprint\"
+disc_wear_per_mj = 0.02
 
 [suspension]
 roll_centre_front_m = 0.04
@@ -2097,6 +2116,7 @@ bbw_response_s = 0.08
         );
         assert_eq!(tyre.weather_compound(1.0), Some(2));
         assert_eq!(config.brake_pads, crate::brakes::BrakePads::Sprint);
+        assert_eq!(config.brake_disc_wear_per_mj, 0.02);
         assert_eq!(config.suspension.roll_centre_rear_m, Some(0.08));
         assert_eq!(config.suspension.camber_thrust, 0.1);
         assert_eq!(config.suspension.bump_stop_gap(true), Some(0.02));
@@ -2123,6 +2143,7 @@ reference = true
         assert_eq!(plain.tire_config.compounds().len(), 5);
         assert!(plain.tire_config.compounds.is_empty());
         assert!(plain.hybrid.brake_by_wire);
+        assert_eq!(plain.brake_disc_wear_per_mj, 0.0);
         assert_eq!(plain.hybrid.bbw_response_s, 0.0);
         assert_eq!(plain.suspension.roll_centre_front_m, None);
     }

@@ -31,7 +31,22 @@ fn car(folder: &str) -> CarConfig {
 /// the brakes full on: how far it takes to get under 20 m/s, and the
 /// hottest brake afterwards.
 fn stop(folder: &str, speed: f32, brake_c: f32, setup: CarSetup) -> (f32, f32) {
-    let config = car(folder);
+    let (distance, s) = stop_car(car(folder), speed, brake_c, setup, [0.0; 4]);
+    (
+        distance,
+        s.brake_temp_c.iter().copied().fold(f32::MIN, f32::max),
+    )
+}
+
+/// [`stop`] for `config` on discs `disc_wear` worn: the distance and the
+/// car after.
+fn stop_car(
+    config: CarConfig,
+    speed: f32,
+    brake_c: f32,
+    setup: CarSetup,
+    disc_wear: [f32; 4],
+) -> (f32, CarState) {
     let mut car_configs = HashMap::new();
     car_configs.insert(config.id, config.clone());
     let track =
@@ -61,6 +76,7 @@ fn stop(folder: &str, speed: f32, brake_c: f32, setup: CarSetup) -> (f32, f32) {
     state.gear = 6;
     state.auto_gearbox = true;
     state.brake_temp_c = [brake_c; 4];
+    state.brake_disc_wear_pct = disc_wear;
     physics::seed_track_progress(state, &gs.track_config);
     let (x0, y0) = (x, y);
     let brake = PlayerInputData {
@@ -74,12 +90,9 @@ fn stop(folder: &str, speed: f32, brake_c: f32, setup: CarSetup) -> (f32, f32) {
             break;
         }
     }
-    let s = &gs.session.participants[&player];
+    let s = gs.session.participants[&player].clone();
     let distance = ((s.pos_x - x0).powi(2) + (s.pos_y - y0).powi(2)).sqrt();
-    (
-        distance,
-        s.brake_temp_c.iter().copied().fold(f32::MIN, f32::max),
-    )
+    (distance, s)
 }
 
 #[test]
@@ -126,4 +139,38 @@ fn bigger_ducts_run_the_brakes_cooler() {
         tuned.drag_coefficient > car("fugazzi-sf26").drag_coefficient,
         "air costs drag"
     );
+}
+
+/// `[brakes] disc_wear_per_mj`: the discs wear apart from the pads, and a
+/// worn disc runs hotter for the same stop. Without the key they never
+/// wear.
+#[test]
+fn discs_wear_apart_from_the_pads_and_a_thin_one_runs_hot() {
+    let plain = car("fugazzi-sf26");
+    assert_eq!(plain.brake_disc_wear_per_mj, 0.0);
+    let (_, without) = stop_car(plain.clone(), 80.0, 500.0, CarSetup::default(), [0.0; 4]);
+    assert_eq!(
+        without.brake_disc_wear_pct, [0.0; 4],
+        "no key, no disc wear"
+    );
+    let mut wearing = plain;
+    wearing.brake_disc_wear_per_mj = 0.05;
+    let (_, new) = stop_car(wearing.clone(), 80.0, 500.0, CarSetup::default(), [0.0; 4]);
+    let (_, worn) = stop_car(wearing, 80.0, 500.0, CarSetup::default(), [80.0; 4]);
+    let hottest = |s: &CarState| s.brake_temp_c.iter().copied().fold(f32::MIN, f32::max);
+    println!(
+        "disc wear from one stop: {:?} %, pads {:?} %; hottest {:.0} °C new, {:.0} °C on worn discs",
+        new.brake_disc_wear_pct,
+        new.brake_wear_pct,
+        hottest(&new),
+        hottest(&worn)
+    );
+    assert!(new.brake_disc_wear_pct.iter().all(|w| *w > 0.0));
+    for (a, b) in new.brake_wear_pct.iter().zip(without.brake_wear_pct) {
+        assert!(
+            (a - b).abs() < 0.05 * b,
+            "the pads near as before: {a} vs {b}"
+        );
+    }
+    assert!(hottest(&worn) > hottest(&new) + 50.0);
 }

@@ -82,6 +82,9 @@ rule echoes it in `SessionJoined` and the lobby shows it.
 - The GT3 and LMP2 class wheels get sidewall lettering.
 - The HUD colours brakes by material as well as temperature (the client
   learns carbon from steel from the `[brakes]` table).
+- Disc wear on the HUD: `CarState::brake_disc_wear_pct` (a car with
+  `[brakes] disc_wear_per_mj`) is server-side only; it needs a telemetry
+  field and a data point beside `brake_wear`.
 
 **Check:** the HUD on a carbon and a steel car; the wheels in car select.
 

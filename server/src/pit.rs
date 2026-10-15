@@ -265,6 +265,9 @@ pub struct PitState {
     pub service_repair: bool,
     #[serde(default)]
     pub service_pads: bool,
+    /// New discs (and pads) go on at this stop.
+    #[serde(default)]
+    pub service_discs: bool,
     /// The car's own box (0-based), dealt the first time the car is placed
     /// against the lane: the lowest box no other car holds.
     #[serde(default)]
@@ -294,9 +297,11 @@ const MIN_REPAIR_PERCENT: f32 = 0.5;
 /// What a stop does and how long each part takes, in the order the crew
 /// does them: the tyres (an F1 crew is quicker), then the fuel (not at the
 /// same time, as endurance rules have it), then the repairs, new brake
-/// pads included when the old ones are past `brakes::PAD_CHANGE_PCT`
-/// (their time is counted in `repair_s`: the client's panel knows three
-/// parts). A part the stop does not need takes 0 s.
+/// pads included when the old ones are past `brakes::PAD_CHANGE_PCT` and
+/// new discs (with pads) when the old ones are past
+/// `brakes::DISC_CHANGE_PCT` (their time is counted in `repair_s`: the
+/// client's panel knows three parts). A part the stop does not need takes
+/// 0 s.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ServicePlan {
     pub tyres_s: f32,
@@ -306,6 +311,8 @@ pub struct ServicePlan {
     pub repair_pct: f32,
     /// New brake pads go on.
     pub pads: bool,
+    /// New discs go on, and pads with them.
+    pub discs: bool,
 }
 
 impl ServicePlan {
@@ -321,12 +328,13 @@ pub fn refuelling_allowed(config: &CarConfig) -> bool {
 
 /// The stop for a car that wants `fuel_l` more fuel and carries
 /// `damage_percent` of damage (summed over its zones), its most worn brake
-/// `brake_wear_pct` gone.
+/// `brake_wear_pct` gone and its most worn disc `disc_wear_pct`.
 pub fn plan_service(
     config: &CarConfig,
     fuel_l: f32,
     damage_percent: f32,
     brake_wear_pct: f32,
+    disc_wear_pct: f32,
 ) -> ServicePlan {
     let tyres_s = if config.class == "F1" {
         F1_TYRE_CHANGE_S
@@ -339,30 +347,43 @@ pub fn plan_service(
     } else {
         0.0
     };
-    let pads = brake_wear_pct >= crate::brakes::PAD_CHANGE_PCT;
+    let discs = disc_wear_pct >= crate::brakes::DISC_CHANGE_PCT;
+    let pads = discs || brake_wear_pct >= crate::brakes::PAD_CHANGE_PCT;
+    let brakes_s = if discs {
+        crate::brakes::DISC_CHANGE_S
+    } else if pads {
+        crate::brakes::PAD_CHANGE_S
+    } else {
+        0.0
+    };
     ServicePlan {
         tyres_s,
         fuel_s: fuel_l / REFUEL_LPS,
         fuel_l,
-        repair_s: repair_pct * REPAIR_S_PER_PERCENT
-            + if pads {
-                crate::brakes::PAD_CHANGE_S
-            } else {
-                0.0
-            },
+        repair_s: repair_pct * REPAIR_S_PER_PERCENT + brakes_s,
         repair_pct,
         pads,
+        discs,
     }
 }
 
 /// How long a stop takes ([`plan_service`]), on brakes that need no pads.
 pub fn service_seconds(config: &CarConfig, fuel_added_l: f32, damage_percent: f32) -> f32 {
-    plan_service(config, fuel_added_l, damage_percent, 0.0).total_s()
+    plan_service(config, fuel_added_l, damage_percent, 0.0, 0.0).total_s()
 }
 
 /// The most worn of a car's brakes, percent.
 pub fn brake_wear_percent(state: &CarState) -> f32 {
     state.brake_wear_pct.iter().copied().fold(0.0, f32::max)
+}
+
+/// The most worn of a car's discs, percent.
+pub fn disc_wear_percent(state: &CarState) -> f32 {
+    state
+        .brake_disc_wear_pct
+        .iter()
+        .copied()
+        .fold(0.0, f32::max)
 }
 
 /// The car's damage summed over its zones, percent: what the crew mends
@@ -975,10 +996,14 @@ mod tests {
         assert_eq!(service_seconds(&f1, 0.0, 0.0), F1_TYRE_CHANGE_S);
         assert!((service_seconds(&gt, 60.0, 50.0) - (TYRE_CHANGE_S + 30.0 + 2.0)).abs() < 1e-4);
         // Worn pads are changed with the repairs.
-        let pads = plan_service(&gt, 0.0, 0.0, 70.0);
-        assert!(pads.pads);
+        let pads = plan_service(&gt, 0.0, 0.0, 70.0, 0.0);
+        assert!(pads.pads && !pads.discs);
         assert!((pads.repair_s - crate::brakes::PAD_CHANGE_S).abs() < 1e-4);
-        assert!(!plan_service(&gt, 0.0, 0.0, 30.0).pads);
+        assert!(!plan_service(&gt, 0.0, 0.0, 30.0, 0.0).pads);
+        // Worn discs go on with new pads, however worn the old pads are.
+        let discs = plan_service(&gt, 0.0, 0.0, 10.0, 75.0);
+        assert!(discs.discs && discs.pads);
+        assert!((discs.repair_s - crate::brakes::DISC_CHANGE_S).abs() < 1e-4);
     }
 
     #[test]
