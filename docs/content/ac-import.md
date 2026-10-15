@@ -306,6 +306,38 @@ importer change.
     `optimal_pressure_kpa` from `PRESSURE_IDEAL`; the temperature window
     from `[THERMAL_FRONT]`'s `PERFORMANCE_CURVE` (`thermal_window`);
     `blanket_temperature_c = 70` for a modern F1 (a rule, not an AC figure);
+  - the other compounds of `tyres.ini` as the `[[tires.compound]]` list
+    (`map_compounds`), softest slick first, the chosen compound the
+    `reference` at grip 1, wear 1, shift 0: `grip` the compound's mean `DY0`
+    (at 40 m/s) over the reference's, `wear` the reference's life over its
+    own (the km its `WEAR_CURVE` takes to lose 5% of its best grip),
+    `window_shift_c` its thermal window's middle less the reference's, `kind`
+    from the name (`wet`, `rain`, `inter`; AC ships no rain tyre). A car whose
+    compounds are all slicks gets ApexSim's `intermediate` and `wet` appended
+    (named as such in the car.toml) so the garage keeps its rain tyres; a car
+    with one compound has no list and keeps the server's default five. Only
+    the grip level, the wear and the window's place are per compound: a
+    compound's own window width, pressure and load sensitivity are not;
+  - `[suspension] roll_centre_front_m` / `_rear_m` from the front view of the
+    linkage (`roll_centre_m`): the upright's instant centre (the lower arm's
+    line met by the upper arm's, or for a strut by the line at right angles
+    to its axis through the top mount) joined to the contact patch, read at
+    the centreline. Both axles or neither (the server reads a lone one as
+    ground level on the other); held to 0-0.3 m with a warning. `camber_thrust`
+    is `tyres.ini`'s `CAMBER_GAIN`, axles averaged (the same ratio of side
+    force from lean to cornering stiffness, 0.1-0.2 on AC's tyres);
+  - `[aero] yaw_sensitivity`: each wing's `YAW_CL_GAIN` (a share of its lift
+    lost per radian of yaw) weighted by the downforce the wing makes, per
+    degree. `[fuel] tank_front_share` from `car.ini` `[FUELTANK] POSITION`'s z
+    by the lever rule between the axles;
+  - `[brakes] material = "carbon"` when `brakes.ini`'s pad curves
+    (`[TEMPS_FRONT]` / `[TEMPS_REAR]` `PERF_CURVE`, 35 of AC's 194 cars carry
+    one) resemble the server's carbon friction table more than its steel one
+    (`pad_material`; the tables are the server's, a test keeps them equal) and
+    the class does not already race on carbon (`CARBON_CLASSES`, equal to
+    `BrakeMaterial::for_class`). Nothing is written otherwise: a steel curve
+    never takes carbon off a class (a prototype's curve is often a steel
+    one), and a car with no curve takes its class's material;
   - aero: each wing at its `ANGLE`, and where it has `LUT_GH_CL` tables at
     the height it rides at 50 m/s (`aero_posture`, the server's aero
     reference), giving the lift coefficients and the `[aero]` ride-height
@@ -427,8 +459,9 @@ Client automation: `ApexSim.Track.Dds.Parse`, `ApexSim.Track.Reader.Version3`,
   normal, `txMaps` and detail maps (diffuse only).
 - A DRS flap split off a car's body: a DRS car gets the drag and downforce
   reductions but its wing is drawn closed.
-- Per-car compound lists, roll centres, attitude aero, brake pads and the
-  other newer `car.toml` keys are not mapped: an import gets the defaults.
+- AC carries no figure for brake pads, `brake_by_wire`, body-roll aero or
+  porpoising: an import gets the defaults (standard pads, brake-by-wire,
+  none).
 - Front-axle ERS and AC's older `kers.ini`; ERS delivery profiles and aero
   controllers are read as their authored figures, with a warning.
 - `--lod B` exists but is untested.

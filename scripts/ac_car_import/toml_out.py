@@ -13,7 +13,7 @@ import math
 
 from .physics import Physics
 
-TABLE_ORDER = ("physics", "aero", "tires", "engine", "engine.turbo", "transmission", "drivetrain",
+TABLE_ORDER = ("physics", "aero", "brakes", "tires", "engine", "engine.turbo", "transmission", "drivetrain",
                "differential", "fuel", "hybrid", "suspension")
 
 
@@ -63,11 +63,29 @@ def render(*, header: dict, physics: Physics, sound: dict, wheels: dict, cockpit
             comment = f"   # {v.source}" if v.source else ""
             w(f"{key} = {fmt(value)}{comment}")
 
+    def compounds(rows: list[dict]) -> None:
+        for r in rows:
+            if r["index"] is None:
+                source = "ApexSim's own: AC has no rain tyre"
+            else:
+                source = f"tyres.ini [FRONT_{r['index']}]" if r["index"] else "tyres.ini [FRONT]"
+            w("")
+            w("[[tires.compound]]")
+            w(f"name = {fmt(r['name'])}   # {source}")
+            w(f"kind = {fmt(r['kind'])}")
+            w(f"grip = {fmt(float(r['grip']))}")
+            w(f"wear = {fmt(float(r['wear']))}")
+            w(f"window_shift_c = {fmt(float(r['window_shift_c']))}")
+            if r["reference"]:
+                w("reference = true   # the compound this import is calibrated on")
+
     for name in TABLE_ORDER:
         entries = physics.tables.get(name)
         if not entries:
             continue
         table(name, entries)
+        if name == "tires":
+            compounds(physics.compounds)
         if name == "engine":
             for rpm, torque in physics.torque_curve:
                 w("")

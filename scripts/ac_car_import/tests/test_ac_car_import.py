@@ -26,7 +26,7 @@ SCRIPTS = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SCRIPTS))
 
 from ac_import import kn5  # noqa: E402
-from ac_car_import import acd, cli, data, glb, model, physics  # noqa: E402
+from ac_car_import import acd, cli, data, glb, model, physics, toml_out  # noqa: E402
 
 AC_CARS = Path(r"E:\SteamLibrary\steamapps\common\assettocorsa\content\cars")
 GT3R = AC_CARS / "ks_porsche_911_gt3_r_2016"
@@ -767,6 +767,271 @@ class Kn5PathTest(unittest.TestCase):
             self.assertEqual(blur.path, ("root", "WHEEL_LF", "RIM_BLUR_LF"))
 
 
+def fake_car(**files: str) -> data.CarData:
+    """A CarData over the synthetic DATA with some files replaced or added
+    (a name with `__` stands for a dot: `tyres__ini`), for the mapping alone."""
+    merged = dict(DATA)
+    merged.update({k.replace("__", "."): v for k, v in files.items()})
+    return data.CarData(car_dir=Path("test_car"), files={k.lower(): v.encode("latin-1") for k, v in merged.items()},
+                        source="test", ui=data.UiCar(name="Testa GT3 2020", tags=["gt3"]), skins=[])
+
+
+SERVER_BRAKES = SCRIPTS.parent / "server" / "src" / "brakes.rs"
+
+
+class BrakeMaterialTest(unittest.TestCase):
+    """brakes.ini's pad curves choose between the server's two materials."""
+
+    CARBON = "(|0=0.93|100=0.948|200=0.966|300=0.982|400=0.994|500=1|600=1|700=0.996|800=0.989|900=0.98|1000=0.97|)"
+    STEEL = "(|0=0.70|300=0.9|500=1.0|600=1.0|800=0.7|1200=0.2|)"
+
+    @staticmethod
+    def pads(curve: str) -> data.CarData:
+        return fake_car(brakes__ini=f"[DATA]\nMAX_TORQUE=2000\nFRONT_SHARE=0.6\n[TEMPS_FRONT]\nPERF_CURVE={curve}\n"
+                                     f"[TEMPS_REAR]\nPERF_CURVE={curve}\n")
+
+    def test_a_flat_hot_curve_is_carbon_and_a_vintage_one_is_steel(self):
+        self.assertEqual(physics.pad_material(self.pads(self.CARBON))[0], "carbon")
+        self.assertEqual(physics.pad_material(self.pads(self.STEEL))[0], "steel")
+
+    def test_a_curve_in_a_lut_file_reads_like_an_inline_one(self):
+        car = fake_car(brakes__ini="[TEMPS_FRONT]\nPERF_CURVE=pads.lut\n",
+                       pads__lut="0|0.93\n500|1.0\n1000|0.97\n")
+        self.assertEqual(physics.pad_material(car)[0], "carbon")
+
+    def test_no_curve_has_nothing_to_say(self):
+        self.assertIsNone(physics.pad_material(fake_car()))
+
+    def test_a_carbon_curve_makes_a_steel_class_carbon_and_the_key_is_absent_otherwise(self):
+        carbon = physics.map_physics(self.pads(self.CARBON), car_class="Formula")
+        self.assertEqual(carbon.get("brakes", "material"), "carbon")
+        # A class that races on carbon names nothing: the server's own rule.
+        self.assertIsNone(physics.map_physics(self.pads(self.CARBON), car_class="F1").get("brakes", "material"))
+        # A steel curve never takes carbon off a class, nor writes the key.
+        self.assertIsNone(physics.map_physics(self.pads(self.STEEL), car_class="F1").get("brakes", "material"))
+        self.assertIsNone(physics.map_physics(self.pads(self.STEEL), car_class="GT3").get("brakes", "material"))
+        self.assertIsNone(physics.map_physics(fake_car(), car_class="Formula").get("brakes", "material"))
+
+    @unittest.skipUnless(SERVER_BRAKES.is_file(), "no server source beside the scripts")
+    def test_the_tables_and_the_classes_are_the_servers(self):
+        rust = SERVER_BRAKES.read_text(encoding="utf-8")
+        classes = re.search(r'for_class.*?match class \{\s*(.*?)=> BrakeMaterial::Carbon', rust, re.S).group(1)
+        self.assertEqual(tuple(re.findall(r'"([A-Za-z0-9]+)"', classes)), physics.CARBON_CLASSES)
+        for name, material in (("Carbon", "carbon"), ("Steel", "steel")):
+            block = re.search(rf"BrakeMaterial::{name} => &\[(.*?)\],", rust, re.S).group(1)
+            pairs = [(float(a), float(b)) for a, b in re.findall(r"\(([\d.]+), ([\d.]+)\)", block)]
+            self.assertEqual(pairs, physics.BRAKE_FRICTION[material])
+
+
+class CompoundTest(unittest.TestCase):
+    """tyres.ini's compounds as the server's `[[tires.compound]]` list."""
+
+    TYRES = """[COMPOUND_DEFAULT]
+INDEX=1
+[FRONT]
+NAME=Slick Soft
+DY0=1.7
+WEAR_CURVE=soft.lut
+RADIUS=0.33
+[REAR]
+NAME=Slick Soft
+DY0=1.7
+WEAR_CURVE=soft.lut
+RADIUS=0.33
+[FRONT_1]
+NAME=Slick Medium
+DY0=1.6
+WEAR_CURVE=medium.lut
+RADIUS=0.33
+[REAR_1]
+NAME=Slick Medium
+DY0=1.6
+WEAR_CURVE=medium.lut
+RADIUS=0.33
+[FRONT_2]
+NAME=Slick Hard
+DY0=1.6
+WEAR_CURVE=hard.lut
+RADIUS=0.33
+[REAR_2]
+NAME=Slick Hard
+DY0=1.6
+WEAR_CURVE=hard.lut
+RADIUS=0.33
+[THERMAL_FRONT]
+PERFORMANCE_CURVE=t_soft.lut
+[THERMAL_FRONT_1]
+PERFORMANCE_CURVE=t_medium.lut
+[THERMAL_FRONT_2]
+PERFORMANCE_CURVE=t_hard.lut
+"""
+    LUTS = {
+        # 5% down at 10, 20 and 40 km.
+        "soft__lut": "0|100\n10|95\n20|80\n",
+        "medium__lut": "0|100\n20|95\n40|80\n",
+        "hard__lut": "0|100\n40|95\n80|80\n",
+        "t_soft__lut": "0|0.7\n60|1.0\n80|1.0\n120|0.7\n",
+        "t_medium__lut": "0|0.7\n70|1.0\n90|1.0\n120|0.7\n",
+        "t_hard__lut": "0|0.7\n80|1.0\n100|1.0\n120|0.7\n",
+    }
+
+    def car(self, tyres: str | None = None) -> data.CarData:
+        return fake_car(tyres__ini=tyres or self.TYRES, **self.LUTS)
+
+    def test_the_list_is_softest_first_with_the_reference_at_one(self):
+        rows = physics.map_compounds(self.car(), 1, [])
+        slicks = [r for r in rows if r["kind"] == "slick"]
+        self.assertEqual([r["name"] for r in slicks], ["Slick Soft", "Slick Medium", "Slick Hard"])
+        soft, medium, hard = slicks
+        self.assertEqual((medium["grip"], medium["wear"], medium["window_shift_c"], medium["reference"]),
+                         (1.0, 1.0, 0.0, True))
+        # DY0 1.7 against 1.6 (the same speed sensitivity): 6.25% more grip.
+        self.assertAlmostEqual(soft["grip"], 1.7 / 1.6, places=3)
+        self.assertEqual(hard["grip"], 1.0)
+        # Life to 95% of the best grip: 10, 20 and 40 km.
+        self.assertAlmostEqual(soft["wear"], 2.0)
+        self.assertAlmostEqual(hard["wear"], 0.5)
+        # Windows centred on 70, 80 and 90 degrees.
+        self.assertEqual([r["window_shift_c"] for r in slicks], [-10.0, 0.0, 10.0])
+        self.assertFalse(soft["reference"] or hard["reference"])
+
+    def test_a_car_with_slicks_alone_is_given_the_rain_tyres_apexsim_has(self):
+        rows = physics.map_compounds(self.car(), 1, [])
+        self.assertEqual([r["kind"] for r in rows], ["slick", "slick", "slick", "intermediate", "wet"])
+        self.assertTrue(all(r["index"] is None for r in rows[3:]))
+        # The server's defaults (tyre_thermal.rs default_compounds).
+        self.assertEqual((rows[3]["wear"], rows[3]["window_shift_c"]), (1.5, -25.0))
+        self.assertEqual((rows[4]["wear"], rows[4]["window_shift_c"]), (2.0, -35.0))
+
+    def test_a_wet_tyre_in_the_file_is_kept_and_sorted_last(self):
+        tyres = self.TYRES + "[FRONT_3]\nNAME=Full Wet\nDY0=1.2\nRADIUS=0.33\n[REAR_3]\nNAME=Full Wet\nDY0=1.2\nRADIUS=0.33\n"
+        rows = physics.map_compounds(self.car(tyres), 1, [])
+        self.assertEqual([r["kind"] for r in rows], ["slick", "slick", "slick", "intermediate", "wet"])
+        wet = rows[-1]
+        self.assertEqual(wet["name"], "Full Wet")
+        self.assertAlmostEqual(wet["grip"], 1.2 / 1.6, places=3)
+        self.assertEqual(wet["index"], 3)
+
+    def test_the_reference_follows_the_chosen_compound(self):
+        rows = physics.map_compounds(self.car(), 0, [])
+        reference = [r for r in rows if r["reference"]]
+        self.assertEqual([r["name"] for r in reference], ["Slick Soft"])
+        self.assertEqual(reference[0]["grip"], 1.0)
+        hard = next(r for r in rows if r["name"] == "Slick Hard")
+        self.assertAlmostEqual(hard["grip"], 1.6 / 1.7, places=3)
+
+    def test_one_compound_keeps_the_default_list(self):
+        one = "[COMPOUND_DEFAULT]\nINDEX=0\n[FRONT]\nNAME=Race\nDY0=1.5\nRADIUS=0.33\n[REAR]\nNAME=Race\nDY0=1.5\nRADIUS=0.33\n"
+        self.assertIsNone(physics.map_compounds(self.car(one), 0, []))
+
+    def test_the_names_decide_the_kind(self):
+        self.assertEqual([physics.compound_kind(n) for n in ("Slick Soft", "Wet", "Rain tyre", "Intermediate", "International GT")],
+                         ["slick", "wet", "wet", "intermediate", "slick"])
+
+    def test_the_toml_the_server_and_the_client_read(self):
+        phys = physics.map_physics(self.car())
+        text = toml_out.render(header={"id": "x", "name": "y"}, physics=phys, sound={}, wheels={}, cockpit={},
+                               drs_flap=None, source={}, liveries=[], notes=[])
+        parsed = tomllib.loads(text)
+        compounds = parsed["tires"]["compound"]
+        self.assertEqual([c["name"] for c in compounds], ["Slick Soft", "Slick Medium", "Slick Hard", "intermediate", "wet"])
+        self.assertEqual([c.get("reference") for c in compounds], [None, True, None, None, None])
+        for line in text.splitlines():
+            if line.startswith("["):
+                self.assertRegex(line, r"^\[\[?[a-z_.]+\]\]?$")
+
+
+class RollCentreTest(unittest.TestCase):
+    """The front-view linkage as a roll centre, m above the road."""
+
+    @staticmethod
+    def wishbone(upper_in: tuple[float, float], top: tuple[float, float]) -> dict:
+        return {"FRONT": {
+            "TYPE": "DWB",
+            "WBCAR_BOTTOM_FRONT": "0.30, -0.10, 0.2", "WBCAR_BOTTOM_REAR": "0.30, -0.10, -0.2",
+            "WBTYRE_BOTTOM": "0.00, -0.10, 0.0",
+            "WBCAR_TOP_FRONT": f"{upper_in[0]}, {upper_in[1]}, 0.2", "WBCAR_TOP_REAR": f"{upper_in[0]}, {upper_in[1]}, -0.2",
+            "WBTYRE_TOP": f"{top[0]}, {top[1]}, 0.0",
+        }}
+
+    def test_wishbones_meeting_inboard_put_the_roll_centre_above_the_road(self):
+        # The lower arm is level at y -0.10; the upper arm falls 0.1 over 0.3 going
+        # outboard, so the two meet 0.9 m inboard of the hub, at y -0.10. The line
+        # from the contact patch (0, -0.33) to there crosses the 0.8 m centreline at:
+        susp = self.wishbone((0.30, 0.10), (0.0, 0.20))
+        # Python's `track_m` is the whole track; the centreline is half of it.
+        expected = 0.8 / 0.9 * (-0.10 + 0.33) + 0.0
+        self.assertAlmostEqual(physics.roll_centre_m(susp, "FRONT", 0.33, 1.6), expected, places=4)
+
+    def test_parallel_arms_make_the_roll_centre_the_road(self):
+        susp = self.wishbone((0.30, 0.20), (0.0, 0.20))
+        self.assertAlmostEqual(physics.roll_centre_m(susp, "FRONT", 0.33, 1.6), 0.0, places=6)
+
+    def test_an_instant_centre_outboard_puts_it_below_the_road(self):
+        susp = self.wishbone((0.30, 0.30), (0.0, 0.20))
+        self.assertLess(physics.roll_centre_m(susp, "FRONT", 0.33, 1.6), 0.0)
+
+    def test_a_strut_meets_the_lower_arm_at_right_angles_to_its_axis(self):
+        susp = {"FRONT": {
+            "TYPE": "STRUT",
+            "WBCAR_BOTTOM_FRONT": "0.30, -0.05, 0.2", "WBCAR_BOTTOM_REAR": "0.30, -0.05, -0.2",
+            "WBTYRE_BOTTOM": "0.00, -0.10, 0.0", "STRUT_CAR": "0.05, 0.45, 0.0", "STRUT_TYRE": "0.05, -0.10, 0.0",
+        }}
+        # Vertical strut: the line at right angles is level at y 0.45; the arm
+        # (rising 0.05 over 0.3 inboard) meets it at x 3.3.
+        expected = 0.8 / 3.3 * (0.45 + 0.33)
+        self.assertAlmostEqual(physics.roll_centre_m(susp, "FRONT", 0.33, 1.6), expected, places=3)
+
+    def test_no_points_or_an_unknown_linkage_has_none(self):
+        self.assertIsNone(physics.roll_centre_m({"FRONT": {"TYPE": "DWB"}}, "FRONT", 0.33, 1.6))
+        susp = self.wishbone((0.30, 0.10), (0.0, 0.20))
+        susp["FRONT"]["TYPE"] = "BEAM"
+        self.assertIsNone(physics.roll_centre_m(susp, "FRONT", 0.33, 1.6))
+
+    def test_the_mapping_writes_both_axles_or_neither(self):
+        rear = {k.replace("FRONT", "REAR"): v for k, v in self.wishbone((0.30, 0.10), (0.0, 0.20))["FRONT"].items()}
+        both = DATA["suspensions.ini"] + "[FRONT]\n" + "".join(
+            f"{k}={v}\n" for k, v in self.wishbone((0.30, 0.10), (0.0, 0.20))["FRONT"].items())
+        # The synthetic file's own [FRONT]/[REAR] come first: build one from scratch.
+        text = DATA["suspensions.ini"]
+        for axle in ("FRONT", "REAR"):
+            extra = "".join(f"{k}={v}\n" for k, v in self.wishbone((0.30, 0.10), (0.0, 0.20))["FRONT"].items())
+            text = text.replace(f"[{axle}]\n", f"[{axle}]\n{extra}", 1)
+        phys = physics.map_physics(fake_car(suspensions__ini=text))
+        front, rear_ = phys.get("suspension", "roll_centre_front_m"), phys.get("suspension", "roll_centre_rear_m")
+        self.assertIsNotNone(front)
+        self.assertEqual(front, rear_)
+        self.assertTrue(0.0 < front <= physics.ROLL_CENTRE_MAX_M)
+        # No points on either axle: neither key.
+        plain = physics.map_physics(fake_car())
+        self.assertIsNone(plain.get("suspension", "roll_centre_front_m"))
+        self.assertIsNone(plain.get("suspension", "roll_centre_rear_m"))
+
+
+class AttitudeAndFuelImportTest(unittest.TestCase):
+    """Camber thrust, yaw sensitivity and the tank, each from the one AC key
+    that carries it; a car without the key writes nothing."""
+
+    def test_camber_thrust_is_the_tyres_camber_gain(self):
+        tyres = DATA["tyres.ini"].replace("[FRONT]\n", "[FRONT]\nCAMBER_GAIN=0.12\n").replace("[REAR]\n", "[REAR]\nCAMBER_GAIN=0.16\n")
+        self.assertAlmostEqual(physics.map_physics(fake_car(tyres__ini=tyres)).get("suspension", "camber_thrust"), 0.14)
+        self.assertIsNone(physics.map_physics(fake_car()).get("suspension", "camber_thrust"))
+
+    def test_yaw_sensitivity_is_the_wings_gain_per_degree_weighted_by_downforce(self):
+        # Body 0.1 x 2 m2 = 0.2 (no gain); the rear wing 0.6 x 1 m2 = 0.6 at -0.2 a radian.
+        aero = DATA["aero.ini"].replace("ANGLE=10\n", "ANGLE=10\nYAW_CL_GAIN=-0.2\n")
+        phys = physics.map_physics(fake_car(aero__ini=aero))
+        self.assertAlmostEqual(phys.get("aero", "yaw_sensitivity"), round(math.radians(0.2 * 0.6 / 0.8), 5), places=5)
+        self.assertIsNone(physics.map_physics(fake_car()).get("aero", "yaw_sensitivity"))
+
+    def test_the_tank_is_placed_between_the_axles_by_the_lever_rule(self):
+        # Wheelbase 2.6, 45% on the front: the CG is 1.43 m ahead of the rear axle.
+        for z, share in ((1.43, 1.0), (-1.17, 0.0), (0.0, 1.17 / 2.6), (3.0, 1.0), (-3.0, 0.0)):
+            car = fake_car(car__ini=DATA["car.ini"] + f"[FUELTANK]\nPOSITION=0,0.1,{z}\n")
+            self.assertAlmostEqual(physics.map_physics(car).get("fuel", "tank_front_share"), round(share, 3), places=3, msg=z)
+        self.assertIsNone(physics.map_physics(fake_car()).get("fuel", "tank_front_share"))
+
+
 @unittest.skipUnless(GT3R.is_dir(), "no Assetto Corsa install with the 911 GT3 R on this machine")
 class Porsche911Gt3RTest(unittest.TestCase):
     """The figures docs/content/ac-import.md quotes for the Kunos 911 GT3 R."""
@@ -799,6 +1064,25 @@ class Porsche911Gt3RTest(unittest.TestCase):
         self.assertAlmostEqual(self.phys.get("physics", "max_steering_angle_rad"), 0.5027, places=4)
         self.assertAlmostEqual(self.phys.get("physics", "grip_coefficient"), 1.4943, places=3)
         self.assertEqual(self.phys.car_class, "GT3")
+
+    def test_the_newer_keys(self):
+        p = self.phys
+        own = [r for r in p.compounds if r["index"] is not None]
+        self.assertEqual([r["name"] for r in own], ["Slick Soft", "Slick Medium", "Slick Hard"])
+        self.assertEqual([r["kind"] for r in p.compounds[3:]], ["intermediate", "wet"])
+        soft, medium, hard = own
+        self.assertTrue(medium["reference"])
+        self.assertAlmostEqual(soft["wear"], 2.59, delta=0.05)
+        self.assertAlmostEqual(hard["wear"], 0.83, delta=0.05)
+        self.assertEqual((soft["window_shift_c"], hard["window_shift_c"]), (-10.0, 5.0))
+        # A strut in front, wishbones behind; both inside the server's range.
+        self.assertAlmostEqual(p.get("suspension", "roll_centre_front_m"), 0.214, delta=0.01)
+        self.assertAlmostEqual(p.get("suspension", "roll_centre_rear_m"), 0.148, delta=0.01)
+        self.assertAlmostEqual(p.get("suspension", "camber_thrust"), 0.1425, places=3)
+        self.assertAlmostEqual(p.get("aero", "yaw_sensitivity"), 0.00165, delta=0.0002)
+        # The 911's tank is in the nose, 1.35 m ahead of the CG.
+        self.assertAlmostEqual(p.get("fuel", "tank_front_share"), 0.953, places=3)
+        self.assertIsNone(p.get("brakes", "material"), "a GT3 races on steel")
 
     def test_the_steering_column_runs_forward_and_down(self):
         k = kn5.read_kn5(GT3R / "porsche_911_gt3_r.kn5", textures=False)

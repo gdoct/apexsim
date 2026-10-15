@@ -64,6 +64,8 @@ class Physics:
     has_drs: bool = False
     cylinders: int | None = None
     turbo: bool = False
+    #: The `[[tires.compound]]` tables, in order; empty keeps the defaults.
+    compounds: list[dict] = field(default_factory=list)
 
     def put(self, table: str, key: str, value, source: str = "") -> None:
         self.tables.setdefault(table, {})[key] = Value(value, source)
@@ -160,6 +162,173 @@ def read_thermal_window(car: CarData, compound: int) -> tuple[float, float, floa
     name = str(t.get(section, {}).get("PERFORMANCE_CURVE", "")).strip()
     curve = car.lut(name) if name else None
     return thermal_window(curve) if curve is not None else None
+
+
+def speed_factor(t: Tyre) -> float:
+    """AC's speed sensitivity at the reference speed, as a grip multiplier."""
+    return max(1.0 - t.speed_sensitivity * REFERENCE_SPEED_MPS, 0.5)
+
+
+def mean_grip(front: Tyre, rear: Tyre) -> float:
+    """The car's level of grip on this compound: the axles' `DY0` at the
+    reference speed, averaged (what `grip_coefficient` is)."""
+    return 0.5 * (front.dy0 * speed_factor(front) + rear.dy0 * speed_factor(rear))
+
+
+def read_curve(car: CarData, text) -> Lut | None:
+    """A curve key's value: a LUT file's name, or the inline form
+    (`(|0=0.9|300=1.0|)`) a few cars write in its place."""
+    text = str(text or "").strip()
+    if not text:
+        return None
+    if text.startswith("("):
+        return parse_inline_lut(text)
+    return car.lut(text.split(";")[0].strip())
+
+
+# --- brakes ---------------------------------------------------------------
+
+#: The classes the server races on carbon brakes (`BrakeMaterial::for_class`,
+#: server/src/brakes.rs; a test keeps the two equal).
+CARBON_CLASSES = ("F1", "Hypercar", "LMP2", "LMP1", "LMP")
+#: The server's pad friction against disc temperature (`BrakeMaterial::
+#: friction`; a test keeps them equal): a pad curve in brakes.ini is read as
+#: whichever of the two it resembles.
+BRAKE_FRICTION = {
+    "carbon": [(0.0, 0.55), (150.0, 0.62), (300.0, 0.85), (400.0, 1.0), (900.0, 1.0), (1050.0, 0.85), (1200.0, 0.6)],
+    "steel": [(0.0, 0.9), (100.0, 0.96), (200.0, 1.0), (600.0, 1.0), (700.0, 0.88), (850.0, 0.55)],
+}
+PAD_TEMPS = np.arange(0.0, 1001.0, 25.0)
+
+
+def pad_material(car: CarData) -> tuple[str, dict[str, float]] | None:
+    """Which of the server's two brake materials `brakes.ini`'s pad curves
+    (`[TEMPS_FRONT]` / `[TEMPS_REAR]` `PERF_CURVE`, friction against disc
+    temperature) resemble: ``("carbon" | "steel", {material: mean squared
+    difference})`` over 0-1000 degrees, each curve scaled to its peak. A car
+    whose brakes.ini has no curve (most of them) has nothing to say."""
+    brakes = car.ini("brakes.ini")
+    tables = {m: np.interp(PAD_TEMPS, [t for t, _ in pts], [f for _, f in pts]) for m, pts in BRAKE_FRICTION.items()}
+    err = {m: 0.0 for m in tables}
+    seen = 0
+    for section in ("TEMPS_FRONT", "TEMPS_REAR"):
+        curve = read_curve(car, brakes.get(section, {}).get("PERF_CURVE"))
+        if curve is None or curve.x.size < 2 or float(curve.y.max()) <= 0.0:
+            continue
+        y = np.array([curve(t) for t in PAD_TEMPS]) / float(curve.y.max())
+        for m, table in tables.items():
+            err[m] += float(np.mean((y - table) ** 2))
+        seen += 1
+    if not seen:
+        return None
+    return ("carbon" if err["carbon"] < err["steel"] else "steel"), {m: round(v / seen, 4) for m, v in err.items()}
+
+
+# --- tyre compounds -------------------------------------------------------
+
+#: The server's limits on a compound (`car_loader.rs` validation).
+GRIP_RANGE = (0.5, 1.5)
+WEAR_RANGE = (0.2, 5.0)
+SHIFT_RANGE_C = (-80.0, 80.0)
+#: The share of peak grip a worn tyre has left when its life is counted over.
+WORN_GRIP_SHARE = 0.95
+#: The rain tyres an ApexSim car has by default (`tyre_thermal::default_compounds`),
+#: given to an import whose AC compounds are all slicks (AC has no wet tyre).
+RAIN_COMPOUNDS = (
+    {"name": "intermediate", "kind": "intermediate", "grip": 1.0, "wear": 1.5, "window_shift_c": -25.0},
+    {"name": "wet", "kind": "wet", "grip": 1.0, "wear": 2.0, "window_shift_c": -35.0},
+)
+
+
+def compound_kind(name: str) -> str:
+    n = name.lower()
+    if "wet" in n or "rain" in n:
+        return "wet"
+    if "inter" in n and "international" not in n:
+        return "intermediate"
+    return "slick"
+
+
+def tyre_life_km(car: CarData, compound: int) -> float | None:
+    """How far a compound runs before it has lost 5% of its best grip, from
+    its `WEAR_CURVE` (virtual km against grip; the axles' mean). None when
+    there is no curve."""
+    t = car.ini("tyres.ini")
+    lives = []
+    for axle in ("FRONT", "REAR"):
+        section = axle if compound == 0 else f"{axle}_{compound}"
+        curve = car.lut(str(t.get(section, {}).get("WEAR_CURVE", "")).split(";")[0].strip())
+        if curve is None or curve.x.size < 2:
+            continue
+        peak = float(curve.y.max())
+        if peak <= 0.0:
+            continue
+        threshold = WORN_GRIP_SHARE * peak
+        # Past the curve's end it is taken to last half as far again.
+        life = float(curve.x.max()) * 1.5
+        start = int(np.argmax(curve.y))
+        for i in range(start + 1, curve.x.size):
+            if curve.y[i] <= threshold:
+                x0, y0 = float(curve.x[i - 1]), float(curve.y[i - 1])
+                x1, y1 = float(curve.x[i]), float(curve.y[i])
+                life = x1 if y0 == y1 else x0 + (x1 - x0) * (y0 - threshold) / (y0 - y1)
+                break
+        lives.append(max(life, 0.1))
+    return sum(lives) / len(lives) if lives else None
+
+
+def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dict] | None:
+    """The car's `[[tires.compound]]` list from tyres.ini's compounds, softest
+    slick first (the setup knob's order), the reference (the compound the
+    rest of the import is calibrated on) at grip 1, wear 1, shift 0.
+
+    - `grip`: the compound's mean `DY0` (at the reference speed) over the
+      reference's;
+    - `wear`: the reference's life over its own (`tyre_life_km`);
+    - `window_shift_c`: its thermal window's middle less the reference's;
+    - `kind` from the name; a car with no wet or intermediate gets
+      ApexSim's (AC has none), so the garage still has rain tyres.
+
+    ``None`` for a car with a single compound: it keeps the default list."""
+    compounds = tyre_compounds(car)
+    if len(compounds) < 2:
+        return None
+    ref_front, ref_rear, _ = read_tyres(car, reference)
+    ref_grip = mean_grip(ref_front, ref_rear)
+    ref_window = read_thermal_window(car, reference)
+    ref_life = tyre_life_km(car, reference)
+    rows = []
+    for index, name in compounds:
+        try:
+            front, rear, _ = read_tyres(car, index)
+        except PhysicsError as e:
+            warnings.append(f"compound {index} ({name}) skipped: {e}")
+            continue
+        window = read_thermal_window(car, index)
+        life = tyre_life_km(car, index)
+        grip = mean_grip(front, rear) / ref_grip
+        shift = window[0] - ref_window[0] if window and ref_window else 0.0
+        wear = ref_life / life if life and ref_life else 1.0
+        rows.append({
+            "index": index,
+            "name": name,
+            "kind": compound_kind(name),
+            "grip": round(min(max(grip, GRIP_RANGE[0]), GRIP_RANGE[1]), 3),
+            "wear": round(min(max(wear, WEAR_RANGE[0]), WEAR_RANGE[1]), 2),
+            "window_shift_c": round(min(max(shift, SHIFT_RANGE_C[0]), SHIFT_RANGE_C[1]), 1),
+            "reference": index == reference,
+        })
+    if len(rows) < 2:
+        return None
+    # Softer first: more grip, then a cooler window, then faster wear. The
+    # treaded tyres come last, as the server's knob expects.
+    rank = {"slick": 0, "intermediate": 1, "wet": 2}
+    rows.sort(key=lambda r: (rank[r["kind"]], -round(r["grip"], 2), r["window_shift_c"], -r["wear"], r["index"]))
+    for kind, extra in zip(("intermediate", "wet"), RAIN_COMPOUNDS):
+        if not any(r["kind"] == kind for r in rows):
+            rows.append(dict(extra, index=None, reference=False))
+    rows.sort(key=lambda r: rank[r["kind"]])  # stable: the rain tyres to the end
+    return rows
 
 
 def tyre_compounds(car: CarData) -> list[tuple[int, str]]:
@@ -509,6 +678,11 @@ def _circle_meet(c1, r1, c2, r2, near):
     return min(candidates, key=lambda q: math.hypot(q[0] - near[0], q[1] - near[1]))
 
 
+#: The highest roll centre taken, m: past it a linkage's points are
+#: garbage (a solid axle drawn as wishbones) or the geometry is nearly all
+#: of the load transfer, which the server's model cannot carry (it takes 0.5).
+ROLL_CENTRE_MAX_M = 0.3
+
 #: Wheel travel the camber gain is measured over, m.
 GAIN_PROBE_M = 0.005
 
@@ -584,6 +758,69 @@ def toe_in_deg(sections: dict, axle: str):
         return None
     return -math.degrees(math.atan(toe_out / arm))
 
+
+def _line_meet(p1, d1, p2, d2):
+    """Where the lines `p1 + t d1` and `p2 + s d2` cross (2D); None if they
+    are parallel."""
+    cross = d1[0] * d2[1] - d1[1] * d2[0]
+    if abs(cross) < 1e-9 * max(math.hypot(*d1) * math.hypot(*d2), 1e-12):
+        return None
+    t = ((p2[0] - p1[0]) * d2[1] - (p2[1] - p1[1]) * d2[0]) / cross
+    return (p1[0] + t * d1[0], p1[1] + t * d1[1])
+
+
+def roll_centre_m(sections: dict, axle: str, radius_m: float, track_m: float):
+    """The axle's roll centre, m above the road, from the front view of its
+    linkage at the design position: the instant centre of the upright (the
+    lower arm's line met by the upper arm's, or for a strut by the line at
+    right angles to its axis through the top mount), joined to the tyre's
+    contact patch, crossing the car's centreline. The points are from the
+    hub (x toward the car, y up), so the contact patch is `radius_m` below
+    it and the centreline `track_m / 2` inboard. None when the points are not
+    there or the linkage is neither a double wishbone nor a strut. The value
+    may fall outside what the server takes (a roll centre below the road):
+    the caller holds it to the range."""
+    kind = str(sections.get(axle, {}).get("TYPE", "")).split(";")[0].strip().upper()
+    bottom_f = _point(sections, axle, "WBCAR_BOTTOM_FRONT")
+    bottom_r = _point(sections, axle, "WBCAR_BOTTOM_REAR")
+    ball = _point(sections, axle, "WBTYRE_BOTTOM")
+    if not (bottom_f and bottom_r and ball):
+        return None
+    lower_in = ((bottom_f[0] + bottom_r[0]) / 2, (bottom_f[1] + bottom_r[1]) / 2)
+    lower_dir = (ball[0] - lower_in[0], ball[1] - lower_in[1])
+    if math.hypot(*lower_dir) < 1e-6:
+        return None
+    if kind == "DWB":
+        top_f = _point(sections, axle, "WBCAR_TOP_FRONT")
+        top_r = _point(sections, axle, "WBCAR_TOP_REAR")
+        top = _point(sections, axle, "WBTYRE_TOP")
+        if not (top_f and top_r and top):
+            return None
+        upper_in = ((top_f[0] + top_r[0]) / 2, (top_f[1] + top_r[1]) / 2)
+        upper_dir = (top[0] - upper_in[0], top[1] - upper_in[1])
+    elif kind == "STRUT":
+        mount = _point(sections, axle, "STRUT_CAR")
+        foot = _point(sections, axle, "STRUT_TYRE") or ball
+        if not mount:
+            return None
+        axis = (mount[0] - foot[0], mount[1] - foot[1])
+        if math.hypot(*axis) < 1e-6:
+            return None
+        upper_in, upper_dir = (mount[0], mount[1]), (-axis[1], axis[0])
+    else:
+        return None
+    if math.hypot(*upper_dir) < 1e-6:
+        return None
+    patch = (0.0, -radius_m)
+    centre = _line_meet(lower_in, lower_dir, upper_in, upper_dir)
+    # Parallel arms: the instant centre is at infinity along them.
+    direction = lower_dir if centre is None else (centre[0] - patch[0], centre[1] - patch[1])
+    if abs(direction[0]) < 1e-6:
+        return None
+    t = (track_m / 2.0) / direction[0]
+    return patch[1] + t * direction[1] + radius_m
+
+
 def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[float, float, float] | None = None,
                 car_class: str | None = None) -> Physics:
     """Every car.toml figure the server reads. `bounds_m` is the body
@@ -600,6 +837,7 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
         raise PhysicsError("car.ini, engine.ini, drivetrain.ini or suspensions.ini is missing")
 
     front, rear, compound = read_tyres(car, compound)
+    tyres_ini = car.ini("tyres.ini")
     out.fit["compound"] = {"index": compound, "front": front.name, "rear": rear.name}
 
     # Mass, steering.
@@ -759,6 +997,17 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
         out.fit["aero"]["map"] = {k: round(v, 5) for k, v in aero_map.items()
                                   if k in ("ride_height_sensitivity", "rake_sensitivity", "stall_height_m")}
 
+    # Yaw: each wing's YAW_CL_GAIN is the share of its lift it loses per
+    # radian the car runs sideways to the air; the car's is theirs weighted
+    # by the downforce each makes, per degree (the server's unit).
+    yaw_num = yaw_den = 0.0
+    for w, (_, s_, _, _, _) in zip(wings, sections):
+        down = w.cl * w.area
+        if down > 0.0:
+            yaw_num += down * max(-number(s_.get("YAW_CL_GAIN"), 0.0), 0.0)
+            yaw_den += down
+    yaw_per_deg = math.radians(yaw_num / yaw_den) if yaw_den > 0.0 else 0.0
+
     # DRS: the named wing's drag and rear downforce, closed against open.
     drs_drag = drs_rear = 0.0
     if drs_wings:
@@ -832,6 +1081,9 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
     out.put(p, "drs_rear_downforce_reduction", round(drs_rear, 4), "drs.ini's wing, closed against open" if drs_wings else "no DRS wing")
 
     # ---- aero posture: the server's ride-height map, from the wings' tables.
+    if yaw_per_deg > 0.0:
+        out.put("aero", "yaw_sensitivity", round(min(yaw_per_deg, 0.05), 5),
+                "aero.ini YAW_CL_GAIN (per radian) of the wings, weighted by downforce, per degree")
     if aero_map:
         a = "aero"
         clamp = lambda v, lo, hi: min(max(v, lo), hi)  # noqa: E731
@@ -864,6 +1116,13 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
         out.put(t, "optimal_temperature_c", min(max(optimum, 30.0), 150.0), "tyres.ini PERFORMANCE_CURVE: the plateau's middle")
         out.put(t, "temperature_window_c", half_width, "tyres.ini PERFORMANCE_CURVE: half the plateau")
         out.put(t, "temperature_grip_falloff", falloff, "tyres.ini PERFORMANCE_CURVE: the slope past the plateau")
+    camber_gain_tyre = [v for v in (_opt(tyres_ini, "FRONT" if compound == 0 else f"FRONT_{compound}", "CAMBER_GAIN"),
+                                    _opt(tyres_ini, "REAR" if compound == 0 else f"REAR_{compound}", "CAMBER_GAIN"))
+                        if v is not None]
+    compound_rows = map_compounds(car, compound, out.warnings)
+    if compound_rows:
+        out.compounds = compound_rows
+        out.fit["compounds"] = [dict(r) for r in compound_rows]
 
     # ---- engine
     e = "engine"
@@ -921,6 +1180,12 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
     max_fuel = _opt(carini, "FUEL", "MAX_FUEL")
     if max_fuel:
         out.put("fuel", "capacity_liters", round(max_fuel, 1), "car.ini MAX_FUEL")
+    tank = vector(carini.get("FUELTANK", {}).get("POSITION"), 3)
+    if tank:
+        # The tank's z from the CG, between the axles: the lever rule gives
+        # the share of the fuel's weight the front axle carries.
+        share = min(max((tank[2] - z_rear) / wheelbase, 0.0), 1.0)
+        out.put("fuel", "tank_front_share", round(share, 3), "car.ini [FUELTANK] POSITION z, by the lever rule between the axles")
 
     # ---- hybrid (ERS)
     ers = car.ini("ers.ini")
@@ -1019,6 +1284,29 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
         out.put(s, "bump_stop_rate_n_per_m", round(min(max(sum(rates) / 2, 0.0), 2.0e6), 1),
                 "suspensions.ini BUMP_STOP_RATE, both axles averaged")
 
+    # Roll centres from the front view of the linkage: both or neither (the
+    # server reads a lone one as ground level on the other axle).
+    centres = {}
+    for axle, tyre_ in (("FRONT", front), ("REAR", rear)):
+        centres[axle] = roll_centre_m(susp, axle, tyre_.radius, _opt(susp, axle, "TRACK") or 1.6)
+    if all(v is not None for v in centres.values()):
+        out.fit["roll_centre_m"] = {a: round(v, 4) for a, v in centres.items()}
+        for axle, key in (("FRONT", "front"), ("REAR", "rear")):
+            held = min(max(centres[axle], 0.0), ROLL_CENTRE_MAX_M)
+            if abs(held - centres[axle]) > 0.005:
+                out.warnings.append(f"suspensions.ini [{axle}]: the roll centre works out at {centres[axle]:.3f} m, "
+                                    f"held to {held:g} m (the server takes none below the road)")
+            out.put(s, f"roll_centre_{key}_m", round(held, 4),
+                    f"suspensions.ini [{axle}] points: the instant centre of the linkage joined to the contact patch")
+    elif any(susp.get(a, {}).get("WBCAR_BOTTOM_FRONT") for a in ("FRONT", "REAR")):
+        out.warnings.append("suspensions.ini: no roll centre for an axle that is neither a double wishbone nor "
+                            "a strut with its points: the sim's elastic-only load transfer")
+    # Camber thrust: AC's CAMBER_GAIN is the same ratio (side force from
+    # lean over the cornering stiffness, ~0.1 on a racing tyre).
+    if camber_gain_tyre:
+        out.put(s, "camber_thrust", round(min(max(sum(camber_gain_tyre) / len(camber_gain_tyre), 0.0), 0.5), 4),
+                "tyres.ini CAMBER_GAIN, axles averaged")
+
     out.fit["reference_speed_mps"] = REFERENCE_SPEED_MPS
     out.fit["cog_height_m"] = round(cog, 4)
     out.car_class = car_class or map_class(car, out.has_drs)
@@ -1027,4 +1315,17 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
     modern = car.ui.year >= 1990 if car.ui.year else out.has_drs
     if out.car_class == "F1" and modern:
         out.put("tires", "blanket_temperature_c", 70.0, "F1 rules: tyre blankets (AC has none)")
+    # Brakes: the server takes the class's material unless the car.toml names
+    # one. brakes.ini names none, but its pad curves say what the pads are
+    # like. A curve that is a carbon pad's turns a class that races on steel
+    # (a hybrid Formula car, a carbon-ceramic road car) to carbon; the classes
+    # that race on carbon stay on it whatever the curve (an AC prototype's
+    # curve is often a steel one).
+    pads = pad_material(car)
+    if pads:
+        verdict, errors = pads
+        out.fit["brake_pads"] = {"resembles": verdict, "mean_squared_difference": errors}
+        if verdict == "carbon" and out.car_class not in CARBON_CLASSES:
+            out.put("brakes", "material", "carbon",
+                    "brakes.ini PERF_CURVE: the pads' friction against temperature is a carbon pad's")
     return out

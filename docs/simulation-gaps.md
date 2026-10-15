@@ -122,15 +122,14 @@ one session, advanced by the host (see
 | AC's own tyre heat model is not carried, only its temperature window (`ac_car_import/physics.py` `thermal_window`). | Med | Low |
 | AC's dynamic aero controllers (`aero.ini` `DYNAMIC_CONTROLLER`) are not modelled, and a DRS flap is not split off an imported body (the importer warns). | Med | Low |
 | AC's ERS delivery profiles (`ctrl_ers_*.ini`) and front-axle motors (`[FRONT_MOTORS]`) are not carried: a 919-style hypercar imports with its rear motor only. | Med | Low |
-| Brakes take carbon or steel from the class (`BrakeMaterial::for_class`), not from `brakes.ini`. | Low | Low |
-| The car importer maps none of the newer car.toml keys: one compound only (no `[[tires.compound]]` list), no roll centres, camber thrust, yaw/roll aero or porpoising, brake pads, `tank_front_share` or `brake_by_wire`. | Med | Med |
+| AC carries no figure for brake pads, `brake_by_wire`, body-roll aero or porpoising, so an imported car has the defaults for them; a compound's own window width, pressure and load sensitivity are not carried either (only its grip level, wear and window place). | Low | Low |
 
 ## Built but never seen in the running game
 
 Covered by automation tests only; each needs a look on screen.
 
 - Contact sparks: a contact lasts a few frames and no timed screenshot has caught one (the steam and the engine smoke have been seen).
-- The garage's compound cards built from a car's own `[[tires.compound]]` list: no shipped car files one, so only the default five have been on screen (`ApexSim.UI.Garage.CompoundCards` pins the rest).
+- The garage's compound cards built from a car's own `[[tires.compound]]` list: only an AC import files one now (its compounds plus ApexSim's two rain tyres), so only the default five have been on screen (`ApexSim.UI.Garage.CompoundCards` pins the rest).
 - Needs a human at the controls: a flat spot through a real wheel or pad, the flat-spot thump in the road sound, a puddle or a dried line felt from the seat, a slow puncture felt over a lap.
 - Track and sky: the flags turning with the wind (no shipped circuit places `sign/flag_pole`), the sun at a circuit's real latitude and north, rain arriving and the road drying under a changeable sky, a rubbered start.
 - Racecraft (`crate::racecraft`): passes, defensive moves, a car leaving room, a backmarker yielding and a car reversing out of a barrier have only been read off the AI survey's numbers and traces. Worth a look: whether leaving a lane after a pass and the timed reverse look natural, and how the side-by-side contact the survey counts looks on screen.
