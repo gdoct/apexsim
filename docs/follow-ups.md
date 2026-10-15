@@ -17,6 +17,8 @@ has none left, delete the package. Git history keeps what was done.
 - **P1**: core sim-racing experience. Players notice at once when it is wrong.
 - **P2**: depth and polish.
 - **P3**: nice to have.
+- **P4**: unrefined.
+- **P5**: cleanup.
 
 ## P0: playable end to end
 
@@ -158,7 +160,30 @@ the launcher import with the network off.
 
 **Check:** the A/B is two screenshots.
 
-### 13. Cleanup
+## P4: Unrefined
+
+### 13. Windshield wipers
+- Add windshield wiper functionality to respond to rain and other weather conditions. This requires model updates, a key binding, and appropriate animation plus sound in first person view.
+
+### 14. Improve sound system
+
+- Enhance the sound system for better spatial audio, realistic engine sounds, and environmental effects. This may involve updating audio assets, adjusting sound cues, and integrating with the physics engine for dynamic audio responses.
+- Improve sliding sound effects for better realism, including tire squeal and surface interaction audio.
+
+
+### Top view
+- If we use the top view with formula cars, somehow the image looks really cheap and lacks the visual fidelity seen in other camera angles. This needs to be further investigated and fixed.
+
+### Pit lane entry and exit 
+- Review and improve the visual and functional aspects of pit lane entry and exit, ensuring smooth transitions and accurate representation in the game. 
+- The pit lane entries should be closer to the actual pit boxes and clearly marked by a line.
+- The pit lane exits should be immediately after the last pit box. That should be where the light is located. From that point, the player can already get control there and have no speed limit.
+- when the autopilot stops it should be remain at speed. currently it slows the car down before releasing control to the player.
+
+
+## P5: Cleanup
+
+### 99. Cleanup
 
 Small and independent. Do one or two alongside whatever package touches
 the same files.
