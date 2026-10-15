@@ -241,6 +241,80 @@ fn an_ai_on_worn_tyres_pits_and_races_on() {
     );
 }
 
+/// Late in a race, short of fuel on tyres that reach the flag: a splash of
+/// fuel and back out on the same set, quicker than a full stop.
+#[test]
+fn an_ai_short_of_fuel_late_on_splashes_and_keeps_its_tyres() {
+    let track = monza();
+    if track.pit_lane.is_none() {
+        return;
+    }
+    let car = gt3();
+    let car_id = car.id;
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car);
+    let mut profile = AiDriverProfile::new("Pit AI", 95);
+    profile.id = Uuid::from_u128(7300);
+    profile.preferred_car_id = Some(car_id);
+    let driver = profile.id;
+    let session = RaceSession::new(
+        Uuid::from_u128(1),
+        Uuid::nil(),
+        SessionKind::Multiplayer,
+        8,
+        1,
+        4,
+    );
+    let mut gs = GameSession::with_ai_profiles(session, track, car_configs, vec![profile]);
+    gs.spawn_ai_drivers();
+    gs.start_countdown_mode(1, GameMode::Race);
+    let lap = gs.lap_fuel_liters(car_id).expect("a lap estimate");
+    {
+        let s = gs.session.participants.get_mut(&driver).unwrap();
+        // Ten laps on this set, 20% worn: they last. Fuel for 1.4 laps.
+        s.pit.stint_start_laps = -10.0;
+        for t in s.tires.each_mut() {
+            t.wear_percent = 20.0;
+        }
+        s.fuel_liters = 1.4 * lap;
+    }
+    let (mut laps, mut in_box_ticks) = (Vec::new(), 0u32);
+    let mut fuel_only = false;
+    for _ in 0..(HZ * 60 * 10) {
+        let inputs: HashMap<PlayerId, PlayerInputData> =
+            [(driver, gs.generate_ai_input(&driver))].into();
+        gs.tick(&inputs);
+        let s = &gs.session.participants[&driver];
+        fuel_only |= s.pit.wants_stop && s.pit.fuel_only;
+        in_box_ticks += s.pit.servicing as u32;
+        for out in gs.take_lap_events() {
+            if let Some(ms) = out.event.lap_time_ms {
+                laps.push(ms as f32 / 1000.0);
+            }
+        }
+        if laps.len() >= 3 {
+            break;
+        }
+    }
+    let s = &gs.session.participants[&driver];
+    let in_box = in_box_ticks as f32 / HZ as f32;
+    println!(
+        "laps {laps:?}; stops {}, {in_box:.1} s in the box, fuel {:.1} L",
+        s.pit.stops, s.fuel_liters
+    );
+    assert!(fuel_only, "planned as a splash");
+    assert_eq!(s.pit.stops, 1, "one stop");
+    assert!(
+        s.tires.each().iter().all(|t| t.wear_percent >= 20.0),
+        "the same tyres"
+    );
+    assert!(
+        in_box < apexsim_server::pit::TYRE_CHANGE_S,
+        "fuel alone: {in_box:.1} s"
+    );
+    assert!(s.fuel_liters > 0.0, "it reaches the flag");
+}
+
 /// A driver who lost their connection mid-race: the server drives their car
 /// (`away_input`) and plans its stops as an AI's, so worn tyres take it to
 /// its box rather than round and round until they or the tank give out.

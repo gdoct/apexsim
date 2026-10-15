@@ -124,6 +124,15 @@ fn with_road(mut track: TrackConfig, conditions: &SessionConditions) -> TrackCon
 }
 
 /// The live sky of `session` over `track` (`crate::conditions`).
+/// Salt for an AI's strategy roll each lap (`pit::StopContext::roll`).
+const STRATEGY_SALT: u64 = 0x5747_5241_5445_4759;
+
+/// The laps a car has run in a race, the one it is on in part.
+fn laps_run(state: &CarState, total_m: f32) -> f32 {
+    (state.current_lap.max(1) - 1) as f32
+        + (state.track_progress / total_m.max(1.0)).clamp(0.0, 1.0)
+}
+
 fn live_sky(session: &RaceSession, track: &TrackConfig) -> crate::conditions::LiveConditions {
     crate::conditions::LiveConditions::new(
         session.conditions,
@@ -4432,7 +4441,8 @@ impl GameSession {
     /// choice (the AI's plan for an AI). Fuel where the rules let this car
     /// refuel and it needs some: what the rest of the run needs (a race's
     /// distance with its margin, else what the session fills a car with).
-    /// Repairs when anything is damaged. The plan goes to every client
+    /// Repairs when anything is damaged. An AI's splash (`PitState::
+    /// fuel_only`) is the fuel alone. The plan goes to every client
     /// (`ServerMessage::PitService`) for the pit-stop panel.
     fn start_service(&mut self, player_id: &PlayerId) {
         let Some(state) = self.session.participants.get(player_id) else {
@@ -4440,7 +4450,10 @@ impl GameSession {
         };
         let car_id = state.car_config_id;
         let is_ai = self.is_ai_player(player_id);
-        let compound = if is_ai {
+        let fuel_only = state.pit.fuel_only;
+        let compound = if fuel_only {
+            state.tyre_compound
+        } else if is_ai {
             state.pit.next_compound
         } else {
             let tyre = self
@@ -4473,13 +4486,23 @@ impl GameSession {
         };
         // A stint's energy limit: no more than the next stint can burn.
         let fuel_target = crate::pit::stint_fuel_cap(&config, fuel_target).max(fuel_now);
-        let plan = crate::pit::plan_service(
+        let mut plan = crate::pit::plan_service(
             &config,
             fuel_target - fuel_now,
             damage,
             brake_wear,
             disc_wear,
         );
+        if fuel_only {
+            plan = crate::pit::ServicePlan {
+                tyres_s: 0.0,
+                repair_s: 0.0,
+                repair_pct: 0.0,
+                pads: false,
+                discs: false,
+                ..plan
+            };
+        }
         if let Some(state) = self.session.participants.get_mut(player_id) {
             let pit = &mut state.pit;
             pit.servicing = true;
@@ -4510,6 +4533,7 @@ impl GameSession {
     /// at: its blankets, or the air), the fuel in, the car repaired if that
     /// was part of the stop.
     fn finish_service(&mut self, player_id: &PlayerId) {
+        let total_m = crate::laps::track_length_m(&self.track_config);
         let Some(state) = self.session.participants.get_mut(player_id) else {
             return;
         };
@@ -4517,11 +4541,15 @@ impl GameSession {
         else {
             return;
         };
-        let tyre = &config.tire_config;
-        let temperature = tyre_thermal::start_temperature_c(tyre, &self.track_config.track_surface);
-        let compound = state.pit.service_compound;
-        let water = self.track_config.track_surface.water;
-        tyre_thermal::fit(state, tyre, temperature, compound, water);
+        if !state.pit.fuel_only {
+            let tyre = &config.tire_config;
+            let temperature =
+                tyre_thermal::start_temperature_c(tyre, &self.track_config.track_surface);
+            let compound = state.pit.service_compound;
+            let water = self.track_config.track_surface.water;
+            tyre_thermal::fit(state, tyre, temperature, compound, water);
+            state.pit.stint_start_laps = laps_run(state, total_m);
+        }
         state.fuel_liters =
             (state.fuel_liters + state.pit.service_fuel_l).min(config.fuel.capacity_liters);
         if state.pit.service_repair {
@@ -4543,6 +4571,7 @@ impl GameSession {
         pit.service_repair = false;
         pit.serviced = true;
         pit.wants_stop = false;
+        pit.fuel_only = false;
         pit.stops += 1;
     }
 
@@ -4615,6 +4644,7 @@ impl GameSession {
                 if let Some(compound) = for_the_track.filter(|_| laps_left > 0) {
                     if let Some(state) = self.session.participants.get_mut(&ai_id) {
                         state.pit.wants_stop = true;
+                        state.pit.fuel_only = false;
                         state.pit.next_compound = compound;
                     }
                     continue;
@@ -4625,7 +4655,11 @@ impl GameSession {
                     .map_or(state.fuel_liters, |c| {
                         crate::pit::usable_fuel_liters(state, c)
                     });
-                if let Some(pick) = crate::pit::plan_stop_on(state, usable, laps_left, lap_fuel) {
+                let ctx = crate::pit::StopContext {
+                    usable_fuel_l: Some(usable),
+                    ..self.stop_context(state, laps_left, lap_fuel, total)
+                };
+                if let Some(plan) = crate::pit::plan_stop(state, &ctx) {
                     // In the rain the tyre is the weather's; either way one
                     // of the car's own.
                     let tyre = self
@@ -4635,9 +4669,10 @@ impl GameSession {
                         .unwrap_or_default();
                     let compound = tyre
                         .weather_compound(line_water)
-                        .unwrap_or_else(|| tyre.compound_for_click(pick.click()));
+                        .unwrap_or_else(|| tyre.compound_for_click(plan.pick.click()));
                     if let Some(state) = self.session.participants.get_mut(&ai_id) {
                         state.pit.wants_stop = true;
+                        state.pit.fuel_only = plan.fuel_only;
                         state.pit.next_compound = compound;
                     }
                 }
@@ -4742,6 +4777,60 @@ impl GameSession {
         input
     }
 
+    /// What an AI weighs a stop against (`pit::plan_stop`): the race left,
+    /// its fuel, how long its tyres have run, and the cars around it.
+    fn stop_context(
+        &self,
+        state: &CarState,
+        laps_left: u32,
+        lap_fuel_l: Option<f32>,
+        total_m: f32,
+    ) -> crate::pit::StopContext {
+        let field: Vec<(PlayerId, f32)> = self
+            .session
+            .participants
+            .values()
+            .filter(|s| !s.in_garage && s.damage.is_drivable && s.finish_position.is_none())
+            .map(|s| (s.player_id, s.track_progress))
+            .collect();
+        let gap_ahead_s = if total_m > 0.0 {
+            crate::drs::gap_ahead_s(state, &field, total_m)
+        } else {
+            None
+        };
+        // A car close behind on the road that has turned in for its stop.
+        let rival_behind_stopping = total_m > 0.0
+            && self.session.participants.values().any(|other| {
+                other.player_id != state.player_id && other.pit.driving && !other.pit.serviced && {
+                    let behind = (state.track_progress - other.track_progress).rem_euclid(total_m);
+                    behind > 0.0 && behind <= crate::pit::AI_COVER_GAP_S * other.speed_mps.max(1.0)
+                }
+            });
+        let (aggressiveness, roll) = match self.ai_profiles.get(&state.player_id) {
+            Some(profile) => {
+                let (hi, lo) = state.player_id.as_u64_pair();
+                (
+                    profile.aggressiveness,
+                    crate::wind::hash01(
+                        hi ^ lo.rotate_left(29),
+                        STRATEGY_SALT ^ state.current_lap as u64,
+                    ),
+                )
+            }
+            None => (0.0, 1.0),
+        };
+        crate::pit::StopContext {
+            laps_left,
+            lap_fuel_l,
+            save_to_flag: lap_fuel_l.is_some() && self.saves_to_flag(state),
+            stint_laps: laps_run(state, total_m) - state.pit.stint_start_laps,
+            gap_ahead_s,
+            rival_behind_stopping,
+            aggressiveness,
+            roll,
+        }
+    }
+
     /// How an AI in a race saves fuel to reach the flag on what it carries
     /// (`crate::pit::fuel_save_for`): nothing while the tank will do, or
     /// when the car will be refuelled at a stop (the pit plan's business);
@@ -4753,10 +4842,28 @@ impl GameSession {
         {
             return crate::pit::FuelSave::NONE;
         }
-        if self.refuels(state.car_config_id) && self.track_config.pit_lane.is_some() {
+        if self.refuels(state.car_config_id)
+            && self.track_config.pit_lane.is_some()
+            && (state.pit.wants_stop || !self.saves_to_flag(state))
+        {
             return crate::pit::FuelSave::NONE;
         }
         crate::pit::fuel_save_for(self.fuel_short_share(state))
+    }
+
+    /// Whether a car a stop would refuel saves fuel to the flag instead:
+    /// no more than `pit::SAVE_TO_SKIP_SHORT` short, on tyres that reach
+    /// it (`pit::tyres_reach_flag`), so the stop is saved.
+    fn saves_to_flag(&self, state: &CarState) -> bool {
+        let total_m = crate::laps::track_length_m(&self.track_config);
+        let short = self.fuel_short_share(state);
+        short > 0.0
+            && short <= crate::pit::SAVE_TO_SKIP_SHORT
+            && crate::pit::tyres_reach_flag(
+                state,
+                laps_run(state, total_m) - state.pit.stint_start_laps,
+                self.laps_left(state),
+            )
     }
 
     /// The share of the fuel to the flag a car in a race is short of, 0

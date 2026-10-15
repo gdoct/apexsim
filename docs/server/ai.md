@@ -163,22 +163,39 @@ off by `Racecraft::blend`; the controller holds it across the road
   slicks at `SLICK_OFF_WATER` 0.25, off treaded tyres under
   `TREADED_OFF_WATER` 0.06, inter/wet swaps 0.15 either side of
   `tyre_thermal::WET_FROM_WATER`; the gaps are hysteresis). Then
-  `pit::plan_stop`: a tyre `AI_PIT_WEAR` (70%) worn, a flat spot past
+  `pit::plan_stop` on a `StopContext` (`GameSession::stop_context`: the
+  laps left, its fuel, the laps on its tyres since
+  `PitState::stint_start_laps`, the gap to the car ahead, a car behind
+  turning in, its aggressiveness and a roll a lap): a flat spot past
   `AI_PIT_FLAT_SPOT`, a puncture or leak, `AI_PIT_DAMAGE` (25%) in a body
-  zone or `AI_PIT_ENGINE_DAMAGE` (20%), or short of fuel with under
+  zone or `AI_PIT_ENGINE_DAMAGE` (20%) always; a tyre `AI_PIT_WEAR` (70%)
+  worn unless it reaches the flag (`pit::tyres_reach_flag`: under
+  `AI_WEAR_TO_FLAG` 92% at this stint's rate) within `AI_STAY_OUT_LAPS`
+  (3); or short of fuel with under
   `AI_PIT_FUEL_LAPS` (1.6) laps in the tank (only for a car a stop refuels,
   `GameSession::refuels`: not an F1, unless the race is longer than its
   tank reaches on all the saving a driver can do, `MAX_FUEL_SAVE_SHORT`
   (15%) short, as a series racing that far would refuel; a stint energy
-  limit counts as fuel, `pit::usable_fuel_liters`). Compound: hard with 15+
-  laps left, the reference
+  limit counts as fuel, `pit::usable_fuel_liters`). Short of fuel on tyres
+  that reach the flag, the stop is a
+  splash (`StopPlan::fuel_only`, `PitState::fuel_only`: fuel alone, no
+  tyres, no repairs); no more than `SAVE_TO_SKIP_SHORT` (10%) short on
+  such tyres, it makes no stop for fuel at all and saves it instead
+  (`saves_to_flag`). A stop it must make anyway (tyres that will not last,
+  a tank that will not) is brought forward, no later than
+  `AI_STRATEGY_MIN_LAPS` (4) from the flag: to **cover** a car within
+  `AI_COVER_GAP_S` (2.5 s) behind that has turned in, on tyres
+  `AI_COVER_WEAR` (40%) worn, and to **undercut** a car it is held up by
+  within `AI_UNDERCUT_GAP_S` (1.2 s), on tyres `AI_UNDERCUT_WEAR` (50%)
+  worn, by a chance a lap of `AI_UNDERCUT_CHANCE` (15% timid to 60%
+  bold). Compound: hard with 15+ laps left, the reference
   with 6+, soft otherwise; in the wet the weather's tyre. The car turns
   onto the pit route `AI_PIT_APPROACH_M` (250 m) before the lane, races the
   run-up held to the lane's mouth speed and hands over to `drive_input`
   `AI_PIT_HANDOVER_M` (10 m) short of it.
 - **Fuel saving** (`fuel_save`, `pit::fuel_save_for`): in a race, a car
-  that will not be refuelled (an F1, or no pit lane) and cannot reach the
-  flag lifts and coasts `FUEL_SAVE_COAST_S_PER_SHORT` (10 s) per share of
+  that will not be refuelled (an F1, or no pit lane), or one saving to
+  skip a stop, and cannot reach the flag lifts and coasts `FUEL_SAVE_COAST_S_PER_SHORT` (10 s) per share of
   fuel it is short, at most `MAX_FUEL_SAVE_COAST_S` (2 s), and from
   `SHORT_SHIFT_SHORT` 10% short short-shifts as well, fully at 25%. At
   Monza an F1 20% short burns 16% less a lap for about 4 s; 13% short, 13%

@@ -146,6 +146,8 @@ Called inside `update_air` before the physics, and in the countdown.
   summed over the zones, `REPAIR_S_PER_PERCENT` 0.04 s a percent) and new
   brake pads past `brakes::PAD_CHANGE_PCT` (or discs and pads past
   `DISC_CHANGE_PCT`, `DISC_CHANGE_S`), all counted in the repair part.
+  An AI's splash (`PitState::fuel_only`, [ai.md](ai.md)) is the fuel alone:
+  the tyres stay on and nothing is repaired.
   `finish_service` fits the set at the car's start temperature, adds the
   fuel, repairs (engine wear stays), fits pads (or discs) and starts a new hybrid
   stint.

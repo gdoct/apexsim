@@ -17,7 +17,9 @@
 //!   `tyre_compound`, or the AI's plan), fuel for the rest of the race where
 //!   the rules allow refuelling (not an F1), and repairs.
 //! - **The AI** decides in a race whether it needs a stop ([`plan_stop`]:
-//!   worn tyres, a short tank, a damaged car, laps enough left to gain),
+//!   worn tyres, a short tank, a damaged car, laps enough left to gain; a
+//!   splash of fuel alone late on; an undercut or a cover of the cars
+//!   around it),
 //!   races the run-up on the road at a speed it can take the lane at
 //!   ([`run_up_input`]), and from just short of the lane drives it itself
 //!   ([`drive_input`]): to its box at the limit, stopped for the service, out
@@ -287,6 +289,14 @@ pub struct PitState {
     /// How long the route has made no headway, s ([`AUTOPILOT_STUCK_S`]).
     #[serde(default)]
     pub stuck_s: f32,
+    /// The AI's stop is a splash of fuel alone: no tyres, no repairs
+    /// ([`StopPlan::fuel_only`]).
+    #[serde(default)]
+    pub fuel_only: bool,
+    /// The laps the car had run when this set of tyres went on
+    /// (`GameSession::laps_run`): how fast they wear.
+    #[serde(default)]
+    pub stint_start_laps: f32,
 }
 
 /// Less fuel than this is not worth stopping the crew for, L.
@@ -481,32 +491,121 @@ impl StopPick {
     }
 }
 
-/// Whether an AI driver in a race wants to stop, and on which compound:
-/// `laps_left` after the one it is on, `lap_fuel_l` a lap's fuel. Worn
-/// tyres, a deep flat spot, a puncture (a leak counts, before it is flat),
-/// damage or a short tank.
-pub fn plan_stop(state: &CarState, laps_left: u32, lap_fuel_l: Option<f32>) -> Option<StopPick> {
-    plan_stop_on(state, state.fuel_liters, laps_left, lap_fuel_l)
+/// A stop an AI wants: the compound, and whether it is a splash of fuel
+/// alone (the tyres stay on: they reach the flag).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StopPlan {
+    pub pick: StopPick,
+    pub fuel_only: bool,
 }
 
-/// [`plan_stop`] for a car that may still burn `fuel_l` this stint: its
-/// tank, or less where the stint's energy (`[fuel] stint_energy_mj`) runs
-/// out first (`usable_fuel_liters`).
-pub fn plan_stop_on(
-    state: &CarState,
-    fuel_l: f32,
-    laps_left: u32,
-    lap_fuel_l: Option<f32>,
-) -> Option<StopPick> {
+/// What an AI weighs a stop against besides its own car's state.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct StopContext {
+    /// Laps left after the one it is on.
+    pub laps_left: u32,
+    /// A lap's fuel, for a car a stop refuels (`None` for one it does not).
+    pub lap_fuel_l: Option<f32>,
+    /// The fuel the car may still burn this stint, when less than its
+    /// tank: a stint energy limit (`[fuel] stint_energy_mj`,
+    /// [`usable_fuel_liters`]) runs out first. `None`: the tank.
+    pub usable_fuel_l: Option<f32>,
+    /// Saving fuel gets it to the flag ([`SAVE_TO_SKIP_SHORT`]): it makes
+    /// no stop for fuel alone.
+    pub save_to_flag: bool,
+    /// Laps run on this set of tyres.
+    pub stint_laps: f32,
+    /// Seconds to the car ahead on the road.
+    pub gap_ahead_s: Option<f32>,
+    /// A car within [`AI_COVER_GAP_S`] behind has turned onto the pit
+    /// route.
+    pub rival_behind_stopping: bool,
+    /// The driver's aggressiveness (0..1) and a number in 0..1 drawn for
+    /// it this lap (`wind::hash01` of driver and lap).
+    pub aggressiveness: f32,
+    pub roll: f32,
+}
+
+/// A refuelled car short of the flag by no more than this share saves fuel
+/// (`fuel_save_for`) rather than stopping for it: under
+/// [`MAX_FUEL_SAVE_SHORT`], so the saving it starts reaches the flag.
+pub const SAVE_TO_SKIP_SHORT: f32 = 0.10;
+/// Worn tyres that will last the race stay on this many laps from the
+/// flag: a stop would cost more than the grip gains.
+pub const AI_STAY_OUT_LAPS: u32 = 3;
+/// A tyre counts as lasting while it would reach the flag under this wear,
+/// percent (it punctures worn through, at 100).
+pub const AI_WEAR_TO_FLAG: f32 = 92.0;
+/// A stop the car must make anyway is brought forward no closer to the flag
+/// than this many laps.
+pub const AI_STRATEGY_MIN_LAPS: u32 = 4;
+/// Held up within this gap of the car ahead, s, a driver whose tyres are
+/// [`AI_UNDERCUT_WEAR`] worn stops early to undercut it: new tyres and a
+/// clear road while the car ahead runs on old ones. By a chance a lap from
+/// the first (the timid) to their sum (the bold).
+pub const AI_UNDERCUT_GAP_S: f32 = 1.2;
+pub const AI_UNDERCUT_WEAR: f32 = 50.0;
+pub const AI_UNDERCUT_CHANCE: (f32, f32) = (0.15, 0.45);
+/// A car within this far behind turning in for its stop makes a driver
+/// whose tyres are [`AI_COVER_WEAR`] worn cover it the next time by: or
+/// the undercut puts the car behind ahead.
+pub const AI_COVER_GAP_S: f32 = 2.5;
+pub const AI_COVER_WEAR: f32 = 40.0;
+
+/// The softest compound that lasts `laps_left`.
+fn pick_for(laps_left: u32) -> StopPick {
+    if laps_left >= 15 {
+        StopPick::Hard
+    } else if laps_left >= 6 {
+        StopPick::Reference
+    } else {
+        StopPick::Soft
+    }
+}
+
+/// The most worn tyre's wear, percent.
+fn worst_wear(state: &CarState) -> f32 {
+    state
+        .tires
+        .each()
+        .iter()
+        .map(|t| t.wear_percent)
+        .fold(0.0, f32::max)
+}
+
+/// Whether the tyres reach the flag ([`AI_WEAR_TO_FLAG`]) at the rate they
+/// have worn this stint; `false` before a lap of it says how fast that is.
+pub fn tyres_reach_flag(state: &CarState, stint_laps: f32, laps_left: u32) -> bool {
+    if stint_laps < 1.0 {
+        return false;
+    }
+    let wear = worst_wear(state);
+    let per_lap = wear / stint_laps;
+    wear + per_lap * (laps_left as f32 + 1.0) < AI_WEAR_TO_FLAG
+}
+
+/// Whether an AI driver in a race wants to stop, on which compound, and
+/// whether for fuel alone. A deep flat spot, a puncture (a leak counts,
+/// before it is flat) or damage: always. Worn tyres: unless they reach the
+/// flag within [`AI_STAY_OUT_LAPS`]. A short tank: a splash of fuel alone
+/// when the tyres reach the flag, nothing when saving gets it there. And a
+/// stop it must make anyway is brought forward to undercut a car it is
+/// held up by, or to cover one behind that has turned in.
+pub fn plan_stop(state: &CarState, ctx: &StopContext) -> Option<StopPlan> {
+    let laps_left = ctx.laps_left;
     if laps_left == 0 {
         return None;
     }
-    let worn = state.tires.each().iter().any(|t| {
-        t.wear_percent >= AI_PIT_WEAR
-            || t.flat_spot >= AI_PIT_FLAT_SPOT
-            || t.punctured
-            || t.leak_kpa_per_s > 0.0
+    let pick = pick_for(laps_left);
+    let full = Some(StopPlan {
+        pick,
+        fuel_only: false,
     });
+    let tyre_fault = state
+        .tires
+        .each()
+        .iter()
+        .any(|t| t.flat_spot >= AI_PIT_FLAT_SPOT || t.punctured || t.leak_kpa_per_s > 0.0);
     let d = &state.felt_damage();
     let damaged = [
         d.front_damage_percent,
@@ -517,20 +616,42 @@ pub fn plan_stop_on(
     .iter()
     .any(|z| *z >= AI_PIT_DAMAGE)
         || d.engine_damage_percent >= AI_PIT_ENGINE_DAMAGE;
-    let short = lap_fuel_l.is_some_and(|lap| {
-        fuel_l < lap * (laps_left as f32 + 0.8) && fuel_l < lap * AI_PIT_FUEL_LAPS
-    });
-    if !(worn || damaged || short) {
+    if tyre_fault || damaged {
+        return full;
+    }
+    let fuel_l = ctx.usable_fuel_l.unwrap_or(state.fuel_liters);
+    let fuel_needed = |lap: f32| fuel_l < lap * (laps_left as f32 + 0.8);
+    let lap_fuel = ctx.lap_fuel_l.filter(|_| !ctx.save_to_flag);
+    let short =
+        lap_fuel.is_some_and(|lap| fuel_needed(lap) && fuel_l < lap * AI_PIT_FUEL_LAPS);
+    let tyres_last = tyres_reach_flag(state, ctx.stint_laps, laps_left);
+    let wear = worst_wear(state);
+    if wear >= AI_PIT_WEAR {
+        if laps_left <= AI_STAY_OUT_LAPS && tyres_last && !short {
+            return None;
+        }
+        return full;
+    }
+    if short {
+        return Some(StopPlan {
+            pick,
+            fuel_only: tyres_last,
+        });
+    }
+    // A stop it must make anyway, brought forward.
+    let due = (ctx.stint_laps >= 2.0 && !tyres_last) || lap_fuel.is_some_and(fuel_needed);
+    if !due || laps_left < AI_STRATEGY_MIN_LAPS {
         return None;
     }
-    // The softest that lasts the rest.
-    Some(if laps_left >= 15 {
-        StopPick::Hard
-    } else if laps_left >= 6 {
-        StopPick::Reference
-    } else {
-        StopPick::Soft
-    })
+    let cover = ctx.rival_behind_stopping && wear >= AI_COVER_WEAR;
+    let (timid, bold) = AI_UNDERCUT_CHANCE;
+    let undercut = ctx.gap_ahead_s.is_some_and(|g| g <= AI_UNDERCUT_GAP_S)
+        && wear >= AI_UNDERCUT_WEAR
+        && ctx.roll < timid + bold * ctx.aggressiveness.clamp(0.0, 1.0);
+    if cover || undercut {
+        return full;
+    }
+    None
 }
 
 /// A slick is the wrong tyre once the racing line holds this much water,
@@ -1081,6 +1202,16 @@ mod tests {
         assert!((discs.repair_s - crate::brakes::DISC_CHANGE_S).abs() < 1e-4);
     }
 
+    /// A race `laps_left` from the flag, refuelling at `lap_fuel_l` a lap,
+    /// on tyres of unknown wear rate, nobody around.
+    fn ctx(laps_left: u32, lap_fuel_l: Option<f32>) -> StopContext {
+        StopContext {
+            laps_left,
+            lap_fuel_l,
+            ..StopContext::default()
+        }
+    }
+
     #[test]
     fn the_ai_stops_for_worn_tyres_on_a_compound_that_lasts() {
         let mut state = CarState::new(
@@ -1094,32 +1225,46 @@ mod tests {
                 yaw_rad: 0.0,
             },
         );
-        assert_eq!(plan_stop(&state, 10, Some(2.0)), None, "fresh and full");
+        assert_eq!(
+            plan_stop(&state, &ctx(10, Some(2.0))),
+            None,
+            "fresh and full"
+        );
         state.tires.rear_left.wear_percent = 75.0;
         assert_eq!(
-            plan_stop(&state, 20, Some(2.0)),
+            plan_stop(&state, &ctx(20, Some(2.0))).map(|p| p.pick),
             Some(StopPick::Hard),
             "a long run: hards"
         );
-        assert_eq!(plan_stop(&state, 8, Some(2.0)), Some(StopPick::Reference));
         assert_eq!(
-            plan_stop(&state, 3, Some(2.0)),
+            plan_stop(&state, &ctx(8, Some(2.0))).map(|p| p.pick),
+            Some(StopPick::Reference)
+        );
+        assert_eq!(
+            plan_stop(&state, &ctx(3, Some(2.0))).map(|p| p.pick),
             Some(StopPick::Soft),
             "a sprint: softs"
         );
-        assert_eq!(plan_stop(&state, 0, Some(2.0)), None, "not on the last lap");
+        assert_eq!(
+            plan_stop(&state, &ctx(0, Some(2.0))),
+            None,
+            "not on the last lap"
+        );
         state.tires.rear_left.wear_percent = 0.0;
         // A deep flat spot, a puncture or a leak each bring it in.
         state.tires.front_left.flat_spot = 0.7;
-        assert!(plan_stop(&state, 10, Some(2.0)).is_some(), "a flat spot");
+        assert!(
+            plan_stop(&state, &ctx(10, Some(2.0))).is_some(),
+            "a flat spot"
+        );
         state.tires.front_left.flat_spot = 0.0;
         state.tires.front_right.leak_kpa_per_s = 2.0;
         assert!(
-            plan_stop(&state, 10, Some(2.0)).is_some(),
+            plan_stop(&state, &ctx(10, Some(2.0))).is_some(),
             "a slow puncture"
         );
         state.tires.front_right.leak_kpa_per_s = 0.0;
-        assert_eq!(plan_stop(&state, 10, Some(2.0)), None);
+        assert_eq!(plan_stop(&state, &ctx(10, Some(2.0))), None);
         assert_eq!(
             (
                 StopPick::Hard.click(),
@@ -1130,17 +1275,101 @@ mod tests {
         );
         state.fuel_liters = 5.0;
         assert_eq!(
-            plan_stop(&state, 4, Some(2.0)),
+            plan_stop(&state, &ctx(4, Some(2.0))),
             None,
             "short of the flag, but good for two more laps: a stint runs on"
         );
         state.fuel_liters = 3.0;
-        assert!(plan_stop(&state, 4, Some(2.0)).is_some(), "short of fuel");
+        assert!(
+            plan_stop(&state, &ctx(4, Some(2.0))).is_some(),
+            "short of fuel"
+        );
         assert_eq!(
-            plan_stop(&state, 1, Some(1.5)),
+            plan_stop(&state, &ctx(1, Some(1.5))),
             None,
             "enough to the flag: no stop"
         );
+    }
+
+    fn fresh_car() -> CarState {
+        CarState::new(
+            uuid::Uuid::nil(),
+            uuid::Uuid::nil(),
+            &crate::data::GridSlot {
+                position: 1,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            },
+        )
+    }
+
+    #[test]
+    fn the_endgame_stays_out_on_tyres_that_last_and_splashes_fuel() {
+        let mut state = fresh_car();
+        // 72% worn after 12 laps: 6% a lap.
+        state.tires.rear_left.wear_percent = 72.0;
+        let mut c = ctx(2, None);
+        c.stint_laps = 12.0;
+        assert_eq!(plan_stop(&state, &c), None, "two laps on tyres that last");
+        c.laps_left = 5;
+        assert!(plan_stop(&state, &c).is_some(), "five: they would not");
+        // Short of fuel late on, on tyres that last: a splash.
+        state.tires.rear_left.wear_percent = 30.0;
+        state.fuel_liters = 2.5;
+        c.laps_left = 3;
+        c.lap_fuel_l = Some(2.0);
+        assert_eq!(
+            plan_stop(&state, &c),
+            Some(StopPlan {
+                pick: StopPick::Soft,
+                fuel_only: true
+            }),
+            "fuel alone"
+        );
+        // Unless saving gets it there.
+        c.save_to_flag = true;
+        assert_eq!(plan_stop(&state, &c), None, "it saves fuel instead");
+        // On tyres that would not last, the stop is a full one.
+        c.save_to_flag = false;
+        state.tires.rear_left.wear_percent = 60.0;
+        c.stint_laps = 6.0;
+        assert_eq!(
+            plan_stop(&state, &c).map(|p| p.fuel_only),
+            Some(false),
+            "tyres and fuel"
+        );
+    }
+
+    #[test]
+    fn a_stop_due_anyway_undercuts_the_car_ahead_or_covers_the_one_behind() {
+        let mut state = fresh_car();
+        // 55% after 11 laps of a race with 20 left: due a stop.
+        state.tires.front_left.wear_percent = 55.0;
+        let mut c = ctx(20, None);
+        c.stint_laps = 11.0;
+        assert_eq!(plan_stop(&state, &c), None, "running alone, it runs on");
+        c.gap_ahead_s = Some(0.8);
+        c.aggressiveness = 0.5;
+        c.roll = 0.9;
+        assert_eq!(plan_stop(&state, &c), None, "held up, not this lap");
+        c.roll = 0.2;
+        assert_eq!(
+            plan_stop(&state, &c).map(|p| p.pick),
+            Some(StopPick::Hard),
+            "held up: the undercut"
+        );
+        c.gap_ahead_s = None;
+        c.rival_behind_stopping = true;
+        assert!(plan_stop(&state, &c).is_some(), "covers the car behind");
+        // Tyres that reach the flag are no stop due: nothing to bring on.
+        state.tires.front_left.wear_percent = 20.0;
+        assert_eq!(plan_stop(&state, &c), None, "no stop due");
+        // Nor so near the end.
+        state.tires.front_left.wear_percent = 55.0;
+        c.laps_left = 3;
+        assert_eq!(plan_stop(&state, &c), None, "too late to gain");
     }
 
     #[test]
