@@ -4037,6 +4037,8 @@ mod tests {
         let format = crate::weekend::WeekendFormat {
             practice_seconds: 1800,
             qualifying_seconds: vec![1080, 900, 720],
+            practice_conditions: None,
+            qualifying_conditions: None,
         };
         let create = |weekend| ClientMessage::CreateSession {
             track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
@@ -4065,6 +4067,29 @@ mod tests {
         }
         let plain_bytes = rmp_serde::to_vec_named(&create(None)).unwrap();
         assert!(!plain_bytes.windows(7).any(|w| w == b"weekend"));
+
+        // Each day's own sky rides in the format when named, and only then
+        // (`C_CreateSessionWeekendDays`): practice in heavy rain at 07:00,
+        // qualifying under the session's sky.
+        let days = crate::weekend::WeekendFormat {
+            practice_conditions: Some(Box::new(SessionConditions {
+                weather: crate::data::Weather::HeavyRain,
+                time_of_day_minutes: 7 * 60,
+                ..SessionConditions::DEFAULT
+            })),
+            ..format.clone()
+        };
+        let days_bytes = rmp_serde::to_vec_named(&create(Some(days.clone()))).unwrap();
+        println!("C_CreateSessionWeekendDays: {}", hex(&days_bytes));
+        assert!(days_bytes.windows(19).any(|w| w == b"practice_conditions"));
+        assert!(!days_bytes
+            .windows(21)
+            .any(|w| w == b"qualifying_conditions"));
+        assert!(!String::from_utf8_lossy(&create_bytes).contains("practice_conditions"));
+        match rmp_serde::from_slice::<ClientMessage>(&days_bytes).unwrap() {
+            ClientMessage::CreateSession { weekend, .. } => assert_eq!(weekend, Some(days)),
+            _ => panic!("Wrong message type"),
+        }
 
         let joined = ServerMessage::SessionJoined(SessionJoinedData {
             session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),

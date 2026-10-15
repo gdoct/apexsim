@@ -6,7 +6,8 @@
 //! (`advance_weekend`, `settle_weekend`).
 
 use crate::data::{
-    clamp_qualifying_seconds, PlayerId, MAX_QUALIFYING_SECONDS, MIN_QUALIFYING_SECONDS,
+    clamp_qualifying_seconds, PlayerId, SessionConditions, MAX_QUALIFYING_SECONDS,
+    MIN_QUALIFYING_SECONDS,
 };
 use serde::{Deserialize, Serialize};
 
@@ -16,13 +17,23 @@ pub const MAX_ROUNDS: usize = 3;
 pub const DEFAULT_ROUND_SECONDS: u32 = 900;
 
 /// What a host asks for (`CreateSession.weekend`), echoed clamped in
-/// `SessionJoined.Weekend`. Keys are snake_case and both always present.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// `SessionJoined.Weekend`. Keys are snake_case; the two lengths are always
+/// present, each day's sky only when named.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WeekendFormat {
     /// Timed practice before qualifying, s; 0 for none.
     pub practice_seconds: u32,
     /// Each qualifying round's length, s, Q1 first.
     pub qualifying_seconds: Vec<u32>,
+    /// Practice day's sky (weather, hour, forecast...), as
+    /// `CreateSession.conditions` is given; absent for the session's own.
+    /// Left off the wire when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub practice_conditions: Option<Box<SessionConditions>>,
+    /// Qualifying day's sky, every round under it; absent for the
+    /// session's own. The race day's is the session's `conditions`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualifying_conditions: Option<Box<SessionConditions>>,
 }
 
 impl WeekendFormat {
@@ -44,7 +55,14 @@ impl WeekendFormat {
         Self {
             practice_seconds,
             qualifying_seconds: rounds,
+            practice_conditions: self.practice_conditions.map(|c| Box::new(c.clamp())),
+            qualifying_conditions: self.qualifying_conditions.map(|c| Box::new(c.clamp())),
         }
+    }
+
+    /// Whether any day names a sky of its own (`GameSession::begin_day`).
+    pub fn has_day_conditions(&self) -> bool {
+        self.practice_conditions.is_some() || self.qualifying_conditions.is_some()
     }
 
     /// How many qualifying rounds.
@@ -257,6 +275,8 @@ mod tests {
         let format = WeekendFormat {
             practice_seconds: 5,
             qualifying_seconds: vec![10, 900, 99_999, 600],
+            practice_conditions: None,
+            qualifying_conditions: None,
         }
         .clamp();
         assert_eq!(format.practice_seconds, 60);
@@ -264,6 +284,8 @@ mod tests {
         let none = WeekendFormat {
             practice_seconds: 0,
             qualifying_seconds: vec![],
+            practice_conditions: None,
+            qualifying_conditions: None,
         }
         .clamp();
         assert_eq!(none.practice_seconds, 0);
@@ -271,6 +293,8 @@ mod tests {
         let zero_round = WeekendFormat {
             practice_seconds: 3600,
             qualifying_seconds: vec![0],
+            practice_conditions: None,
+            qualifying_conditions: None,
         }
         .clamp();
         assert_eq!(zero_round.practice_seconds, 3600);

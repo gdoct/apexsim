@@ -108,7 +108,7 @@ one session, advanced by the host (see
 | In qualifying a car is put at the pit exit (`qualifying_outlap_pose`, a teleport): it does not drive down the pit lane, so there is no limiter or queue at the exit light, and the HUD shows race-style standings by track position. | Med | Low |
 | The start order matches drivers by name (`grid_order::resolve`): a stored result's humans are found again only under the same name. | Low | Low |
 | No schedule: a session opening, counting in and starting at its time whether or not everyone is there, with a late joiner going out from the pit lane. Needs a lobby view of upcoming sessions and a countdown. | Med | Med |
-| No per-phase rules beyond lengths: a weekend sets practice and round lengths, but conditions per day (a different forecast each day), assists and damage are the session's for every phase. | Low | Med |
+| No per-phase rules beyond lengths and skies: a weekend sets practice and round lengths and each day's sky, but assists and damage are the session's for every phase. | Low | Low |
 | AI entries in an event need fixed identities and levels across the days, a qualifying run of their own, and their results kept like a human's. | Med | Med |
 | Setups and tyre sets do not carry between sessions (no parc fermé, no tyre allocation per weekend). | Med | Low |
 | No weekend results record: practice times, the combined qualifying sheet (stored) and the race classification are not kept together as one record, shown in the client or exported. | Med | Med |

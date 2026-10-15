@@ -138,6 +138,8 @@ async fn a_weekend_runs_from_the_lobby_to_the_race_over_the_wire() {
             weekend: Some(WeekendFormat {
                 practice_seconds: 10,
                 qualifying_seconds: vec![600, 600, 600, 600],
+                practice_conditions: None,
+                qualifying_conditions: None,
             }),
             watch: None,
             qualifying_cutoff_pct: None,
@@ -147,6 +149,8 @@ async fn a_weekend_runs_from_the_lobby_to_the_race_over_the_wire() {
         let format = WeekendFormat {
             practice_seconds: 60,
             qualifying_seconds: vec![600, 600, 600],
+            practice_conditions: None,
+            qualifying_conditions: None,
         };
         assert_eq!(joined.weekend, Some(format.clone()));
         assert_eq!(joined.qualifying_seconds, None);

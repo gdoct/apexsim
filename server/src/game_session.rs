@@ -370,6 +370,17 @@ pub struct GameSession {
     /// The sky as it is now: the clock, the forecast's weather, the air
     /// and the asphalt (`crate::conditions`, `update_sky`).
     pub sky: crate::conditions::LiveConditions,
+    /// The tick the sky started on: 0, or the start of a race weekend's
+    /// day with a sky of its own (`begin_day`). The clock and the forecast
+    /// run from it.
+    sky_epoch_tick: u32,
+    /// The track as loaded, before any weather was baked into it (the
+    /// server's shared copy), so a weekend's day can bake its own sky
+    /// (`begin_day`); `None` for a session made without one.
+    source_track: Option<std::sync::Arc<TrackConfig>>,
+    /// The session's own conditions as created, the race day's sky, kept
+    /// once a weekend's day has replaced `RaceSession::conditions`.
+    race_day_conditions: Option<SessionConditions>,
     /// Debug-only hooks (`crate::debug_hooks`), off unless the server's
     /// `[debug]` table set them for the sessions it creates.
     debug: crate::debug_hooks::DebugHooks,
@@ -717,6 +728,9 @@ impl GameSession {
             session_best_splits_ms: [None; SECTOR_COUNT],
             debris: Vec::new(),
             sky,
+            sky_epoch_tick: 0,
+            source_track: None,
+            race_day_conditions: None,
             debug: crate::debug_hooks::DebugHooks::default(),
             debug_green_ticks: 0,
             debug_next_event: 0,
@@ -782,6 +796,9 @@ impl GameSession {
             session_best_splits_ms: [None; SECTOR_COUNT],
             debris: Vec::new(),
             sky,
+            sky_epoch_tick: 0,
+            source_track: None,
+            race_day_conditions: None,
             debug: crate::debug_hooks::DebugHooks::default(),
             debug_green_ticks: 0,
             debug_next_event: 0,
@@ -789,6 +806,72 @@ impl GameSession {
             hotlap_watch: HotlapWatch::default(),
             track_corners: Vec::new(),
         }
+    }
+
+    /// The track as loaded, before the weather was baked in: what a race
+    /// weekend's day with its own sky bakes again (`begin_day`).
+    pub fn set_source_track(&mut self, track: std::sync::Arc<TrackConfig>) {
+        self.source_track = Some(track);
+    }
+
+    /// A race weekend's day begins (practice, qualifying, the race) under
+    /// its own sky, when the format names one for any day
+    /// (`WeekendFormat::practice_conditions` / `qualifying_conditions`; the
+    /// race day is the session's own `conditions`). The day's conditions
+    /// are resolved (the day's own seed when the host gave none), baked
+    /// into a fresh copy of the source track with a fresh road (the day's
+    /// rubber, its water), and the sky starts over from this tick. The AI's
+    /// speed plans and lap figures are worked out again. A weekend that
+    /// names no day's sky keeps the one sky from its creation: nothing
+    /// changes.
+    fn begin_day(&mut self, phase: crate::weekend::WeekendPhase) {
+        use crate::weekend::WeekendPhase;
+        let Some(format) = self.session.weekend.as_ref() else {
+            return;
+        };
+        if !format.has_day_conditions() {
+            return;
+        }
+        let Some(source) = self.source_track.clone() else {
+            return;
+        };
+        let picked = match phase {
+            WeekendPhase::Practice => format.practice_conditions.as_deref().copied(),
+            WeekendPhase::Qualifying => format.qualifying_conditions.as_deref().copied(),
+            _ => None,
+        };
+        let race_day = *self
+            .race_day_conditions
+            .get_or_insert(self.session.conditions);
+        let conditions = match picked {
+            Some(day) => {
+                // Each day its own forecast and auto air, from the
+                // session's id and the day.
+                let seed = self.session.id.as_u64_pair().0
+                    ^ (phase as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+                day.resolve(day.sky_seed_or(seed))
+            }
+            None => race_day,
+        };
+        let mut track = (*source).clone();
+        track.road_state = None;
+        conditions.apply_to_track(&mut track);
+        self.track_config = with_road(track, &conditions);
+        self.session.conditions = conditions;
+        self.sky = live_sky(&self.session, &self.track_config);
+        self.sky_epoch_tick = self.session.current_tick;
+        self.ai_speed_profiles.clear();
+        self.lap_fuel.clear();
+        self.lap_seconds.clear();
+        self.debris.clear();
+    }
+
+    /// Seconds of the sky's own clock (from `sky_epoch_tick`).
+    fn sky_seconds(&self) -> f32 {
+        self.session
+            .current_tick
+            .saturating_sub(self.sky_epoch_tick) as f32
+            / self.tick_rate_hz.max(1) as f32
     }
 
     /// Set the simulation tick rate (Hz). Called with the configured server
@@ -1499,6 +1582,7 @@ impl GameSession {
 
     /// Timed practice begins: every human in the garage, the AI out.
     fn begin_practice(&mut self) {
+        self.begin_day(crate::weekend::WeekendPhase::Practice);
         self.weekend.phase = crate::weekend::WeekendPhase::Practice;
         self.weekend.round = 0;
         self.set_game_mode(GameMode::Practice);
@@ -1513,6 +1597,7 @@ impl GameSession {
     fn begin_round(&mut self, round: u8) {
         let rounds = self.session.weekend.as_ref().map_or(1, |w| w.rounds());
         if round == 1 {
+            self.begin_day(crate::weekend::WeekendPhase::Qualifying);
             self.weekend.sizes =
                 crate::weekend::knockout_sizes(self.session.participants.len(), rounds);
             self.weekend.eliminated.clear();
@@ -2700,6 +2785,9 @@ impl GameSession {
     fn enter_weekend_race(&mut self) {
         if self.is_weekend() {
             self.settle_weekend();
+            if self.weekend.phase != crate::weekend::WeekendPhase::Race {
+                self.begin_day(crate::weekend::WeekendPhase::Race);
+            }
             self.weekend.phase = crate::weekend::WeekendPhase::Race;
             self.weekend.round = 0;
         }
@@ -3629,7 +3717,7 @@ impl GameSession {
         if !self.session.current_tick.is_multiple_of(rate) {
             return;
         }
-        let session_s = self.session.current_tick as f32 / rate as f32;
+        let session_s = self.sky_seconds();
         let (water, rubber, snow) = match self.track_config.road_state.as_ref() {
             Some(road) => (
                 road.mean_water(),
@@ -4772,7 +4860,7 @@ impl GameSession {
         crate::network::SkyNow::of(
             &self.sky,
             self.track_config.track_surface.wind_now_mps,
-            self.session.current_tick as f32 / self.tick_rate_hz.max(1) as f32,
+            self.sky_seconds(),
         )
     }
 
@@ -6328,6 +6416,8 @@ mod tests {
         game_session.set_weekend(Some(crate::weekend::WeekendFormat {
             practice_seconds: practice,
             qualifying_seconds: rounds.to_vec(),
+            practice_conditions: None,
+            qualifying_conditions: None,
         }));
         let car_id = game_session.car_configs.values().next().unwrap().id;
         let ids: Vec<PlayerId> = (1..=n).map(Uuid::from_u128).collect();
@@ -6363,6 +6453,8 @@ mod tests {
         game_session.set_weekend(Some(crate::weekend::WeekendFormat {
             practice_seconds: 30,
             qualifying_seconds: vec![600, 0, 9_000, 600],
+            practice_conditions: None,
+            qualifying_conditions: None,
         }));
         game_session.set_qualifying_seconds(Some(300));
         assert_eq!(game_session.session.qualifying_seconds, None);
@@ -6371,6 +6463,8 @@ mod tests {
             Some(crate::weekend::WeekendFormat {
                 practice_seconds: 60,
                 qualifying_seconds: vec![600, 60, 7200],
+                practice_conditions: None,
+                qualifying_conditions: None,
             })
         );
         let state = game_session.weekend_state().unwrap();
@@ -6790,6 +6884,8 @@ mod tests {
         game_session.set_weekend(Some(crate::weekend::WeekendFormat {
             practice_seconds: 0,
             qualifying_seconds: vec![600, 600],
+            practice_conditions: None,
+            qualifying_conditions: None,
         }));
         game_session.spawn_ai_drivers();
         let human = Uuid::from_u128(1);
@@ -6837,6 +6933,63 @@ mod tests {
         for id in &out {
             assert!(game_session.session.participants[id].in_garage);
         }
+    }
+
+    /// Each day of a weekend under its own sky: practice in the rain at
+    /// dawn, qualifying overcast, the race under the session's own sky,
+    /// each baked from the source track afresh with the sky's clock
+    /// started at the day. A weekend naming no day's sky keeps its one.
+    #[test]
+    fn a_weekend_day_bakes_its_own_sky() {
+        let (mut game_session, ids) = weekend_of(2, 600, &[600]);
+        let dry = game_session.track_config.track_surface.base_grip;
+        let source = std::sync::Arc::new(game_session.track_config.clone());
+        game_session.set_source_track(source.clone());
+        // No day named: practice keeps the session's sky and track.
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.session.conditions, SessionConditions::DEFAULT);
+        assert_eq!(game_session.sky_epoch_tick, 0);
+
+        let (mut game_session, ids2) = weekend_of(2, 600, &[600]);
+        let _ = (ids, ids2);
+        game_session.set_source_track(source);
+        let base = game_session.session.conditions;
+        let rain = SessionConditions {
+            weather: Weather::HeavyRain,
+            time_of_day_minutes: 7 * 60,
+            ..SessionConditions::DEFAULT
+        };
+        let overcast = SessionConditions {
+            weather: Weather::Overcast,
+            ..SessionConditions::DEFAULT
+        };
+        game_session.set_weekend(Some(crate::weekend::WeekendFormat {
+            practice_seconds: 600,
+            qualifying_seconds: vec![600],
+            practice_conditions: Some(Box::new(rain)),
+            qualifying_conditions: Some(Box::new(overcast)),
+        }));
+        game_session.session.current_tick = 1000;
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.session.conditions.weather, Weather::HeavyRain);
+        assert!(game_session.track_config.track_surface.wet);
+        assert!(game_session.track_config.track_surface.base_grip < dry);
+        assert_eq!(game_session.sky_epoch_tick, 1000);
+        assert_eq!(game_session.sky_now().clock_s, 7 * 3600);
+        end_phase(&mut game_session);
+
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.session.conditions.weather, Weather::Overcast);
+        assert!(!game_session.track_config.track_surface.wet);
+        let overcast_grip = game_session.track_config.track_surface.base_grip;
+        assert!(overcast_grip < dry && overcast_grip > 0.9 * dry);
+        end_phase(&mut game_session);
+
+        // The race day: the session's own sky, the track as filed.
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.session.conditions, base);
+        assert_eq!(game_session.track_config.track_surface.base_grip, dry);
+        assert!(!game_session.track_config.track_surface.wet);
     }
 
     /// The weekend's state is handed out once per change.

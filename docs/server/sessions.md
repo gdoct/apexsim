@@ -438,7 +438,23 @@ qualifying_seconds: Vec<u32> }`, `weekend.rs`) is clamped by
 `WeekendFormat::clamp`: practice 0 is none, else 60 s .. 2 h; one to
 `MAX_ROUNDS` (3) rounds, extra ones dropped and none made one of
 `DEFAULT_ROUND_SECONDS` (900), each 60 s .. 2 h. The race's length stays
-`lap_limit` / `race_seconds`. The clamped format is kept as
+`lap_limit` / `race_seconds`.
+
+**Each day's sky**: `practice_conditions` and `qualifying_conditions`
+(`Option<Box<SessionConditions>>`, as `CreateSession.conditions` is given,
+clamped; left off the wire when absent) give practice and the qualifying
+day (every round) a sky of their own; the race day is the session's own
+`conditions`, and a day not named takes it too. When either is named,
+each day begins (`GameSession::begin_day`, from practice, Q1 and the
+race's grid or countdown) by resolving its conditions (the host's
+`sky_seed`, else the session's id mixed with the day, so each day has its
+own forecast and auto air), baking them into a fresh copy of the track as
+loaded (`set_source_track`, the server's shared copy) with a fresh road
+(the day's rubber and water), and starting the live sky over from that
+tick (`sky_epoch_tick`): the day's clock starts at its own hour. The AI's
+speed plans and lap figures are worked out again. `RaceSession::conditions`
+becomes the day's (late joiners are told it); the race day's is kept. A
+weekend naming no day's sky runs one sky from creation, as before. The clamped format is kept as
 `RaceSession::weekend` and echoed in `SessionJoined.Weekend`;
 `qualifying_seconds` is dropped beside it.
 

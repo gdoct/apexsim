@@ -424,7 +424,8 @@ impl ServerState {
         // The track with its sidecars: the game loop has loaded them off the
         // loop by now (`game_loop::track_loads`); anyone else waits here.
         let catalog = self.track_configs.get(&track_config_id)?;
-        let mut track = (*self.track_content.complete(catalog)).clone();
+        let source = self.track_content.complete(catalog);
+        let mut track = (*source).clone();
         let mut session = RaceSession::new(
             host_player_id,
             track_config_id,
@@ -481,6 +482,8 @@ impl ServerState {
 
         // Run the session at the configured server tick rate
         game_session.set_tick_rate(self.config.server.tick_rate_hz);
+        // A race weekend's day with a sky of its own bakes it again.
+        game_session.set_source_track(source);
         let hooks = crate::debug_hooks::DebugHooks::from_settings(
             self.config.debug.stand_in_driver,
             &self.config.debug.events,

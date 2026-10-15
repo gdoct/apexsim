@@ -202,6 +202,12 @@ resolved conditions, the track's latitude and altitude and the session id.
 A session whose clock and sky both hold (`is_static`) bakes nothing after
 creation: it is the static bake above, plus the road state.
 
+A race weekend may give practice and qualifying a sky of their own: each
+such day bakes its conditions into a fresh copy of the track and starts
+the live sky over at the day (`GameSession::begin_day`, `sky_epoch_tick`;
+the clock and the forecast run from it). See
+[sessions](sessions.md#race-weekend).
+
 ## The road (`road_state.rs`)
 
 Every session's track carries a `RoadState` (`TrackConfig::road_state`,
