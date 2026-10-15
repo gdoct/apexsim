@@ -448,8 +448,14 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
   The ERS key changes the mode for the current run: the client sends the picked mode
   (`PlayerInput.ers_mode`) until telemetry shows the car in it, then sends none, so the
   next run starts in the setup's mode again.
-- `charge_full` refills with the tyres. The racing line counts the motor above the minimum
-  speed at full power (`plan_power_w`). The AI drives Balanced and boosts within
+- `charge_full` refills with the tyres. The player's racing line aid (`racing_line::build`)
+  counts the motor above the minimum speed (`plan_power_w`) as Balanced paces the lap budget: it
+  plans at full power, drives that lap through `hybrid::balanced_pace` from the line
+  (`paced_shares`, spending only on the throttle) and replans on the share each point gets, up
+  to three rounds. A budget the lap never reaches plans as none. The AI's plan and the fuel
+  estimate (`build_laden`) count the motor at full power everywhere: the AI caps itself at its
+  plan times its skill's pace on the straights too, and on the paced plan an F1 AI lapped Monza
+  3 s slower. The AI drives Balanced and boosts within
   `AI_BOOST_GAP_S` of the car ahead.
 - car.toml `[hybrid]`: `enabled`, `battery_capacity_kwh`, `battery_max_discharge_kw` /
   `_charge_kw`, `motor_max_torque_nm`, `motor_max_power_kw`, `regen_max_power_kw` and the

@@ -58,6 +58,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 | Fuel saving is lift-and-coast only, and only for cars that cannot refuel; no short-shifting to save fuel. | Low | Low |
 | The AI never harvests or saves hybrid energy on purpose (it drives Balanced), and does not defend with the overtake button (it presses it within `hybrid::AI_BOOST_GAP_S` of a car ahead). | Low | Low |
 | The AI's tyre crossover is a threshold on the racing line's water (`pit::tyres_for_the_track`): it never gambles on slicks, never reads the forecast and never stays out because the race is nearly over. | Med | Med |
+| The AI's speed plan (`racing_line::build_laden`) counts a hybrid's motor at full power whatever the lap budget and the minimum deployment speed allow, and the AI caps itself at that plan times its skill's pace on the straights too: planned on the paced motor (as the player's aid is), an F1 AI lapped Monza 3 s slower than the car can. | Med | Low |
 | The AI drives the racing line whatever the road does: it does not move off a rubbered line to a wet one for grip, nor aim for the dry line in the rain. | Med | Low |
 | The AI's speed plan assumes full engine power after damage; it drives around damage only through its steering loop and aero share. | Low | Low |
 | `apexsim-replay render` (the showcases), the demo race and the AI survey race the mixed field: none takes an AI level. | Low | Low |
@@ -68,7 +69,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 | Gap | Effort | Impact |
 |---|---|---|
 | Built once on joining (`racing_line::build`, from `game_loop/dispatch.rs`) for the stock car, dry tank, clean and still air, warm new tyres, and the session's grip and air as it started: the setup, fuel, the wake, the wind, tyre temperature, compound and wear, the rubber and changing weather never change it (the AI's own plan does follow fuel). | Med | Low |
-| Counts the hybrid motor at full power whatever the lap budget allows (optimistic for the F1s). | Low | Low |
 
 ## Race rules and the pit lane
 

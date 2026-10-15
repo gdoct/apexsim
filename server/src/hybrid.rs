@@ -216,17 +216,26 @@ fn deploy_share(
             let soc = state.hybrid_battery_kwh / capacity;
             let charge = ((soc - SOC_FLOOR) / (SOC_EASE - SOC_FLOOR)).clamp(0.0, 1.0);
             let pace = match hybrid.deploy_kj_per_lap {
-                Some(budget) if budget > 0.0 => {
-                    let budget_left = (1.0 - state.ers_deployed_kj / budget).max(0.0);
-                    let lap_left =
-                        (1.0 - spend_target(state.ers_lap_share, hybrid.deploy_early)).max(0.0);
-                    ((budget_left + PACE_LEAD) / (lap_left + PACE_LEAD)).clamp(0.0, 1.0)
-                }
+                Some(budget) if budget > 0.0 => balanced_pace(
+                    state.ers_deployed_kj / budget,
+                    state.ers_lap_share,
+                    hybrid.deploy_early,
+                ),
                 _ => 1.0,
             };
             pedal * charge * pace
         }
     }
+}
+
+/// Balanced mode's pacing, 0..1 of the motor: the share of the lap budget
+/// left (`spent_share` gone) over the share of the lap left at
+/// `lap_share`, bent by the deploy map. The racing line paces its plan by
+/// it too (`racing_line::build_laden`).
+pub fn balanced_pace(spent_share: f32, lap_share: f32, deploy_early: f32) -> f32 {
+    let budget_left = (1.0 - spent_share).max(0.0);
+    let lap_left = (1.0 - spend_target(lap_share, deploy_early)).max(0.0);
+    ((budget_left + PACE_LEAD) / (lap_left + PACE_LEAD)).clamp(0.0, 1.0)
 }
 
 /// The share of the lap budget Balanced mode means to have spent at

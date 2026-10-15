@@ -16,7 +16,9 @@
 //! the basis of the session's fuel estimate (`lap_fuel_liters`). It is
 //! planned for the car as it stands with a given fuel load
 //! (`build_laden`), since a full tank corners, brakes and pulls slower
-//! than an empty one.
+//! than an empty one. The player's aid (`build`) counts a hybrid's motor
+//! above its minimum speed, as Balanced mode paces the lap budget
+//! (`deploy_kj_per_lap`); the AI's plan counts it at full power.
 
 use crate::data::{CarConfig, Drivetrain, TrackConfig};
 use crate::physics::AIR_DENSITY;
@@ -106,8 +108,13 @@ struct CarEnvelope {
     /// Drag per unit mass per (m/s)².
     drag_k: f32,
     rolling_accel: f32,
-    /// Peak power at the wheels over mass, W/kg.
-    power_per_kg: f32,
+    /// Peak engine power at the wheels, W, and the car's mass, kg.
+    engine_w: f32,
+    mass: f32,
+    /// A hybrid's motor at full power, W (`hybrid::plan_power_w`), and the
+    /// speed it drives from, m/s.
+    hybrid_w: f32,
+    hybrid_min_mps: f32,
     /// Share of the car's weight on the driven wheels.
     driven_fraction: f32,
     /// Most the brakes can do on their own, m/s².
@@ -125,11 +132,7 @@ impl CarEnvelope {
         let air = air_density_ratio;
         let breath = crate::physics::engine_density_factor(car, air);
         let lift = car.lift_coefficient_front + car.lift_coefficient_rear;
-        let hybrid_w = if car.hybrid.enabled {
-            car.hybrid.motor_max_power_kw * 1000.0
-        } else {
-            0.0
-        };
+        let hybrid_w = crate::hybrid::plan_power_w(car, f32::INFINITY);
         let driven_fraction = match car.drivetrain {
             Drivetrain::AWD => 1.0,
             Drivetrain::RWD => 1.0 - car.weight_distribution_front,
@@ -158,9 +161,10 @@ impl CarEnvelope {
             // Peak power over the whole run: a real gearbox spends part of
             // each gear below the peak, so this reaches a little more speed
             // than the car does, which errs towards braking early.
-            power_per_kg: (car.max_engine_power_w * breath * car.transmission.efficiency
-                + hybrid_w)
-                / mass,
+            engine_w: car.max_engine_power_w * breath * car.transmission.efficiency,
+            mass,
+            hybrid_w,
+            hybrid_min_mps: car.hybrid.deploy_min_speed_kph / 3.6,
             driven_fraction: driven_fraction.clamp(0.2, 1.0),
             brake_accel: car.max_brake_force_n / mass,
             top_speed: top_gear_speed(car),
@@ -216,11 +220,23 @@ impl CarEnvelope {
         total * (1.0 - used * used).sqrt()
     }
 
-    /// Net forward acceleration at full throttle; `grade` is sin of the
-    /// slope, positive uphill.
-    fn acceleration(&self, speed: f32, kappa: f32, grade: f32) -> f32 {
+    /// The motor's power the plan counts on at `speed`, W, deploying
+    /// `share` of it.
+    fn hybrid_w_at(&self, speed: f32, share: f32) -> f32 {
+        if speed < self.hybrid_min_mps {
+            0.0
+        } else {
+            self.hybrid_w * share
+        }
+    }
+
+    /// Net forward acceleration at full throttle with the motor deploying
+    /// `hybrid_share` of its power; `grade` is sin of the slope, positive
+    /// uphill.
+    fn acceleration(&self, speed: f32, kappa: f32, grade: f32, hybrid_share: f32) -> f32 {
         let traction = self.longitudinal_grip(speed, kappa) * self.driven_fraction;
-        let power = self.power_per_kg / speed.max(5.0);
+        let power =
+            (self.engine_w + self.hybrid_w_at(speed, hybrid_share)) / self.mass / speed.max(5.0);
         power.min(traction) - self.drag_k * speed * speed - self.rolling_accel - GRAVITY * grade
     }
 
@@ -257,16 +273,36 @@ fn top_gear_speed(car: &CarConfig) -> f32 {
 
 /// Build the racing line `car` should follow on `track` with a dry tank,
 /// or `None` when the track has too few points to make a loop.
+///
+/// This is the player's aid: a hybrid's motor counts above its minimum
+/// speed, at what Balanced mode's pacing of the lap budget gives it.
 pub fn build(track: &TrackConfig, car: &CarConfig) -> Option<RacingLineProfile> {
-    build_laden(track, car, 0.0)
+    plan_line(track, car, 0.0, true)
 }
 
 /// [`build`] for the car carrying `fuel_liters`: the extra mass costs
 /// braking, acceleration and, on a downforce car, cornering speed.
+///
+/// This is the AI's speed plan and the fuel estimate's lap, and it counts
+/// a hybrid's motor at full power at every speed: the AI runs its plan
+/// times its skill's pace as its cap, on the straights too, and planned
+/// on the paced motor an F1 AI lapped Monza 3 s slower than the car can.
 pub fn build_laden(
     track: &TrackConfig,
     car: &CarConfig,
     fuel_liters: f32,
+) -> Option<RacingLineProfile> {
+    plan_line(track, car, fuel_liters, false)
+}
+
+/// The line for `car` carrying `fuel_liters`; `paced` counts the motor as
+/// the rules and Balanced mode let it drive ([`build`]), else at full
+/// power everywhere ([`build_laden`]).
+fn plan_line(
+    track: &TrackConfig,
+    car: &CarConfig,
+    fuel_liters: f32,
+    paced: bool,
 ) -> Option<RacingLineProfile> {
     let source: Vec<[f32; 3]> = if track.raceline.len() >= 3 {
         track.raceline.iter().map(|p| [p.x, p.y, p.z]).collect()
@@ -278,13 +314,81 @@ pub fn build_laden(
     let spacing = loop_length(&points) / n as f32;
 
     let (mass, _) = car.laden(fuel_liters);
-    let envelope = CarEnvelope::new(
+    let mut envelope = CarEnvelope::new(
         car,
         track.track_surface.base_grip,
         mass,
         track.track_surface.air_density_ratio,
     );
-    let kappa = curvature(&points, spacing);
+    if !paced {
+        envelope.hybrid_min_mps = 0.0;
+    }
+    let plan = |share: &[f32]| plan_speeds(track, car, &points, spacing, &envelope, share);
+    // A lap budget (`[hybrid] deploy_kj_per_lap`): the motor cannot drive
+    // at full power everywhere the throttle is open. Balanced mode paces
+    // it, so the plan does: planned at full power, the lap is driven
+    // through the pacing to see what the motor gives at each point, and
+    // planned again on that, a few rounds (less power is more time on the
+    // throttle, which the pacing then pays for).
+    let mut share = vec![1.0; n];
+    let mut profile = plan(&share);
+    if let Some(budget) = car
+        .hybrid
+        .deploy_kj_per_lap
+        .filter(|_| paced && car.hybrid.enabled)
+    {
+        for _ in 0..3 {
+            let paced = paced_shares(&profile, car, budget);
+            if paced == share {
+                break;
+            }
+            share = paced;
+            profile = plan(&share);
+        }
+    }
+    Some(profile)
+}
+
+/// What Balanced mode (`crate::hybrid`) deploys at each point of a lap of
+/// `profile`, as a share of the motor's power, on a lap budget of
+/// `budget_kj`: the share of the budget left over the share of the lap
+/// left, from the line, spending only where the line is on the throttle
+/// above the motor's minimum speed.
+fn paced_shares(profile: &RacingLineProfile, car: &CarConfig, budget_kj: f32) -> Vec<f32> {
+    let n = profile.speed_mps.len();
+    let min_mps = car.hybrid.deploy_min_speed_kph / 3.6;
+    let power_kw = crate::hybrid::plan_power_w(car, f32::INFINITY) / 1000.0;
+    let mut spent_kj = 0.0;
+    (0..n)
+        .map(|i| {
+            let lap_share = i as f32 / n as f32;
+            let share = crate::hybrid::balanced_pace(
+                spent_kj / budget_kj.max(1e-3),
+                lap_share,
+                car.hybrid.deploy_early,
+            );
+            let v = profile.speed_mps[i];
+            if profile.phases[i] == LinePhase::Throttle && v >= min_mps {
+                spent_kj += share * power_kw * profile.spacing_m / v.max(1.0);
+            }
+            share
+        })
+        .collect()
+}
+
+/// The speed profile and phases along `points` for the car `envelope`
+/// describes, its motor deploying `hybrid_share` of its power at each
+/// point.
+fn plan_speeds(
+    track: &TrackConfig,
+    car: &CarConfig,
+    points: &[[f32; 3]],
+    spacing: f32,
+    envelope: &CarEnvelope,
+    hybrid_share: &[f32],
+) -> RacingLineProfile {
+    let n = points.len();
+    let kappa = curvature(points, spacing);
     let grade: Vec<f32> = (0..n)
         .map(|i| {
             let next = points[(i + 1) % n];
@@ -330,7 +434,7 @@ pub fn build_laden(
         let i = (slowest + step) % n;
         let prev = (i + n - 1) % n;
         let v = forward[prev];
-        let a = envelope.acceleration(v, kappa[prev], grade[prev])
+        let a = envelope.acceleration(v, kappa[prev], grade[prev], hybrid_share[prev])
             + envelope.drag_k * v * v * (1.0 - drag_scale[prev]);
         let reachable = (v * v + 2.0 * a * spacing).max(0.0).sqrt();
         forward[i] = forward[i].min(reachable);
@@ -364,12 +468,12 @@ pub fn build_laden(
     downgrade_lifts(&mut phases, &speed);
     absorb_short_runs(&mut phases, (MIN_RUN_M / spacing).ceil() as usize);
 
-    Some(RacingLineProfile {
+    RacingLineProfile {
         spacing_m: spacing,
-        points,
+        points: points.to_vec(),
         speed_mps: speed,
         phases,
-    })
+    }
 }
 
 /// Fuel the car burns over one lap of `profile` carrying `fuel_liters`, in
@@ -740,6 +844,45 @@ mod tests {
             zone_m > shortest - 5.0 && zone_m < longest + 5.0,
             "braking zone {zone_m} m outside {shortest}..{longest} m"
         );
+    }
+
+    #[test]
+    fn the_plan_counts_the_motor_only_as_far_as_the_lap_budget_pays() {
+        let track = stadium(800.0, 30.0);
+        let plain = CarConfig::default();
+        let mut hybrid = CarConfig::default();
+        hybrid.hybrid.enabled = true;
+        hybrid.hybrid.motor_max_power_kw = 150.0;
+        let full = build(&track, &hybrid).unwrap();
+        let top = |p: &RacingLineProfile| p.speed_mps.iter().copied().fold(0.0, f32::max);
+        // A budget the lap never reaches plans as no budget at all.
+        hybrid.hybrid.deploy_kj_per_lap = Some(1.0e6);
+        assert_eq!(build(&track, &hybrid).unwrap().speed_mps, full.speed_mps);
+        // A tight one costs speed and time, but not all of the motor.
+        hybrid.hybrid.deploy_kj_per_lap = Some(400.0);
+        let paced = build(&track, &hybrid).unwrap();
+        let none = build(&track, &plain).unwrap();
+        println!(
+            "lap {:.2} s at full power, {:.2} s on 400 kJ, {:.2} s without; top {:.1} / {:.1} / {:.1} m/s",
+            lap_time_s(&full),
+            lap_time_s(&paced),
+            lap_time_s(&none),
+            top(&full),
+            top(&paced),
+            top(&none)
+        );
+        assert!(lap_time_s(&paced) > lap_time_s(&full) + 0.1);
+        assert!(lap_time_s(&paced) < lap_time_s(&none) - 0.1);
+        let shares = paced_shares(&paced, &hybrid, 400.0);
+        assert!(
+            shares.iter().any(|s| *s < 0.99),
+            "the budget binds somewhere"
+        );
+        // A motor that drives only above a speed the car never reaches is
+        // no motor to the plan.
+        hybrid.hybrid.deploy_kj_per_lap = None;
+        hybrid.hybrid.deploy_min_speed_kph = 1000.0;
+        assert_eq!(build(&track, &hybrid).unwrap().speed_mps, none.speed_mps);
     }
 
     #[test]
