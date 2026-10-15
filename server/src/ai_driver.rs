@@ -371,6 +371,14 @@ impl<'a> AiDriverController<'a> {
         if state.racecraft.reverse_s > 0.0 {
             return self.back_out(state);
         }
+        if state.racecraft.wants_reset {
+            // Waiting to be put back on the road: stop, so the recovery
+            // (refused above a crawl) can take the car.
+            return PlayerInputData {
+                brake: 1.0,
+                ..PlayerInputData::default()
+            };
+        }
         if state.gear < 0 {
             // Backed out: stop before first will go in (it does not while
             // the car rolls backwards, and in reverse the throttle would

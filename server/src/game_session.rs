@@ -3484,9 +3484,30 @@ impl GameSession {
                 ))
             })
             .collect();
+        let mut resets = Vec::new();
         for (id, racecraft) in decided {
             if let Some(state) = self.session.participants.get_mut(&id) {
                 state.racecraft = racecraft;
+                if racecraft.wants_reset {
+                    resets.push(id);
+                }
+            }
+        }
+        // A car that cannot get back on the road by itself is put back, as
+        // a driver's back-to-track puts theirs (`recover_car`): on the
+        // road where it is, held for the recovery's cost. Refused (too
+        // fast, on the pit route), it asks again next tick.
+        for id in resets {
+            if self
+                .recover_car(&id, crate::recovery::RecoverDestination::Track)
+                .is_ok()
+            {
+                if let Some(state) = self.session.participants.get_mut(&id) {
+                    state.racecraft.off_road_s = 0.0;
+                    state.racecraft.wants_reset = false;
+                    state.racecraft.stuck_s = 0.0;
+                    state.racecraft.reverse_s = 0.0;
+                }
             }
         }
     }

@@ -117,7 +117,12 @@ next `Brake` phase, its slowest point, the hand at the apex).
 - **Getting unstuck** (`recover`): under 2.5 m/s in contact or off the
   road for 1.5 s, the car reverses for up to 2.5 s steering its nose
   toward the road 20 m ahead (`AiDriverController::back_out`), stops, takes
-  first and drives on.
+  first and drives on. A car that cannot get back (penned in, or on snow
+  where every attempt slides off) asks to be put back once it has been off
+  the road `RESET_AFTER_S` (15 s) without gaining `RESET_HEADWAY_M` (20 m)
+  of lap (`Racecraft::wants_reset`): it brakes to a stop and the session
+  recovers it to the track as a driver's back-to-track would
+  (`GameSession::recover_car`, held for the recovery's cost).
 
 A lane is a place across the road (m left of the centerline), eased on and
 off by `Racecraft::blend`; the controller holds it across the road

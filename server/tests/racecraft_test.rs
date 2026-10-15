@@ -209,3 +209,73 @@ fn a_car_stuck_in_a_barrier_reverses_out() {
     );
     assert!(race.session.participants[&id].damage.is_drivable);
 }
+
+/// A car penned in off the road, walls on every side: backing out gets it
+/// nowhere (on snow a car slides off every attempt the same way). After
+/// `RESET_AFTER_S` off the road without gaining lap, it is put back on the
+/// road as a driver's back-to-track would, and races on.
+#[test]
+fn a_car_that_cannot_get_back_on_the_road_is_put_back() {
+    const STATION_M: f32 = 600.0;
+    let mut pen_at = (0.0, 0.0, 0.0, 0.0);
+    let mut race = race(&[100], |track| {
+        let (x, y, z, yaw) = apexsim_server::physics::pose_at_station(&track.centerline, STATION_M);
+        let (rx, ry) = (yaw.sin(), -yaw.cos());
+        let (fx, fy) = (yaw.cos(), yaw.sin());
+        // A 10 x 10 m pen, 25 m right of the middle of the straight.
+        let (cx, cy) = (x + rx * 25.0, y + ry * 25.0);
+        pen_at = (cx, cy, z, yaw);
+        let corner = |a: f32, b: f32| (cx + fx * a + rx * b, cy + fy * a + ry * b);
+        let ring = [
+            corner(-5.0, -5.0),
+            corner(5.0, -5.0),
+            corner(5.0, 5.0),
+            corner(-5.0, 5.0),
+        ];
+        track.walls = Some(Walls::from_segments(
+            (0..4)
+                .map(|i| {
+                    let (a, b) = (ring[i], ring[(i + 1) % 4]);
+                    WallSegment {
+                        x0: a.0,
+                        y0: a.1,
+                        x1: b.0,
+                        y1: b.1,
+                        z: z - 1.0,
+                        height_m: 3.0,
+                        kind: 0,
+                    }
+                })
+                .collect(),
+        ));
+    });
+    race.session.state = SessionState::Racing;
+    let (x, y, z, yaw) = pen_at;
+    let id = uuid::Uuid::from_u64_pair(1, 1);
+    {
+        let c = race.session.participants.get_mut(&id).expect("the car");
+        (c.pos_x, c.pos_y, c.pos_z, c.yaw_rad) = (x, y, z, yaw);
+        (c.vel_x, c.vel_y, c.speed_mps) = (0.0, 0.0, 0.0);
+        c.gear = 1;
+        c.nearest_centerline_idx = None;
+        apexsim_server::physics::seed_track_progress(c, &race.track_config);
+    }
+    let mut put_back = None;
+    for t in 1..=(TICK_RATE as u32 * 60) {
+        tick(&mut race);
+        let c = &race.session.participants[&id];
+        if put_back.is_none() && c.recovery.is_some() {
+            put_back = Some(t);
+        }
+    }
+    let put_back = put_back.expect("the car was never put back on the road");
+    let after_s = put_back as f32 / TICK_RATE as f32;
+    println!("put back after {after_s:.1} s");
+    assert!(
+        after_s >= apexsim_server::racecraft::RESET_AFTER_S,
+        "not before it has tried for a while"
+    );
+    let c = &race.session.participants[&id];
+    assert!(c.is_on_track, "on the road again");
+    assert!(c.speed_mps > 15.0, "and racing: {:.1} m/s", c.speed_mps);
+}

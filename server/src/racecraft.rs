@@ -28,7 +28,11 @@
 //! - **Recovery**: stuck against a wall or off the road at a crawl, the
 //!   driver backs out in reverse, swinging the nose toward the road, and
 //!   drives on. Before it a car pinned on a barrier sat there with its
-//!   foot down until its engine cooked.
+//!   foot down until its engine cooked. A car that cannot get back (on
+//!   snow it slides off every attempt) asks to be put back on the road
+//!   once it has been off it [`RESET_AFTER_S`] without gaining
+//!   [`RESET_HEADWAY_M`] of lap: the session recovers it as a driver's
+//!   back-to-track would ([`Racecraft::wants_reset`]).
 //! - **Mistakes**: under pressure (a car close behind) a driver now and
 //!   then overcooks a corner, by how inconsistent it is.
 //!
@@ -121,6 +125,10 @@ const RECOVER_COOLDOWN_S: f32 = 3.0;
 /// of the road ahead, rad, having backed for at least this long, s.
 const REVERSE_DONE_HEADING_RAD: f32 = 0.6;
 const REVERSE_MIN_S: f32 = 0.8;
+/// Off the road (or crawling against a wall) this long, s, without gaining
+/// this much lap, m, a car asks to be put back on the road.
+pub const RESET_AFTER_S: f32 = 15.0;
+pub const RESET_HEADWAY_M: f32 = 20.0;
 
 /// How far ahead a corner is looked for, m.
 const CORNER_SCAN_M: f32 = 700.0;
@@ -179,6 +187,14 @@ pub struct Racecraft {
     pub reverse_s: f32,
     #[serde(default)]
     pub recover_cooldown_s: f32,
+    /// The spell off the road: how long, s, and the lap position it began
+    /// at, m; and whether it has gone on long enough to be put back.
+    #[serde(default)]
+    pub off_road_s: f32,
+    #[serde(default)]
+    pub off_road_from_m: f32,
+    #[serde(default)]
+    pub wants_reset: bool,
 }
 
 impl Default for Racecraft {
@@ -199,6 +215,9 @@ impl Default for Racecraft {
             stuck_s: 0.0,
             reverse_s: 0.0,
             recover_cooldown_s: 0.0,
+            off_road_s: 0.0,
+            off_road_from_m: 0.0,
+            wants_reset: false,
         }
     }
 }
@@ -817,7 +836,26 @@ fn recover(rc: &mut Racecraft, state: &CarState, ctx: &Context<'_>) {
     if out_of_it {
         rc.stuck_s = 0.0;
         rc.reverse_s = 0.0;
+        rc.off_road_s = 0.0;
+        rc.wants_reset = false;
         return;
+    }
+    // The spell off the road, backing out included: one that gets nowhere
+    // along the lap ends in a reset rather than backing out for ever.
+    let off = !state.is_on_track || (state.is_colliding && state.speed_mps < STUCK_SPEED_MPS);
+    if !off {
+        rc.off_road_s = 0.0;
+    } else {
+        if rc.off_road_s <= 0.0
+            || ahead_of(rc.off_road_from_m, state.track_progress, ctx.total_m) > RESET_HEADWAY_M
+        {
+            rc.off_road_s = 0.0;
+            rc.off_road_from_m = state.track_progress;
+        }
+        rc.off_road_s += dt;
+        if rc.off_road_s >= RESET_AFTER_S {
+            rc.wants_reset = true;
+        }
     }
     if rc.reverse_s > 0.0 {
         rc.reverse_s = (rc.reverse_s - dt).max(0.0);
