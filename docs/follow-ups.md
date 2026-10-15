@@ -120,8 +120,10 @@ the launcher import with the network off.
 Small and independent. Do one or two alongside whatever package touches
 the same files.
 
-- Wire: `SessionKind::Demo` is kept only for old servers and can go once
-  showcases are everywhere (today the backdrop still falls back to it
-  while the showcases are stale; see package 11).
+- Wire: `SessionKind::Demo` is kept for servers without showcases and can
+  go once showcases are everywhere. The backdrop still falls back to it
+  when a server has none rendered or all of them stale (a fresh clone
+  before `initialize_content.ps1`, or right after a car.toml or track
+  edit), and `HotlapWatch` shares its create path.
 
 **Check:** server and client build and tests.
