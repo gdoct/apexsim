@@ -483,6 +483,15 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 	}
 
 	{
+		// Visual-only damage is the next integer.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined with visual damage"), ApexGolden::S_SessionJoinedVisualDamage, Message))
+		{
+			TestEqual(TEXT("Damage"), Message.Damage, EApexDamageLevel::VisualOnly);
+		}
+	}
+
+	{
 		// The AI field's level is named only when the host picked one.
 		FApexServerMessage Message;
 		if (Decode(TEXT("SessionJoined with an AI level"), ApexGolden::S_SessionJoinedAiSkill, Message))

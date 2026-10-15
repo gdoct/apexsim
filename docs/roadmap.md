@@ -39,7 +39,17 @@ None open.
 
 ## P2: depth
 
-None open.
+### 1. Session rules on the create screen
+
+Rules the server takes on `CreateSession` that no screen offers yet
+([server/sessions.md](server/sessions.md#session-rules-set-on-create)).
+
+- A fourth damage tile, Visual only (`EApexDamageLevel::VisualOnly`), on the
+  create screen's damage row and its summary, and "visual damage" in the
+  session browser's line.
+
+**Check:** `ApexSim.UI.CreateSession.*`; a session created with each new
+rule echoes it in `SessionJoined` and the lobby shows it.
 
 ## P3: nice to have
 

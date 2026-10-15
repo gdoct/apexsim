@@ -1261,7 +1261,8 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		const bool bDamage = Local && Local->HasDamage();
 		Out.Set(TEXT("damage.known"), bDamage);
 		Out.Set(TEXT("damage.level"), In.DamageLevel == EApexDamageLevel::Off ? TEXT("off")
-			: In.DamageLevel == EApexDamageLevel::Reduced ? TEXT("reduced") : TEXT("full"));
+			: In.DamageLevel == EApexDamageLevel::Reduced ? TEXT("reduced")
+			: In.DamageLevel == EApexDamageLevel::VisualOnly ? TEXT("visual") : TEXT("full"));
 
 		TArray<FApexHudRecord>& List = Out.Lists.FindOrAdd(TEXT("damage"));
 		List.Reset(5);

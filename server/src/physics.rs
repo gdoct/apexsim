@@ -411,7 +411,7 @@ pub fn update_car_3d(
     // its limit a hot engine protects itself).
     let breath = track.track_surface.air_density_ratio;
     let heat_limit = crate::engine_heat::power_factor(state.water_temp_c)
-        * crate::damage::engine_power_factor(&state.damage);
+        * crate::damage::engine_power_factor(&state.felt_damage());
     let (engine_torque, engine_rpm, combustion_torque) =
         calculate_engine_output(state, config, input, breath, heat_limit, dt);
     state.engine_rpm = engine_rpm;
@@ -429,12 +429,12 @@ pub fn update_car_3d(
     } else {
         0.0
     };
-    let over_rev = crate::damage::over_rev_damage(forced, dt) * state.damage_scale();
+    let over_rev = crate::damage::over_rev_damage(forced, dt) * state.engine_damage_scale();
     state.damage.hurt_engine(over_rev);
     // And every revolution wears it a little, the top of the rev range most:
     // wear a pit stop's repair leaves in place.
     let wear = crate::damage::engine_wear(engine_rpm / config.max_engine_rpm.max(1.0), dt)
-        * state.damage_scale();
+        * state.engine_damage_scale();
     state.damage.wear_engine(wear);
 
     // 4b. Hybrid system: electric motor assist + brake regeneration
@@ -895,8 +895,9 @@ pub fn update_car_3d(
     };
     // A bent side toes its front wheel in, and the car pulls toward it
     // (`crate::damage`).
+    let felt = state.felt_damage();
     let steering_angle =
-        steering * config.max_steering_angle_rad + crate::damage::toe_offset_rad(&state.damage);
+        steering * config.max_steering_angle_rad + crate::damage::toe_offset_rad(&felt);
 
     // Apply Ackermann steering geometry (inner wheel turns more), and each
     // wheel's toe on top (`crate::geometry`): the rears steer by theirs.
@@ -928,8 +929,8 @@ pub fn update_car_3d(
     let thermal = |tyre: &crate::data::TireData, set_kpa: f32, water: f32| {
         crate::tyre_thermal::grip_multiplier(tyre_config, compound, set_kpa, tyre, water)
     };
-    let side_left = crate::damage::side_grip_factor(&state.damage, true);
-    let side_right = crate::damage::side_grip_factor(&state.damage, false);
+    let side_left = crate::damage::side_grip_factor(&felt, true);
+    let side_right = crate::damage::side_grip_factor(&felt, false);
     let grip_fl = side_left
         * camber[0].lateral
         * config.axle_tyre_mu(true, state.weight_front_left_n)
@@ -1249,6 +1250,7 @@ pub fn update_car_3d(
     // 10c. The engine's coolant: the combustion power in, the radiator's
     // air out (the slower air of a tow through it).
     let shaft_w = combustion_torque.max(0.0) * engine_rpm * (2.0 * PI / 60.0);
+    let radiator = crate::damage::radiator_factor(&state.felt_damage());
     crate::engine_heat::step(
         &mut state.water_temp_c,
         shaft_w,
@@ -1257,11 +1259,12 @@ pub fn update_car_3d(
         crate::engine_heat::radiator_conductance(
             config.max_engine_power_w,
             config.engine.radiator_scale,
-        ) * crate::damage::radiator_factor(&state.damage),
+        ) * radiator,
         dt,
     );
     // Run past its limit, the engine wears itself out.
-    let overheat = crate::damage::overheat_damage(state.water_temp_c, dt) * state.damage_scale();
+    let overheat =
+        crate::damage::overheat_damage(state.water_temp_c, dt) * state.engine_damage_scale();
     state.damage.hurt_engine(overheat);
 
     // 10b. What the driver feels, for the DriverFeedback message. Output
@@ -1380,6 +1383,7 @@ pub fn update_car_3d(
                 state.damage.hurt_end(i < 2, hit);
             }
         }
+        state.keep_visual_damage_drivable();
     } else if is_airborne {
         state.strike_mps = [0.0; 4];
     }
@@ -1620,6 +1624,7 @@ pub fn update_car_3d(
             let nose = (0.5 - 0.5 * (state.pitch_rad / 0.1).clamp(-1.0, 1.0)).clamp(0.0, 1.0);
             state.damage.hurt_end(true, hit * nose);
             state.damage.hurt_end(false, hit * (1.0 - nose));
+            state.keep_visual_damage_drivable();
         }
     }
     state.is_airborne = is_airborne;
@@ -1796,9 +1801,9 @@ fn calculate_aerodynamic_forces(
     // air and the porpoising; exactly 1.0 for a car without an `[aero]`
     // table) and a damaged nose.
     let posture = crate::aero::multipliers_at(config, ride_front_m, ride_rear_m, posture);
+    let felt = state.felt_damage();
     let nose = 1.0
-        - crate::aero::FRONT_DAMAGE_AERO_LOSS
-            * (state.damage.front_damage_percent / 100.0).clamp(0.0, 1.0);
+        - crate::aero::FRONT_DAMAGE_AERO_LOSS * (felt.front_damage_percent / 100.0).clamp(0.0, 1.0);
 
     // Drag, along the airflow.
     let drag = dynamic_pressure
@@ -1821,7 +1826,7 @@ fn calculate_aerodynamic_forces(
     let front_filed =
         (-config.lift_coefficient_front * config.frontal_area_m2 * posture.downforce_front * nose)
             .max(0.0);
-    let tail = crate::damage::rear_downforce_factor(&state.damage);
+    let tail = crate::damage::rear_downforce_factor(&felt);
     let rear_filed = (-config.lift_coefficient_rear
         * config.frontal_area_m2
         * rear_scale
@@ -3761,15 +3766,20 @@ fn obb_overlap(
 /// Apply damage to a car based on collision angle: the zone the hit came
 /// from takes it, and a hit to the nose dents the engine behind it too
 /// (`crate::damage`), scaled by the driver's damage level. A zone at 100%
-/// puts the car out.
+/// puts the car out, unless the damage is only drawn
+/// (`DamageLevel::VisualOnly`).
 pub(crate) fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount: f32) {
-    let damage_amount = damage_amount * car.damage_scale();
+    let raw = damage_amount;
+    let damage_amount = raw * car.damage_scale();
     if damage_amount <= 0.0 {
         return;
     }
+    let engine_share = raw * car.engine_damage_scale() * crate::damage::NOSE_TO_ENGINE;
     // The hardest hit since the session last looked: what sheds debris and
-    // may puncture the tyre nearest it (`GameSession::update_debris`).
-    if damage_amount > car.last_hit_pct {
+    // may puncture the tyre nearest it (`GameSession::update_debris`); a
+    // hit that is only drawn does neither.
+    let felt = car.damage_level.unwrap_or_default().costs_performance();
+    if damage_amount > car.last_hit_pct && felt {
         car.last_hit_pct = damage_amount;
         car.last_hit_angle = angle;
     }
@@ -3785,9 +3795,8 @@ pub(crate) fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount:
     if !(PI / 4.0..=7.0 * PI / 4.0).contains(&angle) {
         car.damage.front_damage_percent =
             (car.damage.front_damage_percent + damage_amount).min(100.0);
-        car.damage.engine_damage_percent = (car.damage.engine_damage_percent
-            + damage_amount * crate::damage::NOSE_TO_ENGINE)
-            .min(100.0);
+        car.damage.engine_damage_percent =
+            (car.damage.engine_damage_percent + engine_share).min(100.0);
     } else if (PI / 4.0..3.0 * PI / 4.0).contains(&angle) {
         car.damage.left_damage_percent =
             (car.damage.left_damage_percent + damage_amount).min(100.0);
@@ -3800,6 +3809,7 @@ pub(crate) fn apply_damage_to_car(car: &mut CarState, angle: f32, damage_amount:
     }
 
     car.damage.refresh();
+    car.keep_visual_damage_drivable();
 }
 
 // ---------------------------------------------------------------------------
@@ -7758,6 +7768,60 @@ mod tests {
             "the other car keeps its own level"
         );
         assert!(other_off > 0.0);
+    }
+
+    /// Visual-only damage: the hit dents the body as full damage does, but
+    /// the engine takes nothing, the car loses nothing it drives on, the
+    /// hit sheds no debris, and a zone at 100% does not put it out.
+    #[test]
+    fn visual_only_damage_dents_but_costs_nothing() {
+        let config = create_test_config();
+        let mut configs = HashMap::new();
+        configs.insert(config.id, config.clone());
+        let slot = |position: u8, x: f32| GridSlot {
+            position,
+            x,
+            y: 0.0,
+            z: 0.0,
+            yaw_rad: 0.0,
+        };
+        let crash = |level: Option<DamageLevel>| {
+            let mut states = vec![
+                CarState::new(Uuid::new_v4(), config.id, &slot(1, 0.0)),
+                CarState::new(Uuid::new_v4(), config.id, &slot(2, config.length_m - 0.1)),
+            ];
+            states[0].vel_x = 30.0;
+            states[0].speed_mps = 30.0;
+            states[1].vel_x = -30.0;
+            states[1].speed_mps = 30.0;
+            states[0].damage_level = level;
+            check_obb_collisions_3d(&mut states, &configs);
+            states.swap_remove(0)
+        };
+        let full = crash(None);
+        let visual = crash(Some(DamageLevel::VisualOnly));
+        assert!(full.damage.front_damage_percent > 0.0);
+        assert_eq!(
+            visual.damage.front_damage_percent, full.damage.front_damage_percent,
+            "the body is dented as under full damage"
+        );
+        assert_eq!(visual.damage.engine_damage_percent, 0.0);
+        assert!(full.damage.engine_damage_percent > 0.0);
+        assert_eq!(visual.last_hit_pct, 0.0, "no debris, no puncture");
+        let felt = visual.felt_damage();
+        assert_eq!(felt.front_damage_percent, 0.0);
+        assert_eq!(crate::damage::engine_power_factor(&felt), 1.0);
+
+        let mut wrecked = visual.clone();
+        apply_damage_to_car(&mut wrecked, 0.0, 500.0);
+        assert_eq!(wrecked.damage.front_damage_percent, 100.0);
+        assert!(
+            wrecked.damage.is_drivable,
+            "visual damage never retires a car"
+        );
+        let mut full_wreck = full.clone();
+        apply_damage_to_car(&mut full_wreck, 0.0, 500.0);
+        assert!(!full_wreck.damage.is_drivable);
     }
 
     #[test]

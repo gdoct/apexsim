@@ -194,7 +194,7 @@ namespace
 			else if (Key == TEXT("MaxPlayers")) { bOk = Reader.ReadUInt64(Raw); Out.MaxPlayers = static_cast<int32>(Raw); }
 			else if (Key == TEXT("State"))      { bOk = Reader.ReadUInt64(Raw); Out.State = static_cast<EApexSessionState>(Raw); }
 			else if (Key == TEXT("Conditions")) { bOk = ParseSessionConditions(Reader, Out.Conditions); }
-			else if (Key == TEXT("Damage"))     { bOk = Reader.ReadUInt64(Raw); Out.Damage = static_cast<EApexDamageLevel>(FMath::Min<uint64>(Raw, 2)); }
+			else if (Key == TEXT("Damage"))     { bOk = Reader.ReadUInt64(Raw); Out.Damage = Raw <= 3 ? static_cast<EApexDamageLevel>(Raw) : EApexDamageLevel::Full; }
 			else if (Key == TEXT("LapLimit"))   { bOk = Reader.ReadUInt64(Raw); Out.LapLimit = static_cast<int32>(Raw); }
 			else if (Key == TEXT("RaceSeconds")){ bOk = Reader.ReadUInt64(Raw); Out.RaceSeconds = ApexRaceLength::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32))); }
 			else                                { bOk = Reader.SkipValue(); }
@@ -631,7 +631,7 @@ namespace
 			else if (Key == TEXT("SessionKind"))       { bOk = Reader.ReadUInt64(Raw); Out.SessionKind = static_cast<EApexSessionKind>(Raw); }
 			else if (Key == TEXT("AllowedAssists"))    { bOk = ParseAllowedAssists(Reader, Out.AllowedAssists); }
 			else if (Key == TEXT("Conditions"))        { bOk = ParseSessionConditions(Reader, Out.Conditions); }
-			else if (Key == TEXT("Damage"))            { bOk = Reader.ReadUInt64(Raw); Out.Damage = static_cast<EApexDamageLevel>(FMath::Min<uint64>(Raw, 2)); }
+			else if (Key == TEXT("Damage"))            { bOk = Reader.ReadUInt64(Raw); Out.Damage = Raw <= 3 ? static_cast<EApexDamageLevel>(Raw) : EApexDamageLevel::Full; }
 			else if (Key == TEXT("AiSkill"))           { bOk = Reader.ReadUInt64(Raw); Out.AiSkill = ApexAiSkill::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
 			else if (Key == TEXT("RaceSeconds"))       { bOk = Reader.ReadUInt64(Raw); Out.RaceSeconds = ApexRaceLength::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32))); }
 			else if (Key == TEXT("QualifyingSeconds")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingSeconds = ApexQualifyingLength::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32))); }

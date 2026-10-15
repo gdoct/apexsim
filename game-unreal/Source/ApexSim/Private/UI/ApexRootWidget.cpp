@@ -1883,6 +1883,7 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	{
 		Damage = DamageText.Equals(TEXT("off"), ESearchCase::IgnoreCase) ? EApexDamageLevel::Off
 			: DamageText.Equals(TEXT("reduced"), ESearchCase::IgnoreCase) ? EApexDamageLevel::Reduced
+			: DamageText.Equals(TEXT("visual"), ESearchCase::IgnoreCase) ? EApexDamageLevel::VisualOnly
 			: EApexDamageLevel::Full;
 	}
 	// -ApexAiSkill=70..110: the AI field's level (the mixed field by default).

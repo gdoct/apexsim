@@ -143,11 +143,17 @@ preset: off, the driver drives the pit lane ([pit-lane.md](pit-lane.md)). An
 aids change while the pit autopilot holds the car goes into the aids it hands
 back.
 
-**Damage**: `damage` (`DamageLevel` `Off` / `Reduced` / `Full`, default
-Full), the same for every car, AI included: stamped as
-`CarState::damage_level` when seated (`set_damage` for the AI seated at
-creation) and multiplying every accrual by `DamageLevel::scale` (0,
-`REDUCED_SHARE` 0.5, 1). Client: `UApexMenuFlowSubsystem::CreateDamage`,
+**Damage**: `damage` (`DamageLevel` `Off` / `Reduced` / `Full` /
+`VisualOnly`, 0-3, default Full), the same for every car, AI included:
+stamped as `CarState::damage_level` when seated (`set_damage` for the AI
+seated at creation) and multiplying every accrual to the body by
+`DamageLevel::scale` (0, `REDUCED_SHARE` 0.5, 1, 1) and to the engine by
+`engine_scale` (the same, but 0 for VisualOnly). `VisualOnly` dents the body
+and sheds its parts on the client as Full does, and costs nothing: the
+physics, the pit crew's repair time and the AI's stop plan read
+`CarState::felt_damage` (no damage), a hit sheds no debris and punctures
+nothing, and a zone at 100% does not retire the car
+(`keep_visual_damage_drivable`). Client: `UApexMenuFlowSubsystem::CreateDamage`,
 `GetSessionDamage`, HUD `damage.level`. The lobby lists it
 (`SessionSummary.damage`, left off the wire when Full) and the session browser
 names a softer rule ("reduced damage", "no damage"). The model is in
@@ -847,7 +853,7 @@ Client tests: `ApexSim.UI.CreateSession.StartOrder`,
 `ApexSim.Spectate.Keys` / `.HotlapChoices`.
 
 Unattended: `-ApexAutoRace -ApexMode=N` counts into `GameMode` N (6
-qualifying, 8 hotlap), with `-ApexAiCount=N`, `-ApexDamage=off|reduced|full`,
+qualifying, 8 hotlap), with `-ApexAiCount=N`, `-ApexDamage=off|reduced|full|visual`,
 `-ApexAiSkill=N`, `-ApexRaceMinutes=N`,
 `-ApexLockAssists=abs,tc,gearbox,steering,line`; in a hotlap
 `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`,

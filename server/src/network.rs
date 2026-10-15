@@ -3691,6 +3691,30 @@ mod tests {
 
         assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION_DAMAGE);
         assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_NO_DAMAGE);
+
+        // Visual-only damage is the next integer: the same echo with
+        // `Damage: 3` (`ApexGolden::S_SessionJoinedVisualDamage`).
+        let visual = match joined {
+            ServerMessage::SessionJoined(data) => ServerMessage::SessionJoined(SessionJoinedData {
+                damage: DamageLevel::VisualOnly,
+                ..data
+            }),
+            _ => unreachable!(),
+        };
+        let visual_bytes = rmp_serde::to_vec_named(&visual).unwrap();
+        println!("S_SessionJoinedVisualDamage: {}", hex(&visual_bytes));
+        let differ: Vec<usize> = (0..visual_bytes.len())
+            .filter(|&i| visual_bytes[i] != joined_bytes[i])
+            .collect();
+        assert_eq!(visual_bytes.len(), joined_bytes.len());
+        assert_eq!(differ.len(), 1);
+        assert_eq!(visual_bytes[differ[0]], 3);
+        match rmp_serde::from_slice::<ServerMessage>(&visual_bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => {
+                assert_eq!(data.damage, DamageLevel::VisualOnly)
+            }
+            _ => panic!("Wrong message type"),
+        }
     }
 
     /// A timed race: a create for two hours, the joined echo, and a

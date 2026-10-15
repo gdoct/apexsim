@@ -413,7 +413,7 @@ Creates a session and counts it in with no input (never starts the demo):
 P minutes' practice, 0 for none, R knockout rounds of M minutes; the race is
 `-ApexLaps` / `-ApexRaceMinutes`, and the start is the weekend's first
 session), `-ApexNoStart`
-(stop in the lobby), `-ApexAiSkill=N`, `-ApexDamage=off|reduced|full`,
+(stop in the lobby), `-ApexAiSkill=N`, `-ApexDamage=off|reduced|full|visual`,
 `-ApexLockAssists=abs,tc,gearbox,steering,line`, sky
 `-ApexWeather=sunny|cloudy|overcast|lightrain|heavyrain|snow`,
 `-ApexTimeOfDay=HH:MM`, `-ApexTimeScale=N`, `-ApexChangeable=N`,

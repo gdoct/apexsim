@@ -456,7 +456,7 @@ the car is in or, between corners, the next one; all *null* (and
 | `tyre.optimal_c`, `tyre.window_c` | the car's working window: optimal ± window |
 | `tyre.<fl|fr|rl|rr>.<field>` | each tyre's figures by name, with the fields of the `tyres` list: `tyre.fl.temp_c`, `tyre.rr.wear_pct`, ... |
 | `damage.known` | the server sends damage |
-| `damage.level` | the session's damage rule: `off`, `reduced`, `full` |
+| `damage.level` | the session's damage rule: `off`, `reduced`, `full`, `visual` (drawn, costs nothing) |
 | `damage.front`, `damage.rear`, `damage.left`, `damage.right`, `damage.engine` | each zone, %; 100 puts the car out |
 | `damage.front_flash`, `damage.rear_flash`, `damage.left_flash`, `damage.right_flash`, `damage.engine_flash` | 1 at a fresh hit, fading to 0 over 0.8 s |
 

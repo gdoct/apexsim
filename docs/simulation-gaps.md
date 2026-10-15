@@ -84,7 +84,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 | No flags and no flag state on the wire: no yellow at an incident, no blue for a car about to be lapped, no safety car (so no lane closure). The trackside panels' `ApexEmissive_*` slots glow at a fixed level. | High | Med |
 | Boxes are dealt in seating order (`pit::deal_box`), not by team. | Low | Low |
 | A retired car jumps to its box after `TOW_AFTER_S`: no recovery vehicle, no marshals. Without a pit lane it stays where it stopped, out of everyone's way. | Med | Low |
-| The session's damage rule (`DamageLevel`) has no "visual only" level. | Low | Low |
 
 ## Race weekends: sessions across days
 

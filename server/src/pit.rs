@@ -365,9 +365,10 @@ pub fn brake_wear_percent(state: &CarState) -> f32 {
     state.brake_wear_pct.iter().copied().fold(0.0, f32::max)
 }
 
-/// The car's damage summed over its zones, percent.
+/// The car's damage summed over its zones, percent: what the crew mends
+/// (none when the damage is only drawn, `CarState::felt_damage`).
 pub fn damage_percent(state: &CarState) -> f32 {
-    let d = &state.damage;
+    let d = &state.felt_damage();
     d.front_damage_percent
         + d.rear_damage_percent
         + d.left_damage_percent
@@ -409,7 +410,7 @@ pub fn plan_stop(state: &CarState, laps_left: u32, lap_fuel_l: Option<f32>) -> O
             || t.punctured
             || t.leak_kpa_per_s > 0.0
     });
-    let d = &state.damage;
+    let d = &state.felt_damage();
     let damaged = [
         d.front_damage_percent,
         d.rear_damage_percent,

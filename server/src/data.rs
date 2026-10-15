@@ -1827,9 +1827,36 @@ impl CarState {
         }
     }
 
-    /// What every damage accrual on this car is multiplied by.
+    /// What every damage accrual to this car's body is multiplied by.
     pub fn damage_scale(&self) -> f32 {
         self.damage_level.unwrap_or_default().scale()
+    }
+
+    /// What every damage accrual to this car's engine is multiplied by.
+    pub fn engine_damage_scale(&self) -> f32 {
+        self.damage_level.unwrap_or_default().engine_scale()
+    }
+
+    /// The damage the physics, the pit crew and the AI's strategy act on:
+    /// the car's own, or none under `DamageLevel::VisualOnly`, where the
+    /// dents are only drawn.
+    pub fn felt_damage(&self) -> DamageState {
+        if self.damage_level.unwrap_or_default().costs_performance() {
+            self.damage
+        } else {
+            DamageState {
+                is_drivable: true,
+                ..Default::default()
+            }
+        }
+    }
+
+    /// Under `DamageLevel::VisualOnly` a zone at 100% does not put the car
+    /// out: called after every accrual.
+    pub fn keep_visual_damage_drivable(&mut self) {
+        if !self.damage_level.unwrap_or_default().costs_performance() {
+            self.damage.is_drivable = true;
+        }
     }
 
     /// Set the aids; the automatic box starts its timers afresh.
@@ -2089,8 +2116,8 @@ pub enum TractionControl {
 /// by its host on create (`ClientMessage::CreateSession::damage`) and the same
 /// for every car in it, AI included (`RaceSession::damage`). It scales every
 /// accrual in `crate::damage` (impacts, overheating, over-revving); what
-/// damage already done costs is the same whichever level is set. Encoded as
-/// a small integer.
+/// damage already done costs is the same whichever level is set, except
+/// under `VisualOnly`, where it costs nothing. Encoded as a small integer.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
 pub enum DamageLevel {
@@ -2102,6 +2129,12 @@ pub enum DamageLevel {
     /// Damage as the model has it.
     #[default]
     Full = 2,
+    /// The body takes every dent and loses its parts as under `Full`, so
+    /// the client draws the crash, but nothing costs the car anything: no
+    /// grip, downforce, cooling or power lost, no engine damage, no
+    /// puncture or debris from a hit, never out of the race
+    /// (`CarState::felt_damage`).
+    VisualOnly = 3,
 }
 
 impl DamageLevel {
@@ -2114,13 +2147,28 @@ impl DamageLevel {
         *self == DamageLevel::Full
     }
 
-    /// What this level multiplies every damage accrual by.
+    /// What this level multiplies every damage accrual to the body by.
     pub fn scale(self) -> f32 {
         match self {
             DamageLevel::Off => 0.0,
             DamageLevel::Reduced => Self::REDUCED_SHARE,
-            DamageLevel::Full => 1.0,
+            DamageLevel::Full | DamageLevel::VisualOnly => 1.0,
         }
+    }
+
+    /// What this level multiplies the engine's damage by (heat, a missed
+    /// shift, wear, the share of a hit to the nose): nothing to see, so
+    /// none under `VisualOnly`.
+    pub fn engine_scale(self) -> f32 {
+        match self {
+            DamageLevel::VisualOnly => 0.0,
+            other => other.scale(),
+        }
+    }
+
+    /// Whether the damage done costs the car anything.
+    pub fn costs_performance(self) -> bool {
+        self != DamageLevel::VisualOnly
     }
 }
 

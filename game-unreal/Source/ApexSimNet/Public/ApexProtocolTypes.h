@@ -103,6 +103,8 @@ enum class EApexDamageLevel : uint8
 	/** Half of every hit. */
 	Reduced = 1,
 	Full    = 2,
+	/** Dents and lost parts drawn as under Full; nothing costs the car anything. */
+	VisualOnly = 3,
 };
 
 /**

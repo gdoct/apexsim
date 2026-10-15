@@ -337,7 +337,10 @@ Five percentages: front, rear, left, right, engine.
   `BOTTOMING_STRIKE_MPS` its end; `landing_damage` costs the ends by fall speed (free under
   2 m/s).
 - **Session rule**: every accrual x `CarState::damage_scale()` from the session's
-  `DamageLevel` (0, 0.5, 1).
+  `DamageLevel` (0, 0.5, 1); the engine's x `engine_damage_scale()`. Under
+  `VisualOnly` the body is dented as under Full and the engine takes nothing, and
+  every effect below reads `CarState::felt_damage()`, which is no damage: the car
+  is drawn hurt and drives whole ([sessions](sessions.md#session-rules-set-on-create)).
 - **Effects** (1.0 undamaged): front downforce and up to 60% of the radiator; rear up to 40%
   rear downforce; a side's tyres up to 12% grip (`side_grip_factor`) and the fronts toed
   toward it (`toe_offset_rad`); engine up to 40% power (`engine_power_factor`).
