@@ -47,6 +47,10 @@ Rules the server takes on `CreateSession` that no screen offers yet
 - A fourth damage tile, Visual only (`EApexDamageLevel::VisualOnly`), on the
   create screen's damage row and its summary, and "visual damage" in the
   session browser's line.
+- Joining a race weekend between phases: the session browser offers Join
+  on a weekend listed `Finished` while it waits for its host (the server
+  takes the driver), and the client decodes `KnockedOutData.Late` so the
+  timesheet and garage name a late entry rather than "out in Qn".
 
 **Check:** `ApexSim.UI.CreateSession.*`; a session created with each new
 rule echoes it in `SessionJoined` and the lobby shows it.

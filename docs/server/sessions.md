@@ -113,9 +113,13 @@ driver arrives in the garage, as the drivers there when it began did), a
 race takes them until the green light (a car joining once the grid is up
 or in the countdown gets the slot behind the last car, so an empty slot
 stays empty), and a race under way or a finished session
-refuses with `Error 409`. A race weekend takes drivers in its lobby and
-its running practice, and refuses them once Q1 has begun. `JoinAsSpectator` is never refused for the
-session's state. The lobby's listing (`SessionSummary.State`) follows the
+refuses with `Error 409`. A race weekend takes drivers in its lobby, its
+practice, between phases (`Finished` while it waits for the host,
+`awaits_weekend_advance`) and on the race's grid; only a running qualifying
+round and the race under way or over refuse them (see "Race weekend").
+`JoinAsSpectator` is never refused for the session's state. The lobby
+leaves the call to the session (`LobbyManager::join_session` checks only
+room and kind). The lobby's listing (`SessionSummary.State`) follows the
 session: the tick hands each change of state to the lobby
 (`GameSession::take_state_change`, `LobbyManager::set_session_state`).
 
@@ -496,9 +500,16 @@ own replay: the replay stops on `Finished`, and a phase begun by an advance
 (already `Racing` when the tick sees it, `take_phase_started`) starts a new
 one.
 
-**Joining**: drivers are taken in the lobby and in running practice; once
-Q1 has begun `JoinSession` is refused (`Error 409`). Spectators are always
-taken.
+**Joining**: drivers are taken in the lobby, in practice, between any two
+phases and on the race's grid; `JoinSession` is refused (`Error 409`) while
+a qualifying round runs and once the race is under way. A driver who joins
+after practice is in Q1 like the rest (the knockout is sized when Q1
+begins). One who joins after Q1 began, between rounds or after the final,
+takes no part in qualifying (`WeekendProgress::enter_late`): they are
+listed as knocked out in the round just run with no time (`Eliminated::late`;
+`KnockedOutData.Late` on the wire, left off when false), on the grid slot behind every car
+that has one, and going out is refused with "Joined after qualifying began:
+starts from the back". Spectators are always taken.
 
 **`WeekendState`** (`WeekendStateData`, PascalCase map keys like its
 neighbours): `Phase`, `Round` (1-based, 0 outside qualifying), `Rounds`,
@@ -506,7 +517,7 @@ neighbours): `Phase`, `Round` (1-based, 0 outside qualifying), `Rounds`,
 a round the host may advance, in the race it means the race is over),
 `Advancing` (cars going through from this round, 0 in the final and outside
 qualifying) and `Eliminated` (`KnockedOutData { CarIndex, Round,
-GridPosition, LapTimeMs }`, every car knocked out so far in grid order, a car
+GridPosition, LapTimeMs, Late }`, every car knocked out so far in grid order, a car
 that left the session dropped). Reliable, to every member of the session,
 drivers and spectators: right after `SessionJoined` (create, join, rejoin,
 spectate) and from the tick whenever a field changes

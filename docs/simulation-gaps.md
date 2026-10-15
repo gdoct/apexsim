@@ -109,7 +109,6 @@ one session, advanced by the host (see
 | The start order matches drivers by name (`grid_order::resolve`): a stored result's humans are found again only under the same name. | Low | Low |
 | No schedule: a session opening, counting in and starting at its time whether or not everyone is there, with a late joiner going out from the pit lane. Needs a lobby view of upcoming sessions and a countdown. | Med | Med |
 | No per-phase rules beyond lengths: a weekend sets practice and round lengths, but conditions per day (a different forecast each day), assists and damage are the session's for every phase. | Low | Med |
-| A weekend takes no new drivers between phases: the session is `Finished` while it waits for the host, and the lobby refuses joins into a finished session, so a driver can join only in its lobby or running practice. | Low | Low |
 | AI entries in an event need fixed identities and levels across the days, a qualifying run of their own, and their results kept like a human's. | Med | Med |
 | Setups and tyre sets do not carry between sessions (no parc fermé, no tyre allocation per weekend). | Med | Low |
 | No weekend results record: practice times, the combined qualifying sheet (stored) and the race classification are not kept together as one record, shown in the client or exported. | Med | Med |

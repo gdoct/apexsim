@@ -1588,6 +1588,7 @@ impl GameSession {
                         round: e.round,
                         grid_position: e.grid_position,
                         lap_time_ms: e.lap_time_ms,
+                        late: e.late,
                     })
                 })
                 .collect(),
@@ -1747,19 +1748,19 @@ impl GameSession {
     /// race weekend takes none once Q1 has begun. A spectator
     /// (`JoinAsSpectator`) is never refused for this.
     pub fn refuses_drivers(&self) -> Option<&'static str> {
-        if self.session.state == SessionState::Finished {
+        // A weekend waiting for its host between phases takes drivers: the
+        // next phase is theirs (after Q1 began, from the back of the grid).
+        if self.session.state == SessionState::Finished && !self.awaits_weekend_advance() {
             return Some("Session has finished");
         }
         if self.session.game_mode == GameMode::Race {
             return Some("A race is under way: watch it instead");
         }
         if self.is_weekend()
-            && matches!(
-                self.weekend.phase,
-                crate::weekend::WeekendPhase::Qualifying | crate::weekend::WeekendPhase::Race
-            )
+            && self.weekend.phase == crate::weekend::WeekendPhase::Qualifying
+            && self.session.state != SessionState::Finished
         {
-            return Some("Qualifying has begun: watch the weekend instead");
+            return Some("A qualifying round is running: join after it or watch");
         }
         None
     }
@@ -2294,8 +2295,8 @@ impl GameSession {
                 });
             }
             if mode == GameMode::Qualification {
-                if let Some(round) = self.weekend.eliminated_in(player_id) {
-                    return Err(crate::weekend::eliminated_reason(round));
+                if let Some(entry) = self.weekend.eliminated_entry(player_id) {
+                    return Err(crate::weekend::eliminated_reason(entry));
                 }
             }
         }
@@ -2725,6 +2726,11 @@ impl GameSession {
             car_state.damage_level = Some(self.session.damage);
             physics::seed_track_progress(&mut car_state, &self.track_config);
             self.session.participants.insert(player_id, car_state);
+            // A weekend's newcomer after Q1 began takes no part in the
+            // knockout and starts from the back.
+            if self.is_weekend() && self.weekend.phase == crate::weekend::WeekendPhase::Qualifying {
+                self.weekend.enter_late(player_id);
+            }
             self.roster_dirty = true;
             Some(grid_position)
         } else {
@@ -6441,12 +6447,14 @@ mod tests {
                     round: 1,
                     grid_position: 3,
                     lap_time_ms: 82_000,
+                    late: false,
                 },
                 crate::network::KnockedOutData {
                     car_index: 3,
                     round: 1,
                     grid_position: 4,
                     lap_time_ms: 0,
+                    late: false,
                 },
             ]
         );
@@ -6518,6 +6526,60 @@ mod tests {
             .participants
             .values()
             .all(|s| !s.in_garage));
+    }
+
+    /// A weekend between phases takes drivers: after practice they are in
+    /// Q1; after a round they take no part and start from the back. A
+    /// running round and a finished race refuse them.
+    #[test]
+    fn a_weekend_takes_drivers_between_phases() {
+        let (mut game_session, ids) = weekend_of(3, 600, &[600, 600]);
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        game_session.advance_weekend().unwrap();
+        assert!(game_session.refuses_drivers().is_none(), "running practice");
+        end_phase(&mut game_session);
+        assert!(game_session.refuses_drivers().is_none(), "practice over");
+        let early = Uuid::from_u128(10);
+        game_session.add_player(early, car_id).unwrap();
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.weekend_progress().sizes, vec![4, 2]);
+        assert!(game_session.refuses_drivers().is_some(), "Q1 running");
+        for (id, ms) in ids
+            .iter()
+            .chain([&early])
+            .zip([80_000, 81_000, 82_000, 83_000])
+        {
+            game_session.note_qualifying_lap(*id, ms);
+        }
+        end_phase(&mut game_session);
+        assert!(game_session.refuses_drivers().is_none(), "between rounds");
+        let late = Uuid::from_u128(11);
+        game_session.add_player(late, car_id).unwrap();
+        let entry = *game_session
+            .weekend_progress()
+            .eliminated_entry(&late)
+            .unwrap();
+        assert!(entry.late);
+        assert_eq!(
+            (entry.round, entry.grid_position, entry.lap_time_ms),
+            (1, 5, 0)
+        );
+        game_session.advance_weekend().unwrap();
+        assert_eq!(
+            game_session.hotlap_relocate(&late, HotlapDestination::Track, false),
+            Err("Joined after qualifying began: starts from the back")
+        );
+        game_session.note_qualifying_lap(ids[1], 79_000);
+        game_session.note_qualifying_lap(ids[0], 79_500);
+        end_phase(&mut game_session);
+        assert_eq!(
+            game_session.weekend_progress().grid(),
+            Some(vec![ids[1], ids[0], ids[2], early, late])
+        );
+        game_session.advance_weekend().unwrap();
+        assert!(game_session.refuses_drivers().is_none(), "the race's grid");
+        game_session.session.state = SessionState::Finished;
+        assert!(game_session.refuses_drivers().is_some(), "the race is over");
     }
 
     /// Two cars with no time are knocked out in seating order.

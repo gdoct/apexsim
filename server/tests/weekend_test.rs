@@ -208,7 +208,7 @@ async fn a_weekend_runs_from_the_lobby_to_the_race_over_the_wire() {
             (host_id, guest_id)
         };
 
-        // Nobody new drives once qualifying has begun.
+        // Nobody new drives while a round runs.
         let (mut late, _) = Client::connect("Late", server.tcp_addr).await?;
         late.send(&ClientMessage::SelectCar {
             car_config_id: car_id,
@@ -234,6 +234,16 @@ async fn a_weekend_runs_from_the_lobby_to_the_race_over_the_wire() {
         assert_eq!(q1_over.eliminated[0].grid_position, 4);
         assert_eq!(q1_over.eliminated[0].lap_time_ms, 0);
 
+        // Between rounds the weekend takes the late driver: no part in
+        // the knockout, the back of the grid.
+        late.send(&ClientMessage::JoinSession { session_id })
+            .await?;
+        let late_joined = late.wait_joined().await?;
+        assert_eq!(late_joined.session_id, session_id);
+        let late_state = late.wait_weekend(|w| w.eliminated.len() == 2).await?;
+        assert_eq!(late_state.eliminated[1].grid_position, 5);
+        assert!(late_state.eliminated[1].late && !late_state.eliminated[0].late);
+
         host.send(&ClientMessage::AdvanceWeekend).await?;
         let q2 = host.wait_weekend(|w| w.phase == 2 && w.round == 2).await?;
         assert_eq!((q2.advancing, q2.finished), (2, false));
@@ -245,7 +255,7 @@ async fn a_weekend_runs_from_the_lobby_to_the_race_over_the_wire() {
             session.session.state = SessionState::Finished;
         }
         let q2_over = host.wait_weekend(|w| w.round == 2 && w.finished).await?;
-        assert_eq!(q2_over.eliminated.len(), 2);
+        assert_eq!(q2_over.eliminated.len(), 3);
         assert_eq!(q2_over.eliminated[0].round, 2);
         assert_eq!(q2_over.eliminated[0].grid_position, 3);
 
@@ -265,7 +275,7 @@ async fn a_weekend_runs_from_the_lobby_to_the_race_over_the_wire() {
         // qualifying), gridded by the weekend.
         host.send(&ClientMessage::AdvanceWeekend).await?;
         let race = host.wait_weekend(|w| w.phase == 3).await?;
-        assert_eq!(race.eliminated.len(), 2);
+        assert_eq!(race.eliminated.len(), 3);
         {
             let state = server.state.read().await;
             let session = state.sessions.get(&session_id).ok_or("no session")?;

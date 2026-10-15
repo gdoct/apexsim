@@ -489,6 +489,10 @@ pub struct KnockedOutData {
     pub grid_position: u8,
     /// Its best legal lap in that round, ms; 0 for none.
     pub lap_time_ms: u32,
+    /// A late entry: the driver joined after Q1 began and ran no round
+    /// (`weekend::Eliminated::late`). Left off the wire when false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub late: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -4000,10 +4004,28 @@ mod tests {
                 round: 1,
                 grid_position: 16,
                 lap_time_ms: 91_234,
+                late: false,
             }],
         });
         let state_bytes = rmp_serde::to_vec_named(&state).unwrap();
         println!("S_WeekendState: {}", hex(&state_bytes));
+        // A late entry is named; every other knocked-out car keeps the
+        // bytes above.
+        let late = KnockedOutData {
+            car_index: 7,
+            round: 1,
+            grid_position: 16,
+            lap_time_ms: 0,
+            late: true,
+        };
+        let late_bytes = rmp_serde::to_vec_named(&late).unwrap();
+        assert!(late_bytes.windows(4).any(|w| w == b"Late"));
+        assert!(!String::from_utf8_lossy(&state_bytes).contains("Late"));
+        assert!(
+            rmp_serde::from_slice::<KnockedOutData>(&late_bytes)
+                .unwrap()
+                .late
+        );
         match rmp_serde::from_slice::<ServerMessage>(&state_bytes).unwrap() {
             ServerMessage::WeekendState(data) => {
                 assert_eq!((data.phase, data.round, data.rounds), (2, 2, 3));

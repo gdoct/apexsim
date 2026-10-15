@@ -102,6 +102,9 @@ pub struct Eliminated {
     pub grid_position: u8,
     /// Its best legal lap in that round, ms; 0 for none.
     pub lap_time_ms: u32,
+    /// A driver who joined after Q1 began ([`WeekendProgress::enter_late`]):
+    /// never in a round, at the back of the grid.
+    pub late: bool,
 }
 
 /// A weekend's progress, kept by its `GameSession`.
@@ -135,10 +138,37 @@ impl WeekendProgress {
 
     /// The round a car was knocked out in, if it was.
     pub fn eliminated_in(&self, player_id: &PlayerId) -> Option<u8> {
-        self.eliminated
+        self.eliminated_entry(player_id).map(|e| e.round)
+    }
+
+    /// A knocked-out car's entry, if it is one.
+    pub fn eliminated_entry(&self, player_id: &PlayerId) -> Option<&Eliminated> {
+        self.eliminated.iter().find(|e| e.player_id == *player_id)
+    }
+
+    /// A driver joins after Q1 began, between rounds or once the final has
+    /// been run: no part in the rounds left, a grid slot behind every car
+    /// that has one (the Q1 field, every earlier late entry), so it counts
+    /// as knocked out in the round just run with no time.
+    pub fn enter_late(&mut self, player_id: PlayerId) {
+        if self.eliminated_in(&player_id).is_some() {
+            return;
+        }
+        let last = self
+            .eliminated
             .iter()
-            .find(|e| e.player_id == *player_id)
-            .map(|e| e.round)
+            .map(|e| e.grid_position as usize)
+            .chain(self.sizes.first().copied())
+            .chain(std::iter::once(self.final_order.len()))
+            .max()
+            .unwrap_or(0);
+        self.eliminated.push(Eliminated {
+            player_id,
+            round: self.round.max(1),
+            grid_position: (last + 1).min(u8::MAX as usize) as u8,
+            lap_time_ms: 0,
+            late: true,
+        });
     }
 
     /// The race grid the weekend set, front first: the final round's order,
@@ -173,6 +203,7 @@ impl WeekendProgress {
                     round: self.round,
                     grid_position: (i + 1).min(u8::MAX as usize) as u8,
                     lap_time_ms: *lap_time_ms,
+                    late: false,
                 });
             }
             self.eliminated.sort_by_key(|e| e.grid_position);
@@ -184,8 +215,11 @@ impl WeekendProgress {
 }
 
 /// The refusal a knocked-out car gets for going out again.
-pub fn eliminated_reason(round: u8) -> &'static str {
-    match round {
+pub fn eliminated_reason(entry: &Eliminated) -> &'static str {
+    if entry.late {
+        return "Joined after qualifying began: starts from the back";
+    }
+    match entry.round {
         1 => "Eliminated in Q1",
         2 => "Eliminated in Q2",
         _ => "Eliminated in qualifying",

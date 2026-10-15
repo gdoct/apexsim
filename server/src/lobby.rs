@@ -268,13 +268,10 @@ impl LobbyManager {
                 return false;
             }
 
-            // Whether a session under way takes another driver is the
-            // session's to say (`GameSession::refuses_drivers`, asked by the
-            // join handler first); a finished one never does.
-            if session.state == SessionState::Finished {
-                warn!("Session {} has finished", session_id);
-                return false;
-            }
+            // Whether a session under way or finished takes another driver
+            // is the session's to say (`GameSession::refuses_drivers`, asked
+            // by the join handler first): a race weekend between phases
+            // does, though the listing says `Finished`.
 
             if session.session_kind.is_watch_only() {
                 warn!("Session {} is a demo and takes no players", session_id);
