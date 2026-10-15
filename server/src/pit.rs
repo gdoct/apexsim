@@ -418,6 +418,49 @@ pub fn damage_percent(state: &CarState) -> f32 {
         + d.engine_damage_percent
 }
 
+/// How a driver saves fuel: seconds of coasting before each braking zone
+/// (`AiDriverController::with_fuel_save`) and how hard it short-shifts
+/// (`AiDriverController::with_short_shift`, 0..1).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct FuelSave {
+    pub coast_s: f32,
+    pub short_shift: f32,
+}
+
+impl FuelSave {
+    pub const NONE: FuelSave = FuelSave {
+        coast_s: 0.0,
+        short_shift: 0.0,
+    };
+}
+
+/// Seconds a driver coasts before each braking zone per share of the fuel
+/// to the flag it is short: a coast of a second before each of a lap's
+/// braking zones saves something like a tenth of its fuel, so 5% short is
+/// a coast of about half a second, up to
+/// [`crate::ai_driver::MAX_FUEL_SAVE_COAST_S`].
+pub const FUEL_SAVE_COAST_S_PER_SHORT: f32 = 10.0;
+/// Short-shifting starts at this share short and is full at the second:
+/// coasting first, which costs the least time for the fuel it saves.
+pub const SHORT_SHIFT_SHORT: (f32, f32) = (0.10, 0.25);
+/// The most of the fuel to the flag a driver makes up by saving it, as a
+/// share. A race that leaves a car short by more refuels it at its stops
+/// (`GameSession::refuels`), whatever the class's rules.
+pub const MAX_FUEL_SAVE_SHORT: f32 = 0.15;
+
+/// How a driver `short` (a share of the fuel to the flag) saves it: coast
+/// first, then short-shift as well.
+pub fn fuel_save_for(short: f32) -> FuelSave {
+    if short <= 0.0 {
+        return FuelSave::NONE;
+    }
+    let (from, full) = SHORT_SHIFT_SHORT;
+    FuelSave {
+        coast_s: (short * FUEL_SAVE_COAST_S_PER_SHORT).min(crate::ai_driver::MAX_FUEL_SAVE_COAST_S),
+        short_shift: ((short - from) / (full - from)).clamp(0.0, 1.0),
+    }
+}
+
 /// The compound an AI picks for a stop, as a step off the car's reference:
 /// the softest that lasts the rest of the race.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

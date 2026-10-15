@@ -245,10 +245,18 @@ pub struct AiDriverController<'a> {
     /// Seconds before each braking zone the driver lifts and coasts to save
     /// fuel ([`Self::with_fuel_save`]); 0 races flat out.
     coast_s: f32,
+    /// How hard the driver short-shifts, 0..1 ([`Self::with_short_shift`]):
+    /// to save fuel, or to spare a damaged engine.
+    short_shift: f32,
 }
 
 /// The longest a driver saving fuel coasts before a braking zone, s.
 pub const MAX_FUEL_SAVE_COAST_S: f32 = 2.0;
+/// A driver short-shifting all it can upshifts this much earlier, as a
+/// share of its usual shift point: the engine turns slower, its friction
+/// (which grows with revs) takes less of what the fuel makes, and the car
+/// makes less power, so it burns less.
+pub const SHORT_SHIFT_DROP: f32 = 0.3;
 
 /// Borrowed view of the line the AI follows: the optimal raceline when the
 /// track provides one (with precomputed cumulative distances for O(log n)
@@ -303,7 +311,15 @@ impl<'a> AiDriverController<'a> {
             car_config,
             speed_profile: None,
             coast_s: 0.0,
+            short_shift: 0.0,
         }
+    }
+
+    /// Short-shift by `share` (0..1) of [`SHORT_SHIFT_DROP`]: upshift that
+    /// much before the usual shift point.
+    pub fn with_short_shift(mut self, share: f32) -> Self {
+        self.short_shift = share.clamp(0.0, 1.0);
+        self
     }
 
     /// Lift and coast for `coast_s` (up to [`MAX_FUEL_SAVE_COAST_S`])
@@ -1502,7 +1518,8 @@ impl<'a> AiDriverController<'a> {
             return 1;
         }
 
-        let early = AI_NOVICE_SHIFT_FRAC + (1.0 - AI_NOVICE_SHIFT_FRAC) * skill_factor;
+        let early = (AI_NOVICE_SHIFT_FRAC + (1.0 - AI_NOVICE_SHIFT_FRAC) * skill_factor)
+            * (1.0 - SHORT_SHIFT_DROP * self.short_shift);
         let shift_point =
             |gear: i8| crate::physics::auto_upshift_rpm(self.car_config, gear).map(|u| u * early);
 

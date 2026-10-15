@@ -131,6 +131,67 @@ fn an_ai_short_of_fuel_lifts_and_coasts() {
     );
 }
 
+/// Further short, coasting is not enough: the driver short-shifts as well
+/// and burns less again, still at a racing pace.
+#[test]
+fn an_ai_far_short_of_fuel_short_shifts_too() {
+    let (lap, full_burn, full_time) = race_burn_on("fugazzi-sf26", None);
+    // 13% short: coasting, a little short-shifting.
+    let (_, coast_burn, _) = race_burn_on("fugazzi-sf26", Some(2.6));
+    // Three laps to go on 2.4 laps: 20% short, more than a driver saves.
+    let (_, short_burn, short_time) = race_burn_on("fugazzi-sf26", Some(2.4));
+    println!(
+        "lap estimate {lap:.2} L: full {full_burn:.2} L {full_time:.2} s, 13% short {coast_burn:.2} L, 20% short {short_burn:.2} L {short_time:.2} s"
+    );
+    assert!(
+        short_burn < coast_burn,
+        "saves more further short: {short_burn:.2} against {coast_burn:.2}"
+    );
+    assert!(
+        short_burn
+            < (1.0 - 0.8 * apexsim_server::pit::MAX_FUEL_SAVE_SHORT) * full_burn,
+        "saves close to what the refuelling rule credits it with: {short_burn:.2} against {full_burn:.2}"
+    );
+    assert!(
+        short_time < full_time + 12.0,
+        "but not a crawl: {short_time:.2}"
+    );
+}
+
+/// A race seating `folder` for `laps` laps at Monza, counted into: whether
+/// its stops refuel it.
+fn refuels_for(folder: &str, laps: u8) -> bool {
+    let car = car(folder);
+    let car_id = car.id;
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car);
+    let mut profile = AiDriverProfile::new("Fuel AI", 95);
+    profile.id = Uuid::from_u128(7000);
+    profile.preferred_car_id = Some(car_id);
+    let session = RaceSession::new(
+        Uuid::from_u128(1),
+        Uuid::nil(),
+        SessionKind::Multiplayer,
+        8,
+        1,
+        laps,
+    );
+    let mut gs = GameSession::with_ai_profiles(session, monza(), car_configs, vec![profile]);
+    gs.spawn_ai_drivers();
+    gs.start_countdown_mode(1, GameMode::Race);
+    gs.refuels(car_id)
+}
+
+/// An F1 is not refuelled, unless the race runs further than its tank
+/// reaches on all the saving a driver can do: then its stops refuel it, as
+/// a series racing that far would.
+#[test]
+fn an_f1_is_refuelled_only_in_a_race_longer_than_its_tank() {
+    assert!(!refuels_for("fugazzi-sf26", 10), "a short race: no fuel");
+    assert!(refuels_for("fugazzi-sf26", 200), "200 laps of Monza: fuel");
+    assert!(refuels_for("posh-gt3rs", 3), "a GT3 always");
+}
+
 #[test]
 fn a_race_is_fuelled_for_its_distance_and_burns_what_was_planned() {
     // The estimate is a car at the limit of its plan: the AI, a little

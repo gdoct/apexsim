@@ -20,9 +20,10 @@ same ([architecture.md](../architecture.md), determinism).
   profile the AI drives.
 - `server/src/game_session.rs` - `spawn_ai_drivers`, `class_field`,
   `plan_ai_speeds` / `ai_speed_profile`, `ai_input_for`,
-  `update_racecraft`, `plan_ai_stops`, `fuel_save_coast_s`,
+  `update_racecraft`, `plan_ai_stops`, `fuel_save`, `refuels`,
   `ai_wants_boost`.
-- `server/src/pit.rs` - `plan_stop`, `tyres_for_the_track`, `run_up_input`,
+- `server/src/pit.rs` - `plan_stop`, `tyres_for_the_track`, `fuel_save_for`,
+  `run_up_input`,
   `drive_input` ([pit-lane.md](pit-lane.md)).
 
 ## The field
@@ -88,7 +89,10 @@ Built per tick in `ai_input_for` with the car's speed profile
 - **Traffic** (`avoid_traffic`): keeps a side margin from a car alongside
   and a following distance behind a car ahead in its lane.
 - **Fuel save**: `with_fuel_save(coast_s)` shuts the throttle `coast_s`
-  before every braking zone of the profile (brake left to the plan).
+  before every braking zone of the profile (brake left to the plan);
+  `with_short_shift(share)` upshifts up to `SHORT_SHIFT_DROP` (30%) before
+  the usual shift point, where the engine's friction (which grows with
+  revs) takes less of what the fuel makes.
 - **DRS** is asked for whenever `CarState::drs_allowed`; in a hybrid the
   mode is Balanced and the overtake button is held in a race from lap 2
   within `hybrid::AI_BOOST_GAP_S` (0.8 s) of the car ahead
@@ -162,17 +166,23 @@ off by `Racecraft::blend`; the controller holds it across the road
   `pit::plan_stop`: a tyre `AI_PIT_WEAR` (70%) worn, a flat spot past
   `AI_PIT_FLAT_SPOT`, a puncture or leak, `AI_PIT_DAMAGE` (25%) in a body
   zone or `AI_PIT_ENGINE_DAMAGE` (20%), or short of fuel with under
-  `AI_PIT_FUEL_LAPS` (1.6) laps in the tank (only for a car the rules
-  refuel: not an F1; a stint energy limit counts as fuel,
-  `pit::usable_fuel_liters`). Compound: hard with 15+ laps left, the reference
+  `AI_PIT_FUEL_LAPS` (1.6) laps in the tank (only for a car a stop refuels,
+  `GameSession::refuels`: not an F1, unless the race is longer than its
+  tank reaches on all the saving a driver can do, `MAX_FUEL_SAVE_SHORT`
+  (15%) short, as a series racing that far would refuel; a stint energy
+  limit counts as fuel, `pit::usable_fuel_liters`). Compound: hard with 15+
+  laps left, the reference
   with 6+, soft otherwise; in the wet the weather's tyre. The car turns
   onto the pit route `AI_PIT_APPROACH_M` (250 m) before the lane, races the
   run-up held to the lane's mouth speed and hands over to `drive_input`
   `AI_PIT_HANDOVER_M` (10 m) short of it.
-- **Fuel saving** (`fuel_save_coast_s`): in a race, a car that will not be
-  refuelled (an F1, or no pit lane) and cannot reach the flag lifts and
-  coasts `FUEL_SAVE_COAST_S_PER_SHORT` (10 s) per share of fuel it is
-  short, at most `MAX_FUEL_SAVE_COAST_S` (2 s).
+- **Fuel saving** (`fuel_save`, `pit::fuel_save_for`): in a race, a car
+  that will not be refuelled (an F1, or no pit lane) and cannot reach the
+  flag lifts and coasts `FUEL_SAVE_COAST_S_PER_SHORT` (10 s) per share of
+  fuel it is short, at most `MAX_FUEL_SAVE_COAST_S` (2 s), and from
+  `SHORT_SHIFT_SHORT` 10% short short-shifts as well, fully at 25%. At
+  Monza an F1 20% short burns 16% less a lap for about 4 s; 13% short, 13%
+  less for 2.5 s (`fuel_test`).
 - **Damage**: no special driving; the aero loss reaches it through
   `aero_load_share` and the steering pull through its steering loop.
 

@@ -140,7 +140,8 @@ Called inside `update_air` before the physics, and in the countdown.
   crew works in order: tyres always (`F1_TYRE_CHANGE_S` 2.5 s, else
   `TYRE_CHANGE_S` 9 s; the driver's setup compound via
   `CarSetup::compound_index_for`, the AI's planned one), fuel where the
-  rules allow (not an F1; 0.5 L or more at `REFUEL_LPS` 2 L/s; in a race to
+  rules allow (not an F1, unless the race outruns its tank:
+  `GameSession::refuels`, [ai.md](ai.md); 0.5 L or more at `REFUEL_LPS` 2 L/s; in a race to
   the remaining distance with the race margin), then repairs (0.5% or more
   summed over the zones, `REPAIR_S_PER_PERCENT` 0.04 s a percent) and new
   brake pads past `brakes::PAD_CHANGE_PCT` (or discs and pads past

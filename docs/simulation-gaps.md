@@ -54,7 +54,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 | Mistakes come only under pressure (a car within 0.6 s behind, `racecraft::mistakes`), never from fatigue, a cold tyre or a wet patch, and none is a spin of the driver's own making (a lock-up or a wide line ends in one only through the physics). | Low | Low |
 | Pit strategy is thresholds (`pit::plan_stop`): no undercuts, no reaction to the cars around it, no mandatory stops, no fuel saving to skip a stop. | Med | Med |
 | No timed-race endgame: no splash-and-dash, no last-stint planning (`laps_left` does estimate from the clock for the pit plan). | Med | Low |
-| Fuel saving is lift-and-coast only, and only for cars that cannot refuel; no short-shifting to save fuel. | Low | Low |
 | The AI never harvests or saves hybrid energy on purpose (it drives Balanced), and does not defend with the overtake button (it presses it within `hybrid::AI_BOOST_GAP_S` of a car ahead). | Low | Low |
 | The AI's tyre crossover is a threshold on the racing line's water (`pit::tyres_for_the_track`): it never gambles on slicks, never reads the forecast and never stays out because the race is nearly over. | Med | Med |
 | The AI's speed plan (`racing_line::build_laden`) counts a hybrid's motor at full power whatever the lap budget and the minimum deployment speed allow, and the AI caps itself at that plan times its skill's pace on the straights too: planned on the paced motor (as the player's aid is), an F1 AI lapped Monza 3 s slower than the car can. | Med | Low |
@@ -74,7 +73,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 |---|---|---|
 | No pit stop choices during a race and no pit request button: a stop always changes tyres (to the setup's next compound), fuels to need and repairs everything. | Med | Med |
 | No driver swaps or fixed stint lengths. | Med | Low |
-| An F1 in a race longer than its tank: the start fill is capped, no stop adds fuel, and the AI's lift-and-coast saves at most `MAX_FUEL_SAVE_COAST_S` a lap, so a car short by more runs dry. | Low | Low |
+| A race longer than a tank on a circuit with no pit lane (the Nordschleife): nothing refuels, the AI saves up to `pit::MAX_FUEL_SAVE_SHORT` and runs dry past it. | Low | Low |
 | No penalties of any kind: no pit-lane speeding penalty (the limiter is forced, and brakes a car over the limit), nothing stops a driver on a manual pit lane leaving past a red exit light, no drive-through or stop-go, no collision penalty and no race-start ghosting. | High | Med |
 | No flags and no flag state on the wire: no yellow at an incident, no blue for a car about to be lapped, no safety car (so no lane closure). The trackside panels' `ApexEmissive_*` slots glow at a fixed level. | High | Med |
 | Boxes are dealt in seating order (`pit::deal_box`), not by team. | Low | Low |

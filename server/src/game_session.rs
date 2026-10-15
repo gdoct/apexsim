@@ -137,11 +137,6 @@ fn live_sky(session: &RaceSession, track: &TrackConfig) -> crate::conditions::Li
 /// (`GameSession::ai_speed_profile`). Each is a millisecond or so to build.
 pub const AI_FUEL_PLAN_STEPS: usize = 10;
 
-/// Seconds an AI coasts before each braking zone per share of the race's
-/// fuel it is short (`GameSession::fuel_save_coast_s`): a coast of a
-/// second before each of a lap's braking zones saves something like a
-/// tenth of its fuel, so 5% short is a coast of about half a second.
-pub const FUEL_SAVE_COAST_S_PER_SHORT: f32 = 10.0;
 /// Cars going out together are queued this far apart on the run-up.
 pub const HOTLAP_SPACING_M: f32 = 30.0;
 /// A qualifying car leaves this far past the line (or the pit exit), so its
@@ -4465,7 +4460,7 @@ impl GameSession {
         let Some(config) = self.car_configs.get(&car_id).cloned() else {
             return;
         };
-        let fuel_target = if !crate::pit::refuelling_allowed(&config) {
+        let fuel_target = if !self.refuels(car_id) {
             fuel_now
         } else if mode == GameMode::Race {
             match self.lap_fuel_liters(car_id) {
@@ -4600,10 +4595,7 @@ impl GameSession {
                 // Short of fuel is no reason to stop in a car the rules do
                 // not refuel (an F1): the stop would add none, and the car
                 // would come in again every lap.
-                let refuels = self
-                    .car_configs
-                    .get(&car_id)
-                    .is_some_and(crate::pit::refuelling_allowed);
+                let refuels = self.refuels(car_id);
                 let lap_fuel = self.lap_fuel_liters(car_id).filter(|_| refuels);
                 let Some(state) = self.session.participants.get(&ai_id) else {
                     continue;
@@ -4712,9 +4704,11 @@ impl GameSession {
                 }
             }
         }
+        let fuel_save = self.fuel_save(state);
         let controller = AiDriverController::new(profile, &self.track_config, car_config)
             .with_speed_profile(self.ai_speed_profile(state.car_config_id, state.fuel_liters))
-            .with_fuel_save(self.fuel_save_coast_s(state, car_config));
+            .with_fuel_save(fuel_save.coast_s)
+            .with_short_shift(fuel_save.short_shift);
         // BTreeMap order: the traffic list, and so the input, is
         // deterministic.
         let traffic: Vec<TrafficCar> = self
@@ -4748,21 +4742,26 @@ impl GameSession {
         input
     }
 
-    /// How long an AI in a race coasts before each braking zone to reach the
-    /// flag on what it carries: nothing while the tank will do, or when the
-    /// car will be refuelled at a stop (the pit plan's business); past that,
-    /// [`FUEL_SAVE_COAST_S_PER_SHORT`] per share it is short, capped by the
-    /// driver ([`crate::ai_driver::MAX_FUEL_SAVE_COAST_S`]).
-    fn fuel_save_coast_s(&self, state: &CarState, config: &CarConfig) -> f32 {
+    /// How an AI in a race saves fuel to reach the flag on what it carries
+    /// (`crate::pit::fuel_save_for`): nothing while the tank will do, or
+    /// when the car will be refuelled at a stop (the pit plan's business);
+    /// past that, coasting into the braking zones and then short-shifting.
+    fn fuel_save(&self, state: &CarState) -> crate::pit::FuelSave {
         if self.session.game_mode != GameMode::Race
             || self.session.state != SessionState::Racing
             || state.finish_position.is_some()
         {
-            return 0.0;
+            return crate::pit::FuelSave::NONE;
         }
-        if crate::pit::refuelling_allowed(config) && self.track_config.pit_lane.is_some() {
-            return 0.0;
+        if self.refuels(state.car_config_id) && self.track_config.pit_lane.is_some() {
+            return crate::pit::FuelSave::NONE;
         }
+        crate::pit::fuel_save_for(self.fuel_short_share(state))
+    }
+
+    /// The share of the fuel to the flag a car in a race is short of, 0
+    /// while the tank will do (or with no lap estimate).
+    fn fuel_short_share(&self, state: &CarState) -> f32 {
         let Some(&lap) = self.lap_fuel.get(&state.car_config_id) else {
             return 0.0;
         };
@@ -4772,7 +4771,31 @@ impl GameSession {
         if needed <= 0.0 || state.fuel_liters >= needed {
             return 0.0;
         }
-        (1.0 - state.fuel_liters / needed) * FUEL_SAVE_COAST_S_PER_SHORT
+        1.0 - state.fuel_liters / needed
+    }
+
+    /// Whether a stop refuels `car_id` in this session: by its rules
+    /// (`crate::pit::refuelling_allowed`), and in a race its tank cannot
+    /// reach the flag on even saving all a driver can
+    /// (`crate::pit::MAX_FUEL_SAVE_SHORT`), as a series racing that far
+    /// would have it: an F1 in a three-hour race. Read from the lap estimate
+    /// the start's fill worked out; without one, the rules alone.
+    pub fn refuels(&self, car_id: CarConfigId) -> bool {
+        let Some(car) = self.car_configs.get(&car_id) else {
+            return false;
+        };
+        if crate::pit::refuelling_allowed(car) {
+            return true;
+        }
+        if self.planned_mode() != GameMode::Race {
+            return false;
+        }
+        let Some(&lap) = self.lap_fuel.get(&car_id) else {
+            return false;
+        };
+        let needed = self.race_laps(car_id) * lap;
+        let capacity = car.fuel.capacity_liters.max(0.0);
+        needed > 0.0 && 1.0 - capacity / needed > crate::pit::MAX_FUEL_SAVE_SHORT
     }
 
     /// An AI in a race presses the overtake button within
