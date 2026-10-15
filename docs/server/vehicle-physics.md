@@ -155,7 +155,8 @@ unless `HotlapRelocate.cold_tyres`. Brakes and the hybrid battery are fitted wit
 
 `TireConfig::compounds()` is the car's own `[[tires.compound]]` list in knob order (slicks
 softest first, treaded last), else `default_compounds()` (soft, medium, hard, intermediate,
-wet; medium the reference; no shipped car lists its own). Each changes the car's tyre: grip,
+wet; medium the reference). The shipped cars list their class's own: F1 those five, Hypercar
+soft / medium / hard / wet, LMP2 medium / wet, GT3 dry / wet (no intermediate). Each changes the car's tyre: grip,
 wear, window shift, `water_grip` (dry / light / heavy rain, linear between; past 1.0 water a
 puddle costs more). The **reference** compound is the car's tyre exactly, so calibration
 holds.
@@ -198,7 +199,8 @@ player's racing line is planned on warm tyres.
 
 `optimal_temperature_c`, `temperature_window_c`, `temperature_grip_falloff`,
 `blanket_temperature_c`, `optimal_pressure_kpa`, `pressure_front_kpa`, `pressure_rear_kpa`
-(180 default, in no shipped car), `load_sensitivity` (`_front`/`_rear`), `reference_load_n`
+(180 default; the shipped cars set them at the optimum, 175 Hypercar, 180 F1 and GT3, 185 LMP2),
+`load_sensitivity` (`_front`/`_rear`), `reference_load_n`
 (`_front_n`/`_rear_n`), `longitudinal_grip_factor`, `front_grip_scale`, `rear_grip_scale`;
 `[[tires.compound]]`: `name`, `kind` (`slick`/`intermediate`/`wet`), `grip`, `wear`,
 `window_shift_c`, `water_grip = [dry, light, heavy]`, `reference`. `wear_rate` is a

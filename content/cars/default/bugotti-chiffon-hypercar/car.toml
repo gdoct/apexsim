@@ -52,6 +52,42 @@ stall_height_m = 0.012
 [tires]
 optimal_temperature_c = 105.0
 temperature_window_c = 13.0
+# Pressures: about 1.75 bar hot.
+# Set at the optimum, so the tyre grips as the class was calibrated on.
+optimal_pressure_kpa = 175.0
+pressure_front_kpa = 175.0
+pressure_rear_kpa = 175.0
+
+# Soft for the cold of the night, hard for the heat of the day, and a wet.
+[[tires.compound]]
+name = "soft"
+kind = "slick"
+grip = 1.03
+wear = 1.8
+window_shift_c = -6.0
+
+[[tires.compound]]
+name = "medium"
+kind = "slick"
+reference = true
+
+[[tires.compound]]
+name = "hard"
+kind = "slick"
+grip = 0.97
+wear = 0.55
+window_shift_c = 6.0
+
+[[tires.compound]]
+name = "wet"
+kind = "wet"
+wear = 2.0
+window_shift_c = -35.0
+water_grip = [0.78, 0.95, 1.0]
+
+[brakes]
+material = "carbon"
+pads = "standard"
 
 [engine]
 forced_induction = true   # turbocharged: holds its power in thin air

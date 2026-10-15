@@ -90,16 +90,6 @@ the same `ApexProps` code.
 
 ## P3: nice to have
 
-### 9. Car content
-
-Car data that is built but that the client and the shipped cars do not use.
-
-- Shipped car.toml files set their tyre pressure keys and their own
-  `[[tires.compound]]` / `[brakes]` tables (all run on defaults today).
-
-**Check:** server physics and class calibration tests (a car.toml edit moves
-them, and changes its content checksum).
-
 ### 11. Content tooling
 
 - **(bug, not reproduced)** On 2026-10-14, with most showcases stale, an

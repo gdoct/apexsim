@@ -50,6 +50,49 @@ stall_height_m = 0.012
 optimal_temperature_c = 91.0
 temperature_window_c = 13.0
 blanket_temperature_c = 70.0
+# Pressures: 26 psi hot on the 18-inch slicks.
+# Set at the optimum, so the tyre grips as the class was calibrated on.
+optimal_pressure_kpa = 180.0
+pressure_front_kpa = 180.0
+pressure_rear_kpa = 180.0
+
+# The weekend's three slicks and the two treaded tyres.
+[[tires.compound]]
+name = "soft"
+kind = "slick"
+grip = 1.03
+wear = 1.8
+window_shift_c = -6.0
+
+[[tires.compound]]
+name = "medium"
+kind = "slick"
+reference = true
+
+[[tires.compound]]
+name = "hard"
+kind = "slick"
+grip = 0.97
+wear = 0.55
+window_shift_c = 6.0
+
+[[tires.compound]]
+name = "intermediate"
+kind = "intermediate"
+wear = 1.5
+window_shift_c = -25.0
+water_grip = [0.88, 1.0, 0.88]
+
+[[tires.compound]]
+name = "wet"
+kind = "wet"
+wear = 2.0
+window_shift_c = -35.0
+water_grip = [0.78, 0.95, 1.0]
+
+[brakes]
+material = "carbon"
+pads = "standard"
 
 # 2026 power unit: the 1.6 L V6 down to ~400 kW, the electric half up to
 # 300 kW from a small store, so a lap is energy-managed: the battery is empty

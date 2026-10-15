@@ -55,6 +55,28 @@ stall_height_m = 0.015
 [tires]
 optimal_temperature_c = 87.0
 temperature_window_c = 10.0
+# Pressures: 26 psi hot, the low end of the GT3 slick's range.
+# Set at the optimum, so the tyre grips as the class was calibrated on.
+optimal_pressure_kpa = 180.0
+pressure_front_kpa = 180.0
+pressure_rear_kpa = 180.0
+
+# One dry slick for every race and a wet: GT3 has no intermediate.
+[[tires.compound]]
+name = "dry"
+kind = "slick"
+reference = true
+
+[[tires.compound]]
+name = "wet"
+kind = "wet"
+wear = 2.0
+window_shift_c = -35.0
+water_grip = [0.78, 0.95, 1.0]
+
+[brakes]
+material = "steel"
+pads = "standard"
 
 [engine]
 # mid-engined 5.2 L V10, naturally aspirated.

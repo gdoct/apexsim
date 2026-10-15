@@ -53,6 +53,28 @@ stall_height_m = 0.012
 [tires]
 optimal_temperature_c = 92.0
 temperature_window_c = 10.0
+# Pressures: about 1.85 bar hot.
+# Set at the optimum, so the tyre grips as the class was calibrated on.
+optimal_pressure_kpa = 185.0
+pressure_front_kpa = 185.0
+pressure_rear_kpa = 185.0
+
+# The spec slick and a wet.
+[[tires.compound]]
+name = "medium"
+kind = "slick"
+reference = true
+
+[[tires.compound]]
+name = "wet"
+kind = "wet"
+wear = 2.0
+window_shift_c = -35.0
+water_grip = [0.78, 0.95, 1.0]
+
+[brakes]
+material = "carbon"
+pads = "standard"
 
 [engine]
 max_power_w = 402000.0
