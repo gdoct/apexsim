@@ -34,7 +34,9 @@
 //!   [`RESET_HEADWAY_M`] of lap: the session recovers it as a driver's
 //!   back-to-track would ([`Racecraft::wants_reset`]).
 //! - **Mistakes**: under pressure (a car close behind) a driver now and
-//!   then overcooks a corner, by how inconsistent it is.
+//!   then gets a corner wrong, by how inconsistent it is: it overcooks the
+//!   braking, locks a wheel late in the braking zone, misses the apex wide
+//!   or misses an upshift out of the corner ([`Mistake`]).
 //!
 //! Every chance is a hash of the driver, the lap and the corner, so a race
 //! replays the same and the sim stays deterministic.
@@ -102,13 +104,31 @@ const DEFEND_CHANCE_BOLD: f32 = 0.9;
 /// A car being lapped moves this far toward the outside and lifts.
 const YIELD_MOVE_M: f32 = 2.5;
 const YIELD_PACE: f32 = 0.97;
-/// Under pressure (a car within [`PRESSURE_GAP_S`] behind) a driver
-/// overcooks a corner with this chance per unit of inconsistency, by this
-/// much of the corner's speed and up to this much more.
+/// Under pressure (a car within [`PRESSURE_GAP_S`] behind) a driver gets
+/// a corner wrong with this chance per unit of inconsistency; which
+/// [`Mistake`] is an even draw. An overcooked corner is taken this much of
+/// its speed too fast and up to this much more.
 const PRESSURE_GAP_S: f32 = 0.6;
 const MISTAKE_CHANCE: f32 = 0.35;
 const MISTAKE_OVERSPEED: f32 = 0.025;
 const MISTAKE_OVERSPEED_SPREAD: f32 = 0.02;
+/// A lock-up: the pedal held to the floor, past what the grip allows, for
+/// this long and up to this much more, s, from this far before the apex, m
+/// (late in the braking, where the downforce has gone and the turn-in
+/// starts), or at the end of the braking if that comes first.
+const LOCK_UP_S: f32 = 0.25;
+const LOCK_UP_SPREAD_S: f32 = 0.35;
+const LOCK_UP_APEX_M: f32 = 80.0;
+/// A missed apex: the car runs this far wide of its line and up to this
+/// much more, m, from the braking to the apex, moved on and off at this
+/// rate, m/s.
+const MISSED_APEX_M: f32 = 1.0;
+const MISSED_APEX_SPREAD_M: f32 = 1.0;
+const WIDE_RATE_MPS: f32 = 2.0;
+/// A missed upshift out of the corner: no upshift for this long and up to
+/// this much more, s (the engine sits on its limiter).
+const MISSED_SHIFT_S: f32 = 0.4;
+const MISSED_SHIFT_SPREAD_S: f32 = 0.6;
 /// How quickly the car moves onto a lane and back off it: the share of the
 /// way per second (attack, defend, back to the line).
 const BLEND_ATTACK_PER_S: f32 = 1.25;
@@ -147,6 +167,21 @@ pub enum Tactic {
     Room,
     /// Letting [`Racecraft::rival`], a lap up, through.
     Yield,
+}
+
+/// What a driver under pressure gets wrong in a corner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum Mistake {
+    #[default]
+    None,
+    /// Too fast into the braking zone ([`Racecraft::overspeed`]).
+    Overcook,
+    /// A wheel locked late in the braking ([`Racecraft::lock_up_s`]).
+    LockUp,
+    /// Wide of the apex ([`Racecraft::wide_m`]).
+    MissedApex,
+    /// An upshift missed out of the corner ([`Racecraft::missed_shift_s`]).
+    MissedShift,
 }
 
 /// An AI driver's racecraft, kept on its car between ticks.
@@ -195,6 +230,19 @@ pub struct Racecraft {
     pub off_road_from_m: f32,
     #[serde(default)]
     pub wants_reset: bool,
+    /// The mistake rolled for `mistake_corner`, if any.
+    #[serde(default)]
+    pub mistake: Mistake,
+    /// Seconds left of a lock-up: the brake to the floor whenever the plan
+    /// brakes, past the friction circle.
+    #[serde(default)]
+    pub lock_up_s: f32,
+    /// A missed apex: m left of its line the car runs (eased on and off).
+    #[serde(default)]
+    pub wide_m: f32,
+    /// Seconds left of a missed upshift: the gear is held.
+    #[serde(default)]
+    pub missed_shift_s: f32,
 }
 
 impl Default for Racecraft {
@@ -218,6 +266,10 @@ impl Default for Racecraft {
             off_road_s: 0.0,
             off_road_from_m: 0.0,
             wants_reset: false,
+            mistake: Mistake::None,
+            lock_up_s: 0.0,
+            wide_m: 0.0,
+            missed_shift_s: 0.0,
         }
     }
 }
@@ -451,6 +503,8 @@ pub fn decide(
     rc.cooldown_s = (rc.cooldown_s - dt).max(0.0);
     rc.since_s += dt;
     rc.pace = 1.0;
+    rc.lock_up_s = (rc.lock_up_s - dt).max(0.0);
+    rc.missed_shift_s = (rc.missed_shift_s - dt).max(0.0);
     recover(&mut rc, state, ctx);
     if rc.reverse_s > 0.0 {
         return settle(back_to_racing(rc, 0.0), dt);
@@ -536,23 +590,9 @@ pub fn decide(
     }
 
     // Mistakes under pressure, rolled once a corner.
-    let pressured =
-        behind.is_some_and(|(o, rel)| -rel - reach(o) < PRESSURE_GAP_S * speed + CLOSE_EXTRA_M);
-    if ctx.race
-        && pressured
-        && corner.brake_in_m < 150.0
-        && rc.mistake_corner != Some(corner.apex as u32)
-    {
-        rc.mistake_corner = Some(corner.apex as u32);
-        let inconsistency = (1.0 - profile.consistency).clamp(0.0, 1.0);
-        rc.overspeed =
-            if roll(me.id, state.current_lap, corner.apex, 1) < MISTAKE_CHANCE * inconsistency {
-                MISTAKE_OVERSPEED
-                    + MISTAKE_OVERSPEED_SPREAD * roll(me.id, state.current_lap, corner.apex, 2)
-            } else {
-                0.0
-            };
-    }
+    mistakes(
+        &mut rc, state, me, profile, &corner, braking, behind, speed, dt, ctx,
+    );
     let mistake = rc.mistake_corner == Some(corner.apex as u32) && rc.overspeed > 0.0;
 
     // Carry on with what the driver is doing, or stop doing it.
@@ -676,6 +716,86 @@ pub fn decide(
         rc.pace *= 1.0 + rc.overspeed;
     }
     settle(rc, dt)
+}
+
+/// The mistakes a driver under pressure makes: one roll a corner, as it
+/// nears the braking zone with a car close behind, for whether it gets the
+/// corner wrong and how. A corner's mistake ends once the corner is passed;
+/// a missed upshift is made then, on the way out of it.
+#[allow(clippy::too_many_arguments)]
+fn mistakes(
+    rc: &mut Racecraft,
+    state: &CarState,
+    me: &Rival,
+    profile: &AiDriverProfile,
+    corner: &Corner,
+    braking: bool,
+    behind: Option<(&Rival, f32)>,
+    speed: f32,
+    dt: f32,
+    ctx: &Context<'_>,
+) {
+    let apex = corner.apex as u32;
+    if rc.mistake_corner.is_some_and(|c| c != apex) {
+        if rc.mistake == Mistake::MissedShift {
+            let c = rc.mistake_corner.unwrap_or(0) as usize;
+            rc.missed_shift_s =
+                MISSED_SHIFT_S + MISSED_SHIFT_SPREAD_S * roll(me.id, state.current_lap, c, 6);
+        }
+        rc.mistake_corner = None;
+        rc.mistake = Mistake::None;
+        rc.overspeed = 0.0;
+    }
+
+    let reach = |o: &Rival| 0.5 * (me.length_m + o.length_m);
+    let pressured =
+        behind.is_some_and(|(o, rel)| -rel - reach(o) < PRESSURE_GAP_S * speed + CLOSE_EXTRA_M);
+    if ctx.race && pressured && corner.brake_in_m < 150.0 && rc.mistake_corner != Some(apex) {
+        rc.mistake_corner = Some(apex);
+        let inconsistency = (1.0 - profile.consistency).clamp(0.0, 1.0);
+        let (lap, at) = (state.current_lap, corner.apex);
+        rc.mistake = if roll(me.id, lap, at, 1) < MISTAKE_CHANCE * inconsistency {
+            match (roll(me.id, lap, at, 5) * 4.0) as u32 {
+                0 => Mistake::Overcook,
+                1 => Mistake::LockUp,
+                2 => Mistake::MissedApex,
+                _ => Mistake::MissedShift,
+            }
+        } else {
+            Mistake::None
+        };
+        rc.overspeed = if rc.mistake == Mistake::Overcook {
+            MISTAKE_OVERSPEED + MISTAKE_OVERSPEED_SPREAD * roll(me.id, lap, at, 2)
+        } else {
+            0.0
+        };
+    }
+
+    let this_corner = rc.mistake_corner == Some(apex);
+    // A lock-up, once, late in the braking or at its end.
+    if this_corner
+        && rc.mistake == Mistake::LockUp
+        && corner.brake_in_m <= 0.0
+        && (corner.apex_in_m < LOCK_UP_APEX_M || !braking)
+    {
+        rc.lock_up_s =
+            LOCK_UP_S + LOCK_UP_SPREAD_S * roll(me.id, state.current_lap, corner.apex, 6);
+        rc.mistake = Mistake::None;
+    }
+    // Wide of the apex from the braking to the apex, back after it.
+    let wide = if this_corner
+        && rc.mistake == Mistake::MissedApex
+        && corner.brake_in_m <= 0.0
+        && corner.inside != 0.0
+    {
+        -corner.inside
+            * (MISSED_APEX_M
+                + MISSED_APEX_SPREAD_M * roll(me.id, state.current_lap, corner.apex, 6))
+    } else {
+        0.0
+    };
+    let step = WIDE_RATE_MPS * dt;
+    rc.wide_m += (wide - rc.wide_m).clamp(-step, step);
 }
 
 /// A new tactic, if one is called for.
@@ -999,5 +1119,175 @@ mod tests {
         rc.tactic = Tactic::Race;
         rc = settle(rc, 0.5);
         assert!((rc.blend - 0.75).abs() < 1e-4);
+    }
+
+    /// Under pressure an inconsistent driver gets corners wrong in every
+    /// way, each the same every time it is rolled; each mistake plays out
+    /// where it should and ends with its corner.
+    #[test]
+    fn mistakes_under_pressure_play_out_in_their_corner() {
+        let track = TrackConfig::default();
+        let ctx = Context {
+            track: &track,
+            total_m: 4000.0,
+            race: true,
+            dt: 0.01,
+        };
+        let profile = AiDriverProfile::with_attributes("Wild", 70, 0.5, 0.5, 200, 0.5, 1.0, 0.0);
+        let mut state = CarState::new(
+            uuid::Uuid::from_u64_pair(7, 9),
+            uuid::Uuid::new_v4(),
+            &track.start_positions[0],
+        );
+        state.track_progress = 1000.0;
+        state.speed_mps = 60.0;
+        state.is_on_track = true;
+        let me = Rival::of(&state, 4.5, 2.0, ctx.total_m);
+        let chaser = Rival {
+            id: uuid::Uuid::from_u64_pair(1, 1),
+            progress_m: 994.0,
+            ..me
+        };
+        let behind = Some((&chaser, -6.0));
+        let approach = |apex: usize| Corner {
+            apex,
+            brake_in_m: 100.0,
+            apex_in_m: 200.0,
+            inside: 1.0,
+        };
+
+        // Roll corners until each kind has come up.
+        let mut seen = Vec::new();
+        let mut by_kind = std::collections::BTreeMap::new();
+        for apex in 0..400 {
+            let mut rc = Racecraft::default();
+            let mut again = Racecraft::default();
+            let corner = approach(apex);
+            mistakes(
+                &mut rc, &state, &me, &profile, &corner, false, behind, 60.0, 0.01, &ctx,
+            );
+            mistakes(
+                &mut again, &state, &me, &profile, &corner, false, behind, 60.0, 0.01, &ctx,
+            );
+            assert_eq!(rc, again, "a roll is the same every time");
+            if !seen.contains(&rc.mistake) {
+                seen.push(rc.mistake);
+            }
+            by_kind.entry(format!("{:?}", rc.mistake)).or_insert(apex);
+        }
+        assert_eq!(seen.len(), 5, "every kind and none: {seen:?}");
+
+        let rolled = |kind: &str| {
+            let apex = by_kind[kind];
+            let mut rc = Racecraft::default();
+            mistakes(
+                &mut rc,
+                &state,
+                &me,
+                &profile,
+                &approach(apex),
+                false,
+                behind,
+                60.0,
+                0.01,
+                &ctx,
+            );
+            (rc, apex)
+        };
+
+        // A lock-up waits for the late braking, then holds the pedal.
+        let (mut rc, apex) = rolled("LockUp");
+        let early = Corner {
+            brake_in_m: 0.0,
+            apex_in_m: 150.0,
+            ..approach(apex)
+        };
+        mistakes(
+            &mut rc, &state, &me, &profile, &early, true, None, 50.0, 0.01, &ctx,
+        );
+        assert_eq!(rc.lock_up_s, 0.0);
+        let late = Corner {
+            apex_in_m: 60.0,
+            ..early
+        };
+        mistakes(
+            &mut rc, &state, &me, &profile, &late, true, None, 40.0, 0.01, &ctx,
+        );
+        assert!(rc.lock_up_s >= LOCK_UP_S, "{rc:?}");
+        assert_eq!(rc.mistake, Mistake::None, "once a corner");
+
+        // A missed apex runs wide, to the outside of a left-hander, and
+        // comes back after it.
+        let (mut rc, apex) = rolled("MissedApex");
+        let turning = Corner {
+            brake_in_m: 0.0,
+            apex_in_m: 40.0,
+            ..approach(apex)
+        };
+        for _ in 0..100 {
+            mistakes(
+                &mut rc, &state, &me, &profile, &turning, true, None, 40.0, 0.01, &ctx,
+            );
+        }
+        assert!(rc.wide_m < -MISSED_APEX_M * 0.99, "{rc:?}");
+        let next = approach(apex + 500);
+        for _ in 0..200 {
+            mistakes(
+                &mut rc, &state, &me, &profile, &next, false, None, 40.0, 0.01, &ctx,
+            );
+        }
+        assert_eq!(rc.wide_m, 0.0);
+
+        // A missed shift comes on the way out of the corner.
+        let (mut rc, apex) = rolled("MissedShift");
+        mistakes(
+            &mut rc,
+            &state,
+            &me,
+            &profile,
+            &Corner {
+                brake_in_m: 0.0,
+                ..approach(apex)
+            },
+            true,
+            None,
+            40.0,
+            0.01,
+            &ctx,
+        );
+        assert_eq!(rc.missed_shift_s, 0.0);
+        mistakes(
+            &mut rc,
+            &state,
+            &me,
+            &profile,
+            &approach(apex + 500),
+            false,
+            None,
+            40.0,
+            0.01,
+            &ctx,
+        );
+        assert!(rc.missed_shift_s >= MISSED_SHIFT_S, "{rc:?}");
+        assert_eq!(rc.mistake_corner, None);
+
+        // A consistent driver never errs.
+        let ace = AiDriverProfile::with_attributes("Ace", 110, 0.5, 1.0, 50, 1.0, 0.0, 1.0);
+        for apex in 0..400 {
+            let mut rc = Racecraft::default();
+            mistakes(
+                &mut rc,
+                &state,
+                &me,
+                &ace,
+                &approach(apex),
+                false,
+                behind,
+                60.0,
+                0.01,
+                &ctx,
+            );
+            assert_eq!(rc.mistake, Mistake::None);
+        }
     }
 }

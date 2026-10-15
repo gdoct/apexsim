@@ -117,7 +117,17 @@ next `Brake` phase, its slowest point, the hand at the apex).
   beside it and lifts 2% until clear.
 - **Yield**: about to be lapped, it moves toward the outside and lifts 3%.
 - **Mistakes**: with a car within 0.6 s behind, a driver now and then
-  overcooks a braking zone, by its inconsistency (`MISTAKE_*`).
+  gets a corner wrong, by its inconsistency (`MISTAKE_CHANCE`, one roll a
+  corner as it nears the braking zone), and an even draw says how
+  (`Mistake`): it overcooks the braking (2.5-4.5% too fast,
+  `Racecraft::overspeed`); it locks up late in the braking zone (80 m
+  before the apex, or at the end of the braking: the pedal to the floor
+  past the friction circle for 0.25-0.6 s, `lock_up_s`, which an ABS car's
+  ABS catches); it misses the apex 1-2 m wide (`wide_m`, added to the
+  steering target as the wander is, from the braking to the apex and
+  eased back after); or it misses an upshift on the way out (no upshift
+  for 0.4-1 s, on the limiter, `missed_shift_s`). A corner's mistake ends
+  once the corner is passed.
 - **Getting unstuck** (`recover`): under 2.5 m/s in contact or off the
   road for 1.5 s, the car reverses for up to 2.5 s steering its nose
   toward the road 20 m ahead (`AiDriverController::back_out`), stops, takes

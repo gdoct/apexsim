@@ -51,7 +51,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 | A defence is one move to the inside before the braking: no covering the tow on a straight, no squeeze toward the edge, no judging how fast the car behind is coming. | Med | Low |
 | Room is left only for an AI attacker (`Tactic::Room` needs the rival's `Tactic::Attack`): a human alongside gets the per-tick dodge, and nothing reads a human's intent or judges a human's blocking. | Med | Med |
 | Backing out of a wall (`AiDriverController::back_out`) is a timed reverse toward the road ahead: no look behind for traffic, no wait for a gap before rejoining, and a car whose progress jumped to another leg (Zandvoort 887 m / 4282 m) steers for that leg. | Med | Med |
-| Mistakes under pressure are an overcooked braking zone only (`racecraft::MISTAKE_*`): no lock-up, spin, missed apex or missed shift. | Low | Low |
+| Mistakes come only under pressure (a car within 0.6 s behind, `racecraft::mistakes`), never from fatigue, a cold tyre or a wet patch, and none is a spin of the driver's own making (a lock-up or a wide line ends in one only through the physics). | Low | Low |
 | Pit strategy is thresholds (`pit::plan_stop`): no undercuts, no reaction to the cars around it, no mandatory stops, no fuel saving to skip a stop. | Med | Med |
 | No timed-race endgame: no splash-and-dash, no last-stint planning (`laps_left` does estimate from the clock for the pit plan). | Med | Low |
 | Fuel saving is lift-and-coast only, and only for cars that cannot refuel; no short-shifting to save fuel. | Low | Low |

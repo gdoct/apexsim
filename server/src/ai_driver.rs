@@ -596,8 +596,20 @@ impl<'a> AiDriverController<'a> {
         } else {
             throttle
         };
-        let brake = self.limit_brake_to_grip(state, brake);
+        // A lock-up (a mistake under pressure, `crate::racecraft`): the
+        // pedal to the floor wherever the plan brakes, past the grip.
+        let brake = if state.racecraft.lock_up_s > 0.0 && brake > 0.0 {
+            1.0
+        } else {
+            self.limit_brake_to_grip(state, brake)
+        };
         let gear = self.calculate_gear(state, skill_factor);
+        // A missed upshift: the gear is held, on the limiter.
+        let gear = if state.racecraft.missed_shift_s > 0.0 && gear > state.gear {
+            state.gear
+        } else {
+            gear
+        };
 
         // The flap opens whenever the rules allow it: the sim shuts it
         // again the moment the brake goes on.
@@ -864,7 +876,7 @@ impl<'a> AiDriverController<'a> {
                 * straightness
                 * self.lap_noise(d_line * WANDER_STRETCH, state.current_lap, WANDER_SALT)
         };
-        if racecraft.blend <= 0.0 && wander == 0.0 {
+        if racecraft.blend <= 0.0 && wander == 0.0 && racecraft.wide_m == 0.0 {
             return (0.0, 0.0, 0.0);
         }
 
@@ -885,7 +897,11 @@ impl<'a> AiDriverController<'a> {
             target_left + center.width_right_m - half
         };
         let wander = wander * (room / WANDER_EDGE_ROOM_M).clamp(0.0, 1.0);
-        let wanted = target_left + racecraft.blend * (racecraft.lane_m - target_left) + wander;
+        // A missed apex runs the car wide of its line (`wide_m`).
+        let wanted = target_left
+            + racecraft.blend * (racecraft.lane_m - target_left)
+            + wander
+            + racecraft.wide_m;
         let lo = (-center.width_right_m + half).min(target_left);
         let hi = (center.width_left_m - half).max(target_left);
         let left = if lo <= hi {
