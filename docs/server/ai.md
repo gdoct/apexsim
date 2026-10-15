@@ -162,7 +162,16 @@ off by `Racecraft::blend`; the controller holds it across the road
   weather (`pit::tyres_for_the_track` on `RoadState::mean_line_water`: off
   slicks at `SLICK_OFF_WATER` 0.25, off treaded tyres under
   `TREADED_OFF_WATER` 0.06, inter/wet swaps 0.15 either side of
-  `tyre_thermal::WET_FROM_WATER`; the gaps are hysteresis). Then
+  `tyre_thermal::WET_FROM_WATER`; the gaps are hysteresis), read against
+  the race (`CrossoverContext`, `GameSession::crossover_context`): no
+  stop for the weather within `CROSSOVER_STAY_OUT_LAPS` (2) of the flag
+  unless slicks hold over `SLICK_STAY_OUT_WATER` (0.4); none off treaded
+  tyres while the forecast (`LiveConditions::changes_after`) brings rain
+  back within `FORECAST_LAPS` (2) laps; and by a chance a lap of
+  `SLICK_GAMBLE_CHANCE` (0.5) times its aggressiveness, a driver keeps
+  slicks out in rain due to stop within a lap, or takes slicks early off
+  intermediates once the rain has stopped, none is due and the line holds
+  under `SLICK_GAMBLE_WATER` (0.14). Then
   `pit::plan_stop` on a `StopContext` (`GameSession::stop_context`: the
   laps left, its fuel, the laps on its tyres since
   `PitState::stint_start_laps`, the gap to the car ahead, a car behind

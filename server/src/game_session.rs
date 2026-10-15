@@ -126,6 +126,8 @@ fn with_road(mut track: TrackConfig, conditions: &SessionConditions) -> TrackCon
 /// The live sky of `session` over `track` (`crate::conditions`).
 /// Salt for an AI's strategy roll each lap (`pit::StopContext::roll`).
 const STRATEGY_SALT: u64 = 0x5747_5241_5445_4759;
+/// And for its nerve on the weather's tyres (`pit::CrossoverContext::roll`).
+const CROSSOVER_SALT: u64 = 0x4352_4f53_534f_5652;
 
 /// The laps a car has run in a race, the one it is on in part.
 fn laps_run(state: &CarState, total_m: f32) -> f32 {
@@ -4638,8 +4640,14 @@ impl GameSession {
                     .map_or(self.track_config.track_surface.water, |r| {
                         r.mean_line_water()
                     });
+                let crossover = self.crossover_context(state, laps_left);
                 let for_the_track = self.car_configs.get(&car_id).and_then(|c| {
-                    crate::pit::tyres_for_the_track(&c.tire_config, state.tyre_compound, line_water)
+                    crate::pit::tyres_for_the_track(
+                        &c.tire_config,
+                        state.tyre_compound,
+                        line_water,
+                        &crossover,
+                    )
                 });
                 if let Some(compound) = for_the_track.filter(|_| laps_left > 0) {
                     if let Some(state) = self.session.participants.get_mut(&ai_id) {
@@ -4775,6 +4783,49 @@ impl GameSession {
             input = crate::pit::run_up_input(lane, to_lane, state.speed_mps, input);
         }
         input
+    }
+
+    /// What an AI weighs a change of tyres for the weather against
+    /// (`pit::tyres_for_the_track`): the race left, the rain falling, the
+    /// forecast (`conditions::LiveConditions::changes_after`) and its
+    /// nerve.
+    fn crossover_context(&self, state: &CarState, laps_left: u32) -> crate::pit::CrossoverContext {
+        let rate = self.tick_rate_hz.max(1) as f32;
+        let now_s = self.session.current_tick as f32 / rate;
+        let wet = |w: Weather| w.is_wet() || w.is_snow();
+        let raining = self.sky.rain > 0.05 || self.sky.snowfall > 0.05;
+        let turn_in_s = self
+            .sky
+            .changes_after(now_s, 16)
+            .find(|c| wet(c.weather) != raining)
+            .map(|c| c.at_s - now_s);
+        let lap_s = state
+            .last_lap_time_ms
+            .filter(|ms| *ms > 0)
+            .map(|ms| ms as f32 / 1000.0)
+            .or_else(|| self.lap_seconds.get(&state.car_config_id).copied())
+            .unwrap_or(FALLBACK_LAP_SECONDS);
+        let (aggressiveness, roll) = match self.ai_profiles.get(&state.player_id) {
+            Some(profile) => {
+                let (hi, lo) = state.player_id.as_u64_pair();
+                (
+                    profile.aggressiveness,
+                    crate::wind::hash01(
+                        hi ^ lo.rotate_left(13),
+                        CROSSOVER_SALT ^ state.current_lap as u64,
+                    ),
+                )
+            }
+            None => (0.0, 1.0),
+        };
+        crate::pit::CrossoverContext {
+            laps_left,
+            raining,
+            turn_in_s,
+            lap_s,
+            aggressiveness,
+            roll,
+        }
     }
 
     /// What an AI weighs a stop against (`pit::plan_stop`): the race left,
