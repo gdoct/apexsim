@@ -117,6 +117,7 @@ private:
 	FString CatalogCarId;
 	float TyreOptimalC = 90.0f;
 	float TyreWindowC = 10.0f;
+	bool bCarbonBrakes = false;
 	float RedlineRpm = 0.0f;
 	float LimiterRpm = 0.0f;
 	FString CarName;

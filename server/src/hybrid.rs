@@ -276,6 +276,7 @@ pub fn charge_full(state: &mut CarState, config: &CarConfig) {
 pub fn new_stint(state: &mut CarState, config: &CarConfig) {
     state.ers_stint_kj = 0.0;
     state.stint_energy_used_mj = 0.0;
+    state.stint_energy_pct = config.fuel.stint_pct(0.0);
     publish(state, config);
 }
 

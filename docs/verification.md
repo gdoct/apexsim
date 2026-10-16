@@ -67,6 +67,13 @@ Events: `flatspot=FL` at two times some seconds apart, a `leak=FR`, a
 - The static camber on the wheels close up.
 - A rubbered start (`-ApexTrackRubber` above 0): the line dark from the
   first lap.
+- The brakes coloured by their material (`brake.material`,
+  `item.brake_state`: a steel GT3 cold under 100 °C and hot from 600, a
+  carbon prototype cold under 300 and hot from 900), and the disc wear and
+  stint energy data points (`item.disc_wear_pct`, `fuel.stint_pct`): no
+  shipped car names `[brakes] disc_wear_per_mj` or `[fuel] stint_energy_mj`,
+  so they need a custom car.toml with both. Only `ApexSim.Hud.Data.*` and
+  the UDP golden tests have run.
 - A part hanging before it comes off (`UpdateHangingParts`: the hinge edge,
   the 22° droop): it droops fore and aft, so from the side.
 

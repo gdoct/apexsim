@@ -405,6 +405,17 @@ impl FuelConfig {
             .map_or(f32::INFINITY, |limit| limit - used_mj)
     }
 
+    /// The stint's energy left as telemetry sends it: percent of
+    /// `stint_energy_mj`, 255 without one.
+    pub fn stint_pct(&self, used_mj: f32) -> u8 {
+        match self.stint_energy_mj {
+            Some(limit) if limit > 0.0 => {
+                ((1.0 - used_mj / limit) * 100.0).round().clamp(0.0, 100.0) as u8
+            }
+            _ => 255,
+        }
+    }
+
     /// Litres per second the engine burns making `crank_power_w` at the
     /// crank (combustion only: engine braking and a fuel cut burn none).
     pub fn burn_lps(&self, crank_power_w: f32) -> f32 {
@@ -1729,6 +1740,10 @@ pub struct CarState {
     /// with `brake_disc_wear_per_mj` (`crate::brakes`).
     #[serde(default)]
     pub brake_disc_wear_pct: [f32; 4],
+    /// Whether the discs wear at all (`brake_disc_wear_per_mj` > 0): what
+    /// tells telemetry's `disc_wear` from a car whose discs never do.
+    #[serde(default)]
+    pub brake_discs_wear: bool,
     /// The braking power the driven axle's tyres put down last tick, W:
     /// what the hybrid may recover under brake-by-wire (`crate::hybrid`).
     #[serde(default)]
@@ -1890,6 +1905,10 @@ pub struct CarState {
     /// car with `[fuel] stint_energy_mj` (`FuelConfig::stint_left_mj`).
     #[serde(default)]
     pub stint_energy_used_mj: f32,
+    /// The stint's energy left, percent, for telemetry (255: no
+    /// `stint_energy_mj`); `FuelConfig::stint_pct`, kept by the fuel step.
+    #[serde(default = "no_hybrid_pct")]
+    pub stint_energy_pct: u8,
     #[serde(default)]
     pub ers_override_kj: f32,
     #[serde(default = "no_hybrid_pct")]
@@ -2071,6 +2090,7 @@ impl CarState {
             brake_temp_c: [20.0; 4],
             brake_wear_pct: [0.0; 4],
             brake_disc_wear_pct: [0.0; 4],
+            brake_discs_wear: false,
             driven_axle_brake_w: 0.0,
             bbw_offset_n: [0.0; 2],
             ground_slope_f: 0.0,
@@ -2128,6 +2148,7 @@ impl CarState {
             ers_budget_pct: 255,
             ers_stint_kj: 0.0,
             stint_energy_used_mj: 0.0,
+            stint_energy_pct: 255,
             ers_override_kj: 0.0,
             ers_stint_pct: 255,
             turbo_spool: 0.0,

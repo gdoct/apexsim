@@ -388,6 +388,7 @@ void UApexCarContentSubsystem::ScanNow()
 				Row.EngineSound = Toml.Sound;
 				Row.TyreOptimalC = Toml.TyreOptimalC;
 				Row.TyreWindowC = Toml.TyreWindowC;
+				Row.BrakeMaterial = Toml.BrakeMaterial;
 				Row.Compounds = ApexCarToml::MakeCompounds(Toml);
 
 				Row.Wheels = ApexCarToml::MakeWheelSpec(Toml);

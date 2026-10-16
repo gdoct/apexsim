@@ -940,6 +940,19 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("and the rear left"), Car.WheelGround[2], ApexGround::Gravel);
 			TestEqual(TEXT("grass under the right"), Car.WheelGround[1], ApexGround::None);
 			TestTrue(TEXT("the fields before it still read"), FMath::IsNearlyEqual(Car.DamageAt2[2], -95.0f / 127.0f, 1e-4f));
+			TestTrue(TEXT("no disc wear from an older server"), Car.DiscWearPct[0] < 0.0f);
+			TestTrue(TEXT("no stint energy from an older server"), Car.StintEnergyPct < 0.0f);
+		}
+		FApexServerMessage Stint;
+		if (TestTrue(TEXT("a frame with the discs and the stint's energy decodes"),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactStint, Stint, Error))
+			&& TestEqual(TEXT("one car"), Stint.Telemetry.Cars.Num(), 1))
+		{
+			const FApexCarTelemetry& Car = Stint.Telemetry.Cars[0];
+			TestEqual(TEXT("FL disc half worn"), Car.DiscWearPct[0], 50.0f);
+			TestEqual(TEXT("RR disc new"), Car.DiscWearPct[3], 0.0f);
+			TestEqual(TEXT("40% of the stint left"), Car.StintEnergyPct, 40.0f);
+			TestEqual(TEXT("the ground before it still reads"), Car.WheelGround[2], ApexGround::Gravel);
 		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactFlatSpot, Spots, Error)
 			&& Spots.Telemetry.Cars.Num() == 1)

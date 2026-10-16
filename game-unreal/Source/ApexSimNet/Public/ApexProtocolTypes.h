@@ -2718,8 +2718,23 @@ struct APEXSIMNET_API FApexCarTelemetry
 
 	bool HasTyreEdges() const { return TyreInnerC[0] >= 0.0f; }
 
-	/** Each corner's pad and disc wear, percent (`brake_wear`); negative when unknown. */
+	/** Each corner's pad wear, percent (`brake_wear`); negative when unknown. */
 	float BrakeWearPct[4] = {-1.0f, -1.0f, -1.0f, -1.0f};
+
+	/**
+	 * Each corner's disc wear, percent, apart from its pads (`disc_wear`, on
+	 * a car with `[brakes] disc_wear_per_mj`); negative on a car whose discs
+	 * never wear, and from a server that predates it.
+	 */
+	float DiscWearPct[4] = {-1.0f, -1.0f, -1.0f, -1.0f};
+
+	/**
+	 * The whole car's stint energy left, percent of `[fuel] stint_energy_mj`
+	 * (`stint_energy_pct`); negative without the rule, and from a server
+	 * that predates it.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float StintEnergyPct = -1.0f;
 
 	/**
 	 * The tyre is sliding hard enough to smoke / is locked (`slide_flags`

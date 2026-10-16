@@ -292,7 +292,7 @@ Monza.
   garage or before the start.
 - **Stint energy** (`[fuel] stint_energy_mj`, the WEC's energy per stint; absent, no limit):
   `CarState::stint_energy_used_mj` counts the fuel's chemical energy burnt (43 MJ/kg) plus
-  what the motor deploys, reset with the hybrid's stint (`hybrid::new_stint`: a stop, a grid,
+  what the motor deploys (telemetry `stint_energy_pct`, the HUD's `fuel.stint_pct`), reset with the hybrid's stint (`hybrid::new_stint`: a stop, a grid,
   the garage). Spent (`FuelConfig::stint_left_mj`), the engine cuts as on a dry tank and the
   motor stops. Fills and refuels stop at what a stint can burn (`pit::stint_fuel_cap`); the
   AI's short-of-fuel check reads `pit::usable_fuel_liters`. No shipped car names it; it is not
@@ -358,7 +358,7 @@ planned in clean air. Test: `tests/slipstream_test.rs`.
   lost over the life, `WORN_OUT_FRICTION` at 100%; a stop changes pads past
   `PAD_CHANGE_PCT`.
 - **Discs** (`[brakes] disc_wear_per_mj`, percent per MJ absorbed; absent, discs never wear):
-  `brake_disc_wear_pct` by absorbed energy times the pads' wear scale, 1% faster per °C over
+  `brake_disc_wear_pct` (telemetry `disc_wear`, 255 on a car without the key; the HUD's `item.disc_wear_pct`) by absorbed energy times the pads' wear scale, 1% faster per °C over
   `disc_oxidation_c` (carbon 650, steel 600). A worn disc holds less heat
   (`disc_capacity_scale`, 40% less at 100%) so runs hotter; at 100% it cracks
   (`WORN_OUT_FRICTION`). A stop past `DISC_CHANGE_PCT` fits discs and pads (`DISC_CHANGE_S`,

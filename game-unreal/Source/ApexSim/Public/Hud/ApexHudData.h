@@ -85,6 +85,8 @@ struct APEXSIM_API FApexHudInputs
 	/** The local car's catalog row: its tyres' working window and its rev range (0 when unknown). */
 	float TyreOptimalC = 90.0f;
 	float TyreWindowC = 10.0f;
+	/** The local car's brakes are carbon (FApexCarCatalogRow::HasCarbonBrakes): the brakes' window is the material's. */
+	bool bCarbonBrakes = false;
 	float RedlineRpm = 0.0f;
 	float LimiterRpm = 0.0f;
 

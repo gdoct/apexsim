@@ -166,6 +166,8 @@ struct FApexCarToml
 	 */
 	float TyreOptimalC = 90.0f;
 	float TyreWindowC = 10.0f;
+	/** `[brakes] material`, lower-cased: "carbon" or "steel"; empty when the car takes its class's. */
+	FString BrakeMaterial;
 	/** The `[[tires.compound]]` tables, in order; empty when the car takes the defaults. */
 	TArray<FApexCarCompoundToml> Compounds;
 	FApexCarWheelsToml Wheels;

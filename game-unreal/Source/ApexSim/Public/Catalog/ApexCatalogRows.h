@@ -558,6 +558,27 @@ struct APEXSIM_API FApexCarCatalogRow : public FTableRowBase
 	float TyreWindowC = 10.0f;
 
 	/**
+	 * What the brakes are made of (car.toml `[brakes] material`): "carbon"
+	 * or "steel", empty when the car takes its class's (the server's
+	 * `BrakeMaterial::for_class`: carbon for the single-seaters and the
+	 * prototypes, steel for the rest). The HUD judges the brake
+	 * temperatures against the material's window.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Car")
+	FString BrakeMaterial;
+
+	/** The brakes are carbon, by the key or the class, as the server decides it. */
+	bool HasCarbonBrakes() const
+	{
+		if (!BrakeMaterial.IsEmpty())
+		{
+			return BrakeMaterial.Equals(TEXT("carbon"), ESearchCase::IgnoreCase);
+		}
+		return CarClass == TEXT("F1") || CarClass == TEXT("Hypercar") || CarClass == TEXT("LMP2")
+			|| CarClass == TEXT("LMP1") || CarClass == TEXT("LMP");
+	}
+
+	/**
 	 * The car's compounds in telemetry order (car.toml `[[tires.compound]]`,
 	 * else the five defaults): which index is a treaded tyre, for the look
 	 * of the wheels. Derived on every import, like the window.

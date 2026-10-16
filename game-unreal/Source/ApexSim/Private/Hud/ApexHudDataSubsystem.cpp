@@ -442,6 +442,7 @@ void UApexHudDataSubsystem::Refresh()
 			const bool bRow = Flow->GetCarCatalogRow(CatalogCarId, CarRow);
 			TyreOptimalC = bRow ? CarRow.TyreOptimalC : 90.0f;
 			TyreWindowC = bRow ? CarRow.TyreWindowC : 10.0f;
+			bCarbonBrakes = bRow && CarRow.HasCarbonBrakes();
 			RedlineRpm = bRow ? CarRow.EngineSound.RedlineRpm : 0.0f;
 			LimiterRpm = bRow ? CarRow.EngineSound.LimiterRpm : 0.0f;
 			CarName = bRow ? CarRow.DisplayName : FString();
@@ -449,6 +450,7 @@ void UApexHudDataSubsystem::Refresh()
 	}
 	In.TyreOptimalC = TyreOptimalC;
 	In.TyreWindowC = TyreWindowC;
+	In.bCarbonBrakes = bCarbonBrakes;
 	// The driver's car's compounds by name, from the garage's sheet. Watching
 	// another car the sheet is still the driver's, so the defaults apply.
 	In.CompoundNames = Net && !bSpectating && Net->GetCarSetupSheet().HasCompounds() ? &Net->GetCarSetupSheet().Compounds : nullptr;

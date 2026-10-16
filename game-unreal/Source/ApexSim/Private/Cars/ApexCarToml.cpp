@@ -438,6 +438,10 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 			if (Key == TEXT("optimal_temperature_c")) { Out.TyreOptimalC = FCString::Atof(*Value); }
 			else if (Key == TEXT("temperature_window_c")) { Out.TyreWindowC = FCString::Atof(*Value); }
 		}
+		else if (Table == TEXT("brakes"))
+		{
+			if (Key == TEXT("material")) { Out.BrakeMaterial = Value.ToLower(); }
+		}
 		else if (Table == TEXT("tires.compound") && Out.Compounds.Num() > 0)
 		{
 			FApexCarCompoundToml& C = Out.Compounds.Last();

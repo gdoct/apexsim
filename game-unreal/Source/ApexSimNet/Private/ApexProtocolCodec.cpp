@@ -1731,7 +1731,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 51;
+	constexpr int32 CompactCarFieldCount = 53;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -2419,6 +2419,48 @@ namespace
 				{
 					Out.WheelGround[Wheel] = static_cast<uint8>((Bits >> (2 * Wheel)) & 3u);
 				}
+				return true;
+			});
+		}
+		// The discs' wear (255 a disc that never wears) and the stint's energy
+		// left (255 without the rule), appended after the ground.
+		for (float& Wear : Out.DiscWearPct)
+		{
+			Wear = -1.0f;
+		}
+		Out.StintEnergyPct = -1.0f;
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				int32 Count = 0;
+				if (!Reader.ReadArrayHeader(Count))
+				{
+					return false;
+				}
+				for (int32 Corner = 0; Corner < Count; ++Corner)
+				{
+					if (!Reader.ReadUInt64(Raw))
+					{
+						return false;
+					}
+					if (Corner < 4)
+					{
+						Out.DiscWearPct[Corner] = Raw >= 255 ? -1.0f : static_cast<float>(Raw);
+					}
+				}
+				return true;
+			});
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.StintEnergyPct = Raw >= 255 ? -1.0f : static_cast<float>(Raw);
 				return true;
 			});
 		}

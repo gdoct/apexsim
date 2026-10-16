@@ -1267,6 +1267,7 @@ pub fn update_car_3d(
     // from a locked wheel, none of what the motor recovered), and the air
     // through its axle's duct takes it out; the pads wear by it.
     let air_c = track.track_surface.air_temperature_c;
+    state.brake_discs_wear = config.brake_disc_wear_per_mj > 0.0;
     for (i, w) in [&fl, &fr, &rl, &rr].into_iter().enumerate() {
         let carried = if brake_wheel[i] > 0.0 {
             (w.fx.abs() / brake_wheel[i]).min(1.0)
@@ -3733,6 +3734,7 @@ fn update_fuel_consumption(
     combustion_torque: f32,
     dt: f32,
 ) {
+    state.stint_energy_pct = config.fuel.stint_pct(state.stint_energy_used_mj);
     if state.fuel_liters <= 0.0 || config.fuel.stint_left_mj(state.stint_energy_used_mj) <= 0.0 {
         state.fuel_consumption_lps = 0.0;
         return;

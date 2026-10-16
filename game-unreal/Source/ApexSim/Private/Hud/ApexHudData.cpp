@@ -41,17 +41,23 @@ namespace
 	}
 
 	/**
-	 * A brake's working range is its material's, which the client does not
-	 * know, so it is judged from how hot it runs: carbon works from 300 °C,
-	 * steel below that, and both are fading by 850 °C.
+	 * A brake's working range is its material's (server brakes.rs
+	 * `BrakeMaterial::friction`): carbon grips fully from 400 to 900 °C and
+	 * is well down by 300, so it is cold under 300, hot past its window and
+	 * over once the fade bites at 1050; steel is near full from cold, full
+	 * from 200 to 600, fading past 700 and half gone by 850.
 	 */
-	const TCHAR* HudBrakeState(float TempC)
+	const TCHAR* HudBrakeState(float TempC, bool bCarbon)
 	{
-		return TempC < 0.0f ? TEXT("unknown")
-			: TempC >= 1000.0f ? TEXT("over")
-			: TempC >= 850.0f ? TEXT("hot")
-			: TempC < 150.0f ? TEXT("cold")
-			: TEXT("ok");
+		if (TempC < 0.0f)
+		{
+			return TEXT("unknown");
+		}
+		if (bCarbon)
+		{
+			return TempC >= 1050.0f ? TEXT("over") : TempC >= 900.0f ? TEXT("hot") : TempC < 300.0f ? TEXT("cold") : TEXT("ok");
+		}
+		return TempC >= 750.0f ? TEXT("over") : TempC >= 600.0f ? TEXT("hot") : TempC < 100.0f ? TEXT("cold") : TEXT("ok");
 	}
 
 	/** The engine protects itself past 112 °C (server engine_heat.rs). */
@@ -302,7 +308,7 @@ const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
 			TEXT("is_current")}},
 		{TEXT("tyres"), {TEXT("key"), TEXT("name"), TEXT("temp_c"), TEXT("pressure_kpa"), TEXT("wear_pct"),
 			TEXT("brake_c"), TEXT("state"), TEXT("brake_state"), TEXT("inner_c"), TEXT("outer_c"), TEXT("brake_wear_pct"),
-			TEXT("sliding"), TEXT("locked"), TEXT("flat"), TEXT("leak"), TEXT("puncture"), TEXT("water_pct")}},
+			TEXT("disc_wear_pct"), TEXT("sliding"), TEXT("locked"), TEXT("flat"), TEXT("leak"), TEXT("puncture"), TEXT("water_pct")}},
 		{TEXT("damage"), {TEXT("key"), TEXT("name"), TEXT("pct"), TEXT("flash")}},
 	};
 	return Fields;
@@ -1152,6 +1158,9 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("fuel.per_lap"), Memory.FuelPerLap > 0.0f && Local ? FApexHudValue::Of(Memory.FuelPerLap) : FApexHudValue());
 		Out.Set(TEXT("fuel.laps"), Laps);
 		Out.Set(TEXT("fuel.state"), State);
+		// The whole car's energy per stint (the WEC's rule), fuel and motor
+		// together: only on a car with the rule.
+		Out.Set(TEXT("fuel.stint_pct"), Local && Local->StintEnergyPct >= 0.0f ? FApexHudValue::Of(Local->StintEnergyPct) : FApexHudValue());
 	}
 
 	// --- Hybrid -----------------------------------------------------------------
@@ -1229,6 +1238,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("tyre.compound"), Letter.IsEmpty() ? FApexHudValue() : FApexHudValue::Of(Letter));
 		Out.Set(TEXT("tyre.optimal_c"), In.TyreOptimalC);
 		Out.Set(TEXT("tyre.window_c"), In.TyreWindowC);
+		Out.Set(TEXT("brake.material"), In.bCarbonBrakes ? TEXT("carbon") : TEXT("steel"));
 
 		TArray<FApexHudRecord>& List = Out.Lists.FindOrAdd(TEXT("tyres"));
 		List.Reset(4);
@@ -1241,6 +1251,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			const float InnerC = Local && Local->HasTyreEdges() ? Local->TyreInnerC[Tyre] : -1.0f;
 			const float OuterC = Local && Local->HasTyreEdges() ? Local->TyreOuterC[Tyre] : -1.0f;
 			const float BrakeWear = Local ? Local->BrakeWearPct[Tyre] : -1.0f;
+			const float DiscWear = Local ? Local->DiscWearPct[Tyre] : -1.0f;
 
 			FApexHudRecord& Row = List.AddDefaulted_GetRef();
 			Row.Add(TEXT("key"), FApexHudValue::Of(HudTyreKeys[Tyre]));
@@ -1250,13 +1261,14 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			Row.Add(TEXT("wear_pct"), HudKnown(Wear, Wear >= 0.0f));
 			Row.Add(TEXT("brake_c"), HudKnown(BrakeC, BrakeC >= 0.0f));
 			Row.Add(TEXT("state"), FApexHudValue::Of(HudTyreState(TempC, In.TyreOptimalC, In.TyreWindowC)));
-			Row.Add(TEXT("brake_state"), FApexHudValue::Of(HudBrakeState(BrakeC)));
+			Row.Add(TEXT("brake_state"), FApexHudValue::Of(HudBrakeState(BrakeC, In.bCarbonBrakes)));
 			// The tread's shoulders (temp_c is the mean of the three zones)
 			// and the pads' wear, from a server that sends them; whether the
 			// tyre is smoking or locked right now.
 			Row.Add(TEXT("inner_c"), HudKnown(InnerC, InnerC >= 0.0f));
 			Row.Add(TEXT("outer_c"), HudKnown(OuterC, OuterC >= 0.0f));
 			Row.Add(TEXT("brake_wear_pct"), HudKnown(BrakeWear, BrakeWear >= 0.0f));
+			Row.Add(TEXT("disc_wear_pct"), HudKnown(DiscWear, DiscWear >= 0.0f));
 			Row.Add(TEXT("sliding"), FApexHudValue::Of(Local && Local->bTyreSliding[Tyre]));
 			Row.Add(TEXT("locked"), FApexHudValue::Of(Local && Local->bTyreLocked[Tyre]));
 			// A puncture as the server calls it (not read off the pressure):

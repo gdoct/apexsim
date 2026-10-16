@@ -120,6 +120,16 @@ the same `ApexProps` code.
 
 ## P3: nice to have
 
+### 17. HUD data on a stream
+
+- The spectator stream's `CarExtra` row does not carry `disc_wear` or
+  `stint_energy_pct`, so a watcher's HUD shows `item.disc_wear_pct` and
+  `fuel.stint_pct` as *null* while the driver's own shows them; a replay
+  loses them too. Append both to the row (spectator.rs `CarExtra::write`
+  / `read`, the client's `ApexSpectatorStream.cpp`).
+
+**Check:** `spectator_wire_format` and `ApexSim.Net.Spectator.*`.
+
 ### 11. Content tooling
 
 - **(bug, not reproduced)** On 2026-10-14, with most showcases stale, an

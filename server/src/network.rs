@@ -1278,6 +1278,24 @@ pub struct CompactCarState {
     /// `damage_at2`; 0 from an older server.
     #[serde(default)]
     pub ground: u8,
+    /// Each disc's wear, percent, FL FR RL RR, apart from its pads
+    /// (`CarState::brake_disc_wear_pct`, on a car with `[brakes]
+    /// disc_wear_per_mj`); [`DISC_WEAR_NONE`] on a car whose discs never
+    /// wear, and from an older server. Appended after `ground`.
+    #[serde(default = "no_disc_wear")]
+    pub disc_wear: [u8; 4],
+    /// The whole car's stint energy left, percent of `[fuel]
+    /// stint_energy_mj` (`CarState::stint_energy_pct`); 255 without the
+    /// rule, and from an older server. Appended after `disc_wear`.
+    #[serde(default = "no_hybrid")]
+    pub stint_energy_pct: u8,
+}
+
+/// `disc_wear` for discs that do not wear.
+pub const DISC_WEAR_NONE: u8 = 255;
+
+fn no_disc_wear() -> [u8; 4] {
+    [DISC_WEAR_NONE; 4]
 }
 
 fn no_second_dents() -> [i8; 4] {
@@ -1665,6 +1683,14 @@ impl CompactCarState {
                 .map(|t| (t.blister.clamp(0.0, 1.0) * 100.0).round() as u8),
             damage_at2: state.damage.hit_at.to_wire_second(),
             ground: pack_ground(state.wheel_ground),
+            disc_wear: if state.brake_discs_wear {
+                state
+                    .brake_disc_wear_pct
+                    .map(|w| w.round().clamp(0.0, 100.0) as u8)
+            } else {
+                no_disc_wear()
+            },
+            stint_energy_pct: state.stint_energy_pct,
         }
     }
 }
@@ -3163,6 +3189,11 @@ mod tests {
         state.tires.rear_left.blister = 0.5;
         // Off into a gravel trap on the left, the right still on the grass.
         state.wheel_ground = [GROUND_GRAVEL, 0, GROUND_GRAVEL, 0];
+        // Discs that wear, the front left half gone; 40% of the stint's
+        // energy left.
+        state.brake_discs_wear = true;
+        state.brake_disc_wear_pct = [50.4, 12.0, 3.0, 0.0];
+        state.stint_energy_pct = 40;
 
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,
@@ -3175,7 +3206,7 @@ mod tests {
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
-            "S_TelemetryCompactGround: {}",
+            "S_TelemetryCompactStint: {}",
             bytes
                 .iter()
                 .map(|b| format!("0x{:02X}", b))
@@ -3183,10 +3214,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 51-field array: 0xDC 0x00 0x33 is the array-16 header.
+        // The car is a 53-field array: 0xDC 0x00 0x35 is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x33]),
-            "CompactCarState must stay 51 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x35]),
+            "CompactCarState must stay 53 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -3229,6 +3260,8 @@ mod tests {
                     "a second dent on the left flank only"
                 );
                 assert_eq!(car.ground, 0b0001_0001, "gravel under the left wheels");
+                assert_eq!(car.disc_wear, [50, 12, 3, 0], "the discs, rounded");
+                assert_eq!(car.stint_energy_pct, 40);
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);
             }

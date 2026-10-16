@@ -436,6 +436,7 @@ the car is in or, between corners, the next one; all *null* (and
 | `fuel.per_lap` | what the last whole lap burnt (*null* until one is measured) |
 | `fuel.laps` | laps of fuel at that rate |
 | `fuel.state` | `ok`, `short` (will not reach the flag), `critical` (under a lap), `empty`, `unknown` |
+| `fuel.stint_pct` | the whole car's stint energy left, fuel and motor together, % of `[fuel] stint_energy_mj` (*null* on a car without the rule, or from an older server) |
 | `ers.present` | the car has a hybrid |
 | `ers.charge_pct` | battery charge, % |
 | `ers.lap_pct` | deployment budget left this lap, % (*null* without a budget) |
@@ -459,6 +460,7 @@ the car is in or, between corners, the next one; all *null* (and
 | `tyre.age_laps` | laps the set has done: since the start, or since the last stop the HUD saw (*null* when the compound is unknown) |
 | `tyre.wear_max_pct` | the most worn of the four, % |
 | `tyre.optimal_c`, `tyre.window_c` | the car's working window: optimal ± window |
+| `brake.material` | what the brakes are made of, `carbon` or `steel` (the car's `[brakes] material`, else its class's): what `item.brake_state` judges the temperature against |
 | `tyre.<fl|fr|rl|rr>.<field>` | each tyre's figures by name, with the fields of the `tyres` list: `tyre.fl.temp_c`, `tyre.rr.wear_pct`, ... |
 | `damage.known` | the server sends damage |
 | `damage.level` | the session's damage rule: `off`, `reduced`, `full`, `visual` (drawn, costs nothing) |
@@ -554,9 +556,10 @@ finished).
 | `item.water_pct` | water under the tyre, percent of what a downpour leaves on a flat road, over 100 standing water (*null* from a server that sends only the car's one figure) |
 | `item.brake_c` | the brake on that corner |
 | `item.state` | the tread against the window: `cold`, `ok`, `hot`, `over` (15 °C past it), `unknown` |
-| `item.brake_state` | `cold` (under 150), `ok`, `hot` (850+), `over` (1000+), `unknown` |
+| `item.brake_state` | the brake against its material's window: carbon `cold` under 300, `hot` from 900, `over` from 1050; steel `cold` under 100, `hot` from 600, `over` from 750; `unknown` |
 | `item.inner_c`, `item.outer_c` | the tread's shoulders; the middle is `3 * temp_c - inner_c - outer_c` |
-| `item.brake_wear_pct` | pad and disc wear on that corner, % |
+| `item.brake_wear_pct` | pad wear on that corner, % |
+| `item.disc_wear_pct` | disc wear on that corner, % (*null* on a car whose discs never wear: no `[brakes] disc_wear_per_mj`, or an older server) |
 | `item.sliding` | sliding hard enough to smoke |
 | `item.locked` | the wheel is locked under braking |
 

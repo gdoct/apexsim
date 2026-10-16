@@ -478,6 +478,9 @@ bool FApexCarTomlClientTablesTest::RunTest(const FString& Parameters)
 		"optimal_temperature_c = 105.0   # an endurance compound\n"
 		"temperature_window_c = 13.0\n"
 		"blanket_temperature_c = 70.0\n"
+		"[brakes]\n"
+		"material = \"Carbon\"\n"
+		"disc_wear_per_mj = 0.02\n"
 		"[damage]\n"
 		"engine_m = 1.15   # front-mid\n");
 	FApexCarToml Car;
@@ -492,11 +495,13 @@ bool FApexCarTomlClientTablesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("eye"), Car.Cockpit.Eye, FVector(10.0, -20.0, 95.5));
 	TestEqual(TEXT("tyre window middle"), Car.TyreOptimalC, 105.0f);
 	TestEqual(TEXT("tyre window half-width"), Car.TyreWindowC, 13.0f);
+	TestEqual(TEXT("brake material, lower-cased"), Car.BrakeMaterial, FString(TEXT("carbon")));
 	TestTrue(TEXT("the engine's place"), Car.bHasEngineM && FMath::IsNearlyEqual(Car.EngineM, 1.15f));
 
 	FApexCarToml Plain;
 	TestTrue(TEXT("no tables parses"), ApexCarToml::Parse(TEXT("id = \"a\"\nname = \"b\"\n"), Plain, Error));
 	TestFalse(TEXT("no preview"), Plain.Preview.bPresent);
+	TestTrue(TEXT("no brake material"), Plain.BrakeMaterial.IsEmpty());
 	TestFalse(TEXT("no cockpit"), Plain.bHasCockpit);
 	TestEqual(TEXT("the server's default window"), Plain.TyreOptimalC, 90.0f);
 	TestFalse(TEXT("no engine place: smoke from the tail"), Plain.bHasEngineM);
