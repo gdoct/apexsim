@@ -26,7 +26,9 @@
 //!   car closing in the tow), held to the apex, and only one a corner. A
 //!   car already alongside is too late to block.
 //! - **Room**: with an attacker alongside, the driver being passed takes
-//!   the lane beside it and holds it, rather than turning in on it.
+//!   the lane beside it and holds it, rather than turning in on it. A
+//!   player's car has no tactic to read: it is given room by where it is,
+//!   half a car alongside on the inside into a corner.
 //! - **Yield**: about to be lapped, the driver moves off the line toward
 //!   the outside of the next corner and lifts a little.
 //! - **Recovery**: stuck against a wall or off the road at a crawl, the
@@ -110,6 +112,9 @@ const TURN_IN_OVERLAP: f32 = 0.5;
 /// Giving up a pass alongside: the lift, for this long, to drop in behind.
 const TUCK_S: f32 = 1.5;
 const TUCK_PACE: f32 = 0.93;
+/// A player's car counts as beside us, not behind in our lane, when its
+/// middle is within this of a car's width across from ours, m.
+const HUMAN_BESIDE_SLACK_M: f32 = 0.4;
 /// The car leaving room lifts this much while the other is level or ahead.
 const ROOM_PACE: f32 = 0.98;
 /// A defender sees a car this close behind (s, plus [`CLOSE_EXTRA_M`]).
@@ -392,6 +397,10 @@ pub struct Rival {
     /// Its racecraft's lane and how far onto it the car is.
     pub lane_m: f32,
     pub blend: f32,
+    /// Driven by a player: no tactic to read, so its overlap is judged
+    /// from where it is ([`Rival::of`] leaves it false; the session sets
+    /// it for every car without an AI profile).
+    pub human: bool,
 }
 
 impl Rival {
@@ -410,6 +419,7 @@ impl Rival {
             rival: state.racecraft.rival,
             lane_m: state.racecraft.lane_m,
             blend: state.racecraft.blend,
+            human: false,
         }
     }
 }
@@ -820,8 +830,20 @@ pub fn decide(
                 // and this is where it is.
                 let theirs = o.left_m + o.blend.clamp(0.0, 1.0) * (o.lane_m - o.left_m);
                 let side = if rc.lane_m >= theirs { 1.0 } else { -1.0 };
-                rc.lane_m =
-                    clamp_lane(theirs + side * (0.5 * (me.width_m + o.width_m) + SIDE_ROOM_M));
+                let beside = theirs + side * (0.5 * (me.width_m + o.width_m) + SIDE_ROOM_M);
+                // A player has no held lane, only where it is: move away
+                // as it comes over, never follow it back across (two cars
+                // tracking each other walk off the road).
+                let beside = if o.human {
+                    if side > 0.0 {
+                        beside.max(rc.lane_m)
+                    } else {
+                        beside.min(rc.lane_m)
+                    }
+                } else {
+                    beside
+                };
+                rc.lane_m = clamp_lane(beside);
                 // Level or behind it: the corner is its, so do not race it
                 // out of the corner side by side.
                 if rel > -0.5 * reach(o) {
@@ -993,6 +1015,24 @@ fn start_tactic(
             && o.tactic == Tactic::Attack
             && o.rival == Some(me.id)
             && ahead_of(me.progress_m, o.progress_m, ctx.total_m).abs() < reach(o) + 0.5
+    });
+    // A player alongside has no tactic to read: judged by where it is.
+    // Beside us (not nose to tail in our lane), with at least half a car
+    // alongside, nearing a corner, and on its inside or ahead: the corner
+    // is its, as it would be an AI attacker's.
+    let near_corner = corner.brake_in_m <= DEFEND_FROM_M + DEFEND_REACH_S * speed;
+    let alongside = alongside.or_else(|| {
+        field.iter().find(|o| {
+            let rel = ahead_of(me.progress_m, o.progress_m, ctx.total_m);
+            let across = o.left_m - me.left_m;
+            o.racing
+                && o.human
+                && near_corner
+                && rel < reach(o) + 0.5
+                && rel > -TURN_IN_OVERLAP * o.length_m
+                && across.abs() > 0.5 * (me.width_m + o.width_m) - HUMAN_BESIDE_SLACK_M
+                && (rel > 0.0 || across * corner.inside > 0.0)
+        })
     });
     if let Some(o) = alongside {
         let theirs = o.left_m + o.blend.clamp(0.0, 1.0) * (o.lane_m - o.left_m);
@@ -1478,7 +1518,7 @@ mod tests {
         }
     }
 
-    fn decide_on_square(state: &CarState, field: &[Rival]) -> Racecraft {
+    fn decide_on_square(state: &CarState, field: &[Rival], human: bool) -> Racecraft {
         let track = TrackConfig::default();
         let ctx = Context {
             track: &track,
@@ -1490,7 +1530,7 @@ mod tests {
         let speeds = square_profile();
         let me = Rival::of(state, 4.5, 2.0, ctx.total_m);
         let mut all = vec![me];
-        all.extend_from_slice(field);
+        all.extend(field.iter().map(|o| Rival { human, ..*o }));
         decide(state, &me, &bold, Some(&speeds), &all, &ctx)
     }
 
@@ -1509,9 +1549,9 @@ mod tests {
     fn a_defence_judges_how_fast_the_car_behind_is_coming() {
         let state = on_the_square(defender_id(), 150.0);
         let me = Rival::of(&state, 4.5, 2.0, 1600.0);
-        let slow = decide_on_square(&state, &[chaser(&me, 20.0, 1.0, 0.0)]);
+        let slow = decide_on_square(&state, &[chaser(&me, 20.0, 1.0, 0.0)], false);
         assert_eq!(slow.tactic, Tactic::Race, "{slow:?}");
-        let fast = decide_on_square(&state, &[chaser(&me, 20.0, 8.0, 0.0)]);
+        let fast = decide_on_square(&state, &[chaser(&me, 20.0, 8.0, 0.0)], false);
         assert_eq!(fast.tactic, Tactic::Defend, "{fast:?}");
         assert!(
             fast.lane_m > 2.0,
@@ -1525,7 +1565,7 @@ mod tests {
             rival: None,
             ..fast
         };
-        let second = decide_on_square(&again, &[chaser(&me, 20.0, 8.0, 0.0)]);
+        let second = decide_on_square(&again, &[chaser(&me, 20.0, 8.0, 0.0)], false);
         assert_eq!(second.tactic, Tactic::Race, "{second:?}");
     }
 
@@ -1536,12 +1576,62 @@ mod tests {
     fn the_tow_is_covered_on_the_straight() {
         let state = on_the_square(defender_id(), 20.0);
         let me = Rival::of(&state, 4.5, 2.0, 1600.0);
-        let towing = decide_on_square(&state, &[chaser(&me, 15.0, 6.0, 0.0)]);
+        let towing = decide_on_square(&state, &[chaser(&me, 15.0, 6.0, 0.0)], false);
         assert_eq!(towing.tactic, Tactic::Defend, "{towing:?}");
-        let out = decide_on_square(&state, &[chaser(&me, 15.0, 6.0, -2.0)]);
+        let out = decide_on_square(&state, &[chaser(&me, 15.0, 6.0, -2.0)], false);
         assert_eq!(out.tactic, Tactic::Race, "{out:?}");
-        let late = decide_on_square(&state, &[chaser(&me, 5.0, 6.0, 0.0)]);
+        let late = decide_on_square(&state, &[chaser(&me, 5.0, 6.0, 0.0)], false);
         assert_eq!(late.tactic, Tactic::Race, "{late:?}");
+    }
+
+    /// A player alongside on the inside into a corner gets room, as an AI
+    /// attacker would, and the room only ever widens as it comes over.
+    #[test]
+    fn room_is_left_for_a_player_alongside() {
+        let state = on_the_square(7, 250.0);
+        let me = Rival::of(&state, 4.5, 2.0, 1600.0);
+        let player = Rival {
+            id: uuid::Uuid::from_u64_pair(42, 42),
+            left_m: 2.5,
+            racing: true,
+            ..me
+        };
+        let ai = decide_on_square(&state, &[player], false);
+        assert_eq!(ai.tactic, Tactic::Race, "an AI not attacking: {ai:?}");
+        let rc = decide_on_square(&state, &[player], true);
+        assert_eq!(rc.tactic, Tactic::Room, "{rc:?}");
+        assert!(rc.lane_m < -0.5, "to the outside: {rc:?}");
+
+        let mut held = state.clone();
+        held.racecraft = rc;
+        let away = decide_on_square(
+            &held,
+            &[Rival {
+                left_m: 3.5,
+                ..player
+            }],
+            true,
+        );
+        assert_eq!(away.lane_m, rc.lane_m, "not followed back across");
+        let over = decide_on_square(
+            &held,
+            &[Rival {
+                left_m: 1.5,
+                ..player
+            }],
+            true,
+        );
+        assert!(over.lane_m < rc.lane_m, "{over:?}");
+
+        // Behind us in our lane is no claim on the corner.
+        let behind = Rival {
+            progress_m: me.progress_m - 5.0,
+            pos: (me.pos.0 - 5.0, 0.0),
+            left_m: 0.0,
+            ..player
+        };
+        let rc = decide_on_square(&state, &[behind], true);
+        assert_ne!(rc.tactic, Tactic::Room, "{rc:?}");
     }
 
     #[test]

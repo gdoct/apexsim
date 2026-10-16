@@ -4228,12 +4228,10 @@ impl GameSession {
             .values()
             .filter_map(|state| {
                 let config = self.car_configs.get(&state.car_config_id)?;
-                Some(crate::racecraft::Rival::of(
-                    state,
-                    config.length_m,
-                    config.width_m,
-                    total,
-                ))
+                Some(crate::racecraft::Rival {
+                    human: !self.ai_profiles.contains_key(&state.player_id),
+                    ..crate::racecraft::Rival::of(state, config.length_m, config.width_m, total)
+                })
             })
             .collect();
         let decided: Vec<(PlayerId, crate::racecraft::Racecraft)> = field

@@ -153,8 +153,15 @@ next `Brake` phase, its slowest point, the hand at the apex).
   `TOW_COVER_CLOSING_MPS` (2 m/s) and far enough back
   (`TOW_COVER_LEAD_S`, 1.2 s at that closing) that the move is made before
   it arrives. A car already pulled out of the wake is not moved on.
-- **Room**: with an AI attacker alongside, the passed car takes the lane
-  beside it and lifts 2% until clear.
+- **Room**: with an attacker alongside, the passed car takes the lane
+  beside it and lifts 2% until clear. An AI attacker is read by its
+  tactic; a player (`Rival::human`, any car without an AI profile) by
+  where it is: near a corner, beside the AI (not nose to tail in its
+  lane, `HUMAN_BESIDE_SLACK_M`), at least half a car alongside
+  (`TURN_IN_OVERLAP`), and on the corner's inside or ahead. A player has
+  no held lane, so the room is kept beside where it is and only ever
+  widens: the AI moves away as the player comes over and never follows
+  it back across.
 - **Yield**: about to be lapped, it moves toward the outside and lifts 3%.
 - **Mistakes**: with a car within 0.6 s behind, a driver now and then
   gets a corner wrong, by its inconsistency (`MISTAKE_CHANCE`, one roll a

@@ -306,6 +306,11 @@ Mandarina Bay.
 
 **Racing the AI.** A race against a mixed field at Monza and Zandvoort.
 
+- The room an AI leaves a player alongside into a corner
+  ([server/ai.md](server/ai.md), Room): half a car alongside on the inside
+  and the AI takes the outside lane and lifts, widening if the player
+  comes over. Only the unit test `room_is_left_for_a_player_alongside`
+  has run; the AI survey has no player in it.
 - An AI defending against a player: one move to the inside, early on the
   straight when the player is closing in its tow, never a second one.
 
