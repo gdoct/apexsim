@@ -270,6 +270,18 @@ pub struct PitState {
     /// New discs (and pads) go on at this stop.
     #[serde(default)]
     pub service_discs: bool,
+    /// A new set of tyres goes on at this stop (not on a splash, or when the
+    /// driver's plan keeps them).
+    #[serde(default)]
+    pub service_tyres: bool,
+    /// The pad set new pads are (`PitPlan::pad_set`), when the driver
+    /// chose one.
+    #[serde(default)]
+    pub service_pad_set: Option<i8>,
+    /// The driver has asked to box this lap (`PitPlan::box_this_lap`),
+    /// until the stop is made.
+    #[serde(default)]
+    pub requested: bool,
     /// The car's own box (0-based), dealt the first time the car is placed
     /// against the lane: the lowest box no other car holds.
     #[serde(default)]
@@ -310,8 +322,8 @@ const MIN_REPAIR_PERCENT: f32 = 0.5;
 /// pads included when the old ones are past `brakes::PAD_CHANGE_PCT` and
 /// new discs (with pads) when the old ones are past
 /// `brakes::DISC_CHANGE_PCT` (their time is counted in `repair_s`: the
-/// client's panel knows three parts). A part the stop does not need takes
-/// 0 s.
+/// client's panel knows three parts), or as the driver's [`PitPlan`] says.
+/// A part the stop does not do takes 0 s.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ServicePlan {
     pub tyres_s: f32,
@@ -336,6 +348,61 @@ pub fn refuelling_allowed(config: &CarConfig) -> bool {
     config.class != "F1"
 }
 
+/// A driver's own orders for their next stop (`ClientMessage::SetPitPlan`),
+/// sent at any time in a session and kept until replaced. Every field at
+/// its default is the stop as the crew makes it unasked (the setup's next
+/// compound, fuel to need, everything repaired, pads past
+/// `brakes::PAD_CHANGE_PCT`), so a driver who never sends a plan is
+/// serviced as before. Each field is left off the wire at its default.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+pub struct PitPlan {
+    /// The tyres stay on.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub keep_tyres: bool,
+    /// The set going on, an index into the car's compounds
+    /// (`TireConfig::compounds`, clamped to the list); absent for the
+    /// setup's next compound (`CarSetup::compound_index_for`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compound: Option<u8>,
+    /// Litres to put in (0 for none; no more than the tank or the stint's
+    /// energy holds, and none where the rules forbid refuelling); absent
+    /// for what the rest of the run needs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fuel_l: Option<f32>,
+    /// The damage is left as it is.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub no_repair: bool,
+    /// New brake pads: `Some(true)` always, `Some(false)` never (the discs
+    /// stay on too); absent when the old ones are past
+    /// `brakes::PAD_CHANGE_PCT` (or the discs past `DISC_CHANGE_PCT`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pads: Option<bool>,
+    /// The set new pads are (the setup's `brake_pads` click: -1 endurance,
+    /// 0 standard, +1 sprint); fitting them moves the setup's knob to it.
+    /// Absent for the set the setup names.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pad_set: Option<i8>,
+    /// The driver asks to box this lap: reported back in telemetry
+    /// (`network::PIT_FLAG_REQUESTED`) until the stop is made or the
+    /// request is withdrawn.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub box_this_lap: bool,
+}
+
+impl PitPlan {
+    /// The plan with every number in range: the fuel finite and not
+    /// negative, the pad set one of the three.
+    pub fn clamp(self) -> Self {
+        Self {
+            fuel_l: self
+                .fuel_l
+                .map(|l| if l.is_finite() { l.max(0.0) } else { 0.0 }),
+            pad_set: self.pad_set.map(|c| c.clamp(-1, 1)),
+            ..self
+        }
+    }
+}
+
 /// The stop for a car that wants `fuel_l` more fuel and carries
 /// `damage_percent` of damage (summed over its zones), its most worn brake
 /// `brake_wear_pct` gone and its most worn disc `disc_wear_pct`.
@@ -346,19 +413,49 @@ pub fn plan_service(
     brake_wear_pct: f32,
     disc_wear_pct: f32,
 ) -> ServicePlan {
-    let tyres_s = if config.class == "F1" {
+    plan_service_for(
+        config,
+        fuel_l,
+        damage_percent,
+        brake_wear_pct,
+        disc_wear_pct,
+        &PitPlan::default(),
+    )
+}
+
+/// [`plan_service`] on a driver's orders: no tyre change when they keep
+/// the set, no repairs when they say so, pads as they ask. The fuel is
+/// `fuel_l` either way (the caller reads the plan's litres).
+pub fn plan_service_for(
+    config: &CarConfig,
+    fuel_l: f32,
+    damage_percent: f32,
+    brake_wear_pct: f32,
+    disc_wear_pct: f32,
+    plan: &PitPlan,
+) -> ServicePlan {
+    let tyres_s = if plan.keep_tyres {
+        0.0
+    } else if config.class == "F1" {
         F1_TYRE_CHANGE_S
     } else {
         TYRE_CHANGE_S
     };
     let fuel_l = if fuel_l >= MIN_REFUEL_L { fuel_l } else { 0.0 };
-    let repair_pct = if damage_percent >= MIN_REPAIR_PERCENT {
+    let repair_pct = if damage_percent >= MIN_REPAIR_PERCENT && !plan.no_repair {
         damage_percent
     } else {
         0.0
     };
-    let discs = disc_wear_pct >= crate::brakes::DISC_CHANGE_PCT;
-    let pads = discs || brake_wear_pct >= crate::brakes::PAD_CHANGE_PCT;
+    let worn_discs = disc_wear_pct >= crate::brakes::DISC_CHANGE_PCT;
+    let (discs, pads) = match plan.pads {
+        Some(false) => (false, false),
+        Some(true) => (worn_discs, true),
+        None => (
+            worn_discs,
+            worn_discs || brake_wear_pct >= crate::brakes::PAD_CHANGE_PCT,
+        ),
+    };
     let brakes_s = if discs {
         crate::brakes::DISC_CHANGE_S
     } else if pads {
@@ -1279,6 +1376,46 @@ mod tests {
         let discs = plan_service(&gt, 0.0, 0.0, 10.0, 75.0);
         assert!(discs.discs && discs.pads);
         assert!((discs.repair_s - crate::brakes::DISC_CHANGE_S).abs() < 1e-4);
+    }
+
+    #[test]
+    fn a_drivers_plan_decides_what_the_crew_does_and_how_long_it_takes() {
+        let gt = CarConfig {
+            class: "GT3".into(),
+            ..CarConfig::default()
+        };
+        // No plan is the crew's own stop.
+        assert_eq!(
+            plan_service_for(&gt, 20.0, 30.0, 70.0, 0.0, &PitPlan::default()),
+            plan_service(&gt, 20.0, 30.0, 70.0, 0.0)
+        );
+        // Tyres kept, nothing repaired, pads kept: the fuel alone.
+        let fuel_only = PitPlan {
+            keep_tyres: true,
+            no_repair: true,
+            pads: Some(false),
+            ..PitPlan::default()
+        };
+        let s = plan_service_for(&gt, 5.0, 30.0, 70.0, 75.0, &fuel_only);
+        assert_eq!((s.tyres_s, s.repair_s, s.repair_pct), (0.0, 0.0, 0.0));
+        assert!(!s.pads && !s.discs);
+        assert!((s.total_s() - 5.0 / REFUEL_LPS).abs() < 1e-4);
+        // New pads asked for on a set barely worn.
+        let pads = PitPlan {
+            pads: Some(true),
+            ..PitPlan::default()
+        };
+        let s = plan_service_for(&gt, 0.0, 0.0, 5.0, 0.0, &pads);
+        assert!(s.pads && !s.discs);
+        assert!((s.repair_s - crate::brakes::PAD_CHANGE_S).abs() < 1e-4);
+        // Out-of-range numbers are brought back in.
+        let wild = PitPlan {
+            fuel_l: Some(f32::NAN),
+            pad_set: Some(9),
+            ..PitPlan::default()
+        }
+        .clamp();
+        assert_eq!((wild.fuel_l, wild.pad_set), (Some(0.0), Some(1)));
     }
 
     /// A race `laps_left` from the flag, refuelling at `lap_fuel_l` a lap,

@@ -727,6 +727,14 @@ void UApexNetSubsystem::SetDriverAids(
 	SendPayload(ApexProtocol::EncodeSetDriverAids(bAutoGearbox, bSteeringAssist, bAbs, TractionControl, bPitAutopilot));
 }
 
+void UApexNetSubsystem::SetPitPlan(const FApexPitPlan& Plan)
+{
+	UE_LOG(LogApexSimNet, Log, TEXT("-> SetPitPlan keep_tyres=%d compound=%d fuel_l=%.1f no_repair=%d pads=%d pad_set=%d box=%d"),
+		Plan.bKeepTyres ? 1 : 0, Plan.Compound, Plan.FuelL, Plan.bNoRepair ? 1 : 0, Plan.Pads,
+		Plan.bChoosePadSet ? Plan.PadSet : 99, Plan.bBoxThisLap ? 1 : 0);
+	SendPayload(ApexProtocol::EncodeSetPitPlan(Plan));
+}
+
 void UApexNetSubsystem::RecoverCar(EApexRecoverDestination Destination)
 {
 	UE_LOG(LogApexSimNet, Log, TEXT("-> RecoverCar %s"),

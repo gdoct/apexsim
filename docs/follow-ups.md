@@ -62,6 +62,31 @@ to everyone who saw the old one.
 **Check:** `a_weekend_day_bakes_its_own_sky`; a weekend with a wet practice
 day watched from the lobby to the race.
 
+### 17. The driver's pit plan on screen
+
+The server takes a driver's orders for their next stop and a box-this-lap
+request (`SetPitPlan`, [server/pit-lane.md](server/pit-lane.md)); the
+codec sends them (`UApexNetSubsystem::SetPitPlan`, `FApexPitPlan`) and
+telemetry carries the request back (`FApexCarTelemetry::bPitRequested`).
+Nothing on screen uses them yet.
+
+- A pit plan panel reachable while driving (pause menu or an in-race
+  overlay): tyres keep / setup / a compound (names from the car's
+  `Compounds`), fuel to need / litres, repair yes / no, pads crew's call /
+  keep / new and the pad set. Send `SetPitPlan` on every change; the
+  server keeps the last one, so send it again after a rejoin.
+- A pit request input binding (`BoxThisLap`, toggling `bBoxThisLap` and
+  resending the plan) and a `pit.requested` HUD data point / BOX badge from
+  `bPitRequested`, listed in [game/hud-modding.md](game/hud-modding.md).
+- The `pit_stop` component's segments already follow the stop's own
+  times (`PitService`); a part of 0 s is the plan leaving it out.
+- After a stop that fitted another pad set the server's setup has that
+  set; the garage's `brake_pads` knob should follow it, or the next
+  `SetCarSetup` puts the old set back.
+
+**Check:** a race stop with tyres kept and 5 L asked for, the panel's
+bar showing the fuel alone; the BOX badge on from the request to the stop.
+
 ### 5. Hotlap and lap records
 
 The ghost, the hotlap replay and watch.

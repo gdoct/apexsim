@@ -1863,6 +1863,50 @@ struct APEXSIMNET_API FApexPitService
 };
 
 /**
+ * `pit::PitPlan` (pit.rs), sent as `SetPitPlan` — the driver's orders for
+ * their next stop, at any time in a session; the server keeps the last one.
+ * Every field at its default is the crew's own choice (the setup's next
+ * compound, fuel to need, repairs, pads past their change point), and is
+ * left off the wire.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexPitPlan
+{
+	GENERATED_BODY()
+
+	/** The tyres stay on. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	bool bKeepTyres = false;
+
+	/** The set going on, an index into the car's compounds; -1 for the setup's choice. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	int32 Compound = -1;
+
+	/** Litres to put in (0 for none); negative for what the rest of the run needs. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	float FuelL = -1.0f;
+
+	/** The damage is left as it is. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	bool bNoRepair = false;
+
+	/** New brake pads: -1 when worn past the change point (the crew's call), 0 never, 1 always. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	int32 Pads = -1;
+
+	/** The set new pads are when bChoosePadSet: -1 endurance, 0 standard, 1 sprint
+	 * (the setup's brake_pads knob follows it); otherwise the setup's set. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	bool bChoosePadSet = false;
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	int32 PadSet = 0;
+
+	/** Box this lap: comes back as FApexCarTelemetry::bPitRequested until the stop. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	bool bBoxThisLap = false;
+};
+
+/**
  * `PitBoxData` (network.rs) — the local driver's own pit box, sent once the
  * server deals it and again after a rejoin. In the server's frame: metres,
  * yaw in radians, +Y left (ApexRace::ServerToUnrealPosition converts).
@@ -2362,6 +2406,10 @@ struct APEXSIMNET_API FApexCarTelemetry
 	/** The car is waiting at the red pit exit light (bit 5). */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	bool bPitHeld = false;
+	/** The driver has asked to box this lap (bit 6, SetPitPlan's box_this_lap),
+	 * until the stop is made. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bPitRequested = false;
 
 	/** Each corner's brake, °C, FL FR RL RR (`brake_c`); negative when the
 	 * server does not send it. */

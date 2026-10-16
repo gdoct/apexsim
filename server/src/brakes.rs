@@ -26,7 +26,8 @@
 //! energy they absorb, faster over the window, and a worn set grips less
 //! ([`wear_friction`]) until, worn out, it is metal on metal. A pit stop
 //! fits new pads when they are more than [`PAD_CHANGE_PCT`] worn
-//! (`pit::plan_service`), which takes a crew [`PAD_CHANGE_S`].
+//! (`pit::plan_service`), which takes a crew [`PAD_CHANGE_S`], or as the
+//! driver's `pit::PitPlan` says: new pads or none, and which set.
 //!
 //! **Discs** (`CarState::brake_disc_wear_pct`, [`disc_wear_percent`]), on a
 //! car with `[brakes] disc_wear_per_mj` only: a disc wears by the energy it

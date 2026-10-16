@@ -1858,6 +1858,7 @@ namespace
 		Out.bPitAutopilot = false;
 		Out.bPitExitClosed = false;
 		Out.bPitHeld = false;
+		Out.bPitRequested = false;
 		if (Index < Known)
 		{
 			bOk &= Next([&]
@@ -1907,6 +1908,7 @@ namespace
 				Out.bPitAutopilot = (Raw & 8) != 0;
 				Out.bPitExitClosed = (Raw & 16) != 0;
 				Out.bPitHeld = (Raw & 32) != 0;
+				Out.bPitRequested = (Raw & 64) != 0;
 				return true;
 			});
 		}
@@ -3202,6 +3204,57 @@ namespace ApexProtocol
 			// Signed: a negative click is a negative fixint on the wire, which
 			// is what serde's i8 expects; WriteUInt would send -2 as a huge u64.
 			Writer.WriteInt(Clamped.GetClick(Index));
+		}
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeSetPitPlan(const FApexPitPlan& Plan)
+	{
+		// Each order is written only when it is not the crew's own choice, in
+		// the server struct's field order (serde skips defaults the same way).
+		const bool bCompound = Plan.Compound >= 0;
+		const bool bFuel = Plan.FuelL >= 0.0f;
+		const bool bPads = Plan.Pads >= 0;
+		const int32 Count = (Plan.bKeepTyres ? 1 : 0) + (bCompound ? 1 : 0) + (bFuel ? 1 : 0)
+			+ (Plan.bNoRepair ? 1 : 0) + (bPads ? 1 : 0) + (Plan.bChoosePadSet ? 1 : 0)
+			+ (Plan.bBoxThisLap ? 1 : 0);
+		FMsgPackWriter Writer(128);
+		BeginDataVariant(Writer, "SetPitPlan", Count);
+		if (Plan.bKeepTyres)
+		{
+			Writer.WriteString("keep_tyres");
+			Writer.WriteBool(true);
+		}
+		if (bCompound)
+		{
+			Writer.WriteString("compound");
+			Writer.WriteUInt(static_cast<uint8>(FMath::Min(Plan.Compound, 255)));
+		}
+		if (bFuel)
+		{
+			Writer.WriteString("fuel_l");
+			Writer.WriteFloat(Plan.FuelL);
+		}
+		if (Plan.bNoRepair)
+		{
+			Writer.WriteString("no_repair");
+			Writer.WriteBool(true);
+		}
+		if (bPads)
+		{
+			Writer.WriteString("pads");
+			Writer.WriteBool(Plan.Pads > 0);
+		}
+		if (Plan.bChoosePadSet)
+		{
+			Writer.WriteString("pad_set");
+			// Signed: -1 is a negative fixint, as serde's i8 expects.
+			Writer.WriteInt(FMath::Clamp(Plan.PadSet, -1, 1));
+		}
+		if (Plan.bBoxThisLap)
+		{
+			Writer.WriteString("box_this_lap");
+			Writer.WriteBool(true);
 		}
 		return MoveTemp(Writer.GetBuffer());
 	}

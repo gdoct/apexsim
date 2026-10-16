@@ -88,6 +88,8 @@ namespace ApexProtocol
 		bool bPitAutopilot = true);
 	/** Every knob is sent, clamped here as the server will clamp it again. */
 	APEXSIMNET_API TArray<uint8> EncodeSetCarSetup(const FApexCarSetup& Setup);
+	/** The driver's orders for their next stop; fields at their default are left out. */
+	APEXSIMNET_API TArray<uint8> EncodeSetPitPlan(const FApexPitPlan& Plan);
 	/** A hotlap driver asks to be put in the garage or out on the run-up. */
 	/** bColdTyres asks to go out as from the garage (blankets or the air) rather
 	 *  than at the compound's optimum; it is only written when set, so the bytes

@@ -392,6 +392,9 @@ pub struct GameSession {
     tuned_configs: HashMap<PlayerId, CarConfig>,
     /// What each driver asked for, clamped.
     car_setups: HashMap<PlayerId, CarSetup>,
+    /// Each driver's orders for their next stop (`SetPitPlan`), clamped;
+    /// none for a driver who never sent one. Looked up by key only.
+    pit_plans: HashMap<PlayerId, crate::pit::PitPlan>,
     /// Litres a lap of this track costs each car (`racing_line::lap_fuel_liters`),
     /// worked out the first time the car is fuelled. Looked up by key only.
     lap_fuel: HashMap<CarConfigId, f32>,
@@ -778,6 +781,7 @@ impl GameSession {
             ready: std::collections::BTreeSet::new(),
             grid_countdown_seconds: START_SESSION_COUNTDOWN_SECONDS,
             car_setups: HashMap::new(),
+            pit_plans: HashMap::new(),
             lap_fuel: HashMap::new(),
             lap_seconds: HashMap::new(),
             race_end: RaceEnd::default(),
@@ -849,6 +853,7 @@ impl GameSession {
             ready: std::collections::BTreeSet::new(),
             grid_countdown_seconds: START_SESSION_COUNTDOWN_SECONDS,
             car_setups: HashMap::new(),
+            pit_plans: HashMap::new(),
             lap_fuel: HashMap::new(),
             lap_seconds: HashMap::new(),
             race_end: RaceEnd::default(),
@@ -3117,6 +3122,27 @@ impl GameSession {
         self.car_setups.get(player_id).copied().unwrap_or_default()
     }
 
+    /// Keep a driver's orders for their next stop (clamped), and raise or
+    /// lower their request to box this lap. Returns what was kept, or
+    /// `None` for a player with no car here. A stop already under way
+    /// keeps the plan it started with.
+    pub fn set_pit_plan(
+        &mut self,
+        player_id: &PlayerId,
+        asked: crate::pit::PitPlan,
+    ) -> Option<crate::pit::PitPlan> {
+        let plan = asked.clamp();
+        let car = self.session.participants.get_mut(player_id)?;
+        car.pit.requested = plan.box_this_lap && !car.pit.servicing;
+        self.pit_plans.insert(*player_id, plan);
+        Some(plan)
+    }
+
+    /// The orders a driver last sent for their next stop, if any.
+    pub fn pit_plan(&self, player_id: &PlayerId) -> Option<crate::pit::PitPlan> {
+        self.pit_plans.get(player_id).copied()
+    }
+
     /// The config a driver's car is simulated with (their setup applied).
     pub fn simulated_config_for(&self, player_id: &PlayerId) -> Option<&CarConfig> {
         let state = self.session.participants.get(player_id)?;
@@ -3133,6 +3159,7 @@ impl GameSession {
         self.aid_lines.remove(player_id);
         self.tuned_configs.remove(player_id);
         self.car_setups.remove(player_id);
+        self.pit_plans.remove(player_id);
         self.lap_traces.remove(player_id);
         self.liveries.remove(player_id);
         if self.ready.remove(player_id) {
@@ -4510,7 +4537,13 @@ impl GameSession {
         let car_id = state.car_config_id;
         let is_ai = self.is_ai_player(player_id);
         let fuel_only = state.pit.fuel_only;
-        let compound = if fuel_only {
+        // The driver's own orders; none (the crew's stop) for the AI.
+        let orders = if is_ai {
+            crate::pit::PitPlan::default()
+        } else {
+            self.pit_plan(player_id).unwrap_or_default()
+        };
+        let compound = if fuel_only || orders.keep_tyres {
             state.tyre_compound
         } else if is_ai {
             state.pit.next_compound
@@ -4519,8 +4552,12 @@ impl GameSession {
                 .simulated_config_for(player_id)
                 .map(|c| c.tire_config.clone())
                 .unwrap_or_default();
-            self.car_setup(player_id)
-                .compound_index_for(&tyre, self.track_config.track_surface.water)
+            match orders.compound {
+                Some(index) => index.min(tyre.compounds().len().saturating_sub(1) as u8),
+                None => self
+                    .car_setup(player_id)
+                    .compound_index_for(&tyre, self.track_config.track_surface.water),
+            }
         };
         let laps_left = self.laps_left(state) as f32 + 1.0;
         let fuel_now = state.fuel_liters;
@@ -4534,6 +4571,8 @@ impl GameSession {
         };
         let fuel_target = if !self.refuels(car_id) {
             fuel_now
+        } else if let Some(litres) = orders.fuel_l {
+            (fuel_now + litres).min(config.fuel.capacity_liters)
         } else if mode == GameMode::Race {
             match self.lap_fuel_liters(car_id) {
                 Some(lap) => (laps_left * (1.0 + RACE_FUEL_MARGIN) * lap + 0.5 * lap)
@@ -4545,12 +4584,13 @@ impl GameSession {
         };
         // A stint's energy limit: no more than the next stint can burn.
         let fuel_target = crate::pit::stint_fuel_cap(&config, fuel_target).max(fuel_now);
-        let mut plan = crate::pit::plan_service(
+        let mut plan = crate::pit::plan_service_for(
             &config,
             fuel_target - fuel_now,
             damage,
             brake_wear,
             disc_wear,
+            &orders,
         );
         if fuel_only {
             plan = crate::pit::ServicePlan {
@@ -4571,6 +4611,8 @@ impl GameSession {
             pit.service_repair = plan.repair_pct > 0.0;
             pit.service_pads = plan.pads;
             pit.service_discs = plan.discs;
+            pit.service_tyres = plan.tyres_s > 0.0;
+            pit.service_pad_set = orders.pad_set.filter(|_| plan.pads);
         }
         self.pit_events.push((
             *player_id,
@@ -4600,7 +4642,7 @@ impl GameSession {
         else {
             return;
         };
-        if !state.pit.fuel_only {
+        if state.pit.service_tyres {
             let tyre = &config.tire_config;
             let temperature =
                 tyre_thermal::start_temperature_c(tyre, &self.track_config.track_surface);
@@ -4623,15 +4665,27 @@ impl GameSession {
         // A new stint's energy (`crate::hybrid`).
         crate::hybrid::new_stint(state, &config);
         let pit = &mut state.pit;
+        let pad_set = pit.service_pad_set.take();
         pit.service_pads = false;
         pit.service_discs = false;
+        pit.service_tyres = false;
         pit.servicing = false;
         pit.service_left_s = 0.0;
         pit.service_repair = false;
         pit.serviced = true;
         pit.wants_stop = false;
         pit.fuel_only = false;
+        pit.requested = false;
         pit.stops += 1;
+        // New pads of another set: the setup's pad knob moves to it, and
+        // the car is simulated with it from here.
+        if let Some(click) = pad_set {
+            let mut setup = self.car_setup(player_id);
+            if setup.brake_pads != click {
+                setup.brake_pads = click;
+                self.set_car_setup(player_id, setup);
+            }
+        }
     }
 
     /// In a race, each AI driver's decision to stop (`pit::plan_stop`), and

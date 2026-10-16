@@ -712,6 +712,7 @@ FApexCarTelemetry FApexStreamCarRow::ToTelemetry() const
 	T.bPitAutopilot = (PitFlags & 8) != 0;
 	T.bPitExitClosed = (PitFlags & 16) != 0;
 	T.bPitHeld = (PitFlags & 32) != 0;
+	T.bPitRequested = (PitFlags & 64) != 0;
 	T.Compound = Compound == 255 ? -1 : Compound;
 	for (int32 i = 0; i < 5; ++i)
 	{
@@ -771,7 +772,8 @@ FApexStreamCarRow FApexStreamCarRow::FromTelemetry(const FApexCarTelemetry& T)
 	Row.LapFlags = (T.bLapInvalid ? 1 : 0) | (T.bLastLapInvalid ? 2 : 0) | (T.bInGarage ? 4 : 0) | (T.bDrsAllowed ? 8 : 0)
 		| (T.bDrsOpen ? 16 : 0) | (T.bHeadlights ? 32 : 0) | (T.bHeadlightFlash ? 64 : 0);
 	Row.PitFlags = (T.bPitLimiter ? 1 : 0) | (T.bPitServicing ? 2 : 0) | (T.bInPitLane ? 4 : 0)
-		| (T.bPitAutopilot ? 8 : 0) | (T.bPitExitClosed ? 16 : 0) | (T.bPitHeld ? 32 : 0);
+		| (T.bPitAutopilot ? 8 : 0) | (T.bPitExitClosed ? 16 : 0) | (T.bPitHeld ? 32 : 0)
+		| (T.bPitRequested ? 64 : 0);
 	Row.Compound = T.Compound < 0 ? 255 : static_cast<uint8>(FMath::Min(T.Compound, 254));
 	for (int32 i = 0; i < 5; ++i)
 	{

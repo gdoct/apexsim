@@ -509,6 +509,15 @@ public:
 	void SetCarSetup(const FApexCarSetup& Setup);
 
 	/**
+	 * The driver's orders for their next pit stop (tyres, fuel, repairs,
+	 * pads) and the box-this-lap request. The server keeps the last plan
+	 * sent and applies it when the crew start work; the request comes back
+	 * as FApexCarTelemetry::bPitRequested until the stop is made.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void SetPitPlan(const FApexPitPlan& Plan);
+
+	/**
 	 * In a hotlap session: into the garage, or out onto the run-up before
 	 * the line. Which side the car is on comes back in its telemetry
 	 * (FApexCarTelemetry::bInGarage); the server answers anything else with

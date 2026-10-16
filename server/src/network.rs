@@ -220,6 +220,13 @@ pub enum ClientMessage {
     /// the result into the car this driver is simulated with. Ignored
     /// outside a session; an all-zero setup is the car as filed.
     SetCarSetup(CarSetup),
+    /// The driver's orders for their next pit stop (`pit::PitPlan`): the
+    /// tyres, the fuel, the repairs, the brake pads, and whether they box
+    /// this lap. Sent at any time in a session and kept until the next
+    /// one; each field at its default is the crew's own choice, so a driver
+    /// who never sends one is serviced as before. Ignored outside a
+    /// session. The request comes back in telemetry (`PIT_FLAG_REQUESTED`).
+    SetPitPlan(crate::pit::PitPlan),
     StartCountdown {
         countdown_seconds: u16,
         next_mode: GameMode,
@@ -1256,6 +1263,9 @@ pub fn pit_flags_of(state: &CarState) -> u8 {
     if state.pit.held {
         flags |= PIT_FLAG_HELD;
     }
+    if state.pit.requested {
+        flags |= PIT_FLAG_REQUESTED;
+    }
     flags
 }
 
@@ -1278,6 +1288,9 @@ pub const PIT_FLAG_AUTOPILOT: u8 = 8;
 pub const PIT_FLAG_EXIT_CLOSED: u8 = 16;
 /// `pit_flags` bit 5: this car is held at the red pit exit light.
 pub const PIT_FLAG_HELD: u8 = 32;
+/// `pit_flags` bit 6: the driver has asked to box this lap
+/// (`SetPitPlan`'s `box_this_lap`), until the stop is made.
+pub const PIT_FLAG_REQUESTED: u8 = 64;
 
 /// A car's tyres as telemetry carries them: the tread temperatures and the
 /// running pressures, each rounded to a whole degree / kPa and held within
@@ -3318,11 +3331,52 @@ mod tests {
                 PIT_FLAG_IN_LANE,
                 PIT_FLAG_AUTOPILOT,
                 PIT_FLAG_EXIT_CLOSED,
-                PIT_FLAG_HELD
+                PIT_FLAG_HELD,
+                PIT_FLAG_REQUESTED
             ),
-            (1, 2, 4, 8, 16, 32),
+            (1, 2, 4, 8, 16, 32, 64),
             "the client decodes these bits by number"
         );
+    }
+
+    /// The bytes of a `SetPitPlan` with every order given, the client's
+    /// `ApexGolden::C_SetPitPlan`, and of an empty one (`C_SetPitPlanEmpty`):
+    /// `cargo test pit_plan_wire_format -- --nocapture` prints them.
+    #[test]
+    fn test_pit_plan_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let plan = ClientMessage::SetPitPlan(crate::pit::PitPlan {
+            keep_tyres: true,
+            compound: Some(2),
+            fuel_l: Some(5.0),
+            no_repair: true,
+            pads: Some(true),
+            pad_set: Some(-1),
+            box_this_lap: true,
+        });
+        let bytes = rmp_serde::to_vec_named(&plan).unwrap();
+        println!("C_SetPitPlan: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&bytes).unwrap() {
+            ClientMessage::SetPitPlan(p) => {
+                assert!(p.keep_tyres && p.no_repair && p.box_this_lap);
+                assert_eq!((p.compound, p.fuel_l), (Some(2), Some(5.0)));
+                assert_eq!((p.pads, p.pad_set), (Some(true), Some(-1)));
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        let empty = ClientMessage::SetPitPlan(crate::pit::PitPlan::default());
+        let bytes = rmp_serde::to_vec_named(&empty).unwrap();
+        println!("C_SetPitPlanEmpty: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&bytes).unwrap() {
+            ClientMessage::SetPitPlan(p) => assert_eq!(p, crate::pit::PitPlan::default()),
+            other => panic!("Wrong message type: {other:?}"),
+        }
     }
 
     /// The exact bytes the Unreal client's codec must produce and parse for

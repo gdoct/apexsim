@@ -22,7 +22,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 | Roll centres are fixed heights: no migration with travel, no jacking, no instant centres; the roll axis is all the kinematics there are (`geometry.rs`). | High | Low |
 | The crest model reads the road's grade along the car's path only: a crest taken diagonally, a banking's roll-over and a kerb's step are not vertical accelerations to it. | Med | Low |
 | Porpoising is an oscillation of the downforce at a fixed frequency (`aero::PORPOISE_HZ`) with no body heave behind it; the car does not bounce on its springs. | Med | Low |
-| Brake pads and discs are changed only at a pit stop that finds them past `brakes::PAD_CHANGE_PCT` / `DISC_CHANGE_PCT`: no pad choice at the stop (it fits the set the setup names). | Low | Low |
 
 ## Tyres
 
@@ -71,7 +70,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 
 | Gap | Effort | Impact |
 |---|---|---|
-| No pit stop choices during a race and no pit request button: a stop always changes tyres (to the setup's next compound), fuels to need and repairs everything. | Med | Med |
 | No driver swaps or fixed stint lengths. | Med | Low |
 | A race longer than a tank on a circuit with no pit lane (the Nordschleife): nothing refuels, the AI saves up to `pit::MAX_FUEL_SAVE_SHORT` and runs dry past it. | Low | Low |
 | No penalties of any kind: no pit-lane speeding penalty (the limiter is forced, and brakes a car over the limit), nothing stops a driver on a manual pit lane leaving past a red exit light, no drive-through or stop-go, no collision penalty and no race-start ghosting. | High | Med |

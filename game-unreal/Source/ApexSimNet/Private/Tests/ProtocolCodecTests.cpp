@@ -178,6 +178,19 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 	CheckBytes(TEXT("OpenGrid"), ApexProtocol::EncodeOpenGrid(10), ApexGolden::C_OpenGrid);
 	CheckBytes(TEXT("SetReady"), ApexProtocol::EncodeSetReady(true), ApexGolden::C_SetReady);
 	CheckBytes(TEXT("SetLivery"), ApexProtocol::EncodeSetLivery(2), ApexGolden::C_SetLivery);
+	{
+		FApexPitPlan Plan;
+		Plan.bKeepTyres = true;
+		Plan.Compound = 2;
+		Plan.FuelL = 5.0f;
+		Plan.bNoRepair = true;
+		Plan.Pads = 1;
+		Plan.bChoosePadSet = true;
+		Plan.PadSet = -1;
+		Plan.bBoxThisLap = true;
+		CheckBytes(TEXT("SetPitPlan"), ApexProtocol::EncodeSetPitPlan(Plan), ApexGolden::C_SetPitPlan);
+		CheckBytes(TEXT("SetPitPlan empty"), ApexProtocol::EncodeSetPitPlan(FApexPitPlan()), ApexGolden::C_SetPitPlanEmpty);
+	}
 
 	CheckBytes(TEXT("SetDriverAids"),
 		ApexProtocol::EncodeSetDriverAids(true, true, false, EApexTractionControl::High, false),

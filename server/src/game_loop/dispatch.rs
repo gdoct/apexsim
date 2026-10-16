@@ -169,6 +169,9 @@ pub(crate) async fn handle_message(
         ClientMessage::SetCarSetup(setup) => {
             handle_set_car_setup(ctx, connection_id, setup).await;
         }
+        ClientMessage::SetPitPlan(plan) => {
+            handle_set_pit_plan(ctx, connection_id, plan).await;
+        }
         ClientMessage::StartCountdown {
             countdown_seconds,
             next_mode,
@@ -1514,6 +1517,26 @@ async fn handle_set_driver_aids(ctx: &GameLoopCtx, connection_id: ConnectionId, 
             applied.traction_control,
             applied.pit_autopilot
         );
+    }
+}
+
+async fn handle_set_pit_plan(
+    ctx: &GameLoopCtx,
+    connection_id: ConnectionId,
+    plan: crate::pit::PitPlan,
+) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        return;
+    };
+    let mut state_write = ctx.state.write().await;
+    let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
+        return;
+    };
+    if let Some(kept) = game_session.set_pit_plan(&conn_info.player_id, plan) {
+        tracing::debug!("Player {} pit plan {:?}", conn_info.player_id, kept);
     }
 }
 

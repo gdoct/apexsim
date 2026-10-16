@@ -155,6 +155,129 @@ fn a_car_stopped_at_its_box_gets_the_set_its_driver_chose() {
     assert_eq!(s.damage.front_damage_percent, 0.0);
 }
 
+/// Stop `player` at box 0 with worn tyres, 30% damage, `brake_wear` on the
+/// pads and 20 L in the tank, and hold them there until the crew are done.
+/// Returns the service's seconds and the PitService the crew announced.
+fn serviced_at_box(
+    gs: &mut GameSession,
+    player: &PlayerId,
+    brake_wear: f32,
+) -> (f32, apexsim_server::network::PitServiceData) {
+    let lane = gs.track_config.pit_lane.clone().unwrap();
+    let spot = *lane.box_at(0);
+    {
+        let state = gs.session.participants.get_mut(player).unwrap();
+        state.pos_x = spot.x;
+        state.pos_y = spot.y;
+        state.yaw_rad = spot.yaw_rad;
+        state.tires.front_left.wear_percent = 60.0;
+        state.damage.front_damage_percent = 30.0;
+        state.brake_wear_pct = [brake_wear; 4];
+        state.fuel_liters = 20.0;
+    }
+    let held = PlayerInputData {
+        brake: 1.0,
+        ..Default::default()
+    };
+    let inputs: HashMap<PlayerId, PlayerInputData> = [(*player, held)].into();
+    gs.tick(&inputs);
+    let seconds = gs.session.participants[player].pit.service_left_s;
+    assert!(gs.session.participants[player].pit.servicing);
+    let (_, service) = gs
+        .take_pit_events()
+        .into_iter()
+        .find(|(id, _)| id == player)
+        .expect("the crew announce the stop");
+    for _ in 0..((seconds + 0.5) * HZ as f32) as usize {
+        gs.tick(&inputs);
+    }
+    (seconds, service)
+}
+
+#[test]
+fn a_drivers_pit_plan_is_what_the_crew_do() {
+    let Some((mut gs, player)) = practice() else {
+        return;
+    };
+    // No tyres, 5 L, no repairs, the pads left on; and a request to box.
+    let plan = apexsim_server::pit::PitPlan {
+        keep_tyres: true,
+        fuel_l: Some(5.0),
+        no_repair: true,
+        pads: Some(false),
+        box_this_lap: true,
+        ..Default::default()
+    };
+    gs.set_pit_plan(&player, plan).expect("seated");
+    let flags = apexsim_server::network::pit_flags_of(&gs.session.participants[&player]);
+    assert_ne!(
+        flags & apexsim_server::network::PIT_FLAG_REQUESTED,
+        0,
+        "the request comes back in telemetry"
+    );
+    let compound_before = gs.session.participants[&player].tyre_compound;
+    let (seconds, service) = serviced_at_box(&mut gs, &player, 70.0);
+    println!("plan stop: {seconds:.2} s, {service:?}");
+    assert!(
+        (seconds - 5.0 / apexsim_server::pit::REFUEL_LPS).abs() < 0.05,
+        "the fuel alone takes time: {seconds}"
+    );
+    assert_eq!((service.tyres_s, service.repair_s), (0.0, 0.0));
+    assert!((service.fuel_l - 5.0).abs() < 1e-3);
+    let s = &gs.session.participants[&player];
+    assert!(s.pit.serviced && s.pit.stops == 1);
+    assert!(
+        (s.fuel_liters - 25.0).abs() < 0.05,
+        "5 L in: {}",
+        s.fuel_liters
+    );
+    assert_eq!(s.tyre_compound, compound_before);
+    assert!(
+        s.tires.front_left.wear_percent >= 60.0,
+        "the old set stays on"
+    );
+    assert!(s.damage.front_damage_percent >= 30.0, "nothing repaired");
+    assert!(s.brake_wear_pct[0] >= 70.0, "the old pads stay on");
+    assert!(!s.pit.requested, "the request is answered by the stop");
+    assert_eq!(
+        apexsim_server::network::pit_flags_of(s) & apexsim_server::network::PIT_FLAG_REQUESTED,
+        0
+    );
+}
+
+#[test]
+fn a_pit_plan_can_fit_new_pads_of_another_set() {
+    let Some((mut gs, player)) = practice() else {
+        return;
+    };
+    let plan = apexsim_server::pit::PitPlan {
+        keep_tyres: true,
+        fuel_l: Some(0.0),
+        no_repair: true,
+        pads: Some(true),
+        pad_set: Some(1),
+        ..Default::default()
+    };
+    gs.set_pit_plan(&player, plan).expect("seated");
+    // Barely worn pads: the crew would leave them, the driver asks for sprint pads.
+    let (seconds, _) = serviced_at_box(&mut gs, &player, 10.0);
+    assert!(
+        (seconds - apexsim_server::brakes::PAD_CHANGE_S).abs() < 0.05,
+        "the pads alone: {seconds}"
+    );
+    let s = &gs.session.participants[&player];
+    assert_eq!(s.brake_wear_pct, [0.0; 4], "new pads");
+    assert_eq!(
+        gs.car_setup(&player).brake_pads,
+        1,
+        "the setup's pads follow"
+    );
+    assert_eq!(
+        gs.simulated_config_for(&player).unwrap().brake_pads,
+        apexsim_server::brakes::BrakePads::Sprint
+    );
+}
+
 #[test]
 fn an_ai_on_worn_tyres_pits_and_races_on() {
     let track = monza();

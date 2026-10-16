@@ -21,11 +21,12 @@ Tyres, compounds, fuel, damage and brakes themselves are in
   garage run), `PitSidecar` / `bake_pit_sidecar`, the pit complex, paint and
   signs, `bake_walls` (garage collision boxes).
 - `server/src/pit.rs` - `PitLane` (the loaded sidecar), `PitState` (per
-  car, on `CarState::pit`), `deal_box`, `exit_closed`, `takes_over`,
-  `drive_input`, `run_up_input`, `plan_service`, `plan_stop`,
+  car, on `CarState::pit`), `PitPlan` (a driver's orders), `deal_box`,
+  `exit_closed`, `takes_over`, `drive_input`, `run_up_input`,
+  `plan_service` / `plan_service_for`, `plan_stop`,
   `tyres_for_the_track`, `recovery_pose`.
 - `server/src/game_session.rs` - `update_pits` (with `anchor_on_lap`),
-  `start_service`, `finish_service`, `plan_ai_stops`,
+  `set_pit_plan`, `start_service`, `finish_service`, `plan_ai_stops`,
   `pit_autopilot_inputs`, `lane_traffic`.
 - `server/src/physics.rs` - the limiter in `update_car_3d`,
   `RoadContact::PitLane`, `on_pit_lane_strip`.
@@ -138,7 +139,7 @@ Called inside `update_air` before the physics, and in the countdown.
 - **Service.** A car on the limiter, unserviced, under 1 m/s within
   `BOX_RADIUS_M` (2.5 m) of its own box's spot starts its stop
   (`start_service` -> `pit::plan_service`), held still by the physics. The
-  crew works in order: tyres always (`F1_TYRE_CHANGE_S` 2.5 s, else
+  crew works in order, unless the driver's plan says otherwise (below): tyres (`F1_TYRE_CHANGE_S` 2.5 s, else
   `TYRE_CHANGE_S` 9 s; the driver's setup compound via
   `CarSetup::compound_index_for`, the AI's planned one), fuel where the
   rules allow (not an F1, unless the race outruns its tank:
@@ -149,9 +150,28 @@ Called inside `update_air` before the physics, and in the countdown.
   `DISC_CHANGE_PCT`, `DISC_CHANGE_S`), all counted in the repair part.
   An AI's splash (`PitState::fuel_only`, [ai.md](ai.md)) is the fuel alone:
   the tyres stay on and nothing is repaired.
-  `finish_service` fits the set at the car's start temperature, adds the
-  fuel, repairs (engine wear stays), fits pads (or discs) and starts a new hybrid
-  stint.
+  `finish_service` fits the set at the car's start temperature (when the
+  stop changes tyres: `PitState::service_tyres`), adds the fuel, repairs
+  (engine wear stays), fits pads (or discs) and starts a new hybrid stint.
+- **A driver's pit plan** (`ClientMessage::SetPitPlan`, `pit::PitPlan`,
+  kept per driver by `GameSession::set_pit_plan` until the next one; any
+  time in a session). Each field at its default is the crew's own choice
+  above, so a driver who never sends one, and every AI, is serviced as
+  described. `keep_tyres` leaves the set on (no tyre time); `compound`
+  picks the set going on (an index into the car's compounds, clamped to
+  the list) in place of the setup's; `fuel_l` puts in that many litres
+  (0 for none) in place of the need, still capped by the tank and the
+  stint's energy, and none for a car the rules do not refuel; `no_repair`
+  leaves the damage; `pads` `true` fits new pads however worn the old
+  ones are (discs too when past `DISC_CHANGE_PCT`), `false` leaves pads
+  and discs on; `pad_set` (-1 endurance, 0 standard, +1 sprint) is the
+  set new pads are, and fitting them moves the setup's `brake_pads` knob
+  to it (`set_car_setup`: the car is simulated with them from the end of
+  the stop). Each part's time follows what is done (`plan_service_for`).
+  `box_this_lap` is the driver's pit request: `PitState::requested`, sent
+  back in telemetry as `PIT_FLAG_REQUESTED` until the stop is made (or a
+  plan without it). It is a call to the crew only: the driver still
+  drives in.
 - **Exit light** (`pit::exit_closed`, the same for every car): red before a
   race's start (countdown, or a race not yet racing) and while a car on the
   track, not on the pit route, is within max(3 s at its speed, 25 m) of
@@ -165,8 +185,13 @@ Called inside `update_air` before the physics, and in the countdown.
 
 - `CompactCarState`: `tyre_wear` ([u8;4] %), `compound` (255 unknown),
   `pit_flags` (`PIT_FLAG_LIMITER` 1, `SERVICING` 2, `IN_LANE` 4,
-  `AUTOPILOT` 8, `EXIT_CLOSED` 16, `HELD` 32), `service_ds` (seconds left,
-  tenths), appended after `tow_pct`.
+  `AUTOPILOT` 8, `EXIT_CLOSED` 16, `HELD` 32, `REQUESTED` 64),
+  `service_ds` (seconds left, tenths), appended after `tow_pct`.
+- `ClientMessage::SetPitPlan` (`pit::PitPlan`: `keep_tyres`, `compound`,
+  `fuel_l`, `no_repair`, `pads`, `pad_set`, `box_this_lap`, each left off
+  the wire at its default), reliable, from a driver. Client:
+  `ApexProtocol::EncodeSetPitPlan(FApexPitPlan)`,
+  `UApexNetSubsystem::SetPitPlan`; `FApexCarTelemetry::bPitRequested`.
 - `ServerMessage::PitService` (`PitServiceData`: car index, box, tyres /
   fuel / repair seconds in crew order, compound, litres, damage repaired,
   total), reliable, to every human in the session as the crew starts
@@ -178,9 +203,10 @@ Called inside `update_air` before the physics, and in the countdown.
   their box is dealt, again after `add_player` or `resume_seat`, and when
   their pit autopilot is switched (`GameSession::take_pit_box_news`).
 - Golden bytes: `cargo test --lib -- telemetry_compact_wire_format
-  pit_service_wire_format pit_box_wire_format car_setup_wire_format
-  --nocapture` -> `ApexUdpGolden::S_TelemetryCompactPit`,
-  `ApexGolden::S_PitService`, `ApexGolden::S_PitBox`,
+  pit_service_wire_format pit_box_wire_format pit_plan_wire_format
+  car_setup_wire_format --nocapture` ->
+  `ApexUdpGolden::S_TelemetryCompactPit`, `ApexGolden::S_PitService`,
+  `ApexGolden::S_PitBox`, `ApexGolden::C_SetPitPlan` / `C_SetPitPlanEmpty`,
   `ApexGolden::C_SetCarSetup` (the next-tyre knob). See
   [protocol.md](protocol.md).
 
@@ -220,8 +246,8 @@ Called inside `update_air` before the physics, and in the countdown.
 
 ```bash
 cd server
-cargo test --test pit_stop_test     # limiter, service, a human in and out, aids put back, every car its own box,
-                                    # the red light holds a car, the AI's stop, the lane without the road mesh
+cargo test --test pit_stop_test     # limiter, service, a driver's pit plan and pad set, a human in and out, aids put back,
+                                    # every car its own box, the red light holds a car, the AI's stop, the lane without the road mesh
 cargo test --lib -- pit::
 # Every circuit (ignored, minutes):
 cargo test --release --test pit_stop_test pit_lane_survey -- --ignored --nocapture
