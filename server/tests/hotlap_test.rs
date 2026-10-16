@@ -152,7 +152,7 @@ fn going_out_puts_the_car_on_the_run_up_and_the_lap_starts_at_the_line() {
 /// Qualifying runs like a hotlap (garage first, going out on request) but a
 /// car leaves just past the line, so its first crossing of it is the end of
 /// a full outlap: nothing is timed until then, and the lap after it is the
-/// first timed one, which classifies the driver.
+/// first timed one, which (when legal) classifies the driver.
 #[test]
 fn qualifying_goes_out_for_a_full_outlap_before_the_first_timed_lap() {
     let (mut gs, ids) = hotlap_session(1);
@@ -179,6 +179,10 @@ fn qualifying_goes_out_for_a_full_outlap_before_the_first_timed_lap() {
         "the outlap is the warm-up: it leaves on cold tyres"
     );
 
+    // The flying lap is timed whether or not it stays inside track limits:
+    // whether it does depends on the gitignored curb sidecar, so a fresh
+    // checkout (CI) runs wide at the Lesmos where a baked tree does not.
+    // Track limits are the survey's business; here the clock is.
     let mut first_crossing = None;
     let mut timed = None;
     for tick in 0..(HZ * 400) {
@@ -188,10 +192,10 @@ fn qualifying_goes_out_for_a_full_outlap_before_the_first_timed_lap() {
         let state = &gs.session.participants[&driver];
         if first_crossing.is_none() && state.current_lap == 1 {
             first_crossing = Some(tick);
-            assert!(state.best_lap_time_ms.is_none(), "the outlap is not timed");
+            assert!(state.last_lap_time_ms.is_none(), "the outlap is not timed");
         }
-        if state.best_lap_time_ms.is_some() {
-            timed = Some(tick);
+        if let Some(lap_ms) = state.last_lap_time_ms {
+            timed = Some(lap_ms);
             break;
         }
     }
@@ -201,10 +205,13 @@ fn qualifying_goes_out_for_a_full_outlap_before_the_first_timed_lap() {
         "a whole lap, not a few metres: crossed after {} s",
         first / HZ
     );
-    timed.expect("the first flying lap should be timed");
+    let lap_ms = timed.expect("the first flying lap should be timed");
+    assert!(
+        lap_ms > 60_000,
+        "timed from the line round to it: {lap_ms} ms"
+    );
     // The server's tick loop offers every legal lap to the classification.
-    let best = gs.session.participants[&driver].best_lap_time_ms.unwrap();
-    assert!(gs.note_qualifying_lap(driver, best).is_some());
+    assert!(gs.note_qualifying_lap(driver, lap_ms).is_some());
     assert_eq!(gs.qualifying_order(), vec![driver]);
 }
 

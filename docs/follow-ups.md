@@ -251,5 +251,15 @@ the same files.
   when a server has none rendered or all of them stale (a fresh clone
   before `initialize_content.ps1`, or right after a car.toml or track
   edit), and `HotlapWatch` shares its create path.
+- Tests: CI's server job races a fresh checkout without the gitignored
+  track sidecars (curbs, walls, ground, pit lane, road mesh), so an AI
+  test at Monza or Le Mans drives a different road there than on a baked
+  tree: curbs the line uses are off the track, and a seeded run spreads
+  differently. Three tests have been narrowed to what they guard for it
+  (the Le Mans seam, the qualifying outlap, the racecraft pass). Either
+  CI bakes the sidecars it needs, or a test that drives a circuit says
+  which backend it expects and skips without it. Check a test change
+  against `git archive HEAD server content` in a scratch folder, with its
+  own `CARGO_TARGET_DIR`.
 
 **Check:** server and client build and tests.
