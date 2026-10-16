@@ -5,6 +5,13 @@
     python scripts/verify/run_checks.py r1-spa-wet          # one run
     python scripts/verify/run_checks.py r1-spa-wet --dry-run
     python scripts/verify/run_checks.py --sheets r1-spa-wet # re-tile the shots on disk
+    python scripts/verify/run_checks.py "r8-*" --repeat 5 --game-arg=-gpucrashdebugging
+
+A run id may be a glob (`r8-*`). `--repeat N` runs the chosen runs N times
+over, each pass into out/verify/<run>/pass_NN/, and tallies each pass
+(clean, incomplete, or the GPU/crash line) in out/verify/soak.log: the GPU
+stability soak. `--game-arg` (repeatable) adds a switch to the game's
+command line.
 
 A run (scripts/verify/runs.yml) is one launch of the game against a server
 of its own: a circuit, a sky, debug events and a list of shots, each with a
@@ -41,6 +48,7 @@ initialised, and the editor closed.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import os
 import re
 import shutil
@@ -235,7 +243,8 @@ def exec_after(run: dict, shots: list[dict]) -> str:
     return "|".join(f"{t:g}={c}" for t, c in entries)
 
 
-def game_command(run: dict, shots: list[dict], game: list[str], work: Path, port: int) -> list[str]:
+def game_command(run: dict, shots: list[dict], game: list[str], work: Path, port: int,
+                 extra: list[str] | None = None) -> list[str]:
     width, height = (int(v) for v in str(run.get("resolution", "1920x1080")).split("x"))
     times = ",".join(f"{s['at']:g}" for s in shots)
     command = [
@@ -245,6 +254,7 @@ def game_command(run: dict, shots: list[dict], game: list[str], work: Path, port
         "-ApexNoSplashHold", "-unattended", "-nosplash",
         f"-ApexSettingsDir={settings_dir(work, port, width, height)}",
         *[str(a) for a in run.get("args") or []],
+        *(extra or []),
         f"-ApexScreenshotAfter={times}",
         f"-log=Verify_{run['id']}.log",
     ]
@@ -317,9 +327,10 @@ def drive_dashboard(run: dict, port: int, client_log: Path, stop) -> None:
             log(f"  dashboard at {entry['at']} s failed: {error}")
 
 
-def take(run: dict, game: list[str], work: Path, port: int, dry_run: bool) -> bool:
+def take(run: dict, game: list[str], work: Path, port: int, dry_run: bool,
+         extra: list[str] | None = None) -> bool:
     shots = shot_list(run)
-    command = game_command(run, shots, game, work, port)
+    command = game_command(run, shots, game, work, port, extra)
     if dry_run:
         log(subprocess.list2cmdline(command))
         return True
@@ -418,18 +429,24 @@ def write_sheets(run: dict, work: Path) -> list[Path]:
     return sheets
 
 
-def log_findings(work: Path) -> None:
-    """Lines of the client log worth a look before judging the pictures."""
+#: Client log lines that mean the GPU or the process went down: a soak's tally.
+GPU_FAILURES = ("DEVICE_HUNG", "DEVICE_REMOVED", "GPU crash", "Fatal error")
+
+
+def log_findings(work: Path) -> list[str]:
+    """Lines of the client log worth a look before judging the pictures;
+    returns those that are a GPU failure or a crash."""
     client_log = work / "client.log"
     if not client_log.is_file():
         log("  no client log")
-        return
+        return []
     keys = ("Fatal error", "DEVICE_HUNG", "LogApexSim: Error", "LogApexSimNet: Error", "Disconnected",
             "AutoRace", "-ApexExecAfter", "Unknown command")
     hits = [line.rstrip() for line in client_log.read_text(encoding="utf-8", errors="replace").splitlines()
             if any(k in line for k in keys)]
     (work / "client_notes.log").write_text("\n".join(hits) + "\n", encoding="utf-8")
     log(f"  {len(hits)} notable client log lines in client_notes.log")
+    return [line for line in hits if any(k in line for k in GPU_FAILURES)]
 
 
 # ------------------------------------------------------------------------------
@@ -441,6 +458,9 @@ def main(argv=None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="print the game's command line")
     parser.add_argument("--sheets", action="store_true", help="only re-tile the shots on disk")
     parser.add_argument("--port", type=int, default=BASE_PORT)
+    parser.add_argument("--repeat", type=int, default=1, help="run the chosen runs this many times over")
+    parser.add_argument("--game-arg", action="append", default=[],
+                        help="a switch added to the game's command line (repeatable)")
     args = parser.parse_args(argv)
 
     with open(RUNS_YML, encoding="utf-8") as f:
@@ -450,10 +470,10 @@ def main(argv=None) -> int:
         for run in runs:
             log(f"{run['id']:22} {len(run.get('shots') or []):3} shots  {run.get('about', '')}")
         return 0
-    unknown = [r for r in args.runs if r not in ids]
+    unknown = [r for r in args.runs if not fnmatch.filter(ids, r)]
     if unknown:
         raise SystemExit(f"no such run: {', '.join(unknown)}")
-    chosen = [r for r in runs if r["id"] in args.runs]
+    chosen = [r for r in runs if any(fnmatch.fnmatchcase(r["id"], pattern) for pattern in args.runs)]
 
     if args.sheets:
         for run in chosen:
@@ -468,21 +488,30 @@ def main(argv=None) -> int:
     game = [str(editor), str(UPROJECT), "-game"]
 
     failed = []
-    for run in chosen:
-        work = OUT / run["id"]
-        work.mkdir(parents=True, exist_ok=True)
-        log(f"{run['id']}: {run.get('about', '')}")
-        if args.dry_run:
-            take(run, game, work, args.port, True)
-            continue
-        started = time.monotonic()
-        with Server(run, work, args.port):
-            ok = take(run, game, work, args.port, False)
-        sheets = write_sheets(run, work)
-        log_findings(work)
-        log(f"  {time.monotonic() - started:.0f} s; sheets: {', '.join(str(s) for s in sheets) or 'none'}")
-        if not ok:
-            failed.append(run["id"])
+    soak = OUT / "soak.log" if args.repeat > 1 else None
+    for n in range(args.repeat):
+        for run in chosen:
+            work = OUT / run["id"]
+            if args.repeat > 1:
+                work = work / f"pass_{n + 1:02d}"
+            work.mkdir(parents=True, exist_ok=True)
+            of = f" (pass {n + 1} of {args.repeat})" if args.repeat > 1 else ""
+            log(f"{run['id']}{of}: {run.get('about', '')}")
+            if args.dry_run:
+                take(run, game, work, args.port, True, args.game_arg)
+                continue
+            started = time.monotonic()
+            with Server(run, work, args.port):
+                ok = take(run, game, work, args.port, False, args.game_arg)
+            sheets = write_sheets(run, work)
+            gpu = log_findings(work)
+            log(f"  {time.monotonic() - started:.0f} s; sheets: {', '.join(str(s) for s in sheets) or 'none'}")
+            if not ok:
+                failed.append(run["id"])
+            if soak:
+                state = "GPU/CRASH | " + gpu[0][:200] if gpu else ("incomplete" if not ok else "clean")
+                with open(soak, "a", encoding="utf-8") as f:
+                    f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} pass {n + 1} {run['id']}: {state}\n")
     if failed:
         log(f"incomplete: {', '.join(failed)}")
         return 1

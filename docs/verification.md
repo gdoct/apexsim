@@ -150,7 +150,9 @@ that is hit in a seeded replay (`-ApexReplay`, `-ApexWatchCar`).
 `r8-ims` and `r8-mexicocity` aim at their `grandstand_corner`; the first
 pass put the camera at road level and in a chase view: aim again, from
 higher and further off. Run the R8 sweep with GPU crash dumps on: it is
-also the long unattended loop of the GPU stability item (section 3).
+also the long unattended loop of the GPU stability item (section 3):
+`run_checks.py "r8-*" --repeat 4 --game-arg=-gpucrashdebugging`, tallied
+per pass in `out/verify/soak.log`.
 
 - A stadium grandstand wedge on a corner.
 - A curved pit box row tighter than about a 130 m radius (the garages
