@@ -328,6 +328,10 @@ pub struct GameSession {
     /// line sent on joining (stock car, dry tank, the planned grip).
     /// Looked up by key only, never iterated.
     aid_lines: HashMap<PlayerId, AidLineKey>,
+    /// The full-throttle straights of each car's plan (`hybrid::straights`,
+    /// of its full-tank plan: every plan of a car shares its points), where
+    /// a hybrid AI saves its overtake button for. Looked up by key only.
+    ai_straights: HashMap<CarConfigId, crate::hybrid::Straights>,
     /// Simulation tick rate (Hz); the fixed timestep is `1 / tick_rate_hz`.
     tick_rate_hz: u16,
     /// The names of the humans seated, set as they join (the AI's are on
@@ -800,6 +804,7 @@ impl GameSession {
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
+            ai_straights: HashMap::new(),
             ai_power_profiles: std::collections::BTreeMap::new(),
             aid_lines: HashMap::new(),
             finish_deadline_tick: None,
@@ -873,6 +878,7 @@ impl GameSession {
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
+            ai_straights: HashMap::new(),
             ai_power_profiles: std::collections::BTreeMap::new(),
             aid_lines: HashMap::new(),
             finish_deadline_tick: None,
@@ -966,6 +972,7 @@ impl GameSession {
         self.sky = live_sky(&self.session, &self.track_config);
         self.sky_epoch_tick = self.session.current_tick;
         self.ai_speed_profiles.clear();
+        self.ai_straights.clear();
         self.lap_fuel.clear();
         self.lap_seconds.clear();
         self.debris.clear();
@@ -5301,10 +5308,16 @@ impl GameSession {
             .collect();
         let ahead: Vec<(PlayerId, f32)> = field.iter().map(|(id, p, _)| (*id, *p)).collect();
         let charge = state.hybrid_battery_kwh / config.hybrid.battery_capacity_kwh.max(1e-6);
+        // The straight it is on, or coming onto, against the lap's longest.
+        let straight_share = self.ai_speed_profile(state).and_then(|plan| {
+            let here = crate::racecraft::locate(plan, state, total)?;
+            self.ai_straights.get(&state.car_config_id)?.share_at(here)
+        });
         crate::hybrid::ai_ers(
             charge,
             crate::drs::gap_ahead_s(state, &ahead, total),
             crate::drs::gap_behind_s(state, &field, total),
+            straight_share,
         )
     }
 
@@ -5641,6 +5654,10 @@ impl GameSession {
             })
             .collect();
         if let Some(plans) = plans {
+            if let Some(full) = plans.last() {
+                self.ai_straights
+                    .insert(car_id, crate::hybrid::straights(full));
+            }
             self.ai_speed_profiles.insert(car_id, plans);
         }
     }

@@ -97,17 +97,104 @@ pub const AI_DEFEND_BOOST_GAP_S: f32 = 0.5;
 pub const AI_HARVEST_BELOW: f32 = 0.3;
 pub const AI_ALONE_GAP_S: f32 = 2.0;
 
+/// Chasing a car, an AI presses the overtake button only on a straight
+/// (or out of the corner onto one) at least this share of the lap's
+/// longest: it saves the button's energy for where a pass is made, not
+/// the short straights between.
+pub const AI_ATTACK_STRAIGHT_SHARE: f32 = 0.6;
+
+/// The full-throttle straights of a car's speed profile
+/// ([`straights`]): per profile point, the length of the straight it is
+/// on (a `Throttle` run), or out of a corner the next one; and the
+/// longest of the lap.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Straights {
+    pub run_m: Vec<f32>,
+    pub longest_m: f32,
+}
+
+impl Straights {
+    /// The straight at profile point `here` (or the next one) as a share
+    /// of the lap's longest; `None` for a point off the profile.
+    pub fn share_at(&self, here: usize) -> Option<f32> {
+        let run = *self.run_m.get(here)?;
+        (self.longest_m > 0.0).then(|| run / self.longest_m)
+    }
+}
+
+/// The straights of `profile` (see [`Straights`]), the loop wrapping.
+pub fn straights(profile: &crate::racing_line::RacingLineProfile) -> Straights {
+    use crate::racing_line::LinePhase;
+    let n = profile.phases.len();
+    let sp = profile.spacing_m.max(0.0);
+    let flat = |i: usize| profile.phases[i] == LinePhase::Throttle;
+    if n == 0 {
+        return Straights::default();
+    }
+    if (0..n).all(flat) {
+        return Straights {
+            run_m: vec![n as f32 * sp; n],
+            longest_m: n as f32 * sp,
+        };
+    }
+    // Start at a point off the throttle, so no run is cut by the loop's
+    // seam.
+    let start = (0..n).find(|&i| !flat(i)).unwrap_or(0);
+    let at = |k: usize| (start + k) % n;
+    let mut run_m = vec![0.0; n];
+    let mut longest_m: f32 = 0.0;
+    let mut k = 1;
+    while k < n {
+        if !flat(at(k)) {
+            k += 1;
+            continue;
+        }
+        let mut len = 0;
+        while k + len < n && flat(at(k + len)) {
+            len += 1;
+        }
+        let m = len as f32 * sp;
+        longest_m = longest_m.max(m);
+        for j in 0..len {
+            run_m[at(k + j)] = m;
+        }
+        k += len;
+    }
+    // Walking back round the loop, a corner takes the straight after it.
+    let mut next = 0.0;
+    for k in (0..2 * n).rev() {
+        let i = at(k);
+        if flat(i) {
+            next = run_m[i];
+        } else {
+            run_m[i] = next;
+        }
+    }
+    Straights { run_m, longest_m }
+}
+
 /// The mode a car starts in and the AI drives in.
 pub const DEFAULT_MODE: u8 = ErsMode::Balanced as u8;
 
 /// The AI's mode and overtake button in a race, past its first lap:
 /// `charge` the battery's share, the gaps to the nearest cars ahead and
-/// behind on the road, s. The button to attack within [`AI_BOOST_GAP_S`] of
-/// the car ahead and to defend within [`AI_DEFEND_BOOST_GAP_S`] of the car
-/// behind; Harvest when low and alone; Balanced otherwise.
-pub fn ai_ers(charge: f32, gap_ahead_s: Option<f32>, gap_behind_s: Option<f32>) -> (ErsMode, bool) {
+/// behind on the road, s, and the straight it is on or coming onto as a
+/// share of the lap's longest ([`Straights::share_at`], `None` unknown).
+/// The button to attack within [`AI_BOOST_GAP_S`] of the car ahead, on a
+/// straight of [`AI_ATTACK_STRAIGHT_SHARE`] or more, and to defend within
+/// [`AI_DEFEND_BOOST_GAP_S`] of the car behind anywhere; Harvest when low
+/// and alone; Balanced otherwise.
+pub fn ai_ers(
+    charge: f32,
+    gap_ahead_s: Option<f32>,
+    gap_behind_s: Option<f32>,
+    straight_share: Option<f32>,
+) -> (ErsMode, bool) {
     let within = |gap: Option<f32>, s: f32| gap.is_some_and(|g| g <= s);
-    if within(gap_ahead_s, AI_BOOST_GAP_S) || within(gap_behind_s, AI_DEFEND_BOOST_GAP_S) {
+    let attack_here = straight_share.is_none_or(|share| share >= AI_ATTACK_STRAIGHT_SHARE);
+    if (within(gap_ahead_s, AI_BOOST_GAP_S) && attack_here)
+        || within(gap_behind_s, AI_DEFEND_BOOST_GAP_S)
+    {
         return (ErsMode::Balanced, true);
     }
     let alone = !within(gap_ahead_s, AI_ALONE_GAP_S) && !within(gap_behind_s, AI_ALONE_GAP_S);
@@ -544,16 +631,63 @@ mod tests {
     #[test]
     fn the_ai_boosts_to_attack_and_defend_and_harvests_alone() {
         use ErsMode::*;
-        assert_eq!(ai_ers(0.8, Some(0.5), None), (Balanced, true), "attack");
-        assert_eq!(ai_ers(0.8, None, Some(0.3)), (Balanced, true), "defend");
-        assert_eq!(ai_ers(0.8, Some(1.5), Some(1.0)), (Balanced, false));
-        assert_eq!(ai_ers(0.2, None, None), (Harvest, false), "low, alone");
         assert_eq!(
-            ai_ers(0.2, Some(1.5), None),
+            ai_ers(0.8, Some(0.5), None, None),
+            (Balanced, true),
+            "attack"
+        );
+        assert_eq!(
+            ai_ers(0.8, None, Some(0.3), None),
+            (Balanced, true),
+            "defend"
+        );
+        assert_eq!(ai_ers(0.8, Some(1.5), Some(1.0), None), (Balanced, false));
+        assert_eq!(
+            ai_ers(0.2, None, None, None),
+            (Harvest, false),
+            "low, alone"
+        );
+        assert_eq!(
+            ai_ers(0.2, Some(1.5), None, None),
             (Balanced, false),
             "low, but racing a car"
         );
-        assert_eq!(ai_ers(0.2, Some(3.0), Some(5.0)), (Harvest, false));
+        assert_eq!(ai_ers(0.2, Some(3.0), Some(5.0), None), (Harvest, false));
+        // The attack is saved for a long straight; a defence is anywhere.
+        assert_eq!(ai_ers(0.8, Some(0.5), None, Some(0.3)), (Balanced, false));
+        assert_eq!(ai_ers(0.8, Some(0.5), None, Some(1.0)), (Balanced, true));
+        assert_eq!(ai_ers(0.8, None, Some(0.3), Some(0.1)), (Balanced, true));
+    }
+
+    /// A lap of two straights, 300 m and 100 m, each after a corner: a
+    /// point knows its straight, a corner the one after it.
+    #[test]
+    fn the_straights_are_measured_and_a_corner_knows_the_next() {
+        use crate::racing_line::{LinePhase, RacingLineProfile};
+        let mut phases = vec![LinePhase::Brake; 20];
+        phases.extend(vec![LinePhase::Throttle; 60]);
+        phases.extend(vec![LinePhase::Partial; 20]);
+        phases.extend(vec![LinePhase::Throttle; 20]);
+        // Rotated so the loop's seam falls inside the short straight.
+        phases.rotate_left(110);
+        let n = phases.len();
+        let profile = RacingLineProfile {
+            spacing_m: 5.0,
+            points: vec![[0.0; 3]; n],
+            speed_mps: vec![50.0; n],
+            phases,
+        };
+        let s = straights(&profile);
+        assert_eq!(s.longest_m, 300.0);
+        // The short straight across the seam is measured whole.
+        assert_eq!(s.share_at(0), Some(100.0 / 300.0));
+        assert_eq!(s.share_at(n - 1), Some(100.0 / 300.0));
+        // The first corner leads onto the long straight.
+        assert_eq!(s.share_at(10), Some(1.0));
+        assert_eq!(s.share_at(40), Some(1.0));
+        // The partial corner onto the short one.
+        assert_eq!(s.share_at(95), Some(100.0 / 300.0));
+        assert_eq!(s.share_at(n), None);
     }
 
     fn car(budget: Option<f32>) -> CarConfig {

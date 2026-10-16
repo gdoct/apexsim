@@ -103,8 +103,13 @@ Built per tick in `ai_input_for` with the car's speed profile
 - **DRS** is asked for whenever `CarState::drs_allowed`.
 - **Hybrid** (`ai_ers`, `hybrid::ai_ers`): in a race from lap 2 the
   overtake button is held within `hybrid::AI_BOOST_GAP_S` (0.8 s) of the
-  car ahead, to attack, and within `AI_DEFEND_BOOST_GAP_S` (0.5 s) of the
-  car behind, to defend; with the battery under `AI_HARVEST_BELOW` (30%)
+  car ahead, to attack, but only on a straight (or out of the corner onto
+  one) at least `AI_ATTACK_STRAIGHT_SHARE` (0.6) of the lap's longest, so
+  its energy goes where a pass is made, not on the short straights between
+  (`hybrid::straights`: the `Throttle` runs of the car's full-tank plan,
+  kept per car as `GameSession::ai_straights`); and within
+  `AI_DEFEND_BOOST_GAP_S` (0.5 s) of the car behind, anywhere, to defend;
+  with the battery under `AI_HARVEST_BELOW` (30%)
   and nobody within `AI_ALONE_GAP_S` (2 s) either way the mode is Harvest,
   so the motor is there in the next fight; Balanced otherwise, and always
   before lap 2, outside a race and on the pit route.
