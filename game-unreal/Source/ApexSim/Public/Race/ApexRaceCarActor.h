@@ -121,6 +121,9 @@ public:
 	/** The tyres' working window (the catalog row's): what the tread's heat and blistering are read against. */
 	void SetTyreWindow(float OptimalC, float WindowC);
 
+	/** How far one tyre's tread runs over its window, 0..1 (ApexFfb::TyreOverheat): the greasy-tyre squeal. */
+	float GetTyreOverheat(int32 Wheel) const;
+
 	/** The driver's component when the car has one, for tinting. */
 	UStaticMeshComponent* GetDriverComponent() const { return Driver.HasDriver() ? Driver.GetComponent() : nullptr; }
 

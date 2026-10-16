@@ -3831,10 +3831,13 @@ void AApexRaceDirector::UpdateCarAudio()
 	// and a howl that early is a car screeching round every bend.
 	using W = FApexDriverFeedback;
 	const FApexWheelFeedback* Wheels = Net->GetDriverFeedback().Wheels;
-	Levels.FrontSlide = FMath::Max(ApexRoadSynth::SquealFromSlipAngle(Wheels[W::FrontLeft].SlipAngle),
-		ApexRoadSynth::SquealFromSlipAngle(Wheels[W::FrontRight].SlipAngle));
-	Levels.RearSlide = FMath::Max(ApexRoadSynth::SquealFromSlipAngle(Wheels[W::RearLeft].SlipAngle),
-		ApexRoadSynth::SquealFromSlipAngle(Wheels[W::RearRight].SlipAngle));
+	// A tyre over its window is greasy: it squeals sooner, lower, smeared.
+	Levels.FrontHeat = FMath::Max(Local->GetTyreOverheat(W::FrontLeft), Local->GetTyreOverheat(W::FrontRight));
+	Levels.RearHeat = FMath::Max(Local->GetTyreOverheat(W::RearLeft), Local->GetTyreOverheat(W::RearRight));
+	Levels.FrontSlide = FMath::Max(ApexRoadSynth::SquealFromSlipAngle(Wheels[W::FrontLeft].SlipAngle, Levels.FrontHeat),
+		ApexRoadSynth::SquealFromSlipAngle(Wheels[W::FrontRight].SlipAngle, Levels.FrontHeat));
+	Levels.RearSlide = FMath::Max(ApexRoadSynth::SquealFromSlipAngle(Wheels[W::RearLeft].SlipAngle, Levels.RearHeat),
+		ApexRoadSynth::SquealFromSlipAngle(Wheels[W::RearRight].SlipAngle, Levels.RearHeat));
 	for (int32 Wheel = 0; Wheel < 4; ++Wheel)
 	{
 		Levels.Lockup = FMath::Max(Levels.Lockup, ApexRoadSynth::LockupFromSlipRatio(Wheels[Wheel].SlipRatio));
@@ -3879,10 +3882,12 @@ void AApexRaceDirector::UpdateWatchedCarRoadSound()
 	}
 	ApexRoadSynth::FInputs Levels;
 	Levels.SpeedMps = Telemetry->SpeedMps;
-	Levels.FrontSlide = FMath::Max(ApexRoadSynth::SquealFromSlipAngle(Telemetry->WheelSlipAngle[0]),
-		ApexRoadSynth::SquealFromSlipAngle(Telemetry->WheelSlipAngle[1]));
-	Levels.RearSlide = FMath::Max(ApexRoadSynth::SquealFromSlipAngle(Telemetry->WheelSlipAngle[2]),
-		ApexRoadSynth::SquealFromSlipAngle(Telemetry->WheelSlipAngle[3]));
+	Levels.FrontHeat = FMath::Max(Car->GetTyreOverheat(0), Car->GetTyreOverheat(1));
+	Levels.RearHeat = FMath::Max(Car->GetTyreOverheat(2), Car->GetTyreOverheat(3));
+	Levels.FrontSlide = FMath::Max(ApexRoadSynth::SquealFromSlipAngle(Telemetry->WheelSlipAngle[0], Levels.FrontHeat),
+		ApexRoadSynth::SquealFromSlipAngle(Telemetry->WheelSlipAngle[1], Levels.FrontHeat));
+	Levels.RearSlide = FMath::Max(ApexRoadSynth::SquealFromSlipAngle(Telemetry->WheelSlipAngle[2], Levels.RearHeat),
+		ApexRoadSynth::SquealFromSlipAngle(Telemetry->WheelSlipAngle[3], Levels.RearHeat));
 	for (int32 Wheel = 0; Wheel < 4; ++Wheel)
 	{
 		Levels.Lockup = FMath::Max(Levels.Lockup, ApexRoadSynth::LockupFromSlipRatio(Telemetry->WheelSlipRatio[Wheel]));

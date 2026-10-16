@@ -101,6 +101,7 @@ namespace
 			Inputs.Rpm = Live->Rpm.load(std::memory_order_relaxed);
 			Inputs.Throttle = Live->Throttle.load(std::memory_order_relaxed);
 			Inputs.Gear = Live->Gear.load(std::memory_order_relaxed);
+			Inputs.Damage = Live->Damage.load(std::memory_order_relaxed);
 			ApexEngineSynth::Render(*State, Spec, Inputs, SampleRate, Mono.GetData(), NumFrames);
 
 			int32 Written = 0;
@@ -187,6 +188,11 @@ void UApexEngineSoundWave::SetLive(float Rpm, float Throttle, int32 Gear)
 	Live->Rpm.store(Rpm, std::memory_order_relaxed);
 	Live->Throttle.store(FMath::Clamp(Throttle, 0.0f, 1.0f), std::memory_order_relaxed);
 	Live->Gear.store(Gear, std::memory_order_relaxed);
+}
+
+void UApexEngineSoundWave::SetDamage(float EngineDamage)
+{
+	Live->Damage.store(FMath::IsFinite(EngineDamage) ? FMath::Clamp(EngineDamage, 0.0f, 1.0f) : 0.0f, std::memory_order_relaxed);
 }
 
 ISoundGeneratorPtr UApexEngineSoundWave::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)

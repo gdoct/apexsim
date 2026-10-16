@@ -217,6 +217,26 @@ frame: it is the one hook that ticks with no pawn, no race and a pause menu up.
 The caller fills in what the device knows (`RimDegrees`, `LocalSteer`) and the
 station for the road texture.
 
+**The car's condition** comes from its telemetry, not the feedback
+(`ApexFfb::ReadCarCondition`, called by the controller with the driven
+car's catalog row): `FrontHeat` / `RearHeat`, how far each axle's hotter
+tyre runs over its window's top (`ApexFfb::TyreOverheat`: 0 at
+`TyreOptimalC + TyreWindowC`, 1 a window past it); `EngineDamage` and
+`SuspensionDamage` (the worse side), 0..1; and the engine's revs. What
+they do:
+
+- **Greasy fronts** make the rim up to 15% lighter (`GreasyTorqueLoss`,
+  on top of the grip the server's torque already loses with the heat), and
+  their scrub smoother and lower (55 to 38 Hz, 40% less); on a pad the
+  front slide buzzes less and heaves more.
+- **A bent suspension** (from 10% of a side's damage, worst at 70%)
+  wobbles the rim and the pad's heavy motor once a turn of the wheel. The
+  pull toward the damaged side is the server's own (`damage::toe_offset_rad`
+  is in the tyre forces, so in the torque).
+- **A damaged engine** (from 10%) shakes the rim at the crank's half-order
+  (rpm / 120, 8 to 50 Hz) and stumbles the pad's heavy motor at an uneven
+  level, while it runs.
+
 ### Gamepad (`ApexFfb::MixGamepad`)
 
 A pad can only shake, so a slide has to be described: front slide on the light
@@ -255,8 +275,9 @@ Everything else is texture on top.
   speed, `front_load^0.7` and 3x off track.
 - **Vibration channel**: a device plays one vibration at a time, so the loudest
   of kerbs, grass, ABS, lockup, a hit, braking grain (62 Hz, the fronts' braking
-  slip from half to all of the peak, `FrontBrakeSlip`), front scrub (55 Hz) or a
-  flat spot (a shake at the wheel's turning rate) takes it.
+  slip from half to all of the peak, `FrontBrakeSlip`), front scrub (55 Hz,
+  lower on greasy fronts), a flat spot or a bent suspension (a shake at the
+  wheel's turning rate) or a damaged engine takes it.
 - **Damper**: heaviest at a standstill, 35% of the setting at speed, and while
   driving never under 0.3 of the force (`MinDriveDamper`): a belt-driven rim has
   almost no friction and overshoots the centre without it. A centring spring is
@@ -357,6 +378,8 @@ hardware.
   `ApexSim.Input.ForceFeedback.*` (both mixers; `WheelLetGo` lets go of a rim in
   a corner against a 40 ms, 60 Hz server and expects it home inside 0.3 s),
   `ApexSim.Input.ForceFeedback.WheelProfile` (scale and minimum force),
+  `ApexSim.Input.ForceFeedback.CarCondition` (the heat ramp, reading
+  telemetry, greasy fronts, a bent side and a sick engine on both devices),
   `ApexSim.Input.WheelProfiles.*` (detection by name and vendor, the table,
   the reference base unscaled),
   `ApexSim.Input.DirectInput.*` (slots, keys, readings, records file,

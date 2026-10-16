@@ -193,6 +193,35 @@ namespace
 	constexpr float WheelScrubAmplitude = 0.14f;
 	constexpr float WheelScrubHz = 55.0f;
 
+	/**
+	 * Fronts run over their window are greasy: the rim this much lighter at
+	 * a whole window over (on top of the grip the server's torque already
+	 * loses with the heat), and their scrub smoother and lower.
+	 */
+	constexpr float GreasyTorqueLoss = 0.15f;
+	constexpr float GreasyScrubLoss = 0.4f;
+	constexpr float GreasyScrubHz = 38.0f;
+
+	/**
+	 * Damage, felt. A bent suspension wobbles once a turn of the wheel, from
+	 * a tenth of the side's damage to its worst at 70%; a damaged engine
+	 * shakes at the crank's half-order, the beat a misfiring cylinder makes,
+	 * from a tenth of the engine's damage.
+	 */
+	constexpr float BentFromDamage = 0.1f;
+	constexpr float BentFullDamage = 0.7f;
+	constexpr float BentWheelAmplitude = 0.25f;
+	constexpr float BentPadLevel = 0.35f;
+	constexpr float EngineShakeFromDamage = 0.1f;
+	constexpr float EngineShakeAmplitude = 0.15f;
+	constexpr float EngineShakePadLevel = 0.35f;
+	/** How often the pad's engine stumble picks a new level. */
+	constexpr float EngineStumbleHz = 12.0f;
+	float EngineShakeHz(float Rpm)
+	{
+		return FMath::Clamp(Rpm / 120.0f, 8.0f, 50.0f);
+	}
+
 	// --- Centring and the steering lock's stop ---------------------------------
 
 	/**
@@ -377,6 +406,11 @@ namespace
 		Out.Lockup = WheelFinite(In.Lockup);
 		Out.Wheelspin = WheelFinite(In.Wheelspin);
 		Out.FlatSpot = WheelFinite(In.FlatSpot);
+		Out.FrontHeat = FMath::Clamp(WheelFinite(In.FrontHeat), 0.0f, 1.0f);
+		Out.RearHeat = FMath::Clamp(WheelFinite(In.RearHeat), 0.0f, 1.0f);
+		Out.EngineDamage = FMath::Clamp(WheelFinite(In.EngineDamage), 0.0f, 1.0f);
+		Out.SuspensionDamage = FMath::Clamp(WheelFinite(In.SuspensionDamage), 0.0f, 1.0f);
+		Out.EngineRpm = WheelFinite(In.EngineRpm);
 		Out.CurbLeft = WheelFinite(In.CurbLeft);
 		Out.CurbRight = WheelFinite(In.CurbRight);
 		Out.OffTrack = WheelFinite(In.OffTrack);
@@ -478,6 +512,27 @@ namespace ApexFfb
 		return Signals;
 	}
 
+	float TyreOverheat(float TreadC, float OptimalC, float WindowC)
+	{
+		if (!(TreadC >= 0.0f) || !FMath::IsFinite(OptimalC) || !FMath::IsFinite(WindowC))
+		{
+			return 0.0f;
+		}
+		const float Window = FMath::Max(WindowC, 1.0f);
+		return Ramp(TreadC, OptimalC + Window, OptimalC + 2.0f * Window);
+	}
+
+	void ReadCarCondition(FSignals& Signals, const FApexCarTelemetry& Car, float OptimalC, float WindowC)
+	{
+		Signals.FrontHeat = FMath::Max(TyreOverheat(Car.TyreTempC[0], OptimalC, WindowC), TyreOverheat(Car.TyreTempC[1], OptimalC, WindowC));
+		Signals.RearHeat = FMath::Max(TyreOverheat(Car.TyreTempC[2], OptimalC, WindowC), TyreOverheat(Car.TyreTempC[3], OptimalC, WindowC));
+		// Front, rear, left, right, engine; negative is not sent.
+		auto Share = [&Car](int32 Zone) { return Car.DamagePct[Zone] > 0.0f ? FMath::Min(Car.DamagePct[Zone] / 100.0f, 1.0f) : 0.0f; };
+		Signals.EngineDamage = Share(4);
+		Signals.SuspensionDamage = FMath::Max(Share(2), Share(3));
+		Signals.EngineRpm = FMath::Max(Car.EngineRpm, 0.0f);
+	}
+
 	float GainFromStrength(float Strength01)
 	{
 		return 2.0f * FMath::Clamp(Strength01, 0.0f, 1.0f);
@@ -517,8 +572,9 @@ namespace ApexFfb
 			// Tyres. Scrub from the fronts is a buzz (the light motor), the rear
 			// stepping out is a heave (the heavy one), so understeer and
 			// oversteer never feel alike.
-			Add(Out.High, 0.55f * Signals.FrontSlide * SlideGate, Gain);
-			Add(Out.Low, 0.10f * Signals.FrontSlide * SlideGate, Gain);
+			// Greasy fronts (over their window) smear: less buzz, more heave.
+			Add(Out.High, 0.55f * (1.0f - GreasyScrubLoss * Signals.FrontHeat) * Signals.FrontSlide * SlideGate, Gain);
+			Add(Out.Low, (0.10f + 0.15f * Signals.FrontHeat) * Signals.FrontSlide * SlideGate, Gain);
 			Add(Out.Low, 0.60f * Signals.RearSlide * SlideGate, Gain);
 			Add(Out.High, 0.15f * Signals.RearSlide * SlideGate, Gain);
 			Add(Out.High, 0.75f * Signals.Lockup * SlideGate, Gain);
@@ -563,6 +619,27 @@ namespace ApexFfb
 				{
 					Add(Out.Low, FlatSpotPadLevel * Signals.FlatSpot * Texture, Gain);
 				}
+			}
+
+			// A bent suspension: a wobble once a turn of the wheel, on the heavy motor.
+			const float Bent = Ramp(Signals.SuspensionDamage, BentFromDamage, BentFullDamage);
+			if (Bent > 0.0f && Speed > CrawlSpeedMps)
+			{
+				State.WobblePhase = FMath::Frac(State.WobblePhase + Dt * FlatSpotHz(Speed));
+				Add(Out.Low, BentPadLevel * Bent * Texture * (0.5f + 0.5f * FMath::Sin(2.0f * PI * State.WobblePhase)), Gain);
+			}
+
+			// A damaged engine stumbles: an uneven shake on the heavy motor while it runs.
+			const float Sick = Ramp(Signals.EngineDamage, EngineShakeFromDamage, 1.0f);
+			if (Sick > 0.0f && Signals.EngineRpm > 100.0f)
+			{
+				State.EngineClock += Dt;
+				if (State.EngineClock >= 1.0f / EngineStumbleHz || State.EngineLevel == 0.0f)
+				{
+					State.EngineClock = FMath::Fmod(State.EngineClock, 1.0f / EngineStumbleHz);
+					State.EngineLevel = 0.2f + 0.8f * NextNoise(State.EngineSeed);
+				}
+				Add(Out.Low, EngineShakePadLevel * Sick * State.EngineLevel, Gain);
 			}
 
 			// Grass and gravel: an uneven rumble that grows with speed.
@@ -690,7 +767,8 @@ namespace ApexFfb
 		// The torque, smoothed towards where the car says it should be. With no
 		// car it runs down to nothing rather than being dropped, which would be
 		// a wheel let go of mid-corner.
-		const float Target = Signals.bActive ? Signals.SteerTorque : 0.0f;
+		// Greasy fronts (over their window) are lighter in the hands.
+		const float Target = Signals.bActive ? Signals.SteerTorque * (1.0f - GreasyTorqueLoss * Signals.FrontHeat) : 0.0f;
 		const float Smoothing = 1.0f - FMath::Exp(-Dt / WheelTorqueSmoothingSeconds);
 		State.Torque = FMath::Lerp(State.Torque, Target, Smoothing);
 		if (bArriving)
@@ -893,7 +971,19 @@ namespace ApexFfb
 				Louder(FlatSpotWheelAmplitude * Signals.FlatSpot * Road, FlatSpotHz(Speed));
 			}
 			Louder(0.2f * Signals.Wheelspin, 32.0f);
-			Louder(WheelScrubAmplitude * Signals.FrontSlide * Ramp(Speed, 0.0f, SlideFullSpeedMps), WheelScrubHz);
+			// Greasy fronts scrub smoother and lower.
+			Louder(WheelScrubAmplitude * (1.0f - GreasyScrubLoss * Signals.FrontHeat) * Signals.FrontSlide * Ramp(Speed, 0.0f, SlideFullSpeedMps),
+				FMath::Lerp(WheelScrubHz, GreasyScrubHz, Signals.FrontHeat));
+			// A bent suspension wobbles once a turn of the wheel.
+			if (Speed > CrawlSpeedMps)
+			{
+				Louder(BentWheelAmplitude * Ramp(Signals.SuspensionDamage, BentFromDamage, BentFullDamage) * Road, FlatSpotHz(Speed));
+			}
+			// A damaged engine shakes at the beat of its misfires.
+			if (Signals.EngineRpm > 100.0f)
+			{
+				Louder(EngineShakeAmplitude * Ramp(Signals.EngineDamage, EngineShakeFromDamage, 1.0f), EngineShakeHz(Signals.EngineRpm));
+			}
 		}
 
 		Louder(State.Bump, 14.0f);

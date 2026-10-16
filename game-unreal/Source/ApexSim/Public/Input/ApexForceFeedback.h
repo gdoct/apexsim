@@ -4,6 +4,7 @@
 #include "ApexDirectInputTypes.h"
 
 struct FApexDriverFeedback;
+struct FApexCarTelemetry;
 
 /**
  * Force feedback, from the server's `DriverFeedback` to a device.
@@ -106,6 +107,26 @@ namespace ApexFfb
 		 */
 		float FlatSpot = 0.0f;
 
+		/**
+		 * How far each axle's tyres run over their window's top (the hotter of
+		 * the pair, TyreOverheat): 0 in the window, 1 a whole window over. A
+		 * greasy front is lighter on the rim and its scrub smoother; a greasy
+		 * tyre squeals sooner and lower. Filled by ReadCarCondition from
+		 * telemetry, not by MakeSignals.
+		 */
+		float FrontHeat = 0.0f;
+		float RearHeat = 0.0f;
+
+		/**
+		 * Damage, 0..1, from telemetry (ReadCarCondition): the engine's, felt as
+		 * a misfiring shake at the crank's half-order (EngineRpm), and the worse
+		 * side's suspension, felt as a wobble once a turn of the wheel. The pull
+		 * a bent side gives is already in the server's torque.
+		 */
+		float EngineDamage = 0.0f;
+		float SuspensionDamage = 0.0f;
+		float EngineRpm = 0.0f;
+
 		/** ABS is holding a wheel at its peak slip. */
 		bool bAbs = false;
 
@@ -149,6 +170,19 @@ namespace ApexFfb
 	 */
 	APEXSIM_API FSignals MakeSignals(const FApexDriverFeedback& Feedback, float SpeedMps, int32 Gear, bool bNewMessage);
 
+	/**
+	 * How far a tread runs over its window, 0..1: 0 up to the window's top
+	 * (OptimalC + WindowC, the catalog row's figures), 1 a whole window past
+	 * it. An unknown temperature (negative) is 0.
+	 */
+	APEXSIM_API float TyreOverheat(float TreadC, float OptimalC, float WindowC);
+
+	/**
+	 * Adds what the car's own telemetry says about its condition: the tyres'
+	 * heat against their window (FrontHeat, RearHeat), its damage and its revs.
+	 */
+	APEXSIM_API void ReadCarCondition(FSignals& Signals, const FApexCarTelemetry& Car, float OptimalC, float WindowC);
+
 	/** A gamepad's two motors, 0..1: the heavy low-frequency one and the light buzzing one. */
 	struct FRumble
 	{
@@ -175,6 +209,12 @@ namespace ApexFfb
 		float ShiftKick = 0.0f;
 		/** A turn of the wheel, wrapped at one: a flat spot thumps once a turn. */
 		float FlatSpotPhase = 0.0f;
+		/** A turn of the wheel for a bent suspension's wobble. */
+		float WobblePhase = 0.0f;
+		/** A damaged engine's stumble: a level resampled at a fixed rate. */
+		float EngineClock = 0.0f;
+		float EngineLevel = 0.0f;
+		uint32 EngineSeed = 0x85EBCA6Bu;
 		/** INDEX_NONE until a car has been seen. */
 		int32 LastGear = INDEX_NONE;
 	};

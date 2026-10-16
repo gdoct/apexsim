@@ -42,6 +42,16 @@ namespace ApexRoadSynth
 		constexpr float SlideRiseSeconds = 0.14f;
 		constexpr float SlideFallSeconds = 0.07f;
 
+		/**
+		 * A tyre run over its window is greasy: the slide comes this much
+		 * sooner (in peaks), its note drops this share and loses this much of
+		 * its singing to scrub.
+		 */
+		constexpr float GreasyOnsetShift = 0.25f;
+		constexpr float GreasyPitchDrop = 0.15f;
+		constexpr float GreasySingLoss = 0.6f;
+		constexpr float GreasyScrubGain = 1.5f;
+
 		/** Front and rear squeal at rest, Hz: a major third apart. */
 		constexpr float SquealBaseHz[2] = {760.0f, 600.0f};
 
@@ -157,9 +167,10 @@ namespace ApexRoadSynth
 		}
 	}
 
-	float SquealFromSlipAngle(float SlipAngleInPeaks)
+	float SquealFromSlipAngle(float SlipAngleInPeaks, float Overheat)
 	{
-		return Ramp(FMath::Abs(SlipAngleInPeaks), SquealOnsetSlipAngle, SquealFullSlipAngle);
+		const float Shift = GreasyOnsetShift * FMath::Clamp(Overheat, 0.0f, 1.0f);
+		return Ramp(FMath::Abs(SlipAngleInPeaks), SquealOnsetSlipAngle - Shift, SquealFullSlipAngle - 2.0f * Shift);
 	}
 
 	float LockupFromSlipRatio(float SlipRatioInPeaks)
@@ -198,11 +209,13 @@ namespace ApexRoadSynth
 		return FMath::Max(SpeedMps, 0.0f) / (UE_TWO_PI * FlatSpotTyreRadiusM);
 	}
 
-	float SquealHz(int32 Axle, float SpeedMps, float Slide)
+	float SquealHz(int32 Axle, float SpeedMps, float Slide, float Overheat)
 	{
 		// Faster scrubbing sings higher; so does a tyre further past its peak.
+		// Hot, soft rubber sings lower.
 		const float Speed = FMath::Clamp(SpeedMps / 60.0f, 0.0f, 1.0f);
-		return SquealBaseHz[Axle == 0 ? 0 : 1] * (0.85f + 0.3f * Speed) * (1.0f + 0.12f * FMath::Clamp(Slide, 0.0f, 1.0f));
+		return SquealBaseHz[Axle == 0 ? 0 : 1] * (0.85f + 0.3f * Speed) * (1.0f + 0.12f * FMath::Clamp(Slide, 0.0f, 1.0f))
+			* (1.0f - GreasyPitchDrop * FMath::Clamp(Overheat, 0.0f, 1.0f));
 	}
 
 	void Render(FState& State, const FInputs& Inputs, float SampleRate, float* OutFrames, int32 NumFrames)
@@ -214,6 +227,9 @@ namespace ApexRoadSynth
 
 		FInputs& S = State.Smoothed;
 		S.bWet = Inputs.bWet;
+		// A tyre heats and cools over seconds; a buffer's step is nothing.
+		S.FrontHeat = FMath::Clamp(Inputs.FrontHeat, 0.0f, 1.0f);
+		S.RearHeat = FMath::Clamp(Inputs.RearHeat, 0.0f, 1.0f);
 		const float InputAlpha = AlphaFor(SmoothingSeconds, SampleRate);
 		const float Dt = 1.0f / SampleRate;
 
@@ -221,8 +237,8 @@ namespace ApexRoadSynth
 		// buffer is a few milliseconds and none of these move far in one.
 		const float Speed = FMath::Max(S.SpeedMps, 0.0f);
 		const float Wet = S.bWet ? 1.0f : 0.0f;
-		const float FrontHz = SquealHz(0, Speed, S.FrontSlide);
-		const float RearHz = SquealHz(1, Speed, S.RearSlide);
+		const float FrontHz = SquealHz(0, Speed, S.FrontSlide, S.FrontHeat);
+		const float RearHz = SquealHz(1, Speed, S.RearSlide, S.RearHeat);
 		const float LockHz = 430.0f + 120.0f * FMath::Clamp(Speed / 50.0f, 0.0f, 1.0f);
 		const float SpinHz = 560.0f + 420.0f * S.Wheelspin;
 		// The pitch wanders over a quarter of a second; the level flutters at the road's grain, tens of Hz.
@@ -260,8 +276,11 @@ namespace ApexRoadSynth
 		// Noise behind a pole that slow is tiny: this brings it back to about ±1.
 		const float GustScale = 0.6f * FMath::Sqrt(2.5f * SampleRate);
 
-		// Rubber sings on a dry road and only hisses on a wet one.
+		// Rubber sings on a dry road and only hisses on a wet one; a greasy,
+		// overheated tread smears more than it sings.
 		const float Sing = 1.0f - 0.8f * Wet;
+		const float FrontSing = Sing * (1.0f - GreasySingLoss * S.FrontHeat);
+		const float RearSing = Sing * (1.0f - GreasySingLoss * S.RearHeat);
 		const float Scrub = Gate(Speed, 5.0f, 15.0f);
 		const float Moving = Gate(Speed, CrawlSpeedMps, 10.0f);
 		const float RibStep = CurbRibHz(Speed) * Dt;
@@ -299,12 +318,12 @@ namespace ApexRoadSynth
 			if (FrontLevel > 0.001f)
 			{
 				Tyres += TickHowl(State.FrontHowl, FrontHz, 0.35f, Noise, Dt, WanderAlpha, WanderScale, FlutterAlpha, FlutterScale)
-					* FrontLevel * 0.2f * Sing;
+					* FrontLevel * 0.2f * FrontSing;
 			}
 			if (RearLevel > 0.001f)
 			{
 				Tyres += TickHowl(State.RearHowl, RearHz, 0.35f, Noise2, Dt, WanderAlpha, WanderScale, FlutterAlpha, FlutterScale)
-					* RearLevel * 0.2f * Sing;
+					* RearLevel * 0.2f * RearSing;
 			}
 			if (LockLevel > 0.001f)
 			{
@@ -320,7 +339,9 @@ namespace ApexRoadSynth
 			State.ScrubHigh += (Noise - State.ScrubHigh) * ScrubHighAlpha;
 			State.ScrubHigh2 += (State.ScrubHigh - State.ScrubHigh2) * ScrubHighAlpha;
 			State.ScrubLow += (State.ScrubHigh2 - State.ScrubLow) * ScrubLowAlpha;
-			Tyres += (State.ScrubHigh2 - State.ScrubLow) * (FrontLevel + RearLevel + LockLevel + SpinLevel) * (0.12f + 0.3f * Wet);
+			const float Smear = FrontLevel * (1.0f + GreasyScrubGain * S.FrontHeat) + RearLevel * (1.0f + GreasyScrubGain * S.RearHeat)
+				+ LockLevel + SpinLevel;
+			Tyres += (State.ScrubHigh2 - State.ScrubLow) * Smear * (0.12f + 0.3f * Wet);
 
 			// --- Kerbs -----------------------------------------------------------
 			float RibHit = 0.0f;

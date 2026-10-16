@@ -53,11 +53,12 @@ namespace
 		return FFileHelper::SaveArrayToFile(Bytes, *Path);
 	}
 
-	/** One engine through the scripted run. */
-	TArray<float> RenderDrive(const ApexEngineSynth::FEngineSpec& Spec, int32 Gears)
+	/** One engine through the scripted run; `Damage` (0..1) is the engine zone's. */
+	TArray<float> RenderDrive(const ApexEngineSynth::FEngineSpec& Spec, int32 Gears, float Damage = 0.0f)
 	{
 		const TUniquePtr<ApexEngineSynth::FState> State = MakeUnique<ApexEngineSynth::FState>();
 		ApexEngineSynth::FInputs Inputs;
+		Inputs.Damage = Damage;
 		Inputs.Rpm = Spec.IdleRpm;
 		Inputs.Gear = 1;
 		TArray<float> Frames;
@@ -136,6 +137,7 @@ namespace
 		Stops.Add({TEXT("rolling at 110 km/h"), At(30.0f), 0.0f, 0.0f});
 		Stops.Add({TEXT("rolling at 300 km/h"), At(85.0f), 0.0f, 0.0f});
 		{ FStop S{TEXT("understeer"), At(40.0f), 0.0f, 0.0f}; S.Levels.FrontSlide = 1.0f; Stops.Add(S); }
+		{ FStop S{TEXT("understeer on overheated fronts"), At(40.0f), 0.0f, 0.0f}; S.Levels.FrontSlide = 1.0f; S.Levels.FrontHeat = 1.0f; Stops.Add(S); }
 		{ FStop S{TEXT("oversteer"), At(40.0f), 0.0f, 0.0f}; S.Levels.RearSlide = 1.0f; Stops.Add(S); }
 		{ FStop S{TEXT("lockup"), At(45.0f), 0.0f, 0.0f}; S.Levels.Lockup = 1.0f; Stops.Add(S); }
 		{ FStop S{TEXT("wheelspin"), At(6.0f), 0.0f, 0.0f}; S.Levels.Wheelspin = 1.0f; Stops.Add(S); }
@@ -184,8 +186,10 @@ namespace
 			const TArray<float> Frames = RenderDrive(Spec, Gears);
 			const bool bFormula = Row->CarClass.Equals(TEXT("F1"), ESearchCase::IgnoreCase);
 			const TArray<float> Own = HeardFrom(bFormula ? ApexSpace::ESeat::OpenCockpit : ApexSpace::ESeat::Cabin, Frames);
+			// The same drive on an engine 70% damaged: misfires, a weak cylinder, a knock.
 			const bool bSaved = SaveWav(Path, Frames)
-				&& SaveWav(FPaths::Combine(Dir, Name + TEXT("_own.wav")), Own, 2);
+				&& SaveWav(FPaths::Combine(Dir, Name + TEXT("_own.wav")), Own, 2)
+				&& SaveWav(FPaths::Combine(Dir, Name + TEXT("_damaged.wav")), RenderDrive(Spec, Gears, 0.7f));
 			UE_LOG(LogApexSim, Display, TEXT("%s: %d cyl%s%s, %.0f-%.0f rpm, pipe %.2f m, muffling %.2f, pops %.2f%s -> %s (%.1f s)%s"),
 				*Row->DisplayName, Spec.Cylinders, (Spec.BankMask & 0xFFu) == 0xB2u ? TEXT(" crossplane") : TEXT(""),
 				Spec.bTurbo ? TEXT(" turbo") : TEXT(""), Spec.IdleRpm, Spec.RedlineRpm, Spec.ExhaustLengthM, Spec.Muffling,

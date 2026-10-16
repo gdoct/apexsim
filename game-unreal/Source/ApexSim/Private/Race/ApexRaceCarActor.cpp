@@ -4,6 +4,7 @@
 
 #include "Audio/ApexEngineSoundWave.h"
 #include "Audio/ApexRoadSoundWave.h"
+#include "Input/ApexForceFeedback.h"
 #include "Cars/ApexCarContentSubsystem.h"
 #include "Cars/ApexCarToml.h"
 #include "Components/AudioComponent.h"
@@ -364,6 +365,11 @@ void AApexRaceCarActor::SetTyreWindow(float OptimalC, float WindowC)
 {
 	TyreOptimalC = OptimalC > 0.0f ? OptimalC : 90.0f;
 	TyreWindowC = WindowC > 0.0f ? WindowC : 10.0f;
+}
+
+float AApexRaceCarActor::GetTyreOverheat(int32 Wheel) const
+{
+	return Wheel >= 0 && Wheel < ApexWheels::NumWheels ? ApexFfb::TyreOverheat(TyreTempC[Wheel], TyreOptimalC, TyreWindowC) : 0.0f;
 }
 
 void AApexRaceCarActor::TakeTyreTelemetry(const FApexCarTelemetry& Car)
@@ -1375,6 +1381,13 @@ void AApexRaceCarActor::UpdateDamage(float DeltaSeconds)
 	const ApexDamage::FShares Before = DamageShares;
 	DamageShares = Shares;
 	SinceLastHit += DeltaSeconds;
+
+	// A damaged engine is heard: misfires, a weak cylinder, a knock.
+	if (EngineSound && OwnEngineSound)
+	{
+		EngineSound->SetDamage(Shares.Zone[ApexDamage::Engine]);
+		OwnEngineSound->SetDamage(Shares.Zone[ApexDamage::Engine]);
+	}
 
 	// The dents: written only when a zone has moved, which is a hit or a repair,
 	// or where a zone was hit has (a hit lands off the old centre).

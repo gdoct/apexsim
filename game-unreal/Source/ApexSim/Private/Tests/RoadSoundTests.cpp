@@ -317,4 +317,40 @@ bool FApexRoadRenderTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexRoadGreasyTest,
+	"ApexSim.Audio.RoadGreasy",
+	ApexTestFlags)
+
+bool FApexRoadGreasyTest::RunTest(const FString& Parameters)
+{
+	// An overheated tyre is greasy: it slides, and is heard, sooner.
+	TestEqual(TEXT("a cool tyre is silent a little past its peak"), ApexRoadSynth::SquealFromSlipAngle(1.2f), 0.0f);
+	TestTrue(TEXT("a greasy one is already heard there"), ApexRoadSynth::SquealFromSlipAngle(1.2f, 1.0f) > 0.0f);
+	TestEqual(TEXT("in its window the onset is unchanged"), ApexRoadSynth::SquealFromSlipAngle(1.8f, 0.0f), ApexRoadSynth::SquealFromSlipAngle(1.8f));
+
+	// And it sings lower and less, smeared into scrub.
+	ApexRoadSynth::FInputs Cool = Cruise(40.0f);
+	Cool.FrontSlide = 1.0f;
+	ApexRoadSynth::FInputs Hot = Cool;
+	Hot.FrontHeat = 1.0f;
+	const double CoolHz = ApexRoadSynth::SquealHz(0, 40.0f, 1.0f);
+	const double HotHz = ApexRoadSynth::SquealHz(0, 40.0f, 1.0f, 1.0f);
+	TestTrue(*FString::Printf(TEXT("a greasy front sings lower (%.0f Hz against %.0f)"), HotHz, CoolHz), HotHz < CoolHz * 0.9);
+	const TArray<float> CoolFrames = RenderRoad(Cool);
+	const TArray<float> HotFrames = RenderRoad(Hot);
+	TestTrue(TEXT("and less of a note"), RoadBandPower(HotFrames, HotHz) < RoadBandPower(CoolFrames, CoolHz) * 0.5);
+	TestTrue(*FString::Printf(TEXT("but is still heard sliding (%.3f against %.3f)"), RoadRms(HotFrames), RoadRms(CoolFrames)),
+		RoadRms(HotFrames) > RoadRms(CoolFrames) * 0.4f);
+
+	// The rear's heat leaves the front alone.
+	ApexRoadSynth::FInputs HotRear = Cool;
+	HotRear.RearHeat = 1.0f;
+	const double CoolNote = RoadBandPower(CoolFrames, CoolHz);
+	TestTrue(TEXT("each axle by its own tyres"), FMath::IsNearlyEqual(RoadBandPower(RenderRoad(HotRear), CoolHz), CoolNote, CoolNote * 0.05));
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

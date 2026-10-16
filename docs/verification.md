@@ -196,6 +196,11 @@ Mandarina Bay.
   `ApexWheelProfiles` name rules against what real bases report.
 - The sausage kerbs by hand on both circuits, and the Nordschleife's posts
   and grade plates read from the cockpit.
+- Greasy tyres and damage by hand (`ApexFfb::ReadCarCondition`): fronts
+  cooked past their window (the rim 15% lighter, the scrub lower), a side
+  hit hard enough to bend it (the wobble once a wheel turn, the server's
+  pull), and an engine past 10% damage (the half-order shake), on a wheel
+  and on a pad. Only `ApexSim.Input.ForceFeedback.CarCondition` has run.
 - A gravel trap by hand (a Monza chicane run straight on) and Sakhir's
   desert floor: how hard the trap bogs the car and whether it can be
   driven out (`OffGround`, [server/vehicle-physics.md](server/vehicle-physics.md)).
@@ -205,6 +210,11 @@ Mandarina Bay.
 - A replay's tyre and kerb sound (the watched car's road sound from its
   row's wheels, `UpdateWatchedCarRoadSound`) against the live run.
 - A hotlap replay's ghost from its `Ghost` record.
+- An overheated tyre's squeal (sooner, lower, smeared) and a damaged
+  engine's misfires and knock, by ear: `apexsim.audio.RenderCars` writes
+  `road.wav` (overheated fronts) and `<car>_damaged.wav`, and
+  `apexsim.car.DamagePreview "0,0,0,0,70"` plays the knock in a race.
+  Judged only by the spectra in `ApexSim.Audio.RoadGreasy` / `EngineDamage`.
 - A promo clip's sound by ear ([marketing-site.md](marketing-site.md)):
   measured on one 5 s onboard cut at Spa (the note follows the car's rpm
   within two frames, 5.00 s of sound for 5.00 s of frames), never listened

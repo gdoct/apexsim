@@ -108,12 +108,6 @@ one session, advanced by the host (see
 | No weekend results record: practice times, the combined qualifying sheet (stored) and the race classification are not kept together as one record, shown in the client or exported. | Med | Med |
 | Replays and the timing board are per session; an event's replays and sheets should be browsable together. | Low | Low |
 
-## Driver feedback
-
-| Gap | Effort | Impact |
-|---|---|---|
-| Tyre heat is not a force-feedback or squeal cue; damage changes neither the engine note nor the feel. | Med | Med |
-
 ## Assetto Corsa imports
 
 | Gap | Effort | Impact |

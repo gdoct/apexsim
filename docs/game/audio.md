@@ -77,6 +77,16 @@ upshift cracks once), the limiter's spark-cut stutter, induction roar, gearbox
 whine at a per-gear tooth-mesh frequency (`WhineHz`: it steps up on an upshift
 at the same revs), and a turbo's whistle and blow-off.
 
+**A damaged engine** (`FInputs::Damage`, the telemetry's engine zone, set
+for every car by `AApexRaceCarActor::UpdateDamage` through
+`UApexEngineSoundWave::SetDamage`, so `apexsim.car.DamagePreview` plays it
+too): from 10% it misfires (`ApexEngineSynth::MisfireChance`, up to 30% of
+the firings at 100%, a third of them lighting late in the pipe as a crack),
+the first cylinder in the firing order runs up to half weak (a limp on the
+crank's half-orders), and from 40% a bearing knocks: a short 2.3 kHz ring
+struck once a rev, louder under load. At 0 the synth draws no extra noise
+and renders a healthy engine sample for sample.
+
 ### The `[sound]` table
 
 An engine is described by `[sound]` in its `car.toml`: `cylinders`,
@@ -143,6 +153,13 @@ hits are the same signals the pad and wheel get.
   three falling harmonics, with a small pitch wander and level flutter) over a
   band of low-mid scrub. It is silent at a crawl and on grass, and mostly scrub
   in the wet. No voice is white noise gated by a level.
+- **Greasy tyres.** An axle whose hotter tyre runs over its window's top
+  (`FInputs::FrontHeat` / `RearHeat`, `ApexFfb::TyreOverheat` against the
+  catalog row's `TyreOptimalC` + `TyreWindowC`: 0 at the top, 1 a window
+  past it) squeals from up to 0.25 peaks sooner
+  (`SquealFromSlipAngle(slip, heat)`), up to 15% lower, with 60% less of
+  its note and more scrub under it. The own car's heat comes from its
+  telemetry (`AApexRaceCarActor::GetTyreOverheat`); a watched car's too.
 - A kerb is a rib every 0.9 m (the force feedback's spacing) thudding through a
   resonance, so its pitch follows the car's speed. Off-track is rumble and
   stones. A suspension hit over the 0.3 m/s threshold is a thud, a contact a
@@ -155,18 +172,22 @@ hits are the same signals the pad and wheel get.
 
 - `apexsim.audio.RenderCars [dir]` drives every catalog car through a scripted
   run and writes `Saved/Audio/<folder>.wav` (mono, as the world hears it),
-  `<folder>_own.wav` (stereo, from the seat) and `road.wav` (each road voice in
-  turn). Use it to judge or tune a `[sound]` table.
+  `<folder>_own.wav` (stereo, from the seat), `<folder>_damaged.wav` (the
+  same drive on a 70% damaged engine) and `road.wav` (each road voice in
+  turn, overheated fronts among them). Use it to judge or tune a `[sound]` table.
 - Automation tests (run as in [building](../building.md)):
   - `ApexSim.UI.SoundCuesRender` / `.SoundCuesRateIndependent`: every cue short,
     finite, click-free and the same length at 44.1 and 48 kHz.
   - `ApexSim.Audio.Engine*` (Crank, Note, Timbre, Pops, GearWhine, Spec, Render):
     energy on the firing note at both rates, half-orders only on a crossplane, a
     GT3 under 2 kHz against an F1 above, pops, limiter stutter.
+  - `ApexSim.Audio.EngineDamage`: no damage renders the healthy engine sample
+    for sample; a damaged one has energy under its note and a knock at 2.3 kHz.
   - `ApexSim.Audio.Space*` (Seats, Reverb): the shelf, the bulkhead, ring times at
     both device rates, a stereo tail.
-  - `ApexSim.Audio.Road*` (Squeal, Curb, Hits, FlatSpot, Render): squeal notes,
-    the kerb's rib rate, hit thresholds.
+  - `ApexSim.Audio.Road*` (Squeal, Greasy, Curb, Hits, FlatSpot, Render):
+    squeal notes, an overheated tyre's earlier, lower, smeared squeal, the
+    kerb's rib rate, hit thresholds.
   - `ApexSim.Cars.TomlSound`: the `[sound]` scan.
 - `ApexEngineSound`, `ApexRoadSound` and `ApexListenerSpace` include only
   `CoreMinimal.h` and use only `FMath`. That keeps them buildable outside the

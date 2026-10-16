@@ -420,4 +420,75 @@ bool FApexEngineSpecTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexEngineDamageTest,
+	"ApexSim.Audio.EngineDamage",
+	ApexTestFlags)
+
+bool FApexEngineDamageTest::RunTest(const FString& Parameters)
+{
+	// A six at 6000 rpm: the note is 300 Hz, the crank 100 Hz, and a healthy
+	// alternating-bank engine has little under its note.
+	ApexEngineSynth::FEngineSpec V6;
+	V6.Cylinders = 6;
+	V6.BankMask = ApexEngineSynth::BankMask(6, false);
+	auto Render = [&V6](float Damage, bool bSetDamage)
+	{
+		const TUniquePtr<ApexEngineSynth::FState> State = MakeUnique<ApexEngineSynth::FState>();
+		ApexEngineSynth::FInputs Inputs;
+		Inputs.Rpm = 6000.0f;
+		Inputs.Throttle = 0.7f;
+		Inputs.Gear = 3;
+		if (bSetDamage)
+		{
+			Inputs.Damage = Damage;
+		}
+		constexpr int32 Block = 480;
+		TArray<float> Frames;
+		Frames.SetNumZeroed(static_cast<int32>(EngineTestSampleRate * 2.0f) / Block * Block);
+		for (int32 At = 0; At < Frames.Num(); At += Block)
+		{
+			ApexEngineSynth::Render(*State, V6, Inputs, EngineTestSampleRate, Frames.GetData() + At, Block);
+		}
+		return Frames;
+	};
+
+	// A scuffed engine is a healthy one, and a healthy one renders exactly as before.
+	TestEqual(TEXT("no misfires when healthy"), ApexEngineSynth::MisfireChance(0.0f), 0.0f);
+	TestEqual(TEXT("nor at a tenth"), ApexEngineSynth::MisfireChance(0.1f), 0.0f);
+	TestTrue(TEXT("misfires grow with the damage"),
+		ApexEngineSynth::MisfireChance(0.5f) > 0.0f && ApexEngineSynth::MisfireChance(1.0f) > ApexEngineSynth::MisfireChance(0.5f));
+	TestTrue(TEXT("but never most of the firings"), ApexEngineSynth::MisfireChance(1.0f) <= 0.35f);
+	const TArray<float> Healthy = Render(0.0f, false);
+	TestTrue(TEXT("damage 0 is the healthy engine, sample for sample"), Healthy == Render(0.0f, true));
+
+	// Misfires and a weak cylinder put energy under the note: on the crank's
+	// half-orders and between them.
+	auto UnderNote = [](const TArray<float>& Frames)
+	{
+		double Under = 0.0;
+		for (const double Hz : {50.0, 100.0, 150.0, 200.0, 250.0})
+		{
+			Under += PowerAt(Frames, Hz, EngineTestSampleRate);
+		}
+		return Under / FMath::Max(PowerAt(Frames, 300.0, EngineTestSampleRate), 1e-12);
+	};
+	const TArray<float> Damaged = Render(0.8f, true);
+	TestTrue(*FString::Printf(TEXT("a damaged engine stumbles under its note (%.3f against %.3f healthy)"),
+				 UnderNote(Damaged), UnderNote(Healthy)),
+		UnderNote(Damaged) > UnderNote(Healthy) * 3.0);
+
+	// A knock: a metallic ring once a rev, at its own pitch high above the note.
+	const double KnockHealthy = PowerAt(Healthy, 2300.0, EngineTestSampleRate);
+	const double KnockDamaged = PowerAt(Damaged, 2300.0, EngineTestSampleRate);
+	TestTrue(*FString::Printf(TEXT("a damaged engine knocks (%.2e against %.2e)"), KnockDamaged, KnockHealthy),
+		KnockDamaged > KnockHealthy * 3.0);
+
+	const FLevel Level = Measure(Render(1.0f, true));
+	TestTrue(TEXT("a dying engine is finite and inside the rails"), Level.bFinite && Level.Peak <= 1.0f);
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

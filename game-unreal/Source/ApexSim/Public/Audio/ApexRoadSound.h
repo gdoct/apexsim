@@ -19,7 +19,8 @@
  *    the two axles sit a third apart so understeer and oversteer are told
  *    apart by ear. A locked wheel is lower and harsher; a
  *    spinning one climbs with the slip. On a wet road rubber hardly sings:
- *    the squeal gives way to hiss.
+ *    the squeal gives way to hiss. An axle run over its tyres' window is
+ *    greasy: it slides sooner, sings lower and less, and smears into scrub.
  *  - **Kerbs**: a rib passes under the tyre every 0.9 m (the spacing the force
  *    feedback uses), each one a thud through the tyre's own resonance plus a
  *    slap, so a kerb is a drone whose pitch is the car's speed. The two sides
@@ -61,6 +62,13 @@ namespace ApexRoadSynth
 		bool bWet = false;
 		/** The deepest flat spot on the tyres, 0..1 (ApexFfb::FSignals::FlatSpot): a thump each turn of the wheel. */
 		float FlatSpot = 0.0f;
+		/**
+		 * How far each axle's tyres run over their window's top, 0..1
+		 * (ApexFfb::TyreOverheat): a greasy squeal, lower, less of a note and
+		 * more scrub.
+		 */
+		float FrontHeat = 0.0f;
+		float RearHeat = 0.0f;
 	};
 
 	/** One sliding tyre's tone: see TickHowl. */
@@ -137,9 +145,11 @@ namespace ApexRoadSynth
 	 * the force feedback's: a car at its peak slip angle is cornering well, not
 	 * sliding, and is silent; the howl starts a quarter past the peak and is
 	 * full at 2.4x. A wheel is locked or spinning from 1.6x the peak slip ratio
-	 * (ABS and traction control hold 1.0).
+	 * (ABS and traction control hold 1.0). An overheated tyre (`Overheat`,
+	 * 0..1, ApexFfb::TyreOverheat) is greasy: it slides, and is heard, from
+	 * up to a fifth sooner.
 	 */
-	APEXSIM_API float SquealFromSlipAngle(float SlipAngleInPeaks);
+	APEXSIM_API float SquealFromSlipAngle(float SlipAngleInPeaks, float Overheat = 0.0f);
 	APEXSIM_API float LockupFromSlipRatio(float SlipRatioInPeaks);
 	APEXSIM_API float WheelspinFromSlipRatio(float SlipRatioInPeaks);
 
@@ -149,8 +159,8 @@ namespace ApexRoadSynth
 	/** Turns of the wheel per second at this speed: a flat spot's thump rate, on the force feedback's 0.33 m tyre. */
 	APEXSIM_API float FlatSpotHz(float SpeedMps);
 
-	/** The squeal's centre frequency for an axle (0 front, 1 rear) at this speed and slide. */
-	APEXSIM_API float SquealHz(int32 Axle, float SpeedMps, float Slide);
+	/** The squeal's centre frequency for an axle (0 front, 1 rear) at this speed and slide; a greasy (overheated, 0..1) tyre sings lower. */
+	APEXSIM_API float SquealHz(int32 Axle, float SpeedMps, float Slide, float Overheat = 0.0f);
 
 	/** Renders NumFrames of mono float samples. Never exceeds ±1. */
 	APEXSIM_API void Render(FState& State, const FInputs& Inputs, float SampleRate, float* OutFrames, int32 NumFrames);

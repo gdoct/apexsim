@@ -37,6 +37,8 @@ struct FApexEngineLiveState
 	std::atomic<float> Rpm{0.0f};
 	std::atomic<float> Throttle{0.0f};
 	std::atomic<int32> Gear{0};
+	/** The engine's damage, 0..1: misfires and a knock (ApexEngineSynth::FInputs::Damage). */
+	std::atomic<float> Damage{0.0f};
 	/** ApexSpace::ESeat, for the own-car wave: where the player hears this car from. */
 	std::atomic<uint8> Seat{0};
 
@@ -81,6 +83,9 @@ public:
 
 	/** What the engine is doing now. Safe to call from the game thread every frame. */
 	void SetLive(float Rpm, float Throttle, int32 Gear);
+
+	/** The engine's damage, 0..1, from the telemetry's engine zone. Safe to call from the game thread at any time. */
+	void SetDamage(float EngineDamage);
 
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 

@@ -260,6 +260,10 @@ private:
 	FApexWheelEffects LastWheelEffects;
 	/** The net subsystem's feedback serial last mixed, so each message's hits fire once. */
 	uint32 LastFeedbackSerial = 0;
+	/** The driven car's tyre window (its catalog row), read once per car, for the greasy-tyre cue. */
+	FString TyreWindowCarId;
+	float TyreOptimalC = 90.0f;
+	float TyreWindowC = 10.0f;
 	float FeedbackPreviewSeconds = 0.0f;
 	/** Counts down while the Wheel page's test force is pushing. */
 	float WheelTestSeconds = 0.0f;

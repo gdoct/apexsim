@@ -153,6 +153,24 @@ namespace ApexEngineSynth
 		constexpr float GearTeeth[] = {17.0f, 20.0f, 23.0f, 26.0f, 28.0f, 30.0f, 32.0f, 33.0f};
 
 		/**
+		 * A damaged engine. Below MisfireFromDamage it runs as new (a scuffed
+		 * radiator is not a sick engine); from there the misfires grow to
+		 * MisfireAtFull of the firings, a third of them lighting late in the
+		 * pipe as a crack, and the first cylinder in the firing order loses up
+		 * to WeakCylinderLoss of its charge, which puts a limp on the crank's
+		 * half-orders. From KnockFromDamage a bearing knocks: a short metallic
+		 * ring at KnockHz struck once a rev, louder under load.
+		 */
+		constexpr float MisfireFromDamage = 0.1f;
+		constexpr float MisfireAtFull = 0.3f;
+		constexpr float MisfireLightsInPipe = 0.3f;
+		constexpr float WeakCylinderLoss = 0.5f;
+		constexpr float KnockFromDamage = 0.4f;
+		constexpr float KnockHz = 2300.0f;
+		constexpr float KnockRingSeconds = 0.004f;
+		constexpr float KnockLevel = 0.5f;
+
+		/**
 		 * A private xorshift32 generator. Not FMath::FRand: that shares state
 		 * across every caller, and this one runs on the audio thread on every
 		 * sample.
@@ -192,6 +210,12 @@ namespace ApexEngineSynth
 			const float X = FMath::Clamp(Value, -1.5f, 1.5f);
 			return X - X * X * X / 6.75f;
 		}
+	}
+
+	float MisfireChance(float Damage)
+	{
+		const float Sick = FMath::Clamp((Damage - MisfireFromDamage) / (1.0f - MisfireFromDamage), 0.0f, 1.0f);
+		return MisfireAtFull * Sick * FMath::Sqrt(Sick);
 	}
 
 	uint32 BankMask(int32 Cylinders, bool bCrossplane)
@@ -314,6 +338,18 @@ namespace ApexEngineSynth
 		const float BlowOffDecay = 1.0f - AlphaFor(BlowOffSeconds, SampleRate);
 		const float BlowOffAlpha = AlphaForHz(2500.0f, SampleRate);
 
+		// Damage: how often a firing is dropped, how weak the sick cylinder
+		// is, and the knock's ring. All nothing on a healthy engine, which then
+		// draws no extra noise and renders as it always has.
+		const float Damage = FMath::IsFinite(Inputs.Damage) ? FMath::Clamp(Inputs.Damage, 0.0f, 1.0f) : 0.0f;
+		const float Misfire = MisfireChance(Damage);
+		const float WeakGain = 1.0f - WeakCylinderLoss * FMath::Clamp(Damage / 0.6f, 0.0f, 1.0f);
+		const float Knock = KnockLevel * FMath::Clamp((Damage - KnockFromDamage) / (1.0f - KnockFromDamage), 0.0f, 1.0f);
+		const float KnockR = FMath::Exp(-1.0f / (KnockRingSeconds * SampleRate));
+		const float KnockTheta = 2.0f * PI * FMath::Min(KnockHz, SampleRate * 0.45f) / SampleRate;
+		const float KnockA1 = 2.0f * KnockR * FMath::Cos(KnockTheta);
+		const float KnockA2 = -KnockR * KnockR;
+
 		// A full-throttle upshift cracks: the cut leaves a charge for the pipe.
 		if (Inputs.Gear > State.LastGear && State.LastGear >= 1 && State.SmoothedThrottle > 0.5f
 			&& NextUnit(State.NoiseState) < Pops)
@@ -396,13 +432,24 @@ namespace ApexEngineSynth
 							Bank.PopBurst += 0.25f;
 						}
 					}
+					else if (Misfire > 0.0f && NextUnit(State.NoiseState) < Misfire)
+					{
+						// A damaged engine drops the firing; some of the charge
+						// lights late, in the pipe.
+						if (NextUnit(State.NoiseState) < MisfireLightsInPipe)
+						{
+							Bank.Pending += 0.5f * PulseSize;
+							Bank.PopBurst += 0.2f;
+						}
+					}
 					else
 					{
 						// A little cycle-to-cycle scatter on top of each cylinder's
 						// own size; more of it on a shut throttle, where the burn is
 						// marginal, but never enough to sound like a misfire.
 						const float Scatter = 0.03f + 0.09f * (1.0f - Throttle) * (1.0f - RevShare);
-						Bank.Pending += PulseSize * CylinderGain * (1.0f + NextNoise(State.NoiseState) * Scatter);
+						const float Weak = State.NextFiring == 0 ? WeakGain : 1.0f;
+						Bank.Pending += PulseSize * CylinderGain * Weak * (1.0f + NextNoise(State.NoiseState) * Scatter);
 
 						if (State.PopBudget > 0.02f
 							&& NextUnit(State.NoiseState) < State.PopBudget * Pops * PopChancePerFiring)
@@ -508,6 +555,22 @@ namespace ApexEngineSynth
 				State.BlowOffHighpass += (Hiss - State.BlowOffHighpass) * BlowOffAlpha;
 				Sample += FMath::Sin(2.0f * PI * State.TurboPhase) * 0.03f * State.TurboSpeed * State.TurboSpeed
 					+ (Hiss - State.BlowOffHighpass) * (0.22f * State.BlowOff + 0.01f * State.TurboSpeed);
+			}
+
+			// --- A knocking bearing ----------------------------------------------
+			if (Knock > 0.0f && bRunning)
+			{
+				State.KnockCrankDeg += Rpm * 6.0f * Dt;
+				if (State.KnockCrankDeg >= 360.0f)
+				{
+					State.KnockCrankDeg -= 360.0f;
+					State.KnockPending = Knock * (0.4f + 0.6f * Load);
+				}
+				const float Ring = KnockA1 * State.KnockY1 + KnockA2 * State.KnockY2 + State.KnockPending * FMath::Sin(KnockTheta);
+				State.KnockPending = 0.0f;
+				State.KnockY2 = State.KnockY1;
+				State.KnockY1 = Ring;
+				Sample += Ring;
 			}
 
 			// --- Out -------------------------------------------------------------

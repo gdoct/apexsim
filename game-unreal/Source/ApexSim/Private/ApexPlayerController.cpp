@@ -1,6 +1,8 @@
 #include "ApexPlayerController.h"
 
+#include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "Catalog/ApexCatalogRows.h"
 #include "ApexSettingsSave.h"
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
@@ -322,6 +324,19 @@ ApexFfb::FSignals AApexPlayerController::ReadDrivingSignals()
 		{
 			Signals.bHasStation = true;
 			Signals.StationM = Local->TrackProgress;
+			// Hot tyres and damage, from telemetry against the car's own tyre window.
+			if (const UApexMenuFlowSubsystem* Flow = GameInstance->GetSubsystem<UApexMenuFlowSubsystem>())
+			{
+				if (Flow->GetPendingCarId() != TyreWindowCarId)
+				{
+					TyreWindowCarId = Flow->GetPendingCarId();
+					FApexCarCatalogRow Row;
+					const bool bRow = Flow->GetCarCatalogRow(TyreWindowCarId, Row);
+					TyreOptimalC = bRow ? Row.TyreOptimalC : 90.0f;
+					TyreWindowC = bRow ? Row.TyreWindowC : 10.0f;
+				}
+			}
+			ApexFfb::ReadCarCondition(Signals, *Local, TyreOptimalC, TyreWindowC);
 		}
 	}
 	return Signals;

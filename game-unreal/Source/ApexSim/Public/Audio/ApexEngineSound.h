@@ -109,7 +109,16 @@ namespace ApexEngineSynth
 		float Throttle = 0.0f;
 		/** -1 reverse, 0 neutral, 1.. forward. */
 		int32 Gear = 0;
+		/**
+		 * The engine's damage, 0..1 (the telemetry's engine zone): a damaged
+		 * engine misfires, one cylinder runs weak and, from 40%, a rod knocks
+		 * once a rev. 0 renders exactly as a healthy engine.
+		 */
+		float Damage = 0.0f;
 	};
+
+	/** The share of firings a damaged engine drops, 0 when healthy (see FInputs::Damage). */
+	APEXSIM_API float MisfireChance(float Damage);
 
 	/** One exhaust bank: its blow-down envelope and the pipe it feeds. */
 	struct FBankState
@@ -181,6 +190,11 @@ namespace ApexEngineSynth
 		/** A DC blocker: a one-sided pulse train has a mean. */
 		float DcX1 = 0.0f;
 		float DcY1 = 0.0f;
+		/** A damaged engine's knock: a metallic ring struck once a rev. */
+		float KnockY1 = 0.0f;
+		float KnockY2 = 0.0f;
+		float KnockPending = 0.0f;
+		float KnockCrankDeg = 0.0f;
 	};
 
 	/**

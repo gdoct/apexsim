@@ -1183,4 +1183,83 @@ bool FApexFfbPadMotorsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbCarConditionTest,
+	"ApexSim.Input.ForceFeedback.CarCondition",
+	ApexTestFlags)
+
+bool FApexFfbCarConditionTest::RunTest(const FString& Parameters)
+{
+	// Heat against the window: nothing inside it, all of it a window over the top.
+	TestEqual(TEXT("in the window"), ApexFfb::TyreOverheat(95.0f, 90.0f, 10.0f), 0.0f);
+	TestEqual(TEXT("at its top"), ApexFfb::TyreOverheat(100.0f, 90.0f, 10.0f), 0.0f);
+	TestTrue(TEXT("half a window over"), FMath::IsNearlyEqual(ApexFfb::TyreOverheat(105.0f, 90.0f, 10.0f), 0.5f, 0.01f));
+	TestEqual(TEXT("a window over"), ApexFfb::TyreOverheat(130.0f, 90.0f, 10.0f), 1.0f);
+	TestEqual(TEXT("unknown is cool"), ApexFfb::TyreOverheat(-1.0f, 90.0f, 10.0f), 0.0f);
+
+	// From telemetry: the hotter tyre of each axle, the engine and the worse side.
+	FApexCarTelemetry Car;
+	Car.EngineRpm = 6000.0f;
+	Car.TyreTempC[0] = 100.0f;
+	Car.TyreTempC[1] = 110.0f;
+	Car.TyreTempC[2] = 95.0f;
+	Car.TyreTempC[3] = -1.0f;
+	Car.DamagePct[2] = 20.0f;
+	Car.DamagePct[3] = 60.0f;
+	Car.DamagePct[4] = 45.0f;
+	ApexFfb::FSignals Read = Cruising(30.0f);
+	ApexFfb::ReadCarCondition(Read, Car, 90.0f, 10.0f);
+	TestTrue(TEXT("the hotter front"), FMath::IsNearlyEqual(Read.FrontHeat, 1.0f, 0.01f));
+	TestEqual(TEXT("cool rears"), Read.RearHeat, 0.0f);
+	TestTrue(TEXT("the engine's damage"), FMath::IsNearlyEqual(Read.EngineDamage, 0.45f, 0.001f));
+	TestTrue(TEXT("the worse side's"), FMath::IsNearlyEqual(Read.SuspensionDamage, 0.6f, 0.001f));
+
+	// Greasy fronts are lighter in the hands and scrub smoother and lower.
+	const ApexFfb::FWheelTuning Tuning;
+	ApexFfb::FSignals Corner = Cruising(40.0f);
+	Corner.SteerTorque = 0.8f;
+	ApexFfb::FSignals Greasy = Corner;
+	Greasy.FrontHeat = 1.0f;
+	const float CoolTorque = SettledWheel(Corner, Tuning).Constant;
+	const float GreasyTorque = SettledWheel(Greasy, Tuning).Constant;
+	TestTrue(*FString::Printf(TEXT("a greasy front is lighter (%.3f against %.3f)"), GreasyTorque, CoolTorque),
+		GreasyTorque < CoolTorque * 0.9f && GreasyTorque > CoolTorque * 0.7f);
+	Corner.FrontSlide = Greasy.FrontSlide = 1.0f;
+	const FApexWheelEffects CoolScrub = PeakWheelVibration(Corner, Tuning);
+	const FApexWheelEffects GreasyScrub = PeakWheelVibration(Greasy, Tuning);
+	TestTrue(*FString::Printf(TEXT("its scrub is smoother and lower (%.2f at %.0f Hz against %.2f at %.0f)"),
+			GreasyScrub.VibrationAmplitude, GreasyScrub.VibrationHz, CoolScrub.VibrationAmplitude, CoolScrub.VibrationHz),
+		GreasyScrub.VibrationAmplitude < CoolScrub.VibrationAmplitude && GreasyScrub.VibrationHz < CoolScrub.VibrationHz);
+	TestTrue(TEXT("on the pad: less buzz, more heave"),
+		PeakOver(Greasy, 0.5f).High < PeakOver(Corner, 0.5f).High && PeakOver(Greasy, 0.5f).Low > PeakOver(Corner, 0.5f).Low);
+
+	// A bent suspension wobbles once a turn of the wheel.
+	ApexFfb::FSignals Bent = Cruising(30.0f);
+	Bent.SuspensionDamage = 0.7f;
+	const FApexWheelEffects Wobble = PeakWheelVibration(Bent, Tuning);
+	TestTrue(*FString::Printf(TEXT("a bent side wobbles the rim (%.2f at %.1f Hz)"), Wobble.VibrationAmplitude, Wobble.VibrationHz),
+		Wobble.VibrationAmplitude > 0.1f && FMath::IsNearlyEqual(Wobble.VibrationHz, 30.0f / (2.0f * PI * 0.33f), 0.5f));
+	TestTrue(TEXT("and the pad's heavy motor"), PeakOver(Bent, 1.0f).Low > 0.2f);
+	ApexFfb::FSignals Scuffed = Cruising(30.0f);
+	Scuffed.SuspensionDamage = 0.05f;
+	TestEqual(TEXT("a scuff does not"), PeakWheelVibration(Scuffed, Tuning).VibrationAmplitude, 0.0f);
+
+	// A damaged engine shakes at its half-order while it runs.
+	ApexFfb::FSignals Sick = Cruising(30.0f);
+	Sick.EngineDamage = 0.8f;
+	Sick.EngineRpm = 3000.0f;
+	const FApexWheelEffects Shake = PeakWheelVibration(Sick, Tuning);
+	TestTrue(*FString::Printf(TEXT("a sick engine shakes the rim (%.2f at %.1f Hz)"), Shake.VibrationAmplitude, Shake.VibrationHz),
+		Shake.VibrationAmplitude > 0.05f && FMath::IsNearlyEqual(Shake.VibrationHz, 25.0f, 0.5f));
+	TestTrue(TEXT("and stumbles on the pad"), PeakOver(Sick, 1.0f).Low > 0.2f);
+	ApexFfb::FSignals Healthy = Cruising(30.0f);
+	Healthy.EngineRpm = 3000.0f;
+	TestEqual(TEXT("a healthy one does neither"), PeakOver(Healthy, 1.0f).Low, 0.0f);
+	Sick.EngineRpm = 0.0f;
+	TestEqual(TEXT("nor a stopped one"), PeakWheelVibration(Sick, Tuning).VibrationAmplitude, 0.0f);
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS
