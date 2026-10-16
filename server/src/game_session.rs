@@ -4961,7 +4961,9 @@ impl GameSession {
                 }
             }
         }
-        let fuel_save = self.fuel_save(state);
+        // Saving fuel, and nursing a hot or damaged engine: the more of
+        // the two.
+        let fuel_save = self.fuel_save(state).max(self.engine_nurse(state));
         let controller = AiDriverController::new(profile, &self.track_config, car_config)
             .with_speed_profile(self.ai_speed_profile(state))
             .with_fuel_save(fuel_save.coast_s)
@@ -5201,6 +5203,21 @@ impl GameSession {
             return crate::pit::FuelSave::NONE;
         }
         crate::pit::fuel_save_for(self.fuel_short_share(state))
+    }
+
+    /// How an AI nurses its engine (`crate::pit::engine_nurse_for`): by
+    /// its coolant and the damage it feels (the hits, the heat and the
+    /// over-revs; its wear is how every engine ages). Racing or not, but
+    /// not once it has finished.
+    fn engine_nurse(&self, state: &CarState) -> crate::pit::FuelSave {
+        if state.finish_position.is_some() {
+            return crate::pit::FuelSave::NONE;
+        }
+        let felt = state.felt_damage();
+        crate::pit::engine_nurse_for(
+            state.water_temp_c,
+            felt.engine_damage_percent - felt.engine_wear_percent,
+        )
     }
 
     /// Whether a car a stop would refuel saves fuel to the flag instead:

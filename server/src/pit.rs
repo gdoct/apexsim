@@ -573,6 +573,42 @@ pub fn fuel_save_for(short: f32) -> FuelSave {
     }
 }
 
+/// A driver nurses an engine whose coolant is over this, °C, and fully at
+/// `engine_heat::OVERHEAT_C`, where it starts to lose power and wear.
+pub const NURSE_HOT_C: f32 = 105.0;
+/// And one damaged (the hits, the heat and the over-revs, not its wear)
+/// past this share, percent, fully at the second.
+pub const NURSE_DAMAGE_PERCENT: (f32, f32) = (10.0, 40.0);
+/// Nursing it fully, a driver lifts and coasts this long before each
+/// braking zone, s, and short-shifts all it can.
+pub const NURSE_COAST_S: f32 = 1.0;
+
+/// How a driver nurses an engine that is hot (`water_c`, the coolant) or
+/// damaged (`damage` percent, its wear left out): coasting into the
+/// braking zones and short-shifting, so it works less and turns slower,
+/// in proportion to how hot or how hurt it is. Nothing for a healthy one.
+pub fn engine_nurse_for(water_c: f32, damage_percent: f32) -> FuelSave {
+    let hot = ((water_c - NURSE_HOT_C) / (crate::engine_heat::OVERHEAT_C - NURSE_HOT_C).max(1.0))
+        .clamp(0.0, 1.0);
+    let (from, full) = NURSE_DAMAGE_PERCENT;
+    let hurt = ((damage_percent - from) / (full - from)).clamp(0.0, 1.0);
+    let nurse = hot.max(hurt);
+    FuelSave {
+        coast_s: NURSE_COAST_S * nurse,
+        short_shift: nurse,
+    }
+}
+
+impl FuelSave {
+    /// The more of each of two ways of saving.
+    pub fn max(self, other: FuelSave) -> FuelSave {
+        FuelSave {
+            coast_s: self.coast_s.max(other.coast_s),
+            short_shift: self.short_shift.max(other.short_shift),
+        }
+    }
+}
+
 /// The compound an AI picks for a stop, as a step off the car's reference:
 /// the softest that lasts the rest of the race.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1445,6 +1481,25 @@ pub fn drive_input(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A healthy engine is driven flat out; a hot or a damaged one is
+    /// nursed by how hot or hurt it is, and the more of fuel saving and
+    /// nursing is driven.
+    #[test]
+    fn a_hot_or_damaged_engine_is_nursed() {
+        assert_eq!(engine_nurse_for(95.0, 0.0), FuelSave::NONE);
+        assert_eq!(engine_nurse_for(NURSE_HOT_C, 9.0), FuelSave::NONE);
+        let hot = engine_nurse_for(crate::engine_heat::OVERHEAT_C + 3.0, 0.0);
+        assert_eq!(hot.short_shift, 1.0);
+        assert_eq!(hot.coast_s, NURSE_COAST_S);
+        let warm = engine_nurse_for(0.5 * (NURSE_HOT_C + crate::engine_heat::OVERHEAT_C), 0.0);
+        assert!((warm.short_shift - 0.5).abs() < 1e-4, "{warm:?}");
+        let hurt = engine_nurse_for(90.0, 25.0);
+        assert!((hurt.short_shift - 0.5).abs() < 1e-4, "{hurt:?}");
+        let both = fuel_save_for(0.15).max(hurt);
+        assert_eq!(both.coast_s, fuel_save_for(0.15).coast_s.max(hurt.coast_s));
+        assert_eq!(both.short_shift, 0.5);
+    }
 
     /// A straight lane along +X from 0 to 200 m, the limit between 40 and
     /// 160, boxes every 6 m from 70.

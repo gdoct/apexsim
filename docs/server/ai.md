@@ -270,6 +270,13 @@ off by `Racecraft::blend`; the controller holds it across the road
   `SHORT_SHIFT_SHORT` 10% short short-shifts as well, fully at 25%. At
   Monza an F1 20% short burns 16% less a lap for about 4 s; 13% short, 13%
   less for 2.5 s (`fuel_test`).
+- **Engine nursing** (`GameSession::engine_nurse`,
+  `pit::engine_nurse_for`), racing or not: a car whose coolant is over
+  `NURSE_HOT_C` (105 °C), or whose engine damage less its wear is over 10%
+  (`NURSE_DAMAGE_PERCENT`), lifts and coasts up to `NURSE_COAST_S` (1 s)
+  into each braking zone and short-shifts, both in proportion, fully at
+  `engine_heat::OVERHEAT_C` (112 °C) or 40%; the same machinery as fuel
+  saving, the more of the two driven.
 - **Damage**: a damaged engine is planned at its power (above, Plans);
   the aero loss reaches the driver through `aero_load_share` and the
   steering pull through its steering loop.
