@@ -131,7 +131,9 @@ off track or stopped, at most once per 12 s) and cuts between shots
 (`EShot`): grid, trackside (a long lens off the road on the outside of the
 bend, ahead of the car), helicopter (a low, raking orbit 45-70 m out and
 12-22 m up, looking down at 15-25 degrees; the race's opening one frames
-the front of the grid), tracking, chase, onboard, nose and
+the front of the grid), tracking, chase, onboard, nose (`NoseMount`: 5 cm
+ahead of the body's front face, low; behind that face the lens is inside the
+bumper and a two-sided body fills the frame with its paint) and
 reverse, with lag-compensated pans and depth of field. `LockTarget` holds it
 on one car (spectating, replays, the track guide).
 

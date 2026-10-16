@@ -198,6 +198,11 @@ namespace ApexTv
 		return FMath::Clamp(Fov, MinDeg, MaxDeg);
 	}
 
+	FVector NoseMount(const FBox& Body)
+	{
+		return FVector(Body.Max.X + 5.0, 0.0, Body.Min.Z + 0.3 * Body.GetSize().Z);
+	}
+
 	int32 PickTarget(TConstArrayView<FCar> Cars, int32 CurrentCarIndex, int32 ShotsOnCurrent,
 		const TSet<int32>& CarsInTrouble, FRandomStream& Rng)
 	{
@@ -878,7 +883,7 @@ namespace ApexTv
 			bRigid = true;
 			const bool bNose = Shot == EShot::Nose;
 			const FVector Mount = bNose
-				? FVector(Target.Body.Max.X - 15.0, 0.0, Target.Body.Min.Z + 0.3 * Target.Body.GetSize().Z)
+				? NoseMount(Target.Body)
 				: Target.EyeLocal + FVector(-25.0, 0.0, 38.0);
 			Location = Target.Location + Target.Rotation.RotateVector(Mount);
 			// Road texture through the mount: more of it the faster the car goes.

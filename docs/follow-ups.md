@@ -68,13 +68,6 @@ The ghost, the hotlap replay and watch.
 
 - Corners carry the circuit's official turn number in the dossier, not the
   detector's.
-- The qualifying shoot-out's camera on the car sent out: in `r12-shootout`
-  (`out/verify/r12-shootout/sheet_1.jpg`, shot 2, 40 s, the Norisring) the
-  view following the first car on its outlap showed only sky over a flat
-  blue plane, as if the camera sat below the ground or far off the car;
-  the shots before and after framed the cars. Find where the waiting
-  driver's camera is put when `FocusCar` lands on a car the server has just
-  sent out from the pit exit.
 - The lap allowance is counted by the client from its own `LapTiming` lap
   ends (`GetQualifyingLapsLeft`): a crossing the server counts without a
   timed lap (short of the checkpoints) is missed, and a driver who joins

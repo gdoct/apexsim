@@ -125,6 +125,14 @@ namespace ApexTv
 	APEXSIM_API float FramingFovDeg(float SubjectSizeCm, float DistanceCm, float FrameFraction, float MinDeg, float MaxDeg);
 
 	/**
+	 * The nose camera's mount in the car's frame: just ahead of the body's
+	 * front face, low. Behind that face is the bumper itself: a camera put
+	 * there sees the inside of the shell (a two-sided body paints the whole
+	 * frame its colour), not the road.
+	 */
+	APEXSIM_API FVector NoseMount(const FBox& Body);
+
+	/**
 	 * The car most worth watching. Battles (a car within ~35 m of another),
 	 * the leader and a car in trouble score; the car already on screen is
 	 * kept for a few shots and then let go. Returns an index into `Cars`, or

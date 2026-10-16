@@ -341,6 +341,40 @@ bool FApexTvTracksideTest::RunTest(const FString& Parameters)
 
 // -----------------------------------------------------------------------------
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexTvNoseOutsideTheBodyTest, "ApexSim.Tv.NoseCameraOutsideTheBody", ApexTestFlags)
+
+bool FApexTvNoseOutsideTheBodyTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexTv;
+	using namespace ApexTvTest;
+
+	// Inside the bumper the camera saw the shell from within: a frame of the
+	// car's paint over the sky (the r12-shootout run).
+	FTvField Field(1);
+	FBox Body(FVector(-215.0, -95.0, -2.0), FVector(232.0, 95.0, 118.0));
+	Field.Cars[0].Body = Body;
+	const FVector Mount = NoseMount(Body);
+	TestTrue(TEXT("ahead of the body's front face"), Mount.X > Body.Max.X);
+	TestTrue(TEXT("low, within the body's height"), Mount.Z > Body.Min.Z && Mount.Z < Body.Min.Z + 0.5 * Body.GetSize().Z);
+
+	FDirector Director;
+	Director.Reset(7);
+	Director.SetPath(Field.Ring.Centerline());
+	Director.ForceShot(EShot::Nose);
+	constexpr double Dt = 1.0 / 30.0;
+	ApexTv::FPose Pose;
+	Field.Step(Dt, true);
+	Field.Cars[0].Body = Body;
+	TestTrue(TEXT("filmed"), Director.Tick(Field.Cars, false, static_cast<float>(Dt), 0.0f, FWorldQueries(), Pose));
+	TestTrue(TEXT("on the nose shot"), Director.GetShot() == EShot::Nose);
+	const FCar& Car = Field.Cars[0];
+	const FVector Local = Car.Rotation.UnrotateVector(Pose.Location - Car.Location);
+	TestFalse(FString::Printf(TEXT("the camera is not inside the body (%s)"), *Local.ToString()), Body.IsInsideOrOn(Local));
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexTvBlockedTest, "ApexSim.Tv.CutsAwayFromABlockedView", ApexTestFlags)
 
 bool FApexTvBlockedTest::RunTest(const FString& Parameters)
