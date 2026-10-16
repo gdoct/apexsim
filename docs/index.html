@@ -87,8 +87,8 @@
         <svg class="ico" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="14"/><circle cx="18" cy="18" r="5"/><path d="M18 4v9M18 23v9M4 18h9M23 18h9"/></svg>
         <div class="num">01 / PHYSICS</div>
         <h3>A four-wheel model that earns its grip</h3>
-        <p>Per-wheel loads, Pacejka-style tyres, suspension and a drivetrain with real gear ratios, driving on the same road mesh the client draws: a kerb is five centimetres tall in the physics too. Downforce follows ride height and rake, a tow saves drag and dirty air takes the front wing away; a crest unloads the car and a floor too close to the road can porpoise. Camber, toe, roll centres and a running differential shape the grip. Deterministic to the bit, guarded by a test that asserts identical runs.</p>
-        <ul><li>Pacejka tyres</li><li>Ride-height aero</li><li>Slipstream</li><li>Suspension geometry</li><li>Road mesh</li><li>Deterministic</li></ul>
+        <p>Per-wheel loads, Pacejka-style tyres, suspension and a drivetrain with real gear ratios, driving on the same road mesh the client draws: a kerb is five centimetres tall in the physics too. Downforce follows ride height and rake, a tow saves drag and dirty air takes the front wing away; a crest unloads the car and a floor too close to the road can porpoise. Gravel and sand traps bog a car down and throw dust behind it. Camber, toe, roll centres and a running differential shape the grip. Deterministic to the bit, guarded by a test that asserts identical runs.</p>
+        <ul><li>Pacejka tyres</li><li>Ride-height aero</li><li>Slipstream</li><li>Suspension geometry</li><li>Road mesh</li><li>Gravel traps</li><li>Deterministic</li></ul>
       </article>
       <article class="feat wide">
         <svg class="ico" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 26l8-10 7 6 7-11 8 9"/><path d="M3 32h30"/></svg>
@@ -135,17 +135,17 @@
       <article class="feat">
         <div class="num">10 / WEATHER</div>
         <h3>Rain, wind and thin air</h3>
-        <p>Five weather states, any time of day, a host-picked air temperature and wind that gusts. Wet grip, air density and altitude are baked into the session, so physics, AI and the racing line all follow: at 2,240&nbsp;m a turbo keeps its power and a wing does not. Let the clock run and the sky can change with it. Floodlights and headlights come on after dark.</p>
+        <p>Six weather states from sun to snow, any hour on any day of the year, a host-picked air temperature and wind that gusts. Wet grip, air density and altitude are baked into the session, so physics, AI and the racing line all follow: at 2,240&nbsp;m a turbo keeps its power and a wing does not. Let the clock run and the sky can change with it. Floodlights and headlights come on after dark.</p>
       </article>
       <article class="feat">
         <div class="num">11 / TRACK</div>
         <h3>A road that changes under you</h3>
-        <p>Cars lay rubber along the racing line and shed marbles beside it; rain washes both away. Water gathers in the low points of a lap and the wheels dry a line through it. The sun warms the asphalt with the clock, and the AI changes tyres as the track dries or wets. The server sends the road as it is and the client paints it: the dark line, the marbles, the dry line between wet edges, the debris.</p>
+        <p>Cars lay rubber along the racing line and shed marbles beside it; rain washes both away. Water gathers in the low points of a lap and the wheels dry a line through it. The sun warms the asphalt with the clock, and the AI changes tyres as the track dries or wets. Snow settles over the lap, the field packs a darker line through it, and that line can freeze when the snow stops. The server sends the road as it is and the client paints it: the dark line, the marbles, the dry line between wet edges, the debris.</p>
       </article>
       <article class="feat">
         <div class="num">12 / RACE FORMAT</div>
-        <h3>Sprint or twenty-four hours</h3>
-        <p>Race for laps or against the clock, from a short sprint to a full day: when time runs out, the leader's next lap is the last. Qualify from the garage and the race grids from the result, or drag the drivers into any order. Take the flag and the camera pulls back over the circuit while the results fill in; click a car still running to watch it home. Stuck in a barrier? Back to track or to the pits, for a hold and the lap.</p>
+        <h3>Sprint, weekend or twenty-four hours</h3>
+        <p>Race for laps or against the clock, from a short sprint to a full day: when time runs out, the leader's next lap is the last. Or run a weekend: practice, up to three knockout qualifying rounds and the race, each day under its own sky. Qualify from the garage and the race grids from the result, or drag the drivers into any order. Take the flag and the camera pulls back over the circuit while the results fill in; click a car still running to watch it home. Stuck in a barrier? Back to track or to the pits, for a hold and the lap.</p>
       </article>
       <article class="feat">
         <div class="num">13 / SCREENS</div>
@@ -178,7 +178,7 @@
       <article class="feat wide">
         <div class="num">18 / MODDING</div>
         <h3>Open the files</h3>
-        <p>A car is a <code>car.toml</code> and a GLB. A circuit is an export the game builds as it loads. The HUD is 24 JSON components with an in-game layout editor, and several saved layouts that switch by where you are: watching, hotlap, or your car's class. Nothing is cooked, so a change is a file save and a rescan. Tracks and cars from your own Assetto Corsa install import with one command, or from the launcher, and stay on your machine.</p>
+        <p>A car is a <code>car.toml</code> and a GLB. A circuit is an export the game builds as it loads. The HUD is 26 JSON components with an in-game layout editor, and several saved layouts that switch by where you are: watching, hotlap, or your car's class. Nothing is cooked, so a change is a file save and a rescan. Tracks and cars from your own Assetto Corsa install import with one command, or from the launcher, and stay on your machine.</p>
         <ul><li>car.toml</li><li>Runtime tracks</li><li>JSON HUD</li><li>AC importers</li></ul>
       </article>
     </div>
@@ -274,7 +274,7 @@
     </div>
     <div class="eyebrow sub reveal">What the player sees</div>
     <div class="screens stagger">
-      <figure><img src="assets/screen-hud.webp" data-zoom="assets/screen-hud-zoom.webp" tabindex="0" alt="Chase view on the night grid at Mandarina Bay with the HUD" loading="lazy"><figcaption>Race view · a HUD of 24 moddable components</figcaption></figure>
+      <figure><img src="assets/screen-hud.webp" data-zoom="assets/screen-hud-zoom.webp" tabindex="0" alt="Chase view on the night grid at Mandarina Bay with the HUD" loading="lazy"><figcaption>Race view · a HUD of 26 moddable components</figcaption></figure>
       <figure><img src="assets/screen-garage.webp" data-zoom="assets/screen-garage-zoom.webp" tabindex="0" alt="The hotlap garage on its Aero page, wings and ride heights with the downforce, balance and drag they add up to" loading="lazy"><figcaption>Hotlap garage · 31 setup knobs in real units</figcaption></figure>
       <figure><img src="assets/screen-menu.webp" data-zoom="assets/screen-menu-zoom.webp" tabindex="0" alt="Main menu over a recorded AI race" loading="lazy"><figcaption>Main menu · over a recorded AI race</figcaption></figure>
       <figure><img src="assets/screen-hud-editor.webp" data-zoom="assets/screen-hud-editor-zoom.webp" tabindex="0" alt="The in-game HUD layout editor" loading="lazy"><figcaption>HUD layout editor · move, resize and hide panels in game</figcaption></figure>
@@ -323,7 +323,7 @@
 ./scripts/initialize_content.ps1
 <i># build, start a local server and play (Windows)</i>
 ./scripts/play_editor.ps1 -Build</pre>
-    <div class="reqs"><b>System requirements</b><ul><li>Windows 10 or 11, 64-bit (x64)</li><li>A DirectX&nbsp;12 GPU, discrete recommended</li><li>16&nbsp;GB of RAM, 4&nbsp;GB of disk</li><li>A wheel, a gamepad or a keyboard</li></ul></div>
+    <div class="reqs"><b>System requirements</b><ul><li>Windows 10 or 11, 64-bit (x64)</li><li>A DirectX&nbsp;12 GPU, discrete recommended; integrated graphics start on the Low preset</li><li>16&nbsp;GB of RAM, 4&nbsp;GB of disk</li><li>A wheel, a gamepad or a keyboard</li></ul></div>
   </div>
 </section>
 
@@ -341,7 +341,7 @@
   </div>
 </footer>
 
-<script src="assets/data.js?v=965dd99b"></script>
+<script src="assets/data.js?v=60ec13a1"></script>
 <script src="assets/site.js?v=4f158c3b"></script>
 </body>
 </html>

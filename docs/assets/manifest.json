@@ -424,7 +424,7 @@
     },
     "screen-garage-zoom.webp": {
       "src": "site/shots/garage.webp",
-      "sha256": "a9a6620af8f1aa8cbf14a224916704714c2c10c5217923c7526d355ec1ee5c9c",
+      "sha256": "12d884b65bb2cc30e6eec6de1ccd81ae58639d43f60e03075be138de4bc86915",
       "params": {
         "width": 1920,
         "quality": 86
@@ -432,7 +432,7 @@
     },
     "screen-garage.webp": {
       "src": "site/shots/garage.webp",
-      "sha256": "a9a6620af8f1aa8cbf14a224916704714c2c10c5217923c7526d355ec1ee5c9c",
+      "sha256": "12d884b65bb2cc30e6eec6de1ccd81ae58639d43f60e03075be138de4bc86915",
       "params": {
         "width": 1280,
         "quality": 86
@@ -440,7 +440,7 @@
     },
     "screen-hud-editor-zoom.webp": {
       "src": "site/shots/hud-editor.webp",
-      "sha256": "003177e694593194b26894c20397fbe705e9e9c45e006ec2ccb054114bb1095e",
+      "sha256": "86a30d17572b30d3c43109c983762084e7558ba7b8c7f934cfcc299911e531d1",
       "params": {
         "width": 1920,
         "quality": 86
@@ -448,7 +448,7 @@
     },
     "screen-hud-editor.webp": {
       "src": "site/shots/hud-editor.webp",
-      "sha256": "003177e694593194b26894c20397fbe705e9e9c45e006ec2ccb054114bb1095e",
+      "sha256": "86a30d17572b30d3c43109c983762084e7558ba7b8c7f934cfcc299911e531d1",
       "params": {
         "width": 1280,
         "quality": 86
@@ -456,7 +456,7 @@
     },
     "screen-hud-zoom.webp": {
       "src": "site/shots/hud-chase.webp",
-      "sha256": "89a171e44aa3d9c1e7db36509a98b9ac3425bfac8ad450fad2a694381f5cfa4f",
+      "sha256": "47544385d1da9154cb6a34d43a48ab65e2098e4f74177f1bcda146fcdbf060cc",
       "params": {
         "width": 1920,
         "quality": 86
@@ -464,7 +464,7 @@
     },
     "screen-hud.webp": {
       "src": "site/shots/hud-chase.webp",
-      "sha256": "89a171e44aa3d9c1e7db36509a98b9ac3425bfac8ad450fad2a694381f5cfa4f",
+      "sha256": "47544385d1da9154cb6a34d43a48ab65e2098e4f74177f1bcda146fcdbf060cc",
       "params": {
         "width": 1280,
         "quality": 86
@@ -472,7 +472,7 @@
     },
     "screen-menu-zoom.webp": {
       "src": "site/shots/menu-demo.webp",
-      "sha256": "b285b76e0f89fd68ac1727e00ffd9f31be27f7280aae87bc94e7034d6f652e2d",
+      "sha256": "de93816ac008a2881adfa669b819a351668adb527dcc8e436c26fb390a6fcff6",
       "params": {
         "width": 1920,
         "quality": 86
@@ -480,7 +480,7 @@
     },
     "screen-menu.webp": {
       "src": "site/shots/menu-demo.webp",
-      "sha256": "b285b76e0f89fd68ac1727e00ffd9f31be27f7280aae87bc94e7034d6f652e2d",
+      "sha256": "de93816ac008a2881adfa669b819a351668adb527dcc8e436c26fb390a6fcff6",
       "params": {
         "width": 1280,
         "quality": 86
@@ -503,7 +503,7 @@
     },
     "shot-climb-zoom.webp": {
       "src": "site/shots/eau-rouge.webp",
-      "sha256": "df22dd2812863b5de588483200dd6348b21a029183622c57aadd844f013ed130",
+      "sha256": "1060f2bb6317080cfc4e135ca83cd1536e31004f7aab3b5f0704ce5b49f45949",
       "params": {
         "width": 1920,
         "quality": 86
@@ -511,14 +511,14 @@
     },
     "shot-climb.webp": {
       "src": "site/shots/eau-rouge.webp",
-      "sha256": "df22dd2812863b5de588483200dd6348b21a029183622c57aadd844f013ed130",
+      "sha256": "1060f2bb6317080cfc4e135ca83cd1536e31004f7aab3b5f0704ce5b49f45949",
       "params": {
         "width": 1000
       }
     },
     "shot-grid-zoom.webp": {
       "src": "site/shots/grid-start.webp",
-      "sha256": "3aa73a83ea6a5e7ae8a9293a3e10a12d63371ee4055c2dd1565bbddc023a891f",
+      "sha256": "e972b7d266c5a6a54d9e2aa8d68b6b8d508dcd58704b3c359d71cd4fbf34fa06",
       "params": {
         "width": 1920,
         "quality": 86
@@ -526,14 +526,14 @@
     },
     "shot-grid.webp": {
       "src": "site/shots/grid-start.webp",
-      "sha256": "3aa73a83ea6a5e7ae8a9293a3e10a12d63371ee4055c2dd1565bbddc023a891f",
+      "sha256": "e972b7d266c5a6a54d9e2aa8d68b6b8d508dcd58704b3c359d71cd4fbf34fa06",
       "params": {
         "width": 1600
       }
     },
     "shot-night-zoom.webp": {
       "src": "site/shots/endurance-dusk.webp",
-      "sha256": "6667def8bd25a51bfb9319a8ed086a747f7658cead74b69d7d2b44ed83f8af64",
+      "sha256": "ba06d45c02a7f34826c5dfdd94f9cd8d5ebf4b499e5d53ef1e1081a4f1791741",
       "params": {
         "width": 1920,
         "quality": 86
@@ -541,14 +541,14 @@
     },
     "shot-night.webp": {
       "src": "site/shots/endurance-dusk.webp",
-      "sha256": "6667def8bd25a51bfb9319a8ed086a747f7658cead74b69d7d2b44ed83f8af64",
+      "sha256": "ba06d45c02a7f34826c5dfdd94f9cd8d5ebf4b499e5d53ef1e1081a4f1791741",
       "params": {
         "width": 1000
       }
     },
     "shot-pack-zoom.webp": {
       "src": "site/shots/marina-night.webp",
-      "sha256": "61bf369ab2311931d869da966b177643fc11964dc6fc46a442ca784530d19c4c",
+      "sha256": "4e6c53e82c4e2cde4d900abca7324f9c0dcb86d5582b5d609a3ab4315bb71723",
       "params": {
         "width": 1920,
         "quality": 86
@@ -556,14 +556,14 @@
     },
     "shot-pack.webp": {
       "src": "site/shots/marina-night.webp",
-      "sha256": "61bf369ab2311931d869da966b177643fc11964dc6fc46a442ca784530d19c4c",
+      "sha256": "4e6c53e82c4e2cde4d900abca7324f9c0dcb86d5582b5d609a3ab4315bb71723",
       "params": {
         "width": 1000
       }
     },
     "shot-rain-zoom.webp": {
       "src": "site/shots/rain.webp",
-      "sha256": "6d159e9633571f91be5183679774923e7d69e9c2ef224af38475161f06244d1d",
+      "sha256": "bdc4e51e06de388881b954c3a03ae786c73d7770956587df610926e0cc735342",
       "params": {
         "width": 1920,
         "quality": 86
@@ -571,14 +571,14 @@
     },
     "shot-rain.webp": {
       "src": "site/shots/rain.webp",
-      "sha256": "6d159e9633571f91be5183679774923e7d69e9c2ef224af38475161f06244d1d",
+      "sha256": "bdc4e51e06de388881b954c3a03ae786c73d7770956587df610926e0cc735342",
       "params": {
         "width": 1000
       }
     },
     "shot-sunset-zoom.webp": {
       "src": "site/shots/night-lights.webp",
-      "sha256": "fdba78ebc84c08bbc926f94530180521f084f37ffd94b50b6a92a04308212d9f",
+      "sha256": "605bfe2614481fc2a271d35d0ee4abac33dde8fdc3507b1a5fb48fe539626bcb",
       "params": {
         "width": 1920,
         "quality": 86
@@ -586,7 +586,7 @@
     },
     "shot-sunset.webp": {
       "src": "site/shots/night-lights.webp",
-      "sha256": "fdba78ebc84c08bbc926f94530180521f084f37ffd94b50b6a92a04308212d9f",
+      "sha256": "605bfe2614481fc2a271d35d0ee4abac33dde8fdc3507b1a5fb48fe539626bcb",
       "params": {
         "width": 1000
       }
