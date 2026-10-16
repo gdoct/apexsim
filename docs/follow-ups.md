@@ -130,6 +130,42 @@ server will simulate ([server/conditions.md](server/conditions.md)).
 `a_date_moves_the_air_with_the_season_and_no_date_is_late_may` figures; a
 written forecast created, echoed and shown in the HUD's outlook.
 
+### 20. Qualifying formats on screen
+
+The one-lap shoot-out, the lap allowance and a weekend phase's own damage
+([server/sessions.md](server/sessions.md#starting-order-and-qualifying))
+are on the wire and in the client's codec (`GetSessionQualifyingFormat`,
+`GetSessionQualifyingLapAllowance`, `GetShootoutState` /
+`OnShootoutStateChanged`, `FApexWeekendFormat::PracticeDamage` /
+`QualifyingDamage`, `WeekendState.Damage` into `GetSessionDamage`), but no
+screen uses them.
+
+- The create screen has no Format row under qualifying (Open, Shoot-out;
+  in the Race weekend section it makes the final round the shoot-out and
+  hides that round's length), no Lap allowance stepper (None, 1 to 30), and
+  no Damage row per weekend phase (Practice / Qualifying: "Race's", Off,
+  Reduced, Full, Visual). Each is kept in the profile and passed to
+  `CreateSessionWithOrder` (`QualifyingFormat`, `QualifyingLapAllowance`)
+  or the weekend format (`bHasPracticeDamage` ...); the summary names them.
+- The qualifying garage (`UApexHotlapWidget::SetQualifying`) shows GO OUT
+  in a shoot-out, which the server refuses: it wants a waiting display
+  instead (the run order from `FApexShootoutState::Order` with each car's
+  name, the car out now and whether it is on its flying lap, "You run 4th,
+  2 to go"), a YOUR TURN call as the local car is sent out (its `PlaceOf`
+  equals `Running`), and the camera on the car running for those waiting
+  (`SetSpectating`/`FocusCar` as the scoreboard's watch does).
+- With a lap allowance the garage and the HUD do not say how many timed
+  laps are left (the client counts the local car's lap ends in
+  `Qualification`; a HUD data point `qualifying.laps_left` would be listed
+  in `docs/game/hud-modding.md`), and GO OUT is not disabled once they are
+  used ("Lap allowance used" comes back as an error toast).
+- The session results' qualifying sheet (`ApexBoard::Sheet`) does not say
+  the session was a shoot-out (one lap each, run order).
+
+**Check:** `ApexSim.Net.ProtocolCodec` (the shoot-out's golden bytes); an
+auto race with a shoot-out against two AI (`-ApexAutoRace`), the garage
+read while waiting and on the local car's turn.
+
 ### 5. Hotlap and lap records
 
 The ghost, the hotlap replay and watch.

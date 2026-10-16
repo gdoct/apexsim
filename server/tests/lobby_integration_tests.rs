@@ -101,6 +101,8 @@ impl LobbyTestClient {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
 
         self.send_message(&msg).await?;

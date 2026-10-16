@@ -34,6 +34,12 @@ pub const QUALIFYING_FLAG_GRACE_LAPS: f32 = 2.0;
 /// ...but never sooner than this: the cars still out by then are put in
 /// their garages and the session is over.
 pub const QUALIFYING_FLAG_GRACE_MIN_SECONDS: u32 = 60;
+/// A shoot-out run (outlap and flying lap) ends at this many of the car's
+/// planned laps if it has not crossed the line at the end of its flying lap
+/// by then: a car stuck or lost does not hold the field up.
+pub const SHOOTOUT_RUN_LAPS: f32 = 3.0;
+/// ... and never sooner than this, s.
+pub const SHOOTOUT_RUN_MIN_SECONDS: u32 = 180;
 /// Skill of the server driver that takes a human's car round on the
 /// cool-down lap after they finish: unhurried, off the racing pace.
 const COOLDOWN_SKILL: u8 = 75;
@@ -352,6 +358,19 @@ pub struct GameSession {
     /// A weekend phase began between ticks (`advance_weekend`): the game
     /// loop starts its replay (`take_phase_started`).
     phase_started: bool,
+    /// The race day's damage rule, kept once a weekend's practice or
+    /// qualifying has replaced `RaceSession::damage` with its own
+    /// (`begin_phase_damage`).
+    race_day_damage: Option<DamageLevel>,
+    /// The one-lap shoot-out running in this qualifying session or round
+    /// ([`Shootout`]); `None` outside one.
+    shootout: Option<Shootout>,
+    /// The `ShootoutState` last handed out (`take_shootout_state`).
+    shootout_sent: Option<crate::network::ShootoutStateData>,
+    /// The flying laps each car has ended in this qualifying session or
+    /// round, against the lap allowance
+    /// (`RaceSession::qualifying_lap_allowance`).
+    qualifying_laps_run: std::collections::BTreeMap<PlayerId, u8>,
     /// Set when session membership changed since the last roster broadcast;
     /// starts true so the roster goes out once when the session first ticks.
     roster_dirty: bool,
@@ -461,6 +480,21 @@ pub struct GameSession {
     hotlap_watch: HotlapWatch,
     /// The track's corners, for the watcher's HUD (`TrackCorners`).
     track_corners: Vec<crate::network::CornerData>,
+}
+
+/// A one-lap shoot-out (`QualifyingFormat::Shootout`): the cars run one at a
+/// time in `order`, each sent out from the pit exit for an outlap and one
+/// flying lap while the rest wait in their garages.
+#[derive(Debug, Default, Clone)]
+struct Shootout {
+    /// Every car taking part, first out first.
+    order: Vec<PlayerId>,
+    /// How many of `order` have been called: run, running, or passed over
+    /// (gone, or away when called).
+    called: usize,
+    /// The car on its run and the tick by which its run ends whatever it
+    /// has done ([`SHOOTOUT_RUN_LAPS`]).
+    runner: Option<(PlayerId, u32)>,
 }
 
 /// How a race's end stands, reset with every start.
@@ -801,6 +835,10 @@ impl GameSession {
             weekend: Default::default(),
             weekend_sent: None,
             phase_started: false,
+            race_day_damage: None,
+            shootout: None,
+            shootout_sent: None,
+            qualifying_laps_run: Default::default(),
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
@@ -875,6 +913,10 @@ impl GameSession {
             weekend: Default::default(),
             weekend_sent: None,
             phase_started: false,
+            race_day_damage: None,
+            shootout: None,
+            shootout_sent: None,
+            qualifying_laps_run: Default::default(),
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
@@ -977,6 +1019,24 @@ impl GameSession {
         self.lap_fuel.clear();
         self.lap_seconds.clear();
         self.debris.clear();
+    }
+
+    /// A race weekend's phase begins under its own damage rule, when the
+    /// format names one for practice or qualifying
+    /// (`WeekendFormat::practice_damage` / `qualifying_damage`): every car
+    /// and every later arrival takes it, and `RaceSession::damage` is it
+    /// while the phase runs. The race, and a phase that names none, has the
+    /// session's own. A format naming none changes nothing.
+    fn begin_phase_damage(&mut self, phase: crate::weekend::WeekendPhase) {
+        let Some(format) = self.session.weekend.as_ref() else {
+            return;
+        };
+        if !format.has_phase_damage() {
+            return;
+        }
+        let picked = format.phase_damage(phase);
+        let race_day = *self.race_day_damage.get_or_insert(self.session.damage);
+        self.set_damage(picked.unwrap_or(race_day));
     }
 
     /// Seconds of the sky's own clock (from `sky_epoch_tick`).
@@ -1390,9 +1450,11 @@ impl GameSession {
             self.session.ai_player_ids.iter().copied().collect();
         let current_tick = self.session.current_tick;
         let track_length = crate::laps::track_length_m(&self.track_config);
-        // Cars that crossed the start line this tick: after a timed
-        // qualifying session's clock, each of them takes the flag.
-        let mut crossed: Vec<PlayerId> = Vec::new();
+        // Cars that crossed the start line this tick, and whether each was
+        // on a timed lap (not its outlap): after a timed qualifying
+        // session's clock, each of them takes the flag; a timed lap ended
+        // counts against the lap allowance and ends a shoot-out run.
+        let mut crossed: Vec<(PlayerId, bool)> = Vec::new();
 
         for state in self.session.participants.values_mut() {
             if state.in_garage {
@@ -1405,6 +1467,7 @@ impl GameSession {
                 .unwrap_or_default();
             if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
                 let old_progress = state.track_progress;
+                let was_timed = state.current_lap > 0;
                 physics::update_car_3d(state, config, &input, &self.track_config, dt);
                 let is_ai = ai_ids.contains(&state.player_id);
                 sample_ghost_trace(
@@ -1434,7 +1497,7 @@ impl GameSession {
                     && old_progress > track_length * 0.8
                     && state.track_progress < track_length * 0.2
                 {
-                    crossed.push(state.player_id);
+                    crossed.push((state.player_id, was_timed));
                 }
             }
         }
@@ -1451,8 +1514,299 @@ impl GameSession {
         physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
 
         if self.session.game_mode.has_outlap() {
-            self.update_chequered_flag(&crossed);
+            let crossers: Vec<PlayerId> = crossed.iter().map(|(id, _)| *id).collect();
+            self.update_chequered_flag(&crossers);
         }
+        if self.session.game_mode == GameMode::Qualification {
+            if self.shootout.is_some() {
+                self.update_shootout(&crossed);
+            } else {
+                self.update_lap_allowance(&crossed);
+            }
+        }
+    }
+
+    // --- Qualifying formats ------------------------------------------------
+
+    /// How qualifying runs (`CreateSession.qualifying_format`).
+    pub fn set_qualifying_format(&mut self, format: crate::data::QualifyingFormat) {
+        self.session.qualifying_format = format;
+    }
+
+    /// The qualifying lap allowance (`CreateSession.qualifying_lap_allowance`,
+    /// clamped); 0 for none.
+    pub fn set_qualifying_lap_allowance(&mut self, laps: u8) {
+        self.session.qualifying_lap_allowance = crate::data::clamp_qualifying_lap_allowance(laps);
+    }
+
+    /// Whether the qualifying running now is a one-lap shoot-out: a plain
+    /// session's qualifying under `QualifyingFormat::Shootout`, or a
+    /// weekend's final round under it.
+    pub fn is_shootout_round(&self) -> bool {
+        if self.session.game_mode != GameMode::Qualification
+            || self.session.qualifying_format != crate::data::QualifyingFormat::Shootout
+        {
+            return false;
+        }
+        match self.session.weekend.as_ref() {
+            Some(format) => self.weekend.round as usize >= format.rounds(),
+            None => true,
+        }
+    }
+
+    /// A shoot-out begins: every car taking part to its garage, AI too, the
+    /// classification and the timing sheets empty, the run order fixed
+    /// ([`Self::shootout_order`]), and the first car called out.
+    fn begin_shootout(&mut self) {
+        let order = self.shootout_order();
+        self.qualifying.clear();
+        self.clear_timing_sheets();
+        let all: Vec<PlayerId> = self.session.participants.keys().copied().collect();
+        for player_id in all {
+            let _ = self.relocate(&player_id, HotlapDestination::Garage, false);
+        }
+        self.shootout = Some(Shootout {
+            order,
+            called: 0,
+            runner: None,
+        });
+        self.shootout_sent = None;
+        self.roster_dirty = true;
+        self.call_next_runner();
+    }
+
+    /// The shoot-out's run order, first out first: the reverse of what the
+    /// session stands on when it begins, so the car with most to defend
+    /// runs last. A weekend's final runs in the reverse of the round before
+    /// it (the slowest of those through first); a weekend whose only round
+    /// is the shoot-out in the reverse of practice's best laps, cars with
+    /// no time first; a plain session in the reverse of its start order
+    /// (`starting_slots`: the host's order, an earlier qualifying's result,
+    /// else the seating order). Knocked-out cars take no part.
+    fn shootout_order(&self) -> Vec<PlayerId> {
+        let taking_part: Vec<&CarState> = self
+            .session
+            .participants
+            .values()
+            .filter(|s| self.weekend.eliminated_in(&s.player_id).is_none())
+            .collect();
+        // Front first: a lower key starts further up the order it reverses.
+        let mut keyed: Vec<((u32, u8, PlayerId), PlayerId)> = if self.is_weekend() {
+            if !self.weekend.last_round.is_empty() {
+                taking_part
+                    .iter()
+                    .map(|s| {
+                        let place = self
+                            .weekend
+                            .last_round
+                            .iter()
+                            .position(|(id, _)| *id == s.player_id)
+                            .map_or(u32::MAX, |i| i as u32);
+                        ((place, s.grid_position, s.player_id), s.player_id)
+                    })
+                    .collect()
+            } else {
+                taking_part
+                    .iter()
+                    .map(|s| {
+                        let best = s.best_lap_time_ms.filter(|ms| *ms > 0).unwrap_or(u32::MAX);
+                        ((best, s.grid_position, s.player_id), s.player_id)
+                    })
+                    .collect()
+            }
+        } else {
+            let slots = self.starting_slots();
+            taking_part
+                .iter()
+                .map(|s| {
+                    let slot = slots.get(&s.player_id).map_or(u32::MAX, |n| *n as u32);
+                    ((slot, s.grid_position, s.player_id), s.player_id)
+                })
+                .collect()
+        };
+        keyed.sort();
+        keyed.into_iter().rev().map(|(_, id)| id).collect()
+    }
+
+    /// The next car in the order goes out from the pit exit onto its
+    /// outlap; a car that has left, or whose driver is away, is passed
+    /// over. With the order run through, the shoot-out (and the session's
+    /// qualifying) is over: `Finished`.
+    fn call_next_runner(&mut self) {
+        loop {
+            let Some(shootout) = self.shootout.as_mut() else {
+                return;
+            };
+            shootout.runner = None;
+            let Some(&player_id) = shootout.order.get(shootout.called) else {
+                self.session.state = SessionState::Finished;
+                tracing::info!("Session {}: the shoot-out is over", self.session.id);
+                return;
+            };
+            shootout.called += 1;
+            if !self.session.participants.contains_key(&player_id) || self.is_away(&player_id) {
+                continue;
+            }
+            if self
+                .relocate(&player_id, HotlapDestination::Track, false)
+                .is_err()
+            {
+                continue;
+            }
+            let rate = self.tick_rate_hz as u32;
+            let lap_s = self
+                .session
+                .participants
+                .get(&player_id)
+                .and_then(|s| self.lap_seconds.get(&s.car_config_id).copied())
+                .unwrap_or(FALLBACK_LAP_SECONDS);
+            let run_s = ((lap_s * SHOOTOUT_RUN_LAPS) as u32).max(SHOOTOUT_RUN_MIN_SECONDS);
+            let deadline = self.session.current_tick + run_s * rate;
+            if let Some(shootout) = self.shootout.as_mut() {
+                shootout.runner = Some((player_id, deadline));
+            }
+            return;
+        }
+    }
+
+    /// A shoot-out after the tick: the car on its run is done when it ends
+    /// its flying lap at the line (the lap is queued and classified as any
+    /// other), goes to its garage, leaves, is wrecked, or runs out of time;
+    /// it is garaged and the next car called. A driver who joins a plain
+    /// session's shoot-out runs at the back of the order.
+    fn update_shootout(&mut self, crossed: &[(PlayerId, bool)]) {
+        if self.session.state == SessionState::Finished {
+            return;
+        }
+        let newcomers: Vec<PlayerId> = match self.shootout.as_ref() {
+            Some(shootout) => self
+                .session
+                .participants
+                .keys()
+                .filter(|id| !shootout.order.contains(id))
+                .filter(|id| self.weekend.eliminated_in(id).is_none())
+                .copied()
+                .collect(),
+            None => return,
+        };
+        if let Some(shootout) = self.shootout.as_mut() {
+            shootout.order.extend(newcomers);
+        }
+        let Some((runner, deadline)) = self.shootout.as_ref().and_then(|s| s.runner) else {
+            // Nobody out (every car before the newcomers had run): call one.
+            self.call_next_runner();
+            return;
+        };
+        let over = match self.session.participants.get(&runner) {
+            None => true,
+            Some(state) => {
+                state.in_garage
+                    || !state.damage.is_drivable
+                    || self.session.current_tick >= deadline
+                    || crossed.iter().any(|(id, timed)| *id == runner && *timed)
+            }
+        };
+        if over {
+            if self
+                .session
+                .participants
+                .get(&runner)
+                .is_some_and(|s| !s.in_garage)
+            {
+                let _ = self.relocate(&runner, HotlapDestination::Garage, false);
+            }
+            self.call_next_runner();
+        }
+    }
+
+    /// The lap allowance after the tick: each car that ended a timed lap
+    /// has it counted, and one that has used its allowance goes to its
+    /// garage for good. Once every car taking part has used it and is in,
+    /// the session (or round) is over.
+    fn update_lap_allowance(&mut self, crossed: &[(PlayerId, bool)]) {
+        let allowance = self.session.qualifying_lap_allowance;
+        if allowance == 0 || self.session.state == SessionState::Finished {
+            return;
+        }
+        for (player_id, timed) in crossed {
+            if !*timed {
+                continue;
+            }
+            let run = self.qualifying_laps_run.entry(*player_id).or_insert(0);
+            *run = run.saturating_add(1);
+            if *run >= allowance {
+                let _ = self.relocate(player_id, HotlapDestination::Garage, false);
+            }
+        }
+        let all_done = self
+            .session
+            .participants
+            .values()
+            .filter(|s| self.weekend.eliminated_in(&s.player_id).is_none())
+            .all(|s| {
+                self.qualifying_laps_run
+                    .get(&s.player_id)
+                    .is_some_and(|n| *n >= allowance)
+                    && (s.in_garage || !s.damage.is_drivable)
+            });
+        if all_done && !self.session.participants.is_empty() {
+            self.session.state = SessionState::Finished;
+        }
+    }
+
+    /// Where the shoot-out stands, for the wire; `None` outside one. A car
+    /// that has left the session is dropped from the order.
+    pub fn shootout_state(&self) -> Option<crate::network::ShootoutStateData> {
+        if self.session.game_mode != GameMode::Qualification {
+            return None;
+        }
+        let shootout = self.shootout.as_ref()?;
+        let runner = shootout.runner.map(|(id, _)| id);
+        let mut order = Vec::new();
+        let mut running = 0u8;
+        let mut done = 0u8;
+        for (i, id) in shootout.order.iter().enumerate() {
+            let Some(car_index) = self.car_index_of(id) else {
+                continue;
+            };
+            order.push(car_index);
+            if Some(*id) == runner {
+                running = order.len().min(u8::MAX as usize) as u8;
+            } else if i < shootout.called {
+                done = done.saturating_add(1);
+            }
+        }
+        let flying = runner
+            .and_then(|id| self.session.participants.get(&id))
+            .is_some_and(|s| !s.outlap && s.current_lap > 0);
+        Some(crate::network::ShootoutStateData {
+            order,
+            running,
+            done,
+            flying,
+        })
+    }
+
+    /// The shoot-out's state when it changed since the last call, for the
+    /// game loop to send to the whole session.
+    pub fn take_shootout_state(&mut self) -> Option<crate::network::ShootoutStateData> {
+        let state = self.shootout_state()?;
+        if self.shootout_sent.as_ref() == Some(&state) {
+            return None;
+        }
+        self.shootout_sent = Some(state.clone());
+        Some(state)
+    }
+
+    /// What a member joining the session is told after `SessionJoined`
+    /// about the phase it is in: the weekend's state and the shoot-out's,
+    /// where there are such.
+    pub fn phase_state_messages(&self) -> Vec<ServerMessage> {
+        self.weekend_state()
+            .map(ServerMessage::WeekendState)
+            .into_iter()
+            .chain(self.shootout_state().map(ServerMessage::ShootoutState))
+            .collect()
     }
 
     /// A timed qualifying or practice session after its clock: each car
@@ -1542,6 +1896,8 @@ impl GameSession {
             GameMode::Practice => weekend
                 .map(|w| w.practice_seconds)
                 .filter(|seconds| *seconds > 0),
+            // A shoot-out runs until every car has had its run: no clock.
+            GameMode::Qualification if self.is_shootout_round() => None,
             GameMode::Qualification => match weekend {
                 Some(w) => w
                     .qualifying_seconds
@@ -1713,6 +2069,7 @@ impl GameSession {
     /// Timed practice begins: every human in the garage, the AI out.
     fn begin_practice(&mut self) {
         self.begin_day(crate::weekend::WeekendPhase::Practice);
+        self.begin_phase_damage(crate::weekend::WeekendPhase::Practice);
         self.weekend.phase = crate::weekend::WeekendPhase::Practice;
         self.weekend.round = 0;
         self.set_game_mode(GameMode::Practice);
@@ -1733,6 +2090,8 @@ impl GameSession {
             self.weekend.eliminated.clear();
             self.weekend.final_order.clear();
             self.weekend.first_round.clear();
+            self.weekend.last_round.clear();
+            self.begin_phase_damage(crate::weekend::WeekendPhase::Qualifying);
         }
         self.weekend.phase = crate::weekend::WeekendPhase::Qualifying;
         self.weekend.round = round;
@@ -1760,6 +2119,10 @@ impl GameSession {
     /// outlap, in seating order (the queue at the pit exit follows the
     /// participants' `BTreeMap` order).
     fn send_ai_out(&mut self) {
+        // A shoot-out calls each car out in its turn.
+        if self.shootout.is_some() {
+            return;
+        }
         let ai: Vec<PlayerId> = self
             .session
             .participants
@@ -1864,6 +2227,7 @@ impl GameSession {
                     })
                 })
                 .collect(),
+            damage: self.session.damage,
         })
     }
 
@@ -2050,6 +2414,10 @@ impl GameSession {
     /// Set the game mode
     pub fn set_game_mode(&mut self, mode: GameMode) {
         self.session.game_mode = mode;
+        // A shoot-out and the lap allowance's count belong to the
+        // qualifying they were run in.
+        self.shootout = None;
+        self.qualifying_laps_run.clear();
 
         // Initialize mode-specific state
         match mode {
@@ -2216,6 +2584,9 @@ impl GameSession {
                 }
                 if self.hotlap_watch.active {
                     self.send_hotlap_watch_out();
+                }
+                if self.is_shootout_round() {
+                    self.begin_shootout();
                 }
             }
             _ => {
@@ -2578,7 +2949,35 @@ impl GameSession {
                 if let Some(entry) = self.weekend.eliminated_entry(player_id) {
                     return Err(crate::weekend::eliminated_reason(entry));
                 }
+                if self.shootout.is_some() {
+                    return Err("A shoot-out: each car is sent out in its turn");
+                }
+                let allowance = self.session.qualifying_lap_allowance;
+                if allowance > 0
+                    && self
+                        .qualifying_laps_run
+                        .get(player_id)
+                        .is_some_and(|n| *n >= allowance)
+                {
+                    return Err("Lap allowance used");
+                }
             }
+        }
+        self.relocate(player_id, destination, cold_tyres)
+    }
+
+    /// Put a car in its garage or out on the track as `hotlap_relocate`
+    /// does, without asking whether it may go: the session's own moves (a
+    /// shoot-out's runs, the lap allowance).
+    fn relocate(
+        &mut self,
+        player_id: &PlayerId,
+        destination: HotlapDestination,
+        cold_tyres: bool,
+    ) -> Result<(), &'static str> {
+        let mode = self.session.game_mode;
+        if !mode.uses_garages() {
+            return Err("Not a hotlap or qualifying session");
         }
         let Some(state) = self.session.participants.get(player_id) else {
             return Err("No car in this session");
@@ -2909,6 +3308,7 @@ impl GameSession {
             self.ready.clear();
             self.roster_dirty = true;
         }
+        self.shootout = None;
         self.session.game_mode = GameMode::Countdown;
         self.session.state = SessionState::Countdown;
         self.session.countdown_ticks_remaining = Some(
@@ -2925,6 +3325,7 @@ impl GameSession {
             self.settle_weekend();
             if self.weekend.phase != crate::weekend::WeekendPhase::Race {
                 self.begin_day(crate::weekend::WeekendPhase::Race);
+                self.begin_phase_damage(crate::weekend::WeekendPhase::Race);
             }
             self.weekend.phase = crate::weekend::WeekendPhase::Race;
             self.weekend.round = 0;
@@ -7291,6 +7692,7 @@ mod tests {
             qualifying_seconds: rounds.to_vec(),
             practice_conditions: None,
             qualifying_conditions: None,
+            ..Default::default()
         }));
         let car_id = game_session.car_configs.values().next().unwrap().id;
         let ids: Vec<PlayerId> = (1..=n).map(Uuid::from_u128).collect();
@@ -7328,6 +7730,7 @@ mod tests {
             qualifying_seconds: vec![600, 0, 9_000, 600],
             practice_conditions: None,
             qualifying_conditions: None,
+            ..Default::default()
         }));
         game_session.set_qualifying_seconds(Some(300));
         assert_eq!(game_session.session.qualifying_seconds, None);
@@ -7338,6 +7741,7 @@ mod tests {
                 qualifying_seconds: vec![600, 60, 7200],
                 practice_conditions: None,
                 qualifying_conditions: None,
+                ..Default::default()
             })
         );
         let state = game_session.weekend_state().unwrap();
@@ -7769,6 +8173,7 @@ mod tests {
             qualifying_seconds: vec![600, 600],
             practice_conditions: None,
             qualifying_conditions: None,
+            ..Default::default()
         }));
         game_session.spawn_ai_drivers();
         let human = Uuid::from_u128(1);
@@ -7851,6 +8256,7 @@ mod tests {
             qualifying_seconds: vec![600],
             practice_conditions: Some(Box::new(rain)),
             qualifying_conditions: Some(Box::new(overcast)),
+            ..Default::default()
         }));
         game_session.session.current_tick = 1000;
         game_session.advance_weekend().unwrap();
@@ -7876,6 +8282,227 @@ mod tests {
     }
 
     /// The weekend's state is handed out once per change.
+    #[test]
+    fn a_lap_allowance_garages_a_car_after_its_laps_and_ends_qualifying() {
+        let (mut game_session, a, b) = timed_qualifying(600);
+        game_session.set_qualifying_lap_allowance(2);
+        assert_eq!(game_session.session.qualifying_lap_allowance, 2);
+        game_session.set_qualifying_lap_allowance(200);
+        assert_eq!(
+            game_session.session.qualifying_lap_allowance,
+            crate::data::MAX_QUALIFYING_LAP_ALLOWANCE
+        );
+        game_session.set_qualifying_lap_allowance(2);
+        game_session.session.current_tick += 200 * DEFAULT_TICK_RATE_HZ as u32;
+        for id in [a, b] {
+            game_session
+                .hotlap_relocate(&id, HotlapDestination::Track, false)
+                .unwrap();
+        }
+        drive_over_the_line(&mut game_session, a, 80);
+        assert!(!game_session.session.participants[&a].in_garage);
+        drive_over_the_line(&mut game_session, a, 80);
+        assert!(
+            game_session.session.participants[&a].in_garage,
+            "in after the second lap"
+        );
+        assert_eq!(classify_laps(&mut game_session), 2, "both laps count");
+        assert_eq!(
+            game_session.hotlap_relocate(&a, HotlapDestination::Track, false),
+            Err("Lap allowance used")
+        );
+        assert_eq!(game_session.session.state, SessionState::Racing);
+        drive_over_the_line(&mut game_session, b, 80);
+        drive_over_the_line(&mut game_session, b, 80);
+        assert!(game_session.session.participants[&b].in_garage);
+        assert_eq!(
+            game_session.session.state,
+            SessionState::Finished,
+            "every car has run its laps"
+        );
+        // A fresh qualifying session counts afresh.
+        game_session.set_game_mode(GameMode::Qualification);
+        game_session
+            .hotlap_relocate(&a, HotlapDestination::Track, false)
+            .unwrap();
+    }
+
+    #[test]
+    fn a_weekend_phase_runs_under_its_own_damage_rule() {
+        let mut game_session = create_test_session();
+        game_session.set_weekend(Some(crate::weekend::WeekendFormat {
+            practice_seconds: 600,
+            qualifying_seconds: vec![600],
+            practice_damage: Some(DamageLevel::Off),
+            qualifying_damage: Some(DamageLevel::VisualOnly),
+            ..Default::default()
+        }));
+        game_session.set_damage(DamageLevel::Reduced);
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let (a, b) = (Uuid::from_u128(1), Uuid::from_u128(2));
+        game_session.add_player(a, car_id).unwrap();
+        game_session.session.host_player_id = a;
+        let rule = |gs: &GameSession| {
+            (
+                gs.session.damage,
+                gs.weekend_state().unwrap().damage,
+                gs.session.participants[&a].damage_level,
+            )
+        };
+
+        game_session.advance_weekend().unwrap();
+        assert_eq!(
+            rule(&game_session),
+            (DamageLevel::Off, DamageLevel::Off, Some(DamageLevel::Off))
+        );
+        // A late arrival takes the phase's rule (and its garage, as the
+        // join does).
+        game_session.add_player(b, car_id).unwrap();
+        game_session
+            .hotlap_relocate(&b, HotlapDestination::Garage, false)
+            .unwrap();
+        assert_eq!(
+            game_session.session.participants[&b].damage_level,
+            Some(DamageLevel::Off)
+        );
+        end_phase(&mut game_session);
+
+        game_session.advance_weekend().unwrap();
+        let visual = Some(DamageLevel::VisualOnly);
+        assert_eq!(
+            rule(&game_session),
+            (DamageLevel::VisualOnly, DamageLevel::VisualOnly, visual)
+        );
+        assert_eq!(game_session.session.participants[&b].damage_level, visual);
+        end_phase(&mut game_session);
+
+        // The race is the session's own rule.
+        game_session.start_countdown_mode(1, GameMode::Race);
+        let reduced = Some(DamageLevel::Reduced);
+        assert_eq!(
+            rule(&game_session),
+            (DamageLevel::Reduced, DamageLevel::Reduced, reduced)
+        );
+        assert_eq!(game_session.session.participants[&b].damage_level, reduced);
+    }
+
+    #[test]
+    fn a_weekend_without_phase_damage_keeps_the_sessions_rule() {
+        let (mut game_session, ids) = weekend_of(2, 600, &[600]);
+        game_session.set_damage(DamageLevel::Reduced);
+        game_session.advance_weekend().unwrap();
+        assert_eq!(game_session.session.damage, DamageLevel::Reduced);
+        assert_eq!(
+            game_session.session.participants[&ids[1]].damage_level,
+            Some(DamageLevel::Reduced)
+        );
+        assert_eq!(
+            game_session.weekend_state().unwrap().damage,
+            DamageLevel::Reduced
+        );
+    }
+
+    #[test]
+    fn a_weekend_final_shootout_runs_the_cars_through_in_reverse() {
+        let (mut game_session, ids) = weekend_of(4, 0, &[600, 600]);
+        game_session.set_qualifying_format(crate::data::QualifyingFormat::Shootout);
+        let (a, b, c, d) = (ids[0], ids[1], ids[2], ids[3]);
+
+        // Q1 is the timed knockout as ever.
+        game_session.advance_weekend().unwrap();
+        assert!(!game_session.is_shootout_round());
+        assert!(game_session.shootout_state().is_none());
+        assert_eq!(game_session.race_clock().unwrap().left_ms, 600_000);
+        game_session.note_qualifying_lap(c, 80_000);
+        game_session.note_qualifying_lap(a, 81_000);
+        game_session.note_qualifying_lap(b, 82_000);
+        end_phase(&mut game_session);
+
+        // Q2, the final, is the shoot-out: no clock, the slower of the two
+        // through runs first, the other waits in its garage.
+        game_session.advance_weekend().unwrap();
+        assert!(game_session.is_shootout_round());
+        assert_eq!(game_session.race_clock(), None);
+        let state = game_session.shootout_state().unwrap();
+        let index = |id: &PlayerId| game_session.car_index_of(id).unwrap();
+        assert_eq!(state.order, vec![index(&a), index(&c)]);
+        assert_eq!((state.running, state.done, state.flying), (1, 0, false));
+        assert!(!game_session.session.participants[&a].in_garage);
+        assert!(game_session.session.participants[&a].outlap);
+        for id in [b, c, d] {
+            assert!(game_session.session.participants[&id].in_garage);
+        }
+        assert_eq!(
+            game_session.hotlap_relocate(&c, HotlapDestination::Track, false),
+            Err("A shoot-out: each car is sent out in its turn")
+        );
+        assert_eq!(
+            game_session.hotlap_relocate(&b, HotlapDestination::Track, false),
+            Err("Eliminated in Q1")
+        );
+
+        // a ends its flying lap: in, and c is called.
+        drive_over_the_line(&mut game_session, a, 79);
+        assert_eq!(classify_laps(&mut game_session), 1);
+        assert!(game_session.session.participants[&a].in_garage);
+        assert!(!game_session.session.participants[&c].in_garage);
+        let state = game_session.shootout_state().unwrap();
+        assert_eq!((state.running, state.done), (2, 1));
+
+        // c gives up its run: the shoot-out is over, and a's lap is pole.
+        game_session
+            .hotlap_relocate(&c, HotlapDestination::Garage, false)
+            .unwrap();
+        game_session.tick(&HashMap::new());
+        assert_eq!(game_session.session.state, SessionState::Finished);
+        let state = game_session.shootout_state().unwrap();
+        assert_eq!((state.running, state.done), (0, 2));
+        game_session.settle_weekend();
+        assert_eq!(
+            game_session.weekend_progress().grid(),
+            Some(vec![a, c, b, d])
+        );
+    }
+
+    #[test]
+    fn a_shootout_runs_in_reverse_of_the_start_order_and_takes_a_newcomer_last() {
+        let (mut game_session, ids) = three_drivers();
+        game_session.set_qualifying_format(crate::data::QualifyingFormat::Shootout);
+        game_session.set_qualifying_seconds(Some(600));
+        let [a, b, c] = ids;
+        game_session.set_grid_order(vec!["B".into(), "C".into(), "A".into()]);
+        game_session.set_game_mode(GameMode::Qualification);
+        assert_eq!(game_session.race_clock(), None, "a shoot-out has no clock");
+        let index = |gs: &GameSession, id: &PlayerId| gs.car_index_of(id).unwrap();
+        assert_eq!(
+            game_session.shootout_state().unwrap().order,
+            vec![
+                index(&game_session, &a),
+                index(&game_session, &c),
+                index(&game_session, &b)
+            ]
+        );
+        assert!(!game_session.session.participants[&a].in_garage);
+        assert!(game_session.take_shootout_state().is_some());
+        assert!(game_session.take_shootout_state().is_none(), "sent once");
+
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let late = Uuid::from_u128(9);
+        game_session.add_player(late, car_id).unwrap();
+        game_session
+            .hotlap_relocate(&late, HotlapDestination::Garage, false)
+            .unwrap();
+        game_session.tick(&HashMap::new());
+        let state = game_session.shootout_state().unwrap();
+        assert_eq!(state.order.len(), 4);
+        assert_eq!(state.order[3], index(&game_session, &late));
+        assert!(game_session.session.participants[&late].in_garage);
+
+        // Leaving qualifying ends the shoot-out.
+        game_session.start_countdown_mode(1, GameMode::Race);
+        assert!(game_session.shootout_state().is_none());
+    }
+
     #[test]
     fn the_weekend_state_goes_out_when_it_changes() {
         let (mut game_session, _) = weekend_of(2, 0, &[600]);

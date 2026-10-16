@@ -304,6 +304,30 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 			TArray<FString>(), 0, FApexWeekendFormat(), nullptr, ApexQualifyingCutoff::None, 2, true),
 		ApexGolden::C_CreateSessionPitRule);
 	TestEqual(TEXT("mandatory stops are at most three"), ApexMandatoryStops::Clamp(9), 3);
+	CheckBytes(TEXT("CreateSession for a shoot-out with a lap allowance"),
+		ApexProtocol::EncodeCreateSession(
+			TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+			TArray<FString>(), 0, FApexWeekendFormat(), nullptr, ApexQualifyingCutoff::None, 0, false,
+			EApexQualifyingFormat::Shootout, 3),
+		ApexGolden::C_CreateSessionShootout);
+	TestEqual(TEXT("a lap allowance is at most thirty"), ApexQualifyingLapAllowance::Clamp(99), 30);
+	{
+		// A weekend whose practice and qualifying name their own damage rule.
+		FApexWeekendFormat Weekend;
+		Weekend.PracticeSeconds = 600;
+		Weekend.QualifyingSeconds = { 600 };
+		Weekend.bHasPracticeDamage = true;
+		Weekend.PracticeDamage = EApexDamageLevel::Off;
+		Weekend.bHasQualifyingDamage = true;
+		Weekend.QualifyingDamage = EApexDamageLevel::Reduced;
+		CheckBytes(TEXT("CreateSession for a weekend with each phase's damage"),
+			ApexProtocol::EncodeCreateSession(
+				TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+				FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+				TArray<FString>(), 0, Weekend),
+			ApexGolden::C_CreateSessionWeekendDamage);
+	}
 	CheckBytes(TEXT("AdvanceWeekend"), ApexProtocol::EncodeAdvanceWeekend(), ApexGolden::C_AdvanceWeekend);
 	CheckBytes(TEXT("GiveUpSeat"), ApexProtocol::EncodeGiveUpSeat(), ApexGolden::C_GiveUpSeat);
 
@@ -564,6 +588,41 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 		{
 			TestEqual(TEXT("MandatoryStops"), Message.MandatoryStops, 2);
 			TestTrue(TEXT("CompoundChange"), Message.bCompoundChange);
+			TestEqual(TEXT("QualifyingFormat (open when absent)"), Message.QualifyingFormat, EApexQualifyingFormat::Open);
+			TestEqual(TEXT("QualifyingLapAllowance (none when absent)"), Message.QualifyingLapAllowance, 0);
+		}
+	}
+
+	{
+		// A one-lap shoot-out with a lap allowance, and its state.
+		FApexServerMessage Joined;
+		if (Decode(TEXT("SessionJoined for a shoot-out"), ApexGolden::S_SessionJoinedShootout, Joined))
+		{
+			TestEqual(TEXT("QualifyingFormat"), Joined.QualifyingFormat, EApexQualifyingFormat::Shootout);
+			TestEqual(TEXT("QualifyingLapAllowance"), Joined.QualifyingLapAllowance, 3);
+		}
+		FApexServerMessage State;
+		if (Decode(TEXT("ShootoutState"), ApexGolden::S_ShootoutState, State))
+		{
+			TestEqual(TEXT("ShootoutState type"), State.Type, EApexServerMessageType::ShootoutState);
+			const FApexShootoutState& S = State.ShootoutState;
+			TestTrue(TEXT("ShootoutState.bValid"), S.bValid);
+			TestTrue(TEXT("ShootoutState.Order"), S.Order == TArray<int32>({ 2, 0, 1 }));
+			TestEqual(TEXT("ShootoutState.Running"), S.Running, 2);
+			TestEqual(TEXT("ShootoutState.Done"), S.Done, 1);
+			TestTrue(TEXT("ShootoutState.bFlying"), S.bFlying);
+			TestEqual(TEXT("car 1 runs third"), S.PlaceOf(1), 3);
+			TestEqual(TEXT("car 5 does not run"), S.PlaceOf(5), 0);
+		}
+		FApexServerMessage Phase;
+		if (Decode(TEXT("WeekendState under a phase's damage rule"), ApexGolden::S_WeekendStateDamage, Phase))
+		{
+			TestEqual(TEXT("WeekendState.Damage"), Phase.WeekendState.Damage, EApexDamageLevel::Off);
+		}
+		FApexServerMessage Late;
+		if (Decode(TEXT("WeekendState without a damage rule"), ApexGolden::S_WeekendStateLate, Late))
+		{
+			TestEqual(TEXT("WeekendState.Damage (full when absent)"), Late.WeekendState.Damage, EApexDamageLevel::Full);
 		}
 		FApexServerMessage Roster;
 		if (Decode(TEXT("SessionRoster with a missed pit rule"), ApexGolden::S_SessionRosterMissedStops, Roster))

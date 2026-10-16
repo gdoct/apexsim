@@ -102,6 +102,8 @@ pub(crate) async fn handle_message(
             qualifying_cutoff_pct,
             mandatory_stops,
             compound_change,
+            qualifying_format,
+            qualifying_lap_allowance,
         } => {
             handle_create_session(
                 ctx,
@@ -122,6 +124,7 @@ pub(crate) async fn handle_message(
                 watch.unwrap_or_default(),
                 qualifying_cutoff_pct,
                 crate::data::PitRule::clamped(mandatory_stops, compound_change),
+                (qualifying_format, qualifying_lap_allowance),
             )
             .await;
         }
@@ -375,6 +378,7 @@ async fn handle_create_session(
     watch: crate::network::HotlapWatchOptions,
     qualifying_cutoff_pct: Option<u16>,
     pit_rule: crate::data::PitRule,
+    (qualifying_format, qualifying_lap_allowance): (crate::data::QualifyingFormat, u8),
 ) {
     let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
@@ -509,6 +513,8 @@ async fn handle_create_session(
         game_session.set_qualifying_seconds(qualifying_seconds);
         game_session.set_qualifying_cutoff(qualifying_cutoff_pct);
         game_session.set_pit_rule(pit_rule.mandatory_stops, pit_rule.compound_change);
+        game_session.set_qualifying_format(qualifying_format);
+        game_session.set_qualifying_lap_allowance(qualifying_lap_allowance);
         game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
     }
     if is_hotlap_watch {
@@ -652,9 +658,9 @@ async fn handle_create_session(
         let weekend = game_session.session.weekend.clone();
         let qualifying_cutoff_pct = game_session.session.qualifying_cutoff_pct;
         let pit_rule = game_session.session.pit_rule;
-        let weekend_state = game_session
-            .weekend_state()
-            .map(ServerMessage::WeekendState);
+        let qualifying_format = game_session.session.qualifying_format;
+        let qualifying_lap_allowance = game_session.session.qualifying_lap_allowance;
+        let phase_states = game_session.phase_state_messages();
         drop(state_write);
         let _ = ctx
             .send(
@@ -673,10 +679,12 @@ async fn handle_create_session(
                     qualifying_cutoff_pct,
                     mandatory_stops: pit_rule.mandatory_stops,
                     compound_change: pit_rule.compound_change,
+                    qualifying_format,
+                    qualifying_lap_allowance,
                 }),
             )
             .await;
-        if let Some(msg) = weekend_state {
+        for msg in phase_states {
             let _ = ctx.send(connection_id, msg).await;
         }
         if let Some(msg) = racing_line {
@@ -850,6 +858,8 @@ async fn start_demo_session(
                 qualifying_cutoff_pct: None,
                 mandatory_stops: 0,
                 compound_change: false,
+                qualifying_format: QualifyingFormat::Open,
+                qualifying_lap_allowance: 0,
             }),
         )
         .await;
@@ -967,9 +977,9 @@ pub(crate) async fn handle_join_session(
         let weekend = game_session.session.weekend.clone();
         let qualifying_cutoff_pct = game_session.session.qualifying_cutoff_pct;
         let pit_rule = game_session.session.pit_rule;
-        let weekend_state = game_session
-            .weekend_state()
-            .map(ServerMessage::WeekendState);
+        let qualifying_format = game_session.session.qualifying_format;
+        let qualifying_lap_allowance = game_session.session.qualifying_lap_allowance;
+        let phase_states = game_session.phase_state_messages();
         drop(state_write);
         let _ = ctx
             .send(
@@ -988,10 +998,12 @@ pub(crate) async fn handle_join_session(
                     qualifying_cutoff_pct,
                     mandatory_stops: pit_rule.mandatory_stops,
                     compound_change: pit_rule.compound_change,
+                    qualifying_format,
+                    qualifying_lap_allowance,
                 }),
             )
             .await;
-        if let Some(msg) = weekend_state {
+        for msg in phase_states {
             let _ = ctx.send(connection_id, msg).await;
         }
         if let Some(msg) = racing_line {
@@ -1054,13 +1066,11 @@ async fn rejoin_session(
         qualifying_cutoff_pct: game_session.session.qualifying_cutoff_pct,
         mandatory_stops: game_session.session.pit_rule.mandatory_stops,
         compound_change: game_session.session.pit_rule.compound_change,
+        qualifying_format: game_session.session.qualifying_format,
+        qualifying_lap_allowance: game_session.session.qualifying_lap_allowance,
     });
     let mut messages = vec![joined];
-    messages.extend(
-        game_session
-            .weekend_state()
-            .map(ServerMessage::WeekendState),
-    );
+    messages.extend(game_session.phase_state_messages());
     messages.extend(racing_line_message(
         game_session,
         session_id,
@@ -1289,8 +1299,8 @@ pub(crate) async fn handle_join_as_spectator(
         race_seconds,
         qualifying_seconds,
         weekend,
-        (qualifying_cutoff_pct, pit_rule),
-        weekend_state,
+        (qualifying_cutoff_pct, pit_rule, (qualifying_format, qualifying_lap_allowance)),
+        phase_states,
         sectors,
         road,
     ) = {
@@ -1308,8 +1318,8 @@ pub(crate) async fn handle_join_as_spectator(
             race_seconds,
             qualifying_seconds,
             weekend,
-            (qualifying_cutoff_pct, pit_rule),
-            weekend_state,
+            (qualifying_cutoff_pct, pit_rule, (qualifying_format, qualifying_lap_allowance)),
+            phase_states,
             sectors,
             road,
         ) = state_write
@@ -1330,8 +1340,15 @@ pub(crate) async fn handle_join_as_spectator(
                     s.session.race_seconds,
                     s.session.qualifying_seconds,
                     s.session.weekend.clone(),
-                    (s.session.qualifying_cutoff_pct, s.session.pit_rule),
-                    s.weekend_state().map(ServerMessage::WeekendState),
+                    (
+                        s.session.qualifying_cutoff_pct,
+                        s.session.pit_rule,
+                        (
+                            s.session.qualifying_format,
+                            s.session.qualifying_lap_allowance,
+                        ),
+                    ),
+                    s.phase_state_messages(),
                     Some(ServerMessage::TrackSectors(TrackSectorsData {
                         session_id,
                         track_length_m: s.track_length_m(),
@@ -1351,8 +1368,12 @@ pub(crate) async fn handle_join_as_spectator(
             race_seconds,
             qualifying_seconds,
             weekend,
-            (qualifying_cutoff_pct, pit_rule),
-            weekend_state,
+            (
+                qualifying_cutoff_pct,
+                pit_rule,
+                (qualifying_format, qualifying_lap_allowance),
+            ),
+            phase_states,
             sectors,
             road,
         )
@@ -1380,10 +1401,12 @@ pub(crate) async fn handle_join_as_spectator(
                     qualifying_cutoff_pct,
                     mandatory_stops: pit_rule.mandatory_stops,
                     compound_change: pit_rule.compound_change,
+                    qualifying_format,
+                    qualifying_lap_allowance,
                 }),
             )
             .await;
-        if let Some(msg) = weekend_state {
+        for msg in phase_states {
             let _ = ctx.send(connection_id, msg).await;
         }
         // Where the sector lines are, so the spectator's timing board can

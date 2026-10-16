@@ -3435,6 +3435,39 @@ pub fn clamp_qualifying_cutoff(pct: Option<u16>) -> Option<u16> {
         .map(|p| p.clamp(MIN_QUALIFYING_CUTOFF_PCT, MAX_QUALIFYING_CUTOFF_PCT))
 }
 
+/// How qualifying is run (`CreateSession.qualifying_format`): the usual
+/// session with every car out at once, or a one-lap shoot-out. Encoded as a
+/// small integer; `Open` (the default) is left off the wire.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
+pub enum QualifyingFormat {
+    /// Every car out when it likes, timed or open-ended
+    /// (`qualifying_seconds`); a weekend's rounds are a timed knockout.
+    #[default]
+    Open = 0,
+    /// One car at a time in a fixed order, each an outlap from the pit exit
+    /// and one flying lap, the rest in their garages; the classification is
+    /// the flying laps (`GameSession::begin_shootout`). A weekend runs its
+    /// final round this way.
+    Shootout = 1,
+}
+
+impl QualifyingFormat {
+    pub fn is_open(&self) -> bool {
+        *self == QualifyingFormat::Open
+    }
+}
+
+/// The most flying laps a qualifying lap allowance can give
+/// (`CreateSession.qualifying_lap_allowance`).
+pub const MAX_QUALIFYING_LAP_ALLOWANCE: u8 = 30;
+
+/// A qualifying lap allowance as a session keeps it: 0 for none, otherwise
+/// held to [`MAX_QUALIFYING_LAP_ALLOWANCE`].
+pub fn clamp_qualifying_lap_allowance(laps: u8) -> u8 {
+    laps.min(MAX_QUALIFYING_LAP_ALLOWANCE)
+}
+
 /// The most mandatory stops a host can set (`CreateSession.mandatory_stops`).
 pub const MAX_MANDATORY_STOPS: u8 = 3;
 
@@ -3544,6 +3577,15 @@ pub struct RaceSession {
     /// The race's pit-stop rule ([`PitRule`]); none by default.
     #[serde(default)]
     pub pit_rule: PitRule,
+    /// How qualifying runs ([`QualifyingFormat`]): a weekend runs its final
+    /// round as a shoot-out under `Shootout`.
+    #[serde(default)]
+    pub qualifying_format: QualifyingFormat,
+    /// The most flying laps a car may start in a qualifying session or
+    /// round (`clamp_qualifying_lap_allowance`); 0 for no limit. A
+    /// shoot-out gives one whatever it says.
+    #[serde(default)]
+    pub qualifying_lap_allowance: u8,
     pub current_tick: u32,
     pub countdown_ticks_remaining: Option<u16>,
     /// Game mode to transition to when the countdown reaches zero.
@@ -3585,6 +3627,8 @@ impl RaceSession {
             qualifying_seconds: None,
             qualifying_cutoff_pct: None,
             pit_rule: PitRule::default(),
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
             weekend: None,
             current_tick: 0,
             countdown_ticks_remaining: None,

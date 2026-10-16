@@ -425,7 +425,9 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 	const FApexWeekendFormat& Weekend,
 	int32 QualifyingCutoffPct,
 	int32 MandatoryStops,
-	bool bCompoundChange)
+	bool bCompoundChange,
+	EApexQualifyingFormat QualifyingFormat,
+	int32 QualifyingLapAllowance)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d race_seconds=%d qualifying_seconds=%d locked_assists=%d conditions=%s damage=%d ai_skill=%d"),
 		*TrackConfigId, MaxPlayers, AiCount, LapLimit, RaceSeconds, QualifyingSeconds, AllowedAssists.CountLocked(), *Conditions.Describe(),
@@ -454,7 +456,9 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 		nullptr,
 		QualifyingCutoffPct,
 		MandatoryStops,
-		bCompoundChange));
+		bCompoundChange,
+		QualifyingFormat,
+		QualifyingLapAllowance));
 }
 
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
@@ -1282,9 +1286,13 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			CurrentQualifyingCutoffPct = Message.QualifyingCutoffPct;
 			CurrentMandatoryStops = Message.MandatoryStops;
 			bCurrentCompoundChange = Message.bCompoundChange;
+			CurrentQualifyingFormat = Message.QualifyingFormat;
+			CurrentQualifyingLapAllowance = Message.QualifyingLapAllowance;
 			CurrentWeekend = Message.Weekend;
-			// The session's WeekendState follows its SessionJoined.
+			// The session's WeekendState (and a running shoot-out's state)
+			// follows its SessionJoined.
 			CurrentWeekendState = FApexWeekendState();
+			CurrentShootoutState = FApexShootoutState();
 			DiscardTelemetryOfPreviousSession();
 			// In a session now: the seat held for us is this one or given up.
 			ClearRejoinOffer();
@@ -1329,8 +1337,11 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentQualifyingCutoffPct = 0;
 		CurrentMandatoryStops = 0;
 		bCurrentCompoundChange = false;
+		CurrentQualifyingFormat = EApexQualifyingFormat::Open;
+		CurrentQualifyingLapAllowance = 0;
 		CurrentWeekend = FApexWeekendFormat();
 		CurrentWeekendState = FApexWeekendState();
+		CurrentShootoutState = FApexShootoutState();
 		CachedRoster = FApexSessionRoster();
 		ClearRacingLine();
 		ClearLapTiming();
@@ -1490,10 +1501,22 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			TimingBoard.Reset(TimingBoard.SectorCount);
 		}
 		CurrentWeekendState = Message.WeekendState;
-		UE_LOG(LogApexSimNet, Log, TEXT("<- WeekendState phase=%d round=%d/%d finished=%d advancing=%d eliminated=%d"),
+		// A phase may run under its own damage rule: the session's rule is
+		// the phase's while it runs.
+		CurrentDamage = CurrentWeekendState.Damage;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- WeekendState phase=%d round=%d/%d finished=%d advancing=%d eliminated=%d damage=%d"),
 			static_cast<int32>(CurrentWeekendState.Phase), CurrentWeekendState.Round, CurrentWeekendState.Rounds,
-			CurrentWeekendState.bFinished ? 1 : 0, CurrentWeekendState.Advancing, CurrentWeekendState.Eliminated.Num());
+			CurrentWeekendState.bFinished ? 1 : 0, CurrentWeekendState.Advancing, CurrentWeekendState.Eliminated.Num(),
+			static_cast<int32>(CurrentDamage));
 		OnWeekendStateChanged.Broadcast();
+		break;
+
+	case EApexServerMessageType::ShootoutState:
+		CurrentShootoutState = Message.ShootoutState;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- ShootoutState cars=%d running=%d done=%d flying=%d"),
+			CurrentShootoutState.Order.Num(), CurrentShootoutState.Running, CurrentShootoutState.Done,
+			CurrentShootoutState.bFlying ? 1 : 0);
+		OnShootoutStateChanged.Broadcast();
 		break;
 
 	case EApexServerMessageType::Leaderboard:

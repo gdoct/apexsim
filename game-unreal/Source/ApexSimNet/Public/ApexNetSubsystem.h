@@ -37,6 +37,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnUdpReady);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionStateChanged, EApexSessionState, NewState);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnRejoinOfferChanged);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnWeekendStateChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnShootoutStateChanged);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnDemoSessionChanged, bool /*bJoined*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnShowcases, const TArray<FApexShowcaseSummary>&);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FApexOnSpectatorJoined, const FString& /*StreamId*/, const FString& /*ShowcaseId*/);
@@ -155,6 +156,10 @@ public:
 	/** A race weekend's state arrived or changed (read it with GetWeekendState). */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Weekend")
 	FApexOnWeekendStateChanged OnWeekendStateChanged;
+
+	/** A qualifying shoot-out's run order or progress arrived or changed (read it with GetShootoutState). */
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Race")
+	FApexOnShootoutStateChanged OnShootoutStateChanged;
 
 	/** The garage's reference card for the joined car arrived (after SessionJoined). */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Net")
@@ -277,7 +282,9 @@ public:
 		const FApexWeekendFormat& Weekend = FApexWeekendFormat(),
 		int32 QualifyingCutoffPct = 0,
 		int32 MandatoryStops = 0,
-		bool bCompoundChange = false);
+		bool bCompoundChange = false,
+		EApexQualifyingFormat QualifyingFormat = EApexQualifyingFormat::Open,
+		int32 QualifyingLapAllowance = 0);
 
 	/**
 	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
@@ -612,6 +619,15 @@ public:
 	/** The race must be run on two dry compounds, from its SessionJoined. */
 	bool GetSessionCompoundChange() const { return bCurrentCompoundChange; }
 
+	/** How the session's qualifying runs (Shootout: one car at a time), from its SessionJoined. */
+	EApexQualifyingFormat GetSessionQualifyingFormat() const { return CurrentQualifyingFormat; }
+
+	/** The qualifying lap allowance, flying laps per car, from its SessionJoined; 0 for none. */
+	int32 GetSessionQualifyingLapAllowance() const { return CurrentQualifyingLapAllowance; }
+
+	/** Where the session's qualifying shoot-out stands; bValid false outside one. */
+	const FApexShootoutState& GetShootoutState() const { return CurrentShootoutState; }
+
 	/** The race weekend the session is, from its SessionJoined; no rounds when it is none. */
 	const FApexWeekendFormat& GetSessionWeekend() const { return CurrentWeekend; }
 	bool IsWeekendSession() const { return CurrentWeekend.IsWeekend(); }
@@ -920,6 +936,9 @@ private:
 	int32 CurrentQualifyingCutoffPct = 0;
 	int32 CurrentMandatoryStops = 0;
 	bool bCurrentCompoundChange = false;
+	EApexQualifyingFormat CurrentQualifyingFormat = EApexQualifyingFormat::Open;
+	int32 CurrentQualifyingLapAllowance = 0;
+	FApexShootoutState CurrentShootoutState;
 	FApexWeekendFormat CurrentWeekend;
 	FApexWeekendState CurrentWeekendState;
 

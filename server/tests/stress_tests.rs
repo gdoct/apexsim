@@ -508,6 +508,8 @@ impl TestClientMinimal {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         self.send_message(&msg).await?;
 
@@ -865,6 +867,8 @@ async fn run_multi_client_test(
         qualifying_cutoff_pct: None,
         mandatory_stops: 0,
         compound_change: false,
+        qualifying_format: QualifyingFormat::Open,
+        qualifying_lap_allowance: 0,
     };
     clients[0].send_message(&create_msg).await?;
 

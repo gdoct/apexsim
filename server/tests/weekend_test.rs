@@ -140,11 +140,14 @@ async fn a_weekend_runs_from_the_lobby_to_the_race_over_the_wire() {
                 qualifying_seconds: vec![600, 600, 600, 600],
                 practice_conditions: None,
                 qualifying_conditions: None,
+                ..Default::default()
             }),
             watch: None,
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -153,6 +156,7 @@ async fn a_weekend_runs_from_the_lobby_to_the_race_over_the_wire() {
             qualifying_seconds: vec![600, 600, 600],
             practice_conditions: None,
             qualifying_conditions: None,
+            ..Default::default()
         };
         assert_eq!(joined.weekend, Some(format.clone()));
         assert_eq!(joined.qualifying_seconds, None);

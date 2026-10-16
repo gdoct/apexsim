@@ -338,6 +338,8 @@ fn create_hotlap_watch(track: TrackConfigId) -> ClientMessage {
         qualifying_cutoff_pct: None,
         mandatory_stops: 0,
         compound_change: false,
+        qualifying_format: QualifyingFormat::Open,
+        qualifying_lap_allowance: 0,
     }
 }
 
@@ -687,6 +689,8 @@ fn create_streamed_hotlap_watch(track: TrackConfigId) -> ClientMessage {
         qualifying_cutoff_pct: None,
         mandatory_stops: 0,
         compound_change: false,
+        qualifying_format: QualifyingFormat::Open,
+        qualifying_lap_allowance: 0,
     }
 }
 

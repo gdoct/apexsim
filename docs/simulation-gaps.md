@@ -84,11 +84,11 @@ one session, advanced by the host (see
 | No event across days: a race weekend is one session with phases, live only while someone is in it. Nothing groups sessions on one track and car class with a name, an entry list and a schedule (start time per session, in real days). | Med | High |
 | Sessions are not persisted: an event, its entry list, each session's state and its results must survive server restarts and empty hours (stored beside `records/`, deterministic ids). | Med | High |
 | Entries are not stable drivers: a player is a per-connection id and records key on the name, so the same driver must be recognised across days (an account or token identity, with car and livery fixed for the event). | Med | High |
-| Qualifying is a timed session or a weekend's knockout rounds (Q1/Q2/Q3). No one-lap shoot-out, no single-car runs with a fixed order, and no tyre or lap allowance. | Low | Med |
+| Qualifying has no tyre allowance: a car may fit fresh sets for every run, and nothing makes the top cars start the race on the tyres they qualified on. | Low | Low |
 | In qualifying a car is put at the pit exit (`qualifying_outlap_pose`, a teleport): it does not drive down the pit lane, so there is no limiter or queue at the exit light, and the HUD shows race-style standings by track position. | Med | Low |
 | The start order matches drivers by name (`grid_order::resolve`): a stored result's humans are found again only under the same name. | Low | Low |
 | No schedule: a session opening, counting in and starting at its time whether or not everyone is there, with a late joiner going out from the pit lane. Needs a lobby view of upcoming sessions and a countdown. | Med | Med |
-| No per-phase rules beyond lengths and skies: a weekend sets practice and round lengths and each day's sky, but assists and damage are the session's for every phase. | Low | Low |
+| Assists are the session's for every phase of a weekend (practice and qualifying name their own damage rule, lengths and sky): the client learns `AllowedAssists` only from `SessionJoined`, so a phase's own assists need them sent again (in `WeekendState`, as its `Damage` is) and the client's Assists locks refreshed on it. | Low | Low |
 | AI entries in an event need fixed identities and levels across the days, a qualifying run of their own, and their results kept like a human's. | Med | Med |
 | Setups and tyre sets do not carry between sessions (no parc fermé, no tyre allocation per weekend). | Med | Low |
 | No weekend results record: practice times, the combined qualifying sheet (stored) and the race classification are not kept together as one record, shown in the client or exported. | Med | Med |

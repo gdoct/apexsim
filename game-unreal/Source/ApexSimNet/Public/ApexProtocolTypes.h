@@ -108,6 +108,37 @@ enum class EApexDamageLevel : uint8
 };
 
 /**
+ * How qualifying runs (data.rs `QualifyingFormat`), as CreateSession's
+ * `qualifying_format` and SessionJoined's `QualifyingFormat` carry it:
+ * Serialize_repr => a plain u8, left off the wire when Open.
+ */
+UENUM(BlueprintType)
+enum class EApexQualifyingFormat : uint8
+{
+	/** Every car out when it likes; a weekend's rounds a timed knockout. */
+	Open     = 0,
+	/** One car at a time, an outlap and one flying lap each (a weekend's final round). */
+	Shootout = 1,
+};
+
+/**
+ * The qualifying lap allowance (CreateSession `qualifying_lap_allowance`):
+ * the most flying laps a car may start in a qualifying session or round;
+ * 0 for no limit.
+ */
+namespace ApexQualifyingLapAllowance
+{
+	inline constexpr int32 None = 0;
+	inline constexpr int32 MaxLaps = 30;
+
+	/** As the server keeps it: 0..MaxLaps. */
+	inline int32 Clamp(int32 Laps)
+	{
+		return FMath::Clamp(Laps, None, MaxLaps);
+	}
+}
+
+/**
  * The AI field's level, as CreateSession's `ai_skill` and SessionJoined's
  * `AiSkill` carry it (ai_driver.rs `field_skills`): the skill the field is
  * spread round, Min to Max, or Mixed, the server's field of every level
@@ -365,11 +396,48 @@ struct APEXSIMNET_API FApexWeekendState
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
 	TArray<FApexKnockedOut> Eliminated;
 
+	/** The phase's damage rule (practice's or qualifying's own, else the session's); Full when absent. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	EApexDamageLevel Damage = EApexDamageLevel::Full;
+
 	const FApexKnockedOut* FindEliminated(int32 CarIndex) const
 	{
 		return Eliminated.FindByPredicate([CarIndex](const FApexKnockedOut& Out) { return Out.CarIndex == CarIndex; });
 	}
 	bool IsFinalRound() const { return Phase == EApexWeekendPhase::Qualifying && Round >= Rounds; }
+};
+
+/**
+ * A one-lap qualifying shoot-out's run order and where it stands
+ * (`ShootoutState`, sent on join and whenever it changes while one runs).
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexShootoutState
+{
+	GENERATED_BODY()
+
+	/** False until the session sends one (no shoot-out, or an older server). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	bool bValid = false;
+
+	/** The cars' indices (as the roster maps them) in run order, first out first. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	TArray<int32> Order;
+
+	/** The 1-based place in Order of the car on its run; 0 when none is. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	int32 Running = 0;
+
+	/** How many cars of Order have had their run. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	int32 Done = 0;
+
+	/** The car on its run has started its flying lap. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	bool bFlying = false;
+
+	/** A car's 1-based place in the run order; 0 when it is not in it. */
+	int32 PlaceOf(int32 CarIndex) const { return Order.Find(CarIndex) + 1; }
 };
 
 /**
@@ -1032,6 +1100,20 @@ struct APEXSIMNET_API FApexWeekendFormat
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
 	FApexSessionConditions QualifyingConditions;
 
+	/**
+	 * Practice's and every qualifying round's own damage rule
+	 * (`practice_damage`, `qualifying_damage`): a phase not named, and the
+	 * race, run under the session's own Damage.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bHasPracticeDamage = false;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	EApexDamageLevel PracticeDamage = EApexDamageLevel::Full;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bHasQualifyingDamage = false;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	EApexDamageLevel QualifyingDamage = EApexDamageLevel::Full;
+
 	bool IsWeekend() const { return QualifyingSeconds.Num() > 0; }
 	int32 Rounds() const { return QualifyingSeconds.Num(); }
 
@@ -1043,6 +1125,10 @@ struct APEXSIMNET_API FApexWeekendFormat
 		Out.PracticeConditions = bHasPracticeConditions ? PracticeConditions.Clamped() : FApexSessionConditions();
 		Out.bHasQualifyingConditions = bHasQualifyingConditions;
 		Out.QualifyingConditions = bHasQualifyingConditions ? QualifyingConditions.Clamped() : FApexSessionConditions();
+		Out.bHasPracticeDamage = bHasPracticeDamage;
+		Out.PracticeDamage = bHasPracticeDamage ? PracticeDamage : EApexDamageLevel::Full;
+		Out.bHasQualifyingDamage = bHasQualifyingDamage;
+		Out.QualifyingDamage = bHasQualifyingDamage ? QualifyingDamage : EApexDamageLevel::Full;
 		Out.PracticeSeconds = ApexQualifyingLength::Clamp(PracticeSeconds);
 		for (int32 Index = 0; Index < FMath::Min(QualifyingSeconds.Num(), MaxRounds); ++Index)
 		{
@@ -3090,6 +3176,8 @@ enum class EApexServerMessageType : uint8
 	PitBox,
 	/** An operator's message to the player (`ServerNotice`; text in Reason). */
 	ServerNotice,
+	/** A qualifying shoot-out's run order and progress (`ShootoutState`). */
+	ShootoutState,
 };
 
 /**
@@ -3167,8 +3255,14 @@ struct APEXSIMNET_API FApexServerMessage
 	int32 MandatoryStops = 0;
 	/** SessionJoined::CompoundChange: the race must be run on two dry compounds. */
 	bool bCompoundChange = false;
+	/** SessionJoined::QualifyingFormat: Shootout for a one-lap shoot-out. */
+	EApexQualifyingFormat QualifyingFormat = EApexQualifyingFormat::Open;
+	/** SessionJoined::QualifyingLapAllowance (ApexQualifyingLapAllowance); 0 for none. */
+	int32 QualifyingLapAllowance = 0;
 	/** WeekendState. */
 	FApexWeekendState WeekendState;
+	/** ShootoutState. */
+	FApexShootoutState ShootoutState;
 	FApexPitBox PitBox;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;

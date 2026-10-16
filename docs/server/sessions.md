@@ -3,7 +3,8 @@
 A session is one track, one set of rules and the cars on it, ticked by the
 server as a `GameSession`. This doc covers session kinds, states and game
 modes, the rules a host sets on create, the race's grid before the
-countdown, race start and finish (over laps or against a clock), starting order and qualifying, the race weekend (practice,
+countdown, race start and finish (over laps or against a clock), starting order and qualifying (timed, open-ended or a
+one-lap shoot-out, with an optional lap allowance), the race weekend (practice,
 knockout qualifying and the race in one session), lap timing and records,
 recovering a stuck car, the hotlap mode with its ghost, and the watched
 hotlap. The client pieces that
@@ -13,12 +14,17 @@ belong to these rules are described briefly beside them.
 
 - `server/src/data.rs`: `SessionKind`, `SessionState`, `GameMode`,
   `RaceSession`, `DamageLevel`, `AllowedAssists`, `DriverAids`,
-  `clamp_race_seconds`, `clamp_qualifying_seconds`
+  `QualifyingFormat`, `clamp_race_seconds`, `clamp_qualifying_seconds`,
+  `clamp_qualifying_lap_allowance`
 - `server/src/game_session.rs`: per-mode ticks (`tick_*`), `set_game_mode`,
   `start_countdown_mode`, `line_up_on_grid`, `assign_finish_positions`,
   `update_race_clock`, `apply_grid_order`, `note_qualifying_lap`,
-  `update_chequered_flag`, `hotlap_relocate`, the race weekend
-  (`advance_weekend`, `settle_weekend`, `weekend_state`), the watched hotlap
+  `update_chequered_flag`, `hotlap_relocate`, the shoot-out
+  (`begin_shootout`, `shootout_order`, `call_next_runner`,
+  `update_shootout`, `shootout_state`), the lap allowance
+  (`update_lap_allowance`), the race weekend
+  (`advance_weekend`, `settle_weekend`, `weekend_state`,
+  `begin_phase_damage`), the watched hotlap
   (`start_hotlap_watch`, `update_hotlap_watch`, `hotlap_watch_driver`)
 - `server/src/weekend.rs`: `WeekendFormat`, `knockout_sizes`,
   `WeekendProgress`
@@ -81,7 +87,7 @@ Two separate fields on `RaceSession`:
 | `DemoLap` | 3 | an AI drives with full physics | humans removed from the cars and made spectators; an AI spawned if none |
 | `FreePractice` | 4 | full physics, collisions, lap timing | state `Racing`, refuelled for practice |
 | `Replay` | 5 | nothing (placeholder, never built) | |
-| `Qualification` | 6 | `tick_hotlap` (see "Qualifying"); a timed session's flag and finish (`update_chequered_flag`) | as Hotlap; the qualifying clock starts (a timed session's classification starts empty) |
+| `Qualification` | 6 | `tick_hotlap` (see "Qualifying"); a timed session's flag and finish (`update_chequered_flag`); a shoot-out's runs (`update_shootout`) or the lap allowance (`update_lap_allowance`) | as Hotlap; the qualifying clock starts (a timed session's classification starts empty); a shoot-out begins (`begin_shootout`) |
 | `Race` | 7 | `tick_racing`: physics, race clock, classification, finish | state `Racing`, `race_start_tick`, pole's lap starts on green, auto boxes take first |
 | `Hotlap` | 8 | like practice, but cars `in_garage` are neither ticked nor collided | state `Racing`, every human put in the garage |
 | `Practice` | 9 | `tick_hotlap` with qualifying's outlap, clock and flag (`update_chequered_flag`); laps timed, nothing classified (see "Race weekend") | as Qualification, the classification untouched |
@@ -179,6 +185,26 @@ own length is `qualifying_seconds` (`Option<u32>`, clamped by
 "Timed qualifying" below. A race weekend (`weekend`, see "Race weekend")
 carries its own practice and round lengths, and `qualifying_seconds` is
 ignored beside it.
+
+**Qualifying format**: `qualifying_format` (`QualifyingFormat` `Open` /
+`Shootout`, 0-1, default Open, left off the wire when Open). `Shootout`
+runs the session's qualifying as a one-lap shoot-out, and a weekend's
+final round (see "Qualifying shoot-out"). Echoed in
+`SessionJoined.QualifyingFormat`; not listed in the lobby.
+
+**Lap allowance**: `qualifying_lap_allowance` (`u8`,
+`clamp_qualifying_lap_allowance` to at most
+`MAX_QUALIFYING_LAP_ALLOWANCE` 30; 0, the default, is none and is left off
+the wire). The most timed laps a car may end in a qualifying session, or in
+each round of a weekend's knockout (`update_lap_allowance`): each crossing
+of the line that ends a timed lap (the outlap's end does not count; a lap
+struck for track limits does) counts, and the car that has used its
+allowance goes to its garage at that crossing, its lap classified as any
+other; going out again is refused with "Lap allowance used". Once every car
+taking part has used it and is in its garage (or undrivable), the session
+or round is `Finished`, clock or no clock. Entering `Qualification` again
+counts afresh. A shoot-out ignores it (one flying lap each). Echoed in
+`SessionJoined.QualifyingLapAllowance`.
 
 **Qualifying cut-off** (the 107% rule): `qualifying_cutoff_pct`
 (`Option<u16>`, `clamp_qualifying_cutoff` to 101..150 %; absent or 0 is
@@ -419,6 +445,61 @@ it:
   (`StartCountdown { next_mode: Race }`): `line_up_on_grid` takes the cars
   out of their garages and grids them by the classification.
 
+**Qualifying shoot-out** (`QualifyingFormat::Shootout`): the cars run one
+at a time in a fixed order, each an outlap from the pit exit and one
+flying lap, while the rest wait in their garages; the classification is
+the flying laps. `is_shootout_round` is true in a plain session's
+`Qualification` and in a weekend's final round.
+
+- **No clock**: `timed_session_seconds` is `None` in a shoot-out (a plain
+  session's `qualifying_seconds` and the final round's length are not
+  used), so there is no `race_clock` and no chequered flag.
+- **Begin** (`begin_shootout`, from `set_game_mode(Qualification)`): the
+  order is fixed (`shootout_order`), the classification and the timing
+  sheets are emptied, every car taking part is put in its garage, AI
+  included (`send_ai_out` sends none out), and the first car is called.
+- **The order** reverses what the session stands on as it begins, so the
+  car with the most to defend runs last: a plain session's start order
+  (`starting_slots`: the host's `grid_order`, an earlier qualifying's
+  result, else the seating order; the car that would start last runs
+  first); a weekend's final in the reverse of the round before it
+  (`WeekendProgress::last_round`: the slowest of the cars through first); a
+  weekend whose only round is the shoot-out in the reverse of practice's
+  best laps (`best_lap_time_ms`), cars with no time first, then by grid
+  slot. Knocked-out cars take no part.
+- **A run** (`call_next_runner`): the next car in the order is put at the
+  pit exit on its outlap (`relocate` to `Track`: the outlap pose, cold
+  tyres, qualifying fuel), and given until max(`SHOOTOUT_RUN_MIN_SECONDS`
+  180, `SHOOTOUT_RUN_LAPS` 3 x its planned lap) to finish. A car that has
+  left, or whose driver is away on a held seat, is passed over. The run
+  ends (`update_shootout`, after the tick) when the car crosses the line at
+  the end of its flying lap (the lap is queued before it moves and
+  classified as any other, a lap struck for track limits setting no time),
+  goes to its garage, is wrecked, leaves, or runs out of time; the car is
+  garaged and the next called. With the order run through the session is
+  `Finished`, and the host counts into the race, gridded by the
+  classification (cars with no time behind, as ever).
+- **Waiting**: going out (`hotlap_relocate` to `Track`) is refused in a
+  shoot-out with "A shoot-out: each car is sent out in its turn"; the
+  server sends each car out. Going to the garage ends one's own run. A
+  driver who joins a plain session's shoot-out (in the garage, as any
+  qualifying join) is added at the back of the order.
+- **Wire**: `ShootoutState` (`ShootoutStateData`, PascalCase keys:
+  `Order`, the car indices in run order, a car that left dropped;
+  `Running`, the 1-based place in `Order` of the car on its run, 0 when
+  none; `Done`, how many have run; `Flying`, the car on its run has started
+  its flying lap, left off when false). Reliable, to every member of the
+  session: right after `SessionJoined` while a shoot-out runs (create,
+  join, rejoin, spectate: `GameSession::phase_state_messages`) and from the
+  tick whenever a field changes (`take_shootout_state`), after the roster.
+  It is `None` outside `Qualification`; leaving qualifying ends the
+  shoot-out. The telemetry's `in_garage` bit says which car is out.
+- **Client**: the codec reads `ShootoutState` into `FApexShootoutState`
+  (`UApexNetSubsystem::GetShootoutState`, `OnShootoutStateChanged`) and
+  `SessionJoined`'s format and allowance (`GetSessionQualifyingFormat`,
+  `GetSessionQualifyingLapAllowance`); `CreateSessionWithOrder` sends both.
+  No screen uses them yet ([follow-ups](../follow-ups.md) package 20).
+
 **Client.** The create screen's Race tab has a Starting order row
 (`ApexCreateSession::`): chips for the seating order, a "Custom" order and
 the track's three newest stored results (`RequestQualifyingResults`,
@@ -473,7 +554,22 @@ qualifying_seconds: Vec<u32> }`, `weekend.rs`) is clamped by
 `WeekendFormat::clamp`: practice 0 is none, else 60 s .. 2 h; one to
 `MAX_ROUNDS` (3) rounds, extra ones dropped and none made one of
 `DEFAULT_ROUND_SECONDS` (900), each 60 s .. 2 h. The race's length stays
-`lap_limit` / `race_seconds`.
+`lap_limit` / `race_seconds`. Under `qualifying_format` `Shootout` the
+final round (the only one, with one round) is a one-lap shoot-out (see
+"Qualifying shoot-out"): its length is not used. The lap allowance holds in
+every timed round.
+
+**Each phase's damage**: `practice_damage` and `qualifying_damage`
+(`Option<DamageLevel>`, left off the wire when absent) give practice and
+every qualifying round a damage rule of their own; the race, and a phase
+not named, has the session's `damage`. When either is named, each phase
+begins (`GameSession::begin_phase_damage`, from practice, Q1 and the race's
+grid or countdown) by `set_damage` with its rule: every car takes it, a
+late arrival is seated under it, and `RaceSession::damage` (so
+`SessionJoined.Damage` for anyone joining then) is it while the phase runs;
+the race day's is kept (`race_day_damage`). `WeekendState.Damage` carries
+the phase's rule (left off the wire when Full), and the client's
+`GetSessionDamage` follows it. Assists stay the session's for every phase.
 
 **Each day's sky**: `practice_conditions` and `qualifying_conditions`
 (`Option<Box<SessionConditions>>`, as `CreateSession.conditions` is given,
@@ -598,7 +694,8 @@ neighbours): `Phase`, `Round` (1-based, 0 outside qualifying), `Rounds`,
 `Finished` (the phase has ended: the session is `Finished`; from practice or
 a round the host may advance, in the race it means the race is over),
 `Advancing` (cars going through from this round, 0 in the final and outside
-qualifying) and `Eliminated` (`KnockedOutData { CarIndex, Round,
+qualifying), `Damage` (the phase's damage rule, see "Each phase's damage";
+left off when Full) and `Eliminated` (`KnockedOutData { CarIndex, Round,
 GridPosition, LapTimeMs, Late }`, every car knocked out so far in grid order, a car
 that left the session dropped). Reliable, to every member of the session,
 drivers and spectators: right after `SessionJoined` (create, join, rejoin,
@@ -928,6 +1025,7 @@ cd server
 cargo test --lib game_session                 # mode ticks, timed race, grid order, qualifying, timed qualifying, weekend
 cargo test --lib weekend                      # knockout sizes, format clamp, round closing
 cargo test --test weekend_test                # a weekend from the lobby to the race over the wire
+cargo test --test shootout_test               # a shoot-out run at the Norisring, order and classification; over the wire
 cargo test --test race_flow_test              # incl. test_timed_race_flow_to_the_flag_monza
 cargo test --test session_conditions_test     # rules echoed and enforced end to end
 cargo test --test grid_order_test             # start order, stored results, over the wire
@@ -945,7 +1043,7 @@ cargo test --release --test hotlap_test generate_ghost_fixture -- --ignored     
 Golden bytes ([protocol](protocol.md)): `cargo test <name> -- --nocapture`
 for `assists_wire_format`, `session_damage_wire_format`,
 `session_ai_skill_wire_format`, `race_time_wire_format`,
-`qualifying_time_wire_format`, `qualifying_cutoff_wire_format`, `pit_rule_wire_format`, `weekend_wire_format`, `grid_wire_format`,
+`qualifying_time_wire_format`, `qualifying_cutoff_wire_format`, `pit_rule_wire_format`, `shootout_wire_format`, `weekend_wire_format`, `grid_wire_format`,
 `lap_timing_wire_format`, `telemetry_compact_wire_format`,
 `hotlap_wire_format`, `hotlap_watch_wire_format`, `recover_wire_format`, `track_corners_wire_format`,
 `rejoin_wire_format`.
@@ -985,3 +1083,9 @@ qualifying, 8 hotlap), with `-ApexAiCount=N`, `-ApexDamage=off|reduced|full|visu
   which never have a human participant.
 - Many AI laps are struck for track limits, so an AI car's
   `best_lap_time_ms` is often `None`; tests of AI pace read the last lap.
+  In a shoot-out such a car has no time at all (one flying lap each).
+- `hotlap_relocate` is the driver's request and refuses what the rules
+  forbid (the flag, a knock-out, a shoot-out, a used lap allowance); the
+  session's own moves (a shoot-out's runs, the allowance's garaging) go
+  through `relocate`, which asks nothing. A new refusal belongs in the
+  first, or the session cannot send its own cars out.

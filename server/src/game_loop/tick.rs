@@ -512,6 +512,13 @@ pub(crate) async fn tick_sessions(
                 msg: ServerMessage::WeekendState(weekend),
             });
         }
+        if let Some(shootout) = game_session.take_shootout_state() {
+            rosters_out.push(SessionRosterOut {
+                session_id: *session_id,
+                player_recipients: player_recipients.clone(),
+                msg: ServerMessage::ShootoutState(shootout),
+            });
+        }
 
         // Road state: the next slice round the lap, while the session is
         // live. Round-robin by the global tick, so the whole lap refreshes

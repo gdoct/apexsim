@@ -584,6 +584,18 @@ namespace
 				bOk = ParseSessionConditions(Reader, bPractice ? Out.PracticeConditions : Out.QualifyingConditions);
 				(bPractice ? Out.bHasPracticeConditions : Out.bHasQualifyingConditions) = bOk;
 			}
+			else if (Key == TEXT("practice_damage") || Key == TEXT("qualifying_damage"))
+			{
+				const bool bPractice = Key == TEXT("practice_damage");
+				if (Reader.TryReadNil())
+				{
+					continue;
+				}
+				uint64 Raw = 0;
+				bOk = Reader.ReadUInt64(Raw);
+				(bPractice ? Out.PracticeDamage : Out.QualifyingDamage) = Raw <= 3 ? static_cast<EApexDamageLevel>(Raw) : EApexDamageLevel::Full;
+				(bPractice ? Out.bHasPracticeDamage : Out.bHasQualifyingDamage) = bOk;
+			}
 			else                                        { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -647,7 +659,38 @@ namespace
 			else if (Key == TEXT("Finished"))   { bOk = Reader.ReadBool(Out.bFinished); }
 			else if (Key == TEXT("Advancing"))  { bOk = ReadSmallUInt(Reader, Out.Advancing, 255); }
 			else if (Key == TEXT("Eliminated")) { bOk = ParseArrayOf(Reader, Out.Eliminated, &ParseKnockedOut); }
+			else if (Key == TEXT("Damage"))     { bOk = ReadSmallUInt(Reader, Value, 255); Out.Damage = Value <= 3 ? static_cast<EApexDamageLevel>(Value) : EApexDamageLevel::Full; }
 			else                                { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		Out.bValid = true;
+		return true;
+	}
+
+	/** `ShootoutStateData` (network.rs). */
+	bool ParseShootoutState(FMsgPackReader& Reader, FApexShootoutState& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("Order"))        { bOk = ParseArrayOf(Reader, Out.Order, [](FMsgPackReader& R, int32& CarIndex) { return ReadSmallUInt(R, CarIndex, 255); }); }
+			else if (Key == TEXT("Running")) { bOk = ReadSmallUInt(Reader, Out.Running, 255); }
+			else if (Key == TEXT("Done"))    { bOk = ReadSmallUInt(Reader, Out.Done, 255); }
+			else if (Key == TEXT("Flying"))  { bOk = Reader.ReadBool(Out.bFlying); }
+			else                             { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
 				return false;
@@ -686,6 +729,8 @@ namespace
 			else if (Key == TEXT("QualifyingCutoffPct")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingCutoffPct = ApexQualifyingCutoff::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 1000))); }
 			else if (Key == TEXT("MandatoryStops"))    { bOk = Reader.ReadUInt64(Raw); Out.MandatoryStops = ApexMandatoryStops::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
 			else if (Key == TEXT("CompoundChange"))    { bOk = Reader.ReadBool(Out.bCompoundChange); }
+			else if (Key == TEXT("QualifyingFormat"))  { bOk = Reader.ReadUInt64(Raw); Out.QualifyingFormat = Raw == 1 ? EApexQualifyingFormat::Shootout : EApexQualifyingFormat::Open; }
+			else if (Key == TEXT("QualifyingLapAllowance")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingLapAllowance = ApexQualifyingLapAllowance::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -2726,6 +2771,7 @@ namespace
 		if (Variant == TEXT("RoadState"))          { return EApexServerMessageType::RoadState; }
 		if (Variant == TEXT("Leaderboard"))        { return EApexServerMessageType::Leaderboard; }
 		if (Variant == TEXT("ServerNotice"))       { return EApexServerMessageType::ServerNotice; }
+		if (Variant == TEXT("ShootoutState"))      { return EApexServerMessageType::ShootoutState; }
 
 		// The named-encoding `Telemetry` is only used for server-side replays;
 		// the wire carries TelemetryCompact.
@@ -2786,6 +2832,8 @@ namespace
 			return ParseLeaderboard(Reader, Out);
 		case EApexServerMessageType::WeekendState:
 			return ParseWeekendState(Reader, Out.WeekendState);
+		case EApexServerMessageType::ShootoutState:
+			return ParseShootoutState(Reader, Out.ShootoutState);
 		case EApexServerMessageType::CarSetupSheet:
 			return ParseCarSetupSheet(Reader, Out.CarSetupSheet);
 
@@ -2995,7 +3043,9 @@ namespace ApexProtocol
 		const FHotlapWatchOptions* Watch,
 		int32 QualifyingCutoffPct,
 		int32 MandatoryStops,
-		bool bCompoundChange)
+		bool bCompoundChange,
+		EApexQualifyingFormat QualifyingFormat,
+		int32 QualifyingLapAllowance)
 	{
 		// Full damage, the mixed AI field, a race over laps and open
 		// qualifying are left off, as the server does: an older server's
@@ -3014,10 +3064,13 @@ namespace ApexProtocol
 		const bool bCutoff = Cutoff != ApexQualifyingCutoff::None;
 		const int32 Stops = ApexMandatoryStops::Clamp(MandatoryStops);
 		const bool bStops = Stops != ApexMandatoryStops::None;
+		const bool bShootout = QualifyingFormat == EApexQualifyingFormat::Shootout;
+		const int32 Allowance = ApexQualifyingLapAllowance::Clamp(QualifyingLapAllowance);
+		const bool bAllowance = Allowance != ApexQualifyingLapAllowance::None;
 		FMsgPackWriter Writer(320);
 		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0) + (bTimed ? 1 : 0) + (bGrid ? 1 : 0)
 			+ (bTimedQualifying ? 1 : 0) + (bWeekend ? 1 : 0) + (Watch ? 1 : 0) + (bCutoff ? 1 : 0)
-			+ (bStops ? 1 : 0) + (bCompoundChange ? 1 : 0));
+			+ (bStops ? 1 : 0) + (bCompoundChange ? 1 : 0) + (bShootout ? 1 : 0) + (bAllowance ? 1 : 0));
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -3068,7 +3121,8 @@ namespace ApexProtocol
 			// Practice (0 for none), then each qualifying round's length.
 			// Then each day's own sky, only when named, as the server leaves them off.
 			Writer.WriteString("weekend");
-			Writer.WriteMapHeader(2 + (WeekendFormat.bHasPracticeConditions ? 1 : 0) + (WeekendFormat.bHasQualifyingConditions ? 1 : 0));
+			Writer.WriteMapHeader(2 + (WeekendFormat.bHasPracticeConditions ? 1 : 0) + (WeekendFormat.bHasQualifyingConditions ? 1 : 0)
+				+ (WeekendFormat.bHasPracticeDamage ? 1 : 0) + (WeekendFormat.bHasQualifyingDamage ? 1 : 0));
 			Writer.WriteString("practice_seconds");
 			Writer.WriteUInt(static_cast<uint32>(WeekendFormat.PracticeSeconds));
 			Writer.WriteString("qualifying_seconds");
@@ -3086,6 +3140,16 @@ namespace ApexProtocol
 			{
 				Writer.WriteString("qualifying_conditions");
 				WriteSessionConditions(Writer, WeekendFormat.QualifyingConditions);
+			}
+			if (WeekendFormat.bHasPracticeDamage)
+			{
+				Writer.WriteString("practice_damage");
+				Writer.WriteUInt(static_cast<uint32>(WeekendFormat.PracticeDamage));
+			}
+			if (WeekendFormat.bHasQualifyingDamage)
+			{
+				Writer.WriteString("qualifying_damage");
+				Writer.WriteUInt(static_cast<uint32>(WeekendFormat.QualifyingDamage));
 			}
 		}
 		if (Watch)
@@ -3127,6 +3191,17 @@ namespace ApexProtocol
 		{
 			Writer.WriteString("compound_change");
 			Writer.WriteBool(true);
+		}
+		if (bShootout)
+		{
+			// The qualifying format and the lap allowance, each only when set.
+			Writer.WriteString("qualifying_format");
+			Writer.WriteUInt(static_cast<uint32>(EApexQualifyingFormat::Shootout));
+		}
+		if (bAllowance)
+		{
+			Writer.WriteString("qualifying_lap_allowance");
+			Writer.WriteUInt(static_cast<uint32>(Allowance));
 		}
 		return MoveTemp(Writer.GetBuffer());
 	}

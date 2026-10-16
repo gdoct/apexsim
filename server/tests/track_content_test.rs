@@ -128,6 +128,8 @@ async fn the_first_session_on_a_track_loads_its_sidecars_and_keeps_message_order
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         })
         .await?;
         host.send(&ClientMessage::LeaveSession).await?;

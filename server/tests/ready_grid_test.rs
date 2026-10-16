@@ -130,6 +130,8 @@ async fn the_grid_waits_for_every_driver_then_counts_into_the_race() {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         })
         .await?;
         let joined = host.wait_joined().await?;

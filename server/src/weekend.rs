@@ -6,7 +6,7 @@
 //! (`advance_weekend`, `settle_weekend`).
 
 use crate::data::{
-    clamp_qualifying_seconds, PlayerId, SessionConditions, MAX_QUALIFYING_SECONDS,
+    clamp_qualifying_seconds, DamageLevel, PlayerId, SessionConditions, MAX_QUALIFYING_SECONDS,
     MIN_QUALIFYING_SECONDS,
 };
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ pub const DEFAULT_ROUND_SECONDS: u32 = 900;
 
 /// What a host asks for (`CreateSession.weekend`), echoed clamped in
 /// `SessionJoined.Weekend`. Keys are snake_case; the two lengths are always
-/// present, each day's sky only when named.
+/// present, each day's sky and damage rule only when named.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WeekendFormat {
     /// Timed practice before qualifying, s; 0 for none.
@@ -34,6 +34,14 @@ pub struct WeekendFormat {
     /// session's own. The race day's is the session's `conditions`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub qualifying_conditions: Option<Box<SessionConditions>>,
+    /// Practice's damage rule; absent for the session's own (`damage`).
+    /// Left off the wire when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub practice_damage: Option<DamageLevel>,
+    /// Every qualifying round's damage rule; absent for the session's own.
+    /// The race's is the session's `damage`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualifying_damage: Option<DamageLevel>,
 }
 
 impl WeekendFormat {
@@ -57,7 +65,24 @@ impl WeekendFormat {
             qualifying_seconds: rounds,
             practice_conditions: self.practice_conditions.map(|c| Box::new(c.clamp())),
             qualifying_conditions: self.qualifying_conditions.map(|c| Box::new(c.clamp())),
+            practice_damage: self.practice_damage,
+            qualifying_damage: self.qualifying_damage,
         }
+    }
+
+    /// The damage rule a phase names for itself, if it names one: practice
+    /// and qualifying may, the race is the session's.
+    pub fn phase_damage(&self, phase: WeekendPhase) -> Option<DamageLevel> {
+        match phase {
+            WeekendPhase::Practice => self.practice_damage,
+            WeekendPhase::Qualifying => self.qualifying_damage,
+            _ => None,
+        }
+    }
+
+    /// Whether any phase names a damage rule of its own.
+    pub fn has_phase_damage(&self) -> bool {
+        self.practice_damage.is_some() || self.qualifying_damage.is_some()
     }
 
     /// Whether any day names a sky of its own (`GameSession::begin_day`).
@@ -145,6 +170,9 @@ pub struct WeekendProgress {
     /// Q1's ranking once closed, every car with its lap (0 for none): what
     /// a qualifying cut-off is measured on.
     pub first_round: Vec<(PlayerId, u32)>,
+    /// The last round closed, ranked as `first_round` is: a shoot-out final
+    /// runs its cars in the reverse of it.
+    pub last_round: Vec<(PlayerId, u32)>,
 }
 
 impl WeekendProgress {
@@ -219,6 +247,7 @@ impl WeekendProgress {
         if round == 1 {
             self.first_round = ranking.to_vec();
         }
+        self.last_round = ranking.to_vec();
         if round < rounds {
             let keep = self.sizes.get(round).copied().unwrap_or(ranking.len());
             for (i, (id, lap_time_ms)) in ranking.iter().enumerate().skip(keep) {
@@ -277,6 +306,7 @@ mod tests {
             qualifying_seconds: vec![10, 900, 99_999, 600],
             practice_conditions: None,
             qualifying_conditions: None,
+            ..Default::default()
         }
         .clamp();
         assert_eq!(format.practice_seconds, 60);
@@ -286,6 +316,7 @@ mod tests {
             qualifying_seconds: vec![],
             practice_conditions: None,
             qualifying_conditions: None,
+            ..Default::default()
         }
         .clamp();
         assert_eq!(none.practice_seconds, 0);
@@ -295,6 +326,7 @@ mod tests {
             qualifying_seconds: vec![0],
             practice_conditions: None,
             qualifying_conditions: None,
+            ..Default::default()
         }
         .clamp();
         assert_eq!(zero_round.practice_seconds, 3600);

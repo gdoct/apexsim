@@ -164,6 +164,16 @@ pub enum ClientMessage {
         /// when false.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         compound_change: bool,
+        /// How qualifying runs (`data::QualifyingFormat`): 1 for a one-lap
+        /// shoot-out (a weekend's final round). Left off the wire for the
+        /// usual session (0).
+        #[serde(default, skip_serializing_if = "QualifyingFormat::is_open")]
+        qualifying_format: QualifyingFormat,
+        /// The most flying laps a car may start in a qualifying session or
+        /// round (`data::clamp_qualifying_lap_allowance`); 0 for no limit,
+        /// and left off the wire then.
+        #[serde(default, skip_serializing_if = "is_zero_u8")]
+        qualifying_lap_allowance: u8,
     },
     /// Asks for a track's fastest laps (`records::RecordStore::leaderboard`):
     /// each driver's best with each car, or in one car (`car_config_id`).
@@ -489,6 +499,15 @@ pub struct SessionJoinedData {
     /// false.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub compound_change: bool,
+    /// How qualifying runs (1 a one-lap shoot-out); left off the wire for
+    /// the usual session (and absent from a server that predates the
+    /// field). `ShootoutState` follows while a shoot-out runs.
+    #[serde(default, skip_serializing_if = "QualifyingFormat::is_open")]
+    pub qualifying_format: QualifyingFormat,
+    /// The qualifying lap allowance, flying laps per car; left off the wire
+    /// for none.
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub qualifying_lap_allowance: u8,
 }
 
 /// Where a race weekend stands (`crate::weekend`). Sent to every member of
@@ -511,6 +530,31 @@ pub struct WeekendStateData {
     pub advancing: u8,
     /// Every car knocked out so far, in grid order.
     pub eliminated: Vec<KnockedOutData>,
+    /// The phase's damage rule: practice's or qualifying's own when the
+    /// format names one, else the session's (the race's). Left off the wire
+    /// when full.
+    #[serde(default, skip_serializing_if = "DamageLevel::is_full")]
+    pub damage: DamageLevel,
+}
+
+/// A one-lap shoot-out's run order and where it stands
+/// (`GameSession::shootout_state`). Sent to every member of the session
+/// right after `SessionJoined` while a shoot-out runs, and whenever a field
+/// changes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ShootoutStateData {
+    /// The cars' indices (as `SessionRoster` maps them) in run order, first
+    /// out first; a car that left the session is dropped.
+    pub order: Vec<u8>,
+    /// The 1-based place in `order` of the car on its run; 0 when none is.
+    pub running: u8,
+    /// How many cars of `order` have had their run.
+    pub done: u8,
+    /// The car on its run has started its flying lap. Left off the wire
+    /// when false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub flying: bool,
 }
 
 /// A car knocked out of a weekend's qualifying.
@@ -813,6 +857,11 @@ pub enum ServerMessage {
     // TCP - A message from the server's operator (the dashboard's
     // broadcast, or a session it ends), for the client to show as it is.
     ServerNotice { message: String },
+
+    // TCP - A one-lap shoot-out's run order, the car on its run and how many
+    // have run. Sent to the whole session after `SessionJoined` while one
+    // runs, and whenever it changes.
+    ShootoutState(ShootoutStateData),
 }
 
 impl ServerMessage {
@@ -847,6 +896,7 @@ impl ServerMessage {
             ServerMessage::SpectatorJoined(_) => MessagePriority::Critical,
             ServerMessage::SpectatorRecord(_) => MessagePriority::Critical,
             ServerMessage::WeekendState(_) => MessagePriority::Critical,
+            ServerMessage::ShootoutState(_) => MessagePriority::Critical,
             ServerMessage::PitBox(_) => MessagePriority::Critical,
             ServerMessage::ServerNotice { .. } => MessagePriority::Critical,
 
@@ -3730,6 +3780,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSession: {}", hex(&create_bytes));
@@ -3780,6 +3832,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAssists: {}", hex(&joined_bytes));
@@ -3856,6 +3910,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionDamage: {}", hex(&create_bytes));
@@ -3878,6 +3934,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedNoDamage: {}", hex(&joined_bytes));
@@ -3906,6 +3964,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let full_bytes = rmp_serde::to_vec_named(&full).unwrap();
         assert!(!full_bytes.windows(6).any(|w| w == b"damage"));
@@ -3974,6 +4034,8 @@ mod tests {
             qualifying_cutoff_pct: cutoff,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(107))).unwrap();
         println!("C_CreateSessionQualifyingCutoff: {}", hex(&create_bytes));
@@ -4004,6 +4066,8 @@ mod tests {
             qualifying_cutoff_pct: Some(107),
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingCutoff: {}", hex(&joined_bytes));
@@ -4014,6 +4078,154 @@ mod tests {
             ServerMessage::SessionJoined(data) => {
                 assert_eq!(data.qualifying_cutoff_pct, Some(107))
             }
+            _ => panic!("Wrong message type"),
+        }
+    }
+
+    /// A one-lap shoot-out with a lap allowance: the create, the joined
+    /// echo, a `ShootoutState` with the second of three cars on its flying
+    /// lap, a weekend whose practice and qualifying name their own damage
+    /// rules, and a `WeekendState` under a phase's rule. The usual format,
+    /// no allowance and full damage stay off the wire. Printed as
+    /// `C_CreateSessionShootout` / `S_SessionJoinedShootout` /
+    /// `S_ShootoutState` / `C_CreateSessionWeekendDamage` /
+    /// `S_WeekendStateDamage`
+    /// (`cargo test shootout_wire_format -- --nocapture`).
+    #[test]
+    fn test_shootout_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let create = |format: QualifyingFormat,
+                      allowance: u8,
+                      weekend: Option<crate::weekend::WeekendFormat>| {
+            ClientMessage::CreateSession {
+                track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+                max_players: 8,
+                ai_count: 3,
+                lap_limit: 5,
+                session_kind: SessionKind::Multiplayer,
+                allowed_assists: AllowedAssists::default(),
+                conditions: SessionConditions::DEFAULT,
+                damage: DamageLevel::Full,
+                ai_skill: None,
+                race_seconds: None,
+                grid_order: Vec::new(),
+                qualifying_seconds: None,
+                weekend,
+                watch: None,
+                qualifying_cutoff_pct: None,
+                mandatory_stops: 0,
+                compound_change: false,
+                qualifying_format: format,
+                qualifying_lap_allowance: allowance,
+            }
+        };
+        let create_bytes =
+            rmp_serde::to_vec_named(&create(QualifyingFormat::Shootout, 3, None)).unwrap();
+        println!("C_CreateSessionShootout: {}", hex(&create_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession {
+                qualifying_format,
+                qualifying_lap_allowance,
+                ..
+            } => assert_eq!(
+                (qualifying_format, qualifying_lap_allowance),
+                (QualifyingFormat::Shootout, 3)
+            ),
+            _ => panic!("Wrong message type"),
+        }
+        let open = String::from_utf8_lossy(
+            &rmp_serde::to_vec_named(&create(QualifyingFormat::Open, 0, None)).unwrap(),
+        )
+        .into_owned();
+        assert!(!open.contains("qualifying_format") && !open.contains("lap_allowance"));
+
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 3,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            qualifying_seconds: None,
+            weekend: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Shootout,
+            qualifying_lap_allowance: 3,
+        });
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedShootout: {}", hex(&joined_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&joined_bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => assert_eq!(
+                (data.qualifying_format, data.qualifying_lap_allowance),
+                (QualifyingFormat::Shootout, 3)
+            ),
+            _ => panic!("Wrong message type"),
+        }
+
+        let state = ServerMessage::ShootoutState(ShootoutStateData {
+            order: vec![2, 0, 1],
+            running: 2,
+            done: 1,
+            flying: true,
+        });
+        let state_bytes = rmp_serde::to_vec_named(&state).unwrap();
+        println!("S_ShootoutState: {}", hex(&state_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&state_bytes).unwrap() {
+            ServerMessage::ShootoutState(data) => {
+                assert_eq!(data.order, vec![2, 0, 1]);
+                assert_eq!((data.running, data.done, data.flying), (2, 1, true));
+            }
+            _ => panic!("Wrong message type"),
+        }
+
+        let weekend = crate::weekend::WeekendFormat {
+            practice_seconds: 600,
+            qualifying_seconds: vec![600],
+            practice_damage: Some(DamageLevel::Off),
+            qualifying_damage: Some(DamageLevel::Reduced),
+            ..Default::default()
+        };
+        let weekend_bytes =
+            rmp_serde::to_vec_named(&create(QualifyingFormat::Open, 0, Some(weekend.clone())))
+                .unwrap();
+        println!("C_CreateSessionWeekendDamage: {}", hex(&weekend_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&weekend_bytes).unwrap() {
+            ClientMessage::CreateSession { weekend: back, .. } => {
+                assert_eq!(back, Some(weekend))
+            }
+            _ => panic!("Wrong message type"),
+        }
+        let plain = crate::weekend::WeekendFormat {
+            practice_seconds: 600,
+            qualifying_seconds: vec![600],
+            ..Default::default()
+        };
+        let plain_bytes = rmp_serde::to_vec_named(&plain).unwrap();
+        assert!(!String::from_utf8_lossy(&plain_bytes).contains("damage"));
+
+        let phase = ServerMessage::WeekendState(WeekendStateData {
+            phase: 1,
+            round: 0,
+            rounds: 1,
+            finished: false,
+            advancing: 0,
+            eliminated: vec![],
+            damage: DamageLevel::Off,
+        });
+        let phase_bytes = rmp_serde::to_vec_named(&phase).unwrap();
+        println!("S_WeekendStateDamage: {}", hex(&phase_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&phase_bytes).unwrap() {
+            ServerMessage::WeekendState(data) => assert_eq!(data.damage, DamageLevel::Off),
             _ => panic!("Wrong message type"),
         }
     }
@@ -4050,6 +4262,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: stops,
             compound_change: change,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(2, true)).unwrap();
         println!("C_CreateSessionPitRule: {}", hex(&create_bytes));
@@ -4079,6 +4293,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 2,
             compound_change: true,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedPitRule: {}", hex(&joined_bytes));
@@ -4147,6 +4363,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(7200))).unwrap();
         println!("C_CreateSessionRaceTime: {}", hex(&create_bytes));
@@ -4173,6 +4391,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedRaceTime: {}", hex(&joined_bytes));
@@ -4257,6 +4477,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(900))).unwrap();
         println!("C_CreateSessionQualifyingTime: {}", hex(&create_bytes));
@@ -4289,6 +4511,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingTime: {}", hex(&joined_bytes));
@@ -4353,6 +4577,7 @@ mod tests {
             qualifying_seconds: vec![1080, 900, 720],
             practice_conditions: None,
             qualifying_conditions: None,
+            ..Default::default()
         };
         let create = |weekend| ClientMessage::CreateSession {
             track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
@@ -4372,6 +4597,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(format.clone()))).unwrap();
         println!("C_CreateSessionWeekend: {}", hex(&create_bytes));
@@ -4421,6 +4648,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedWeekend: {}", hex(&joined_bytes));
@@ -4442,6 +4671,7 @@ mod tests {
                 lap_time_ms: 91_234,
                 late: false,
             }],
+            damage: DamageLevel::Full,
         });
         let state_bytes = rmp_serde::to_vec_named(&state).unwrap();
         println!("S_WeekendState: {}", hex(&state_bytes));
@@ -4482,6 +4712,7 @@ mod tests {
             finished: true,
             advancing: 3,
             eliminated: vec![late],
+            damage: DamageLevel::Full,
         });
         let late_state_bytes = rmp_serde::to_vec_named(&late_state).unwrap();
         println!("S_WeekendStateLate: {}", hex(&late_state_bytes));
@@ -4591,6 +4822,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAiSkill: {}", hex(&create_bytes));
@@ -4613,6 +4846,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAiSkill: {}", hex(&joined_bytes));
@@ -4641,6 +4876,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let mixed_bytes = rmp_serde::to_vec_named(&mixed).unwrap();
         assert!(!mixed_bytes.windows(8).any(|w| w == b"ai_skill"));
@@ -4700,6 +4937,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAir: {}", hex(&create_bytes));
@@ -4733,6 +4972,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAir: {}", hex(&joined_bytes));
@@ -4783,6 +5024,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(sky)).unwrap();
         println!("C_CreateSessionSky: {}", hex(&create_bytes));
@@ -4810,6 +5053,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedSky: {}", hex(&joined_bytes));
@@ -4860,6 +5105,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         });
         let sun_bytes = rmp_serde::to_vec_named(&sun_joined).unwrap();
         println!("S_SessionJoinedSun: {}", hex(&sun_bytes));
@@ -4909,6 +5156,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         });
         let forecast_joined_bytes = rmp_serde::to_vec_named(&forecast_joined).unwrap();
         println!("S_SessionJoinedForecast: {}", hex(&forecast_joined_bytes));
@@ -5002,6 +5251,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         // No order: the bytes of every earlier create.
         let plain = rmp_serde::to_vec_named(&create(Vec::new())).unwrap();
@@ -5458,6 +5709,8 @@ mod tests {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         };
         let setup = CarSetup {
             tyre_pressure_front: -2,

@@ -113,6 +113,8 @@ async fn a_live_session_is_watched_as_a_stream_and_recorded() {
             qualifying_cutoff_pct: None,
             mandatory_stops: 0,
             compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
         })
         .await?;
         let joined = host.wait_joined().await?;
