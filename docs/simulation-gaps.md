@@ -102,6 +102,7 @@ one session, advanced by the host (see
 | AC's own tyre heat model is not carried, only its temperature window (`ac_car_import/physics.py` `thermal_window`). | Med | Low |
 | AC's dynamic aero controllers (`aero.ini` `DYNAMIC_CONTROLLER`) are not modelled, and a DRS flap is not split off an imported body (the importer warns). | Med | Low |
 | An AC car with two ERS motors (`[KINETIC]` and `[FRONT_MOTORS]` both driving, the 918, the TS040) imports with the stronger only: the sim has one motor per car. AC's delivery profiles (`ctrl_ers_*.ini`) give only the default profile's minimum speed; their throttle maps, speed caps, oversteer / slip cuts, gear masks and the choice between profiles are not carried. | Low | Med |
+| An imported motor is its peak torque and peak power (`[hybrid] motor_max_torque_nm` / `motor_max_power_kw`), not AC's `TORQUE_CURVE`: a crank motor whose curve falls with the revs gives its peak power at the top of the range. The installed 499P's curve is 450 Nm at 4000-5000 rpm and 110 Nm at 9000 (about 104 kW), where the import drives 236 kW. | Low | Med |
 | AC carries no figure for brake pads, `brake_by_wire`, body-roll aero or porpoising, so an imported car has the defaults for them; a compound's own window width, pressure and load sensitivity are not carried either (only its grip level, wear and window place). | Low | Low |
 
 ## Before picking one up
