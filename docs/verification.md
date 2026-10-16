@@ -78,6 +78,9 @@ AC-imported circuit is installed; Spa stands in.
 - Snow: ice (once the snowfall stops and the line freezes) and a melt (may
   never come at winter temperatures; if it does not show, it is a
   test-only item and moves to [follow-ups.md](follow-ups.md)).
+- The wind turning with a front (`LiveConditions::veer_target_deg`): the
+  snow's drift and the cloud swinging round over a few minutes after a
+  change of weather, the HUD's wind arrow with it.
 - Snow on the props: the faces-up blend on walls, roofs and barriers close
   up, from a camera looking down on them (tree cards have been seen), and
   an AC-imported circuit's props. The first R4 race ended within five

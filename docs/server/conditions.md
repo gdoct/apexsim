@@ -117,7 +117,21 @@ branch in the tick, and a dry, sunny session is the track file to the bit
   (`data::wind_onto_track`, the same turn as the bake's) once it has moved
   off the start's figure, so a sky that keeps its weather keeps the bake's
   wind to the bit. A front of heavy rain on a sunny start brings 8 km/h up
-  to 28. The direction holds.
+  to 28.
+- **A front turns the wind**: each change of weather in the forecast turns
+  the mean's direction (`LiveConditions::veer_target_deg`): a change to
+  wetter weather (a front coming in) backs it, a change to drier (the
+  front through, the sky clearing) veers it, by `FRONT_VEER_MIN_DEG` (12°)
+  plus up to `FRONT_VEER_SPREAD_DEG` (23°) hashed from the sky's seed and
+  the change. The turn already taken is kept at three quarters, so a run of
+  fronts wanders about the host's direction, never past
+  `FRONT_VEER_MAX_DEG` (90°); south of the equator the same weather turns
+  it the other way. `wind_veer_deg` eases toward it over `WIND_EASE_S`, and
+  `wind_from_deg()` / `wind_mps()` read it (a veer is clockwise from
+  above, so it takes the frame's anticlockwise angle down); `update_sky`
+  bakes it with the mean. It is 0 to the bit until the weather first
+  changes. The tow, the aero and telemetry's `wind_to_deg` (the client's
+  flags and the rain's drift) all read `wind_now_mps`, so they turn with it.
 - **Physics through the air**: downforce from the flow along the car, drag
   along the relative airflow, and a side force on the flank from air
   crossing it. `CarState::aero_load_share` (tyre load with this downforce

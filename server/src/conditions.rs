@@ -44,6 +44,17 @@ pub const TRACK_EASE_S: f32 = 900.0;
 /// The wind's mean and the humidity follow the weather over this long, s:
 /// a front's wind arrives with its rain.
 pub const WIND_EASE_S: f32 = 180.0;
+/// Each change of weather turns the wind's mean by this much at least,
+/// degrees, and up to [`FRONT_VEER_SPREAD_DEG`] more (hashed per change).
+pub const FRONT_VEER_MIN_DEG: f32 = 12.0;
+pub const FRONT_VEER_SPREAD_DEG: f32 = 23.0;
+/// What of the turn the wind already took a change keeps, 0..1: the
+/// direction is drawn back toward the host's over a run of fronts.
+const FRONT_VEER_KEEP: f32 = 0.75;
+/// The furthest the fronts turn the wind from the host's direction, degrees.
+pub const FRONT_VEER_MAX_DEG: f32 = 90.0;
+/// Salt for a change's turn of the wind ([`LiveConditions::veer_target_deg`]).
+const VEER_SALT: u64 = 0xF1_0000;
 /// The road counts as wet from this much water on it.
 pub const WET_FROM_WATER: f32 = 0.05;
 /// An overcast start with the air under this, °C, is a winter sky: its
@@ -188,6 +199,14 @@ pub struct LiveConditions {
     /// The air's relative humidity now, 0..1: the weather's own plus the
     /// host's offset, eased over [`WIND_EASE_S`].
     pub humidity: f32,
+    /// How far the fronts have turned the wind from the host's direction,
+    /// degrees, positive veering (clockwise seen from above), eased over
+    /// [`WIND_EASE_S`] toward [`LiveConditions::veer_target_deg`]. 0 to
+    /// the bit until the weather first changes.
+    pub wind_veer_deg: f32,
+    /// The seed the forecast was laid out from: each change's turn of the
+    /// wind is hashed from it.
+    seed: u64,
     /// Whether the sky is a winter one ([`is_winter`]).
     winter: bool,
     /// What the host's air temperature puts on the weather's own, °C.
@@ -220,6 +239,8 @@ impl LiveConditions {
             line_snow: start.weather.snowfall(),
             wind_kph: start.wind_kph.unwrap_or(start.auto_wind_kph()) as f32,
             humidity: start.humidity(),
+            wind_veer_deg: 0.0,
+            seed,
             winter,
             air_offset_c: air_c - Self::auto_air_c(&start, winter),
         }
@@ -274,11 +295,53 @@ impl LiveConditions {
         (own(weather) + self.start.humidity() - own(self.start.weather)).clamp(0.0, 1.0)
     }
 
+    /// How far the fronts up to `at_s` seconds into the session have
+    /// turned the wind from the host's direction, degrees, positive
+    /// veering (clockwise seen from above). A change to wetter weather (a
+    /// front coming in) backs it, a change to drier (the front gone
+    /// through, the sky clearing behind it) veers it, by
+    /// [`FRONT_VEER_MIN_DEG`] plus up to [`FRONT_VEER_SPREAD_DEG`] hashed
+    /// from the session's seed and the change; the turn already taken is
+    /// kept at [`FRONT_VEER_KEEP`], so a run of fronts wanders about the
+    /// host's direction within [`FRONT_VEER_MAX_DEG`]. South of the
+    /// equator the same weather turns it the other way. 0 before the
+    /// first change.
+    pub fn veer_target_deg(&self, at_s: f32) -> f32 {
+        let hemisphere = if self.latitude_deg < 0.0 { -1.0 } else { 1.0 };
+        let mut previous = self.start.weather;
+        let mut veer = 0.0f32;
+        for (k, change) in self.forecast.iter().enumerate() {
+            if change.at_s > at_s {
+                break;
+            }
+            if change.weather == previous {
+                continue;
+            }
+            let wetter = (change.weather as u8) > (previous as u8);
+            let size = FRONT_VEER_MIN_DEG
+                + FRONT_VEER_SPREAD_DEG * hash01(self.seed, VEER_SALT + k as u64);
+            let turn = if wetter { -size } else { size };
+            veer = (veer * FRONT_VEER_KEEP + hemisphere * turn)
+                .clamp(-FRONT_VEER_MAX_DEG, FRONT_VEER_MAX_DEG);
+            previous = change.weather;
+        }
+        veer
+    }
+
+    /// Where the wind's mean blows from now, degrees from the start
+    /// straight's direction (`SessionConditions::wind_from_deg`, 90 from
+    /// its left): the host's, turned by the fronts ([`Self::wind_veer_deg`];
+    /// the frame's angles run anticlockwise, so a veer takes them down).
+    pub fn wind_from_deg(&self) -> f32 {
+        self.start.wind_from_deg.unwrap_or(0) as f32 - self.wind_veer_deg
+    }
+
     /// The wind's mean now, m/s toward where it blows, in the start
-    /// straight's frame (`SessionConditions::wind_mps` at [`Self::wind_kph`]).
+    /// straight's frame (`SessionConditions::wind_mps` at [`Self::wind_kph`],
+    /// from [`Self::wind_from_deg`]).
     pub fn wind_mps(&self) -> [f32; 2] {
         let speed = self.wind_kph / 3.6;
-        let from = (self.start.wind_from_deg.unwrap_or(0) as f32).to_radians();
+        let from = self.wind_from_deg().to_radians();
         [-speed * from.cos(), -speed * from.sin()]
     }
 
@@ -366,6 +429,8 @@ impl LiveConditions {
         ease(&mut self.wind_kph, wind, WIND_EASE_S);
         let humidity = self.humidity_target(self.weather);
         ease(&mut self.humidity, humidity, WIND_EASE_S);
+        let veer = self.veer_target_deg(session_s);
+        ease(&mut self.wind_veer_deg, veer, WIND_EASE_S);
         // The air and the asphalt warm and cool by the day's clock: at 24x
         // the evening comes in an hour, and so does its chill.
         let day_ease = |value: &mut f32, target: f32, tau: f32| {
@@ -716,6 +781,73 @@ mod tests {
         );
         assert_eq!(windy.wind_target_kph(Weather::HeavyRain), 56.0);
         assert_eq!(windy.wind_target_kph(Weather::Sunny), 16.0);
+    }
+
+    #[test]
+    fn a_front_backs_the_wind_and_the_clearing_veers_it() {
+        let start = SessionConditions {
+            wind_from_deg: Some(90),
+            ..picked(Weather::Sunny, 13, 1, 3)
+        };
+        let mut live = LiveConditions::new(start, 50.0, 0.0, 3);
+        live.forecast = vec![
+            WeatherChange {
+                at_s: 60.0,
+                weather: Weather::HeavyRain,
+            },
+            WeatherChange {
+                at_s: 1260.0,
+                weather: Weather::Sunny,
+            },
+        ];
+        assert_eq!(live.veer_target_deg(59.0), 0.0);
+        let backed = live.veer_target_deg(60.0);
+        assert!(
+            (-FRONT_VEER_MIN_DEG - FRONT_VEER_SPREAD_DEG..=-FRONT_VEER_MIN_DEG).contains(&backed),
+            "{backed}"
+        );
+        let cleared = live.veer_target_deg(1260.0);
+        assert!(cleared > backed + FRONT_VEER_MIN_DEG - 1e-3, "{cleared}");
+        // Smooth: the direction eases over minutes, never jumps a step.
+        let mut s = 0.0;
+        let mut last = live.wind_from_deg();
+        while s < 1200.0 {
+            s += 1.0;
+            live.step(s, 1.0, live.rain);
+            let from = live.wind_from_deg();
+            assert!((from - last).abs() < 0.5, "a second's turn {}", from - last);
+            last = from;
+        }
+        assert!(
+            (live.wind_veer_deg - backed).abs() < 0.5,
+            "{}",
+            live.wind_veer_deg
+        );
+        // Backing turns the direction it comes from anticlockwise (up from
+        // the left toward behind); the mean blows at its speed from there.
+        assert!(live.wind_from_deg() > 90.0 + FRONT_VEER_MIN_DEG - 1.0);
+        let [wx, wy] = live.wind_mps();
+        let from = live.wind_from_deg().to_radians();
+        assert!((wx + live.wind_kph / 3.6 * from.cos()).abs() < 1e-4);
+        assert!((wy + live.wind_kph / 3.6 * from.sin()).abs() < 1e-4);
+        // South of the equator the same front veers it.
+        let south = LiveConditions {
+            latitude_deg: -37.8,
+            ..live.clone()
+        };
+        assert_eq!(south.veer_target_deg(60.0), -backed);
+        // Deterministic, and a run of fronts stays within the bound.
+        let stormy = LiveConditions::new(picked(Weather::Cloudy, 13, 60, 3), 50.0, 0.0, 11);
+        assert!(stormy.forecast.len() > 20);
+        let turns: Vec<f32> = stormy
+            .forecast
+            .iter()
+            .map(|c| stormy.veer_target_deg(c.at_s))
+            .collect();
+        assert!(turns.iter().all(|t| t.abs() <= FRONT_VEER_MAX_DEG));
+        assert!(turns.iter().any(|t| *t > 0.0) && turns.iter().any(|t| *t < 0.0));
+        let again = LiveConditions::new(picked(Weather::Cloudy, 13, 60, 3), 50.0, 0.0, 11);
+        assert_eq!(again.veer_target_deg(1e9), stormy.veer_target_deg(1e9));
     }
 
     #[test]

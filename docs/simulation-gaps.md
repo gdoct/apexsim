@@ -29,7 +29,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 |---|---|---|
 | The forecast is worked out from the session's id (`conditions::forecast`): a host cannot write one. | Med | Low |
 | The road has no crown or bumps: the road mesh's cross-section is flat edge to edge (`ue_export` `road`) and the centerline backend's surface is the bank plane, so a car rides a road with no drainage camber, ripples or seams, and the road state's water runs only to a banked edge (`road_state::edge_low`). A crown has to land on both backends at once. | Med | Med |
-| The wind's direction holds for the session (only its mean follows the weather, `LiveConditions::wind_target_kph`): a front does not veer it. | Low | Low |
 | A date moves only the sun (`SessionConditions::day_of_year`): the weather's own air, humidity and the snow line are the late-May day's in any month, and a circuit's time zone is a coarse map (`data::legal_clock`), not the real zone boundaries. | Low | Low |
 | Overnight cooling has no dew or fog; an evening session at a humid circuit is as clear as noon. | Med | Low |
 | Snow: the run-off and the pit lane carry the verge's cover (one figure a cell, no ice): the cars in the pit lane never pack it, and the lane's own station is not the lap's, so it reads the cover of the lap cell beside it. | Low | Low |
