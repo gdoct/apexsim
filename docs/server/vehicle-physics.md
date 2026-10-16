@@ -475,14 +475,17 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
   The ERS key changes the mode for the current run: the client sends the picked mode
   (`PlayerInput.ers_mode`) until telemetry shows the car in it, then sends none, so the
   next run starts in the setup's mode again.
-- `charge_full` refills with the tyres. The player's racing line aid (`racing_line::build`)
-  counts the motor above the minimum speed (`plan_power_w`) as Balanced paces the lap budget: it
-  plans at full power, drives that lap through `hybrid::balanced_pace` from the line
-  (`paced_shares`, spending only on the throttle) and replans on the share each point gets, up
-  to three rounds. A budget the lap never reaches plans as none. The AI's plan and the fuel
-  estimate (`build_laden`) count the motor at full power everywhere: the AI caps itself at its
-  plan times its skill's pace on the straights too, and on the paced plan an F1 AI lapped Monza
-  3 s slower. The AI boosts within `AI_BOOST_GAP_S` of the car ahead and
+- `charge_full` refills with the tyres. The racing line (the player's aid `racing_line::build`,
+  and the AI's plan and the fuel estimate `build_laden`) counts the motor as the tick gives it
+  (`hybrid::MotorPlan`): nothing below the minimum speed, its torque curve at the revs it turns
+  at (a crank motor in the gear the automatic box holds at that speed, upshifting at
+  `physics::auto_upshift_rpm`; a front motor at the front wheels'), capped by its power and the
+  battery's; and as Balanced paces the lap budget: it plans at full power, drives that lap
+  through `hybrid::balanced_pace` from the line (`paced_shares`, spending only on the throttle)
+  and replans on the share each point gets, up to three rounds. A budget the lap never reaches
+  plans as none. The plan keeps its first, unpaced round as `unpaced_mps`, which the AI caps
+  itself on (its skill's share of it): a cap at a share of the paced plan's straights lifts
+  short of what the car does (2 s a lap at Monza in an F1, lone AI at skill 110). The AI boosts within `AI_BOOST_GAP_S` of the car ahead and
   `AI_DEFEND_BOOST_GAP_S` of the car behind, and harvests when low and alone (`ai_ers`,
   [AI](ai.md)).
 - **Axle** (`axle`, `HybridAxle`): `"crank"` (the default) puts the motor behind the clutch
@@ -502,7 +505,7 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
   at `motor_max_torque_nm` (`HybridConfig::torque_at`), for deploying and recovering alike.
   Without one the motor gives its peak at every speed up to the power limit. No shipped car
   files one; AC imports do (`ers.ini` `TORQUE_CURVE`). The racing line and the AI's plan
-  count the motor at its peak power (`plan_power_w`) either way.
+  count it at the revs the motor turns at (`MotorPlan`, above).
 - car.toml `[hybrid]`: `enabled`, `battery_capacity_kwh`, `battery_max_discharge_kw` /
   `_charge_kw`, `motor_max_torque_nm`, `motor_max_power_kw`, `regen_max_power_kw` and the
   keys above.

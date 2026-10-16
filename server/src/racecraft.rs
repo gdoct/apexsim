@@ -1445,6 +1445,7 @@ mod tests {
         RacingLineProfile {
             spacing_m: sp,
             points,
+            unpaced_mps: speed.clone(),
             speed_mps: speed,
             phases,
         }

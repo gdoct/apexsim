@@ -812,7 +812,7 @@ impl<'a> AiDriverController<'a> {
         };
         let n = speeds.points.len();
         let steps = ((state.speed_mps * self.coast_s) / speeds.spacing_m).ceil() as usize;
-        (1..=steps.min(n)).any(|k| speeds.speed_mps[(here + k) % n] < state.speed_mps * 0.95)
+        (1..=steps.min(n)).any(|k| speeds.unpaced_mps[(here + k) % n] < state.speed_mps * 0.95)
     }
 
     /// Target speed from the car's speed profile: the slowest the profile
@@ -848,8 +848,11 @@ impl<'a> AiDriverController<'a> {
         let long = state.speed_mps * state.speed_mps / (2.0 * decel) * (1.0 / pads - 1.0);
         let reach = (state.speed_mps * lag_s + long).max(speeds.spacing_m);
         let steps = (reach / speeds.spacing_m).ceil() as usize;
+        // The plan with a hybrid's motor unpaced: a cap at a share of the
+        // paced plan's straights lifts short of what the car does (2 s a
+        // lap at Monza in an F1).
         let (slowest_k, slowest) = (0..=steps.min(n))
-            .map(|k| (k, speeds.speed_mps[(here + k) % n]))
+            .map(|k| (k, speeds.unpaced_mps[(here + k) % n]))
             .fold((0, f32::INFINITY), |a, b| if b.1 < a.1 { b } else { a });
 
         let pace = profile_pace(self.profile.skill_level);

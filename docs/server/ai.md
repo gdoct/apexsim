@@ -76,7 +76,9 @@ Built per tick in `ai_input_for` with the car's speed profile
   fronts' grip, smoothed by skill. Off the road it aims at the centerline
   20 m ahead and slows to 4 or 12 m/s by heading error, so it rejoins
   rather than orbiting the raceline.
-- **Speed.** The slowest profile point within reaction-plus-braking reach,
+- **Speed.** The slowest profile point within reaction-plus-braking reach
+  (`unpaced_mps`: a hybrid's motor counted unpaced over its lap budget,
+  [vehicle-physics.md](vehicle-physics.md) Hybrid),
   times `profile_pace(skill)` (0.85 novice to 0.98 ace), times
   `(tyre_grip_share x aero_load_share)^0.75`. The look-ahead grows by the
   braking distance the brakes lose (`CarState::brake_share_of`: cold or

@@ -589,14 +589,80 @@ pub fn bbw_offset_n(
     state.bbw_offset_n
 }
 
-/// The deployment the plan may count on at `speed_mps`: the motor's power,
-/// or none below the car's minimum deployment speed.
-pub fn plan_power_w(config: &CarConfig, speed_mps: f32) -> f32 {
-    let hybrid = &config.hybrid;
-    if !hybrid.enabled || speed_mps * 3.6 < hybrid.deploy_min_speed_kph {
-        0.0
-    } else {
-        hybrid.motor_max_power_kw * 1000.0
+/// The motor as the racing line plans it (`racing_line`): what it gives at
+/// a speed, as [`update`] would give it there. A crank motor turns with
+/// the engine, in the gear the automatic box holds at that speed (it
+/// upshifts at `physics::auto_upshift_rpm`); a front-axle motor turns
+/// with the front wheels.
+#[derive(Debug, Clone)]
+pub struct MotorPlan {
+    hybrid: crate::data::HybridConfig,
+    min_mps: f32,
+    power_limit_w: f32,
+    wheel_radius_m: f32,
+    idle_rpm: f32,
+    /// Per forward gear, its overall ratio and the crank rpm it is held
+    /// to (infinite for top gear).
+    gears: Vec<(f32, f32)>,
+}
+
+impl MotorPlan {
+    /// `None` for a car without a hybrid.
+    pub fn new(config: &CarConfig) -> Option<Self> {
+        let hybrid = &config.hybrid;
+        if !hybrid.enabled {
+            return None;
+        }
+        let gears = (1..config.gear_ratios.len())
+            .filter_map(|g| {
+                let ratio = config.gear_ratios[g].abs() * config.final_drive_ratio;
+                let upshift =
+                    crate::physics::auto_upshift_rpm(config, g as i8).unwrap_or(f32::INFINITY);
+                (ratio > 0.0).then_some((ratio, upshift))
+            })
+            .collect();
+        Some(Self {
+            hybrid: hybrid.clone(),
+            min_mps: hybrid.deploy_min_speed_kph / 3.6,
+            power_limit_w: hybrid
+                .motor_max_power_kw
+                .min(hybrid.battery_max_discharge_kw)
+                .max(0.0)
+                * 1000.0,
+            wheel_radius_m: config.wheel_radius_m.max(0.05),
+            idle_rpm: config.idle_rpm,
+            gears,
+        })
+    }
+
+    /// The motor's speed at `speed_mps`, rad/s.
+    fn omega(&self, speed_mps: f32) -> f32 {
+        let wheel = speed_mps.max(0.0) / self.wheel_radius_m;
+        if self.hybrid.axle == HybridAxle::Front {
+            return wheel;
+        }
+        let rpm_per_ratio = wheel * 60.0 / (2.0 * PI);
+        let rpm = self
+            .gears
+            .iter()
+            .map(|&(ratio, upshift)| (ratio * rpm_per_ratio, upshift))
+            .find(|&(rpm, upshift)| rpm <= upshift)
+            .or_else(|| self.gears.last().map(|&(r, _)| (r * rpm_per_ratio, 0.0)))
+            .map_or(0.0, |(rpm, _)| rpm);
+        rpm.max(self.idle_rpm) * 2.0 * PI / 60.0
+    }
+
+    /// What the motor gives at `speed_mps`, W, deploying `share` of its
+    /// torque: none below the minimum deployment speed, else the torque
+    /// its curve has at the rpm it turns at (its peak without one), capped
+    /// by its power and the battery's.
+    pub fn power_w(&self, speed_mps: f32, share: f32) -> f32 {
+        if speed_mps < self.min_mps || share <= 0.0 {
+            return 0.0;
+        }
+        let omega = self.omega(speed_mps);
+        let torque = share * self.hybrid.torque_at(omega * 60.0 / (2.0 * PI));
+        (torque * omega).clamp(0.0, self.power_limit_w)
     }
 }
 
@@ -702,6 +768,7 @@ mod tests {
             points: vec![[0.0; 3]; n],
             speed_mps: vec![50.0; n],
             phases,
+            unpaced_mps: vec![50.0; n],
         };
         let s = straights(&profile);
         assert_eq!(s.longest_m, 300.0);
@@ -807,6 +874,63 @@ mod tests {
         // Halfway down the curve, and the curve's 400 Nm held to the peak.
         assert!((at(&curved, 7000.0) - 200.0).abs() < 0.5);
         assert!((at(&curved, 2000.0) - 300.0).abs() < 0.5);
+    }
+
+    /// The racing line counts the motor as the tick gives it, at the revs
+    /// it turns at in the gear the automatic box holds: a curve that falls
+    /// with the revs gives less where the gear is high in its range, a
+    /// front motor turns with the wheels, and below the minimum speed it
+    /// gives nothing.
+    #[test]
+    fn the_plan_counts_the_motor_at_the_revs_it_turns_at() {
+        let flat = car(None);
+        let mut curved = flat.clone();
+        curved.hybrid.torque_curve = vec![
+            crate::data::TorqueCurvePoint {
+                rpm: 2000.0,
+                torque_nm: 400.0,
+            },
+            crate::data::TorqueCurvePoint {
+                rpm: 9000.0,
+                torque_nm: 100.0,
+            },
+        ];
+        let (f, c) = (
+            MotorPlan::new(&flat).unwrap(),
+            MotorPlan::new(&curved).unwrap(),
+        );
+        let full = input(1.0, 0.0, ErsMode::Attack, false);
+        let mut cost: f32 = 1.0;
+        for v in [15.0, 30.0, 45.0, 60.0, 75.0] {
+            let omega = c.omega(v);
+            let rpm = omega * 60.0 / (2.0 * PI);
+            assert!(
+                rpm >= curved.idle_rpm && rpm <= curved.redline_rpm,
+                "{rpm} rpm at {v} m/s"
+            );
+            let ticked = torque(&mut rolling(&curved), &curved, &full, rpm, 0.5) * omega;
+            assert!(
+                (c.power_w(v, 1.0) - ticked).abs() < 50.0,
+                "{} W planned, {ticked} W ticked",
+                c.power_w(v, 1.0)
+            );
+            assert!(c.power_w(v, 1.0) <= f.power_w(v, 1.0) + 1.0);
+            assert!(c.power_w(v, 0.5) <= c.power_w(v, 1.0));
+            cost = cost.min(c.power_w(v, 1.0) / f.power_w(v, 1.0));
+        }
+        assert!(cost < 0.8, "the falling curve costs the plan {cost}");
+
+        let mut wec = flat.clone();
+        wec.hybrid.deploy_min_speed_kph = 190.0;
+        let w = MotorPlan::new(&wec).unwrap();
+        assert_eq!(w.power_w(52.0, 1.0), 0.0);
+        assert!(w.power_w(53.0, 1.0) > 0.0);
+
+        let mut front = flat.clone();
+        front.hybrid.axle = HybridAxle::Front;
+        let fr = MotorPlan::new(&front).unwrap();
+        assert!((fr.omega(30.0) - 30.0 / front.wheel_radius_m).abs() < 1e-3);
+        assert!(MotorPlan::new(&CarConfig::default()).is_none());
     }
 
     /// A front-axle motor puts its torque on the front axle, turns with
