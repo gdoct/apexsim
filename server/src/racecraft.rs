@@ -1531,7 +1531,15 @@ mod tests {
         let me = Rival::of(state, 4.5, 2.0, ctx.total_m);
         let mut all = vec![me];
         all.extend(field.iter().map(|o| Rival { human, ..*o }));
-        decide(state, &me, &bold, Some(&speeds), &all, &ctx)
+        decide(
+            state,
+            &me,
+            &bold,
+            Some(&speeds),
+            &all,
+            &MistakeRisk::default(),
+            &ctx,
+        )
     }
 
     /// A driver whose defence roll comes up for the square's first corner.
