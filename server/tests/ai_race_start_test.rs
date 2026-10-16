@@ -247,14 +247,20 @@ fn ai_field_stays_composed_off_the_grid() {
 /// Le Mans has a left-hander at 4.1 km where the road heads due west, across
 /// the ±PI yaw seam. The AI's heading error wrapped the wrong way there and
 /// every car turned right at full lock into the grass.
+///
+/// Time off the road is counted only round the seam: the first lap's
+/// traffic elsewhere is the survey's business, and it differs between a
+/// tree with the gitignored track sidecars and a fresh checkout (CI), which
+/// race the same seed on different curbs and walls.
 #[test]
 fn ai_field_makes_the_first_lap_at_le_mans() {
+    const SEAM_M: std::ops::Range<f32> = 3800.0..4600.0;
     let mut race = ai_race("LeMans", "yotota-lmp2", 4);
     let mut off_ticks: HashMap<u8, u32> = HashMap::new();
     for _ in 0..(TICK_RATE as u32 * 150) {
         tick(&mut race);
         for car in race.session.participants.values() {
-            if !car.is_on_track {
+            if !car.is_on_track && SEAM_M.contains(&car.track_progress) {
                 *off_ticks.entry(car.grid_position).or_default() += 1;
             }
         }
