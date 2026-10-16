@@ -143,6 +143,7 @@ fn test_scene(track: &TrackFile) -> AtsScene {
         scale: 1.4,
         text: None,
         length_m: None,
+        source: None,
     });
     scene.pit_lane = Some(PitLane {
         nodes: vec![[0.0, -20.0, 0.0], [80.0, -20.0, 0.0], [160.0, -18.0, 1.0]],
@@ -439,6 +440,7 @@ fn dressing_is_exported_without_renaming_the_props() {
         scale: 1.0,
         text: None,
         length_m: None,
+        source: None,
     });
     let baked = ue_export::bake(&track, &scene).unwrap();
     assert_eq!(baked.dressing.season, "autumn");
@@ -660,6 +662,7 @@ fn legacy_pit_garage_stand_ins_give_way_to_the_generated_complex() {
         scale: 1.0,
         text: None,
         length_m: None,
+        source: None,
     });
     let baked = ue_export::bake(&track, &scene).unwrap();
     assert!(props_with(&baked, "building", "pit_garage").is_empty());
@@ -690,6 +693,7 @@ fn stands_and_bridges_carry_their_layout_hints() {
             scale: 1.0,
             text: None,
             length_m,
+            source: None,
         });
     };
     // The far hairpin turns left around (800, 70): a stand beyond it is on
@@ -1653,6 +1657,7 @@ fn wall_prop(
         scale,
         text: None,
         length_m: None,
+        source: None,
     }
 }
 

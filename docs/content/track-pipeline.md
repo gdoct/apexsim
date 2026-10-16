@@ -10,7 +10,7 @@ game builds at runtime (no cooked track levels). Formats:
 
 ## Code
 
-- `scripts/`: `osm_layout.py`, `dem_fetch.py`, `dem_elevation.py`,
+- `scripts/`: `osm_layout.py`, `trace_layout.py`, `dem_fetch.py`, `dem_elevation.py`,
   `drs_zones.py`, `track_location.py`, `bridge_elevation.py`,
   `osm_centerline.py`, `seed_scene.py`, `generate_race_line.py`,
   `build_track_catalog.py`, `check_walls.py`, `bake_ground_textures.py`,
@@ -126,6 +126,24 @@ OSM outright), `PIT_LANE_REACH_M` (how far from the track a mapped pit lane may 
 Prefer a manual entry to a code change. A change to `extract()` or the fit
 must leave the other dossiers unchanged (re-run `--all --offline` and diff).
 
+**Tracing against imagery** (`scripts/trace_layout.py <Stem> [--open]`,
+`--all`): writes `build/trace/<Stem>.html`, a page that draws the
+centerline with a station mark every 100 m, the named corners and the
+dossier (stands amber, manual ones orange, buildings blue, pit lane
+magenta, crossings, landmarks, woods, water, barriers; each a layer) over
+aerial imagery (Esri World Imagery, OpenStreetMap as the other base), through
+the DEM sidecar's georeference, which is the dossier's own fit; a circuit
+without a sidecar is skipped. Clicking traces a run of points: the panel
+gives each as station, side and distance off the road edge, track `x`/`y`
+and `lon`/`lat`, and writes the run out as the manual entry to paste: one
+point as a `MANUAL_LANDMARKS` / `MANUAL_CROSSINGS` anchor, two or more as
+a `MANUAL_STANDS` span (`from_m`, `to_m`, the side most points fall on,
+`gap_m` from the nearest) and, from three, as a ring in both frames. GO TO
+jumps to a station, which is how an `ats-dress --verbose` skip or a
+`--explain` line is checked against the ground. The page only reads the
+dossier: what is traced goes into the tables and `--manual-only` (or a
+refetch) lays it.
+
 **Without the extract** (`--manual-only`): the hand-authored layers (the
 authored landmarks and crossings, graffiti, decal runs and skid marks,
 furniture) are rebuilt from the tables through the georeference the DEM
@@ -141,7 +159,17 @@ cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- --all
 ```
 
 The report gives placed counts; `--verbose` lists each dossier entry it could
-not place, with the reason.
+not place, with the reason, and which entries lost props to the water, a
+city block or the pit zone. Every prop the pass lays carries a **source
+stamp** (`Prop::source` in the `.ats`: `stand Tribune F1`, `building Pit
+building`, `bridge ...`, `landmark ...`, `furniture <asset>`, `street
+lamps`, `surroundings`, `kerb pieces`; the groom pass stamps `groom
+barrier` / `wall` / `board` / `hoarding` / `rail tag` / `tree`, adopted props
+included). `--explain` prints the scene by stamp and asset after the
+counts, with the skips, and what no pass owns (hand-placed, or laid before
+the stamps): a scene dressed before them gains its stamps on the next run,
+and nothing else changes in it. A prop placed by hand in the editor has no
+stamp.
 
 - **Stands** are laid as 40 m runs along their real front, each with its own
   `length_m`, so the client's bays follow the outline; depth 13 m or more is
@@ -298,11 +326,18 @@ run-off by `dress::RUNOFF_PAINT` (Spa, Yas Marina, Bahrain).
 
 ```bash
 cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- --all
-#   or <yaml>; [--out DIR] [--keep-sidecars ground,curbs,walls,road,pit|all] [--flat-curbs]
+#   or <yaml>; [--out DIR] [--keep-sidecars ground,curbs,walls,road,pit|all] [--flat-curbs] [--strict]
 ```
 
 Writes the client export to `build/tracks/` and five server sidecars beside
 the YAML, deterministically; sidecars listed in `external_sidecars` are kept.
+The road bake drops a facet whose footprint in the ground plane is under
+`road_mesh::MIN_FOOTPRINT_M2` and reports the count; a vertical face (a
+curb's outer face, no footprint at all) is meant, a sliver (a hair of
+footprint: a cross-section that folded or crossed its neighbour) is not.
+`--strict` names each sliver by surface and station span and fails the
+track on it (Zandvoort passes it with its 6159 vertical curb faces), so a
+bake that fails it has folded a strip.
 
 ### Server sidecars
 
@@ -477,18 +512,21 @@ draws in flat colours and the log says so.
 2. **Scene seed.** `python scripts/seed_scene.py <Stem> [--from survey.json]`
    writes a starting `.ats` (start line, grass, curbs at every apex).
 3. **Dossier.** Add a `BBOXES` entry in `osm_layout.py`; run
-   `osm_layout.py <Stem> --dry-run`, then for real. Review: pit lane side and
-   entry against imagery, stands against the published seating map
-   (`MANUAL_STANDS`), crossings, landmarks, woods. Add `CORNER_DISPLAY`
-   entries for new corner names.
+   `osm_layout.py <Stem> --dry-run`, then for real. Review on
+   `trace_layout.py <Stem> --open` (after step 4's DEM): pit lane side and
+   entry against the imagery, stands against the published seating map
+   (`MANUAL_STANDS`, traced on the page), crossings, landmarks, woods. Add
+   `CORNER_DISPLAY` entries for new corner names.
 4. **Data.** `dem_fetch.py <Stem>`, then the refresh order from
    `dem_elevation.py` down (smooth, bank, DRS zones in `drs_zones.py`'s
    `ZONES`, dossier refit, DEM refit, `track_location.py`; a circuit with no
    DEM goes in its `MANUAL`). No `raceline`? `python scripts/generate_race_line.py
    --track <yaml>`.
 5. **Build.** `./scripts/build_track_levels.ps1 -Track <Stem>`. Read the
-   `ats-dress --verbose` skipped list; run dress twice and confirm the `.ats`
-   does not change.
+   `ats-dress --explain` output (what each entry became, what was skipped
+   and why) and check a doubtful one on the trace page's GO TO; run dress
+   twice and confirm the `.ats` does not change; `ats-export --strict
+   <yaml>` for a folded strip.
 6. **Check.** `cargo test` in `track-editor`; `check_walls.py <Stem>` and
    `--openings`; the AI survey (`SURVEY_TRACKS=<Stem>`, below) and the pit
    survey (`PIT_TRACKS=<Stem>`, [../server/pit-lane.md](../server/pit-lane.md));

@@ -560,6 +560,13 @@ pub struct Prop {
     /// one prop; absent means 30 m. Ignored by every other kind.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub length_m: Option<f32>,
+    /// Which pass laid the prop and from what: `stand Tribune F1`,
+    /// `building Pit building`, `landmark Ferris wheel`, `surroundings`,
+    /// `kerb pieces` (`dress`), `groom barrier`, `groom board`, `groom
+    /// tree` (`groom`). Absent on a prop placed by hand or by an older
+    /// pass. `ats-dress --explain` groups the scene by it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
 }
 
 fn default_scale() -> f32 {
@@ -923,6 +930,7 @@ mod tests {
             scale: 1.0,
             text: None,
             length_m: None,
+            source: None,
         });
         assert!(prop_id > curb_id);
         assert!(scene.validate().is_ok());

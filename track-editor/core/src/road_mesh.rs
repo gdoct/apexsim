@@ -144,6 +144,18 @@ pub struct RoadMeshFile {
 pub struct DroppedFacet {
     pub station_m: f32,
     pub surface: String,
+    /// Its footprint in the ground plane, m2: 0 for a vertical face (two
+    /// corners over one spot, as a curb's outer face is meant to be), a
+    /// hair more for a sliver: a strip that folded or crossed its
+    /// neighbour, which is what `ats-export --strict` fails on.
+    pub footprint_m2: f32,
+}
+
+impl DroppedFacet {
+    /// A face standing upright on purpose, not a fold.
+    pub fn is_vertical(&self) -> bool {
+        self.footprint_m2 <= 0.0
+    }
 }
 
 /// Accumulates triangles, welding shared vertices and keeping every
@@ -235,6 +247,11 @@ impl RoadMeshBuilder {
                     .get(surface as usize)
                     .map(|s| s.key.clone())
                     .unwrap_or_default(),
+                footprint_m2: if twice_area.is_finite() {
+                    twice_area.abs() * 0.5
+                } else {
+                    0.0
+                },
             });
             return;
         }
@@ -370,6 +387,30 @@ mod tests {
         assert_eq!(b.dropped.len(), 2);
         assert_eq!(b.dropped[0].surface, "curb");
         assert_eq!(b.dropped[0].station_m, 42.0);
+        assert!(
+            b.dropped.iter().all(DroppedFacet::is_vertical),
+            "an upright face has no footprint at all: {:?}",
+            b.dropped
+        );
+    }
+
+    #[test]
+    fn a_sliver_is_dropped_but_not_vertical() {
+        // Two corners a tenth of a millimetre apart across: no footprint
+        // to stand on, but not an upright face either: a fold.
+        let mut b = RoadMeshBuilder::new("test");
+        let s = b.surface(RoadSurface::curb());
+        b.triangle(
+            s,
+            (0.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+            (1.0, 0.0001, 0.0),
+            7.0,
+        );
+        assert_eq!(b.triangle_count(), 0);
+        assert_eq!(b.dropped.len(), 1);
+        assert!(!b.dropped[0].is_vertical(), "{:?}", b.dropped[0]);
+        assert!(b.dropped[0].footprint_m2 > 0.0 && b.dropped[0].footprint_m2 < MIN_FOOTPRINT_M2);
     }
 
     #[test]

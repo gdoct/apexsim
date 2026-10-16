@@ -9,6 +9,7 @@
 //! ats-export content/tracks/default/Monza/Monza.yaml # one track
 //! ats-export --all --out some/other/dir
 //! ats-export --keep-sidecars road,walls content/tracks/default/X/X.yaml
+//! ats-export --strict --all                 # a bake that drops a road facet fails
 //! ```
 //!
 //! A track whose `.ats` lists `external_sidecars` (an imported circuit whose
@@ -24,9 +25,59 @@ use std::process::ExitCode;
 use track_core::ats::Sidecar;
 use track_core::ue_export_io::{self, ExportOptions, DEFAULT_EXPORT_DIR};
 
+/// Dropped facets, one line per surface with the stations they fell at
+/// (runs within 5 m folded into a span), at most 12 spans a surface.
+fn dropped_facet_lines(dropped: &[track_core::road_mesh::DroppedFacet]) -> Vec<String> {
+    use std::collections::BTreeMap;
+    let mut by_surface: BTreeMap<&str, Vec<f32>> = BTreeMap::new();
+    for facet in dropped {
+        by_surface
+            .entry(facet.surface.as_str())
+            .or_default()
+            .push(facet.station_m);
+    }
+    let mut lines = Vec::new();
+    for (surface, mut stations) in by_surface {
+        stations.sort_by(|a, b| a.total_cmp(b));
+        let mut spans: Vec<(f32, f32, usize)> = Vec::new();
+        for s in stations {
+            match spans.last_mut() {
+                Some((_, end, n)) if s - *end <= 5.0 => {
+                    *end = s;
+                    *n += 1;
+                }
+                _ => spans.push((s, s, 1)),
+            }
+        }
+        let shown: Vec<String> = spans
+            .iter()
+            .take(12)
+            .map(|(a, b, n)| {
+                if n == &1 {
+                    format!("{a:.0} m")
+                } else {
+                    format!("{a:.0}-{b:.0} m ({n})")
+                }
+            })
+            .collect();
+        let more = if spans.len() > 12 {
+            format!(" and {} more span(s)", spans.len() - 12)
+        } else {
+            String::new()
+        };
+        lines.push(format!(
+            "  dropped {surface} facets at {}{more}",
+            shown.join(", ")
+        ));
+    }
+    lines
+}
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut all = false;
+    let mut strict = false;
+    let mut strict_failures = 0usize;
     let mut out_dir: Option<PathBuf> = None;
     let mut tracks: Vec<PathBuf> = Vec::new();
     let mut options = ExportOptions::default();
@@ -35,6 +86,7 @@ fn main() -> ExitCode {
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--all" | "-a" => all = true,
+            "--strict" => strict = true,
             "--flat-curbs" => options.bake.flat_curbs = true,
             "--keep-sidecars" => {
                 let Some(list) = iter.next() else {
@@ -160,6 +212,30 @@ fn main() -> ExitCode {
                         ""
                     }
                 );
+                if strict {
+                    // A vertical face (a curb's outer face) is dropped on
+                    // purpose; a sliver is a cross-section that folded or
+                    // crossed its neighbour, named so the strip can be
+                    // found.
+                    let slivers: Vec<_> = exported
+                        .road_dropped_facets
+                        .iter()
+                        .filter(|f| !f.is_vertical())
+                        .cloned()
+                        .collect();
+                    if !slivers.is_empty() {
+                        for line in dropped_facet_lines(&slivers) {
+                            eprintln!("{}: {line}", track.display());
+                        }
+                        eprintln!(
+                            "{}: --strict: {} sliver facet(s) dropped ({} vertical faces, as meant)",
+                            track.display(),
+                            slivers.len(),
+                            exported.road_dropped - slivers.len()
+                        );
+                        strict_failures += 1;
+                    }
+                }
             }
             Err(ue_export_io::UeExportError::Imported { stem, by }) if all => {
                 // An imported circuit's export is the importer's; a batch
@@ -177,12 +253,17 @@ fn main() -> ExitCode {
     }
 
     println!(
-        "exported {}/{} track(s) to {}",
+        "exported {}/{} track(s) to {}{}",
         tracks.len() - failures,
         tracks.len(),
-        out_dir.display()
+        out_dir.display(),
+        if strict_failures > 0 {
+            format!("; --strict: {strict_failures} track(s) dropped sliver facets")
+        } else {
+            String::new()
+        }
     );
-    if failures > 0 {
+    if failures > 0 || strict_failures > 0 {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS
@@ -190,11 +271,16 @@ fn main() -> ExitCode {
 }
 
 const USAGE: &str = "\
-usage: ats-export [--all] [--out DIR] [--flat-curbs] [--keep-sidecars LIST] [TRACK.yaml ...]
+usage: ats-export [--all] [--strict] [--out DIR] [--flat-curbs] [--keep-sidecars LIST] [TRACK.yaml ...]
 
   --all, -a      export every *.yaml under content/tracks/{default,custom}
                  (a track whose .ats says \"imported\" is skipped: its export and
                  sidecars are its importer's)
+  --strict       a track whose road bake drops a sliver facet (a footprint under
+                 road_mesh::MIN_FOOTPRINT_M2 but not nil: a cross-section that
+                 folded or crossed its neighbour) is a failure, each named by
+                 surface and station; a vertical face (a curb's outer face,
+                 nil footprint) is dropped on purpose and passes
   --out, -o DIR  destination for the .uescene.json manifest and the .uemesh mesh blob
                  beside it (default: build/tracks); the .ground.msgpack,
                  .curbs.msgpack, .walls.msgpack, .road.msgpack and .pit.msgpack

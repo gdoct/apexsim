@@ -268,14 +268,17 @@ pub fn dress_scene_with_dem(
         }
         report.stands += 1;
         report.stand_props += props.len();
-        laid.extend(props);
+        laid.extend(stamped(props, format!("stand {}", name_of(&stand.name))));
     }
     let city = crate::circuit_style::CircuitStyle::for_scene(scene).city_buildings;
     for structure in &layout.structures {
         match lay_structure(&path, &terrain, lane.as_ref(), structure, city) {
             Ok(props) => {
                 report.buildings += props.len();
-                laid.extend(props);
+                laid.extend(stamped(
+                    props,
+                    format!("building {}", name_of(&structure.name)),
+                ));
             }
             Err(reason) => report
                 .skipped
@@ -283,18 +286,23 @@ pub fn dress_scene_with_dem(
         }
     }
     for crossing in &layout.crossings {
-        for prop in lay_crossing(&path, crossing) {
+        for mut prop in lay_crossing(&path, crossing) {
             report.bridges += 1;
+            prop.source = Some(format!("bridge {}", name_of(&crossing.name)));
             laid.push(prop);
         }
     }
     if crate::circuit_style::CircuitStyle::for_scene(scene).city_buildings {
-        laid.extend(lay_street_lamps(&path, &terrain, &scene.bridges));
+        laid.extend(stamped(
+            lay_street_lamps(&path, &terrain, &scene.bridges),
+            "street lamps".to_string(),
+        ));
     }
     for landmark in &layout.landmarks {
         match lay_landmark(&path, &terrain, landmark) {
-            Ok(Some(prop)) => {
+            Ok(Some(mut prop)) => {
                 report.landmarks += 1;
+                prop.source = Some(format!("landmark {}", name_of(&landmark.name)));
                 laid.push(prop);
             }
             Ok(None) => {}
@@ -326,25 +334,21 @@ pub fn dress_scene_with_dem(
         style.fan_dressing,
     );
     report.surroundings = extras.len();
-    laid.extend(extras);
+    laid.extend(stamped(extras, "surroundings".to_string()));
     // The kit's pieces on the track's own edge: a marker post at each
     // end of a curb, and sausage kerbs behind the inside curb of a tight
     // bend (a `kerb` wall in the sim: a jolt, never a stop).
     let kerb_pieces = surroundings::lay_kerb_pieces(&path, &terrain, &scene.curbs);
     report.kerb_pieces = kerb_pieces.len();
-    laid.extend(kerb_pieces);
+    laid.extend(stamped(kerb_pieces, "kerb pieces".to_string()));
 
     // Nothing dressed stands in the water. A bridge, a sky prop and a
     // landmark that is meant to stand over it (the double helix) keep
     // their place.
     if terrain.has_water() {
-        let before = laid.len();
-        laid.retain(|p| !crate::groom::stands_in_water(&terrain, p));
-        if laid.len() < before {
-            report
-                .skipped
-                .push(format!("{} props: in the water", before - laid.len()));
-        }
+        drop_laid(&mut laid, &mut report.skipped, "in the water", |p| {
+            crate::groom::stands_in_water(&terrain, p)
+        });
     }
 
     // On a city circuit a tree, lamp, sign or planter is not inside a block
@@ -365,13 +369,9 @@ pub fn dress_scene_with_dem(
         ) && city_blocks.iter().any(|s| s.gap(p.x, p.y) < 1.0)
     };
     if city {
-        let before = laid.len();
-        laid.retain(|p| !in_a_block(p));
-        if laid.len() < before {
-            report
-                .skipped
-                .push(format!("{} props: inside a building", before - laid.len()));
-        }
+        drop_laid(&mut laid, &mut report.skipped, "inside a building", |p| {
+            in_a_block(p)
+        });
     }
 
     // Nothing dressed stands in the pit lane or where its garages go.
@@ -381,26 +381,23 @@ pub fn dress_scene_with_dem(
         .zip(layout.pit_lane.as_ref())
         .and_then(|(pit, road)| PitZone::new(pit, road.side));
     if let Some(zone) = zone {
-        let before = laid.len();
-        laid.retain(|p| {
-            matches!(p.kind, PropKind::Bridge | PropKind::Sky) || !zone.blocks(&path, p)
-        });
-        if laid.len() < before {
-            report.skipped.push(format!(
-                "{} props: in the pit lane or where its garages stand",
-                before - laid.len()
-            ));
-        }
+        drop_laid(
+            &mut laid,
+            &mut report.skipped,
+            "in the pit lane or where its garages stand",
+            |p| !matches!(p.kind, PropKind::Bridge | PropKind::Sky) && zone.blocks(&path, p),
+        );
     }
 
     // The authored furniture of a circuit's own straights. It is laid
     // after the pit-zone test on purpose: its lamps and marquees stand
     // behind the garages, which that test keeps clear.
-    for prop in lay_furniture(&path, &terrain, &layout.furniture) {
+    for mut prop in lay_furniture(&path, &terrain, &layout.furniture) {
         if in_a_block(&prop) {
             continue;
         }
         report.landmarks += 1;
+        prop.source = Some(format!("furniture {}", prop.asset));
         laid.push(prop);
     }
 
@@ -417,6 +414,43 @@ pub fn dress_scene_with_dem(
 
 fn name_of(name: &Option<String>) -> String {
     name.clone().unwrap_or_else(|| "(unnamed)".to_string())
+}
+
+/// The props with `source` stamped on each (`Prop::source`).
+fn stamped(mut props: Vec<Prop>, source: String) -> Vec<Prop> {
+    for prop in &mut props {
+        prop.source = Some(source.clone());
+    }
+    props
+}
+
+/// Drop the props `gone` picks out of `laid`, noting per source how many
+/// went and `why` (`DressReport::skipped`), so `--verbose` and
+/// `--explain` say which dossier entry lost them.
+fn drop_laid(
+    laid: &mut Vec<Prop>,
+    skipped: &mut Vec<String>,
+    why: &str,
+    gone: impl Fn(&Prop) -> bool,
+) {
+    let mut lost: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    laid.retain(|p| {
+        if gone(p) {
+            *lost
+                .entry(
+                    p.source
+                        .clone()
+                        .unwrap_or_else(|| "(unstamped)".to_string()),
+                )
+                .or_default() += 1;
+            false
+        } else {
+            true
+        }
+    });
+    for (source, n) in lost {
+        skipped.push(format!("{source}: {n} prop(s) {why}"));
+    }
 }
 
 // ---- Road graffiti -----------------------------------------------------------
@@ -1110,6 +1144,7 @@ fn lay_stand(
             scale: 1.0,
             text: None,
             length_m: Some(round2(len)),
+            source: None,
         });
         walked = to;
     }
@@ -1314,6 +1349,7 @@ fn lay_centred_building(
             scale: 1.0,
             text: None,
             length_m: None,
+            source: None,
         });
     }
     if out.is_empty() {
@@ -1483,6 +1519,7 @@ fn lay_structure(
             scale: 1.0,
             text: None,
             length_m: None,
+            source: None,
         });
     }
     Ok(out)
@@ -1517,6 +1554,7 @@ fn lay_crossing(path: &CenterlinePath, crossing: &Crossing) -> Vec<Prop> {
             scale: 1.0,
             text: brand_text(crossing.brand.as_ref()),
             length_m: None,
+            source: None,
         }
     };
     let deck = match crossing.kind.as_str() {
@@ -1613,6 +1651,7 @@ fn lay_furniture(
                 scale: 1.0,
                 text: f.text.clone(),
                 length_m: None,
+                source: None,
             });
         }
     }
@@ -1675,6 +1714,7 @@ fn lay_street_lamps(
             scale: 1.0,
             text: None,
             length_m: None,
+            source: None,
         });
     }
     out
@@ -1805,6 +1845,7 @@ fn lay_landmark(
         scale: 1.0,
         text: brand_text(landmark.brand.as_ref()),
         length_m: None,
+        source: None,
     }))
 }
 
@@ -2187,6 +2228,7 @@ mod surroundings {
                 scale: 1.0,
                 text: None,
                 length_m: None,
+                source: None,
             });
         };
         for curb in curbs {
@@ -2308,6 +2350,7 @@ mod surroundings {
                 scale: 1.0,
                 text: None,
                 length_m: None,
+                source: None,
             })
         }
     }
@@ -2786,6 +2829,7 @@ mod surroundings {
                     scale: round2(0.85 + roll(jx, jy, 44) * 0.5),
                     text: None,
                     length_m: None,
+                    source: None,
                 });
             }
             y += step;
@@ -4026,6 +4070,7 @@ mod tests {
             scale: 1.0,
             text: None,
             length_m: None,
+            source: None,
         });
         let mut layout = layout();
         layout.landmarks.push(Landmark {

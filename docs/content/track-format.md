@@ -142,7 +142,7 @@ with empty `surfaces`). The server never reads it.
 | `curbs` | `side`, `start_m`/`end_m`, `width_m` outward from the edge, `style` |
 | `markings` | Painted rectangles: `kind` (`start_finish`, `grid_slot`, `edge_line`, `pit_entry`, `pit_exit`, `custom`), stations, `lat_from_m`/`lat_to_m`, linear RGBA `color` |
 | `pit_lane` | `nodes` (`[x,y,z]` world), `width_m`, `box_count`, `speed_limit_kmh`, `authored` (laid from the dossier: grooming never regenerates it) |
-| `props` | `kind`, `asset`, `x`/`y`/`z`, `yaw_rad`, `scale`, optional `text` (brand, board number, flag) and `length_m` (a grandstand's length). Kinds and assets: [props.md](props.md) |
+| `props` | `kind`, `asset`, `x`/`y`/`z`, `yaw_rad`, `scale`, optional `text` (brand, board number, flag), `length_m` (a grandstand's length) and `source` (which pass laid it and from what, `stand Tribune F1`, `groom tree`; absent on a hand-placed prop; [track-pipeline.md](track-pipeline.md#dressing-ats-dress)). Kinds and assets: [props.md](props.md) |
 | `decals` | Pictures painted on the road: `image` (`set/name`), `start_m`, `length_m`, `lat_m`, `width_m`, `reversed` |
 | `water` | Polygon rings in world metres, even-odd fill |
 | `bridges` | Station spans carried over water (bands and curbs are clipped out) |

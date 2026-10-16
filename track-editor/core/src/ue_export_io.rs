@@ -184,6 +184,9 @@ pub struct Exported {
     /// dropped for having no footprint (a curb's outer face, a sliver).
     pub road_triangles: usize,
     pub road_dropped: usize,
+    /// Each of those, where it was and what it was part of, for
+    /// `ats-export --strict` to name.
+    pub road_dropped_facets: Vec<crate::road_mesh::DroppedFacet>,
     /// The sidecars left as another tool wrote them (the scene's
     /// `external_sidecars` and the options' `keep_sidecars`), in
     /// [`Sidecar::ALL`] order; their paths above are where they are, and
@@ -320,6 +323,7 @@ pub fn export_track_with_options(
         road_path,
         road_triangles: baked.road.triangles.len(),
         road_dropped: baked.road_dropped.len(),
+        road_dropped_facets: baked.road_dropped.clone(),
         kept,
     })
 }

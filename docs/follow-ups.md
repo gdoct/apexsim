@@ -132,6 +132,17 @@ the same `ApexProps` code.
 
 ### 11. Content tooling
 
+- The dressing's `surroundings` stamp is one for the whole layer (car
+  parks, camps, village, marshal posts, corner signs, forest, floodlights,
+  fan dressing): `--explain` tells them apart by asset only. Stamping each
+  sub-layer in `surroundings::lay` would name the dossier area each came
+  from.
+- The shipped `.ats` scenes carry no source stamps until each is dressed
+  again (`ats-dress --all` adds them and changes nothing else); until
+  then `--explain` reports every prop as owned by no pass.
+- `trace_layout.py` skips Marina Bay: no DEM sidecar, so no georeference
+  (`dem_fetch.py MarinaBay`, or a georeference from the dossier's own fit
+  without a DEM).
 - **(bug, not reproduced)** On 2026-10-14, with most showcases stale, an
   unattended run (`-ApexWatch`, `-ApexWatchSession`) exited silently a few
   seconds after "Demo view ended", with nothing in the log and no crash

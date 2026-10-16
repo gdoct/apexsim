@@ -813,6 +813,7 @@ fn apply_ui_action(
                 scale: 1.0,
                 text: None,
                 length_m: None,
+                source: None,
             });
             selection.0 = Some(SelectedElement::Prop(id));
             status.0 = format!("Added {} #{id} at the camera focus.", kind.label());

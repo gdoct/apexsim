@@ -14,6 +14,7 @@
 //! ats-dress content/tracks/default/Monza/Monza.yaml  # one circuit
 //! ats-dress --all --dry-run                 # report without writing
 //! ats-dress --no-groom Spa.yaml             # dress only
+//! ats-dress --explain Spa.yaml              # what each dossier entry became
 //! ```
 //!
 //! Idempotent: both passes own what they lay, so a second run over a
@@ -25,18 +26,66 @@ use std::process::ExitCode;
 use track_core::{ats_io, dress, groom, layout, project, ue_export_io};
 
 const USAGE: &str = "\
-usage: ats-dress [--all] [--dry-run] [--no-groom] [--verbose] [track.yaml ...]
+usage: ats-dress [--all] [--dry-run] [--no-groom] [--verbose] [--explain] [track.yaml ...]
 
   --all, -a       every track under content/tracks/{default,custom} that has a dossier
   --dry-run, -n   report what would change without writing
   --no-groom      dress only; leave barriers, boards and trees alone
-  --verbose, -v   list dossier entries that could not be placed";
+  --verbose, -v   list dossier entries that could not be placed
+  --explain, -e   list what each dossier entry became (props by source stamp
+                  and asset), what each lost on the way, and what no pass owns";
+
+/// The scene's props by source stamp (`Prop::source`) and asset, one line
+/// a source, the unstamped (hand-placed, or laid before the stamps) last.
+fn explain_scene(scene: &track_core::ats::AtsScene) -> Vec<String> {
+    use std::collections::BTreeMap;
+    let mut by_source: BTreeMap<String, BTreeMap<String, usize>> = BTreeMap::new();
+    let mut unstamped: BTreeMap<String, usize> = BTreeMap::new();
+    for prop in &scene.props {
+        match &prop.source {
+            Some(source) => {
+                *by_source
+                    .entry(source.clone())
+                    .or_default()
+                    .entry(prop.asset.clone())
+                    .or_default() += 1
+            }
+            None => *unstamped.entry(prop.asset.clone()).or_default() += 1,
+        }
+    }
+    let assets = |m: &BTreeMap<String, usize>| {
+        m.iter()
+            .map(|(asset, n)| {
+                if *n == 1 {
+                    asset.clone()
+                } else {
+                    format!("{n} x {asset}")
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let mut lines = Vec::new();
+    for (source, m) in &by_source {
+        let n: usize = m.values().sum();
+        lines.push(format!("{source}: {n} prop(s): {}", assets(m)));
+    }
+    if !unstamped.is_empty() {
+        let n: usize = unstamped.values().sum();
+        lines.push(format!(
+            "no pass owns {n} prop(s) (placed by hand, or before the stamps): {}",
+            assets(&unstamped)
+        ));
+    }
+    lines
+}
 
 fn main() -> ExitCode {
     let mut all = false;
     let mut dry_run = false;
     let mut no_groom = false;
     let mut verbose = false;
+    let mut explain = false;
     let mut tracks: Vec<PathBuf> = Vec::new();
 
     for arg in std::env::args().skip(1) {
@@ -45,6 +94,7 @@ fn main() -> ExitCode {
             "--dry-run" | "-n" => dry_run = true,
             "--no-groom" => no_groom = true,
             "--verbose" | "-v" => verbose = true,
+            "--explain" | "-e" => explain = true,
             "--help" | "-h" => {
                 println!("{USAGE}");
                 return ExitCode::SUCCESS;
@@ -183,9 +233,14 @@ fn main() -> ExitCode {
                 g.walls, g.boards, g.barriers, g.trees, g.pushed, g.reseated
             );
         }
-        if verbose {
+        if verbose || explain {
             for note in &report.skipped {
                 println!("    skipped {note}");
+            }
+        }
+        if explain {
+            for line in explain_scene(&scene) {
+                println!("    {line}");
             }
         }
 

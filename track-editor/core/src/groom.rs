@@ -946,6 +946,7 @@ pub fn groom_props_with_dem(
     report.walls = new_walls.len();
     let mut props = kept;
     props.extend(adopt(
+        "groom wall",
         scene,
         original_walls,
         new_walls,
@@ -958,6 +959,7 @@ pub fn groom_props_with_dem(
         let boards = lay_distance_boards(&path, &terrain, &corners, lane.as_ref(), &props);
         report.boards = boards.len();
         props.extend(adopt(
+            "groom board",
             scene,
             std::mem::take(&mut original_boards),
             boards,
@@ -967,6 +969,7 @@ pub fn groom_props_with_dem(
 
     report.barriers = new_rails.len();
     props.extend(adopt(
+        "groom barrier",
         scene,
         original_barriers,
         new_rails,
@@ -977,6 +980,7 @@ pub fn groom_props_with_dem(
         let boards = lay_german_signs(&path, &terrain, lane.as_ref(), &props, &style);
         report.boards = boards.len();
         props.extend(adopt(
+            "groom board",
             scene,
             std::mem::take(&mut original_boards),
             boards,
@@ -988,6 +992,7 @@ pub fn groom_props_with_dem(
     let tags = lay_rail_tags(&path, &props, &scene.decals);
     report.boards += tags.len();
     props.extend(adopt(
+        "groom rail tag",
         scene,
         original_tags,
         tags,
@@ -1006,6 +1011,7 @@ pub fn groom_props_with_dem(
     };
     report.hoardings = hoardings.len();
     props.extend(adopt(
+        "groom hoarding",
         scene,
         original_hoardings,
         hoardings,
@@ -1042,6 +1048,7 @@ pub fn groom_props_with_dem(
     }
     report.trees = trees.len();
     props.extend(adopt(
+        "groom tree",
         scene,
         original_trees,
         trees,
@@ -1274,6 +1281,7 @@ fn lay_hoardings(
             scale: 1.0,
             text: Some(brand.to_string()),
             length_m: None,
+            source: None,
         });
     }
     out
@@ -1283,20 +1291,28 @@ fn lay_hoardings(
 /// placement tolerances — the signal that a groomed scene needs no
 /// rewrite — otherwise hand out ids for `fresh` and flag the rebuild.
 fn adopt(
+    pass: &str,
     scene: &mut AtsScene,
     original: Vec<Prop>,
     fresh: Vec<Prop>,
     rebuilt: &mut bool,
 ) -> Vec<Prop> {
+    let stamp = |mut prop: Prop| {
+        prop.source = Some(pass.to_string());
+        prop
+    };
     if props_match(&original, &fresh) {
-        original
+        // Kept as they were, bar the stamp a scene from before it lacks.
+        original.into_iter().map(stamp).collect()
     } else {
         *rebuilt = true;
         fresh
             .into_iter()
-            .map(|prop| Prop {
-                id: scene.alloc_id(),
-                ..prop
+            .map(|prop| {
+                stamp(Prop {
+                    id: scene.alloc_id(),
+                    ..prop
+                })
             })
             .collect()
     }
@@ -1530,6 +1546,7 @@ fn lay_distance_boards(
                 scale: 1.0,
                 text,
                 length_m: None,
+                source: None,
             });
         }
     }
@@ -1687,6 +1704,7 @@ fn lay_german_signs(
                 scale: 1.0,
                 text,
                 length_m: None,
+                source: None,
             });
         };
 
@@ -2389,6 +2407,7 @@ fn lay_all_barriers(
                     scale: WALL_SCALE,
                     text: None,
                     length_m: None,
+                    source: None,
                 };
                 match prop_kind {
                     PropKind::TireWall => walls.push(prop),
@@ -2698,6 +2717,7 @@ fn lay_ground_cover(
                     scale: 0.8 + hash01(&seed, 4) * 0.7,
                     text: None,
                     length_m: None,
+                    source: None,
                 });
             }
         }
@@ -2860,6 +2880,7 @@ fn lay_tree_belts(
                     scale: TREE_SCALE_MIN + hash01(&tree, 4) * (TREE_SCALE_MAX - TREE_SCALE_MIN),
                     text: None,
                     length_m: None,
+                    source: None,
                 });
             }
         }
@@ -3164,6 +3185,7 @@ mod tests {
             scale: 1.0,
             text: None,
             length_m: None,
+            source: None,
         }
     }
 

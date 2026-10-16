@@ -171,6 +171,13 @@ session while driving (notice, then the menu).
 
 - The layout picker switching the HUD in a race; per-circuit and per-class
   bindings and switching by place.
+- The dossier trace page in a browser (`scripts/trace_layout.py Spa --open`,
+  [content/track-pipeline.md](content/track-pipeline.md#layout-dossiers-osm_layoutpy)):
+  the centerline and stands over the imagery where they belong (the
+  Raidillon stand on its bank), the station marks, a traced span's
+  `MANUAL_STANDS` snippet and GO TO. The pages build for every circuit
+  with a DEM, the georeference round-trips in Python and the script
+  passes a syntax check; nobody has opened one.
 - The Config view's RESTART SERVER button in a browser ([server/operations.md](server/operations.md#admin-dashboard)):
   the two confirms, the toast, the page coming back on its own once the
   new process answers, and a player in a race getting the shutdown notice.

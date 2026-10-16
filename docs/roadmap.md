@@ -43,13 +43,7 @@ None open.
 
 ## P3: nice to have
 
-### 3. Content tooling
-
-- `ats-dress --explain` and a per-prop source stamp.
-- `ats-export --strict`, which fails on a dropped facet.
-- An aerial-imagery tracing aid for dossiers.
-
-**Check:** the track-editor tests.
+None open.
 
 ## Not yet scoped
 

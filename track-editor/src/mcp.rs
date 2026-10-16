@@ -567,6 +567,7 @@ fn drain_mcp_commands(
                         scale: params.scale.unwrap_or(1.0),
                         text: params.text.clone(),
                         length_m: params.length_m,
+                        source: None,
                     });
                     Ok(id)
                 });

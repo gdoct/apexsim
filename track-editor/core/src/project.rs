@@ -129,6 +129,7 @@ closed_loop: false
             scale: 1.0,
             text: None,
             length_m: None,
+            source: None,
         });
         ats_io::save_ats(&first.ats_path, &scene).unwrap();
 
