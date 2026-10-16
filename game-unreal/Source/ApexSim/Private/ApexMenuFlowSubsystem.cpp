@@ -97,6 +97,7 @@ void UApexMenuFlowSubsystem::LoadProfile()
 	CreateAllowedAssists = Profile->AllowedAssists;
 	CreateConditions = Profile->Conditions.Clamped();
 	CreateDamage = Profile->Damage;
+	bCreateQualifyingCutoff = Profile->bQualifyingCutoff;
 	CreateAiSkill = ApexAiSkill::Clamp(Profile->AiSkill);
 
 	// A profile written before demo lap was locked would otherwise start a mode
@@ -205,6 +206,7 @@ void UApexMenuFlowSubsystem::SaveProfile()
 	Profile->AllowedAssists = CreateAllowedAssists;
 	Profile->Conditions = CreateConditions;
 	Profile->Damage = CreateDamage;
+	Profile->bQualifyingCutoff = bCreateQualifyingCutoff;
 	Profile->AiSkill = CreateAiSkill;
 
 	if (!UGameplayStatics::SaveGameToSlot(Profile, UApexProfileSave::SlotName, 0))

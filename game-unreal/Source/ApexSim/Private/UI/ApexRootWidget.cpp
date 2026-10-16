@@ -1892,8 +1892,12 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	{
 		AiSkill = ApexAiSkill::Clamp(AiSkill);
 	}
+	// -ApexQualifyingCutoff=N: the cut-off, percent of pole (107 is the rule; none by default).
+	int32 Cutoff = ApexQualifyingCutoff::None;
+	FParse::Value(FCommandLine::Get(), TEXT("ApexQualifyingCutoff="), Cutoff);
 	Net->CreateSessionWithOrder(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions, Damage,
-		AiSkill, Flow->EffectiveRaceSeconds(), TArray<FString>(), Flow->EffectiveQualifyingSeconds(), Flow->WeekendToSend());
+		AiSkill, Flow->EffectiveRaceSeconds(), TArray<FString>(), Flow->EffectiveQualifyingSeconds(), Flow->WeekendToSend(),
+		ApexQualifyingCutoff::Clamp(Cutoff));
 }
 
 void UApexRootWidget::HandleUdpReady()

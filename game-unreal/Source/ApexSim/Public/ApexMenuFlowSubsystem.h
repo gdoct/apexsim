@@ -136,6 +136,21 @@ public:
 	int32 CreateWeekendRoundMinutes = 10;
 
 	bool IsCreatingWeekend() const { return bCreateWeekend && CreateStartingMode == EApexGameMode::Race; }
+
+	/**
+	 * The 107% rule: a car slower than 107% of pole in qualifying (Q1 of a
+	 * weekend), or with no time, does not start the race. Only a session
+	 * that qualifies sends it (QualifyingCutoffToSend).
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	bool bCreateQualifyingCutoff = false;
+
+	/** What CreateSession carries: 107 for a qualifying session or a weekend with the rule on, else 0. */
+	int32 QualifyingCutoffToSend() const
+	{
+		return bCreateQualifyingCutoff && (CreateStartingMode == EApexGameMode::Qualification || IsCreatingWeekend())
+			? ApexQualifyingCutoff::Rule107 : ApexQualifyingCutoff::None;
+	}
 	/** The weekend CreateSession carries: no rounds unless a weekend is being made. */
 	FApexWeekendFormat WeekendToSend() const;
 	/** "Practice 20 min · Q1-Q3 10 min each · Race 12 laps"; empty for no weekend. */

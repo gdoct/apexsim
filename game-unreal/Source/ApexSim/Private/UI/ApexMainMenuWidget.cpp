@@ -1572,7 +1572,8 @@ void UApexMainMenuWidget::StartRememberedSession()
 		Flow->EffectiveRaceSeconds(),
 		Flow->IsCreatingWeekend() ? TArray<FString>() : Flow->GridOrderToSend(ApexCreateSession::GridCeiling),
 		Flow->EffectiveQualifyingSeconds(),
-		Flow->WeekendToSend());
+		Flow->WeekendToSend(),
+		Flow->QualifyingCutoffToSend());
 }
 
 void UApexMainMenuWidget::HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail)

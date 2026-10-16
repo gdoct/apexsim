@@ -46,17 +46,18 @@
             { "type": "text", "fill": 1, "margin": [12, 0, 0, 0], "font": "body", "size": 14,
               "text": "=upper(item.name)", "bold": "=item.is_local",
               "color": "=item.is_local ? 'on_accent' : item.retired ? 'text_disabled' : 'text'" },
-            // In the pit lane, at the box, out of the race, or driven by the
-            // server while its driver is away.
+            // In the pit lane, at the box, out of the race, left out by the
+            // qualifying cut-off, or driven by the server while its driver
+            // is away.
             { "type": "panel", "valign": "center", "margin": [6, 0, 0, 0], "padding": [6, 0],
-              "visible": "=item.in_pit || item.retired || item.away",
+              "visible": "=item.in_pit || item.retired || item.dnq || item.away",
               "background": "=item.retired ? 'error' : item.servicing ? 'live' : 'surface_hover'",
               "children": [{ "type": "text", "font": "body", "size": 11, "bold": true,
-                "text": "=item.retired ? 'OUT' : item.servicing ? 'BOX' : item.in_pit ? 'PIT' : 'AWAY'",
+                "text": "=item.retired ? 'OUT' : item.dnq ? 'DNQ' : item.servicing ? 'BOX' : item.in_pit ? 'PIT' : 'AWAY'",
                 "color": "=item.retired || item.servicing ? 'on_accent' : 'text_secondary'" }] },
             {
               "type": "text", "width": 104, "margin": [8, 0, 0, 0], "font": "mono", "size": 13, "justify": "right",
-              "text": "=item.retired ? '' : item.finished && spectate.tower_mode != 'last' && spectate.tower_mode != 'best' && spectate.tower_mode != 'tyres' ? 'FINISHED' : switch(spectate.tower_mode, 'interval', item.position == 1 ? 'LEADER' : fmt_gap(item.interval_s), 'gap', item.position == 1 ? 'LEADER' : item.laps_down > 0 ? '+' + item.laps_down + (item.laps_down > 1 ? ' LAPS' : ' LAP') : fmt_gap(item.gap_leader_s), 'last', fmt_time(item.last_lap_s), 'best', fmt_time(item.best_lap_s), 'tyres', (has(item.tyre_age_laps) ? item.tyre_age_laps + ' LAPS' : '') + (has(item.tyre_wear_pct) ? '  ' + fmt(item.tyre_wear_pct) + '%' : ''), '')",
+              "text": "=item.retired || item.dnq ? '' : item.finished && spectate.tower_mode != 'last' && spectate.tower_mode != 'best' && spectate.tower_mode != 'tyres' ? 'FINISHED' : switch(spectate.tower_mode, 'interval', item.position == 1 ? 'LEADER' : fmt_gap(item.interval_s), 'gap', item.position == 1 ? 'LEADER' : item.laps_down > 0 ? '+' + item.laps_down + (item.laps_down > 1 ? ' LAPS' : ' LAP') : fmt_gap(item.gap_leader_s), 'last', fmt_time(item.last_lap_s), 'best', fmt_time(item.best_lap_s), 'tyres', (has(item.tyre_age_laps) ? item.tyre_age_laps + ' LAPS' : '') + (has(item.tyre_wear_pct) ? '  ' + fmt(item.tyre_wear_pct) + '%' : ''), '')",
               "color": "=item.is_local ? 'on_accent' : spectate.tower_mode == 'best' && item.is_session_best ? 'session_best' : spectate.tower_mode == 'last' && item.last_lap_invalid ? 'error' : 'text_secondary'"
             },
             // The compound on the car, in its usual colour.

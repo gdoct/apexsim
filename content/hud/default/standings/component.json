@@ -39,11 +39,11 @@
                 "text": "=has(item.compound) ? item.compound : '·'",
                 "color": "=switch(item.compound, 'S', '#E8453C', 'M', '#F2C230', 'H', 'white', 'I', '#3BB54A', 'W', '#2F7DE1', 'text_muted')" }] },
             // The leader's cell carries a lap time; everyone else's the gap to
-            // them. A gap means nothing once a car has taken the flag, or
-            // once it is out.
+            // them. A gap means nothing once a car has taken the flag, once
+            // it is out, or for a car the qualifying cut-off left out (DNQ).
             { "type": "text", "margin": [10, 0, 0, 0], "font": "mono", "size": 13,
-              "text": "=item.retired ? 'OUT' : item.finished ? 'FINISHED' : item.position == 1 ? (has(item.best_lap_s) ? fmt_time(item.best_lap_s) : 'LEADER') : fmt_gap(item.gap_leader_s)",
-              "color": "=item.is_local ? 'on_accent' : item.retired ? 'error' : 'text_secondary'" }
+              "text": "=item.retired ? 'OUT' : item.dnq ? 'DNQ' : item.finished ? 'FINISHED' : item.position == 1 ? (has(item.best_lap_s) ? fmt_time(item.best_lap_s) : 'LEADER') : fmt_gap(item.gap_leader_s)",
+              "color": "=item.is_local ? 'on_accent' : item.retired ? 'error' : item.dnq ? 'text_muted' : 'text_secondary'" }
           ]
         }]
       },

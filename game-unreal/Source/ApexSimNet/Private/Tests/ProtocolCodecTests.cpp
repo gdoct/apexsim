@@ -246,6 +246,15 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 				TArray<FString>(), 0, FApexWeekendFormat(), &Watch),
 			ApexGolden::C_CreateSessionHotlapWatchStream);
 	}
+	CheckBytes(TEXT("CreateSession with the 107% rule"),
+		ApexProtocol::EncodeCreateSession(
+			TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+			TArray<FString>(), 0, FApexWeekendFormat(), nullptr, ApexQualifyingCutoff::Rule107),
+		ApexGolden::C_CreateSessionQualifyingCutoff);
+	TestEqual(TEXT("no cut-off stays none"), ApexQualifyingCutoff::Clamp(0), 0);
+	TestEqual(TEXT("a cut-off is at least 101%"), ApexQualifyingCutoff::Clamp(100), 101);
+	TestEqual(TEXT("and at most 150%"), ApexQualifyingCutoff::Clamp(300), 150);
 	CheckBytes(TEXT("AdvanceWeekend"), ApexProtocol::EncodeAdvanceWeekend(), ApexGolden::C_AdvanceWeekend);
 	CheckBytes(TEXT("GiveUpSeat"), ApexProtocol::EncodeGiveUpSeat(), ApexGolden::C_GiveUpSeat);
 
@@ -479,6 +488,20 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("Damage"), Message.Damage, EApexDamageLevel::Off);
 			TestEqual(TEXT("NoDamage.CountLocked"), Message.AllowedAssists.CountLocked(), 0);
 			TestEqual(TEXT("NoDamage.AiSkill (mixed when absent)"), Message.AiSkill, ApexAiSkill::Mixed);
+		}
+	}
+
+	{
+		// The 107% rule is named only when the session has one.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined with the 107% rule"), ApexGolden::S_SessionJoinedQualifyingCutoff, Message))
+		{
+			TestEqual(TEXT("QualifyingCutoffPct"), Message.QualifyingCutoffPct, 107);
+		}
+		FApexServerMessage Plain;
+		if (Decode(TEXT("SessionJoined without a cut-off"), ApexGolden::S_SessionJoinedNoDamage, Plain))
+		{
+			TestEqual(TEXT("QualifyingCutoffPct (none when absent)"), Plain.QualifyingCutoffPct, 0);
 		}
 	}
 

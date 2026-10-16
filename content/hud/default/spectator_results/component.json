@@ -42,7 +42,7 @@
               "color": "=item.is_local ? 'on_accent' : item.finished ? 'text' : 'text_disabled'" },
             // The winner's time; the others' gap at the flag, or laps down.
             { "type": "text", "width": 130, "font": "mono", "size": 13, "justify": "right",
-              "text": "=item.retired ? 'DNF' : !item.finished ? 'ON TRACK' : item.position == 1 ? (has(item.race_time_s) ? fmt_time(item.race_time_s) : 'WINNER') : item.finish_laps_down > 0 ? '+' + item.finish_laps_down + (item.finish_laps_down > 1 ? ' LAPS' : ' LAP') : has(item.finish_gap_s) ? fmt_gap(item.finish_gap_s) : 'FINISHED'",
+              "text": "=item.retired ? 'DNF' : item.dnq ? 'DNQ' : !item.finished ? 'ON TRACK' : item.position == 1 ? (has(item.race_time_s) ? fmt_time(item.race_time_s) : 'WINNER') : item.finish_laps_down > 0 ? '+' + item.finish_laps_down + (item.finish_laps_down > 1 ? ' LAPS' : ' LAP') : has(item.finish_gap_s) ? fmt_gap(item.finish_gap_s) : 'FINISHED'",
               "color": "=item.is_local ? 'on_accent' : item.retired ? 'error' : 'text_secondary'" },
             { "type": "text", "width": 110, "font": "mono", "size": 13, "justify": "right",
               "text": "=has(item.best_lap_s) ? fmt_time(item.best_lap_s) : '-'",

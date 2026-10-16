@@ -105,7 +105,8 @@ FString ApexRaceResults::FormatRaceTime(float Seconds)
 		: FString::Printf(TEXT("%d:%02d.%03d"), Minutes, Secs, Millis % 1000);
 }
 
-TArray<ApexRaceResults::FRow> ApexRaceResults::BuildRows(TConstArrayView<FApexCarResult> Results, const FString& LocalPlayerId, bool bLive)
+TArray<ApexRaceResults::FRow> ApexRaceResults::BuildRows(TConstArrayView<FApexCarResult> Results, const FString& LocalPlayerId, bool bLive,
+	const TSet<int32>& NotQualified)
 {
 	// Finishers by the server's classification, then the rest as the
 	// recorder has them (the running order).
@@ -149,7 +150,13 @@ TArray<ApexRaceResults::FRow> ApexRaceResults::BuildRows(TConstArrayView<FApexCa
 		Row.bFinished = Result.FinishPosition > 0;
 		Row.Laps = Result.LapsCompleted();
 		Row.BestLapSeconds = Result.BestLapSeconds;
-		if (!Row.bFinished)
+		const bool bDnq = !Row.bFinished && NotQualified.Contains(Result.CarIndex);
+		if (bDnq)
+		{
+			// The cut-off left it out: it never raced, so it neither retired nor is on track.
+			Row.Time = TEXT("DNQ");
+		}
+		else if (!Row.bFinished)
 		{
 			Row.Time = bLive ? TEXT("ON TRACK") : TEXT("DNF");
 		}
@@ -167,7 +174,7 @@ TArray<ApexRaceResults::FRow> ApexRaceResults::BuildRows(TConstArrayView<FApexCa
 			Row.Time = FString::Printf(TEXT("+%.3f"), FMath::Max(0.0f, RaceTime(Result) - (Winner ? RaceTime(*Winner) : 0.0f)));
 		}
 		// The ones worth a camera: still racing. Our own row puts the panorama back.
-		Row.bWatchable = Row.bYou || (bLive && !Row.bFinished);
+		Row.bWatchable = Row.bYou || (bLive && !Row.bFinished && !bDnq);
 	}
 	return Rows;
 }
@@ -393,7 +400,15 @@ void UApexRaceResultsWidget::Refresh()
 		return;
 	}
 	const bool bLive = Recorder->IsRecording();
-	const TArray<ApexRaceResults::FRow> Rows = ApexRaceResults::BuildRows(Recorder->GetResults(), Net->GetPlayerId(), bLive);
+	TSet<int32> NotQualified;
+	for (const FApexRosterEntry& Entry : Net->GetSessionRoster().Entries)
+	{
+		if (Entry.bDnq)
+		{
+			NotQualified.Add(Entry.CarIndex);
+		}
+	}
+	const TArray<ApexRaceResults::FRow> Rows = ApexRaceResults::BuildRows(Recorder->GetResults(), Net->GetPlayerId(), bLive, NotQualified);
 
 	int32 Running = 0;
 	const ApexRaceResults::FRow* You = nullptr;

@@ -91,6 +91,8 @@ namespace
 		bool bIsLocal = false;
 		/** The driver lost their connection; the server drives the car. */
 		bool bAway = false;
+		/** The qualifying cut-off left the car out of the race. */
+		bool bDnq = false;
 	};
 
 	/** Milliseconds as seconds, null when the server has no time. */
@@ -285,7 +287,7 @@ const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
 			TEXT("finished"), TEXT("finish_position"), TEXT("lap"), TEXT("gap_leader_s"), TEXT("gap_s"), TEXT("interval_s"),
 			TEXT("laps_down"), TEXT("best_lap_s"), TEXT("last_lap_s"), TEXT("last_lap_invalid"), TEXT("is_session_best"),
 			TEXT("speed_kph"), TEXT("in_pit"), TEXT("on_track"), TEXT("servicing"), TEXT("retired"), TEXT("car_name"),
-			TEXT("compound"), TEXT("tyre_age_laps"), TEXT("tyre_wear_pct"), TEXT("pit_stops"), TEXT("away"),
+			TEXT("compound"), TEXT("tyre_age_laps"), TEXT("tyre_wear_pct"), TEXT("pit_stops"), TEXT("away"), TEXT("dnq"),
 			TEXT("race_time_s"), TEXT("finish_gap_s"), TEXT("finish_laps_down")}},
 		{TEXT("sectors"), {TEXT("number"), TEXT("time_s"), TEXT("best_s"), TEXT("session_best_s"), TEXT("state"),
 			TEXT("is_current")}},
@@ -658,6 +660,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		{
 			Entry.Name = Row->PlayerName;
 			Entry.bAway = Row->bAway;
+			Entry.bDnq = Row->bDnq;
 		}
 		if (Entry.Name.IsEmpty())
 		{
@@ -775,6 +778,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Row.Add(TEXT("servicing"), FApexHudValue::Of(Car.bPitServicing));
 		Row.Add(TEXT("retired"), FApexHudValue::Of(HudRetired(Car)));
 		Row.Add(TEXT("away"), FApexHudValue::Of(Entry.bAway));
+		Row.Add(TEXT("dnq"), FApexHudValue::Of(Entry.bDnq));
 		const FString* Model = In.CarNames ? In.CarNames->Find(Car.CarIndex) : nullptr;
 		Row.Add(TEXT("car_name"), Model && !Model->IsEmpty() ? FApexHudValue::Of(*Model) : FApexHudValue());
 		// By the car's own list: a car that files "dry, wet" has its wet at 1.

@@ -219,6 +219,9 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> QualifyingSection;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> QualifyingInfoText;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> QualifyingLengthButtons;
+	/** The 107% rule (None, 107%), beside qualifying's length and in the weekend's section. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> QualifyingCutoffButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendCutoffButtons;
 	/** Shown for a race weekend only: practice, the knockout's rounds, each round's length. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendSection;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeekendInfoText;

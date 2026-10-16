@@ -204,6 +204,20 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// A car the qualifying cut-off left out of the race.
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("SessionRoster with a non-qualifier decodes (%s)"), *Error),
+				ApexProtocol::DecodeServerMessage(ApexUdpGolden::S_SessionRosterDnq, Message, Error))
+			&& TestEqual(TEXT("two entries"), Message.Roster.Entries.Num(), 2))
+		{
+			TestFalse(TEXT("pole qualified"), Message.Roster.Entries[0].bDnq);
+			TestTrue(TEXT("entry 1 did not"), Message.Roster.Entries[1].bDnq);
+			TestEqual(TEXT("and has no slot"), Message.Roster.Entries[1].GridSlot, 0);
+		}
+	}
+
 	// Ready on the race's grid.
 	{
 		FApexServerMessage Message;

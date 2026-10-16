@@ -77,6 +77,12 @@ bool FApexRaceResultsWatchableTest::RunTest(const FString& Parameters)
 	const TArray<ApexRaceResults::FRow> Over = ApexRaceResults::BuildRows(Results, TEXT("player-1"), /*bLive*/ false);
 	TestEqual(TEXT("out of time: did not finish"), Over[4].Time, FString(TEXT("DNF")));
 	TestFalse(TEXT("and is nothing to watch"), Over[4].bWatchable);
+
+	// A car the qualifying cut-off left out never raced: DNQ, live or over.
+	const TArray<ApexRaceResults::FRow> Cut = ApexRaceResults::BuildRows(Results, TEXT("player-1"), /*bLive*/ true, TSet<int32>{ 4 });
+	TestEqual(TEXT("a non-qualifier is DNQ, not on track"), Cut[4].Time, FString(TEXT("DNQ")));
+	TestFalse(TEXT("and is nothing to watch"), Cut[4].bWatchable);
+	TestEqual(TEXT("a finisher is untouched"), Cut[1].Time, FString(TEXT("+1.500")));
 	return true;
 }
 

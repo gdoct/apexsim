@@ -192,7 +192,16 @@ has a lane), so the race neither waits for it nor meets it. A plain
 session measures it on its own qualifying, a weekend on Q1 (which every
 car ran; a late entry ran none, so is out). Without qualifying, or with no
 time set by anyone, nobody is out. Echoed in
-`SessionJoined.QualifyingCutoffPct`; not listed in the lobby.
+`SessionJoined.QualifyingCutoffPct`; not listed in the lobby. A parked
+non-qualifier is marked `RosterEntry.Dnq` (`GameSession::not_qualified`,
+left off the wire when false), so a client names it DNQ rather than
+retired: the HUD's `item.dnq`, the standings and tower's DNQ, the results
+screen's DNQ (`ApexRaceResults::BuildRows`). Client: a Cut-off chip row
+(None, 107%) under qualifying's length and in the Race weekend section
+(`bCreateQualifyingCutoff`, kept in the profile;
+`QualifyingCutoffToSend` sends 107 only for a qualifying session or a
+weekend), "107% RULE" in the create screen's summary,
+`GetSessionQualifyingCutoffPct`.
 
 ## The race's grid
 

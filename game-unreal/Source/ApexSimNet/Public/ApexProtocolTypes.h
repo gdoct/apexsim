@@ -279,6 +279,25 @@ struct APEXSIMNET_API FApexWeekendFormat
 	}
 };
 
+/**
+ * The qualifying cut-off (data.rs `clamp_qualifying_cutoff`): a car whose
+ * best qualifying lap is slower than this share of pole, or that set none,
+ * does not start the race. 0 is none; the create screen offers 107.
+ */
+namespace ApexQualifyingCutoff
+{
+	inline constexpr int32 None = 0;
+	inline constexpr int32 Rule107 = 107;
+	inline constexpr int32 MinPct = 101;
+	inline constexpr int32 MaxPct = 150;
+
+	/** As the server keeps it: 0 stays none, anything else in 101..150. */
+	inline int32 Clamp(int32 Pct)
+	{
+		return Pct <= 0 ? None : FMath::Clamp(Pct, MinPct, MaxPct);
+	}
+}
+
 /** Mirrors the weekend phase byte of `WeekendState` (network.rs). */
 UENUM(BlueprintType)
 enum class EApexWeekendPhase : uint8
@@ -1404,6 +1423,14 @@ struct APEXSIMNET_API FApexRosterEntry
 	/** On the race's grid (EApexGameMode::Grid): the driver said they are ready. False everywhere else. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	bool bReady = false;
+
+	/**
+	 * Did not qualify: the session's qualifying cut-off (the 107% rule) left
+	 * the car out of the race, parked and towed. Not a retirement. False
+	 * from an older server.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bDnq = false;
 };
 
 /** `SessionRosterData` (network.rs:470) — PascalCase keys, TCP. */
@@ -2921,6 +2948,8 @@ struct APEXSIMNET_API FApexServerMessage
 	int32 QualifyingSeconds = 0;
 	/** SessionJoined::Weekend; no rounds when the session is no race weekend. */
 	FApexWeekendFormat Weekend;
+	/** SessionJoined::QualifyingCutoffPct, the 107% rule (ApexQualifyingCutoff); 0 for none. */
+	int32 QualifyingCutoffPct = 0;
 	/** WeekendState. */
 	FApexWeekendState WeekendState;
 	FApexPitBox PitBox;

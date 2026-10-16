@@ -44,12 +44,6 @@ None open.
 Rules the server takes on `CreateSession` that no screen offers yet
 ([server/sessions.md](server/sessions.md#session-rules-set-on-create)).
 
-- The qualifying cut-off: a 107% toggle beside the qualifying length (the
-  codec sends `qualifying_cutoff_pct` and reads `QualifyingCutoffPct`;
-  golden `C_CreateSessionQualifyingCutoff` / `S_SessionJoinedQualifyingCutoff`
-  are in `ApexGoldenBlobs.h`), and a non-qualifier shown as DNQ rather than
-  retired, which needs a mark on the wire (the server parks it as a towed,
-  undrivable car).
 - A race weekend's days: a sky picker for practice and for qualifying in
   the Race weekend section (`WeekendFormat.practice_conditions` /
   `qualifying_conditions`; golden `C_CreateSessionWeekendDays` is in

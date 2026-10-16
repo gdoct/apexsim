@@ -91,6 +91,10 @@ public:
 	UPROPERTY()
 	EApexDamageLevel Damage = EApexDamageLevel::Full;
 
+	/** The 107% rule on a session this player creates with qualifying. */
+	UPROPERTY()
+	bool bQualifyingCutoff = false;
+
 	/** The AI field's level in a session this player creates (ApexAiSkill; -1 mixed). */
 	UPROPERTY()
 	int32 AiSkill = -1;

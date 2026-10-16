@@ -337,12 +337,14 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 		if (Flow && Flow->CreateStartingMode == EApexGameMode::Qualification)
 		{
 			AddAll(QualifyingLengthButtons);
+			AddAll(QualifyingCutoffButtons);
 		}
 		if (Flow && Flow->IsCreatingWeekend())
 		{
 			AddAll(WeekendPracticeButtons);
 			AddAll(WeekendRoundsButtons);
 			AddAll(WeekendRoundLengthButtons);
+			AddAll(WeekendCutoffButtons);
 		}
 		Out.Add(FieldMinus);
 		Out.Add(FieldPlus);
@@ -1029,6 +1031,8 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 			Chips.Add(Minutes > 0 ? ApexRaceLength::Describe(Minutes * 60) : FString(TEXT("Open")));
 		}
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Session"), Chips, QualifyingLengthButtons));
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Cut-off"), { TEXT("None"), TEXT("107%") }, QualifyingCutoffButtons),
+			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		QualifyingSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
@@ -1053,6 +1057,8 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 			RoundLengths.Add(ApexRaceLength::Describe(Minutes * 60));
 		}
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Each round"), RoundLengths, WeekendRoundLengthButtons));
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Cut-off (Q1)"), { TEXT("None"), TEXT("107%") }, WeekendCutoffButtons),
+			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		WeekendSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
@@ -1845,6 +1851,16 @@ void UApexSessionCreateWidget::RefreshSettings()
 	{
 		WeekendRoundLengthButtons[Index]->SetSelected(WeekendRoundChoices[Index] == Flow->CreateWeekendRoundMinutes);
 	}
+	for (TArray<TObjectPtr<UApexButtonWidget>>* Cutoff : { &QualifyingCutoffButtons, &WeekendCutoffButtons })
+	{
+		for (int32 Index = 0; Index < Cutoff->Num(); ++Index)
+		{
+			if ((*Cutoff)[Index])
+			{
+				(*Cutoff)[Index]->SetSelected((Index == 1) == Flow->bCreateQualifyingCutoff);
+			}
+		}
+	}
 	if (WeekendInfoText)
 	{
 		WeekendInfoText->SetText(FText::FromString(Flow->DescribeWeekend().ToUpper()));
@@ -1938,9 +1954,10 @@ void UApexSessionCreateWidget::RefreshSettings()
 	}
 	if (QualifyingInfoText)
 	{
-		QualifyingInfoText->SetText(FText::FromString(Flow->EffectiveQualifyingSeconds() > 0
-			? TEXT("THEN THE FLAG · LAPS UNDER WAY COUNT")
-			: TEXT("NO CLOCK · RUNS UNTIL THE HOST STARTS THE RACE")));
+		const bool bTimedQualifying = Flow->EffectiveQualifyingSeconds() > 0;
+		QualifyingInfoText->SetText(FText::FromString(Flow->bCreateQualifyingCutoff
+			? (bTimedQualifying ? TEXT("THEN THE FLAG · 107% OF POLE TO START") : TEXT("NO CLOCK · 107% OF POLE TO START"))
+			: (bTimedQualifying ? TEXT("THEN THE FLAG · LAPS UNDER WAY COUNT") : TEXT("NO CLOCK · RUNS UNTIL THE HOST STARTS THE RACE"))));
 	}
 
 	// A hotlap has no field: every driver goes out from their own garage.
@@ -2490,6 +2507,10 @@ void UApexSessionCreateWidget::RefreshFooter()
 			? FString::Printf(TEXT("%s ASSISTS"), *FString(ApexCreateSession::PresetName(static_cast<ApexCreateSession::EAssistPreset>(Preset))).ToUpper())
 			: FString::Printf(TEXT("%d/%d ASSISTS"), FApexAllowedAssists::Count - Flow->CreateAllowedAssists.CountLocked(),
 				FApexAllowedAssists::Count));
+		if (Flow->QualifyingCutoffToSend() != ApexQualifyingCutoff::None)
+		{
+			Parts.Add(TEXT("107% RULE"));
+		}
 		Parts.Add(DamageOptions[FMath::Clamp(static_cast<int32>(Flow->CreateDamage), 0, static_cast<int32>(UE_ARRAY_COUNT(DamageOptions)) - 1)].Summary);
 		if (!CurrentSetupLabel.IsEmpty())
 		{
@@ -3079,7 +3100,8 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Flow->EffectiveRaceSeconds(),
 			Flow->IsCreatingWeekend() ? TArray<FString>() : Flow->GridOrderToSend(MaxPlayersCeiling),
 			Flow->EffectiveQualifyingSeconds(),
-			Flow->WeekendToSend());
+			Flow->WeekendToSend(),
+			Flow->QualifyingCutoffToSend());
 		return;
 	}
 
@@ -3144,6 +3166,13 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (const int32 RoundLength = ApexNav::IndexOf(WeekendRoundLengthButtons, Button); RoundLength != INDEX_NONE)
 	{
 		Flow->CreateWeekendRoundMinutes = WeekendRoundChoices[RoundLength];
+		Changed();
+		return;
+	}
+	if (const int32 Cutoff = FMath::Max(ApexNav::IndexOf(QualifyingCutoffButtons, Button), ApexNav::IndexOf(WeekendCutoffButtons, Button));
+		Cutoff != INDEX_NONE)
+	{
+		Flow->bCreateQualifyingCutoff = Cutoff == 1;
 		Changed();
 		return;
 	}

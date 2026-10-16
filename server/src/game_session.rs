@@ -348,6 +348,9 @@ pub struct GameSession {
     /// their car meanwhile (`away_input`), or parks it in its garage in a
     /// hotlap or qualifying session.
     away: std::collections::BTreeSet<PlayerId>,
+    /// The cars the qualifying cut-off left out of the race when it lined
+    /// up (`park_non_qualifiers`): marked `RosterEntry::dnq`.
+    not_qualified: std::collections::BTreeSet<PlayerId>,
     /// A finished human's steering aid, held while the server drives their
     /// car on the cool-down lap (the AI steers the rack directly) and given
     /// back when the grid is lined up again. Looked up by key only.
@@ -737,6 +740,7 @@ impl GameSession {
             hosted: false,
             ai_excluded_cars: std::collections::BTreeSet::new(),
             away: std::collections::BTreeSet::new(),
+            not_qualified: std::collections::BTreeSet::new(),
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
             liveries: HashMap::new(),
@@ -806,6 +810,7 @@ impl GameSession {
             hosted: false,
             ai_excluded_cars: std::collections::BTreeSet::new(),
             away: std::collections::BTreeSet::new(),
+            not_qualified: std::collections::BTreeSet::new(),
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
             liveries: HashMap::new(),
@@ -3534,6 +3539,10 @@ impl GameSession {
     /// towed there is, so the race neither waits for it nor meets it.
     fn park_non_qualifiers(&mut self) {
         let out = self.non_qualifiers();
+        if out != self.not_qualified {
+            self.not_qualified = out.clone();
+            self.roster_dirty = true;
+        }
         let lane = self.track_config.pit_lane.as_ref();
         for id in out {
             let Some(state) = self.session.participants.get_mut(&id) else {
@@ -5172,6 +5181,7 @@ impl GameSession {
                     away: self.away.contains(player_id),
                     grid_slot: slots.get(player_id).copied().unwrap_or(state.grid_position),
                     ready: self.is_ready(player_id),
+                    dnq: self.not_qualified.contains(player_id),
                 }
             })
             .collect();
@@ -7134,6 +7144,16 @@ mod tests {
         let parked = &game_session.session.participants[&c];
         assert!(!parked.damage.is_drivable && parked.towed);
         assert!(game_session.session.participants[&a].damage.is_drivable);
+        // The roster marks it, so a client shows DNQ rather than a retirement.
+        assert!(game_session.take_roster_dirty());
+        let roster = game_session.build_roster(&HashMap::new());
+        let dnq: Vec<PlayerId> = roster
+            .entries
+            .iter()
+            .filter(|e| e.dnq)
+            .map(|e| e.player_id)
+            .collect();
+        assert_eq!(dnq, vec![c]);
 
         let (mut game_session, [a, b, c]) = three_drivers();
         game_session.set_game_mode(GameMode::Qualification);

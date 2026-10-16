@@ -52,7 +52,8 @@ namespace ApexRaceResults
 	 * running: a car without a flag is then on track and can be watched;
 	 * after the end it did not finish.
 	 */
-	APEXSIM_API TArray<FRow> BuildRows(TConstArrayView<FApexCarResult> Results, const FString& LocalPlayerId, bool bLive);
+	APEXSIM_API TArray<FRow> BuildRows(TConstArrayView<FApexCarResult> Results, const FString& LocalPlayerId, bool bLive,
+		const TSet<int32>& NotQualified = TSet<int32>());
 
 	/** 1:23.456 or 1:02:03.456. */
 	APEXSIM_API FString FormatRaceTime(float Seconds);

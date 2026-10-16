@@ -1617,6 +1617,12 @@ pub struct RosterEntry {
     /// outside the grid.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ready: bool,
+    /// Did not qualify: the qualifying cut-off (`qualifying_cutoff_pct`)
+    /// left it out of the race, parked and towed
+    /// (`GameSession::park_non_qualifiers`), not retired. Left off the wire
+    /// when false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dnq: bool,
 }
 
 fn is_zero_u8(value: &u8) -> bool {
@@ -4850,6 +4856,7 @@ mod tests {
                 away,
                 grid_slot,
                 ready: false,
+                dnq: false,
             };
         // Present and on the grid: no away key; no slot: no grid key.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false, false, 0)).unwrap();
@@ -4878,6 +4885,36 @@ mod tests {
                 assert_eq!(data.entries[0].grid_slot, 2);
                 assert!(!data.entries[1].away);
                 assert_eq!(data.entries[1].grid_slot, 1);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+
+        // A car the cut-off left out of the race is marked, and only it
+        // (`S_SessionRosterDnq`): the pole sitter keeps the bytes above.
+        let roster = ServerMessage::SessionRoster(SessionRosterData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            entries: vec![
+                entry(0, "Player", false, false, 1),
+                RosterEntry {
+                    dnq: true,
+                    ..entry(1, "Luna Swift", true, false, 0)
+                },
+            ],
+        });
+        let bytes = rmp_serde::to_vec_named(&roster).unwrap();
+        println!(
+            "S_SessionRosterDnq: {}",
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        assert_eq!(String::from_utf8_lossy(&bytes).matches("Dnq").count(), 1);
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::SessionRoster(data) => {
+                assert!(!data.entries[0].dnq);
+                assert!(data.entries[1].dnq);
             }
             other => panic!("Wrong message type: {other:?}"),
         }
@@ -4936,6 +4973,7 @@ mod tests {
             away: false,
             grid_slot: car_index + 1,
             ready,
+            dnq: false,
         };
         // Not ready: no key, so a roster off the grid keeps its bytes.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false)).unwrap();

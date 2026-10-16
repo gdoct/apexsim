@@ -55,7 +55,8 @@ namespace ApexProtocol
 		const TArray<FString>& GridOrder = TArray<FString>(),
 		int32 QualifyingSeconds = 0,
 		const FApexWeekendFormat& Weekend = FApexWeekendFormat(),
-		const FHotlapWatchOptions* Watch = nullptr);
+		const FHotlapWatchOptions* Watch = nullptr,
+		int32 QualifyingCutoffPct = ApexQualifyingCutoff::None);
 	/** The host moves a race weekend on to its next session (no fields). */
 	APEXSIMNET_API TArray<uint8> EncodeAdvanceWeekend();
 	/** `GiveUpSeat`: turn down the rejoin offer; the held seat's car leaves its session. */
