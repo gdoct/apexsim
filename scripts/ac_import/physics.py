@@ -88,6 +88,18 @@ def ground_set_for(key: str, contact: int) -> str:
     return "grass"
 
 
+def road_mesh_key(key: str, contact: int) -> str:
+    """The key a surface is written into the road mesh under. The server
+    reads a trap's ground from it (`OffGround::from_surface_key`): AC's own
+    `1SAND` or `GRAVEL` would drive as grass, so off-road gravel and sand
+    become `off_gravel` / `off_sand`; every other surface keeps AC's key."""
+    if contact == CONTACT_OFF:
+        ground = ground_set_for(key, contact)
+        if ground in ("gravel", "sand"):
+            return f"off_{ground}"
+    return key
+
+
 def wall_kind_for(mesh_name: str, material_name: str) -> int:
     text = (mesh_name + " " + material_name).upper()
     if any(h in text for h in _TIRE_HINTS):

@@ -146,12 +146,6 @@ the same `ApexProps` code.
   hold-still debug event) would make those checks a run. The stand-in, an
   AI, also pits for any leak and at a 0.6 flat spot, wear 70 or damage 25
   (`pit::plan_stop`), so the shot has to come within that lap.
-- The AC importer writes AC's own surface keys (`1SAND`, `GRAVEL`) into the
-  road mesh, so an imported track's traps drive as grass ground (with the
-  importer's friction, but grass's rolling drag): the key should become
-  `off_gravel` / `off_sand` (`scripts/ac_import/physics.py`, where
-  `ground_set_for` already tells them apart), then re-import.
-
 - Imported pit lanes (`ac_import/pit.py`): the AI pits on all seven imports
   tried (Zandvoort, Silverstone, Spa, Barcelona, Red Bull Ring, Imola, Poznan:
   `PIT_CUSTOM=1 ... ai_pit_survey`), but the scripted human in

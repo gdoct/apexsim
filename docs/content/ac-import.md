@@ -124,7 +124,11 @@ replaces an earlier import); with no terminal the refusal stands.
   run-off and below it off, else road; `IS_VALID_TRACK` is the track
   limits. AC's absolute friction becomes the server's multiplier
   `(f / road_f) / CLASS_GRIP[class]`, so the sim ends at AC's ratio after
-  its own per-class grip. Walls are the steep faces of the WALL meshes as
+  its own per-class grip. A surface keeps AC's KEY in the road mesh,
+  except an off one that `ground_set_for` reads as gravel or sand, which
+  is written `off_gravel` / `off_sand` (`road_mesh_key`) so the server's
+  trap ground bogs a car down (`OffGround::from_surface_key`); AC's own
+  `1SAND` drives as grass. Walls are the steep faces of the WALL meshes as
   segments, kind from the name (tyres, concrete, else armco). The ground
   sidecar is the highest physics surface on a 4 m grid, holes filled from
   neighbours (clamped at +-320 m from the start line).

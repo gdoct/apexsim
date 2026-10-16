@@ -402,6 +402,13 @@ class ReaderTests(unittest.TestCase):
         self.assertEqual(physics.contact_for(surfaces["OUT"]), 2)
         self.assertEqual(physics.contact_for(surfaces["PITS"]), 4)
         self.assertEqual(physics.contact_for(surfaces["ROAD"]), CONTACT_ROAD)
+        # Traps are written into the road mesh under the server's own keys,
+        # so they bog a car down; grass and every other surface keep AC's.
+        self.assertEqual(physics.road_mesh_key("1SAND", CONTACT_OFF), "off_sand")
+        self.assertEqual(physics.road_mesh_key("GRAVEL", CONTACT_OFF), "off_gravel")
+        self.assertEqual(physics.road_mesh_key("GRVL_2", CONTACT_OFF), "off_gravel")
+        self.assertEqual(physics.road_mesh_key("GRASS", CONTACT_OFF), "GRASS")
+        self.assertEqual(physics.road_mesh_key("TRM-ZNDV", CONTACT_ROAD), "TRM-ZNDV")
 
 
 class SpineTests(unittest.TestCase):

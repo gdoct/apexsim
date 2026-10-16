@@ -446,8 +446,8 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
     _write_text(custom / f"{stem}.ats", json.dumps(ats, indent=2) + "\n")
     sidecars.write_msgpack(custom / f"{stem}.road.msgpack", sidecars.road_mesh_payload(
         world.vertices, world.triangles, world.triangle_surface,
-        [{"key": s.key, "contact": s.contact, "friction": s.friction, "valid_track": s.valid_track,
-          "pit_lane": s.pit_lane} for s in world.surfaces],
+        [{"key": physics.road_mesh_key(s.key, s.contact), "contact": s.contact, "friction": s.friction,
+          "valid_track": s.valid_track, "pit_lane": s.pit_lane} for s in world.surfaces],
         f"ac-import {layout.label}"))
     pit_path = custom / f"{stem}.pit.msgpack"
     if pit_result and pit_result.payload:
