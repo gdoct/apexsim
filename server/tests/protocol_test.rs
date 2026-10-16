@@ -341,20 +341,30 @@ async fn test_session_ticks_at_the_configured_rate() {
     };
     let is_telemetry = |m: &ServerMessage| matches!(m, ServerMessage::TelemetryCompact(_));
 
-    let first_tick = next_tick(client.recv_until(is_telemetry).await);
-    let started = std::time::Instant::now();
-    let mut last_tick = first_tick;
-    while started.elapsed() < Duration::from_secs(3) {
-        last_tick = next_tick(client.recv_until(is_telemetry).await);
-    }
-    let rate = (last_tick - first_tick) as f64 / started.elapsed().as_secs_f64();
-
     let target = apexsim_server::config::ServerConfig::default()
         .server
         .tick_rate_hz as f64;
+    let in_band = |rate: f64| rate > 0.8 * target && rate < 1.1 * target;
+    // Up to three 2 s windows, passing on the first in the band: the old
+    // coarse timer put every window at a quarter of the rate, while a
+    // loaded machine (the AI surveys beside a full `cargo test`) starves
+    // one now and then.
+    let mut rates = Vec::new();
+    for _ in 0..3 {
+        let first_tick = next_tick(client.recv_until(is_telemetry).await);
+        let started = std::time::Instant::now();
+        let mut last_tick = first_tick;
+        while started.elapsed() < Duration::from_secs(2) {
+            last_tick = next_tick(client.recv_until(is_telemetry).await);
+        }
+        rates.push((last_tick - first_tick) as f64 / started.elapsed().as_secs_f64());
+        if in_band(*rates.last().unwrap()) {
+            break;
+        }
+    }
     assert!(
-        rate > 0.8 * target && rate < 1.1 * target,
-        "the session ticked at {rate:.0} Hz of a configured {target} Hz"
+        rates.iter().any(|&r| in_band(r)),
+        "the session ticked at {rates:.0?} Hz of a configured {target} Hz"
     );
 
     server.shutdown().await;

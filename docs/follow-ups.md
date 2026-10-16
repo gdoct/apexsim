@@ -334,10 +334,5 @@ the same files.
   when a server has none rendered or all of them stale (a fresh clone
   before `initialize_content.ps1`, or right after a car.toml or track
   edit), and `HotlapWatch` shares its create path.
-- Tests: `timer_resolution::tests::a_420hz_interval_keeps_its_rate` and
-  `protocol_test::test_session_ticks_at_the_configured_rate` time the wall
-  clock and fail now and then in a full `cargo test` while the machine is
-  loaded (surveys running); alone they pass. Widen their tolerance or mark
-  them as load-sensitive.
 
 **Check:** server and client build and tests.

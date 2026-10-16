@@ -147,18 +147,27 @@ mod tests {
         let _timer = HighResolutionTimer::acquire();
         let mut ticker = interval(Duration::from_secs_f64(1.0 / 420.0));
         ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
-        let start = Instant::now();
-        let mut ticks = 0u32;
-        while start.elapsed() < Duration::from_secs(1) {
-            ticker.tick().await;
-            ticks += 1;
-        }
-        let rate = ticks as f64 / start.elapsed().as_secs_f64();
-        assert!(
+        // The best of three one-second windows: a coarse timer slows every
+        // window to a quarter of the rate, while a full `cargo test` beside
+        // the AI surveys starves one now and then.
+        let mut best = 0.0f64;
+        for _ in 0..3 {
+            let start = Instant::now();
+            let mut ticks = 0u32;
+            while start.elapsed() < Duration::from_secs(1) {
+                ticker.tick().await;
+                ticks += 1;
+            }
+            best = best.max(ticks as f64 / start.elapsed().as_secs_f64());
             // 0.75 (not the loop's own 0.9 warning): this runs beside every
             // other unit test and measured 321 Hz of 400 under that load once.
-            rate > 0.75 * 420.0,
-            "interval ticked at {rate:.0} Hz of 420"
+            if best > 0.75 * 420.0 {
+                break;
+            }
+        }
+        assert!(
+            best > 0.75 * 420.0,
+            "interval ticked at {best:.0} Hz of 420 at best"
         );
     }
 }
