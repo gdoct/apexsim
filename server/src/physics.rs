@@ -1174,11 +1174,17 @@ pub fn update_car_3d(
     // and the road took out; the grip reads it next tick.
     // Where on its width each tyre works: its lean toward the car (the inner
     // shoulder on the road), the lateral force rolling it onto the outer
-    // shoulder (toward the car is -y on a left wheel, +y on a right), the
-    // downforce the wake took from its axle, and the water under it.
+    // shoulder (toward the car is -y on a left wheel, +y on a right), its
+    // toe against its axle's mean steer (the setup's toe and the Ackermann
+    // spread: toe-in, a left wheel turned right of the mean, scrubs the
+    // outer shoulder), the downforce the wake took from its axle, and the
+    // water under it.
+    let wheel_steer = [steer_left, steer_right, steer_rear_left, steer_rear_right];
     let tyre_work = |i: usize, w: &WheelForces, load_n: f32| {
         let left = i.is_multiple_of(2);
         let sign = if left { -1.0 } else { 1.0 };
+        let axle = i - i % 2;
+        let axle_steer = 0.5 * (wheel_steer[axle] + wheel_steer[axle + 1]);
         let wake_loss = if i < 2 {
             1.0 - state.wake.downforce_front
         } else {
@@ -1194,6 +1200,7 @@ pub fn update_car_3d(
             air_mps: cooling_air_mps,
             inner_lean_rad: sign * camber[i].lean_left_rad,
             outer_push: (sign * w.fy / load_n.max(1.0)).clamp(-3.0, 3.0),
+            toe_in_rad: sign * (wheel_steer[i] - axle_steer),
             wake_loss: wake_loss.clamp(0.0, 1.0),
             water: contacts[i].water,
             marbles: contacts[i].marbles,

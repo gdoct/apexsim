@@ -166,6 +166,17 @@ pub const DIRTY_AIR_SLIDE_HEAT: f32 = 0.3;
 pub const ZONE_CAMBER_PER_RAD: f32 = 3.0;
 pub const ZONE_FORCE_SHARE: f32 = 0.25;
 pub const ZONE_PRESSURE_SHARE: f32 = 1.5;
+/// The shift toward the outer shoulder per radian of toe-in the wheel runs
+/// at (the setup's toe and the steering's Ackermann spread; toe-out the
+/// inner): the patch scrubbed sideways at its toe angle drags its leading
+/// shoulder over the road, which a toe-in pair's outer edges show on a
+/// straight (0.3° of toe-in is 3% of the heat moved).
+pub const ZONE_TOE_PER_RAD: f32 = 6.0;
+/// The share the middle gains per g of longitudinal force over the load
+/// (braking or driving): the carcass bowed along the patch puts the belt's
+/// stiff centre band on the road and the shoulders roll off it, so a
+/// braking zone heats the middle (1.5 g of braking crowns it 12% more).
+pub const ZONE_LONGITUDINAL_SHARE: f32 = 0.08;
 const ZONE_MIN_SHARE: f32 = 0.05;
 
 /// What a compound is for: a slick, or a treaded tyre for the rain.
@@ -485,6 +496,9 @@ pub struct TyreWork {
     /// The lateral force toward the car over the load (g): the carcass
     /// rolling the patch onto the outer shoulder.
     pub outer_push: f32,
+    /// The wheel's toe-in, rad (toe-out negative): its static toe and the
+    /// steering's Ackermann spread, against the axle's mean steer.
+    pub toe_in_rad: f32,
     /// The downforce the wake of a car ahead took from this axle, 0..1.
     pub wake_loss: f32,
     /// Water on the road under this tyre (`TrackSurface::water`, locally).
@@ -519,17 +533,39 @@ impl TyreWork {
     }
 }
 
+/// What decides where a patch's heat lands across its tread
+/// ([`zone_shares`]); all zero is an upright, square tyre at its set
+/// pressure rolling free.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct PatchLanding {
+    /// How far the wheel's top leans toward the car, rad.
+    pub inner_lean_rad: f32,
+    /// Lateral force toward the car over the load, g.
+    pub outer_push: f32,
+    /// Toe-in the wheel runs at, rad (toe-out negative).
+    pub toe_in_rad: f32,
+    /// Longitudinal force over the load, g (either sign).
+    pub longitudinal_g: f32,
+    /// Pressure over the set pressure, as a share of it.
+    pub pressure_error: f32,
+}
+
 /// Where the patch's heat lands across the tread, `[inner, middle, outer]`
 /// shares summing to 1: evenly for an upright, square tyre at its set
-/// pressure; toward the inner shoulder with the wheel's top leaning in
-/// (`inner_lean_rad`), toward the outer with the carcass pushed onto it
-/// (`outer_push`, g of lateral force toward the car), onto the middle
-/// with the tyre crowned by over-inflation (`pressure_error`, a share of
-/// the set pressure).
-pub fn zone_shares(inner_lean_rad: f32, outer_push: f32, pressure_error: f32) -> [f32; 3] {
-    let shift =
-        (ZONE_CAMBER_PER_RAD * inner_lean_rad - ZONE_FORCE_SHARE * outer_push).clamp(-0.25, 0.25);
-    let middle = (1.0 / 3.0 + ZONE_PRESSURE_SHARE * pressure_error).clamp(0.15, 0.6);
+/// pressure rolling free; toward the inner shoulder with the wheel's top
+/// leaning in, toward the outer with the carcass pushed onto it (g of
+/// lateral force toward the car) or with the wheel toed in (toe-out the
+/// inner), onto the middle with the carcass bowed by a braking or driving
+/// force or crowned by over-inflation.
+pub fn zone_shares(p: PatchLanding) -> [f32; 3] {
+    let shift = (ZONE_CAMBER_PER_RAD * p.inner_lean_rad
+        - ZONE_FORCE_SHARE * p.outer_push
+        - ZONE_TOE_PER_RAD * p.toe_in_rad)
+        .clamp(-0.25, 0.25);
+    let middle = (1.0 / 3.0
+        + ZONE_PRESSURE_SHARE * p.pressure_error
+        + ZONE_LONGITUDINAL_SHARE * p.longitudinal_g.abs().min(3.0))
+    .clamp(0.15, 0.6);
     let rest = 1.0 - middle;
     let inner = (rest / 2.0 + shift).max(ZONE_MIN_SHARE);
     let outer = (rest / 2.0 - shift).max(ZONE_MIN_SHARE);
@@ -576,6 +612,29 @@ pub const PICKUP_GRIP_LOSS: f32 = 0.06;
 /// Seconds a tread run a whole window over its top takes to blister through.
 const BLISTER_SECONDS: f32 = 60.0;
 
+/// Grip the temperature leaves a tyre across its tread: each zone's
+/// [`thermal_grip_factor`] against the core, averaged, so a spread inside
+/// the window costs nothing and one that puts a shoulder outside it costs
+/// that shoulder's grip (a tyre whose mean is in the window but whose
+/// inner edge is cooked grips less than the mean says). An even tread is
+/// the one-node factor exactly; a tyre from before the zones reads its
+/// mean.
+pub fn tread_grip_factor(tire: &TireConfig, compound: &Compound, tyre: &TireData) -> f32 {
+    let z = tyre.tread_c;
+    if z == [0.0; 3] || (z[0] == z[1] && z[1] == z[2]) {
+        let t = if z == [0.0; 3] {
+            tyre.temperature_c
+        } else {
+            z[0]
+        };
+        return thermal_grip_factor(tire, compound, t, tyre.core_temperature_c);
+    }
+    z.iter()
+        .map(|&t| thermal_grip_factor(tire, compound, t, tyre.core_temperature_c))
+        .sum::<f32>()
+        / 3.0
+}
+
 /// The middle of a compound's window on this car's tyre, °C.
 pub fn optimum_c(tire: &TireConfig, compound: &Compound) -> f32 {
     tire.optimal_temperature_c + compound.optimal_shift_c
@@ -611,13 +670,15 @@ pub fn grip_multiplier(
     if tyre.punctured {
         return PUNCTURE_GRIP * tire.pressure_grip_factor(set_kpa) * used;
     }
-    if tyre.core_temperature_c == optimum
-        && tyre.temperature_c == optimum
-        && tyre.pressure_loss_kpa == 0.0
-    {
+    let even_at_optimum = if tyre.tread_c == [0.0; 3] {
+        tyre.temperature_c == optimum
+    } else {
+        tyre.tread_c.iter().all(|&t| t == optimum)
+    };
+    if tyre.core_temperature_c == optimum && even_at_optimum && tyre.pressure_loss_kpa == 0.0 {
         return tire.pressure_grip_factor(set_kpa) * used;
     }
-    thermal_grip_factor(tire, compound, tyre.temperature_c, tyre.core_temperature_c)
+    tread_grip_factor(tire, compound, tyre)
         * tire.pressure_grip_factor(
             pressure_kpa(tire, compound, set_kpa, tyre.core_temperature_c) - tyre.pressure_loss_kpa,
         )
@@ -796,7 +857,13 @@ pub fn step(
     } else {
         0.0
     };
-    let shares = zone_shares(work.inner_lean_rad, work.outer_push, pressure_error);
+    let shares = zone_shares(PatchLanding {
+        inner_lean_rad: work.inner_lean_rad,
+        outer_push: work.outer_push,
+        toe_in_rad: work.toe_in_rad,
+        longitudinal_g: work.fx / work.load_n.max(1.0),
+        pressure_error,
+    });
     let zone_capacity = TREAD_HEAT_CAPACITY / 3.0;
     let z = tyre.tread_c;
     let mut across_total = 0.0;
@@ -1358,23 +1425,124 @@ mod tests {
     }
 
     #[test]
+    fn toe_scrubs_a_shoulder_and_braking_crowns_the_middle() {
+        // Toe-in: the outer shoulder; toe-out: the inner.
+        let toe = |rad: f32| {
+            zone_shares(PatchLanding {
+                toe_in_rad: rad,
+                ..Default::default()
+            })
+        };
+        let toed_in = toe(0.3f32.to_radians());
+        let toed_out = toe(-0.3f32.to_radians());
+        assert!(toed_in[2] > toed_in[0] + 0.05, "{toed_in:?}");
+        assert!(toed_out[0] > toed_out[2] + 0.05, "{toed_out:?}");
+        // A braking (or driving) force bows the carcass onto the middle,
+        // whichever way it pulls.
+        let braking = zone_shares(PatchLanding {
+            longitudinal_g: -1.5,
+            ..Default::default()
+        });
+        let driving = zone_shares(PatchLanding {
+            longitudinal_g: 1.5,
+            ..Default::default()
+        });
+        assert!(braking[1] > 0.4 && braking == driving, "{braking:?}");
+        assert!((braking[0] - braking[2]).abs() < 1e-6);
+
+        // Driven through the step: a toed-in tyre braking hard runs its
+        // outer shoulder and middle hotter than its inner.
+        let t = tyre();
+        let m = medium();
+        let surface = TrackSurface::default();
+        let mut data = at(90.0, 90.0);
+        let stop = TyreWork {
+            fx: -7_000.0,
+            slip_ratio: -0.8 * t.optimal_slip_ratio,
+            load_n: 5_000.0,
+            speed_mps: 50.0,
+            air_mps: 50.0,
+            toe_in_rad: 0.3f32.to_radians(),
+            ..Default::default()
+        };
+        for _ in 0..(420 * 3) {
+            step(&mut data, &stop, &t, &m, 180.0, &surface, 1.0 / 420.0);
+        }
+        let [inner, middle, outer] = data.tread_c;
+        assert!(middle > inner && outer > inner, "{:?}", data.tread_c);
+    }
+
+    #[test]
+    fn a_spread_costs_grip_only_where_a_zone_leaves_the_window() {
+        let t = tyre();
+        let m = medium();
+        let opt = optimum_c(&t, &m);
+        let tread = |zones: [f32; 3]| TireData {
+            temperature_c: (zones[0] + zones[1] + zones[2]) / 3.0,
+            tread_c: zones,
+            core_temperature_c: opt,
+            ..Default::default()
+        };
+        // Even: the one-node factor, exactly.
+        for d in [-30.0, 0.0, 25.0] {
+            let even = tread([opt + d; 3]);
+            assert_eq!(
+                tread_grip_factor(&t, &m, &even),
+                thermal_grip_factor(&t, &m, opt + d, opt)
+            );
+        }
+        // A spread inside the window costs nothing ...
+        let inside = tread([opt + 8.0, opt, opt - 8.0]);
+        assert_eq!(tread_grip_factor(&t, &m, &inside), 1.0);
+        // ... one that cooks a shoulder costs it, though the mean is at
+        // the optimum.
+        let cooked = tread([opt + 35.0, opt - 10.0, opt - 25.0]);
+        assert!((cooked.temperature_c - opt).abs() < 1e-3);
+        let spread = tread_grip_factor(&t, &m, &cooked);
+        assert!(spread < 0.99, "{spread}");
+        assert!(
+            grip_multiplier(&t, &m, 180.0, &cooked, 0.0)
+                < grip_multiplier(&t, &m, 180.0, &tread([opt; 3]), 0.0)
+        );
+        // A tyre from before the zones reads its mean.
+        let old = TireData {
+            temperature_c: opt + 30.0,
+            core_temperature_c: opt,
+            ..Default::default()
+        };
+        assert_eq!(
+            tread_grip_factor(&t, &m, &old),
+            thermal_grip_factor(&t, &m, opt + 30.0, opt)
+        );
+    }
+
+    #[test]
     fn the_heat_lands_where_the_patch_is_and_an_even_tyre_is_one_node() {
         // Upright, square, at pressure: a third each.
-        let even = zone_shares(0.0, 0.0, 0.0);
+        let even = zone_shares(PatchLanding::default());
         for s in even {
             assert!((s - 1.0 / 3.0).abs() < 1e-6, "{even:?}");
         }
         // Negative camber: the inner shoulder.
-        let cambered = zone_shares(3.0f32.to_radians(), 0.0, 0.0);
+        let cambered = zone_shares(PatchLanding {
+            inner_lean_rad: 3.0f32.to_radians(),
+            ..Default::default()
+        });
         assert!(
             cambered[0] > cambered[2] && cambered[0] > 0.4,
             "{cambered:?}"
         );
         // A lateral force toward the car: the outer shoulder.
-        let pushed = zone_shares(0.0, 1.0, 0.0);
+        let pushed = zone_shares(PatchLanding {
+            outer_push: 1.0,
+            ..Default::default()
+        });
         assert!(pushed[2] > pushed[0], "{pushed:?}");
         // Over-inflated: the middle.
-        let crowned = zone_shares(0.0, 0.0, 0.1);
+        let crowned = zone_shares(PatchLanding {
+            pressure_error: 0.1,
+            ..Default::default()
+        });
         assert!(crowned[1] > 0.45, "{crowned:?}");
         for shares in [even, cambered, pushed, crowned] {
             let sum: f32 = shares.iter().sum();

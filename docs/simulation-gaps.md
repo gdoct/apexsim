@@ -23,12 +23,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 | The crest model reads the road's grade along the car's path only: a crest taken diagonally, a banking's roll-over and a kerb's step are not vertical accelerations to it. | Med | Low |
 | Porpoising is an oscillation of the downforce at a fixed frequency (`aero::PORPOISE_HZ`) with no body heave behind it; the car does not bounce on its springs. | Med | Low |
 
-## Tyres
-
-| Gap | Effort | Impact |
-|---|---|---|
-| The three tread zones take the heat's landing from camber, lateral force and pressure (`tyre_thermal::zone_shares`); toe scrub and the carcass's deflection under braking are not in it, and the grip reads the mean rather than penalising a spread. | Med | Low |
-
 ## Track and environment
 
 | Gap | Effort | Impact |

@@ -243,6 +243,11 @@ Mandarina Bay.
   hit hard enough to bend it (the wobble once a wheel turn, the server's
   pull), and an engine past 10% damage (the half-order shake), on a wheel
   and on a pad. Only `ApexSim.Input.ForceFeedback.CarCondition` has run.
+- A tread spread by hand: a setup with a lot of toe-in, a long stint of
+  heavy braking, then the HUD's inner/outer tyre readouts (the outer and
+  the middle running hot) and whether a cooked shoulder is felt as lost
+  grip before the mean leaves the window (`tyre_thermal::tread_grip_factor`).
+  Only the module tests have run.
 - A gravel trap by hand (a Monza chicane run straight on) and Sakhir's
   desert floor: how hard the trap bogs the car and whether it can be
   driven out (`OffGround`, [server/vehicle-physics.md](server/vehicle-physics.md)),

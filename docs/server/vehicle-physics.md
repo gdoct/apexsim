@@ -152,9 +152,12 @@ zones.
 - Out: air convection with speed^0.8 (the air the car meets, wind and wake included:
   `TyreWork::air_mps`), road conduction with the root of speed, several times more on a wet
   road.
-- Zones: `zone_shares` loads the inner shoulder with negative camber, the outer under
-  lateral load, the middle when over-inflated. Grip reads the mean, so an evenly heated tyre
-  is the one-node model.
+- Zones: `zone_shares` (a `PatchLanding`) loads the inner shoulder with negative camber,
+  the outer under lateral load and with toe-in (`ZONE_TOE_PER_RAD`: the wheel's toe against
+  its axle's mean steer, so the setup's toe and the steering's Ackermann spread; toe-out the
+  inner), the middle under a braking or driving force (`ZONE_LONGITUDINAL_SHARE` per g of
+  `|Fx|`/load: the carcass bowed along the patch) and when over-inflated. The landing moves
+  heat across the tread, never the total, so the mean is the one-node model's.
 - Grip is read from the end of the last tick; heat steps after the solve.
 
 Trap: the sub-peak split by mass is deliberate. Most of it in the thin tread made a careful
@@ -166,7 +169,10 @@ moved every class's window, which the AI's pace sets.
 
 Grip reads 0.7 tread + 0.3 core (`TREAD_GRIP_SHARE`): full inside `optimal_temperature_c ±
 temperature_window_c`, less `temperature_grip_falloff` a degree outside (eased in, the cold
-side charged 0.6 of it, at most 25% off). Pressure is the gas law on the core
+side charged 0.6 of it, at most 25% off). Each tread zone is read against the core and the
+three averaged (`tread_grip_factor`): a spread inside the window costs nothing, a shoulder
+outside it costs that shoulder's grip although the mean is in the window, and an even tread
+is the one-node factor exactly. Pressure is the gas law on the core
 (`pressure_kpa`); the setup's pressures are the *hot* ones, so a cold tyre is soft and a
 cooked one over-inflated, and `TireConfig::pressure_grip_factor` charges both quadratically
 off `optimal_pressure_kpa`. A tyre at its optimum and set pressure grips as if there were no
