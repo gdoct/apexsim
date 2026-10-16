@@ -411,4 +411,81 @@ bool FApexCreateSessionWeekendDaysTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+// The session's date: the Date row's steps, and the preview's sun over the
+// circuit on that date at its own solar noon.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCreateSessionDateTest,
+	"ApexSim.UI.CreateSession.Date",
+	ApexTestFlags)
+
+bool FApexCreateSessionDateTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexCreateSession;
+	TestEqual(TEXT("no date is the model day"), DateLabel(-1), FString(TEXT("Late May")));
+	TestEqual(TEXT("day 15"), DateLabel(15), FString(TEXT("15 Jan")));
+	TestEqual(TEXT("day 349"), DateLabel(349), FString(TEXT("15 Dec")));
+	TestEqual(TEXT("day 60"), DateLabel(60), FString(TEXT("1 Mar")));
+	TestEqual(TEXT("a step on from none is January"), StepDate(-1, 1), 15);
+	TestEqual(TEXT("a step back from January is none"), StepDate(15, -1), -1);
+	TestEqual(TEXT("December is the last"), StepDate(349, 1), 349);
+	TestEqual(TEXT("a day between steps steps from the one before it"), StepDate(100, 1), 105);
+
+	// The roadmap's check: a December create at Silverstone at 16:30 lights
+	// a dusk; the same clock in late May is still day.
+	constexpr float SilverstoneLat = 52.0786f;
+	constexpr float SilverstoneLon = -1.0169f;
+	FApexSessionConditions December = CreateAt(EApexWeather::Sunny, 16, 30);
+	December.DayOfYear = 349;
+	December.SolarNoonMin = ApexSky::SolarNoonMinutes(SilverstoneLat, SilverstoneLon, 349);
+	TestTrue(TEXT("Silverstone's December noon is about midday GMT"), FMath::Abs(December.SolarNoonMin - 12 * 60) <= 10);
+	const FSkyLook Dusk = Sky(December, SilverstoneLat);
+	TestEqual(*FString::Printf(TEXT("16:30 in December is dusk (sun x %.2f)"), Dusk.SunX), FString(Dusk.Phase), FString(TEXT("DUSK")));
+	TestTrue(TEXT("and the sun is low"), Dusk.bLowSun);
+	FApexSessionConditions May = CreateAt(EApexWeather::Sunny, 16, 30);
+	May.SolarNoonMin = ApexSky::SolarNoonMinutes(SilverstoneLat, SilverstoneLon, ApexSky::ModelDayOfYear);
+	TestEqual(TEXT("16:30 in late May is day"), FString(Sky(May, SilverstoneLat).Phase), FString(TEXT("DAY")));
+	TestTrue(TEXT("a December sun sets earlier across the preview"), Dusk.SunX > Sky(May, SilverstoneLat).SunX);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// Solar noon: the server's `solar_noon_minutes`, port for port.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCreateSessionSolarNoonTest,
+	"ApexSim.UI.CreateSession.SolarNoon",
+	ApexTestFlags)
+
+bool FApexCreateSessionSolarNoonTest::RunTest(const FString& Parameters)
+{
+	// The almanac's late-May noons the server's own test holds itself to
+	// (conditions.rs), within three minutes.
+	struct FCase { const TCHAR* Name; float Lat; float Lon; int32 Almanac; };
+	const FCase Cases[] = {
+		{ TEXT("Barcelona"), 41.57f, 2.26f, 13 * 60 + 48 },
+		{ TEXT("Monza"), 45.62f, 9.27f, 13 * 60 + 20 },
+		{ TEXT("Suzuka"), 34.84f, 136.54f, 11 * 60 + 51 },
+		{ TEXT("Austin"), 30.13f, -97.64f, 13 * 60 + 28 },
+		{ TEXT("Mexico City"), 19.40f, -99.09f, 12 * 60 + 33 },
+		{ TEXT("Interlagos"), -23.70f, -46.70f, 12 * 60 + 4 },
+		{ TEXT("Melbourne"), -37.85f, 144.97f, 12 * 60 + 17 },
+		{ TEXT("Marina Bay"), 1.29f, 103.86f, 13 * 60 },
+		{ TEXT("Yas Marina"), 24.47f, 54.60f, 12 * 60 + 18 },
+	};
+	for (const FCase& Case : Cases)
+	{
+		const int32 Noon = ApexSky::SolarNoonMinutes(Case.Lat, Case.Lon, ApexSky::ModelDayOfYear);
+		TestTrue(*FString::Printf(TEXT("%s at %02d:%02d against %02d:%02d"), Case.Name, Noon / 60, Noon % 60, Case.Almanac / 60, Case.Almanac % 60),
+			FMath::Abs(Noon - Case.Almanac) <= 3);
+	}
+	// Summer time goes with the season.
+	TestEqual(TEXT("Silverstone in January"), ApexSky::SolarNoonMinutes(52.07f, -1.02f, 15) / 60, 12);
+	TestEqual(TEXT("Melbourne in its summer"), ApexSky::SolarNoonMinutes(-37.85f, 144.97f, 15) / 60, 13);
+	return true;
+}
+
 #endif

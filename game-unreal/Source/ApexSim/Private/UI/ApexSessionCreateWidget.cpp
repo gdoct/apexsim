@@ -381,6 +381,8 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 		Out.Add(TimeOfDaySlider);
 		AddAll(TimePresetButtons);
 		AddAll(ClockScaleButtons);
+		Out.Add(DateMinus);
+		Out.Add(DatePlus);
 		AddAll(WeatherButtons);
 		AddAll(ChangeableButtons);
 		AddAll(TrackRubberButtons);
@@ -1345,7 +1347,23 @@ UWidget* UApexSessionCreateWidget::BuildConditionsTab()
 		{
 			Labels.Add(ApexCreateSession::ClockScaleLabel(ApexCreateSession::ClockScales[Index]));
 		}
-		ApexUI::AddV(Tab, MakeChipRow(TEXT("Clock"), Labels, ClockScaleButtons), FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+		ApexUI::AddV(Tab, MakeChipRow(TEXT("Clock"), Labels, ClockScaleButtons), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+
+		// The date: how high the sun climbs and how long the day is, over
+		// the circuit at its own solar noon.
+		UHorizontalBox* DateRow = WidgetTree->ConstructWidget<UHorizontalBox>();
+		ApexUI::AddH(DateRow, ApexUI::MakeSized(*WidgetTree, ApexUI::MakeLabel(*WidgetTree, TEXT("Date")), 150.0f, -1.0f),
+			FMargin(0.0f, 0.0f, 8.0f, 0.0f), VAlign_Center);
+		UApexButtonWidget* Minus = nullptr;
+		UApexButtonWidget* Plus = nullptr;
+		UTextBlock* Value = nullptr;
+		ApexUI::AddH(DateRow, MakeStepper(Minus, Value, Plus, 30.0f, -1.0f, 14.0f), FMargin(), VAlign_Fill, 1.0f);
+		ApexUI::AddV(Tab, ApexUI::MakeSized(*WidgetTree, DateRow, -1.0f, 30.0f));
+		DateMinus = Minus;
+		DatePlus = Plus;
+		DateValue = Value;
+		DateNote = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 100), ApexUI::Palette::TextSecondary);
+		ApexUI::AddV(Tab, DateNote, FMargin(158.0f, 3.0f, 0.0f, 22.0f));
 	}
 
 	// --- Weather ----------------------------------------------------------------
@@ -2480,6 +2498,32 @@ void UApexSessionCreateWidget::RefreshGridPreview()
 	}
 }
 
+FApexSessionConditions UApexSessionCreateWidget::ConditionsAtSite(float& OutLatitudeDeg) const
+{
+	OutLatitudeDeg = ApexSky::DefaultLatitudeDeg;
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!Flow)
+	{
+		return FApexSessionConditions();
+	}
+	FApexSessionConditions C = Flow->CreateConditions.Clamped();
+	const FString TrackId = Flow->GetPendingTrackId();
+	FApexTrackCatalogRow Row;
+	if (Flow->GetTrackCatalogRow(TrackId, Row) && Row.bHasLocation)
+	{
+		OutLatitudeDeg = Row.LatitudeDeg;
+	}
+	const UApexNetSubsystem* Net = GetNet();
+	const FApexTrackConfigSummary* Site = Net ? Net->GetCachedLobbyState().TrackConfigs.FindByPredicate(
+		[&TrackId](const FApexTrackConfigSummary& Track) { return Track.bHasSite && Track.Id.Equals(TrackId, ESearchCase::IgnoreCase); }) : nullptr;
+	if (Site)
+	{
+		OutLatitudeDeg = Site->LatitudeDeg;
+		C.SolarNoonMin = ApexSky::SolarNoonMinutes(Site->LatitudeDeg, Site->LongitudeDeg, C.HasDate() ? C.DayOfYear : ApexSky::ModelDayOfYear);
+	}
+	return C;
+}
+
 void UApexSessionCreateWidget::RefreshSkyPreview()
 {
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
@@ -2488,8 +2532,21 @@ void UApexSessionCreateWidget::RefreshSkyPreview()
 		return;
 	}
 
-	const FApexSessionConditions C = Flow->CreateConditions.Clamped();
-	const ApexCreateSession::FSkyLook Look = ApexCreateSession::Sky(C);
+	float Latitude = ApexSky::DefaultLatitudeDeg;
+	const FApexSessionConditions C = ConditionsAtSite(Latitude);
+	const ApexCreateSession::FSkyLook Look = ApexCreateSession::Sky(C, Latitude);
+
+	const int32 Day = C.HasDate() ? C.DayOfYear : -1;
+	if (DateValue) { DateValue->SetText(FText::FromString(ApexCreateSession::DateLabel(Day))); }
+	if (DateMinus) { DateMinus->SetIsEnabled(Day > 0); }
+	if (DatePlus)  { DatePlus->SetIsEnabled(Day < ApexCreateSession::DateChoices().Last()); }
+	if (DateNote)
+	{
+		FApexSessionConditions Noon;
+		Noon.TimeOfDayMinutes = C.HasSolarNoon() ? C.SolarNoonMin : FMath::RoundToInt(ApexSky::SolarNoonHours * 60.0f);
+		DateNote->SetText(FText::FromString(FString::Printf(TEXT("SOLAR NOON %s%s · %s AT %s"),
+			*Noon.ClockText(), C.HasSolarNoon() ? TEXT(" HERE") : TEXT(""), Look.Phase, *C.ClockText())));
+	}
 	const ApexCreateSession::FWeatherLook Weather = ApexCreateSession::WeatherLook(C.Weather);
 
 	if (SkyBase) { SkyBase->SetBrush(ApexUI::MakeBrush(SrgbColour(Look.Bottom))); }
@@ -3460,6 +3517,14 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		{
 			C.SkySeed = ApexCreateSession::NewSkySeed();
 		}
+		Changed();
+		return;
+	}
+	if (Button == DateMinus || Button == DatePlus)
+	{
+		const int32 Day = ApexCreateSession::StepDate(Flow->CreateConditions.HasDate() ? Flow->CreateConditions.DayOfYear : -1,
+			Button == DatePlus ? 1 : -1);
+		Flow->CreateConditions.DayOfYear = Day > 0 ? Day : FApexSessionConditions::Auto;
 		Changed();
 		return;
 	}

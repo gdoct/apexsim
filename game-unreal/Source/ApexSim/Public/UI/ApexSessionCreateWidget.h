@@ -116,6 +116,15 @@ private:
 	void RefreshStartOrder();
 	void RequestQualifying();
 	void RefreshSkyPreview();
+
+	/**
+	 * The create's conditions as the session will stand its sun: the
+	 * pending track's solar noon on the picked date, from the lobby's site
+	 * for it (ApexSky::SolarNoonMinutes), and its latitude (the lobby's,
+	 * else the catalog row's). Only the preview reads these; a create never
+	 * sends a solar noon.
+	 */
+	FApexSessionConditions ConditionsAtSite(float& OutLatitudeDeg) const;
 	void RefreshFooter();
 
 	/** Every control focus could land on now: the open tab's, the header's, the footer's. */
@@ -306,6 +315,11 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> TimeOfDayFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TimeOfDayValue;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> TimePresetButtons;
+	/** The session's date (ApexCreateSession::DateChoices): late May, or the middle of a month. */
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DateMinus;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DatePlus;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> DateValue;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> DateNote;
 	/** How fast the day's clock runs, one chip per ApexCreateSession::ClockScales. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ClockScaleButtons;
 	/** One tile per EApexWeather, in enum order. */

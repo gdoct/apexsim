@@ -1214,6 +1214,19 @@ struct APEXSIMNET_API FApexTrackConfigSummary
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	int64 ContentCrc = 0;
+
+	/**
+	 * Where the circuit is (`LatitudeDeg`, `LongitudeDeg`), when the server's
+	 * track names a longitude: what the session's solar noon is worked out
+	 * from (ApexSky::SolarNoonMinutes). Not sent for a track that does not
+	 * say, nor by an older server.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	bool bHasSite = false;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	float LatitudeDeg = 0.0f;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	float LongitudeDeg = 0.0f;
 };
 
 /** `LobbyStateData` (network.rs:174) — PascalCase keys. */

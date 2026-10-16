@@ -163,7 +163,17 @@ evaporation (`SessionConditions::sun_elevation_at`), the client's
   13:00. The weather's own air peaks two hours after solar noon.
 - The server sends both in `SessionJoined.Conditions`, and the client's
   `ApexSky::Derive` reads them (`SolarNoonOf`, `DeclinationOf`), so the
-  client never needs the longitude. `ats-export` writes `latitude_deg`
+  race never needs the longitude. Before a session exists the create
+  screen does: the lobby lists each track's site
+  (`TrackConfigSummary.LatitudeDeg` / `LongitudeDeg`, `TrackConfig::site`,
+  left off for a track without a longitude), and the Conditions tab's Date
+  row (late May, or the 15th of a month: `ApexCreateSession::DateChoices`,
+  sent as `day_of_year`) stands the preview's sun over the circuit on that
+  date at `ApexSky::SolarNoonMinutes`, a port of `solar_noon_minutes` and
+  `legal_clock` (`ApexSim.UI.CreateSession.SolarNoon` holds it to the same
+  almanac; `.Date`: a December create at Silverstone at 16:30 is dusk). The
+  row names the noon it used ("SOLAR NOON 12:00 HERE"); with no site the
+  preview keeps 13:00 and the catalog row's latitude. `ats-export` writes `latitude_deg`
 and `north_yaw_deg` (true north in the track frame, `DemGeoref::north_yaw_deg`)
 into the export manifest's `metadata`, so the client puts the sun where it
 stands over the real circuit; re-export a track for the client to see a

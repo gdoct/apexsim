@@ -90,6 +90,81 @@ namespace ApexSky
 		return C.HasDate() ? DeclinationOn(C.DayOfYear) : DeclinationDeg;
 	}
 
+	/** The model day of the year (late May) a session with no date runs on: the server's `MODEL_DAY_OF_YEAR`. */
+	inline constexpr int32 ModelDayOfYear = 145;
+
+	/** The equation of time on day `Day`, minutes: the server's `equation_of_time_min` to the letter. */
+	inline float EquationOfTimeMin(int32 Day)
+	{
+		const float B = (static_cast<float>(FMath::Clamp(Day, 1, FApexSessionConditions::DaysPerYear)) - 81.0f) / 364.0f * UE_TWO_PI;
+		return 9.87f * FMath::Sin(2.0f * B) - 7.53f * FMath::Cos(B) - 1.5f * FMath::Sin(B);
+	}
+
+	/**
+	 * Solar noon on a circuit's legal clock, minutes after midnight, on day
+	 * `Day`: the server's `solar_noon_minutes` and its coarse map of time
+	 * zones and summer time (`legal_clock`), ported line for line so the
+	 * create screen's preview stands the sun where the session will.
+	 */
+	inline int32 SolarNoonMinutes(float LatitudeDeg, float LongitudeDeg, int32 Day)
+	{
+		const float Lat = LatitudeDeg;
+		const float Lon = LongitudeDeg;
+		auto Within = [Lat, Lon](float LatLo, float LatHi, float LonLo, float LonHi)
+		{
+			return Lat >= LatLo && Lat < LatHi && Lon >= LonLo && Lon < LonHi;
+		};
+		enum class ESummer : uint8 { None, Europe, America, South };
+		float ZoneH = FMath::RoundHalfFromZero(Lon / 15.0f);
+		ESummer Summer = ESummer::None;
+		if (Within(49.8f, 61.0f, -11.0f, 1.8f) || Within(36.8f, 42.2f, -9.6f, -6.2f))
+		{
+			ZoneH = 0.0f; Summer = ESummer::Europe;
+		}
+		else if (Within(35.0f, 71.0f, -9.6f, 24.0f))
+		{
+			ZoneH = 1.0f; Summer = ESummer::Europe;
+		}
+		else if (Within(34.5f, 71.0f, 24.0f, 30.0f))
+		{
+			ZoneH = 2.0f; Summer = ESummer::Europe;
+		}
+		else if (Within(-2.0f, 8.0f, 99.0f, 120.0f))
+		{
+			ZoneH = 8.0f;
+		}
+		else if (Within(14.0f, 25.8f, -118.0f, -86.0f))
+		{
+			ZoneH = -6.0f;
+		}
+		else if (Within(-56.0f, -21.0f, -74.0f, -53.0f))
+		{
+			ZoneH = -3.0f;
+		}
+		else if (Within(25.0f, 72.0f, -170.0f, -50.0f))
+		{
+			ZoneH = Lon >= -67.0f && Lat >= 43.0f ? -4.0f
+				: Lon >= -87.5f ? -5.0f
+				: Lon >= -102.0f ? -6.0f
+				: Lon >= -114.0f ? -7.0f
+				: -8.0f;
+			Summer = ESummer::America;
+		}
+		else if (Within(-44.0f, -10.0f, 113.0f, 154.0f))
+		{
+			ZoneH = Lon >= 141.0f ? 10.0f : Lon >= 129.0f ? 9.5f : 8.0f;
+			Summer = Lat < -28.2f && Lon >= 129.0f ? ESummer::South : ESummer::None;
+		}
+		const int32 D = FMath::Clamp(Day, 1, FApexSessionConditions::DaysPerYear);
+		const bool bSummer = Summer == ESummer::Europe ? (D >= 88 && D < 300)
+			: Summer == ESummer::America ? (D >= 69 && D < 307)
+			: Summer == ESummer::South ? !(D >= 95 && D < 278)
+			: false;
+		const float Hours = 12.0f + ZoneH + (bSummer ? 1.0f : 0.0f) - Lon / 15.0f - EquationOfTimeMin(D) / 60.0f;
+		const int32 Minutes = FMath::RoundHalfFromZero(Hours * 60.0f);
+		return ((Minutes % FApexSessionConditions::MinutesPerDay) + FApexSessionConditions::MinutesPerDay) % FApexSessionConditions::MinutesPerDay;
+	}
+
 	/** Where the sun is at `Hours` after midnight at `LatitudeDeg` north
 	 * (south negative), the sun at its height at `NoonHours` on a day of
 	 * `DecDeg` declination (the model day's by default). */

@@ -39,27 +39,11 @@ None open.
 
 ## P2: depth
 
-### 1. Session rules on the create screen
-
-Rules the server takes on `CreateSession` that no screen offers yet
-([server/sessions.md](server/sessions.md#session-rules-set-on-create)).
-
-
-**Check:** `ApexSim.UI.CreateSession.*`; a session created with each new
-rule echoes it in `SessionJoined` and the lobby shows it.
+None open.
 
 ## P3: nice to have
 
-### 1. Session date
-
-- A Date row on the create screen's Conditions tab that sends
-  `day_of_year` (the server and the client's sky take it already,
-  [server/conditions.md](server/conditions.md)), and the tab's sun preview
-  (`ApexCreateSession::Look`) at the track's solar noon and the date.
-
-**Check:** a December create at Silverstone at 16:30 lights a dusk.
-
-### 2. Car content
+### 1. Car content
 
 - The GT3 and LMP2 class wheels get sidewall lettering.
 - The HUD colours brakes by material as well as temperature (the client
@@ -73,7 +57,7 @@ rule echoes it in `SessionJoined` and the lobby shows it.
 
 **Check:** the HUD on a carbon and a steel car; the wheels in car select.
 
-### 3. Server dashboard
+### 2. Server dashboard
 
 For people running a server for others
 ([server/operations.md](server/operations.md)).
@@ -83,7 +67,7 @@ For people running a server for others
 
 **Check:** a saved tick rate in force without touching the machine.
 
-### 4. Gravel and sand on screen and in the ears
+### 3. Gravel and sand on screen and in the ears
 
 The server drives gravel, sand and the desert floor as their own grounds
 (`OffGround`, [server/vehicle-physics.md](server/vehicle-physics.md)), but
@@ -97,7 +81,7 @@ the client only hears and feels "off" (`ContactSurface::Off`).
 **Check:** a car run into a Monza gravel trap and onto Sakhir's floor,
 seen and heard; golden bytes on both sides.
 
-### 5. Content tooling
+### 4. Content tooling
 
 - `ats-dress --explain` and a per-prop source stamp.
 - `ats-export --strict`, which fails on a dropped facet.

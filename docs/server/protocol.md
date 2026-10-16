@@ -184,6 +184,7 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 | Reconnect | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`, `GiveUpSeat`) |
 | Roster | `roster_wire_format` (`RosterEntry.Away`, `RosterEntry.GridSlot`, `RosterEntry.Dnq`) |
 | The race's grid | `ready_grid_wire_format` (`OpenGrid`, `SetReady`, `SetLivery`, `GameModeChanged { Grid }`, `RosterEntry.Ready`) |
+| Lobby | `track_site_wire_format` (`TrackConfigSummary.LatitudeDeg` / `LongitudeDeg`) |
 | Spectator | `showcase_wire_format` (network.rs), `spectator_wire_format` (spectator.rs), `recordings_wire_format` (`LobbyState.recordings_port`) |
 
 `test_lobby_summaries_carry_content_crc` pins the lobby's checksum fields

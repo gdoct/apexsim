@@ -574,6 +574,49 @@ namespace ApexCreateSession
 		return Line;
 	}
 
+	// --- The session's date ------------------------------------------------------
+
+	/** The Date row's steps: the model day (-1, late May), then the middle of each month. */
+	inline const TArray<int32>& DateChoices()
+	{
+		static const TArray<int32> Days = { -1, 15, 46, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349 };
+		return Days;
+	}
+
+	/** "15 Dec" for a day of the year, "Late May" for the model day (none set). */
+	inline FString DateLabel(int32 DayOfYear)
+	{
+		if (DayOfYear < 1)
+		{
+			return TEXT("Late May");
+		}
+		static const int32 MonthStarts[] = { 1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366 };
+		static const TCHAR* Months[] = { TEXT("Jan"), TEXT("Feb"), TEXT("Mar"), TEXT("Apr"), TEXT("May"), TEXT("Jun"),
+			TEXT("Jul"), TEXT("Aug"), TEXT("Sep"), TEXT("Oct"), TEXT("Nov"), TEXT("Dec") };
+		const int32 Day = FMath::Clamp(DayOfYear, 1, FApexSessionConditions::DaysPerYear);
+		int32 Month = 0;
+		while (Month < 11 && Day >= MonthStarts[Month + 1])
+		{
+			++Month;
+		}
+		return FString::Printf(TEXT("%d %s"), Day - MonthStarts[Month] + 1, Months[Month]);
+	}
+
+	/** The next (Step +1) or previous (-1) Date step from `DayOfYear`, held at the ends. */
+	inline int32 StepDate(int32 DayOfYear, int32 Step)
+	{
+		const TArray<int32>& Days = DateChoices();
+		int32 Index = 0;
+		for (int32 I = 0; I < Days.Num(); ++I)
+		{
+			if (Days[I] <= FMath::Max(DayOfYear, -1))
+			{
+				Index = I;
+			}
+		}
+		return Days[FMath::Clamp(Index + Step, 0, Days.Num() - 1)];
+	}
+
 	// --- A race weekend's days ------------------------------------------------
 
 	/** The hours a weekend day can start at, minutes after midnight; the picker's -1 is the race day's. */
@@ -687,15 +730,20 @@ namespace ApexCreateSession
 	 * The preview's sky at this hour under this weather, from the same sun
 	 * the race is lit by (`ApexSky::SunAt`): night blue under -8°, a dawn
 	 * glow round the horizon, day blue from 14° up, all greyed by the cloud.
+	 * The sun stands as it will over the circuit (`LatitudeDeg`) on the
+	 * session's date at its solar noon (`C.SolarNoonMin`, which the screen
+	 * fills in from `ApexSky::SolarNoonMinutes`; 13:00 without one).
 	 */
-	inline FSkyLook Sky(const FApexSessionConditions& C)
+	inline FSkyLook Sky(const FApexSessionConditions& C, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
 	{
 		const FColor NightTop(11, 16, 32), NightBottom(26, 34, 56);
 		const FColor DawnTop(42, 58, 102), DawnBottom(227, 138, 74);
 		const FColor DayTop(61, 120, 196), DayBottom(169, 203, 230);
 
 		const float Hours = C.Hours();
-		const float Elevation = ApexSky::SunAt(Hours).ElevationDeg;
+		const float NoonHours = ApexSky::SolarNoonOf(C);
+		const float Declination = ApexSky::DeclinationOf(C);
+		const float Elevation = ApexSky::SunAt(Hours, LatitudeDeg, NoonHours, Declination).ElevationDeg;
 
 		FSkyLook Out;
 		if (Elevation <= -8.0f)
@@ -725,15 +773,17 @@ namespace ApexCreateSession
 		Out.Top = Mix(Out.Top, FColor(92, 99, 106), Weather.Cloud * 0.7f);
 		Out.Bottom = Mix(Out.Bottom, FColor(140, 148, 156), Weather.Cloud * 0.7f);
 
-		// The sun's day on the model's date runs from about 05:17 to 20:43
-		// either side of the 13:00 solar noon (50 N, late May).
-		constexpr float HalfDayHours = 7.71f;
-		Out.SunX = FMath::Clamp((Hours - (ApexSky::SolarNoonHours - HalfDayHours)) / (2.0f * HalfDayHours), 0.0f, 1.0f);
+		// Half the sun's day, hours, from the sunrise hour angle: 7.71 on
+		// the model day at 50 N (05:17 to 20:43 round a 13:00 noon).
+		const float CosRise = -FMath::Tan(FMath::DegreesToRadians(FMath::Clamp(LatitudeDeg, -89.0f, 89.0f)))
+			* FMath::Tan(FMath::DegreesToRadians(Declination));
+		const float HalfDayHours = FMath::Max(FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(CosRise, -1.0f, 1.0f))) / 15.0f, 0.5f);
+		Out.SunX = FMath::Clamp((Hours - (NoonHours - HalfDayHours)) / (2.0f * HalfDayHours), 0.0f, 1.0f);
 		Out.SunHeight = Elevation / 62.0f;
 		Out.SunOpacity = Elevation > -3.0f ? 1.0f - Weather.Cloud * 0.85f : 0.0f;
 		Out.bLowSun = Elevation < 12.0f;
 		Out.Phase = Elevation < -6.0f ? TEXT("NIGHT")
-			: Elevation < 10.0f ? (Hours < ApexSky::SolarNoonHours ? TEXT("DAWN") : TEXT("DUSK"))
+			: Elevation < 10.0f ? (Hours < NoonHours ? TEXT("DAWN") : TEXT("DUSK"))
 			: TEXT("DAY");
 		return Out;
 	}

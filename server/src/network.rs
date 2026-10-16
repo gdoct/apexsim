@@ -975,6 +975,15 @@ pub struct TrackConfigSummary {
     /// Simplified centerline points for visualization (every Nth point)
     #[serde(default)]
     pub centerline: Vec<TrackPoint>,
+    /// Where the circuit is, degrees north and east, when its metadata
+    /// names a longitude (`TrackConfig::site`): what a session's solar noon
+    /// is worked out from (`data::solar_noon_minutes`), so the create
+    /// screen's sky preview stands the sun where the session will. Both
+    /// left off the wire otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latitude_deg: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub longitude_deg: Option<f32>,
 }
 
 // --- Compact Telemetry ---
@@ -2704,6 +2713,51 @@ mod tests {
         assert!(!String::from_utf8_lossy(&none).contains("RecordingsPort"));
     }
 
+    /// A track that says where it is lists its site, so the create screen
+    /// can stand the sun over it (`ApexGolden::S_LobbyStateTrackSite`);
+    /// one that does not keeps its bytes. `cargo test
+    /// track_site_wire_format -- --nocapture` prints it.
+    #[test]
+    fn test_track_site_wire_format() {
+        let track = |site: Option<(f32, f32)>| TrackConfigSummary {
+            id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            name: "Silverstone".into(),
+            content_crc: 0,
+            centerline: vec![],
+            latitude_deg: site.map(|s| s.0),
+            longitude_deg: site.map(|s| s.1),
+        };
+        let lobby = |t| {
+            ServerMessage::LobbyState(LobbyStateData {
+                players_in_lobby: vec![],
+                available_sessions: vec![],
+                car_configs: vec![],
+                track_configs: vec![t],
+                showcase_available: false,
+                live_stream: true,
+                recordings_port: None,
+            })
+        };
+        let bytes = rmp_serde::to_vec_named(&lobby(track(Some((52.0786, -1.0169))))).unwrap();
+        println!(
+            "S_LobbyStateTrackSite: {}",
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::LobbyState(l) => {
+                assert_eq!(l.track_configs[0].latitude_deg, Some(52.0786));
+                assert_eq!(l.track_configs[0].longitude_deg, Some(-1.0169));
+            }
+            _ => panic!("wrong message type"),
+        }
+        let none = rmp_serde::to_vec_named(&lobby(track(None))).unwrap();
+        assert!(!String::from_utf8_lossy(&none).contains("LongitudeDeg"));
+    }
+
     /// The lobby summaries carry each content file's checksum, and a client
     /// that predates the field must still read the message.
     #[test]
@@ -2739,6 +2793,8 @@ mod tests {
                 name: "Monza".into(),
                 content_crc: 0xDEAD_BEEF,
                 centerline: vec![],
+                latitude_deg: None,
+                longitude_deg: None,
             }],
             showcase_available: true,
             live_stream: true,

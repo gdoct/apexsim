@@ -1257,6 +1257,14 @@ impl Default for TrackConfig {
 }
 
 impl TrackConfig {
+    /// Where the circuit is, (degrees north, degrees east), when its
+    /// metadata names a longitude: what `SessionConditions::at_site` works
+    /// solar noon out from. None for a track that does not say.
+    pub fn site(&self) -> Option<(f32, f32)> {
+        let longitude = self.metadata.longitude_deg.filter(|l| l.is_finite())?;
+        Some((self.latitude_deg(), longitude))
+    }
+
     /// The circuit's latitude, degrees north, or the sky model's default
     /// for a track that does not say where it is.
     pub fn latitude_deg(&self) -> f32 {

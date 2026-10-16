@@ -189,6 +189,11 @@ session while driving (notice, then the menu).
 - The sun at the circuit's own noon (`SessionJoined.Conditions.solar_noon_min`,
   13:33 at Spa): at 13:00 it stands a little east of due south over the
   circuit.
+- The create screen's Date row against a server that lists the track's
+  site: the note naming the circuit's own noon ("SOLAR NOON ... HERE"), a
+  December 16:30 at Silverstone previewed as dusk and raced as one. Seen
+  only without a server (13:00, the row stepping to 15 Dec and the
+  preview's sun dropping).
 
 ## 2. Needs a human: hands, ears and hardware
 

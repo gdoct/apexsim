@@ -284,6 +284,8 @@ async fn build_lobby_state_with(
                 .step_by(10)
                 .map(|p| crate::network::TrackPoint { x: p.x, y: p.y })
                 .collect(), // Send every 10th point
+            latitude_deg: t.site().map(|s| s.0),
+            longitude_deg: t.site().map(|s| s.1),
         })
         .collect();
 

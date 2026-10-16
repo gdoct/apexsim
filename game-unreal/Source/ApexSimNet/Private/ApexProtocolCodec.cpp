@@ -298,6 +298,16 @@ namespace
 				bOk = Reader.ReadUInt64(Raw);
 				Out.ContentCrc = static_cast<int64>(Raw & 0xFFFFFFFFu);
 			}
+			else if (Key == TEXT("LatitudeDeg"))
+			{
+				bOk = Reader.ReadFloat(Out.LatitudeDeg);
+			}
+			else if (Key == TEXT("LongitudeDeg"))
+			{
+				// The site is the longitude's: the server sends both or neither.
+				bOk = Reader.ReadFloat(Out.LongitudeDeg);
+				Out.bHasSite = bOk && FMath::IsFinite(Out.LongitudeDeg);
+			}
 			else if (Key == TEXT("Centerline"))
 			{
 				if (!ApexProtocol::ShouldParseCenterline())

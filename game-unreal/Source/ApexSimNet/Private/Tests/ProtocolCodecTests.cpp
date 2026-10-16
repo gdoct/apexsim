@@ -814,6 +814,18 @@ bool FApexProtocolLobbyStateDecodeTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("its recordings port"), WithPort.LobbyState.RecordingsPort, 9002);
 		TestTrue(TEXT("and the live stream"), WithPort.LobbyState.bLiveStream);
 	}
+	{
+		FApexServerMessage Site;
+		if (TestTrue(TEXT("a lobby with a track's site decodes"),
+				ApexProtocol::DecodeServerMessage(ApexGolden::S_LobbyStateTrackSite, Site, Error))
+			&& TestEqual(TEXT("one track"), Site.LobbyState.TrackConfigs.Num(), 1))
+		{
+			const FApexTrackConfigSummary& Track = Site.LobbyState.TrackConfigs[0];
+			TestTrue(TEXT("it has a site"), Track.bHasSite);
+			TestTrue(TEXT("its latitude"), FMath::IsNearlyEqual(Track.LatitudeDeg, 52.0786f, 1e-4f));
+			TestTrue(TEXT("its longitude"), FMath::IsNearlyEqual(Track.LongitudeDeg, -1.0169f, 1e-4f));
+		}
+	}
 
 	// Non-empty arrays are the actual assertion: a mis-cased key yields an
 	// empty list with no error, which is exactly the failure this pins down.
