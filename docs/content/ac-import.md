@@ -381,10 +381,22 @@ importer change.
   - brakes `2 x MAX_TORQUE x (share / r_front + (1 - share) / r_rear)`;
   - `[differential] simulated = true` with `POWER` / `COAST` / `PRELOAD`;
     `awd_front_share` from AC's AWD split;
-  - hybrid: the battery is the motor's peak power x `DISCHARGE_TIME`,
-    `MAX_KJ_PER_LAP` the `deploy_kj_per_lap` budget, `[HEAT] TORQUE_PERC`
-    x the motor power `heat_recovery_kw`; `ctrl_ers_*` profiles and
-    `[FRONT_MOTORS]` are warned about, not carried.
+  - hybrid (`map_ers`): the motor is `[KINETIC]`'s (torque by engine rpm,
+    at the crank) or `[FRONT_MOTORS]`' (torque at the axle by wheel rpm:
+    `axle = "front"`, the torque scaled by driven / front tyre radius so
+    the force and power come out as AC's, recovering at its own peak
+    power), whichever is the stronger; with both (the 918, the TS040) the
+    other is dropped with a warning. Curves may be files or inline
+    (`(0=150|...|)`, as the 499P mod writes them). The battery is the
+    motor's peak power x `DISCHARGE_TIME`, `MAX_KJ_PER_LAP` the
+    `deploy_kj_per_lap` budget, `[HEAT] TORQUE_PERC` x the motor power
+    `heat_recovery_kw`. Of the delivery profiles, the default one
+    (`DEFAULT_CONTROLLER`; `ctrl_ers_front_<n>.ini` for a front motor)
+    gives `deploy_min_speed_kph`: the last speed its `SPEED_KMH` map is
+    shut at before it opens. Its throttle map, speed cap, oversteer / slip
+    cuts, gear and rpm masks, the other profiles and
+    `FRONT_TORQUE_VECTORING_BIAS` are warned about, not carried: the car
+    gets the sim's modes and pacing.
 - **Class** from `ui_car.json` tags (`map_class`): `GT3`, `LMP2`,
   `Hypercar`, `F1` (a single-seater with a DRS wing and a `gp`/`f1` tag),
   else a group of its own (`Formula`, `GT4`, `GT`, `Vintage`, `Drift`,
@@ -502,6 +514,7 @@ Client automation: `ApexSim.Track.Dds.Parse`, `ApexSim.Track.Reader.Version3`,
 - AC carries no figure for brake pads, `brake_by_wire`, body-roll aero or
   porpoising: an import gets the defaults (standard pads, brake-by-wire,
   none).
-- Front-axle ERS and AC's older `kers.ini`; ERS delivery profiles and aero
-  controllers are read as their authored figures, with a warning.
+- AC's older `kers.ini`, a second ERS motor (one motor per car), and the
+  ERS delivery profiles beyond their minimum speed; aero controllers are
+  read as their authored figures, with a warning.
 - `--lod B` exists but is untested.

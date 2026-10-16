@@ -101,7 +101,7 @@ one session, advanced by the host (see
 | Imported tracks have no `altitude_m` and no north (AC carries neither), and most have no coordinates (only ~50 of AC's 175 layouts fill in `geotags`): they race at sea-level air density and the sun stands at the default latitude and compass. | Med | Med |
 | AC's own tyre heat model is not carried, only its temperature window (`ac_car_import/physics.py` `thermal_window`). | Med | Low |
 | AC's dynamic aero controllers (`aero.ini` `DYNAMIC_CONTROLLER`) are not modelled, and a DRS flap is not split off an imported body (the importer warns). | Med | Low |
-| AC's ERS delivery profiles (`ctrl_ers_*.ini`) and front-axle motors (`[FRONT_MOTORS]`) are not carried by the importer (the server has `[hybrid] axle = "front"`): a 919-style hypercar imports with its rear motor only. | Med | Low |
+| An AC car with two ERS motors (`[KINETIC]` and `[FRONT_MOTORS]` both driving, the 918, the TS040) imports with the stronger only: the sim has one motor per car. AC's delivery profiles (`ctrl_ers_*.ini`) give only the default profile's minimum speed; their throttle maps, speed caps, oversteer / slip cuts, gear masks and the choice between profiles are not carried. | Low | Med |
 | AC carries no figure for brake pads, `brake_by_wire`, body-roll aero or porpoising, so an imported car has the defaults for them; a compound's own window width, pressure and load sensitivity are not carried either (only its grip level, wear and window place). | Low | Low |
 
 ## Before picking one up

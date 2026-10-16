@@ -186,6 +186,120 @@ def read_curve(car: CarData, text) -> Lut | None:
     return car.lut(text.split(";")[0].strip())
 
 
+# --- hybrid (ERS) ----------------------------------------------------------
+
+
+def _peak(lut: Lut | None) -> tuple[float, float]:
+    """A motor curve's peak torque, Nm, and peak power, kW (x in rpm)."""
+    if lut is None or not lut.x.size or float(lut.y.max()) <= 0.0:
+        return 0.0, 0.0
+    power = max(r * tq * 2 * math.pi / 60 for r, tq in lut.points) / 1000.0
+    return float(lut.y.max()), power
+
+
+def ers_min_speed_kph(car: CarData, front_motor: bool, controller: int) -> float | None:
+    """The speed below which the default ERS delivery profile
+    (`ctrl_ers_<n>.ini`, a front motor's `ctrl_ers_front_<n>.ini`) gives
+    the motor nothing: the last speed its SPEED_KMH map is 0 at before it
+    first opens, `None` when it opens from standstill (or there is no map)."""
+    names = [f"ctrl_ers_{controller}.ini"]
+    if front_motor:
+        names.insert(0, f"ctrl_ers_front_{controller}.ini")
+    name = next((n for n in names if n in car.files), None)
+    if name is None:
+        return None
+    for c in read_controllers(car, name):
+        if c.input not in ("SPEED_KMH", "SPEEDKMH"):
+            continue
+        closed = None
+        for x, y in c.lut.points:
+            if y > 0.0:
+                break
+            closed = x
+        else:
+            return None
+        return closed if closed is not None and closed > 0.0 else None
+    return None
+
+
+def map_ers(car: CarData, ers: dict, out, driven_radius: float, front_radius: float) -> None:
+    """ers.ini's motors onto `[hybrid]`: the crank motor ([KINETIC], torque
+    by engine rpm) or a front-axle one ([FRONT_MOTORS], torque at the axle
+    by wheel rpm), whichever is the stronger; the store from its
+    DISCHARGE_TIME, the lap budget from MAX_KJ_PER_LAP, the MGU-H share, and
+    the default delivery profile's minimum speed."""
+    k = ers["KINETIC"]
+    crank_t, crank_p = _peak(read_curve(car, k.get("TORQUE_CURVE")))
+    fm = ers.get("FRONT_MOTORS", {})
+    front_t, front_p = _peak(read_curve(car, fm.get("TORQUE_CURVE"))) if fm else (0.0, 0.0)
+    if crank_p <= 0.0 and front_p <= 0.0:
+        out.warnings.append("ers.ini has no motor curve on either axle: no hybrid")
+        return
+    front_motor = front_p > crank_p
+    if crank_p > 0.0 and front_p > 0.0:
+        dropped = "the crank motor ([KINETIC])" if front_motor else "the front motor ([FRONT_MOTORS])"
+        out.warnings.append(f"ers.ini has a crank motor ({crank_p:.0f} kW) and a front motor ({front_p:.0f} kW): "
+                            f"the sim has one motor, so {dropped} is dropped")
+    h = "hybrid"
+    out.put(h, "enabled", True, "ers.ini [KINETIC]")
+    if front_motor:
+        # The sim turns the motor with the wheels at the driven radius: the
+        # torque is scaled so the force at the front tyres and the power
+        # come out as AC's.
+        motor_t = front_t * driven_radius / max(front_radius, 0.05)
+        motor_p = front_p
+        regen_p = motor_p
+        discharge_s = number(fm.get("DISCHARGE_TIME"), number(k.get("DISCHARGE_TIME"), 0.0)) / 1000.0
+        out.put(h, "axle", "front", "ers.ini [FRONT_MOTORS]: the motor drives the front axle")
+        out.put(h, "motor_max_torque_nm", round(motor_t, 1),
+                "ers.ini [FRONT_MOTORS] TORQUE_CURVE peak, at the axle (x driven / front tyre radius)")
+        out.put(h, "motor_max_power_kw", round(motor_p, 1), "ers.ini [FRONT_MOTORS] TORQUE_CURVE peak power (wheel rpm)")
+        regen_source = "the front motor's peak power (it recovers through the fronts)"
+        if fm.get("FRONT_TORQUE_VECTORING_BIAS") is not None:
+            out.warnings.append("ers.ini FRONT_TORQUE_VECTORING_BIAS is not modelled: the front differential "
+                                "splits the motor's torque")
+    else:
+        motor_t, motor_p = crank_t, crank_p
+        regen_p = motor_p
+        regen_source = "the motor's peak power (no COAST_CURVE)"
+        coast_lut = read_curve(car, k.get("COAST_CURVE"))
+        if coast_lut is not None and coast_lut.x.size:
+            regen_p = max(abs(r * tq) * 2 * math.pi / 60 for r, tq in coast_lut.points) / 1000.0
+            regen_source = "ers.ini COAST_CURVE peak power"
+        discharge_s = number(k.get("DISCHARGE_TIME"), 0.0) / 1000.0
+        out.put(h, "motor_max_torque_nm", round(motor_t, 1), "ers.ini TORQUE_CURVE peak")
+        out.put(h, "motor_max_power_kw", round(motor_p, 1), "ers.ini TORQUE_CURVE peak power")
+    # DISCHARGE_TIME is how long the store lasts deploying flat out, so the
+    # store is the motor's power over that time; MAX_KJ_PER_LAP is what may
+    # be deployed per lap (a regulation, not the store).
+    kj = number(k.get("MAX_KJ_PER_LAP"), 0.0)
+    store_kj = motor_p * discharge_s if discharge_s > 0.0 else (kj if 0.0 < kj < 1.0e5 else 4000.0)
+    out.put(h, "battery_capacity_kwh", round(store_kj / 3600.0, 3),
+            "ers.ini DISCHARGE_TIME x the motor's peak power" if discharge_s > 0.0
+            else "ers.ini MAX_KJ_PER_LAP (no DISCHARGE_TIME)")
+    out.put(h, "battery_max_discharge_kw", round(motor_p, 1), "the motor's peak power")
+    out.put(h, "battery_max_charge_kw", round(regen_p, 1), regen_source)
+    out.put(h, "regen_max_power_kw", round(regen_p, 1), regen_source)
+    # Road cars file an absurd budget (the P1's 10 000 000 kJ): no limit.
+    if 0.0 < kj < 1.0e5:
+        out.put(h, "deploy_kj_per_lap", round(kj, 1), "ers.ini MAX_KJ_PER_LAP")
+    heat = ers.get("HEAT", {})
+    heat_perc = number(heat.get("TORQUE_PERC"), 0.0)
+    if heat_perc > 0.0:
+        out.put(h, "heat_recovery_kw", round(motor_p * heat_perc / 100.0, 1),
+                "ers.ini [HEAT] TORQUE_PERC x the motor's peak power (the MGU-H feeding the motor)")
+    controller = int(number(k.get("DEFAULT_CONTROLLER"), 0.0) or 0)
+    min_kph = ers_min_speed_kph(car, front_motor, controller)
+    if min_kph is not None:
+        out.put(h, "deploy_min_speed_kph", round(min_kph, 1),
+                f"ctrl_ers{'_front' if front_motor else ''}_{controller}.ini SPEED_KMH: nothing below")
+    if any(n.startswith("ctrl_ers") for n in car.files):
+        out.warnings.append("ERS delivery profiles (ctrl_ers_*.ini) are read for the default profile's minimum "
+                            "speed only: their throttle maps, speed caps, oversteer / slip cuts and gear masks "
+                            "are not carried, and the car gets the sim's Harvest / Balanced / Attack modes and "
+                            "the overtake button in place of the other profiles")
+
+
 # --- brakes ---------------------------------------------------------------
 
 #: The classes the server races on carbon brakes (`BrakeMaterial::for_class`,
@@ -1190,47 +1304,7 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
     # ---- hybrid (ERS)
     ers = car.ini("ers.ini")
     if "KINETIC" in ers:
-        k = ers["KINETIC"]
-        torque_lut = car.lut(str(k.get("TORQUE_CURVE", "")).split(";")[0].strip())
-        coast_lut = car.lut(str(k.get("COAST_CURVE", "")).split(";")[0].strip())
-        if torque_lut is None or not torque_lut.x.size or float(torque_lut.y.max()) <= 0.0:
-            out.warnings.append("ers.ini's motor curve is empty (a front-axle motor, as on the 919, is not "
-                                "modelled): no hybrid")
-        else:
-            motor_t = float(torque_lut.y.max())
-            motor_p = max(r * tq * 2 * math.pi / 60 for r, tq in torque_lut.points) / 1000.0
-            regen_p = motor_p
-            if coast_lut is not None and coast_lut.x.size:
-                regen_p = max(abs(r * tq) * 2 * math.pi / 60 for r, tq in coast_lut.points) / 1000.0
-            h = "hybrid"
-            # DISCHARGE_TIME is how long the store lasts deploying flat out,
-            # so the store is the motor's power over that time; MAX_KJ_PER_LAP
-            # is what may be deployed per lap (a regulation, not the store).
-            discharge_s = number(k.get("DISCHARGE_TIME"), 0.0) / 1000.0
-            kj = number(k.get("MAX_KJ_PER_LAP"), 0.0)
-            store_kj = motor_p * discharge_s if discharge_s > 0.0 else (kj if 0.0 < kj < 1.0e5 else 4000.0)
-            out.put(h, "enabled", True, "ers.ini [KINETIC]")
-            out.put(h, "battery_capacity_kwh", round(store_kj / 3600.0, 3),
-                    "ers.ini DISCHARGE_TIME x the motor's peak power" if discharge_s > 0.0
-                    else "ers.ini MAX_KJ_PER_LAP (no DISCHARGE_TIME)")
-            out.put(h, "battery_max_discharge_kw", round(motor_p, 1), "the motor's peak power")
-            out.put(h, "battery_max_charge_kw", round(regen_p, 1), "ers.ini COAST_CURVE peak power")
-            out.put(h, "motor_max_torque_nm", round(motor_t, 1), "ers.ini TORQUE_CURVE peak")
-            out.put(h, "motor_max_power_kw", round(motor_p, 1), "ers.ini TORQUE_CURVE peak power")
-            out.put(h, "regen_max_power_kw", round(regen_p, 1), "ers.ini COAST_CURVE peak power")
-            # Road cars file an absurd budget (the P1's 10 000 000 kJ): no limit.
-            if 0.0 < kj < 1.0e5:
-                out.put(h, "deploy_kj_per_lap", round(kj, 1), "ers.ini MAX_KJ_PER_LAP")
-            heat = ers.get("HEAT", {})
-            heat_perc = number(heat.get("TORQUE_PERC"), 0.0)
-            if heat_perc > 0.0:
-                out.put(h, "heat_recovery_kw", round(motor_p * heat_perc / 100.0, 1),
-                        "ers.ini [HEAT] TORQUE_PERC x the motor's peak power (the MGU-H feeding the motor)")
-            out.warnings.append("ERS delivery profiles (ctrl_ers_*.ini) are not carried: the car gets the "
-                                "sim's Harvest / Balanced / Attack modes and the overtake button")
-            if "FRONT_MOTORS" in ers:
-                out.warnings.append("ers.ini [FRONT_MOTORS] (a front-axle motor) is not modelled: the rear "
-                                    "motor alone")
+        map_ers(car, ers, out, driven_radius, front.radius)
 
     if "kers.ini" in car.files and "KINETIC" not in ers:
         out.warnings.append("kers.ini (AC's older KERS) is not modelled: the engine alone")

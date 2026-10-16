@@ -535,6 +535,128 @@ TORQUE_PERC=25
         self.assertAlmostEqual(h["heat_recovery_kw"], 30.0, delta=0.2)
 
 
+def _import_with(extra: dict, folder: str):
+    """Import the synthetic car with `extra` data files; its car.toml and
+    the import's warnings."""
+    from unittest import mock
+    tmp = tempfile.TemporaryDirectory()
+    root = Path(tmp.name)
+    with mock.patch.dict(DATA, extra):
+        car_dir = build_car(root / "ac", folder=folder)
+    opts = cli.Options(custom_dir=root / "custom", default_dir=root / "default")
+    (root / "default").mkdir()
+    result = cli.import_car(car_dir, opts)
+    out = next((opts.custom_dir).iterdir())
+    toml = tomllib.loads((out / "car.toml").read_text(encoding="utf-8"))
+    return tmp, toml, result.warnings
+
+
+class FrontMotorImportTest(unittest.TestCase):
+    """A 919-style hybrid: an empty crank motor and a front-axle one
+    ([FRONT_MOTORS], torque at the axle by wheel rpm), with delivery
+    profiles whose default one gives nothing below 120 km/h."""
+
+    @classmethod
+    def setUpClass(cls):
+        profile = """[HEADER]
+NAME=Race
+[CONTROLLER_0]
+INPUT=GAS
+COMBINATOR=ADD
+LUT=kers_gas.lut
+[CONTROLLER_1]
+INPUT=SPEED_KMH
+COMBINATOR=MULT
+LUT=(0=0|120=0|140=1|250=1|260=0)
+"""
+        cls.tmp, cls.toml, cls.warnings = _import_with({
+            "ers.ini": """[HEADER]
+VERSION=1
+[KINETIC]
+TORQUE_CURVE=kers_torque_rwd.lut
+COAST_CURVE=kers_torque_coast.lut
+DISCHARGE_TIME=40000
+MAX_KJ_PER_LAP=8000
+DEFAULT_CONTROLLER=1
+[FRONT_MOTORS]
+TORQUE_CURVE=kers_torque.lut
+DISCHARGE_TIME=40000
+FRONT_TORQUE_VECTORING_BIAS=0.9
+""",
+            "kers_torque_rwd.lut": "0|0\n10000|0\n",
+            "kers_torque_coast.lut": "500|50\n5000|30\n",
+            # 300 kW: 2000 Nm at the axle up to 1432 wheel rpm.
+            "kers_torque.lut": "0|2000\n1432.4|2000\n3000|0\n",
+            "kers_gas.lut": "0|0\n1|1\n",
+            "ctrl_ers_0.ini": profile.replace("120=0|", ""),
+            "ctrl_ers_front_0.ini": profile.replace("120=0|", ""),
+            "ctrl_ers_1.ini": profile.replace("120=0", "60=0"),
+            "ctrl_ers_front_1.ini": profile,
+        }, "test_front_motor")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_front_motor_is_the_cars_motor(self):
+        h = self.toml["hybrid"]
+        self.assertEqual(h["axle"], "front")
+        self.assertAlmostEqual(h["motor_max_power_kw"], 300.0, delta=0.5)
+        # Both tyres are 0.33 m: the torque at the axle as AC files it.
+        self.assertAlmostEqual(h["motor_max_torque_nm"], 2000.0, delta=0.5)
+        # It recovers through the fronts at its own power, not the crank's
+        # coast curve.
+        self.assertAlmostEqual(h["regen_max_power_kw"], 300.0, delta=0.5)
+        self.assertAlmostEqual(h["battery_capacity_kwh"], 300.0 * 40.0 / 3600.0, delta=0.01)
+        self.assertEqual(h["deploy_kj_per_lap"], 8000.0)
+
+    def test_the_default_profile_sets_the_minimum_speed(self):
+        # DEFAULT_CONTROLLER=1, the front motor's own profile: shut to 120.
+        self.assertEqual(self.toml["hybrid"]["deploy_min_speed_kph"], 120.0)
+
+    def test_what_is_not_carried_is_named(self):
+        text = " ".join(self.warnings)
+        self.assertIn("FRONT_TORQUE_VECTORING_BIAS", text)
+        self.assertIn("ctrl_ers_*.ini", text)
+        self.assertNotIn("is dropped", text)
+
+
+class InlineAndTwoMotorErsImportTest(unittest.TestCase):
+    """An inline crank motor curve (as the 499P mod writes it) and a weaker
+    front motor: the crank motor is kept, the front one named as dropped."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp, cls.toml, cls.warnings = _import_with({
+            "ers.ini": """[HEADER]
+VERSION=1
+[KINETIC]
+TORQUE_CURVE=(0=150||4000=450|5000=450|10000=70|)
+COAST_CURVE=(|500=90|5000=90|)
+DISCHARGE_TIME=80000
+MAX_KJ_PER_LAP=9999999
+[FRONT_MOTORS]
+TORQUE_CURVE=kers_torque.lut
+""",
+            "kers_torque.lut": "0|500\n1000|500\n2000|0\n",
+        }, "test_inline_ers")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_inline_crank_motor_is_read_and_kept(self):
+        h = self.toml["hybrid"]
+        self.assertNotIn("axle", h)
+        self.assertEqual(h["motor_max_torque_nm"], 450.0)
+        # 450 Nm at 5000 rpm.
+        self.assertAlmostEqual(h["motor_max_power_kw"], 235.6, delta=0.1)
+        self.assertAlmostEqual(h["regen_max_power_kw"], 47.1, delta=0.1)
+        self.assertNotIn("deploy_kj_per_lap", h)
+        self.assertNotIn("deploy_min_speed_kph", h)
+        self.assertTrue(any("front motor ([FRONT_MOTORS]) is dropped" in w for w in self.warnings))
+
+
 class SyntheticImportTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

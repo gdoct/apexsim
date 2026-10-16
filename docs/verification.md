@@ -237,6 +237,11 @@ Mandarina Bay.
   right.
 - An H-pattern shifter on the `HGear*` slots.
 - The handbrake's feel (`HANDBRAKE_SHARE`, how fast the tail comes round).
+- A front-axle hybrid motor (`[hybrid] axle = "front"`; an AC 919 import
+  re-imported with `[FRONT_MOTORS]`): the pull at both ends on corner exit
+  above its minimum speed, the front recovery under braking, and that the
+  ERS HUD shows it deploying and harvesting. Only tests and a scripted
+  drive have seen it.
 - The peak torques and the gear / hybrid minimum forces (5% / 3%) felt on
   a base.
 - The PXN profiles (V10, V12, V12 Lite, V99: names and peaks from the
