@@ -631,6 +631,9 @@ pub struct StopContext {
     /// pays).
     pub stops_owed: u32,
     pub compound_owed: bool,
+    /// A stop now would put it back on the road within
+    /// [`AI_REJOIN_TRAFFIC_S`] of another car ([`rejoins_in_traffic`]).
+    pub rejoin_traffic: bool,
 }
 
 /// A refuelled car short of the flag by no more than this share saves fuel
@@ -658,6 +661,41 @@ pub const AI_UNDERCUT_CHANCE: (f32, f32) = (0.15, 0.45);
 /// the undercut puts the car behind ahead.
 pub const AI_COVER_GAP_S: f32 = 2.5;
 pub const AI_COVER_WEAR: f32 = 40.0;
+/// A stop that would rejoin the road within this many seconds of another
+/// car rejoins in traffic: held up behind it on new tyres, or attacked by
+/// it on cold ones.
+pub const AI_REJOIN_TRAFFIC_S: f32 = 1.5;
+/// Worn tyres ([`AI_PIT_WEAR`]) wait for a clear rejoin up to this wear,
+/// percent; a pit rule's stop waits up to [`AI_REJOIN_WAIT_LAPS`] past its
+/// share of the race.
+pub const AI_REJOIN_WAIT_WEAR: f32 = 78.0;
+pub const AI_REJOIN_WAIT_LAPS: f32 = 2.0;
+/// What slowing into the box and pulling away from it cost beyond the
+/// lane at its limit, s.
+pub const BOX_STOP_LOSS_S: f32 = 4.0;
+
+/// The time a stop costs against staying out, s: the lane at its limit
+/// (and at [`LANE_TOP_SPEED_MPS`] outside the limit lines) against the
+/// track it bypasses at the car's lap pace, the box ([`BOX_STOP_LOSS_S`])
+/// and the service.
+pub fn pit_loss_s(lane: &PitLane, track_length_m: f32, lap_s: f32, service_s: f32) -> f32 {
+    let limited = (lane.limit_end_m - lane.limit_start_m).clamp(0.0, lane.length_m);
+    let lane_s = limited / lane.speed_limit_mps.max(1.0)
+        + (lane.length_m - limited).max(0.0) / LANE_TOP_SPEED_MPS;
+    let total = track_length_m.max(1.0);
+    let bypassed = (lane.exit_station_m - lane.entry_station_m).rem_euclid(total);
+    let track_s = lap_s.max(1.0) * bypassed / total;
+    (lane_s - track_s).max(0.0) + BOX_STOP_LOSS_S + service_s
+}
+
+/// Whether a stop costing `loss_s` puts the car back on the road within
+/// [`AI_REJOIN_TRAFFIC_S`] of another car, given how far behind it on the
+/// road each of the others is, s (`behind_s`, each in 0..a lap).
+pub fn rejoins_in_traffic(loss_s: f32, behind_s: impl IntoIterator<Item = f32>) -> bool {
+    behind_s
+        .into_iter()
+        .any(|b| (b - loss_s).abs() < AI_REJOIN_TRAFFIC_S)
+}
 
 /// The softest compound that lasts `laps_left`.
 fn pick_for(laps_left: u32) -> StopPick {
@@ -714,6 +752,12 @@ pub fn tyres_reach_flag(state: &CarState, stint_laps: f32, laps_left: u32) -> bo
 /// stop it must make anyway is brought forward to undercut a car it is
 /// held up by, or to cover one behind that has turned in.
 ///
+/// A stop that would rejoin in traffic (`ctx.rejoin_traffic`) waits where
+/// the window allows: worn tyres up to [`AI_REJOIN_WAIT_WEAR`], a pit
+/// rule's stop up to [`AI_REJOIN_WAIT_LAPS`] past its share; and it is not
+/// brought forward: no undercut onto a busy road, and a car behind that has
+/// stopped is answered by the overcut (staying out) rather than covered.
+///
 /// Under a pit rule (`data::PitRule`) the stops it owes split the race into
 /// even stints: an owed stop is due once this stint has run its share of
 /// the laps left, and is made at the latest with a lap left for each stop
@@ -759,6 +803,10 @@ pub fn plan_stop(state: &CarState, ctx: &StopContext) -> Option<StopPlan> {
         if laps_left <= AI_STAY_OUT_LAPS && tyres_last && !short && owed == 0 {
             return None;
         }
+        // Worn but not yet wearing through: wait for a clear rejoin.
+        if ctx.rejoin_traffic && wear < AI_REJOIN_WAIT_WEAR && !short && laps_left > owed {
+            return None;
+        }
         return full;
     }
     if short {
@@ -771,7 +819,8 @@ pub fn plan_stop(state: &CarState, ctx: &StopContext) -> Option<StopPlan> {
     // lap it can be made on.
     if owed > 0 {
         let share = (ctx.stint_laps.max(0.0) + laps_left as f32) / (owed as f32 + 1.0);
-        if laps_left <= owed || ctx.stint_laps >= share {
+        let waited = ctx.stint_laps >= share + AI_REJOIN_WAIT_LAPS;
+        if laps_left <= owed || (ctx.stint_laps >= share && (!ctx.rejoin_traffic || waited)) {
             return full;
         }
     }
@@ -780,6 +829,12 @@ pub fn plan_stop(state: &CarState, ctx: &StopContext) -> Option<StopPlan> {
         || lap_fuel.is_some_and(fuel_needed)
         || (owed > 0 && ctx.stint_laps >= 2.0);
     if !due || (laps_left < AI_STRATEGY_MIN_LAPS && owed == 0) {
+        return None;
+    }
+    // Neither into traffic: the undercut's new tyres need a clear road, and
+    // a car behind that has stopped is answered by the overcut instead (it
+    // stays out on the clear road the stop left).
+    if ctx.rejoin_traffic {
         return None;
     }
     let cover = ctx.rival_behind_stopping && wear >= AI_COVER_WEAR;
@@ -1536,6 +1591,118 @@ mod tests {
             ..short
         };
         assert_eq!(plan_stop(&state, &owed).map(|p| p.fuel_only), Some(false));
+    }
+
+    /// A stop's cost is the lane against the track it bypasses, the box and
+    /// the service; it rejoins in traffic within a second and a half of a
+    /// car that far behind on the road.
+    #[test]
+    fn the_ai_works_out_where_a_stop_rejoins() {
+        let lane = straight_lane();
+        // 120 m at the limit and 80 m at the lane's top speed, against the
+        // 250 m of track from 900 round to 150 at 100 m/s.
+        let lane_s = 120.0 / (80.0 / 3.6) + 80.0 / LANE_TOP_SPEED_MPS;
+        let loss = pit_loss_s(&lane, 1000.0, 10.0, 9.0);
+        assert!((loss - (lane_s - 2.5 + BOX_STOP_LOSS_S + 9.0)).abs() < 1e-3);
+        assert!(
+            (pit_loss_s(&lane, 1000.0, 200.0, 0.0) - BOX_STOP_LOSS_S).abs() < 1e-3,
+            "a lane quicker than the track costs no more than the box"
+        );
+        assert!(rejoins_in_traffic(20.0, [3.0, 19.0, 40.0]));
+        assert!(rejoins_in_traffic(20.0, [21.2]));
+        assert!(!rejoins_in_traffic(20.0, [3.0, 17.0, 23.0]));
+        assert!(!rejoins_in_traffic(20.0, []));
+    }
+
+    /// Into traffic a stop waits while the window allows, and is not brought
+    /// forward: no undercut, and the overcut against a car behind that has
+    /// stopped.
+    #[test]
+    fn a_stop_into_traffic_waits_and_overcuts() {
+        let mut state = CarState::new(
+            uuid::Uuid::nil(),
+            uuid::Uuid::nil(),
+            &crate::data::GridSlot {
+                position: 1,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            },
+        );
+        state.tires.rear_left.wear_percent = 72.0;
+        let clear = StopContext {
+            laps_left: 20,
+            stint_laps: 12.0,
+            ..StopContext::default()
+        };
+        let busy = StopContext {
+            rejoin_traffic: true,
+            ..clear
+        };
+        assert!(plan_stop(&state, &clear).is_some());
+        assert_eq!(plan_stop(&state, &busy), None, "worn: waits for a gap");
+        state.tires.rear_left.wear_percent = AI_REJOIN_WAIT_WEAR;
+        assert!(plan_stop(&state, &busy).is_some(), "too worn to wait");
+        // A pit rule's stop waits past its share, then goes anyway.
+        state.tires.rear_left.wear_percent = 10.0;
+        let rule = StopContext {
+            laps_left: 10,
+            stint_laps: 10.0,
+            stops_owed: 1,
+            ..StopContext::default()
+        };
+        assert!(plan_stop(&state, &rule).is_some());
+        let rule_busy = StopContext {
+            rejoin_traffic: true,
+            ..rule
+        };
+        assert_eq!(plan_stop(&state, &rule_busy), None);
+        let waited = StopContext {
+            laps_left: 8,
+            stint_laps: 12.0,
+            ..rule_busy
+        };
+        assert!(plan_stop(&state, &waited).is_some());
+        // Tyres that will not last, a car behind turned in: covered on a
+        // clear road, overcut into traffic; the undercut likewise.
+        state.tires.rear_left.wear_percent = 55.0;
+        let cover = StopContext {
+            laps_left: 20,
+            stint_laps: 8.0,
+            rival_behind_stopping: true,
+            ..StopContext::default()
+        };
+        assert!(plan_stop(&state, &cover).is_some());
+        assert_eq!(
+            plan_stop(
+                &state,
+                &StopContext {
+                    rejoin_traffic: true,
+                    ..cover
+                }
+            ),
+            None
+        );
+        let undercut = StopContext {
+            laps_left: 20,
+            stint_laps: 8.0,
+            gap_ahead_s: Some(0.8),
+            aggressiveness: 1.0,
+            roll: 0.0,
+            ..StopContext::default()
+        };
+        assert!(plan_stop(&state, &undercut).is_some());
+        assert_eq!(
+            plan_stop(
+                &state,
+                &StopContext {
+                    rejoin_traffic: true,
+                    ..undercut
+                }
+            ),
+            None
+        );
     }
 
     #[test]

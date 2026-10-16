@@ -4953,12 +4953,7 @@ impl GameSession {
             .changes_after(now_s, 16)
             .find(|c| wet(c.weather) != raining)
             .map(|c| c.at_s - now_s);
-        let lap_s = state
-            .last_lap_time_ms
-            .filter(|ms| *ms > 0)
-            .map(|ms| ms as f32 / 1000.0)
-            .or_else(|| self.lap_seconds.get(&state.car_config_id).copied())
-            .unwrap_or(FALLBACK_LAP_SECONDS);
+        let lap_s = self.own_lap_s(state);
         let (aggressiveness, roll) = match self.ai_profiles.get(&state.player_id) {
             Some(profile) => {
                 let (hi, lo) = state.player_id.as_u64_pair();
@@ -4980,6 +4975,60 @@ impl GameSession {
             aggressiveness,
             roll,
         }
+    }
+
+    /// A lap of `state`'s car, s: its last, or its car's planned lap.
+    fn own_lap_s(&self, state: &CarState) -> f32 {
+        state
+            .last_lap_time_ms
+            .filter(|ms| *ms > 0)
+            .map(|ms| ms as f32 / 1000.0)
+            .or_else(|| self.lap_seconds.get(&state.car_config_id).copied())
+            .unwrap_or(FALLBACK_LAP_SECONDS)
+    }
+
+    /// Whether a stop now would put `state`'s car back on the road in
+    /// traffic (`pit::rejoins_in_traffic`): the stop's cost
+    /// (`pit::pit_loss_s`, with the fuel to the flag a refuelled car takes)
+    /// against how far behind it on the road, at its pace, each other car
+    /// running out of the lane is.
+    fn rejoins_in_traffic(
+        &self,
+        state: &CarState,
+        laps_left: u32,
+        lap_fuel_l: Option<f32>,
+        total_m: f32,
+    ) -> bool {
+        let (Some(lane), Some(config)) = (
+            self.track_config.pit_lane.as_ref(),
+            self.car_configs.get(&state.car_config_id),
+        ) else {
+            return false;
+        };
+        if total_m <= 0.0 {
+            return false;
+        }
+        let lap_s = self.own_lap_s(state).max(1.0);
+        let room = (config.fuel.capacity_liters - state.fuel_liters).max(0.0);
+        let fuel_l = lap_fuel_l.map_or(0.0, |lap| {
+            (lap * (laps_left as f32 + 1.0) - state.fuel_liters).clamp(0.0, room)
+        });
+        let service_s = crate::pit::service_seconds(config, fuel_l, 0.0);
+        let loss_s = crate::pit::pit_loss_s(lane, total_m, lap_s, service_s);
+        let pace = total_m / lap_s;
+        let behind = self
+            .session
+            .participants
+            .values()
+            .filter(|o| {
+                o.player_id != state.player_id
+                    && !o.in_garage
+                    && !o.pit.in_lane
+                    && o.damage.is_drivable
+                    && o.finish_position.is_none()
+            })
+            .map(|o| (state.track_progress - o.track_progress).rem_euclid(total_m) / pace);
+        crate::pit::rejoins_in_traffic(loss_s, behind)
     }
 
     /// What an AI weighs a stop against (`pit::plan_stop`): the race left,
@@ -5032,6 +5081,7 @@ impl GameSession {
             save_to_flag: lap_fuel_l.is_some() && self.saves_to_flag(state),
             stops_owed,
             compound_owed,
+            rejoin_traffic: self.rejoins_in_traffic(state, laps_left, lap_fuel_l, total_m),
             stint_laps: laps_run(state, total_m) - state.pit.stint_start_laps,
             gap_ahead_s,
             rival_behind_stopping,

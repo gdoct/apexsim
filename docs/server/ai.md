@@ -208,7 +208,19 @@ off by `Racecraft::blend`; the controller holds it across the road
   `AI_COVER_WEAR` (40%) worn, and to **undercut** a car it is held up by
   within `AI_UNDERCUT_GAP_S` (1.2 s), on tyres `AI_UNDERCUT_WEAR` (50%)
   worn, by a chance a lap of `AI_UNDERCUT_CHANCE` (15% timid to 60%
-  bold). Under the session's pit rule (`data::PitRule`,
+  bold). **The rejoin**: `pit::pit_loss_s` is what a stop costs (the
+  lane at its limit, and `LANE_TOP_SPEED_MPS` outside the lines, against
+  the track it bypasses at the car's lap pace, plus `BOX_STOP_LOSS_S` (4 s)
+  and the service with the fuel to the flag), and
+  `GameSession::rejoins_in_traffic` reads it against how far behind on the
+  road, at the car's pace, every other car out of the lane is: within
+  `AI_REJOIN_TRAFFIC_S` (1.5 s) the stop rejoins in traffic
+  (`StopContext::rejoin_traffic`). Then worn tyres wait for a clear rejoin
+  up to `AI_REJOIN_WAIT_WEAR` (78%), a pit rule's stop up to
+  `AI_REJOIN_WAIT_LAPS` (2) past its share, and nothing is brought forward:
+  no undercut onto a busy road, and a car behind that has turned in is
+  answered by the **overcut**, staying out on the road its stop cleared,
+  instead of a cover. Faults, damage and a short tank never wait. Under the session's pit rule (`data::PitRule`,
   [sessions](sessions.md#session-rules-set-on-create); `StopContext::stops_owed`
   and `compound_owed`, `GameSession::stops_owed`) the stops it owes split
   the race into even stints: an owed stop is due once this stint has run
