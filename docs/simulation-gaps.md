@@ -37,7 +37,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 
 | Gap | Effort | Impact |
 |---|---|---|
-| Passes are planned into a braking zone on one lane held to that corner's apex, or on a straight past a car at least 4 m/s slower (`racecraft::decide`): no switchback on the exit, no planned cutback, no use of the DRS zone or the tow to choose where. | Med | Med |
+| A pass is one lane into one braking zone, held to the apex (chosen by the run in, `racecraft::pass_here`): no switchback on the exit and no planned cutback, and DRS counts only when it is open on the straight now, not for a zone further on. | Med | Low |
 | Side by side past the apex the cars are back on the per-tick dodge (an offset from the line, which sweeps across the road with it); on a narrow road (Zandvoort) two GT3s alongside lean on each other. Holding the dodge across the road was tried and made contact worse. | High | Med |
 | A defence is one move to the inside before the braking: no covering the tow on a straight, no squeeze toward the edge, no judging how fast the car behind is coming. | Med | Low |
 | Room is left only for an AI attacker (`Tactic::Room` needs the rival's `Tactic::Attack`): a human alongside gets the per-tick dodge, and nothing reads a human's intent or judges a human's blocking. | Med | Med |

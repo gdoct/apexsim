@@ -17,7 +17,9 @@
 //!   outside when that is covered and it is brave enough, and brakes a
 //!   shade later once alongside on the inside. Without half a car alongside
 //!   at the end of the braking it lifts and tucks in behind; with it, it
-//!   has the corner. Either way the lane ends at the apex.
+//!   has the corner. Either way the lane ends at the apex. The corner is
+//!   picked by its run in ([`pass_here`]): a driver held up waits for the
+//!   end of the long straight, where the tow (and DRS) close it most.
 //! - **Defend** (races only): a car closing behind on the approach to a
 //!   braking zone gets one move to the inside, made before the braking,
 //!   held to the apex. A car already alongside is too late to block.
@@ -77,6 +79,17 @@ const ATTACK_FROM_M: f32 = 20.0;
 const ATTACK_REACH_S: f32 = 3.5;
 /// A car this much slower than the one behind it is passed on any straight.
 const MUCH_SLOWER_MPS: f32 = 4.0;
+/// Choosing where to pass: a corner whose run in is under this share of
+/// the best of the next few is passed up, looking this many corners and
+/// this far ahead, m; a run counts up to this long, m, and DRS open on it
+/// adds this share. Held up this much longer than its hesitation, s, a
+/// driver takes any corner.
+const PLAN_SHARE: f32 = 0.6;
+const PLAN_CORNERS: usize = 3;
+const PLAN_AHEAD_M: f32 = 2500.0;
+const PLAN_RUN_MAX_M: f32 = 1500.0;
+const PLAN_DRS_WEIGHT: f32 = 1.0;
+const PLAN_PATIENCE_S: f32 = 6.0;
 /// Room left between the two cars when side by side, m.
 const SIDE_ROOM_M: f32 = 1.2;
 /// Margin kept from the road's edge when picking a lane, m.
@@ -809,6 +822,7 @@ pub fn decide(
             ctx,
             &clamp_lane,
             &rc,
+            speeds.zip(here),
         ) {
             rc = next;
         }
@@ -929,6 +943,7 @@ fn start_tactic(
     ctx: &Context<'_>,
     clamp_lane: &dyn Fn(f32) -> f32,
     rc: &Racecraft,
+    plan: Option<(&RacingLineProfile, usize)>,
 ) -> Option<Racecraft> {
     let aggr = profile.aggressiveness.clamp(0.0, 1.0);
     let speed = state.speed_mps.max(1.0);
@@ -1027,7 +1042,12 @@ fn start_tactic(
     let approach = corner.brake_in_m >= ATTACK_FROM_M
         && corner.brake_in_m <= ATTACK_FROM_M + ATTACK_REACH_S * speed;
     let crawling = o.speed_mps < me.speed_mps - MUCH_SLOWER_MPS && corner.brake_in_m > 60.0;
-    if !close || !(crawling || (rc.held_s >= hesitate && approach)) {
+    // Where to pass: into the braking zone at the end of the run that
+    // closes most (the longest straight, DRS open on it), unless held up
+    // so long that any corner will do.
+    let planned = rc.held_s >= hesitate + PLAN_PATIENCE_S
+        || plan.is_none_or(|(s, h)| pass_here(s, h, corner, state.drs_allowed));
+    if !close || !(crawling || (rc.held_s >= hesitate && approach && planned)) {
         return None;
     }
 
@@ -1058,6 +1078,56 @@ fn start_tactic(
         o.id,
         clamp_lane(o.left_m + side * beside),
     ))
+}
+
+/// The straight run into the braking point at profile point `brake`, m:
+/// the throttle stretch before it, up to [`PLAN_RUN_MAX_M`].
+fn run_into(speeds: &RacingLineProfile, brake: usize) -> f32 {
+    let n = speeds.points.len();
+    let sp = speeds.spacing_m;
+    let most = ((PLAN_RUN_MAX_M / sp) as usize).min(n.saturating_sub(1));
+    let mut k = 1;
+    while k <= most && speeds.phases[(brake + n - k) % n] == LinePhase::Throttle {
+        k += 1;
+    }
+    (k - 1) as f32 * sp
+}
+
+/// Whether the corner ahead is the place to pass: its run in (the tow's
+/// length, and twice that with DRS open on it now) at least
+/// [`PLAN_SHARE`] of the best of the next [`PLAN_CORNERS`] corners'
+/// within [`PLAN_AHEAD_M`]. A driver held up behind a car waits for the
+/// long straight rather than diving into the first corner it reaches.
+fn pass_here(speeds: &RacingLineProfile, here: usize, corner: &Corner, drs: bool) -> bool {
+    let n = speeds.points.len();
+    let sp = speeds.spacing_m;
+    if n < 8 || sp <= 0.0 {
+        return true;
+    }
+    let brake = (here + (corner.brake_in_m / sp).round() as usize) % n;
+    let mut score = run_into(speeds, brake);
+    if drs {
+        score *= 1.0 + PLAN_DRS_WEIGHT;
+    }
+    let step = ((30.0 / sp).ceil() as usize).max(1);
+    let mut from = corner.apex;
+    let mut travelled = corner.apex_in_m;
+    for _ in 0..PLAN_CORNERS {
+        let Some(next) = next_corner(speeds, (from + step) % n) else {
+            break;
+        };
+        travelled += step as f32 * sp + next.brake_in_m;
+        if travelled > PLAN_AHEAD_M {
+            break;
+        }
+        let brake = (from + step + (next.brake_in_m / sp).round() as usize) % n;
+        if run_into(speeds, brake) * PLAN_SHARE > score {
+            return false;
+        }
+        travelled += next.apex_in_m - next.brake_in_m;
+        from = next.apex;
+    }
+    true
 }
 
 /// Getting unstuck: count the time crawling against a wall or off the road,
@@ -1248,20 +1318,27 @@ mod tests {
     /// A loop of straights and four left-hand corners: the profile
     /// brakes into each and the corner is found to the left.
     fn square_profile() -> RacingLineProfile {
+        rectangle_profile(400.0, 400.0)
+    }
+
+    /// A rectangle `long` by `short` m, anticlockwise from the origin
+    /// along x: braking over the last 100 m of each side, back up over the
+    /// first 100 m of the next.
+    fn rectangle_profile(long: f32, short: f32) -> RacingLineProfile {
         let sp = 2.5;
-        let side = 400.0;
         let mut points = Vec::new();
         let mut speed = Vec::new();
         let mut phases = Vec::new();
-        let per_side = (side / sp) as usize;
         for s in 0..4 {
+            let side = if s % 2 == 0 { long } else { short };
+            let per_side = (side / sp) as usize;
             for i in 0..per_side {
                 let t = i as f32 * sp;
                 let (x, y) = match s {
                     0 => (t, 0.0),
-                    1 => (side, t),
-                    2 => (side - t, side),
-                    _ => (0.0, side - t),
+                    1 => (long, t),
+                    2 => (long - t, short),
+                    _ => (0.0, short - t),
                 };
                 points.push([x, y, 0.0]);
                 // Braking over the last 100 m of each side, slowest at the
@@ -1296,6 +1373,27 @@ mod tests {
         let c2 = next_corner(&p, 140).expect("a corner ahead");
         assert_eq!(c2.brake_in_m, 0.0);
         assert_eq!(c2.apex, c.apex);
+    }
+
+    /// A driver held up passes into the corner at the end of the long
+    /// straight, not the short one before it.
+    #[test]
+    fn the_pass_is_planned_at_the_end_of_the_long_straight() {
+        let p = rectangle_profile(800.0, 200.0);
+        // 20 m into the short side: the corner ahead has a 100 m run, the
+        // one after it 700 m.
+        let here = (820.0 / p.spacing_m) as usize;
+        let c = next_corner(&p, here).expect("a corner ahead");
+        assert!(!pass_here(&p, here, &c, false));
+        assert!(!pass_here(&p, here, &c, true), "DRS on a short run");
+        // On the long side the corner ahead is the place.
+        let here = (20.0 / p.spacing_m) as usize;
+        let c = next_corner(&p, here).expect("a corner ahead");
+        assert!(pass_here(&p, here, &c, false));
+        // Every corner of a square is as good as the next.
+        let sq = square_profile();
+        let c = next_corner(&sq, 40).expect("a corner ahead");
+        assert!(pass_here(&sq, 40, &c, false));
     }
 
     #[test]

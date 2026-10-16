@@ -130,6 +130,15 @@ next `Brake` phase, its slowest point, the hand at the apex).
   later. Without `TURN_IN_OVERLAP` (half a car) alongside at the end of the
   braking it lifts and tucks in behind. The lane ends at the apex either
   way; an attack not alongside within 10 s is given up.
+- **Where to pass** (`pass_here`): the corner is taken only if its run in
+  (the throttle stretch of the plan before its braking point, up to
+  `PLAN_RUN_MAX_M` 1500 m; doubled, `PLAN_DRS_WEIGHT`, with DRS open on it
+  now) is at least `PLAN_SHARE` (0.6) of the best of the next
+  `PLAN_CORNERS` (3) within `PLAN_AHEAD_M` (2500 m): a driver held up
+  waits for the long straight, where the tow closes it most, rather than
+  diving into the first corner. Held up `PLAN_PATIENCE_S` (6 s) past its
+  hesitation, any corner will do; a car `MUCH_SLOWER_MPS` (4 m/s) slower
+  is passed on any straight.
 - **Defend** (races only): one move to the inside before the braking
   against a car closing within `DEFEND_GAP_S` (0.5 s), held to the apex, by
   a hashed chance that grows with aggressiveness.
