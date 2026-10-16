@@ -447,7 +447,8 @@ void UApexHotlapWidget::RefreshQualifyingClock()
 	if (GoOutButton)
 	{
 		GoOutButton->SetIsEnabled(!bFlag && !Out);
-		GoOutButton->SetLabel(Out ? FString::Printf(TEXT("OUT IN Q%d · P%d ON THE GRID"), Out->Round, Out->GridPosition)
+		GoOutButton->SetLabel(Out && Out->bLate ? FString::Printf(TEXT("A LATE ENTRY · P%d ON THE GRID"), Out->GridPosition)
+			: Out ? FString::Printf(TEXT("OUT IN Q%d · P%d ON THE GRID"), Out->Round, Out->GridPosition)
 			: bFlag ? FString::Printf(TEXT("%s IS OVER"), *Name)
 			: FString(TEXT("GO OUT FOR A LAP")));
 	}

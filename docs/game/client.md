@@ -109,9 +109,10 @@ two seconds) with the session and live counts; under it the car the player
 would join in, Change car (car select, returning here) and Create session.
 One row a session: the track's preview, its display name (the catalog's,
 the server's name only without a row), host, drivers, kind, length and sky,
-and a badge (Lobby, Starting, Racing, Full, Finished). Enter on a row joins
-in the pending car (SelectCar, then JoinSession; without a car it opens car
-select; a full or finished session says so). Right from a row is its Watch
+and a badge (Lobby, Starting, Racing, Full, Finished, or Between sessions
+for a race weekend waiting for its host, which still takes drivers). Enter
+on a row joins in the pending car (SelectCar, then JoinSession; without a
+car it opens car select; a full or finished session says so). Right from a row is its Watch
 button, lit while a race is being driven (`WatchSession`). Rows are rebuilt
 only when sessions come or go and refreshed in place otherwise, so a
 broadcast never moves the pad's place.

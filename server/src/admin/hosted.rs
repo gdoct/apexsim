@@ -185,6 +185,7 @@ pub(crate) async fn open(
         damage: spec.damage,
         lap_limit,
         race_seconds,
+        weekend_waiting: false,
         max_players: ai_count + player_slots,
         current_player_count: 0,
         spectator_count: 0,

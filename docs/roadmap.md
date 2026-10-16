@@ -44,10 +44,6 @@ None open.
 Rules the server takes on `CreateSession` that no screen offers yet
 ([server/sessions.md](server/sessions.md#session-rules-set-on-create)).
 
-- Joining a race weekend between phases: the session browser offers Join
-  on a weekend listed `Finished` while it waits for its host (the server
-  takes the driver), and the client decodes `KnockedOutData.Late` so the
-  timesheet and garage name a late entry rather than "out in Qn".
 
 **Check:** `ApexSim.UI.CreateSession.*`; a session created with each new
 rule echoes it in `SessionJoined` and the lobby shows it.

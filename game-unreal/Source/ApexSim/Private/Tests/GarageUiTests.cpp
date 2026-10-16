@@ -98,6 +98,12 @@ bool FApexSessionBrowserFilterTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("a lobby with room is joinable"), Passes(Lobby, EFilter::Joinable));
 	TestFalse(TEXT("a full one is not"), Passes(Full, EFilter::Joinable));
 	TestFalse(TEXT("nor one that is over"), Passes(Over, EFilter::Joinable));
+	FApexSessionSummary Waiting = Over;
+	Waiting.bWeekendWaiting = true;
+	TestTrue(TEXT("a weekend between phases is, though listed finished"), Passes(Waiting, EFilter::Joinable));
+	TestFalse(TEXT("and is not over"), Waiting.IsOver());
+	Waiting.PlayerCount = Waiting.MaxPlayers;
+	TestFalse(TEXT("unless it is full"), Passes(Waiting, EFilter::Joinable));
 	TestTrue(TEXT("a race under way is racing"), Passes(Racing, EFilter::Racing));
 	TestFalse(TEXT("a lobby is not"), Passes(Lobby, EFilter::Racing));
 	TestFalse(TEXT("the recorded list has no live session"), Passes(Racing, EFilter::Recorded));

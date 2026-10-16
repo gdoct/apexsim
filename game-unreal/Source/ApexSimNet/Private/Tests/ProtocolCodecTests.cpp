@@ -601,7 +601,24 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 				TestEqual(TEXT("Eliminated.Round"), W.Eliminated[0].Round, 1);
 				TestEqual(TEXT("Eliminated.GridPosition"), W.Eliminated[0].GridPosition, 16);
 				TestEqual(TEXT("Eliminated.LapTimeMs"), W.Eliminated[0].LapTimeMs, 91234);
+				TestFalse(TEXT("Eliminated.bLate (not named)"), W.Eliminated[0].bLate);
 			}
+		}
+		FApexServerMessage Late;
+		if (Decode(TEXT("WeekendState with a late entry"), ApexGolden::S_WeekendStateLate, Late)
+			&& TestEqual(TEXT("one late entry"), Late.WeekendState.Eliminated.Num(), 1))
+		{
+			TestTrue(TEXT("Eliminated.bLate"), Late.WeekendState.Eliminated[0].bLate);
+			TestEqual(TEXT("with no time"), Late.WeekendState.Eliminated[0].LapTimeMs, 0);
+		}
+		FApexServerMessage Lobby;
+		if (Decode(TEXT("LobbyState with a weekend between phases"), ApexGolden::S_LobbyStateWeekendWaiting, Lobby)
+			&& TestEqual(TEXT("one session"), Lobby.LobbyState.AvailableSessions.Num(), 1))
+		{
+			const FApexSessionSummary& Waiting = Lobby.LobbyState.AvailableSessions[0];
+			TestEqual(TEXT("listed finished"), Waiting.State, EApexSessionState::Finished);
+			TestTrue(TEXT("WeekendWaiting"), Waiting.bWeekendWaiting);
+			TestTrue(TEXT("and joinable"), Waiting.IsJoinable());
 		}
 	}
 

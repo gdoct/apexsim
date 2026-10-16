@@ -796,8 +796,8 @@ void UApexSessionResultsWidget::FillQualifyingRows()
 			!Result ? FString::Printf(TEXT("Car %d"), Out.CarIndex)
 				: Result->bIsAi ? FString::Printf(TEXT("AI · %s"), *Result->DriverName) : Result->DriverName,
 			ApexUI::Font::Display(17.0f), ApexUI::Palette::TextSecondary));
-		ApexUI::AddH(NameCell, MakeTag(*WidgetTree, FString::Printf(TEXT("OUT IN Q%d"), Out.Round), ApexUI::Palette::TextMuted),
-			FMargin(10.0f, 0.0f, 0.0f, 0.0f));
+		ApexUI::AddH(NameCell, MakeTag(*WidgetTree, Out.bLate ? FString(TEXT("LATE ENTRY")) : FString::Printf(TEXT("OUT IN Q%d"), Out.Round),
+			ApexUI::Palette::TextMuted), FMargin(10.0f, 0.0f, 0.0f, 0.0f));
 		if (bIsLocal)
 		{
 			ApexUI::AddH(NameCell, MakeTag(*WidgetTree, TEXT("YOU"), ApexUI::Palette::Accent), FMargin(10.0f, 0.0f, 0.0f, 0.0f));
@@ -1035,7 +1035,9 @@ void UApexSessionResultsWidget::FillQualifyingSummary(const FApexCarResult& Loca
 	{
 		ApexUI::AddV(SummaryBox, ApexUI::MakeText(*WidgetTree, FString::Printf(TEXT("P%d"), MyOut->GridPosition),
 			ApexUI::Font::Display(64.0f), ApexUI::Palette::TextSecondary));
-		ApexUI::AddV(SummaryBox, ApexUI::MakeLabel(*WidgetTree, FString::Printf(TEXT("On the grid · out in Q%d"), MyOut->Round)));
+		ApexUI::AddV(SummaryBox, ApexUI::MakeLabel(*WidgetTree, MyOut->bLate
+			? FString(TEXT("On the grid · a late entry, from the back"))
+			: FString::Printf(TEXT("On the grid · out in Q%d"), MyOut->Round)));
 		return;
 	}
 
@@ -1075,7 +1077,7 @@ void UApexSessionResultsWidget::FillQualifyingSummary(const FApexCarResult& Loca
 	else if (MyOut)
 	{
 		Big = FString::Printf(TEXT("P%d"), MyOut->GridPosition);
-		Caption = FString::Printf(TEXT("Knocked out in Q%d"), MyOut->Round);
+		Caption = MyOut->bLate ? FString(TEXT("A late entry")) : FString::Printf(TEXT("Knocked out in Q%d"), MyOut->Round);
 		Under = TEXT("YOUR GRID SLOT");
 		bGood = false;
 	}

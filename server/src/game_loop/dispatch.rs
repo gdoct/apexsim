@@ -551,6 +551,7 @@ async fn handle_create_session(
         conditions,
         lap_limit,
         race_seconds,
+        weekend_waiting: false,
         track_config_id,
         damage,
         max_players,

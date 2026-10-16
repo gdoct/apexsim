@@ -39,6 +39,9 @@ pub struct LobbySessionInfo {
     pub lap_limit: u8,
     /// A timed race's length in seconds (`lap_limit` is then 0).
     pub race_seconds: Option<u32>,
+    /// A race weekend between phases, waiting for its host: listed
+    /// `Finished`, it still takes drivers (`SessionSummary::weekend_waiting`).
+    pub weekend_waiting: bool,
     pub max_players: u8,
     pub current_player_count: u8,
     pub spectator_count: u8,
@@ -251,9 +254,17 @@ impl LobbyManager {
     /// Record a session's state as the session reports it
     /// (`GameSession::take_state_change`, from the tick), for the listing.
     /// Player and spectator counts are kept by the joins and leaves.
-    pub async fn set_session_state(&self, session_id: SessionId, state: SessionState) {
+    /// The session's state for the listing, and whether it is a race
+    /// weekend waiting for its host between phases.
+    pub async fn set_session_state(
+        &self,
+        session_id: SessionId,
+        state: SessionState,
+        weekend_waiting: bool,
+    ) {
         if let Some(session) = self.state.write().await.sessions.get_mut(&session_id) {
             session.state = state;
+            session.weekend_waiting = weekend_waiting;
         }
     }
 
@@ -395,6 +406,7 @@ impl LobbyManager {
                 damage: s.damage,
                 lap_limit: s.lap_limit,
                 race_seconds: s.race_seconds,
+                weekend_waiting: s.weekend_waiting,
             })
             .collect()
     }
@@ -506,6 +518,7 @@ mod tests {
             damage: DamageLevel::Full,
             lap_limit: 3,
             race_seconds: None,
+            weekend_waiting: false,
             max_players: 8,
             current_player_count: 0,
             spectator_count: 0,
@@ -521,6 +534,15 @@ mod tests {
 
         let sessions = lobby.get_available_sessions().await;
         assert_eq!(sessions.len(), 1);
+        assert!(!sessions[0].weekend_waiting);
+
+        // A weekend between phases is listed finished and waiting.
+        lobby
+            .set_session_state(session_id, SessionState::Finished, true)
+            .await;
+        let sessions = lobby.get_available_sessions().await;
+        assert_eq!(sessions[0].state, SessionState::Finished);
+        assert!(sessions[0].weekend_waiting);
 
         lobby.unregister_session(session_id).await;
         assert_eq!(lobby.get_session_count().await, 0);
@@ -554,6 +576,7 @@ mod tests {
             damage: DamageLevel::Full,
             lap_limit: 3,
             race_seconds: None,
+            weekend_waiting: false,
             max_players: 8,
             current_player_count: 0,
             spectator_count: 0,
@@ -605,6 +628,7 @@ mod tests {
             damage: DamageLevel::Full,
             lap_limit: 3,
             race_seconds: None,
+            weekend_waiting: false,
             max_players: 8,
             current_player_count: 2,
             spectator_count: 0,

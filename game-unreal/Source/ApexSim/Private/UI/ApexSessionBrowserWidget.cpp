@@ -58,7 +58,7 @@ namespace
 	FString StateBadge(const FApexSessionSummary& Session, FLinearColor& OutColour)
 	{
 		using namespace ApexUI;
-		if (Session.State == EApexSessionState::Finished)
+		if (Session.State == EApexSessionState::Finished && !Session.bWeekendWaiting)
 		{
 			OutColour = Palette::TextMuted;
 			return TEXT("Finished");
@@ -67,6 +67,12 @@ namespace
 		{
 			OutColour = Palette::Error;
 			return TEXT("Full");
+		}
+		if (Session.bWeekendWaiting)
+		{
+			// A weekend between phases, waiting for its host: drivers can still join.
+			OutColour = Palette::Live;
+			return TEXT("Between sessions");
 		}
 		switch (Session.State)
 		{
@@ -84,7 +90,7 @@ namespace ApexBrowser
 		switch (Filter)
 		{
 		case EFilter::Joinable:
-			return Session.State != EApexSessionState::Finished && Session.PlayerCount < Session.MaxPlayers;
+			return Session.IsJoinable();
 		case EFilter::Racing:
 			return Session.IsWatchable();
 		case EFilter::Recorded:
@@ -761,7 +767,7 @@ void UApexSessionBrowserWidget::Join(int32 Index)
 		return;
 	}
 	const FApexSessionSummary& Session = Shown[Index];
-	if (Session.State == EApexSessionState::Finished)
+	if (Session.IsOver())
 	{
 		ShowToast(TEXT("That session is over"), true);
 		return;

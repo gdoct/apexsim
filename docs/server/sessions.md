@@ -542,7 +542,12 @@ final) by its laps, then every knocked-out car by grid slot with the lap of
 the round that placed it; drivers with no time are left out. One entry per
 session in `qualifying.json`, as for a plain session.
 
-**Between phases** the session is `Finished`. It is not removed by
+**Between phases** the session is `Finished`, and the lobby lists it with
+`SessionSummary.weekend_waiting` (from `GameSession::awaits_weekend_advance`,
+passed with each listed state change to `LobbyManager::set_session_state`;
+left off the wire when false), so a client offers Join on it: the session
+browser badges it "Between sessions", counts it Joinable and joins it
+(`FApexSessionSummary::IsOver` / `IsJoinable`). It is not removed by
 `[server] session_timeout_seconds` while a human is connected; with every
 human away the reconnect grace ends it as any session. Each phase is its
 own replay: the replay stops on `Finished`, and a phase begun by an advance
@@ -556,7 +561,9 @@ after practice is in Q1 like the rest (the knockout is sized when Q1
 begins). One who joins after Q1 began, between rounds or after the final,
 takes no part in qualifying (`WeekendProgress::enter_late`): they are
 listed as knocked out in the round just run with no time (`Eliminated::late`;
-`KnockedOutData.Late` on the wire, left off when false), on the grid slot behind every car
+`KnockedOutData.Late` on the wire, left off when false; the client's
+`FApexKnockedOut::bLate`, named a late entry in the garage, the timesheet
+and the results summary rather than "out in Qn"), on the grid slot behind every car
 that has one, and going out is refused with "Joined after qualifying began:
 starts from the back". Spectators are always taken.
 

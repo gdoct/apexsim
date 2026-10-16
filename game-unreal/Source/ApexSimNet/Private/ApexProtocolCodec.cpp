@@ -197,6 +197,7 @@ namespace
 			else if (Key == TEXT("Damage"))     { bOk = Reader.ReadUInt64(Raw); Out.Damage = Raw <= 3 ? static_cast<EApexDamageLevel>(Raw) : EApexDamageLevel::Full; }
 			else if (Key == TEXT("LapLimit"))   { bOk = Reader.ReadUInt64(Raw); Out.LapLimit = static_cast<int32>(Raw); }
 			else if (Key == TEXT("RaceSeconds")){ bOk = Reader.ReadUInt64(Raw); Out.RaceSeconds = ApexRaceLength::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32))); }
+			else if (Key == TEXT("WeekendWaiting")) { bOk = Reader.ReadBool(Out.bWeekendWaiting); }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -578,6 +579,7 @@ namespace
 			else if (Key == TEXT("Round"))        { bOk = ReadSmallUInt(Reader, Out.Round, 255); }
 			else if (Key == TEXT("GridPosition")) { bOk = ReadSmallUInt(Reader, Out.GridPosition, 255); }
 			else if (Key == TEXT("LapTimeMs"))    { bOk = ReadSmallUInt(Reader, Out.LapTimeMs); }
+			else if (Key == TEXT("Late"))         { bOk = Reader.ReadBool(Out.bLate); }
 			else                                  { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{

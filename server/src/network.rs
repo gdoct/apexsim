@@ -902,6 +902,12 @@ pub struct SessionSummary {
     /// the wire for a race over laps.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub race_seconds: Option<u32>,
+    /// A race weekend between phases, waiting for its host to advance it
+    /// (`GameSession::awaits_weekend_advance`): listed `Finished`, it still
+    /// takes drivers (`GameSession::refuses_drivers`). Left off the wire
+    /// when false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub weekend_waiting: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2718,6 +2724,7 @@ mod tests {
                 damage: DamageLevel::Full,
                 lap_limit: 5,
                 race_seconds: None,
+                weekend_waiting: false,
             }],
             car_configs: vec![CarConfigSummary {
                 id: Uuid::nil(),
@@ -3615,6 +3622,7 @@ mod tests {
             damage,
             lap_limit: 3,
             race_seconds: None,
+            weekend_waiting: false,
         };
         let reduced = rmp_serde::to_vec_named(&summary(DamageLevel::Reduced)).unwrap();
         let full = rmp_serde::to_vec_named(&summary(DamageLevel::Full)).unwrap();
@@ -4158,6 +4166,57 @@ mod tests {
                 assert_eq!(data.eliminated[0].grid_position, 16);
                 assert_eq!(data.eliminated[0].lap_time_ms, 91_234);
             }
+            _ => panic!("Wrong message type"),
+        }
+
+        // A late entry in the state (`S_WeekendStateLate`): joined after Q1
+        // began, out with no time and named so.
+        let late_state = ServerMessage::WeekendState(WeekendStateData {
+            phase: 2,
+            round: 1,
+            rounds: 2,
+            finished: true,
+            advancing: 3,
+            eliminated: vec![late],
+        });
+        let late_state_bytes = rmp_serde::to_vec_named(&late_state).unwrap();
+        println!("S_WeekendStateLate: {}", hex(&late_state_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&late_state_bytes).unwrap() {
+            ServerMessage::WeekendState(data) => assert!(data.eliminated[0].late),
+            _ => panic!("Wrong message type"),
+        }
+
+        // The lobby lists a weekend waiting for its host between phases
+        // (`S_LobbyStateWeekendWaiting`): `Finished`, and joinable.
+        let waiting = ServerMessage::LobbyState(LobbyStateData {
+            players_in_lobby: vec![],
+            available_sessions: vec![SessionSummary {
+                id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+                track_name: "Monza".into(),
+                track_file: String::new(),
+                track_id: Uuid::nil(),
+                host_name: "host".into(),
+                session_kind: SessionKind::Multiplayer,
+                player_count: 2,
+                max_players: 8,
+                state: SessionState::Finished,
+                conditions: SessionConditions::DEFAULT,
+                damage: DamageLevel::Full,
+                lap_limit: 5,
+                race_seconds: None,
+                weekend_waiting: true,
+            }],
+            car_configs: vec![],
+            track_configs: vec![],
+            showcase_available: false,
+            live_stream: true,
+            recordings_port: None,
+        });
+        let waiting_bytes = rmp_serde::to_vec_named(&waiting).unwrap();
+        println!("S_LobbyStateWeekendWaiting: {}", hex(&waiting_bytes));
+        assert!(waiting_bytes.windows(14).any(|w| w == b"WeekendWaiting"));
+        match rmp_serde::from_slice::<ServerMessage>(&waiting_bytes).unwrap() {
+            ServerMessage::LobbyState(l) => assert!(l.available_sessions[0].weekend_waiting),
             _ => panic!("Wrong message type"),
         }
 

@@ -172,6 +172,11 @@ session while driving (notice, then the menu).
   race, and the forecast the row showed coming true. Only the codec
   (`C_CreateSessionWeekendDays`), `ApexSim.UI.CreateSession.WeekendDays`
   and the row on screen have run.
+- Joining a race weekend between phases from a second client: the browser's
+  Between sessions badge, Join, and the late entry named in the garage
+  ("A LATE ENTRY"), the timesheet's LATE ENTRY tag and the results summary.
+  Only the codec (`S_LobbyStateWeekendWaiting`, `S_WeekendStateLate`) and
+  `ApexSim.UI.SessionBrowser` have run.
 - An empty grid slot ([server/sessions.md](server/sessions.md#starting-order-and-qualifying)):
   a Custom start order naming a driver who is not there, then the session
   lobby's GRID list, the grid card's list and the lined-up field with the

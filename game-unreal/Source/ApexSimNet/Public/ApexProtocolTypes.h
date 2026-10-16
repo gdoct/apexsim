@@ -281,6 +281,13 @@ struct APEXSIMNET_API FApexKnockedOut
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
 	int32 CarIndex = -1;
 
+	/**
+	 * Joined after qualifying began: never ran a round, out with no time and
+	 * on the grid behind every car that has one (`KnockedOutData.Late`).
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bLate = false;
+
 	/** The round it went out in, 1-based. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
 	int32 Round = 0;
@@ -1123,14 +1130,25 @@ struct APEXSIMNET_API FApexSessionSummary
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	int32 RaceSeconds = 0;
 
+	/**
+	 * A race weekend between phases, waiting for its host to advance it:
+	 * listed Finished, it still takes drivers. False from an older server.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	bool bWeekendWaiting = false;
+
 	/** A race is being driven: there is something to watch. */
 	bool IsWatchable() const { return State == EApexSessionState::Countdown || State == EApexSessionState::Racing; }
 
+	/** Over for good: Finished, and not a weekend waiting for its next phase. */
+	bool IsOver() const { return State == EApexSessionState::Finished && !bWeekendWaiting; }
+
 	/**
 	 * Room for another driver in a session not yet over. A session under way
-	 * takes one too (a hotlap, a practice); the server seats them.
+	 * takes one too (a hotlap, a practice), and so does a weekend between
+	 * phases; the server seats them.
 	 */
-	bool IsJoinable() const { return State != EApexSessionState::Finished && PlayerCount < MaxPlayers; }
+	bool IsJoinable() const { return !IsOver() && PlayerCount < MaxPlayers; }
 };
 
 /** `CarConfigSummary` (network.rs:285) — PascalCase keys. */
