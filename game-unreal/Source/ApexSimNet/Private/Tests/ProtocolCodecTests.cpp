@@ -619,10 +619,18 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 		{
 			TestEqual(TEXT("WeekendState.Damage"), Phase.WeekendState.Damage, EApexDamageLevel::Off);
 		}
+		TestFalse(TEXT("WeekendState without a day's sky"), Phase.WeekendState.bHasConditions);
 		FApexServerMessage Late;
 		if (Decode(TEXT("WeekendState without a damage rule"), ApexGolden::S_WeekendStateLate, Late))
 		{
 			TestEqual(TEXT("WeekendState.Damage (full when absent)"), Late.WeekendState.Damage, EApexDamageLevel::Full);
+		}
+		FApexServerMessage Day;
+		if (Decode(TEXT("WeekendState under a day's own sky"), ApexGolden::S_WeekendStateConditions, Day))
+		{
+			TestTrue(TEXT("WeekendState.bHasConditions"), Day.WeekendState.bHasConditions);
+			TestEqual(TEXT("WeekendState.Conditions.Weather"), static_cast<int32>(Day.WeekendState.Conditions.Weather), 4);
+			TestEqual(TEXT("WeekendState.Conditions.TimeOfDayMinutes"), Day.WeekendState.Conditions.TimeOfDayMinutes, 540);
 		}
 		FApexServerMessage Roster;
 		if (Decode(TEXT("SessionRoster with a missed pit rule"), ApexGolden::S_SessionRosterMissedStops, Roster))

@@ -203,9 +203,10 @@ session while driving (notice, then the menu).
 - A weekend's day skies in a race ([server/sessions.md](server/sessions.md#race-weekend)):
   practice under its own weather and hour from the create screen's
   Practice sky row, the sky changing at the qualifying day and again at the
-  race, and the forecast the row showed coming true. Only the codec
-  (`C_CreateSessionWeekendDays`), `ApexSim.UI.CreateSession.WeekendDays`
-  and the row on screen have run.
+  race, and the forecast the row showed coming true; the garage's and the
+  lobby listing's weather and the racing-line dots following each day.
+  Only the codec (`C_CreateSessionWeekendDays`, `S_WeekendStateConditions`),
+  `ApexSim.UI.CreateSession.WeekendDays` and the row on screen have run.
 - Joining a race weekend between phases from a second client: the browser's
   Between sessions badge, Join, and the late entry named in the garage
   ("A LATE ENTRY"), the timesheet's LATE ENTRY tag and the results summary.

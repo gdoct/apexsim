@@ -535,6 +535,12 @@ pub struct WeekendStateData {
     /// when full.
     #[serde(default, skip_serializing_if = "DamageLevel::is_full")]
     pub damage: DamageLevel,
+    /// The sky the current phase runs under, for a weekend whose practice
+    /// or qualifying has its own (`GameSession::begin_day`): it replaces
+    /// what `SessionJoined.Conditions` said. Left off the wire for a
+    /// weekend raced under one sky.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conditions: Option<SessionConditions>,
 }
 
 /// A one-lap shoot-out's run order and where it stands
@@ -4260,11 +4266,38 @@ mod tests {
             advancing: 0,
             eliminated: vec![],
             damage: DamageLevel::Off,
+            conditions: None,
         });
         let phase_bytes = rmp_serde::to_vec_named(&phase).unwrap();
         println!("S_WeekendStateDamage: {}", hex(&phase_bytes));
         match rmp_serde::from_slice::<ServerMessage>(&phase_bytes).unwrap() {
             ServerMessage::WeekendState(data) => assert_eq!(data.damage, DamageLevel::Off),
+            _ => panic!("Wrong message type"),
+        }
+        assert!(!String::from_utf8_lossy(&phase_bytes).contains("Conditions"));
+
+        // A day with its own sky (`S_WeekendStateConditions`): practice in
+        // the rain at 09:00, 14 °C.
+        let day = SessionConditions {
+            weather: Weather::HeavyRain,
+            time_of_day_minutes: 540,
+            air_temp_c: Some(14),
+            ..SessionConditions::DEFAULT
+        };
+        let day_state = ServerMessage::WeekendState(WeekendStateData {
+            phase: 1,
+            round: 0,
+            rounds: 1,
+            finished: false,
+            advancing: 0,
+            eliminated: vec![],
+            damage: DamageLevel::Full,
+            conditions: Some(day),
+        });
+        let day_bytes = rmp_serde::to_vec_named(&day_state).unwrap();
+        println!("S_WeekendStateConditions: {}", hex(&day_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&day_bytes).unwrap() {
+            ServerMessage::WeekendState(data) => assert_eq!(data.conditions, Some(day)),
             _ => panic!("Wrong message type"),
         }
     }
@@ -4712,6 +4745,7 @@ mod tests {
                 late: false,
             }],
             damage: DamageLevel::Full,
+            conditions: None,
         });
         let state_bytes = rmp_serde::to_vec_named(&state).unwrap();
         println!("S_WeekendState: {}", hex(&state_bytes));
@@ -4753,6 +4787,7 @@ mod tests {
             advancing: 3,
             eliminated: vec![late],
             damage: DamageLevel::Full,
+            conditions: None,
         });
         let late_state_bytes = rmp_serde::to_vec_named(&late_state).unwrap();
         println!("S_WeekendStateLate: {}", hex(&late_state_bytes));

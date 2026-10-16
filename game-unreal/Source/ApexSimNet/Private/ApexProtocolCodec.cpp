@@ -660,6 +660,7 @@ namespace
 			else if (Key == TEXT("Advancing"))  { bOk = ReadSmallUInt(Reader, Out.Advancing, 255); }
 			else if (Key == TEXT("Eliminated")) { bOk = ParseArrayOf(Reader, Out.Eliminated, &ParseKnockedOut); }
 			else if (Key == TEXT("Damage"))     { bOk = ReadSmallUInt(Reader, Value, 255); Out.Damage = Value <= 3 ? static_cast<EApexDamageLevel>(Value) : EApexDamageLevel::Full; }
+			else if (Key == TEXT("Conditions")) { bOk = ParseSessionConditions(Reader, Out.Conditions); Out.bHasConditions = bOk; }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{

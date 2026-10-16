@@ -394,53 +394,6 @@ struct APEXSIMNET_API FApexKnockedOut
 };
 
 /**
- * Where a race weekend stands (`WeekendState`, sent on join and on every
- * change): the phase, the qualifying round, whether the host may move on,
- * and who is out.
- */
-USTRUCT(BlueprintType)
-struct APEXSIMNET_API FApexWeekendState
-{
-	GENERATED_BODY()
-
-	/** False until the session sends one (it is no weekend, or an older server). */
-	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
-	bool bValid = false;
-
-	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
-	EApexWeekendPhase Phase = EApexWeekendPhase::Lobby;
-
-	/** The qualifying round, 1-based; 0 outside qualifying. */
-	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
-	int32 Round = 0;
-
-	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
-	int32 Rounds = 0;
-
-	/** The phase has ended and the host may move the weekend on. */
-	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
-	bool bFinished = false;
-
-	/** How many cars go through from this round; 0 in the final round and outside qualifying. */
-	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
-	int32 Advancing = 0;
-
-	/** Every car knocked out so far, in grid order. */
-	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
-	TArray<FApexKnockedOut> Eliminated;
-
-	/** The phase's damage rule (practice's or qualifying's own, else the session's); Full when absent. */
-	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
-	EApexDamageLevel Damage = EApexDamageLevel::Full;
-
-	const FApexKnockedOut* FindEliminated(int32 CarIndex) const
-	{
-		return Eliminated.FindByPredicate([CarIndex](const FApexKnockedOut& Out) { return Out.CarIndex == CarIndex; });
-	}
-	bool IsFinalRound() const { return Phase == EApexWeekendPhase::Qualifying && Round >= Rounds; }
-};
-
-/**
  * A one-lap qualifying shoot-out's run order and where it stands
  * (`ShootoutState`, sent on join and whenever it changes while one runs).
  */
@@ -1113,6 +1066,64 @@ struct APEXSIMNET_API FApexSessionConditions
 			&& Forecast == Other.Forecast;
 	}
 	bool operator!=(const FApexSessionConditions& Other) const { return !(*this == Other); }
+};
+
+/**
+ * Where a race weekend stands (`WeekendState`, sent on join and on every
+ * change): the phase, the qualifying round, whether the host may move on,
+ * and who is out.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexWeekendState
+{
+	GENERATED_BODY()
+
+	/** False until the session sends one (it is no weekend, or an older server). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bValid = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	EApexWeekendPhase Phase = EApexWeekendPhase::Lobby;
+
+	/** The qualifying round, 1-based; 0 outside qualifying. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	int32 Round = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	int32 Rounds = 0;
+
+	/** The phase has ended and the host may move the weekend on. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bFinished = false;
+
+	/** How many cars go through from this round; 0 in the final round and outside qualifying. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	int32 Advancing = 0;
+
+	/** Every car knocked out so far, in grid order. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	TArray<FApexKnockedOut> Eliminated;
+
+	/** The phase's damage rule (practice's or qualifying's own, else the session's); Full when absent. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	EApexDamageLevel Damage = EApexDamageLevel::Full;
+
+	/**
+	 * The sky the phase runs under, for a weekend whose practice or qualifying
+	 * has its own: it replaces what `SessionJoined.Conditions` said. Absent
+	 * (bHasConditions false) for a weekend raced under one sky.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bHasConditions = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	FApexSessionConditions Conditions;
+
+	const FApexKnockedOut* FindEliminated(int32 CarIndex) const
+	{
+		return Eliminated.FindByPredicate([CarIndex](const FApexKnockedOut& Out) { return Out.CarIndex == CarIndex; });
+	}
+	bool IsFinalRound() const { return Phase == EApexWeekendPhase::Qualifying && Round >= Rounds; }
 };
 
 /**

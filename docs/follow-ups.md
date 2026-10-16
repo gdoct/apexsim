@@ -46,22 +46,6 @@ no engine out without a hit.
 
 ## P2: depth
 
-### 16. A weekend day's own sky
-
-What a day with its own sky (`GameSession::begin_day`,
-[server/sessions.md](server/sessions.md#race-weekend)) does not yet carry
-to everyone who saw the old one.
-
-- The racing line (`RacingLine`, sent on join) is not sent again when a
-  day's sky changes the grip, so the dots keep the sky the driver joined
-  under.
-- The lobby's listing (`SessionSummary.conditions`) and the
-  `SessionJoined.Conditions` already sent keep the creation's sky; the
-  client lights by telemetry's `SkyNow`, which follows the day.
-
-**Check:** `a_weekend_day_bakes_its_own_sky`; a weekend with a wet practice
-day watched from the lobby to the race.
-
 ### 5. Hotlap and lap records
 
 The ghost, the hotlap replay and watch.

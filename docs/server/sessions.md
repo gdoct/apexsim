@@ -629,8 +629,13 @@ loaded (`set_source_track`, the server's shared copy) with a fresh road
 (the day's rubber and water), and starting the live sky over from that
 tick (`sky_epoch_tick`): the day's clock starts at its own hour. The AI's
 speed plans and lap figures are worked out again. `RaceSession::conditions`
-becomes the day's (late joiners are told it); the race day's is kept. A
-weekend naming no day's sky runs one sky from creation, as before.
+becomes the day's (late joiners are told it); the race day's is kept.
+Everyone already in hears it in `WeekendState.Conditions` (the client's
+`GetSessionConditions` follows it), the lobby's listing takes it with the
+session's next state (`Lobby::set_session_state`), and every human's racing
+line is planned again under the day's grip at once (`take_day_lines_due`;
+`AidLineKey::day`), not at their next lap's end. A weekend naming no day's
+sky runs one sky from creation, as before.
 Client: the Race weekend section's Practice sky and Qualifying sky rows
 (a weather stepper and an hour stepper each, "Race day's" by default;
 `CreateWeekendPracticeWeather` / `Hour`, `CreateWeekendQualifyingWeather`
@@ -738,7 +743,8 @@ neighbours): `Phase`, `Round` (1-based, 0 outside qualifying), `Rounds`,
 a round the host may advance, in the race it means the race is over),
 `Advancing` (cars going through from this round, 0 in the final and outside
 qualifying), `Damage` (the phase's damage rule, see "Each phase's damage";
-left off when Full) and `Eliminated` (`KnockedOutData { CarIndex, Round,
+left off when Full), `Conditions` (the phase's sky, only for a weekend
+naming a day's sky; see "Each day's sky") and `Eliminated` (`KnockedOutData { CarIndex, Round,
 GridPosition, LapTimeMs, Late }`, every car knocked out so far in grid order, a car
 that left the session dropped). Reliable, to every member of the session,
 drivers and spectators: right after `SessionJoined` (create, join, rejoin,

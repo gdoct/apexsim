@@ -270,16 +270,22 @@ struct AidLineKey {
     setup: u64,
     fuel_step: usize,
     grip_steps: i32,
+    /// The weekend day whose sky the line was planned under
+    /// (`GameSession::sky_day`).
+    day: u8,
 }
 
 impl AidLineKey {
     /// The line sent on joining: the stock car with a dry tank, on the
-    /// grip the session was planned on.
-    const JOINED: AidLineKey = AidLineKey {
-        setup: 0,
-        fuel_step: 0,
-        grip_steps: (1.0 / AID_GRIP_STEP) as i32,
-    };
+    /// grip the session was planned on, under the day's sky.
+    const fn joined(day: u8) -> AidLineKey {
+        AidLineKey {
+            setup: 0,
+            fuel_step: 0,
+            grip_steps: (1.0 / AID_GRIP_STEP) as i32,
+            day,
+        }
+    }
 }
 
 /// Grip share a driver's tyres and road must move by before their racing
@@ -334,6 +340,14 @@ pub struct GameSession {
     /// line sent on joining (stock car, dry tank, the planned grip).
     /// Looked up by key only, never iterated.
     aid_lines: HashMap<PlayerId, AidLineKey>,
+    /// How many times a weekend day has baked its own sky
+    /// ([`Self::begin_day`]): a racing line planned under an earlier one is
+    /// planned again.
+    sky_day: u8,
+    /// A day's own sky has just been baked: every human's racing line is
+    /// planned again now, not at their next lap's end
+    /// ([`Self::take_day_lines_due`]).
+    day_lines_due: bool,
     /// The full-throttle straights of each car's plan (`hybrid::straights`,
     /// of its full-tank plan: every plan of a car shares its points), where
     /// a hybrid AI saves its overtake button for. Looked up by key only.
@@ -845,6 +859,8 @@ impl GameSession {
             ai_straights: HashMap::new(),
             ai_power_profiles: std::collections::BTreeMap::new(),
             aid_lines: HashMap::new(),
+            sky_day: 0,
+            day_lines_due: false,
             finish_deadline_tick: None,
             finished_since_loop_tick: None,
             orphaned_since_loop_tick: None,
@@ -923,6 +939,8 @@ impl GameSession {
             ai_straights: HashMap::new(),
             ai_power_profiles: std::collections::BTreeMap::new(),
             aid_lines: HashMap::new(),
+            sky_day: 0,
+            day_lines_due: false,
             finish_deadline_tick: None,
             finished_since_loop_tick: None,
             orphaned_since_loop_tick: None,
@@ -1014,6 +1032,8 @@ impl GameSession {
         self.session.conditions = conditions;
         self.sky = live_sky(&self.session, &self.track_config);
         self.sky_epoch_tick = self.session.current_tick;
+        self.sky_day = self.sky_day.wrapping_add(1);
+        self.day_lines_due = true;
         self.ai_speed_profiles.clear();
         self.ai_straights.clear();
         self.lap_fuel.clear();
@@ -2230,6 +2250,9 @@ impl GameSession {
                 })
                 .collect(),
             damage: self.session.damage,
+            conditions: format
+                .has_day_conditions()
+                .then_some(self.session.conditions),
         })
     }
 
@@ -6100,7 +6123,7 @@ impl GameSession {
             .aid_lines
             .get(player_id)
             .copied()
-            .unwrap_or(AidLineKey::JOINED);
+            .unwrap_or(AidLineKey::joined(self.sky_day));
         // Hysteresis: the grip moves the key only once it has left the
         // held step by a whole step.
         let grip_steps = if (grip / AID_GRIP_STEP - held.grip_steps as f32).abs() >= 1.0 {
@@ -6112,6 +6135,7 @@ impl GameSession {
             setup: setup_key(&self.car_setup(player_id)),
             fuel_step: self.fuel_plan_step(car_id, state.fuel_liters),
             grip_steps,
+            day: self.sky_day,
         };
         if key == held {
             return None;
@@ -6127,6 +6151,13 @@ impl GameSession {
         )?;
         self.aid_lines.insert(*player_id, key);
         Some(profile)
+    }
+
+    /// Whether a weekend day has baked its own sky since the last call: the
+    /// game loop then plans every human's racing line again
+    /// ([`Self::refreshed_racing_line`]) instead of waiting for their lap.
+    pub fn take_day_lines_due(&mut self) -> bool {
+        std::mem::take(&mut self.day_lines_due)
     }
 
     /// The joining line was sent to `player_id` (stock car, dry tank): the
@@ -8249,9 +8280,12 @@ mod tests {
         game_session.advance_weekend().unwrap();
         assert_eq!(game_session.session.conditions, SessionConditions::DEFAULT);
         assert_eq!(game_session.sky_epoch_tick, 0);
+        assert_eq!(game_session.weekend_state().unwrap().conditions, None);
+        assert!(!game_session.take_day_lines_due());
+        let _ = ids;
 
-        let (mut game_session, ids2) = weekend_of(2, 600, &[600]);
-        let _ = (ids, ids2);
+        let (mut game_session, ids) = weekend_of(2, 600, &[600]);
+        let driver = ids[1];
         game_session.set_source_track(source);
         let base = game_session.session.conditions;
         let rain = SessionConditions {
@@ -8277,6 +8311,16 @@ mod tests {
         assert!(game_session.track_config.track_surface.base_grip < dry);
         assert_eq!(game_session.sky_epoch_tick, 1000);
         assert_eq!(game_session.sky_now().clock_s, 7 * 3600);
+        // Everyone is told the day's sky, and every driver's racing line is
+        // planned again under it, once.
+        assert_eq!(
+            game_session.weekend_state().unwrap().conditions,
+            Some(game_session.session.conditions)
+        );
+        assert!(game_session.take_day_lines_due());
+        assert!(!game_session.take_day_lines_due());
+        assert!(game_session.refreshed_racing_line(&driver).is_some());
+        assert!(game_session.refreshed_racing_line(&driver).is_none());
         end_phase(&mut game_session);
 
         game_session.advance_weekend().unwrap();

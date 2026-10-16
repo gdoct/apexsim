@@ -256,17 +256,20 @@ impl LobbyManager {
     /// Record a session's state as the session reports it
     /// (`GameSession::take_state_change`, from the tick), for the listing.
     /// Player and spectator counts are kept by the joins and leaves.
-    /// The session's state for the listing, and whether it is a race
-    /// weekend waiting for its host between phases.
+    /// The session's state for the listing, whether it is a race weekend
+    /// waiting for its host between phases, and the sky it runs under (a
+    /// weekend day's own, `GameSession::begin_day`).
     pub async fn set_session_state(
         &self,
         session_id: SessionId,
         state: SessionState,
         weekend_waiting: bool,
+        conditions: SessionConditions,
     ) {
         if let Some(session) = self.state.write().await.sessions.get_mut(&session_id) {
             session.state = state;
             session.weekend_waiting = weekend_waiting;
+            session.conditions = conditions;
         }
     }
 
@@ -541,13 +544,19 @@ mod tests {
         assert_eq!(sessions.len(), 1);
         assert!(!sessions[0].weekend_waiting);
 
-        // A weekend between phases is listed finished and waiting.
+        // A weekend between phases is listed finished and waiting, under
+        // the sky of the day it is on.
+        let wet = SessionConditions {
+            weather: Weather::HeavyRain,
+            ..SessionConditions::DEFAULT
+        };
         lobby
-            .set_session_state(session_id, SessionState::Finished, true)
+            .set_session_state(session_id, SessionState::Finished, true, wet)
             .await;
         let sessions = lobby.get_available_sessions().await;
         assert_eq!(sessions[0].state, SessionState::Finished);
         assert!(sessions[0].weekend_waiting);
+        assert_eq!(sessions[0].conditions, wet);
 
         lobby.unregister_session(session_id).await;
         assert_eq!(lobby.get_session_count().await, 0);

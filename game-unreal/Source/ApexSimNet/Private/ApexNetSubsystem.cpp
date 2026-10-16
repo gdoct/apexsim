@@ -1527,10 +1527,16 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		// A phase may run under its own damage rule: the session's rule is
 		// the phase's while it runs.
 		CurrentDamage = CurrentWeekendState.Damage;
-		UE_LOG(LogApexSimNet, Log, TEXT("<- WeekendState phase=%d round=%d/%d finished=%d advancing=%d eliminated=%d damage=%d"),
+		// So may its sky (a weekend day's own): the garage and the lobby
+		// show the day's, not the one the session was joined under.
+		if (CurrentWeekendState.bHasConditions)
+		{
+			CurrentConditions = CurrentWeekendState.Conditions;
+		}
+		UE_LOG(LogApexSimNet, Log, TEXT("<- WeekendState phase=%d round=%d/%d finished=%d advancing=%d eliminated=%d damage=%d sky=%s"),
 			static_cast<int32>(CurrentWeekendState.Phase), CurrentWeekendState.Round, CurrentWeekendState.Rounds,
 			CurrentWeekendState.bFinished ? 1 : 0, CurrentWeekendState.Advancing, CurrentWeekendState.Eliminated.Num(),
-			static_cast<int32>(CurrentDamage));
+			static_cast<int32>(CurrentDamage), CurrentWeekendState.bHasConditions ? *CurrentConditions.Describe() : TEXT("-"));
 		OnWeekendStateChanged.Broadcast();
 		break;
 

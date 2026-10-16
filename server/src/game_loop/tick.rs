@@ -114,7 +114,7 @@ pub(crate) async fn tick_sessions(
     let road_send = tick_count.is_multiple_of(road_send_ticks);
     // Sessions whose state moved since the lobby last heard (a tick, or a
     // handler between ticks), so the browser lists what each is doing.
-    let mut state_changes: Vec<(SessionId, SessionState, bool)> = Vec::new();
+    let mut state_changes: Vec<(SessionId, SessionState, bool, SessionConditions)> = Vec::new();
 
     // Tick each session
     for (session_id, game_session) in state.sessions.iter_mut() {
@@ -217,7 +217,12 @@ pub(crate) async fn tick_sessions(
         }
         let new_state = game_session.session.state;
         if let Some(listed) = game_session.take_state_change() {
-            state_changes.push((*session_id, listed, game_session.awaits_weekend_advance()));
+            state_changes.push((
+                *session_id,
+                listed,
+                game_session.awaits_weekend_advance(),
+                game_session.session.conditions,
+            ));
         }
 
         // A weekend's phase begins between ticks (`AdvanceWeekend`), already
@@ -305,8 +310,11 @@ pub(crate) async fn tick_sessions(
         // Timing lines crossed this tick. Reliable, and never for a demo:
         // its AI field is menu scenery and nobody is watching the splits.
         let lap_events = game_session.take_lap_events();
+        // A weekend day under its own sky: every human's line at once.
         let line_refresh: Vec<PlayerId> = if is_demo_session {
             Vec::new()
+        } else if game_session.take_day_lines_due() {
+            player_recipients.clone()
         } else {
             lap_events
                 .iter()
@@ -657,10 +665,10 @@ pub(crate) async fn tick_sessions(
         });
     }
 
-    for (session_id, session_state, weekend_waiting) in state_changes {
+    for (session_id, session_state, weekend_waiting, conditions) in state_changes {
         state
             .lobby
-            .set_session_state(session_id, session_state, weekend_waiting)
+            .set_session_state(session_id, session_state, weekend_waiting, conditions)
             .await;
     }
 
