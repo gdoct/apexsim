@@ -525,6 +525,7 @@ impl StreamHeader {
             sky_seed: None,
             day_of_year: None,
             solar_noon_min: None,
+            forecast: crate::data::HostForecast::NONE,
         };
 
         let session_kind = match rd.uint()? {
@@ -2780,6 +2781,7 @@ mod tests {
                 sky_seed: None,
                 day_of_year: None,
                 solar_noon_min: None,
+                forecast: Default::default(),
             },
             session_kind: SessionKind::Multiplayer,
             game_mode: GameMode::Race,

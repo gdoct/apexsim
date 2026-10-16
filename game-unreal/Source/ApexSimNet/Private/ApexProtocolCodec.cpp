@@ -155,6 +155,29 @@ namespace
 				bOk = Reader.ReadUInt64(Raw);
 				Out.SolarNoonMin = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16));
 			}
+			else if (Key == TEXT("forecast"))
+			{
+				// `[at_min, weather]` pairs; an unknown weather is dropped,
+				// and `Clamped` below makes the rest good.
+				int32 StepCount = 0;
+				bOk = Reader.ReadArrayHeader(StepCount);
+				Out.Forecast.Reset();
+				for (int32 s = 0; bOk && s < StepCount; ++s)
+				{
+					int32 PairCount = 0;
+					uint64 AtMin = 0;
+					uint64 WeatherRaw = 0;
+					bOk = Reader.ReadArrayHeader(PairCount) && PairCount == 2
+						&& Reader.ReadUInt64(AtMin) && Reader.ReadUInt64(WeatherRaw);
+					if (bOk && WeatherRaw < static_cast<uint64>(FApexSessionConditions::WeatherCount))
+					{
+						FApexForecastStep Step;
+						Step.AtMin = static_cast<int32>(FMath::Min<uint64>(AtMin, MAX_uint16));
+						Step.Weather = static_cast<EApexWeather>(WeatherRaw);
+						Out.Forecast.Add(Step);
+					}
+				}
+			}
 			else
 			{
 				bOk = Reader.SkipValue();
@@ -2888,7 +2911,7 @@ namespace ApexProtocol
 		Writer.WriteMapHeader(2 + (Clamped.HasAirTemp() ? 1 : 0) + (Clamped.HumidityPct >= 0 ? 1 : 0)
 			+ (Clamped.HasWind() ? 1 : 0) + (Clamped.HasWindDirection() ? 1 : 0)
 			+ (Clamped.HasTimeScale() ? 1 : 0) + (Clamped.HasChangeable() ? 1 : 0) + (Clamped.HasTrackRubber() ? 1 : 0)
-			+ (Clamped.HasSkySeed() ? 1 : 0) + (Clamped.HasDate() ? 1 : 0));
+			+ (Clamped.HasSkySeed() ? 1 : 0) + (Clamped.HasDate() ? 1 : 0) + (Clamped.HasForecast() ? 1 : 0));
 		Writer.WriteString("weather");
 		Writer.WriteUInt(static_cast<uint8>(Clamped.Weather));
 		Writer.WriteString("time_of_day_minutes");
@@ -2940,6 +2963,18 @@ namespace ApexProtocol
 		{
 			Writer.WriteString("day_of_year");
 			Writer.WriteUInt(static_cast<uint16>(Clamped.DayOfYear));
+		}
+		// The host's own forecast last, `[at_min, weather]` pairs.
+		if (Clamped.HasForecast())
+		{
+			Writer.WriteString("forecast");
+			Writer.WriteArrayHeader(Clamped.Forecast.Num());
+			for (const FApexForecastStep& Step : Clamped.Forecast)
+			{
+				Writer.WriteArrayHeader(2);
+				Writer.WriteUInt(static_cast<uint16>(Step.AtMin));
+				Writer.WriteUInt(static_cast<uint8>(Step.Weather));
+			}
 		}
 	}
 

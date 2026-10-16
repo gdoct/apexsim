@@ -481,9 +481,11 @@ clamped; left off the wire when absent) give practice and the qualifying
 day (every round) a sky of their own; the race day is the session's own
 `conditions`, and a day not named takes it too. When either is named,
 each day begins (`GameSession::begin_day`, from practice, Q1 and the
-race's grid or countdown) by resolving its conditions (the host's
-`sky_seed`, else the session's id mixed with the day, so each day has its
-own forecast and auto air), baking them into a fresh copy of the track as
+race's grid or countdown) by resolving its conditions at the track's
+site and latitude (`at_site`, `resolve_at`: its solar noon and season; the
+host's `sky_seed`, else the session's id mixed with the day, so each day has
+its own forecast and auto air; a day's own written `forecast` if it names
+one), baking them into a fresh copy of the track as
 loaded (`set_source_track`, the server's shared copy) with a fresh road
 (the day's rubber and water), and starting the live sky over from that
 tick (`sky_epoch_tick`): the day's clock starts at its own hour. The AI's

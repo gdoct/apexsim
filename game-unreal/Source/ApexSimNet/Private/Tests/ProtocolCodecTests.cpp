@@ -161,6 +161,24 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		FApexSessionConditions Late = Sky;
 		Late.DayOfYear = 999;
 		TestEqual(TEXT("Sky.DayOfYear clamped"), Late.Clamped().DayOfYear, FApexSessionConditions::DaysPerYear);
+
+		// The host's own forecast rides last, `[at_min, weather]` pairs; a
+		// step too soon after the last is dropped as the server drops it.
+		auto Step = [](int32 AtMin, EApexWeather Weather)
+		{
+			FApexForecastStep Out;
+			Out.AtMin = AtMin;
+			Out.Weather = Weather;
+			return Out;
+		};
+		FApexSessionConditions Written = Sky;
+		Written.Forecast = { Step(45, EApexWeather::HeavyRain), Step(20, EApexWeather::LightRain),
+			Step(22, EApexWeather::Overcast), Step(90, EApexWeather::Sunny) };
+		CheckBytes(TEXT("CreateSession with a written forecast"),
+			ApexProtocol::EncodeCreateSession(TrackId, 8, 3, 5, EApexSessionKind::Multiplayer, FApexAllowedAssists(), Written),
+			ApexGolden::C_CreateSessionForecast);
+		TestEqual(TEXT("Forecast clamped"), Written.Clamped().Forecast.Num(), 3);
+		TestFalse(TEXT("a written forecast is not the default"), Written.IsDefault());
 	}
 
 	CheckBytes(TEXT("JoinSession"),
@@ -744,6 +762,21 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 		{
 			TestFalse(TEXT("no date"), Older.Conditions.HasDate());
 			TestFalse(TEXT("no solar noon"), Older.Conditions.HasSolarNoon());
+			TestFalse(TEXT("no forecast"), Older.Conditions.HasForecast());
+		}
+		// The echo of a host's own forecast.
+		FApexServerMessage Written;
+		if (Decode(TEXT("SessionJoined with a written forecast"), ApexGolden::S_SessionJoinedForecast, Written))
+		{
+			const TArray<FApexForecastStep>& Steps = Written.Conditions.Forecast;
+			if (TestEqual(TEXT("Forecast steps"), Steps.Num(), 3))
+			{
+				TestEqual(TEXT("Forecast[0].AtMin"), Steps[0].AtMin, 20);
+				TestEqual(TEXT("Forecast[0].Weather"), Steps[0].Weather, EApexWeather::LightRain);
+				TestEqual(TEXT("Forecast[1].Weather"), Steps[1].Weather, EApexWeather::HeavyRain);
+				TestEqual(TEXT("Forecast[2].AtMin"), Steps[2].AtMin, 90);
+				TestEqual(TEXT("Forecast[2].Weather"), Steps[2].Weather, EApexWeather::Sunny);
+			}
 		}
 	}
 

@@ -115,8 +115,16 @@ server will simulate ([server/conditions.md](server/conditions.md)).
   circuit's own solar noon, and `IsWinter` reads it, so a January overcast
   night previews as no winter sky while the server makes it one. Port
   `season_air_c` and `snow_air_drop_c` with the track's latitude.
+- A host cannot write a forecast on the Conditions tab: the server and the
+  codec take one (`SessionConditions::forecast`, `FApexSessionConditions::Forecast`),
+  but there is no editor (a list of steps, each a session minute and a
+  weather), and the Forecast list and the HUD's `sky.outlook` lay theirs out
+  from the seed (`ApexCreateSession::Forecast`) even when the session's
+  conditions carry a written one: they should read `Forecast` when
+  `HasForecast()`. `Describe` does not mention one.
 **Check:** `ApexSim.UI.CreateSession` against the Rust's
-`a_date_moves_the_air_with_the_season_and_no_date_is_late_may` figures.
+`a_date_moves_the_air_with_the_season_and_no_date_is_late_may` figures; a
+written forecast created, echoed and shown in the HUD's outlook.
 
 ### 5. Hotlap and lap records
 

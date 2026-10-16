@@ -108,6 +108,20 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             weather: Weather::HeavyRain,
             // Past midnight, wrapped by the server onto the day: 25:30 -> 01:30.
             time_of_day_minutes: 25 * 60 + 30,
+            // The host's own forecast, a step too soon among it.
+            forecast: HostForecast::from_steps(
+                Weather::HeavyRain,
+                &[
+                    ForecastStep {
+                        at_min: 30,
+                        weather: Weather::Overcast,
+                    },
+                    ForecastStep {
+                        at_min: 32,
+                        weather: Weather::Sunny,
+                    },
+                ],
+            ),
             ..SessionConditions::DEFAULT
         };
         host.send(&ClientMessage::CreateSession {
@@ -142,6 +156,13 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
         let expected = SessionConditions {
             weather: Weather::HeavyRain,
             time_of_day_minutes: 90,
+            forecast: HostForecast::from_steps(
+                Weather::HeavyRain,
+                &[ForecastStep {
+                    at_min: 30,
+                    weather: Weather::Overcast,
+                }],
+            ),
             ..SessionConditions::DEFAULT
         }
         .at_site(&site)

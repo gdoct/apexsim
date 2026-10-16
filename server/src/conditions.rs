@@ -7,7 +7,7 @@
 //! they picked (a 24-hour race at 1 runs through the night; 24 runs a day
 //! an hour), and with `changeable` set the weather follows a forecast
 //! ([`forecast`], worked out from the session's id, so everyone and every
-//! replay sees the same). The rain does not switch: it builds and eases
+//! replay sees the same, or the host's own, `SessionConditions::forecast`). The rain does not switch: it builds and eases
 //! over a few minutes ([`RAIN_EASE_S`]), and the road takes it from there
 //! (`crate::road_state`: water rising in the dips, then draining, a line
 //! the cars dry). The air follows the hour and the cloud, and the asphalt
@@ -84,6 +84,18 @@ pub struct WeatherChange {
 /// [`MIN_GAP_S`] of the session) and moves the sky one step wetter or drier
 /// (two now and then above settled), drawn back toward the host's pick.
 pub fn forecast(start: &SessionConditions, seed: u64) -> Vec<WeatherChange> {
+    if !start.forecast.is_empty() {
+        // The host wrote one: theirs, in session time whatever the clock.
+        return start
+            .forecast
+            .steps()
+            .iter()
+            .map(|s| WeatherChange {
+                at_s: s.at_min as f32 * 60.0,
+                weather: s.weather,
+            })
+            .collect();
+    }
     let level = start.changeability();
     if level == 0 {
         return Vec::new();
@@ -510,6 +522,105 @@ mod tests {
                 (24461.414, Weather::Overcast),
             ]
         );
+    }
+
+    /// A host's forecast is made valid on the way in (sorted, spaced, cut
+    /// at the limit, its weather kept to the sky's season) and replaces
+    /// the seeded one, moving a sky that would otherwise hold.
+    #[test]
+    fn a_host_written_forecast_is_held_to_the_rules_and_drives_the_sky() {
+        use crate::data::{ForecastStep, HostForecast};
+        let step = |at_min, weather| ForecastStep { at_min, weather };
+        let written = SessionConditions {
+            weather: Weather::Cloudy,
+            forecast: HostForecast::from_steps(
+                Weather::Cloudy,
+                &[
+                    step(60, Weather::HeavyRain),
+                    step(10, Weather::LightRain),
+                    step(12, Weather::Overcast),  // too soon after 10
+                    step(90, Weather::HeavyRain), // no change
+                    step(120, Weather::Sunny),
+                    step(5000, Weather::Cloudy), // past the horizon
+                ],
+            ),
+            ..SessionConditions::DEFAULT
+        };
+        assert_eq!(
+            written.forecast.steps(),
+            &[
+                step(10, Weather::LightRain),
+                step(60, Weather::HeavyRain),
+                step(120, Weather::Sunny)
+            ]
+        );
+        // From the wire too: unknown weather dropped, order made good.
+        let raw = rmp_serde::to_vec(&vec![(200u64, 3u64), (30, 9), (2, 1), (50, 2)]).unwrap();
+        let read: HostForecast = rmp_serde::from_slice(&raw).unwrap();
+        let clamped = SessionConditions {
+            forecast: read,
+            ..SessionConditions::DEFAULT
+        }
+        .clamp();
+        assert_eq!(
+            clamped.forecast.steps(),
+            &[step(50, Weather::Overcast), step(200, Weather::LightRain)],
+            "the 2-minute step is inside the first gap"
+        );
+        let too_many: Vec<ForecastStep> = (1..40)
+            .map(|k| {
+                step(
+                    k * 10,
+                    if k % 2 == 0 {
+                        Weather::Sunny
+                    } else {
+                        Weather::Overcast
+                    },
+                )
+            })
+            .collect();
+        assert_eq!(
+            HostForecast::from_steps(Weather::Sunny, &too_many)
+                .steps()
+                .len(),
+            HostForecast::MAX_STEPS
+        );
+
+        // It drives the sky with no `changeable`, ignoring the seed.
+        let start = written.resolve(3);
+        assert!(!start.is_static());
+        assert_eq!(forecast(&start, 3), forecast(&start, 4));
+        let mut live = LiveConditions::new(start, 50.0, 0.0, 3);
+        assert_eq!(live.forecast.len(), 3);
+        assert_eq!(live.forecast[1].at_s, 3600.0);
+        for s in 1..=3700 {
+            live.step(s as f32, 1.0, live.rain);
+        }
+        assert_eq!(live.weather, Weather::HeavyRain);
+        assert!(live.rain > 0.2);
+
+        // A winter sky's rain falls as snow; a summer sky's snow as rain.
+        let winter = SessionConditions {
+            weather: Weather::Snow,
+            forecast: HostForecast::from_steps(
+                Weather::Snow,
+                &[step(20, Weather::Overcast), step(40, Weather::HeavyRain)],
+            ),
+            ..SessionConditions::DEFAULT
+        }
+        .resolve(3);
+        assert_eq!(
+            winter.forecast.steps(),
+            &[step(20, Weather::Overcast), step(40, Weather::Snow)]
+        );
+        let summer = SessionConditions {
+            forecast: HostForecast::from_steps(Weather::Sunny, &[step(20, Weather::Snow)]),
+            ..SessionConditions::DEFAULT
+        }
+        .resolve(3);
+        assert_eq!(summer.forecast.steps(), &[step(20, Weather::LightRain)]);
+        // None written: the seeded forecast, the bytes and the sky as before.
+        assert!(SessionConditions::DEFAULT.resolve(3).forecast.is_empty());
     }
 
     #[test]

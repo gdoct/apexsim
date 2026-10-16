@@ -2706,6 +2706,7 @@ mod tests {
                     sky_seed: None,
                     day_of_year: None,
                     solar_noon_min: None,
+                    forecast: Default::default(),
                 },
                 duration_s: 259.5,
                 cars: 16,
@@ -4679,6 +4680,7 @@ mod tests {
             sky_seed: None,
             day_of_year: None,
             solar_noon_min: None,
+            forecast: Default::default(),
         };
         let create = ClientMessage::CreateSession {
             track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
@@ -4862,6 +4864,52 @@ mod tests {
         let sun_bytes = rmp_serde::to_vec_named(&sun_joined).unwrap();
         println!("S_SessionJoinedSun: {}", hex(&sun_bytes));
         assert!(!String::from_utf8_lossy(&joined_bytes).contains("solar_noon_min"));
+
+        // The host's own forecast rides last, an array of [minute, weather]
+        // pairs, in the create and in the echo; a create without one keeps
+        // the bytes above.
+        let written = SessionConditions {
+            forecast: crate::data::HostForecast::from_steps(
+                sky.weather,
+                &[
+                    crate::data::ForecastStep {
+                        at_min: 20,
+                        weather: Weather::LightRain,
+                    },
+                    crate::data::ForecastStep {
+                        at_min: 45,
+                        weather: Weather::HeavyRain,
+                    },
+                    crate::data::ForecastStep {
+                        at_min: 90,
+                        weather: Weather::Sunny,
+                    },
+                ],
+            ),
+            ..sky
+        };
+        let forecast_bytes = rmp_serde::to_vec_named(&create(written)).unwrap();
+        println!("C_CreateSessionForecast: {}", hex(&forecast_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&forecast_bytes).unwrap() {
+            ClientMessage::CreateSession { conditions, .. } => assert_eq!(conditions, written),
+            _ => panic!("Wrong message type"),
+        }
+        assert!(!String::from_utf8_lossy(&create_bytes).contains("forecast"));
+        let forecast_joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 3,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: written,
+            damage: Default::default(),
+            ai_skill: None,
+            race_seconds: None,
+            qualifying_seconds: None,
+            weekend: None,
+            qualifying_cutoff_pct: None,
+        });
+        let forecast_joined_bytes = rmp_serde::to_vec_named(&forecast_joined).unwrap();
+        println!("S_SessionJoinedForecast: {}", hex(&forecast_joined_bytes));
 
         let now = SkyNow {
             clock_s: 15 * 3600 + 30 * 60 + 15,

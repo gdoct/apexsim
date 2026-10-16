@@ -61,6 +61,7 @@ echoed in `SessionJoined.Conditions` and listed in every `SessionSummary`.
 | `sky_seed` | the seed the forecast and the wind's direction are laid out from (`sky_seed_or`) | the session's id |
 | `day_of_year` | the date, 1..365: the sun's declination and summer time | the model day, 25 May (declination 20°) |
 | `solar_noon_min` | solar noon on the session's clock: the server's, from the track (`at_site`); a create's own is replaced | 13:00 |
+| `forecast` | the host's own forecast: up to 10 `[at_min, weather]` steps (`HostForecast`), used instead of the seeded one | the seeded one, by `changeable` |
 
 Every optional field is skipped on the wire when `None`, so an old client's
 create and an old server's join keep their bytes. `clamp` holds each figure
@@ -218,7 +219,20 @@ resolved conditions, the track's latitude and altitude and the session id.
 `update_sky` runs at the top of every tick and acts once a second:
 
 - The clock runs at `time_scale` from the host's hour.
-- With `changeable` set the weather follows `forecast(start, session id)`:
+- With a `forecast` written by the host, the weather follows it
+  (`forecast` returns its steps at `at_min` minutes of session, whatever
+  the clock's scale), and the sky moves even with `changeable` unset
+  (`is_static` is false). `HostForecast::from_steps` holds it to the rules
+  on every `clamp`: in time order, each step a change of weather at least
+  `MIN_GAP_MIN` (4 minutes) after the last and after the start, none past
+  `HORIZON_MIN` (26 hours), at most `MAX_STEPS` (10); an unknown weather byte
+  is dropped on reading. `resolve_at` keeps it to the sky's season as the
+  seeded forecast is kept: a winter sky's rain falls as snow, a summer sky's
+  snow as light rain. The echo and the listing carry it as simulated. It is
+  packed a step to a `u16` (the minute over three bits of weather) so
+  `SessionConditions` stays `Copy` and small (a bigger one trips clippy's
+  `large_enum_variant` on `TransportEvent`).
+- Else, with `changeable` set the weather follows `forecast(start, session id)`:
   one weather step at a time (sometimes two above settled), drawn back
   toward the host's pick, a stormy sky leaning wet, never sooner than 4
   minutes of session apart however fast the clock runs. The seed is the
@@ -471,7 +485,9 @@ as `lap_flags` bits 5 and 6 (`LAP_FLAG_HEADLIGHTS`,
   `C_CreateSessionSky` / `S_SessionJoinedSky` / `C_CreateSessionSkySeed`
   (a create with the host's `sky_seed`, last among the sky's keys) /
   `C_CreateSessionDate` (the host's `day_of_year` after it) /
-  `S_SessionJoinedSun` (the echo naming `solar_noon_min` last).
+  `S_SessionJoinedSun` (the echo naming `solar_noon_min` last) /
+  `C_CreateSessionForecast` and `S_SessionJoinedForecast` (the host's
+  `forecast`, last of all: an array of `[at_min, weather]` pairs).
 - `CompactTelemetry.sky` (`network::SkyNow`, 19 positional fields: clock,
   weather, rain, cloud, road water, air, track, the wind now and where it
   blows toward, line rubber, time scale, next weather and when, then the
@@ -497,7 +513,8 @@ See [protocol.md](protocol.md) for the append-only rules.
 
 - `FApexSessionConditions` (net module: `Describe`, `ClockText`,
   `WeatherLabel`; unset optional fields are -128 / -1 and written only when
-  picked), the flow's `CreateConditions` (kept on the profile),
+  picked; `Forecast`, an array of `FApexForecastStep`, clamped by
+  `ClampedForecast` as the server does and written only when not empty), the flow's `CreateConditions` (kept on the profile),
   `UApexNetSubsystem::GetSessionConditions` and `GetLatestSky`
   (`FApexSkyNow` on `FApexTelemetryFrame::Sky`).
 - The create screen's Conditions tab: weather tiles, time-of-day slider,

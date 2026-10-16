@@ -681,6 +681,26 @@ enum class EApexWeather : uint8
 };
 
 /**
+ * One step of a host-written forecast (data.rs `ForecastStep`): from AtMin
+ * minutes into the session the weather is Weather. On the wire a
+ * `[at_min, weather]` pair inside `SessionConditions.forecast`.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexForecastStep
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 AtMin = 0;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	EApexWeather Weather = EApexWeather::Sunny;
+
+	bool operator==(const FApexForecastStep& Other) const { return AtMin == Other.AtMin && Weather == Other.Weather; }
+	bool operator!=(const FApexForecastStep& Other) const { return !(*this == Other); }
+};
+
+/**
  * Mirrors `SessionConditions` (data.rs): the weather and the clock over a
  * session, chosen by its host on create, echoed in SessionJoined and listed in
  * every SessionSummary. The server bakes the weather's grip into the session's
@@ -780,10 +800,25 @@ struct APEXSIMNET_API FApexSessionConditions
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
 	int32 SolarNoonMin = Auto;
 
+	/** The host's own forecast (`forecast`, data.rs `HostForecast`): the
+	 * server follows it instead of the one it lays out from the seed,
+	 * whatever Changeable says, and echoes it as it simulates it (a winter
+	 * sky's rain as snow, a summer sky's snow as light rain). Empty (and
+	 * left off the wire) for none. Clamped as the server does: in time
+	 * order, each step a change of weather at least ForecastMinGapMin after
+	 * the last (and the start), none past ForecastHorizonMin, at most
+	 * MaxForecastSteps. */
+	static constexpr int32 MaxForecastSteps = 10;
+	static constexpr int32 ForecastMinGapMin = 4;
+	static constexpr int32 ForecastHorizonMin = 26 * 60;
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	TArray<FApexForecastStep> Forecast;
+
 	bool HasAirTemp() const { return AirTempC != AutoAirTemp; }
 	bool HasSkySeed() const { return bHasSkySeed; }
 	bool HasDate() const { return DayOfYear >= 1; }
 	bool HasSolarNoon() const { return SolarNoonMin >= 0; }
+	bool HasForecast() const { return Forecast.Num() > 0; }
 	bool HasWind() const { return WindKph >= 0; }
 	bool HasWindDirection() const { return WindFromDeg >= 0; }
 	bool HasTimeScale() const { return TimeScale >= 0; }
@@ -848,6 +883,34 @@ struct APEXSIMNET_API FApexSessionConditions
 		Out.TrackRubberPct = Out.TrackRubberPct < 0 ? Auto : FMath::Min(Out.TrackRubberPct, 100);
 		Out.DayOfYear = Out.DayOfYear < 0 ? Auto : FMath::Clamp(Out.DayOfYear, 1, DaysPerYear);
 		Out.SolarNoonMin = Out.SolarNoonMin < 0 ? Auto : Out.SolarNoonMin % MinutesPerDay;
+		Out.Forecast = ClampedForecast(Weather, Forecast);
+		return Out;
+	}
+
+	/** `HostForecast::from_steps`: `Steps` in time order from the start's
+	 * weather, a step too soon after the last or repeating its weather
+	 * dropped, cut at the horizon and the limit. */
+	static TArray<FApexForecastStep> ClampedForecast(EApexWeather Start, const TArray<FApexForecastStep>& Steps)
+	{
+		TArray<FApexForecastStep> Sorted = Steps;
+		Sorted.StableSort([](const FApexForecastStep& A, const FApexForecastStep& B) { return A.AtMin < B.AtMin; });
+		TArray<FApexForecastStep> Out;
+		int32 LastMin = 0;
+		EApexWeather LastWeather = Start;
+		for (const FApexForecastStep& Step : Sorted)
+		{
+			if (Out.Num() == MaxForecastSteps || Step.AtMin > ForecastHorizonMin)
+			{
+				break;
+			}
+			if (Step.AtMin < LastMin + ForecastMinGapMin || Step.Weather == LastWeather)
+			{
+				continue;
+			}
+			Out.Add(Step);
+			LastMin = Step.AtMin;
+			LastWeather = Step.Weather;
+		}
 		return Out;
 	}
 
@@ -858,7 +921,7 @@ struct APEXSIMNET_API FApexSessionConditions
 		return Weather == EApexWeather::Sunny && TimeOfDayMinutes == DefaultTimeOfDayMinutes
 			&& !HasAirTemp() && HumidityPct < 0 && !HasWind() && !HasWindDirection()
 			&& !HasTimeScale() && !HasChangeable() && !HasTrackRubber() && !HasSkySeed()
-			&& !HasDate() && !HasSolarNoon();
+			&& !HasDate() && !HasSolarNoon() && !HasForecast();
 	}
 
 	/** Hours since midnight, fractional. */
@@ -928,7 +991,8 @@ struct APEXSIMNET_API FApexSessionConditions
 			&& TimeScale == Other.TimeScale && Changeable == Other.Changeable
 			&& TrackRubberPct == Other.TrackRubberPct
 			&& bHasSkySeed == Other.bHasSkySeed && (!bHasSkySeed || SkySeed == Other.SkySeed)
-			&& DayOfYear == Other.DayOfYear && SolarNoonMin == Other.SolarNoonMin;
+			&& DayOfYear == Other.DayOfYear && SolarNoonMin == Other.SolarNoonMin
+			&& Forecast == Other.Forecast;
 	}
 	bool operator!=(const FApexSessionConditions& Other) const { return !(*this == Other); }
 };

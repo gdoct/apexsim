@@ -2543,6 +2543,152 @@ pub struct SessionConditions {
     /// ([`SOLAR_NOON_HOURS`]). A create's own is replaced.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub solar_noon_min: Option<u16>,
+    /// The host's own forecast: the weather from each step's minute of
+    /// session time on (`HostForecast`), used instead of the one worked
+    /// out from the seed (`crate::conditions::forecast`), whatever
+    /// `changeable` says. Empty (and left off the wire) for none.
+    #[serde(default, skip_serializing_if = "HostForecast::is_empty")]
+    pub forecast: HostForecast,
+}
+
+/// One step of a host's forecast: from `at_min` minutes into the session
+/// the weather is `weather`. On the wire a two-element array.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForecastStep {
+    pub at_min: u16,
+    pub weather: Weather,
+}
+
+/// A forecast the host wrote (`SessionConditions::forecast`): up to
+/// [`HostForecast::MAX_STEPS`] steps in time order, each a change of
+/// weather at least [`HostForecast::MIN_GAP_MIN`] after the last (and after
+/// the start), none past [`HostForecast::HORIZON_MIN`]. Held in a fixed
+/// array of packed steps (the minute over three bits of weather) so the
+/// conditions stay `Copy` and small. Serialized as an array of
+/// `[at_min, weather]` pairs; [`HostForecast::from_steps`] makes any list
+/// one: sorted, steps too soon after the last or repeating its weather
+/// dropped, an unknown weather byte dropped, the rest cut at the limit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HostForecast {
+    len: u8,
+    packed: [u16; HostForecast::MAX_STEPS],
+}
+
+impl Default for HostForecast {
+    fn default() -> Self {
+        Self::NONE
+    }
+}
+
+impl HostForecast {
+    /// The most steps a host may write.
+    pub const MAX_STEPS: usize = 10;
+    /// A step comes at least this long after the last, and the first this
+    /// long after the start, minutes: rain takes minutes to arrive (the
+    /// generated forecast's own gap, `conditions::forecast`).
+    pub const MIN_GAP_MIN: u16 = 4;
+    /// No step later than this, minutes of session: a 24-hour race and its
+    /// run-up.
+    pub const HORIZON_MIN: u16 = 26 * 60;
+    pub const NONE: HostForecast = HostForecast {
+        len: 0,
+        packed: [0; HostForecast::MAX_STEPS],
+    };
+
+    /// Adds `step` at the end, if there is room.
+    fn push(&mut self, step: ForecastStep) {
+        if (self.len as usize) < Self::MAX_STEPS {
+            let at_min = step.at_min.min(Self::HORIZON_MIN + 1);
+            self.packed[self.len as usize] = (at_min << 3) | step.weather as u16;
+            self.len += 1;
+        }
+    }
+
+    /// A forecast from `steps` as a host wrote them, made valid (see the
+    /// type), starting from the session's own `start` weather (a first
+    /// step repeating it is dropped).
+    pub fn from_steps(start: Weather, steps: &[ForecastStep]) -> Self {
+        let mut sorted: Vec<ForecastStep> = steps.to_vec();
+        sorted.sort_by_key(|s| s.at_min);
+        let mut out = Self::NONE;
+        let (mut last_min, mut last_weather) = (0u16, start);
+        for step in sorted {
+            if out.len as usize == Self::MAX_STEPS || step.at_min > Self::HORIZON_MIN {
+                break;
+            }
+            if step.at_min < last_min.saturating_add(Self::MIN_GAP_MIN)
+                || step.weather == last_weather
+            {
+                continue;
+            }
+            out.push(step);
+            (last_min, last_weather) = (step.at_min, step.weather);
+        }
+        out
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// The steps, in time order.
+    pub fn steps(&self) -> Vec<ForecastStep> {
+        self.packed[..self.len as usize]
+            .iter()
+            .map(|p| ForecastStep {
+                at_min: p >> 3,
+                weather: Weather::from_u8((p & 7) as u8).unwrap_or_default(),
+            })
+            .collect()
+    }
+
+    /// The same forecast with each step's weather passed through `f` and
+    /// made valid again from `start`.
+    pub fn map(&self, start: Weather, f: impl Fn(Weather) -> Weather) -> Self {
+        let mapped: Vec<ForecastStep> = self
+            .steps()
+            .iter()
+            .map(|s| ForecastStep {
+                at_min: s.at_min,
+                weather: f(s.weather),
+            })
+            .collect();
+        Self::from_steps(start, &mapped)
+    }
+}
+
+impl Serialize for HostForecast {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeSeq;
+        let mut seq = serializer.serialize_seq(Some(self.len as usize))?;
+        for step in &self.steps() {
+            seq.serialize_element(&(step.at_min, step.weather))?;
+        }
+        seq.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for HostForecast {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // Anything a host may send: unknown weather dropped, the steps in
+        // time order and cut at the limit. `SessionConditions::clamp` makes
+        // the rest good from the start's weather (`from_steps`).
+        let raw: Vec<(u64, u64)> = Vec::deserialize(deserializer)?;
+        let mut steps: Vec<ForecastStep> = raw
+            .into_iter()
+            .filter_map(|(at_min, weather)| {
+                let weather = Weather::from_u8(u8::try_from(weather).ok()?)?;
+                let at_min = at_min.min(Self::HORIZON_MIN as u64 + 1) as u16;
+                Some(ForecastStep { at_min, weather })
+            })
+            .collect();
+        steps.sort_by_key(|s| s.at_min);
+        let mut out = Self::NONE;
+        for step in steps.iter().take(Self::MAX_STEPS) {
+            out.push(*step);
+        }
+        Ok(out)
+    }
 }
 
 impl Default for SessionConditions {
@@ -2566,6 +2712,7 @@ impl SessionConditions {
         sky_seed: None,
         day_of_year: None,
         solar_noon_min: None,
+        forecast: HostForecast::NONE,
     };
     pub const MINUTES_PER_DAY: u16 = 24 * 60;
 
@@ -2606,6 +2753,7 @@ impl SessionConditions {
             sky_seed: self.sky_seed,
             day_of_year: self.day_of_year.map(|d| d.clamp(1, DAYS_PER_YEAR)),
             solar_noon_min: self.solar_noon_min.map(|m| m % Self::MINUTES_PER_DAY),
+            forecast: HostForecast::from_steps(self.weather, &self.forecast.steps()),
         }
     }
 
@@ -2674,7 +2822,7 @@ impl SessionConditions {
 
     /// Whether anything about the sky moves through the session.
     pub fn is_static(&self) -> bool {
-        self.clock_scale() == 0 && self.changeability() == 0
+        self.clock_scale() == 0 && self.changeability() == 0 && self.forecast.is_empty()
     }
 
     /// The racing line's rubber at the start, 0..1.
@@ -2699,7 +2847,7 @@ impl SessionConditions {
     /// the life of the session).
     pub fn resolve_at(self, seed: u64, latitude_deg: f32) -> Self {
         let c = self.clamp();
-        Self {
+        let named = Self {
             air_temp_c: Some(
                 c.air_temp_c
                     .unwrap_or(c.auto_air_temperature_c_at(latitude_deg).round() as i8),
@@ -2714,6 +2862,18 @@ impl SessionConditions {
                     .unwrap_or((crate::wind::hash01(seed, 0x57_1D) * 360.0) as u16 % 360),
             ),
             ..c
+        };
+        // A host's forecast keeps to its sky: a winter sky's rain falls as
+        // snow, a summer sky's snow as light rain (the generated forecast's
+        // own rule, `crate::conditions::is_winter`).
+        let winter = crate::conditions::is_winter(&named);
+        Self {
+            forecast: named.forecast.map(named.weather, |w| match w {
+                Weather::LightRain | Weather::HeavyRain if winter => Weather::Snow,
+                Weather::Snow if !winter => Weather::LightRain,
+                w => w,
+            }),
+            ..named
         }
     }
 
