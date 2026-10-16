@@ -93,6 +93,12 @@ namespace ApexInput
 		inline const FName RecoverTrack = TEXT("RecoverTrack");
 		inline const FName RecoverPits  = TEXT("RecoverPits");
 		/**
+		 * Pressed: ask the crew to box this lap, or call it off
+		 * (`SetPitPlan.box_this_lap`, UApexPitPlanSubsystem). The request
+		 * stays on until the stop; the driver still drives in.
+		 */
+		inline const FName BoxThisLap   = TEXT("BoxThisLap");
+		/**
 		 * Not an Enhanced Input action: the pause key has to work while the race
 		 * view owns input, so the root widget tests it directly. Listed here so
 		 * it is rebindable and appears in the controls screen with the rest.
@@ -490,4 +496,8 @@ public:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> RecoverPits;
+
+	/** Digital, fires once per press: the box-this-lap request on or off. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> BoxThisLap;
 };

@@ -230,6 +230,11 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> QualifyingLengthButtons;
 	/** The 107% rule (None, 107%), beside qualifying's length and in the weekend's section. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> QualifyingCutoffButtons;
+	/** The race's pit rule: Stops (None, 1, 2, 3) and Two compounds (Free, Two). */
+	UPROPERTY(Transient) TObjectPtr<UWidget> PitRuleSection;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> PitRuleInfoText;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> MandatoryStopsButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> CompoundChangeButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendCutoffButtons;
 	/** Each weekend day's sky (0 practice, 1 qualifying): a weather stepper, an hour stepper and its forecast. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendDayRows[2];

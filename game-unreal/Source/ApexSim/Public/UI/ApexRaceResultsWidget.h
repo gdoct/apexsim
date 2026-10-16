@@ -44,16 +44,19 @@ namespace ApexRaceResults
 		FString Time;
 		/** A click films this car: still racing (or our own, back to the panorama). */
 		bool bWatchable = false;
+		/** Took the flag owing the race's pit rule: classified behind every car that met it (PEN). */
+		bool bMissedStops = false;
 	};
 
 	/**
 	 * Rows in the recorder's order (finishers by classification, the rest in
 	 * the running order behind them). `bLive` is whether the race is still
 	 * running: a car without a flag is then on track and can be watched;
-	 * after the end it did not finish.
+	 * after the end it did not finish. `MissedStops` are the cars the roster
+	 * marks as having taken the flag owing the pit rule.
 	 */
 	APEXSIM_API TArray<FRow> BuildRows(TConstArrayView<FApexCarResult> Results, const FString& LocalPlayerId, bool bLive,
-		const TSet<int32>& NotQualified = TSet<int32>());
+		const TSet<int32>& NotQualified = TSet<int32>(), const TSet<int32>& MissedStops = TSet<int32>());
 
 	/** 1:23.456 or 1:02:03.456. */
 	APEXSIM_API FString FormatRaceTime(float Seconds);

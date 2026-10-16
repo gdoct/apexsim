@@ -247,10 +247,17 @@ many laps it ran (`assign_finish_positions`), and marked
 (`SessionSummary.MandatoryStops` / `CompoundChange`); a hosted session
 takes it as `HostedSpec.pit_rule` and the admin API's session detail carries
 it. The AI plans the stops (`pit::plan_stop`, [ai](ai.md#strategy)).
-Client: the codec sends and reads both fields and the roster flag
-(`EncodeCreateSession`'s `MandatoryStops` / `bCompoundChange`,
-`GetSessionMandatoryStops`, `GetSessionCompoundChange`,
-`FApexRosterEntry::bMissedStops`); no screen sets or shows them yet.
+Client: the create screen's Race tab has a Pit stops section in a race or
+a qualifying session (Stops None / 1 / 2 / 3 and Two compounds Free / Two,
+kept in the profile, `UApexMenuFlowSubsystem::MandatoryStopsToSend` /
+`CompoundChangeToSend`), named in its summary ("1 STOP · TWO COMPOUNDS",
+`ApexMandatoryStops::Describe`); `-ApexAutoRace` takes
+`-ApexMandatoryStops=N` and `-ApexCompoundChange`. The session browser's
+row names the rule. In the race the HUD's race state shows the stops still
+owed (`pit.stops_owed`, `pit.compound_owed`: the session's rule against the
+stops the HUD has seen the car make), and a car with `bMissedStops` is
+marked PEN in the standings, the timing tower, the watch view's results and
+both results screens (`ApexRaceResults::FRow::bMissedStops`).
 
 ## The race's grid
 

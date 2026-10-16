@@ -1360,3 +1360,121 @@ runs:
       - at: 95
         label: "chase close, later"
         checks: "same"
+
+  # The pit plan in the pause menu, the BoxThisLap key and its BOX badge,
+  # and a stop on the plan (tyres kept, 5 L): the client log's PitService
+  # line says what the crew did. The stand-in drives in when the debug
+  # event says.
+  - id: r11-pit-plan
+    about: "R11. The pit plan panel, BOX this lap, a stop on the plan"
+    server:
+      stand_in: true
+      events:
+        - "40:host:pit"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=3
+      - -ApexLaps=6
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexOpenPause=12
+    exec:
+      14: ["apexsim.ui.Texts PIT", "apexsim.ui.Click PIT PLAN"]
+      16: ["apexsim.ui.Key Gamepad_FaceButton_Bottom"]
+      16.6: ["apexsim.ui.Key Gamepad_DPad_Down"]
+      17.2: ["apexsim.ui.Key Gamepad_DPad_Right"]
+      17.8: ["apexsim.ui.Key Gamepad_FaceButton_Bottom"]
+      18.4: ["apexsim.ui.Key Gamepad_FaceButton_Bottom"]
+      19: ["apexsim.ui.Texts"]
+      24: ["apexsim.ui.Key Gamepad_FaceButton_Right"]
+      28: ["apexsim.ui.Key Gamepad_FaceButton_Right"]
+      32: ["apexsim.ui.Key P"]
+      34: ["apexsim.hud.Data pit."]
+    shots:
+      - at: 22
+        label: "pause > PIT PLAN: tyres KEEP, fuel +5 L"
+        checks: "The pit plan panel (follow-ups 17)"
+      - at: 26
+        label: "back on the pause menu's rows: PIT PLAN's summary"
+        checks: "The pit plan row"
+      - at: 36
+        label: "BoxThisLap pressed: the BOX badge"
+        checks: "pit.requested / BOX badge"
+      - at: 60
+        label: "BOX badge still on, before the stop"
+        checks: "BOX until the stop"
+      - at: 80
+        label: "down the lane, BOX still on"
+        checks: "BOX until the stop"
+      - at: 82
+        label: "the stop: fuel alone"
+        checks: "the pit panel's bar: fuel alone"
+      - at: 83
+        label: "the stop: fuel alone"
+        checks: "the pit panel's bar: fuel alone"
+      - at: 84
+        label: "the stop: fuel alone"
+        checks: "the pit panel's bar: fuel alone"
+      - at: 100
+        label: "after the stop: BOX off"
+        checks: "BOX off after the stop"
+
+  # A one-lap race under a one-stop rule: an AI (the stand-in too) plans no
+  # stop with no lap left after the one it is on, so every car takes the
+  # flag owing it and is marked PEN.
+  - id: r11-pit-rule
+    about: "R11. A one-stop race nobody stops in: PEN on the HUD and the results"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=3
+      - -ApexLaps=1
+      - -ApexCountdown=5
+      - -ApexMandatoryStops=1
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+    exec:
+      20: ["apexsim.hud.Data pit."]
+    shots:
+      - at: 25
+        label: "racing: STOPS OWED 1 on the race state"
+        checks: "pit.stops_owed"
+      - at: 110
+        label: "after the flag: results"
+        checks: "PEN on the results"
+      - at: 140
+        label: "the race over: final results"
+        checks: "PEN on the results"
+
+  # The create screen's pit rule rows.
+  - id: r11-create-pit-rule
+    about: "R11. The create screen's Stops and Two compounds rows"
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=3
+      - -ApexCreateMode=7
+    # The rows are saved to the player's profile as they change: the run
+    # puts them back to None and Free before it ends.
+    exec:
+      12: ["apexsim.ui.Texts"]
+      14: ["apexsim.ui.Mouse down 1537 509"]
+      14.2: ["apexsim.ui.Mouse up 1537 509"]
+      15: ["apexsim.ui.Click Two"]
+      21: ["apexsim.ui.Mouse down 1412 509"]
+      21.2: ["apexsim.ui.Mouse up 1412 509"]
+      22: ["apexsim.ui.Click Free"]
+    shots:
+      - at: 18
+        label: "Create > Race: Pit stops section, 1 stop and two compounds"
+        checks: "Stops chips, Two compounds, the summary naming the rule"
+      - at: 25
+        label: "put back: None, Free"
+        checks: "the profile left as it was"

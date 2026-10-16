@@ -52,6 +52,7 @@ is one entry in that table.
 | `Handbrake` | held | Left Ctrl | B | `PlayerInput.handbrake` (rear tyres lock: [vehicle physics](../server/vehicle-physics.md)) |
 | `Clutch` | axis 0..1 | | | `PlayerInput.clutch` (the crank transmits proportionally less torque; wheel column only, unbound; nil until a pedal has moved, which the server takes as its own gearbox's) |
 | `RecoverTrack` / `RecoverPits` | press | R / unbound | unbound | `RecoverCar` (the pause menu's BACK TO TRACK / BACK TO PITS; the server says whether the car may) |
+| `BoxThisLap` | press | P | D-pad left | `SetPitPlan.box_this_lap` on or off with the pit plan (`UApexPitPlanSubsystem`); the HUD's BOX badge until the stop |
 | `HGearReverse`, `HGear1` to `HGear8` | held | | | `PlayerInput.gear`, absolute (wheel column only, unbound) |
 | `PauseMenu` | press | Escape | Start | local |
 

@@ -93,6 +93,8 @@ namespace
 		bool bAway = false;
 		/** The qualifying cut-off left the car out of the race. */
 		bool bDnq = false;
+		/** Took the flag owing a stop or its second compound under the pit rule. */
+		bool bMissedStops = false;
 	};
 
 	/** Milliseconds as seconds, null when the server has no time. */
@@ -220,6 +222,7 @@ void FApexHudMemory::SampleField(const FApexTelemetryFrame& Frame)
 			// First seen: the set on it is taken to be the one it started on.
 			History = &Cars.Add(Car.CarIndex);
 			History->Compound = Car.Compound;
+			History->FirstCompound = Car.Compound;
 			History->bWholeRace = Car.CurrentLap <= 1 && Car.FinishPosition <= 0;
 		}
 		// The race time, lap by lap off the server's timing, until the flag
@@ -250,6 +253,11 @@ void FApexHudMemory::SampleField(const FApexTelemetryFrame& Frame)
 		if (Car.Compound >= 0)
 		{
 			History->Compound = Car.Compound;
+			if (History->FirstCompound < 0)
+			{
+				History->FirstCompound = Car.Compound;
+			}
+			History->bCompoundChanged |= Car.Compound != History->FirstCompound;
 		}
 	}
 }
@@ -288,6 +296,7 @@ const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
 			TEXT("laps_down"), TEXT("best_lap_s"), TEXT("last_lap_s"), TEXT("last_lap_invalid"), TEXT("is_session_best"),
 			TEXT("speed_kph"), TEXT("in_pit"), TEXT("on_track"), TEXT("servicing"), TEXT("retired"), TEXT("car_name"),
 			TEXT("compound"), TEXT("tyre_age_laps"), TEXT("tyre_wear_pct"), TEXT("pit_stops"), TEXT("away"), TEXT("dnq"),
+			TEXT("missed_stops"),
 			TEXT("race_time_s"), TEXT("finish_gap_s"), TEXT("finish_laps_down")}},
 		{TEXT("sectors"), {TEXT("number"), TEXT("time_s"), TEXT("best_s"), TEXT("session_best_s"), TEXT("state"),
 			TEXT("is_current")}},
@@ -661,6 +670,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			Entry.Name = Row->PlayerName;
 			Entry.bAway = Row->bAway;
 			Entry.bDnq = Row->bDnq;
+			Entry.bMissedStops = Row->bMissedStops;
 		}
 		if (Entry.Name.IsEmpty())
 		{
@@ -779,6 +789,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Row.Add(TEXT("retired"), FApexHudValue::Of(HudRetired(Car)));
 		Row.Add(TEXT("away"), FApexHudValue::Of(Entry.bAway));
 		Row.Add(TEXT("dnq"), FApexHudValue::Of(Entry.bDnq));
+		Row.Add(TEXT("missed_stops"), FApexHudValue::Of(Entry.bMissedStops));
 		const FString* Model = In.CarNames ? In.CarNames->Find(Car.CarIndex) : nullptr;
 		Row.Add(TEXT("car_name"), Model && !Model->IsEmpty() ? FApexHudValue::Of(*Model) : FApexHudValue());
 		// By the car's own list: a car that files "dry, wet" has its wet at 1.
@@ -933,6 +944,14 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("car.driver_name"), Order.IsValidIndex(LocalPlace) ? FApexHudValue::Of(Order[LocalPlace].Name) : FApexHudValue());
 		const FApexHudMemory::FCarHistory* History = Local ? Memory.Cars.Find(Local->CarIndex) : nullptr;
 		Out.Set(TEXT("car.pit_stops"), History ? FApexHudValue::Of(History->PitStops) : FApexHudValue());
+		// The race's pit rule, against the stops this HUD has seen the car
+		// make (the server's own count decides at the flag): null without a
+		// rule, outside a race, or without a car.
+		const bool bPitRule = Local && History && In.GameMode == EApexGameMode::Race
+			&& (In.MandatoryStops > 0 || In.bCompoundChange);
+		Out.Set(TEXT("pit.stops_owed"), bPitRule
+			? FApexHudValue::Of(ApexMandatoryStops::Owed(In.MandatoryStops, History->PitStops)) : FApexHudValue());
+		Out.Set(TEXT("pit.compound_owed"), bPitRule && In.bCompoundChange && !History->bCompoundChanged);
 		Out.Set(TEXT("car.retired"), Local && HudRetired(*Local));
 		Out.Set(TEXT("tyre.age_laps"), History && Local && Local->Compound >= 0
 			? FApexHudValue::Of(FMath::Max(0, Local->CurrentLap - History->TyresFromLap))
@@ -986,6 +1005,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("pit.autopilot"), Local->bPitAutopilot);
 		Out.Set(TEXT("pit.exit_closed"), Local->bPitExitClosed);
 		Out.Set(TEXT("pit.held"), Local->bPitHeld);
+		Out.Set(TEXT("pit.requested"), Local->bPitRequested);
 		Out.Set(TEXT("car.recovering"), Local->IsRecovering());
 		Out.Set(TEXT("car.recover_s"), HudKnown(Local->RecoverSecondsLeft, Local->IsRecovering()));
 	}
@@ -997,7 +1017,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 				 TEXT("car.colliding"), TEXT("car.headlights"), TEXT("car.finish_position"), TEXT("car.drs_allowed"),
 				 TEXT("car.drs_open"), TEXT("car.tow"), TEXT("car.x"), TEXT("car.y"), TEXT("car.z"), TEXT("car.yaw_deg"),
 				 TEXT("car.station_m"), TEXT("pit.in_lane"), TEXT("pit.limiter"), TEXT("pit.servicing"), TEXT("pit.service_s"),
-				 TEXT("pit.autopilot"), TEXT("pit.exit_closed"), TEXT("pit.held"), TEXT("car.recovering"),
+				 TEXT("pit.autopilot"), TEXT("pit.exit_closed"), TEXT("pit.held"), TEXT("pit.requested"), TEXT("car.recovering"),
 				 TEXT("car.recover_s")})
 		{
 			Out.SetNone(Name);

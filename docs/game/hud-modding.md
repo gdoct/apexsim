@@ -53,7 +53,8 @@ folder of components). A later folder replaces an earlier one with the same
 component id. To hide a shipped component, write
 `custom/<id>/component.json` holding `{ "enabled": false }`.
 
-Shipped components: `track_info`, `race_state`, `status`, `minimap`,
+Shipped components: `track_info`, `race_state` (with STOPS OWED under a pit
+rule and the BOX badge after a pit request), `status`, `minimap`,
 `standings`, `timing`, `pedals`, `damage`, `car_state`, `mirror`, `pit_stop`,
 `ers` (a hybrid only);
 off until added in the editor: `relative`, `speed_gear`, `conditions`; while
@@ -425,6 +426,9 @@ the car is in or, between corners, the next one; all *null* (and
 | `pit.autopilot` | the server drives the car along the pit route (the player's input is ignored) |
 | `pit.exit_closed` | the pit exit light is red |
 | `pit.held` | the car is waiting at the red exit light |
+| `pit.requested` | the driver has asked to box this lap (the `BoxThisLap` key or the pit plan): on until the stop is made |
+| `pit.stops_owed` | stops the race's pit rule still asks of the car: the session's mandatory stops less the stops this HUD has seen it make (*null* without a rule, outside a race, or without a car; the server's own count decides at the flag) |
+| `pit.compound_owed` | the rule asks for a second compound and the HUD has not seen another set on the car |
 | `pit.box` | the car's box, from 1: the driver's own once the server deals it, another car's as its last stop named it (*null* until then) |
 | `pit.box_ahead_m` | metres along the lane to the driver's own box's stop spot, negative once past it (*null* until the box is dealt, and for another car) |
 | `fuel.liters` | fuel in the tank |
@@ -504,6 +508,7 @@ the furthest round).
 | `item.retired` | out of the race |
 | `item.away` | the driver lost their connection; the server drives the car until they rejoin |
 | `item.dnq` | did not qualify: the session's qualifying cut-off (the 107% rule) left the car out of the race (`RosterEntry.Dnq`) |
+| `item.missed_stops` | took the flag owing a stop or its second compound under the race's pit rule, so classified behind every car that met it (`RosterEntry.MissedStops`): the default components mark it PEN |
 | `item.lap` | lap, as `lap.display` |
 | `item.gap_leader_s` | seconds behind the leader (*null* for the leader, or when the length is unknown) |
 | `item.interval_s` | seconds behind the car one place ahead (*null* as above) |

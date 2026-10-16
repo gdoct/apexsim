@@ -62,6 +62,32 @@
           ]
         }]
       },
+      // The pit rule: the stops still owed (or the second compound), until met.
+      {
+        "type": "panel", "visible": "=has(pit.stops_owed) && (pit.stops_owed > 0 || pit.compound_owed)",
+        "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [20, 9], "background": "surface",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "halign": "center", "text": "=pit.stops_owed > 0 ? 'Stops owed' : 'Owed'" },
+            { "type": "text", "halign": "center", "margin": [0, 2, 0, 0], "font": "display", "size": 34, "color": "accent",
+              "text": "=pit.stops_owed > 0 ? str(pit.stops_owed) + (pit.compound_owed ? ' +' : '') : '2ND SET'" }
+          ]
+        }]
+      },
+      // The driver has asked to box this lap: lit until the stop is made.
+      {
+        "type": "panel", "visible": "=pit.requested",
+        "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [20, 9], "background": "live",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "halign": "center", "text": "Pit", "color": "=alpha('on_accent', 0.7)" },
+            { "type": "text", "halign": "center", "margin": [0, 2, 0, 0], "font": "display", "size": 34, "color": "on_accent",
+              "text": "BOX" }
+          ]
+        }]
+      },
       // The gaps name their rival: a bare number does not tell you who you are racing.
       {
         "type": "panel", "width": 200, "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [20, 9], "background": "surface",

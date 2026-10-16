@@ -1065,6 +1065,73 @@ bool FApexHudDataErsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataPitRuleTest, "ApexSim.Hud.Data.PitRule", ApexTestFlags)
+
+bool FApexHudDataPitRuleTest::RunTest(const FString& Parameters)
+{
+	FApexTelemetryFrame Frame;
+	Frame.Cars.Add(HudCar(0, 2, 100.0f, 50.0f));
+	Frame.Cars.Add(HudCar(1, 2, 50.0f, 50.0f));
+	FApexCarTelemetry& Car = Frame.Cars[0];
+	Car.Compound = 1;
+	FApexSessionRoster Roster;
+	FApexRosterEntry& Other = Roster.Entries.AddDefaulted_GetRef();
+	Other.CarIndex = 1;
+	Other.PlayerName = TEXT("Other");
+	Other.bMissedStops = true;
+	FApexHudInputs In;
+	In.Frame = &Frame;
+	In.Roster = &Roster;
+	In.LocalCarIndex = 0;
+	In.GameMode = EApexGameMode::Race;
+	FApexHudMemory Memory;
+	FApexHudData Data;
+
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("no rule: nothing owed"), HudValue(Data, TEXT("pit.stops_owed")).IsNone());
+	TestFalse(TEXT("no rule: no compound owed"), HudValue(Data, TEXT("pit.compound_owed")).AsBool());
+	TestFalse(TEXT("no request"), HudValue(Data, TEXT("pit.requested")).AsBool());
+
+	In.MandatoryStops = 1;
+	In.bCompoundChange = true;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("one stop owed"), HudValue(Data, TEXT("pit.stops_owed")).AsNumber(), 1.0);
+	TestTrue(TEXT("the second compound owed"), HudValue(Data, TEXT("pit.compound_owed")).AsBool());
+
+	// The request, then the stop: a set of another compound goes on.
+	Car.bPitRequested = true;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("BOX"), HudValue(Data, TEXT("pit.requested")).AsBool());
+	Car.bPitRequested = false;
+	Car.bPitServicing = true;
+	ApexHudData::Build(In, Memory, Data);
+	Car.bPitServicing = false;
+	Car.Compound = 2;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("the stop is made"), HudValue(Data, TEXT("pit.stops_owed")).AsNumber(), 0.0);
+	TestFalse(TEXT("the second compound is on"), HudValue(Data, TEXT("pit.compound_owed")).AsBool());
+
+	// Outside a race the rule asks nothing.
+	In.GameMode = EApexGameMode::FreePractice;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("practice"), HudValue(Data, TEXT("pit.stops_owed")).IsNone());
+
+	// The roster's penalty reaches the standings.
+	const TArray<FApexHudRecord>* Standings = Data.FindList(TEXT("standings"));
+	bool bSeen = false;
+	for (const FApexHudRecord& Row : Standings ? *Standings : TArray<FApexHudRecord>())
+	{
+		const FApexHudValue* Index = Row.Find(TEXT("car_index"));
+		const FApexHudValue* Missed = Row.Find(TEXT("missed_stops"));
+		if (Index && Missed && FMath::RoundToInt(Index->AsNumber()) == 1)
+		{
+			bSeen = Missed->AsBool();
+		}
+	}
+	TestTrue(TEXT("the other car is marked PEN"), bSeen);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataStableTest, "ApexSim.Hud.Data.Stable", ApexTestFlags)
 
 bool FApexHudDataStableTest::RunTest(const FString& Parameters)

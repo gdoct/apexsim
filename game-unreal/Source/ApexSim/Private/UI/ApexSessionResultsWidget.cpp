@@ -532,8 +532,16 @@ void UApexSessionResultsWidget::FillRaceRows(bool bLive)
 	// The gap column is the gap at the flag, as the finish overlay reads it:
 	// the winner's race time, a finisher's time (or laps) behind it, and ON
 	// TRACK or DNF for a car without a flag.
+	TSet<int32> MissedStops;
+	for (const FApexRosterEntry& Entry : Net->GetSessionRoster().Entries)
+	{
+		if (Entry.bMissedStops)
+		{
+			MissedStops.Add(Entry.CarIndex);
+		}
+	}
 	TMap<int32, FString> GapByCar;
-	for (const ApexRaceResults::FRow& Line : ApexRaceResults::BuildRows(Results, Net->GetPlayerId(), bLive))
+	for (const ApexRaceResults::FRow& Line : ApexRaceResults::BuildRows(Results, Net->GetPlayerId(), bLive, TSet<int32>(), MissedStops))
 	{
 		GapByCar.Add(Line.CarIndex, Line.Time);
 	}
@@ -563,6 +571,11 @@ void UApexSessionResultsWidget::FillRaceRows(bool bLive)
 		if (bIsLocal)
 		{
 			ApexUI::AddH(NameCell, MakeTag(*WidgetTree, TEXT("YOU"), ApexUI::Palette::Accent), FMargin(10.0f, 0.0f, 0.0f, 0.0f));
+		}
+		// Past the flag owing the race's pit rule: classified behind every car that met it.
+		if (MissedStops.Contains(Result.CarIndex) && Result.FinishPosition > 0)
+		{
+			ApexUI::AddH(NameCell, MakeTag(*WidgetTree, TEXT("PEN"), ApexUI::Palette::Error), FMargin(10.0f, 0.0f, 0.0f, 0.0f));
 		}
 		ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, NameCell, ColDriver, -1.0f));
 

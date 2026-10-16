@@ -221,6 +221,31 @@ session while driving (notice, then the menu).
 - The flags turning with the wind: no shipped circuit places
   `sign/flag_pole`, so this waits for one that does.
 
+### R11. Pit plan and pit rule
+
+`r11-pit-plan`, `r11-pit-rule` and `r11-create-pit-rule` in
+`scripts/verify/runs.yml` ([game/client.md](game/client.md),
+[server/pit-lane.md](server/pit-lane.md),
+[server/sessions.md](server/sessions.md#session-rules-set-on-create)).
+
+Seen on 2026-10-16: the pause menu's PIT PLAN page set by pad (tyres kept,
++5 L) and its row's summary, the `BoxThisLap` key lighting BOX until the
+stop, the stop on that plan (the pit panel's bar the fuel alone,
+`PitService` tyres 0 s, 5 L), the create screen's Stops and Two compounds
+rows with the summary naming them, STOPS OWED on the race state, and PEN on
+the finish overlay's rows after a one-lap race under a one-stop rule.
+
+- PEN in the HUD's standings, the timing tower and the watch view's results
+  (`item.missed_stops`), and the session results screen's PEN tag: the
+  one-lap run ends on the finish overlay. Only `ApexSim.Hud.Data.PitRule`
+  has run.
+- The plan sent again after a rejoin (`Rejoined ...: sending the pit plan
+  again` in the client log, the stop still on the plan), and a stop on a
+  plan with a chosen pad set moving the garage's Brake pads knob. Only
+  `ApexSim.Race.PitPlan.*` has run.
+- The `BoxThisLap` wheel slot on a real wheel, and the second compound owed
+  (`pit.compound_owed`, "2ND SET") under a Two compounds rule.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

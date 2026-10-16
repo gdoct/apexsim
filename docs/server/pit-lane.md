@@ -195,6 +195,9 @@ Called inside `update_air` before the physics, and in the countdown.
   the wire at its default), reliable, from a driver. Client:
   `ApexProtocol::EncodeSetPitPlan(FApexPitPlan)`,
   `UApexNetSubsystem::SetPitPlan`; `FApexCarTelemetry::bPitRequested`.
+  On screen: the pause menu's PIT PLAN page and the `BoxThisLap` key
+  (`UApexPitPlanSubsystem`, [game/client.md](../game/client.md)), the
+  HUD's `pit.requested` and BOX badge.
 - `ServerMessage::PitService` (`PitServiceData`: car index, box, tyres /
   fuel / repair seconds in crew order, compound, litres, damage repaired,
   total), reliable, to every human in the session as the crew starts

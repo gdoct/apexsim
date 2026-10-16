@@ -3,6 +3,7 @@
 #include "ApexReplayRecorder.h"
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexPitPlanSubsystem.h"
 #include "ApexSettingsSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -15,6 +16,7 @@
 #include "Engine/GameInstance.h"
 #include "Race/ApexRaceCoordinate.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexStepperWidget.h"
 #include "UI/ApexUIStyle.h"
 
 using namespace ApexUI;
@@ -33,6 +35,13 @@ namespace
 	const FName ActionRecoverTrack = TEXT("RecoverTrack");
 	const FName ActionRecoverPits  = TEXT("RecoverPits");
 	const FName ActionQuit     = TEXT("Quit");
+	const FName ActionPitPlan  = TEXT("PitPlan");
+	const FName ActionPitPlanDone = TEXT("PitPlanDone");
+
+	/** The pit plan's rows, in the order the crew works, then the request. */
+	enum EPitPlanRow : int32 { PlanTyres = 0, PlanFuel, PlanRepair, PlanPads, PlanPadSet, PlanBox, PlanRowCount };
+	constexpr float PitPlanRowHeight = 52.0f;
+	constexpr float PitPlanReadoutWidth = 230.0f;
 }
 
 UApexPauseMenuWidget::UApexPauseMenuWidget(const FObjectInitializer& ObjectInitializer)
@@ -52,8 +61,8 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 
 	UVerticalBox* Heading = WidgetTree->ConstructWidget<UVerticalBox>();
 	AddV(Heading, MakeLabel(*WidgetTree, TEXT("Session paused"), Palette::Accent));
-	AddV(Heading, MakeText(*WidgetTree, TEXT("PAUSED"), Font::Display(52.0f, 20), Palette::TextPrimary),
-		FMargin(0.0f, 10.0f, 0.0f, 0.0f));
+	HeadingText = MakeText(*WidgetTree, TEXT("PAUSED"), Font::Display(52.0f, 20), Palette::TextPrimary);
+	AddV(Heading, HeadingText, FMargin(0.0f, 10.0f, 0.0f, 0.0f));
 	AddV(Card, MakePanel(*WidgetTree, Heading, FMargin(42.0f, 34.0f), MakeBrush(Palette::Surface)));
 	AddV(Card, MakeDivider(*WidgetTree));
 
@@ -63,6 +72,9 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	// so a second Escape and a click do the same thing.
 	AddRow(Actions, TEXT("Close menu"), FString(), ActionResume, /*bPrimary*/ true, TEXT("ESC"));
 	AddRow(Actions, TEXT("SETTINGS"), TEXT("Gameplay · Graphics · Controls"), ActionSettings, false);
+	// The driver's orders for the next stop, and the box-this-lap request.
+	PitPlanRow = AddRow(Actions, TEXT("PIT PLAN"), TEXT("Crew's call"), ActionPitPlan, false);
+	PitPlanRow->SetVisibility(ESlateVisibility::Collapsed);
 	// A hotlap's way back in: the car is parked, repaired and out of the way,
 	// with the setup card up. Collapsed in every other mode and in the garage.
 	GarageRow = AddRow(Actions, TEXT("BACK TO GARAGE"), TEXT("Tune, replay, go again"), ActionGarage, false);
@@ -84,7 +96,55 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	LeaveRow = AddRow(Actions, TEXT("BACK TO MAIN MENU"), TEXT("Session ends"), ActionPauseLeave, false);
 	AddRow(Actions, TEXT("EXIT"), TEXT("Quit ApexSim"), ActionQuit, false);
 
-	AddV(Card, MakePanel(*WidgetTree, Actions, FMargin(22.0f, 22.0f), MakeBrush(Palette::Background)));
+	ActionsPanel = MakePanel(*WidgetTree, Actions, FMargin(22.0f, 22.0f), MakeBrush(Palette::Background));
+	AddV(Card, ActionsPanel);
+
+	// --- The pit plan ----------------------------------------------------------
+	// Each order a stepper, sent as it moves; the crew's own call at every
+	// order's first stop.
+	{
+		UVerticalBox* Plan = WidgetTree->ConstructWidget<UVerticalBox>();
+		static const TCHAR* const Labels[PlanRowCount] = {
+			TEXT("Tyres"), TEXT("Fuel"), TEXT("Repairs"), TEXT("Brake pads"), TEXT("Pad set"), TEXT("Box this lap"),
+		};
+		for (int32 Index = 0; Index < PlanRowCount; ++Index)
+		{
+			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+			AddH(Row, MakeText(*WidgetTree, FString(Labels[Index]).ToUpper(), Font::Display(22.0f), Palette::TextPrimary),
+				FMargin(6.0f, 0.0f, 0.0f, 0.0f), VAlign_Center, 1.0f);
+			UApexStepperWidget* Stepper = WidgetTree->ConstructWidget<UApexStepperWidget>();
+			Stepper->Index = Index;
+			Stepper->OnChanged.AddDynamic(this, &UApexPauseMenuWidget::HandlePitPlanChanged);
+			AddH(Row, Stepper, FMargin(), VAlign_Center);
+			if (Index == PlanBox)
+			{
+				AddV(Plan, MakeDivider(*WidgetTree), FMargin(0.0f, 8.0f, 0.0f, 4.0f));
+			}
+			AddV(Plan, MakeSized(*WidgetTree, Row, -1.0f, PitPlanRowHeight), FMargin(0.0f, Index == 0 ? 0.0f : 4.0f, 0.0f, 0.0f));
+			PitPlanSteppers.Add(Stepper);
+		}
+		PitPlanSummaryText = MakeText(*WidgetTree, FString(), Font::Mono(11.0f, 80), Palette::TextSecondary);
+		PitPlanSummaryText->SetAutoWrapText(true);
+		AddV(Plan, PitPlanSummaryText, FMargin(6.0f, 14.0f, 6.0f, 12.0f));
+
+		FApexButtonSpec Done;
+		Done.Label = TEXT("DONE");
+		Done.Badge = TEXT("Back to the menu");
+		Done.KeyCap = TEXT("ESC");
+		Done.ActionId = ActionPitPlanDone;
+		Done.Variant = EApexButtonVariant::Panel;
+		Done.Height = PauseRowHeight;
+		Done.LabelSize = 24.0f;
+		Done.Sound = EApexUiSound::Back;
+		PitPlanDoneButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		PitPlanDoneButton->Setup(Done);
+		PitPlanDoneButton->OnActivated.AddDynamic(this, &UApexPauseMenuWidget::HandleButtonActivated);
+		AddV(Plan, PitPlanDoneButton);
+
+		PitPlanPanel = MakePanel(*WidgetTree, Plan, FMargin(22.0f, 22.0f), MakeBrush(Palette::Background));
+		PitPlanPanel->SetVisibility(ESlateVisibility::Collapsed);
+		AddV(Card, PitPlanPanel);
+	}
 
 	AddV(Card, MakeKeyHintBar(
 		*WidgetTree,
@@ -180,6 +240,15 @@ void UApexPauseMenuWidget::Open()
 
 void UApexPauseMenuWidget::FocusDefault()
 {
+	if (bPitPlanOpen)
+	{
+		UWidget* First = PitPlanSteppers.Num() > 0 ? ApexNav::FindFirstFocusable(PitPlanSteppers[0]) : nullptr;
+		if (!ApexNav::Focus(First))
+		{
+			SetKeyboardFocus();
+		}
+		return;
+	}
 	if (!(Rows.Num() > 0 && ApexNav::Focus(Rows[0])))
 	{
 		SetKeyboardFocus();
@@ -193,7 +262,106 @@ void UApexPauseMenuWidget::Close()
 		return;
 	}
 	bOpen = false;
+	ClosePitPlan();
 	SetVisibility(ESlateVisibility::Collapsed);
+}
+
+void UApexPauseMenuWidget::OpenPitPlan()
+{
+	if (!PitPlanPanel || !ActionsPanel)
+	{
+		return;
+	}
+	bPitPlanOpen = true;
+	RefreshPitPlan();
+	ActionsPanel->SetVisibility(ESlateVisibility::Collapsed);
+	PitPlanPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	if (HeadingText)
+	{
+		HeadingText->SetText(FText::FromString(TEXT("PIT PLAN")));
+	}
+	FocusDefault();
+}
+
+void UApexPauseMenuWidget::ClosePitPlan()
+{
+	if (!bPitPlanOpen)
+	{
+		return;
+	}
+	bPitPlanOpen = false;
+	if (PitPlanPanel)
+	{
+		PitPlanPanel->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (ActionsPanel)
+	{
+		ActionsPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (HeadingText)
+	{
+		HeadingText->SetText(FText::FromString(TEXT("PAUSED")));
+	}
+	RefreshStatusStrip();
+}
+
+void UApexPauseMenuWidget::RefreshPitPlan()
+{
+	const UApexPitPlanSubsystem* PitPlan = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexPitPlanSubsystem>() : nullptr;
+	if (!PitPlan || PitPlanSteppers.Num() != PlanRowCount)
+	{
+		return;
+	}
+	const FApexPitPlan& Plan = PitPlan->GetPlan();
+	const TArray<FString> Compounds = PitPlan->GetCompounds();
+
+	PitPlanSteppers[PlanTyres]->Formatter = [Compounds](int32 Value) { return ApexPitPlan::TyreChoiceLabel(Value, Compounds); };
+	PitPlanSteppers[PlanFuel]->Formatter = [](int32 Value) { return ApexPitPlan::FuelChoiceLabel(Value); };
+	PitPlanSteppers[PlanRepair]->Formatter = [](int32 Value) { return ApexPitPlan::RepairChoiceLabel(Value); };
+	PitPlanSteppers[PlanPads]->Formatter = [](int32 Value) { return ApexPitPlan::PadsChoiceLabel(Value); };
+	PitPlanSteppers[PlanPadSet]->Formatter = [](int32 Value) { return ApexPitPlan::PadSetChoiceLabel(Value); };
+	PitPlanSteppers[PlanBox]->Formatter = [](int32 Value) { return Value > 0 ? FString(TEXT("BOX, BOX")) : FString(TEXT("NOT THIS LAP")); };
+
+	// Built afresh each time the page opens: the tyres row's length is the car's.
+	PitPlanSteppers[PlanTyres]->Setup(0, ApexPitPlan::TyreChoiceCount(Compounds) - 1, ApexPitPlan::TyreChoice(Plan), PitPlanReadoutWidth);
+	PitPlanSteppers[PlanFuel]->Setup(-1, ApexPitPlan::FuelMaxSteps, ApexPitPlan::FuelChoice(Plan), PitPlanReadoutWidth);
+	PitPlanSteppers[PlanRepair]->Setup(0, 1, Plan.bNoRepair ? 1 : 0, PitPlanReadoutWidth);
+	PitPlanSteppers[PlanPads]->Setup(0, 2, ApexPitPlan::PadsChoice(Plan), PitPlanReadoutWidth);
+	PitPlanSteppers[PlanPadSet]->Setup(0, 3, ApexPitPlan::PadSetChoice(Plan), PitPlanReadoutWidth);
+	PitPlanSteppers[PlanBox]->Setup(0, 1, Plan.bBoxThisLap ? 1 : 0, PitPlanReadoutWidth);
+	RefreshPitPlanSummary();
+}
+
+void UApexPauseMenuWidget::RefreshPitPlanSummary()
+{
+	const UApexPitPlanSubsystem* PitPlan = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexPitPlanSubsystem>() : nullptr;
+	if (PitPlan && PitPlanSummaryText)
+	{
+		PitPlanSummaryText->SetText(FText::FromString(FString::Printf(TEXT("%s  ·  SENT TO THE CREW AS IT CHANGES"),
+			*ApexPitPlan::Summary(PitPlan->GetPlan(), PitPlan->GetCompounds()))));
+	}
+}
+
+void UApexPauseMenuWidget::HandlePitPlanChanged(UApexStepperWidget* Control, int32 Value)
+{
+	UApexPitPlanSubsystem* PitPlan = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexPitPlanSubsystem>() : nullptr;
+	if (!PitPlan || !Control)
+	{
+		return;
+	}
+	FApexPitPlan Plan = PitPlan->GetPlan();
+	switch (Control->Index)
+	{
+	case PlanTyres:  ApexPitPlan::SetTyreChoice(Plan, Value); break;
+	case PlanFuel:   ApexPitPlan::SetFuelChoice(Plan, Value); break;
+	case PlanRepair: Plan.bNoRepair = Value > 0; break;
+	case PlanPads:   ApexPitPlan::SetPadsChoice(Plan, Value); break;
+	case PlanPadSet: ApexPitPlan::SetPadSetChoice(Plan, Value); break;
+	case PlanBox:    Plan.bBoxThisLap = Value > 0; break;
+	default: return;
+	}
+	PitPlan->SetPlan(Plan);
+	RefreshPitPlanSummary();
 }
 
 void UApexPauseMenuWidget::RefreshStatusStrip()
@@ -252,6 +420,20 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 	{
 		GarageRow->SetVisibility(bOnTrackInHotlap ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
+	if (PitPlanRow)
+	{
+		// A driver with a car in a session with stops in it: a race, or free practice.
+		const EApexGameMode Mode = Net->GetGameMode();
+		const bool bPitPlan = !bWatching && Net->IsInSession() && !Net->IsSessionSpectator() && LocalIndex >= 0
+			&& (Mode == EApexGameMode::Race || Mode == EApexGameMode::FreePractice);
+		PitPlanRow->SetVisibility(bPitPlan ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		const UApexPitPlanSubsystem* PitPlan = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexPitPlanSubsystem>() : nullptr;
+		if (bPitPlan && PitPlan)
+		{
+			PitPlanRow->SetBadge(ApexPitPlan::Summary(PitPlan->GetPlan(), PitPlan->GetCompounds()),
+				PitPlan->GetPlan().bBoxThisLap ? Palette::Live : Palette::TextMuted);
+		}
+	}
 
 	FApexSessionSummary Session;
 	if (Net->FindSessionById(Net->GetCurrentSessionId(), Session) && !Session.TrackName.IsEmpty())
@@ -302,6 +484,15 @@ void UApexPauseMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	{
 		OnAction.Broadcast(EApexPauseAction::OpenSettings);
 	}
+	else if (Action == ActionPitPlan)
+	{
+		OpenPitPlan();
+	}
+	else if (Action == ActionPitPlanDone)
+	{
+		ClosePitPlan();
+		ApexNav::Focus(PitPlanRow);
+	}
 	else if (Action == ActionGarage)
 	{
 		OnAction.Broadcast(EApexPauseAction::ReturnToGarage);
@@ -345,12 +536,25 @@ FReply UApexPauseMenuWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 
 bool UApexPauseMenuWidget::HandleBack()
 {
+	if (bPitPlanOpen)
+	{
+		ClosePitPlan();
+		ApexNav::Focus(PitPlanRow);
+		return true;
+	}
 	OnAction.Broadcast(EApexPauseAction::Resume);
 	return true;
 }
 
 bool UApexPauseMenuWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
 {
+	if (bPitPlanOpen)
+	{
+		// Rows of steppers, then Done: the nearest control that way, and
+		// nothing beyond the card.
+		ApexNav::MoveToward(this, Direction, Source);
+		return true;
+	}
 	if (Rows.Num() == 0)
 	{
 		return false;

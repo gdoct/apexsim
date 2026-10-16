@@ -6,6 +6,7 @@
 #include "ApexPauseMenuWidget.generated.h"
 
 class UApexButtonWidget;
+class UApexStepperWidget;
 class UBorder;
 class UTextBlock;
 class UVerticalBox;
@@ -59,7 +60,7 @@ public:
 	virtual void FocusDefault() override;
 	/** Up and Down walk the rows and wrap; nothing lies left or right. */
 	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
-	/** Back resumes, as the footer promises. */
+	/** Back resumes, as the footer promises; on the pit plan, back to the menu's rows. */
 	virtual bool HandleBack() override;
 
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|UI")
@@ -82,7 +83,24 @@ public:
 	 */
 	void SetWatching(bool bInWatching) { bWatching = bInWatching; }
 
+	/**
+	 * The pit plan in place of the menu's rows: the driver's orders for the
+	 * next stop and the box-this-lap request (UApexPitPlanSubsystem), sent
+	 * as each changes. Back returns to the rows.
+	 */
+	void OpenPitPlan();
+	bool IsPitPlanOpen() const { return bPitPlanOpen; }
+
 private:
+	void ClosePitPlan();
+	/** Every stepper of the plan to the subsystem's plan, its ranges to the car's compounds. */
+	void RefreshPitPlan();
+	/** The line under the steppers: the plan as the menu's row reads it. */
+	void RefreshPitPlanSummary();
+
+	UFUNCTION()
+	void HandlePitPlanChanged(UApexStepperWidget* Control, int32 Value);
+
 	UFUNCTION()
 	void HandleButtonActivated(UApexButtonWidget* Button);
 
@@ -131,6 +149,32 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UApexButtonWidget> SaveReplayRow;
 
+	/** Opens the pit plan: shown to a driver with a car in a race or free practice. */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexButtonWidget> PitPlanRow;
+
+	/** The heading's big word: PAUSED, or PIT PLAN. */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> HeadingText;
+
+	/** The menu's rows and the pit plan, one shown at a time. */
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> ActionsPanel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> PitPlanPanel;
+
+	/** Tyres, fuel, repairs, pads, pad set, box this lap (Index 0..5). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UApexStepperWidget>> PitPlanSteppers;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> PitPlanSummaryText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UApexButtonWidget> PitPlanDoneButton;
+
+	bool bPitPlanOpen = false;
 	bool bOpen = false;
 	bool bWatching = false;
 };

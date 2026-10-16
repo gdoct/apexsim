@@ -166,6 +166,25 @@ public:
 		return bCreateQualifyingCutoff && (CreateStartingMode == EApexGameMode::Qualification || IsCreatingWeekend())
 			? ApexQualifyingCutoff::Rule107 : ApexQualifyingCutoff::None;
 	}
+	/**
+	 * The race's pit rule (ApexMandatoryStops): the stops every car owes and
+	 * whether it must run a second dry compound. A session with a race in it
+	 * (a race, a weekend, or qualifying before one) sends it (PitRuleApplies).
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateMandatoryStops = 0;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	bool bCreateCompoundChange = false;
+
+	bool PitRuleApplies() const
+	{
+		return CreateStartingMode == EApexGameMode::Race || CreateStartingMode == EApexGameMode::Qualification;
+	}
+	/** What CreateSession carries for the rule: nothing in a session without a race. */
+	int32 MandatoryStopsToSend() const { return PitRuleApplies() ? ApexMandatoryStops::Clamp(CreateMandatoryStops) : 0; }
+	bool CompoundChangeToSend() const { return PitRuleApplies() && bCreateCompoundChange; }
+
 	/** The weekend CreateSession carries: no rounds unless a weekend is being made. */
 	FApexWeekendFormat WeekendToSend() const;
 	/** "Practice 20 min · Q1-Q3 10 min each · Race 12 laps"; empty for no weekend. */

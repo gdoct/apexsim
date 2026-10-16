@@ -86,11 +86,28 @@ and widget factories), so layouts are reviewable as diffs.
   and a row scrolled out of view by list order. `UApexNavigableWidget` sends
   Up/Down on its own slider the same way (`NativeOnPreviewKeyDown`). Every
   screen and overlay is walked by pad in `ApexSim.UI.PadWalk` (below).
-- The pause menu in a race: Close menu, Settings, BACK TO GARAGE (hotlap and
+- The pause menu in a race: Close menu, Settings, PIT PLAN (a driver in a
+  race or free practice), BACK TO GARAGE (hotlap and
   qualifying, on track), BACK TO TRACK / BACK TO PITS (a stuck car; see
   [sessions.md](../server/sessions.md#recovering-a-stuck-car)), Save replay,
   Back to main menu, Exit. On the main menu's root page pad B opens the Back
   to main menu / Exit game menu (Escape opens it from any page).
+- PIT PLAN swaps the pause card's rows for the driver's orders for the next
+  stop ([pit-lane.md](../server/pit-lane.md)), one stepper each: Tyres (KEEP,
+  SETUP'S, then the car's compounds by the setup sheet's names), Fuel (TO THE
+  END, NONE, +5 L steps), Repairs, Brake pads (CREW'S CALL, KEEP, NEW), Pad
+  set (SETUP'S, ENDURANCE, STANDARD, SPRINT) and Box this lap, with the plan
+  in a line and DONE; Back returns to the rows, whose PIT PLAN badge is the
+  same line (`ApexPitPlan::Summary`). `UApexPitPlanSubsystem` keeps the plan
+  for the session it was given in and sends `SetPitPlan` on every change;
+  joining the same session again sends it again (the server forgets it on a
+  rejoin), another session starts from the crew's call. The `BoxThisLap` key
+  toggles the request ([input-and-ffb.md](input-and-ffb.md)); the subsystem
+  drops it once the stop starts, and after a stop on a plan with a chosen
+  pad set that fitted pads (always for NEW; for the crew's call when the
+  pads' wear fell over the stop) moves the garage setup's `brake_pads` knob
+  to that set, as the server moved its own, so the next `SetCarSetup` keeps
+  it.
 
 ### Session browser (`UI/ApexSessionBrowserWidget.cpp`)
 
@@ -109,6 +126,7 @@ two seconds) with the session and live counts; under it the car the player
 would join in, Change car (car select, returning here) and Create session.
 One row a session: the track's preview, its display name (the catalog's,
 the server's name only without a row), host, drivers, kind, length and sky,
+a damage rule other than full, the pit rule ("1 stop · two compounds"),
 and a badge (Lobby, Starting, Racing, Full, Finished, or Between sessions
 for a race weekend waiting for its host, which still takes drivers). Enter
 on a row joins in the pending car (SelectCar, then JoinSession; without a
@@ -423,7 +441,8 @@ P minutes' practice, 0 for none, R knockout rounds of M minutes; the race is
 session), `-ApexNoStart`
 (stop in the lobby), `-ApexAiSkill=N`, `-ApexDamage=off|reduced|full|visual`,
 `-ApexLockAssists=abs,tc,gearbox,steering,line`, `-ApexQualifyingCutoff=N`
-(the cut-off, percent of pole; 107 is the rule), sky
+(the cut-off, percent of pole; 107 is the rule), `-ApexMandatoryStops=N`
+(0-3) and `-ApexCompoundChange` (the race's pit rule), sky
 `-ApexWeather=sunny|cloudy|overcast|lightrain|heavyrain|snow`,
 `-ApexTimeOfDay=HH:MM`, `-ApexTimeScale=N`, `-ApexChangeable=N`,
 `-ApexTrackRubber=N`. In the race: `-ApexView=cockpit|chase|tv|roof|close|near|far`,

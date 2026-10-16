@@ -1895,9 +1895,13 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	// -ApexQualifyingCutoff=N: the cut-off, percent of pole (107 is the rule; none by default).
 	int32 Cutoff = ApexQualifyingCutoff::None;
 	FParse::Value(FCommandLine::Get(), TEXT("ApexQualifyingCutoff="), Cutoff);
+	// -ApexMandatoryStops=0..3 and -ApexCompoundChange: the race's pit rule (none by default).
+	int32 MandatoryStops = ApexMandatoryStops::None;
+	FParse::Value(FCommandLine::Get(), TEXT("ApexMandatoryStops="), MandatoryStops);
+	const bool bCompoundChange = FParse::Param(FCommandLine::Get(), TEXT("ApexCompoundChange"));
 	Net->CreateSessionWithOrder(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions, Damage,
 		AiSkill, Flow->EffectiveRaceSeconds(), TArray<FString>(), Flow->EffectiveQualifyingSeconds(), Flow->WeekendToSend(),
-		ApexQualifyingCutoff::Clamp(Cutoff));
+		ApexQualifyingCutoff::Clamp(Cutoff), ApexMandatoryStops::Clamp(MandatoryStops), bCompoundChange);
 }
 
 void UApexRootWidget::HandleUdpReady()

@@ -105,6 +105,13 @@ public:
 	UPROPERTY()
 	bool bQualifyingCutoff = false;
 
+	/** The race's pit rule on a session this player creates: mandatory stops (ApexMandatoryStops) and a second compound. */
+	UPROPERTY()
+	int32 MandatoryStops = 0;
+
+	UPROPERTY()
+	bool bCompoundChange = false;
+
 	/** The AI field's level in a session this player creates (ApexAiSkill; -1 mixed). */
 	UPROPERTY()
 	int32 AiSkill = -1;

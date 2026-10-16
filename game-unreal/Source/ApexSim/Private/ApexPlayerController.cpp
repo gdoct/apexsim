@@ -2,6 +2,7 @@
 
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexPitPlanSubsystem.h"
 #include "Catalog/ApexCatalogRows.h"
 #include "ApexSettingsSave.h"
 #include "ApexSettingsSubsystem.h"
@@ -176,6 +177,7 @@ void AApexPlayerController::SetupInputComponent()
 	}
 	Input->BindAction(InputConfig->RecoverTrack, ETriggerEvent::Started, this, &AApexPlayerController::HandleRecover, false);
 	Input->BindAction(InputConfig->RecoverPits, ETriggerEvent::Started, this, &AApexPlayerController::HandleRecover, true);
+	Input->BindAction(InputConfig->BoxThisLap, ETriggerEvent::Started, this, &AApexPlayerController::HandleBoxThisLap);
 }
 
 void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
@@ -669,6 +671,19 @@ void AApexPlayerController::UpdateHGear()
 	// The lever in a gate holds its button down; between gates (or in
 	// neutral) none is held.
 	DriveInput.HGear = !bHPatternSeen ? -2 : (HeldHGates.IsEmpty() ? 0 : HeldHGates.Last());
+}
+
+void AApexPlayerController::HandleBoxThisLap(const FInputActionValue&)
+{
+	// The request goes with the plan (SetPitPlan); the HUD's BOX badge comes
+	// back from the server's telemetry.
+	if (UGameInstance* Game = GetGameInstance())
+	{
+		if (UApexPitPlanSubsystem* PitPlan = Game->GetSubsystem<UApexPitPlanSubsystem>())
+		{
+			PitPlan->ToggleBoxThisLap();
+		}
+	}
 }
 
 void AApexPlayerController::HandleRecover(const FInputActionValue&, bool bPits)

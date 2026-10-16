@@ -96,4 +96,19 @@ bool FApexRaceResultsTimeTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexRaceResultsMissedStopsTest, "ApexSim.RaceResults.MissedStopsMarked", ApexTestFlags)
+
+bool FApexRaceResultsMissedStopsTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexRaceResultsTest;
+	const TArray<FApexCarResult> Results = Field();
+	// The player took the flag owing a stop; the car still racing is marked too, but has no flag yet.
+	const TArray<ApexRaceResults::FRow> Rows = ApexRaceResults::BuildRows(Results, TEXT("player-1"), /*bLive*/ true,
+		TSet<int32>(), TSet<int32>{ 0, 4 });
+	TestTrue(TEXT("the player's PEN"), Rows[2].bMissedStops);
+	TestFalse(TEXT("the winner met the rule"), Rows[0].bMissedStops);
+	TestFalse(TEXT("only a car past the flag"), Rows[4].bMissedStops);
+	return true;
+}
+
 #endif

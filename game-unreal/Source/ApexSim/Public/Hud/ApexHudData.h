@@ -76,6 +76,9 @@ struct APEXSIM_API FApexHudInputs
 	bool bFullDetail = true;
 	/** The session's damage rule (SessionJoined), the same for every car. */
 	EApexDamageLevel DamageLevel = EApexDamageLevel::Full;
+	/** The race's pit rule (SessionJoined): the stops every car owes, and a second dry compound. */
+	int32 MandatoryStops = 0;
+	bool bCompoundChange = false;
 
 	/** The local car's catalog row: its tyres' working window and its rev range (0 when unknown). */
 	float TyreOptimalC = 90.0f;
@@ -244,6 +247,9 @@ struct APEXSIM_API FApexHudMemory
 		/** The lap counter when the set on the car was fitted. */
 		int32 TyresFromLap = 1;
 		int32 Compound = -1;
+		/** The set first seen on it, and whether another has been on since (the pit rule's second compound). */
+		int32 FirstCompound = -1;
+		bool bCompoundChanged = false;
 		bool bWasServicing = false;
 		/** The lap counter last seen, for the race time below. */
 		int32 LastLap = -1;

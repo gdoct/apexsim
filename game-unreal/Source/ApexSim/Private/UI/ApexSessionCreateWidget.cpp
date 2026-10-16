@@ -339,6 +339,11 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 			AddAll(QualifyingLengthButtons);
 			AddAll(QualifyingCutoffButtons);
 		}
+		if (Flow && Flow->PitRuleApplies())
+		{
+			AddAll(MandatoryStopsButtons);
+			AddAll(CompoundChangeButtons);
+		}
 		if (Flow && Flow->IsCreatingWeekend())
 		{
 			AddAll(WeekendPracticeButtons);
@@ -1105,6 +1110,22 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 			WeekendDayForecastText[Day] = Forecast;
 		}
 		WeekendSection = Section;
+		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+	}
+
+	// --- Pit stops -----------------------------------------------------------------
+	// The race's pit rule: the stops every car owes and a second dry compound.
+	// A car that takes the flag owing either is classified behind every car
+	// that met it.
+	{
+		UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>();
+		UTextBlock* Info = nullptr;
+		ApexUI::AddV(Section, MakeCaption(TEXT("Pit stops"), &Info), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		PitRuleInfoText = Info;
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Stops"), { TEXT("None"), TEXT("1"), TEXT("2"), TEXT("3") }, MandatoryStopsButtons));
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Two compounds"), { TEXT("Free"), TEXT("Two") }, CompoundChangeButtons),
+			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		PitRuleSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
 
@@ -2077,6 +2098,32 @@ void UApexSessionCreateWidget::RefreshSettings()
 			: (bTimedQualifying ? TEXT("THEN THE FLAG · LAPS UNDER WAY COUNT") : TEXT("NO CLOCK · RUNS UNTIL THE HOST STARTS THE RACE"))));
 	}
 
+	if (PitRuleSection)
+	{
+		PitRuleSection->SetVisibility(Flow->PitRuleApplies() ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	for (int32 Index = 0; Index < MandatoryStopsButtons.Num(); ++Index)
+	{
+		if (MandatoryStopsButtons[Index])
+		{
+			MandatoryStopsButtons[Index]->SetSelected(Index == ApexMandatoryStops::Clamp(Flow->CreateMandatoryStops));
+		}
+	}
+	for (int32 Index = 0; Index < CompoundChangeButtons.Num(); ++Index)
+	{
+		if (CompoundChangeButtons[Index])
+		{
+			CompoundChangeButtons[Index]->SetSelected((Index == 1) == Flow->bCreateCompoundChange);
+		}
+	}
+	if (PitRuleInfoText)
+	{
+		const FString Rule = ApexMandatoryStops::Describe(Flow->CreateMandatoryStops, Flow->bCreateCompoundChange);
+		PitRuleInfoText->SetText(FText::FromString(Rule.IsEmpty()
+			? FString(TEXT("NO RULE · STOP WHEN YOU LIKE"))
+			: FString::Printf(TEXT("%s · OWED AT THE FLAG IS A PENALTY"), *Rule.ToUpper())));
+	}
+
 	// A hotlap has no field: every driver goes out from their own garage.
 	if (FieldSection)
 	{
@@ -2666,6 +2713,11 @@ void UApexSessionCreateWidget::RefreshFooter()
 		if (Flow->QualifyingCutoffToSend() != ApexQualifyingCutoff::None)
 		{
 			Parts.Add(TEXT("107% RULE"));
+		}
+		if (const FString PitRule = ApexMandatoryStops::Describe(Flow->MandatoryStopsToSend(), Flow->CompoundChangeToSend());
+			!PitRule.IsEmpty())
+		{
+			Parts.Add(PitRule.ToUpper());
 		}
 		Parts.Add(DamageOptions[FMath::Clamp(static_cast<int32>(Flow->CreateDamage), 0, static_cast<int32>(UE_ARRAY_COUNT(DamageOptions)) - 1)].Summary);
 		if (!CurrentSetupLabel.IsEmpty())
@@ -3257,7 +3309,9 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Flow->IsCreatingWeekend() ? TArray<FString>() : Flow->GridOrderToSend(MaxPlayersCeiling),
 			Flow->EffectiveQualifyingSeconds(),
 			Flow->WeekendToSend(),
-			Flow->QualifyingCutoffToSend());
+			Flow->QualifyingCutoffToSend(),
+			Flow->MandatoryStopsToSend(),
+			Flow->CompoundChangeToSend());
 		return;
 	}
 
@@ -3346,6 +3400,18 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Changed();
 			return;
 		}
+	}
+	if (const int32 Stops = ApexNav::IndexOf(MandatoryStopsButtons, Button); Stops != INDEX_NONE)
+	{
+		Flow->CreateMandatoryStops = ApexMandatoryStops::Clamp(Stops);
+		Changed();
+		return;
+	}
+	if (const int32 Compound = ApexNav::IndexOf(CompoundChangeButtons, Button); Compound != INDEX_NONE)
+	{
+		Flow->bCreateCompoundChange = Compound == 1;
+		Changed();
+		return;
 	}
 	if (const int32 Cutoff = FMath::Max(ApexNav::IndexOf(QualifyingCutoffButtons, Button), ApexNav::IndexOf(WeekendCutoffButtons, Button));
 		Cutoff != INDEX_NONE)

@@ -316,6 +316,11 @@ void UApexSessionBrowserWidget::ApplyRow(int32 Index, const FApexSessionSummary&
 	{
 		Parts.Add(Damage);
 	}
+	// The race's pit rule, when it has one: "1 stop · two compounds".
+	if (const FString PitRule = ApexMandatoryStops::Describe(Session.MandatoryStops, Session.bCompoundChange); !PitRule.IsEmpty())
+	{
+		Parts.Add(PitRule);
+	}
 
 	FLinearColor BadgeColour;
 	FApexButtonSpec Spec;

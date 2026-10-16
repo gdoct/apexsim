@@ -309,6 +309,28 @@ namespace ApexMandatoryStops
 	{
 		return FMath::Clamp(Stops, None, MaxStops);
 	}
+
+	/** The stops a car that has made `Made` still owes (`PitRule::owed`); 0 under no rule. */
+	inline int32 Owed(int32 Stops, int32 Made)
+	{
+		return FMath::Max(0, Clamp(Stops) - FMath::Max(0, Made));
+	}
+
+	/** "1 stop", "2 stops · two compounds", "two compounds"; empty for no rule. */
+	inline FString Describe(int32 Stops, bool bCompoundChange)
+	{
+		TArray<FString> Parts;
+		const int32 Count = Clamp(Stops);
+		if (Count > 0)
+		{
+			Parts.Add(FString::Printf(TEXT("%d stop%s"), Count, Count == 1 ? TEXT("") : TEXT("s")));
+		}
+		if (bCompoundChange)
+		{
+			Parts.Add(TEXT("two compounds"));
+		}
+		return FString::Join(Parts, TEXT(" · "));
+	}
 }
 
 /** `CompactCarState::ground`'s values a wheel (network.rs `GROUND_*`). */

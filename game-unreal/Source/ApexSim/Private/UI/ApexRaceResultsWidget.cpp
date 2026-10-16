@@ -106,7 +106,7 @@ FString ApexRaceResults::FormatRaceTime(float Seconds)
 }
 
 TArray<ApexRaceResults::FRow> ApexRaceResults::BuildRows(TConstArrayView<FApexCarResult> Results, const FString& LocalPlayerId, bool bLive,
-	const TSet<int32>& NotQualified)
+	const TSet<int32>& NotQualified, const TSet<int32>& MissedStops)
 {
 	// Finishers by the server's classification, then the rest as the
 	// recorder has them (the running order).
@@ -150,6 +150,7 @@ TArray<ApexRaceResults::FRow> ApexRaceResults::BuildRows(TConstArrayView<FApexCa
 		Row.bFinished = Result.FinishPosition > 0;
 		Row.Laps = Result.LapsCompleted();
 		Row.BestLapSeconds = Result.BestLapSeconds;
+		Row.bMissedStops = Row.bFinished && MissedStops.Contains(Result.CarIndex);
 		const bool bDnq = !Row.bFinished && NotQualified.Contains(Result.CarIndex);
 		if (bDnq)
 		{
@@ -401,14 +402,19 @@ void UApexRaceResultsWidget::Refresh()
 	}
 	const bool bLive = Recorder->IsRecording();
 	TSet<int32> NotQualified;
+	TSet<int32> MissedStops;
 	for (const FApexRosterEntry& Entry : Net->GetSessionRoster().Entries)
 	{
 		if (Entry.bDnq)
 		{
 			NotQualified.Add(Entry.CarIndex);
 		}
+		if (Entry.bMissedStops)
+		{
+			MissedStops.Add(Entry.CarIndex);
+		}
 	}
-	const TArray<ApexRaceResults::FRow> Rows = ApexRaceResults::BuildRows(Recorder->GetResults(), Net->GetPlayerId(), bLive, NotQualified);
+	const TArray<ApexRaceResults::FRow> Rows = ApexRaceResults::BuildRows(Recorder->GetResults(), Net->GetPlayerId(), bLive, NotQualified, MissedStops);
 
 	int32 Running = 0;
 	const ApexRaceResults::FRow* You = nullptr;
@@ -490,10 +496,15 @@ void UApexRaceResultsWidget::Refresh()
 		RowBest[Index]->SetText(FText::FromString(Row.BestLapSeconds > 0.0f
 			? UApexMenuFlowSubsystem::FormatLapTime(Row.BestLapSeconds) : FString(TEXT("—"))));
 		const bool bWatched = Row.CarIndex == WatchedCar && !Row.bYou;
+		// PEN: past the flag owing the pit rule, classified behind every car that met it.
 		RowState[Index]->SetText(FText::FromString(bWatched ? TEXT("WATCHING")
 			: Row.bWatchable && !Row.bYou ? TEXT("WATCH ›")
+			: Row.bMissedStops ? TEXT("PEN · STOPS")
 			: Row.bFinished ? TEXT("FLAG") : FString()));
-		RowState[Index]->SetColorAndOpacity(FSlateColor(bWatched ? Palette::Accent : Row.bWatchable ? Palette::TextSecondary : Palette::TextMuted));
+		RowState[Index]->SetColorAndOpacity(FSlateColor(bWatched ? Palette::Accent
+			: Row.bWatchable && !Row.bYou ? Palette::TextSecondary
+			: Row.bMissedStops ? Palette::Error
+			: Row.bWatchable ? Palette::TextSecondary : Palette::TextMuted));
 		RowButtons[Index]->SetSelected(Row.CarIndex == WatchedCar || (Row.bYou && WatchedCar == INDEX_NONE));
 		// A finished car or a race that is over has nothing to film: not a control.
 		RowButtons[Index]->SetIsEnabled(Row.bWatchable);

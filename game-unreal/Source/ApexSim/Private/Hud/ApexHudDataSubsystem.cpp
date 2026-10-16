@@ -399,6 +399,9 @@ void UApexHudDataSubsystem::Refresh()
 		In.SessionId = Net->GetCurrentSessionId();
 		// The session's damage rule, the same for every car.
 		In.DamageLevel = Net->GetSessionDamage();
+		// The race's pit rule, the same for every car.
+		In.MandatoryStops = Net->GetSessionMandatoryStops();
+		In.bCompoundChange = Net->GetSessionCompoundChange();
 		RefreshCarNames();
 		In.CarNames = &CarNames;
 		In.CarCompounds = &CarCompounds;
