@@ -70,7 +70,8 @@ under cloud, in whole degrees; humidity 50-97%; wind 8-28 km/h by weather; snow'
 10 km/h, humidity 85%),
 so the join and the listing always say what is simulated. Before it,
 `at_site(track)` names `solar_noon_min` from where the circuit is (below),
-so the weather's own air follows the circuit's sun. `replay_tools` seeds
+so the weather's own air follows the circuit's sun, and `resolve_at` takes
+the track's latitude so it follows the season of a dated session (below). `replay_tools` seeds
 the same resolution from `--seed`.
 
 ## The weather's grip (the bake)
@@ -159,8 +160,25 @@ evaporation (`SessionConditions::sun_elevation_at`), the client's
 
 - **The date** is the host's `day_of_year` (`sun_declination_deg`, Cooper's
   formula: +23.4° at midsummer, -23.4° at midwinter), else the model day,
-  25 May, at exactly the old 20° declination. Nothing else follows the
-  season: the weather's own air is the same day's in December.
+  25 May, at exactly the old 20° declination.
+- **The season** moves the weather's own air with the date
+  (`SessionConditions::season_offset_c`, from `data::season_air_c`): a
+  cosine over the year, warmest on 19 July (`WARMEST_DAY_OF_YEAR`) north of
+  the equator and half a year on south of it, swinging half the latitude's
+  annual range either way (`SEASON_RANGE_PER_DEG_C` 0.35 °C a degree of
+  latitude, up to 20: none on the equator, 17.5 °C at 50°), taken against
+  the model day's. `resolve_at(seed, latitude)` (the server's create, the
+  replay tools, a weekend day) names the auto air from
+  `auto_air_temperature_c_at` and the humidity from `auto_humidity_pct_at`
+  (`SEASON_HUMIDITY_PER_C`: a degree of seasonal cold is a percent damper,
+  20% at the driest), and the live sky's air follows the same. A sunny
+  15:00 at Silverstone is 9 °C in mid-January, 23 °C on the model day.
+  Snow's own air is the same near freezing in any month; what the season
+  moves is the snow line, how far an overcast sky stands above it
+  (`snow_air_drop_c`: 17 °C on the model day, less in winter), so a January
+  overcast night at 50° N resolves under 1 °C and is a winter sky. With no
+  date (and on the model day named outright) every figure is the late-May
+  one to the bit (`a_date_moves_the_air_with_the_season_and_no_date_is_late_may`).
 - **Solar noon** is `data::solar_noon_minutes(latitude, longitude, day)` for
   a track whose YAML names `longitude_deg`: 12:00 moved by the circuit's
   distance from its zone's meridian, summer time and the equation of time.

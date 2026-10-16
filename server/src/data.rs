@@ -2686,16 +2686,28 @@ impl SessionConditions {
     }
 
     /// Every figure named: what was picked, and the weather's own for the
-    /// rest. `seed` picks an unnamed wind's direction (the session's id, so
-    /// it is the same for everyone and for the life of the session).
+    /// rest, at [`DEFAULT_LATITUDE_DEG`] ([`Self::resolve_at`]).
     pub fn resolve(self, seed: u64) -> Self {
+        self.resolve_at(seed, DEFAULT_LATITUDE_DEG)
+    }
+
+    /// Every figure named over a circuit `latitude_deg` north: what was
+    /// picked, and the weather's own for the rest, in the season of the
+    /// date there ([`Self::auto_air_temperature_c_at`],
+    /// [`Self::auto_humidity_pct_at`]). `seed` picks an unnamed wind's
+    /// direction (the session's id, so it is the same for everyone and for
+    /// the life of the session).
+    pub fn resolve_at(self, seed: u64, latitude_deg: f32) -> Self {
         let c = self.clamp();
         Self {
             air_temp_c: Some(
                 c.air_temp_c
-                    .unwrap_or(c.auto_air_temperature_c().round() as i8),
+                    .unwrap_or(c.auto_air_temperature_c_at(latitude_deg).round() as i8),
             ),
-            humidity_pct: Some(c.humidity_pct.unwrap_or(c.auto_humidity_pct())),
+            humidity_pct: Some(
+                c.humidity_pct
+                    .unwrap_or(c.auto_humidity_pct_at(latitude_deg)),
+            ),
             wind_kph: Some(c.wind_kph.unwrap_or(c.auto_wind_kph())),
             wind_from_deg: Some(
                 c.wind_from_deg
@@ -2715,6 +2727,35 @@ impl SessionConditions {
             Weather::HeavyRain => 97,
             Weather::Snow => 85,
         }
+    }
+
+    /// How much warmer the season of the date makes the air over a circuit
+    /// `latitude_deg` north than the model day's, °C ([`season_air_c`]):
+    /// exactly 0 when no date is named, so a session without one is the
+    /// late-May day it always was.
+    pub fn season_offset_c(&self, latitude_deg: f32) -> f32 {
+        match self.day_of_year {
+            None => 0.0,
+            Some(_) => {
+                season_air_c(self.day(), latitude_deg)
+                    - season_air_c(MODEL_DAY_OF_YEAR, latitude_deg)
+            }
+        }
+    }
+
+    /// The weather's humidity in the season of the date, percent: a cold
+    /// month's air holds less water and stands nearer saturation, so it is
+    /// [`SEASON_HUMIDITY_PER_C`] a degree damper (drier in a hot one). The
+    /// model day's exactly when no date is named; snow's own 85% in any.
+    pub fn auto_humidity_pct_at(&self, latitude_deg: f32) -> u8 {
+        let own = self.auto_humidity_pct();
+        let season = self.season_offset_c(latitude_deg);
+        if season == 0.0 || self.weather.is_snow() {
+            return own;
+        }
+        (own as f32 - SEASON_HUMIDITY_PER_C * season)
+            .round()
+            .clamp(SEASON_HUMIDITY_MIN_PCT, 100.0) as u8
     }
 
     /// The weather's wind, km/h: a breeze in the sun, a blow in a storm.
@@ -2835,6 +2876,29 @@ impl SessionConditions {
         COOLEST_C + SWING_C * (0.5 + (day - 0.5) * swing) + offset
     }
 
+    /// The weather's and the clock's own air temperature, °C, in the
+    /// season of the date over a circuit `latitude_deg` north: the model
+    /// day's ([`Self::auto_air_temperature_c`]) moved by
+    /// [`Self::season_offset_c`]. Snow's own air is the same near freezing
+    /// in any month: what the season moves is how far the sky without it
+    /// stands above it ([`Self::snow_air_drop_c`]).
+    pub fn auto_air_temperature_c_at(&self, latitude_deg: f32) -> f32 {
+        let own = self.auto_air_temperature_c();
+        if self.weather.is_snow() {
+            own
+        } else {
+            own + self.season_offset_c(latitude_deg)
+        }
+    }
+
+    /// How far snow's own air lies under overcast's in the season of the
+    /// date, °C: [`Weather::SNOW_AIR_DROP_C`] on the model day, less in a
+    /// winter month (the overcast sky is nearer freezing, so a winter sky
+    /// is a smaller step away), more in a summer one. The snow line.
+    pub fn snow_air_drop_c(&self, latitude_deg: f32) -> f32 {
+        (Weather::SNOW_AIR_DROP_C + self.season_offset_c(latitude_deg)).max(0.0)
+    }
+
     /// The asphalt, °C: the air plus what the sun puts into it through the
     /// cloud (up to 20 °C more under a high sun on a clear day). A wet
     /// track sits a degree under the air.
@@ -2872,6 +2936,35 @@ pub fn wind_onto_track(track: &TrackConfig, [wx, wy]: [f32; 2]) -> [f32; 2] {
     let heading = track.centerline.first().map_or(0.0, |p| p.heading_rad);
     let (c, sn) = (heading.cos(), heading.sin());
     [wx * c - wy * sn, wx * sn + wy * c]
+}
+
+/// The day of the year the air is warmest north of the equator (19 July;
+/// six months on south of it), about a month after midsummer.
+pub const WARMEST_DAY_OF_YEAR: f32 = 200.0;
+/// The air's annual range (warmest month's mean less coldest's) per degree
+/// of latitude, °C, up to [`SEASON_RANGE_MAX_C`]: none on the equator,
+/// 17.5 °C at 50° (central Europe), about 9 °C at 25° (the Gulf, Florida).
+pub const SEASON_RANGE_PER_DEG_C: f32 = 0.35;
+pub const SEASON_RANGE_MAX_C: f32 = 20.0;
+/// A degree of seasonal cold makes the weather's own air this much damper,
+/// percent of relative humidity ([`SessionConditions::auto_humidity_pct_at`]).
+pub const SEASON_HUMIDITY_PER_C: f32 = 1.0;
+/// The driest the season makes the weather's own air, percent.
+pub const SEASON_HUMIDITY_MIN_PCT: f32 = 20.0;
+
+/// The season's air on `day` over a circuit `latitude_deg` north (south
+/// negative) against the year's mean, °C: a cosine over the year, warmest
+/// on [`WARMEST_DAY_OF_YEAR`] in the north and half a year on in the
+/// south, swinging half the latitude's annual range either way.
+pub fn season_air_c(day: u16, latitude_deg: f32) -> f32 {
+    let range = (SEASON_RANGE_PER_DEG_C * latitude_deg.abs().min(90.0)).min(SEASON_RANGE_MAX_C);
+    let warmest = if latitude_deg < 0.0 {
+        WARMEST_DAY_OF_YEAR + 0.5 * DAYS_PER_YEAR as f32
+    } else {
+        WARMEST_DAY_OF_YEAR
+    };
+    let phase = (day as f32 - warmest) / DAYS_PER_YEAR as f32 * std::f32::consts::TAU;
+    0.5 * range * phase.cos()
 }
 
 /// The latitude the sky is worked out for when a circuit does not say

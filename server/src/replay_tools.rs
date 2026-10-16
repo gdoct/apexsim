@@ -198,10 +198,10 @@ pub fn start_race(opts: &SimulateOptions) -> Result<StartedRace, String> {
         .map_err(|e| format!("track {}: {e}", opts.track_path.display()))?;
     // The air named in full, the wind's direction from the seed, so a
     // seeded race replays with the same wind.
-    let conditions = opts
-        .conditions
-        .at_site(&track)
-        .resolve(opts.conditions.sky_seed_or(opts.seed.unwrap_or(0)));
+    let conditions = opts.conditions.at_site(&track).resolve_at(
+        opts.conditions.sky_seed_or(opts.seed.unwrap_or(0)),
+        track.latitude_deg(),
+    );
     conditions.apply_to_track(&mut track);
 
     let (cars, folders) = load_car_folder(&opts.cars_dir)?;

@@ -145,7 +145,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             ..SessionConditions::DEFAULT
         }
         .at_site(&site)
-        .resolve(joined.session_id.as_u64_pair().0);
+        .resolve_at(joined.session_id.as_u64_pair().0, site.latitude_deg());
         assert_eq!(
             expected.solar_noon_min.is_some(),
             site.metadata.longitude_deg.is_some()
@@ -264,7 +264,10 @@ async fn a_session_created_without_conditions_is_a_sunny_afternoon() {
             joined.conditions,
             SessionConditions::DEFAULT
                 .at_site(&session.track_config)
-                .resolve(joined.session_id.as_u64_pair().0),
+                .resolve_at(
+                    joined.session_id.as_u64_pair().0,
+                    session.track_config.latitude_deg()
+                ),
             "a sunny 13:00, its air named and its sun placed"
         );
         let shared = state.track_configs.get(&track_id).ok_or("no track")?;

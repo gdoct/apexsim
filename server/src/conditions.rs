@@ -242,19 +242,21 @@ impl LiveConditions {
             wind_veer_deg: 0.0,
             seed,
             winter,
-            air_offset_c: air_c - Self::auto_air_c(&start, winter),
+            air_offset_c: air_c - Self::auto_air_c(&start, winter, latitude_deg),
         }
     }
 
-    /// The weather's and the clock's own air, °C, for `conditions`: a winter
-    /// sky that is not snowing sits as far under its overcast as snow does.
-    fn auto_air_c(conditions: &SessionConditions, winter: bool) -> f32 {
+    /// The weather's and the clock's own air, °C, for `conditions` over a
+    /// circuit `latitude_deg` north in the season of its date: a winter sky
+    /// that is not snowing sits as far under its overcast as snow does
+    /// (`SessionConditions::snow_air_drop_c`).
+    fn auto_air_c(conditions: &SessionConditions, winter: bool, latitude_deg: f32) -> f32 {
         let drop = if winter && !conditions.weather.is_snow() {
-            Weather::SNOW_AIR_DROP_C
+            conditions.snow_air_drop_c(latitude_deg)
         } else {
             0.0
         };
-        conditions.auto_air_temperature_c() - drop
+        conditions.auto_air_temperature_c_at(latitude_deg) - drop
     }
 
     /// The wind's mean the weather `weather` brings, km/h: its own
@@ -436,7 +438,7 @@ impl LiveConditions {
         let day_ease = |value: &mut f32, target: f32, tau: f32| {
             *value += (target - *value) * (dt * scale.max(1.0) / tau).min(1.0);
         };
-        let air = Self::auto_air_c(&self.now(), self.winter) + self.air_offset_c;
+        let air = Self::auto_air_c(&self.now(), self.winter, self.latitude_deg) + self.air_offset_c;
         day_ease(&mut self.air_c, air, AIR_EASE_S);
         // Dry asphalt sits over the air by what the sun puts in through the
         // cloud; water on it holds it a degree under the air.
@@ -918,6 +920,107 @@ mod tests {
         assert!(summer.sun_elevation_at(50.0, 17.5 * 60.0) > 20.0);
         // The asphalt feels it.
         assert!(winter.track_temperature_c_at(50.0) < summer.track_temperature_c_at(50.0) - 5.0);
+    }
+
+    /// A date moves the weather's own air and humidity with the season, by
+    /// latitude, the south's turned half a year; no date, and the model
+    /// day named outright, are the late-May figures to the bit.
+    #[test]
+    fn a_date_moves_the_air_with_the_season_and_no_date_is_late_may() {
+        use crate::data::MODEL_DAY_OF_YEAR;
+        for weather in Weather::ALL {
+            for hh in [3, 9, 13, 15, 21] {
+                for lat in [-37.8, 1.3, 25.0, 50.0, 52.1] {
+                    let undated = SessionConditions {
+                        weather,
+                        time_of_day_minutes: hh * 60,
+                        ..SessionConditions::DEFAULT
+                    };
+                    let may = SessionConditions {
+                        day_of_year: Some(MODEL_DAY_OF_YEAR),
+                        ..undated
+                    };
+                    for c in [undated, may] {
+                        assert_eq!(c.season_offset_c(lat), 0.0);
+                        assert_eq!(
+                            c.auto_air_temperature_c_at(lat),
+                            undated.auto_air_temperature_c()
+                        );
+                        assert_eq!(c.auto_humidity_pct_at(lat), undated.auto_humidity_pct());
+                        assert_eq!(c.snow_air_drop_c(lat), Weather::SNOW_AIR_DROP_C);
+                    }
+                    let resolved = undated.resolve_at(7, lat);
+                    assert_eq!(resolved, undated.resolve(7), "no date: {lat}");
+                }
+            }
+        }
+        let on = |day: u16, lat: f32| {
+            SessionConditions {
+                time_of_day_minutes: 15 * 60,
+                day_of_year: Some(day),
+                ..SessionConditions::DEFAULT
+            }
+            .resolve_at(3, lat)
+        };
+        let air = |c: SessionConditions| c.air_temp_c.unwrap();
+        // Silverstone: a 15:00 in mid-January near 10 °C, mid-July warmer
+        // than late May.
+        let (jan, may, jul) = (on(15, 52.07), on(145, 52.07), on(196, 52.07));
+        println!(
+            "Silverstone 15:00 air: Jan {} May {} Jul {}; humidity {} {} {}",
+            air(jan),
+            air(may),
+            air(jul),
+            jan.humidity_pct.unwrap(),
+            may.humidity_pct.unwrap(),
+            jul.humidity_pct.unwrap()
+        );
+        assert!((8..=12).contains(&air(jan)), "{}", air(jan));
+        assert!(air(jul) > air(may));
+        assert!(jan.humidity_pct > may.humidity_pct && jul.humidity_pct < may.humidity_pct);
+        // Melbourne's January is its summer; the equator has no seasons.
+        assert!(air(on(15, -37.85)) > air(on(196, -37.85)) + 5);
+        assert_eq!(air(on(15, 1.29)), air(on(196, 1.29)));
+        // The snow line: a January overcast night at 50° N resolves under
+        // freezing and is a winter sky; the same night in late May is not.
+        let night = |day: Option<u16>| {
+            SessionConditions {
+                weather: Weather::Overcast,
+                time_of_day_minutes: 4 * 60,
+                changeable: Some(2),
+                time_scale: Some(1),
+                day_of_year: day,
+                ..SessionConditions::DEFAULT
+            }
+            .resolve_at(3, 50.0)
+        };
+        assert!(
+            is_winter(&night(Some(15))),
+            "{:?}",
+            night(Some(15)).air_temp_c
+        );
+        assert!(!is_winter(&night(None)));
+        // Snow's own air is the same in any month; the winter overcast
+        // between the snow sits as far above it as the season leaves.
+        let snow = |day| SessionConditions {
+            weather: Weather::Snow,
+            day_of_year: Some(day),
+            ..SessionConditions::DEFAULT
+        };
+        assert_eq!(
+            snow(15).auto_air_temperature_c_at(50.0),
+            snow(145).auto_air_temperature_c_at(50.0)
+        );
+        let mut live = LiveConditions::new(night(Some(15)), 50.0, 0.0, 3);
+        let start_air = live.air_c;
+        for s in 1..1800 {
+            live.step(s as f32, 1.0, 0.0);
+        }
+        assert!(
+            (live.air_c - start_air).abs() < 3.0,
+            "{start_air} -> {}",
+            live.air_c
+        );
     }
 
     /// The server names solar noon from the track on create; a track that

@@ -960,7 +960,8 @@ impl GameSession {
                 // session's id and the day.
                 let seed = self.session.id.as_u64_pair().0
                     ^ (phase as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15);
-                day.resolve(day.sky_seed_or(seed))
+                day.at_site(&source)
+                    .resolve_at(day.sky_seed_or(seed), source.latitude_deg())
             }
             None => race_day,
         };
