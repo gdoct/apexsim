@@ -65,7 +65,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 
 | Gap | Effort | Impact |
 |---|---|---|
-| Built once on joining (`racing_line::build`, from `game_loop/dispatch.rs`) for the stock car, dry tank, clean and still air, warm new tyres, and the session's grip and air as it started: the setup, fuel, the wake, the wind, tyre temperature, compound and wear, the rubber and changing weather never change it (the AI's own plan does follow fuel). | Med | Low |
+| Planned again only at a lap's end (`GameSession::refreshed_racing_line`), in still, clean air, and on one grip share for the whole lap (the car's weaker axle and the road under it at the line): the wake and the wind are not in it, and a wet or rubbered stretch elsewhere on the lap moves it only through the share read at the line. | Med | Low |
 
 ## Race rules and the pit lane
 

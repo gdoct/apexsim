@@ -153,6 +153,16 @@ void AApexRacingLineActor::SetWet(bool bInWet)
 
 void AApexRacingLineActor::SetLine(const FApexRacingLineData& InLine)
 {
+	// The server plans the line again during a session (fuel, tyres, the
+	// road) on the same points: keep the dots where they lie on the road and
+	// only repaint them, rather than tracing the whole lap again mid-race.
+	if (bOnGround && InLine.IsValid() && InLine.Points == Line.Points
+		&& DotPhasePoint.Num() == DotTransforms.Num())
+	{
+		Line = InLine;
+		AddDots();
+		return;
+	}
 	Line = InLine;
 	bOnGround = false;
 	Rebuild(false);
@@ -183,11 +193,40 @@ void AApexRacingLineActor::ApplyVisibility()
 	BrakeDots->SetVisibility(bAny);
 }
 
+void AApexRacingLineActor::AddDots()
+{
+	ThrottleDots->ClearInstances();
+	PartialDots->ClearInstances();
+	BrakeDots->ClearInstances();
+
+	TArray<FTransform> Throttle, Partial, Brake;
+	for (int32 Dot = 0; Dot < DotTransforms.Num(); ++Dot)
+	{
+		const int32 Point = DotPhasePoint[Dot];
+		if (!Line.Phases.IsValidIndex(Point))
+		{
+			continue;
+		}
+		switch (Line.Phases[Point])
+		{
+		case EApexLinePhase::Throttle: Throttle.Add(DotTransforms[Dot]); break;
+		case EApexLinePhase::Brake:    Brake.Add(DotTransforms[Dot]);    break;
+		default:                       Partial.Add(DotTransforms[Dot]);  break;
+		}
+	}
+
+	ThrottleDots->AddInstances(Throttle, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true);
+	PartialDots->AddInstances(Partial, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true);
+	BrakeDots->AddInstances(Brake, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true);
+}
+
 void AApexRacingLineActor::Rebuild(bool bTrace)
 {
 	ThrottleDots->ClearInstances();
 	PartialDots->ClearInstances();
 	BrakeDots->ClearInstances();
+	DotTransforms.Reset();
+	DotPhasePoint.Reset();
 
 	UWorld* World = GetWorld();
 	const int32 PointCount = Line.Points.Num();
@@ -209,7 +248,8 @@ void AApexRacingLineActor::Rebuild(bool bTrace)
 	const int32 DotCount = FMath::Max(3, FMath::RoundToInt(Total / DotSpacingM));
 	const double Step = Total / DotCount;
 
-	TArray<FTransform> Throttle, Partial, Brake;
+	DotTransforms.Reserve(DotCount);
+	DotPhasePoint.Reserve(DotCount);
 	const FVector Scale(DotLengthCm / CylinderSizeCm, DotWidthCm / CylinderSizeCm, DotThicknessCm / CylinderSizeCm);
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(ApexRacingLine), /*bTraceComplex*/ true, this);
@@ -256,25 +296,18 @@ void AApexRacingLineActor::Rebuild(bool bTrace)
 		// Flat on the surface, long axis along the line.
 		const FRotator Rotation = FRotationMatrix::MakeFromZX(Normal, To - From).Rotator();
 		const FVector Centre = Location + Normal * (DotThicknessCm * 0.5 + DotLiftCm);
-		const FTransform Transform(Rotation, Centre, Scale);
-
+		DotTransforms.Add(FTransform(Rotation, Centre, Scale));
 		// The phase of whichever server point the dot is nearer.
-		switch (Line.Phases[T < 0.5 ? Segment : Next])
-		{
-		case EApexLinePhase::Throttle: Throttle.Add(Transform); break;
-		case EApexLinePhase::Brake:    Brake.Add(Transform);    break;
-		default:                       Partial.Add(Transform);  break;
-		}
+		DotPhasePoint.Add(T < 0.5 ? Segment : Next);
 	}
 
-	ThrottleDots->AddInstances(Throttle, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true);
-	PartialDots->AddInstances(Partial, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true);
-	BrakeDots->AddInstances(Brake, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true);
+	AddDots();
 
 	if (bTrace)
 	{
 		UE_LOG(LogApexSim, Log, TEXT("Racing line: %d dot(s) (%d throttle, %d partial, %d brake), %d on the road"),
-			DotCount, Throttle.Num(), Partial.Num(), Brake.Num(), Grounded);
+			DotCount, ThrottleDots->GetInstanceCount(), PartialDots->GetInstanceCount(),
+			BrakeDots->GetInstanceCount(), Grounded);
 		if (Grounded < DotCount / 2)
 		{
 			UE_LOG(LogApexSim, Warning,

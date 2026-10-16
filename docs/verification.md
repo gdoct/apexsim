@@ -190,6 +190,9 @@ session while driving (notice, then the menu).
   a Custom start order naming a driver who is not there, then the session
   lobby's GRID list, the grid card's list and the lined-up field with the
   gap kept. Only `grid_order` and `game_session` unit tests have run.
+- The racing line aid planned again at a lap's end: after the first lap
+  with a full tank, the dots repaint (braking points earlier) without a
+  hitch and stay on the road; in rain the braking zones lengthen.
 - The garage's compound cards built from a car's own `[[tires.compound]]`
   list: only an AC import files one (its compounds plus the two rain
   tyres), so only the default five have been on screen

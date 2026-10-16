@@ -305,6 +305,17 @@ pub(crate) async fn tick_sessions(
         // Timing lines crossed this tick. Reliable, and never for a demo:
         // its AI field is menu scenery and nobody is watching the splits.
         let lap_events = game_session.take_lap_events();
+        let line_refresh: Vec<PlayerId> = if is_demo_session {
+            Vec::new()
+        } else {
+            lap_events
+                .iter()
+                .filter(|e| {
+                    e.event.lap_time_ms.is_some() && player_recipients.contains(&e.player_id)
+                })
+                .map(|e| e.player_id)
+                .collect()
+        };
         let pit_starts = game_session.take_pit_events();
         // The spectator stream of a session being recorded: this tick's
         // events, frame, slow state and road.
@@ -425,6 +436,24 @@ pub(crate) async fn tick_sessions(
                         qualifying,
                     });
                 }
+            }
+        }
+
+        // A human's racing line aid, planned again at the end of each lap
+        // for their car as it is now (setup, fuel, tyres, the road), when
+        // that has moved since the line they have.
+        for player_id in &line_refresh {
+            if let Some(profile) = game_session.refreshed_racing_line(player_id) {
+                lap_timing_out.push(LapTimingOut {
+                    session_id: *session_id,
+                    player_recipients: vec![*player_id],
+                    msg: ServerMessage::RacingLine(crate::network::RacingLineData::from_profile(
+                        *session_id,
+                        &profile,
+                    )),
+                    record: None,
+                    qualifying: None,
+                });
             }
         }
 

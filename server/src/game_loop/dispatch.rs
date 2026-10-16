@@ -623,7 +623,8 @@ async fn handle_create_session(
 
     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
         game_session.set_livery(conn_info.player_id, livery);
-        let racing_line = racing_line_message(game_session, session_id, car_id);
+        let racing_line =
+            racing_line_message(game_session, session_id, &conn_info.player_id, car_id);
         let setup_sheet = setup_sheet_message(game_session, session_id, car_id);
         let timing = timing_messages(
             game_session,
@@ -933,7 +934,8 @@ pub(crate) async fn handle_join_session(
             "Player {} joined session {} at grid position {}",
             conn_info.player_name, session_id, grid_pos
         );
-        let racing_line = racing_line_message(game_session, session_id, car_id);
+        let racing_line =
+            racing_line_message(game_session, session_id, &conn_info.player_id, car_id);
         let road = road_state_full(game_session, session_id);
         let timing = timing_messages(
             game_session,
@@ -1040,7 +1042,12 @@ async fn rejoin_session(
             .weekend_state()
             .map(ServerMessage::WeekendState),
     );
-    messages.extend(racing_line_message(game_session, session_id, car_id));
+    messages.extend(racing_line_message(
+        game_session,
+        session_id,
+        &conn_info.player_id,
+        car_id,
+    ));
     messages.extend(setup_sheet_message(game_session, session_id, car_id));
     messages.extend(timing_messages(
         game_session,
@@ -1061,15 +1068,19 @@ async fn rejoin_session(
 /// The racing line for `car_id` on the session's track, for the client's
 /// racing-line overlay; `None` when the session does not allow the aid, the
 /// car is unknown or the track has no usable line. Built under the state
-/// lock, which costs well under a millisecond for a full circuit.
+/// lock, which costs well under a millisecond for a full circuit. The line
+/// is planned again for the car as it is at each lap's end
+/// (`GameSession::refreshed_racing_line`, from the tick).
 fn racing_line_message(
-    game_session: &GameSession,
+    game_session: &mut GameSession,
     session_id: SessionId,
+    player_id: &PlayerId,
     car_id: CarConfigId,
 ) -> Option<ServerMessage> {
     if !game_session.session.allowed_assists.racing_line {
         return None;
     }
+    game_session.note_joining_racing_line(player_id);
     let car = game_session.car_configs.get(&car_id)?;
     let profile = racing_line::build(&game_session.track_config, car)?;
     Some(ServerMessage::RacingLine(RacingLineData::from_profile(

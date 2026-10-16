@@ -277,7 +277,20 @@ fn top_gear_speed(car: &CarConfig) -> f32 {
 /// This is the player's aid: a hybrid's motor counts above its minimum
 /// speed, at what Balanced mode's pacing of the lap budget gives it.
 pub fn build(track: &TrackConfig, car: &CarConfig) -> Option<RacingLineProfile> {
-    plan_line(track, car, 0.0, true)
+    plan_line(track, car, 0.0, 1.0, true)
+}
+
+/// [`build`] for the car as a driver has it now: `car` with their setup,
+/// carrying `fuel_liters`, on tyres and a road worth `grip_share` of the
+/// planned grip (`CarState::tyre_grip_share`: compound, wear, heat, a wet
+/// or rubbered line). The aid the server sends again as these move.
+pub fn build_driven(
+    track: &TrackConfig,
+    car: &CarConfig,
+    fuel_liters: f32,
+    grip_share: f32,
+) -> Option<RacingLineProfile> {
+    plan_line(track, car, fuel_liters, grip_share, true)
 }
 
 /// [`build`] for the car carrying `fuel_liters`: the extra mass costs
@@ -292,16 +305,18 @@ pub fn build_laden(
     car: &CarConfig,
     fuel_liters: f32,
 ) -> Option<RacingLineProfile> {
-    plan_line(track, car, fuel_liters, false)
+    plan_line(track, car, fuel_liters, 1.0, false)
 }
 
-/// The line for `car` carrying `fuel_liters`; `paced` counts the motor as
-/// the rules and Balanced mode let it drive ([`build`]), else at full
-/// power everywhere ([`build_laden`]).
+/// The line for `car` carrying `fuel_liters` on `grip_share` of the
+/// track's grip; `paced` counts the motor as the rules and Balanced mode
+/// let it drive ([`build`]), else at full power everywhere
+/// ([`build_laden`]).
 fn plan_line(
     track: &TrackConfig,
     car: &CarConfig,
     fuel_liters: f32,
+    grip_share: f32,
     paced: bool,
 ) -> Option<RacingLineProfile> {
     let source: Vec<[f32; 3]> = if track.raceline.len() >= 3 {
@@ -316,7 +331,7 @@ fn plan_line(
     let (mass, _) = car.laden(fuel_liters);
     let mut envelope = CarEnvelope::new(
         car,
-        track.track_surface.base_grip,
+        track.track_surface.base_grip * grip_share,
         mass,
         track.track_surface.air_density_ratio,
     );

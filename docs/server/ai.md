@@ -17,7 +17,8 @@ same ([architecture.md](../architecture.md), determinism).
 - `server/src/racecraft.rs` - `decide`, `Racecraft` (kept on
   `CarState::racecraft`), `Tactic`, `next_corner`, the stuck recovery.
 - `server/src/racing_line.rs` - `build` / `build_laden`: the per-car speed
-  profile the AI drives.
+  profile the AI drives; `build_driven` is the player's aid planned again
+  at a lap's end ([game/client.md](../game/client.md)).
 - `server/src/game_session.rs` - `spawn_ai_drivers`, `class_field`,
   `plan_ai_speeds` / `ai_speed_profile`, `ai_input_for`,
   `update_racecraft`, `plan_ai_stops`, `fuel_save`, `refuels`,

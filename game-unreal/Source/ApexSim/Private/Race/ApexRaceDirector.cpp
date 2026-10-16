@@ -558,7 +558,8 @@ void AApexRaceDirector::HandleRacingLineUpdated(const FApexRacingLineData& Line)
 {
 	// Normally the line lands between SessionJoined and the race view, and
 	// BeginRaceView picks it up from the cache; this is for one that arrives
-	// (or is withdrawn) mid-race.
+	// (or is withdrawn) mid-race, and for the line the server plans again at
+	// a lap's end for the car as it is then.
 	if (RacingLine)
 	{
 		RacingLine->SetLine(Line);

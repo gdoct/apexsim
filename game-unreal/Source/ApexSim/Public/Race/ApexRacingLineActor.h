@@ -34,7 +34,11 @@ class APEXSIM_API AApexRacingLineActor : public AActor
 public:
 	AApexRacingLineActor();
 
-	/** Replace the line. Dots are laid at the line's own heights until SnapToGround. */
+	/**
+	 * Replace the line. Dots are laid at the line's own heights until
+	 * SnapToGround; a line on the same points as the one on the ground (the
+	 * server planning it again mid-session) only repaints the dots.
+	 */
 	void SetLine(const FApexRacingLineData& InLine);
 
 	/**
@@ -88,7 +92,13 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInterface> ShapeMaterial;
 
+	/** Fill the three dot meshes from DotTransforms, coloured by the line's phases. */
+	void AddDots();
+
 	FApexRacingLineData Line;
+	/** Every dot as last laid, and the server point whose phase colours it. */
+	TArray<FTransform> DotTransforms;
+	TArray<int32> DotPhasePoint;
 	EApexRacingLine Mode = EApexRacingLine::Off;
 	bool bOnGround = false;
 	bool bWet = false;

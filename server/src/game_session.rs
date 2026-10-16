@@ -256,6 +256,31 @@ fn setup_key(setup: &CarSetup) -> u64 {
         })
 }
 
+/// What a driver's racing line aid is planned for: their setup
+/// ([`setup_key`]), the step of the tank, and the grip share in steps of
+/// [`AID_GRIP_STEP`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct AidLineKey {
+    setup: u64,
+    fuel_step: usize,
+    grip_steps: i32,
+}
+
+impl AidLineKey {
+    /// The line sent on joining: the stock car with a dry tank, on the
+    /// grip the session was planned on.
+    const JOINED: AidLineKey = AidLineKey {
+        setup: 0,
+        fuel_step: 0,
+        grip_steps: (1.0 / AID_GRIP_STEP) as i32,
+    };
+}
+
+/// Grip share a driver's tyres and road must move by before their racing
+/// line aid is planned again: finer, and the heat of the tyres at the line
+/// would send a new line most laps.
+const AID_GRIP_STEP: f32 = 0.02;
+
 /// The skill at the end of the ladder a watched hotlap's driver eases down.
 const HOTLAP_WATCH_FLOOR_SKILL: u8 = 80;
 /// Skill given up per step of the ladder.
@@ -298,6 +323,11 @@ pub struct GameSession {
     /// [`AI_POWER_PLAN_STEP`]s of power lost and step of the tank: built as
     /// the damage comes (`plan_damaged_ai_speeds`), one plan at a time.
     ai_power_profiles: std::collections::BTreeMap<(CarConfigId, u8, usize), RacingLineProfile>,
+    /// What each human's racing line aid was last planned for
+    /// ([`Self::refreshed_racing_line`]); a driver missing here has the
+    /// line sent on joining (stock car, dry tank, the planned grip).
+    /// Looked up by key only, never iterated.
+    aid_lines: HashMap<PlayerId, AidLineKey>,
     /// Simulation tick rate (Hz); the fixed timestep is `1 / tick_rate_hz`.
     tick_rate_hz: u16,
     /// The names of the humans seated, set as they join (the AI's are on
@@ -734,6 +764,7 @@ impl GameSession {
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
             ai_power_profiles: std::collections::BTreeMap::new(),
+            aid_lines: HashMap::new(),
             finish_deadline_tick: None,
             finished_since_loop_tick: None,
             orphaned_since_loop_tick: None,
@@ -804,6 +835,7 @@ impl GameSession {
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
             ai_power_profiles: std::collections::BTreeMap::new(),
+            aid_lines: HashMap::new(),
             finish_deadline_tick: None,
             finished_since_loop_tick: None,
             orphaned_since_loop_tick: None,
@@ -3098,6 +3130,7 @@ impl GameSession {
         }
         self.away.remove(player_id);
         self.held_steering_assist.remove(player_id);
+        self.aid_lines.remove(player_id);
         self.tuned_configs.remove(player_id);
         self.car_setups.remove(player_id);
         self.lap_traces.remove(player_id);
@@ -5334,6 +5367,58 @@ impl GameSession {
         }
     }
 
+    /// A human driver's racing line aid planned again for their car as it
+    /// is at the line: their setup, the next step of the tank above what
+    /// they carry, and what their tyres and the road under them are worth
+    /// (`CarState::tyre_grip_share`). `None` when nothing has moved enough
+    /// since the line they have, or the session does not allow the aid.
+    /// Called at each lap's end, so it costs one plan a lap at most.
+    pub fn refreshed_racing_line(&mut self, player_id: &PlayerId) -> Option<RacingLineProfile> {
+        if !self.session.allowed_assists.racing_line || self.is_ai_player(player_id) {
+            return None;
+        }
+        let state = self.session.participants.get(player_id)?;
+        let car_id = state.car_config_id;
+        let grip = state.tyre_grip_share();
+        let held = self
+            .aid_lines
+            .get(player_id)
+            .copied()
+            .unwrap_or(AidLineKey::JOINED);
+        // Hysteresis: the grip moves the key only once it has left the
+        // held step by a whole step.
+        let grip_steps = if (grip / AID_GRIP_STEP - held.grip_steps as f32).abs() >= 1.0 {
+            (grip / AID_GRIP_STEP).round() as i32
+        } else {
+            held.grip_steps
+        };
+        let key = AidLineKey {
+            setup: setup_key(&self.car_setup(player_id)),
+            fuel_step: self.fuel_plan_step(car_id, state.fuel_liters),
+            grip_steps,
+        };
+        if key == held {
+            return None;
+        }
+        let car = self.simulated_config_for(player_id)?;
+        let fuel =
+            car.fuel.capacity_liters.max(0.0) * key.fuel_step as f32 / AI_FUEL_PLAN_STEPS as f32;
+        let profile = racing_line::build_driven(
+            &self.track_config,
+            car,
+            fuel,
+            key.grip_steps as f32 * AID_GRIP_STEP,
+        )?;
+        self.aid_lines.insert(*player_id, key);
+        Some(profile)
+    }
+
+    /// The joining line was sent to `player_id` (stock car, dry tank): the
+    /// next lap's end plans theirs again from there.
+    pub fn note_joining_racing_line(&mut self, player_id: &PlayerId) {
+        self.aid_lines.remove(player_id);
+    }
+
     /// The step of `car_id`'s tank a car carrying `fuel_liters` is planned
     /// at: the next one at or above it.
     fn fuel_plan_step(&self, car_id: CarConfigId, fuel_liters: f32) -> usize {
@@ -5709,6 +5794,76 @@ mod tests {
         assert!(game_session
             .set_car_setup(&Uuid::new_v4(), applied)
             .is_none());
+    }
+
+    /// A human's racing line aid is planned again at the line for the car
+    /// as it is: a full tank and a slippery road make a slower line, a car
+    /// that has not changed gets none, and a few hundredths of grip from
+    /// the tyres' heat do not send one.
+    #[test]
+    fn the_racing_line_aid_follows_the_fuel_and_the_grip() {
+        let track = crate::track_loader::TrackLoader::load_from_file(
+            "../content/tracks/default/Monza/Monza.yaml",
+        )
+        .expect("Monza");
+        let car = crate::car_loader::CarLoader::load_from_file(std::path::Path::new(
+            "../content/cars/default/posh-gt3rs/car.toml",
+        ))
+        .expect("car");
+        let car_id = car.id;
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car_id, car.clone());
+        let session = RaceSession::new(
+            Uuid::from_u128(1),
+            Uuid::nil(),
+            SessionKind::Multiplayer,
+            8,
+            0,
+            3,
+        );
+        let mut gs = GameSession::new(session, track, car_configs);
+        let driver = Uuid::from_u128(7401);
+        gs.add_player(driver, car_id);
+        let joined =
+            racing_line::lap_time_s(&racing_line::build(&gs.track_config, &car).expect("a line"));
+
+        // Warm tyres in the window, as at the end of a lap.
+        let state = gs.session.participants.get_mut(&driver).unwrap();
+        state.tyres_fitted = true;
+        for tyre in state.tires.each_mut() {
+            tyre.grip_factor = 1.0;
+        }
+        state.surface_grip_share = 1.0;
+        state.fuel_liters = car.fuel.capacity_liters;
+        let full = racing_line::lap_time_s(
+            &gs.refreshed_racing_line(&driver)
+                .expect("a full tank plans again"),
+        );
+        assert!(
+            full > joined,
+            "full tank {full:.2} s against dry {joined:.2} s"
+        );
+        assert!(gs.refreshed_racing_line(&driver).is_none(), "nothing moved");
+
+        gs.session
+            .participants
+            .get_mut(&driver)
+            .unwrap()
+            .surface_grip_share = 0.99;
+        assert!(
+            gs.refreshed_racing_line(&driver).is_none(),
+            "a hundredth of grip is the tyres' heat"
+        );
+        gs.session
+            .participants
+            .get_mut(&driver)
+            .unwrap()
+            .surface_grip_share = 0.8;
+        let wet = racing_line::lap_time_s(
+            &gs.refreshed_racing_line(&driver)
+                .expect("a fifth of the grip gone plans again"),
+        );
+        assert!(wet > full + 1.0, "slippery {wet:.2} s against {full:.2} s");
     }
 
     #[test]

@@ -378,7 +378,14 @@ Settings > Assists > Racing line: OFF / BRAKING ONLY / FULL (default off;
 the host can forbid it, see [sessions.md](../server/sessions.md)). The server
 builds the line per car (`server/src/racing_line.rs`: the track's raceline or
 centerline with a quasi-steady-state speed profile) and sends it as
-`RacingLine` after `SessionJoined`. `AApexRacingLineActor` draws dots, one
+`RacingLine` after `SessionJoined`, planned for the stock car with a dry
+tank. At each lap's end it plans the line again for the car as it is
+(`GameSession::refreshed_racing_line`: the driver's setup, the next tenth of
+the tank above what they carry, and `CarState::tyre_grip_share`, which reads
+the compound, wear, tyre heat and the road under the car) and sends it when
+the setup or the tank step changed or the grip left its 0.02 step; the
+client keeps the dots where they lie on the road and only repaints them
+when the new line has the same points. `AApexRacingLineActor` draws dots, one
 instanced mesh per colour (green flat out, amber at the grip limit or lifting,
 red braking; BRAKING ONLY draws just the red), and `SnapToGround` drops them
 onto actors tagged `ApexTrackMesh` by line traces once the track is built.
