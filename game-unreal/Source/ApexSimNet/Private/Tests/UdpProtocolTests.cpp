@@ -916,6 +916,22 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("a second dent at the left flank's rear"), FMath::IsNearlyEqual(Car.DamageAt2[2], -95.0f / 127.0f, 1e-4f));
 			TestEqual(TEXT("one dent on the nose"), Car.DamageAt2[0], FApexCarTelemetry::NoSecondDent);
 		}
+		FApexServerMessage Ground;
+		if (TestTrue(TEXT("a frame with the ground under the tyres decodes"),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactGround, Ground, Error))
+			&& TestEqual(TEXT("one car"), Ground.Telemetry.Cars.Num(), 1))
+		{
+			const FApexCarTelemetry& Car = Ground.Telemetry.Cars[0];
+			TestEqual(TEXT("gravel under the front left"), Car.WheelGround[0], ApexGround::Gravel);
+			TestEqual(TEXT("and the rear left"), Car.WheelGround[2], ApexGround::Gravel);
+			TestEqual(TEXT("grass under the right"), Car.WheelGround[1], ApexGround::None);
+			TestTrue(TEXT("the fields before it still read"), FMath::IsNearlyEqual(Car.DamageAt2[2], -95.0f / 127.0f, 1e-4f));
+		}
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactFlatSpot, Spots, Error)
+			&& Spots.Telemetry.Cars.Num() == 1)
+		{
+			TestEqual(TEXT("no ground from an older server"), Spots.Telemetry.Cars[0].WheelGround[0], ApexGround::None);
+		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactRecover, Spots, Error)
 			&& Spots.Telemetry.Cars.Num() == 1)
 		{

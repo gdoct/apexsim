@@ -1760,6 +1760,12 @@ pub struct CarState {
     pub wheel_slip_angle: [f32; 4],
     #[serde(default)]
     pub wheel_surface: [u8; 4],
+    /// The soft ground under each tyre that is off the track
+    /// (`physics::OffGround` as `network::GROUND_*`: 0 grass or not off,
+    /// 1 gravel, 2 sand, 3 the desert floor), for the clients' dust, the
+    /// road sound and the force feedback. Set by the physics each tick.
+    #[serde(default)]
+    pub wheel_ground: [u8; 4],
     /// The hardest hit this car took since the pass that read it, percent
     /// of damage (`physics::apply_damage_to_car`): what sheds debris and
     /// what may puncture a tyre (`GameSession::update_debris`).
@@ -2040,6 +2046,7 @@ impl CarState {
             wheel_slip_ratio: [0.0; 4],
             wheel_slip_angle: [0.0; 4],
             wheel_surface: [0; 4],
+            wheel_ground: [0; 4],
             last_hit_pct: 0.0,
             last_hit_angle: 0.0,
             road_cell: 0,

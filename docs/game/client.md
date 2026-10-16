@@ -494,6 +494,7 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
 - Demo: `apexsim.demo.Enabled|AiCount|Laps|RandomSky|MaxMinutes|Restart`,
   `apexsim.spectate.Info|Next`.
 - Cars: `apexsim.car.Rescan`, `apexsim.car.Interp*`, `apexsim.car.DamagePreview "F,R,L,Rt,E"`,
+  `apexsim.car.GroundPreview 0-3` (every car's tyres on gravel, sand or the desert floor: its dust),
   `apexsim.car.DamageEffects`, `apexsim.car.HeadlightLumens|BrakeLightNits|TailLightNits|WheelMaxDegPerFrame`.
 - Tracks and lighting: `apexsim.track.Rescan|KeepLast|BuildBudgetMs|FlatShadows|HorizonShadows`,
   `apexsim.sky.SunStepDeg`, `apexsim.lights.Max|Range`.

@@ -186,6 +186,10 @@ the launcher import with the network off.
   `BuildCloudLayer` (90 m and 25 m) read small from the ground.
 - The chase-near camera behind the Bugotti Chiffon showed a dark blur
   filling the frame once (snow run, 2026-10-15): the camera inside a body.
+- A replay or a watched stream throws no dust and has no ground under its
+  tyres: the spectator stream's rows carry each wheel's surface but not
+  `CompactCarState::ground`, so `UpdateDust` and the road sound's gravel
+  and sand are live only.
 
 **Check:** the A/B is two screenshots.
 

@@ -25,7 +25,10 @@
  *    feedback uses), each one a thud through the tyre's own resonance plus a
  *    slap, so a kerb is a drone whose pitch is the car's speed. The two sides
  *    run out of phase; both wheels of a side on the kerb hit harder.
- *  - **Off the road**: a low rumble and the rattle of stones against the floor.
+ *  - **Off the road**: a low rumble and the rattle of stones against the floor,
+ *    by what the ground is: grass mostly rumble, a gravel trap a hail of
+ *    stones, sand a soft hiss over a muffled rumble, the desert floor a
+ *    fine grit.
  *  - **Hits**: a suspension bump is a thud, contact a crunch. Both arrive as
  *    one-shots (Hit), not levels.
  *  - **A flat spot**: the ground patch of a locked tyre thumps through the
@@ -58,6 +61,9 @@ namespace ApexRoadSynth
 		float CurbRight = 0.0f;
 		/** Share of the wheels past the kerbs. */
 		float OffTrack = 0.0f;
+		/** Of those, the share of all four wheels in gravel, in sand (a sand trap or the desert floor). */
+		float OffGravel = 0.0f;
+		float OffSand = 0.0f;
 		/** Rain on the road: squeal turns to hiss, and the tyres throw spray. */
 		bool bWet = false;
 		/** The deepest flat spot on the tyres, 0..1 (ApexFfb::FSignals::FlatSpot): a thump each turn of the wheel. */
@@ -109,6 +115,9 @@ namespace ApexRoadSynth
 
 		float RumbleLowpass = 0.0f;
 		FResonator Stones;
+		/** Sand: a band of hiss the tyres throw up. */
+		float SandHigh = 0.0f;
+		float SandLow = 0.0f;
 
 		/** Decaying one-shots; see Hit. The flat spot strikes the same thud. */
 		FResonator BumpThud;

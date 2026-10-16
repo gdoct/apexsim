@@ -1187,10 +1187,41 @@ pub struct CompactCarState {
     /// none, which a client reads as one dent a zone.
     #[serde(default = "no_second_dents")]
     pub damage_at2: [i8; 4],
+    /// The soft ground under each tyre that is off the track, two bits a
+    /// wheel, FL in the lowest (`GROUND_GRAVEL`, `GROUND_SAND`,
+    /// `GROUND_DESERT`; 0 for the road, a kerb, grass or a wheel in the
+    /// air): what throws a dust plume and rattles stones. Appended after
+    /// `damage_at2`; 0 from an older server.
+    #[serde(default)]
+    pub ground: u8,
 }
 
 fn no_second_dents() -> [i8; 4] {
     [crate::damage::NO_SECOND_DENT; 4]
+}
+
+/// `ground`'s two bits a wheel.
+pub const GROUND_GRAVEL: u8 = 1;
+pub const GROUND_SAND: u8 = 2;
+pub const GROUND_DESERT: u8 = 3;
+
+/// The wire's byte for a soft ground: 0 for grass, which throws no dust.
+pub fn ground_byte(ground: crate::physics::OffGround) -> u8 {
+    use crate::physics::OffGround;
+    match ground {
+        OffGround::Grass => 0,
+        OffGround::Gravel => GROUND_GRAVEL,
+        OffGround::Sand => GROUND_SAND,
+        OffGround::Desert => GROUND_DESERT,
+    }
+}
+
+/// `CarState::wheel_ground` packed two bits a wheel, FL lowest.
+pub fn pack_ground(wheel_ground: [u8; 4]) -> u8 {
+    wheel_ground
+        .iter()
+        .enumerate()
+        .fold(0, |bits, (i, g)| bits | ((g & 3) << (2 * i)))
 }
 
 /// `tyre_state` bits.
@@ -1543,6 +1574,7 @@ impl CompactCarState {
                 .each()
                 .map(|t| (t.blister.clamp(0.0, 1.0) * 100.0).round() as u8),
             damage_at2: state.damage.hit_at.to_wire_second(),
+            ground: pack_ground(state.wheel_ground),
         }
     }
 }
@@ -3025,6 +3057,8 @@ mod tests {
         // Rubber picked up on the front right, the rear left blistering.
         state.tires.front_right.pickup = 0.336;
         state.tires.rear_left.blister = 0.5;
+        // Off into a gravel trap on the left, the right still on the grass.
+        state.wheel_ground = [GROUND_GRAVEL, 0, GROUND_GRAVEL, 0];
 
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,
@@ -3037,7 +3071,7 @@ mod tests {
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
-            "S_TelemetryCompactFlatSpot: {}",
+            "S_TelemetryCompactGround: {}",
             bytes
                 .iter()
                 .map(|b| format!("0x{:02X}", b))
@@ -3045,10 +3079,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 50-field array: 0xDC 0x00 0x32 is the array-16 header.
+        // The car is a 51-field array: 0xDC 0x00 0x33 is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x32]),
-            "CompactCarState must stay 50 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x33]),
+            "CompactCarState must stay 51 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -3090,6 +3124,7 @@ mod tests {
                     [-128, -128, -95, -128],
                     "a second dent on the left flank only"
                 );
+                assert_eq!(car.ground, 0b0001_0001, "gravel under the left wheels");
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);
             }

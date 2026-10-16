@@ -1262,4 +1262,56 @@ bool FApexFfbCarConditionTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbGroundTest,
+	"ApexSim.Input.ForceFeedback.Ground",
+	ApexTestFlags)
+
+bool FApexFfbGroundTest::RunTest(const FString& Parameters)
+{
+	// Telemetry names the ground under each tyre that is off.
+	FApexCarTelemetry Car;
+	Car.WheelGround[0] = ApexGround::Gravel;
+	Car.WheelGround[2] = ApexGround::Gravel;
+	Car.WheelGround[1] = ApexGround::Sand;
+	ApexFfb::FSignals Read = Cruising(30.0f);
+	ApexFfb::ReadCarCondition(Read, Car, 90.0f, 10.0f);
+	TestEqual(TEXT("two wheels in gravel"), Read.OffGravel, 0.5f);
+	TestEqual(TEXT("one in sand"), Read.OffSand, 0.25f);
+	Read.OffTrack = 1.0f;
+	const ApexFfb::FGroundMix Mix = ApexFfb::GroundMix(Read);
+	TestTrue(TEXT("the rest of the off wheels are grass"), FMath::IsNearlyEqual(Mix.Grass, 0.25f, 1e-4f));
+	ApexFfb::FSignals OnRoad = Cruising(30.0f);
+	OnRoad.OffGravel = 1.0f;
+	TestEqual(TEXT("a ground with no wheel off is nothing"), ApexFfb::GroundMix(OnRoad).Gravel, 0.0f);
+
+	// Each ground shakes at its own rate: gravel fast, sand slow.
+	const ApexFfb::FWheelTuning Tuning;
+	auto Off = [](float Gravel, float Sand)
+	{
+		ApexFfb::FSignals S = Cruising(30.0f);
+		S.OffTrack = 1.0f;
+		S.OffGravel = Gravel;
+		S.OffSand = Sand;
+		return S;
+	};
+	const FApexWheelEffects Grass = PeakWheelVibration(Off(0.0f, 0.0f), Tuning);
+	const FApexWheelEffects Gravel = PeakWheelVibration(Off(1.0f, 0.0f), Tuning);
+	const FApexWheelEffects Sand = PeakWheelVibration(Off(0.0f, 1.0f), Tuning);
+	TestTrue(*FString::Printf(TEXT("gravel rattles faster than grass (%.0f Hz against %.0f)"), Gravel.VibrationHz, Grass.VibrationHz),
+		Gravel.VibrationHz > Grass.VibrationHz);
+	TestTrue(*FString::Printf(TEXT("and harder (%.2f against %.2f)"), Gravel.VibrationAmplitude, Grass.VibrationAmplitude),
+		Gravel.VibrationAmplitude > Grass.VibrationAmplitude);
+	TestTrue(*FString::Printf(TEXT("sand is slow and soft (%.0f Hz, %.2f)"), Sand.VibrationHz, Sand.VibrationAmplitude),
+		Sand.VibrationHz < Grass.VibrationHz && Sand.VibrationAmplitude < Grass.VibrationAmplitude);
+	TestTrue(TEXT("sand drags on the rim"), SettledWheel(Off(0.0f, 1.0f), Tuning).Damper > SettledWheel(Off(0.0f, 0.0f), Tuning).Damper);
+
+	// On a pad gravel buzzes the light motor; sand barely does.
+	TestTrue(TEXT("gravel on the light motor"), PeakOver(Off(1.0f, 0.0f), 1.0f).High > PeakOver(Off(0.0f, 0.0f), 1.0f).High);
+	TestTrue(TEXT("sand on the heavy one"), PeakOver(Off(0.0f, 1.0f), 1.0f).High < PeakOver(Off(0.0f, 0.0f), 1.0f).High);
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

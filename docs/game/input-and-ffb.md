@@ -241,7 +241,8 @@ they do:
 
 A pad can only shake, so a slide has to be described: front slide on the light
 motor, rear slide on the heavy one (understeer and oversteer never feel alike),
-kerb ribs at a speed-set rate, ABS/TC pulse trains, grass noise, and decaying
+kerb ribs at a speed-set rate, ABS/TC pulse trains, off-track noise by the
+ground (gravel on both motors, sand a soft heave on the heavy one), and decaying
 thumps for bumps, contact, shifts and flat spots. `ApexFfb::ToPadChannels`
 puts the two motors on the channels the pad backend reads: XInput (the
 engine's default) takes the heavy motor from a Large channel and the light
@@ -272,12 +273,18 @@ Everything else is texture on top.
   value noise (0.45, 1.6 and 6 m wavelengths) along the lap, read at the
   telemetry's station run on by speed, so a bump is in the same place every lap.
   It rides on the constant force after the soft limit, scaled by Road effects,
-  speed, `front_load^0.7` and 3x off track.
+  speed, `front_load^0.7` and, off track, by the ground (`ApexFfb::GroundMix`
+  of `FSignals::OffGravel`, `OffSand`, `OffDesert` from telemetry's
+  `WheelGround`, the rest grass): grass 3x, gravel 4.5x, sand 1.8x, the
+  desert floor 2.2x.
 - **Vibration channel**: a device plays one vibration at a time, so the loudest
-  of kerbs, grass, ABS, lockup, a hit, braking grain (62 Hz, the fronts' braking
+  of kerbs, the off-track ground (grass 22-40 Hz; gravel harder, 34-56 Hz;
+  sand softer, 11-17 Hz; the desert floor a fine 26-36 Hz), ABS, lockup, a hit, braking grain (62 Hz, the fronts' braking
   slip from half to all of the peak, `FrontBrakeSlip`), front scrub (55 Hz,
   lower on greasy fronts), a flat spot or a bent suspension (a shake at the
   wheel's turning rate) or a damaged engine takes it.
+- **Sand drags**: wheels in sand add up to a quarter of the force to the
+  damper (`SandDamper`), so the rim is heavy in a trap.
 - **Damper**: heaviest at a standstill, 35% of the setting at speed, and while
   driving never under 0.3 of the force (`MinDriveDamper`): a belt-driven rim has
   almost no friction and overshoots the centre without it. A centring spring is
@@ -380,6 +387,8 @@ hardware.
   `ApexSim.Input.ForceFeedback.WheelProfile` (scale and minimum force),
   `ApexSim.Input.ForceFeedback.CarCondition` (the heat ramp, reading
   telemetry, greasy fronts, a bent side and a sick engine on both devices),
+  `ApexSim.Input.ForceFeedback.Ground` (each ground's rate and level, sand's
+  drag, the pad's motors),
   `ApexSim.Input.WheelProfiles.*` (detection by name and vendor, the table,
   the reference base unscaled),
   `ApexSim.Input.DirectInput.*` (slots, keys, readings, records file,

@@ -127,6 +127,12 @@ namespace
 		TEXT(" (four more, -1..1) and each one's second dent (four more, 9 for none); empty for the telemetry"),
 		ECVF_Default);
 
+	/** Every car's tyres on one soft ground, for an unattended look at the dust. */
+	TAutoConsoleVariable<int32> CVarGroundPreview(
+		TEXT("apexsim.car.GroundPreview"),
+		0,
+		TEXT("Put every car's tyres on a soft ground, to see its dust: 0 off (telemetry's), 1 gravel, 2 sand, 3 desert floor."));
+
 	/** Smoke, steam, sparks and thrown parts; dents are drawn either way. */
 	TAutoConsoleVariable<int32> CVarDamageEffects(
 		TEXT("apexsim.car.DamageEffects"),
@@ -389,6 +395,8 @@ void AApexRaceCarActor::TakeTyreTelemetry(const FApexCarTelemetry& Car)
 		TyreFlatSpot[Wheel] = Car.FlatSpot[Wheel];
 		TyreWaterPct[Wheel] = Car.bHasTyreRoad ? Car.TyreWaterPct[Wheel] : -1.0f;
 		TyreMarbles[Wheel] = Car.bHasTyreRoad ? Car.TyreMarbles[Wheel] : 0.0f;
+		const int32 Preview = CVarGroundPreview.GetValueOnGameThread();
+		WheelGround[Wheel] = Preview > 0 && Preview <= 3 ? static_cast<uint8>(Preview) : Car.WheelGround[Wheel];
 		TyreTempC[Wheel] = Car.TyreTempC[Wheel];
 		bTyrePunctured[Wheel] = Car.bTyrePunctured[Wheel];
 		// A newer server works the pickup and the blisters out itself, the
@@ -552,6 +560,74 @@ void AApexRaceCarActor::UpdateSpray(float DeltaSeconds)
 		Puff.Opacity = 0.16f + 0.14f * TyreWetness * Pace;
 		Puff.Drag = 3.5f;
 		Puff.Gravity = 0.12f;
+		Fx->Emit(Puff);
+	}
+}
+
+void AApexRaceCarActor::GetGroundShares(float& OutGravel, float& OutSand) const
+{
+	OutGravel = 0.0f;
+	OutSand = 0.0f;
+	for (const uint8 Ground : WheelGround)
+	{
+		OutGravel += Ground == ApexGround::Gravel ? 0.25f : 0.0f;
+		OutSand += Ground == ApexGround::Sand || Ground == ApexGround::Desert ? 0.25f : 0.0f;
+	}
+}
+
+void AApexRaceCarActor::UpdateDust(float DeltaSeconds)
+{
+	// The plume a car throws off a gravel trap, a sand trap or a desert
+	// floor (telemetry's ground under each tyre; grass throws none): large,
+	// slow puffs that hang behind the car and drift up, each tyre on soft
+	// ground as many as the car is fast, nothing at a crawl. Gravel is the
+	// greyest, the desert floor the palest.
+	const float Speed = static_cast<float>(Root->ComponentVelocity.Size()) / 100.0f;
+	int32 OnSoft = 0;
+	for (const uint8 Ground : WheelGround)
+	{
+		OnSoft += Ground != ApexGround::None ? 1 : 0;
+	}
+	if (OnSoft == 0 || Speed < 3.0f || DeltaSeconds <= 0.0f)
+	{
+		DustOwed = 0.0f;
+		return;
+	}
+	AApexCarEffectsActor* Fx = GetEffects();
+	if (!Fx || !Fx->CanDraw())
+	{
+		return;
+	}
+	const float Pace = FMath::Clamp((Speed - 3.0f) / 30.0f, 0.0f, 1.0f);
+	DustOwed += 14.0f * OnSoft * Pace * DeltaSeconds;
+	const FVector CarVelocity = Root->ComponentVelocity;
+	const FVector Back = -GetActorForwardVector();
+	FRandomStream& R = DamageRandom;
+	for (; DustOwed >= 1.0f; DustOwed -= 1.0f)
+	{
+		// A wheel on soft ground, picked at random among them.
+		int32 Wheel = R.RandRange(0, 3);
+		for (int32 Tries = 0; Tries < 4 && WheelGround[Wheel] == ApexGround::None; ++Tries)
+		{
+			Wheel = (Wheel + 1) % 4;
+		}
+		FVector Patch;
+		if (WheelGround[Wheel] == ApexGround::None || !Wheels.ContactPatch(static_cast<ApexWheels::EWheel>(Wheel), Patch))
+		{
+			continue;
+		}
+		const uint8 Ground = WheelGround[Wheel];
+		ApexDamage::FPuff Puff;
+		Puff.Location = Patch + Back * R.FRandRange(30.0f, 80.0f) + FVector(0.0f, 0.0f, R.FRandRange(5.0f, 20.0f));
+		Puff.Velocity = CarVelocity * 0.3 + FVector(0.0, 0.0, R.FRandRange(60.0f, 160.0f)) + R.GetUnitVector() * 90.0;
+		Puff.Life = R.FRandRange(1.4f, 2.6f);
+		Puff.StartSize = 30.0f;
+		Puff.EndSize = R.FRandRange(260.0f, 420.0f);
+		Puff.Shade = FMath::Clamp((Ground == ApexGround::Gravel ? 0.58f : Ground == ApexGround::Sand ? 0.72f : 0.8f)
+			+ R.FRandRange(-0.04f, 0.04f), 0.0f, 1.0f);
+		Puff.Opacity = (Ground == ApexGround::Gravel ? 0.22f : 0.3f) * (0.5f + 0.5f * Pace);
+		Puff.Drag = 2.5f;
+		Puff.Gravity = -0.02f;
 		Fx->Emit(Puff);
 	}
 }
@@ -1009,6 +1085,7 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	UpdateDamage(DeltaSeconds);
 	UpdateTyreSmoke(DeltaSeconds);
 	UpdateSpray(DeltaSeconds);
+	UpdateDust(DeltaSeconds);
 	UpdateTyreLook();
 	UpdateTyreSurface(DeltaSeconds);
 

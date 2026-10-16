@@ -111,6 +111,12 @@ on the centerline backend, and wherever the mesh has nothing, it is the curb sid
 bands (`CurbBands::trap_at`, a trap laid over the run-off reach as the bake draws it) and
 past them its `ground` (`CurbBands::base_ground`: `desert` on Sakhir).
 
+The clients are told which: `CarState::wheel_ground` (set each tick from the wheels'
+`soft_ground`, 0 for grass or a tyre not off or in the air) goes out packed two bits a
+wheel as `CompactCarState::ground` (`GROUND_GRAVEL` 1, `GROUND_SAND` 2, `GROUND_DESERT`
+3), for the dust plume, the road sound and the force feedback
+([game/audio.md](../game/audio.md), [game/input-and-ffb.md](../game/input-and-ffb.md)).
+
 ### Collisions
 
 - **Car against car** (`check_collisions_refs`): yaw-aware OBB overlap by separating axes,

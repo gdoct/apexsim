@@ -288,8 +288,15 @@ namespace ApexRoadSynth
 		// in off a crawl, where a wheel turns too slowly to thump at all.
 		const float FlatSpotStep = FlatSpotHz(Speed) * Dt;
 		const float FlatSpotLevel = FlatSpotThud * Gate(Speed, CrawlSpeedMps, 8.0f);
-		// Stones per sample: a few dozen a second at speed, fully off the road.
-		const float StoneChance = S.OffTrack * FMath::Clamp(Speed / 30.0f, 0.0f, 1.0f) * 60.0f * Dt;
+		// Stones per sample: a few dozen a second at speed, fully off the road;
+		// a gravel trap throws four times as many, sand hardly any.
+		const float Gravel = FMath::Clamp(S.OffGravel, 0.0f, 1.0f);
+		const float Sand = FMath::Clamp(S.OffSand, 0.0f, 1.0f);
+		const float StoneChance = (FMath::Max(S.OffTrack - Gravel - Sand, 0.0f) + 4.0f * Gravel + 0.2f * Sand)
+			* FMath::Clamp(Speed / 30.0f, 0.0f, 1.0f) * 60.0f * Dt;
+		const float SandHighAlpha = AlphaForHz(5000.0f, SampleRate);
+		const float SandLowAlpha = AlphaForHz(1200.0f, SampleRate);
+		const float SandPace = FMath::Clamp(Speed / 25.0f, 0.0f, 1.0f);
 
 		for (int32 Index = 0; Index < NumFrames; ++Index)
 		{
@@ -301,6 +308,8 @@ namespace ApexRoadSynth
 			S.CurbLeft += (Inputs.CurbLeft - S.CurbLeft) * InputAlpha;
 			S.CurbRight += (Inputs.CurbRight - S.CurbRight) * InputAlpha;
 			S.OffTrack += (Inputs.OffTrack - S.OffTrack) * InputAlpha;
+			S.OffGravel += (Inputs.OffGravel - S.OffGravel) * InputAlpha;
+			S.OffSand += (Inputs.OffSand - S.OffSand) * InputAlpha;
 			S.FlatSpot += (Inputs.FlatSpot - S.FlatSpot) * InputAlpha;
 
 			const float Noise = NextNoise(State.NoiseState);
@@ -361,7 +370,13 @@ namespace ApexRoadSynth
 			// --- Off the road ----------------------------------------------------
 			State.RumbleLowpass += (Noise2 - State.RumbleLowpass) * RumbleAlpha;
 			const float Stone = NextNoise(State.NoiseState) * 0.5f + 0.5f < StoneChance ? Noise * 4.0f : 0.0f;
-			const float Rough = State.RumbleLowpass * S.OffTrack * Moving * 2.2f + Stones.Tick(State.Stones, Stone * Stones.ImpulseGain) * 0.12f;
+			// Sand muffles the rumble and hisses: a band of noise between
+			// about 1.2 and 5 kHz, as loud as the car is fast in it.
+			State.SandHigh += (Noise2 - State.SandHigh) * SandHighAlpha;
+			State.SandLow += (State.SandHigh - State.SandLow) * SandLowAlpha;
+			const float Hiss = (State.SandHigh - State.SandLow) * S.OffSand * SandPace * Moving * 0.35f;
+			const float Rough = State.RumbleLowpass * S.OffTrack * (1.0f - 0.4f * S.OffSand) * Moving * 2.2f
+				+ Stones.Tick(State.Stones, Stone * Stones.ImpulseGain) * 0.12f + Hiss;
 
 			// --- The flat spot -----------------------------------------------------
 			// Struck into the hits' thud below, in the sample the patch comes round.

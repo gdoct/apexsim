@@ -149,8 +149,30 @@ namespace
 	};
 	constexpr FRoadOctave RoadOctaves[] = { { 0.45f, 0.35f }, { 1.6f, 0.5f }, { 6.0f, 0.4f } };
 
-	/** Grass and gravel are this much rougher than asphalt. */
+	/** Grass is this much rougher than asphalt; a gravel trap rougher still, sand soft and the desert floor fine. */
 	constexpr float OffTrackRoughness = 3.0f;
+	constexpr float GravelRoughness = 4.5f;
+	constexpr float SandRoughness = 1.8f;
+	constexpr float DesertRoughness = 2.2f;
+
+	/**
+	 * How each ground comes through as a vibration: its share of grass's
+	 * level and the rate it shakes at (a base plus the noise's spread).
+	 * Gravel is stones hammering the floor, fast; sand is soft and slow,
+	 * and drags on the rim (SandDamper, a share of the force); the desert
+	 * floor is a fine, firm grain.
+	 */
+	struct FGroundFeel
+	{
+		float Level;
+		float BaseHz;
+		float SpreadHz;
+	};
+	constexpr FGroundFeel GrassFeel = { 1.0f, 22.0f, 18.0f };
+	constexpr FGroundFeel GravelFeel = { 1.35f, 34.0f, 22.0f };
+	constexpr FGroundFeel SandFeel = { 0.7f, 11.0f, 6.0f };
+	constexpr FGroundFeel DesertFeel = { 0.6f, 26.0f, 10.0f };
+	constexpr float SandDamper = 0.25f;
 
 	/** A station this far from where the texture is being read is a new lap or a reset: jump to it. */
 	constexpr float RoadStationSnapM = 20.0f;
@@ -414,6 +436,9 @@ namespace
 		Out.CurbLeft = WheelFinite(In.CurbLeft);
 		Out.CurbRight = WheelFinite(In.CurbRight);
 		Out.OffTrack = WheelFinite(In.OffTrack);
+		Out.OffGravel = FMath::Clamp(WheelFinite(In.OffGravel), 0.0f, 1.0f);
+		Out.OffSand = FMath::Clamp(WheelFinite(In.OffSand), 0.0f, 1.0f);
+		Out.OffDesert = FMath::Clamp(WheelFinite(In.OffDesert), 0.0f, 1.0f);
 		Out.BumpMps = WheelFinite(In.BumpMps);
 		Out.ImpactMps = WheelFinite(In.ImpactMps);
 		Out.SteerKick = WheelFinite(In.SteerKick);
@@ -531,6 +556,34 @@ namespace ApexFfb
 		Signals.EngineDamage = Share(4);
 		Signals.SuspensionDamage = FMath::Max(Share(2), Share(3));
 		Signals.EngineRpm = FMath::Max(Car.EngineRpm, 0.0f);
+		Signals.OffGravel = Signals.OffSand = Signals.OffDesert = 0.0f;
+		for (const uint8 Ground : Car.WheelGround)
+		{
+			Signals.OffGravel += Ground == ApexGround::Gravel ? 0.25f : 0.0f;
+			Signals.OffSand += Ground == ApexGround::Sand ? 0.25f : 0.0f;
+			Signals.OffDesert += Ground == ApexGround::Desert ? 0.25f : 0.0f;
+		}
+	}
+
+	FGroundMix GroundMix(const FSignals& Signals)
+	{
+		FGroundMix Mix;
+		const float Off = FMath::Max(Signals.OffTrack, 0.0f);
+		if (Off <= 0.0f)
+		{
+			return Mix;
+		}
+		// The telemetry's ground and the feedback's surface arrive apart;
+		// whatever of the off wheels the ground does not name is grass.
+		const float Gravel = FMath::Min(Signals.OffGravel, Off);
+		const float Sand = FMath::Min(Signals.OffSand, Off - Gravel);
+		const float Desert = FMath::Min(Signals.OffDesert, Off - Gravel - Sand);
+		const float Grass = Off - Gravel - Sand - Desert;
+		Mix.Gravel = Gravel / Off;
+		Mix.Sand = Sand / Off;
+		Mix.Desert = Desert / Off;
+		Mix.Grass = Grass / Off;
+		return Mix;
 	}
 
 	float GainFromStrength(float Strength01)
@@ -652,8 +705,11 @@ namespace ApexFfb
 					State.NoiseLevel = 0.4f + 0.6f * NextNoise(State.NoiseSeed);
 				}
 				const float Level = Signals.OffTrack * (0.25f + 0.75f * Texture) * State.NoiseLevel;
-				Add(Out.Low, 0.55f * Level, Gain);
-				Add(Out.High, 0.20f * Level, Gain);
+				// Gravel hammers both motors; sand is a heavy, soft heave; the
+				// desert floor a fine buzz.
+				const FGroundMix Mix = GroundMix(Signals);
+				Add(Out.Low, (0.55f * (Mix.Grass + Mix.Desert * 0.6f) + 0.6f * Mix.Gravel + 0.5f * Mix.Sand) * Level, Gain);
+				Add(Out.High, (0.20f * Mix.Grass + 0.45f * Mix.Gravel + 0.05f * Mix.Sand + 0.30f * Mix.Desert) * Level, Gain);
 			}
 
 			// Hits.
@@ -819,7 +875,10 @@ namespace ApexFfb
 			State.RoadStation += Signals.SpeedMps * Dt;
 
 			const float Load = FMath::Pow(FMath::Clamp(Signals.FrontLoad, 0.0f, 3.0f), RoadLoadExponent);
-			const float Rough = 1.0f + (OffTrackRoughness - 1.0f) * Signals.OffTrack;
+			const FGroundMix Mix = GroundMix(Signals);
+			const float OffRough = OffTrackRoughness * Mix.Grass + GravelRoughness * Mix.Gravel + SandRoughness * Mix.Sand
+				+ DesertRoughness * Mix.Desert;
+			const float Rough = 1.0f + (FMath::Max(OffRough, 1.0f) - 1.0f) * Signals.OffTrack;
 			State.Road = RoadTextureForce * 2.0f * FMath::Clamp(Tuning.RoadEffects, 0.0f, 1.0f)
 				* Ramp(Signals.SpeedMps, 0.0f, RoadTextureFullMps) * Load * Rough
 				* RoadTug(State.RoadStation, Signals.SpeedMps, Dt);
@@ -945,9 +1004,17 @@ namespace ApexFfb
 					State.NoiseClock = FMath::Fmod(State.NoiseClock, 1.0f / NoiseHz);
 					State.NoiseLevel = 0.4f + 0.6f * NextNoise(State.NoiseSeed);
 				}
-				// Grass is uneven in how hard it hits and in how fast it comes.
-				Louder(0.45f * Signals.OffTrack * (0.3f + 0.7f * Road) * State.NoiseLevel,
-					22.0f + 18.0f * State.NoiseLevel);
+				// Grass is uneven in how hard it hits and in how fast it comes;
+				// each ground at its own level and rate.
+				const FGroundMix Mix = GroundMix(Signals);
+				const FGroundFeel Feel = Mix.Gravel >= FMath::Max3(Mix.Grass, Mix.Sand, Mix.Desert) ? GravelFeel
+					: Mix.Sand >= FMath::Max(Mix.Grass, Mix.Desert) ? SandFeel
+					: Mix.Desert > Mix.Grass ? DesertFeel
+					: GrassFeel;
+				const float Level = GrassFeel.Level * Mix.Grass + GravelFeel.Level * Mix.Gravel + SandFeel.Level * Mix.Sand
+					+ DesertFeel.Level * Mix.Desert;
+				Louder(0.45f * Level * Signals.OffTrack * (0.3f + 0.7f * Road) * State.NoiseLevel,
+					Feel.BaseHz + Feel.SpreadHz * State.NoiseLevel);
 			}
 
 			// The car catching a wheel, felt through the column as it is in a
@@ -1010,6 +1077,11 @@ namespace ApexFfb
 		if (bPastLock)
 		{
 			Out.Damper = FMath::Max(Out.Damper, Strength * SoftLockDamper);
+		}
+		// Sand drags at the wheels, and the rim is heavy in it.
+		if (Signals.bActive && Signals.OffSand > 0.0f)
+		{
+			Out.Damper = FMath::Min(Out.Damper + SandDamper * Strength * FMath::Min(Signals.OffSand, Signals.OffTrack) * 2.0f, 1.0f);
 		}
 
 		// Only in the menus, and only if forces are on at all: a rim that

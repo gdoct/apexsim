@@ -353,4 +353,39 @@ bool FApexRoadGreasyTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexRoadGroundTest,
+	"ApexSim.Audio.RoadGround",
+	ApexTestFlags)
+
+bool FApexRoadGroundTest::RunTest(const FString& Parameters)
+{
+	ApexRoadSynth::FInputs Grass = Cruise(30.0f);
+	Grass.OffTrack = 1.0f;
+	ApexRoadSynth::FInputs Gravel = Grass;
+	Gravel.OffGravel = 1.0f;
+	ApexRoadSynth::FInputs Sand = Grass;
+	Sand.OffSand = 1.0f;
+	const TArray<float> GrassFrames = RenderRoad(Grass);
+	const TArray<float> GravelFrames = RenderRoad(Gravel);
+	const TArray<float> SandFrames = RenderRoad(Sand);
+
+	// A gravel trap is a hail of stones: their ring (2.6 kHz) well over grass's.
+	const double GrassStones = RoadBandPower(GrassFrames, 2600.0);
+	const double GravelStones = RoadBandPower(GravelFrames, 2600.0);
+	TestTrue(*FString::Printf(TEXT("gravel rattles (%.2e against grass's %.2e)"), GravelStones, GrassStones), GravelStones > GrassStones * 2.0);
+
+	// Sand hisses, between the rumble and the stones.
+	const double GrassHiss = RoadBandPower(GrassFrames, 3500.0) + RoadBandPower(GrassFrames, 1800.0);
+	const double SandHiss = RoadBandPower(SandFrames, 3500.0) + RoadBandPower(SandFrames, 1800.0);
+	TestTrue(*FString::Printf(TEXT("sand hisses (%.2e against grass's %.2e)"), SandHiss, GrassHiss), SandHiss > GrassHiss * 2.0);
+	TestTrue(TEXT("and muffles the rumble"), RoadBandPower(SandFrames, 60.0) < RoadBandPower(GrassFrames, 60.0));
+
+	TestTrue(TEXT("none of it clips"), RoadPeak(GravelFrames) <= 1.0f && RoadPeak(SandFrames) <= 1.0f);
+	TestTrue(TEXT("a parked car in the gravel is quiet"), RoadRms(RenderRoad([&] { ApexRoadSynth::FInputs P = Gravel; P.SpeedMps = 0.0f; return P; }())) < 0.005f);
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

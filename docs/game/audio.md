@@ -162,7 +162,11 @@ hits are the same signals the pad and wheel get.
   telemetry (`AApexRaceCarActor::GetTyreOverheat`); a watched car's too.
 - A kerb is a rib every 0.9 m (the force feedback's spacing) thudding through a
   resonance, so its pitch follows the car's speed. Off-track is rumble and
-  stones. A suspension hit over the 0.3 m/s threshold is a thud, a contact a
+  stones, by the ground under the off wheels (`FInputs::OffGravel`,
+  `OffSand`, from telemetry's `WheelGround`; the rest is grass): a gravel
+  trap throws four times grass's stones, sand muffles the rumble by 40%,
+  throws next to none and hisses (a band of noise about 1.2 to 5 kHz, as
+  loud as the car is fast in it; the desert floor counts as sand). A suspension hit over the 0.3 m/s threshold is a thud, a contact a
   crunch, each handed to the audio thread by atomic exchange so it plays once.
   Rolling noise and wind grow with speed. A flat spot thumps once a wheel turn.
 - The road sound stops in the hotlap garage, during a ghost replay and when the
@@ -174,7 +178,7 @@ hits are the same signals the pad and wheel get.
   run and writes `Saved/Audio/<folder>.wav` (mono, as the world hears it),
   `<folder>_own.wav` (stereo, from the seat), `<folder>_damaged.wav` (the
   same drive on a 70% damaged engine) and `road.wav` (each road voice in
-  turn, overheated fronts among them). Use it to judge or tune a `[sound]` table.
+  turn, overheated fronts, a gravel trap and sand among them). Use it to judge or tune a `[sound]` table.
 - Automation tests (run as in [building](../building.md)):
   - `ApexSim.UI.SoundCuesRender` / `.SoundCuesRateIndependent`: every cue short,
     finite, click-free and the same length at 44.1 and 48 kHz.
@@ -185,8 +189,9 @@ hits are the same signals the pad and wheel get.
     for sample; a damaged one has energy under its note and a knock at 2.3 kHz.
   - `ApexSim.Audio.Space*` (Seats, Reverb): the shelf, the bulkhead, ring times at
     both device rates, a stereo tail.
-  - `ApexSim.Audio.Road*` (Squeal, Greasy, Curb, Hits, FlatSpot, Render):
-    squeal notes, an overheated tyre's earlier, lower, smeared squeal, the
+  - `ApexSim.Audio.Road*` (Squeal, Greasy, Ground, Curb, Hits, FlatSpot, Render):
+    squeal notes, an overheated tyre's earlier, lower, smeared squeal,
+    gravel's stones and sand's hiss against grass, the
     kerb's rib rate, hit thresholds.
   - `ApexSim.Cars.TomlSound`: the `[sound]` scan.
 - `ApexEngineSound`, `ApexRoadSound` and `ApexListenerSpace` include only

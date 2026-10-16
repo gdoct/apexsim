@@ -3846,6 +3846,8 @@ void AApexRaceDirector::UpdateCarAudio()
 	Levels.CurbLeft = Signals.CurbLeft;
 	Levels.CurbRight = Signals.CurbRight;
 	Levels.OffTrack = Signals.OffTrack;
+	// What the off wheels stand on, from the car's telemetry.
+	Local->GetGroundShares(Levels.OffGravel, Levels.OffSand);
 	Levels.bWet = Sky.bWetRoad;
 	// The flat spot is the force feedback's signal as it is: the same depth
 	// that shakes the rim thumps in the ear, at the same beat.
@@ -3893,6 +3895,11 @@ void AApexRaceDirector::UpdateWatchedCarRoadSound()
 		Levels.Lockup = FMath::Max(Levels.Lockup, ApexRoadSynth::LockupFromSlipRatio(Telemetry->WheelSlipRatio[Wheel]));
 		Levels.Wheelspin = FMath::Max(Levels.Wheelspin, ApexRoadSynth::WheelspinFromSlipRatio(Telemetry->WheelSlipRatio[Wheel]));
 		Levels.OffTrack += Telemetry->WheelSurface[Wheel] == EApexContactSurface::Off ? 0.25f : 0.0f;
+	}
+	for (const uint8 Ground : Telemetry->WheelGround)
+	{
+		Levels.OffGravel += Ground == ApexGround::Gravel ? 0.25f : 0.0f;
+		Levels.OffSand += Ground == ApexGround::Sand || Ground == ApexGround::Desert ? 0.25f : 0.0f;
 	}
 	auto OnCurb = [Telemetry](int32 Wheel) { return Telemetry->WheelSurface[Wheel] == EApexContactSurface::Curb ? 0.5f : 0.0f; };
 	Levels.CurbLeft = OnCurb(0) + OnCurb(2);

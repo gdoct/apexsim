@@ -1350,6 +1350,11 @@ pub fn update_car_3d(
     state.wheel_slip_ratio = wheel_slip_ratio;
     state.wheel_slip_angle = wheel_slip_angle;
     state.wheel_surface = wheel_surface.map(|s| s as u8);
+    state.wheel_ground = if is_airborne {
+        [0; 4]
+    } else {
+        wheel_states.map(|w| w.soft_ground.map_or(0, crate::network::ground_byte))
+    };
     state.feedback.record_tick(&FeedbackTick {
         steer_torque: steering_column_torque(front_tyres, config, static_front_weight),
         steer_input: input.steering,

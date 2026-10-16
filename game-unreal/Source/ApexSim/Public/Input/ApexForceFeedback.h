@@ -140,6 +140,16 @@ namespace ApexFfb
 		/** Share of all four wheels past the curbs (grass, gravel). */
 		float OffTrack = 0.0f;
 
+		/**
+		 * Of those, the share of all four wheels in a gravel trap, in a sand
+		 * trap and on a desert floor (telemetry's ground, ReadCarCondition);
+		 * the rest of OffTrack is grass. Gravel rattles, sand bogs and
+		 * hisses, the desert floor is a fine, firm grain.
+		 */
+		float OffGravel = 0.0f;
+		float OffSand = 0.0f;
+		float OffDesert = 0.0f;
+
 		/** Hardest suspension hit since the last message, m/s; 0 on frames without one. */
 		float BumpMps = 0.0f;
 
@@ -179,9 +189,21 @@ namespace ApexFfb
 
 	/**
 	 * Adds what the car's own telemetry says about its condition: the tyres'
-	 * heat against their window (FrontHeat, RearHeat), its damage and its revs.
+	 * heat against their window (FrontHeat, RearHeat), its damage and its
+	 * revs, and the ground under the tyres that are off (OffGravel, OffSand,
+	 * OffDesert).
 	 */
 	APEXSIM_API void ReadCarCondition(FSignals& Signals, const FApexCarTelemetry& Car, float OptimalC, float WindowC);
+
+	/** What the off wheels stand on, as shares of OffTrack that sum to 1 (grass for anything the ground does not name). */
+	struct FGroundMix
+	{
+		float Grass = 1.0f;
+		float Gravel = 0.0f;
+		float Sand = 0.0f;
+		float Desert = 0.0f;
+	};
+	APEXSIM_API FGroundMix GroundMix(const FSignals& Signals);
 
 	/** A gamepad's two motors, 0..1: the heavy low-frequency one and the light buzzing one. */
 	struct FRumble

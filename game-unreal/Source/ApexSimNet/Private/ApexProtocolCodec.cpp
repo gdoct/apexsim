@@ -1657,7 +1657,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 50;
+	constexpr int32 CompactCarFieldCount = 51;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -2321,6 +2321,27 @@ namespace
 					{
 						Out.DamageAt2[Zone] = FMath::Clamp(static_cast<float>(Signed) / 127.0f, -1.0f, 1.0f);
 					}
+				}
+				return true;
+			});
+		}
+		// The soft ground under each tyre, two bits a wheel, FL lowest.
+		for (uint8& Ground : Out.WheelGround)
+		{
+			Ground = ApexGround::None;
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				uint64 Bits = 0;
+				if (!Reader.ReadUInt64(Bits))
+				{
+					return false;
+				}
+				for (int32 Wheel = 0; Wheel < 4; ++Wheel)
+				{
+					Out.WheelGround[Wheel] = static_cast<uint8>((Bits >> (2 * Wheel)) & 3u);
 				}
 				return true;
 			});

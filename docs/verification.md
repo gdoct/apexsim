@@ -225,7 +225,13 @@ Mandarina Bay.
   and on a pad. Only `ApexSim.Input.ForceFeedback.CarCondition` has run.
 - A gravel trap by hand (a Monza chicane run straight on) and Sakhir's
   desert floor: how hard the trap bogs the car and whether it can be
-  driven out (`OffGround`, [server/vehicle-physics.md](server/vehicle-physics.md)).
+  driven out (`OffGround`, [server/vehicle-physics.md](server/vehicle-physics.md)),
+  and how each ground comes through the rim and the pad (gravel's rattle,
+  sand's slow heave and drag, `ApexFfb::GroundMix`), and how it sounds
+  (gravel's stones, sand's hiss). Only the automation tests have run.
+- A car's own dust from a real trap (telemetry's `WheelGround`): the plume
+  has been seen only forced on every car with `apexsim.car.GroundPreview`
+  at Sakhir (2026-10-16), never from a car actually in the gravel.
 
 **Listen.** Start with the replay of the lap just driven.
 

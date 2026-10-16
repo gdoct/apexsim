@@ -124,6 +124,9 @@ public:
 	/** How far one tyre's tread runs over its window, 0..1 (ApexFfb::TyreOverheat): the greasy-tyre squeal. */
 	float GetTyreOverheat(int32 Wheel) const;
 
+	/** Shares of the four wheels in gravel and in sand (a sand trap or the desert floor), from telemetry's ground. */
+	void GetGroundShares(float& OutGravel, float& OutSand) const;
+
 	/** The driver's component when the car has one, for tinting. */
 	UStaticMeshComponent* GetDriverComponent() const { return Driver.HasDriver() ? Driver.GetComponent() : nullptr; }
 
@@ -467,6 +470,11 @@ private:
 	/** Spray: the water the tyres throw up on a wet road at speed (TyreWetness x speed), puffs owed per car. */
 	float SprayOwed = 0.0f;
 	void UpdateSpray(float DeltaSeconds);
+
+	/** The soft ground under each tyre (telemetry's WheelGround, ApexGround), and the dust it throws. */
+	uint8 WheelGround[4] = {0, 0, 0, 0};
+	float DustOwed = 0.0f;
+	void UpdateDust(float DeltaSeconds);
 	/** The newest telemetry's compound index (-1 unknown) and the car's compound list, for the tyres' look. */
 	int32 TelemetryCompound = -1;
 	TArray<FApexCompoundSpec> Compounds;

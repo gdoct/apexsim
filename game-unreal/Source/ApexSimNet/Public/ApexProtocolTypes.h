@@ -262,6 +262,16 @@ namespace ApexQualifyingCutoff
 	}
 }
 
+/** `CompactCarState::ground`'s values a wheel (network.rs `GROUND_*`). */
+namespace ApexGround
+{
+	inline constexpr uint8 None = 0;
+	inline constexpr uint8 Gravel = 1;
+	inline constexpr uint8 Sand = 2;
+	/** A desert circuit's packed floor. */
+	inline constexpr uint8 Desert = 3;
+}
+
 /** Mirrors the weekend phase byte of `WeekendState` (network.rs). */
 UENUM(BlueprintType)
 enum class EApexWeekendPhase : uint8
@@ -2378,6 +2388,13 @@ struct APEXSIMNET_API FApexCarTelemetry
 	 * zone with one dent, and from a server that does not send it. */
 	static constexpr float NoSecondDent = 9.0f;
 	float DamageAt2[4] = {NoSecondDent, NoSecondDent, NoSecondDent, NoSecondDent};
+
+	/**
+	 * The soft ground under each tyre that is off the track (`ground`, two
+	 * bits a wheel): ApexGround::Gravel, Sand or Desert; None for the road,
+	 * a kerb, grass, a wheel in the air, and from an older server.
+	 */
+	uint8 WheelGround[4] = {0, 0, 0, 0};
 
 	bool HasDamage() const { return DamagePct[0] >= 0.0f; }
 

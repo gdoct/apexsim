@@ -144,6 +144,8 @@ namespace
 		{ FStop S{TEXT("left kerb at 145 km/h"), At(40.0f), 0.0f, 0.0f}; S.Levels.CurbLeft = 1.0f; Stops.Add(S); }
 		{ FStop S{TEXT("both kerbs at 250 km/h"), At(70.0f), 0.0f, 0.0f}; S.Levels.CurbLeft = S.Levels.CurbRight = 1.0f; Stops.Add(S); }
 		{ FStop S{TEXT("grass"), At(35.0f), 0.0f, 0.0f}; S.Levels.OffTrack = 1.0f; Stops.Add(S); }
+		{ FStop S{TEXT("gravel trap"), At(30.0f), 0.0f, 0.0f}; S.Levels.OffTrack = 1.0f; S.Levels.OffGravel = 1.0f; Stops.Add(S); }
+		{ FStop S{TEXT("sand"), At(30.0f), 0.0f, 0.0f}; S.Levels.OffTrack = 1.0f; S.Levels.OffSand = 1.0f; Stops.Add(S); }
 		{ FStop S{TEXT("sliding in the wet"), At(40.0f), 0.0f, 0.0f}; S.Levels.FrontSlide = 1.0f; S.Levels.bWet = true; Stops.Add(S); }
 		Stops.Add({TEXT("a bump"), At(30.0f), 1.5f, 0.0f});
 		Stops.Add({TEXT("contact"), At(30.0f), 0.0f, 9.0f});
