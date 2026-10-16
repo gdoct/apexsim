@@ -248,6 +248,10 @@ Mandarina Bay.
   the middle running hot) and whether a cooked shoulder is felt as lost
   grip before the mean leaves the window (`tyre_thermal::tread_grip_factor`).
   Only the module tests have run.
+- A banked turn and a crest taken across the road by hand
+  (`physics::path_curvature_accel`): the bank's extra load felt as more
+  grip through it, a diagonal crest as the car going light. Only the unit
+  test and the hump test have run.
 - A gravel trap by hand (a Monza chicane run straight on) and Sakhir's
   desert floor: how hard the trap bogs the car and whether it can be
   driven out (`OffGround`, [server/vehicle-physics.md](server/vehicle-physics.md)),

@@ -40,10 +40,17 @@ still while serviced) and the gearbox, limiter and DRS flap:
 
 - **Loads**: from the laden mass (`CarConfig::laden`), axle lever arms at the CoG split.
   Weight transfer uses the previous tick's accelerations; lateral transfer goes through
-  `geometry::lateral_transfer`. **Crests**: the contact plane's filtered pitch rate times
-  speed is the body's vertical acceleration (`CarState::vertical_accel_mps2`, ±1.5 g) and
-  the static loads scale by `1 + a/g`, so a crest unloads the car (fast enough, it leaves
-  the ground) and a flat road is unchanged (`a_crest_unloads_the_car_and_a_dip_loads_it`).
+  `geometry::lateral_transfer`. **Crests**: the contact plane's gradient, in the world frame
+  and filtered (`CarState::ground_slope_f`, `ground_slope_y_f`), changes as the car moves;
+  that change dotted with the car's velocity (`path_curvature_accel`: the surface's
+  curvature along the car's actual path times speed squared) is the body's vertical
+  acceleration (`CarState::vertical_accel_mps2`, ±1.5 g) and the static loads scale by
+  `1 + a/g`. A crest unloads the car (fast enough, it leaves the ground) whether taken
+  square, diagonally or sliding across it; a banked turn, its gradient turning with the car,
+  loads it by the lateral acceleration times the bank's slope; a car yawing on a plain grade
+  and a flat road are unchanged (`a_crest_unloads_the_car_and_a_dip_loads_it`,
+  `the_crest_reads_the_surface_along_the_path`). Both road backends feed it through the
+  same contact plane. A kerb's step is filtered out of it (the suspension takes kerbs).
 - **Aero** (`calculate_aerodynamic_forces`): drag and per-axle downforce through the
   ride-height map, attitude, porpoising, wake, air density and wind (drag along the relative
   airflow, a side force on the flank).

@@ -668,26 +668,38 @@ pub fn update_car_3d(
     };
     state.is_airborne = is_airborne;
 
-    // The road's curvature along the path: how fast the ground's grade
-    // under the body changes, times the speed, is the vertical acceleration
-    // the body is given (`vertical_accel_mps2`, positive into the road: a
-    // dip loads the car, a crest unloads it, a car at a crest's speed
-    // leaves the ground). The grade is filtered first and the acceleration
+    // The road's curvature along the path: how fast the ground's gradient
+    // under the body changes as the car moves, dotted with the way it moves,
+    // is the vertical acceleration the body is given (`vertical_accel_mps2`,
+    // positive into the road: a dip loads the car, a crest unloads it, a car
+    // at a crest's speed leaves the ground). The gradient is the contact
+    // plane's, in the world frame, so it is the surface's own whichever
+    // backend found it and however the car points: a crest taken
+    // diagonally or a car sliding across one counts, a banked turn (a cone,
+    // its gradient turning with the car) loads the car by its lateral
+    // acceleration times the bank's slope, and a car yawing on a plain grade
+    // is given nothing. The gradient is filtered first and the acceleration
     // after, so a one-tick step where the road mesh's triangles meet does
-    // not reach the loads. A car just set down keeps its grade.
+    // not reach the loads. A car just set down keeps its gradient.
     let crest = {
-        let slope = plane.a;
-        let settled = if state.speed_mps < 2.0 {
+        let slope = [
+            plane.a * cos_yaw - plane.b * sin_yaw,
+            plane.a * sin_yaw + plane.b * cos_yaw,
+        ];
+        let before = [state.ground_slope_f, state.ground_slope_y_f];
+        let settled: [f32; 2] = if state.speed_mps < 2.0 {
             slope
         } else {
-            state.ground_slope_f + (slope - state.ground_slope_f) * (dt / SLOPE_FILTER_S).min(1.0)
+            let k = (dt / SLOPE_FILTER_S).min(1.0);
+            std::array::from_fn(|i| before[i] + (slope[i] - before[i]) * k)
         };
         let raw = if state.speed_mps < 2.0 {
             0.0
         } else {
-            v_long0 * (settled - state.ground_slope_f) / dt.max(1e-4)
+            path_curvature_accel(before, settled, state.yaw_rad, v_long0, v_lat0, dt)
         };
-        state.ground_slope_f = settled;
+        state.ground_slope_f = settled[0];
+        state.ground_slope_y_f = settled[1];
         let accel = state.vertical_accel_mps2
             + (raw - state.vertical_accel_mps2) * (dt / VERTICAL_ACCEL_FILTER_S).min(1.0);
         state.vertical_accel_mps2 = accel.clamp(
@@ -1784,6 +1796,29 @@ const FLANK_AREA_SHARE: f32 = 0.75;
 /// pedal braking force (`max_brake_force_n`): enough to lock two rear tyres
 /// on any road, held or not under the pedal.
 pub const HANDBRAKE_SHARE: f32 = 0.6;
+
+/// The vertical acceleration, m/s² (positive into the road), the ground
+/// gives a body moving at `v_long`/`v_lat` (its own frame, yawed `yaw_rad`)
+/// while the world-frame gradient under it went from `before` to `after`
+/// over `dt`: the gradient's change dotted with the velocity, which is the
+/// surface's curvature along the path times the speed squared. It reads
+/// the surface's own shape, so it is the same for a car taking a crest
+/// square, diagonally or sideways, and a car turning on a plain grade
+/// (whose gradient does not change) is given nothing.
+pub fn path_curvature_accel(
+    before: [f32; 2],
+    after: [f32; 2],
+    yaw_rad: f32,
+    v_long: f32,
+    v_lat: f32,
+    dt: f32,
+) -> f32 {
+    let (c, s) = (yaw_rad.cos(), yaw_rad.sin());
+    let (dx, dy) = (after[0] - before[0], after[1] - before[1]);
+    let along = dx * c + dy * s;
+    let across = -dx * s + dy * c;
+    (v_long * along + v_lat * across) / dt.max(1e-4)
+}
 
 /// The crest model's filters (`update_car_3d`): the ground's grade is
 /// settled over this long, and the vertical acceleration read off it over
@@ -4523,6 +4558,70 @@ pub fn check_obb_collisions(states: &mut [CarState], configs: &HashMap<CarConfig
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The crest model reads the surface, not the car's heading: a ridge
+    /// crossed square, diagonally (the ridge at 45° to the car) or with the
+    /// car sliding sideways over it gives the same lift for the same
+    /// velocity across it, the ridge's curvature times the speed squared;
+    /// a banked turn (a cone) loads the car by its lateral acceleration
+    /// times the bank's slope; a plain grade gives nothing whichever way
+    /// the car turns on it.
+    #[test]
+    fn the_crest_reads_the_surface_along_the_path() {
+        let dt = 1.0 / crate::game_session::DEFAULT_TICK_RATE_HZ as f32;
+        // A ridge across the direction `n` (unit), 1 m high, 20 m sigma.
+        let n = [0.6f32, 0.8];
+        let (h, w) = (1.0f32, 20.0f32);
+        let grad = |p: [f32; 2]| {
+            let u = p[0] * n[0] + p[1] * n[1];
+            let d = -2.0 * u / (w * w) * h * (-(u / w).powi(2)).exp();
+            [d * n[0], d * n[1]]
+        };
+        let v = 40.0f32;
+        let across_ridge = [v * n[0], v * n[1]];
+        let at_crest = [0.0f32, 0.0];
+        let lift = |yaw: f32| {
+            // The body frame's velocity for this heading.
+            let (c, s) = (yaw.cos(), yaw.sin());
+            let (v_long, v_lat) = (
+                across_ridge[0] * c + across_ridge[1] * s,
+                -across_ridge[0] * s + across_ridge[1] * c,
+            );
+            let next = [
+                at_crest[0] + across_ridge[0] * dt,
+                at_crest[1] + across_ridge[1] * dt,
+            ];
+            path_curvature_accel(grad(at_crest), grad(next), yaw, v_long, v_lat, dt)
+        };
+        let heading = n[1].atan2(n[0]);
+        let square = lift(heading);
+        // Over the crest: f'' = -2h/w², times v².
+        let expect = -2.0 * h / (w * w) * v * v;
+        assert!(
+            (square - expect).abs() < 0.02 * expect.abs(),
+            "{square} vs {expect}"
+        );
+        for yaw in [heading + 0.785, heading + 1.571, heading - 0.4] {
+            let other = lift(yaw);
+            assert!(
+                (other - square).abs() < 1e-3 * square.abs(),
+                "heading {yaw}: {other} vs {square}"
+            );
+        }
+        // A cone rising 0.1 per metre outward, circled at 30 m/s on a
+        // 100 m radius (9 m/s² sideways): 0.9 m/s² into the road.
+        let (k, r, v) = (0.1f32, 100.0f32, 30.0f32);
+        let theta = v / r * dt;
+        let before = [k, 0.0];
+        let after = [k * theta.cos(), k * theta.sin()];
+        let banked = path_curvature_accel(before, after, std::f32::consts::FRAC_PI_2, v, 0.0, dt);
+        assert!((banked - k * v * v / r).abs() < 0.01, "{banked}");
+        // A plain grade: the gradient does not move, whatever the yaw.
+        assert_eq!(
+            path_curvature_accel([0.05, 0.02], [0.05, 0.02], 1.0, 30.0, 3.0, dt),
+            0.0
+        );
+    }
     use crate::feedback::DriverFeedback;
     use uuid::Uuid;
 

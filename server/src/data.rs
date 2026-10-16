@@ -1700,12 +1700,15 @@ pub struct CarState {
     /// estimate of it on a car with `bbw_response_s` (`crate::hybrid`).
     #[serde(default)]
     pub bbw_offset_n: [f32; 2],
-    /// The ground's grade under the car, filtered, and the vertical
-    /// acceleration the road's curvature along the path gives the body
-    /// (positive into the road: a dip loads the car, a crest unloads it;
-    /// `physics::update_car_3d`).
+    /// The ground's gradient under the car in the world frame (rise per
+    /// metre along world x, then y), filtered, and the vertical
+    /// acceleration the road's curvature along the car's path gives the
+    /// body (positive into the road: a dip loads the car, a crest unloads
+    /// it; `physics::update_car_3d`).
     #[serde(default)]
     pub ground_slope_f: f32,
+    #[serde(default)]
+    pub ground_slope_y_f: f32,
     #[serde(default)]
     pub vertical_accel_mps2: f32,
     /// The floor's porpoising (`crate::aero`): the oscillation's phase, rad,
@@ -2033,6 +2036,7 @@ impl CarState {
             driven_axle_brake_w: 0.0,
             bbw_offset_n: [0.0; 2],
             ground_slope_f: 0.0,
+            ground_slope_y_f: 0.0,
             vertical_accel_mps2: 0.0,
             porpoise_phase: 0.0,
             porpoise_amp: 0.0,
