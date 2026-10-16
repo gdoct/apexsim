@@ -65,6 +65,8 @@ Events: `flatspot=FL` at two times some seconds apart, a `leak=FR`, a
   ([server/vehicle-physics.md](server/vehicle-physics.md)): a moving car
   blurs them, so they wait for a car held still, as FlatSpot2 does.
 - The static camber on the wheels close up.
+- A rubbered start (`-ApexTrackRubber` above 0): the line dark from the
+  first lap.
 - A part hanging before it comes off (`UpdateHangingParts`: the hinge edge,
   the 22° droop): it droops fore and aft, so from the side.
 
@@ -122,6 +124,13 @@ that is hit in a seeded replay (`-ApexReplay`, `-ApexWatchCar`).
 - A debris strike's dent.
 - A part hanging from a real hit: its flutter (frames a fifth of a second
   apart).
+- Contact sparks: a contact lasts a few frames and no timed shot has
+  caught one (the steam and the engine smoke have been seen).
+- Racecraft (`crate::racecraft`): passes, defensive moves, a car leaving
+  room, a backmarker yielding and a car reversing out of a barrier, read
+  so far only off the AI survey's numbers and traces. Whether leaving a lane
+  after a pass and the reverse look natural, and how the side-by-side
+  contact the survey counts looks.
 
 ### R8. Stadium stands and pit rows
 
@@ -181,6 +190,10 @@ session while driving (notice, then the menu).
   a Custom start order naming a driver who is not there, then the session
   lobby's GRID list, the grid card's list and the lined-up field with the
   gap kept. Only `grid_order` and `game_session` unit tests have run.
+- The garage's compound cards built from a car's own `[[tires.compound]]`
+  list: only an AC import files one (its compounds plus the two rain
+  tyres), so only the default five have been on screen
+  (`ApexSim.UI.Garage.CompoundCards` pins the rest).
 
 ### R10. Spa, sunny, 13:00
 
@@ -194,6 +207,10 @@ session while driving (notice, then the menu).
   December 16:30 at Silverstone previewed as dusk and raced as one. Seen
   only without a server (13:00, the row stepping to 15 Dec and the
   preview's sun dropping).
+- The sun at a circuit's real north, and rain arriving and the road drying
+  under a changeable sky (`-ApexChangeable=1`).
+- The flags turning with the wind: no shipped circuit places
+  `sign/flag_pole`, so this waits for one that does.
 
 ## 2. Needs a human: hands, ears and hardware
 
@@ -232,6 +249,8 @@ Mandarina Bay.
 - A car's own dust from a real trap (telemetry's `WheelGround`): the plume
   has been seen only forced on every car with `apexsim.car.GroundPreview`
   at Sakhir (2026-10-16), never from a car actually in the gravel.
+- A flat spot through a real wheel and a pad, a puddle and a dried line
+  felt from the seat, and a slow puncture felt over a lap.
 
 **Listen.** Start with the replay of the lap just driven.
 
@@ -243,6 +262,7 @@ Mandarina Bay.
   `road.wav` (overheated fronts) and `<car>_damaged.wav`, and
   `apexsim.car.DamagePreview "0,0,0,0,70"` plays the knock in a race.
   Judged only by the spectra in `ApexSim.Audio.RoadGreasy` / `EngineDamage`.
+- The flat-spot thump in the road sound.
 - A promo clip's sound by ear ([marketing-site.md](marketing-site.md)):
   measured on one 5 s onboard cut at Spa (the note follows the car's rpm
   within two frames, 5.00 s of sound for 5.00 s of frames), never listened
@@ -281,6 +301,10 @@ Mandarina Bay.
 
 ([building.md](building.md)) Each needs the machine.
 
+- The 420 Hz server through a real client: car motion, force feedback and
+  the replay recorder's rate snap were tuned on 240 Hz ticks with 60 Hz
+  telemetry (the divisor of 7 keeps 60 Hz). Not measured: tick jitter at
+  2.4 ms against the 1 ms Windows timer (only the mean rate is tested).
 - GPU stability: two races stopped with `DXGI_ERROR_DEVICE_HUNG` about
   10 s after the track was shown (Silverstone and Suzuka, `-ApexAutoRace`,
   5 AI, TV camera); reruns ran, and four 100 s Silverstone runs
