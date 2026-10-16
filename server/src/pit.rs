@@ -875,10 +875,20 @@ pub struct CrossoverContext {
     /// it this lap.
     pub aggressiveness: f32,
     pub roll: f32,
+    /// How hard it will rain: the heaviest rainfall (`Weather::rainfall`,
+    /// 0..1) the sky holds now or the forecast brings within
+    /// [`FORECAST_LAPS`].
+    pub rain_ahead: f32,
+    /// How fast the racing line is drying, water a second (negative while
+    /// it gets wetter): how long it takes to cross a tyre's threshold.
+    pub drying_per_s: f32,
+    /// The share of the rest of the running field on treaded tyres; `None`
+    /// for a car alone.
+    pub field_treaded: Option<f32>,
 }
 
 impl Default for CrossoverContext {
-    /// A long race under a steady sky, a driver who never gambles.
+    /// A long race under a steady sky, a driver who never gambles, alone.
     fn default() -> Self {
         Self {
             laps_left: u32::MAX,
@@ -887,6 +897,9 @@ impl Default for CrossoverContext {
             lap_s: 90.0,
             aggressiveness: 0.0,
             roll: 1.0,
+            rain_ahead: 0.0,
+            drying_per_s: 0.0,
+            field_treaded: None,
         }
     }
 }
@@ -907,6 +920,15 @@ pub const FORECAST_LAPS: f32 = 2.0;
 /// chance a lap of its aggressiveness times this.
 pub const SLICK_GAMBLE_WATER: f32 = 0.14;
 pub const SLICK_GAMBLE_CHANCE: f32 = 0.5;
+/// Rain at least this hard ahead (`CrossoverContext::rain_ahead`; a
+/// downpour is 1.0, a shower 0.5) on a line getting wetter takes a car off
+/// slicks straight onto the full wet, and off slicks early.
+pub const HEAVY_RAIN_AHEAD: f32 = 0.9;
+/// Slicks in the rain on a line holding this much water follow the field
+/// (or a downpour ahead) onto treaded tyres before [`SLICK_OFF_WATER`].
+pub const SLICK_FOLLOW_WATER: f32 = 0.18;
+/// The share of the field on the other tyre that a driver follows.
+pub const FIELD_FOLLOW_SHARE: f32 = 0.5;
 
 /// The tyre an AI on `fitted` should stop for with `line_water` on the
 /// racing line, if `fitted` is the wrong one for it: rain on slicks, a
@@ -934,17 +956,67 @@ pub fn tyres_for_the_track(
         }
     };
     let brave = ctx.roll < SLICK_GAMBLE_CHANCE * ctx.aggressiveness.clamp(0.0, 1.0);
-    let forecast_s = FORECAST_LAPS * ctx.lap_s.max(1.0);
+    let lap_s = ctx.lap_s.max(1.0);
+    let forecast_s = FORECAST_LAPS * lap_s;
+    // The water on the line a lap from now, at the rate it is drying.
+    let in_a_lap = line_water - ctx.drying_per_s * lap_s;
+    let rain_stops_in = |s: f32| ctx.raining && ctx.turn_in_s.is_some_and(|t| t <= s);
+    // The weather's tyre for `water`, read against how hard it will rain:
+    // the full wet with a downpour ahead on a line getting wetter, and an
+    // intermediate rather than a wet with the rain about to stop.
+    let weather_tyre = |water: f32| {
+        let want = tire
+            .weather_compound(water)
+            .unwrap_or(tire.reference_compound());
+        match tire.compound(want).kind {
+            CompoundKind::Intermediate
+                if ctx.rain_ahead >= HEAVY_RAIN_AHEAD && ctx.drying_per_s < 0.0 =>
+            {
+                tire.weather_compound(WET_FROM_WATER).unwrap_or(want)
+            }
+            CompoundKind::Wet if rain_stops_in(forecast_s) => tire
+                .weather_compound(WET_FROM_WATER - TREADED_SWAP_MARGIN)
+                .filter(|c| tire.compound(*c).kind == CompoundKind::Intermediate)
+                .unwrap_or(want),
+            _ => want,
+        }
+    };
     if !wrong {
-        // The gamble: slicks early on a line still damp.
-        let gamble = kind == CompoundKind::Intermediate
-            && line_water < SLICK_GAMBLE_WATER
-            && !ctx.raining
+        let dry_ahead = !ctx.raining
             && ctx.turn_in_s.is_none_or(|s| s > forecast_s)
-            && ctx.laps_left >= AI_STRATEGY_MIN_LAPS
-            && brave;
+            && ctx.laps_left >= AI_STRATEGY_MIN_LAPS;
         let slick = tire.reference_compound();
-        return (gamble && tire.compound(slick).kind == CompoundKind::Slick).then_some(slick);
+        if kind == CompoundKind::Intermediate
+            && dry_ahead
+            && tire.compound(slick).kind == CompoundKind::Slick
+        {
+            // The gamble: slicks early on a line still damp; the line
+            // drying past the treaded tyre within a lap; or the field gone
+            // to slicks on a damp line.
+            let damp = line_water < SLICK_GAMBLE_WATER;
+            let gamble = damp && brave;
+            let dries = ctx.drying_per_s > 0.0 && in_a_lap < TREADED_OFF_WATER;
+            let field = damp
+                && ctx
+                    .field_treaded
+                    .is_some_and(|s| s <= 1.0 - FIELD_FOLLOW_SHARE);
+            return (gamble || dries || field).then_some(slick);
+        }
+        // Slicks in the rain on a line getting wet: onto treaded tyres with
+        // the field, or ahead of a downpour.
+        if kind == CompoundKind::Slick
+            && ctx.raining
+            && line_water >= SLICK_FOLLOW_WATER
+            && ctx.laps_left > CROSSOVER_STAY_OUT_LAPS
+        {
+            let field = ctx.field_treaded.is_some_and(|s| s >= FIELD_FOLLOW_SHARE);
+            let downpour = ctx.rain_ahead >= HEAVY_RAIN_AHEAD && ctx.drying_per_s < 0.0;
+            if field || downpour {
+                let want = weather_tyre(SLICK_OFF_WATER.max(line_water));
+                return (tire.compound(want).kind != kind).then_some(want);
+            }
+        }
+        return None;
     }
     let slicks_hold = kind == CompoundKind::Slick && line_water < SLICK_STAY_OUT_WATER;
     // Nearly over: not worth the stop, unless slicks are aquaplaning.
@@ -956,13 +1028,21 @@ pub fn tyres_for_the_track(
     if drying && !ctx.raining && ctx.turn_in_s.is_some_and(|s| s <= forecast_s) {
         return None;
     }
-    // ... and a brave driver keeps slicks out in rain about to stop.
-    if slicks_hold && ctx.raining && brave && ctx.turn_in_s.is_some_and(|s| s <= ctx.lap_s) {
+    // ... a brave driver keeps slicks out in rain about to stop ...
+    if slicks_hold && brave && rain_stops_in(ctx.lap_s) {
         return None;
     }
-    let want = tire
-        .weather_compound(line_water)
-        .unwrap_or(tire.reference_compound());
+    // ... and anyone keeps them out on a line drying back under them
+    // within a lap, the rain over.
+    if slicks_hold && !ctx.raining && ctx.drying_per_s > 0.0 && in_a_lap < SLICK_OFF_WATER {
+        return None;
+    }
+    // An intermediate in a downpour about to stop stays out.
+    let too_wet = kind == CompoundKind::Intermediate && line_water >= TREADED_OFF_WATER;
+    if too_wet && rain_stops_in(ctx.lap_s) {
+        return None;
+    }
+    let want = weather_tyre(line_water);
     // A car with no treaded tyre stays out on its slicks.
     (tire.compound(want).kind != kind).then_some(want)
 }
@@ -1856,6 +1936,114 @@ mod tests {
             plan_stop(&state, &c).map(|p| p.fuel_only),
             Some(false),
             "tyres and fuel"
+        );
+    }
+
+    /// How hard it will rain, how fast the line is drying and what the
+    /// field is on.
+    #[test]
+    fn the_crossover_reads_the_rain_ahead_the_drying_line_and_the_field() {
+        use crate::tyre_thermal::{INTERMEDIATE, MEDIUM, WET};
+        let tire = crate::data::TireConfig::default();
+        let race = CrossoverContext {
+            laps_left: 20,
+            lap_s: 100.0,
+            ..CrossoverContext::default()
+        };
+        // Rain on slicks: the intermediate, unless a downpour is coming on
+        // a line getting wetter, then the full wet at once.
+        let shower = CrossoverContext {
+            raining: true,
+            rain_ahead: 0.5,
+            drying_per_s: -0.001,
+            ..race
+        };
+        assert_eq!(
+            tyres_for_the_track(&tire, MEDIUM, 0.3, &shower),
+            Some(INTERMEDIATE)
+        );
+        let downpour = CrossoverContext {
+            rain_ahead: 1.0,
+            ..shower
+        };
+        assert_eq!(
+            tyres_for_the_track(&tire, MEDIUM, 0.3, &downpour),
+            Some(WET)
+        );
+        // ... and off slicks before the line reaches their limit.
+        assert_eq!(
+            tyres_for_the_track(&tire, MEDIUM, 0.2, &downpour),
+            Some(WET)
+        );
+        assert_eq!(tyres_for_the_track(&tire, MEDIUM, 0.2, &shower), None);
+        // A wet with the rain about to stop: the intermediate instead.
+        let easing = CrossoverContext {
+            raining: true,
+            turn_in_s: Some(120.0),
+            ..race
+        };
+        assert_eq!(
+            tyres_for_the_track(&tire, MEDIUM, 0.9, &easing),
+            Some(INTERMEDIATE)
+        );
+        // An intermediate in a downpour about to stop within the lap stays.
+        let stopping = CrossoverContext {
+            turn_in_s: Some(60.0),
+            ..easing
+        };
+        assert_eq!(
+            tyres_for_the_track(&tire, INTERMEDIATE, 0.95, &stopping),
+            None
+        );
+        assert_eq!(
+            tyres_for_the_track(&tire, INTERMEDIATE, 0.95, &race),
+            Some(WET)
+        );
+        // The line drying under a treaded tyre within a lap: slicks now,
+        // without the nerve for a gamble.
+        let drying = CrossoverContext {
+            drying_per_s: 0.001,
+            ..race
+        };
+        assert_eq!(
+            tyres_for_the_track(&tire, INTERMEDIATE, 0.15, &drying),
+            Some(MEDIUM)
+        );
+        assert_eq!(tyres_for_the_track(&tire, INTERMEDIATE, 0.15, &race), None);
+        // Slicks on a line over their limit stay out when it dries back
+        // under them within the lap, the rain over.
+        assert_eq!(tyres_for_the_track(&tire, MEDIUM, 0.3, &drying), None);
+        assert_eq!(
+            tyres_for_the_track(&tire, MEDIUM, 0.3, &race),
+            Some(INTERMEDIATE)
+        );
+        // The field: off slicks with it in the rain on a wet line ...
+        let field_wet = CrossoverContext {
+            raining: true,
+            field_treaded: Some(0.6),
+            ..race
+        };
+        assert_eq!(
+            tyres_for_the_track(&tire, MEDIUM, 0.2, &field_wet),
+            Some(INTERMEDIATE)
+        );
+        assert_eq!(
+            tyres_for_the_track(&tire, MEDIUM, 0.1, &field_wet),
+            None,
+            "not on a line barely damp"
+        );
+        // ... and onto slicks with it on a damp line, the rain over.
+        let field_dry = CrossoverContext {
+            field_treaded: Some(0.3),
+            ..race
+        };
+        assert_eq!(
+            tyres_for_the_track(&tire, INTERMEDIATE, 0.1, &field_dry),
+            Some(MEDIUM)
+        );
+        assert_eq!(
+            tyres_for_the_track(&tire, INTERMEDIATE, 0.2, &field_dry),
+            None
         );
     }
 

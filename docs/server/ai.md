@@ -182,7 +182,23 @@ off by `Racecraft::blend`; the controller holds it across the road
   `SLICK_GAMBLE_CHANCE` (0.5) times its aggressiveness, a driver keeps
   slicks out in rain due to stop within a lap, or takes slicks early off
   intermediates once the rain has stopped, none is due and the line holds
-  under `SLICK_GAMBLE_WATER` (0.14). Then
+  under `SLICK_GAMBLE_WATER` (0.14). It also reads how hard it will rain
+  (`CrossoverContext::rain_ahead`: the heaviest `Weather::rainfall` the
+  sky holds now or the forecast brings within `FORECAST_LAPS`), how fast
+  the line is drying (`drying_per_s`: `GameSession::line_drying`, the
+  line's water a second eased over `LINE_DRYING_EASE_S` 30 s, reset at the
+  green) and what the rest of the running field is on (`field_treaded`,
+  the share on treaded tyres): with `HEAVY_RAIN_AHEAD` (0.9, a downpour) on
+  a line getting wetter, slicks come in from `SLICK_FOLLOW_WATER` (0.18)
+  and straight onto the full wet; slicks in the rain follow half the field
+  (`FIELD_FOLLOW_SHARE`) onto treaded tyres from 0.18 too; a wet becomes an
+  intermediate with the rain due to stop within the forecast, and an
+  intermediate in a downpour stays out with the rain stopping within the
+  lap; slicks over their limit stay out on a dry sky when the line dries
+  back under `SLICK_OFF_WATER` within the lap; and on intermediates, the
+  rain over and none due, any driver takes slicks when the line will be
+  under `TREADED_OFF_WATER` within the lap, or under
+  `SLICK_GAMBLE_WATER` with half the field already on slicks. Then
   `pit::plan_stop` on a `StopContext` (`GameSession::stop_context`: the
   laps left, its fuel, the laps on its tyres since
   `PitState::stint_start_laps`, the gap to the car ahead, a car behind

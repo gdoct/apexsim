@@ -401,6 +401,9 @@ pub struct GameSession {
     /// Each car's ideal lap here, s (`racing_line::lap_time_s`), worked out
     /// with its lap fuel: how many laps a timed race is. Key lookups only.
     lap_seconds: HashMap<CarConfigId, f32>,
+    /// How fast the racing line is drying (`LineDrying`), for the AI's
+    /// crossover (`pit::CrossoverContext::drying_per_s`).
+    line_drying: LineDrying,
     /// How the race's end stands: its final lap, who has the flag.
     race_end: RaceEnd,
     /// The livery each human driver picked (`SelectCar`); AI drivers are
@@ -467,6 +470,33 @@ struct RaceEnd {
     /// takes the flag the next time it crosses the line, a lap down or not.
     /// Empty in a race over laps, where every car runs the distance.
     flag_laps: std::collections::BTreeMap<PlayerId, u16>,
+}
+
+/// The racing line's water as the race goes (`RoadState::mean_line_water`),
+/// and how fast it is drying: the change a second, eased over
+/// [`LINE_DRYING_EASE_S`] (positive drying, negative getting wetter).
+#[derive(Debug, Clone, Copy, Default)]
+struct LineDrying {
+    last: Option<(u32, f32)>,
+    per_s: f32,
+}
+
+/// The line's drying rate is eased over this long, s: a tick's change is
+/// noise, a minute's is the weather.
+const LINE_DRYING_EASE_S: f32 = 30.0;
+
+impl LineDrying {
+    /// Take the line's `water` at `tick`, at `rate_hz` ticks a second.
+    fn sample(&mut self, tick: u32, water: f32, rate_hz: u32) {
+        if let Some((last_tick, last_water)) = self.last {
+            if tick > last_tick {
+                let dt = (tick - last_tick) as f32 / rate_hz.max(1) as f32;
+                let now = (last_water - water) / dt;
+                self.per_s += (now - self.per_s) * (dt / LINE_DRYING_EASE_S).min(1.0);
+            }
+        }
+        self.last = Some((tick, water));
+    }
 }
 
 /// A car taking the flag.
@@ -788,6 +818,7 @@ impl GameSession {
             pit_plans: HashMap::new(),
             lap_fuel: HashMap::new(),
             lap_seconds: HashMap::new(),
+            line_drying: LineDrying::default(),
             race_end: RaceEnd::default(),
             lap_events: Vec::new(),
             pit_events: Vec::new(),
@@ -860,6 +891,7 @@ impl GameSession {
             pit_plans: HashMap::new(),
             lap_fuel: HashMap::new(),
             lap_seconds: HashMap::new(),
+            line_drying: LineDrying::default(),
             race_end: RaceEnd::default(),
             lap_events: Vec::new(),
             pit_events: Vec::new(),
@@ -2124,6 +2156,7 @@ impl GameSession {
                 self.session.demo_lap_progress = None;
                 self.finish_deadline_tick = None;
                 self.race_end = RaceEnd::default();
+                self.line_drying = LineDrying::default();
                 // Pole sits on the line, so it never crosses it to start lap
                 // 1: its lap starts with the green light.
                 let tick = self.session.current_tick;
@@ -4731,6 +4764,18 @@ impl GameSession {
         if self.session.game_mode != GameMode::Race {
             return;
         }
+        let line_water = self
+            .track_config
+            .road_state
+            .as_ref()
+            .map_or(self.track_config.track_surface.water, |r| {
+                r.mean_line_water()
+            });
+        self.line_drying.sample(
+            self.session.current_tick,
+            line_water,
+            self.tick_rate_hz as u32,
+        );
         let Some((entry, approach)) = self
             .track_config
             .pit_lane
@@ -4780,13 +4825,6 @@ impl GameSession {
                 };
                 // The weather first: rain on slicks, a dry line on treaded
                 // tyres (`pit::tyres_for_the_track`).
-                let line_water = self
-                    .track_config
-                    .road_state
-                    .as_ref()
-                    .map_or(self.track_config.track_surface.water, |r| {
-                        r.mean_line_water()
-                    });
                 let crossover = self.crossover_context(state, laps_left);
                 let for_the_track = self.car_configs.get(&car_id).and_then(|c| {
                     crate::pit::tyres_for_the_track(
@@ -4954,6 +4992,34 @@ impl GameSession {
             .find(|c| wet(c.weather) != raining)
             .map(|c| c.at_s - now_s);
         let lap_s = self.own_lap_s(state);
+        // How hard it will rain: the sky now, and the forecast's within
+        // its reach.
+        let horizon_s = crate::pit::FORECAST_LAPS * lap_s;
+        let rain_ahead = self
+            .sky
+            .changes_after(now_s, 16)
+            .take_while(|c| c.at_s - now_s <= horizon_s)
+            .map(|c| c.weather.rainfall())
+            .fold(self.sky.rain, f32::max);
+        // What the rest of the running field is on.
+        let treaded = |s: &CarState| {
+            self.car_configs.get(&s.car_config_id).map(|c| {
+                c.tire_config.compound(s.tyre_compound).kind != tyre_thermal::CompoundKind::Slick
+            })
+        };
+        let (on_treaded, running) = self
+            .session
+            .participants
+            .values()
+            .filter(|s| {
+                s.player_id != state.player_id
+                    && !s.in_garage
+                    && s.damage.is_drivable
+                    && s.finish_position.is_none()
+            })
+            .filter_map(treaded)
+            .fold((0u32, 0u32), |(t, n), on| (t + on as u32, n + 1));
+        let field_treaded = (running > 0).then(|| on_treaded as f32 / running as f32);
         let (aggressiveness, roll) = match self.ai_profiles.get(&state.player_id) {
             Some(profile) => {
                 let (hi, lo) = state.player_id.as_u64_pair();
@@ -4974,6 +5040,9 @@ impl GameSession {
             lap_s,
             aggressiveness,
             roll,
+            rain_ahead,
+            drying_per_s: self.line_drying.per_s,
+            field_treaded,
         }
     }
 
