@@ -574,6 +574,51 @@ namespace ApexCreateSession
 		return Line;
 	}
 
+	// --- A race weekend's days ------------------------------------------------
+
+	/** The hours a weekend day can start at, minutes after midnight; the picker's -1 is the race day's. */
+	inline const TArray<int32>& DayHourChoices()
+	{
+		static const TArray<int32> Hours = { 7 * 60, 9 * 60, 11 * 60, 13 * 60, 15 * 60, 17 * 60, 19 * 60 };
+		return Hours;
+	}
+
+	/** A weekend day: practice (0) or the qualifying day (1). */
+	enum class EWeekendDay : uint8 { Practice = 0, Qualifying = 1 };
+
+	/**
+	 * A weekend day's own sky: the race's conditions under the day's weather
+	 * (`Weather`, an EApexWeather, or -1 for the race's) and starting hour
+	 * (`Minutes`, or -1 for the race's), its forecast from a seed of its own
+	 * (the race's mixed with the day) so the forecast shown is the one the
+	 * server lays out. False, and `Out` the race's, when the day picks
+	 * neither: it then runs under the race day's sky.
+	 */
+	inline bool DaySky(const FApexSessionConditions& Race, int32 Weather, int32 Minutes, EWeekendDay Day, FApexSessionConditions& Out)
+	{
+		Out = Race.Clamped();
+		const bool bWeather = Weather >= 0 && Weather < FApexSessionConditions::WeatherCount;
+		const bool bHour = Minutes >= 0;
+		if (!bWeather && !bHour)
+		{
+			return false;
+		}
+		if (bWeather)
+		{
+			Out.Weather = static_cast<EApexWeather>(Weather);
+		}
+		if (bHour)
+		{
+			Out.TimeOfDayMinutes = FMath::Clamp(Minutes, 0, 24 * 60 - 1);
+		}
+		if (Out.HasSkySeed())
+		{
+			Out.SkySeed = (Out.SkySeed ^ (0x9E3779B97F4A7C15ull * (static_cast<uint64>(Day) + 1))) * 0xBF58476D1CE4E5B9ull;
+		}
+		Out = Out.Clamped();
+		return true;
+	}
+
 	/** The road's grip under this weather, percent: `Weather::road_grip_factor`. */
 	inline int32 GripPercent(EApexWeather Weather)
 	{

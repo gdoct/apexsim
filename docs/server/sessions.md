@@ -465,7 +465,15 @@ loaded (`set_source_track`, the server's shared copy) with a fresh road
 tick (`sky_epoch_tick`): the day's clock starts at its own hour. The AI's
 speed plans and lap figures are worked out again. `RaceSession::conditions`
 becomes the day's (late joiners are told it); the race day's is kept. A
-weekend naming no day's sky runs one sky from creation, as before. The clamped format is kept as
+weekend naming no day's sky runs one sky from creation, as before.
+Client: the Race weekend section's Practice sky and Qualifying sky rows
+(a weather stepper and an hour stepper each, "Race day's" by default;
+`CreateWeekendPracticeWeather` / `Hour`, `CreateWeekendQualifyingWeather`
+/ `Hour`, kept in the profile). A day with either set is sent as the race's
+conditions under that weather and hour, with a sky seed of its own
+(`ApexCreateSession::DaySky`: the race's seed mixed with the day), and the
+row shows the forecast the server will lay out from it; practice's only
+when there is practice. The clamped format is kept as
 `RaceSession::weekend` and echoed in `SessionJoined.Weekend`;
 `qualifying_seconds` is dropped beside it.
 

@@ -92,6 +92,10 @@ void UApexMenuFlowSubsystem::LoadProfile()
 	CreateWeekendPracticeMinutes = ApexQualifyingLength::Clamp(Profile->WeekendPracticeMinutes * 60) / 60;
 	CreateWeekendRounds = FMath::Clamp(Profile->WeekendRounds, 1, FApexWeekendFormat::MaxRounds);
 	CreateWeekendRoundMinutes = FMath::Max(1, ApexQualifyingLength::Clamp(Profile->WeekendRoundMinutes * 60) / 60);
+	CreateWeekendPracticeWeather = Profile->WeekendPracticeWeather;
+	CreateWeekendPracticeHour = Profile->WeekendPracticeHour;
+	CreateWeekendQualifyingWeather = Profile->WeekendQualifyingWeather;
+	CreateWeekendQualifyingHour = Profile->WeekendQualifyingHour;
 	CreateStartingMode = Profile->StartingMode;
 	CreateSessionKind = Profile->SessionKind;
 	CreateAllowedAssists = Profile->AllowedAssists;
@@ -141,6 +145,12 @@ FApexWeekendFormat UApexMenuFlowSubsystem::WeekendToSend() const
 	{
 		Format.QualifyingSeconds.Add(CreateWeekendRoundMinutes * 60);
 	}
+	// Each day's own sky, when it picks one; practice only when there is any.
+	Format.bHasPracticeConditions = CreateWeekendPracticeMinutes > 0
+		&& ApexCreateSession::DaySky(CreateConditions, CreateWeekendPracticeWeather, CreateWeekendPracticeHour,
+			ApexCreateSession::EWeekendDay::Practice, Format.PracticeConditions);
+	Format.bHasQualifyingConditions = ApexCreateSession::DaySky(CreateConditions, CreateWeekendQualifyingWeather,
+		CreateWeekendQualifyingHour, ApexCreateSession::EWeekendDay::Qualifying, Format.QualifyingConditions);
 	return Format.Clamped();
 }
 
@@ -201,6 +211,10 @@ void UApexMenuFlowSubsystem::SaveProfile()
 	Profile->WeekendPracticeMinutes = CreateWeekendPracticeMinutes;
 	Profile->WeekendRounds = CreateWeekendRounds;
 	Profile->WeekendRoundMinutes = CreateWeekendRoundMinutes;
+	Profile->WeekendPracticeWeather = CreateWeekendPracticeWeather;
+	Profile->WeekendPracticeHour = CreateWeekendPracticeHour;
+	Profile->WeekendQualifyingWeather = CreateWeekendQualifyingWeather;
+	Profile->WeekendQualifyingHour = CreateWeekendQualifyingHour;
 	Profile->StartingMode = CreateStartingMode;
 	Profile->SessionKind = CreateSessionKind;
 	Profile->AllowedAssists = CreateAllowedAssists;

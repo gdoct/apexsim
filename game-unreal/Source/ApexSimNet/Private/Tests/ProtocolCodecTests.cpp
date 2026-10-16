@@ -228,6 +228,17 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 				FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
 				TArray<FString>(), 0, Weekend),
 			ApexGolden::C_CreateSessionWeekend);
+
+		// Practice under its own sky: heavy rain at 07:00; qualifying under the session's.
+		Weekend.bHasPracticeConditions = true;
+		Weekend.PracticeConditions.Weather = EApexWeather::HeavyRain;
+		Weekend.PracticeConditions.TimeOfDayMinutes = 7 * 60;
+		CheckBytes(TEXT("CreateSession for a race weekend with a day's sky"),
+			ApexProtocol::EncodeCreateSession(
+				TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+				FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+				TArray<FString>(), 0, Weekend),
+			ApexGolden::C_CreateSessionWeekendDays);
 	}
 	{
 		// A hotlap watched as a stream, on a setup (`watch`).

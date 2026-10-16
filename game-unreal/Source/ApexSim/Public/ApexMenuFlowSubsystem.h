@@ -135,6 +135,21 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
 	int32 CreateWeekendRoundMinutes = 10;
 
+	/**
+	 * Practice's and the qualifying day's sky in a weekend: the weather
+	 * (EApexWeather) and the hour the day starts at (minutes); -1 keeps the
+	 * race day's. A day with either set is sent as its own conditions
+	 * (ApexCreateSession::DaySky).
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateWeekendPracticeWeather = -1;
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateWeekendPracticeHour = -1;
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateWeekendQualifyingWeather = -1;
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateWeekendQualifyingHour = -1;
+
 	bool IsCreatingWeekend() const { return bCreateWeekend && CreateStartingMode == EApexGameMode::Race; }
 
 	/**

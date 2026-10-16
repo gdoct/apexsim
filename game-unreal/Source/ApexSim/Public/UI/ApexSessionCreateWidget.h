@@ -222,6 +222,15 @@ private:
 	/** The 107% rule (None, 107%), beside qualifying's length and in the weekend's section. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> QualifyingCutoffButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendCutoffButtons;
+	/** Each weekend day's sky (0 practice, 1 qualifying): a weather stepper, an hour stepper and its forecast. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendDayRows[2];
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> WeekendDayWeatherMinus[2];
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> WeekendDayWeatherPlus[2];
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeekendDayWeatherText[2];
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> WeekendDayHourMinus[2];
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> WeekendDayHourPlus[2];
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeekendDayHourText[2];
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeekendDayForecastText[2];
 	/** Shown for a race weekend only: practice, the knockout's rounds, each round's length. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendSection;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeekendInfoText;

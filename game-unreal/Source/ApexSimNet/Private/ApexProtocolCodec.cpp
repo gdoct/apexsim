@@ -538,6 +538,16 @@ namespace
 			bool bOk = true;
 			if (Key == TEXT("practice_seconds"))        { bOk = ReadSmallUInt(Reader, Out.PracticeSeconds); }
 			else if (Key == TEXT("qualifying_seconds")) { bOk = ParseArrayOf(Reader, Out.QualifyingSeconds, [](FMsgPackReader& R, int32& Seconds) { return ReadSmallUInt(R, Seconds); }); }
+			else if (Key == TEXT("practice_conditions") || Key == TEXT("qualifying_conditions"))
+			{
+				const bool bPractice = Key == TEXT("practice_conditions");
+				if (Reader.TryReadNil())
+				{
+					continue;
+				}
+				bOk = ParseSessionConditions(Reader, bPractice ? Out.PracticeConditions : Out.QualifyingConditions);
+				(bPractice ? Out.bHasPracticeConditions : Out.bHasQualifyingConditions) = bOk;
+			}
 			else                                        { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -2976,8 +2986,9 @@ namespace ApexProtocol
 		if (bWeekend)
 		{
 			// Practice (0 for none), then each qualifying round's length.
+			// Then each day's own sky, only when named, as the server leaves them off.
 			Writer.WriteString("weekend");
-			Writer.WriteMapHeader(2);
+			Writer.WriteMapHeader(2 + (WeekendFormat.bHasPracticeConditions ? 1 : 0) + (WeekendFormat.bHasQualifyingConditions ? 1 : 0));
 			Writer.WriteString("practice_seconds");
 			Writer.WriteUInt(static_cast<uint32>(WeekendFormat.PracticeSeconds));
 			Writer.WriteString("qualifying_seconds");
@@ -2985,6 +2996,16 @@ namespace ApexProtocol
 			for (const int32 RoundSeconds : WeekendFormat.QualifyingSeconds)
 			{
 				Writer.WriteUInt(static_cast<uint32>(RoundSeconds));
+			}
+			if (WeekendFormat.bHasPracticeConditions)
+			{
+				Writer.WriteString("practice_conditions");
+				WriteSessionConditions(Writer, WeekendFormat.PracticeConditions);
+			}
+			if (WeekendFormat.bHasQualifyingConditions)
+			{
+				Writer.WriteString("qualifying_conditions");
+				WriteSessionConditions(Writer, WeekendFormat.QualifyingConditions);
 			}
 		}
 		if (Watch)

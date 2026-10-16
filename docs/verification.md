@@ -166,6 +166,12 @@ session while driving (notice, then the menu).
   results screen, the car parked in its box. Seen only as the create
   screen's Cut-off row; the roster mark is checked by `roster_wire_format`
   and `ApexSim.RaceResults.*`.
+- A weekend's day skies in a race ([server/sessions.md](server/sessions.md#race-weekend)):
+  practice under its own weather and hour from the create screen's
+  Practice sky row, the sky changing at the qualifying day and again at the
+  race, and the forecast the row showed coming true. Only the codec
+  (`C_CreateSessionWeekendDays`), `ApexSim.UI.CreateSession.WeekendDays`
+  and the row on screen have run.
 - An empty grid slot ([server/sessions.md](server/sessions.md#starting-order-and-qualifying)):
   a Custom start order naming a driver who is not there, then the session
   lobby's GRID list, the grid card's list and the lined-up field with the

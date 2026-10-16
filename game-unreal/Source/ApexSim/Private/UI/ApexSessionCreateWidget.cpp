@@ -345,6 +345,17 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 			AddAll(WeekendRoundsButtons);
 			AddAll(WeekendRoundLengthButtons);
 			AddAll(WeekendCutoffButtons);
+			for (int32 Day = 0; Day < 2; ++Day)
+			{
+				if (Day == 0 && Flow->CreateWeekendPracticeMinutes <= 0)
+				{
+					continue;
+				}
+				Out.Add(WeekendDayWeatherMinus[Day]);
+				Out.Add(WeekendDayWeatherPlus[Day]);
+				Out.Add(WeekendDayHourMinus[Day]);
+				Out.Add(WeekendDayHourPlus[Day]);
+			}
 		}
 		Out.Add(FieldMinus);
 		Out.Add(FieldPlus);
@@ -1059,6 +1070,38 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Each round"), RoundLengths, WeekendRoundLengthButtons));
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Cut-off (Q1)"), { TEXT("None"), TEXT("107%") }, WeekendCutoffButtons),
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+
+		// Each day's sky: practice and the qualifying day can run under a
+		// weather and an hour of their own (the race day's by default), with
+		// the forecast the server will lay out for that day.
+		for (int32 Day = 0; Day < 2; ++Day)
+		{
+			UVerticalBox* DayBox = WidgetTree->ConstructWidget<UVerticalBox>();
+			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+			ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, ApexUI::MakeLabel(*WidgetTree, Day == 0 ? TEXT("Practice sky") : TEXT("Qualifying sky")), 150.0f, -1.0f),
+				FMargin(0.0f, 0.0f, 8.0f, 0.0f), VAlign_Center);
+			UApexButtonWidget* WMinus = nullptr;
+			UApexButtonWidget* WPlus = nullptr;
+			UTextBlock* WValue = nullptr;
+			ApexUI::AddH(Row, MakeStepper(WMinus, WValue, WPlus, 30.0f, -1.0f, 14.0f), FMargin(), VAlign_Fill, 1.0f);
+			UApexButtonWidget* HMinus = nullptr;
+			UApexButtonWidget* HPlus = nullptr;
+			UTextBlock* HValue = nullptr;
+			ApexUI::AddH(Row, MakeStepper(HMinus, HValue, HPlus, 30.0f, 64.0f, 14.0f), FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+			ApexUI::AddV(DayBox, ApexUI::MakeSized(*WidgetTree, Row, -1.0f, 30.0f));
+			UTextBlock* Forecast = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 100), ApexUI::Palette::TextSecondary);
+			Forecast->SetAutoWrapText(true);
+			ApexUI::AddV(DayBox, Forecast, FMargin(158.0f, 3.0f, 0.0f, 0.0f));
+			ApexUI::AddV(Section, DayBox, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+			WeekendDayRows[Day] = DayBox;
+			WeekendDayWeatherMinus[Day] = WMinus;
+			WeekendDayWeatherPlus[Day] = WPlus;
+			WeekendDayWeatherText[Day] = WValue;
+			WeekendDayHourMinus[Day] = HMinus;
+			WeekendDayHourPlus[Day] = HPlus;
+			WeekendDayHourText[Day] = HValue;
+			WeekendDayForecastText[Day] = Forecast;
+		}
 		WeekendSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
@@ -1850,6 +1893,62 @@ void UApexSessionCreateWidget::RefreshSettings()
 	for (int32 Index = 0; Index < WeekendRoundLengthButtons.Num(); ++Index)
 	{
 		WeekendRoundLengthButtons[Index]->SetSelected(WeekendRoundChoices[Index] == Flow->CreateWeekendRoundMinutes);
+	}
+	// Each weekend day's sky and its forecast; practice's only when there is practice.
+	for (int32 Day = 0; Day < 2; ++Day)
+	{
+		const bool bPractice = Day == 0;
+		if (WeekendDayRows[Day])
+		{
+			WeekendDayRows[Day]->SetVisibility(bPractice && Flow->CreateWeekendPracticeMinutes <= 0
+				? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		}
+		const int32 Weather = bPractice ? Flow->CreateWeekendPracticeWeather : Flow->CreateWeekendQualifyingWeather;
+		const int32 Hour = bPractice ? Flow->CreateWeekendPracticeHour : Flow->CreateWeekendQualifyingHour;
+		if (WeekendDayWeatherText[Day])
+		{
+			WeekendDayWeatherText[Day]->SetText(FText::FromString(Weather >= 0 && Weather < FApexSessionConditions::WeatherCount
+				? FApexSessionConditions::WeatherLabel(static_cast<EApexWeather>(Weather)) : FString(TEXT("Race day's"))));
+		}
+		if (WeekendDayHourText[Day])
+		{
+			FApexSessionConditions At;
+			At.TimeOfDayMinutes = Hour;
+			WeekendDayHourText[Day]->SetText(FText::FromString(Hour >= 0 ? At.ClockText() : FString(TEXT("Race's"))));
+		}
+		if (WeekendDayWeatherMinus[Day]) { WeekendDayWeatherMinus[Day]->SetIsEnabled(Weather >= 0); }
+		if (WeekendDayWeatherPlus[Day])  { WeekendDayWeatherPlus[Day]->SetIsEnabled(Weather < FApexSessionConditions::WeatherCount - 1); }
+		if (WeekendDayHourMinus[Day])    { WeekendDayHourMinus[Day]->SetIsEnabled(Hour >= 0); }
+		if (WeekendDayHourPlus[Day])     { WeekendDayHourPlus[Day]->SetIsEnabled(Hour < ApexCreateSession::DayHourChoices().Last()); }
+		if (WeekendDayForecastText[Day])
+		{
+			FApexSessionConditions Sky;
+			FString Line;
+			if (!ApexCreateSession::DaySky(Flow->CreateConditions, Weather, Hour,
+					bPractice ? ApexCreateSession::EWeekendDay::Practice : ApexCreateSession::EWeekendDay::Qualifying, Sky))
+			{
+				Line = TEXT("UNDER THE RACE DAY'S SKY");
+			}
+			else
+			{
+				Line = FString::Printf(TEXT("%s FROM %s"), *FApexSessionConditions::WeatherLabel(Sky.Weather).ToUpper(), *Sky.ClockText());
+				if (Sky.WeatherChanges() && Sky.HasSkySeed())
+				{
+					const FString Changes = ApexCreateSession::ForecastLine(Sky, ApexCreateSession::Forecast(Sky, Sky.SkySeed), 4);
+					Line += Changes.IsEmpty() ? FString(TEXT(" · NO CHANGE")) : FString::Printf(TEXT(" · %s"), *Changes);
+				}
+				else if (!Sky.WeatherChanges())
+				{
+					Line += TEXT(" · THE SKY HOLDS");
+				}
+				else
+				{
+					// A sky from before seeds: the server lays it out from the session's id.
+					Line += TEXT(" · CHANGES LAID OUT WHEN THE SESSION IS MADE");
+				}
+			}
+			WeekendDayForecastText[Day]->SetText(FText::FromString(Line));
+		}
 	}
 	for (TArray<TObjectPtr<UApexButtonWidget>>* Cutoff : { &QualifyingCutoffButtons, &WeekendCutoffButtons })
 	{
@@ -3168,6 +3267,28 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		Flow->CreateWeekendRoundMinutes = WeekendRoundChoices[RoundLength];
 		Changed();
 		return;
+	}
+	for (int32 Day = 0; Day < 2; ++Day)
+	{
+		int32& Weather = Day == 0 ? Flow->CreateWeekendPracticeWeather : Flow->CreateWeekendQualifyingWeather;
+		int32& Hour = Day == 0 ? Flow->CreateWeekendPracticeHour : Flow->CreateWeekendQualifyingHour;
+		if (Button == WeekendDayWeatherMinus[Day] || Button == WeekendDayWeatherPlus[Day])
+		{
+			// -1 (the race day's), then every weather in order.
+			Weather = FMath::Clamp(Weather + (Button == WeekendDayWeatherPlus[Day] ? 1 : -1), -1, FApexSessionConditions::WeatherCount - 1);
+			Changed();
+			return;
+		}
+		if (Button == WeekendDayHourMinus[Day] || Button == WeekendDayHourPlus[Day])
+		{
+			// -1 (the race's hour), then the choices in order.
+			const TArray<int32>& Hours = ApexCreateSession::DayHourChoices();
+			int32 Index = Hours.IndexOfByKey(Hour);
+			Index = FMath::Clamp(Index + (Button == WeekendDayHourPlus[Day] ? 1 : -1), -1, Hours.Num() - 1);
+			Hour = Index >= 0 ? Hours[Index] : -1;
+			Changed();
+			return;
+		}
 	}
 	if (const int32 Cutoff = FMath::Max(ApexNav::IndexOf(QualifyingCutoffButtons, Button), ApexNav::IndexOf(WeekendCutoffButtons, Button));
 		Cutoff != INDEX_NONE)

@@ -242,42 +242,6 @@ namespace ApexQualifyingLength
 	}
 }
 
-/**
- * A race weekend, as CreateSession's `weekend` and SessionJoined's `Weekend`
- * carry it (network.rs `WeekendFormat`): timed practice (0 for none), then
- * one to three timed qualifying rounds run as a knockout, then the race over
- * the session's own laps or time. The host moves it on (AdvanceWeekend).
- */
-USTRUCT(BlueprintType)
-struct APEXSIMNET_API FApexWeekendFormat
-{
-	GENERATED_BODY()
-
-	static constexpr int32 MaxRounds = 3;
-
-	/** Practice's length, seconds (ApexQualifyingLength bounds); 0 for no practice. */
-	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
-	int32 PracticeSeconds = 0;
-
-	/** Each qualifying round's length, seconds; empty when the session is no weekend. */
-	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
-	TArray<int32> QualifyingSeconds;
-
-	bool IsWeekend() const { return QualifyingSeconds.Num() > 0; }
-	int32 Rounds() const { return QualifyingSeconds.Num(); }
-
-	/** As the server keeps it: lengths in bounds, at most MaxRounds rounds. */
-	FApexWeekendFormat Clamped() const
-	{
-		FApexWeekendFormat Out;
-		Out.PracticeSeconds = ApexQualifyingLength::Clamp(PracticeSeconds);
-		for (int32 Index = 0; Index < FMath::Min(QualifyingSeconds.Num(), MaxRounds); ++Index)
-		{
-			Out.QualifyingSeconds.Add(FMath::Max(ApexQualifyingLength::MinSeconds, ApexQualifyingLength::Clamp(QualifyingSeconds[Index])));
-		}
-		return Out;
-	}
-};
 
 /**
  * The qualifying cut-off (data.rs `clamp_qualifying_cutoff`): a car whose
@@ -932,6 +896,61 @@ struct APEXSIMNET_API FApexSessionConditions
 			&& DayOfYear == Other.DayOfYear && SolarNoonMin == Other.SolarNoonMin;
 	}
 	bool operator!=(const FApexSessionConditions& Other) const { return !(*this == Other); }
+};
+
+/**
+ * A race weekend, as CreateSession's `weekend` and SessionJoined's `Weekend`
+ * carry it (network.rs `WeekendFormat`): timed practice (0 for none), then
+ * one to three timed qualifying rounds run as a knockout, then the race over
+ * the session's own laps or time. The host moves it on (AdvanceWeekend).
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexWeekendFormat
+{
+	GENERATED_BODY()
+
+	static constexpr int32 MaxRounds = 3;
+
+	/** Practice's length, seconds (ApexQualifyingLength bounds); 0 for no practice. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	int32 PracticeSeconds = 0;
+
+	/** Each qualifying round's length, seconds; empty when the session is no weekend. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	TArray<int32> QualifyingSeconds;
+
+	/**
+	 * Practice's and the qualifying day's own sky (`practice_conditions`,
+	 * `qualifying_conditions`): a day not named runs under the session's
+	 * own conditions, the race day's.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bHasPracticeConditions = false;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	FApexSessionConditions PracticeConditions;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bHasQualifyingConditions = false;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	FApexSessionConditions QualifyingConditions;
+
+	bool IsWeekend() const { return QualifyingSeconds.Num() > 0; }
+	int32 Rounds() const { return QualifyingSeconds.Num(); }
+
+	/** As the server keeps it: lengths in bounds, at most MaxRounds rounds, each day's sky clamped. */
+	FApexWeekendFormat Clamped() const
+	{
+		FApexWeekendFormat Out;
+		Out.bHasPracticeConditions = bHasPracticeConditions;
+		Out.PracticeConditions = bHasPracticeConditions ? PracticeConditions.Clamped() : FApexSessionConditions();
+		Out.bHasQualifyingConditions = bHasQualifyingConditions;
+		Out.QualifyingConditions = bHasQualifyingConditions ? QualifyingConditions.Clamped() : FApexSessionConditions();
+		Out.PracticeSeconds = ApexQualifyingLength::Clamp(PracticeSeconds);
+		for (int32 Index = 0; Index < FMath::Min(QualifyingSeconds.Num(), MaxRounds); ++Index)
+		{
+			Out.QualifyingSeconds.Add(FMath::Max(ApexQualifyingLength::MinSeconds, ApexQualifyingLength::Clamp(QualifyingSeconds[Index])));
+		}
+		return Out;
+	}
 };
 
 /** Mirrors `GameMode` (data.rs:906). Serialize_repr => a plain u8 on the wire. */

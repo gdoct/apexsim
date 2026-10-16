@@ -366,4 +366,49 @@ bool FApexCreateSessionForecastTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+// A race weekend's days: practice and qualifying under a sky of their own.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCreateSessionWeekendDaysTest,
+	"ApexSim.UI.CreateSession.WeekendDays",
+	ApexTestFlags)
+
+bool FApexCreateSessionWeekendDaysTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexCreateSession;
+	FApexSessionConditions Race = CreateAt(EApexWeather::Cloudy, 15);
+	Race.Changeable = 2;
+	Race.SkySeed = 0x0123456789ABCDEFull;
+	Race.bHasSkySeed = true;
+
+	FApexSessionConditions Day;
+	TestFalse(TEXT("a day that picks nothing runs under the race day's sky"), DaySky(Race, -1, -1, EWeekendDay::Practice, Day));
+
+	TestTrue(TEXT("a day's weather makes a sky of its own"), DaySky(Race, static_cast<int32>(EApexWeather::HeavyRain), -1, EWeekendDay::Practice, Day));
+	TestEqual(TEXT("its weather"), Day.Weather, EApexWeather::HeavyRain);
+	TestEqual(TEXT("the race's hour"), Day.TimeOfDayMinutes, Race.TimeOfDayMinutes);
+	TestEqual(TEXT("and the race's changes"), Day.Changeable, Race.Changeable);
+	TestTrue(TEXT("its own seed"), Day.HasSkySeed() && Day.SkySeed != Race.SkySeed);
+
+	FApexSessionConditions Qualifying;
+	TestTrue(TEXT("an hour alone is a sky of its own"), DaySky(Race, -1, 9 * 60, EWeekendDay::Qualifying, Qualifying));
+	TestEqual(TEXT("the race's weather at that hour"), Qualifying.Weather, Race.Weather);
+	TestEqual(TEXT("the day's hour"), Qualifying.TimeOfDayMinutes, 9 * 60);
+	FApexSessionConditions PracticeAtNine;
+	DaySky(Race, -1, 9 * 60, EWeekendDay::Practice, PracticeAtNine);
+	TestTrue(TEXT("each day lays out its own forecast"), PracticeAtNine.SkySeed != Qualifying.SkySeed);
+	FApexSessionConditions Again;
+	DaySky(Race, -1, 9 * 60, EWeekendDay::Qualifying, Again);
+	TestTrue(TEXT("the same picks give the same seed"), Again.SkySeed == Qualifying.SkySeed);
+
+	FApexSessionConditions Unseeded = Race;
+	Unseeded.bHasSkySeed = false;
+	DaySky(Unseeded, static_cast<int32>(EApexWeather::Sunny), -1, EWeekendDay::Practice, Day);
+	TestFalse(TEXT("a race with no seed leaves the day's to the server"), Day.HasSkySeed());
+	TestTrue(TEXT("the hours run through the day"), DayHourChoices().Num() > 3 && DayHourChoices()[0] < DayHourChoices().Last());
+	return true;
+}
+
 #endif

@@ -44,11 +44,6 @@ None open.
 Rules the server takes on `CreateSession` that no screen offers yet
 ([server/sessions.md](server/sessions.md#session-rules-set-on-create)).
 
-- A race weekend's days: a sky picker for practice and for qualifying in
-  the Race weekend section (`WeekendFormat.practice_conditions` /
-  `qualifying_conditions`; golden `C_CreateSessionWeekendDays` is in
-  `ApexGoldenBlobs.h`, the codec does not send it yet), with each day's
-  forecast shown as the create screen shows the race's.
 - Joining a race weekend between phases: the session browser offers Join
   on a weekend listed `Finished` while it waits for its host (the server
   takes the driver), and the client decodes `KnockedOutData.Late` so the

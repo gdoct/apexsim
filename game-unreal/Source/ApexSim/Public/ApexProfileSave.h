@@ -73,6 +73,16 @@ public:
 	UPROPERTY()
 	int32 WeekendRoundMinutes = 10;
 
+	/** A weekend's practice and qualifying day skies: weather (EApexWeather) and starting hour in minutes; -1 is the race day's. */
+	UPROPERTY()
+	int32 WeekendPracticeWeather = -1;
+	UPROPERTY()
+	int32 WeekendPracticeHour = -1;
+	UPROPERTY()
+	int32 WeekendQualifyingWeather = -1;
+	UPROPERTY()
+	int32 WeekendQualifyingHour = -1;
+
 	UPROPERTY()
 	EApexGameMode StartingMode = EApexGameMode::FreePractice;
 
