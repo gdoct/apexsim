@@ -187,6 +187,10 @@ pub const SNOW_FLOOR: f32 = 0.65;
 /// What full cover costs the road's grip: bare 1.0, covered 1 - this. A
 /// racing tyre on packed snow has a quarter to a third of its dry grip.
 pub const SNOW_COVER_GRIP: f32 = 0.72;
+/// The share of a wheel's pass the pit lane's one cover figure a cell takes
+/// ([`RoadState::lane_snow`]): the cars' wheel tracks cover about a quarter
+/// of the lane's width, so it packs at a quarter of a racing bin's rate.
+pub const LANE_PACK_SHARE: f32 = 0.25;
 /// Share of the cover a degree of track temperature melts per second.
 pub const SNOW_MELT_PER_C: f32 = 0.0004;
 /// The track freezes the water on it below this, °C.
@@ -371,6 +375,12 @@ pub struct RoadState {
     /// Snow cover and ice per bin, 0..1.
     #[serde(default)]
     pub snow: Vec<f32>,
+    /// The pit lane's snow cover, 0..1, one figure a [`CELL_M`] cell of the
+    /// lane's own station (`PitLane::length_m`), empty for a track without a
+    /// lane: the cars in it pack it ([`RoadState::note_lane_pass`]), the
+    /// snowfall covers it, a warm track melts it.
+    #[serde(default)]
+    pub lane_snow: Vec<f32>,
     #[serde(default)]
     pub ice: Vec<f32>,
     /// Whether any snow or ice lies on the road or is falling (as of the
@@ -384,6 +394,9 @@ pub struct RoadState {
     wheel_passes: Vec<f32>,
     #[serde(skip)]
     wheel_rubber: Vec<f32>,
+    /// Wheel passes per lane cell since the last step, in passes' worth.
+    #[serde(skip)]
+    lane_passes: Vec<f32>,
 }
 
 impl RoadState {
@@ -485,6 +498,9 @@ impl RoadState {
                 rubber_bins[i * BINS + b] = off_line + (rubber - off_line) * on_line;
             }
         }
+        let lane_cells = track.pit_lane.as_ref().map_or(0, |lane| {
+            (lane.length_m.max(0.0) / CELL_M).ceil().max(1.0) as usize
+        });
         Self {
             rain,
             snowfall: baked_snow,
@@ -497,10 +513,36 @@ impl RoadState {
             rubber: rubber_bins,
             marbles: vec![0.0; n * BINS],
             snow: snow_bins,
+            lane_snow: vec![baked_snow; lane_cells],
             ice: vec![0.0; n * BINS],
             snowy: baked_snow > 0.0,
             wheel_passes: vec![0.0; n * BINS],
             wheel_rubber: vec![0.0; n * BINS],
+            lane_passes: vec![0.0; lane_cells],
+        }
+    }
+
+    /// The pit lane's cell at `lane_station_m` along the lane, if the track
+    /// has a lane.
+    fn lane_cell(&self, lane_station_m: f32) -> Option<usize> {
+        let n = self.lane_snow.len();
+        (n > 0).then(|| ((lane_station_m.max(0.0) / CELL_M) as usize).min(n - 1))
+    }
+
+    /// The pit lane's snow cover at `lane_station_m` along the lane, 0..1;
+    /// none for a track without a lane.
+    pub fn lane_snow_at(&self, lane_station_m: f32) -> Option<f32> {
+        self.lane_cell(lane_station_m).map(|i| self.lane_snow[i])
+    }
+
+    /// A car in the pit lane crossed a cell: its wheels, `weight` passes'
+    /// worth (the sum of [`WheelPass::weight`]), pack the lane's cover at
+    /// `lane_station_m` along the lane.
+    pub fn note_lane_pass(&mut self, lane_station_m: f32, weight: f32) {
+        if let Some(i) = self.lane_cell(lane_station_m) {
+            if let Some(passes) = self.lane_passes.get_mut(i) {
+                *passes += weight.max(0.0);
+            }
         }
     }
 
@@ -666,6 +708,23 @@ impl RoadState {
     /// What a tyre at `station_m`, `lateral_m` from the centerline
     /// (positive right), finds on the road.
     pub fn sample(&self, station_m: f32, lateral_m: f32) -> RoadSample {
+        self.sample_with(station_m, lateral_m, None)
+    }
+
+    /// What a tyre in the pit lane finds: [`Self::sample`] at its place on
+    /// the lap, its `wet_grip` (the lane's asphalt) under the lane's own
+    /// cover at `lane_station_m` along the lane rather than the verge's
+    /// beside the lap's cell.
+    pub fn sample_in_lane(
+        &self,
+        station_m: f32,
+        lateral_m: f32,
+        lane_station_m: f32,
+    ) -> RoadSample {
+        self.sample_with(station_m, lateral_m, self.lane_snow_at(lane_station_m))
+    }
+
+    fn sample_with(&self, station_m: f32, lateral_m: f32, lane_cover: Option<f32>) -> RoadSample {
         if self.cells.is_empty() {
             return RoadSample::BAKED;
         }
@@ -690,6 +749,7 @@ impl RoadState {
             let cover = Self::bin_value(&self.snow, base, across);
             let ice = Self::bin_value(&self.ice, base, across);
             let verge = cell.verge_snow;
+            let paved = lane_cover.unwrap_or(verge);
             // The slush is the cover's own (its grip is in `snow_grip`):
             // the water counts as water only as far as the road is bare,
             // so a road melted clear grips as wet or dry asphalt does, and
@@ -700,10 +760,10 @@ impl RoadState {
             let reference = road(baked, self.baked_snow).max(1e-3);
             grip =
                 road(water, cover) / reference * rubbered * snow_grip(cover, ice, self.baked_snow);
-            // The run-off and the pit lane, which no racing wheel clears,
-            // carry the verge's cover: buried under a snowfall, bare once
-            // the track melts it.
-            wet = road(water, verge) / reference * snow_grip(verge, 0.0, self.baked_snow);
+            // The run-off, which no racing wheel clears, carries the
+            // verge's cover: buried under a snowfall, bare once the track
+            // melts it. The pit lane carries its own, which its cars pack.
+            wet = road(water, paved) / reference * snow_grip(paved, 0.0, self.baked_snow);
             off_grip = grass(cell.depth, verge) / grass(baked, self.baked_snow).max(1e-3)
                 * snow_grip(verge, 0.0, self.baked_snow);
         }
@@ -926,6 +986,24 @@ impl RoadState {
                 self.wheel_passes[base + b] = 0.0;
                 self.wheel_rubber[base + b] = 0.0;
             }
+        }
+        // The pit lane: the snowfall covers it, its cars pack it toward the
+        // floor as the racing bins' wheels do (a quarter of the rate: one
+        // figure across the lane), a warm track melts it.
+        for (cover, passes) in self.lane_snow.iter_mut().zip(self.lane_passes.iter_mut()) {
+            let packed = std::mem::take(passes);
+            if snowfall <= 0.0 && *cover <= 0.0 {
+                continue;
+            }
+            *cover += (1.0 - *cover) * settle;
+            if *cover > SNOW_FLOOR && packed > 0.0 {
+                *cover -= (*cover - SNOW_FLOOR)
+                    * (SNOW_CLEAR_PER_PASS * LANE_PACK_SHARE * packed).min(1.0);
+            }
+            if melt > 0.0 {
+                *cover = (*cover - melt).max(0.0);
+            }
+            any_snow |= *cover > 0.0;
         }
         self.snowy = snowfall > 0.0 || any_snow;
     }
@@ -1275,6 +1353,58 @@ mod tests {
             "{} against {}",
             road.rubber[k],
             dry.rubber[k]
+        );
+    }
+
+    /// The pit lane carries a cover of its own on its own stations: the cars
+    /// in it pack it where they drive, the run-off beside the lap keeps the
+    /// verge's, and a lane nobody drives stays as the snowfall leaves it.
+    #[test]
+    fn the_cars_in_the_pit_lane_pack_its_own_cover() {
+        let mut track = snowy_track(-3.0);
+        track.pit_lane = Some(crate::pit::tests::straight_lane());
+        let mut road = RoadState::new(&track, RUBBER_REFERENCE);
+        assert_eq!(road.lane_snow.len(), 20, "200 m of lane in 10 m cells");
+        assert_eq!(road.lane_snow_at(95.0), Some(1.0));
+        // As baked at the start, in the lane as on the run-off.
+        let lane = road.sample_in_lane(500.0, 20.0, 95.0);
+        assert!((lane.wet_grip - 1.0).abs() < 1e-6, "{}", lane.wet_grip);
+        // The snow has stopped on a freezing track; twenty cars an hour
+        // through the lane's first half, for an hour. (Under a snowfall
+        // the lane's few cars barely keep up with it.)
+        road.snowfall = 0.0;
+        for t in 0..3600 {
+            if t % 180 == 0 {
+                for station in (0..10).map(|c| 5.0 + 10.0 * c as f32) {
+                    road.note_lane_pass(station, 4.0);
+                }
+            }
+            road.step(1.0, 1.0);
+        }
+        let (driven, untouched) = (
+            road.lane_snow_at(55.0).unwrap(),
+            road.lane_snow_at(155.0).unwrap(),
+        );
+        println!("lane cover after an hour: driven {driven:.3}, untouched {untouched:.3}");
+        assert!((SNOW_FLOOR..0.9).contains(&driven), "{driven}");
+        assert!(untouched > 0.99, "{untouched}");
+        let packed = road.sample_in_lane(500.0, 20.0, 55.0).wet_grip;
+        let verge = road.sample(500.0, 20.0).wet_grip;
+        assert!(
+            packed > verge + 0.1,
+            "lane {packed} against run-off {verge}"
+        );
+        assert_eq!(
+            road.sample_in_lane(500.0, 20.0, 155.0).wet_grip,
+            verge,
+            "an undriven cell is the verge's cover"
+        );
+        // A track without a lane reads the verge, as before.
+        let plain = RoadState::new(&snowy_track(-3.0), RUBBER_REFERENCE);
+        assert!(plain.lane_snow.is_empty());
+        assert_eq!(
+            plain.sample_in_lane(500.0, 20.0, 55.0),
+            plain.sample(500.0, 20.0)
         );
     }
 

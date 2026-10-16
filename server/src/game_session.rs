@@ -3972,7 +3972,13 @@ impl GameSession {
                     .get(&state.car_config_id)
                     .map_or(0.0, |c| c.mass_kg * crate::physics::GRAVITY);
                 let work = &state.road_work;
-                road.note_pass(state.track_progress, &work.passes(weight_n), work.shed());
+                let passes = work.passes(weight_n);
+                road.note_pass(state.track_progress, &passes, work.shed());
+                if state.pit.in_lane {
+                    // And in the pit lane, on the lane's own station.
+                    let weight: f32 = passes.iter().map(|p| p.weight).sum();
+                    road.note_lane_pass(state.pit.lane_station_m, weight);
+                }
                 state.road_work.restart();
             }
         }

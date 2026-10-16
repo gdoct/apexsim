@@ -1479,7 +1479,7 @@ pub fn drive_input(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     /// A healthy engine is driven flat out; a hot or a damaged one is

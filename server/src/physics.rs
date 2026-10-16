@@ -549,7 +549,12 @@ pub fn update_car_3d(
                 let station = state.track_progress + local_x;
                 // `lateral_offset` is positive to the right; +y is left.
                 let lateral = track_ctx.lateral_offset - local_y;
-                road.sample(station, lateral)
+                if state.pit.in_lane {
+                    // The lane's own cover, at the car's place along it.
+                    road.sample_in_lane(station, lateral, state.pit.lane_station_m + local_x)
+                } else {
+                    road.sample(station, lateral)
+                }
             }
             None => crate::road_state::RoadSample {
                 water: track.track_surface.water,

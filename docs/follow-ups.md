@@ -242,6 +242,10 @@ the launcher import with the network off.
   `BuildCloudLayer` (90 m and 25 m) read small from the ground.
 - The chase-near camera behind the Bugotti Chiffon showed a dark blur
   filling the frame once (snow run, 2026-10-15): the camera inside a body.
+- The pit lane's own snow cover (`RoadState::lane_snow`, packed by the
+  cars in the lane) is not on the wire: the lane is drawn with the lap's
+  mean cover (`SnowMids`). It wants a row of its own beside `SnowRows` and
+  the lane's material reading it.
 - A replay or a watched stream throws no dust and has no ground under its
   tyres: the spectator stream's rows carry each wheel's surface but not
   `CompactCarState::ground`, so `UpdateDust` and the road sound's gravel

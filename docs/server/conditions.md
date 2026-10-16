@@ -333,9 +333,21 @@ in a snowy sample the water counts as water only as far as the road is bare
 (times `1 - sqrt(cover)`, against the baked road worked out the same way), so
 a covered road grips as the cover whatever lies under it, and a road melted
 clear grips as wet asphalt while the melt water stands and as dry asphalt
-(the covered bake's 0.28 back to 1.0) once it has drained. The run-off and
-the pit lane (`wet_grip`), which no racing wheel clears, carry the verge's
-cover the same way: buried under a snowfall, bare once the track melts it.
+(the covered bake's 0.28 back to 1.0) once it has drained. The run-off
+(`wet_grip`), which no racing wheel clears, carries the verge's cover the
+same way: buried under a snowfall, bare once the track melts it.
+
+The pit lane keeps a cover of its own (`RoadState::lane_snow`, one figure a
+10 m cell of the lane's own station, `PitLane::length_m`; none on a track
+without a lane). A car in the lane (`PitState::in_lane`) that crosses into a
+new lap cell also lays its wheels' passes on the lane's cell at its
+`lane_station_m` (`note_lane_pass`), which pack it toward `SNOW_FLOOR` at
+`LANE_PACK_SHARE` (a quarter) of a racing bin's rate, the figure standing for
+the whole width; the snowfall covers it and a warm track melts it like the
+verge. A wheel in the lane reads it (`sample_in_lane`, from `update_car_3d`
+at the car's lane station) as its `wet_grip`'s cover. Under a steady
+snowfall the lane's few cars barely keep up with it; once the snow stops,
+twenty cars an hour pack a driven stretch to about 0.7.
 
 - The cover builds toward 1 under snowfall (`SNOWFALL_RATE`: ten minutes
   from bare to 90%). Every wheel pass packs its bin down toward
