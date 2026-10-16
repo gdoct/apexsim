@@ -315,7 +315,9 @@ SIGINT or SIGTERM marks `/health` unhealthy, sends every client `Error 503
 
 `[debug]` (`APEXSIM_DEBUG_STAND_IN_DRIVER`, `APEXSIM_DEBUG_EVENTS`): never on
 a server people race on. `stand_in_driver = true` has an AI drive every
-human's car; `events = "<s of green>:<host|all|car index>:<action>;..."`
+human's car in every mode (race, practice, qualifying runs and shoot-outs
+once the car is out of its garage), with the steering aid off whatever the
+driver's profile says (`hand_cars_to_stand_in`, each tick); `events = "<s of green>:<host|all|car index>:<action>;..."`
 fires `wear=P`, `puncture=FL`, `leak=FL:KPA`, `flatspot=FL:S`,
 `damage=<zone>:P`, `brakewear=P`, `pit`, `boost=S`, `aids=off` or
 `pitlane=manual` (the pit autopilot off) at a time

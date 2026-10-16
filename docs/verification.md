@@ -288,12 +288,14 @@ car was sent out; a written forecast echoed and laid out in `sky.outlook`
 (`apexsim.hud.Data`), and `qualifying.laps_left` reading 2 on the track.
 
 - The shoot-out's end and its results sheet (QUALIFYING SHOOT-OUT, ONE
-  FLYING LAP EACH, RAN Nth): the stand-in does not drive the player's car
-  in qualifying, so its run stood still until its time ran out. A driven
-  run, or the run timing out, then the sheet.
+  FLYING LAP EACH, RAN Nth): the player's run stood still in the last
+  `r12-shootout` (the stand-in drove through the profile's steering aid
+  into a wall); the stand-in now drives qualifying with the aid off
+  (`the_stand_in_drives_a_qualifying_run`), so a rerun should show a driven
+  run, then the sheet.
 - The lap allowance counting down: Laps left 1 and USED on the race state,
   LAP ALLOWANCE USED with GO OUT disabled in the garage, and GO OUT's
-  "2 timed laps left" badge (the same stand-in gap; the badge was not up at
+  "2 timed laps left" badge (the same stand-in stall, now fixed; the badge was not up at
   12 s, before the session was in qualifying). The count now comes from the
   server's `RosterEntry.QualifyingLaps`: `r12-lap-allowance` showed a roster
   resent at each AI lap and the player's laps left holding at 2, but not a

@@ -1087,6 +1087,7 @@ impl GameSession {
     pub fn tick(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         self.session.current_tick += 1;
         self.update_sky();
+        self.hand_cars_to_stand_in();
         // A watched car waits on the run-up with its foot on the brake.
         let held;
         let inputs = if self.hotlap_watch.active
@@ -4151,19 +4152,27 @@ impl GameSession {
         Some(input)
     }
 
+    /// A debug stand-in drives every human's car with the steering aid
+    /// off, in every mode: the AI steers the wheel itself, and an aid
+    /// between it and the car reshapes its every input (in qualifying it
+    /// put the car into the first wall and left it there). Called every
+    /// tick; the pit autopilot puts a driver's own aid back as it hands a
+    /// car back, so it is taken off again.
+    fn hand_cars_to_stand_in(&mut self) {
+        if !self.debug.stand_in_driver {
+            return;
+        }
+        let ai = &self.ai_profiles;
+        for state in self.session.participants.values_mut() {
+            if !ai.contains_key(&state.player_id) {
+                state.steering_assist = false;
+            }
+        }
+    }
+
     /// Fire the debug events (`crate::debug_hooks`) whose time of green has
     /// come. Called every racing tick.
     fn fire_debug_events(&mut self) {
-        if self.debug.stand_in_driver {
-            // The AI steers the wheel itself: an aid between it and the car
-            // would reshape its every input.
-            let ai = &self.ai_profiles;
-            for state in self.session.participants.values_mut() {
-                if !ai.contains_key(&state.player_id) {
-                    state.steering_assist = false;
-                }
-            }
-        }
         if self.debug.events.is_empty() || self.session.state != SessionState::Racing {
             return;
         }

@@ -5,8 +5,8 @@
 //! test, render or survey is touched by them.
 //!
 //! - **Stand-in driver** (`stand_in_driver = true`): every human's car is
-//!   driven by an AI profile instead of the client's input, pit stops
-//!   planned like any AI's. The client still sees its own car, so the
+//!   driven by an AI profile instead of the client's input, in every mode,
+//!   with its steering aid off; pit stops planned like any AI's. The client still sees its own car, so the
 //!   driver's HUD shows a car racing, stopping and boosting unattended.
 //! - **Events** (`events = "30:host:wear=75;45:3:damage=front:100"`): at
 //!   so many seconds of green, do something to a car. The target is `host`

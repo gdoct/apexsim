@@ -96,3 +96,57 @@ fn a_boost_event_holds_the_overtake_button() {
     run(&mut gs, player, 2.0, |_| false);
     assert!(!gs.stand_in_input(&player).unwrap().ers_boost, "let go");
 }
+
+/// The stand-in drives a human's car in qualifying too, with the steering
+/// aid their profile has on (as a client's `SetDriverAids` leaves it): a
+/// shoot-out's run is driven to a flying lap and the shoot-out ends. With
+/// the aid between the AI and the car, the run went into the first wall
+/// and stood there until its time ran out.
+#[test]
+fn the_stand_in_drives_a_qualifying_run() {
+    let Ok(track) =
+        TrackLoader::load_from_file("../content/tracks/default/Norisring/Norisring.yaml")
+    else {
+        return;
+    };
+    let car = CarLoader::load_from_file(Path::new(
+        "../content/cars/default/limbotiti-caravan-gt3/car.toml",
+    ))
+    .expect("the Caravan");
+    let car_id = car.id;
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car);
+    let host = Uuid::from_u128(1);
+    let session = RaceSession::new(host, track.id, SessionKind::Multiplayer, 8, 0, 3);
+    let mut gs = GameSession::new(session, track, car_configs);
+    gs.add_player(host, car_id).expect("seat");
+    gs.set_driver_name(host, "Host");
+    gs.set_debug_hooks(DebugHooks::from_settings(true, ""));
+    gs.session
+        .participants
+        .get_mut(&host)
+        .unwrap()
+        .steering_assist = true;
+    gs.set_qualifying_format(QualifyingFormat::Shootout);
+    gs.set_game_mode(GameMode::Qualification);
+    let mut flying = None;
+    for _ in 0..(HZ * 300) {
+        let input = gs.stand_in_input(&host).unwrap_or_default();
+        gs.tick(&[(host, input)].into());
+        for lap in gs.take_lap_events() {
+            if lap.player_id == host && lap.event.lap_time_ms.is_some() {
+                flying = lap.event.lap_time_ms;
+            }
+        }
+        if gs.session.state == SessionState::Finished {
+            break;
+        }
+    }
+    let ms = flying.expect("a flying lap driven");
+    assert!(ms < 120_000, "a lap at pace: {ms} ms");
+    assert_eq!(
+        gs.session.state,
+        SessionState::Finished,
+        "the shoot-out ended"
+    );
+}
