@@ -3833,9 +3833,10 @@ impl GameSession {
                 let profile = self.ai_profiles.get(&me.id)?;
                 let state = self.session.participants.get(&me.id)?;
                 let speeds = self.ai_speed_profile(state);
+                let risk = self.mistake_risk(state, total);
                 Some((
                     me.id,
-                    crate::racecraft::decide(state, me, profile, speeds, &field, &ctx),
+                    crate::racecraft::decide(state, me, profile, speeds, &field, &risk, &ctx),
                 ))
             })
             .collect();
@@ -3865,6 +3866,29 @@ impl GameSession {
                 }
             }
         }
+    }
+
+    /// What puts an AI at risk of a mistake away from pressure
+    /// (`racecraft::MistakeRisk`): its tyres, the water under them against
+    /// the road's baked grip, and its time in the car this stint (the laps
+    /// since its last stop at its lap time).
+    fn mistake_risk(&self, state: &CarState, total_m: f32) -> crate::racecraft::MistakeRisk {
+        let Some(config) = self.car_configs.get(&state.car_config_id) else {
+            return crate::racecraft::MistakeRisk::default();
+        };
+        let lap_s = state
+            .last_lap_time_ms
+            .filter(|ms| *ms > 0)
+            .map(|ms| ms as f32 / 1000.0)
+            .or_else(|| self.lap_seconds.get(&state.car_config_id).copied())
+            .unwrap_or(FALLBACK_LAP_SECONDS);
+        let stint_laps = (laps_run(state, total_m) - state.pit.stint_start_laps).max(0.0);
+        crate::racecraft::MistakeRisk::of(
+            state,
+            &config.tire_config,
+            self.track_config.track_surface.baked_water,
+            stint_laps * lap_s,
+        )
     }
 
     /// The sky this tick (`crate::conditions`), once a second: the clock,

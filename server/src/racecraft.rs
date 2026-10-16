@@ -39,10 +39,12 @@
 //!   once it has been off it [`RESET_AFTER_S`] without gaining
 //!   [`RESET_HEADWAY_M`] of lap: the session recovers it as a driver's
 //!   back-to-track would ([`Racecraft::wants_reset`]).
-//! - **Mistakes**: under pressure (a car close behind) a driver now and
-//!   then gets a corner wrong, by how inconsistent it is: it overcooks the
-//!   braking, locks a wheel late in the braking zone, misses the apex wide
-//!   or misses an upshift out of the corner ([`Mistake`]).
+//! - **Mistakes**: under pressure (a car close behind), and less often on
+//!   cold tyres, on a wet patch or late in a long stint ([`MistakeRisk`]),
+//!   a driver now and then gets a corner wrong, by how inconsistent it is:
+//!   it overcooks the braking, locks a wheel late in the braking zone,
+//!   misses the apex wide or misses an upshift out of the corner
+//!   ([`Mistake`]).
 //!
 //! Every chance is a hash of the driver, the lap and the corner, so a race
 //! replays the same and the sim stays deterministic.
@@ -135,6 +137,25 @@ const WIDE_RATE_MPS: f32 = 2.0;
 /// this much more, s (the engine sits on its limiter).
 const MISSED_SHIFT_S: f32 = 0.4;
 const MISSED_SHIFT_SPREAD_S: f32 = 0.6;
+/// Away from pressure a driver gets a corner wrong too, at a share of the
+/// chance under pressure for each thing that is against it
+/// ([`MistakeRisk`], each 0..1): tyres under their window, a wet patch,
+/// a long stint.
+const COLD_MISTAKE: f32 = 0.15;
+const WET_MISTAKE: f32 = 0.4;
+const FATIGUE_MISTAKE: f32 = 0.15;
+/// Under this much risk from them a corner is not rolled for at all.
+const RISK_MIN: f32 = 0.01;
+/// Tyres this far under their window's cold edge, °C, are as cold as the
+/// risk counts.
+const COLD_RISK_SPAN_C: f32 = 25.0;
+/// Water under a tyre this much over the water the session's grip was
+/// baked at (the weather's units) is as wet a patch as the risk counts.
+const WET_RISK_SPAN: f32 = 0.3;
+/// A stint starts to tire a driver after this long, s, and has tired it
+/// all the risk counts after this.
+const FATIGUE_FROM_S: f32 = 3600.0;
+const FATIGUE_FULL_S: f32 = 4.0 * 3600.0;
 /// How quickly the car moves onto a lane and back off it: the share of the
 /// way per second (attack, defend, back to the line).
 const BLEND_ATTACK_PER_S: f32 = 1.25;
@@ -363,6 +384,58 @@ fn racing(state: &CarState) -> bool {
         && state.finish_position.is_none()
 }
 
+/// What, besides a car close behind, puts a driver at risk of a mistake,
+/// each 0..1 ([`MistakeRisk::of`]).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct MistakeRisk {
+    /// Tyres under their window: the colder axle's tread and carcass.
+    pub cold: f32,
+    /// Water under a tyre over what the session's grip was baked at: a
+    /// puddle, a wet line in a drying race, rain the grip was not set for.
+    pub wet: f32,
+    /// The time in the car this stint.
+    pub fatigue: f32,
+}
+
+impl MistakeRisk {
+    /// `state`'s risk on `tire`s, on a road baked at `baked_water`, `stint_s`
+    /// into its stint.
+    pub fn of(
+        state: &CarState,
+        tire: &crate::data::TireConfig,
+        baked_water: f32,
+        stint_s: f32,
+    ) -> Self {
+        let cold = if state.tyres_fitted {
+            let compound = tire.compound(state.tyre_compound);
+            let edge =
+                crate::tyre_thermal::optimum_c(tire, compound) - tire.temperature_window_c.max(0.0);
+            let share = crate::tyre_thermal::TREAD_GRIP_SHARE;
+            let at = |t: &crate::data::TireData| {
+                share * t.temperature_c + (1.0 - share) * t.core_temperature_c
+            };
+            let t = &state.tires;
+            let front = 0.5 * (at(&t.front_left) + at(&t.front_right));
+            let rear = 0.5 * (at(&t.rear_left) + at(&t.rear_right));
+            ((edge - front.min(rear)) / COLD_RISK_SPAN_C).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let water = state.tyre_water.iter().copied().fold(0.0, f32::max);
+        Self {
+            cold,
+            wet: ((water - baked_water) / WET_RISK_SPAN).clamp(0.0, 1.0),
+            fatigue: ((stint_s - FATIGUE_FROM_S) / (FATIGUE_FULL_S - FATIGUE_FROM_S))
+                .clamp(0.0, 1.0),
+        }
+    }
+
+    /// The chance of a mistake against the chance under pressure.
+    fn weight(&self) -> f32 {
+        COLD_MISTAKE * self.cold + WET_MISTAKE * self.wet + FATIGUE_MISTAKE * self.fatigue
+    }
+}
+
 /// What the session tells the pass.
 pub struct Context<'a> {
     pub track: &'a TrackConfig,
@@ -528,6 +601,7 @@ pub fn decide(
     profile: &AiDriverProfile,
     speeds: Option<&RacingLineProfile>,
     field: &[Rival],
+    risk: &MistakeRisk,
     ctx: &Context<'_>,
 ) -> Racecraft {
     let mut rc = state.racecraft;
@@ -621,9 +695,9 @@ pub fn decide(
         _ => rc.held_s = (rc.held_s - 2.0 * dt).max(0.0),
     }
 
-    // Mistakes under pressure, rolled once a corner.
+    // Mistakes, under pressure or not, rolled once a corner.
     mistakes(
-        &mut rc, state, me, profile, &corner, braking, behind, speed, dt, ctx,
+        &mut rc, state, me, profile, &corner, braking, behind, risk, speed, dt, ctx,
     );
     let mistake = rc.mistake_corner == Some(corner.apex as u32) && rc.overspeed > 0.0;
 
@@ -750,10 +824,11 @@ pub fn decide(
     settle(rc, dt)
 }
 
-/// The mistakes a driver under pressure makes: one roll a corner, as it
-/// nears the braking zone with a car close behind, for whether it gets the
-/// corner wrong and how. A corner's mistake ends once the corner is passed;
-/// a missed upshift is made then, on the way out of it.
+/// The mistakes a driver makes: one roll a corner, as it nears the braking
+/// zone with a car close behind or on cold tyres, a wet patch or a long
+/// stint ([`MistakeRisk`]), for whether it gets the corner wrong and how.
+/// A corner's mistake ends once the corner is passed; a missed upshift is
+/// made then, on the way out of it.
 #[allow(clippy::too_many_arguments)]
 fn mistakes(
     rc: &mut Racecraft,
@@ -763,6 +838,7 @@ fn mistakes(
     corner: &Corner,
     braking: bool,
     behind: Option<(&Rival, f32)>,
+    risk: &MistakeRisk,
     speed: f32,
     dt: f32,
     ctx: &Context<'_>,
@@ -782,12 +858,22 @@ fn mistakes(
     let reach = |o: &Rival| 0.5 * (me.length_m + o.length_m);
     let pressured =
         behind.is_some_and(|(o, rel)| -rel - reach(o) < PRESSURE_GAP_S * speed + CLOSE_EXTRA_M);
-    if ctx.race && pressured && corner.brake_in_m < 150.0 && rc.mistake_corner != Some(apex) {
+    let weight = risk.weight();
+    let at_risk = pressured || weight >= RISK_MIN;
+    if ctx.race && at_risk && corner.brake_in_m < 150.0 && rc.mistake_corner != Some(apex) {
         rc.mistake_corner = Some(apex);
         let inconsistency = (1.0 - profile.consistency).clamp(0.0, 1.0);
         let (lap, at) = (state.current_lap, corner.apex);
-        rc.mistake = if roll(me.id, lap, at, 1) < MISTAKE_CHANCE * inconsistency {
-            match (roll(me.id, lap, at, 5) * 4.0) as u32 {
+        let chance = MISTAKE_CHANCE * inconsistency * (if pressured { 1.0 } else { 0.0 } + weight);
+        // Cold tyres and a wet patch go wrong in the braking and the
+        // turn-in; a shift is missed under pressure or tired.
+        let kinds = if pressured || risk.fatigue > 0.0 {
+            4.0
+        } else {
+            3.0
+        };
+        rc.mistake = if roll(me.id, lap, at, 1) < chance {
+            match (roll(me.id, lap, at, 5) * kinds) as u32 {
                 0 => Mistake::Overcook,
                 1 => Mistake::LockUp,
                 2 => Mistake::MissedApex,
@@ -1262,6 +1348,7 @@ mod tests {
             ..me
         };
         let behind = Some((&chaser, -6.0));
+        let calm = MistakeRisk::default();
         let approach = |apex: usize| Corner {
             apex,
             brake_in_m: 100.0,
@@ -1277,10 +1364,10 @@ mod tests {
             let mut again = Racecraft::default();
             let corner = approach(apex);
             mistakes(
-                &mut rc, &state, &me, &profile, &corner, false, behind, 60.0, 0.01, &ctx,
+                &mut rc, &state, &me, &profile, &corner, false, behind, &calm, 60.0, 0.01, &ctx,
             );
             mistakes(
-                &mut again, &state, &me, &profile, &corner, false, behind, 60.0, 0.01, &ctx,
+                &mut again, &state, &me, &profile, &corner, false, behind, &calm, 60.0, 0.01, &ctx,
             );
             assert_eq!(rc, again, "a roll is the same every time");
             if !seen.contains(&rc.mistake) {
@@ -1301,6 +1388,7 @@ mod tests {
                 &approach(apex),
                 false,
                 behind,
+                &calm,
                 60.0,
                 0.01,
                 &ctx,
@@ -1316,7 +1404,7 @@ mod tests {
             ..approach(apex)
         };
         mistakes(
-            &mut rc, &state, &me, &profile, &early, true, None, 50.0, 0.01, &ctx,
+            &mut rc, &state, &me, &profile, &early, true, None, &calm, 50.0, 0.01, &ctx,
         );
         assert_eq!(rc.lock_up_s, 0.0);
         let late = Corner {
@@ -1324,7 +1412,7 @@ mod tests {
             ..early
         };
         mistakes(
-            &mut rc, &state, &me, &profile, &late, true, None, 40.0, 0.01, &ctx,
+            &mut rc, &state, &me, &profile, &late, true, None, &calm, 40.0, 0.01, &ctx,
         );
         assert!(rc.lock_up_s >= LOCK_UP_S, "{rc:?}");
         assert_eq!(rc.mistake, Mistake::None, "once a corner");
@@ -1339,14 +1427,14 @@ mod tests {
         };
         for _ in 0..100 {
             mistakes(
-                &mut rc, &state, &me, &profile, &turning, true, None, 40.0, 0.01, &ctx,
+                &mut rc, &state, &me, &profile, &turning, true, None, &calm, 40.0, 0.01, &ctx,
             );
         }
         assert!(rc.wide_m < -MISSED_APEX_M * 0.99, "{rc:?}");
         let next = approach(apex + 500);
         for _ in 0..200 {
             mistakes(
-                &mut rc, &state, &me, &profile, &next, false, None, 40.0, 0.01, &ctx,
+                &mut rc, &state, &me, &profile, &next, false, None, &calm, 40.0, 0.01, &ctx,
             );
         }
         assert_eq!(rc.wide_m, 0.0);
@@ -1364,6 +1452,7 @@ mod tests {
             },
             true,
             None,
+            &calm,
             40.0,
             0.01,
             &ctx,
@@ -1377,6 +1466,7 @@ mod tests {
             &approach(apex + 500),
             false,
             None,
+            &calm,
             40.0,
             0.01,
             &ctx,
@@ -1396,6 +1486,7 @@ mod tests {
                 &approach(apex),
                 false,
                 behind,
+                &calm,
                 60.0,
                 0.01,
                 &ctx,
@@ -1490,6 +1581,91 @@ mod tests {
         state.is_on_track = true;
         follow_leg(&mut rc, &state, &track);
         assert_eq!(rc.leg_idx, Some(back_leg as u32));
+    }
+
+    /// Alone, a driver gets corners wrong only with something against it
+    /// (cold tyres, a wet patch, a long stint), less often than under
+    /// pressure, and never misses a shift for a cold tyre or a puddle.
+    #[test]
+    fn mistakes_come_from_cold_tyres_and_wet_patches_too() {
+        let track = TrackConfig::default();
+        let ctx = Context {
+            track: &track,
+            total_m: 4000.0,
+            race: true,
+            dt: 0.01,
+        };
+        let profile = AiDriverProfile::with_attributes("Wild", 70, 0.5, 0.5, 200, 0.5, 1.0, 0.0);
+        let mut state = CarState::new(
+            uuid::Uuid::from_u64_pair(7, 9),
+            uuid::Uuid::new_v4(),
+            &track.start_positions[0],
+        );
+        state.track_progress = 1000.0;
+        state.speed_mps = 60.0;
+        state.is_on_track = true;
+        let me = Rival::of(&state, 4.5, 2.0, ctx.total_m);
+        let chaser = Rival {
+            id: uuid::Uuid::from_u64_pair(1, 1),
+            progress_m: 994.0,
+            ..me
+        };
+        let count = |risk: &MistakeRisk, behind: Option<(&Rival, f32)>| {
+            let mut kinds = std::collections::BTreeSet::new();
+            let mut n = 0;
+            for apex in 0..2000 {
+                let mut rc = Racecraft::default();
+                let corner = Corner {
+                    apex,
+                    brake_in_m: 100.0,
+                    apex_in_m: 200.0,
+                    inside: 1.0,
+                };
+                mistakes(
+                    &mut rc, &state, &me, &profile, &corner, false, behind, risk, 60.0, 0.01, &ctx,
+                );
+                if rc.mistake != Mistake::None {
+                    n += 1;
+                    kinds.insert(format!("{:?}", rc.mistake));
+                }
+            }
+            (n, kinds)
+        };
+        let calm = MistakeRisk::default();
+        assert_eq!(count(&calm, None).0, 0, "nothing against it, no mistakes");
+        let (pressured, _) = count(&calm, Some((&chaser, -6.0)));
+        let cold = MistakeRisk { cold: 1.0, ..calm };
+        let (n_cold, kinds) = count(&cold, None);
+        assert!(n_cold > 0 && n_cold * 3 < pressured, "{n_cold} {pressured}");
+        assert!(!kinds.contains("MissedShift"), "{kinds:?}");
+        let wet = MistakeRisk { wet: 1.0, ..calm };
+        let (n_wet, _) = count(&wet, None);
+        assert!(n_wet > n_cold && n_wet < pressured, "{n_wet} {n_cold}");
+
+        // The risk itself: tyres at the air on a cold morning, water over
+        // what the road was baked at, four hours in the car.
+        let tire = crate::data::TireConfig::default();
+        state.tyres_fitted = true;
+        for t in state.tires.each_mut() {
+            t.temperature_c = 20.0;
+            t.core_temperature_c = 20.0;
+        }
+        state.tyre_water = [0.0, 0.0, 0.4, 0.0];
+        let risk = MistakeRisk::of(&state, &tire, 0.1, 5.0 * 3600.0);
+        assert_eq!(risk.cold, 1.0);
+        assert!((risk.wet - 1.0).abs() < 1e-5, "{risk:?}");
+        assert_eq!(risk.fatigue, 1.0);
+        let opt = crate::tyre_thermal::optimum_c(&tire, tire.compound(state.tyre_compound));
+        for t in state.tires.each_mut() {
+            t.temperature_c = opt;
+            t.core_temperature_c = opt;
+        }
+        state.tyre_water = [0.1; 4];
+        assert_eq!(
+            MistakeRisk::of(&state, &tire, 0.1, 600.0),
+            MistakeRisk::default(),
+            "warm, on the road as baked, fresh"
+        );
     }
 
     /// Stopped off the road with a car coming, a driver waits for it

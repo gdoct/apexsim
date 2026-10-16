@@ -133,8 +133,17 @@ next `Brake` phase, its slowest point, the hand at the apex).
 - **Yield**: about to be lapped, it moves toward the outside and lifts 3%.
 - **Mistakes**: with a car within 0.6 s behind, a driver now and then
   gets a corner wrong, by its inconsistency (`MISTAKE_CHANCE`, one roll a
-  corner as it nears the braking zone), and an even draw says how
-  (`Mistake`): it overcooks the braking (2.5-4.5% too fast,
+  corner as it nears the braking zone). Away from pressure it does too, at
+  a share of that chance for each thing against it (`MistakeRisk`, built
+  per tick by `GameSession::mistake_risk`, each 0..1, the shares summed):
+  tyres under their window (`COLD_MISTAKE` 0.15 when the colder axle is
+  `COLD_RISK_SPAN_C` 25 °C under the window's cold edge), a wet patch
+  (`WET_MISTAKE` 0.4 with a tyre on water `WET_RISK_SPAN` 0.3 over what the
+  road's grip was baked at: a puddle, a wet line in a drying race, rain
+  the session was not set for) and a long stint (`FATIGUE_MISTAKE` 0.15,
+  from an hour in the car to full at four, the stint's laps at its lap
+  time). An even draw says how (`Mistake`), of all four kinds under
+  pressure or tired, and of the first three on cold tyres or a wet patch: it overcooks the braking (2.5-4.5% too fast,
   `Racecraft::overspeed`); it locks up late in the braking zone (80 m
   before the apex, or at the end of the braking: the pedal to the floor
   past the friction circle for 0.25-0.6 s, `lock_up_s`, which an ABS car's
