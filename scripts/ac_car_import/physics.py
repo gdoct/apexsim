@@ -57,6 +57,8 @@ class Physics:
     #: table name -> key -> Value, in the order the writer emits them.
     tables: dict[str, dict[str, Value]] = field(default_factory=dict)
     torque_curve: list[tuple[float, float]] = field(default_factory=list)
+    #: The hybrid motor's torque by its rpm (`[[hybrid.torque_curve]]`).
+    motor_curve: list[tuple[float, float]] = field(default_factory=list)
     #: Figures for the report that are not car.toml keys.
     fit: dict = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
@@ -222,6 +224,14 @@ def ers_min_speed_kph(car: CarData, front_motor: bool, controller: int) -> float
     return None
 
 
+def _motor_curve(lut, scale: float) -> list[tuple[float, float]]:
+    """A motor's TORQUE_CURVE as `[[hybrid.torque_curve]]` points (its rpm,
+    torque x `scale`), ordered by rpm; empty for none."""
+    if lut is None or not lut.x.size:
+        return []
+    return [(round(float(r), 1), round(float(t) * scale, 1)) for r, t in sorted(lut.points)]
+
+
 def map_ers(car: CarData, ers: dict, out, driven_radius: float, front_radius: float) -> None:
     """ers.ini's motors onto `[hybrid]`: the crank motor ([KINETIC], torque
     by engine rpm) or a front-axle one ([FRONT_MOTORS], torque at the axle
@@ -229,9 +239,11 @@ def map_ers(car: CarData, ers: dict, out, driven_radius: float, front_radius: fl
     DISCHARGE_TIME, the lap budget from MAX_KJ_PER_LAP, the MGU-H share, and
     the default delivery profile's minimum speed."""
     k = ers["KINETIC"]
-    crank_t, crank_p = _peak(read_curve(car, k.get("TORQUE_CURVE")))
+    crank_lut = read_curve(car, k.get("TORQUE_CURVE"))
+    crank_t, crank_p = _peak(crank_lut)
     fm = ers.get("FRONT_MOTORS", {})
-    front_t, front_p = _peak(read_curve(car, fm.get("TORQUE_CURVE"))) if fm else (0.0, 0.0)
+    front_lut = read_curve(car, fm.get("TORQUE_CURVE")) if fm else None
+    front_t, front_p = _peak(front_lut) if fm else (0.0, 0.0)
     if crank_p <= 0.0 and front_p <= 0.0:
         out.warnings.append("ers.ini has no motor curve on either axle: no hybrid")
         return
@@ -254,6 +266,7 @@ def map_ers(car: CarData, ers: dict, out, driven_radius: float, front_radius: fl
         out.put(h, "motor_max_torque_nm", round(motor_t, 1),
                 "ers.ini [FRONT_MOTORS] TORQUE_CURVE peak, at the axle (x driven / front tyre radius)")
         out.put(h, "motor_max_power_kw", round(motor_p, 1), "ers.ini [FRONT_MOTORS] TORQUE_CURVE peak power (wheel rpm)")
+        out.motor_curve = _motor_curve(front_lut, driven_radius / max(front_radius, 0.05))
         regen_source = "the front motor's peak power (it recovers through the fronts)"
         if fm.get("FRONT_TORQUE_VECTORING_BIAS") is not None:
             out.warnings.append("ers.ini FRONT_TORQUE_VECTORING_BIAS is not modelled: the front differential "
@@ -269,6 +282,7 @@ def map_ers(car: CarData, ers: dict, out, driven_radius: float, front_radius: fl
         discharge_s = number(k.get("DISCHARGE_TIME"), 0.0) / 1000.0
         out.put(h, "motor_max_torque_nm", round(motor_t, 1), "ers.ini TORQUE_CURVE peak")
         out.put(h, "motor_max_power_kw", round(motor_p, 1), "ers.ini TORQUE_CURVE peak power")
+        out.motor_curve = _motor_curve(crank_lut, 1.0)
     # DISCHARGE_TIME is how long the store lasts deploying flat out, so the
     # store is the motor's power over that time; MAX_KJ_PER_LAP is what may
     # be deployed per lap (a regulation, not the store).

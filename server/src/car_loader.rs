@@ -621,6 +621,9 @@ struct HybridToml {
     /// front axle directly.
     #[serde(default)]
     axle: Option<String>,
+    /// The motor's torque by its rpm, as `[[engine.torque_curve]]`.
+    #[serde(default)]
+    torque_curve: Vec<TorqueCurvePointToml>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -900,6 +903,14 @@ impl CarLoader {
                     Some("front") | Some("Front") | Some("FRONT") => HybridAxle::Front,
                     _ => HybridAxle::Crank,
                 },
+                torque_curve: hybrid_toml
+                    .torque_curve
+                    .into_iter()
+                    .map(|p| TorqueCurvePoint {
+                        rpm: p.rpm,
+                        torque_nm: p.torque_nm,
+                    })
+                    .collect(),
             },
 
             // Braking

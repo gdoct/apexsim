@@ -387,7 +387,9 @@ importer change.
     the force and power come out as AC's, recovering at its own peak
     power), whichever is the stronger; with both (the 918, the TS040) the
     other is dropped with a warning. Curves may be files or inline
-    (`(0=150|...|)`, as the 499P mod writes them). The battery is the
+    (`(0=150|...|)`, as the 499P mod writes them); the kept motor's curve
+    is written as `[[hybrid.torque_curve]]` (a front motor's torque
+    scaled as its peak is). The battery is the
     motor's peak power x `DISCHARGE_TIME`, `MAX_KJ_PER_LAP` the
     `deploy_kj_per_lap` budget, `[HEAT] TORQUE_PERC` x the motor power
     `heat_recovery_kw`. Of the delivery profiles, the default one

@@ -656,6 +656,10 @@ TORQUE_CURVE=kers_torque.lut
         self.assertNotIn("deploy_min_speed_kph", h)
         self.assertTrue(any("front motor ([FRONT_MOTORS]) is dropped" in w for w in self.warnings))
 
+    def test_the_motor_files_its_torque_curve(self):
+        curve = [(p["rpm"], p["torque_nm"]) for p in self.toml["hybrid"]["torque_curve"]]
+        self.assertEqual(curve, [(0.0, 150.0), (4000.0, 450.0), (5000.0, 450.0), (10000.0, 70.0)])
+
 
 class SyntheticImportTest(unittest.TestCase):
     @classmethod

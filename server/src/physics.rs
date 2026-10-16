@@ -2167,7 +2167,7 @@ fn full_throttle_net_torque_nm(config: &CarConfig, rpm: f32) -> f32 {
     engine_curve_torque_nm(config, rpm) - config.engine.friction_torque_nm * rpm_frac
 }
 
-fn interpolate_torque_curve(curve: &[TorqueCurvePoint], rpm: f32) -> f32 {
+pub(crate) fn interpolate_torque_curve(curve: &[TorqueCurvePoint], rpm: f32) -> f32 {
     if curve.is_empty() {
         return 0.0;
     }

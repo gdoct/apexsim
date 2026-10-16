@@ -471,6 +471,24 @@ pub struct HybridConfig {
     /// torque at the axle and the motor turns with the front wheels.
     #[serde(default)]
     pub axle: HybridAxle,
+    /// The motor's torque by its rpm (`[[hybrid.torque_curve]]`: the
+    /// crank's rpm, or the front wheels' on the front axle), capped at
+    /// `motor_max_torque_nm`; empty (the default) is the peak at every
+    /// speed, up to the power limit.
+    #[serde(default)]
+    pub torque_curve: Vec<TorqueCurvePoint>,
+}
+
+impl HybridConfig {
+    /// The torque the motor can give at `rpm`: its curve where it files
+    /// one, else its peak.
+    pub fn torque_at(&self, rpm: f32) -> f32 {
+        if self.torque_curve.is_empty() {
+            return self.motor_max_torque_nm;
+        }
+        crate::physics::interpolate_torque_curve(&self.torque_curve, rpm)
+            .clamp(0.0, self.motor_max_torque_nm)
+    }
 }
 
 /// Where a hybrid's motor puts its torque (`HybridConfig::axle`).
@@ -503,6 +521,7 @@ impl Default for HybridConfig {
             bbw_response_s: 0.0,
             deploy_early: 0.0,
             axle: HybridAxle::Crank,
+            torque_curve: Vec::new(),
         }
     }
 }

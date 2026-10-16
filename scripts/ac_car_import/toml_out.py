@@ -92,6 +92,15 @@ def render(*, header: dict, physics: Physics, sound: dict, wheels: dict, cockpit
                 w("[[engine.torque_curve]]")
                 w(f"rpm = {fmt(float(rpm))}")
                 w(f"torque_nm = {fmt(float(torque))}")
+        if name == "hybrid":
+            if physics.motor_curve:
+                w("")
+                w("# ers.ini TORQUE_CURVE: the motor's torque by its rpm")
+            for rpm, torque in physics.motor_curve:
+                w("")
+                w("[[hybrid.torque_curve]]")
+                w(f"rpm = {fmt(float(rpm))}")
+                w(f"torque_nm = {fmt(float(torque))}")
 
     def plain(name: str, entries: dict, comments: dict | None = None) -> None:
         w("")

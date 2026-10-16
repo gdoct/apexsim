@@ -497,6 +497,12 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
   engine's rear share (`CarEnvelope::motor_front_fraction`; FWD and AWD cars pool it as for a
   crank motor), and the AI's traction cap watches the front slip too while it deploys. No
   shipped car uses it; an AC import with `[FRONT_MOTORS]` does.
+- **Torque curve** (`[[hybrid.torque_curve]]`, `rpm` / `torque_nm` as the engine's): the
+  motor's torque by its own rpm (the crank's, or the front wheels' on the front axle), capped
+  at `motor_max_torque_nm` (`HybridConfig::torque_at`), for deploying and recovering alike.
+  Without one the motor gives its peak at every speed up to the power limit. No shipped car
+  files one; AC imports do (`ers.ini` `TORQUE_CURVE`). The racing line and the AI's plan
+  count the motor at its peak power (`plan_power_w`) either way.
 - car.toml `[hybrid]`: `enabled`, `battery_capacity_kwh`, `battery_max_discharge_kw` /
   `_charge_kw`, `motor_max_torque_nm`, `motor_max_power_kw`, `regen_max_power_kw` and the
   keys above.

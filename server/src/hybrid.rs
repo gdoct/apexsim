@@ -438,6 +438,8 @@ fn step(
     } else {
         (engine_rpm / 60.0) * 2.0 * PI
     }; // rad/s
+       // What the motor can give at that speed: its curve, or its peak.
+    let torque_cap = hybrid.torque_at(omega * 60.0 / (2.0 * PI));
     let charge = |state: &mut CarState, kw: f32| {
         state.hybrid_battery_kwh = (state.hybrid_battery_kwh + kw * dt / KJ_PER_KWH).min(capacity);
     };
@@ -493,7 +495,7 @@ fn step(
             return MotorOutput::default();
         }
         let kw = regen_kw * recover_share;
-        let torque = (kw * 1000.0 / omega).min(hybrid.motor_max_torque_nm);
+        let torque = (kw * 1000.0 / omega).min(torque_cap);
         charge(state, torque * omega / 1000.0);
         state.ers_harvesting = true;
         return MotorOutput::at(hybrid.axle, -torque);
@@ -511,11 +513,9 @@ fn step(
     let torque_from_power = if omega > 1.0 {
         power_limit_w / omega
     } else {
-        hybrid.motor_max_torque_nm
+        torque_cap
     };
-    let mut torque = (share * hybrid.motor_max_torque_nm)
-        .min(torque_from_power)
-        .max(0.0);
+    let mut torque = (share * torque_cap).min(torque_from_power).max(0.0);
     // Never past the budget, the allowance, the stint or the charge within
     // the tick.
     let mut drawn_kj = torque * omega.max(1.0) * dt / 1000.0;
@@ -772,6 +772,42 @@ mod tests {
     }
 
     const DT: f32 = 1.0 / 240.0;
+
+    /// A motor that files a torque curve gives the curve's torque at its
+    /// revs (capped at its peak); without one it gives its peak up to the
+    /// power limit, as before.
+    #[test]
+    fn a_motor_with_a_curve_follows_it() {
+        let flat = car(None);
+        let mut curved = car(None);
+        curved.hybrid.torque_curve = vec![
+            crate::data::TorqueCurvePoint {
+                rpm: 2000.0,
+                torque_nm: 400.0,
+            },
+            crate::data::TorqueCurvePoint {
+                rpm: 5000.0,
+                torque_nm: 300.0,
+            },
+            crate::data::TorqueCurvePoint {
+                rpm: 9000.0,
+                torque_nm: 100.0,
+            },
+        ];
+        let full = input(1.0, 0.0, ErsMode::Attack, false);
+        let at =
+            |config: &CarConfig, rpm: f32| torque(&mut rolling(config), config, &full, rpm, 0.5);
+        // 300 kW at 9000 rpm is 318 Nm: the peak's 300 Nm without a curve.
+        assert!((at(&flat, 9000.0) - 300.0).abs() < 0.5);
+        assert!(
+            (at(&curved, 9000.0) - 100.0).abs() < 0.5,
+            "{}",
+            at(&curved, 9000.0)
+        );
+        // Halfway down the curve, and the curve's 400 Nm held to the peak.
+        assert!((at(&curved, 7000.0) - 200.0).abs() < 0.5);
+        assert!((at(&curved, 2000.0) - 300.0).abs() < 0.5);
+    }
 
     /// A front-axle motor puts its torque on the front axle, turns with
     /// the front wheels (so its power limit is at their speed, whatever
