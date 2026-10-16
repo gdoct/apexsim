@@ -131,6 +131,9 @@ that is hit in a seeded replay (`-ApexReplay`, `-ApexWatchCar`).
   so far only off the AI survey's numbers and traces. Whether leaving a lane
   after a pass and the reverse look natural, and how the side-by-side
   contact the survey counts looks.
+- An AI backing out of a barrier after the pile-up stopping in reverse for
+  a car arriving, and backing on once it is by (`racecraft::recover`,
+  [server/ai.md](server/ai.md)).
 
 ### R8. Stadium stands and pit rows
 
