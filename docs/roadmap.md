@@ -43,16 +43,6 @@ None open.
 
 ## P3: nice to have
 
-### 2. Server dashboard
-
-For people running a server for others
-([server/operations.md](server/operations.md)).
-
-- Restarting the server process itself from the dashboard, for the config
-  keys that need it (the config reply lists them today).
-
-**Check:** a saved tick rate in force without touching the machine.
-
 ### 3. Content tooling
 
 - `ats-dress --explain` and a per-prop source stamp.

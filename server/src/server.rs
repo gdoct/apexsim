@@ -532,6 +532,10 @@ pub struct ServerHandle {
     /// The web dashboard's addresses and access token; `None` when it is
     /// disabled in the config.
     pub admin: Option<crate::admin::AdminHandle>,
+    /// Rung when the dashboard asks for the process to be restarted
+    /// (`POST /api/server/restart`); the binary waits on it beside the
+    /// signals and acts as `[admin] restart` says.
+    pub restart: Arc<tokio::sync::Notify>,
 }
 
 impl ServerHandle {
@@ -619,6 +623,7 @@ pub async fn run_server_from(
 
     health_state.set_ready(true).await;
 
+    let restart = Arc::new(tokio::sync::Notify::new());
     let admin = crate::admin::start(crate::admin::AdminInputs {
         settings: config.admin.clone(),
         state: Arc::clone(&state),
@@ -630,6 +635,7 @@ pub async fn run_server_from(
             config.network.tls_cert_path.clone(),
             config.network.tls_key_path.clone(),
         ),
+        restart: Arc::clone(&restart),
     })
     .await?;
 
@@ -652,6 +658,7 @@ pub async fn run_server_from(
         health: health_state,
         metrics,
         admin,
+        restart,
     })
 }
 

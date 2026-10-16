@@ -150,6 +150,7 @@ pub async fn handle(
         (&Method::GET, ["perf"]) => perf(ctx).await,
         (&Method::GET, ["config"]) => config_get(ctx),
         (&Method::PUT, ["config"]) => config_put(ctx, &body).await,
+        (&Method::POST, ["server", "restart"]) => server_restart(ctx),
         (&Method::GET, ["content"]) => content(ctx).await,
         _ => error(StatusCode::NOT_FOUND, "no such endpoint"),
     }
@@ -222,7 +223,29 @@ async fn overview(ctx: &AdminContext) -> Resp {
         "http_port": ctx.http_addr.lock().unwrap_or_else(|e| e.into_inner()).map(|a| a.port()),
         "https_port": ctx.https_addr.lock().unwrap_or_else(|e| e.into_inner()).map(|a| a.port()),
         "config_editable": ctx.config_path.is_some(),
+        "restart_mode": ctx.settings.restart,
     }))
+}
+
+/// RESTART SERVER: ring `AdminContext::restart` once this reply is out, and
+/// the binary stops the process as `[admin] restart` says (a copy of
+/// itself started first, or the supervisor's turn). `off` refuses.
+fn server_restart(ctx: &AdminContext) -> Resp {
+    let mode = ctx.settings.restart.clone();
+    if mode == "off" {
+        return error(
+            StatusCode::CONFLICT,
+            "restarting from the dashboard is switched off ([admin] restart = \"off\")",
+        );
+    }
+    tracing::warn!("Admin asked for a server restart ({})", mode);
+    let restart = std::sync::Arc::clone(&ctx.restart);
+    tokio::spawn(async move {
+        // Long enough for this reply to leave.
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        restart.notify_one();
+    });
+    ok(json!({ "ok": true, "mode": mode }))
 }
 
 // ---------------------------------------------------------------------------
@@ -754,6 +777,7 @@ fn config_get(ctx: &AdminContext) -> Resp {
             "path": path.file_name().map(|n| n.to_string_lossy().into_owned()),
             "text": text,
             "has_backup": backup_path(path).is_file(),
+            "restart_mode": ctx.settings.restart,
         })),
         Err(e) => error(
             StatusCode::INTERNAL_SERVER_ERROR,

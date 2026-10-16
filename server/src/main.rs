@@ -91,6 +91,57 @@ async fn shutdown_signal() {
     }
 }
 
+/// Set on the copy of the process a dashboard restart starts: the game
+/// binds of the process it replaces, which it waits to come free.
+const RESTART_WAIT_ENV: &str = "APEXSIM_RESTART_WAIT";
+/// How long that copy waits before giving up and binding anyway (and
+/// failing as any server on a taken port does).
+const RESTART_WAIT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// A dashboard restart's copy waits here until the process it replaces has
+/// let go of the game ports: a bind of each succeeds (and is dropped
+/// again). Nothing to wait for when the variable is not set.
+async fn wait_for_ports(config: &ServerConfig) {
+    if std::env::var_os(RESTART_WAIT_ENV).is_none() {
+        return;
+    }
+    std::env::remove_var(RESTART_WAIT_ENV);
+    let (tcp, udp) = (
+        config.network.tcp_bind.clone(),
+        config.network.udp_bind.clone(),
+    );
+    info!(
+        "Restarted from the dashboard: waiting for {} / {} to come free",
+        tcp, udp
+    );
+    let started = std::time::Instant::now();
+    loop {
+        let free =
+            std::net::TcpListener::bind(&tcp).is_ok() && std::net::UdpSocket::bind(&udp).is_ok();
+        if free || started.elapsed() > RESTART_WAIT {
+            if !free {
+                tracing::warn!(
+                    "The ports did not come free in {:?}; starting anyway",
+                    RESTART_WAIT
+                );
+            }
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+}
+
+/// `[admin] restart = "respawn"`: start a copy of this process with the same
+/// command line, told to wait for the ports this one still holds.
+fn respawn() -> std::io::Result<u32> {
+    let exe = std::env::current_exe()?;
+    let child = std::process::Command::new(&exe)
+        .args(std::env::args_os().skip(1))
+        .env(RESTART_WAIT_ENV, "1")
+        .spawn()?;
+    Ok(child.id())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
@@ -106,11 +157,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("UDP bind: {}", config.network.udp_bind);
     info!("Tick rate: {}Hz", config.server.tick_rate_hz);
 
+    wait_for_ports(&config).await;
+    let restart_mode = config.admin.restart.clone();
     let handle = run_server_from(config, Some(std::path::PathBuf::from(&args.config))).await?;
 
     info!("Server is running. Send SIGINT (Ctrl+C) or SIGTERM to stop.");
 
-    shutdown_signal().await;
+    let restarting = tokio::select! {
+        _ = shutdown_signal() => false,
+        _ = handle.restart.notified() => {
+            info!("Restart asked from the dashboard ({})", restart_mode);
+            true
+        }
+    };
 
     info!("Shutdown signal received. Cleaning up...");
     handle.shutdown().await;
@@ -120,6 +179,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Server shutting down with {} active sessions",
         final_state.sessions.len()
     );
+    drop(final_state);
+
+    if restarting && restart_mode == "respawn" {
+        match respawn() {
+            Ok(pid) => info!(
+                "Started the new server process (pid {}); this one stops",
+                pid
+            ),
+            Err(e) => tracing::error!("Could not start the new server process: {}", e),
+        }
+    } else if restarting {
+        info!("Stopping for the supervisor to start the server again");
+    }
 
     Ok(())
 }

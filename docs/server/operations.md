@@ -251,6 +251,19 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   set it; `[admin] log_buffer_lines`; `[debug]`, from the next session); an
   `APEXSIM_` variable still wins. The save answers which keys applied and
   which wait for a restart.
+- **Restart** (RESTART SERVER on the Config view, `POST /api/server/restart`)
+  stops the process and brings it back on the saved file, for the keys a
+  save cannot apply. What happens is `[admin] restart`: `respawn` (the
+  default) starts a copy of the process with the same command line and
+  environment, told through `APEXSIM_RESTART_WAIT` to wait (up to 30 s)
+  for the game ports to come free, then shuts this one down as a signal
+  would (every player gets the shutdown notice and is dropped); `exit`
+  only shuts down, for a supervisor that starts it again (the Docker image
+  sets it: `restart: unless-stopped` in the compose file); `off` refuses
+  with 409 and hides the button. The page polls `/api/overview` until the
+  API answers again and reloads. A copy started by `respawn` inherits the
+  console and the standard streams, so a script that waits on the first
+  process's output keeps waiting on the copy's.
 - **Bans** match IP or name at `Authenticate` and persist in `bans_file`. A
   kick sends `Error 403` and closes the connection through the normal
   disconnect path (`TransportLayer::kick_player`).
@@ -317,7 +330,10 @@ of green. Not applied to demo sessions. Tests: `tests/debug_hooks_test.rs`.
   by the game and it does not retry (the same certificate would fail again).
 - The dashboard's Config view applies only `config::LIVE_KEYS`; a binding,
   the tick rate, TLS, content folders and the rest need a restart (the save
-  says which).
+  says which; RESTART SERVER does it).
+- A `respawn` restart whose copy cannot bind in 30 s starts anyway and
+  fails on the taken port like any server: the old process is then gone and
+  nothing listens. Something else holding the port is the only way there.
 - A hosted session never ends by itself in its lobby: STOP it, or let the
   schedule start it. A finished one is removed after
   `session_timeout_seconds` as any is.

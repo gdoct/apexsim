@@ -6,6 +6,9 @@ use tracing::{error, info};
 /// The settings a running server takes from a config saved on the dashboard
 /// (`ServerConfig::take_live`): each is read where it is used, never cached
 /// at startup. Every other key needs a restart.
+/// What `[admin] restart` may be (`AdminSettings::restart`).
+pub const RESTART_MODES: &[&str] = &["respawn", "exit", "off"];
+
 pub const LIVE_KEYS: &[&str] = &[
     "server.max_sessions",
     "server.session_timeout_seconds",
@@ -68,6 +71,13 @@ pub struct AdminSettings {
     pub schedule_file: String,
     /// Log lines kept for the Logs view.
     pub log_buffer_lines: usize,
+    /// What the dashboard's RESTART SERVER does (`admin::api::server_restart`):
+    /// `"respawn"` starts a copy of this process with the same command line,
+    /// which waits for the game ports to come free, and stops this one;
+    /// `"exit"` stops this one and leaves starting it again to whatever
+    /// supervises it (Docker's `restart: unless-stopped`, systemd); `"off"`
+    /// refuses.
+    pub restart: String,
 }
 
 impl Default for AdminSettings {
@@ -84,6 +94,7 @@ impl Default for AdminSettings {
             content_file: "./records/content.json".to_string(),
             schedule_file: "./records/schedule.json".to_string(),
             log_buffer_lines: 5000,
+            restart: "respawn".to_string(),
         }
     }
 }
@@ -530,6 +541,12 @@ impl ServerConfig {
                 errors.push(
                     "admin.tls_cert_path and admin.tls_key_path must be set together".to_string(),
                 );
+            }
+            if !RESTART_MODES.contains(&self.admin.restart.as_str()) {
+                errors.push(format!(
+                    "admin.restart must be one of {:?}, not {:?}",
+                    RESTART_MODES, self.admin.restart
+                ));
             }
         }
         if self.network.telemetry_divisor == 0 {

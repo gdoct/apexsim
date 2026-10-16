@@ -89,3 +89,7 @@ road_contact = "mesh"
 # The Schedule view's sessions.
 #schedule_file = "./records/schedule.json"
 #log_buffer_lines = 5000
+# What the Config view's RESTART SERVER does: "respawn" starts a copy of this
+# process with the same command line and stops this one; "exit" only stops it,
+# for a supervisor (Docker, systemd) that starts it again; "off" refuses.
+#restart = "respawn"

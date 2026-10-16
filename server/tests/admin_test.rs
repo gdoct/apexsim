@@ -1343,6 +1343,29 @@ async fn the_config_editor_validates_backs_up_and_reports_what_changed() {
 }
 
 #[tokio::test]
+async fn a_restart_is_asked_from_the_dashboard() {
+    let d = start_dashboard().await;
+    let read = get(&d, "/api/overview").await.json();
+    assert_eq!(read["restart_mode"], "respawn", "the default");
+    let asked = post(&d, "/api/server/restart", &serde_json::json!({})).await;
+    assert_eq!(asked.status, 200, "{}", asked.body);
+    assert_eq!(asked.json()["mode"], "respawn");
+    // The binary waits on this and stops the process once it rings.
+    tokio::time::timeout(Duration::from_secs(3), d.server.restart.notified())
+        .await
+        .expect("the restart rings after the reply");
+
+    let off = start_dashboard_with(|c| c.admin.restart = "off".into(), None).await;
+    let refused = post(&off, "/api/server/restart", &serde_json::json!({})).await;
+    assert_eq!(refused.status, 409, "{}", refused.body);
+    assert_eq!(
+        get(&off, "/api/config").await.status,
+        404,
+        "no file to edit"
+    );
+}
+
+#[tokio::test]
 async fn without_a_config_file_the_editor_says_so() {
     let d = start_dashboard().await;
     assert_eq!(get(&d, "/api/config").await.status, 404);

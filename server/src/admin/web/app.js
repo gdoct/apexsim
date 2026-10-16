@@ -821,14 +821,14 @@ PAGES.config = el => {
   el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
     <div class="panel cfg"><div class="panel-head" style="flex-wrap:wrap">
       <span class="mono" style="font-size:12px;color:var(--text-3);display:flex;gap:12px"><span id="cfg-name">server.toml</span><span id="cfg-dirty"></span></span>
-      <span style="display:flex;gap:6px"><button class="btn quiet" id="revert">REVERT</button><button class="btn primary" id="save">SAVE</button></span></div>
+      <span style="display:flex;gap:6px"><button class="btn quiet" id="restart-server" hidden>RESTART SERVER</button><button class="btn quiet" id="revert">REVERT</button><button class="btn primary" id="save">SAVE</button></span></div>
       <textarea id="cfg" spellcheck="false"></textarea></div>
     <div class="panel side-note"><div class="eyebrow">WHEN CHANGES APPLY</div>
       <div class="it"><span>[server] max_sessions, session_timeout_seconds, reconnect_grace_seconds</span><span class="tag">NOW</span></div>
       <div class="it"><span>[auth], [logging] level, [admin] log_buffer_lines</span><span class="tag">NOW</span></div>
       <div class="it"><span>[debug]</span><span class="tag">NEXT SESSION</span></div>
       <div class="it"><span>everything else</span><span class="tag">RESTART</span></div>
-      <div style="font-size:16px;line-height:1.4;color:var(--muted)">Saving checks the file the way startup does and refuses a file the server would not start with. The settings marked NOW apply as you save (an <span class="mono" style="font-size:13px">APEXSIM_</span> variable or <span class="mono" style="font-size:13px">--log-level</span> still wins); restart the server yourself for the rest.</div>
+      <div style="font-size:16px;line-height:1.4;color:var(--muted)">Saving checks the file the way startup does and refuses a file the server would not start with. The settings marked NOW apply as you save (an <span class="mono" style="font-size:13px">APEXSIM_</span> variable or <span class="mono" style="font-size:13px">--log-level</span> still wins); RESTART SERVER for the rest: it drops every player, stops this process and starts it again from the saved file (<span class="mono" style="font-size:13px">[admin] restart</span> says how).</div>
       <div style="font-size:16px;line-height:1.4;color:var(--muted);border-top:1px solid var(--line);padding-top:12px">The previous file is kept as <span class="mono" style="font-size:13px">server.toml.bak</span> on every save.</div></div></div>`;
   let saved = '';
   const ta = $('#cfg');
@@ -848,10 +848,29 @@ PAGES.config = el => {
       const r = await api('/api/config', { method: 'PUT', body: { text: ta.value } });
       saved = ta.value; dirty();
       const now = r.applied.length ? 'Applied now: ' + r.applied.join(', ') + '. ' : '';
+      if (r.restart_required) $('#restart-server').classList.add('primary');
       toast(r.restart_required ? now + 'Restart the server for: ' + r.restart_keys.join(', ') + '.' : r.changed.length ? 'Saved. ' + (now || 'Applied.') : 'Saved. Nothing changed.');
     } catch (err) { if (!(err instanceof AuthError)) toast(err.message, true); }
   });
-  api('/api/config').then(r => { $('#cfg-name').textContent = r.path; ta.value = saved = r.text; dirty(); })
+  // RESTART SERVER: the process stops and comes back (or its supervisor
+  // brings it back); the page waits for the API to answer again and reloads.
+  $('#restart-server').addEventListener('click', async () => {
+    if (ta.value !== saved && !confirm('The file has unsaved changes; restart without them?')) return;
+    if (!confirm('Restart the server now? Every player is disconnected until it is back.')) return;
+    try {
+      const r = await api('/api/server/restart', { method: 'POST', body: {} });
+      toast(r.mode === 'exit' ? 'Stopping; the supervisor starts it again.' : 'Restarting...');
+      $('#restart-server').disabled = true; $('#save').disabled = true;
+      let down = false;
+      const poll = setInterval(async () => {
+        try {
+          const res = await fetch('/api/overview', { credentials: 'same-origin' });
+          if (down && (res.ok || res.status === 401)) { clearInterval(poll); location.reload(); }
+        } catch (_) { down = true; }
+      }, 1000);
+    } catch (err) { if (!(err instanceof AuthError)) toast(err.message, true); }
+  });
+  api('/api/config').then(r => { $('#cfg-name').textContent = r.path; ta.value = saved = r.text; dirty(); $('#restart-server').hidden = r.restart_mode === 'off'; })
     .catch(err => { if (!(err instanceof AuthError)) { ta.value = ''; ta.disabled = true; $('#save').disabled = true; $('#revert').disabled = true; $('#cfg-dirty').textContent = err.message; } });
 };
 

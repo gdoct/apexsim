@@ -93,6 +93,9 @@ pub struct AdminContext {
     pub(crate) loop_ctx: Arc<crate::game_loop::GameLoopCtx>,
     pub hosted: Arc<hosted::HostedSessions>,
     pub schedule: Arc<schedule::Schedule>,
+    /// Rung by RESTART SERVER; the binary waits on it beside the signals
+    /// (`ServerHandle::restart`).
+    pub restart: Arc<tokio::sync::Notify>,
     sessions: Mutex<HashMap<String, Instant>>,
     failures: Mutex<HashMap<IpAddr, (u32, Instant)>>,
     pub http_addr: Mutex<Option<SocketAddr>>,
@@ -117,6 +120,8 @@ pub struct AdminInputs {
     pub config_path: Option<PathBuf>,
     /// The server's own TLS certificate paths, the HTTPS listener's fallback.
     pub network_cert: (String, String),
+    /// What RESTART SERVER rings (`ServerHandle::restart`).
+    pub restart: Arc<tokio::sync::Notify>,
 }
 
 /// Bind the listeners and start serving. Returns once they are bound; an
@@ -180,6 +185,7 @@ pub async fn start(inputs: AdminInputs) -> Result<Option<AdminHandle>, Box<dyn s
         bans,
         history,
         config_path: inputs.config_path,
+        restart: inputs.restart,
         started: Instant::now(),
         sessions: Mutex::new(HashMap::new()),
         failures: Mutex::new(HashMap::new()),

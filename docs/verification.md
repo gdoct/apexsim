@@ -171,6 +171,11 @@ session while driving (notice, then the menu).
 
 - The layout picker switching the HUD in a race; per-circuit and per-class
   bindings and switching by place.
+- The Config view's RESTART SERVER button in a browser ([server/operations.md](server/operations.md#admin-dashboard)):
+  the two confirms, the toast, the page coming back on its own once the
+  new process answers, and a player in a race getting the shutdown notice.
+  The restart itself has run over HTTP (a saved tick rate in force in the
+  new process, same ports, 2026-10-16) and `a_restart_is_asked_from_the_dashboard`.
 - A streamed hotlap watch on a saved setup (S with setups saved for the
   car; only the stock lap and the "no saved setup" toast were run). Seen
   unattended at Monza: pause, ten seconds back, 2x back to live, the ghost

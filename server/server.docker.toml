@@ -77,3 +77,6 @@ redirect_http_to_https = true
 bans_file = "/data/records/bans.json"
 content_file = "/data/records/content.json"
 schedule_file = "/data/records/schedule.json"
+# RESTART SERVER stops the container's process; Docker (restart: unless-stopped)
+# starts it again.
+restart = "exit"
