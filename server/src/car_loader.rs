@@ -617,6 +617,10 @@ struct HybridToml {
     /// Brake-by-wire's time constant following the recovery, s.
     #[serde(default)]
     bbw_response_s: Option<f32>,
+    /// What the motor drives: `"crank"` (the default) or `"front"`, the
+    /// front axle directly.
+    #[serde(default)]
+    axle: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -892,6 +896,10 @@ impl CarLoader {
                 brake_by_wire: hybrid_toml.brake_by_wire.unwrap_or(true),
                 bbw_response_s: hybrid_toml.bbw_response_s.unwrap_or(0.0).max(0.0),
                 deploy_early: 0.0,
+                axle: match hybrid_toml.axle.as_deref() {
+                    Some("front") | Some("Front") | Some("FRONT") => HybridAxle::Front,
+                    _ => HybridAxle::Crank,
+                },
             },
 
             // Braking
@@ -2105,6 +2113,7 @@ stint_kj = 30000.0
 override_kj_per_lap = 1500.0
 brake_by_wire = false
 bbw_response_s = 0.08
+axle = \"front\"
 "
         );
         let config = load_toml_str(&toml).expect("loads");
@@ -2133,6 +2142,7 @@ bbw_response_s = 0.08
         assert_eq!(config.hybrid.override_kj_per_lap, Some(1500.0));
         assert!(!config.hybrid.brake_by_wire);
         assert_eq!(config.hybrid.bbw_response_s, 0.08);
+        assert_eq!(config.hybrid.axle, HybridAxle::Front);
         // Two references, or a compound without a name, is a load error.
         let bad = format!(
             "{BASE_TOML}
@@ -2152,6 +2162,7 @@ reference = true
         assert!(plain.hybrid.brake_by_wire);
         assert_eq!(plain.brake_disc_wear_per_mj, 0.0);
         assert_eq!(plain.hybrid.bbw_response_s, 0.0);
+        assert_eq!(plain.hybrid.axle, HybridAxle::Crank);
         assert_eq!(plain.suspension.roll_centre_front_m, None);
     }
 

@@ -1455,6 +1455,14 @@ impl<'a> AiDriverController<'a> {
                 .max(driven.front_left.slip_ratio)
                 .max(driven.front_right.slip_ratio),
         };
+        // A front-axle motor drives the fronts too while it deploys.
+        let driven_slip = if config.hybrid.axle == HybridAxle::Front && state.ers_deploying {
+            driven_slip
+                .max(driven.front_left.slip_ratio)
+                .max(driven.front_right.slip_ratio)
+        } else {
+            driven_slip
+        };
         let slip_allowed = config.tire_config.optimal_slip_ratio * circle.max(0.3);
         let traction_cap = if used > 0.3 && driven_slip > slip_allowed {
             (state.throttle_input * 0.8).max(0.1)

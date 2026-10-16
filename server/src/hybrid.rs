@@ -37,10 +37,16 @@
 //!   overtake button may spend per lap over and above the paced lap
 //!   budget; with it the button draws on its own allowance and leaves the
 //!   budget alone, and once it is spent the button does nothing more that
-//!   lap. Without it the button is Attack on the lap budget, as before.
+//!   lap. Without it the button is Attack on the lap budget, as before;
+//! - an **axle** (`axle`, [`HybridAxle`]): the crank by default, or the
+//!   front axle directly, a hypercar's motor turning with the front wheels
+//!   ([`MotorOutput::front_axle_torque_nm`]): an RWD car drives at both
+//!   ends while it deploys, and recovers, coasts and harvests on the
+//!   front. Its `motor_max_torque_nm` is at the axle.
 //!
-//! Recovery: under braking the motor charges with the energy the driven
-//! axle's tyres are actually taking out of the car, up to the regen power
+//! Recovery: under braking the motor charges with the energy its axle's
+//! tyres (the driven axle's for a crank motor, the fronts' for a front
+//! one) are actually taking out of the car, up to the regen power
 //! ([`MotorOutput::regen_w`]: last tick's braking power on that axle,
 //! [`REGEN_AXLE_SHARE`] of it), and with **brake-by-wire** (`brake_by_wire`,
 //! the default) that recovery stands in for the axle's hydraulic brakes,
@@ -61,7 +67,7 @@
 
 use std::f32::consts::PI;
 
-use crate::data::{CarConfig, CarState, PlayerInputData};
+use crate::data::{CarConfig, CarState, HybridAxle, PlayerInputData};
 
 /// What the driver asked the motor to do.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -242,8 +248,12 @@ pub const REGEN_AXLE_SHARE: f32 = 0.9;
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct MotorOutput {
     /// The motor's torque at the crank, Nm; negative while it recovers
-    /// against the engine.
+    /// against the engine. Nothing for a front-axle motor.
     pub crank_torque_nm: f32,
+    /// A front-axle motor's torque at the front axle, Nm (`HybridAxle::Front`):
+    /// negative while it recovers coasting or harvesting (under braking it
+    /// recovers through `regen_w`). Nothing for a crank motor.
+    pub front_axle_torque_nm: f32,
     /// The power it is recovering from the driven axle under braking, W:
     /// what brake-by-wire takes off that axle's hydraulic brakes.
     pub regen_w: f32,
@@ -421,7 +431,13 @@ fn step(
     state.ers_lap_share = share;
 
     let capacity = hybrid.battery_capacity_kwh;
-    let omega = (engine_rpm / 60.0) * 2.0 * PI; // rad/s
+    let front = hybrid.axle == HybridAxle::Front;
+    // The motor's speed: the crank's, or the front wheels'.
+    let omega = if front {
+        state.speed_mps / config.wheel_radius_m.max(0.05)
+    } else {
+        (engine_rpm / 60.0) * 2.0 * PI
+    }; // rad/s
     let charge = |state: &mut CarState, kw: f32| {
         state.hybrid_battery_kwh = (state.hybrid_battery_kwh + kw * dt / KJ_PER_KWH).min(capacity);
     };
@@ -436,7 +452,7 @@ fn step(
         .min(hybrid.battery_max_charge_kw)
         .max(0.0);
     let room = state.hybrid_battery_kwh < capacity;
-    let rolling = state.speed_mps > 3.0 && state.gear > 0;
+    let rolling = state.speed_mps > 3.0 && (front || state.gear > 0);
 
     // Under braking: what the driven axle's tyres are taking out of the car
     // charges the battery, up to the regen power. Not free: with brake-by-
@@ -450,8 +466,8 @@ fn step(
                 charge(state, kw);
                 state.ers_harvesting = true;
                 return MotorOutput {
-                    crank_torque_nm: 0.0,
                     regen_w: kw * 1000.0,
+                    ..Default::default()
                 };
             }
         }
@@ -480,10 +496,7 @@ fn step(
         let torque = (kw * 1000.0 / omega).min(hybrid.motor_max_torque_nm);
         charge(state, torque * omega / 1000.0);
         state.ers_harvesting = true;
-        return MotorOutput {
-            crank_torque_nm: -torque,
-            regen_w: 0.0,
-        };
+        return MotorOutput::at(hybrid.axle, -torque);
     }
 
     let share = deploy_share(state, config, mode, boost, input.throttle);
@@ -533,9 +546,22 @@ fn step(
         state.stint_energy_used_mj += drawn_kj / 1000.0;
     }
     state.ers_deploying = torque > 0.0;
-    MotorOutput {
-        crank_torque_nm: torque,
-        regen_w: 0.0,
+    MotorOutput::at(hybrid.axle, torque)
+}
+
+impl MotorOutput {
+    /// The motor's `torque_nm` where it drives: the crank or the front axle.
+    fn at(axle: HybridAxle, torque_nm: f32) -> Self {
+        match axle {
+            HybridAxle::Crank => MotorOutput {
+                crank_torque_nm: torque_nm,
+                ..Default::default()
+            },
+            HybridAxle::Front => MotorOutput {
+                front_axle_torque_nm: torque_nm,
+                ..Default::default()
+            },
+        }
     }
 }
 
@@ -746,6 +772,48 @@ mod tests {
     }
 
     const DT: f32 = 1.0 / 240.0;
+
+    /// A front-axle motor puts its torque on the front axle, turns with
+    /// the front wheels (so its power limit is at their speed, whatever
+    /// the gear or the revs), and coasts against the fronts in neutral too;
+    /// a crank motor's figures are where they were.
+    #[test]
+    fn a_front_motor_drives_and_recovers_on_the_front_axle() {
+        let crank = car(None);
+        let mut front = car(None);
+        front.hybrid.axle = HybridAxle::Front;
+        front.wheel_radius_m = 0.35;
+        // At the axle: the gearbox no longer multiplies it.
+        front.hybrid.motor_max_torque_nm = 2000.0;
+        let full = input(1.0, 0.0, ErsMode::Attack, false);
+        let mut s = rolling(&crank);
+        let out = update(&mut s, &crank, &full, 9000.0, 0.5, DT);
+        assert!(out.crank_torque_nm > 0.0);
+        assert_eq!(out.front_axle_torque_nm, 0.0);
+
+        let mut s = rolling(&front);
+        let out = update(&mut s, &front, &full, 9000.0, 0.5, DT);
+        assert_eq!(out.crank_torque_nm, 0.0);
+        // 300 kW at 60 m/s on a 0.35 m wheel: 1750 Nm at the axle, the
+        // crank's 9000 rpm nothing to do with it.
+        assert!((out.front_axle_torque_nm - 1750.0).abs() < 0.5);
+        assert!(s.ers_deploying);
+        // Faster, less torque for the same power: P / wheel speed.
+        s.speed_mps = 90.0;
+        let out = update(&mut s, &front, &full, 2000.0, 0.5, DT);
+        let at_power = 300_000.0 / (90.0 / 0.35);
+        assert!(
+            (out.front_axle_torque_nm - at_power).abs() < 0.5,
+            "{} vs {at_power}",
+            out.front_axle_torque_nm
+        );
+        // Off the pedals in neutral it still coasts against the fronts.
+        s.gear = 0;
+        let coast = input(0.0, 0.0, ErsMode::Balanced, false);
+        let out = update(&mut s, &front, &coast, 1000.0, 0.5, DT);
+        assert!(out.front_axle_torque_nm < 0.0 && s.ers_harvesting);
+        assert_eq!(out.crank_torque_nm, 0.0);
+    }
 
     #[test]
     fn modes_deploy_differently_at_part_and_full_throttle() {

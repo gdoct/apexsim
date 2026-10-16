@@ -485,6 +485,18 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
   3 s slower. The AI boosts within `AI_BOOST_GAP_S` of the car ahead and
   `AI_DEFEND_BOOST_GAP_S` of the car behind, and harvests when low and alone (`ai_ers`,
   [AI](ai.md)).
+- **Axle** (`axle`, `HybridAxle`): `"crank"` (the default) puts the motor behind the clutch
+  and through the gearbox to the driven wheels; `"front"` puts it straight on the front axle
+  (an LMH's motor, `MotorOutput::front_axle_torque_nm`): it turns with the front wheels, so
+  its power limit is at their speed, `motor_max_torque_nm` is the torque at the axle, and it
+  drives whatever the gear or the clutch. An RWD car is then driven at both ends while it
+  deploys (above `deploy_min_speed_kph`); coasting and Harvest drag the fronts, and under
+  braking it recovers through the front tyres, so brake-by-wire takes the recovery off the
+  front hydraulics. The front differential locks by the front axle's own torque. The racing
+  line's envelope gives an RWD car's front motor the fronts' share of the grip beside the
+  engine's rear share (`CarEnvelope::motor_front_fraction`; FWD and AWD cars pool it as for a
+  crank motor), and the AI's traction cap watches the front slip too while it deploys. No
+  shipped car uses it; an AC import with `[FRONT_MOTORS]` does.
 - car.toml `[hybrid]`: `enabled`, `battery_capacity_kwh`, `battery_max_discharge_kw` /
   `_charge_kw`, `motor_max_torque_nm`, `motor_max_power_kw`, `regen_max_power_kw` and the
   keys above.

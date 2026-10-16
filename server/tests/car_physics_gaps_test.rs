@@ -300,6 +300,68 @@ fn a_slow_brake_by_wire_moves_the_balance_forward_as_the_battery_fills() {
     );
 }
 
+/// A front-axle motor (`[hybrid] axle = "front"`) on an RWD car: while it
+/// deploys the fronts are driven (their slip goes positive, where a crank
+/// motor's fronts only roll), and under braking it recovers through the
+/// fronts, so brake-by-wire takes the recovery off the front hydraulics
+/// and leaves the rears' alone, where a crank motor's comes off the rears.
+#[test]
+fn a_front_motor_drives_the_fronts_and_recovers_through_them() {
+    let run = |axle: HybridAxle| {
+        let mut config = car("fugazzi-sf26");
+        config.hybrid.axle = axle;
+        if axle == HybridAxle::Front {
+            // At the axle: the gearbox no longer multiplies it.
+            config.hybrid.motor_max_torque_nm = 3000.0;
+        }
+        let mut gs = seated(&config, monza(), 100.0, 60.0);
+        {
+            let s = gs.session.participants.get_mut(&PLAYER).unwrap();
+            s.gear = 6;
+        }
+        let attack = PlayerInputData {
+            throttle: 1.0,
+            ers_mode: Some(2),
+            ..Default::default()
+        };
+        drive(&mut gs, attack, HZ / 4);
+        let s = &gs.session.participants[&PLAYER];
+        assert!(s.ers_deploying, "{axle:?} deploys");
+        let front_slip = 0.5 * (s.tires.front_left.slip_ratio + s.tires.front_right.slip_ratio);
+        let speed = s.speed_mps;
+        let brake = PlayerInputData {
+            brake: 0.6,
+            ..Default::default()
+        };
+        drive(&mut gs, brake, HZ / 10);
+        let s = &gs.session.participants[&PLAYER];
+        (front_slip, speed, s.bbw_offset_n, s.ers_harvesting)
+    };
+    let crank = run(HybridAxle::Crank);
+    let front = run(HybridAxle::Front);
+    println!("crank: front slip {:.4}, {:.2} m/s, bbw offset {:?}; front: front slip {:.4}, {:.2} m/s, bbw offset {:?}",
+        crank.0, crank.1, crank.2, front.0, front.1, front.2);
+    assert!(
+        crank.0 <= 0.0,
+        "a crank motor's fronts only roll: {}",
+        crank.0
+    );
+    assert!(
+        front.0 > 0.002,
+        "a front motor drives the fronts: {}",
+        front.0
+    );
+    assert!(
+        (front.1 - crank.1).abs() < 0.05 * crank.1,
+        "the same power either way: {:.2} vs {:.2} m/s",
+        front.1,
+        crank.1
+    );
+    assert!(crank.3 && front.3, "both recover under braking");
+    assert!(crank.2[0] == 0.0 && crank.2[1] > 0.0, "{:?}", crank.2);
+    assert!(front.2[0] > 0.0 && front.2[1] == 0.0, "{:?}", front.2);
+}
+
 /// A fall onto the road costs the car's ends by the fall's speed, nothing
 /// under the session's damage rule when that is off.
 #[test]

@@ -453,6 +453,13 @@ pub fn update_car_3d(
     let crank_torque = (engine_torque + motor_torque) * clutch;
     let (drive_torque_front, drive_torque_rear) =
         calculate_drive_torques(crank_torque, config, state.gear);
+    // A front-axle motor (`[hybrid] axle = "front"`) drives the front
+    // wheels directly, ahead of the clutch and the gearbox.
+    let drive_torque_front = if motor.front_axle_torque_nm != 0.0 {
+        drive_torque_front + motor.front_axle_torque_nm
+    } else {
+        drive_torque_front
+    };
 
     // 6. Calculate brake forces. The pedal asks for a deceleration; the
     // hybrid's recovery takes its share of it off the driven axle's
@@ -470,9 +477,15 @@ pub fn update_car_3d(
     } else {
         0.0
     };
+    // The motor recovers through what it drives: the driven axles for a
+    // crank motor, the front axle for a front one.
+    let (front_motor_share, rear_motor_share) = match config.hybrid.axle {
+        HybridAxle::Crank => (front_drive_share, rear_drive_share),
+        HybridAxle::Front => (1.0, 0.0),
+    };
     let regen_axle = [
-        regen_force_n * front_drive_share,
-        regen_force_n * rear_drive_share,
+        regen_force_n * front_motor_share,
+        regen_force_n * rear_motor_share,
     ];
     let asked_axle = [
         brake_force * config.brake_bias_front,
@@ -1006,11 +1019,18 @@ pub fn update_car_3d(
     let thrust =
         camber.map(|c| crate::geometry::camber_thrust_rad(&config.suspension, c.lean_left_rad));
     let on_power = crank_torque > 0.0;
+    // A front-axle motor's torque sets which way the front differential
+    // locks while it drives or recovers.
+    let on_power_front = if motor.front_axle_torque_nm != 0.0 {
+        drive_torque_front > 0.0
+    } else {
+        on_power
+    };
     let (drive_fl, drive_fr) = split_axle_torque(
         drive_torque_front,
         traction_torque(grip_fl * long_scale[0], state.weight_front_left_n),
         traction_torque(grip_fr * long_scale[1], state.weight_front_right_n),
-        on_power,
+        on_power_front,
         &config.differential,
     );
     let (drive_rl, drive_rr) = split_axle_torque(
@@ -1140,12 +1160,12 @@ pub fn update_car_3d(
         }
     }
 
-    // What the driven axle's tyres took out of the car braking this tick:
+    // What the motor's axle's tyres took out of the car braking this tick:
     // what the hybrid may recover next tick (`crate::hybrid`).
     state.driven_axle_brake_w = {
         let braking = |w: &WheelForces| (-w.fx * v_long.signum()).max(0.0);
-        (front_drive_share * (braking(&fl) + braking(&fr))
-            + rear_drive_share * (braking(&rl) + braking(&rr)))
+        (front_motor_share * (braking(&fl) + braking(&fr))
+            + rear_motor_share * (braking(&rl) + braking(&rr)))
             * v_long.abs()
     };
 

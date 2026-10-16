@@ -20,7 +20,7 @@
 //! above its minimum speed, as Balanced mode paces the lap budget
 //! (`deploy_kj_per_lap`); the AI's plan counts it at full power.
 
-use crate::data::{CarConfig, Drivetrain, TrackConfig};
+use crate::data::{CarConfig, Drivetrain, HybridAxle, TrackConfig};
 use crate::physics::AIR_DENSITY;
 
 const GRAVITY: f32 = 9.81;
@@ -117,6 +117,10 @@ struct CarEnvelope {
     hybrid_min_mps: f32,
     /// Share of the car's weight on the driven wheels.
     driven_fraction: f32,
+    /// A front-axle motor on a car whose engine drives only the rears: the
+    /// share of the weight on the fronts, the traction the motor has of
+    /// its own. `None`: the motor shares the engine's driven wheels.
+    motor_front_fraction: Option<f32>,
     /// Most the brakes can do on their own, m/s².
     brake_accel: f32,
     /// Speed at the limiter in top gear.
@@ -138,6 +142,10 @@ impl CarEnvelope {
             Drivetrain::RWD => 1.0 - car.weight_distribution_front,
             Drivetrain::FWD => car.weight_distribution_front,
         };
+        let motor_front_fraction = (car.hybrid.enabled
+            && car.hybrid.axle == HybridAxle::Front
+            && car.drivetrain == Drivetrain::RWD)
+            .then(|| car.weight_distribution_front.clamp(0.2, 1.0));
         let downforce_k = 0.5 * AIR_DENSITY * air * car.frontal_area_m2 * (-lift).max(0.0) / mass;
         Self {
             // A load-sensitive tyre grips less per newton at speed, where the
@@ -166,6 +174,7 @@ impl CarEnvelope {
             hybrid_w,
             hybrid_min_mps: car.hybrid.deploy_min_speed_kph / 3.6,
             driven_fraction: driven_fraction.clamp(0.2, 1.0),
+            motor_front_fraction,
             brake_accel: car.max_brake_force_n / mass,
             top_speed: top_gear_speed(car),
         }
@@ -233,11 +242,25 @@ impl CarEnvelope {
     /// Net forward acceleration at full throttle with the motor deploying
     /// `hybrid_share` of its power; `grade` is sin of the slope, positive
     /// uphill.
+    /// A front-axle motor on an RWD car puts its power down through the
+    /// fronts' own grip, beside the engine's through the rears'.
     fn acceleration(&self, speed: f32, kappa: f32, grade: f32, hybrid_share: f32) -> f32 {
-        let traction = self.longitudinal_grip(speed, kappa) * self.driven_fraction;
-        let power =
-            (self.engine_w + self.hybrid_w_at(speed, hybrid_share)) / self.mass / speed.max(5.0);
-        power.min(traction) - self.drag_k * speed * speed - self.rolling_accel - GRAVITY * grade
+        let grip = self.longitudinal_grip(speed, kappa);
+        let traction = grip * self.driven_fraction;
+        let drive = match self.motor_front_fraction {
+            None => {
+                let power = (self.engine_w + self.hybrid_w_at(speed, hybrid_share))
+                    / self.mass
+                    / speed.max(5.0);
+                power.min(traction)
+            }
+            Some(front) => {
+                let per_w = 1.0 / self.mass / speed.max(5.0);
+                (self.engine_w * per_w).min(traction)
+                    + (self.hybrid_w_at(speed, hybrid_share) * per_w).min(grip * front)
+            }
+        };
+        drive - self.drag_k * speed * speed - self.rolling_accel - GRAVITY * grade
     }
 
     /// Deceleration at the braking limit (positive); `grade` as above.
@@ -859,6 +882,35 @@ mod tests {
             zone_m > shortest - 5.0 && zone_m < longest + 5.0,
             "braking zone {zone_m} m outside {shortest}..{longest} m"
         );
+    }
+
+    /// A front-axle motor on an RWD car puts its power down through the
+    /// fronts: where the rears are at their grip it still adds drive, which
+    /// a crank motor through the same rears cannot. Where the engine alone
+    /// is short of the grip, both count the same power.
+    #[test]
+    fn a_front_motor_counts_the_front_tyres_traction() {
+        let mut crank = CarConfig {
+            drivetrain: Drivetrain::RWD,
+            ..Default::default()
+        };
+        crank.hybrid.enabled = true;
+        crank.hybrid.motor_max_power_kw = 150.0;
+        let mut front = crank.clone();
+        front.hybrid.axle = HybridAxle::Front;
+        let at = |car: &CarConfig, grip: f32, speed: f32| {
+            CarEnvelope::new(car, grip, car.mass_kg, 1.0).acceleration(speed, 0.0, 0.0, 1.0)
+        };
+        // A wet road at low speed: the rears are the limit.
+        let (c, f) = (at(&crank, 0.4, 15.0), at(&front, 0.4, 15.0));
+        assert!(f > c + 0.5, "front {f:.2} vs crank {c:.2} m/s²");
+        // Fast on a dry road the power is the limit: the same either way.
+        let (c, f) = (at(&crank, 1.0, 70.0), at(&front, 1.0, 70.0));
+        assert!((f - c).abs() < 1e-4, "front {f:.4} vs crank {c:.4} m/s²");
+        // An AWD car's motor shares the engine's driven wheels: no change.
+        crank.drivetrain = Drivetrain::AWD;
+        front.drivetrain = Drivetrain::AWD;
+        assert_eq!(at(&crank, 0.4, 15.0), at(&front, 0.4, 15.0));
     }
 
     #[test]

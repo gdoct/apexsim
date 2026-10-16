@@ -464,6 +464,24 @@ pub struct HybridConfig {
     /// the lap, positive earlier, negative later.
     #[serde(default)]
     pub deploy_early: f32,
+    /// What the motor drives (`[hybrid] axle`): the crank, behind the
+    /// clutch and through the gearbox to the driven wheels (the default),
+    /// or the front axle directly, a hypercar's motor, whatever the
+    /// engine drives. With the front axle `motor_max_torque_nm` is the
+    /// torque at the axle and the motor turns with the front wheels.
+    #[serde(default)]
+    pub axle: HybridAxle,
+}
+
+/// Where a hybrid's motor puts its torque (`HybridConfig::axle`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum HybridAxle {
+    /// At the crank, through the gearbox to the driven wheels.
+    #[default]
+    Crank,
+    /// Straight onto the front axle (an LMH's motor): an RWD car is driven
+    /// at both ends while it deploys and recovers on the front.
+    Front,
 }
 
 impl Default for HybridConfig {
@@ -484,6 +502,7 @@ impl Default for HybridConfig {
             brake_by_wire: true,
             bbw_response_s: 0.0,
             deploy_early: 0.0,
+            axle: HybridAxle::Crank,
         }
     }
 }
