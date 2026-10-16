@@ -3178,6 +3178,51 @@ pub fn clamp_qualifying_cutoff(pct: Option<u16>) -> Option<u16> {
         .map(|p| p.clamp(MIN_QUALIFYING_CUTOFF_PCT, MAX_QUALIFYING_CUTOFF_PCT))
 }
 
+/// The most mandatory stops a host can set (`CreateSession.mandatory_stops`).
+pub const MAX_MANDATORY_STOPS: u8 = 3;
+
+/// The race's pit-stop rule (`CreateSession.mandatory_stops` and
+/// `compound_change`): the stops every car must make in a race, and whether
+/// it must race on two dry compounds. A car that takes the flag owing
+/// either is classified behind every finisher that met it
+/// (`GameSession::assign_finish_positions`, `RosterEntry::missed_stops`).
+/// The default is no rule.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PitRule {
+    /// Stops (a service in the car's box) owed in the race, at most
+    /// [`MAX_MANDATORY_STOPS`].
+    #[serde(default)]
+    pub mandatory_stops: u8,
+    /// The car must run a second dry compound in the race: met by a stop
+    /// that fits a different compound, and waived for a car that runs an
+    /// intermediate or wet tyre at any point of the race.
+    #[serde(default)]
+    pub compound_change: bool,
+}
+
+impl PitRule {
+    /// The rule as a session keeps it, the stops held to
+    /// [`MAX_MANDATORY_STOPS`].
+    pub fn clamped(mandatory_stops: u8, compound_change: bool) -> Self {
+        Self {
+            mandatory_stops: mandatory_stops.min(MAX_MANDATORY_STOPS),
+            compound_change,
+        }
+    }
+
+    pub fn is_none(&self) -> bool {
+        self.mandatory_stops == 0 && !self.compound_change
+    }
+
+    /// The stops a car that has made `stops` still owes, and whether it
+    /// still owes the second compound (`changed`: it has run two dry
+    /// compounds or a treaded tyre).
+    pub fn owed(&self, stops: u16, changed: bool) -> (u32, bool) {
+        let stops_owed = (self.mandatory_stops as u32).saturating_sub(stops as u32);
+        (stops_owed, self.compound_change && !changed)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RaceSession {
     pub id: SessionId,
@@ -3239,6 +3284,9 @@ pub struct RaceSession {
     /// `None` for no cut-off.
     #[serde(default)]
     pub qualifying_cutoff_pct: Option<u16>,
+    /// The race's pit-stop rule ([`PitRule`]); none by default.
+    #[serde(default)]
+    pub pit_rule: PitRule,
     pub current_tick: u32,
     pub countdown_ticks_remaining: Option<u16>,
     /// Game mode to transition to when the countdown reaches zero.
@@ -3279,6 +3327,7 @@ impl RaceSession {
             race_seconds: None,
             qualifying_seconds: None,
             qualifying_cutoff_pct: None,
+            pit_rule: PitRule::default(),
             weekend: None,
             current_tick: 0,
             countdown_ticks_remaining: None,

@@ -143,6 +143,8 @@ async fn a_weekend_runs_from_the_lobby_to_the_race_over_the_wire() {
             }),
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         })
         .await?;
         let joined = host.wait_joined().await?;

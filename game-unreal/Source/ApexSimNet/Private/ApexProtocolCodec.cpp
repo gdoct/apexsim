@@ -198,6 +198,8 @@ namespace
 			else if (Key == TEXT("LapLimit"))   { bOk = Reader.ReadUInt64(Raw); Out.LapLimit = static_cast<int32>(Raw); }
 			else if (Key == TEXT("RaceSeconds")){ bOk = Reader.ReadUInt64(Raw); Out.RaceSeconds = ApexRaceLength::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32))); }
 			else if (Key == TEXT("WeekendWaiting")) { bOk = Reader.ReadBool(Out.bWeekendWaiting); }
+			else if (Key == TEXT("MandatoryStops")) { bOk = Reader.ReadUInt64(Raw); Out.MandatoryStops = ApexMandatoryStops::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
+			else if (Key == TEXT("CompoundChange")) { bOk = Reader.ReadBool(Out.bCompoundChange); }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -659,6 +661,8 @@ namespace
 			else if (Key == TEXT("QualifyingSeconds")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingSeconds = ApexQualifyingLength::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32))); }
 			else if (Key == TEXT("Weekend"))           { bOk = ParseWeekendFormat(Reader, Out.Weekend); }
 			else if (Key == TEXT("QualifyingCutoffPct")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingCutoffPct = ApexQualifyingCutoff::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 1000))); }
+			else if (Key == TEXT("MandatoryStops"))    { bOk = Reader.ReadUInt64(Raw); Out.MandatoryStops = ApexMandatoryStops::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
+			else if (Key == TEXT("CompoundChange"))    { bOk = Reader.ReadBool(Out.bCompoundChange); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -978,6 +982,7 @@ namespace
 			else if (Key == TEXT("GridSlot"))   { bOk = Reader.ReadUInt64(Raw); Out.GridSlot = static_cast<int32>(Raw); }
 			else if (Key == TEXT("Ready"))      { bOk = Reader.ReadBool(Out.bReady); }
 			else if (Key == TEXT("Dnq"))        { bOk = Reader.ReadBool(Out.bDnq); }
+			else if (Key == TEXT("MissedStops")) { bOk = Reader.ReadBool(Out.bMissedStops); }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -2953,7 +2958,9 @@ namespace ApexProtocol
 		int32 QualifyingSeconds,
 		const FApexWeekendFormat& Weekend,
 		const FHotlapWatchOptions* Watch,
-		int32 QualifyingCutoffPct)
+		int32 QualifyingCutoffPct,
+		int32 MandatoryStops,
+		bool bCompoundChange)
 	{
 		// Full damage, the mixed AI field, a race over laps and open
 		// qualifying are left off, as the server does: an older server's
@@ -2970,9 +2977,12 @@ namespace ApexProtocol
 		const bool bWeekend = WeekendFormat.IsWeekend();
 		const int32 Cutoff = ApexQualifyingCutoff::Clamp(QualifyingCutoffPct);
 		const bool bCutoff = Cutoff != ApexQualifyingCutoff::None;
+		const int32 Stops = ApexMandatoryStops::Clamp(MandatoryStops);
+		const bool bStops = Stops != ApexMandatoryStops::None;
 		FMsgPackWriter Writer(320);
 		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0) + (bTimed ? 1 : 0) + (bGrid ? 1 : 0)
-			+ (bTimedQualifying ? 1 : 0) + (bWeekend ? 1 : 0) + (Watch ? 1 : 0) + (bCutoff ? 1 : 0));
+			+ (bTimedQualifying ? 1 : 0) + (bWeekend ? 1 : 0) + (Watch ? 1 : 0) + (bCutoff ? 1 : 0)
+			+ (bStops ? 1 : 0) + (bCompoundChange ? 1 : 0));
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -3071,6 +3081,17 @@ namespace ApexProtocol
 			// The 107% rule, last as the server's struct has it.
 			Writer.WriteString("qualifying_cutoff_pct");
 			Writer.WriteUInt(static_cast<uint32>(Cutoff));
+		}
+		if (bStops)
+		{
+			// The pit rule, each part only when set, in the server's order.
+			Writer.WriteString("mandatory_stops");
+			Writer.WriteUInt(static_cast<uint32>(Stops));
+		}
+		if (bCompoundChange)
+		{
+			Writer.WriteString("compound_change");
+			Writer.WriteBool(true);
 		}
 		return MoveTemp(Writer.GetBuffer());
 	}

@@ -327,6 +327,8 @@ async fn a_showcase_is_played_to_everyone_on_one_clock() {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         })
         .await;
     first

@@ -208,8 +208,19 @@ off by `Racecraft::blend`; the controller holds it across the road
   `AI_COVER_WEAR` (40%) worn, and to **undercut** a car it is held up by
   within `AI_UNDERCUT_GAP_S` (1.2 s), on tyres `AI_UNDERCUT_WEAR` (50%)
   worn, by a chance a lap of `AI_UNDERCUT_CHANCE` (15% timid to 60%
-  bold). Compound: hard with 15+ laps left, the reference
-  with 6+, soft otherwise; in the wet the weather's tyre. The car turns
+  bold). Under the session's pit rule (`data::PitRule`,
+  [sessions](sessions.md#session-rules-set-on-create); `StopContext::stops_owed`
+  and `compound_owed`, `GameSession::stops_owed`) the stops it owes split
+  the race into even stints: an owed stop is due once this stint has run
+  its share of the laps left (`(stint + laps left) / (owed + 1)`), and is
+  made at the latest with a lap left for each stop still owed; it counts
+  as a stop it must make anyway, so a cover or an undercut brings it
+  forward, worn tyres that reach the flag do not keep it out, and a car
+  owing one does not save fuel to skip a stop (`saves_to_flag`). Compound:
+  hard with 15+ laps left in the stint (the laps left over the stops owed),
+  the reference with 6+, soft otherwise; in the wet the weather's tyre; a
+  car owing the second compound takes the nearest other slick
+  (`pit::other_dry_compound`) and never a splash. The car turns
   onto the pit route `AI_PIT_APPROACH_M` (250 m) before the lane, races the
   run-up held to the lane's mouth speed and hands over to `drive_input`
   `AI_PIT_HANDOVER_M` (10 m) short of it.

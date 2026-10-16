@@ -87,6 +87,26 @@ Nothing on screen uses them yet.
 **Check:** a race stop with tyres kept and 5 L asked for, the panel's
 bar showing the fuel alone; the BOX badge on from the request to the stop.
 
+### The pit rule on screen
+
+The server's mandatory stops and second compound
+([server/sessions.md](server/sessions.md#session-rules-set-on-create)) are
+on the wire and in the client's codec, but no screen uses them.
+
+- The create screen has no row for them (a Stops chip row, None/1/2/3, and
+  a Two compounds toggle, kept in the profile, passed to
+  `CreateSessionWithOrder`'s `MandatoryStops` / `bCompoundChange`), and
+  the create screen's summary does not name them.
+- The session browser does not show `SessionSummary.MandatoryStops` /
+  `bCompoundChange`.
+- The HUD, the tower and the results screen do not mark a car with
+  `FApexRosterEntry::bMissedStops` (a PEN beside its place), and a driver
+  is not told how many stops they still owe.
+
+**Check:** `ApexSim.Net.ProtocolCodec` (the pit rule's golden bytes); a
+one-stop race with `-ApexAutoRace` where the player does not stop, read on
+the results screen.
+
 ### 5. Hotlap and lap records
 
 The ghost, the hotlap replay and watch.

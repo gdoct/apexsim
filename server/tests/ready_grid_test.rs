@@ -128,6 +128,8 @@ async fn the_grid_waits_for_every_driver_then_counts_into_the_race() {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         })
         .await?;
         let joined = host.wait_joined().await?;

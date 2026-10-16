@@ -203,6 +203,29 @@ screen's DNQ (`ApexRaceResults::BuildRows`). Client: a Cut-off chip row
 weekend), "107% RULE" in the create screen's summary,
 `GetSessionQualifyingCutoffPct`.
 
+**Pit rule** (mandatory stops): `mandatory_stops` (`u8`, held to
+`MAX_MANDATORY_STOPS` 3; 0 is none, the default) and `compound_change`
+(`bool`: the race is run on two dry compounds), kept as
+`RaceSession::pit_rule` (`data::PitRule`, `GameSession::set_pit_rule`),
+both left off the wire at their default. Races only. A stop is a service in
+the car's box (`PitState::stops`, a splash included), counted from the
+green light; the second compound is met by a stop that fits a dry compound
+other than the one coming off, and waived for a car that runs an
+intermediate or wet at any point of the race (`PitState::compound_changed`,
+set at the green on a treaded tyre and at each stop that fits one). A car
+that takes the flag owing either is classified behind every finisher that
+met the rule, in its own order among the others that missed it, however
+many laps it ran (`assign_finish_positions`), and marked
+`RosterEntry.MissedStops` (left off the wire when false). Echoed in
+`SessionJoined.MandatoryStops` / `CompoundChange` and listed in the lobby
+(`SessionSummary.MandatoryStops` / `CompoundChange`); a hosted session
+takes it as `HostedSpec.pit_rule` and the admin API's session detail carries
+it. The AI plans the stops (`pit::plan_stop`, [ai](ai.md#strategy)).
+Client: the codec sends and reads both fields and the roster flag
+(`EncodeCreateSession`'s `MandatoryStops` / `bCompoundChange`,
+`GetSessionMandatoryStops`, `GetSessionCompoundChange`,
+`FApexRosterEntry::bMissedStops`); no screen sets or shows them yet.
+
 ## The race's grid
 
 Before a race the cars stand on the grid while each driver sets the car up,
@@ -255,7 +278,8 @@ line, or on green for pole (`physics::start_lap_on_green`).
 `assign_finish_positions` (every race tick, after `update_race_clock`)
 classifies a car (`CarState::finish_position`) when it completes the winning
 lap (`finish_lap`: `lap_limit`, or a timed race's final lap), ordered by laps
-completed, then crossing tick, then distance past the line. When the winner
+completed, then crossing tick, then distance past the line (a car that
+missed the pit rule behind every car that met it, above). When the winner
 is in, a deadline is set at max(`FINISH_GRACE_MIN_SECONDS` 60,
 `FINISH_GRACE_LAPS` 2 x the winner's average lap); the session goes
 `Finished` (`is_race_complete`) when every car is classified or undrivable,
@@ -919,7 +943,7 @@ cargo test --release --test hotlap_test generate_ghost_fixture -- --ignored     
 Golden bytes ([protocol](protocol.md)): `cargo test <name> -- --nocapture`
 for `assists_wire_format`, `session_damage_wire_format`,
 `session_ai_skill_wire_format`, `race_time_wire_format`,
-`qualifying_time_wire_format`, `qualifying_cutoff_wire_format`, `weekend_wire_format`, `grid_wire_format`,
+`qualifying_time_wire_format`, `qualifying_cutoff_wire_format`, `pit_rule_wire_format`, `weekend_wire_format`, `grid_wire_format`,
 `lap_timing_wire_format`, `telemetry_compact_wire_format`,
 `hotlap_wire_format`, `hotlap_watch_wire_format`, `recover_wire_format`, `track_corners_wire_format`,
 `rejoin_wire_format`.

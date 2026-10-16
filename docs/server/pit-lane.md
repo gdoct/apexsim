@@ -4,7 +4,10 @@ Each circuit's pit lane reaches the server as a baked sidecar. On it the
 server runs a speed limiter, gives every car its own box, drives a human's
 car down the lane on an autopilot, services the car at its box (tyres, fuel,
 repairs, brake pads) and works a pit exit light. The AI plans its own stops
-and drives the same route ([ai.md](ai.md)). The client draws the lane, the
+and drives the same route ([ai.md](ai.md)). Each service counts toward
+the race's mandatory stops and second compound, when the session sets them
+(`PitState::stops`, `compound_changed`;
+[sessions.md](sessions.md#session-rules-set-on-create)). The client draws the lane, the
 garages and the lights from the same geometry, and shows a pit-stop panel
 from telemetry and a `PitService` message.
 

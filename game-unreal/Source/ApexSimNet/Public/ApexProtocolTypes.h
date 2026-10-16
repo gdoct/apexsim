@@ -262,6 +262,24 @@ namespace ApexQualifyingCutoff
 	}
 }
 
+/**
+ * The race's pit-stop rule (data.rs `PitRule`): the stops every car must
+ * make, at most MaxStops, and whether it must run a second dry compound. A
+ * car that takes the flag owing either is classified behind every car that
+ * met it (FApexRosterEntry::bMissedStops).
+ */
+namespace ApexMandatoryStops
+{
+	inline constexpr int32 None = 0;
+	inline constexpr int32 MaxStops = 3;
+
+	/** As the server keeps it: 0..MaxStops. */
+	inline int32 Clamp(int32 Stops)
+	{
+		return FMath::Clamp(Stops, None, MaxStops);
+	}
+}
+
 /** `CompactCarState::ground`'s values a wheel (network.rs `GROUND_*`). */
 namespace ApexGround
 {
@@ -1147,6 +1165,14 @@ struct APEXSIMNET_API FApexSessionSummary
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	bool bWeekendWaiting = false;
 
+	/** The race's mandatory stops (ApexMandatoryStops); 0 for none or from an older server. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	int32 MandatoryStops = 0;
+
+	/** The race must be run on two dry compounds. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	bool bCompoundChange = false;
+
 	/** A race is being driven: there is something to watch. */
 	bool IsWatchable() const { return State == EApexSessionState::Countdown || State == EApexSessionState::Racing; }
 
@@ -1491,6 +1517,14 @@ struct APEXSIMNET_API FApexRosterEntry
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	bool bDnq = false;
+
+	/**
+	 * Took the flag owing a stop or its second compound under the session's
+	 * pit rule (ApexMandatoryStops): classified behind every car that met
+	 * it. False from an older server.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bMissedStops = false;
 };
 
 /** `SessionRosterData` (network.rs:470) — PascalCase keys, TCP. */
@@ -3065,6 +3099,10 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexWeekendFormat Weekend;
 	/** SessionJoined::QualifyingCutoffPct, the 107% rule (ApexQualifyingCutoff); 0 for none. */
 	int32 QualifyingCutoffPct = 0;
+	/** SessionJoined::MandatoryStops, the race's pit rule (ApexMandatoryStops); 0 for none. */
+	int32 MandatoryStops = 0;
+	/** SessionJoined::CompoundChange: the race must be run on two dry compounds. */
+	bool bCompoundChange = false;
 	/** WeekendState. */
 	FApexWeekendState WeekendState;
 	FApexPitBox PitBox;

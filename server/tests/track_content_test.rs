@@ -126,6 +126,8 @@ async fn the_first_session_on_a_track_loads_its_sidecars_and_keeps_message_order
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         })
         .await?;
         host.send(&ClientMessage::LeaveSession).await?;

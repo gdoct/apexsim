@@ -113,6 +113,8 @@ async fn test_demo_session_is_a_private_ai_race_watched_by_its_creator() {
         weekend: None,
         watch: None,
         qualifying_cutoff_pct: None,
+        mandatory_stops: 0,
+        compound_change: false,
     })
     .await;
 

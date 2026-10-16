@@ -254,7 +254,7 @@ pub struct PitState {
     /// The AI is driving the pit route.
     #[serde(default)]
     pub driving: bool,
-    /// Stops made this session.
+    /// Stops made this session (counted from the green light in a race).
     #[serde(default)]
     pub stops: u16,
     /// The service under way: the compound going on and the fuel going in.
@@ -309,6 +309,11 @@ pub struct PitState {
     /// (`GameSession::laps_run`): how fast they wear.
     #[serde(default)]
     pub stint_start_laps: f32,
+    /// In the race: the car has run a second dry compound, or a treaded
+    /// tyre (`data::PitRule::compound_change`). Set at the green light and
+    /// at each stop that fits tyres.
+    #[serde(default)]
+    pub compound_changed: bool,
 }
 
 /// Less fuel than this is not worth stopping the crew for, L.
@@ -621,6 +626,11 @@ pub struct StopContext {
     /// it this lap (`wind::hash01` of driver and lap).
     pub aggressiveness: f32,
     pub roll: f32,
+    /// Stops the session's pit rule still asks of it (`data::PitRule`),
+    /// and whether it still owes a second dry compound (which a stop
+    /// pays).
+    pub stops_owed: u32,
+    pub compound_owed: bool,
 }
 
 /// A refuelled car short of the flag by no more than this share saves fuel
@@ -660,6 +670,21 @@ fn pick_for(laps_left: u32) -> StopPick {
     }
 }
 
+/// The compound a stop that owes the pit rule's second dry compound
+/// (`data::PitRule::compound_change`) fits: `want`, unless that is the
+/// `fitted` one, then the slick nearest it in the car's list. `want` when
+/// the car has no other slick.
+pub fn other_dry_compound(tire: &crate::data::TireConfig, fitted: u8, want: u8) -> u8 {
+    use crate::tyre_thermal::CompoundKind;
+    if want != fitted {
+        return want;
+    }
+    (0..tire.compounds().len() as u8)
+        .filter(|&i| i != fitted && tire.compound(i).kind == CompoundKind::Slick)
+        .min_by_key(|&i| (i as i32 - want as i32).abs())
+        .unwrap_or(want)
+}
+
 /// The most worn tyre's wear, percent.
 fn worst_wear(state: &CarState) -> f32 {
     state
@@ -688,12 +713,20 @@ pub fn tyres_reach_flag(state: &CarState, stint_laps: f32, laps_left: u32) -> bo
 /// when the tyres reach the flag, nothing when saving gets it there. And a
 /// stop it must make anyway is brought forward to undercut a car it is
 /// held up by, or to cover one behind that has turned in.
+///
+/// Under a pit rule (`data::PitRule`) the stops it owes split the race into
+/// even stints: an owed stop is due once this stint has run its share of
+/// the laps left, and is made at the latest with a lap left for each stop
+/// still owed. It is brought forward like any stop it must make, and is
+/// never a splash while it owes the second compound.
 pub fn plan_stop(state: &CarState, ctx: &StopContext) -> Option<StopPlan> {
     let laps_left = ctx.laps_left;
     if laps_left == 0 {
         return None;
     }
-    let pick = pick_for(laps_left);
+    let owed = ctx.stops_owed.max(ctx.compound_owed as u32);
+    // The stints left: one per owed stop, the softest that lasts its share.
+    let pick = pick_for(laps_left / owed.max(1));
     let full = Some(StopPlan {
         pick,
         fuel_only: false,
@@ -723,7 +756,7 @@ pub fn plan_stop(state: &CarState, ctx: &StopContext) -> Option<StopPlan> {
     let tyres_last = tyres_reach_flag(state, ctx.stint_laps, laps_left);
     let wear = worst_wear(state);
     if wear >= AI_PIT_WEAR {
-        if laps_left <= AI_STAY_OUT_LAPS && tyres_last && !short {
+        if laps_left <= AI_STAY_OUT_LAPS && tyres_last && !short && owed == 0 {
             return None;
         }
         return full;
@@ -731,12 +764,22 @@ pub fn plan_stop(state: &CarState, ctx: &StopContext) -> Option<StopPlan> {
     if short {
         return Some(StopPlan {
             pick,
-            fuel_only: tyres_last,
+            fuel_only: tyres_last && !ctx.compound_owed,
         });
     }
+    // The pit rule's stop: this stint's share of the race run, or the last
+    // lap it can be made on.
+    if owed > 0 {
+        let share = (ctx.stint_laps.max(0.0) + laps_left as f32) / (owed as f32 + 1.0);
+        if laps_left <= owed || ctx.stint_laps >= share {
+            return full;
+        }
+    }
     // A stop it must make anyway, brought forward.
-    let due = (ctx.stint_laps >= 2.0 && !tyres_last) || lap_fuel.is_some_and(fuel_needed);
-    if !due || laps_left < AI_STRATEGY_MIN_LAPS {
+    let due = (ctx.stint_laps >= 2.0 && !tyres_last)
+        || lap_fuel.is_some_and(fuel_needed)
+        || (owed > 0 && ctx.stint_laps >= 2.0);
+    if !due || (laps_left < AI_STRATEGY_MIN_LAPS && owed == 0) {
         return None;
     }
     let cover = ctx.rival_behind_stopping && wear >= AI_COVER_WEAR;
@@ -1426,6 +1469,97 @@ mod tests {
             lap_fuel_l,
             ..StopContext::default()
         }
+    }
+
+    /// The pit rule's stops split the race into even stints, are made by a
+    /// lap left for each at the latest, pick the compound for the stint
+    /// and are never a splash while the second compound is owed.
+    #[test]
+    fn the_ai_plans_the_pit_rule_stops() {
+        let mut state = CarState::new(
+            uuid::Uuid::nil(),
+            uuid::Uuid::nil(),
+            &crate::data::GridSlot {
+                position: 1,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            },
+        );
+        let rule = |laps_left: u32, stint_laps: f32, stops_owed: u32| StopContext {
+            laps_left,
+            stint_laps,
+            stops_owed,
+            ..StopContext::default()
+        };
+        // Fresh tyres that last, a full tank: no reason but the rule.
+        assert_eq!(plan_stop(&state, &rule(18, 1.0, 0)), None, "no rule");
+        assert_eq!(plan_stop(&state, &rule(18, 1.0, 1)), None, "too early");
+        assert_eq!(
+            plan_stop(&state, &rule(10, 10.0, 1)).map(|p| p.pick),
+            Some(StopPick::Reference),
+            "half way: ten laps on the reference"
+        );
+        assert_eq!(
+            plan_stop(&state, &rule(19, 10.0, 2)).map(|p| p.pick),
+            Some(StopPick::Reference),
+            "a third of the way with two owed: nine-lap stints left"
+        );
+        assert!(plan_stop(&state, &rule(20, 9.0, 2)).is_none());
+        assert!(
+            plan_stop(&state, &rule(2, 0.5, 2)).is_some(),
+            "a lap left for each stop owed: now"
+        );
+        assert_eq!(
+            plan_stop(&state, &rule(0, 0.5, 1)),
+            None,
+            "not on the last lap"
+        );
+        // Worn tyres that reach the flag still stop when the rule asks.
+        state.tires.rear_left.wear_percent = 75.0;
+        assert!(plan_stop(&state, &rule(2, 30.0, 1)).is_some());
+        assert!(plan_stop(&state, &rule(2, 30.0, 0)).is_none());
+        state.tires.rear_left.wear_percent = 0.0;
+        // Short of fuel on tyres that last: a splash, unless it owes the
+        // second compound.
+        state.fuel_liters = 2.0;
+        let short = StopContext {
+            laps_left: 4,
+            stint_laps: 4.0,
+            lap_fuel_l: Some(2.0),
+            ..StopContext::default()
+        };
+        assert_eq!(plan_stop(&state, &short).map(|p| p.fuel_only), Some(true));
+        let owed = StopContext {
+            compound_owed: true,
+            ..short
+        };
+        assert_eq!(plan_stop(&state, &owed).map(|p| p.fuel_only), Some(false));
+    }
+
+    #[test]
+    fn a_stop_owing_the_second_compound_fits_another_slick() {
+        let tire = crate::data::TireConfig::default();
+        let reference = tire.reference_compound();
+        let other = other_dry_compound(&tire, reference, reference);
+        if tire
+            .compounds()
+            .iter()
+            .filter(|c| c.kind == crate::tyre_thermal::CompoundKind::Slick)
+            .count()
+            > 1
+        {
+            assert_ne!(other, reference);
+            assert_eq!(
+                tire.compound(other).kind,
+                crate::tyre_thermal::CompoundKind::Slick
+            );
+        } else {
+            assert_eq!(other, reference);
+        }
+        let soft = tire.compound_for_click(1);
+        assert_eq!(other_dry_compound(&tire, reference, soft), soft);
     }
 
     #[test]

@@ -423,7 +423,9 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 	const TArray<FString>& GridOrder,
 	int32 QualifyingSeconds,
 	const FApexWeekendFormat& Weekend,
-	int32 QualifyingCutoffPct)
+	int32 QualifyingCutoffPct,
+	int32 MandatoryStops,
+	bool bCompoundChange)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d race_seconds=%d qualifying_seconds=%d locked_assists=%d conditions=%s damage=%d ai_skill=%d"),
 		*TrackConfigId, MaxPlayers, AiCount, LapLimit, RaceSeconds, QualifyingSeconds, AllowedAssists.CountLocked(), *Conditions.Describe(),
@@ -450,7 +452,9 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 		QualifyingSeconds,
 		Weekend,
 		nullptr,
-		QualifyingCutoffPct));
+		QualifyingCutoffPct,
+		MandatoryStops,
+		bCompoundChange));
 }
 
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
@@ -1276,6 +1280,8 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			CurrentRaceSeconds = Message.RaceSeconds;
 			CurrentQualifyingSeconds = Message.QualifyingSeconds;
 			CurrentQualifyingCutoffPct = Message.QualifyingCutoffPct;
+			CurrentMandatoryStops = Message.MandatoryStops;
+			bCurrentCompoundChange = Message.bCompoundChange;
 			CurrentWeekend = Message.Weekend;
 			// The session's WeekendState follows its SessionJoined.
 			CurrentWeekendState = FApexWeekendState();
@@ -1321,6 +1327,8 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentRaceSeconds = 0;
 		CurrentQualifyingSeconds = 0;
 		CurrentQualifyingCutoffPct = 0;
+		CurrentMandatoryStops = 0;
+		bCurrentCompoundChange = false;
 		CurrentWeekend = FApexWeekendFormat();
 		CurrentWeekendState = FApexWeekendState();
 		CachedRoster = FApexSessionRoster();

@@ -328,6 +328,7 @@ mod tests {
                 conditions: Default::default(),
                 damage: Default::default(),
                 allowed_assists: Default::default(),
+                pit_rule: Default::default(),
             },
             start_at,
             open_minutes: 10,

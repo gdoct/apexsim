@@ -153,6 +153,17 @@ pub enum ClientMessage {
         /// off the wire then.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         qualifying_cutoff_pct: Option<u16>,
+        /// The race's mandatory pit stops (`data::PitRule`, at most
+        /// `data::MAX_MANDATORY_STOPS`): a car that takes the flag owing one
+        /// is classified behind every car that made them. 0 for none, and
+        /// left off the wire then.
+        #[serde(default, skip_serializing_if = "is_zero_u8")]
+        mandatory_stops: u8,
+        /// The race must be run on two dry compounds (`data::PitRule`;
+        /// waived for a car that runs a treaded tyre). Left off the wire
+        /// when false.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        compound_change: bool,
     },
     /// Asks for a track's fastest laps (`records::RecordStore::leaderboard`):
     /// each driver's best with each car, or in one car (`car_config_id`).
@@ -470,6 +481,14 @@ pub struct SessionJoinedData {
     /// for none (and absent from a server that predates the field).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub qualifying_cutoff_pct: Option<u16>,
+    /// The race's mandatory pit stops, clamped; left off the wire for none
+    /// (and absent from a server that predates the field).
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub mandatory_stops: u8,
+    /// The race must be run on two dry compounds; left off the wire when
+    /// false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub compound_change: bool,
 }
 
 /// Where a race weekend stands (`crate::weekend`). Sent to every member of
@@ -915,6 +934,14 @@ pub struct SessionSummary {
     /// when false.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub weekend_waiting: bool,
+    /// The race's mandatory pit stops, for the session browser; left off
+    /// the wire for none.
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub mandatory_stops: u8,
+    /// The race must be run on two dry compounds, for the session browser;
+    /// left off the wire when false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub compound_change: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1683,6 +1710,11 @@ pub struct RosterEntry {
     /// when false.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub dnq: bool,
+    /// Took the flag owing a stop or its second compound under the
+    /// session's pit rule (`data::PitRule`): classified behind every
+    /// finisher that met it. Left off the wire when false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub missed_stops: bool,
 }
 
 fn is_zero_u8(value: &u8) -> bool {
@@ -2824,6 +2856,8 @@ mod tests {
                 lap_limit: 5,
                 race_seconds: None,
                 weekend_waiting: false,
+                mandatory_stops: 0,
+                compound_change: false,
             }],
             car_configs: vec![CarConfigSummary {
                 id: Uuid::nil(),
@@ -3693,6 +3727,8 @@ mod tests {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSession: {}", hex(&create_bytes));
@@ -3741,6 +3777,8 @@ mod tests {
             qualifying_seconds: None,
             weekend: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAssists: {}", hex(&joined_bytes));
@@ -3768,6 +3806,8 @@ mod tests {
             lap_limit: 3,
             race_seconds: None,
             weekend_waiting: false,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let reduced = rmp_serde::to_vec_named(&summary(DamageLevel::Reduced)).unwrap();
         let full = rmp_serde::to_vec_named(&summary(DamageLevel::Full)).unwrap();
@@ -3813,6 +3853,8 @@ mod tests {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionDamage: {}", hex(&create_bytes));
@@ -3833,6 +3875,8 @@ mod tests {
             qualifying_seconds: None,
             weekend: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedNoDamage: {}", hex(&joined_bytes));
@@ -3859,6 +3903,8 @@ mod tests {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let full_bytes = rmp_serde::to_vec_named(&full).unwrap();
         assert!(!full_bytes.windows(6).any(|w| w == b"damage"));
@@ -3925,6 +3971,8 @@ mod tests {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: cutoff,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(107))).unwrap();
         println!("C_CreateSessionQualifyingCutoff: {}", hex(&create_bytes));
@@ -3953,6 +4001,8 @@ mod tests {
             qualifying_seconds: None,
             weekend: None,
             qualifying_cutoff_pct: Some(107),
+            mandatory_stops: 0,
+            compound_change: false,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingCutoff: {}", hex(&joined_bytes));
@@ -3963,6 +4013,102 @@ mod tests {
             ServerMessage::SessionJoined(data) => {
                 assert_eq!(data.qualifying_cutoff_pct, Some(107))
             }
+            _ => panic!("Wrong message type"),
+        }
+    }
+
+    /// The pit rule: a create for two mandatory stops on two compounds,
+    /// the joined echo, and a roster row that missed them. No rule stays
+    /// off the wire. Printed as `C_CreateSessionPitRule` /
+    /// `S_SessionJoinedPitRule` / `S_SessionRosterMissedStops`
+    /// (`cargo test pit_rule_wire_format -- --nocapture`).
+    #[test]
+    fn test_pit_rule_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let create = |stops: u8, change: bool| ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: stops,
+            compound_change: change,
+        };
+        let create_bytes = rmp_serde::to_vec_named(&create(2, true)).unwrap();
+        println!("C_CreateSessionPitRule: {}", hex(&create_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession {
+                mandatory_stops,
+                compound_change,
+                ..
+            } => assert_eq!((mandatory_stops, compound_change), (2, true)),
+            _ => panic!("Wrong message type"),
+        }
+        let none = String::from_utf8_lossy(&rmp_serde::to_vec_named(&create(0, false)).unwrap())
+            .into_owned();
+        assert!(!none.contains("mandatory_stops") && !none.contains("compound_change"));
+
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 3,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            qualifying_seconds: None,
+            weekend: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 2,
+            compound_change: true,
+        });
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedPitRule: {}", hex(&joined_bytes));
+        assert!(joined_bytes.windows(14).any(|w| w == b"MandatoryStops"));
+        match rmp_serde::from_slice::<ServerMessage>(&joined_bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => {
+                assert_eq!((data.mandatory_stops, data.compound_change), (2, true))
+            }
+            _ => panic!("Wrong message type"),
+        }
+
+        let roster = ServerMessage::SessionRoster(SessionRosterData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            entries: vec![RosterEntry {
+                car_index: 0,
+                player_id: Uuid::parse_str("11111111-2222-3333-4444-555555555555").unwrap(),
+                player_name: "Ana".into(),
+                is_ai: true,
+                car_config_id: Uuid::nil(),
+                livery: 0,
+                away: false,
+                grid_slot: 0,
+                ready: false,
+                dnq: false,
+                missed_stops: true,
+            }],
+        });
+        let roster_bytes = rmp_serde::to_vec_named(&roster).unwrap();
+        println!("S_SessionRosterMissedStops: {}", hex(&roster_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&roster_bytes).unwrap() {
+            ServerMessage::SessionRoster(data) => assert!(data.entries[0].missed_stops),
             _ => panic!("Wrong message type"),
         }
     }
@@ -3998,6 +4144,8 @@ mod tests {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(7200))).unwrap();
         println!("C_CreateSessionRaceTime: {}", hex(&create_bytes));
@@ -4022,6 +4170,8 @@ mod tests {
             qualifying_seconds: None,
             weekend: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedRaceTime: {}", hex(&joined_bytes));
@@ -4104,6 +4254,8 @@ mod tests {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(900))).unwrap();
         println!("C_CreateSessionQualifyingTime: {}", hex(&create_bytes));
@@ -4134,6 +4286,8 @@ mod tests {
             qualifying_seconds: Some(900),
             weekend: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingTime: {}", hex(&joined_bytes));
@@ -4215,6 +4369,8 @@ mod tests {
             weekend,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(format.clone()))).unwrap();
         println!("C_CreateSessionWeekend: {}", hex(&create_bytes));
@@ -4262,6 +4418,8 @@ mod tests {
             qualifying_seconds: None,
             weekend: Some(format.clone()),
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedWeekend: {}", hex(&joined_bytes));
@@ -4350,6 +4508,8 @@ mod tests {
                 lap_limit: 5,
                 race_seconds: None,
                 weekend_waiting: true,
+                mandatory_stops: 0,
+                compound_change: false,
             }],
             car_configs: vec![],
             track_configs: vec![],
@@ -4428,6 +4588,8 @@ mod tests {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAiSkill: {}", hex(&create_bytes));
@@ -4448,6 +4610,8 @@ mod tests {
             qualifying_seconds: None,
             weekend: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAiSkill: {}", hex(&joined_bytes));
@@ -4474,6 +4638,8 @@ mod tests {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let mixed_bytes = rmp_serde::to_vec_named(&mixed).unwrap();
         assert!(!mixed_bytes.windows(8).any(|w| w == b"ai_skill"));
@@ -4530,6 +4696,8 @@ mod tests {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAir: {}", hex(&create_bytes));
@@ -4561,6 +4729,8 @@ mod tests {
             qualifying_seconds: None,
             weekend: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAir: {}", hex(&joined_bytes));
@@ -4609,6 +4779,8 @@ mod tests {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let create_bytes = rmp_serde::to_vec_named(&create(sky)).unwrap();
         println!("C_CreateSessionSky: {}", hex(&create_bytes));
@@ -4634,6 +4806,8 @@ mod tests {
             qualifying_seconds: None,
             weekend: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedSky: {}", hex(&joined_bytes));
@@ -4682,6 +4856,8 @@ mod tests {
             qualifying_seconds: None,
             weekend: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         });
         let sun_bytes = rmp_serde::to_vec_named(&sun_joined).unwrap();
         println!("S_SessionJoinedSun: {}", hex(&sun_bytes));
@@ -4774,6 +4950,8 @@ mod tests {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         // No order: the bytes of every earlier create.
         let plain = rmp_serde::to_vec_named(&create(Vec::new())).unwrap();
@@ -5061,6 +5239,7 @@ mod tests {
                 grid_slot,
                 ready: false,
                 dnq: false,
+                missed_stops: false,
             };
         // Present and on the grid: no away key; no slot: no grid key.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false, false, 0)).unwrap();
@@ -5178,6 +5357,7 @@ mod tests {
             grid_slot: car_index + 1,
             ready,
             dnq: false,
+            missed_stops: false,
         };
         // Not ready: no key, so a roster off the grid keeps its bytes.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false)).unwrap();
@@ -5226,6 +5406,8 @@ mod tests {
             weekend: None,
             watch,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         let setup = CarSetup {
             tyre_pressure_front: -2,

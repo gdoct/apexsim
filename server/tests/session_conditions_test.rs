@@ -126,6 +126,8 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -314,6 +316,8 @@ async fn the_hosts_damage_rule_holds_for_every_car() {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -394,6 +398,8 @@ async fn the_hosts_ai_level_sets_the_field() {
             watch: None,
             // The 107% rule rides along: kept and echoed as asked.
             qualifying_cutoff_pct: Some(107),
+            mandatory_stops: 0,
+            compound_change: false,
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -458,6 +464,8 @@ async fn the_hosts_race_time_is_echoed_and_listed() {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         })
         .await?;
         let joined = host.wait_joined().await?;

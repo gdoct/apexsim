@@ -506,6 +506,8 @@ impl TestClientMinimal {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         };
         self.send_message(&msg).await?;
 
@@ -861,6 +863,8 @@ async fn run_multi_client_test(
         weekend: None,
         watch: None,
         qualifying_cutoff_pct: None,
+        mandatory_stops: 0,
+        compound_change: false,
     };
     clients[0].send_message(&create_msg).await?;
 

@@ -119,6 +119,8 @@ async fn host_session(
         weekend: None,
         watch: None,
         qualifying_cutoff_pct: None,
+        mandatory_stops: 0,
+        compound_change: false,
     })
     .await?;
     let joined = host.wait_joined().await?;

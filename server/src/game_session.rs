@@ -477,6 +477,10 @@ struct Finisher {
     tick: u32,
     /// How far past the line it was on that tick, m: who crossed first.
     progress: f32,
+    /// It took the flag owing a stop or its second compound under the
+    /// session's pit rule (`data::PitRule`): classified behind every
+    /// finisher that met it.
+    missed_stops: bool,
 }
 
 /// Put a car down still at a pose: everything that moves (velocities,
@@ -1535,6 +1539,23 @@ impl GameSession {
         self.session.qualifying_cutoff_pct = crate::data::clamp_qualifying_cutoff(pct);
     }
 
+    /// The race's pit-stop rule (`CreateSession.mandatory_stops` and
+    /// `compound_change`, clamped): see [`crate::data::PitRule`].
+    pub fn set_pit_rule(&mut self, mandatory_stops: u8, compound_change: bool) {
+        self.session.pit_rule = crate::data::PitRule::clamped(mandatory_stops, compound_change);
+    }
+
+    /// What a car still owes the pit rule in a race: stops, and the second
+    /// compound (`data::PitRule::owed`). Nothing outside a race.
+    fn stops_owed(&self, state: &CarState) -> (u32, bool) {
+        if self.session.game_mode != GameMode::Race {
+            return (0, false);
+        }
+        self.session
+            .pit_rule
+            .owed(state.pit.stops, state.pit.compound_changed)
+    }
+
     /// The drivers the qualifying cut-off keeps off the race's grid: every
     /// seated driver slower than `qualifying_cutoff_pct` of pole, or with no
     /// time. A weekend's cut-off is taken on Q1, which every car ran (a
@@ -2108,6 +2129,14 @@ impl GameSession {
                 let tick = self.session.current_tick;
                 for state in self.session.participants.values_mut() {
                     physics::start_lap_on_green(state, &self.track_config, tick);
+                    // The pit rule counts from the green light: a car on a
+                    // treaded tyre has its second compound already.
+                    state.pit.stops = 0;
+                    state.pit.compound_changed =
+                        self.car_configs.get(&state.car_config_id).is_some_and(|c| {
+                            c.tire_config.compound(state.tyre_compound).kind
+                                != tyre_thermal::CompoundKind::Slick
+                        });
                     // The grid waits in neutral; the automatic box takes
                     // first with the green light, never before.
                     if state.auto_gearbox && state.gear == 0 {
@@ -4648,6 +4677,13 @@ impl GameSession {
                 tyre_thermal::start_temperature_c(tyre, &self.track_config.track_surface);
             let compound = state.pit.service_compound;
             let water = self.track_config.track_surface.water;
+            // The pit rule's second compound (`data::PitRule`): a dry
+            // compound other than the one coming off, or a treaded tyre.
+            if compound != state.tyre_compound
+                || tyre.compound(compound).kind != tyre_thermal::CompoundKind::Slick
+            {
+                state.pit.compound_changed = true;
+            }
             tyre_thermal::fit(state, tyre, temperature, compound, water);
             state.pit.stint_start_laps = laps_run(state, total_m);
         }
@@ -4786,9 +4822,14 @@ impl GameSession {
                         .get(&car_id)
                         .map(|c| c.tire_config.clone())
                         .unwrap_or_default();
-                    let compound = tyre
-                        .weather_compound(line_water)
-                        .unwrap_or_else(|| tyre.compound_for_click(plan.pick.click()));
+                    let compound = tyre.weather_compound(line_water).unwrap_or_else(|| {
+                        let want = tyre.compound_for_click(plan.pick.click());
+                        if ctx.compound_owed {
+                            crate::pit::other_dry_compound(&tyre, state.tyre_compound, want)
+                        } else {
+                            want
+                        }
+                    });
                     if let Some(state) = self.session.participants.get_mut(&ai_id) {
                         state.pit.wants_stop = true;
                         state.pit.fuel_only = plan.fuel_only;
@@ -4983,11 +5024,14 @@ impl GameSession {
             }
             None => (0.0, 1.0),
         };
+        let (stops_owed, compound_owed) = self.stops_owed(state);
         crate::pit::StopContext {
             laps_left,
             lap_fuel_l,
             usable_fuel_l: None,
             save_to_flag: lap_fuel_l.is_some() && self.saves_to_flag(state),
+            stops_owed,
+            compound_owed,
             stint_laps: laps_run(state, total_m) - state.pit.stint_start_laps,
             gap_ahead_s,
             rival_behind_stopping,
@@ -5022,7 +5066,9 @@ impl GameSession {
     fn saves_to_flag(&self, state: &CarState) -> bool {
         let total_m = crate::laps::track_length_m(&self.track_config);
         let short = self.fuel_short_share(state);
-        short > 0.0
+        // A car the pit rule stops anyway takes its fuel there.
+        self.stops_owed(state) == (0, false)
+            && short > 0.0
             && short <= crate::pit::SAVE_TO_SKIP_SHORT
             && crate::pit::tyres_reach_flag(
                 state,
@@ -5269,6 +5315,11 @@ impl GameSession {
                     grid_slot: slots.get(player_id).copied().unwrap_or(state.grid_position),
                     ready: self.is_ready(player_id),
                     dnq: self.not_qualified.contains(player_id),
+                    missed_stops: self
+                        .race_end
+                        .finishers
+                        .get(player_id)
+                        .is_some_and(|f| f.missed_stops),
                 }
             })
             .collect();
@@ -5309,7 +5360,10 @@ impl GameSession {
     /// was further past the line; then deterministic BTreeMap order), so
     /// in a race over laps a car's place never changes once it has one,
     /// while in a timed race a lapped car that crossed early drops behind a
-    /// car on the lead lap that crosses after it.
+    /// car on the lead lap that crosses after it. Under a pit rule
+    /// (`data::PitRule`) a car that takes the flag owing a stop or its
+    /// second compound is classified behind every finisher that met it,
+    /// however many laps it ran (`RosterEntry::missed_stops`).
     fn assign_finish_positions(&mut self) {
         let Some(finish_lap) = self.finish_lap() else {
             return;
@@ -5327,10 +5381,12 @@ impl GameSession {
                         || flag_laps.get(id).is_some_and(|lap| s.current_lap > *lap))
             })
             .map(|(id, s)| {
+                let (stops_owed, compound_owed) = self.stops_owed(s);
                 let finisher = Finisher {
                     laps: s.current_lap.saturating_sub(1),
                     tick,
                     progress: s.track_progress,
+                    missed_stops: stops_owed > 0 || compound_owed,
                 };
                 (*id, finisher)
             })
@@ -5338,6 +5394,9 @@ impl GameSession {
 
         if new_finishers.is_empty() {
             return;
+        }
+        if new_finishers.iter().any(|(_, f)| f.missed_stops) {
+            self.roster_dirty = true;
         }
         self.race_end
             .finishers
@@ -5350,13 +5409,18 @@ impl GameSession {
             .filter(|(id, _)| self.session.participants.contains_key(id))
             .map(|(id, f)| (*id, *f))
             .collect();
-        // Stable: exact ties keep BTreeMap order.
+        // Stable: exact ties keep BTreeMap order. A car that missed the
+        // pit rule goes behind every car that met it.
         order.sort_by(|(_, a), (_, b)| {
-            b.laps.cmp(&a.laps).then(a.tick.cmp(&b.tick)).then(
-                b.progress
-                    .partial_cmp(&a.progress)
-                    .unwrap_or(std::cmp::Ordering::Equal),
-            )
+            a.missed_stops
+                .cmp(&b.missed_stops)
+                .then(b.laps.cmp(&a.laps))
+                .then(a.tick.cmp(&b.tick))
+                .then(
+                    b.progress
+                        .partial_cmp(&a.progress)
+                        .unwrap_or(std::cmp::Ordering::Equal),
+                )
         });
         for (place, (player_id, _)) in order.iter().enumerate() {
             if let Some(state) = self.session.participants.get_mut(player_id) {
@@ -6669,6 +6733,73 @@ mod tests {
         assert_eq!(place(&game_session, &second), Some(2));
         assert_eq!(place(&game_session, &lapped), Some(3));
         assert_eq!(game_session.session.state, SessionState::Finished);
+    }
+
+    /// The pit rule: a car that takes the flag owing its stop, or the second
+    /// compound, is classified behind every finisher that met the rule, and
+    /// the roster says so; the stops count from the green light.
+    #[test]
+    fn a_car_that_misses_the_pit_rule_is_classified_behind_those_that_met_it() {
+        let mut game_session = create_test_session();
+        game_session.set_pit_rule(9, true);
+        assert_eq!(
+            game_session.session.pit_rule,
+            crate::data::PitRule {
+                mandatory_stops: crate::data::MAX_MANDATORY_STOPS,
+                compound_change: true
+            }
+        );
+        game_session.set_pit_rule(1, true);
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let (none, same, met) = (Uuid::from_u128(1), Uuid::from_u128(2), Uuid::from_u128(3));
+        for id in [none, same, met] {
+            game_session.add_player(id, car_id).unwrap();
+        }
+        // A stop in practice does not count.
+        game_session
+            .session
+            .participants
+            .get_mut(&met)
+            .unwrap()
+            .pit
+            .stops = 1;
+        game_session.set_game_mode(GameMode::Race);
+        assert_eq!(game_session.session.participants[&met].pit.stops, 0);
+        for (id, stops, changed) in [(same, 1, false), (met, 1, true)] {
+            let pit = &mut game_session.session.participants.get_mut(&id).unwrap().pit;
+            pit.stops = stops;
+            pit.compound_changed = changed;
+        }
+        let set_lap = |gs: &mut GameSession, id: &PlayerId, lap: u16| {
+            gs.session.participants.get_mut(id).unwrap().current_lap = lap;
+        };
+        let ticks: HashMap<PlayerId, PlayerInputData> = HashMap::new();
+        let place = |gs: &GameSession, id: &PlayerId| gs.session.participants[id].finish_position;
+        let finish = game_session.session.lap_limit as u16 + 1;
+
+        // The car with no stop takes the flag first: the winner, for now.
+        set_lap(&mut game_session, &none, finish);
+        game_session.tick(&ticks);
+        assert_eq!(place(&game_session, &none), Some(1));
+        // The one that stopped onto the same compound is behind nobody that
+        // met the rule yet; the one that met it goes ahead of both.
+        set_lap(&mut game_session, &same, finish);
+        game_session.tick(&ticks);
+        set_lap(&mut game_session, &met, finish);
+        game_session.tick(&ticks);
+        assert_eq!(place(&game_session, &met), Some(1));
+        assert_eq!(place(&game_session, &none), Some(2));
+        assert_eq!(place(&game_session, &same), Some(3));
+        let roster = game_session.build_roster(&HashMap::new());
+        let missed = |id: PlayerId| {
+            roster
+                .entries
+                .iter()
+                .find(|e| e.player_id == id)
+                .unwrap()
+                .missed_stops
+        };
+        assert!(missed(none) && missed(same) && !missed(met));
     }
 
     /// A timed race is as many laps as the clock holds plus the one it runs

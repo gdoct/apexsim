@@ -42,6 +42,8 @@ pub struct LobbySessionInfo {
     /// A race weekend between phases, waiting for its host: listed
     /// `Finished`, it still takes drivers (`SessionSummary::weekend_waiting`).
     pub weekend_waiting: bool,
+    /// The race's pit-stop rule, for the session browser.
+    pub pit_rule: PitRule,
     pub max_players: u8,
     pub current_player_count: u8,
     pub spectator_count: u8,
@@ -407,6 +409,8 @@ impl LobbyManager {
                 lap_limit: s.lap_limit,
                 race_seconds: s.race_seconds,
                 weekend_waiting: s.weekend_waiting,
+                mandatory_stops: s.pit_rule.mandatory_stops,
+                compound_change: s.pit_rule.compound_change,
             })
             .collect()
     }
@@ -519,6 +523,7 @@ mod tests {
             lap_limit: 3,
             race_seconds: None,
             weekend_waiting: false,
+            pit_rule: PitRule::default(),
             max_players: 8,
             current_player_count: 0,
             spectator_count: 0,
@@ -577,6 +582,7 @@ mod tests {
             lap_limit: 3,
             race_seconds: None,
             weekend_waiting: false,
+            pit_rule: PitRule::default(),
             max_players: 8,
             current_player_count: 0,
             spectator_count: 0,
@@ -629,6 +635,7 @@ mod tests {
             lap_limit: 3,
             race_seconds: None,
             weekend_waiting: false,
+            pit_rule: PitRule::default(),
             max_players: 8,
             current_player_count: 2,
             spectator_count: 0,

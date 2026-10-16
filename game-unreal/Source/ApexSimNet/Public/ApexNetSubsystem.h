@@ -275,7 +275,9 @@ public:
 		const TArray<FString>& GridOrder,
 		int32 QualifyingSeconds = 0,
 		const FApexWeekendFormat& Weekend = FApexWeekendFormat(),
-		int32 QualifyingCutoffPct = 0);
+		int32 QualifyingCutoffPct = 0,
+		int32 MandatoryStops = 0,
+		bool bCompoundChange = false);
 
 	/**
 	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
@@ -604,6 +606,12 @@ public:
 	/** The session's qualifying cut-off, percent of pole (ApexQualifyingCutoff), from its SessionJoined; 0 for none. */
 	int32 GetSessionQualifyingCutoffPct() const { return CurrentQualifyingCutoffPct; }
 
+	/** The race's mandatory stops (ApexMandatoryStops), from its SessionJoined; 0 for none. */
+	int32 GetSessionMandatoryStops() const { return CurrentMandatoryStops; }
+
+	/** The race must be run on two dry compounds, from its SessionJoined. */
+	bool GetSessionCompoundChange() const { return bCurrentCompoundChange; }
+
 	/** The race weekend the session is, from its SessionJoined; no rounds when it is none. */
 	const FApexWeekendFormat& GetSessionWeekend() const { return CurrentWeekend; }
 	bool IsWeekendSession() const { return CurrentWeekend.IsWeekend(); }
@@ -910,6 +918,8 @@ private:
 	int32 CurrentRaceSeconds = 0;
 	int32 CurrentQualifyingSeconds = 0;
 	int32 CurrentQualifyingCutoffPct = 0;
+	int32 CurrentMandatoryStops = 0;
+	bool bCurrentCompoundChange = false;
 	FApexWeekendFormat CurrentWeekend;
 	FApexWeekendState CurrentWeekendState;
 

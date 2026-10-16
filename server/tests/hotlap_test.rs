@@ -393,6 +393,8 @@ async fn relocate_is_refused_in_practice_and_a_new_driver_has_no_ghost() {
             weekend: None,
             watch: None,
             qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
         })
         .await?;
         host.wait_for(|m| match m {

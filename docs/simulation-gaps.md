@@ -51,7 +51,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 | Room is left only for an AI attacker (`Tactic::Room` needs the rival's `Tactic::Attack`): a human alongside gets the per-tick dodge, and nothing reads a human's intent or judges a human's blocking. | Med | Med |
 | Backing out of a wall (`AiDriverController::back_out`) is a timed reverse toward the road ahead with no check on what is behind the car once it is moving: it looks for traffic only before it starts (`racecraft::traffic_coming`), and a car already rolling back onto the road does not stop for one arriving. | Low | Low |
 | Mistakes come only under pressure (a car within 0.6 s behind, `racecraft::mistakes`), never from fatigue, a cold tyre or a wet patch, and none is a spin of the driver's own making (a lock-up or a wide line ends in one only through the physics). | Low | Low |
-| No mandatory stops (a session rule: a `CreateSession` field, the create screen, and the AI's plan counting it). | Med | Low |
 | The AI's stop plan reads the car ahead and behind on the road only: it does not work out where it would rejoin, nor race a rival's strategy (an overcut, a stop under a slow lap). | Med | Low |
 | The AI's speed plan (`racing_line::build_laden`) counts a hybrid's motor at full power whatever the lap budget and the minimum deployment speed allow, and the AI caps itself at that plan times its skill's pace on the straights too: planned on the paced motor (as the player's aid is), an F1 AI lapped Monza 3 s slower than the car can. | Med | Low |
 | The AI's hybrid use is three rules on the gaps and the charge (`hybrid::ai_ers`): it does not save energy for a particular straight, nor change its deploy map. | Low | Low |
@@ -72,7 +71,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 |---|---|---|
 | No driver swaps or fixed stint lengths. | Med | Low |
 | A race longer than a tank on a circuit with no pit lane (the Nordschleife): nothing refuels, the AI saves up to `pit::MAX_FUEL_SAVE_SHORT` and runs dry past it. | Low | Low |
-| No penalties of any kind: no pit-lane speeding penalty (the limiter is forced, and brakes a car over the limit), nothing stops a driver on a manual pit lane leaving past a red exit light, no drive-through or stop-go, no collision penalty and no race-start ghosting. | High | Med |
+| No penalties beyond the pit rule's (a car that takes the flag owing its mandatory stops is classified behind those that made them): no time penalty, no pit-lane speeding penalty (the limiter is forced, and brakes a car over the limit), nothing stops a driver on a manual pit lane leaving past a red exit light, no drive-through or stop-go, no collision penalty and no race-start ghosting. | High | Med |
 | No flags and no flag state on the wire: no yellow at an incident, no blue for a car about to be lapped, no safety car (so no lane closure). The trackside panels' `ApexEmissive_*` slots glow at a fixed level. | High | Med |
 | Boxes are dealt in seating order (`pit::deal_box`), not by team. | Low | Low |
 | A retired car jumps to its box after `TOW_AFTER_S`: no recovery vehicle, no marshals. Without a pit lane it stays where it stopped, out of everyone's way. | Med | Low |

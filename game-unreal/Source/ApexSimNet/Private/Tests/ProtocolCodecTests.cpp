@@ -279,6 +279,13 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("no cut-off stays none"), ApexQualifyingCutoff::Clamp(0), 0);
 	TestEqual(TEXT("a cut-off is at least 101%"), ApexQualifyingCutoff::Clamp(100), 101);
 	TestEqual(TEXT("and at most 150%"), ApexQualifyingCutoff::Clamp(300), 150);
+	CheckBytes(TEXT("CreateSession with the pit rule"),
+		ApexProtocol::EncodeCreateSession(
+			TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+			FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+			TArray<FString>(), 0, FApexWeekendFormat(), nullptr, ApexQualifyingCutoff::None, 2, true),
+		ApexGolden::C_CreateSessionPitRule);
+	TestEqual(TEXT("mandatory stops are at most three"), ApexMandatoryStops::Clamp(9), 3);
 	CheckBytes(TEXT("AdvanceWeekend"), ApexProtocol::EncodeAdvanceWeekend(), ApexGolden::C_AdvanceWeekend);
 	CheckBytes(TEXT("GiveUpSeat"), ApexProtocol::EncodeGiveUpSeat(), ApexGolden::C_GiveUpSeat);
 
@@ -526,6 +533,29 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 		if (Decode(TEXT("SessionJoined without a cut-off"), ApexGolden::S_SessionJoinedNoDamage, Plain))
 		{
 			TestEqual(TEXT("QualifyingCutoffPct (none when absent)"), Plain.QualifyingCutoffPct, 0);
+			TestEqual(TEXT("MandatoryStops (none when absent)"), Plain.MandatoryStops, 0);
+			TestFalse(TEXT("CompoundChange (false when absent)"), Plain.bCompoundChange);
+		}
+	}
+
+	{
+		// The pit rule: the stops and the second compound, and a roster
+		// row that took the flag owing them.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined with the pit rule"), ApexGolden::S_SessionJoinedPitRule, Message))
+		{
+			TestEqual(TEXT("MandatoryStops"), Message.MandatoryStops, 2);
+			TestTrue(TEXT("CompoundChange"), Message.bCompoundChange);
+		}
+		FApexServerMessage Roster;
+		if (Decode(TEXT("SessionRoster with a missed pit rule"), ApexGolden::S_SessionRosterMissedStops, Roster))
+		{
+			TestEqual(TEXT("roster entries"), Roster.Roster.Entries.Num(), 1);
+			if (Roster.Roster.Entries.Num() == 1)
+			{
+				TestTrue(TEXT("MissedStops"), Roster.Roster.Entries[0].bMissedStops);
+				TestFalse(TEXT("Dnq"), Roster.Roster.Entries[0].bDnq);
+			}
 		}
 	}
 

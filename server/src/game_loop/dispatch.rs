@@ -100,6 +100,8 @@ pub(crate) async fn handle_message(
             weekend,
             watch,
             qualifying_cutoff_pct,
+            mandatory_stops,
+            compound_change,
         } => {
             handle_create_session(
                 ctx,
@@ -119,6 +121,7 @@ pub(crate) async fn handle_message(
                 weekend,
                 watch.unwrap_or_default(),
                 qualifying_cutoff_pct,
+                crate::data::PitRule::clamped(mandatory_stops, compound_change),
             )
             .await;
         }
@@ -371,6 +374,7 @@ async fn handle_create_session(
     weekend: Option<crate::weekend::WeekendFormat>,
     watch: crate::network::HotlapWatchOptions,
     qualifying_cutoff_pct: Option<u16>,
+    pit_rule: crate::data::PitRule,
 ) {
     let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
@@ -504,6 +508,7 @@ async fn handle_create_session(
         game_session.set_weekend(weekend);
         game_session.set_qualifying_seconds(qualifying_seconds);
         game_session.set_qualifying_cutoff(qualifying_cutoff_pct);
+        game_session.set_pit_rule(pit_rule.mandatory_stops, pit_rule.compound_change);
         game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
     }
     if is_hotlap_watch {
@@ -555,6 +560,7 @@ async fn handle_create_session(
         lap_limit,
         race_seconds,
         weekend_waiting: false,
+        pit_rule,
         track_config_id,
         damage,
         max_players,
@@ -645,6 +651,7 @@ async fn handle_create_session(
         let qualifying_seconds = game_session.session.qualifying_seconds;
         let weekend = game_session.session.weekend.clone();
         let qualifying_cutoff_pct = game_session.session.qualifying_cutoff_pct;
+        let pit_rule = game_session.session.pit_rule;
         let weekend_state = game_session
             .weekend_state()
             .map(ServerMessage::WeekendState);
@@ -664,6 +671,8 @@ async fn handle_create_session(
                     qualifying_seconds,
                     weekend,
                     qualifying_cutoff_pct,
+                    mandatory_stops: pit_rule.mandatory_stops,
+                    compound_change: pit_rule.compound_change,
                 }),
             )
             .await;
@@ -839,6 +848,8 @@ async fn start_demo_session(
                 qualifying_seconds,
                 weekend: None,
                 qualifying_cutoff_pct: None,
+                mandatory_stops: 0,
+                compound_change: false,
             }),
         )
         .await;
@@ -955,6 +966,7 @@ pub(crate) async fn handle_join_session(
         let qualifying_seconds = game_session.session.qualifying_seconds;
         let weekend = game_session.session.weekend.clone();
         let qualifying_cutoff_pct = game_session.session.qualifying_cutoff_pct;
+        let pit_rule = game_session.session.pit_rule;
         let weekend_state = game_session
             .weekend_state()
             .map(ServerMessage::WeekendState);
@@ -974,6 +986,8 @@ pub(crate) async fn handle_join_session(
                     qualifying_seconds,
                     weekend,
                     qualifying_cutoff_pct,
+                    mandatory_stops: pit_rule.mandatory_stops,
+                    compound_change: pit_rule.compound_change,
                 }),
             )
             .await;
@@ -1038,6 +1052,8 @@ async fn rejoin_session(
         qualifying_seconds: game_session.session.qualifying_seconds,
         weekend: game_session.session.weekend.clone(),
         qualifying_cutoff_pct: game_session.session.qualifying_cutoff_pct,
+        mandatory_stops: game_session.session.pit_rule.mandatory_stops,
+        compound_change: game_session.session.pit_rule.compound_change,
     });
     let mut messages = vec![joined];
     messages.extend(
@@ -1273,7 +1289,7 @@ pub(crate) async fn handle_join_as_spectator(
         race_seconds,
         qualifying_seconds,
         weekend,
-        qualifying_cutoff_pct,
+        (qualifying_cutoff_pct, pit_rule),
         weekend_state,
         sectors,
         road,
@@ -1292,7 +1308,7 @@ pub(crate) async fn handle_join_as_spectator(
             race_seconds,
             qualifying_seconds,
             weekend,
-            qualifying_cutoff_pct,
+            (qualifying_cutoff_pct, pit_rule),
             weekend_state,
             sectors,
             road,
@@ -1314,7 +1330,7 @@ pub(crate) async fn handle_join_as_spectator(
                     s.session.race_seconds,
                     s.session.qualifying_seconds,
                     s.session.weekend.clone(),
-                    s.session.qualifying_cutoff_pct,
+                    (s.session.qualifying_cutoff_pct, s.session.pit_rule),
                     s.weekend_state().map(ServerMessage::WeekendState),
                     Some(ServerMessage::TrackSectors(TrackSectorsData {
                         session_id,
@@ -1335,7 +1351,7 @@ pub(crate) async fn handle_join_as_spectator(
             race_seconds,
             qualifying_seconds,
             weekend,
-            qualifying_cutoff_pct,
+            (qualifying_cutoff_pct, pit_rule),
             weekend_state,
             sectors,
             road,
@@ -1362,6 +1378,8 @@ pub(crate) async fn handle_join_as_spectator(
                     qualifying_seconds,
                     weekend,
                     qualifying_cutoff_pct,
+                    mandatory_stops: pit_rule.mandatory_stops,
+                    compound_change: pit_rule.compound_change,
                 }),
             )
             .await;
