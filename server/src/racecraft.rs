@@ -31,7 +31,8 @@
 //!   the spell off it, [`Racecraft::leg_idx`], not the lap position, which
 //!   can jump to another leg nearby). It looks behind first: with a car
 //!   coming on that stretch it waits for the gap, up to
-//!   [`REJOIN_WAIT_MAX_S`], before backing out or setting off. Before it a
+//!   [`REJOIN_WAIT_MAX_S`], before backing out or setting off, and stops
+//!   on the brake for one arriving while it backs. Before it a
 //!   car pinned on a barrier sat there with its foot down until its engine
 //!   cooked. A car that cannot get back (on
 //!   snow it slides off every attempt) asks to be put back on the road
@@ -1000,7 +1001,11 @@ fn recover(rc: &mut Racecraft, state: &CarState, me: &Rival, field: &[Rival], ct
     let off = !state.is_on_track || (state.is_colliding && state.speed_mps < STUCK_SPEED_MPS);
     if !off {
         rc.off_road_s = 0.0;
-        rc.wait_s = 0.0;
+        // Rolling back onto the road the car is not off it, but its spell
+        // of waiting goes on until it has backed out.
+        if rc.reverse_s <= 0.0 {
+            rc.wait_s = 0.0;
+        }
     } else {
         if rc.off_road_s <= 0.0
             || ahead_of(rc.off_road_from_m, state.track_progress, ctx.total_m) > RESET_HEADWAY_M
@@ -1014,6 +1019,16 @@ fn recover(rc: &mut Racecraft, state: &CarState, me: &Rival, field: &[Rival], ct
         }
     }
     if rc.reverse_s > 0.0 {
+        // Still looking behind while it backs: a car arriving stops it on
+        // the brake, in reverse, until it is by (the back-out's time is
+        // held, not spent), as long as a spell's wait allows.
+        if rc.wait_s < REJOIN_WAIT_MAX_S
+            && traffic_coming(me, leg_m(rc, state, ctx.track), field, ctx.total_m)
+        {
+            rc.waiting = true;
+            rc.wait_s += dt;
+            return;
+        }
         rc.reverse_s = (rc.reverse_s - dt).max(0.0);
         let backed = REVERSE_MAX_S - rc.reverse_s;
         let clear = !state.is_colliding
@@ -1532,5 +1547,23 @@ mod tests {
         }
         assert!(!rc.waiting, "the road behind is clear: {rc:?}");
         assert!(rc.reverse_s > 0.0, "and it backs out: {rc:?}");
+
+        // Backing out, a car arriving stops it where it is, with its
+        // back-out held; it carries on once the car has gone by.
+        let backing = rc.reverse_s;
+        state.gear = -1;
+        state.is_on_track = true;
+        let me = Rival::of(&state, 4.5, 2.0, ctx.total_m);
+        recover(&mut rc, &state, &me, &[me, coming], &ctx);
+        assert!(rc.waiting, "{rc:?}");
+        assert_eq!(rc.reverse_s, backing, "the back-out is held");
+        let gone = Rival {
+            progress_m: 400.0,
+            pos: (400.0, 0.0),
+            ..coming
+        };
+        recover(&mut rc, &state, &me, &[me, gone], &ctx);
+        assert!(!rc.waiting, "{rc:?}");
+        assert!(rc.reverse_s < backing, "and it backs on");
     }
 }

@@ -150,7 +150,9 @@ next `Brake` phase, its slowest point, the hand at the apex).
   off) it looks behind: with a racing car within `REJOIN_LOOK_M` (200 m)
   behind on that stretch, or alongside, arriving within `REJOIN_GAP_S`
   (3 s), it waits on the brake (`Racecraft::waiting`), at most
-  `REJOIN_WAIT_MAX_S` (6 s) a spell. "The road ahead", backing out and off
+  `REJOIN_WAIT_MAX_S` (6 s) a spell. It keeps looking while it backs:
+  a car arriving stops it on the brake in reverse, its back-out held, until
+  the car is by (within the same spell's wait). "The road ahead", backing out and off
   the road, is on the leg the car left (`Racecraft::leg_idx`, `leg_m`):
   its own nearest centerline point on the road, and off it the nearest
   within 32 points of the last, so a car whose lap position jumps to

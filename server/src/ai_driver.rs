@@ -384,7 +384,7 @@ impl<'a> AiDriverController<'a> {
         if self.track_config.centerline.is_empty() {
             return PlayerInputData::default();
         }
-        if state.racecraft.reverse_s > 0.0 {
+        if state.racecraft.reverse_s > 0.0 && !state.racecraft.waiting {
             return self.back_out(state);
         }
         if state.racecraft.wants_reset {
@@ -396,7 +396,8 @@ impl<'a> AiDriverController<'a> {
             };
         }
         if state.racecraft.waiting {
-            // Stopped off the road with a car coming: wait for it to pass.
+            // Stopped off the road, or backing out, with a car coming: wait
+            // for it to pass (in reverse, the gear held, while backing).
             return PlayerInputData {
                 brake: 1.0,
                 gear: Some(state.gear),
