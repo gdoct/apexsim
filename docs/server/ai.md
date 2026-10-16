@@ -139,9 +139,20 @@ next `Brake` phase, its slowest point, the hand at the apex).
   diving into the first corner. Held up `PLAN_PATIENCE_S` (6 s) past its
   hesitation, any corner will do; a car `MUCH_SLOWER_MPS` (4 m/s) slower
   is passed on any straight.
-- **Defend** (races only): one move to the inside before the braking
-  against a car closing within `DEFEND_GAP_S` (0.5 s), held to the apex, by
-  a hashed chance that grows with aggressiveness.
+- **Defend** (races only): one move to the inside, held to the apex, by a
+  hashed chance that grows with aggressiveness, and only one a corner
+  (`Racecraft::defended_corner`): no second move back across. It is made
+  before the braking against a car within `DEFEND_GAP_S` (0.5 s) that is
+  attacking it or that, at the speed it closes now (over
+  `DEFEND_CLOSING_MPS`), gets alongside by the braking point with
+  `DEFEND_BRAKING_GAIN_S` (1 s) of braking on top: a car close behind but
+  closing slowly is not defended against. Further out on the straight
+  (the braking point up to `TOW_COVER_FROM_S`, 8 s, ahead) the same move
+  covers the tow: against a car still in the defender's wake (within half
+  a car's width across), within `TOW_COVER_GAP_S` (0.8 s), closing over
+  `TOW_COVER_CLOSING_MPS` (2 m/s) and far enough back
+  (`TOW_COVER_LEAD_S`, 1.2 s at that closing) that the move is made before
+  it arrives. A car already pulled out of the wake is not moved on.
 - **Room**: with an AI attacker alongside, the passed car takes the lane
   beside it and lifts 2% until clear.
 - **Yield**: about to be lapped, it moves toward the outside and lifts 3%.

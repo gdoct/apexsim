@@ -304,6 +304,11 @@ Mandarina Bay.
 - A pad under the GameInput plugin (not enabled in the project): the light
   motor on `RightLarge`, the triggers quiet (`ApexFfb::ToPadChannels`).
 
+**Racing the AI.** A race against a mixed field at Monza and Zandvoort.
+
+- An AI defending against a player: one move to the inside, early on the
+  straight when the player is closing in its tow, never a second one.
+
 **An imported circuit's pit stop.**
 
 - A human drives an AC-imported circuit's pit lane on screen: the speed

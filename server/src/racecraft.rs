@@ -20,9 +20,11 @@
 //!   has the corner. Either way the lane ends at the apex. The corner is
 //!   picked by its run in ([`pass_here`]): a driver held up waits for the
 //!   end of the long straight, where the tow (and DRS) close it most.
-//! - **Defend** (races only): a car closing behind on the approach to a
-//!   braking zone gets one move to the inside, made before the braking,
-//!   held to the apex. A car already alongside is too late to block.
+//! - **Defend** (races only): a car behind that can get alongside by the
+//!   braking point, at the speed it is closing, gets one move to the
+//!   inside, made before the braking (or early on a straight against a
+//!   car closing in the tow), held to the apex, and only one a corner. A
+//!   car already alongside is too late to block.
 //! - **Room**: with an attacker alongside, the driver being passed takes
 //!   the lane beside it and holds it, rather than turning in on it.
 //! - **Yield**: about to be lapped, the driver moves off the line toward
@@ -119,6 +121,20 @@ const DEFEND_REACH_S: f32 = 3.0;
 /// from the inside edge it stops.
 const DEFEND_MOVE_M: f32 = 3.0;
 const DEFEND_EDGE_M: f32 = 1.2;
+/// A car behind is defended against only if it closes faster than this,
+/// m/s, and at that rate gets alongside before the braking point, with
+/// this much braking-zone gain on top, s.
+const DEFEND_CLOSING_MPS: f32 = 0.5;
+const DEFEND_BRAKING_GAIN_S: f32 = 1.0;
+/// Covering the tow: a car in the wake within this gap, s (plus
+/// [`CLOSE_EXTRA_M`]), closing faster than this, m/s, with the braking
+/// point no further than this ahead, s, gets the move early; never when it
+/// would arrive within this long of the move starting, s (the move takes
+/// about a second to make).
+const TOW_COVER_GAP_S: f32 = 0.8;
+const TOW_COVER_CLOSING_MPS: f32 = 2.0;
+const TOW_COVER_FROM_S: f32 = 8.0;
+const TOW_COVER_LEAD_S: f32 = 1.2;
 /// The share of drivers who defend at all: the most timid and the boldest.
 const DEFEND_CHANCE_TIMID: f32 = 0.35;
 const DEFEND_CHANCE_BOLD: f32 = 0.9;
@@ -306,6 +322,18 @@ pub struct Racecraft {
     pub waiting: bool,
     #[serde(default)]
     pub wait_s: f32,
+    /// The corner a defensive move has been made for: one move a corner,
+    /// never a second one back across.
+    #[serde(default)]
+    pub defended_corner: Option<u32>,
+}
+
+impl Racecraft {
+    /// A defensive move has been made for the corner at profile point
+    /// `apex` already.
+    fn defended(&self, apex: usize) -> bool {
+        self.defended_corner == Some(apex as u32)
+    }
 }
 
 impl Default for Racecraft {
@@ -336,6 +364,7 @@ impl Default for Racecraft {
             leg_idx: None,
             waiting: false,
             wait_s: 0.0,
+            defended_corner: None,
         }
     }
 }
@@ -990,20 +1019,37 @@ fn start_tactic(
     }
 
     // Defend: one move to the inside before the braking, against a car
-    // close behind and coming (or attacking us), not yet alongside, on the
-    // same lap.
-    if ctx.race && corner.inside != 0.0 {
+    // close behind that can get alongside by the end of the braking (or is
+    // attacking us), not yet alongside, on the same lap. On a long
+    // straight the same one move is made early against a car closing in
+    // the tow, to cover the inside before it pulls out.
+    if ctx.race && corner.inside != 0.0 && !rc.defended(corner.apex) {
         if let Some((o, rel)) = behind {
             let gap = -rel - reach(o);
-            let coming = o.speed_mps > me.speed_mps + 0.5
-                || (o.tactic == Tactic::Attack && o.rival == Some(me.id));
+            let attacking = o.tactic == Tactic::Attack && o.rival == Some(me.id);
+            let closing = o.speed_mps - me.speed_mps;
+            // It reaches us by the braking point at the speed it closes
+            // now, with what a later brake gains it on top.
+            let to_brake_s = corner.brake_in_m / speed;
+            let reaches = closing > DEFEND_CLOSING_MPS
+                && gap < closing * (to_brake_s + DEFEND_BRAKING_GAIN_S);
+            let coming = attacking || reaches;
             let window = corner.brake_in_m >= DEFEND_FROM_M
                 && corner.brake_in_m <= DEFEND_FROM_M + DEFEND_REACH_S * speed;
+            // Covering the tow: further out on the straight, against a
+            // car still in our wake (not pulled out yet) closing fast,
+            // far enough behind that the move is made before it arrives.
+            let in_tow = (o.left_m - me.left_m).abs() < 0.5 * me.width_m;
+            let tow_cover = corner.brake_in_m > DEFEND_FROM_M + DEFEND_REACH_S * speed
+                && corner.brake_in_m < TOW_COVER_FROM_S * speed
+                && in_tow
+                && closing > TOW_COVER_CLOSING_MPS
+                && gap > closing * TOW_COVER_LEAD_S
+                && gap < TOW_COVER_GAP_S * speed + CLOSE_EXTRA_M;
             let same_lap = (o.race_m - me.race_m).abs() < 0.5 * ctx.total_m;
             if gap > 0.5
-                && gap < DEFEND_GAP_S * speed + CLOSE_EXTRA_M
-                && coming
-                && window
+                && ((gap < DEFEND_GAP_S * speed + CLOSE_EXTRA_M && coming && window)
+                    || (tow_cover && reaches))
                 && same_lap
             {
                 let chance =
@@ -1024,7 +1070,9 @@ fn start_tactic(
                     && !attacker_inside
                     && roll(me.id, state.current_lap, corner.apex, 3) < chance
                 {
-                    return Some(fresh(Tactic::Defend, o.id, clamp_lane(lane)));
+                    let mut next = fresh(Tactic::Defend, o.id, clamp_lane(lane));
+                    next.defended_corner = Some(corner.apex as u32);
+                    return Some(next);
                 }
             }
         }
@@ -1394,6 +1442,106 @@ mod tests {
         let sq = square_profile();
         let c = next_corner(&sq, 40).expect("a corner ahead");
         assert!(pass_here(&sq, 40, &c, false));
+    }
+
+    /// Me on the square at `t` m along its first side at 60 m/s; the
+    /// road 5 m either side.
+    fn on_the_square(id: u64, t: f32) -> CarState {
+        let track = TrackConfig::default();
+        let mut state = CarState::new(
+            uuid::Uuid::from_u64_pair(id, 3),
+            uuid::Uuid::new_v4(),
+            &track.start_positions[0],
+        );
+        (state.pos_x, state.pos_y) = (t, 0.0);
+        state.track_progress = t;
+        state.speed_mps = 60.0;
+        state.yaw_rad = 0.0;
+        state.is_on_track = true;
+        state.nearest_centerline_idx = None;
+        state
+    }
+
+    /// A car `gap` m behind `me` (nose to tail), `closing` m/s faster,
+    /// `left_m` across the road.
+    fn chaser(me: &Rival, gap: f32, closing: f32, left_m: f32) -> Rival {
+        let at = me.progress_m - gap - me.length_m;
+        Rival {
+            id: uuid::Uuid::from_u64_pair(99, 99),
+            progress_m: at,
+            pos: (at, 0.0),
+            race_m: at,
+            left_m,
+            speed_mps: me.speed_mps + closing,
+            racing: true,
+            ..*me
+        }
+    }
+
+    fn decide_on_square(state: &CarState, field: &[Rival]) -> Racecraft {
+        let track = TrackConfig::default();
+        let ctx = Context {
+            track: &track,
+            total_m: 1600.0,
+            race: true,
+            dt: 0.01,
+        };
+        let bold = AiDriverProfile::with_attributes("Bold", 100, 1.0, 0.8, 100, 0.8, 0.2, 0.9);
+        let speeds = square_profile();
+        let me = Rival::of(state, 4.5, 2.0, ctx.total_m);
+        let mut all = vec![me];
+        all.extend_from_slice(field);
+        decide(state, &me, &bold, Some(&speeds), &all, &ctx)
+    }
+
+    /// A driver whose defence roll comes up for the square's first corner.
+    fn defender_id() -> u64 {
+        let speeds = square_profile();
+        let apex = next_corner(&speeds, 40).expect("a corner").apex;
+        (1..100)
+            .find(|&id| roll(uuid::Uuid::from_u64_pair(id, 3), 0, apex, 3) < 0.85)
+            .expect("a bold driver defends")
+    }
+
+    /// A defence is made only against a car that can get alongside by
+    /// the braking: not one 20 m back closing at 1 m/s.
+    #[test]
+    fn a_defence_judges_how_fast_the_car_behind_is_coming() {
+        let state = on_the_square(defender_id(), 150.0);
+        let me = Rival::of(&state, 4.5, 2.0, 1600.0);
+        let slow = decide_on_square(&state, &[chaser(&me, 20.0, 1.0, 0.0)]);
+        assert_eq!(slow.tactic, Tactic::Race, "{slow:?}");
+        let fast = decide_on_square(&state, &[chaser(&me, 20.0, 8.0, 0.0)]);
+        assert_eq!(fast.tactic, Tactic::Defend, "{fast:?}");
+        assert!(
+            fast.lane_m > 2.0,
+            "to the inside of the left-hander: {fast:?}"
+        );
+
+        // One move a corner: once made, never another for that corner.
+        let mut again = state.clone();
+        again.racecraft = Racecraft {
+            tactic: Tactic::Race,
+            rival: None,
+            ..fast
+        };
+        let second = decide_on_square(&again, &[chaser(&me, 20.0, 8.0, 0.0)]);
+        assert_eq!(second.tactic, Tactic::Race, "{second:?}");
+    }
+
+    /// Far out on the straight a car closing in the tow is covered early;
+    /// one already pulled out of the wake, or arriving before the move is
+    /// made, is not.
+    #[test]
+    fn the_tow_is_covered_on_the_straight() {
+        let state = on_the_square(defender_id(), 20.0);
+        let me = Rival::of(&state, 4.5, 2.0, 1600.0);
+        let towing = decide_on_square(&state, &[chaser(&me, 15.0, 6.0, 0.0)]);
+        assert_eq!(towing.tactic, Tactic::Defend, "{towing:?}");
+        let out = decide_on_square(&state, &[chaser(&me, 15.0, 6.0, -2.0)]);
+        assert_eq!(out.tactic, Tactic::Race, "{out:?}");
+        let late = decide_on_square(&state, &[chaser(&me, 5.0, 6.0, 0.0)]);
+        assert_eq!(late.tactic, Tactic::Race, "{late:?}");
     }
 
     #[test]
