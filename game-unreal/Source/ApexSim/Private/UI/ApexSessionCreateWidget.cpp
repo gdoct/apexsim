@@ -336,8 +336,14 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 		AddAll(Flow && Flow->bCreateTimedRace ? DurationPresetButtons : LapPresetButtons);
 		if (Flow && Flow->CreateStartingMode == EApexGameMode::Qualification)
 		{
+			AddAll(QualifyingFormatButtons);
 			AddAll(QualifyingLengthButtons);
 			AddAll(QualifyingCutoffButtons);
+			if (Flow->CreateQualifyingFormat != EApexQualifyingFormat::Shootout)
+			{
+				Out.Add(QualifyingAllowanceMinus);
+				Out.Add(QualifyingAllowancePlus);
+			}
 		}
 		if (Flow && Flow->PitRuleApplies())
 		{
@@ -348,8 +354,19 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 		{
 			AddAll(WeekendPracticeButtons);
 			AddAll(WeekendRoundsButtons);
-			AddAll(WeekendRoundLengthButtons);
+			AddAll(WeekendFormatButtons);
+			if (!(Flow->CreateWeekendRounds <= 1 && Flow->CreateQualifyingFormat == EApexQualifyingFormat::Shootout))
+			{
+				AddAll(WeekendRoundLengthButtons);
+			}
 			AddAll(WeekendCutoffButtons);
+			Out.Add(WeekendAllowanceMinus);
+			Out.Add(WeekendAllowancePlus);
+			if (Flow->CreateWeekendPracticeMinutes > 0)
+			{
+				AddAll(WeekendPracticeDamageButtons);
+			}
+			AddAll(WeekendQualifyingDamageButtons);
 			for (int32 Day = 0; Day < 2; ++Day)
 			{
 				if (Day == 0 && Flow->CreateWeekendPracticeMinutes <= 0)
@@ -391,7 +408,20 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 		AddAll(WeatherButtons);
 		AddAll(ChangeableButtons);
 		AddAll(TrackRubberButtons);
+		Out.Add(ForecastAddButton);
 		Out.Add(ForecastRollButton);
+		if (const UApexMenuFlowSubsystem* SkyFlow = GetFlow())
+		{
+			const int32 Steps = SkyFlow->CreateConditions.Clamped().Forecast.Num();
+			for (int32 Step = 0; Step < Steps && Step < ForecastStepRows.Num(); ++Step)
+			{
+				Out.Add(ForecastMinuteMinus[Step]);
+				Out.Add(ForecastMinutePlus[Step]);
+				Out.Add(ForecastWeatherMinus[Step]);
+				Out.Add(ForecastWeatherPlus[Step]);
+				Out.Add(ForecastRemoveButtons[Step]);
+			}
+		}
 		Out.Add(AirAutoButton);
 		Out.Add(AirMinus);
 		Out.Add(AirPlus);
@@ -437,7 +467,7 @@ void UApexSessionCreateWidget::SetActiveTab(int32 Tab)
 	}
 	if (ConditionsTab)
 	{
-		ConditionsTab->SetVisibility(ActiveTab == 1 ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		ConditionsTab->SetVisibility(ActiveTab == 1 ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (GridPreview)
 	{
@@ -568,6 +598,21 @@ UWidget* UApexSessionCreateWidget::MakeChipRow(const FString& Label, const TArra
 		OutButtons.Add(Button);
 		ApexUI::AddH(Row, Button, FMargin(Index == 0 ? 0.0f : 4.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
 	}
+	return ApexUI::MakeSized(*WidgetTree, Row, -1.0f, 30.0f);
+}
+
+UWidget* UApexSessionCreateWidget::MakeStepperRow(const FString& Label, UApexButtonWidget*& OutMinus, UTextBlock*& OutValue,
+	UApexButtonWidget*& OutPlus, UTextBlock** OutLabel)
+{
+	// As a chip row: the label in the fixed column, the stepper across the rest.
+	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+	UTextBlock* Caption = ApexUI::MakeLabel(*WidgetTree, Label);
+	if (OutLabel)
+	{
+		*OutLabel = Caption;
+	}
+	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, Caption, 150.0f, -1.0f), FMargin(0.0f, 0.0f, 8.0f, 0.0f), VAlign_Center);
+	ApexUI::AddH(Row, MakeStepper(OutMinus, OutValue, OutPlus, 30.0f, -1.0f, 14.0f), FMargin(), VAlign_Fill, 1.0f);
 	return ApexUI::MakeSized(*WidgetTree, Row, -1.0f, 30.0f);
 }
 
@@ -937,7 +982,13 @@ UWidget* UApexSessionCreateWidget::BuildRightColumn()
 	RaceScroll->SetScrollbarPadding(FMargin(8.0f, 0.0f, 0.0f, 0.0f));
 	RaceScroll->AddChild(BuildRaceTab());
 	RaceTab = RaceScroll;
-	ConditionsTab = BuildConditionsTab();
+	// So does the Conditions tab, once a written forecast adds its rows.
+	UScrollBox* ConditionsScroll = WidgetTree->ConstructWidget<UScrollBox>();
+	ConditionsScroll->SetScrollWhenFocusChanges(EScrollWhenFocusChanges::InstantScroll);
+	ConditionsScroll->SetScrollbarThickness(FVector2D(4.0f, 4.0f));
+	ConditionsScroll->SetScrollbarPadding(FMargin(8.0f, 0.0f, 0.0f, 0.0f));
+	ConditionsScroll->AddChild(BuildConditionsTab());
+	ConditionsTab = ConditionsScroll;
 	AddFill(Body, RaceTab);
 	AddFill(Body, ConditionsTab);
 	ApexUI::AddV(Column, Body, FMargin(32.0f, 22.0f, ApexUI::Metrics::PageGutter, 22.0f), HAlign_Fill, 1.0f);
@@ -1041,16 +1092,26 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 	{
 		UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>();
 		UTextBlock* Info = nullptr;
-		ApexUI::AddV(Section, MakeCaption(TEXT("Qualifying length"), &Info), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		ApexUI::AddV(Section, MakeCaption(TEXT("Qualifying"), &Info), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
 		QualifyingInfoText = Info;
 		TArray<FString> Chips;
 		for (const int32 Minutes : ApexQualifyingLength::ChoiceMinutes())
 		{
 			Chips.Add(Minutes > 0 ? ApexRaceLength::Describe(Minutes * 60) : FString(TEXT("Open")));
 		}
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Format"), { TEXT("Open"), TEXT("Shoot-out") }, QualifyingFormatButtons),
+			FMargin(0.0f, 0.0f, 0.0f, 6.0f));
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Session"), Chips, QualifyingLengthButtons));
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Cut-off"), { TEXT("None"), TEXT("107%") }, QualifyingCutoffButtons),
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		UApexButtonWidget* AMinus = nullptr;
+		UApexButtonWidget* APlus = nullptr;
+		UTextBlock* AValue = nullptr;
+		QualifyingAllowanceRow = MakeStepperRow(TEXT("Lap allowance"), AMinus, AValue, APlus);
+		QualifyingAllowanceMinus = AMinus;
+		QualifyingAllowancePlus = APlus;
+		QualifyingAllowanceText = AValue;
+		ApexUI::AddV(Section, QualifyingAllowanceRow, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		QualifyingSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
@@ -1069,14 +1130,39 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Practice"), Practice, WeekendPracticeButtons), FMargin(0.0f, 0.0f, 0.0f, 6.0f));
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Qualifying"), { TEXT("One round"), TEXT("Q1 · Q2"), TEXT("Q1 · Q2 · Q3") }, WeekendRoundsButtons),
 			FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		// The final round open and timed, or a one-lap shoot-out.
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Final round"), { TEXT("Open"), TEXT("Shoot-out") }, WeekendFormatButtons),
+			FMargin(0.0f, 0.0f, 0.0f, 6.0f));
 		TArray<FString> RoundLengths;
 		for (const int32 Minutes : WeekendRoundChoices)
 		{
 			RoundLengths.Add(ApexRaceLength::Describe(Minutes * 60));
 		}
-		ApexUI::AddV(Section, MakeChipRow(TEXT("Each round"), RoundLengths, WeekendRoundLengthButtons));
+		WeekendRoundLengthRow = MakeChipRow(TEXT("Each round"), RoundLengths, WeekendRoundLengthButtons);
+		ApexUI::AddV(Section, WeekendRoundLengthRow);
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Cut-off (Q1)"), { TEXT("None"), TEXT("107%") }, WeekendCutoffButtons),
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		{
+			UApexButtonWidget* AMinus = nullptr;
+			UApexButtonWidget* APlus = nullptr;
+			UTextBlock* AValue = nullptr;
+			ApexUI::AddV(Section, MakeStepperRow(TEXT("Lap allowance"), AMinus, AValue, APlus), FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+			WeekendAllowanceMinus = AMinus;
+			WeekendAllowancePlus = APlus;
+			WeekendAllowanceText = AValue;
+		}
+		// Each phase's own damage rule; the race keeps the Damage row's.
+		{
+			TArray<FString> DamageChips;
+			for (int32 Chip = 0; Chip < ApexCreateSession::PhaseDamageChips; ++Chip)
+			{
+				DamageChips.Add(ApexCreateSession::PhaseDamageChipLabel(Chip));
+			}
+			WeekendPracticeDamageRow = MakeChipRow(TEXT("Practice damage"), DamageChips, WeekendPracticeDamageButtons);
+			ApexUI::AddV(Section, WeekendPracticeDamageRow, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+			ApexUI::AddV(Section, MakeChipRow(TEXT("Qualifying damage"), DamageChips, WeekendQualifyingDamageButtons),
+				FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		}
 
 		// Each day's sky: practice and the qualifying day can run under a
 		// weather and an hour of their own (the race day's by default), with
@@ -1482,11 +1568,57 @@ UWidget* UApexSessionCreateWidget::BuildConditionsTab()
 		RollSpec.LabelSize = 12.0f;
 		RollSpec.Height = 26.0f;
 		ForecastRollButton = MakeButton(RollSpec);
-		ApexUI::AddV(Tab, MakeCaption(TEXT("Forecast"), nullptr, ApexUI::MakeSized(*WidgetTree, ForecastRollButton, 96.0f, 26.0f)),
-			FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+		// Or the host writes one: steps of a session minute and a weather.
+		FApexButtonSpec AddSpec = RollSpec;
+		AddSpec.Label = TEXT("ADD STEP");
+		ForecastAddButton = MakeButton(AddSpec);
+		UHorizontalBox* ForecastButtons = WidgetTree->ConstructWidget<UHorizontalBox>();
+		ApexUI::AddH(ForecastButtons, ApexUI::MakeSized(*WidgetTree, ForecastAddButton, 104.0f, 26.0f));
+		ApexUI::AddH(ForecastButtons, ApexUI::MakeSized(*WidgetTree, ForecastRollButton, 96.0f, 26.0f), FMargin(6.0f, 0.0f, 0.0f, 0.0f));
+		ApexUI::AddV(Tab, MakeCaption(TEXT("Forecast"), nullptr, ForecastButtons), FMargin(0.0f, 0.0f, 0.0f, 4.0f));
 		ForecastText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(11.0f, 100), ApexUI::Palette::TextSecondary);
 		ForecastText->SetAutoWrapText(true);
-		ApexUI::AddV(Tab, ForecastText, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+		ApexUI::AddV(Tab, ForecastText, FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+
+		ForecastStepRows.Reset();
+		ForecastStepLabels.Reset();
+		ForecastMinuteMinus.Reset();
+		ForecastMinutePlus.Reset();
+		ForecastMinuteText.Reset();
+		ForecastWeatherMinus.Reset();
+		ForecastWeatherPlus.Reset();
+		ForecastWeatherText.Reset();
+		ForecastRemoveButtons.Reset();
+		for (int32 Step = 0; Step < FApexSessionConditions::MaxForecastSteps; ++Step)
+		{
+			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+			UTextBlock* Label = ApexUI::MakeLabel(*WidgetTree, FString::Printf(TEXT("Step %d"), Step + 1));
+			ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, Label, 150.0f, -1.0f), FMargin(0.0f, 0.0f, 8.0f, 0.0f), VAlign_Center);
+			UApexButtonWidget* MMinus = nullptr;
+			UApexButtonWidget* MPlus = nullptr;
+			UTextBlock* MValue = nullptr;
+			ApexUI::AddH(Row, MakeStepper(MMinus, MValue, MPlus, 30.0f, 156.0f, 13.0f), FMargin(), VAlign_Fill);
+			UApexButtonWidget* WMinus = nullptr;
+			UApexButtonWidget* WPlus = nullptr;
+			UTextBlock* WValue = nullptr;
+			ApexUI::AddH(Row, MakeStepper(WMinus, WValue, WPlus, 30.0f, -1.0f, 14.0f), FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+			FApexButtonSpec RemoveSpec = RollSpec;
+			RemoveSpec.Label = TEXT("REMOVE");
+			UApexButtonWidget* Remove = MakeButton(RemoveSpec);
+			ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, Remove, 84.0f, 30.0f), FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+			UWidget* Sized = ApexUI::MakeSized(*WidgetTree, Row, -1.0f, 30.0f);
+			ApexUI::AddV(Tab, Sized, FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+			ForecastStepRows.Add(Sized);
+			ForecastStepLabels.Add(Label);
+			ForecastMinuteMinus.Add(MMinus);
+			ForecastMinutePlus.Add(MPlus);
+			ForecastMinuteText.Add(MValue);
+			ForecastWeatherMinus.Add(WMinus);
+			ForecastWeatherPlus.Add(WPlus);
+			ForecastWeatherText.Add(WValue);
+			ForecastRemoveButtons.Add(Remove);
+		}
+		ApexUI::AddV(Tab, WidgetTree->ConstructWidget<USpacer>(), FMargin(0.0f, 0.0f, 0.0f, 16.0f));
 	}
 
 	// --- The air: temperature and wind -------------------------------------------
@@ -1971,7 +2103,13 @@ void UApexSessionCreateWidget::RefreshSettings()
 			else
 			{
 				Line = FString::Printf(TEXT("%s FROM %s"), *FApexSessionConditions::WeatherLabel(Sky.Weather).ToUpper(), *Sky.ClockText());
-				if (Sky.WeatherChanges() && Sky.HasSkySeed())
+				if (Sky.HasForecast())
+				{
+					// The race day's written forecast holds on this day too.
+					const FString Changes = ApexCreateSession::ForecastLine(Sky, ApexCreateSession::SessionForecast(Sky, Sky.SkySeed), 4);
+					Line += FString::Printf(TEXT(" · WRITTEN: %s"), *Changes);
+				}
+				else if (Sky.WeatherChanges() && Sky.HasSkySeed())
 				{
 					const FString Changes = ApexCreateSession::ForecastLine(Sky, ApexCreateSession::Forecast(Sky, Sky.SkySeed), 4);
 					Line += Changes.IsEmpty() ? FString(TEXT(" · NO CHANGE")) : FString::Printf(TEXT(" · %s"), *Changes);
@@ -2002,6 +2140,65 @@ void UApexSessionCreateWidget::RefreshSettings()
 	if (WeekendInfoText)
 	{
 		WeekendInfoText->SetText(FText::FromString(Flow->DescribeWeekend().ToUpper()));
+	}
+
+	// Qualifying's format, its lap allowance and a weekend phase's own damage.
+	const bool bShootout = Flow->CreateQualifyingFormat == EApexQualifyingFormat::Shootout;
+	for (TArray<TObjectPtr<UApexButtonWidget>>* Format : { &QualifyingFormatButtons, &WeekendFormatButtons })
+	{
+		for (int32 Index = 0; Index < Format->Num(); ++Index)
+		{
+			if ((*Format)[Index])
+			{
+				(*Format)[Index]->SetSelected((Index == 1) == bShootout);
+			}
+		}
+	}
+	if (WeekendRoundLengthRow)
+	{
+		// A shoot-out has no clock: with one round, no round has a length.
+		WeekendRoundLengthRow->SetVisibility(bShootout && Flow->CreateWeekendRounds <= 1
+			? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+	}
+	{
+		const int32 Allowance = ApexQualifyingLapAllowance::Clamp(Flow->CreateQualifyingLapAllowance);
+		const FString Label = ApexCreateSession::LapAllowanceLabel(Allowance);
+		if (QualifyingAllowanceRow)
+		{
+			// A plain shoot-out is one flying lap each: no allowance to set.
+			QualifyingAllowanceRow->SetVisibility(bShootout ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		}
+		for (UTextBlock* Text : { QualifyingAllowanceText.Get(), WeekendAllowanceText.Get() })
+		{
+			if (Text) { Text->SetText(FText::FromString(Label)); }
+		}
+		for (UApexButtonWidget* Minus : { QualifyingAllowanceMinus.Get(), WeekendAllowanceMinus.Get() })
+		{
+			if (Minus) { Minus->SetIsEnabled(Allowance > ApexQualifyingLapAllowance::None); }
+		}
+		for (UApexButtonWidget* Plus : { QualifyingAllowancePlus.Get(), WeekendAllowancePlus.Get() })
+		{
+			if (Plus) { Plus->SetIsEnabled(Allowance < ApexQualifyingLapAllowance::MaxLaps); }
+		}
+	}
+	if (WeekendPracticeDamageRow)
+	{
+		WeekendPracticeDamageRow->SetVisibility(Flow->CreateWeekendPracticeMinutes <= 0
+			? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+	}
+	for (int32 Index = 0; Index < WeekendPracticeDamageButtons.Num(); ++Index)
+	{
+		if (WeekendPracticeDamageButtons[Index])
+		{
+			WeekendPracticeDamageButtons[Index]->SetSelected(Index == ApexCreateSession::PhaseDamageChip(Flow->CreateWeekendPracticeDamage));
+		}
+	}
+	for (int32 Index = 0; Index < WeekendQualifyingDamageButtons.Num(); ++Index)
+	{
+		if (WeekendQualifyingDamageButtons[Index])
+		{
+			WeekendQualifyingDamageButtons[Index]->SetSelected(Index == ApexCreateSession::PhaseDamageChip(Flow->CreateWeekendQualifyingDamage));
+		}
 	}
 
 	if (LengthSection)
@@ -2093,9 +2290,21 @@ void UApexSessionCreateWidget::RefreshSettings()
 	if (QualifyingInfoText)
 	{
 		const bool bTimedQualifying = Flow->EffectiveQualifyingSeconds() > 0;
-		QualifyingInfoText->SetText(FText::FromString(Flow->bCreateQualifyingCutoff
-			? (bTimedQualifying ? TEXT("THEN THE FLAG · 107% OF POLE TO START") : TEXT("NO CLOCK · 107% OF POLE TO START"))
-			: (bTimedQualifying ? TEXT("THEN THE FLAG · LAPS UNDER WAY COUNT") : TEXT("NO CLOCK · RUNS UNTIL THE HOST STARTS THE RACE"))));
+		const FString Info = bShootout
+			? FString(Flow->bCreateQualifyingCutoff ? TEXT("ONE CAR AT A TIME, ONE FLYING LAP · 107% OF POLE TO START")
+				: TEXT("ONE CAR AT A TIME, ONE FLYING LAP EACH"))
+			: FString(Flow->bCreateQualifyingCutoff
+				? (bTimedQualifying ? TEXT("THEN THE FLAG · 107% OF POLE TO START") : TEXT("NO CLOCK · 107% OF POLE TO START"))
+				: (bTimedQualifying ? TEXT("THEN THE FLAG · LAPS UNDER WAY COUNT") : TEXT("NO CLOCK · RUNS UNTIL THE HOST STARTS THE RACE")));
+		QualifyingInfoText->SetText(FText::FromString(Info));
+	}
+	for (UApexButtonWidget* LengthChip : QualifyingLengthButtons)
+	{
+		// A shoot-out has no clock.
+		if (LengthChip)
+		{
+			LengthChip->SetIsEnabled(!bShootout);
+		}
 	}
 
 	if (PitRuleSection)
@@ -2223,12 +2432,28 @@ void UApexSessionCreateWidget::RefreshSettings()
 		{
 			if (TrackRubberButtons[Index]) { TrackRubberButtons[Index]->SetSelected(Index == Rubber); }
 		}
+		// The forecast as the server will follow it: the host's written one
+		// (kept to its sky, as the server keeps it), else the one laid out
+		// from the seed, over the circuit in the date's season.
+		float Latitude = ApexSky::DefaultLatitudeDeg;
+		const FApexSessionConditions AtSite = ConditionsAtSite(Latitude);
 		if (ForecastText)
 		{
 			FString Line;
-			if (!Conditions.WeatherChanges())
+			if (AtSite.HasForecast())
 			{
-				Line = TEXT("The sky holds.");
+				const TArray<FApexForecastStep> Kept = ApexCreateSession::KeptToSky(AtSite, Latitude);
+				Line = FString::Printf(TEXT("Written: %s"), *ApexCreateSession::ForecastLine(AtSite, ApexCreateSession::WrittenForecast(Kept),
+					FApexSessionConditions::MaxForecastSteps));
+				if (Kept != AtSite.Forecast)
+				{
+					Line += ApexCreateSession::IsWinter(AtSite, Latitude)
+						? TEXT("  (a winter sky: its rain falls as snow)") : TEXT("  (no winter sky: its snow falls as rain)");
+				}
+			}
+			else if (!Conditions.WeatherChanges())
+			{
+				Line = TEXT("The sky holds. Add a step to write a forecast.");
 			}
 			else if (!Conditions.HasSkySeed())
 			{
@@ -2237,7 +2462,7 @@ void UApexSessionCreateWidget::RefreshSettings()
 			}
 			else
 			{
-				Line = ApexCreateSession::ForecastLine(Conditions, ApexCreateSession::Forecast(Conditions, Conditions.SkySeed));
+				Line = ApexCreateSession::ForecastLine(AtSite, ApexCreateSession::Forecast(AtSite, AtSite.SkySeed, Latitude));
 				if (Line.IsEmpty())
 				{
 					Line = TEXT("No change through the day.");
@@ -2247,19 +2472,53 @@ void UApexSessionCreateWidget::RefreshSettings()
 		}
 		if (ForecastRollButton)
 		{
-			ForecastRollButton->SetIsEnabled(Conditions.WeatherChanges());
+			ForecastRollButton->SetIsEnabled(Conditions.WeatherChanges() && !Conditions.HasForecast());
+		}
+		const TArray<FApexForecastStep>& Steps = Conditions.Forecast;
+		if (ForecastAddButton)
+		{
+			FApexSessionConditions Probe = Conditions;
+			ForecastAddButton->SetIsEnabled(ApexCreateSession::AddForecastStep(Probe.Forecast, Conditions.Weather));
+		}
+		for (int32 Step = 0; Step < ForecastStepRows.Num(); ++Step)
+		{
+			const bool bShown = Steps.IsValidIndex(Step);
+			if (ForecastStepRows[Step])
+			{
+				ForecastStepRows[Step]->SetVisibility(bShown ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+			}
+			if (!bShown)
+			{
+				continue;
+			}
+			int32 Lo = 0;
+			int32 Hi = 0;
+			ApexCreateSession::StepBounds(Steps, Step, Lo, Hi);
+			FString When = ApexCreateSession::StepMinuteLabel(Steps[Step].AtMin);
+			if (Conditions.ClockRuns())
+			{
+				When += TEXT("  ") + ApexCreateSession::ClockAt(Conditions, Steps[Step].AtMin * 60.0f);
+			}
+			if (ForecastMinuteText[Step]) { ForecastMinuteText[Step]->SetText(FText::FromString(When)); }
+			if (ForecastMinuteMinus[Step]) { ForecastMinuteMinus[Step]->SetIsEnabled(Steps[Step].AtMin > Lo); }
+			if (ForecastMinutePlus[Step])  { ForecastMinutePlus[Step]->SetIsEnabled(Steps[Step].AtMin < Hi); }
+			if (ForecastWeatherText[Step])
+			{
+				ForecastWeatherText[Step]->SetText(FText::FromString(FApexSessionConditions::WeatherLabel(Steps[Step].Weather)));
+			}
 		}
 	}
 
 	{
-		const int32 Air = ApexCreateSession::AirTempC(Conditions);
+		float AirLatitude = ApexSky::DefaultLatitudeDeg;
+		const int32 Air = ApexCreateSession::AirTempC(ConditionsAtSite(AirLatitude), AirLatitude);
 		if (AirAutoButton) { AirAutoButton->SetSelected(!Conditions.HasAirTemp()); }
 		if (AirValueText)  { AirValueText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), Air))); }
 		if (AirNoteText)
 		{
 			AirNoteText->SetText(FText::FromString(Conditions.HasAirTemp()
 				? FString(DescribeAir(Air))
-				: FString(TEXT("FROM WEATHER AND TIME"))));
+				: Conditions.HasDate() ? FString(TEXT("FROM WEATHER, TIME AND SEASON")) : FString(TEXT("FROM WEATHER AND TIME"))));
 		}
 		if (AirMinus) { AirMinus->SetIsEnabled(Air > FApexSessionConditions::MinAirTempC); }
 		if (AirPlus)  { AirPlus->SetIsEnabled(Air < FApexSessionConditions::MaxAirTempC); }
@@ -2627,8 +2886,8 @@ void UApexSessionCreateWidget::RefreshSkyPreview()
 	}
 
 	const int32 Grip = ApexCreateSession::GripPercent(C.Weather);
-	if (SkyAirText)   { SkyAirText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), ApexCreateSession::AirTempC(C)))); }
-	if (SkyTrackText) { SkyTrackText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), FMath::RoundToInt(ApexCreateSession::TrackTempC(C))))); }
+	if (SkyAirText)   { SkyAirText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), ApexCreateSession::AirTempC(C, Latitude)))); }
+	if (SkyTrackText) { SkyTrackText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), FMath::RoundToInt(ApexCreateSession::TrackTempC(C, Latitude))))); }
 	if (SkyGripText)
 	{
 		SkyGripText->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), Grip)));
@@ -2710,6 +2969,14 @@ void UApexSessionCreateWidget::RefreshFooter()
 			? FString::Printf(TEXT("%s ASSISTS"), *FString(ApexCreateSession::PresetName(static_cast<ApexCreateSession::EAssistPreset>(Preset))).ToUpper())
 			: FString::Printf(TEXT("%d/%d ASSISTS"), FApexAllowedAssists::Count - Flow->CreateAllowedAssists.CountLocked(),
 				FApexAllowedAssists::Count));
+		if (Flow->QualifyingFormatToSend() == EApexQualifyingFormat::Shootout)
+		{
+			Parts.Add(Flow->IsCreatingWeekend() && Flow->CreateWeekendRounds > 1 ? TEXT("FINAL ROUND A SHOOT-OUT") : TEXT("SHOOT-OUT"));
+		}
+		if (const int32 Allowance = Flow->QualifyingLapAllowanceToSend(); Allowance > 0)
+		{
+			Parts.Add(FString::Printf(TEXT("%s ALLOWED"), *ApexCreateSession::LapAllowanceLabel(Allowance).ToUpper()));
+		}
 		if (Flow->QualifyingCutoffToSend() != ApexQualifyingCutoff::None)
 		{
 			Parts.Add(TEXT("107% RULE"));
@@ -2720,6 +2987,18 @@ void UApexSessionCreateWidget::RefreshFooter()
 			Parts.Add(PitRule.ToUpper());
 		}
 		Parts.Add(DamageOptions[FMath::Clamp(static_cast<int32>(Flow->CreateDamage), 0, static_cast<int32>(UE_ARRAY_COUNT(DamageOptions)) - 1)].Summary);
+		{
+			// A weekend phase's own rule, when it has one.
+			const FApexWeekendFormat Weekend = Flow->WeekendToSend();
+			if (Weekend.bHasPracticeDamage)
+			{
+				Parts.Add(FString::Printf(TEXT("PRACTICE %s"), DamageOptions[static_cast<int32>(Weekend.PracticeDamage)].Summary));
+			}
+			if (Weekend.bHasQualifyingDamage)
+			{
+				Parts.Add(FString::Printf(TEXT("QUALIFYING %s"), DamageOptions[static_cast<int32>(Weekend.QualifyingDamage)].Summary));
+			}
+		}
 		if (!CurrentSetupLabel.IsEmpty())
 		{
 			Parts.Add(FString::Printf(TEXT("SETUP %s"), *CurrentSetupLabel.ToUpper()));
@@ -3311,7 +3590,9 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Flow->WeekendToSend(),
 			Flow->QualifyingCutoffToSend(),
 			Flow->MandatoryStopsToSend(),
-			Flow->CompoundChangeToSend());
+			Flow->CompoundChangeToSend(),
+			Flow->QualifyingFormatToSend(),
+			Flow->QualifyingLapAllowanceToSend());
 		return;
 	}
 
@@ -3410,6 +3691,33 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (const int32 Compound = ApexNav::IndexOf(CompoundChangeButtons, Button); Compound != INDEX_NONE)
 	{
 		Flow->bCreateCompoundChange = Compound == 1;
+		Changed();
+		return;
+	}
+	if (const int32 Format = FMath::Max(ApexNav::IndexOf(QualifyingFormatButtons, Button), ApexNav::IndexOf(WeekendFormatButtons, Button));
+		Format != INDEX_NONE)
+	{
+		Flow->CreateQualifyingFormat = Format == 1 ? EApexQualifyingFormat::Shootout : EApexQualifyingFormat::Open;
+		Changed();
+		return;
+	}
+	if (Button == QualifyingAllowanceMinus || Button == QualifyingAllowancePlus
+		|| Button == WeekendAllowanceMinus || Button == WeekendAllowancePlus)
+	{
+		Flow->CreateQualifyingLapAllowance = ApexCreateSession::StepLapAllowance(Flow->CreateQualifyingLapAllowance,
+			Button == QualifyingAllowancePlus || Button == WeekendAllowancePlus ? 1 : -1);
+		Changed();
+		return;
+	}
+	if (const int32 Chip = ApexNav::IndexOf(WeekendPracticeDamageButtons, Button); Chip != INDEX_NONE)
+	{
+		Flow->CreateWeekendPracticeDamage = ApexCreateSession::PhaseDamageOfChip(Chip);
+		Changed();
+		return;
+	}
+	if (const int32 Chip = ApexNav::IndexOf(WeekendQualifyingDamageButtons, Button); Chip != INDEX_NONE)
+	{
+		Flow->CreateWeekendQualifyingDamage = ApexCreateSession::PhaseDamageOfChip(Chip);
 		Changed();
 		return;
 	}
@@ -3562,9 +3870,55 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	}
 	if (const int32 Weather = ApexNav::IndexOf(WeatherButtons, Button); Weather != INDEX_NONE)
 	{
-		Flow->CreateConditions.Weather = static_cast<EApexWeather>(Weather);
+		FApexSessionConditions& C = Flow->CreateConditions;
+		C.Weather = static_cast<EApexWeather>(Weather);
+		// A written forecast stays valid from the new start: a first step
+		// that now repeats it goes, as the server would drop it.
+		C.Forecast = FApexSessionConditions::ClampedForecast(C.Weather, C.Forecast);
 		Changed();
 		return;
+	}
+	if (Button == ForecastAddButton)
+	{
+		FApexSessionConditions& C = Flow->CreateConditions;
+		C.Forecast = FApexSessionConditions::ClampedForecast(C.Weather, C.Forecast);
+		if (ApexCreateSession::AddForecastStep(C.Forecast, C.Weather))
+		{
+			Changed();
+			ApexNav::Focus(ForecastMinutePlus.IsValidIndex(C.Forecast.Num() - 1) ? ForecastMinutePlus[C.Forecast.Num() - 1].Get() : nullptr);
+		}
+		return;
+	}
+	for (int32 Step = 0; Step < ForecastStepRows.Num(); ++Step)
+	{
+		FApexSessionConditions& C = Flow->CreateConditions;
+		if (Button == ForecastMinuteMinus[Step] || Button == ForecastMinutePlus[Step])
+		{
+			if (ApexCreateSession::MoveForecastStep(C.Forecast, Step, Button == ForecastMinutePlus[Step] ? ForecastMinuteStep : -ForecastMinuteStep))
+			{
+				Changed();
+			}
+			return;
+		}
+		if (Button == ForecastWeatherMinus[Step] || Button == ForecastWeatherPlus[Step])
+		{
+			if (ApexCreateSession::CycleForecastWeather(C.Forecast, Step, Button == ForecastWeatherPlus[Step] ? 1 : -1, C.Weather))
+			{
+				Changed();
+			}
+			return;
+		}
+		if (Button == ForecastRemoveButtons[Step])
+		{
+			if (ApexCreateSession::RemoveForecastStep(C.Forecast, Step, C.Weather))
+			{
+				Changed();
+				// Focus to the row that took its place, else the one before, else Add step.
+				const int32 Next = FMath::Min(Step, C.Forecast.Num() - 1);
+				ApexNav::Focus(Next >= 0 ? ForecastRemoveButtons[Next].Get() : ForecastAddButton.Get());
+			}
+			return;
+		}
 	}
 	if (const int32 Clock = ApexNav::IndexOf(ClockScaleButtons, Button); Clock != INDEX_NONE)
 	{
@@ -3612,14 +3966,18 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	{
 		// Off auto, the figure starts at what auto would have said.
 		FApexSessionConditions& C = Flow->CreateConditions;
-		C.AirTempC = C.HasAirTemp() ? FApexSessionConditions::AutoAirTemp : ApexCreateSession::AirTempC(C.Clamped());
+		float Latitude = ApexSky::DefaultLatitudeDeg;
+		const FApexSessionConditions AtSite = ConditionsAtSite(Latitude);
+		C.AirTempC = C.HasAirTemp() ? FApexSessionConditions::AutoAirTemp : ApexCreateSession::AirTempC(AtSite, Latitude);
 		Changed();
 		return;
 	}
 	if (Button == AirMinus || Button == AirPlus)
 	{
 		FApexSessionConditions& C = Flow->CreateConditions;
-		C.AirTempC = FMath::Clamp(ApexCreateSession::AirTempC(C.Clamped()) + (Button == AirPlus ? 1 : -1),
+		float Latitude = ApexSky::DefaultLatitudeDeg;
+		const FApexSessionConditions AtSite = ConditionsAtSite(Latitude);
+		C.AirTempC = FMath::Clamp(ApexCreateSession::AirTempC(AtSite, Latitude) + (Button == AirPlus ? 1 : -1),
 			FApexSessionConditions::MinAirTempC, FApexSessionConditions::MaxAirTempC);
 		Changed();
 		return;

@@ -1573,7 +1573,11 @@ void UApexMainMenuWidget::StartRememberedSession()
 		Flow->IsCreatingWeekend() ? TArray<FString>() : Flow->GridOrderToSend(ApexCreateSession::GridCeiling),
 		Flow->EffectiveQualifyingSeconds(),
 		Flow->WeekendToSend(),
-		Flow->QualifyingCutoffToSend());
+		Flow->QualifyingCutoffToSend(),
+		Flow->MandatoryStopsToSend(),
+		Flow->CompoundChangeToSend(),
+		Flow->QualifyingFormatToSend(),
+		Flow->QualifyingLapAllowanceToSend());
 }
 
 void UApexMainMenuWidget::HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail)

@@ -116,6 +116,21 @@ public:
 	UPROPERTY()
 	int32 AiSkill = -1;
 
+	/** Qualifying's format on a session this player creates (a weekend's final round). */
+	UPROPERTY()
+	EApexQualifyingFormat QualifyingFormat = EApexQualifyingFormat::Open;
+
+	/** The qualifying lap allowance (ApexQualifyingLapAllowance; 0 none). */
+	UPROPERTY()
+	int32 QualifyingLapAllowance = 0;
+
+	/** A weekend's practice and qualifying rounds' own damage (EApexDamageLevel; -1 the race's). */
+	UPROPERTY()
+	int32 WeekendPracticeDamage = -1;
+
+	UPROPERTY()
+	int32 WeekendQualifyingDamage = -1;
+
 	/** Track UUID -> best lap in seconds. Populated by the results screen. */
 	UPROPERTY()
 	TMap<FString, float> BestLapSeconds;

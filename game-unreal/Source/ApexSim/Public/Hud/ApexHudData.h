@@ -79,6 +79,8 @@ struct APEXSIM_API FApexHudInputs
 	/** The race's pit rule (SessionJoined): the stops every car owes, and a second dry compound. */
 	int32 MandatoryStops = 0;
 	bool bCompoundChange = false;
+	/** The timed laps the local car may still start under qualifying's lap allowance (UApexNetSubsystem::GetQualifyingLapsLeft); -1 for none. */
+	int32 QualifyingLapsLeft = -1;
 
 	/** The local car's catalog row: its tyres' working window and its rev range (0 when unknown). */
 	float TyreOptimalC = 90.0f;

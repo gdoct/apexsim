@@ -105,6 +105,10 @@ void UApexMenuFlowSubsystem::LoadProfile()
 	CreateMandatoryStops = ApexMandatoryStops::Clamp(Profile->MandatoryStops);
 	bCreateCompoundChange = Profile->bCompoundChange;
 	CreateAiSkill = ApexAiSkill::Clamp(Profile->AiSkill);
+	CreateQualifyingFormat = Profile->QualifyingFormat == EApexQualifyingFormat::Shootout ? EApexQualifyingFormat::Shootout : EApexQualifyingFormat::Open;
+	CreateQualifyingLapAllowance = ApexQualifyingLapAllowance::Clamp(Profile->QualifyingLapAllowance);
+	CreateWeekendPracticeDamage = FMath::Clamp(Profile->WeekendPracticeDamage, -1, static_cast<int32>(EApexDamageLevel::VisualOnly));
+	CreateWeekendQualifyingDamage = FMath::Clamp(Profile->WeekendQualifyingDamage, -1, static_cast<int32>(EApexDamageLevel::VisualOnly));
 
 	// A profile written before demo lap was locked would otherwise start a mode
 	// the server turns into a dead end for the player who asked for it.
@@ -153,6 +157,11 @@ FApexWeekendFormat UApexMenuFlowSubsystem::WeekendToSend() const
 			ApexCreateSession::EWeekendDay::Practice, Format.PracticeConditions);
 	Format.bHasQualifyingConditions = ApexCreateSession::DaySky(CreateConditions, CreateWeekendQualifyingWeather,
 		CreateWeekendQualifyingHour, ApexCreateSession::EWeekendDay::Qualifying, Format.QualifyingConditions);
+	// Each phase's own damage, when it picks one; practice only when there is any.
+	Format.bHasPracticeDamage = CreateWeekendPracticeMinutes > 0 && CreateWeekendPracticeDamage >= 0;
+	Format.PracticeDamage = static_cast<EApexDamageLevel>(FMath::Max(CreateWeekendPracticeDamage, 0));
+	Format.bHasQualifyingDamage = CreateWeekendQualifyingDamage >= 0;
+	Format.QualifyingDamage = static_cast<EApexDamageLevel>(FMath::Max(CreateWeekendQualifyingDamage, 0));
 	return Format.Clamped();
 }
 
@@ -167,10 +176,8 @@ FString UApexMenuFlowSubsystem::DescribeWeekend() const
 	{
 		Parts.Add(FString::Printf(TEXT("Practice %s"), *ApexRaceLength::Describe(CreateWeekendPracticeMinutes * 60)));
 	}
-	const int32 Rounds = FMath::Clamp(CreateWeekendRounds, 1, FApexWeekendFormat::MaxRounds);
-	Parts.Add(Rounds > 1
-		? FString::Printf(TEXT("Q1-Q%d %s each"), Rounds, *ApexRaceLength::Describe(CreateWeekendRoundMinutes * 60))
-		: FString::Printf(TEXT("Qualifying %s"), *ApexRaceLength::Describe(CreateWeekendRoundMinutes * 60)));
+	Parts.Add(ApexCreateSession::WeekendRoundsLabel(CreateWeekendRounds, CreateWeekendRoundMinutes,
+		CreateQualifyingFormat == EApexQualifyingFormat::Shootout));
 	const int32 RaceSeconds = EffectiveRaceSeconds();
 	Parts.Add(FString::Printf(TEXT("Race %s"), *(RaceSeconds > 0 ? ApexRaceLength::Describe(RaceSeconds) : FString::Printf(TEXT("%d laps"), CreateLapLimit))));
 	return FString::Join(Parts, TEXT(" · "));
@@ -226,6 +233,10 @@ void UApexMenuFlowSubsystem::SaveProfile()
 	Profile->MandatoryStops = CreateMandatoryStops;
 	Profile->bCompoundChange = bCreateCompoundChange;
 	Profile->AiSkill = CreateAiSkill;
+	Profile->QualifyingFormat = CreateQualifyingFormat;
+	Profile->QualifyingLapAllowance = CreateQualifyingLapAllowance;
+	Profile->WeekendPracticeDamage = CreateWeekendPracticeDamage;
+	Profile->WeekendQualifyingDamage = CreateWeekendQualifyingDamage;
 
 	if (!UGameplayStatics::SaveGameToSlot(Profile, UApexProfileSave::SlotName, 0))
 	{

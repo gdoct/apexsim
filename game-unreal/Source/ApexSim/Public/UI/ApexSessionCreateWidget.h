@@ -95,6 +95,9 @@ private:
 	UWidget* MakeCaption(const FString& Label, UTextBlock** OutRight = nullptr, UWidget* RightWidget = nullptr);
 	/** A caption and a row of chips beside it, one line high: the Conditions tab's compact picks. */
 	UWidget* MakeChipRow(const FString& Label, const TArray<FString>& Chips, TArray<TObjectPtr<UApexButtonWidget>>& OutButtons);
+	/** A caption and a −/+ stepper beside it, one chip row high. */
+	UWidget* MakeStepperRow(const FString& Label, UApexButtonWidget*& OutMinus, UTextBlock*& OutValue,
+		UApexButtonWidget*& OutPlus, UTextBlock** OutLabel = nullptr);
 
 	/** Redraws the track and car summaries from the current pending selection. */
 	void RefreshContent();
@@ -251,6 +254,23 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendPracticeButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendRoundsButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendRoundLengthButtons;
+	/** The Each round row: hidden when the only round is a shoot-out, which has no clock. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendRoundLengthRow;
+	/** Qualifying's format (Open, Shoot-out): in the qualifying section, and the weekend's (its final round). */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> QualifyingFormatButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendFormatButtons;
+	/** The lap allowance (None, 1 to 30) in either section; hidden under a shoot-out's one lap. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> QualifyingAllowanceRow;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> QualifyingAllowanceMinus;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> QualifyingAllowancePlus;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> QualifyingAllowanceText;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> WeekendAllowanceMinus;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> WeekendAllowancePlus;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeekendAllowanceText;
+	/** Practice's and the qualifying rounds' own damage: the race's (the Damage row's), then each level. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendPracticeDamageRow;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendPracticeDamageButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendQualifyingDamageButtons;
 	/** Hidden for a hotlap, which has no field. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> FieldSection;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FieldInfoText;
@@ -336,6 +356,25 @@ private:
 	/** The forecast the pick and its seed lay out (ApexCreateSession::Forecast), and a button for another seed. */
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ForecastText;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ForecastRollButton;
+	/**
+	 * The host's own forecast (FApexSessionConditions::Forecast): Add step
+	 * starts or lengthens it, and one row per step (built for the most a
+	 * forecast holds, the unused ones hidden) moves its minute, steps its
+	 * weather or removes it, held to the server's rules (ApexCreateSession::
+	 * MoveForecastStep and the rest).
+	 */
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ForecastAddButton;
+	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> ForecastStepRows;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> ForecastStepLabels;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ForecastMinuteMinus;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ForecastMinutePlus;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> ForecastMinuteText;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ForecastWeatherMinus;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ForecastWeatherPlus;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> ForecastWeatherText;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ForecastRemoveButtons;
+	/** A step's minute moves this far a press. */
+	static constexpr int32 ForecastMinuteStep = 5;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AirAutoButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AirMinus;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AirPlus;

@@ -261,6 +261,10 @@ private:
 	UFUNCTION()
 	void HandleSetupSheet(const FApexCarSetupSheet& Sheet);
 
+	/** A shoot-out's order or progress changed: the waiting display, the call and the camera. */
+	UFUNCTION()
+	void HandleShootoutState();
+
 	// --- Construction ---------------------------------------------------------
 
 	UWidget* BuildGarage();
@@ -295,6 +299,17 @@ private:
 	void ApplyPage();
 	void ApplyQualifyingRows();
 	void StopWatching();
+	/**
+	 * A qualifying shoot-out (ApexBoard::Shootout): the run order with each
+	 * car's name and where it stands on the garage card and the scoreboard,
+	 * GO OUT replaced by the local car's place ("YOU RUN 4TH · 2 TO GO"),
+	 * the YOUR TURN call as the server sends the local car out, and, while
+	 * waiting, the scoreboard up with the camera on the car running (until
+	 * the driver picks another to watch).
+	 */
+	void RefreshShootout();
+	/** Whether the session's qualifying running now is a shoot-out. */
+	bool IsShootoutNow() const;
 
 	/** A stepper for one knob, registered for refreshes. */
 	UApexStepperWidget* MakeStepper(int32 Knob);
@@ -375,6 +390,14 @@ private:
 	/** The car index each board row shows (INDEX_NONE for an unused row). */
 	TArray<int32> BoardCars;
 	FString WatchCameraLabel = TEXT("TV");
+	/** The shoot-out opened the scoreboard once for this session's waiting. */
+	bool bShootoutBoardShown = false;
+	/** The camera follows each car as it is sent out, until the driver picks another. */
+	bool bFollowRunner = true;
+	/** The YOUR TURN call was made for the current run. */
+	bool bTurnCalled = false;
+	/** Seconds the YOUR TURN banner stays up. */
+	float TurnBannerLeft = 0.0f;
 
 	EApexHotlapView View = EApexHotlapView::Hidden;
 	EApexGarageTab Tab = EApexGarageTab::Tyres;
@@ -414,6 +437,15 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> TimingPanel;
 	UPROPERTY(Transient) TObjectPtr<UWidget> ReplayStrip;
 	UPROPERTY(Transient) TObjectPtr<UWidget> TrackHint;
+	/** YOUR TURN, over the view as the local car is sent out on its shoot-out run. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> TurnBanner;
+	/** The shoot-out's run order, on the garage card and on the scoreboard. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> ShootoutSection;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ShootoutCallText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ShootoutOrderText;
+	UPROPERTY(Transient) TObjectPtr<UWidget> BoardShootoutSection;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> BoardShootoutCallText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> BoardShootoutOrderText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GarageSubtitle;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SetupNameText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> SetupChangesText;

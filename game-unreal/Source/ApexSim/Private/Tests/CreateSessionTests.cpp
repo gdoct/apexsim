@@ -488,4 +488,416 @@ bool FApexCreateSessionSolarNoonTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+// The season's air: `season_air_c`, `snow_air_drop_c` and the resolved air
+// over a circuit, against figures printed by the Rust (the conditions behind
+// `a_date_moves_the_air_with_the_season_and_no_date_is_late_may`).
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCreateSessionSeasonAirTest,
+	"ApexSim.UI.CreateSession.SeasonAir",
+	ApexTestFlags)
+
+bool FApexCreateSessionSeasonAirTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexCreateSession;
+
+	// Weather, minutes, latitude, day (-1 none), solar noon (-1 none), then the
+	// Rust's `auto_air_temperature_c_at`, `resolve_at`'s air, `snow_air_drop_c`
+	// and `is_winter` of the resolved conditions.
+	struct FFigure { int32 Weather; int32 Minutes; float Lat; int32 Day; int32 Noon; float Auto; int32 Air; float Drop; bool bWinter; };
+	static const FFigure Figures[] = {
+		{0, 240, 52.07f, -1, -1, 13.1704f, 13, 17.0000f, false},
+		{0, 240, 52.07f, -1, 726, 13.6059f, 14, 17.0000f, false},
+		{0, 240, 52.07f, 15, -1, -1.2577f, -1, 2.5719f, false},
+		{0, 240, 52.07f, 15, 726, -0.8222f, -1, 2.5719f, false},
+		{0, 240, 52.07f, 196, -1, 16.9368f, 17, 20.7664f, false},
+		{0, 240, 52.07f, 196, 726, 17.3723f, 17, 20.7664f, false},
+		{0, 240, -37.85f, -1, -1, 13.1704f, 13, 17.0000f, false},
+		{0, 240, -37.85f, -1, 726, 13.6059f, 14, 17.0000f, false},
+		{0, 240, -37.85f, 15, -1, 23.6582f, 24, 27.4879f, false},
+		{0, 240, -37.85f, 15, 726, 24.0938f, 24, 27.4879f, false},
+		{0, 240, -37.85f, 196, -1, 10.4326f, 10, 14.2622f, false},
+		{0, 240, -37.85f, 196, 726, 10.8681f, 11, 14.2622f, false},
+		{0, 240, 50.0f, -1, -1, 13.1704f, 13, 17.0000f, false},
+		{0, 240, 50.0f, -1, 726, 13.6059f, 14, 17.0000f, false},
+		{0, 240, 50.0f, 15, -1, -0.6841f, -1, 3.1455f, false},
+		{0, 240, 50.0f, 15, 726, -0.2486f, 0, 3.1455f, false},
+		{0, 240, 50.0f, 196, -1, 16.7870f, 17, 20.6167f, false},
+		{0, 240, 50.0f, 196, 726, 17.2226f, 17, 20.6167f, false},
+		{0, 900, 52.07f, -1, -1, 23.0000f, 23, 17.0000f, false},
+		{0, 900, 52.07f, -1, 726, 22.8619f, 23, 17.0000f, false},
+		{0, 900, 52.07f, 15, -1, 8.5719f, 9, 2.5719f, false},
+		{0, 900, 52.07f, 15, 726, 8.4338f, 8, 2.5719f, false},
+		{0, 900, 52.07f, 196, -1, 26.7664f, 27, 20.7664f, false},
+		{0, 900, 52.07f, 196, 726, 26.6282f, 27, 20.7664f, false},
+		{0, 900, -37.85f, -1, -1, 23.0000f, 23, 17.0000f, false},
+		{0, 900, -37.85f, -1, 726, 22.8619f, 23, 17.0000f, false},
+		{0, 900, -37.85f, 15, -1, 33.4879f, 33, 27.4879f, false},
+		{0, 900, -37.85f, 15, 726, 33.3497f, 33, 27.4879f, false},
+		{0, 900, -37.85f, 196, -1, 20.2622f, 20, 14.2622f, false},
+		{0, 900, -37.85f, 196, 726, 20.1240f, 20, 14.2622f, false},
+		{0, 900, 50.0f, -1, -1, 23.0000f, 23, 17.0000f, false},
+		{0, 900, 50.0f, -1, 726, 22.8619f, 23, 17.0000f, false},
+		{0, 900, 50.0f, 15, -1, 9.1455f, 9, 3.1455f, false},
+		{0, 900, 50.0f, 15, 726, 9.0073f, 9, 3.1455f, false},
+		{0, 900, 50.0f, 196, -1, 26.6167f, 27, 20.6167f, false},
+		{0, 900, 50.0f, 196, 726, 26.4785f, 26, 20.6167f, false},
+		{1, 240, 52.07f, -1, -1, 13.6363f, 14, 17.0000f, false},
+		{1, 240, 52.07f, -1, 726, 13.9847f, 14, 17.0000f, false},
+		{1, 240, 52.07f, 15, -1, -0.7918f, -1, 2.5719f, false},
+		{1, 240, 52.07f, 15, 726, -0.4434f, 0, 2.5719f, false},
+		{1, 240, 52.07f, 196, -1, 17.4027f, 17, 20.7664f, false},
+		{1, 240, 52.07f, 196, 726, 17.7511f, 18, 20.7664f, false},
+		{1, 240, -37.85f, -1, -1, 13.6363f, 14, 17.0000f, false},
+		{1, 240, -37.85f, -1, 726, 13.9847f, 14, 17.0000f, false},
+		{1, 240, -37.85f, 15, -1, 24.1242f, 24, 27.4879f, false},
+		{1, 240, -37.85f, 15, 726, 24.4726f, 24, 27.4879f, false},
+		{1, 240, -37.85f, 196, -1, 10.8985f, 11, 14.2622f, false},
+		{1, 240, -37.85f, 196, 726, 11.2469f, 11, 14.2622f, false},
+		{1, 240, 50.0f, -1, -1, 13.6363f, 14, 17.0000f, false},
+		{1, 240, 50.0f, -1, 726, 13.9847f, 14, 17.0000f, false},
+		{1, 240, 50.0f, 15, -1, -0.2182f, 0, 3.1455f, false},
+		{1, 240, 50.0f, 15, 726, 0.1302f, 0, 3.1455f, false},
+		{1, 240, 50.0f, 196, -1, 17.2530f, 17, 20.6167f, false},
+		{1, 240, 50.0f, 196, 726, 17.6014f, 18, 20.6167f, false},
+		{1, 900, 52.07f, -1, -1, 21.5000f, 22, 17.0000f, false},
+		{1, 900, 52.07f, -1, 726, 21.3895f, 21, 17.0000f, false},
+		{1, 900, 52.07f, 15, -1, 7.0719f, 7, 2.5719f, false},
+		{1, 900, 52.07f, 15, 726, 6.9614f, 7, 2.5719f, false},
+		{1, 900, 52.07f, 196, -1, 25.2664f, 25, 20.7664f, false},
+		{1, 900, 52.07f, 196, 726, 25.1559f, 25, 20.7664f, false},
+		{1, 900, -37.85f, -1, -1, 21.5000f, 22, 17.0000f, false},
+		{1, 900, -37.85f, -1, 726, 21.3895f, 21, 17.0000f, false},
+		{1, 900, -37.85f, 15, -1, 31.9879f, 32, 27.4879f, false},
+		{1, 900, -37.85f, 15, 726, 31.8773f, 32, 27.4879f, false},
+		{1, 900, -37.85f, 196, -1, 18.7622f, 19, 14.2622f, false},
+		{1, 900, -37.85f, 196, 726, 18.6517f, 19, 14.2622f, false},
+		{1, 900, 50.0f, -1, -1, 21.5000f, 22, 17.0000f, false},
+		{1, 900, 50.0f, -1, 726, 21.3895f, 21, 17.0000f, false},
+		{1, 900, 50.0f, 15, -1, 7.6455f, 8, 3.1455f, false},
+		{1, 900, 50.0f, 15, 726, 7.5350f, 8, 3.1455f, false},
+		{1, 900, 50.0f, 196, -1, 25.1167f, 25, 20.6167f, false},
+		{1, 900, 50.0f, 196, 726, 25.0061f, 25, 20.6167f, false},
+		{2, 240, 52.07f, -1, -1, 14.0852f, 14, 17.0000f, false},
+		{2, 240, 52.07f, -1, 726, 14.3030f, 14, 17.0000f, false},
+		{2, 240, 52.07f, 15, -1, -0.3429f, 0, 2.5719f, true},
+		{2, 240, 52.07f, 15, 726, -0.1251f, 0, 2.5719f, true},
+		{2, 240, 52.07f, 196, -1, 17.8516f, 18, 20.7664f, false},
+		{2, 240, 52.07f, 196, 726, 18.0693f, 18, 20.7664f, false},
+		{2, 240, -37.85f, -1, -1, 14.0852f, 14, 17.0000f, false},
+		{2, 240, -37.85f, -1, 726, 14.3030f, 14, 17.0000f, false},
+		{2, 240, -37.85f, 15, -1, 24.5730f, 25, 27.4879f, false},
+		{2, 240, -37.85f, 15, 726, 24.7908f, 25, 27.4879f, false},
+		{2, 240, -37.85f, 196, -1, 11.3474f, 11, 14.2622f, false},
+		{2, 240, -37.85f, 196, 726, 11.5651f, 12, 14.2622f, false},
+		{2, 240, 50.0f, -1, -1, 14.0852f, 14, 17.0000f, false},
+		{2, 240, 50.0f, -1, 726, 14.3030f, 14, 17.0000f, false},
+		{2, 240, 50.0f, 15, -1, 0.2307f, 0, 3.1455f, true},
+		{2, 240, 50.0f, 15, 726, 0.4484f, 0, 3.1455f, true},
+		{2, 240, 50.0f, 196, -1, 17.7018f, 18, 20.6167f, false},
+		{2, 240, 50.0f, 196, 726, 17.9196f, 18, 20.6167f, false},
+		{2, 900, 52.07f, -1, -1, 19.0000f, 19, 17.0000f, false},
+		{2, 900, 52.07f, -1, 726, 18.9309f, 19, 17.0000f, false},
+		{2, 900, 52.07f, 15, -1, 4.5719f, 5, 2.5719f, false},
+		{2, 900, 52.07f, 15, 726, 4.5028f, 5, 2.5719f, false},
+		{2, 900, 52.07f, 196, -1, 22.7664f, 23, 20.7664f, false},
+		{2, 900, 52.07f, 196, 726, 22.6973f, 23, 20.7664f, false},
+		{2, 900, -37.85f, -1, -1, 19.0000f, 19, 17.0000f, false},
+		{2, 900, -37.85f, -1, 726, 18.9309f, 19, 17.0000f, false},
+		{2, 900, -37.85f, 15, -1, 29.4879f, 29, 27.4879f, false},
+		{2, 900, -37.85f, 15, 726, 29.4188f, 29, 27.4879f, false},
+		{2, 900, -37.85f, 196, -1, 16.2622f, 16, 14.2622f, false},
+		{2, 900, -37.85f, 196, 726, 16.1931f, 16, 14.2622f, false},
+		{2, 900, 50.0f, -1, -1, 19.0000f, 19, 17.0000f, false},
+		{2, 900, 50.0f, -1, 726, 18.9309f, 19, 17.0000f, false},
+		{2, 900, 50.0f, 15, -1, 5.1455f, 5, 3.1455f, false},
+		{2, 900, 50.0f, 15, 726, 5.0764f, 5, 3.1455f, false},
+		{2, 900, 50.0f, 196, -1, 22.6167f, 23, 20.6167f, false},
+		{2, 900, 50.0f, 196, 726, 22.5476f, 23, 20.6167f, false},
+		{3, 240, 52.07f, -1, -1, 13.0681f, 13, 17.0000f, false},
+		{3, 240, 52.07f, -1, 726, 13.2424f, 13, 17.0000f, false},
+		{3, 240, 52.07f, 15, -1, -1.3599f, -1, 2.5719f, false},
+		{3, 240, 52.07f, 15, 726, -1.1857f, -1, 2.5719f, false},
+		{3, 240, 52.07f, 196, -1, 16.8345f, 17, 20.7664f, false},
+		{3, 240, 52.07f, 196, 726, 17.0088f, 17, 20.7664f, false},
+		{3, 240, -37.85f, -1, -1, 13.0681f, 13, 17.0000f, false},
+		{3, 240, -37.85f, -1, 726, 13.2424f, 13, 17.0000f, false},
+		{3, 240, -37.85f, 15, -1, 23.5560f, 24, 27.4879f, false},
+		{3, 240, -37.85f, 15, 726, 23.7302f, 24, 27.4879f, false},
+		{3, 240, -37.85f, 196, -1, 10.3303f, 10, 14.2622f, false},
+		{3, 240, -37.85f, 196, 726, 10.5046f, 11, 14.2622f, false},
+		{3, 240, 50.0f, -1, -1, 13.0681f, 13, 17.0000f, false},
+		{3, 240, 50.0f, -1, 726, 13.2424f, 13, 17.0000f, false},
+		{3, 240, 50.0f, 15, -1, -0.7864f, -1, 3.1455f, false},
+		{3, 240, 50.0f, 15, 726, -0.6121f, -1, 3.1455f, false},
+		{3, 240, 50.0f, 196, -1, 16.6848f, 17, 20.6167f, false},
+		{3, 240, 50.0f, 196, 726, 16.8590f, 17, 20.6167f, false},
+		{3, 900, 52.07f, -1, -1, 17.0000f, 17, 17.0000f, false},
+		{3, 900, 52.07f, -1, 726, 16.9447f, 17, 17.0000f, false},
+		{3, 900, 52.07f, 15, -1, 2.5719f, 3, 2.5719f, false},
+		{3, 900, 52.07f, 15, 726, 2.5167f, 3, 2.5719f, false},
+		{3, 900, 52.07f, 196, -1, 20.7664f, 21, 20.7664f, false},
+		{3, 900, 52.07f, 196, 726, 20.7111f, 21, 20.7664f, false},
+		{3, 900, -37.85f, -1, -1, 17.0000f, 17, 17.0000f, false},
+		{3, 900, -37.85f, -1, 726, 16.9447f, 17, 17.0000f, false},
+		{3, 900, -37.85f, 15, -1, 27.4879f, 27, 27.4879f, false},
+		{3, 900, -37.85f, 15, 726, 27.4326f, 27, 27.4879f, false},
+		{3, 900, -37.85f, 196, -1, 14.2622f, 14, 14.2622f, false},
+		{3, 900, -37.85f, 196, 726, 14.2069f, 14, 14.2622f, false},
+		{3, 900, 50.0f, -1, -1, 17.0000f, 17, 17.0000f, false},
+		{3, 900, 50.0f, -1, 726, 16.9447f, 17, 17.0000f, false},
+		{3, 900, 50.0f, 15, -1, 3.1455f, 3, 3.1455f, false},
+		{3, 900, 50.0f, 15, 726, 3.0902f, 3, 3.1455f, false},
+		{3, 900, 50.0f, 196, -1, 20.6167f, 21, 20.6167f, false},
+		{3, 900, 50.0f, 196, 726, 20.5614f, 21, 20.6167f, false},
+		{4, 240, 52.07f, -1, -1, 12.5511f, 13, 17.0000f, false},
+		{4, 240, 52.07f, -1, 726, 12.6818f, 13, 17.0000f, false},
+		{4, 240, 52.07f, 15, -1, -1.8770f, -2, 2.5719f, false},
+		{4, 240, 52.07f, 15, 726, -1.7463f, -2, 2.5719f, false},
+		{4, 240, 52.07f, 196, -1, 16.3175f, 16, 20.7664f, false},
+		{4, 240, 52.07f, 196, 726, 16.4482f, 16, 20.7664f, false},
+		{4, 240, -37.85f, -1, -1, 12.5511f, 13, 17.0000f, false},
+		{4, 240, -37.85f, -1, 726, 12.6818f, 13, 17.0000f, false},
+		{4, 240, -37.85f, 15, -1, 23.0390f, 23, 27.4879f, false},
+		{4, 240, -37.85f, 15, 726, 23.1696f, 23, 27.4879f, false},
+		{4, 240, -37.85f, 196, -1, 9.8133f, 10, 14.2622f, false},
+		{4, 240, -37.85f, 196, 726, 9.9440f, 10, 14.2622f, false},
+		{4, 240, 50.0f, -1, -1, 12.5511f, 13, 17.0000f, false},
+		{4, 240, 50.0f, -1, 726, 12.6818f, 13, 17.0000f, false},
+		{4, 240, 50.0f, 15, -1, -1.3034f, -1, 3.1455f, false},
+		{4, 240, 50.0f, 15, 726, -1.1727f, -1, 3.1455f, false},
+		{4, 240, 50.0f, 196, -1, 16.1678f, 16, 20.6167f, false},
+		{4, 240, 50.0f, 196, 726, 16.2984f, 16, 20.6167f, false},
+		{4, 900, 52.07f, -1, -1, 15.5000f, 16, 17.0000f, false},
+		{4, 900, 52.07f, -1, 726, 15.4586f, 15, 17.0000f, false},
+		{4, 900, 52.07f, 15, -1, 1.0719f, 1, 2.5719f, false},
+		{4, 900, 52.07f, 15, 726, 1.0305f, 1, 2.5719f, false},
+		{4, 900, 52.07f, 196, -1, 19.2664f, 19, 20.7664f, false},
+		{4, 900, 52.07f, 196, 726, 19.2249f, 19, 20.7664f, false},
+		{4, 900, -37.85f, -1, -1, 15.5000f, 16, 17.0000f, false},
+		{4, 900, -37.85f, -1, 726, 15.4586f, 15, 17.0000f, false},
+		{4, 900, -37.85f, 15, -1, 25.9879f, 26, 27.4879f, false},
+		{4, 900, -37.85f, 15, 726, 25.9464f, 26, 27.4879f, false},
+		{4, 900, -37.85f, 196, -1, 12.7622f, 13, 14.2622f, false},
+		{4, 900, -37.85f, 196, 726, 12.7207f, 13, 14.2622f, false},
+		{4, 900, 50.0f, -1, -1, 15.5000f, 16, 17.0000f, false},
+		{4, 900, 50.0f, -1, 726, 15.4586f, 15, 17.0000f, false},
+		{4, 900, 50.0f, 15, -1, 1.6455f, 2, 3.1455f, false},
+		{4, 900, 50.0f, 15, 726, 1.6040f, 2, 3.1455f, false},
+		{4, 900, 50.0f, 196, -1, 19.1167f, 19, 20.6167f, false},
+		{4, 900, 50.0f, 196, 726, 19.0752f, 19, 20.6167f, false},
+		{5, 240, 52.07f, -1, -1, -3.4319f, -3, 17.0000f, true},
+		{5, 240, 52.07f, -1, 726, -3.2576f, -3, 17.0000f, true},
+		{5, 240, 52.07f, 15, -1, -3.4319f, -3, 2.5719f, true},
+		{5, 240, 52.07f, 15, 726, -3.2576f, -3, 2.5719f, true},
+		{5, 240, 52.07f, 196, -1, -3.4319f, -3, 20.7664f, true},
+		{5, 240, 52.07f, 196, 726, -3.2576f, -3, 20.7664f, true},
+		{5, 240, -37.85f, -1, -1, -3.4319f, -3, 17.0000f, true},
+		{5, 240, -37.85f, -1, 726, -3.2576f, -3, 17.0000f, true},
+		{5, 240, -37.85f, 15, -1, -3.4319f, -3, 27.4879f, true},
+		{5, 240, -37.85f, 15, 726, -3.2576f, -3, 27.4879f, true},
+		{5, 240, -37.85f, 196, -1, -3.4319f, -3, 14.2622f, true},
+		{5, 240, -37.85f, 196, 726, -3.2576f, -3, 14.2622f, true},
+		{5, 240, 50.0f, -1, -1, -3.4319f, -3, 17.0000f, true},
+		{5, 240, 50.0f, -1, 726, -3.2576f, -3, 17.0000f, true},
+		{5, 240, 50.0f, 15, -1, -3.4319f, -3, 3.1455f, true},
+		{5, 240, 50.0f, 15, 726, -3.2576f, -3, 3.1455f, true},
+		{5, 240, 50.0f, 196, -1, -3.4319f, -3, 20.6167f, true},
+		{5, 240, 50.0f, 196, 726, -3.2576f, -3, 20.6167f, true},
+		{5, 900, 52.07f, -1, -1, 0.5000f, 1, 17.0000f, true},
+		{5, 900, 52.07f, -1, 726, 0.4447f, 0, 17.0000f, true},
+		{5, 900, 52.07f, 15, -1, 0.5000f, 1, 2.5719f, true},
+		{5, 900, 52.07f, 15, 726, 0.4447f, 0, 2.5719f, true},
+		{5, 900, 52.07f, 196, -1, 0.5000f, 1, 20.7664f, true},
+		{5, 900, 52.07f, 196, 726, 0.4447f, 0, 20.7664f, true},
+		{5, 900, -37.85f, -1, -1, 0.5000f, 1, 17.0000f, true},
+		{5, 900, -37.85f, -1, 726, 0.4447f, 0, 17.0000f, true},
+		{5, 900, -37.85f, 15, -1, 0.5000f, 1, 27.4879f, true},
+		{5, 900, -37.85f, 15, 726, 0.4447f, 0, 27.4879f, true},
+		{5, 900, -37.85f, 196, -1, 0.5000f, 1, 14.2622f, true},
+		{5, 900, -37.85f, 196, 726, 0.4447f, 0, 14.2622f, true},
+		{5, 900, 50.0f, -1, -1, 0.5000f, 1, 17.0000f, true},
+		{5, 900, 50.0f, -1, 726, 0.4447f, 0, 17.0000f, true},
+		{5, 900, 50.0f, 15, -1, 0.5000f, 1, 3.1455f, true},
+		{5, 900, 50.0f, 15, 726, 0.4447f, 0, 3.1455f, true},
+		{5, 900, 50.0f, 196, -1, 0.5000f, 1, 20.6167f, true},
+		{5, 900, 50.0f, 196, 726, 0.4447f, 0, 20.6167f, true},
+	};
+	for (const FFigure& F : Figures)
+	{
+		FApexSessionConditions C;
+		C.Weather = static_cast<EApexWeather>(F.Weather);
+		C.TimeOfDayMinutes = F.Minutes;
+		C.DayOfYear = F.Day;
+		C.SolarNoonMin = F.Noon;
+		const FString What = FString::Printf(TEXT("%s %02d:%02d at %.2f, day %d, noon %d"),
+			*FApexSessionConditions::WeatherLabel(C.Weather), F.Minutes / 60, F.Minutes % 60, F.Lat, F.Day, F.Noon);
+		TestTrue(*FString::Printf(TEXT("%s: auto air %.4f against %.4f"), *What, AutoAirTempCAt(C, F.Lat), F.Auto),
+			FMath::IsNearlyEqual(AutoAirTempCAt(C, F.Lat), F.Auto, 0.002f));
+		TestEqual(*FString::Printf(TEXT("%s: the air"), *What), AirTempC(C, F.Lat), F.Air);
+		TestTrue(*FString::Printf(TEXT("%s: snow drop %.4f against %.4f"), *What, SnowAirDropC(C, F.Lat), F.Drop),
+			FMath::IsNearlyEqual(SnowAirDropC(C, F.Lat), F.Drop, 0.002f));
+		TestEqual(*FString::Printf(TEXT("%s: winter sky"), *What), IsWinter(C, F.Lat), F.bWinter);
+	}
+
+	// The Rust test's own claims: Silverstone's mid-January 15:00 near 10 °C,
+	// July warmer than late May; no date is late May everywhere; the equator
+	// has no seasons; a January overcast night at 50° N is a winter sky.
+	auto At = [](EApexWeather Weather, int32 Hour, int32 Day)
+	{
+		FApexSessionConditions C;
+		C.Weather = Weather;
+		C.TimeOfDayMinutes = Hour * 60;
+		C.DayOfYear = Day;
+		return C;
+	};
+	const int32 Jan = AirTempC(At(EApexWeather::Sunny, 15, 15), 52.07f);
+	TestTrue(*FString::Printf(TEXT("Silverstone in January, %d °C"), Jan), Jan >= 8 && Jan <= 12);
+	TestTrue(TEXT("July warmer than May"), AirTempC(At(EApexWeather::Sunny, 15, 196), 52.07f) > AirTempC(At(EApexWeather::Sunny, 15, 145), 52.07f));
+	TestEqual(TEXT("no date is late May"), AirTempC(At(EApexWeather::Sunny, 15, -1), 52.07f), AirTempC(At(EApexWeather::Sunny, 15, -1)));
+	TestEqual(TEXT("the equator has no seasons"), AirTempC(At(EApexWeather::Sunny, 15, 15), 1.29f), AirTempC(At(EApexWeather::Sunny, 15, 196), 1.29f));
+	TestTrue(TEXT("a January overcast night is a winter sky"), IsWinter(At(EApexWeather::Overcast, 4, 15), 50.0f));
+	TestFalse(TEXT("the same night in late May is not"), IsWinter(At(EApexWeather::Overcast, 4, -1), 50.0f));
+	TestEqual(TEXT("snow's own air is the same in any month"),
+		AutoAirTempCAt(At(EApexWeather::Snow, 13, 15), 50.0f), AutoAirTempCAt(At(EApexWeather::Snow, 13, 145), 50.0f));
+
+	// A winter sky lays out a winter forecast: overcast and snow, no rain.
+	FApexSessionConditions Night = At(EApexWeather::Overcast, 4, 15);
+	Night.Changeable = 2;
+	Night.TimeScale = 1;
+	const TArray<FForecastChange> NightForecast = Forecast(Night, 3, 50.0f);
+	bool bOnlyWinter = NightForecast.Num() > 0;
+	for (const FForecastChange& Change : NightForecast)
+	{
+		bOnlyWinter &= Change.Weather == EApexWeather::Overcast || Change.Weather == EApexWeather::Snow;
+	}
+	TestTrue(TEXT("a January night's forecast is overcast and snow"), bOnlyWinter);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// A forecast the host writes, held to the server's rules as it is edited.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCreateSessionWrittenForecastTest,
+	"ApexSim.UI.CreateSession.WrittenForecast",
+	ApexTestFlags)
+
+bool FApexCreateSessionWrittenForecastTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexCreateSession;
+
+	auto Valid = [](EApexWeather Start, const TArray<FApexForecastStep>& Steps)
+	{
+		return FApexSessionConditions::ClampedForecast(Start, Steps) == Steps;
+	};
+	auto Step = [](int32 AtMin, EApexWeather Weather)
+	{
+		FApexForecastStep Out;
+		Out.AtMin = AtMin;
+		Out.Weather = Weather;
+		return Out;
+	};
+
+	TArray<FApexForecastStep> Steps;
+	TestTrue(TEXT("a first step"), AddForecastStep(Steps, EApexWeather::Sunny));
+	TestEqual(TEXT("30 min in"), Steps[0].AtMin, ForecastStepGapMin);
+	TestEqual(TEXT("a change from the start"), Steps[0].Weather, EApexWeather::Cloudy);
+	while (AddForecastStep(Steps, EApexWeather::Sunny)) {}
+	TestEqual(TEXT("ten steps at most"), Steps.Num(), FApexSessionConditions::MaxForecastSteps);
+	TestTrue(TEXT("every step added keeps the rules"), Valid(EApexWeather::Sunny, Steps));
+
+	// Moving is held a gap from the neighbours.
+	MoveForecastStep(Steps, 0, -60);
+	TestEqual(TEXT("held at 4 min"), Steps[0].AtMin, FApexSessionConditions::ForecastMinGapMin);
+	MoveForecastStep(Steps, 0, 500);
+	TestEqual(TEXT("held 4 min before the next"), Steps[0].AtMin, Steps[1].AtMin - FApexSessionConditions::ForecastMinGapMin);
+	MoveForecastStep(Steps, Steps.Num() - 1, 100000);
+	TestEqual(TEXT("the last held at the horizon"), Steps.Last().AtMin, FApexSessionConditions::ForecastHorizonMin);
+	TestTrue(TEXT("moves keep the rules"), Valid(EApexWeather::Sunny, Steps));
+
+	// The weather steps past the one before it, and a repeat after it goes.
+	TArray<FApexForecastStep> Three;
+	AddForecastStep(Three, EApexWeather::Sunny);
+	AddForecastStep(Three, EApexWeather::Sunny);
+	AddForecastStep(Three, EApexWeather::Sunny);
+	// Cloudy, Overcast, Light rain.
+	CycleForecastWeather(Three, 0, -1, EApexWeather::Sunny);
+	TestEqual(TEXT("back from cloudy skips sunny (the start)"), Three[0].Weather, EApexWeather::Snow);
+	CycleForecastWeather(Three, 1, 1, EApexWeather::Sunny);
+	TestEqual(TEXT("overcast on"), Three[1].Weather, EApexWeather::LightRain);
+	TestEqual(TEXT("the light rain after it, now a repeat, went"), Three.Num(), 2);
+	TestTrue(TEXT("cycling keeps the rules"), Valid(EApexWeather::Sunny, Three));
+
+	// Removing a step drops one after it that now repeats the weather before.
+	TArray<FApexForecastStep> Swing = { Step(30, EApexWeather::LightRain), Step(60, EApexWeather::Sunny), Step(90, EApexWeather::Cloudy) };
+	RemoveForecastStep(Swing, 0, EApexWeather::Sunny);
+	TestEqual(TEXT("sunny after a sunny start went too"), Swing.Num(), 1);
+	TestEqual(TEXT("cloudy stays"), Swing.Num() > 0 ? Swing[0].Weather : EApexWeather::Sunny, EApexWeather::Cloudy);
+
+	// Kept to its sky: a winter sky's rain is snow, a summer sky's snow rain.
+	FApexSessionConditions Winter;
+	Winter.Weather = EApexWeather::Overcast;
+	Winter.TimeOfDayMinutes = 4 * 60;
+	Winter.DayOfYear = 15;
+	Winter.Forecast = { Step(20, EApexWeather::HeavyRain), Step(50, EApexWeather::Overcast) };
+	const TArray<FApexForecastStep> Kept = KeptToSky(Winter, 50.0f);
+	TestEqual(TEXT("winter rain falls as snow"), Kept.Num() > 0 ? Kept[0].Weather : EApexWeather::Sunny, EApexWeather::Snow);
+	FApexSessionConditions Summer;
+	Summer.Forecast = { Step(20, EApexWeather::Snow) };
+	const TArray<FApexForecastStep> KeptSummer = KeptToSky(Summer);
+	TestEqual(TEXT("summer snow falls as light rain"), KeptSummer.Num() > 0 ? KeptSummer[0].Weather : EApexWeather::Sunny, EApexWeather::LightRain);
+
+	// The forecast a session follows: the written one, whatever Changeable says.
+	FApexSessionConditions Written;
+	Written.Changeable = 3;
+	Written.Forecast = { Step(20, EApexWeather::LightRain), Step(45, EApexWeather::HeavyRain) };
+	const TArray<FForecastChange> Follows = SessionForecast(Written, 7);
+	TestEqual(TEXT("the written steps"), Follows.Num(), 2);
+	TestEqual(TEXT("in seconds"), Follows.Num() > 1 ? Follows[1].AtS : 0.0f, 45.0f * 60.0f);
+	FApexSessionConditions Seeded = Written;
+	Seeded.Forecast.Reset();
+	TestEqual(TEXT("without one, the seed's"), SessionForecast(Seeded, 7).Num(), Forecast(Seeded, 7).Num());
+	TestEqual(TEXT("a step's minute"), StepMinuteLabel(65), FString(TEXT("+1 h 05")));
+	TestTrue(TEXT("Describe names it"), Written.Describe().Contains(TEXT("forecast light rain at 20 min, heavy rain at 45 min")));
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// Qualifying's format, lap allowance and a weekend phase's damage.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCreateSessionQualifyingFormatTest,
+	"ApexSim.UI.CreateSession.QualifyingFormat",
+	ApexTestFlags)
+
+bool FApexCreateSessionQualifyingFormatTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexCreateSession;
+	TestEqual(TEXT("three timed rounds"), WeekendRoundsLabel(3, 10, false), FString(TEXT("Q1-Q3 10 min each")));
+	TestEqual(TEXT("Q3 a shoot-out"), WeekendRoundsLabel(3, 10, true), FString(TEXT("Q1-Q2 10 min · Q3 shoot-out")));
+	TestEqual(TEXT("Q2 a shoot-out"), WeekendRoundsLabel(2, 12, true), FString(TEXT("Q1 12 min · Q2 shoot-out")));
+	TestEqual(TEXT("one round, a shoot-out, no length"), WeekendRoundsLabel(1, 10, true), FString(TEXT("Shoot-out")));
+	TestEqual(TEXT("none below"), StepLapAllowance(0, -1), 0);
+	TestEqual(TEXT("one up"), StepLapAllowance(0, 1), 1);
+	TestEqual(TEXT("held at 30"), StepLapAllowance(30, 1), ApexQualifyingLapAllowance::MaxLaps);
+	TestEqual(TEXT("None"), LapAllowanceLabel(0), FString(TEXT("None")));
+	TestEqual(TEXT("1 lap"), LapAllowanceLabel(1), FString(TEXT("1 lap")));
+	TestEqual(TEXT("3 laps"), LapAllowanceLabel(3), FString(TEXT("3 laps")));
+	TestEqual(TEXT("the race's is the first chip"), PhaseDamageChip(-1), 0);
+	TestEqual(TEXT("visual the last"), PhaseDamageChip(static_cast<int32>(EApexDamageLevel::VisualOnly)), PhaseDamageChips - 1);
+	for (int32 Chip = 0; Chip < PhaseDamageChips; ++Chip)
+	{
+		TestEqual(*FString::Printf(TEXT("chip %d round trip"), Chip), PhaseDamageChip(PhaseDamageOfChip(Chip)), Chip);
+	}
+	TestEqual(TEXT("no allowance, no count"), ApexQualifyingLapAllowance::LapsLeft(0, 3), -1);
+	TestEqual(TEXT("two of three run"), ApexQualifyingLapAllowance::LapsLeft(3, 2), 1);
+	TestEqual(TEXT("used"), ApexQualifyingLapAllowance::LapsLeft(3, 5), 0);
+	return true;
+}
+
 #endif

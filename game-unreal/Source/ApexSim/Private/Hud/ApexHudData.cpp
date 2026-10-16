@@ -466,6 +466,9 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	Out.Set(TEXT("session.mode_name"), In.ModeName);
 	Out.Set(TEXT("session.is_race"), In.GameMode == EApexGameMode::Race);
 	Out.Set(TEXT("session.is_hotlap"), In.GameMode == EApexGameMode::Hotlap);
+	// The player's own: a car being watched is not counted.
+	Out.Set(TEXT("qualifying.laps_left"), In.QualifyingLapsLeft >= 0 && !In.bSpectating
+		? FApexHudValue::Of(In.QualifyingLapsLeft) : FApexHudValue());
 	if (In.bHasConditions)
 	{
 		Out.Set(TEXT("session.conditions"), In.Conditions.Describe());
@@ -572,14 +575,15 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 				Out.Set(TEXT("sky.forecast"), Ahead);
 			}
 			// The sky beyond the three changes telemetry carries, from the
-			// client's own copy of the forecast (ApexCreateSession::Forecast,
-			// laid out from the session's seed as the server lays it): the
-			// next two changes place the session on it, and what follows the
-			// three is the outlook, a change a line.
+			// client's own copy of the forecast (ApexCreateSession::
+			// SessionForecast: the host's written one as the session echoed
+			// it, else laid out from the session's seed as the server lays
+			// it): the next two changes place the session on it, and what
+			// follows the three is the outlook, a change a line.
 			FString Outlook;
 			if (In.bHasConditions && Sky.HasNext2Change())
 			{
-				const TArray<ApexCreateSession::FForecastChange> Changes = ApexCreateSession::Forecast(
+				const TArray<ApexCreateSession::FForecastChange> Changes = ApexCreateSession::SessionForecast(
 					In.Conditions, ApexCreateSession::SessionSeed(In.Conditions, In.SessionId));
 				const float Gap = static_cast<float>(Sky.Next2InS - Sky.NextInS);
 				for (int32 K = 0; K + 1 < Changes.Num(); ++K)

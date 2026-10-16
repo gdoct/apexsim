@@ -71,6 +71,8 @@ private:
 	FString SessionTitle(bool bLive) const;
 	/** The weekend's state while it is in qualifying, for the knockout's cut; null otherwise. */
 	const FApexWeekendState* KnockoutRound() const;
+	/** The qualifying sheet is a shoot-out's: one flying lap each, in run order (ApexBoard::IsShootoutRound). */
+	bool IsShootout() const;
 	/** "Start Q2", "Start the race": the weekend's next session; empty when there is none to start. */
 	FString NextWeekendSession() const;
 	/** This client created the session (the protocol names the host, not their id). */

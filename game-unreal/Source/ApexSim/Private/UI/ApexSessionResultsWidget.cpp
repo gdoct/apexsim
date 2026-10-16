@@ -230,10 +230,27 @@ FString UApexSessionResultsWidget::SessionTitle(bool bLive) const
 		return bLive ? TEXT("PROVISIONAL · PRACTICE RUNNING") : TEXT("PRACTICE · TIMESHEET");
 	}
 	const FApexWeekendState* Knockout = KnockoutRound();
-	const FString Name = Knockout && Knockout->Rounds > 1 ? FString::Printf(TEXT("Q%d OF %d"), Knockout->Round, Knockout->Rounds) : FString(TEXT("QUALIFYING"));
+	FString Name = Knockout && Knockout->Rounds > 1 ? FString::Printf(TEXT("Q%d OF %d"), Knockout->Round, Knockout->Rounds) : FString(TEXT("QUALIFYING"));
+	if (IsShootout())
+	{
+		Name += TEXT(" SHOOT-OUT");
+	}
 	return bLive ? FString::Printf(TEXT("PROVISIONAL · %s RUNNING"), *Name)
 		: Knockout && !Knockout->IsFinalRound() ? FString::Printf(TEXT("%s · CLASSIFICATION"), *Name)
+		: IsShootout() ? FString(TEXT("QUALIFYING SHOOT-OUT · THE GRID"))
 		: FString(TEXT("QUALIFYING · THE GRID"));
+}
+
+bool UApexSessionResultsWidget::IsShootout() const
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Net || !IsTimesheet() || IsPractice())
+	{
+		return false;
+	}
+	const FApexWeekendState* Knockout = KnockoutRound();
+	return ApexBoard::IsShootoutRound(Net->GetSessionQualifyingFormat(), Net->IsWeekendSession(),
+		Knockout ? Knockout->Round : 1, Knockout ? Knockout->Rounds : 1);
 }
 
 bool UApexSessionResultsWidget::IsSessionHost() const
@@ -452,7 +469,9 @@ void UApexSessionResultsWidget::RefreshTable()
 	{
 		const UApexNetSubsystem* WeekendNet = GetNet();
 		const bool bWeekend = WeekendNet && WeekendNet->IsWeekendSession();
-		const FString Length = bWeekend && bQualifying
+		const FString Length = IsShootout()
+			? FString(TEXT("SHOOT-OUT · ONE FLYING LAP EACH, IN RUN ORDER"))
+			: bWeekend && bQualifying
 			? FString(TEXT("RACE WEEKEND"))
 			: bQualifying
 			? (Recorder->GetQualifyingSeconds() > 0 ? ApexRaceLength::Describe(Recorder->GetQualifyingSeconds()).ToUpper() : FString(TEXT("OPEN")))
@@ -627,6 +646,7 @@ void UApexSessionResultsWidget::FillQualifyingRows()
 		}
 	}
 	const int32 Advancing = Knockout ? Knockout->Advancing : 0;
+	const bool bShootout = IsShootout();
 	const TArray<ApexBoard::FSheetRow> Sheet = QualifyingSheet(InRound);
 
 	// Once the round is over the server's list is the cut (it orders cars
@@ -688,6 +708,12 @@ void UApexSessionResultsWidget::FillQualifyingRows()
 		if (bTop)
 		{
 			ApexUI::AddH(NameCell, MakeTag(*WidgetTree, bPractice ? TEXT("FASTEST") : Advancing > 0 ? TEXT("TOP") : TEXT("POLE"), ApexUI::Palette::Accent),
+				FMargin(10.0f, 0.0f, 0.0f, 0.0f));
+		}
+		// A shoot-out: where the car ran in the order.
+		if (const int32 Ran = bShootout ? Net->GetShootoutState().PlaceOf(Line.CarIndex) : 0; Ran > 0)
+		{
+			ApexUI::AddH(NameCell, MakeTag(*WidgetTree, FString::Printf(TEXT("RAN %s"), *ApexBoard::Ordinal(Ran).ToUpper()), ApexUI::Palette::TextMuted),
 				FMargin(10.0f, 0.0f, 0.0f, 0.0f));
 		}
 		if (bIsLocal)

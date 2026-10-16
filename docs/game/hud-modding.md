@@ -264,6 +264,7 @@ player's, or while watching, the car on screen (every `car.*`, `lap.*`,
 | `session.mode` | `race`, `qualifying`, `practice`, `timed_practice` (a race weekend's practice, run from the garage), `hotlap`, `grid` (the race's grid before the countdown), `countdown`, `lobby`, `sandbox`, `demo_lap`, `replay` |
 | `session.mode_name` | the same as the menus show it ("Race") |
 | `session.is_race`, `session.is_hotlap` | shortcuts on the mode |
+| `qualifying.laps_left` | the timed laps the player's car may still start under qualifying's lap allowance, counted from its own lap ends since the session (or the weekend's round) began (*null* without an allowance, outside qualifying, in a shoot-out, and while spectating) |
 | `session.conditions` | the sky in words, "Light rain · 21:30 · wind 12 km/h" (*null* outside a session) |
 | `session.weather` | "Sunny", "Light rain", ... (*null* outside a session) |
 | `session.clock` | the time of day the session was set at, "21:30" (*null* outside a session) |

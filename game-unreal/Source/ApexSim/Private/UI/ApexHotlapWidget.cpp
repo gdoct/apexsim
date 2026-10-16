@@ -381,6 +381,20 @@ void UApexHotlapWidget::NativeOnInitialized()
 	HintSlot->SetVerticalAlignment(VAlign_Top);
 	HintSlot->SetPadding(FMargin(0.0f, Metrics::TopBarHeight + 52.0f, 0.0f, 0.0f));
 
+	// A shoot-out's call as the server sends the local car out on its run.
+	{
+		UVerticalBox* Call = WidgetTree->ConstructWidget<UVerticalBox>();
+		AddV(Call, MakeText(*WidgetTree, TEXT("YOUR TURN"), Font::Display(64.0f, 10), Palette::OnAccent), FMargin(), HAlign_Center);
+		AddV(Call, MakeText(*WidgetTree, TEXT("SHOOT-OUT · AN OUTLAP, THEN ONE FLYING LAP"), Font::Mono(13.0f, 100), Palette::OnAccent.CopyWithNewOpacity(0.8f)),
+			FMargin(0.0f, 4.0f, 0.0f, 0.0f), HAlign_Center);
+		TurnBanner = MakePanel(*WidgetTree, Call, FMargin(48.0f, 18.0f), MakeBrush(Palette::Accent));
+		TurnBanner->SetVisibility(ESlateVisibility::Collapsed);
+		UOverlaySlot* TurnSlot = Layers->AddChildToOverlay(TurnBanner);
+		TurnSlot->SetHorizontalAlignment(HAlign_Center);
+		TurnSlot->SetVerticalAlignment(VAlign_Top);
+		TurnSlot->SetPadding(FMargin(0.0f, Metrics::TopBarHeight + 110.0f, 0.0f, 0.0f));
+	}
+
 	WidgetTree->RootWidget = Layers;
 
 	int32 StartTab = 0;
@@ -403,6 +417,14 @@ void UApexHotlapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 		{
 			GridRefreshIn = 0.25f;
 			RefreshGrid();
+		}
+	}
+	if (TurnBannerLeft > 0.0f)
+	{
+		TurnBannerLeft -= InDeltaTime;
+		if (TurnBannerLeft <= 0.0f && TurnBanner)
+		{
+			TurnBanner->SetVisibility(ESlateVisibility::Collapsed);
 		}
 	}
 	if (View == EApexHotlapView::Garage && HasBoard())
@@ -435,7 +457,11 @@ void UApexHotlapWidget::RefreshQualifyingClock()
 	const bool bTimed = Frame.HasRaceClock();
 	const bool bFlag = bTimed && Frame.RaceLeftMs <= 0;
 	const FApexKnockedOut* Out = bPractice ? nullptr : Net->GetWeekendState().FindEliminated(Net->GetLocalCarIndex());
-	const FString Name = OutlapSessionName();
+	const bool bShootout = !bPractice && IsShootoutNow();
+	const FString Name = bShootout ? FString::Printf(TEXT("%s · SHOOT-OUT"), *OutlapSessionName()) : OutlapSessionName();
+	// The lap allowance: the timed laps still to start, none once used.
+	const int32 LapsLeft = bPractice ? -1 : Net->GetQualifyingLapsLeft();
+	const bool bAllowanceUsed = LapsLeft == 0;
 	if (GarageCaption)
 	{
 		const int32 Left = (Frame.RaceLeftMs + 999) / 1000;
@@ -444,13 +470,134 @@ void UApexHotlapWidget::RefreshQualifyingClock()
 			: Left >= 3600 ? FString::Printf(TEXT("%s · %d:%02d:%02d LEFT"), *Name, Left / 3600, Left / 60 % 60, Left % 60)
 			: FString::Printf(TEXT("%s · %d:%02d LEFT"), *Name, Left / 60, Left % 60)));
 	}
-	if (GoOutButton)
+	// A shoot-out sends each car out in its turn: the button is the waiting display's.
+	const FString ShootoutLabel = bShootout
+		? ApexBoard::ShootoutCall(ApexBoard::Shootout(Net->GetShootoutState(), Net->GetSessionRoster().Entries, Net->GetLocalCarIndex()))
+		: FString();
+	for (UApexButtonWidget* Button : { GoOutButton.Get(), BoardGoOutButton.Get() })
 	{
-		GoOutButton->SetIsEnabled(!bFlag && !Out);
-		GoOutButton->SetLabel(Out && Out->bLate ? FString::Printf(TEXT("A LATE ENTRY · P%d ON THE GRID"), Out->GridPosition)
+		if (!Button)
+		{
+			continue;
+		}
+		Button->SetIsEnabled(!bFlag && !Out && !bShootout && !bAllowanceUsed);
+		Button->SetLabel(Out && Out->bLate ? FString::Printf(TEXT("A LATE ENTRY · P%d ON THE GRID"), Out->GridPosition)
 			: Out ? FString::Printf(TEXT("OUT IN Q%d · P%d ON THE GRID"), Out->Round, Out->GridPosition)
-			: bFlag ? FString::Printf(TEXT("%s IS OVER"), *Name)
+			: bFlag ? FString::Printf(TEXT("%s IS OVER"), *OutlapSessionName())
+			: bShootout ? (ShootoutLabel.IsEmpty() ? FString(TEXT("WAIT FOR YOUR TURN")) : ShootoutLabel)
+			: bAllowanceUsed ? FString(TEXT("LAP ALLOWANCE USED"))
 			: FString(TEXT("GO OUT FOR A LAP")));
+		Button->SetBadge(LapsLeft > 0 && !Out && !bFlag && !bShootout
+			? FString::Printf(TEXT("%d timed lap%s left"), LapsLeft, LapsLeft == 1 ? TEXT("") : TEXT("s")) : FString(),
+			InkMuted);
+	}
+	RefreshShootout();
+}
+
+bool UApexHotlapWidget::IsShootoutNow() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (!Net || !bQualifying || bPractice)
+	{
+		return false;
+	}
+	const FApexWeekendState& Weekend = Net->GetWeekendState();
+	return Net->GetShootoutState().bValid
+		|| ApexBoard::IsShootoutRound(Net->GetSessionQualifyingFormat(), Net->IsWeekendSession(),
+			Weekend.bValid ? Weekend.Round : 1, Weekend.bValid ? Weekend.Rounds : 1);
+}
+
+void UApexHotlapWidget::HandleShootoutState()
+{
+	RefreshQualifyingClock();
+	if (bBoardOpen)
+	{
+		RefreshBoard();
+	}
+}
+
+void UApexHotlapWidget::RefreshShootout()
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const bool bShootout = Net && !bMenuMode && !bGridMode && IsShootoutNow() && Net->GetShootoutState().bValid;
+	const ESlateVisibility Shown = bShootout ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+	if (ShootoutSection) { ShootoutSection->SetVisibility(Shown); }
+	if (BoardShootoutSection) { BoardShootoutSection->SetVisibility(Shown); }
+	if (!bShootout)
+	{
+		bTurnCalled = false;
+		return;
+	}
+
+	const ApexBoard::FShootoutView Shootout = ApexBoard::Shootout(Net->GetShootoutState(), Net->GetSessionRoster().Entries, Net->GetLocalCarIndex());
+	// The run order, a car a line: its place, its name, and where it stands.
+	TArray<FString> Lines;
+	FString RunningName;
+	for (const ApexBoard::FShootoutLine& Line : Shootout.Lines)
+	{
+		const FString State = Line.Run == ApexBoard::EShootoutRun::Done ? FString(TEXT("DONE"))
+			: Line.Run == ApexBoard::EShootoutRun::Running ? FString(Shootout.bFlying ? TEXT("FLYING LAP") : TEXT("OUTLAP"))
+			: FString();
+		Lines.Add(FString::Printf(TEXT("%s %2d  %-18s %s"), Line.Run == ApexBoard::EShootoutRun::Running ? TEXT(">") : TEXT(" "),
+			Line.Place, *(Line.bYou ? Line.Name.ToUpper() + TEXT(" (YOU)") : Line.Name.ToUpper()).Left(24), *State));
+		if (Line.Run == ApexBoard::EShootoutRun::Running)
+		{
+			RunningName = Line.Name;
+		}
+	}
+	const FString Order = FString::Join(Lines, TEXT("\n"));
+	FString Call = ApexBoard::ShootoutCall(Shootout);
+	if (!RunningName.IsEmpty() && !Shootout.bYourTurn)
+	{
+		Call += FString::Printf(TEXT("\nOUT NOW: %s · %s"), *RunningName.ToUpper(), Shootout.bFlying ? TEXT("FLYING LAP") : TEXT("OUTLAP"));
+	}
+	else if (RunningName.IsEmpty() && Shootout.Lines.Num() > 0 && Net->GetShootoutState().Done >= Shootout.Lines.Num())
+	{
+		Call += TEXT("\nEVERY CAR HAS RUN");
+	}
+	for (UTextBlock* Text : { ShootoutOrderText.Get(), BoardShootoutOrderText.Get() })
+	{
+		if (Text) { Text->SetText(FText::FromString(Order)); }
+	}
+	for (UTextBlock* Text : { ShootoutCallText.Get(), BoardShootoutCallText.Get() })
+	{
+		if (Text) { Text->SetText(FText::FromString(Call.TrimStartAndEnd())); }
+	}
+
+	// YOUR TURN as the local car is sent out.
+	if (Shootout.bYourTurn && !bTurnCalled)
+	{
+		bTurnCalled = true;
+		TurnBannerLeft = 5.0f;
+		if (TurnBanner)
+		{
+			TurnBanner->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+		ApexUiAudio::Play(this, EApexUiSound::Notice);
+		UE_LOG(LogApexSim, Log, TEXT("Shoot-out: your turn (run %d of %d)"), Shootout.YourPlace, Shootout.Lines.Num());
+	}
+	else if (!Shootout.bYourTurn)
+	{
+		bTurnCalled = false;
+	}
+
+	// Waiting in the garage: the scoreboard up once, the camera on the car running.
+	if (View == EApexHotlapView::Garage && !Shootout.bYourTurn)
+	{
+		if (!bShootoutBoardShown)
+		{
+			bShootoutBoardShown = true;
+			bFollowRunner = true;
+			SetBoardOpen(true);
+		}
+		if (bBoardOpen && bFollowRunner && Shootout.RunningCar >= 0 && WatchedCar != Shootout.RunningCar)
+		{
+			WatchedCar = Shootout.RunningCar;
+			OnWatchCar.Broadcast(WatchedCar);
+			RefreshBoard();
+		}
 	}
 }
 
@@ -490,6 +637,7 @@ void UApexHotlapWidget::NativeConstruct()
 		Net->OnGhostLap.AddDynamic(this, &UApexHotlapWidget::HandleGhostLap);
 		Net->OnLapRecord.AddDynamic(this, &UApexHotlapWidget::HandleLapRecord);
 		Net->OnCarSetupSheet.AddDynamic(this, &UApexHotlapWidget::HandleSetupSheet);
+		Net->OnShootoutStateChanged.AddDynamic(this, &UApexHotlapWidget::HandleShootoutState);
 	}
 	if (UApexSettingsSubsystem* Settings = GetSettings())
 	{
@@ -506,6 +654,7 @@ void UApexHotlapWidget::NativeDestruct()
 		Net->OnGhostLap.RemoveDynamic(this, &UApexHotlapWidget::HandleGhostLap);
 		Net->OnLapRecord.RemoveDynamic(this, &UApexHotlapWidget::HandleLapRecord);
 		Net->OnCarSetupSheet.RemoveDynamic(this, &UApexHotlapWidget::HandleSetupSheet);
+		Net->OnShootoutStateChanged.RemoveDynamic(this, &UApexHotlapWidget::HandleShootoutState);
 	}
 	if (UApexSettingsSubsystem* Settings = GetSettings())
 	{
@@ -887,6 +1036,20 @@ UWidget* UApexHotlapWidget::BuildActionColumn()
 	GridSection = Grid;
 	AddV(Column, Grid, FMargin(0.0f, 0.0f, 0.0f, 16.0f), HAlign_Fill, 1.0f);
 
+	// A shoot-out's waiting display: where the local car stands and the run order.
+	{
+		UVerticalBox* Shootout = WidgetTree->ConstructWidget<UVerticalBox>();
+		AddV(Shootout, Caption(*WidgetTree, TEXT("Shoot-out · run order"), Palette::Accent), FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		ShootoutCallText = MakeText(*WidgetTree, FString(), Font::Mono(12.0f, 60), Ink);
+		ShootoutCallText->SetAutoWrapText(true);
+		AddV(Shootout, ShootoutCallText, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		ShootoutOrderText = MakeText(*WidgetTree, FString(), Font::Mono(11.0f), InkMuted);
+		AddV(Shootout, ShootoutOrderText);
+		ShootoutSection = Shootout;
+		Shootout->SetVisibility(ESlateVisibility::Collapsed);
+		AddV(Column, Shootout, FMargin(0.0f, 0.0f, 0.0f, 16.0f));
+	}
+
 	UTextBlock* Note = MakeText(*WidgetTree,
 		TEXT("The car spawns on the run-up before the line, so the first lap is a flying one. Fuel and tyres are put in here, in the garage."),
 		Font::Body(14.0f), InkMuted);
@@ -923,6 +1086,22 @@ UWidget* UApexHotlapWidget::BuildBoard()
 	BoardBoardButton = Board;
 	AddV(Card, MakePanel(*WidgetTree, Head, FMargin(24.0f, 18.0f), MakeBrush(FLinearColor::Transparent)));
 	AddV(Card, Rule(*WidgetTree));
+
+	// A shoot-out's waiting display: the call and the run order.
+	{
+		UVerticalBox* Shootout = WidgetTree->ConstructWidget<UVerticalBox>();
+		AddV(Shootout, Caption(*WidgetTree, TEXT("Shoot-out · run order"), Palette::Accent), FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		BoardShootoutCallText = MakeText(*WidgetTree, FString(), Font::Mono(13.0f, 60), Ink);
+		AddV(Shootout, BoardShootoutCallText, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		BoardShootoutOrderText = MakeText(*WidgetTree, FString(), Font::Mono(11.0f), InkMuted);
+		AddV(Shootout, BoardShootoutOrderText);
+		UVerticalBox* Wrapped = WidgetTree->ConstructWidget<UVerticalBox>();
+		AddV(Wrapped, MakePanel(*WidgetTree, Shootout, FMargin(24.0f, 12.0f), MakeBrush(FLinearColor::Transparent)));
+		AddV(Wrapped, Rule(*WidgetTree));
+		BoardShootoutSection = Wrapped;
+		Wrapped->SetVisibility(ESlateVisibility::Collapsed);
+		AddV(Card, Wrapped);
+	}
 
 	// Column captions over the rows.
 	UHorizontalBox* Captions = WidgetTree->ConstructWidget<UHorizontalBox>();
@@ -1610,6 +1789,9 @@ void UApexHotlapWidget::SetQualifying(bool bInQualifying)
 	{
 		bBoardOpen = false;
 	}
+	bShootoutBoardShown = false;
+	bFollowRunner = true;
+	bTurnCalled = false;
 	ApplyQualifyingRows();
 	ApplyPage();
 }
@@ -1642,6 +1824,8 @@ void UApexHotlapWidget::ApplyQualifyingRows()
 	{
 		GarageNote->SetText(FText::FromString(bMenuMode
 			? TEXT("Tune the pending car and save named setups here. The working setup goes out with you when you join any session. Units show in clicks until a session sends the car's figures.")
+			: bQualifying && IsShootoutNow()
+			? TEXT("A shoot-out: one car at a time, each an outlap from the pit exit and one flying lap. The server sends you out in your turn; tune here until then, or watch the car out now.")
 			: bQualifying
 			? TEXT("The car leaves the pit exit on cold tyres and drives a whole outlap: the first lap over the line is the warm-up, the next one is timed. Tune here, or watch the scoreboard.")
 			: TEXT("The car spawns on the run-up before the line, so the first lap is a flying one. Fuel and tyres are put in here, in the garage.")));
@@ -1651,6 +1835,7 @@ void UApexHotlapWidget::ApplyQualifyingRows()
 		GoOutButton->SetLabel(bMenuMode ? TEXT("DONE")
 			: bQualifying ? TEXT("GO OUT FOR A LAP") : TEXT("GO OUT ON TRACK"));
 		GoOutButton->SetIsEnabled(true);
+		GoOutButton->SetBadge(FString(), InkMuted);
 	}
 	if (bQualifying)
 	{
@@ -2689,6 +2874,11 @@ void UApexHotlapWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		{
 			// A second click on the watched driver gives the view back.
 			WatchedCar = Car == WatchedCar ? INDEX_NONE : Car;
+			// In a shoot-out the camera follows each runner until another car is picked.
+			const UGameInstance* GameInstance = GetGameInstance();
+			const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+			bFollowRunner = Net && WatchedCar != INDEX_NONE && WatchedCar == ApexBoard::Shootout(
+				Net->GetShootoutState(), Net->GetSessionRoster().Entries, Net->GetLocalCarIndex()).RunningCar;
 			OnWatchCar.Broadcast(WatchedCar);
 			RefreshBoard();
 		}

@@ -136,6 +136,17 @@ namespace ApexQualifyingLapAllowance
 	{
 		return FMath::Clamp(Laps, None, MaxLaps);
 	}
+
+	/**
+	 * The timed laps a car has left under an allowance of `Allowance` after
+	 * ending `Run` (`update_lap_allowance`: each timed lap ended counts, the
+	 * outlap does not); -1 for no allowance.
+	 */
+	inline int32 LapsLeft(int32 Allowance, int32 Run)
+	{
+		const int32 Laps = Clamp(Allowance);
+		return Laps == None ? -1 : FMath::Max(0, Laps - FMath::Max(0, Run));
+	}
 }
 
 /**
@@ -1061,7 +1072,24 @@ struct APEXSIMNET_API FApexSessionConditions
 		{
 			Out += FString::Printf(TEXT(" · clock x%d"), TimeScale);
 		}
-		if (WeatherChanges())
+		if (HasForecast())
+		{
+			// A written forecast is followed whatever Changeable says: name
+			// its first steps instead ("forecast light rain at 20 min, sunny
+			// at 45 min, 2 more").
+			constexpr int32 Named = 3;
+			TArray<FString> Steps;
+			for (int32 Index = 0; Index < Forecast.Num() && Index < Named; ++Index)
+			{
+				Steps.Add(FString::Printf(TEXT("%s at %d min"), *WeatherLabel(Forecast[Index].Weather).ToLower(), Forecast[Index].AtMin));
+			}
+			if (Forecast.Num() > Named)
+			{
+				Steps.Add(FString::Printf(TEXT("%d more"), Forecast.Num() - Named));
+			}
+			Out += TEXT(" · forecast ") + FString::Join(Steps, TEXT(", "));
+		}
+		else if (WeatherChanges())
 		{
 			Out += FString::Printf(TEXT(" · %s weather"), *ChangeableLabel(Changeable).ToLower());
 		}

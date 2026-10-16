@@ -242,14 +242,48 @@ namespace ApexCreateSession
 
 	// --- The air, as the server resolves it ----------------------------------
 
+	/** `data::WARMEST_DAY_OF_YEAR`: the air is warmest on 19 July in the north. */
+	constexpr float WarmestDayOfYear = 200.0f;
+	/** `data::SEASON_RANGE_PER_DEG_C` / `SEASON_RANGE_MAX_C`: the year's range of air by latitude. */
+	constexpr float SeasonRangePerDegC = 0.35f;
+	constexpr float SeasonRangeMaxC = 20.0f;
+	/** `Weather::SNOW_AIR_DROP_C`: snow's own air under overcast's on the model day. */
+	constexpr float SnowAirDropBaseC = 17.0f;
+
+	/** `data::season_air_c`: the season's air on day `Day` over a circuit
+	 * `LatitudeDeg` north against the year's mean, a cosine over the year
+	 * warmest on WarmestDayOfYear in the north and half a year on in the south. */
+	inline float SeasonAirC(int32 Day, float LatitudeDeg)
+	{
+		const float Days = static_cast<float>(FApexSessionConditions::DaysPerYear);
+		const float Range = FMath::Min(SeasonRangePerDegC * FMath::Min(FMath::Abs(LatitudeDeg), 90.0f), SeasonRangeMaxC);
+		const float Warmest = LatitudeDeg < 0.0f ? WarmestDayOfYear + 0.5f * Days : WarmestDayOfYear;
+		const float Phase = (static_cast<float>(Day) - Warmest) / Days * UE_TWO_PI;
+		return 0.5f * Range * FMath::Cos(Phase);
+	}
+
+	/** `SessionConditions::season_offset_c`: how much warmer the date's season
+	 * makes the air than the model day's; exactly 0 with no date. */
+	inline float SeasonOffsetC(const FApexSessionConditions& C, float LatitudeDeg)
+	{
+		if (!C.HasDate())
+		{
+			return 0.0f;
+		}
+		const int32 Day = FMath::Clamp(C.DayOfYear, 1, FApexSessionConditions::DaysPerYear);
+		return SeasonAirC(Day, LatitudeDeg) - SeasonAirC(ApexSky::ModelDayOfYear, LatitudeDeg);
+	}
+
 	/** `SessionConditions::auto_air_temperature_c`: 13 °C before dawn to 23 °C
-	 * at 15:00 on a clear day, the swing damped and the whole curve lowered
-	 * under cloud and rain. */
+	 * two hours after solar noon (15:00 where noon is 13:00) on a clear day,
+	 * the swing damped and the whole curve lowered under cloud and rain. The
+	 * model day's: the season is `AutoAirTempCAt`'s. */
 	inline float AutoAirTempC(const FApexSessionConditions& C)
 	{
 		constexpr float CoolestC = 13.0f;
 		constexpr float SwingC = 10.0f;
-		constexpr float WarmestHours = 15.0f;
+		constexpr float WarmestAfterNoonHours = 2.0f;
+		const float WarmestHours = ApexSky::SolarNoonOf(C) + WarmestAfterNoonHours;
 		const float Hours = C.Hours();
 		const float Day = 0.5f + 0.5f * FMath::Cos((Hours - WarmestHours) / 24.0f * UE_TWO_PI);
 		float Swing = 1.0f;
@@ -267,25 +301,45 @@ namespace ApexCreateSession
 		return CoolestC + SwingC * (0.5f + (Day - 0.5f) * Swing) + Offset;
 	}
 
-	/** The air in whole degrees: the host's figure, else the weather's
-	 * (Rust's `round`, half away from zero, as `RoundHalfFromZero`). */
-	inline int32 AirTempC(const FApexSessionConditions& C)
+	/** `SessionConditions::auto_air_temperature_c_at`: the model day's air
+	 * moved by the date's season over a circuit `LatitudeDeg` north. Snow's
+	 * own air is the same near freezing in any month. */
+	inline float AutoAirTempCAt(const FApexSessionConditions& C, float LatitudeDeg)
+	{
+		const float Own = AutoAirTempC(C);
+		return C.IsSnow() ? Own : Own + SeasonOffsetC(C, LatitudeDeg);
+	}
+
+	/** `SessionConditions::snow_air_drop_c`: how far snow's air lies under
+	 * overcast's in the date's season (the snow line), never under 0. */
+	inline float SnowAirDropC(const FApexSessionConditions& C, float LatitudeDeg)
+	{
+		return FMath::Max(SnowAirDropBaseC + SeasonOffsetC(C, LatitudeDeg), 0.0f);
+	}
+
+	/** The air in whole degrees as the server resolves it over a circuit
+	 * `LatitudeDeg` north (`resolve_at`): the host's figure, else the
+	 * weather's in the date's season (Rust's `round`, half away from zero,
+	 * as `RoundHalfFromZero`). The latitude only matters with a date. */
+	inline int32 AirTempC(const FApexSessionConditions& C, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
 	{
 		return C.HasAirTemp()
 			? FMath::Clamp(C.AirTempC, FApexSessionConditions::MinAirTempC, FApexSessionConditions::MaxAirTempC)
-			: static_cast<int32>(FMath::RoundHalfFromZero(AutoAirTempC(C)));
+			: static_cast<int32>(FMath::RoundHalfFromZero(AutoAirTempCAt(C, LatitudeDeg)));
 	}
 
-	/** `SessionConditions::track_temperature_c`: the air plus up to 20 °C of
-	 * sun through the cloud; a wet track a degree under the air. */
-	inline float TrackTempC(const FApexSessionConditions& C)
+	/** `SessionConditions::track_temperature_c_at`: the air plus up to 20 °C
+	 * of sun through the cloud, under the circuit's sun on the session's
+	 * date; a wet track a degree under the air. */
+	inline float TrackTempC(const FApexSessionConditions& C, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
 	{
-		const float Air = static_cast<float>(AirTempC(C));
+		const float Air = static_cast<float>(AirTempC(C, LatitudeDeg));
 		if (C.IsWet() || C.IsSnow())
 		{
 			return Air - 1.0f;
 		}
-		const float Sun = FMath::Max(0.0f, FMath::Sin(FMath::DegreesToRadians(ApexSky::SunAt(C.Hours()).ElevationDeg)));
+		const float Elevation = ApexSky::SunAt(C.Hours(), LatitudeDeg, ApexSky::SolarNoonOf(C), ApexSky::DeclinationOf(C)).ElevationDeg;
+		const float Sun = FMath::Max(0.0f, FMath::Sin(FMath::DegreesToRadians(Elevation)));
 		const float ThroughCloud = C.Weather == EApexWeather::Sunny ? 1.0f
 			: C.Weather == EApexWeather::Cloudy ? 0.6f
 			: 0.25f;
@@ -413,11 +467,14 @@ namespace ApexCreateSession
 	constexpr int32 ForecastMaxChanges = 400;
 
 	/** `conditions::is_winter`: snow, or overcast with the air under WinterBelowC
-	 * (the air as the server resolves it: the host's figure, else the weather's). */
-	inline bool IsWinter(const FApexSessionConditions& In)
+	 * (the air as the server resolves it over a circuit `LatitudeDeg` north:
+	 * the host's figure, else the weather's in the date's season). A joined
+	 * session's conditions name their air, so the latitude is the create
+	 * screen's business only. */
+	inline bool IsWinter(const FApexSessionConditions& In, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
 	{
 		const FApexSessionConditions C = In.Clamped();
-		return C.IsSnow() || (C.Weather == EApexWeather::Overcast && static_cast<float>(AirTempC(C)) < WinterBelowC);
+		return C.IsSnow() || (C.Weather == EApexWeather::Overcast && static_cast<float>(AirTempC(C, LatitudeDeg)) < WinterBelowC);
 	}
 
 	/** One change: from `AtS` seconds into the session the weather is `Weather`. */
@@ -436,7 +493,7 @@ namespace ApexCreateSession
 	 * back toward the host's pick; a winter sky swings between overcast and
 	 * snow instead.
 	 */
-	inline TArray<FForecastChange> Forecast(const FApexSessionConditions& In, uint64 Seed)
+	inline TArray<FForecastChange> Forecast(const FApexSessionConditions& In, uint64 Seed, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
 	{
 		TArray<FForecastChange> Out;
 		const FApexSessionConditions C = In.Clamped();
@@ -453,7 +510,7 @@ namespace ApexCreateSession
 			const float GapMin = GapLo + (GapHi - GapLo) * Hash01(Seed, 0xF00000ull + 3 * K);
 			return FMath::Max(GapMin * 60.0f / Scale, ForecastMinGapS);
 		};
-		if (IsWinter(C))
+		if (IsWinter(C, LatitudeDeg))
 		{
 			const float HomeLean = C.IsSnow() ? 0.15f : -0.15f;
 			const float PSnow = FMath::Clamp(0.5f + 0.1f * (static_cast<float>(Level) - 2.0f) + HomeLean, 0.1f, 0.9f);
@@ -498,6 +555,165 @@ namespace ApexCreateSession
 			Out.Add({AtS, static_cast<EApexWeather>(Weather)});
 		}
 		return Out;
+	}
+
+	// --- A forecast the host writes ----------------------------------------------
+	//
+	// A list of steps, each a session minute and a weather, that the server
+	// follows instead of the one it lays out from the seed, whatever the
+	// Weather changes row says (`HostForecast`, data.rs). Held to its rules
+	// as it is edited: ascending, each step a change at least
+	// ForecastMinGapMin after the last (and the start), none past the
+	// horizon, at most MaxForecastSteps.
+
+	/** A written forecast's steps as forecast changes, seconds of session. */
+	inline TArray<FForecastChange> WrittenForecast(const TArray<FApexForecastStep>& Steps)
+	{
+		TArray<FForecastChange> Out;
+		for (const FApexForecastStep& Step : Steps)
+		{
+			Out.Add({ static_cast<float>(Step.AtMin) * 60.0f, Step.Weather });
+		}
+		return Out;
+	}
+
+	/**
+	 * The written forecast as the server will simulate and echo it
+	 * (`resolve_at`): a winter sky's rain falls as snow, a summer sky's snow
+	 * as light rain, then made valid again from the start's weather.
+	 */
+	inline TArray<FApexForecastStep> KeptToSky(const FApexSessionConditions& In, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
+	{
+		const FApexSessionConditions C = In.Clamped();
+		const bool bWinter = IsWinter(C, LatitudeDeg);
+		TArray<FApexForecastStep> Mapped = C.Forecast;
+		for (FApexForecastStep& Step : Mapped)
+		{
+			if (bWinter && (Step.Weather == EApexWeather::LightRain || Step.Weather == EApexWeather::HeavyRain))
+			{
+				Step.Weather = EApexWeather::Snow;
+			}
+			else if (!bWinter && Step.Weather == EApexWeather::Snow)
+			{
+				Step.Weather = EApexWeather::LightRain;
+			}
+		}
+		return FApexSessionConditions::ClampedForecast(C.Weather, Mapped);
+	}
+
+	/**
+	 * The forecast a session follows: the host's written one when it has
+	 * one (`HasForecast`, kept to its sky), else the one laid out from
+	 * `Seed` (empty when the sky holds).
+	 */
+	inline TArray<FForecastChange> SessionForecast(const FApexSessionConditions& C, uint64 Seed, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
+	{
+		return C.HasForecast() ? WrittenForecast(KeptToSky(C, LatitudeDeg)) : Forecast(C, Seed, LatitudeDeg);
+	}
+
+	/** A new step's minute: ForecastMinGapMin's steps of 4, 30 after the last step (or the start). */
+	constexpr int32 ForecastStepGapMin = 30;
+
+	/** The minutes a step may be moved to: one gap after the step before it up to one gap before the next. */
+	inline void StepBounds(const TArray<FApexForecastStep>& Steps, int32 Index, int32& OutLo, int32& OutHi)
+	{
+		const int32 Gap = FApexSessionConditions::ForecastMinGapMin;
+		OutLo = (Steps.IsValidIndex(Index - 1) ? Steps[Index - 1].AtMin : 0) + Gap;
+		OutHi = Steps.IsValidIndex(Index + 1) ? Steps[Index + 1].AtMin - Gap : FApexSessionConditions::ForecastHorizonMin;
+	}
+
+	/**
+	 * Adds a step after the last: ForecastStepGapMin on (held to the
+	 * horizon), the next weather on from the one before it so it is a
+	 * change. False when the list is full or there is no room.
+	 */
+	inline bool AddForecastStep(TArray<FApexForecastStep>& Steps, EApexWeather Start)
+	{
+		if (Steps.Num() >= FApexSessionConditions::MaxForecastSteps)
+		{
+			return false;
+		}
+		const int32 Last = Steps.IsEmpty() ? 0 : Steps.Last().AtMin;
+		const int32 At = FMath::Min(Last + ForecastStepGapMin, FApexSessionConditions::ForecastHorizonMin);
+		if (At < Last + FApexSessionConditions::ForecastMinGapMin)
+		{
+			return false;
+		}
+		const EApexWeather Before = Steps.IsEmpty() ? Start : Steps.Last().Weather;
+		FApexForecastStep Step;
+		Step.AtMin = At;
+		Step.Weather = static_cast<EApexWeather>((static_cast<int32>(Before) + 1) % FApexSessionConditions::WeatherCount);
+		Steps.Add(Step);
+		return true;
+	}
+
+	/** Moves step `Index` by `DeltaMin`, held between its neighbours. False when it cannot move. */
+	inline bool MoveForecastStep(TArray<FApexForecastStep>& Steps, int32 Index, int32 DeltaMin)
+	{
+		if (!Steps.IsValidIndex(Index))
+		{
+			return false;
+		}
+		int32 Lo = 0;
+		int32 Hi = 0;
+		StepBounds(Steps, Index, Lo, Hi);
+		const int32 At = FMath::Clamp(Steps[Index].AtMin + DeltaMin, Lo, FMath::Max(Lo, Hi));
+		if (At == Steps[Index].AtMin)
+		{
+			return false;
+		}
+		Steps[Index].AtMin = At;
+		return true;
+	}
+
+	/**
+	 * Steps the weather of step `Index` on (+1) or back (-1), skipping the
+	 * weather of the step before it (or the start) so it stays a change.
+	 * A step after it left repeating the new weather is dropped.
+	 */
+	inline bool CycleForecastWeather(TArray<FApexForecastStep>& Steps, int32 Index, int32 Direction, EApexWeather Start)
+	{
+		if (!Steps.IsValidIndex(Index) || Direction == 0)
+		{
+			return false;
+		}
+		const EApexWeather Before = Index > 0 ? Steps[Index - 1].Weather : Start;
+		const int32 Count = FApexSessionConditions::WeatherCount;
+		int32 Weather = static_cast<int32>(Steps[Index].Weather);
+		do
+		{
+			Weather = ((Weather + (Direction > 0 ? 1 : -1)) % Count + Count) % Count;
+		}
+		while (static_cast<EApexWeather>(Weather) == Before);
+		Steps[Index].Weather = static_cast<EApexWeather>(Weather);
+		if (Steps.IsValidIndex(Index + 1) && Steps[Index + 1].Weather == Steps[Index].Weather)
+		{
+			Steps.RemoveAt(Index + 1);
+		}
+		return true;
+	}
+
+	/** Removes step `Index`, and the step after it if that now repeats the weather before. */
+	inline bool RemoveForecastStep(TArray<FApexForecastStep>& Steps, int32 Index, EApexWeather Start)
+	{
+		if (!Steps.IsValidIndex(Index))
+		{
+			return false;
+		}
+		Steps.RemoveAt(Index);
+		const EApexWeather Before = Index > 0 ? Steps[Index - 1].Weather : Start;
+		if (Steps.IsValidIndex(Index) && Steps[Index].Weather == Before)
+		{
+			Steps.RemoveAt(Index);
+		}
+		return true;
+	}
+
+	/** "+20 min", "+1 h 05": a step's minute of session. */
+	inline FString StepMinuteLabel(int32 AtMin)
+	{
+		return AtMin < 60 ? FString::Printf(TEXT("+%d min"), AtMin)
+			: FString::Printf(TEXT("+%d h %02d"), AtMin / 60, AtMin % 60);
 	}
 
 	/**
@@ -787,6 +1003,56 @@ namespace ApexCreateSession
 			: TEXT("DAY");
 		return Out;
 	}
+
+	// --- Qualifying formats -----------------------------------------------------
+
+	/**
+	 * A weekend's qualifying as the menus say it: "Q1-Q3 10 min each", "Q1-Q2
+	 * 10 min · Q3 shoot-out", "Qualifying 10 min" or "Shoot-out" (a
+	 * shoot-out has no clock, so the round it takes has no length).
+	 */
+	inline FString WeekendRoundsLabel(int32 Rounds, int32 RoundMinutes, bool bShootout)
+	{
+		const int32 N = FMath::Clamp(Rounds, 1, FApexWeekendFormat::MaxRounds);
+		const FString Length = ApexRaceLength::Describe(RoundMinutes * 60);
+		if (!bShootout)
+		{
+			return N > 1 ? FString::Printf(TEXT("Q1-Q%d %s each"), N, *Length) : FString::Printf(TEXT("Qualifying %s"), *Length);
+		}
+		if (N == 1)
+		{
+			return TEXT("Shoot-out");
+		}
+		const FString Timed = N > 2 ? FString::Printf(TEXT("Q1-Q%d %s"), N - 1, *Length) : FString::Printf(TEXT("Q1 %s"), *Length);
+		return FString::Printf(TEXT("%s · Q%d shoot-out"), *Timed, N);
+	}
+
+	/** The lap allowance's stepper: None, then 1 to 30, held at the ends. */
+	inline int32 StepLapAllowance(int32 Laps, int32 Step)
+	{
+		return ApexQualifyingLapAllowance::Clamp(ApexQualifyingLapAllowance::Clamp(Laps) + Step);
+	}
+
+	/** "None", "1 lap", "3 laps". */
+	inline FString LapAllowanceLabel(int32 Laps)
+	{
+		const int32 N = ApexQualifyingLapAllowance::Clamp(Laps);
+		return N == ApexQualifyingLapAllowance::None ? FString(TEXT("None"))
+			: N == 1 ? FString(TEXT("1 lap")) : FString::Printf(TEXT("%d laps"), N);
+	}
+
+	/** A weekend phase's damage chips: the race's (-1), then each EApexDamageLevel. */
+	inline constexpr int32 PhaseDamageChips = 5;
+
+	inline const TCHAR* PhaseDamageChipLabel(int32 Chip)
+	{
+		static const TCHAR* Labels[PhaseDamageChips] = { TEXT("Race's"), TEXT("Off"), TEXT("Reduced"), TEXT("Full"), TEXT("Visual") };
+		return Labels[FMath::Clamp(Chip, 0, PhaseDamageChips - 1)];
+	}
+
+	/** The chip for a phase's pick (-1 the race's, else a level) and back. */
+	inline int32 PhaseDamageChip(int32 Damage) { return FMath::Clamp(Damage, -1, PhaseDamageChips - 2) + 1; }
+	inline int32 PhaseDamageOfChip(int32 Chip) { return FMath::Clamp(Chip, 0, PhaseDamageChips - 1) - 1; }
 
 	// --- Assists --------------------------------------------------------------
 

@@ -442,10 +442,13 @@ session), `-ApexNoStart`
 (stop in the lobby), `-ApexAiSkill=N`, `-ApexDamage=off|reduced|full|visual`,
 `-ApexLockAssists=abs,tc,gearbox,steering,line`, `-ApexQualifyingCutoff=N`
 (the cut-off, percent of pole; 107 is the rule), `-ApexMandatoryStops=N`
-(0-3) and `-ApexCompoundChange` (the race's pit rule), sky
+(0-3) and `-ApexCompoundChange` (the race's pit rule),
+`-ApexQualifyingFormat=shootout`, `-ApexLapAllowance=N`,
+`-ApexGridOrder=@host,@ai:1,...` (the start order), sky
 `-ApexWeather=sunny|cloudy|overcast|lightrain|heavyrain|snow`,
 `-ApexTimeOfDay=HH:MM`, `-ApexTimeScale=N`, `-ApexChangeable=N`,
-`-ApexTrackRubber=N`. In the race: `-ApexView=cockpit|chase|tv|roof|close|near|far`,
+`-ApexTrackRubber=N`, `-ApexDayOfYear=N`, `-ApexForecast=MIN:weather,...`
+(a written forecast). In the race: `-ApexView=cockpit|chase|tv|roof|close|near|far`,
 `-ApexRacingLine=...`, the shot camera switches ([cameras.md](cameras.md)).
 Hotlap: `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`,
 `-ApexHotlapReplayAfter=N` (comma lists).

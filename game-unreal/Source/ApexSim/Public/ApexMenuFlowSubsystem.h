@@ -153,6 +153,39 @@ public:
 	bool IsCreatingWeekend() const { return bCreateWeekend && CreateStartingMode == EApexGameMode::Race; }
 
 	/**
+	 * How qualifying runs: Open, or a one-lap shoot-out (one car at a time;
+	 * in a weekend, the final round). Only a session that qualifies sends it
+	 * (QualifyingFormatToSend).
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	EApexQualifyingFormat CreateQualifyingFormat = EApexQualifyingFormat::Open;
+
+	/** The most timed laps a car may end in qualifying (each round of a weekend); 0 for no limit. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateQualifyingLapAllowance = 0;
+
+	/** A weekend's practice and qualifying rounds' own damage (EApexDamageLevel); -1 runs them under the race's. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateWeekendPracticeDamage = -1;
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateWeekendQualifyingDamage = -1;
+
+	/** Whether the session being made qualifies: a qualifying session or a weekend. */
+	bool CreatesQualifying() const { return CreateStartingMode == EApexGameMode::Qualification || IsCreatingWeekend(); }
+
+	/** What CreateSession carries for the format: Open for a session that does not qualify. */
+	EApexQualifyingFormat QualifyingFormatToSend() const
+	{
+		return CreatesQualifying() ? CreateQualifyingFormat : EApexQualifyingFormat::Open;
+	}
+	/** The allowance CreateSession carries: none for a session that does not qualify, or for a plain shoot-out's one lap. */
+	int32 QualifyingLapAllowanceToSend() const
+	{
+		const bool bPlainShootout = !IsCreatingWeekend() && CreateQualifyingFormat == EApexQualifyingFormat::Shootout;
+		return CreatesQualifying() && !bPlainShootout ? ApexQualifyingLapAllowance::Clamp(CreateQualifyingLapAllowance) : 0;
+	}
+
+	/**
 	 * The 107% rule: a car slower than 107% of pole in qualifying (Q1 of a
 	 * weekend), or with no time, does not start the race. Only a session
 	 * that qualifies sends it (QualifyingCutoffToSend).

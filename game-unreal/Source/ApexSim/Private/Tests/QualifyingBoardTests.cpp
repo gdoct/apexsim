@@ -142,4 +142,68 @@ bool FApexQualifyingSheetTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+// The shoot-out's waiting display: the run order with names and where the
+// local car stands.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexQualifyingShootoutTest,
+	"ApexSim.Race.QualifyingBoard.Shootout",
+	ApexTestFlags)
+
+bool FApexQualifyingShootoutTest::RunTest(const FString& Parameters)
+{
+	const TArray<FApexRosterEntry> Roster = {
+		Entry(0, TEXT("Alder"), true), Entry(1, TEXT("Birch"), true), Entry(2, TEXT("You"), false),
+		Entry(3, TEXT("Cedar"), true), Entry(4, TEXT("Dogwood"), true) };
+	FApexShootoutState State;
+	State.bValid = true;
+	State.Order = { 4, 3, 1, 2, 0 };
+	State.Running = 2;
+	State.Done = 1;
+	State.bFlying = true;
+
+	ApexBoard::FShootoutView View = ApexBoard::Shootout(State, Roster, 2);
+	TestEqual(TEXT("five in the order"), View.Lines.Num(), 5);
+	TestEqual(TEXT("named"), View.Lines[0].Name, FString(TEXT("Dogwood")));
+	TestTrue(TEXT("the first ran"), View.Lines[0].Run == ApexBoard::EShootoutRun::Done);
+	TestTrue(TEXT("the second is out"), View.Lines[1].Run == ApexBoard::EShootoutRun::Running);
+	TestEqual(TEXT("the car out"), View.RunningCar, 3);
+	TestTrue(TEXT("on its flying lap"), View.bFlying);
+	TestEqual(TEXT("you run 4th"), View.YourPlace, 4);
+	TestEqual(TEXT("two to go: the one out and the one after"), View.ToGo, 2);
+	TestEqual(TEXT("the call"), ApexBoard::ShootoutCall(View), FString(TEXT("YOU RUN 4TH · 2 TO GO")));
+
+	State.Running = 4;
+	State.Done = 3;
+	State.bFlying = false;
+	View = ApexBoard::Shootout(State, Roster, 2);
+	TestTrue(TEXT("your turn"), View.bYourTurn);
+	TestEqual(TEXT("YOUR TURN"), ApexBoard::ShootoutCall(View), FString(TEXT("YOUR TURN")));
+
+	State.Running = 3;
+	State.Done = 2;
+	View = ApexBoard::Shootout(State, Roster, 2);
+	TestEqual(TEXT("next"), ApexBoard::ShootoutCall(View), FString(TEXT("YOU RUN 4TH · 1 TO GO")));
+	State.Running = 0;
+	State.Done = 3;
+	View = ApexBoard::Shootout(State, Roster, 2);
+	TestEqual(TEXT("between runs, next"), ApexBoard::ShootoutCall(View), FString(TEXT("YOU RUN 4TH · YOU ARE NEXT")));
+	State.Running = 5;
+	State.Done = 4;
+	View = ApexBoard::Shootout(State, Roster, 2);
+	TestTrue(TEXT("done"), View.bYouDone);
+	TestEqual(TEXT("not in the order"), ApexBoard::ShootoutCall(ApexBoard::Shootout(State, Roster, 9)), FString());
+
+	TestEqual(TEXT("1st"), ApexBoard::Ordinal(1), FString(TEXT("1st")));
+	TestEqual(TEXT("12th"), ApexBoard::Ordinal(12), FString(TEXT("12th")));
+	TestEqual(TEXT("22nd"), ApexBoard::Ordinal(22), FString(TEXT("22nd")));
+	TestTrue(TEXT("a plain session's shoot-out"), ApexBoard::IsShootoutRound(EApexQualifyingFormat::Shootout, false, 1, 1));
+	TestFalse(TEXT("not Q1 of a weekend"), ApexBoard::IsShootoutRound(EApexQualifyingFormat::Shootout, true, 1, 3));
+	TestTrue(TEXT("its final round"), ApexBoard::IsShootoutRound(EApexQualifyingFormat::Shootout, true, 3, 3));
+	TestFalse(TEXT("open"), ApexBoard::IsShootoutRound(EApexQualifyingFormat::Open, false, 1, 1));
+	return true;
+}
+
 #endif

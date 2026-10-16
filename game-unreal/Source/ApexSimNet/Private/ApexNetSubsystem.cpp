@@ -114,6 +114,15 @@ int32 UApexNetSubsystem::GetLocalCarIndex() const
 	return -1;
 }
 
+int32 UApexNetSubsystem::GetQualifyingLapsLeft() const
+{
+	if (CurrentGameMode != EApexGameMode::Qualification || CurrentShootoutState.bValid)
+	{
+		return -1;
+	}
+	return ApexQualifyingLapAllowance::LapsLeft(CurrentQualifyingLapAllowance, QualifyingTimedLaps);
+}
+
 void UApexNetSubsystem::SetConnectionState(EApexConnectionState NewState, const FString& Detail)
 {
 	if (ConnectionState == NewState)
@@ -1089,6 +1098,8 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 			if (Frame.GameMode != CurrentGameMode)
 			{
 				CurrentGameMode = Frame.GameMode;
+				// Entering qualifying again counts the allowance afresh.
+				QualifyingTimedLaps = 0;
 				UE_LOG(LogApexSimNet, Log, TEXT("Game mode -> %d (from telemetry)"),
 					static_cast<int32>(CurrentGameMode));
 				OnGameModeChanged.Broadcast(CurrentGameMode);
@@ -1293,6 +1304,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			// follows its SessionJoined.
 			CurrentWeekendState = FApexWeekendState();
 			CurrentShootoutState = FApexShootoutState();
+			QualifyingTimedLaps = 0;
 			DiscardTelemetryOfPreviousSession();
 			// In a session now: the seat held for us is this one or given up.
 			ClearRejoinOffer();
@@ -1342,6 +1354,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentWeekend = FApexWeekendFormat();
 		CurrentWeekendState = FApexWeekendState();
 		CurrentShootoutState = FApexShootoutState();
+		QualifyingTimedLaps = 0;
 		CachedRoster = FApexSessionRoster();
 		ClearRacingLine();
 		ClearLapTiming();
@@ -1468,6 +1481,12 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 
 	case EApexServerMessageType::LapTiming:
 		TimingBoard.Apply(Message.LapTiming);
+		// The lap allowance counts the local car's timed laps ended in qualifying.
+		if (Message.LapTiming.bIsLapEnd && Message.LapTiming.CarIndex == GetLocalCarIndex()
+			&& CurrentGameMode == EApexGameMode::Qualification)
+		{
+			++QualifyingTimedLaps;
+		}
 		UE_LOG(LogApexSimNet, Verbose, TEXT("<- LapTiming car %d lap %d sector %d %d ms%s%s"),
 			Message.LapTiming.CarIndex, Message.LapTiming.Lap, Message.LapTiming.Sector + 1,
 			Message.LapTiming.SectorTimeMs,
@@ -1499,6 +1518,8 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			&& (CurrentWeekendState.Phase != Message.WeekendState.Phase || CurrentWeekendState.Round != Message.WeekendState.Round))
 		{
 			TimingBoard.Reset(TimingBoard.SectorCount);
+			// Each round counts its own allowance.
+			QualifyingTimedLaps = 0;
 		}
 		CurrentWeekendState = Message.WeekendState;
 		// A phase may run under its own damage rule: the session's rule is

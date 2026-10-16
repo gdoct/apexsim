@@ -62,6 +62,22 @@
           ]
         }]
       },
+      // Qualifying's lap allowance: the timed laps still to start, lit when none are.
+      {
+        "type": "panel", "visible": "=has(qualifying.laps_left)",
+        "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [20, 9],
+        "background": "=qualifying.laps_left == 0 ? 'accent' : 'surface'",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "halign": "center", "text": "Laps left",
+              "color": "=qualifying.laps_left == 0 ? alpha('on_accent', 0.7) : 'text_muted'" },
+            { "type": "text", "halign": "center", "margin": [0, 2, 0, 0], "font": "display", "size": 34,
+              "color": "=qualifying.laps_left == 0 ? 'on_accent' : 'text'",
+              "text": "=qualifying.laps_left == 0 ? 'USED' : str(qualifying.laps_left)" }
+          ]
+        }]
+      },
       // The pit rule: the stops still owed (or the second compound), until met.
       {
         "type": "panel", "visible": "=has(pit.stops_owed) && (pit.stops_owed > 0 || pit.compound_owed)",

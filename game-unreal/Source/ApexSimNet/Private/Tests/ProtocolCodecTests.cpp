@@ -836,6 +836,8 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 				TestEqual(TEXT("Forecast[2].AtMin"), Steps[2].AtMin, 90);
 				TestEqual(TEXT("Forecast[2].Weather"), Steps[2].Weather, EApexWeather::Sunny);
 			}
+			TestTrue(TEXT("Describe names the written forecast"),
+				Written.Conditions.Describe().Contains(TEXT(" · forecast light rain at 20 min, heavy rain at ")));
 		}
 	}
 

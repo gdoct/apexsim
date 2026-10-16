@@ -204,7 +204,18 @@ other; going out again is refused with "Lap allowance used". Once every car
 taking part has used it and is in its garage (or undrivable), the session
 or round is `Finished`, clock or no clock. Entering `Qualification` again
 counts afresh. A shoot-out ignores it (one flying lap each). Echoed in
-`SessionJoined.QualifyingLapAllowance`.
+`SessionJoined.QualifyingLapAllowance`. Client: the create screen's Lap
+allowance stepper (None, 1 to 30, in the qualifying and the weekend sections;
+`CreateQualifyingLapAllowance` in the profile, `QualifyingLapAllowanceToSend`:
+none outside qualifying and in a plain shoot-out).
+`UApexNetSubsystem::GetQualifyingLapsLeft` counts the local car's lap ends
+(`LapTiming`) since qualifying or the round began (-1 with no allowance,
+outside `Qualification` and in a shoot-out; a lap the server counts without
+a `LapTiming`, a crossing short of the checkpoints, is missed, and a driver
+who joins part way through counts from the join): GO OUT carries "2 timed
+laps left" and reads LAP ALLOWANCE USED, disabled, at none, and the HUD's
+`qualifying.laps_left` drives the race state's Laps left panel.
+`-ApexLapAllowance=N` sets it for an auto race.
 
 **Qualifying cut-off** (the 107% rule): `qualifying_cutoff_pct`
 (`Option<u16>`, `clamp_qualifying_cutoff` to 101..150 %; absent or 0 is
@@ -505,7 +516,27 @@ the flying laps. `is_shootout_round` is true in a plain session's
   (`UApexNetSubsystem::GetShootoutState`, `OnShootoutStateChanged`) and
   `SessionJoined`'s format and allowance (`GetSessionQualifyingFormat`,
   `GetSessionQualifyingLapAllowance`); `CreateSessionWithOrder` sends both.
-  No screen uses them yet ([follow-ups](../follow-ups.md) package 20).
+  The create screen's qualifying section has a Format row (Open,
+  Shoot-out; a shoot-out greys the clock chips and hides the allowance) and
+  the Race weekend section a Final round row (a shoot-out hides Each round
+  when it is the only round, and the weekend's line reads "Q1-Q2 10 min
+  · Q3 shoot-out", `ApexCreateSession::WeekendRoundsLabel`), kept as
+  `CreateQualifyingFormat` in the profile and sent by
+  `QualifyingFormatToSend` (Open for a session that does not qualify); the
+  footer's summary says SHOOT-OUT. The qualifying garage
+  (`UApexHotlapWidget::RefreshShootout`, from `ApexBoard::Shootout`) shows
+  the run order with each car's name and DONE / OUTLAP / FLYING LAP, the car
+  out now, and the local car's call ("YOU RUN 4TH · 2 TO GO", "YOU ARE
+  NEXT", `ApexBoard::ShootoutCall`) on GO OUT, which stays disabled; while
+  the driver waits the scoreboard opens once and the spectator camera
+  follows each car as it is sent out (`OnWatchCar`), until the driver picks
+  another car to watch. As the local car's `PlaceOf` becomes `Running` a
+  YOUR TURN banner stands over the view for five seconds with the notice
+  cue. The results' qualifying sheet (`UApexSessionResultsWidget::IsShootout`,
+  `ApexBoard::IsShootoutRound`) is titled QUALIFYING SHOOT-OUT, its format
+  line reads ONE FLYING LAP EACH, IN RUN ORDER, and each car carries RAN Nth.
+  `-ApexQualifyingFormat=shootout` (with `-ApexGridOrder=@host,@ai:1,...` for
+  the start order the run order reverses) runs one from an auto race.
 
 **Client.** The create screen's Race tab has a Starting order row
 (`ApexCreateSession::`): chips for the seating order, a "Custom" order and
@@ -568,7 +599,11 @@ every timed round.
 
 **Each phase's damage**: `practice_damage` and `qualifying_damage`
 (`Option<DamageLevel>`, left off the wire when absent) give practice and
-every qualifying round a damage rule of their own; the race, and a phase
+every qualifying round a damage rule of their own (client: the Race weekend
+section's Practice damage and Qualifying damage rows, Race's / Off / Reduced
+/ Full / Visual, kept as `CreateWeekendPracticeDamage` /
+`CreateWeekendQualifyingDamage` and sent in `WeekendToSend`, practice's only
+with practice; the summary names them); the race, and a phase
 not named, has the session's `damage`. When either is named, each phase
 begins (`GameSession::begin_phase_damage`, from practice, Q1 and the race's
 grid or countdown) by `set_damage` with its rule: every car takes it, a

@@ -199,4 +199,113 @@ namespace ApexBoard
 		}
 		return Rows;
 	}
+
+	// --- The one-lap shoot-out ----------------------------------------------------
+
+	/**
+	 * Whether the qualifying running now is a shoot-out (`is_shootout_round`):
+	 * the session's format is one, and it is a plain session's qualifying or
+	 * a weekend's final round.
+	 */
+	inline bool IsShootoutRound(EApexQualifyingFormat Format, bool bWeekend, int32 Round, int32 Rounds)
+	{
+		return Format == EApexQualifyingFormat::Shootout && (!bWeekend || Round >= Rounds);
+	}
+
+	/** "1st", "2nd", "3rd", "4th", "11th", "22nd". */
+	inline FString Ordinal(int32 N)
+	{
+		const int32 Tens = N % 100;
+		const TCHAR* Suffix = (Tens >= 11 && Tens <= 13) ? TEXT("th")
+			: N % 10 == 1 ? TEXT("st") : N % 10 == 2 ? TEXT("nd") : N % 10 == 3 ? TEXT("rd") : TEXT("th");
+		return FString::Printf(TEXT("%d%s"), N, Suffix);
+	}
+
+	/** Where one car of a shoot-out's run order stands. */
+	enum class EShootoutRun : uint8 { Waiting, Running, Done };
+
+	struct FShootoutLine
+	{
+		/** 1-based place in the run order. */
+		int32 Place = 0;
+		int32 CarIndex = -1;
+		FString Name;
+		bool bYou = false;
+		EShootoutRun Run = EShootoutRun::Waiting;
+	};
+
+	/** The waiting display: the run order with names, who is out and where the local car stands. */
+	struct FShootoutView
+	{
+		TArray<FShootoutLine> Lines;
+		/** The car on its run, -1 for none; whether it has started its flying lap. */
+		int32 RunningCar = -1;
+		bool bFlying = false;
+		/** The local car's place in the order, 0 when it is not in it. */
+		int32 YourPlace = 0;
+		/** Runs still to come before the local car's, the one under way included. */
+		int32 ToGo = 0;
+		bool bYourTurn = false;
+		bool bYouDone = false;
+	};
+
+	inline FShootoutView Shootout(const FApexShootoutState& State, const TArray<FApexRosterEntry>& Roster, int32 LocalCarIndex)
+	{
+		FShootoutView Out;
+		for (int32 Index = 0; Index < State.Order.Num(); ++Index)
+		{
+			FShootoutLine Line;
+			Line.Place = Index + 1;
+			Line.CarIndex = State.Order[Index];
+			const FApexRosterEntry* Entry = Roster.FindByPredicate(
+				[&Line](const FApexRosterEntry& Candidate) { return Candidate.CarIndex == Line.CarIndex; });
+			Line.Name = Entry ? Entry->PlayerName : FString::Printf(TEXT("Car %d"), Line.CarIndex + 1);
+			Line.bYou = Line.CarIndex == LocalCarIndex;
+			Line.Run = Line.Place == State.Running ? EShootoutRun::Running
+				: Line.Place <= State.Done ? EShootoutRun::Done
+				: EShootoutRun::Waiting;
+			if (Line.Run == EShootoutRun::Running)
+			{
+				Out.RunningCar = Line.CarIndex;
+				Out.bFlying = State.bFlying;
+			}
+			if (Line.bYou)
+			{
+				Out.YourPlace = Line.Place;
+				Out.bYourTurn = Line.Run == EShootoutRun::Running;
+				Out.bYouDone = Line.Run == EShootoutRun::Done;
+			}
+			Out.Lines.Add(MoveTemp(Line));
+		}
+		if (Out.YourPlace > 0 && !Out.bYourTurn && !Out.bYouDone)
+		{
+			for (const FShootoutLine& Line : Out.Lines)
+			{
+				Out.ToGo += Line.Place < Out.YourPlace && Line.Run != EShootoutRun::Done ? 1 : 0;
+			}
+		}
+		return Out;
+	}
+
+	/** "YOU RUN 4TH · 2 TO GO", "YOU ARE NEXT", "YOUR TURN", "YOUR RUN IS DONE"; empty when not in the order. */
+	inline FString ShootoutCall(const FShootoutView& View)
+	{
+		if (View.YourPlace <= 0)
+		{
+			return FString();
+		}
+		if (View.bYourTurn)
+		{
+			return TEXT("YOUR TURN");
+		}
+		if (View.bYouDone)
+		{
+			return TEXT("YOUR RUN IS DONE");
+		}
+		if (View.ToGo == 0)
+		{
+			return FString::Printf(TEXT("YOU RUN %s · YOU ARE NEXT"), *Ordinal(View.YourPlace).ToUpper());
+		}
+		return FString::Printf(TEXT("YOU RUN %s · %d TO GO"), *Ordinal(View.YourPlace).ToUpper(), View.ToGo);
+	}
 }

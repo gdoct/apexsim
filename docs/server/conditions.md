@@ -517,21 +517,48 @@ See [protocol.md](protocol.md) for the append-only rules.
   `ClampedForecast` as the server does and written only when not empty), the flow's `CreateConditions` (kept on the profile),
   `UApexNetSubsystem::GetSessionConditions` and `GetLatestSky`
   (`FApexSkyNow` on `FApexTelemetryFrame::Sky`).
-- The create screen's Conditions tab: weather tiles, time-of-day slider,
-  air temperature stepper with AUTO, wind strength list and an eight-way
-  direction dial, Clock (frozen to 60x), Weather changes and Track rubber
-  rows, and under them the Forecast: the changes the pick lays out with the
-  day's clock at each (`ApexCreateSession::Forecast`, a port of
-  `conditions::forecast` to the bit, pinned by
+- The create screen's Conditions tab (it scrolls): weather tiles,
+  time-of-day slider, air temperature stepper with AUTO, wind strength list
+  and an eight-way direction dial, Clock (frozen to 60x), Weather changes
+  and Track rubber rows, and under them the Forecast: the changes the pick
+  lays out with the day's clock at each (`ApexCreateSession::Forecast`, a
+  port of `conditions::forecast` to the bit, pinned by
   `ApexSim.UI.CreateSession.Forecast` against the Rust's
   `the_forecast_reference`). Picking a changeable sky gives the create a
   `sky_seed` of its own (`NewSkySeed`); ANOTHER rolls a new one; a sky that
   holds sends none.
+- The AUTO air is the server's `resolve_at` over the pending circuit
+  (`ConditionsAtSite`: its latitude and its solar noon on the picked date):
+  `ApexCreateSession::AirTempC(C, Latitude)` from `AutoAirTempCAt` (the
+  model day's air peaking two hours after solar noon, moved by
+  `SeasonOffsetC`, a port of `season_air_c`; snow's own air unmoved) and
+  `SnowAirDropC`; `IsWinter` and the laid-out forecast read that air, so a
+  January overcast night previews the winter sky the server makes of it.
+  `ApexSim.UI.CreateSession.SeasonAir` pins them against figures printed by
+  the Rust for the conditions behind
+  `a_date_moves_the_air_with_the_season_and_no_date_is_late_may`. The sky
+  preview's air and asphalt use the same.
+- ADD STEP writes a forecast: one row per step (at most 10), a minute
+  stepper (5 minutes a press, the clock beside it when it runs) held a
+  4-minute gap from its neighbours and the horizon, a weather stepper that
+  skips the weather before it (a step left repeating the next is dropped),
+  and REMOVE (`ApexCreateSession::AddForecastStep`, `MoveForecastStep`,
+  `CycleForecastWeather`, `RemoveForecastStep`, so the list always passes
+  `ClampedForecast`; picking a start weather the first step repeats drops
+  that step). Rows are reached by keyboard and pad like every other
+  control. The forecast line then reads "Written: ..." as the server will
+  follow it (`KeptToSky`: a winter sky's rain as snow, a summer sky's snow
+  as rain, with a note when that changes it), ANOTHER is off, and the
+  forecast goes with the create's conditions (and each weekend day's sky).
+  `Describe` names its first three steps ("forecast light rain at 20 min,
+  heavy rain at 45 min, 1 more").
 - The HUD's `sky.outlook`: the changes beyond the three telemetry carries,
-  from the same port laid out from the session's seed
-  (`ApexCreateSession::SessionSeed`: the host's `sky_seed`, else the first
-  half of the session id, `SeedOfSessionId`). The next two changes place the
-  session on the list; nothing is shown until they match.
+  from `ApexCreateSession::SessionForecast`: the session's written forecast
+  (`HasForecast`, as echoed), else the seeded one laid out from the
+  session's seed (`ApexCreateSession::SessionSeed`: the host's `sky_seed`,
+  else the first half of the session id, `SeedOfSessionId`). The next two
+  changes place the session on the list; nothing is shown until they match.
+- `-ApexAutoRace` takes `-ApexDayOfYear=N` and `-ApexForecast=MIN:weather,...`.
 - The race director lights by `ApexSky::Derive` (static sky) or
   `ApexSky::DeriveLive` (blended from the server's cloud and rain,
   relit only when `LiveSkyMoved` says so); `FSkySite` (latitude, north from

@@ -628,6 +628,17 @@ public:
 	/** Where the session's qualifying shoot-out stands; bValid false outside one. */
 	const FApexShootoutState& GetShootoutState() const { return CurrentShootoutState; }
 
+	/**
+	 * The timed laps the local car may still start under the session's lap
+	 * allowance in this qualifying session or round, counted from its own lap
+	 * ends (`LapTiming`) since qualifying (or the round) began; -1 when there
+	 * is no allowance, outside qualifying, and in a shoot-out (one lap each).
+	 * A driver who joins part way through counts from the join.
+	 */
+	int32 GetQualifyingLapsLeft() const;
+	/** The local car's timed laps ended in this qualifying session or round. */
+	int32 GetQualifyingTimedLaps() const { return QualifyingTimedLaps; }
+
 	/** The race weekend the session is, from its SessionJoined; no rounds when it is none. */
 	const FApexWeekendFormat& GetSessionWeekend() const { return CurrentWeekend; }
 	bool IsWeekendSession() const { return CurrentWeekend.IsWeekend(); }
@@ -939,6 +950,8 @@ private:
 	EApexQualifyingFormat CurrentQualifyingFormat = EApexQualifyingFormat::Open;
 	int32 CurrentQualifyingLapAllowance = 0;
 	FApexShootoutState CurrentShootoutState;
+	/** The local car's timed lap ends since qualifying (or the round) began (GetQualifyingLapsLeft). */
+	int32 QualifyingTimedLaps = 0;
 	FApexWeekendFormat CurrentWeekend;
 	FApexWeekendState CurrentWeekendState;
 

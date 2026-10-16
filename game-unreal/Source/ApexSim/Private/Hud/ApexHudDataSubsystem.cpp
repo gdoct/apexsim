@@ -402,6 +402,7 @@ void UApexHudDataSubsystem::Refresh()
 		// The race's pit rule, the same for every car.
 		In.MandatoryStops = Net->GetSessionMandatoryStops();
 		In.bCompoundChange = Net->GetSessionCompoundChange();
+		In.QualifyingLapsLeft = Net->GetQualifyingLapsLeft();
 		RefreshCarNames();
 		In.CarNames = &CarNames;
 		In.CarCompounds = &CarCompounds;

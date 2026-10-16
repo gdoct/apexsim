@@ -246,6 +246,39 @@ the finish overlay's rows after a one-lap race under a one-stop rule.
 - The `BoxThisLap` wheel slot on a real wheel, and the second compound owed
   (`pit.compound_owed`, "2ND SET") under a Two compounds rule.
 
+### R12. The create screen's sky and qualifying formats
+
+`r12-create-sky`, `r12-create-qualifying`, `r12-shootout`,
+`r12-lap-allowance` and `r12-forecast-hud` in `scripts/verify/runs.yml`
+([server/conditions.md](server/conditions.md#client),
+[server/sessions.md](server/sessions.md#starting-order-and-qualifying)).
+The create runs save to the player's profile: keep a copy of
+`game-unreal/Saved/SaveGames/ApexProfile.sav` and put it back after.
+
+Seen on 2026-10-16: the Conditions tab on 15 Jan at the Norisring (AUTO
+air 1 °C at 23:00 against late May's 15 °C, solar noon 12:25), a forecast
+written with ADD STEP and moved by pad, the written line kept to a winter
+sky (rain as snow) once the air was fixed at 0 °C; the qualifying Format
+and Lap allowance rows, the weekend's Final round, Practice / Qualifying
+damage rows and the summary naming them; a shoot-out against two AI: the
+run order with names, OUTLAP / FLYING LAP / DONE, "YOU RUN 3RD · 2 TO GO"
+then "1 TO GO" on the disabled GO OUT, the scoreboard opened with the
+camera on each car as it went out, and the YOUR TURN banner as the player's
+car was sent out; a written forecast echoed and laid out in `sky.outlook`
+(`apexsim.hud.Data`), and `qualifying.laps_left` reading 2 on the track.
+
+- The shoot-out's end and its results sheet (QUALIFYING SHOOT-OUT, ONE
+  FLYING LAP EACH, RAN Nth): the stand-in does not drive the player's car
+  in qualifying, so its run stood still until its time ran out. A driven
+  run, or the run timing out, then the sheet.
+- The lap allowance counting down: Laps left 1 and USED on the race state,
+  LAP ALLOWANCE USED with GO OUT disabled in the garage, and GO OUT's
+  "2 timed laps left" badge (the same stand-in gap; the badge was not up at
+  12 s, before the session was in qualifying).
+- A weekend whose final round is a shoot-out, live, and the HUD's
+  conditions panel showing the written outlook (the race layout used had no
+  conditions panel up).
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

@@ -1869,6 +1869,42 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	{
 		Conditions.TrackRubberPct = FMath::Max(SkyValue, 0);
 	}
+	// -ApexDayOfYear=N (the date) and -ApexForecast=MIN:weather,... (a
+	// written forecast: from each session minute on, that weather).
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexDayOfYear="), SkyValue))
+	{
+		Conditions.DayOfYear = SkyValue > 0 ? SkyValue : FApexSessionConditions::Auto;
+	}
+	FString ForecastText;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexForecast="), ForecastText, /*bShouldStopOnSeparator*/ false))
+	{
+		TArray<FString> Steps;
+		ForecastText.ParseIntoArray(Steps, TEXT(","));
+		for (const FString& Text : Steps)
+		{
+			FString Minute, Name;
+			if (!Text.Split(TEXT(":"), &Minute, &Name) || !Minute.IsNumeric())
+			{
+				UE_LOG(LogApexSim, Warning, TEXT("-ApexForecast: expected MIN:weather, got '%s'"), *Text);
+				continue;
+			}
+			const FString Key = Name.TrimStartAndEnd().ToLower();
+			FApexForecastStep Step;
+			Step.AtMin = FCString::Atoi(*Minute);
+			bool bKnown = true;
+			if (Key == TEXT("sunny"))          { Step.Weather = EApexWeather::Sunny; }
+			else if (Key == TEXT("cloudy"))    { Step.Weather = EApexWeather::Cloudy; }
+			else if (Key == TEXT("overcast"))  { Step.Weather = EApexWeather::Overcast; }
+			else if (Key == TEXT("lightrain")) { Step.Weather = EApexWeather::LightRain; }
+			else if (Key == TEXT("heavyrain")) { Step.Weather = EApexWeather::HeavyRain; }
+			else if (Key == TEXT("snow"))      { Step.Weather = EApexWeather::Snow; }
+			else { bKnown = false; UE_LOG(LogApexSim, Warning, TEXT("-ApexForecast: unknown weather '%s'"), *Name); }
+			if (bKnown)
+			{
+				Conditions.Forecast.Add(Step);
+			}
+		}
+	}
 	Conditions = Conditions.Clamped();
 
 	// SelectCar before CreateSession, same order the UI uses.
@@ -1899,9 +1935,24 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	int32 MandatoryStops = ApexMandatoryStops::None;
 	FParse::Value(FCommandLine::Get(), TEXT("ApexMandatoryStops="), MandatoryStops);
 	const bool bCompoundChange = FParse::Param(FCommandLine::Get(), TEXT("ApexCompoundChange"));
+	// -ApexQualifyingFormat=shootout (a weekend's final round) and
+	// -ApexLapAllowance=N (qualifying's timed laps; none by default).
+	FString FormatText;
+	const EApexQualifyingFormat QualifyingFormat = FParse::Value(FCommandLine::Get(), TEXT("ApexQualifyingFormat="), FormatText)
+		&& FormatText.StartsWith(TEXT("shoot"), ESearchCase::IgnoreCase) ? EApexQualifyingFormat::Shootout : EApexQualifyingFormat::Open;
+	int32 LapAllowance = ApexQualifyingLapAllowance::None;
+	FParse::Value(FCommandLine::Get(), TEXT("ApexLapAllowance="), LapAllowance);
+	// -ApexGridOrder=@host,@ai:1,...: the start order (a shoot-out runs it backwards).
+	FString OrderText;
+	TArray<FString> GridOrder;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexGridOrder="), OrderText, /*bShouldStopOnSeparator*/ false))
+	{
+		OrderText.ParseIntoArray(GridOrder, TEXT(","));
+	}
 	Net->CreateSessionWithOrder(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions, Damage,
-		AiSkill, Flow->EffectiveRaceSeconds(), TArray<FString>(), Flow->EffectiveQualifyingSeconds(), Flow->WeekendToSend(),
-		ApexQualifyingCutoff::Clamp(Cutoff), ApexMandatoryStops::Clamp(MandatoryStops), bCompoundChange);
+		AiSkill, Flow->EffectiveRaceSeconds(), GridOrder, Flow->EffectiveQualifyingSeconds(), Flow->WeekendToSend(),
+		ApexQualifyingCutoff::Clamp(Cutoff), ApexMandatoryStops::Clamp(MandatoryStops), bCompoundChange,
+		QualifyingFormat, ApexQualifyingLapAllowance::Clamp(LapAllowance));
 }
 
 void UApexRootWidget::HandleUdpReady()

@@ -62,65 +62,6 @@ to everyone who saw the old one.
 **Check:** `a_weekend_day_bakes_its_own_sky`; a weekend with a wet practice
 day watched from the lobby to the race.
 
-### 19. The create screen's sky
-
-What the Conditions tab shows before a session exists against what the
-server will simulate ([server/conditions.md](server/conditions.md)).
-
-- The AUTO air (`ApexCreateSession::AutoAirTempC`) is the model day's at a
-  13:00 noon: it does not follow the season of the Date row
-  (`SessionConditions::auto_air_temperature_c_at`, `season_air_c`) or the
-  circuit's own solar noon, and `IsWinter` reads it, so a January overcast
-  night previews as no winter sky while the server makes it one. Port
-  `season_air_c` and `snow_air_drop_c` with the track's latitude.
-- A host cannot write a forecast on the Conditions tab: the server and the
-  codec take one (`SessionConditions::forecast`, `FApexSessionConditions::Forecast`),
-  but there is no editor (a list of steps, each a session minute and a
-  weather), and the Forecast list and the HUD's `sky.outlook` lay theirs out
-  from the seed (`ApexCreateSession::Forecast`) even when the session's
-  conditions carry a written one: they should read `Forecast` when
-  `HasForecast()`. `Describe` does not mention one.
-
-**Check:** `ApexSim.UI.CreateSession` against the Rust's
-`a_date_moves_the_air_with_the_season_and_no_date_is_late_may` figures; a
-written forecast created, echoed and shown in the HUD's outlook.
-
-### 20. Qualifying formats on screen
-
-The one-lap shoot-out, the lap allowance and a weekend phase's own damage
-([server/sessions.md](server/sessions.md#starting-order-and-qualifying))
-are on the wire and in the client's codec (`GetSessionQualifyingFormat`,
-`GetSessionQualifyingLapAllowance`, `GetShootoutState` /
-`OnShootoutStateChanged`, `FApexWeekendFormat::PracticeDamage` /
-`QualifyingDamage`, `WeekendState.Damage` into `GetSessionDamage`), but no
-screen uses them.
-
-- The create screen has no Format row under qualifying (Open, Shoot-out;
-  in the Race weekend section it makes the final round the shoot-out and
-  hides that round's length), no Lap allowance stepper (None, 1 to 30), and
-  no Damage row per weekend phase (Practice / Qualifying: "Race's", Off,
-  Reduced, Full, Visual). Each is kept in the profile and passed to
-  `CreateSessionWithOrder` (`QualifyingFormat`, `QualifyingLapAllowance`)
-  or the weekend format (`bHasPracticeDamage` ...); the summary names them.
-- The qualifying garage (`UApexHotlapWidget::SetQualifying`) shows GO OUT
-  in a shoot-out, which the server refuses: it wants a waiting display
-  instead (the run order from `FApexShootoutState::Order` with each car's
-  name, the car out now and whether it is on its flying lap, "You run 4th,
-  2 to go"), a YOUR TURN call as the local car is sent out (its `PlaceOf`
-  equals `Running`), and the camera on the car running for those waiting
-  (`SetSpectating`/`FocusCar` as the scoreboard's watch does).
-- With a lap allowance the garage and the HUD do not say how many timed
-  laps are left (the client counts the local car's lap ends in
-  `Qualification`; a HUD data point `qualifying.laps_left` would be listed
-  in `docs/game/hud-modding.md`), and GO OUT is not disabled once they are
-  used ("Lap allowance used" comes back as an error toast).
-- The session results' qualifying sheet (`ApexBoard::Sheet`) does not say
-  the session was a shoot-out (one lap each, run order).
-
-**Check:** `ApexSim.Net.ProtocolCodec` (the shoot-out's golden bytes); an
-auto race with a shoot-out against two AI (`-ApexAutoRace`), the garage
-read while waiting and on the local car's turn.
-
 ### 5. Hotlap and lap records
 
 The ghost, the hotlap replay and watch.

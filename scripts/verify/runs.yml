@@ -1478,3 +1478,168 @@ runs:
       - at: 25
         label: "put back: None, Free"
         checks: "the profile left as it was"
+
+  # The create screen's sky: a January date at a northern circuit, a forecast
+  # written. The rows are saved to the player's profile as they change: keep a
+  # copy of game-unreal/Saved/SaveGames/ApexProfile.sav and put it back after.
+  - id: r12-create-sky
+    about: "R12. The Conditions tab: a written forecast, the season's air"
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=3
+      - -ApexCreateTab=1
+    exec:
+      12: ["apexsim.ui.Texts"]
+      13: ["apexsim.ui.Mouse down 1833 321"]
+      13.2: ["apexsim.ui.Mouse up 1833 321"]
+      14: ["apexsim.ui.Click Overcast"]
+      15: ["apexsim.ui.Click Night"]
+      16: ["apexsim.ui.Click AUTO"]
+      17: ["apexsim.ui.Click ADD STEP"]
+      18: ["apexsim.ui.Click ADD STEP"]
+      19: ["apexsim.ui.Click ADD STEP"]
+      20: ["apexsim.ui.Click ADD STEP"]
+      21: ["apexsim.ui.Texts"]
+      24: ["apexsim.ui.Click AUTO"]
+      25: ["apexsim.ui.Mouse down 1221 884"]
+      25.2: ["apexsim.ui.Mouse up 1221 884"]
+      30: ["apexsim.ui.Click ADD STEP"]
+      31: ["apexsim.ui.Key Gamepad_FaceButton_Bottom"]
+      31.5: ["apexsim.ui.Key Gamepad_FaceButton_Bottom"]
+      32: ["apexsim.ui.Key Gamepad_DPad_Right"]
+      32.5: ["apexsim.ui.Key Gamepad_DPad_Right"]
+      33: ["apexsim.ui.Key Gamepad_FaceButton_Bottom"]
+      33.5: ["apexsim.ui.Key Gamepad_DPad_Up"]
+      34: ["apexsim.ui.Texts"]
+    shots:
+      - at: 23
+        label: "Conditions: 15 Jan at 49 N, overcast 23:00, four written steps"
+        checks: "the season's air on AUTO (1 C against late May's 15), the step rows, the written line"
+      - at: 28
+        label: "the air fixed at 0 C: a winter sky"
+        checks: "the forecast line's rain falling as snow"
+      - at: 36
+        label: "the pad on a fifth step: its minute and weather moved"
+        checks: "pad navigation through the step rows"
+
+  # The create screen's qualifying rows: format, lap allowance, a weekend's
+  # shoot-out and each phase's damage. Saved to the profile as they change:
+  # put ApexProfile.sav back after.
+  - id: r12-create-qualifying
+    about: "R12. The create screen's qualifying Format, Lap allowance and phase Damage rows"
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=3
+      - -ApexCreateMode=6
+    exec:
+      12: ["apexsim.ui.Texts"]
+      13: ["apexsim.ui.Mouse down 1833 439"]
+      13.2: ["apexsim.ui.Mouse up 1833 439"]
+      13.5: ["apexsim.ui.Mouse down 1833 439"]
+      13.7: ["apexsim.ui.Mouse up 1833 439"]
+      14: ["apexsim.ui.Mouse down 1833 439"]
+      14.2: ["apexsim.ui.Mouse up 1833 439"]
+      16.5: ["apexsim.ui.Click Shoot-out"]
+      20: ["apexsim.ui.Click Weekend"]
+      21: ["apexsim.ui.Click Shoot-out"]
+      22: ["apexsim.ui.Mouse down 1500 725"]
+      22.2: ["apexsim.ui.Mouse up 1500 725"]
+      22.5: ["apexsim.ui.Mouse down 1600 761"]
+      22.7: ["apexsim.ui.Mouse up 1600 761"]
+      26: ["apexsim.ui.Click One round"]
+    shots:
+      - at: 16
+        label: "Create > Race, qualifying: Open, 3 laps allowed"
+        checks: "Format row, Lap allowance, the summary"
+      - at: 19
+        label: "qualifying: Shoot-out"
+        checks: "no clock chips, no allowance, the info line"
+      - at: 25
+        label: "weekend: Q3 a shoot-out, practice no damage, qualifying reduced"
+        checks: "Final round, Lap allowance, Practice / Qualifying damage, the summary"
+      - at: 28
+        label: "weekend: one round, a shoot-out: no round length"
+        checks: "Each round hidden"
+
+  # A one-lap shoot-out against two AI: the waiting display, the camera on
+  # the car out, the player's turn (the stand-in drives it), the sheet.
+  - id: r12-shootout
+    about: "R12. A qualifying shoot-out: waiting, YOUR TURN, the results"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=2
+      - -ApexMode=6
+      - -ApexQualifyingFormat=shootout
+      - -ApexGridOrder=@host,@ai:1,@ai:2
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+    exec:
+      20: ["apexsim.hud.Data qualifying."]
+    shots:
+      - {at: 20, label: "garage at the start", checks: "the waiting display, the scoreboard"}
+      - {at: 40, label: "AI 2 on its outlap", checks: "camera on the car out"}
+      - {at: 80, label: "AI 2 flying", checks: "FLYING LAP"}
+      - {at: 120, label: "AI 1", checks: "the run order moves on"}
+      - {at: 160, label: "AI 1 flying", checks: "1 TO GO"}
+      - {at: 200, label: "", checks: ""}
+      - {at: 225, label: "", checks: "YOUR TURN"}
+      - {at: 245, label: "", checks: "YOUR TURN"}
+      - {at: 265, label: "", checks: ""}
+      - {at: 300, label: "", checks: ""}
+      - {at: 340, label: "", checks: ""}
+      - {at: 380, label: "after the runs", checks: "the shoot-out sheet"}
+
+  # A lap allowance of two: the laps left on the HUD and the garage, GO OUT
+  # gone once used. The stand-in drives.
+  - id: r12-lap-allowance
+    about: "R12. Qualifying with a lap allowance of two"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=2
+      - -ApexMode=6
+      - -ApexLapAllowance=2
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexHotlapOutAfter=15
+    exec:
+      12: ["apexsim.hud.Data qualifying."]
+      70: ["apexsim.hud.Data qualifying."]
+      130: ["apexsim.hud.Data qualifying."]
+      200: ["apexsim.hud.Data qualifying."]
+    shots:
+      - {at: 12, label: "garage: 2 timed laps left", checks: "GO OUT's badge"}
+      - {at: 60, label: "outlap: laps left 2", checks: "qualifying.laps_left on the race state"}
+      - {at: 120, label: "a timed lap ended", checks: "laps left 1"}
+      - {at: 170, label: "", checks: ""}
+      - {at: 210, label: "allowance used: in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+
+  # A written forecast made by an auto race, echoed and laid out on the HUD.
+  - id: r12-forecast-hud
+    about: "R12. A written forecast in the HUD's conditions and outlook"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=2
+      - -ApexLaps=5
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexForecast=5:cloudy,10:overcast,15:lightrain,20:overcast,25:cloudy,30:sunny
+      - -ApexView=chase
+    exec:
+      25: ["apexsim.hud.Data sky.", "apexsim.hud.Data session.conditions"]
+    shots:
+      - {at: 28, label: "the conditions panel: next three and the outlook", checks: "sky.outlook from the written forecast"}
