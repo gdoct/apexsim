@@ -118,9 +118,10 @@ Called inside `update_air` before the physics, and in the countdown.
   is `HANDBACK_PAST_LINE_M` (1 m) past the exit line (the last limit line,
   by the exit light): `PitState::driving`, its automatic gearbox on and
   steering aid off, the driver's own values kept in `restore_aids` and put
-  back at the end. The entry and exit tapers are the driver's. The AI's
-  route runs on to the lane's end (`pit::route_end_m`): its racing line
-  knows nothing of the exit taper.
+  back at the end. The entry and exit tapers are the driver's: the car is
+  handed back at the limit, or at what a bend of the lane itself before
+  the line allows. The AI's route runs on to the lane's end
+  (`pit::route_end_m`): its racing line knows nothing of the exit taper.
 - **Manual pit lane.** A driver whose `SetDriverAids` sent `pit_autopilot:
   false` (`CarState::manual_pits`; Settings > Assists > Pit lane) is never
   taken over: they drive the lane on the limiter, stop within
@@ -134,7 +135,8 @@ Called inside `update_air` before the physics, and in the countdown.
   the last 20 m and back out after the service; a Stanley steer at the
   front axle damped by the yaw rate the route does not ask for, no more lock
   than the fronts can use (the aid is off), the limit between the lines,
-  the route's bends at 6 m/s^2, slower while wide or pointing across the
+  the route's bends at 6 m/s^2 (a human's only up to its hand-back, so it
+  does not slow for the exit taper it never drives), slower while wide or pointing across the
   lane, 8 m/s through the swing, a stop on the spot, queueing behind a car
   ahead on the same path. A car making no headway for `AUTOPILOT_STUCK_S`
   (4 s, not in service or held) is put back on its route
@@ -261,8 +263,9 @@ cargo test --release --test pit_stop_test ai_pit_survey -- --ignored --nocapture
 ```
 
 `pit_lane_survey` drives a human's car into every circuit's lane, to its
-box and out under the autopilot, and fails on a stall, a recovery or the
-car's middle within 1.5 m of a lane edge. `ai_pit_survey` has an AI on worn
+box and out under the autopilot, and fails on a stall, a recovery, the
+car's middle within 1.5 m of a lane edge, or a hand-back more than 1.5 m/s
+under what the lane allows there (`pit::lane_bend_mps`). `ai_pit_survey` has an AI on worn
 tyres plan, make and race on from a stop on every circuit. `PIT_TRACKS=A,B`
 narrows either, `PIT_TRACE=1` prints the trip.
 `the_pit_lane_is_a_pit_lane_without_the_road_mesh` checks every box and

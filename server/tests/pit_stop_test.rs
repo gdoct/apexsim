@@ -490,6 +490,11 @@ fn an_away_drivers_car_is_brought_in_for_its_stop() {
     );
 }
 
+/// A human's car is handed back no slower than this under what the lane
+/// allows there (its limit, or its bend), m/s: the autopilot does not slow
+/// for the exit taper past the line.
+const HANDBACK_SLACK_MPS: f32 = 1.5;
+
 /// What became of one human's trip down a pit lane under the autopilot.
 #[derive(Debug, Default)]
 struct Trip {
@@ -499,6 +504,13 @@ struct Trip {
     to_box_s: Option<f32>,
     service_s: f32,
     handed_back_s: Option<f32>,
+    /// Speed at the hand-back, and the slowest the car went over the 40 m
+    /// of lane before it (past the box), m/s.
+    handback_mps: f32,
+    exit_min_mps: f32,
+    /// What the lane lets the car do at the hand-back: its limit, or less
+    /// where it bends there, m/s.
+    handback_cap_mps: f32,
     /// Furthest the car strayed from the lane's middle outside the box swing, m.
     worst_off_m: f32,
     /// Seconds the car crawled (< 1 m/s) away from its box and the light.
@@ -644,8 +656,30 @@ fn drive_a_trip(track: TrackConfig, car: CarConfig, limit_s: f32) -> Option<Trip
                 lane.frame_at(s.pit.lane_station_m).2, s.angular_vel_yaw, s.steering_input
             );
         }
+        if s.pit.driving
+            && s.pit.serviced
+            && !s.pit.servicing
+            && s.pit.lane_station_m > lane.limit_end_m - 40.0
+        {
+            trip.exit_min_mps = if trip.exit_min_mps > 0.0 {
+                trip.exit_min_mps.min(s.speed_mps)
+            } else {
+                s.speed_mps
+            };
+        }
         if served && trip.took_over && !s.pit.driving {
             trip.handed_back_s = Some(t);
+            trip.handback_mps = s.speed_mps;
+            // A bend behind the line, run out of at a GT3's pace on the
+            // lane (about 4 m/s²).
+            trip.handback_cap_mps = (0..=20)
+                .map(|back| {
+                    let back = 2.0 * back as f32;
+                    let bend =
+                        apexsim_server::pit::lane_bend_mps(&lane, s.pit.lane_station_m - back);
+                    (bend * bend + 2.0 * 4.0 * back).sqrt()
+                })
+                .fold(lane.speed_limit_mps, f32::min);
             break;
         }
     }
@@ -669,6 +703,12 @@ fn a_human_driving_into_the_pit_lane_is_driven_to_their_box_and_out() {
         trip.service_s
     );
     assert!(trip.handed_back_s.is_some(), "handed back at the exit line");
+    assert!(
+        trip.handback_mps > trip.handback_cap_mps - HANDBACK_SLACK_MPS,
+        "handed back at the limit: {:.1} m/s against {:.1}",
+        trip.handback_mps,
+        trip.handback_cap_mps
+    );
     assert!(
         trip.worst_off_m < 2.5,
         "{:.1} m off the lane's middle",
@@ -896,16 +936,20 @@ fn pit_lane_survey() {
         let ok = trip.took_over
             && trip.to_box_s.is_some()
             && trip.handed_back_s.is_some()
+            && trip.handback_mps > trip.handback_cap_mps - HANDBACK_SLACK_MPS
             && trip.worst_off_m < within
             && trip.stuck_s < 2.0
             && trip.recoveries == 0;
         println!(
-            "{stem:14} {} boxes {boxes:2}  took over {}  box {:>6}  service {:4.1} s  out {:>6}  off {:4.1} m at {:5.0} {}  stuck {:4.1} s  recovered {}",
+            "{stem:14} {} boxes {boxes:2}  took over {}  box {:>6}  service {:4.1} s  out {:>6} at {:4.1}/{:4.1} m/s (lane {:4.1})  off {:4.1} m at {:5.0} {}  stuck {:4.1} s  recovered {}",
             if ok { "ok  " } else { "FAIL" },
             trip.took_over,
             trip.to_box_s.map_or("-".into(), |t| format!("{t:.1}")),
             trip.service_s,
             trip.handed_back_s.map_or("-".into(), |t| format!("{t:.1}")),
+            trip.handback_mps,
+            trip.exit_min_mps,
+            trip.handback_cap_mps,
             trip.worst_off_m,
             trip.worst_at.0,
             if trip.worst_at.1 { "out" } else { "in " },

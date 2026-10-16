@@ -236,7 +236,6 @@ the launcher import with the network off.
 - Review and improve the visual and functional aspects of pit lane entry and exit, ensuring smooth transitions and accurate representation in the game. 
 - The pit lane entries should be closer to the actual pit boxes and clearly marked by a line.
 - The pit lane exits should be immediately after the last pit box. That should be where the light is located. From that point, the player can already get control there and have no speed limit.
-- when the autopilot stops it should be remain at speed. currently it slows the car down before releasing control to the player.
 
 
 ## P5: Cleanup

@@ -1338,6 +1338,17 @@ pub fn recovery_pose(lane: &PitLane, pit_box: &PitBox, state: &CarState) -> (f32
     (x - heading.sin() * lat, y + heading.cos() * lat, heading)
 }
 
+/// The most the pit route takes the lane's own bend at `s` at, m/s (no
+/// limit where it runs straight).
+pub fn lane_bend_mps(lane: &PitLane, s: f32) -> f32 {
+    let k = route_curvature(lane, s, f32::INFINITY, 0.0, true).abs();
+    if k > 1e-4 {
+        (ROUTE_LATERAL_MPS2 / k).sqrt()
+    } else {
+        f32::INFINITY
+    }
+}
+
 /// The route's curvature at `s`, 1/m: the lane's own, plus the swing.
 fn route_curvature(lane: &PitLane, s: f32, box_s: f32, box_lat: f32, serviced: bool) -> f32 {
     let heading = |at: f32| {
@@ -1360,7 +1371,9 @@ fn route_curvature(lane: &PitLane, s: f32, box_s: f32, box_lat: f32, serviced: b
 /// swing into the box and stopping on its spot, queueing behind a car
 /// ahead on the same path, waiting at a red exit light, and free past the
 /// last line. The automatic gearbox shifts and the steering aid is off for
-/// the route (`GameSession`).
+/// the route (`GameSession`). Bends past `route_end_m` are not slowed for:
+/// a human's car is handed back at the exit line ([`route_end_m`]) at the
+/// limit, and the exit taper beyond is the driver's.
 ///
 /// It used to be pure pursuit, aiming at the box's spot once it was near:
 /// the target jumped sideways when it switched, and the car weaved ±5 m
@@ -1371,6 +1384,7 @@ pub fn drive_input(
     state: &CarState,
     config: &CarConfig,
     traffic: &[LaneCar],
+    route_end_m: f32,
 ) -> PlayerInputData {
     let v = state.speed_mps.max(0.0);
     let serviced = state.pit.serviced;
@@ -1412,7 +1426,7 @@ pub fn drive_input(
     // tapers and the lane's curves, taken free past the last line, threw
     // a car wide onto the walls.
     let mut ahead = 0.0f32;
-    while ahead <= ROUTE_LOOKAHEAD_M {
+    while ahead <= ROUTE_LOOKAHEAD_M.min(route_end_m - s_car) {
         let k = route_curvature(lane, s_car + ahead, box_s, box_lat, serviced).abs();
         if k > 1e-4 {
             let bend = (ROUTE_LATERAL_MPS2 / k).sqrt();

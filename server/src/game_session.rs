@@ -4804,6 +4804,7 @@ impl GameSession {
                     state,
                     config,
                     &self.lane_traffic(lane, state),
+                    crate::pit::route_end_m(lane, false),
                 );
                 if let Some(own) = inputs.get(&state.player_id) {
                     input.headlights = own.headlights;
@@ -5375,6 +5376,9 @@ impl GameSession {
                             state,
                             car_config,
                             &self.lane_traffic(lane, state),
+                            // The AI's racing line knows nothing of the
+                            // exit taper: it slows for every bend ahead.
+                            f32::INFINITY,
                         );
                     }
                 }
