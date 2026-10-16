@@ -102,6 +102,12 @@ bool FApexSessionBrowserFilterTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("a lobby is not"), Passes(Lobby, EFilter::Racing));
 	TestFalse(TEXT("the recorded list has no live session"), Passes(Racing, EFilter::Recorded));
 
+	// The damage rule in the row's line: only one that is not the default.
+	TestTrue(TEXT("full damage goes unsaid"), DamageWords(EApexDamageLevel::Full).IsEmpty());
+	TestEqual(TEXT("reduced"), DamageWords(EApexDamageLevel::Reduced), FString(TEXT("reduced damage")));
+	TestEqual(TEXT("off"), DamageWords(EApexDamageLevel::Off), FString(TEXT("no damage")));
+	TestEqual(TEXT("visual only"), DamageWords(EApexDamageLevel::VisualOnly), FString(TEXT("visual damage")));
+
 	TArray<FRecording> Rows;
 	TestTrue(TEXT("the server's list parses"), ParseRecordings(TEXT(
 		"{\"sessions\":[{\"id\":\"77\",\"file\":\"replay_77_1760000000.apxs\",\"track\":\"Monzarella\","

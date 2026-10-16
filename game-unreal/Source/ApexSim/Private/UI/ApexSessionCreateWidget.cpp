@@ -64,7 +64,7 @@ namespace
 		}
 	}
 
-	/** The damage tiles, in EApexDamageLevel order. */
+	/** The damage tiles, in EApexDamageLevel order; Visual dents the body and costs nothing. */
 	struct FDamageOption
 	{
 		const TCHAR* Label;
@@ -72,9 +72,10 @@ namespace
 		const TCHAR* Summary;
 	};
 	const FDamageOption DamageOptions[] = {
-		{ TEXT("Off"),     TEXT("No damage"),        TEXT("NO DAMAGE") },
+		{ TEXT("Off"),     TEXT("None"),             TEXT("NO DAMAGE") },
 		{ TEXT("Reduced"), TEXT("Half"),             TEXT("REDUCED DAMAGE") },
-		{ TEXT("Full"),    TEXT("As modelled"),      TEXT("FULL DAMAGE") },
+		{ TEXT("Full"),    TEXT("Modelled"),         TEXT("FULL DAMAGE") },
+		{ TEXT("Visual"),  TEXT("Dents"),            TEXT("VISUAL DAMAGE") },
 	};
 
 	struct FModeOption
@@ -2489,7 +2490,7 @@ void UApexSessionCreateWidget::RefreshFooter()
 			? FString::Printf(TEXT("%s ASSISTS"), *FString(ApexCreateSession::PresetName(static_cast<ApexCreateSession::EAssistPreset>(Preset))).ToUpper())
 			: FString::Printf(TEXT("%d/%d ASSISTS"), FApexAllowedAssists::Count - Flow->CreateAllowedAssists.CountLocked(),
 				FApexAllowedAssists::Count));
-		Parts.Add(DamageOptions[FMath::Clamp(static_cast<int32>(Flow->CreateDamage), 0, 2)].Summary);
+		Parts.Add(DamageOptions[FMath::Clamp(static_cast<int32>(Flow->CreateDamage), 0, static_cast<int32>(UE_ARRAY_COUNT(DamageOptions)) - 1)].Summary);
 		if (!CurrentSetupLabel.IsEmpty())
 		{
 			Parts.Add(FString::Printf(TEXT("SETUP %s"), *CurrentSetupLabel.ToUpper()));

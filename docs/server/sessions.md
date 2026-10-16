@@ -158,10 +158,12 @@ and sheds its parts on the client as Full does, and costs nothing: the
 physics, the pit crew's repair time and the AI's stop plan read
 `CarState::felt_damage` (no damage), a hit sheds no debris and punctures
 nothing, and a zone at 100% does not retire the car
-(`keep_visual_damage_drivable`). Client: `UApexMenuFlowSubsystem::CreateDamage`,
+(`keep_visual_damage_drivable`). Client: the create screen's Damage row (Off,
+Reduced, Full, Visual: `UApexMenuFlowSubsystem::CreateDamage`),
 `GetSessionDamage`, HUD `damage.level`. The lobby lists it
 (`SessionSummary.damage`, left off the wire when Full) and the session browser
-names a softer rule ("reduced damage", "no damage"). The model is in
+names any rule but Full (`ApexBrowser::DamageWords`: "reduced damage", "no
+damage", "visual damage"). The model is in
 [vehicle physics](vehicle-physics.md).
 
 **AI level**: `ai_skill` (`Option<u8>`, clamped to 70-110; absent is the

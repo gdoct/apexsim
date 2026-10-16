@@ -29,6 +29,13 @@ namespace ApexBrowser
 
 	APEXSIM_API bool Passes(const FApexSessionSummary& Session, EFilter Filter);
 
+	/**
+	 * The session's damage rule in its row's line: empty for Full (the
+	 * default is not worth the words), else "reduced damage", "no damage"
+	 * or "visual damage".
+	 */
+	APEXSIM_API FString DamageWords(EApexDamageLevel Damage);
+
 	/** One of the server's recordings, as `/recordings` lists it. */
 	struct FRecording
 	{

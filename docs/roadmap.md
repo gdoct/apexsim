@@ -44,9 +44,6 @@ None open.
 Rules the server takes on `CreateSession` that no screen offers yet
 ([server/sessions.md](server/sessions.md#session-rules-set-on-create)).
 
-- A fourth damage tile, Visual only (`EApexDamageLevel::VisualOnly`), on the
-  create screen's damage row and its summary, and "visual damage" in the
-  session browser's line.
 - The qualifying cut-off: a 107% toggle beside the qualifying length (the
   codec sends `qualifying_cutoff_pct` and reads `QualifyingCutoffPct`;
   golden `C_CreateSessionQualifyingCutoff` / `S_SessionJoinedQualifyingCutoff`

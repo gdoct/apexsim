@@ -94,6 +94,17 @@ namespace ApexBrowser
 		}
 	}
 
+	FString DamageWords(EApexDamageLevel Damage)
+	{
+		switch (Damage)
+		{
+		case EApexDamageLevel::Off:        return TEXT("no damage");
+		case EApexDamageLevel::Reduced:    return TEXT("reduced damage");
+		case EApexDamageLevel::VisualOnly: return TEXT("visual damage");
+		default:                           return FString();
+		}
+	}
+
 	bool ParseRecordings(const FString& Json, TArray<FRecording>& Out)
 	{
 		Out.Reset();
@@ -294,14 +305,10 @@ void UApexSessionBrowserWidget::ApplyRow(int32 Index, const FApexSessionSummary&
 	}
 	Parts.Add(FString::Printf(TEXT("%s · %s"),
 		*FApexSessionConditions::WeatherLabel(Session.Conditions.Weather), *Session.Conditions.ClockText()));
-	// Damage is on by default: only a softer or absent rule is worth the words.
-	if (Session.Damage == EApexDamageLevel::Reduced)
+	// Damage is on by default: only another rule is worth the words.
+	if (const FString Damage = ApexBrowser::DamageWords(Session.Damage); !Damage.IsEmpty())
 	{
-		Parts.Add(TEXT("reduced damage"));
-	}
-	else if (Session.Damage == EApexDamageLevel::Off)
-	{
-		Parts.Add(TEXT("no damage"));
+		Parts.Add(Damage);
 	}
 
 	FLinearColor BadgeColour;
