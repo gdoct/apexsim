@@ -87,7 +87,7 @@ Nothing on screen uses them yet.
 **Check:** a race stop with tyres kept and 5 L asked for, the panel's
 bar showing the fuel alone; the BOX badge on from the request to the stop.
 
-### The pit rule on screen
+### 18. The pit rule on screen
 
 The server's mandatory stops and second compound
 ([server/sessions.md](server/sessions.md#session-rules-set-on-create)) are
@@ -106,9 +106,12 @@ on the wire and in the client's codec, but no screen uses them.
 **Check:** `ApexSim.Net.ProtocolCodec` (the pit rule's golden bytes); a
 one-stop race with `-ApexAutoRace` where the player does not stop, read on
 the results screen.
-### 17. The create screen's sky
+
+### 19. The create screen's sky
+
 What the Conditions tab shows before a session exists against what the
 server will simulate ([server/conditions.md](server/conditions.md)).
+
 - The AUTO air (`ApexCreateSession::AutoAirTempC`) is the model day's at a
   13:00 noon: it does not follow the season of the Date row
   (`SessionConditions::auto_air_temperature_c_at`, `season_air_c`) or the
@@ -122,6 +125,7 @@ server will simulate ([server/conditions.md](server/conditions.md)).
   from the seed (`ApexCreateSession::Forecast`) even when the session's
   conditions carry a written one: they should read `Forecast` when
   `HasForecast()`. `Describe` does not mention one.
+
 **Check:** `ApexSim.UI.CreateSession` against the Rust's
 `a_date_moves_the_air_with_the_season_and_no_date_is_late_may` figures; a
 written forecast created, echoed and shown in the HUD's outlook.
