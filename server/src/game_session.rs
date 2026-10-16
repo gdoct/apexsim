@@ -1734,6 +1734,8 @@ impl GameSession {
             }
             let run = self.qualifying_laps_run.entry(*player_id).or_insert(0);
             *run = run.saturating_add(1);
+            // The roster carries the count (`RosterEntry::qualifying_laps`).
+            self.roster_dirty = true;
             if *run >= allowance {
                 let _ = self.relocate(player_id, HotlapDestination::Garage, false);
             }
@@ -2417,7 +2419,10 @@ impl GameSession {
         // A shoot-out and the lap allowance's count belong to the
         // qualifying they were run in.
         self.shootout = None;
-        self.qualifying_laps_run.clear();
+        if !self.qualifying_laps_run.is_empty() {
+            self.qualifying_laps_run.clear();
+            self.roster_dirty = true;
+        }
 
         // Initialize mode-specific state
         match mode {
@@ -5900,6 +5905,11 @@ impl GameSession {
                         .finishers
                         .get(player_id)
                         .is_some_and(|f| f.missed_stops),
+                    qualifying_laps: self
+                        .qualifying_laps_run
+                        .get(player_id)
+                        .copied()
+                        .unwrap_or(0),
                 }
             })
             .collect();
@@ -8297,9 +8307,24 @@ mod tests {
                 .hotlap_relocate(&id, HotlapDestination::Track, false)
                 .unwrap();
         }
+        let laps_in_roster = |gs: &GameSession, id: PlayerId| {
+            gs.build_roster(&HashMap::new())
+                .entries
+                .iter()
+                .find(|e| e.player_id == id)
+                .map(|e| e.qualifying_laps)
+        };
+        assert_eq!(laps_in_roster(&game_session, a), Some(0));
+        game_session.take_roster_dirty();
         drive_over_the_line(&mut game_session, a, 80);
         assert!(!game_session.session.participants[&a].in_garage);
+        assert!(
+            game_session.take_roster_dirty(),
+            "a counted lap goes out in the roster"
+        );
+        assert_eq!(laps_in_roster(&game_session, a), Some(1));
         drive_over_the_line(&mut game_session, a, 80);
+        assert_eq!(laps_in_roster(&game_session, a), Some(2));
         assert!(
             game_session.session.participants[&a].in_garage,
             "in after the second lap"
@@ -8320,6 +8345,7 @@ mod tests {
         );
         // A fresh qualifying session counts afresh.
         game_session.set_game_mode(GameMode::Qualification);
+        assert_eq!(laps_in_roster(&game_session, a), Some(0));
         game_session
             .hotlap_relocate(&a, HotlapDestination::Track, false)
             .unwrap();

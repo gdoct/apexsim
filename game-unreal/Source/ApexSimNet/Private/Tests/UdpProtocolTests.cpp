@@ -218,6 +218,20 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// Qualifying under a lap allowance: the server's count of each car's timed laps.
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("SessionRoster with qualifying laps decodes (%s)"), *Error),
+				ApexProtocol::DecodeServerMessage(ApexUdpGolden::S_SessionRosterQualifyingLaps, Message, Error))
+			&& TestEqual(TEXT("two entries"), Message.Roster.Entries.Num(), 2))
+		{
+			TestEqual(TEXT("entry 0 has run two"), Message.Roster.Entries[0].QualifyingLaps, 2);
+			TestEqual(TEXT("entry 1 none"), Message.Roster.Entries[1].QualifyingLaps, 0);
+			TestEqual(TEXT("entry 0 keeps its slot"), Message.Roster.Entries[0].GridSlot, 1);
+		}
+	}
+
 	// Ready on the race's grid.
 	{
 		FApexServerMessage Message;

@@ -1765,6 +1765,12 @@ pub struct RosterEntry {
     /// finisher that met it. Left off the wire when false.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub missed_stops: bool,
+    /// Qualifying under a lap allowance (`qualifying_lap_allowance`): the
+    /// timed laps this car has ended in the session or round, as the
+    /// server counts them against the allowance. 0 (left off the wire)
+    /// outside one.
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub qualifying_laps: u8,
 }
 
 fn is_zero_u8(value: &u8) -> bool {
@@ -4320,6 +4326,7 @@ mod tests {
                 ready: false,
                 dnq: false,
                 missed_stops: true,
+                qualifying_laps: 0,
             }],
         });
         let roster_bytes = rmp_serde::to_vec_named(&roster).unwrap();
@@ -5541,6 +5548,7 @@ mod tests {
                 ready: false,
                 dnq: false,
                 missed_stops: false,
+                qualifying_laps: 0,
             };
         // Present and on the grid: no away key; no slot: no grid key.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false, false, 0)).unwrap();
@@ -5602,6 +5610,41 @@ mod tests {
             }
             other => panic!("Wrong message type: {other:?}"),
         }
+
+        // Qualifying under a lap allowance: the timed laps each car has run
+        // (`S_SessionRosterQualifyingLaps`); a car with none has no key.
+        let roster = ServerMessage::SessionRoster(SessionRosterData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            entries: vec![
+                RosterEntry {
+                    qualifying_laps: 2,
+                    ..entry(0, "Player", false, false, 1)
+                },
+                entry(1, "Luna Swift", true, false, 2),
+            ],
+        });
+        let bytes = rmp_serde::to_vec_named(&roster).unwrap();
+        println!(
+            "S_SessionRosterQualifyingLaps: {}",
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&bytes)
+                .matches("QualifyingLaps")
+                .count(),
+            1
+        );
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::SessionRoster(data) => {
+                assert_eq!(data.entries[0].qualifying_laps, 2);
+                assert_eq!(data.entries[1].qualifying_laps, 0);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
     }
 
     /// The race's grid before the countdown: `OpenGrid`, `SetReady`,
@@ -5659,6 +5702,7 @@ mod tests {
             ready,
             dnq: false,
             missed_stops: false,
+            qualifying_laps: 0,
         };
         // Not ready: no key, so a roster off the grid keeps its bytes.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false)).unwrap();

@@ -1051,6 +1051,7 @@ namespace
 			else if (Key == TEXT("Ready"))      { bOk = Reader.ReadBool(Out.bReady); }
 			else if (Key == TEXT("Dnq"))        { bOk = Reader.ReadBool(Out.bDnq); }
 			else if (Key == TEXT("MissedStops")) { bOk = Reader.ReadBool(Out.bMissedStops); }
+			else if (Key == TEXT("QualifyingLaps")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingLaps = static_cast<int32>(Raw); }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{

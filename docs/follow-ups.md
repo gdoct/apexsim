@@ -68,11 +68,6 @@ The ghost, the hotlap replay and watch.
 
 - Corners carry the circuit's official turn number in the dossier, not the
   detector's.
-- The lap allowance is counted by the client from its own `LapTiming` lap
-  ends (`GetQualifyingLapsLeft`): a crossing the server counts without a
-  timed lap (short of the checkpoints) is missed, and a driver who joins
-  part way through counts from the join. The server knows the count: send
-  it (a `RosterEntry` or telemetry field) and read it instead.
 
 **Check:** a hotlap with ghost and replay; a server restart between two
 watches.

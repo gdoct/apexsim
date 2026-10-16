@@ -204,15 +204,16 @@ other; going out again is refused with "Lap allowance used". Once every car
 taking part has used it and is in its garage (or undrivable), the session
 or round is `Finished`, clock or no clock. Entering `Qualification` again
 counts afresh. A shoot-out ignores it (one flying lap each). Echoed in
-`SessionJoined.QualifyingLapAllowance`. Client: the create screen's Lap
+`SessionJoined.QualifyingLapAllowance`; each car's count goes out in its
+`RosterEntry.QualifyingLaps` (left off the wire at 0), the roster resent at
+every counted lap and when a new qualifying session or round clears the
+counts. Client: the create screen's Lap
 allowance stepper (None, 1 to 30, in the qualifying and the weekend sections;
 `CreateQualifyingLapAllowance` in the profile, `QualifyingLapAllowanceToSend`:
 none outside qualifying and in a plain shoot-out).
-`UApexNetSubsystem::GetQualifyingLapsLeft` counts the local car's lap ends
-(`LapTiming`) since qualifying or the round began (-1 with no allowance,
-outside `Qualification` and in a shoot-out; a lap the server counts without
-a `LapTiming`, a crossing short of the checkpoints, is missed, and a driver
-who joins part way through counts from the join): GO OUT carries "2 timed
+`UApexNetSubsystem::GetQualifyingLapsLeft` takes the allowance less the
+local car's `QualifyingLaps` (`GetQualifyingTimedLaps`; -1 with no
+allowance, outside `Qualification` and in a shoot-out): GO OUT carries "2 timed
 laps left" and reads LAP ALLOWANCE USED, disabled, at none, and the HUD's
 `qualifying.laps_left` drives the race state's Laps left panel.
 `-ApexLapAllowance=N` sets it for an auto race.

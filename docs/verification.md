@@ -274,7 +274,10 @@ car was sent out; a written forecast echoed and laid out in `sky.outlook`
 - The lap allowance counting down: Laps left 1 and USED on the race state,
   LAP ALLOWANCE USED with GO OUT disabled in the garage, and GO OUT's
   "2 timed laps left" badge (the same stand-in gap; the badge was not up at
-  12 s, before the session was in qualifying).
+  12 s, before the session was in qualifying). The count now comes from the
+  server's `RosterEntry.QualifyingLaps`: `r12-lap-allowance` showed a roster
+  resent at each AI lap and the player's laps left holding at 2, but not a
+  count of the player's own going down.
 - A weekend whose final round is a shoot-out, live, and the HUD's
   conditions panel showing the written outlook (the race layout used had no
   conditions panel up).

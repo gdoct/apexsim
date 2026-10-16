@@ -1725,6 +1725,14 @@ struct APEXSIMNET_API FApexRosterEntry
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	bool bMissedStops = false;
+
+	/**
+	 * Qualifying under a lap allowance: the timed laps this car has ended in
+	 * the session or round, as the server counts them (`QualifyingLaps`; 0,
+	 * left off the wire, outside one). UApexNetSubsystem::GetQualifyingLapsLeft.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 QualifyingLaps = 0;
 };
 
 /** `SessionRosterData` (network.rs:470) — PascalCase keys, TCP. */
