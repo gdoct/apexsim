@@ -521,7 +521,13 @@ async fn kick_and_ban_remove_a_connected_client_and_keep_it_out() {
         .expect("the kick notice");
     assert_eq!(why.0, 403);
     assert!(why.1.contains("too fast"), "{}", why.1);
-    assert!(racer.recv().await.is_none(), "the stream is closed");
+    // The connection is held a moment for the notice to go out: a
+    // broadcast may follow it before the stream closes.
+    let mut after = 0;
+    while racer.recv().await.is_some() {
+        after += 1;
+        assert!(after < 50, "the stream is closed");
+    }
 
     // The kicked player may come straight back, and is then banned.
     let (_again, second) = Racer::connect(d.server.tcp_addr, "Racer One")
