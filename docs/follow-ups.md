@@ -103,6 +103,23 @@ the same `ApexProps` code.
 
 **Check:** each circuit by hand in the running game; the track-editor tests.
 
+### 19. AI in imported cars
+
+An imported field finishes its survey races (none retired in 72, three
+seeds, eight circuits), but its F1s and prototypes still leave the road
+more than the shipped classes: off-road car-seconds over the 24 races
+`RssFormulaHybrid2021` 313, `KsFerrariSf70h` 215, `KsPorsche919Hybrid2016`
+196 against `fugazzi-sf26`'s 86, a fifth to a quarter of it at Laguna Seca.
+A lone ace holds its plan on every circuit tried, so what is left is in
+traffic.
+
+- Find where an imported F1's traffic leaves the road (`SURVEY_EVENTS`,
+  `SURVEY_TRACE` on the worst races): a lane or dodge its short lock
+  (0.24-0.31 rad against the shipped F1's 0.34) cannot turn.
+
+**Check:** `SURVEY_CARS=RssFormulaHybrid2021,KsFerrariSf70h,KsPorsche919Hybrid2016,fugazzi-sf26`
+on seeds 1-3, totals against the commit before.
+
 ## P3: nice to have
 
 ### 11. Content tooling

@@ -467,6 +467,9 @@ cargo test --release --test imported_car_test -- --ignored --nocapture
 cargo test --release --test car_stability_test imported -- --ignored
 PROBE_CLASS=GT3 cargo test --release --test grip_probe_test silverstone_profile_lap_times -- --ignored --nocapture
 SURVEY_TRACKS=KsZandvoort cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture
+# an imported car's AI: a field of it, and one alone against its own plan
+SURVEY_CARS=KsFerrariSf70h,fugazzi-sf26 SURVEY_TRACKS=Monza,Suzuka cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture
+SURVEY_CARS=KsFerrariSf70h SURVEY_TRACKS=Suzuka cargo test --release --test ai_race_start_test lone_car_against_its_plan -- --ignored --nocapture
 # every import's pit lane: a driven trip (autopilot, box, service, out) and an AI's stop
 PIT_CUSTOM=1 cargo test --release --test pit_stop_test pit_lane_survey -- --ignored --nocapture
 PIT_CUSTOM=1 cargo test --release --test pit_stop_test ai_pit_survey -- --ignored --nocapture
@@ -494,6 +497,14 @@ Client automation: `ApexSim.Track.Dds.Parse`, `ApexSim.Track.Reader.Version3`,
   `[STEER_ANIMATION] LOCK`): centre to lock, not half of it.
 - **Turbo `GAMMA` is pedal sensitivity**, 1 at full throttle, not an rpm
   exponent. Skip the boost and a turbo car is 30-80% down on power.
+- **An import is not shaped like a shipped car**, and the AI reads it as
+  it is rather than the importer bending it: its tyres are load-sensitive
+  (`LS_EXPY`), which the racing line plans with the lateral transfer and
+  the weaker axle (`CarConfig::envelope_mu`), and its brakes are AC's with
+  no ABS on an F1 or a prototype, which the AI brakes short of locking
+  (`unlocked_pedal`; [../server/ai.md](../server/ai.md) traps). Read
+  either the shipped cars' way and the AI slid off and locked its fronts
+  into every slow corner.
 - **Classify materials at triangle centres, never vertices**: a road
   ribbon's vertices all sit on its edges, where the physics is road or
   grass by chance.

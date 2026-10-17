@@ -28,7 +28,6 @@ When an item is done, delete it from its backlog and from here.
 
 | ID | Item | Type | Pri | Human | Effort |
 |---|---|---|---|---|---|
-| A1 | Imported AC cars' AI crashes (1–10 retire per race) | AI | P1 | 🟡 | M |
 | N1 | Client-side prediction for the local car | Netcode | P1 | 🟡 | L |
 | V1 | Verify the newest session screens (R9, R11, R12) | Verification | P1 | 🟡 | S |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
@@ -80,13 +79,12 @@ When an item is done, delete it from its backlog and from here.
 ## 2. Recommended order
 
 1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting. Fresh features are where the bugs are.
-2. **Race-breaking AI** — A1 (imported AC cars). Judged by the AI survey.
-3. **Race control** — N4 (formation lap, jump starts), R2 (penalties), R1b (safety car) on the race-control module the flags built.
-4. **Sim-racer essentials** — N1 (client prediction: largest online win, largest job).
-5. **Visual quality pass** — G3, G4 in one branch of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
-6. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
-7. **Online and depth** — N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
-8. Everything P3 opportunistically, bundled with whatever touches the same files.
+2. **Race control** — N4 (formation lap, jump starts), R2 (penalties), R1b (safety car) on the race-control module the flags built.
+3. **Sim-racer essentials** — N1 (client prediction: largest online win, largest job).
+4. **Visual quality pass** — G3, G4 in one branch of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
+5. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
+6. **Online and depth** — N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
+7. Everything P3 opportunistically, bundled with whatever touches the same files.
 
 ## 3. Items by type
 
@@ -117,21 +115,6 @@ Needs an Iris Xe / Arc or Radeon 680M/780M machine to confirm the LOW preset
 and `GRHIDeviceIsIntegrated`. Until then keep "discrete GPU recommended".
 
 ### AI
-
-#### A1. Imported AC cars' AI crashes a lot — P1 · 🟡 · M
-*Source: simulation-gaps, AI.*
-
-**What:** One to ten cars retire per survey race with imported cars.
-**Outcome:** An imported-car race finishes with a field, like native classes.
-**Implementation:** Survey per car and break retirements down by cause
-(off-road, contact, wall). Likely suspects: the speed profile built from
-imported grip/aero figures that the car cannot actually hold (compound
-window, missing tyre heat model, dynamic aero not modelled — see C4), or a
-grip share read too optimistically. Compare `profile_target_speed` with the
-car's real cornering limit in a lone run.
-**Watch out:** judge with `survey_ai_races_on_every_circuit` as totals
-against the previous commit; do not tune a single pile-up away. Imported car
-files belong to the importer — fix figures in the importer.
 
 #### A3. Side by side past the apex on narrow roads — P2 · 🟡 · L
 *Source: simulation-gaps, AI.*
@@ -322,7 +305,6 @@ last box" is a gameplay choice, not realism. Regenerate sidecars (never edit),
 Altitude, north and geotags for imported tracks (Med impact: sea-level air,
 wrong sun); AC's tyre heat model; dynamic aero controllers and DRS split;
 two ERS motors and delivery profiles; brake pads/porpoising/compound details.
-Several feed A1 — look here first if A1 points at car figures.
 
 ### Audio and features
 
