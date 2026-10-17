@@ -2267,6 +2267,8 @@ impl GameSession {
             Course::Green => None,
             Course::Vsc => Some(RacePhase::Vsc as u8),
             Course::VscEnding => Some(RacePhase::VscEnding as u8),
+            Course::Sc => Some(RacePhase::SafetyCar as u8),
+            Course::ScInThisLap => Some(RacePhase::ScInThisLap as u8),
         }
     }
 
@@ -2667,7 +2669,7 @@ impl GameSession {
     /// each car told the yellow ahead of it and its blue flag. Clear before
     /// the green and once the race is over.
     fn update_flags(&mut self) {
-        use crate::race_control::{FlagCar, START_GRACE_S};
+        use crate::race_control::{Course, FlagCar, START_GRACE_S};
         let total = crate::laps::track_length_m(&self.track_config);
         if self.session.state != SessionState::Racing || total <= 0.0 {
             self.race_control.clear();
@@ -2711,12 +2713,87 @@ impl GameSession {
                 colliding: s.is_colliding,
                 reversing: s.gear < 0 && s.speed_mps > 0.5,
                 out_of_it: out_of_it(s),
+                free: false,
             })
             .collect();
+        let mut cars = cars;
         let dt = self.dt();
-        let vsc = self.session.race_rules.safety_car == crate::data::SafetyCar::Virtual;
         let was = self.race_control.course;
-        self.race_control.update_course(&cars, dt, vsc);
+        self.race_control
+            .update_course(&cars, dt, self.session.race_rules.safety_car);
+        if was == Course::Green && self.race_control.course == Course::Sc {
+            // Called out: it drives the line planned for the first car of
+            // the field.
+            let car = self
+                .session
+                .participants
+                .values()
+                .next()
+                .and_then(|s| self.car_configs.get(&s.car_config_id));
+            self.race_control.safety_car = Some(crate::safety_car::SafetyCar::deploy(
+                &self.track_config,
+                car,
+            ));
+        }
+        // The safety car on the road: it moves, and tells each car its pace.
+        let mut sc_caps: Option<Vec<f32>> = None;
+        let mut passed_sc: Vec<PlayerId> = Vec::new();
+        let ramp = self.race_control.sc_ramp_mps();
+        let road_clear = self.race_control.road_clear();
+        let stranded_long = self.race_control.stranded_long();
+        if let Some(sc) = self.race_control.safety_car.as_mut() {
+            let queue: Vec<crate::safety_car::QueueCar> = self
+                .session
+                .participants
+                .values()
+                .map(|s| crate::safety_car::QueueCar {
+                    laps: s.current_lap as f32 + s.track_progress / total,
+                    progress_m: s.track_progress,
+                    speed_mps: s.speed_mps,
+                    running: !(s.in_garage
+                        || s.towed
+                        || (s.pit.in_lane && (s.pit.limiter || s.pit.servicing))
+                        || s.finish_position.is_some()
+                        || !s.damage.is_drivable
+                        || s.is_ghost()),
+                    moving: s.is_on_track,
+                })
+                .collect();
+            let (orders, event) = sc.tick(
+                &queue,
+                &self.track_config,
+                dt,
+                ramp,
+                road_clear,
+                stranded_long,
+            );
+            for (car, free) in cars.iter_mut().zip(&orders.let_by) {
+                car.free = *free;
+            }
+            let ids: Vec<PlayerId> = self.session.participants.keys().copied().collect();
+            passed_sc = orders
+                .passed_sc
+                .iter()
+                .filter_map(|i| ids.get(*i).copied())
+                .collect();
+            use crate::safety_car::ScEvent;
+            match event {
+                Some(ScEvent::Green) => {
+                    self.race_control.set_course(Course::Green);
+                    self.race_control.safety_car = None;
+                }
+                Some(ScEvent::InThisLap) => {
+                    self.race_control.set_course(Course::ScInThisLap);
+                    sc_caps = Some(orders.caps);
+                }
+                // Back out before it went in: the pace stays where it is.
+                Some(ScEvent::BackOut) => {
+                    self.race_control.course = Course::Sc;
+                    sc_caps = Some(orders.caps);
+                }
+                None => sc_caps = Some(orders.caps),
+            }
+        }
         if self.race_control.course != was {
             info!(
                 "Session {}: {:?}",
@@ -2725,11 +2802,22 @@ impl GameSession {
         }
         self.race_control
             .update(&cars, total, dt, self.session.current_tick, launching);
+        for id in passed_sc {
+            info!("Session {}: a car passed the safety car", self.session.id);
+            self.penalise(id, crate::race_control::Offence::YellowPass);
+        }
         let control = &self.race_control;
         let pace = control.vsc_pace_mps();
         for (i, state) in self.session.participants.values_mut().enumerate() {
-            // The virtual safety car's pace, on every car on the track.
-            state.speed_cap_mps = if out_of_it(state) { 0.0 } else { pace };
+            // The virtual safety car's pace, on every car on the track; the
+            // safety car's queue, each car its own.
+            state.speed_cap_mps = if let Some(caps) = sc_caps.as_ref() {
+                caps.get(i).copied().unwrap_or(0.0)
+            } else if out_of_it(state) {
+                0.0
+            } else {
+                pace
+            };
             state.flag_blue = control.blue(i);
             state.flag_yellow = if out_of_it(state) {
                 0
@@ -5197,6 +5285,10 @@ impl GameSession {
         };
         let mut drove_through: Vec<PlayerId> = Vec::new();
         let mut out_on_red: Vec<PlayerId> = Vec::new();
+        // Closed while the safety car's queue forms: a car coming in is
+        // not taken on (`PitState::entered_closed`), and the autopilot does
+        // not take a car in.
+        let lane_closed = racing && self.race_control.pit_closed();
         for state in self.session.participants.values_mut() {
             if state.in_garage || state.towed {
                 continue;
@@ -5211,6 +5303,7 @@ impl GameSession {
                 let pit = &mut state.pit;
                 pit.lane_node = None;
                 pit.in_lane = false;
+                pit.entered_closed = false;
                 pit.limiter = false;
                 pit.exit_closed = exit_closed;
                 if !pit.driving {
@@ -5254,6 +5347,11 @@ impl GameSession {
             pit.lane_node = Some(at.node as u32);
             pit.lane_station_m = at.station_m;
             pit.in_lane = in_lane;
+            if !in_lane {
+                pit.entered_closed = false;
+            } else if !was_in_lane && lane_closed && !pit.driving {
+                pit.entered_closed = true;
+            }
             pit.limiter =
                 pit.in_lane && (lane.limit_start_m..=lane.limit_end_m).contains(&at.station_m);
             pit.exit_closed = exit_closed;
@@ -5289,6 +5387,7 @@ impl GameSession {
             // and out.
             if !drives_as_ai
                 && !state.manual_pits
+                && !lane_closed
                 && !pit.driving
                 && !pit.serviced
                 && state.finish_position.is_none()
@@ -5309,6 +5408,7 @@ impl GameSession {
                 }
             } else if pit.limiter
                 && !pit.serviced
+                && !pit.entered_closed
                 && recovery_hold.is_none()
                 && state.speed_mps < crate::pit::BOX_STOP_SPEED_MPS
             {
@@ -6090,7 +6190,8 @@ impl GameSession {
                 continue;
             }
             let to_entry = (entry - state.track_progress).rem_euclid(total.max(1.0));
-            if to_entry <= approach {
+            // Not into a lane closed under the safety car: the next lap.
+            if to_entry <= approach && !self.race_control.pit_closed() {
                 if let Some(state) = self.session.participants.get_mut(&ai_id) {
                     state.pit.driving = true;
                     state.pit.serviced = false;

@@ -39,7 +39,6 @@ When an item is done, delete it from its backlog and from here.
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S |
-| R1b | Safety car on the road (the virtual one is built) | Race rules | P2 | 🟡 | L |
 | N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L |
 | N6 | Lap comparison against the ghost; MoTeC export | Driver tools | P3 | 🟢 | S |
 | N7 | Championships and series with points | Game mode | P2 | 🔴 | M |
@@ -130,22 +129,6 @@ Bundle by module, each judged by the survey:
 
 ### Race rules and sessions
 
-#### R1b. Safety car — P2 · 🟡 · L
-*Source: simulation-gaps.* The virtual safety car is built
-([server/sessions.md](server/sessions.md#virtual-safety-car)).
-
-**What:** No safety car on the road and no lane closure.
-**Outcome:** Serious incidents neutralise the race with the field bunched
-behind a car, and strategy gains the full "pit under the safety car" call.
-**Implementation:** A real SC car (an AI on a fixed delta to the leader,
-spawned from the pit exit), the queue, lapped cars passing, the pit lane
-closed and opened, the restart. The trigger is `RaceControl::update_course`'s
-(a stranded car); the AI already stops under the VSC (`StopContext::neutralised`).
-Recovery vehicles (R4) fit here.
-**Watch out:** the restart procedure is a session rule (`CreateSession`
-field: `race_rules`); a safety car is not a participant (no roster slot,
-no classification).
-
 #### R3. Race events across days — P2 · 🔴 · L (epic)
 *Source: simulation-gaps, race weekends.*
 
@@ -177,7 +160,7 @@ persistence reads.
 - Driver swaps / fixed stint lengths.
 - Refuelling or a sane AI fuel rule on circuits without a pit lane
   (Nordschleife).
-- Recovery vehicles and marshals — with R1b.
+- Recovery vehicles and marshals (the safety car is built).
 
 ### Simulation
 

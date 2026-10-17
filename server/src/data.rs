@@ -3662,6 +3662,10 @@ pub enum SafetyCar {
     /// A virtual safety car (full-course yellow): every car held to a
     /// pace, no overtaking, the pit lane open (`crate::race_control`).
     Virtual = 1,
+    /// A safety car on the road (`crate::safety_car`): the field queues
+    /// behind it, lapped cars are let by, the pit lane is closed while the
+    /// queue forms, and the leader restarts the race at the line.
+    Full = 2,
 }
 
 impl SafetyCar {
@@ -3701,8 +3705,8 @@ pub struct RaceRules {
     /// (`race_control::PIT_EXIT_STOP_GO_S`).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub pit_exit_penalty: bool,
-    /// A car stranded on the road brings out a virtual safety car
-    /// ([`SafetyCar`]).
+    /// A car stranded on the road brings out a virtual safety car or a
+    /// safety car on the road ([`SafetyCar`]).
     #[serde(default, skip_serializing_if = "SafetyCar::is_off")]
     pub safety_car: SafetyCar,
 }

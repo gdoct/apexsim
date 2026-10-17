@@ -181,9 +181,13 @@ next `Brake` phase, its slowest point, the hand at the apex).
   the pace is 95% of the plan under a single and 85% under a double, and no
   pass is begun unless the car ahead is crawling (the incident itself).
 - **Under race control's pace** (`CarState::speed_cap_mps`, a formation or
-  pace lap, the virtual safety car; [sessions](sessions.md#race-start-formation-lap-rolling-start-false-starts)):
-  no pass is begun unless the car ahead is crawling; the physics holds the
-  car to the pace, and over the approach to its slot the server drives it.
+  pace lap, the virtual safety car, the safety car's queue;
+  [sessions](sessions.md#race-start-formation-lap-rolling-start-false-starts)):
+  the driver aims at the pace as at a corner's speed (its target speed is
+  never above it), no pass is begun unless the car ahead is crawling (a
+  lapped car let by under the safety car is held to a pace well above the
+  queue's, so it passes it this way); the physics holds the car to the
+  pace, and over the approach to its slot the server drives it.
 - **Mistakes**: with a car within 0.6 s behind, a driver now and then
   gets a corner wrong, by its inconsistency (`MISTAKE_CHANCE`, one roll a
   corner as it nears the braking zone). Away from pressure it does too, at
@@ -243,11 +247,12 @@ off by `Racecraft::blend`; the controller holds it across the road
 
 ## Strategy
 
-- **Under the virtual safety car** (`StopContext::neutralised`,
+- **Under the virtual safety car or the safety car** (`StopContext::neutralised`,
   [sessions](sessions.md#virtual-safety-car)): a stop is cheap, so with
   more than `AI_STAY_OUT_LAPS` left a driver takes one it would make anyway:
   a stop owed to the pit rule, tyres `AI_NEUTRALISED_WEAR` (30%) worn, or
-  short of fuel to the flag.
+  short of fuel to the flag. While the safety car's queue forms the lane is
+  closed: the wish to stop is kept and the car turns in at the next pass.
 - **Penalties** ([sessions](sessions.md#penalties)): an owed drive-through
   or stop-go is served at the next pass of the lane (`plan_ai_stops` sets
   `wants_stop`), before any stop it plans.

@@ -41,6 +41,7 @@ pub mod replay_tools;
 pub mod results;
 pub mod road_mesh;
 pub mod road_state;
+pub mod safety_car;
 pub mod server;
 pub mod session_stream;
 pub mod setup_sheet;

@@ -531,6 +531,12 @@ impl<'a> AiDriverController<'a> {
         tx += shift.0;
         ty += shift.1;
         target_speed *= racecraft.pace;
+        // Race control's pace (a formation lap, the safety car's queue):
+        // aimed at, so the driver brakes for it as for a corner rather
+        // than meeting it as a limiter.
+        if state.speed_cap_mps > 0.0 {
+            target_speed = target_speed.min(state.speed_cap_mps);
+        }
         // A lane inside the line is a tighter corner: v goes with the root
         // of the radius.
         if racecraft.blend > 0.0 {

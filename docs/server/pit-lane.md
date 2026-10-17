@@ -122,6 +122,11 @@ Called inside `update_air` before the physics, and in the countdown.
   handed back at the limit, or at what a bend of the lane itself before
   the line allows. The AI's route runs on to the lane's end
   (`pit::route_end_m`): its racing line knows nothing of the exit taper.
+- **Closed under the safety car** (`RaceControl::pit_closed`, from its call
+  until its queue has formed; [sessions](sessions.md#safety-car)): the AI
+  does not turn onto its route, the autopilot takes no car in, and a car
+  that drives in while it is closed (`PitState::entered_closed`) is not
+  taken on by its box on that visit.
 - **Manual pit lane.** A driver whose `SetDriverAids` sent `pit_autopilot:
   false` (`CarState::manual_pits`; Settings > Assists > Pit lane) is never
   taken over: they drive the lane on the limiter, stop within

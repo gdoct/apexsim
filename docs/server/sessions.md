@@ -287,12 +287,14 @@ nothing is set; echoed in `SessionJoined.RaceRules`):
 - `yellow_penalty` (`bool`): a pass under a yellow is penalised;
 - `pit_exit_penalty` (`bool`): leaving a manual pit lane past its red light
   is penalised;
-- `safety_car` (`SafetyCar` `Off` / `Virtual`, 0-1, default Off): a car
-  stranded on the road brings out a virtual safety car.
+- `safety_car` (`SafetyCar` `Off` / `Virtual` / `Full`, 0-2, default
+  Off): a car stranded on the road brings out a virtual safety car, or a
+  safety car on the road. Its restart procedure is fixed (the leader
+  restarts at the line), so it takes no further rule.
 
 The start rules are in "Race start: formation lap, rolling start, false
-starts", the penalties in "Penalties", the safety car in "Virtual safety
-car". Not listed in the lobby; a hosted
+starts", the penalties in "Penalties", the safety cars in "Virtual safety
+car" and "Safety car". Not listed in the lobby; a hosted
 session does not take them yet.
 
 ## The race's grid
@@ -488,9 +490,75 @@ Under `safety_car: Virtual` (`RaceControl::update_course`, run by
   (`Course::VscEnding`, still at the pace) for `VSC_ENDING_S` (5 s), then
   green; a car stranded long enough meanwhile brings it back out.
 - On the wire: `CompactTelemetry.race_phase` 3 (out) and 4 (ending).
-- There is no safety car on the road, so no queue behind it, no lapped
-  cars let by, no lane closure and no restart procedure
-  ([simulation gaps](../simulation-gaps.md)).
+
+## Safety car
+
+Under `safety_car: Full` (`safety_car.rs`, `SafetyCar::tick`, run by
+`update_flags` each racing tick) the same trigger as the virtual safety car
+(a car stranded for `VSC_STOPPED_S`) brings out a safety car on the road
+(`Course::Sc`). It is not a participant: no roster slot, no classification,
+no lap timing, no AI profile; it lives on `RaceControl::safety_car` from its
+call to the green.
+
+- **Out of the pit exit.** It waits at the lane's last node (on a circuit
+  with no lane, on the line) until the leader (the running car with the most
+  laps) is within `SC_PICKUP_M` (200 m) of it on the road, then joins the
+  racing line ahead of it at the lane's limit speed. Until then every car on
+  the road is held to a pace coming down from `VSC_FROM_MPS` at
+  `VSC_SLOW_MPS2` to `SC_CATCH_MPS` (55 m/s; `RaceControl::sc_ramp_mps`).
+- **Its pace.** It drives the racing line planned for the first car of the
+  field (`racing_line::build`; the centerline when there is none) at
+  `SC_LINE_SHARE` (0.7) of the line's planned speed, at most `SC_SPEED_MPS`
+  (45 m/s, 162 km/h), pulling away at `SC_ACCEL_MPS2` (4 m/s²). The share
+  keeps the corners slow enough to follow, and squares into the braking: a
+  queue at 24 m never has to brake harder than half what the car can. Its
+  place on the lap is each line point's centerline station, found once.
+- **The queue.** Each car on the road (not in its garage, towed, finished,
+  broken, or between the lane's limit lines) is held
+  (`CarState::speed_cap_mps`) no faster than the car ahead of it on the road
+  (the safety car for the first) allows at `SC_GAP_M` (24 m, middle to
+  middle) behind it, slowing at `race_start::APPROACH_DECEL_MPS2`
+  (`race_start::follow_cap_mps`, the formation lap's own station keeping),
+  and no faster than the catch pace: the field closes up single file. A car
+  crawling or off the road is no pace for the cars behind it. The AI aims at
+  the pace as at a corner's speed and starts no pass under it.
+- **Formed.** Once every car is within `SC_QUEUED_M` (50 m, ten car lengths)
+  of the one ahead, or after `SC_FORM_LAPS` (2) laps of the safety car, the
+  queue has formed and the pit lane opens.
+- **Lapped cars.** From the tick after it formed, a car with a car behind it
+  in the queue a lap or more up on it is let by (`SafetyCar::let_by`): held
+  only to the catch pace, free to pass and be passed (`FlagCar::free`), it
+  passes the queue and the safety car and goes round to the back; it is done
+  once it is more than `SC_PASS_WINDOW_M` (60 m) ahead of the safety car with
+  nobody behind it a lap up. The lights do not wait for it to catch the
+  queue up.
+- **Passes.** Every pass under it is one under a yellow
+  (`RaceControl::update`, any pass while the course is not green), and a car
+  not let by that goes past the safety car is given the same offence
+  (`Offence::YellowPass`); both are penalised under `yellow_penalty`.
+- **The pit lane** is closed from the call until the queue has formed
+  (`RaceControl::pit_closed`): the AI does not turn onto the pit route (it
+  keeps its wish to stop and turns in at the next pass), the pit autopilot
+  does not take a car in, and a car that drives into the lane while it is
+  closed is not taken on by its box on that visit
+  (`PitState::entered_closed`). A car already on the route when it closed is
+  served. Once open, the AI's stop plan treats the race as neutralised, as
+  under the virtual safety car ([ai](ai.md#strategy)).
+- **In this lap** (`Course::ScInThisLap`): once the queue has formed, nobody
+  is being let by, the road has been clear for `VSC_CLEAR_S` and the queue is
+  closed up again (or `SC_FORM_LAPS` more laps have gone), its lights go out.
+  At the pit entry's station it goes into the lane and along it at the limit
+  to the first limit line, where it is gone (on a circuit with no lane it
+  leaves the road at the line). A car stranded long enough before it reaches
+  the entry puts its lights back on.
+- **The restart.** With the safety car off the road the leader sets the
+  pace: held to `SC_SPEED_MPS` until `SC_RESTART_ZONE_M` (250 m) before the
+  line, free from there; every other car keeps station behind the car ahead
+  at `SC_GAP_M`, no faster than the catch pace until the leader is free. The
+  race goes green as the leader crosses the line (`ScEvent::Green`); every
+  pace is lifted. This is the rolling start's idea (green as the leader
+  reaches the line), driven from the queue rather than from the grid.
+- Laps are counted and timed under it as under green.
 
 ## Penalties
 
@@ -1264,7 +1332,8 @@ cargo test --test grid_order_test             # start order, stored results, ove
 cargo test --test ready_grid_test             # the race's grid: OpenGrid, SetReady, the countdown
 cargo test --test race_start_test             # formation lap back to the grid, rolling start, a jump start, a held grid
 cargo test --test penalty_test                # the AI's drive-through and stop-go at the Norisring
-cargo test --test safety_car_test             # a broken-down car brings the VSC out, the field at its pace, back in
+cargo test --test safety_car_test             # the VSC out and in; the safety car out of the pit exit, the queue, a lapped car let by, the lane shut and open, the restart
+cargo test --lib safety_car                   # the pick-up, the let-by, a pass of the safety car, the restart at the line
 cargo test --lib time_penalty                 # a time penalty reorders the finishers
 cargo test --lib race_start                   # the approach's pace, headway across the line
 cargo test --test reconnect_test              # held seat, resume, takeover, grace, Disconnect

@@ -79,6 +79,13 @@ pub enum RacePhase {
     Vsc = 3,
     /// It is ending: green in `race_control::VSC_ENDING_S`.
     VscEnding = 4,
+    /// The safety car is out (`race_control::Course::Sc`): waiting at the
+    /// pit exit or leading the queue.
+    SafetyCar = 5,
+    /// Safety car in this lap (`race_control::Course::ScInThisLap`): its
+    /// lights are out, it goes into the pit lane, the leader restarts the
+    /// race at the line.
+    ScInThisLap = 6,
 }
 
 /// One car on the formation lap.
@@ -216,8 +223,7 @@ impl Formation {
                 } else {
                     FORMATION_GAP_M
                 };
-                let room = (gap - keep).max(0.0);
-                pace = pace.min(front_speed + (2.0 * APPROACH_DECEL_MPS2 * room).sqrt());
+                pace = pace.min(follow_cap_mps(front_speed, gap, keep));
             }
             paces.insert(*id, pace);
             // A car off the road or out of it is no pace for the rest.
@@ -232,6 +238,14 @@ impl Formation {
     pub fn all_home(&self) -> bool {
         self.cars.values().all(|c| c.home)
     }
+}
+
+/// The fastest a car `gap_m` behind a car going at `front_speed` may go
+/// and still slow to its speed by `keep_m` behind it, at
+/// [`APPROACH_DECEL_MPS2`]: how a car keeps station in a field held to a
+/// pace (the formation lap, the safety car's queue).
+pub fn follow_cap_mps(front_speed: f32, gap_m: f32, keep_m: f32) -> f32 {
+    front_speed + (2.0 * APPROACH_DECEL_MPS2 * (gap_m - keep_m).max(0.0)).sqrt()
 }
 
 /// The pace a car on the formation lap with `left_m` to its slot is held

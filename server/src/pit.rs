@@ -322,6 +322,11 @@ pub struct PitState {
     /// The service under way is a stop-go's hold: no work is done.
     #[serde(default)]
     pub stop_go: bool,
+    /// Came into the lane while it was closed (the safety car's queue
+    /// forming, `race_control::RaceControl::pit_closed`): its box does not
+    /// take it on this visit.
+    #[serde(default)]
+    pub entered_closed: bool,
 }
 
 /// Less fuel than this is not worth stopping the crew for, L.
