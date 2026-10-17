@@ -322,6 +322,10 @@ fires `wear=P`, `puncture=FL`, `leak=FL:KPA`, `flatspot=FL:S`,
 `damage=<zone>:P`, `brakewear=P`, `pit`, `boost=S`, `aids=off` or
 `pitlane=manual` (the pit autopilot off) at a time
 of green. Not applied to demo sessions. Tests: `tests/debug_hooks_test.rs`.
+`tick_jitter_seconds = N` (`APEXSIM_DEBUG_TICK_JITTER_SECONDS`) logs one
+line per N seconds of how evenly the game loop ticked (`tick_jitter.rs`):
+the tick-to-tick interval's median, 99th percentile and longest, and its
+spread against the tick's budget. Measure on an idle machine.
 
 ## Traps
 

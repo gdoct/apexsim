@@ -109,6 +109,9 @@ pub struct DebugSettings {
     pub stand_in_driver: bool,
     /// `"<seconds of green>:<host|all|car index>:<action>"`, `;` separated.
     pub events: String,
+    /// Log how evenly the game loop ticks, one line per this many seconds
+    /// (`crate::tick_jitter`); 0 for never.
+    pub tick_jitter_seconds: u32,
 }
 
 /// What a showcase channel does when its file ends.
@@ -456,6 +459,10 @@ impl ServerConfig {
             &mut self.debug.stand_in_driver,
         );
         env_string("APEXSIM_DEBUG_EVENTS", &mut self.debug.events);
+        env_parse(
+            "APEXSIM_DEBUG_TICK_JITTER_SECONDS",
+            &mut self.debug.tick_jitter_seconds,
+        );
         env_parse("APEXSIM_ADMIN_ENABLED", &mut self.admin.enabled);
         env_string("APEXSIM_ADMIN_HTTP_BIND", &mut self.admin.http_bind);
         env_string("APEXSIM_ADMIN_HTTPS_BIND", &mut self.admin.https_bind);

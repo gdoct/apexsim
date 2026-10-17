@@ -238,4 +238,11 @@ the same files.
   against `git archive HEAD server content` in a scratch folder, with its
   own `CARGO_TARGET_DIR`.
 
+- Tick pacing: the game loop's tokio interval ticks on a 1 ms grid, so
+  at 420 Hz single ticks run 1-4.5 ms apart round the 2.38 ms budget
+  (verification, platforms). If a client shows it, pace the loop on a
+  high-resolution waitable timer (`CREATE_WAITABLE_TIMER_HIGH_RESOLUTION`)
+  or sleep short and spin the last fraction; measure with
+  `[debug] tick_jitter_seconds`.
+
 **Check:** server and client build and tests.

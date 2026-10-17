@@ -44,6 +44,7 @@ pub mod showcase;
 pub mod slipstream;
 pub mod spectator;
 pub mod stream_recorder;
+pub mod tick_jitter;
 pub mod timer_resolution;
 pub mod track_content;
 pub mod track_guide;

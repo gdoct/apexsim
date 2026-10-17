@@ -30,7 +30,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{interval, Duration};
-use tracing::warn;
+use tracing::{info, warn};
 
 /// Shared handles every game-loop phase needs. All locks are taken briefly
 /// inside the helpers/phases, never held across phases.
@@ -159,11 +159,28 @@ pub(crate) async fn run_game_loop(
     // So the rate actually achieved is checked over a window.
     let rate_window_ticks = tick_rate as u64 * RATE_WINDOW_SECONDS;
     let mut rate_window_start = std::time::Instant::now();
+    // `[debug] tick_jitter_seconds`: how evenly single ticks come, logged a
+    // window at a time (`crate::tick_jitter`).
+    let jitter_window_ticks =
+        ctx.state.read().await.config.debug.tick_jitter_seconds as u64 * tick_rate as u64;
+    let mut jitter = crate::tick_jitter::TickJitter::new(tick_duration);
+    let mut last_tick_start: Option<std::time::Instant> = None;
 
     loop {
         ticker.tick().await;
         let tick_start = std::time::Instant::now();
         tick_count += 1;
+        if jitter_window_ticks > 0 {
+            if let Some(last) = last_tick_start {
+                jitter.record(tick_start - last);
+            }
+            last_tick_start = Some(tick_start);
+            if jitter.len() as u64 >= jitter_window_ticks {
+                if let Some(summary) = jitter.take() {
+                    info!("{}", summary.line(tick_duration));
+                }
+            }
+        }
         server_tick.store(tick_count as u32, std::sync::atomic::Ordering::Relaxed);
 
         if tick_count.is_multiple_of(rate_window_ticks) {

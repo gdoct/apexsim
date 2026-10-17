@@ -440,8 +440,14 @@ Mandarina Bay.
 
 - The 420 Hz server through a real client: car motion, force feedback and
   the replay recorder's rate snap were tuned on 240 Hz ticks with 60 Hz
-  telemetry (the divisor of 7 keeps 60 Hz). Not measured: tick jitter at
-  2.4 ms against the 1 ms Windows timer (only the mean rate is tested).
+  telemetry (the divisor of 7 keeps 60 Hz). Tick jitter, measured idle on
+  the RTX 3080 box (2026-10-17, `tick_jitter_seconds = 15`, four windows):
+  the mean exact (6300 ticks a window), median 2.48-2.50 ms against the
+  2.38 ms budget, p99 4.5 ms, the longest 11-25 ms; 17% of ticks within
+  10% of the budget, 15% under half (catching up), 31% at 1.1-1.5x, 0.4%
+  at twice or more. The tokio interval's 1 ms granularity on the 1 ms
+  Windows timer. Whether a client feels it (the motion buffer interpolates
+  over it) is the open part.
 - GPU stability: two races stopped with `DXGI_ERROR_DEVICE_HUNG` about
   10 s after the track was shown (Silverstone and Suzuka, `-ApexAutoRace`,
   5 AI, TV camera); reruns ran, and four 100 s Silverstone runs
