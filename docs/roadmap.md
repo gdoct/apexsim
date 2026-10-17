@@ -120,6 +120,41 @@ and triple screens at each scale; HDR on an HDR display.
 
 **Check:** a custom livery on the car in a race and on a second client.
 
+### 24. The simulation in the client: backdrops, showcases, replays
+
+Once the client links the server's physics for prediction (package 3), the
+same library can run whole sessions in the game where nobody races
+against it: no server process, no recorded stream, one simulation.
+
+- Grow the library from one car's step to the session's tick: AI drivers,
+  car-to-car contact, walls, the road state and race control, the server's
+  own code behind the same C API (no copy), seeded as the server seeds it.
+- The menu's backdrop and the hotlap watch run in-process from a seed: no
+  `SessionKind::Demo` session on the server (which retires its remaining
+  uses, see the work plan's X1) and no `.apxs` showcases to render and
+  ship, or showcases kept as a seed and re-simulated.
+- Replays as seed plus inputs, re-simulated on load, instead of streamed
+  state ([proposals/replay-size.md](proposals/replay-size.md)): far
+  smaller files.
+- Tools without a server: the track guide, the marketing site's shots, the
+  benchmark, a car's stat sheet (a lap estimate) and setup what-ifs in the
+  garage run in the game process; the scripts stop launching a server.
+- Later, perhaps: offline single-player with no server at all.
+
+The server stays the only authority for any session a human races in
+online (CLAUDE.md, "the server owns every rule"): the client's sim plays
+only what nobody competes in.
+
+**Watch out:** the session tick must be untangled from the game loop, as
+package 3's car step was from the session; determinism across the two
+builds (the client's lib and the server binary) is checked by package 3's
+trace test and has to hold for whole seeded races; the client needs the
+track's physics data (package 3's bundle) and matching content checksums;
+the game's binary grows by the AI and session code.
+
+**Check:** a showcase seed simulated in the game bit-identical to the
+server's render of it; the menu backdrop with no server running.
+
 ## P3: nice to have
 
 ### 13. Rewind in offline practice
