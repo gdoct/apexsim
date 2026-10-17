@@ -3,6 +3,11 @@
     "track-editor": {
       "type": "http",
       "url": "http://127.0.0.1:8420/mcp"
+    },
+    "blender": {
+      "type": "stdio",
+      "command": "blender-mcp",
+      "args": []
     }
   }
 }
