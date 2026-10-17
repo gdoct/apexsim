@@ -179,7 +179,7 @@ def anchors(car):
 # ------------------------------------------------------------------ designs
 def design_sweep(s, A, c):
     """A broad band low on the flank that sweeps up over the rear wheel,
-    edged by two pinstripes, and a chevron of it on the bonnet."""
+    edged by two pinstripes and carried across the nose."""
     lo, hi = A["sill"] + 0.02, A["sill"] + 0.20
     rise = 0.26
     y_up = A["arch_r"][0] - 0.30
@@ -192,8 +192,6 @@ def design_sweep(s, A, c):
                  (A["tail"] + 0.1, edge + rise + dz * 1.3), (y_up, edge + dz * 1.3), (A["nose"] - 0.1, edge + dz * 1.3)]
         s.side(strip, col)
     hw = A["hw"]
-    b0, b1 = A["bonnet"]
-    s.top([(b0 + 0.25, 0.0), (b1, hw), (b1, hw * 0.55), (b0 + 0.45, 0.0), (b1, -hw * 0.55), (b1, -hw)], c["c1"])
     s.end("front", [(-hw, lo), (hw, lo), (hw, hi), (-hw, hi)], c["c1"])
 
 
@@ -258,25 +256,37 @@ def furniture(s, A, car, sc):
     fg, panel = sc.get("text", BLACK), sc.get("panel", WHITE)
     d0, d1 = A["door"]
     zc = (A["sill"] + A["belt"]) / 2 + 0.03
-    # the door number on a white roundel
-    r = min(0.15, (A["belt"] - A["sill"]) * 0.42)
-    yc = d0 + r + 0.06
-    s.ellipse_side(yc, zc, r, WHITE, outline=BLACK, width=6)
-    s.side_text(car["number"], yc - r * 0.75, yc + r * 0.75, zc - r * 0.70, zc + r * 0.70, BLACK, face="black")
-    # the main sponsor on the doors, behind the roundel
+    # the door number on a white roundel, high on the door and behind the
+    # door mirror (build_rally.py puts it 0.30 m behind the screen's foot),
+    # which hid it from the side
+    r = min(0.14, (A["belt"] - A["sill"]) * 0.26)
+    zr = A["belt"] - 0.06 - r
+    yc = max(d0 + r + 0.06, car["screen_y"][0] + 0.30 + 0.12 + r)
+    s.ellipse_side(yc, zr, r, WHITE, outline=BLACK, width=6)
+    s.side_text(car["number"], yc - r * 0.75, yc + r * 0.75, zr - r * 0.70, zr + r * 0.70, BLACK, face="black")
+    # the main sponsor behind the roundel when the door is long enough,
+    # else across the door under it
     y0 = yc + r + 0.05
-    s.side_text(sc["sponsor"], y0, d1 - 0.04, zc - 0.10, zc + 0.10, sc.get("sponsor_fg", fg),
-                face=sc.get("face", "bolditalic"), bg=sc.get("sponsor_bg"))
-    # the second sponsor on the rear quarter, the third ahead of the door
+    if d1 - 0.04 - y0 >= 0.40:
+        box = (y0, d1 - 0.04, zr - 0.09, zr + 0.09)
+    else:
+        top = zr - r - 0.03
+        box = (d0 + 0.06, d1 - 0.06, max(A["sill"] + 0.13, top - 0.16), top)
+    s.side_text(sc["sponsor"], *box, sc.get("sponsor_fg", fg), face=sc.get("face", "bolditalic"),
+                bg=sc.get("sponsor_bg"))
+    # the crew's names under the side glass, behind the roundel
+    if d1 - 0.04 - y0 > 0.20:
+        s.side_text(car["crew"], y0, d1 - 0.04, A["belt"] - 0.07, A["belt"] - 0.025, fg, face="medium")
+    # the second sponsor low on the rear quarter (under its intake), the
+    # third ahead of the door
     q0, q1 = d1 + 0.06, A["arch_r"][0] - 0.02
     if q1 - q0 > 0.22:
-        s.side_text(sc["sponsor2"], q0, q1, zc + 0.02, zc + 0.12, fg, face="bold")
+        s.side_text(sc["sponsor2"], q0, q1, A["sill"] + 0.02, A["sill"] + 0.11, fg, face="bold")
     f0, f1 = A["arch_f"][1] + 0.02, d0 - 0.04
     if f1 - f0 > 0.18:
         s.side_text(sc.get("sponsor3", "APEX"), f0, f1, zc + 0.02, zc + 0.10, fg, face="bold")
-    # the maker over the sills, the crew under the side glass
+    # the maker over the sills
     s.side_text(car["maker"], d0 + 0.08, d1 - 0.08, A["sill"] + 0.035, A["sill"] + 0.105, fg, face="black")
-    s.side_text(car["crew"], d0 + 0.10, d0 + 0.70, A["belt"] - 0.075, A["belt"] - 0.02, fg, face="medium")
     hw = A["hw"]
     # the event plate on the bonnet's leading edge, and the rear plate
     b0, b1 = A["bonnet"]

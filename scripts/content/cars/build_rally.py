@@ -50,7 +50,7 @@ HUB_X = V["track"] / 2.0
 XS = HALF_W                       # the GT3 build's lateral figures were for a 1.0 m half-width
 ARCH_GAP = 0.030
 ARCH_WRAP = 24.0
-SAMP = 6
+SAMP = 8
 BELT, ROOF = 5.35, 6.60
 TRIM_J = 0.20
 TRIM_Y = 0.040
@@ -91,7 +91,7 @@ KEYS = carlib.remap_station(KEYS, K1, x_scale=E["tail_w"], z_lo=E["tail_bot"], z
 KEYS = carlib.remap_station(KEYS, K1 - 0.10, x_scale=0.985, z_hi=E["tail_top"] + 0.02, j_from=4)
 KEYS = carlib.tip_station(KEYS, K0, K0 - 0.05, x_scale=0.82, z_shrink=0.74)
 KEYS = carlib.tip_station(KEYS, K1, K1 + 0.04, x_scale=0.84, z_shrink=0.76)
-L = carlib.Loft(KEYS, samp=SAMP, ny=110, hard=(2, 3, 4, 5))
+L = carlib.Loft(KEYS, samp=SAMP, ny=170, hard=(2, 3, 4, 5))
 NOSE, TAIL = L.nose, L.tail
 BUMPER_Y, TAILP_Y = K0, K1
 
@@ -122,30 +122,40 @@ if "deck" in V["vents"]:
     L.recess(V["rear_glass_y"][1] + 0.12, V["rear_glass_y"][1] + 0.78, 6.0, 8.0, depth=0.030, rim=0.026)
 
 
+SIDE_SHUT_YS = sorted(y for (y, k) in V["shutlines"] if k == "side")
+# The back light wraps round onto the flank when it comes this near the
+# side glass (the coupes); the hatchback's quarter is solid.
+REAR_WRAP = V["rear_glass_y"][0] - V["glass_y"][1] < 0.30
+
+
 def face_mat(ym, kk, right):
-    """The skin, glass, or the black surround round the glass; the sun
-    strip across the top of the screen is skin (the livery's banner)."""
+    """The skin, glass, or the black rubber under the glass.
+
+    Every edge here runs along the loft's grid - a station (y) or a
+    control index (j) - so it is a clean line: a slanted edge drawn face
+    by face steps with the grid however fine it is. The greenhouse's flank
+    is one band of glass from the screen's foot to the back of the side
+    glass (or of the back light, where it wraps), and the raked A- and
+    C-pillars are black strips laid over it (`PILLARS` below); the B-pillar
+    is upright at the door's rear shut. The sun strip across the screen's
+    head is skin (the livery's banner)."""
     jc = kk / SAMP
     s0, s1 = V["screen_y"]
     r0, r1 = V["rear_glass_y"]
     g0, g1 = V["glass_y"]
-    is_screen = s0 < ym < s1
-    is_rear = r0 < ym < r1
-    is_side = g0 < ym < g1
+    side_end = r1 if REAR_WRAP else g1
     if jc < BELT - TRIM_J:
-        if L._offset(ym, kk, right, skip_swept=True) > 0.022:
-            return M.mesh
         return M.skin
     if jc < BELT:
-        return M.trim if (is_screen or is_rear or is_side) else M.skin
-    if is_screen:
+        return M.trim if s0 < ym < side_end else M.skin
+    if jc < ROOF:
+        if abs(ym - SIDE_SHUT_YS[-1]) < 0.030 and SIDE_SHUT_YS[-1] < g1 - 0.15:
+            return M.trim
+        return M.glass if s0 < ym < side_end else M.skin
+    if s0 < ym < s1:
         return M.skin if ym > s1 - SUNSTRIP else M.glass
-    if is_rear:
+    if r0 < ym < r1:
         return M.glass
-    if is_side and jc < ROOF:
-        return M.glass
-    if jc < ROOF + 0.5 and any(abs(ym - e) < TRIM_Y for e in (s0, r0, r1, g0, g1)):
-        return M.trim
     return M.skin
 
 
@@ -325,6 +335,18 @@ for (y, tyre) in ((AX_F, TYRE_F), (AX_R, TYRE_R)):
         x0, x1 = sorted((sx * (HUB_X - 0.15), sx * (HUB_X + 0.11)))
         p.box(M.accent, (x0, fy, 0.045), (x1, fy + 0.010, max(0.30, V["floor"] + 0.16)))
 
+# ---- the raked pillars: black strips over the greenhouse's glass, from
+# the side glass's corners at the belt to the screen's and the back
+# light's heads (face_mat leaves the glass a clean band under them)
+_s0, _s1 = V["screen_y"]
+_r0, _r1 = V["rear_glass_y"]
+_g0, _g1 = V["glass_y"]
+PILLARS = [[(_g0, BELT + 0.02), (_s1 - 0.03, ROOF + 0.35)]]
+if REAR_WRAP:
+    PILLARS.append([(_g1, BELT + 0.02), (_r0 + 0.04, ROOF + 0.35)])
+for pts in PILLARS:
+    for sx in (-1, 1):
+        carlib.light_guide(p, M.trim, L, pts, sx=sx, lift=-0.014, r=0.026, segs=10, per=16)
 # ---- side intake floors
 for f in SIDE_FLOORS:
     for sx in (-1, 1):

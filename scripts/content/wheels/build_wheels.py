@@ -45,7 +45,7 @@ CLASSES = {
                      band=(0.95, 0.80, 0.05), marks=(0.92, 0.92, 0.92)),
     # Group B: a 16" rim on a tall tarmac tyre, eight broad spokes in white
     # paint, the wheel every one of the rally cars wore in period.
-    "rally": dict(R=0.315, W=0.260, RR=0.212, spokes=8, spoke_w=0.030, twin=False,
+    "rally": dict(R=0.315, W=0.260, RR=0.212, spokes=8, spoke_w=0.048, twin=False,
                   rim=(0.85, 0.85, 0.83), rim_metal=0.15, nut=(0.62, 0.62, 0.64),
                   band=None, marks=(0.90, 0.90, 0.90)),
 }
