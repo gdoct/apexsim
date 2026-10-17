@@ -1636,7 +1636,10 @@ runs:
       - {at: 265, label: "", checks: ""}
       - {at: 300, label: "", checks: ""}
       - {at: 340, label: "", checks: ""}
-      - {at: 380, label: "after the runs", checks: "the shoot-out sheet"}
+      - {at: 380, label: "the player's flying lap", checks: "a driven run (the stand-in)"}
+      - {at: 430, label: "", checks: "the flying lap's end"}
+      - {at: 460, label: "after the runs", checks: "the shoot-out sheet"}
+      - {at: 490, label: "after the runs", checks: "the shoot-out sheet"}
 
   # A lap allowance of two: the laps left on the HUD and the garage, GO OUT
   # gone once used. The stand-in drives.
@@ -1660,12 +1663,17 @@ runs:
       70: ["apexsim.hud.Data qualifying."]
       130: ["apexsim.hud.Data qualifying."]
       200: ["apexsim.hud.Data qualifying."]
+      260: ["apexsim.hud.Data qualifying."]
+      300: ["apexsim.hud.Data qualifying."]
     shots:
       - {at: 12, label: "garage: 2 timed laps left", checks: "GO OUT's badge"}
       - {at: 60, label: "outlap: laps left 2", checks: "qualifying.laps_left on the race state"}
       - {at: 120, label: "a timed lap ended", checks: "laps left 1"}
       - {at: 170, label: "", checks: ""}
-      - {at: 210, label: "allowance used: in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+      - {at: 210, label: "the second timed lap", checks: "laps left 1"}
+      - {at: 270, label: "", checks: "USED on the race state"}
+      - {at: 300, label: "allowance used: in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+      - {at: 330, label: "", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
 
   # A written forecast made by an auto race, echoed and laid out on the HUD.
   - id: r12-forecast-hud

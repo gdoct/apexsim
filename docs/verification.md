@@ -293,20 +293,19 @@ then "1 TO GO" on the disabled GO OUT, the scoreboard opened with the
 camera on each car as it went out, and the YOUR TURN banner as the player's
 car was sent out; a written forecast echoed and laid out in `sky.outlook`
 (`apexsim.hud.Data`), and `qualifying.laps_left` reading 2 on the track.
+Seen on 2026-10-17 (after the stand-in fix): the player's shoot-out run
+driven to its flying lap and the shoot-out's results sheet (QUALIFYING ·
+SHOOT-OUT · ONE FLYING LAP EACH, RAN 3RD, pole); the lap allowance counting
+2, 1, 0 (`qualifying.laps_left`, LAPS LEFT 1 on the race state) and the
+session's results once every car's laps were used. Luna Swift's Murcetes
+set no time in either run (0/1, 0/2): the AI's laps struck for track
+limits, as in [server/sessions.md](server/sessions.md).
 
-- The shoot-out's end and its results sheet (QUALIFYING SHOOT-OUT, ONE
-  FLYING LAP EACH, RAN Nth): the player's run stood still in the last
-  `r12-shootout` (the stand-in drove through the profile's steering aid
-  into a wall); the stand-in now drives qualifying with the aid off
-  (`the_stand_in_drives_a_qualifying_run`), so a rerun should show a driven
-  run, then the sheet.
-- The lap allowance counting down: Laps left 1 and USED on the race state,
-  LAP ALLOWANCE USED with GO OUT disabled in the garage, and GO OUT's
-  "2 timed laps left" badge (the same stand-in stall, now fixed; the badge was not up at
-  12 s, before the session was in qualifying). The count now comes from the
-  server's `RosterEntry.QualifyingLaps`: `r12-lap-allowance` showed a roster
-  resent at each AI lap and the player's laps left holding at 2, but not a
-  count of the player's own going down.
+- The lap allowance's USED on the race state and LAP ALLOWANCE USED with
+  GO OUT disabled in the garage: the session ends as the last car's laps
+  are used, so it needs a player done before the AI (an allowance of one,
+  or a longer AI field); and GO OUT's "2 timed laps left" badge (not up at
+  12 s, before the session was in qualifying).
 - A weekend whose final round is a shoot-out, live, and the HUD's
   conditions panel showing the written outlook (the race layout used had no
   conditions panel up).
