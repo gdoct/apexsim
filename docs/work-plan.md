@@ -31,7 +31,6 @@ When an item is done, delete it from its backlog and from here.
 | N1 | Client-side prediction for the local car | Netcode | P1 | 🟡 | L |
 | V1 | Verify the newest session screens (R9, R11, R12) | Verification | P1 | 🟡 | S |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
-| B4 | Imported pit lanes: human not taken over at Spa / RBR | Bug | P2 | 🟡 | M |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
 | D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🔴 | M |
 | R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🔴 | L |
@@ -86,19 +85,6 @@ When an item is done, delete it from its backlog and from here.
 ## 3. Items by type
 
 ### Bugs
-
-#### B4. Imported pit lanes: scripted human not taken over at Spa and RBR — P2 · 🟡 · M
-*Source: follow-ups #11.*
-
-**What:** In `pit_lane_survey` the scripted human cuts across La Source into
-a wall (Spa) and drives 4 m inboard of AC's line (Red Bull Ring); the
-autopilot itself is untried there.
-**Outcome:** Every imported pit lane works for a human, not just the AI.
-**Implementation:** Inspect the sidecar's lane vs AC's pit line in
-`ac_import/pit.py`; likely the entry line position/heading fails
-`pit::takes_over` (40 m window, pointing down the lane). Fix in the importer.
-**Watch out:** human review = the "imported circuit's pit stop" sitting in
-H2; `PIT_CUSTOM=1` survey across all seven imports must stay green.
 
 #### B5. Chase camera inside a car body — P3 · 🟡 · S
 *Source: follow-ups #12.* Seen once on the Bugotti Chiffon. Check the chase
@@ -336,7 +322,7 @@ sitting, Nordschleife and Mandarina Bay. Every finding becomes a follow-up.
   knock, flat-spot thump, promo clip levels.
 - **Pad and mouse:** browser filter pills, HUD editor R3/L3, hotlap
   transport, grid card focus, GameInput pad.
-- **Imported pit stop** by hand (after B4).
+- **Imported pit stop** by hand.
 - **Launcher AC import with the network off** — last.
 
 ### Cleanup
@@ -519,4 +505,4 @@ What only you can do, roughly in the order it pays off:
   `roadmap.md`. Yellow and blue flags stay in `simulation-gaps.md` (race
   rules) and are split here into R1a (flags, P1) and R1b (safety car, P2).
 - **Blocked verification:** R1/R2 tyre close-ups wait on T2; R4 waits on A2;
-  R12's last items wait on T1; the H2 imported pit stop waits on B4.
+  R12's last items wait on T1.

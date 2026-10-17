@@ -185,13 +185,11 @@ the field, a jump start and a red-light exit served; `race_start_test`,
   needs a race's replay saved by one run and played by the next. The
   stand-in, an AI, also pits for any leak and at a 0.6 flat spot, wear 70
   or damage 25 (`pit::plan_stop`), so the moment has to come within that lap.
-- Imported pit lanes (`ac_import/pit.py`): the AI pits on all seven imports
-  tried (Zandvoort, Silverstone, Spa, Barcelona, Red Bull Ring, Imola, Poznan:
-  `PIT_CUSTOM=1 ... ai_pit_survey`), but the scripted human in
-  `pit_lane_survey` is not taken over at Spa and Red Bull Ring: it cuts across
-  La Source's mouth into a wall, and at the Red Bull Ring it drives 4 m
-  inboard of AC's line, which is still on the road edge. The autopilot itself
-  is untried there.
+- Imported pit lanes (`ac_import/pit.py`): Poznan's `drift` layout gets no
+  pit lane: none of its 32 `AC_PIT` markers is within 20 m of its pit
+  line's speed-limit stretch (the other four Poznan layouts, and Spa, Red
+  Bull Ring, Laguna Seca, Zandvoort, Silverstone, Barcelona and Imola, pass
+  both `PIT_CUSTOM=1` pit surveys).
 
 **Check:** the track-editor tests; a fresh-clone `initialize_content.ps1`;
 the launcher import with the network off.
