@@ -436,6 +436,12 @@ Mandarina Bay.
   wheel rev lights from `rev_fraction`. Only the layout, mapping and
   motion tests (`ApexSim.TelemetryOutput.*`) have run.
 
+**Setup sharing.**
+
+- The garage's COPY AS TEXT and PASTE by hand: a line pasted into a chat
+  and back, a line for another car refused, the note under the save line.
+  Only `ApexSim.SetupShare.*` has run.
+
 **Last, with the network off.**
 
 - The launcher's AC import button, never clicked by hand, and the import

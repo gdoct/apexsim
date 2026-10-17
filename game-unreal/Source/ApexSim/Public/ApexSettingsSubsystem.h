@@ -342,6 +342,9 @@ public:
 	/** Saves the working setup under Name for CarId; returns the new entry's id. */
 	FGuid SaveSetupAs(const FString& Name, const FString& CarId);
 
+	/** Saves a setup from elsewhere (a pasted one) under Name for CarId, leaving the working setup alone. */
+	FGuid AddSavedSetup(const FString& Name, const FString& CarId, const FApexCarSetup& Setup);
+
 	/** Writes the working setup over a saved one (its best lap is forgotten). */
 	void OverwriteSavedSetup(const FGuid& Id);
 

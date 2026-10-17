@@ -579,6 +579,13 @@ reordered; effects are the `*_PER_CLICK` consts):
   `UApexSettingsSave::CarSetup`, one setup for every car, with named setups per car in
   `SavedSetups`; the knob table mirror is `ApexCarSetup::FKnob`
   (`ApexSim.Net.CarSetup.Clicks`). More in [sessions](sessions.md).
+- **Sharing**: the Load / Save tab's COPY AS TEXT puts the picked setup on the clipboard
+  as one line (`ApexSetupShare`: `APXS1;car=<id>;crc=<car.toml checksum>;name=...;c=<clicks>`)
+  and in `Saved/Setups/<car>-<name>.txt`; PASTE reads such a line from anywhere in the
+  clipboard's text (a chat message, backticks) and saves it as a new setup for the car in
+  the garage. A line for another car is refused (clicks are steps off one car.toml); one
+  from another version of the car (its `crc` against the catalog row's `SourceCrc`) is
+  taken with its clicks pinned into range and a warning. Tests: `ApexSim.SetupShare.*`.
 - Tests: `car_setup::tests`, `setup_sheet::tests`.
 
 ## Wire fields

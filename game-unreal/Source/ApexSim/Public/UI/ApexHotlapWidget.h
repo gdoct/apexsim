@@ -533,4 +533,12 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> OverwriteButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> RenameButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DeleteButton;
+	/** Share codes (ApexSetupShare): the picked setup as a line of text, and one pasted in as a new setup. */
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> CopySetupButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> PasteSetupButton;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ShareNote;
+
+	void CopyPickedSetup();
+	void PasteSetup();
+	void SetShareNote(const FString& Text, bool bError);
 };

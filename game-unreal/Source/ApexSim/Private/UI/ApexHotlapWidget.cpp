@@ -5,6 +5,7 @@
 #include "ApexReplayRecorder.h"
 #include "ApexSettingsSave.h"
 #include "ApexSettingsSubsystem.h"
+#include "ApexSetupShare.h"
 #include "ApexSim.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
@@ -23,6 +24,9 @@
 #include "Components/WidgetSwitcher.h"
 #include "Engine/GameInstance.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "UObject/UObjectIterator.h"
@@ -75,6 +79,8 @@ namespace
 	const FName ActionOverwrite  = TEXT("Hotlap.Overwrite");
 	const FName ActionDelete     = TEXT("Hotlap.Delete");
 	const FName ActionRename     = TEXT("Hotlap.Rename");
+	const FName ActionCopySetup  = TEXT("Hotlap.CopySetup");
+	const FName ActionPasteSetup = TEXT("Hotlap.PasteSetup");
 	const FName ActionReady      = TEXT("Grid.Ready");
 	const FName ActionGridLivery     = TEXT("Grid.Livery");
 	const FName ActionStartNow   = TEXT("Grid.StartNow");
@@ -1526,7 +1532,14 @@ UWidget* UApexHotlapWidget::BuildSavePage()
 	AddH(SaveLine, MakeSized(*WidgetTree, SaveNameBox, -1.0f, 58.0f), FMargin(), VAlign_Center, 1.0f);
 	SaveButton = MakeActionButton(TEXT("SAVE AS NEW"), FString(), ActionSave, EApexButtonVariant::Primary, 58.0f, 20.0f);
 	AddH(SaveLine, MakeSized(*WidgetTree, SaveButton, 190.0f, -1.0f), FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+	// A setup someone shared as text (COPY AS TEXT on their side), from the clipboard.
+	PasteSetupButton = MakeActionButton(TEXT("PASTE"), FString(), ActionPasteSetup, EApexButtonVariant::Ghost, 58.0f, 17.0f);
+	AddH(SaveLine, MakeSized(*WidgetTree, PasteSetupButton, 110.0f, -1.0f), FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
 	AddV(Left, SaveLine);
+	ShareNote = MakeText(*WidgetTree, FString(), Font::Body(14.0f), InkMuted);
+	ShareNote->SetAutoWrapText(true);
+	ShareNote->SetVisibility(ESlateVisibility::Collapsed);
+	AddV(Left, ShareNote, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 
 	UHorizontalBox* ListHead = WidgetTree->ConstructWidget<UHorizontalBox>();
 	AddH(ListHead, Caption(*WidgetTree, TEXT("Saved · this car")), FMargin(), VAlign_Center, 1.0f);
@@ -1575,6 +1588,8 @@ UWidget* UApexHotlapWidget::BuildSavePage()
 	DeleteButton = MakeActionButton(TEXT("DELETE"), FString(), ActionDelete, EApexButtonVariant::Ghost, 52.0f, 17.0f);
 	AddH(Secondary, MakeSized(*WidgetTree, DeleteButton, 124.0f, -1.0f), FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
 	AddV(DetailActions, Secondary, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
+	CopySetupButton = MakeActionButton(TEXT("COPY AS TEXT"), FString(), ActionCopySetup, EApexButtonVariant::Ghost, 52.0f, 17.0f);
+	AddV(DetailActions, CopySetupButton, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 	AddV(Detail, MakePanel(*WidgetTree, DetailActions, FMargin(24.0f, 18.0f, 24.0f, 22.0f), MakeBrush(FLinearColor::Transparent)));
 	DetailPanel = Detail;
 	UOverlaySlot* DetailSlot = DetailHost->AddChildToOverlay(Detail);
@@ -2945,6 +2960,14 @@ void UApexHotlapWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			SaveNameBox->SetText(FText::GetEmpty());
 		}
 	}
+	else if (Id == ActionCopySetup && SelectedSaved.IsValid())
+	{
+		CopyPickedSetup();
+	}
+	else if (Id == ActionPasteSetup)
+	{
+		PasteSetup();
+	}
 	else if (Id == ActionDelete && Settings && SelectedSaved.IsValid())
 	{
 		Settings->DeleteSavedSetup(SelectedSaved);
@@ -2954,6 +2977,91 @@ void UApexHotlapWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			ApexNav::Focus(SaveButton);
 		}
 	}
+}
+
+void UApexHotlapWidget::SetShareNote(const FString& Text, bool bError)
+{
+	if (ShareNote)
+	{
+		ShareNote->SetText(FText::FromString(Text));
+		ShareNote->SetColorAndOpacity(FSlateColor(bError ? Palette::Error : InkMuted));
+		ShareNote->SetVisibility(Text.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void UApexHotlapWidget::CopyPickedSetup()
+{
+	const UApexSettingsSubsystem* Settings = GetSettings();
+	if (!Settings)
+	{
+		return;
+	}
+	for (const FApexSavedSetup& Saved : Settings->GetSavedSetups(GetCarId()))
+	{
+		if (Saved.Id != SelectedSaved)
+		{
+			continue;
+		}
+		ApexSetupShare::FShared Shared;
+		Shared.CarId = Saved.CarId;
+		Shared.Name = Saved.Name;
+		Shared.Setup = Saved.Setup;
+		FApexCarCatalogRow Row;
+		const UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+		if (Flow && Flow->GetCarCatalogRow(Saved.CarId, Row))
+		{
+			Shared.CarCrc = static_cast<uint32>(Row.SourceCrc);
+		}
+		const FString Line = ApexSetupShare::Encode(Shared);
+		FPlatformApplicationMisc::ClipboardCopy(*Line);
+		// And a file beside the saves, for a forum post or a backup.
+		const FString Path = FPaths::ConvertRelativePathToFull(
+			FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Setups"), ApexSetupShare::FileName(Shared)));
+		const bool bFile = FFileHelper::SaveStringToFile(Line + TEXT("\n"), *Path);
+		UE_LOG(LogApexSim, Log, TEXT("Setup copied as text: %s%s"), *Line, bFile ? *FString::Printf(TEXT(" (and %s)"), *Path) : TEXT(""));
+		SetShareNote(bFile
+			? FString::Printf(TEXT("Copied: paste it in a message. Also saved as %s"), *Path)
+			: FString(TEXT("Copied: paste it in a message.")), false);
+		return;
+	}
+}
+
+void UApexHotlapWidget::PasteSetup()
+{
+	UApexSettingsSubsystem* Settings = GetSettings();
+	if (!Settings)
+	{
+		return;
+	}
+	FString Text;
+	FPlatformApplicationMisc::ClipboardPaste(Text);
+	ApexSetupShare::FShared Shared;
+	FString Error;
+	if (!ApexSetupShare::Decode(Text, Shared, Error))
+	{
+		SetShareNote(Error, true);
+		return;
+	}
+	const UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+	if (!Shared.CarId.Equals(GetCarId(), ESearchCase::IgnoreCase))
+	{
+		// Clicks are steps off one car's file: on another car they mean nothing.
+		FApexCarCatalogRow Other;
+		const FString OtherName = Flow && Flow->GetCarCatalogRow(Shared.CarId, Other) && !Other.DisplayName.IsEmpty()
+			? Other.DisplayName : Shared.CarId;
+		SetShareNote(FString::Printf(TEXT("That setup is for the %s: pick that car to paste it."), *OtherName), true);
+		return;
+	}
+	FApexCarCatalogRow Row;
+	const uint32 OwnCrc = Flow && Flow->GetCarCatalogRow(GetCarId(), Row) ? static_cast<uint32>(Row.SourceCrc) : 0;
+	const bool bOtherVersion = Shared.CarCrc != 0 && OwnCrc != 0 && Shared.CarCrc != OwnCrc;
+	SelectedSaved = Settings->AddSavedSetup(Shared.Name, GetCarId(), Shared.Setup);
+	UE_LOG(LogApexSim, Log, TEXT("Setup pasted: '%s' for %s%s"), *Shared.Name, *Shared.CarId,
+		bOtherVersion ? TEXT(" (made on another version of the car)") : TEXT(""));
+	SetShareNote(bOtherVersion
+		? FString::Printf(TEXT("Pasted as \"%s\". It was made on another version of this car: its clicks are kept in range, check it before you race it."), *Shared.Name)
+		: FString::Printf(TEXT("Pasted as \"%s\"."), *Shared.Name), bOtherVersion);
+	RefreshSaved();
 }
 
 void UApexHotlapWidget::HandleStepperChanged(UApexStepperWidget* Control, int32 Value)

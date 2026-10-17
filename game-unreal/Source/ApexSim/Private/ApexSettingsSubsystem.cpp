@@ -977,6 +977,21 @@ FGuid UApexSettingsSubsystem::SaveSetupAs(const FString& Name, const FString& Ca
 	return Saved.Id;
 }
 
+FGuid UApexSettingsSubsystem::AddSavedSetup(const FString& Name, const FString& CarId, const FApexCarSetup& Setup)
+{
+	if (!Settings) { return FGuid(); }
+	FApexSavedSetup Saved;
+	Saved.Id = FGuid::NewGuid();
+	Saved.Name = Name;
+	Saved.CarId = CarId;
+	Saved.SavedAt = FDateTime::Now();
+	Saved.Setup = Setup;
+	Saved.Setup.Clamp();
+	Settings->SavedSetups.Insert(Saved, 0);
+	Changed(EApexSettingsGroup::CarSetup);
+	return Saved.Id;
+}
+
 void UApexSettingsSubsystem::OverwriteSavedSetup(const FGuid& Id)
 {
 	if (!Settings) { return; }

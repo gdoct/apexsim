@@ -69,7 +69,6 @@ When an item is done, delete it from its backlog and from here.
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each |
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each |
 | X1 | `SessionKind::Demo` removal | Cleanup | P3 | 🟢 | S |
-| N12 | Setup sharing (export / import) | Driver tools | P3 | 🟢 | S |
 | N13 | Rewind / restart from a point (offline) | Driver tools | P3 | 🟢 | M |
 | N14 | Spotter and engineer radio | Audio | P3 | 🔴 | M |
 | N15 | Driver profile and stats | Progression | P3 | 🟢 | M |
@@ -516,11 +515,6 @@ Online: send the livery to other clients (size-capped, cached by hash).
 **Watch out:** `content/cars/custom` is the player's and never ships; the
 car's material comes from `ApexCarContent::OwnMaterialInstance`; no
 trademarks on screen (decals are user content — say so).
-
-#### N12. Setup sharing — P3 · 🟢 · S
-Export and import a setup as a small file (car id, setup clicks, version);
-copy as text for Discord. Watch out: setups are clicks against the car's
-ranges — reject or clamp a setup from another car version.
 
 #### N13. Rewind / restart from a point (offline) — P3 · 🟢 · M
 Offline practice only: rewind N seconds and resume. The sim is deterministic

@@ -124,12 +124,6 @@ and triple screens at each scale.
 
 ## P3: nice to have
 
-### 12. Setup sharing
-
-- Export and import a setup (car id, version, clicks) as a file and as text.
-
-**Check:** a round trip; a setup from another car version clamped.
-
 ### 13. Rewind in offline practice
 
 - Periodic full-state snapshots; rewind N seconds and resume; laps after a

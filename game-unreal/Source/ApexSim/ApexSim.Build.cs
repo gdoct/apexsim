@@ -56,6 +56,8 @@ public class ApexSim : ModuleRules
 			// The telemetry output for external apps and rigs (UDP).
 			"Sockets",
 			"Networking",
+			// The garage's setup share codes go through the clipboard.
+			"ApplicationCore",
 		});
 	}
 }
