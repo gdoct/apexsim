@@ -47,6 +47,18 @@ fn track_file(stem: &str) -> PathBuf {
     }
 }
 
+/// `<car>/car.toml` in the shipped folder, else the player's own
+/// (`content/cars/custom`, where `scripts/ac_car_import.py` writes).
+fn car_file(car: &str) -> PathBuf {
+    let custom = repo(&format!("content/cars/custom/{car}/car.toml"));
+    let default = repo(&format!("content/cars/default/{car}/car.toml"));
+    if !default.exists() && custom.exists() {
+        custom
+    } else {
+        default
+    }
+}
+
 fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
     let mut track =
         TrackLoader::load_from_file_with(track_file(track), road_contact()).expect("track loads");
@@ -99,8 +111,7 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
         }
         conditions.apply_to_track(&mut track);
     }
-    let car = CarLoader::load_from_file(&repo(&format!("content/cars/default/{car}/car.toml")))
-        .expect("car loads");
+    let car = CarLoader::load_from_file(&car_file(car)).expect("car loads");
     let car_id = car.id;
     let mut cars = HashMap::new();
     cars.insert(car.id, car);
@@ -305,9 +316,19 @@ fn survey_ai_races_on_every_circuit() {
         let only: Vec<&str> = only.split(',').map(str::trim).collect();
         tracks.retain(|t| only.contains(&t.as_str()));
     }
+    // `SURVEY_CARS=AcFriendsFerrari499pLmh` races these cars instead (a
+    // folder under content/cars/default or, for an import, custom).
+    let cars: Vec<String> = std::env::var("SURVEY_CARS")
+        .map(|v| v.split(',').map(|c| c.trim().to_string()).collect())
+        .unwrap_or_else(|_| {
+            ["yotota-lmp2", "fugazzi-sf26", "posh-gt3rs"]
+                .map(String::from)
+                .to_vec()
+        });
     for track in tracks {
-        for car in ["yotota-lmp2", "fugazzi-sf26", "posh-gt3rs"] {
+        for car in &cars {
             let mut race = ai_race(&track, car, DEMO_FIELD);
+            let mut causes = DamageCauses::default();
             let (mut contact, mut off, mut slide, mut at_3s) = (0u32, 0u32, 0u32, 0);
             let mut dbg: HashMap<(i32, u8), u32> = HashMap::new();
             let mut passes = Passes::default();
@@ -321,6 +342,7 @@ fn survey_ai_races_on_every_circuit() {
                 if std::env::var("SURVEY_EVENTS").is_ok() {
                     log_events(&race, t, &mut was);
                 }
+                causes.sample(&race);
                 if t == TICK_RATE as u32 * 3 {
                     at_3s = race
                         .session
@@ -373,12 +395,101 @@ fn survey_ai_races_on_every_circuit() {
                 .filter(|c| !c.damage.is_drivable)
                 .count();
             println!(
-                "{track:>14} {car:>14}: out of shape at 3 s {at_3s}, car-seconds of contact {:5.1}, off {:5.1}, sliding {:5.1}, retired {retired}, passes {}",
+                "{track:>14} {car:>14}: out of shape at 3 s {at_3s}, car-seconds of contact {:5.1}, off {:5.1}, sliding {:5.1}, retired {retired}{}, passes {}",
                 secs(contact),
                 secs(off),
                 secs(slide),
+                causes.retired_by(&race),
                 passes.count
             );
+        }
+    }
+}
+
+/// What damaged each car, by zone: each tick's rise in a zone is put down to
+/// another car (in contact with one within 8 m), a wall (in contact, no car
+/// near), or the car itself (kerbs, bottoming, a landing; for the engine its
+/// revs, heat and wear). A retired car is reported by what did most to the
+/// zone that went.
+#[derive(Default)]
+struct DamageCauses {
+    last: HashMap<PlayerId, [f32; 5]>,
+    /// Per car and zone: car, wall, own.
+    by: HashMap<PlayerId, [[f32; 3]; 5]>,
+}
+
+impl DamageCauses {
+    const NAMES: [&'static str; 3] = ["car", "wall", "own"];
+
+    fn zones(c: &CarState) -> [f32; 5] {
+        let d = &c.damage;
+        [
+            d.front_damage_percent,
+            d.rear_damage_percent,
+            d.left_damage_percent,
+            d.right_damage_percent,
+            d.engine_damage_percent,
+        ]
+    }
+
+    fn sample(&mut self, race: &GameSession) {
+        let cars: Vec<&CarState> = race.session.participants.values().collect();
+        for c in &cars {
+            let now = Self::zones(c);
+            let before = self.last.insert(c.player_id, now).unwrap_or(now);
+            let rise: Vec<(usize, f32)> = (0..5)
+                .map(|z| (z, now[z] - before[z]))
+                .filter(|(_, r)| *r > 0.0)
+                .collect();
+            if rise.is_empty() {
+                continue;
+            }
+            let cause = if c.is_colliding {
+                let near = cars.iter().any(|o| {
+                    o.player_id != c.player_id && (o.pos_x - c.pos_x).hypot(o.pos_y - c.pos_y) < 8.0
+                });
+                if near {
+                    0
+                } else {
+                    1
+                }
+            } else {
+                2
+            };
+            let by = self.by.entry(c.player_id).or_default();
+            for (z, r) in rise {
+                by[z][cause] += r;
+            }
+        }
+    }
+
+    /// ` (car 2, wall 1)`: the retired cars by cause, or nothing.
+    fn retired_by(&self, race: &GameSession) -> String {
+        let mut count = [0u32; 3];
+        for c in race.session.participants.values() {
+            if c.damage.is_drivable {
+                continue;
+            }
+            let zones = Self::zones(c);
+            let Some(by) = self.by.get(&c.player_id) else {
+                continue;
+            };
+            let zone = (0..5)
+                .max_by(|a, b| zones[*a].total_cmp(&zones[*b]))
+                .unwrap_or(0);
+            let cause = (0..3)
+                .max_by(|a, b| by[zone][*a].total_cmp(&by[zone][*b]))
+                .unwrap_or(0);
+            count[cause] += 1;
+        }
+        let parts: Vec<String> = (0..3)
+            .filter(|i| count[*i] > 0)
+            .map(|i| format!("{} {}", Self::NAMES[i], count[i]))
+            .collect();
+        if parts.is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", parts.join(", "))
         }
     }
 }
@@ -649,4 +760,168 @@ fn snow_stall_survey() {
         "{track} {car} snow: stalled {:.1} car-s, out {out}, engines cooked without a hit {cooked}",
         secs(total_stall)
     );
+}
+
+/// One AI alone (`SURVEY_AI_LEVEL`, an ace unless set) for `LONE_LAPS` (3)
+/// laps of each `SURVEY_TRACKS` circuit in each `SURVEY_CARS` car: per lap
+/// the time, the seconds off the road and sliding, and every corner (the
+/// slowest point of a braking run of the car's plan) where it slid or left
+/// the road, with the speed it planned there (times its pace) and the
+/// slowest it went. Where a car cannot hold its own plan.
+/// `SURVEY_CARS=AcFriendsFerrari499pLmh SURVEY_TRACKS=Spa cargo test --release --test ai_race_start_test lone_car_against_its_plan -- --ignored --nocapture`
+#[test]
+#[ignore]
+fn lone_car_against_its_plan() {
+    use apexsim_server::racing_line::{self, LinePhase};
+    if std::env::var("SURVEY_AI_LEVEL").is_err() {
+        // SAFETY: a test of its own process, before anything reads it.
+        unsafe { std::env::set_var("SURVEY_AI_LEVEL", "110") };
+    }
+    let laps: u16 = std::env::var("LONE_LAPS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(3);
+    let tracks = std::env::var("SURVEY_TRACKS").unwrap_or_else(|_| "Spa".into());
+    let cars = std::env::var("SURVEY_CARS").unwrap_or_else(|_| "posh-gt3rs".into());
+    let (mut all_off, mut all_slide) = (0.0f32, 0.0f32);
+    for track in tracks.split(',').map(str::trim) {
+        for car in cars.split(',').map(str::trim) {
+            let mut race = ai_race(track, car, 1);
+            let id = *race.session.participants.keys().next().unwrap();
+            let config = race.car_configs.values().next().expect("the car").clone();
+            let fuel = race.session.participants[&id].fuel_liters;
+            let plan = racing_line::build_laden(&race.track_config, &config, fuel).unwrap();
+            let skill = race.ai_profiles[&id].skill_level;
+            let pace = apexsim_server::ai_driver::profile_pace(skill);
+            let n = plan.points.len();
+            // `LONE_PLAN=900,1000`: the plan between those metres, with the
+            // line's radius (a 7.5 m half chord) and the lock it takes.
+            if let Ok(span) = std::env::var("LONE_PLAN") {
+                let v: Vec<f32> = span.split(',').filter_map(|x| x.parse().ok()).collect();
+                let half = (7.5 / plan.spacing_m).round().max(1.0) as usize;
+                for i in (0..n).filter(|i| {
+                    let m = *i as f32 * plan.spacing_m;
+                    v.len() == 2 && m >= v[0] && m <= v[1]
+                }) {
+                    let a = plan.points[(i + n - half) % n];
+                    let b = plan.points[i];
+                    let c = plan.points[(i + half) % n];
+                    let ab = (b[0] - a[0]).hypot(b[1] - a[1]);
+                    let bc = (c[0] - b[0]).hypot(c[1] - b[1]);
+                    let ca = (a[0] - c[0]).hypot(a[1] - c[1]);
+                    let cross = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+                    let kappa = 2.0 * cross.abs() / (ab * bc * ca).max(1e-6);
+                    println!(
+                        "    plan {:6.0} m {:5.1} m/s radius {:6.1} m lock share {:.2} {:?}",
+                        i as f32 * plan.spacing_m,
+                        plan.speed_mps[i] * pace,
+                        1.0 / kappa.max(1e-4),
+                        config.wheelbase_m * kappa / config.max_steering_angle_rad,
+                        plan.phases[i]
+                    );
+                }
+            }
+            // The corners: the slowest point of each braking run and what
+            // follows it up to the next throttle.
+            let mut corners = Vec::new();
+            let mut i = 0;
+            while i < n {
+                if plan.phases[i] == LinePhase::Brake {
+                    let mut j = i;
+                    while j < n && plan.phases[j] != LinePhase::Throttle {
+                        j += 1;
+                    }
+                    let slowest = (i..j.min(n))
+                        .min_by(|a, b| plan.speed_mps[*a].total_cmp(&plan.speed_mps[*b]))
+                        .unwrap_or(i);
+                    corners.push(slowest);
+                    i = j;
+                } else {
+                    i += 1;
+                }
+            }
+            let nearest = |x: f32, y: f32| -> usize {
+                (0..n)
+                    .min_by(|a, b| {
+                        let da = (plan.points[*a][0] - x).hypot(plan.points[*a][1] - y);
+                        let db = (plan.points[*b][0] - x).hypot(plan.points[*b][1] - y);
+                        da.total_cmp(&db)
+                    })
+                    .unwrap_or(0)
+            };
+            // Per plan point this lap: the car's slowest speed, worst slip,
+            // and whether it was off the road there.
+            let mut seen: Vec<Option<(f32, f32, bool)>> = vec![None; n];
+            let (mut lap_off, mut lap_slide, mut lap_start) = (0u32, 0u32, 0u32);
+            let mut lap = race.session.participants[&id].current_lap;
+            let mut done = 0;
+            let mut was = HashMap::new();
+            for t in 1..=(TICK_RATE as u32 * 60 * 5 * laps as u32) {
+                tick(&mut race);
+                if std::env::var("SURVEY_EVENTS").is_ok() {
+                    log_events(&race, t, &mut was);
+                }
+                let c = &race.session.participants[&id];
+                if c.current_lap != lap {
+                    if lap >= 1 {
+                        let reach = (60.0 / plan.spacing_m) as i64;
+                        let mut bad = Vec::new();
+                        for &k in &corners {
+                            let mut worst = (0.0f32, false, f32::INFINITY);
+                            for d in -reach..=reach {
+                                let p = (k as i64 + d).rem_euclid(n as i64) as usize;
+                                if let Some((v, slip, off)) = seen[p] {
+                                    worst.0 = worst.0.max(slip);
+                                    worst.1 |= off;
+                                    worst.2 = worst.2.min(v);
+                                }
+                            }
+                            if worst.0 > 0.10 || worst.1 {
+                                bad.push(format!(
+                                    "{:.0} m plan {:.1} had {:.1} slip {:.2}{}",
+                                    k as f32 * plan.spacing_m,
+                                    plan.speed_mps[k] * pace,
+                                    worst.2,
+                                    worst.0,
+                                    if worst.1 { " OFF" } else { "" }
+                                ));
+                            }
+                        }
+                        println!(
+                            "{track:>12} {car:>24} lap {lap}: {:6.2} s, off {:4.1} s, sliding {:4.1} s{}{}",
+                            (t - lap_start) as f32 / TICK_RATE as f32,
+                            lap_off as f32 / TICK_RATE as f32,
+                            lap_slide as f32 / TICK_RATE as f32,
+                            if bad.is_empty() { "" } else { "\n      " },
+                            bad.join("\n      ")
+                        );
+                        all_off += lap_off as f32 / TICK_RATE as f32;
+                        all_slide += lap_slide as f32 / TICK_RATE as f32;
+                        done += 1;
+                    }
+                    lap = c.current_lap;
+                    lap_start = t;
+                    lap_off = 0;
+                    lap_slide = 0;
+                    seen.iter_mut().for_each(|s| *s = None);
+                    if done >= laps {
+                        break;
+                    }
+                }
+                let slip = body_slip(c).abs();
+                lap_off += !c.is_on_track as u32;
+                lap_slide += (c.is_on_track && slip > 0.10) as u32;
+                let p = nearest(c.pos_x, c.pos_y);
+                let s = seen[p].get_or_insert((c.speed_mps, 0.0, false));
+                s.0 = s.0.min(c.speed_mps);
+                s.1 = s.1.max(slip);
+                s.2 |= !c.is_on_track;
+                if !c.damage.is_drivable {
+                    println!("{track:>12} {car:>24} retired on lap {lap}");
+                    break;
+                }
+            }
+        }
+    }
+    println!("lone total: off {all_off:.1} s, sliding {all_slide:.1} s");
 }

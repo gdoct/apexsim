@@ -361,11 +361,14 @@ Every circuit under `content/tracks/{default,custom}`, a mixed field of 10
 AI in each of an LMP2, an F1 and a GT3 (`yotota-lmp2`, `fugazzi-sf26`,
 `posh-gt3rs`), 180 s from the lights. Per race it prints cars out of shape
 at 3 s, car-seconds of contact, off the road and sliding, retirements and
-passes. Environment:
+passes; the retired cars are split by what did most to the zone that
+went (`car`, `wall`, or `own`: kerbs, bottoming, landings, the engine).
+Environment:
 
 | Variable | Effect |
 |---|---|
 | `SURVEY_TRACKS=Spa,Monza` | only these stems (a custom import too) |
+| `SURVEY_CARS=KsFerrariSf70h,posh-gt3rs` | these cars instead of the three (a folder under `content/cars/default`, or `custom` for an import) |
 | `AI_TEST_SEED=n` | another seeded field (default 1); run 1-3 for a comparison |
 | `SURVEY_AI_LEVEL=95` | the field at that AI level (spread over 4 points round it), not the mixed field |
 | `SURVEY_ROAD_CONTACT=mesh` | drive the road meshes (default: centerline backend) |
@@ -382,6 +385,18 @@ is found.
 
 Other harnesses (all `#[ignore]`d):
 
+- `ai_race_start_test lone_car_against_its_plan`: one AI alone (an ace
+  unless `SURVEY_AI_LEVEL`), `LONE_LAPS` (3) laps per `SURVEY_TRACKS` and
+  `SURVEY_CARS`, printing each lap's time, off and sliding seconds and every
+  corner where it slid or left the road against the speed its plan set:
+  whether a car can hold its own plan, without traffic. `LONE_PLAN=880,1060`
+  prints the plan between those metres (speed, the line's radius, the share
+  of the lock it takes); `SURVEY_EVENTS` and `SURVEY_TRACE=1,from,to` work
+  as in the survey.
+- `grip_probe_test skidpad_sweep` (`PROBE_CAR`): the peak lateral g a car
+  holds at 20-65 m/s against `grip_coefficient` and against what its plan
+  reads (`plan`); `PROBE_LINEAR`, `PROBE_NO_CAMBER`, `PROBE_EVEN_ROLL` take
+  the load sensitivity, camber or the bars out to find what costs it.
 - Pit surveys: `cargo test --release --test pit_stop_test pit_lane_survey
   -- --ignored --nocapture` and `ai_pit_survey` ([pit-lane.md](pit-lane.md);
   `PIT_TRACKS`, `PIT_TRACE`).

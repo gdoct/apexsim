@@ -63,7 +63,18 @@ fn fresh(config: &CarConfig, x: f32, y: f32, yaw: f32, speed: f32, gear: i8) -> 
 #[ignore]
 fn skidpad_sweep() {
     let car_name = std::env::var("PROBE_CAR").unwrap_or("murcetes-amd-gt3".into());
-    let config = car(&car_name);
+    let mut config = car(&car_name);
+    if std::env::var("PROBE_LINEAR").is_ok() {
+        config.tire_config.load_sensitivity_front = 1.0;
+        config.tire_config.load_sensitivity_rear = 1.0;
+    }
+    if std::env::var("PROBE_NO_CAMBER").is_ok() {
+        config.suspension.camber_modelled = false;
+    }
+    if std::env::var("PROBE_EVEN_ROLL").is_ok() {
+        config.suspension.anti_roll_bar_front = 0.0;
+        config.suspension.anti_roll_bar_rear = 0.0;
+    }
     let track = skidpad();
     let lift = config.lift_coefficient_front + config.lift_coefficient_rear;
     let k = 0.5 * AIR_DENSITY * config.frontal_area_m2 * (-lift).max(0.0) / config.mass_kg;
@@ -102,9 +113,15 @@ fn skidpad_sweep() {
                 }
             }
             let ideal = config.tire_config.grip_coefficient * (G + k * speed * speed) / G;
+            // What the racing line plans the car to corner at here: its
+            // envelope coefficient at this speed's load on the weight and
+            // the downforce the ride height leaves it.
+            let k_here = k * apexsim_server::aero::steady_downforce_factor(&config, speed);
+            let load_ratio = 1.0 + k_here * speed * speed / G;
+            let plan = config.envelope_mu(load_ratio) * load_ratio;
             println!(
-                "tc={:?} v={:>3.0} m/s  peak {:.2} g (ideal {:.2} g, {:.0}%) at steer {:.2} slip f/r {:.3}/{:.3} rad; end speed {:.1}",
-                tc, speed, peak, ideal, 100.0 * peak / ideal, peak_steer, at_peak_slip.0, at_peak_slip.1, state.speed_mps
+                "tc={:?} v={:>3.0} m/s  peak {:.2} g (ideal {:.2} g, {:.0}%; plan {:.2} g, {:.0}%) at steer {:.2} slip f/r {:.3}/{:.3} rad; end speed {:.1}",
+                tc, speed, peak, ideal, 100.0 * peak / ideal, plan, 100.0 * peak / plan, peak_steer, at_peak_slip.0, at_peak_slip.1, state.speed_mps
             );
         }
     }
