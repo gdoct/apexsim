@@ -98,7 +98,7 @@ and a studded snow tyre (`kind = "snow"`,
 [../server/vehicle-physics.md](../server/vehicle-physics.md#compounds)).
 Their shape data is in `rally_cars.py` (plain Python, shared with the
 livery painter); `build_rally.py` is the GT3 build's method with a rally
-car's parts (box flares, period lamps, mud flaps, a roof scoop, a shovel
+car's parts (box flares, period lamps, a pod of four driving lamps, mud flaps, a roof scoop, a shovel
 splitter and boot wing, a roof wing or a ducktail) and both seats.
 
 **Running one.** Inside Blender: set `VARIANT = "<name>"` (a key of the
