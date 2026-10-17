@@ -727,6 +727,9 @@ fn default_one() -> f32 {
 /// sensitivity sees it, so an unloaded wheel (a kerb, a crest) does not
 /// get an unbounded coefficient from a negative exponent.
 const LOAD_SENSITIVITY_RATIO_RANGE: (f32, f32) = (0.1, 5.0);
+/// Passes `CarConfig::envelope_mu` makes at the lateral transfer of a
+/// load-sensitive tyre's cornering limit.
+const ENVELOPE_TRANSFER_PASSES: usize = 4;
 
 /// Grip lost per unit of (pressure error / optimum) squared: 25 kPa off a
 /// 180 kPa optimum (five clicks) costs the axle 4%.
@@ -829,6 +832,17 @@ impl CarConfig {
     /// single-compound tyre it is `grip_coefficient` itself; otherwise the
     /// two axles' coefficients at that share of their static load,
     /// weighted by the static weight split.
+    ///
+    /// A load-sensitive tyre is taken at the limit of a corner, as the
+    /// physics loads it: each axle's outside wheel carries the lateral
+    /// transfer (`geometry::lateral_transfer`) and grips less per newton
+    /// than its inside wheel gains, so the axle is the two wheels' grip over
+    /// its load; and the weaker axle holds the car, each carrying its share
+    /// of the cornering by the weight on it. The transfer is that of
+    /// cornering at the coefficient found,
+    /// solved again a few times (it settles at once). Read at the static
+    /// load alone, an imported car's light F1 planned 8% over its grip and
+    /// its AI slid through every fast corner.
     pub fn envelope_mu(&self, load_ratio: f32) -> f32 {
         if self.tire_config.is_linear_single_compound() {
             return self.tire_config.grip_coefficient;
@@ -836,7 +850,26 @@ impl CarConfig {
         let w_f = self.weight_distribution_front;
         let at =
             |front: bool| self.axle_tyre_mu(front, self.static_wheel_load_n(front) * load_ratio);
-        w_f * at(true) + (1.0 - w_f) * at(false)
+        let flat = w_f * at(true) + (1.0 - w_f) * at(false);
+        let tyre = &self.tire_config;
+        if tyre.load_sensitivity_front == 1.0 && tyre.load_sensitivity_rear == 1.0 {
+            return flat;
+        }
+        let axle = |front: bool, transfer: f32| {
+            let load = (self.static_wheel_load_n(front) * load_ratio).max(1.0);
+            let outside = load + transfer.abs();
+            let inside = (load - transfer.abs()).max(0.0);
+            (self.axle_tyre_mu(front, outside) * outside
+                + self.axle_tyre_mu(front, inside) * inside)
+                / (2.0 * load)
+        };
+        let mut mu = flat;
+        for _ in 0..ENVELOPE_TRANSFER_PASSES {
+            let accel = mu * load_ratio * 9.81;
+            let (front, rear) = crate::geometry::lateral_transfer(self, self.mass_kg, w_f, accel);
+            mu = axle(true, front).min(axle(false, rear));
+        }
+        mu
     }
 
     /// Front and rear shares of the drive for an AWD car.

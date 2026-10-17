@@ -8480,10 +8480,18 @@ mod tests {
         // An explicit reference moves the load it grips as the file says at.
         config.tire_config.reference_load_front_n = Some(2.0 * static_front);
         assert!((config.axle_tyre_mu(true, 2.0 * static_front) - mu).abs() < 1e-6);
-        // Downforce loads the tyres, so the envelope plans with less grip.
+        // At the limit of a corner the outside tyres carry the transfer and
+        // grip less per newton than the inside ones gain, so the envelope
+        // sits a little under the figure at the static load; downforce loads
+        // the tyres further and it plans with less grip still.
         config.tire_config.reference_load_front_n = None;
-        assert!((config.envelope_mu(1.0) - mu).abs() < 1e-6);
+        let at_rest = config.envelope_mu(1.0);
+        assert!(at_rest < mu && at_rest > 0.95 * mu, "{at_rest}");
         assert!(config.envelope_mu(2.5) < mu * 0.9);
+        // The weaker axle sets it: a rear that grips less holds the car.
+        config.tire_config.rear_grip_scale = 0.9;
+        let weak_rear = config.envelope_mu(1.0);
+        assert!(weak_rear < 0.95 * at_rest, "{weak_rear} against {at_rest}");
 
         // On the road: the same car on a steady lock at the limit holds less
         // lateral g, because load transfer loads the outside tyres where

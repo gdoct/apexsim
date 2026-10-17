@@ -104,6 +104,11 @@ const AERO_TABLE_TOP_MPS: f32 = 120.0;
 struct CarEnvelope {
     /// Tyre grip times track grip.
     mu: f32,
+    /// A load-sensitive tyre's grip times the track's at the load the car
+    /// carries at speed (`CarConfig::envelope_mu`: the downforce, and the
+    /// lateral transfer at the limit), every [`AERO_TABLE_STEP_MPS`] from
+    /// standstill; empty for a linear tyre, whose grip is `mu` at any load.
+    mu_table: Vec<f32>,
     /// Downforce per unit mass per (m/s)², so downforce accel = k · v² ·
     /// the posture's factor at v.
     downforce_k: f32,
@@ -151,6 +156,26 @@ impl CarEnvelope {
             && car.drivetrain == Drivetrain::RWD)
             .then(|| car.weight_distribution_front.clamp(0.2, 1.0));
         let downforce_k = 0.5 * AIR_DENSITY * air * car.frontal_area_m2 * (-lift).max(0.0) / mass;
+        let aero_factor: Vec<f32> = if car.aero.is_constant() {
+            Vec::new()
+        } else {
+            (0..=(AERO_TABLE_TOP_MPS / AERO_TABLE_STEP_MPS) as usize)
+                .map(|i| crate::aero::steady_downforce_factor(car, i as f32 * AERO_TABLE_STEP_MPS))
+                .collect()
+        };
+        let load_sensitive = car.tire_config.load_sensitivity_front != 1.0
+            || car.tire_config.load_sensitivity_rear != 1.0;
+        let mu_table = if load_sensitive {
+            (0..=(AERO_TABLE_TOP_MPS / AERO_TABLE_STEP_MPS) as usize)
+                .map(|i| {
+                    let v = i as f32 * AERO_TABLE_STEP_MPS;
+                    let factor = aero_factor.get(i).copied().unwrap_or(1.0);
+                    car.envelope_mu(1.0 + downforce_k * factor * v * v / GRAVITY) * track_grip
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         Self {
             // A load-sensitive tyre grips less per newton at speed, where the
             // downforce loads it: plan with its coefficient at the load it
@@ -158,16 +183,9 @@ impl CarEnvelope {
             // `grip_coefficient`, to the bit.
             mu: car.envelope_mu(1.0 + downforce_k * ENVELOPE_REFERENCE_SPEED_MPS.powi(2) / GRAVITY)
                 * track_grip,
+            mu_table,
             downforce_k,
-            aero_factor: if car.aero.is_constant() {
-                Vec::new()
-            } else {
-                (0..=(AERO_TABLE_TOP_MPS / AERO_TABLE_STEP_MPS) as usize)
-                    .map(|i| {
-                        crate::aero::steady_downforce_factor(car, i as f32 * AERO_TABLE_STEP_MPS)
-                    })
-                    .collect()
-            },
+            aero_factor,
             drag_k: 0.5 * AIR_DENSITY * air * car.drag_coefficient * car.frontal_area_m2 / mass,
             rolling_accel: car.tire_config.rolling_resistance * GRAVITY,
             // Peak power over the whole run: a real gearbox spends part of
@@ -195,18 +213,30 @@ impl CarEnvelope {
         self.downforce_k * (self.aero_factor[i] * (1.0 - t) + self.aero_factor[i + 1] * t)
     }
 
+    /// The tyres' coefficient (times the track's grip) at `speed`.
+    fn mu_at(&self, speed: f32) -> f32 {
+        if self.mu_table.is_empty() {
+            return self.mu;
+        }
+        let x = (speed.max(0.0) / AERO_TABLE_STEP_MPS).min((self.mu_table.len() - 1) as f32);
+        let i = (x as usize).min(self.mu_table.len() - 2);
+        let t = x - i as f32;
+        self.mu_table[i] * (1.0 - t) + self.mu_table[i + 1] * t
+    }
+
     /// Total grip the tyres offer at `speed`, m/s².
     fn grip_accel(&self, speed: f32) -> f32 {
-        self.mu * (GRAVITY + self.downforce_k_at(speed) * speed * speed)
+        self.mu_at(speed) * (GRAVITY + self.downforce_k_at(speed) * speed * speed)
     }
 
     /// Fastest speed a corner of curvature `kappa` can be taken at, capped at
     /// top speed. Solves κ·v² = μ·m·(g + k·v²) for v; with a ride-height
-    /// car k depends on v, so it is solved again at the answer a few times
-    /// (the factor moves slowly with speed and this settles at once).
+    /// car k depends on v, and with a load-sensitive tyre μ does, so it is
+    /// solved again at the answer a few times (both move slowly with speed
+    /// and this settles at once).
     fn corner_speed(&self, kappa: f32) -> f32 {
-        let mu = self.mu * LATERAL_GRIP_MARGIN;
-        let solve = |k: f32| {
+        let solve = |k: f32, mu: f32| {
+            let mu = mu * LATERAL_GRIP_MARGIN;
             let denominator = kappa - mu * k;
             if denominator <= 1e-6 {
                 self.top_speed
@@ -214,10 +244,10 @@ impl CarEnvelope {
                 (mu * GRAVITY / denominator).sqrt().min(self.top_speed)
             }
         };
-        let mut v = solve(self.downforce_k);
-        if !self.aero_factor.is_empty() {
+        let mut v = solve(self.downforce_k, self.mu);
+        if !self.aero_factor.is_empty() || !self.mu_table.is_empty() {
             for _ in 0..4 {
-                v = solve(self.downforce_k_at(v));
+                v = solve(self.downforce_k_at(v), self.mu_at(v));
             }
         }
         v

@@ -59,6 +59,12 @@ same ([architecture.md](../architecture.md), determinism).
   `max_engine_power_w` cut, one plan per car, step lost and step of the
   tank, built the tick after the damage and kept), so its straights,
   braking points and coasting are the car's as it is.
+- **Grip a plan reads.** A plan corners and brakes at the car's
+  `CarConfig::envelope_mu` ([vehicle-physics.md](vehicle-physics.md)):
+  for a load-sensitive tyre (the AC imports) read at the load the car
+  carries at each speed (`racing_line` `CarEnvelope::mu_table`, every
+  2 m/s) with the lateral transfer at the limit, the weaker axle's figure.
+  A linear tyre (every shipped car) is `grip_coefficient` at any speed.
 
 ## The controller (`AiDriverController::generate_input_in_traffic`)
 
@@ -426,6 +432,14 @@ What the AI still lacks is in [../simulation-gaps.md](../simulation-gaps.md)
   road was tried and made contact worse.
 - **The pace noise must stay one-sided** (never faster than the plan): a
   fast side held over a whole corner doubled the field's sliding.
+- **A load-sensitive tyre is not its static-load coefficient.** Read at
+  the static load (plus downforce) at one 40 m/s reference, an import held
+  only 75-90% of its plan's grip on a skidpad (an F1's light wheels are
+  well under AC's `FZ0`, so it even planned over its `grip_coefficient`),
+  and its AI slid through every fast corner on its own. The lateral
+  transfer, the load at each speed and the weaker axle bring it to the
+  82-95% the shipped cars hold (`grip_probe_test skidpad_sweep`, the
+  `plan` column).
 - **Grip share goes in at the 0.75 power, not the root.** The physics
   would say root; the grip moves under the car through a corner as the
   tread heats, and with the root the AI left the road much more.

@@ -75,6 +75,11 @@ still while serviced) and the gearbox, limiter and DRS flap:
   at what the friction circle leaves beside the lateral force. Per-wheel grip = surface x
   `tyre_thermal::grip_multiplier` (temperature, pressure, compound, wear, flat spot,
   pickup, puncture) x camber grip x load sensitivity (`CarConfig::axle_tyre_mu`).
+  What the racing line, the AI's grip budget and the steering aid read of a car is
+  `CarConfig::envelope_mu`: `grip_coefficient` for a linear tyre (every shipped car); for a
+  load-sensitive one (an AC import's `LS_EXPY`) each axle's two wheels at the corner limit,
+  the outside one carrying the lateral transfer (`geometry::lateral_transfer`), and the
+  weaker axle's figure, since that axle holds the car.
 - **After the solve**: tyre heat and wear, brake heat and wear, coolant, engine wear, the
   force-feedback record (`CarState::feedback`), per-wheel track limits
   (`WheelState::off_track`), kerb strikes and bottoming.
