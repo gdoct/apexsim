@@ -231,9 +231,9 @@ model = "oudi_kwattro_s1_driver.glb"
 style = "closed"
 eye_cm = [-12.0, -33.0, 107.0]
 wheel_cm = [28.0, -33.0, 87.0]
-mirror_left_cm = [24.3, -96.1, 88.3]
+mirror_left_cm = [24.3, -96.2, 84.5]
 mirror_left_size_cm = [15.0, 6.0]
-mirror_right_cm = [24.3, 96.1, 88.3]
+mirror_right_cm = [24.3, 96.2, 84.5]
 mirror_right_size_cm = [15.0, 6.0]
 # Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
 # wheel on the Auto steering lock the real rim turns twice this lock to lock.
@@ -244,16 +244,16 @@ wheel_lock_deg = 270.0
 name = "nose"
 zone = "front"
 detach_pct = 55
-min_m = [1.507, -1.146, -0.055]   # forward, left, up
-max_m = [2.384, 1.146, 0.547]
+min_m = [1.507, -1.147, -0.055]   # forward, left, up
+max_m = [2.384, 1.147, 0.545]
 
 [[damage_part]]
 # written by scripts/content/cars/damage_parts.py from the body's geometry
 name = "rear_wing"
 zone = "rear"
 detach_pct = 60
-min_m = [-2.220, -1.146, 1.245]   # forward, left, up
-max_m = [-1.660, 1.146, 1.540]
+min_m = [-2.220, -1.147, 1.245]   # forward, left, up
+max_m = [-1.660, 1.147, 1.535]
 
 # --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..5 on the wire.

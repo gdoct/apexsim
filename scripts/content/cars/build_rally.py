@@ -78,6 +78,15 @@ MIR = {k: carlib.mat("car_mirror_" + k, (0.55, 0.57, 0.60), 1.0, 0.05) for k in 
 # ---------------------------------------------------------------- body loft
 KEYS = V["keys"]
 KEYS = carlib.scale_width(KEYS, HALF_W / max(x for (_, pts) in KEYS for (x, _) in pts))
+if V.get("roof_step"):
+    # sections every `roof_step` metres along the greenhouse, so the loft
+    # follows the roofline as the straight lines and sharp corners it is (a
+    # screen, a flat roof, a back light) instead of curving between keys
+    # half a metre apart
+    _y0, _y1, _st = V["roof"][0][0], V["roof"][-1][0], V["roof_step"]
+    _n = int((_y1 - _y0) / _st)
+    KEYS = carlib.insert_stations(KEYS, [round(_y0 + k * _st, 4) for k in range(1, _n)]
+                                  + [y for (y, _) in V["roof"]])
 if V.get("roof"):
     KEYS = carlib.roofline(KEYS, V["roof"], j_from=6, pivot_j=5)
 KEYS = carlib.fender_bump(KEYS, (AX_F, AX_R), amount=V["hips"], width=(0.50, 0.55), j0=2.2, j1=4.3)
