@@ -6,8 +6,11 @@
 //!   sector shows a double yellow when the car is on the road (in the way),
 //!   a single one when it is off it, and the sector before it a single
 //!   yellow, the warning. A sector's flag is held [`YELLOW_HOLD_S`] after
-//!   its last cause has gone. A car passing another in a yellow sector is
-//!   recorded ([`RaceControl::yellow_passes`]), for penalties to come.
+//!   its last cause has gone. A flag warns the drivers coming up on the
+//!   incident: one raised by one car alone is not shown to that car (a car
+//!   running wide is not slowed by its own yellow), and a car already past
+//!   the rearmost incident in its sector no longer sees that sector's. A car passing
+//!   another in a yellow sector is recorded ([`RaceControl::yellow_passes`]), for penalties to come.
 //! - **Blue**, per car: a car a lap or more up the road is within
 //!   [`BLUE_GAP_S`] behind it.
 //!
@@ -26,6 +29,9 @@ pub const YELLOW_HOLD_S: f32 = 5.0;
 pub const BLUE_GAP_S: f32 = 1.5;
 /// ... or within this many metres, whatever its speed.
 pub const BLUE_GAP_MIN_M: f32 = 30.0;
+/// A car this far past the rearmost incident in its sector has gone by
+/// it: alongside is still at it, m.
+pub const PAST_INCIDENT_M: f32 = 10.0;
 /// The grid getting away is slow everywhere: for this long after the green
 /// a slow car is no incident, s.
 pub const START_GRACE_S: f32 = 10.0;
@@ -72,6 +78,15 @@ pub struct RaceControl {
     /// Each sector's flag now and how long it is held, s.
     yellow: Vec<Yellow>,
     hold_s: Vec<f32>,
+    /// The one car (by its place in the update's cars) every cause of each
+    /// sector's flag came from, or `None` when more than one did.
+    cause_car: Vec<Option<usize>>,
+    /// Where in each sector its rearmost cause is, m from the sector's
+    /// start (0 for the warning before an incident: all of it).
+    from_m: Vec<f32>,
+    /// The car count of the last update: places mean other cars after a
+    /// change.
+    car_count: usize,
     /// Each car's blue flag, in the order of the last update's cars.
     blue: Vec<bool>,
     /// Race order (laps run) of each car at the last update, for passes.
@@ -111,6 +126,31 @@ impl RaceControl {
         self.yellow_at(here).max(self.yellow_at(next))
     }
 
+    /// [`Self::yellow_ahead`] as the `index`th car of the last update sees
+    /// it: without a flag that car alone raised, nor its own sector's once
+    /// past the incident there.
+    pub fn yellow_ahead_for(&self, index: usize, progress_m: f32, total_m: f32) -> Yellow {
+        if self.yellow.is_empty() {
+            return Yellow::None;
+        }
+        let here = Self::sector_of(progress_m, total_m);
+        let next = (here + 1) % self.yellow.len();
+        let seen = |sector: usize| {
+            if self.cause_car.get(sector).copied().flatten() == Some(index) {
+                Yellow::None
+            } else {
+                self.yellow_at(sector)
+            }
+        };
+        let in_sector = progress_m.rem_euclid(total_m.max(1.0)) - here as f32 * MARSHAL_SECTOR_M;
+        let past = self
+            .from_m
+            .get(here)
+            .is_some_and(|from| in_sector > from + PAST_INCIDENT_M);
+        let own = if past { Yellow::None } else { seen(here) };
+        own.max(seen(next))
+    }
+
     /// Whether the `index`th car of the last update is shown the blue flag.
     pub fn blue(&self, index: usize) -> bool {
         self.blue.get(index).copied().unwrap_or(false)
@@ -132,10 +172,28 @@ impl RaceControl {
         if self.yellow.len() != count {
             self.yellow = vec![Yellow::None; count];
             self.hold_s = vec![0.0; count];
+            self.cause_car = vec![None; count];
+            self.from_m = vec![0.0; count];
         }
-        // This tick's causes.
+        if self.car_count != cars.len() {
+            // Places now name other cars: every flag is everyone's.
+            self.cause_car.iter_mut().for_each(|c| *c = None);
+            self.car_count = cars.len();
+        }
+        // This tick's causes, and the one car behind each (`None` if more).
         let mut cause = vec![Yellow::None; count];
-        for car in cars.iter().filter(|c| !c.out_of_it) {
+        let mut by: Vec<Option<usize>> = vec![None; count];
+        let mut at = vec![f32::MAX; count];
+        let mut add = |sector: usize, level: Yellow, car: usize, from_m: f32| {
+            at[sector] = at[sector].min(from_m);
+            by[sector] = if cause[sector] == Yellow::None || by[sector] == Some(car) {
+                Some(car)
+            } else {
+                None
+            };
+            cause[sector] = cause[sector].max(level);
+        };
+        for (i, car) in cars.iter().enumerate().filter(|(_, c)| !c.out_of_it) {
             let incident = (car.speed_mps < INCIDENT_SPEED_MPS && !launching)
                 || !car.on_road
                 || car.reversing
@@ -149,16 +207,35 @@ impl RaceControl {
             } else {
                 Yellow::Single
             };
-            cause[here] = cause[here].max(level);
-            let before = (here + count - 1) % count;
-            cause[before] = cause[before].max(Yellow::Single);
+            let in_sector = car.progress_m.rem_euclid(total_m) - here as f32 * MARSHAL_SECTOR_M;
+            add(here, level, i, in_sector);
+            add((here + count - 1) % count, Yellow::Single, i, 0.0);
         }
-        for ((cause, flag), hold) in cause
+        for ((((cause, by), at), flag), ((hold, cause_car), from)) in cause
             .iter()
+            .zip(by)
+            .zip(at)
             .zip(self.yellow.iter_mut())
-            .zip(self.hold_s.iter_mut())
+            .zip(
+                self.hold_s
+                    .iter_mut()
+                    .zip(self.cause_car.iter_mut())
+                    .zip(self.from_m.iter_mut()),
+            )
         {
             if *cause != Yellow::None {
+                // The rearmost incident while the flag is out.
+                *from = if *flag == Yellow::None {
+                    at
+                } else {
+                    from.min(at)
+                };
+                // One car's flag while it alone has caused it.
+                *cause_car = match (*flag, *cause_car) {
+                    (Yellow::None, _) => by,
+                    (_, held) if held == by => by,
+                    _ => None,
+                };
                 // A new cause raises the flag at once; a lesser one holds it.
                 *flag = (*flag).max(*cause);
                 if cause == flag {
@@ -168,6 +245,7 @@ impl RaceControl {
                 *hold -= dt;
                 if *hold <= 0.0 {
                     *flag = Yellow::None;
+                    *cause_car = None;
                 }
             }
         }
@@ -273,6 +351,51 @@ mod tests {
         rc.update(&[back], LAP, 0.1, 100, false);
         rc.update(&[back], LAP, 0.1, 101, false);
         assert_eq!(rc.yellow_at(4), Yellow::None, "cleared");
+    }
+
+    #[test]
+    fn a_car_is_not_shown_the_yellow_it_alone_raised() {
+        let mut rc = RaceControl::default();
+        let mut wide = racing(1.21, 30.0); // 1050 m: sector 4
+        wide.on_road = false;
+        let behind = racing(1.19, 40.0); // 950 m: sector 3
+        rc.update(&[behind, wide], LAP, 0.1, 1, false);
+        assert_eq!(rc.yellow_ahead_for(1, wide.progress_m, LAP), Yellow::None);
+        assert_eq!(
+            rc.yellow_ahead_for(0, behind.progress_m, LAP),
+            Yellow::Single,
+            "the car coming up on it is warned"
+        );
+        // Back on the road, the flag held: still its own.
+        let back = racing(1.2105, 30.0);
+        rc.update(&[behind, back], LAP, 0.1, 2, false);
+        assert_eq!(rc.yellow_ahead_for(1, back.progress_m, LAP), Yellow::None);
+        // A second car off in the same sector: the flag is everyone's.
+        let mut also = racing(1.2112, 30.0); // beside it
+        also.on_road = false;
+        rc.update(&[also, back], LAP, 0.1, 3, false);
+        assert_eq!(rc.yellow_ahead_for(1, back.progress_m, LAP), Yellow::Single);
+        assert_eq!(rc.yellow_ahead_for(0, also.progress_m, LAP), Yellow::Single);
+    }
+
+    #[test]
+    fn a_car_past_the_incident_no_longer_sees_its_sector_yellow() {
+        let mut rc = RaceControl::default();
+        let stopped = racing(1.21, 0.0); // 1050 m: 50 m into sector 4
+        rc.update(&[stopped], LAP, 0.1, 1, false);
+        assert_eq!(rc.yellow_ahead_for(1, 1040.0, LAP), Yellow::Double);
+        assert_eq!(
+            rc.yellow_ahead_for(1, 1055.0, LAP),
+            Yellow::Double,
+            "alongside"
+        );
+        assert_eq!(rc.yellow_ahead_for(1, 1100.0, LAP), Yellow::None, "gone by");
+        assert_eq!(rc.yellow_ahead_for(1, 900.0, LAP), Yellow::Double, "warned");
+        // The flag held after the car has gone stays where it was.
+        let gone = racing(1.3, 50.0);
+        rc.update(&[gone], LAP, 0.1, 2, false);
+        assert_eq!(rc.yellow_ahead_for(1, 1040.0, LAP), Yellow::Double);
+        assert_eq!(rc.yellow_ahead_for(1, 1100.0, LAP), Yellow::None);
     }
 
     #[test]

@@ -2412,7 +2412,7 @@ impl GameSession {
             state.flag_yellow = if out_of_it(state) {
                 0
             } else {
-                control.yellow_ahead(state.track_progress, total) as u8
+                control.yellow_ahead_for(i, state.track_progress, total) as u8
             };
         }
     }
