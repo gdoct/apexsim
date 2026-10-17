@@ -89,6 +89,7 @@ function Confirm-Step([string]$Question, [bool]$Default) {
     return $Default
 }
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexPhysicsLib.ps1')
 
 $RepoRoot  = Split-Path $PSScriptRoot -Parent
 $Uproject  = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
@@ -172,6 +173,10 @@ if ($Build) {
     if ($running) {
         throw 'ApexSim is open in the editor or as a game; close it first (it holds the binaries the build replaces).'
     }
+    # The server's car step the client links for prediction, first: the
+    # client build links whatever library is there.
+    Step 'Building the physics library (server/ffi)'
+    Build-ApexPhysicsLib -RepoRoot $RepoRoot -DryRun:$DryRun
     Step 'Building ApexSimEditor (Win64 Development)'
     if (-not $DryRun) {
         & (Join-Path $Engine 'Engine\Build\BatchFiles\Build.bat') ApexSimEditor Win64 Development "-Project=$Uproject" -WaitMutex

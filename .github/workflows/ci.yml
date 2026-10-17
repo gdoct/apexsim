@@ -102,5 +102,6 @@ jobs:
           test -f Source/ApexSimEditor.Target.cs
           test -f Source/ApexSim/ApexSim.Build.cs
           test -f Source/ApexSimNet/ApexSimNet.Build.cs
+          test -f Source/ThirdParty/ApexPhysics/ApexPhysics.Build.cs
           grep -q 'class ApexSimTarget' Source/ApexSim.Target.cs
           grep -q 'class ApexSimEditorTarget' Source/ApexSimEditor.Target.cs

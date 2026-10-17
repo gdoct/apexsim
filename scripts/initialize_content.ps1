@@ -10,6 +10,9 @@
     produces all of it; on an existing checkout it only redoes what is
     missing, so it is safe to run at any time.
 
+        0. The physics library (server/ffi), when the client has none: the
+           server's car step the client links for the prediction of the
+           local car (scripts/build_physics_lib.ps1)
         1. ApexSimEditor target (incremental; the commandlets live in it)
         2. The release server, if server/target/release has none
         3. Ground textures: bake the PNGs, then ApexGroundTexImport
@@ -95,6 +98,7 @@ $Sidecars    = 'ground', 'curbs', 'walls', 'road'
 . (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexGuide.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexPhysicsLib.ps1')
 
 function Write-Step {
     param([string]$Message)
@@ -254,6 +258,8 @@ foreach ($row in $showcasePlan | Where-Object { $_.Status -eq 'no-track' }) {
 }
 Write-Detail ("guides:          " + $(if ($guideWork) { Format-List $guideWork } else { 'ok' }))
 Write-Detail ("server:          " + $(if (Test-Path $ServerExe) { 'ok' } else { 'not built' }))
+$PhysicsLib = Get-ApexPhysicsLibPath -RepoRoot $RepoRoot
+Write-Detail ("physics library: " + $(if (Test-Path $PhysicsLib) { 'ok' } else { 'not built (the client builds without prediction)' }))
 if (-not (Test-Path $splash)) {
     Write-Warning "no startup splash at $splash (it is checked in; is the checkout complete?)"
 }
@@ -263,6 +269,7 @@ if (-not (Test-Path $splash)) {
 # ---------------------------------------------------------------------------
 
 $doServer  = $Force -or -not (Test-Path $ServerExe)
+$doPhysics = $Force -or -not (Test-Path $PhysicsLib)
 $doPngs    = $Force -or $missingPngs.Count -gt 0
 $doGround  = $Force -or $doPngs -or $missingGround.Count -gt 0
 $doMats    = $Force -or $doGround -or $missingMaterials.Count -gt 0
@@ -279,9 +286,11 @@ $doTracks  = $tracks.Count -gt 0
 $showcases = @(if ($Force) { Select-ApexShowcaseWork -Plan $showcasePlan -Force } else { $showcaseWork })
 $doShowcase = $showcases.Count -gt 0
 $doGuides  = $Force -or $guideWork.Count -gt 0
-$needUnreal = $doGround -or $doMats -or $doProps
+# A new physics library is only linked by the next client build.
+$needUnreal = $doGround -or $doMats -or $doProps -or $doPhysics
 
 $plan = [Collections.Generic.List[string]]::new()
+if ($doPhysics) { $plan.Add('build the physics library (server/ffi) for the client') }
 if ($needUnreal -and -not $SkipBuild) { $plan.Add('build the ApexSimEditor target') }
 if ($doServer)  { $plan.Add('build the release server') }
 if ($doPngs)    { $plan.Add('bake the ground texture PNGs') }
@@ -309,7 +318,7 @@ if ($DryRun) {
 # ---------------------------------------------------------------------------
 
 $problems = [Collections.Generic.List[string]]::new()
-if (($doServer -or $doTracks -or $doShowcase -or $doGuides) -and -not (Test-Command 'cargo')) {
+if (($doServer -or $doPhysics -or $doTracks -or $doShowcase -or $doGuides) -and -not (Test-Command 'cargo')) {
     $problems.Add('cargo is not on PATH (install Rust)')
 }
 if ($doPngs -or $doTracks) {
@@ -343,6 +352,11 @@ $commandletArgs = @('-unattended', '-nopause', '-nosplash', '-stdout', '-utf8out
 # ---------------------------------------------------------------------------
 # Stages
 # ---------------------------------------------------------------------------
+
+if ($doPhysics) {
+    Write-Step 'Building the physics library (server/ffi)'
+    Build-ApexPhysicsLib -RepoRoot $RepoRoot
+}
 
 if ($needUnreal -and -not $SkipBuild) {
     Write-Step 'Building the ApexSimEditor target'

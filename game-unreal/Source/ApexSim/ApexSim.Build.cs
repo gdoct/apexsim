@@ -58,6 +58,10 @@ public class ApexSim : ModuleRules
 			"Networking",
 			// The garage's setup share codes go through the clipboard.
 			"ApplicationCore",
+			// The server's car step as a prebuilt library, for the prediction
+			// of the local car (Race/ApexPrediction*); WITH_APEX_PHYSICS 0
+			// when scripts/build_physics_lib.ps1 has not built it.
+			"ApexPhysics",
 		});
 	}
 }

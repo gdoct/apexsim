@@ -78,13 +78,37 @@ cargo rustc --release --lib --crate-type staticlib -- --print native-static-libs
 ```
 
 On Windows x64 (`x86_64-pc-windows-msvc`, the default host toolchain) the
-release `.lib` is about 10 MB and links against `kernel32 winmm bcrypt
-advapi32 ntdll userenv ws2_32 dbghelp` and the dynamic CRT (`/MD`, as an
-Unreal module builds); the last command above prints the list for the
+release `.lib` is about 80 MB (the whole server crate's objects; the linker
+keeps only what the car step reaches) and links against `kernel32 winmm
+bcrypt advapi32 ntdll userenv ws2_32 dbghelp` and the dynamic CRT (`/MD`, as
+an Unreal module builds); the last command above prints the list for the
 toolchain at hand. A C or C++ program includes `apexsim_physics.h` (it
 compiles as C89 and C++17) and links the `.lib` and those libraries. The
 crate has its own `Cargo.lock`, started from the server's: keep the shared
 dependencies on the server's versions.
+
+**In the client.** `game-unreal/Source/ThirdParty/ApexPhysics` is an
+external module (`ApexPhysics.Build.cs`) that the `ApexSim` module depends
+on: it puts `server/ffi` on the include path and, when
+`lib/Win64/apexsim_physics.lib` is there, links it with the system libraries
+above and defines `WITH_APEX_PHYSICS=1`. Without the library the client
+builds and runs as before with `WITH_APEX_PHYSICS=0`, and prediction says it
+is unavailable ([game/client.md](game/client.md#client-prediction-raceapexpredictionsubsystemh)).
+
+```powershell
+./scripts/build_physics_lib.ps1     # cargo build --release in server/ffi, copied into the module
+```
+
+The library is built on demand and never checked in (`*.lib` is
+gitignored), like the server exe and the track sidecars: it is generated
+from the server's source and only right for the source beside it, it is
+80 MB, and cargo rebuilds it in seconds when nothing changed. LFS holds only
+authored content. `initialize_content.ps1` builds it when it is missing,
+`play_editor.ps1 -Build` and `build_game_standalone.ps1` every time, before
+the client build. The script honours `CARGO_TARGET_DIR`, and touches
+`ApexPhysics.Build.cs` when the library first appears: UBT reads a module's
+rules again only when they change, so a client built before the library
+existed would not link it otherwise.
 
 ### CI
 
@@ -93,8 +117,9 @@ dependencies on the server's versions.
 `cargo test`, then the same fmt, clippy and test for `server/ffi`. Keep
 the server tree free of formatting drift and clippy warnings. Job `site` rebuilds the marketing page and fails when `docs/` is
 behind ([marketing-site.md](marketing-site.md)); job `client` only checks the
-`.uproject` and the target/module files exist. Neither the track editor nor
-the Unreal code is compiled in CI.
+`.uproject` and the target/module files exist (`ApexPhysics.Build.cs`
+among them). Neither the track editor nor the Unreal code is compiled in
+CI, and nothing builds the client's copy of the physics library there.
 
 ## Track editor and pipeline (Rust, `track-editor/`)
 
@@ -141,6 +166,9 @@ $UE = "C:\Program Files\Epic Games\UE_5.8"
 
 Or build `ApexSimEditor` / Development Editor from the generated Visual
 Studio solution. The commandlets and `play_editor.ps1` run on this target.
+Build the physics library first (`./scripts/build_physics_lib.ps1`, above)
+for a client that can predict its own car; without it the build is the
+same and prediction is unavailable.
 Close the editor and any running game first (they hold the binaries). After
 adding a `.cpp`, build once with `-DisableAdaptiveUnity`: an
 anonymous-namespace clash with a neighbour only fails once a unity build
@@ -178,6 +206,9 @@ editor closed; Rust, Python and the engine installed):
 It checks each output on disk and runs only the stages that lack one, so it
 is safe on an existing checkout. Stages, in order:
 
+0. The physics library (`Build-ApexPhysicsLib`, as
+   `build_physics_lib.ps1`), when the client module has none; it makes the
+   editor build run too, which links it.
 1. `Build.bat ApexSimEditor Win64 Development` (incremental; the commandlets
    live in it).
 2. `cargo build --release` in `server/`, if there is no server exe.
@@ -215,7 +246,7 @@ running server or the editor build is older than the source.
 
 | Switch | Effect |
 |---|---|
-| `-Build` | Build `ApexSimEditor` first |
+| `-Build` | Build the physics library, then `ApexSimEditor`, first |
 | `-NoServer` | Start no local server |
 | `-RestartServer` | Replace the server on the client's port with a fresh build |
 | `-Log` | Open the log console beside the game |
@@ -228,7 +259,8 @@ The game's own command-line switches are in [game/client.md](game/client.md).
 
 ## Standalone client
 
-`scripts/build_game_standalone.ps1` runs UAT BuildCookRun into
+`scripts/build_game_standalone.ps1` builds the physics library, then runs
+UAT BuildCookRun into
 `artifacts/ApexSim-Win64` (`-OutputDirectory`, `-Configuration`
 Development by default, `-Clean`, `-ExtraUatArgs`), then copies beside
 `ApexSim.exe` what the game reads as files: `Tracks\` (exports and previews

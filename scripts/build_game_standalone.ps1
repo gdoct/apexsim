@@ -7,6 +7,11 @@
    Win64 build. By default the archive is written to artifacts\ApexSim-Win64
    and contains ApexSim.exe plus its required runtime files.
 
+   The physics library (server/ffi) is built first and linked into the
+   client for the prediction of the local car (scripts/build_physics_lib.ps1);
+   a package has no track YAMLs or sidecars yet, so prediction stays off in
+   it until the server hands them out (docs/proposals/client-prediction.md).
+
    The circuits are not cooked: the game builds each one from its export at
    runtime (docs/content/track-pipeline.md). After packaging, the exports in
    build/tracks (run scripts/build_track_levels.ps1 first) and their
@@ -104,6 +109,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'lib\ApexTracks.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexGuide.ps1')
+. (Join-Path $PSScriptRoot 'lib\ApexPhysicsLib.ps1')
 
 $Uproject = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
 if (-not $OutputDirectory) {
@@ -132,6 +138,10 @@ if ($Clean -and (Test-Path $output)) {
    Write-Host "Removing previous archive: $output" -ForegroundColor DarkGray
    Remove-Item -LiteralPath $output -Recurse -Force
 }
+
+# The client links whatever physics library is there: build it first.
+Write-Host 'Building the physics library (server/ffi)' -ForegroundColor Cyan
+Build-ApexPhysicsLib -RepoRoot $RepoRoot
 
 $uatArgs = @(
    'BuildCookRun',
