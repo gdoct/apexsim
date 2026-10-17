@@ -222,6 +222,9 @@ bool FApexWheelsTreadedLookTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("a wet is"), ApexWheels::TreadedTint(EApexCompoundKind::Wet, Colour, Roughness));
 	TestTrue(TEXT("the wet is darker than the inter"), Colour.GetLuminance() < Inter.GetLuminance());
 	TestTrue(TEXT("and bluer still"), Colour.B / FMath::Max(Colour.R, 1e-4f) > Inter.B / FMath::Max(Inter.R, 1e-4f));
+	TestTrue(TEXT("a snow tyre is"), ApexWheels::TreadedTint(EApexCompoundKind::Snow, Colour, Roughness));
+	TestTrue(TEXT("matte too"), Roughness >= 0.9f);
+	TestTrue(TEXT("a neutral grey, not the rain tyres' blue"), Colour.B < Colour.R * 1.2f);
 	TestEqual(TEXT("the tyre slot"), ApexWheels::TyreSlot, FName(TEXT("wheel_tyre")));
 	return true;
 }
@@ -234,6 +237,7 @@ bool FApexWheelsTyreSurfaceTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("slick"), ApexWheels::TreadIndex(EApexCompoundKind::Slick), 0.0f);
 	TestEqual(TEXT("intermediate"), ApexWheels::TreadIndex(EApexCompoundKind::Intermediate), 1.0f);
 	TestEqual(TEXT("wet"), ApexWheels::TreadIndex(EApexCompoundKind::Wet), 2.0f);
+	TestEqual(TEXT("snow"), ApexWheels::TreadIndex(EApexCompoundKind::Snow), 3.0f);
 
 	// The sidewall ring: green on an intermediate, blue on a wet, none on a slick.
 	FLinearColor Band;
@@ -242,6 +246,11 @@ bool FApexWheelsTyreSurfaceTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("green"), Band.G > Band.R * 4.0f && Band.G > Band.B * 4.0f);
 	TestTrue(TEXT("a wet has one"), ApexWheels::CompoundBandColour(EApexCompoundKind::Wet, Band));
 	TestTrue(TEXT("blue"), Band.B > Band.R * 4.0f && Band.B > Band.G * 4.0f);
+	const FLinearColor WetBand = Band;
+	TestTrue(TEXT("a snow tyre has one"), ApexWheels::CompoundBandColour(EApexCompoundKind::Snow, Band));
+	TestTrue(TEXT("ice white: pale"), Band.R > 0.5f && Band.G > 0.5f && Band.B > 0.5f);
+	TestTrue(TEXT("a touch of cyan"), Band.B > Band.R && Band.G > Band.R);
+	TestTrue(TEXT("far from the wet's blue"), (Band - WetBand).GetMax() > 0.4f);
 
 	// Deflation: round at running pressure and while unknown, flat at the
 	// server's punctured pressure, partly down on the way.

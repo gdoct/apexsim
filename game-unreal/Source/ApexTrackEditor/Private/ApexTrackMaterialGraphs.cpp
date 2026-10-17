@@ -1290,11 +1290,12 @@ return saturate(max(Wb.W(g - cF, amtF, frac(Seed * 0.731)), Wb.W(g - cR, amtR, f
 	 * pixel is and the tread's groove pattern there. Inputs (all custom
 	 * node pins): `P` the local position, `Rm` / `Hm` the tyre's radius and
 	 * half width in the mesh's units, `Rcm` / `Hcm` the same in world cm,
-	 * `Tread` 0 / 1 / 2, `Chev` +-1, `Wear`, `Flat`, `FlatA`, `Depth` the
+	 * `Tread` 0 / 1 / 2 / 3, `Chev` +-1, `Wear`, `Flat`, `FlatA`, `Depth` the
 	 * pixel's depth, cm. Defines `onTread` (the running surface, 0..1),
 	 * `u` (0..1 round the tyre), `av` (|across|, 0 centre to 1 shoulder),
 	 * `fade` (how far below a pixel the grooves are), `keep` (what wear
-	 * leaves of the grooves), `spot` (the flat spot) and `g` (groove, 0..1).
+	 * leaves of the grooves), `spot` (the flat spot), `g` (groove, 0..1)
+	 * and `stud` (a snow tyre's metal stud heads, 0..1).
 	 */
 	const TCHAR* kTyrePrelude = TEXT(R"HLSL(
 struct ApxTread
@@ -1305,6 +1306,16 @@ struct ApxTread
 	// tread widths), so no seam where `theta` wraps.
 	float G(float u, float av, float tread, float chev, float aa, float sTot)
 	{
+		if (tread > 2.5)
+		{
+			// Snow: deep square blocks in three lanes a side, each lane's
+			// cross grooves staggered half a block from its neighbour's.
+			float circ = max(Line(abs(av - 0.20), 0.035, aa), Line(abs(av - 0.55), 0.035, aa));
+			float lane = av < 0.20 ? 0.0 : (av < 0.55 ? 1.0 : 2.0);
+			float ph = frac(u * max(round(sTot * 2.6), 1.0) + 0.5 * lane);
+			float lat = Line(abs(ph - 0.5), 0.09, aa * 2.6);
+			return max(circ, lat);
+		}
 		if (tread > 1.5)
 		{
 			// Wet: four deep channels and swept blocks, pointing forward on top.
@@ -1325,7 +1336,22 @@ struct ApxTread
 		return 0.0;
 	}
 	// What a pattern averages to once its grooves are smaller than a pixel.
-	float Cover(float tread) { return tread > 1.5 ? 0.24 : (tread > 0.5 ? 0.14 : 0.0); }
+	float Cover(float tread) { return tread > 2.5 ? 0.30 : (tread > 1.5 ? 0.24 : (tread > 0.5 ? 0.14 : 0.0)); }
+	// A snow tyre's studs: one round steel head in the middle of each
+	// block (the snow pattern's block centres), about 4% of the tread
+	// width across. Distances in half widths, round the tyre and across.
+	float Stud(float u, float av, float aa, float sTot)
+	{
+		float n = max(round(sTot * 2.6), 1.0);
+		float lane = av < 0.20 ? 0.0 : (av < 0.55 ? 1.0 : 2.0);
+		float mid = lane < 0.5 ? 0.10 : (lane < 1.5 ? 0.375 : 0.74);
+		float ph = frac(u * n + 0.5 * lane);
+		float du = min(ph, 1.0 - ph) * 2.0 * sTot / n;
+		float d = length(float2(du, av - mid));
+		return 1.0 - smoothstep(0.042 - aa, 0.042 + aa, d);
+	}
+	// The studs' share of the tread once they are smaller than a pixel.
+	float StudCover() { return 0.025; }
 };
 ApxTread Tr;
 float Rl = max(Rm, 1e-3);
@@ -1354,6 +1380,7 @@ float spot2 = (flat2 > 0.01 ? 1.0 : 0.0) * (1.0 - smoothstep(flatLen2 * 0.7, fla
 float spot = max(spot1, spot2) * onTread * (1.0 - smoothstep(0.7, 0.9, av));
 float flatHere = spot1 >= spot2 ? Flat : flat2;
 float g = lerp(Tr.G(u, av, Tread, Chev, aa, sTot), Tr.Cover(Tread), fade) * onTread * keep * (1.0 - 0.7 * spot);
+float stud = Tread > 2.5 ? lerp(Tr.Stud(u, av, aa, sTot), Tr.StudCover(), fade) * onTread * (1.0 - smoothstep(0.86, 0.9, av)) : 0.0;
 )HLSL");
 
 	/** Base colour (rgb) and roughness (a) from the prelude, `Base` and `Rough`. */
@@ -1399,6 +1426,9 @@ float hb = frac(sin(dot(bc, float2(63.726, 9.151))) * 43758.5453);
 float blister = step(1.0 - 0.5 * saturate(Blister), hb) * onTread * smoothstep(0.35, 0.6, av) * (1.0 - fade);
 c = lerp(c, float3(0.02, 0.02, 0.022), blister * 0.8);
 r = lerp(r, 0.7, blister);
+// A snow tyre's studs: bright, polished steel heads (metallic in ApexTyreMetal).
+c = lerp(c, float3(0.62, 0.63, 0.66), stud);
+r = lerp(r, 0.22, stud);
 // Wet: darker and glossy, the sidewalls a little less; water stands in the grooves.
 float w = saturate(Wet) * lerp(0.75, 1.0, onTread);
 c *= lerp(1.0, 0.55, w);
@@ -1431,8 +1461,9 @@ float gu = Tr.G(u + e / sTot, av, Tread, Chev, aa, sTot);
 float gv = Tr.G(u, av + e, Tread, Chev, aa, sTot);
 float3 ts = normalize(-sin(th) * Yw + cos(th) * Zw);
 float3 tv = normalize(Xw) * (v < 0.0 ? -1.0 : 1.0);
-// Groove depth, cm: a wet's channels deeper than an inter's sipes.
-float depthCm = (Tread > 1.5 ? 0.6 : 0.35) * keep * onTread * (1.0 - fade);
+// Groove depth, cm: a snow tyre's blocks deepest, a wet's channels deeper
+// than an inter's sipes.
+float depthCm = (Tread > 2.5 ? 0.8 : (Tread > 1.5 ? 0.6 : 0.35)) * keep * onTread * (1.0 - fade);
 // d(groove)/d(cm) round the tyre and across it: `u + e / sTot` is e tread
 // widths (2 x HW cm) on, `av + e` is e half widths (HW cm).
 float3 grad = ((gu - g0) / (e * 2.0 * HW)) * ts + ((gv - g0) / (e * HW)) * tv;
@@ -1465,8 +1496,9 @@ return o;
 	 * parent's inputs (`BaseColorFactor` x `BaseColorTexture`, `MetallicFactor`,
 	 * `RoughnessFactor`, `EmissiveFactor`) and, from the wheel component's
 	 * custom primitive data (ApexCarMaterials::TyreCpd), the tyre's state
-	 * laid over them without UVs: the tread of an intermediate or a wet
-	 * (grooves fading to their average under a pixel and with wear), wear's
+	 * laid over them without UVs: the tread of an intermediate, a wet or a
+	 * snow tyre (grooves fading to their average under a pixel and with
+	 * wear; the snow tyre's steel studs metallic), wear's
 	 * scuffing and graining, a flat spot's glazed patch, water, and a
 	 * deflated tyre's squat (WPO). With the data at zero (no wheel set
 	 * wrote it) it draws as the opaque parent would. The normal is world
@@ -1529,6 +1561,12 @@ return o;
 				{TEXT("FlatA"), FlatA}, {TEXT("Flat2"), Flat2}, {TEXT("Depth"), Depth}, {TEXT("Nv"), AddExpr<UMaterialExpressionVertexNormalWS>(Parent)},
 				{TEXT("Xw"), Axis(1.0f, 0.0f, 0.0f)}, {TEXT("Yw"), Axis(0.0f, 1.0f, 0.0f)}, {TEXT("Zw"), Axis(0.0f, 0.0f, 1.0f)},
 				{TEXT("Sag"), Sag}, {TEXT("Rel"), G.Transform(Local, TRANSFORMSOURCE_Local, TRANSFORM_World)}});
+		// Metallic: the car's factor, and 1 on a snow tyre's studs.
+		UMaterialExpressionCustom* Metal = AddCustom(Parent, TEXT("ApexTyreMetal"), Prelude + TEXT("return lerp(Metal, 1.0, stud);\n"), CMOT_Float1,
+			{{TEXT("P"), Local}, {TEXT("Rm"), Rm}, {TEXT("Hm"), Hm}, {TEXT("Rcm"), Rcm}, {TEXT("Hcm"), Hcm},
+				{TEXT("Tread"), Tread}, {TEXT("Chev"), Chev}, {TEXT("Wear"), Wear}, {TEXT("Flat"), Flat},
+				{TEXT("FlatA"), FlatA}, {TEXT("Flat2"), Flat2}, {TEXT("Depth"), Depth},
+				{TEXT("Metal"), CarScalar(Parent, ApexCarMaterials::MetallicFactor, 0.0f)}});
 		UMaterialExpressionCustom* Squat = AddCustom(Parent, TEXT("ApexTyreSag"), kTyreSag, CMOT_Float3,
 			{{TEXT("Rel"), G.Transform(Local, TRANSFORMSOURCE_Local, TRANSFORM_World)},
 				{TEXT("Axle"), G.Normalize(Axis(1.0f, 0.0f, 0.0f))}, {TEXT("Sag"), Sag}, {TEXT("Rcm"), Rcm},
@@ -1541,7 +1579,7 @@ return o;
 		SurfaceRough->R = SurfaceRough->G = SurfaceRough->B = 0;
 		SurfaceRough->A = 1;
 		EditorOnly->Roughness.Expression = SurfaceRough;
-		EditorOnly->Metallic.Expression = CarScalar(Parent, ApexCarMaterials::MetallicFactor, 0.0f);
+		EditorOnly->Metallic.Expression = Metal;
 		EditorOnly->EmissiveColor.Expression = CarMask(Parent, Emissive, true, true, true, false);
 		EditorOnly->Normal.Expression = Normal;
 		EditorOnly->WorldPositionOffset.Expression = Squat;
@@ -2221,8 +2259,9 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 	bool bBakeTyre = bForce || !FPackageName::DoesPackageExist(TyrePackage);
 	if (!bBakeTyre)
 	{
-		// One baked before the compound ring, or before the pickup, blisters
-		// and heat (a custom node that reads `TyrePickup`), draws none: bake it again.
+		// One baked before the compound ring, before the pickup, blisters
+		// and heat (a custom node that reads `TyrePickup`), or before the
+		// snow tyre's studs (`StudCover`), draws none: bake it again.
 		const UMaterialInterface* Existing = LoadObject<UMaterialInterface>(nullptr, *ApexCarMaterials::ObjectPath(ApexCarMaterials::TyreName));
 		float Width = 0.0f;
 		bBakeTyre = Existing
@@ -2230,19 +2269,21 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 		if (!bBakeTyre && Existing)
 		{
 			bool bPickup = false;
+			bool bStuds = false;
 			if (const UMaterial* Graph = Existing->GetMaterial())
 			{
 				for (const TObjectPtr<UMaterialExpression>& Expression : Graph->GetExpressions())
 				{
 					const UMaterialExpressionCustom* Custom = Cast<UMaterialExpressionCustom>(Expression.Get());
 					bPickup |= Custom && Custom->Code.Contains(TEXT("Pickup"));
+					bStuds |= Custom && Custom->Code.Contains(TEXT("StudCover"));
 				}
 			}
-			bBakeTyre = !bPickup;
+			bBakeTyre = !bPickup || !bStuds;
 		}
 		if (bBakeTyre)
 		{
-			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no compound ring or no pickup; baking it again"), ApexCarMaterials::TyreName);
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no compound ring, pickup or studs; baking it again"), ApexCarMaterials::TyreName);
 		}
 	}
 	if (bBakeTyre)

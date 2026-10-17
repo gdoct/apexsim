@@ -560,6 +560,21 @@ bool FApexCarTomlCompoundsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("index 4 is the wet"), Defaults[4].Kind == EApexCompoundKind::Wet);
 	}
 
+	// A studded snow tyre; the server's own grip keys are not the client's.
+	FApexCarToml Rally;
+	TestTrue(*FString::Printf(TEXT("a snow kind parses (%s)"), *Error), ApexCarToml::Parse(TEXT(
+		"id = \"r\"\nname = \"Rally\"\n"
+		"[[tires.compound]]\nname = \"gravel\"\nreference = true\n"
+		"[[tires.compound]]\nname = \"snow\"\nkind = \"snow\"\nsnow_grip = 1.6\nice_grip = 2.4\n"), Rally, Error));
+	const TArray<FApexCompoundSpec> RallyCompounds = ApexCarToml::MakeCompounds(Rally);
+	if (TestEqual(TEXT("two rally compounds"), RallyCompounds.Num(), 2))
+	{
+		TestTrue(TEXT("the gravel is a slick by kind"), RallyCompounds[0].Kind == EApexCompoundKind::Slick);
+		TestEqual(TEXT("the snow tyre by name"), RallyCompounds[1].Name, FString(TEXT("snow")));
+		TestTrue(TEXT("is a snow tyre"), RallyCompounds[1].Kind == EApexCompoundKind::Snow);
+		TestTrue(TEXT("and treaded"), RallyCompounds[1].IsTreaded());
+	}
+
 	FApexCarToml Bad;
 	TestFalse(TEXT("an unknown kind is an error"),
 		ApexCarToml::Parse(TEXT("id = \"a\"\nname = \"b\"\n[[tires.compound]]\nname = \"x\"\nkind = \"studded\"\n"), Bad, Error));

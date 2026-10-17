@@ -2851,13 +2851,16 @@ struct APEXSIMNET_API FApexCarTelemetry
 		return CompoundName(InCompound);
 	}
 
-	/** The first letter of CompoundNameFrom, upper-cased; empty when unknown. */
+	/**
+	 * The first letter of CompoundNameFrom, upper-cased; empty when unknown.
+	 * A snow tyre ("SNOW...") is "SN", so it does not read as a soft.
+	 */
 	static FString CompoundLetterFrom(const TArray<FString>& SheetCompounds, int32 InCompound)
 	{
 		if (SheetCompounds.Num() > 0)
 		{
 			const FString Name = CompoundNameFrom(SheetCompounds, InCompound);
-			return Name.IsEmpty() ? FString() : Name.Left(1);
+			return Name.IsEmpty() ? FString() : Name.StartsWith(TEXT("SNOW")) ? FString(TEXT("SN")) : Name.Left(1);
 		}
 		return CompoundLetter(InCompound);
 	}

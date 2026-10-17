@@ -51,6 +51,18 @@ bool FApexGarageCompoundCardsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("the reference is click 0"), OwnCards[2].Clicks, 0);
 	TestTrue(TEXT("softest grips most"), OwnCards[0].Grip > OwnCards[2].Grip);
 	TestEqual(TEXT("the wet is a wet"), OwnCards[3].Note, FString(TEXT("Standing water.")));
+
+	// A rally car's snow tyre is its own card, not a slick on the soft-to-hard ramp.
+	FApexCarSetupSheet Rally;
+	Rally.Compounds = { TEXT("gravel"), TEXT("snow") };
+	Rally.ReferenceCompound = 0;
+	const TArray<FApexGarageCompound> RallyCards = UApexHotlapWidget::CompoundCardsFor(&Rally);
+	if (TestEqual(TEXT("two rally cards"), RallyCards.Num(), 2))
+	{
+		TestTrue(TEXT("the snow tyre says it is studded"), RallyCards[1].Note.Contains(TEXT("Studded")));
+		TestTrue(TEXT("in ice white"), RallyCards[1].Colour.R > 0.5f && RallyCards[1].Colour.B > 0.5f);
+		TestEqual(TEXT("the only slick is the reference's own"), RallyCards[0].Note, FString(TEXT("The car's own tyre.")));
+	}
 	return true;
 }
 

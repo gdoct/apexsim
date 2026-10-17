@@ -251,6 +251,7 @@ TArray<FApexCompoundSpec> ApexCarToml::MakeCompounds(const FApexCarToml& Toml)
 		Spec.Name = Source.Name;
 		Spec.Kind = Source.Kind == TEXT("wet") ? EApexCompoundKind::Wet
 			: Source.Kind == TEXT("intermediate") ? EApexCompoundKind::Intermediate
+			: Source.Kind == TEXT("snow")         ? EApexCompoundKind::Snow
 												   : EApexCompoundKind::Slick;
 	}
 	return Compounds;
@@ -542,9 +543,10 @@ bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutErro
 	}
 	for (const FApexCarCompoundToml& C : Out.Compounds)
 	{
-		if (C.Name.IsEmpty() || !(C.Kind.IsEmpty() || C.Kind == TEXT("slick") || C.Kind == TEXT("intermediate") || C.Kind == TEXT("wet")))
+		if (C.Name.IsEmpty() || !(C.Kind.IsEmpty() || C.Kind == TEXT("slick") || C.Kind == TEXT("intermediate") || C.Kind == TEXT("wet")
+				|| C.Kind == TEXT("snow")))
 		{
-			OutError = FString::Printf(TEXT("[[tires.compound]] %s needs a name and a kind of slick, intermediate or wet"), *C.Name);
+			OutError = FString::Printf(TEXT("[[tires.compound]] %s needs a name and a kind of slick, intermediate, wet or snow"), *C.Name);
 			return false;
 		}
 	}

@@ -84,7 +84,8 @@ namespace ApexWheels
 	/**
 	 * How a treaded compound's tyre is drawn against the slick's authored
 	 * rubber: a cooler, matte grey, slightly blue for an intermediate and a
-	 * darker blue-grey for a wet, both nearly fully rough. The class wheels'
+	 * darker blue-grey for a wet, a neutral lighter grey for a snow tyre, all
+	 * nearly fully rough. The class wheels'
 	 * tyres carry no UVs (`build_wheels.py` lathes them without any), so a
 	 * groove texture cannot be laid round them. The fallback for a tyre slot
 	 * not on `M_ApexCarTyre` (a project baked before it), which draws the
@@ -96,13 +97,14 @@ namespace ApexWheels
 	inline const FName BandSlot(TEXT("wheel_band"));
 
 	/**
-	 * The sidewall ring of a rain tyre, linear: green for an intermediate,
-	 * blue for a wet, as the rain tyres are marked. False for a slick, whose
+	 * The sidewall ring of a treaded tyre, linear: green for an intermediate,
+	 * blue for a wet, as the rain tyres are marked, and a pale ice white for
+	 * a studded snow tyre. False for a slick, whose
 	 * ring stays as the wheel model has it.
 	 */
 	APEXSIM_API bool CompoundBandColour(EApexCompoundKind Kind, FLinearColor& OutColour);
 
-	/** What the tyre parent draws for a compound kind: 0 slick, 1 intermediate, 2 wet. */
+	/** What the tyre parent draws for a compound kind: 0 slick, 1 intermediate, 2 wet, 3 snow. */
 	APEXSIM_API float TreadIndex(EApexCompoundKind Kind);
 
 	/** How far a flat tyre squats at most, a share of its radius. */

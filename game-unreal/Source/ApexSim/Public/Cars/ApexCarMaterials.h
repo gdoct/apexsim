@@ -111,7 +111,7 @@ namespace ApexCarMaterials
 		/** The same as drawn, world cm. */
 		inline constexpr int32 RadiusCm = 20;
 		inline constexpr int32 HalfWidthCm = 21;
-		/** 0 slick, 1 intermediate, 2 wet (ApexWheels::TreadIndex). */
+		/** 0 slick, 1 intermediate, 2 wet, 3 snow (ApexWheels::TreadIndex). */
 		inline constexpr int32 Tread = 22;
 		/** +1 or -1: which way `theta` rolls forward, so a directional tread points the same way on both sides. */
 		inline constexpr int32 Chevron = 23;

@@ -116,6 +116,12 @@ bool ApexWheels::TreadedTint(EApexCompoundKind Kind, FLinearColor& OutBaseColour
 		OutBaseColour = FLinearColor(0.018f, 0.022f, 0.036f, 1.0f);
 		OutRoughness = 0.95f;
 		return true;
+	case EApexCompoundKind::Snow:
+		// A soft, cold rubber: a neutral matte grey a shade lighter than the
+		// slick; the studs are the tyre parent's.
+		OutBaseColour = FLinearColor(0.032f, 0.033f, 0.036f, 1.0f);
+		OutRoughness = 0.97f;
+		return true;
 	default:
 		return false;
 	}
@@ -131,6 +137,10 @@ bool ApexWheels::CompoundBandColour(EApexCompoundKind Kind, FLinearColor& OutCol
 	case EApexCompoundKind::Wet:
 		OutColour = FLinearColor(0.02f, 0.15f, 0.80f, 1.0f);
 		return true;
+	case EApexCompoundKind::Snow:
+		// Ice: a pale cyan-white, apart from the inter's green and the wet's blue.
+		OutColour = FLinearColor(0.62f, 0.82f, 0.92f, 1.0f);
+		return true;
 	default:
 		OutColour = FLinearColor::Black;
 		return false;
@@ -143,6 +153,7 @@ float ApexWheels::TreadIndex(EApexCompoundKind Kind)
 	{
 	case EApexCompoundKind::Intermediate: return 1.0f;
 	case EApexCompoundKind::Wet: return 2.0f;
+	case EApexCompoundKind::Snow: return 3.0f;
 	default: return 0.0f;
 	}
 }

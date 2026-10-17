@@ -469,7 +469,7 @@ the car is in or, between corners, the next one; all *null* (and
 | Name | Meaning |
 |---|---|
 | `tyre.known` | the server sends tyre temperatures |
-| `tyre.compound` | the compound's letter: `S`, `M`, `H`, `I`, `W`, or the first letter of the car's own compound name (*null* when unknown) |
+| `tyre.compound` | the compound's letter: `S`, `M`, `H`, `I`, `W`, or the first letter of the car's own compound name, `SN` for one named `snow...` (*null* when unknown) |
 | `tyre.age_laps` | laps the set has done: since the start, or since the last stop the HUD saw (*null* when the compound is unknown) |
 | `tyre.wear_max_pct` | the most worn of the four, % |
 | `tyre.optimal_c`, `tyre.window_c` | the car's working window: optimal ± window |

@@ -412,13 +412,17 @@ struct APEXSIM_API FApexCarLivery
 	bool operator!=(const FApexCarLivery& Other) const { return !(*this == Other); }
 };
 
-/** What a tyre compound is cut like: a slick, or one of the two treaded rain tyres. */
+/**
+ * What a tyre compound is cut like: a slick, one of the two treaded rain
+ * tyres, or a studded snow tyre. Append-only: a catalogue row stores it.
+ */
 UENUM(BlueprintType)
 enum class EApexCompoundKind : uint8
 {
 	Slick,
 	Intermediate,
 	Wet,
+	Snow,
 };
 
 /**

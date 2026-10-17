@@ -753,11 +753,15 @@ TArray<FApexGarageCompound> UApexHotlapWidget::CompoundCardsFor(const FApexCarSe
 	// slick palette runs soft to hard down the list).
 	const FLinearColor Soft = FLinearColor::FromSRGBColor(FColor(0xE0, 0x4B, 0x3C));
 	const FLinearColor Medium = FLinearColor::FromSRGBColor(FColor(0xE8, 0xBA, 0x3A));
-	auto IsRain = [](const FString& Name) { return Name.Contains(TEXT("wet")) || Name.Contains(TEXT("inter")); };
+	auto IsSnow = [](const FString& Name) { return Name.Contains(TEXT("snow")) || Name.Contains(TEXT("stud")); };
+	auto IsTreaded = [&IsSnow](const FString& Name)
+	{
+		return Name.Contains(TEXT("wet")) || Name.Contains(TEXT("inter")) || IsSnow(Name);
+	};
 	int32 Slicks = 0;
 	for (const FString& Name : Sheet->Compounds)
 	{
-		Slicks += IsRain(Name) ? 0 : 1;
+		Slicks += IsTreaded(Name) ? 0 : 1;
 	}
 	// Which treaded tyres the car fits in the rain (the server's crossover
 	// picks by the water on the line): the first wet and the first inter it
@@ -783,7 +787,15 @@ TArray<FApexGarageCompound> UApexHotlapWidget::CompoundCardsFor(const FApexCarSe
 		Card.Clicks = Sheet->ClicksForCompoundIndex(Index);
 		Card.Name = Raw.ToUpper();
 		const bool bReference = Index == Sheet->ReferenceCompound;
-		if (Raw.Contains(TEXT("wet")))
+		if (IsSnow(Raw))
+		{
+			// A studded snow tyre, marked in ice white as its sidewall ring is.
+			Card.Note = bReference ? TEXT("The car's own tyre: studded, for snow and ice.") : TEXT("Studded, for snow and ice.");
+			Card.Colour = FLinearColor::FromSRGBColor(FColor(0xCF, 0xE9, 0xF5));
+			Card.Grip = 0.45f;
+			Card.Life = 0.50f;
+		}
+		else if (Raw.Contains(TEXT("wet")))
 		{
 			Card.Note = TEXT("Standing water.");
 			Card.Colour = FLinearColor::FromSRGBColor(FColor(0x2F, 0x7F, 0xE0));

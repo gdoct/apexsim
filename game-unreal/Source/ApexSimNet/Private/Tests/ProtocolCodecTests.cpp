@@ -1732,6 +1732,8 @@ bool FApexProtocolCarSetupSheetTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("one click up is the first"), Sheet.ClicksForCompoundIndex(0), 1);
 	TestEqual(TEXT("a name from the sheet"), FApexCarTelemetry::CompoundNameFrom(Sheet.Compounds, 0), FString(TEXT("SOFT")));
 	TestEqual(TEXT("a letter from the sheet"), FApexCarTelemetry::CompoundLetterFrom(Sheet.Compounds, 1), FString(TEXT("M")));
+	TestEqual(TEXT("a snow tyre is SN, not a soft"),
+		FApexCarTelemetry::CompoundLetterFrom({ TEXT("gravel"), TEXT("snow") }, 1), FString(TEXT("SN")));
 	TestEqual(TEXT("past the sheet's list is unknown"), FApexCarTelemetry::CompoundNameFrom(Sheet.Compounds, 4), FString());
 	TestEqual(TEXT("no sheet falls back to the defaults"), FApexCarTelemetry::CompoundNameFrom(TArray<FString>(), 4), FString(TEXT("WET")));
 	FApexCarSetupSheet Older;
