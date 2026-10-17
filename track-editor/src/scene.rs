@@ -286,7 +286,7 @@ fn rebuild_track_visual(
 }
 
 fn on_track_click(
-    _event: On<Pointer<Click>>,
+    _event: On<PointerClick>,
     mut selection: ResMut<Selection>,
     mut status: ResMut<StatusLine>,
 ) {
@@ -462,7 +462,7 @@ fn rebuild_scene_elements(
 }
 
 fn on_element_click(
-    event: On<Pointer<Click>>,
+    event: On<PointerClick>,
     targets: Query<&ClickSelect>,
     mut selection: ResMut<Selection>,
 ) {
@@ -476,7 +476,7 @@ fn on_element_click(
 type DraggableFilter = Or<(With<PropPiece>, With<PitNodeHandle>)>;
 
 fn on_scene_drag_start(
-    event: On<Pointer<DragStart>>,
+    event: On<PointerDragStart>,
     draggable: Query<(), DraggableFilter>,
     open_scene: Res<OpenScene>,
     mut undo_stack: ResMut<UndoStack>,
@@ -492,7 +492,7 @@ fn on_scene_drag_start(
 }
 
 fn on_scene_drag_end(
-    event: On<Pointer<DragEnd>>,
+    event: On<PointerDragEnd>,
     draggable: Query<(), DraggableFilter>,
     mut drag: ResMut<DragActive>,
 ) {
@@ -502,7 +502,7 @@ fn on_scene_drag_end(
 }
 
 fn on_pit_node_drag(
-    event: On<Pointer<Drag>>,
+    event: On<PointerDrag>,
     handles: Query<&PitNodeHandle>,
     camera: Single<(&Camera, &GlobalTransform)>,
     mut transforms: Query<&mut Transform, With<PitNodeHandle>>,
@@ -519,7 +519,7 @@ fn on_pit_node_drag(
     let Some(point) = pointer_on_horizontal_plane(
         camera,
         camera_transform,
-        event.pointer_location.position,
+        event.pointer.position,
         plane_y,
     ) else {
         return;
@@ -543,7 +543,7 @@ fn on_pit_node_drag(
 }
 
 fn on_prop_drag(
-    event: On<Pointer<Drag>>,
+    event: On<PointerDrag>,
     pieces: Query<&PropPiece>,
     camera: Single<(&Camera, &GlobalTransform)>,
     mut piece_transforms: Query<(&PropPiece, &mut Transform)>,
@@ -562,7 +562,7 @@ fn on_prop_drag(
     let Some(point) = pointer_on_horizontal_plane(
         camera,
         camera_transform,
-        event.pointer_location.position,
+        event.pointer.position,
         old_origin.y,
     ) else {
         return;
