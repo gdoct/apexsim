@@ -1966,12 +1966,18 @@ void UApexHotlapWidget::RefreshGrid()
 			continue;
 		}
 		const bool bMine = Entry == Local;
-		GridRowPos[Row]->SetText(FText::FromString(Entry->GridSlot > 0 ? FString::Printf(TEXT("P%d"), Entry->GridSlot) : FString(TEXT("--"))));
+		// A non-qualifier is parked behind the field: it has no place to start from.
+		GridRowPos[Row]->SetText(FText::FromString(Entry->bDnq ? FString(TEXT("DNQ"))
+			: Entry->GridSlot > 0 ? FString::Printf(TEXT("P%d"), Entry->GridSlot) : FString(TEXT("--"))));
 		GridRowName[Row]->SetText(FText::FromString(Entry->PlayerName.ToUpper()));
-		GridRowName[Row]->SetColorAndOpacity(FSlateColor(bMine ? Palette::Accent : Ink));
+		GridRowName[Row]->SetColorAndOpacity(FSlateColor(bMine ? Palette::Accent : Entry->bDnq ? InkFaint : Ink));
 		FString State;
 		FLinearColor StateColour = InkFaint;
-		if (Entry->bIsAi)
+		if (Entry->bDnq)
+		{
+			State = TEXT("DID NOT QUALIFY");
+		}
+		else if (Entry->bIsAi)
 		{
 			State = TEXT("AI");
 		}
