@@ -140,6 +140,9 @@ SIDE_SHUT_YS = sorted(y for (y, k) in V["shutlines"] if k == "side")
 REAR_WRAP = V.get("rear_wrap", V["rear_glass_y"][0] - V["glass_y"][1] < 0.30)
 
 
+# Control-index width of the rubber along the head of the side glass,
+# under the roof line (ROOF).
+FRAME_J = 0.07
 # The side glass's rear edge at the roof, when it rakes (`glass_top`).
 GLASS_TOP = V.get("glass_top")
 
@@ -156,7 +159,7 @@ def face_mat(ym, kk, right):
     by face steps with the grid however fine it is. The greenhouse's flank
     is one band of glass from the screen's foot to the back of the side
     glass (or of the back light, where it wraps), and the raked A- and
-    C-pillars are black strips laid over it (`PILLARS` below); the B-pillar
+    C-pillar a flat panel of skin over its raked edge (`skin_ribbon`); the B-pillar
     is upright at the door's rear shut. The sun strip across the screen's
     head is skin (the livery's banner)."""
     jc = kk / SAMP
@@ -174,6 +177,9 @@ def face_mat(ym, kk, right):
     if jc < BELT:
         return M.trim if s0 < ym < side_end else M.skin
     if jc < ROOF:
+        # the black rubber along the head of the side glass
+        if jc >= ROOF - FRAME_J and s1 < ym < side_end:
+            return M.trim
         if abs(ym - SIDE_SHUT_YS[-1]) < 0.030 and SIDE_SHUT_YS[-1] < g1 - 0.15:
             return M.trim
         return M.glass if s0 < ym < side_end else M.skin
@@ -395,21 +401,43 @@ for (y, tyre) in ((AX_F, TYRE_F), (AX_R, TYRE_R)):
         x0, x1 = sorted((sx * (HUB_X - 0.15), sx * (HUB_X + 0.11)))
         p.box(M.accent, (x0, fy, 0.045), (x1, fy + 0.010, max(0.30, V["floor"] + 0.16)))
 
-# ---- the raked pillars: black strips over the greenhouse's glass, from
-# the side glass's corners at the belt to the screen's and the back
-# light's heads (face_mat leaves the glass a clean band under them)
-_s0, _s1 = V["screen_y"]
-_r0, _r1 = V["rear_glass_y"]
-_g0, _g1 = V["glass_y"]
-PILLARS = [[(_g0, BELT + 0.02), (_s1 - 0.03, ROOF + 0.35)]]
-if GLASS_TOP is not None:
-    PILLARS.append([(_g1 + 0.01, BELT - 0.05), (GLASS_TOP + 0.01, ROOF),
-                    (GLASS_TOP - 0.04, ROOF + 0.35)])
-if REAR_WRAP:
-    PILLARS.append([(_g1, BELT + 0.02), (_r0 + 0.04, ROOF + 0.35)])
-for pts in PILLARS:
+# ---- the A- and C-pillars: flat panels of skin, the body colour the
+# livery paints, laid along the screen's outer edge and over the quarter
+# glass's raked rear edge (which steps with the grid under it).
+def skin_ribbon(pts, width, lift=0.004, per=18):
+    """A flat strip `width` metres along the car, laid on the skin along the
+    (y, j) polyline `pts`, on both flanks."""
     for sx in (-1, 1):
-        carlib.light_guide(p, M.trim, L, pts, sx=sx, lift=-0.014, r=0.026, segs=10, per=16)
+        rows = []
+        for (a, c) in zip(pts, pts[1:]):
+            for k in range(per + 1):
+                if rows and k == 0:
+                    continue
+                y = a[0] + (c[0] - a[0]) * k / per
+                j = a[1] + (c[1] - a[1]) * k / per
+                row = []
+                for dy in (-width / 2, width / 2):
+                    q = L.point(y + dy, j) + L.normal(y + dy, j) * lift
+                    row.append(Vector((sx * q.x, q.y, q.z)))
+                rows.append((row, L.normal(y, j)))
+        for (r0_, n0), (r1_, _) in zip(rows, rows[1:]):
+            quad = [r0_[0], r0_[1], r1_[1], r1_[0]]
+            out = Vector((sx * n0.x, n0.y, n0.z))
+            if (quad[1] - quad[0]).cross(quad[2] - quad[0]).dot(out) < 0:
+                quad.reverse()
+            p.sheet(M.skin, *quad)
+
+
+_g0, _g1 = V["glass_y"]
+_s0, _s1 = V["screen_y"]
+_r0 = V["rear_glass_y"][0]
+# the A-pillar, along the screen's outer edge from the belt's corner at
+# the scuttle to the roof's corner (glass either side of it)
+skin_ribbon([(_s0 + 0.03, BELT + 0.02), (_s1 - 0.01, ROOF + 0.02)], 0.08)
+if GLASS_TOP is not None:
+    skin_ribbon([(_g1 - 0.02, BELT - 0.02), (GLASS_TOP - 0.02, ROOF)], 0.13)
+elif REAR_WRAP:
+    skin_ribbon([(_g1, BELT - 0.02), (_r0 + 0.02, ROOF)], 0.09)
 # ---- side intake floors
 for f in SIDE_FLOORS:
     for sx in (-1, 1):
@@ -542,10 +570,10 @@ for sx in (-1, 1):
     carlib.inside_bar(p, M.cage, L, (sx * CX, HOOP_Y, FL + 0.06), (sx * CX, HOOP_Y, hoop_top[2] - 0.10), 0.022, segs=8)
     carlib.inside_bar(p, M.cage, L, (sx * CX, HOOP_Y, hoop_top[2] - 0.10), hoop_top, 0.022, segs=8)
     carlib.inside_bar(p, M.cage, L, hoop_top, rail, 0.020, segs=8)
-    mid_y = (SCR_Y + PY) / 2
-    mid = (sx * (L.x_at(mid_y, 0.86) - 0.070), mid_y, L.z_at(mid_y, 0.62 * XS) - 0.050)
-    carlib.inside_bar(p, M.cage, L, rail, mid, 0.018, segs=8)
-    carlib.inside_bar(p, M.cage, L, mid, foot, 0.018, segs=8)
+    # the A-pillar bar: one straight tube from the roof rail down the inside
+    # of the pillar to the scuttle, behind the pillar rather than across the
+    # screen (bent through a mid point it crossed the driver's view)
+    p.bar(M.cage, rail, foot, 0.018, 8)
     carlib.inside_bar(p, M.cage, L, (sx * CX, HOOP_Y, FL + 0.42), (sx * (CX - 0.02), DOOR0 + 0.05, FL + 0.46),
                       0.019, segs=8)
 carlib.inside_bar(p, M.cage, L, inside(HOOP_Y, -0.52 * XS), inside(HOOP_Y, 0.52 * XS), 0.022, segs=8)
