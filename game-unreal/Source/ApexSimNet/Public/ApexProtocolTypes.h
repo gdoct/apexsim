@@ -3010,6 +3010,32 @@ struct APEXSIMNET_API FApexSkyNow
 	bool operator!=(const FApexSkyNow& Other) const { return !(*this == Other); }
 };
 
+/**
+ * The safety car on the road (`CompactTelemetry.safety_car`, server/src/safety_car.rs):
+ * `[x, y, z, yaw_rad, speed_mps]` in the server's frame, as a car's pose is
+ * sent. Not a participant: it has no roster row.
+ */
+struct FApexSafetyCarPose
+{
+	/** False while there is none on the road (and from an older server). */
+	bool bValid = false;
+	FVector Position = FVector::ZeroVector;
+	float YawRad = 0.0f;
+	float SpeedMps = 0.0f;
+};
+
+/** `CompactTelemetry.race_phase` values (server/src/race_start.rs `RacePhase`). */
+namespace ApexRacePhase
+{
+	inline constexpr int32 None = 0;
+	inline constexpr int32 Formation = 1;
+	inline constexpr int32 PaceLap = 2;
+	inline constexpr int32 Vsc = 3;
+	inline constexpr int32 VscEnding = 4;
+	inline constexpr int32 SafetyCar = 5;
+	inline constexpr int32 ScInThisLap = 6;
+}
+
 /** `CompactTelemetry` (network.rs:415) — positional encoding, UDP. */
 USTRUCT(BlueprintType)
 struct APEXSIMNET_API FApexTelemetryFrame
@@ -3060,6 +3086,15 @@ struct APEXSIMNET_API FApexTelemetryFrame
 	 */
 	int32 YellowSectorM = 0;
 	TArray<TPair<int32, int32>> YellowSectors;
+
+	/**
+	 * What the race is doing beyond its state and mode (`race_phase`,
+	 * appended after the yellows): an `ApexRacePhase` value, 0 none.
+	 */
+	int32 RacePhase = ApexRacePhase::None;
+
+	/** The safety car's pose (`safety_car`, appended after the phase). */
+	FApexSafetyCarPose SafetyCar;
 
 	/** The yellow over lap position `ProgressM`, 0 none. */
 	int32 YellowAt(float ProgressM) const

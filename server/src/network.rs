@@ -1487,26 +1487,62 @@ pub struct CompactTelemetry {
     /// What the race is doing beyond its state and mode
     /// (`crate::race_start::RacePhase`): 1 the formation lap of a standing
     /// start, 2 a rolling start's pace lap (both run in the countdown's
-    /// state, with no countdown). Appended after the yellows; left off
-    /// otherwise.
+    /// state, with no countdown), 3 / 4 the virtual safety car out /
+    /// ending, 5 the safety car out, 6 safety car in this lap. Appended
+    /// after the yellows; left off otherwise.
     #[serde(default)]
     pub race_phase: Option<u8>,
+    /// The safety car on the road (`crate::safety_car`), from its call
+    /// (waiting at the pit exit) until it is off the road. Appended after
+    /// the phase; left off otherwise.
+    #[serde(default)]
+    pub safety_car: Option<SafetyCarPose>,
+}
+
+/// The safety car's pose, positional: `[x, y, z, yaw_rad, speed_mps]`, in
+/// the server's frame as a car's `pos_x` / `pos_y` / `pos_z` / `yaw_rad` /
+/// `speed_mps` are.
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+pub struct SafetyCarPose {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub yaw_rad: f32,
+    pub speed_mps: f32,
+}
+
+impl From<crate::safety_car::ScPose> for SafetyCarPose {
+    fn from(p: crate::safety_car::ScPose) -> Self {
+        SafetyCarPose {
+            x: p.x,
+            y: p.y,
+            z: p.z,
+            yaw_rad: p.yaw_rad,
+            speed_mps: p.speed_mps,
+        }
+    }
 }
 
 /// Positional like the struct it is, but with the trailing fields left off
 /// when there is nothing in them: the race clock goes when none of it, the
-/// sky, the yellows and the phase is there, the sky when none of it, the
-/// yellows and the phase is, the yellows when neither they nor the phase
-/// is out, and the phase when there is none.
+/// sky, the yellows, the phase and the safety car is there, the sky when
+/// none of it and what follows is, the yellows when neither they nor
+/// anything after them is out, the phase when neither it nor the safety
+/// car is, and the safety car when it is not on the road.
 impl Serialize for CompactTelemetry {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
-        let with_phase = self.race_phase.is_some();
+        let with_sc = self.safety_car.is_some();
+        let with_phase = self.race_phase.is_some() || with_sc;
         let with_flags = self.yellow_flags.is_some() || with_phase;
         let with_sky = self.sky.is_some() || with_flags;
         let with_clock = self.race_clock.is_some() || with_sky;
-        let len =
-            5 + with_clock as usize + with_sky as usize + with_flags as usize + with_phase as usize;
+        let len = 5
+            + with_clock as usize
+            + with_sky as usize
+            + with_flags as usize
+            + with_phase as usize
+            + with_sc as usize;
         let mut s = serializer.serialize_struct("CompactTelemetry", len)?;
         s.serialize_field("server_tick", &self.server_tick)?;
         s.serialize_field("session_state", &self.session_state)?;
@@ -1532,6 +1568,11 @@ impl Serialize for CompactTelemetry {
             s.serialize_field("race_phase", &self.race_phase)?;
         } else {
             s.skip_field("race_phase")?;
+        }
+        if with_sc {
+            s.serialize_field("safety_car", &self.safety_car)?;
+        } else {
+            s.skip_field("safety_car")?;
         }
         s.end()
     }
@@ -2854,6 +2895,7 @@ mod tests {
             sky: None,
             yellow_flags: None,
             race_phase: None,
+            safety_car: None,
         });
 
         let named_bytes = rmp_serde::to_vec_named(&named).unwrap();
@@ -3358,6 +3400,7 @@ mod tests {
                 sectors: vec![[3, 1], [4, 2]],
             }),
             race_phase: None,
+            safety_car: None,
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
@@ -4707,6 +4750,7 @@ mod tests {
             sky: None,
             yellow_flags: None,
             race_phase: Some(crate::race_start::RacePhase::PaceLap as u8),
+            safety_car: None,
         });
         let frame_bytes = rmp_serde::to_vec(&frame).unwrap();
         println!("S_TelemetryCompactPaceLap: {}", hex(&frame_bytes));
@@ -4720,6 +4764,7 @@ mod tests {
         // Without a phase the frame is the five fields it always was.
         let bare = rmp_serde::to_vec(&ServerMessage::TelemetryCompact(CompactTelemetry {
             race_phase: None,
+            safety_car: None,
             ..match frame {
                 ServerMessage::TelemetryCompact(t) => t,
                 _ => unreachable!(),
@@ -4882,6 +4927,7 @@ mod tests {
             sky: None,
             yellow_flags: None,
             race_phase: Some(crate::race_start::RacePhase::Vsc as u8),
+            safety_car: None,
         });
         let frame_bytes = rmp_serde::to_vec(&frame).unwrap();
         println!("S_TelemetryCompactVsc: {}", hex(&frame_bytes));
@@ -4889,6 +4935,98 @@ mod tests {
             ServerMessage::TelemetryCompact(t) => assert_eq!(t.race_phase, Some(3)),
             _ => panic!("Wrong message type"),
         }
+    }
+
+    /// The safety car on the road: a create asking for it, and a frame
+    /// while it is out (`race_phase` 5 and its pose, after a nil clock, sky
+    /// and yellows). Printed as `C_CreateSessionFullSafetyCar` /
+    /// `S_TelemetryCompactSafetyCar` (`cargo test
+    /// full_safety_car_wire_format -- --nocapture`).
+    #[test]
+    fn test_full_safety_car_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let rules = RaceRules {
+            safety_car: SafetyCar::Full,
+            ..Default::default()
+        };
+        let create = ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: rules,
+        };
+        let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
+        println!("C_CreateSessionFullSafetyCar: {}", hex(&create_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession { race_rules, .. } => assert_eq!(race_rules, rules),
+            _ => panic!("Wrong message type"),
+        }
+        let pose = SafetyCarPose {
+            x: 120.5,
+            y: -42.25,
+            z: 3.0,
+            yaw_rad: 1.5,
+            speed_mps: 40.0,
+        };
+        let frame = ServerMessage::TelemetryCompact(CompactTelemetry {
+            server_tick: 500,
+            session_state: SessionState::Racing,
+            game_mode: GameMode::Race,
+            countdown_ms: None,
+            car_states: vec![],
+            race_clock: None,
+            sky: None,
+            yellow_flags: None,
+            race_phase: Some(crate::race_start::RacePhase::SafetyCar as u8),
+            safety_car: Some(pose),
+        });
+        let frame_bytes = rmp_serde::to_vec(&frame).unwrap();
+        println!("S_TelemetryCompactSafetyCar: {}", hex(&frame_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&frame_bytes).unwrap() {
+            ServerMessage::TelemetryCompact(t) => {
+                assert_eq!(t.race_phase, Some(5));
+                assert_eq!(t.safety_car, Some(pose));
+            }
+            _ => panic!("Wrong message type"),
+        }
+        // Without it the frame is the VSC's: the phase last.
+        let without = rmp_serde::to_vec(&ServerMessage::TelemetryCompact(CompactTelemetry {
+            server_tick: 500,
+            session_state: SessionState::Racing,
+            game_mode: GameMode::Race,
+            countdown_ms: None,
+            car_states: vec![],
+            race_clock: None,
+            sky: None,
+            yellow_flags: None,
+            race_phase: Some(crate::race_start::RacePhase::ScInThisLap as u8),
+            safety_car: None,
+        }))
+        .unwrap();
+        // The pose is a 5-array of float32s: 1 + 5 x 5 bytes.
+        assert_eq!(without.len(), frame_bytes.len() - 26);
     }
 
     /// A timed race: a create for two hours, the joined echo, and a
@@ -4975,6 +5113,7 @@ mod tests {
                 sky: None,
                 yellow_flags: None,
                 race_phase: None,
+                safety_car: None,
             })
         };
         let clock_bytes = rmp_serde::to_vec(&frame(Some(RaceClock {
@@ -5104,6 +5243,7 @@ mod tests {
             sky: None,
             yellow_flags: None,
             race_phase: None,
+            safety_car: None,
         });
         let clock_bytes = rmp_serde::to_vec(&clock).unwrap();
         println!("S_TelemetryCompactQualifyingClock: {}", hex(&clock_bytes));
@@ -5350,6 +5490,7 @@ mod tests {
             sky: None,
             yellow_flags: None,
             race_phase: None,
+            safety_car: None,
         });
         let clock_bytes = rmp_serde::to_vec(&clock).unwrap();
         println!("S_TelemetryCompactPracticeClock: {}", hex(&clock_bytes));
@@ -5777,6 +5918,7 @@ mod tests {
             sky: Some(now),
             yellow_flags: None,
             race_phase: None,
+            safety_car: None,
         });
         let frame_bytes = rmp_serde::to_vec(&frame).unwrap();
         println!("S_TelemetryCompactSky: {}", hex(&frame_bytes));
@@ -5792,6 +5934,7 @@ mod tests {
             sky: None,
             yellow_flags: None,
             race_phase: None,
+            safety_car: None,
             ..match frame {
                 ServerMessage::TelemetryCompact(t) => t,
                 _ => unreachable!(),

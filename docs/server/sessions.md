@@ -559,6 +559,11 @@ call to the green.
   pace is lifted. This is the rolling start's idea (green as the leader
   reaches the line), driven from the queue rather than from the grid.
 - Laps are counted and timed under it as under green.
+- On the wire: `CompactTelemetry.race_phase` 5 (out) and 6 (in this lap, and
+  the restart), and `CompactTelemetry.safety_car`, its pose from its call
+  until it is off the road ([protocol](protocol.md)). Client:
+  `FApexTelemetryFrame::RacePhase` / `SafetyCar` are decoded; nothing draws
+  or shows them yet ([follow-ups](../follow-ups.md)).
 
 ## Penalties
 

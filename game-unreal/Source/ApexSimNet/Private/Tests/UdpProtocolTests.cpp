@@ -292,6 +292,55 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// The race phase (after the yellows) and the safety car's pose (after
+	// the phase): a pace lap, the virtual safety car, the one on the road.
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("TelemetryCompact on a pace lap decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactPaceLap, Message, Error)))
+		{
+			TestEqual(TEXT("pace lap phase"), Message.Telemetry.RacePhase, ApexRacePhase::PaceLap);
+			TestFalse(TEXT("no safety car on a pace lap"), Message.Telemetry.SafetyCar.bValid);
+		}
+	}
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("TelemetryCompact under the VSC decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactVsc, Message, Error)))
+		{
+			TestEqual(TEXT("VSC phase"), Message.Telemetry.RacePhase, ApexRacePhase::Vsc);
+			TestFalse(TEXT("the virtual one has no pose"), Message.Telemetry.SafetyCar.bValid);
+		}
+	}
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("TelemetryCompact with the safety car out decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactSafetyCar, Message, Error)))
+		{
+			const FApexTelemetryFrame& Frame = Message.Telemetry;
+			TestEqual(TEXT("safety car phase"), Frame.RacePhase, ApexRacePhase::SafetyCar);
+			TestTrue(TEXT("its pose"), Frame.SafetyCar.bValid);
+			TestEqual(TEXT("its x"), Frame.SafetyCar.Position.X, 120.5);
+			TestEqual(TEXT("its y"), Frame.SafetyCar.Position.Y, -42.25);
+			TestEqual(TEXT("its z"), Frame.SafetyCar.Position.Z, 3.0);
+			TestEqual(TEXT("its yaw"), Frame.SafetyCar.YawRad, 1.5f);
+			TestEqual(TEXT("its speed"), Frame.SafetyCar.SpeedMps, 40.0f);
+		}
+	}
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (TestTrue(FString::Printf(TEXT("TelemetryCompact with a race clock decodes again (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactRaceClock, Message, Error)))
+		{
+			TestEqual(TEXT("no phase before the phase field"), Message.Telemetry.RacePhase, ApexRacePhase::None);
+			TestFalse(TEXT("nor a safety car"), Message.Telemetry.SafetyCar.bValid);
+		}
+	}
+
 	// The sky now: a seventh field, with the race clock nil before it.
 	{
 		FApexServerMessage Message;

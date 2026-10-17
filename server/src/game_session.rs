@@ -6696,6 +6696,12 @@ impl GameSession {
             sky: Some(self.sky_now()),
             yellow_flags: self.yellow_flags(),
             race_phase: self.race_phase(),
+            safety_car: self
+                .race_control
+                .safety_car
+                .as_ref()
+                .and_then(|sc| sc.wire_pose())
+                .map(Into::into),
         }
     }
 

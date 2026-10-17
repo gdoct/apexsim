@@ -132,8 +132,13 @@ them yet, and the server leaves a few edges.
   1 / 2, in `Countdown` with no countdown): a FORMATION LAP banner and HUD
   data point (`race.phase`), no lights until the countdown comes back.
 - client: the create screen's Safety car row (`race_rules.safety_car`:
-  Off / Virtual); show the virtual safety car (`race_phase` 3 VSC, 4 VSC
-  ENDING) as a banner, a HUD data point and on the dash, with its pace.
+  Off / Virtual / On the road); show the virtual safety car (`race_phase` 3
+  VSC, 4 VSC ENDING) and the safety car (5 SAFETY CAR, 6 SAFETY CAR IN THIS
+  LAP) as a banner, a HUD data point and on the dash, with the pace.
+- client: draw the safety car (`FApexTelemetryFrame::SafetyCar`, decoded
+  and not drawn): a car model with roof light bars, lit until `race_phase`
+  6, interpolated like a car; it drives through a lapped car passing it
+  (it is no body on the server), so the pass is seen as an overlap.
 - client: the create screen's penalty rules (`race_rules.yellow_penalty`,
   `pit_exit_penalty`; False starts is `jump_start`).
 - client: show penalties (`RosterEntry.Penalties`): a toast as one is given

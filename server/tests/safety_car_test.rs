@@ -203,6 +203,8 @@ fn a_stranded_car_brings_out_the_safety_car_on_the_road() {
             assert!(d < 1.0, "waiting at the pit exit, {d:.1} m off it");
             assert!(race.race_control.pit_closed(), "the lane is closed");
             assert_eq!(race.race_phase(), Some(RacePhase::SafetyCar as u8));
+            let frame = race.get_compact_telemetry();
+            assert!(frame.safety_car.is_some(), "its pose on the wire");
         }
         if !deployed {
             assert_eq!(
@@ -316,6 +318,7 @@ fn a_stranded_car_brings_out_the_safety_car_on_the_road() {
         .values()
         .all(|s| s.speed_cap_mps == 0.0));
     assert_eq!(race.race_phase(), None);
+    assert!(race.get_compact_telemetry().safety_car.is_none());
     // Never a participant: the classification is the field's.
     let classified = race.classification(&HashMap::new());
     assert_eq!(classified.len(), race.session.participants.len());

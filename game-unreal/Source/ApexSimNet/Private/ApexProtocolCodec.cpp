@@ -2742,6 +2742,48 @@ namespace
 			}
 		}
 
+		// `race_phase`, appended after the yellows: a small integer, or nil.
+		Out.RacePhase = ApexRacePhase::None;
+		if (FieldCount > Read)
+		{
+			++Read;
+			if (!Reader.TryReadNil())
+			{
+				if (!Reader.ReadUInt64(Raw)) { return false; }
+				Out.RacePhase = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint8));
+			}
+		}
+
+		// `safety_car`, appended after the phase: `[x, y, z, yaw_rad,
+		// speed_mps]` (server/src/safety_car.rs), or nil.
+		Out.SafetyCar = FApexSafetyCarPose();
+		if (FieldCount > Read)
+		{
+			++Read;
+			if (!Reader.TryReadNil())
+			{
+				int32 PoseFields = 0;
+				if (!Reader.ReadArrayHeader(PoseFields) || PoseFields < 5)
+				{
+					return false;
+				}
+				float X = 0.0f;
+				float Y = 0.0f;
+				float Z = 0.0f;
+				if (!Reader.ReadFloat(X) || !Reader.ReadFloat(Y) || !Reader.ReadFloat(Z)
+					|| !Reader.ReadFloat(Out.SafetyCar.YawRad) || !Reader.ReadFloat(Out.SafetyCar.SpeedMps))
+				{
+					return false;
+				}
+				for (int32 Extra = 5; Extra < PoseFields; ++Extra)
+				{
+					if (!Reader.SkipValue()) { return false; }
+				}
+				Out.SafetyCar.Position = FVector(X, Y, Z);
+				Out.SafetyCar.bValid = true;
+			}
+		}
+
 		for (int32 Extra = Read; Extra < FieldCount; ++Extra)
 		{
 			if (!Reader.SkipValue())
