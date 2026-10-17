@@ -223,7 +223,9 @@ of snapshots and 11 kB/s of state on top of the feedback's 9.5 kB/s.
 The client takes each message's snapshot and slice off before folding the
 messages of a frame together (`FApexDriverFeedback::Absorb`) and keeps them
 on `UApexNetSubsystem` (`GetOwnCarSnapshot`, `GetOwnCarState`, their
-serials); nothing reads them until the prediction loop (phase 3).
+serials, and when the UDP worker took the snapshot's datagram in,
+`GetOwnCarSnapshotSeconds`); the prediction loop reads them
+([../game/client.md](../game/client.md#client-prediction-raceapexpredictionsubsystemh)).
 
 ## Evolving a message
 

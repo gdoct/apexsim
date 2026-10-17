@@ -39,13 +39,14 @@ None open.
 
 90-150 ms from wheel to car online. Design and phases in
 [proposals/client-prediction.md](proposals/client-prediction.md). The
-physics library (`server/ffi`, phase 1) and the wire (phase 2: input
-sequence, own-car snapshot and state blob on `DriverFeedback`) are built;
-left:
+physics library (`server/ffi`, phase 1), the wire (phase 2: input
+sequence, own-car snapshot and state blob on `DriverFeedback`) and the loop
+(phase 3: the library linked into the client, predict / rewind / replay
+behind `apexsim.net.Predict`, `apexsim.net.FakeLatencyMs`) are built; left:
 
-- The library linked into the client; the predict / rewind / replay loop
-  behind a console switch, an artificial-latency harness.
-- The track physics bundle served on join, keyed by `ContentCrc`.
+- The track physics bundle served on join, keyed by `ContentCrc` (until
+  then only a checkout, which has the track YAMLs, predicts).
+- Force feedback and the own car's engine sound on the predicted state.
 
 **Check:** a driver at 80 ms artificial latency.
 

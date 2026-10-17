@@ -329,13 +329,17 @@ it against a session, bit for bit, on a recorded trace; the client numbers
 its inputs (`PlayerInput.seq`) and gets its own car back in `DriverFeedback`
 (a snapshot every message, the full state blob in slices twice a second),
 held on the net subsystem.
+Phase 3 is built too: the library linked into the client (the
+`ApexPhysics` module, `scripts/build_physics_lib.ps1`) and the
+predict/rewind/replay loop for the local car behind `apexsim.net.Predict`
+(off by default), with `apexsim.net.FakeLatencyMs` for an artificial ping
+([client.md](game/client.md#client-prediction-raceapexpredictionsubsystemh)).
 **Outcome:** Online driving feels local; the biggest single gain for
 multiplayer.
-**Implementation:** The proposal's phases left: (3) the library
-linked into the client as a prebuilt third-party module and the
-fixed-step predict/rewind/replay loop behind a console switch, with an
-artificial-latency harness; (4) track physics bundle served on join, keyed
-by `ContentCrc`.
+**Implementation:** The proposal's phase left: (4) the track physics
+bundle served on join, keyed by `ContentCrc` (a packaged client has no
+track YAML, so only a checkout predicts), then force feedback and the
+engine sound on the predicted state.
 **Watch out:** one physics, never a simplified copy; a content checksum
 mismatch disables prediction; car-to-car contact is not predicted (arrives as
 a correction); 🟡 because only a human on a wheel over real latency can say

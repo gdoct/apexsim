@@ -1,6 +1,8 @@
 # Client-side prediction for the local car
 
-Status: phases 1 (the library) and 2 (the wire) built; phases 3-4 proposed.
+Status: phases 1 (the library), 2 (the wire) and 3 (the loop, off by
+default) built; phase 4 proposed. Whether it feels right over real latency
+is for a driver on a wheel ([verification.md](../verification.md)).
 
 ## The problem
 
@@ -27,11 +29,12 @@ knows first, needs prediction.
   (`game_loop/broadcast.rs`), so it cannot carry anything per recipient.
 - The server crate is an rlib (`src/lib.rs`) plus two binaries. The car
   step is also a static library behind a C API, `server/ffi` (phase 1,
-  below); the client does not link it yet.
+  below), which the client links (phase 3).
 - The client has every car.toml (it builds cars from them), its own setup
-  clicks and `SessionConditions`, but only the render export of a track: the
-  physics sidecars (`road`, `curbs`, `walls`, `ground`, `pit`) ship in
-  `Server/` only.
+  clicks and `SessionConditions`. A track's YAML and physics sidecars
+  (`road`, `curbs`, `walls`, `ground`, `pit`) it has only in a checkout
+  (`content/tracks`, read by the editor build); a release ships them in
+  `Server/` only, so a packaged client does not predict until phase 4.
 
 ## Principle
 
@@ -109,14 +112,14 @@ relocation, which snaps by design).
    A CI test replays a recorded input trace through a server session and
    the C API and asserts equal states.
 2. **Wire**: input sequence and feedback snapshot, golden bytes both sides.
-3. **Loop**: the library linked into the client as a prebuilt
-   third-party module, the loop behind a console switch, with an
-   artificial-latency harness
-   (delay the UDP receive path by N ms) for LAN A/B, and automation tests on
-   synthetic streams like `ApexSim.Motion.*` (loss, a contact correction, a
-   relocation).
-4. Then force feedback (replacing the `steer_stiffness` correction), the
-   own-car engine sound and the HUD read the predicted state.
+3. **Loop** (built, below): the library linked into the client as a
+   prebuilt third-party module, the loop behind a console switch, an
+   artificial-latency harness, automation tests on a recorded server
+   sequence (loss, a contact correction, a relocation).
+4. Then the track physics bundle served on join (keyed by `ContentCrc`, so
+   a packaged client and a custom track predict), force feedback
+   (replacing the `steer_stiffness` correction), the own-car engine sound
+   and the HUD read the predicted state.
 
 ## Phase 1: the library (built)
 
@@ -277,6 +280,68 @@ was lost). Nothing reads them yet.
 (over the real UDP path: an unnumbered input drives with no snapshot; each
 snapshot carries the throttle of the input it names as applied; the slices
 make a blob that decodes).
+
+## Phase 3: the loop (built)
+
+How to build and link the library, and the switches, are in
+[building.md](../building.md#the-physics-library-serverffi) and
+[client.md](../game/client.md#client-prediction-raceapexpredictionsubsystemh);
+this is what was decided on the way.
+
+**Linking.** `game-unreal/Source/ThirdParty/ApexPhysics`, an external
+module: the header where it lives (`server/ffi`), the `.lib` from
+`scripts/build_physics_lib.ps1`, built on demand and never checked in (it
+is generated from the server's source, and 80 MB). It linked into the
+editor's `UnrealEditor-ApexSim.dll` with no clash. A client without it
+builds with `WITH_APEX_PHYSICS 0`, and `ApexPhysics::IsAvailable` says why.
+
+**What the server had to add.** The client knew neither the session's tick
+rate (the motion buffer estimates it) nor which road the server drives, so
+`SessionJoined` carries them (`Physics`, [protocol.md](../server/protocol.md#the-own-car-for-prediction)).
+The conditions go to the library as the bytes the server wrote, so a field
+the client's struct does not hold still bakes as on the server.
+
+**Timing the inputs** turned out to be the loop's real problem. The server
+holds each 60 Hz input until the next arrives, so a replay is right only
+if each input lands on the tick the server first applied it at; a few
+ticks off is tens of millimetres at a brake stab 100 ms deep. Three things
+put it there (`ApexSim.Prediction.Loop.AtPing` at 80 ms: the largest
+correction went 41 -> 27 -> 3.5 mm, p95 0.9 -> 0.7 mm):
+
+- the clock is timed by when the UDP worker took a snapshot in, not by the
+  frame that read it (a 16 ms frame was most of the error);
+- an input is placed at the clock of its sending, and one heard after its
+  ticks were stepped is written into them and they are stepped again;
+- the snapshot's input number against the ring's at that tick trims the
+  clock's target (an early or a late timeline shows as a different input),
+  which also absorbs the round trip's bias: the round trip is only known to
+  within an input interval.
+
+**The recorded sequence.** `server/ffi/tests/client_fixture.rs` writes
+`ApexPredictionFixture.h`: a free-practice session at Monza from the YAML
+alone (as CI and a fresh clone have it), the F1 car with aids and a tuned
+setup, numbered 60 Hz inputs, the state blob at the window's start and a
+snapshot every telemetry tick for 2 s. The library stepped from the blob
+with those inputs on the road as loaded lands within 1.4 mm of the
+server's (which lays rubber as it goes). A physics change or an edit to the
+YAML or the car regenerates it; the tests name the command.
+
+**Not predicted** (the puppet is drawn): the countdown and after the flag,
+the pit lane (its limiter and autopilot are session passes), the garage, a
+recovery, a car the server drives (the stand-in, an away driver; drawn with
+`apexsim.net.PredictServerDriven 1` for unattended checks), and a packaged
+game (no track YAML).
+
+**What phase 4 takes from it.**
+
+- The track physics bundle on join: until then only a checkout predicts,
+  and only on tracks whose YAML and sidecars match the server's (the
+  checksum covers the YAML, not the sidecars).
+- Force feedback and the engine sound read `ApexPhysics::FCar` states the
+  loop already has per tick (`GetPoseAtTick`); the HUD's own-car figures
+  could read the predicted pose.
+- The `.lib` carries the whole server crate; a physics-only crate would
+  shrink it.
 
 ## Risks
 

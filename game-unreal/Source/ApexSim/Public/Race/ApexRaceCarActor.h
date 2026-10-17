@@ -327,6 +327,17 @@ private:
 	/** The samples still to be shown; see ApexCarMotion.h. */
 	ApexMotion::FApexCarMotionBuffer Motion;
 
+	/**
+	 * The local car drawn from the prediction instead of the puppet when
+	 * UApexPredictionSubsystem has a pose for it, with a blend across the
+	 * switch either way.
+	 */
+	void ApplyPrediction(float DeltaSeconds, ApexMotion::FPose& Pose);
+	bool bDrawnPredicted = false;
+	FVector SourceBlendLocation = FVector::ZeroVector;
+	FQuat SourceBlendRotation = FQuat::Identity;
+	static constexpr float SourceBlendSeconds = 0.15f;
+
 protected:
 	/**
 	 * What the dials, the cockpit rig and the brake lights read, for a

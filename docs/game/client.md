@@ -28,6 +28,9 @@ commands are in [building.md](../building.md).
   `ApexTrackImport`, `ApexCarImport`, `ApexTrackCatalogSync`); see
   [track-pipeline.md](../content/track-pipeline.md), [props.md](../content/props.md),
   [cars.md](../content/cars.md).
+- `ThirdParty/ApexPhysics` (external, no code of its own): the server's car
+  step as a prebuilt static library for [client prediction](#client-prediction-raceapexpredictionsubsystemh);
+  built by `scripts/build_physics_lib.ps1` ([building.md](../building.md#the-physics-library-serverffi)).
 
 ## Networking module (`ApexSimNet`)
 
@@ -411,6 +414,101 @@ blended for the cockpit wheel, dials and engine sound.
 
 Tests: `ApexSim.Motion.*` (steady and lumpy streams, lost frames, a stall,
 teleport, measured tick rate, yaw seam).
+
+## Client prediction (`Race/ApexPredictionSubsystem.h`)
+
+The local car can be drawn from the server's own car step, linked into the
+client (the `ApexPhysics` module, [building.md](../building.md#the-physics-library-serverffi)),
+stepped ahead of the server by the round trip and reconciled with every
+state the server sends back
+([proposals/client-prediction.md](../proposals/client-prediction.md)). Off
+by default.
+
+- **Switches.** `apexsim.net.Predict` 0 off, 1 on, 2 shadow (the loop runs
+  and logs, the puppet is drawn); `-ApexPredict` (1) or `-ApexPredict=N`
+  at start. `apexsim.net.PredictDebug 1`: an on-screen line (lead, round
+  trip, rewinds, replay depth, the last correction, the visible offset).
+  `apexsim.net.PredictLogSeconds` (5): how often it logs its figures.
+  `apexsim.net.PredictServerDriven 1`: draw it while the server drives the
+  car too (below), for unattended checks with the debug stand-in.
+- **What it loads** (`UApexPredictionSubsystem`, on the session's join): the
+  track YAML named by the session's `TrackFile` under the repo's `content/`
+  (`-ApexContentDir=` elsewhere) with the sidecars beside it, the
+  session's conditions as `SessionJoined` carried them and the backend it
+  names (`SessionJoined.Physics`), off the game thread; the car.toml from
+  the car folders the game builds cars from, the setup last sent
+  (`GetLastSentCarSetup`, the car made again when a knob moves) and the grid
+  slot. It stays off, and logs why once, without the library, from a server
+  that sends no `Physics`, when the YAML is not there (a packaged game ships
+  none until the server hands tracks out), when the server drives the road
+  mesh and there is no `<Stem>.road.msgpack` beside the YAML, or when the
+  YAML's or the car.toml's content checksum is not the server's. Every
+  `RoadState` slice goes to the library's track (`apx_track_road_rows`;
+  the ones heard while it loads are replayed onto it).
+- **The loop** (`FApexOwnCarPredictor`, `Race/ApexOwnCarPredictor.h`), on
+  the game thread each frame after the net subsystem:
+  - The timeline is in server ticks, stepped one at a time at the
+    session's rate with the server's tick numbers. A ring of 1.5 s keeps
+    each tick's input and pose, and the full state at the ticks a snapshot
+    lands on (the telemetry ticks, learnt from the snapshots).
+  - Inputs are the UDP worker's numbered ones. Each is laid on the
+    timeline at the tick the clock read when it went out and drives every
+    tick until the next, as the server holds it. One heard after the
+    timeline stepped past its place is written into those ticks and they
+    are stepped again.
+  - The clock targets the server's tick now (the earliest-arriving
+    snapshot of a 2 s window, by the worker's arrival times) plus the round
+    trip (from each snapshot's input number: between hearing it less the
+    next input's sending and less its own, the middle, the shortest of the
+    window) plus half a tick, plus an alignment trim: when the input the
+    server held at a snapshot's tick is not the one the ring held there,
+    the target moves by a quarter of the gap (at most 14 ticks). The clock
+    slews toward its target by at most 5% and jumps when 0.25 s off.
+  - A snapshot is laid over the ring's state of its tick (stepping there
+    first if the timeline has not reached it) and the ticks since are
+    replayed; a whole state blob is loaded as the state of its tick and
+    replayed the same way, the newest snapshot laid again when the replay
+    crosses it. The fields the session's passes own (pit lane, DRS allowed,
+    headlights, wake) stay as the newest blob had them. The first blob
+    seats the timeline; nothing is drawn before it.
+  - What a rewind moved the head by becomes a correction offset decaying
+    with a 0.1 s time constant; one over 20 m (the motion buffer's
+    teleport) snaps. The pose drawn is the head blended back by the clock's
+    remainder, plus the offset.
+  - A snapshot that names no input, or the same one for 0.3 s while newer
+    go out, means the server drives the car (the stand-in, an away driver):
+    the replay then holds the controls the server last applied, and the
+    round trip falls back to the heartbeat's ping plus the fake latency.
+- **Drawing.** `AApexRaceCarActor` takes the predicted location, rotation,
+  velocity, speed and steering for the local car; the revs, the engine
+  sound, force feedback and the HUD stay on the server's data (phase 4).
+  The camera and the cockpit follow the actor. The puppet is drawn instead
+  outside the race proper (the countdown, after the flag), in the pit lane
+  (the limiter and the autopilot are the server's), in the garage and a
+  recovery, while the server drives (unless `PredictServerDriven`), and
+  when no snapshot came for 0.5 s; a switch either way blends from where
+  the car was drawn over 0.15 s. Other cars stay on the motion buffer.
+- **Figures.** Every 5 s while it runs the log has a line: snapshots,
+  rewinds (and from a whole state), the replay depth's mean and largest,
+  the correction's mean, p50, p95 and largest in mm, re-seats, clock
+  jumps, the lead, the share of frames drawn from it (and why not, else),
+  how far the puppet trails it (m and ms), the round trip and the
+  alignment trim. Corrections count only while it would draw.
+
+Tests: `ApexSim.Prediction.*` on a recorded server sequence
+(`Tests/ApexPredictionFixture.h`, written by `server/ffi/tests/client_fixture.rs`;
+regenerate it after a physics change or an edit to Monza.yaml or the
+fugazzi-sf26 car.toml: `cd server/ffi && cargo test --test client_fixture -- --ignored --nocapture`):
+`Library` (linked, the ABI, the fixture), `ReplaysTheServer` (the library
+from the server's blob with its inputs lands within 1.4 mm of each
+snapshot over 2 s), `SnapshotRewind` (a snapshot over a wrong state
+replays 42 ticks within 6 mm; without it 0.5 m off), and the loop on the
+sequence as a client at a ping hears it: `Loop.AtPing` (0, 80, 160 ms:
+correction p95 under 1 mm, largest 3.5 mm at 80 ms; the replay reaches back
+the round trip), `Loop.Loss` (every third snapshot lost), `Loop.Contact`
+(the server's car pushed 0.3 m: one correction, blended away), and
+`Loop.Relocation` (300 m: a re-seat, no blend). Without the library they
+pass with a warning.
 
 ## Lap traces (`Race/ApexLapTrace.h`, `UApexLapTraceSubsystem`)
 

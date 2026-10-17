@@ -16,7 +16,9 @@
 #include "Engine/Engine.h"
 #include "Race/ApexCarEffectsActor.h"
 #include "Race/ApexCarLivery.h"
+#include "Race/ApexPredictionSubsystem.h"
 #include "Race/ApexRaceCoordinate.h"
+#include "Engine/GameInstance.h"
 #include "Sound/SoundAttenuation.h"
 
 namespace
@@ -1041,6 +1043,57 @@ void AApexRaceCarActor::SetPlaybackPose(const FApexCarTelemetry& Car, float Delt
 	}
 }
 
+void AApexRaceCarActor::ApplyPrediction(float DeltaSeconds, ApexMotion::FPose& Pose)
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UApexPredictionSubsystem* Prediction = GameInstance ? GameInstance->GetSubsystem<UApexPredictionSubsystem>() : nullptr;
+	if (!Prediction || CarIndex < 0 || CarIndex != Prediction->GetLocalCarIndex())
+	{
+		bDrawnPredicted = false;
+		return;
+	}
+	Prediction->ReportPuppetPose(CarIndex, Pose.Location, Pose.SpeedMps);
+
+	FVector Location;
+	FQuat Rotation;
+	FVector Velocity;
+	float Speed = 0.0f;
+	float SteeringNow = 0.0f;
+	const bool bPredicted = Prediction->GetRenderPose(CarIndex, Location, Rotation, Velocity, Speed, SteeringNow);
+	if (bPredicted)
+	{
+		Pose.Location = Location;
+		Pose.Rotation = Rotation;
+		Pose.Velocity = Velocity;
+		Pose.SpeedMps = Speed;
+		Pose.Steering = SteeringNow;
+		// The revs stay the server's: the engine sound is still its (phase 4).
+	}
+	if (bPredicted != bDrawnPredicted)
+	{
+		// Between the puppet (a round trip and the buffer behind) and the
+		// prediction (ahead) the car would jump by its speed times that:
+		// blend from where it was drawn instead.
+		const FVector From = GetActorLocation();
+		SourceBlendLocation = From - Pose.Location;
+		SourceBlendRotation = GetActorQuat() * Pose.Rotation.Inverse();
+		if (SourceBlendLocation.Size() > TeleportDistanceCm)
+		{
+			SourceBlendLocation = FVector::ZeroVector;
+			SourceBlendRotation = FQuat::Identity;
+		}
+		bDrawnPredicted = bPredicted;
+	}
+	if (!SourceBlendLocation.IsNearlyZero(0.1) || !SourceBlendRotation.Equals(FQuat::Identity, 1.0e-5))
+	{
+		const float Keep = FMath::Exp(-DeltaSeconds / SourceBlendSeconds);
+		SourceBlendLocation *= Keep;
+		SourceBlendRotation = FQuat::Slerp(FQuat::Identity, SourceBlendRotation, Keep);
+		Pose.Location += SourceBlendLocation;
+		Pose.Rotation = SourceBlendRotation * Pose.Rotation;
+	}
+}
+
 void AApexRaceCarActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -1055,6 +1108,7 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	{
 		return;
 	}
+	ApplyPrediction(DeltaSeconds, Pose);
 	const FVector PreviousLocation = GetActorLocation();
 	SetActorLocationAndRotation(Pose.Location, Pose.Rotation);
 	// Nothing else sets a velocity on a puppet; the audio's doppler and
