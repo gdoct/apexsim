@@ -1287,6 +1287,18 @@ bool FApexHudShippedTest::RunTest(const FString& Parameters)
 		const FApexHudComponentDef* Found = Components.FindByPredicate([Id](const FApexHudComponentDef& C) { return C.Id == Id; });
 		TestTrue(*FString::Printf(TEXT("has %s, off until added"), Id), Found && !Found->bDefaultEnabled);
 	}
+	// The shipped layout reads clean and places only components that exist.
+	FApexHudLayout Layout;
+	FString LayoutError;
+	TestTrue(TEXT("the shipped layout loads"), Layout.Load(FPaths::Combine(Dir, TEXT("default"), TEXT("layout.json")), LayoutError));
+	TestTrue(*FString::Printf(TEXT("the shipped layout is clean: %s"), *LayoutError), LayoutError.IsEmpty());
+	TestTrue(TEXT("the shipped layout places panels"), Layout.Components.Num() >= 10);
+	for (const TPair<FString, FApexHudPlacement>& Entry : Layout.Components)
+	{
+		const FString& Id = Entry.Key;
+		TestTrue(*FString::Printf(TEXT("the shipped layout's %s is a component"), *Id),
+			Components.ContainsByPredicate([&Id](const FApexHudComponentDef& C) { return C.Id == Id; }));
+	}
 	return true;
 }
 

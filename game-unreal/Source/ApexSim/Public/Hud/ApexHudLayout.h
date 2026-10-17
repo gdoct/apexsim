@@ -64,7 +64,14 @@ struct APEXSIM_API FApexHudLayout
 
 	/** `<first HUD directory>/custom/layout.json`. */
 	static FString DefaultFile();
-	/** An absent file is an empty layout, not an error. */
+	/** `<first HUD directory>/default/layout.json`: the shipped layout, worn until the player saves DefaultFile. */
+	static FString ShippedFile();
+	/** The shipped layout; empty when there is none or it cannot be read. */
+	static FApexHudLayout Shipped();
+	/**
+	 * An absent file is an empty layout, not an error, except an absent
+	 * DefaultFile, which loads the shipped layout in its place.
+	 */
 	bool Load(const FString& File, FString& OutError);
 	bool Save(const FString& File) const;
 };

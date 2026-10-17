@@ -1,0 +1,26 @@
+{
+  // The shipped HUD layout: what the HUD wears until the player saves their own
+  // (custom/layout.json, from Settings > Gameplay > HUD layout), and what Reset goes back to.
+  // Positions are in 1080p pixels from the anchor point; docs/game/hud-modding.md has the rest.
+  "version": 1,
+  "components": {
+    "car_state": { "enabled": true, "anchor": [1, 1], "position": [-279.26, -134.92], "scale": 0.9 },
+    "damage": { "enabled": true, "anchor": [1, 1], "position": [-12.94, -255.49], "scale": 1.2 },
+    "ers": { "enabled": true, "anchor": [1, 0], "position": [-9.79, 78.59], "scale": 1.75 },
+    "minimap": { "enabled": true, "anchor": [0, 1], "position": [43.45, -18.16] },
+    "mirror": { "enabled": true, "anchor": [0.5, 0], "position": [-28.63, 34.89] },
+    "pedals": { "enabled": true, "anchor": [1, 1], "position": [-305.56, -18.16] },
+    "pit_stop": { "enabled": true, "anchor": [0.5, 1], "position": [-59.43, -143.16], "scale": 0.5 },
+    "race_state": { "enabled": true, "anchor": [1, 0], "position": [-388.9, 19.96], "scale": 0.6 },
+    "spectator_controls": { "enabled": true, "anchor": [1, 0], "position": [-1.09, 78.59] },
+    "spectator_driver": { "enabled": true, "anchor": [0, 1], "position": [317.85, -18.16], "scale": 0.65 },
+    "spectator_replay": { "enabled": true, "anchor": [0.5, 1], "position": [-68.63, -18.16] },
+    "spectator_results": { "enabled": true, "anchor": [0.5, 0.5], "position": [0, 0] },
+    "spectator_tower": { "enabled": true, "anchor": [0, 0], "position": [43.45, 143.6], "scale": 0.7 },
+    "speed_gear": { "enabled": true, "anchor": [0, 1], "position": [468.12, -105.66] },
+    "standings": { "enabled": true, "anchor": [0, 0.5], "position": [43.45, 95.92], "scale": 0.55 },
+    "status": { "enabled": true, "anchor": [1, 0], "position": [-56, 30] },
+    "timing": { "enabled": true, "anchor": [1, 1], "position": [-435.1, -18.16] },
+    "track_info": { "enabled": true, "anchor": [0, 0], "position": [43.45, 34.89], "scale": 0.8 }
+  }
+}

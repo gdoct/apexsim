@@ -36,6 +36,7 @@ content/hud/
   default/            the shipped HUD (one folder per component)
     car_state/component.json
     standings/component.json
+    layout.json                  <- the shipped arrangement
   custom/             the player's own: read after default/
     my_relative/component.json   <- a new component
     standings/component.json     <- replaces default/standings
@@ -639,8 +640,14 @@ of its region does not close up.
 `enabled` (no entry: the component's own `default_enabled`), `anchor` (the
 panel's corner and the screen point it is measured from, 0 to 1 each axis),
 `position` (offset in 1080p pixels, negative left/up), `scale` (0.5 to 2). An
-entry without `anchor` and `position` keeps its region. Delete the file to go
-back to the shipped layout.
+entry without `anchor` and `position` keeps its region.
+
+**`default/layout.json`** is the shipped layout, in the same format: with no
+`custom/layout.json` the Default layout is read from it
+(`FApexHudLayout::Shipped`), and the editor's Reset and Reset all go back to
+its placements (a component it does not name goes back to its region). Delete
+`custom/layout.json` to go back to the shipped layout; to change what ships,
+arrange the HUD in the editor, save, and copy `custom/layout.json` over it.
 
 **Several layouts** (`ApexHudLayouts`): `layout.json` is the layout
 "Default"; others are `custom/layouts/<name>.json`. The layout manager
@@ -684,7 +691,8 @@ class, then everywhere else (Default when unset). The layout manager offers
 - `ApexSim.Hud.Data.Documented`: every data point, list field and function is
   in this file (per-tyre names as the `tyre.<fl|fr|rl|rr>.<field>` pattern).
 - `ApexSim.Hud.Shipped`: the shipped components load with no errors and no
-  warnings (a warning is usually a misspelt data point).
+  warnings (a warning is usually a misspelt data point), and the shipped
+  layout reads clean and names only shipped components.
 - `ApexSim.Hud.Data.Build`, `.Sky`, `.Watching`, `.StandingsHold`, `.Ers`,
   `ApexSim.Hud.Expr.*`, `ApexSim.Hud.Component.*`, `ApexSim.Hud.Json.Extras`,
   `ApexSim.Hud.Layout.*` (`Json`, `Pin`, `Snap`, `Bindings`),

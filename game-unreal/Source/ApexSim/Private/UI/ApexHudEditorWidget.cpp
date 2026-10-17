@@ -889,12 +889,19 @@ void UApexHudEditorWidget::ResetSelected()
 	{
 		return;
 	}
-	// Back to its component.json's place and size; a panel the player added
-	// stays added.
+	// Back to its place and size in the shipped layout (else its
+	// component.json's); a panel the player added stays added.
 	const FApexHudComponentDef& Component = HudWidget->GetComponents()[Selected];
 	FApexHudLayout Layout = HudWidget->GetLayout();
 	const bool bShown = HudWidget->IsComponentShown(Selected);
-	if (bShown == Component.bDefaultEnabled)
+	const FApexHudLayout Shipped = FApexHudLayout::Shipped();
+	if (const FApexHudPlacement* Shipping = Shipped.Find(Component.Id))
+	{
+		FApexHudPlacement Placement = *Shipping;
+		Placement.bEnabled = bShown;
+		Layout.Components.Add(Component.Id, Placement);
+	}
+	else if (bShown == Component.bDefaultEnabled)
 	{
 		Layout.Components.Remove(Component.Id);
 	}
@@ -912,7 +919,7 @@ void UApexHudEditorWidget::ResetAll()
 {
 	if (UApexHudWidget* HudWidget = Hud.Get())
 	{
-		HudWidget->SetLayout(FApexHudLayout());
+		HudWidget->SetLayout(FApexHudLayout::Shipped());
 		ApexUiAudio::Play(this, EApexUiSound::Adjust);
 	}
 }

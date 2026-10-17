@@ -151,12 +151,33 @@ FString FApexHudLayout::DefaultFile()
 	return FPaths::Combine(Directories.IsEmpty() ? FPaths::ProjectSavedDir() : Directories[0], TEXT("custom"), TEXT("layout.json"));
 }
 
+FString FApexHudLayout::ShippedFile()
+{
+	const TArray<FString> Directories = ApexHud::HudDirectories();
+	return FPaths::Combine(Directories.IsEmpty() ? FPaths::ProjectSavedDir() : Directories[0], TEXT("default"), TEXT("layout.json"));
+}
+
+FApexHudLayout FApexHudLayout::Shipped()
+{
+	FApexHudLayout Layout;
+	FString Error;
+	if (!Layout.Load(ShippedFile(), Error))
+	{
+		Layout = FApexHudLayout();
+	}
+	return Layout;
+}
+
 bool FApexHudLayout::Load(const FString& File, FString& OutError)
 {
 	Components.Reset();
 	FString Text;
 	if (!FPaths::FileExists(File))
 	{
+		if (FPaths::IsSamePath(File, DefaultFile()) && FPaths::FileExists(ShippedFile()))
+		{
+			return Load(ShippedFile(), OutError);
+		}
 		return true;
 	}
 	if (!FFileHelper::LoadFileToString(Text, *File))
