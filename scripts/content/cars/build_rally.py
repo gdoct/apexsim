@@ -250,6 +250,41 @@ for sx in (-1, 1):
     carlib.front_lens(p, M.glass, L, x0 - 0.004, x1 + 0.004, z0 - 0.004, z1 + 0.004, NOSE,
                       lift=-0.0025, nu=10, nv=4, margin=0.0)
 
+# ---- the auxiliary lamp pod: the big round driving lamps a rally car
+# bolts on for the night stages, each a black pot with a chrome rim and a
+# reflector behind a clear lens (`car_headlight`: lit with the headlights),
+# on a bar with stays to the body
+POD = V.get("pod")
+if POD:
+    r = POD["r"]
+    xs = [sx * x for x in POD["xs"] for sx in (-1, 1)]
+    if POD["mount"] == "front":
+        pz = NT + POD["dz"]
+        skin = min(carlib.surface_station(L, abs(x), pz, NOSE, step=0.006, margin=0.0) for x in xs)
+        yf = skin - 0.135
+    else:
+        yf = NOSE + POD["dy"]
+        pz = max(L.z_at(yf + 0.10, abs(x)) for x in xs) + POD.get("lift", r + 0.030)
+    for x in xs:
+        p.cylinder(M.lamp_h, (x, yf + 0.004, pz), r + 0.012, 0.085, segs=32, axis='Y')
+        p.cylinder(M.lamp_h, (x, yf + 0.089, pz), r * 0.72, 0.035, segs=24, axis='Y')
+        p.bar(M.chrome, (x, yf - 0.006, pz), (x, yf + 0.010, pz), r + 0.014, 32)
+        # the reflector: a chrome dish, which is what the lamp shows by day,
+        # round a small lit bulb
+        p.cylinder(M.chrome, (x, yf + 0.006, pz), r * 0.96, 0.006, segs=32, axis='Y')
+        p.cylinder(M.lamp, (x, yf + 0.001, pz), r * 0.22, 0.006, segs=16, axis='Y')
+        p.cylinder(M.glass, (x, yf - 0.004, pz), r + 0.002, 0.004, segs=32, axis='Y')
+    yb, zb = yf + 0.11, pz - r * 0.35
+    xm = max(POD["xs"])
+    p.bar(M.trim, (-xm, yb, zb), (xm, yb, zb), 0.014, 10)
+    for x in (-min(POD["xs"]), min(POD["xs"])):
+        if POD["mount"] == "front":
+            ys = carlib.surface_station(L, abs(x), zb, NOSE, step=0.006, margin=0.0) + 0.02
+            p.bar(M.trim, (x, yb, zb), (x, ys, zb), 0.012, 8)
+        else:
+            yt = yb + 0.14
+            p.bar(M.trim, (x, yb, zb), (x, yt, L.z_at(yt, abs(x)) - 0.01), 0.012, 8)
+
 # ---- splitter / chin
 SPL_Z = V["floor"] - 0.035
 if V["splitter"] == "shovel":

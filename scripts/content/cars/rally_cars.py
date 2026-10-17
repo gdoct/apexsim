@@ -22,6 +22,9 @@ centre, x as a share of the car's half-width (scaled to `half_w`):
     1 floor edge        4 shoulder (HARD)      7 roof shoulder
     2 sill (HARD)       5 belt line            8 roof centre
 `roof` is the roofline in profile (y, z), laid over points 6-8.
+`pod` is the auxiliary lamp pod: `mount` "front" (on a bar ahead of the
+grille, `dz` from the nose top) or "bonnet" (standing on the bonnet, `dy`
+behind the nose, its centres `lift` over the bonnet there), lamp radius `r`, lamp centres at +-`xs`.
 
 `skin_box` (y_nose, y_tail, half_width, height) is the frame the skin is
 projected in (skin_layout.py): fixed here, so the painter and the build
@@ -35,6 +38,9 @@ VARIANTS = {
         half_w=0.93, axles=(-1.112, 1.112), tyres=(0.315, 0.315), track=1.49,
         floor=0.120, eye=(0.33, 0.12, 1.07),
         number="1",
+        # four big round lamps across the front at the headlamps' height,
+        # standing on a bar in front of the grille
+        pod=dict(mount="front", dz=-0.09, r=0.088, xs=(0.17, 0.46)),
         # a short boxy coupe: a long bonnet over the engine ahead of the
         # front axle, an upright screen, a short roof and a steep back
         # light onto a high boot carrying the E2's wing
@@ -67,6 +73,8 @@ VARIANTS = {
         half_w=0.85, axles=(-1.27, 1.27), tyres=(0.310, 0.310), track=1.43,
         floor=0.120, eye=(0.31, -0.02, 1.07),
         number="7",
+        # a pod of four lamps standing on the front of the bonnet
+        pod=dict(mount="bonnet", dy=-0.02, lift=0.025, r=0.076, xs=(0.12, 0.37)),
         # the small hatchback over a mid engine: a short, nearly flat bonnet
         # ending in an upright face, a low belt under tall glass, a flat
         # roof that ends well short of the tail, the hatch glass falling at
@@ -104,6 +112,8 @@ VARIANTS = {
         half_w=0.925, axles=(-1.22, 1.22), tyres=(0.305, 0.315), track=1.50,
         floor=0.110, eye=(0.32, 0.02, 0.99),
         number="4",
+        # four lamps on a bar along the nose, ahead of the bonnet's edge
+        pod=dict(mount="bonnet", dy=-0.03, lift=0.035, r=0.080, xs=(0.13, 0.41)),
         # low and mid-engined: a long falling nose, a raked screen, a short
         # roof, a small upright back light and a long clamshell deck with
         # louvres over the engine to a ducktail
