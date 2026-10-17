@@ -52,6 +52,11 @@ ARCH_GAP = 0.030
 ARCH_WRAP = 24.0
 SAMP = 8
 BELT, ROOF = 5.35, 6.60
+# A boxy greenhouse (`hard_roof`): the roof's edge (control point 7) is a
+# crease and the side glass runs up to it, so the screen is the flat top
+# between the two creases instead of wrapping over a rounded shoulder.
+if V.get("hard_roof"):
+    ROOF = 7.0
 TRIM_J = 0.20
 TRIM_Y = 0.040
 SUNSTRIP = 0.13
@@ -103,7 +108,7 @@ KEYS = carlib.remap_station(KEYS, K1 - 0.10, x_scale=0.985, z_hi=E["tail_top"] +
 TIPS = V.get("tips", (0.05, 0.82, 0.74, 0.04, 0.84, 0.76))
 KEYS = carlib.tip_station(KEYS, K0, K0 - TIPS[0], x_scale=TIPS[1], z_shrink=TIPS[2])
 KEYS = carlib.tip_station(KEYS, K1, K1 + TIPS[3], x_scale=TIPS[4], z_shrink=TIPS[5])
-L = carlib.Loft(KEYS, samp=SAMP, ny=170, hard=(2, 3, 4, 5))
+L = carlib.Loft(KEYS, samp=SAMP, ny=170, hard=(2, 3, 4, 5, 7) if V.get("hard_roof") else (2, 3, 4, 5))
 NOSE, TAIL = L.nose, L.tail
 BUMPER_Y, TAILP_Y = K0, K1
 
