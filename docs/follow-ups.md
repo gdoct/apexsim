@@ -167,9 +167,6 @@ the launcher import with the network off.
   full dip (`RoadState::bin_depth`) on a 12 m road. Judge the sheets; if
   it is too much, narrow the half-widths in `road_state.rs` (a sim change:
   AI survey).
-- The cloud dome at cloudy (0.5 cover) is an even field of small puffs,
-  more altocumulus than scattered cumulus: the noise scales in
-  `BuildCloudLayer` (90 m and 25 m) read small from the ground.
 - The chase-near camera behind the Bugotti Chiffon showed a dark blur
   filling the frame once (snow run, 2026-10-15): the camera inside a body.
 - The pit lane's own snow cover (`RoadState::lane_snow`, packed by the

@@ -1924,8 +1924,10 @@ return o;
 		UMaterialExpression* Hit = G.Add(G.Mask(CamPos, true, true, false), G.Mul(G.Mask(Dir, true, true, false), Reach));
 		// How far the wind has carried the cloud (AApexCloudLayerActor adds it up).
 		UMaterialExpression* P = G.Append(G.Sub(Hit, G.Mask(Offset, true, true, false)), G.C(0.0f));
-		// Big soft masses with a finer grain on them: 90 m and 25 m.
-		UMaterialExpression* Shape = G.Add(G.Mul(G.Noise(P, 1.0f / 9000.0f, 4), G.C(0.8f)), G.Mul(G.Noise(P, 1.0f / 2500.0f, 2), G.C(0.2f)));
+		// Big soft masses with a finer grain on them: 450 m and 120 m. At the
+		// plane's 1.5 km a scattered cumulus is several hundred metres across;
+		// 90 m and 25 m read from the ground as an even field of small puffs.
+		UMaterialExpression* Shape = G.Add(G.Mul(G.Noise(P, 1.0f / 45000.0f, 5), G.C(0.8f)), G.Mul(G.Noise(P, 1.0f / 12000.0f, 3), G.C(0.2f)));
 		UMaterialExpression* Edge = G.Sat(G.Mul(G.Sub(Shape, G.Sub(G.C(1.0f), Cover)), G.C(5.0f)));
 		UMaterialExpression* Sheet = G.Sat(G.Div(G.Sub(Cover, G.C(0.8f)), G.C(0.15f)));
 		UMaterialExpression* Alpha = G.Max(Edge, Sheet);

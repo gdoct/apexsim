@@ -53,7 +53,6 @@ When an item is done, delete it from its backlog and from here.
 | N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🔴 | M |
 | N11 | Livery editor / own livery import | Content | P2 | 🟡 | M |
 | B5 | Chase camera inside a car body | Bug | P3 | 🟡 | S |
-| G5 | Cloud dome reads as altocumulus | Rendering | P3 | 🟡 | S |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M |
 | G7 | Pit lane's own snow on the wire | Rendering + wire | P3 | 🟢 | S |
 | F1 | Windshield wipers | Feature | P3 | 🔴 | M |
@@ -276,9 +275,7 @@ poorly. Do the A/B: let the race director load `/Game/Tracks/<Track>/L_<Track>`
 instead of building, then compare two screenshots. If it matters: ship baked
 levels or use hardware RT Lumen.
 
-#### G5–G7. Small rendering items — P3
-- **G5** Cloud dome at 0.5 cover reads as altocumulus: raise the noise scales
-  in `BuildCloudLayer` (90 m / 25 m).
+#### G6–G7. Small rendering items — P3
 - **G6** Top view of formula cars looks cheap: investigate LOD selection,
   shadow and material quality at that distance.
 - **G7** Pit lane's own snow cover: a row beside `SnowRows` on the wire and
