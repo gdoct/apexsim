@@ -598,7 +598,21 @@ fn drive_a_trip(track: TrackConfig, car: CarConfig, limit_s: f32) -> Option<Trip
                 let (c, sn) = (s.yaw_rad.cos(), s.yaw_rad.sin());
                 let (dx, dy) = (tx - s.pos_x, ty - s.pos_y);
                 let alpha = (-dx * sn + dy * c).atan2(dx * c + dy * sn);
-                let error = 17.0 - s.speed_mps;
+                // A driver slows for the lane's bends ahead of the car (an
+                // imported lane can peel off through a chicane: Spa's bus
+                // stop), braking at about 4 m/s².
+                let pace = (0..=25)
+                    .map(|ahead| {
+                        let ahead = 2.0 * ahead as f32;
+                        // (Its bend is read clear of the lane's ends.)
+                        let bend = apexsim_server::pit::lane_bend_mps(
+                            &lane,
+                            (at.station_m + ahead).max(4.0),
+                        );
+                        (bend * bend + 2.0 * 4.0 * ahead).sqrt()
+                    })
+                    .fold(17.0f32, f32::min);
+                let error = pace - s.speed_mps;
                 PlayerInputData {
                     throttle: (error * 0.2).clamp(0.0, 1.0),
                     brake: (-error * 0.2).clamp(0.0, 1.0),

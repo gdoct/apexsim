@@ -268,8 +268,9 @@ cargo test --release --test pit_stop_test pit_lane_survey -- --ignored --nocaptu
 cargo test --release --test pit_stop_test ai_pit_survey -- --ignored --nocapture
 ```
 
-`pit_lane_survey` drives a human's car into every circuit's lane, to its
-box and out under the autopilot, and fails on a stall, a recovery, the
+`pit_lane_survey` drives a human's car into every circuit's lane (along the
+track, then down the lane's mouth, slowing for the lane's bends as a driver
+would), to its box and out under the autopilot, and fails on a stall, a recovery, the
 car's middle within 1.5 m of a lane edge, or a hand-back more than 1.5 m/s
 under what the lane allows there (`pit::lane_bend_mps`). `ai_pit_survey` has an AI on worn
 tyres plan, make and race on from a stop on every circuit. `PIT_TRACKS=A,B`
