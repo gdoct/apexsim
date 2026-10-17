@@ -115,8 +115,10 @@ fn race_burn_on(folder: &str, fuel_laps: Option<f32>) -> (f32, f32, f32) {
 #[test]
 fn an_ai_short_of_fuel_lifts_and_coasts() {
     let (lap, full_burn, full_time) = race_burn_on("fugazzi-sf26", None);
-    // Three laps to go on 2.6 laps of fuel: 13% short.
-    let (_, short_burn, short_time) = race_burn_on("fugazzi-sf26", Some(2.6));
+    // Three laps to go on 2.5 of the estimate's laps: the estimate is the
+    // ideal lap's, 10% over what the AI burns (traction control's cut costs
+    // no fuel), so about 8% short.
+    let (_, short_burn, short_time) = race_burn_on("fugazzi-sf26", Some(2.5));
     println!(
         "lap estimate {lap:.2} L: full {full_burn:.2} L {full_time:.2} s, short {short_burn:.2} L {short_time:.2} s"
     );
