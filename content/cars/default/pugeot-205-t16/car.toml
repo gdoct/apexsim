@@ -220,9 +220,9 @@ model = "pugeot_205_t16_driver.glb"
 style = "closed"
 eye_cm = [2.0, -31.0, 107.0]
 wheel_cm = [42.0, -31.0, 87.0]
-mirror_left_cm = [48.4, -85.2, 89.9]
+mirror_left_cm = [49.3, -89.1, 84.9]
 mirror_left_size_cm = [15.0, 6.0]
-mirror_right_cm = [48.4, 85.2, 89.9]
+mirror_right_cm = [49.3, 89.1, 84.9]
 mirror_right_size_cm = [15.0, 6.0]
 # Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
 # wheel on the Auto steering lock the real rim turns twice this lock to lock.

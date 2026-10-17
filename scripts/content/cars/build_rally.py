@@ -89,8 +89,11 @@ KEYS = carlib.remap_station(KEYS, K0, x_scale=E["nose_w"], z_hi=E["nose_top"], j
 KEYS = carlib.remap_station(KEYS, K0 + 0.10, x_scale=0.975, z_hi=E["nose_top"] + 0.04, j_from=3)
 KEYS = carlib.remap_station(KEYS, K1, x_scale=E["tail_w"], z_lo=E["tail_bot"], z_hi=E["tail_top"])
 KEYS = carlib.remap_station(KEYS, K1 - 0.10, x_scale=0.985, z_hi=E["tail_top"] + 0.02, j_from=4)
-KEYS = carlib.tip_station(KEYS, K0, K0 - 0.05, x_scale=0.82, z_shrink=0.74)
-KEYS = carlib.tip_station(KEYS, K1, K1 + 0.04, x_scale=0.84, z_shrink=0.76)
+# the ends' rounding: (nose_out, nose_x, nose_z, tail_out, tail_x, tail_z),
+# blunter on the hatchback whose nose and tailgate stand upright
+TIPS = V.get("tips", (0.05, 0.82, 0.74, 0.04, 0.84, 0.76))
+KEYS = carlib.tip_station(KEYS, K0, K0 - TIPS[0], x_scale=TIPS[1], z_shrink=TIPS[2])
+KEYS = carlib.tip_station(KEYS, K1, K1 + TIPS[3], x_scale=TIPS[4], z_shrink=TIPS[5])
 L = carlib.Loft(KEYS, samp=SAMP, ny=170, hard=(2, 3, 4, 5))
 NOSE, TAIL = L.nose, L.tail
 BUMPER_Y, TAILP_Y = K0, K1
@@ -125,7 +128,7 @@ if "deck" in V["vents"]:
 SIDE_SHUT_YS = sorted(y for (y, k) in V["shutlines"] if k == "side")
 # The back light wraps round onto the flank when it comes this near the
 # side glass (the coupes); the hatchback's quarter is solid.
-REAR_WRAP = V["rear_glass_y"][0] - V["glass_y"][1] < 0.30
+REAR_WRAP = V.get("rear_wrap", V["rear_glass_y"][0] - V["glass_y"][1] < 0.30)
 
 
 def face_mat(ym, kk, right):
