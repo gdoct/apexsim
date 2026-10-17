@@ -260,6 +260,22 @@ namespace ApexSky
 	};
 
 	/** 0 at full night, 1 in full day, smooth through twilight. */
+	/**
+	 * How bright the haze a far hill sinks into is, against the cloud the sky
+	 * lights now: the horizon sky is a little brighter than a lit cloud.
+	 */
+	inline constexpr float HazeGain = 1.4f;
+
+	/**
+	 * The height fog's inscattering as a luminance: the fog's colour lit as
+	 * the sky lights the clouds. A bare colour (about 0.5) is near-black at
+	 * daylight exposure, so far land sank into a dark blue band read as sea.
+	 */
+	inline FLinearColor FogLuminance(const FSkyState& S)
+	{
+		return S.FogColor * (FMath::Max(S.CloudBrightness, 0.05f) * HazeGain);
+	}
+
 	inline float Daylight(float ElevationDeg)
 	{
 		return FMath::SmoothStep(-6.0f, 10.0f, ElevationDeg);

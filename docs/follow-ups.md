@@ -97,9 +97,6 @@ the same `ApexProps` code.
   `pit_wall` / facade colours with no texture (Spa's Stand Endurance, the
   Norisring's towers in the R11 run of 2026-10-17). Facade textures are
   art.
-- Nordschleife: open sea on the horizon. Past the terrain's edge the view
-  from the road (posts at 165 m, the descent, the Karussell) runs out to a
-  flat blue band: the Eifel is inland, the horizon wants hills or haze.
 
 **Check:** each circuit by hand in the running game; the track-editor tests.
 

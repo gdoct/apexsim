@@ -250,6 +250,11 @@ session while driving (notice, then the menu).
   preview's sun dropping).
 - The sun at a circuit's real north, and rain arriving and the road drying
   under a changeable sky (`-ApexChangeable=1`).
+- The far haze since the fog's light follows the sky (`ApexSky::FogLuminance`,
+  2026-10-17): seen at the Nordschleife in sun (`g3-horizon`: hills
+  fading into pale haze past the 30 km skirt). Left: other circuits,
+  overcast, rain, dusk and night, where a haze too bright or too dark
+  would show first.
 - The flags turning with the wind: no shipped circuit places
   `sign/flag_pole`, so this waits for one that does.
 

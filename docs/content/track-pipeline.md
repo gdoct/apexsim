@@ -294,7 +294,11 @@ server frame, offset to the YAML's z at the start line. `terrain.rs`
 (`TerrainHeightfield::from_paths_with_dem`) crossfades: within 40 m of a road
 the centerline wins (a surface model reads canopy and knows no cuttings), past
 220 m the model wins. `ue_export` bakes the `outer` grid as a `horizon` mesh
-(real geometry, lit and fogged) with a hole under the detailed ground.
+(real geometry, lit and fogged) with a hole under the detailed ground, and
+a skirt past its edge (`horizon_skirt`): a spoke from every eighth edge
+post out 30 km, held at that post's height and falling with the earth's
+curvature, so the land runs on into the haze from a crest instead of
+ending in a band of sky.
 `track_location.py` writes `metadata.altitude_m` / `latitude_deg` /
 `longitude_deg` from the georeference (its `MANUAL` table covers circuits
 without a DEM); `ats-export` writes `latitude_deg` and `north_yaw_deg` into

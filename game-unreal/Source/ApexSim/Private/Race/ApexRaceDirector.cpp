@@ -2192,7 +2192,7 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 			Fog->SetFogDensity(Sky.FogDensity);
 			Fog->SetFogHeightFalloff(Sky.FogHeightFalloff);
 			Fog->SetStartDistance(Sky.FogStartDistanceCm);
-			Fog->SetFogInscatteringColor(Sky.FogColor);
+			Fog->SetFogInscatteringColor(ApexSky::FogLuminance(Sky));
 			TrackFogs.Add(Fog);
 			continue;
 		}
@@ -2598,7 +2598,7 @@ void AApexRaceDirector::UpdateLiveSky(float DeltaSeconds)
 		Fog->SetFogDensity(Sky.FogDensity);
 		Fog->SetFogHeightFalloff(Sky.FogHeightFalloff);
 		Fog->SetStartDistance(Sky.FogStartDistanceCm);
-		Fog->SetFogInscatteringColor(Sky.FogColor);
+		Fog->SetFogInscatteringColor(ApexSky::FogLuminance(Sky));
 	}
 	if (Sky.LampGlow > 0.0f)
 	{

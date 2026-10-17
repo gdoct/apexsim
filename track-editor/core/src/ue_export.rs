@@ -3518,6 +3518,77 @@ impl Bake<'_> {
             }
             r0 = r1;
         }
+        self.horizon_skirt(dem, tile);
+    }
+
+    /// The ground past the DEM's outer grid, out to where the view from a
+    /// hill meets the sky: a ring of coarse quads from each post on the
+    /// grid's edge, held at that post's height and falling with the earth's
+    /// curvature, so the land runs on into the haze. Without it the view
+    /// from a crest (the Nordschleife's) ran out to a band of open sky
+    /// eight kilometres off, read as sea.
+    fn horizon_skirt(&mut self, dem: &DemFile, section: i32) {
+        /// How far past the grid's edge the land goes, m: a 165 m crest
+        /// sees about 46 km, and the fog has the rest long before that.
+        const SKIRT_M: f32 = 30_000.0;
+        /// Every so many edge posts carry a spoke: the far land is a blur.
+        const STRIDE: usize = 8;
+        const EARTH_RADIUS_M: f32 = 6_371_000.0;
+
+        let grid = &dem.outer;
+        if grid.cols < 2 || grid.rows < 2 {
+            return;
+        }
+        let cell = grid.cell_m;
+        let (w, h) = ((grid.cols - 1) as f32 * cell, (grid.rows - 1) as f32 * cell);
+        let centre = (grid.origin_x + w * 0.5, grid.origin_y + h * 0.5);
+        // The edge posts once round the rectangle, counter-clockwise.
+        let mut ring: Vec<(f32, f32)> = Vec::new();
+        let (cols, rows) = (grid.cols - 1, grid.rows - 1);
+        for c in (0..cols).step_by(STRIDE) {
+            ring.push((c as f32 * cell, 0.0));
+        }
+        for r in (0..rows).step_by(STRIDE) {
+            ring.push((w, r as f32 * cell));
+        }
+        for c in (1..=cols).rev().step_by(STRIDE) {
+            ring.push((c as f32 * cell, h));
+        }
+        for r in (1..=rows).rev().step_by(STRIDE) {
+            ring.push((0.0, r as f32 * cell));
+        }
+        if ring.len() < 3 {
+            return;
+        }
+        let mut chunk = Chunk {
+            section,
+            material_key: HORIZON_KEY.to_string(),
+            positions: Vec::new(),
+            normals: Vec::new(),
+            uvs: Vec::new(),
+            indices: Vec::new(),
+        };
+        let drop = SKIRT_M * SKIRT_M / (2.0 * EARTH_RADIUS_M);
+        for &(dx, dy) in &ring {
+            let (x, y) = (grid.origin_x + dx, grid.origin_y + dy);
+            let z = grid.height_at(x, y);
+            let (ox, oy) = (x - centre.0, y - centre.1);
+            let len = (ox * ox + oy * oy).sqrt().max(1.0);
+            let (fx, fy) = (x + ox / len * SKIRT_M, y + oy / len * SKIRT_M);
+            for (px, py, pz) in [(x, y, z), (fx, fy, z - drop)] {
+                push_position(&mut chunk.positions, (px, py, pz));
+                push_normal(&mut chunk.normals, (0.0, 0.0, 1.0));
+                chunk.uvs.push(round(px, 3));
+                chunk.uvs.push(round(py, 3));
+            }
+        }
+        let n = ring.len() as u32;
+        for i in 0..n {
+            let j = (i + 1) % n;
+            let (a, b, c, d) = (2 * i, 2 * i + 1, 2 * j, 2 * j + 1);
+            chunk.indices.extend_from_slice(&[a, b, c, c, b, d]);
+        }
+        self.chunks.push(chunk);
     }
 
     /// A road passing under another: the ground along the slot that the

@@ -580,7 +580,9 @@ See [protocol.md](protocol.md) for the append-only rules.
   100 lamps lit: Mandarina Bay has some 450) may stop down to
   `FloodlitMaxEv` (11), or its road under the lights read near white.
 - `ApplyTrackLevelConditions` (once the track is built and visible): fog
-  by weather, the road family's material roughness eased toward
+  by weather (its inscattering a luminance, `ApexSky::FogLuminance`: the
+  weather's fog colour lit as the sky lights the clouds, x `HazeGain` 1.4,
+  so far land fades into pale haze rather than sinking into dark blue), the road family's material roughness eased toward
   `ApexSky::WetRoadRoughness` (0.3) with the road's water (the road itself
   per bin from the road state once it arrives, above), the racing-line
   dots wet (`AApexRacingLineActor::SetWet`), kit flag poles (`SM_flag_pole`)

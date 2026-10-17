@@ -2038,6 +2038,31 @@ runs:
       - {at: 66, label: "T again", checks: "the line open"}
       - {at: 70, label: "Escape: closed, driving", checks: "the line gone, no pause menu"}
 
+  # The Nordschleife's horizon (G3): from above the road near the start,
+  # looking out four ways and from higher up, past the DEM grid's 8 km edge
+  # to the skirt beyond it.
+  - id: g3-horizon
+    about: "G3. The Nordschleife's horizon: land and haze, not open sea"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Nordschleife
+      - -ApexCar=Caravan
+      - -ApexAiCount=1
+      - -ApexLaps=1
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=14:00
+      - -ApexView=chase
+    shots:
+      - {at: 40, label: "east, 25 m up", checks: "land to the horizon", exec: "apexsim.cam.LookAt 161 -9 25 5161 -9 0"}
+      - {at: 45, label: "north", checks: "land to the horizon", exec: "apexsim.cam.LookAt 161 -9 25 161 4991 0"}
+      - {at: 50, label: "west", checks: "land to the horizon", exec: "apexsim.cam.LookAt 161 -9 25 -4839 -9 0"}
+      - {at: 55, label: "south", checks: "land to the horizon", exec: "apexsim.cam.LookAt 161 -9 25 161 -5009 0"}
+      - {at: 60, label: "from 300 m up", checks: "the skirt beyond the 8 km grid", exec: "apexsim.cam.LookAt 161 -9 300 6000 3000 0"}
+      - {at: 66, label: "from 300 m up, fog off (diagnostic)", checks: "what the fog hides", exec: ["apexsim.cam.LookAt 161 -9 300 6000 3000 0", "showflag.fog 0"]}
+
   # The menu's demo backdrop from a cold start: a GPU hang (VSM non-Nanite
   # culling, CullPerPageDrawCommandsCs) came 5 s after Silverstone's track
   # was built behind the menu. Short runs, so a soak is many cold starts:
