@@ -276,3 +276,5 @@ build/deploy/
 records/*
 out/verify/
 
+# scripts/verify: the runner's console logs
+out/verify_*_console.txt
