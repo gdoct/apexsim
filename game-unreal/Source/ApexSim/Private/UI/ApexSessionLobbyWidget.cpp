@@ -397,13 +397,46 @@ void UApexSessionLobbyWidget::RefreshGrid()
 		return SlotA != SlotB ? SlotA < SlotB : A.CarIndex < B.CarIndex;
 	});
 
+	// Each car on its own slot, so a start order naming a driver who is not
+	// here leaves that slot open (as the grid will); a car with no slot takes
+	// the first one free.
+	TArray<int32> EntryAtSlot;
+	EntryAtSlot.Init(INDEX_NONE, FMath::Max(MaxSlots, Entries.Num()) + Entries.Num());
+	TArray<int32> Unslotted;
+	for (int32 Index = 0; Index < Entries.Num(); ++Index)
+	{
+		const int32 Wanted = Entries[Index].GridSlot - 1;
+		if (EntryAtSlot.IsValidIndex(Wanted) && EntryAtSlot[Wanted] == INDEX_NONE)
+		{
+			EntryAtSlot[Wanted] = Index;
+		}
+		else
+		{
+			Unslotted.Add(Index);
+		}
+	}
+	int32 RowCount = FMath::Max(MaxSlots, Entries.Num());
+	for (int32 Index : Unslotted)
+	{
+		const int32 Free = EntryAtSlot.IndexOfByKey(INDEX_NONE);
+		EntryAtSlot[Free] = Index;
+	}
+	for (int32 Taken = 0; Taken < EntryAtSlot.Num(); ++Taken)
+	{
+		if (EntryAtSlot[Taken] != INDEX_NONE)
+		{
+			RowCount = FMath::Max(RowCount, Taken + 1);
+		}
+	}
+
 	const FApexLobbyState& Lobby = Net->GetCachedLobbyState();
 
-	for (int32 GridSlot = 0; GridSlot < FMath::Max(MaxSlots, Entries.Num()); ++GridSlot)
+	for (int32 GridSlot = 0; GridSlot < RowCount; ++GridSlot)
 	{
 		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
 
-		const bool bOccupied = Entries.IsValidIndex(GridSlot);
+		const int32 EntryIndex = EntryAtSlot[GridSlot];
+		const bool bOccupied = EntryIndex != INDEX_NONE;
 		const FLinearColor RowText = bOccupied ? ApexUI::Palette::TextPrimary : ApexUI::Palette::TextDisabled;
 
 		ApexUI::AddH(
@@ -429,7 +462,7 @@ void UApexSessionLobbyWidget::RefreshGrid()
 			continue;
 		}
 
-		const FApexRosterEntry& Entry = Entries[GridSlot];
+		const FApexRosterEntry& Entry = Entries[EntryIndex];
 		const bool bIsLocal = Entry.PlayerId.Equals(Net->GetPlayerId(), ESearchCase::IgnoreCase);
 
 		UHorizontalBox* NameRow = WidgetTree->ConstructWidget<UHorizontalBox>();

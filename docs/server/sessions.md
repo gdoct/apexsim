@@ -592,7 +592,8 @@ by name. The order lives on the flow (`CreateGridOrder`, `CreateGridResultId`,
 each car's start slot before the cars are lined up (`RosterEntry.GridSlot`
 from `GameSession::starting_slots`: the order `apply_grid_order` will seat,
 refreshed when a qualifying lap or a weekend round changes it), and the
-session lobby's GRID list is in that order. In qualifying the
+session lobby's GRID list is in that order, each car on its own slot: a
+slot the order names a driver for who is not there is shown open. In qualifying the
 garage (`UApexHotlapWidget::SetQualifying`) drops the replay, ghost and tyre
 toggles and has TUNE | SCOREBOARD: the scoreboard (`ApexBoard::Build`) lists
 every car fastest first, and clicking one (`OnWatchCar`) points the spectator
