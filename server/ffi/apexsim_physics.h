@@ -1,0 +1,147 @@
+/*
+ * apexsim_physics.h - the server's car step behind a C API, for the client's
+ * prediction of its own car (docs/proposals/client-prediction.md).
+ *
+ * Built from server/ffi (crate apexsim-physics) as a static library:
+ *   cd server/ffi && cargo build --release
+ *   -> <target>/release/apexsim_physics.lib (Windows) / libapexsim_physics.a
+ * See docs/building.md for the system libraries it links against.
+ *
+ * Hand-written: it mirrors server/ffi/src/lib.rs, whose tests pin the struct
+ * sizes asserted below. Change both together and bump APX_ABI_VERSION.
+ *
+ * Every function returns an ApxStatus (APX_OK on success) and never lets a
+ * panic out; apx_last_error() names the last failure on the calling thread.
+ * A track handle is changed by each step (the tick's wind): a track and the
+ * cars stepped on it belong to one thread at a time.
+ */
+#ifndef APEXSIM_PHYSICS_H
+#define APEXSIM_PHYSICS_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define APX_ABI_VERSION 1u
+
+typedef int32_t ApxStatus;
+#define APX_OK 0
+#define APX_ERR_NULL 1       /* a required pointer was null */
+#define APX_ERR_UTF8 2       /* a string was not UTF-8 */
+#define APX_ERR_TRACK 3      /* the track YAML or a sidecar did not load */
+#define APX_ERR_CAR 4        /* the car.toml did not parse or validate */
+#define APX_ERR_CONDITIONS 5 /* the session conditions did not decode */
+#define APX_ERR_INVALID 6    /* an argument out of range */
+#define APX_ERR_STATE 7      /* a state blob of another version or car */
+#define APX_ERR_BUFFER 8     /* buffer too small; the size needed was written */
+#define APX_ERR_PANIC 9      /* the library panicked; the handle may be bad */
+
+typedef struct ApxTrack ApxTrack;
+typedef struct ApxCar ApxCar;
+
+/* The driver's controls for one tick (ClientMessage::PlayerInput). */
+typedef struct ApxInput {
+    float throttle;     /* 0..1 */
+    float brake;        /* 0..1 */
+    float steering;     /* -1 right .. 1 left */
+    float clutch;       /* 0..1, read when has_clutch */
+    int8_t gear;        /* -1 reverse, 0 neutral, 1.. forward; read when has_gear */
+    uint8_t has_gear;
+    uint8_t has_clutch;
+    uint8_t drs;
+    int8_t headlights;  /* -1 left to the conditions, 0 off, 1 on */
+    uint8_t flash;
+    int8_t ers_mode;    /* -1 keeps the car's mode, else hybrid::ErsMode */
+    uint8_t ers_boost;
+    uint8_t handbrake;
+} ApxInput;
+
+#define APX_POSE_ON_TRACK 1u
+#define APX_POSE_AIRBORNE 2u
+#define APX_POSE_COLLIDING 4u
+#define APX_POSE_DRS_OPEN 8u
+
+/* The car as a renderer reads it, in the server frame (metres, +X along the
+ * track at the line, +Y left, +Z up, yaw counter-clockwise). */
+typedef struct ApxCarPose {
+    float pos_x, pos_y, pos_z;
+    float yaw_rad, pitch_rad, roll_rad;
+    float vel_x, vel_y, vel_z;
+    float speed_mps;
+    float angular_vel_yaw, angular_vel_pitch, angular_vel_roll;
+    float steering_input, throttle_input, brake_input;
+    float engine_rpm;
+    float track_progress_m;
+    float lateral_offset_m;
+    float wheel_angular_vel[4]; /* FL FR RL RR, rad/s */
+    uint16_t current_lap;
+    int8_t gear;
+    uint8_t flags;              /* APX_POSE_* */
+} ApxCarPose;
+
+#ifdef __cplusplus
+static_assert(sizeof(ApxInput) == 28, "ApxInput layout");
+static_assert(sizeof(ApxCarPose) == 96, "ApxCarPose layout");
+#else /* C89 and MSVC's C have no _Static_assert by default */
+typedef char apx_input_layout[(sizeof(ApxInput) == 28) ? 1 : -1];
+typedef char apx_car_pose_layout[(sizeof(ApxCarPose) == 96) ? 1 : -1];
+#endif
+
+/* APX_ABI_VERSION of the linked library: check it before any other call. */
+uint32_t apx_abi_version(void);
+
+/* The version of the blobs apx_car_state_save writes. */
+uint32_t apx_state_blob_version(void);
+
+/* The last failure's message on this thread (UTF-8, empty after a success),
+ * valid until the next call on the thread. */
+const char *apx_last_error(void);
+
+/* Load a track from its YAML and the sidecars beside it, with the session's
+ * conditions baked in as the server bakes a session's own copy.
+ * road_contact: 0 the centerline, 1 the road mesh (the server's
+ * [physics] road_contact). conditions: SessionConditions as MessagePack
+ * with named fields (as SessionJoined carries them, resolved), or NULL with
+ * conditions_len 0 for the defaults. */
+ApxStatus apx_track_load(const char *yaml_path, uint8_t road_contact,
+                         const uint8_t *conditions, size_t conditions_len,
+                         ApxTrack **out);
+void apx_track_free(ApxTrack *track);
+
+/* A car from its car.toml text and up to KNOB_COUNT (31) setup clicks in
+ * CarSetup order (NULL/0 for stock), clamped as the server clamps them,
+ * standing on grid slot grid_position (1-based; 0 the first slot). */
+ApxStatus apx_car_create(const ApxTrack *track, const uint8_t *car_toml,
+                         size_t car_toml_len, const int8_t *setup_clicks,
+                         size_t n_clicks, uint8_t grid_position, ApxCar **out);
+void apx_car_free(ApxCar *car);
+
+/* Step the car one tick as the server steps a car alone on the track: the
+ * car model, its place on the lap, the walls, with the wind of `tick`.
+ * tick: the session tick being simulated; tick_rate_hz: the session's rate
+ * (dt = 1 / tick_rate_hz, worked out as the server does). */
+ApxStatus apx_car_step(ApxCar *car, ApxTrack *track, const ApxInput *input,
+                       uint32_t tick, uint16_t tick_rate_hz);
+
+/* The car's pose, velocities and dash figures. */
+ApxStatus apx_car_pose(const ApxCar *car, ApxCarPose *out);
+
+/* The car's full state as a versioned blob: loading it and stepping replays
+ * bit for bit. *written gets its size; with a NULL buf or a short capacity
+ * nothing is copied and APX_ERR_BUFFER is returned. The size moves a little
+ * from tick to tick (MessagePack sizes a number by its value): keep
+ * headroom in a ring of saved states, or ask again on APX_ERR_BUFFER. */
+ApxStatus apx_car_state_save(const ApxCar *car, uint8_t *buf, size_t capacity,
+                             size_t *written);
+
+/* Replace the car's state with a blob of this version and this car. */
+ApxStatus apx_car_state_load(ApxCar *car, const uint8_t *buf, size_t len);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* APEXSIM_PHYSICS_H */

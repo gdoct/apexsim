@@ -19,7 +19,9 @@ track YAML).
 - **Sessions and rules**: `game_session.rs`, `lobby.rs`, `data.rs` (core
   types), `laps.rs`, `records.rs`, `grid_order.rs`, `drs.rs`,
   `headlights.rs`, `debug_hooks.rs`.
-- **Vehicle physics**: `physics.rs` (4-wheel model, collisions, surfaces),
+- **Vehicle physics**: `car_step.rs` (one car's tick as every session mode
+  runs it, the lone-car step the client's prediction shares, the car state
+  blob), `physics.rs` (4-wheel model, collisions, surfaces),
   `tyre_thermal.rs`, `aero.rs`, `brakes.rs`, `engine_heat.rs`, `damage.rs`,
   `geometry.rs`, `hybrid.rs`, `slipstream.rs`, `feedback.rs` (force
   feedback), `car_setup.rs`, `setup_sheet.rs`.
@@ -33,7 +35,9 @@ track YAML).
   `replay.rs`, `replay_tools.rs`, `track_guide.rs`; binaries in `bin/`
   (`apexsim_replay.rs`, `convert_track.rs`).
 
-Also here: `tests/` (integration tests; they start the server in-process, see
+Also here: `ffi/` (the `apexsim-physics` crate: the car step as a static
+library behind a C API, `ffi/apexsim_physics.h`; see
+[docs/building.md](../docs/building.md)), `tests/` (integration tests; they start the server in-process, see
 `tests/common/mod.rs`), `benches/physics_tick.rs` (Criterion), `examples/`,
 the Docker files and three config files (`server.toml` for development,
 `server.docker.toml` for the image; the release ships the repo root's).

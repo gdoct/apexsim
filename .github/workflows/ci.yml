@@ -26,7 +26,9 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: server
+          workspaces: |
+            server
+            server/ffi
 
       - name: Check formatting
         run: cargo fmt --check
@@ -39,6 +41,15 @@ jobs:
 
       - name: Test
         run: cargo test
+
+      # The physics library for the client's prediction: the server's car
+      # step behind a C API, checked against a session on a recorded trace.
+      - name: Physics library (fmt, clippy, test)
+        working-directory: server/ffi
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test
 
   site:
     name: Marketing page is up to date
