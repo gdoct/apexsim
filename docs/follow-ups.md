@@ -173,6 +173,10 @@ the launcher import with the network off.
   cars in the lane) is not on the wire: the lane is drawn with the lap's
   mean cover (`SnowMids`). It wants a row of its own beside `SnowRows` and
   the lane's material reading it.
+- The bounds watch (`apexsim.debug.BoundsWatch`) reports the rain cloud
+  dome (`ApexCloudLayerActor.Dome`, a 20 km radius on purpose) as out of
+  the world on every rain or cloud start. It should skip primitives that
+  cast no shadow: only casters reach the VSM culling it is there for.
 
 **Check:** the A/B is two screenshots.
 

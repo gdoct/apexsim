@@ -28,7 +28,6 @@ When an item is done, delete it from its backlog and from here.
 
 | ID | Item | Type | Pri | Human | Effort |
 |---|---|---|---|---|---|
-| P1 | GPU `DXGI_ERROR_DEVICE_HUNG` (races, demo backdrop) | Platform | P1 | 🔴 | M |
 | A1 | Imported AC cars' AI crashes (1–10 retire per race) | AI | P1 | 🟡 | M |
 | N1 | Client-side prediction for the local car | Netcode | P1 | 🟡 | L |
 | N2 | Telemetry output for external apps and rigs | Integration | P1 | 🔴 | M |
@@ -86,15 +85,14 @@ When an item is done, delete it from its backlog and from here.
 
 ## 2. Recommended order
 
-1. **Stability** — P1: the R8 soak ran 88 races clean (2026-10-17); close it after a sitting of real races, or reopen with a crash dump.
-2. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, the HUD's PEN, the lap allowance's garage), then H1 in one sitting. Fresh features are where the bugs are.
-3. **Race-breaking AI** — A1 (imported AC cars). Judged by the AI survey.
-4. **Race control** — N4 (formation lap, jump starts), R2 (penalties), R1b (safety car) on the race-control module the flags built.
-6. **Sim-racer essentials** — N2 (telemetry output: cheap, unlocks SimHub, rigs, wheel LEDs), then N1 (client prediction: largest online win, largest job).
-7. **Visual quality pass** — G1, G3, G4 in one branch of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10 (upscaling) alongside.
-8. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
-9. **Online and depth** — N9 (chat), N6 (lap comparison), N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
-10. Everything P3 opportunistically, bundled with whatever touches the same files.
+1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, the HUD's PEN, the lap allowance's garage), then H1 in one sitting. Fresh features are where the bugs are.
+2. **Race-breaking AI** — A1 (imported AC cars). Judged by the AI survey.
+3. **Race control** — N4 (formation lap, jump starts), R2 (penalties), R1b (safety car) on the race-control module the flags built.
+4. **Sim-racer essentials** — N2 (telemetry output: cheap, unlocks SimHub, rigs, wheel LEDs), then N1 (client prediction: largest online win, largest job).
+5. **Visual quality pass** — G1, G3, G4 in one branch of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10 (upscaling) alongside.
+6. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
+7. **Online and depth** — N9 (chat), N6 (lap comparison), N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
+8. Everything P3 opportunistically, bundled with whatever touches the same files.
 
 ## 3. Items by type
 
@@ -119,27 +117,6 @@ ladder's offsets against the car's bounds (`game/cameras.md`); reproduce
 with `-ApexScreenshotAfter` on that car.
 
 ### Platform and stability
-
-#### P1. GPU `DXGI_ERROR_DEVICE_HUNG` — P1 · 🔴 · M
-*Source: verification §3.*
-
-**What:** Two races hung the GPU ~10 s after the track appeared; reruns
-were clean. The VSM "Non-Nanite Marking Job Queue overflow" is logged once
-per run.
-**Outcome:** Either a reproducible cause fixed, or confidence from a long
-clean loop.
-**Implementation:** Run the R8 sweep in a loop with GPU crash dumps
-(`-gpucrashdebugging`, Aftermath) on the user's RTX machine. If it repeats,
-test with VSM off / the Nanite-shadows proposal
-(`proposals/nanite-shadows.md`).
-**Watch out:** needs the Windows GPU box; an agent on that machine can run
-the loop, but you have to leave it available for hours.
-**Status (2026-10-17):** the R8 soak ran 88 of 88 clean. A third hang
-then came on the menu's demo backdrop (not a race), with an Aftermath
-dump: a TDR in VSM's `CullPerPageDrawCommandsCs`, no overflow logged
-(verification §3 has the detail). The bounds watch now logs a NaN or
-out-of-world primitive; next is the cold-start soak
-`run_checks.py "b1-*" --repeat 20 --game-arg=-gpucrashdebugging`.
 
 #### P3. Integrated GPU — P2 · 🔴 · S
 Needs an Iris Xe / Arc or Radeon 680M/780M machine to confirm the LOW preset
@@ -402,7 +379,7 @@ Back up `ApexProfile.sav` before R12.
 #### V3. R4, R5, R6, R8, R10 — P3 · 🟡 · S each
 Snow/ice/melt and wind veer (R4 needs A2), Marina Bay night clouds and kerbs
 (R5, pairs with G2), Nordschleife dressing close-ups (R6), stadium stands
-(R8 — run it as the P1 GPU loop), sun at solar noon and changeable sky (R10).
+(R8), sun at solar noon and changeable sky (R10).
 
 #### H1. Wheel, pedals and FFB sitting — P1 · 🔴 · S
 *Source: verification §2.* The core of a sim, and none of it has been felt:

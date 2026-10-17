@@ -158,10 +158,7 @@ that is hit in a seeded replay (`-ApexReplay`, `-ApexWatchCar`).
 
 `r8-ims` and `r8-mexicocity` aim at their `grandstand_corner`; the first
 pass put the camera at road level and in a chase view: aim again, from
-higher and further off. Run the R8 sweep with GPU crash dumps on: it is
-also the long unattended loop of the GPU stability item (section 3):
-`run_checks.py "r8-*" --repeat 4 --game-arg=-gpucrashdebugging`, tallied
-per pass in `out/verify/soak.log`.
+higher and further off.
 
 - A stadium grandstand wedge on a corner.
 - A curved pit box row tighter than about a 130 m radius (the garages
@@ -452,29 +449,6 @@ Mandarina Bay.
   at twice or more. The tokio interval's 1 ms granularity on the 1 ms
   Windows timer. Whether a client feels it (the motion buffer interpolates
   over it) is the open part.
-- GPU stability: two races stopped with `DXGI_ERROR_DEVICE_HUNG` about
-  10 s after the track was shown (Silverstone and Suzuka, `-ApexAutoRace`,
-  5 AI, TV camera); reruns ran, and four 100 s Silverstone runs
-  (2026-10-12) ran clean. Each run logs the VSM "Non-Nanite Marking Job
-  Queue overflow" message once
-  ([proposals/nanite-shadows.md](proposals/nanite-shadows.md)); whether it
-  plays a part is not known. A soak of 2026-10-17 (`run_checks.py "r8-*"
-  --repeat 4 --game-arg=-gpucrashdebugging`: 22 circuits, 5 AI, TV and
-  aimed cameras, four passes) ran 88 of 88 clean, no hang and no crash.
-  A third hang (2026-10-17, plain `-game` start, Aftermath on) came on the
-  menu's demo backdrop, Silverstone F1 showcase, 5 s after the track was
-  built, with no overflow message in the run: Aftermath status Timeout (a
-  TDR, no page fault), the one active shader `CullPerPageDrawCommandsCs`
-  (breadcrumbs: `ShadowDepths > RenderVirtualShadowMaps(Non-Nanite) >
-  Batched > CullingPasses`), two warps still running, 3.5 of 11.3 GB
-  video memory used, driver 610.88. A few threads looping over shadow
-  pages fits one instance with NaN or absurd bounds; the bounds watch
-  (`apexsim.debug.BoundsWatch`, [game/client.md](game/client.md)) now
-  logs such a primitive before the frame renders. Soak the cold start:
-  `run_checks.py "b1-*" --repeat 20 --game-arg=-gpucrashdebugging`
-  (`soak.log` tallies a `BOUNDS` line next to a hang). A hang with no
-  bounds line points the other way: VSM work on large instances
-  ([proposals/nanite-shadows.md](proposals/nanite-shadows.md), A5).
 - Integrated GPUs: the LOW preset and the integrated-GPU first-run default
   are seen only on an RTX 3080 at LOW. No Intel Iris Xe / Arc or AMD
   Radeon 680M / 780M has run the game, so the frame rate there and whether

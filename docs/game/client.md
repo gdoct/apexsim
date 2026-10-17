@@ -557,8 +557,11 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
   and logs a NaN, infinite or out-of-world one (`Bounds watch: ...` at
   Error, log flushed) with its owner and transform, plus each new largest
   primitive past 1 km. About 0.2 ms a frame for a thousand primitives. It
-  is there for the GPU hang in VSM non-Nanite culling
-  ([verification.md](../verification.md), section 3).
+  is there for `DXGI_ERROR_DEVICE_HUNG`: a hang caught in VSM's non-Nanite
+  culling (`CullPerPageDrawCommandsCs`) fits one primitive with NaN or
+  absurd bounds. For a soak, `run_checks.py "b1-*" --repeat N
+  --game-arg=-gpucrashdebugging` cold-starts the demo backdrop and tallies
+  hangs and `BOUNDS` lines in `out/verify/soak.log`.
 
 ## Checking it
 
