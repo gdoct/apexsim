@@ -42,6 +42,18 @@ commands are in [building.md](../building.md).
   game thread and is what the rest of the game reads (session state, latest
   telemetry, timing board, delegates). A demo or backdrop session is kept out
   of the session delegates ([cameras.md](cameras.md#demo-mode-uapexdemomodesubsystem)).
+- The UDP worker keeps a ring of the last 512 inputs it sent, each with its
+  number and when it went out (`FApexUdpConnection::CopySentInputs`,
+  `UApexNetSubsystem::CopySentInputs`), and stamps each `DriverFeedback`
+  with when it took the datagram in (`ReceivedSeconds`,
+  `UApexNetSubsystem::GetOwnCarSnapshotSeconds`): what the prediction times
+  its clock by.
+- **Artificial latency** (`apexsim.net.FakeLatencyMs N`, `-ApexFakeLatencyMs=N`,
+  0 off): a round trip of N ms on the UDP path, so a ping can be felt on
+  localhost. The worker holds each input it sends for N/2 ms (sealed when it
+  goes, so the seal's sequence still rises in order) and each datagram it
+  receives for N/2 ms before decoding it; it wakes in time for the next one
+  due. TCP is not delayed, so the heartbeat's ping does not include it.
 
 ## Menu shell
 
@@ -592,7 +604,8 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
 - Net: `apexsim.net.ParseCenterline` (parse the lobby's track centerlines; set from HUD detail),
   `apexsim.net.Drop` (close the connection as a lost network would, no
   `Disconnect` sent: the reconnect and, driving, the automatic rejoin,
-  unattended).
+  unattended), `apexsim.net.FakeLatencyMs N` (an artificial round trip on
+  the UDP path, below; `-ApexFakeLatencyMs=N`).
 - Telemetry output: `apexsim.telemetry.Out [on|off]` ([telemetry-output.md](telemetry-output.md)).
 - GPU: `apexsim.debug.BoundsWatch` (on outside Shipping; `UApexBoundsWatchSubsystem`)
   checks every rendered primitive's bounds after each frame's actor ticks

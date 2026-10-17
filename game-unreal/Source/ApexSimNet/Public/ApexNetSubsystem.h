@@ -843,6 +843,9 @@ public:
 	/** Bumps with each snapshot taken. */
 	uint32 GetOwnCarSnapshotSerial() const { return OwnCarSerial; }
 
+	/** When the newest snapshot's datagram came in (FPlatformTime::Seconds, the UDP worker's clock). */
+	double GetOwnCarSnapshotSeconds() const { return LatestOwnCarSeconds; }
+
 	/**
 	 * The own car's newest whole state blob ("APXC", the physics library's
 	 * apx_car_state_load), a new one about every half second, with its tick
@@ -855,6 +858,13 @@ public:
 
 	/** The number of the input sent last (`PlayerInput.seq`); 0 before the first or without UDP. */
 	uint32 GetLastInputSeq() const;
+
+	/**
+	 * The inputs sent with a number above `AfterSeq`, oldest first, from the
+	 * UDP worker's ring of the last few seconds (FApexUdpConnection::CopySentInputs):
+	 * what the prediction steps its own car with. Empty without UDP.
+	 */
+	void CopySentInputs(uint32 AfterSeq, TArray<FApexSentInput>& Out) const;
 
 	/**
 	 * The session's tick rate and road (`SessionJoined.Physics`), for a
@@ -964,6 +974,7 @@ private:
 	uint32 DriverFeedbackSerial = 0;
 	double DriverFeedbackTime = 0.0;
 	FApexOwnCarSnapshot LatestOwnCar;
+	double LatestOwnCarSeconds = 0.0;
 	uint32 OwnCarSerial = 0;
 	FApexOwnCarStateAssembler OwnCarState;
 	uint32 OwnCarStateSerial = 0;

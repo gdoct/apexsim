@@ -3352,6 +3352,13 @@ struct APEXSIMNET_API FApexDriverFeedback
 	TOptional<FApexOwnCarStateChunk> OwnState;
 
 	/**
+	 * Not on the wire: FPlatformTime::Seconds when the UDP worker took the
+	 * datagram in (after any fake latency), which times the prediction's
+	 * clock closer than the game frame that reads it.
+	 */
+	double ReceivedSeconds = 0.0;
+
+	/**
 	 * Folds the next message in, as if the server had sent one message for
 	 * both intervals: samples appended, peaks kept, the roughest surface.
 	 * Used when several arrive between two game frames, so a kerb strike in

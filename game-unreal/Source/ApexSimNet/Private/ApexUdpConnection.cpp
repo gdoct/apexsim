@@ -3,10 +3,24 @@
 #include "ApexProtocolCodec.h"
 #include "ApexSimNetModule.h"
 #include "Common/UdpSocketBuilder.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/RunnableThread.h"
 #include "SocketSubsystem.h"
 #include "Sockets.h"
+
+namespace
+{
+	TAutoConsoleVariable<int32> CVarFakeLatencyMs(TEXT("apexsim.net.FakeLatencyMs"), 0,
+		TEXT("Artificial round-trip latency on the UDP path, ms (0 off): half held on each input before it is sent, ")
+		TEXT("half on each datagram received before it is decoded, so a ping can be felt on localhost. ")
+		TEXT("Command line: -ApexFakeLatencyMs=N."));
+}
+
+int32 FApexUdpConnection::GetFakeLatencyMs()
+{
+	return FMath::Clamp(CVarFakeLatencyMs.GetValueOnAnyThread(), 0, 2000);
+}
 
 FApexUdpConnection::FApexUdpConnection(
 	const FString& InHost, int32 InUdpPort, const FString& InUdpToken, const FString& InUdpKey)
@@ -16,6 +30,7 @@ FApexUdpConnection::FApexUdpConnection(
 	, UdpKey(InUdpKey)
 {
 	ReceiveBuffer.SetNumUninitialized(MaxDatagramBytes);
+	SentInputs.SetNum(SentInputRing);
 }
 
 FApexUdpConnection::~FApexUdpConnection()
@@ -49,6 +64,21 @@ void FApexUdpConnection::SetPlayerInput(const FApexPlayerInput& Input)
 {
 	FScopeLock Lock(&InputLock);
 	PendingInput = Input;
+}
+
+void FApexUdpConnection::CopySentInputs(uint32 AfterSeq, TArray<FApexSentInput>& Out) const
+{
+	Out.Reset();
+	FScopeLock Lock(&SentInputLock);
+	// Oldest first: the slot after the newest is the oldest the ring holds.
+	for (int32 i = 0; i < SentInputRing; ++i)
+	{
+		const FApexSentInput& Sent = SentInputs[(SentInputHead + i) % SentInputRing];
+		if (Sent.Seq != 0 && Sent.Seq > AfterSeq)
+		{
+			Out.Add(Sent);
+		}
+	}
 }
 
 bool FApexUdpConnection::PopTelemetry(FApexTelemetryFrame& OutFrame)
@@ -189,8 +219,58 @@ void FApexUdpConnection::SendPlayerInput()
 	}
 	const TArray<uint8> Payload =
 		ApexProtocol::EncodePlayerInput(static_cast<uint32>(LastServerTick.GetValue()), Input, InputSeq);
-	SendSealed(Payload);
+	const double Now = FPlatformTime::Seconds();
+	const int32 FakeLatencyMs = GetFakeLatencyMs();
+	if (FakeLatencyMs > 0 || DelayedOut.Num() > 0)
+	{
+		// Held for half the fake round trip; sealed when it goes, so the
+		// seal's sequence still rises in the order the server sees.
+		DelayedOut.Add({Now + FakeLatencyMs * 0.0005, Payload});
+	}
+	else
+	{
+		SendSealed(Payload);
+	}
+	{
+		FScopeLock Lock(&SentInputLock);
+		SentInputs[SentInputHead] = {InputSeq, Input, Now};
+		SentInputHead = (SentInputHead + 1) % SentInputRing;
+	}
 	LastInputSeq.Set(static_cast<int32>(InputSeq));
+}
+
+void FApexUdpConnection::FlushDelayed(double Now)
+{
+	// In order: a later one is never due before an earlier one at a steady
+	// latency, and when the latency is lowered the queue drains in order.
+	int32 Sent = 0;
+	while (Sent < DelayedOut.Num() && DelayedOut[Sent].DueSeconds <= Now)
+	{
+		SendSealed(DelayedOut[Sent].Bytes);
+		++Sent;
+	}
+	DelayedOut.RemoveAt(0, Sent, EAllowShrinking::No);
+	int32 Handled = 0;
+	while (Handled < DelayedIn.Num() && DelayedIn[Handled].DueSeconds <= Now)
+	{
+		HandleDatagram(DelayedIn[Handled].Bytes);
+		++Handled;
+	}
+	DelayedIn.RemoveAt(0, Handled, EAllowShrinking::No);
+}
+
+double FApexUdpConnection::SecondsToNextDelayed(double Now) const
+{
+	double Next = 1.0e9;
+	if (DelayedOut.Num() > 0)
+	{
+		Next = FMath::Min(Next, DelayedOut[0].DueSeconds - Now);
+	}
+	if (DelayedIn.Num() > 0)
+	{
+		Next = FMath::Min(Next, DelayedIn[0].DueSeconds - Now);
+	}
+	return Next;
 }
 
 void FApexUdpConnection::ReceiveAvailable()
@@ -215,66 +295,79 @@ void FApexUdpConnection::ReceiveAvailable()
 
 		ReceivedDatagrams.Increment();
 
-		FApexServerMessage Message;
-		FString Error;
-		if (!ApexProtocol::DecodeUdpMessage(
-				TArrayView<const uint8>(ReceiveBuffer.GetData(), BytesRead), Message, Error))
+		const TArrayView<const uint8> Bytes(ReceiveBuffer.GetData(), BytesRead);
+		const int32 FakeLatencyMs = GetFakeLatencyMs();
+		if (FakeLatencyMs > 0 || DelayedIn.Num() > 0)
 		{
-			// A bad datagram is not fatal — UDP is allowed to deliver rubbish —
-			// but the first one is worth seeing: a steady stream of them freezes
-			// every car without another word in the log.
-			if (!bLoggedDecodeFailure)
-			{
-				bLoggedDecodeFailure = true;
-				UE_LOG(LogApexSimNet, Warning, TEXT("Dropped an undecodable %d byte datagram: %s"), BytesRead, *Error);
-			}
-			else
-			{
-				UE_LOG(LogApexSimNet, Verbose, TEXT("Dropped a %d byte datagram: %s"), BytesRead, *Error);
-			}
+			DelayedIn.Add({FPlatformTime::Seconds() + FakeLatencyMs * 0.0005, TArray<uint8>(Bytes)});
 			continue;
 		}
+		HandleDatagram(Bytes);
+	}
+}
 
-		switch (Message.Type)
+void FApexUdpConnection::HandleDatagram(TArrayView<const uint8> Bytes)
+{
+	const int32 BytesRead = Bytes.Num();
+	FApexServerMessage Message;
+	FString Error;
+	if (!ApexProtocol::DecodeUdpMessage(Bytes, Message, Error))
+	{
+		// A bad datagram is not fatal — UDP is allowed to deliver rubbish —
+		// but the first one is worth seeing: a steady stream of them freezes
+		// every car without another word in the log.
+		if (!bLoggedDecodeFailure)
 		{
-		case EApexServerMessageType::UdpHandshakeAck:
-			if (!bHandshakeComplete)
-			{
-				bHandshakeComplete = true;
-				UE_LOG(LogApexSimNet, Log, TEXT("<- UdpHandshakeAck; telemetry now flows over UDP"));
-			}
-			break;
-
-		case EApexServerMessageType::TelemetryCompact:
-			// Telemetry arriving at all means the server has bound us, even if
-			// the ack datagram itself was lost.
-			if (!bHandshakeComplete)
-			{
-				bHandshakeComplete = true;
-				UE_LOG(LogApexSimNet, Log, TEXT("Telemetry arrived before the ack; treating the handshake as done"));
-			}
-			LastServerTick.Set(static_cast<int32>(Message.Telemetry.ServerTick));
-			TelemetryQueue.Enqueue(MoveTemp(Message.Telemetry));
-			break;
-
-		case EApexServerMessageType::DriverFeedback:
-			DriverFeedbackQueue.Enqueue(MoveTemp(Message.DriverFeedback));
-			break;
-
-		case EApexServerMessageType::SpectatorRecord:
-			// A showcase frame: the server bound us, as with telemetry.
-			if (!bHandshakeComplete)
-			{
-				bHandshakeComplete = true;
-				UE_LOG(LogApexSimNet, Log, TEXT("A stream frame arrived before the ack; treating the handshake as done"));
-			}
-			SpectatorQueue.Enqueue(MoveTemp(Message.SpectatorRecords));
-			break;
-
-		default:
-			UE_LOG(LogApexSimNet, Verbose, TEXT("Ignoring UDP message '%s'"), *Message.VariantName);
-			break;
+			bLoggedDecodeFailure = true;
+			UE_LOG(LogApexSimNet, Warning, TEXT("Dropped an undecodable %d byte datagram: %s"), BytesRead, *Error);
 		}
+		else
+		{
+			UE_LOG(LogApexSimNet, Verbose, TEXT("Dropped a %d byte datagram: %s"), BytesRead, *Error);
+		}
+		return;
+	}
+
+	switch (Message.Type)
+	{
+	case EApexServerMessageType::UdpHandshakeAck:
+		if (!bHandshakeComplete)
+		{
+			bHandshakeComplete = true;
+			UE_LOG(LogApexSimNet, Log, TEXT("<- UdpHandshakeAck; telemetry now flows over UDP"));
+		}
+		break;
+
+	case EApexServerMessageType::TelemetryCompact:
+		// Telemetry arriving at all means the server has bound us, even if
+		// the ack datagram itself was lost.
+		if (!bHandshakeComplete)
+		{
+			bHandshakeComplete = true;
+			UE_LOG(LogApexSimNet, Log, TEXT("Telemetry arrived before the ack; treating the handshake as done"));
+		}
+		LastServerTick.Set(static_cast<int32>(Message.Telemetry.ServerTick));
+		TelemetryQueue.Enqueue(MoveTemp(Message.Telemetry));
+		break;
+
+	case EApexServerMessageType::DriverFeedback:
+		Message.DriverFeedback.ReceivedSeconds = FPlatformTime::Seconds();
+		DriverFeedbackQueue.Enqueue(MoveTemp(Message.DriverFeedback));
+		break;
+
+	case EApexServerMessageType::SpectatorRecord:
+		// A showcase frame: the server bound us, as with telemetry.
+		if (!bHandshakeComplete)
+		{
+			bHandshakeComplete = true;
+			UE_LOG(LogApexSimNet, Log, TEXT("A stream frame arrived before the ack; treating the handshake as done"));
+		}
+		SpectatorQueue.Enqueue(MoveTemp(Message.SpectatorRecords));
+		break;
+
+	default:
+		UE_LOG(LogApexSimNet, Verbose, TEXT("Ignoring UDP message '%s'"), *Message.VariantName);
+		break;
 	}
 }
 
@@ -312,13 +405,17 @@ uint32 FApexUdpConnection::Run()
 			SendPlayerInput();
 		}
 
-		Socket->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromMilliseconds(PollIntervalMs));
+		// Under a fake latency the wait ends in time for the next datagram due.
+		const double WaitMs = FMath::Clamp(SecondsToNextDelayed(FPlatformTime::Seconds()) * 1000.0, 0.0,
+			static_cast<double>(PollIntervalMs));
+		Socket->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromMilliseconds(WaitMs));
 		if (bStopRequested)
 		{
 			break;
 		}
 
 		ReceiveAvailable();
+		FlushDelayed(FPlatformTime::Seconds());
 	}
 
 	UE_LOG(LogApexSimNet, Log, TEXT("UDP thread stopping (%d datagrams received)"), ReceivedDatagrams.GetValue());

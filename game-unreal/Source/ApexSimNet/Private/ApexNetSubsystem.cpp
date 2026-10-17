@@ -6,7 +6,9 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Parse.h"
 
 UApexNetSubsystem::UApexNetSubsystem() = default;
 
@@ -56,6 +58,17 @@ UApexNetSubsystem::~UApexNetSubsystem() = default;
 void UApexNetSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+
+	// The fake latency's command-line default (an unattended run at a ping).
+	int32 FakeLatencyMs = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-ApexFakeLatencyMs="), FakeLatencyMs))
+	{
+		if (IConsoleVariable* Var = IConsoleManager::Get().FindConsoleVariable(TEXT("apexsim.net.FakeLatencyMs")))
+		{
+			Var->Set(FakeLatencyMs, ECVF_SetByCommandline);
+		}
+		UE_LOG(LogApexSimNet, Log, TEXT("Fake UDP latency: %d ms round trip (-ApexFakeLatencyMs)"), FakeLatencyMs);
+	}
 
 	// FTSTicker rather than FTickableGameObject: no CDO-tick guard to write, no
 	// GetStatId boilerplate, and it survives PIE map transitions cleanly.
@@ -123,6 +136,18 @@ void UApexNetSubsystem::StartUdp(const FApexAuthSuccess& Auth)
 uint32 UApexNetSubsystem::GetLastInputSeq() const
 {
 	return UdpConnection.IsValid() ? UdpConnection->GetLastInputSeq() : 0;
+}
+
+void UApexNetSubsystem::CopySentInputs(uint32 AfterSeq, TArray<FApexSentInput>& Out) const
+{
+	if (UdpConnection.IsValid())
+	{
+		UdpConnection->CopySentInputs(AfterSeq, Out);
+	}
+	else
+	{
+		Out.Reset();
+	}
 }
 
 void UApexNetSubsystem::SetPlayerInput(const FApexPlayerInput& Input)
@@ -1105,6 +1130,7 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 			if (Feedback.OwnCar.IsSet())
 			{
 				LatestOwnCar = Feedback.OwnCar.GetValue();
+				LatestOwnCarSeconds = Feedback.ReceivedSeconds;
 				++OwnCarSerial;
 			}
 			if (Feedback.OwnState.IsSet() && OwnCarState.Add(Feedback.OwnState.GetValue()))

@@ -8,6 +8,15 @@
 #include "HAL/ThreadSafeCounter.h"
 
 class FInternetAddr;
+
+/** One input as the UDP worker sent it: its number (`PlayerInput.seq`), the controls, and when. */
+struct FApexSentInput
+{
+	uint32 Seq = 0;
+	FApexPlayerInput Input;
+	/** FPlatformTime::Seconds when it was handed to the socket (or to the fake-latency queue). */
+	double SentSeconds = 0.0;
+};
 class FRunnableThread;
 class FSocket;
 class ISocketSubsystem;
@@ -77,6 +86,20 @@ public:
 	 */
 	uint32 GetLastInputSeq() const { return static_cast<uint32>(LastInputSeq.GetValue()); }
 
+	/**
+	 * The inputs sent with a number above `AfterSeq`, oldest first, from a
+	 * ring of the last SentInputRing sent (about eight seconds). Any thread.
+	 */
+	void CopySentInputs(uint32 AfterSeq, TArray<FApexSentInput>& Out) const;
+
+	/**
+	 * The artificial latency (`apexsim.net.FakeLatencyMs`, a round trip):
+	 * each input waits half of it before it goes out and each datagram that
+	 * comes in waits the other half before it is decoded, so a ping can be
+	 * felt on localhost. 0 is off. The TCP side is not delayed.
+	 */
+	static int32 GetFakeLatencyMs();
+
 	// FRunnable
 	virtual bool Init() override;
 	virtual uint32 Run() override;
@@ -101,8 +124,14 @@ private:
 	void SendPlayerInput();
 	/** Seals and sends one payload; the sequence number rises with each call. */
 	void SendSealed(TArrayView<const uint8> Payload);
-	/** Drains everything readable, decoding as it goes. */
+	/** Drains everything readable, decoding as it goes (or queueing it under a fake latency). */
 	void ReceiveAvailable();
+	/** Decodes one datagram and queues what it carries. */
+	void HandleDatagram(TArrayView<const uint8> Bytes);
+	/** Sends the delayed inputs and decodes the delayed datagrams whose time has come. */
+	void FlushDelayed(double Now);
+	/** Seconds until the next delayed datagram is due; a large number when none is waiting. */
+	double SecondsToNextDelayed(double Now) const;
 	void DestroySocket();
 
 	const FString Host;
@@ -140,4 +169,19 @@ private:
 	FApexPlayerInput PendingInput;
 
 	TArray<uint8> ReceiveBuffer;
+
+	/** How many sent inputs CopySentInputs can see: 60 a second. */
+	static constexpr int32 SentInputRing = 512;
+	mutable FCriticalSection SentInputLock;
+	TArray<FApexSentInput> SentInputs;
+	int32 SentInputHead = 0;
+
+	/** Worker thread only: datagrams held by the fake latency, oldest first, with when each is due. */
+	struct FDelayed
+	{
+		double DueSeconds = 0.0;
+		TArray<uint8> Bytes;
+	};
+	TArray<FDelayed> DelayedOut;
+	TArray<FDelayed> DelayedIn;
 };
