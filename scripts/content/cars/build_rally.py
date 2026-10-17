@@ -96,6 +96,18 @@ if V.get("roof"):
     KEYS = carlib.roofline(KEYS, V["roof"], j_from=6, pivot_j=5)
 KEYS = carlib.fender_bump(KEYS, (AX_F, AX_R), amount=V["hips"], width=(0.50, 0.55), j0=2.2, j1=4.3)
 KEYS = carlib.tumblehome(KEYS, amount=0.015, j_from=6)
+if V.get("hard_roof"):
+    # flat side glass: point 6 put on the straight line from the belt's
+    # crease (5) to the roof's (7), so the pane between them is a plane
+    _flat = []
+    for (y, pts) in KEYS:
+        (x5, z5), (x6, z6), (x7, z7) = pts[5], pts[6], pts[7]
+        if z7 - z5 > 0.08:
+            t = min(max((z6 - z5) / (z7 - z5), 0.0), 1.0)
+            pts = list(pts)
+            pts[6] = (x5 + (x7 - x5) * t, z6)
+        _flat.append((y, pts))
+    KEYS = _flat
 E = V["ends"]
 K0, K1 = V["keys"][0][0], V["keys"][-1][0]
 KEYS = carlib.insert_stations(KEYS, [K0 + 0.10, K0 + 0.24, K1 - 0.10, K1 - 0.24])
