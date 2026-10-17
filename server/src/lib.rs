@@ -30,6 +30,7 @@ pub mod network;
 pub mod physics;
 pub mod pit;
 pub mod race_control;
+pub mod race_start;
 pub mod racecraft;
 pub mod racing_line;
 pub mod records;

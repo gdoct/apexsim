@@ -290,6 +290,18 @@ pub fn update_car_3d(
             }
         }
     }
+    // Race control's pace (a formation lap, `crate::race_start`): held to
+    // it the way the pit limiter holds a car in the lane.
+    if state.speed_cap_mps > 0.0 {
+        let margin = state.speed_cap_mps - state.speed_mps;
+        auto_input.throttle *= margin.clamp(0.0, 1.0);
+        let over = -margin - LIMITER_BRAKE_FROM_MPS;
+        if over > 0.0 {
+            auto_input.brake = auto_input
+                .brake
+                .max((over / LIMITER_BRAKE_SPAN_MPS).min(LIMITER_BRAKE_MAX));
+        }
+    }
     let input = &auto_input;
 
     // The DRS flap: open while the driver holds the button where the rules
@@ -3303,7 +3315,12 @@ const MAX_CENTERLINE_SEGMENT_M: f32 = 50.0;
 /// and none on the other. At speed on Le Mans that happened several times a
 /// second, with the unloaded rear wheel spinning up under drive, and the car
 /// wobbled and stepped out on the straights.
-fn centerline_at(centerline: &[TrackPoint], nearest: usize, x: f32, y: f32) -> (TrackPoint, f32) {
+pub(crate) fn centerline_at(
+    centerline: &[TrackPoint],
+    nearest: usize,
+    x: f32,
+    y: f32,
+) -> (TrackPoint, f32) {
     let n = centerline.len();
     let p = &centerline[nearest];
     let neighbour = |idx: usize| {

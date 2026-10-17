@@ -42,6 +42,9 @@ belong to these rules are described briefly beside them.
   `update_recoveries`: back to track and back to pits
 - `server/src/race_control.rs` (`RaceControl`, `FlagCar`) and
   `GameSession::update_flags` / `yellow_flags`: the race's flags
+- `server/src/race_start.rs` (`RaceStart`, `Formation`) and
+  `GameSession::begin_formation` / `tick_formation` / `hold_cars_on_grid`:
+  the formation lap, the rolling start, false starts
 - `server/src/laps.rs`, `records.rs`, `grid_order.rs`,
   `track_guide.rs` (`wire_corners`)
 - Client: `UI/ApexRootWidget.cpp`, `UI/ApexSessionCreateWidget.cpp` (model
@@ -273,6 +276,17 @@ stops the HUD has seen the car make), and a car with `bMissedStops` is
 marked PEN in the standings, the timing tower, the watch view's results and
 both results screens (`ApexRaceResults::FRow::bMissedStops`).
 
+**Race rules**: `race_rules` (`data::RaceRules`, its keys snake_case,
+each left off the wire at its default and the whole table left off when
+nothing is set; echoed in `SessionJoined.RaceRules`):
+
+- `start` (`StartType` `Standing` / `Rolling`, 0-1, default Standing);
+- `formation_lap` (`bool`): a standing start is preceded by a formation lap;
+- `jump_start` (`bool`): false starts are watched for.
+
+All three are described in "Race start: formation lap, rolling start, false
+starts". Not listed in the lobby; a hosted session does not take them yet.
+
 ## The race's grid
 
 Before a race the cars stand on the grid while each driver sets the car up,
@@ -352,6 +366,59 @@ spectators and the other modes. `UApexSessionRecorder` records the frame
 that carries `Finished` before freezing, or the last car home would read DNF.
 `apexsim.finish [view|car N|panorama|end]` opens the view mid-race for
 unattended checks.
+
+## Race start: formation lap, rolling start, false starts
+
+`race_start.rs`, under the session's `race_rules`. With none set a race
+starts as above: the countdown runs out and the lights go out on a held
+grid.
+
+**Formation lap** (`formation_lap`, a standing start). When the countdown
+into a race runs out (`tick_countdown`), the formation lap begins
+(`begin_formation`) instead of the race: mode and state stay `Countdown`,
+with no countdown running (`countdown_ms` absent) and telemetry's
+`race_phase` 1. Each car is held to a pace (`CarState::speed_cap_mps`,
+which the physics enforces as the pit limiter does, on every car, a
+human's included): `FORMATION_SPEED_MPS` (30 m/s), and no closer than
+`FORMATION_GAP_M` (14 m) behind the car starting ahead of it that is still
+in the lap, at that car's speed (`Formation::paces`), so the field moves
+off one car after another in grid order and runs single file; a car off
+the road or out is no pace for the rest. The AI starts no pass under a
+pace (`racecraft`). Over the last `APPROACH_M` (150 m) to its slot the
+server drives every car (`approach_input`: a Stanley steer to the slot's
+place across the road, on the automatic box, slowing at
+`APPROACH_DECEL_MPS2` to stop on it; the closest it comes to the car
+ahead is where its own slot is behind that car's). A car stopped within
+`HOME_M` (1.5 m) of its slot is home: put exactly on it, its lap state
+reset (`reset_laps`: lap 0, nothing timed), in neutral, its own gearbox
+setting back, held as on the grid. Nothing on the lap is timed (no
+`LapTiming`). Once every car is home (an undrivable or towed car counts as
+home), the lights count `LIGHTS_SECONDS` (5) down, as a countdown, into the
+race. A car not home by `FORMATION_TIME_SHARE` (1.6) x the lap at the
+formation pace plus `FORMATION_SPARE_S` (60 s) is put on its slot.
+`JoinSession` is refused during the lap ("The formation lap is under way").
+A mode set over it (`SetGameMode`, a new countdown or grid) ends it.
+
+**Rolling start** (`start: Rolling`, always with its pace lap). The same
+lap (`race_phase` 2), nobody stops: as the leader (the first car in grid
+order still out) comes back to its slot on the line, the race goes green
+(`transition_from_countdown(Race)`), every car's pace lifted and its lap
+state reset, pole's lap 1 starting as it crosses the line.
+
+**Tyres.** A lap at the formation pace holds the grid's tyre warmth but
+does not add to it (the Norisring, GT3: 54.5 -> 54.4 °C over the lap), so
+the grid's tyres are still fitted part-warm (`tyre_thermal::
+FORMATION_LAP_WARMTH`), formation lap or not.
+
+**False start** (`jump_start`, a standing start). Through the countdown
+that ends in the green (not the one before a formation lap), a driver's car
+(not the AI's, a stand-in's or an away driver's) in gear with the throttle
+past `JUMP_THROTTLE` is let go of (`race_start::releases`): it runs the
+physics instead of being held, so it moves if the driver lets it. One that
+is more than `JUMP_START_M` (0.5 m) off its slot before the lights go out
+has jumped the start (`RaceStart::jumped`, logged). A car on the automatic
+box waits in neutral and cannot jump. Released cars are not collided with
+the held grid. Without the rule the grid is held as ever.
 
 ## Flags
 
@@ -1119,6 +1186,8 @@ cargo test --test race_flow_test              # incl. test_timed_race_flow_to_th
 cargo test --test session_conditions_test     # rules echoed and enforced end to end
 cargo test --test grid_order_test             # start order, stored results, over the wire
 cargo test --test ready_grid_test             # the race's grid: OpenGrid, SetReady, the countdown
+cargo test --test race_start_test             # formation lap back to the grid, rolling start, a jump start, a held grid
+cargo test --lib race_start                   # the approach's pace, headway across the line
 cargo test --test reconnect_test              # held seat, resume, takeover, grace, Disconnect
 cargo test --test lap_timing_test             # sectors and track limits round Monza
 cargo test --test hotlap_test                 # garage, run-up, queue, cold tyres, qualifying outlap

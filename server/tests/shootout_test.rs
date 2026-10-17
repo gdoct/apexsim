@@ -263,6 +263,7 @@ async fn a_shootout_is_echoed_and_its_state_sent_over_the_wire() {
             compound_change: false,
             qualifying_format: QualifyingFormat::Shootout,
             qualifying_lap_allowance: 99,
+            race_rules: Default::default(),
         })
         .await?;
         let joined = host.wait_joined().await?;

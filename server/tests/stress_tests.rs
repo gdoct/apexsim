@@ -510,6 +510,7 @@ impl TestClientMinimal {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         self.send_message(&msg).await?;
 
@@ -869,6 +870,7 @@ async fn run_multi_client_test(
         compound_change: false,
         qualifying_format: QualifyingFormat::Open,
         qualifying_lap_allowance: 0,
+        race_rules: Default::default(),
     };
     clients[0].send_message(&create_msg).await?;
 

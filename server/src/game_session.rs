@@ -8,7 +8,7 @@ use crate::racing_line::{self, RacingLineProfile};
 use crate::records::{GhostLap, GhostSample, GHOST_SAMPLE_HZ};
 use crate::tyre_thermal;
 use std::collections::HashMap;
-use tracing::debug;
+use tracing::{debug, info};
 
 /// Default simulation tick rate; used when no explicit rate is configured
 /// (tests, benches, the offline tools). 240 Hz until 2026-10-06.
@@ -346,6 +346,10 @@ pub struct GameSession {
     aid_lines: HashMap<PlayerId, AidLineKey>,
     /// The race's flags (`crate::race_control`), from the tick.
     pub race_control: crate::race_control::RaceControl,
+    /// How the race gets away (`crate::race_start`): its formation lap,
+    /// and the cars that jumped the start. Made afresh as the field lines
+    /// up.
+    pub race_start: crate::race_start::RaceStart,
     /// How many times a weekend day has baked its own sky
     /// ([`Self::begin_day`]): a racing line planned under an earlier one is
     /// planned again.
@@ -781,7 +785,7 @@ enum TyreStart {
     /// Out of the garage: its blankets, or the air.
     Garage,
     /// On a race grid: part of the way from there to the optimum, the
-    /// formation lap there is none of.
+    /// warmth a formation lap would put in (`tyre_thermal::FORMATION_LAP_WARMTH`).
     Grid,
     /// At the optimum: a hotlap measures the car, not its warm-up.
     Warm,
@@ -866,6 +870,7 @@ impl GameSession {
             ai_power_profiles: std::collections::BTreeMap::new(),
             aid_lines: HashMap::new(),
             race_control: Default::default(),
+            race_start: Default::default(),
             sky_day: 0,
             day_lines_due: false,
             finish_deadline_tick: None,
@@ -947,6 +952,7 @@ impl GameSession {
             ai_power_profiles: std::collections::BTreeMap::new(),
             aid_lines: HashMap::new(),
             race_control: Default::default(),
+            race_start: Default::default(),
             sky_day: 0,
             day_lines_due: false,
             finish_deadline_tick: None,
@@ -1165,6 +1171,11 @@ impl GameSession {
 
     /// Countdown mode: Players frozen in pit lane, countdown timer running
     fn tick_countdown(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
+        // A formation lap runs in the countdown's state, with no clock.
+        if self.race_start.formation.is_some() {
+            self.tick_formation(inputs);
+            return;
+        }
         // The pit lane is shut while the field lines up: the exit light
         // shows red until the start (`crate::pit::exit_closed`).
         self.update_pits();
@@ -1174,8 +1185,13 @@ impl GameSession {
             } else {
                 // Countdown finished: transition to the stored next mode
                 // (set by start_countdown_mode). Without a stored next mode
-                // we just clear the countdown, as before.
+                // we just clear the countdown, as before. A race whose
+                // rules have a formation lap drives it first.
                 self.session.countdown_ticks_remaining = None;
+                if self.session.next_mode == Some(GameMode::Race) && self.formation_lap_due() {
+                    self.begin_formation();
+                    return;
+                }
                 if let Some(next_mode) = self.session.next_mode.take() {
                     self.transition_from_countdown(next_mode);
                 }
@@ -1202,14 +1218,252 @@ impl GameSession {
     }
 
     /// Cars are held where they stand, no physics: the drivers can only
-    /// pick a gear and rev their engines.
+    /// pick a gear and rev their engines. Under the false-start rule
+    /// (`RaceRules::jump_start`) a driver's car in gear with the throttle
+    /// open is let go of through the countdown into the race
+    /// (`crate::race_start::releases`), and one that moves off its slot has
+    /// jumped the start.
     fn hold_cars_on_grid(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
         let dt = self.dt();
+        let watch = self.jump_watch_active();
+        let drivers: std::collections::BTreeSet<PlayerId> = if watch {
+            self.session
+                .participants
+                .keys()
+                .filter(|id| {
+                    !self.is_ai_player(id) && !self.debug.stand_in_driver && !self.away.contains(id)
+                })
+                .copied()
+                .collect()
+        } else {
+            Default::default()
+        };
+        let tick = self.session.current_tick;
+        let rate = self.tick_rate_hz;
         for state in self.session.participants.values_mut() {
             let input = inputs.get(&state.player_id).copied().unwrap_or_default();
-            if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
-                physics::update_car_on_grid(state, config, &input, dt);
+            let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state)
+            else {
+                continue;
+            };
+            let id = state.player_id;
+            if watch && self.race_start.released.contains(&id) {
+                physics::update_car_3d(state, config, &input, &self.track_config, dt);
+                let _ = physics::update_track_progress_3d(state, &self.track_config, tick, rate);
+                let slot = self
+                    .track_config
+                    .start_positions
+                    .iter()
+                    .find(|s| s.position == state.grid_position);
+                if slot.is_some_and(|slot| crate::race_start::jumped(state, slot))
+                    && self.race_start.jumped.insert(id)
+                {
+                    info!("Jump start: car on slot {}", state.grid_position);
+                }
+                continue;
             }
+            physics::update_car_on_grid(state, config, &input, dt);
+            if drivers.contains(&id) && crate::race_start::releases(state, &input) {
+                self.race_start.released.insert(id);
+            }
+        }
+    }
+
+    /// Whether the countdown running now ends in the green light of a
+    /// standing start under the false-start rule.
+    fn jump_watch_active(&self) -> bool {
+        self.session.race_rules.jump_start
+            && self.session.game_mode == GameMode::Countdown
+            && self.session.next_mode == Some(GameMode::Race)
+            && self.session.countdown_ticks_remaining.is_some()
+            && !self.formation_lap_due()
+    }
+
+    /// Whether the race about to start drives a formation (or pace) lap
+    /// first: its rules ask for one and this start has not run it.
+    fn formation_lap_due(&self) -> bool {
+        self.session.race_rules.has_formation_lap()
+            && !self.race_start.lap_run
+            && !self.track_config.start_positions.is_empty()
+            && crate::laps::track_length_m(&self.track_config) > 0.0
+    }
+
+    /// The countdown has run out into a formation lap: every car is let go
+    /// of, held to the formation pace, the clock stopped until the field is
+    /// back (`tick_formation`).
+    fn begin_formation(&mut self) {
+        let total = crate::laps::track_length_m(&self.track_config);
+        let rolling = self.session.race_rules.start == crate::data::StartType::Rolling;
+        self.race_start.formation = Some(crate::race_start::Formation::begin(
+            self.session
+                .participants
+                .values()
+                .filter(|s| s.damage.is_drivable && !s.towed && !s.in_garage && !s.is_ghost()),
+            &self.track_config,
+            total,
+            rolling,
+            self.session.current_tick,
+            self.tick_rate_hz,
+        ));
+        for state in self.session.participants.values_mut() {
+            state.speed_cap_mps = crate::race_start::FORMATION_SPEED_MPS;
+            // The automatic box takes first as the field moves off.
+            if state.auto_gearbox && state.gear == 0 {
+                state.gear = 1;
+                state.auto_shift_hold_ticks = 0;
+            }
+        }
+        info!(
+            "Session {}: {} lap begins",
+            self.session.id,
+            if rolling { "pace" } else { "formation" }
+        );
+    }
+
+    /// One tick of the formation lap: the field driven as in a race, held
+    /// to the formation pace, no lap timed; over the approach each car is
+    /// driven onto its slot and stopped there (`crate::race_start`). A
+    /// standing start counts the lights down once every car is home; a
+    /// rolling start goes green as the leader reaches the line.
+    fn tick_formation(&mut self, inputs: &HashMap<PlayerId, PlayerInputData>) {
+        use crate::race_start::{approach_input, APPROACH_M};
+        let total = crate::laps::track_length_m(&self.track_config);
+        let dt = self.dt();
+        self.update_air();
+        let Some(formation) = self.race_start.formation.as_mut() else {
+            return;
+        };
+        let rolling = formation.rolling;
+
+        // Each car's pace (single file, in grid order), and the server
+        // drives each car over its approach to its slot.
+        let field: std::collections::BTreeMap<PlayerId, (f32, bool)> = self
+            .session
+            .participants
+            .values()
+            .map(|s| {
+                let running = s.is_on_track && s.damage.is_drivable && !s.towed && !s.in_garage;
+                (s.player_id, (s.speed_mps, running))
+            })
+            .collect();
+        let paces = formation.paces(&field, total);
+        let mut inputs = inputs.clone();
+        if !rolling {
+            for state in self.session.participants.values() {
+                let Some(car) = formation.cars.get(&state.player_id) else {
+                    continue;
+                };
+                if car.home || car.left_m > APPROACH_M {
+                    continue;
+                }
+                let Some(config) = self.car_configs.get(&state.car_config_id) else {
+                    continue;
+                };
+                let pace = paces.get(&state.player_id).copied().unwrap_or(0.0);
+                inputs.insert(
+                    state.player_id,
+                    approach_input(state, config, &self.track_config, car, pace),
+                );
+            }
+        }
+
+        let tick = self.session.current_tick;
+        let rate = self.tick_rate_hz;
+        for state in self.session.participants.values_mut() {
+            let input = inputs.get(&state.player_id).copied().unwrap_or_default();
+            let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state)
+            else {
+                continue;
+            };
+            let Some(car) = formation.cars.get_mut(&state.player_id).filter(|c| !c.home) else {
+                // Home on its slot (or never part of the lap): held.
+                physics::update_car_on_grid(state, config, &input, dt);
+                continue;
+            };
+            // Held to it as by a limiter; a car told to wait is held still
+            // (a cap of 0 is none).
+            state.speed_cap_mps = paces
+                .get(&state.player_id)
+                .copied()
+                .unwrap_or(crate::race_start::FORMATION_SPEED_MPS)
+                .max(0.05);
+            // The approach drives on the automatic box, as the pit route
+            // does: a car slowed to a stop in a high gear would stall.
+            if !rolling && car.left_m <= APPROACH_M && car.own_auto_gearbox.is_none() {
+                car.own_auto_gearbox = Some(state.auto_gearbox);
+                state.auto_gearbox = true;
+            }
+            physics::update_car_3d(state, config, &input, &self.track_config, dt);
+            // Nothing is timed on the formation lap.
+            let _ = physics::update_track_progress_3d(state, &self.track_config, tick, rate);
+        }
+        let mut state_refs: Vec<&mut CarState> = self.session.participants.values_mut().collect();
+        physics::check_collisions_refs(&mut state_refs, &self.car_configs);
+        physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
+
+        // Each car's headway, and who is home.
+        let Some(formation) = self.race_start.formation.as_mut() else {
+            return;
+        };
+        let timed_out = tick >= formation.deadline_tick;
+        for state in self.session.participants.values_mut() {
+            formation.advance(state, total);
+            let Some(car) = formation.cars.get_mut(&state.player_id) else {
+                continue;
+            };
+            if car.home || rolling {
+                continue;
+            }
+            let out = !state.damage.is_drivable || state.towed || state.in_garage;
+            let stopped = car.left_m <= crate::race_start::HOME_M
+                && state.speed_mps < crate::race_start::HOME_SPEED_MPS;
+            if !(out || stopped || car.left_m < -5.0 || timed_out) {
+                continue;
+            }
+            car.home = true;
+            state.speed_cap_mps = 0.0;
+            if let Some(own) = car.own_auto_gearbox.take() {
+                state.auto_gearbox = own;
+            }
+            if out {
+                continue;
+            }
+            if let Some(slot) = self
+                .track_config
+                .start_positions
+                .iter()
+                .find(|s| s.position == state.grid_position)
+            {
+                place_still(state, slot.x, slot.y, slot.z, slot.yaw_rad);
+            }
+            crate::race_start::reset_laps(state, &self.track_config);
+            state.gear = 0;
+        }
+
+        if rolling {
+            let green = formation.leader_left_m().is_none_or(|left| left <= 0.0) || timed_out;
+            if green {
+                self.race_start.formation = None;
+                self.race_start.lap_run = true;
+                for state in self.session.participants.values_mut() {
+                    state.speed_cap_mps = 0.0;
+                    crate::race_start::reset_laps(state, &self.track_config);
+                }
+                info!("Session {}: rolling start, green", self.session.id);
+                self.session.next_mode = None;
+                self.transition_from_countdown(GameMode::Race);
+            }
+        } else if formation.all_home() {
+            self.race_start.formation = None;
+            self.race_start.lap_run = true;
+            self.session.countdown_ticks_remaining = Some(
+                (self.tick_rate_hz as u32 * crate::race_start::LIGHTS_SECONDS as u32)
+                    .min(u16::MAX as u32) as u16,
+            );
+            info!(
+                "Session {}: the field is back on the grid, the lights",
+                self.session.id
+            );
         }
     }
 
@@ -1966,6 +2220,24 @@ impl GameSession {
         self.session.qualifying_cutoff_pct = crate::data::clamp_qualifying_cutoff(pct);
     }
 
+    /// The race-control rules (`CreateSession.race_rules`): see
+    /// [`crate::data::RaceRules`].
+    pub fn set_race_rules(&mut self, rules: crate::data::RaceRules) {
+        self.session.race_rules = rules;
+    }
+
+    /// What the race is doing for telemetry (`CompactTelemetry.race_phase`):
+    /// its formation or pace lap; `None` otherwise.
+    pub fn race_phase(&self) -> Option<u8> {
+        use crate::race_start::RacePhase;
+        let formation = self.race_start.formation.as_ref()?;
+        Some(if formation.rolling {
+            RacePhase::PaceLap
+        } else {
+            RacePhase::Formation
+        } as u8)
+    }
+
     /// The race's pit-stop rule (`CreateSession.mandatory_stops` and
     /// `compound_change`, clamped): see [`crate::data::PitRule`].
     pub fn set_pit_rule(&mut self, mandatory_stops: u8, compound_change: bool) {
@@ -2481,6 +2753,9 @@ impl GameSession {
         if self.session.game_mode == GameMode::Race {
             return Some("A race is under way: watch it instead");
         }
+        if self.race_start.formation.is_some() {
+            return Some("The formation lap is under way: watch it instead");
+        }
         if self.is_weekend()
             && self.weekend.phase == crate::weekend::WeekendPhase::Qualifying
             && self.session.state != SessionState::Finished
@@ -2503,6 +2778,13 @@ impl GameSession {
     /// Set the game mode
     pub fn set_game_mode(&mut self, mode: GameMode) {
         self.session.game_mode = mode;
+        // A formation lap belongs to the countdown it was driven in: a mode
+        // set over it ends it, and its pace.
+        if mode != GameMode::Countdown && self.race_start.formation.take().is_some() {
+            for state in self.session.participants.values_mut() {
+                state.speed_cap_mps = 0.0;
+            }
+        }
         // A shoot-out and the lap allowance's count belong to the
         // qualifying they were run in.
         self.shootout = None;
@@ -4111,6 +4393,8 @@ impl GameSession {
         self.apply_grid_order();
         self.finish_deadline_tick = None;
         self.race_end = RaceEnd::default();
+        // A fresh start: its formation lap still to drive, nobody let go.
+        self.race_start = Default::default();
         // A fresh race, a fresh timing sheet: the session's bests and every
         // half-recorded ghost lap belong to the race that just ended.
         self.session_best_lap_ms = None;
@@ -6001,6 +6285,7 @@ impl GameSession {
             race_clock: self.race_clock(),
             sky: Some(self.sky_now()),
             yellow_flags: self.yellow_flags(),
+            race_phase: self.race_phase(),
         }
     }
 

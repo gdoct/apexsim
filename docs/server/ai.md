@@ -179,6 +179,10 @@ next `Brake` phase, its slowest point, the hand at the apex).
 - **Under a yellow** (`CarState::flag_yellow`, [sessions](sessions.md#flags)):
   the pace is 95% of the plan under a single and 85% under a double, and no
   pass is begun unless the car ahead is crawling (the incident itself).
+- **Under race control's pace** (`CarState::speed_cap_mps`, a formation or
+  pace lap; [sessions](sessions.md#race-start-formation-lap-rolling-start-false-starts)):
+  no pass is begun unless the car ahead is crawling; the physics holds the
+  car to the pace, and over the approach to its slot the server drives it.
 - **Mistakes**: with a car within 0.6 s behind, a driver now and then
   gets a corner wrong, by its inconsistency (`MISTAKE_CHANCE`, one roll a
   corner as it nears the braking zone). Away from pressure it does too, at

@@ -174,6 +174,11 @@ pub enum ClientMessage {
         /// and left off the wire then.
         #[serde(default, skip_serializing_if = "is_zero_u8")]
         qualifying_lap_allowance: u8,
+        /// The race-control rules (`data::RaceRules`: the start, false
+        /// starts), keys snake_case, each left off at its default; the whole
+        /// table left off the wire when nothing is set.
+        #[serde(default, skip_serializing_if = "RaceRules::is_default")]
+        race_rules: RaceRules,
     },
     /// Asks for a track's fastest laps (`records::RecordStore::leaderboard`):
     /// each driver's best with each car, or in one car (`car_config_id`).
@@ -515,6 +520,11 @@ pub struct SessionJoinedData {
     /// for none.
     #[serde(default, skip_serializing_if = "is_zero_u8")]
     pub qualifying_lap_allowance: u8,
+    /// The race-control rules, as `CreateSession.race_rules` (its keys stay
+    /// snake_case); left off the wire when nothing is set (and absent from
+    /// a server that predates the field).
+    #[serde(default, skip_serializing_if = "RaceRules::is_default")]
+    pub race_rules: RaceRules,
 }
 
 /// Where a race weekend stands (`crate::weekend`). Sent to every member of
@@ -1474,19 +1484,29 @@ pub struct CompactTelemetry {
     /// the sky: left off while none is out.
     #[serde(default)]
     pub yellow_flags: Option<YellowFlags>,
+    /// What the race is doing beyond its state and mode
+    /// (`crate::race_start::RacePhase`): 1 the formation lap of a standing
+    /// start, 2 a rolling start's pace lap (both run in the countdown's
+    /// state, with no countdown). Appended after the yellows; left off
+    /// otherwise.
+    #[serde(default)]
+    pub race_phase: Option<u8>,
 }
 
 /// Positional like the struct it is, but with the trailing fields left off
 /// when there is nothing in them: the race clock goes when none of it, the
-/// sky and the yellows is there, the sky when neither it nor the yellows
-/// is, and the yellows when none is out.
+/// sky, the yellows and the phase is there, the sky when none of it, the
+/// yellows and the phase is, the yellows when neither they nor the phase
+/// is out, and the phase when there is none.
 impl Serialize for CompactTelemetry {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
-        let with_flags = self.yellow_flags.is_some();
+        let with_phase = self.race_phase.is_some();
+        let with_flags = self.yellow_flags.is_some() || with_phase;
         let with_sky = self.sky.is_some() || with_flags;
         let with_clock = self.race_clock.is_some() || with_sky;
-        let len = 5 + with_clock as usize + with_sky as usize + with_flags as usize;
+        let len =
+            5 + with_clock as usize + with_sky as usize + with_flags as usize + with_phase as usize;
         let mut s = serializer.serialize_struct("CompactTelemetry", len)?;
         s.serialize_field("server_tick", &self.server_tick)?;
         s.serialize_field("session_state", &self.session_state)?;
@@ -1507,6 +1527,11 @@ impl Serialize for CompactTelemetry {
             s.serialize_field("yellow_flags", &self.yellow_flags)?;
         } else {
             s.skip_field("yellow_flags")?;
+        }
+        if with_phase {
+            s.serialize_field("race_phase", &self.race_phase)?;
+        } else {
+            s.skip_field("race_phase")?;
         }
         s.end()
     }
@@ -2789,6 +2814,7 @@ mod tests {
             race_clock: None,
             sky: None,
             yellow_flags: None,
+            race_phase: None,
         });
 
         let named_bytes = rmp_serde::to_vec_named(&named).unwrap();
@@ -3292,6 +3318,7 @@ mod tests {
                 sector_m: 250,
                 sectors: vec![[3, 1], [4, 2]],
             }),
+            race_phase: None,
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
@@ -3951,6 +3978,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSession: {}", hex(&create_bytes));
@@ -4003,6 +4031,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAssists: {}", hex(&joined_bytes));
@@ -4081,6 +4110,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionDamage: {}", hex(&create_bytes));
@@ -4105,6 +4135,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedNoDamage: {}", hex(&joined_bytes));
@@ -4135,6 +4166,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let full_bytes = rmp_serde::to_vec_named(&full).unwrap();
         assert!(!full_bytes.windows(6).any(|w| w == b"damage"));
@@ -4205,6 +4237,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(107))).unwrap();
         println!("C_CreateSessionQualifyingCutoff: {}", hex(&create_bytes));
@@ -4237,6 +4270,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingCutoff: {}", hex(&joined_bytes));
@@ -4292,6 +4326,7 @@ mod tests {
                 compound_change: false,
                 qualifying_format: format,
                 qualifying_lap_allowance: allowance,
+                race_rules: Default::default(),
             }
         };
         let create_bytes =
@@ -4330,6 +4365,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Shootout,
             qualifying_lap_allowance: 3,
+            race_rules: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedShootout: {}", hex(&joined_bytes));
@@ -4460,6 +4496,7 @@ mod tests {
             compound_change: change,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(2, true)).unwrap();
         println!("C_CreateSessionPitRule: {}", hex(&create_bytes));
@@ -4491,6 +4528,7 @@ mod tests {
             compound_change: true,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedPitRule: {}", hex(&joined_bytes));
@@ -4525,6 +4563,133 @@ mod tests {
             ServerMessage::SessionRoster(data) => assert!(data.entries[0].missed_stops),
             _ => panic!("Wrong message type"),
         }
+    }
+
+    /// The race-control rules: a create for a rolling start (with false
+    /// starts watched and a formation lap asked for), the joined echo, and
+    /// a telemetry frame on the pace lap (`race_phase` 2, after a nil
+    /// clock, sky and yellows). No rule stays off the wire. Printed as
+    /// `C_CreateSessionRaceRules` / `S_SessionJoinedRaceRules` /
+    /// `S_TelemetryCompactPaceLap` (`cargo test race_rules_wire_format --
+    /// --nocapture`).
+    #[test]
+    fn test_race_rules_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let rules = RaceRules {
+            start: StartType::Rolling,
+            formation_lap: true,
+            jump_start: true,
+        };
+        let create = |race_rules: RaceRules| ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules,
+        };
+        let create_bytes = rmp_serde::to_vec_named(&create(rules)).unwrap();
+        println!("C_CreateSessionRaceRules: {}", hex(&create_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession { race_rules, .. } => assert_eq!(race_rules, rules),
+            _ => panic!("Wrong message type"),
+        }
+        let none = String::from_utf8_lossy(
+            &rmp_serde::to_vec_named(&create(RaceRules::default())).unwrap(),
+        )
+        .into_owned();
+        assert!(!none.contains("race_rules"));
+        // One rule set: only its key goes.
+        let one = String::from_utf8_lossy(
+            &rmp_serde::to_vec_named(&create(RaceRules {
+                jump_start: true,
+                ..Default::default()
+            }))
+            .unwrap(),
+        )
+        .into_owned();
+        assert!(one.contains("jump_start") && !one.contains("formation_lap"));
+
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 3,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            qualifying_seconds: None,
+            weekend: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: rules,
+        });
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedRaceRules: {}", hex(&joined_bytes));
+        assert!(joined_bytes.windows(9).any(|w| w == b"RaceRules"));
+        match rmp_serde::from_slice::<ServerMessage>(&joined_bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => assert_eq!(data.race_rules, rules),
+            _ => panic!("Wrong message type"),
+        }
+
+        let frame = ServerMessage::TelemetryCompact(CompactTelemetry {
+            server_tick: 500,
+            session_state: SessionState::Countdown,
+            game_mode: GameMode::Countdown,
+            countdown_ms: None,
+            car_states: vec![],
+            race_clock: None,
+            sky: None,
+            yellow_flags: None,
+            race_phase: Some(crate::race_start::RacePhase::PaceLap as u8),
+        });
+        let frame_bytes = rmp_serde::to_vec(&frame).unwrap();
+        println!("S_TelemetryCompactPaceLap: {}", hex(&frame_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&frame_bytes).unwrap() {
+            ServerMessage::TelemetryCompact(t) => {
+                assert_eq!(t.race_phase, Some(2));
+                assert_eq!((t.race_clock, t.sky, t.yellow_flags), (None, None, None));
+            }
+            _ => panic!("Wrong message type"),
+        }
+        // Without a phase the frame is the five fields it always was.
+        let bare = rmp_serde::to_vec(&ServerMessage::TelemetryCompact(CompactTelemetry {
+            race_phase: None,
+            ..match frame {
+                ServerMessage::TelemetryCompact(t) => t,
+                _ => unreachable!(),
+            }
+        }))
+        .unwrap();
+        assert_eq!(
+            bare.len(),
+            frame_bytes.len() - 4,
+            "nil clock, sky, yellows and the phase"
+        );
     }
 
     /// A timed race: a create for two hours, the joined echo, and a
@@ -4562,6 +4727,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(7200))).unwrap();
         println!("C_CreateSessionRaceTime: {}", hex(&create_bytes));
@@ -4590,6 +4756,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedRaceTime: {}", hex(&joined_bytes));
@@ -4608,6 +4775,7 @@ mod tests {
                 race_clock,
                 sky: None,
                 yellow_flags: None,
+                race_phase: None,
             })
         };
         let clock_bytes = rmp_serde::to_vec(&frame(Some(RaceClock {
@@ -4677,6 +4845,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(900))).unwrap();
         println!("C_CreateSessionQualifyingTime: {}", hex(&create_bytes));
@@ -4711,6 +4880,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingTime: {}", hex(&joined_bytes));
@@ -4734,6 +4904,7 @@ mod tests {
             }),
             sky: None,
             yellow_flags: None,
+            race_phase: None,
         });
         let clock_bytes = rmp_serde::to_vec(&clock).unwrap();
         println!("S_TelemetryCompactQualifyingClock: {}", hex(&clock_bytes));
@@ -4798,6 +4969,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(format.clone()))).unwrap();
         println!("C_CreateSessionWeekend: {}", hex(&create_bytes));
@@ -4849,6 +5021,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedWeekend: {}", hex(&joined_bytes));
@@ -4977,6 +5150,7 @@ mod tests {
             }),
             sky: None,
             yellow_flags: None,
+            race_phase: None,
         });
         let clock_bytes = rmp_serde::to_vec(&clock).unwrap();
         println!("S_TelemetryCompactPracticeClock: {}", hex(&clock_bytes));
@@ -5026,6 +5200,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAiSkill: {}", hex(&create_bytes));
@@ -5050,6 +5225,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAiSkill: {}", hex(&joined_bytes));
@@ -5080,6 +5256,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let mixed_bytes = rmp_serde::to_vec_named(&mixed).unwrap();
         assert!(!mixed_bytes.windows(8).any(|w| w == b"ai_skill"));
@@ -5141,6 +5318,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAir: {}", hex(&create_bytes));
@@ -5176,6 +5354,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAir: {}", hex(&joined_bytes));
@@ -5228,6 +5407,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(sky)).unwrap();
         println!("C_CreateSessionSky: {}", hex(&create_bytes));
@@ -5257,6 +5437,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedSky: {}", hex(&joined_bytes));
@@ -5309,6 +5490,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         });
         let sun_bytes = rmp_serde::to_vec_named(&sun_joined).unwrap();
         println!("S_SessionJoinedSun: {}", hex(&sun_bytes));
@@ -5360,6 +5542,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         });
         let forecast_joined_bytes = rmp_serde::to_vec_named(&forecast_joined).unwrap();
         println!("S_SessionJoinedForecast: {}", hex(&forecast_joined_bytes));
@@ -5394,6 +5577,7 @@ mod tests {
             race_clock: None,
             sky: Some(now),
             yellow_flags: None,
+            race_phase: None,
         });
         let frame_bytes = rmp_serde::to_vec(&frame).unwrap();
         println!("S_TelemetryCompactSky: {}", hex(&frame_bytes));
@@ -5408,6 +5592,7 @@ mod tests {
         let bare = ServerMessage::TelemetryCompact(CompactTelemetry {
             sky: None,
             yellow_flags: None,
+            race_phase: None,
             ..match frame {
                 ServerMessage::TelemetryCompact(t) => t,
                 _ => unreachable!(),
@@ -5457,6 +5642,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         // No order: the bytes of every earlier create.
         let plain = rmp_serde::to_vec_named(&create(Vec::new())).unwrap();
@@ -6006,6 +6192,7 @@ mod tests {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
         let setup = CarSetup {
             tyre_pressure_front: -2,

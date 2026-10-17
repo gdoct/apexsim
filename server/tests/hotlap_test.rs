@@ -404,6 +404,7 @@ async fn relocate_is_refused_in_practice_and_a_new_driver_has_no_ghost() {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         })
         .await?;
         host.wait_for(|m| match m {

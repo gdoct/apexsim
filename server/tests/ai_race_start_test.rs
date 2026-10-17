@@ -153,6 +153,32 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
     race.set_tick_rate(TICK_RATE);
     race.spawn_ai_drivers();
     assert_eq!(race.session.participants.len(), ai_count as usize);
+    // `SURVEY_START=formation` (or `rolling`) gets the race away behind a
+    // formation lap (a rolling start's pace lap): the race is handed over
+    // at the green.
+    let rules = match std::env::var("SURVEY_START").as_deref() {
+        Ok("formation") => Some(RaceRules {
+            formation_lap: true,
+            ..Default::default()
+        }),
+        Ok("rolling") => Some(RaceRules {
+            start: StartType::Rolling,
+            ..Default::default()
+        }),
+        _ => None,
+    };
+    if let Some(rules) = rules {
+        race.set_race_rules(rules);
+        race.start_countdown_mode(0, GameMode::Race);
+        for _ in 0..(TICK_RATE as u32 * 900) {
+            if race.session.state == SessionState::Racing {
+                break;
+            }
+            tick(&mut race);
+        }
+        assert_eq!(race.session.state, SessionState::Racing, "no green");
+        return race;
+    }
     race.set_game_mode(GameMode::Race);
     race
 }

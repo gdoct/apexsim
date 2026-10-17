@@ -1733,6 +1733,11 @@ pub struct CarState {
     pub flag_yellow: u8,
     #[serde(default)]
     pub flag_blue: bool,
+    /// The pace race control holds the car to, m/s: a formation lap's
+    /// (`crate::race_start`); 0 for none. The physics holds a car to it as
+    /// the pit limiter does, and the AI starts no pass under it.
+    #[serde(default)]
+    pub speed_cap_mps: f32,
 
     /// The headlights are on (`crate::headlights`), and the driver is
     /// flashing them. Telemetry carries both as bits 5 and 6 of
@@ -2110,6 +2115,7 @@ impl CarState {
             drs_allowed: false,
             flag_yellow: 0,
             flag_blue: false,
+            speed_cap_mps: 0.0,
             drs_open: false,
             headlights: false,
             headlight_flash: false,
@@ -3615,6 +3621,60 @@ impl PitRule {
     }
 }
 
+/// How a race is started (`RaceRules::start`). Encoded as a small integer;
+/// `Standing` (the default) is left off the wire.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
+pub enum StartType {
+    /// From the grid, at rest, when the lights go out.
+    #[default]
+    Standing = 0,
+    /// Behind a pace lap, the field running in grid order: green as the
+    /// leader comes back to the line (`crate::race_start`).
+    Rolling = 1,
+}
+
+impl StartType {
+    pub fn is_standing(&self) -> bool {
+        *self == StartType::Standing
+    }
+}
+
+/// The race-control rules a host sets on create (`CreateSession.race_rules`,
+/// echoed in `SessionJoined.RaceRules`): how the race starts and what is
+/// penalised. Every field at its default is a race as before, and is left
+/// off the wire; so is the whole table when nothing is set.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RaceRules {
+    /// Standing or rolling start ([`StartType`]).
+    #[serde(default, skip_serializing_if = "StartType::is_standing")]
+    pub start: StartType,
+    /// A standing start is preceded by a formation lap: the field drives a
+    /// lap behind the leader at a capped pace, no overtaking, and lines up
+    /// again on the grid (`crate::race_start`). A rolling start always has
+    /// its pace lap.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub formation_lap: bool,
+    /// False starts: through the countdown a driver's car is not held on
+    /// its slot, and one that moves off it before the lights go out has
+    /// jumped the start (`crate::race_start::JUMP_START_M`), penalised with
+    /// a drive-through.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub jump_start: bool,
+}
+
+impl RaceRules {
+    pub fn is_default(&self) -> bool {
+        *self == RaceRules::default()
+    }
+
+    /// The start drives a lap before the green: a formation lap, or a
+    /// rolling start's pace lap.
+    pub fn has_formation_lap(&self) -> bool {
+        self.formation_lap || self.start == StartType::Rolling
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RaceSession {
     pub id: SessionId,
@@ -3688,6 +3748,10 @@ pub struct RaceSession {
     /// shoot-out gives one whatever it says.
     #[serde(default)]
     pub qualifying_lap_allowance: u8,
+    /// The race-control rules ([`RaceRules`]): the start, false starts,
+    /// penalties. All off by default.
+    #[serde(default)]
+    pub race_rules: RaceRules,
     pub current_tick: u32,
     pub countdown_ticks_remaining: Option<u16>,
     /// Game mode to transition to when the countdown reaches zero.
@@ -3731,6 +3795,7 @@ impl RaceSession {
             pit_rule: PitRule::default(),
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: RaceRules::default(),
             weekend: None,
             current_tick: 0,
             countdown_ticks_remaining: None,

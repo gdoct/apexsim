@@ -52,16 +52,6 @@ trace; a driver at 80 ms artificial latency.
 
 ## P2: depth
 
-### 4. Formation lap and rolling starts
-
-- Start type (standing / rolling) and formation lap as `CreateSession`
-  rules echoed in `SessionJoined`; the field follows in grid order at a
-  capped speed; `FORMATION_LAP_WARMTH` goes once the lap warms the tyres.
-- A jump start recorded (penalised with the penalties gap).
-
-**Check:** session tests for both start types; the AI survey with rolling
-starts; a race start on screen.
-
 ### 5. Multi-class racing
 
 - A field per class (cars, count, AI level) in `CreateSession`; position in

@@ -130,6 +130,7 @@ async fn the_first_session_on_a_track_loads_its_sidecars_and_keeps_message_order
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         })
         .await?;
         host.send(&ClientMessage::LeaveSession).await?;

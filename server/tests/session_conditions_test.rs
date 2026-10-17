@@ -144,6 +144,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -346,6 +347,7 @@ async fn the_hosts_damage_rule_holds_for_every_car() {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -430,6 +432,7 @@ async fn the_hosts_ai_level_sets_the_field() {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -498,6 +501,7 @@ async fn the_hosts_race_time_is_echoed_and_listed() {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         })
         .await?;
         let joined = host.wait_joined().await?;

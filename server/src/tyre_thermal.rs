@@ -790,9 +790,11 @@ pub fn start_temperature_c(tire: &TireConfig, surface: &TrackSurface) -> f32 {
 }
 
 /// Share of the way from [`start_temperature_c`] to the optimum a race
-/// grid's tyres are at. There is no formation lap to drive, so the grid is
-/// given the warmth one puts in: a car without blankets starts the race on
-/// tyres that are cool rather than stone cold.
+/// grid's tyres are at: the warmth a formation lap's weaving and
+/// accelerations put in, so a car without blankets starts the race on
+/// tyres that are cool rather than stone cold. A formation lap driven at
+/// `race_start::FORMATION_SPEED_MPS` holds it but adds none, so it is
+/// given with one or without.
 pub const FORMATION_LAP_WARMTH: f32 = 0.5;
 
 /// What a race grid's tyres are at when the lights go out.

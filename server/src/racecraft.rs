@@ -1152,6 +1152,11 @@ fn start_tactic(
     if state.flag_yellow > 0 && !crawling {
         return None;
     }
+    // Nor while race control holds the field to a pace (a formation lap):
+    // the order is the grid's.
+    if state.speed_cap_mps > 0.0 && !crawling {
+        return None;
+    }
     // Where to pass: into the braking zone at the end of the run that
     // closes most (the longest straight, DRS open on it), unless held up
     // so long that any corner will do.

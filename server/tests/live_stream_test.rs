@@ -115,6 +115,7 @@ async fn a_live_session_is_watched_as_a_stream_and_recorded() {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         })
         .await?;
         let joined = host.wait_joined().await?;

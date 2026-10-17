@@ -104,6 +104,7 @@ pub(crate) async fn handle_message(
             compound_change,
             qualifying_format,
             qualifying_lap_allowance,
+            race_rules,
         } => {
             handle_create_session(
                 ctx,
@@ -125,6 +126,7 @@ pub(crate) async fn handle_message(
                 qualifying_cutoff_pct,
                 crate::data::PitRule::clamped(mandatory_stops, compound_change),
                 (qualifying_format, qualifying_lap_allowance),
+                race_rules,
             )
             .await;
         }
@@ -382,6 +384,7 @@ async fn handle_create_session(
     qualifying_cutoff_pct: Option<u16>,
     pit_rule: crate::data::PitRule,
     (qualifying_format, qualifying_lap_allowance): (crate::data::QualifyingFormat, u8),
+    race_rules: crate::data::RaceRules,
 ) {
     let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
@@ -518,6 +521,7 @@ async fn handle_create_session(
         game_session.set_pit_rule(pit_rule.mandatory_stops, pit_rule.compound_change);
         game_session.set_qualifying_format(qualifying_format);
         game_session.set_qualifying_lap_allowance(qualifying_lap_allowance);
+        game_session.set_race_rules(race_rules);
         game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
     }
     if is_hotlap_watch {
@@ -663,6 +667,7 @@ async fn handle_create_session(
         let pit_rule = game_session.session.pit_rule;
         let qualifying_format = game_session.session.qualifying_format;
         let qualifying_lap_allowance = game_session.session.qualifying_lap_allowance;
+        let race_rules = game_session.session.race_rules;
         let phase_states = game_session.phase_state_messages();
         drop(state_write);
         let _ = ctx
@@ -684,6 +689,7 @@ async fn handle_create_session(
                     compound_change: pit_rule.compound_change,
                     qualifying_format,
                     qualifying_lap_allowance,
+                    race_rules,
                 }),
             )
             .await;
@@ -863,6 +869,7 @@ async fn start_demo_session(
                 compound_change: false,
                 qualifying_format: QualifyingFormat::Open,
                 qualifying_lap_allowance: 0,
+                race_rules: Default::default(),
             }),
         )
         .await;
@@ -982,6 +989,7 @@ pub(crate) async fn handle_join_session(
         let pit_rule = game_session.session.pit_rule;
         let qualifying_format = game_session.session.qualifying_format;
         let qualifying_lap_allowance = game_session.session.qualifying_lap_allowance;
+        let race_rules = game_session.session.race_rules;
         let phase_states = game_session.phase_state_messages();
         drop(state_write);
         let _ = ctx
@@ -1003,6 +1011,7 @@ pub(crate) async fn handle_join_session(
                     compound_change: pit_rule.compound_change,
                     qualifying_format,
                     qualifying_lap_allowance,
+                    race_rules,
                 }),
             )
             .await;
@@ -1071,6 +1080,7 @@ async fn rejoin_session(
         compound_change: game_session.session.pit_rule.compound_change,
         qualifying_format: game_session.session.qualifying_format,
         qualifying_lap_allowance: game_session.session.qualifying_lap_allowance,
+        race_rules: game_session.session.race_rules,
     });
     let mut messages = vec![joined];
     messages.extend(game_session.phase_state_messages());
@@ -1307,7 +1317,11 @@ pub(crate) async fn handle_join_as_spectator(
         race_seconds,
         qualifying_seconds,
         weekend,
-        (qualifying_cutoff_pct, pit_rule, (qualifying_format, qualifying_lap_allowance)),
+        (
+            qualifying_cutoff_pct,
+            pit_rule,
+            (qualifying_format, qualifying_lap_allowance, race_rules),
+        ),
         phase_states,
         sectors,
         road,
@@ -1326,7 +1340,11 @@ pub(crate) async fn handle_join_as_spectator(
             race_seconds,
             qualifying_seconds,
             weekend,
-            (qualifying_cutoff_pct, pit_rule, (qualifying_format, qualifying_lap_allowance)),
+            (
+                qualifying_cutoff_pct,
+                pit_rule,
+                (qualifying_format, qualifying_lap_allowance, race_rules),
+            ),
             phase_states,
             sectors,
             road,
@@ -1354,6 +1372,7 @@ pub(crate) async fn handle_join_as_spectator(
                         (
                             s.session.qualifying_format,
                             s.session.qualifying_lap_allowance,
+                            s.session.race_rules,
                         ),
                     ),
                     s.phase_state_messages(),
@@ -1379,7 +1398,7 @@ pub(crate) async fn handle_join_as_spectator(
             (
                 qualifying_cutoff_pct,
                 pit_rule,
-                (qualifying_format, qualifying_lap_allowance),
+                (qualifying_format, qualifying_lap_allowance, race_rules),
             ),
             phase_states,
             sectors,
@@ -1411,6 +1430,7 @@ pub(crate) async fn handle_join_as_spectator(
                     compound_change: pit_rule.compound_change,
                     qualifying_format,
                     qualifying_lap_allowance,
+                    race_rules,
                 }),
             )
             .await;

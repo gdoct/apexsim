@@ -166,6 +166,7 @@ async fn seat(
                     compound_change: false,
                     qualifying_format: QualifyingFormat::Open,
                     qualifying_lap_allowance: 0,
+                    race_rules: Default::default(),
                 })
                 .await?
         }

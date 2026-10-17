@@ -303,6 +303,7 @@ async fn start_free_practice(client: &mut ProtocolTestClient) {
             compound_change: false,
             qualifying_format: apexsim_server::data::QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         })
         .await;
     client
@@ -441,6 +442,7 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
             compound_change: false,
             qualifying_format: apexsim_server::data::QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         })
         .await;
     client

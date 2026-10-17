@@ -117,6 +117,30 @@ traffic.
 **Check:** `SURVEY_CARS=RssFormulaHybrid2021,KsFerrariSf70h,KsPorsche919Hybrid2016,fugazzi-sf26`
 on seeds 1-3, totals against the commit before.
 
+### 20. Race control on screen and its edges
+
+The race-start rules ([server/sessions.md](server/sessions.md#race-start-formation-lap-rolling-start-false-starts))
+are on the wire and run on the server; the client does not offer or show
+them yet, and the server leaves a few edges.
+
+- client: the create screen's race rules (`CreateSession.race_rules`:
+  Start Standing / Rolling, Formation lap, False starts), kept in the
+  profile, named in the summary; `SessionJoined.RaceRules` kept on the net
+  subsystem.
+- client: show the formation lap and the pace lap (`CompactTelemetry.race_phase`
+  1 / 2, in `Countdown` with no countdown): a FORMATION LAP banner and HUD
+  data point (`race.phase`), no lights until the countdown comes back.
+- The formation lap holds the grid's tyre warmth but puts none in (a
+  steady 30 m/s): weaving and the warm-up accelerations a driver does would,
+  and then `FORMATION_LAP_WARMTH` could go.
+- A rolling start runs single file; real ones line up two by two.
+- A car let go of on the grid (`jump_start`) is not collided with the held
+  cars; a hosted session (`HostedSpec`) and the lobby listing do not carry
+  the race rules; the spectator stream has no `race_phase`.
+
+**Check:** a formation lap and a rolling start on screen with a human in
+the field; `race_start_test`.
+
 ## P3: nice to have
 
 ### 11. Content tooling

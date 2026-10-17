@@ -1137,7 +1137,7 @@ fn lane_speed_mps(lane: &PitLane, s: f32) -> f32 {
 }
 
 /// Throttle and brake that bring `v` to `target`, m/s.
-fn pedals(target: f32, v: f32) -> (f32, f32) {
+pub(crate) fn pedals(target: f32, v: f32) -> (f32, f32) {
     let error = target - v;
     if error > 0.3 {
         ((error * 0.25).clamp(0.0, 1.0), 0.0)

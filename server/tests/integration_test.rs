@@ -148,6 +148,7 @@ impl TestClient {
             compound_change: false,
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
         };
 
         self.send_tcp_message(&msg).await?;

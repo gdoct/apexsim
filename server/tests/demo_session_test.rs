@@ -117,6 +117,7 @@ async fn test_demo_session_is_a_private_ai_race_watched_by_its_creator() {
         compound_change: false,
         qualifying_format: QualifyingFormat::Open,
         qualifying_lap_allowance: 0,
+        race_rules: Default::default(),
     })
     .await;
 
