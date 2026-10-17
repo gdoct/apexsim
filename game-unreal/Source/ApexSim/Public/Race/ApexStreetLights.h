@@ -55,6 +55,16 @@ namespace ApexLights
 	inline constexpr float TrussInnerDeg = 40.0f;
 	inline constexpr float TrussOuterDeg = 75.0f;
 
+	/**
+	 * A circuit with this many lamps lit is floodlit for racing (Marina
+	 * Bay's level has some 450; a circuit with a few masts has none at
+	 * all lit): its night exposure may stop down to FloodlitMaxEv. Under
+	 * the night sky's own ceiling (EV 8) a road lit like a night race's,
+	 * thousands of lux, read near white.
+	 */
+	inline constexpr int32 FloodlitLampCount = 100;
+	inline constexpr float FloodlitMaxEv = 11.0f;
+
 	/** Defaults of `apexsim.lights.Max` and `apexsim.lights.Range` (metres). */
 	inline constexpr int32 DefaultMaxLights = 90;
 	inline constexpr float DefaultRangeM = 260.0f;

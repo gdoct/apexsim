@@ -164,9 +164,6 @@ the launcher import with the network off.
   light rain, at road height and from above (2026-10-15). The water rows
   reach the state texture's A; `ApplyRoadStateGraph`'s puddle term is too
   weak against the wet road's own gloss, or not read.
-- At night under the floodlights (Mandarina Bay, 21:00) the road blows out
-  to a near-white yellow from the TV and overhead cameras: the asphalt's
-  texture is gone. Exposure against the floodlights' level.
 - The cloud dome at cloudy (0.5 cover) is an even field of small puffs,
   more altocumulus than scattered cumulus: the noise scales in
   `BuildCloudLayer` (90 m and 25 m) read small from the ground.

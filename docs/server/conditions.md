@@ -564,7 +564,11 @@ See [protocol.md](protocol.md) for the append-only rules.
   relit only when `LiveSkyMoved` says so); `FSkySite` (latitude, north from
   the catalog row's `bHasLocation` / `LatitudeDeg` / `NorthYawDeg`) turns
   the sun's bearing into the track frame. A director-owned unbound
-  post-process volume carries exposure, wet desaturation and bloom.
+  post-process volume carries exposure, wet desaturation and bloom. The
+  night's exposure ceiling is EV 8, so a dark circuit's night stays dark
+  with a lamp in view; a floodlit circuit (`ApexLights::FloodlitLampCount`,
+  100 lamps lit: Mandarina Bay has some 450) may stop down to
+  `FloodlitMaxEv` (11), or its road under the lights read near white.
 - `ApplyTrackLevelConditions` (once the track is built and visible): fog
   by weather, the road family's material roughness eased toward
   `ApexSky::WetRoadRoughness` (0.3) with the road's water (the road itself

@@ -109,6 +109,10 @@ plus `LookAt` stops ([content/props.md](content/props.md)).
 - Whether the sausage kerbs catch the AI: they lay 240 pieces here and 660
   on the Nordschleife, where the AI survey moved a little (more off-road
   and sliding, no retirements). Seen on screen inside the tight bends.
+- The road under the floodlights after the floodlit exposure ceiling
+  (2026-10-17): grey tarmac with pools of light from the TV and overhead
+  cameras (the 2995 m shot's road 27% darker, blown pixels 7.6% to 4%);
+  a human's eye on whether the night now reads too dark between lamps.
 
 ### R6. Nordschleife, sunny, TV lap and dressing stops
 

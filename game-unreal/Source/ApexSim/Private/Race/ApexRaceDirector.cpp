@@ -2025,7 +2025,12 @@ void AApexRaceDirector::ApplySkyLighting()
 		Settings.bOverride_AutoExposureMinBrightness = true;
 		Settings.AutoExposureMinBrightness = Sky.ExposureMinEv;
 		Settings.bOverride_AutoExposureMaxBrightness = true;
-		Settings.AutoExposureMaxBrightness = Sky.ExposureMaxEv;
+		// A floodlit circuit's night is lit like a stadium: the exposure
+		// may stop down for it, where a dark circuit keeps the night's
+		// ceiling (a lamp in view must not black it out).
+		const bool bFloodlit = Sky.bFloodlights && StreetLights.Num() >= ApexLights::FloodlitLampCount;
+		Settings.AutoExposureMaxBrightness = bFloodlit ? FMath::Max(Sky.ExposureMaxEv, ApexLights::FloodlitMaxEv)
+			: Sky.ExposureMaxEv;
 		Settings.bOverride_AutoExposureBias = true;
 		Settings.AutoExposureBias = Sky.ExposureBias;
 		Settings.bOverride_ColorSaturation = true;
@@ -2442,6 +2447,8 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 	ApplyRoadWetness();
 	ApplySnowCover();
 	UpdateFlags(0.0f, /*bForce*/ true);
+	// The lamps are in: a floodlit circuit's exposure ceiling follows them.
+	ApplySkyLighting();
 
 	UE_LOG(LogApexSim, Log, TEXT("Track level conditions applied: fog %.4f, %d road slots at wetness %.2f, %d floodlights, %d lamp faces, %d flag poles"),
 		Sky.FogDensity, RoadDryLook.Num(), Sky.RoadWetness, Masts, Lamps, FlagPoles.Num());
