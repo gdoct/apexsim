@@ -93,9 +93,11 @@ the same `ApexProps` code.
   extract (the map API tiles in `.cache/osm/nordschleife_tiles/` are
   newer than the cut) would change the woods and barriers, and so the
   walls: a refit is a groom and an AI survey of its own.
-- Spa: a large untextured white block stands left of Eau Rouge's
-  compression (seen from the road and from above, 2026-10-15 R1/R3 runs);
-  a prop or building without its material.
+- The kit's venue blocks (`media_centre`, the street circuits'
+  `skyline_*`) read as untextured white boxes from the road: plain
+  `pit_wall` / facade colours with no texture (Spa's Stand Endurance, the
+  Norisring's towers in the R11 run of 2026-10-17). Facade textures are
+  art.
 - Nordschleife: open sea on the horizon. Past the terrain's edge the view
   from the road (posts at 165 m, the descent, the Karussell) runs out to a
   flat blue band: the Eifel is inland, the horizon wants hills or haze.
@@ -121,9 +123,6 @@ the same `ApexProps` code.
   fan dressing): `--explain` tells them apart by asset only. Stamping each
   sub-layer in `surroundings::lay` would name the dossier area each came
   from.
-- The shipped `.ats` scenes carry no source stamps until each is dressed
-  again (`ats-dress --all` adds them and changes nothing else); until
-  then `--explain` reports every prop as owned by no pass.
 - `trace_layout.py` skips Marina Bay: no DEM sidecar, so no georeference
   (`dem_fetch.py MarinaBay`, or a georeference from the dossier's own fit
   without a DEM).

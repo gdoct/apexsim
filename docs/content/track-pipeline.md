@@ -176,6 +176,11 @@ stamp.
   the large family, 25 m or more always roofed, under 12 m dropped.
 - **Footprints** of stands and buildings are probed whole against every leg
   (`clear_footprint`) and stepped back up to 25 m or left out.
+- **A building block on a paved apron** (a unit of a venue row whose
+  footprint reaches into an `asphalt_runoff` or `concrete` band of the
+  scene's surfaces, `runoff_reach`) is left out, the rest of the row kept;
+  a whole building that stands on one is skipped ("stands on the run-off").
+  Gravel and sand are not counted: their wedges run out to the barriers.
 - **Pit lane** (`build_pit_lane`): the dossier polyline resampled every 4 m
   and smoothed, read against its own leg (a point the window finds over
   `PIT_LEG_LOST_M` off is looked for again where the lane's progress from

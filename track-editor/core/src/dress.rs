@@ -19,7 +19,7 @@
 //! wall clock, no map-order dependence — so it is idempotent and a re-run
 //! writes byte-identical output.
 
-use crate::ats::{AtsScene, Decal, PitLane, Prop, PropKind, Side};
+use crate::ats::{AtsScene, Decal, PitLane, Prop, PropKind, Side, Surface, SurfaceKind};
 use crate::dem::DemFile;
 use crate::layout::{Crossing, Landmark, Layout, Stand, Structure};
 use crate::props;
@@ -272,7 +272,14 @@ pub fn dress_scene_with_dem(
     }
     let city = crate::circuit_style::CircuitStyle::for_scene(scene).city_buildings;
     for structure in &layout.structures {
-        match lay_structure(&path, &terrain, lane.as_ref(), structure, city) {
+        match lay_structure(
+            &path,
+            &terrain,
+            lane.as_ref(),
+            &scene.surfaces,
+            structure,
+            city,
+        ) {
             Ok(props) => {
                 report.buildings += props.len();
                 laid.extend(stamped(
@@ -1366,6 +1373,7 @@ fn lay_structure(
     path: &CenterlinePath,
     terrain: &TerrainHeightfield,
     lane: Option<&CenterlinePath>,
+    surfaces: &[Surface],
     structure: &Structure,
     city: bool,
 ) -> Result<Vec<Prop>, String> {
@@ -1504,8 +1512,35 @@ fn lay_structure(
         front_y += away.1;
     }
 
+    // A unit standing on a paved run-off apron is left out: clear of the asphalt is not clear of the run-off, and a
+    // row reaching into the run-off at a corner's entry stood a media
+    // centre over Eau Rouge's apron and its corner board. The rest of the
+    // row stays.
+    let total = path.total_length_m();
+    let on_runoff = |front: (f32, f32), i: usize| -> bool {
+        let (ux, uy) = unit_at(front, i);
+        (0..=FOOTPRINT_PROBES).any(|a| {
+            let along = (a as f32 / FOOTPRINT_PROBES as f32 - 0.5) * unit_m;
+            (0..=FOOTPRINT_PROBES).any(|b| {
+                let back = b as f32 / FOOTPRINT_PROBES as f32 * kit_depth;
+                let x = ux + cos * along + away.0 * back;
+                let y = uy + sin * along + away.1 * back;
+                let (sample, lat) = nearest_cross_section(path, x, y);
+                let side = if lat >= 0.0 { Side::Left } else { Side::Right };
+                lat.abs() - side_half_width(&sample, side)
+                    < runoff_reach(surfaces, total, sample.station_m, side)
+            })
+        })
+    };
+    let kept: Vec<usize> = (0..units)
+        .filter(|&i| !on_runoff((front_x, front_y), i))
+        .collect();
+    if kept.is_empty() {
+        return Err("stands on the run-off".to_string());
+    }
+
     let mut out = Vec::new();
-    for i in 0..units {
+    for i in kept {
         let (x, y) = unit_at((front_x, front_y), i);
         let (sample, lat) = nearest_cross_section(path, x, y);
         out.push(Prop {
@@ -1930,6 +1965,31 @@ const SKY_ALTITUDE_M: f32 = 180.0;
 
 fn round2(v: f32) -> f32 {
     (v * 100.0).round() / 100.0
+}
+
+/// How far past the asphalt the paved run-off reaches at `station_m` on
+/// `side`, m: the outer edge of the widest asphalt or concrete apron there
+/// (0 with none), a wedge's width taken where the station falls along it.
+/// Gravel and sand are left out: their wedges are drawn out to the
+/// barriers and beyond, and buildings behind them are real. `total_m` is the lap, for a strip that wraps
+/// through the line.
+fn runoff_reach(surfaces: &[Surface], total_m: f32, station_m: f32, side: Side) -> f32 {
+    surfaces
+        .iter()
+        .filter(|s| {
+            s.side == side
+                && matches!(s.kind, SurfaceKind::AsphaltRunoff | SurfaceKind::Concrete)
+        })
+        .filter_map(|s| {
+            let span = if s.end_m >= s.start_m {
+                s.end_m - s.start_m
+            } else {
+                s.end_m + total_m - s.start_m
+            };
+            let into = (station_m - s.start_m).rem_euclid(total_m.max(1.0));
+            (span > 0.0 && into <= span).then(|| s.inner_m + s.width_at(into / span))
+        })
+        .fold(0.0, f32::max)
 }
 
 fn side_half_width(sample: &PathSample, side: Side) -> f32 {
@@ -3164,6 +3224,44 @@ mod tests {
         dress_scene(&track, &mut scene, &layout).unwrap();
         assert_eq!(scene.decals, first.decals);
         assert_eq!(scene.next_id, first.next_id);
+    }
+
+    /// A row of venue blocks beside the straight whose last block would
+    /// stand on a paved run-off apron loses that block and keeps the
+    /// rest: clear of the asphalt is not clear of the run-off (Spa's
+    /// Stand Endurance put a media centre over Eau Rouge's apron). A gravel
+    /// trap there takes nothing away.
+    #[test]
+    fn a_building_unit_on_a_paved_runoff_is_left_out() {
+        let track = track();
+        let mut layout = layout();
+        layout
+            .structures
+            .push(structure([300.0, -30.0], 120.0, 20.0, 0.0));
+        let row = |kind: crate::ats::SurfaceKind| {
+            let mut scene = scene(&track);
+            let id = scene.alloc_id();
+            scene.surfaces.push(Surface {
+                id,
+                kind,
+                side: Side::Right,
+                start_m: 330.0,
+                end_m: 380.0,
+                inner_m: 0.0,
+                width_m: 40.0,
+                end_width_m: None,
+                paint: None,
+            });
+            dress_scene(&track, &mut scene, &layout).unwrap();
+            building_lats(&track, &scene).len()
+        };
+        let all = row(crate::ats::SurfaceKind::Gravel);
+        assert_eq!(all, 3, "a gravel trap takes nothing");
+        assert_eq!(
+            row(crate::ats::SurfaceKind::AsphaltRunoff),
+            all - 1,
+            "the block on the apron is left out"
+        );
     }
 
     #[test]
