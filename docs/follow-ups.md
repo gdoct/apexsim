@@ -265,7 +265,9 @@ the same files.
   test at Monza or Le Mans drives a different road there than on a baked
   tree: curbs the line uses are off the track, and a seeded run spreads
   differently. Three tests have been narrowed to what they guard for it
-  (the Le Mans seam, the qualifying outlap, the racecraft pass). Either
+  (the Le Mans seam, the qualifying outlap, the racecraft pass).
+  `penalty_test` asserts the Norisring's pit-lane sidecar and fails
+  outright in such a checkout (it passes with the sidecars). Either
   CI bakes the sidecars it needs, or a test that drives a circuit says
   which backend it expects and skips without it. Check a test change
   against `git archive HEAD server content` in a scratch folder, with its
