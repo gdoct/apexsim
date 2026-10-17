@@ -1734,7 +1734,8 @@ pub struct CarState {
     #[serde(default)]
     pub flag_blue: bool,
     /// The pace race control holds the car to, m/s: a formation lap's
-    /// (`crate::race_start`); 0 for none. The physics holds a car to it as
+    /// (`crate::race_start`) or the virtual safety car's
+    /// (`crate::race_control`); 0 for none. The physics holds a car to it as
     /// the pit limiter does, and the AI starts no pass under it.
     #[serde(default)]
     pub speed_cap_mps: f32,
@@ -3640,6 +3641,26 @@ impl StartType {
     }
 }
 
+/// What neutralises a race when a car is stranded on the road
+/// (`RaceRules::safety_car`). Encoded as a small integer; `Off` (the
+/// default) is left off the wire.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Default)]
+pub enum SafetyCar {
+    /// Yellow flags only.
+    #[default]
+    Off = 0,
+    /// A virtual safety car (full-course yellow): every car held to a
+    /// pace, no overtaking, the pit lane open (`crate::race_control`).
+    Virtual = 1,
+}
+
+impl SafetyCar {
+    pub fn is_off(&self) -> bool {
+        *self == SafetyCar::Off
+    }
+}
+
 /// The race-control rules a host sets on create (`CreateSession.race_rules`,
 /// echoed in `SessionJoined.RaceRules`): how the race starts and what is
 /// penalised. Every field at its default is a race as before, and is left
@@ -3671,6 +3692,10 @@ pub struct RaceRules {
     /// (`race_control::PIT_EXIT_STOP_GO_S`).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub pit_exit_penalty: bool,
+    /// A car stranded on the road brings out a virtual safety car
+    /// ([`SafetyCar`]).
+    #[serde(default, skip_serializing_if = "SafetyCar::is_off")]
+    pub safety_car: SafetyCar,
 }
 
 impl RaceRules {

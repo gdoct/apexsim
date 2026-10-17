@@ -2241,15 +2241,23 @@ impl GameSession {
     }
 
     /// What the race is doing for telemetry (`CompactTelemetry.race_phase`):
-    /// its formation or pace lap; `None` otherwise.
+    /// its formation or pace lap, the virtual safety car out or ending;
+    /// `None` otherwise.
     pub fn race_phase(&self) -> Option<u8> {
+        use crate::race_control::Course;
         use crate::race_start::RacePhase;
-        let formation = self.race_start.formation.as_ref()?;
-        Some(if formation.rolling {
-            RacePhase::PaceLap
-        } else {
-            RacePhase::Formation
-        } as u8)
+        if let Some(formation) = self.race_start.formation.as_ref() {
+            return Some(if formation.rolling {
+                RacePhase::PaceLap
+            } else {
+                RacePhase::Formation
+            } as u8);
+        }
+        match self.race_control.course {
+            Course::Green => None,
+            Course::Vsc => Some(RacePhase::Vsc as u8),
+            Course::VscEnding => Some(RacePhase::VscEnding as u8),
+        }
     }
 
     /// The race's pit-stop rule (`CreateSession.mandatory_stops` and
@@ -2661,6 +2669,7 @@ impl GameSession {
             for state in self.session.participants.values_mut() {
                 state.flag_yellow = 0;
                 state.flag_blue = false;
+                state.speed_cap_mps = 0.0;
             }
             return;
         }
@@ -2672,12 +2681,25 @@ impl GameSession {
                 || !s.damage.is_drivable
                 || s.is_ghost()
         };
+        let launching = self.session.race_start_tick.is_some_and(|start| {
+            (self.session.current_tick.saturating_sub(start) as f32)
+                < START_GRACE_S * self.tick_rate_hz.max(1) as f32
+        });
         let cars: Vec<FlagCar> = self
             .session
             .participants
             .values()
             .map(|s| FlagCar {
                 laps: s.current_lap as f32 + s.track_progress / total,
+                stranded: !launching
+                    && s.is_on_track
+                    && (s.speed_mps < crate::race_control::INCIDENT_SPEED_MPS
+                        || !s.damage.is_drivable)
+                    && !s.in_garage
+                    && !s.towed
+                    && !s.pit.in_lane
+                    && s.finish_position.is_none()
+                    && !s.is_ghost(),
                 progress_m: s.track_progress,
                 speed_mps: s.speed_mps,
                 on_road: s.is_on_track,
@@ -2686,15 +2708,23 @@ impl GameSession {
                 out_of_it: out_of_it(s),
             })
             .collect();
-        let launching = self.session.race_start_tick.is_some_and(|start| {
-            (self.session.current_tick.saturating_sub(start) as f32)
-                < START_GRACE_S * self.tick_rate_hz.max(1) as f32
-        });
         let dt = self.dt();
+        let vsc = self.session.race_rules.safety_car == crate::data::SafetyCar::Virtual;
+        let was = self.race_control.course;
+        self.race_control.update_course(&cars, dt, vsc);
+        if self.race_control.course != was {
+            info!(
+                "Session {}: {:?}",
+                self.session.id, self.race_control.course
+            );
+        }
         self.race_control
             .update(&cars, total, dt, self.session.current_tick, launching);
         let control = &self.race_control;
+        let pace = control.vsc_pace_mps();
         for (i, state) in self.session.participants.values_mut().enumerate() {
+            // The virtual safety car's pace, on every car on the track.
+            state.speed_cap_mps = if out_of_it(state) { 0.0 } else { pace };
             state.flag_blue = control.blue(i);
             state.flag_yellow = if out_of_it(state) {
                 0
@@ -6330,6 +6360,7 @@ impl GameSession {
             stops_owed,
             compound_owed,
             rejoin_traffic: self.rejoins_in_traffic(state, laps_left, lap_fuel_l, total_m),
+            neutralised: self.race_control.course != crate::race_control::Course::Green,
             stint_laps: laps_run(state, total_m) - state.pit.stint_start_laps,
             gap_ahead_s,
             rival_behind_stopping,

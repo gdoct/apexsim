@@ -180,7 +180,7 @@ next `Brake` phase, its slowest point, the hand at the apex).
   the pace is 95% of the plan under a single and 85% under a double, and no
   pass is begun unless the car ahead is crawling (the incident itself).
 - **Under race control's pace** (`CarState::speed_cap_mps`, a formation or
-  pace lap; [sessions](sessions.md#race-start-formation-lap-rolling-start-false-starts)):
+  pace lap, the virtual safety car; [sessions](sessions.md#race-start-formation-lap-rolling-start-false-starts)):
   no pass is begun unless the car ahead is crawling; the physics holds the
   car to the pace, and over the approach to its slot the server drives it.
 - **Mistakes**: with a car within 0.6 s behind, a driver now and then
@@ -242,6 +242,11 @@ off by `Racecraft::blend`; the controller holds it across the road
 
 ## Strategy
 
+- **Under the virtual safety car** (`StopContext::neutralised`,
+  [sessions](sessions.md#virtual-safety-car)): a stop is cheap, so with
+  more than `AI_STAY_OUT_LAPS` left a driver takes one it would make anyway:
+  a stop owed to the pit rule, tyres `AI_NEUTRALISED_WEAR` (30%) worn, or
+  short of fuel to the flag.
 - **Penalties** ([sessions](sessions.md#penalties)): an owed drive-through
   or stop-go is served at the next pass of the lane (`plan_ai_stops` sets
   `wants_stop`), before any stop it plans.

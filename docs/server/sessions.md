@@ -286,10 +286,13 @@ nothing is set; echoed in `SessionJoined.RaceRules`):
   drive-through;
 - `yellow_penalty` (`bool`): a pass under a yellow is penalised;
 - `pit_exit_penalty` (`bool`): leaving a manual pit lane past its red light
-  is penalised.
+  is penalised;
+- `safety_car` (`SafetyCar` `Off` / `Virtual`, 0-1, default Off): a car
+  stranded on the road brings out a virtual safety car.
 
 The start rules are in "Race start: formation lap, rolling start, false
-starts", the penalties in "Penalties". Not listed in the lobby; a hosted
+starts", the penalties in "Penalties", the safety car in "Virtual safety
+car". Not listed in the lobby; a hosted
 session does not take them yet.
 
 ## The race's grid
@@ -462,6 +465,32 @@ before the green or once the session is `Finished`.
   `FApexTelemetryFrame::YellowSectors` / `YellowAt`; the HUD's `flag.*`
   data points, `item.blue_flag` / `item.yellow`, and the `flags` component
   ([hud-modding](../game/hud-modding.md)).
+
+## Virtual safety car
+
+Under `safety_car: Virtual` (`RaceControl::update_course`, run by
+`update_flags` each racing tick):
+
+- **Out**: a car stranded on the road (`FlagCar::stranded`: on the road,
+  under `INCIDENT_SPEED_MPS` or broken down and still rolling, not in the
+  pit lane, its garage, towed, finished, nor in the first `START_GRACE_S`
+  after the green) for `VSC_STOPPED_S` (8 s), before it is towed
+  (`TOW_AFTER_S`, 10 s).
+- **The pace**: every car on the track (not in the lane, finished, towed)
+  is held to `RaceControl::vsc_pace_mps` (`CarState::speed_cap_mps`, which
+  the physics enforces as the pit limiter does): from `VSC_FROM_MPS` (90
+  m/s) down at `VSC_SLOW_MPS2` (5 m/s²) to `VSC_SPEED_MPS` (35 m/s), so
+  the field slows over some seconds instead of braking as one. The AI
+  starts no pass under it; a pass anywhere is a pass under a yellow (and
+  penalised under `yellow_penalty`). The pit lane stays open, and the AI
+  takes a stop it would make anyway ([ai](ai.md#strategy)).
+- **In**: with no car stranded for `VSC_CLEAR_S` (5 s) it is ending
+  (`Course::VscEnding`, still at the pace) for `VSC_ENDING_S` (5 s), then
+  green; a car stranded long enough meanwhile brings it back out.
+- On the wire: `CompactTelemetry.race_phase` 3 (out) and 4 (ending).
+- There is no safety car on the road, so no queue behind it, no lapped
+  cars let by, no lane closure and no restart procedure
+  ([simulation gaps](../simulation-gaps.md)).
 
 ## Penalties
 
@@ -1235,6 +1264,7 @@ cargo test --test grid_order_test             # start order, stored results, ove
 cargo test --test ready_grid_test             # the race's grid: OpenGrid, SetReady, the countdown
 cargo test --test race_start_test             # formation lap back to the grid, rolling start, a jump start, a held grid
 cargo test --test penalty_test                # the AI's drive-through and stop-go at the Norisring
+cargo test --test safety_car_test             # a broken-down car brings the VSC out, the field at its pace, back in
 cargo test --lib time_penalty                 # a time penalty reorders the finishers
 cargo test --lib race_start                   # the approach's pace, headway across the line
 cargo test --test reconnect_test              # held seat, resume, takeover, grace, Disconnect

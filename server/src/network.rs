@@ -4826,6 +4826,71 @@ mod tests {
         }
     }
 
+    /// The virtual safety car: a create asking for it, and a frame while it
+    /// is out (`race_phase` 3, after a nil clock, sky and yellows). Printed
+    /// as `C_CreateSessionSafetyCar` / `S_TelemetryCompactVsc` (`cargo test
+    /// safety_car_wire_format -- --nocapture`).
+    #[test]
+    fn test_safety_car_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let rules = RaceRules {
+            safety_car: SafetyCar::Virtual,
+            ..Default::default()
+        };
+        let create = ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: rules,
+        };
+        let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
+        println!("C_CreateSessionSafetyCar: {}", hex(&create_bytes));
+        assert!(create_bytes.windows(10).any(|w| w == b"safety_car"));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession { race_rules, .. } => assert_eq!(race_rules, rules),
+            _ => panic!("Wrong message type"),
+        }
+        let frame = ServerMessage::TelemetryCompact(CompactTelemetry {
+            server_tick: 500,
+            session_state: SessionState::Racing,
+            game_mode: GameMode::Race,
+            countdown_ms: None,
+            car_states: vec![],
+            race_clock: None,
+            sky: None,
+            yellow_flags: None,
+            race_phase: Some(crate::race_start::RacePhase::Vsc as u8),
+        });
+        let frame_bytes = rmp_serde::to_vec(&frame).unwrap();
+        println!("S_TelemetryCompactVsc: {}", hex(&frame_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&frame_bytes).unwrap() {
+            ServerMessage::TelemetryCompact(t) => assert_eq!(t.race_phase, Some(3)),
+            _ => panic!("Wrong message type"),
+        }
+    }
+
     /// A timed race: a create for two hours, the joined echo, and a
     /// telemetry frame whose clock has run out with lap 37 the last. A race
     /// over laps leaves every one of them off the wire. Pinned on the client

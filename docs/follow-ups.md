@@ -131,6 +131,9 @@ them yet, and the server leaves a few edges.
 - client: show the formation lap and the pace lap (`CompactTelemetry.race_phase`
   1 / 2, in `Countdown` with no countdown): a FORMATION LAP banner and HUD
   data point (`race.phase`), no lights until the countdown comes back.
+- client: the create screen's Safety car row (`race_rules.safety_car`:
+  Off / Virtual); show the virtual safety car (`race_phase` 3 VSC, 4 VSC
+  ENDING) as a banner, a HUD data point and on the dash, with its pace.
 - client: the create screen's penalty rules (`race_rules.yellow_penalty`,
   `pit_exit_penalty`; False starts is `jump_start`).
 - client: show penalties (`RosterEntry.Penalties`): a toast as one is given

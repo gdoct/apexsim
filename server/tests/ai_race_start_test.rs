@@ -167,8 +167,21 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
         }),
         _ => None,
     };
+    // `SURVEY_VSC=1` races under the virtual safety car rule (with the
+    // penalty for a pass under a yellow).
+    if std::env::var("SURVEY_VSC").is_ok() {
+        race.set_race_rules(RaceRules {
+            safety_car: SafetyCar::Virtual,
+            yellow_penalty: true,
+            ..rules.unwrap_or_default()
+        });
+    }
     if let Some(rules) = rules {
-        race.set_race_rules(rules);
+        race.set_race_rules(RaceRules {
+            safety_car: race.session.race_rules.safety_car,
+            yellow_penalty: race.session.race_rules.yellow_penalty,
+            ..rules
+        });
         race.start_countdown_mode(0, GameMode::Race);
         for _ in 0..(TICK_RATE as u32 * 900) {
             if race.session.state == SessionState::Racing {

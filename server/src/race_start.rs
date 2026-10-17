@@ -75,6 +75,10 @@ pub enum RacePhase {
     Formation = 1,
     /// The pace lap of a rolling start.
     PaceLap = 2,
+    /// The virtual safety car is out (`race_control::Course::Vsc`).
+    Vsc = 3,
+    /// It is ending: green in `race_control::VSC_ENDING_S`.
+    VscEnding = 4,
 }
 
 /// One car on the formation lap.

@@ -678,6 +678,9 @@ pub struct StopContext {
     /// A stop now would put it back on the road within
     /// [`AI_REJOIN_TRAFFIC_S`] of another car ([`rejoins_in_traffic`]).
     pub rejoin_traffic: bool,
+    /// The race is neutralised (a virtual safety car): the field is slow,
+    /// so a stop costs less of the race than at racing pace.
+    pub neutralised: bool,
 }
 
 /// A refuelled car short of the flag by no more than this share saves fuel
@@ -714,6 +717,10 @@ pub const AI_REJOIN_TRAFFIC_S: f32 = 1.5;
 /// share of the race.
 pub const AI_REJOIN_WAIT_WEAR: f32 = 78.0;
 pub const AI_REJOIN_WAIT_LAPS: f32 = 2.0;
+/// Under a virtual safety car a stop is cheap: a driver takes one it would
+/// make anyway (owed, or its tyres this worn, percent, or short of fuel to
+/// the flag), as long as more than [`AI_STAY_OUT_LAPS`] laps are left.
+pub const AI_NEUTRALISED_WEAR: f32 = 30.0;
 /// What slowing into the box and pulling away from it cost beyond the
 /// lane at its limit, s.
 pub const BOX_STOP_LOSS_S: f32 = 4.0;
@@ -843,6 +850,13 @@ pub fn plan_stop(state: &CarState, ctx: &StopContext) -> Option<StopPlan> {
     let short = lap_fuel.is_some_and(|lap| fuel_needed(lap) && fuel_l < lap * AI_PIT_FUEL_LAPS);
     let tyres_last = tyres_reach_flag(state, ctx.stint_laps, laps_left);
     let wear = worst_wear(state);
+    // The cheap stop under a virtual safety car: one it would make anyway.
+    if ctx.neutralised
+        && laps_left > AI_STAY_OUT_LAPS
+        && (owed > 0 || wear >= AI_NEUTRALISED_WEAR || lap_fuel.is_some_and(fuel_needed))
+    {
+        return full;
+    }
     if wear >= AI_PIT_WEAR {
         if laps_left <= AI_STAY_OUT_LAPS && tyres_last && !short && owed == 0 {
             return None;
@@ -1681,6 +1695,44 @@ pub(crate) mod tests {
             lap_fuel_l,
             ..StopContext::default()
         }
+    }
+
+    /// Under a virtual safety car a driver takes the stop it would make
+    /// anyway (tyres part worn, a stop owed), but not near the flag and not
+    /// on fresh tyres.
+    #[test]
+    fn the_ai_stops_under_the_virtual_safety_car() {
+        let mut state = CarState::new(
+            uuid::Uuid::nil(),
+            uuid::Uuid::nil(),
+            &crate::data::GridSlot {
+                position: 1,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            },
+        );
+        state.tires.rear_left.wear_percent = 40.0;
+        let racing = ctx(12, None);
+        assert_eq!(plan_stop(&state, &racing), None, "racing on");
+        let vsc = StopContext {
+            neutralised: true,
+            ..racing
+        };
+        assert!(plan_stop(&state, &vsc).is_some(), "the cheap stop");
+        let near_flag = StopContext {
+            laps_left: AI_STAY_OUT_LAPS,
+            ..vsc
+        };
+        assert_eq!(plan_stop(&state, &near_flag), None);
+        state.tires.rear_left.wear_percent = 5.0;
+        assert_eq!(plan_stop(&state, &vsc), None, "fresh tyres stay out");
+        let owed = StopContext {
+            stops_owed: 1,
+            ..vsc
+        };
+        assert!(plan_stop(&state, &owed).is_some(), "a stop owed is taken");
     }
 
     /// The pit rule's stops split the race into even stints, are made by a

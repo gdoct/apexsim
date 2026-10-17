@@ -14,6 +14,12 @@
 //! - **Blue**, per car: a car a lap or more up the road is within
 //!   [`BLUE_GAP_S`] behind it.
 //!
+//! - **Virtual safety car** (`RaceRules::safety_car`, [`Course`]): a car
+//!   stopped on the road for [`VSC_STOPPED_S`] neutralises the race. Every
+//!   car is held to a pace coming down to [`VSC_SPEED_MPS`]
+//!   ([`RaceControl::vsc_pace_mps`]), a pass anywhere counts as one under a
+//!   yellow, the pit lane stays open. With the road clear for
+//!   [`VSC_CLEAR_S`] it is ending for [`VSC_ENDING_S`], then green.
 //! - **Penalties** ([`Penalty`]), for the offences the session's rules
 //!   name (`data::RaceRules`): a jump start, a pass under a yellow, leaving
 //!   a manual pit lane past its red light. Each is a time penalty added to
@@ -60,6 +66,31 @@ pub const DRIVE_THROUGH_TIME_S: u16 = 20;
 /// The same pair passing under a yellow again within this long is the
 /// same pass (side by side, the order swapping back and forth), s.
 pub const YELLOW_PASS_REPEAT_S: f32 = 10.0;
+
+/// A car stopped on the road this long brings out the virtual safety car,
+/// s.
+pub const VSC_STOPPED_S: f32 = 8.0;
+/// The pace every car is held to under the virtual safety car, m/s.
+pub const VSC_SPEED_MPS: f32 = 35.0;
+/// The pace comes down to it from this, m/s, at [`VSC_SLOW_MPS2`]: the
+/// field slows over some seconds rather than braking as one.
+pub const VSC_FROM_MPS: f32 = 90.0;
+pub const VSC_SLOW_MPS2: f32 = 5.0;
+/// With no car stopped on the road for this long the virtual safety car
+/// is ending, s; and green after this, s.
+pub const VSC_CLEAR_S: f32 = 5.0;
+pub const VSC_ENDING_S: f32 = 5.0;
+
+/// The race as a whole.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Course {
+    #[default]
+    Green,
+    /// The virtual safety car is out.
+    Vsc,
+    /// It is ending: still held to the pace, green in [`VSC_ENDING_S`].
+    VscEnding,
+}
 
 /// What a car did wrong.
 #[repr(u8)]
@@ -193,6 +224,10 @@ pub enum Yellow {
 pub struct FlagCar {
     /// Laps run, the lap in progress as a share (`laps_run`).
     pub laps: f32,
+    /// Stopped or crawling on the road (or broken down on it, still
+    /// rolling), out of the pit lane and its garage, not yet towed: what
+    /// brings out the virtual safety car.
+    pub stranded: bool,
     /// Where along the lap, m.
     pub progress_m: f32,
     pub speed_mps: f32,
@@ -233,6 +268,14 @@ pub struct RaceControl {
     /// Race order (laps run) of each car at the last update, for passes.
     last_laps: Vec<f32>,
     pub yellow_passes: Vec<YellowPass>,
+    /// The virtual safety car: out, ending or not, and how long in that
+    /// state, s.
+    pub course: Course,
+    course_s: f32,
+    /// Under it, how long no car has been stranded, s.
+    clear_s: f32,
+    /// How long each car has been stranded, s.
+    stranded_s: Vec<f32>,
 }
 
 impl RaceControl {
@@ -300,6 +343,57 @@ impl RaceControl {
     /// No flags at all (before the start, after a reset).
     pub fn clear(&mut self) {
         *self = Self::default();
+    }
+
+    /// The race as a whole, this tick: whether a stranded car brings out
+    /// the virtual safety car (`allowed`, the session's rule), how long it
+    /// has been out, its end.
+    pub fn update_course(&mut self, cars: &[FlagCar], dt: f32, allowed: bool) {
+        if self.stranded_s.len() != cars.len() {
+            self.stranded_s = vec![0.0; cars.len()];
+        }
+        for (held, car) in self.stranded_s.iter_mut().zip(cars) {
+            *held = if car.stranded { *held + dt } else { 0.0 };
+        }
+        let any = cars.iter().any(|c| c.stranded);
+        let long = self.stranded_s.iter().any(|s| *s >= VSC_STOPPED_S);
+        self.course_s += dt;
+        match self.course {
+            Course::Green => {
+                if allowed && long {
+                    self.course = Course::Vsc;
+                    self.course_s = 0.0;
+                    self.clear_s = 0.0;
+                }
+            }
+            Course::Vsc => {
+                self.clear_s = if any { 0.0 } else { self.clear_s + dt };
+                if self.clear_s >= VSC_CLEAR_S {
+                    self.course = Course::VscEnding;
+                    self.course_s = 0.0;
+                }
+            }
+            Course::VscEnding => {
+                if long {
+                    self.course = Course::Vsc;
+                    self.clear_s = 0.0;
+                } else if self.course_s >= VSC_ENDING_S {
+                    self.course = Course::Green;
+                    self.course_s = 0.0;
+                }
+            }
+        }
+    }
+
+    /// The pace the virtual safety car holds every car to, m/s: coming down
+    /// from [`VSC_FROM_MPS`] to [`VSC_SPEED_MPS`] since it came out; 0
+    /// (none) on a green course.
+    pub fn vsc_pace_mps(&self) -> f32 {
+        match self.course {
+            Course::Green => 0.0,
+            Course::Vsc => (VSC_FROM_MPS - VSC_SLOW_MPS2 * self.course_s).max(VSC_SPEED_MPS),
+            Course::VscEnding => VSC_SPEED_MPS,
+        }
     }
 
     /// The passes under a yellow recorded since the last call.
@@ -420,7 +514,7 @@ impl RaceControl {
                     continue;
                 }
                 let sector = Self::sector_of(ca.progress_m, total_m);
-                if self.yellow[sector] == Yellow::None {
+                if self.yellow[sector] == Yellow::None && self.course == Course::Green {
                     continue;
                 }
                 for (b, cb) in cars.iter().enumerate() {
@@ -464,6 +558,7 @@ mod tests {
     fn racing(laps: f32, speed: f32) -> FlagCar {
         FlagCar {
             laps,
+            stranded: false,
             progress_m: laps.fract() * LAP,
             speed_mps: speed,
             on_road: true,
@@ -672,6 +767,68 @@ mod tests {
         );
         let list = [pass, Penalty::issue(Offence::PitExitRed, 5, 11, true)];
         assert_eq!(owed(&list).map(|p| p.kind), Some(PenaltyKind::StopGo));
+    }
+
+    #[test]
+    fn a_stranded_car_brings_out_the_virtual_safety_car_until_the_road_is_clear() {
+        let mut rc = RaceControl::default();
+        let mut stuck = racing(1.2, 0.0);
+        stuck.stranded = true;
+        let dt = 0.1;
+        let steps = |s: f32| (s / dt).round() as usize;
+        for _ in 0..steps(VSC_STOPPED_S) - 1 {
+            rc.update_course(&[racing(1.1, 50.0), stuck], dt, true);
+        }
+        assert_eq!(rc.course, Course::Green);
+        rc.update_course(&[racing(1.1, 50.0), stuck], dt, true);
+        rc.update_course(&[racing(1.1, 50.0), stuck], dt, true);
+        assert_eq!(rc.course, Course::Vsc);
+        assert!(rc.vsc_pace_mps() > VSC_SPEED_MPS, "coming down");
+        for _ in 0..steps(20.0) {
+            rc.update_course(&[racing(1.1, 50.0), stuck], dt, true);
+        }
+        assert_eq!(rc.vsc_pace_mps(), VSC_SPEED_MPS);
+        // Towed away: clear, ending, green.
+        let gone = racing(1.2, 0.0);
+        for _ in 0..steps(VSC_CLEAR_S) + 1 {
+            rc.update_course(&[racing(1.1, 50.0), gone], dt, true);
+        }
+        assert_eq!(rc.course, Course::VscEnding);
+        assert_eq!(rc.vsc_pace_mps(), VSC_SPEED_MPS);
+        for _ in 0..steps(VSC_ENDING_S) + 1 {
+            rc.update_course(&[racing(1.1, 50.0), gone], dt, true);
+        }
+        assert_eq!(rc.course, Course::Green);
+        assert_eq!(rc.vsc_pace_mps(), 0.0);
+        // Without the rule a stranded car brings out yellows only.
+        let mut rc = RaceControl::default();
+        for _ in 0..steps(30.0) {
+            rc.update_course(&[stuck], dt, false);
+        }
+        assert_eq!(rc.course, Course::Green);
+    }
+
+    #[test]
+    fn a_pass_anywhere_under_the_vsc_is_a_pass_under_a_yellow() {
+        let mut rc = RaceControl {
+            course: Course::Vsc,
+            ..Default::default()
+        };
+        rc.update(
+            &[racing(1.59, 35.0), racing(1.6, 30.0)],
+            LAP,
+            0.01,
+            1,
+            false,
+        );
+        rc.update(
+            &[racing(1.601, 35.0), racing(1.6005, 30.0)],
+            LAP,
+            0.01,
+            2,
+            false,
+        );
+        assert_eq!(rc.take_yellow_passes().len(), 1);
     }
 
     #[test]
