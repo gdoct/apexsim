@@ -28,10 +28,22 @@ lane](pit-lane.md), [sessions](sessions.md) (assist and damage rules),
 
 `GameSession::tick_racing` / `tick_free_practice` / `tick_hotlap` run `update_air`
 (`update_retirements`, `update_pits`, `update_drs`, `update_wind`, `update_road`,
-`update_debris`, `slipstream::update`, `update_racecraft`), then `update_car_3d` per car
-with `simulated_config` (the driver's tuned config, else the shared one), then
-`update_track_progress_3d` ([sessions](sessions.md)), then `check_collisions_refs` and
-`check_wall_collisions`.
+`update_debris`, `slipstream::update`, `update_racecraft`), then `car_step::step_car` per
+car: `update_car_3d` with `simulated_config` (the driver's tuned config, else the shared
+one), then `update_track_progress_3d` ([sessions](sessions.md)); then
+`check_collisions_refs` and `check_wall_collisions`.
+
+`car_step::step_lone_car` is that tick for a car alone on the track: `step_car`, then
+`physics::clear_contact` (all the car-car pass does with no other car) and
+`physics::collide_with_walls` with the car's shared config, as the wall pass reads it. It
+is the step the client's prediction runs through the C API in `server/ffi`
+([building](../building.md), [client prediction](../proposals/client-prediction.md));
+`car_step::air_for_tick` is the tick's wind both set first. Everything else in
+`update_air` (pit lane, DRS, wake, road-state passes, debris, recoveries) stays the
+session's. `car_step::encode_state` / `decode_state` write a car's full state as a
+versioned blob, including the runtime fields serde skips on `CarState` (centerline hint,
+lap timing, DRS arming, road work; not the force-feedback collector, which nothing in the
+sim reads), so a loaded state steps on bit for bit.
 
 ## The car model (`physics.rs`)
 

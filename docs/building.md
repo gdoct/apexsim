@@ -62,12 +62,36 @@ RUST_LOG=debug cargo test <name>                   # with logging
 replace `target/*/apexsim-server.exe`; build and test into a scratch
 `CARGO_TARGET_DIR` instead of stopping someone's server.
 
+### The physics library (`server/ffi`)
+
+`apexsim-physics` is the server's car step behind a C API for the client's
+prediction of its own car ([proposals/client-prediction.md](proposals/client-prediction.md)):
+a small crate of its own that depends on the server crate, so the server's
+build is untouched. It builds a static library and an rlib (for its tests);
+the header is the hand-written `server/ffi/apexsim_physics.h`.
+
+```bash
+cd server/ffi
+cargo test                     # the trace and rewind tests, the header check
+cargo build --release          # target/release/apexsim_physics.lib (Windows x64 MSVC)
+cargo rustc --release --lib --crate-type staticlib -- --print native-static-libs
+```
+
+On Windows x64 (`x86_64-pc-windows-msvc`, the default host toolchain) the
+release `.lib` is about 10 MB and links against `kernel32 winmm bcrypt
+advapi32 ntdll userenv ws2_32 dbghelp` and the dynamic CRT (`/MD`, as an
+Unreal module builds); the last command above prints the list for the
+toolchain at hand. A C or C++ program includes `apexsim_physics.h` (it
+compiles as C89 and C++17) and links the `.lib` and those libraries. The
+crate has its own `Cargo.lock`, started from the server's: keep the shared
+dependencies on the server's versions.
+
 ### CI
 
 `.github/workflows/ci.yml`, job `server` (Ubuntu): `cargo fmt --check`,
 `cargo build --all-targets`, `cargo clippy --all-targets -- -D warnings`,
-`cargo test`. Keep the server tree free of formatting drift and clippy
-warnings. Job `site` rebuilds the marketing page and fails when `docs/` is
+`cargo test`, then the same fmt, clippy and test for `server/ffi`. Keep
+the server tree free of formatting drift and clippy warnings. Job `site` rebuilds the marketing page and fails when `docs/` is
 behind ([marketing-site.md](marketing-site.md)); job `client` only checks the
 `.uproject` and the target/module files exist. Neither the track editor nor
 the Unreal code is compiled in CI.

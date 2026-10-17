@@ -13,6 +13,11 @@ the topic docs under `docs/` go deeper.
 
 - `server/` - the authoritative server crate (`apexsim-server`, plus the
   offline tool `apexsim-replay`). Module map in [server/README.md](../server/README.md).
+- `server/ffi/` - `apexsim-physics`, a separate crate on the server crate:
+  the car step (`car_step::step_lone_car`) as a static library behind a C
+  API (`apexsim_physics.h`), for the client's prediction of its own car
+  ([proposals/client-prediction.md](proposals/client-prediction.md)). Not
+  linked into the client yet.
 - `game-unreal/Source/` - client modules: `ApexSim` (game), `ApexSimNet`
   (protocol, MessagePack codec), `ApexSimInput` (DirectInput wheels),
   `ApexSimBoot` (splash hold, loads at `PostConfigInit`), `ApexTrackEditor`

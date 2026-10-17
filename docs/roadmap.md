@@ -38,17 +38,16 @@ None open.
 ### 3. Client-side prediction for the local car
 
 90-150 ms from wheel to car online. Design and phases in
-[proposals/client-prediction.md](proposals/client-prediction.md).
+[proposals/client-prediction.md](proposals/client-prediction.md). The
+physics library is built (`server/ffi`, phase 1); left:
 
-- The physics crate as a staticlib behind a C FFI.
 - An input sequence on `PlayerInput`, a local-car snapshot on
   `DriverFeedback` (golden bytes both sides).
-- The predict / rewind / replay loop behind a console switch, an
-  artificial-latency harness.
+- The library linked into the client; the predict / rewind / replay loop
+  behind a console switch, an artificial-latency harness.
 - The track physics bundle served on join, keyed by `ContentCrc`.
 
-**Check:** the FFI and the server give equal states on a recorded input
-trace; a driver at 80 ms artificial latency.
+**Check:** a driver at 80 ms artificial latency.
 
 ## P2: depth
 
