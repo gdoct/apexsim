@@ -376,6 +376,13 @@ pub enum ClientMessage {
         #[serde(default)]
         handbrake: Option<bool>,
     },
+
+    // TCP - A line of text chat to the lobby, or to the session the player
+    // drives in or watches (`crate::chat`): capped, rate-limited, and
+    // dropped for a muted player.
+    Chat {
+        text: String,
+    },
 }
 
 // --- Message Priority ---
@@ -868,6 +875,9 @@ pub enum ServerMessage {
     // have run. Sent to the whole session after `SessionJoined` while one
     // runs, and whenever it changes.
     ShootoutState(ShootoutStateData),
+
+    // TCP - A chat line (`ClientMessage::Chat`) to everyone it was said to.
+    Chat(ChatData),
 }
 
 impl ServerMessage {
@@ -905,6 +915,7 @@ impl ServerMessage {
             ServerMessage::ShootoutState(_) => MessagePriority::Critical,
             ServerMessage::PitBox(_) => MessagePriority::Critical,
             ServerMessage::ServerNotice { .. } => MessagePriority::Critical,
+            ServerMessage::Chat(_) => MessagePriority::Critical,
 
             // Droppable messages - can be dropped when queue is full
             ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
@@ -2052,6 +2063,24 @@ pub struct PitServiceData {
     pub repair_pct: f32,
     /// The whole stop, s: the three parts added up.
     pub total_s: f32,
+}
+
+/// A chat line as the server sends it on (`ServerMessage::Chat`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ChatData {
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub player_id: PlayerId,
+    /// The player's name as the lobby lists it.
+    pub from: String,
+    /// The line, cleaned and capped (`crate::chat::clean`).
+    pub text: String,
+    /// Said in a session (to its drivers and watchers), not the lobby.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub in_session: bool,
 }
 
 /// A driver's own pit box (`ServerMessage::PitBox`), in the server's
@@ -5693,6 +5722,60 @@ mod tests {
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
             ServerMessage::ServerNotice { message } => {
                 assert_eq!(message, "Race starts in 5 minutes")
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
+    /// A chat line both ways, pinned on the client as `ApexGolden::C_Chat`,
+    /// `S_ChatLobby` and `S_ChatSession`. `cargo test chat_wire_format --
+    /// --nocapture` prints them.
+    #[test]
+    fn test_chat_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let said = rmp_serde::to_vec_named(&ClientMessage::Chat {
+            text: "good luck".to_string(),
+        })
+        .unwrap();
+        println!("C_Chat: {}", hex(&said));
+        match rmp_serde::from_slice::<ClientMessage>(&said).unwrap() {
+            ClientMessage::Chat { text } => assert_eq!(text, "good luck"),
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        let id = uuid::Uuid::parse_str("12345678-1234-5678-1234-567812345678").unwrap();
+        let lobby = ServerMessage::Chat(ChatData {
+            player_id: id,
+            from: "Racer".to_string(),
+            text: "good luck".to_string(),
+            in_session: false,
+        });
+        assert_eq!(lobby.priority(), MessagePriority::Critical);
+        let bytes = rmp_serde::to_vec_named(&lobby).unwrap();
+        assert!(
+            !String::from_utf8_lossy(&bytes).contains("InSession"),
+            "left off in the lobby"
+        );
+        println!("S_ChatLobby: {}", hex(&bytes));
+        let session = ServerMessage::Chat(ChatData {
+            in_session: true,
+            ..match lobby {
+                ServerMessage::Chat(d) => d,
+                _ => unreachable!(),
+            }
+        });
+        let bytes = rmp_serde::to_vec_named(&session).unwrap();
+        println!("S_ChatSession: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::Chat(d) => {
+                assert_eq!(d.player_id, id);
+                assert_eq!(d.from, "Racer");
+                assert!(d.in_session);
             }
             other => panic!("Wrong message type: {other:?}"),
         }

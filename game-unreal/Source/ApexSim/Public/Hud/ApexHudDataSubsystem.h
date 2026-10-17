@@ -82,6 +82,8 @@ public:
 	void SetHotlapSetup(const FString& Name) { HotlapSetup = Name; }
 	/** The last input came from a gamepad: the hints show its buttons. */
 	void SetGamepadActive(bool bActive) { bGamepad = bActive; }
+	/** The chat line is open for typing, and the key that opens it (`chat.open`, `chat.key`). */
+	void SetChat(bool bOpen, const FString& Key) { bChatOpen = bOpen; ChatKey = Key; }
 
 private:
 	UFUNCTION()
@@ -145,4 +147,6 @@ private:
 	FString HotlapSetup;
 	FString TowerMode = TEXT("interval");
 	bool bGamepad = false;
+	bool bChatOpen = false;
+	FString ChatKey;
 };

@@ -22,6 +22,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnGameModeChanged, EApexGameMod
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnCountdownUpdate, int32, SecondsRemaining);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FApexOnServerError, int32, Code, const FString&, Message);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnServerNotice, const FString&, Message);
+DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnChat, const FApexChatLine&);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPlayerDisconnected, const FString&, PlayerId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnDisconnected, const FString&, Reason);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnSessionRosterUpdated, const FApexSessionRoster&, Roster);
@@ -106,6 +107,20 @@ public:
 	/** An operator's message for the player (`ServerNotice`): a dashboard broadcast, or why the admin ended the session. Not an error: no request is answered by it. */
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Net")
 	FApexOnServerNotice OnServerNotice;
+
+	/** A chat line arrived (lobby or session); also kept in GetChat(). */
+	FApexOnChat OnChat;
+
+	/**
+	 * Says a line: to the session we drive in or watch, else the lobby. The
+	 * server caps it (200 characters), holds each player to a few lines a
+	 * few seconds (Error 429) and drops a muted player's (Error 403).
+	 */
+	void SendChat(const FString& Text);
+
+	/** The last lines, oldest first (up to MaxChatLines), lobby and session alike (FApexChatLine::bInSession). */
+	const TArray<FApexChatLine>& GetChat() const { return ChatLines; }
+	static constexpr int32 MaxChatLines = 50;
 
 	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Net")
 	FApexOnPlayerDisconnected OnPlayerDisconnected;
@@ -903,6 +918,7 @@ private:
 	UPROPERTY()
 	FApexTelemetryFrame LatestTelemetry;
 
+	TArray<FApexChatLine> ChatLines;
 	FApexDriverFeedback LatestDriverFeedback;
 	uint32 DriverFeedbackSerial = 0;
 	double DriverFeedbackTime = 0.0;

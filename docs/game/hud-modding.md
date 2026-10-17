@@ -58,7 +58,8 @@ Shipped components: `track_info`, `race_state` (with STOPS OWED under a pit
 rule and the BOX badge after a pit request), `status`, `minimap`,
 `standings`, `timing`, `pedals`, `damage`, `car_state`, `mirror`, `pit_stop`,
 `ers` (a hybrid only), `flags` (while race control shows the car a flag),
-`radar` (while a car is alongside);
+`radar` (while a car is alongside), `chat` (the session's chat, while
+there are recent lines or the chat line is open);
 off until added in the editor: `relative`, `speed_gear`, `conditions`; while
 watching: `spectator_tower`, `spectator_driver`, `spectator_controls`,
 `spectator_replay`, `spectator_results` (once the race is over); the `hotlap_watch` scene: `hotlap_header`,
@@ -273,6 +274,9 @@ player's, or while watching, the car on screen (every `car.*`, `lap.*`,
 | `session.air_temp_c` | the air, when the host set it (*null* when left to the weather) |
 | `session.wind_kph` | the wind, when the host set it (*null* when left to the weather) |
 | `net.ping_ms` | heartbeat round trip, refreshed every two seconds (*null* before the first) |
+| `chat.count` | how many lines are in `chat` |
+| `chat.open` | the chat line is open for typing (the Chat key) |
+| `chat.key` | the key that opens it, as bound, "T" (empty when unbound) |
 
 ### The sky now
 
@@ -592,6 +596,17 @@ garage, nor more than 4 m above or below it), for a top-down radar.
 | `item.heading_deg` | its heading against the local car's, degrees, positive turned left |
 | `item.length_m`, `item.width_m` | its size, from its catalog row's wheels |
 | `item.alongside` | it counts toward `radar.left` / `radar.right` |
+
+**`chat`**: the session's chat lines, oldest first: the newest six of the
+last 30 s, or every recent one while the chat line is open. The lobby's
+lines are not listed in a race.
+
+| Field | Meaning |
+|---|---|
+| `item.from` | the sender's name |
+| `item.text` | the line |
+| `item.age_s` | seconds since it arrived, for fading it |
+| `item.is_local` | the player said it |
 
 ## The HUD editor and layouts
 

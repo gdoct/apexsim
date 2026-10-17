@@ -5,6 +5,7 @@
 #include "ApexSim.h"
 #include "Blueprint/WidgetTree.h"
 #include "Catalog/ApexCatalogRows.h"
+#include "Components/EditableTextBox.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
@@ -69,6 +70,7 @@ void UApexSessionLobbyWidget::NativeConstruct()
 		Net->OnSessionRosterUpdated.AddDynamic(this, &UApexSessionLobbyWidget::HandleRosterUpdated);
 		Net->OnCountdownUpdate.AddDynamic(this, &UApexSessionLobbyWidget::HandleCountdownUpdate);
 		Net->OnGameModeChanged.AddDynamic(this, &UApexSessionLobbyWidget::HandleGameModeChanged);
+		ChatHandle = Net->OnChat.AddWeakLambda(this, [this](const FApexChatLine&) { RefreshChat(); });
 	}
 }
 
@@ -80,6 +82,7 @@ void UApexSessionLobbyWidget::NativeDestruct()
 		Net->OnSessionRosterUpdated.RemoveDynamic(this, &UApexSessionLobbyWidget::HandleRosterUpdated);
 		Net->OnCountdownUpdate.RemoveDynamic(this, &UApexSessionLobbyWidget::HandleCountdownUpdate);
 		Net->OnGameModeChanged.RemoveDynamic(this, &UApexSessionLobbyWidget::HandleGameModeChanged);
+		Net->OnChat.Remove(ChatHandle);
 	}
 	Super::NativeDestruct();
 }
@@ -125,6 +128,14 @@ void UApexSessionLobbyWidget::BuildLayout()
 	UScrollBox* GridScroll = WidgetTree->ConstructWidget<UScrollBox>();
 	GridScroll->AddChild(GridBox);
 	ApexUI::AddV(GridColumn, GridScroll, FMargin(), HAlign_Fill, 1.0f);
+
+	// The session's chat: who is in it can talk before the start.
+	ApexUI::AddV(GridColumn, ApexUI::MakeLabel(*WidgetTree, TEXT("Chat")), FMargin(0.0f, 18.0f, 0.0f, 8.0f));
+	ChatList = WidgetTree->ConstructWidget<UVerticalBox>();
+	ApexUI::AddV(GridColumn, ApexUI::MakeSized(*WidgetTree, ChatList, -1.0f, 132.0f));
+	ChatInput = ApexUI::MakeSearchBox(*WidgetTree, TEXT("Say something to the session · Enter sends"));
+	ChatInput->OnTextCommitted.AddDynamic(this, &UApexSessionLobbyWidget::HandleChatCommitted);
+	ApexUI::AddV(GridColumn, ApexUI::MakeSized(*WidgetTree, ChatInput, -1.0f, 44.0f), FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 
 	UBorder* GridPanel = ApexUI::MakePanel(
 		*WidgetTree,
@@ -279,6 +290,58 @@ void UApexSessionLobbyWidget::RefreshAll()
 	RefreshHeader();
 	RefreshGrid();
 	RefreshSidePanel();
+	RefreshChat();
+}
+
+void UApexSessionLobbyWidget::RefreshChat()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!ChatList || !Net)
+	{
+		return;
+	}
+	ChatList->ClearChildren();
+	// The newest six of the session's lines, oldest at the top.
+	TArray<const FApexChatLine*> Shown;
+	const TArray<FApexChatLine>& Lines = Net->GetChat();
+	for (int32 Index = Lines.Num() - 1; Index >= 0 && Shown.Num() < 6; --Index)
+	{
+		if (Lines[Index].bInSession)
+		{
+			Shown.Insert(&Lines[Index], 0);
+		}
+	}
+	if (Shown.Num() == 0)
+	{
+		ApexUI::AddV(ChatList, ApexUI::MakeText(*WidgetTree, TEXT("Nothing said yet."), ApexUI::Font::Body(14.0f), ApexUI::Palette::TextMuted));
+		return;
+	}
+	for (const FApexChatLine* Line : Shown)
+	{
+		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+		const bool bMine = Line->PlayerId == Net->GetPlayerId();
+		ApexUI::AddH(Row, ApexUI::MakeText(*WidgetTree, Line->From.ToUpper(), ApexUI::Font::Body(13.0f, true),
+			bMine ? ApexUI::Palette::Accent : ApexUI::Palette::TextSecondary), FMargin(0.0f, 0.0f, 10.0f, 0.0f), VAlign_Center);
+		UTextBlock* Said = ApexUI::MakeText(*WidgetTree, Line->Text, ApexUI::Font::Body(14.0f), ApexUI::Palette::TextPrimary);
+		Said->SetAutoWrapText(true);
+		ApexUI::AddH(Row, Said, FMargin(), VAlign_Center, 1.0f);
+		ApexUI::AddV(ChatList, Row, FMargin(0.0f, 0.0f, 0.0f, 3.0f));
+	}
+}
+
+void UApexSessionLobbyWidget::HandleChatCommitted(const FText& Text, ETextCommit::Type CommitMethod)
+{
+	if (CommitMethod != ETextCommit::OnEnter || !ChatInput)
+	{
+		return;
+	}
+	if (UApexNetSubsystem* Net = GetNet())
+	{
+		Net->SendChat(Text.ToString());
+	}
+	ChatInput->SetText(FText::GetEmpty());
+	// Stay in the box for the next line.
+	ChatInput->SetKeyboardFocus();
 }
 
 void UApexSessionLobbyWidget::RefreshHeader()

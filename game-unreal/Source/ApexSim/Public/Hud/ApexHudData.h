@@ -179,6 +179,17 @@ struct APEXSIM_API FApexHudInputs
 
 	/** The driver's own box (`PitBox`); null when watching someone else's car. */
 	const FApexPitBox* OwnPitBox = nullptr;
+
+	/** The chat lines (UApexNetSubsystem::GetChat), oldest first; null for none. */
+	const TArray<FApexChatLine>* Chat = nullptr;
+	/** The local player's id, to mark their own lines. */
+	FString LocalPlayerId;
+	/** FPlatformTime::Seconds now: a chat line's age is measured from its arrival. */
+	double NowSeconds = 0.0;
+	/** The chat line is open for typing (UApexRootWidget::OpenChat). */
+	bool bChatOpen = false;
+	/** The key that opens it, as the hints print it ("T"). */
+	FString ChatKey;
 };
 
 /**
@@ -372,4 +383,9 @@ namespace ApexHudData
 	inline constexpr float RadarRangeM = 20.0f;
 	/** A car this far off the local car's side, m, edge to edge, is alongside. */
 	inline constexpr float RadarSideM = 3.0f;
+
+	/** A chat line stays on the HUD this long, s (every recent one while the chat line is open). */
+	inline constexpr double ChatShowSeconds = 30.0;
+	/** The most chat lines the HUD lists. */
+	inline constexpr int32 ChatMaxLines = 6;
 }

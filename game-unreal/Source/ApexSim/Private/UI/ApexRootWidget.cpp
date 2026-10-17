@@ -15,6 +15,9 @@
 #include "Blueprint/WidgetTree.h"
 #include "Hud/ApexHudLayout.h"
 #include "Hud/ApexHudDataSubsystem.h"
+#include "Components/EditableTextBox.h"
+#include "Components/SizeBox.h"
+#include "Input/ApexInputConfig.h"
 #include "UObject/UObjectIterator.h"
 #include "Components/Border.h"
 #include "Components/Image.h"
@@ -379,6 +382,18 @@ void UApexRootWidget::BuildShell()
 	UOverlaySlot* ResultsSlot = Frame->AddChildToOverlay(RaceResults);
 	ResultsSlot->SetHorizontalAlignment(HAlign_Fill);
 	ResultsSlot->SetVerticalAlignment(VAlign_Fill);
+
+	// The chat line: over the race, under the menus.
+	{
+		ChatBox = ApexUI::MakeSearchBox(*WidgetTree, TEXT("Say something · Enter sends · Esc closes"));
+		ChatBox->OnTextCommitted.AddDynamic(this, &UApexRootWidget::HandleChatCommitted);
+		ChatLine = ApexUI::MakeSized(*WidgetTree, ChatBox, 560.0f, 44.0f);
+		ChatLine->SetVisibility(ESlateVisibility::Collapsed);
+		UOverlaySlot* ChatSlot = Frame->AddChildToOverlay(ChatLine);
+		ChatSlot->SetHorizontalAlignment(HAlign_Left);
+		ChatSlot->SetVerticalAlignment(VAlign_Center);
+		ChatSlot->SetPadding(FMargin(ApexUI::Metrics::PageGutter, 260.0f, 0.0f, 0.0f));
+	}
 
 	UOverlaySlot* PauseSlot = Frame->AddChildToOverlay(PauseMenu);
 	PauseSlot->SetHorizontalAlignment(HAlign_Fill);
@@ -1093,7 +1108,7 @@ void UApexRootWidget::ApplyDriveInput()
 			Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
 	{
 		PlayerController->SetDriveInputEnabled(bRaceViewActive && !IsWatching() && !bPauseMenuOpen && !bGarageOpen && !IsHudEditorOpen()
-			&& !bFinishView);
+			&& !bFinishView && !bChatOpen);
 	}
 }
 
@@ -1115,6 +1130,11 @@ bool UApexRootWidget::IsScreenActive(const UApexScreenWidget* Screen) const
 void UApexRootWidget::FocusDefault()
 {
 	// Front to back: whatever is drawn on top is what the keys should reach.
+	if (bChatOpen && ChatBox && !IsRaceOverlayOpen())
+	{
+		ChatBox->SetKeyboardFocus();
+		return;
+	}
 	if (IsHudEditorOpen())
 	{
 		HudEditor->FocusDefault();
@@ -1194,6 +1214,70 @@ void UApexRootWidget::RequestFocusDefault()
 	}
 }
 
+void UApexRootWidget::OpenChat()
+{
+	const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (bChatOpen || !ChatLine || !bRaceViewActive || IsRaceOverlayOpen() || !Net || !Net->IsInSession() || Net->IsInDemoSession())
+	{
+		return;
+	}
+	bChatOpen = true;
+	ChatBox->SetText(FText::GetEmpty());
+	ChatLine->SetVisibility(ESlateVisibility::Visible);
+	ApplyDriveInput();
+	PushChatState();
+	// After the input-mode switch hands focus to the viewport, as the pause menu does.
+	RequestFocusDefault();
+}
+
+void UApexRootWidget::CloseChat()
+{
+	if (!bChatOpen)
+	{
+		return;
+	}
+	bChatOpen = false;
+	if (ChatLine)
+	{
+		ChatLine->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	// Back to driving: the controls on, and with them the viewport's focus.
+	ApplyDriveInput();
+	PushChatState();
+	RequestFocusDefault();
+}
+
+void UApexRootWidget::HandleChatCommitted(const FText& Text, ETextCommit::Type CommitMethod)
+{
+	if (!bChatOpen)
+	{
+		return;
+	}
+	if (CommitMethod == ETextCommit::OnEnter)
+	{
+		if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
+		{
+			Net->SendChat(Text.ToString());
+		}
+	}
+	// Enter sends, Escape clears, a click away lets go: each closes the line.
+	CloseChat();
+}
+
+void UApexRootWidget::PushChatState()
+{
+	UGameInstance* Game = GetGameInstance();
+	UApexHudDataSubsystem* HudData = Game ? Game->GetSubsystem<UApexHudDataSubsystem>() : nullptr;
+	const UApexSettingsSubsystem* Settings = Game ? Game->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+	if (HudData)
+	{
+		const FString Key = Settings
+			? ApexInput::GetKeyDisplayName(Settings->GetBoundKey(ApexInput::Actions::Chat, ApexInput::Slot::Keyboard))
+			: FString(TEXT("T"));
+		HudData->SetChat(bChatOpen, Key);
+	}
+}
+
 void UApexRootWidget::SetPaused(bool bPaused)
 {
 	// The pause key during a replay stops the replay, as its strip promises.
@@ -1211,6 +1295,10 @@ void UApexRootWidget::SetPaused(bool bPaused)
 	if (bPauseMenuOpen == bPaused || !PauseMenu)
 	{
 		return;
+	}
+	if (bPaused)
+	{
+		CloseChat();
 	}
 	bPauseMenuOpen = bPaused;
 
@@ -2520,6 +2608,12 @@ void UApexRootWidget::SetRaceViewActive(bool bActive)
 		return;
 	}
 	bRaceViewActive = bActive;
+	if (!bActive)
+	{
+		CloseChat();
+	}
+	// The HUD's chat hint names the key from the start.
+	PushChatState();
 
 	// The menu is hit-test invisible rather than removed so the toast and status
 	// bar can still be brought back without rebuilding the tree.

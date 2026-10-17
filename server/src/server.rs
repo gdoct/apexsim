@@ -54,6 +54,8 @@ pub struct ServerState {
     /// (`crate::admin::content`): left out of the lobby, refused on select
     /// and create, and never dealt to the AI.
     pub disabled_content: std::collections::BTreeSet<uuid::Uuid>,
+    /// Chat's rate limit and the operator's mutes (`crate::chat`).
+    pub chat: crate::chat::ChatGuard,
 }
 
 impl ServerState {
@@ -186,6 +188,7 @@ impl ServerState {
         Self {
             showcase,
             disabled_content,
+            chat: crate::chat::ChatGuard::default(),
             config,
             car_configs,
             track_configs,

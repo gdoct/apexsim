@@ -160,6 +160,16 @@ public:
 	void SetPaused(bool bPaused);
 
 	/**
+	 * The chat line over a race: a text box at the bottom left, Enter sends
+	 * (UApexNetSubsystem::SendChat) and Escape closes. The car's controls
+	 * are off while it is open, as under the pause menu, so typing does not
+	 * steer. The Chat key (T) opens it.
+	 */
+	void OpenChat();
+	void CloseChat();
+	bool IsChatOpen() const { return bChatOpen; }
+
+	/**
 	 * Opens the settings overlay on a page. From the pause menu it is a step
 	 * forward and closes back onto it; from a menu screen it closes back onto
 	 * that screen.
@@ -326,6 +336,17 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
 	TObjectPtr<UApexPauseMenuWidget> PauseMenu;
+
+	/** The chat line (OpenChat) and its frame. */
+	UPROPERTY(Transient)
+	TObjectPtr<class UEditableTextBox> ChatBox;
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> ChatLine;
+	bool bChatOpen = false;
+	UFUNCTION()
+	void HandleChatCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+	/** `chat.open` and `chat.key` for the HUD. */
+	void PushChatState();
 
 	/** The hotlap layer: garage card, timing sheet, replay strip. Between the HUD and the pause menu. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")

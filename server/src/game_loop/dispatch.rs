@@ -226,6 +226,9 @@ pub(crate) async fn handle_message(
         ClientMessage::SetLivery { livery } => {
             handle_set_livery(ctx, connection_id, livery).await;
         }
+        ClientMessage::Chat { text } => {
+            handle_chat(ctx, connection_id, &text).await;
+        }
         ClientMessage::PlayerInput {
             throttle,
             brake,
@@ -1478,6 +1481,79 @@ async fn handle_leave_session(ctx: &GameLoopCtx, connection_id: ConnectionId) {
     let _ = ctx.send(connection_id, ServerMessage::SessionLeft).await;
     // Clear session tracking
     ctx.set_player_session(connection_id, None).await;
+}
+
+/// A chat line (`crate::chat`): to the session the player drives in or
+/// watches, else to everyone in the lobby outside a session; refused with
+/// 429 when too fast and 403 when muted.
+async fn handle_chat(ctx: &GameLoopCtx, connection_id: ConnectionId, text: &str) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let player = conn_info.player_id;
+    let (verdict, session) = {
+        let mut st = ctx.state.write().await;
+        let verdict = st.chat.check(player, text, std::time::Instant::now());
+        let session = match st.lobby.get_player_session(player).await {
+            Some(id) => Some(id),
+            None => st.lobby.get_spectating_session(player).await,
+        };
+        (verdict, session)
+    };
+    let line = match verdict {
+        crate::chat::Verdict::Send(line) => line,
+        crate::chat::Verdict::Empty => return,
+        crate::chat::Verdict::Muted => {
+            ctx.send_error(connection_id, 403, "The operator has muted your chat")
+                .await;
+            return;
+        }
+        crate::chat::Verdict::TooFast => {
+            ctx.send_error(
+                connection_id,
+                429,
+                "Slow down: a few lines every ten seconds",
+            )
+            .await;
+            return;
+        }
+    };
+    let audience: Vec<PlayerId> = match session {
+        Some(id) => crate::admin::hosted::session_audience(&*ctx.state.read().await, id).await,
+        None => {
+            // The lobby: everyone connected who is in no session.
+            let conns = ctx.transport.read().await.connection_snapshots().await;
+            let st = ctx.state.read().await;
+            let mut out = Vec::new();
+            for c in conns {
+                if st.lobby.get_player_session(c.player_id).await.is_none()
+                    && st.lobby.get_spectating_session(c.player_id).await.is_none()
+                {
+                    out.push(c.player_id);
+                }
+            }
+            out
+        }
+    };
+    tracing::info!(
+        "Chat {} {}: {}",
+        conn_info.player_name,
+        session
+            .map(|s| format!("in {s}"))
+            .unwrap_or_else(|| "in the lobby".into()),
+        line
+    );
+    let msg = ServerMessage::Chat(crate::network::ChatData {
+        player_id: player,
+        from: conn_info.player_name.clone(),
+        text: line,
+        in_session: session.is_some(),
+    });
+    for to in audience {
+        if let Some(conn) = ctx.player_connection(to).await {
+            let _ = ctx.send(conn, msg.clone()).await;
+        }
+    }
 }
 
 async fn handle_start_session(ctx: &GameLoopCtx, connection_id: ConnectionId) {

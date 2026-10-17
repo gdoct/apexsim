@@ -49,7 +49,6 @@ When an item is done, delete it from its backlog and from here.
 | N6 | Lap comparison against the ghost; MoTeC export | Driver tools | P3 | 🟢 | S |
 | N7 | Championships and series with points | Game mode | P2 | 🔴 | M |
 | N8 | Public server list (master server) | Online | P2 | 🔴 | M |
-| N9 | Text chat (lobby and race) | Online | P2 | 🟢 | S |
 | N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🔴 | M |
 | N11 | Livery editor / own livery import | Content | P2 | 🟡 | M |
 | B5 | Chase camera inside a car body | Bug | P3 | 🟡 | S |
@@ -86,7 +85,7 @@ When an item is done, delete it from its backlog and from here.
 4. **Sim-racer essentials** — N1 (client prediction: largest online win, largest job).
 5. **Visual quality pass** — G3, G4 in one branch of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
 6. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
-7. **Online and depth** — N9 (chat), N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
+7. **Online and depth** — N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
 8. Everything P3 opportunistically, bundled with whatever touches the same files.
 
 ## 3. Items by type
@@ -463,17 +462,6 @@ browser gets an Internet tab. Opt-in per server in `operations` config.
 **Watch out:** 🔴 hosting, domain and abuse handling are yours; servers
 register themselves, so sign or verify them (TLS fingerprint); the browser's
 filter pills already exist.
-
-#### N9. Text chat — P2 · 🟢 · S
-**What:** No chat, only dashboard broadcasts.
-**Outcome:** Basic social glue online; required for leagues and lobbies.
-**Implementation:** `ClientMessage::Chat` / `ServerMessage::Chat` on TCP,
-rate-limited and length-capped server-side, shown in the lobby and as a HUD
-component in a race (hidden while driving unless opened; mind focus — while
-driving, focus must stay on the viewport). Admin mute with kick/ban.
-Voice chat later (P3).
-**Watch out:** wire append-only with golden bytes; a profanity filter is a
-product decision.
 
 #### N10. DLSS / FSR, HDR paper white — P3 · 🔴 · M
 Built: the Graphics tab's render scale (TSR; LOW 70, MEDIUM 85, HIGH and

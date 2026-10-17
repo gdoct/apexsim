@@ -237,6 +237,7 @@ private:
 	void HandleRecover(const struct FInputActionValue& Value, bool bPits);
 	/** BoxThisLap: the pit request on or off (UApexPitPlanSubsystem). */
 	void HandleBoxThisLap(const struct FInputActionValue& Value);
+	void HandleChat(const struct FInputActionValue& Value);
 	/** DriveInput.HGear from the gates held now. */
 	void UpdateHGear();
 

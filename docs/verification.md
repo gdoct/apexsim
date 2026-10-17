@@ -463,8 +463,16 @@ Mandarina Bay.
 
 - The Graphics tab's Render scale at 50, 70 and 100 in a race: the frame
   rate against the sharpness, the HUD sharp at every scale, the cockpit
-  mirrors and a triple's side views. HDR on an HDR display (the row is
-  hidden on this machine's). Only the settings round trip has run.
+  mirrors and a triple's side views. HDR switched on with an HDR display
+  (the row shows on this machine, which reports HDR support). Only the settings round trip has run.
+
+**Chat.** ([server/protocol.md](server/protocol.md))
+
+- Two clients chatting in a session lobby and in a race: the lines both
+  ways, the chat line opened with T and closed with Enter and Escape
+  without losing pad steering on the viewport, the rate limit's 429 toast,
+  a mute from the dashboard. One client's lines were seen in the
+  `n9-chat` run.
 
 **Last, with the network off.**
 

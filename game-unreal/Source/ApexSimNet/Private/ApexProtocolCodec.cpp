@@ -1477,6 +1477,36 @@ namespace
 		return true;
 	}
 
+	/** `ChatData` — PascalCase keys; `InSession` left off in the lobby. */
+	bool ParseChat(FMsgPackReader& Reader, FApexChatLine& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			if (Key == TEXT("PlayerId"))       { bOk = Reader.ReadString(Out.PlayerId); }
+			else if (Key == TEXT("From"))      { bOk = Reader.ReadString(Out.From); }
+			else if (Key == TEXT("Text"))      { bOk = Reader.ReadString(Out.Text); }
+			else if (Key == TEXT("InSession")) { bOk = Reader.ReadBool(Out.bInSession); }
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		Out.bValid = true;
+		return true;
+	}
+
 	/** `SetupKnobFigure` — PascalCase keys. */
 	bool ParseSetupKnobFigure(FMsgPackReader& Reader, FApexSetupKnobFigure& Out)
 	{
@@ -2885,6 +2915,7 @@ namespace
 		if (Variant == TEXT("RoadState"))          { return EApexServerMessageType::RoadState; }
 		if (Variant == TEXT("Leaderboard"))        { return EApexServerMessageType::Leaderboard; }
 		if (Variant == TEXT("ServerNotice"))       { return EApexServerMessageType::ServerNotice; }
+		if (Variant == TEXT("Chat"))               { return EApexServerMessageType::Chat; }
 		if (Variant == TEXT("ShootoutState"))      { return EApexServerMessageType::ShootoutState; }
 
 		// The named-encoding `Telemetry` is only used for server-side replays;
@@ -2956,6 +2987,8 @@ namespace
 
 		case EApexServerMessageType::PitBox:
 			return ParsePitBox(Reader, Out.PitBox);
+		case EApexServerMessageType::Chat:
+			return ParseChat(Reader, Out.Chat);
 
 		case EApexServerMessageType::Showcases:
 			return ParseShowcases(Reader, Out.Showcases);
@@ -3392,6 +3425,15 @@ namespace ApexProtocol
 		BeginDataVariant(Writer, "SetReady", 1);
 		Writer.WriteString("ready");
 		Writer.WriteBool(bReady);
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeChat(const FString& Text)
+	{
+		FMsgPackWriter Writer(64 + Text.Len() * 3);
+		BeginDataVariant(Writer, "Chat", 1);
+		Writer.WriteString("text");
+		Writer.WriteString(Text);
 		return MoveTemp(Writer.GetBuffer());
 	}
 

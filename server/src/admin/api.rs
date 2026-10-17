@@ -142,6 +142,21 @@ pub async fn handle(
             Ok(id) => remove_player(ctx, id, *action == "ban", &body).await,
             Err(_) => error(StatusCode::BAD_REQUEST, "bad player id"),
         },
+        (&Method::POST, ["players", id, action @ ("mute" | "unmute")]) => {
+            match id.parse::<Uuid>() {
+                Ok(id) => {
+                    let changed = ctx
+                        .state
+                        .write()
+                        .await
+                        .chat
+                        .set_muted(id, *action == "mute");
+                    tracing::info!("Admin {} chat for player {}", action, id);
+                    ok(json!({ "ok": true, "changed": changed }))
+                }
+                Err(_) => error(StatusCode::BAD_REQUEST, "bad player id"),
+            }
+        }
         (&Method::GET, ["bans"]) => ok(json!({ "bans": ctx.bans.entries() })),
         (&Method::POST, ["bans", "remove"]) => unban(ctx, &body),
         (&Method::GET, ["history"]) => history(ctx).await,
@@ -568,6 +583,7 @@ async fn players(ctx: &AdminContext) -> Resp {
             "last_seen_ms": c.since_heartbeat.as_millis() as u64,
             "ping_ms": c.ping_ms,
             "udp": c.udp_bound,
+            "muted": st.chat.is_muted(&c.player_id),
         }));
     }
     for gs in st

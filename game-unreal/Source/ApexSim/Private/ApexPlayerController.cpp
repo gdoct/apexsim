@@ -1,4 +1,6 @@
 #include "ApexPlayerController.h"
+#include "UI/ApexRootWidget.h"
+#include "UObject/UObjectIterator.h"
 
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
@@ -178,6 +180,7 @@ void AApexPlayerController::SetupInputComponent()
 	Input->BindAction(InputConfig->RecoverTrack, ETriggerEvent::Started, this, &AApexPlayerController::HandleRecover, false);
 	Input->BindAction(InputConfig->RecoverPits, ETriggerEvent::Started, this, &AApexPlayerController::HandleRecover, true);
 	Input->BindAction(InputConfig->BoxThisLap, ETriggerEvent::Started, this, &AApexPlayerController::HandleBoxThisLap);
+	Input->BindAction(InputConfig->Chat, ETriggerEvent::Started, this, &AApexPlayerController::HandleChat);
 }
 
 void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
@@ -682,6 +685,18 @@ void AApexPlayerController::HandleBoxThisLap(const FInputActionValue&)
 		if (UApexPitPlanSubsystem* PitPlan = Game->GetSubsystem<UApexPitPlanSubsystem>())
 		{
 			PitPlan->ToggleBoxThisLap();
+		}
+	}
+}
+
+void AApexPlayerController::HandleChat(const FInputActionValue&)
+{
+	for (TObjectIterator<UApexRootWidget> It; It; ++It)
+	{
+		if (It->GetWorld() == GetWorld() && It->GetCachedWidget().IsValid())
+		{
+			It->OpenChat();
+			return;
 		}
 	}
 }

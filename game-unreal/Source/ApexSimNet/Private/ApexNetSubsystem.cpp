@@ -23,6 +23,18 @@ namespace
 
 namespace
 {
+	FAutoConsoleCommandWithWorldAndArgs ChatCommand(
+		TEXT("apexsim.net.Chat"),
+		TEXT("Say a chat line, as the lobby's box or the race's chat line would: apexsim.net.Chat <text>"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+			if (UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr)
+			{
+				Net->SendChat(FString::Join(Args, TEXT(" ")));
+			}
+		}));
+
 	FAutoConsoleCommandWithWorld DropCommand(
 		TEXT("apexsim.net.Drop"),
 		TEXT("Close the server connection as a lost network would (no Disconnect sent): the client reconnects and, ")
@@ -257,6 +269,17 @@ void UApexNetSubsystem::DropConnection()
 	// Stop() closes the socket under the worker, which then reports the
 	// connection gone; Tick takes that as any lost connection.
 	Connection->Stop();
+}
+
+void UApexNetSubsystem::SendChat(const FString& Text)
+{
+	const FString Line = Text.TrimStartAndEnd();
+	if (Line.IsEmpty() || !IsAuthenticated())
+	{
+		return;
+	}
+	UE_LOG(LogApexSimNet, Log, TEXT("-> Chat: %s"), *Line);
+	SendPayload(ApexProtocol::EncodeChat(Line.Left(200)));
 }
 
 void UApexNetSubsystem::ListShowcases()
@@ -1451,6 +1474,21 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		bSpectatorJoinRequested = false;
 		UE_LOG(LogApexSimNet, Warning, TEXT("<- Error %d: %s"), Message.ErrorCode, *Message.Reason);
 		OnServerError.Broadcast(Message.ErrorCode, Message.Reason);
+		break;
+
+	case EApexServerMessageType::Chat:
+		if (Message.Chat.bValid)
+		{
+			FApexChatLine Line = Message.Chat;
+			Line.ArrivedSeconds = FPlatformTime::Seconds();
+			UE_LOG(LogApexSimNet, Log, TEXT("<- Chat %s%s: %s"), *Line.From, Line.bInSession ? TEXT(" (session)") : TEXT(""), *Line.Text);
+			ChatLines.Add(Line);
+			if (ChatLines.Num() > MaxChatLines)
+			{
+				ChatLines.RemoveAt(0, ChatLines.Num() - MaxChatLines);
+			}
+			OnChat.Broadcast(Line);
+		}
 		break;
 
 	case EApexServerMessageType::ServerNotice:

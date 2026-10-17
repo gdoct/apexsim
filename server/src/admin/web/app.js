@@ -632,9 +632,9 @@ PAGES.schedule = el => {
 // ---------------------------------------------------------------- players
 PAGES.players = el => {
   el.innerHTML = `<div class="stack">
-    <div class="panel scroll-x"><div style="min-width:860px" id="plist"></div></div>
+    <div class="panel scroll-x"><div style="min-width:940px" id="plist"></div></div>
     <div class="stack" style="gap:10px"><div class="eyebrow" id="ban-title">BAN LIST</div><div class="panel scroll-x"><div style="min-width:700px" id="blist"></div></div></div></div>`;
-  const pcols = 'grid-template-columns:minmax(170px,1.4fr) 92px minmax(130px,1fr) minmax(120px,1fr) 90px 70px 130px 150px';
+  const pcols = 'grid-template-columns:minmax(170px,1.4fr) 92px minmax(130px,1fr) minmax(120px,1fr) 90px 70px 130px 230px';
   let data = null;
   function paint() {
     if (!data) return;
@@ -647,7 +647,7 @@ PAGES.players = el => {
         <span class="${p.last_seen_ms > 2500 ? 'warn' : ''}" title="${p.human ? 'last heartbeat ' + p.last_seen_ms + ' ms ago' : ''}">${p.human ? fmtDur(p.online_s).replace(/^00:/, '') : '—'}</span>
         <span class="${p.ping_ms > 150 ? 'warn' : ''}" title="${p.human && p.ping_ms == null ? 'the game has not reported one' : ''}">${p.ping_ms != null ? p.ping_ms + ' ms' : '—'}</span>
         <span class="muted">${esc(p.address || '—')}</span>
-        <span style="display:flex;justify-content:flex-end;gap:6px">${p.human ? `<button class="btn sm" data-kick="${p.id}" data-name="${esc(p.name)}">KICK</button><button class="btn sm danger" data-ban="${p.id}" data-name="${esc(p.name)}">BAN</button>`
+        <span style="display:flex;justify-content:flex-end;gap:6px">${p.human ? `<button class="btn sm quiet" data-mute="${p.id}" data-muted="${p.muted ? 1 : 0}" data-name="${esc(p.name)}">${p.muted ? 'UNMUTE' : 'MUTE'}</button><button class="btn sm" data-kick="${p.id}" data-name="${esc(p.name)}">KICK</button><button class="btn sm danger" data-ban="${p.id}" data-name="${esc(p.name)}">BAN</button>`
           : `<button class="btn sm quiet" data-ai="${p.id}" data-session="${p.session}" data-name="${esc(p.name)}">REMOVE</button>`}</span></div>`).join('') || '<div class="empty">Nobody is connected.</div>');
     $('#ban-title').textContent = 'BAN LIST · ' + data.bans.length;
     $('#blist').innerHTML = data.bans.map(b => `<div class="row" style="grid-template-columns:minmax(150px,1fr) minmax(160px,1.4fr) 130px 110px 90px">
@@ -668,6 +668,11 @@ PAGES.players = el => {
         if (!r.ok) return;
         await api(`/api/players/${id}/${ban ? 'ban' : 'kick'}`, { method: 'POST', body: { reason: r.reason } });
         toast((ban ? 'Banned ' : 'Kicked ') + t.dataset.name);
+        load();
+      } else if (t.dataset.mute) {
+        const unmute = t.dataset.muted === '1';
+        await api(`/api/players/${t.dataset.mute}/${unmute ? 'unmute' : 'mute'}`, { method: 'POST', body: {} });
+        toast((unmute ? 'Unmuted ' : 'Muted ') + t.dataset.name + "'s chat");
         load();
       } else if (t.dataset.ai) {
         const r = await modal({ eyebrow: 'REMOVE AI CAR', title: 'Remove ' + t.dataset.name + '?', body: 'The car leaves the session now, from the grid or from the track.', confirm: 'REMOVE', danger: true });

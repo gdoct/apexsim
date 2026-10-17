@@ -104,6 +104,21 @@ At any time the server may send `ServerNotice { message }`: the operator's
 words (a dashboard broadcast, or why a session was ended), which the client
 shows as an 8 s toast over whatever is on screen.
 
+**Chat** (`crate::chat`, `dispatch::handle_chat`): `Chat { text }` from a
+client goes on as `Chat(ChatData { PlayerId, From, Text, InSession })` to
+the session the sender drives in or watches (its drivers and spectators,
+`InSession` true), else to everyone connected outside a session (left off).
+The server cleans the line (control characters out, whitespace runs as one,
+200 characters at most) and holds each player to 5 lines in 10 s (`Error
+429` past that); a player the operator muted gets `Error 403`. Golden bytes:
+`cargo test chat_wire_format -- --nocapture` -> `ApexGolden::C_Chat`,
+`S_ChatLobby`, `S_ChatSession`. Client: `UApexNetSubsystem::SendChat`,
+`OnChat`, `GetChat` (the last 50 lines); the session lobby's chat under the
+grid, and in a race the Chat key (T) opens a line over the HUD (the car's
+controls off while it is open, as under the pause menu) with the `chat`
+HUD component listing the session's recent lines
+([../game/hud-modding.md](../game/hud-modding.md)).
+
 Joining a session: `SelectCar`, then `CreateSession` or `JoinSession`, answered
 by `SessionJoined`, a `SessionRoster` (car index to player, reliable, resent
 whenever membership changes), `RacingLine`, `TrackSectors`, `CarSetupSheet`,

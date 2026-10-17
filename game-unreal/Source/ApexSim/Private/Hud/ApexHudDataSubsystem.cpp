@@ -280,6 +280,14 @@ void UApexHudDataSubsystem::Refresh()
 	In.bFullDetail = !Save || Save->HudDetail == EApexHudDetail::All;
 	In.bGamepad = bGamepad;
 	In.bSpectating = bSpectating;
+	if (Net)
+	{
+		In.Chat = &Net->GetChat();
+		In.LocalPlayerId = Net->GetPlayerId();
+	}
+	In.NowSeconds = FPlatformTime::Seconds();
+	In.bChatOpen = bChatOpen;
+	In.ChatKey = ChatKey;
 	if (bSpectating)
 	{
 		// The watch keys as bound for the device in use, for the hints.

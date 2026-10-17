@@ -1802,6 +1802,7 @@ UWidget* UApexSettingsWidget::BuildBindingsGrid()
 		{ TEXT("Back to track"), ApexInput::Actions::RecoverTrack,  0,  1, TEXT("Driving"),         false },
 		{ TEXT("Back to pits"), ApexInput::Actions::RecoverPits,   0,  1, TEXT("Driving"),         false },
 		{ TEXT("Box this lap"), ApexInput::Actions::BoxThisLap,    0,  1, TEXT("Driving"),         false },
+		{ TEXT("Chat"),         ApexInput::Actions::Chat,          0,  1, TEXT("Driving"),         false },
 		{ TEXT("Shift up"),     ApexInput::Actions::GearUp,        0,  1, TEXT("Gears"),           false },
 		{ TEXT("Shift down"),   ApexInput::Actions::GearDown,      0,  1, TEXT("Gears"),           false },
 		{ TEXT("DRS"),          ApexInput::Actions::Drs,           0,  1, TEXT("Energy and DRS"),  false },

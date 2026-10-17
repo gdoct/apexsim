@@ -1,0 +1,35 @@
+// The session's chat: the newest lines of the last half minute, each
+// fading out over its last ten seconds, every recent one while the chat
+// line is open (the Chat key, T). The line itself is the game's own text
+// box under this panel. Hidden while there is nothing to read.
+{
+  "name": "Chat",
+  "region": "left",
+  "order": 30,
+  "visible": "=chat.count > 0 || chat.open",
+  "root": {
+    "type": "column", "width": 520,
+    "children": [
+      {
+        "type": "panel",
+        "repeat": { "list": "chat", "max": 6 },
+        "margin": [0, 1, 0, 0], "padding": [12, 6],
+        "background": "=alpha('surface', chat.open ? 0.92 : 0.8 * clamp((30 - item.age_s) / 10, 0, 1))",
+        "children": [{
+          "type": "row", "valign": "center",
+          "children": [
+            { "type": "text", "font": "body", "size": 13, "bold": true,
+              "text": "=upper(item.from)",
+              "color": "=alpha(item.is_local ? 'accent' : 'text_secondary', chat.open ? 1 : clamp((30 - item.age_s) / 10, 0, 1))" },
+            { "type": "text", "fill": 1, "margin": [10, 0, 0, 0], "font": "body", "size": 14,
+              "text": "=item.text",
+              "color": "=alpha('text', chat.open ? 1 : clamp((30 - item.age_s) / 10, 0, 1))" }
+          ]
+        }]
+      },
+      { "type": "keycap", "margin": [0, 6, 0, 0],
+        "visible": "=!chat.open && chat.count > 0 && chat.key != ''",
+        "text": "=chat.key + ' CHAT'" }
+    ]
+  }
+}

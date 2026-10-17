@@ -3306,6 +3306,22 @@ enum class EApexServerMessageType : uint8
 	ServerNotice,
 	/** A qualifying shoot-out's run order and progress (`ShootoutState`). */
 	ShootoutState,
+	/** A chat line from a player (`Chat`). */
+	Chat,
+};
+
+/** A chat line as the server sends it on (`ChatData`). */
+struct APEXSIMNET_API FApexChatLine
+{
+	FString PlayerId;
+	/** The sender's name as the lobby lists it. */
+	FString From;
+	FString Text;
+	/** Said in a session (to its drivers and watchers), not the lobby. */
+	bool bInSession = false;
+	/** FPlatformTime::Seconds when it arrived, for fading it out. */
+	double ArrivedSeconds = 0.0;
+	bool bValid = false;
 };
 
 /**
@@ -3392,6 +3408,7 @@ struct APEXSIMNET_API FApexServerMessage
 	/** ShootoutState. */
 	FApexShootoutState ShootoutState;
 	FApexPitBox PitBox;
+	FApexChatLine Chat;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

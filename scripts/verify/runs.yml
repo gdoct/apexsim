@@ -1854,12 +1854,13 @@ runs:
       - {at: 38, label: "the grid card", checks: "the field lined up with the gap"}
       - {at: 52, label: "the start", checks: "the gap on the grid"}
 
-  # An allowance of two laps against a slow AI field (level 70). Every AI
+  # An allowance of two laps against a slow AI field (level 70) (four would
+  # run the stand-in dry: qualifying fuels three laps, HOTLAP_FUEL_LAPS). Every AI
   # goes out as the session starts and the session ends once the last car's
   # laps are used, so the player has to be back first: the stand-in goes out
   # at once and gains on the field over two timed laps, and is in the
   # garage (LAP ALLOWANCE USED, GO OUT disabled) while the slowest AI still
-  # laps. With one lap each the field was done within seconds of it.
+  # laps. With one or two laps each the field was done within seconds of it.
   - id: r12-allowance-used
     about: "R12. The lap allowance used: USED on the race state, GO OUT disabled"
     server:
@@ -1876,20 +1877,20 @@ runs:
       - -ApexCountdown=5
       - -ApexWeather=sunny
       - -ApexTimeOfDay=13:00
-      - -ApexHotlapOutAfter=2
+      - -ApexHotlapOutAfter=8
     exec:
       150: ["apexsim.hud.Data qualifying."]
-      195: ["apexsim.hud.Data qualifying."]
-      210: ["apexsim.hud.Data qualifying.", "apexsim.ui.Texts"]
-      225: ["apexsim.hud.Data qualifying.", "apexsim.ui.Texts"]
+      300: ["apexsim.hud.Data qualifying."]
+      330: ["apexsim.hud.Data qualifying.", "apexsim.ui.Texts"]
+      350: ["apexsim.hud.Data qualifying.", "apexsim.ui.Texts"]
     shots:
-      - {at: 140, label: "second timed lap", checks: "laps left 1"}
-      - {at: 190, label: "the last lap ending", checks: "USED on the race state"}
-      - {at: 198, label: "", checks: "USED on the race state"}
-      - {at: 206, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
-      - {at: 214, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
-      - {at: 224, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
-      - {at: 240, label: "", checks: ""}
+      - {at: 150, label: "a timed lap", checks: "laps left"}
+      - {at: 300, label: "the last lap", checks: "USED on the race state"}
+      - {at: 320, label: "", checks: "USED on the race state"}
+      - {at: 335, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+      - {at: 345, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+      - {at: 355, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+      - {at: 370, label: "", checks: ""}
 
   # Puddles from the water over a cell's flat share (G1): Eau Rouge's low
   # cell and the 0.71 cell at 6175 m, in heavy and in light rain.
@@ -1955,6 +1956,87 @@ runs:
       - {at: 30, label: "chase camera, cloudy", checks: "the sky over the circuit"}
       - {at: 40, label: "looking up from the road", checks: "cumulus, not altocumulus", exec: "apexsim.cam.LookAt 0 0 2 300 120 160"}
       - {at: 45, label: "toward the horizon", checks: "cumulus, not altocumulus", exec: "apexsim.cam.LookAt 0 0 2 600 -200 60"}
+
+  # Lap traces (N6): two whole laps by the stand-in, then the pause menu's
+  # LAP TRACES page (the last against the best) and the files' log line.
+  - id: n6-lap-traces
+    about: "N6. The pause menu's LAP TRACES after two laps"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=2
+      - -ApexLaps=5
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexOpenPause=225
+    exec:
+      220: ["apexsim.telemetry.Laps"]
+      227: ["apexsim.ui.Texts LAP", "apexsim.ui.Click LAP TRACES"]
+    shots:
+      - {at: 222, label: "racing, lap 3", checks: ""}
+      - {at: 226, label: "pause menu", checks: "the LAP TRACES row"}
+      - {at: 231, label: "LAP TRACES", checks: "the last lap against the best: speed, pedals, delta"}
+
+  # The Graphics tab's render scale row (N10), in a race.
+  - id: n10-graphics
+    about: "N10. The Graphics tab's Render scale row"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=1
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexOpenSettings=20
+      - -ApexSettingsTab=2
+    exec:
+      22: ["apexsim.ui.Texts Render"]
+    shots:
+      - {at: 24, label: "Settings > Graphics", checks: "Render scale row, HDR row hidden without an HDR display"}
+
+  # Chat (N9): a line said in the session lobby, then in the race the HUD's
+  # chat panel and the chat line opened with T and closed with Escape.
+  - id: n9-chat
+    about: "N9. Chat in the session lobby and in a race"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexNoStart
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=2
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+    exec:
+      12: ["apexsim.net.Chat good luck everyone"]
+      14: ["apexsim.net.Chat see you at turn one"]
+      20: ["apexsim.ui.Click Start countdown"]
+      30: ["apexsim.grid.Ready"]
+      50: ["apexsim.net.Chat nice start"]
+      56: ["apexsim.ui.Key T"]
+      57.5: ["apexsim.ui.Key H"]
+      58: ["apexsim.ui.Key I"]
+      60: ["apexsim.ui.Key Enter"]
+      64: ["apexsim.ui.Key T"]
+      67: ["apexsim.ui.Key Escape"]
+    shots:
+      - {at: 17, label: "the session lobby's chat", checks: "two lines under the grid"}
+      - {at: 52, label: "racing: a line on the HUD", checks: "the chat component, the T CHAT hint"}
+      - {at: 59, label: "T: the chat line open, typing", checks: "the text box, every recent line"}
+      - {at: 62, label: "Enter: sent and closed", checks: "a typed line on the HUD (if keys type)"}
+      - {at: 66, label: "T again", checks: "the line open"}
+      - {at: 70, label: "Escape: closed, driving", checks: "the line gone, no pause menu"}
 
   # The menu's demo backdrop from a cold start: a GPU hang (VSM non-Nanite
   # culling, CullPerPageDrawCommandsCs) came 5 s after Silverstone's track

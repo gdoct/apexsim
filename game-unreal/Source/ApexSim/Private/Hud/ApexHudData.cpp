@@ -314,6 +314,7 @@ const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
 			TEXT("brake_c"), TEXT("state"), TEXT("brake_state"), TEXT("inner_c"), TEXT("outer_c"), TEXT("brake_wear_pct"),
 			TEXT("disc_wear_pct"), TEXT("sliding"), TEXT("locked"), TEXT("flat"), TEXT("leak"), TEXT("puncture"), TEXT("water_pct")}},
 		{TEXT("damage"), {TEXT("key"), TEXT("name"), TEXT("pct"), TEXT("flash")}},
+		{TEXT("chat"), {TEXT("from"), TEXT("text"), TEXT("age_s"), TEXT("is_local")}},
 	};
 	return Fields;
 }
@@ -447,6 +448,40 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	Out.Set(TEXT("hud.imperial"), In.bImperial);
 	Out.Set(TEXT("hud.speed_unit"), In.bImperial ? TEXT("MPH") : TEXT("KM/H"));
 	Out.Set(TEXT("hud.gamepad"), In.bGamepad);
+
+	// --- Chat ----------------------------------------------------------------
+	// The session's lines (a race is no place for the lobby's), the newest
+	// ChatMaxLines of the last ChatShowSeconds; every recent one while the
+	// chat line is open, so a reply can be read in full.
+	{
+		TArray<FApexHudRecord>& Lines = Out.Lists.FindOrAdd(TEXT("chat"));
+		Lines.Reset();
+		if (In.Chat)
+		{
+			TArray<const FApexChatLine*> Shown;
+			for (int32 Index = In.Chat->Num() - 1; Index >= 0 && Shown.Num() < ApexHudData::ChatMaxLines; --Index)
+			{
+				const FApexChatLine& Line = (*In.Chat)[Index];
+				const double Age = In.NowSeconds - Line.ArrivedSeconds;
+				if (!Line.bInSession || (!In.bChatOpen && Age > ApexHudData::ChatShowSeconds))
+				{
+					continue;
+				}
+				Shown.Insert(&Line, 0);
+			}
+			for (const FApexChatLine* Line : Shown)
+			{
+				FApexHudRecord& Row = Lines.AddDefaulted_GetRef();
+				Row.Add(TEXT("from"), FApexHudValue::Of(Line->From));
+				Row.Add(TEXT("text"), FApexHudValue::Of(Line->Text));
+				Row.Add(TEXT("age_s"), FApexHudValue::Of(FMath::Max(0.0, In.NowSeconds - Line->ArrivedSeconds)));
+				Row.Add(TEXT("is_local"), FApexHudValue::Of(!In.LocalPlayerId.IsEmpty() && Line->PlayerId == In.LocalPlayerId));
+			}
+		}
+		Out.Set(TEXT("chat.count"), Lines.Num());
+		Out.Set(TEXT("chat.open"), In.bChatOpen);
+		Out.Set(TEXT("chat.key"), In.ChatKey);
+	}
 
 	Out.Set(TEXT("spectate.active"), In.bSpectating);
 	Out.Set(TEXT("spectate.live"), In.bSpectating && In.SpectateSource == TEXT("live"));

@@ -95,6 +95,10 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeSelectCar(CarId),
 		ApexGolden::C_SelectCar);
 
+	CheckBytes(TEXT("Chat"),
+		ApexProtocol::EncodeChat(TEXT("good luck")),
+		ApexGolden::C_Chat);
+
 	FApexAllowedAssists CreateAssists;
 	CreateAssists.bTractionControl = false;
 	CreateAssists.bSteeringAssist = false;
@@ -885,6 +889,24 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("ServerNotice type"), Message.Type, EApexServerMessageType::ServerNotice);
 			TestEqual(TEXT("ServerNotice.message"), Message.Reason, FString(TEXT("Race starts in 5 minutes")));
 			TestEqual(TEXT("ServerNotice carries no error code"), Message.ErrorCode, 0);
+		}
+	}
+
+	{
+		FApexServerMessage Message;
+		if (Decode(TEXT("Chat (lobby)"), ApexGolden::S_ChatLobby, Message))
+		{
+			TestEqual(TEXT("Chat type"), Message.Type, EApexServerMessageType::Chat);
+			TestTrue(TEXT("Chat decoded"), Message.Chat.bValid);
+			TestEqual(TEXT("Chat.PlayerId"), Message.Chat.PlayerId, FString(TEXT("12345678-1234-5678-1234-567812345678")));
+			TestEqual(TEXT("Chat.From"), Message.Chat.From, FString(TEXT("Racer")));
+			TestEqual(TEXT("Chat.Text"), Message.Chat.Text, FString(TEXT("good luck")));
+			TestFalse(TEXT("said in the lobby"), Message.Chat.bInSession);
+		}
+		FApexServerMessage InSession;
+		if (Decode(TEXT("Chat (session)"), ApexGolden::S_ChatSession, InSession))
+		{
+			TestTrue(TEXT("said in a session"), InSession.Chat.bInSession);
 		}
 	}
 

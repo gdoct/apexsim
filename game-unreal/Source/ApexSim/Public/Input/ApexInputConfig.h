@@ -98,6 +98,8 @@ namespace ApexInput
 		 * stays on until the stop; the driver still drives in.
 		 */
 		inline const FName BoxThisLap   = TEXT("BoxThisLap");
+		/** Pressed: the chat line opens for typing (UApexRootWidget::OpenChat). */
+		inline const FName Chat         = TEXT("Chat");
 		/**
 		 * Not an Enhanced Input action: the pause key has to work while the race
 		 * view owns input, so the root widget tests it directly. Listed here so
@@ -500,4 +502,8 @@ public:
 	/** Digital, fires once per press: the box-this-lap request on or off. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> BoxThisLap;
+
+	/** Digital, fires once per press: the chat line opens. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> Chat;
 };

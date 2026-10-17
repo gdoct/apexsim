@@ -85,4 +85,14 @@ private:
 	int32 CountdownSeconds = 10;
 	/** Non-zero while the server is counting in. */
 	int32 CountdownRemaining = 0;
+
+	/** The session's chat under the grid: the last lines and a line to type in (Enter sends). */
+	UPROPERTY(Transient)
+	TObjectPtr<class UVerticalBox> ChatList;
+	UPROPERTY(Transient)
+	TObjectPtr<class UEditableTextBox> ChatInput;
+	FDelegateHandle ChatHandle;
+	void RefreshChat();
+	UFUNCTION()
+	void HandleChatCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 };

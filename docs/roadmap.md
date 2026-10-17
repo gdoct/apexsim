@@ -102,13 +102,12 @@ Left:
 
 **Check:** two servers listed, one going away; joining from the list.
 
-### 9. Text chat
+### 9. Chat: the session browser, voice
 
-- `Chat` messages on TCP, rate- and length-limited by the server, in the
-  lobby and as a HUD component in a race; admin mute.
-
-**Check:** the chat wire tests; two clients chatting in a race without
-losing pad focus on the viewport.
+Built: lobby and session chat, the race's chat line and HUD component, the
+dashboard's mute ([server/protocol.md](server/protocol.md)). Left: a chat
+box on the session browser for the lobby's own lines, wrapping long lines
+on the HUD, a profanity filter (a decision), and voice.
 
 ### 10. Upscaling and HDR
 

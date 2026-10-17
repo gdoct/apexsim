@@ -223,6 +223,13 @@ fn catalog_file(st: &crate::server::ServerState, track: TrackConfigId) -> String
 }
 
 /// The humans driving in a session and those watching it.
+pub(crate) async fn session_audience(
+    st: &crate::server::ServerState,
+    id: SessionId,
+) -> Vec<PlayerId> {
+    audience(st, id).await
+}
+
 async fn audience(st: &crate::server::ServerState, id: SessionId) -> Vec<PlayerId> {
     let mut out: Vec<PlayerId> = st
         .sessions

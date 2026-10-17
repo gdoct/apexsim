@@ -1220,6 +1220,17 @@ bool FApexHudDataStableTest::RunTest(const FString& Parameters)
 	In.LocalCarIndex = 0;
 	In.bHasConditions = true;
 	In.PingMs = 30;
+	// A line said in the session a moment ago, for the chat's list.
+	TArray<FApexChatLine> Chat;
+	FApexChatLine Said;
+	Said.From = TEXT("Racer");
+	Said.Text = TEXT("good luck");
+	Said.bInSession = true;
+	Said.ArrivedSeconds = 100.0;
+	Said.bValid = true;
+	Chat.Add(Said);
+	In.Chat = &Chat;
+	In.NowSeconds = 101.0;
 	FApexHudMemory Memory;
 	FApexHudData Full;
 	ApexHudData::Build(In, Memory, Full);
@@ -1253,6 +1264,58 @@ bool FApexHudDataStableTest::RunTest(const FString& Parameters)
 			}
 		}
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudChatTest, "ApexSim.Hud.Data.Chat", ApexTestFlags)
+
+bool FApexHudChatTest::RunTest(const FString& Parameters)
+{
+	// The session's lines of the last 30 s, the newest six, oldest first;
+	// every recent one while the chat line is open; never the lobby's.
+	TArray<FApexChatLine> Chat;
+	for (int32 Index = 0; Index < 9; ++Index)
+	{
+		FApexChatLine Line;
+		Line.PlayerId = Index == 8 ? TEXT("me") : TEXT("them");
+		Line.From = FString::Printf(TEXT("D%d"), Index);
+		Line.Text = FString::Printf(TEXT("line %d"), Index);
+		Line.bInSession = Index != 7;
+		Line.ArrivedSeconds = 100.0 + Index * 5.0;
+		Chat.Add(Line);
+	}
+	FApexHudInputs In;
+	In.Chat = &Chat;
+	In.LocalPlayerId = TEXT("me");
+	In.NowSeconds = 150.0;
+	In.ChatKey = TEXT("T");
+	FApexHudMemory Memory;
+	FApexHudData Data;
+	ApexHudData::Build(In, Memory, Data);
+	const TArray<FApexHudRecord>* Rows = Data.FindList(TEXT("chat"));
+	TestTrue(TEXT("a list"), Rows != nullptr);
+	if (!Rows)
+	{
+		return true;
+	}
+	// 30 s back from 150 is 120: lines 4 to 8, less the lobby's 7.
+	TestEqual(TEXT("the recent session lines"), Rows->Num(), 4);
+	if (Rows->Num() == 4)
+	{
+		TestEqual(TEXT("oldest first"), (*Rows)[0].FindRef(TEXT("text")).AsString(), FString(TEXT("line 4")));
+		TestEqual(TEXT("newest last"), (*Rows)[3].FindRef(TEXT("text")).AsString(), FString(TEXT("line 8")));
+		TestTrue(TEXT("the player's own line"), (*Rows)[3].FindRef(TEXT("is_local")).AsBool());
+		TestEqual(TEXT("its age"), (*Rows)[3].FindRef(TEXT("age_s")).AsNumber(), 10.0, 1e-6);
+	}
+	TestEqual(TEXT("chat.count"), Data.Find(TEXT("chat.count"))->AsNumber(), 4.0);
+	TestFalse(TEXT("chat.open"), Data.Find(TEXT("chat.open"))->AsBool());
+	TestEqual(TEXT("chat.key"), Data.Find(TEXT("chat.key"))->AsString(), FString(TEXT("T")));
+
+	// Open: every recent session line, still six at most.
+	In.bChatOpen = true;
+	ApexHudData::Build(In, Memory, Data);
+	Rows = Data.FindList(TEXT("chat"));
+	TestEqual(TEXT("six while open"), Rows ? Rows->Num() : 0, 6);
 	return true;
 }
 

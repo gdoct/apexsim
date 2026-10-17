@@ -197,7 +197,7 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   `bans_file` as `admin-selfsigned.crt/.key`.
 - **Views** (`api.rs`): overview, live sessions and any car's telemetry,
   timing, sessions (host, start, stop, restart, broadcast; below), schedule
-  (below), players (ping, kick, ban, unban, and removing an AI car from its
+  (below), players (ping, mute, kick, ban, unban, and removing an AI car from its
   session), history (recorded sessions from `replays/`, each with its laps,
   fastest lap and every car's best and laps; CSV export), logs (a ring
   buffer of `log_buffer_lines`, fed by `admin::logbuf::LogBufferLayer`;
@@ -272,6 +272,10 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
 - **Bans** match IP or name at `Authenticate` and persist in `bans_file`. A
   kick sends `Error 403` and closes the connection through the normal
   disconnect path (`TransportLayer::kick_player`).
+- **Mute** (`POST /api/players/<id>/mute`, `/unmute`; the MUTE / UNMUTE
+  button) stops a player's chat lines (`crate::chat::ChatGuard`): they get
+  `Error 403` and nobody hears them. Kept for the server's life, across a
+  reconnect, not on disk.
 
 - **Ping** is the game's own measure of its heartbeat round trip,
   reported in the next `Heartbeat` (`ping_ms`); a client that does not

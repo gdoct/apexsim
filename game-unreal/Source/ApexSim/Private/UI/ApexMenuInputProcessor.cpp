@@ -155,6 +155,18 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 			Root->GetGameInstance() ? Root->GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
 		const bool bPauseKey = Settings ? Settings->IsPauseKey(Key) : Key == EKeys::Escape;
 
+		// The chat line has the keys while it is open: Escape (or the pause
+		// key) closes it and no more, and the focus stays in its box.
+		if (Root->IsChatOpen())
+		{
+			if ((bPauseKey || Key == EKeys::Escape) && !InKeyEvent.IsRepeat())
+			{
+				Root->CloseChat();
+				return true;
+			}
+			return false;
+		}
+
 		if (bPauseKey && !InKeyEvent.IsRepeat())
 		{
 			const bool bOpening = !Root->IsPaused();
