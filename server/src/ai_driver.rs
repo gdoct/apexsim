@@ -36,6 +36,11 @@ pub fn profile_pace(skill_level: u8) -> f32 {
     PROFILE_NOVICE_PACE + (PROFILE_ACE_PACE - PROFILE_NOVICE_PACE) * skill
 }
 
+/// Share of the lock-up force a driver without ABS brakes up to
+/// (`AiDriverController::unlocked_pedal`), and the least pedal it leaves.
+const UNLOCKED_PEDAL_MARGIN: f32 = 0.95;
+const UNLOCKED_PEDAL_MIN: f32 = 0.2;
+
 /// Profile points searched either side of the estimated position.
 const PROFILE_SEARCH_POINTS: i64 = 24;
 /// Time from pressing the brake to the car decelerating at the rate asked.
@@ -1426,7 +1431,46 @@ impl<'a> AiDriverController<'a> {
             return brake;
         }
         let grip = self.grip_budget(state);
-        brake.min(grip.circle).min(1.0 - 0.8 * grip.slide)
+        brake
+            .min(grip.circle)
+            .min(1.0 - 0.8 * grip.slide)
+            .min(self.unlocked_pedal(state))
+    }
+
+    /// Most pedal a car without ABS takes before an axle locks: each axle's
+    /// share of the brake force (`brake_bias_front`) against what its tyres
+    /// hold along the road, on its weight, its downforce and the load the
+    /// braking moves forward. 1.0 with ABS, which holds the wheels at their
+    /// peak itself (every shipped car). An imported car keeps AC's brakes,
+    /// sized for the grip its downforce gives at speed, and no ABS: at full
+    /// pedal its AI locked the fronts into every slow corner, slid wide and
+    /// ran off the road.
+    fn unlocked_pedal(&self, state: &CarState) -> f32 {
+        let config = self.car_config;
+        if state.abs.unwrap_or(config.abs_enabled) || config.max_brake_force_n <= 0.0 {
+            return 1.0;
+        }
+        let mass = crate::physics::car_mass_kg(config, state).max(1.0);
+        let weight = mass * 9.81;
+        let front_weight = weight * config.weight_distribution_front;
+        let rear_weight = weight - front_weight;
+        let front_load = front_weight + state.downforce_front_n.max(0.0);
+        let rear_load = rear_weight + state.downforce_rear_n.max(0.0);
+        let share = state.tyre_grip_share() * config.tire_config.longitudinal_grip_factor;
+        let mu_front = config.axle_tyre_mu(true, front_load / 2.0) * share;
+        let mu_rear = config.axle_tyre_mu(false, rear_load / 2.0) * share;
+        // The braking force moves `force x cog height / wheelbase` of load
+        // onto the fronts.
+        let pitch = config.cog_height_m / config.wheelbase_m.max(0.5);
+        let bias = config.brake_bias_front.clamp(0.0, 1.0);
+        let front_limit = if bias - mu_front * pitch > 1e-3 {
+            mu_front * front_load / (bias - mu_front * pitch)
+        } else {
+            f32::INFINITY
+        };
+        let rear_limit = mu_rear * rear_load / ((1.0 - bias) + mu_rear * pitch).max(1e-3);
+        let force = front_limit.min(rear_limit) * UNLOCKED_PEDAL_MARGIN;
+        (force / config.max_brake_force_n).clamp(UNLOCKED_PEDAL_MIN, 1.0)
     }
 
     /// Throttle a driver can actually put down. Traction control holds the
@@ -1774,6 +1818,39 @@ mod tests {
         assert!(input.throttle >= 0.0 && input.throttle <= 1.0);
         assert!(input.brake >= 0.0 && input.brake <= 1.0);
         assert!(input.steering >= -1.0 && input.steering <= 1.0);
+    }
+
+    #[test]
+    fn a_driver_without_abs_brakes_short_of_locking_an_axle() {
+        let profile = AiDriverProfile::new("Test", 90);
+        let track = TrackConfig::default();
+        let mut car = CarConfig {
+            max_brake_force_n: 30_000.0,
+            ..CarConfig::default()
+        };
+        let mut state = CarState::new(Uuid::new_v4(), car.id, &track.start_positions[0]);
+        state.speed_mps = 20.0;
+        // With ABS the wheels are held at their peak: the whole pedal.
+        car.abs_enabled = true;
+        assert_eq!(
+            AiDriverController::new(&profile, &track, &car).unlocked_pedal(&state),
+            1.0
+        );
+        // Without, brakes far stronger than the tyres are held to what the
+        // tyres take; the downforce at speed lets it press harder.
+        car.abs_enabled = false;
+        let slow = AiDriverController::new(&profile, &track, &car).unlocked_pedal(&state);
+        assert!(slow > UNLOCKED_PEDAL_MIN && slow < 0.8, "{slow}");
+        state.downforce_front_n = 4000.0;
+        state.downforce_rear_n = 5000.0;
+        let fast = AiDriverController::new(&profile, &track, &car).unlocked_pedal(&state);
+        assert!(fast > slow, "{fast} against {slow}");
+        // A player's ABS switch is the one read.
+        state.abs = Some(true);
+        assert_eq!(
+            AiDriverController::new(&profile, &track, &car).unlocked_pedal(&state),
+            1.0
+        );
     }
 
     #[test]

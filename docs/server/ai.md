@@ -98,7 +98,12 @@ Built per tick in `ai_input_for` with the car's speed profile
   line on straights by imprecision (`WANDER_*`).
 - **Pedals and gear** are decided every `reaction_time_ms` and held between;
   the throttle and brake are limited to the friction circle the cornering
-  leaves. Gears: upshift at a share (0.9 novice to 1.0 ace) of
+  leaves. A car without ABS (`abs_enabled = false`: the AC imports' F1s
+  and prototypes) brakes no harder than locks an axle
+  (`unlocked_pedal`: each axle's share of `max_brake_force_n` by
+  `brake_bias_front` against its tyres' grip on its weight, downforce and
+  the load the braking moves forward, `UNLOCKED_PEDAL_MARGIN` 0.95); with
+  ABS (every shipped car) the pedal is not capped. Gears: upshift at a share (0.9 novice to 1.0 ace) of
   `physics::auto_upshift_rpm`, downshift when the gear below lands under
   0.85 of its shift point.
 - **Traffic** (`avoid_traffic`): keeps a side margin from a car alongside
@@ -440,6 +445,12 @@ What the AI still lacks is in [../simulation-gaps.md](../simulation-gaps.md)
   transfer, the load at each speed and the weaker axle bring it to the
   82-95% the shipped cars hold (`grip_probe_test skidpad_sweep`, the
   `plan` column).
+- **Full pedal is the grip limit only on a shipped car.** The shipped
+  cars' `max_brake_force_n` is about their tyres' grip and they all have
+  ABS; an import's brakes are AC's, sized for its downforce at speed, and
+  an F1 or a prototype has no ABS. Without `unlocked_pedal` its AI locked
+  the fronts into every slow corner (a 919 lapped Monza in 148 s instead
+  of 103 s, off the road at both chicanes).
 - **Grip share goes in at the 0.75 power, not the root.** The physics
   would say root; the grip moves under the car through a corner as the
   tread heats, and with the root the AI left the road much more.
