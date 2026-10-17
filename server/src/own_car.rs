@@ -28,7 +28,7 @@ use crate::network::RecordBytes;
 pub const STATE_BLOB_SECONDS: f32 = 0.5;
 
 /// The most blob bytes in one feedback message. With the snapshot and the
-/// rest of the message a datagram stays near 1.2 kB, under any path's MTU.
+/// rest of the message a datagram stays under 1.1 kB, below any path's MTU.
 pub const STATE_CHUNK_BYTES: usize = 640;
 
 /// Bits of [`OwnCarSnapshot::flags`].
