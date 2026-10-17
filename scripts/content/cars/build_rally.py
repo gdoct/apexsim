@@ -131,6 +131,14 @@ SIDE_SHUT_YS = sorted(y for (y, k) in V["shutlines"] if k == "side")
 REAR_WRAP = V.get("rear_wrap", V["rear_glass_y"][0] - V["glass_y"][1] < 0.30)
 
 
+# The side glass's rear edge at the roof, when it rakes (`glass_top`).
+GLASS_TOP = V.get("glass_top")
+
+
+def lerp(a, b, t):
+    return a + (b - a) * min(max(t, 0.0), 1.0)
+
+
 def face_mat(ym, kk, right):
     """The skin, glass, or the black rubber under the glass.
 
@@ -147,6 +155,11 @@ def face_mat(ym, kk, right):
     r0, r1 = V["rear_glass_y"]
     g0, g1 = V["glass_y"]
     side_end = r1 if REAR_WRAP else g1
+    if GLASS_TOP is not None and BELT <= jc < ROOF:
+        # a quarter glass whose rear edge rakes (parallel to the back
+        # light): the edge steps with the grid, and the C-pillar strip,
+        # wider than a step, lies over it
+        side_end = lerp(g1, GLASS_TOP, (jc - BELT) / (ROOF - BELT))
     if jc < BELT - TRIM_J:
         return M.skin
     if jc < BELT:
@@ -380,6 +393,9 @@ _s0, _s1 = V["screen_y"]
 _r0, _r1 = V["rear_glass_y"]
 _g0, _g1 = V["glass_y"]
 PILLARS = [[(_g0, BELT + 0.02), (_s1 - 0.03, ROOF + 0.35)]]
+if GLASS_TOP is not None:
+    PILLARS.append([(_g1 + 0.01, BELT - 0.05), (GLASS_TOP + 0.01, ROOF),
+                    (GLASS_TOP - 0.04, ROOF + 0.35)])
 if REAR_WRAP:
     PILLARS.append([(_g1, BELT + 0.02), (_r0 + 0.04, ROOF + 0.35)])
 for pts in PILLARS:

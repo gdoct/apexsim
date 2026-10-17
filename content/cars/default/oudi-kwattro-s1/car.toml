@@ -231,9 +231,9 @@ model = "oudi_kwattro_s1_driver.glb"
 style = "closed"
 eye_cm = [-12.0, -33.0, 107.0]
 wheel_cm = [28.0, -33.0, 87.0]
-mirror_left_cm = [24.3, -96.1, 88.5]
+mirror_left_cm = [24.3, -96.1, 88.3]
 mirror_left_size_cm = [15.0, 6.0]
-mirror_right_cm = [24.3, 96.1, 88.5]
+mirror_right_cm = [24.3, 96.1, 88.3]
 mirror_right_size_cm = [15.0, 6.0]
 # Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
 # wheel on the Auto steering lock the real rim turns twice this lock to lock.
