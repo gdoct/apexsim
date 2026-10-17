@@ -146,6 +146,10 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("telemetry wheel feel"), T.bHasWheelFeel && FMath::IsNearlyEqual(T.WheelSlipRatio[1], -1.2f)
 			&& FMath::IsNearlyEqual(T.WheelSlipAngle[2], 1.4f) && T.WheelSurface[1] == EApexContactSurface::Curb
 			&& T.WheelSurface[3] == EApexContactSurface::Off);
+		// The ground under the tyres and race control's flags (version 4).
+		TestTrue(TEXT("row ground and flags"), Row.Ground == 0x11 && Row.RaceFlags == 5);
+		TestTrue(TEXT("gravel under the left wheels"), T.WheelGround[0] == 1 && T.WheelGround[2] == 1 && T.WheelGround[1] == 0);
+		TestTrue(TEXT("the blue and a double yellow"), T.bBlueFlag && T.YellowAhead == 2);
 		{
 			// Back to a row and the same bytes, wheels included.
 			TArray<uint8> Again;
@@ -294,8 +298,13 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 			FApexCarTelemetry Other;
 			S.Cars[1].ApplyTo(Other);
 			TestTrue(TEXT("unknown extra stays unknown"), Other.FuelLiters < 0.0f && Other.TyrePressureKpa[0] < 0.0f
-				&& Other.BrakeTempC[0] < 0.0f && Other.BrakeWearPct[0] < 0.0f && !Other.HasHybrid() && Other.WaterTempC < 0.0f);
+				&& Other.BrakeTempC[0] < 0.0f && Other.BrakeWearPct[0] < 0.0f && !Other.HasHybrid() && Other.WaterTempC < 0.0f
+				&& Other.DiscWearPct[0] < 0.0f && Other.StintEnergyPct < 0.0f);
+			TestTrue(TEXT("the discs and the stint on telemetry"), FMath::IsNearlyEqual(Car.DiscWearPct[0], 50.0f)
+				&& FMath::IsNearlyEqual(Car.DiscWearPct[3], 0.0f) && FMath::IsNearlyEqual(Car.StintEnergyPct, 40.0f));
 		}
+		TestEqual(TEXT("state yellows: 250 m sectors"), S.YellowSectorM, 250);
+		TestTrue(TEXT("state yellows"), S.YellowSectors.Num() == 2 && S.YellowSectors[1].Key == 4 && S.YellowSectors[1].Value == 2);
 	}
 
 	TestTrue(TEXT("pit service decodes"), ApexSpectator::DecodeRecord(View(EventPitService, UE_ARRAY_COUNT(EventPitService)), Record, Error));

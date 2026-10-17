@@ -221,8 +221,8 @@ namespace ApexSpectator
 		{
 			Car.Write(Cars);
 		}
-		FMsgPackWriter W(64 + Cars.Num());
-		BeginRecord(W, 7, RecordState, S.Epoch);
+		FMsgPackWriter W(64 + Cars.Num() + 4 * S.YellowSectors.Num());
+		BeginRecord(W, 8, RecordState, S.Epoch);
 		W.WriteUInt32Fixed(static_cast<uint32>(S.Tick));
 		if (S.Sky.bValid)
 		{
@@ -264,6 +264,22 @@ namespace ApexSpectator
 		}
 		W.WriteUInt(ExtraSize);
 		W.WriteBinary(Cars);
+		if (S.YellowSectors.Num() > 0)
+		{
+			W.WriteArrayHeader(2);
+			W.WriteUInt(static_cast<uint64>(FMath::Clamp(S.YellowSectorM, 0, 65535)));
+			W.WriteArrayHeader(S.YellowSectors.Num());
+			for (const TPair<int32, int32>& Yellow : S.YellowSectors)
+			{
+				W.WriteArrayHeader(2);
+				W.WriteUInt(static_cast<uint64>(FMath::Clamp(Yellow.Key, 0, 65535)));
+				W.WriteUInt(static_cast<uint64>(FMath::Clamp(Yellow.Value, 0, 2)));
+			}
+		}
+		else
+		{
+			W.WriteNil();
+		}
 		return MoveTemp(W.GetBuffer());
 	}
 

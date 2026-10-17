@@ -588,6 +588,8 @@ mod tests {
             wheel_slip_ratio: [0; 4],
             wheel_slip_angle: [0; 4],
             wheel_surface: [0; 4],
+            ground: 0,
+            race_flags: 0,
         }
     }
 
@@ -749,6 +751,7 @@ mod tests {
             }),
             race_clock: None,
             cars: vec![],
+            yellow_flags: None,
         }
         .encode();
         TimedRecord {

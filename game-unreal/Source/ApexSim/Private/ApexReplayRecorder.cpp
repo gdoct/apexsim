@@ -354,6 +354,8 @@ void UApexReplayRecorder::HandleTelemetry(const FApexTelemetryFrame& Frame)
 		State.Sky = Frame.Sky;
 		State.RaceLeftMs = Frame.RaceLeftMs;
 		State.RaceFinalLap = Frame.RaceFinalLap;
+		State.YellowSectorM = Frame.YellowSectorM;
+		State.YellowSectors = Frame.YellowSectors;
 		for (const FApexCarTelemetry& Car : Frame.Cars)
 		{
 			State.Cars.Add(FApexStreamCarExtra::FromTelemetry(Car));

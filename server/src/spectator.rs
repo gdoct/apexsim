@@ -48,17 +48,19 @@ pub const FILE_VERSION: u16 = 1;
 /// Bytes of one car in a frame's `rows` as this build writes them. A later
 /// version only ever appends: a reader takes the fields it knows and skips
 /// the rest, and fills what an older stream's shorter rows lack as unknown.
-pub const ROW_SIZE: usize = 64;
+pub const ROW_SIZE: usize = 66;
 /// The first row layout's size (no tyres): the shortest row a reader takes.
 pub const ROW_SIZE_V1: usize = 44;
 /// The second layout (tyres, no wheels): read with the wheels unknown.
 pub const ROW_SIZE_V2: usize = 52;
+/// The third layout (wheels, no ground or race flags): read with both clear.
+pub const ROW_SIZE_V3: usize = 64;
 /// A wheel's slip in the row is its multiple of the tyre's peak times this,
 /// held to a byte (so ±2.54 peaks).
 pub const ROW_SLIP_SCALE: f32 = 50.0;
 /// Rows that fit one datagram under a 1 400 byte budget; a bigger field is
 /// sent in parts.
-pub const MAX_ROWS_PER_PART: usize = 21;
+pub const MAX_ROWS_PER_PART: usize = 20;
 /// `tyre_wear` of a tyre the stream does not know (a converted replay, a car
 /// before its set is fitted, a v1 row).
 pub const TYRE_WEAR_UNKNOWN: u8 = u8::MAX;
@@ -81,8 +83,10 @@ pub const RECORD_GHOST: u8 = 10;
 /// Seconds between two [`StreamState`] records of a stream.
 pub const STATE_EVERY_S: f32 = 0.25;
 /// Bytes of one car in a [`StreamState`]'s `extras` as this build writes them.
-pub const EXTRA_SIZE: usize = 44;
-/// ... as streams wrote them before the second dents (still read: one dent a zone) ...
+pub const EXTRA_SIZE: usize = 49;
+/// ... as streams wrote them before the discs and the stint's energy ...
+pub const EXTRA_SIZE_TWO_DENTS: usize = 44;
+/// ... before the second dents (still read: one dent a zone) ...
 pub const EXTRA_SIZE_ONE_DENT: usize = 40;
 /// ... and as the first streams wrote them (no damage centres): still read.
 pub const EXTRA_SIZE_MIN: usize = 36;
@@ -732,6 +736,10 @@ impl StreamRoster {
 /// | 43 | u8 | ERS flags, as `CompactCarState.ers_flags` |
 /// | 44 | u8 x 4 | tyre wear, percent, FL FR RL RR; [`TYRE_WEAR_UNKNOWN`] unknown |
 /// | 48 | u8 x 4 | tread temperature, °C as `CompactCarState.tyre_c` (0 unknown) |
+/// | 52, 56 | i8 x 4 | each wheel's slip ratio and angle (version 3) |
+/// | 60 | u8 x 4 | each wheel's surface (version 3) |
+/// | 64 | u8 | the soft ground under the tyres, as `CompactCarState.ground` |
+/// | 65 | u8 | race control's flags, as `CompactCarState.race_flags` |
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CarRow {
     pub car_index: u8,
@@ -765,6 +773,11 @@ pub struct CarRow {
     pub wheel_slip_ratio: [i8; 4],
     pub wheel_slip_angle: [i8; 4],
     pub wheel_surface: [u8; 4],
+    /// The soft ground under each tyre and race control's flags, as
+    /// `CompactCarState::ground` / `race_flags`: a replay's dust and gravel
+    /// sound, and its flags. 0 in a row from before them.
+    pub ground: u8,
+    pub race_flags: u8,
 }
 
 fn slip_to_i8(v: f32) -> i8 {
@@ -857,6 +870,8 @@ impl CarRow {
             wheel_slip_ratio: state.wheel_slip_ratio.map(slip_to_i8),
             wheel_slip_angle: state.wheel_slip_angle.map(slip_to_i8),
             wheel_surface: state.wheel_surface,
+            ground: crate::network::pack_ground(state.wheel_ground),
+            race_flags: crate::network::race_flags_of(state),
         }
     }
 
@@ -904,6 +919,8 @@ impl CarRow {
             wheel_slip_ratio: [0; 4],
             wheel_slip_angle: [0; 4],
             wheel_surface: [0; 4],
+            ground: 0,
+            race_flags: 0,
         }
     }
 
@@ -936,6 +953,8 @@ impl CarRow {
         out.extend_from_slice(&self.wheel_slip_ratio.map(|v| v as u8));
         out.extend_from_slice(&self.wheel_slip_angle.map(|v| v as u8));
         out.extend_from_slice(&self.wheel_surface);
+        out.push(self.ground);
+        out.push(self.race_flags);
         debug_assert_eq!(out.len() - start, ROW_SIZE);
     }
 
@@ -947,7 +966,8 @@ impl CarRow {
             return None;
         }
         let tyres = row.len() >= ROW_SIZE_V2;
-        let wheels = row.len() >= ROW_SIZE;
+        let wheels = row.len() >= ROW_SIZE_V3;
+        let ground = row.len() >= ROW_SIZE;
         let quad = |o: usize, unknown: u8| {
             if tyres {
                 [row[o], row[o + 1], row[o + 2], row[o + 3]]
@@ -992,6 +1012,8 @@ impl CarRow {
             wheel_slip_ratio: wheel_quad(52).map(|v| v as i8),
             wheel_slip_angle: wheel_quad(56).map(|v| v as i8),
             wheel_surface: wheel_quad(60),
+            ground: if ground { row[64] } else { 0 },
+            race_flags: if ground { row[65] } else { 0 },
         })
     }
 
@@ -1595,6 +1617,9 @@ impl StreamRoad {
 /// | 34 | u8 | hybrid stint budget, percent, 255 none |
 /// | 35 | u8 | tow, percent |
 /// | 36 | i8 x 4 | where each zone was hit, -127..127: front, rear (across, + left), left, right (along, + forward) |
+/// | 40 | i8 x 4 | each zone's second dent, as at 36; -128 none |
+/// | 44 | u8 x 4 | each disc's wear, percent; 255 a disc that never wears |
+/// | 48 | u8 | the stint's energy left, percent; 255 without the rule |
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CarExtra {
     pub car_index: u8,
@@ -1612,6 +1637,11 @@ pub struct CarExtra {
     pub damage_at: [i8; 4],
     /// Each zone's second dent (`CompactCarState::damage_at2`).
     pub damage_at2: [i8; 4],
+    /// Each disc's wear, percent, and the stint's energy left, percent, as
+    /// `CompactCarState::disc_wear` / `stint_energy_pct` (255 none, and in
+    /// a stream from before them).
+    pub disc_wear: [u8; 4],
+    pub stint_energy_pct: u8,
 }
 
 impl CarExtra {
@@ -1632,6 +1662,8 @@ impl CarExtra {
             tow_pct: c.tow_pct,
             damage_at: c.damage_at,
             damage_at2: c.damage_at2,
+            disc_wear: c.disc_wear,
+            stint_energy_pct: c.stint_energy_pct,
         }
     }
 
@@ -1653,6 +1685,8 @@ impl CarExtra {
         out.push(self.tow_pct);
         out.extend(self.damage_at.map(|v| v as u8));
         out.extend(self.damage_at2.map(|v| v as u8));
+        out.extend_from_slice(&self.disc_wear);
+        out.push(self.stint_energy_pct);
         debug_assert_eq!(out.len() - start, EXTRA_SIZE);
     }
 
@@ -1684,7 +1718,7 @@ impl CarExtra {
             } else {
                 [0; 4]
             },
-            damage_at2: if entry.len() >= EXTRA_SIZE {
+            damage_at2: if entry.len() >= EXTRA_SIZE_TWO_DENTS {
                 [
                     entry[40] as i8,
                     entry[41] as i8,
@@ -1693,6 +1727,16 @@ impl CarExtra {
                 ]
             } else {
                 [crate::damage::NO_SECOND_DENT; 4]
+            },
+            disc_wear: if entry.len() >= EXTRA_SIZE {
+                entry[44..48].try_into().ok()?
+            } else {
+                [crate::network::DISC_WEAR_NONE; 4]
+            },
+            stint_energy_pct: if entry.len() >= EXTRA_SIZE {
+                entry[48]
+            } else {
+                u8::MAX
             },
         })
     }
@@ -1703,9 +1747,11 @@ impl CarExtra {
 /// like a frame, and a stream repeats it every [`STATE_EVERY_S`], so a
 /// viewer who joins or seeks mid-file has the latest within a fraction of a
 /// second. The body is
-/// `[9, epoch, tick, sky, race_clock, entry_size, extras bin]`; `sky` is nil
-/// or `SkyNow`'s 19 fields in order, `race_clock` nil or `[left_ms,
-/// final_lap]`.
+/// `[9, epoch, tick, sky, race_clock, entry_size, extras bin, yellows]`;
+/// `sky` is nil or `SkyNow`'s 19 fields in order, `race_clock` nil or
+/// `[left_ms, final_lap]`, `yellows` (appended; absent from an older
+/// stream) nil or `[sector_m, [[sector, level], ...]]` as telemetry's
+/// `yellow_flags`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StreamState {
     pub epoch: u32,
@@ -1713,12 +1759,13 @@ pub struct StreamState {
     pub sky: Option<crate::network::SkyNow>,
     pub race_clock: Option<crate::network::RaceClock>,
     pub cars: Vec<CarExtra>,
+    pub yellow_flags: Option<crate::network::YellowFlags>,
 }
 
 impl StreamState {
     pub fn encode(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(48 + self.cars.len() * EXTRA_SIZE);
-        begin(&mut out, 7, RECORD_STATE, self.epoch);
+        begin(&mut out, 8, RECORD_STATE, self.epoch);
         wr::u32_fixed(&mut out, self.tick);
         match &self.sky {
             Some(s) => {
@@ -1759,6 +1806,19 @@ impl StreamState {
             car.write(&mut bytes);
         }
         wr::bin(&mut out, &bytes);
+        match &self.yellow_flags {
+            Some(flags) => {
+                wr::array(&mut out, 2);
+                wr::uint(&mut out, flags.sector_m as u64);
+                wr::array(&mut out, flags.sectors.len());
+                for [sector, level] in &flags.sectors {
+                    wr::array(&mut out, 2);
+                    wr::uint(&mut out, *sector as u64);
+                    wr::uint(&mut out, *level as u64);
+                }
+            }
+            None => wr::nil(&mut out),
+        }
         out
     }
 
@@ -1828,13 +1888,42 @@ impl StreamState {
             .chunks_exact(entry_size)
             .filter_map(CarExtra::read)
             .collect();
-        rd.skip_rest(len, 7)?;
+        // The yellows, appended: absent from an older stream.
+        let mut read = 7;
+        let yellow_flags = if len < 8 {
+            None
+        } else {
+            read = 8;
+            if rd.is_nil() {
+                None
+            } else {
+                let n = rd.array()?;
+                if n < 2 {
+                    return malformed("yellows of too few fields");
+                }
+                let sector_m = rd.uint()? as u16;
+                let count = rd.array()?;
+                let mut sectors = Vec::with_capacity(count);
+                for _ in 0..count {
+                    let pair = rd.array()?;
+                    if pair < 2 {
+                        return malformed("a yellow of too few fields");
+                    }
+                    sectors.push([rd.uint()? as u16, rd.uint()? as u16]);
+                    rd.skip_rest(pair, 2)?;
+                }
+                rd.skip_rest(n, 2)?;
+                Some(crate::network::YellowFlags { sector_m, sectors })
+            }
+        };
+        rd.skip_rest(len, read)?;
         Ok(Self {
             epoch,
             tick,
             sky,
             race_clock,
             cars,
+            yellow_flags,
         })
     }
 }
@@ -2489,6 +2578,7 @@ impl BroadcastEncoder {
                 .enumerate()
                 .map(|(i, state)| CarExtra::from_car_state(state, i as u8))
                 .collect(),
+            yellow_flags: session.yellow_flags(),
         }
     }
 
@@ -2852,6 +2942,8 @@ mod tests {
             wheel_slip_ratio: [10, -60, 5, 0],
             wheel_slip_angle: [40, 45, 70, 72],
             wheel_surface: [0, 1, 0, 2],
+            ground: 0b0001_0001,
+            race_flags: 5,
         }
     }
 
@@ -2878,6 +2970,12 @@ mod tests {
         assert_eq!(&bytes[52..56], &[10, 196, 5, 0]);
         assert_eq!(&bytes[56..60], &[40, 45, 70, 72]);
         assert_eq!(&bytes[60..64], &[0, 1, 0, 2]);
+        assert_eq!(&bytes[64..66], &[0b0001_0001, 5]);
+        // A row from before the ground and the flags (64 bytes) reads with
+        // both clear.
+        let v3 = CarRow::read(&bytes[..ROW_SIZE_V3]).unwrap();
+        assert_eq!(v3.wheel_surface, row.wheel_surface);
+        assert_eq!((v3.ground, v3.race_flags), (0, 0));
         // A row from before the wheels (52 bytes) reads with them at zero.
         let short = CarRow::read(&bytes[..ROW_SIZE_V2]).unwrap();
         assert_eq!(short.tyre_c, row.tyre_c);
@@ -2904,6 +3002,8 @@ mod tests {
                 wheel_slip_ratio: row.wheel_slip_ratio,
                 wheel_slip_angle: row.wheel_slip_angle,
                 wheel_surface: row.wheel_surface,
+                ground: row.ground,
+                race_flags: row.race_flags,
                 ..old
             },
             row
@@ -3087,6 +3187,8 @@ mod tests {
                     ers_lap_pct: 45,
                     ers_stint_pct: 255,
                     tow_pct: 8,
+                    disc_wear: [50, 12, 3, 0],
+                    stint_energy_pct: 40,
                 },
                 CarExtra {
                     car_index: 1,
@@ -3103,8 +3205,14 @@ mod tests {
                     ers_lap_pct: 255,
                     ers_stint_pct: 255,
                     tow_pct: 0,
+                    disc_wear: [crate::network::DISC_WEAR_NONE; 4],
+                    stint_energy_pct: 255,
                 },
             ],
+            yellow_flags: Some(crate::network::YellowFlags {
+                sector_m: 250,
+                sectors: vec![[3, 1], [4, 2]],
+            }),
         }
     }
 
@@ -3141,12 +3249,13 @@ mod tests {
             sky: None,
             race_clock: None,
             cars: vec![],
+            yellow_flags: None,
             ..state
         };
         assert_eq!(Record::decode(&bare.encode()).unwrap(), Record::State(bare));
         // A newer writer's longer entries and extra fields are skipped.
         let mut body = Vec::new();
-        wr::array(&mut body, 8);
+        wr::array(&mut body, 9);
         wr::uint(&mut body, RECORD_STATE as u64);
         wr::u32_fixed(&mut body, 1);
         wr::u32_fixed(&mut body, 16);
@@ -3159,6 +3268,7 @@ mod tests {
             entries.extend_from_slice(&[7, 7]);
         }
         wr::bin(&mut body, &entries);
+        wr::nil(&mut body);
         wr::str(&mut body, "from the future");
         let Record::State(read) = Record::decode(&body).unwrap() else {
             panic!("not a state");
@@ -3170,6 +3280,18 @@ mod tests {
         let one = CarExtra::read(&entry[..EXTRA_SIZE_ONE_DENT]).unwrap();
         assert_eq!(one.damage_at, [-64, 0, 127, 32]);
         assert_eq!(one.damage_at2, [crate::damage::NO_SECOND_DENT; 4]);
+        // ... and one from before the discs and the stint's energy.
+        let two = CarExtra::read(&entry[..EXTRA_SIZE_TWO_DENTS]).unwrap();
+        assert_eq!(two.damage_at2, [-128, -128, -95, -128]);
+        assert_eq!(two.disc_wear, [crate::network::DISC_WEAR_NONE; 4]);
+        assert_eq!(two.stint_energy_pct, 255);
+        // A state from before the yellows (seven fields) reads with none.
+        let mut old = sample_state();
+        old.yellow_flags = None;
+        let mut seven = old.encode();
+        seven[0] = 0x97;
+        seven.pop();
+        assert_eq!(Record::decode(&seven).unwrap(), Record::State(old));
 
         let service = sample_pit_service();
         assert_eq!(
@@ -3243,11 +3365,11 @@ mod tests {
             seen.extend(frame.cars(ROW_SIZE).map(|r| r.car_index));
         }
         assert_eq!(seen, (0..40).collect::<Vec<u8>>());
-        // Twenty cars: one datagram of about 1 300 bytes.
+        // Twenty cars: one datagram of about 1 340 bytes.
         let twenty = encode_frames(1, 240, 0, SessionState::Racing, None, &rows[..20]);
         assert_eq!(twenty.len(), 1);
         assert!(
-            twenty[0].len() < 1320 && twenty[0].len() > 1280,
+            twenty[0].len() < 1360 && twenty[0].len() > 1320,
             "{}",
             twenty[0].len()
         );

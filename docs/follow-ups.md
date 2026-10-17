@@ -39,7 +39,6 @@ circuit do not show them yet.
   dynamic instance of its own.
 - An audible cue as a yellow or the blue comes up (`game/audio.md`'s
   synthesised UI cues), and the flag on the cockpit dash.
-- The spectator stream and replays carry no flags (`CarExtra`, the frame).
 
 **Check:** a seeded pile-up (R7) and a lapping race on screen, the panels
 seen flashing at the incident's sector.
@@ -105,16 +104,6 @@ the same `ApexProps` code.
 **Check:** each circuit by hand in the running game; the track-editor tests.
 
 ## P3: nice to have
-
-### 17. HUD data on a stream
-
-- The spectator stream's `CarExtra` row does not carry `disc_wear` or
-  `stint_energy_pct`, so a watcher's HUD shows `item.disc_wear_pct` and
-  `fuel.stint_pct` as *null* while the driver's own shows them; a replay
-  loses them too. Append both to the row (spectator.rs `CarExtra::write`
-  / `read`, the client's `ApexSpectatorStream.cpp`).
-
-**Check:** `spectator_wire_format` and `ApexSim.Net.Spectator.*`.
 
 ### 11. Content tooling
 
@@ -188,10 +177,6 @@ the launcher import with the network off.
   cars in the lane) is not on the wire: the lane is drawn with the lap's
   mean cover (`SnowMids`). It wants a row of its own beside `SnowRows` and
   the lane's material reading it.
-- A replay or a watched stream throws no dust and has no ground under its
-  tyres: the spectator stream's rows carry each wheel's surface but not
-  `CompactCarState::ground`, so `UpdateDust` and the road sound's gravel
-  and sand are live only.
 
 **Check:** the A/B is two screenshots.
 

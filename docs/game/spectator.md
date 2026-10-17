@@ -74,9 +74,11 @@ large for one datagram (more than `MAX_ROWS_PER_PART`, 21 cars) is sent in
 parts of the same tick; the client applies whatever parts arrived once a newer
 tick comes.
 
-**The car row** (`ROW_SIZE` 64 bytes, little-endian; 44 in a version 1 file,
+**The car row** (`ROW_SIZE` 66 bytes, little-endian; 44 in a version 1 file,
 `ROW_SIZE_V1`, which still plays with the tyres unknown, 52 in one from
-before the wheels, `ROW_SIZE_V2`, which plays with the wheels unknown):
+before the wheels, `ROW_SIZE_V2`, which plays with the wheels unknown, 64
+in one from before the ground and the flags, `ROW_SIZE_V3`, which plays
+with both clear):
 status bits, pose in mm and angles, speed, steering, pedals, gear, rpm, lap,
 station, finish position, the lap / pit / ERS flag bytes as in
 `CompactCarState`, compound, the five damage percentages, tyre wear and
@@ -84,7 +86,9 @@ tread temperature, then each wheel's slip ratio and slip angle
 (`ROW_SLIP_SCALE`-ths of the tyre's peak, as the driver feedback carries
 them, from `CarState::wheel_slip_*`) and the surface under it (0 road, 1
 curb, 2 off): what the watched car's road sound plays from in a replay
-(`AApexRaceDirector::UpdateWatchedCarRoadSound`). The client's recorder fills
+(`AApexRaceDirector::UpdateWatchedCarRoadSound`); then the soft ground under
+each tyre (`CompactCarState.ground`: a replay's dust and gravel) and race
+control's flags (`race_flags`: the blue, the yellow ahead). The client's recorder fills
 them for the own car from its driver feedback; the other cars of a
 client-recorded replay have none. Pressures, flat spots, brake temperatures,
 fuel and the hybrid ride in the `State` record instead; the steering forces
@@ -94,8 +98,11 @@ Layout: `spectator.rs`.
 **The state record** carries what changes too slowly to ride every 30 Hz
 row: `SkyNow` (so a showcase, a replay and the backdrop show the sky the race
 ran through, rain arriving and the clock moving, not the sky it started
-under), a timed race's `RaceClock`, and one 44-byte `CarExtra` per car (40 in a stream
-from before the second dents, 36 from before the damage centres; layout in `spectator.rs`). The player keeps the latest and puts it on every frame it
+under), a timed race's `RaceClock`, one 49-byte `CarExtra` per car (44 in a
+stream from before the discs' wear and the stint's energy, 40 from before
+the second dents, 36 from before the damage centres; layout in
+`spectator.rs`), and the race's yellow sectors (appended, nil while none
+is out, absent from an older stream). The player keeps the latest and puts it on every frame it
 completes (`Frame.Sky`, `RaceLeftMs`, each car's pressures, flat spots, brakes
 and tank), so the race director, the HUD and the tyre material need nothing
 special. `BroadcastEncoder::state` makes it, `STATE_EVERY_S` (0.25 s) is its

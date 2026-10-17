@@ -23,7 +23,9 @@ namespace ApexSpectator
 	constexpr uint8 FormatVersion = 1;
 	constexpr uint16 FileVersion = 1;
 	/** Bytes of one car in a frame as written now; a newer writer only appends. */
-	constexpr int32 RowSize = 64;
+	constexpr int32 RowSize = 66;
+	/** The third layout (wheels, no ground or race flags): read with both clear. */
+	constexpr int32 RowSizeV3 = 64;
 	/** The second layout (tyres, no wheels): read with the wheels unknown. */
 	constexpr int32 RowSizeV2 = 52;
 	/** A wheel's slip in the row is its multiple of the tyre's peak times this (`spectator::ROW_SLIP_SCALE`). */
@@ -47,7 +49,9 @@ namespace ApexSpectator
 	constexpr uint8 RecordGhost = 10;
 
 	/** Bytes of one car in a state record as written now; a newer writer only appends. */
-	constexpr int32 ExtraSize = 44;
+	constexpr int32 ExtraSize = 49;
+	/** ... as streams wrote them before the discs and the stint's energy (two dents a zone). */
+	constexpr int32 ExtraSizeTwoDents = 44;
 	/** ... as streams wrote it before the second dents (one dent a zone): still read ... */
 	constexpr int32 ExtraSizeOneDent = 40;
 	/** ... and as the first streams wrote it (no damage centres): still read. */
@@ -174,6 +178,10 @@ struct APEXSIMNET_API FApexStreamCarRow
 	int8 WheelSlipAngle[4] = {0, 0, 0, 0};
 	uint8 WheelSurface[4] = {0, 0, 0, 0};
 	bool bWheels = false;
+	/** The soft ground under each tyre, two bits a wheel (`CompactCarState::ground`); 0 from an older stream. */
+	uint8 Ground = 0;
+	/** Race control's flags for the car (`CompactCarState::race_flags`); 0 from an older stream. */
+	uint8 RaceFlags = 0;
 
 	/** Read a row of at least ApexSpectator::RowSizeV1 bytes; what a newer writer appended is ignored. */
 	static bool Read(const uint8* Bytes, int32 Len, FApexStreamCarRow& Out);
@@ -277,6 +285,10 @@ struct APEXSIMNET_API FApexStreamCarExtra
 	bool bHasDamageAt = false;
 	/** Each zone's second dent, as DamageAt; -128 for a zone with one (and from an older entry). */
 	int8 DamageAt2[4] = {-128, -128, -128, -128};
+	/** Each disc's wear, percent, 255 a disc that never wears (and from an older stream). */
+	uint8 DiscWear[4] = {255, 255, 255, 255};
+	/** The stint's energy left, percent, 255 without the rule (and from an older stream). */
+	uint8 StintEnergyPct = 255;
 
 	static bool Read(const uint8* Bytes, int32 Len, FApexStreamCarExtra& Out);
 	/** The entry written back as its ApexSpectator::ExtraSize bytes, for tests. */
@@ -302,6 +314,9 @@ struct APEXSIMNET_API FApexStreamState
 	int32 RaceLeftMs = -1;
 	int32 RaceFinalLap = 0;
 	TArray<FApexStreamCarExtra> Cars;
+	/** The race's yellow sectors (`yellow_flags`, appended), as FApexTelemetryFrame carries them; none from an older stream. */
+	int32 YellowSectorM = 0;
+	TArray<TPair<int32, int32>> YellowSectors;
 };
 
 struct APEXSIMNET_API FApexStreamBlock

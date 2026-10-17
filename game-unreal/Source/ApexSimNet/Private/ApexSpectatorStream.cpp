@@ -411,7 +411,34 @@ namespace ApexSpectatorCodec
 				Out.Cars.Add(Extra);
 			}
 		}
-		return SkipRest(Reader, Count, 7);
+		// The yellow sectors, appended: nil, or `[sector_m, [[sector, level], ...]]`.
+		if (Count > 7 && !Reader.TryReadNil())
+		{
+			int32 Fields = 0;
+			int32 Pairs = 0;
+			if (!Reader.ReadArrayHeader(Fields) || Fields < 2 || !ReadI32(Reader, Out.YellowSectorM)
+				|| !Reader.ReadArrayHeader(Pairs))
+			{
+				return false;
+			}
+			for (int32 i = 0; i < Pairs; ++i)
+			{
+				int32 PairFields = 0;
+				int32 Sector = 0;
+				int32 Level = 0;
+				if (!Reader.ReadArrayHeader(PairFields) || PairFields < 2 || !ReadI32(Reader, Sector)
+					|| !ReadI32(Reader, Level) || !SkipRest(Reader, PairFields, 2))
+				{
+					return false;
+				}
+				Out.YellowSectors.Emplace(Sector, FMath::Clamp(Level, 0, 2));
+			}
+			if (!SkipRest(Reader, Fields, 2))
+			{
+				return false;
+			}
+		}
+		return SkipRest(Reader, Count, FMath::Min(Count, 8));
 	}
 
 	bool ParsePath(FMsgPackReader& Reader, int32 Count, uint32 Epoch, FApexStreamPath& Out)
@@ -627,7 +654,7 @@ bool FApexStreamCarRow::Read(const uint8* B, int32 Len, FApexStreamCarRow& Out)
 	// Version 1 rows end here: their tyres stay unknown; version 2 rows
 	// end at the tyres, their wheels unknown.
 	const bool bTyres = Len >= ApexSpectator::RowSizeV2;
-	Out.bWheels = Len >= ApexSpectator::RowSize;
+	Out.bWheels = Len >= ApexSpectator::RowSizeV3;
 	for (int32 i = 0; i < 4; ++i)
 	{
 		Out.TyreWear[i] = bTyres ? B[44 + i] : ApexSpectator::TyreWearUnknown;
@@ -636,6 +663,9 @@ bool FApexStreamCarRow::Read(const uint8* B, int32 Len, FApexStreamCarRow& Out)
 		Out.WheelSlipAngle[i] = Out.bWheels ? static_cast<int8>(B[56 + i]) : 0;
 		Out.WheelSurface[i] = Out.bWheels ? B[60 + i] : 0;
 	}
+	// Version 3 rows end at the wheels: no ground, no flags.
+	Out.Ground = Len >= ApexSpectator::RowSize ? B[64] : 0;
+	Out.RaceFlags = Len >= ApexSpectator::RowSize ? B[65] : 0;
 	return true;
 }
 
@@ -678,6 +708,8 @@ void FApexStreamCarRow::Write(TArray<uint8>& Out) const
 		B[56 + i] = static_cast<uint8>(WheelSlipAngle[i]);
 		B[60 + i] = WheelSurface[i];
 	}
+	B[64] = Ground;
+	B[65] = RaceFlags;
 }
 
 FApexCarTelemetry FApexStreamCarRow::ToTelemetry() const
@@ -731,6 +763,12 @@ FApexCarTelemetry FApexStreamCarRow::ToTelemetry() const
 		T.WheelSurface[i] = static_cast<EApexContactSurface>(FMath::Min<uint8>(WheelSurface[i], 2));
 	}
 	T.bHasWheelFeel = bWheels;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		T.WheelGround[i] = static_cast<uint8>((Ground >> (2 * i)) & 3u);
+	}
+	T.bBlueFlag = (RaceFlags & 1u) != 0;
+	T.YellowAhead = FMath::Min<int32>((RaceFlags >> 1) & 3u, 2);
 	return T;
 }
 
@@ -794,7 +832,9 @@ FApexStreamCarRow FApexStreamCarRow::FromTelemetry(const FApexCarTelemetry& T)
 		Row.WheelSlipRatio[i] = static_cast<int8>(FMath::Clamp(FMath::RoundToInt(T.WheelSlipRatio[i] * ApexSpectator::RowSlipScale), -127, 127));
 		Row.WheelSlipAngle[i] = static_cast<int8>(FMath::Clamp(FMath::RoundToInt(T.WheelSlipAngle[i] * ApexSpectator::RowSlipScale), -127, 127));
 		Row.WheelSurface[i] = static_cast<uint8>(T.WheelSurface[i]);
+		Row.Ground |= static_cast<uint8>((T.WheelGround[i] & 3u) << (2 * i));
 	}
+	Row.RaceFlags = (T.bBlueFlag ? 1u : 0u) | static_cast<uint8>(FMath::Clamp(T.YellowAhead, 0, 2) << 1);
 	return Row;
 }
 
@@ -827,8 +867,11 @@ bool FApexStreamCarExtra::Read(const uint8* B, int32 Len, FApexStreamCarExtra& O
 	for (int32 i = 0; i < 4; ++i)
 	{
 		Out.DamageAt[i] = Out.bHasDamageAt ? static_cast<int8>(B[36 + i]) : 0;
-		Out.DamageAt2[i] = Len >= ApexSpectator::ExtraSize ? static_cast<int8>(B[40 + i]) : -128;
+		Out.DamageAt2[i] = Len >= ApexSpectator::ExtraSizeTwoDents ? static_cast<int8>(B[40 + i]) : -128;
+		// The discs and the stint's energy, appended after the second dents.
+		Out.DiscWear[i] = Len >= ApexSpectator::ExtraSize ? B[44 + i] : 255;
 	}
+	Out.StintEnergyPct = Len >= ApexSpectator::ExtraSize ? B[48] : 255;
 	return true;
 }
 
@@ -858,7 +901,9 @@ void FApexStreamCarExtra::Write(TArray<uint8>& Out) const
 	{
 		B[36 + i] = static_cast<uint8>(DamageAt[i]);
 		B[40 + i] = static_cast<uint8>(DamageAt2[i]);
+		B[44 + i] = DiscWear[i];
 	}
+	B[48] = StintEnergyPct;
 }
 
 void FApexStreamCarExtra::ApplyTo(FApexCarTelemetry& Car) const
@@ -903,6 +948,11 @@ void FApexStreamCarExtra::ApplyTo(FApexCarTelemetry& Car) const
 	{
 		Car.ErsStintPct = ErsStintPct;
 	}
+	for (int32 i = 0; i < 4; ++i)
+	{
+		Car.DiscWearPct[i] = DiscWear[i] == 255 ? -1.0f : DiscWear[i];
+	}
+	Car.StintEnergyPct = StintEnergyPct == 255 ? -1.0f : StintEnergyPct;
 }
 
 FApexStreamCarExtra FApexStreamCarExtra::FromTelemetry(const FApexCarTelemetry& Car)
@@ -933,7 +983,9 @@ FApexStreamCarExtra FApexStreamCarExtra::FromTelemetry(const FApexCarTelemetry& 
 		Out.DamageAt[i] = static_cast<int8>(FMath::Clamp(FMath::RoundToInt(Car.DamageAt[i] * 127.0f), -127, 127));
 		Out.DamageAt2[i] = Car.DamageAt2[i] > 1.5f ? -128
 			: static_cast<int8>(FMath::Clamp(FMath::RoundToInt(Car.DamageAt2[i] * 127.0f), -127, 127));
+		Out.DiscWear[i] = Byte(Car.DiscWearPct[i], 255);
 	}
+	Out.StintEnergyPct = Byte(Car.StintEnergyPct, 255);
 	return Out;
 }
 
@@ -1545,6 +1597,8 @@ void FApexSpectatorPlayer::Flush()
 		Out.Sky = State.Sky;
 		Out.RaceLeftMs = State.RaceLeftMs;
 		Out.RaceFinalLap = State.RaceFinalLap;
+		Out.YellowSectorM = State.YellowSectorM;
+		Out.YellowSectors = State.YellowSectors;
 	}
 	++AppliedFrames;
 }
