@@ -18,6 +18,7 @@ use apexsim_server::car_step;
 use apexsim_server::config::RoadContactMode;
 use apexsim_server::data::*;
 use apexsim_server::game_session::{GameSession, DEFAULT_TICK_RATE_HZ, PUNCTURE_HIT_PCT};
+use apexsim_server::own_car::OwnCarSnapshot;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
@@ -480,9 +481,16 @@ fn a_snapshot_over_a_stale_state_replays_with_the_server() {
             pose_only.angular_vel_yaw = now.angular_vel_yaw;
             pose_only.angular_vel_pitch = now.angular_vel_pitch;
             pose_only.angular_vel_roll = now.angular_vel_roll;
-            let mut snapshot = stale;
-            apexsim_server::own_car::OwnCarSnapshot::of(&now, tick, None).apply_to(&mut snapshot);
-            probes = vec![new_car(&now), new_car(&pose_only), new_car(&snapshot)];
+            // The snapshot goes on through the C API, as a client lays it.
+            let served = ApxCarSnapshot::from(&OwnCarSnapshot::of(&now, tick, None));
+            let snapshot = new_car(&stale);
+            let mut read = ApxCarSnapshot::default();
+            unsafe {
+                ok(apx_car_snapshot_apply(snapshot, &served));
+                ok(apx_car_snapshot(snapshot, &mut read));
+            }
+            assert_eq!(read, served, "the snapshot reads back as laid");
+            probes = vec![new_car(&now), new_car(&pose_only), snapshot];
             probe_end = tick + REPLAY;
             rewinds += 1;
         }
@@ -500,6 +508,87 @@ fn a_snapshot_over_a_stale_state_replays_with_the_server() {
         "pose and velocities alone ({} m) are not enough",
         worst[1]
     );
+}
+
+/// The road as the server sends it (`RoadState` rows) held on the
+/// library's track: a client's copy of a rubbered, marbled road grips as
+/// the server's within the bytes' resolution, where the road it loaded
+/// does not.
+#[test]
+fn the_road_from_the_wire_grips_as_the_servers() {
+    use apexsim_server::road_state::ROW_BYTES;
+    let track = TrackLoader::load_from_file(repo(TRACK)).unwrap();
+    let conditions = conditions(&track);
+    let ffi = Ffi::new(0, &conditions, &setup_clicks());
+    let loaded = unsafe { (*ffi.track).track_mut() }
+        .road_state
+        .clone()
+        .expect("the library lays the road");
+    // The server's road after a race: rubbered and marbled all over, so
+    // the rows carry what the loaded road does not.
+    let mut served = loaded.clone();
+    for (i, r) in served.rubber.iter_mut().enumerate() {
+        *r = (i % 7) as f32 / 7.0;
+    }
+    for (i, m) in served.marbles.iter_mut().enumerate() {
+        *m = (i % 5) as f32 / 10.0;
+    }
+    let n = served.cell_count();
+    let mut rows = Vec::new();
+    served.write_rows(0, n, &mut rows);
+
+    // In two slices, the second running to the end of the lap.
+    let half = n / 2;
+    let none = std::ptr::null();
+    unsafe {
+        ok(apx_track_road_rows(
+            ffi.track,
+            0,
+            rows.as_ptr(),
+            half * ROW_BYTES,
+            none,
+            0,
+            none,
+            0,
+        ));
+        let rest = &rows[half * ROW_BYTES..];
+        ok(apx_track_road_rows(
+            ffi.track,
+            half as u32,
+            rest.as_ptr(),
+            rest.len(),
+            none,
+            0,
+            none,
+            0,
+        ));
+    }
+    let copy = unsafe { (*ffi.track).track_mut() }
+        .road_state
+        .clone()
+        .unwrap();
+    let (mut worst, mut loaded_worst) = (0.0f32, 0.0f32);
+    for k in 0..200 {
+        let station = k as f32 * served.lap_m / 200.0;
+        for lateral in [-4.0, -1.0, 0.0, 1.5, 3.0] {
+            let s = served.sample(station, lateral).grip;
+            worst = worst.max((copy.sample(station, lateral).grip - s).abs());
+            loaded_worst = loaded_worst.max((loaded.sample(station, lateral).grip - s).abs());
+        }
+    }
+    eprintln!("grip off the server's: from the wire {worst:.5}, as loaded {loaded_worst:.5}");
+    assert!(worst < 0.002, "{worst}");
+    assert!(loaded_worst > 10.0 * worst);
+
+    // Bytes that are not whole cells are refused and change nothing.
+    unsafe {
+        assert_eq!(
+            apx_track_road_rows(ffi.track, 0, rows.as_ptr(), 5, none, 0, none, 0),
+            APX_ERR_INVALID
+        );
+        assert!(!last_error().is_empty());
+        assert!((*ffi.track).track_mut().road_state.as_ref() == Some(&copy));
+    }
 }
 
 #[test]
@@ -591,6 +680,28 @@ fn failures_come_back_as_codes() {
             APX_ERR_INVALID
         );
         assert_eq!(apx_car_step(car, track, &nan, 1, 0), APX_ERR_INVALID);
+        let mut snapshot = ApxCarSnapshot::default();
+        ok(apx_car_snapshot(car, &mut snapshot));
+        let before = snapshot;
+        snapshot.vel[1] = f32::NAN;
+        assert_eq!(apx_car_snapshot_apply(car, &snapshot), APX_ERR_INVALID);
+        let mut after = ApxCarSnapshot::default();
+        ok(apx_car_snapshot(car, &mut after));
+        assert_eq!(after, before, "a refused snapshot leaves the car");
+        let odd = [1u8; 7];
+        assert_eq!(
+            apx_track_road_rows(
+                track,
+                0,
+                odd.as_ptr(),
+                odd.len(),
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+                0
+            ),
+            APX_ERR_INVALID
+        );
         let bad = b"APXC\xff\xffjunk";
         assert_eq!(
             apx_car_state_load(car, bad.as_ptr(), bad.len()),

@@ -25,7 +25,7 @@
 extern "C" {
 #endif
 
-#define APX_ABI_VERSION 1u
+#define APX_ABI_VERSION 2u
 
 typedef int32_t ApxStatus;
 #define APX_OK 0
@@ -82,12 +82,51 @@ typedef struct ApxCarPose {
     uint8_t flags;              /* APX_POSE_* */
 } ApxCarPose;
 
+#define APX_SNAP_ON_TRACK 1u
+#define APX_SNAP_AIRBORNE 2u
+#define APX_SNAP_COLLIDING 4u
+#define APX_SNAP_DRS_OPEN 8u
+#define APX_SNAP_WHEELS_OFF_TRACK 16u
+#define APX_NO_INDEX 0xFFFFFFFFu
+
+/* What the car step carries from one tick to the next: the server's
+ * DriverFeedback.own_car (server/src/own_car.rs OwnCarSnapshot) without its
+ * tick and input number. Server frame and units; per-wheel FL FR RL RR. */
+typedef struct ApxCarSnapshot {
+    float pos[3];
+    float attitude[3];          /* yaw, pitch, roll, rad */
+    float vel[3];
+    float speed_mps;
+    float angular_vel[3];       /* yaw, pitch, roll rates, rad/s */
+    float wheel_angular_vel[4];
+    float wheel_load_n[4];
+    float suspension_travel_m[4];
+    float suspension_velocity_mps[4];
+    float g_forces[3];          /* lateral, longitudinal, vertical */
+    float vertical_accel_mps2;
+    float ground_slope[2];
+    float porpoise[2];          /* phase, amplitude */
+    float controls[4];          /* throttle, brake, steering, clutch as applied */
+    float engine_rpm;
+    float turbo_spool;
+    float track_progress;
+    float lateral_offset_m;
+    uint32_t centerline_idx;    /* APX_NO_INDEX for none */
+    uint16_t auto_shift_hold_ticks;
+    uint16_t auto_reverse_ticks;
+    uint16_t current_lap;
+    int8_t gear;
+    uint8_t flags;              /* APX_SNAP_* */
+} ApxCarSnapshot;
+
 #ifdef __cplusplus
 static_assert(sizeof(ApxInput) == 28, "ApxInput layout");
 static_assert(sizeof(ApxCarPose) == 96, "ApxCarPose layout");
+static_assert(sizeof(ApxCarSnapshot) == 192, "ApxCarSnapshot layout");
 #else /* C89 and MSVC's C have no _Static_assert by default */
 typedef char apx_input_layout[(sizeof(ApxInput) == 28) ? 1 : -1];
 typedef char apx_car_pose_layout[(sizeof(ApxCarPose) == 96) ? 1 : -1];
+typedef char apx_car_snapshot_layout[(sizeof(ApxCarSnapshot) == 192) ? 1 : -1];
 #endif
 
 /* APX_ABI_VERSION of the linked library: check it before any other call. */
@@ -139,6 +178,26 @@ ApxStatus apx_car_state_save(const ApxCar *car, uint8_t *buf, size_t capacity,
 
 /* Replace the car's state with a blob of this version and this car. */
 ApxStatus apx_car_state_load(ApxCar *car, const uint8_t *buf, size_t len);
+
+/* The car's snapshot, as the server sends its own in DriverFeedback.own_car. */
+ApxStatus apx_car_snapshot(const ApxCar *car, ApxCarSnapshot *out);
+
+/* Lay a snapshot over the car's state: every field it carries set, the rest
+ * (tyres, fuel, hybrid, brakes, damage, lap timing) kept. The rewind to a
+ * DriverFeedback.own_car between two full blobs. A non-finite number is
+ * refused (APX_ERR_INVALID) and the car left as it was. */
+ApxStatus apx_car_snapshot_apply(ApxCar *car, const ApxCarSnapshot *snapshot);
+
+/* Hold the track's road state to the server's from a RoadState message's
+ * bytes: rows (whole road_state::ROW_BYTES cells from first_cell, wrapping
+ * the lap), snow_rows (empty for a road with no snow: the snow stops
+ * counting) and lane_snow (the whole pit lane; empty leaves it). At the
+ * wire's byte resolution. APX_ERR_INVALID, the track unchanged, for a track
+ * with no road state or bytes that are not whole cells. */
+ApxStatus apx_track_road_rows(ApxTrack *track, uint32_t first_cell,
+                              const uint8_t *rows, size_t rows_len,
+                              const uint8_t *snow_rows, size_t snow_rows_len,
+                              const uint8_t *lane_snow, size_t lane_snow_len);
 
 #ifdef __cplusplus
 }

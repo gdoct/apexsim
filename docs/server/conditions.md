@@ -21,7 +21,10 @@ positions, so a session replays the same (`a_changing_sky_is_deterministic`).
   `wind_mps`, `wind_now_mps`).
 - `server/src/conditions.rs` - `LiveConditions` (the sky now) and `forecast`.
 - `server/src/road_state.rs` - `RoadState`: rubber, marbles, a dried line,
-  water depth; `write_rows` / `write_geometry` pack it for the wire.
+  water depth; `write_rows` / `write_geometry` pack it for the wire, and
+  `read_rows` / `read_snow_rows` / `read_lane_snow` read the bytes back into
+  another copy of the road (the physics library's `apx_track_road_rows`, for
+  a predicting client).
 - `server/src/game_loop/dispatch.rs` - `road_state_message`,
   `road_state_full` (the join burst); `game_loop/tick.rs` the round-robin
   send, `broadcast.rs` `broadcast_road`.

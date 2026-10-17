@@ -25,11 +25,12 @@ use apexsim_server::car_setup::{CarSetup, KNOB_COUNT};
 use apexsim_server::car_step::{self, StepClock};
 use apexsim_server::config::RoadContactMode;
 use apexsim_server::data::{CarConfig, CarState, PlayerInputData, SessionConditions, TrackConfig};
+use apexsim_server::own_car::{self, OwnCarSnapshot};
 use apexsim_server::track_loader::TrackLoader;
 
 /// The C API's version: [`apx_abi_version`]. Bumped whenever a function's
 /// signature or a `#[repr(C)]` struct changes.
-pub const APX_ABI_VERSION: u32 = 1;
+pub const APX_ABI_VERSION: u32 = 2;
 
 /// What every function returns.
 pub type ApxStatus = i32;
@@ -142,6 +143,147 @@ pub struct ApxCarPose {
     pub gear: i8,
     /// `APX_POSE_*` bits.
     pub flags: u8,
+}
+
+/// [`ApxCarSnapshot::centerline_idx`] when the car has none yet.
+pub const APX_NO_INDEX: u32 = u32::MAX;
+
+/// Bits of [`ApxCarSnapshot::flags`] (`own_car::FLAG_*`).
+pub const APX_SNAP_ON_TRACK: u8 = own_car::FLAG_ON_TRACK;
+pub const APX_SNAP_AIRBORNE: u8 = own_car::FLAG_AIRBORNE;
+pub const APX_SNAP_COLLIDING: u8 = own_car::FLAG_COLLIDING;
+pub const APX_SNAP_DRS_OPEN: u8 = own_car::FLAG_DRS_OPEN;
+pub const APX_SNAP_WHEELS_OFF_TRACK: u8 = own_car::FLAG_WHEELS_OFF_TRACK;
+
+/// The server's `own_car::OwnCarSnapshot` without its tick and input
+/// number, which the caller keeps: what the car step carries from one tick
+/// to the next, as `DriverFeedback.own_car` sends it. Server frame and
+/// units; per-wheel FL FR RL RR.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct ApxCarSnapshot {
+    pub pos: [f32; 3],
+    /// Yaw, pitch, roll, rad.
+    pub attitude: [f32; 3],
+    pub vel: [f32; 3],
+    pub speed_mps: f32,
+    /// Yaw, pitch and roll rates, rad/s.
+    pub angular_vel: [f32; 3],
+    pub wheel_angular_vel: [f32; 4],
+    pub wheel_load_n: [f32; 4],
+    pub suspension_travel_m: [f32; 4],
+    pub suspension_velocity_mps: [f32; 4],
+    /// Lateral, longitudinal, vertical.
+    pub g_forces: [f32; 3],
+    pub vertical_accel_mps2: f32,
+    pub ground_slope: [f32; 2],
+    pub porpoise: [f32; 2],
+    /// Throttle, brake, steering, clutch as the car applied them.
+    pub controls: [f32; 4],
+    pub engine_rpm: f32,
+    pub turbo_spool: f32,
+    pub track_progress: f32,
+    pub lateral_offset_m: f32,
+    /// [`APX_NO_INDEX`] for none.
+    pub centerline_idx: u32,
+    pub auto_shift_hold_ticks: u16,
+    pub auto_reverse_ticks: u16,
+    pub current_lap: u16,
+    pub gear: i8,
+    /// `APX_SNAP_*` bits.
+    pub flags: u8,
+}
+
+impl From<&OwnCarSnapshot> for ApxCarSnapshot {
+    fn from(s: &OwnCarSnapshot) -> Self {
+        Self {
+            pos: s.pos,
+            attitude: s.attitude,
+            vel: s.vel,
+            speed_mps: s.speed_mps,
+            angular_vel: s.angular_vel,
+            wheel_angular_vel: s.wheel_angular_vel,
+            wheel_load_n: s.wheel_load_n,
+            suspension_travel_m: s.suspension_travel_m,
+            suspension_velocity_mps: s.suspension_velocity_mps,
+            g_forces: s.g_forces,
+            vertical_accel_mps2: s.vertical_accel_mps2,
+            ground_slope: s.ground_slope,
+            porpoise: s.porpoise,
+            controls: s.controls,
+            engine_rpm: s.engine_rpm,
+            turbo_spool: s.turbo_spool,
+            track_progress: s.track_progress,
+            lateral_offset_m: s.lateral_offset_m,
+            centerline_idx: s.centerline_idx.unwrap_or(APX_NO_INDEX),
+            auto_shift_hold_ticks: s.auto_shift_hold_ticks,
+            auto_reverse_ticks: s.auto_reverse_ticks,
+            current_lap: s.current_lap,
+            gear: s.gear,
+            flags: s.flags,
+        }
+    }
+}
+
+impl ApxCarSnapshot {
+    /// The server's snapshot, at no tick and with no input number (a step
+    /// reads neither).
+    fn to_own_car(self) -> OwnCarSnapshot {
+        OwnCarSnapshot {
+            tick: 0,
+            input_seq: None,
+            pos: self.pos,
+            attitude: self.attitude,
+            vel: self.vel,
+            speed_mps: self.speed_mps,
+            angular_vel: self.angular_vel,
+            wheel_angular_vel: self.wheel_angular_vel,
+            wheel_load_n: self.wheel_load_n,
+            suspension_travel_m: self.suspension_travel_m,
+            suspension_velocity_mps: self.suspension_velocity_mps,
+            g_forces: self.g_forces,
+            vertical_accel_mps2: self.vertical_accel_mps2,
+            ground_slope: self.ground_slope,
+            porpoise: self.porpoise,
+            controls: self.controls,
+            gear: self.gear,
+            engine_rpm: self.engine_rpm,
+            turbo_spool: self.turbo_spool,
+            auto_shift_hold_ticks: self.auto_shift_hold_ticks,
+            auto_reverse_ticks: self.auto_reverse_ticks,
+            track_progress: self.track_progress,
+            lateral_offset_m: self.lateral_offset_m,
+            current_lap: self.current_lap,
+            centerline_idx: (self.centerline_idx != APX_NO_INDEX).then_some(self.centerline_idx),
+            flags: self.flags,
+        }
+    }
+
+    /// Every float in it.
+    fn floats(&self) -> impl Iterator<Item = f32> + '_ {
+        self.pos
+            .iter()
+            .chain(&self.attitude)
+            .chain(&self.vel)
+            .chain(std::iter::once(&self.speed_mps))
+            .chain(&self.angular_vel)
+            .chain(&self.wheel_angular_vel)
+            .chain(&self.wheel_load_n)
+            .chain(&self.suspension_travel_m)
+            .chain(&self.suspension_velocity_mps)
+            .chain(&self.g_forces)
+            .chain(std::iter::once(&self.vertical_accel_mps2))
+            .chain(&self.ground_slope)
+            .chain(&self.porpoise)
+            .chain(&self.controls)
+            .chain([
+                &self.engine_rpm,
+                &self.turbo_spool,
+                &self.track_progress,
+                &self.lateral_offset_m,
+            ])
+            .copied()
+    }
 }
 
 thread_local! {
@@ -556,6 +698,122 @@ pub unsafe extern "C" fn apx_car_state_load(
     })
 }
 
+/// The car's snapshot: what the car step carries from one tick to the next
+/// (`own_car::OwnCarSnapshot::of`), as the server sends its own copy in
+/// `DriverFeedback.own_car`. A predicting client compares it with the
+/// server's.
+///
+/// # Safety
+/// `car` is a live handle; `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_car_snapshot(
+    car: *const ApxCar,
+    out: *mut ApxCarSnapshot,
+) -> ApxStatus {
+    guard(|| {
+        non_null(car, "car")?;
+        non_null(out, "out")?;
+        *out = ApxCarSnapshot::from(&OwnCarSnapshot::of(&(*car).state, 0, None));
+        Ok(())
+    })
+}
+
+/// Lay a snapshot over the car's state (`own_car::OwnCarSnapshot::apply_to`):
+/// every field it carries is set, the rest (tyres, fuel, hybrid, brakes,
+/// damage, lap timing) kept. The rewind to a `DriverFeedback.own_car`
+/// between two full blobs ([`apx_car_state_load`]). A snapshot with a
+/// non-finite number is refused and the car left as it was.
+///
+/// # Safety
+/// `car` is a live handle; `snapshot` is readable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_car_snapshot_apply(
+    car: *mut ApxCar,
+    snapshot: *const ApxCarSnapshot,
+) -> ApxStatus {
+    guard(|| {
+        non_null(car, "car")?;
+        non_null(snapshot, "snapshot")?;
+        let snapshot = *snapshot;
+        if snapshot.floats().any(|v| !v.is_finite()) {
+            return Err(Fail::new(
+                APX_ERR_INVALID,
+                "the snapshot holds a non-finite number",
+            ));
+        }
+        snapshot.to_own_car().apply_to(&mut (*car).state);
+        Ok(())
+    })
+}
+
+/// Hold the track's road state (rubber, marbles, water, the dried line,
+/// snow and ice) to the server's, from the bytes of a `RoadState` message:
+/// `rows` (`RoadStateData.rows`, whole `road_state::ROW_BYTES` cells from
+/// `first_cell`, wrapping the lap), `snow_rows` (`.snow_rows`; empty for a
+/// road with no snow, which stops the snow counting, as the server's field
+/// left off means) and `lane_snow` (`.lane_snow`, the whole pit lane;
+/// empty leaves the lane as it is). The values come at the wire's byte
+/// resolution, so the grip under a tyre can differ from the server's by a
+/// fraction of a percent. Refused, with the track left as it was, for a
+/// track with no road state or bytes that are not whole cells.
+///
+/// # Safety
+/// `track` is a live handle; each pointer points at its length in bytes
+/// (or is null with length 0).
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn apx_track_road_rows(
+    track: *mut ApxTrack,
+    first_cell: u32,
+    rows: *const u8,
+    rows_len: usize,
+    snow_rows: *const u8,
+    snow_rows_len: usize,
+    lane_snow: *const u8,
+    lane_snow_len: usize,
+) -> ApxStatus {
+    guard(|| {
+        non_null(track, "track")?;
+        let rows = bytes(rows, rows_len, "rows")?;
+        let snow_rows = bytes(snow_rows, snow_rows_len, "snow_rows")?;
+        let lane_snow = bytes(lane_snow, lane_snow_len, "lane_snow")?;
+        let Some(road) = (*track).track.road_state.as_ref() else {
+            return Err(Fail::new(APX_ERR_INVALID, "the track has no road state"));
+        };
+        // Read into a copy, so a refusal leaves the track as it was.
+        let mut road = road.clone();
+        let first = first_cell as usize;
+        road.read_rows(first, rows).ok_or_else(|| {
+            Fail::new(
+                APX_ERR_INVALID,
+                format!(
+                    "{} bytes of rows are not whole cells of this lap",
+                    rows.len()
+                ),
+            )
+        })?;
+        road.read_snow_rows(first, snow_rows).ok_or_else(|| {
+            Fail::new(
+                APX_ERR_INVALID,
+                format!(
+                    "{} bytes of snow rows are not whole cells of this lap",
+                    snow_rows.len()
+                ),
+            )
+        })?;
+        if !lane_snow.is_empty() {
+            road.read_lane_snow(lane_snow).ok_or_else(|| {
+                Fail::new(
+                    APX_ERR_INVALID,
+                    format!("{} bytes of lane snow: not this lane", lane_snow.len()),
+                )
+            })?;
+        }
+        (*track).track.road_state = Some(road);
+        Ok(())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -574,6 +832,23 @@ mod tests {
             "sizeof(ApxCarPose) == {}",
             std::mem::size_of::<ApxCarPose>()
         )));
+        assert!(header.contains(&format!(
+            "sizeof(ApxCarSnapshot) == {}",
+            std::mem::size_of::<ApxCarSnapshot>()
+        )));
+        for (name, value) in [
+            ("APX_SNAP_ON_TRACK", APX_SNAP_ON_TRACK),
+            ("APX_SNAP_AIRBORNE", APX_SNAP_AIRBORNE),
+            ("APX_SNAP_COLLIDING", APX_SNAP_COLLIDING),
+            ("APX_SNAP_DRS_OPEN", APX_SNAP_DRS_OPEN),
+            ("APX_SNAP_WHEELS_OFF_TRACK", APX_SNAP_WHEELS_OFF_TRACK),
+        ] {
+            assert!(
+                header.contains(&format!("#define {name} {value}u")),
+                "{name}"
+            );
+        }
+        assert!(header.contains("#define APX_NO_INDEX 0xFFFFFFFFu"));
         for f in [
             "apx_abi_version(",
             "apx_state_blob_version(",
@@ -586,6 +861,9 @@ mod tests {
             "apx_car_pose(",
             "apx_car_state_save(",
             "apx_car_state_load(",
+            "apx_car_snapshot(",
+            "apx_car_snapshot_apply(",
+            "apx_track_road_rows(",
         ] {
             assert!(header.contains(f), "the header lacks {f}");
         }

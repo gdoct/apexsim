@@ -704,6 +704,70 @@ impl RoadState {
         }
     }
 
+    /// Read back what [`Self::write_rows`] packed: `rows` holds whole
+    /// [`ROW_BYTES`] cells from `first_cell` (wrapping the lap), whose depth,
+    /// rubber, marbles and dry replace this road's at the wire's byte
+    /// resolution. A predicting client holds its copy of the road to the
+    /// server's this way (docs/proposals/client-prediction.md). Returns the
+    /// cells read; `None` (and nothing changed) when `rows` is not whole
+    /// cells or there are more than the lap has.
+    pub fn read_rows(&mut self, first_cell: usize, rows: &[u8]) -> Option<usize> {
+        let n = self.cells.len();
+        let count = rows.len() / ROW_BYTES;
+        if n == 0 || !rows.len().is_multiple_of(ROW_BYTES) || count > n {
+            return None;
+        }
+        let unq = |b: u8| b as f32 / 255.0;
+        for (k, row) in rows.as_chunks::<ROW_BYTES>().0.iter().enumerate() {
+            let i = (first_cell + k) % n;
+            self.cells[i].depth = row[0] as f32 / DEPTH_BYTE;
+            let base = i * BINS;
+            for (b, bin) in row[1..].as_chunks::<3>().0.iter().enumerate() {
+                self.rubber[base + b] = unq(bin[0]);
+                self.marbles[base + b] = unq(bin[1]);
+                self.dry[base + b] = unq(bin[2]);
+            }
+        }
+        Some(count)
+    }
+
+    /// Read back what [`Self::write_snow_rows`] packed, as [`Self::read_rows`]
+    /// does the rows. An empty `rows` is a road with no snow on it (the
+    /// server leaves the field off then): the snow stops counting toward the
+    /// grip, as on the server.
+    pub fn read_snow_rows(&mut self, first_cell: usize, rows: &[u8]) -> Option<usize> {
+        let n = self.cells.len();
+        let count = rows.len() / SNOW_ROW_BYTES;
+        if n == 0 || !rows.len().is_multiple_of(SNOW_ROW_BYTES) || count > n {
+            return None;
+        }
+        self.snowy = !rows.is_empty();
+        let unq = |b: u8| b as f32 / 255.0;
+        for (k, row) in rows.as_chunks::<SNOW_ROW_BYTES>().0.iter().enumerate() {
+            let i = (first_cell + k) % n;
+            self.cells[i].verge_snow = unq(row[0]);
+            let base = i * BINS;
+            for (b, bin) in row[1..].as_chunks::<2>().0.iter().enumerate() {
+                self.snow[base + b] = unq(bin[0]);
+                self.ice[base + b] = unq(bin[1]);
+            }
+        }
+        Some(count)
+    }
+
+    /// Read back what [`Self::write_lane_snow`] packed: the pit lane's cover,
+    /// the whole lane. `None` (and nothing changed) when it is not the lane's
+    /// length.
+    pub fn read_lane_snow(&mut self, bytes: &[u8]) -> Option<()> {
+        if bytes.len() != self.lane_snow.len() {
+            return None;
+        }
+        for (cover, b) in self.lane_snow.iter_mut().zip(bytes) {
+            *cover = *b as f32 / 255.0;
+        }
+        Some(())
+    }
+
     /// Whether water stands deeper in a dip than on the flat anywhere on
     /// the lap: a road without leaves the per-bin water off the wire.
     pub fn has_puddles(&self) -> bool {
@@ -1704,6 +1768,62 @@ mod tests {
                 (road.rubber[base + b] * 255.0).round().clamp(0.0, 255.0) as u8,
             );
         }
+    }
+
+    /// A client's copy of the road, fed the server's rows, writes the same
+    /// rows back and grips within the bytes' resolution of the server's.
+    #[test]
+    fn rows_read_back_into_another_copy_of_the_road() {
+        let track = dipped_track(0.5);
+        let mut served = RoadState::new(&track, 1.0);
+        drive(&mut served, 2.0, 200, 1800.0);
+        let mut copy = RoadState::new(&track, 0.0);
+        let n = served.cell_count();
+        let mut rows = Vec::new();
+        served.write_rows(0, n, &mut rows);
+        assert_eq!(copy.read_rows(0, &rows), Some(n));
+        let mut again = Vec::new();
+        copy.write_rows(0, n, &mut again);
+        assert_eq!(again, rows);
+        for station in [100.0, 500.0, 900.0] {
+            for lateral in [-3.0, 0.0, 2.0, 2.8] {
+                let (a, b) = (
+                    served.sample(station, lateral),
+                    copy.sample(station, lateral),
+                );
+                assert!((a.grip - b.grip).abs() < 0.01, "{a:?} {b:?}");
+                assert!((a.water - b.water).abs() < 0.01, "{a:?} {b:?}");
+            }
+        }
+        // A wrapping slice, and what is not whole cells.
+        let mut tail = Vec::new();
+        served.write_rows(n - 1, 2, &mut tail);
+        assert_eq!(copy.read_rows(n - 1, &tail), Some(2));
+        assert_eq!(copy.read_rows(0, &tail[1..]), None);
+    }
+
+    #[test]
+    fn snow_rows_read_back_and_an_empty_field_clears_the_snow() {
+        let track = snowy_track(-3.0);
+        let mut served = RoadState::new(&track, RUBBER_REFERENCE);
+        drive(&mut served, 2.0, 100, 900.0);
+        let mut copy = RoadState::new(&track, RUBBER_REFERENCE);
+        let n = served.cell_count();
+        let mut rows = Vec::new();
+        served.write_snow_rows(0, n, &mut rows);
+        assert_eq!(copy.read_snow_rows(0, &rows), Some(n));
+        let mut again = Vec::new();
+        copy.write_snow_rows(0, n, &mut again);
+        assert_eq!(again, rows);
+        let mut lane = Vec::new();
+        served.write_lane_snow(&mut lane);
+        assert_eq!(copy.read_lane_snow(&lane), Some(()));
+        assert_eq!(
+            copy.read_lane_snow(&[1, 2, 3, 4, 5, 6, 7]).is_some(),
+            lane.len() == 7
+        );
+        assert_eq!(copy.read_snow_rows(0, &[]), Some(0));
+        assert!(!copy.snowy);
     }
 
     #[test]

@@ -148,13 +148,16 @@ names checked by a test against `src/lib.rs`):
 | `apx_car_create(track, car_toml, len, clicks, n, grid_slot, &car)` | `CarLoader::load_from_str`, the setup clicks clamped and baked as `SetCarSetup` does (`CarSetup::simulated_config`), a fresh state on the grid slot |
 | `apx_car_step(car, track, &input, tick, tick_rate_hz)` | the input sanitised as the server's dispatch does (`PlayerInputData::sanitized`), the tick's wind, `step_lone_car`; `dt` is `1 / tick_rate_hz` computed as the server computes it, which is why the rate is passed and not a `dt` |
 | `apx_car_pose(car, &pose)` | `ApxCarPose`: position, attitude, velocities, yaw/pitch/roll rates, inputs, rpm, progress, lateral offset, wheel speeds, lap, gear, flags (on track, airborne, colliding, DRS open) |
-| `apx_car_state_save` / `apx_car_state_load` | the full state as a versioned blob (`car_step::encode_state`: `APXC`, version u16, then the state and the runtime fields serde skips, MessagePack with named fields, floats exact); refused across versions or cars |
+| `apx_car_state_save` / `apx_car_state_load` | the full state as a versioned blob (`car_step::encode_state`: `APXC`, version u16, then the state and the runtime fields serde skips, MessagePack with named fields, floats exact); refused across versions or cars. The server's blob from `DriverFeedback.own_state` loads as it is |
+| `apx_car_snapshot` / `apx_car_snapshot_apply` | `ApxCarSnapshot` (192 bytes): the server's `OwnCarSnapshot` without its tick and input number; apply lays it over the car's state (`OwnCarSnapshot::apply_to`), the rest kept; a non-finite number is refused |
+| `apx_track_road_rows(track, first_cell, rows, snow_rows, lane_snow)` | the track's road state held to the server's from a `RoadState` message's bytes (`RoadState::read_rows`, `read_snow_rows`, `read_lane_snow`), at the wire's byte resolution; empty snow rows stop the snow counting, as the server's field left off means |
 | `apx_track_free`, `apx_car_free` | |
 
 Opaque handles, `ApxStatus` codes, `catch_unwind` around every call. A
 track handle is changed by each step (the wind), so a track and its cars
 belong to one thread at a time. `ApxInput` is `PlayerInput`'s fields
-flattened (28 bytes); `ApxCarPose` is 96 bytes.
+flattened (28 bytes); `ApxCarPose` is 96 bytes. `APX_ABI_VERSION` is 2
+(the snapshot and road calls).
 
 **The check** (`server/ffi/tests/lone_car_trace.rs`, in CI): Monza, an
 F1 car with a tuned setup, wind; a recorded 4400-tick trace (standing
@@ -174,18 +177,20 @@ sidecars where baked (wall contacts included) and from the YAML alone, as
 CI has it. A second test saves the state, steps 400 ticks, loads it and
 replays them bit for bit.
 
-**What phases 2-3 need from it.**
+**What phase 3 takes from it.**
 
-- The server snapshot on `DriverFeedback` decides what a rewind can set:
-  pose and velocities alone leave tyre temperatures, wear, fuel, the
-  hybrid and damage to drift on the client. Either the snapshot carries
-  more, or the client sets the server's full blob at a lower rate (the blob
-  is about 5.5 kB). A setter for pose and velocities on a saved state is
-  not in the API yet.
-- The road state and the live sky are the session's world; the client
-  only gets the road quantized (`RoadState` rows), so its grip under the
-  car can differ slightly from the server's. An API to update the track's
-  road state and surface from what the server sends is not built.
+- A rewind sets the server's state two ways: the whole blob from
+  `DriverFeedback.own_state` (`apx_car_state_load`, exact, twice a second)
+  and the snapshot from every `DriverFeedback.own_car` laid over the
+  client's own state of that tick (`apx_car_snapshot_apply`; phase 2's
+  figures below).
+- The road state is the session's world; the client gets it quantized
+  (`RoadState` rows) and holds the library's track to it
+  (`apx_track_road_rows`): a rubbered, marbled Monza grips within 0.0003 of
+  the server's from the bytes, where the road as loaded is 0.07 off
+  (`the_road_from_the_wire_grips_as_the_servers`). The live sky's other
+  figures (`rain`, `snowfall`, the asphalt's temperature) only drive the
+  road's own step, which the client does not run.
 - The tick the client steps is the server's `current_tick` for that tick
   (the wind and the lap timing read it); the rate is the session's.
 - Linking: the `.lib` carries the whole server crate (tokio, rustls ...),
