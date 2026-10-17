@@ -152,6 +152,7 @@ namespace
 	const FName SegHud        = TEXT("Hud");
 	const FName SegPreset     = TEXT("Preset");
 	const FName SegVSync      = TEXT("VSync");
+	const FName SegHdr        = TEXT("Hdr");
 	const FName SegScreens    = TEXT("Screens");
 	const FName SegStartView  = TEXT("StartView");
 	const FName SegChaseView  = TEXT("ChaseView");
@@ -942,6 +943,10 @@ UWidget* UApexSettingsWidget::BuildGraphicsPage()
 	AddSliderRow(Left, TEXT("Motion blur"), TEXT(""), MotionBlurSlider, MotionBlurFill, MotionBlurValue, false);
 	MotionBlurSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleMotionBlurChanged);
 
+	AddSliderRow(Left, TEXT("Render scale"), TEXT("The scene at a share of the screen, upscaled (TSR): more frames on a slower card."),
+		RenderScaleSlider, RenderScaleFill, RenderScaleValue, false);
+	RenderScaleSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleRenderScaleChanged);
+
 	// Right column: the image itself.
 	ResolutionBox = MakeDropdown(*WidgetTree, {}, 0);
 	if (const UApexSettingsSubsystem* Settings = GetSettings())
@@ -966,6 +971,11 @@ UWidget* UApexSettingsWidget::BuildGraphicsPage()
 	LightingBox->OnSelectionChanged.AddDynamic(this, &UApexSettingsWidget::HandleLightingChanged);
 	AddV(Right, MakeRow(TEXT("Lighting"), TEXT("LOW turns off global illumination, for integrated graphics."),
 		MakeSized(*WidgetTree, LightingBox, DropdownWidth, -1.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	HdrRow = MakeRow(TEXT("HDR"), TEXT("High dynamic range output to an HDR display."),
+		MakeSegment(SegHdr, { TEXT("OFF"), TEXT("ON") }, 0, 120.0f));
+	AddV(Right, HdrRow, FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+	HdrRow->SetVisibility(UApexSettingsSubsystem::SupportsHdrOutput() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	// Field of view lives on the camera page with the seat it belongs to.
 
 	AddH(Grid, Left, FMargin(0.0f, 0.0f, 14.0f, 0.0f), VAlign_Top, 1.0f);
@@ -2063,6 +2073,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegHud, static_cast<int32>(Values->HudDetail));
 	SetSegment(SegPreset, static_cast<int32>(Values->Preset));
 	SetSegment(SegVSync, Values->bVSync ? 1 : 0);
+	SetSegment(SegHdr, Values->bHdrOutput ? 1 : 0);
 	SetSegment(SegStartView, Values->bStartInCockpit ? 1 : 0);
 	SetSegment(SegChaseView, FMath::Clamp(Values->ChaseViewLevel, 0, ApexChase::Num() - 1));
 	SetSegment(SegCockpitCar, Values->bCockpitShowCar ? 1 : 0);
@@ -2089,6 +2100,8 @@ void UApexSettingsWidget::RefreshFromSettings()
 	}
 	SetSlider(MotionBlurSlider, MotionBlurFill, MotionBlurValue, Values->MotionBlur, 0.0f, 1.0f,
 		FString::FromInt(FMath::RoundToInt(Values->MotionBlur * 100.0f)));
+	SetSlider(RenderScaleSlider, RenderScaleFill, RenderScaleValue, static_cast<float>(Values->RenderScalePct), 50.0f, 100.0f,
+		FString::Printf(TEXT("%d%%"), Values->RenderScalePct));
 	SetSlider(FovSlider, FovFill, FovValue, Values->FieldOfView, FovMin, FovMax,
 		FString::Printf(TEXT("%d°"), FMath::RoundToInt(Values->FieldOfView)));
 	SetSlider(SeatForwardSlider, SeatForwardFill, SeatForwardValue, Values->SeatForwardCm, -SeatForwardRange, SeatForwardRange,
@@ -2425,6 +2438,7 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	else if (Id == SegUnits)      { Settings->SetUnits(static_cast<EApexUnits>(Index)); }
 	else if (Id == SegHud)        { Settings->SetHudDetail(static_cast<EApexHudDetail>(Index)); }
 	else if (Id == SegVSync)      { Settings->SetVSync(Index == 1); }
+	else if (Id == SegHdr)        { Settings->SetHdrOutput(Index == 1); }
 	else if (Id == SegScreens)
 	{
 		Settings->SetScreens(Index == 1 ? 3 : 1);
@@ -2481,6 +2495,17 @@ void UApexSettingsWidget::HandleAiSkillChanged(float Value)
 			Flow->SaveProfile();
 		}
 	}
+	RefreshFooter();
+}
+
+void UApexSettingsWidget::HandleRenderScaleChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
+	// Five-percent steps: finer than that is not worth a frame.
+	const int32 Percent = FMath::Clamp(FMath::RoundToInt(FMath::Lerp(50.0f, 100.0f, Value) / 5.0f) * 5, 50, 100);
+	ReflectSlider(RenderScaleFill, RenderScaleValue, Value, FString::Printf(TEXT("%d%%"), Percent));
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetRenderScale(Percent); }
 	RefreshFooter();
 }
 

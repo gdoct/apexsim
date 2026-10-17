@@ -129,6 +129,11 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetMotionBlur(float Amount01);
+	/** 50..100 percent of the window (ApexRenderScale); moves the preset to CUSTOM when off its value. */
+	void SetRenderScale(int32 Percent);
+	/** HDR output on or off; only offered where the display supports it (SupportsHdrOutput). */
+	void SetHdrOutput(bool bEnabled);
+	static bool SupportsHdrOutput();
 
 	/** Modes the display actually supports, widest first. Cached after the first call. */
 	const TArray<FIntPoint>& GetAvailableResolutions() const;

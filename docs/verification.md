@@ -448,6 +448,13 @@ Mandarina Bay.
   best, the braking points lining up with the corners, the delta's sign; the
   CSVs in `Saved/Telemetry`. Only `ApexSim.LapTrace.*` has run.
 
+**Render scale and HDR.** ([game/client.md](game/client.md#graphics-quality-uapexsettingssubsystemapplygraphics))
+
+- The Graphics tab's Render scale at 50, 70 and 100 in a race: the frame
+  rate against the sharpness, the HUD sharp at every scale, the cockpit
+  mirrors and a triple's side views. HDR on an HDR display (the row is
+  hidden on this machine's). Only the settings round trip has run.
+
 **Last, with the network off.**
 
 - The launcher's AC import button, never clicked by hand, and the import

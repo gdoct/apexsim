@@ -51,7 +51,7 @@ When an item is done, delete it from its backlog and from here.
 | N7 | Championships and series with points | Game mode | P2 | 🔴 | M |
 | N8 | Public server list (master server) | Online | P2 | 🔴 | M |
 | N9 | Text chat (lobby and race) | Online | P2 | 🟢 | S |
-| N10 | Upscaling (DLSS / FSR / TSR) and HDR output | Rendering | P2 | 🟡 | M |
+| N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🔴 | M |
 | N11 | Livery editor / own livery import | Content | P2 | 🟡 | M |
 | B5 | Chase camera inside a car body | Bug | P3 | 🟡 | S |
 | G5 | Cloud dome reads as altocumulus | Rendering | P3 | 🟡 | S |
@@ -87,7 +87,7 @@ When an item is done, delete it from its backlog and from here.
 2. **Race-breaking AI** — A1 (imported AC cars). Judged by the AI survey.
 3. **Race control** — N4 (formation lap, jump starts), R2 (penalties), R1b (safety car) on the race-control module the flags built.
 4. **Sim-racer essentials** — N1 (client prediction: largest online win, largest job).
-5. **Visual quality pass** — G1, G3, G4 in one branch of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10 (upscaling) alongside.
+5. **Visual quality pass** — G1, G3, G4 in one branch of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
 6. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
 7. **Online and depth** — N9 (chat), N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
 8. Everything P3 opportunistically, bundled with whatever touches the same files.
@@ -489,16 +489,11 @@ Voice chat later (P3).
 **Watch out:** wire append-only with golden bytes; a profanity filter is a
 product decision.
 
-#### N10. Upscaling and HDR — P2 · 🟡 · M
-**What:** Graphics settings are resolution, window mode, vsync and frame
-limit only.
-**Outcome:** Higher frame rates on mid and integrated GPUs (helps P3), better
-image on high-end ones.
-**Implementation:** TSR quality/screen percentage in settings first (built
-in), then DLSS and FSR plugins; HDR output toggle with paper-white nits.
-Wire into the LOW/MEDIUM/HIGH presets.
-**Watch out:** plugin licences; mirrors and scene captures render separately
-and need their own scale; check triple-screen views.
+#### N10. DLSS / FSR, HDR paper white — P3 · 🔴 · M
+Built: the Graphics tab's render scale (TSR; LOW 70, MEDIUM 85, HIGH and
+ULTRA 100) and an HDR switch where the display supports it. Left: DLSS and
+FSR plugins (🔴: their licences are a decision), a paper-white level for
+HDR, and the checks in verification.md.
 
 #### N11. Livery editor / own livery import — P2 · 🟡 · M
 **What:** Liveries come only from the catalog and AC skins.

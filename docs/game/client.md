@@ -287,6 +287,15 @@ shading). Changing a row by hand makes the preset CUSTOM, which keeps the
 detail value of the last preset. A fresh slot is HIGH, but with Textures,
 Lighting and detail at 3, the engine's own default for those groups.
 
+Render scale (50-100%, `RenderScalePct`, in 5% steps) draws the 3D scene
+at that share of the window and lets the engine's temporal upscaler (TSR,
+the project's anti-aliasing method) bring it back to full size
+(`UGameUserSettings::SetResolutionScaleValueEx`); the HUD and menus are
+drawn at full size. The presets set it: LOW 70, MEDIUM 85, HIGH and ULTRA
+100; moving it by hand makes the preset CUSTOM. HDR (`bHdrOutput`,
+`EnableHDRDisplayOutput` at `HdrPeakNits`, 1000) is a row only where the
+display reports HDR support (`SupportsHDRDisplayOutput`).
+
 LOW is the path for integrated graphics. Lighting 0 turns Lumen off (no
 Lumen GI, no Lumen reflections, no distance-field AO). Shadows 0 turns off
 distance-field shadows and swaps virtual shadow maps for cascaded shadow maps

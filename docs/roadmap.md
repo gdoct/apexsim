@@ -112,11 +112,15 @@ losing pad focus on the viewport.
 
 ### 10. Upscaling and HDR
 
-- TSR quality and screen percentage in settings and the presets, then DLSS
-  and FSR; an HDR output toggle.
+Built: a render scale row (TSR) set by the presets and an HDR switch
+([game/client.md](game/client.md#graphics-quality-uapexsettingssubsystemapplygraphics)).
+Left:
+
+- DLSS and FSR as plugins (their licences), and a paper-white level for
+  HDR.
 
 **Check:** the presets on the RTX machine and an integrated GPU; mirrors
-and triple screens at each scale.
+and triple screens at each scale; HDR on an HDR display.
 
 ### 11. Own liveries
 

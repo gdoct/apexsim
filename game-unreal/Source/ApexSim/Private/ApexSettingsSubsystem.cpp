@@ -21,6 +21,9 @@
 namespace
 {
 	/** Scalability bucket a preset puts every quality row into. */
+	/** The render scale each preset sets, by bucket: LOW, MEDIUM, HIGH, ULTRA. */
+	constexpr int32 PresetRenderScale[4] = {70, 85, 100, 100};
+
 	int32 PresetBucket(EApexGraphicsPreset Preset)
 	{
 		switch (Preset)
@@ -350,6 +353,7 @@ void UApexSettingsSubsystem::SetPresetRows(EApexGraphicsPreset Preset)
 	Settings->TextureQuality = Bucket;
 	Settings->LightingQuality = Bucket;
 	Settings->DetailQuality = Bucket;
+	Settings->RenderScalePct = PresetRenderScale[Bucket];
 	bApplyingPreset = false;
 }
 
@@ -428,6 +432,28 @@ void UApexSettingsSubsystem::SetMotionBlur(float Amount01)
 	Changed(EApexSettingsGroup::Graphics);
 }
 
+void UApexSettingsSubsystem::SetRenderScale(int32 Percent)
+{
+	const int32 Clamped = FMath::Clamp(Percent, 50, 100);
+	if (!Settings || Settings->RenderScalePct == Clamped) { return; }
+	Settings->RenderScalePct = Clamped;
+	ReconcilePreset();
+	Changed(EApexSettingsGroup::Graphics);
+}
+
+void UApexSettingsSubsystem::SetHdrOutput(bool bEnabled)
+{
+	if (!Settings || Settings->bHdrOutput == bEnabled) { return; }
+	Settings->bHdrOutput = bEnabled;
+	Changed(EApexSettingsGroup::Graphics);
+}
+
+bool UApexSettingsSubsystem::SupportsHdrOutput()
+{
+	const UGameUserSettings* User = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	return User && User->SupportsHDRDisplayOutput();
+}
+
 void UApexSettingsSubsystem::ReconcilePreset()
 {
 	if (!Settings || bApplyingPreset)
@@ -440,7 +466,8 @@ void UApexSettingsSubsystem::ReconcilePreset()
 		&& (Settings->ShadowQuality != Bucket
 			|| Settings->AntiAliasingQuality != Bucket
 			|| Settings->TextureQuality != Bucket
-			|| Settings->LightingQuality != Bucket))
+			|| Settings->LightingQuality != Bucket
+			|| Settings->RenderScalePct != PresetRenderScale[Bucket]))
 	{
 		Settings->Preset = EApexGraphicsPreset::Custom;
 	}
@@ -494,6 +521,12 @@ void UApexSettingsSubsystem::ApplyGraphics()
 	User->SetVisualEffectQuality(Settings->DetailQuality);
 	User->SetFoliageQuality(Settings->DetailQuality);
 	User->SetShadingQuality(Settings->DetailQuality);
+	// The scene at a share of the window, TSR bringing it back up.
+	User->SetResolutionScaleValueEx(static_cast<float>(FMath::Clamp(Settings->RenderScalePct, 50, 100)));
+	if (User->SupportsHDRDisplayOutput())
+	{
+		User->EnableHDRDisplayOutput(Settings->bHdrOutput, FMath::Clamp(Settings->HdrPeakNits, 400, 10000));
+	}
 
 	// bCheckForCommandLineOverrides off: a -ResX on the command line would
 	// otherwise silently win over the resolution the player just picked.

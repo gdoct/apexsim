@@ -281,6 +281,22 @@ public:
 	UPROPERTY()
 	int32 DetailQuality = 3;
 
+	/**
+	 * The 3D scene's resolution, percent of the window's (50..100), brought
+	 * back to full size by the engine's temporal upscaler (TSR): frames for
+	 * a slower GPU at a little sharpness. The presets set it (LOW 70, MEDIUM
+	 * 85, HIGH and ULTRA 100); the HUD and menus are always drawn at full size.
+	 */
+	UPROPERTY()
+	int32 RenderScalePct = 100;
+
+	/** HDR output to an HDR display (UGameUserSettings::EnableHDRDisplayOutput), at HdrPeakNits. */
+	UPROPERTY()
+	bool bHdrOutput = false;
+
+	UPROPERTY()
+	int32 HdrPeakNits = 1000;
+
 	/** 0..1, driving r.MotionBlurQuality and the post-process amount. */
 	UPROPERTY()
 	float MotionBlur = 0.3f;
