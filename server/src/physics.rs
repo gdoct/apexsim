@@ -86,6 +86,10 @@ struct WheelContact {
     /// at the wheel), and the marbles lying there.
     water: f32,
     marbles: f32,
+    /// The snow cover and the ice on the ground this tyre stands on: the
+    /// racing surface's, the run-off's or the lane's, or the verge's.
+    snow: f32,
+    ice: f32,
 }
 
 /// The plane the body settles on over its four contact patches, in the
@@ -313,12 +317,13 @@ pub fn update_car_3d(
     state.fuel_liters = state.fuel_liters.min(state.fuel_capacity_liters);
 
     // A car nobody sent out on a set of tyres starts on warm ones: the
-    // car's reference compound, or the tyre the rain calls for.
+    // car's reference compound, or the tyre the rain or the snow calls for.
     if !state.tyres_fitted {
         let water = track.track_surface.water;
+        let snow = crate::road_state::RoadState::line_snow_of(track);
         let compound = config
             .tire_config
-            .weather_compound(water)
+            .weather_compound_in(water, snow)
             .unwrap_or(config.tire_config.reference_compound());
         let optimum = crate::tyre_thermal::optimum_c(
             &config.tire_config,
@@ -581,10 +586,10 @@ pub fn update_car_3d(
                     road.sample(station, lateral)
                 }
             }
-            None => crate::road_state::RoadSample {
-                water: track.track_surface.water,
-                ..crate::road_state::RoadSample::BAKED
-            },
+            None => crate::road_state::RoadSample::baked(
+                track.track_surface.water,
+                track.track_surface.baked_snow,
+            ),
         }
     };
     let contact_under = |local_x: f32, local_y: f32| -> WheelContact {
@@ -616,11 +621,13 @@ pub fn update_car_3d(
                 };
                 // The road's state on the racing surface, the water alone
                 // on asphalt nobody races on, the grass's own wetness.
-                let wet = match contact {
-                    RoadContact::Off => road.off_grip,
-                    RoadContact::Curb => road.grip * road.curb_grip,
-                    RoadContact::Road => road.grip,
-                    RoadContact::Runoff | RoadContact::PitLane => road.wet_grip,
+                let (wet, snow, ice) = match contact {
+                    RoadContact::Off => (road.off_grip, road.verge_snow, 0.0),
+                    RoadContact::Curb => (road.grip * road.curb_grip, road.snow, road.ice),
+                    RoadContact::Road => (road.grip, road.snow, road.ice),
+                    RoadContact::Runoff | RoadContact::PitLane => {
+                        (road.wet_grip, road.paved_snow, 0.0)
+                    }
                 };
                 WheelContact {
                     local_x,
@@ -631,6 +638,8 @@ pub fn update_car_3d(
                     grip_modifier: ctx.grip_modifier * patch * wet,
                     water,
                     marbles,
+                    snow,
+                    ice,
                 }
             }
             None => WheelContact {
@@ -642,12 +651,20 @@ pub fn update_car_3d(
                 grip_modifier: track_ctx.grip_modifier * road.grip,
                 water,
                 marbles,
+                snow: road.snow,
+                ice: road.ice,
             },
         }
     };
     // What the road under the car is worth against the road the session
     // was planned on: what the AI drives to on a drying line or in a puddle.
-    state.surface_grip_share = road_under(0.0, 0.0).grip;
+    let centre = road_under(0.0, 0.0);
+    state.surface_grip_share = centre.grip;
+    // And what the fitted tyre's bite on its snow and ice adds to it.
+    state.snow_tyre_share = config
+        .tire_config
+        .compound(state.tyre_compound)
+        .snow_factor(centre.snow, centre.ice);
     // Body frame: +y is LEFT, so the left wheels sit at +track/2.
     let contacts = [
         contact_under(front_axle_x, config.track_width_front_m / 2.0),
@@ -976,8 +993,16 @@ pub fn update_car_3d(
     // `[tires]` table says otherwise.
     let tyre_config = &config.tire_config;
     let compound = tyre_config.compound(state.tyre_compound);
-    let thermal = |tyre: &crate::data::TireData, set_kpa: f32, water: f32| {
-        crate::tyre_thermal::grip_multiplier(tyre_config, compound, set_kpa, tyre, water)
+    let thermal = |tyre: &crate::data::TireData, set_kpa: f32, c: &WheelContact| {
+        crate::tyre_thermal::grip_multiplier(
+            tyre_config,
+            compound,
+            set_kpa,
+            tyre,
+            c.water,
+            c.snow,
+            c.ice,
+        )
     };
     let side_left = crate::damage::side_grip_factor(&felt, true);
     let side_right = crate::damage::side_grip_factor(&felt, false);
@@ -988,7 +1013,7 @@ pub fn update_car_3d(
         * thermal(
             &state.tires.front_left,
             tyre_config.pressure_front_kpa,
-            contacts[0].water,
+            &contacts[0],
         );
     let grip_fr = side_right
         * camber[1].lateral
@@ -997,7 +1022,7 @@ pub fn update_car_3d(
         * thermal(
             &state.tires.front_right,
             tyre_config.pressure_front_kpa,
-            contacts[1].water,
+            &contacts[1],
         );
     let grip_rl = side_left
         * camber[2].lateral
@@ -1006,7 +1031,7 @@ pub fn update_car_3d(
         * thermal(
             &state.tires.rear_left,
             tyre_config.pressure_rear_kpa,
-            contacts[2].water,
+            &contacts[2],
         );
     let grip_rr = side_right
         * camber[3].lateral
@@ -1015,7 +1040,7 @@ pub fn update_car_3d(
         * thermal(
             &state.tires.rear_right,
             tyre_config.pressure_rear_kpa,
-            contacts[3].water,
+            &contacts[3],
         );
 
     // The differential shares each driven axle's torque between its two
@@ -1253,6 +1278,7 @@ pub fn update_car_3d(
             wake_loss: wake_loss.clamp(0.0, 1.0),
             water: contacts[i].water,
             marbles: contacts[i].marbles,
+            snow: contacts[i].snow,
         }
     };
     let work = [

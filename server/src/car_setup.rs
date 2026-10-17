@@ -476,12 +476,14 @@ impl CarSetup {
     }
 
     /// The compound the next set is on a road with this much `water`
-    /// (`TrackSurface::water`): the stock pick (the reference) means "the
-    /// tyre for the weather", so a driver who never opened the garage is
-    /// not sent out on slicks in the rain. Any other pick is honoured.
-    pub fn compound_index_for(&self, tire: &TireConfig, water: f32) -> u8 {
+    /// (`TrackSurface::water`) and this much `snow` on the line
+    /// (`RoadState::line_snow_of`): the stock pick (the reference) means
+    /// "the tyre for the weather", so a driver who never opened the garage
+    /// is not sent out on slicks in the rain, nor past a snow tyre on a
+    /// covered road. Any other pick is honoured.
+    pub fn compound_index_for(&self, tire: &TireConfig, water: f32, snow: f32) -> u8 {
         if self.tyre_compound == 0 {
-            if let Some(wet) = tire.weather_compound(water) {
+            if let Some(wet) = tire.weather_compound_in(water, snow) {
                 return wet;
             }
         }
@@ -944,15 +946,15 @@ mod tests {
         let tire = TireConfig::default();
         let stock = CarSetup::default();
         assert_eq!(
-            stock.compound_index_for(&tire, 0.0),
+            stock.compound_index_for(&tire, 0.0, 0.0),
             crate::tyre_thermal::MEDIUM
         );
         assert_eq!(
-            stock.compound_index_for(&tire, 0.5),
+            stock.compound_index_for(&tire, 0.5, 0.0),
             crate::tyre_thermal::INTERMEDIATE
         );
         assert_eq!(
-            stock.compound_index_for(&tire, 1.0),
+            stock.compound_index_for(&tire, 1.0, 0.0),
             crate::tyre_thermal::WET
         );
         let wets = CarSetup {
@@ -961,7 +963,7 @@ mod tests {
         }
         .clamp();
         assert_eq!(
-            wets.compound_index_for(&tire, 0.0),
+            wets.compound_index_for(&tire, 0.0, 0.0),
             crate::tyre_thermal::WET
         );
         let softs = CarSetup {
@@ -969,7 +971,7 @@ mod tests {
             ..CarSetup::default()
         };
         assert_eq!(
-            softs.compound_index_for(&tire, 1.0),
+            softs.compound_index_for(&tire, 1.0, 0.0),
             0,
             "slicks in the rain, if asked"
         );
@@ -979,14 +981,41 @@ mod tests {
             ..TireConfig::default()
         };
         assert_eq!(
-            wets.compound_index_for(&own, 0.0),
+            wets.compound_index_for(&own, 0.0, 0.0),
             2,
             "hards: there is no wet"
         );
         assert_eq!(
-            stock.compound_index_for(&own, 1.0),
+            stock.compound_index_for(&own, 1.0, 0.0),
             crate::tyre_thermal::MEDIUM,
             "slicks in the rain: the car has nothing else"
+        );
+        // Snow: no snow tyre, the water's; with one, it on a covered road.
+        assert_eq!(
+            stock.compound_index_for(&tire, 0.3, 1.0),
+            crate::tyre_thermal::INTERMEDIATE
+        );
+        let mut studs = crate::tyre_thermal::default_compounds();
+        studs.push(crate::tyre_thermal::Compound {
+            name: "snow".into(),
+            kind: crate::tyre_thermal::CompoundKind::Snow,
+            snow_grip: 2.0,
+            ..studs[crate::tyre_thermal::INTERMEDIATE as usize].clone()
+        });
+        let rally = TireConfig {
+            compounds: studs,
+            ..TireConfig::default()
+        };
+        assert_eq!(stock.compound_index_for(&rally, 0.3, 1.0), 5, "studs");
+        assert_eq!(
+            stock.compound_index_for(&rally, 0.3, 0.1),
+            crate::tyre_thermal::INTERMEDIATE,
+            "a bare, wet road"
+        );
+        assert_eq!(
+            softs.compound_index_for(&rally, 0.3, 1.0),
+            0,
+            "slicks on snow, if asked"
         );
     }
 }

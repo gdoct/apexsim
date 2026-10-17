@@ -1844,6 +1844,13 @@ pub struct CarState {
     /// reads it through `tyre_grip_share`.
     #[serde(default = "default_one_f32")]
     pub surface_grip_share: f32,
+    /// What the fitted compound's bite on the snow and ice under the car
+    /// adds against the tyre the road was baked for
+    /// (`tyre_thermal::Compound::snow_factor`): about 2 for a studded snow
+    /// tyre on a covered road, 1.0 for any other tyre or a bare road. Set
+    /// by the physics each tick; the AI reads it through `tyre_grip_share`.
+    #[serde(default = "default_one_f32")]
+    pub snow_tyre_share: f32,
     /// The road under each tyre, FL FR RL RR, as the physics last sampled
     /// it (`crate::road_state`): the water in the weather's units and the
     /// marbles 0..1. Telemetry carries them per tyre, so a client draws
@@ -2153,7 +2160,9 @@ impl CarState {
             racecraft: crate::racecraft::Racecraft::default(),
             aero_load_share: 1.0,
             surface_grip_share: 1.0,
+            snow_tyre_share: 1.0,
             tyre_water: [0.0; 4],
+
             tyre_marbles: [0.0; 4],
             wheel_slip_ratio: [0.0; 4],
             wheel_slip_angle: [0.0; 4],

@@ -179,7 +179,8 @@ pub const ZONE_TOE_PER_RAD: f32 = 6.0;
 pub const ZONE_LONGITUDINAL_SHARE: f32 = 0.08;
 const ZONE_MIN_SHARE: f32 = 0.05;
 
-/// What a compound is for: a slick, or a treaded tyre for the rain.
+/// What a compound is for: a slick, a treaded tyre for the rain, or a
+/// studded tyre for a snow-covered road.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CompoundKind {
@@ -187,6 +188,7 @@ pub enum CompoundKind {
     Slick,
     Intermediate,
     Wet,
+    Snow,
 }
 
 /// A tyre compound, as a change to the car's own tyre: its grip, how fast
@@ -213,6 +215,31 @@ pub struct Compound {
     /// what a car is fitted with unless someone chose otherwise.
     #[serde(default)]
     pub reference: bool,
+    /// Its grip on a fully snow-covered road against the tyre the weather
+    /// calls for (the road's baked reference), blended in by the root of
+    /// the cover under the wheel as the road's own snow grip is
+    /// ([`Compound::snow_factor`]): a studded snow tyre about 2. 1.0, for
+    /// every compound that does not name it, changes nothing.
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub snow_grip: f32,
+    /// Its grip on solid ice against the weather's tyre, blended in by the
+    /// ice under the wheel: studs bite into ice no rubber holds. 1.0
+    /// changes nothing.
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub ice_grip: f32,
+    /// Multiplier on its wear on a bare road, blended out by the root of
+    /// the cover under the wheel: studs and soft blocks tear on tarmac and
+    /// last on snow. 1.0 changes nothing.
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub bare_wear: f32,
+}
+
+fn one() -> f32 {
+    1.0
+}
+
+fn is_one(v: &f32) -> bool {
+    *v == 1.0
 }
 
 impl Compound {
@@ -233,6 +260,9 @@ impl Compound {
             optimal_shift_c,
             water_grip,
             reference,
+            snow_grip: 1.0,
+            ice_grip: 1.0,
+            bare_wear: 1.0,
         }
     }
 
@@ -250,6 +280,36 @@ impl Compound {
         // little.
         let puddle = 1.0 / (1.0 + PUDDLE_GRIP_LOSS * (water - 1.0).max(0.0));
         self.grip_scale * wet * puddle
+    }
+
+    /// What the snow `cover` (0..1) and the `ice` (0..1) under a wheel do
+    /// to this compound's grip against the weather's tyre, whose grip the
+    /// road's own is baked for: `1 + (snow_grip - 1) * sqrt(cover)` times
+    /// `1 + (ice_grip - 1) * ice`. Exactly 1.0 on a bare road, and for a
+    /// compound without the keys anywhere.
+    pub fn snow_factor(&self, cover: f32, ice: f32) -> f32 {
+        let snow = if self.snow_grip == 1.0 {
+            1.0
+        } else {
+            1.0 + (self.snow_grip - 1.0) * cover.clamp(0.0, 1.0).sqrt()
+        };
+        let ice = if self.ice_grip == 1.0 {
+            1.0
+        } else {
+            1.0 + (self.ice_grip - 1.0) * ice.clamp(0.0, 1.0)
+        };
+        snow * ice
+    }
+
+    /// Its wear multiplier on a road under this much snow `cover`:
+    /// `wear_scale`, times `bare_wear` on a bare road, blended out by the
+    /// root of the cover.
+    pub fn wear_on(&self, cover: f32) -> f32 {
+        if self.bare_wear == 1.0 {
+            return self.wear_scale;
+        }
+        let bare = 1.0 - cover.clamp(0.0, 1.0).sqrt();
+        self.wear_scale * (1.0 + (self.bare_wear - 1.0) * bare)
     }
 }
 
@@ -339,10 +399,37 @@ pub fn weather_compound(water: f32) -> Option<u8> {
     weather_compound_of(defaults(), water)
 }
 
+/// The tyre `compounds` holds for a road with this much `water` and this
+/// much snow on the line (`snow`, 0..1): the first snow tyre from
+/// [`SNOW_TYRE_FROM_COVER`], if the car has one; else
+/// [`weather_compound_of`].
+pub fn weather_compound_in(compounds: &[Compound], water: f32, snow: f32) -> Option<u8> {
+    if snow >= SNOW_TYRE_FROM_COVER {
+        if let Some(i) = snow_compound_of(compounds) {
+            return Some(i);
+        }
+    }
+    weather_compound_of(compounds, water)
+}
+
+/// The first snow tyre in `compounds`, if any.
+pub fn snow_compound_of(compounds: &[Compound]) -> Option<u8> {
+    compounds
+        .iter()
+        .position(|c| c.kind == CompoundKind::Snow)
+        .map(|i| i as u8)
+}
+
+/// Snow cover on the racing line from which a car with a snow tyre is sent
+/// out on it: a covered road (a snow session starts at 1, a packed line
+/// holds [`crate::road_state::SNOW_FLOOR`]) and a road a snowfall has
+/// begun to whiten.
+pub const SNOW_TYRE_FROM_COVER: f32 = 0.3;
+
 /// The tyre `compounds` holds for a road with this much `water`: the first
 /// intermediate below [`WET_FROM_WATER`], the first wet from it; `None`
 /// when dry, or when the car has no such tyre (a car with slicks alone
-/// races on them in the rain).
+/// races on them in the rain). A snow tyre is never the rain's.
 pub fn weather_compound_of(compounds: &[Compound], water: f32) -> Option<u8> {
     if water < SLICK_BELOW_WATER {
         return None;
@@ -406,9 +493,20 @@ impl TireConfig {
         slicks.get(slicks.len() / 2).copied().unwrap_or(0) as u8
     }
 
-    /// The tyre the weather calls for on this car ([`weather_compound_of`]).
+    /// The tyre the rain calls for on this car ([`weather_compound_of`]).
     pub fn weather_compound(&self, water: f32) -> Option<u8> {
         weather_compound_of(self.compounds(), water)
+    }
+
+    /// The tyre the weather calls for on this car with `snow` on the line
+    /// as well ([`weather_compound_in`]).
+    pub fn weather_compound_in(&self, water: f32, snow: f32) -> Option<u8> {
+        weather_compound_in(self.compounds(), water, snow)
+    }
+
+    /// The car's snow tyre, if it has one.
+    pub fn snow_compound(&self) -> Option<u8> {
+        snow_compound_of(self.compounds())
     }
 
     /// The compound the setup knob's `click` picks: the reference at 0, the
@@ -505,6 +603,9 @@ pub struct TyreWork {
     pub water: f32,
     /// Marbles on the road under this tyre, 0..1 (`RoadState`).
     pub marbles: f32,
+    /// Snow cover on the ground under this tyre, 0..1 (`RoadState`): what
+    /// a snow tyre's bare-road wear reads.
+    pub snow: f32,
 }
 
 impl TyreWork {
@@ -652,18 +753,22 @@ pub fn pressure_kpa(tire: &TireConfig, compound: &Compound, set_kpa: f32, core_c
 }
 
 /// The multiplier a tyre's grip takes from its compound, its wear, its
-/// temperature and the pressure that puts it at (less what it has leaked).
-/// A new medium at its optimum with the set pressure on it is the set
-/// pressure's own factor, exactly.
+/// temperature and the pressure that puts it at (less what it has leaked),
+/// on a road with this much `water` and the snow `cover` and `ice` under
+/// it ([`Compound::snow_factor`]). A new medium at its optimum with the set
+/// pressure on it is the set pressure's own factor, exactly.
 pub fn grip_multiplier(
     tire: &TireConfig,
     compound: &Compound,
     set_kpa: f32,
     tyre: &TireData,
     water: f32,
+    cover: f32,
+    ice: f32,
 ) -> f32 {
     let optimum = optimum_c(tire, compound);
     let used = compound.grip_on(water)
+        * compound.snow_factor(cover, ice)
         * wear_grip_factor(tyre.wear_percent)
         * (1.0 - FLAT_SPOT_GRIP_LOSS * tyre.flat_spot.clamp(0.0, 1.0))
         * (1.0 - PICKUP_GRIP_LOSS * tyre.pickup.clamp(0.0, 1.0));
@@ -698,7 +803,9 @@ fn set_pressures(tire: &TireConfig) -> [f32; 4] {
 /// Refresh the pressure and the grip share a tyre reports from its
 /// temperatures, wear and leaks. The grip share is against a new medium in
 /// its window at its set pressure, so 1.0 is "as good as the setup makes
-/// it" (a fresh soft is a little over). A tyre leaked flat punctures.
+/// it" (a fresh soft is a little over). It leaves out the snow under the
+/// tyre: a snow tyre's bite on the cover goes with the road
+/// (`CarState::snow_tyre_share`). A tyre leaked flat punctures.
 fn refresh(tyre: &mut TireData, tire: &TireConfig, compound: &Compound, set_kpa: f32, water: f32) {
     if !tyre.punctured {
         let pressure =
@@ -713,7 +820,7 @@ fn refresh(tyre: &mut TireData, tire: &TireConfig, compound: &Compound, set_kpa:
         tyre.pressure_kpa = PUNCTURED_KPA;
     }
     let best = tire.pressure_grip_factor(set_kpa).max(1e-3);
-    tyre.grip_factor = grip_multiplier(tire, compound, set_kpa, tyre, water) / best;
+    tyre.grip_factor = grip_multiplier(tire, compound, set_kpa, tyre, water, 0.0, 0.0) / best;
 }
 
 /// Put a new set of `compound` (an index into the car's compounds) on a
@@ -894,7 +1001,7 @@ pub fn step(
         * slide
         * dt
         * 1e-6
-        * compound.wear_scale
+        * compound.wear_on(work.snow)
         * tire.wear_rate.max(0.0)
         * (1.0 + HOT_WEAR_PER_C * over);
     tyre.wear_percent = (tyre.wear_percent + wear).min(100.0);
@@ -966,7 +1073,8 @@ impl CarState {
         let rear = 0.5 * (t.rear_left.grip_factor + t.rear_right.grip_factor);
         // A fresh soft is a little over the plan's tyre, and a driver uses it.
         let tyres = front.min(rear).clamp(0.0, 1.03);
-        tyres * self.surface_grip_share.clamp(0.0, 1.3)
+        // A snow tyre's bite on the cover under the car comes on top.
+        tyres * self.surface_grip_share.clamp(0.0, 1.3) * self.snow_tyre_share.clamp(0.0, 3.0)
     }
 }
 
@@ -1049,9 +1157,9 @@ mod tests {
         let t = tyre();
         let m = medium();
         let mut data = at(t.optimal_temperature_c, t.optimal_temperature_c);
-        assert_eq!(grip_multiplier(&t, &m, 180.0, &data, 0.0), 1.0);
+        assert_eq!(grip_multiplier(&t, &m, 180.0, &data, 0.0, 0.0, 0.0), 1.0);
         assert_eq!(
-            grip_multiplier(&t, &m, 190.0, &data, 0.0),
+            grip_multiplier(&t, &m, 190.0, &data, 0.0, 0.0, 0.0),
             t.pressure_grip_factor(190.0)
         );
         refresh(&mut data, &t, &m, 190.0, 0.0);
@@ -1344,8 +1452,10 @@ mod tests {
                 ..data
             },
             0.0,
+            0.0,
+            0.0,
         );
-        let loss = 1.0 - grip_multiplier(&t, &m, 180.0, &data, 0.0) / clean;
+        let loss = 1.0 - grip_multiplier(&t, &m, 180.0, &data, 0.0, 0.0, 0.0) / clean;
         println!("picked up {picked:.2}: {:.1}% of the grip", 100.0 * loss);
         assert!(picked > 0.2 && picked < 0.4, "{picked}");
         assert!(loss > 0.01 && loss < 0.03, "{loss}");
@@ -1503,8 +1613,8 @@ mod tests {
         let spread = tread_grip_factor(&t, &m, &cooked);
         assert!(spread < 0.99, "{spread}");
         assert!(
-            grip_multiplier(&t, &m, 180.0, &cooked, 0.0)
-                < grip_multiplier(&t, &m, 180.0, &tread([opt; 3]), 0.0)
+            grip_multiplier(&t, &m, 180.0, &cooked, 0.0, 0.0, 0.0)
+                < grip_multiplier(&t, &m, 180.0, &tread([opt; 3]), 0.0, 0.0, 0.0)
         );
         // A tyre from before the zones reads its mean.
         let old = TireData {
@@ -1633,7 +1743,7 @@ mod tests {
             flat_spot: 1.0,
             ..at(opt, opt)
         };
-        let loss = 1.0 - grip_multiplier(&t, &m, 180.0, &spotted, 0.0) / fresh;
+        let loss = 1.0 - grip_multiplier(&t, &m, 180.0, &spotted, 0.0, 0.0, 0.0) / fresh;
         assert!((loss - FLAT_SPOT_GRIP_LOSS).abs() < 1e-4, "{loss}");
 
         // Worn through, the tyre punctures: most of its grip and its air go.
@@ -1776,6 +1886,88 @@ mod tests {
         assert_eq!(weather_compound(0.0), None);
         assert_eq!(weather_compound(0.5), Some(INTERMEDIATE));
         assert_eq!(weather_compound(1.0), Some(WET));
+    }
+
+    /// A studded snow tyre: the weather's tyre on bare road, twice it on a
+    /// covered one (half way in by a quarter cover, the root), more on ice,
+    /// and it wears on bare tarmac; every other compound is untouched.
+    #[test]
+    fn a_snow_tyre_bites_on_the_cover_and_the_ice_and_nothing_else_moves() {
+        let studs = Compound {
+            name: "studs".into(),
+            kind: CompoundKind::Snow,
+            snow_grip: 2.0,
+            ice_grip: 1.8,
+            bare_wear: 3.0,
+            water_grip: [0.8, 0.9, 0.85],
+            ..medium()
+        };
+        assert_eq!(studs.snow_factor(0.0, 0.0), 1.0, "bare road");
+        assert_eq!(studs.snow_factor(1.0, 0.0), 2.0, "covered");
+        assert!((studs.snow_factor(0.25, 0.0) - 1.5).abs() < 1e-6);
+        assert!((studs.snow_factor(0.0, 1.0) - 1.8).abs() < 1e-6, "ice");
+        assert!((studs.wear_on(0.0) - 3.0).abs() < 1e-6);
+        assert_eq!(studs.wear_on(1.0), 1.0, "lasts on snow");
+        // A compound without the keys: exactly as before, anywhere.
+        for c in default_compounds() {
+            for (cover, ice) in [(0.0, 0.0), (0.5, 0.2), (1.0, 1.0)] {
+                assert_eq!(c.snow_factor(cover, ice), 1.0);
+                assert_eq!(c.wear_on(cover), c.wear_scale);
+            }
+        }
+        let t = tyre();
+        let data = at(90.0, 90.0);
+        let m = medium();
+        assert_eq!(
+            grip_multiplier(&t, &m, 180.0, &data, 0.3, 1.0, 1.0),
+            grip_multiplier(&t, &m, 180.0, &data, 0.3, 0.0, 0.0),
+            "a medium on snow is the road's alone"
+        );
+        let covered = grip_multiplier(&t, &studs, 180.0, &data, 0.3, 1.0, 0.0);
+        let bare = grip_multiplier(&t, &studs, 180.0, &data, 0.3, 0.0, 0.0);
+        assert!((covered / bare - 2.0).abs() < 1e-5);
+        // The weather's pick: the studs on a covered road for a car that
+        // has them, the rain's tyre for one that does not, and never in
+        // the rain alone.
+        let mut list = default_compounds();
+        list.push(studs);
+        assert_eq!(weather_compound_in(&list, 0.3, 1.0), Some(5));
+        assert_eq!(weather_compound_in(&list, 0.3, 0.29), Some(INTERMEDIATE));
+        assert_eq!(weather_compound_in(&list, 0.0, 0.0), None);
+        assert_eq!(weather_compound_in(&list, 1.0, 0.0), Some(WET));
+        assert_eq!(
+            weather_compound_in(&default_compounds(), 0.3, 1.0),
+            Some(INTERMEDIATE)
+        );
+        assert_eq!(weather_compound_of(&list, 0.3), Some(INTERMEDIATE));
+        // Snow-only and slick: the studs on snow, slicks in the rain.
+        let rally = vec![medium(), list[5].clone()];
+        assert_eq!(weather_compound_in(&rally, 0.3, 1.0), Some(1));
+        assert_eq!(weather_compound_in(&rally, 1.0, 0.0), None);
+    }
+
+    /// The AI drives to a snow tyre's bite through `snow_tyre_share`, past
+    /// the clamp on the tyres' own share.
+    #[test]
+    fn the_ai_reads_a_snow_tyres_bite() {
+        let mut state = CarState::new(
+            uuid::Uuid::nil(),
+            uuid::Uuid::nil(),
+            &crate::data::GridSlot {
+                position: 1,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            },
+        );
+        state.tyres_fitted = true;
+        for tyre in state.tires.each_mut() {
+            tyre.grip_factor = 1.0;
+        }
+        assert_eq!(state.tyre_grip_share(), 1.0);
+        state.snow_tyre_share = 2.0;
+        assert_eq!(state.tyre_grip_share(), 2.0);
     }
 
     #[test]

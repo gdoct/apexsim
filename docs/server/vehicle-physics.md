@@ -212,8 +212,26 @@ The road's baked grip is for the tyre the weather calls for (`weather_compound_o
 intermediate below `WET_FROM_WATER`, wet from it, none under `SLICK_BELOW_WATER`);
 `Compound::grip_on` charges any other. A car with no treaded tyre races on slicks in the
 rain. `CarState::tyre_compound` is what is fitted; the `tyre_compound` knob chooses the next
-set (`CarSetup::compound_index_for`: a stock pick in the rain is the weather's tyre). The AI
-always takes the weather's tyre; when it changes is in [AI](ai.md).
+set (`CarSetup::compound_index_for`: a stock pick in the rain or on snow is the weather's
+tyre). The AI always takes the weather's tyre; when it changes is in [AI](ai.md).
+
+**Snow tyres** (`kind = "snow"`, a rally car's studs). On a snow-covered road the weather's
+tyre is a car's first snow compound (`weather_compound_in`: the line's cover,
+`RoadState::line_snow_of`, from `SNOW_TYRE_FROM_COVER` 0.3; a car without one gets the
+water's tyre as before, and the rain never picks a snow tyre). The road is baked for the
+tyre the weather would give any car, so a snow compound's bite is a factor on top,
+`Compound::snow_factor(cover, ice)` = `(1 + (snow_grip - 1) sqrt(cover)) (1 + (ice_grip - 1) ice)`,
+with the cover and ice under each wheel (`RoadSample`: the racing surface's on the road and
+curbs, the run-off's or the lane's `paved_snow`, the verge's on the grass; no ice off the
+racing surface). The root blends it in as the road's own snow grip falls
+([conditions](conditions.md#snow-on-the-road)): a thin film is most of the way there. Its
+`water_grip` still applies, so on full cover with the session's slush (0.3 water) studs at
+`snow_grip` 2.0 and `water_grip = [0.8, 0.9, 0.85]` grip about 1.7 times the covered road
+(0.48 of dry instead of 0.28), and on bare tarmac 0.8 to 0.9 of the weather's tyre.
+`bare_wear` multiplies its wear by `1 + (bare_wear - 1)(1 - sqrt(cover))`: full on bare
+tarmac, none on a covered road. All three keys default to 1.0, which is exactly the
+compound without them, and off a snow session every cover and ice is 0.
+
 
 ### Wear, flat spots, punctures
 
@@ -246,7 +264,9 @@ always takes the weather's tyre; when it changes is in [AI](ai.md).
 ### The AI and the tyres
 
 `CarState::tyre_grip_share` (weaker axle's grip against new reference tyres in their window,
-times the road's `surface_grip_share`) scales the AI's profile speeds by its **0.75 power**
+times the road's `surface_grip_share`, times `snow_tyre_share`: the fitted compound's
+`snow_factor` on the cover and ice under the car's middle, 1.0 for any tyre but a snow tyre)
+scales the AI's profile speeds by its **0.75 power**
 with `aero_load_share` (`ai_driver.rs`). Trap: the physically "right" square root put the AI
 off the road more, because grip moves under the car as the tread heats through a corner. The
 player's racing line is planned on warm tyres.
@@ -258,8 +278,10 @@ player's racing line is planned on warm tyres.
 (180 default; the shipped cars set them at the optimum, 175 Hypercar, 180 F1 and GT3, 185 LMP2),
 `load_sensitivity` (`_front`/`_rear`), `reference_load_n`
 (`_front_n`/`_rear_n`), `longitudinal_grip_factor`, `front_grip_scale`, `rear_grip_scale`;
-`[[tires.compound]]`: `name`, `kind` (`slick`/`intermediate`/`wet`), `grip`, `wear`,
-`window_shift_c`, `water_grip = [dry, light, heavy]`, `reference`. `wear_rate` is a
+`[[tires.compound]]`: `name`, `kind` (`slick`/`intermediate`/`wet`/`snow`), `grip`, `wear`,
+`window_shift_c`, `water_grip = [dry, light, heavy]` (a snow kind's default `[0.8, 0.9, 0.85]`),
+`reference`, `snow_grip`, `ice_grip`, `bare_wear` (1.0 each). `wear_rate` is a
+
 `TireConfig` field, not a car.toml key. Shipped windows: F1 91 ± 13 °C on 70 °C blankets,
 Hypercar 105 ± 13, LMP2 92 ± 10, GT3 87 ± 10, set where each class runs at AI race pace at
 Monza.

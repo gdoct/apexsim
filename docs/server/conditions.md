@@ -349,7 +349,11 @@ a covered road grips as the cover whatever lies under it, and a road melted
 clear grips as wet asphalt while the melt water stands and as dry asphalt
 (the covered bake's 0.28 back to 1.0) once it has drained. The run-off
 (`wet_grip`), which no racing wheel clears, carries the verge's cover the
-same way: buried under a snowfall, bare once the track melts it.
+same way: buried under a snowfall, bare once the track melts it. A car
+with a snow tyre (studs) is sent out on it on a covered road and grips
+`snow_grip` times the weather's tyre on full cover, by the same root of
+the cover, and `ice_grip` times on ice
+([vehicle physics](vehicle-physics.md#compounds)).
 
 The pit lane keeps a cover of its own (`RoadState::lane_snow`, one figure a
 10 m cell of the lane's own station, `PitLane::length_m`; none on a track
@@ -391,10 +395,15 @@ twenty cars an hour pack a driven stretch to about 0.7.
 `RoadState::sample(station, lateral)` is what a tyre finds: `water` (for
 the compound's grip), `grip` (water against the baked water, times rubber
 and marbles: the racing surface), `wet_grip` (water alone: run-off, pit
-lane), `curb_grip`, `off_grip`. `update_car_3d` reads it per wheel by
-contact class, and at the car's middle into `CarState::surface_grip_share`,
-which the AI reads through `tyre_grip_share`. `mean_line_water` drives the
-AI's tyre crossover ([ai.md](ai.md)).
+lane), `curb_grip`, `off_grip`, and the snow a snow tyre bites into:
+`snow` and `ice` on the racing surface, `paved_snow` (the run-off's, or
+the lane's in `sample_in_lane`) and `verge_snow`, all 0 off a snowy road.
+`update_car_3d` reads it per wheel by contact class, and at the car's
+middle into `CarState::surface_grip_share` and `snow_tyre_share`, which the
+AI reads through `tyre_grip_share`. `mean_line_water` drives the AI's tyre
+crossover, and `line_snow_of` (`mean_line_snow` on a snowy road, the bake's
+cover on a track without a road state) the snow tyre's
+([ai.md](ai.md)).
 
 ## The road on screen
 

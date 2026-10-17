@@ -816,13 +816,17 @@ fn fit_tyres(
     };
     let tyre = &config.tire_config;
     // The compound the driver's setup chose for the next set (the weather's
-    // tyre for a stock pick in the rain, and for the AI), from the car's
-    // own list.
+    // tyre for a stock pick in the rain or on snow, and for the AI), from
+    // the car's own list.
     let compound = car_setups
         .get(&state.player_id)
         .copied()
         .unwrap_or_default()
-        .compound_index_for(tyre, track.track_surface.water);
+        .compound_index_for(
+            tyre,
+            track.track_surface.water,
+            crate::road_state::RoadState::line_snow_of(track),
+        );
     let surface = &track.track_surface;
     let temperature = match start {
         TyreStart::Garage => tyre_thermal::start_temperature_c(tyre, surface),
@@ -5791,9 +5795,11 @@ impl GameSession {
                 .unwrap_or_default();
             match orders.compound {
                 Some(index) => index.min(tyre.compounds().len().saturating_sub(1) as u8),
-                None => self
-                    .car_setup(player_id)
-                    .compound_index_for(&tyre, self.track_config.track_surface.water),
+                None => self.car_setup(player_id).compound_index_for(
+                    &tyre,
+                    self.track_config.track_surface.water,
+                    crate::road_state::RoadState::line_snow_of(&self.track_config),
+                ),
             }
         };
         let laps_left = self.laps_left(state) as f32 + 1.0;
@@ -5970,6 +5976,7 @@ impl GameSession {
             line_water,
             self.tick_rate_hz as u32,
         );
+        let line_snow = crate::road_state::RoadState::line_snow_of(&self.track_config);
         let Some((entry, approach)) = self
             .track_config
             .pit_lane
@@ -6029,7 +6036,7 @@ impl GameSession {
                 };
                 // The weather first: rain on slicks, a dry line on treaded
                 // tyres (`pit::tyres_for_the_track`).
-                let crossover = self.crossover_context(state, laps_left);
+                let crossover = self.crossover_context(state, laps_left, line_snow);
                 let for_the_track = self.car_configs.get(&car_id).and_then(|c| {
                     crate::pit::tyres_for_the_track(
                         &c.tire_config,
@@ -6057,14 +6064,16 @@ impl GameSession {
                     ..self.stop_context(state, laps_left, lap_fuel, total)
                 };
                 if let Some(plan) = crate::pit::plan_stop(state, &ctx) {
-                    // In the rain the tyre is the weather's; either way one
-                    // of the car's own.
+                    // In the rain or on snow the tyre is the weather's;
+                    // either way one of the car's own.
                     let tyre = self
                         .car_configs
                         .get(&car_id)
                         .map(|c| c.tire_config.clone())
                         .unwrap_or_default();
-                    let compound = tyre.weather_compound(line_water).unwrap_or_else(|| {
+                    let weather = crate::pit::snow_tyres(&tyre, state.tyre_compound, line_snow)
+                        .or_else(|| tyre.weather_compound(line_water));
+                    let compound = weather.unwrap_or_else(|| {
                         let want = tyre.compound_for_click(plan.pick.click());
                         if ctx.compound_owed {
                             crate::pit::other_dry_compound(&tyre, state.tyre_compound, want)
@@ -6188,9 +6197,14 @@ impl GameSession {
 
     /// What an AI weighs a change of tyres for the weather against
     /// (`pit::tyres_for_the_track`): the race left, the rain falling, the
-    /// forecast (`conditions::LiveConditions::changes_after`) and its
-    /// nerve.
-    fn crossover_context(&self, state: &CarState, laps_left: u32) -> crate::pit::CrossoverContext {
+    /// forecast (`conditions::LiveConditions::changes_after`), the snow on
+    /// the line (`line_snow`) and its nerve.
+    fn crossover_context(
+        &self,
+        state: &CarState,
+        laps_left: u32,
+        line_snow: f32,
+    ) -> crate::pit::CrossoverContext {
         let rate = self.tick_rate_hz.max(1) as f32;
         let now_s = self.session.current_tick as f32 / rate;
         let wet = |w: Weather| w.is_wet() || w.is_snow();
@@ -6252,6 +6266,7 @@ impl GameSession {
             rain_ahead,
             drying_per_s: self.line_drying.per_s,
             field_treaded,
+            line_snow,
         }
     }
 

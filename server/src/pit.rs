@@ -915,6 +915,28 @@ pub const TREADED_OFF_WATER: f32 = 0.06;
 /// An intermediate gives way to a wet, and a wet to an intermediate, this
 /// far either side of where the weather's tyre changes.
 const TREADED_SWAP_MARGIN: f32 = 0.15;
+/// A car with a snow tyre comes in for it once the racing line's snow
+/// cover (`RoadState::mean_line_snow`) reaches this, and off it for its
+/// dry or rain tyre once the cover is under [`SNOW_OFF_COVER`]: the gap is
+/// the hysteresis, and a packed line (`road_state::SNOW_FLOOR`) stays a
+/// snow tyre's while the snow lies.
+pub const SNOW_ON_COVER: f32 = 0.4;
+pub const SNOW_OFF_COVER: f32 = 0.15;
+
+/// The snow tyre a car on `fitted` should be on with `line_snow` on the
+/// racing line: its first snow compound from [`SNOW_ON_COVER`], kept down
+/// to [`SNOW_OFF_COVER`] once on it. `None` for a car without one, or a
+/// line clear enough of snow for its other tyres.
+pub fn snow_tyres(tire: &crate::data::TireConfig, fitted: u8, line_snow: f32) -> Option<u8> {
+    let snow = tire.snow_compound()?;
+    let on_snow = tire.compound(fitted).kind == crate::tyre_thermal::CompoundKind::Snow;
+    let from = if on_snow {
+        SNOW_OFF_COVER
+    } else {
+        SNOW_ON_COVER
+    };
+    (line_snow >= from).then_some(snow)
+}
 
 /// What an AI weighs a change of tyres for the weather against, besides
 /// the water on the line.
@@ -943,6 +965,9 @@ pub struct CrossoverContext {
     /// The share of the rest of the running field on treaded tyres; `None`
     /// for a car alone.
     pub field_treaded: Option<f32>,
+    /// The snow cover on the racing line, 0..1
+    /// (`RoadState::line_snow_of`): what a car with a snow tyre reads.
+    pub line_snow: f32,
 }
 
 impl Default for CrossoverContext {
@@ -958,6 +983,7 @@ impl Default for CrossoverContext {
             rain_ahead: 0.0,
             drying_per_s: 0.0,
             field_treaded: None,
+            line_snow: 0.0,
         }
     }
 }
@@ -1004,6 +1030,28 @@ pub fn tyres_for_the_track(
 ) -> Option<u8> {
     use crate::tyre_thermal::{CompoundKind, WET_FROM_WATER};
     let kind = tire.compound(fitted).kind;
+    // A car with a snow tyre reads the snow first ([`snow_tyres`]): onto
+    // it once the line is covered, off it for the water's tyre (or its
+    // reference) once the line is clear, no stop for either within
+    // [`CROSSOVER_STAY_OUT_LAPS`] of the flag. On snow tyres on a snowy
+    // line, it stays out; off them on a clear one, the rain decides.
+    if tire.snow_compound().is_some() {
+        let on_snow = kind == CompoundKind::Snow;
+        let snow = snow_tyres(tire, fitted, ctx.line_snow);
+        if on_snow != snow.is_some() {
+            if ctx.laps_left <= CROSSOVER_STAY_OUT_LAPS {
+                return None;
+            }
+            let want = snow.unwrap_or_else(|| {
+                tire.weather_compound(line_water)
+                    .unwrap_or(tire.reference_compound())
+            });
+            return (want != fitted).then_some(want);
+        }
+        if on_snow {
+            return None;
+        }
+    }
     let wrong = match kind {
         CompoundKind::Slick => line_water >= SLICK_OFF_WATER,
         CompoundKind::Intermediate => {
@@ -1012,7 +1060,10 @@ pub fn tyres_for_the_track(
         CompoundKind::Wet => {
             line_water < TREADED_OFF_WATER || line_water < WET_FROM_WATER - TREADED_SWAP_MARGIN
         }
+        // (Read above.)
+        CompoundKind::Snow => false,
     };
+
     let brave = ctx.roll < SLICK_GAMBLE_CHANCE * ctx.aggressiveness.clamp(0.0, 1.0);
     let lap_s = ctx.lap_s.max(1.0);
     let forecast_s = FORECAST_LAPS * lap_s;
@@ -2174,6 +2225,81 @@ pub(crate) mod tests {
             tyres_for_the_track(&tire, INTERMEDIATE, 0.2, &field_dry),
             None
         );
+    }
+
+    /// A car with a snow tyre goes onto it once the line is covered, stays
+    /// on it while the snow lies, and comes off it for its dry or rain tyre
+    /// once the line is clear; a car without one never reads the snow.
+    #[test]
+    fn a_snow_tyre_goes_on_with_the_cover_and_off_once_the_line_is_clear() {
+        use crate::tyre_thermal::{CompoundKind, INTERMEDIATE, MEDIUM};
+        let mut list = crate::tyre_thermal::default_compounds();
+        list.push(crate::tyre_thermal::Compound {
+            name: "studs".into(),
+            kind: CompoundKind::Snow,
+            snow_grip: 2.0,
+            ..list[INTERMEDIATE as usize].clone()
+        });
+        let rally = crate::data::TireConfig {
+            compounds: list,
+            ..crate::data::TireConfig::default()
+        };
+        const SNOW: u8 = 5;
+        let race = CrossoverContext {
+            laps_left: 20,
+            lap_s: 100.0,
+            ..CrossoverContext::default()
+        };
+        let snowy = |line_snow| CrossoverContext { line_snow, ..race };
+        // The hysteresis.
+        assert_eq!(snow_tyres(&rally, MEDIUM, 0.39), None);
+        assert_eq!(snow_tyres(&rally, MEDIUM, SNOW_ON_COVER), Some(SNOW));
+        assert_eq!(snow_tyres(&rally, SNOW, 0.2), Some(SNOW));
+        assert_eq!(snow_tyres(&rally, SNOW, 0.1), None);
+        let plain = crate::data::TireConfig::default();
+        assert_eq!(snow_tyres(&plain, MEDIUM, 1.0), None);
+        // A covered line: off slicks or intermediates onto the studs, which
+        // stay on through the packed line's cover.
+        assert_eq!(
+            tyres_for_the_track(&rally, MEDIUM, 0.0, &snowy(1.0)),
+            Some(SNOW)
+        );
+        assert_eq!(
+            tyres_for_the_track(&rally, INTERMEDIATE, 0.3, &snowy(0.65)),
+            Some(SNOW)
+        );
+        assert_eq!(tyres_for_the_track(&rally, SNOW, 0.3, &snowy(0.65)), None);
+        assert_eq!(tyres_for_the_track(&rally, SNOW, 0.3, &snowy(0.2)), None);
+        // The line melted clear: slicks on a dry one, the rain's tyre on a
+        // wet one; not within the last laps.
+        assert_eq!(
+            tyres_for_the_track(&rally, SNOW, 0.0, &snowy(0.05)),
+            Some(MEDIUM)
+        );
+        assert_eq!(
+            tyres_for_the_track(&rally, SNOW, 0.4, &snowy(0.05)),
+            Some(INTERMEDIATE)
+        );
+        let late = CrossoverContext {
+            laps_left: 1,
+            line_snow: 1.0,
+            ..race
+        };
+        assert_eq!(tyres_for_the_track(&rally, MEDIUM, 0.0, &late), None);
+        // Under the cover's threshold, the rain decides as for any car.
+        assert_eq!(
+            tyres_for_the_track(&rally, MEDIUM, 0.3, &snowy(0.1)),
+            tyres_for_the_track(&plain, MEDIUM, 0.3, &race)
+        );
+        // A car without a snow tyre: the snow changes nothing.
+        for fitted in [MEDIUM, INTERMEDIATE] {
+            for water in [0.0, 0.3, 0.9] {
+                assert_eq!(
+                    tyres_for_the_track(&plain, fitted, water, &snowy(1.0)),
+                    tyres_for_the_track(&plain, fitted, water, &race)
+                );
+            }
+        }
     }
 
     #[test]

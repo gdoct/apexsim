@@ -91,7 +91,8 @@ Built per tick in `ai_input_for` with the car's speed profile
   faded pads, worn pads; carbon judged `CARBON_STOP_RISE_C` hotter, since
   it heats within the first moment of a stop). `tyre_grip_share` covers
   temperature, pressure, compound, wear and the road under the car
-  (`surface_grip_share`: rubber, marbles, water); `aero_load_share` covers
+  (`surface_grip_share`: rubber, marbles, water; `snow_tyre_share`: a snow
+  tyre's bite on the cover); `aero_load_share` covers
   the wake, the wind and a damaged nose.
 - **Pace noise** (`lap_noise`) is smooth along the lap, new each lap and
   only ever slower than the plan; a driver wanders up to 0.5 m about its
@@ -251,7 +252,15 @@ off by `Racecraft::blend`; the controller holds it across the road
   or stop-go is served at the next pass of the lane (`plan_ai_stops` sets
   `wants_stop`), before any stop it plans.
 - **Stops** (`plan_ai_stops`, races only, inside `update_pits`): first the
-  weather (`pit::tyres_for_the_track` on `RoadState::mean_line_water`: off
+  weather. A car with a snow tyre reads the snow on the line first
+  (`CrossoverContext::line_snow`, `RoadState::line_snow_of`;
+  `pit::snow_tyres`): onto its snow tyre from `SNOW_ON_COVER` (0.4), on it
+  while the line holds `SNOW_OFF_COVER` (0.15) or more (a packed line's
+  0.65 stays a snow tyre's), and off it for the water's tyre or its
+  reference once the line is clear; neither within
+  `CROSSOVER_STAY_OUT_LAPS` of the flag. Off snow tyres on a clear line,
+  and for a car without one, the rain decides as follows
+  (`pit::tyres_for_the_track` on `RoadState::mean_line_water`: off
   slicks at `SLICK_OFF_WATER` 0.25, off treaded tyres under
   `TREADED_OFF_WATER` 0.06, inter/wet swaps 0.15 either side of
   `tyre_thermal::WET_FROM_WATER`; the gaps are hysteresis), read against
@@ -327,7 +336,9 @@ off by `Racecraft::blend`; the controller holds it across the road
   forward, worn tyres that reach the flag do not keep it out, and a car
   owing one does not save fuel to skip a stop (`saves_to_flag`). Compound:
   hard with 15+ laps left in the stint (the laps left over the stops owed),
-  the reference with 6+, soft otherwise; in the wet the weather's tyre; a
+  the reference with 6+, soft otherwise; in the wet or on a snowy line
+  (`pit::snow_tyres`) the weather's tyre; a
+
   car owing the second compound takes the nearest other slick
   (`pit::other_dry_compound`) and never a splash. The car turns
   onto the pit route `AI_PIT_APPROACH_M` (250 m) before the lane, races the

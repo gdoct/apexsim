@@ -299,6 +299,16 @@ pub struct RoadSample {
     pub curb_grip: f32,
     /// Marbles lying there, 0..1: what a tyre picks up.
     pub marbles: f32,
+    /// The snow cover (0..1) and the ice (0..1) on the racing surface
+    /// there: what a snow tyre on the road or a curb bites into
+    /// (`tyre_thermal::Compound::snow_factor`).
+    pub snow: f32,
+    pub ice: f32,
+    /// The cover on the asphalt nobody races on (`wet_grip`'s: the verge's
+    /// beside the run-off, the lane's own in the pit lane), and on the
+    /// grass (`off_grip`'s).
+    pub paved_snow: f32,
+    pub verge_snow: f32,
 }
 
 impl RoadSample {
@@ -310,7 +320,23 @@ impl RoadSample {
         off_grip: 1.0,
         curb_grip: 1.0,
         marbles: 0.0,
+        snow: 0.0,
+        ice: 0.0,
+        paved_snow: 0.0,
+        verge_snow: 0.0,
     };
+
+    /// A road exactly as baked at a snow `cover` (`TrackSurface::baked_snow`)
+    /// everywhere: what a track without a road state grips as.
+    pub fn baked(water: f32, cover: f32) -> RoadSample {
+        RoadSample {
+            water,
+            snow: cover,
+            paved_snow: cover,
+            verge_snow: cover,
+            ..Self::BAKED
+        }
+    }
 }
 
 /// One cell of the lap.
@@ -756,6 +782,7 @@ impl RoadState {
         // The grass holds the cell's water: nobody dries it.
         let mut off_grip = road_grip_for(cell.depth) * off_track_grip_for(cell.depth)
             / (road_grip_for(baked) * off_track_grip_for(baked)).max(1e-3);
+        let mut snow = [0.0; 4];
         // Snow and ice only move a road that has some or was baked with it.
         if self.baked_snow > 0.0 || self.snowy {
             let cover = Self::bin_value(&self.snow, base, across);
@@ -778,7 +805,9 @@ impl RoadState {
             wet = road(water, paved) / reference * snow_grip(paved, 0.0, self.baked_snow);
             off_grip = grass(cell.depth, verge) / grass(baked, self.baked_snow).max(1e-3)
                 * snow_grip(verge, 0.0, self.baked_snow);
+            snow = [cover, ice, paved, verge].map(|v| v.clamp(0.0, 1.0));
         }
+        let [snow, ice, paved_snow, verge_snow] = snow;
         RoadSample {
             water,
             grip,
@@ -786,6 +815,10 @@ impl RoadState {
             off_grip,
             curb_grip: curb_grip_for(water) / curb_grip_for(baked).max(1e-3),
             marbles: marbles.clamp(0.0, 1.0),
+            snow,
+            ice,
+            paved_snow,
+            verge_snow,
         }
     }
 
@@ -846,6 +879,17 @@ impl RoadState {
             })
             .sum();
         sum / self.cells.len() as f32
+    }
+
+    /// The snow cover on the line a driver choosing tyres reads
+    /// ([`Self::mean_line_snow`]), 0 on a road that has none, and the bake's
+    /// cover on a track without a road state.
+    pub fn line_snow_of(track: &TrackConfig) -> f32 {
+        match track.road_state.as_ref() {
+            Some(road) if road.has_snow() => road.mean_line_snow(),
+            Some(_) => 0.0,
+            None => track.track_surface.baked_snow.clamp(0.0, 1.0),
+        }
     }
 
     /// The snow cover on the raceline across the lap, the cells' mean at
@@ -1342,6 +1386,48 @@ mod tests {
         // A dry road has none of it.
         let dry = RoadState::new(&dipped_track(0.0), RUBBER_REFERENCE);
         assert!(!dry.has_snow() && dry.mean_line_snow() == 0.0);
+    }
+
+    /// What a snow tyre bites into: the sample carries the cover and ice
+    /// on the racing surface, the run-off's, the lane's and the verge's;
+    /// none of it off a snow session.
+    #[test]
+    fn a_sample_carries_the_cover_under_each_surface() {
+        let mut track = snowy_track(-3.0);
+        let mut road = RoadState::new(&track, RUBBER_REFERENCE);
+        let s = road.sample(500.0, 2.0);
+        assert_eq!(
+            [s.snow, s.ice, s.paved_snow, s.verge_snow],
+            [1.0, 0.0, 1.0, 1.0]
+        );
+        // A packed bin and a cleared lane: each surface its own.
+        let i = road.cell_index(500.0);
+        for v in &mut road.snow[i * BINS..(i + 1) * BINS] {
+            *v = 0.25;
+        }
+        road.ice[i * BINS..(i + 1) * BINS].fill(0.5);
+        let s = road.sample(500.0, 2.0);
+        assert!((s.snow - 0.25).abs() < 1e-6 && (s.ice - 0.5).abs() < 1e-6);
+        assert_eq!((s.paved_snow, s.verge_snow), (1.0, 1.0));
+        road.lane_snow.fill(0.1);
+        if !road.lane_snow.is_empty() {
+            let lane = road.sample_in_lane(500.0, 2.0, 5.0);
+            assert!((lane.paved_snow - 0.1).abs() < 1e-6);
+        }
+        assert_eq!(
+            RoadState::line_snow_of(&TrackConfig {
+                road_state: None,
+                ..track.clone()
+            }),
+            1.0
+        );
+        // Off a snow session: nothing.
+        track = dipped_track(0.5);
+        let wet = RoadState::new(&track, RUBBER_REFERENCE);
+        let s = wet.sample(500.0, 2.0);
+        assert_eq!([s.snow, s.ice, s.paved_snow, s.verge_snow], [0.0; 4]);
+        track.road_state = Some(wet);
+        assert_eq!(RoadState::line_snow_of(&track), 0.0);
     }
 
     #[test]

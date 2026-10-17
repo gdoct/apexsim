@@ -290,6 +290,15 @@ struct CompoundToml {
     water_grip: Option<[f32; 3]>,
     #[serde(default)]
     reference: Option<bool>,
+    /// Grip on a fully snow-covered road and on solid ice against the
+    /// weather's tyre, and the wear on a bare road (`tyre_thermal::Compound`);
+    /// 1.0 each when absent.
+    #[serde(default)]
+    snow_grip: Option<f32>,
+    #[serde(default)]
+    ice_grip: Option<f32>,
+    #[serde(default)]
+    bare_wear: Option<f32>,
 }
 
 /// Optional `[engine.turbo]`: the lag of a turbo whose boost the torque
@@ -1060,8 +1069,13 @@ impl CarLoader {
                                     [0.88, 1.0, 0.88]
                                 }
                                 crate::tyre_thermal::CompoundKind::Wet => [0.78, 0.95, 1.0],
+                                // Studs and soft blocks squirm on tarmac.
+                                crate::tyre_thermal::CompoundKind::Snow => [0.8, 0.9, 0.85],
                             }),
                             reference: c.reference.unwrap_or(false),
+                            snow_grip: c.snow_grip.unwrap_or(1.0),
+                            ice_grip: c.ice_grip.unwrap_or(1.0),
+                            bare_wear: c.bare_wear.unwrap_or(1.0),
                         }
                     })
                     .collect(),
