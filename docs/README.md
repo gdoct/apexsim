@@ -34,6 +34,7 @@ see [marketing-site.md](marketing-site.md).
 - [game/audio.md](game/audio.md): synthesised engine, road and tyre sound, menu cues.
 - [game/input-and-ffb.md](game/input-and-ffb.md): Enhanced Input, DirectInput wheels and pedals, force feedback.
 - [game/hud-modding.md](game/hud-modding.md): HUD components and every data point (the modding reference).
+- [game/telemetry-output.md](game/telemetry-output.md): the UDP packet for SimHub, motion rigs, shakers and dash apps (`settings.yml` `telemetry_out`).
 - [game/spectator.md](game/spectator.md): spectator streams, showcases, the menu backdrop, watching races, replays and replay tools.
 
 ## Content (`content/`, `track-editor/`, `scripts/`)

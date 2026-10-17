@@ -35,18 +35,6 @@ None open.
 
 ## P1: core racing experience
 
-### 2. Telemetry output for external apps
-
-SimHub, motion rigs, bass shakers, wheel rev LEDs and dash apps cannot read
-the car.
-
-- A versioned little-endian UDP packet from the client (localhost by
-  default, port and rate in `settings.yml`): motion, car, tyres, session
-  and flags, sourced from `ApexHudData`. Documented in its own doc, the
-  layout append-only.
-
-**Check:** a golden packet test; SimHub or a motion rig on real hardware.
-
 ### 3. Client-side prediction for the local car
 
 90-150 ms from wheel to car online. Design and phases in

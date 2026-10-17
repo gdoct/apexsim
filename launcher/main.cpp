@@ -223,6 +223,11 @@ struct Settings
     std::string tlsVerify = "true";
     std::string tlsFingerprint;
     bool showLauncher = true;  // false: launcher.exe starts the game at once and shows no window
+    // telemetry_out (enabled, host, port, rate_hz): carried through, the game owns them.
+    std::string telemetryEnabled = "false";
+    std::string telemetryHost = "127.0.0.1";
+    std::string telemetryPort = "9996";
+    std::string telemetryRate = "60";
 };
 
 static Settings DefaultSettings()
@@ -277,6 +282,16 @@ static bool LoadSettings(const fs::path& path, Settings& out)
                 else if (key == "tls_verify") { if (!val.empty()) out.tlsVerify = val; }
                 else out.tlsFingerprint = val;
             }
+        }
+        else if (section == "telemetry_out")
+        {
+            size_t hash = val.find('#');
+            if (hash != std::string::npos) val = Trim(val.substr(0, hash));
+            if (val.empty()) continue;
+            if (key == "enabled") out.telemetryEnabled = val;
+            else if (key == "host") out.telemetryHost = val;
+            else if (key == "port") out.telemetryPort = val;
+            else if (key == "rate_hz") out.telemetryRate = val;
         }
         else if (section == "launcher")
         {
@@ -339,12 +354,23 @@ static bool SaveSettings(const fs::path& path, const Settings& s)
         "  # self-signed certificate is trusted. Empty: none. Cleared when host changes.\n"
         "  tls_fingerprint: %s\n"
         "\n"
+        "telemetry_out:\n"
+        "  # A UDP packet of the car's motion, revs, pedals, tyres and session for\n"
+        "  # SimHub, motion rigs, shakers and dash apps (the layout is in the game's\n"
+        "  # docs: telemetry-output). 127.0.0.1 is an app on this machine.\n"
+        "  enabled: %s\n"
+        "  host: %s\n"
+        "  port: %s\n"
+        "  # Packets per second while driving, 1 to 400.\n"
+        "  rate_hz: %s\n"
+        "\n"
         "launcher:\n"
         "  # false: launcher.exe starts the game straight away, without a server, and\n"
         "  # shows no window. Run launcher.exe --show to bring the window back.\n"
         "  show: %s\n",
         s.resX, s.resY, s.mode.c_str(), s.vsync ? "true" : "false", s.frameLimit, s.screens, s.graphicsApi.c_str(),
         s.host.c_str(), s.port, s.tls.c_str(), s.tlsVerify.c_str(), s.tlsFingerprint.c_str(),
+        s.telemetryEnabled.c_str(), s.telemetryHost.c_str(), s.telemetryPort.c_str(), s.telemetryRate.c_str(),
         s.showLauncher ? "true" : "false");
     std::ofstream f(path, std::ios::binary | std::ios::trunc);
     if (!f) return false;

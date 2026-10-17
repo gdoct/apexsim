@@ -34,6 +34,9 @@ public:
 	/** Rebuild the data from the game's state; the HUD calls it once a frame while it is shown. */
 	void Refresh();
 
+	/** Refresh, unless it already ran this frame (the HUD hidden, the telemetry output still reads the data). */
+	void RefreshIfStale();
+
 	/**
 	 * Fill the data from a made-up race (FApexHudPreview) whenever no real one
 	 * is running: the HUD editor, opened from the main menu, lays the panels
@@ -112,6 +115,8 @@ private:
 	TMap<int32, TPair<int32, float>> GearAtSpeed;
 	bool bRaceActive = false;
 	double RaceStartSeconds = 0.0;
+	/** GFrameCounter of the last Refresh. */
+	uint64 RefreshedFrame = MAX_uint64;
 
 	/** The car the catalog figures below were read for. */
 	FString CatalogCarId;

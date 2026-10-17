@@ -30,7 +30,6 @@ When an item is done, delete it from its backlog and from here.
 |---|---|---|---|---|---|
 | A1 | Imported AC cars' AI crashes (1–10 retire per race) | AI | P1 | 🟡 | M |
 | N1 | Client-side prediction for the local car | Netcode | P1 | 🟡 | L |
-| N2 | Telemetry output for external apps and rigs | Integration | P1 | 🔴 | M |
 | V1 | Verify the newest session screens (R9, R11, R12) | Verification | P1 | 🟡 | S |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
 | B4 | Imported pit lanes: human not taken over at Spa / RBR | Bug | P2 | 🟡 | M |
@@ -88,7 +87,7 @@ When an item is done, delete it from its backlog and from here.
 1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, the HUD's PEN, the lap allowance's garage), then H1 in one sitting. Fresh features are where the bugs are.
 2. **Race-breaking AI** — A1 (imported AC cars). Judged by the AI survey.
 3. **Race control** — N4 (formation lap, jump starts), R2 (penalties), R1b (safety car) on the race-control module the flags built.
-4. **Sim-racer essentials** — N2 (telemetry output: cheap, unlocks SimHub, rigs, wheel LEDs), then N1 (client prediction: largest online win, largest job).
+4. **Sim-racer essentials** — N1 (client prediction: largest online win, largest job).
 5. **Visual quality pass** — G1, G3, G4 in one branch of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10 (upscaling) alongside.
 6. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
 7. **Online and depth** — N9 (chat), N6 (lap comparison), N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
@@ -427,23 +426,6 @@ by `ContentCrc`.
 mismatch disables prediction; car-to-car contact is not predicted (arrives as
 a correction); 🟡 because only a human on a wheel over real latency can say
 it feels right.
-
-#### N2. Telemetry output for external apps and rigs — P1 · 🔴 · M
-**What:** No way for SimHub, motion platforms, bass shakers, wheel rev
-LEDs, button-box displays or dash apps to read the car.
-**Outcome:** ApexSim works with the hardware sim racers already own;
-listed as supported in SimHub is a real adoption driver.
-**Implementation:** A client-side UDP output (localhost by default, port and
-rate in `settings.yml`), a fixed, versioned, little-endian packet: motion
-(accelerations, rotation rates, pose), car (rpm, redline, gear, speed,
-pedals, rev-light fraction), tyres, session and flags (R1a). Source it from
-the same data as the HUD (`ApexHudData`) so it stays one API. Optionally a
-shared-memory map for Windows tools. Document it in a new
-`game/telemetry-output.md` with the layout and a version byte.
-**Watch out:** the layout is a public API — append-only like the wire; send
-from the client (it has the player's own car at full rate via the motion
-buffer), not the server; 🔴 because it has to be tried with a motion rig
-or SimHub and wheel LEDs.
 
 #### N4. Formation lap, rolling start, jump-start detection — P2 · 🟡 · M
 **What:** No formation lap (tyre warmth is faked with

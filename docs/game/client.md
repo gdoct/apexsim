@@ -201,7 +201,8 @@ are in [input-and-ffb.md](input-and-ffb.md). Three traps live in the shell:
 The few settings a player may need before the game is usable live in a
 plain-text file instead of the save slot: `display` (`resolution`,
 `window_mode`, `vsync`, `frame_limit`, `screens`, `graphics_api`), `server` (`host`, `port`,
-`tls`, `tls_verify`, `tls_fingerprint`) and `launcher` (`show`). `UApexBootSettingsSubsystem` (`ApexBootSettings.h`)
+`tls`, `tls_verify`, `tls_fingerprint`), `telemetry_out` (`enabled`, `host`, `port`, `rate_hz`: the
+[telemetry output](telemetry-output.md)) and `launcher` (`show`). `UApexBootSettingsSubsystem` (`ApexBootSettings.h`)
 reads it at game-instance startup, creates it when absent (seeded from the
 desktop's display mode, or from the save slots on an existing install) and
 rewrites it when those values change in game.
@@ -555,6 +556,7 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
   `apexsim.net.Drop` (close the connection as a lost network would, no
   `Disconnect` sent: the reconnect and, driving, the automatic rejoin,
   unattended).
+- Telemetry output: `apexsim.telemetry.Out [on|off]` ([telemetry-output.md](telemetry-output.md)).
 - GPU: `apexsim.debug.BoundsWatch` (on outside Shipping; `UApexBoundsWatchSubsystem`)
   checks every rendered primitive's bounds after each frame's actor ticks
   and logs a NaN, infinite or out-of-world one (`Bounds watch: ...` at

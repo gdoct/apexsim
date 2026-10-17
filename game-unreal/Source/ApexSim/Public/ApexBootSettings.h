@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "ApexTls.h"
+#include "Telemetry/ApexTelemetryOutput.h"
 #include "GenericPlatform/GenericWindow.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
@@ -65,6 +66,9 @@ struct FApexBootSettings
 	 * because the game rewrites the whole file and would otherwise drop it.
 	 */
 	bool bShowLauncher = true;
+
+	/** `telemetry_out`: the UDP output for external apps and rigs (docs/game/telemetry-output.md). */
+	FApexTelemetryOutputSettings TelemetryOut;
 };
 
 /**

@@ -428,6 +428,14 @@ Mandarina Bay.
   surveys (`PIT_CUSTOM=1 pit_stop_test`); AC's scenery draws the garages and
   boards, the exit light is not drawn.
 
+**Telemetry output.** ([game/telemetry-output.md](game/telemetry-output.md))
+
+- The `telemetry_out` packet read by an app on real hardware: SimHub (a
+  custom UDP plugin or game profile on the documented layout), a motion
+  platform's surge, sway and heave from `accel` (sign and scale as felt),
+  wheel rev lights from `rev_fraction`. Only the layout, mapping and
+  motion tests (`ApexSim.TelemetryOutput.*`) have run.
+
 **Last, with the network off.**
 
 - The launcher's AC import button, never clicked by hand, and the import

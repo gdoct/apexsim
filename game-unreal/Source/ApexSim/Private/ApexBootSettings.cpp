@@ -257,6 +257,38 @@ void ApexBootSettingsIo::Parse(const FString& Text, FApexBootSettings& InOut)
 					TEXT("expected a SHA-256 fingerprint: 64 hex digits, colons optional"));
 			}
 		}
+		else if (Path == TEXT("telemetry_out.enabled"))
+		{
+			if (!ParseBool(Value, InOut.TelemetryOut.bEnabled))
+			{
+				WarnBadValue(LineNumber, TEXT("enabled"), Value, TEXT("expected true or false"));
+			}
+		}
+		else if (Path == TEXT("telemetry_out.host"))
+		{
+			if (Value.IsEmpty())
+			{
+				WarnBadValue(LineNumber, TEXT("host"), Value, TEXT("expected a host name or address"));
+			}
+			else
+			{
+				InOut.TelemetryOut.Host = Value;
+			}
+		}
+		else if (Path == TEXT("telemetry_out.port"))
+		{
+			if (!ParseInt(Value, 1, 65535, InOut.TelemetryOut.Port))
+			{
+				WarnBadValue(LineNumber, TEXT("port"), Value, TEXT("expected 1 to 65535"));
+			}
+		}
+		else if (Path == TEXT("telemetry_out.rate_hz"))
+		{
+			if (!ParseInt(Value, 1, 400, InOut.TelemetryOut.RateHz))
+			{
+				WarnBadValue(LineNumber, TEXT("rate_hz"), Value, TEXT("expected 1 to 400"));
+			}
+		}
 		else if (Path == TEXT("launcher.show"))
 		{
 			if (!ParseBool(Value, InOut.bShowLauncher))
@@ -321,6 +353,16 @@ FString ApexBootSettingsIo::Serialise(const FApexBootSettings& Settings)
 		TEXT("  # self-signed certificate is trusted. Empty: none. Cleared when host changes.\n")
 		TEXT("  tls_fingerprint: %s\n")
 		TEXT("\n")
+		TEXT("telemetry_out:\n")
+		TEXT("  # A UDP packet of the car's motion, revs, pedals, tyres and session for\n")
+		TEXT("  # SimHub, motion rigs, shakers and dash apps (the layout is in the game's\n")
+		TEXT("  # docs: telemetry-output). 127.0.0.1 is an app on this machine.\n")
+		TEXT("  enabled: %s\n")
+		TEXT("  host: %s\n")
+		TEXT("  port: %d\n")
+		TEXT("  # Packets per second while driving, 1 to 400.\n")
+		TEXT("  rate_hz: %d\n")
+		TEXT("\n")
 		TEXT("launcher:\n")
 		TEXT("  # false: launcher.exe starts the game straight away, without a server, and\n")
 		TEXT("  # shows no window. Run launcher.exe --show to bring the window back.\n")
@@ -336,6 +378,10 @@ FString ApexBootSettingsIo::Serialise(const FApexBootSettings& Settings)
 		ApexTls::ModeName(Settings.ServerTls.Mode),
 		Settings.ServerTls.bVerify ? TEXT("true") : TEXT("false"),
 		*Settings.ServerTls.Fingerprint,
+		Settings.TelemetryOut.bEnabled ? TEXT("true") : TEXT("false"),
+		*Settings.TelemetryOut.Host,
+		Settings.TelemetryOut.Port,
+		Settings.TelemetryOut.RateHz,
 		Settings.bShowLauncher ? TEXT("true") : TEXT("false"));
 }
 

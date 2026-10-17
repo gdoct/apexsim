@@ -793,6 +793,16 @@ server:
   # self-signed certificate is trusted. Empty: none. Cleared when host changes.
   tls_fingerprint:
 
+telemetry_out:
+  # A UDP packet of the car's motion, revs, pedals, tyres and session for
+  # SimHub, motion rigs, shakers and dash apps (the layout is in the game's
+  # docs: telemetry-output). 127.0.0.1 is an app on this machine.
+  enabled: false
+  host: 127.0.0.1
+  port: 9996
+  # Packets per second while driving, 1 to 400.
+  rate_hz: 60
+
 launcher:
   # false: launcher.exe starts the game straight away, without a server, and
   # shows no window. Run launcher.exe --show to bring the window back.

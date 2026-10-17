@@ -234,8 +234,17 @@ void UApexHudDataSubsystem::SetPreview(bool bInPreview)
 	}
 }
 
+void UApexHudDataSubsystem::RefreshIfStale()
+{
+	if (RefreshedFrame != GFrameCounter)
+	{
+		Refresh();
+	}
+}
+
 void UApexHudDataSubsystem::Refresh()
 {
+	RefreshedFrame = GFrameCounter;
 	if (IsShowingPreview())
 	{
 		if (!Preview)

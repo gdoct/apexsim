@@ -53,6 +53,9 @@ public class ApexSim : ModuleRules
 			// The session browser's Recorded list: the server's health port
 			// hands out its recordings over HTTP.
 			"HTTP",
+			// The telemetry output for external apps and rigs (UDP).
+			"Sockets",
+			"Networking",
 		});
 	}
 }
