@@ -27,6 +27,8 @@ public:
 
 	/** The last whole lap driven; empty before one. */
 	const FApexLapTrace& GetLast() const { return Last; }
+	/** The whole lap before the last: what the best is compared with when the last is the best. */
+	const FApexLapTrace& GetPrevious() const { return Previous; }
 	/** The quickest valid lap on this circuit and car: this session's or a stored one. */
 	const FApexLapTrace& GetBest() const { return Best; }
 	/** Whether Best came from an earlier session's file. */
@@ -50,6 +52,7 @@ private:
 
 	FApexLapRecorder Recorder;
 	FApexLapTrace Last;
+	FApexLapTrace Previous;
 	FApexLapTrace Best;
 	bool bBestStored = false;
 	FString Key;

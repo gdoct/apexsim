@@ -364,30 +364,33 @@ void UApexPauseMenuWidget::OpenLapTraces()
 		return;
 	}
 	bLapTracesOpen = true;
-	const FApexLapTrace& Last = Traces->GetLast();
 	const FApexLapTrace& Best = Traces->GetBest();
-	// The best against itself says nothing: a lap only against an earlier one.
-	const bool bLastIsBest = !Last.IsEmpty() && !Best.IsEmpty() && Last.RecordedAt == Best.RecordedAt && Last.LapMs == Best.LapMs;
-	LapTraceGraph->SetTraces(Best, bLastIsBest ? FApexLapTrace() : Last);
+	// The best against itself says nothing: when the last lap is the best,
+	// the lap before it is the one shown against it.
+	const bool bLastIsBest = !Traces->GetLast().IsEmpty() && !Best.IsEmpty()
+		&& Traces->GetLast().RecordedAt == Best.RecordedAt && Traces->GetLast().LapMs == Best.LapMs;
+	const FApexLapTrace& Last = bLastIsBest ? Traces->GetPrevious() : Traces->GetLast();
+	LapTraceGraph->SetTraces(Best, Last);
 	auto Time = [](int32 Ms) { return FString::Printf(TEXT("%d:%02d.%03d"), Ms / 60000, (Ms / 1000) % 60, Ms % 1000); };
 	TArray<FString> Legend;
-	if (!Last.IsEmpty() && !bLastIsBest)
+	if (!Last.IsEmpty())
 	{
-		Legend.Add(FString::Printf(TEXT("LAST  LAP %d  %s%s"), Last.LapNumber, *Time(Last.LapMs), Last.bValid ? TEXT("") : TEXT("  INVALID")));
+		Legend.Add(FString::Printf(TEXT("%s  LAP %d  %s%s"), bLastIsBest ? TEXT("THE LAP BEFORE") : TEXT("LAST"),
+			Last.LapNumber, *Time(Last.LapMs), Last.bValid ? TEXT("") : TEXT("  INVALID")));
 	}
 	if (!Best.IsEmpty())
 	{
 		Legend.Add(FString::Printf(TEXT("BEST  %s%s"), *Time(Best.LapMs),
 			Traces->IsBestStored() ? *FString::Printf(TEXT("  (%s)"), *Best.RecordedAt.ToString(TEXT("%d %b %Y"))) : TEXT("  THIS SESSION")));
 	}
-	if (!Last.IsEmpty() && !Best.IsEmpty() && !bLastIsBest)
+	if (!Last.IsEmpty() && !Best.IsEmpty())
 	{
 		const int32 Gap = Last.LapMs - Best.LapMs;
 		Legend.Add(FString::Printf(TEXT("%s%.3f"), Gap >= 0 ? TEXT("+") : TEXT("-"), FMath::Abs(Gap) / 1000.0f));
 	}
 	LapTracesLegend->SetText(FText::FromString(Legend.Num() > 0 ? FString::Join(Legend, TEXT("     ")) : FString(TEXT("NO LAP YET"))));
 	LapTracesNote->SetText(FText::FromString(FString::Printf(
-		TEXT("Accent: the last lap. Grey: the best. Every whole lap is saved as CSV in %s"), *Traces->GetFolder())));
+		TEXT("Accent: the lap; grey: the best; red: braking. Every whole lap is saved as CSV in %s"), *Traces->GetFolder())));
 	ActionsPanel->SetVisibility(ESlateVisibility::Collapsed);
 	LapTracesPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	if (CardSize)

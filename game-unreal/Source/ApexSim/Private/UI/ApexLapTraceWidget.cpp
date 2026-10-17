@@ -112,11 +112,11 @@ int32 UApexLapTraceWidget::NativePaint(const FPaintArgs& Args, const FGeometry& 
 	}
 	LapTraceLabel(OutDrawElements, LapLayer, AllottedGeometry, FString::Printf(TEXT("SPEED  %.0f KM/H"), Speed.MaxValue),
 		FVector2D(4.0, Speed.Top + 2.0f), Label);
-	LapTraceLabel(OutDrawElements, LapLayer, AllottedGeometry, TEXT("THROTTLE / BRAKE"), FVector2D(4.0, Pedals.Top + 2.0f), Label);
+	LapTraceLabel(OutDrawElements, LapLayer, AllottedGeometry, TEXT("THROTTLE / BRAKE"), FVector2D(4.0, Pedals.Top - LapTraceGapPx + 1.0f), Label);
 	LapTraceLabel(OutDrawElements, LapLayer, AllottedGeometry, FString::Printf(TEXT("DELTA  +/-%.2f S"), Reach),
-		FVector2D(4.0, Gap.Top + 2.0f), Label);
+		FVector2D(4.0, Gap.Top - LapTraceGapPx + 1.0f), Label);
 
-	auto Draw = [&](const FApexLapTrace& Trace, int32 Layer, const FLinearColor& Colour, float Thickness)
+	auto Draw = [&](const FApexLapTrace& Trace, int32 Layer, const FLinearColor& Colour, const FLinearColor& BrakeColour, float Thickness)
 	{
 		if (Trace.IsEmpty())
 		{
@@ -137,10 +137,10 @@ int32 UApexLapTraceWidget::NativePaint(const FPaintArgs& Args, const FGeometry& 
 		}
 		LapTraceLine(OutDrawElements, Layer, AllottedGeometry, SpeedLine, Colour, Thickness);
 		LapTraceLine(OutDrawElements, Layer, AllottedGeometry, ThrottleLine, Colour, Thickness);
-		LapTraceLine(OutDrawElements, Layer, AllottedGeometry, BrakeLine, Colour.CopyWithNewOpacity(Colour.A * 0.6f), Thickness);
+		LapTraceLine(OutDrawElements, Layer, AllottedGeometry, BrakeLine, BrakeColour, Thickness);
 	};
-	Draw(Reference, RefLayer, RefColour, 1.5f);
-	Draw(Lap, LapLayer, LapColour, 2.0f);
+	Draw(Reference, RefLayer, RefColour, ApexUI::Palette::Error.CopyWithNewOpacity(0.4f), 1.5f);
+	Draw(Lap, LapLayer, LapColour, ApexUI::Palette::Error, 2.0f);
 
 	if (Delta.Num() > 1)
 	{

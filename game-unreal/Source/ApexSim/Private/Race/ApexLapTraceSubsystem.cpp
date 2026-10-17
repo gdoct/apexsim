@@ -1,6 +1,8 @@
 #include "Race/ApexLapTraceSubsystem.h"
 
+#include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "Catalog/ApexCatalogRows.h"
 #include "ApexSim.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -87,7 +89,11 @@ void UApexLapTraceSubsystem::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	{
 		return;
 	}
-	Take(Frame, LocalIndex, TrackName, CarId);
+	// The folder and the CSV name the car as the catalog does, not by its id.
+	FApexCarCatalogRow Row;
+	const UApexMenuFlowSubsystem* Flow = GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>();
+	const FString CarName = Flow && Flow->GetCarCatalogRow(CarId, Row) && !Row.DisplayName.IsEmpty() ? Row.DisplayName : CarId;
+	Take(Frame, LocalIndex, TrackName, CarName);
 }
 
 void UApexLapTraceSubsystem::AddFrameForTest(const FApexTelemetryFrame& Frame, int32 LocalCarIndex, const FString& TrackName, const FString& CarId)
@@ -100,6 +106,7 @@ void UApexLapTraceSubsystem::Begin(const FString& TrackName, const FString& CarI
 {
 	Recorder.Reset();
 	Last = FApexLapTrace();
+	Previous = FApexLapTrace();
 	Best = FApexLapTrace();
 	bBestStored = false;
 	Folder = FolderFor(TrackName, CarId);
@@ -170,6 +177,7 @@ void UApexLapTraceSubsystem::Take(const FApexTelemetryFrame& Frame, int32 LocalC
 					Lap.bValid ? TEXT("") : TEXT(" (invalid)"), Lap.Samples.Num(), *Path);
 			}
 		}
+		Previous = MoveTemp(Last);
 		Last = MoveTemp(Lap);
 		return;
 	}
