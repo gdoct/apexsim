@@ -1696,6 +1696,194 @@ runs:
     shots:
       - {at: 28, label: "the conditions panel: next three and the outlook", checks: "sky.outlook from the written forecast"}
 
+  # A one-lap race under a one-stop rule: nobody stops (the stand-in and the
+  # AI plan no stop this short), so the field takes the flag owing it. PEN
+  # in the HUD's standings once classified, then the session's results
+  # screen (apexsim.finish end).
+  - id: r11-pen-standings
+    about: "R11. PEN in the HUD's standings and on the session results screen"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=5
+      - -ApexLaps=1
+      - -ApexCountdown=5
+      - -ApexMandatoryStops=1
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+    exec:
+      95: ["apexsim.hud.Data item."]
+      105: ["apexsim.hud.Data item."]
+      120: ["apexsim.finish end"]
+      125: ["apexsim.ui.Texts"]
+    shots:
+      - {at: 92, label: "after the flag: standings", checks: "PEN in the HUD's standings"}
+      - {at: 100, label: "after the flag: standings", checks: "PEN in the HUD's standings / tower"}
+      - {at: 110, label: "finish overlay", checks: "PEN on the rows"}
+      - {at: 127, label: "session results screen", checks: "the results screen's PEN tag"}
+
+  # A pit plan set in the pause menu (which pauses the session: the start
+  # comes after it), then the connection dropped on the grid
+  # (apexsim.net.Drop): the client reconnects, rejoins its held seat and
+  # sends the plan again ("Rejoined ...: sending the pit plan again" in
+  # client.log); BOX this lap then stops on that plan (fuel alone).
+  - id: r11-rejoin-plan
+    about: "R11. The pit plan sent again after a rejoin, and a stop on it"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=3
+      - -ApexLaps=6
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexOpenPause=12
+    exec:
+      14: ["apexsim.ui.Texts PIT", "apexsim.ui.Click PIT PLAN"]
+      16: ["apexsim.ui.Key Gamepad_FaceButton_Bottom"]
+      16.6: ["apexsim.ui.Key Gamepad_DPad_Down"]
+      17.2: ["apexsim.ui.Key Gamepad_DPad_Right"]
+      17.8: ["apexsim.ui.Key Gamepad_FaceButton_Bottom"]
+      18.4: ["apexsim.ui.Key Gamepad_FaceButton_Bottom"]
+      19: ["apexsim.ui.Texts"]
+      24: ["apexsim.ui.Key Gamepad_FaceButton_Right"]
+      28: ["apexsim.ui.Key Gamepad_FaceButton_Right"]
+      36: ["apexsim.net.Drop"]
+      50: ["apexsim.hud.Data pit."]
+      52: ["apexsim.ui.Key P"]
+      54: ["apexsim.hud.Data pit."]
+      128: ["apexsim.hud.Data pit."]
+      134: ["apexsim.hud.Data pit."]
+    shots:
+      - {at: 22, label: "PIT PLAN: tyres KEEP, fuel +5 L", checks: "the plan before the drop"}
+      - {at: 38, label: "just dropped", checks: "the reconnect"}
+      - {at: 46, label: "rejoined", checks: "back in the race on the held seat"}
+      - {at: 56, label: "BOX after the rejoin", checks: "BOX badge"}
+      - {at: 100, label: "", checks: "BOX until the stop"}
+      - {at: 125, label: "", checks: "the stop on the plan"}
+      - {at: 130, label: "", checks: "the stop on the plan: fuel alone"}
+      - {at: 135, label: "", checks: "the stop on the plan: fuel alone"}
+      - {at: 140, label: "", checks: "the stop on the plan: fuel alone"}
+      - {at: 150, label: "", checks: ""}
+      - {at: 170, label: "after the stop", checks: "BOX off"}
+
+  # A race weekend of one three-minute knockout round under the 107% rule,
+  # the player's car (the stand-in) on two flat tyres from 5 s: it sets no
+  # time inside the cut while the AI do, so it does not qualify. The host's
+  # timesheet starts the race: the grid card, then the race with the
+  # non-qualifier parked in its box: DNQ in the standings, the tower and the
+  # results. (With no time set by anyone nobody is out: a one-minute round
+  # ended before a lap and cut nobody.)
+  - id: r9-weekend-dnq
+    about: "R9. A non-qualifier (107%) and the race's grid card in a weekend"
+    server:
+      stand_in: true
+      events:
+        - "5:host:puncture=FL"
+        - "5:host:puncture=RL"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=4
+      - -ApexWeekend=0,1,3
+      - -ApexQualifyingCutoff=107
+      - -ApexLaps=2
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexHotlapOutAfter=10
+    exec:
+      120: ["apexsim.hud.Data qualifying."]
+      250: ["apexsim.ui.Texts"]
+      262: ["apexsim.ui.Click Start the race"]
+      275: ["apexsim.ui.Texts"]
+      282: ["apexsim.grid.Ready"]
+      285: ["apexsim.ui.Texts"]
+      310: ["apexsim.hud.Data item."]
+      400: ["apexsim.hud.Data item."]
+      460: ["apexsim.finish view", "apexsim.ui.Texts"]
+    shots:
+      - {at: 60, label: "Q1, flat tyres", checks: ""}
+      - {at: 150, label: "Q1", checks: ""}
+      - {at: 230, label: "Q1 over?", checks: "the timesheet"}
+      - {at: 255, label: "after Q1", checks: "the timesheet: the player out of the cut"}
+      - {at: 270, label: "the race's grid", checks: "the grid card, the non-qualifier"}
+      - {at: 280, label: "the race's grid", checks: "the grid card"}
+      - {at: 300, label: "racing", checks: "DNQ in the standings / tower; parked in the box"}
+      - {at: 340, label: "racing", checks: "DNQ in the standings / tower"}
+      - {at: 400, label: "", checks: ""}
+      - {at: 465, label: "results", checks: "DNQ on the results"}
+
+  # A Custom start order naming a driver who is not there: the gap kept in
+  # the session lobby's GRID list, the grid card and the lined-up field.
+  - id: r9-empty-slot
+    about: "R9. An empty grid slot from a start order naming an absent driver"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexNoStart
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=3
+      - -ApexLaps=2
+      - -ApexGridOrder=@ai:1,Nobody,@host,@ai:2,@ai:3
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+    exec:
+      15: ["apexsim.ui.Texts"]
+      20: ["apexsim.ui.Click Start countdown"]
+      26: ["apexsim.ui.Texts"]
+      44: ["apexsim.grid.Ready"]
+    shots:
+      - {at: 17, label: "the lobby: GRID list", checks: "the empty slot in the lobby's list"}
+      - {at: 28, label: "the grid card", checks: "the empty slot in the card's list"}
+      - {at: 38, label: "the grid card", checks: "the field lined up with the gap"}
+      - {at: 52, label: "the start", checks: "the gap on the grid"}
+
+  # An allowance of one lap against a slow AI field (level 70) that goes out
+  # with the player: the stand-in's lap is used and it is back in the garage
+  # while the AI still lap, so the garage shows LAP ALLOWANCE USED.
+  - id: r12-allowance-used
+    about: "R12. The lap allowance used: USED on the race state, GO OUT disabled"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Norisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=5
+      - -ApexAiSkill=70
+      - -ApexMode=6
+      - -ApexLapAllowance=1
+      - -ApexQualifyingMinutes=10
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexHotlapOutAfter=6
+    exec:
+      5: ["apexsim.hud.Data qualifying.", "apexsim.ui.Texts"]
+      120: ["apexsim.hud.Data qualifying."]
+      150: ["apexsim.hud.Data qualifying.", "apexsim.ui.Texts"]
+      170: ["apexsim.hud.Data qualifying.", "apexsim.ui.Texts"]
+    shots:
+      - {at: 5, label: "garage: 1 timed lap left", checks: "GO OUT's badge"}
+      - {at: 60, label: "outlap", checks: "laps left 1"}
+      - {at: 130, label: "the timed lap ending", checks: ""}
+      - {at: 140, label: "lap used", checks: "USED on the race state"}
+      - {at: 152, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+      - {at: 165, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+      - {at: 180, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+
   # The menu's demo backdrop from a cold start: a GPU hang (VSM non-Nanite
   # culling, CullPerPageDrawCommandsCs) came 5 s after Silverstone's track
   # was built behind the menu. Short runs, so a soak is many cold starts:

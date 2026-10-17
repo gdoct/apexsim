@@ -3,6 +3,9 @@
 #include "ApexProtocolCodec.h"
 #include "ApexSimNetModule.h"
 #include "ApexTcpConnection.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
 
 UApexNetSubsystem::UApexNetSubsystem() = default;
@@ -16,6 +19,22 @@ namespace
 	{
 		return FString::Printf(TEXT("%s_%d"), *Host, Port);
 	}
+}
+
+namespace
+{
+	FAutoConsoleCommandWithWorld DropCommand(
+		TEXT("apexsim.net.Drop"),
+		TEXT("Close the server connection as a lost network would (no Disconnect sent): the client reconnects and, ")
+		TEXT("in a session it was driving in, rejoins by itself"),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World)
+		{
+			UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+			if (UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr)
+			{
+				Net->DropConnection();
+			}
+		}));
 }
 
 // FApexTcpConnection is complete here (see the include above), which is what
@@ -226,6 +245,18 @@ void UApexNetSubsystem::Disconnect()
 	ResetDemoSession();
 	ResetSpectate();
 	SetConnectionState(EApexConnectionState::Disconnected, TEXT("Disconnected"));
+}
+
+void UApexNetSubsystem::DropConnection()
+{
+	if (!Connection)
+	{
+		return;
+	}
+	UE_LOG(LogApexSimNet, Log, TEXT("Dropping the connection (apexsim.net.Drop): no Disconnect sent"));
+	// Stop() closes the socket under the worker, which then reports the
+	// connection gone; Tick takes that as any lost connection.
+	Connection->Stop();
 }
 
 void UApexNetSubsystem::ListShowcases()

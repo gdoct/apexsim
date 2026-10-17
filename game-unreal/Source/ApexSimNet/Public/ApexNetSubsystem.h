@@ -215,6 +215,13 @@ public:
 	void Disconnect();
 
 	/**
+	 * Closes the socket as a dropped network would: no Disconnect is sent and
+	 * the client reconnects (and, driving, rejoins) by itself. For unattended
+	 * checks of the reconnect path (console `apexsim.net.Drop`).
+	 */
+	void DropConnection();
+
+	/**
 	 * Asks for a lobby snapshot. Debounced — calls inside the debounce window
 	 * are dropped rather than queued, because the server charges violations for
 	 * exceeding 10 control messages a second.

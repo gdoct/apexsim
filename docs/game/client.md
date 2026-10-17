@@ -551,7 +551,10 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
 - Race: `apexsim.recover [track|pits]` (the pause menu's BACK TO TRACK / PITS),
   `apexsim.finish [view|car N|panorama|end]` (the view after the flag, now).
 - Input and audio: `apexsim.input.Devices|Rescan`, `apexsim.ffb.Debug`, `apexsim.audio.RenderCars`.
-- Net: `apexsim.net.ParseCenterline` (parse the lobby's track centerlines; set from HUD detail).
+- Net: `apexsim.net.ParseCenterline` (parse the lobby's track centerlines; set from HUD detail),
+  `apexsim.net.Drop` (close the connection as a lost network would, no
+  `Disconnect` sent: the reconnect and, driving, the automatic rejoin,
+  unattended).
 - GPU: `apexsim.debug.BoundsWatch` (on outside Shipping; `UApexBoundsWatchSubsystem`)
   checks every rendered primitive's bounds after each frame's actor ticks
   and logs a NaN, infinite or out-of-world one (`Bounds watch: ...` at
