@@ -5090,7 +5090,7 @@ impl GameSession {
         let total = crate::laps::track_length_m(&self.track_config).max(1.0);
         let mut order: Vec<(&PlayerId, &CarState)> = self.session.participants.iter().collect();
         order.sort_by(|(_, a), (_, b)| {
-            let place = |s: &CarState| s.finish_position.map_or(u8::MAX, |p| p);
+            let place = |s: &CarState| s.finish_position.unwrap_or(u8::MAX);
             place(a).cmp(&place(b)).then_with(|| {
                 let run = |s: &CarState| s.current_lap as f32 * total + s.track_progress;
                 run(b).total_cmp(&run(a))
