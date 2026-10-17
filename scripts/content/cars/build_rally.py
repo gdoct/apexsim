@@ -315,8 +315,8 @@ if V["wing"] in ("boot", "roof"):
         for sx in (-1, 1):
             bx = WHW * 0.78
             bz = L.z_at(WY + 0.12, bx)
-            post = [(WY + 0.02, bz - 0.02), (WY + 0.24, bz - 0.02), (WY + 0.20, WZ - 0.02), (WY + 0.06, WZ - 0.02)]
-            carlib.plate(p, M.accent, post, sx * bx, 0.030, chamfer=0.008)
+            post = [(WY + 0.06, bz - 0.02), (WY + 0.20, bz - 0.02), (WY + 0.18, WZ - 0.02), (WY + 0.10, WZ - 0.02)]
+            carlib.plate(p, M.accent, post, sx * bx, 0.020, chamfer=0.006)
     else:
         # the 205's roof wing: the plane off the back of the roof, its
         # endplates dropping onto the hatch's flanks
@@ -393,7 +393,7 @@ if "deck" in V["vents"]:
     y0 = V["rear_glass_y"][1] + 0.16
     for k in range(7):
         yv = y0 + k * 0.088
-        zt = L.roof_z(yv) - 0.026
+        zt = L.roof_z(yv) - 0.040
         p.box(M.trim, (-0.36 * XS, yv, zt - 0.010), (0.36 * XS, yv + 0.040, zt + 0.012))
 if "bonnet" in V["vents"]:
     y0 = V["screen_y"][0] - 0.60

@@ -217,7 +217,7 @@ name = "nose"
 zone = "front"
 detach_pct = 55
 min_m = [1.605, -1.070, -0.055]   # forward, left, up
-max_m = [2.154, 1.070, 0.504]
+max_m = [2.154, 1.070, 0.509]
 
 # --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..5 on the wire.
