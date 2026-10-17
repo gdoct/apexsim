@@ -159,11 +159,14 @@ the launcher import with the network off.
   takes over a level opened with `-game`). If it shows they matter, the
   ways out are shipping baked levels or hardware ray-traced Lumen.
 
-- Puddles do not show: the fully low cell at Eau Rouge (1035 m, low 1.0)
-  and Spa's 0.71 cell look like the wet road round them in heavy and in
-  light rain, at road height and from above (2026-10-15). The water rows
-  reach the state texture's A; `ApplyRoadStateGraph`'s puddle term is too
-  weak against the wet road's own gloss, or not read.
+- Puddles cover most of a low cell's width: since 2026-10-17 a puddle is
+  drawn from the water over the cell's flat share and reads as standing
+  water (`out/verify/g1-puddles-*`), and at Eau Rouge (low 1.0) and the
+  0.71 cell at 6175 m it spans nearly the whole road in heavy and light
+  rain alike. That is the server's model: 1.5-3 m half-wide plus 3 m for a
+  full dip (`RoadState::bin_depth`) on a 12 m road. Judge the sheets; if
+  it is too much, narrow the half-widths in `road_state.rs` (a sim change:
+  AI survey).
 - The cloud dome at cloudy (0.5 cover) is an even field of small puffs,
   more altocumulus than scattered cumulus: the noise scales in
   `BuildCloudLayer` (90 m and 25 m) read small from the ground.

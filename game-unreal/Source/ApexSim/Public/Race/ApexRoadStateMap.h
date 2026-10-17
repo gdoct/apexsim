@@ -20,7 +20,9 @@
  *    `RoadState::lateral_of` in the server's frame.
  *
  * The snow rides a second map of the same size (`RoadSnow`): R the bin's
- * cover, G its ice, B the cell's verge cover, all 0 without snow.
+ * cover, G its ice, B the cell's verge cover, all 0 without snow; and A the
+ * bin's puddle, its water over the cell's shallowest bin (the flat share)
+ * in the wire's depth byte, 0 where the slice says no puddle stands.
  *
  * A cell no slice has reached yet holds the neutral state (rubber at the
  * calibrated half, dry, no marbles), so it draws as built whatever bin a
@@ -58,6 +60,8 @@ public:
 	const TArray<FColor>& GetState() const { return State; }
 	/** The snow, laid out as the state: a texel per bin per cell (see the class note). */
 	const TArray<FColor>& GetSnow() const { return Snow; }
+	/** The puddle at a station and world position: the snow texel's A (see the class note); -1 as WaterAt. */
+	float PuddleAt(float StationM, const FVector2D& WorldCm) const;
 	/** Whether any cell holds snow or ice (or the last slice said so). */
 	bool HasSnow() const { return SnowyCells > 0; }
 	/** The geometry, a texel per cell, Unreal frame (see the class note). */

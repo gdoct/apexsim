@@ -1656,8 +1656,9 @@ return o;
 	 * What it draws: rubber darkens the asphalt and makes it a little
 	 * glossier (0.5 is the calibrated look, unchanged); marbles show as dark
 	 * crumbs where they lie; water darkens and glosses the bins the wheels
-	 * have not wiped, so a dry line appears between wet edges; standing
-	 * water over the rain's depth goes mirror-smooth and flat.
+	 * have not wiped, so a dry line appears between wet edges; a puddle (a
+	 * bin's water over its cell's flat share, `RoadSnow`'s A, or water over
+	 * heavy rain's depth) goes darker, mirror-smooth and flat.
 	 *
 	 * `RoadStateOffRoad` 1 is a surface beside the road that shares its
 	 * cells (curbs, paved run-off: their `u` is the lap's station too): it
@@ -1738,23 +1739,32 @@ return o;
 		// Water the wheels have not wiped: the road's own wet threshold (0.5
 		// of heavy rain is fully wet, `road_state::step`), less what is dry.
 		UMaterialExpression* Wet = G.Mul(G.Sat(G.Mul(Depth, G.C(2.0f))), G.Sub(G.C(1.0f), Dry));
-		// Standing water deeper than the rain leaves.
-		UMaterialExpression* Puddle = G.Sat(G.Mul(G.Sub(Depth, G.C(1.0f)), G.C(2.0f)));
+		// Standing water: the bin's water over its cell's flat share (the
+		// snow map's A, FApexRoadStateMap), so a dip holds a puddle in light
+		// rain too: a tenth of heavy rain's depth over the flat is a full
+		// one. And anything deeper than heavy rain leaves on the flat.
+		UMaterialExpression* SnowState = Sample(TEXT("RoadSnow"), G.Append(U, V));
+		UMaterialExpression* Excess = G.Mul(Channel(SnowState, 4), G.C(2.55f));
+		UMaterialExpression* Puddle = G.Max(
+			G.Sat(G.Mul(G.Sub(Excess, G.C(0.02f)), G.C(10.0f))),
+			G.Sat(G.Mul(G.Sub(Depth, G.C(1.0f)), G.C(2.0f))));
 		// Marbles as crumbs: 10 cm grain, shown where there are marbles.
 		UMaterialExpression* Grain = G.Noise(WorldPos, 0.1f, 1);
 		UMaterialExpression* Crumbs = G.Sat(G.Mul(G.Sub(Grain, G.Sub(G.C(1.0f), Marbles)), G.C(6.0f)));
 
 		UMaterialExpression* RubberOver = G.Sub(Rubber, G.C(0.5f));
+		// A puddle darkens the asphalt under it well past the wet road's
+		// shade: the water takes the light the surface would scatter.
 		UMaterialExpression* Shade = G.Mul(
 			G.Mul(G.Sub(G.C(1.0f), G.Mul(RubberOver, G.C(0.35f))), G.Lerp(G.C(1.0f), G.C(0.55f), Crumbs)),
-			G.Sub(G.C(1.0f), G.Mul(Wet, G.C(0.3f))));
+			G.Mul(G.Sub(G.C(1.0f), G.Mul(Wet, G.C(0.3f))), G.Lerp(G.C(1.0f), G.C(0.55f), Puddle)));
 		UMaterialExpression* Albedo = G.Mul(InOutAlbedo, Shade);
 
 		UMaterialExpression* Rough = G.Sub(InOutRoughness, G.Mul(RubberOver, G.C(0.15f)));
 		Rough = G.Add(Rough, G.Mul(Crumbs, G.C(0.1f)));
 		// Wet is ApexSky::WetRoadRoughness (0.3); a puddle is a mirror.
 		Rough = G.Lerp(Rough, G.C(0.3f), Wet);
-		Rough = G.Lerp(Rough, G.C(0.05f), Puddle);
+		Rough = G.Lerp(Rough, G.C(0.02f), Puddle);
 
 		InOutAlbedo = G.Lerp(InOutAlbedo, Albedo, Amount);
 		InOutRoughness = G.Lerp(InOutRoughness, Rough, Amount);
@@ -1769,7 +1779,6 @@ return o;
 		// bins as `RoadState`). A bin is white from 0.9 cover and bare under
 		// 0.6, so a line the field has packed (about 0.65 to 0.75) is a dark
 		// slush between white edges, and ice is a dark mirror.
-		UMaterialExpression* SnowState = Sample(TEXT("RoadSnow"), G.Append(U, V));
 		UMaterialExpression* Cover = Channel(SnowState, 1);
 		UMaterialExpression* Ice = Channel(SnowState, 2);
 		UMaterialExpression* White = G.Mul(G.Sat(G.Mul(G.Sub(Cover, G.C(0.6f)), G.C(3.0f))), SnowAmount);

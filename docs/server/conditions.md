@@ -396,7 +396,9 @@ AI's tyre crossover ([ai.md](ai.md)).
 
 The server sends the road state as it is, and the client draws it on the
 road: a darker, glossier rubbered line, marbles as dark crumbs beside it, a
-dry line between wet edges, mirror-flat puddles, and the debris lying on it.
+dry line between wet edges, puddles (darker, mirror-flat, in light rain as in
+heavy: a tenth of heavy rain's depth over the cell's flat share is a full
+one), and the debris lying on it.
 
 **On the wire.** `RoadState` (TCP, named, droppable) carries a slice of
 whole cells from `FirstCell`, wrapping the lap. Each cell is `ROW_BYTES`:
@@ -433,6 +435,10 @@ uploads the map into two transient textures:
 
 - `RoadState`: a column a cell, a row a bin; R rubber, G marbles, B dry, A
   the depth byte. Bilinear, wrapping round the lap.
+- `RoadSnow`: laid out as `RoadState`; R, G and B the snow (below), A the
+  bin's puddle: its water over its cell's shallowest bin, the flat share
+  (`WaterRows`; 0 where none stands). Bound whenever the road state is
+  drawn, snow or not.
 - `RoadGeometry`: a texel a cell, the cell's point in world cm and its left
   vector in Unreal axes (the server's Y flipped). Nearest, so a pixel uses
   its own cell's point, as the server does.

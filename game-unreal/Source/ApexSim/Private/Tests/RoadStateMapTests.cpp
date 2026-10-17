@@ -58,9 +58,15 @@ bool FApexRoadStateMapPuddleTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("the flat beside it"), (int32)Map.StateAt(4, 10).A, 40);
 	TestEqual(TEXT("cell 5 dry"), (int32)Map.StateAt(5, 22).A, 0);
 	TestEqual(TEXT("the rest of the texel as before"), (int32)Map.StateAt(4, 22).R, 22 * 8);
+	// The puddle over the cell's flat share, in the snow map's A: what the
+	// material draws a puddle from, whatever the rain.
+	TestEqual(TEXT("the puddle stands 120 over the flat"), (int32)Map.GetSnow()[22 * Map.NumCells() + 4].A, 120);
+	TestEqual(TEXT("none on the flat"), (int32)Map.GetSnow()[10 * Map.NumCells() + 4].A, 0);
+	TestEqual(TEXT("none in a dry cell"), (int32)Map.GetSnow()[22 * Map.NumCells() + 5].A, 0);
 	TestTrue(TEXT("a slice without water rows applies"), Map.Apply(Slice(4, 2)));
 	TestEqual(TEXT("the cell's depth across"), (int32)Map.StateAt(4, 10).A, 40);
 	TestEqual(TEXT("and in the puddle's place"), (int32)Map.StateAt(4, 22).A, 40);
+	TestEqual(TEXT("no puddle once the slice says none"), (int32)Map.GetSnow()[22 * Map.NumCells() + 4].A, 0);
 	return true;
 }
 
@@ -90,14 +96,14 @@ bool FApexRoadStateMapSnowTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("cover in R"), (int32)Cover.R, 200);
 	TestEqual(TEXT("ice in G"), (int32)Cover.G, 90);
 	TestEqual(TEXT("the verge in B"), (int32)Cover.B, 255);
-	TestEqual(TEXT("opaque"), (int32)Cover.A, 255);
-	TestEqual(TEXT("cell 3 is bare"), Map.GetSnow()[5 * Map.NumCells() + 3], FColor(0, 0, 0, 255));
+	TestEqual(TEXT("no puddle in A"), (int32)Cover.A, 0);
+	TestEqual(TEXT("cell 3 is bare"), Map.GetSnow()[5 * Map.NumCells() + 3], FColor(0, 0, 0, 0));
 
 	// The server leaves the field off once the road is bare: the same cells
 	// without snow rows clear it.
 	TestTrue(TEXT("the slice without snow applies"), Map.Apply(Slice(2, 2)));
 	TestFalse(TEXT("the snow is gone"), Map.HasSnow());
-	TestEqual(TEXT("cell 2 is bare again"), Map.GetSnow()[5 * Map.NumCells() + 2], FColor(0, 0, 0, 255));
+	TestEqual(TEXT("cell 2 is bare again"), Map.GetSnow()[5 * Map.NumCells() + 2], FColor(0, 0, 0, 0));
 	return true;
 }
 

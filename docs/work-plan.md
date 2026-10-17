@@ -33,7 +33,6 @@ When an item is done, delete it from its backlog and from here.
 | V1 | Verify the newest session screens (R9, R11, R12) | Verification | P1 | 🟡 | S |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
 | B4 | Imported pit lanes: human not taken over at Spa / RBR | Bug | P2 | 🟡 | M |
-| G1 | Puddles do not show | Rendering | P2 | 🟡 | S |
 | G3 | Nordschleife horizon shows open sea | Rendering | P2 | 🟡 | M |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
 | D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🔴 | M |
@@ -87,7 +86,7 @@ When an item is done, delete it from its backlog and from here.
 2. **Race-breaking AI** — A1 (imported AC cars). Judged by the AI survey.
 3. **Race control** — N4 (formation lap, jump starts), R2 (penalties), R1b (safety car) on the race-control module the flags built.
 4. **Sim-racer essentials** — N1 (client prediction: largest online win, largest job).
-5. **Visual quality pass** — G1, G3, G4 in one branch of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
+5. **Visual quality pass** — G3, G4 in one branch of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
 6. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
 7. **Online and depth** — N9 (chat), N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
 8. Everything P3 opportunistically, bundled with whatever touches the same files.
@@ -264,13 +263,6 @@ Replanned only at lap end, in still air, on one grip share for the lap.
 Fold wind/wake and per-stretch grip in when the wet line (A4) exists.
 
 ### Rendering and visuals
-
-#### G1. Puddles do not show — P2 · 🟡 · S
-*Source: follow-ups #12.* The water rows reach the state texture's A, but
-`ApplyRoadStateGraph`'s puddle term loses against the wet road's gloss.
-Raise the puddle term (darker albedo, flatter normal, mirror roughness) and
-verify on Eau Rouge's 1035 m cell in heavy and light rain. Outcome: rain
-looks wet in the right places.
 
 #### G3. Nordschleife horizon shows open sea — P2 · 🟡 · M
 *Source: follow-ups #6.* Past the terrain edge the view runs to a flat blue

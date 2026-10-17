@@ -154,12 +154,10 @@ void AApexRaceDirector::PushRoadStateParameters()
 		// Off the road the snow is the lap's figure (ApplySnowCover).
 		const bool bOwnSnow = bSnowLive && !OffRoadStateMids.Contains(Mid);
 		Mid->SetScalarParameterValue(SnowAmountParam, bOwnSnow ? 1.0f : 0.0f);
-		if (bOwnSnow)
-		{
-			Mid->SetTextureParameterValue(SnowParam, RoadSnowTexture);
-		}
 		if (bLive)
 		{
+			// Bound with or without snow: its A holds the puddles.
+			Mid->SetTextureParameterValue(SnowParam, RoadSnowTexture);
 			Mid->SetTextureParameterValue(StateParam, RoadStateTexture);
 			Mid->SetTextureParameterValue(GeometryParam, RoadGeometryTexture);
 			Mid->SetScalarParameterValue(UParam, RoadMap.UPerMetre());

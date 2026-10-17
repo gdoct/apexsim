@@ -21,7 +21,7 @@ bool FApexRoadStateMap::Apply(const FApexRoadState& Slice)
 		CellM = Slice.CellM;
 		HalfSpanM = Slice.HalfSpanM;
 		State.Init(NeutralTexel(), Cells * Bins);
-		Snow.Init(FColor(0, 0, 0, 255), Cells * Bins);
+		Snow.Init(FColor(0, 0, 0, 0), Cells * Bins);
 		Snowy.Init(false, Cells);
 		SnowyCells = 0;
 		Geometry.Init(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f), Cells);
@@ -41,6 +41,17 @@ bool FApexRoadStateMap::Apply(const FApexRoadState& Slice)
 		const uint8* Row = Slice.Rows.GetData() + k * RowBytes;
 		const uint8 Depth = Row[0];
 		const uint8* Water = bWaterRows ? Slice.WaterRows.GetData() + k * Slice.Bins : nullptr;
+		// The cell's flat share: its shallowest bin. A puddle is what stands
+		// over it, in rain of any strength (the depth itself only passes
+		// heavy rain's in a dip under heavy rain).
+		uint8 FlatShare = Depth;
+		if (Water)
+		{
+			for (int32 Bin = 0; Bin < Bins; ++Bin)
+			{
+				FlatShare = FMath::Min(FlatShare, Water[Bin]);
+			}
+		}
 		for (int32 Bin = 0; Bin < Bins; ++Bin)
 		{
 			const uint8* B = Row + 1 + 3 * Bin;
@@ -53,11 +64,12 @@ bool FApexRoadStateMap::Apply(const FApexRoadState& Slice)
 		const bool bSliceSnow = Slice.HasSnow() && Slice.SnowRows.Num() >= (k + 1) * SnowRowBytes;
 		for (int32 Bin = 0; Bin < Bins; ++Bin)
 		{
-			FColor Texel(0, 0, 0, 255);
+			const uint8 Puddle = Water ? static_cast<uint8>(Water[Bin] - FlatShare) : 0;
+			FColor Texel(0, 0, 0, Puddle);
 			if (bSliceSnow)
 			{
 				const uint8* S = Slice.SnowRows.GetData() + k * SnowRowBytes;
-				Texel = FColor(S[1 + 2 * Bin], S[2 + 2 * Bin], S[0], 255);
+				Texel = FColor(S[1 + 2 * Bin], S[2 + 2 * Bin], S[0], Puddle);
 				bCellSnowy |= Texel.R > 0 || Texel.G > 0 || Texel.B > 0;
 			}
 			Snow[Bin * Cells + Cell] = Texel;
@@ -118,6 +130,21 @@ float FApexRoadStateMap::WaterAt(float StationM, const FVector2D& WorldCm) const
 	}
 	const int32 Bin = FMath::Clamp(FMath::FloorToInt(TexV(StationM, WorldCm) * Bins), 0, Bins - 1);
 	return static_cast<float>(StateAt(Cell, Bin).A);
+}
+
+float FApexRoadStateMap::PuddleAt(float StationM, const FVector2D& WorldCm) const
+{
+	if (!IsValid())
+	{
+		return -1.0f;
+	}
+	const int32 Cell = FMath::Clamp(FMath::FloorToInt(TexU(StationM) * Cells), 0, Cells - 1);
+	if (!Known.IsValidIndex(Cell) || !Known[Cell])
+	{
+		return -1.0f;
+	}
+	const int32 Bin = FMath::Clamp(FMath::FloorToInt(TexV(StationM, WorldCm) * Bins), 0, Bins - 1);
+	return static_cast<float>(Snow[Bin * Cells + Cell].A);
 }
 
 float FApexRoadStateMap::TexU(float StationM) const
