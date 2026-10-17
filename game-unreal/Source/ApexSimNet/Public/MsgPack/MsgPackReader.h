@@ -59,6 +59,11 @@ public:
 	const FString& GetError() const { return Error; }
 	int32 Tell() const { return Pos; }
 	int32 Remaining() const { return Data.Num() - Pos; }
+	/** The bytes read since `Start` (a Tell() taken earlier): a value kept as the server wrote it. */
+	TArrayView<const uint8> Since(int32 Start) const
+	{
+		return Start >= 0 && Start <= Pos ? Data.Slice(Start, Pos - Start) : TArrayView<const uint8>();
+	}
 
 private:
 	static constexpr int32 MaxSkipDepth = 32;

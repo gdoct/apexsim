@@ -3141,6 +3141,22 @@ struct FApexWheelFeedback
 };
 
 /**
+ * `SessionPhysics` (network.rs, `SessionJoined.Physics`): what the client's
+ * copy of the car step needs from the server to step the own car as the
+ * session does (docs/proposals/client-prediction.md). Sent to a driver;
+ * absent (not bValid) for a spectator, a demo, and from a server that
+ * predates it, which leaves prediction off.
+ */
+struct FApexSessionPhysics
+{
+	bool bValid = false;
+	/** The session's tick rate, Hz: the step's dt is its inverse. */
+	int32 TickRateHz = 0;
+	/** 0 the centerline, 1 the road mesh (apx_track_load's road_contact). */
+	int32 RoadContact = 0;
+};
+
+/**
  * `OwnCarSnapshot` (server/src/own_car.rs): the driver's own car at a tick,
  * with the newest input sequence the server had applied by then. Sent in
  * `DriverFeedback` to a client that numbers its inputs
@@ -3582,6 +3598,14 @@ struct APEXSIMNET_API FApexServerMessage
 	EApexQualifyingFormat QualifyingFormat = EApexQualifyingFormat::Open;
 	/** SessionJoined::QualifyingLapAllowance (ApexQualifyingLapAllowance); 0 for none. */
 	int32 QualifyingLapAllowance = 0;
+	/** SessionJoined::Physics: a driver's session's tick rate and road; not bValid when absent. */
+	FApexSessionPhysics Physics;
+	/**
+	 * SessionJoined::Conditions as the server wrote them (MessagePack, named):
+	 * what the physics library's apx_track_load bakes, every field kept,
+	 * including those FApexSessionConditions does not hold.
+	 */
+	TArray<uint8> ConditionsBytes;
 	/** WeekendState. */
 	FApexWeekendState WeekendState;
 	/** ShootoutState. */

@@ -558,6 +558,29 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 	}
 
 	{
+		// A driver's join names the session's tick rate and road for the
+		// prediction, and the sky comes with its bytes as the server wrote
+		// them; a join without Physics (above) leaves it not valid.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined with physics"), ApexGolden::S_SessionJoinedPhysics, Message))
+		{
+			TestEqual(TEXT("Physics.GridPosition"), Message.GridPosition, 2);
+			TestTrue(TEXT("Physics.bValid"), Message.Physics.bValid);
+			TestEqual(TEXT("Physics.TickRateHz"), Message.Physics.TickRateHz, 420);
+			TestEqual(TEXT("Physics.RoadContact"), Message.Physics.RoadContact, 1);
+			// {weather: 0, time_of_day_minutes: 780}, named: 33 bytes.
+			TestEqual(TEXT("ConditionsBytes size"), Message.ConditionsBytes.Num(), 33);
+			TestTrue(TEXT("ConditionsBytes is the map"), Message.ConditionsBytes.Num() > 0 && Message.ConditionsBytes[0] == 0x82);
+			TestTrue(TEXT("ConditionsBytes ends at 13:00"), Message.ConditionsBytes.Num() == 33 && Message.ConditionsBytes.Last() == 0x0C);
+		}
+		FApexServerMessage Older;
+		if (Decode(TEXT("SessionJoined without physics"), ApexGolden::S_SessionJoinedAssists, Older))
+		{
+			TestFalse(TEXT("No Physics from an older server"), Older.Physics.bValid);
+		}
+	}
+
+	{
 		// The session's damage rule is named only when it is not full.
 		FApexServerMessage Message;
 		if (Decode(TEXT("SessionJoined without damage"), ApexGolden::S_SessionJoinedNoDamage, Message))

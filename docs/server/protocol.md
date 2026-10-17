@@ -200,6 +200,18 @@ server had not applied yet. The wire for it (`server/src/own_car.rs`):
   and goes out a slice a message; every slice names the blob's tick and
   input. The client keeps the slices of one blob in order and drops it when
   one is lost (`FApexOwnCarStateAssembler`).
+- **`SessionJoined.Physics`** (named, last, left off when `None`):
+  `SessionPhysics { tick_rate_hz, road_contact }` (keys snake_case), what
+  the client's copy of the car step needs that only the server knows: the
+  session's tick rate (the step's `dt`) and the road its wheels stand on (0
+  the centerline, 1 the road mesh: `GameSession::session_physics`, the mesh
+  only when the session's track has one loaded). Sent to a driver (a
+  create, a join, a rejoin); a spectator's and a demo's join leave it off,
+  and without it the client does not predict. The client also keeps
+  `SessionJoined.Conditions` as the bytes the server wrote
+  (`FApexServerMessage::ConditionsBytes`), which is what the library bakes.
+  Golden: `session_joined_physics_wire_format` into
+  `ApexGolden::S_SessionJoinedPhysics`.
 
 Sizes at the default rates (`network.rs`
 `own_car_feedback_fits_one_small_datagram`, every number at its widest):

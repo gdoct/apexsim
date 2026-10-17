@@ -533,6 +533,25 @@ pub struct SessionJoinedData {
     /// a server that predates the field).
     #[serde(default, skip_serializing_if = "RaceRules::is_default")]
     pub race_rules: RaceRules,
+    /// What a predicting client steps its own car with
+    /// (docs/proposals/client-prediction.md): the session's tick rate and
+    /// the road its cars drive on. Sent to a driver, not to a spectator or
+    /// a demo's watcher; absent from a server that predates the field, and
+    /// then the client does not predict.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub physics: Option<SessionPhysics>,
+}
+
+/// The session's physics as the client's copy of the car step needs them
+/// (`SessionJoined.Physics`; its keys stay snake_case).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionPhysics {
+    /// The session's tick rate, Hz: the step's `dt` is its inverse.
+    pub tick_rate_hz: u16,
+    /// The road the wheels stand on: 0 the centerline, 1 the road mesh (the
+    /// physics library's `apx_track_load` `road_contact`). The mesh only
+    /// when the server drives on it and the track has one baked.
+    pub road_contact: u8,
 }
 
 /// Where a race weekend stands (`crate::weekend`). Sent to every member of
@@ -4376,6 +4395,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            physics: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAssists: {}", hex(&joined_bytes));
@@ -4383,6 +4403,77 @@ mod tests {
         assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION);
         assert_eq!(aids_bytes, GOLDEN_C_SET_DRIVER_AIDS);
         assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_ASSISTS);
+    }
+
+    /// A driver's `SessionJoined` names the session's tick rate and road
+    /// (`Physics`, last); without it, the bytes above.
+    /// `ApexGolden::S_SessionJoinedPhysics` (ProtocolCodecTests.cpp).
+    #[test]
+    fn session_joined_physics_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        const GOLDEN: &[u8] = &[
+            0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E,
+            0x4A, 0x6F, 0x69, 0x6E, 0x65, 0x64, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x86, 0xA9, 0x53,
+            0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x31, 0x32, 0x33,
+            0x34, 0x35, 0x36, 0x37, 0x2D, 0x38, 0x39, 0x61, 0x62, 0x2D, 0x63, 0x64, 0x65, 0x66,
+            0x2D, 0x30, 0x31, 0x32, 0x33, 0x2D, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62,
+            0x63, 0x64, 0x65, 0x66, 0xB0, 0x59, 0x6F, 0x75, 0x72, 0x47, 0x72, 0x69, 0x64, 0x50,
+            0x6F, 0x73, 0x69, 0x74, 0x69, 0x6F, 0x6E, 0x02, 0xAB, 0x53, 0x65, 0x73, 0x73, 0x69,
+            0x6F, 0x6E, 0x4B, 0x69, 0x6E, 0x64, 0x01, 0xAE, 0x41, 0x6C, 0x6C, 0x6F, 0x77, 0x65,
+            0x64, 0x41, 0x73, 0x73, 0x69, 0x73, 0x74, 0x73, 0x85, 0xA3, 0x61, 0x62, 0x73, 0xC3,
+            0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E, 0x74,
+            0x72, 0x6F, 0x6C, 0xC3, 0xAC, 0x61, 0x75, 0x74, 0x6F, 0x5F, 0x67, 0x65, 0x61, 0x72,
+            0x62, 0x6F, 0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65, 0x72, 0x69, 0x6E, 0x67, 0x5F,
+            0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC3, 0xAB, 0x72, 0x61, 0x63, 0x69, 0x6E, 0x67,
+            0x5F, 0x6C, 0x69, 0x6E, 0x65, 0xC3, 0xAA, 0x43, 0x6F, 0x6E, 0x64, 0x69, 0x74, 0x69,
+            0x6F, 0x6E, 0x73, 0x82, 0xA7, 0x77, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3,
+            0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F, 0x66, 0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69,
+            0x6E, 0x75, 0x74, 0x65, 0x73, 0xCD, 0x03, 0x0C, 0xA7, 0x50, 0x68, 0x79, 0x73, 0x69,
+            0x63, 0x73, 0x82, 0xAC, 0x74, 0x69, 0x63, 0x6B, 0x5F, 0x72, 0x61, 0x74, 0x65, 0x5F,
+            0x68, 0x7A, 0xCD, 0x01, 0xA4, 0xAC, 0x72, 0x6F, 0x61, 0x64, 0x5F, 0x63, 0x6F, 0x6E,
+            0x74, 0x61, 0x63, 0x74, 0x01,
+        ];
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 2,
+            session_kind: SessionKind::Practice,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: Default::default(),
+            ai_skill: None,
+            race_seconds: None,
+            qualifying_seconds: None,
+            weekend: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+            physics: Some(SessionPhysics {
+                tick_rate_hz: 420,
+                road_contact: 1,
+            }),
+        });
+        let bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedPhysics: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => assert_eq!(
+                data.physics,
+                Some(SessionPhysics {
+                    tick_rate_hz: 420,
+                    road_contact: 1
+                })
+            ),
+            _ => panic!("Wrong message type"),
+        }
+        assert_eq!(bytes, GOLDEN);
     }
 
     /// A listed session names its damage rule, and Full stays off the wire.
@@ -4480,6 +4571,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            physics: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedNoDamage: {}", hex(&joined_bytes));
@@ -4615,6 +4707,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            physics: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingCutoff: {}", hex(&joined_bytes));
@@ -4710,6 +4803,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Shootout,
             qualifying_lap_allowance: 3,
             race_rules: Default::default(),
+            physics: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedShootout: {}", hex(&joined_bytes));
@@ -4873,6 +4967,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            physics: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedPitRule: {}", hex(&joined_bytes));
@@ -4993,6 +5088,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: rules,
+            physics: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedRaceRules: {}", hex(&joined_bytes));
@@ -5356,6 +5452,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            physics: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedRaceTime: {}", hex(&joined_bytes));
@@ -5481,6 +5578,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            physics: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingTime: {}", hex(&joined_bytes));
@@ -5623,6 +5721,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            physics: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedWeekend: {}", hex(&joined_bytes));
@@ -5828,6 +5927,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            physics: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAiSkill: {}", hex(&joined_bytes));
@@ -5957,6 +6057,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            physics: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAir: {}", hex(&joined_bytes));
@@ -6040,6 +6141,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            physics: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedSky: {}", hex(&joined_bytes));
@@ -6093,6 +6195,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            physics: None,
         });
         let sun_bytes = rmp_serde::to_vec_named(&sun_joined).unwrap();
         println!("S_SessionJoinedSun: {}", hex(&sun_bytes));
@@ -6145,6 +6248,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            physics: None,
         });
         let forecast_joined_bytes = rmp_serde::to_vec_named(&forecast_joined).unwrap();
         println!("S_SessionJoinedForecast: {}", hex(&forecast_joined_bytes));

@@ -670,6 +670,7 @@ async fn handle_create_session(
         let qualifying_format = game_session.session.qualifying_format;
         let qualifying_lap_allowance = game_session.session.qualifying_lap_allowance;
         let race_rules = game_session.session.race_rules;
+        let physics = game_session.session_physics();
         let phase_states = game_session.phase_state_messages();
         drop(state_write);
         let _ = ctx
@@ -692,6 +693,7 @@ async fn handle_create_session(
                     qualifying_format,
                     qualifying_lap_allowance,
                     race_rules,
+                    physics: Some(physics),
                 }),
             )
             .await;
@@ -872,6 +874,7 @@ async fn start_demo_session(
                 qualifying_format: QualifyingFormat::Open,
                 qualifying_lap_allowance: 0,
                 race_rules: Default::default(),
+                physics: None,
             }),
         )
         .await;
@@ -992,6 +995,7 @@ pub(crate) async fn handle_join_session(
         let qualifying_format = game_session.session.qualifying_format;
         let qualifying_lap_allowance = game_session.session.qualifying_lap_allowance;
         let race_rules = game_session.session.race_rules;
+        let physics = game_session.session_physics();
         let phase_states = game_session.phase_state_messages();
         drop(state_write);
         let _ = ctx
@@ -1014,6 +1018,7 @@ pub(crate) async fn handle_join_session(
                     qualifying_format,
                     qualifying_lap_allowance,
                     race_rules,
+                    physics: Some(physics),
                 }),
             )
             .await;
@@ -1083,6 +1088,7 @@ async fn rejoin_session(
         qualifying_format: game_session.session.qualifying_format,
         qualifying_lap_allowance: game_session.session.qualifying_lap_allowance,
         race_rules: game_session.session.race_rules,
+        physics: Some(game_session.session_physics()),
     });
     let mut messages = vec![joined];
     messages.extend(game_session.phase_state_messages());
@@ -1433,6 +1439,7 @@ pub(crate) async fn handle_join_as_spectator(
                     qualifying_format,
                     qualifying_lap_allowance,
                     race_rules,
+                    physics: None,
                 }),
             )
             .await;

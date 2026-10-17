@@ -880,6 +880,7 @@ void UApexNetSubsystem::RequestGhost()
 void UApexNetSubsystem::SetCarSetup(const FApexCarSetup& Setup)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetCarSetup %d knob(s) off stock"), Setup.CountChanged());
+	LastSentSetup = Setup;
 	SendPayload(ApexProtocol::EncodeSetCarSetup(Setup));
 }
 
@@ -1383,6 +1384,12 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			CurrentQualifyingFormat = Message.QualifyingFormat;
 			CurrentQualifyingLapAllowance = Message.QualifyingLapAllowance;
 			CurrentWeekend = Message.Weekend;
+			CurrentPhysics = Message.Physics;
+			CurrentConditionsBytes = Message.ConditionsBytes;
+			CurrentGridPosition = Message.GridPosition;
+			// The own car of the session left is not this one's.
+			LatestOwnCar = FApexOwnCarSnapshot();
+			OwnCarState.Reset();
 			// The session's WeekendState (and a running shoot-out's state)
 			// follows its SessionJoined.
 			CurrentWeekendState = FApexWeekendState();
@@ -1436,6 +1443,9 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentWeekend = FApexWeekendFormat();
 		CurrentWeekendState = FApexWeekendState();
 		CurrentShootoutState = FApexShootoutState();
+		CurrentPhysics = FApexSessionPhysics();
+		CurrentConditionsBytes.Reset();
+		CurrentGridPosition = 0;
 		CachedRoster = FApexSessionRoster();
 		ClearRacingLine();
 		ClearLapTiming();

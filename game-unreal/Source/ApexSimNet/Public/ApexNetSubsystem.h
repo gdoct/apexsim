@@ -856,6 +856,22 @@ public:
 	/** The number of the input sent last (`PlayerInput.seq`); 0 before the first or without UDP. */
 	uint32 GetLastInputSeq() const;
 
+	/**
+	 * The session's tick rate and road (`SessionJoined.Physics`), for a
+	 * driver; not bValid outside a session, for a spectator, in a demo, and
+	 * from a server that predates the field.
+	 */
+	const FApexSessionPhysics& GetSessionPhysics() const { return CurrentPhysics; }
+
+	/** `SessionJoined.Conditions` as the server wrote them, for the physics library's bake; empty outside a session. */
+	const TArray<uint8>& GetSessionConditionsBytes() const { return CurrentConditionsBytes; }
+
+	/** The grid position SessionJoined gave the local car (1-based); 0 outside a session and for a spectator. */
+	int32 GetSessionGridPosition() const { return CurrentGridPosition; }
+
+	/** The setup last sent with SetCarSetup (stock until one is): what the server simulates our car with. */
+	const FApexCarSetup& GetLastSentCarSetup() const { return LastSentSetup; }
+
 	/** The car index assigned to this player, or -1 if the roster has no entry yet. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	int32 GetLocalCarIndex() const;
@@ -1007,6 +1023,10 @@ private:
 	FApexShootoutState CurrentShootoutState;
 	FApexWeekendFormat CurrentWeekend;
 	FApexWeekendState CurrentWeekendState;
+	FApexSessionPhysics CurrentPhysics;
+	TArray<uint8> CurrentConditionsBytes;
+	int32 CurrentGridPosition = 0;
+	FApexCarSetup LastSentSetup;
 
 	// --- Demo session -----------------------------------------------------------
 

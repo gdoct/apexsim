@@ -701,6 +701,36 @@ namespace
 		return true;
 	}
 
+	/** `SessionPhysics` (network.rs): snake_case keys under the PascalCase `Physics`. */
+	bool ParseSessionPhysics(FMsgPackReader& Reader, FApexSessionPhysics& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		Out = FApexSessionPhysics();
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("tick_rate_hz"))      { bOk = Reader.ReadUInt64(Raw); Out.TickRateHz = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16)); }
+			else if (Key == TEXT("road_contact")) { bOk = Reader.ReadUInt64(Raw); Out.RoadContact = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint8)); }
+			else                                  { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		Out.bValid = Out.TickRateHz > 0;
+		return true;
+	}
+
 	bool ParseSessionJoined(FMsgPackReader& Reader, FApexServerMessage& Out)
 	{
 		int32 FieldCount = 0;
@@ -721,7 +751,15 @@ namespace
 			else if (Key == TEXT("YourGridPosition"))  { bOk = Reader.ReadUInt64(Raw); Out.GridPosition = static_cast<int32>(Raw); }
 			else if (Key == TEXT("SessionKind"))       { bOk = Reader.ReadUInt64(Raw); Out.SessionKind = static_cast<EApexSessionKind>(Raw); }
 			else if (Key == TEXT("AllowedAssists"))    { bOk = ParseAllowedAssists(Reader, Out.AllowedAssists); }
-			else if (Key == TEXT("Conditions"))        { bOk = ParseSessionConditions(Reader, Out.Conditions); }
+			else if (Key == TEXT("Conditions"))
+			{
+				// Kept as written too: the physics library bakes the server's
+				// own bytes, fields this struct does not hold included.
+				const int32 Start = Reader.Tell();
+				bOk = ParseSessionConditions(Reader, Out.Conditions);
+				Out.ConditionsBytes = TArray<uint8>(Reader.Since(Start));
+			}
+			else if (Key == TEXT("Physics"))           { bOk = ParseSessionPhysics(Reader, Out.Physics); }
 			else if (Key == TEXT("Damage"))            { bOk = Reader.ReadUInt64(Raw); Out.Damage = Raw <= 3 ? static_cast<EApexDamageLevel>(Raw) : EApexDamageLevel::Full; }
 			else if (Key == TEXT("AiSkill"))           { bOk = Reader.ReadUInt64(Raw); Out.AiSkill = ApexAiSkill::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
 			else if (Key == TEXT("RaceSeconds"))       { bOk = Reader.ReadUInt64(Raw); Out.RaceSeconds = ApexRaceLength::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32))); }

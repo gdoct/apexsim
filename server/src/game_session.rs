@@ -1127,6 +1127,15 @@ impl GameSession {
         self.tick_rate_hz
     }
 
+    /// What a driver's client steps its own car with (`SessionJoined.Physics`):
+    /// the tick rate, and the road mesh when this session's track drives on one.
+    pub fn session_physics(&self) -> SessionPhysics {
+        SessionPhysics {
+            tick_rate_hz: self.tick_rate_hz,
+            road_contact: u8::from(self.track_config.road_mesh.is_some()),
+        }
+    }
+
     /// Fixed physics timestep in seconds, derived from the tick rate.
     fn dt(&self) -> f32 {
         1.0 / self.tick_rate_hz as f32
