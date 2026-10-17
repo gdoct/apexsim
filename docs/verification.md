@@ -471,8 +471,11 @@ Mandarina Bay.
 - Two clients chatting in a session lobby and in a race: the lines both
   ways, the chat line opened with T and closed with Enter and Escape
   without losing pad steering on the viewport, the rate limit's 429 toast,
-  a mute from the dashboard. One client's lines were seen in the
-  `n9-chat` run.
+  a mute from the dashboard. Seen on 2026-10-17 (`n9-chat`, one client,
+  lines said with `apexsim.net.Chat`): the lobby's chat under the grid, the
+  HUD's chat panel and its T CHAT hint, the line opened with T over the
+  race and Escape closing it alone. Typing into it is left for a hand on
+  the keyboard (`apexsim.ui.Key` sends no characters).
 
 **Last, with the network off.**
 
