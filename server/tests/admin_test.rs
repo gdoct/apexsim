@@ -1114,12 +1114,35 @@ async fn switched_off_content_is_not_offered() {
 async fn a_scheduled_session_opens_ahead_and_starts_on_time() {
     let d = start_dashboard().await;
     let (track, car) = some_track_and_car(&d).await;
+    let spec =
+        serde_json::json!({ "name": "Nightly", "track_id": track, "car_id": car, "ai_count": 2 });
+    // Load the track first: on a slow runner its first load outlasted the
+    // entry's lead, and the session started the moment it opened.
+    let warm = post(&d, "/api/sessions", &spec).await;
+    assert_eq!(warm.status, 200, "{}", warm.body);
+    let warm_id = warm.json()["id"].as_str().unwrap().to_string();
+    let stopped = post(
+        &d,
+        &format!("/api/sessions/{warm_id}/stop"),
+        &serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(stopped.status, 200, "{}", stopped.body);
+    wait_for(
+        async || {
+            get(&d, "/api/sessions").await.json()["sessions"]
+                .as_array()
+                .is_some_and(|s| s.is_empty())
+        },
+        "the warm-up session to go",
+    )
+    .await;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
     let entry = serde_json::json!({
-        "spec": { "name": "Nightly", "track_id": track, "car_id": car, "ai_count": 2 },
+        "spec": spec,
         "start_at": now + 3, "open_minutes": 1, "repeat": "daily",
     });
     let saved = post(&d, "/api/schedule", &entry).await;
