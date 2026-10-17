@@ -259,6 +259,13 @@ public:
 	/** Start the clip's clock at `FromSeconds` (from its first frame). */
 	void PlayReplay(double FromSeconds);
 	bool IsReplayPlaying() const { return bReplayPlaying; }
+	/**
+	 * Hold the clip's clock where it is: the cars stand still at that moment
+	 * while the cameras and the world go on (`apexsim.replay.Hold`), so a
+	 * tread, a dent or a flat spot can be framed and grabbed unattended.
+	 */
+	void SetReplayHeld(bool bHeld) { bReplayHeld = bHeld; }
+	bool IsReplayHeld() const { return bReplayHeld; }
 	/** Seconds from the clip's first frame that the cars are showing. */
 	double GetReplayTime() const { return ReplayTime; }
 
@@ -851,6 +858,7 @@ private:
 	/** A clip from disk is playing (BeginReplayView); the net is ignored. */
 	bool bReplayView = false;
 	bool bReplayPlaying = false;
+	bool bReplayHeld = false;
 	double ReplayTime = 0.0;
 	TSharedPtr<const FApexReplayClip> ReplayClip;
 	ApexReplayCam::FSettings ReplayCamera;

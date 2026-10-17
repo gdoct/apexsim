@@ -127,13 +127,12 @@ the same `ApexProps` code.
   sees only the bridge, so the fit closes the crossover), and Shanghai's and
   Monza's surface models are checked against a bare-earth one (grandstands,
   the park's canopy); all three still drive their invented z.
-- Verification runs (`scripts/verify`): a tyre's tread (two flat spots,
-  pickup, blisters, a deflated sidewall) cannot be judged on a moving car,
-  and nothing freezes one unattended: `apexsim.recover` refuses a moving
-  car, and `-ApexReplay` has no pause. A pause at a replay time (or a
-  hold-still debug event) would make those checks a run. The stand-in, an
-  AI, also pits for any leak and at a 0.6 flat spot, wear 70 or damage 25
-  (`pit::plan_stop`), so the shot has to come within that lap.
+- Verification runs (`scripts/verify`): the tyre close-ups (two flat spots,
+  pickup, blisters, a deflated sidewall) can now be framed on a held
+  replay (`apexsim.replay.Seek` / `Hold`), but no recipe does it yet: it
+  needs a race's replay saved by one run and played by the next. The
+  stand-in, an AI, also pits for any leak and at a 0.6 flat spot, wear 70
+  or damage 25 (`pit::plan_stop`), so the moment has to come within that lap.
 - Imported pit lanes (`ac_import/pit.py`): the AI pits on all seven imports
   tried (Zandvoort, Silverstone, Spa, Barcelona, Red Bull Ring, Imola, Poznan:
   `PIT_CUSTOM=1 ... ai_pit_survey`), but the scripted human in

@@ -4752,13 +4752,14 @@ void AApexRaceDirector::UpdateReplay(float DeltaSeconds)
 		}
 		return;
 	}
-	if (bReplayPlaying)
+	const bool bRunning = bReplayPlaying && !bReplayHeld;
+	if (bRunning)
 	{
 		ReplayTime += DeltaSeconds;
 	}
 	FApexTelemetryFrame Frame;
 	ReplayClip->SampleAt(ReplayTime, Frame);
-	ApplyReplayFrame(Frame, bReplayPlaying ? DeltaSeconds : 0.0f);
+	ApplyReplayFrame(Frame, bRunning ? DeltaSeconds : 0.0f);
 	UpdateReplayWorld();
 
 	if (ReplayCamera.Follow == ApexReplayCam::EFollow::Nearest)

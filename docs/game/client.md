@@ -530,7 +530,12 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
 - HUD: `apexsim.hud.Reload|Data|Edit|EditStep` ([hud-modding.md](hud-modding.md)).
 - Hotlap: `apexsim.hotlap.Out|Garage|Replay|Stop|Tab|Board|Watch`.
 - The race's grid: `apexsim.grid.Ready|Livery|StartNow`.
-- Replays: `apexsim.replay.Save|List`. Guide: `apexsim.guide.*`.
+- Replays: `apexsim.replay.Save|List`; on a `-ApexReplay` clip
+  `apexsim.replay.Seek <s>` puts the clock at a second and
+  `apexsim.replay.Hold [on|off]` stops it there while the cameras go on
+  (a close-up of a tread or a dent, unattended through `-ApexExecAfter`);
+  watching (the backdrop, a client replay, a timeshift) `apexsim.watch
+  hold|play|seek <s>` does the same. Guide: `apexsim.guide.*`.
 - Display: `apexsim.view.Screens`, `apexsim.splash.MaxSeconds`.
 - Menus: `apexsim.ui.Texts|Click|Mouse|Key` (above), `apexsim.ui.PadWalk`.
 - Race: `apexsim.recover [track|pits]` (the pause menu's BACK TO TRACK / PITS),

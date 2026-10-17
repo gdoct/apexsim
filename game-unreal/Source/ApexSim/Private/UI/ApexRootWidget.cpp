@@ -94,6 +94,7 @@ namespace
 		TEXT("apexsim.watch"),
 		TEXT("Watch the race behind the menu, or steer the watch view: ")
 		TEXT("apexsim.watch [start|stop|next|prev|car <position>|camera|auto|tower|overlay|race|pause|back|forward|faster|slower] ")
+		TEXT("- a replay or a timeshift: apexsim.watch [hold|play|seek <seconds>] (hold pauses whatever it was doing) ")
 		TEXT("- a watched hotlap: apexsim.watch [hotlap|weather|earlier|later|circuit|prevcircuit] (next / prev step its car)"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
@@ -121,6 +122,30 @@ namespace
 			if (Verb == TEXT("hotlap"))
 			{
 				Root->StartHotlapWatch();
+				return;
+			}
+			// Unattended checks freeze a replay at a known second (a tyre's tread,
+			// a dent) with these, rather than toggling the pause.
+			if (Verb == TEXT("hold") || Verb == TEXT("play") || Verb == TEXT("seek"))
+			{
+				UApexSpectatorSubsystem* Spectator = World && World->GetGameInstance()
+					? World->GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>() : nullptr;
+				if (!Spectator || !Spectator->IsPlaying())
+				{
+					UE_LOG(LogApexSim, Warning, TEXT("apexsim.watch %s: nothing is playing"), *Verb);
+					return;
+				}
+				if (Verb == TEXT("seek") && Args.Num() > 1)
+				{
+					Spectator->SeekTo(FMath::Max(0.0, FCString::Atod(*Args[1])));
+				}
+				else if (Verb != TEXT("seek"))
+				{
+					Spectator->SetPaused(Verb == TEXT("hold"));
+				}
+				UE_LOG(LogApexSim, Display, TEXT("apexsim.watch %s: at %.2f s of %.2f, %s"), *Verb,
+					Spectator->GetPlaybackSeconds(), Spectator->GetDurationSeconds(),
+					Spectator->IsPaused() ? TEXT("held") : TEXT("playing"));
 				return;
 			}
 			if (Verb == TEXT("click") && Args.Num() > 2)

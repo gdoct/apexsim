@@ -339,6 +339,48 @@ void UApexReplaySubsystem::Fail(const FString& Why)
 	}
 }
 
+namespace
+{
+	AApexRaceDirector* ReplayDirector(UWorld* World, const TCHAR* Command)
+	{
+		AApexRaceDirector* Director = World ? AApexRaceDirector::Find(World) : nullptr;
+		if (!Director || !Director->IsReplayViewActive())
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("%s: no replay is playing (-ApexReplay)"), Command);
+			return nullptr;
+		}
+		return Director;
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs ReplayHoldCommand(
+		TEXT("apexsim.replay.Hold"),
+		TEXT("Hold a -ApexReplay clip's clock where it is (on, the default) or let it run again (off): ")
+		TEXT("the cars stand still while the cameras go on, for close-ups of a tread or a dent."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (AApexRaceDirector* Director = ReplayDirector(World, TEXT("apexsim.replay.Hold")))
+			{
+				const bool bHold = Args.Num() == 0 || !Args[0].Equals(TEXT("off"), ESearchCase::IgnoreCase);
+				Director->SetReplayHeld(bHold);
+				UE_LOG(LogApexSim, Display, TEXT("apexsim.replay.Hold: %s at %.2f s"), bHold ? TEXT("held") : TEXT("running"),
+					Director->GetReplayTime());
+			}
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs ReplaySeekCommand(
+		TEXT("apexsim.replay.Seek"),
+		TEXT("Put a -ApexReplay clip's clock at <seconds> from its first frame (a hold stays on)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			AApexRaceDirector* Director = ReplayDirector(World, TEXT("apexsim.replay.Seek"));
+			if (Director && Args.Num() > 0)
+			{
+				Director->PlayReplay(FMath::Max(0.0, FCString::Atod(*Args[0])));
+				UE_LOG(LogApexSim, Display, TEXT("apexsim.replay.Seek: at %.2f s"), Director->GetReplayTime());
+			}
+		}));
+}
+
 AApexRaceDirector* UApexReplaySubsystem::GetDirector() const
 {
 	const UGameInstance* GameInstance = GetGameInstance();
