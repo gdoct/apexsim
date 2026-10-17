@@ -1,0 +1,258 @@
+id = "43a474df-9dda-476c-a427-c4957a7229e3"
+name = "Lancha 037 Rally"
+version = "1.0.0"
+model = "lancha_037_rally.glb"
+brand = "Lancha"
+model_year = 1984
+class = "Rally"
+model_type = "037 Rally Evoluzione 2"
+manufacturer_country = "Italy"
+
+# Group B, 1984: the low mid-engined coupe, a supercharged four behind
+# the cabin driving the rear wheels only. Real figures: down on power
+# against the four-wheel-drive turbos, light and sweet on tarmac.
+[physics]
+mass_kg = 1040.0                 # 960 kg homologated, plus the driver
+length_m = 3.915
+width_m = 1.85
+height_m = 1.245
+max_engine_force_n = 6800.0
+max_brake_force_n = 12500.0
+drag_coefficient = 0.38
+grip_coefficient = 1.30
+max_steering_angle_rad = 0.58
+wheelbase_m = 2.440
+track_width_front_m = 1.50
+track_width_rear_m = 1.49
+wheel_radius_m = 0.310
+cog_height_m = 0.43
+weight_distribution_front = 0.43
+brake_bias_front = 0.58
+
+# A ducktail over the clamshell and a chin spoiler.
+frontal_area_m2 = 1.80
+lift_coefficient_front = -0.05
+lift_coefficient_rear = -0.12
+
+[aero]
+yaw_sensitivity = 0.001
+roll_sensitivity = 0.002
+porpoising = 0.0
+ride_height_front_m = 0.110
+ride_height_rear_m = 0.115
+ride_height_sensitivity = 0.003
+rake_sensitivity = 0.002
+stall_height_m = 0.020
+
+[tires]
+optimal_temperature_c = 78.0
+temperature_window_c = 14.0
+optimal_pressure_kpa = 190.0
+pressure_front_kpa = 190.0
+pressure_rear_kpa = 190.0
+
+[[tires.compound]]
+name = "tarmac"
+kind = "slick"
+reference = true
+
+[[tires.compound]]
+name = "wet"
+kind = "wet"
+wear = 1.8
+window_shift_c = -30.0
+water_grip = [0.80, 0.95, 1.0]
+
+[[tires.compound]]
+name = "snow"
+kind = "snow"
+wear = 2.6
+window_shift_c = -45.0
+water_grip = [0.80, 0.92, 0.88]
+snow_grip = 2.0
+
+[brakes]
+material = "steel"
+pads = "standard"
+
+[engine]
+# 2.1 L four with a Roots-type supercharger: 239 kW at 8000, the torque
+# there from low down and no lag.
+max_power_w = 239000.0
+max_torque_nm = 333.0
+idle_rpm = 1000.0
+redline_rpm = 8200.0
+max_rpm = 8700.0
+rev_limiter_rpm = 8500.0
+inertia_kg_m2 = 0.15
+friction_torque_nm = 16.0
+engine_brake_torque_nm = 75.0
+idle_control_gain = 0.15
+forced_induction = true
+
+[[engine.torque_curve]]
+rpm = 1500.0
+torque_nm = 200.0
+
+[[engine.torque_curve]]
+rpm = 3000.0
+torque_nm = 280.0
+
+[[engine.torque_curve]]
+rpm = 5000.0
+torque_nm = 333.0
+
+[[engine.torque_curve]]
+rpm = 6500.0
+torque_nm = 318.0
+
+[[engine.torque_curve]]
+rpm = 8000.0
+torque_nm = 285.0
+
+[[engine.torque_curve]]
+rpm = 8500.0
+torque_nm = 258.0
+
+# The supercharger's whine over a hard-edged four.
+[sound]
+cylinders = 4
+crossplane = false
+turbo = false
+exhaust_length_m = 0.80
+muffling = 0.10
+pops = 0.55
+gear_whine = 0.60
+intake_roar = 0.90
+
+[transmission]
+transmission_type = "Manual"
+final_drive_ratio = 4.40
+shift_time_s = 0.14
+efficiency = 0.92
+
+# 5 forward gears: about 70 km/h in first, 230 in fifth at 8200.
+[transmission.ratio_curve]
+gears = 5
+first = 3.28
+top = 1.0
+shape = "progressive"
+
+[drivetrain]
+layout = "RWD"
+
+[differential]
+simulated = true
+differential_type = "ClutchLSD"
+preload_nm = 45.0
+lock_power = 0.45
+lock_coast = 0.30
+
+[fuel]
+tank_front_share = 0.45
+capacity_liters = 80.0
+idle_consumption_lps = 0.00005
+thermal_efficiency = 0.30
+
+[hybrid]
+enabled = false
+battery_capacity_kwh = 0.0
+battery_max_discharge_kw = 0.0
+battery_max_charge_kw = 0.0
+motor_max_torque_nm = 0.0
+motor_max_power_kw = 0.0
+regen_max_power_kw = 0.0
+
+[suspension]
+roll_centre_front_m = 0.060
+roll_centre_rear_m = 0.090
+camber_thrust = 0.10
+camber_front_deg = -2.4
+camber_rear_deg = -1.8
+camber_gain_front = 0.40
+camber_gain_rear = 0.40
+toe_front_deg = -0.1
+toe_rear_deg = 0.2
+bump_stop_gap_m = 0.055
+bump_stop_gap_front_m = 0.055
+bump_stop_gap_rear_m = 0.060
+bump_stop_rate_n_per_m = 150000.0
+
+[wheels]
+model = "rally"
+front_axle_m = 1.220
+rear_axle_m = -1.220
+front_track_m = 1.500
+rear_track_m = 1.490
+front_radius_m = 0.305
+rear_radius_m = 0.315
+front_width_m = 0.225
+rear_width_m = 0.270
+
+[driver]
+# the driver, drawn on the body (same frame) and hidden for the car the
+# cockpit camera sits in; written by the build script
+model = "lancha_037_rally_driver.glb"
+
+[cockpit]
+# Written by the build script: the eye and wheel the cabin was built to
+# (car frame: +X nose, +Y right, +Z up). The client uses these instead of
+# deriving them from the mesh box, so the greenhouse can sit where a
+# real one does. Remove a key to fall back to the derivation.
+# Rally: the seat where the car put it, a co-driver beside it.
+style = "closed"
+eye_cm = [-2.0, -32.0, 99.0]
+wheel_cm = [38.0, -32.0, 79.0]
+mirror_left_cm = [22.3, -88.5, 83.9]
+mirror_left_size_cm = [15.0, 6.0]
+mirror_right_cm = [22.3, 88.5, 83.9]
+mirror_right_size_cm = [15.0, 6.0]
+# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
+# wheel on the Auto steering lock the real rim turns twice this lock to lock.
+wheel_lock_deg = 270.0
+
+[[damage_part]]
+# written by scripts/content/cars/damage_parts.py from the body's geometry
+name = "nose"
+zone = "front"
+detach_pct = 55
+min_m = [1.605, -1.070, -0.055]   # forward, left, up
+max_m = [2.123, 1.070, 0.504]
+
+# --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
+# Livery 0 is the model as authored; these are 1..5 on the wire.
+
+[[livery]]
+name = "Sable & Gold"
+paint = [0.012, 0.012, 0.014]
+accent = [0.700, 0.500, 0.120]
+metallic = 0.10
+skin = "textures/skin_sable.png"
+
+[[livery]]
+name = "Totop Yellow"
+paint = [0.900, 0.680, 0.010]
+accent = [0.010, 0.100, 0.480]
+metallic = 0.10
+skin = "textures/skin_totop.png"
+
+[[livery]]
+name = "Hirschbrand Orange"
+paint = [0.850, 0.200, 0.010]
+accent = [0.012, 0.012, 0.014]
+metallic = 0.10
+skin = "textures/skin_hirsch.png"
+
+[[livery]]
+name = "Zenith Nine"
+paint = [0.012, 0.060, 0.400]
+accent = [0.850, 0.620, 0.020]
+metallic = 0.10
+skin = "textures/skin_zenith.png"
+
+[[livery]]
+name = "Glacier Blue"
+paint = [0.300, 0.550, 0.750]
+accent = [0.860, 0.860, 0.840]
+metallic = 0.10
+skin = "textures/skin_glacier.png"

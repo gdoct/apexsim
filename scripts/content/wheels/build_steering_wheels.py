@@ -593,11 +593,48 @@ def build_gt():
     return m, (glass_front, 2.4, glass_w)
 
 
+def build_rally():
+    """A Group B wheel: a 350 mm round rim in suede on a deep dish, three
+    flat black spokes falling back to the hub, a small data display set in
+    the horn pad where a period car had its button (the rig's hub display
+    needs a screen to sit on)."""
+    m = Mesh()
+    R = 17.5
+    dish = 4.2                     # the rim stands this far toward the driver from the hub
+    rim = lift(arc(0, 0, R, 0, 360, 160)[:-1], dish)
+    m.sweep("sw_grip", rim, grip_section(1.45, 1.75), closed=True)
+    m.sweep("sw_marker", lift(arc(0, 0, R, 86, 94, 8), dish), grip_section(1.5, 1.8), scales=np.full((8, 2), 1.06))
+    # Spokes: flat bars from the hub's rim out and forward to the grip, at
+    # 9, 3 and 6 o'clock, wider where they meet the rim.
+    for ang in (180.0, 0.0, 270.0):
+        a = math.radians(ang)
+        d = np.array([math.cos(a), math.sin(a)])
+        path = []
+        for t in np.linspace(0.0, 1.0, 12):
+            r = 4.2 + (R - 1.0 - 4.2) * t
+            w = 0.4 + (dish - 0.4) * t ** 1.6
+            path.append([d[0] * r, d[1] * r, w])
+        sc = np.stack([np.linspace(1.0, 1.5, 12), np.ones(12)], axis=1)
+        up = (0.0, 0.0, 1.0) if ang == 270.0 else (0.0, 1.0, 0.0)
+        m.sweep("sw_metal_dark", np.array(path), ellipse(1.6, 0.32, 16), up=up, scales=sc)
+    # Hub boss with the horn pad and its display.
+    m.cylinder("sw_metal_dark", FACE, 4.6, -0.8, 0.5, seg=40, chamfer=0.3)
+    m.cylinder("sw_bezel", FACE, 4.0, 0.3, 0.9, seg=40, chamfer=0.25)
+    glass_w = 5.6
+    glass_front, glass_h = m.screen(0.0, 0.0, 0.9, glass_w)
+    for k in range(6):                          # boss screws
+        a = math.radians(30 + 60 * k)
+        m.cylinder("sw_metal", at(4.25 * math.cos(a), 4.25 * math.sin(a), 0.45), 0.28, 0.0, 0.2, seg=10)
+    m.column(2.8, -0.6)
+    return m, (glass_front, 0.0, glass_w)
+
+
 CLASSES = {
     "f1": build_formula,
     "lmp2": lambda: build_endurance(hyper=False),
     "hypercar": lambda: build_endurance(hyper=True),
     "gt3": build_gt,
+    "rally": build_rally,
 }
 
 # --------------------------------------------------------------------------

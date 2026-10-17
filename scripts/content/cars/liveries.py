@@ -20,6 +20,10 @@ import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import rally_cars    # noqa: E402
+import rally_skins   # noqa: E402
+
 # scripts/content/cars/liveries.py -> the repo; the shipped cars live in
 # content/cars/default (the player's own, in custom/, are not this script's).
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -150,6 +154,10 @@ CARS = {
     "mclarsen-mcl40": ["heritage", "gunmetal", "tricolore", "cobalt", "titan", "desert"],
     "ashton-marvin-amr26": ["lava", "flamingo", "royal", "neon", "citrus", "sakura"],
 }
+# The rally cars paint skins, not two colours and a logo (rally_skins.py);
+# their schemes, in order, are rally_skins.CARS[...]["extra"].
+for _folder, _variant in rally_cars.BY_FOLDER.items():
+    CARS[_folder] = list(rally_skins.CARS[_variant]["extra"])
 
 
 def draw_logo(spec, path):
@@ -187,6 +195,23 @@ def fmt(rgb):
     return "[%s]" % ", ".join("%.3f" % c for c in rgb)
 
 
+def rally_blocks(folder, car_dir):
+    """A rally car's liveries are skins (rally_skins.py): the works skin the
+    build puts in the GLB, then one `[[livery]]` per scheme, each a skin
+    with the mirrors' paint and the wing's accent."""
+    variant = rally_cars.BY_FOLDER[folder]
+    spec = rally_skins.CARS[variant]
+    rally_skins.paint(variant, spec["works"], os.path.join(car_dir, "textures", "skin_works.png"))
+    blocks = []
+    for key in spec["extra"]:
+        s = rally_skins.SCHEMES[key]
+        skin = "textures/skin_%s.png" % key
+        rally_skins.paint(variant, key, os.path.join(car_dir, skin))
+        blocks += ["[[livery]]", 'name = "%s"' % s["name"], "paint = %s" % fmt(s["paint"]),
+                   "accent = %s" % fmt(s["accent"]), "metallic = 0.10", 'skin = "%s"' % skin, ""]
+    return blocks
+
+
 def write_car(folder):
     car_dir = os.path.join(HERE, folder)
     toml = os.path.join(car_dir, "car.toml")
@@ -201,7 +226,9 @@ def write_car(folder):
     text = text.rstrip("\n") + "\n\n"
     os.makedirs(os.path.join(car_dir, "textures"), exist_ok=True)
     blocks = [MARKER, "# Livery 0 is the model as authored; these are 1..%d on the wire." % len(CARS[folder]), ""]
-    for key in CARS[folder]:
+    if folder in rally_cars.BY_FOLDER:
+        blocks += rally_blocks(folder, car_dir)
+    for key in ([] if folder in rally_cars.BY_FOLDER else CARS[folder]):
         s = SCHEMES[key]
         logo = "textures/livery_%s.png" % key
         draw_logo(s["logo"], os.path.join(car_dir, logo))

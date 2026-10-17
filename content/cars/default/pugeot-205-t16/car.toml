@@ -1,0 +1,267 @@
+id = "47d11d70-82b1-4364-a31c-2fc713d715c7"
+name = "Pugeot 205 T16"
+version = "1.0.0"
+model = "pugeot_205_t16.glb"
+brand = "Pugeot"
+model_year = 1985
+class = "Rally"
+model_type = "205 Turbo 16 E2"
+manufacturer_country = "France"
+
+# Group B, 1985: a small hatchback's shell over a spaceframe, the turbo
+# four mounted crosswise behind the seats, four-wheel drive. Real figures.
+[physics]
+mass_kg = 990.0                  # 910 kg homologated, plus the driver
+length_m = 3.825
+width_m = 1.70
+height_m = 1.355
+max_engine_force_n = 7600.0
+max_brake_force_n = 12000.0
+drag_coefficient = 0.40
+grip_coefficient = 1.30
+max_steering_angle_rad = 0.60
+wheelbase_m = 2.540
+track_width_front_m = 1.43
+track_width_rear_m = 1.43
+wheel_radius_m = 0.310
+cog_height_m = 0.47
+# Mid-engined: the weight sits behind the driver.
+weight_distribution_front = 0.44
+brake_bias_front = 0.56
+
+# The E2's roof wing and front lip: stability, little downforce.
+frontal_area_m2 = 1.85
+lift_coefficient_front = -0.05
+lift_coefficient_rear = -0.14
+
+[aero]
+yaw_sensitivity = 0.001
+roll_sensitivity = 0.002
+porpoising = 0.0
+ride_height_front_m = 0.120
+ride_height_rear_m = 0.125
+ride_height_sensitivity = 0.003
+rake_sensitivity = 0.002
+stall_height_m = 0.020
+
+[tires]
+optimal_temperature_c = 78.0
+temperature_window_c = 14.0
+optimal_pressure_kpa = 190.0
+pressure_front_kpa = 190.0
+pressure_rear_kpa = 190.0
+
+[[tires.compound]]
+name = "tarmac"
+kind = "slick"
+reference = true
+
+[[tires.compound]]
+name = "wet"
+kind = "wet"
+wear = 1.8
+window_shift_c = -30.0
+water_grip = [0.80, 0.95, 1.0]
+
+[[tires.compound]]
+name = "snow"
+kind = "snow"
+wear = 2.6
+window_shift_c = -45.0
+water_grip = [0.80, 0.92, 0.88]
+snow_grip = 2.0
+
+[brakes]
+material = "steel"
+pads = "standard"
+
+[engine]
+# 1.8 L turbo four, about 335 kW at 8000 in E2 trim.
+max_power_w = 335000.0
+max_torque_nm = 490.0
+idle_rpm = 1100.0
+redline_rpm = 8000.0
+max_rpm = 8500.0
+rev_limiter_rpm = 8300.0
+inertia_kg_m2 = 0.14
+friction_torque_nm = 18.0
+engine_brake_torque_nm = 70.0
+idle_control_gain = 0.15
+
+[[engine.torque_curve]]
+rpm = 1500.0
+torque_nm = 140.0
+
+[[engine.torque_curve]]
+rpm = 3000.0
+torque_nm = 270.0
+
+[[engine.torque_curve]]
+rpm = 4500.0
+torque_nm = 450.0
+
+[[engine.torque_curve]]
+rpm = 5000.0
+torque_nm = 490.0
+
+[[engine.torque_curve]]
+rpm = 6500.0
+torque_nm = 470.0
+
+[[engine.torque_curve]]
+rpm = 7500.0
+torque_nm = 430.0
+
+[[engine.torque_curve]]
+rpm = 8300.0
+torque_nm = 380.0
+
+[engine.turbo]
+boosted_share = 0.55
+lag_up_s = 0.55
+lag_down_s = 0.75
+
+# A turbo four: a harder, flatter rasp than the five, the same bangs.
+[sound]
+cylinders = 4
+crossplane = false
+turbo = true
+exhaust_length_m = 0.70
+muffling = 0.08
+pops = 0.95
+gear_whine = 0.60
+intake_roar = 0.60
+
+[transmission]
+transmission_type = "Manual"
+final_drive_ratio = 4.25
+shift_time_s = 0.13
+efficiency = 0.90
+
+# 5 forward gears: about 75 km/h in first, 220 in fifth at 8000.
+[transmission.ratio_curve]
+gears = 5
+first = 2.95
+top = 1.0
+shape = "progressive"
+
+[drivetrain]
+layout = "AWD"
+# Rear-biased, as the mid-engined car was set up for tarmac.
+awd_front_share = 0.33
+
+[differential]
+simulated = true
+differential_type = "ClutchLSD"
+preload_nm = 50.0
+lock_power = 0.40
+lock_coast = 0.25
+
+[fuel]
+tank_front_share = 0.45
+capacity_liters = 80.0
+idle_consumption_lps = 0.00006
+thermal_efficiency = 0.29
+
+[hybrid]
+enabled = false
+battery_capacity_kwh = 0.0
+battery_max_discharge_kw = 0.0
+battery_max_charge_kw = 0.0
+motor_max_torque_nm = 0.0
+motor_max_power_kw = 0.0
+regen_max_power_kw = 0.0
+
+[suspension]
+roll_centre_front_m = 0.070
+roll_centre_rear_m = 0.100
+camber_thrust = 0.10
+camber_front_deg = -2.2
+camber_rear_deg = -1.6
+camber_gain_front = 0.40
+camber_gain_rear = 0.40
+toe_front_deg = -0.1
+toe_rear_deg = 0.2
+bump_stop_gap_m = 0.06
+bump_stop_gap_front_m = 0.060
+bump_stop_gap_rear_m = 0.065
+bump_stop_rate_n_per_m = 150000.0
+
+[wheels]
+model = "rally"
+front_axle_m = 1.270
+rear_axle_m = -1.270
+front_track_m = 1.430
+rear_track_m = 1.430
+front_radius_m = 0.310
+rear_radius_m = 0.310
+front_width_m = 0.230
+rear_width_m = 0.250
+
+[driver]
+# the driver, drawn on the body (same frame) and hidden for the car the
+# cockpit camera sits in; written by the build script
+model = "pugeot_205_t16_driver.glb"
+
+[cockpit]
+# Written by the build script: the eye and wheel the cabin was built to
+# (car frame: +X nose, +Y right, +Z up). The client uses these instead of
+# deriving them from the mesh box, so the greenhouse can sit where a
+# real one does. Remove a key to fall back to the derivation.
+# Rally: the seat where the car put it, a co-driver beside it.
+style = "closed"
+eye_cm = [2.0, -31.0, 107.0]
+wheel_cm = [42.0, -31.0, 87.0]
+mirror_left_cm = [48.4, -85.2, 89.9]
+mirror_left_size_cm = [15.0, 6.0]
+mirror_right_cm = [48.4, 85.2, 89.9]
+mirror_right_size_cm = [15.0, 6.0]
+# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
+# wheel on the Auto steering lock the real rim turns twice this lock to lock.
+wheel_lock_deg = 270.0
+
+[[damage_part]]
+# written by scripts/content/cars/damage_parts.py from the body's geometry
+name = "nose"
+zone = "front"
+detach_pct = 55
+min_m = [1.660, -1.037, -0.055]   # forward, left, up
+max_m = [2.042, 1.037, 0.558]
+
+# --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
+# Livery 0 is the model as authored; these are 1..5 on the wire.
+
+[[livery]]
+name = "Ostra Oil"
+paint = [0.860, 0.860, 0.840]
+accent = [0.700, 0.030, 0.030]
+metallic = 0.10
+skin = "textures/skin_ostra.png"
+
+[[livery]]
+name = "Totop Yellow"
+paint = [0.900, 0.680, 0.010]
+accent = [0.010, 0.100, 0.480]
+metallic = 0.10
+skin = "textures/skin_totop.png"
+
+[[livery]]
+name = "Glacier Blue"
+paint = [0.300, 0.550, 0.750]
+accent = [0.860, 0.860, 0.840]
+metallic = 0.10
+skin = "textures/skin_glacier.png"
+
+[[livery]]
+name = "Alpenklub"
+paint = [0.010, 0.180, 0.060]
+accent = [0.010, 0.180, 0.060]
+metallic = 0.10
+skin = "textures/skin_alpen.png"
+
+[[livery]]
+name = "Château Rouge"
+paint = [0.220, 0.010, 0.025]
+accent = [0.220, 0.010, 0.025]
+metallic = 0.10
+skin = "textures/skin_bordeaux.png"

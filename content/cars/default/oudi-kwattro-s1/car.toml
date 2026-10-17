@@ -1,0 +1,294 @@
+id = "a4afbc67-3c68-4a4b-83cb-b599bf7aa567"
+name = "Oudi Sport Kwattro S1"
+version = "1.0.0"
+model = "oudi_kwattro_s1.glb"
+brand = "Oudi"
+model_year = 1985
+class = "Rally"
+model_type = "Sport Kwattro S1 E2"
+manufacturer_country = "Germany"
+
+# Group B, 1985: the short-wheelbase coupe with the five-cylinder turbo
+# hung ahead of the front axle and four-wheel drive. Real figures, not
+# balanced against the other rally cars (the class is three eras of one
+# formula's last two years, as they were).
+[physics]
+mass_kg = 1170.0                 # 1090 kg homologated, plus the driver
+length_m = 4.24
+width_m = 1.86
+height_m = 1.34
+max_engine_force_n = 8000.0
+max_brake_force_n = 13500.0
+drag_coefficient = 0.42
+# A 1985 tarmac rally slick on a 16-inch rim: well short of a modern
+# racing slick, and no downforce to speak of beside it.
+grip_coefficient = 1.30
+max_steering_angle_rad = 0.60    # a rally car's lock: hairpins and recoveries
+wheelbase_m = 2.224
+track_width_front_m = 1.49
+track_width_rear_m = 1.49
+wheel_radius_m = 0.315
+cog_height_m = 0.48
+# The engine ahead of the front axle; the E2 moved the radiator and the
+# battery to the boot and still carried most of its weight on the nose.
+weight_distribution_front = 0.57
+brake_bias_front = 0.60
+
+# The E2's wings: a shovel splitter and a tall boot wing that keep the
+# light car's tail planted at 200 km/h rather than making real downforce.
+frontal_area_m2 = 1.95
+lift_coefficient_front = -0.06
+lift_coefficient_rear = -0.16
+
+[aero]
+yaw_sensitivity = 0.001
+roll_sensitivity = 0.002
+porpoising = 0.0
+ride_height_front_m = 0.120
+ride_height_rear_m = 0.125
+ride_height_sensitivity = 0.003
+rake_sensitivity = 0.002
+stall_height_m = 0.020
+
+# Tarmac rally tyres: a cooler window than a circuit slick, out at the air
+# (no blankets in a service park), and a studded snow tyre for winter.
+[tires]
+optimal_temperature_c = 78.0
+temperature_window_c = 14.0
+optimal_pressure_kpa = 190.0
+pressure_front_kpa = 190.0
+pressure_rear_kpa = 190.0
+
+[[tires.compound]]
+name = "tarmac"
+kind = "slick"
+reference = true
+
+[[tires.compound]]
+name = "wet"
+kind = "wet"
+wear = 1.8
+window_shift_c = -30.0
+water_grip = [0.80, 0.95, 1.0]
+
+# Studs through a soft winter block: what a rally car runs on snow and
+# ice, and a squirming, quickly worn tyre on bare tarmac.
+[[tires.compound]]
+name = "snow"
+kind = "snow"
+wear = 2.6
+window_shift_c = -45.0
+water_grip = [0.80, 0.92, 0.88]
+snow_grip = 2.0
+
+[brakes]
+material = "steel"
+pads = "standard"
+
+[engine]
+# 2.1 L inline five, one big turbo, about 350 kW at 8000 with the boost
+# turned up for tarmac; the torque arrives with the turbo.
+max_power_w = 350000.0
+max_torque_nm = 520.0
+idle_rpm = 1100.0
+redline_rpm = 8000.0
+max_rpm = 8500.0
+rev_limiter_rpm = 8300.0
+inertia_kg_m2 = 0.17
+friction_torque_nm = 20.0
+engine_brake_torque_nm = 80.0
+idle_control_gain = 0.15
+
+[[engine.torque_curve]]
+rpm = 1500.0
+torque_nm = 160.0
+
+[[engine.torque_curve]]
+rpm = 3000.0
+torque_nm = 300.0
+
+[[engine.torque_curve]]
+rpm = 4500.0
+torque_nm = 470.0
+
+[[engine.torque_curve]]
+rpm = 5500.0
+torque_nm = 520.0
+
+[[engine.torque_curve]]
+rpm = 6500.0
+torque_nm = 505.0
+
+[[engine.torque_curve]]
+rpm = 7500.0
+torque_nm = 450.0
+
+[[engine.torque_curve]]
+rpm = 8300.0
+torque_nm = 395.0
+
+# Most of the torque is boost, and the turbo is a big one: the anti-lag
+# keeps it spinning off the throttle, so it builds in well under a second.
+[engine.turbo]
+boosted_share = 0.55
+lag_up_s = 0.60
+lag_down_s = 0.80
+
+# The client's engine synthesiser (docs/content/cars.md, "Engine sound").
+# The five's off-beat warble, the turbo's whistle and the anti-lag's bangs.
+[sound]
+cylinders = 5
+crossplane = false
+turbo = true
+exhaust_length_m = 0.85
+muffling = 0.08
+pops = 1.0
+gear_whine = 0.65
+intake_roar = 0.55
+
+[transmission]
+transmission_type = "Manual"
+final_drive_ratio = 4.10
+shift_time_s = 0.14
+efficiency = 0.90
+
+# 6 forward gears: about 70 km/h in first, 230 in sixth at 8000.
+[transmission.ratio_curve]
+gears = 6
+first = 3.30
+top = 1.0
+shape = "progressive"
+
+[drivetrain]
+layout = "AWD"
+# The centre differential sends a little more to the back than the front.
+awd_front_share = 0.40
+
+[differential]
+simulated = true
+differential_type = "ClutchLSD"
+preload_nm = 50.0
+lock_power = 0.40
+lock_coast = 0.25
+
+[fuel]
+tank_front_share = 0.35
+capacity_liters = 90.0
+idle_consumption_lps = 0.00006
+thermal_efficiency = 0.29
+
+[hybrid]
+enabled = false
+battery_capacity_kwh = 0.0
+battery_max_discharge_kw = 0.0
+battery_max_charge_kw = 0.0
+motor_max_torque_nm = 0.0
+motor_max_power_kw = 0.0
+regen_max_power_kw = 0.0
+
+# Long-travel tarmac suspension: modest camber, room before the bump stops.
+[suspension]
+roll_centre_front_m = 0.070
+roll_centre_rear_m = 0.100
+camber_thrust = 0.10
+camber_front_deg = -2.2
+camber_rear_deg = -1.6
+camber_gain_front = 0.40
+camber_gain_rear = 0.40
+toe_front_deg = -0.1
+toe_rear_deg = 0.2
+bump_stop_gap_m = 0.06
+bump_stop_gap_front_m = 0.060
+bump_stop_gap_rear_m = 0.065
+bump_stop_rate_n_per_m = 150000.0
+
+[damage]
+engine_m = 1.35
+
+# Where the client draws the wheels: the arches the build cut.
+[wheels]
+model = "rally"
+front_axle_m = 1.112
+rear_axle_m = -1.112
+front_track_m = 1.490
+rear_track_m = 1.490
+front_radius_m = 0.315
+rear_radius_m = 0.315
+front_width_m = 0.245
+rear_width_m = 0.265
+
+[driver]
+# the driver, drawn on the body (same frame) and hidden for the car the
+# cockpit camera sits in; written by the build script
+model = "oudi_kwattro_s1_driver.glb"
+
+[cockpit]
+# Written by the build script: the eye and wheel the cabin was built to
+# (car frame: +X nose, +Y right, +Z up). The client uses these instead of
+# deriving them from the mesh box, so the greenhouse can sit where a
+# real one does. Remove a key to fall back to the derivation.
+# Rally: the seat where the car put it, a co-driver beside it.
+style = "closed"
+eye_cm = [-12.0, -33.0, 107.0]
+wheel_cm = [28.0, -33.0, 87.0]
+mirror_left_cm = [26.4, -91.2, 88.8]
+mirror_left_size_cm = [15.0, 6.0]
+mirror_right_cm = [26.4, 91.2, 88.8]
+mirror_right_size_cm = [15.0, 6.0]
+# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
+# wheel on the Auto steering lock the real rim turns twice this lock to lock.
+wheel_lock_deg = 270.0
+
+[[damage_part]]
+# written by scripts/content/cars/damage_parts.py from the body's geometry
+name = "nose"
+zone = "front"
+detach_pct = 55
+min_m = [1.507, -1.097, -0.055]   # forward, left, up
+max_m = [2.272, 1.097, 0.548]
+
+[[damage_part]]
+# written by scripts/content/cars/damage_parts.py from the body's geometry
+name = "rear_wing"
+zone = "rear"
+detach_pct = 60
+min_m = [-2.320, -1.097, 1.165]   # forward, left, up
+max_m = [-1.760, 1.097, 1.543]
+
+# --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
+# Livery 0 is the model as authored; these are 1..5 on the wire.
+
+[[livery]]
+name = "Zenith Nine"
+paint = [0.012, 0.060, 0.400]
+accent = [0.850, 0.620, 0.020]
+metallic = 0.10
+skin = "textures/skin_zenith.png"
+
+[[livery]]
+name = "Fjord Airways"
+paint = [0.860, 0.860, 0.840]
+accent = [0.020, 0.300, 0.700]
+metallic = 0.10
+skin = "textures/skin_fjord.png"
+
+[[livery]]
+name = "Royal Harbour"
+paint = [0.010, 0.035, 0.160]
+accent = [0.010, 0.035, 0.160]
+metallic = 0.10
+skin = "textures/skin_harbour.png"
+
+[[livery]]
+name = "Hirschbrand Orange"
+paint = [0.850, 0.200, 0.010]
+accent = [0.012, 0.012, 0.014]
+metallic = 0.10
+skin = "textures/skin_hirsch.png"
+
+[[livery]]
+name = "Sable & Gold"
+paint = [0.012, 0.012, 0.014]
+accent = [0.700, 0.500, 0.120]
+metallic = 0.10
+skin = "textures/skin_sable.png"

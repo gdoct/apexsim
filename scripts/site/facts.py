@@ -46,7 +46,7 @@ MAP_TOLERANCE = 0.12
 W_PER_HP = 745.7
 
 # The order the page shows the classes in.
-CLASS_ORDER = ["GT3", "LMP2", "Hypercar", "F1"]
+CLASS_ORDER = ["GT3", "LMP2", "Hypercar", "F1", "Rally"]
 
 _Loader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
 

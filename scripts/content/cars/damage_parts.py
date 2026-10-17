@@ -58,10 +58,13 @@ DETACH = {
     "Hypercar": {"front": 45, "rear": 50},
     "LMP2": {"front": 45, "rear": 50},
     "GT3": {"front": 50, "rear": 55},
+    # a steel shell with glass-fibre panels, built for a ditch: the bumper
+    # and the wing hang on longest
+    "Rally": {"front": 55, "rear": 60},
 }
 OPEN_WHEEL = {"F1"}
 # Up to where a closed car's nose comes off, as a share of the car's height.
-NOSE_HEIGHT_SHARE = {"Hypercar": 0.36, "LMP2": 0.36, "GT3": 0.38}
+NOSE_HEIGHT_SHARE = {"Hypercar": 0.36, "LMP2": 0.36, "GT3": 0.38, "Rally": 0.36}
 # Rear wings the gap rule cannot find, as (floor, front) in metres, from the
 # side view (`--preview`). Kept across runs; a rebuilt car may need a look.
 MANUAL_REAR_WING = {

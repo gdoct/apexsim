@@ -97,6 +97,16 @@ AC-imported circuit is installed; Spa stands in.
   standstill spin limit, its no-headway reset with a run-up, and traction
   control cutting the engine's heat; `snow_stall_survey` holds every
   engine under 82 °C in 15 minutes of a Chiffon field).
+- A Rally field (`oudi-kwattro-s1`, `pugeot-205-t16`, `lancha-037-rally`) on
+  the covered road: the AI fits the studded snow tyre, the wheels draw the
+  snow tread with its steel studs and the ice-white ring, and the field
+  laps clearly quicker and stays on the road longer than a GT3 field.
+- The rally cars themselves, in the garage and on the grid: the projected
+  skins in every livery (colours as painted: Blender's preview shows the
+  reds washed toward pink; text reading true on both flanks, the bonnet
+  plate, the door roundels, the screen banner), the rally wheel and
+  steering wheel, the cockpit view (both seats, the gauges), the mud
+  flaps and the wings, and each car's engine sound.
 
 ### R5. Mandarina Bay at night, cloudy
 
