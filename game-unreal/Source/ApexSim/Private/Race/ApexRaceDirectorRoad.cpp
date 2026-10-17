@@ -111,6 +111,13 @@ void AApexRaceDirector::UpdateRoadState()
 		}
 		bRoadStateParamsStale = true;
 	}
+	// The pit lane's own snow moves with each slice: re-apply the covers
+	// when it has moved enough to see.
+	if (FMath::Abs(RoadMap.GetLaneSnow() - AppliedLaneSnow) > 0.02f)
+	{
+		AppliedLaneSnow = RoadMap.GetLaneSnow();
+		ApplySnowCover();
+	}
 	if (RoadMap.TakeDirty() && RoadStateTexture && RoadGeometryTexture)
 	{
 		ApexRoadStateDraw::Upload(RoadStateTexture, RoadMap.GetState(), RoadMap.NumCells(), RoadMap.NumBins());

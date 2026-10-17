@@ -62,6 +62,8 @@ public:
 	const TArray<FColor>& GetSnow() const { return Snow; }
 	/** The puddle at a station and world position: the snow texel's A (see the class note); -1 as WaterAt. */
 	float PuddleAt(float StationM, const FVector2D& WorldCm) const;
+	/** The pit lane's mean snow cover, 0..1, from the last slice; negative when it sent none. */
+	float GetLaneSnow() const { return LaneSnowMean; }
 	/** Whether any cell holds snow or ice (or the last slice said so). */
 	bool HasSnow() const { return SnowyCells > 0; }
 	/** The geometry, a texel per cell, Unreal frame (see the class note). */
@@ -107,6 +109,7 @@ private:
 	/** Per cell: it holds snow or ice. */
 	TBitArray<> Snowy;
 	int32 SnowyCells = 0;
+	float LaneSnowMean = -1.0f;
 	TArray<FLinearColor> Geometry;
 	TBitArray<> Known;
 	TArray<FVector2D> Debris;

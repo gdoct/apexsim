@@ -90,6 +90,21 @@ bool FApexRoadStateMap::Apply(const FApexRoadState& Slice)
 			++KnownCells;
 		}
 	}
+	// The lane's own cover: the whole lane in every slice; none sent is no
+	// snow on it (or no lane), and the lane takes the lap's figure.
+	if (Slice.LaneSnow.Num() > 0)
+	{
+		int32 Sum = 0;
+		for (const uint8 Cell : Slice.LaneSnow)
+		{
+			Sum += Cell;
+		}
+		LaneSnowMean = static_cast<float>(Sum) / (255.0f * Slice.LaneSnow.Num());
+	}
+	else
+	{
+		LaneSnowMean = -1.0f;
+	}
 	if (Slice.Debris != Debris)
 	{
 		Debris = Slice.Debris;

@@ -1313,6 +1313,15 @@ namespace
 					Out.WaterRows = TArray<uint8>(Bytes.GetData(), Bytes.Num());
 				}
 			}
+			else if (Key == TEXT("LaneSnow"))
+			{
+				TArrayView<const uint8> Bytes;
+				bOk = Reader.ReadBinary(Bytes);
+				if (bOk)
+				{
+					Out.LaneSnow = TArray<uint8>(Bytes.GetData(), Bytes.Num());
+				}
+			}
 			else if (Key == TEXT("SnowRows"))
 			{
 				TArrayView<const uint8> Bytes;

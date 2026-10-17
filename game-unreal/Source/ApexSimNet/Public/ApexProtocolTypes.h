@@ -1982,6 +1982,11 @@ struct APEXSIMNET_API FApexRoadState
 	 * covers its cell's width.
 	 */
 	TArray<uint8> WaterRows;
+	/**
+	 * The pit lane's snow cover (`LaneSnow`), a byte over 0..1 a 10 m cell of
+	 * the lane's own station, the whole lane; empty without snow or a lane.
+	 */
+	TArray<uint8> LaneSnow;
 	/** Debris pieces on the road now, server frame, metres. */
 	TArray<FVector2D> Debris;
 	/**

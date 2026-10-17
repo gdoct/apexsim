@@ -169,10 +169,6 @@ the launcher import with the network off.
   AI survey).
 - The chase-near camera behind the Bugotti Chiffon showed a dark blur
   filling the frame once (snow run, 2026-10-15): the camera inside a body.
-- The pit lane's own snow cover (`RoadState::lane_snow`, packed by the
-  cars in the lane) is not on the wire: the lane is drawn with the lap's
-  mean cover (`SnowMids`). It wants a row of its own beside `SnowRows` and
-  the lane's material reading it.
 - The bounds watch (`apexsim.debug.BoundsWatch`) reports the rain cloud
   dome (`ApexCloudLayerActor.Dome`, a 20 km radius on purpose) as out of
   the world on every rain or cloud start. It should skip primitives that

@@ -1079,6 +1079,10 @@ private:
 	 * and wear bands keep some of their paint. Kept as RoadDryLook is.
 	 */
 	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, float> SnowMids;
+	/** The pit lane's own surfaces among SnowMids: they take the lane's cover (`RoadState.LaneSnow`) when it is sent. */
+	TSet<TWeakObjectPtr<UMaterialInstanceDynamic>> LaneSnowMids;
+	/** The lane's cover last applied, to re-apply only when it moves. */
+	float AppliedLaneSnow = -1.0f;
 	/** The floodlight lamp faces with their emissive strength as built. */
 	TMap<TWeakObjectPtr<UMaterialInstanceDynamic>, float> LampBaseGlow;
 

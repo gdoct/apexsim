@@ -353,7 +353,11 @@ same way: buried under a snowfall, bare once the track melts it.
 
 The pit lane keeps a cover of its own (`RoadState::lane_snow`, one figure a
 10 m cell of the lane's own station, `PitLane::length_m`; none on a track
-without a lane). A car in the lane (`PitState::in_lane`) that crosses into a
+without a lane). It goes out with every `RoadState` slice while the road
+has snow (`LaneSnow`, a byte a cell, the whole lane: `write_lane_snow`),
+and the client gives the pit lane's surfaces (`MI_pit_lane*`) its mean as
+their `SnowCover` in place of the lap's (`FApexRoadStateMap::GetLaneSnow`,
+`AApexRaceDirector::LaneSnowMids`). A car in the lane (`PitState::in_lane`) that crosses into a
 new lap cell also lays its wheels' passes on the lane's cell at its
 `lane_station_m` (`note_lane_pass`), which pack it toward `SNOW_FLOOR` at
 `LANE_PACK_SHARE` (a quarter) of a racing bin's rate, the figure standing for

@@ -1410,6 +1410,20 @@ bool FApexProtocolLapTimingDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("cell 1 is dry"), (int32)Road.WaterRows[5], 0);
 		}
 		TestFalse(TEXT("and no snow"), Road.HasSnow());
+		TestEqual(TEXT("and no lane snow"), Road.LaneSnow.Num(), 0);
+	}
+
+	FApexServerMessage LaneMessage;
+	if (TestTrue(TEXT("RoadState with the lane's snow decodes"),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_RoadStateLaneSnow, LaneMessage, Error)))
+	{
+		const FApexRoadState& Road = LaneMessage.RoadState;
+		if (TestEqual(TEXT("a byte a lane cell"), Road.LaneSnow.Num(), 3))
+		{
+			TestEqual(TEXT("the packed cell"), (int32)Road.LaneSnow[0], 128);
+			TestEqual(TEXT("the rest white"), (int32)Road.LaneSnow[2], 255);
+		}
+		TestTrue(TEXT("with the road's snow"), Road.HasSnow());
 	}
 
 	return true;

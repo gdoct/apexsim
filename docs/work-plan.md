@@ -54,7 +54,6 @@ When an item is done, delete it from its backlog and from here.
 | N11 | Livery editor / own livery import | Content | P2 | 🟡 | M |
 | B5 | Chase camera inside a car body | Bug | P3 | 🟡 | S |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M |
-| G7 | Pit lane's own snow on the wire | Rendering + wire | P3 | 🟢 | S |
 | F1 | Windshield wipers | Feature | P3 | 🔴 | M |
 | AU1 | Audio overhaul | Audio | P3 | 🔴 | L |
 | C2 | Circuit dressing backlog | Content | P3 | 🟡/🔴 | M–L |
@@ -275,11 +274,8 @@ poorly. Do the A/B: let the race director load `/Game/Tracks/<Track>/L_<Track>`
 instead of building, then compare two screenshots. If it matters: ship baked
 levels or use hardware RT Lumen.
 
-#### G6–G7. Small rendering items — P3
-- **G6** Top view of formula cars looks cheap: investigate LOD selection,
-  shadow and material quality at that distance.
-- **G7** Pit lane's own snow cover: a row beside `SnowRows` on the wire and
-  the lane material reading it.
+#### G6. Top view of formula cars looks cheap — P3
+Investigate LOD selection, shadow and material quality at that distance.
 
 ### Content and circuits
 

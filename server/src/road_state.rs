@@ -643,6 +643,18 @@ impl RoadState {
         }
     }
 
+    /// Pack the pit lane's snow cover, one byte over 0..1 per [`CELL_M`]
+    /// of the lane's own station (`lane_snow`); nothing for a track without
+    /// a lane. The whole lane goes in every `RoadState` slice: a few dozen
+    /// bytes, so the lane is never out of step with the road.
+    pub fn write_lane_snow(&self, out: &mut Vec<u8>) {
+        out.extend(
+            self.lane_snow
+                .iter()
+                .map(|v| (v * 255.0).round().clamp(0.0, 255.0) as u8),
+        );
+    }
+
     /// Pack the water standing on each bin of the same `count` cells from
     /// `first_cell` ([`BINS`] bytes each, in [`DEPTH_BYTE`] units, before
     /// the wheels dry it: [`RoadState::bin_depth`]), so a puddle is drawn
@@ -1399,9 +1411,18 @@ mod tests {
             verge,
             "an undriven cell is the verge's cover"
         );
+        // On the wire: a byte a lane cell, the driven half packed below the rest.
+        let mut bytes = Vec::new();
+        road.write_lane_snow(&mut bytes);
+        assert_eq!(bytes.len(), 20);
+        assert!(bytes[5] < bytes[15], "{} against {}", bytes[5], bytes[15]);
+        assert_eq!(bytes[15], 255);
         // A track without a lane reads the verge, as before.
         let plain = RoadState::new(&snowy_track(-3.0), RUBBER_REFERENCE);
         assert!(plain.lane_snow.is_empty());
+        let mut none = Vec::new();
+        plain.write_lane_snow(&mut none);
+        assert!(none.is_empty(), "nothing on the wire without a lane");
         assert_eq!(
             plain.sample_in_lane(500.0, 20.0, 55.0),
             plain.sample(500.0, 20.0)

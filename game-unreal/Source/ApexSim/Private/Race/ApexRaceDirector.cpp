@@ -2276,6 +2276,10 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 						if (UMaterialInstanceDynamic* Mid = Mesh->CreateDynamicMaterialInstance(Slot))
 						{
 							SnowMids.Add(Mid, Share);
+							if (Name.StartsWith(TEXT("MI_pit_lane")))
+							{
+								LaneSnowMids.Add(Mid);
+							}
 						}
 					}
 				}
@@ -2493,6 +2497,13 @@ void AApexRaceDirector::ApplySnowCover()
 		// A road that draws its own snow per bin takes none of the lap's; the
 		// curbs and run-off beside it, which share its water, keep the lap's.
 		const bool bOwn = bRoadSnowShown && RoadStateMids.Contains(Mid) && !OffRoadStateMids.Contains(Mid);
+		// The pit lane: its own cover, packed by the cars in it, once the server sends it.
+		const float LaneCover = RoadMap.GetLaneSnow();
+		if (LaneCover >= 0.0f && LaneSnowMids.Contains(Mid))
+		{
+			Mid->SetScalarParameterValue(CoverParam, LaneCover);
+			continue;
+		}
 		Mid->SetScalarParameterValue(CoverParam, bOwn ? 0.0f : Cover * It.Value());
 	}
 	// The props (buildings, stands, trees) read the lap's cover from the collection.
@@ -3499,6 +3510,8 @@ void AApexRaceDirector::UnloadTrackLevel()
 	// The track went back with its materials reset; its looks are forgotten.
 	RoadDryLook.Reset();
 	SnowMids.Reset();
+	LaneSnowMids.Reset();
+	AppliedLaneSnow = -1.0f;
 	SetSkyCollectionSnow(0.0f);
 	LampBaseGlow.Reset();
 	NightGlowMids.Reset();
