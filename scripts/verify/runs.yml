@@ -1276,6 +1276,50 @@ runs:
         label: "after the stop"
         checks: "Back to the menu"
 
+  - id: r13-race-control
+    about: "R13. Race control's flags and the radar, live at Monza"
+    # Two cars on two flat tyres each from 15 s of green crawl round: their
+    # sectors' yellows, the field lifting past them; the first chicane's
+    # bunching for the radar. The HUD's flag and radar points are logged
+    # every 5 s for the sheet's reader.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monza
+      - -ApexCar=Caravan
+      - -ApexAiCount=9
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    server:
+      stand_in: true
+      events:
+        - "15:2:puncture=FL"
+        - "15:2:puncture=RL"
+        - "15:5:puncture=FR"
+        - "15:5:puncture=RR"
+    exec:
+      14: ["apexsim.hud.Data radar."]
+      16: ["apexsim.hud.Data radar."]
+      18: ["apexsim.hud.Data radar."]
+      30: ["apexsim.hud.Data flag."]
+      40: ["apexsim.hud.Data flag."]
+      50: ["apexsim.hud.Data flag."]
+      60: ["apexsim.hud.Data flag."]
+      70: ["apexsim.hud.Data flag."]
+      80: ["apexsim.hud.Data flag."]
+    shots:
+      - {at: 15, label: "the first chicane", checks: "the radar bar with a car alongside"}
+      - {at: 17, label: "", checks: "the radar"}
+      - {at: 35, label: "", checks: "a yellow up, or the field lifting"}
+      - {at: 45, label: "", checks: "the flags component"}
+      - {at: 55, label: "", checks: "the flags component"}
+      - {at: 65, label: "", checks: "the flags component"}
+      - {at: 75, label: "", checks: "the flags component"}
+      - {at: 85, label: "", checks: "the flags component"}
+
   - id: diag-topview-evening
     about: "diagnostic: the helicopter shot at 17:30, a lower sun (shadows that show)"
     args:

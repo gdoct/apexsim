@@ -1,0 +1,26 @@
+// The proximity radar: a car alongside, left or right, that the mirrors do
+// not show. A bar lights on that side, red as the gap closes; hidden while
+// no car is alongside.
+{
+  "name": "Radar",
+  "region": "bottom",
+  "order": 0,
+  "visible": "=(radar.left || radar.right) && !spectate.active",
+  "root": {
+    "type": "row",
+    "children": [
+      { "type": "rect", "width": 14, "height": 88, "radius": 4,
+        "color": "=radar.left ? ramp(radar.left_m, 0, 'error', 2.5, 'accent') : alpha('text_muted', 0.25)" },
+      { "type": "column", "margin": [10, 0, 10, 0], "valign": "center",
+        "children": [
+          { "type": "rect", "width": 22, "height": 44, "radius": 5, "outline": "text_secondary", "outline_width": 2,
+            "color": "=alpha('text_muted', 0.15)" },
+          { "type": "label", "margin": [0, 6, 0, 0], "halign": "center",
+            "text": "=radar.left && radar.right ? 'BOTH' : radar.left ? 'LEFT' : 'RIGHT'" }
+        ]
+      },
+      { "type": "rect", "width": 14, "height": 88, "radius": 4,
+        "color": "=radar.right ? ramp(radar.right_m, 0, 'error', 2.5, 'accent') : alpha('text_muted', 0.25)" }
+    ]
+  }
+}

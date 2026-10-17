@@ -311,6 +311,21 @@ car was sent out; a written forecast echoed and laid out in `sky.outlook`
   conditions panel showing the written outlook (the race layout used had no
   conditions panel up).
 
+### R13. Race control and the radar, live
+
+A race with the stand-in and a full field, in a chase camera, at a circuit
+whose first lap bunches (Monza's first chicane). Replays carry neither
+(follow-ups, flags).
+
+The first `r13-race-control` (2026-10-17) showed YELLOW and DOUBLE YELLOW
+in the `flags` component and the radar's RIGHT marker at the start.
+
+- The `flags` component's BLUE FLAG, with a leader a lap up close behind
+  (a long race, or a slow stand-in).
+- The AI lifting and holding station past an incident.
+- The `radar` component's bars reading at a glance over a chase camera's
+  car (widened to 14 px after the first run), red as a car closes.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

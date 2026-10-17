@@ -43,6 +43,8 @@ struct APEXSIM_API FApexHudData
  * UApexHudDataSubsystem from the net, flow and settings subsystems, or made
  * up by a test.
  */
+struct FApexWheelSpec;
+
 struct APEXSIM_API FApexHudInputs
 {
 	const FApexTelemetryFrame* Frame = nullptr;
@@ -158,6 +160,12 @@ struct APEXSIM_API FApexHudInputs
 	const TMap<int32, FString>* CarNames = nullptr;
 	/** Each car's own compound names by car index, in the order its telemetry indexes them; empty for the five defaults. */
 	const TMap<int32, TArray<FString>>* CarCompounds = nullptr;
+	/**
+	 * Each car's half length and half width, m, by car index, from its
+	 * catalog row's wheels (ApexHudData::CarHalfSize); a car missing here is
+	 * taken at a GT car's size. What the radar reads a car alongside by.
+	 */
+	const TMap<int32, FVector2f>* CarHalfSizes = nullptr;
 
 	/**
 	 * The local car's compound names from the setup sheet
@@ -352,4 +360,16 @@ namespace ApexHudData
 	 */
 	APEXSIM_API FApexPitStopProgress PitStopProgress(const FApexPitService& Stop, float SecondsLeft,
 		const TArray<FString>* CompoundNames = nullptr);
+
+	/**
+	 * A car's half length and half width, m, from its wheels: the axles out
+	 * plus a wheel and an overhang, the wider track plus a tyre. A row
+	 * without wheels gets a GT car's (2.3 x 1.0).
+	 */
+	APEXSIM_API FVector2f CarHalfSize(const FApexWheelSpec& Wheels);
+
+	/** How far round the local car the radar looks, m. */
+	inline constexpr float RadarRangeM = 20.0f;
+	/** A car this far off the local car's side, m, edge to edge, is alongside. */
+	inline constexpr float RadarSideM = 3.0f;
 }

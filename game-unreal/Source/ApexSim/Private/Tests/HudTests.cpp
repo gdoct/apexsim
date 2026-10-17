@@ -1132,6 +1132,67 @@ bool FApexHudDataPitRuleTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataRadarTest, "ApexSim.Hud.Data.Radar", ApexTestFlags)
+
+bool FApexHudDataRadarTest::RunTest(const FString& Parameters)
+{
+	// The local car heading +Y (90 degrees); one car 3 m to its left and a
+	// metre ahead (alongside), one 3.5 m to its right and 6 m behind (not
+	// overlapping), one 50 m up the road (out of range).
+	FApexTelemetryFrame Frame;
+	FApexCarTelemetry& Me = Frame.Cars.Add_GetRef(HudCar(0, 2, 100.0f, 50.0f));
+	Me.Position = FVector(10.0f, 20.0f, 0.0f);
+	Me.YawRad = UE_HALF_PI;
+	FApexCarTelemetry& Left = Frame.Cars.Add_GetRef(HudCar(1, 2, 101.0f, 50.0f));
+	Left.Position = FVector(7.0f, 21.0f, 0.0f);
+	Left.YawRad = UE_HALF_PI;
+	FApexCarTelemetry& Behind = Frame.Cars.Add_GetRef(HudCar(2, 2, 94.0f, 50.0f));
+	Behind.Position = FVector(13.5f, 14.0f, 0.0f);
+	Behind.YawRad = UE_HALF_PI;
+	FApexCarTelemetry& Far = Frame.Cars.Add_GetRef(HudCar(3, 2, 150.0f, 50.0f));
+	Far.Position = FVector(10.0f, 70.0f, 0.0f);
+	TMap<int32, FVector2f> Sizes;
+	Sizes.Add(0, FVector2f(2.3f, 1.0f));
+	Sizes.Add(1, FVector2f(2.3f, 1.0f));
+	Sizes.Add(2, FVector2f(2.3f, 1.0f));
+	FApexHudInputs In;
+	In.Frame = &Frame;
+	In.LocalCarIndex = 0;
+	In.GameMode = EApexGameMode::Race;
+	In.CarHalfSizes = &Sizes;
+	FApexHudMemory Memory;
+	FApexHudData Data;
+	ApexHudData::Build(In, Memory, Data);
+
+	TestTrue(TEXT("a car on the left"), HudValue(Data, TEXT("radar.left")).AsBool());
+	TestEqual(TEXT("a metre from the flank"), HudValue(Data, TEXT("radar.left_m")).AsNumber(), 1.0, 0.01);
+	TestFalse(TEXT("nothing alongside on the right"), HudValue(Data, TEXT("radar.right")).AsBool());
+	TestTrue(TEXT("so no gap"), HudValue(Data, TEXT("radar.right_m")).IsNone());
+	TestEqual(TEXT("two cars in range"), HudValue(Data, TEXT("radar.count")).AsNumber(), 2.0);
+	const TArray<FApexHudRecord>* Cars = Data.FindList(TEXT("radar_cars"));
+	if (TestNotNull(TEXT("the list"), Cars) && TestEqual(TEXT("two rows"), Cars->Num(), 2))
+	{
+		const FApexHudRecord& Row = (*Cars)[0];
+		TestEqual(TEXT("ahead"), Row.Find(TEXT("forward_m"))->AsNumber(), 1.0, 0.01);
+		TestEqual(TEXT("left"), Row.Find(TEXT("left_m"))->AsNumber(), 3.0, 0.01);
+		TestTrue(TEXT("alongside"), Row.Find(TEXT("alongside"))->AsBool());
+		TestFalse(TEXT("the one behind is not"), (*Cars)[1].Find(TEXT("alongside"))->AsBool());
+	}
+
+	// Closer behind on the right: now alongside there.
+	Frame.Cars[2].Position = FVector(13.5f, 17.0f, 0.0f);
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("a car on the right"), HudValue(Data, TEXT("radar.right")).AsBool());
+	TestEqual(TEXT("1.5 m off"), HudValue(Data, TEXT("radar.right_m")).AsNumber(), 1.5, 0.01);
+
+	// In the garage nothing is alongside.
+	Frame.Cars[0].bInGarage = true;
+	ApexHudData::Build(In, Memory, Data);
+	TestFalse(TEXT("garage"), HudValue(Data, TEXT("radar.left")).AsBool());
+	TestEqual(TEXT("garage: none listed"), HudValue(Data, TEXT("radar.count")).AsNumber(), 0.0);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataStableTest, "ApexSim.Hud.Data.Stable", ApexTestFlags)
 
 bool FApexHudDataStableTest::RunTest(const FString& Parameters)
@@ -1145,6 +1206,10 @@ bool FApexHudDataStableTest::RunTest(const FString& Parameters)
 	Car.TyreTempC[0] = Car.TyreTempC[1] = Car.TyreTempC[2] = Car.TyreTempC[3] = 90.0f;
 	Car.DamagePct[0] = Car.DamagePct[1] = Car.DamagePct[2] = Car.DamagePct[3] = Car.DamagePct[4] = 0.0f;
 	Frame.Cars.Add(Car);
+	// A car beside it, for the radar's list.
+	FApexCarTelemetry Beside = HudCar(1, 1, 101.0f, 30.0f);
+	Beside.Position = FVector(1.0f, 3.0f, 0.0f);
+	Frame.Cars.Add(Beside);
 	// The sky now, with a forecast and a wind: every `sky.*` filled.
 	Frame.Sky.bValid = true;
 	Frame.Sky.WindKph = 20;

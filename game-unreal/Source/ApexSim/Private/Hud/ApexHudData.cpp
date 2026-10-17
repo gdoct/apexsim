@@ -1,5 +1,7 @@
 #include "Hud/ApexHudData.h"
 
+#include "Catalog/ApexCatalogRows.h"
+
 #include "UI/ApexCreateSessionModel.h"
 
 #include "ApexErs.h"
@@ -304,6 +306,8 @@ const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
 			TEXT("compound"), TEXT("tyre_age_laps"), TEXT("tyre_wear_pct"), TEXT("pit_stops"), TEXT("away"), TEXT("dnq"),
 			TEXT("missed_stops"), TEXT("blue_flag"), TEXT("yellow"),
 			TEXT("race_time_s"), TEXT("finish_gap_s"), TEXT("finish_laps_down")}},
+		{TEXT("radar_cars"), {TEXT("car_index"), TEXT("forward_m"), TEXT("left_m"), TEXT("heading_deg"), TEXT("length_m"),
+			TEXT("width_m"), TEXT("alongside")}},
 		{TEXT("sectors"), {TEXT("number"), TEXT("time_s"), TEXT("best_s"), TEXT("session_best_s"), TEXT("state"),
 			TEXT("is_current")}},
 		{TEXT("tyres"), {TEXT("key"), TEXT("name"), TEXT("temp_c"), TEXT("pressure_kpa"), TEXT("wear_pct"),
@@ -404,6 +408,21 @@ FApexPitStopProgress ApexHudData::PitStopProgress(const FApexPitService& Stop, f
 		break;
 	}
 	return P;
+}
+
+FVector2f ApexHudData::CarHalfSize(const FApexWheelSpec& Wheels)
+{
+	const float Radius = FMath::Max(Wheels.FrontRadiusM, Wheels.RearRadiusM);
+	const float Track = FMath::Max(Wheels.FrontTrackM, Wheels.RearTrackM);
+	if (Radius <= 0.0f || Track <= 0.0f)
+	{
+		return FVector2f(2.3f, 1.0f);
+	}
+	// The axles are along the car from its origin; the bodywork runs past
+	// the wheels by about a wheel's radius more.
+	const float Axle = FMath::Max(FMath::Abs(Wheels.FrontAxleM), FMath::Abs(Wheels.RearAxleM));
+	const float Tyre = FMath::Max(Wheels.FrontWidthM, Wheels.RearWidthM);
+	return FVector2f(Axle + 2.0f * Radius, 0.5f * (Track + Tyre) + 0.05f);
 }
 
 void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexHudData& Out)
@@ -1046,6 +1065,67 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	}
 	Out.Set(TEXT("flag.yellow_sectors"), Frame.YellowSectors.Num());
 
+	// --- The radar --------------------------------------------------------------------
+	// Every other car within RadarRangeM of the local one, in its frame
+	// (forward and left, m), and whether one is alongside on either side:
+	// overlapping it along the car and within RadarSideM of its flank.
+	{
+		TArray<FApexHudRecord>& Radar = Out.Lists.FindOrAdd(TEXT("radar_cars"));
+		Radar.Reset();
+		float LeftGap = TNumericLimits<float>::Max();
+		float RightGap = TNumericLimits<float>::Max();
+		const auto HalfOf = [&In](int32 CarIndex)
+		{
+			const FVector2f* Size = In.CarHalfSizes ? In.CarHalfSizes->Find(CarIndex) : nullptr;
+			return Size ? *Size : FVector2f(2.3f, 1.0f);
+		};
+		if (Local && !Local->bInGarage)
+		{
+			const FVector2f Mine = HalfOf(Local->CarIndex);
+			const float C = FMath::Cos(Local->YawRad);
+			const float S = FMath::Sin(Local->YawRad);
+			for (const FApexCarTelemetry& Car : Frame.Cars)
+			{
+				if (Car.CarIndex == Local->CarIndex || Car.bInGarage)
+				{
+					continue;
+				}
+				const float Dx = Car.Position.X - Local->Position.X;
+				const float Dy = Car.Position.Y - Local->Position.Y;
+				const float Forward = Dx * C + Dy * S;
+				const float Left = -Dx * S + Dy * C;
+				if (FMath::Abs(Forward) > RadarRangeM || FMath::Abs(Left) > RadarRangeM
+					|| FMath::Abs(Car.Position.Z - Local->Position.Z) > 4.0f)
+				{
+					continue;
+				}
+				const FVector2f Theirs = HalfOf(Car.CarIndex);
+				const bool bOverlap = FMath::Abs(Forward) < Mine.X + Theirs.X;
+				const float Gap = FMath::Abs(Left) - Mine.Y - Theirs.Y;
+				const bool bAlongside = bOverlap && Gap < RadarSideM;
+				if (bAlongside)
+				{
+					float& Side = Left > 0.0f ? LeftGap : RightGap;
+					Side = FMath::Min(Side, FMath::Max(Gap, 0.0f));
+				}
+				FApexHudRecord& Row = Radar.AddDefaulted_GetRef();
+				Row.Add(TEXT("car_index"), FApexHudValue::Of(Car.CarIndex));
+				Row.Add(TEXT("forward_m"), FApexHudValue::Of(Forward));
+				Row.Add(TEXT("left_m"), FApexHudValue::Of(Left));
+				Row.Add(TEXT("heading_deg"), FApexHudValue::Of(FMath::RadiansToDegrees(
+					FMath::FindDeltaAngleRadians(Local->YawRad, Car.YawRad))));
+				Row.Add(TEXT("length_m"), FApexHudValue::Of(2.0f * Theirs.X));
+				Row.Add(TEXT("width_m"), FApexHudValue::Of(2.0f * Theirs.Y));
+				Row.Add(TEXT("alongside"), FApexHudValue::Of(bAlongside));
+			}
+		}
+		const bool bRadar = Local && !Local->bInGarage;
+		Out.Set(TEXT("radar.left"), bRadar && LeftGap < TNumericLimits<float>::Max());
+		Out.Set(TEXT("radar.right"), bRadar && RightGap < TNumericLimits<float>::Max());
+		Out.Set(TEXT("radar.left_m"), bRadar && LeftGap < TNumericLimits<float>::Max() ? FApexHudValue::Of(LeftGap) : FApexHudValue());
+		Out.Set(TEXT("radar.right_m"), bRadar && RightGap < TNumericLimits<float>::Max() ? FApexHudValue::Of(RightGap) : FApexHudValue());
+		Out.Set(TEXT("radar.count"), Radar.Num());
+	}
 
 	// --- The corner -----------------------------------------------------------------
 	// The corner the car is in, else the next one it comes to.

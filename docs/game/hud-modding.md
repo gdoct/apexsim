@@ -56,7 +56,8 @@ component id. To hide a shipped component, write
 Shipped components: `track_info`, `race_state` (with STOPS OWED under a pit
 rule and the BOX badge after a pit request), `status`, `minimap`,
 `standings`, `timing`, `pedals`, `damage`, `car_state`, `mirror`, `pit_stop`,
-`ers` (a hybrid only), `flags` (while race control shows the car a flag);
+`ers` (a hybrid only), `flags` (while race control shows the car a flag),
+`radar` (while a car is alongside);
 off until added in the editor: `relative`, `speed_gear`, `conditions`; while
 watching: `spectator_tower`, `spectator_driver`, `spectator_controls`,
 `spectator_replay`, `spectator_results` (once the race is over); the `hotlap_watch` scene: `hotlap_header`,
@@ -426,6 +427,9 @@ the car is in or, between corners, the next one; all *null* (and
 | `flag.blue` | the blue flag: a car a lap or more up is close behind |
 | `flag.name` | `DOUBLE YELLOW`, `YELLOW` or `BLUE FLAG`, the worst out (*null* while none is) |
 | `flag.yellow_sectors` | how many of the lap's 250 m marshal sectors show a yellow now |
+| `radar.left`, `radar.right` | a car alongside on that side: overlapping the local car along its length and within 3 m of its flank, edge to edge (car sizes from each car's catalog wheels) |
+| `radar.left_m`, `radar.right_m` | the gap to the nearest car alongside on that side, m, edge to edge (*null* while none is) |
+| `radar.count` | how many cars are in `radar_cars` |
 | `pit.in_lane`, `pit.limiter`, `pit.servicing` | in the pit lane / on the limiter / stopped at the box |
 | `pit.service_s` | seconds of service left |
 | `pit.autopilot` | the server drives the car along the pit route (the player's input is ignored) |
@@ -576,6 +580,17 @@ finished).
 | `item.key`, `item.name` | `front` / `Front` ... |
 | `item.pct` | damage, % |
 | `item.flash` | as `damage.<zone>_flash` |
+
+**`radar_cars`**: every other car within 20 m of the local car (none in a
+garage, nor more than 4 m above or below it), for a top-down radar.
+
+| Field | Meaning |
+|---|---|
+| `item.car_index` | car index |
+| `item.forward_m`, `item.left_m` | where it is from the local car, along its heading and to its left, m |
+| `item.heading_deg` | its heading against the local car's, degrees, positive turned left |
+| `item.length_m`, `item.width_m` | its size, from its catalog row's wheels |
+| `item.alongside` | it counts toward `radar.left` / `radar.right` |
 
 ## The HUD editor and layouts
 

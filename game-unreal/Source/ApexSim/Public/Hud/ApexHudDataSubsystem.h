@@ -133,6 +133,7 @@ private:
 
 	TMap<int32, FString> CarNames;
 	TMap<int32, TArray<FString>> CarCompounds;
+	TMap<int32, FVector2f> CarHalfSizes;
 	FString CarNamesKey;
 
 	FString WatchSource;
