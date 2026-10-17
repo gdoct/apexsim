@@ -6,7 +6,9 @@
 #include "ApexPauseMenuWidget.generated.h"
 
 class UApexButtonWidget;
+class UApexLapTraceWidget;
 class UApexStepperWidget;
+class USizeBox;
 class UBorder;
 class UTextBlock;
 class UVerticalBox;
@@ -91,8 +93,16 @@ public:
 	void OpenPitPlan();
 	bool IsPitPlanOpen() const { return bPitPlanOpen; }
 
+	/**
+	 * The last lap against the best (UApexLapTraceSubsystem) in place of the
+	 * menu's rows, the card widened for the traces. Back returns to the rows.
+	 */
+	void OpenLapTraces();
+	bool IsLapTracesOpen() const { return bLapTracesOpen; }
+
 private:
 	void ClosePitPlan();
+	void CloseLapTraces();
 	/** Every stepper of the plan to the subsystem's plan, its ranges to the car's compounds. */
 	void RefreshPitPlan();
 	/** The line under the steppers: the plan as the menu's row reads it. */
@@ -174,7 +184,32 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UApexButtonWidget> PitPlanDoneButton;
 
+	/** Opens the lap traces: shown to a driver once a lap is on record here. */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexButtonWidget> LapTracesRow;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> LapTracesPanel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UApexLapTraceWidget> LapTraceGraph;
+
+	/** The two laps' names and times, and where the files are. */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> LapTracesLegend;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> LapTracesNote;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UApexButtonWidget> LapTracesDoneButton;
+
+	/** The card's width box: wider while the traces are up. */
+	UPROPERTY(Transient)
+	TObjectPtr<USizeBox> CardSize;
+
 	bool bPitPlanOpen = false;
+	bool bLapTracesOpen = false;
 	bool bOpen = false;
 	bool bWatching = false;
 };

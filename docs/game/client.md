@@ -391,6 +391,34 @@ blended for the cockpit wheel, dials and engine sound.
 Tests: `ApexSim.Motion.*` (steady and lumpy streams, lost frames, a stall,
 teleport, measured tick rate, yaw seam).
 
+## Lap traces (`Race/ApexLapTrace.h`, `UApexLapTraceSubsystem`)
+
+Every whole lap the player drives is recorded from their own car's
+telemetry (`FApexLapRecorder`): a sample every 2 m of station with the lap
+clock, speed, throttle, brake, steering, gear, revs, the four treads and
+the position. A lap counts only when it was seen from the line (the first
+sample within 30 m and 2 s of it) to the next crossing with no jump over
+100 m: an out-lap, a lap joined part-way, a recovery, a stop with service
+or a rejoin give none. The station may wrap a few frames before the lap
+counter; that is not a jump. Spectating, backdrops and replays record
+nothing.
+
+Each lap is written as CSV to `Saved/Telemetry/<circuit>/<car>/`
+(`<date>_lap<N>_<m-ss-mmm>[_invalid].csv`, a `#` header with the circuit,
+car, lap, time and validity, then a row per sample;
+`ApexLapTrace::ToCsv` / `FromCsv`). The subsystem keeps the last lap and
+the best valid one, this session's or the quickest stored for the circuit
+and car.
+
+The pause menu's LAP TRACES row (shown once there is a lap) widens the card
+to `UApexLapTraceWidget`: speed, throttle and brake, and the time the last
+lap loses or gains on the best (`ApexLapTrace::DeltaByDistance`) by
+distance, the best muted and the last in the accent colour, with both
+times, the gap and the folder. `apexsim.telemetry.Laps` logs what is held.
+
+Tests: `ApexSim.LapTrace.*` (whole laps only, a wrap ahead of the counter,
+a recovery's jump; the CSV round trip and the delta).
+
 ## Racing line overlay (`Race/ApexRacingLineActor`)
 
 Settings > Assists > Racing line: OFF / BRAKING ONLY / FULL (default off;

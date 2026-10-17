@@ -1,0 +1,165 @@
+#include "ApexTestCommon.h"
+#include "Race/ApexLapTrace.h"
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+namespace ApexLapTraceTest
+{
+	/**
+	 * A car round a 1000 m lap at SpeedMps, a frame every 1/60 s, from
+	 * StartM on lap StartLap with the lap clock at StartLapS; the station
+	 * wraps WrapEarlyFrames frames before the counter moves.
+	 */
+	struct FDrive
+	{
+		float SpeedMps = 50.0f;
+		float LapM = 1000.0f;
+		int32 Lap = 1;
+		float Station = 0.0f;
+		float LapClockS = 0.0f;
+		int32 LastLapMs = 0;
+		int32 WrapEarlyFrames = 0;
+		int32 PendingWrap = -1;
+
+		FApexCarTelemetry Step()
+		{
+			const float Dt = 1.0f / 60.0f;
+			Station += SpeedMps * Dt;
+			LapClockS += Dt;
+			if (Station >= LapM && PendingWrap < 0)
+			{
+				PendingWrap = WrapEarlyFrames;
+				Station -= LapM;
+			}
+			if (PendingWrap >= 0)
+			{
+				if (PendingWrap == 0)
+				{
+					LastLapMs = FMath::RoundToInt((LapClockS - Station / SpeedMps) * 1000.0f);
+					LapClockS = Station / SpeedMps;
+					++Lap;
+				}
+				--PendingWrap;
+			}
+			FApexCarTelemetry Car;
+			Car.CarIndex = 0;
+			Car.CurrentLap = Lap;
+			Car.TrackProgress = Station;
+			Car.CurrentLapTimeMs = FMath::RoundToInt(LapClockS * 1000.0f);
+			Car.LastLapTimeMs = LastLapMs;
+			Car.SpeedMps = SpeedMps;
+			Car.Throttle = 1.0f;
+			Car.Gear = 4;
+			return Car;
+		}
+	};
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexLapTraceRecorderTest, "ApexSim.LapTrace.Recorder", ApexTestFlags)
+
+bool FApexLapTraceRecorderTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexLapTraceTest;
+	// Joined part-way round lap 1: that lap is not whole; lap 2 is.
+	FDrive Drive;
+	Drive.Station = 400.0f;
+	Drive.LapClockS = 8.0f;
+	FApexLapRecorder Recorder;
+	TArray<FApexLapTrace> Laps;
+	for (int32 Frame = 0; Frame < 60 * 45; ++Frame)
+	{
+		FApexLapTrace Lap;
+		if (Recorder.Add(Drive.Step(), Lap))
+		{
+			Laps.Add(Lap);
+		}
+	}
+	// 45 s at 50 m/s from 400 m: lap 1 ends at 12 s, lap 2 at 32 s.
+	TestEqual(TEXT("one whole lap"), Laps.Num(), 1);
+	if (Laps.Num() == 1)
+	{
+		const FApexLapTrace& Lap = Laps[0];
+		TestEqual(TEXT("it is lap 2"), Lap.LapNumber, 2);
+		TestTrue(TEXT("its time is the server's"), FMath::Abs(Lap.LapMs - 20000) <= 20);
+		TestTrue(TEXT("valid"), Lap.bValid);
+		TestTrue(TEXT("sampled every couple of metres"), Lap.Samples.Num() >= 380 && Lap.Samples.Num() <= 520);
+		TestEqual(TEXT("half way at 10 s"), Lap.At(500.0f).TimeS, 10.0f, 0.05f);
+		TestEqual(TEXT("ends at the lap's time"), Lap.Samples.Last().TimeS, 20.0f, 0.05f);
+	}
+
+	// The station wrapping three frames before the counter keeps the lap.
+	FDrive Early;
+	Early.WrapEarlyFrames = 3;
+	FApexLapRecorder Second;
+	int32 Whole = 0;
+	for (int32 Frame = 0; Frame < 60 * 41; ++Frame)
+	{
+		FApexLapTrace Lap;
+		Whole += Second.Add(Early.Step(), Lap) ? 1 : 0;
+	}
+	TestEqual(TEXT("a wrap ahead of the counter loses no lap"), Whole, 2);
+
+	// A recovery's jump breaks the lap it happens on.
+	FDrive Jump;
+	FApexLapRecorder Third;
+	int32 Kept = 0;
+	for (int32 Frame = 0; Frame < 60 * 21; ++Frame)
+	{
+		if (Frame == 300)
+		{
+			Jump.Station += 300.0f;
+		}
+		FApexLapTrace Lap;
+		Kept += Third.Add(Jump.Step(), Lap) ? 1 : 0;
+	}
+	TestEqual(TEXT("a jump of 300 m keeps nothing"), Kept, 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexLapTraceCsvTest, "ApexSim.LapTrace.CsvAndDelta", ApexTestFlags)
+
+bool FApexLapTraceCsvTest::RunTest(const FString& Parameters)
+{
+	FApexLapTrace Fast;
+	Fast.TrackId = TEXT("Snorisring");
+	Fast.CarId = TEXT("limbotiti-caravan-gt3");
+	Fast.LapNumber = 3;
+	Fast.LapMs = 20000;
+	Fast.bValid = true;
+	Fast.RecordedAt = FDateTime(2026, 10, 17, 18, 30, 5);
+	FApexLapTrace Slow = Fast;
+	Slow.LapMs = 21000;
+	for (int32 Step = 0; Step <= 500; ++Step)
+	{
+		FApexTraceSample S;
+		S.DistanceM = Step * 2.0f;
+		S.TimeS = S.DistanceM / 50.0f;
+		S.SpeedKph = 180.0f;
+		S.Gear = 4;
+		S.TyreC[0] = 85.0f;
+		Fast.Samples.Add(S);
+		// One second lost, all of it in the second half.
+		S.TimeS += S.DistanceM > 500.0f ? (S.DistanceM - 500.0f) / 500.0f : 0.0f;
+		Slow.Samples.Add(S);
+	}
+
+	FApexLapTrace Read;
+	TestTrue(TEXT("the CSV reads back"), ApexLapTrace::FromCsv(ApexLapTrace::ToCsv(Fast), Read));
+	TestEqual(TEXT("the car"), Read.CarId, Fast.CarId);
+	TestEqual(TEXT("the time"), Read.LapMs, 20000);
+	TestTrue(TEXT("valid"), Read.bValid);
+	TestEqual(TEXT("the samples"), Read.Samples.Num(), Fast.Samples.Num());
+	TestEqual(TEXT("a tyre"), Read.Samples[10].TyreC[0], 85.0f, 0.05f);
+	TestTrue(TEXT("the date"), Read.RecordedAt == Fast.RecordedAt);
+	TestFalse(TEXT("anything else is no trace"), ApexLapTrace::FromCsv(TEXT("a,b,c\n1,2,3\n"), Read));
+	TestEqual(TEXT("the file name"), ApexLapTrace::FileName(Fast), FString(TEXT("20261017-183005_lap3_0-20-000.csv")));
+
+	const TArray<FVector2f> Delta = ApexLapTrace::DeltaByDistance(Fast, Slow, 10.0f);
+	TestEqual(TEXT("a point every 10 m"), Delta.Num(), 101);
+	TestEqual(TEXT("level at half way"), Delta[50].Y, 0.0f, 0.01f);
+	TestEqual(TEXT("a second down at the line"), Delta.Last().Y, 1.0f, 0.01f);
+	TestEqual(TEXT("in between, half"), Delta[75].Y, 0.5f, 0.01f);
+	return true;
+}
+
+#endif

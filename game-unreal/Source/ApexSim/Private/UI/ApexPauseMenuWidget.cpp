@@ -14,8 +14,10 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Engine/GameInstance.h"
+#include "Race/ApexLapTraceSubsystem.h"
 #include "Race/ApexRaceCoordinate.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexLapTraceWidget.h"
 #include "UI/ApexStepperWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -37,6 +39,11 @@ namespace
 	const FName ActionQuit     = TEXT("Quit");
 	const FName ActionPitPlan  = TEXT("PitPlan");
 	const FName ActionPitPlanDone = TEXT("PitPlanDone");
+	const FName ActionLapTraces = TEXT("LapTraces");
+	const FName ActionLapTracesDone = TEXT("LapTracesDone");
+	/** The card while the traces are up: room for a lap to read. */
+	constexpr float LapTracesCardWidth = 1240.0f;
+	constexpr float LapTraceGraphHeight = 520.0f;
 
 	/** The pit plan's rows, in the order the crew works, then the request. */
 	enum EPitPlanRow : int32 { PlanTyres = 0, PlanFuel, PlanRepair, PlanPads, PlanPadSet, PlanBox, PlanRowCount };
@@ -75,6 +82,9 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	// The driver's orders for the next stop, and the box-this-lap request.
 	PitPlanRow = AddRow(Actions, TEXT("PIT PLAN"), TEXT("Crew's call"), ActionPitPlan, false);
 	PitPlanRow->SetVisibility(ESlateVisibility::Collapsed);
+	// The last lap against the best, by distance; once a lap is on record.
+	LapTracesRow = AddRow(Actions, TEXT("LAP TRACES"), TEXT("Last against best"), ActionLapTraces, false);
+	LapTracesRow->SetVisibility(ESlateVisibility::Collapsed);
 	// A hotlap's way back in: the car is parked, repaired and out of the way,
 	// with the setup card up. Collapsed in every other mode and in the garage.
 	GarageRow = AddRow(Actions, TEXT("BACK TO GARAGE"), TEXT("Tune, replay, go again"), ActionGarage, false);
@@ -146,6 +156,37 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 		AddV(Card, PitPlanPanel);
 	}
 
+	// --- The lap traces --------------------------------------------------------
+	{
+		UVerticalBox* Traces = WidgetTree->ConstructWidget<UVerticalBox>();
+		LapTracesLegend = MakeText(*WidgetTree, FString(), Font::Mono(12.0f, 60), Palette::TextPrimary);
+		LapTracesLegend->SetAutoWrapText(true);
+		AddV(Traces, LapTracesLegend, FMargin(6.0f, 0.0f, 6.0f, 12.0f));
+		LapTraceGraph = WidgetTree->ConstructWidget<UApexLapTraceWidget>();
+		AddV(Traces, MakeSized(*WidgetTree, LapTraceGraph, -1.0f, LapTraceGraphHeight), FMargin(6.0f, 0.0f));
+		LapTracesNote = MakeText(*WidgetTree, FString(), Font::Mono(10.0f, 60), Palette::TextMuted);
+		LapTracesNote->SetAutoWrapText(true);
+		AddV(Traces, LapTracesNote, FMargin(6.0f, 12.0f, 6.0f, 12.0f));
+
+		FApexButtonSpec Done;
+		Done.Label = TEXT("DONE");
+		Done.Badge = TEXT("Back to the menu");
+		Done.KeyCap = TEXT("ESC");
+		Done.ActionId = ActionLapTracesDone;
+		Done.Variant = EApexButtonVariant::Panel;
+		Done.Height = PauseRowHeight;
+		Done.LabelSize = 24.0f;
+		Done.Sound = EApexUiSound::Back;
+		LapTracesDoneButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		LapTracesDoneButton->Setup(Done);
+		LapTracesDoneButton->OnActivated.AddDynamic(this, &UApexPauseMenuWidget::HandleButtonActivated);
+		AddV(Traces, LapTracesDoneButton);
+
+		LapTracesPanel = MakePanel(*WidgetTree, Traces, FMargin(22.0f, 22.0f), MakeBrush(Palette::Background));
+		LapTracesPanel->SetVisibility(ESlateVisibility::Collapsed);
+		AddV(Card, LapTracesPanel);
+	}
+
 	AddV(Card, MakeKeyHintBar(
 		*WidgetTree,
 		{ { TEXT("↑↓"), TEXT("Move") }, { TEXT("Enter"), TEXT("Select") }, { TEXT("Esc"), TEXT("Resume") } },
@@ -173,7 +214,8 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	StripSlot->SetVerticalAlignment(VAlign_Top);
 	StripSlot->SetPadding(FMargin(Metrics::PageGutter, 34.0f, 0.0f, 0.0f));
 
-	UOverlaySlot* CardSlot = Content->AddChildToOverlay(MakeSized(*WidgetTree, CardPanel, PauseCardWidth, -1.0f));
+	CardSize = MakeSized(*WidgetTree, CardPanel, PauseCardWidth, -1.0f);
+	UOverlaySlot* CardSlot = Content->AddChildToOverlay(CardSize);
 	CardSlot->SetHorizontalAlignment(HAlign_Center);
 	CardSlot->SetVerticalAlignment(VAlign_Center);
 
@@ -240,6 +282,14 @@ void UApexPauseMenuWidget::Open()
 
 void UApexPauseMenuWidget::FocusDefault()
 {
+	if (bLapTracesOpen)
+	{
+		if (!ApexNav::Focus(LapTracesDoneButton))
+		{
+			SetKeyboardFocus();
+		}
+		return;
+	}
 	if (bPitPlanOpen)
 	{
 		UWidget* First = PitPlanSteppers.Num() > 0 ? ApexNav::FindFirstFocusable(PitPlanSteppers[0]) : nullptr;
@@ -263,6 +313,7 @@ void UApexPauseMenuWidget::Close()
 	}
 	bOpen = false;
 	ClosePitPlan();
+	CloseLapTraces();
 	SetVisibility(ESlateVisibility::Collapsed);
 }
 
@@ -297,6 +348,77 @@ void UApexPauseMenuWidget::ClosePitPlan()
 	if (ActionsPanel)
 	{
 		ActionsPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (HeadingText)
+	{
+		HeadingText->SetText(FText::FromString(TEXT("PAUSED")));
+	}
+	RefreshStatusStrip();
+}
+
+void UApexPauseMenuWidget::OpenLapTraces()
+{
+	const UApexLapTraceSubsystem* Traces = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexLapTraceSubsystem>() : nullptr;
+	if (!LapTracesPanel || !ActionsPanel || !Traces)
+	{
+		return;
+	}
+	bLapTracesOpen = true;
+	const FApexLapTrace& Last = Traces->GetLast();
+	const FApexLapTrace& Best = Traces->GetBest();
+	// The best against itself says nothing: a lap only against an earlier one.
+	const bool bLastIsBest = !Last.IsEmpty() && !Best.IsEmpty() && Last.RecordedAt == Best.RecordedAt && Last.LapMs == Best.LapMs;
+	LapTraceGraph->SetTraces(Best, bLastIsBest ? FApexLapTrace() : Last);
+	auto Time = [](int32 Ms) { return FString::Printf(TEXT("%d:%02d.%03d"), Ms / 60000, (Ms / 1000) % 60, Ms % 1000); };
+	TArray<FString> Legend;
+	if (!Last.IsEmpty() && !bLastIsBest)
+	{
+		Legend.Add(FString::Printf(TEXT("LAST  LAP %d  %s%s"), Last.LapNumber, *Time(Last.LapMs), Last.bValid ? TEXT("") : TEXT("  INVALID")));
+	}
+	if (!Best.IsEmpty())
+	{
+		Legend.Add(FString::Printf(TEXT("BEST  %s%s"), *Time(Best.LapMs),
+			Traces->IsBestStored() ? *FString::Printf(TEXT("  (%s)"), *Best.RecordedAt.ToString(TEXT("%d %b %Y"))) : TEXT("  THIS SESSION")));
+	}
+	if (!Last.IsEmpty() && !Best.IsEmpty() && !bLastIsBest)
+	{
+		const int32 Gap = Last.LapMs - Best.LapMs;
+		Legend.Add(FString::Printf(TEXT("%s%.3f"), Gap >= 0 ? TEXT("+") : TEXT("-"), FMath::Abs(Gap) / 1000.0f));
+	}
+	LapTracesLegend->SetText(FText::FromString(Legend.Num() > 0 ? FString::Join(Legend, TEXT("     ")) : FString(TEXT("NO LAP YET"))));
+	LapTracesNote->SetText(FText::FromString(FString::Printf(
+		TEXT("Accent: the last lap. Grey: the best. Every whole lap is saved as CSV in %s"), *Traces->GetFolder())));
+	ActionsPanel->SetVisibility(ESlateVisibility::Collapsed);
+	LapTracesPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	if (CardSize)
+	{
+		CardSize->SetWidthOverride(LapTracesCardWidth);
+	}
+	if (HeadingText)
+	{
+		HeadingText->SetText(FText::FromString(TEXT("LAP TRACES")));
+	}
+	FocusDefault();
+}
+
+void UApexPauseMenuWidget::CloseLapTraces()
+{
+	if (!bLapTracesOpen)
+	{
+		return;
+	}
+	bLapTracesOpen = false;
+	if (LapTracesPanel)
+	{
+		LapTracesPanel->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (ActionsPanel)
+	{
+		ActionsPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (CardSize)
+	{
+		CardSize->SetWidthOverride(PauseCardWidth);
 	}
 	if (HeadingText)
 	{
@@ -435,6 +557,13 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 		}
 	}
 
+	if (LapTracesRow)
+	{
+		const UApexLapTraceSubsystem* Traces = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexLapTraceSubsystem>() : nullptr;
+		const bool bTraces = !bWatching && Traces && (!Traces->GetLast().IsEmpty() || !Traces->GetBest().IsEmpty());
+		LapTracesRow->SetVisibility(bTraces ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+
 	FApexSessionSummary Session;
 	if (Net->FindSessionById(Net->GetCurrentSessionId(), Session) && !Session.TrackName.IsEmpty())
 	{
@@ -493,6 +622,15 @@ void UApexPauseMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		ClosePitPlan();
 		ApexNav::Focus(PitPlanRow);
 	}
+	else if (Action == ActionLapTraces)
+	{
+		OpenLapTraces();
+	}
+	else if (Action == ActionLapTracesDone)
+	{
+		CloseLapTraces();
+		ApexNav::Focus(LapTracesRow);
+	}
 	else if (Action == ActionGarage)
 	{
 		OnAction.Broadcast(EApexPauseAction::ReturnToGarage);
@@ -536,6 +674,12 @@ FReply UApexPauseMenuWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 
 bool UApexPauseMenuWidget::HandleBack()
 {
+	if (bLapTracesOpen)
+	{
+		CloseLapTraces();
+		ApexNav::Focus(LapTracesRow);
+		return true;
+	}
 	if (bPitPlanOpen)
 	{
 		ClosePitPlan();
@@ -548,6 +692,12 @@ bool UApexPauseMenuWidget::HandleBack()
 
 bool UApexPauseMenuWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
 {
+	if (bLapTracesOpen)
+	{
+		// Done is the page's one control.
+		ApexNav::Focus(LapTracesDoneButton);
+		return true;
+	}
 	if (bPitPlanOpen)
 	{
 		// Rows of steppers, then Done: the nearest control that way, and

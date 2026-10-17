@@ -72,11 +72,16 @@ starts; a race start on screen.
 
 ### 6. Telemetry logging and lap comparison
 
-- The player's laps recorded at telemetry rate per car and track; an
-  in-game two-lap overlay by distance (best, last, ghost, hotlap record);
-  CSV and MoTeC export.
+Built: every whole lap recorded and saved as CSV, the pause menu's last
+against best by distance ([game/client.md](game/client.md#lap-traces-raceapexlaptraceh-uapexlaptracesubsystem)).
+Left:
 
-**Check:** a recorded lap matching its replay; an export opened in MoTeC.
+- Comparing against the ghost or the hotlap record (the server's
+  `GhostLap` traces are 20 Hz positions only), and picking any two stored
+  laps.
+- MoTeC i2 (`.ld`) export.
+
+**Check:** an export opened in MoTeC.
 
 ### 7. Championships
 

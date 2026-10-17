@@ -47,7 +47,7 @@ When an item is done, delete it from its backlog and from here.
 | R1b | Safety car | Race rules | P2 | 🟡 | L |
 | N4 | Formation lap, rolling start, jump-start detection | Race rules | P2 | 🟡 | M |
 | N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L |
-| N6 | Telemetry logging and lap comparison | Driver tools | P2 | 🟢 | M |
+| N6 | Lap comparison against the ghost; MoTeC export | Driver tools | P3 | 🟢 | S |
 | N7 | Championships and series with points | Game mode | P2 | 🔴 | M |
 | N8 | Public server list (master server) | Online | P2 | 🔴 | M |
 | N9 | Text chat (lobby and race) | Online | P2 | 🟢 | S |
@@ -89,7 +89,7 @@ When an item is done, delete it from its backlog and from here.
 4. **Sim-racer essentials** — N1 (client prediction: largest online win, largest job).
 5. **Visual quality pass** — G1, G3, G4 in one branch of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10 (upscaling) alongside.
 6. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
-7. **Online and depth** — N9 (chat), N6 (lap comparison), N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
+7. **Online and depth** — N9 (chat), N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
 8. Everything P3 opportunistically, bundled with whatever touches the same files.
 
 ## 3. Items by type
@@ -453,16 +453,11 @@ AI that yields to and passes across classes; grid by class.
 **Watch out:** depends on R1a; the AI's speed difference between classes
 stresses A3 (side-by-side); results and records keyed by class.
 
-#### N6. Telemetry logging and lap comparison — P2 · 🟢 · M
-**What:** A delta and ghosts exist, but no traces show where time is lost.
-**Outcome:** Drivers improve; setup changes become measurable.
-**Implementation:** Record the player's laps at telemetry rate (speed,
-pedals, steering, gear, rpm, tyre temps, position) to a per-car/track file;
-an in-game view overlaying two laps by distance (best vs last, vs the ghost
-or a hotlap record); export to CSV and MoTeC i2 (`.ld`). Can be derived from
-replays, which already store the stream.
-**Watch out:** keep it client-side; file size per hour; the track map needs
-the centerline the client already has.
+#### N6. Lap comparison: the ghost, any two laps, MoTeC — P3 · 🟢 · S
+Built: every whole lap recorded and saved as CSV, the pause menu's last
+against best by distance. Left: comparing against the ghost or the hotlap
+record (the server's ghost traces are 20 Hz positions only), picking any
+two stored laps, and a MoTeC i2 (`.ld`) export.
 
 #### N7. Championships and series with points — P2 · 🔴 · M
 **What:** No points table across races; R3 covers one weekend only.

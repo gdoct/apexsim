@@ -442,6 +442,12 @@ Mandarina Bay.
   and back, a line for another car refused, the note under the save line.
   Only `ApexSim.SetupShare.*` has run.
 
+**Lap traces.** ([game/client.md](game/client.md#lap-traces-raceapexlaptraceh-uapexlaptracesubsystem))
+
+- A few laps by hand, then the pause menu's LAP TRACES: the last against the
+  best, the braking points lining up with the corners, the delta's sign; the
+  CSVs in `Saved/Telemetry`. Only `ApexSim.LapTrace.*` has run.
+
 **Last, with the network off.**
 
 - The launcher's AC import button, never clicked by hand, and the import
