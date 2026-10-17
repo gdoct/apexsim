@@ -372,6 +372,136 @@ fn the_ffi_steps_a_car_as_the_session_does_on_the_road_mesh_with_aids() {
     );
 }
 
+/// What a rewind needs (docs/proposals/client-prediction.md, phase 2): a
+/// car whose whole state is the server's of `STALE` ticks ago, with the
+/// server's `OwnCarSnapshot` of now laid over it, steps on beside the
+/// server within a millimetre over a ping's worth of ticks; pose and
+/// velocities alone drift by centimetres. The slow state the snapshot
+/// leaves out (tyres, fuel, hybrid, damage) comes in the blob.
+#[test]
+fn a_snapshot_over_a_stale_state_replays_with_the_server() {
+    /// The blob comes twice a second: a second stale is the worst case
+    /// with one lost.
+    const STALE: usize = DEFAULT_TICK_RATE_HZ as usize;
+    /// 100 ms at 420 Hz.
+    const REPLAY: u32 = 42;
+    let (mut session, human, conditions) = session(
+        RoadContactMode::Mesh,
+        Some(DriverAids {
+            auto_gearbox: true,
+            steering_assist: true,
+            abs: Some(true),
+            traction_control: Some(TractionControl::High),
+            pit_autopilot: None,
+        }),
+    );
+    let ffi = Ffi::new(1, &conditions, &setup_clicks());
+    let toml = std::fs::read(repo(CAR)).unwrap();
+    let new_car = |state: &CarState| -> *mut ApxCar {
+        let mut car = std::ptr::null_mut();
+        let clicks = setup_clicks();
+        let blob = car_step::encode_state(state);
+        unsafe {
+            ok(apx_car_create(
+                ffi.track,
+                toml.as_ptr(),
+                toml.len(),
+                clicks.as_ptr(),
+                clicks.len(),
+                1,
+                &mut car,
+            ));
+            ok(apx_car_state_load(car, blob.as_ptr(), blob.len()));
+        }
+        car
+    };
+    // The runtime fields a blob carries but the session's passes own are
+    // the server's of now in every probe: only the car's own state is
+    // stale.
+    let stale_with_now = |stale: &CarState, now: &CarState| {
+        let mut s = stale.clone();
+        s.nearest_centerline_idx = now.nearest_centerline_idx;
+        s.next_checkpoint = now.next_checkpoint;
+        s.laps = now.laps.clone();
+        s.wheels_off_track = now.wheels_off_track;
+        s.drs_armed = now.drs_armed;
+        s.drs_last_progress = now.drs_last_progress;
+        s.road_work = now.road_work;
+        s
+    };
+
+    let mut history: std::collections::VecDeque<CarState> = Default::default();
+    // [exact, pose and velocities, snapshot], and when they end.
+    let mut probes: Vec<*mut ApxCar> = Vec::new();
+    let mut probe_end = 0;
+    let mut worst = [0.0f32; 3];
+    let mut rewinds = 0;
+    for t in 0..TRACE_TICKS {
+        let input = trace_input(t, false);
+        let mut inputs = HashMap::new();
+        inputs.insert(human, input);
+        session.tick(&inputs);
+        let tick = session.session.current_tick;
+        unsafe { (*ffi.track).track_mut() }.road_state = session.track_config.road_state.clone();
+        for &car in &probes {
+            let c = to_c(&input);
+            unsafe { ok(apx_car_step(car, ffi.track, &c, tick, DEFAULT_TICK_RATE_HZ)) };
+        }
+        let now = session.session.participants[&human].clone();
+        if !probes.is_empty() && tick == probe_end {
+            for (i, car) in probes.drain(..).enumerate() {
+                let mut pose = ApxCarPose::default();
+                unsafe { ok(apx_car_pose(car, &mut pose)) };
+                let error = ((pose.pos_x - now.pos_x).powi(2)
+                    + (pose.pos_y - now.pos_y).powi(2)
+                    + (pose.pos_z - now.pos_z).powi(2))
+                .sqrt();
+                worst[i] = worst[i].max(error);
+                unsafe { apx_car_free(car) };
+            }
+        }
+        history.push_back(now.clone());
+        if history.len() > STALE + 1 {
+            history.pop_front();
+        }
+        if t >= 600 && t % 200 == 0 && t + REPLAY < TRACE_TICKS && probes.is_empty() {
+            let stale = stale_with_now(&history[0], &now);
+            let mut pose_only = stale.clone();
+            pose_only.pos_x = now.pos_x;
+            pose_only.pos_y = now.pos_y;
+            pose_only.pos_z = now.pos_z;
+            pose_only.yaw_rad = now.yaw_rad;
+            pose_only.pitch_rad = now.pitch_rad;
+            pose_only.roll_rad = now.roll_rad;
+            pose_only.vel_x = now.vel_x;
+            pose_only.vel_y = now.vel_y;
+            pose_only.vel_z = now.vel_z;
+            pose_only.speed_mps = now.speed_mps;
+            pose_only.angular_vel_yaw = now.angular_vel_yaw;
+            pose_only.angular_vel_pitch = now.angular_vel_pitch;
+            pose_only.angular_vel_roll = now.angular_vel_roll;
+            let mut snapshot = stale;
+            apexsim_server::own_car::OwnCarSnapshot::of(&now, tick, None).apply_to(&mut snapshot);
+            probes = vec![new_car(&now), new_car(&pose_only), new_car(&snapshot)];
+            probe_end = tick + REPLAY;
+            rewinds += 1;
+        }
+    }
+    eprintln!(
+        "{rewinds} rewinds over a {STALE}-tick stale state, {REPLAY} ticks replayed: \
+         max error exact {:.4} m, pose and velocities {:.4} m, snapshot {:.4} m",
+        worst[0], worst[1], worst[2]
+    );
+    assert!(rewinds >= 15);
+    assert_eq!(worst[0], 0.0, "the full state replays exactly");
+    assert!(worst[2] < 0.005, "the snapshot leaves {} m", worst[2]);
+    assert!(
+        worst[1] > 5.0 * worst[2],
+        "pose and velocities alone ({} m) are not enough",
+        worst[1]
+    );
+}
+
 #[test]
 fn a_saved_state_replays_bit_for_bit() {
     let track = TrackLoader::load_from_file(repo(TRACK)).unwrap();

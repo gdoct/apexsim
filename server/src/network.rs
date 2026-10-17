@@ -380,6 +380,14 @@ pub enum ClientMessage {
         /// before the field never brakes by hand.
         #[serde(default)]
         handbrake: Option<bool>,
+        /// The client's number for this input, one higher with each it
+        /// sends (`crate::own_car`): the server hands back the newest it
+        /// has applied with the car's snapshot in `DriverFeedback`, so a
+        /// predicting client knows which of its inputs to replay. `None`
+        /// (and a client from before the field) gets no snapshot. Left off
+        /// the wire when `None`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        seq: Option<u32>,
     },
 
     // TCP - A line of text chat to the lobby, or to the session the player
@@ -2678,6 +2686,7 @@ mod tests {
             ers_mode: Some(2),
             ers_boost: Some(true),
             handbrake: Some(true),
+            seq: Some(9),
         };
 
         let serialized = rmp_serde::to_vec_named(&msg).unwrap();
@@ -2697,7 +2706,9 @@ mod tests {
                 ers_mode,
                 ers_boost,
                 handbrake,
+                seq,
             } => {
+                assert_eq!(seq, Some(9));
                 assert_eq!(handbrake, Some(true));
                 assert_eq!(ers_mode, Some(2));
                 assert_eq!(ers_boost, Some(true));
@@ -2734,6 +2745,7 @@ mod tests {
             ers_mode: None,
             ers_boost: None,
             handbrake: None,
+            seq: None,
         };
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         println!("C_PlayerInputDrs = {bytes:02x?}");
@@ -2799,6 +2811,7 @@ mod tests {
             ers_mode: Some(1),
             ers_boost: Some(false),
             handbrake: Some(false),
+            seq: None,
         };
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         println!("C_PlayerInputClutch = {bytes:02x?}");
@@ -2827,6 +2840,7 @@ mod tests {
             ers_mode: Some(1),
             ers_boost: Some(false),
             handbrake: Some(false),
+            seq: None,
         };
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         println!("C_PlayerInput = {bytes:02x?}");
@@ -3243,6 +3257,8 @@ mod tests {
             steer_stiffness: -4.0,
             front_load: 1.5,
             flat_spot: [0, 40, 0, 100],
+            own_car: None,
+            own_state: None,
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!("DriverFeedback ({} bytes):", bytes.len());
@@ -3259,6 +3275,252 @@ mod tests {
             },
             other => panic!("Wrong message type: {:?}", other),
         }
+    }
+
+    /// Prints `bytes` as rows of a C++ initializer, under `name`.
+    fn print_golden(name: &str, bytes: &[u8]) {
+        println!("{name} ({} bytes):", bytes.len());
+        for row in bytes.chunks(16) {
+            let hex: Vec<String> = row.iter().map(|b| format!("0x{b:02X}")).collect();
+            println!("\t\t{},", hex.join(", "));
+        }
+    }
+
+    /// The input sequence after the handbrake: `ApexUdpGolden::C_PlayerInputSeq`
+    /// (`cargo test player_input_seq_wire_format -- --nocapture`). An input
+    /// without one keeps its old bytes (`C_PlayerInput`).
+    #[test]
+    fn test_player_input_seq_wire_format() {
+        let mut msg = ClientMessage::PlayerInput {
+            server_tick_ack: 4242,
+            throttle: 1.0,
+            brake: 0.0,
+            steering: -0.5,
+            gear: Some(4),
+            clutch: None,
+            drs: Some(false),
+            headlights: None,
+            flash: Some(false),
+            ers_mode: Some(1),
+            ers_boost: Some(false),
+            handbrake: Some(false),
+            seq: None,
+        };
+        let without = rmp_serde::to_vec_named(&msg).unwrap();
+        assert_eq!(without[23], 0x8c, "no seq: twelve fields, the old bytes");
+        if let ClientMessage::PlayerInput { seq, .. } = &mut msg {
+            *seq = Some(70_000);
+        }
+        let bytes = rmp_serde::to_vec_named(&msg).unwrap();
+        print_golden("C_PlayerInputSeq", &bytes);
+        assert_eq!(bytes[23], 0x8d, "thirteen fields");
+        assert!(
+            bytes.ends_with(&[0xa3, b's', b'e', b'q', 0xce, 0x00, 0x01, 0x11, 0x70]),
+            "{bytes:02x?}"
+        );
+        assert_eq!(&bytes[..23], &without[..23]);
+        assert_eq!(&bytes[24..bytes.len() - 9], &without[24..]);
+        match rmp_serde::from_slice::<ClientMessage>(&bytes).unwrap() {
+            ClientMessage::PlayerInput { seq, .. } => assert_eq!(seq, Some(70_000)),
+            _ => panic!("Wrong message type"),
+        }
+    }
+
+    /// A snapshot with a value in every field, each exact in an `f32`.
+    fn golden_snapshot() -> crate::own_car::OwnCarSnapshot {
+        crate::own_car::OwnCarSnapshot {
+            tick: 1234,
+            input_seq: Some(300),
+            pos: [100.5, -20.25, 3.0],
+            attitude: [1.5, 0.0, -0.125],
+            vel: [40.0, -2.5, 0.0],
+            speed_mps: 40.0,
+            angular_vel: [0.25, 0.0, 0.0],
+            wheel_angular_vel: [120.0, 121.0, 122.5, 123.5],
+            wheel_load_n: [2500.0, 2600.0, 3000.0, 3100.0],
+            suspension_travel_m: [0.0, 0.0, -0.0625, 0.0],
+            suspension_velocity_mps: [0.0, 0.5, 0.0, 0.0],
+            g_forces: [-1.5, 0.25, 1.0],
+            vertical_accel_mps2: 0.0,
+            ground_slope: [0.0, 0.0],
+            porpoise: [0.0, 0.0],
+            controls: [1.0, 0.0, -0.25, 1.0],
+            gear: 4,
+            engine_rpm: 9000.0,
+            turbo_spool: 0.0,
+            auto_shift_hold_ticks: 0,
+            auto_reverse_ticks: 0,
+            track_progress: 512.5,
+            lateral_offset_m: -1.5,
+            current_lap: 2,
+            centerline_idx: Some(205),
+            flags: crate::own_car::FLAG_ON_TRACK | crate::own_car::FLAG_DRS_OPEN,
+        }
+    }
+
+    /// The driver's own car on the feedback message
+    /// (`cargo test driver_feedback_own_car_wire_format -- --nocapture`):
+    /// `ApexUdpGolden::S_DriverFeedbackOwnCar` carries the snapshot and no
+    /// slice of the state (the slice is left off, as nothing follows it);
+    /// `S_DriverFeedbackOwnState` both. Without either the message keeps
+    /// the bytes of `S_DriverFeedbackFlatSpot`.
+    #[test]
+    fn test_driver_feedback_own_car_wire_format() {
+        let base = DriverFeedback {
+            server_tick: 1234,
+            steer_torque: vec![0.25, -0.5],
+            slip_ratio: [1.5, -2.0, 0.0, 0.5],
+            slip_angle: [0.0, 0.25, -1.0, 3.0],
+            surface: [0, 1, 2, 0],
+            suspension_mps: [0.5, -0.25, 0.0, 2.0],
+            abs_active: true,
+            tc_active: false,
+            impact_mps: 4.5,
+            steer_kick: -1.5,
+            steer_input: 0.25,
+            steer_stiffness: -4.0,
+            front_load: 1.5,
+            flat_spot: [0, 40, 0, 100],
+            own_car: None,
+            own_state: None,
+        };
+        let old = rmp_serde::to_vec(&ServerMessage::DriverFeedback(base.clone())).unwrap();
+
+        let with_car = DriverFeedback {
+            own_car: Some(Box::new(golden_snapshot())),
+            ..base.clone()
+        };
+        let car_bytes =
+            rmp_serde::to_vec(&ServerMessage::DriverFeedback(with_car.clone())).unwrap();
+        print_golden("S_DriverFeedbackOwnCar", &car_bytes);
+        // The old message's fields, then one more: the array grows by one.
+        assert_eq!(old[16], 0x9e, "fourteen fields before");
+        assert_eq!(car_bytes[16], 0x9f, "fifteen with the snapshot");
+        assert_eq!(&car_bytes[17..old.len()], &old[17..]);
+        assert_eq!(
+            car_bytes[old.len()],
+            0xdc,
+            "the snapshot is an array of 26 (array16)"
+        );
+        assert_eq!(&car_bytes[old.len() + 1..old.len() + 3], &[0x00, 0x1a]);
+
+        let with_state = DriverFeedback {
+            own_state: Some(crate::own_car::StateChunk {
+                tick: 1190,
+                input_seq: Some(290),
+                index: 1,
+                count: 9,
+                bytes: RecordBytes(vec![0x41, 0x50, 0x58, 0x43]),
+            }),
+            ..with_car.clone()
+        };
+        let state_bytes =
+            rmp_serde::to_vec(&ServerMessage::DriverFeedback(with_state.clone())).unwrap();
+        print_golden("S_DriverFeedbackOwnState", &state_bytes);
+        assert_eq!(state_bytes[16], 0xdc, "sixteen fields (array16)");
+        assert_eq!(&state_bytes[17..19], &[0x00, 0x10]);
+        assert!(
+            state_bytes.ends_with(&[
+                0x95, 0xcd, 0x04, 0xa6, 0xcd, 0x01, 0x22, 0x01, 0x09, 0xc4, 0x04, 0x41, 0x50, 0x58,
+                0x43
+            ]),
+            "the slice: [tick, seq, index, count, bin]"
+        );
+
+        // A slice without a snapshot sends the snapshot as nil.
+        let only_state = DriverFeedback {
+            own_car: None,
+            ..with_state.clone()
+        };
+        let only = rmp_serde::to_vec(&ServerMessage::DriverFeedback(only_state.clone())).unwrap();
+        assert_eq!(only[old.len() + 2], 0xc0);
+
+        for msg in [base, with_car, with_state, only_state] {
+            let bytes = rmp_serde::to_vec(&ServerMessage::DriverFeedback(msg.clone())).unwrap();
+            match rmp_serde::from_slice(&bytes).unwrap() {
+                ServerMessage::DriverFeedback(decoded) => assert_eq!(decoded, msg),
+                other => panic!("Wrong message type: {other:?}"),
+            }
+        }
+        // An older server's message decodes with neither.
+        match rmp_serde::from_slice(&old).unwrap() {
+            ServerMessage::DriverFeedback(decoded) => {
+                assert!(decoded.own_car.is_none() && decoded.own_state.is_none())
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
+    /// The datagram a predicting driver gets, at its largest: a full
+    /// telemetry interval of steering samples at the default rates, a
+    /// snapshot with every number at its widest, and a full slice of the
+    /// state. It stays well under a 1500-byte MTU (1472 bytes of UDP
+    /// payload over IPv4), so it is never fragmented.
+    #[test]
+    fn own_car_feedback_fits_one_small_datagram() {
+        let divisor = crate::config::ServerConfig::default()
+            .network
+            .telemetry_divisor
+            .max(1) as usize;
+        // One steering sample per tick since the last message.
+        let samples = divisor;
+        let mut snapshot = golden_snapshot();
+        snapshot.tick = u32::MAX;
+        snapshot.input_seq = Some(u32::MAX);
+        snapshot.gear = -1;
+        snapshot.auto_shift_hold_ticks = u16::MAX;
+        snapshot.auto_reverse_ticks = u16::MAX;
+        snapshot.current_lap = u16::MAX;
+        snapshot.centerline_idx = Some(u32::MAX);
+        snapshot.flags = u8::MAX;
+        let base = DriverFeedback {
+            server_tick: u32::MAX,
+            steer_torque: vec![0.1; samples],
+            slip_ratio: [0.1; 4],
+            slip_angle: [0.1; 4],
+            surface: [2; 4],
+            suspension_mps: [0.1; 4],
+            abs_active: true,
+            tc_active: true,
+            impact_mps: 0.1,
+            steer_kick: 0.1,
+            steer_input: 0.1,
+            steer_stiffness: 0.1,
+            front_load: 0.1,
+            flat_spot: [100; 4],
+            own_car: None,
+            own_state: None,
+        };
+        let size = |f: &DriverFeedback| {
+            rmp_serde::to_vec(&ServerMessage::DriverFeedback(f.clone()))
+                .unwrap()
+                .len()
+        };
+        let plain = size(&base);
+        let with_car = DriverFeedback {
+            own_car: Some(Box::new(snapshot.clone())),
+            ..base.clone()
+        };
+        let car = size(&with_car);
+        let full = size(&DriverFeedback {
+            own_state: Some(crate::own_car::StateChunk {
+                tick: u32::MAX,
+                input_seq: Some(u32::MAX),
+                index: u16::MAX,
+                count: u16::MAX,
+                bytes: RecordBytes(vec![0xff; crate::own_car::STATE_CHUNK_BYTES]),
+            }),
+            ..with_car
+        });
+        println!(
+            "DriverFeedback: {plain} bytes, {car} with the snapshot, {full} with a state slice"
+        );
+        assert!(
+            car - plain < 300,
+            "the snapshot costs {} bytes",
+            car - plain
+        );
+        assert!(full <= 1200, "{full} bytes");
     }
 
     /// The positional shape of `CompactCarState`, pinned because the Unreal

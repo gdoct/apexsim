@@ -489,6 +489,7 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
         ers_mode: None,
         ers_boost: None,
         handbrake: None,
+        seq: None,
     })
     .expect("serialize input");
 
@@ -556,6 +557,7 @@ async fn test_driver_feedback_reaches_the_driver_over_udp() {
         ers_mode: None,
         ers_boost: None,
         handbrake: None,
+        seq: None,
     })
     .expect("serialize input");
 
@@ -599,6 +601,150 @@ async fn test_driver_feedback_reaches_the_driver_over_udp() {
         "a left turn pushes the wheel right: {:?}",
         feedback.steer_torque
     );
+    assert!(
+        feedback.own_car.is_none() && feedback.own_state.is_none(),
+        "a client that does not number its inputs gets no snapshot"
+    );
+
+    server.shutdown().await;
+}
+
+fn sequenced_input(seq: Option<u32>, throttle: f32) -> Vec<u8> {
+    rmp_serde::to_vec_named(&ClientMessage::PlayerInput {
+        server_tick_ack: 0,
+        throttle,
+        brake: 1.0 - throttle,
+        steering: 0.0,
+        gear: Some(1),
+        clutch: Some(1.0),
+        drs: None,
+        headlights: None,
+        flash: None,
+        ers_mode: None,
+        ers_boost: None,
+        handbrake: None,
+        seq,
+    })
+    .expect("serialize input")
+}
+
+/// Client prediction's wire (docs/proposals/client-prediction.md): an input
+/// without a sequence still drives and gets no snapshot; once the client
+/// numbers its inputs, each `DriverFeedback` carries the car at its tick
+/// with the newest number applied by then, and the car's full state comes
+/// in slices that make a blob the car step loads.
+#[tokio::test]
+async fn test_input_sequence_comes_back_with_the_own_car_snapshot() {
+    let server = common::start_test_server().await;
+    let mut client = ProtocolTestClient::connect(server.tcp_addr).await;
+    let (udp_token, udp_key, udp_port) =
+        match client.authenticate("Predictor", PROTOCOL_VERSION).await {
+            ServerMessage::AuthSuccess(data) => (data.udp_token, data.udp_key, data.udp_port),
+            other => panic!("expected AuthSuccess, got {:?}", other),
+        };
+    let mut udp = bind_udp(server.tcp_addr.ip(), &udp_token, &udp_key, udp_port).await;
+    start_free_practice(&mut client).await;
+    let mut buf = vec![0u8; 65_536];
+
+    // An old-style input drives the car, and no snapshot comes back.
+    let old_style = sequenced_input(None, 1.0);
+    let moving = timeout(TEST_TIMEOUT, async {
+        loop {
+            udp.send(&old_style).await;
+            let Ok(Ok(n)) = timeout(Duration::from_millis(100), udp.recv(&mut buf)).await else {
+                continue;
+            };
+            match rmp_serde::from_slice::<ServerMessage>(&buf[..n]) {
+                Ok(ServerMessage::DriverFeedback(f)) => {
+                    assert!(f.own_car.is_none() && f.own_state.is_none());
+                }
+                Ok(ServerMessage::TelemetryCompact(t))
+                    if t.car_states.first().is_some_and(|c| c.speed_mps > 1.0) =>
+                {
+                    return;
+                }
+                _ => {}
+            }
+        }
+    })
+    .await;
+    assert!(moving.is_ok(), "an input with no sequence drives the car");
+
+    // Numbered inputs: braking up to `SWITCH`, full throttle from it on.
+    const SWITCH: u32 = 40;
+    let mut seq = 0u32;
+    let mut blob: Option<(u32, Option<u32>, u16, Vec<u8>)> = None;
+    let (mut braking_seen, mut throttle_seen, mut largest) = (0u32, 0u32, 0usize);
+    let whole_blob = timeout(TEST_TIMEOUT, async {
+        loop {
+            seq += 1;
+            let throttle = if seq >= SWITCH { 1.0 } else { 0.0 };
+            udp.send(&sequenced_input(Some(seq), throttle)).await;
+            let Ok(Ok(n)) = timeout(Duration::from_millis(20), udp.recv(&mut buf)).await else {
+                continue;
+            };
+            let Ok(ServerMessage::DriverFeedback(f)) =
+                rmp_serde::from_slice::<ServerMessage>(&buf[..n])
+            else {
+                continue;
+            };
+            largest = largest.max(n);
+            let Some(own) = &f.own_car else {
+                // A numbered input still in flight: the last one applied
+                // had none.
+                continue;
+            };
+            assert_eq!(
+                own.tick, f.server_tick,
+                "the snapshot is the car at its tick"
+            );
+            let applied = own.input_seq.expect("the applied input's number");
+            assert!(applied <= seq, "{applied} applied, {seq} sent");
+            // The throttle the car applied on that tick is that input's.
+            let throttle_applied = own.controls[0];
+            if applied >= SWITCH {
+                assert_eq!(
+                    throttle_applied, 1.0,
+                    "input {applied} at tick {}",
+                    own.tick
+                );
+                throttle_seen += 1;
+            } else {
+                assert_eq!(
+                    throttle_applied, 0.0,
+                    "input {applied} at tick {}",
+                    own.tick
+                );
+                braking_seen += 1;
+            }
+            if let Some(chunk) = f.own_state {
+                assert!(chunk.tick <= own.tick && chunk.input_seq <= own.input_seq);
+                if chunk.index == 0 {
+                    blob = Some((chunk.tick, chunk.input_seq, chunk.count, Vec::new()));
+                }
+                if let Some((tick, _, count, bytes)) = blob.as_mut() {
+                    if *tick == chunk.tick && *count == chunk.count {
+                        bytes.extend_from_slice(&chunk.bytes.0);
+                        if chunk.index + 1 == *count && throttle_seen > 10 {
+                            return blob.take().unwrap();
+                        }
+                    }
+                }
+            }
+        }
+    })
+    .await
+    .expect("no whole state blob arrived");
+    assert!(braking_seen > 0 && throttle_seen > 0);
+    assert!(largest <= 1200, "a {largest}-byte feedback datagram");
+
+    let (tick, input_seq, _, bytes) = whole_blob;
+    let state = apexsim_server::car_step::decode_state(&bytes).expect("the slices make a blob");
+    assert!(
+        input_seq.is_some_and(|s| s >= SWITCH),
+        "blob of tick {tick}"
+    );
+    assert!(state.speed_mps > 0.0);
 
     server.shutdown().await;
 }

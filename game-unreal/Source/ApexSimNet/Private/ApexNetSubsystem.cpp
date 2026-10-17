@@ -120,6 +120,11 @@ void UApexNetSubsystem::StartUdp(const FApexAuthSuccess& Auth)
 	}
 }
 
+uint32 UApexNetSubsystem::GetLastInputSeq() const
+{
+	return UdpConnection.IsValid() ? UdpConnection->GetLastInputSeq() : 0;
+}
+
 void UApexNetSubsystem::SetPlayerInput(const FApexPlayerInput& Input)
 {
 	if (UdpConnection)
@@ -1093,6 +1098,18 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		bool bFeedbackArrived = false;
 		while (UdpConnection->PopDriverFeedback(Feedback))
 		{
+			// The own car's snapshot and state slices are taken off each
+			// message before it is folded in: a slice is only whole with its
+			// neighbours.
+			if (Feedback.OwnCar.IsSet())
+			{
+				LatestOwnCar = Feedback.OwnCar.GetValue();
+				++OwnCarSerial;
+			}
+			if (Feedback.OwnState.IsSet() && OwnCarState.Add(Feedback.OwnState.GetValue()))
+			{
+				++OwnCarStateSerial;
+			}
 			if (bFeedbackArrived)
 			{
 				LatestDriverFeedback.Absorb(Feedback);
@@ -1424,6 +1441,8 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		ClearLapTiming();
 		LatestDriverFeedback = FApexDriverFeedback();
 		DriverFeedbackTime = 0.0;
+		LatestOwnCar = FApexOwnCarSnapshot();
+		OwnCarState.Reset();
 		// Telemetry stops when the session ends, so nothing would ever drive
 		// this back to Lobby otherwise.
 		if (CurrentSessionState != EApexSessionState::Lobby)

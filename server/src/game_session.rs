@@ -520,6 +520,11 @@ pub struct GameSession {
     hotlap_watch: HotlapWatch,
     /// The track's corners, for the watcher's HUD (`TrackCorners`).
     track_corners: Vec<crate::network::CornerData>,
+    /// Each driver's own-car feed for a predicting client
+    /// (`crate::own_car`): the input sequence applied, the state blob being
+    /// sent. Written by the game loop around the tick; never read by the
+    /// simulation.
+    pub own_car_feeds: std::collections::BTreeMap<PlayerId, crate::own_car::OwnCarFeed>,
 }
 
 /// A one-lap shoot-out (`QualifyingFormat::Shootout`): the cars run one at a
@@ -934,6 +939,7 @@ impl GameSession {
             debug_boost_until: std::collections::BTreeMap::new(),
             hotlap_watch: HotlapWatch::default(),
             track_corners: Vec::new(),
+            own_car_feeds: std::collections::BTreeMap::new(),
         }
     }
 
@@ -1018,6 +1024,7 @@ impl GameSession {
             debug_boost_until: std::collections::BTreeMap::new(),
             hotlap_watch: HotlapWatch::default(),
             track_corners: Vec::new(),
+            own_car_feeds: std::collections::BTreeMap::new(),
         }
     }
 

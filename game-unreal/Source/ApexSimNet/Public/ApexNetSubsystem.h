@@ -831,6 +831,31 @@ public:
 	/** FPlatformTime::Seconds when feedback last arrived; 0 before the first. The stream stops when the car does. */
 	double GetDriverFeedbackTime() const { return DriverFeedbackTime; }
 
+	/**
+	 * Client prediction (docs/proposals/client-prediction.md): the own car
+	 * as the server last had it, at a tick and with the newest input number
+	 * it had applied (UdpConnection's GetLastInputSeq is the newest sent).
+	 * Tick is -1 until a snapshot arrives: from a server before the field,
+	 * and in a session this client only watches. Nothing reads it yet.
+	 */
+	const FApexOwnCarSnapshot& GetOwnCarSnapshot() const { return LatestOwnCar; }
+
+	/** Bumps with each snapshot taken. */
+	uint32 GetOwnCarSnapshotSerial() const { return OwnCarSerial; }
+
+	/**
+	 * The own car's newest whole state blob ("APXC", the physics library's
+	 * apx_car_state_load), a new one about every half second, with its tick
+	 * and input number. Tick is -1 before the first.
+	 */
+	const FApexOwnCarStateAssembler& GetOwnCarState() const { return OwnCarState; }
+
+	/** Bumps with each whole blob. */
+	uint32 GetOwnCarStateSerial() const { return OwnCarStateSerial; }
+
+	/** The number of the input sent last (`PlayerInput.seq`); 0 before the first or without UDP. */
+	uint32 GetLastInputSeq() const;
+
 	/** The car index assigned to this player, or -1 if the roster has no entry yet. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	int32 GetLocalCarIndex() const;
@@ -922,6 +947,10 @@ private:
 	FApexDriverFeedback LatestDriverFeedback;
 	uint32 DriverFeedbackSerial = 0;
 	double DriverFeedbackTime = 0.0;
+	FApexOwnCarSnapshot LatestOwnCar;
+	uint32 OwnCarSerial = 0;
+	FApexOwnCarStateAssembler OwnCarState;
+	uint32 OwnCarStateSerial = 0;
 
 	/** Latched so OnUdpReady fires exactly once per connection. */
 	bool bUdpReadyBroadcast = false;

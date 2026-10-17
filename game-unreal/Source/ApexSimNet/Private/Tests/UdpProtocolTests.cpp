@@ -97,6 +97,11 @@ bool FApexUdpGoldenEncodeTest::RunTest(const FString& Parameters)
 			ApexProtocol::EncodePlayerInput(4242, Pedal),
 			ApexUdpGolden::C_PlayerInputClutch);
 	}
+	// Numbered for prediction: `seq` after the handbrake (server: `cargo
+	// test player_input_seq_wire_format`); 0 leaves it off, as above.
+	CheckBytes(TEXT("PlayerInput with its number"),
+		ApexProtocol::EncodePlayerInput(4242, Input, 70000),
+		ApexUdpGolden::C_PlayerInputSeq);
 
 	// Every bool, the nil switch and the mode are one byte, so a held button
 	// or a set switch is the same message with that byte changed (server:
@@ -515,6 +520,79 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("older impact"), Older.DriverFeedback.ImpactMps, 4.5f);
 			TestEqual(TEXT("no kick from an older server"), Older.DriverFeedback.SteerKick, 0.0f);
 		}
+	}
+
+	// The own car for prediction, appended to the feedback (server: `cargo
+	// test driver_feedback_own_car_wire_format`): the snapshot, then a slice
+	// of the state blob. A message without them has neither.
+	{
+		FString Error;
+		FApexServerMessage Plain;
+		if (TestTrue(FString::Printf(TEXT("flat-spot DriverFeedback decodes again (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_DriverFeedbackFlatSpot, Plain, Error)))
+		{
+			TestFalse(TEXT("no snapshot from a 14-field message"), Plain.DriverFeedback.OwnCar.IsSet());
+			TestFalse(TEXT("no state slice from a 14-field message"), Plain.DriverFeedback.OwnState.IsSet());
+		}
+
+		FApexServerMessage Car;
+		if (TestTrue(FString::Printf(TEXT("own-car DriverFeedback decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_DriverFeedbackOwnCar, Car, Error))
+			&& TestTrue(TEXT("the snapshot is there"), Car.DriverFeedback.OwnCar.IsSet()))
+		{
+			const FApexDriverFeedback& F = Car.DriverFeedback;
+			const FApexOwnCarSnapshot& S = F.OwnCar.GetValue();
+			TestEqual(TEXT("the feedback before it is read as before"), F.Wheels[3].FlatSpot, 1.0f);
+			TestFalse(TEXT("no state slice"), F.OwnState.IsSet());
+			TestEqual(TEXT("tick"), S.Tick, static_cast<int64>(1234));
+			TestEqual(TEXT("input applied"), S.InputSeq, static_cast<int64>(300));
+			TestEqual(TEXT("x"), S.Pos[0], 100.5f);
+			TestEqual(TEXT("y"), S.Pos[1], -20.25f);
+			TestEqual(TEXT("z"), S.Pos[2], 3.0f);
+			TestEqual(TEXT("yaw"), S.Attitude[0], 1.5f);
+			TestEqual(TEXT("roll"), S.Attitude[2], -0.125f);
+			TestEqual(TEXT("vel y"), S.Vel[1], -2.5f);
+			TestEqual(TEXT("speed"), S.SpeedMps, 40.0f);
+			TestEqual(TEXT("yaw rate"), S.AngularVel[0], 0.25f);
+			TestEqual(TEXT("RR wheel spin"), S.WheelAngularVel[3], 123.5f);
+			TestEqual(TEXT("FR load"), S.WheelLoadN[1], 2600.0f);
+			TestEqual(TEXT("RL travel"), S.SuspensionTravelM[2], -0.0625f);
+			TestEqual(TEXT("FR damper speed"), S.SuspensionVelocityMps[1], 0.5f);
+			TestEqual(TEXT("lateral g"), S.GForces[0], -1.5f);
+			TestEqual(TEXT("vertical g"), S.GForces[2], 1.0f);
+			TestEqual(TEXT("throttle applied"), S.Controls[0], 1.0f);
+			TestEqual(TEXT("steering applied"), S.Controls[2], -0.25f);
+			TestEqual(TEXT("clutch applied"), S.Controls[3], 1.0f);
+			TestEqual(TEXT("gear"), S.Gear, 4);
+			TestEqual(TEXT("rpm"), S.EngineRpm, 9000.0f);
+			TestEqual(TEXT("progress"), S.TrackProgress, 512.5f);
+			TestEqual(TEXT("lateral offset"), S.LateralOffsetM, -1.5f);
+			TestEqual(TEXT("lap"), S.CurrentLap, 2);
+			TestEqual(TEXT("centerline index"), S.CenterlineIdx, static_cast<int64>(205));
+			TestEqual(TEXT("flags: on track, DRS open"), S.Flags,
+				static_cast<uint8>(FApexOwnCarSnapshot::FlagOnTrack | FApexOwnCarSnapshot::FlagDrsOpen));
+		}
+
+		FApexServerMessage State;
+		if (TestTrue(FString::Printf(TEXT("own-state DriverFeedback decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_DriverFeedbackOwnState, State, Error))
+			&& TestTrue(TEXT("the slice is there"), State.DriverFeedback.OwnState.IsSet()))
+		{
+			const FApexOwnCarStateChunk& C = State.DriverFeedback.OwnState.GetValue();
+			TestTrue(TEXT("with its snapshot"), State.DriverFeedback.OwnCar.IsSet());
+			TestEqual(TEXT("blob tick"), C.Tick, static_cast<int64>(1190));
+			TestEqual(TEXT("blob input"), C.InputSeq, static_cast<int64>(290));
+			TestEqual(TEXT("slice"), C.Index, 1);
+			TestEqual(TEXT("of"), C.Count, 9);
+			TestTrue(TEXT("its bytes"), C.Bytes == TArray<uint8>({ 0x41, 0x50, 0x58, 0x43 }));
+		}
+
+		// Truncated inside the snapshot, the datagram is refused rather
+		// than read short.
+		const int32 Len = (int32)UE_ARRAY_COUNT(ApexUdpGolden::S_DriverFeedbackOwnCar);
+		TArray<uint8> Short(ApexUdpGolden::S_DriverFeedbackOwnCar, Len - 3);
+		FApexServerMessage Cut;
+		TestFalse(TEXT("a cut snapshot does not decode"), ApexProtocol::DecodeUdpMessage(Short, Cut, Error));
 	}
 
 	return true;
@@ -1107,6 +1185,54 @@ bool FApexErsModesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("labels"), ApexErs::ShortLabel(0) + ApexErs::ShortLabel(1) + ApexErs::ShortLabel(2),
 		FString(TEXT("HARVBALATK")));
 	TestTrue(TEXT("no hybrid, no label"), ApexErs::ShortLabel(-1).IsEmpty());
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexOwnCarStateAssemblerTest,
+	"ApexSim.Net.Udp.OwnCarStateAssembler",
+	ApexUdpTestFlags)
+
+bool FApexOwnCarStateAssemblerTest::RunTest(const FString& Parameters)
+{
+	auto Slice = [](int64 Tick, int32 Index, int32 Count, uint8 Byte)
+	{
+		FApexOwnCarStateChunk Chunk;
+		Chunk.Tick = Tick;
+		Chunk.InputSeq = Tick / 10;
+		Chunk.Index = Index;
+		Chunk.Count = Count;
+		Chunk.Bytes = { Byte, Byte };
+		return Chunk;
+	};
+
+	FApexOwnCarStateAssembler Assembler;
+	TestEqual(TEXT("no blob before the first"), Assembler.Tick, static_cast<int64>(-1));
+	TestFalse(TEXT("slice 0 of 3"), Assembler.Add(Slice(700, 0, 3, 1)));
+	TestFalse(TEXT("slice 1 of 3"), Assembler.Add(Slice(700, 1, 3, 2)));
+	TestTrue(TEXT("slice 2 completes it"), Assembler.Add(Slice(700, 2, 3, 3)));
+	TestEqual(TEXT("its tick"), Assembler.Tick, static_cast<int64>(700));
+	TestEqual(TEXT("its input"), Assembler.InputSeq, static_cast<int64>(70));
+	TestTrue(TEXT("the slices in order"), Assembler.Blob == TArray<uint8>({ 1, 1, 2, 2, 3, 3 }));
+
+	// A lost slice drops that blob and keeps the last whole one.
+	TestFalse(TEXT("next blob, slice 0"), Assembler.Add(Slice(910, 0, 3, 4)));
+	TestFalse(TEXT("slice 2 without 1"), Assembler.Add(Slice(910, 2, 3, 6)));
+	TestEqual(TEXT("still the old blob after a lost slice"), Assembler.Tick, static_cast<int64>(700));
+	// A slice of another blob in the middle drops the one in progress too.
+	TestFalse(TEXT("slice 0 again"), Assembler.Add(Slice(1120, 0, 2, 7)));
+	TestFalse(TEXT("another blob's slice 1"), Assembler.Add(Slice(1330, 1, 2, 8)));
+	TestFalse(TEXT("and our slice 1 now"), Assembler.Add(Slice(1120, 1, 2, 8)));
+	TestEqual(TEXT("still the old blob after a stray slice"), Assembler.Tick, static_cast<int64>(700));
+	// The next whole one replaces it.
+	TestFalse(TEXT("new slice 0"), Assembler.Add(Slice(1540, 0, 2, 9)));
+	TestTrue(TEXT("new slice 1"), Assembler.Add(Slice(1540, 1, 2, 10)));
+	TestEqual(TEXT("the new blob"), Assembler.Tick, static_cast<int64>(1540));
+	TestTrue(TEXT("its bytes"), Assembler.Blob == TArray<uint8>({ 9, 9, 10, 10 }));
+	Assembler.Reset();
+	TestEqual(TEXT("reset forgets it"), Assembler.Tick, static_cast<int64>(-1));
 	return true;
 }
 

@@ -44,6 +44,17 @@ pub(crate) struct GameLoopCtx {
     pub(crate) telemetry_divisor: u64,
 }
 
+/// A driver's newest input, held until the next replaces it: the loop
+/// applies it on every tick until then. `seq` is the number the client gave
+/// it (`PlayerInput.seq`), `None` from a client that does not number its
+/// inputs; the tick hands it back with the car's snapshot
+/// (`crate::own_car`).
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct HeldInput {
+    pub(crate) input: PlayerInputData,
+    pub(crate) seq: Option<u32>,
+}
+
 impl GameLoopCtx {
     /// Snapshot the connection info for a connection (short transport read lock).
     pub(crate) async fn connection(&self, connection_id: ConnectionId) -> Option<ConnectionInfo> {
@@ -150,7 +161,7 @@ pub(crate) async fn run_game_loop(
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
     let mut tick_count = 0u64;
-    let mut player_inputs: HashMap<PlayerId, PlayerInputData> = HashMap::new();
+    let mut player_inputs: HashMap<PlayerId, HeldInput> = HashMap::new();
     let mut lobby_state_cache = broadcast::LobbyStateCache::default();
     let mut track_loads = track_loads::TrackLoads::new();
 

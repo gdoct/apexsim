@@ -120,7 +120,12 @@ namespace ApexProtocol
 	// SealUdpDatagram; the server drops a bare one.
 
 	APEXSIMNET_API TArray<uint8> EncodeUdpHandshake(const FString& UdpToken);
-	APEXSIMNET_API TArray<uint8> EncodePlayerInput(uint32 ServerTickAck, const FApexPlayerInput& Input);
+	/**
+	 * InputSeq is the client's number for the input (`PlayerInput.seq`), one
+	 * higher with each sent, which the server hands back with the own car's
+	 * snapshot; 0 leaves it off (an input as before the field).
+	 */
+	APEXSIMNET_API TArray<uint8> EncodePlayerInput(uint32 ServerTickAck, const FApexPlayerInput& Input, uint32 InputSeq = 0);
 	/**
 	 * Seals one outbound datagram (`server/src/udp_seal.rs`): a 0xC1 marker,
 	 * the big-endian sequence number, 16 bytes of HMAC-SHA1 over the sequence

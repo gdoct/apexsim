@@ -229,6 +229,7 @@ proptest! {
                 ers_mode: None,
                 ers_boost: None,
                 handbrake: None,
+                seq: None,
             },
         ];
 

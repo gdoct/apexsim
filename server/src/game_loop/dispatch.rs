@@ -3,7 +3,7 @@
 //! transport lock at the same time (state is dropped before sends where the
 //! two would otherwise overlap; sends only ever take a transport read lock).
 
-use super::{broadcast, lifecycle, showcase, GameLoopCtx};
+use super::{broadcast, lifecycle, showcase, GameLoopCtx, HeldInput};
 use crate::car_setup::CarSetup;
 use crate::data::*;
 use crate::game_session::GameSession;
@@ -21,7 +21,7 @@ use tracing::{debug, warn};
 pub(crate) async fn handle_event(
     ctx: &GameLoopCtx,
     event: TransportEvent,
-    player_inputs: &mut HashMap<PlayerId, PlayerInputData>,
+    player_inputs: &mut HashMap<PlayerId, HeldInput>,
 ) {
     match event {
         TransportEvent::Message(connection_id, msg) => {
@@ -56,7 +56,7 @@ pub(crate) async fn handle_message(
     ctx: &GameLoopCtx,
     connection_id: ConnectionId,
     msg: ClientMessage,
-    player_inputs: &mut HashMap<PlayerId, PlayerInputData>,
+    player_inputs: &mut HashMap<PlayerId, HeldInput>,
 ) {
     // Taking part in a session ends watching a showcase: one or the other
     // has the client's race view.
@@ -243,6 +243,7 @@ pub(crate) async fn handle_message(
             ers_mode,
             ers_boost,
             handbrake,
+            seq,
             ..
         } => {
             handle_player_input(
@@ -258,6 +259,7 @@ pub(crate) async fn handle_message(
                 flash.unwrap_or(false),
                 (ers_mode, ers_boost.unwrap_or(false)),
                 handbrake.unwrap_or(false),
+                seq,
                 player_inputs,
             )
             .await;
@@ -2155,7 +2157,8 @@ async fn handle_player_input(
     flash: bool,
     (ers_mode, ers_boost): (Option<u8>, bool),
     handbrake: bool,
-    player_inputs: &mut HashMap<PlayerId, PlayerInputData>,
+    seq: Option<u32>,
+    player_inputs: &mut HashMap<PlayerId, HeldInput>,
 ) {
     // Sanitize before the values reach physics: drop NaN/Inf, clamp to the
     // valid input ranges, ignore an implausible gear (the client's
@@ -2181,7 +2184,7 @@ async fn handle_player_input(
         return;
     };
     if let Some(conn_info) = ctx.connection(connection_id).await {
-        player_inputs.insert(conn_info.player_id, input);
+        player_inputs.insert(conn_info.player_id, HeldInput { input, seq });
         ctx.metrics
             .input_messages_received
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);

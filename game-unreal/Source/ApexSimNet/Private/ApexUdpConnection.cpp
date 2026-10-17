@@ -180,9 +180,17 @@ void FApexUdpConnection::SendPlayerInput()
 		Input = PendingInput;
 	}
 
+	// Every input is numbered, from 1, so the server can say which it had
+	// applied when it took the own car's snapshot (client prediction). 0 is
+	// "none" on the wire, so the count skips it if it ever wraps.
+	if (++InputSeq == 0)
+	{
+		InputSeq = 1;
+	}
 	const TArray<uint8> Payload =
-		ApexProtocol::EncodePlayerInput(static_cast<uint32>(LastServerTick.GetValue()), Input);
+		ApexProtocol::EncodePlayerInput(static_cast<uint32>(LastServerTick.GetValue()), Input, InputSeq);
 	SendSealed(Payload);
+	LastInputSeq.Set(static_cast<int32>(InputSeq));
 }
 
 void FApexUdpConnection::ReceiveAvailable()

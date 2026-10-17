@@ -251,6 +251,7 @@ impl TestClient {
             ers_mode: None,
             ers_boost: None,
             handbrake: None,
+            seq: None,
         };
 
         // Send via TCP for now (UDP not fully implemented in server)

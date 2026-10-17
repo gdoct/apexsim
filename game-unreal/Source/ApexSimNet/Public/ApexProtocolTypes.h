@@ -3141,6 +3141,130 @@ struct FApexWheelFeedback
 };
 
 /**
+ * `OwnCarSnapshot` (server/src/own_car.rs): the driver's own car at a tick,
+ * with the newest input sequence the server had applied by then. Sent in
+ * `DriverFeedback` to a client that numbers its inputs
+ * (docs/proposals/client-prediction.md): what the prediction rewinds to.
+ * Everything is in the SERVER frame and units (metres, +Y left, yaw
+ * counter-clockwise), exactly as the server's f32s, because it goes back
+ * into the server's physics library unchanged. Per-wheel arrays are FL, FR,
+ * RL, RR.
+ */
+struct FApexOwnCarSnapshot
+{
+	static constexpr uint8 FlagOnTrack = 1;
+	static constexpr uint8 FlagAirborne = 2;
+	static constexpr uint8 FlagColliding = 4;
+	static constexpr uint8 FlagDrsOpen = 8;
+	static constexpr uint8 FlagWheelsOffTrack = 16;
+
+	/** The session tick the car is at. */
+	int64 Tick = -1;
+	/** The newest PlayerInput sequence applied by Tick; -1 when none was. */
+	int64 InputSeq = -1;
+	float Pos[3] = {};
+	/** Yaw, pitch, roll, rad. */
+	float Attitude[3] = {};
+	float Vel[3] = {};
+	float SpeedMps = 0.0f;
+	/** Yaw, pitch and roll rates, rad/s. */
+	float AngularVel[3] = {};
+	float WheelAngularVel[4] = {};
+	float WheelLoadN[4] = {};
+	float SuspensionTravelM[4] = {};
+	float SuspensionVelocityMps[4] = {};
+	/** Lateral, longitudinal, vertical. */
+	float GForces[3] = {};
+	float VerticalAccelMps2 = 0.0f;
+	/** Along and across the car. */
+	float GroundSlope[2] = {};
+	/** Phase and amplitude. */
+	float Porpoise[2] = {};
+	/** Throttle, brake, steering (SERVER sign, positive left) and clutch as the car applied them. */
+	float Controls[4] = {};
+	int32 Gear = 0;
+	float EngineRpm = 0.0f;
+	float TurboSpool = 0.0f;
+	int32 AutoShiftHoldTicks = 0;
+	int32 AutoReverseTicks = 0;
+	float TrackProgress = 0.0f;
+	float LateralOffsetM = 0.0f;
+	int32 CurrentLap = 0;
+	/** The centerline point the server's windowed search starts from; -1 none. */
+	int64 CenterlineIdx = -1;
+	/** Flag* bits. */
+	uint8 Flags = 0;
+};
+
+/**
+ * `StateChunk` (server/src/own_car.rs): one slice of the own car's full
+ * state blob (`car_step::encode_state`, "APXC"), sent a slice a feedback
+ * message, a blob every half second. FApexOwnCarStateAssembler puts them
+ * back together.
+ */
+struct FApexOwnCarStateChunk
+{
+	/** The tick the blob is the car at, and the newest input applied by then (-1 none). */
+	int64 Tick = -1;
+	int64 InputSeq = -1;
+	int32 Index = 0;
+	int32 Count = 0;
+	TArray<uint8> Bytes;
+};
+
+/**
+ * Puts the own car's state blob back together from its slices, in order. A
+ * slice that does not follow the one before (lost, or a newer blob begun)
+ * drops the blob in progress; the next one starts with slice 0.
+ */
+struct FApexOwnCarStateAssembler
+{
+	/** The newest whole blob, the tick it is the car at and the input applied by then; Tick -1 before the first. */
+	int64 Tick = -1;
+	int64 InputSeq = -1;
+	TArray<uint8> Blob;
+
+	/** Takes the next slice. True when it completed a blob, now in Blob. */
+	bool Add(const FApexOwnCarStateChunk& Chunk)
+	{
+		if (Chunk.Index == 0)
+		{
+			PendingTick = Chunk.Tick;
+			PendingSeq = Chunk.InputSeq;
+			PendingCount = Chunk.Count;
+			Pending.Reset();
+			NextIndex = 0;
+		}
+		if (Chunk.Count <= 0 || Chunk.Index != NextIndex || Chunk.Tick != PendingTick
+			|| Chunk.Count != PendingCount)
+		{
+			NextIndex = -1;
+			return false;
+		}
+		Pending.Append(Chunk.Bytes);
+		if (++NextIndex < PendingCount)
+		{
+			return false;
+		}
+		Tick = PendingTick;
+		InputSeq = PendingSeq;
+		Blob = MoveTemp(Pending);
+		Pending.Reset();
+		NextIndex = -1;
+		return true;
+	}
+
+	void Reset() { *this = FApexOwnCarStateAssembler(); }
+
+private:
+	int64 PendingTick = -1;
+	int64 PendingSeq = -1;
+	int32 PendingCount = 0;
+	int32 NextIndex = -1;
+	TArray<uint8> Pending;
+};
+
+/**
  * `DriverFeedback` (server/src/feedback.rs) - positional encoding, UDP only,
  * sent to a car's own driver with every telemetry frame. It carries what the
  * driver should feel, whatever the device: a wheel's constant force comes
@@ -3203,6 +3327,15 @@ struct APEXSIMNET_API FApexDriverFeedback
 	float FrontLoad = 1.0f;
 
 	/**
+	 * The own car at ServerTick, for prediction: only for a client that
+	 * numbers its inputs, and not from a server that predates it.
+	 */
+	TOptional<FApexOwnCarSnapshot> OwnCar;
+
+	/** A slice of the own car's state blob, when one is going out. */
+	TOptional<FApexOwnCarStateChunk> OwnState;
+
+	/**
 	 * Folds the next message in, as if the server had sent one message for
 	 * both intervals: samples appended, peaks kept, the roughest surface.
 	 * Used when several arrive between two game frames, so a kerb strike in
@@ -3231,6 +3364,14 @@ struct APEXSIMNET_API FApexDriverFeedback
 		SteerInput = Next.SteerInput;
 		SteerStiffness = Next.SteerStiffness;
 		FrontLoad = Next.FrontLoad;
+		// The snapshot is a snapshot: the newest wins. A state slice is only
+		// whole with its neighbours, so the net subsystem takes each one off
+		// before folding the messages together.
+		if (Next.OwnCar.IsSet())
+		{
+			OwnCar = Next.OwnCar;
+		}
+		OwnState = Next.OwnState;
 	}
 };
 

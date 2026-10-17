@@ -17,6 +17,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::own_car::{OwnCarSnapshot, StateChunk};
+
 /// Steering-torque samples kept between two broadcasts. At the default 420 Hz
 /// tick and divisor 7 that is 7 per message; beyond this cap the oldest
 /// are dropped, which only a very slow telemetry rate would hit.
@@ -188,6 +190,8 @@ impl FeedbackAccumulator {
             steer_stiffness: self.steer_stiffness,
             front_load: self.front_load,
             flat_spot: self.flat_spot.map(|f| (f * 100.0).round() as u8),
+            own_car: None,
+            own_state: None,
         };
         *self = Self::default();
         message
@@ -201,7 +205,11 @@ impl FeedbackAccumulator {
 /// `network.rs` pin it.
 ///
 /// Per-wheel arrays are FL, FR, RL, RR.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+///
+/// `Serialize` is written out (below) so the trailing own-car fields are
+/// left off while they are empty: a driver whose client does not number its
+/// inputs gets the message byte for byte as before them.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct DriverFeedback {
     /// Tick of the newest sample.
     pub server_tick: u32,
@@ -256,6 +264,53 @@ pub struct DriverFeedback {
     /// shakes the wheel and pad once per turn of the wheel by it. Appended.
     #[serde(default)]
     pub flat_spot: [u8; 4],
+    /// The driver's own car at `server_tick`, with the newest input
+    /// sequence applied by then (`crate::own_car`): what a predicting
+    /// client rewinds to. Only for a driver whose client numbers its inputs
+    /// (`PlayerInput.seq`); left off otherwise. Appended.
+    #[serde(default)]
+    pub own_car: Option<Box<OwnCarSnapshot>>,
+    /// One slice of the car's full state blob (`car_step::encode_state`),
+    /// sent a slice a message every `own_car::STATE_BLOB_SECONDS`: the
+    /// tyres, fuel, hybrid and damage the snapshot leaves out. Nil while no
+    /// blob is going out (and left off with nothing after it). Appended.
+    #[serde(default)]
+    pub own_state: Option<StateChunk>,
+}
+
+impl Serialize for DriverFeedback {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let with_state = self.own_state.is_some();
+        let with_car = self.own_car.is_some() || with_state;
+        let len = 14 + with_car as usize + with_state as usize;
+        let mut s = serializer.serialize_struct("DriverFeedback", len)?;
+        s.serialize_field("server_tick", &self.server_tick)?;
+        s.serialize_field("steer_torque", &self.steer_torque)?;
+        s.serialize_field("slip_ratio", &self.slip_ratio)?;
+        s.serialize_field("slip_angle", &self.slip_angle)?;
+        s.serialize_field("surface", &self.surface)?;
+        s.serialize_field("suspension_mps", &self.suspension_mps)?;
+        s.serialize_field("abs_active", &self.abs_active)?;
+        s.serialize_field("tc_active", &self.tc_active)?;
+        s.serialize_field("impact_mps", &self.impact_mps)?;
+        s.serialize_field("steer_kick", &self.steer_kick)?;
+        s.serialize_field("steer_input", &self.steer_input)?;
+        s.serialize_field("steer_stiffness", &self.steer_stiffness)?;
+        s.serialize_field("front_load", &self.front_load)?;
+        s.serialize_field("flat_spot", &self.flat_spot)?;
+        if with_car {
+            s.serialize_field("own_car", &self.own_car)?;
+        } else {
+            s.skip_field("own_car")?;
+        }
+        if with_state {
+            s.serialize_field("own_state", &self.own_state)?;
+        } else {
+            s.skip_field("own_state")?;
+        }
+        s.end()
+    }
 }
 
 #[cfg(test)]

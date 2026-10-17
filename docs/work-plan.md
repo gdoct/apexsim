@@ -323,13 +323,15 @@ Not in any backlog before this plan; each is a package in
 **What:** Every car, the player's included, is a puppet of 60 Hz telemetry
 behind the motion buffer: 90–150 ms from wheel to car at 40–80 ms ping.
 Designed in [proposals/client-prediction.md](proposals/client-prediction.md);
-phase 1 is built: `server/ffi` (`apexsim-physics`) is the server's
+phases 1 and 2 are built: `server/ffi` (`apexsim-physics`) is the server's
 `car_step::step_lone_car` as a static library behind a C API, and CI checks
-it against a session, bit for bit, on a recorded trace.
+it against a session, bit for bit, on a recorded trace; the client numbers
+its inputs (`PlayerInput.seq`) and gets its own car back in `DriverFeedback`
+(a snapshot every message, the full state blob in slices twice a second),
+held on the net subsystem.
 **Outcome:** Online driving feels local; the biggest single gain for
 multiplayer.
-**Implementation:** The proposal's phases left: (2) wire: an input sequence on
-`PlayerInput` and a local-car snapshot on `DriverFeedback`; (3) the library
+**Implementation:** The proposal's phases left: (3) the library
 linked into the client as a prebuilt third-party module and the
 fixed-step predict/rewind/replay loop behind a console switch, with an
 artificial-latency harness; (4) track physics bundle served on join, keyed

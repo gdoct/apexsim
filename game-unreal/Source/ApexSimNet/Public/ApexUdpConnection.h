@@ -71,6 +71,12 @@ public:
 	/** Total datagrams received, for diagnostics. */
 	int32 GetReceivedDatagramCount() const { return ReceivedDatagrams.GetValue(); }
 
+	/**
+	 * The number (`PlayerInput.seq`) of the input sent last, 0 before the
+	 * first; it rises by one with each input sent. Any thread.
+	 */
+	uint32 GetLastInputSeq() const { return static_cast<uint32>(LastInputSeq.GetValue()); }
+
 	// FRunnable
 	virtual bool Init() override;
 	virtual uint32 Run() override;
@@ -105,6 +111,10 @@ private:
 	const FString UdpKey;
 	/** Worker thread only: the sequence number of the last datagram sent. */
 	uint64 SendSeq = 0;
+	/** Worker thread only: the number of the last input sent (`PlayerInput.seq`). */
+	uint32 InputSeq = 0;
+	/** InputSeq, for other threads. */
+	FThreadSafeCounter LastInputSeq;
 
 	FSocket* Socket = nullptr;
 	ISocketSubsystem* SocketSubsystem = nullptr;

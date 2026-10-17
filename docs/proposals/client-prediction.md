@@ -1,6 +1,6 @@
 # Client-side prediction for the local car
 
-Status: phase 1 (the library) built; phases 2-4 proposed.
+Status: phases 1 (the library) and 2 (the wire) built; phases 3-4 proposed.
 
 ## The problem
 
@@ -17,11 +17,12 @@ knows first, needs prediction.
 
 ## Current state (checked against the code)
 
-- `ClientMessage::PlayerInput` carries `server_tick_ack` and the controls;
-  there is no per-input sequence number.
+- `ClientMessage::PlayerInput` carries `server_tick_ack`, the controls and
+  the client's number for the input (`seq`, phase 2).
 - `DriverFeedback` (`server/src/feedback.rs`) is per driver and per telemetry
-  tick, carries `server_tick`, torque samples and the column slope, but no
-  pose or velocities.
+  tick, carries `server_tick`, torque samples and the column slope, and for
+  a client that numbers its inputs the own car's snapshot and slices of its
+  full state (phase 2, below).
 - Telemetry is serialized once per session and fanned out
   (`game_loop/broadcast.rs`), so it cannot carry anything per recipient.
 - The server crate is an rlib (`src/lib.rs`) plus two binaries. The car
@@ -72,12 +73,13 @@ mismatch disables prediction for the session.
 
 ## Wire changes
 
-Both are appended fields with golden bytes ([protocol.md](../server/protocol.md)):
+Appended fields with golden bytes ([protocol.md](../server/protocol.md#the-own-car-for-prediction)),
+built in phase 2 (below):
 
-- `PlayerInput` gains an input sequence number; the client keeps a ring
-  buffer of recent inputs.
-- `DriverFeedback` gains an authoritative snapshot of the local car (pose and
-  velocities at its tick) and the last input sequence applied to it.
+- `PlayerInput.seq`: the client's number for each input.
+- `DriverFeedback.own_car`: the own car at the message's tick and the newest
+  input number applied by then; `DriverFeedback.own_state`: a slice of the
+  car's full state blob, a whole blob twice a second.
 
 An old client ignores both; with an old server prediction never turns on.
 
@@ -189,6 +191,87 @@ replays them bit for bit.
 - Linking: the `.lib` carries the whole server crate (tokio, rustls ...),
   about 10 MB in release; the linker drops what the car step does not
   reach. A physics-only crate split out of the server would shrink it.
+
+## Phase 2: the wire (built)
+
+**The input's number.** `PlayerInput.seq` (`Option<u32>`, left off when
+`None`). The client's UDP worker stamps every input it sends, from 1
+(`FApexUdpConnection::SendPlayerInput`, `GetLastInputSeq`). The game loop
+holds each driver's newest input with its number (`game_loop::HeldInput`)
+and applies it every tick until the next replaces it, recording its number
+on the driver's `own_car::OwnCarFeed` each tick it drives the car (not
+while a stand-in or the away driver has it). The number never reaches the
+physics, so a session steps exactly as before (`determinism_test`, the AI
+survey unchanged). One input applies to several ticks (60 Hz of inputs, 420
+Hz of ticks), so phase 3 replays its inputs at its own tick timing from the
+snapshot's tick; the number only says which inputs the server had.
+
+**What a rewind needs.** Phase 1 found that pose and velocities leave the
+rest of the state to drift. Two questions decide the snapshot: what the
+step integrates from one tick to the next, and how fast the rest moves.
+`server/ffi/tests/lone_car_trace.rs`
+(`a_snapshot_over_a_stale_state_replays_with_the_server`) measures it on the
+recorded Monza trace (F1 car, aids, road mesh, wind): at 19 points on the
+trace, a car whose whole state is the server's of 1 s earlier, with the
+snapshot of now laid over it, is stepped 42 ticks (100 ms, a ping's worth)
+beside the server, and the position error read:
+
+| Laid over a 1 s stale state | Max error after 100 ms | After 400 ms |
+|---|---|---|
+| nothing (all 1 s stale) | 54 m | |
+| pose and velocities only | 25 mm | 411 mm |
+| the snapshot | 0.8 mm | 12.5 mm |
+| the full blob | 0 (bit for bit) | 0 |
+
+With the state 0.5 s stale (the blob's period) the snapshot leaves 0.55 mm
+after 100 ms and 2.3 mm after 200 ms. Taken one field at a time, a 1 s stale
+copy of the tyres costs 0.4 mm summed over all 19 points, the hybrid's
+deployment 1.3 mm, the fuel less than a micron; the position, heading and
+velocities are metres, and the next tier (vertical acceleration, gear,
+ground slope, suspension, g, wheel loads) millimetres to centimetres.
+
+**Decision: (a), a compact snapshot every message plus the full blob in
+slices at 2 Hz.** The snapshot (`own_car::OwnCarSnapshot`, 26 fields, 267
+bytes) is what the step integrates tick to tick: pose, velocities, wheel
+spin, wheel loads, suspension travel and speed, g, vertical acceleration,
+ground slope, porpoising, the controls as applied, gear, rpm, turbo, the
+auto box's timers, the place on the lap and the centerline search's start
+point, and the contact flags. `OwnCarSnapshot::apply_to` lays it over a
+state; `of` reads it. The slow state (tyre temperatures and wear, fuel,
+hybrid, brakes, damage, lap timing) comes exact in the `APXC` blob, which at
+about 5.5 kB is too big for one unfragmented datagram: it goes as 640-byte
+slices, one per feedback message, 9 messages of every 30, each slice naming
+the blob's tick and input. Rejected: the whole blob every message (5.5 kB,
+fragmented, 330 kB/s); a positional or deflated blob every message (still
+about 2 kB, and a second state format beside the library's); pose and
+velocities alone (25 mm in 100 ms, 0.4 m in 400 ms).
+
+**Sizes** (`network.rs` `own_car_feedback_fits_one_small_datagram`, every
+number at its widest, 7 torque samples at 420 Hz / 7): the feedback alone
+158 bytes, with the snapshot 425, with a slice 1,087. A 1,500-byte MTU
+carries 1,472 bytes of UDP payload, so no feedback datagram is fragmented;
+the client's receive buffer is 64 KiB (`ApexUdpConnection::MaxDatagramBytes`),
+and the 13-car telemetry trap ([protocol.md](../server/protocol.md#traps))
+is the telemetry datagram's, which this does not change. A predicting
+driver costs about 16 kB/s of snapshots and 11 kB/s of state on top of the
+feedback's 9.5 kB/s. The snapshot and slices go only to a driver whose
+inputs carry a number; anyone else gets the feedback byte for byte as
+before.
+
+**The client** decodes both (`FApexOwnCarSnapshot`, `FApexOwnCarStateChunk`
+on `FApexDriverFeedback`), takes each message's off before a frame's
+messages are folded together, and keeps the newest snapshot and the newest
+whole blob on `UApexNetSubsystem` (`GetOwnCarSnapshot`, `GetOwnCarState`,
+their serials; `FApexOwnCarStateAssembler` drops a blob a slice of which
+was lost). Nothing reads them yet.
+
+**Checks:** golden bytes both sides (`player_input_seq_wire_format`,
+`driver_feedback_own_car_wire_format` into `ApexUdpGoldenBlobs.h`;
+`ApexSim.Net.Udp.GoldenEncode` / `.GoldenDecode` / `.OwnCarStateAssembler`);
+`protocol_test::test_input_sequence_comes_back_with_the_own_car_snapshot`
+(over the real UDP path: an unnumbered input drives with no snapshot; each
+snapshot carries the throttle of the input it names as applied; the slices
+make a blob that decodes).
 
 ## Risks
 

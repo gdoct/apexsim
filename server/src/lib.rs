@@ -28,6 +28,7 @@ pub mod laps;
 pub mod lobby;
 pub mod metrics;
 pub mod network;
+pub mod own_car;
 pub mod physics;
 pub mod pit;
 pub mod race_control;

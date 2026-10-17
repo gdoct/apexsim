@@ -2833,6 +2833,125 @@ namespace
 		return true;
 	}
 
+	/** A `[f32; N]`: the first N floats into Out, anything past them skipped. */
+	bool ReadFloatArray(FMsgPackReader& Reader, float* Out, int32 N)
+	{
+		int32 Count = 0;
+		if (!Reader.ReadArrayHeader(Count) || Count < N)
+		{
+			return false;
+		}
+		for (int32 i = 0; i < N; ++i)
+		{
+			if (!Reader.ReadFloat(Out[i])) { return false; }
+		}
+		for (int32 Extra = N; Extra < Count; ++Extra)
+		{
+			if (!Reader.SkipValue()) { return false; }
+		}
+		return true;
+	}
+
+	/** An `Option<u32>`: -1 for nil. */
+	bool ReadOptionalIndex(FMsgPackReader& Reader, int64& Out)
+	{
+		if (Reader.TryReadNil())
+		{
+			Out = -1;
+			return true;
+		}
+		uint64 Raw = 0;
+		if (!Reader.ReadUInt64(Raw)) { return false; }
+		Out = static_cast<int64>(Raw);
+		return true;
+	}
+
+	bool ReadInt32(FMsgPackReader& Reader, int32& Out)
+	{
+		int64 Raw = 0;
+		if (!Reader.ReadInt64(Raw)) { return false; }
+		Out = static_cast<int32>(Raw);
+		return true;
+	}
+
+	/** Fields every `OwnCarSnapshot` (server/src/own_car.rs) has, in order. */
+	constexpr int32 OwnCarSnapshotFieldCount = 26;
+
+	bool ParseOwnCarSnapshot(FMsgPackReader& Reader, FApexOwnCarSnapshot& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadArrayHeader(FieldCount) || FieldCount < OwnCarSnapshotFieldCount)
+		{
+			return false;
+		}
+		uint64 Tick = 0;
+		uint64 Flags = 0;
+		const bool bOk = Reader.ReadUInt64(Tick)
+			&& ReadOptionalIndex(Reader, Out.InputSeq)
+			&& ReadFloatArray(Reader, Out.Pos, 3)
+			&& ReadFloatArray(Reader, Out.Attitude, 3)
+			&& ReadFloatArray(Reader, Out.Vel, 3)
+			&& Reader.ReadFloat(Out.SpeedMps)
+			&& ReadFloatArray(Reader, Out.AngularVel, 3)
+			&& ReadFloatArray(Reader, Out.WheelAngularVel, 4)
+			&& ReadFloatArray(Reader, Out.WheelLoadN, 4)
+			&& ReadFloatArray(Reader, Out.SuspensionTravelM, 4)
+			&& ReadFloatArray(Reader, Out.SuspensionVelocityMps, 4)
+			&& ReadFloatArray(Reader, Out.GForces, 3)
+			&& Reader.ReadFloat(Out.VerticalAccelMps2)
+			&& ReadFloatArray(Reader, Out.GroundSlope, 2)
+			&& ReadFloatArray(Reader, Out.Porpoise, 2)
+			&& ReadFloatArray(Reader, Out.Controls, 4)
+			&& ReadInt32(Reader, Out.Gear)
+			&& Reader.ReadFloat(Out.EngineRpm)
+			&& Reader.ReadFloat(Out.TurboSpool)
+			&& ReadInt32(Reader, Out.AutoShiftHoldTicks)
+			&& ReadInt32(Reader, Out.AutoReverseTicks)
+			&& Reader.ReadFloat(Out.TrackProgress)
+			&& Reader.ReadFloat(Out.LateralOffsetM)
+			&& ReadInt32(Reader, Out.CurrentLap)
+			&& ReadOptionalIndex(Reader, Out.CenterlineIdx)
+			&& Reader.ReadUInt64(Flags);
+		if (!bOk)
+		{
+			return false;
+		}
+		Out.Tick = static_cast<int64>(Tick);
+		Out.Flags = static_cast<uint8>(Flags);
+		for (int32 Extra = OwnCarSnapshotFieldCount; Extra < FieldCount; ++Extra)
+		{
+			if (!Reader.SkipValue()) { return false; }
+		}
+		return true;
+	}
+
+	bool ParseOwnCarStateChunk(FMsgPackReader& Reader, FApexOwnCarStateChunk& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadArrayHeader(FieldCount) || FieldCount < 5)
+		{
+			return false;
+		}
+		uint64 Tick = 0;
+		TArrayView<const uint8> Bytes;
+		const bool bOk = Reader.ReadUInt64(Tick)
+			&& ReadOptionalIndex(Reader, Out.InputSeq)
+			&& ReadInt32(Reader, Out.Index)
+			&& ReadInt32(Reader, Out.Count)
+			&& Reader.ReadBinary(Bytes);
+		if (!bOk)
+		{
+			return false;
+		}
+		Out.Tick = static_cast<int64>(Tick);
+		Out.Bytes = TArray<uint8>(Bytes.GetData(), Bytes.Num());
+		for (int32 Extra = 5; Extra < FieldCount; ++Extra)
+		{
+			if (!Reader.SkipValue()) { return false; }
+		}
+		return true;
+	}
+
 	bool ParseDriverFeedback(FMsgPackReader& Reader, FApexDriverFeedback& Out)
 	{
 		int32 FieldCount = 0;
@@ -2909,6 +3028,31 @@ namespace
 					return true;
 				});
 			if (!bFlatOk) { return false; }
+			++Read;
+		}
+
+		// The own car for prediction, then a slice of its state blob: each
+		// nil or left off when the server sends none.
+		Out.OwnCar.Reset();
+		Out.OwnState.Reset();
+		if (FieldCount > Read)
+		{
+			if (!Reader.TryReadNil())
+			{
+				FApexOwnCarSnapshot Snapshot;
+				if (!ParseOwnCarSnapshot(Reader, Snapshot)) { return false; }
+				Out.OwnCar = MoveTemp(Snapshot);
+			}
+			++Read;
+		}
+		if (FieldCount > Read)
+		{
+			if (!Reader.TryReadNil())
+			{
+				FApexOwnCarStateChunk Chunk;
+				if (!ParseOwnCarStateChunk(Reader, Chunk)) { return false; }
+				Out.OwnState = MoveTemp(Chunk);
+			}
 			++Read;
 		}
 
@@ -3676,10 +3820,10 @@ namespace ApexProtocol
 		return MoveTemp(Writer.GetBuffer());
 	}
 
-	TArray<uint8> EncodePlayerInput(uint32 ServerTickAck, const FApexPlayerInput& Input)
+	TArray<uint8> EncodePlayerInput(uint32 ServerTickAck, const FApexPlayerInput& Input, uint32 InputSeq)
 	{
-		FMsgPackWriter Writer(160);
-		BeginDataVariant(Writer, "PlayerInput", 12);
+		FMsgPackWriter Writer(176);
+		BeginDataVariant(Writer, "PlayerInput", InputSeq != 0 ? 13 : 12);
 		Writer.WriteString("server_tick_ack");
 		Writer.WriteUInt(ServerTickAck);
 		Writer.WriteString("throttle");
@@ -3742,6 +3886,14 @@ namespace ApexProtocol
 		// The handbrake, last (`cargo test player_input_headlights_wire_format`).
 		Writer.WriteString("handbrake");
 		Writer.WriteBool(Input.bHandbrake);
+		// The input's number, after the handbrake and only when set, so an
+		// unnumbered input keeps its bytes (`cargo test
+		// player_input_seq_wire_format`).
+		if (InputSeq != 0)
+		{
+			Writer.WriteString("seq");
+			Writer.WriteUInt(InputSeq);
+		}
 		return MoveTemp(Writer.GetBuffer());
 	}
 

@@ -3,7 +3,7 @@
 //! payloads for the broadcast phase. Runs entirely under one state write
 //! lock; no transport lock is touched here.
 
-use super::GameLoopCtx;
+use super::{GameLoopCtx, HeldInput};
 use crate::data::*;
 use crate::network::ServerMessage;
 use bytes::Bytes;
@@ -76,7 +76,7 @@ pub(crate) struct TickOutput {
 /// snapshots of a 420 Hz sim by default); the replay records on those ticks.
 pub(crate) async fn tick_sessions(
     ctx: &GameLoopCtx,
-    player_inputs: &HashMap<PlayerId, PlayerInputData>,
+    player_inputs: &HashMap<PlayerId, HeldInput>,
     tick_count: u64,
 ) -> TickOutput {
     let tick_rate = ctx.tick_rate;
@@ -183,18 +183,30 @@ pub(crate) async fn tick_sessions(
             // The debug stand-in (`crate::debug_hooks`, off by default)
             // drives a human's car in place of its input.
             // An away driver's car is the server's until they rejoin.
-            let input = match game_session
-                .stand_in_input(player_id)
-                .or_else(|| {
-                    game_session
-                        .is_away(player_id)
-                        .then(|| game_session.away_input(player_id))
-                })
-                .or_else(|| player_inputs.get(player_id).copied())
-            {
+            let server_input = game_session.stand_in_input(player_id).or_else(|| {
+                game_session
+                    .is_away(player_id)
+                    .then(|| game_session.away_input(player_id))
+            });
+            let input = match server_input {
                 Some(input) => input,
-                // No human input, generate AI input
-                None => game_session.generate_ai_input(player_id),
+                None => match player_inputs.get(player_id) {
+                    Some(held) => {
+                        // The driver's own input drives this tick: its
+                        // number goes back with the car's snapshot. The
+                        // sim never sees it.
+                        if let Some(seq) = held.seq {
+                            game_session
+                                .own_car_feeds
+                                .entry(*player_id)
+                                .or_default()
+                                .applied_seq = Some(seq);
+                        }
+                        held.input
+                    }
+                    // No human input, generate AI input
+                    None => game_session.generate_ai_input(player_id),
+                },
             };
             session_inputs.insert(*player_id, input);
         }
@@ -573,6 +585,13 @@ pub(crate) async fn tick_sessions(
         let mut driver_feedback = Vec::new();
         if telemetry_tick {
             let server_tick = game_session.session.current_tick;
+            let own_state_period_messages =
+                crate::own_car::state_period_messages(tick_rate, ctx.telemetry_divisor);
+            // A driver who left takes their feed with them.
+            let participants = &game_session.session.participants;
+            game_session
+                .own_car_feeds
+                .retain(|pid, _| participants.contains_key(pid));
             // An away driver's feedback is drained too, so a resumed seat
             // does not open with what the server's driving left behind.
             let humans: Vec<PlayerId> = game_session
@@ -587,9 +606,18 @@ pub(crate) async fn tick_sessions(
                 let Some(car) = game_session.session.participants.get_mut(player_id) else {
                     continue;
                 };
-                let feedback = car.feedback.take(server_tick);
+                let mut feedback = car.feedback.take(server_tick);
                 if !should_broadcast || away {
                     continue;
+                }
+                // A driver whose client numbers its inputs predicts its own
+                // car: its feedback carries the car's snapshot and, in
+                // turn, a slice of the full state (`crate::own_car`).
+                if let Some(feed) = game_session.own_car_feeds.get_mut(player_id) {
+                    let (own_car, own_state) =
+                        feed.next(car, server_tick, own_state_period_messages);
+                    feedback.own_car = Some(Box::new(own_car));
+                    feedback.own_state = own_state;
                 }
                 match rmp_serde::to_vec(&ServerMessage::DriverFeedback(feedback)) {
                     Ok(data) => driver_feedback.push((*player_id, Bytes::from(data))),

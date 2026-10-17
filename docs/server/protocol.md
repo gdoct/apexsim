@@ -154,8 +154,64 @@ members `ShootoutState` the same way
   yaw_rad, speed_mps]`, float32s in the server's frame as a car's pose. It
   is not a car: no `car_index`, no roster row (client
   `FApexTelemetryFrame::RacePhase`, `::SafetyCar`).
+- `DriverFeedback`'s two last fields, `own_car` and `own_state`, are left
+  off while they and everything after them are empty, nil when something
+  after them is sent (hand-written `Serialize`, as `TelemetryCompact`'s): a
+  driver whose client does not number its inputs gets the 14-field message
+  of before them. See [the own car](#the-own-car-for-prediction).
 - `ServerMessage::Telemetry` (named, full state) is what the replay recorder
   stores; it is not broadcast.
+
+## The own car, for prediction
+
+Client prediction ([../proposals/client-prediction.md](../proposals/client-prediction.md))
+rewinds the driver's own car to the server's and replays the inputs the
+server had not applied yet. The wire for it (`server/src/own_car.rs`):
+
+- **`PlayerInput.seq`** (`Option<u32>`, after `handbrake`, left off when
+  `None`): the client's number for the input, one higher with each it sends
+  (the UDP worker stamps it, from 1; `FApexUdpConnection::GetLastInputSeq`).
+  The game loop holds each driver's newest input with its number
+  (`game_loop::HeldInput`) and, on every tick that input drives the car,
+  records the number as applied (`GameSession::own_car_feeds`). The number
+  never reaches the physics. An input without one drives exactly as
+  before. A reordered or replayed datagram never reaches the loop (the
+  seal's rising `seq`), so the applied number only rises.
+- **`DriverFeedback.own_car`** (15th field): `OwnCarSnapshot`, the car at
+  the message's `server_tick` (the tick just simulated), sent only once the
+  driver's inputs carry a number. A positional array of 26: `tick`,
+  `input_seq` (the newest number applied by that tick, nil for none), then
+  what the car step carries from tick to tick: `pos[3]`, `attitude[3]` (yaw,
+  pitch, roll), `vel[3]`, `speed_mps`, `angular_vel[3]`,
+  `wheel_angular_vel[4]`, `wheel_load_n[4]`, `suspension_travel_m[4]`,
+  `suspension_velocity_mps[4]`, `g_forces[3]`, `vertical_accel_mps2`,
+  `ground_slope[2]`, `porpoise[2]`, `controls[4]` (throttle, brake,
+  steering, clutch as applied), `gear` (i8), `engine_rpm`, `turbo_spool`,
+  `auto_shift_hold_ticks`, `auto_reverse_ticks` (u16), `track_progress`,
+  `lateral_offset_m`, `current_lap` (u16), `centerline_idx` (u32 or nil),
+  `flags` (1 on track, 2 airborne, 4 colliding, 8 DRS open, 16 wheels off
+  track). Server frame and units, exact `f32`s; per-wheel FL FR RL RR.
+- **`DriverFeedback.own_state`** (16th field): `StateChunk`, `[tick,
+  input_seq, index, count, bytes]`, one slice of at most 640 bytes of the
+  car's full state blob (`car_step::encode_state`, `APXC`, about 5.5 kB, so
+  9 slices): the tyres, fuel, hybrid, brakes and damage the snapshot leaves
+  out. A blob is taken on a driver's first numbered message and every
+  `own_car::STATE_BLOB_SECONDS` (0.5 s, 30 messages at 420 Hz / 7) after,
+  and goes out a slice a message; every slice names the blob's tick and
+  input. The client keeps the slices of one blob in order and drops it when
+  one is lost (`FApexOwnCarStateAssembler`).
+
+Sizes at the default rates (`network.rs`
+`own_car_feedback_fits_one_small_datagram`, every number at its widest):
+158 bytes for the feedback alone, 425 with the snapshot, 1,087 with a
+slice, under the 1,472 bytes of UDP payload a 1,500-byte MTU carries, so
+no feedback datagram is fragmented. A numbered driver costs about 16 kB/s
+of snapshots and 11 kB/s of state on top of the feedback's 9.5 kB/s.
+
+The client takes each message's snapshot and slice off before folding the
+messages of a frame together (`FApexDriverFeedback::Absorb`) and keeps them
+on `UApexNetSubsystem` (`GetOwnCarSnapshot`, `GetOwnCarState`, their
+serials); nothing reads them until the prediction loop (phase 3).
 
 ## Evolving a message
 
@@ -202,7 +258,7 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 
 | Area | Tests |
 |---|---|
-| Telemetry, feedback, input | `telemetry_compact_wire_format` (`S_TelemetryCompactFlags`: 54 fields, the last `race_flags`, and the frame's `yellow_flags`; `S_TelemetryCompactStint` is the 53-field frame before them), `driver_feedback_wire_format`, `player_input_drs_wire_format`, `player_input_headlights_wire_format`, `udp_seal_wire_format` (udp_seal.rs: the seal around every inbound datagram) |
+| Telemetry, feedback, input | `telemetry_compact_wire_format` (`S_TelemetryCompactFlags`: 54 fields, the last `race_flags`, and the frame's `yellow_flags`; `S_TelemetryCompactStint` is the 53-field frame before them), `driver_feedback_wire_format`, `driver_feedback_own_car_wire_format` (`S_DriverFeedbackOwnCar`: the snapshot; `S_DriverFeedbackOwnState`: and a state slice), `player_input_drs_wire_format`, `player_input_headlights_wire_format`, `player_input_seq_wire_format` (`C_PlayerInputSeq`), `udp_seal_wire_format` (udp_seal.rs: the seal around every inbound datagram) |
 | Lap timing, line, corners | `lap_timing_wire_format`, `racing_line_wire_format`, `track_corners_wire_format` |
 | Road state | `road_state_wire_format` |
 | Session rules | `assists_wire_format`, `session_damage_wire_format`, `race_time_wire_format`, `qualifying_time_wire_format` (`CreateSession.qualifying_seconds`, `SessionJoined.QualifyingSeconds`, a qualifying `race_clock`), `weekend_wire_format` (`CreateSession.weekend` with and without a day's sky (`C_CreateSessionWeekendDays`, sent by the codec), `SessionJoined.Weekend`, `WeekendState`, a late entry (`S_WeekendStateLate`), a lobby listing a weekend between phases (`S_LobbyStateWeekendWaiting`), `AdvanceWeekend`, a `GameMode::Practice` frame with its clock), `session_ai_skill_wire_format`, `qualifying_cutoff_wire_format` (`CreateSession.qualifying_cutoff_pct`, `SessionJoined.QualifyingCutoffPct`), `pit_rule_wire_format` (`CreateSession.mandatory_stops` / `compound_change`, `SessionJoined.MandatoryStops` / `CompoundChange`, `RosterEntry.MissedStops`), `shootout_wire_format` (`CreateSession.qualifying_format` / `qualifying_lap_allowance`, `SessionJoined.QualifyingFormat` / `QualifyingLapAllowance`, `ShootoutState`, a weekend's `practice_damage` / `qualifying_damage`, `WeekendState.Damage`, a day's sky in `WeekendState.Conditions` (`S_WeekendStateConditions`)), `race_rules_wire_format` (`CreateSession.race_rules`, `SessionJoined.RaceRules`, a pace-lap frame's `race_phase`, `S_TelemetryCompactPaceLap`: the field after `yellow_flags`), `penalties_wire_format` (`race_rules.yellow_penalty` / `pit_exit_penalty`, `RosterEntry.Penalties`), `safety_car_wire_format` (`race_rules.safety_car`, a frame's `race_phase` 3), `full_safety_car_wire_format` (`race_rules.safety_car` 2, `C_CreateSessionFullSafetyCar`; a frame with `race_phase` 5 and the safety car's pose, `S_TelemetryCompactSafetyCar`), `conditions_air_wire_format`, `sky_wire_format`, `grid_wire_format` |
@@ -249,7 +305,10 @@ connection. Constants at the top of `transport.rs`.
 ## Checking it
 
 - `server/tests/protocol_test.rs`: version rejection, the UDP binding info,
-  the handshake, input and telemetry loopback, feedback over UDP, the seal
+  the handshake, input and telemetry loopback, feedback over UDP, the own
+  car (`test_input_sequence_comes_back_with_the_own_car_snapshot`: an
+  unnumbered input drives with no snapshot; a numbered one comes back with
+  the throttle it applied, and the slices make a blob that decodes), the seal
   (`test_udp_handshake_needs_the_seal`: bare, wrong-key and replayed
   handshakes never bind; `udp_seal.rs` unit tests cover tampering and
   reordering), the tick
@@ -258,7 +317,8 @@ connection. Constants at the top of `transport.rs`.
   `transport_backpressure_test.rs` (bounded queues, priorities, metrics),
   `live_spectator_test.rs`, `showcase_test.rs`.
 - Client: `ApexSim.Net.Protocol.*`, `ApexSim.Net.Udp.*` (including
-  `.Robustness`: truncated and garbage input), `ApexSim.Net.MsgPack.*`.
+  `.Robustness`: truncated and garbage input, and `.OwnCarStateAssembler`),
+  `ApexSim.Net.MsgPack.*`.
 
 ## Traps
 
