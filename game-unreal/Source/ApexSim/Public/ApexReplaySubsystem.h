@@ -112,6 +112,19 @@ private:
 	int32 TotalFrames = 0;
 	FIntPoint Resolution = FIntPoint::ZeroValue;
 	bool bExitWhenDone = true;
+
+	/**
+	 * `-ApexReplayBench[=<file>]`: the benchmark. The clip plays in real
+	 * time and every frame's time from StartSeconds to EndSeconds is kept;
+	 * at the end the frame-time percentiles, the GPU and the resolution go
+	 * to the log and to the file (Saved/Benchmarks/<track>_<time>.json by
+	 * default), and the game exits.
+	 */
+	bool bBench = false;
+	FString BenchFile;
+	TArray<float> BenchFrameMs;
+	double BenchLastFrameAt = 0.0;
+	void WriteBenchmark();
 	double RecordStartedAt = 0.0;
 
 	/** `-ApexReplayAudio`: record the sound too. */

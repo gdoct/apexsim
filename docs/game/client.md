@@ -465,6 +465,16 @@ Hotlap: `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`,
 - `-ApexReplay=<file>.apxs` and the `-ApexReplay*` family (record, fps, camera
   and shot options) play a clip with no server; see [spectator.md](spectator.md)
   and [marketing-site.md](../marketing-site.md).
+- The benchmark: `python scripts/benchmark.py [--track Spa] [--res 1920x1080]`
+  renders one seeded race (12 GT3s, sunny, `apexsim-replay render --seed 7`)
+  to `build/benchmark/<Track>.apxs` once, and plays it with
+  `-ApexReplayBench[=<file>]`: from `-ApexReplayStart` for
+  `-ApexReplayDuration` (20 s, 60 s) on the TV director's seed, every
+  frame's real time kept, then the mean fps, the 1% low, p50 / p95 / p99 and
+  the worst frame with the GPU, RHI and resolution to the log and
+  `Saved/Benchmarks/<Track>_<time>.json`, and the game exits. An RTX 3080 at
+  1920x1080: 104-107 fps mean, p50 9.3-9.6 ms, p99 11.6-12.1 ms (2026-10-17);
+  the 1% low moves with the first run's shader hitches.
 - `-ApexGuide=<Stem>[:Class]`, `-ApexGuideCorner=N`, `-ApexGuideCamera=N`;
   see [track-guide.md](../content/track-guide.md).
 - Content folders: `-ApexTracksDir=`, `-ApexCarsDir=`, `-ApexHudDir=`, `-ApexGuideDir=`.

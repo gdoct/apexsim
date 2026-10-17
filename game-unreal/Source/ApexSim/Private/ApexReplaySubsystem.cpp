@@ -14,6 +14,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/GameUserSettings.h"
+#include "DynamicRHI.h"
+#include "RHIGlobals.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
@@ -285,6 +287,17 @@ bool UApexReplaySubsystem::ParseCommandLine()
 	ParseFloat(TEXT("ApexReplayLoadTimeout="), LoadTimeoutSeconds);
 	bLoop = FParse::Param(Cmd, TEXT("ApexReplayLoop"));
 	bShowUi = FParse::Param(Cmd, TEXT("ApexReplayShowUi"));
+	bBench = FParse::Param(Cmd, TEXT("ApexReplayBench")) || FParse::Value(Cmd, TEXT("ApexReplayBench="), BenchFile);
+	if (bBench)
+	{
+		bLoop = false;
+		if (BenchFile.IsEmpty())
+		{
+			BenchFile = FPaths::ProjectSavedDir() / TEXT("Benchmarks")
+				/ FString::Printf(TEXT("%s_%s.json"), *Clip->GetTrackStem(), *FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S")));
+		}
+		BenchFile = FPaths::ConvertRelativePathToFull(BenchFile);
+	}
 	const double ClipSeconds = Clip->GetDurationSeconds();
 	StartSeconds = FMath::Clamp(StartSeconds, 0.0, ClipSeconds);
 	EndSeconds = DurationSeconds > 0.0 ? FMath::Min(StartSeconds + DurationSeconds, ClipSeconds) : ClipSeconds;
@@ -544,6 +557,63 @@ void UApexReplaySubsystem::WriteManifest()
 	FFileHelper::SaveStringToFile(Json, *(RecordDir / TEXT("replay_done.json")), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 }
 
+void UApexReplaySubsystem::WriteBenchmark()
+{
+	TArray<float> Sorted = BenchFrameMs;
+	Sorted.Sort();
+	const int32 N = Sorted.Num();
+	auto At = [&Sorted, N](double Q) { return N > 0 ? Sorted[FMath::Clamp(FMath::RoundToInt((N - 1) * Q), 0, N - 1)] : 0.0f; };
+	double Sum = 0.0;
+	for (const float Ms : Sorted)
+	{
+		Sum += Ms;
+	}
+	const double MeanMs = N > 0 ? Sum / N : 0.0;
+	// The 1% low: the mean of the slowest hundredth of the frames, as fps.
+	double SlowSum = 0.0;
+	const int32 Slow = FMath::Max(1, N / 100);
+	for (int32 i = FMath::Max(0, N - Slow); i < N; ++i)
+	{
+		SlowSum += Sorted[i];
+	}
+	const double LowFps = SlowSum > 0.0 ? 1000.0 * Slow / SlowSum : 0.0;
+	FIntPoint Drawn(0, 0);
+	if (GEngine && GEngine->GameViewport)
+	{
+		FVector2D Size;
+		GEngine->GameViewport->GetViewportSize(Size);
+		Drawn = FIntPoint(FMath::RoundToInt(Size.X), FMath::RoundToInt(Size.Y));
+	}
+	const int32 Preset = GEngine && GEngine->GetGameUserSettings() ? GEngine->GetGameUserSettings()->GetOverallScalabilityLevel() : -1;
+
+	const TSharedRef<FJsonObject> Root = MakeShared<FJsonObject>();
+	Root->SetStringField(TEXT("clip"), ClipPath);
+	Root->SetStringField(TEXT("track"), Clip ? Clip->GetTrackStem() : FString());
+	Root->SetStringField(TEXT("gpu"), GRHIAdapterName);
+	Root->SetStringField(TEXT("rhi"), GDynamicRHI ? FString(GDynamicRHI->GetName()) : FString());
+	Root->SetNumberField(TEXT("width"), Drawn.X);
+	Root->SetNumberField(TEXT("height"), Drawn.Y);
+	Root->SetNumberField(TEXT("scalability"), Preset);
+	Root->SetStringField(TEXT("camera"), ApexReplayCam::ModeName(Camera.Mode));
+	Root->SetNumberField(TEXT("seconds"), EndSeconds - StartSeconds);
+	Root->SetNumberField(TEXT("frames"), N);
+	Root->SetNumberField(TEXT("mean_fps"), MeanMs > 0.0 ? 1000.0 / MeanMs : 0.0);
+	Root->SetNumberField(TEXT("low_1pct_fps"), LowFps);
+	Root->SetNumberField(TEXT("p50_ms"), At(0.50));
+	Root->SetNumberField(TEXT("p95_ms"), At(0.95));
+	Root->SetNumberField(TEXT("p99_ms"), At(0.99));
+	Root->SetNumberField(TEXT("max_ms"), N > 0 ? Sorted.Last() : 0.0f);
+	FString Json;
+	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Json);
+	FJsonSerializer::Serialize(Root, Writer);
+	IFileManager::Get().MakeDirectory(*FPaths::GetPath(BenchFile), true);
+	FFileHelper::SaveStringToFile(Json, *BenchFile, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+	UE_LOG(LogApexSim, Display, TEXT("Benchmark: %d frames over %.0f s on %s at %dx%d: %.1f fps mean, %.1f fps 1%% low, ")
+		TEXT("p50 %.2f ms, p95 %.2f ms, p99 %.2f ms, max %.2f ms -> %s"), N, EndSeconds - StartSeconds, *GRHIAdapterName,
+		Drawn.X, Drawn.Y, MeanMs > 0.0 ? 1000.0 / MeanMs : 0.0, LowFps, At(0.5), At(0.95), At(0.99),
+		N > 0 ? Sorted.Last() : 0.0f, *BenchFile);
+}
+
 void UApexReplaySubsystem::Tick(float DeltaTime)
 {
 	// Waiting, loading and settling are real time: under a fixed step a fast
@@ -656,8 +726,24 @@ void UApexReplaySubsystem::Tick(float DeltaTime)
 			}
 			return;
 		}
+		if (bBench && Now >= StartSeconds)
+		{
+			const double At = FPlatformTime::Seconds();
+			if (BenchLastFrameAt > 0.0)
+			{
+				BenchFrameMs.Add(static_cast<float>((At - BenchLastFrameAt) * 1000.0));
+			}
+			BenchLastFrameAt = At;
+		}
 		if (Now >= EndSeconds)
 		{
+			if (bBench)
+			{
+				WriteBenchmark();
+				Enter(EPhase::Done);
+				FPlatformMisc::RequestExit(false);
+				return;
+			}
 			if (bLoop)
 			{
 				Director->PlayReplay(FMath::Max(StartSeconds - PrerollSeconds, 0.0));
