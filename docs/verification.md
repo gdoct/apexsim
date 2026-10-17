@@ -454,8 +454,11 @@ Mandarina Bay.
   (2026-10-12) ran clean. Each run logs the VSM "Non-Nanite Marking Job
   Queue overflow" message once
   ([proposals/nanite-shadows.md](proposals/nanite-shadows.md)); whether it
-  plays a part is not known. Next: a long unattended loop with GPU crash
-  dumps on (R8 is one).
+  plays a part is not known. A soak of 2026-10-17 (`run_checks.py "r8-*"
+  --repeat 4 --game-arg=-gpucrashdebugging`: 22 circuits, 5 AI, TV and
+  aimed cameras, four passes) ran 88 of 88 clean, no hang and no crash;
+  the hang is not reproduced. Close it after a sitting of real races with
+  no hang, or reopen with the crash dump if one comes.
 - Integrated GPUs: the LOW preset and the integrated-GPU first-run default
   are seen only on an RTX 3080 at LOW. No Intel Iris Xe / Arc or AMD
   Radeon 680M / 780M has run the game, so the frame rate there and whether
