@@ -83,7 +83,7 @@ When an item is done, delete it from its backlog and from here.
 
 ## 2. Recommended order
 
-1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, the HUD's PEN, the lap allowance's garage), then H1 in one sitting. Fresh features are where the bugs are.
+1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting. Fresh features are where the bugs are.
 2. **Race-breaking AI** — A1 (imported AC cars). Judged by the AI survey.
 3. **Race control** — N4 (formation lap, jump starts), R2 (penalties), R1b (safety car) on the race-control module the flags built.
 4. **Sim-racer essentials** — N1 (client prediction: largest online win, largest job).
@@ -358,13 +358,14 @@ beyond the weather already on the wire. 🔴 for the models.
 ### Verification
 
 #### V1. Newest session screens (R9, R11, R12) — P1 · 🟡 · S
-Fresh features with only codec/unit tests: grid card with two clients, DNQ
-under 107%, PEN in standings/tower/results, pit plan after rejoin, lap
-allowance count-down, shoot-out end and results sheet, late weekend entry,
-empty grid slot, weekend day skies. Run `scripts/verify/run_checks.py` per
-recipe on the Windows box; an agent can judge the contact sheets, you
-confirm. **Needs T1 first** for the shoot-out end and the lap allowance.
-Back up `ApexProfile.sav` before R12.
+Seen on 2026-10-17: the grid card with one client, DNQ in the standings and
+results, PEN in the standings, the pit plan sent after a rejoin, the empty
+grid slot in the card and (after a fix) the lobby. Left, per
+verification.md: two clients (the guest's grid card, a late weekend entry)
+which the runner cannot start yet; the tower's DNQ and PEN and the session
+results screen (a watcher's view); the stop after a rejoin and the lap
+allowance's garage (recipes updated, not yet run); weekend day skies.
+`run_checks.py` rewrites `ApexProfile.sav`: keep an untouched copy.
 
 #### V2. R1, R2, R7 — P2 · 🟡 · S each
 - R1 Spa heavy rain: rain light, LEAK read-out, two flat spots (needs T2).

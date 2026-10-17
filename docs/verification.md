@@ -195,19 +195,22 @@ session while driving (notice, then the menu).
   car; only the stock lap and the "no saved setup" toast were run). Seen
   unattended at Monza: pause, ten seconds back, 2x back to live, the ghost
   of the first lap and its replay.
-- The race's grid card ([server/sessions.md](server/sessions.md#the-races-grid)),
-  never on screen: the grid mode of the garage card over the lined-up
-  field (READY, the livery, START NOW, the grid list), the car repainting
-  behind it on a livery change, the card closing as the countdown starts.
-  Two clients on one server: the guest's card, the ready marks crossing
-  over, and START NOW closing a card that is not ready. Only the server
-  side (`ready_grid_test`) and the codec have run.
+- The race's grid card ([server/sessions.md](server/sessions.md#the-races-grid)):
+  seen on 2026-10-17 with one client (`r9-weekend-dnq`, `r9-empty-slot`):
+  the grid mode of the garage card (READY with "0 of 1 ready", WORKS
+  livery 1 / 7, START NOW, the STARTING GRID list with AI and SETTING UP)
+  and the card closing as the countdown starts. Left: the car repainting
+  behind it on a livery change, and two clients on one server (the guest's
+  card, the ready marks crossing over, START NOW closing a card that is not
+  ready); the runner starts one client.
 - A non-qualifier on screen ([server/sessions.md](server/sessions.md#session-rules-set-on-create)):
-  a qualifying session (or a weekend's Q1) under the 107% rule with a car
-  outside it, then the race: DNQ in the standings, the tower and the
-  results screen, the car parked in its box. Seen only as the create
-  screen's Cut-off row; the roster mark is checked by `roster_wire_format`
-  and `ApexSim.RaceResults.*`.
+  seen on 2026-10-17 (`r9-weekend-dnq`, a three-minute Q1 under 107%): DNQ
+  in the race's standings and on the finish overlay's results for a car at
+  1:12.5 against a 1:03.9 pole. The grid card listed it as P5 like a
+  starter; it now reads DNQ / DID NOT QUALIFY there (not yet seen). Left:
+  the timing tower's DNQ, the session results screen's (it opens for a
+  watcher, not a driver), and the car parked in its box. A Q1 of one
+  minute ended before any lap and so cut nobody.
 - A weekend's day skies in a race ([server/sessions.md](server/sessions.md#race-weekend)):
   practice under its own weather and hour from the create screen's
   Practice sky row, the sky changing at the qualifying day and again at the
@@ -221,9 +224,10 @@ session while driving (notice, then the menu).
   Only the codec (`S_LobbyStateWeekendWaiting`, `S_WeekendStateLate`) and
   `ApexSim.UI.SessionBrowser` have run.
 - An empty grid slot ([server/sessions.md](server/sessions.md#starting-order-and-qualifying)):
-  a Custom start order naming a driver who is not there, then the session
-  lobby's GRID list, the grid card's list and the lined-up field with the
-  gap kept. Only `grid_order` and `game_session` unit tests have run.
+  seen on 2026-10-17 (`r9-empty-slot`, an order naming "Nobody" second):
+  the grid card's list kept the gap (P1, P3, P4, P5) and, after a fix, the
+  session lobby's GRID list (2 Open slot). Left: the lined-up field with
+  the gap, from above.
 - The racing line aid planned again at a lap's end: after the first lap
   with a full tank, the dots repaint (braking points earlier) without a
   hitch and stay on the road; in rain the braking zones lengthen.
@@ -263,14 +267,18 @@ stop, the stop on that plan (the pit panel's bar the fuel alone,
 rows with the summary naming them, STOPS OWED on the race state, and PEN on
 the finish overlay's rows after a one-lap race under a one-stop rule.
 
-- PEN in the HUD's standings, the timing tower and the watch view's results
-  (`item.missed_stops`), and the session results screen's PEN tag: the
-  one-lap run ends on the finish overlay. Only `ApexSim.Hud.Data.PitRule`
-  has run.
-- The plan sent again after a rejoin (`Rejoined ...: sending the pit plan
-  again` in the client log, the stop still on the plan), and a stop on a
-  plan with a chosen pad set moving the garage's Brake pads knob. Only
-  `ApexSim.Race.PitPlan.*` has run.
+- PEN in the timing tower and the watch view's results
+  (`item.missed_stops`), and the session results screen's PEN tag (it
+  opens for a watcher; a driver's race ends on the finish overlay). Seen on
+  2026-10-17 (`r11-pen-standings`): PEN on every row of the HUD's
+  standings after the flag.
+- The stop on a plan sent again after a rejoin, and a stop on a plan with a
+  chosen pad set moving the garage's Brake pads knob. Seen on 2026-10-17
+  (`r11-rejoin-plan`, `apexsim.net.Drop` on the grid): the client back in
+  a second, rejoining by itself, "Rejoined ...: sending the pit plan again",
+  and BOX lit after the rejoin. The stand-in is an AI and does not act on
+  BOX (it is the driver's own reminder): the recipe sends it in with a
+  debug `pit` event, not yet run.
 - The `BoxThisLap` wheel slot on a real wheel, and the second compound owed
   (`pit.compound_owed`, "2ND SET") under a Two compounds rule.
 
@@ -304,9 +312,12 @@ limits, as in [server/sessions.md](server/sessions.md).
 
 - The lap allowance's USED on the race state and LAP ALLOWANCE USED with
   GO OUT disabled in the garage: the session ends as the last car's laps
-  are used, so it needs a player done before the AI (an allowance of one,
-  or a longer AI field); and GO OUT's "2 timed laps left" badge (not up at
-  12 s, before the session was in qualifying).
+  are used, and every AI goes out as it starts, so the player has to be
+  back first. Two tries on 2026-10-17 (an allowance of one, against a
+  level-70 field) ended the session within seconds of the player's lap;
+  `r12-allowance-used` now runs two laps each with the stand-in out at
+  once. And GO OUT's "2 timed laps left" badge (not up at 12 s, before the
+  session was in qualifying).
 - A weekend whose final round is a shoot-out, live, and the HUD's
   conditions panel showing the written outlook (the race layout used had no
   conditions panel up).

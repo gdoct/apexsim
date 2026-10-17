@@ -1735,6 +1735,10 @@ runs:
     about: "R11. The pit plan sent again after a rejoin, and a stop on it"
     server:
       stand_in: true
+      # The stand-in is an AI and does not read BOX: send it in, after the
+      # rejoin (events count from the green, which the pause holds back).
+      events:
+        - "40:host:pit"
     args:
       - -ApexAutoRace
       - -ApexTrack=Norisring
@@ -1850,9 +1854,12 @@ runs:
       - {at: 38, label: "the grid card", checks: "the field lined up with the gap"}
       - {at: 52, label: "the start", checks: "the gap on the grid"}
 
-  # An allowance of one lap against a slow AI field (level 70) that goes out
-  # with the player: the stand-in's lap is used and it is back in the garage
-  # while the AI still lap, so the garage shows LAP ALLOWANCE USED.
+  # An allowance of two laps against a slow AI field (level 70). Every AI
+  # goes out as the session starts and the session ends once the last car's
+  # laps are used, so the player has to be back first: the stand-in goes out
+  # at once and gains on the field over two timed laps, and is in the
+  # garage (LAP ALLOWANCE USED, GO OUT disabled) while the slowest AI still
+  # laps. With one lap each the field was done within seconds of it.
   - id: r12-allowance-used
     about: "R12. The lap allowance used: USED on the race state, GO OUT disabled"
     server:
@@ -1864,25 +1871,90 @@ runs:
       - -ApexAiCount=5
       - -ApexAiSkill=70
       - -ApexMode=6
-      - -ApexLapAllowance=1
+      - -ApexLapAllowance=2
       - -ApexQualifyingMinutes=10
       - -ApexCountdown=5
       - -ApexWeather=sunny
       - -ApexTimeOfDay=13:00
-      - -ApexHotlapOutAfter=6
+      - -ApexHotlapOutAfter=2
     exec:
-      5: ["apexsim.hud.Data qualifying.", "apexsim.ui.Texts"]
-      120: ["apexsim.hud.Data qualifying."]
-      150: ["apexsim.hud.Data qualifying.", "apexsim.ui.Texts"]
-      170: ["apexsim.hud.Data qualifying.", "apexsim.ui.Texts"]
+      150: ["apexsim.hud.Data qualifying."]
+      195: ["apexsim.hud.Data qualifying."]
+      210: ["apexsim.hud.Data qualifying.", "apexsim.ui.Texts"]
+      225: ["apexsim.hud.Data qualifying.", "apexsim.ui.Texts"]
     shots:
-      - {at: 5, label: "garage: 1 timed lap left", checks: "GO OUT's badge"}
-      - {at: 60, label: "outlap", checks: "laps left 1"}
-      - {at: 130, label: "the timed lap ending", checks: ""}
-      - {at: 140, label: "lap used", checks: "USED on the race state"}
-      - {at: 152, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
-      - {at: 165, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
-      - {at: 180, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+      - {at: 140, label: "second timed lap", checks: "laps left 1"}
+      - {at: 190, label: "the last lap ending", checks: "USED on the race state"}
+      - {at: 198, label: "", checks: "USED on the race state"}
+      - {at: 206, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+      - {at: 214, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+      - {at: 224, label: "in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
+      - {at: 240, label: "", checks: ""}
+
+  # Puddles from the water over a cell's flat share (G1): Eau Rouge's low
+  # cell and the 0.71 cell at 6175 m, in heavy and in light rain.
+  - id: g1-puddles-heavy
+    about: "G1. Puddles in heavy rain at Eau Rouge"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Spa
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=10
+      - -ApexCountdown=5
+      - -ApexWeather=heavyrain
+      - -ApexTimeOfDay=14:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    shots:
+      - {at: 150, label: "Eau Rouge low cell 1035 m, at road height", checks: "Puddle across part of the road", exec: "apexsim.cam.LookAt 303.3 -29.3 -24.6 303.6 -37.3 -25.4"}
+      - {at: 155, label: "Eau Rouge low cell, from the other side", checks: "Puddle across part of the road", exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"}
+      - {at: 160, label: "Eau Rouge low cell, from above", checks: "Puddle across part of the road", exec: "apexsim.cam.LookAt 289.0 -9.7 -20.4 303.6 -37.3 -25.4"}
+      - {at: 165, label: "low cell 6175 m (0.71), from above", checks: "Puddle across part of the road", exec: "apexsim.cam.LookAt 162.8 -739.9 -17.6 172.7 -721.1 -21.6"}
+
+  - id: g1-puddles-light
+    about: "G1. Puddles in light rain at Eau Rouge"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Spa
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=10
+      - -ApexCountdown=5
+      - -ApexWeather=lightrain
+      - -ApexTimeOfDay=14:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    shots:
+      - {at: 240, label: "Eau Rouge low cell 1035 m, at road height", checks: "Puddle across part of the road", exec: "apexsim.cam.LookAt 303.3 -29.3 -24.6 303.6 -37.3 -25.4"}
+      - {at: 245, label: "Eau Rouge low cell, from the other side", checks: "Puddle across part of the road", exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"}
+      - {at: 250, label: "Eau Rouge low cell, from above", checks: "Puddle across part of the road", exec: "apexsim.cam.LookAt 289.0 -9.7 -20.4 303.6 -37.3 -25.4"}
+      - {at: 255, label: "low cell 6175 m (0.71), from above", checks: "Puddle across part of the road", exec: "apexsim.cam.LookAt 162.8 -739.9 -17.6 172.7 -721.1 -21.6"}
+
+  # The cloud dome at half cover from the road (G5): scattered cumulus, not
+  # an even field of small puffs.
+  - id: g5-clouds
+    about: "G5. The cloud dome at 0.5 cover, from the road"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Silverstone
+      - -ApexCar=SF-26
+      - -ApexAiCount=1
+      - -ApexLaps=5
+      - -ApexCountdown=5
+      - -ApexWeather=cloudy
+      - -ApexTimeOfDay=14:00
+      - -ApexView=chase
+    shots:
+      - {at: 30, label: "chase camera, cloudy", checks: "the sky over the circuit"}
+      - {at: 40, label: "looking up from the road", checks: "cumulus, not altocumulus", exec: "apexsim.cam.LookAt 0 0 2 300 120 160"}
+      - {at: 45, label: "toward the horizon", checks: "cumulus, not altocumulus", exec: "apexsim.cam.LookAt 0 0 2 600 -200 60"}
 
   # The menu's demo backdrop from a cold start: a GPU hang (VSM non-Nanite
   # culling, CullPerPageDrawCommandsCs) came 5 s after Silverstone's track
