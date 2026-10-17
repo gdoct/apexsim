@@ -74,12 +74,11 @@ When an item is done, delete it from its backlog and from here.
 ## 2. Recommended order
 
 1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting. Fresh features are where the bugs are.
-2. **Race control** — R1b (a real safety car) on the race-control module the flags built.
-3. **Sim-racer essentials** — N1 (client prediction: largest online win, largest job).
-4. **Visual quality pass** — G4 of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
-5. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
-6. **Online and depth** — N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
-7. Everything P3 opportunistically, bundled with whatever touches the same files.
+2. **Sim-racer essentials** — N1 (client prediction: largest online win, largest job).
+3. **Visual quality pass** — G4 of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
+4. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
+5. **Online and depth** — N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
+6. Everything P3 opportunistically, bundled with whatever touches the same files.
 
 ## 3. Items by type
 
