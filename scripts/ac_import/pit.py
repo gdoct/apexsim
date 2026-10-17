@@ -44,6 +44,15 @@ BOX_REACH_M = 20.0
 RUN_GAP_M = 8.0
 #: The lane has to be at least this long and hold at least one box.
 MIN_LANE_M = 40.0
+#: AC's pit line has parted from the racing line (the AI line) once it is
+#: this far off it.
+PARTS_FROM_LINE_M = 1.5
+#: The lane's mouth moves back to where the pit line parts from the racing
+#: line at most this far before it leaves the track.
+MAX_EARLY_M = 100.0
+#: A wall whose foot is more than this above the pit line does not part it
+#: from the track (a bridge's parapet).
+WALL_LEVEL_M = 2.0
 #: Pit lane speed limit, km/h: AC's default (a session rule in AC, not a file).
 SPEED_LIMIT_KMH = 80.0
 
@@ -86,6 +95,51 @@ def _beyond_edge(centre: np.ndarray, spine: Spine, width_left: np.ndarray, width
     edge = np.where(lateral >= 0.0, width_left[index], width_right[index])
     beyond[:] = np.abs(lateral) - edge
     return beyond, index, side
+
+
+def _distance_to(points: np.ndarray, xy: np.ndarray, chunk: int = 256) -> np.ndarray:
+    """For each of `xy`: the distance to the nearest of `points`."""
+    out = np.empty(len(xy))
+    for a in range(0, len(xy), chunk):
+        out[a:a + chunk] = np.linalg.norm(xy[a:a + chunk, None, :] - points[None, :, :], axis=2).min(axis=1)
+    return out
+
+
+def _walled_off(xy: np.ndarray, z: np.ndarray, middle: np.ndarray, walls: np.ndarray,
+                chunk: int = 128) -> np.ndarray:
+    """For each point: whether a wall stands between it and the road's
+    middle (`middle`, one point each), a wall the line's height crosses.
+
+    The road's edge is where the physics' road ends, and where the pit lane
+    is asphalt joined to the track's (Red Bull Ring's pit straight, Laguna
+    Seca's start line) the edge takes the lane in: the lane is then told
+    from the track only by the pit wall between them."""
+    count = len(xy)
+    out = np.zeros(count, dtype=bool)
+    if walls is None or len(walls) == 0 or count == 0:
+        return out
+    lo = np.minimum(xy, middle).min(axis=0) - 1.0
+    hi = np.maximum(xy, middle).max(axis=0) + 1.0
+    wx0, wy0, wx1, wy1 = walls[:, 0], walls[:, 1], walls[:, 2], walls[:, 3]
+    keep = ((np.maximum(wx0, wx1) >= lo[0]) & (np.minimum(wx0, wx1) <= hi[0])
+            & (np.maximum(wy0, wy1) >= lo[1]) & (np.minimum(wy0, wy1) <= hi[1]))
+    w = walls[keep]
+    if len(w) == 0:
+        return out
+    ax, ay, bx, by, base, height = (w[:, k][None, :] for k in range(6))
+    for a in range(0, count, chunk):
+        px, py = xy[a:a + chunk, 0:1], xy[a:a + chunk, 1:2]
+        qx, qy = middle[a:a + chunk, 0:1], middle[a:a + chunk, 1:2]
+        zz = z[a:a + chunk, None]
+        d1 = (bx - ax) * (py - ay) - (by - ay) * (px - ax)
+        d2 = (bx - ax) * (qy - ay) - (by - ay) * (qx - ax)
+        d3 = (qx - px) * (ay - py) - (qy - py) * (ax - px)
+        d4 = (qx - px) * (by - py) - (qy - py) * (bx - px)
+        # A wall at the line's height: not a bridge's parapet overhead or
+        # a wall down a bank below.
+        level = (base <= zz + WALL_LEVEL_M) & (base + height >= zz + 0.3)
+        out[a:a + chunk] = ((d1 * d2 < 0.0) & (d3 * d4 < 0.0) & level).any(axis=1)
+    return out
 
 
 def _longest_run(mask: np.ndarray, stations: np.ndarray, gap_m: float) -> tuple[int, int] | None:
@@ -134,11 +188,22 @@ def build(pit_ai: AiSpline, boxes_ac: list[np.ndarray], frame: Frame, spine: Spi
     centre = measured.centre
     dist, near, side_of = _beyond_edge(centre, spine, measured.width_left, measured.width_right, line[:, :2])
 
-    # The part off the track, and a lead-in each end.
-    off = _longest_run(dist > LEAVES_TRACK_M, stations, RUN_GAP_M)
+    # The part off the track (past the road's edge, or behind a wall from
+    # it), and a lead-in each end.
+    walled = _walled_off(line[:, :2], line[:, 2], centre[near, :2], world.wall_segments)
+    off = _longest_run((dist > LEAVES_TRACK_M) | walled, stations, RUN_GAP_M)
     if off is None:
         return PitLaneResult(None, report, ["the pit line never leaves the track: no pit lane"])
-    lo = int(np.searchsorted(stations, stations[off[0]] - LEAD_M, side="left"))
+    # The lane's mouth: before the line peels off the racing line, not only
+    # before it leaves the road, so a car coming in on the racing line is on
+    # the lane before it turns off (Spa's turns off through the bus stop
+    # at 40 degrees, 20 m before the road's edge).
+    entry = off[0]
+    parted = _distance_to(spine.positions[:, :2], line[:, :2]) > PARTS_FROM_LINE_M
+    while entry > 0 and parted[entry - 1] and stations[off[0]] - stations[entry - 1] <= MAX_EARLY_M:
+        entry -= 1
+    report["parts_from_racing_line_m"] = round(float(stations[off[0]] - stations[entry]), 1)
+    lo = int(np.searchsorted(stations, stations[entry] - LEAD_M, side="left"))
     hi = int(np.searchsorted(stations, stations[off[1]] + LEAD_M, side="right"))
     line, stations, dist, near, side_of = (line[lo:hi], stations[lo:hi] - stations[lo], dist[lo:hi], near[lo:hi],
                                            side_of[lo:hi])

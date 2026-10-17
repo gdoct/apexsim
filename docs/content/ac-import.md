@@ -181,11 +181,21 @@ replaces an earlier import); with no terminal the refusal stands.
 back) and the `AC_PIT_n` dummies into the server's `PitSidecar`
 ([pit-lane](../server/pit-lane.md)):
 
-- **The lane** is the part of AC's line that is off the track (past the road's
-  edge by 0.5 m, measured on the road middle and widths), with 30 m of lead-in
-  at each end, resampled every 2 m, z from the physics under it. AC's line
-  starts and ends on the racing line, hundreds of metres before the lane
-  proper, and the server hands the AI to the lane at its first node.
+- **The lane** is the part of AC's line that is off the track, with 30 m of
+  lead-in at each end, resampled every 2 m, z from the physics under it. Off
+  the track is past the road's edge by 0.5 m (measured on the road middle and
+  widths) or behind a wall from the road's middle (`_walled_off`: a wall at
+  the line's height, not a bridge's parapet): where the lane's asphalt joins
+  the track's, the road's edge takes the lane in and only the pit wall tells
+  them apart (Red Bull Ring's pit straight, Laguna Seca's start line), and
+  reading the edge alone cut the lane to its stretch along the straight. The
+  entry's lead-in is counted from where AC's line parts from the racing line
+  (1.5 m off the AI line, at most 100 m before it leaves the track;
+  `parts_from_racing_line_m` in the report), so a car coming in on the racing
+  line is on the lane before it turns off (Spa's turns off at 40 degrees
+  through the bus stop). AC's line starts and ends on the racing line,
+  hundreds of metres before the lane proper, and the server hands the AI to
+  the lane at its first node.
 - **Stations** (`entry_station_m`, `exit_station_m`) are the arc length of the
   YAML's nodes, the server's lap, not the AI line's: the road's middle is
   longer (Red Bull Ring by 1.3%), and a station taken from the AI line put

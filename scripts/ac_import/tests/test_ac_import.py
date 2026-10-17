@@ -554,6 +554,30 @@ class TextureTests(unittest.TestCase):
         self.assertEqual(again.data, conv.data)
 
 
+class PitLaneTests(unittest.TestCase):
+    def test_a_pit_wall_parts_the_lane_from_the_track_where_the_asphalt_joins(self):
+        """Where the pit lane's asphalt joins the track's, the road's edge
+        takes the lane in, and only the wall between tells them apart (Red
+        Bull Ring, Laguna Seca): a wall at the line's height does, one
+        overhead does not."""
+        from ac_import import pit
+        xy = np.array([[0.0, -8.0], [10.0, -8.0], [20.0, -8.0]])
+        z = np.zeros(3)
+        middle = np.array([[0.0, 0.0], [10.0, 0.0], [20.0, 0.0]])
+        # x0 y0 x1 y1 base height: a pit wall from x = 5 to 15 at y = -4,
+        # and a bridge's parapet 6 m up across x = 20.
+        walls = np.array([[5.0, -4.0, 15.0, -4.0, -0.5, 1.2],
+                          [18.0, -4.0, 22.0, -4.0, 6.0, 1.0]])
+        self.assertEqual(pit._walled_off(xy, z, middle, walls).tolist(), [False, True, False])
+        self.assertEqual(pit._walled_off(xy, z, middle, np.zeros((0, 6))).tolist(), [False] * 3)
+
+    def test_distance_to_the_racing_line(self):
+        from ac_import import pit
+        line = np.array([[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]])
+        d = pit._distance_to(line, np.array([[1.0, 3.0], [5.0, 0.0]]))
+        self.assertTrue(np.allclose(d, [3.0, 3.0]))
+
+
 class ImportTests(unittest.TestCase):
     def check_pit_lane(self, custom, report, doc, msgpack):
         """The oval's pit line becomes the server's pit sidecar."""
