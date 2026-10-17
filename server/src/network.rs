@@ -1295,6 +1295,33 @@ pub struct CompactCarState {
     /// rule, and from an older server. Appended after `disc_wear`.
     #[serde(default = "no_hybrid")]
     pub stint_energy_pct: u8,
+    /// The flags race control shows this car (`crate::race_control`): bit 0
+    /// the blue flag ([`RACE_FLAG_BLUE`]), bits 1-2 the yellow in its sector
+    /// and the next (0 none, 1 single, 2 double; [`RACE_FLAG_YELLOW_SHIFT`]).
+    /// Appended after `stint_energy_pct`; 0 outside a race and from an
+    /// older server.
+    #[serde(default)]
+    pub race_flags: u8,
+}
+
+/// `race_flags` bit 0: the blue flag.
+pub const RACE_FLAG_BLUE: u8 = 1;
+/// `race_flags` bits 1-2: the yellow ahead of the car.
+pub const RACE_FLAG_YELLOW_SHIFT: u8 = 1;
+
+/// The `race_flags` byte of a car's telemetry.
+pub fn race_flags_of(state: &CarState) -> u8 {
+    (state.flag_blue as u8) | ((state.flag_yellow.min(2)) << RACE_FLAG_YELLOW_SHIFT)
+}
+
+/// Every marshal sector showing a yellow (`crate::race_control`),
+/// positional: `[sector_m, [[sector, level], ...]]`, a sector the
+/// `sector_m` metres of lap from `sector * sector_m`, the level 1 single, 2
+/// double.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct YellowFlags {
+    pub sector_m: u16,
+    pub sectors: Vec<[u16; 2]>,
 }
 
 /// `disc_wear` for discs that do not wear.
@@ -1432,17 +1459,23 @@ pub struct CompactTelemetry {
     /// are drawn in every one.
     #[serde(default)]
     pub sky: Option<SkyNow>,
+    /// The yellow sectors of a race (`crate::race_control`), appended after
+    /// the sky: left off while none is out.
+    #[serde(default)]
+    pub yellow_flags: Option<YellowFlags>,
 }
 
 /// Positional like the struct it is, but with the trailing fields left off
-/// when there is nothing in them: the race clock goes when neither it nor
-/// the sky is there, and the sky when it is not.
+/// when there is nothing in them: the race clock goes when none of it, the
+/// sky and the yellows is there, the sky when neither it nor the yellows
+/// is, and the yellows when none is out.
 impl Serialize for CompactTelemetry {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
-        let with_clock = self.race_clock.is_some() || self.sky.is_some();
-        let with_sky = self.sky.is_some();
-        let len = 5 + with_clock as usize + with_sky as usize;
+        let with_flags = self.yellow_flags.is_some();
+        let with_sky = self.sky.is_some() || with_flags;
+        let with_clock = self.race_clock.is_some() || with_sky;
+        let len = 5 + with_clock as usize + with_sky as usize + with_flags as usize;
         let mut s = serializer.serialize_struct("CompactTelemetry", len)?;
         s.serialize_field("server_tick", &self.server_tick)?;
         s.serialize_field("session_state", &self.session_state)?;
@@ -1458,6 +1491,11 @@ impl Serialize for CompactTelemetry {
             s.serialize_field("sky", &self.sky)?;
         } else {
             s.skip_field("sky")?;
+        }
+        if with_flags {
+            s.serialize_field("yellow_flags", &self.yellow_flags)?;
+        } else {
+            s.skip_field("yellow_flags")?;
         }
         s.end()
     }
@@ -1697,6 +1735,7 @@ impl CompactCarState {
                 no_disc_wear()
             },
             stint_energy_pct: state.stint_energy_pct,
+            race_flags: race_flags_of(state),
         }
     }
 }
@@ -2714,6 +2753,7 @@ mod tests {
                 .collect(),
             race_clock: None,
             sky: None,
+            yellow_flags: None,
         });
 
         let named_bytes = rmp_serde::to_vec_named(&named).unwrap();
@@ -3200,7 +3240,11 @@ mod tests {
         state.brake_discs_wear = true;
         state.brake_disc_wear_pct = [50.4, 12.0, 3.0, 0.0];
         state.stint_energy_pct = 40;
+        // Shown the blue flag, a double yellow ahead.
+        state.flag_blue = true;
+        state.flag_yellow = 2;
 
+        // Sector 4 (1000-1250 m) double, 3 warned.
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,
             session_state: SessionState::Racing,
@@ -3209,10 +3253,14 @@ mod tests {
             car_states: vec![CompactCarState::from_car_state(&state, 0)],
             race_clock: None,
             sky: None,
+            yellow_flags: Some(YellowFlags {
+                sector_m: 250,
+                sectors: vec![[3, 1], [4, 2]],
+            }),
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
-            "S_TelemetryCompactStint: {}",
+            "S_TelemetryCompactFlags: {}",
             bytes
                 .iter()
                 .map(|b| format!("0x{:02X}", b))
@@ -3220,10 +3268,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 53-field array: 0xDC 0x00 0x35 is the array-16 header.
+        // The car is a 54-field array: 0xDC 0x00 0x36 is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x35]),
-            "CompactCarState must stay 53 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x36]),
+            "CompactCarState must stay 54 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -3268,8 +3316,17 @@ mod tests {
                 assert_eq!(car.ground, 0b0001_0001, "gravel under the left wheels");
                 assert_eq!(car.disc_wear, [50, 12, 3, 0], "the discs, rounded");
                 assert_eq!(car.stint_energy_pct, 40);
+                assert_eq!(
+                    car.race_flags,
+                    RACE_FLAG_BLUE | (2 << RACE_FLAG_YELLOW_SHIFT)
+                );
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);
+                assert_eq!(
+                    frame.yellow_flags.as_ref().map(|f| f.sectors.clone()),
+                    Some(vec![[3, 1], [4, 2]])
+                );
+                assert_eq!(frame.sky, None, "nil before the yellows");
             }
             other => panic!("Wrong message type: {other:?}"),
         }
@@ -4483,6 +4540,7 @@ mod tests {
                 car_states: vec![],
                 race_clock,
                 sky: None,
+                yellow_flags: None,
             })
         };
         let clock_bytes = rmp_serde::to_vec(&frame(Some(RaceClock {
@@ -4608,6 +4666,7 @@ mod tests {
                 final_lap: 0,
             }),
             sky: None,
+            yellow_flags: None,
         });
         let clock_bytes = rmp_serde::to_vec(&clock).unwrap();
         println!("S_TelemetryCompactQualifyingClock: {}", hex(&clock_bytes));
@@ -4850,6 +4909,7 @@ mod tests {
                 final_lap: 0,
             }),
             sky: None,
+            yellow_flags: None,
         });
         let clock_bytes = rmp_serde::to_vec(&clock).unwrap();
         println!("S_TelemetryCompactPracticeClock: {}", hex(&clock_bytes));
@@ -5266,6 +5326,7 @@ mod tests {
             car_states: vec![],
             race_clock: None,
             sky: Some(now),
+            yellow_flags: None,
         });
         let frame_bytes = rmp_serde::to_vec(&frame).unwrap();
         println!("S_TelemetryCompactSky: {}", hex(&frame_bytes));
@@ -5279,6 +5340,7 @@ mod tests {
         // Without a sky the frame is the five fields it always was.
         let bare = ServerMessage::TelemetryCompact(CompactTelemetry {
             sky: None,
+            yellow_flags: None,
             ..match frame {
                 ServerMessage::TelemetryCompact(t) => t,
                 _ => unreachable!(),

@@ -165,6 +165,9 @@ next `Brake` phase, its slowest point, the hand at the apex).
   widens: the AI moves away as the player comes over and never follows
   it back across.
 - **Yield**: about to be lapped, it moves toward the outside and lifts 3%.
+- **Under a yellow** (`CarState::flag_yellow`, [sessions](sessions.md#flags)):
+  the pace is 95% of the plan under a single and 85% under a double, and no
+  pass is begun unless the car ahead is crawling (the incident itself).
 - **Mistakes**: with a car within 0.6 s behind, a driver now and then
   gets a corner wrong, by its inconsistency (`MISTAKE_CHANCE`, one roll a
   corner as it nears the braking zone). Away from pressure it does too, at

@@ -1732,7 +1732,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 53;
+	constexpr int32 CompactCarFieldCount = 54;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -2465,6 +2465,23 @@ namespace
 				return true;
 			});
 		}
+		// Race control's flags for the car, appended after the stint energy:
+		// bit 0 blue, bits 1-2 the yellow ahead.
+		Out.bBlueFlag = false;
+		Out.YellowAhead = 0;
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.bBlueFlag = (Raw & 1u) != 0;
+				Out.YellowAhead = FMath::Min<int32>(static_cast<int32>((Raw >> 1) & 3u), 2);
+				return true;
+			});
+		}
 
 		if (!bOk)
 		{
@@ -2639,6 +2656,50 @@ namespace
 			if (!Reader.TryReadNil() && !ParseSkyNow(Reader, Out.Sky))
 			{
 				return false;
+			}
+		}
+
+		// `yellow_flags`, appended after the sky: `[sector_m, [[sector,
+		// level], ...]]`, or nil.
+		Out.YellowSectorM = 0;
+		Out.YellowSectors.Reset();
+		if (FieldCount > Read)
+		{
+			++Read;
+			if (!Reader.TryReadNil())
+			{
+				int32 FlagFields = 0;
+				if (!Reader.ReadArrayHeader(FlagFields) || FlagFields < 2)
+				{
+					return false;
+				}
+				if (!Reader.ReadUInt64(Raw)) { return false; }
+				Out.YellowSectorM = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16));
+				int32 Count = 0;
+				if (!Reader.ReadArrayHeader(Count))
+				{
+					return false;
+				}
+				for (int32 i = 0; i < Count; ++i)
+				{
+					int32 Pair = 0;
+					uint64 Sector = 0;
+					uint64 Level = 0;
+					if (!Reader.ReadArrayHeader(Pair) || Pair < 2 || !Reader.ReadUInt64(Sector) || !Reader.ReadUInt64(Level))
+					{
+						return false;
+					}
+					for (int32 Extra = 2; Extra < Pair; ++Extra)
+					{
+						if (!Reader.SkipValue()) { return false; }
+					}
+					Out.YellowSectors.Emplace(static_cast<int32>(FMath::Min<uint64>(Sector, MAX_uint16)),
+						static_cast<int32>(FMath::Min<uint64>(Level, 2)));
+				}
+				for (int32 Extra = 2; Extra < FlagFields; ++Extra)
+				{
+					if (!Reader.SkipValue()) { return false; }
+				}
 			}
 		}
 

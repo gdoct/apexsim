@@ -2748,6 +2748,18 @@ struct APEXSIMNET_API FApexCarTelemetry
 	float StintEnergyPct = -1.0f;
 
 	/**
+	 * The flags race control shows this car (`race_flags`): the blue flag
+	 * (a car a lap up close behind), and the yellow in its marshal sector and
+	 * the next, 0 none, 1 single, 2 double. Clear outside a race and from a
+	 * server that predates them.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bBlueFlag = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 YellowAhead = 0;
+
+	/**
 	 * The tyre is sliding hard enough to smoke / is locked (`slide_flags`
 	 * bits 0-3 and 4-7). False from a server that predates them.
 	 */
@@ -3031,6 +3043,33 @@ struct APEXSIMNET_API FApexTelemetryFrame
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	FApexSkyNow Sky;
+
+	/**
+	 * The race's marshal sectors showing a yellow (`yellow_flags`, appended
+	 * after the sky; absent while none is out): each sector is
+	 * YellowSectorM metres of lap from `Sector * YellowSectorM`, its level 1
+	 * single, 2 double.
+	 */
+	int32 YellowSectorM = 0;
+	TArray<TPair<int32, int32>> YellowSectors;
+
+	/** The yellow over lap position `ProgressM`, 0 none. */
+	int32 YellowAt(float ProgressM) const
+	{
+		if (YellowSectorM <= 0)
+		{
+			return 0;
+		}
+		const int32 Sector = FMath::FloorToInt(FMath::Max(ProgressM, 0.0f) / YellowSectorM);
+		for (const TPair<int32, int32>& Yellow : YellowSectors)
+		{
+			if (Yellow.Key == Sector)
+			{
+				return Yellow.Value;
+			}
+		}
+		return 0;
+	}
 };
 
 /** What is under one tyre (`feedback::ContactSurface`). Ordered by roughness. */

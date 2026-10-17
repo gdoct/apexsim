@@ -344,6 +344,8 @@ pub struct GameSession {
     /// line sent on joining (stock car, dry tank, the planned grip).
     /// Looked up by key only, never iterated.
     aid_lines: HashMap<PlayerId, AidLineKey>,
+    /// The race's flags (`crate::race_control`), from the tick.
+    pub race_control: crate::race_control::RaceControl,
     /// How many times a weekend day has baked its own sky
     /// ([`Self::begin_day`]): a racing line planned under an earlier one is
     /// planned again.
@@ -863,6 +865,7 @@ impl GameSession {
             ai_straights: HashMap::new(),
             ai_power_profiles: std::collections::BTreeMap::new(),
             aid_lines: HashMap::new(),
+            race_control: Default::default(),
             sky_day: 0,
             day_lines_due: false,
             finish_deadline_tick: None,
@@ -943,6 +946,7 @@ impl GameSession {
             ai_straights: HashMap::new(),
             ai_power_profiles: std::collections::BTreeMap::new(),
             aid_lines: HashMap::new(),
+            race_control: Default::default(),
             sky_day: 0,
             day_lines_due: false,
             finish_deadline_tick: None,
@@ -2347,6 +2351,7 @@ impl GameSession {
         let mut state_refs: Vec<&mut CarState> = self.session.participants.values_mut().collect();
         physics::check_collisions_refs(&mut state_refs, &self.car_configs);
         physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
+        self.update_flags();
 
         // A timed race whose clock just ran out learns its last lap; then
         // assign finish positions to cars that just took the flag, and
@@ -2355,6 +2360,60 @@ impl GameSession {
         self.assign_finish_positions();
         if self.session.state != SessionState::Finished && self.is_race_complete() {
             self.session.state = SessionState::Finished;
+        }
+    }
+
+    /// Race control's flags (`crate::race_control`) over this tick's field,
+    /// each car told the yellow ahead of it and its blue flag. Clear before
+    /// the green and once the race is over.
+    fn update_flags(&mut self) {
+        use crate::race_control::{FlagCar, START_GRACE_S};
+        let total = crate::laps::track_length_m(&self.track_config);
+        if self.session.state != SessionState::Racing || total <= 0.0 {
+            self.race_control.clear();
+            for state in self.session.participants.values_mut() {
+                state.flag_yellow = 0;
+                state.flag_blue = false;
+            }
+            return;
+        }
+        let out_of_it = |s: &CarState| {
+            s.in_garage
+                || s.towed
+                || s.pit.in_lane
+                || s.finish_position.is_some()
+                || !s.damage.is_drivable
+                || s.is_ghost()
+        };
+        let cars: Vec<FlagCar> = self
+            .session
+            .participants
+            .values()
+            .map(|s| FlagCar {
+                laps: s.current_lap as f32 + s.track_progress / total,
+                progress_m: s.track_progress,
+                speed_mps: s.speed_mps,
+                on_road: s.is_on_track,
+                colliding: s.is_colliding,
+                reversing: s.gear < 0 && s.speed_mps > 0.5,
+                out_of_it: out_of_it(s),
+            })
+            .collect();
+        let launching = self.session.race_start_tick.is_some_and(|start| {
+            (self.session.current_tick.saturating_sub(start) as f32)
+                < START_GRACE_S * self.tick_rate_hz.max(1) as f32
+        });
+        let dt = self.dt();
+        self.race_control
+            .update(&cars, total, dt, self.session.current_tick, launching);
+        let control = &self.race_control;
+        for (i, state) in self.session.participants.values_mut().enumerate() {
+            state.flag_blue = control.blue(i);
+            state.flag_yellow = if out_of_it(state) {
+                0
+            } else {
+                control.yellow_ahead(state.track_progress, total) as u8
+            };
         }
     }
 
@@ -5872,7 +5931,24 @@ impl GameSession {
             car_states,
             race_clock: self.race_clock(),
             sky: Some(self.sky_now()),
+            yellow_flags: self.yellow_flags(),
         }
+    }
+
+    /// The race's yellow sectors for telemetry, `None` while none is out.
+    pub fn yellow_flags(&self) -> Option<crate::network::YellowFlags> {
+        let sectors: Vec<[u16; 2]> = self
+            .race_control
+            .yellows()
+            .map(|(sector, level)| [sector.min(u16::MAX as usize) as u16, level as u16])
+            .collect();
+        if sectors.is_empty() {
+            return None;
+        }
+        Some(crate::network::YellowFlags {
+            sector_m: crate::race_control::MARSHAL_SECTOR_M as u16,
+            sectors,
+        })
     }
 
     /// The sky as it is now, as telemetry and the spectator stream carry it.
@@ -7216,6 +7292,78 @@ mod tests {
     }
 
     /// Two humans racing on the default oval, lap limit 3.
+    /// A car stopped on the road brings out a double yellow over its
+    /// marshal sector and a single over the one before: the car arriving
+    /// behind is told, telemetry carries both, and the flags go once the
+    /// stopped car has gone and the hold has run out.
+    #[test]
+    fn a_car_stopped_on_the_road_brings_out_the_yellows() {
+        let track = crate::track_loader::TrackLoader::load_from_file(
+            "../content/tracks/default/Monza/Monza.yaml",
+        )
+        .expect("Monza");
+        let car = CarConfig::default();
+        let car_id = car.id;
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car_id, car);
+        let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Multiplayer, 8, 0, 3);
+        let mut gs = GameSession::new(session, track, car_configs);
+        let (arriving, stopped) = (Uuid::from_u128(1), Uuid::from_u128(2));
+        gs.add_player(arriving, car_id).unwrap();
+        gs.add_player(stopped, car_id).unwrap();
+        gs.set_game_mode(GameMode::Race);
+        gs.session.state = SessionState::Racing;
+        gs.session.race_start_tick = Some(0);
+        gs.session.current_tick = 60 * DEFAULT_TICK_RATE_HZ as u32;
+        let place = |gs: &mut GameSession, id: PlayerId, station: f32, speed: f32| {
+            let (x, y, z, yaw) = physics::pose_at_station(&gs.track_config.centerline, station);
+            let s = gs.session.participants.get_mut(&id).unwrap();
+            s.pos_x = x;
+            s.pos_y = y;
+            s.pos_z = z;
+            s.yaw_rad = yaw;
+            s.vel_x = speed * yaw.cos();
+            s.vel_y = speed * yaw.sin();
+            s.speed_mps = speed;
+            s.gear = 4;
+            s.current_lap = 2;
+            s.nearest_centerline_idx = None;
+            physics::seed_track_progress(s, &gs.track_config);
+        };
+        place(&mut gs, stopped, 1125.0, 0.0);
+        place(&mut gs, arriving, 900.0, 50.0);
+        gs.tick(&HashMap::new());
+        let a = &gs.session.participants[&arriving];
+        assert_eq!(
+            a.flag_yellow, 2,
+            "the double ahead, at {:.0} m",
+            a.track_progress
+        );
+        let flags = gs.yellow_flags().expect("yellows out");
+        assert_eq!(flags.sector_m, 250);
+        assert!(flags.sectors.contains(&[4, 2]), "{:?}", flags.sectors);
+        assert!(flags.sectors.contains(&[3, 1]), "{:?}", flags.sectors);
+        let telemetry = gs.get_compact_telemetry();
+        let row = telemetry
+            .car_states
+            .iter()
+            .find(|c| Some(c.car_index) == gs.car_index_of(&arriving))
+            .unwrap();
+        assert_eq!(row.race_flags >> crate::network::RACE_FLAG_YELLOW_SHIFT, 2);
+        assert!(telemetry.yellow_flags.is_some());
+
+        // The stopped car is taken away (to the pits): the yellows hold, then go.
+        gs.session.participants.get_mut(&stopped).unwrap().in_garage = true;
+        for _ in
+            0..((crate::race_control::YELLOW_HOLD_S + 0.5) * DEFAULT_TICK_RATE_HZ as f32) as usize
+        {
+            place(&mut gs, arriving, 600.0, 50.0);
+            gs.tick(&HashMap::new());
+        }
+        assert!(gs.yellow_flags().is_none(), "cleared");
+        assert_eq!(gs.session.participants[&arriving].flag_yellow, 0);
+    }
+
     fn racing_session_with_two_humans() -> (GameSession, PlayerId, PlayerId) {
         let mut game_session = create_test_session();
         let car_id = game_session.car_configs.values().next().unwrap().id;

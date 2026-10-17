@@ -953,6 +953,25 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("RR disc new"), Car.DiscWearPct[3], 0.0f);
 			TestEqual(TEXT("40% of the stint left"), Car.StintEnergyPct, 40.0f);
 			TestEqual(TEXT("the ground before it still reads"), Car.WheelGround[2], ApexGround::Gravel);
+			TestFalse(TEXT("no blue flag from an older server"), Car.bBlueFlag);
+			TestEqual(TEXT("nor a yellow"), Car.YellowAhead, 0);
+			TestEqual(TEXT("nor yellow sectors"), Stint.Telemetry.YellowSectors.Num(), 0);
+		}
+		FApexServerMessage Flags;
+		if (TestTrue(TEXT("a frame with race control's flags decodes"),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactFlags, Flags, Error))
+			&& TestEqual(TEXT("one car"), Flags.Telemetry.Cars.Num(), 1))
+		{
+			const FApexCarTelemetry& Car = Flags.Telemetry.Cars[0];
+			TestTrue(TEXT("shown the blue"), Car.bBlueFlag);
+			TestEqual(TEXT("a double yellow ahead"), Car.YellowAhead, 2);
+			TestEqual(TEXT("the stint before it still reads"), Car.StintEnergyPct, 40.0f);
+			TestEqual(TEXT("250 m sectors"), Flags.Telemetry.YellowSectorM, 250);
+			TestEqual(TEXT("two yellow sectors"), Flags.Telemetry.YellowSectors.Num(), 2);
+			TestEqual(TEXT("1100 m is the double"), Flags.Telemetry.YellowAt(1100.0f), 2);
+			TestEqual(TEXT("900 m the warning"), Flags.Telemetry.YellowAt(900.0f), 1);
+			TestEqual(TEXT("1300 m clear"), Flags.Telemetry.YellowAt(1300.0f), 0);
+			TestFalse(TEXT("no sky in this frame"), Flags.Telemetry.Sky.bValid);
 		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactFlatSpot, Spots, Error)
 			&& Spots.Telemetry.Cars.Num() == 1)

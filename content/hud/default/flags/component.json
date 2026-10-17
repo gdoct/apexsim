@@ -1,0 +1,29 @@
+// Race control's flag for the local car: a yellow in its marshal sector or
+// the next (a double flashes), or the blue when a car a lap up is close
+// behind. Hidden while no flag is out.
+{
+  "name": "Flags",
+  "region": "top",
+  "order": 5,
+  "visible": "=has(flag.name) && !spectate.active",
+  "root": {
+    "type": "panel",
+    "padding": [14, 6, 14, 6],
+    "radius": 3,
+    "direction": "row",
+    "background": "=flag.yellow >= 2 ? alpha(rgb(255, 204, 0), floor(hud.time_s * 3) % 2 == 0 ? 0.95 : 0.55) : flag.yellow == 1 ? rgb(255, 204, 0, 0.92) : rgb(30, 110, 255, 0.92)",
+    "children": [
+      { "type": "text", "font": "mono", "size": 13, "tracking": 80, "bold": true,
+        "color": "=flag.yellow >= 1 ? rgb(20, 20, 20) : rgb(255, 255, 255)",
+        "text": "=flag.name" },
+      { "type": "text", "margin": [12, 0, 0, 0], "font": "mono", "size": 11, "tracking": 40,
+        "color": "=flag.yellow >= 1 ? rgb(40, 40, 40) : rgb(225, 235, 255)",
+        "visible": "=flag.yellow >= 1",
+        "text": "=flag.yellow >= 2 ? 'SLOW DOWN · NO OVERTAKING' : 'NO OVERTAKING'" },
+      { "type": "text", "margin": [12, 0, 0, 0], "font": "mono", "size": 11, "tracking": 40,
+        "color": "=rgb(225, 235, 255)",
+        "visible": "=flag.yellow == 0 && flag.blue",
+        "text": "LET THE LEADERS BY" }
+    ]
+  }
+}

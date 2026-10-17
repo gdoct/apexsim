@@ -40,6 +40,8 @@ belong to these rules are described briefly beside them.
   `resume_seat` / `away_input`
 - `server/src/recovery.rs` and `GameSession::recover_car` /
   `update_recoveries`: back to track and back to pits
+- `server/src/race_control.rs` (`RaceControl`, `FlagCar`) and
+  `GameSession::update_flags` / `yellow_flags`: the race's flags
 - `server/src/laps.rs`, `records.rs`, `grid_order.rs`,
   `track_guide.rs` (`wire_corners`)
 - Client: `UI/ApexRootWidget.cpp`, `UI/ApexSessionCreateWidget.cpp` (model
@@ -350,6 +352,36 @@ spectators and the other modes. `UApexSessionRecorder` records the frame
 that carries `Finished` before freezing, or the last car home would read DNF.
 `apexsim.finish [view|car N|panorama|end]` opens the view mid-race for
 unattended checks.
+
+## Flags
+
+Race control (`race_control.rs`, run by `GameSession::update_flags` each
+racing tick after the collision passes) shows yellow and blue flags; nothing
+before the green or once the session is `Finished`.
+
+- **Yellow**, per marshal sector: the lap in `MARSHAL_SECTOR_M` (250 m)
+  sectors from the line. A car is an incident when it is under
+  `INCIDENT_SPEED_MPS` (8 m/s), off the road, backing up or in contact (not
+  in the pit lane, garage, towed, retired or finished; a slow car is none
+  for `START_GRACE_S`, 10 s, after the green). Its own sector shows a
+  double yellow while it is on the road, a single off it, and the sector
+  before it a single. A flag is held `YELLOW_HOLD_S` (5 s) after its last
+  cause. A car passing another of the same lap in a yellow sector is
+  recorded (`RaceControl::yellow_passes`) for penalties to come.
+- **Blue**, per car: a car a lap or more up within `BLUE_GAP_S` (1.5 s) at
+  its speed, or `BLUE_GAP_MIN_M` (30 m), behind.
+- Each car is told (`CarState::flag_yellow`, the worse of its sector's and
+  the next's; `flag_blue`). The AI lifts to 95% of its pace under a single
+  and 85% under a double, and starts no pass under either unless the car
+  ahead is crawling ([ai](ai.md)); its yield to a car lapping it is the
+  racecraft's own.
+- On the wire: `CompactCarState.race_flags` (bit 0 blue, bits 1-2 the
+  yellow ahead) and `CompactTelemetry.yellow_flags` (`[sector_m, [[sector,
+  level], ...]]`, left off while none is out), positional, appended.
+- Client: `FApexCarTelemetry::bBlueFlag` / `YellowAhead`,
+  `FApexTelemetryFrame::YellowSectors` / `YellowAt`; the HUD's `flag.*`
+  data points, `item.blue_flag` / `item.yellow`, and the `flags` component
+  ([hud-modding](../game/hud-modding.md)).
 
 ## Timed races
 
@@ -1073,6 +1105,8 @@ starts one at launch; `apexsim.watch setup|replaylap|ghost` work as the keys do.
 cd server
 cargo test --lib game_session                 # mode ticks, timed race, grid order, qualifying, timed qualifying, weekend
 cargo test --lib weekend                      # knockout sizes, format clamp, round closing
+cargo test --lib race_control                 # yellows, warnings, hold, blue, a pass under yellow
+cargo test --lib a_car_stopped_on_the_road    # the yellows in a race at Monza, on telemetry, cleared
 cargo test --test weekend_test                # a weekend from the lobby to the race over the wire
 cargo test --test shootout_test               # a shoot-out run at the Norisring, order and classification; over the wire
 cargo test --test race_flow_test              # incl. test_timed_race_flow_to_the_flag_monza

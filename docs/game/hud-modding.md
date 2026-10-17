@@ -56,7 +56,7 @@ component id. To hide a shipped component, write
 Shipped components: `track_info`, `race_state` (with STOPS OWED under a pit
 rule and the BOX badge after a pit request), `status`, `minimap`,
 `standings`, `timing`, `pedals`, `damage`, `car_state`, `mirror`, `pit_stop`,
-`ers` (a hybrid only);
+`ers` (a hybrid only), `flags` (while race control shows the car a flag);
 off until added in the editor: `relative`, `speed_gear`, `conditions`; while
 watching: `spectator_tower`, `spectator_driver`, `spectator_controls`,
 `spectator_replay`, `spectator_results` (once the race is over); the `hotlap_watch` scene: `hotlap_header`,
@@ -422,6 +422,10 @@ the car is in or, between corners, the next one; all *null* (and
 | `car.station_m` | distance along the lap |
 | `car.recovering` | the car is held by a recovery (back to track or pits) |
 | `car.recover_s` | seconds of the recovery's hold left; 0.1 while it waits for traffic (*null* when not recovering) |
+| `flag.yellow` | the yellow race control shows in the car's marshal sector or the next: 0 none, 1 single (no overtaking), 2 double (slow down, be ready to stop) |
+| `flag.blue` | the blue flag: a car a lap or more up is close behind |
+| `flag.name` | `DOUBLE YELLOW`, `YELLOW` or `BLUE FLAG`, the worst out (*null* while none is) |
+| `flag.yellow_sectors` | how many of the lap's 250 m marshal sectors show a yellow now |
 | `pit.in_lane`, `pit.limiter`, `pit.servicing` | in the pit lane / on the limiter / stopped at the box |
 | `pit.service_s` | seconds of service left |
 | `pit.autopilot` | the server drives the car along the pit route (the player's input is ignored) |
@@ -512,6 +516,8 @@ the furthest round).
 | `item.away` | the driver lost their connection; the server drives the car until they rejoin |
 | `item.dnq` | did not qualify: the session's qualifying cut-off (the 107% rule) left the car out of the race (`RosterEntry.Dnq`) |
 | `item.missed_stops` | took the flag owing a stop or its second compound under the race's pit rule, so classified behind every car that met it (`RosterEntry.MissedStops`): the default components mark it PEN |
+| `item.blue_flag` | race control shows the car the blue flag (a car a lap up close behind) |
+| `item.yellow` | the yellow ahead of the car, as `flag.yellow` |
 | `item.lap` | lap, as `lap.display` |
 | `item.gap_leader_s` | seconds behind the leader (*null* for the leader, or when the length is unknown) |
 | `item.interval_s` | seconds behind the car one place ahead (*null* as above) |

@@ -61,7 +61,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 | No driver swaps or fixed stint lengths. | Med | Low |
 | A race longer than a tank on a circuit with no pit lane (the Nordschleife): nothing refuels, the AI saves up to `pit::MAX_FUEL_SAVE_SHORT` and runs dry past it. | Low | Low |
 | No penalties beyond the pit rule's (a car that takes the flag owing its mandatory stops is classified behind those that made them): no time penalty, no pit-lane speeding penalty (the limiter is forced, and brakes a car over the limit), nothing stops a driver on a manual pit lane leaving past a red exit light, no drive-through or stop-go, no collision penalty and no race-start ghosting. | High | Med |
-| No flags and no flag state on the wire: no yellow at an incident, no blue for a car about to be lapped, no safety car (so no lane closure). The trackside panels' `ApexEmissive_*` slots glow at a fixed level. | High | Med |
+| No safety car and no full-course yellow (so no lane closure); yellow and blue flags exist ([server/sessions.md](server/sessions.md#flags)). | High | Med |
 | Boxes are dealt in seating order (`pit::deal_box`), not by team. | Low | Low |
 | A retired car jumps to its box after `TOW_AFTER_S`: no recovery vehicle, no marshals. Without a pit lane it stays where it stopped, out of everyone's way. | Med | Low |
 

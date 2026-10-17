@@ -26,6 +26,24 @@ None open.
 
 ## P1: core racing experience
 
+### 18. Flags on the track and in the car
+
+Race control's yellows and blues ([server/sessions.md](server/sessions.md#flags))
+reach the HUD (`flags` component, `flag.*`); the rest of the car and the
+circuit do not show them yet.
+
+- The trackside light panels (`light_panel`, `ApexEmissive_*`): each
+  panel's lap station, its sector's yellow flashing on it. The runtime
+  builder shares one glow instance per slot round the circuit (one write
+  switches every panel, as the pit exit light uses it), so a panel needs a
+  dynamic instance of its own.
+- An audible cue as a yellow or the blue comes up (`game/audio.md`'s
+  synthesised UI cues), and the flag on the cockpit dash.
+- The spectator stream and replays carry no flags (`CarExtra`, the frame).
+
+**Check:** a seeded pile-up (R7) and a lapping race on screen, the panels
+seen flashing at the incident's sector.
+
 ## P2: depth
 
 ### 5. Hotlap and lap records

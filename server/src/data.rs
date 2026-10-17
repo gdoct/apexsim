@@ -1692,6 +1692,14 @@ pub struct CarState {
     pub drs_allowed: bool,
     #[serde(default)]
     pub drs_open: bool,
+    /// The flags race control shows this car (`crate::race_control`): the
+    /// worst yellow in its sector and the next (0 none, 1 single, 2
+    /// double), and the blue flag (a car a lap up close behind). Set each
+    /// racing tick; out of a race both are clear.
+    #[serde(default)]
+    pub flag_yellow: u8,
+    #[serde(default)]
+    pub flag_blue: bool,
 
     /// The headlights are on (`crate::headlights`), and the driver is
     /// flashing them. Telemetry carries both as bits 5 and 6 of
@@ -2067,6 +2075,8 @@ impl CarState {
             towed: false,
             recovery: None,
             drs_allowed: false,
+            flag_yellow: 0,
+            flag_blue: false,
             drs_open: false,
             headlights: false,
             headlight_flash: false,

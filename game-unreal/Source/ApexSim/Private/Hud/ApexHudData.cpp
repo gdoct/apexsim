@@ -302,7 +302,7 @@ const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
 			TEXT("laps_down"), TEXT("best_lap_s"), TEXT("last_lap_s"), TEXT("last_lap_invalid"), TEXT("is_session_best"),
 			TEXT("speed_kph"), TEXT("in_pit"), TEXT("on_track"), TEXT("servicing"), TEXT("retired"), TEXT("car_name"),
 			TEXT("compound"), TEXT("tyre_age_laps"), TEXT("tyre_wear_pct"), TEXT("pit_stops"), TEXT("away"), TEXT("dnq"),
-			TEXT("missed_stops"),
+			TEXT("missed_stops"), TEXT("blue_flag"), TEXT("yellow"),
 			TEXT("race_time_s"), TEXT("finish_gap_s"), TEXT("finish_laps_down")}},
 		{TEXT("sectors"), {TEXT("number"), TEXT("time_s"), TEXT("best_s"), TEXT("session_best_s"), TEXT("state"),
 			TEXT("is_current")}},
@@ -798,6 +798,8 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Row.Add(TEXT("servicing"), FApexHudValue::Of(Car.bPitServicing));
 		Row.Add(TEXT("retired"), FApexHudValue::Of(HudRetired(Car)));
 		Row.Add(TEXT("away"), FApexHudValue::Of(Entry.bAway));
+		Row.Add(TEXT("blue_flag"), FApexHudValue::Of(Car.bBlueFlag));
+		Row.Add(TEXT("yellow"), FApexHudValue::Of(Car.YellowAhead));
 		Row.Add(TEXT("dnq"), FApexHudValue::Of(Entry.bDnq));
 		Row.Add(TEXT("missed_stops"), FApexHudValue::Of(Entry.bMissedStops));
 		const FString* Model = In.CarNames ? In.CarNames->Find(Car.CarIndex) : nullptr;
@@ -1018,6 +1020,15 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("pit.requested"), Local->bPitRequested);
 		Out.Set(TEXT("car.recovering"), Local->IsRecovering());
 		Out.Set(TEXT("car.recover_s"), HudKnown(Local->RecoverSecondsLeft, Local->IsRecovering()));
+
+		// Race control's flags for the car: the yellow in its marshal sector
+		// and the next, and the blue for a car a lap up close behind.
+		Out.Set(TEXT("flag.yellow"), Local->YellowAhead);
+		Out.Set(TEXT("flag.blue"), Local->bBlueFlag);
+		Out.Set(TEXT("flag.name"), Local->YellowAhead >= 2 ? FApexHudValue::Of(FString(TEXT("DOUBLE YELLOW")))
+			: Local->YellowAhead == 1 ? FApexHudValue::Of(FString(TEXT("YELLOW")))
+			: Local->bBlueFlag ? FApexHudValue::Of(FString(TEXT("BLUE FLAG")))
+			: FApexHudValue());
 	}
 	else
 	{
@@ -1028,11 +1039,13 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 				 TEXT("car.drs_open"), TEXT("car.tow"), TEXT("car.x"), TEXT("car.y"), TEXT("car.z"), TEXT("car.yaw_deg"),
 				 TEXT("car.station_m"), TEXT("pit.in_lane"), TEXT("pit.limiter"), TEXT("pit.servicing"), TEXT("pit.service_s"),
 				 TEXT("pit.autopilot"), TEXT("pit.exit_closed"), TEXT("pit.held"), TEXT("pit.requested"), TEXT("car.recovering"),
-				 TEXT("car.recover_s")})
+				 TEXT("car.recover_s"), TEXT("flag.yellow"), TEXT("flag.blue"), TEXT("flag.name")})
 		{
 			Out.SetNone(Name);
 		}
 	}
+	Out.Set(TEXT("flag.yellow_sectors"), Frame.YellowSectors.Num());
+
 
 	// --- The corner -----------------------------------------------------------------
 	// The corner the car is in, else the next one it comes to.

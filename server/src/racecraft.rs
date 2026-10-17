@@ -143,6 +143,9 @@ const TOW_COVER_LEAD_S: f32 = 1.2;
 /// The share of drivers who defend at all: the most timid and the boldest.
 const DEFEND_CHANCE_TIMID: f32 = 0.35;
 const DEFEND_CHANCE_BOLD: f32 = 0.9;
+/// The share of its pace a driver keeps under a single and a double yellow.
+const SINGLE_YELLOW_PACE: f32 = 0.95;
+const DOUBLE_YELLOW_PACE: f32 = 0.85;
 /// A car being lapped moves this far toward the outside and lifts.
 const YIELD_MOVE_M: f32 = 2.5;
 const YIELD_PACE: f32 = 0.97;
@@ -893,6 +896,13 @@ pub fn decide(
     if mistake && braking {
         rc.pace *= 1.0 + rc.overspeed;
     }
+    // Under a yellow the driver lifts: a margin under a single, ready to
+    // stop under a double (`crate::race_control`).
+    rc.pace *= match state.flag_yellow {
+        0 => 1.0,
+        1 => SINGLE_YELLOW_PACE,
+        _ => DOUBLE_YELLOW_PACE,
+    };
     settle(rc, dt)
 }
 
@@ -1137,6 +1147,11 @@ fn start_tactic(
     let approach = corner.brake_in_m >= ATTACK_FROM_M
         && corner.brake_in_m <= ATTACK_FROM_M + ATTACK_REACH_S * speed;
     let crawling = o.speed_mps < me.speed_mps - MUCH_SLOWER_MPS && corner.brake_in_m > 60.0;
+    // No overtaking under a yellow: only past a car crawling (the
+    // incident itself, or a car slowed by it).
+    if state.flag_yellow > 0 && !crawling {
+        return None;
+    }
     // Where to pass: into the braking zone at the end of the run that
     // closes most (the longest straight, DRS open on it), unless held up
     // so long that any corner will do.
