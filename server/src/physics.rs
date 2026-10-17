@@ -3827,6 +3827,16 @@ pub fn check_obb_collisions_3d(states: &mut [CarState], configs: &HashMap<CarCon
     check_collisions_refs(&mut refs, configs);
 }
 
+/// Forget last tick's contact: what the car-car pass does to every car
+/// before it looks for new ones, and so what a car alone on the track goes
+/// through each tick (`car_step::step_lone_car`).
+pub fn clear_contact(state: &mut CarState) {
+    state.is_colliding = false;
+    state.collision_normal_x = 0.0;
+    state.collision_normal_y = 0.0;
+    state.collision_normal_z = 0.0;
+}
+
 /// Check and resolve collisions on a slice of mutable references — lets the
 /// caller pass `participants.values_mut().collect()` directly, avoiding a
 /// full clone + map rebuild of every CarState per tick.
@@ -3836,10 +3846,7 @@ pub fn check_collisions_refs(
 ) {
     // Reset collision flags
     for state in states.iter_mut() {
-        state.is_colliding = false;
-        state.collision_normal_x = 0.0;
-        state.collision_normal_y = 0.0;
-        state.collision_normal_z = 0.0;
+        clear_contact(state);
     }
 
     // Check all pairs; a car towed away or held by a recovery is in
@@ -4157,18 +4164,34 @@ pub fn check_wall_collisions(
     track: &TrackConfig,
     dt: f32,
 ) {
+    if track.walls.is_none() {
+        return;
+    }
+    let mut nearby = Vec::new();
+    for state in states.iter_mut() {
+        if let Some(config) = configs.get(&state.car_config_id) {
+            collide_with_walls(state, config, track, dt, &mut nearby);
+        }
+    }
+}
+
+/// One car against the track's walls ([`resolve_wall_contacts`]), unless
+/// it is out of everyone's way. `config` is the car's shared config (the
+/// wall pass never reads a driver's tuned copy); `nearby` is scratch.
+pub fn collide_with_walls(
+    state: &mut CarState,
+    config: &CarConfig,
+    track: &TrackConfig,
+    dt: f32,
+    nearby: &mut Vec<u32>,
+) {
     let Some(walls) = track.walls.as_ref() else {
         return;
     };
-    let mut nearby = Vec::new();
-    for state in states.iter_mut() {
-        if state.is_ghost() {
-            continue;
-        }
-        if let Some(config) = configs.get(&state.car_config_id) {
-            resolve_wall_contacts(state, config, walls, dt, &mut nearby);
-        }
+    if state.is_ghost() {
+        return;
     }
+    resolve_wall_contacts(state, config, walls, dt, nearby);
 }
 
 /// Push one car out of every wall it overlaps and take the hit out of its

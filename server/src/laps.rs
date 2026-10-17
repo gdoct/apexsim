@@ -30,7 +30,7 @@ pub const TRACK_LIMITS_SECONDS: f32 = 0.2;
 
 /// Per-car lap timing. Runtime-only state, rebuilt from the grid on every
 /// countdown; never serialized (a replay carries the times themselves).
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LapTiming {
     /// Sector the car is in, 0-based.
     pub sector: u8,

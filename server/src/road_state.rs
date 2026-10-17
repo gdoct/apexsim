@@ -1097,7 +1097,7 @@ impl WheelPass {
 
 /// What one wheel did since its car last crossed into a cell, as the
 /// physics adds it up tick by tick ([`RoadWork::add`]).
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 pub struct WheelRoadWork {
     /// Energy its patch dissipated sliding, J.
     pub slide_j: f32,
@@ -1110,7 +1110,7 @@ pub struct WheelRoadWork {
 /// A car's work on the road since it last crossed into a cell, and where
 /// its patches run (`CarState::road_work`): `GameSession::update_road`
 /// lays it as the car's passes when it crosses into the next.
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 pub struct RoadWork {
     /// FL FR RL RR.
     pub wheels: [WheelRoadWork; 4],

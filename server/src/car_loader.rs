@@ -704,7 +704,14 @@ impl CarLoader {
             path: path_str.clone(),
             source,
         })?;
-        let car_toml: CarToml = toml::from_str(&content).map_err(|source| CarLoadError::Parse {
+        Self::load_from_str(&content, &path_str)
+    }
+
+    /// A car from the text of its car.toml; `origin` names it in errors
+    /// (the file's path, for [`Self::load_from_file`]).
+    pub fn load_from_str(content: &str, origin: &str) -> Result<CarConfig, CarLoadError> {
+        let path_str = origin.to_string();
+        let car_toml: CarToml = toml::from_str(content).map_err(|source| CarLoadError::Parse {
             path: path_str.clone(),
             source: Box::new(source),
         })?;

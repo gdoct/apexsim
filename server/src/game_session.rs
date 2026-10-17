@@ -1,5 +1,6 @@
 use crate::ai_driver::{AiDriverController, AiDriverProfile, TrafficCar};
 use crate::car_setup::CarSetup;
+use crate::car_step;
 use crate::data::*;
 use crate::laps::{LapEvent, SECTOR_COUNT};
 use crate::network::*;
@@ -127,6 +128,15 @@ fn with_road(mut track: TrackConfig, conditions: &SessionConditions) -> TrackCon
         ));
     }
     track
+}
+
+/// A session's own copy of `track`: `conditions` (resolved, as the session
+/// echoes them) baked in (`SessionConditions::apply_to_track`) and its road
+/// state laid, as the server makes it for a new session. What the client's
+/// prediction loads (`server/ffi`).
+pub fn session_track(mut track: TrackConfig, conditions: &SessionConditions) -> TrackConfig {
+    conditions.apply_to_track(&mut track);
+    with_road(track, conditions)
 }
 
 /// The live sky of `session` over `track` (`crate::conditions`).
@@ -1523,6 +1533,11 @@ impl GameSession {
             let ai_ids: std::collections::HashSet<PlayerId> =
                 self.session.ai_player_ids.iter().copied().collect();
             let current_tick = self.session.current_tick;
+            let tick_rate_hz = self.tick_rate_hz;
+            let clock = car_step::StepClock {
+                tick: current_tick,
+                tick_rate_hz,
+            };
             let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
             for state in states.iter_mut() {
                 let input = inputs.get(&state.player_id).copied().unwrap_or_default();
@@ -1530,20 +1545,18 @@ impl GameSession {
                 if let Some(config) =
                     simulated_config(&self.car_configs, &self.tuned_configs, state)
                 {
-                    physics::update_car_3d(state, config, &input, &self.track_config, dt);
                     let is_ai = ai_ids.contains(&state.player_id);
-                    sample_ghost_trace(
-                        &mut self.lap_traces,
+                    let lap_traces = &mut self.lap_traces;
+                    let ghost = is_ai && !self.hotlap_watch.active;
+                    if let Some(event) = car_step::step_car(
                         state,
-                        is_ai && !self.hotlap_watch.active,
-                        current_tick,
-                        self.tick_rate_hz,
-                    );
-                    if let Some(event) = physics::update_track_progress_3d(
-                        state,
+                        config,
+                        &input,
                         &self.track_config,
-                        current_tick,
-                        self.tick_rate_hz,
+                        clock,
+                        |moved| {
+                            sample_ghost_trace(lap_traces, moved, ghost, current_tick, tick_rate_hz)
+                        },
                     ) {
                         note_lap_event(
                             &mut self.lap_events,
@@ -1687,6 +1700,11 @@ impl GameSession {
         let ai_ids: std::collections::HashSet<PlayerId> =
             self.session.ai_player_ids.iter().copied().collect();
         let current_tick = self.session.current_tick;
+        let tick_rate_hz = self.tick_rate_hz;
+        let clock = car_step::StepClock {
+            tick: current_tick,
+            tick_rate_hz,
+        };
         let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
 
         for state in states.iter_mut() {
@@ -1700,26 +1718,16 @@ impl GameSession {
 
             // Get car config
             if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
-                // Update 3D physics with track context
-                physics::update_car_3d(state, config, &input, &self.track_config, dt);
-
+                // The car's own tick (`car_step`); a timing line crossed
+                // here becomes a split on every driver's screen.
                 let is_ai = ai_ids.contains(&state.player_id);
-                sample_ghost_trace(
-                    &mut self.lap_traces,
-                    state,
-                    is_ai && !self.hotlap_watch.active,
-                    current_tick,
-                    self.tick_rate_hz,
-                );
-
-                // Update track progress; a timing line crossed here becomes
-                // a split on every driver's screen.
-                if let Some(event) = physics::update_track_progress_3d(
-                    state,
-                    &self.track_config,
-                    current_tick,
-                    self.tick_rate_hz,
-                ) {
+                let lap_traces = &mut self.lap_traces;
+                let ghost = is_ai && !self.hotlap_watch.active;
+                if let Some(event) =
+                    car_step::step_car(state, config, &input, &self.track_config, clock, |moved| {
+                        sample_ghost_trace(lap_traces, moved, ghost, current_tick, tick_rate_hz)
+                    })
+                {
                     note_lap_event(
                         &mut self.lap_events,
                         &mut self.lap_traces,
@@ -1750,6 +1758,11 @@ impl GameSession {
         let ai_ids: std::collections::HashSet<PlayerId> =
             self.session.ai_player_ids.iter().copied().collect();
         let current_tick = self.session.current_tick;
+        let tick_rate_hz = self.tick_rate_hz;
+        let clock = car_step::StepClock {
+            tick: current_tick,
+            tick_rate_hz,
+        };
         let track_length = crate::laps::track_length_m(&self.track_config);
         // Cars that crossed the start line this tick, and whether each was
         // on a timed lap (not its outlap): after a timed qualifying
@@ -1769,21 +1782,14 @@ impl GameSession {
             if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
                 let old_progress = state.track_progress;
                 let was_timed = state.current_lap > 0;
-                physics::update_car_3d(state, config, &input, &self.track_config, dt);
                 let is_ai = ai_ids.contains(&state.player_id);
-                sample_ghost_trace(
-                    &mut self.lap_traces,
-                    state,
-                    is_ai && !self.hotlap_watch.active,
-                    current_tick,
-                    self.tick_rate_hz,
-                );
-                if let Some(event) = physics::update_track_progress_3d(
-                    state,
-                    &self.track_config,
-                    current_tick,
-                    self.tick_rate_hz,
-                ) {
+                let lap_traces = &mut self.lap_traces;
+                let ghost = is_ai && !self.hotlap_watch.active;
+                if let Some(event) =
+                    car_step::step_car(state, config, &input, &self.track_config, clock, |moved| {
+                        sample_ghost_trace(lap_traces, moved, ghost, current_tick, tick_rate_hz)
+                    })
+                {
                     note_lap_event(
                         &mut self.lap_events,
                         &mut self.lap_traces,
@@ -2598,6 +2604,11 @@ impl GameSession {
         let ai_ids: std::collections::HashSet<PlayerId> =
             self.session.ai_player_ids.iter().copied().collect();
         let current_tick = self.session.current_tick;
+        let tick_rate_hz = self.tick_rate_hz;
+        let clock = car_step::StepClock {
+            tick: current_tick,
+            tick_rate_hz,
+        };
         let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
 
         for state in states.iter_mut() {
@@ -2611,26 +2622,16 @@ impl GameSession {
 
             // Get car config
             if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
-                // Update 3D physics with track context
-                physics::update_car_3d(state, config, &input, &self.track_config, dt);
-
+                // The car's own tick (`car_step`); a timing line crossed
+                // here becomes a split on every driver's screen.
                 let is_ai = ai_ids.contains(&state.player_id);
-                sample_ghost_trace(
-                    &mut self.lap_traces,
-                    state,
-                    is_ai && !self.hotlap_watch.active,
-                    current_tick,
-                    self.tick_rate_hz,
-                );
-
-                // Update track progress; a timing line crossed here becomes
-                // a split on every driver's screen.
-                if let Some(event) = physics::update_track_progress_3d(
-                    state,
-                    &self.track_config,
-                    current_tick,
-                    self.tick_rate_hz,
-                ) {
+                let lap_traces = &mut self.lap_traces;
+                let ghost = is_ai && !self.hotlap_watch.active;
+                if let Some(event) =
+                    car_step::step_car(state, config, &input, &self.track_config, clock, |moved| {
+                        sample_ghost_trace(lap_traces, moved, ghost, current_tick, tick_rate_hz)
+                    })
+                {
                     note_lap_event(
                         &mut self.lap_events,
                         &mut self.lap_traces,
@@ -4007,11 +4008,10 @@ impl GameSession {
                 GameMode::Lobby | GameMode::Countdown | GameMode::Grid
             );
         let base = self.car_configs.get(&car_id)?;
-        if applied.changes_car() {
-            self.tuned_configs.insert(*player_id, applied.apply(base));
-        } else {
-            self.tuned_configs.remove(player_id);
-        }
+        match applied.simulated_config(base) {
+            Some(tuned) => self.tuned_configs.insert(*player_id, tuned),
+            None => self.tuned_configs.remove(player_id),
+        };
         if applied.is_stock() {
             self.car_setups.remove(player_id);
         } else {
@@ -6103,9 +6103,11 @@ impl GameSession {
     /// The wind this tick, gusting about the session's mean
     /// (`crate::wind::gusting`), on the session's own track.
     fn update_wind(&mut self) {
-        let surface = &mut self.track_config.track_surface;
-        let seconds = self.session.current_tick as f32 / self.tick_rate_hz.max(1) as f32;
-        surface.wind_now_mps = crate::wind::gusting(surface.wind_mps, seconds);
+        let clock = car_step::StepClock {
+            tick: self.session.current_tick,
+            tick_rate_hz: self.tick_rate_hz,
+        };
+        car_step::air_for_tick(&mut self.track_config, clock);
     }
 
     /// The DRS rule for this tick (`crate::drs`): which cars may open the

@@ -2157,35 +2157,30 @@ async fn handle_player_input(
     handbrake: bool,
     player_inputs: &mut HashMap<PlayerId, PlayerInputData>,
 ) {
-    // Sanitize before the values reach physics: drop NaN/Inf,
-    // clamp to the valid input ranges.
-    if !throttle.is_finite()
-        || !brake.is_finite()
-        || !steering.is_finite()
-        || clutch.is_some_and(|c| !c.is_finite())
-    {
+    // Sanitize before the values reach physics: drop NaN/Inf, clamp to the
+    // valid input ranges, ignore an implausible gear (the client's
+    // prediction takes its own input the same way).
+    let Some(input) = (PlayerInputData {
+        throttle,
+        brake,
+        steering,
+        gear,
+        clutch,
+        drs,
+        headlights,
+        flash,
+        ers_mode,
+        ers_boost,
+        handbrake,
+    })
+    .sanitized() else {
         warn!(
             "Dropping PlayerInput with non-finite values from connection {}",
             connection_id
         );
         return;
-    }
+    };
     if let Some(conn_info) = ctx.connection(connection_id).await {
-        let input = PlayerInputData {
-            throttle: throttle.clamp(0.0, 1.0),
-            brake: brake.clamp(0.0, 1.0),
-            steering: steering.clamp(-1.0, 1.0),
-            // Gear requests outside the plausible range (-1 = reverse up to
-            // 10 forward gears) are ignored rather than reaching physics.
-            gear: gear.filter(|g| (-1..=10).contains(g)),
-            clutch: clutch.map(|c| c.clamp(0.0, 1.0)),
-            drs,
-            headlights,
-            flash,
-            ers_mode,
-            ers_boost,
-            handbrake,
-        };
         player_inputs.insert(conn_info.player_id, input);
         ctx.metrics
             .input_messages_received

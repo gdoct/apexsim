@@ -3891,6 +3891,27 @@ pub struct PlayerInputData {
 }
 
 impl PlayerInputData {
+    /// The input as the server lets it reach the physics: `None` with a
+    /// non-finite axis, else every axis clamped into its range and a gear
+    /// outside reverse..10th dropped.
+    pub fn sanitized(self) -> Option<Self> {
+        if !self.throttle.is_finite()
+            || !self.brake.is_finite()
+            || !self.steering.is_finite()
+            || self.clutch.is_some_and(|c| !c.is_finite())
+        {
+            return None;
+        }
+        Some(Self {
+            throttle: self.throttle.clamp(0.0, 1.0),
+            brake: self.brake.clamp(0.0, 1.0),
+            steering: self.steering.clamp(-1.0, 1.0),
+            gear: self.gear.filter(|g| (-1..=10).contains(g)),
+            clutch: self.clutch.map(|c| c.clamp(0.0, 1.0)),
+            ..self
+        })
+    }
+
     pub fn clamp(&mut self) {
         self.throttle = self.throttle.clamp(0.0, 1.0);
         self.brake = self.brake.clamp(0.0, 1.0);

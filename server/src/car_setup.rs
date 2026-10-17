@@ -461,6 +461,13 @@ impl CarSetup {
         } != Self::default()
     }
 
+    /// The copy of `base` this setup has the car simulated with, `None`
+    /// when no knob it bakes in is off the file's value (the car runs on
+    /// `base` itself).
+    pub fn simulated_config(&self, base: &CarConfig) -> Option<CarConfig> {
+        self.changes_car().then(|| self.apply(base))
+    }
+
     /// The hybrid mode a run starts in, as `hybrid::ErsMode`'s byte.
     pub fn start_mode(&self) -> u8 {
         crate::hybrid::ErsMode::from_u8((self.ers_start_mode.clamp(-1, 1) + 1) as u8) as u8

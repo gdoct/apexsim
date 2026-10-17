@@ -4,6 +4,7 @@ pub mod ai_driver;
 pub mod brakes;
 pub mod car_loader;
 pub mod car_setup;
+pub mod car_step;
 pub mod chat;
 pub mod conditions;
 pub mod config;
