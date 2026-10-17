@@ -371,7 +371,12 @@ before the green or once the session is `Finished`.
 - **Blue**, per car: a car a lap or more up within `BLUE_GAP_S` (1.5 s) at
   its speed, or `BLUE_GAP_MIN_M` (30 m), behind.
 - Each car is told (`CarState::flag_yellow`, the worse of its sector's and
-  the next's; `flag_blue`). The AI lifts to 95% of its pace under a single
+  the next's, `RaceControl::yellow_ahead_for`; `flag_blue`). A flag warns
+  the cars coming up on an incident: one that a single car alone raised is
+  not shown to that car (running wide does not slow it), and a car more
+  than `PAST_INCIDENT_M` (10 m) past the rearmost incident in its own
+  sector no longer sees that sector's flag (the warning sector before an
+  incident covers all of it). The AI lifts to 95% of its pace under a single
   and 85% under a double, and starts no pass under either unless the car
   ahead is crawling ([ai](ai.md)); its yield to a car lapping it is the
   racecraft's own.
@@ -1105,7 +1110,7 @@ starts one at launch; `apexsim.watch setup|replaylap|ghost` work as the keys do.
 cd server
 cargo test --lib game_session                 # mode ticks, timed race, grid order, qualifying, timed qualifying, weekend
 cargo test --lib weekend                      # knockout sizes, format clamp, round closing
-cargo test --lib race_control                 # yellows, warnings, hold, blue, a pass under yellow
+cargo test --lib race_control                 # yellows, warnings, hold, own and passed flags, blue, a pass under yellow
 cargo test --lib a_car_stopped_on_the_road    # the yellows in a race at Monza, on telemetry, cleared
 cargo test --test weekend_test                # a weekend from the lobby to the race over the wire
 cargo test --test shootout_test               # a shoot-out run at the Norisring, order and classification; over the wire
