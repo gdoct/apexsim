@@ -82,6 +82,11 @@ Every section and its keys (defaults from `config.rs`):
   (true): the health port hands out the replay folder's recordings and the
   lobby says so (`LobbyState.recordings_port`), for the session browser's
   Recorded list. A `health_bind` on loopback keeps them to this machine.
+  `results` (true): each finished race's classification as
+  `results/<session>_<unix>.json` and `.csv` under `dir` (`results.rs`,
+  `GameSession::classification`): place, driver, car, status, laps, best
+  lap, race time, the gap or laps down, the pit rule's penalty. No
+  webhook posts it yet (the server has no certificate roots for HTTPS).
 - `[physics]` - `road_contact = "mesh"` (default) or `"centerline"`
   ([../content/road-mesh.md](../content/road-mesh.md)).
 - `[showcase]` - `enabled`, `dir` (`./showcase`), `playlist`, `mode`
@@ -299,6 +304,7 @@ ssh from `deploy/deploy.user.psd1` (gitignored; start from
 ## Files the server writes
 
 `[records] dir`: `lap_records.json`, `ghosts/*.msgpack`, `qualifying.json`,
+`results/*.json` and `*.csv` (a finished race's classification),
 the watched hotlaps' `watch_levels.json` and `watch_ghosts/*.msgpack`,
 and by default the dashboard's `bans.json`, `content.json` (switched-off
 content) and `schedule.json` (a corrupt records file is logged and treated

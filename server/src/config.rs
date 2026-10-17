@@ -209,6 +209,9 @@ pub struct RecordsSettings {
     /// (`/recordings/<file>`), and `LobbyState.recordings_port` tells the
     /// clients: the session browser's Recorded list.
     pub serve_replays: bool,
+    /// Each finished race's classification as JSON and CSV in `results/`
+    /// under `dir` (`crate::results`).
+    pub results: bool,
 }
 
 impl Default for RecordsSettings {
@@ -218,6 +221,7 @@ impl Default for RecordsSettings {
             dir: "./records".to_string(),
             replay_dir: "./replays".to_string(),
             serve_replays: true,
+            results: true,
         }
     }
 }

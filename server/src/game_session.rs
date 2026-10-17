@@ -5077,6 +5077,75 @@ impl GameSession {
 
     /// Laps a car has completed: those it had at the flag once it has
     /// finished (the cool-down lap after it is not counted), else so far.
+    /// The race's classification as it stands (`crate::results`): the
+    /// finishers in their places, then the cars still running by laps and
+    /// distance, each with its race time and gap. `names` are the humans';
+    /// the AI's come from their profiles.
+    pub fn classification(
+        &self,
+        names: &HashMap<PlayerId, String>,
+    ) -> Vec<crate::results::ClassifiedCar> {
+        let rate = self.tick_rate_hz.max(1) as f64;
+        let start = self.session.race_start_tick.unwrap_or(0);
+        let total = crate::laps::track_length_m(&self.track_config).max(1.0);
+        let mut order: Vec<(&PlayerId, &CarState)> = self.session.participants.iter().collect();
+        order.sort_by(|(_, a), (_, b)| {
+            let place = |s: &CarState| s.finish_position.map_or(u8::MAX, |p| p);
+            place(a).cmp(&place(b)).then_with(|| {
+                let run = |s: &CarState| s.current_lap as f32 * total + s.track_progress;
+                run(b).total_cmp(&run(a))
+            })
+        });
+        let winner = order
+            .first()
+            .and_then(|(id, _)| self.race_end.finishers.get(*id).copied());
+        order
+            .iter()
+            .enumerate()
+            .map(|(i, (id, state))| {
+                let finisher = self.race_end.finishers.get(*id).copied();
+                let laps = self.laps_completed(id);
+                let race_time_ms = finisher
+                    .map(|f| (f.tick.saturating_sub(start) as f64 / rate * 1000.0).round() as u32);
+                let (gap_ms, laps_down) = match (finisher, winner) {
+                    (Some(f), Some(w)) if f.laps == w.laps => (
+                        (i > 0).then(|| {
+                            (f.tick.saturating_sub(w.tick) as f64 / rate * 1000.0).round() as u32
+                        }),
+                        0,
+                    ),
+                    (_, Some(w)) => (None, w.laps.saturating_sub(laps)),
+                    _ => (None, 0),
+                };
+                crate::results::ClassifiedCar {
+                    position: (i + 1).min(u8::MAX as usize) as u8,
+                    player_id: **id,
+                    name: self
+                        .get_ai_profile(id)
+                        .map(|p| p.name.clone())
+                        .or_else(|| names.get(*id).cloned())
+                        .or_else(|| self.driver_names.get(*id).cloned())
+                        .unwrap_or_else(|| format!("Player-{}", &id.to_string()[..8])),
+                    is_ai: self.is_ai_player(id),
+                    car_config_id: state.car_config_id,
+                    status: if finisher.is_some() {
+                        "finished"
+                    } else if !state.damage.is_drivable {
+                        "retired"
+                    } else {
+                        "running"
+                    },
+                    laps,
+                    best_lap_ms: state.best_lap_time_ms.filter(|ms| *ms > 0),
+                    race_time_ms,
+                    gap_ms,
+                    laps_down,
+                    missed_stops: finisher.is_some_and(|f| f.missed_stops),
+                }
+            })
+            .collect()
+    }
+
     pub fn laps_completed(&self, player_id: &PlayerId) -> u16 {
         if let Some((_, finisher)) = self
             .race_end
@@ -7611,6 +7680,29 @@ mod tests {
                 .missed_stops
         };
         assert!(missed(none) && missed(same) && !missed(met));
+
+        // The classification written for the race (`crate::results`): the
+        // places as the flag gave them, the penalty, the gaps on the lap.
+        let names: HashMap<PlayerId, String> =
+            [(met, "Met".to_string()), (none, "None".to_string())].into();
+        let table = game_session.classification(&names);
+        let ids: Vec<PlayerId> = table.iter().map(|c| c.player_id).collect();
+        assert_eq!(ids, vec![met, none, same]);
+        assert_eq!(table[0].name, "Met");
+        assert_eq!(table[0].status, "finished");
+        assert!(!table[0].missed_stops && table[1].missed_stops);
+        assert_eq!(table[0].gap_ms, None, "the winner has no gap");
+        assert!(
+            table[2].gap_ms.is_some(),
+            "a car on the winner's lap has one"
+        );
+        assert!(table
+            .iter()
+            .all(|c| c.laps_down == 0 && c.race_time_ms.is_some()));
+        assert_eq!(
+            table.iter().map(|c| c.position).collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
     }
 
     /// A timed race is as many laps as the clock holds plus the one it runs

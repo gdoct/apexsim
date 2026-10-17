@@ -35,6 +35,7 @@ pub mod records;
 pub mod recovery;
 pub mod replay;
 pub mod replay_tools;
+pub mod results;
 pub mod road_mesh;
 pub mod road_state;
 pub mod server;

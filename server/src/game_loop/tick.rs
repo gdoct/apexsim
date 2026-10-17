@@ -99,6 +99,13 @@ pub(crate) async fn tick_sessions(
 
     // Replays finished this tick, written out once the loop is done.
     let mut replay_stops = Vec::new();
+    // Races finished this tick: their classification (`crate::results`).
+    let mut race_results: Vec<crate::results::RaceResult> = Vec::new();
+    let results_dir = state
+        .config
+        .records
+        .results
+        .then(|| std::path::Path::new(&state.config.records.dir).join("results"));
 
     // Collect sessions to remove (empty or finished)
     let mut sessions_to_remove = Vec::new();
@@ -613,6 +620,35 @@ pub(crate) async fn tick_sessions(
             }
         }
 
+        // A race that finished this tick leaves its classification.
+        if results_dir.is_some()
+            && !is_demo_session
+            && game_session.session.game_mode == GameMode::Race
+            && prev_state != SessionState::Finished
+            && new_state == SessionState::Finished
+        {
+            let track = &game_session.track_config;
+            race_results.push(crate::results::RaceResult {
+                session_id: session_id.to_string(),
+                track_name: track.name.clone(),
+                track_stem: track
+                    .source_path
+                    .as_deref()
+                    .and_then(|p| std::path::Path::new(p).file_stem())
+                    .map(|s| s.to_string_lossy().into_owned()),
+                finished_at: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |d| d.as_secs()),
+                lap_limit: game_session
+                    .session
+                    .race_seconds
+                    .is_none()
+                    .then_some(game_session.session.lap_limit as u16),
+                race_seconds: game_session.session.race_seconds,
+                cars: game_session.classification(player_names),
+            });
+        }
+
         // The replay is complete when the session finishes.
         if replay_stopping {
             replay_stops.push((
@@ -646,6 +682,22 @@ pub(crate) async fn tick_sessions(
                 }
                 _ => {}
             }
+        }
+    }
+
+    if let Some(dir) = results_dir {
+        for result in race_results {
+            let dir = dir.clone();
+            tokio::task::spawn_blocking(move || match result.write(&dir) {
+                Ok(path) => info!(
+                    "Race result for session {} written to {:?}",
+                    result.session_id, path
+                ),
+                Err(e) => warn!(
+                    "Failed to write the race result of {}: {}",
+                    result.session_id, e
+                ),
+            });
         }
     }
 
