@@ -1314,7 +1314,12 @@ pub fn update_car_3d(
     }
 
     // 10c. The engine's coolant: the combustion power in, the radiator's
-    // air out (the slower air of a tow through it).
+    // air out (the slower air of a tow through it). Traction control cuts
+    // the engine, not the tyre: what it took off the drive is power the
+    // engine never made, so a car held at its peak slip (on snow, all the
+    // way round) burns and heats for the drive it is given. Only what is
+    // burnt is cut: the drive the tyres were given this tick is as solved.
+    let combustion_torque = combustion_torque * traction_kept(&[fl, fr, rl, rr]);
     let shaft_w = combustion_torque.max(0.0) * engine_rpm * (2.0 * PI / 60.0);
     let radiator = crate::damage::radiator_factor(&state.felt_damage());
     crate::engine_heat::step(
@@ -2447,6 +2452,17 @@ fn pacejka_inverse(d: f32, c: f32, force: f32) -> f32 {
     (((force / d).clamp(-1.0, 1.0)).asin() / c).tan() / b
 }
 
+/// The share of the drive asked of the tyres that traction control let
+/// through, over the wheels driving (1 with none cut, or no drive).
+fn traction_kept(wheels: &[WheelForces]) -> f32 {
+    let asked: f32 = wheels.iter().map(|w| w.drive_asked_n).sum();
+    if asked < 1.0 {
+        return 1.0;
+    }
+    let kept: f32 = wheels.iter().map(|w| w.drive_kept_n).sum();
+    (kept / asked).clamp(0.0, 1.0)
+}
+
 /// Per-wheel longitudinal/lateral force solution.
 #[derive(Clone, Copy, Default)]
 struct WheelForces {
@@ -2460,6 +2476,10 @@ struct WheelForces {
     abs_active: bool,
     /// Traction control cut drive torque to the traction limit.
     tc_active: bool,
+    /// The drive force asked of the tyre, N (none braking), and what it
+    /// was given: less where traction control cut it.
+    drive_asked_n: f32,
+    drive_kept_n: f32,
 }
 
 /// Where the zero-slip pneumatic trail has shrunk to nothing, in multiples of
@@ -2842,6 +2862,12 @@ fn solve_wheel_forces(
         omega,
         abs_active: abs_enabled && requested_force < -dx,
         tc_active: tc_enabled && requested_force > tc_limit,
+        drive_asked_n: requested_force.max(0.0),
+        drive_kept_n: if tc_enabled && requested_force > tc_limit {
+            tc_limit.max(0.0)
+        } else {
+            requested_force.max(0.0)
+        },
     }
 }
 

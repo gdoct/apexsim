@@ -375,7 +375,10 @@ planned in clean air. Test: `tests/slipstream_test.rs`.
 One mass (`CarState::engine_temp_c` / `water_temp_c`), heated by 0.9 W per watt of
 combustion power plus idle, cooled by a radiator sized per car (`radiator_conductance`: 95
 °C at 65% power, 60 m/s, 25 °C air) through the air the car meets times `wake.drag`, a fan
-below 6 m/s. Past `OVERHEAT_C` (112 °C) the engine loses 2% torque a degree (`power_factor`,
+below 6 m/s. Traction control cuts the engine, not the tyre: the share of the drive asked
+of the tyres that it let through (`traction_kept`) scales the combustion torque the coolant
+and the fuel see, so a car held at peak slip on snow burns and heats for the drive it gets
+(the car's motion is solved as before). Past `OVERHEAT_C` (112 °C) the engine loses 2% torque a degree (`power_factor`,
 floor 60%) and takes damage. Out at `START_C` (80 °C). Keys: `[engine] radiator_scale`, the
 `radiator` knob.
 

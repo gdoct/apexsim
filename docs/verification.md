@@ -92,6 +92,11 @@ AC-imported circuit is installed; Spa stands in.
   up, from a camera looking down on them (tree cards have been seen), and
   an AC-imported circuit's props. The first R4 race ended within five
   minutes with the whole field stuck off the road, before the ice.
+- The field through a long snow race: no engine out without a hit, and no
+  car left at the limiter on Raidillon or rocking against a wall (the AI's
+  standstill spin limit, its no-headway reset with a run-up, and traction
+  control cutting the engine's heat; `snow_stall_survey` holds every
+  engine under 82 °C in 15 minutes of a Chiffon field).
 
 ### R5. Mandarina Bay at night, cloudy
 

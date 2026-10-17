@@ -40,6 +40,13 @@ pub fn profile_pace(skill_level: u8) -> f32 {
 const PROFILE_SEARCH_POINTS: i64 = 24;
 /// Time from pressing the brake to the car decelerating at the rate asked.
 const BRAKE_BITE_S: f32 = 0.25;
+/// Below this speed, m/s, with its driven wheels at this share of their
+/// peak slip or more, a car is spinning on the spot: the AI backs off the
+/// pedal, to no less than [`LAUNCH_SPIN_MIN_THROTTLE`]
+/// (`AiDriver::limit_launch_spin`).
+const LAUNCH_SPIN_SPEED_MPS: f32 = 1.0;
+const LAUNCH_SPIN_SHARE: f32 = 0.95;
+const LAUNCH_SPIN_MIN_THROTTLE: f32 = 0.15;
 
 /// Steering: how far ahead (in seconds of travel) the feedforward reads the
 /// line's curvature, over what span, how hard the sideways error is pulled
@@ -1429,8 +1436,11 @@ impl<'a> AiDriverController<'a> {
     /// the friction circle with the cornering load, and a car whose tail is
     /// already out gets only enough to keep it from snapping back.
     fn limit_throttle_to_grip(&self, state: &CarState, throttle: f32) -> f32 {
-        if throttle <= 0.0 || state.speed_mps < 3.0 {
+        if throttle <= 0.0 {
             return throttle;
+        }
+        if state.speed_mps < 3.0 {
+            return self.limit_launch_spin(state, throttle);
         }
         let config = self.car_config;
         let grip = self.grip_budget(state);
@@ -1441,8 +1451,22 @@ impl<'a> AiDriverController<'a> {
         // already hold the driven wheels at their peak slip. So if they are
         // using more of their slip than the circle leaves them, back off from
         // what is applied now rather than from what was asked.
+        let driven_slip = self.driven_slip(state);
+        let slip_allowed = config.tire_config.optimal_slip_ratio * circle.max(0.3);
+        let traction_cap = if used > 0.3 && driven_slip > slip_allowed {
+            (state.throttle_input * 0.8).max(0.1)
+        } else {
+            1.0
+        };
+
+        throttle.min(circle).min(slide_cap).min(traction_cap)
+    }
+
+    /// The most slip any driven wheel has.
+    fn driven_slip(&self, state: &CarState) -> f32 {
+        let config = self.car_config;
         let driven = &state.tires;
-        let driven_slip = match config.drivetrain {
+        let slip = match config.drivetrain {
             Drivetrain::RWD => driven
                 .rear_left
                 .slip_ratio
@@ -1459,21 +1483,30 @@ impl<'a> AiDriverController<'a> {
                 .max(driven.front_right.slip_ratio),
         };
         // A front-axle motor drives the fronts too while it deploys.
-        let driven_slip = if config.hybrid.axle == HybridAxle::Front && state.ers_deploying {
-            driven_slip
-                .max(driven.front_left.slip_ratio)
+        if config.hybrid.axle == HybridAxle::Front && state.ers_deploying {
+            slip.max(driven.front_left.slip_ratio)
                 .max(driven.front_right.slip_ratio)
         } else {
-            driven_slip
-        };
-        let slip_allowed = config.tire_config.optimal_slip_ratio * circle.max(0.3);
-        let traction_cap = if used > 0.3 && driven_slip > slip_allowed {
-            (state.throttle_input * 0.8).max(0.1)
-        } else {
-            1.0
-        };
+            slip
+        }
+    }
 
-        throttle.min(circle).min(slide_cap).min(traction_cap)
+    /// At a standstill with the driven wheels at or past their peak slip
+    /// the car is getting nowhere (a grade on snow it cannot climb, a wheel
+    /// on the grass): back off from the pedal applied now, as a driver
+    /// feeling for grip would. Held at the limiter instead, the engine made
+    /// its full power into a radiator with no air through it and cooked
+    /// itself in a minute. A launch on grip is past a walk within a
+    /// fraction of a second, before this bites.
+    fn limit_launch_spin(&self, state: &CarState, throttle: f32) -> f32 {
+        let peak = self.car_config.tire_config.optimal_slip_ratio;
+        if state.speed_mps < LAUNCH_SPIN_SPEED_MPS
+            && self.driven_slip(state) >= LAUNCH_SPIN_SHARE * peak
+        {
+            throttle.min((state.throttle_input * 0.8).max(LAUNCH_SPIN_MIN_THROTTLE))
+        } else {
+            throttle
+        }
     }
 
     /// Calculate throttle and brake inputs based on current speed and target.

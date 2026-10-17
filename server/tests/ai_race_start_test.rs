@@ -527,3 +527,126 @@ impl Passes {
         }
     }
 }
+
+/// A snow race at Spa (`SURVEY_WEATHER` as the survey reads it, snow when
+/// unset) for `SNOW_SECONDS` (400): per car, the seconds it sat on the road
+/// with its throttle open and getting nowhere, its hottest engine, its
+/// engine damage, and whether it is out. A car that cannot climb Raidillon
+/// used to sit at the limiter until its engine failed.
+/// `cargo test --release --test ai_race_start_test snow_stall_survey -- --ignored --nocapture`
+/// (`SURVEY_CAR=bugotti-chiffon-hypercar`, `SURVEY_TRACKS=Spa`).
+#[test]
+#[ignore]
+fn snow_stall_survey() {
+    if std::env::var("SURVEY_WEATHER").is_err() {
+        // SAFETY: a test of its own process, before anything reads it.
+        unsafe { std::env::set_var("SURVEY_WEATHER", "snow") };
+    }
+    let track = std::env::var("SURVEY_TRACKS").unwrap_or_else(|_| "Spa".into());
+    let car = std::env::var("SURVEY_CAR").unwrap_or_else(|_| "bugotti-chiffon-hypercar".into());
+    let seconds: u32 = std::env::var("SNOW_SECONDS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(400);
+    let mut race = ai_race(&track, &car, 8);
+    let mut stalled: HashMap<PlayerId, u32> = HashMap::new();
+    // The spell now and the longest, ticks.
+    let mut spell: HashMap<PlayerId, (u32, u32)> = HashMap::new();
+    let mut hottest: HashMap<PlayerId, f32> = HashMap::new();
+    let mut hit: HashMap<PlayerId, bool> = HashMap::new();
+    let mut where_stalled: HashMap<i32, u32> = HashMap::new();
+    // Degrees of coolant gained, by the car's speed band (< 1, < 3, < 10,
+    // < 25, faster m/s): where the heat comes from.
+    let mut heat_by_speed = [0.0f32; 5];
+    let mut last_c: HashMap<PlayerId, f32> = HashMap::new();
+    for _ in 1..=(TICK_RATE as u32 * seconds) {
+        tick(&mut race);
+        let trace: Option<u8> = std::env::var("SNOW_TRACE")
+            .ok()
+            .and_then(|v| v.parse().ok());
+        for c in race.session.participants.values() {
+            if trace == Some(c.grid_position)
+                && c.speed_mps < 3.0
+                && race
+                    .session
+                    .current_tick
+                    .is_multiple_of(TICK_RATE as u32 / 2)
+            {
+                println!(
+                    "    trace t {:6.1} at {:7.1} v {:4.1} on {} hit {} gear {} thr {:.2} brk {:.2} str {:+.2} temp {:5.1} rev {:.1} reset {} off_s {:.1} stuck {:.1} recov {}",
+                    race.session.current_tick as f32 / TICK_RATE as f32,
+                    c.track_progress, c.speed_mps, c.is_on_track, c.is_colliding, c.gear,
+                    c.throttle_input, c.brake_input, c.steering_input, c.water_temp_c,
+                    c.racecraft.reverse_s, c.racecraft.wants_reset, c.racecraft.off_road_s,
+                    c.racecraft.stuck_s, c.recovery.is_some()
+                );
+            }
+            let before = last_c
+                .insert(c.player_id, c.water_temp_c)
+                .unwrap_or(c.water_temp_c);
+            if c.water_temp_c > before {
+                let band = [1.0, 3.0, 10.0, 25.0]
+                    .iter()
+                    .position(|v| c.speed_mps < *v)
+                    .unwrap_or(4);
+                heat_by_speed[band] += c.water_temp_c - before;
+            }
+            let h = hottest.entry(c.player_id).or_insert(0.0);
+            *h = h.max(c.engine_temp_c);
+            if c.is_colliding {
+                hit.insert(c.player_id, true);
+            }
+            if c.is_on_track
+                && !c.towed
+                && !c.pit.driving
+                && c.damage.is_drivable
+                && c.speed_mps < 2.0
+                && c.throttle_input > 0.5
+            {
+                let s = spell.entry(c.player_id).or_insert((0, 0));
+                s.0 += 1;
+                s.1 = s.1.max(s.0);
+                *stalled.entry(c.player_id).or_insert(0) += 1;
+                *where_stalled
+                    .entry((c.track_progress / 50.0) as i32)
+                    .or_insert(0) += 1;
+            } else if let Some(s) = spell.get_mut(&c.player_id) {
+                s.0 = 0;
+            }
+        }
+    }
+    let secs = |t: u32| t as f32 / TICK_RATE as f32;
+    let (mut total_stall, mut out, mut cooked) = (0u32, 0, 0);
+    for c in race.session.participants.values() {
+        let s = stalled.get(&c.player_id).copied().unwrap_or(0);
+        total_stall += s;
+        let gone = !c.damage.is_drivable;
+        out += gone as u32;
+        let engine_out =
+            gone && c.damage.engine_damage_percent >= 99.0 && !hit.contains_key(&c.player_id);
+        cooked += engine_out as u32;
+        println!(
+            "  car {:2}: lap {:2} stalled {:6.1} s (longest {:5.1} s), hottest {:5.1} C, engine damage {:5.1}%, out {gone}{}",
+            c.grid_position,
+            c.current_lap,
+            secs(s),
+            secs(spell.get(&c.player_id).map_or(0, |s| s.1)),
+            hottest[&c.player_id],
+            c.damage.engine_damage_percent,
+            if engine_out { " (engine, no hit)" } else { "" }
+        );
+    }
+    let mut spots: Vec<_> = where_stalled.into_iter().collect();
+    spots.sort_by_key(|s| std::cmp::Reverse(s.1));
+    for (bucket, t) in spots.into_iter().take(4) {
+        println!("    stalled {:6.1} car-s around {} m", secs(t), bucket * 50);
+    }
+    println!(
+        "    coolant gained by speed (<1, <3, <10, <25, faster m/s): {:?}",
+        heat_by_speed.map(|v| v.round())
+    );
+    println!(
+        "{track} {car} snow: stalled {:.1} car-s, out {out}, engines cooked without a hit {cooked}",
+        secs(total_stall)
+    );
+}

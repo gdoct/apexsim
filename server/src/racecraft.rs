@@ -217,10 +217,17 @@ const REJOIN_WAIT_MAX_S: f32 = 6.0;
 /// Off the road the leg the car left is followed by the nearest
 /// centerline point within this many points of the last one.
 const LEG_SEARCH_POINTS: usize = 32;
-/// Off the road (or crawling against a wall) this long, s, without gaining
-/// this much lap, m, a car asks to be put back on the road.
+/// In a spell (off the road, crawling against a wall or backing off it, or
+/// crawling on the road with the throttle open) this long, s, without
+/// gaining this much lap, m, a car asks to be put back on the road.
 pub const RESET_AFTER_S: f32 = 15.0;
 pub const RESET_HEADWAY_M: f32 = 20.0;
+/// A car crawling with more throttle than this is trying to go
+/// (`recover`'s spell).
+const STALL_THROTTLE: f32 = 0.3;
+/// A spell begun goes on until the car is this fast, m/s, or has gained
+/// [`RESET_HEADWAY_M`]: rocking off a wall and back reaches a walk.
+const SPELL_ENDS_MPS: f32 = 6.0;
 
 /// How far ahead a corner is looked for, m.
 const CORNER_SCAN_M: f32 = 700.0;
@@ -1241,15 +1248,26 @@ fn recover(rc: &mut Racecraft, state: &CarState, me: &Rival, field: &[Rival], ct
         return;
     }
     // The spell off the road, backing out included: one that gets nowhere
-    // along the lap ends in a reset rather than backing out for ever.
+    // along the lap ends in a reset rather than backing out for ever. The
+    // spell runs on while the car crawls, so backing off a wall and
+    // driving into it again is one spell, not a new one each time (a car at
+    // Spa's Bus Stop did that for two minutes until its engine cooked); and
+    // a car on the road with its foot down getting nowhere (a grade on
+    // snow it cannot climb) is in one too.
     let off = !state.is_on_track || (state.is_colliding && state.speed_mps < STUCK_SPEED_MPS);
-    if !off {
-        rc.off_road_s = 0.0;
+    let crawling = state.speed_mps < STUCK_SPEED_MPS;
+    let trying = crawling && state.throttle_input > STALL_THROTTLE;
+    let in_spell = off
+        || rc.reverse_s > 0.0
+        || trying
+        || (rc.off_road_s > 0.0 && state.speed_mps < SPELL_ENDS_MPS);
+    if !off && rc.reverse_s <= 0.0 {
         // Rolling back onto the road the car is not off it, but its spell
         // of waiting goes on until it has backed out.
-        if rc.reverse_s <= 0.0 {
-            rc.wait_s = 0.0;
-        }
+        rc.wait_s = 0.0;
+    }
+    if !in_spell {
+        rc.off_road_s = 0.0;
     } else {
         if rc.off_road_s <= 0.0
             || ahead_of(rc.off_road_from_m, state.track_progress, ctx.total_m) > RESET_HEADWAY_M

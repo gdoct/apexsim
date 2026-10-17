@@ -26,24 +26,6 @@ None open.
 
 ## P1: core racing experience
 
-### 15. AI in the snow
-
-The AI's reset to the road (`Racecraft::wants_reset`) keeps a snow race
-going, but cars still cook their engines on lap 1.
-
-- On packed snow (grip 0.28) a car can stall on the road itself: Spa's
-  Raidillon is 12.9%, and an AI that cannot climb it sits spinning its
-  wheels at the limiter until the engine is out (R4 run, 2026-10-15: the
-  stand-in and one AI out on lap 1, the rest racing). The reset counts only
-  cars off the road or crawling against a wall, and putting a car back where
-  it is would not get it up the hill. The AI wants to lift when its driven
-  wheels spin with the car not moving, and a car that still gets nowhere a
-  step back down the lap; the engine's cooking at a standstill may want a
-  look of its own.
-
-**Check:** the snow survey (`SURVEY_WEATHER=snow`, Spa) and a long R4 run:
-no engine out without a hit.
-
 ## P2: depth
 
 ### 5. Hotlap and lap records

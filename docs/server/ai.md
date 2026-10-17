@@ -201,11 +201,21 @@ next `Brake` phase, its slowest point, the hand at the apex).
   within 32 points of the last, so a car whose lap position jumps to
   another leg running close by (Zandvoort's 887 m and 4282 m) still
   steers for its own. A car that cannot get back (penned in, or on snow
-  where every attempt slides off) asks to be put back once it has been off
-  the road `RESET_AFTER_S` (15 s) without gaining `RESET_HEADWAY_M` (20 m)
-  of lap (`Racecraft::wants_reset`): it brakes to a stop and the session
-  recovers it to the track as a driver's back-to-track would
-  (`GameSession::recover_car`, held for the recovery's cost).
+  where every attempt slides off) asks to be put back once it has been in
+  one spell `RESET_AFTER_S` (15 s) without gaining `RESET_HEADWAY_M` (20 m)
+  of lap (`Racecraft::wants_reset`). A spell is off the road, against a
+  wall or backing off it, or crawling on the road with more than
+  `STALL_THROTTLE` (0.3) of throttle (a grade on snow it cannot climb), and
+  once begun it runs until the car is past `SPELL_ENDS_MPS` (6 m/s) or has
+  the headway: rocking off a wall and back is one spell, not a new one each
+  time. It brakes to a stop and the session recovers it to the track as a
+  driver's back-to-track would (`GameSession::recover_car`, held for the
+  recovery's cost); a car stuck on the road itself is put
+  `AI_STALL_RUN_UP_M` (120 m) back down the lap, for a run-up.
+- **Wheelspin at a standstill**: under `LAUNCH_SPIN_SPEED_MPS` (1 m/s)
+  with the driven wheels at 95% of their peak slip or more the AI backs off
+  the pedal it has applied (`limit_launch_spin`, to no less than 0.15),
+  where the grip limiter above 3 m/s does not reach.
 
 A lane is a place across the road (m left of the centerline), eased on and
 off by `Racecraft::blend`; the controller holds it across the road

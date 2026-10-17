@@ -288,6 +288,10 @@ impl AidLineKey {
     }
 }
 
+/// How far back down the lap an AI stuck on the road itself is put, m: a
+/// run-up at the grade it could not climb from a standstill.
+const AI_STALL_RUN_UP_M: f32 = 120.0;
+
 /// Grip share a driver's tyres and road must move by before their racing
 /// line aid is planned again: finer, and the heat of the tyres at the line
 /// would send a new line most laps.
@@ -3099,6 +3103,17 @@ impl GameSession {
         player_id: &PlayerId,
         destination: crate::recovery::RecoverDestination,
     ) -> Result<(), &'static str> {
+        self.recover_car_back(player_id, destination, 0.0)
+    }
+
+    /// [`Self::recover_car`], put back onto the track `back_m` behind
+    /// where the car is along the lap.
+    fn recover_car_back(
+        &mut self,
+        player_id: &PlayerId,
+        destination: crate::recovery::RecoverDestination,
+        back_m: f32,
+    ) -> Result<(), &'static str> {
         use crate::recovery::{RecoverDestination, Recovery};
         let mode = self.session.game_mode;
         let garage_mode = mode.uses_garages();
@@ -3149,11 +3164,13 @@ impl GameSession {
                     .filter(|o| o.player_id != *player_id && !o.in_garage && !o.is_ghost())
                     .map(|o| (o.pos_x, o.pos_y))
                     .collect();
-                let station = crate::recovery::track_station(
-                    &track.centerline,
-                    state.track_progress,
-                    &others,
-                );
+                let total = crate::laps::track_length_m(track);
+                let from = if back_m > 0.0 && total > 0.0 {
+                    (state.track_progress - back_m).rem_euclid(total)
+                } else {
+                    state.track_progress
+                };
+                let station = crate::recovery::track_station(&track.centerline, from, &others);
                 let (x, y, z, yaw) = physics::pose_at_station(&track.centerline, station);
                 (x, y, physics::seat_height(track, x, y, z), yaw)
             }
@@ -4295,11 +4312,19 @@ impl GameSession {
         }
         // A car that cannot get back on the road by itself is put back, as
         // a driver's back-to-track puts theirs (`recover_car`): on the
-        // road where it is, held for the recovery's cost. Refused (too
-        // fast, on the pit route), it asks again next tick.
+        // road where it is, held for the recovery's cost. One stuck on the
+        // road itself (a grade it cannot climb) is put a run-up back down
+        // the lap instead: where it stood it would stall again. Refused
+        // (too fast, on the pit route), it asks again next tick.
         for id in resets {
+            let back = self
+                .session
+                .participants
+                .get(&id)
+                .filter(|s| s.is_on_track && !s.is_colliding)
+                .map_or(0.0, |_| AI_STALL_RUN_UP_M);
             if self
-                .recover_car(&id, crate::recovery::RecoverDestination::Track)
+                .recover_car_back(&id, crate::recovery::RecoverDestination::Track, back)
                 .is_ok()
             {
                 if let Some(state) = self.session.participants.get_mut(&id) {
