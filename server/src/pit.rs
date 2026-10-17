@@ -314,6 +314,14 @@ pub struct PitState {
     /// at each stop that fits tyres.
     #[serde(default)]
     pub compound_changed: bool,
+    /// Down the lane on a drive-through (`race_control::Penalty`): set
+    /// as the car crosses the first limit line owing one, cleared by a
+    /// stop; crossing the last line with it set serves it.
+    #[serde(default)]
+    pub drive_through: bool,
+    /// The service under way is a stop-go's hold: no work is done.
+    #[serde(default)]
+    pub stop_go: bool,
 }
 
 /// Less fuel than this is not worth stopping the crew for, L.

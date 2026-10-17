@@ -350,6 +350,12 @@ pub struct GameSession {
     /// and the cars that jumped the start. Made afresh as the field lines
     /// up.
     pub race_start: crate::race_start::RaceStart,
+    /// Every penalty given this race (`crate::race_control::Penalty`), by
+    /// car, in the order given. Emptied as the field lines up.
+    pub penalties: std::collections::BTreeMap<PlayerId, Vec<crate::race_control::Penalty>>,
+    /// The last tick each pair (passer, passed) was penalised for a pass
+    /// under a yellow: the order swapping back and forth is one pass.
+    yellow_passed: std::collections::BTreeMap<(PlayerId, PlayerId), u32>,
     /// How many times a weekend day has baked its own sky
     /// ([`Self::begin_day`]): a racing line planned under an earlier one is
     /// planned again.
@@ -573,6 +579,10 @@ struct Finisher {
     /// session's pit rule (`data::PitRule`): classified behind every
     /// finisher that met it.
     missed_stops: bool,
+    /// Its penalties' seconds (`race_control::Penalty::added_s`, a
+    /// drive-through or stop-go still owed at the flag added as time), in
+    /// ticks: its race time is this much longer.
+    penalty_ticks: u32,
 }
 
 /// Put a car down still at a pose: everything that moves (velocities,
@@ -871,6 +881,8 @@ impl GameSession {
             aid_lines: HashMap::new(),
             race_control: Default::default(),
             race_start: Default::default(),
+            penalties: Default::default(),
+            yellow_passed: Default::default(),
             sky_day: 0,
             day_lines_due: false,
             finish_deadline_tick: None,
@@ -953,6 +965,8 @@ impl GameSession {
             aid_lines: HashMap::new(),
             race_control: Default::default(),
             race_start: Default::default(),
+            penalties: Default::default(),
+            yellow_passed: Default::default(),
             sky_day: 0,
             day_lines_due: false,
             finish_deadline_tick: None,
@@ -2624,6 +2638,7 @@ impl GameSession {
         physics::check_collisions_refs(&mut state_refs, &self.car_configs);
         physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
         self.update_flags();
+        self.update_penalties();
 
         // A timed race whose clock just ran out learns its last lap; then
         // assign finish positions to cars that just took the flag, and
@@ -2687,6 +2702,115 @@ impl GameSession {
                 control.yellow_ahead_for(i, state.track_progress, total) as u8
             };
         }
+    }
+
+    /// Race control's penalties this tick (`crate::race_control`): the jump
+    /// starts the green found, the passes under a yellow the flags saw, and
+    /// a drive-through or stop-go gone unserved too long added as time.
+    /// Only the offences the session's rules name are penalised.
+    fn update_penalties(&mut self) {
+        use crate::race_control::Offence;
+        let passes = self.race_control.take_yellow_passes();
+        if self.session.state != SessionState::Racing {
+            return;
+        }
+        let jumped = std::mem::take(&mut self.race_start.jumped);
+        for id in jumped {
+            self.penalise(id, Offence::JumpStart);
+        }
+        if !passes.is_empty() {
+            let ids: Vec<PlayerId> = self.session.participants.keys().copied().collect();
+            let repeat_ticks =
+                (crate::race_control::YELLOW_PASS_REPEAT_S * self.tick_rate_hz as f32) as u32;
+            for pass in passes {
+                let (Some(&passer), Some(&passed)) = (ids.get(pass.passer), ids.get(pass.passed))
+                else {
+                    continue;
+                };
+                let again = self
+                    .yellow_passed
+                    .get(&(passer, passed))
+                    .is_some_and(|t| pass.tick.saturating_sub(*t) < repeat_ticks);
+                self.yellow_passed.insert((passer, passed), pass.tick);
+                if !again {
+                    self.penalise(passer, Offence::YellowPass);
+                }
+            }
+        }
+        // Too late to serve: added as time.
+        let mut changed = false;
+        for (id, list) in self.penalties.iter_mut() {
+            let lap = self
+                .session
+                .participants
+                .get(id)
+                .map_or(0, |s| s.current_lap);
+            for penalty in list.iter_mut().filter(|p| p.overdue(lap)) {
+                penalty.convert();
+                changed = true;
+            }
+        }
+        if changed {
+            self.roster_dirty = true;
+        }
+    }
+
+    /// Give `player_id` the penalty for `offence`, if the session's rules
+    /// penalise it: one to serve in the pit lane is added as time at once
+    /// where it cannot be served (no pit lane, or too few laps left).
+    pub fn penalise(&mut self, player_id: PlayerId, offence: crate::race_control::Offence) {
+        if !self.session.race_rules.penalises(offence) {
+            return;
+        }
+        let Some(state) = self.session.participants.get(&player_id) else {
+            return;
+        };
+        if state.finish_position.is_some() {
+            return;
+        }
+        let can_serve = self.track_config.pit_lane.is_some()
+            && self.laps_left(state) >= crate::race_control::SERVE_WITHIN_LAPS as u32;
+        let penalty = crate::race_control::Penalty::issue(
+            offence,
+            state.current_lap,
+            self.session.current_tick,
+            can_serve,
+        );
+        info!(
+            "Session {}: car on slot {} penalised for {:?}: {:?} {} s",
+            self.session.id, state.grid_position, offence, penalty.kind, penalty.seconds
+        );
+        self.penalties.entry(player_id).or_default().push(penalty);
+        self.roster_dirty = true;
+    }
+
+    /// The first drive-through or stop-go `player_id` still has to serve.
+    pub fn owed_penalty(&self, player_id: &PlayerId) -> Option<crate::race_control::PenaltyKind> {
+        self.penalties
+            .get(player_id)
+            .and_then(|list| crate::race_control::owed(list))
+            .map(|p| p.kind)
+    }
+
+    /// The first owed penalty of `kind` is served.
+    fn serve_penalty(&mut self, player_id: &PlayerId, kind: crate::race_control::PenaltyKind) {
+        use crate::race_control::PenaltyStatus;
+        let Some(penalty) = self.penalties.get_mut(player_id).and_then(|list| {
+            list.iter_mut()
+                .find(|p| p.status == PenaltyStatus::Owed && p.kind == kind)
+        }) else {
+            return;
+        };
+        penalty.status = PenaltyStatus::Served;
+        self.roster_dirty = true;
+        info!("Session {}: {:?} served", self.session.id, kind);
+    }
+
+    /// The seconds `player_id`'s penalties add to its race time.
+    pub fn penalty_seconds(&self, player_id: &PlayerId) -> u32 {
+        self.penalties
+            .get(player_id)
+            .map_or(0, |list| list.iter().map(|p| p.added_s()).sum())
     }
 
     /// `StartSession`: count a session still in its lobby down into a race,
@@ -4393,8 +4517,14 @@ impl GameSession {
         self.apply_grid_order();
         self.finish_deadline_tick = None;
         self.race_end = RaceEnd::default();
-        // A fresh start: its formation lap still to drive, nobody let go.
+        // A fresh start: its formation lap still to drive, nobody let go,
+        // nobody penalised.
         self.race_start = Default::default();
+        if !self.penalties.is_empty() {
+            self.penalties.clear();
+            self.roster_dirty = true;
+        }
+        self.yellow_passed.clear();
         // A fresh race, a fresh timing sheet: the session's bests and every
         // half-recorded ghost lap belong to the race that just ended.
         self.session_best_lap_ms = None;
@@ -5015,6 +5145,24 @@ impl GameSession {
         let centerline = &self.track_config.centerline;
         let mut arrived: Vec<PlayerId> = Vec::new();
         let mut finished: Vec<PlayerId> = Vec::new();
+        // Race control in the lane (a race under way): the drive-throughs
+        // owed, the ones driven, and the cars out past a red light.
+        let racing =
+            self.session.game_mode == GameMode::Race && self.session.state == SessionState::Racing;
+        let owes_drive_through: std::collections::BTreeSet<PlayerId> = if racing {
+            self.penalties
+                .iter()
+                .filter(|(_, list)| {
+                    crate::race_control::owed(list)
+                        .is_some_and(|p| p.kind == crate::race_control::PenaltyKind::DriveThrough)
+                })
+                .map(|(id, _)| *id)
+                .collect()
+        } else {
+            Default::default()
+        };
+        let mut drove_through: Vec<PlayerId> = Vec::new();
+        let mut out_on_red: Vec<PlayerId> = Vec::new();
         for state in self.session.participants.values_mut() {
             if state.in_garage || state.towed {
                 continue;
@@ -5067,12 +5215,37 @@ impl GameSession {
                 }
             }
             let pit = &mut state.pit;
+            let (was_in_lane, was_station, was_limiter) =
+                (pit.in_lane, pit.lane_station_m, pit.limiter);
             pit.lane_node = Some(at.node as u32);
             pit.lane_station_m = at.station_m;
             pit.in_lane = in_lane;
             pit.limiter =
                 pit.in_lane && (lane.limit_start_m..=lane.limit_end_m).contains(&at.station_m);
             pit.exit_closed = exit_closed;
+            if racing {
+                // A drive-through: in at the first line owing one, out at
+                // the last without a stop between.
+                if pit.limiter && !was_limiter && at.station_m < lane.limit_end_m {
+                    pit.drive_through = owes_drive_through.contains(&state.player_id);
+                    // The route (the AI's, the autopilot's) goes on past
+                    // the box: as if served there.
+                    if pit.drive_through && pit.driving {
+                        pit.serviced = true;
+                    }
+                }
+                let past_last_line = was_in_lane
+                    && in_lane
+                    && was_station < lane.limit_end_m
+                    && at.station_m >= lane.limit_end_m;
+                if past_last_line && std::mem::take(&mut pit.drive_through) {
+                    drove_through.push(state.player_id);
+                }
+                // Out past the red light, driving the lane oneself.
+                if past_last_line && exit_closed && !pit.driving {
+                    out_on_red.push(state.player_id);
+                }
+            }
             if !pit.in_lane && !pit.driving {
                 // Out of the lane: the next visit is a new stop.
                 pit.serviced = false;
@@ -5169,6 +5342,15 @@ impl GameSession {
         }
         for player_id in finished {
             self.finish_service(&player_id);
+        }
+        for player_id in drove_through {
+            self.serve_penalty(&player_id, crate::race_control::PenaltyKind::DriveThrough);
+            if let Some(state) = self.session.participants.get_mut(&player_id) {
+                state.pit.wants_stop = false;
+            }
+        }
+        for player_id in out_on_red {
+            self.penalise(player_id, crate::race_control::Offence::PitExitRed);
         }
         self.plan_ai_stops();
     }
@@ -5389,12 +5571,15 @@ impl GameSession {
             .map(|(i, (id, state))| {
                 let finisher = self.race_end.finishers.get(*id).copied();
                 let laps = self.laps_completed(id);
+                // A finisher's time is when it crossed the line, its
+                // penalties added.
+                let at = |f: &Finisher| f.tick + f.penalty_ticks;
                 let race_time_ms = finisher
-                    .map(|f| (f.tick.saturating_sub(start) as f64 / rate * 1000.0).round() as u32);
+                    .map(|f| (at(&f).saturating_sub(start) as f64 / rate * 1000.0).round() as u32);
                 let (gap_ms, laps_down) = match (finisher, winner) {
                     (Some(f), Some(w)) if f.laps == w.laps => (
                         (i > 0).then(|| {
-                            (f.tick.saturating_sub(w.tick) as f64 / rate * 1000.0).round() as u32
+                            (at(&f).saturating_sub(at(&w)) as f64 / rate * 1000.0).round() as u32
                         }),
                         0,
                     ),
@@ -5425,6 +5610,7 @@ impl GameSession {
                     gap_ms,
                     laps_down,
                     missed_stops: finisher.is_some_and(|f| f.missed_stops),
+                    penalty_s: self.penalty_seconds(id),
                 }
             })
             .collect()
@@ -5506,6 +5692,52 @@ impl GameSession {
     /// fuel_only`) is the fuel alone. The plan goes to every client
     /// (`ServerMessage::PitService`) for the pit-stop panel.
     fn start_service(&mut self, player_id: &PlayerId) {
+        // A stop owing a stop-go is the stop-go: held in the box, no work.
+        let racing = self.session.game_mode == GameMode::Race;
+        if racing && self.owed_penalty(player_id) == Some(crate::race_control::PenaltyKind::StopGo)
+        {
+            let hold = self
+                .penalties
+                .get(player_id)
+                .and_then(|list| crate::race_control::owed(list))
+                .map_or(0.0, |p| p.seconds as f32);
+            let Some(state) = self.session.participants.get_mut(player_id) else {
+                return;
+            };
+            let pit_box = state.pit.box_index.unwrap_or(0);
+            let compound = state.tyre_compound;
+            let pit = &mut state.pit;
+            pit.servicing = true;
+            pit.stop_go = true;
+            pit.drive_through = false;
+            pit.service_left_s = hold;
+            pit.service_compound = compound;
+            pit.service_fuel_l = 0.0;
+            pit.service_repair = false;
+            pit.service_pads = false;
+            pit.service_discs = false;
+            pit.service_tyres = false;
+            pit.service_pad_set = None;
+            self.pit_events.push((
+                *player_id,
+                crate::network::PitServiceData {
+                    car_index: 0,
+                    pit_box,
+                    tyres_s: 0.0,
+                    compound,
+                    fuel_s: 0.0,
+                    fuel_l: 0.0,
+                    repair_s: 0.0,
+                    repair_pct: 0.0,
+                    total_s: hold,
+                },
+            ));
+            return;
+        }
+        if let Some(state) = self.session.participants.get_mut(player_id) {
+            // A stop is no drive-through.
+            state.pit.drive_through = false;
+        }
         let Some(state) = self.session.participants.get(player_id) else {
             return;
         };
@@ -5610,6 +5842,25 @@ impl GameSession {
     /// was part of the stop.
     fn finish_service(&mut self, player_id: &PlayerId) {
         let total_m = crate::laps::track_length_m(&self.track_config);
+        // A stop-go's hold is over: served, and no stop for the pit rule.
+        if self
+            .session
+            .participants
+            .get(player_id)
+            .is_some_and(|s| s.pit.stop_go)
+        {
+            if let Some(state) = self.session.participants.get_mut(player_id) {
+                let pit = &mut state.pit;
+                pit.stop_go = false;
+                pit.servicing = false;
+                pit.service_left_s = 0.0;
+                pit.serviced = true;
+                pit.wants_stop = false;
+                pit.requested = false;
+            }
+            self.serve_penalty(player_id, crate::race_control::PenaltyKind::StopGo);
+            return;
+        }
         let Some(state) = self.session.participants.get_mut(player_id) else {
             return;
         };
@@ -5723,6 +5974,16 @@ impl GameSession {
                 || state.pit.servicing
                 || !state.damage.is_drivable
             {
+                continue;
+            }
+            // A penalty to serve: in at the next pass of the lane.
+            let penalty = self.owed_penalty(&ai_id);
+            if penalty.is_some() && !state.pit.wants_stop {
+                if let Some(state) = self.session.participants.get_mut(&ai_id) {
+                    state.pit.wants_stop = true;
+                    state.pit.fuel_only = false;
+                    state.pit.next_compound = state.tyre_compound;
+                }
                 continue;
             }
             if !state.pit.wants_stop {
@@ -6401,6 +6662,11 @@ impl GameSession {
                         .get(player_id)
                         .copied()
                         .unwrap_or(0),
+                    penalties: self
+                        .penalties
+                        .get(player_id)
+                        .map(|list| list.iter().map(crate::network::PenaltyData::from).collect())
+                        .unwrap_or_default(),
                 }
             })
             .collect();
@@ -6450,8 +6716,34 @@ impl GameSession {
             return;
         };
         let tick = self.session.current_tick;
+        // A car taking the flag owing a drive-through or stop-go has it
+        // added as time.
+        let mut converted = false;
+        for (id, list) in self.penalties.iter_mut() {
+            let crossing = self.session.participants.get(id).is_some_and(|s| {
+                s.finish_position.is_none()
+                    && (s.current_lap > finish_lap
+                        || self
+                            .race_end
+                            .flag_laps
+                            .get(id)
+                            .is_some_and(|lap| s.current_lap > *lap))
+            });
+            if crossing {
+                for penalty in list.iter_mut() {
+                    if penalty.status == crate::race_control::PenaltyStatus::Owed {
+                        penalty.convert();
+                        converted = true;
+                    }
+                }
+            }
+        }
+        if converted {
+            self.roster_dirty = true;
+        }
         let winner_was_in = !self.race_end.finishers.is_empty();
         let flag_laps = &self.race_end.flag_laps;
+        let rate = self.tick_rate_hz as u32;
         let new_finishers: Vec<(PlayerId, Finisher)> = self
             .session
             .participants
@@ -6468,6 +6760,7 @@ impl GameSession {
                     tick,
                     progress: s.track_progress,
                     missed_stops: stops_owed > 0 || compound_owed,
+                    penalty_ticks: self.penalty_seconds(id) * rate,
                 };
                 (*id, finisher)
             })
@@ -6491,12 +6784,13 @@ impl GameSession {
             .map(|(id, f)| (*id, *f))
             .collect();
         // Stable: exact ties keep BTreeMap order. A car that missed the
-        // pit rule goes behind every car that met it.
+        // pit rule goes behind every car that met it; a penalty's time is
+        // added to when a car crossed the line.
         order.sort_by(|(_, a), (_, b)| {
             a.missed_stops
                 .cmp(&b.missed_stops)
                 .then(b.laps.cmp(&a.laps))
-                .then(a.tick.cmp(&b.tick))
+                .then((a.tick + a.penalty_ticks).cmp(&(b.tick + b.penalty_ticks)))
                 .then(
                     b.progress
                         .partial_cmp(&a.progress)
@@ -7726,6 +8020,37 @@ mod tests {
         game_session.add_player(b, car_id).unwrap();
         game_session.set_game_mode(GameMode::Race);
         (game_session, a, b)
+    }
+
+    /// A time penalty is added to when a car took the flag: the car first
+    /// over the line with 5 s to add drops behind one crossing 2 s later,
+    /// and its race time and gap carry the 5 s.
+    #[test]
+    fn a_time_penalty_is_added_to_the_race_time() {
+        use crate::race_control::{Offence, YELLOW_PASS_PENALTY_S};
+        let (mut gs, first, second) = racing_session_with_two_humans();
+        gs.session.race_rules.yellow_penalty = true;
+        gs.penalise(first, Offence::YellowPass);
+        assert_eq!(gs.penalty_seconds(&first), YELLOW_PASS_PENALTY_S as u32);
+        gs.session.participants.get_mut(&first).unwrap().current_lap = 4;
+        gs.tick(&HashMap::new());
+        assert_eq!(gs.session.participants[&first].finish_position, Some(1));
+        for _ in 0..2 * DEFAULT_TICK_RATE_HZ {
+            gs.tick(&HashMap::new());
+        }
+        gs.session
+            .participants
+            .get_mut(&second)
+            .unwrap()
+            .current_lap = 4;
+        gs.tick(&HashMap::new());
+        assert_eq!(gs.session.participants[&second].finish_position, Some(1));
+        assert_eq!(gs.session.participants[&first].finish_position, Some(2));
+        let table = gs.classification(&HashMap::new());
+        assert_eq!(table[0].player_id, second);
+        assert_eq!(table[1].penalty_s, YELLOW_PASS_PENALTY_S as u32);
+        let gap = table[1].gap_ms.unwrap();
+        assert!((2_900..=3_100).contains(&gap), "5 s less the 2 s: {gap} ms");
     }
 
     #[test]

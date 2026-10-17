@@ -25,7 +25,7 @@ pub(crate) async fn handle_event(
 ) {
     match event {
         TransportEvent::Message(connection_id, msg) => {
-            handle_message(ctx, connection_id, msg, player_inputs).await;
+            handle_message(ctx, connection_id, *msg, player_inputs).await;
         }
         TransportEvent::Disconnected {
             connection_id,

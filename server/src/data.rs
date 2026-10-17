@@ -3661,11 +3661,31 @@ pub struct RaceRules {
     /// a drive-through.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub jump_start: bool,
+    /// A car that passes another of its lap in a yellow sector is given a
+    /// time penalty (`race_control::YELLOW_PASS_PENALTY_S`), unless the car
+    /// passed is the incident or slowed by it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub yellow_penalty: bool,
+    /// A driver who drives the pit lane themselves and leaves it past its
+    /// red exit light is given a stop-go
+    /// (`race_control::PIT_EXIT_STOP_GO_S`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub pit_exit_penalty: bool,
 }
 
 impl RaceRules {
     pub fn is_default(&self) -> bool {
         *self == RaceRules::default()
+    }
+
+    /// Whether `offence` is penalised under these rules.
+    pub fn penalises(&self, offence: crate::race_control::Offence) -> bool {
+        use crate::race_control::Offence;
+        match offence {
+            Offence::JumpStart => self.jump_start,
+            Offence::YellowPass => self.yellow_penalty,
+            Offence::PitExitRed => self.pit_exit_penalty,
+        }
     }
 
     /// The start drives a lap before the green: a formation lap, or a

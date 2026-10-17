@@ -242,6 +242,9 @@ off by `Racecraft::blend`; the controller holds it across the road
 
 ## Strategy
 
+- **Penalties** ([sessions](sessions.md#penalties)): an owed drive-through
+  or stop-go is served at the next pass of the lane (`plan_ai_stops` sets
+  `wants_stop`), before any stop it plans.
 - **Stops** (`plan_ai_stops`, races only, inside `update_pits`): first the
   weather (`pit::tyres_for_the_track` on `RoadState::mean_line_water`: off
   slicks at `SLICK_OFF_WATER` 0.25, off treaded tyres under

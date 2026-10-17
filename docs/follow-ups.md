@@ -119,7 +119,8 @@ on seeds 1-3, totals against the commit before.
 
 ### 20. Race control on screen and its edges
 
-The race-start rules ([server/sessions.md](server/sessions.md#race-start-formation-lap-rolling-start-false-starts))
+The race-start rules and penalties ([server/sessions.md](server/sessions.md#race-start-formation-lap-rolling-start-false-starts),
+[penalties](server/sessions.md#penalties))
 are on the wire and run on the server; the client does not offer or show
 them yet, and the server leaves a few edges.
 
@@ -130,6 +131,15 @@ them yet, and the server leaves a few edges.
 - client: show the formation lap and the pace lap (`CompactTelemetry.race_phase`
   1 / 2, in `Countdown` with no countdown): a FORMATION LAP banner and HUD
   data point (`race.phase`), no lights until the countdown comes back.
+- client: the create screen's penalty rules (`race_rules.yellow_penalty`,
+  `pit_exit_penalty`; False starts is `jump_start`).
+- client: show penalties (`RosterEntry.Penalties`): a toast as one is given
+  ("DRIVE-THROUGH: JUMP START", "+5 S: OVERTAKING UNDER YELLOW"), the owed
+  one and its laps left on the HUD (`penalty.*` data points), PEN with the
+  seconds in the standings and tower, and the results' times with them
+  (the server's classification already adds them).
+- The time penalty for a pass under a yellow is given even when the place
+  is handed back at once.
 - The formation lap holds the grid's tyre warmth but puts none in (a
   steady 30 m/s): weaving and the warm-up accelerations a driver does would,
   and then `FORMATION_LAP_WARMTH` could go.
@@ -139,7 +149,8 @@ them yet, and the server leaves a few edges.
   the race rules; the spectator stream has no `race_phase`.
 
 **Check:** a formation lap and a rolling start on screen with a human in
-the field; `race_start_test`.
+the field, a jump start and a red-light exit served; `race_start_test`,
+`penalty_test`.
 
 ## P3: nice to have
 

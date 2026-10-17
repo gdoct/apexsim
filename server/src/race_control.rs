@@ -10,9 +10,16 @@
 //!   incident: one raised by one car alone is not shown to that car (a car
 //!   running wide is not slowed by its own yellow), and a car already past
 //!   the rearmost incident in its sector no longer sees that sector's. A car passing
-//!   another in a yellow sector is recorded ([`RaceControl::yellow_passes`]), for penalties to come.
+//!   another in a yellow sector is recorded ([`RaceControl::take_yellow_passes`]), for the penalties.
 //! - **Blue**, per car: a car a lap or more up the road is within
 //!   [`BLUE_GAP_S`] behind it.
+//!
+//! - **Penalties** ([`Penalty`]), for the offences the session's rules
+//!   name (`data::RaceRules`): a jump start, a pass under a yellow, leaving
+//!   a manual pit lane past its red light. Each is a time penalty added to
+//!   the race time, a drive-through or a stop-go served in the pit lane
+//!   within [`SERVE_WITHIN_LAPS`] laps, or else added as time
+//!   ([`Penalty::convert`]).
 //!
 //! Everything here is worked out from the tick's car states alone (lap
 //! positions, speeds, contact), with no chance and no clock, so a seeded
@@ -35,6 +42,140 @@ pub const PAST_INCIDENT_M: f32 = 10.0;
 /// The grid getting away is slow everywhere: for this long after the green
 /// a slow car is no incident, s.
 pub const START_GRACE_S: f32 = 10.0;
+/// A car passed under a yellow that is going slower than this share of
+/// the passer's speed is in trouble (the incident, or slowed by it): going
+/// by it is no offence.
+pub const YELLOW_PASS_SLOWER_SHARE: f32 = 0.7;
+/// A pass under a yellow: a time penalty of this, s.
+pub const YELLOW_PASS_PENALTY_S: u16 = 5;
+/// Leaving a manual pit lane past its red light: a stop-go of this, s.
+pub const PIT_EXIT_STOP_GO_S: u16 = 10;
+/// A drive-through or stop-go must be served within this many laps of the
+/// lap it was given on, or it is added as time.
+pub const SERVE_WITHIN_LAPS: u16 = 3;
+/// What a drive-through not served (or given too late to serve, or where
+/// there is no pit lane) adds to the race time, s; a stop-go adds this and
+/// its hold.
+pub const DRIVE_THROUGH_TIME_S: u16 = 20;
+/// The same pair passing under a yellow again within this long is the
+/// same pass (side by side, the order swapping back and forth), s.
+pub const YELLOW_PASS_REPEAT_S: f32 = 10.0;
+
+/// What a car did wrong.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Offence {
+    /// Moved off its slot before the lights went out (`race_start`).
+    JumpStart = 0,
+    /// Passed a car on its lap in a yellow sector.
+    YellowPass = 1,
+    /// Left a manual pit lane past its red exit light.
+    PitExitRed = 2,
+}
+
+/// How a penalty is paid.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PenaltyKind {
+    /// Seconds added to the race time.
+    Time = 0,
+    /// A drive down the pit lane at its limit, no stop.
+    DriveThrough = 1,
+    /// A stop in the car's box, held for the penalty's seconds, no work.
+    StopGo = 2,
+}
+
+/// Where a penalty stands.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PenaltyStatus {
+    /// A drive-through or stop-go still to serve.
+    Owed = 0,
+    /// Served in the pit lane.
+    Served = 1,
+    /// Counted in the race time: a time penalty, or one not served in time.
+    Added = 2,
+}
+
+/// One penalty given to a car.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Penalty {
+    pub offence: Offence,
+    pub kind: PenaltyKind,
+    /// A time penalty's seconds, a stop-go's hold.
+    pub seconds: u16,
+    /// The lap the car was on when it was given.
+    pub lap: u16,
+    pub tick: u32,
+    pub status: PenaltyStatus,
+}
+
+impl Penalty {
+    /// The penalty for `offence`, given on `lap`: a drive-through for a
+    /// jump start, a time penalty for a pass under a yellow, a stop-go for
+    /// a red-light pit exit. One that must be served where it cannot be
+    /// (`can_serve`: no pit lane, or fewer than [`SERVE_WITHIN_LAPS`] laps
+    /// left) is added as time at once.
+    pub fn issue(offence: Offence, lap: u16, tick: u32, can_serve: bool) -> Penalty {
+        let (kind, seconds) = match offence {
+            Offence::JumpStart => (PenaltyKind::DriveThrough, 0),
+            Offence::YellowPass => (PenaltyKind::Time, YELLOW_PASS_PENALTY_S),
+            Offence::PitExitRed => (PenaltyKind::StopGo, PIT_EXIT_STOP_GO_S),
+        };
+        let mut penalty = Penalty {
+            offence,
+            kind,
+            seconds,
+            lap,
+            tick,
+            status: if kind == PenaltyKind::Time {
+                PenaltyStatus::Added
+            } else {
+                PenaltyStatus::Owed
+            },
+        };
+        if !can_serve {
+            penalty.convert();
+        }
+        penalty
+    }
+
+    /// A drive-through or stop-go not served becomes time: what it would
+    /// have cost in the lane ([`DRIVE_THROUGH_TIME_S`], and a stop-go's
+    /// hold).
+    pub fn convert(&mut self) {
+        if self.status != PenaltyStatus::Owed {
+            return;
+        }
+        self.seconds = match self.kind {
+            PenaltyKind::Time => self.seconds,
+            PenaltyKind::DriveThrough => DRIVE_THROUGH_TIME_S,
+            PenaltyKind::StopGo => DRIVE_THROUGH_TIME_S + self.seconds,
+        };
+        self.kind = PenaltyKind::Time;
+        self.status = PenaltyStatus::Added;
+    }
+
+    /// Whether it is still to serve, and by when it is too late: past the
+    /// lap [`SERVE_WITHIN_LAPS`] after it was given.
+    pub fn overdue(&self, lap: u16) -> bool {
+        self.status == PenaltyStatus::Owed && lap > self.lap.saturating_add(SERVE_WITHIN_LAPS)
+    }
+
+    /// The seconds it adds to the race time.
+    pub fn added_s(&self) -> u32 {
+        if self.status == PenaltyStatus::Added {
+            self.seconds as u32
+        } else {
+            0
+        }
+    }
+}
+
+/// The first penalty of `penalties` still to serve in the pit lane.
+pub fn owed(penalties: &[Penalty]) -> Option<&Penalty> {
+    penalties.iter().find(|p| p.status == PenaltyStatus::Owed)
+}
 
 /// A sector's flag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -161,6 +302,11 @@ impl RaceControl {
         *self = Self::default();
     }
 
+    /// The passes under a yellow recorded since the last call.
+    pub fn take_yellow_passes(&mut self) -> Vec<YellowPass> {
+        std::mem::take(&mut self.yellow_passes)
+    }
+
     /// Advance the flags by `dt` over this tick's `cars` on a lap of
     /// `total_m`. While `launching` (the first seconds after the green) a
     /// car is not an incident for being slow: the whole grid is.
@@ -279,6 +425,15 @@ impl RaceControl {
                 }
                 for (b, cb) in cars.iter().enumerate() {
                     if a == b || cb.out_of_it || (ca.laps - cb.laps).abs() > 0.5 {
+                        continue;
+                    }
+                    // Going by the incident, or a car slowed by it, is
+                    // what the yellow is there for.
+                    let in_trouble = cb.speed_mps < INCIDENT_SPEED_MPS
+                        || !cb.on_road
+                        || cb.reversing
+                        || cb.speed_mps < YELLOW_PASS_SLOWER_SHARE * ca.speed_mps;
+                    if in_trouble {
                         continue;
                     }
                     if self.last_laps[a] < self.last_laps[b] && ca.laps > cb.laps {
@@ -458,6 +613,65 @@ mod tests {
             (pass.passer, pass.passed, pass.sector, pass.tick),
             (0, 1, 4, 2)
         );
+    }
+
+    #[test]
+    fn going_by_the_incident_under_a_yellow_is_no_pass() {
+        let mut rc = RaceControl::default();
+        // The car passed is the stopped one: no offence.
+        let stopped = racing(1.2, 0.0);
+        rc.update(&[racing(1.19, 50.0), stopped], LAP, 0.01, 1, false);
+        rc.update(&[racing(1.201, 50.0), stopped], LAP, 0.01, 2, false);
+        assert!(rc.take_yellow_passes().is_empty());
+        // Nor one crawling away from it at a third of the passer's speed.
+        let mut rc = RaceControl::default();
+        let incident = racing(1.25, 0.0);
+        rc.update(
+            &[racing(1.19, 50.0), racing(1.2, 15.0), incident],
+            LAP,
+            0.01,
+            1,
+            false,
+        );
+        rc.update(
+            &[racing(1.201, 50.0), racing(1.2003, 15.0), incident],
+            LAP,
+            0.01,
+            2,
+            false,
+        );
+        assert!(rc.take_yellow_passes().is_empty());
+    }
+
+    #[test]
+    fn a_penalty_is_served_or_added_as_time() {
+        let pass = Penalty::issue(Offence::YellowPass, 4, 10, true);
+        assert_eq!(
+            (pass.kind, pass.status, pass.added_s()),
+            (
+                PenaltyKind::Time,
+                PenaltyStatus::Added,
+                YELLOW_PASS_PENALTY_S as u32
+            )
+        );
+        let mut jump = Penalty::issue(Offence::JumpStart, 1, 10, true);
+        assert_eq!(
+            (jump.kind, jump.status),
+            (PenaltyKind::DriveThrough, PenaltyStatus::Owed)
+        );
+        assert_eq!(jump.added_s(), 0);
+        assert!(!jump.overdue(1 + SERVE_WITHIN_LAPS));
+        assert!(jump.overdue(2 + SERVE_WITHIN_LAPS));
+        jump.convert();
+        assert_eq!(jump.added_s(), DRIVE_THROUGH_TIME_S as u32);
+        let late = Penalty::issue(Offence::PitExitRed, 9, 10, false);
+        assert_eq!(
+            late.added_s(),
+            (DRIVE_THROUGH_TIME_S + PIT_EXIT_STOP_GO_S) as u32,
+            "a stop-go too late to serve"
+        );
+        let list = [pass, Penalty::issue(Offence::PitExitRed, 5, 11, true)];
+        assert_eq!(owed(&list).map(|p| p.kind), Some(PenaltyKind::StopGo));
     }
 
     #[test]

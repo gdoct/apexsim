@@ -109,8 +109,8 @@ Called inside `update_air` before the physics, and in the countdown.
   fades out over the last m/s below the limit. A car more than
   `LIMITER_BRAKE_FROM_MPS` (1 m/s) over it is braked, harder the further
   over (full at 6 m/s more), at most `LIMITER_BRAKE_MAX` (0.6) of the pedal:
-  there are no penalties, so this is what holds a driver who drives the
-  lane themselves to the limit.
+  this, not a penalty, is what holds a driver who drives the lane
+  themselves to the limit.
 - **Autopilot.** A human's car that crosses the pit entry line (the first
   limit line, by the speed-limit board: on the lane, within
   `TAKEOVER_WINDOW_M` (40 m) past the line, past the road edge on the lane's
@@ -182,7 +182,13 @@ Called inside `update_air` before the physics, and in the countdown.
   track, not on the pit route, is within max(3 s at its speed, 25 m) of
   where the lane rejoins. A serviced car on the route stops short of the
   last line while it is red, for at most `EXIT_HOLD_MAX_S` (10 s), then
-  goes (`PitState::held`).
+  goes (`PitState::held`). A driver on a manual lane who crosses the last
+  line while it is red is penalised under `pit_exit_penalty`.
+- **Penalties** ([sessions](sessions.md#penalties)): a drive-through is a
+  visit from the first limit line to the last with no stop
+  (`PitState::drive_through`; the route goes on past the box), a stop-go
+  is the next stop, held with no work (`PitState::stop_go`) and not a stop
+  for the pit rule.
 - A car towed after retiring is parked at its own box
   (`update_retirements`).
 

@@ -282,10 +282,15 @@ nothing is set; echoed in `SessionJoined.RaceRules`):
 
 - `start` (`StartType` `Standing` / `Rolling`, 0-1, default Standing);
 - `formation_lap` (`bool`): a standing start is preceded by a formation lap;
-- `jump_start` (`bool`): false starts are watched for.
+- `jump_start` (`bool`): false starts are watched for, and penalised with a
+  drive-through;
+- `yellow_penalty` (`bool`): a pass under a yellow is penalised;
+- `pit_exit_penalty` (`bool`): leaving a manual pit lane past its red light
+  is penalised.
 
-All three are described in "Race start: formation lap, rolling start, false
-starts". Not listed in the lobby; a hosted session does not take them yet.
+The start rules are in "Race start: formation lap, rolling start, false
+starts", the penalties in "Penalties". Not listed in the lobby; a hosted
+session does not take them yet.
 
 ## The race's grid
 
@@ -416,7 +421,8 @@ that ends in the green (not the one before a formation lap), a driver's car
 past `JUMP_THROTTLE` is let go of (`race_start::releases`): it runs the
 physics instead of being held, so it moves if the driver lets it. One that
 is more than `JUMP_START_M` (0.5 m) off its slot before the lights go out
-has jumped the start (`RaceStart::jumped`, logged). A car on the automatic
+has jumped the start (`RaceStart::jumped`, penalised at the green, see
+"Penalties"). A car on the automatic
 box waits in neutral and cannot jump. Released cars are not collided with
 the held grid. Without the rule the grid is held as ever.
 
@@ -434,7 +440,9 @@ before the green or once the session is `Finished`.
   double yellow while it is on the road, a single off it, and the sector
   before it a single. A flag is held `YELLOW_HOLD_S` (5 s) after its last
   cause. A car passing another of the same lap in a yellow sector is
-  recorded (`RaceControl::yellow_passes`) for penalties to come.
+  recorded (`RaceControl::take_yellow_passes`, for "Penalties"), unless the
+  car passed is in trouble: under `INCIDENT_SPEED_MPS`, off the road,
+  backing up, or slower than `YELLOW_PASS_SLOWER_SHARE` (70%) of the passer.
 - **Blue**, per car: a car a lap or more up within `BLUE_GAP_S` (1.5 s) at
   its speed, or `BLUE_GAP_MIN_M` (30 m), behind.
 - Each car is told (`CarState::flag_yellow`, the worse of its sector's and
@@ -454,6 +462,45 @@ before the green or once the session is `Finished`.
   `FApexTelemetryFrame::YellowSectors` / `YellowAt`; the HUD's `flag.*`
   data points, `item.blue_flag` / `item.yellow`, and the `flags` component
   ([hud-modding](../game/hud-modding.md)).
+
+## Penalties
+
+Race control gives a penalty (`race_control::Penalty`,
+`GameSession::penalise`, run from `update_penalties` each racing tick after
+the flags, and from `update_pits`) for each offence the session's
+`race_rules` name; none is given before the green, after a car's flag, or
+for an offence the rules leave out.
+
+| Offence (`Offence`) | Rule | Penalty |
+|---|---|---|
+| Jump start (0), found by the false-start watch, given at the green | `jump_start` | drive-through |
+| Pass under a yellow (1), from the flags; the same pair again within `YELLOW_PASS_REPEAT_S` (10 s) is the same pass | `yellow_penalty` | `YELLOW_PASS_PENALTY_S` (5 s) time |
+| Out of a manual pit lane past the red exit light (2): across the last limit line while `pit::exit_closed`, not on the pit route | `pit_exit_penalty` | stop-go, `PIT_EXIT_STOP_GO_S` (10 s) |
+
+- **Time** penalties are counted at once (`PenaltyStatus::Added`).
+- **Drive-through and stop-go** are owed and served in the pit lane within
+  `SERVE_WITHIN_LAPS` (3) laps of the lap given on. Past that, or still owed
+  at the car's flag, one is added as time (`Penalty::convert`:
+  `DRIVE_THROUGH_TIME_S` 20 s, a stop-go that plus its hold); one given
+  where it cannot be served (no pit lane, or fewer than 3 laps left) is
+  added at once.
+- **A drive-through** is served by crossing the lane's last limit line on a
+  visit that crossed its first line owing one with no stop between
+  (`PitState::drive_through`); the AI's route and the autopilot's go on past
+  the box (`serviced` set as the car crosses the first line).
+- **A stop-go** is the car's next stop in its box: held for its seconds
+  (`PitState::stop_go`), no work done, not counted as a stop for the pit
+  rule (`PitService` goes out with nothing but the total).
+- The AI serves either at its next pass of the lane (`plan_ai_stops`: an
+  owed penalty sets `wants_stop`), and a served drive-through clears it.
+- **Classification**: a car's added seconds go on the tick it took the
+  flag (`Finisher::penalty_ticks`): finishers on the same lap are ordered by
+  that, and its race time and gap carry them (`ClassifiedCar::penalty_s`,
+  the results file's `penalty_s` column).
+- On the wire: `RosterEntry.Penalties` (`PenaltyData { Reason, Kind,
+  Seconds, Lap, Status }`, in the order given, left off when none); the
+  roster goes out again whenever one is given, served or added.
+- Every penalty goes when the field lines up again (`line_up_on_grid`).
 
 ## Timed races
 
@@ -1187,6 +1234,8 @@ cargo test --test session_conditions_test     # rules echoed and enforced end to
 cargo test --test grid_order_test             # start order, stored results, over the wire
 cargo test --test ready_grid_test             # the race's grid: OpenGrid, SetReady, the countdown
 cargo test --test race_start_test             # formation lap back to the grid, rolling start, a jump start, a held grid
+cargo test --test penalty_test                # the AI's drive-through and stop-go at the Norisring
+cargo test --lib time_penalty                 # a time penalty reorders the finishers
 cargo test --lib race_start                   # the approach's pace, headway across the line
 cargo test --test reconnect_test              # held seat, resume, takeover, grace, Disconnect
 cargo test --test lap_timing_test             # sectors and track limits round Monza

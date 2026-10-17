@@ -3,8 +3,8 @@
 //! Each race session that finishes leaves `<records dir>/results/<session
 //! id>_<unix time>.json` and a `.csv` beside it (`[records] results`, on by
 //! default): every car in classified order, with its laps, best lap, race
-//! time, the gap to the winner or the laps it was down, and the pit rule's
-//! penalty. Cars still running at the end follow the finishers, by laps
+//! time, the gap to the winner or the laps it was down, the pit rule's
+//! penalty and the seconds race control's penalties added. Cars still running at the end follow the finishers, by laps
 //! and distance. Written off the game loop.
 
 use std::path::{Path, PathBuf};
@@ -39,6 +39,9 @@ pub struct ClassifiedCar {
     /// Took the flag owing a stop or its second compound under the pit
     /// rule: classified behind every car that met it.
     pub missed_stops: bool,
+    /// Seconds race control's penalties added to its race time
+    /// (`race_control::Penalty::added_s`); counted in `race_time_ms`.
+    pub penalty_s: u32,
 }
 
 /// A finished race, as written.
@@ -62,14 +65,14 @@ impl RaceResult {
     /// The classification as CSV: a header line, then one line a car.
     pub fn csv(&self) -> String {
         let mut out = String::from(
-            "position,name,ai,status,laps,best_lap_ms,race_time_ms,gap_ms,laps_down,missed_stops\n",
+            "position,name,ai,status,laps,best_lap_ms,race_time_ms,gap_ms,laps_down,missed_stops,penalty_s\n",
         );
         let opt = |v: Option<u32>| v.map_or(String::new(), |v| v.to_string());
         for car in &self.cars {
             // A name is quoted, its own quotes doubled.
             let name = format!("\"{}\"", car.name.replace('"', "\"\""));
             out.push_str(&format!(
-                "{},{},{},{},{},{},{},{},{},{}\n",
+                "{},{},{},{},{},{},{},{},{},{},{}\n",
                 car.position,
                 name,
                 car.is_ai,
@@ -79,7 +82,8 @@ impl RaceResult {
                 opt(car.race_time_ms),
                 opt(car.gap_ms),
                 car.laps_down,
-                car.missed_stops
+                car.missed_stops,
+                car.penalty_s
             ));
         }
         out
@@ -116,6 +120,7 @@ mod tests {
             gap_ms: (position == 2).then_some(1_234),
             laps_down: 0,
             missed_stops: false,
+            penalty_s: 0,
         }
     }
 
@@ -139,9 +144,12 @@ mod tests {
         assert_eq!(lines.len(), 4);
         assert_eq!(
             lines[1],
-            "1,\"Rex \"\"T\"\" Thunder\",true,finished,5,80000,400001,,0,false"
+            "1,\"Rex \"\"T\"\" Thunder\",true,finished,5,80000,400001,,0,false,0"
         );
-        assert_eq!(lines[3], "3,\"Max Voltage\",true,retired,2,80000,,,0,false");
+        assert_eq!(
+            lines[3],
+            "3,\"Max Voltage\",true,retired,2,80000,,,0,false,0"
+        );
         let dir = std::env::temp_dir().join(format!("apexsim_results_{}", std::process::id()));
         let path = result.write(&dir).unwrap();
         let back: serde_json::Value =

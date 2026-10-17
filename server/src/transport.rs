@@ -152,7 +152,8 @@ pub enum OutboundFrame {
 #[derive(Debug)]
 pub enum TransportEvent {
     /// A client message received on an established connection.
-    Message(ConnectionId, ClientMessage),
+    /// Boxed: a `CreateSession` is far larger than the other events.
+    Message(ConnectionId, Box<ClientMessage>),
     /// The connection was torn down (stream closed). Carries everything the
     /// game loop needs, captured before the connection maps were cleaned up.
     Disconnected {
@@ -875,7 +876,7 @@ impl TransportLayer {
                                     }
 
                                     if event_tx
-                                        .send(TransportEvent::Message(connection_id, msg))
+                                        .send(TransportEvent::Message(connection_id, Box::new(msg)))
                                         .await
                                         .is_err()
                                     {
@@ -1049,7 +1050,7 @@ impl TransportLayer {
                             Err(e) => error!("Failed to serialize UdpHandshakeAck: {}", e),
                         }
                     } else if event_tx
-                        .send(TransportEvent::Message(conn_id, msg))
+                        .send(TransportEvent::Message(conn_id, Box::new(msg)))
                         .await
                         .is_err()
                     {

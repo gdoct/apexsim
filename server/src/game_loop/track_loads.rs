@@ -78,12 +78,12 @@ impl TrackLoads {
             }
             return None;
         }
-        let TransportEvent::Message(
-            _,
-            ClientMessage::CreateSession {
-                track_config_id, ..
-            },
-        ) = &event
+        let TransportEvent::Message(_, msg) = &event else {
+            return Some(event);
+        };
+        let ClientMessage::CreateSession {
+            track_config_id, ..
+        } = msg.as_ref()
         else {
             return Some(event);
         };

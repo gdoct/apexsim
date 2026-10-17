@@ -1878,6 +1878,45 @@ pub struct RosterEntry {
     /// outside one.
     #[serde(default, skip_serializing_if = "is_zero_u8")]
     pub qualifying_laps: u8,
+    /// Race control's penalties given to this car this race
+    /// (`race_control::Penalty`), in the order given; the roster is sent
+    /// again whenever one is given, served or added as time. Left off the
+    /// wire when none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub penalties: Vec<PenaltyData>,
+}
+
+/// One penalty (`race_control::Penalty`) as a roster carries it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct PenaltyData {
+    /// What for: 0 a jump start, 1 a pass under a yellow, 2 a red-light
+    /// pit exit (`race_control::Offence`).
+    pub reason: u8,
+    /// How it is paid: 0 time, 1 a drive-through, 2 a stop-go
+    /// (`race_control::PenaltyKind`). An unserved one becomes 0.
+    pub kind: u8,
+    /// A time penalty's seconds (what an unserved one added), a stop-go's
+    /// hold; 0 for a drive-through.
+    pub seconds: u16,
+    /// The lap it was given on; a drive-through or stop-go is served by
+    /// `lap + race_control::SERVE_WITHIN_LAPS`.
+    pub lap: u16,
+    /// 0 still to serve, 1 served, 2 added to the race time
+    /// (`race_control::PenaltyStatus`).
+    pub status: u8,
+}
+
+impl From<&crate::race_control::Penalty> for PenaltyData {
+    fn from(p: &crate::race_control::Penalty) -> Self {
+        PenaltyData {
+            reason: p.offence as u8,
+            kind: p.kind as u8,
+            seconds: p.seconds,
+            lap: p.lap,
+            status: p.status as u8,
+        }
+    }
 }
 
 fn is_zero_u8(value: &u8) -> bool {
@@ -4555,6 +4594,7 @@ mod tests {
                 dnq: false,
                 missed_stops: true,
                 qualifying_laps: 0,
+                penalties: Vec::new(),
             }],
         });
         let roster_bytes = rmp_serde::to_vec_named(&roster).unwrap();
@@ -4585,6 +4625,7 @@ mod tests {
             start: StartType::Rolling,
             formation_lap: true,
             jump_start: true,
+            ..Default::default()
         };
         let create = |race_rules: RaceRules| ClientMessage::CreateSession {
             track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
@@ -4690,6 +4731,99 @@ mod tests {
             frame_bytes.len() - 4,
             "nil clock, sky, yellows and the phase"
         );
+    }
+
+    /// Penalties: a create naming the penalised offences (a pass under a
+    /// yellow, a red-light pit exit) and a roster row carrying a served
+    /// drive-through and an added time penalty. Printed as
+    /// `C_CreateSessionPenalties` / `S_SessionRosterPenalties` (`cargo test
+    /// penalties_wire_format -- --nocapture`).
+    #[test]
+    fn test_penalties_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let rules = RaceRules {
+            yellow_penalty: true,
+            pit_exit_penalty: true,
+            ..Default::default()
+        };
+        let create = ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: rules,
+        };
+        let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
+        println!("C_CreateSessionPenalties: {}", hex(&create_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession { race_rules, .. } => assert_eq!(race_rules, rules),
+            _ => panic!("Wrong message type"),
+        }
+
+        let roster = ServerMessage::SessionRoster(SessionRosterData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            entries: vec![RosterEntry {
+                car_index: 0,
+                player_id: Uuid::parse_str("11111111-2222-3333-4444-555555555555").unwrap(),
+                player_name: "Ana".into(),
+                is_ai: true,
+                car_config_id: Uuid::nil(),
+                livery: 0,
+                away: false,
+                grid_slot: 0,
+                ready: false,
+                dnq: false,
+                missed_stops: false,
+                qualifying_laps: 0,
+                penalties: vec![
+                    PenaltyData {
+                        reason: 0,
+                        kind: 1,
+                        seconds: 0,
+                        lap: 1,
+                        status: 1,
+                    },
+                    PenaltyData {
+                        reason: 1,
+                        kind: 0,
+                        seconds: 5,
+                        lap: 4,
+                        status: 2,
+                    },
+                ],
+            }],
+        });
+        let roster_bytes = rmp_serde::to_vec_named(&roster).unwrap();
+        println!("S_SessionRosterPenalties: {}", hex(&roster_bytes));
+        assert!(roster_bytes.windows(9).any(|w| w == b"Penalties"));
+        match rmp_serde::from_slice::<ServerMessage>(&roster_bytes).unwrap() {
+            ServerMessage::SessionRoster(data) => {
+                assert_eq!(data.entries[0].penalties.len(), 2);
+                assert_eq!(data.entries[0].penalties[1].seconds, 5);
+            }
+            _ => panic!("Wrong message type"),
+        }
     }
 
     /// A timed race: a create for two hours, the joined echo, and a
@@ -5986,6 +6120,7 @@ mod tests {
                 dnq: false,
                 missed_stops: false,
                 qualifying_laps: 0,
+                penalties: Vec::new(),
             };
         // Present and on the grid: no away key; no slot: no grid key.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false, false, 0)).unwrap();
@@ -6055,6 +6190,7 @@ mod tests {
             entries: vec![
                 RosterEntry {
                     qualifying_laps: 2,
+                    penalties: Vec::new(),
                     ..entry(0, "Player", false, false, 1)
                 },
                 entry(1, "Luna Swift", true, false, 2),
@@ -6140,6 +6276,7 @@ mod tests {
             dnq: false,
             missed_stops: false,
             qualifying_laps: 0,
+            penalties: Vec::new(),
         };
         // Not ready: no key, so a roster off the grid keeps its bytes.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false)).unwrap();

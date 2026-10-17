@@ -34,7 +34,6 @@ When an item is done, delete it from its backlog and from here.
 | B4 | Imported pit lanes: human not taken over at Spa / RBR | Bug | P2 | 🟡 | M |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
 | D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🔴 | M |
-| R2 | Penalties | Race rules | P2 | 🟡 | L |
 | R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🔴 | L |
 | S1 | Road crown and bumps | Simulation | P2 | 🟡 | M |
 | A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L |
@@ -77,7 +76,7 @@ When an item is done, delete it from its backlog and from here.
 ## 2. Recommended order
 
 1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting. Fresh features are where the bugs are.
-2. **Race control** — R2 (penalties), R1b (safety car) on the race-control module the flags built.
+2. **Race control** — R1b (a real safety car) on the race-control module the flags built.
 3. **Sim-racer essentials** — N1 (client prediction: largest online win, largest job).
 4. **Visual quality pass** — G4 of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
 5. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
@@ -159,21 +158,6 @@ closed and opened, the restart. AI strategy: stop under SC
 **Watch out:** the trigger must be deterministic (a stopped car on the road
 for N s, a blocked sector); restart procedure is a session rule
 (`CreateSession` field).
-
-#### R2. Penalties — P2 · 🟡 · L
-*Source: simulation-gaps.* After R1a, on the same race-control module.
-Includes overtaking under yellow (R1a) and jump starts (recorded by `race_start`, the `jump_start` rule).
-
-**What:** Only the pit-rule penalty exists. No pit-speeding (the limiter
-forces it), no red-light exit penalty on manual pit lanes, no time penalty,
-drive-through, stop-go, collision penalty or start ghosting.
-**Outcome:** Manual-pit and online races are fair; prerequisite for a
-driver/safety rating.
-**Implementation:** Start with the deterministic, objective ones: red-light
-exit, track-limit cuts (if wanted), time penalties applied to classification.
-Collision blame is the hard part — defer.
-**Watch out:** each penalty is a session rule: a `CreateSession` field echoed
-in `SessionJoined`.
 
 #### R3. Race events across days — P2 · 🔴 · L (epic)
 *Source: simulation-gaps, race weekends.*
