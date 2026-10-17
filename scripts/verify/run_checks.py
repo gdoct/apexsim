@@ -9,8 +9,9 @@
 
 A run id may be a glob (`r8-*`). `--repeat N` runs the chosen runs N times
 over, each pass into out/verify/<run>/pass_NN/, and tallies each pass
-(clean, incomplete, or the GPU/crash line) in out/verify/soak.log: the GPU
-stability soak. `--game-arg` (repeatable) adds a switch to the game's
+(clean, incomplete, or the GPU/crash line, and the client's first
+"Bounds watch" error if any) in out/verify/soak.log: the GPU stability
+soak. A run's args may say `{repo}` for the repository root. `--game-arg` (repeatable) adds a switch to the game's
 command line.
 
 A run (scripts/verify/runs.yml) is one launch of the game against a server
@@ -253,7 +254,7 @@ def game_command(run: dict, shots: list[dict], game: list[str], work: Path, port
         f"-ExecCmds=r.SetRes {width}x{height}w, DisableAllScreenMessages",
         "-ApexNoSplashHold", "-unattended", "-nosplash",
         f"-ApexSettingsDir={settings_dir(work, port, width, height)}",
-        *[str(a) for a in run.get("args") or []],
+        *[str(a).replace("{repo}", REPO.as_posix()) for a in run.get("args") or []],
         *(extra or []),
         f"-ApexScreenshotAfter={times}",
         f"-log=Verify_{run['id']}.log",
@@ -441,12 +442,22 @@ def log_findings(work: Path) -> list[str]:
         log("  no client log")
         return []
     keys = ("Fatal error", "DEVICE_HUNG", "LogApexSim: Error", "LogApexSimNet: Error", "Disconnected",
-            "AutoRace", "-ApexExecAfter", "Unknown command")
+            "AutoRace", "-ApexExecAfter", "Unknown command", "Bounds watch")
     hits = [line.rstrip() for line in client_log.read_text(encoding="utf-8", errors="replace").splitlines()
             if any(k in line for k in keys)]
     (work / "client_notes.log").write_text("\n".join(hits) + "\n", encoding="utf-8")
     log(f"  {len(hits)} notable client log lines in client_notes.log")
     return [line for line in hits if any(k in line for k in GPU_FAILURES)]
+
+
+def bad_bounds(work: Path) -> list[str]:
+    """The bounds watch's error lines (a NaN, infinite or out-of-world
+    primitive), from the notes log_findings wrote."""
+    notes = work / "client_notes.log"
+    if not notes.is_file():
+        return []
+    return [line for line in notes.read_text(encoding="utf-8").splitlines()
+            if "Bounds watch" in line and "Error" in line]
 
 
 # ------------------------------------------------------------------------------
@@ -510,6 +521,9 @@ def main(argv=None) -> int:
                 failed.append(run["id"])
             if soak:
                 state = "GPU/CRASH | " + gpu[0][:200] if gpu else ("incomplete" if not ok else "clean")
+                bounds = bad_bounds(work)
+                if bounds:
+                    state += " | BOUNDS | " + bounds[0][:300]
                 with open(soak, "a", encoding="utf-8") as f:
                     f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} pass {n + 1} {run['id']}: {state}\n")
     if failed:

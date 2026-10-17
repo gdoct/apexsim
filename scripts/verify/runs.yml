@@ -1695,3 +1695,35 @@ runs:
       25: ["apexsim.hud.Data sky.", "apexsim.hud.Data session.conditions"]
     shots:
       - {at: 28, label: "the conditions panel: next three and the outlook", checks: "sky.outlook from the written forecast"}
+
+  # The menu's demo backdrop from a cold start: a GPU hang (VSM non-Nanite
+  # culling, CullPerPageDrawCommandsCs) came 5 s after Silverstone's track
+  # was built behind the menu. Short runs, so a soak is many cold starts:
+  #   run_checks.py "b1-*" --repeat 20 --game-arg=-gpucrashdebugging
+  # Shot times count from the menu's start here (no race view).
+  - id: b1-backdrop-silverstone
+    about: "B1. Demo backdrop cold start: Silverstone F1 (the hang of 2026-10-17)"
+    args:
+      - "-ApexShowcase={repo}/build/showcase/Silverstone.f1.day.apxs"
+    shots:
+      - {at: 15, label: "backdrop just built", checks: "GPU soak: no hang"}
+      - {at: 30, label: "backdrop", checks: "GPU soak: no hang"}
+      - {at: 45, label: "backdrop", checks: "GPU soak: no hang"}
+
+  - id: b1-backdrop-sakhir
+    about: "B1. Demo backdrop cold start: Sakhir F1 at night (floodlights)"
+    args:
+      - "-ApexShowcase={repo}/build/showcase/Sakhir.f1.night.apxs"
+    shots:
+      - {at: 15, label: "backdrop just built", checks: "GPU soak: no hang"}
+      - {at: 30, label: "backdrop", checks: "GPU soak: no hang"}
+      - {at: 45, label: "backdrop", checks: "GPU soak: no hang"}
+
+  - id: b1-backdrop-saopaulo
+    about: "B1. Demo backdrop cold start: Sao Paulo F1 in the rain"
+    args:
+      - "-ApexShowcase={repo}/build/showcase/SaoPaulo.f1.rain.apxs"
+    shots:
+      - {at: 15, label: "backdrop just built", checks: "GPU soak: no hang"}
+      - {at: 30, label: "backdrop", checks: "GPU soak: no hang"}
+      - {at: 45, label: "backdrop", checks: "GPU soak: no hang"}

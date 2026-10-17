@@ -552,6 +552,13 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
   `apexsim.finish [view|car N|panorama|end]` (the view after the flag, now).
 - Input and audio: `apexsim.input.Devices|Rescan`, `apexsim.ffb.Debug`, `apexsim.audio.RenderCars`.
 - Net: `apexsim.net.ParseCenterline` (parse the lobby's track centerlines; set from HUD detail).
+- GPU: `apexsim.debug.BoundsWatch` (on outside Shipping; `UApexBoundsWatchSubsystem`)
+  checks every rendered primitive's bounds after each frame's actor ticks
+  and logs a NaN, infinite or out-of-world one (`Bounds watch: ...` at
+  Error, log flushed) with its owner and transform, plus each new largest
+  primitive past 1 km. About 0.2 ms a frame for a thousand primitives. It
+  is there for the GPU hang in VSM non-Nanite culling
+  ([verification.md](../verification.md), section 3).
 
 ## Checking it
 

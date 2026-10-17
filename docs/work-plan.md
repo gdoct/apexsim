@@ -28,7 +28,7 @@ When an item is done, delete it from its backlog and from here.
 
 | ID | Item | Type | Pri | Human | Effort |
 |---|---|---|---|---|---|
-| P1 | GPU `DXGI_ERROR_DEVICE_HUNG` in races | Platform | P1 | 🔴 | M |
+| P1 | GPU `DXGI_ERROR_DEVICE_HUNG` (races, demo backdrop) | Platform | P1 | 🔴 | M |
 | A1 | Imported AC cars' AI crashes (1–10 retire per race) | AI | P1 | 🟡 | M |
 | N1 | Client-side prediction for the local car | Netcode | P1 | 🟡 | L |
 | N2 | Telemetry output for external apps and rigs | Integration | P1 | 🔴 | M |
@@ -134,9 +134,12 @@ test with VSM off / the Nanite-shadows proposal
 (`proposals/nanite-shadows.md`).
 **Watch out:** needs the Windows GPU box; an agent on that machine can run
 the loop, but you have to leave it available for hours.
-**Status (2026-10-17):** the soak ran — `run_checks.py "r8-*" --repeat 4
---game-arg=-gpucrashdebugging`, 88 of 88 clean. Not reproduced; close
-after a sitting of real races without a hang.
+**Status (2026-10-17):** the R8 soak ran 88 of 88 clean. A third hang
+then came on the menu's demo backdrop (not a race), with an Aftermath
+dump: a TDR in VSM's `CullPerPageDrawCommandsCs`, no overflow logged
+(verification §3 has the detail). The bounds watch now logs a NaN or
+out-of-world primitive; next is the cold-start soak
+`run_checks.py "b1-*" --repeat 20 --game-arg=-gpucrashdebugging`.
 
 #### P3. Integrated GPU — P2 · 🔴 · S
 Needs an Iris Xe / Arc or Radeon 680M/780M machine to confirm the LOW preset
