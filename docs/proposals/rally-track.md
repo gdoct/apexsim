@@ -69,7 +69,7 @@ content requirement, not a claim that every asset already exists. Record any
 missing asset as new kit work, with its kind, footprint, pivot, material
 slots, and intended placement before building it. See
 [`../content/props.md`](../content/props.md) for authoring rules and the
-current catalogue.
+current catalogue. We have Blender integration to create these ourselves.
 
 ### Required on every stage
 

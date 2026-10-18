@@ -48,6 +48,25 @@ circuit do not show them yet.
 seen flashing yellow at the incident's sector and blue as the lapped car
 passes.
 
+### 23. Overheated tyres do not cool down
+
+Seen testing, 2026-10-18: once a tyre is overheated (about 140 °C) it does
+not come back down properly, even when driven gently.
+
+- Reproduce it: take a tyre to 140 °C, then drive steady laps and log
+  tread, core and the heat in and out per tyre (`tyre_thermal.rs`).
+- Find the cause. Two guesses, neither checked: an overheated tyre has
+  less grip, slides more and makes more slide heat, so it holds itself hot;
+  or air convection and road conduction are too weak to shed heat that far
+  above the window.
+- Real tyres shed an overheat in a lap or two of gentle driving; make that
+  the target, without moving the normal window (the AI's pace sets the
+  class windows, so a change shows in the survey).
+
+**Check:** a test in `tests/tyre_temperature_test.rs` that a tyre at 140 °C
+falls back towards its window in about two gentle laps; the AI survey
+against the commit before; a person drives it.
+
 ## P2: depth
 
 ### 5. Hotlap and lap records
@@ -202,6 +221,52 @@ has a kink and does not follow the bend smoothly.
 circuits (`-ApexCameraLookAt`), before and after; full `track-editor`
 tests; the AI survey against the commit before.
 
+### 24. Main menu: replays under Watch a race, hotlap under Drive, Cars
+
+Seen testing, 2026-10-18: Replays sits on the Garage page, where nobody
+looks for it, and driving a hotlap has no menu row of its own.
+
+- Make Watch a race a page of its own (`ApexMainMenuWidget.cpp`
+  `EPage`, today a direct `Action::Watch`) with Live race (the backdrop
+  race full screen, `WatchBackdrop`, what the row does now) and Replays
+  (moved from the Garage page, with its file-count badge). The Garage page
+  keeps Garage and Tracks.
+- Hotlap on the Drive page (Create session, Hotlap, Browse sessions,
+  Connect to server): today a hotlap is only reached through the create
+  screen's mode list. The row opens the create screen on its Hotlap mode
+  (decided 2026-10-18), as Race weekend does (`Flow->CreateStartingMode = EApexGameMode::Hotlap`,
+  `Action::Weekend` in `ApexMainMenuWidget.cpp` is the pattern). Watch
+  hotlap stays on the Tracks page.
+- The Garage page's first row is also called Garage (`Action::GoCars`),
+  and its page is headed "Garage / Garage": name the row Cars and the
+  heading "Garage / Cars".
+- Update the menu's page list in `game/client.md`.
+
+**Check:** `ApexSim.UI.PadWalk` (it walks screens, so the moves should not
+break it); a shot of each changed page; Back from Replays lands on Watch a
+race; Drive / Hotlap starts a hotlap.
+
+### 25. Car select: confirm before leaving
+
+Seen testing, 2026-10-18: clicking a car on the car select screen picks it
+and leaves at once (`UApexCarSelectWidget::HandleRowActivated` sends
+`SelectCar` and `ReplaceScreen(ScreenAfterCarSelect)`), so a mouse player
+cannot look at a car's details or change its livery first.
+
+- A click (or Enter on a row) selects the car and shows it on the stage;
+  a Confirm button (and a double-click on a row) sends the choice and
+  leaves. Back leaves without changing the car.
+- The confirm was taken out on purpose: "a separate confirm button meant a
+  second trip across the page with a pad" (the comment in
+  `HandleRowActivated`). Decided 2026-10-18: pad Accept on a row still
+  confirms at once (moving through the list already describes a car); only
+  the mouse gets the Confirm button and double-click.
+- Track select gets the same, so the two screens agree.
+
+**Check:** `ApexSim.UI.PadWalk`; a mouse run: click a car, change its
+livery, Confirm, the car and livery land in the lobby; Back keeps the old
+car; a pad run picks a car in as few presses as today.
+
 ## P3: nice to have
 
 ### 11. Content tooling
@@ -281,6 +346,7 @@ the launcher import with the network off.
 - Review and improve the visual and functional aspects of pit lane entry and exit, ensuring smooth transitions and accurate representation in the game. 
 - The pit lane entries should be closer to the actual pit boxes and clearly marked by a line.
 - The pit lane exits should be immediately after the last pit box. That should be where the light is located. From that point, the player can already get control there and have no speed limit.
+  Decided 2026-10-18 against this: the limit line and the light sit where the real circuit has them (work plan D1).
 
 
 ## P5: Cleanup

@@ -73,6 +73,8 @@ laps against each other in the pause menu.
 
 ### 8. Public server list
 
+Parked 2026-10-18 (not now): players join known hosts by address.
+
 - A small self-hosted Rust service (a Dockerfile beside the server's)
   that servers register with and heartbeat to over HTTPS (opt-in per
   server, TLS fingerprint, verified by connecting back); an Internet tab in
@@ -93,8 +95,9 @@ Built: a render scale row (TSR) set by the presets and an HDR switch
 ([game/client.md](game/client.md#graphics-quality-uapexsettingssubsystemapplygraphics)).
 Left:
 
-- DLSS and FSR as plugins (their licences), and a paper-white level for
-  HDR.
+- DLSS and FSR as plugins (decided 2026-10-18: both; TSR stays the
+  default, and NVIDIA's DLSS SDK terms are accepted when it is
+  downloaded), and a paper-white level for HDR.
 
 **Check:** the presets on the RTX machine and an integrated GPU; mirrors
 and triple screens at each scale; HDR on an HDR display.
@@ -128,6 +131,27 @@ against it: no server process, no recorded stream, one simulation.
 - Tools without a server: the track guide, the marketing site's shots, the
   benchmark, a car's stat sheet (a lap estimate) and setup what-ifs in the
   garage run in the game process; the scripts stop launching a server.
+- First use, and the reason to start: drop the content build's bakes.
+  `initialize_content.ps1` stages 7 and 8, `build_track_levels.ps1`'s
+  showcase step and `build_release.ps1`'s `Showcase\` and `Guide\` render
+  the showcases of `content/showcase.yml` (`apexsim-replay render`) and the
+  track guides (`apexsim-replay guide --all`: the solo runs, the corner
+  measures, `<Stem>.<Class>.guide.json` and `.guide.apxs`), and they go
+  stale on every track YAML or car.toml edit. With the session tick in the
+  client the game makes a guide the first time a circuit and class is
+  opened, and a showcase from its seed, and caches both under `Saved/`
+  keyed by the content checksums. The `.guide.yml` notes and
+  `showcase.yml` stay as the inputs; the build stages, `ApexGuide.ps1`,
+  `ApexShowcase.ps1`'s render and the shipped folders go.
+- Watch hotlap the same way: one AI car lapping alone is an example run
+  nobody races, so the game simulates it instead of asking the server for a
+  `HotlapWatch` session and watching its stream
+  (`UApexRootWidget::StartHotlapWatch`, `start_streamed_hotlap_watch`).
+  The car, its setup, the weather, the hour and the AI's skill
+  (`HOTLAP_WATCH_SKILL`) are the client's own choice already; the corners
+  (`track_guide::wire_corners`, sent today as `TrackCorners`) come from the
+  same library. It then works offline, and the server's `HotlapWatch` kind
+  and its stream path retire, as `SessionKind::Demo` does (X1).
 - Later, perhaps: offline single-player with no server at all.
 
 The server stays the only authority for any session a human races in
@@ -143,9 +167,114 @@ server hands out) and matching content checksums; the game's binary grows
 by the AI and session code.
 
 **Check:** a showcase seed simulated in the game bit-identical to the
-server's render of it; the menu backdrop with no server running.
+server's render of it; the menu backdrop with no server running; a guide
+made in the game equal to `apexsim-replay guide`'s for the same circuit and
+class (corners, speeds, gears, braking points), and how long the first
+open takes; Watch hotlap with no server running, its lap time the server's
+for the same car, setup and sky; a release built without the showcase and
+guide stages.
+
+### 25. Tyre graphic on the HUD
+
+A new HUD component (`content/hud/default/tyres/`) that shows the four tyres
+as a picture of the car's corners, not figures: each tyre coloured by its
+temperature against the window and by its wear, with damage and flat spots
+drawn on it.
+
+- The four tyres laid out FL FR / RL RR, each one coloured by tread
+  temperature (`item.state`: cold, ok, hot, over; the shoulders from
+  `item.inner_c` / `item.outer_c` across the tyre) and showing wear
+  (`item.wear_pct`, as a fill or a second colour).
+- Damage: a flat or a slow leak (`item.flat`, `item.leak`), and a flat spot.
+  The flat spot is already on the wire (`flat_spot` per tyre in the
+  telemetry) but not a HUD data point: add `item.flat_spot_pct` to the
+  `tyres` list on every path of `ApexHudData::Build` and list it in
+  `game/hud-modding.md`.
+- On by default in the race layout, movable in the HUD editor; brakes and
+  pressures stay in `car_state`.
+
+**Check:** `ApexSim.Hud.Data.Stable` / `.Documented`; a shot with a tyre
+cold, one over, one worn and one flat-spotted (debug hooks or a seeded
+run), judged by a person.
+
+### 26. Rain radar on the HUD
+
+A rain radar laid over the minimap: rain cells drifting in with the wind,
+so a driver sees rain coming before it reaches the circuit.
+
+- The server's rain is circuit-wide and follows the forecast in time
+  (`conditions.rs` `forecast`, `RAIN_EASE_S`); there are no clouds in
+  space. The radar draws them from what is known: the forecast's next
+  wetter step and when (`sky.next_weather`, `sky.next_in_s`) and the wind's
+  direction and speed. A band of cells sits upwind at the distance the wind
+  covers before that step, drifts in at the wind's speed and reaches the
+  circuit as the rain starts; drying weather moves the band off downwind.
+- Cell shapes come from the sky's seed (`wind::hash01`), so every client and
+  a replay draws the same picture. Intensity in the usual radar colours
+  (light rain green-blue, heavy rain yellow-red, snow white).
+- A `rain_radar` HUD component (or a layer of `minimap`), with a zoom out
+  past the circuit; any new data points listed in `game/hud-modding.md`.
+- Later, with rain that falls on part of the circuit (a sim gap, not this
+  package), the same picture becomes the server's real cells.
+
+**Check:** a session with a host forecast of sunny then heavy rain in
+10 min: the band seen arriving as the rain starts, on two clients the same;
+`ApexSim.Hud.Data.Stable` / `.Documented`; a person judges the look.
+
+### 27. Content packs and a content repository
+
+Split the cars, circuits and props out of this repository into versioned
+packs that install and update apart from the code
+([proposals/split-off-content.md](proposals/split-off-content.md)): a seed
+(decided 2026-10-18: one car per class and Spa, Zandvoort and Monza,
+larger than the proposal's) stays here so everything builds and tests
+alone, and the launcher, the server and the game get an upgrade path where a
+code release and a content release are separate.
+
+- Phase 1, no network: `pack.json`, `installed.json`, `build_packs.ps1`,
+  `apexsim-server content install <file>`, the launcher installing a local
+  `.apxpack`.
+- Phase 2, the split: `apexsim-content` made with its history
+  (`git filter-repo` on `content/`, LFS kept), the seed left behind,
+  `initialize_content.ps1 -Content`, CI on both sides.
+- Phase 3, the signed index (GitHub release assets of `apexsim-content`,
+  decided 2026-10-18) and updates: the dashboard's Updates section,
+  the launcher's pack and code updates, `ContentVersion` on the wire.
+- Phase 4, update-and-join and `require_match`.
+
+**Check:** each phase's check in the proposal; at the end, the
+client-has / server-has table in it, every row.
 
 ## P3: nice to have
+
+### 28. Smaller recorded sessions
+
+Cut a `.apxs` stream file to about 40% of its size without losing a bit,
+keep zlib on both sides, and bound what recordings may occupy
+([proposals/replay-size.md](proposals/replay-size.md)). Today 16 cars are
+45 to 57 MB an hour, on the server and again on every client in the
+session; the frames are 87% of it.
+
+- Phase 1, a columnar block: a `ColumnBlock` record (type 11), columns per
+  car and field, deltas from the previous frame, byte planes, zlib-6;
+  `FILE_VERSION` 2, readers keep reading version 1; the wire does not
+  change. About 1.9x smaller. `scripts/replay_size.py` lands with it.
+- Phase 2, ten-second blocks (`BLOCK_SECONDS` on both sides,
+  `QUEUE_BLOCKS` 512 to 51): another 1.25-1.4x.
+- Phase 3, lossy and measured first: wheel slip off every row (the
+  watched car's road sound is the judge), cm poses, a second-order delta.
+- Phase 4, how much is kept: `[records] keep_replays` / `keep_replays_mb`
+  on the server (default unlimited), a size line on the client's Replays
+  screen, the timeshift buffer held packed.
+- `.gitignore` ignores `server/replays/` but not `/replays/`, where a server
+  run from the repo root writes.
+
+**Check:** a round trip test (`bodies` of `pack` is the input),
+`a_session_is_recorded_as_a_stream_file`, a version 2 golden `File` beside
+the version 1 one in `ApexSpectatorGoldenBlobs.h` / `BackdropTests.cpp`,
+`apexsim-replay info --check` on every re-rendered showcase, and the
+determinism of `render` (same seed, same bytes).
+
 
 ### 13. Rewind in offline practice
 
@@ -232,11 +361,6 @@ what it touches, how it is checked) before it becomes a package.
 - **Shared leaderboards across servers.** Lap records and the track
   leaderboard screen are per server; sharing needs a service and a trust
   model.
-- **UDP encryption.** Inbound datagrams are sealed (HMAC under a
-  per-connection key from `AuthSuccess`, rising sequence), so forged,
-  tampered or replayed input is dropped; only reading telemetry and input
-  off the wire is left open, and it carries nothing the other players do
-  not already get. TCP has TLS. Likely not worth DTLS.
 - **More screens.** A five-wide row (`MaxSplitscreenPlayers` would need 5),
   a second monitor for telemetry, shared exposure across the triple-screen
   views.

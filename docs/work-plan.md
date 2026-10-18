@@ -30,12 +30,15 @@ When an item is done, delete it from its backlog and from here.
 |---|---|---|---|---|---|
 | V1 | Verify the newest session screens (R9, R11, R12) | Verification | P1 | 🟡 | S |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
+| B8 | Overheated tyres (140 °C) do not cool down | Bug (physics) | P1 | 🟡 | S–M |
 | B6 | Create-session screen too cluttered; shows a dead Sandbox mode | Bug | P2 | 🟡 | S |
 | B7 | Kinks in the inside curb of some corners, all circuits | Bug | P2 | 🟡 | M |
 | F2 | Trackside light panels showing yellow and blue | Feature + content | P2 | 🟡 | M |
+| B9 | Main menu: Replays under Watch a race, Hotlap under Drive | UI | P2 | 🟢 | S |
+| B10 | Car select leaves on the first click; wants a Confirm | UI | P2 | 🟡 | S |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
-| D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🔴 | M |
-| R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🔴 | L |
+| D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🟡 | M |
+| R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🟡 | L |
 | S1 | Road crown and bumps | Simulation | P2 | 🟡 | M |
 | A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each |
@@ -43,9 +46,12 @@ When an item is done, delete it from its backlog and from here.
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S |
 | N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L |
 | N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S |
-| N7 | Championships and series with points | Game mode | P2 | 🔴 | M |
-| N8 | Public server list (master server) | Online | P2 | 🔴 | M |
-| N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🔴 | M |
+| N7 | Championships and series with points (offline first) | Game mode | P2 | 🟡 | M |
+| N24 | Tyre graphic on the HUD (temp, wear, damage, flat spots) | HUD | P2 | 🟡 | S–M |
+| N25 | Rain radar over the minimap | HUD | P2 | 🟡 | M |
+| N26 | Content packs and a content repository (proposal) | Platform (epic) | P2 | 🔴 | L |
+| N28 | Guides, showcases and Watch hotlap simulated in the client (roadmap #24) | Platform + tooling | P2 | 🟢 | L |
+| N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M |
 | N11 | Livery editor / own livery import | Content | P2 | 🟡 | M |
 | B5 | Chase camera inside a car body | Bug | P3 | 🟡 | S |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M |
@@ -61,8 +67,9 @@ When an item is done, delete it from its backlog and from here.
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each |
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each |
 | X1 | `SessionKind::Demo` removal | Cleanup | P3 | 🟢 | S |
+| N27 | Smaller recorded sessions (proposal) | Platform | P3 | 🟢/🟡 | M |
 | N13 | Rewind / restart from a point (offline) | Driver tools | P3 | 🟢 | M |
-| N14 | Spotter and engineer radio | Audio | P3 | 🔴 | M |
+| N14 | Spotter and engineer radio | Audio | P3 | 🟡 | M |
 | N15 | Driver profile and stats | Progression | P3 | 🟢 | M |
 | N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M |
 | N17 | League rules: success ballast (reverse grid, BoP built) | Race rules | P3 | 🟢 | S each |
@@ -70,13 +77,13 @@ When an item is done, delete it from its backlog and from here.
 | N20 | Photo mode | Rendering | P3 | 🟡 | M |
 | N22 | Localisation and colour-blind-safe HUD | Accessibility | P3 | 🔴 | M |
 | N23 | VR (OpenXR) | Platform | P3 | 🔴 | L |
-| — | Driver rating, shared leaderboards, more screens, UDP encryption, Windows on Arm | — | Parked | — | — |
+| — | Driver rating, shared leaderboards, more screens, public server list (N8), Windows on Arm | — | Parked | — | — |
 
 ## 2. Recommended order
 
 1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting. Fresh features are where the bugs are.
 2. **Visual quality pass** — G4 of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
-3. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
+3. **Built on the decisions of 2026-10-18** — D1 (the real layout), R3 phase 1 (a key per install), N7 (an offline season), N26 phase 1. None of them waits on you any more.
 4. **Online and depth** — N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
 5. Everything P3 opportunistically, bundled with whatever touches the same files.
 
@@ -88,6 +95,14 @@ When an item is done, delete it from its backlog and from here.
 *Source: follow-ups #12.* Seen once on the Bugotti Chiffon. Check the chase
 ladder's offsets against the car's bounds (`game/cameras.md`); reproduce
 with `-ApexScreenshotAfter` on that car.
+
+#### B8. Overheated tyres do not cool down — P1 · 🟡 · S–M
+*Source: follow-ups #23 (testing, 2026-10-18).* A tyre taken to about
+140 °C stays hot under gentle driving. Reproduce it with a logged run
+(tread, core, heat in and out), find whether slide heat holds it hot or the
+cooling is too weak, and aim for an overheat shed in a lap or two without
+moving the normal window. Pin it in `tests/tyre_temperature_test.rs`, run
+the AI survey against the commit before; a person drives it.
 
 #### B6. Create-session screen too cluttered; shows a dead Sandbox mode — P2 · 🟡 · S
 *Source: follow-ups #21 (testing, 2026-10-18).* The create-session screen is too crowded.
@@ -107,6 +122,24 @@ radius or uneven samples) and fix it in the generator, not per track. The
 curb sidecar feeds physics too: re-export the tracks, run the full
 `track-editor` tests and the AI survey against the commit before; a person
 judges close-up shots of the worst corners.
+
+#### B9. Main menu: Replays under Watch a race, Hotlap under Drive — P2 · 🟢 · S
+*Source: follow-ups #24 (testing, 2026-10-18).* Replays is on the Garage
+page. Turn Watch a race into a page (Live race = today's backdrop watch,
+Replays) in `ApexMainMenuWidget.cpp` and drop Replays from Garage. Add a
+Hotlap row to the Drive page that opens the create screen on its Hotlap
+mode, as Race weekend does (decided 2026-10-18). Rename the Garage page's first row from
+Garage to Cars (heading "Garage / Cars"). Check with `ApexSim.UI.PadWalk` and shots;
+update `game/client.md`.
+
+#### B10. Car select leaves on the first click; wants a Confirm — P2 · 🟡 · S
+*Source: follow-ups #25 (testing, 2026-10-18).* Clicking a car picks it and
+leaves, so the details and livery cannot be looked at first. A click
+selects, a Confirm button (or double-click) sends it. The confirm was
+removed for the pad's sake (`HandleRowActivated`'s comment). Decided
+2026-10-18: pad Accept on a row still confirms at once (moving through the
+list already shows a car); the mouse gets Confirm and double-click. Track
+select gets the same. A person judges mouse and pad feel.
 
 ### Platform and stability
 
@@ -147,7 +180,7 @@ Bundle by module, each judged by the survey:
 
 ### Race rules and sessions
 
-#### R3. Race events across days — P2 · 🔴 · L (epic)
+#### R3. Race events across days — P2 · 🟡 · L (epic)
 *Source: simulation-gaps, race weekends.*
 
 **What:** A weekend lives only as one in-memory session. No event entity, no
@@ -156,17 +189,19 @@ schedule, no AI identities, no combined results record.
 **Outcome:** Real league-style weekends: practice Friday, qualifying
 Saturday, race Sunday, same drivers, results kept.
 **Implementation, in phases:**
-1. *Stable driver identity* (account or token; car and livery fixed per
-   event). Also fixes grid matching by name (`grid_order::resolve`) and is
+1. *Stable driver identity*: a keypair made once per install; the server
+   knows a driver by public key and a chosen name (decided 2026-10-18: no
+   accounts, no service; a lost install is a new driver). Car and livery
+   fixed per event. Also fixes grid matching by name (`grid_order::resolve`) and is
    the base for leaderboards and ratings.
 2. *Event entity + persistence* beside `records/` with deterministic ids.
 3. *Schedule*: sessions open and start on time, lobby view and countdown,
    late joiners from the pit lane.
 4. *AI entries* with fixed identities and levels across days.
 5. *Weekend results record*, browsable replays and sheets.
-**Watch out:** 🔴 because the identity model is a product decision (accounts?
-tokens? trust?) — decide before building. Keep the sim path free of
-persistence reads.
+**Watch out:** the key signs a challenge at join and never leaves the
+machine; keep it beside `ApexProfile.sav` and back it up with it. Keep the
+sim path free of persistence reads.
 
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
 - Qualifying tyre allowance and starting on the qualifying tyres.
@@ -222,7 +257,7 @@ Investigate LOD selection, shadow and material quality at that distance.
 
 ### Content and circuits
 
-#### D1. Pit lane entry/exit layout — P2 · 🔴 · M
+#### D1. Pit lane entry/exit layout — P2 · 🟡 · M
 *Source: follow-ups P4 (your note).*
 
 **What:** Entry should be closer to the boxes and marked with a line; the
@@ -231,10 +266,12 @@ should return there.
 **Outcome:** Pit lanes look and behave like real ones; shorter autopilot.
 **Implementation:** Lines and the light come from the pit sidecar
 (`<Stem>.pit.msgpack`) via the track pipeline; move `limit_end_m` / the exit
-line to just past the last box and draw entry/exit lines on the road mesh.
-**Watch out:** this needs a decision — real circuits put the limit line well
-after the last box and the light at the lane's end, so "exit right after the
-last box" is a gameplay choice, not realism. Regenerate sidecars (never edit),
+line to where the circuit's dossier puts them and draw entry/exit lines on
+the road mesh.
+**Decided 2026-10-18:** the real circuit's layout. The limit line and the
+exit light sit where the circuit has them (usually well past the last box,
+at the lane's end), not right after the last box.
+**Watch out:** regenerate sidecars (never edit),
 `pit_stop_test` and `ai_pit_survey`, imports keep their AC lines.
 
 #### C2. Circuit dressing backlog — P3 · 🟡/🔴 · M–L
@@ -265,10 +302,12 @@ two ERS motors and delivery profiles; brake pads/porpoising/compound details.
 ### Audio and features
 
 #### AU1. Audio overhaul — P3 · 🔴 · L
-*Source: follow-ups P4 (your note).* Spatial audio, engine realism,
-environment, sliding/squeal and surface sound. **Needs scoping first:**
-pick 2–3 concrete targets (e.g. tyre squeal by slip, exterior engine
-spatialisation) with a check each. Every result has to be judged by ear.
+*Source: follow-ups P4 (your note).* Scoped 2026-10-18 to four targets,
+each its own package with a check: tyre squeal by each tyre's slip and
+load, per surface; other cars' engines placed in 3D (distance, doppler,
+exhaust direction); environment and reverb (crowd, wind, walls, stands,
+tunnels); surface layers (gravel, grass, kerb rumble, wet spray). Every
+result has to be judged by ear.
 See `game/audio.md` — the sound is synthesised, so "updating assets" may not
 apply.
 
@@ -361,30 +400,33 @@ each other by distance in the pause menu (seen on 2026-10-18,
 yet opened in i2: verification.md). Left: comparing against the ghost or
 the hotlap record (the server's ghost traces are 20 Hz positions only).
 
-#### N7. Championships and series with points — P2 · 🔴 · M
+#### N7. Championships and series with points — P2 · 🟡 · M
 **What:** No points table across races; R3 covers one weekend only.
 **Outcome:** Offline career-like play and league seasons.
 **Implementation:** A championship definition (rounds = track + rules,
 points system, drop rounds), standings for drivers and teams, offline first
 (saved in the profile), online on top of R3's persistence and identity.
-**Watch out:** 🔴 for the design (points systems, tie-breaks, what an offline
-season looks like); online needs R3 phase 1.
+**Decided 2026-10-18:** an offline season against the AI first (calendar,
+class, points preset, saved in the profile); online leagues later, on R3.
+**Watch out:** online needs R3 phase 1; a person judges the season screens.
 
-#### N8. Public server list (master server) — P2 · 🔴 · M
+#### N8. Public server list (master server) — Parked
 **What:** Players can only join a host they already know.
 **Outcome:** Discoverable online racing.
 **Implementation:** A small lobby service: servers register and heartbeat
 (name, track, cars, slots, ping endpoint, TLS fingerprint); the session
 browser gets an Internet tab. Opt-in per server in `operations` config.
-**Watch out:** 🔴 hosting, domain and abuse handling are yours; servers
+**Parked 2026-10-18:** not now; players join known hosts by address.
+**Watch out (when it returns):** hosting, domain and abuse handling are yours; servers
 register themselves, so sign or verify them (TLS fingerprint); the browser's
 filter pills already exist.
 
-#### N10. DLSS / FSR, HDR paper white — P3 · 🔴 · M
+#### N10. DLSS / FSR, HDR paper white — P3 · 🟡 · M
 Built: the Graphics tab's render scale (TSR; LOW 70, MEDIUM 85, HIGH and
 ULTRA 100) and an HDR switch where the display supports it. Left: DLSS and
-FSR plugins (🔴: their licences are a decision), a paper-white level for
-HDR, and the checks in verification.md.
+FSR plugins (decided 2026-10-18: ship both, TSR stays the default; you
+accept NVIDIA's DLSS SDK terms when the plugin is downloaded), a
+paper-white level for HDR, and the checks in verification.md.
 
 #### N11. Livery editor / own livery import — P2 · 🟡 · M
 **What:** Liveries come only from the catalog and AC skins.
@@ -397,15 +439,103 @@ Online: send the livery to other clients (size-capped, cached by hash).
 car's material comes from `ApexCarContent::OwnMaterialInstance`; no
 trademarks on screen (decals are user content — say so).
 
+#### N24. Tyre graphic on the HUD — P2 · 🟡 · S–M
+*Source: roadmap #25 (testing, 2026-10-18).*
+**What:** The HUD shows tyres only as figures in `car_state`.
+**Outcome:** The four tyres at a glance: colour for temperature and wear,
+damage and flat spots drawn on them.
+**Implementation:** A new `tyres` HUD component from the existing `tyres`
+list data points (`item.state`, `inner_c`/`outer_c`, `wear_pct`, `flat`,
+`leak`), plus a new `item.flat_spot_pct` from the telemetry's `flat_spot`,
+which reaches the client but is not a data point yet.
+**Watch out:** a new data point goes on every path of `ApexHudData::Build`
+and into `game/hud-modding.md`, or `ApexSim.Hud.Data.Stable` /
+`.Documented` fail.
+
+#### N25. Rain radar over the minimap — P2 · 🟡 · M
+*Source: roadmap #26 (testing, 2026-10-18).*
+**What:** Coming rain is only a line of text (`sky.forecast`).
+**Outcome:** A radar picture over the minimap: rain cells drifting in on
+the wind, reaching the circuit when the rain starts.
+**Implementation:** The server's rain is circuit-wide and timed, with no
+clouds in space, so the radar draws them from the forecast's next step and
+time and the wind's direction and speed, cell shapes seeded from the sky's
+seed so every client and a replay agree.
+**Watch out:** it must not run ahead of or behind the forecast (the band
+arrives as `sky.next_in_s` reaches 0); new data points into
+`game/hud-modding.md`; true rain over part of the circuit is a separate
+sim gap.
+
+#### N26. Content packs and a content repository — P2 · 🔴 · L (epic)
+*Source: roadmap #27, [proposals/split-off-content.md](proposals/split-off-content.md).*
+**What:** One repository and one release zip hold the code and every car,
+circuit and prop: a clone is a gigabyte of LFS, every fix ships every
+track, and nothing states which content fits which code.
+**Outcome:** Versioned content packs installed and updated apart from the
+code, with a seed left here so the repository builds and tests alone, and
+a join that offers to update a mismatched track.
+**Implementation:** Four phases, each with its own check in the proposal:
+the pack format and a local install; the repository split; the signed index
+with server and launcher updates; update-and-join.
+**Decided 2026-10-18:** packs and the signed index are GitHub release
+assets of `apexsim-content` (the index URL stays a setting); the seed is one
+car per class (GT3, LMP2, F1, Hypercar, Road) and three circuits (Spa,
+Zandvoort, Monza), larger than the proposal's.
+**Human:** 🔴 still for creating `apexsim-content` and the signing key. The
+split rewrites history and moves LFS, so it is done once, by hand, with
+you there. Phase 1 needs neither.
+**Watch out:** the seed has to carry every test, the determinism test and
+the menu showcases; the content CI builds against the `apexsim` tag in
+`requires`, not `main`; junctions into a content checkout (remove the
+junction before deleting anything).
+
+#### N27. Smaller recorded sessions — P3 · 🟢/🟡 · M
+*Source: roadmap #28, [proposals/replay-size.md](proposals/replay-size.md).*
+**What:** A 16-car hour is 45 to 57 MB, stored on the server and on every
+client in the session, and nothing ever deletes a server's recordings.
+**Outcome:** Files about 40% of today's with nothing lost, and a cap on
+what the recordings take.
+**Implementation:** Columnar delta blocks under zlib (file only, version 2),
+then ten-second blocks, then measured lossy cuts, then keep limits.
+**Human:** 🟢 for phases 1, 2 and 4; 🟡 for phase 3, where the road sound
+from coarser wheel slip has to be heard.
+**Watch out:** the wire stays as it is (frames stay self-contained
+datagrams); version 1 files must still play; `render` stays byte-identical
+for a seed.
+
+#### N28. Guides, showcases and Watch hotlap simulated in the client — P2 · 🟢 · L
+*Source: roadmap #24 (the simulation in the client), 2026-10-18.*
+**What:** The content build renders every showcase (`apexsim-replay
+render`) and every track guide (`apexsim-replay guide --all`) and ships
+them; each goes stale on any track YAML or car.toml edit and has to be
+baked again.
+**Outcome:** The game makes a guide when a circuit and class is first
+opened and a showcase from its seed, cached under `Saved/` by content
+checksum; the build stages and shipped `Showcase\` / `Guide\` folders go.
+Watch hotlap, an AI example lap, is simulated in the game too instead of
+streamed from a server `HotlapWatch` session, so it works offline and that
+session kind retires (as Demo does, X1).
+**Implementation:** The client links only the lone car step today
+(`server/ffi`, `ApexPhysicsLib.h`, for prediction). First grow the library
+to the session tick (AI drivers, contact, walls, road state, race control:
+the server's own code behind the C API), then run `track_guide.rs` and the
+showcase render through it in the game.
+**Watch out:** a showcase must stay bit-identical to the server's render of
+the same seed (determinism across the two builds, prediction's trace test
+is the model); a guide's solo runs take time, so make them on a worker
+thread with the guide card waiting; the marketing site and the promo tools
+still render with `apexsim-replay`, so the tool stays.
+
 #### N13. Rewind / restart from a point (offline) — P3 · 🟢 · M
 Offline practice only: rewind N seconds and resume. The sim is deterministic
 and replays already store state; needs a periodic full-state snapshot of the
 session. Watch out: laps after a rewind are invalid for records.
 
-#### N14. Spotter and engineer radio — P3 · 🔴 · M
+#### N14. Spotter and engineer radio — P3 · 🟡 · M
 Voice cues: "car left/right/clear" (from N3), "yellow ahead", "blue flag"
-(R1a), fuel and tyre calls, "box this lap" confirmation. The audio is
-synthesised today, so this needs recorded lines or TTS: 🔴 for the voice.
+(R1a), fuel and tyre calls, "box this lap" confirmation. Decided
+2026-10-18: a fixed line list generated once with a local TTS model and
+shipped as audio files. 🟡: the result is judged by ear.
 
 #### N15. Driver profile and stats — P3 · 🟢 · M
 Laps, distance, races, wins, PBs per track/car, incidents; a profile screen.
@@ -448,8 +578,11 @@ pointer. 🔴: needs a headset and someone to sit in it; do after N10.
 
 What only you can do, roughly in the order it pays off:
 
-1. **Decide** D1 (pit exit: realism vs. gameplay), R3's identity model,
-   N7's championship format, N8's hosting.
+1. **Decided 2026-10-18:** D1 real layout, R3 a key per install, N7 an
+   offline season first, N8 parked, N26 on GitHub releases with a
+   class-wide seed, B9 and B10, N10 DLSS and FSR, N14 offline TTS, AU1's
+   four targets, UDP encryption closed. Left: create `apexsim-content` and
+   its signing key (N26 phase 2).
 2. **Sit at the wheel** — H1, then H2 (racing the AI, listen, pad), and
    client prediction over real latency ([verification.md](verification.md)).
 3. **Hardware integrations** — a motion rig / SimHub / wheel LEDs for N2,
@@ -460,15 +593,14 @@ What only you can do, roughly in the order it pays off:
 6. **Source data, art or people** — DGM1 terrain and marshal-post list
    (Nordschleife), wiper models, integrated-GPU hardware, radio voice lines
    (N14), translators (N22).
-7. **Scope** AU1 (audio) and the parked ideas.
+7. **Scope** the parked ideas.
 
 ## 5. Parked / recommended to drop
 
 - **Driver / safety rating** — depends on R3 phase 1 (identity), R2 and N15.
 - **Shared leaderboards** — depends on R3 identity plus a service and trust model.
 - **More screens** (five-wide, telemetry monitor) — no demand signal yet.
-- **UDP encryption** — recommend closing: input is already sealed; telemetry
-  carries nothing secret. Delete from the roadmap.
+- **Public server list (N8)** — parked 2026-10-18; players join known hosts.
 - **Windows on Arm** — parked until x64 emulation or a native build is worth it.
 
 ## 6. Notes on the backlogs themselves
