@@ -449,8 +449,9 @@ correction: the largest 0.21 m); a driver's own inputs are replayed as
 sent, which the automation tests measure (0.006, 17 rpm at p95).
 
 **The library's size.** The `.lib` links the whole server crate (tokio,
-rustls, hyper, ring...), 80 MB with thin LTO; the linker keeps what the C
-API reaches. A physics-only crate is not a small cut: `data.rs` reaches
+rustls, hyper, ring...), 80 MB with thin LTO and the same with fat LTO (a
+staticlib carries every dependency's objects whatever the LTO); the
+client's linker keeps what the C API reaches. A physics-only crate is not a small cut: `data.rs` reaches
 the AI, race control, the safety car and racecraft, `physics.rs` reaches
 `game_session` and `network`, and the library needs
 `game_session::session_track`. Moving them would touch most of the
