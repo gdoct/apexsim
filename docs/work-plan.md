@@ -63,7 +63,6 @@ When an item is done, delete it from its backlog and from here.
 | N15 | Driver profile and stats | Progression | P3 | 🟢 | M |
 | N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M |
 | N17 | League rules: reverse grid, success ballast, BoP | Race rules | P3 | 🟢 | S each |
-| N18 | Results webhooks (the export is built) | Online | P3 | 🟢 | S |
 | N19 | Incident review for stewards | Online | P3 | 🟡 | M |
 | N20 | Photo mode | Rendering | P3 | 🟡 | M |
 | N22 | Localisation and colour-blind-safe HUD | Accessibility | P3 | 🔴 | M |
@@ -398,12 +397,6 @@ Each a `CreateSession` rule echoed in `SessionJoined`: reverse top-N grid for
 a second race; ballast by championship position (needs N7); balance of
 performance per car (mass, power, aero multipliers). Watch out: a car
 without BoP keys simulates exactly as before.
-
-#### N18. Results webhooks — P3 · 🟢 · S
-The export is built (`records/results/*.json` and `.csv`, `results.rs`).
-Left: an optional webhook (Discord) on finish, configured per server; the
-server has no certificate roots for HTTPS yet (`webpki-roots` or the OS
-store).
 
 #### N19. Incident review for stewards — P3 · 🟡 · M
 A list of incidents (contacts, yellow-flag passes, track limits) with a jump

@@ -85,8 +85,12 @@ Every section and its keys (defaults from `config.rs`):
   `results` (true): each finished race's classification as
   `results/<session>_<unix>.json` and `.csv` under `dir` (`results.rs`,
   `GameSession::classification`): place, driver, car, status, laps, best
-  lap, race time, the gap or laps down, the pit rule's penalty. No
-  webhook posts it yet (the server has no certificate roots for HTTPS).
+  lap, race time, the gap or laps down, the pit rule's penalty.
+  `webhook_url` (empty: off) also POSTs each result to an `http://` or
+  `https://` endpoint (`webhook.rs`, checked against the built-in Mozilla
+  roots, 10 s timeout, never retried); `webhook_format` is `json` (the
+  result as written) or `discord` (a `{"content": ...}` message: track,
+  distance, a line a car, cut to 2000 characters).
 - `[physics]` - `road_contact = "mesh"` (default) or `"centerline"`
   ([../content/road-mesh.md](../content/road-mesh.md)).
 - `[showcase]` - `enabled`, `dir` (`./showcase`), `playlist`, `mode`

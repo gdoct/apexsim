@@ -725,7 +725,25 @@ pub(crate) async fn tick_sessions(
     }
 
     if let Some(dir) = results_dir {
+        let records = &state.config.records;
         for result in race_results {
+            if !records.webhook_url.is_empty() {
+                let url = records.webhook_url.clone();
+                let body = crate::webhook::body(&result, records.webhook_format);
+                let session_id = result.session_id.clone();
+                tokio::spawn(async move {
+                    match crate::webhook::post(&url, body).await {
+                        Ok(status) if (200..300).contains(&status) => {
+                            info!("Race result for session {} posted ({})", session_id, status)
+                        }
+                        Ok(status) => warn!(
+                            "The results webhook answered {} for session {}",
+                            status, session_id
+                        ),
+                        Err(e) => warn!("Failed to post the race result of {}: {}", session_id, e),
+                    }
+                });
+            }
             let dir = dir.clone();
             tokio::task::spawn_blocking(move || match result.write(&dir) {
                 Ok(path) => info!(

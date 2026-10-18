@@ -212,6 +212,11 @@ pub struct RecordsSettings {
     /// Each finished race's classification as JSON and CSV in `results/`
     /// under `dir` (`crate::results`).
     pub results: bool,
+    /// An `http://` or `https://` endpoint each race result is also POSTed
+    /// to (`crate::webhook`); empty is off.
+    pub webhook_url: String,
+    /// `json` (the result as written) or `discord` (a Discord message).
+    pub webhook_format: crate::webhook::WebhookFormat,
 }
 
 impl Default for RecordsSettings {
@@ -222,6 +227,8 @@ impl Default for RecordsSettings {
             replay_dir: "./replays".to_string(),
             serve_replays: true,
             results: true,
+            webhook_url: String::new(),
+            webhook_format: crate::webhook::WebhookFormat::Json,
         }
     }
 }

@@ -37,6 +37,11 @@ dir = "./records"
 # Replays of finished sessions: an `.apxs` (the spectator stream format, which
 # the game's Replays screen plays) and a `.meta.json` each.
 replay_dir = "./replays"
+# Each finished race's classification is written to `dir`/results/ (JSON and
+# CSV) and, when webhook_url is set, POSTed there: "json" posts the result as
+# written, "discord" a Discord message (a channel webhook's URL).
+# webhook_url = "https://discord.com/api/webhooks/..."
+# webhook_format = "discord"
 
 [physics]
 # How the sim finds the surface under a wheel (docs/content/road-mesh.md):

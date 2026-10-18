@@ -183,13 +183,6 @@ server's render of it; the menu backdrop with no server running.
 
 **Check:** session tests per rule; the class calibration unchanged.
 
-### 18. Results webhooks
-
-- An optional webhook on finish, posting the classification the server
-  already writes (`records/results/`); needs certificate roots for HTTPS.
-
-**Check:** a webhook against a test endpoint.
-
 ### 19. Incident review
 
 - An incident list (contacts, passes under yellow, track limits) with a

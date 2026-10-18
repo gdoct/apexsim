@@ -60,5 +60,6 @@ pub mod transport;
 pub mod tyre_thermal;
 pub mod udp_seal;
 pub mod walls;
+pub mod webhook;
 pub mod weekend;
 pub mod wind;
