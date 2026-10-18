@@ -185,6 +185,23 @@ The create-session screen is too cluttered (seen testing, 2026-10-18).
 **Check:** `-ApexScreenshotAfter` on the create screen; a person judges the
 new layout.
 
+### 22. Curb shape in corners
+
+Seen testing, 2026-10-18, on all circuits: in some corners the inside curb
+has a kink and does not follow the bend smoothly.
+
+- Find which corners do it and why. A first guess, not checked: the
+  inside edge is an offset of the centerline, and where the offset nears
+  the bend's radius, or the centerline samples are sparse or uneven, the
+  offset folds or steps. The curb mesh is built in `ue_export.rs` /
+  `road_mesh.rs` from the curb bands in `curbs.rs`.
+- Fix it where the curb is generated, not per track. The curb sidecar
+  feeds physics too, so a change to the bands moves the AI survey.
+
+**Check:** close-up shots of the inside curb at the worst corners on a few
+circuits (`-ApexCameraLookAt`), before and after; full `track-editor`
+tests; the AI survey against the commit before.
+
 ## P3: nice to have
 
 ### 11. Content tooling
