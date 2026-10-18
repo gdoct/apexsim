@@ -440,10 +440,13 @@ racing tick after the collision passes) shows yellow and blue flags; nothing
 before the green or once the session is `Finished`.
 
 - **Yellow**, per marshal sector: the lap in `MARSHAL_SECTOR_M` (250 m)
-  sectors from the line. A car is an incident when it is under
-  `INCIDENT_SPEED_MPS` (8 m/s), off the road, backing up or in contact (not
-  in the pit lane, garage, towed, retired or finished; a slow car is none
-  for `START_GRACE_S`, 10 s, after the green). Its own sector shows a
+  sectors from the line. A car is an incident when it has been under
+  `INCIDENT_SPEED_MPS` (8 m/s), off the road, backing up or in contact
+  for `INCIDENT_CONFIRM_S` (1.5 s) without a break (not in the pit lane,
+  garage, towed, retired or finished; a slow car is none for
+  `START_GRACE_S`, 10 s, after the green): a quick step over the white
+  line or a brush raises no yellow, and a real one is out a moment after
+  it happens. Its own sector shows a
   double yellow while it is on the road, a single off it, and the sector
   before it a single. A flag is held `YELLOW_HOLD_S` (5 s) after its last
   cause. A car passing another of the same lap in a yellow sector is

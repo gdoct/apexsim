@@ -146,10 +146,12 @@ them yet, and the server leaves a few edges.
   one and its laps left on the HUD (`penalty.*` data points), PEN with the
   seconds in the standings and tower, and the results' times with them
   (the server's classification already adds them).
-- The yellow comes out the tick a car is off the road, slow or in
-  contact: a quick step off the track raises a yellow, and with it no
-  overtaking, at once. A second or two of confirmation first (work plan
-  R5).
+- Since a yellow waits `INCIDENT_CONFIRM_S` (1.5 s), the AI no longer slows
+  for a car that is only briefly in trouble ahead: the whole-calendar
+  survey (seeds 1-2) went from 485 to 654 car-seconds off the road
+  (+35%, on both seeds), contact +9% and sliding +13% (noise-sized). An AI
+  driver could lift for trouble it sees ahead (a car off or crawling
+  within its view) on its own, apart from the flag's rules.
 - The time penalty for a pass under a yellow is given even when the place
   is handed back at once.
 - The formation lap holds the grid's tyre warmth but puts none in (a

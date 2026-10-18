@@ -39,6 +39,11 @@
 pub const MARSHAL_SECTOR_M: f32 = 250.0;
 /// Below this a car on the lap is crawling: an incident, m/s.
 pub const INCIDENT_SPEED_MPS: f32 = 8.0;
+/// A car is an incident only once it has been in trouble (crawling, off
+/// the road, backing up or in contact) this long without a break, s: a
+/// quick step over the white line or a brush raises no yellow, and a
+/// real one is out a moment after it happens, as a marshal's would be.
+pub const INCIDENT_CONFIRM_S: f32 = 1.5;
 /// A sector's yellow stays out this long after its last cause left, s.
 pub const YELLOW_HOLD_S: f32 = 5.0;
 /// A car on a later lap within this many seconds behind (at its speed)
@@ -276,6 +281,9 @@ pub struct RaceControl {
     /// The car count of the last update: places mean other cars after a
     /// change.
     car_count: usize,
+    /// How long each car has been in trouble without a break, s
+    /// ([`INCIDENT_CONFIRM_S`]).
+    trouble_s: Vec<f32>,
     /// Each car's blue flag, in the order of the last update's cars.
     blue: Vec<bool>,
     /// Race order (laps run) of each car at the last update, for passes.
@@ -483,6 +491,9 @@ impl RaceControl {
             self.cause_car.iter_mut().for_each(|c| *c = None);
             self.car_count = cars.len();
         }
+        if self.trouble_s.len() != cars.len() {
+            self.trouble_s = vec![0.0; cars.len()];
+        }
         // This tick's causes, and the one car behind each (`None` if more).
         let mut cause = vec![Yellow::None; count];
         let mut by: Vec<Option<usize>> = vec![None; count];
@@ -496,12 +507,14 @@ impl RaceControl {
             };
             cause[sector] = cause[sector].max(level);
         };
-        for (i, car) in cars.iter().enumerate().filter(|(_, c)| !c.out_of_it) {
-            let incident = (car.speed_mps < INCIDENT_SPEED_MPS && !launching)
-                || !car.on_road
-                || car.reversing
-                || car.colliding;
-            if !incident {
+        for (i, car) in cars.iter().enumerate() {
+            let trouble = !car.out_of_it
+                && ((car.speed_mps < INCIDENT_SPEED_MPS && !launching)
+                    || !car.on_road
+                    || car.reversing
+                    || car.colliding);
+            self.trouble_s[i] = if trouble { self.trouble_s[i] + dt } else { 0.0 };
+            if self.trouble_s[i] < INCIDENT_CONFIRM_S {
                 continue;
             }
             let here = Self::sector_of(car.progress_m, total_m);
@@ -637,7 +650,13 @@ mod tests {
     fn a_car_stopped_on_the_road_brings_out_a_double_yellow_and_a_warning() {
         let mut rc = RaceControl::default();
         let stopped = racing(1.21, 0.0); // 1050 m: sector 4
-        rc.update(&[racing(1.1, 60.0), stopped], LAP, 0.01, 1, false);
+        rc.update(
+            &[racing(1.1, 60.0), stopped],
+            LAP,
+            INCIDENT_CONFIRM_S,
+            1,
+            false,
+        );
         assert_eq!(rc.yellow_at(4), Yellow::Double);
         assert_eq!(rc.yellow_at(3), Yellow::Single);
         assert_eq!(rc.yellow_at(5), Yellow::None);
@@ -656,7 +675,7 @@ mod tests {
         let mut rc = RaceControl::default();
         let mut off = racing(1.21, 30.0);
         off.on_road = false;
-        rc.update(&[off], LAP, 0.1, 1, false);
+        rc.update(&[off], LAP, INCIDENT_CONFIRM_S, 1, false);
         assert_eq!(rc.yellow_at(4), Yellow::Single);
         let back = racing(1.21, 30.0);
         for t in 0..((YELLOW_HOLD_S / 0.1) as u32 - 1) {
@@ -674,7 +693,7 @@ mod tests {
         let mut wide = racing(1.21, 30.0); // 1050 m: sector 4
         wide.on_road = false;
         let behind = racing(1.19, 40.0); // 950 m: sector 3
-        rc.update(&[behind, wide], LAP, 0.1, 1, false);
+        rc.update(&[behind, wide], LAP, INCIDENT_CONFIRM_S, 1, false);
         assert_eq!(rc.yellow_ahead_for(1, wide.progress_m, LAP), Yellow::None);
         assert_eq!(
             rc.yellow_ahead_for(0, behind.progress_m, LAP),
@@ -688,7 +707,7 @@ mod tests {
         // A second car off in the same sector: the flag is everyone's.
         let mut also = racing(1.2112, 30.0); // beside it
         also.on_road = false;
-        rc.update(&[also, back], LAP, 0.1, 3, false);
+        rc.update(&[also, back], LAP, INCIDENT_CONFIRM_S, 3, false);
         assert_eq!(rc.yellow_ahead_for(1, back.progress_m, LAP), Yellow::Single);
         assert_eq!(rc.yellow_ahead_for(0, also.progress_m, LAP), Yellow::Single);
     }
@@ -697,7 +716,7 @@ mod tests {
     fn a_car_past_the_incident_no_longer_sees_its_sector_yellow() {
         let mut rc = RaceControl::default();
         let stopped = racing(1.21, 0.0); // 1050 m: 50 m into sector 4
-        rc.update(&[stopped], LAP, 0.1, 1, false);
+        rc.update(&[stopped], LAP, INCIDENT_CONFIRM_S, 1, false);
         assert_eq!(rc.yellow_ahead_for(1, 1040.0, LAP), Yellow::Double);
         assert_eq!(
             rc.yellow_ahead_for(1, 1055.0, LAP),
@@ -755,7 +774,7 @@ mod tests {
         rc.update(
             &[racing(1.19, 50.0), racing(1.2, 45.0), stopped],
             LAP,
-            0.01,
+            INCIDENT_CONFIRM_S,
             1,
             false,
         );
@@ -896,10 +915,36 @@ mod tests {
         assert_eq!(rc.take_yellow_passes().len(), 1);
     }
 
+    /// A quick step over the white line, or a brush, is no incident: the
+    /// trouble has to last `INCIDENT_CONFIRM_S` without a break.
+    #[test]
+    fn a_quick_step_off_the_road_raises_no_yellow() {
+        let mut rc = RaceControl::default();
+        let mut off = racing(1.21, 45.0);
+        off.on_road = false;
+        let back = racing(1.212, 45.0);
+        let dt = 0.1;
+        // A second off, then back on: nothing.
+        for t in 0..10 {
+            rc.update(&[off], LAP, dt, t, false);
+        }
+        rc.update(&[back], LAP, dt, 10, false);
+        assert_eq!(rc.yellows().count(), 0, "a wheel off for a second");
+        // Off again: the count starts over, and the flag is out once it
+        // has lasted.
+        let steps = (INCIDENT_CONFIRM_S / dt).ceil() as u32;
+        for t in 0..steps - 1 {
+            rc.update(&[off], LAP, dt, 11 + t, false);
+        }
+        assert_eq!(rc.yellows().count(), 0, "not yet");
+        rc.update(&[off], LAP, dt, 11 + steps, false);
+        assert_eq!(rc.yellow_at(4), Yellow::Single, "off long enough");
+    }
+
     #[test]
     fn the_last_sector_warns_across_the_line() {
         let mut rc = RaceControl::default();
-        rc.update(&[racing(2.01, 0.0)], LAP, 0.1, 1, false);
+        rc.update(&[racing(2.01, 0.0)], LAP, INCIDENT_CONFIRM_S, 1, false);
         assert_eq!(rc.yellow_at(0), Yellow::Double);
         assert_eq!(rc.yellow_at(19), Yellow::Single);
         assert_eq!(RaceControl::sector_of(4999.0, LAP), 19);
