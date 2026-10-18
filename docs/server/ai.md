@@ -350,7 +350,9 @@ off by `Racecraft::blend`; the controller holds it across the road
   run-up held to the lane's mouth speed and hands over to `drive_input`
   `AI_PIT_HANDOVER_M` (10 m) short of it.
 - **Fuel saving** (`fuel_save`, `pit::fuel_save_for`): in a race, a car
-  that will not be refuelled (an F1, or no pit lane), or one saving to
+  that will not be refuelled (an F1 whose tank reaches the flag on saving;
+  without a pit lane a car that would be refuelled is topped up at the
+  line, `update_line_refuel`, and saves nothing), or one saving to
   skip a stop, and cannot reach the flag lifts and coasts `FUEL_SAVE_COAST_S_PER_SHORT` (10 s) per share of
   fuel it is short, at most `MAX_FUEL_SAVE_COAST_S` (2 s), and from
   `SHORT_SHIFT_SHORT` 10% short short-shifts as well, fully at 25%. At

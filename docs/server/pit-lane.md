@@ -154,7 +154,10 @@ Called inside `update_air` before the physics, and in the countdown.
   `CarSetup::compound_index_for`, the AI's planned one), fuel where the
   rules allow (not an F1, unless the race outruns its tank:
   `GameSession::refuels`, [ai.md](ai.md); 0.5 L or more at `REFUEL_LPS` 2 L/s; in a race to
-  the remaining distance with the race margin), then repairs (0.5% or more
+  the remaining distance with the race margin; on a circuit with no pit
+  lane, the Nordschleife, a car a stop would refuel is topped up at the
+  line instead as it starts each lap, to the flag with the margin and
+  reserve and no time lost: `GameSession::update_line_refuel`), then repairs (0.5% or more
   summed over the zones, `REPAIR_S_PER_PERCENT` 0.04 s a percent) and new
   brake pads past `brakes::PAD_CHANGE_PCT` (or discs and pads past
   `DISC_CHANGE_PCT`, `DISC_CHANGE_S`), all counted in the repair part.

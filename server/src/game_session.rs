@@ -482,6 +482,9 @@ pub struct GameSession {
     lap_events: Vec<SessionLapEvent>,
     /// Pit stops started since the clients were last told.
     pit_events: Vec<(PlayerId, crate::network::PitServiceData)>,
+    /// The lap each car was last topped up at the line on, on a circuit
+    /// with no pit lane (`update_line_refuel`).
+    line_refuel_laps: std::collections::BTreeMap<PlayerId, u16>,
     /// The humans told where their pit box is (`take_pit_box_news`), and
     /// whether they drive the lane themselves as they were told it.
     pit_box_told: std::collections::BTreeMap<PlayerId, bool>,
@@ -924,6 +927,7 @@ impl GameSession {
             race_end: RaceEnd::default(),
             lap_events: Vec::new(),
             pit_events: Vec::new(),
+            line_refuel_laps: std::collections::BTreeMap::new(),
             pit_box_told: std::collections::BTreeMap::new(),
             lap_traces: HashMap::new(),
             session_best_lap_ms: None,
@@ -1009,6 +1013,7 @@ impl GameSession {
             race_end: RaceEnd::default(),
             lap_events: Vec::new(),
             pit_events: Vec::new(),
+            line_refuel_laps: std::collections::BTreeMap::new(),
             pit_box_told: std::collections::BTreeMap::new(),
             lap_traces: HashMap::new(),
             session_best_lap_ms: None,
@@ -4871,6 +4876,7 @@ impl GameSession {
         self.update_retirements();
         self.update_recoveries();
         self.update_pits();
+        self.update_line_refuel();
         self.plan_damaged_ai_speeds();
         self.update_drs();
         self.update_wind();
@@ -6522,13 +6528,57 @@ impl GameSession {
         {
             return crate::pit::FuelSave::NONE;
         }
+        // Refuelled at a stop, or at the line where there is no lane
+        // (`update_line_refuel`): nothing to save.
         if self.refuels(state.car_config_id)
-            && self.track_config.pit_lane.is_some()
-            && (state.pit.wants_stop || !self.saves_to_flag(state))
+            && (self.track_config.pit_lane.is_none()
+                || state.pit.wants_stop
+                || !self.saves_to_flag(state))
         {
             return crate::pit::FuelSave::NONE;
         }
         crate::pit::fuel_save_for(self.fuel_short_share(state))
+    }
+
+    /// Without a pit lane nothing can refuel a car the race outruns (the
+    /// Nordschleife): a car a stop would refuel (`refuels`) is topped up
+    /// as it starts each lap instead, to what reaches the flag with the
+    /// race margin and reserve (`RACE_FUEL_MARGIN`,
+    /// `RACE_FUEL_RESERVE_LAPS`), never over its tank, and loses no time
+    /// for it: the stop it could not make. A car that reaches the flag on
+    /// its start fill is never touched, and one the rules do not refuel
+    /// saves fuel as it would anywhere (`fuel_save`).
+    fn update_line_refuel(&mut self) {
+        if self.track_config.pit_lane.is_some()
+            || self.session.game_mode != GameMode::Race
+            || self.session.state != SessionState::Racing
+        {
+            return;
+        }
+        let due: Vec<(PlayerId, CarConfigId, u16, f32)> = self
+            .session
+            .participants
+            .values()
+            .filter(|s| s.finish_position.is_none() && s.current_lap >= 1)
+            .filter(|s| self.line_refuel_laps.get(&s.player_id) != Some(&s.current_lap))
+            .filter(|s| self.refuels(s.car_config_id))
+            .filter_map(|s| {
+                let lap = *self.lap_fuel.get(&s.car_config_id)?;
+                let laps = self.laps_left(s) as f32 + 1.0;
+                let needed = (laps * (1.0 + RACE_FUEL_MARGIN) + RACE_FUEL_RESERVE_LAPS) * lap;
+                Some((s.player_id, s.car_config_id, s.current_lap, needed))
+            })
+            .collect();
+        for (player_id, car_id, lap, needed) in due {
+            let capacity = self
+                .car_configs
+                .get(&car_id)
+                .map_or(0.0, |c| c.fuel.capacity_liters.max(0.0));
+            if let Some(state) = self.session.participants.get_mut(&player_id) {
+                state.fuel_liters = state.fuel_liters.max(needed.min(capacity));
+            }
+            self.line_refuel_laps.insert(player_id, lap);
+        }
     }
 
     /// How an AI nurses its engine (`crate::pit::engine_nurse_for`): by

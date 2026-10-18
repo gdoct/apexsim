@@ -154,8 +154,6 @@ persistence reads.
 - Assists per weekend phase — bundle with B2.
 - Boxes dealt by team (`pit::deal_box`).
 - Driver swaps / fixed stint lengths.
-- Refuelling or a sane AI fuel rule on circuits without a pit lane
-  (Nordschleife).
 - Recovery vehicles and marshals (the safety car is built).
 
 ### Simulation

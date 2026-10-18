@@ -340,3 +340,73 @@ fn practice_starts_full_less_the_knob() {
         "three laps short of full",
     );
 }
+
+/// Without a pit lane nothing could refuel a car the race outruns: a car a
+/// stop would refuel is topped up at the line to what reaches the flag, and
+/// one with a pit lane is left to its stops.
+#[test]
+fn without_a_pit_lane_a_car_is_topped_up_at_the_line() {
+    let fuel_after_first_lap = |pit_lane: bool| {
+        let car = car("posh-gt3rs");
+        let car_id = car.id;
+        let capacity = car.fuel.capacity_liters;
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car.id, car);
+        let mut profile = AiDriverProfile::new("Fuel AI", 95);
+        profile.id = Uuid::from_u128(7000);
+        profile.preferred_car_id = Some(car_id);
+        let driver = profile.id;
+        let session = RaceSession::new(
+            Uuid::from_u128(1),
+            Uuid::nil(),
+            SessionKind::Multiplayer,
+            8,
+            1,
+            40,
+        );
+        let mut track = monza();
+        if !pit_lane {
+            track.pit_lane = None;
+        }
+        let mut gs = GameSession::with_ai_profiles(session, track, car_configs, vec![profile]);
+        gs.spawn_ai_drivers();
+        gs.start_countdown_mode(1, GameMode::Race);
+        let lap = gs.lap_fuel_liters(car_id).expect("a lap estimate");
+        assert!(gs.refuels(car_id), "a GT3 is refuelled");
+        // Two laps in the tank of a 40-lap race.
+        gs.session
+            .participants
+            .get_mut(&driver)
+            .unwrap()
+            .fuel_liters = 2.0 * lap;
+        let mut crossed = None;
+        for i in 0..(HZ * 60 * 4) {
+            let inputs: HashMap<PlayerId, PlayerInputData> =
+                [(driver, gs.generate_ai_input(&driver))].into();
+            gs.tick(&inputs);
+            if gs
+                .take_lap_events()
+                .iter()
+                .any(|out| out.event.lap_time_ms.is_some())
+            {
+                crossed = Some(i);
+            }
+            // A second after the line.
+            if crossed.is_some_and(|c| i == c + HZ) {
+                return (gs.session.participants[&driver].fuel_liters, lap, capacity);
+            }
+        }
+        panic!("the AI completes a lap");
+    };
+    let (topped, lap, capacity) = fuel_after_first_lap(false);
+    println!("no pit lane: {topped:.1} L after the line (lap {lap:.2} L, tank {capacity:.0} L)");
+    assert!(
+        topped > 0.95 * capacity.min(39.0 * lap),
+        "topped up toward the flag: {topped:.1} L"
+    );
+    let (left, ..) = fuel_after_first_lap(true);
+    assert!(
+        left < 1.5 * lap,
+        "a pit lane: the stop refuels it: {left:.1} L"
+    );
+}
