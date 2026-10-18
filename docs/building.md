@@ -308,6 +308,29 @@ A skipped stage must still find the output it would have produced (a
 `-SkipTracks` run checks every export and the materials exist). The run does
 not import ground textures: run `initialize_content.ps1` first on a new machine.
 
+## Reclaiming disk space
+
+A working tree grows to well over 100 GB: dev-profile cargo targets
+(`opt-level = 3` dependencies, full debug info) run 15 to 90 GB each, and every
+scratch `CARGO_TARGET_DIR` and agent session leaves another one behind.
+`scripts/clean_workspace.ps1` removes them. It is a dry run until `-Apply`.
+
+| Run | Removes | Costs |
+|---|---|---|
+| default | scratch targets (`<drive>:\apexsim-cargo-target*`, `target-scratch*`) and `%TEMP%\claude\*apexsim*` sessions older than `-KeepDays` (2); cargo `incremental/` caches; stale `%TEMP%` (`proc-macro-srv*`, `apex-target`); Unreal `Saved` crashes, old logs, screenshots older than 7 days; `__pycache__`; empty unregistered `.claude/worktrees` folders | the next build recreates the incremental cache |
+| `-Deep` | `server/target`, `track-editor/target`, `game-unreal/Intermediate/Build`, `out/promo`, `out/site`, `out/verify` | a full rebuild of each |
+| `-IncludePip` | the pip download cache | re-downloads |
+| `-RemoveMergedWorktrees` | worktrees that are clean and whose commits are all in `main` (`git worktree remove`, never `--force`) | none |
+| `-Install` | nothing: registers a weekly Task Scheduler job for the default run | none |
+
+It never touches `build/tracks`, `.cache`, `artifacts`, `content`, `.git`,
+`server/ffi/target` (the client links the physics library built there) or the
+shared Unreal derived-data cache, and it unlinks junctions instead of following
+them. It skips cargo and Unreal targets while `cargo`/`rustc` or the editor run.
+Each `-Apply` appends to `out/clean_workspace.log`. To keep scratch targets
+small, point `CARGO_TARGET_DIR` at `<drive>:\apexsim-cargo-target-<name>` so the
+script finds them.
+
 ## Traps
 
 - Every commandlet needs the editor closed; `ats-*` tools need the repo root

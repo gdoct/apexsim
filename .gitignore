@@ -275,6 +275,8 @@ deploy/deploy.user.psd1
 build/deploy/
 records/*
 out/verify/
+# scripts/clean_workspace.ps1: what each run removed
+out/clean_workspace.log
 
 # scripts/verify: the runner's console logs
 out/verify_*_console.txt
