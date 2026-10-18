@@ -5496,6 +5496,62 @@ mod tests {
         }
     }
 
+    /// A reverse grid: a create asking for the first 8 slots reversed.
+    /// Printed as `C_CreateSessionReverseGrid` (`cargo test
+    /// reverse_grid_wire_format -- --nocapture`).
+    #[test]
+    fn test_reverse_grid_wire_format() {
+        let rules = RaceRules {
+            reverse_grid: 8,
+            ..Default::default()
+        };
+        let create = ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: rules,
+        };
+        let bytes = rmp_serde::to_vec_named(&create).unwrap();
+        println!(
+            "C_CreateSessionReverseGrid: {}",
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        // The rule is the table's only key, after the others' defaults.
+        let tail = [&[0xAC][..], b"reverse_grid", &[0x08]].concat();
+        assert!(bytes.ends_with(&tail));
+        match rmp_serde::from_slice::<ClientMessage>(&bytes).unwrap() {
+            ClientMessage::CreateSession { race_rules, .. } => assert_eq!(race_rules, rules),
+            _ => panic!("Wrong message type"),
+        }
+        // Off is left off the wire.
+        assert!(
+            rmp_serde::to_vec_named(&RaceRules::default())
+                .unwrap()
+                .len()
+                == 1
+        );
+    }
+
     /// The safety car on the road: a create asking for it, and a frame
     /// while it is out (`race_phase` 5 and its pose, after a nil clock, sky
     /// and yellows). Printed as `C_CreateSessionFullSafetyCar` /

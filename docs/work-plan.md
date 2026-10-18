@@ -62,7 +62,7 @@ When an item is done, delete it from its backlog and from here.
 | N14 | Spotter and engineer radio | Audio | P3 | 🔴 | M |
 | N15 | Driver profile and stats | Progression | P3 | 🟢 | M |
 | N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M |
-| N17 | League rules: reverse grid, success ballast, BoP | Race rules | P3 | 🟢 | S each |
+| N17 | League rules: success ballast, BoP (reverse grid built) | Race rules | P3 | 🟢 | S each |
 | N19 | Incident review for stewards | Online | P3 | 🟡 | M |
 | N20 | Photo mode | Rendering | P3 | 🟡 | M |
 | N22 | Localisation and colour-blind-safe HUD | Accessibility | P3 | 🔴 | M |
@@ -393,8 +393,9 @@ brake at a board, take a corner under a target, a clean lap under time.
 Medals unlock nothing at first. 🟡: difficulty needs play-testing.
 
 #### N17. League rules: reverse grid, success ballast, BoP — P3 · 🟢 · S each
-Each a `CreateSession` rule echoed in `SessionJoined`: reverse top-N grid for
-a second race; ballast by championship position (needs N7); balance of
+Each a `CreateSession` rule echoed in `SessionJoined`. Built: the reverse
+top-N grid (`race_rules.reverse_grid`, server only like the other race
+rules). Left: ballast by championship position (needs N7); balance of
 performance per car (mass, power, aero multipliers). Watch out: a car
 without BoP keys simulates exactly as before.
 

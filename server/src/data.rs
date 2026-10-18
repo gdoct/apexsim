@@ -3709,6 +3709,16 @@ pub struct RaceRules {
     /// safety car on the road ([`SafetyCar`]).
     #[serde(default, skip_serializing_if = "SafetyCar::is_off")]
     pub safety_car: SafetyCar,
+    /// A reverse grid: the first this many slots of the starting order
+    /// (the host's order, the qualifying result or the weekend's grid) start
+    /// in reverse, so P1 starts from slot N. 0 and 1 change nothing
+    /// (`GameSession::grid_order_ids`).
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub reverse_grid: u8,
+}
+
+fn is_zero_u8(v: &u8) -> bool {
+    *v == 0
 }
 
 impl RaceRules {

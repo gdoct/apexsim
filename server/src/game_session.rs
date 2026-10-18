@@ -4450,7 +4450,9 @@ impl GameSession {
     /// Whom the next race grids by, slot by slot from pole: the weekend's
     /// grid, else the host's own order when there is one, else this
     /// session's qualifying result (drivers with no time behind the
-    /// classified), else nobody (the seating order stands). A driver the
+    /// classified), else nobody (the seating order stands; under a reverse
+    /// grid, `race_rules.reverse_grid`, that is the order turned round).
+    /// A reverse grid turns the first N slots round. A driver the
     /// order names who has gone leaves their slot empty (`None`): the cars
     /// behind keep their places, as on a real grid. Held to the track's
     /// slots (`grid_order::fit`); `None` when even the drivers do not fit.
@@ -4473,9 +4475,14 @@ impl GameSession {
                 &by_slot,
                 self.qualifying_order().into_iter().map(here).collect(),
             )
+        } else if self.session.race_rules.reverse_grid > 1 {
+            by_slot.iter().map(|d| Some(d.id)).collect()
         } else {
             return None;
         };
+        // A reverse grid turns the front of the order round.
+        let reverse = (self.session.race_rules.reverse_grid as usize).min(order.len());
+        order[..reverse].reverse();
         // The cut-off's non-qualifiers take no slot: the grid closes up
         // over them (they did not qualify, they are not no-shows), and they
         // are seated behind it, parked out of the race by the line-up.
@@ -10288,6 +10295,61 @@ mod tests {
                 slot(&game_session, &c),
                 slot(&game_session, &a),
                 slot(&game_session, &b)
+            ),
+            (1, 2, 3)
+        );
+    }
+
+    #[test]
+    fn a_reverse_grid_turns_the_front_of_the_order_round() {
+        let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.set_race_rules(crate::data::RaceRules {
+            reverse_grid: 2,
+            ..Default::default()
+        });
+        game_session.set_game_mode(GameMode::Qualification);
+        game_session.note_qualifying_lap(a, 90_000);
+        game_session.note_qualifying_lap(b, 91_000);
+        game_session.note_qualifying_lap(c, 92_000);
+        assert_eq!(game_session.starting_slots()[&b], 1);
+        game_session.line_up_on_grid();
+        // The two fastest swap; the third keeps the slot it earned.
+        assert_eq!(
+            (
+                slot(&game_session, &b),
+                slot(&game_session, &a),
+                slot(&game_session, &c)
+            ),
+            (1, 2, 3)
+        );
+        // Longer than the field: the whole order reversed, the host's
+        // order and the seating order alike.
+        let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.set_race_rules(crate::data::RaceRules {
+            reverse_grid: 10,
+            ..Default::default()
+        });
+        game_session.set_grid_order(vec!["B".into(), "A".into(), "C".into()]);
+        game_session.line_up_on_grid();
+        assert_eq!(
+            (
+                slot(&game_session, &c),
+                slot(&game_session, &a),
+                slot(&game_session, &b)
+            ),
+            (1, 2, 3)
+        );
+        let (mut game_session, [a, b, c]) = three_drivers();
+        game_session.set_race_rules(crate::data::RaceRules {
+            reverse_grid: 3,
+            ..Default::default()
+        });
+        game_session.line_up_on_grid();
+        assert_eq!(
+            (
+                slot(&game_session, &c),
+                slot(&game_session, &b),
+                slot(&game_session, &a)
             ),
             (1, 2, 3)
         );

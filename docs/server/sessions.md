@@ -290,7 +290,9 @@ nothing is set; echoed in `SessionJoined.RaceRules`):
 - `safety_car` (`SafetyCar` `Off` / `Virtual` / `Full`, 0-2, default
   Off): a car stranded on the road brings out a virtual safety car, or a
   safety car on the road. Its restart procedure is fixed (the leader
-  restarts at the line), so it takes no further rule.
+  restarts at the line), so it takes no further rule;
+- `reverse_grid` (`u8`, 0 off): the first N slots of the starting order
+  start in reverse (see "Starting order and qualifying").
 
 The start rules are in "Race start: formation lap, rolling start, false
 starts", the penalties in "Penalties", the safety cars in "Virtual safety
@@ -656,6 +658,11 @@ seating order) or a name (a human's or an AI's). `line_up_on_grid` calls
 - else this session's qualifying: the classified lead, the rest behind
   (`grid_order::complete`);
 - else the seating order stands.
+
+Under a reverse grid (`race_rules.reverse_grid` N > 1) the first N slots
+of whichever order stands are turned round, empty slots included (the
+seating order too): the fastest qualifier starts from slot N, as in a
+sprint race's reversed top eight.
 
 **A no-show's slot stays empty**, as on a real grid: a name the order
 lists that nobody seated has, the host gone, or a qualifier who has left
