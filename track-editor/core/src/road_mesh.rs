@@ -400,13 +400,7 @@ mod tests {
         // to stand on, but not an upright face either: a fold.
         let mut b = RoadMeshBuilder::new("test");
         let s = b.surface(RoadSurface::curb());
-        b.triangle(
-            s,
-            (0.0, 0.0, 0.0),
-            (1.0, 0.0, 0.0),
-            (1.0, 0.0001, 0.0),
-            7.0,
-        );
+        b.triangle(s, (0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.0001, 0.0), 7.0);
         assert_eq!(b.triangle_count(), 0);
         assert_eq!(b.dropped.len(), 1);
         assert!(!b.dropped[0].is_vertical(), "{:?}", b.dropped[0]);
