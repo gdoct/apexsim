@@ -257,12 +257,19 @@ as canopy, node 0 kept exactly (the sidecar's datum), the raceline carried by
 the road's change. Every circuit with a DEM sidecar is re-derived except
 Shanghai (its 11 m of relief on a flat site is grandstands the surface model
 reads as ground), Monza (the park's canopy: 140 samples read as trees, and
-the fit moved the racecraft, tyre-window and mesh-agreement tests) and
-Suzuka (below). On a wooded circuit the model reads
-trees over whole stretches: look at the fit before trusting `--report`. A
-circuit that crosses itself cannot be fitted as it stands: the DEM sees only
-the bridge, and at Suzuka the fit closed the crossover from 12.3 m of
-clearance to 1.2 m.
+the fit moved the racecraft, tyre-window and mesh-agreement tests). On a
+wooded circuit the model reads trees over whole stretches: look at the fit
+before trusting `--report`. **A circuit that crosses itself** (Suzuka):
+the DEM sees only the bridge deck over both roads, so `crossovers` finds
+each place the lap comes within `CROSS_XY_M` (6 m) of itself at least
+`CROSS_APART_M` (200 m) along, the YAML says which road is lower, and the
+lower road's samples within `CROSS_MASK_M` (80 m) of the crossing are left
+out of the fit, which bridges them from the ground either side; with less
+than `MIN_CLEARANCE_M` (7 m) left road to road the lower road is lowered to
+it, tapered over `CLEARANCE_TAPER_M` (250 m). At Suzuka the fit alone left
+3.1 m (the invented profile had 12.3 m); the AI survey on four seeds was
+unchanged on the centerline backend within its noise and better on the
+road mesh (off-road 162 to 117 s, sliding 36 to 23 s).
 
 **Smoothing** (`ats-smooth`, `track_smooth.rs`). GPS traces at 5 m nodes turn
 noise into curvature. Node positions are filtered by a Savitzky-Golay

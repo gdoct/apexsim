@@ -69,6 +69,18 @@ DATUM_TAPER_M = 400.0
 # centerline, within these bounds: on the road, clear of its verges.
 LATERAL_FRACTION = 0.5
 LATERAL_MIN_M, LATERAL_MAX_M = 2.0, 6.0
+# A crossover: two stretches of road this close in plan and this far apart
+# along the lap (Suzuka's figure of eight). The model reads the bridge deck
+# over both, so the lower road's samples within CROSS_MASK_M of the
+# crossing are dropped and the fit bridges them from the ground either
+# side; if that leaves less than MIN_CLEARANCE_M road to road (deck and
+# headroom), the lower road is lowered to it, tapered out over
+# CLEARANCE_TAPER_M. Which road is lower is the YAML's call.
+CROSS_XY_M = 6.0
+CROSS_APART_M = 200.0
+CROSS_MASK_M = 80.0
+MIN_CLEARANCE_M = 7.0
+CLEARANCE_TAPER_M = 250.0
 
 
 # ------------------------------------------------------------------ reading
@@ -211,8 +223,32 @@ def second_differences(n: int, closed: bool) -> np.ndarray:
     return d
 
 
+def crossovers(xy: np.ndarray, s: np.ndarray, total: float, closed: bool) -> list[tuple[int, int]]:
+    """Each place the lap crosses itself, as the node pair closest in plan
+    (`CROSS_XY_M`, at least `CROSS_APART_M` apart along the lap)."""
+    d = np.hypot(xy[:, None, 0] - xy[None, :, 0], xy[:, None, 1] - xy[None, :, 1])
+    along = np.abs(s[:, None] - s[None, :])
+    if closed:
+        along = np.minimum(along, total - along)
+    near = (d < CROSS_XY_M) & (along > CROSS_APART_M)
+    pairs: list[tuple[int, int]] = []
+    for i, j in zip(*np.nonzero(np.triu(near))):
+        same = [k for k, (a, b) in enumerate(pairs) if loop_distance(s[[a]], s[i], total, closed)[0] < CROSS_APART_M
+                and loop_distance(s[[b]], s[j], total, closed)[0] < CROSS_APART_M]
+        if not same:
+            pairs.append((int(i), int(j)))
+        elif d[i, j] < d[pairs[same[0]]]:
+            pairs[same[0]] = (int(i), int(j))
+    return pairs
+
+
 def fit_profile(
-    y: np.ndarray, spacing_m: float, closed: bool, wavelength_m: float, canopy_tol_m: float
+    y: np.ndarray,
+    spacing_m: float,
+    closed: bool,
+    wavelength_m: float,
+    canopy_tol_m: float,
+    base_w: np.ndarray | None = None,
 ) -> np.ndarray:
     """Whittaker smoother, reweighted against canopy. Its transfer function
     is 1 / (1 + lam (w h)^4), so the half-power wavelength L gives
@@ -220,11 +256,13 @@ def fit_profile(
     lam = (wavelength_m / (2.0 * math.pi * spacing_m)) ** 4
     d = second_differences(len(y), closed)
     penalty = lam * (d.T @ d)
-    w = np.ones_like(y)
+    base = np.ones_like(y) if base_w is None else base_w
+    y = np.where(base > 0.0, y, 0.0)
+    w = base.copy()
     z = y
     for _ in range(50):
         z = np.linalg.solve(np.diag(w) + penalty, w * y)
-        nw = np.where(y - z > canopy_tol_m, CANOPY_WEIGHT, 1.0)
+        nw = np.where(y - z > canopy_tol_m, CANOPY_WEIGHT, 1.0) * base
         if np.array_equal(nw, w):
             break
         w = nw
@@ -247,7 +285,23 @@ def profile(stem: str, wavelength_m: float, canopy_tol_m: float):
     s, total = stations(xy, t.closed)
     z_yaml = t.column("nodes", "z")
     y = road_samples(g, t)
-    fit = fit_profile(y, total / len(s), t.closed, wavelength_m, canopy_tol_m)
+    base_w = np.ones_like(y)
+    crossings = []
+    for i, j in crossovers(xy, s, total, t.closed):
+        low, high = (i, j) if z_yaml[i] < z_yaml[j] else (j, i)
+        base_w[loop_distance(s, s[low], total, t.closed) < CROSS_MASK_M] = 0.0
+        crossings.append((low, high))
+    fit = fit_profile(y, total / len(s), t.closed, wavelength_m, canopy_tol_m, base_w)
+    for low, high in crossings:
+        clearance = fit[high] - fit[low]
+        print(
+            f"   crossover: {s[low]:.0f} m under {s[high]:.0f} m, yaml {z_yaml[high] - z_yaml[low]:.1f} m apart, "
+            f"fit {clearance:.1f} m" + (f", lowered to {MIN_CLEARANCE_M:.1f} m" if clearance < MIN_CLEARANCE_M else "")
+        )
+        if clearance < MIN_CLEARANCE_M:
+            dist = loop_distance(s, s[low], total, t.closed)
+            bump = 0.5 * (1.0 + np.cos(np.pi * np.clip(dist / CLEARANCE_TAPER_M, 0.0, 1.0)))
+            fit = fit - (MIN_CLEARANCE_M - clearance) * bump
     # Hold the datum: the model is tied to node 0's z, so node 0 keeps it.
     taper = np.clip(1.0 - loop_distance(s, 0.0, total, t.closed) / DATUM_TAPER_M, 0.0, 1.0)
     fit = fit + (z_yaml[0] - fit[0]) * taper

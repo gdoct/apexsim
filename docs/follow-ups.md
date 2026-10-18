@@ -178,10 +178,8 @@ the field, a jump start and a red-light exit served; `race_start_test`,
   track and kept running; with fresh showcases a 7-minute run was clean.
   If it comes back, the run's `-abslog` and the Windows event log are the
   places to look.
-- `dem_elevation.py` handles a circuit that crosses itself (Suzuka: the DEM
-  sees only the bridge, so the fit closes the crossover), and Shanghai's and
-  Monza's surface models are checked against a bare-earth one (grandstands,
-  the park's canopy); all three still drive their invented z.
+- Shanghai's and Monza's surface models are checked against a bare-earth
+  one (grandstands, the park's canopy); both still drive their invented z.
 - Verification runs (`scripts/verify`): the tyre close-ups (two flat spots,
   pickup, blisters, a deflated sidewall) can now be framed on a held
   replay (`apexsim.replay.Seek` / `Hold`), but no recipe does it yet: it

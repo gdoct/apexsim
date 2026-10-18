@@ -35,6 +35,10 @@ Each shot is judged against what the feature's doc says it draws.
 The geometry pass of 2026-10-13 (real elevation, banking with ramps, the
 Karussell in concrete, paved aprons as run-off) has been seen on every
 circuit it changed (2026-10-15, R1-R8).
+Suzuka's real elevation (2026-10-18, `dem_elevation.py` with the crossover
+held at 7 m) has not: the bridge deck and the road under it from the
+road and from above, Degner-to-hairpin's new grades, and the stands and
+barriers re-seated on it (`spots.py Suzuka`).
 
 ### R1. Spa, heavy rain, stand-in driver
 

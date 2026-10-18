@@ -387,8 +387,10 @@ fn suzuka_has_its_crossover() {
     assert_eq!((u.lower_road, u.upper_road), (0, 0));
     // Degner-to-hairpin passes under the back straight before 130R.
     assert!(u.lower_station_m < u.upper_station_m);
+    // The DEM profile keeps the roads `dem_elevation.py`'s 7 m apart (the
+    // model reads the deck over both, so the lower road is set under it).
     assert!(
-        u.clearance_m > 10.0 && u.clearance_m < 15.0,
+        u.clearance_m > 6.5 && u.clearance_m < 15.0,
         "{}",
         u.clearance_m
     );
