@@ -336,6 +336,11 @@ limits, as in [server/sessions.md](server/sessions.md).
 - A weekend whose final round is a shoot-out, live, and the HUD's
   conditions panel showing the written outlook (the race layout used had no
   conditions panel up).
+- GO OUT in qualifying starting the car in its pit box and the pit
+  autopilot driving it down the lane to the exit line (`outlap_box_pose`,
+  [server/sessions.md](server/sessions.md#starting-order-and-qualifying)):
+  the car drawn in the box, the limiter and the hand-back past the light,
+  and OUTLAP held until the line after the lane, not the one crossed in it.
 
 ### R13. Race control and the radar, live
 
