@@ -40,6 +40,9 @@ bool FApexControlsSlotsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("clutch has a wheel slot"), FindSlot(Actions::Clutch, Slot::Wheel) != nullptr);
 	TestTrue(TEXT("the clutch starts unbound"), FindSlot(Actions::Clutch, Slot::Wheel) && !FindSlot(Actions::Clutch, Slot::Wheel)->DefaultKey.IsValid());
 	TestTrue(TEXT("no pad clutch"), FindSlot(Actions::Clutch, 0) == nullptr);
+	// The wheel sitting's mark: K on the keyboard, unbound on a pad and a wheel.
+	TestTrue(TEXT("K is mark"), FindSlot(Actions::Mark, 1) && FindSlot(Actions::Mark, 1)->DefaultKey == EKeys::K);
+	TestTrue(TEXT("mark has a wheel slot, unbound"), FindSlot(Actions::Mark, Slot::Wheel) && !FindSlot(Actions::Mark, Slot::Wheel)->DefaultKey.IsValid());
 
 	// No two driving actions share a default key in a column.
 	for (EColumn Column : {EColumn::Gamepad, EColumn::Keyboard})
@@ -66,6 +69,7 @@ bool FApexControlsSlotsTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("nine gates: reverse and eight gears"), Config->HGears.Num(), 9);
 		TestNotNull(TEXT("handbrake action"), Config->FindAction(Actions::Handbrake));
 		TestNotNull(TEXT("clutch action"), Config->FindAction(Actions::Clutch));
+		TestNotNull(TEXT("mark action"), Config->FindAction(Actions::Mark));
 		TestNotNull(TEXT("back to track action"), Config->FindAction(Actions::RecoverTrack));
 		TestNotNull(TEXT("back to pits action"), Config->FindAction(Actions::RecoverPits));
 		TestTrue(TEXT("reverse is the first gate"), Config->FindAction(Actions::HGearReverse) == Config->HGears[0].Get());

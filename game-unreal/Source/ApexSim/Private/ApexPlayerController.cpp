@@ -10,6 +10,7 @@
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "ApexSimInputModule.h"
+#include "Audio/ApexUiAudioSubsystem.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/Engine.h"
@@ -22,6 +23,8 @@
 #include "Race/ApexPredictionSubsystem.h"
 #include "InputActionValue.h"
 #include "Misc/App.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Widgets/SViewport.h"
 
 namespace
@@ -55,6 +58,17 @@ namespace
 		TEXT("apexsim.ffb.Debug"),
 		false,
 		TEXT("Print the force-feedback signals and the pad's motor levels on screen every frame."));
+
+	FAutoConsoleCommandWithWorldAndArgs MarkCommand(
+		TEXT("apexsim.debug.Mark"),
+		TEXT("Mark this moment for a wheel sitting: the last 2 s of the force-feedback mixers to the log and Saved/Marks. Optional word."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+			{
+				if (AApexPlayerController* Controller = World ? Cast<AApexPlayerController>(World->GetFirstPlayerController()) : nullptr)
+				{
+					Controller->Mark(FString::Join(Args, TEXT(" ")));
+				}
+			}));
 }	 // namespace
 
 AApexPlayerController::AApexPlayerController()
@@ -182,6 +196,7 @@ void AApexPlayerController::SetupInputComponent()
 	Input->BindAction(InputConfig->RecoverPits, ETriggerEvent::Started, this, &AApexPlayerController::HandleRecover, true);
 	Input->BindAction(InputConfig->BoxThisLap, ETriggerEvent::Started, this, &AApexPlayerController::HandleBoxThisLap);
 	Input->BindAction(InputConfig->Chat, ETriggerEvent::Started, this, &AApexPlayerController::HandleChat);
+	Input->BindAction(InputConfig->Mark, ETriggerEvent::Started, this, &AApexPlayerController::HandleMark);
 }
 
 void AApexPlayerController::SetDriveInputEnabled(bool bEnabled)
@@ -274,6 +289,7 @@ void AApexPlayerController::UpdateForceFeedback(IInputInterface* InputInterface,
 	// The wheel rides on the same hook: it is the one place that runs every
 	// frame whether or not there is a pawn, a race or a pause menu in front.
 	TickWheelFeedback(Signals, DeltaSeconds);
+	RecordMarkSample(Signals, Driving);
 
 	// XInput, the engine's pad backend on Windows, drives the heavy motor from
 	// the larger of the two Large channels and the light one from the Small
@@ -422,6 +438,7 @@ void AApexPlayerController::TickWheelFeedback(const ApexFfb::FSignals& Signals, 
 		WheelSignals.bHasRim = true;
 		WheelSignals.RimDegrees = Axis * 0.5f * Rotation;
 	}
+	LastRimDegrees = WheelSignals.RimDegrees;
 
 	FApexWheelEffects Effects = ApexFfb::MixWheel(WheelSignals, WheelState, DeltaSeconds, Tuning);
 
@@ -479,6 +496,78 @@ void AApexPlayerController::AccumulateWheelStats(
 			Profile.bPeakGiven ? TEXT(" (given)") : TEXT(""), ApexWheelProfiles::OutputScale(Profile.PeakTorqueNm));
 		S = FApexWheelForceStats();
 	}
+}
+
+void AApexPlayerController::RecordMarkSample(const ApexFfb::FSignals& Signals, const ApexFfb::FRumble& Rumble)
+{
+	if (!Signals.bActive)
+	{
+		return;
+	}
+	ApexFfbMarks::FSample Sample;
+	Sample.Time = FPlatformTime::Seconds();
+	Sample.SpeedMps = Signals.SpeedMps;
+	Sample.Gear = Signals.Gear;
+	Sample.StationM = Signals.StationM;
+	Sample.LocalSteer = Signals.LocalSteer;
+	Sample.RimDegrees = LastRimDegrees;
+	Sample.Torque = Signals.SteerTorque;
+	Sample.Constant = LastWheelEffects.Constant;
+	Sample.Correction = WheelState.Correction;
+	Sample.StiffnessLimit = WheelState.StiffnessLimit;
+	Sample.Road = WheelState.Road;
+	Sample.Vibration = LastWheelEffects.VibrationAmplitude;
+	Sample.VibrationHz = LastWheelEffects.VibrationHz;
+	Sample.Damper = LastWheelEffects.Damper;
+	Sample.PadLow = Rumble.Low;
+	Sample.PadHigh = Rumble.High;
+	Sample.FrontSlide = Signals.FrontSlide;
+	Sample.RearSlide = Signals.RearSlide;
+	Sample.FrontLoad = Signals.FrontLoad;
+	Sample.Curb = FMath::Max(Signals.CurbLeft, Signals.CurbRight);
+	Sample.OffTrack = Signals.OffTrack;
+	Sample.FrontHeat = Signals.FrontHeat;
+	Sample.SuspensionDamage = Signals.SuspensionDamage;
+	Sample.EngineDamage = Signals.EngineDamage;
+	Sample.FlatSpot = Signals.FlatSpot;
+	Sample.bPredicted = bLastFeedbackPredicted;
+	MarkRecorder.Push(Sample);
+}
+
+void AApexPlayerController::Mark(const FString& Word)
+{
+	++MarkCount;
+	if (MarkRunStamp.IsEmpty())
+	{
+		MarkRunStamp = FDateTime::Now().ToString(TEXT("%Y%m%d-%H%M%S"));
+	}
+	const TArray<ApexFfbMarks::FSample> Samples = MarkRecorder.Window();
+	const FString Label = Word.IsEmpty() ? TEXT("mark") : Word;
+	UE_LOG(LogApexSim, Log, TEXT("%s"), *ApexFfbMarks::Summary(MarkCount, Label, Samples));
+
+	FString Safe = Label.Left(32);
+	for (TCHAR& Char : Safe)
+	{
+		Char = FChar::IsAlnum(Char) ? FChar::ToLower(Char) : TEXT('-');
+	}
+	const FString Path = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Marks"),
+		FString::Printf(TEXT("%s-%02d-%s.csv"), *MarkRunStamp, MarkCount, *Safe));
+	if (!Samples.IsEmpty() && !FFileHelper::SaveStringToFile(ApexFfbMarks::Csv(Samples), *Path))
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("MARK %d: could not write %s"), MarkCount, *Path);
+	}
+
+	ApexUiAudio::Play(this, EApexUiSound::Notice);
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(static_cast<uint64>(0xFFB1), 2.0f, FColor::Yellow,
+			FString::Printf(TEXT("MARK %d %s"), MarkCount, *Label));
+	}
+}
+
+void AApexPlayerController::HandleMark(const FInputActionValue&)
+{
+	Mark(FString());
 }
 
 ApexFfb::FRumble AApexPlayerController::TickDrivingFeedback(const ApexFfb::FSignals& Signals, float DeltaSeconds)

@@ -67,6 +67,8 @@ namespace ApexInput
 			{ Actions::BoxThisLap,   1, TEXT("Box this lap"), EKeys::P,                        false, EColumn::Keyboard },
 			{ Actions::Chat,         0, TEXT("Chat"),         FKey(),                          false, EColumn::Gamepad  },
 			{ Actions::Chat,         1, TEXT("Chat"),         EKeys::T,                        false, EColumn::Keyboard },
+			{ Actions::Mark,         0, TEXT("Mark"),         FKey(),                          false, EColumn::Gamepad  },
+			{ Actions::Mark,         1, TEXT("Mark"),         EKeys::K,                        false, EColumn::Keyboard },
 
 			// The watch view: a race, a replay, a hotlap watched without a car.
 			{ Actions::WatchPreviousCar, 0, TEXT("Car ahead"),    EKeys::Gamepad_LeftShoulder,      false, EColumn::Gamepad  },
@@ -127,6 +129,7 @@ namespace ApexInput
 			{ Actions::RecoverPits,  Slot::Wheel,      TEXT("Back to pits"), FKey(), false, EColumn::Wheel },
 			{ Actions::BoxThisLap,   Slot::Wheel,      TEXT("Box this lap"), FKey(), false, EColumn::Wheel },
 			{ Actions::Chat,         Slot::Wheel,      TEXT("Chat"),        FKey(), false, EColumn::Wheel },
+			{ Actions::Mark,         Slot::Wheel,      TEXT("Mark"),        FKey(), false, EColumn::Wheel },
 			{ Actions::HGearReverse, Slot::Wheel, TEXT("Reverse"), FKey(), false, EColumn::Wheel },
 			{ Actions::HGear1, Slot::Wheel, TEXT("Gear 1"), FKey(), false, EColumn::Wheel },
 			{ Actions::HGear2, Slot::Wheel, TEXT("Gear 2"), FKey(), false, EColumn::Wheel },
@@ -555,6 +558,7 @@ UApexInputConfig* UApexInputConfig::Create(UObject* Outer)
 	Config->RecoverPits = MakeAction(Config, TEXT("IA_RecoverPits"), EInputActionValueType::Boolean);
 	Config->BoxThisLap = MakeAction(Config, TEXT("IA_BoxThisLap"), EInputActionValueType::Boolean);
 	Config->Chat = MakeAction(Config, TEXT("IA_Chat"), EInputActionValueType::Boolean);
+	Config->Mark = MakeAction(Config, TEXT("IA_Mark"), EInputActionValueType::Boolean);
 	// Reverse, then 1 to 8: one held action each.
 	for (int32 Gear = -1; Gear <= 8; ++Gear)
 	{
@@ -594,6 +598,7 @@ UInputAction* UApexInputConfig::FindAction(FName ActionId) const
 	if (ActionId == ApexInput::Actions::RecoverPits)  { return RecoverPits; }
 	if (ActionId == ApexInput::Actions::BoxThisLap)   { return BoxThisLap; }
 	if (ActionId == ApexInput::Actions::Chat)         { return Chat; }
+	if (ActionId == ApexInput::Actions::Mark)         { return Mark; }
 	{
 		const int32 Gear = ApexInput::HGearOfAction(ActionId);
 		if (Gear != 0)

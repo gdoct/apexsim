@@ -54,6 +54,7 @@ is one entry in that table.
 | `RecoverTrack` / `RecoverPits` | press | R / unbound | unbound | `RecoverCar` (the pause menu's BACK TO TRACK / BACK TO PITS; the server says whether the car may) |
 | `BoxThisLap` | press | P | D-pad left | `SetPitPlan.box_this_lap` on or off with the pit plan (`UApexPitPlanSubsystem`); the HUD's BOX badge until the stop |
 | `HGearReverse`, `HGear1` to `HGear8` | held | | | `PlayerInput.gear`, absolute (wheel column only, unbound) |
+| `Mark` | press | K | unbound | local: a wheel-sitting mark (`AApexPlayerController::Mark`, below) |
 | `PauseMenu` | press | Escape | Start | local |
 
 Every action also has a wheel slot, unbound by default (unbound steering falls
@@ -423,6 +424,10 @@ hardware.
 - Console: `apexsim.input.Devices` (slots, capabilities, HID paths, live
   readings), `apexsim.input.Rescan`, `apexsim.ffb.Debug 1` (signals, motor
   levels, wheel forces on screen).
+- Marks (`ApexFfbMarks`, [wheel-sitting.md](../wheel-sitting.md)): the
+  `Mark` key or `apexsim.debug.Mark [word]` logs `MARK n "word": ...`, each
+  force signal's mean and range over the last 2 s of driving frames, and
+  writes the frames to `Saved/Marks/<run>-<n>-<word>.csv`.
 - Log: a `Wheel forces over 15 s driving:` line (torque in, constant force out,
   time at the base's limit, correction, road, vibration, settings). Read it
   against a "feels weak" report before changing any gain.

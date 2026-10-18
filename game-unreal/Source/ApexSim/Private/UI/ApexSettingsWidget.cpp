@@ -1457,6 +1457,7 @@ UWidget* UApexSettingsWidget::BuildWheelBindings()
 		{ TEXT("Back to track"), ApexInput::Actions::RecoverTrack, ApexInput::Slot::Wheel,   false, 1 },
 		{ TEXT("Back to pits"), ApexInput::Actions::RecoverPits, ApexInput::Slot::Wheel,     false, 1 },
 		{ TEXT("Box this lap"), ApexInput::Actions::BoxThisLap,  ApexInput::Slot::Wheel,     false, 1 },
+		{ TEXT("Mark"),        ApexInput::Actions::Mark,         ApexInput::Slot::Wheel,     false, 1 },
 		// An H-pattern shifter: a gate is a held button.
 		{ TEXT("H: Reverse"),  ApexInput::Actions::HGearReverse, ApexInput::Slot::Wheel,     false, 0 },
 		{ TEXT("H: Gear 1"),   ApexInput::Actions::HGear1,       ApexInput::Slot::Wheel,     false, 0 },
@@ -1803,6 +1804,7 @@ UWidget* UApexSettingsWidget::BuildBindingsGrid()
 		{ TEXT("Back to pits"), ApexInput::Actions::RecoverPits,   0,  1, TEXT("Driving"),         false },
 		{ TEXT("Box this lap"), ApexInput::Actions::BoxThisLap,    0,  1, TEXT("Driving"),         false },
 		{ TEXT("Chat"),         ApexInput::Actions::Chat,          0,  1, TEXT("Driving"),         false },
+		{ TEXT("Mark"),         ApexInput::Actions::Mark,          0,  1, TEXT("Driving"),         false },
 		{ TEXT("Shift up"),     ApexInput::Actions::GearUp,        0,  1, TEXT("Gears"),           false },
 		{ TEXT("Shift down"),   ApexInput::Actions::GearDown,      0,  1, TEXT("Gears"),           false },
 		{ TEXT("DRS"),          ApexInput::Actions::Drs,           0,  1, TEXT("Energy and DRS"),  false },

@@ -101,6 +101,12 @@ namespace ApexInput
 		/** Pressed: the chat line opens for typing (UApexRootWidget::OpenChat). */
 		inline const FName Chat         = TEXT("Chat");
 		/**
+		 * Pressed: mark this moment for a wheel sitting (docs/wheel-sitting.md).
+		 * The last two seconds of the force-feedback mixers go to the log and
+		 * to `Saved/Marks` (ApexFfbMarks). Local only.
+		 */
+		inline const FName Mark         = TEXT("Mark");
+		/**
 		 * Not an Enhanced Input action: the pause key has to work while the race
 		 * view owns input, so the root widget tests it directly. Listed here so
 		 * it is rebindable and appears in the controls screen with the rest.
@@ -506,4 +512,8 @@ public:
 	/** Digital, fires once per press: the chat line opens. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> Chat;
+
+	/** Digital, fires once per press: a wheel-sitting mark. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> Mark;
 };

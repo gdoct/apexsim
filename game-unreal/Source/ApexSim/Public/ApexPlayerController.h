@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Input/ApexFfbMarks.h"
 #include "Input/ApexForceFeedback.h"
 
 #include "ApexPlayerController.generated.h"
@@ -173,6 +174,14 @@ public:
 	 */
 	void TestWheelForce();
 
+	/**
+	 * A wheel-sitting mark (docs/wheel-sitting.md): the last two seconds of
+	 * the mixers to the log (`MARK n "word": ...`) and to
+	 * `Saved/Marks/<session>-<n>-<word>.csv`, with a cue. The Mark key and
+	 * `apexsim.debug.Mark [word]` call it.
+	 */
+	void Mark(const FString& Word);
+
 protected:
 	virtual void SetupInputComponent() override;
 	virtual void BeginPlay() override;
@@ -238,6 +247,7 @@ private:
 	/** BoxThisLap: the pit request on or off (UApexPitPlanSubsystem). */
 	void HandleBoxThisLap(const struct FInputActionValue& Value);
 	void HandleChat(const struct FInputActionValue& Value);
+	void HandleMark(const struct FInputActionValue& Value);
 	/** DriveInput.HGear from the gates held now. */
 	void UpdateHGear();
 
@@ -274,5 +284,14 @@ private:
 	float WheelTestSeconds = 0.0f;
 
 	FApexWheelForceStats WheelStats;
+
+	/** Every driving frame's feel, for marks. */
+	ApexFfbMarks::FRecorder MarkRecorder;
+	int32 MarkCount = 0;
+	/** The first mark's local time, naming this run's CSVs. */
+	FString MarkRunStamp;
+	/** The rim's angle the wheel mixer last read, degrees. */
+	float LastRimDegrees = 0.0f;
+	void RecordMarkSample(const ApexFfb::FSignals& Signals, const ApexFfb::FRumble& Rumble);
 	void AccumulateWheelStats(const ApexFfb::FSignals& Signals, const FApexWheelEffects& Effects, float DeltaSeconds);
 };

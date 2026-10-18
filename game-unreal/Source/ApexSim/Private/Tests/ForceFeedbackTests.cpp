@@ -1,5 +1,6 @@
 #include "ApexProtocolTypes.h"
 #include "ApexTestCommon.h"
+#include "Input/ApexFfbMarks.h"
 #include "Input/ApexForceFeedback.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -1311,6 +1312,47 @@ bool FApexFfbGroundTest::RunTest(const FString& Parameters)
 	// On a pad gravel buzzes the light motor; sand barely does.
 	TestTrue(TEXT("gravel on the light motor"), PeakOver(Off(1.0f, 0.0f), 1.0f).High > PeakOver(Off(0.0f, 0.0f), 1.0f).High);
 	TestTrue(TEXT("sand on the heavy one"), PeakOver(Off(0.0f, 1.0f), 1.0f).High < PeakOver(Off(0.0f, 0.0f), 1.0f).High);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexFfbMarksTest,
+	"ApexSim.Input.ForceFeedback.Marks",
+	ApexTestFlags)
+
+bool FApexFfbMarksTest::RunTest(const FString& Parameters)
+{
+	// A small ring, wrapped: three seconds at 100 Hz into 256 samples.
+	ApexFfbMarks::FRecorder Recorder(256);
+	TestEqual(TEXT("nothing yet"), Recorder.Window().Num(), 0);
+	for (int32 Frame = 0; Frame < 300; ++Frame)
+	{
+		ApexFfbMarks::FSample Sample;
+		Sample.Time = 100.0 + Frame * 0.01;
+		Sample.Torque = Frame * 0.001f;
+		Sample.Constant = -0.5f;
+		Recorder.Push(Sample);
+	}
+	const TArray<ApexFfbMarks::FSample> Window = Recorder.Window(ApexFfbMarks::WindowSeconds);
+	TestEqual(TEXT("two seconds at 100 Hz, both ends"), Window.Num(), 201);
+	TestTrue(TEXT("oldest first"), Window[0].Time < Window.Last().Time);
+	TestEqual(TEXT("ends on the newest"), Window.Last().Torque, 0.299f, 1.0e-6f);
+
+	const FString Line = ApexFfbMarks::Summary(3, TEXT("light"), Window);
+	TestTrue(TEXT("names the mark"), Line.StartsWith(TEXT("MARK 3 \"light\"")));
+	TestTrue(TEXT("the constant's mean and range"), Line.Contains(TEXT("constant -0.500 [-0.500..-0.500]")));
+	TestTrue(TEXT("an empty window says so"), ApexFfbMarks::Summary(1, TEXT("x"), {}).Contains(TEXT("no driving samples")));
+
+	TArray<FString> Rows;
+	ApexFfbMarks::Csv(Window).ParseIntoArrayLines(Rows);
+	TestEqual(TEXT("a header and a row a frame"), Rows.Num(), 202);
+	TestTrue(TEXT("time runs up to the mark"), Rows.Last().StartsWith(TEXT("0.0000,")));
+	TestTrue(TEXT("the first row is two seconds before"), Rows[1].StartsWith(TEXT("-2.0000,")));
+
+	Recorder.Reset();
+	TestEqual(TEXT("reset"), Recorder.Window().Num(), 0);
 	return true;
 }
 
