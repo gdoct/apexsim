@@ -63,7 +63,9 @@ namespace
 		const FName Rejoin(TEXT("Rejoin"));
 		const FName GiveUpSeat(TEXT("GiveUpSeat"));
 		const FName GoCreate(TEXT("GoCreate"));
+		const FName GoWatch(TEXT("GoWatch"));
 		const FName Weekend(TEXT("Weekend"));
+		const FName Hotlap(TEXT("Hotlap"));
 		const FName QuitBack(TEXT("QuitBack"));
 		const FName QuitExit(TEXT("QuitExit"));
 	}
@@ -417,7 +419,8 @@ bool UApexMainMenuWidget::GoUp()
 	switch (CurrentPage)
 	{
 	case EPage::Garage:
-	case EPage::Drive:  ShowPage(EPage::Root);   return true;
+	case EPage::Drive:
+	case EPage::Watch:  ShowPage(EPage::Root);   return true;
 	case EPage::Cars:
 	case EPage::Tracks: ShowPage(EPage::Garage); return true;
 	case EPage::Create: ShowPage(EPage::Drive);  return true;
@@ -448,19 +451,24 @@ UVerticalBox* UApexMainMenuWidget::BuildPage(EPage Page)
 		Heading(TEXT("Menu"));
 		Row(TEXT("Garage"),       Action::GoGarage);
 		Row(TEXT("Drive"),        Action::GoDrive);
-		Row(TEXT("Watch a race"), Action::Watch);
+		Row(TEXT("Watch a race"), Action::GoWatch);
 		Row(TEXT("Settings"),     Action::Settings);
 		break;
 
 	case EPage::Garage:
 		Heading(TEXT("Garage"));
-		Row(TEXT("Garage"),  Action::GoCars);
-		Row(TEXT("Replays"), Action::Replays);
-		Row(TEXT("Tracks"),  Action::GoTracks);
+		Row(TEXT("Cars"),   Action::GoCars);
+		Row(TEXT("Tracks"), Action::GoTracks);
+		break;
+
+	case EPage::Watch:
+		Heading(TEXT("Watch a race"));
+		Row(TEXT("Live race"), Action::Watch);
+		Row(TEXT("Replays"),   Action::Replays);
 		break;
 
 	case EPage::Cars:
-		Heading(TEXT("Garage / Garage"));
+		Heading(TEXT("Garage / Cars"));
 		Row(TEXT("Manage car setups"), Action::Setups);
 		Row(TEXT("View car stats"), Action::Garage);
 		break;
@@ -475,6 +483,7 @@ UVerticalBox* UApexMainMenuWidget::BuildPage(EPage Page)
 	case EPage::Drive:
 		Heading(TEXT("Drive"));
 		Row(TEXT("Create session"),    Action::GoCreate);
+		Row(TEXT("Hotlap"),            Action::Hotlap);
 		Row(TEXT("Browse sessions"),   Action::Browse);
 		Row(TEXT("Connect to server"), Action::Connect);
 		break;
@@ -1403,6 +1412,7 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (Id == Action::GoCars)    { ShowPage(EPage::Cars); }
 	else if (Id == Action::GoTracks)  { ShowPage(EPage::Tracks); }
 	else if (Id == Action::GoCreate)  { ShowPage(EPage::Create); }
+	else if (Id == Action::GoWatch)   { ShowPage(EPage::Watch); }
 	else if (Id == Action::Back)      { GoUp(); }
 	else if (Id == Action::ListItem)
 	{
@@ -1465,6 +1475,17 @@ void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		{
 			Flow->CreateStartingMode = EApexGameMode::Race;
 			Flow->bCreateWeekend = true;
+		}
+		ShowScreen(EApexScreen::SessionCreate);
+	}
+	else if (Id == Action::Hotlap)
+	{
+		// The create screen opened on its Hotlap mode, as Race weekend opens
+		// on its own.
+		if (UApexMenuFlowSubsystem* Flow = GetFlow())
+		{
+			Flow->CreateStartingMode = EApexGameMode::Hotlap;
+			Flow->bCreateWeekend = false;
 		}
 		ShowScreen(EApexScreen::SessionCreate);
 	}

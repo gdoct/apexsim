@@ -297,7 +297,7 @@ Cameras and the demo session are in [cameras](cameras.md).
 Any race the director has on screen can be watched full screen
 (`UApexRootWidget::WatchBackdrop`, `WatchSession`, `WatchReplay`):
 
-- **Main menu > Watch a race**: the backdrop, kept across its next races.
+- **Main menu > Watch a race > Live race**: the backdrop, kept across its next races.
   When one finishes, the `spectator_results` HUD component shows its result
   (winner's race time, gaps at the flag, best laps) and the race stays up
   for 30 s before the next (6 s when nobody watches it full screen;
@@ -311,7 +311,7 @@ Any race the director has on screen can be watched full screen
   be sent again (`GameSession::mark_roster_dirty`); the spectator gets the full
   racer telemetry. `UApexNetSubsystem::IsSessionSpectator` is true and the race
   view opens with no car.
-- **Main menu > Replays**: a saved replay, below.
+- **Main menu > Watch a race > Replays**: a saved replay, below.
 - A watched hotlap: see [sessions](../server/sessions.md).
 
 The race director holds the watched car (`FocusCar`, `StepFocus`,

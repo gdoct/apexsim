@@ -225,31 +225,6 @@ has a kink and does not follow the bend smoothly.
 circuits (`-ApexCameraLookAt`), before and after; full `track-editor`
 tests; the AI survey against the commit before.
 
-### 24. Main menu: replays under Watch a race, hotlap under Drive, Cars
-
-Seen testing, 2026-10-18: Replays sits on the Garage page, where nobody
-looks for it, and driving a hotlap has no menu row of its own.
-
-- Make Watch a race a page of its own (`ApexMainMenuWidget.cpp`
-  `EPage`, today a direct `Action::Watch`) with Live race (the backdrop
-  race full screen, `WatchBackdrop`, what the row does now) and Replays
-  (moved from the Garage page, with its file-count badge). The Garage page
-  keeps Garage and Tracks.
-- Hotlap on the Drive page (Create session, Hotlap, Browse sessions,
-  Connect to server): today a hotlap is only reached through the create
-  screen's mode list. The row opens the create screen on its Hotlap mode
-  (decided 2026-10-18), as Race weekend does (`Flow->CreateStartingMode = EApexGameMode::Hotlap`,
-  `Action::Weekend` in `ApexMainMenuWidget.cpp` is the pattern). Watch
-  hotlap stays on the Tracks page.
-- The Garage page's first row is also called Garage (`Action::GoCars`),
-  and its page is headed "Garage / Garage": name the row Cars and the
-  heading "Garage / Cars".
-- Update the menu's page list in `game/client.md`.
-
-**Check:** `ApexSim.UI.PadWalk` (it walks screens, so the moves should not
-break it); a shot of each changed page; Back from Replays lands on Watch a
-race; Drive / Hotlap starts a hotlap.
-
 ### 25. Car select: confirm before leaving
 
 Seen testing, 2026-10-18: clicking a car on the car select screen picks it

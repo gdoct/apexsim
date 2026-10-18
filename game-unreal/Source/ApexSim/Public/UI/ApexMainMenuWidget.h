@@ -114,7 +114,7 @@ private:
 	// The rail is a small tree of pages (docs/game/client.md): Root holds the
 	// four main entries, the others hold what is under Garage and Drive.
 
-	enum class EPage : uint8 { Root, Garage, Cars, Tracks, Drive, Create, Count };
+	enum class EPage : uint8 { Root, Garage, Cars, Tracks, Drive, Create, Watch, Count };
 
 	/** Shows one page of the rail and focuses its first usable row. */
 	void ShowPage(EPage Page, bool bFocus = true);

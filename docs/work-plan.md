@@ -34,7 +34,6 @@ When an item is done, delete it from its backlog and from here.
 | B7 | Kinks in the inside curb of some corners, all circuits | Bug | P2 | 🟡 | M |
 | F2 | Trackside light panels showing yellow and blue | Feature + content | P2 | 🟡 | M |
 | B11 | Tyre bridge prop too tall, reads as an oval | Content | P2 | 🟡 | S |
-| B9 | Main menu: Replays under Watch a race, Hotlap under Drive | UI | P2 | 🟢 | S |
 | B10 | Car select leaves on the first click; wants a Confirm | UI | P2 | 🟡 | S |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
 | D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🟡 | M |
@@ -130,15 +129,6 @@ re-import the kit and re-export the eight circuits that lay it. Check
 with a shot from the cockpit at Le Mans beside the photos; a person
 judges.
 Image: /docs/tirebridge.png
-
-#### B9. Main menu: Replays under Watch a race, Hotlap under Drive — P2 · 🟢 · S
-*Source: follow-ups #24 (testing, 2026-10-18).* Replays is on the Garage
-page. Turn Watch a race into a page (Live race = today's backdrop watch,
-Replays) in `ApexMainMenuWidget.cpp` and drop Replays from Garage. Add a
-Hotlap row to the Drive page that opens the create screen on its Hotlap
-mode, as Race weekend does (decided 2026-10-18). Rename the Garage page's first row from
-Garage to Cars (heading "Garage / Cars"). Check with `ApexSim.UI.PadWalk` and shots;
-update `game/client.md`.
 
 #### B10. Car select leaves on the first click; wants a Confirm — P2 · 🟡 · S
 *Source: follow-ups #25 (testing, 2026-10-18).* Clicking a car picks it and

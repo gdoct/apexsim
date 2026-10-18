@@ -1178,10 +1178,9 @@ runs:
 
   - id: r9a-menus
     about: "R9. Menus: stat sheet, setups, track guide, replays, browser filters, a broadcast"
-    # No race: the menu over its backdrop. ui.Click counts matches from 0
-    # (the Garage page has the heading and the row: the row is #1). Each page
-    # is left by its own Back row: Escape on the root page opens the exit
-    # overlay. ui.Texts logs what was on screen before each step.
+    # No race: the menu over its backdrop. ui.Click counts matches from 0.
+    # Each page is left by its own Back row: Escape on the root page opens
+    # the exit overlay. ui.Texts logs what was on screen before each step.
     args:
       - -ApexNoDemo
     dashboard:
@@ -1190,7 +1189,7 @@ runs:
         message: "Verification run: a message from the dashboard"
     exec:
       5: ["apexsim.ui.Click Garage"]
-      7: ["apexsim.ui.Texts", "apexsim.ui.Click Garage #1"]
+      7: ["apexsim.ui.Texts", "apexsim.ui.Click Cars"]
       9: ["apexsim.ui.Texts", "apexsim.ui.Click View car stats"]
       15: ["apexsim.ui.Key Escape"]
       17: ["apexsim.ui.Texts", "apexsim.ui.Click Manage car setups"]
@@ -1200,7 +1199,9 @@ runs:
       29: ["apexsim.ui.Texts", "apexsim.ui.Click See track guide"]
       40: ["apexsim.ui.Key Escape"]
       42: ["apexsim.ui.Texts", "apexsim.ui.Click Back"]
-      44: ["apexsim.ui.Texts", "apexsim.ui.Click Replays"]
+      43: ["apexsim.ui.Texts", "apexsim.ui.Click Back"]
+      44: ["apexsim.ui.Texts", "apexsim.ui.Click Watch a race"]
+      46: ["apexsim.ui.Texts", "apexsim.ui.Click Replays"]
       52: ["apexsim.ui.Key E"]
       58: ["apexsim.ui.Key Escape"]
       60: ["apexsim.ui.Texts", "apexsim.ui.Click Back"]
@@ -1210,7 +1211,7 @@ runs:
       83: ["apexsim.ui.Click Recorded"]
     shots:
       - at: 12
-        label: "Garage > Garage > View car stats"
+        label: "Garage > Cars > View car stats"
         checks: "The car stat sheet (menus package of 2026-10-14)"
       - at: 21
         label: "Manage car setups"
@@ -1236,6 +1237,42 @@ runs:
       - at: 85
         label: "browser filter: Recorded (clicked)"
         checks: "The browser's filter pills by mouse"
+
+  - id: m1-menu-pages
+    about: "Follow-ups #26: the main menu's pages and the create screen (B6, B9)"
+    # No race. Watch a race and Drive are pages; Drive > Hotlap opens the
+    # create screen on its Hotlap mode; "Grid start" is the Race tile's
+    # second line (the tab is also called Race).
+    args:
+      - -ApexNoDemo
+    exec:
+      4: ["apexsim.ui.Click Garage"]
+      8: ["apexsim.ui.Click Back"]
+      10: ["apexsim.ui.Click Watch a race"]
+      14: ["apexsim.ui.Click Back"]
+      16: ["apexsim.ui.Click Drive"]
+      20: ["apexsim.ui.Click Hotlap"]
+      28: ["apexsim.ui.Texts", "apexsim.ui.Click Grid start"]
+      33: ["apexsim.ui.Click Conditions"]
+    shots:
+      - at: 7
+        label: "Garage page: Cars, Tracks"
+        checks: "B9: Replays gone from Garage, its first row named Cars"
+      - at: 13
+        label: "Watch a race page: Live race, Replays"
+        checks: "B9: Watch a race is a page"
+      - at: 19
+        label: "Drive page: Create session, Hotlap, Browse, Connect"
+        checks: "B9: a Hotlap row on Drive"
+      - at: 26
+        label: "Drive > Hotlap: the create screen on Hotlap"
+        checks: "B9: the row opens the create screen on its Hotlap mode; B6: no Sandbox tile"
+      - at: 31
+        label: "Create screen, Race mode"
+        checks: "B6: the settings take half the screen; judge the layout"
+      - at: 36
+        label: "Create screen, Conditions"
+        checks: "B6: the conditions tab at half the screen"
 
   - id: r9b-race-dashboard
     about: "R9. In a race: the HUD layout picker, a broadcast over the HUD, the dashboard ending the session"

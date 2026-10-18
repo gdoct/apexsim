@@ -157,19 +157,22 @@ track and car from the profile) with **Start session** (a one-click start of
 the remembered session) and **Change setup** (the create screen). The right
 "rail" is a tree of pages:
 
-- **Garage**: Garage (Manage car setups opens the hotlap garage's setup sheet
+- **Garage**: Cars (Manage car setups opens the hotlap garage's setup sheet
   over the menu, `UApexRootWidget::OpenSetupEditor`; View car stats turns
   the list's detail panel into the highlighted car's stat sheet and back:
   horsepower, power to weight, engine, redline, tyre window, liveries,
-  compounds, saved setups and the quickest lap on one), Replays (the replays
-  screen), Tracks (Watch hotlap, `StartHotlapWatch`; See track guide opens
-  the picked circuit's guide straight away, the track picker only when it
-  has none). The Garage and
-  Tracks pages turn the hero into a list of cars or tracks with a detail panel.
+  compounds, saved setups and the quickest lap on one), Tracks (Watch
+  hotlap, `StartHotlapWatch`; See track guide opens the picked circuit's
+  guide straight away, the track picker only when it has none). The Cars
+  and Tracks pages turn the hero into a list of cars or tracks with a
+  detail panel.
 - **Drive**: Create session (Quick = the remembered session; Race weekend
-  opens the create screen on its Race weekend mode; Custom = the create screen), Browse sessions (live
-  sessions: watch or join), Connect to server.
-- **Watch a race**: the menu's backdrop race full screen (`WatchBackdrop`).
+  opens the create screen on its Race weekend mode; Custom = the create
+  screen), Hotlap (the create screen on its Hotlap mode), Browse sessions
+  (live sessions: watch or join), Connect to server.
+- **Watch a race**: Live race (the menu's backdrop race full screen,
+  `WatchBackdrop`) and Replays (the replays screen, with the count of saved
+  files; Back from it lands on this page).
 - **Settings**: the settings overlay.
 
 While the server holds a seat for the player in a session they lost the
