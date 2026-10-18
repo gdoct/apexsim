@@ -31,7 +31,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 | A circuit's time zone is a coarse map (`data::legal_clock`), not the real zone boundaries; the season's air is one cosine by latitude (`data::season_air_c`), with no continental or maritime climate, no wet or dry season in the tropics and no altitude lapse. | Low | Low |
 | Overnight cooling has no dew or fog; an evening session at a humid circuit is as clear as noon. | Med | Low |
 | Snow: the run-off carries the verge's cover and the pit lane one figure a cell of its own (`RoadState::lane_snow`): neither has ice or a driven track across its width, and the lane's water is still the lap cell's beside it. | Low | Low |
-| Snow: the AI knows the snow's grip exactly (its speed profile is baked on the covered road, `surface_grip_share` reads the line) and still cannot hold 0.28 on cold tyres, so a snow race is a pile-up; it has no feel for a road it misjudges and no snow technique (slower, earlier, straighter inputs) that would let a careful driver get round. There is no gritting or salting as a session rule; sleet (snow at 1 to 3 °C that lands as water) and hail are not modelled. | Med | Med |
+| Snow: the AI knows the snow's grip exactly (its speed profile is baked on the covered road, `surface_grip_share` reads the line) and still cannot hold 0.28 on cold tyres, so a snow race is a pile-up; it has no feel for a road it misjudges; its snow technique (`ai_driver::SNOW_PACE`, a slower wheel and throttle) roughly halves the time off the road, and the field still piles up. There is no gritting or salting as a session rule; sleet (snow at 1 to 3 °C that lands as water) and hail are not modelled. | Med | Med |
 
 ## AI and strategy
 

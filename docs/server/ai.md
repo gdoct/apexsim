@@ -94,6 +94,15 @@ Built per tick in `ai_input_for` with the car's speed profile
   (`surface_grip_share`: rubber, marbles, water; `snow_tyre_share`: a snow
   tyre's bite on the cover); `aero_load_share` covers
   the wake, the wind and a damaged nose.
+- **Snow technique**, on a road baked snow-covered
+  (`TrackSurface::baked_snow`, each scaled by it, so a dry road is driven
+  bit for bit as before): the target pace times `SNOW_PACE` (0.93), so the
+  braking comes earlier than the plan's grip says; the steering lag times
+  `SNOW_STEER_LAG_SCALE` (1.8); and the throttle squeezed in no faster
+  than `SNOW_THROTTLE_STEP` (0.15) a decision. Against the controller
+  without it, the snow survey (Silverstone, Monza, Spa, seeds 1-2) went
+  from 712 to 432 car-seconds of contact, 4439 to 2271 off the road and
+  773 to 461 sliding.
 - **Pace noise** (`lap_noise`) is smooth along the lap, new each lap and
   only ever slower than the plan; a driver wanders up to 0.5 m about its
   line on straights by imprecision (`WANDER_*`).

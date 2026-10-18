@@ -63,6 +63,15 @@ const STANLEY_GAIN_ACE: f32 = 2.0;
 const STANLEY_SOFTENING_MPS: f32 = 3.0;
 const STEER_LAG_NOVICE_S: f32 = 0.08;
 const STEER_LAG_ACE_S: f32 = 0.04;
+/// Snow technique, on a road baked snow-covered (`TrackSurface::baked_snow`,
+/// each scaled by it): the plan's pace taken down to this share, so the
+/// braking comes earlier and the corners slower than the grip the plan
+/// reads ...
+pub const SNOW_PACE: f32 = 0.93;
+/// ... the wheel turned this much slower (the steering lag scaled) ...
+pub const SNOW_STEER_LAG_SCALE: f32 = 1.8;
+/// ... and the throttle fed in no faster than this much a decision.
+pub const SNOW_THROTTLE_STEP: f32 = 0.15;
 /// Seconds of steering per unit of yaw-rate error against the rate the path
 /// asks for (`track_path`): damps the weave the wheel and tyre lags make.
 const YAW_DAMPING: f32 = 0.25;
@@ -486,7 +495,9 @@ impl<'a> AiDriverController<'a> {
                     * (1.0 - self.profile.consistency)
                     * self.profile.randomness_scale);
 
-        let mut target_speed = target_speed;
+        // On snow: slower than the plan, everywhere.
+        let snow = self.snow();
+        let mut target_speed = target_speed * (1.0 - (1.0 - SNOW_PACE) * snow);
 
         // Speed-scaled look-ahead for steering. Too long a look-ahead cuts
         // straight through chicanes (the car aims past the apex and runs
@@ -636,6 +647,12 @@ impl<'a> AiDriverController<'a> {
 
         let (throttle, brake) = self.calculate_throttle_brake(state, target_speed, skill_factor);
         let throttle = self.limit_throttle_to_grip(state, throttle);
+        // On snow the throttle is squeezed in, never stabbed.
+        let throttle = if self.snow() > 0.0 {
+            throttle.min(state.throttle_input + SNOW_THROTTLE_STEP)
+        } else {
+            throttle
+        };
         // Saving fuel: off the throttle into the braking zone, on the brake
         // only where the ordinary plan wants it.
         let throttle = if brake <= 0.0 && state.is_on_track && self.coasting(state, d_line) {
@@ -801,6 +818,12 @@ impl<'a> AiDriverController<'a> {
 
     /// A driver's hands are not instant: the wheel moves towards the wanted
     /// angle with a skill-dependent time constant.
+    /// How snow-covered the road was baked, 0..1 (`TrackSurface::baked_snow`):
+    /// the snow technique's weight. 0 on any other road.
+    fn snow(&self) -> f32 {
+        self.track_config.track_surface.baked_snow.clamp(0.0, 1.0)
+    }
+
     fn smooth_steering(
         &self,
         state: &CarState,
@@ -808,7 +831,8 @@ impl<'a> AiDriverController<'a> {
         skill_factor: f32,
         tick_rate_hz: u16,
     ) -> f32 {
-        let tau = STEER_LAG_NOVICE_S + (STEER_LAG_ACE_S - STEER_LAG_NOVICE_S) * skill_factor;
+        let tau = (STEER_LAG_NOVICE_S + (STEER_LAG_ACE_S - STEER_LAG_NOVICE_S) * skill_factor)
+            * (1.0 + (SNOW_STEER_LAG_SCALE - 1.0) * self.snow());
         let dt = 1.0 / tick_rate_hz.max(1) as f32;
         let blend = 1.0 - (-dt / tau).exp();
         state.steering_input + (steering - state.steering_input) * blend
