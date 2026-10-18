@@ -12,7 +12,9 @@
 //!   so many seconds of green, do something to a car. The target is `host`
 //!   (every human car), `all`, or a car index as the telemetry carries it.
 //!   Actions: `wear=P` (every tyre P% worn), `puncture=W` / `leak=W:KPA`
-//!   (W is FL FR RL RR), `flatspot=W:S` (0..1), `damage=ZONE:P` (front rear
+//!   (W is FL FR RL RR), `flatspot=W:S` (0..1), `heat=W:C` (the tread,
+//!   its zones and the core at C °C; W may also be `front`, `rear` or
+//!   `all`), `damage=ZONE:P` (front rear
 //!   left right engine; 100 retires the car), `brakewear=P`, `pit` (the
 //!   next pass of the lane is a stop), `boost=S` (a stand-in holds the
 //!   overtake button for S seconds), `aids=off` (ABS and traction control
@@ -56,6 +58,9 @@ pub enum Action {
     Puncture(usize),
     Leak(usize, f32),
     FlatSpot(usize, f32),
+    /// The tyres in the mask (bit 0 = FL .. bit 3 = RR) at this many °C,
+    /// tread and core, from where the tyre model carries on.
+    Heat(u8, f32),
     Damage(Zone, f32),
     BrakeWear(f32),
     Pit,
@@ -109,6 +114,16 @@ fn wheel(name: &str) -> Option<usize> {
     }
 }
 
+/// A wheel or an axle as a mask, bit 0 = FL .. bit 3 = RR.
+fn wheels(name: &str) -> Option<u8> {
+    match name.trim().to_ascii_lowercase().as_str() {
+        "front" => Some(0b0011),
+        "rear" => Some(0b1100),
+        "all" => Some(0b1111),
+        other => wheel(other).map(|w| 1 << w),
+    }
+}
+
 fn zone(name: &str) -> Option<Zone> {
     match name.trim().to_ascii_lowercase().as_str() {
         "front" => Some(Zone::Front),
@@ -143,6 +158,14 @@ pub fn parse_event(text: &str) -> Option<DebugEvent> {
         "flatspot" => {
             let w = wheel(&next())?;
             Action::FlatSpot(w, next().parse().ok()?)
+        }
+        "heat" => {
+            let mask = wheels(&next())?;
+            let c: f32 = next().parse().ok()?;
+            if !c.is_finite() {
+                return None;
+            }
+            Action::Heat(mask, c)
         }
         "damage" => {
             let z = zone(&next())?;
@@ -186,6 +209,15 @@ pub fn apply(action: Action, state: &mut CarState) {
         Action::Puncture(w) => crate::tyre_thermal::puncture(tyre(state, w), None),
         Action::Leak(w, kpa) => crate::tyre_thermal::puncture(tyre(state, w), Some(kpa)),
         Action::FlatSpot(w, s) => tyre(state, w).flat_spot = s.clamp(0.0, 1.0),
+        Action::Heat(mask, c) => {
+            let c = c.clamp(-30.0, 200.0);
+            for w in (0..4).filter(|w| mask & (1 << w) != 0) {
+                let t = tyre(state, w);
+                t.temperature_c = c;
+                t.tread_c = [c; 3];
+                t.core_temperature_c = c;
+            }
+        }
         Action::Damage(z, p) => {
             let p = p.clamp(0.0, 100.0);
             let d = &mut state.damage;
@@ -236,6 +268,12 @@ mod tests {
         let manual = DebugHooks::from_settings(false, "0:host:pitlane=manual");
         assert_eq!(manual.events[0].action, Action::ManualPits);
         assert!(!DebugHooks::from_settings(false, "").is_active());
+        let heat = DebugHooks::from_settings(false, "5:host:heat=front:130;6:host:heat=RL:90");
+        assert_eq!(heat.events[0].action, Action::Heat(0b0011, 130.0));
+        assert_eq!(heat.events[1].action, Action::Heat(0b0100, 90.0));
+        assert!(DebugHooks::from_settings(false, "5:host:heat=front:hot")
+            .events
+            .is_empty());
     }
 
     #[test]
@@ -252,6 +290,10 @@ mod tests {
         assert!(!state.damage.is_drivable);
         apply(Action::Puncture(1), &mut state);
         assert!(state.tires.front_right.punctured);
+        apply(Action::Heat(0b0011, 130.0), &mut state);
+        assert_eq!(state.tires.front_left.tread_c, [130.0; 3]);
+        assert_eq!(state.tires.front_right.core_temperature_c, 130.0);
+        assert_ne!(state.tires.rear_left.temperature_c, 130.0);
         apply(Action::Wear(80.0), &mut state);
         assert!(state.tires.each().iter().all(|t| t.wear_percent == 80.0));
     }

@@ -329,6 +329,8 @@ human's car in every mode (race, practice, qualifying runs and shoot-outs
 once the car is out of its garage), with the steering aid off whatever the
 driver's profile says (`hand_cars_to_stand_in`, each tick); `events = "<s of green>:<host|all|car index>:<action>;..."`
 fires `wear=P`, `puncture=FL`, `leak=FL:KPA`, `flatspot=FL:S`,
+`heat=FL:C` (a tyre's tread and core at C °C; `front`, `rear` or `all` for
+several),
 `damage=<zone>:P`, `brakewear=P`, `pit`, `boost=S`, `aids=off` or
 `pitlane=manual` (the pit autopilot off) at a time
 of green. Not applied to demo sessions. Tests: `tests/debug_hooks_test.rs`.

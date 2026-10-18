@@ -97,6 +97,38 @@ fn a_boost_event_holds_the_overtake_button() {
     assert!(!gs.stand_in_input(&player).unwrap().ers_boost, "let go");
 }
 
+/// A heat event cooks the fronts: their grip drops at once and the tyre
+/// model carries on from there (cools), rather than snapping back.
+#[test]
+fn a_heat_event_cooks_the_fronts() {
+    let Some((mut gs, player)) = race_with_events("posh-gt3rs", "3:host:heat=front:140") else {
+        return;
+    };
+    let before = std::cell::Cell::new(None);
+    run(&mut gs, player, 60.0, |s| {
+        if s.tires.front_left.temperature_c >= 130.0 {
+            return true;
+        }
+        before.set(Some(s.tires.front_left.grip_factor));
+        false
+    });
+    let before = before.get();
+    let s = &gs.session.participants[&player];
+    assert!(s.tires.front_left.core_temperature_c > 130.0, "core heated");
+    assert!(s.tires.rear_left.temperature_c < 130.0, "rears untouched");
+    run(&mut gs, player, 0.5, |_| false);
+    let s = &gs.session.participants[&player];
+    let grip = s.tires.front_left.grip_factor;
+    assert!(
+        grip < before.unwrap_or(1.0) - 0.02,
+        "greasy fronts lose grip: {grip} after {before:?}"
+    );
+    assert!(
+        s.tires.front_left.core_temperature_c > 100.0,
+        "still hot half a second on"
+    );
+}
+
 /// The stand-in drives a human's car in qualifying too, with the steering
 /// aid their profile has on (as a client's `SetDriverAids` leaves it): a
 /// shoot-out's run is driven to a flying lap and the shoot-out ends. With
