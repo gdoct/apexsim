@@ -48,24 +48,16 @@ circuit do not show them yet.
 seen flashing yellow at the incident's sector and blue as the lapped car
 passes.
 
-### 23. Overheated tyres do not cool down
+### 26. Your judgement on the 2026-10-18 fixes
 
-Seen testing, 2026-10-18: once a tyre is overheated (about 140 °C) it does
-not come back down properly, even when driven gently.
+Built and checked by tests; each needs a person before it is closed.
 
-- Reproduce it: take a tyre to 140 °C, then drive steady laps and log
-  tread, core and the heat in and out per tyre (`tyre_thermal.rs`).
-- Find the cause. Two guesses, neither checked: an overheated tyre has
-  less grip, slides more and makes more slide heat, so it holds itself hot;
-  or air convection and road conduction are too weak to shed heat that far
-  above the window.
-- Real tyres shed an overheat in a lap or two of gentle driving; make that
-  the target, without moving the normal window (the AI's pace sets the
-  class windows, so a change shows in the survey).
-
-**Check:** a test in `tests/tyre_temperature_test.rs` that a tyre at 140 °C
-falls back towards its window in about two gentle laps; the AI survey
-against the commit before; a person drives it.
+- **Overheated tyres (B8).** A tyre cooked to 140 °C now sheds it in about
+  two gentle laps: hot rubber makes less hysteresis heat over the window
+  (`tyre_thermal::hysteresis_share`). Overheat a set (slide a GT3 for a few
+  corners), then drive gently: the HUD's tyre temperatures should fall to
+  the window within a lap or two, and the car should feel back to normal.
+  Best done in H1 on the wheel.
 
 ## P2: depth
 

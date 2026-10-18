@@ -139,6 +139,26 @@ const WET_ROAD_FACTOR: f32 = 4.0;
 /// peak slip sets every class's window, and the tyre has to keep the
 /// energy it kept before. Only where it lands changed.
 const TREAD_HYSTERESIS_SHARE: f32 = 0.3;
+/// Rubber's hysteresis (its loss factor, tan δ) falls as it runs hotter,
+/// so an overheated tyre makes less heat from the same work and sheds the
+/// overheat in a lap or two of gentle driving. The heat its gripping and
+/// flexing make in a layer (tread or core) is full up to this far over the
+/// window's top, which the AI at its pace never passes (it runs a GT3's
+/// rear core some 7 °C over), and falls by `HYSTERESIS_FADE_PER_C` a degree
+/// past it, to at most `MAX_HYSTERESIS_FADE` off. Sliding friction is not
+/// hysteresis and is never faded: a slide still cooks a tyre.
+const HYSTERESIS_FADE_FROM_C: f32 = 10.0;
+const HYSTERESIS_FADE_PER_C: f32 = 0.02;
+const MAX_HYSTERESIS_FADE: f32 = 0.6;
+
+/// What is left of a layer's hysteresis heat at `temperature_c` (1.0 up to
+/// [`HYSTERESIS_FADE_FROM_C`] over the window).
+fn hysteresis_share(tire: &TireConfig, compound: &Compound, temperature_c: f32) -> f32 {
+    let from =
+        optimum_c(tire, compound) + tire.temperature_window_c.max(0.0) + HYSTERESIS_FADE_FROM_C;
+    1.0 - (HYSTERESIS_FADE_PER_C * (temperature_c - from).max(0.0)).min(MAX_HYSTERESIS_FADE)
+}
+
 /// Share of the friction power at the patch (the rubber sliding over the
 /// road: everything past the peak slip) that goes into the tyre at all.
 /// Friction heats the interface, and
@@ -958,9 +978,13 @@ pub fn step(
     // Sliding friction heats the tread's surface (the tyre's share of it);
     // the rubber's hysteresis heats the rubber by mass, and the carcass's
     // flexing the bulk. Dirty air stirs the patch for more.
+    // Hot rubber is less hysteretic: each layer's share fades over the window.
+    let tread_hysteresis = hysteresis_share(tire, compound, tyre.temperature_c);
+    let core_hysteresis = hysteresis_share(tire, compound, core);
     let tread_heat = FRICTION_HEAT_TO_TYRE * sliding
-        + TREAD_HYSTERESIS_SHARE * gripping
-        + DIRTY_AIR_SLIDE_HEAT * work.wake_loss.clamp(0.0, 1.0) * gripping;
+        + tread_hysteresis
+            * (TREAD_HYSTERESIS_SHARE + DIRTY_AIR_SLIDE_HEAT * work.wake_loss.clamp(0.0, 1.0))
+            * gripping;
     let pressure_error = if set_kpa > 1.0 {
         (tyre.pressure_kpa - set_kpa) / set_kpa
     } else {
@@ -990,7 +1014,7 @@ pub fn step(
                 - across;
         tyre.tread_c[i] = z[i] + zone_in * dt / zone_capacity;
     }
-    let core_in = (1.0 - TREAD_HYSTERESIS_SHARE) * gripping + rolling
+    let core_in = core_hysteresis * ((1.0 - TREAD_HYSTERESIS_SHARE) * gripping + rolling)
         - CORE_AIR_SHARE * to_air * (core - air);
     tyre.temperature_c = (tyre.tread_c[0] + tyre.tread_c[1] + tyre.tread_c[2]) / 3.0;
     tyre.core_temperature_c = core + (core_in + across_total) * dt / CORE_HEAT_CAPACITY;

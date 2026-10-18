@@ -30,7 +30,6 @@ When an item is done, delete it from its backlog and from here.
 |---|---|---|---|---|---|
 | V1 | Verify the newest session screens (R9, R11, R12) | Verification | P1 | 🟡 | S |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
-| B8 | Overheated tyres (140 °C) do not cool down | Bug (physics) | P1 | 🟡 | S–M |
 | B6 | Create-session screen too cluttered; shows a dead Sandbox mode | Bug | P2 | 🟡 | S |
 | B7 | Kinks in the inside curb of some corners, all circuits | Bug | P2 | 🟡 | M |
 | F2 | Trackside light panels showing yellow and blue | Feature + content | P2 | 🟡 | M |
@@ -100,14 +99,6 @@ When an item is done, delete it from its backlog and from here.
 *Source: follow-ups #12.* Seen once on the Bugotti Chiffon. Check the chase
 ladder's offsets against the car's bounds (`game/cameras.md`); reproduce
 with `-ApexScreenshotAfter` on that car.
-
-#### B8. Overheated tyres do not cool down — P1 · 🟡 · S–M
-*Source: follow-ups #23 (testing, 2026-10-18).* A tyre taken to about
-140 °C stays hot under gentle driving. Reproduce it with a logged run
-(tread, core, heat in and out), find whether slide heat holds it hot or the
-cooling is too weak, and aim for an overheat shed in a lap or two without
-moving the normal window. Pin it in `tests/tyre_temperature_test.rs`, run
-the AI survey against the commit before; a person drives it.
 
 #### B6. Create-session screen too cluttered; shows a dead Sandbox mode — P2 · 🟡 · S
 *Source: follow-ups #21 (testing, 2026-10-18).* The create-session screen is too crowded.

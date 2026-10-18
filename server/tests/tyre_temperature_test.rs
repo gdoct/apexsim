@@ -48,7 +48,9 @@ fn car(folder: &str) -> CarConfig {
 
 /// One tyre set's state, averaged per axle: (front tread, front core, rear
 /// tread, rear core, grip share).
-fn axles(state: &CarState) -> (f32, f32, f32, f32, f32) {
+type Axles = (f32, f32, f32, f32, f32);
+
+fn axles(state: &CarState) -> Axles {
     let t = &state.tires;
     (
         0.5 * (t.front_left.temperature_c + t.front_right.temperature_c),
@@ -419,4 +421,153 @@ fn a_hotlap_goes_out_on_warm_tyres() {
         state.tires.front_left.pressure_kpa,
         car.tire_config.pressure_front_kpa
     );
+}
+
+/// A cooked set: one lap at the AI's pace on `folder` round the probe
+/// track, then all four tyres set to `tread_c` (tread) and `core_c` (core)
+/// and driven on for `seconds` with the throttle capped at `cap`. `blind`
+/// plans every input as if the tyres still had their grip, as a driver who
+/// keeps the pace does. Returns the tyres every five seconds after the cook.
+fn cooked_run(
+    folder: &str,
+    (tread_c, core_c): (f32, f32),
+    cap: f32,
+    blind: bool,
+    seconds: usize,
+) -> Vec<(CarState, Axles)> {
+    let car = car(folder);
+    let car_id = car.id;
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car.clone());
+    let mut profile = AiDriverProfile::new("Cook AI", 95);
+    profile.id = Uuid::from_u128(7102);
+    profile.preferred_car_id = Some(car_id);
+    let driver = profile.id;
+    let session = RaceSession::new(
+        Uuid::from_u128(3),
+        Uuid::nil(),
+        SessionKind::Multiplayer,
+        8,
+        1,
+        20,
+    );
+    let mut track = probe_track();
+    SessionConditions::DEFAULT.apply_to_track(&mut track);
+    let mut gs = GameSession::with_ai_profiles(session, track, car_configs, vec![profile]);
+    gs.spawn_ai_drivers();
+    gs.start_countdown_mode(1, GameMode::Race);
+    let mut cooked_at = None;
+    let mut log = Vec::new();
+    for tick in 0..(HZ * (240 + seconds)) {
+        let felt: Vec<f32> = gs.session.participants[&driver]
+            .tires
+            .each()
+            .iter()
+            .map(|t| t.grip_factor)
+            .collect();
+        let state = gs.session.participants.get_mut(&driver).unwrap();
+        if blind {
+            for t in state.tires.each_mut() {
+                t.grip_factor = 1.0;
+            }
+        }
+        let mut input = gs.generate_ai_input(&driver);
+        let state = gs.session.participants.get_mut(&driver).unwrap();
+        for (t, g) in state.tires.each_mut().into_iter().zip(felt) {
+            t.grip_factor = g;
+        }
+        if cooked_at.is_some() {
+            input.throttle = input.throttle.min(cap);
+        }
+        gs.tick(&[(driver, input)].into());
+        let lapped = gs
+            .take_lap_events()
+            .iter()
+            .any(|out| out.event.lap_time_ms.is_some());
+        if lapped && cooked_at.is_none() && tread_c > 0.0 {
+            cooked_at = Some(tick);
+            let state = gs.session.participants.get_mut(&driver).unwrap();
+            for tyre in state.tires.each_mut() {
+                tyre.tread_c = [tread_c; 3];
+                tyre.temperature_c = tread_c;
+                tyre.core_temperature_c = core_c;
+            }
+        } else if lapped && cooked_at.is_none() {
+            cooked_at = Some(tick);
+        }
+        if let Some(at) = cooked_at {
+            if (tick - at) % (HZ * 5) == 0 {
+                let state = &gs.session.participants[&driver];
+                log.push((state.clone(), axles(state)));
+            }
+            if tick - at >= HZ * seconds {
+                break;
+            }
+        }
+    }
+    log
+}
+
+/// The cook harness: `COOK_TREAD`/`COOK_CORE` (°C; a tread of 0 does not
+/// cook), `COOK_THROTTLE` (the cap), `COOK_BLIND=1`, `COOK_SECONDS`,
+/// `TYRE_PROBE_CARS` (one car), `TYRE_PROBE_TRACK`.
+#[test]
+#[ignore]
+fn overheat_recovery_probe() {
+    let env = |k: &str, d: f32| {
+        std::env::var(k)
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(d)
+    };
+    let folder = std::env::var("TYRE_PROBE_CARS").unwrap_or_else(|_| "posh-gt3rs".into());
+    let cook = (env("COOK_TREAD", 140.0), env("COOK_CORE", 140.0));
+    let cap = env("COOK_THROTTLE", 0.6);
+    let blind = env("COOK_BLIND", 0.0) > 0.0;
+    println!("{folder}: cooked to {cook:?}, throttle cap {cap}, blind {blind}");
+    for (i, (state, (ft, fc, rt, rc, grip))) in cooked_run(
+        &folder,
+        cook,
+        cap,
+        blind,
+        env("COOK_SECONDS", 300.0) as usize,
+    )
+    .iter()
+    .enumerate()
+    {
+        println!(
+            "  {:4} s  {:5.1} m/s  front {ft:5.1}/{fc:5.1}  rear {rt:5.1}/{rc:5.1}  grip {grip:.3}  fl {:.0} kPa",
+            i * 5,
+            state.speed_mps,
+            state.tires.front_left.pressure_kpa
+        );
+    }
+}
+
+/// A set cooked right through to 140 °C sheds it in about two gentle laps:
+/// back to within a few degrees of the window's top, and nearly all its
+/// grip, in two and a half minutes on a part throttle. Hot rubber makes
+/// less heat from the same work (`tyre_thermal::hysteresis_share`); with
+/// the bulk alone to shed it, the GT3's rears were still 5 °C over and the
+/// grip 0.96 then.
+#[test]
+fn an_overheated_tyre_cools_back_to_its_window_in_two_gentle_laps() {
+    std::env::remove_var("TYRE_PROBE_TRACK");
+    let car = car("posh-gt3rs");
+    let top = car.tire_config.optimal_temperature_c + car.tire_config.temperature_window_c;
+    let log = cooked_run("posh-gt3rs", (140.0, 140.0), 0.6, false, 150);
+    let (_, tyres) = log.last().expect("a log");
+    let (front, rear) = grip_temperatures(*tyres);
+    println!(
+        "150 s after the cook: front {front:.1}, rear {rear:.1} (top {top}), grip {:.3}",
+        tyres.4
+    );
+    assert!(log.len() >= 30, "two and a half minutes of driving");
+    for (axle, temp) in [("front", front), ("rear", rear)] {
+        assert!(
+            temp < top + 3.0,
+            "the {axle} tyres are still at {temp:.1} °C, the window's top {top}"
+        );
+    }
+    assert!(tyres.4 > 0.97, "grip share {:.3}", tyres.4);
 }

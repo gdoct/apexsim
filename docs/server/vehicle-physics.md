@@ -173,6 +173,13 @@ zones.
   past it sliding friction is shared with the road, `FRICTION_HEAT_TO_TYRE` (0.3) into the
   tread. Carcass flexing (`CARCASS_HEAT_SHARE` x `rolling_resistance x load x speed`) heats
   the core. In a wake `DIRTY_AIR_SLIDE_HEAT` more of the gripping power goes to the tread.
+- Hot rubber is less hysteretic (`hysteresis_share`): each layer's gripping and flexing heat
+  is full up to `HYSTERESIS_FADE_FROM_C` (10 °C) over the window's top and falls 2% a degree
+  past it, at most 60% off; sliding friction never fades. So an overheated tyre sheds it in
+  about two gentle laps while the AI's running temperatures (a GT3's rear core runs some
+  7 °C over the top) do not move. A one-node core cannot do that by its constants alone:
+  its steady state is heat over cooling, its swing in a corner heat over capacity and its
+  recovery capacity over cooling, so a smaller core swung as much as the surface.
 - Out: air convection with speed^0.8 (the air the car meets, wind and wake included:
   `TyreWork::air_mps`), road conduction with the root of speed, several times more on a wet
   road.
@@ -304,6 +311,11 @@ Monza.
 - `cargo test --release --test tyre_temperature_test tyre_temperature_probe -- --ignored
   --nocapture` (`TYRE_PROBE_CARS`, `TYRE_PROBE_LAPS`, `TYRE_PROBE_TRACK`): per lap tyre,
   brake, coolant temperatures and time.
+- `cargo test --release --test tyre_temperature_test overheat_recovery_probe -- --ignored
+  --nocapture` (`COOK_TREAD`, `COOK_CORE`, `COOK_THROTTLE`, `COOK_BLIND`, `COOK_SECONDS`,
+  `TYRE_PROBE_CARS`, `TYRE_PROBE_TRACK`): a lap at the AI's pace, then the set cooked and
+  driven on, the tyres every 5 s. `COOK_BLIND=1` plans as if the tyres kept their grip, as a
+  driver who keeps the pace does.
 - `cargo test --release --test pad_driver_probe -- --ignored --nocapture` (`PAD_AID`,
   `PAD_NOISE`, `PAD_HOLD_S`, `PAD_SKILL`, `PAD_CAR`, `PAD_TRACK`, `PAD_LAPS`, `PAD_FULL`):
   the AI's line plus a pad's hand error. A hotlap leaves no log or replay, so reproduce a
