@@ -748,3 +748,48 @@ async fn test_input_sequence_comes_back_with_the_own_car_snapshot() {
 
     server.shutdown().await;
 }
+
+/// While the debug stand-in drives a numbered client's car, the snapshots
+/// still come, naming no input applied: the client predicts the server's
+/// driver (`apexsim.net.PredictServerDriven`) or draws the puppet.
+#[tokio::test]
+async fn test_the_stand_ins_car_comes_back_with_no_input_applied() {
+    let mut config = apexsim_server::config::ServerConfig::default();
+    config.debug.stand_in_driver = true;
+    let server = common::start_test_server_with_config(config).await;
+    let mut client = ProtocolTestClient::connect(server.tcp_addr).await;
+    let (udp_token, udp_key, udp_port) =
+        match client.authenticate("Stood in", PROTOCOL_VERSION).await {
+            ServerMessage::AuthSuccess(data) => (data.udp_token, data.udp_key, data.udp_port),
+            other => panic!("expected AuthSuccess, got {:?}", other),
+        };
+    let mut udp = bind_udp(server.tcp_addr.ip(), &udp_token, &udp_key, udp_port).await;
+    start_free_practice(&mut client).await;
+    let mut buf = vec![0u8; 65_536];
+    let mut seq = 0u32;
+    let snapshots = timeout(TEST_TIMEOUT, async {
+        let mut seen = 0;
+        loop {
+            seq += 1;
+            udp.send(&sequenced_input(Some(seq), 1.0)).await;
+            let Ok(Ok(n)) = timeout(Duration::from_millis(20), udp.recv(&mut buf)).await else {
+                continue;
+            };
+            if let Ok(ServerMessage::DriverFeedback(f)) =
+                rmp_serde::from_slice::<ServerMessage>(&buf[..n])
+            {
+                if let Some(own) = f.own_car {
+                    assert_eq!(own.input_seq, None, "the stand-in drove tick {}", own.tick);
+                    seen += 1;
+                    if seen >= 10 {
+                        return seen;
+                    }
+                }
+            }
+        }
+    })
+    .await;
+    assert!(snapshots.is_ok(), "no own-car snapshot under the stand-in");
+
+    server.shutdown().await;
+}

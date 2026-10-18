@@ -189,7 +189,18 @@ pub(crate) async fn tick_sessions(
                     .then(|| game_session.away_input(player_id))
             });
             let input = match server_input {
-                Some(input) => input,
+                Some(input) => {
+                    // A client that numbers its inputs still gets its car
+                    // while the server drives it (the stand-in): no number
+                    // is applied, which tells it so.
+                    if player_inputs
+                        .get(player_id)
+                        .is_some_and(|h| h.seq.is_some())
+                    {
+                        game_session.own_car_feeds.entry(*player_id).or_default();
+                    }
+                    input
+                }
                 None => match player_inputs.get(player_id) {
                     Some(held) => {
                         // The driver's own input drives this tick: its

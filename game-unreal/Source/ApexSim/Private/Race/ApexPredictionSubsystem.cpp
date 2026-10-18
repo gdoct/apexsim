@@ -307,7 +307,7 @@ void UApexPredictionSubsystem::LogWindow(double NowSeconds, bool bForce)
 		return;
 	}
 	const FApexPredictionStats Window = Predictor.TakeStats();
-	if (WindowFrames > 0 && (Window.Snapshots > 0 || WindowDrawnFrames > 0))
+	if (WindowFrames > 0 && Predictor.IsSeated())
 	{
 		const TCHAR* Mode = CVarPredict.GetValueOnGameThread() == 2 ? TEXT("shadow") : TEXT("on");
 		UE_LOG(LogApexSim, Log,

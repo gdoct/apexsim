@@ -179,7 +179,8 @@ server had not applied yet. The wire for it (`server/src/own_car.rs`):
   seal's rising `seq`), so the applied number only rises.
 - **`DriverFeedback.own_car`** (15th field): `OwnCarSnapshot`, the car at
   the message's `server_tick` (the tick just simulated), sent only once the
-  driver's inputs carry a number. A positional array of 26: `tick`,
+  driver's inputs carry a number, and while the debug stand-in drives the
+  car in their place too (`input_seq` then names none applied). A positional array of 26: `tick`,
   `input_seq` (the newest number applied by that tick, nil for none), then
   what the car step carries from tick to tick: `pos[3]`, `attitude[3]` (yaw,
   pitch, roll), `vel[3]`, `speed_mps`, `angular_vel[3]`,
