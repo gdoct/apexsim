@@ -25,7 +25,7 @@
 extern "C" {
 #endif
 
-#define APX_ABI_VERSION 2u
+#define APX_ABI_VERSION 3u
 
 typedef int32_t ApxStatus;
 #define APX_OK 0
@@ -119,14 +119,41 @@ typedef struct ApxCarSnapshot {
     uint8_t flags;              /* APX_SNAP_* */
 } ApxCarSnapshot;
 
+#define APX_FEEDBACK_SAMPLES 32
+
+/* What the driver should feel over the steps since the last
+ * apx_car_feedback_take: the server's DriverFeedback (server/src/feedback.rs)
+ * without its tick and own-car fields, from the same collector, in the
+ * wire's units. Per-wheel FL FR RL RR; the server's steering sign (positive
+ * left). */
+typedef struct ApxFeedback {
+    float steer_torque[APX_FEEDBACK_SAMPLES]; /* one per step, oldest first */
+    uint32_t steer_samples;
+    float slip_ratio[4];        /* multiples of the peak, largest magnitude */
+    float slip_angle[4];
+    float suspension_mps[4];
+    float impact_mps;
+    float steer_kick;
+    float steer_input;          /* the input the newest torque was worked out at */
+    float steer_stiffness;
+    float front_load;
+    uint8_t surface[4];         /* 0 road, 1 curb, 2 off, the roughest */
+    uint8_t flat_spot[4];       /* percent of the worst */
+    uint8_t abs_active;
+    uint8_t tc_active;
+    uint8_t reserved[2];
+} ApxFeedback;
+
 #ifdef __cplusplus
 static_assert(sizeof(ApxInput) == 28, "ApxInput layout");
 static_assert(sizeof(ApxCarPose) == 96, "ApxCarPose layout");
 static_assert(sizeof(ApxCarSnapshot) == 192, "ApxCarSnapshot layout");
+static_assert(sizeof(ApxFeedback) == 212, "ApxFeedback layout");
 #else /* C89 and MSVC's C have no _Static_assert by default */
 typedef char apx_input_layout[(sizeof(ApxInput) == 28) ? 1 : -1];
 typedef char apx_car_pose_layout[(sizeof(ApxCarPose) == 96) ? 1 : -1];
 typedef char apx_car_snapshot_layout[(sizeof(ApxCarSnapshot) == 192) ? 1 : -1];
+typedef char apx_feedback_layout[(sizeof(ApxFeedback) == 212) ? 1 : -1];
 #endif
 
 /* APX_ABI_VERSION of the linked library: check it before any other call. */
@@ -187,6 +214,13 @@ ApxStatus apx_car_snapshot(const ApxCar *car, ApxCarSnapshot *out);
  * DriverFeedback.own_car between two full blobs. A non-finite number is
  * refused (APX_ERR_INVALID) and the car left as it was. */
 ApxStatus apx_car_snapshot_apply(ApxCar *car, const ApxCarSnapshot *snapshot);
+
+/* What the driver should feel over the steps since the last call, and a
+ * fresh interval: the server's own force-feedback collector, drained as the
+ * game loop drains it into each DriverFeedback. Taken after every step it is
+ * that tick's (one torque sample). Loading a state blob empties it; laying a
+ * snapshot leaves it. */
+ApxStatus apx_car_feedback_take(ApxCar *car, ApxFeedback *out);
 
 /* Hold the track's road state to the server's from a RoadState message's
  * bytes: rows (whole road_state::ROW_BYTES cells from first_cell, wrapping

@@ -154,13 +154,14 @@ names checked by a test against `src/lib.rs`):
 | `apx_car_state_save` / `apx_car_state_load` | the full state as a versioned blob (`car_step::encode_state`: `APXC`, version u16, then the state and the runtime fields serde skips, MessagePack with named fields, floats exact); refused across versions or cars. The server's blob from `DriverFeedback.own_state` loads as it is |
 | `apx_car_snapshot` / `apx_car_snapshot_apply` | `ApxCarSnapshot` (192 bytes): the server's `OwnCarSnapshot` without its tick and input number; apply lays it over the car's state (`OwnCarSnapshot::apply_to`), the rest kept; a non-finite number is refused |
 | `apx_track_road_rows(track, first_cell, rows, snow_rows, lane_snow)` | the track's road state held to the server's from a `RoadState` message's bytes (`RoadState::read_rows`, `read_snow_rows`, `read_lane_snow`), at the wire's byte resolution; empty snow rows stop the snow counting, as the server's field left off means |
+| `apx_car_feedback_take(car, &feedback)` | `ApxFeedback` (212 bytes): what the driver feels over the steps since the last take, from the server's own collector (`CarState::feedback`, `FeedbackAccumulator::take`, as the game loop drains it into `DriverFeedback`); taken after every step it is that tick's, one torque sample (phase 4) |
 | `apx_track_free`, `apx_car_free` | |
 
 Opaque handles, `ApxStatus` codes, `catch_unwind` around every call. A
 track handle is changed by each step (the wind), so a track and its cars
 belong to one thread at a time. `ApxInput` is `PlayerInput`'s fields
-flattened (28 bytes); `ApxCarPose` is 96 bytes. `APX_ABI_VERSION` is 2
-(the snapshot and road calls).
+flattened (28 bytes); `ApxCarPose` is 96 bytes. `APX_ABI_VERSION` is 3
+(2 the snapshot and road calls, 3 phase 4's feedback and track bundle).
 
 **The check** (`server/ffi/tests/lone_car_trace.rs`, in CI): Monza, an
 F1 car with a tuned setup, wind; a recorded 4400-tick trace (standing
@@ -170,7 +171,9 @@ with one car and through the extern functions, the C car seeded from the
 session's through the blob. The full state is compared every tick, bit for
 bit, except the fields the session's passes around the car own (pit lane,
 DRS arming, wake, racecraft, the road state's bookkeeping, the hit record
-debris reads, headlights). The road state is the session's world: the test
+debris reads, headlights), and the feedback the step collects
+(`apx_car_feedback_take` against the session's collector drained each
+tick) bit for bit. The road state is the session's world: the test
 hands the session's to the library's track each tick, as a client will hold
 the server's. A race event the session raises (debris shed or picked up, a
 puncture rolled) is a correction: the C car is reseeded and the comparison

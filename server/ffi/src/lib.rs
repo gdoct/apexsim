@@ -25,12 +25,13 @@ use apexsim_server::car_setup::{CarSetup, KNOB_COUNT};
 use apexsim_server::car_step::{self, StepClock};
 use apexsim_server::config::RoadContactMode;
 use apexsim_server::data::{CarConfig, CarState, PlayerInputData, SessionConditions, TrackConfig};
+use apexsim_server::feedback::{DriverFeedback, MAX_STEER_SAMPLES};
 use apexsim_server::own_car::{self, OwnCarSnapshot};
 use apexsim_server::track_loader::TrackLoader;
 
 /// The C API's version: [`apx_abi_version`]. Bumped whenever a function's
 /// signature or a `#[repr(C)]` struct changes.
-pub const APX_ABI_VERSION: u32 = 2;
+pub const APX_ABI_VERSION: u32 = 3;
 
 /// What every function returns.
 pub type ApxStatus = i32;
@@ -221,6 +222,85 @@ impl From<&OwnCarSnapshot> for ApxCarSnapshot {
             current_lap: s.current_lap,
             gear: s.gear,
             flags: s.flags,
+        }
+    }
+}
+
+/// The most steering-torque samples an [`ApxFeedback`] holds: the server's
+/// `feedback::MAX_STEER_SAMPLES`.
+pub const APX_FEEDBACK_SAMPLES: usize = MAX_STEER_SAMPLES;
+
+/// What the driver should feel over the steps since the last
+/// [`apx_car_feedback_take`]: the server's `DriverFeedback` without its
+/// tick and own-car fields, from the very collector the server drains into
+/// it (`feedback::FeedbackAccumulator::take`), in the wire's units (the
+/// flat spots as percent, the surfaces as `ContactSurface` bytes).
+/// Per-wheel FL FR RL RR; the server's steering sign (positive left).
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ApxFeedback {
+    /// One steering-column torque sample per step, oldest first.
+    pub steer_torque: [f32; APX_FEEDBACK_SAMPLES],
+    pub steer_samples: u32,
+    pub slip_ratio: [f32; 4],
+    pub slip_angle: [f32; 4],
+    pub suspension_mps: [f32; 4],
+    pub impact_mps: f32,
+    pub steer_kick: f32,
+    pub steer_input: f32,
+    pub steer_stiffness: f32,
+    pub front_load: f32,
+    pub surface: [u8; 4],
+    pub flat_spot: [u8; 4],
+    pub abs_active: u8,
+    pub tc_active: u8,
+    pub reserved: [u8; 2],
+}
+
+impl Default for ApxFeedback {
+    fn default() -> Self {
+        Self::from(&DriverFeedback {
+            server_tick: 0,
+            steer_torque: Vec::new(),
+            slip_ratio: [0.0; 4],
+            slip_angle: [0.0; 4],
+            surface: [0; 4],
+            suspension_mps: [0.0; 4],
+            abs_active: false,
+            tc_active: false,
+            impact_mps: 0.0,
+            steer_kick: 0.0,
+            steer_input: 0.0,
+            steer_stiffness: 0.0,
+            front_load: 1.0,
+            flat_spot: [0; 4],
+            own_car: None,
+            own_state: None,
+        })
+    }
+}
+
+impl From<&DriverFeedback> for ApxFeedback {
+    fn from(f: &DriverFeedback) -> Self {
+        let mut steer_torque = [0.0; APX_FEEDBACK_SAMPLES];
+        let n = f.steer_torque.len().min(APX_FEEDBACK_SAMPLES);
+        steer_torque[..n].copy_from_slice(&f.steer_torque[f.steer_torque.len() - n..]);
+        Self {
+            steer_torque,
+            steer_samples: n as u32,
+            slip_ratio: f.slip_ratio,
+            slip_angle: f.slip_angle,
+            suspension_mps: f.suspension_mps,
+            impact_mps: f.impact_mps,
+            steer_kick: f.steer_kick,
+            steer_input: f.steer_input,
+            steer_stiffness: f.steer_stiffness,
+            front_load: f.front_load,
+            surface: f.surface,
+            flat_spot: f.flat_spot,
+            abs_active: f.abs_active as u8,
+            tc_active: f.tc_active as u8,
+            reserved: [0; 2],
         }
     }
 }
@@ -746,6 +826,30 @@ pub unsafe extern "C" fn apx_car_snapshot_apply(
     })
 }
 
+/// What the driver should feel over the steps since the last call, and a
+/// fresh interval: the server's own collector (`CarState::feedback`,
+/// `FeedbackAccumulator::take`), which `physics::update_car_3d` and the wall
+/// pass fill every tick exactly as on the server, drained as the game loop
+/// drains it into each `DriverFeedback`. Taken after every step, it is that
+/// tick's: one torque sample, the tick's slip, surfaces and hits. Loading a
+/// state blob empties it (the collector is not in the blob); laying a
+/// snapshot leaves it.
+///
+/// # Safety
+/// `car` is a live handle; `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_car_feedback_take(
+    car: *mut ApxCar,
+    out: *mut ApxFeedback,
+) -> ApxStatus {
+    guard(|| {
+        non_null(car, "car")?;
+        non_null(out, "out")?;
+        *out = ApxFeedback::from(&(*car).state.feedback.take(0));
+        Ok(())
+    })
+}
+
 /// Hold the track's road state (rubber, marbles, water, the dried line,
 /// snow and ice) to the server's, from the bytes of a `RoadState` message:
 /// `rows` (`RoadStateData.rows`, whole `road_state::ROW_BYTES` cells from
@@ -836,6 +940,13 @@ mod tests {
             "sizeof(ApxCarSnapshot) == {}",
             std::mem::size_of::<ApxCarSnapshot>()
         )));
+        assert!(header.contains(&format!(
+            "sizeof(ApxFeedback) == {}",
+            std::mem::size_of::<ApxFeedback>()
+        )));
+        assert!(header.contains(&format!(
+            "#define APX_FEEDBACK_SAMPLES {APX_FEEDBACK_SAMPLES}"
+        )));
         for (name, value) in [
             ("APX_SNAP_ON_TRACK", APX_SNAP_ON_TRACK),
             ("APX_SNAP_AIRBORNE", APX_SNAP_AIRBORNE),
@@ -864,6 +975,7 @@ mod tests {
             "apx_car_snapshot(",
             "apx_car_snapshot_apply(",
             "apx_track_road_rows(",
+            "apx_car_feedback_take(",
         ] {
             assert!(header.contains(f), "the header lacks {f}");
         }

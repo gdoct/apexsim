@@ -35,6 +35,25 @@ namespace ApexPredictionTests
 		ApxCarSnapshot Snapshot = {};
 	};
 
+	/** The DriverFeedback the server sent at a telemetry tick (its own-car fields left out). */
+	struct FFixtureFeedback
+	{
+		uint32 Tick = 0;
+		TArray<float> SteerTorque;
+		float SlipRatio[4] = {};
+		float SlipAngle[4] = {};
+		float SuspensionMps[4] = {};
+		float ImpactMps = 0.0f;
+		float SteerKick = 0.0f;
+		float SteerInput = 0.0f;
+		float SteerStiffness = 0.0f;
+		float FrontLoad = 1.0f;
+		uint8 Surface[4] = {};
+		uint8 FlatSpot[4] = {};
+		bool bAbs = false;
+		bool bTc = false;
+	};
+
 	struct FFixture
 	{
 		int32 TickRateHz = 0;
@@ -51,6 +70,8 @@ namespace ApexPredictionTests
 		TArray<uint8> Blob;
 		TArray<FFixtureInput> Inputs;
 		TArray<FFixtureSnapshot> Snapshots;
+		/** The server's DriverFeedback every telemetry tick of the window. */
+		TArray<FFixtureFeedback> Feedback;
 
 		/** The input the server held at `Tick`. */
 		const FFixtureInput& InputAt(uint32 Tick) const
@@ -164,7 +185,7 @@ namespace ApexPredictionTests
 			return false;
 		}
 		R.Pos = 4;
-		if (R.U32() != 1)
+		if (R.U32() != 2)
 		{
 			OutError = TEXT("fixture version");
 			return false;
@@ -202,7 +223,37 @@ namespace ApexPredictionTests
 			S.Snapshot = R.Snapshot();
 			Out.Snapshots.Add(S);
 		}
-		if (!R.bOk || R.Pos != R.Data.Num() || Out.Inputs.Num() == 0 || Out.Snapshots.Num() == 0)
+		const uint32 NumFeedback = R.U32();
+		for (uint32 i = 0; i < NumFeedback && R.bOk; ++i)
+		{
+			FFixtureFeedback F;
+			F.Tick = R.U32();
+			const uint32 Samples = R.U32();
+			for (uint32 s = 0; s < Samples && R.bOk; ++s)
+			{
+				F.SteerTorque.Add(R.F32());
+			}
+			R.F32s(F.SlipRatio, 4);
+			R.F32s(F.SlipAngle, 4);
+			R.F32s(F.SuspensionMps, 4);
+			F.ImpactMps = R.F32();
+			F.SteerKick = R.F32();
+			F.SteerInput = R.F32();
+			F.SteerStiffness = R.F32();
+			F.FrontLoad = R.F32();
+			for (uint8& B : F.Surface)
+			{
+				B = R.U8();
+			}
+			for (uint8& B : F.FlatSpot)
+			{
+				B = R.U8();
+			}
+			F.bAbs = R.U8() != 0;
+			F.bTc = R.U8() != 0;
+			Out.Feedback.Add(MoveTemp(F));
+		}
+		if (!R.bOk || R.Pos != R.Data.Num() || Out.Inputs.Num() == 0 || Out.Snapshots.Num() == 0 || Out.Feedback.Num() == 0)
 		{
 			OutError = TEXT("the fixture is truncated or has bytes left over");
 			return false;

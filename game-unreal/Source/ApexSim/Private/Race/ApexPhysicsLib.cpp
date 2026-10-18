@@ -147,6 +147,11 @@ namespace ApexPhysics
 	{
 		return apx_car_state_load(Car, Blob.GetData(), Blob.Num()) == APX_OK;
 	}
+
+	bool FCar::TakeFeedback(ApxFeedback& Out)
+	{
+		return apx_car_feedback_take(Car, &Out) == APX_OK;
+	}
 #else
 	namespace
 	{
@@ -192,7 +197,34 @@ namespace ApexPhysics
 	bool FCar::ApplySnapshot(const ApxCarSnapshot&) { return false; }
 	bool FCar::Save(TArray<uint8>& Out) const { Out.Reset(); return false; }
 	bool FCar::Load(TArrayView<const uint8>) { return false; }
+	bool FCar::TakeFeedback(ApxFeedback& Out) { Out = ApxFeedback{}; return false; }
 #endif
+
+	FApexDriverFeedback ToFeedback(const ApxFeedback& In, int64 Tick)
+	{
+		FApexDriverFeedback Out;
+		Out.ServerTick = Tick;
+		const int32 Samples = FMath::Min<int32>(static_cast<int32>(In.steer_samples), APX_FEEDBACK_SAMPLES);
+		Out.SteerTorque.Append(In.steer_torque, Samples);
+		for (int32 Wheel = 0; Wheel < 4; ++Wheel)
+		{
+			FApexWheelFeedback& W = Out.Wheels[Wheel];
+			W.SlipRatio = In.slip_ratio[Wheel];
+			W.SlipAngle = In.slip_angle[Wheel];
+			// As the codec reads the wire: a surface this client does not know is at least not road.
+			W.Surface = static_cast<EApexContactSurface>(FMath::Min<uint8>(In.surface[Wheel], static_cast<uint8>(EApexContactSurface::Off)));
+			W.SuspensionMps = In.suspension_mps[Wheel];
+			W.FlatSpot = FMath::Min<uint8>(In.flat_spot[Wheel], 100) / 100.0f;
+		}
+		Out.bAbsActive = In.abs_active != 0;
+		Out.bTcActive = In.tc_active != 0;
+		Out.ImpactMps = In.impact_mps;
+		Out.SteerKick = In.steer_kick;
+		Out.SteerInput = In.steer_input;
+		Out.SteerStiffness = In.steer_stiffness;
+		Out.FrontLoad = In.front_load;
+		return Out;
+	}
 
 	ApxInput ToInput(const FApexPlayerInput& Input)
 	{

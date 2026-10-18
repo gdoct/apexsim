@@ -250,6 +250,12 @@ impl Ffi {
         unsafe { ok(apx_car_pose(self.car, &mut pose)) };
         pose
     }
+
+    fn feedback(&self) -> ApxFeedback {
+        let mut feel = ApxFeedback::default();
+        unsafe { ok(apx_car_feedback_take(self.car, &mut feel)) };
+        feel
+    }
 }
 
 impl Drop for Ffi {
@@ -303,6 +309,7 @@ fn run_trace(mode: RoadContactMode, aids: Option<DriverAids>, ticks: u32) {
 
     let manual = aids.is_none();
     let (mut top_speed, mut off_track, mut contacts, mut corrections) = (0.0f32, 0, 0, 0);
+    let (mut kicks, mut surfaces) = (0u32, 0u32);
     for t in 0..ticks {
         let input = trace_input(t, manual);
         let mut inputs = HashMap::new();
@@ -321,9 +328,29 @@ fn run_trace(mode: RoadContactMode, aids: Option<DriverAids>, ticks: u32) {
         unsafe { (*ffi.track).track_mut() }.road_state = session.track_config.road_state.clone();
         ffi.step(&input, tick);
 
+        // What the driver feels: the session's collector drained as the game
+        // loop drains it, against the library's, every tick.
+        let served_feel = session
+            .session
+            .participants
+            .get_mut(&human)
+            .unwrap()
+            .feedback
+            .take(tick);
+        let felt = ffi.feedback();
         let car = &session.session.participants[&human];
         let served = without_session_fields(car.clone());
         let predicted = without_session_fields(car_step::decode_state(&ffi.save()).unwrap());
+        if !race_event {
+            assert_eq!(
+                felt,
+                ApxFeedback::from(&served_feel),
+                "tick {tick}: the library's feedback left the session's"
+            );
+            assert_eq!(felt.steer_samples, 1);
+            kicks += (felt.steer_kick != 0.0) as u32;
+            surfaces += felt.surface.iter().any(|&s| s != 0) as u32;
+        }
         if car_step::encode_state(&served) != car_step::encode_state(&predicted) {
             assert!(
                 race_event,
@@ -342,8 +369,10 @@ fn run_trace(mode: RoadContactMode, aids: Option<DriverAids>, ticks: u32) {
     }
     eprintln!(
         "{ticks} ticks: top speed {top_speed:.1} m/s, {off_track} ticks off the road, \
-         {contacts} in contact, {corrections} race-event corrections"
+         {contacts} in contact, {corrections} race-event corrections; the feedback equal every \
+         tick, {kicks} with a steering kick, {surfaces} off the road or on a kerb"
     );
+    assert!(surfaces > 0, "the feedback saw the trace leave the road");
     assert!(
         top_speed > 40.0,
         "the trace drove the car (top speed {top_speed} m/s)"

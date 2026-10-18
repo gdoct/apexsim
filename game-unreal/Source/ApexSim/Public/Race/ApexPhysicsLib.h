@@ -5,6 +5,7 @@
 
 struct FApexPlayerInput;
 struct FApexOwnCarSnapshot;
+struct FApexDriverFeedback;
 
 /**
  * The server's car step, linked into the client as a static library
@@ -66,6 +67,12 @@ namespace ApexPhysics
 		/** The full state blob ("APXC"), as the server sends it. */
 		bool Save(TArray<uint8>& Out) const;
 		bool Load(TArrayView<const uint8> Blob);
+		/**
+		 * What the driver should feel over the steps since the last take: the
+		 * server's own force-feedback collector (apx_car_feedback_take). Taken
+		 * after every step, it is that tick's.
+		 */
+		bool TakeFeedback(ApxFeedback& Out);
 
 	private:
 		FCar() = default;
@@ -80,4 +87,11 @@ namespace ApexPhysics
 
 	/** The wire's snapshot as the library lays it. */
 	APEXSIM_API ApxCarSnapshot ToSnapshot(const FApexOwnCarSnapshot& Snapshot);
+
+	/**
+	 * The library's feedback as the wire's DriverFeedback decodes (the codec's
+	 * units: flat spots 0..1, surfaces clamped), at `Tick`: what the force
+	 * feedback, the road sound and the pad read.
+	 */
+	APEXSIM_API FApexDriverFeedback ToFeedback(const ApxFeedback& Feedback, int64 Tick);
 }
