@@ -8257,8 +8257,17 @@ mod tests {
             physics::seed_track_progress(s, &gs.track_config);
         };
         place(&mut gs, stopped, 1125.0, 0.0);
-        place(&mut gs, arriving, 900.0, 50.0);
-        gs.tick(&HashMap::new());
+        place(&mut gs, arriving, 850.0, 50.0);
+        // A stop is an incident once it has lasted `INCIDENT_CONFIRM_S`.
+        let confirm =
+            (crate::race_control::INCIDENT_CONFIRM_S * DEFAULT_TICK_RATE_HZ as f32).ceil() as usize;
+        for _ in 0..confirm - 1 {
+            gs.tick(&HashMap::new());
+        }
+        assert!(gs.yellow_flags().is_none(), "not out at once");
+        for _ in 0..2 {
+            gs.tick(&HashMap::new());
+        }
         let a = &gs.session.participants[&arriving];
         assert_eq!(
             a.flag_yellow, 2,
