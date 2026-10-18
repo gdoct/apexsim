@@ -96,6 +96,14 @@ Every section and its keys (defaults from `config.rs`):
 - `[showcase]` - `enabled`, `dir` (`./showcase`), `playlist`, `mode`
   (`loop` | `rotate`), `stream_divisor` ([../game/spectator.md](../game/spectator.md)).
 - `[admin]` - below.
+- `[[balance]]` - balance of performance, one table a car (`balance.rs`):
+  `car` (its car.toml `name`, case ignored, or its id), `ballast_kg` (0,
+  -200 to 300), `power` (1.0, 0.5-1.5: the torque curve scaled, as the
+  setup's torque map does) and `downforce` (1.0, 0.5-1.5: both lift
+  coefficients, drag left alone). Applied once to the cars as loaded, so
+  every session, the AI's plans, the racing line and the setups see the
+  balanced car; a car no table names is untouched, and a table naming no
+  car is logged. Out-of-range values fail the config check.
 - `[debug]` - below.
 
 An `[ai]` table left in an older server.toml is ignored: the AI's driving

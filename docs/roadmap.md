@@ -177,10 +177,10 @@ server's render of it; the menu backdrop with no server running.
 
 ### 17. League rules
 
-- Success ballast by championship position (needs championships), balance
-  of performance per car, each a `CreateSession` rule; a car without the
-  keys simulates as before. The reverse top-N grid is built
-  (`race_rules.reverse_grid`).
+- Success ballast by championship position (needs championships), a
+  `CreateSession` rule; a car without it simulates as before. Built: the
+  reverse top-N grid (`race_rules.reverse_grid`) and balance of performance
+  per car (server.toml `[[balance]]`).
 
 **Check:** session tests per rule; the class calibration unchanged.
 

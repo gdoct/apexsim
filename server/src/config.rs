@@ -39,6 +39,10 @@ pub struct ServerConfig {
     pub debug: DebugSettings,
     #[serde(default)]
     pub admin: AdminSettings,
+    /// Balance of performance: `[[balance]]` tables, one a car
+    /// (`crate::balance`).
+    #[serde(default)]
+    pub balance: Vec<crate::balance::CarBalance>,
 }
 
 /// The web dashboard (`crate::admin`, docs/server/operations.md): an HTTP and
@@ -361,6 +365,7 @@ impl Default for ServerConfig {
             showcase: ShowcaseSettings::default(),
             debug: DebugSettings::default(),
             admin: AdminSettings::default(),
+            balance: Vec::new(),
         }
     }
 }
@@ -534,6 +539,7 @@ impl ServerConfig {
         if self.server.max_sessions == 0 {
             errors.push("server.max_sessions must be at least 1".to_string());
         }
+        errors.extend(self.balance.iter().filter_map(|b| b.problem()));
         if self.showcase.stream_divisor == 0 {
             errors.push("showcase.stream_divisor must be at least 1".to_string());
         }

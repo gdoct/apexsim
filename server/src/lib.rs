@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod aero;
 pub mod ai_driver;
+pub mod balance;
 pub mod brakes;
 pub mod car_loader;
 pub mod car_setup;

@@ -140,7 +140,13 @@ them yet, and the server leaves a few edges.
   6, interpolated like a car; it drives through a lapped car passing it
   (it is no body on the server), so the pass is seen as an overlap.
 - client: the create screen's penalty rules (`race_rules.yellow_penalty`,
-  `pit_exit_penalty`; False starts is `jump_start`).
+  `pit_exit_penalty`; False starts is `jump_start`) and its Reverse grid
+  row (`race_rules.reverse_grid`, Off / 6 / 8 / 10 / whole field).
+- Balance of performance (`[[balance]]`, server only): the client's
+  predicted car (`apexsim.net.Predict`) steps its own car.toml without the
+  ballast, power and downforce, so a balanced car's prediction errs until
+  the snapshot corrects it; the session browser does not say a server
+  balances its cars.
 - client: show penalties (`RosterEntry.Penalties`): a toast as one is given
   ("DRIVE-THROUGH: JUMP START", "+5 S: OVERTAKING UNDER YELLOW"), the owed
   one and its laps left on the HUD (`penalty.*` data points), PEN with the

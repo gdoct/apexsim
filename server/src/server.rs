@@ -141,6 +141,9 @@ impl ServerState {
         let cars_dir = config.content.cars_dir.clone();
         debug!("Loading cars from {}...", cars_dir);
         Self::load_custom_cars(&mut car_configs, &cars_dir);
+        for unused in crate::balance::apply_all(&config.balance, car_configs.values_mut()) {
+            warn!("[[balance]] names no loaded car: {:?}", unused.car);
+        }
 
         if car_configs.is_empty() {
             warn!("No cars loaded! Creating default car.");

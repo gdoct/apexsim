@@ -98,3 +98,11 @@ road_contact = "mesh"
 # process with the same command line and stops this one; "exit" only stops it,
 # for a supervisor (Docker, systemd) that starts it again; "off" refuses.
 #restart = "respawn"
+
+# Balance of performance (docs/server/operations.md): one table a car, named by
+# its car.toml name or id. A car no table names drives as loaded.
+# [[balance]]
+# car = "GT3 Example"
+# ballast_kg = 25.0   # added at the centre of gravity
+# power = 0.97        # the torque curve scaled
+# downforce = 1.0     # both axles' lift coefficients
