@@ -13,6 +13,21 @@ class USizeBox;
 class UTextBlock;
 class UWidget;
 
+/**
+ * What last activated a button or a card: a list that only describes on a
+ * click and chooses on a key or a double-click (car and track select) reads
+ * it in its handler.
+ */
+enum class EApexActivation : uint8
+{
+	/** Enter, Space or pad A on the focused control. */
+	Key,
+	/** One click of the left mouse button. */
+	Click,
+	/** The second click of a double-click. */
+	DoubleClick,
+};
+
 /** How a button is drawn. The design has exactly these four weights. */
 UENUM(BlueprintType)
 enum class EApexButtonVariant : uint8
@@ -159,9 +174,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	bool IsInteractive() const { return Spec.Variant != EApexButtonVariant::Locked; }
 
+	/** What fired the activation being handled (or the last one). */
+	EApexActivation GetLastActivation() const { return LastActivation; }
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent) override;
@@ -170,7 +189,7 @@ protected:
 	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent) override;
 
 private:
-	void Activate();
+	void Activate(EApexActivation How);
 	/** Repaints background, accent bar and text for the current hover/focus state. */
 	void ApplyState();
 
@@ -220,4 +239,5 @@ private:
 	 * click reads as a stuck selection.
 	 */
 	bool bFocusFromPointer = false;
+	EApexActivation LastActivation = EApexActivation::Key;
 };

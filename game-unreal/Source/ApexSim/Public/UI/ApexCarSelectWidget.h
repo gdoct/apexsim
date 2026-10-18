@@ -80,6 +80,8 @@ private:
 	UFUNCTION() void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
 	UFUNCTION() void HandleRowActivated(UApexButtonWidget* Row);
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
+	/** Sends the selected car and livery and leaves for the screen after car select. */
+	void ConfirmSelection();
 
 	/** Focuses a visible row, scrolls to it, and describes its car. False if there is no such row. */
 	bool FocusRow(int32 Index);
@@ -100,6 +102,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> NameText;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> HeaderBackButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> LiveryButton;
+	/** The mouse's way to choose the car a click selected (a key on a row chooses at once). */
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ConfirmButton;
 	/** The livery's own picture (`preview` in car.toml), beside its button when it has one. */
 	UPROPERTY(Transient) TObjectPtr<UImage> LiveryPreview;
 	/** Previews read so far, by file: stepping back and forth reads each once. */

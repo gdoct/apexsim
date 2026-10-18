@@ -62,6 +62,12 @@ Built and checked by tests; each needs a person before it is closed.
   half the screen and the mode list has no Sandbox tile. Judge whether it
   is still too crowded: `python scripts/verify/run_checks.py m1-menu-pages`
   (shots 4-6 in `out/verify/m1-menu-pages/`).
+- **Car and track select (B10).** A click selects, Confirm or a
+  double-click chooses, a key or pad A on a row chooses at once. Judge the
+  feel with a mouse and with a pad: click a car, step its livery, Confirm,
+  and see the car and livery in the lobby; Back keeps the old car; a pad
+  picks a car in as few presses as before. `m1-car-mouse` and
+  `m1-track-mouse` are the unattended runs.
 
 ## P2: depth
 
@@ -214,27 +220,6 @@ has a kink and does not follow the bend smoothly.
 **Check:** close-up shots of the inside curb at the worst corners on a few
 circuits (`-ApexCameraLookAt`), before and after; full `track-editor`
 tests; the AI survey against the commit before.
-
-### 25. Car select: confirm before leaving
-
-Seen testing, 2026-10-18: clicking a car on the car select screen picks it
-and leaves at once (`UApexCarSelectWidget::HandleRowActivated` sends
-`SelectCar` and `ReplaceScreen(ScreenAfterCarSelect)`), so a mouse player
-cannot look at a car's details or change its livery first.
-
-- A click (or Enter on a row) selects the car and shows it on the stage;
-  a Confirm button (and a double-click on a row) sends the choice and
-  leaves. Back leaves without changing the car.
-- The confirm was taken out on purpose: "a separate confirm button meant a
-  second trip across the page with a pad" (the comment in
-  `HandleRowActivated`). Decided 2026-10-18: pad Accept on a row still
-  confirms at once (moving through the list already describes a car); only
-  the mouse gets the Confirm button and double-click.
-- Track select gets the same, so the two screens agree.
-
-**Check:** `ApexSim.UI.PadWalk`; a mouse run: click a car, change its
-livery, Confirm, the car and livery land in the lobby; Back keeps the old
-car; a pad run picks a car in as few presses as today.
 
 ## P3: nice to have
 

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "UI/ApexButtonWidget.h"
 
 #include "ApexContentCardWidget.generated.h"
 
@@ -97,6 +98,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	const FString& GetCardId() const { return Spec.Id; }
 
+	/** What fired the activation being handled (or the last one). */
+	EApexActivation GetLastActivation() const { return LastActivation; }
+
 	UFUNCTION(BlueprintPure, Category = "ApexSim|UI")
 	const FString& GetTitle() const { return Spec.Title; }
 
@@ -107,6 +111,7 @@ public:
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent) override;
@@ -152,4 +157,5 @@ private:
 	bool bSelected = false;
 	/** Focus from a click shows no ring until a key is pressed. */
 	bool bFocusFromPointer = false;
+	EApexActivation LastActivation = EApexActivation::Key;
 };

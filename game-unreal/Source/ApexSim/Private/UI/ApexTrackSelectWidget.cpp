@@ -31,6 +31,7 @@ namespace
 	const FName ActionTrackSelectBack(TEXT("__back"));
 	const FName ActionDemo(TEXT("__demo"));
 	const FName ActionGuide(TEXT("__guide"));
+	const FName ActionConfirm(TEXT("__confirm"));
 
 	/** Filter key for "tracks I have a lap time on". Not a catalog category. */
 	const FString DrivenFilter(TEXT("__driven"));
@@ -180,6 +181,22 @@ UWidget* UApexTrackSelectWidget::BuildDetailPanel()
 
 	DetailBox = WidgetTree->ConstructWidget<UVerticalBox>();
 	ApexUI::AddV(Column, DetailBox, FMargin(), HAlign_Fill, 1.0f);
+
+	// A click on a card selects the track to read about; this (or a
+	// double-click on the card) chooses it. The mouse's: a key or pad A on a
+	// card chooses at once, as moving through the grid already describes it.
+	FApexButtonSpec ConfirmSpec;
+	ConfirmSpec.Label = TEXT("Confirm");
+	ConfirmSpec.Variant = EApexButtonVariant::Primary;
+	ConfirmSpec.bCentreLabel = true;
+	ConfirmSpec.LabelSize = 18.0f;
+	ConfirmSpec.Height = 52.0f;
+	ConfirmSpec.ActionId = ActionConfirm;
+	ConfirmSpec.bMouseOnly = true;
+	ConfirmButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	ConfirmButton->Setup(ConfirmSpec);
+	ConfirmButton->OnActivated.AddDynamic(this, &UApexTrackSelectWidget::HandleButtonActivated);
+	ApexUI::AddV(Column, ConfirmButton, FMargin(0.0f, 12.0f, 0.0f, 0.0f));
 
 	// Straight into a hotlap on the selected circuit: a single-player session
 	// counted straight into the garage. (This used to offer the server's demo
@@ -545,11 +562,13 @@ void UApexTrackSelectWidget::RefreshDetail()
 			ApexUI::Palette::TextMuted));
 
 		if (DemoButton) { DemoButton->SetIsEnabled(false); }
+		if (ConfirmButton) { ConfirmButton->SetIsEnabled(false); }
 		if (GuideButton) { GuideButton->SetVisibility(ESlateVisibility::Collapsed); }
 		return;
 	}
 
 	if (DemoButton) { DemoButton->SetIsEnabled(true); }
+	if (ConfirmButton) { ConfirmButton->SetIsEnabled(true); }
 	if (GuideButton)
 	{
 		const UApexTrackGuideSubsystem* Guides = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackGuideSubsystem>() : nullptr;
@@ -668,15 +687,27 @@ void UApexTrackSelectWidget::HandleLobbyStateUpdated(const FApexLobbyState& Lobb
 
 void UApexTrackSelectWidget::HandleCardActivated(UApexContentCardWidget* Card)
 {
-	// Moving through the grid describes a track; activating a card is the
-	// choice. A separate confirm button meant a second trip across the panel
-	// with a pad, for no decision the card had not already made.
+	// Moving through the grid describes a track, so a key or pad A on a card
+	// is the choice (a confirm button meant a second trip across the panel
+	// with a pad). A click only selects, so the mouse can read the details
+	// first; Confirm or a double-click chooses it. As on car select.
 	if (!Card)
 	{
 		return;
 	}
 	SelectTrack(Card->GetCardId());
+	if (Card->GetLastActivation() != EApexActivation::Click)
+	{
+		ConfirmSelection();
+	}
+}
 
+void UApexTrackSelectWidget::ConfirmSelection()
+{
+	if (SelectedTrackId.IsEmpty())
+	{
+		return;
+	}
 	if (UApexMenuFlowSubsystem* Flow = GetFlow())
 	{
 		Flow->SetPendingTrack(SelectedTrackId);
@@ -741,6 +772,26 @@ FReply UApexTrackSelectWidget::NativeOnKeyDown(const FGeometry& InGeometry, cons
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
+FReply UApexTrackSelectWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	// The search box takes every key it is sent, so a pad's D-pad (and Up and
+	// Down, which a one-line box has no use for) is taken here on its way
+	// down: out of the box to Back, the chips or the grid. The keyboard's
+	// Left and Right stay the caret's.
+	if (SearchField && SearchField->HasKeyboardFocus())
+	{
+		const EUINavigation Direction = ApexNav::DirectionFromKey(InKeyEvent);
+		const bool bSideways = Direction == EUINavigation::Left || Direction == EUINavigation::Right;
+		if (Direction != EUINavigation::Invalid && (!bSideways || InKeyEvent.GetKey().IsGamepadKey()))
+		{
+			ApexNav::FNavigationScope Scope;
+			HandleNavigation(Direction, SearchField);
+			return FReply::Handled();
+		}
+	}
+	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
+}
+
 void UApexTrackSelectWidget::HandleSearchChanged(const FText& Text)
 {
 	ApplyFilter();
@@ -778,6 +829,12 @@ void UApexTrackSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (Id == ActionGuide)
 	{
 		OpenGuide(SelectedTrackId);
+		return;
+	}
+
+	if (Id == ActionConfirm)
+	{
+		ConfirmSelection();
 		return;
 	}
 
@@ -951,6 +1008,26 @@ bool UApexTrackSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* 
 			return Source == GuideButton ? (ApexNav::Focus(DemoButton) || true) : true;
 		case EUINavigation::Down:
 			return Source == DemoButton ? (ApexNav::Focus(GuideButton) || true) : true;
+		default:
+			return true;
+		}
+	}
+
+	// The search box sits between Back and the chips; left to Slate, Left
+	// from it went to a card scrolled above the grid and Back was never
+	// reached by pad.
+	if (Source == SearchField)
+	{
+		switch (Direction)
+		{
+		case EUINavigation::Left:
+		case EUINavigation::Previous:
+			return ApexNav::Focus(HeaderBackButton);
+		case EUINavigation::Right:
+			return FocusChip();
+		case EUINavigation::Down:
+		case EUINavigation::Next:
+			return FocusCard(FocusedCardIndex);
 		default:
 			return true;
 		}

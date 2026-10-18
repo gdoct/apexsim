@@ -33,6 +33,7 @@ namespace
 	const FName ActionCarSelectBack(TEXT("__back"));
 	const FName ActionSetup(TEXT("__setup"));
 	const FName ActionLivery(TEXT("__livery"));
+	const FName ActionConfirm(TEXT("__confirm"));
 
 	constexpr float ListWidth = 420.0f;
 	/** Watts per kilowatt-hour of marketing: kW to the horsepower everyone quotes. */
@@ -252,6 +253,22 @@ UWidget* UApexCarSelectWidget::BuildStage()
 	UApexButtonWidget* SetupButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	SetupButton->Setup(SetupSpec);
 	ApexUI::AddH(ActionRow, ApexUI::MakeSized(*WidgetTree, SetupButton, 200.0f, -1.0f), FMargin(16.0f, 0.0f, 0.0f, 0.0f));
+
+	// A click on a row selects the car to look at; this (or a double-click on
+	// the row) chooses it. The mouse's: a key or pad A on a row chooses at
+	// once, as moving through the list already describes each car.
+	FApexButtonSpec ConfirmSpec;
+	ConfirmSpec.Label = TEXT("Confirm");
+	ConfirmSpec.Variant = EApexButtonVariant::Primary;
+	ConfirmSpec.bCentreLabel = true;
+	ConfirmSpec.LabelSize = 17.0f;
+	ConfirmSpec.Height = 56.0f;
+	ConfirmSpec.ActionId = ActionConfirm;
+	ConfirmSpec.bMouseOnly = true;
+	ConfirmButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	ConfirmButton->Setup(ConfirmSpec);
+	ConfirmButton->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
+	ApexUI::AddH(ActionRow, ApexUI::MakeSized(*WidgetTree, ConfirmButton, 200.0f, -1.0f), FMargin(16.0f, 0.0f, 0.0f, 0.0f));
 
 	ApexUI::AddV(Column, ActionRow, FMargin(0.0f, 22.0f, 0.0f, 0.0f));
 
@@ -738,15 +755,28 @@ void UApexCarSelectWidget::HandleLobbyStateUpdated(const FApexLobbyState& LobbyS
 
 void UApexCarSelectWidget::HandleRowActivated(UApexButtonWidget* Row)
 {
-	// Moving through the list describes a car; activating a row is the choice,
-	// as on the track screen. A separate confirm button meant a second trip
-	// across the page with a pad.
+	// Moving through the list describes a car, so a key or pad A on a row is
+	// the choice (a confirm button meant a second trip across the page with a
+	// pad). A click only selects, so the mouse can look at the car and change
+	// its livery first; Confirm or a double-click chooses it. As on the track
+	// screen.
 	if (!Row)
 	{
 		return;
 	}
 	SelectCar(Row->GetActionId().ToString());
+	if (Row->GetLastActivation() != EApexActivation::Click)
+	{
+		ConfirmSelection();
+	}
+}
 
+void UApexCarSelectWidget::ConfirmSelection()
+{
+	if (SelectedCarId.IsEmpty())
+	{
+		return;
+	}
 	if (UApexMenuFlowSubsystem* Flow = GetFlow())
 	{
 		Flow->SetPendingCar(SelectedCarId);
@@ -781,6 +811,11 @@ void UApexCarSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (Id == ActionLivery)
 	{
 		CycleLivery(+1);
+		return;
+	}
+	if (Id == ActionConfirm)
+	{
+		ConfirmSelection();
 		return;
 	}
 

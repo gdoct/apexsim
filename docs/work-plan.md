@@ -33,7 +33,6 @@ When an item is done, delete it from its backlog and from here.
 | B7 | Kinks in the inside curb of some corners, all circuits | Bug | P2 | 🟡 | M |
 | F2 | Trackside light panels showing yellow and blue | Feature + content | P2 | 🟡 | M |
 | B11 | Tyre bridge prop too tall, reads as an oval | Content | P2 | 🟡 | S |
-| B10 | Car select leaves on the first click; wants a Confirm | UI | P2 | 🟡 | S |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
 | D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🟡 | M |
 | R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🟡 | L |
@@ -79,15 +78,14 @@ When an item is done, delete it from its backlog and from here.
 
 ## 2. Recommended order
 
-1. **Fix what testing found on 2026-10-18** — B8 first (overheated tyres, P1: it spoils every long stint). Then the menu batch in one go, since it is the same few widgets and one PadWalk run: B6 (create screen), B9 (menu pages), B10 (car and track select confirm).
-2. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting with B8's fix on the wheel. Fresh features are where the bugs are.
-3. **One content refresh** — B7 (curb kinks), F2 (light panels laid by `ats-dress`), B11 (the tyre bridge's shape) and D1 (the real pit layout) all regenerate every track's sidecars: do them on one branch, re-export once, run the AI survey once against the commit before. S1 (road crown) changes the same files and could join it if there is room. Showcases and guides go stale after it; rebake once at the end.
-4. **HUD** — N24 (tyre graphic) and N25 (rain radar): both new components and data points, one `ApexSim.Hud.Data` run.
-5. **The simulation in the client** — N28, then X1 on top of it. Do it before N26: once guides, showcases and Watch hotlap are made in the game, packs no longer carry them and the build loses its two slowest stages.
-6. **Built on the decisions of 2026-10-18** — N26 phase 1 (pack format, local install), R3 phase 1 (a key per install), N7 (an offline season). None of them waits on you; N26 phase 2 waits on the repository and the signing key.
-7. **Visual quality pass** — G4 (close-ups can be held: `apexsim.replay.Hold`) and N10 (DLSS and FSR beside the built render scale), checked together on the RTX machine.
-8. **Online and depth** — N5 (multi-class), N11 (liveries), then the rest of R3, and N7 online on top of identity.
-9. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
+1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting with B8's fix on the wheel. Fresh features are where the bugs are.
+2. **One content refresh** — B7 (curb kinks), F2 (light panels laid by `ats-dress`), B11 (the tyre bridge's shape) and D1 (the real pit layout) all regenerate every track's sidecars: do them on one branch, re-export once, run the AI survey once against the commit before. S1 (road crown) changes the same files and could join it if there is room. Showcases and guides go stale after it; rebake once at the end.
+3. **HUD** — N24 (tyre graphic) and N25 (rain radar): both new components and data points, one `ApexSim.Hud.Data` run.
+4. **The simulation in the client** — N28, then X1 on top of it. Do it before N26: once guides, showcases and Watch hotlap are made in the game, packs no longer carry them and the build loses its two slowest stages.
+5. **Built on the decisions of 2026-10-18** — N26 phase 1 (pack format, local install), R3 phase 1 (a key per install), N7 (an offline season). None of them waits on you; N26 phase 2 waits on the repository and the signing key.
+6. **Visual quality pass** — G4 (close-ups can be held: `apexsim.replay.Hold`) and N10 (DLSS and FSR beside the built render scale), checked together on the RTX machine.
+7. **Online and depth** — N5 (multi-class), N11 (liveries), then the rest of R3, and N7 online on top of identity.
+8. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
 
 ## 3. Items by type
 
@@ -118,15 +116,6 @@ re-import the kit and re-export the eight circuits that lay it. Check
 with a shot from the cockpit at Le Mans beside the photos; a person
 judges.
 Image: /docs/tirebridge.png
-
-#### B10. Car select leaves on the first click; wants a Confirm — P2 · 🟡 · S
-*Source: follow-ups #25 (testing, 2026-10-18).* Clicking a car picks it and
-leaves, so the details and livery cannot be looked at first. A click
-selects, a Confirm button (or double-click) sends it. The confirm was
-removed for the pad's sake (`HandleRowActivated`'s comment). Decided
-2026-10-18: pad Accept on a row still confirms at once (moving through the
-list already shows a car); the mouse gets Confirm and double-click. Track
-select gets the same. A person judges mouse and pad feel.
 
 ### Platform and stability
 
@@ -570,17 +559,19 @@ What only you can do, roughly in the order it pays off:
    class-wide seed, B9 and B10, N10 DLSS and FSR, N14 offline TTS, AU1's
    four targets, UDP encryption closed. Left: create `apexsim-content` and
    its signing key (N26 phase 2).
-2. **Sit at the wheel** — H1, then H2 (racing the AI, listen, pad), and
+2. **Judge the 2026-10-18 fixes** — B8's cooling (with H1), B6's create
+   screen and B10's mouse and pad feel: [follow-ups #26](follow-ups.md).
+3. **Sit at the wheel** — H1, then H2 (racing the AI, listen, pad), and
    client prediction over real latency ([verification.md](verification.md)).
-3. **Hardware integrations** — a motion rig / SimHub / wheel LEDs for N2,
+4. **Hardware integrations** — a motion rig / SimHub / wheel LEDs for N2,
    a VR headset for N23.
-4. **Leave the Windows/GPU box running** for the P1 crash-dump loop and the
+5. **Leave the Windows/GPU box running** for the P1 crash-dump loop and the
    unattended verification runs (V1–V3).
-5. **Confirm the agent's judgement** on the 🟡 items' screenshots.
-6. **Source data, art or people** — DGM1 terrain and marshal-post list
+6. **Confirm the agent's judgement** on the 🟡 items' screenshots.
+7. **Source data, art or people** — DGM1 terrain and marshal-post list
    (Nordschleife), wiper models, integrated-GPU hardware, radio voice lines
    (N14), translators (N22).
-7. **Scope** the parked ideas.
+8. **Scope** the parked ideas.
 
 ## 5. Parked / recommended to drop
 

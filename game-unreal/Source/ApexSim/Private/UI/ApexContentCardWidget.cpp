@@ -162,6 +162,20 @@ FReply UApexContentCardWidget::NativeOnMouseButtonDown(const FGeometry& InGeomet
 	SetKeyboardFocus();
 	ApplyState();
 	ApexUiAudio::Play(this, EApexUiSound::Accept);
+	LastActivation = EApexActivation::Click;
+	OnActivated.Broadcast(this);
+	return FReply::Handled();
+}
+
+FReply UApexContentCardWidget::NativeOnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	// The second press of a double-click: activated again, as a double-click.
+	if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+	{
+		return FReply::Unhandled();
+	}
+	ApexUiAudio::Play(this, EApexUiSound::Accept);
+	LastActivation = EApexActivation::DoubleClick;
 	OnActivated.Broadcast(this);
 	return FReply::Handled();
 }
@@ -207,6 +221,7 @@ FReply UApexContentCardWidget::NativeOnKeyDown(const FGeometry& InGeometry, cons
 	if (ApexNav::IsAccept(InKeyEvent))
 	{
 		ApexUiAudio::Play(this, EApexUiSound::Accept);
+		LastActivation = EApexActivation::Key;
 		OnActivated.Broadcast(this);
 		return FReply::Handled();
 	}

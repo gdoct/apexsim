@@ -1274,6 +1274,44 @@ runs:
         label: "Create screen, Conditions"
         checks: "B6: the conditions tab at half the screen"
 
+  - id: m1-car-mouse
+    about: "Follow-ups #26: car select by mouse (B10)"
+    # Car select from the start (-ApexStartScreen=4): a click selects and
+    # stays, the livery steps, Confirm leaves.
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=4
+    exec:
+      5: ["apexsim.ui.Texts", "apexsim.ui.Click Fugazzi LMP2"]
+      9: ["apexsim.ui.Click Works"]
+      13: ["apexsim.ui.Click Confirm"]
+    shots:
+      - at: 8
+        label: "Car select: a car clicked, still on the screen"
+        checks: "B10: a click selects without leaving"
+      - at: 12
+        label: "Car select: livery stepped by click"
+        checks: "B10: the livery can be changed before choosing"
+      - at: 16
+        label: "After Confirm"
+        checks: "B10: Confirm leaves with the car"
+
+  - id: m1-track-mouse
+    about: "Follow-ups #26: track select by mouse (B10)"
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=5
+    exec:
+      5: ["apexsim.ui.Texts", "apexsim.ui.Click Brands Scratch"]
+      9: ["apexsim.ui.Click Confirm"]
+    shots:
+      - at: 8
+        label: "Track select: a track clicked, still on the screen"
+        checks: "B10: a click selects without leaving"
+      - at: 12
+        label: "After Confirm on track select"
+        checks: "B10: Confirm leaves with the track"
+
   - id: r9b-race-dashboard
     about: "R9. In a race: the HUD layout picker, a broadcast over the HUD, the dashboard ending the session"
     args:

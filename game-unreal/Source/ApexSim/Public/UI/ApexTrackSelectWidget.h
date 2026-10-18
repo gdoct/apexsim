@@ -50,6 +50,7 @@ public:
 protected:
 	/** G (or pad Y) opens the focused track's guide. */
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -71,6 +72,8 @@ private:
 
 	UFUNCTION() void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
 	UFUNCTION() void HandleCardActivated(UApexContentCardWidget* Card);
+	/** Takes the selected track and leaves for the screen after track select. */
+	void ConfirmSelection();
 	UFUNCTION() void HandleCardGuide(UApexContentCardWidget* Card);
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
 	UFUNCTION() void HandleSearchChanged(const FText& Text);
@@ -104,6 +107,8 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> DetailBox;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DemoButton;
+	/** The mouse's way to choose the track a click selected (a key on a card chooses at once). */
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> ConfirmButton;
 	/** "Track guide", under the hotlap button; collapsed for a track without one. */
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> GuideButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> HeaderBackButton;

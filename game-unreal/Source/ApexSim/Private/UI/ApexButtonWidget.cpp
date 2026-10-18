@@ -325,12 +325,13 @@ void UApexButtonWidget::ApplyState()
 	}
 }
 
-void UApexButtonWidget::Activate()
+void UApexButtonWidget::Activate(EApexActivation How)
 {
 	if (!IsInteractive())
 	{
 		return;
 	}
+	LastActivation = How;
 	// Before the broadcast: a handler that tears this button down or opens
 	// another screen must not get in front of the cue for the press itself.
 	ApexUiAudio::Play(this, Spec.Sound);
@@ -355,7 +356,20 @@ FReply UApexButtonWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 	bFocusFromPointer = true;
 	SetKeyboardFocus();
 	ApplyState();
-	Activate();
+	Activate(EApexActivation::Click);
+	return FReply::Handled();
+}
+
+FReply UApexButtonWidget::NativeOnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	// Slate sends the second press of a double-click here instead of to
+	// NativeOnMouseButtonDown: it activates again, as a double-click, so a
+	// handler that ignores the kind sees two clicks as before.
+	if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton || !IsInteractive())
+	{
+		return FReply::Unhandled();
+	}
+	Activate(EApexActivation::DoubleClick);
 	return FReply::Handled();
 }
 
@@ -402,7 +416,7 @@ FReply UApexButtonWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKe
 	// Alt+Enter is the display-mode toggle (main menu), not an accept.
 	if (IsInteractive() && !InKeyEvent.IsAltDown() && ApexNav::IsAccept(InKeyEvent))
 	{
-		Activate();
+		Activate(EApexActivation::Key);
 		return FReply::Handled();
 	}
 

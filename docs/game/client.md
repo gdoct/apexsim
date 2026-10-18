@@ -197,6 +197,22 @@ backdrop world is hidden behind them (the car turntable shares the world).
 In a session the lobby and results screens show the session's circuit
 instead of the demo ([cameras.md](cameras.md#lobby-view-beginlobbyview-apexlobbycamfflyover)).
 
+### Car and track select (`UI/ApexCarSelectWidget.cpp`, `UI/ApexTrackSelectWidget.cpp`)
+
+Moving through the list (car select) or the grid (track select) describes
+each entry as it is reached. A key or pad A on a row or card chooses it at
+once and leaves for `ScreenAfterCarSelect` / `ScreenAfterTrackSelect`; a
+click only selects it, so the mouse can look at a car, step its livery or
+read a track first, and Confirm (`bMouseOnly`) or a double-click chooses
+it. Back leaves without changing the pending car or track. The button and
+the card tell their handler what fired them (`GetLastActivation`:
+`EApexActivation` Key, Click or DoubleClick; Slate sends a double-click's
+second press as its own event, so it activates twice, as before). The
+track search box takes every key it is sent, so the screen catches a
+pad's D-pad (and Up and Down) on the way down
+(`NativeOnPreviewKeyDown`): Left to Back, Right to the chips, Down to the
+grid; the keyboard's Left and Right stay the caret's.
+
 ## Input mode and focus
 
 Driving bindings are Enhanced Input actions built in C++
