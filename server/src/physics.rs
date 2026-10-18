@@ -4507,10 +4507,13 @@ pub fn update_track_progress_3d(
     // Start lap 1. A car waiting behind the line (the grid) starts it as it
     // crosses the line, so the first lap is timed from the line like every
     // other. Checkpoints are credited from the line on: any behind the car's
-    // new station were passed on this lap.
+    // new station were passed on this lap. A qualifying car on its outlap
+    // that crosses the line in the pit lane (its box before the line) has
+    // not started it: the outlap runs on to the next crossing.
     if state.current_lap == 0
         && old_progress > track_length * 0.8
         && state.track_progress < track_length * 0.2
+        && !(state.outlap && state.pit.in_lane)
     {
         state.current_lap = 1;
         state.outlap = false;

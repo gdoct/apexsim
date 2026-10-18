@@ -689,11 +689,18 @@ included. `RequestQualifyingResults { track_config_id }` is answered with
 
 **Qualifying runs like a hotlap with an outlap**: `tick_hotlap` and
 `hotlap_relocate`, humans start in the garage, the AI drive on. Going out
-puts the car at the pit exit (`qualifying_outlap_pose`: the lane's
-`exit_station_m` when in the first half of the lap, plus
-`QUALIFYING_OUT_PAST_LINE_M` 30 m; a teleport, not a drive down the lane),
-always on cold tyres, with `CarState::outlap` set so lap 1 starts only at the
-next crossing of the line.
+puts the car in its own pit box (`outlap_box_pose`) when the track has a
+pit lane whose exit is in the first half of the lap: served already
+(`pit.serviced`), the pit autopilot drives it down the lane and hands it
+back past the exit line, as after a stop (a driver who drives the lane
+themselves, `manual_pits`, drives it out). Without such a lane, or before
+the lane has dealt the car a box, it is put on the road at the pit exit
+(`qualifying_outlap_pose`: the lane's `exit_station_m` when in the first
+half of the lap, plus `QUALIFYING_OUT_PAST_LINE_M` 30 m), else just past
+the line. Always on cold tyres, with `CarState::outlap` set so lap 1 starts
+only at the next crossing of the line; a crossing inside the pit lane (a
+box before the line) does not count, so the outlap runs on to the next.
+The garage trip keeps the car's box and its `manual_pits`.
 
 **Timed qualifying.** Without `qualifying_seconds` qualifying is open-ended:
 no clock, no flag, never `Finished`; the host moves on when they like. With

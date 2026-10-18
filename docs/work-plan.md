@@ -148,8 +148,7 @@ persistence reads.
 
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
 - Qualifying tyre allowance and starting on the qualifying tyres.
-- Qualifying out-lap down the pit lane instead of a teleport
-  (`qualifying_outlap_pose`), plus a qualifying HUD (not race standings).
+- A qualifying HUD (not race standings).
 - Setups and tyre sets carried between sessions (parc fermé).
 - Assists per weekend phase — bundle with B2.
 - Boxes dealt by team (`pit::deal_box`).

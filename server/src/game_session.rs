@@ -3625,8 +3625,14 @@ impl GameSession {
         let Some(state) = self.session.participants.get(player_id) else {
             return Err("No car in this session");
         };
-        let pose = match destination {
-            HotlapDestination::Garage => {
+        // A qualifying car going out leaves from its box down the pit lane
+        // when the lane lets out past the line.
+        let from_box = (destination == HotlapDestination::Track && mode.has_outlap())
+            .then(|| self.outlap_box_pose(state))
+            .flatten();
+        let pose = match (destination, from_box) {
+            (_, Some(pose)) => pose,
+            (HotlapDestination::Garage, None) => {
                 let slot = self
                     .track_config
                     .start_positions
@@ -3636,10 +3642,10 @@ impl GameSession {
                     .ok_or("Track has no grid")?;
                 (slot.x, slot.y, slot.z, slot.yaw_rad)
             }
-            HotlapDestination::Track if mode.has_outlap() => self
+            (HotlapDestination::Track, None) if mode.has_outlap() => self
                 .qualifying_outlap_pose(player_id)
                 .ok_or("Track has no centerline")?,
-            HotlapDestination::Track => self
+            (HotlapDestination::Track, None) => self
                 .hotlap_runup_pose(player_id)
                 .ok_or("Track has no centerline")?,
         };
@@ -3666,6 +3672,8 @@ impl GameSession {
         fresh.traction_control = state.traction_control;
         fresh.damage_level = state.damage_level;
         fresh.steering_assist = state.steering_assist;
+        fresh.manual_pits = state.manual_pits;
+        fresh.pit.box_index = state.pit.box_index;
         // The timing sheet survives the trip: the panel and the delta are
         // measured against what the driver did before going in.
         fresh.best_lap_time_ms = state.best_lap_time_ms;
@@ -3694,6 +3702,18 @@ impl GameSession {
         );
         // Parked cars wait in neutral; a car put on the run-up is in first.
         fresh.gear = if in_garage { 0 } else { 1 };
+        // Out of the box: served already, the pit autopilot drives it to
+        // the exit line and hands it back, unless the driver drives the
+        // lane themselves.
+        if from_box.is_some() {
+            fresh.pit.serviced = true;
+            if !fresh.manual_pits {
+                fresh.pit.driving = true;
+                fresh.pit.restore_aids = Some([fresh.auto_gearbox, fresh.steering_assist]);
+                fresh.auto_gearbox = true;
+                fresh.steering_assist = false;
+            }
+        }
         physics::seed_track_progress(&mut fresh, &self.track_config);
         *state = fresh;
         // The lap the car was on is abandoned with it.
@@ -3877,8 +3897,31 @@ impl GameSession {
         }
     }
 
-    /// Where a qualifying car goes out: the pit exit, the lane's last
-    /// station on the centerline when that is past the line, else just past
+    /// Where a qualifying car going out starts its outlap: its own box,
+    /// when the track has a pit lane with boxes whose exit is past the
+    /// line (in the lap's first half), so the outlap is the lane and then
+    /// the lap; else `None`, and `qualifying_outlap_pose` puts it on the
+    /// road. A car with no box dealt yet (the lane deals one on its first
+    /// tick) is put on the road too.
+    fn outlap_box_pose(&self, state: &CarState) -> Option<(f32, f32, f32, f32)> {
+        let track = &self.track_config;
+        let lane = track.pit_lane.as_ref().filter(|l| !l.boxes.is_empty())?;
+        let length = crate::laps::track_length_m(track);
+        if lane.exit_station_m >= length * 0.5 {
+            return None;
+        }
+        let spot = lane.box_at(state.pit.box_index?);
+        Some((
+            spot.x,
+            spot.y,
+            physics::seat_height(track, spot.x, spot.y, spot.z),
+            spot.yaw_rad,
+        ))
+    }
+
+    /// Where a qualifying car goes out without a box to leave from
+    /// (`outlap_box_pose`): the pit exit, the lane's last station on the
+    /// centerline when that is past the line, else just past
     /// the line, so the car drives a whole lap (the outlap) before it
     /// crosses the line and starts the first timed one. Cars going out
     /// together are queued [`HOTLAP_SPACING_M`] apart along the lap, as on

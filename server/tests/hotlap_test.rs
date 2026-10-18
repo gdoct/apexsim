@@ -215,6 +215,66 @@ fn qualifying_goes_out_for_a_full_outlap_before_the_first_timed_lap() {
     assert_eq!(gs.qualifying_order(), vec![driver]);
 }
 
+/// With a pit lane whose exit is past the line, a qualifying car goes out
+/// from its own box: the pit autopilot drives it down the lane and hands it
+/// back past the exit line, and the outlap runs from there to the line, so
+/// a crossing inside the lane does not start the timed lap.
+#[test]
+fn qualifying_goes_out_from_the_box_down_the_pit_lane() {
+    let (mut gs, ids) = hotlap_session(1);
+    let driver = ids[0];
+    if gs.track_config.pit_lane.is_none() {
+        println!("no pit-lane sidecar for Monza (a fresh checkout): skipped");
+        return;
+    }
+    gs.set_game_mode(GameMode::Qualification);
+    // The lane deals each car its box on its first tick.
+    gs.tick(&HashMap::new());
+    let index = gs.session.participants[&driver]
+        .pit
+        .box_index
+        .expect("a box dealt");
+    gs.hotlap_relocate(&driver, HotlapDestination::Track, false)
+        .expect("out of the box");
+    let lane = gs.track_config.pit_lane.clone().unwrap();
+    let spot = *lane.box_at(index);
+    let state = &gs.session.participants[&driver];
+    assert!(
+        (state.pos_x - spot.x).hypot(state.pos_y - spot.y) < 1.0,
+        "starts in its box"
+    );
+    assert!(state.outlap && state.pit.driving && state.pit.serviced);
+    assert_eq!(state.pit.box_index, Some(index), "keeps its box");
+
+    let length = laps::track_length_m(&gs.track_config);
+    let mut handed_back = None;
+    let mut first_crossing = None;
+    for tick in 0..(HZ * 400) {
+        let inputs: HashMap<PlayerId, PlayerInputData> =
+            [(driver, gs.cooldown_input(&driver))].into();
+        gs.tick(&inputs);
+        let state = &gs.session.participants[&driver];
+        if handed_back.is_none() && !state.pit.driving {
+            handed_back = Some((tick, state.track_progress));
+        }
+        if state.current_lap == 1 {
+            first_crossing = Some(tick);
+            break;
+        }
+    }
+    let (back_tick, station) = handed_back.expect("the autopilot hands the car back");
+    assert!(
+        station < length * 0.5,
+        "handed back past the exit, early in the lap: station {station:.0}"
+    );
+    let first = first_crossing.expect("the outlap ends at the line");
+    assert!(
+        first > back_tick + HZ * 60,
+        "a whole lap from the pit exit: {} s after the hand-back",
+        (first - back_tick) / HZ
+    );
+}
+
 /// GO OUT normally fits the tyres at the compound's optimum (and warm
 /// brakes); asked for cold tyres, the car goes out as from the garage, on
 /// its blankets or at the air, and the first lap is the warm-up.
