@@ -581,6 +581,15 @@ lap loses or gains on the best (`ApexLapTrace::DeltaByDistance`) by
 distance, the best muted and the last in the accent colour, with both
 times, the gap and the folder. `apexsim.telemetry.Laps` logs what is held.
 
+`scripts/motec_export.py <lap.csv>... [-o out.ld] [--rate 20] [--driver
+NAME]` turns one or more of these CSVs, in driving order, into a MoTeC i2
+log: an `.ld` with the samples resampled on time (Ground Speed, Throttle
+Pos, Brake Pos, Steering, Gear held between samples, Engine RPM, the four
+Tyre Temp, Lap Distance, Car Pos X / Y, Lap Number; float32 at `--rate`
+Hz, the laps back to back) and an `.ldx` beside it with a beacon at each
+line and the fastest lap. `read_ld` reads one back; tests:
+`python -m unittest discover -s scripts/tests -p "test_motec_export.py"`.
+
 Tests: `ApexSim.LapTrace.*` (whole laps only, a wrap ahead of the counter,
 a recovery's jump; the CSV round trip and the delta).
 

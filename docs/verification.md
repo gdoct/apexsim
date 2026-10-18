@@ -554,6 +554,10 @@ Mandarina Bay.
   Radeon 680M / 780M has run the game, so the frame rate there and whether
   `GRHIDeviceIsIntegrated` picks LOW are unknown. Until one has, the
   requirements say a discrete GPU is recommended.
+- MoTeC i2 opening a log from `scripts/motec_export.py` (two laps: the
+  channels, their units and the laps split at the `.ldx` beacons). The
+  format is written as the open readers parse it, and one of them
+  (gotzl's `ldparser`) reads it back; i2 itself has not opened one.
 - Windows on Arm (Snapdragon X), parked: the release is x64 only. On an
   Asus Zenbook A14 under x64 emulation DirectX 12 showed only the sky and
   DirectX 11 (`display.graphics_api: dx11`) drew about one frame a second,

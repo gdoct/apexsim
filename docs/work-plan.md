@@ -39,7 +39,7 @@ When an item is done, delete it from its backlog and from here.
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S |
 | N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L |
-| N6 | Lap comparison against the ghost; MoTeC export | Driver tools | P3 | 🟢 | S |
+| N6 | Lap comparison against the ghost and any two laps (MoTeC export built) | Driver tools | P3 | 🟢 | S |
 | N7 | Championships and series with points | Game mode | P2 | 🔴 | M |
 | N8 | Public server list (master server) | Online | P2 | 🔴 | M |
 | N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🔴 | M |
@@ -331,7 +331,8 @@ stresses A3 (side-by-side); results and records keyed by class.
 Built: every whole lap recorded and saved as CSV, the pause menu's last
 against best by distance. Left: comparing against the ghost or the hotlap
 record (the server's ghost traces are 20 Hz positions only), picking any
-two stored laps, and a MoTeC i2 (`.ld`) export.
+two stored laps. The MoTeC i2 export is built (`scripts/motec_export.py`,
+not yet opened in i2: verification.md).
 
 #### N7. Championships and series with points — P2 · 🔴 · M
 **What:** No points table across races; R3 covers one weekend only.

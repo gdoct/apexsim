@@ -56,9 +56,11 @@ Left:
 - Comparing against the ghost or the hotlap record (the server's
   `GhostLap` traces are 20 Hz positions only), and picking any two stored
   laps.
-- MoTeC i2 (`.ld`) export.
 
-**Check:** an export opened in MoTeC.
+The MoTeC i2 export is built (`scripts/motec_export.py`).
+
+**Check:** the pause menu comparing a lap against the ghost and against
+any stored lap.
 
 ### 7. Championships
 
