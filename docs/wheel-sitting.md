@@ -29,25 +29,25 @@ in [Borrowed hardware](#borrowed-hardware) at the end.
 - **Re-sit only what changed.** After tuning, the next sitting covers only
   the rows the tuning touched.
 
-## Phase 0 — agent prep (no human)
+## Phase 0 — agent prep (built)
 
-Done and committed before the sitting is booked. All 🟢.
+All 🟢; what is in place before a sitting:
 
-| # | Prep | Why |
+| # | Prep | Where |
 |---|---|---|
-| P1 | **Sitting runner**: `scripts/verify/run_checks.py --sit <block>` (or `human: true` on a run) starts its own server with the block's `server.events` and env, launches the game with the block's `args` and no stand-in, takes no shots, waits until the game is closed, then copies the game log, `Saved/Telemetry` and the server log into `out/sit/<date>/<block>/`. Blocks live in `scripts/verify/sittings.yml` in the `runs.yml` format. | One command per block, nothing to type at the rig. |
-| P2 | **MARK**: a wheel-column slot `Mark` (appended to `ApexInput::Slots()`, unbound by default) plus `apexsim.debug.Mark <word>`. A press writes a `MARK` log line: session time, track station, speed, gear, steer input, rim degrees, the last 2 s of the wheel mixer's ring buffer (torque in, constant out, correction, road, vibration source) and the newest `DriverFeedback`. A short cue confirms it. | A finding becomes "mark 3 = too light", with the numbers already logged. |
-| P3 | **Tyre heat event**: `heat=FL:C` (or `heat=front:C`) in the server's debug events, so "greasy fronts" can be set at a known time rather than cooked by hand. `tests/debug_hooks_test.rs`. | Block D sets cooked fronts in seconds, not ten laps. |
-| P4 | **Front-axle hybrid car**: re-import the AC 919 with `[FRONT_MOTORS]` (`scripts/ac_car_import.py`, the AC install under `E:\SteamLibrary`) and check its `[hybrid] axle = "front"`; server and client car tests green. | Block F has a car to drive. |
-| P5 | **Toe-in setup as a text line** (the garage's COPY AS TEXT format) with a lot of front toe-in, stored in `sittings.yml`. Block G pastes it with PASTE. | The setup comes ready, and the PASTE row of setup sharing gets checked along the way. |
-| P6 | **Answer sheet**: `out/sit/<date>/sheet.md` generated from `sittings.yml`, one row per check with its answer words, ready to fill in during the sitting (a second screen, or read aloud and typed afterwards). | No free-form write-up. |
-| P7 | **Builds**: an editor build with the physics library (`play_editor.ps1 -Build`) and a server in a scratch `CARGO_TARGET_DIR`. Automation `ApexSim.Input.*`, `ApexSim.Prediction.Feel.*` green. | Nothing is built while the human waits. |
-| P8 | **Pre-flight probe** (no forces): `apexsim.input.Devices` lists COL01/COL02 with their axes, the profile resolves to ClubSport V2.5 at scale 1, and `ApexProfile.sav` is backed up (the runner overwrites it). | Problems with device detection or profiles show up before anyone sits down. |
+| P1 | **Sitting runner**: `python scripts/verify/run_checks.py --sit <block>` starts the block's own server (port 9400, its `server.events`), launches the game with the block's `args` and `exec`, the player's own display settings and save, no stand-in, no shots and no time limit. Before launching it prints the block's setup and checks (and puts a paste line on the clipboard); when the game closes or is killed it gathers the client and server logs, new `Saved/Marks` CSVs and `Saved/Telemetry` lap traces into `out/sit/<date>/<block>/`, with `marks.md` listing every MARK and 15 s force line. The save games are copied to `out/sit/<date>/SaveGames.bak` once per day. `--sit --list` lists the blocks, `--dry-run` prints the command line. | `scripts/verify/sittings.yml`, `run_checks.py` |
+| P2 | **MARK**: the `Mark` action (K on the keyboard; pad and wheel slots unbound, bound in block 0) and `apexsim.debug.Mark [word]`. A press logs `MARK n "word": ...` with speed, gear, station, steer and rim angle, and each signal's mean and range over the last 2 s (torque, constant force, correction, stiffness limit, road, vibration, damper, pad motors, slides, kerb, off track, heat, damage, flat spot), writes the frames to `Saved/Marks/<run>-<n>-<word>.csv`, plays the Notice cue and shows `MARK n` on screen. | `ApexFfbMarks`, `AApexPlayerController::Mark`; test `ApexSim.Input.ForceFeedback.Marks` |
+| P3 | **Tyre heat event**: `heat=FL:C` (or `front`, `rear`, `all`) sets the tread, its zones and the core to C °C. | `server/src/debug_hooks.rs`; `a_heat_event_cooks_the_fronts` |
+| P4 | **Front-axle hybrid car**: the AC 919 Hybrid 2016 imported as `content/cars/custom/KsPorsche919Hybrid2016` with `[hybrid] axle = "front"` (300 kW, 8 MJ a lap). `imported_car_test` and `car_stability_test imported` pass; the game loads it at runtime. Custom content: re-import on another machine. | block F, `-ApexCar=919` |
+| P5 | **Toe-in setup line**: five clicks of toe-in on both axles of the Caravan GT3, and a line for another car to see refused. | block G's `paste` |
+| P6 | **Answer sheet**: `python scripts/verify/run_checks.py --sit-sheet` writes `out/sit/<date>/sheet.md`, one row per check with its answer words. | `--sit-sheet` |
+| P7 | **Builds**: the physics library and `ApexSimEditor` (built with `-DisableAdaptiveUnity`), the release server in `server/target`. `ApexSim.Input.*`, `ApexSim.Prediction.Feel.*` and the car TOML / GLB tests pass. Rebuild after any later change: the runner warns when a DLL or the server is older than its source. | |
+| P8 | **Device check**: no device records exist on the machine yet (`Saved/ApexInputDevices.json`), and the wheel was off when prep ran. Block 0 lists the devices 2 s in (`apexsim.input.Devices`) and the bindings are made there. | block 0 |
 
 The human's only prep: the Fanatec App shows no pending firmware (a driver
 update without firmware silently drops game forces; see
 [game/input-and-ffb.md](game/input-and-ffb.md#traps)). Write down the base's
-FF / NDP / NFR / SEN menu values once at the start.
+FF / NDP / NFR / SEN menu values on the sheet at the start.
 
 ## Phase 1 — the sitting
 
@@ -56,8 +56,12 @@ core feel, ~70 min) and **Sitting 2** (blocks D–I, conditions and extras,
 ~65 min), with the agent's first pass in between: if Sitting 1 finds the
 base feel wrong, Sitting 2's conditions would be judged on a wrong baseline.
 
-Every block: the agent launches it, the human drives, presses MARK with a
-word, then fills in the block's rows. Every block's `Wheel forces over 15 s
+Every block is one command, `python scripts/verify/run_checks.py --sit
+<block>` (ids in `scripts/verify/sittings.yml`: `0-bench`, `a-monza`,
+`b-predict`, `c-nordschleife`, `c-mandarina`, `d-sakhir`, `e-spa-wet`,
+`f-hybrid`, `g-tread`, `h-pad`, `i-imported-pit`). The human drives,
+presses MARK (saying the word aloud or noting it on the sheet), closes the
+game, and fills in the block's rows. Every block's `Wheel forces over 15 s
 driving:` lines are kept.
 
 ### Sitting 1 — core feel

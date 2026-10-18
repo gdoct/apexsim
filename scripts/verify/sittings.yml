@@ -1,0 +1,313 @@
+# The wheel sitting's blocks (docs/wheel-sitting.md): one launch each, a
+# human driving. Run with
+#
+#   python scripts/verify/run_checks.py --sit <block>      # e.g. --sit a-monza
+#   python scripts/verify/run_checks.py --sit --list
+#   python scripts/verify/run_checks.py --sit-sheet        # the answer sheet
+#
+# Same keys as runs.yml (server.events, server.env, args, exec), and:
+#   sitting   1 or 2
+#   minutes   about how long it takes
+#   setup     what to do before driving (read out by the runner)
+#   checks    what to judge: {id, check, answers}; answers default to
+#             OK / weak / strong / late / wrong / not felt
+#
+# The game runs with the player's own settings.yml (display) pointed at the
+# block's server, and the player's own save (bindings, Wheel tab), which the
+# runner backs up once per sitting. Events count from the green; exec times
+# from the race view's clock. Press MARK (bound in block 0; K on the
+# keyboard) whenever something feels wrong, and say one word.
+
+sittings:
+  - id: 0-bench
+    sitting: 1
+    minutes: 10
+    about: "Bench: devices, bindings, direction, menus from the rim. No driving."
+    setup: >-
+      Fanatec App: no pending firmware. Note the base's FF / NDP / NFR / SEN
+      menu values on the sheet. The game opens on Settings > Wheel.
+    args:
+      - -ApexNoDemo
+      - -ApexOpenSettings=4
+      - -ApexSettingsTab=5
+    exec:
+      2: apexsim.input.Devices
+    checks:
+      - {id: rotation, check: "Wheel rotation set to the base's SEN (910)", answers: [done]}
+      - {id: meters, check: "Meters: right reads positive; throttle, brake and clutch run 0 to 1 with no dead band", answers: [OK, wrong]}
+      - {id: bind, check: "Bound: Clutch, H-shifter gates (if attached), Handbrake, Box this lap, Mark, Menu up/down/left/right/OK/back", answers: [done, missing]}
+      - {id: direction, check: "Direction test pushes the rim right, at a sensible strength", answers: [OK, left, weak, strong]}
+      - {id: menus, check: "Menus driven from the rim alone: out to the main menu and back into Settings", answers: [OK, stuck, wrong]}
+      - {id: profile, check: "Wheelbase stepper: Auto = ClubSport V2.5, 8 Nm", answers: [OK, wrong]}
+
+  - id: a-monza
+    sitting: 1
+    minutes: 20
+    about: "Baseline: Monza, GT3, dry, no latency. 3 laps alone, then the field."
+    setup: >-
+      Cockpit view. Lap 1-3: the feel. Then gravel at the first chicane
+      straight on. Start once from the pit lane with the clutch (and the
+      H-shifter). Box this lap from the rim once. From lap 4, race the AI.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monza
+      - -ApexCar=Caravan
+      - -ApexAiCount=11
+      - -ApexLaps=10
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=14:00
+      - -ApexView=cockpit
+    checks:
+      - {id: weight, check: "Weight in a corner"}
+      - {id: understeer, check: "The rim going light at the limit (understeer cue)", answers: [OK, early, late, not felt]}
+      - {id: letgo, check: "Letting go of the rim mid-corner: it returns", answers: [OK, rings, holds, snaps]}
+      - {id: braking, check: "Braking felt through the rim"}
+      - {id: road, check: "Road texture on a straight"}
+      - {id: kerbs, check: "Kerbs"}
+      - {id: softlock, check: "Soft lock at full lock"}
+      - {id: centring, check: "The rim centred at the start", answers: [OK, wrong, not felt]}
+      - {id: notch, check: "No notch or tick from the constant force's 0.15 s restart", answers: [OK, ticks]}
+      - {id: gravel, check: "Gravel: how hard it bogs, can it be driven out, the rattle, the sound"}
+      - {id: lock-auto, check: "Steering lock Auto: the rim on screen turns as far as the hands", answers: [OK, more, less]}
+      - {id: clutch, check: "Clutch: throw and torque cut from a standing start"}
+      - {id: hshifter, check: "H-shifter", answers: [OK, wrong, not attached]}
+      - {id: box, check: "Box this lap from the rim: BOX on, off, on; one stop", answers: [OK, wrong]}
+      - {id: ai-room, check: "AI leaves room alongside into the Rettifilo / Roggia", answers: [OK, squeezes, too timid]}
+      - {id: ai-defend, check: "AI defends with one move to the inside, not two", answers: [OK, weaves, never]}
+
+  - id: b-predict
+    sitting: 1
+    minutes: 15
+    about: "Client prediction at 80 ms, Monza, GT3: on, off, on."
+    setup: >-
+      Same car and track as block A. Predicted until 6 min (MARK "predict-off"
+      appears on screen), then the puppet until 10 min ("predict-on"), then
+      predicted. Drive through the pit lane once, touch an AI car once.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monza
+      - -ApexCar=Caravan
+      - -ApexAiCount=5
+      - -ApexLaps=10
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=14:00
+      - -ApexView=cockpit
+      - -ApexPredict
+      - -ApexFakeLatencyMs=80
+    exec:
+      360: [apexsim.net.Predict 0, apexsim.debug.Mark predict-off]
+      600: [apexsim.net.Predict 1, apexsim.debug.Mark predict-on]
+    checks:
+      - {id: answer, check: "The car answers the wheel at once (predicted) vs the puppet", answers: [better, same, worse]}
+      - {id: corrections, check: "Corrections showing: twitch on a brake stab or kerb, a snapping slide, cockpit shake", answers: [none, some, often]}
+      - {id: weight, check: "The rim as heavy as block A", answers: [same, lighter, heavier]}
+      - {id: understeer, check: "Understeer cue on time", answers: [OK, early, late]}
+      - {id: grain, check: "No grain or lumps from rewinds", answers: [OK, grainy]}
+      - {id: stiffness, check: "The latency correction helps or overshoots", answers: [helps, overshoots, can't tell]}
+      - {id: pit-switch, check: "Pit lane: a thump or engine-note step at the switch to and from the puppet", answers: [none, thump, note step]}
+      - {id: contact, check: "Contact with an AI car: one blended correction", answers: [OK, jumps]}
+
+  - id: c-nordschleife
+    sitting: 1
+    minutes: 15
+    about: "Nordschleife, one lap in the rally car: kerbs, bank, crests, H-shifter."
+    setup: >-
+      Karussell for the bank, Flugplatz and Pflanzgarten for the crests. The
+      posts and grade plates from the cockpit.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Nordschleife
+      - -ApexCar=037
+      - -ApexAiCount=0
+      - -ApexLaps=1
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=14:00
+      - -ApexView=cockpit
+    checks:
+      - {id: kerbs, check: "Sausage kerbs"}
+      - {id: posts, check: "Posts and grade plates readable from the cockpit", answers: [OK, unreadable]}
+      - {id: bank, check: "Karussell: the bank as extra grip", answers: [OK, not felt, too much]}
+      - {id: crest, check: "A diagonal crest: the car going light", answers: [OK, not felt, too much]}
+      - {id: hshifter, check: "H-shifter in the rally car", answers: [OK, wrong, not attached]}
+
+  - id: c-mandarina
+    sitting: 1
+    minutes: 10
+    about: "Mandarina Bay, GT3: kerbs, handbrake in a hairpin; safety stop last."
+    setup: >-
+      Handbrake in a hairpin. LAST: mid-corner with load on the rim, kill the
+      game in Task Manager (the runner then collects the logs).
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MarinaBay
+      - -ApexCar=Caravan
+      - -ApexAiCount=0
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=20:00
+      - -ApexView=cockpit
+    checks:
+      - {id: kerbs, check: "Sausage kerbs"}
+      - {id: handbrake, check: "Handbrake: how fast the tail comes round", answers: [OK, too slow, too fast]}
+      - {id: kill-stop, check: "Game killed under load: the force drops within about half a second", answers: [OK, slow, kept pulling]}
+
+  - id: d-sakhir
+    sitting: 2
+    minutes: 20
+    about: "Car condition, Sakhir, GT3: heat, flat spot, slow puncture, bent side, sick engine."
+    setup: >-
+      One thing a lap or so, the HUD names it as it lands: 30 s cooked fronts,
+      150 s flat spot FL, 270 s slow leak FR, 420 s left side bent, 540 s
+      engine damage. Off the track onto the desert floor once.
+    server:
+      events:
+        - "30:host:heat=front:135"
+        - "150:host:flatspot=FL:0.7"
+        - "270:host:leak=FR:1.5"
+        - "420:host:damage=left:40"
+        - "540:host:damage=engine:30"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Sakhir
+      - -ApexCar=Caravan
+      - -ApexAiCount=0
+      - -ApexLaps=8
+      - -ApexCountdown=5
+      - -ApexDamage=full
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=15:00
+      - -ApexView=cockpit
+    checks:
+      - {id: greasy, check: "Cooked fronts: the rim lighter, the scrub lower"}
+      - {id: flatspot, check: "Flat spot: a thump once a turn"}
+      - {id: puncture, check: "Slow puncture felt growing over a lap"}
+      - {id: bent, check: "Bent left side: the wobble once a wheel turn, the pull to the left"}
+      - {id: engine, check: "Engine: the half-order shake while it runs"}
+      - {id: desert, check: "The desert floor: the fine buzz and the slow drag"}
+
+  - id: e-spa-wet
+    sitting: 2
+    minutes: 15
+    about: "Spa, heavy rain drying to light: puddles and a dried line."
+    setup: >-
+      Puddle spots: python scripts/verify/spots.py Spa --puddles 6 (printed
+      by the runner). The rain eases at 6 min.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Spa
+      - -ApexCar=Caravan
+      - -ApexAiCount=0
+      - -ApexLaps=4
+      - -ApexCountdown=5
+      - -ApexWeather=heavyrain
+      - -ApexForecast=6:lightrain,12:cloudy
+      - -ApexTimeOfDay=14:00
+      - -ApexView=cockpit
+    checks:
+      - {id: puddles, check: "Puddles through the seat and the rim"}
+      - {id: dry-line, check: "The dried line as the road dries", answers: [OK, not felt]}
+
+  - id: f-hybrid
+    sitting: 2
+    minutes: 10
+    about: "Front-axle hybrid, Spa: the 919 import."
+    setup: >-
+      Corner exits above the motor's minimum speed; hard braking into La
+      Source and the Bus Stop. Watch the ERS readout.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Spa
+      - -ApexCar=919
+      - -ApexAiCount=0
+      - -ApexLaps=2
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=14:00
+      - -ApexView=cockpit
+    checks:
+      - {id: pull, check: "The pull at both ends on corner exit above the minimum speed", answers: [OK, not felt, too much]}
+      - {id: recovery, check: "Front recovery under braking", answers: [OK, not felt, too much]}
+      - {id: hud, check: "The ERS HUD shows it deploying and harvesting", answers: [OK, wrong]}
+
+  - id: g-tread
+    sitting: 2
+    minutes: 15
+    about: "Tread spread, Monza hotlap, GT3 with a toe-in setup pasted."
+    setup: >-
+      Copy the first line below, then in the garage's Load / Save tab press
+      PASTE, load "Sitting toe-in" and go out. Copy the second line and PASTE
+      once to see it refused. A stint of heavy braking; then the pause menu's
+      LAP TRACES.
+    paste:
+      - "APXS1;car=51a2eb0a-a3cf-4efc-b1dd-ca2b73b08ab1;crc=0;name=Sitting toe-in;c=0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,5"
+      - "APXS1;car=41222d7b-5216-4011-ac68-4bc75ad26b35;crc=0;name=Not this car;c=0"
+    args:
+      - -ApexAutoRace
+      - -ApexMode=8
+      - -ApexTrack=Monza
+      - -ApexCar=Caravan
+      - -ApexAiCount=0
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=14:00
+      - -ApexView=cockpit
+    checks:
+      - {id: paste, check: "PASTE takes the line; the other car's line is refused", answers: [OK, wrong]}
+      - {id: spread, check: "The inner/outer readouts: outer and middle running hot", answers: [OK, wrong]}
+      - {id: shoulder, check: "A cooked shoulder felt as lost grip before the mean leaves the window", answers: [OK, not felt]}
+      - {id: traces, check: "Lap traces: last against best, braking points on the corners, the delta's sign", answers: [OK, wrong]}
+
+  - id: h-pad
+    sitting: 2
+    minutes: 10
+    about: "Block D's events on the pad."
+    setup: >-
+      Unplug the wheel or unbind its steering; drive with the pad. Gravel at
+      turn 1 and the desert floor once.
+    server:
+      events:
+        - "30:host:heat=front:135"
+        - "120:host:flatspot=FL:0.7"
+        - "210:host:damage=left:40"
+        - "300:host:damage=engine:30"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Sakhir
+      - -ApexCar=Caravan
+      - -ApexAiCount=0
+      - -ApexLaps=5
+      - -ApexCountdown=5
+      - -ApexDamage=full
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=15:00
+      - -ApexView=chase
+    checks:
+      - {id: greasy, check: "Cooked fronts on the pad"}
+      - {id: flatspot, check: "Flat spot on the pad"}
+      - {id: bent, check: "Bent side on the pad"}
+      - {id: engine, check: "Sick engine on the pad"}
+      - {id: ground, check: "Gravel and sand on the two motors"}
+
+  - id: i-imported-pit
+    sitting: 2
+    minutes: 5
+    about: "An AC-imported circuit's pit stop by hand."
+    setup: >-
+      BOX on the first lap, drive in: the limit, the autopilot at the first
+      line, the box, the service, the hand-back at the exit line.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=KsLagunaSeca
+      - -ApexCar=Caravan
+      - -ApexAiCount=0
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexView=cockpit
+    checks:
+      - {id: limit, check: "Speed limit in the lane", answers: [OK, wrong]}
+      - {id: autopilot, check: "Autopilot takes over at the first line", answers: [OK, wrong]}
+      - {id: box, check: "The car stops at its box among AC's garages", answers: [OK, wrong]}
+      - {id: handback, check: "Service and the hand-back at the exit line", answers: [OK, wrong]}

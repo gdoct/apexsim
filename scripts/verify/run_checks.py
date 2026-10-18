@@ -41,6 +41,16 @@ broadcast|stop, `message`): the runner logs in with the run's token and
 fires each at its game-clock time, which it reads off a marker command the
 run executes at 1 s and the client logs.
 
+A sitting (`--sit <block>`, scripts/verify/sittings.yml) is the same
+launch with a human driving: docs/wheel-sitting.md. No shots and no time
+limit; the game keeps the player's own display settings and save (the
+save games are backed up once per sitting folder), and when it is closed
+(or killed) the block's client and server logs, the MARK CSVs
+(Saved/Marks) and the lap traces (Saved/Telemetry) written meanwhile are
+gathered into out/sit/<date>/<block>/, with marks.md listing the MARK and
+force lines. `--sit-sheet` writes out/sit/<date>/sheet.md, every block's
+checks with their answer words.
+
 Needs the ApexSimEditor target built and `cargo build --release` in server/
 (both are checked against the source and warned about), the content
 initialised, and the editor closed.
@@ -65,7 +75,10 @@ sys.path.insert(0, str(REPO / "scripts" / "site"))
 from make_shots import GRABS, UPROJECT, engine_editor, listening, settled  # noqa: E402
 
 RUNS_YML = Path(__file__).resolve().parent / "runs.yml"
+SITTINGS_YML = Path(__file__).resolve().parent / "sittings.yml"
 OUT = REPO / "out" / "verify"
+SIT_OUT = REPO / "out" / "sit"
+SAVED = REPO / "game-unreal" / "Saved"
 SERVER_DIR = REPO / "server"
 SERVER_EXE = SERVER_DIR / "target" / "release" / "apexsim-server.exe"
 CLIENT_LOGS = REPO / "game-unreal" / "Saved" / "Logs"
@@ -462,6 +475,192 @@ def bad_bounds(work: Path) -> list[str]:
 
 # ------------------------------------------------------------------------------
 
+# --- a sitting: a human drives -----------------------------------------------------
+
+DEFAULT_ANSWERS = ["OK", "weak", "strong", "late", "wrong", "not felt"]
+
+
+def load_sittings() -> list[dict]:
+    with open(SITTINGS_YML, encoding="utf-8") as f:
+        return yaml.safe_load(f)["sittings"]
+
+
+def sit_settings_dir(work: Path, port: int) -> Path:
+    """The player's own settings.yml (display, screens) with the block's server."""
+    folder = work / "settings"
+    folder.mkdir(parents=True, exist_ok=True)
+    own = REPO / "game-unreal" / "settings.yml"
+    server = ["  host: 127.0.0.1", f"  port: {port}", "  tls: auto", "  tls_fingerprint: "]
+    lines, section, sections = [], None, set()
+    for line in (own.read_text(encoding="utf-8").splitlines() if own.is_file() else []):
+        header = re.match(r"^(\w+):\s*$", line)
+        if header:
+            section = header.group(1)
+            sections.add(section)
+            lines.append(line)
+            if section == "server":
+                lines += server
+            continue
+        if section == "server" and re.match(r"^\s+(host|port|tls|tls_fingerprint):", line):
+            continue
+        lines.append(line)
+    if "server" not in sections:
+        lines += ["server:", *server]
+    (folder / "settings.yml").write_text(
+        "# Written by scripts/verify/run_checks.py --sit from game-unreal/settings.yml.\n"
+        + "\n".join(lines) + "\n", encoding="utf-8")
+    return folder
+
+
+def sit_command(block: dict, game: list[str], work: Path, port: int, extra: list[str]) -> list[str]:
+    command = [
+        *game,
+        "-ApexNoSplashHold", "-nosplash",
+        f"-ApexSettingsDir={sit_settings_dir(work, port)}",
+        *[str(a).replace("{repo}", REPO.as_posix()) for a in block.get("args") or []],
+        *extra,
+        f"-log=Sit_{block['id']}.log",
+    ]
+    execs = exec_after(block, [])
+    if execs:
+        command.append(f"-ApexExecAfter={execs}")
+    return command
+
+
+def back_up_save(day: Path) -> None:
+    """The player's save games, once per sitting folder: blocks rebind and paste setups."""
+    backup = day / "SaveGames.bak"
+    source = SAVED / "SaveGames"
+    if source.is_dir() and not backup.exists():
+        shutil.copytree(source, backup)
+        log(f"  save games backed up to {backup}")
+
+
+def gather_new(source: Path, since: float, target: Path) -> list[Path]:
+    """Files under `source` written since `since`, copied under `target`."""
+    copied = []
+    if not source.is_dir():
+        return copied
+    for path in source.rglob("*"):
+        if path.is_file() and path.stat().st_mtime >= since:
+            destination = target / path.relative_to(source)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, destination)
+            copied.append(destination)
+    return copied
+
+
+MARK_LINE = re.compile(r"(MARK \d+ .*|Wheel forces over .*)$")
+
+
+def write_marks(block: dict, work: Path) -> Path:
+    """marks.md: the client log's MARK and 15 s force lines, in order."""
+    client = work / "client.log"
+    found = []
+    if client.is_file():
+        for line in client.read_text(encoding="utf-8", errors="replace").splitlines():
+            match = MARK_LINE.search(line)
+            if match:
+                found.append(match.group(1))
+    marks = [line for line in found if line.startswith("MARK")]
+    path = work / "marks.md"
+    path.write_text(f"# {block['id']}: {block.get('about', '')}\n\n"
+                    f"{len(marks)} mark(s), {len(found) - len(marks)} force line(s).\n\n"
+                    + "".join(f"- `{line}`\n" for line in found), encoding="utf-8")
+    return path
+
+
+def sit(block: dict, game: list[str], day: Path, port: int, dry_run: bool, extra: list[str]) -> None:
+    work = day / block["id"]
+    work.mkdir(parents=True, exist_ok=True)
+    command = sit_command(block, game, work, port, extra)
+    if dry_run:
+        log(subprocess.list2cmdline(command))
+        return
+    log(f"\n{block['id']} (sitting {block.get('sitting', '?')}, ~{block.get('minutes', '?')} min): "
+        f"{block.get('about', '')}")
+    if block.get("setup"):
+        log(f"  {block['setup']}")
+    for line in block.get("before") or []:
+        result = subprocess.run(line, shell=True, cwd=REPO, capture_output=True, text=True)
+        with open(work / "before.txt", "a", encoding="utf-8") as f:
+            f.write(f"$ {line}\n{result.stdout}{result.stderr}\n")
+        log(result.stdout.rstrip())
+    for n, line in enumerate(block.get("paste") or []):
+        log(f"  paste {n + 1}: {line}")
+    if block.get("paste") and sys.platform == "win32":
+        subprocess.run("clip", input=block["paste"][0], text=True, shell=True)
+        log("  (paste 1 is on the clipboard)")
+    for check in block.get("checks") or []:
+        log(f"  [ ] {check['check']}")
+    back_up_save(day)
+    started = time.time()
+    client_log = CLIENT_LOGS / f"Sit_{block['id']}.log"
+    if client_log.is_file():
+        client_log.unlink()
+    with Server(block, work, port):
+        process = subprocess.Popen(command)
+        try:
+            process.wait()
+        except KeyboardInterrupt:
+            process.terminate()
+            process.wait(timeout=20)
+    if client_log.is_file():
+        shutil.copyfile(client_log, work / "client.log")
+    marks = gather_new(SAVED / "Marks", started, work / "marks")
+    traces = gather_new(SAVED / "Telemetry", started, work / "telemetry")
+    summary = write_marks(block, work)
+    log(f"  {(time.time() - started) / 60:.0f} min; {len(marks)} mark CSV(s), "
+        f"{len(traces)} trace file(s); {summary}")
+
+
+def write_sit_sheet(sittings: list[dict], day: Path) -> Path:
+    day.mkdir(parents=True, exist_ok=True)
+    lines = [f"# Wheel sitting answer sheet ({day.name})", "",
+             "One answer word per row, a line of note if needed, and the MARK number if one was pressed.",
+             "", "Base menu: FF ___  NDP ___  NFR ___  SEN ___", ""]
+    for number in sorted({b.get("sitting", 1) for b in sittings}):
+        lines += [f"## Sitting {number}", ""]
+        for block in (b for b in sittings if b.get("sitting", 1) == number):
+            lines += [f"### {block['id']}: {block.get('about', '')}", "",
+                      f"`python scripts/verify/run_checks.py --sit {block['id']}`", "",
+                      "| Check | Answers | Answer | Mark | Note |", "|---|---|---|---|---|"]
+            for check in block.get("checks") or []:
+                answers = " / ".join(check.get("answers") or DEFAULT_ANSWERS)
+                lines.append(f"| {check['check']} | {answers} |  |  |  |")
+            lines.append("")
+    path = day / "sheet.md"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+def main_sit(args) -> int:
+    sittings = load_sittings()
+    day = SIT_OUT / args.sit_dir
+    if args.sit_sheet:
+        log(str(write_sit_sheet(sittings, day)))
+        return 0
+    if args.list or not args.runs:
+        for block in sittings:
+            log(f"{block['id']:16} sitting {block.get('sitting', '?')}  ~{block.get('minutes', '?'):>2} min  "
+                f"{block.get('about', '')}")
+        return 0
+    ids = [b["id"] for b in sittings]
+    unknown = [r for r in args.runs if not fnmatch.filter(ids, r)]
+    if unknown:
+        raise SystemExit(f"no such block: {', '.join(unknown)}")
+    chosen = [b for b in sittings if any(fnmatch.fnmatchcase(b["id"], pattern) for pattern in args.runs)]
+    if not args.dry_run:
+        warn_stale()
+    editor = engine_editor()
+    if not editor:
+        raise SystemExit("no Unreal Engine found: set UE to the folder that holds Engine/")
+    game = [str(editor), str(UPROJECT), "-game"]
+    for block in chosen:
+        sit(block, game, day, args.port, args.dry_run, args.game_arg)
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Run the unattended screen checks.")
     parser.add_argument("runs", nargs="*", help="run ids from scripts/verify/runs.yml")
@@ -472,7 +671,15 @@ def main(argv=None) -> int:
     parser.add_argument("--repeat", type=int, default=1, help="run the chosen runs this many times over")
     parser.add_argument("--game-arg", action="append", default=[],
                         help="a switch added to the game's command line (repeatable)")
+    parser.add_argument("--sit", action="store_true",
+                        help="the runs are sitting blocks (scripts/verify/sittings.yml): a human drives")
+    parser.add_argument("--sit-sheet", action="store_true", help="write the sitting's answer sheet")
+    parser.add_argument("--sit-dir", default=time.strftime("%Y-%m-%d"),
+                        help="the sitting's folder under out/sit (default: today)")
     args = parser.parse_args(argv)
+
+    if args.sit or args.sit_sheet:
+        return main_sit(args)
 
     with open(RUNS_YML, encoding="utf-8") as f:
         runs = yaml.safe_load(f)["runs"]
