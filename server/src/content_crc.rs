@@ -23,18 +23,30 @@
 
 /// CRC-32 (IEEE) over `bytes` with carriage returns removed.
 pub fn content_crc(bytes: &[u8]) -> u32 {
-    let table = crc_table();
     let mut crc = 0xFFFF_FFFFu32;
     for &b in bytes {
         if b == b'\r' {
             continue;
         }
-        crc = table[((crc ^ b as u32) & 0xFF) as usize] ^ (crc >> 8);
+        crc = CRC_TABLE[((crc ^ b as u32) & 0xFF) as usize] ^ (crc >> 8);
     }
     !crc
 }
 
-fn crc_table() -> [u32; 256] {
+/// The same CRC-32 over every byte, carriage returns included: for binary
+/// files (a track's baked sidecars, `crate::track_bundle`), where a `0x0D`
+/// is data.
+pub fn crc32(bytes: &[u8]) -> u32 {
+    let mut crc = 0xFFFF_FFFFu32;
+    for &b in bytes {
+        crc = CRC_TABLE[((crc ^ b as u32) & 0xFF) as usize] ^ (crc >> 8);
+    }
+    !crc
+}
+
+static CRC_TABLE: [u32; 256] = crc_table();
+
+const fn crc_table() -> [u32; 256] {
     let mut table = [0u32; 256];
     let mut i = 0;
     while i < 256 {
@@ -77,6 +89,13 @@ mod tests {
             content_crc(lf),
             content_crc(b"name: Monza\ntrack_id: abc\n")
         );
+    }
+
+    #[test]
+    fn the_binary_crc_keeps_carriage_returns() {
+        assert_eq!(super::crc32(b"123456789"), 0xCBF4_3926);
+        assert_ne!(super::crc32(b"a\r\nb"), super::crc32(b"a\nb"));
+        assert_eq!(super::crc32(b"a\nb"), content_crc(b"a\nb"));
     }
 
     #[test]

@@ -3154,6 +3154,15 @@ struct FApexSessionPhysics
 	int32 TickRateHz = 0;
 	/** 0 the centerline, 1 the road mesh (apx_track_load's road_contact). */
 	int32 RoadContact = 0;
+	/**
+	 * The checksum of the track's physics files, the YAML and every sidecar
+	 * (server/src/track_bundle.rs), naming the bundle RequestTrackBundle asks
+	 * for; its size deflated and its chunks. 0 when the server serves none
+	 * (an older server, a track built in memory).
+	 */
+	uint32 BundleCrc = 0;
+	int64 BundleBytes = 0;
+	int32 BundleChunks = 0;
 };
 
 /**
@@ -3510,6 +3519,21 @@ enum class EApexServerMessageType : uint8
 	ShootoutState,
 	/** A chat line from a player (`Chat`). */
 	Chat,
+	/** A chunk of the track's physics bundle, asked for with RequestTrackBundle (`TrackBundleChunk`). */
+	TrackBundleChunk,
+};
+
+/**
+ * `TrackBundleChunkData` (network.rs): one chunk of a track's physics bundle
+ * (server/src/track_bundle.rs), answering RequestTrackBundle. Chunks 0 says
+ * the server has no bundle with that checksum, or no such chunk.
+ */
+struct FApexTrackBundleChunk
+{
+	uint32 Crc = 0;
+	int32 Chunk = 0;
+	int32 Chunks = 0;
+	TArray<uint8> Bytes;
 };
 
 /** A chat line as the server sends it on (`ChatData`). */
@@ -3559,6 +3583,7 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexPitService PitService;
 	FApexTelemetryFrame Telemetry;
 	FApexDriverFeedback DriverFeedback;
+	FApexTrackBundleChunk TrackBundleChunk;
 
 	/** Showcases::entries. */
 	TArray<FApexShowcaseSummary> Showcases;

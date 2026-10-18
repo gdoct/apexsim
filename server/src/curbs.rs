@@ -68,8 +68,12 @@ impl CurbBands {
     }
 
     pub fn load(path: &Path) -> Result<Self, CurbLoadError> {
-        let bytes = std::fs::read(path)?;
-        let bands: Self = rmp_serde::from_slice(&bytes)?;
+        Self::from_bytes(&std::fs::read(path)?)
+    }
+
+    /// The sidecar's bytes, decoded and checked as [`Self::load`] does.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CurbLoadError> {
+        let bands: Self = rmp_serde::from_slice(bytes)?;
         bands.validate()?;
         Ok(bands)
     }

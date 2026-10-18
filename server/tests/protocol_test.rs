@@ -793,3 +793,119 @@ async fn test_the_stand_ins_car_comes_back_with_no_input_applied() {
 
     server.shutdown().await;
 }
+
+/// A driver's `SessionJoined.Physics` names the track's physics bundle; the
+/// chunks asked for one at a time make it whole, the files in it are the
+/// track the server loaded (its YAML's checksum is the lobby's), and a
+/// checksum the server does not have comes back as no chunks.
+#[tokio::test]
+async fn test_the_track_bundle_comes_in_chunks_on_request() {
+    use apexsim_server::track_bundle::TrackFiles;
+    let server = common::start_test_server().await;
+    let mut client = ProtocolTestClient::connect(server.tcp_addr).await;
+    client.authenticate("Bundler", PROTOCOL_VERSION).await;
+    client.send(&ClientMessage::RequestLobbyState).await;
+    let (car_id, track) = match client
+        .recv_until(|m| matches!(m, ServerMessage::LobbyState(_)))
+        .await
+    {
+        ServerMessage::LobbyState(lobby) => {
+            (lobby.car_configs[0].id, lobby.track_configs[0].clone())
+        }
+        _ => unreachable!(),
+    };
+    client
+        .send(&ClientMessage::SelectCar {
+            car_config_id: car_id,
+            livery: 0,
+        })
+        .await;
+    client
+        .send(&ClientMessage::CreateSession {
+            track_config_id: track.id,
+            max_players: 1,
+            ai_count: 0,
+            lap_limit: 2,
+            session_kind: apexsim_server::data::SessionKind::Practice,
+            allowed_assists: Default::default(),
+            conditions: Default::default(),
+            damage: Default::default(),
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: apexsim_server::data::QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+        })
+        .await;
+    let physics = match client
+        .recv_until(|m| matches!(m, ServerMessage::SessionJoined(_)))
+        .await
+    {
+        ServerMessage::SessionJoined(joined) => joined.physics.expect("a driver gets Physics"),
+        _ => unreachable!(),
+    };
+    assert_ne!(physics.bundle_crc, 0, "the track is served as a bundle");
+    assert!(physics.bundle_chunks >= 1 && physics.bundle_bytes > 0);
+
+    let mut bytes = Vec::new();
+    for chunk in 0..physics.bundle_chunks {
+        client
+            .send(&ClientMessage::RequestTrackBundle {
+                crc: physics.bundle_crc,
+                chunk,
+            })
+            .await;
+        match client
+            .recv_until(|m| matches!(m, ServerMessage::TrackBundleChunk(_)))
+            .await
+        {
+            ServerMessage::TrackBundleChunk(data) => {
+                assert_eq!(
+                    (data.crc, data.chunk, data.chunks),
+                    (physics.bundle_crc, chunk, physics.bundle_chunks)
+                );
+                bytes.extend_from_slice(&data.bytes.0);
+            }
+            _ => unreachable!(),
+        }
+    }
+    assert_eq!(bytes.len(), physics.bundle_bytes as usize);
+    let files = TrackFiles::decode(&bytes, Some(physics.bundle_crc)).expect("the bundle decodes");
+    assert_eq!(
+        apexsim_server::content_crc::content_crc(&files.yaml),
+        track.content_crc,
+        "the bundle's YAML is the track the lobby lists"
+    );
+    assert_eq!(
+        files.road.is_some(),
+        physics.road_contact == 1,
+        "the road mesh comes when the session drives on it"
+    );
+    assert!(TrackFiles::decode(&bytes, Some(physics.bundle_crc ^ 1)).is_err());
+
+    client
+        .send(&ClientMessage::RequestTrackBundle {
+            crc: physics.bundle_crc ^ 1,
+            chunk: 0,
+        })
+        .await;
+    match client
+        .recv_until(|m| matches!(m, ServerMessage::TrackBundleChunk(_)))
+        .await
+    {
+        ServerMessage::TrackBundleChunk(data) => {
+            assert_eq!(data.chunks, 0, "no such bundle");
+            assert!(data.bytes.0.is_empty());
+        }
+        _ => unreachable!(),
+    }
+
+    server.shutdown().await;
+}

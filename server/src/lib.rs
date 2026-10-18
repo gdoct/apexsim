@@ -52,6 +52,7 @@ pub mod spectator;
 pub mod stream_recorder;
 pub mod tick_jitter;
 pub mod timer_resolution;
+pub mod track_bundle;
 pub mod track_content;
 pub mod track_guide;
 pub mod track_loader;

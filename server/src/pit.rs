@@ -138,8 +138,12 @@ impl PitLane {
     }
 
     pub fn load(path: &Path) -> Result<PitLane, String> {
-        let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
-        let mut lane: PitLane = rmp_serde::from_slice(&bytes).map_err(|e| e.to_string())?;
+        Self::from_bytes(&std::fs::read(path).map_err(|e| e.to_string())?)
+    }
+
+    /// The sidecar's bytes, decoded and finished as [`Self::load`] does.
+    pub fn from_bytes(bytes: &[u8]) -> Result<PitLane, String> {
+        let mut lane: PitLane = rmp_serde::from_slice(bytes).map_err(|e| e.to_string())?;
         lane.finish()?;
         Ok(lane)
     }

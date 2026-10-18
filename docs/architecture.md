@@ -208,6 +208,12 @@ check vector `"123456789"` -> `0xCBF43926`.
   `ReportUnmatchedCatalogIds` lists every stale row on the first `LobbyState`.
 - A changed YAML changes its checksum: re-export the track (`ats-export`)
   after any YAML edit, or every client shows a mismatch.
+- The predicting client's copy of a track's physics is checked by a wider
+  checksum, over the YAML and every sidecar the car step reads
+  (`track_bundle::TrackFiles::checksum`, `SessionJoined.Physics.bundle_crc`,
+  [server/protocol.md](server/protocol.md#the-own-car-for-prediction)): a
+  sidecar of another bake is not the server's either, and the client
+  predicts on the server's bundle instead.
 
 Tests: `content_crc::tests`, `network::tests::test_lobby_summaries_carry_content_crc`,
 `ApexSim.Content.CrcVector` / `.CrcLineEndings` / `.Compare`.

@@ -38,6 +38,14 @@ namespace ApexPhysics
 		static TUniquePtr<FTrack> Load(const FString& YamlPath, uint8 RoadContact, TArrayView<const uint8> Conditions,
 			FString& OutError);
 
+		/**
+		 * The same from the track's physics bundle (the YAML and the sidecars as
+		 * the server sends them, apx_track_load_bundle), refused unless its
+		 * checksum is ExpectedCrc (SessionJoined.Physics.BundleCrc).
+		 */
+		static TUniquePtr<FTrack> LoadBundle(TArrayView<const uint8> Bundle, uint32 ExpectedCrc, uint8 RoadContact,
+			TArrayView<const uint8> Conditions, FString& OutError);
+
 		/** Holds the road state to the server's from a RoadState message's bytes (apx_track_road_rows). */
 		bool SetRoadRows(uint32 FirstCell, TArrayView<const uint8> Rows, TArrayView<const uint8> SnowRows,
 			TArrayView<const uint8> LaneSnow, FString& OutError);
@@ -81,6 +89,17 @@ namespace ApexPhysics
 
 	/** The library's last failure on this thread. */
 	APEXSIM_API FString LastError();
+
+	/**
+	 * The bundle checksum of the YAML and the sidecars beside it (the road
+	 * mesh only for RoadContact 1): what the server's bundle of the same files
+	 * carries (apx_track_files_crc).
+	 */
+	APEXSIM_API bool TrackFilesCrc(const FString& YamlPath, uint8 RoadContact, uint32& OutCrc, FString& OutError);
+
+	/** The bundle the server would build of those files, and its checksum (apx_track_bundle_build; tests and tools). */
+	APEXSIM_API bool BuildTrackBundle(const FString& YamlPath, uint8 RoadContact, TArray<uint8>& OutBundle, uint32& OutCrc,
+		FString& OutError);
 
 	/** A player input as the server reads it (sanitised by the step itself). */
 	APEXSIM_API ApxInput ToInput(const FApexPlayerInput& Input);

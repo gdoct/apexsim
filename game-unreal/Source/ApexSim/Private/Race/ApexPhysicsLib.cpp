@@ -60,6 +60,53 @@ namespace ApexPhysics
 		return Out;
 	}
 
+	TUniquePtr<FTrack> FTrack::LoadBundle(TArrayView<const uint8> Bundle, uint32 ExpectedCrc, uint8 RoadContact,
+		TArrayView<const uint8> Conditions, FString& OutError)
+	{
+		ApxTrack* Handle = nullptr;
+		const ApxStatus Status = apx_track_load_bundle(Bundle.GetData(), static_cast<size_t>(Bundle.Num()), ExpectedCrc,
+			RoadContact, Conditions.Num() > 0 ? Conditions.GetData() : nullptr, static_cast<size_t>(Conditions.Num()), &Handle);
+		if (Status != APX_OK || !Handle)
+		{
+			OutError = PhysicsError(TEXT("apx_track_load_bundle"));
+			return nullptr;
+		}
+		TUniquePtr<FTrack> Out(new FTrack());
+		Out->Track = Handle;
+		return Out;
+	}
+
+	bool TrackFilesCrc(const FString& YamlPath, uint8 RoadContact, uint32& OutCrc, FString& OutError)
+	{
+		const FTCHARToUTF8 Path(*YamlPath);
+		if (apx_track_files_crc(Path.Get(), RoadContact, &OutCrc) != APX_OK)
+		{
+			OutError = PhysicsError(TEXT("apx_track_files_crc"));
+			return false;
+		}
+		return true;
+	}
+
+	bool BuildTrackBundle(const FString& YamlPath, uint8 RoadContact, TArray<uint8>& OutBundle, uint32& OutCrc,
+		FString& OutError)
+	{
+		const FTCHARToUTF8 Path(*YamlPath);
+		size_t Size = 0;
+		ApxStatus Status = apx_track_bundle_build(Path.Get(), RoadContact, nullptr, 0, &Size, &OutCrc);
+		if (Status == APX_ERR_BUFFER)
+		{
+			OutBundle.SetNumUninitialized(static_cast<int32>(Size));
+			Status = apx_track_bundle_build(Path.Get(), RoadContact, OutBundle.GetData(), OutBundle.Num(), &Size, &OutCrc);
+		}
+		if (Status != APX_OK)
+		{
+			OutBundle.Reset();
+			OutError = PhysicsError(TEXT("apx_track_bundle_build"));
+			return false;
+		}
+		return true;
+	}
+
 	bool FTrack::SetRoadRows(uint32 FirstCell, TArrayView<const uint8> Rows, TArrayView<const uint8> SnowRows,
 		TArrayView<const uint8> LaneSnow, FString& OutError)
 	{
@@ -179,6 +226,27 @@ namespace ApexPhysics
 
 	bool FTrack::SetRoadRows(uint32, TArrayView<const uint8>, TArrayView<const uint8>, TArrayView<const uint8>, FString& OutError)
 	{
+		OutError = NotBuilt;
+		return false;
+	}
+
+	TUniquePtr<FTrack> FTrack::LoadBundle(TArrayView<const uint8>, uint32, uint8, TArrayView<const uint8>, FString& OutError)
+	{
+		OutError = NotBuilt;
+		return nullptr;
+	}
+
+	bool TrackFilesCrc(const FString&, uint8, uint32& OutCrc, FString& OutError)
+	{
+		OutCrc = 0;
+		OutError = NotBuilt;
+		return false;
+	}
+
+	bool BuildTrackBundle(const FString&, uint8, TArray<uint8>& OutBundle, uint32& OutCrc, FString& OutError)
+	{
+		OutBundle.Reset();
+		OutCrc = 0;
 		OutError = NotBuilt;
 		return false;
 	}

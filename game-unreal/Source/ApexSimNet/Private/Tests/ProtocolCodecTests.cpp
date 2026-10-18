@@ -359,6 +359,8 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeRecoverCar(EApexRecoverDestination::Pits),
 		ApexGolden::C_RecoverCarPits);
 	CheckBytes(TEXT("RequestGhost"), ApexProtocol::EncodeRequestGhost(), ApexGolden::C_RequestGhost);
+	CheckBytes(TEXT("RequestTrackBundle"), ApexProtocol::EncodeRequestTrackBundle(0xC0FFEE01u, 3),
+		ApexGolden::C_RequestTrackBundle);
 	CheckBytes(TEXT("CreateSession with a start order"),
 		ApexProtocol::EncodeCreateSession(
 			TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 2, 5, EApexSessionKind::Multiplayer,
@@ -574,9 +576,41 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("ConditionsBytes ends at 13:00"), Message.ConditionsBytes.Num() == 33 && Message.ConditionsBytes.Last() == 0x0C);
 		}
 		FApexServerMessage Older;
+		if (Decode(TEXT("SessionJoined with physics, no bundle"), ApexGolden::S_SessionJoinedPhysics, Older))
+		{
+			TestEqual(TEXT("No bundle named"), Older.Physics.BundleCrc, 0u);
+		}
 		if (Decode(TEXT("SessionJoined without physics"), ApexGolden::S_SessionJoinedAssists, Older))
 		{
 			TestFalse(TEXT("No Physics from an older server"), Older.Physics.bValid);
+		}
+	}
+
+	{
+		// The track's physics bundle: named in the join, asked for a chunk at
+		// a time, answered with the chunk or with none.
+		FApexServerMessage Message;
+		if (Decode(TEXT("SessionJoined with a bundle"), ApexGolden::S_SessionJoinedPhysicsBundle, Message))
+		{
+			TestEqual(TEXT("Bundle.TickRateHz"), Message.Physics.TickRateHz, 420);
+			TestEqual(TEXT("Bundle.BundleCrc"), Message.Physics.BundleCrc, 0xC0FFEE01u);
+			TestEqual(TEXT("Bundle.BundleBytes"), Message.Physics.BundleBytes, static_cast<int64>(2190000));
+			TestEqual(TEXT("Bundle.BundleChunks"), Message.Physics.BundleChunks, 9);
+		}
+		FApexServerMessage Chunk;
+		if (Decode(TEXT("TrackBundleChunk"), ApexGolden::S_TrackBundleChunk, Chunk))
+		{
+			TestEqual(TEXT("Chunk type"), Chunk.Type, EApexServerMessageType::TrackBundleChunk);
+			TestEqual(TEXT("Chunk.Crc"), Chunk.TrackBundleChunk.Crc, 0xC0FFEE01u);
+			TestEqual(TEXT("Chunk.Chunk"), Chunk.TrackBundleChunk.Chunk, 3);
+			TestEqual(TEXT("Chunk.Chunks"), Chunk.TrackBundleChunk.Chunks, 9);
+			TestEqual(TEXT("Chunk.Bytes"), Chunk.TrackBundleChunk.Bytes, TArray<uint8>({0x41, 0x50, 0x58, 0x54, 0x01}));
+		}
+		FApexServerMessage Missing;
+		if (Decode(TEXT("TrackBundleChunk missing"), ApexGolden::S_TrackBundleChunkMissing, Missing))
+		{
+			TestEqual(TEXT("Missing.Chunks"), Missing.TrackBundleChunk.Chunks, 0);
+			TestEqual(TEXT("Missing.Bytes"), Missing.TrackBundleChunk.Bytes.Num(), 0);
 		}
 	}
 

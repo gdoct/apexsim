@@ -141,8 +141,12 @@ impl Walls {
     }
 
     pub fn load(path: &Path) -> Result<Self, WallLoadError> {
-        let bytes = std::fs::read(path)?;
-        let file: WallFile = rmp_serde::from_slice(&bytes)?;
+        Self::from_bytes(&std::fs::read(path)?)
+    }
+
+    /// The sidecar's bytes, decoded and checked as [`Self::load`] does.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, WallLoadError> {
+        let file: WallFile = rmp_serde::from_slice(bytes)?;
         Self::from_file(file)
     }
 

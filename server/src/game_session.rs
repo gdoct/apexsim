@@ -1133,6 +1133,7 @@ impl GameSession {
         SessionPhysics {
             tick_rate_hz: self.tick_rate_hz,
             road_contact: u8::from(self.track_config.road_mesh.is_some()),
+            ..Default::default()
         }
     }
 

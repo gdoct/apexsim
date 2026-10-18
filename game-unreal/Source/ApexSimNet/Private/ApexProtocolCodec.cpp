@@ -721,6 +721,9 @@ namespace
 			uint64 Raw = 0;
 			if (Key == TEXT("tick_rate_hz"))      { bOk = Reader.ReadUInt64(Raw); Out.TickRateHz = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16)); }
 			else if (Key == TEXT("road_contact")) { bOk = Reader.ReadUInt64(Raw); Out.RoadContact = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint8)); }
+			else if (Key == TEXT("bundle_crc"))   { bOk = Reader.ReadUInt64(Raw); Out.BundleCrc = static_cast<uint32>(FMath::Min<uint64>(Raw, MAX_uint32)); }
+			else if (Key == TEXT("bundle_bytes")) { bOk = Reader.ReadUInt64(Raw); Out.BundleBytes = static_cast<int64>(FMath::Min<uint64>(Raw, MAX_uint32)); }
+			else if (Key == TEXT("bundle_chunks")) { bOk = Reader.ReadUInt64(Raw); Out.BundleChunks = static_cast<int32>(FMath::Min<uint64>(Raw, 65535)); }
 			else                                  { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -1542,6 +1545,45 @@ namespace
 			}
 		}
 		Out.bValid = true;
+		return true;
+	}
+
+	/** `TrackBundleChunkData` (network.rs): PascalCase keys, the chunk as a bin. */
+	bool ParseTrackBundleChunk(FMsgPackReader& Reader, FApexTrackBundleChunk& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		Out = FApexTrackBundleChunk();
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("Crc"))         { bOk = Reader.ReadUInt64(Raw); Out.Crc = static_cast<uint32>(FMath::Min<uint64>(Raw, MAX_uint32)); }
+			else if (Key == TEXT("Chunk"))  { bOk = Reader.ReadUInt64(Raw); Out.Chunk = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)); }
+			else if (Key == TEXT("Chunks")) { bOk = Reader.ReadUInt64(Raw); Out.Chunks = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)); }
+			else if (Key == TEXT("Bytes"))
+			{
+				TArrayView<const uint8> Bytes;
+				bOk = Reader.ReadBinary(Bytes);
+				if (bOk)
+				{
+					Out.Bytes = TArray<uint8>(Bytes);
+				}
+			}
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
 		return true;
 	}
 
@@ -3141,6 +3183,7 @@ namespace
 		if (Variant == TEXT("ServerNotice"))       { return EApexServerMessageType::ServerNotice; }
 		if (Variant == TEXT("Chat"))               { return EApexServerMessageType::Chat; }
 		if (Variant == TEXT("ShootoutState"))      { return EApexServerMessageType::ShootoutState; }
+		if (Variant == TEXT("TrackBundleChunk"))   { return EApexServerMessageType::TrackBundleChunk; }
 
 		// The named-encoding `Telemetry` is only used for server-side replays;
 		// the wire carries TelemetryCompact.
@@ -3213,6 +3256,8 @@ namespace
 			return ParsePitBox(Reader, Out.PitBox);
 		case EApexServerMessageType::Chat:
 			return ParseChat(Reader, Out.Chat);
+		case EApexServerMessageType::TrackBundleChunk:
+			return ParseTrackBundleChunk(Reader, Out.TrackBundleChunk);
 
 		case EApexServerMessageType::Showcases:
 			return ParseShowcases(Reader, Out.Showcases);
@@ -3794,6 +3839,17 @@ namespace ApexProtocol
 	}
 
 	TArray<uint8> EncodeRequestGhost() { return EncodeUnitVariant("RequestGhost"); }
+
+	TArray<uint8> EncodeRequestTrackBundle(uint32 Crc, int32 Chunk)
+	{
+		FMsgPackWriter Writer(64);
+		BeginDataVariant(Writer, "RequestTrackBundle", 2);
+		Writer.WriteString("crc");
+		Writer.WriteUInt(Crc);
+		Writer.WriteString("chunk");
+		Writer.WriteUInt(static_cast<uint32>(FMath::Max(Chunk, 0)));
+		return MoveTemp(Writer.GetBuffer());
+	}
 	TArray<uint8> EncodeListShowcases() { return EncodeUnitVariant("ListShowcases"); }
 	TArray<uint8> EncodeLeaveSpectate() { return EncodeUnitVariant("LeaveSpectate"); }
 

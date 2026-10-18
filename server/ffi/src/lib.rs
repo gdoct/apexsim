@@ -27,6 +27,7 @@ use apexsim_server::config::RoadContactMode;
 use apexsim_server::data::{CarConfig, CarState, PlayerInputData, SessionConditions, TrackConfig};
 use apexsim_server::feedback::{DriverFeedback, MAX_STEER_SAMPLES};
 use apexsim_server::own_car::{self, OwnCarSnapshot};
+use apexsim_server::track_bundle::TrackFiles;
 use apexsim_server::track_loader::TrackLoader;
 
 /// The C API's version: [`apx_abi_version`]. Bumped whenever a function's
@@ -472,30 +473,149 @@ pub unsafe extern "C" fn apx_track_load(
         non_null(yaml_path, "yaml_path")?;
         non_null(out, "out")?;
         *out = std::ptr::null_mut();
-        let path = CStr::from_ptr(yaml_path)
-            .to_str()
-            .map_err(|_| Fail::new(APX_ERR_UTF8, "yaml_path is not UTF-8"))?;
-        let mode = match road_contact {
-            0 => RoadContactMode::Centerline,
-            1 => RoadContactMode::Mesh,
-            other => {
-                return Err(Fail::new(
-                    APX_ERR_INVALID,
-                    format!("road_contact {other}: 0 centerline, 1 mesh"),
-                ))
-            }
-        };
-        let raw = bytes(conditions, conditions_len, "conditions")?;
-        let conditions: SessionConditions = if raw.is_empty() {
-            SessionConditions::default()
-        } else {
-            rmp_serde::from_slice(raw)
-                .map_err(|e| Fail::new(APX_ERR_CONDITIONS, format!("conditions: {e}")))?
-        };
+        let path = c_path(yaml_path)?;
+        let mode = road_contact_mode(road_contact)?;
+        let conditions = session_conditions(bytes(conditions, conditions_len, "conditions")?)?;
         let track = TrackLoader::load_from_file_with(path, mode)
             .map_err(|e| Fail::new(APX_ERR_TRACK, format!("{path}: {e:?}")))?;
         let track = apexsim_server::game_session::session_track(track, &conditions);
         *out = Box::into_raw(Box::new(ApxTrack { track }));
+        Ok(())
+    })
+}
+
+/// A path argument as UTF-8.
+///
+/// # Safety
+/// `path` is a NUL-terminated string.
+unsafe fn c_path<'a>(path: *const c_char) -> Result<&'a str, Fail> {
+    CStr::from_ptr(path)
+        .to_str()
+        .map_err(|_| Fail::new(APX_ERR_UTF8, "the path is not UTF-8"))
+}
+
+fn road_contact_mode(road_contact: u8) -> Result<RoadContactMode, Fail> {
+    match road_contact {
+        0 => Ok(RoadContactMode::Centerline),
+        1 => Ok(RoadContactMode::Mesh),
+        other => Err(Fail::new(
+            APX_ERR_INVALID,
+            format!("road_contact {other}: 0 centerline, 1 mesh"),
+        )),
+    }
+}
+
+/// `SessionConditions` from their MessagePack (named), the defaults for none.
+fn session_conditions(raw: &[u8]) -> Result<SessionConditions, Fail> {
+    if raw.is_empty() {
+        return Ok(SessionConditions::default());
+    }
+    rmp_serde::from_slice(raw)
+        .map_err(|e| Fail::new(APX_ERR_CONDITIONS, format!("conditions: {e}")))
+}
+
+/// Load a track from its physics bundle (`track_bundle`, as the server
+/// sends it in `TrackBundleChunk`s and a client caches it): the YAML and
+/// the sidecars in it, loaded as [`apx_track_load`] loads them from disk,
+/// with the session's conditions baked in. The bundle is refused
+/// ([`APX_ERR_TRACK`], nothing loaded) unless its checksum is
+/// `expected_crc` (`SessionJoined.Physics.bundle_crc`).
+///
+/// # Safety
+/// `bundle` points at `bundle_len` bytes; `conditions` at
+/// `conditions_len`; `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_track_load_bundle(
+    bundle: *const u8,
+    bundle_len: usize,
+    expected_crc: u32,
+    road_contact: u8,
+    conditions: *const u8,
+    conditions_len: usize,
+    out: *mut *mut ApxTrack,
+) -> ApxStatus {
+    guard(|| {
+        non_null(out, "out")?;
+        *out = std::ptr::null_mut();
+        let raw = bytes(bundle, bundle_len, "bundle")?;
+        let mode = road_contact_mode(road_contact)?;
+        let conditions = session_conditions(bytes(conditions, conditions_len, "conditions")?)?;
+        let files = TrackFiles::decode(raw, Some(expected_crc))
+            .map_err(|e| Fail::new(APX_ERR_TRACK, e.to_string()))?;
+        let yaml = std::str::from_utf8(&files.yaml)
+            .map_err(|_| Fail::new(APX_ERR_UTF8, "the bundle's YAML is not UTF-8"))?;
+        let mut track = TrackLoader::load_from_string(yaml)
+            .map_err(|e| Fail::new(APX_ERR_TRACK, format!("the bundle's YAML: {e:?}")))?;
+        // The files have no place on disk; the name only labels the log.
+        let label = std::path::Path::new("bundle").join(format!("{expected_crc:08X}.yaml"));
+        TrackLoader::load_sidecars_from(&mut track, &files, &label, mode);
+        let track = apexsim_server::game_session::session_track(track, &conditions);
+        *out = Box::into_raw(Box::new(ApxTrack { track }));
+        Ok(())
+    })
+}
+
+/// The physics bundle of the YAML at `yaml_path` and the sidecars beside it
+/// (the road mesh only for `road_contact` 1), as the server builds it for a
+/// track it loads: for a client's own tests and tools. `*written` gets its
+/// size and `*crc` its checksum; with a null `buf` or a short `capacity`
+/// nothing is copied and [`APX_ERR_BUFFER`] is returned.
+///
+/// # Safety
+/// `yaml_path` is a NUL-terminated string; `buf` points at `capacity`
+/// writable bytes when non-null; `written` and `crc` are writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_track_bundle_build(
+    yaml_path: *const c_char,
+    road_contact: u8,
+    buf: *mut u8,
+    capacity: usize,
+    written: *mut usize,
+    crc: *mut u32,
+) -> ApxStatus {
+    guard(|| {
+        non_null(yaml_path, "yaml_path")?;
+        non_null(written, "written")?;
+        non_null(crc, "crc")?;
+        let path = c_path(yaml_path)?;
+        let mode = road_contact_mode(road_contact)?;
+        let files = TrackFiles::read(std::path::Path::new(path), mode)
+            .map_err(|e| Fail::new(APX_ERR_TRACK, format!("{path}: {e}")))?;
+        let bundle = apexsim_server::track_bundle::TrackBundle::of(&files);
+        *written = bundle.bytes.len();
+        *crc = bundle.crc;
+        if buf.is_null() || capacity < bundle.bytes.len() {
+            return Err(Fail::new(
+                APX_ERR_BUFFER,
+                format!("the bundle needs {} bytes", bundle.bytes.len()),
+            ));
+        }
+        std::ptr::copy_nonoverlapping(bundle.bytes.as_ptr(), buf, bundle.bytes.len());
+        Ok(())
+    })
+}
+
+/// The bundle checksum of the YAML at `yaml_path` and the sidecars beside
+/// it, the road mesh only for `road_contact` 1: what the server's bundle of
+/// the same files would carry (`SessionJoined.Physics.bundle_crc`), so a
+/// client whose own copy matches loads it from disk and asks for nothing.
+///
+/// # Safety
+/// `yaml_path` is a NUL-terminated string; `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_track_files_crc(
+    yaml_path: *const c_char,
+    road_contact: u8,
+    out: *mut u32,
+) -> ApxStatus {
+    guard(|| {
+        non_null(yaml_path, "yaml_path")?;
+        non_null(out, "out")?;
+        let path = c_path(yaml_path)?;
+        let mode = road_contact_mode(road_contact)?;
+        let files = TrackFiles::read(std::path::Path::new(path), mode)
+            .map_err(|e| Fail::new(APX_ERR_TRACK, format!("{path}: {e}")))?;
+        *out = files.checksum();
         Ok(())
     })
 }
@@ -976,6 +1096,9 @@ mod tests {
             "apx_car_snapshot_apply(",
             "apx_track_road_rows(",
             "apx_car_feedback_take(",
+            "apx_track_load_bundle(",
+            "apx_track_files_crc(",
+            "apx_track_bundle_build(",
         ] {
             assert!(header.contains(f), "the header lacks {f}");
         }

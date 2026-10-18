@@ -177,6 +177,30 @@ ApxStatus apx_track_load(const char *yaml_path, uint8_t road_contact,
                          ApxTrack **out);
 void apx_track_free(ApxTrack *track);
 
+/* Load a track from its physics bundle (server/src/track_bundle.rs: the YAML
+ * and the sidecars, as the server sends it in TrackBundleChunks), loaded as
+ * apx_track_load loads them from disk, the conditions baked in. Refused
+ * (APX_ERR_TRACK, nothing loaded) unless the bundle's checksum is
+ * expected_crc (SessionJoined.Physics.bundle_crc). */
+ApxStatus apx_track_load_bundle(const uint8_t *bundle, size_t bundle_len,
+                                uint32_t expected_crc, uint8_t road_contact,
+                                const uint8_t *conditions, size_t conditions_len,
+                                ApxTrack **out);
+
+/* The bundle checksum of the YAML at yaml_path and the sidecars beside it
+ * (the road mesh only for road_contact 1): what the server's bundle of the
+ * same files carries, so a client whose copy matches needs no bundle. */
+ApxStatus apx_track_files_crc(const char *yaml_path, uint8_t road_contact,
+                              uint32_t *out);
+
+/* The physics bundle of the YAML at yaml_path and the sidecars beside it,
+ * as the server builds it (for tests and tools). *written gets its size and
+ * *crc its checksum; with a NULL buf or a short capacity nothing is copied
+ * and APX_ERR_BUFFER is returned. */
+ApxStatus apx_track_bundle_build(const char *yaml_path, uint8_t road_contact,
+                                 uint8_t *buf, size_t capacity, size_t *written,
+                                 uint32_t *crc);
+
 /* A car from its car.toml text and up to KNOB_COUNT (31) setup clicks in
  * CarSetup order (NULL/0 for stock), clamped as the server clamps them,
  * standing on grid slot grid_position (1-based; 0 the first slot). */

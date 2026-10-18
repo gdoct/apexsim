@@ -2,6 +2,7 @@ use crate::config::RoadContactMode;
 use crate::data::{
     GridSlot, RacelinePoint, SurfaceType, TrackConfig, TrackMetadata, TrackPoint, TrackSurface,
 };
+use crate::track_bundle::TrackFiles;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -163,13 +164,28 @@ impl TrackLoader {
         track_path: &Path,
         road_contact: RoadContactMode,
     ) {
+        let files = TrackFiles::read_sidecars(track_path, road_contact);
+        Self::load_sidecars_from(config, &files, track_path, road_contact);
+    }
+
+    /// [`Self::load_sidecars`] from the sidecars' bytes, read once
+    /// (`crate::track_content` keeps them for the track's bundle) or out of
+    /// a bundle (the physics library's `apx_track_load_bundle`). `track_path`
+    /// only names them in the log.
+    pub fn load_sidecars_from(
+        config: &mut TrackConfig,
+        files: &TrackFiles,
+        track_path: &Path,
+        road_contact: RoadContactMode,
+    ) {
         let name = config.name.clone();
-        config.ground = Self::load_ground_heightfield(&name, track_path);
-        config.curbs = Self::load_curb_bands(&name, track_path);
-        config.walls = Self::load_walls(&name, track_path);
-        config.pit_lane = Self::load_pit_lane(&name, track_path);
+        config.ground = Self::load_ground_heightfield(&name, track_path, files.ground.as_deref());
+        config.curbs = Self::load_curb_bands(&name, track_path, files.curbs.as_deref());
+        config.walls = Self::load_walls(&name, track_path, files.walls.as_deref());
+        config.pit_lane = Self::load_pit_lane(&name, track_path, files.pit.as_deref());
         config.road_mesh =
-            Self::load_road_mesh(&name, track_path, road_contact).map(std::sync::Arc::new);
+            Self::load_road_mesh(&name, track_path, road_contact, files.road.as_deref())
+                .map(std::sync::Arc::new);
 
         // The grid is seated on the road the cars will drive on: the mesh
         // when there is one (a slot on a bridge lands on the deck), the
@@ -345,6 +361,7 @@ impl TrackLoader {
         track_name: &str,
         track_path: &Path,
         road_contact: RoadContactMode,
+        bytes: Option<&[u8]>,
     ) -> Option<crate::road_mesh::RoadMesh> {
         let sidecar = crate::road_mesh::RoadMesh::sidecar_path(track_path);
         if road_contact == RoadContactMode::Centerline {
@@ -357,15 +374,15 @@ impl TrackLoader {
             }
             return None;
         }
-        if !sidecar.exists() {
+        let Some(bytes) = bytes else {
             info!(
                 "No road mesh for {} ({}); driving on the centerline",
                 track_name,
                 sidecar.display()
             );
             return None;
-        }
-        match crate::road_mesh::RoadMesh::load(&sidecar) {
+        };
+        match crate::road_mesh::RoadMesh::from_bytes(bytes) {
             Ok(mesh) => {
                 info!(
                     "Loaded road mesh for {}: {} triangles, {} vertices, {} surfaces, from {}{}",
@@ -401,17 +418,18 @@ impl TrackLoader {
     fn load_ground_heightfield(
         track_name: &str,
         track_path: &Path,
+        bytes: Option<&[u8]>,
     ) -> Option<crate::ground::GroundHeightfield> {
         let sidecar = crate::ground::GroundHeightfield::sidecar_path(track_path);
-        if !sidecar.exists() {
+        let Some(bytes) = bytes else {
             debug!(
                 "No ground heightfield for {} ({}); off-track elevation follows the centerline",
                 track_name,
                 sidecar.display()
             );
             return None;
-        }
-        match crate::ground::GroundHeightfield::load(&sidecar) {
+        };
+        match crate::ground::GroundHeightfield::from_bytes(bytes) {
             Ok(field) => {
                 info!(
                     "Loaded ground heightfield for {}: {}x{} cells of {} m",
@@ -435,17 +453,21 @@ impl TrackLoader {
     /// file, if present. Missing is normal (the sidecar is generated, not
     /// committed); a present-but-broken file is a warning, and the road edge
     /// is the track limit as it was before curbs were baked at all.
-    fn load_curb_bands(track_name: &str, track_path: &Path) -> Option<crate::curbs::CurbBands> {
+    fn load_curb_bands(
+        track_name: &str,
+        track_path: &Path,
+        bytes: Option<&[u8]>,
+    ) -> Option<crate::curbs::CurbBands> {
         let sidecar = crate::curbs::CurbBands::sidecar_path(track_path);
-        if !sidecar.exists() {
+        let Some(bytes) = bytes else {
             debug!(
                 "No curb bands for {} ({}); the road edge is the track limit",
                 track_name,
                 sidecar.display()
             );
             return None;
-        }
-        match crate::curbs::CurbBands::load(&sidecar) {
+        };
+        match crate::curbs::CurbBands::from_bytes(bytes) {
             Ok(bands) => {
                 info!(
                     "Loaded curb bands for {}: {} stations of {} m",
@@ -471,17 +493,21 @@ impl TrackLoader {
     /// if present. Missing is normal (the sidecar is generated, not
     /// committed) and means nothing stops a car off the road, as before; a
     /// present-but-broken file is a warning.
-    fn load_walls(track_name: &str, track_path: &Path) -> Option<crate::walls::Walls> {
+    fn load_walls(
+        track_name: &str,
+        track_path: &Path,
+        bytes: Option<&[u8]>,
+    ) -> Option<crate::walls::Walls> {
         let sidecar = crate::walls::Walls::sidecar_path(track_path);
-        if !sidecar.exists() {
+        let Some(bytes) = bytes else {
             debug!(
                 "No walls for {} ({}); nothing stops a car off the road",
                 track_name,
                 sidecar.display()
             );
             return None;
-        }
-        match crate::walls::Walls::load(&sidecar) {
+        };
+        match crate::walls::Walls::from_bytes(bytes) {
             Ok(walls) => {
                 info!("Loaded walls for {}: {} segments", track_name, walls.len());
                 Some(walls)
@@ -502,13 +528,17 @@ impl TrackLoader {
     /// if present. Missing is normal (a circuit without a pit lane, or not
     /// yet baked) and means no pit stops; a present-but-broken file is a
     /// warning.
-    fn load_pit_lane(track_name: &str, track_path: &Path) -> Option<crate::pit::PitLane> {
+    fn load_pit_lane(
+        track_name: &str,
+        track_path: &Path,
+        bytes: Option<&[u8]>,
+    ) -> Option<crate::pit::PitLane> {
         let sidecar = crate::pit::PitLane::sidecar_path(track_path);
-        if !sidecar.exists() {
+        let Some(bytes) = bytes else {
             debug!("No pit lane for {} ({})", track_name, sidecar.display());
             return None;
-        }
-        match crate::pit::PitLane::load(&sidecar) {
+        };
+        match crate::pit::PitLane::from_bytes(bytes) {
             Ok(lane) => {
                 info!(
                     "Loaded the pit lane for {}: {:.0} m, {} boxes",

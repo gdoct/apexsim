@@ -164,8 +164,12 @@ impl RoadMesh {
     }
 
     pub fn load(path: &Path) -> Result<Self, RoadMeshLoadError> {
-        let bytes = std::fs::read(path)?;
-        let file: RoadMeshFile = rmp_serde::from_slice(&bytes)?;
+        Self::from_bytes(&std::fs::read(path)?)
+    }
+
+    /// The sidecar's bytes, decoded and checked as [`Self::load`] does.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, RoadMeshLoadError> {
+        let file: RoadMeshFile = rmp_serde::from_slice(bytes)?;
         Self::from_file(file)
     }
 

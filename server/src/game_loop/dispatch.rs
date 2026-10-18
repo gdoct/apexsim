@@ -9,8 +9,8 @@ use crate::data::*;
 use crate::game_session::GameSession;
 use crate::lobby::{LobbyPlayerState, LobbySessionInfo, SessionVisibility};
 use crate::network::{
-    ClientMessage, GhostLapData, LapRecordData, RacingLineData, ServerMessage, SessionJoinedData,
-    TrackSectorsData,
+    ClientMessage, GhostLapData, LapRecordData, RacingLineData, RecordBytes, ServerMessage,
+    SessionJoinedData, TrackBundleChunkData, TrackSectorsData,
 };
 use crate::racing_line;
 use crate::transport::{ConnectionInfo, TransportEvent};
@@ -197,6 +197,9 @@ pub(crate) async fn handle_message(
         }
         ClientMessage::RequestGhost => {
             handle_request_ghost(ctx, connection_id).await;
+        }
+        ClientMessage::RequestTrackBundle { crc, chunk } => {
+            handle_request_track_bundle(ctx, connection_id, crc, chunk).await;
         }
         ClientMessage::ListShowcases => {
             showcase::handle_list(ctx, connection_id).await;
@@ -671,7 +674,9 @@ async fn handle_create_session(
         let qualifying_lap_allowance = game_session.session.qualifying_lap_allowance;
         let race_rules = game_session.session.race_rules;
         let physics = game_session.session_physics();
+        let track_id = game_session.track_config.id;
         let phase_states = game_session.phase_state_messages();
+        let physics = physics.with_bundle(state_write.track_content.bundle(track_id).as_deref());
         drop(state_write);
         let _ = ctx
             .send(
@@ -996,7 +1001,9 @@ pub(crate) async fn handle_join_session(
         let qualifying_lap_allowance = game_session.session.qualifying_lap_allowance;
         let race_rules = game_session.session.race_rules;
         let physics = game_session.session_physics();
+        let track_id = game_session.track_config.id;
         let phase_states = game_session.phase_state_messages();
+        let physics = physics.with_bundle(state_write.track_content.bundle(track_id).as_deref());
         drop(state_write);
         let _ = ctx
             .send(
@@ -1057,6 +1064,7 @@ async fn rejoin_session(
     session_id: SessionId,
 ) {
     let records = state_write.records.clone();
+    let track_content = state_write.track_content.clone();
     let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
         return;
     };
@@ -1088,7 +1096,13 @@ async fn rejoin_session(
         qualifying_format: game_session.session.qualifying_format,
         qualifying_lap_allowance: game_session.session.qualifying_lap_allowance,
         race_rules: game_session.session.race_rules,
-        physics: Some(game_session.session_physics()),
+        physics: Some(
+            game_session.session_physics().with_bundle(
+                track_content
+                    .bundle(game_session.track_config.id)
+                    .as_deref(),
+            ),
+        ),
     });
     let mut messages = vec![joined];
     messages.extend(game_session.phase_state_messages());
@@ -2045,6 +2059,42 @@ async fn handle_recover_car(
 /// The trace of the driver's record lap on this session's track in their
 /// car, read from the record store off the loop, and an empty `GhostLap`
 /// when there is none. Only a participant with a car gets one.
+/// One chunk of a loaded track's physics bundle (`crate::track_bundle`),
+/// named by its checksum: what a predicting client steps its car on. The
+/// bundle is built when the track loads, so this is a slice of it; a
+/// checksum or chunk the server does not have comes back as no chunks.
+async fn handle_request_track_bundle(
+    ctx: &GameLoopCtx,
+    connection_id: ConnectionId,
+    crc: u32,
+    chunk: u32,
+) {
+    let bundle = ctx.state.read().await.track_content.bundle_by_crc(crc);
+    let data = match bundle.as_deref().and_then(|b| Some((b, b.chunk(chunk)?))) {
+        Some((bundle, bytes)) => TrackBundleChunkData {
+            crc,
+            chunk,
+            chunks: bundle.chunk_count(),
+            bytes: RecordBytes(bytes.to_vec()),
+        },
+        None => {
+            debug!(
+                "Connection {} asked for chunk {} of track bundle {:08X}, which is not here",
+                connection_id, chunk, crc
+            );
+            TrackBundleChunkData {
+                crc,
+                chunk,
+                chunks: 0,
+                bytes: RecordBytes(Vec::new()),
+            }
+        }
+    };
+    let _ = ctx
+        .send(connection_id, ServerMessage::TrackBundleChunk(data))
+        .await;
+}
+
 async fn handle_request_ghost(ctx: &GameLoopCtx, connection_id: ConnectionId) {
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;

@@ -105,6 +105,8 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeRecoverCar(EApexRecoverDestination Destination);
 	/** Asks for the trace of the driver's record lap here, answered with GhostLap. */
 	APEXSIMNET_API TArray<uint8> EncodeRequestGhost();
+	/** Asks for one chunk of the track's physics bundle named by its checksum (SessionJoined.Physics), answered with TrackBundleChunk. */
+	APEXSIMNET_API TArray<uint8> EncodeRequestTrackBundle(uint32 Crc, int32 Chunk);
 	/** Asks which showcases the server plays; answered with Showcases. */
 	APEXSIMNET_API TArray<uint8> EncodeListShowcases();
 	/** Watch a showcase channel (empty: the server's first); answered with SpectatorJoined and the stream. */

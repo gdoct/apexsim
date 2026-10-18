@@ -335,6 +335,15 @@ pub enum ClientMessage {
     SetLivery {
         livery: u8,
     },
+    /// A predicting client asks for one chunk of a track's physics bundle
+    /// (`crate::track_bundle`), named by the checksum `SessionJoined.Physics`
+    /// carried: answered with `TrackBundleChunk`. The client asks for the
+    /// next as each arrives, a few at a time, so a bundle of megabytes never
+    /// fills the connection's queue ahead of the session's own messages.
+    RequestTrackBundle {
+        crc: u32,
+        chunk: u32,
+    },
 
     // UDP - Binds the sender's UDP address to the TCP connection that was
     // issued `token` in `AuthSuccess`. Server replies `UdpHandshakeAck` over
@@ -544,7 +553,7 @@ pub struct SessionJoinedData {
 
 /// The session's physics as the client's copy of the car step needs them
 /// (`SessionJoined.Physics`; its keys stay snake_case).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SessionPhysics {
     /// The session's tick rate, Hz: the step's `dt` is its inverse.
     pub tick_rate_hz: u16,
@@ -552,6 +561,48 @@ pub struct SessionPhysics {
     /// physics library's `apx_track_load` `road_contact`). The mesh only
     /// when the server drives on it and the track has one baked.
     pub road_contact: u8,
+    /// The checksum of the track's physics files, the YAML and every
+    /// sidecar the car step reads (`crate::track_bundle`), which names the
+    /// bundle `RequestTrackBundle` asks for. Left off (0) when the server
+    /// serves none: a track built in memory, or an older server.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub bundle_crc: u32,
+    /// The bundle's size, bytes deflated, and how many chunks it comes in.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub bundle_bytes: u32,
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub bundle_chunks: u32,
+}
+
+impl SessionPhysics {
+    /// The same, naming the track's physics bundle when the server has one.
+    pub fn with_bundle(self, bundle: Option<&crate::track_bundle::TrackBundle>) -> Self {
+        match bundle {
+            Some(bundle) => Self {
+                bundle_crc: bundle.crc,
+                bundle_bytes: bundle.bytes.len() as u32,
+                bundle_chunks: bundle.chunk_count(),
+                ..self
+            },
+            None => self,
+        }
+    }
+}
+
+fn is_zero_u32(value: &u32) -> bool {
+    *value == 0
+}
+
+/// One chunk of a track's physics bundle (`crate::track_bundle`), answering
+/// `RequestTrackBundle`. `chunks` 0 (and no bytes) says the server has no
+/// bundle with that checksum or no such chunk.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TrackBundleChunkData {
+    pub crc: u32,
+    pub chunk: u32,
+    pub chunks: u32,
+    pub bytes: RecordBytes,
 }
 
 /// Where a race weekend stands (`crate::weekend`). Sent to every member of
@@ -915,6 +966,10 @@ pub enum ServerMessage {
 
     // TCP - A chat line (`ClientMessage::Chat`) to everyone it was said to.
     Chat(ChatData),
+
+    // TCP - One chunk of a track's physics bundle, on request
+    // (`RequestTrackBundle`): what a predicting client steps its car on.
+    TrackBundleChunk(TrackBundleChunkData),
 }
 
 impl ServerMessage {
@@ -953,6 +1008,8 @@ impl ServerMessage {
             ServerMessage::PitBox(_) => MessagePriority::Critical,
             ServerMessage::ServerNotice { .. } => MessagePriority::Critical,
             ServerMessage::Chat(_) => MessagePriority::Critical,
+            // Asked for once, chunk by chunk, a few in flight.
+            ServerMessage::TrackBundleChunk(_) => MessagePriority::Critical,
 
             // Droppable messages - can be dropped when queue is full
             ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
@@ -4459,6 +4516,7 @@ mod tests {
             physics: Some(SessionPhysics {
                 tick_rate_hz: 420,
                 road_contact: 1,
+                ..Default::default()
             }),
         });
         let bytes = rmp_serde::to_vec_named(&joined).unwrap();
@@ -4468,12 +4526,155 @@ mod tests {
                 data.physics,
                 Some(SessionPhysics {
                     tick_rate_hz: 420,
-                    road_contact: 1
+                    road_contact: 1,
+                    ..Default::default()
                 })
             ),
             _ => panic!("Wrong message type"),
         }
         assert_eq!(bytes, GOLDEN);
+    }
+
+    /// The track's physics bundle (`crate::track_bundle`): `SessionJoined`'s
+    /// `Physics` names it (`bundle_crc`, `bundle_bytes`, `bundle_chunks`,
+    /// left off without one: the bytes above), the client asks for a chunk
+    /// (`RequestTrackBundle`) and gets it (`TrackBundleChunk`), or none
+    /// (`Chunks` 0). `cargo test track_bundle_wire_format -- --nocapture`
+    /// -> `ApexGolden::S_SessionJoinedPhysicsBundle`, `C_RequestTrackBundle`,
+    /// `S_TrackBundleChunk`, `S_TrackBundleChunkMissing`.
+    #[test]
+    fn track_bundle_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        const GOLDEN_S_SESSION_JOINED_PHYSICS_BUNDLE: &[u8] = &[
+            0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E,
+            0x4A, 0x6F, 0x69, 0x6E, 0x65, 0x64, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x86, 0xA9, 0x53,
+            0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x31, 0x32, 0x33,
+            0x34, 0x35, 0x36, 0x37, 0x2D, 0x38, 0x39, 0x61, 0x62, 0x2D, 0x63, 0x64, 0x65, 0x66,
+            0x2D, 0x30, 0x31, 0x32, 0x33, 0x2D, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62,
+            0x63, 0x64, 0x65, 0x66, 0xB0, 0x59, 0x6F, 0x75, 0x72, 0x47, 0x72, 0x69, 0x64, 0x50,
+            0x6F, 0x73, 0x69, 0x74, 0x69, 0x6F, 0x6E, 0x02, 0xAB, 0x53, 0x65, 0x73, 0x73, 0x69,
+            0x6F, 0x6E, 0x4B, 0x69, 0x6E, 0x64, 0x01, 0xAE, 0x41, 0x6C, 0x6C, 0x6F, 0x77, 0x65,
+            0x64, 0x41, 0x73, 0x73, 0x69, 0x73, 0x74, 0x73, 0x85, 0xA3, 0x61, 0x62, 0x73, 0xC3,
+            0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E, 0x74,
+            0x72, 0x6F, 0x6C, 0xC3, 0xAC, 0x61, 0x75, 0x74, 0x6F, 0x5F, 0x67, 0x65, 0x61, 0x72,
+            0x62, 0x6F, 0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65, 0x72, 0x69, 0x6E, 0x67, 0x5F,
+            0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC3, 0xAB, 0x72, 0x61, 0x63, 0x69, 0x6E, 0x67,
+            0x5F, 0x6C, 0x69, 0x6E, 0x65, 0xC3, 0xAA, 0x43, 0x6F, 0x6E, 0x64, 0x69, 0x74, 0x69,
+            0x6F, 0x6E, 0x73, 0x82, 0xA7, 0x77, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3,
+            0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F, 0x66, 0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69,
+            0x6E, 0x75, 0x74, 0x65, 0x73, 0xCD, 0x03, 0x0C, 0xA7, 0x50, 0x68, 0x79, 0x73, 0x69,
+            0x63, 0x73, 0x85, 0xAC, 0x74, 0x69, 0x63, 0x6B, 0x5F, 0x72, 0x61, 0x74, 0x65, 0x5F,
+            0x68, 0x7A, 0xCD, 0x01, 0xA4, 0xAC, 0x72, 0x6F, 0x61, 0x64, 0x5F, 0x63, 0x6F, 0x6E,
+            0x74, 0x61, 0x63, 0x74, 0x01, 0xAA, 0x62, 0x75, 0x6E, 0x64, 0x6C, 0x65, 0x5F, 0x63,
+            0x72, 0x63, 0xCE, 0xC0, 0xFF, 0xEE, 0x01, 0xAC, 0x62, 0x75, 0x6E, 0x64, 0x6C, 0x65,
+            0x5F, 0x62, 0x79, 0x74, 0x65, 0x73, 0xCE, 0x00, 0x21, 0x6A, 0xB0, 0xAD, 0x62, 0x75,
+            0x6E, 0x64, 0x6C, 0x65, 0x5F, 0x63, 0x68, 0x75, 0x6E, 0x6B, 0x73, 0x09,
+        ];
+        const GOLDEN_C_REQUEST_TRACK_BUNDLE: &[u8] = &[
+            0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xB2, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+            0x54, 0x72, 0x61, 0x63, 0x6B, 0x42, 0x75, 0x6E, 0x64, 0x6C, 0x65, 0xA4, 0x64, 0x61,
+            0x74, 0x61, 0x82, 0xA3, 0x63, 0x72, 0x63, 0xCE, 0xC0, 0xFF, 0xEE, 0x01, 0xA5, 0x63,
+            0x68, 0x75, 0x6E, 0x6B, 0x03,
+        ];
+        const GOLDEN_S_TRACK_BUNDLE_CHUNK: &[u8] = &[
+            0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xB0, 0x54, 0x72, 0x61, 0x63, 0x6B, 0x42, 0x75,
+            0x6E, 0x64, 0x6C, 0x65, 0x43, 0x68, 0x75, 0x6E, 0x6B, 0xA4, 0x64, 0x61, 0x74, 0x61,
+            0x84, 0xA3, 0x43, 0x72, 0x63, 0xCE, 0xC0, 0xFF, 0xEE, 0x01, 0xA5, 0x43, 0x68, 0x75,
+            0x6E, 0x6B, 0x03, 0xA6, 0x43, 0x68, 0x75, 0x6E, 0x6B, 0x73, 0x09, 0xA5, 0x42, 0x79,
+            0x74, 0x65, 0x73, 0xC4, 0x05, 0x41, 0x50, 0x58, 0x54, 0x01,
+        ];
+        const GOLDEN_S_TRACK_BUNDLE_CHUNK_MISSING: &[u8] = &[
+            0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xB0, 0x54, 0x72, 0x61, 0x63, 0x6B, 0x42, 0x75,
+            0x6E, 0x64, 0x6C, 0x65, 0x43, 0x68, 0x75, 0x6E, 0x6B, 0xA4, 0x64, 0x61, 0x74, 0x61,
+            0x84, 0xA3, 0x43, 0x72, 0x63, 0xCE, 0xC0, 0xFF, 0xEE, 0x01, 0xA5, 0x43, 0x68, 0x75,
+            0x6E, 0x6B, 0x03, 0xA6, 0x43, 0x68, 0x75, 0x6E, 0x6B, 0x73, 0x00, 0xA5, 0x42, 0x79,
+            0x74, 0x65, 0x73, 0xC4, 0x00,
+        ];
+        let physics = SessionPhysics {
+            tick_rate_hz: 420,
+            road_contact: 1,
+            bundle_crc: 0xC0FF_EE01,
+            bundle_bytes: 2_190_000,
+            bundle_chunks: 9,
+        };
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 2,
+            session_kind: SessionKind::Practice,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: Default::default(),
+            ai_skill: None,
+            race_seconds: None,
+            qualifying_seconds: None,
+            weekend: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+            physics: Some(physics),
+        });
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedPhysicsBundle: {}", hex(&joined_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&joined_bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => assert_eq!(data.physics, Some(physics)),
+            _ => panic!("Wrong message type"),
+        }
+
+        let request = ClientMessage::RequestTrackBundle {
+            crc: 0xC0FF_EE01,
+            chunk: 3,
+        };
+        let request_bytes = rmp_serde::to_vec_named(&request).unwrap();
+        println!("C_RequestTrackBundle: {}", hex(&request_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&request_bytes).unwrap() {
+            ClientMessage::RequestTrackBundle { crc, chunk } => {
+                assert_eq!((crc, chunk), (0xC0FF_EE01, 3))
+            }
+            _ => panic!("Wrong message type"),
+        }
+
+        let chunk = ServerMessage::TrackBundleChunk(TrackBundleChunkData {
+            crc: 0xC0FF_EE01,
+            chunk: 3,
+            chunks: 9,
+            bytes: RecordBytes(vec![0x41, 0x50, 0x58, 0x54, 0x01]),
+        });
+        let chunk_bytes = rmp_serde::to_vec_named(&chunk).unwrap();
+        println!("S_TrackBundleChunk: {}", hex(&chunk_bytes));
+        let missing = ServerMessage::TrackBundleChunk(TrackBundleChunkData {
+            crc: 0xC0FF_EE01,
+            chunk: 3,
+            chunks: 0,
+            bytes: RecordBytes(Vec::new()),
+        });
+        let missing_bytes = rmp_serde::to_vec_named(&missing).unwrap();
+        println!("S_TrackBundleChunkMissing: {}", hex(&missing_bytes));
+        for (bytes, chunks) in [(&chunk_bytes, 9), (&missing_bytes, 0)] {
+            match rmp_serde::from_slice::<ServerMessage>(bytes).unwrap() {
+                ServerMessage::TrackBundleChunk(data) => {
+                    assert_eq!(
+                        (data.crc, data.chunk, data.chunks),
+                        (0xC0FF_EE01, 3, chunks)
+                    );
+                    assert_eq!(data.bytes.0.len(), if chunks > 0 { 5 } else { 0 });
+                }
+                _ => panic!("Wrong message type"),
+            }
+        }
+        assert!(matches!(chunk.priority(), MessagePriority::Critical));
+        assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_PHYSICS_BUNDLE);
+        assert_eq!(request_bytes, GOLDEN_C_REQUEST_TRACK_BUNDLE);
+        assert_eq!(chunk_bytes, GOLDEN_S_TRACK_BUNDLE_CHUNK);
+        assert_eq!(missing_bytes, GOLDEN_S_TRACK_BUNDLE_CHUNK_MISSING);
     }
 
     /// A listed session names its damage rule, and Full stays off the wire.

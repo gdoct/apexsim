@@ -46,6 +46,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FApexOnSpectatorJoined, const FString& /*St
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnSpectatorRecords, TArrayView<const uint8>);
 /** A slice of the session's road state (`RoadState`, or a stream's `Road` record on the backdrop feed). */
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnRoadState, const FApexRoadState&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnTrackBundleChunk, const FApexTrackBundleChunk&);
 
 /**
  * Owns the connection to the ApexSim server and translates it into Blueprint
@@ -394,6 +395,16 @@ public:
 	 * seconds. The race director keeps the lap and draws it on the road.
 	 */
 	FApexOnRoadState OnRoadState;
+
+	/**
+	 * Every chunk of a track's physics bundle as it arrives, answering
+	 * RequestTrackBundleChunk (the prediction subsystem asks and assembles,
+	 * docs/game/client.md).
+	 */
+	FApexOnTrackBundleChunk OnTrackBundleChunk;
+
+	/** Asks for one chunk of the track's physics bundle named by its checksum (SessionJoined.Physics). */
+	void RequestTrackBundleChunk(uint32 Crc, int32 Chunk);
 
 	// --- Backdrop feed --------------------------------------------------------------
 

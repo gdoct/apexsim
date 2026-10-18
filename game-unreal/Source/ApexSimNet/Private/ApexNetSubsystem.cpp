@@ -902,6 +902,12 @@ void UApexNetSubsystem::RequestGhost()
 	SendPayload(ApexProtocol::EncodeRequestGhost());
 }
 
+void UApexNetSubsystem::RequestTrackBundleChunk(uint32 Crc, int32 Chunk)
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> RequestTrackBundle %08X chunk %d"), Crc, Chunk);
+	SendPayload(ApexProtocol::EncodeRequestTrackBundle(Crc, Chunk));
+}
+
 void UApexNetSubsystem::SetCarSetup(const FApexCarSetup& Setup)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SetCarSetup %d knob(s) off stock"), Setup.CountChanged());
@@ -1529,6 +1535,12 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		bSpectatorJoinRequested = false;
 		UE_LOG(LogApexSimNet, Warning, TEXT("<- Error %d: %s"), Message.ErrorCode, *Message.Reason);
 		OnServerError.Broadcast(Message.ErrorCode, Message.Reason);
+		break;
+
+	case EApexServerMessageType::TrackBundleChunk:
+		UE_LOG(LogApexSimNet, Verbose, TEXT("<- TrackBundleChunk %08X %d of %d, %d bytes"), Message.TrackBundleChunk.Crc,
+			Message.TrackBundleChunk.Chunk, Message.TrackBundleChunk.Chunks, Message.TrackBundleChunk.Bytes.Num());
+		OnTrackBundleChunk.Broadcast(Message.TrackBundleChunk);
 		break;
 
 	case EApexServerMessageType::Chat:

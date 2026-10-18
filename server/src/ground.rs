@@ -46,8 +46,12 @@ impl GroundHeightfield {
     }
 
     pub fn load(path: &Path) -> Result<Self, GroundLoadError> {
-        let bytes = std::fs::read(path)?;
-        let field: Self = rmp_serde::from_slice(&bytes)?;
+        Self::from_bytes(&std::fs::read(path)?)
+    }
+
+    /// The sidecar's bytes, decoded and checked as [`Self::load`] does.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, GroundLoadError> {
+        let field: Self = rmp_serde::from_slice(bytes)?;
         field.validate()?;
         Ok(field)
     }
