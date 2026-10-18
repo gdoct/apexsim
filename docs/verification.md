@@ -381,8 +381,19 @@ for and only the automation tests have replayed them (0.7 mm at p95).
 - The switch to and from the puppet at the pit entry and exit and after the
   flag (a 0.15 s blend across a gap of the car's speed times the round
   trip).
-- Force feedback and the engine sound are still the server's, a round trip
-  behind the car drawn: whether that mismatch is felt (phase 4).
+- Force feedback, the tyre and engine sound and the HUD's dash follow the
+  predicted car while it is drawn (the server's collector run in the
+  library). Whether the rim feels right: as heavy as the server's, the
+  understeer cue on time, no grain or lumps from rewinds (a correction
+  replays ticks already felt; only the ticks the clock reaches are), and
+  whether the latency correction (`steer_stiffness`) still helps or now
+  overshoots. Whether a kerb or a hit thumps once at the switch to and from
+  the puppet (the pit lane), and whether the engine note steps there.
+  Unattended (stand-in, 80 ms, a client with no Monza files) the bundle
+  came in 0.2 s and the torque and revs were 112 and 108 ms ahead of the
+  server's; only hands and ears can say the rest.
+- A packaged game (no track files) on a server: the bundle fetched on the
+  first join and loaded from the cache on the next.
 
 **Wheel, pedals and shifter.** Drive a lap of the Nordschleife and one of
 Mandarina Bay.

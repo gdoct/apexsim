@@ -35,20 +35,7 @@ None open.
 
 ## P1: core racing experience
 
-### 3. Client-side prediction for the local car
-
-90-150 ms from wheel to car online. Design and phases in
-[proposals/client-prediction.md](proposals/client-prediction.md). The
-physics library (`server/ffi`, phase 1), the wire (phase 2: input
-sequence, own-car snapshot and state blob on `DriverFeedback`) and the loop
-(phase 3: the library linked into the client, predict / rewind / replay
-behind `apexsim.net.Predict`, `apexsim.net.FakeLatencyMs`) are built; left:
-
-- The track physics bundle served on join, keyed by `ContentCrc` (until
-  then only a checkout, which has the track YAMLs, predicts).
-- Force feedback and the own car's engine sound on the predicted state.
-
-**Check:** a driver at 80 ms artificial latency.
+None open.
 
 ## P2: depth
 
@@ -122,7 +109,8 @@ and triple screens at each scale; HDR on an HDR display.
 
 ### 24. The simulation in the client: backdrops, showcases, replays
 
-Once the client links the server's physics for prediction (package 3), the
+The client links the server's physics for prediction
+([proposals/client-prediction.md](proposals/client-prediction.md)); the
 same library can run whole sessions in the game where nobody races
 against it: no server process, no recorded stream, one simulation.
 
@@ -146,11 +134,12 @@ online (CLAUDE.md, "the server owns every rule"): the client's sim plays
 only what nobody competes in.
 
 **Watch out:** the session tick must be untangled from the game loop, as
-package 3's car step was from the session; determinism across the two
-builds (the client's lib and the server binary) is checked by package 3's
-trace test and has to hold for whole seeded races; the client needs the
-track's physics data (package 3's bundle) and matching content checksums;
-the game's binary grows by the AI and session code.
+prediction's car step was from the session; determinism across the two
+builds (the client's lib and the server binary) is checked by prediction's
+trace test (`server/ffi/tests/lone_car_trace.rs`) and has to hold for whole
+seeded races; the client needs the track's physics data (the bundle a
+server hands out) and matching content checksums; the game's binary grows
+by the AI and session code.
 
 **Check:** a showcase seed simulated in the game bit-identical to the
 server's render of it; the menu backdrop with no server running.

@@ -1,8 +1,10 @@
 # Client-side prediction for the local car
 
-Status: phases 1 (the library), 2 (the wire) and 3 (the loop, off by
-default) built; phase 4 proposed. Whether it feels right over real latency
-is for a driver on a wheel ([verification.md](../verification.md)).
+Status: built, phases 1 (the library), 2 (the wire), 3 (the loop, off by
+default) and 4 (the feel, the sound and the HUD on the predicted car; the
+track's physics bundle served on join). Whether it feels right over real
+latency is for a driver on a wheel ([verification.md](../verification.md));
+a physics-only library is a follow-up ([follow-ups.md](../follow-ups.md)).
 
 ## The problem
 
@@ -34,7 +36,8 @@ knows first, needs prediction.
   clicks and `SessionConditions`. A track's YAML and physics sidecars
   (`road`, `curbs`, `walls`, `ground`, `pit`) it has only in a checkout
   (`content/tracks`, read by the editor build); a release ships them in
-  `Server/` only, so a packaged client does not predict until phase 4.
+  `Server/` only, so a packaged client, or any client on a server's own
+  track, gets them from the server (phase 4).
 
 ## Principle
 
@@ -63,16 +66,11 @@ prediction invisible, so assert it.
 
 ## Track data on the client
 
-Options, in order of preference:
-
-1. **A physics bundle served by the server** on join (msgpack keyed by
-   `track_id` and `ContentCrc`, cached on disk): one source of truth, covering
-   custom and imported tracks.
-2. **Ship the sidecars in `Game/Tracks/`**: simpler, duplicates content, no
-   help for a server's custom track.
-
-Either way the content checksum answers "is my copy the session's copy"; a
-mismatch disables prediction for the session.
+A physics bundle served by the server (phase 4, below): one source of
+truth, covering custom and imported tracks, rather than shipping the
+sidecars in `Game/Tracks/` (duplicated content, no help for a server's own
+track). Its checksum, over the YAML and every sidecar, answers "is my copy
+the session's copy".
 
 ## Wire changes
 
@@ -116,10 +114,10 @@ relocation, which snaps by design).
    prebuilt third-party module, the loop behind a console switch, an
    artificial-latency harness, automation tests on a recorded server
    sequence (loss, a contact correction, a relocation).
-4. Then the track physics bundle served on join (keyed by `ContentCrc`, so
-   a packaged client and a custom track predict), force feedback
-   (replacing the `steer_stiffness` correction), the own-car engine sound
-   and the HUD read the predicted state.
+4. **The feel and the bundle** (built, below): force feedback, the own
+   car's engine and road sound and the HUD's dash read the predicted
+   state; the track's physics bundle served on request after the join, so
+   a packaged client and a server's own track predict.
 
 ## Phase 1: the library (built)
 
@@ -346,20 +344,118 @@ are the automation test's.
 
 **Not predicted** (the puppet is drawn): the countdown and after the flag,
 the pit lane (its limiter and autopilot are session passes), the garage, a
-recovery, a car the server drives (the stand-in, an away driver; drawn with
-`apexsim.net.PredictServerDriven 1` for unattended checks), and a packaged
-game (no track YAML).
+recovery, and a car the server drives (the stand-in, an away driver; drawn
+with `apexsim.net.PredictServerDriven 1` for unattended checks).
 
-**What phase 4 takes from it.**
+## Phase 4: the feel and the bundle (built)
 
-- The track physics bundle on join: until then only a checkout predicts,
-  and only on tracks whose YAML and sidecars match the server's (the
-  checksum covers the YAML, not the sidecars).
-- Force feedback and the engine sound read `ApexPhysics::FCar` states the
-  loop already has per tick (`GetPoseAtTick`); the HUD's own-car figures
-  could read the predicted pose.
-- The `.lib` carries the whole server crate; a physics-only crate would
-  shrink it.
+**The feel from the server's collector.** The force feedback had to come
+from the server's own code, not a client copy. It does without a new
+seam: `physics::update_car_3d` and the wall pass already record each tick
+into `CarState::feedback` (`FeedbackAccumulator`), which the library's car
+carries, so `apx_car_feedback_take` drains it exactly as the game loop
+drains it into `DriverFeedback` (`FeedbackAccumulator::take`), into
+`ApxFeedback` (the message's fields at the wire's units, up to 32 torque
+samples). The loop takes it after every step and keeps it in the ring
+with the tick; a frame folds the ticks the clock reached since the last
+one with the client's own `FApexDriverFeedback::Absorb`, the fold it
+already applies to a frame's messages, and `MakeSignals` and both mixers
+read the result unchanged. `lone_car_trace` checks the library's
+feedback against the session's collector every tick, bit for bit (4,400
+ticks on the centerline and on the road mesh with aids, over grass and
+into a wall); from the server's recorded state the client folds every
+`DriverFeedback` of the fixture's window again to within 0.0000
+(`ApexSim.Prediction.Feel.ReplaysTheServer`). At 80 ms the torque is felt
+79 ms before the server's message for the same tick, 0.006 of the
+reference torque apart on average and 0.03 at p95 (an input that lands a
+tick off at a weave); the revs lead by the same, 17 rpm apart at p95 (an
+upshift a tick early is a moment's 3,000) (`Feel.AtPing`). Because the
+torque is worked out at the input being sent, the `steer_stiffness`
+correction is left with the input's movement within a frame. What stays
+the server's: the car's condition (tyre heat, damage, the ground under the
+wheels: telemetry, moving over laps), and on the HUD the lap, places,
+gaps, radar and the station, which are read against the other cars.
+
+**The sound and the dash.** `GetOwnCar` hands the actor the predicted
+revs (blended across the sub-tick, as the motion buffer blends the
+puppet's), throttle, brake and gear; the engine synth, the cockpit dash
+and the brake lights follow, and `ApexHudData::ApplyPredicted` puts them
+under `car.speed*`, `car.rpm*`, `car.gear*`, `car.throttle`, `car.brake`,
+`car.steering`. The tyre and kerb voices read the predicted feel.
+
+**Neutral when off.** Every reader takes the predicted source only while
+the subsystem draws the car (`apexsim.net.Predict 1`, racing, not in the
+pit lane...); otherwise the code path, the message and its serial are the
+server's as before. A switch of source is not a new message, so a hit is
+never played twice.
+
+**The bundle.** What the step reads of a track is its YAML and five
+sidecars: ground, curbs, walls, pit lane, and the road mesh when the
+session drives on it. Sizes (main checkout, `print_bundle_sizes`):
+
+| Circuit | Files | Road mesh | Deflated | Chunks of 256 KiB |
+|---|---|---|---|---|
+| Monza | 5.33 MB | 4.21 MB | 2.61 MB | 10 |
+| Spa | 6.67 MB | 5.39 MB | 3.31 MB | 13 |
+| Le Mans | 14.54 MB | 10.00 MB | 6.86 MB | 27 |
+| Nordschleife | 20.33 MB | 13.20 MB | 10.24 MB | 40 |
+| Suzuka | 5.88 MB | 4.79 MB | 2.91 MB | 12 |
+| Norisring | 1.74 MB | 1.37 MB | 0.92 MB | 4 |
+
+- *Transport: TCP, asked for a chunk at a time after `SessionJoined`.*
+  Megabytes rule out putting it in `SessionJoined` (the client takes 4 MiB
+  frames, and the join would wait) and pushing it unasked (most clients of
+  a checkout hold the files already, and every join would send 10 MB). The
+  health port's HTTP side was the other option: it is plaintext, often
+  bound to loopback (`health_bind`), and opt-in for recordings, so a
+  client could not count on it. Over the game's own TCP the bundle comes
+  through TLS, with no new port, and a client pulling a chunk at a time
+  (3 in flight, 6 a second after a burst of 10, under the server's 10
+  control messages a second) never has more than a chunk queued ahead of
+  the session's own messages: Monza comes in about a second, the
+  Nordschleife in 5 s. The join is not held: the puppet is drawn until it
+  is there.
+- *Checksum: a new one over all the files* (`TrackFiles::checksum`): the
+  YAML's content checksum (carriage returns dropped, as `ContentCrc`) and
+  each sidecar's CRC-32 over every byte, with its presence. `ContentCrc`
+  stays the YAML's: the lobby, the catalog rows and the race director
+  compare it with the level the client draws, which a sidecar does not
+  change.
+- *The bytes are the ones the server drives on*: `track_content` reads the
+  files once, loads the sidecars from those bytes
+  (`TrackLoader::load_sidecars_from`) and deflates them; a YAML changed on
+  disk since the catalog read it is not served. The library loads a bundle
+  from bytes (`apx_track_load_bundle`, refused unless its checksum is the
+  one the join named) through the same loader; `apx_track_files_crc` gives
+  a client's own files' checksum, and a car on a bundle steps as on the
+  files, bit for bit (`server/ffi/tests/track_bundle.rs`,
+  `ApexSim.Prediction.Bundle`).
+- *The car.toml is not bundled*: a car the client has no folder for it
+  cannot draw either (no mesh), and a car.toml of another version is
+  caught by its own `ContentCrc`; prediction stays off then.
+
+**Live, unattended** (Monza, the road mesh, the stand-in driving with
+`apexsim.net.PredictServerDriven 1`, `-ApexFakeLatencyMs=80`, a client
+with no Monza files, `-ApexContentDir` empty, 240 s): the join named
+bundle `3AE5C09A`; the client found no files and no cache, asked for it,
+and had 2.61 MB in 10 chunks 0.20 s later; the track was loaded 0.07 s
+after that and the car seated on the server's state 0.7 s after the join.
+Drawn from the prediction on 98% of frames. The steering torque was felt
+112 ms before the server's message for the same tick (14,045 samples),
+the revs 108 ms before; 0.07 of the reference torque and 114 rpm apart on
+average, because the stand-in's inputs reach the client only as the
+controls it applied (the replay holds them, so a lift or a turn-in is a
+correction: the largest 0.21 m); a driver's own inputs are replayed as
+sent, which the automation tests measure (0.006, 17 rpm at p95).
+
+**The library's size.** The `.lib` links the whole server crate (tokio,
+rustls, hyper, ring...), 80 MB with thin LTO; the linker keeps what the C
+API reaches. A physics-only crate is not a small cut: `data.rs` reaches
+the AI, race control, the safety car and racecraft, `physics.rs` reaches
+`game_session` and `network`, and the library needs
+`game_session::session_track`. Moving them would touch most of the
+server's modules, so it is a follow-up
+([follow-ups.md](../follow-ups.md)).
 
 ## Risks
 

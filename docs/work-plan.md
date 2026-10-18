@@ -28,7 +28,6 @@ When an item is done, delete it from its backlog and from here.
 
 | ID | Item | Type | Pri | Human | Effort |
 |---|---|---|---|---|---|
-| N1 | Client-side prediction for the local car | Netcode | P1 | 🟡 | L |
 | V1 | Verify the newest session screens (R9, R11, R12) | Verification | P1 | 🟡 | S |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
@@ -74,11 +73,10 @@ When an item is done, delete it from its backlog and from here.
 ## 2. Recommended order
 
 1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting. Fresh features are where the bugs are.
-2. **Sim-racer essentials** — N1 (client prediction: largest online win, largest job).
-3. **Visual quality pass** — G4 of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
-4. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
-5. **Online and depth** — N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
-6. Everything P3 opportunistically, bundled with whatever touches the same files.
+2. **Visual quality pass** — G4 of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
+3. **Design decisions you owe** — D1 (pit lane layout), R3's identity model, N7 (championship format), N8 (who hosts the server list). None can start without you.
+4. **Online and depth** — N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
+5. Everything P3 opportunistically, bundled with whatever touches the same files.
 
 ## 3. Items by type
 
@@ -319,32 +317,6 @@ Wire: remove only by leaving the variant decodable (append-only rule).
 Not in any backlog before this plan; each is a package in
 [roadmap.md](roadmap.md).
 
-#### N1. Client-side prediction for the local car — P1 · 🟡 · L
-**What:** Every car, the player's included, is a puppet of 60 Hz telemetry
-behind the motion buffer: 90–150 ms from wheel to car at 40–80 ms ping.
-Designed in [proposals/client-prediction.md](proposals/client-prediction.md);
-phases 1 and 2 are built: `server/ffi` (`apexsim-physics`) is the server's
-`car_step::step_lone_car` as a static library behind a C API, and CI checks
-it against a session, bit for bit, on a recorded trace; the client numbers
-its inputs (`PlayerInput.seq`) and gets its own car back in `DriverFeedback`
-(a snapshot every message, the full state blob in slices twice a second),
-held on the net subsystem.
-Phase 3 is built too: the library linked into the client (the
-`ApexPhysics` module, `scripts/build_physics_lib.ps1`) and the
-predict/rewind/replay loop for the local car behind `apexsim.net.Predict`
-(off by default), with `apexsim.net.FakeLatencyMs` for an artificial ping
-([client.md](game/client.md#client-prediction-raceapexpredictionsubsystemh)).
-**Outcome:** Online driving feels local; the biggest single gain for
-multiplayer.
-**Implementation:** The proposal's phase left: (4) the track physics
-bundle served on join, keyed by `ContentCrc` (a packaged client has no
-track YAML, so only a checkout predicts), then force feedback and the
-engine sound on the predicted state.
-**Watch out:** one physics, never a simplified copy; a content checksum
-mismatch disables prediction; car-to-car contact is not predicted (arrives as
-a correction); 🟡 because only a human on a wheel over real latency can say
-it feels right.
-
 #### N5. Multi-class racing — P2 · 🟡 · L
 **What:** The AI races in one class per session; no mixed fields (GT3 with
 prototypes).
@@ -457,8 +429,8 @@ What only you can do, roughly in the order it pays off:
 
 1. **Decide** D1 (pit exit: realism vs. gameplay), R3's identity model,
    N7's championship format, N8's hosting.
-2. **Sit at the wheel** — H1, then H2 (racing the AI, listen, pad), and N1
-   over real latency.
+2. **Sit at the wheel** — H1, then H2 (racing the AI, listen, pad), and
+   client prediction over real latency ([verification.md](verification.md)).
 3. **Hardware integrations** — a motion rig / SimHub / wheel LEDs for N2,
    a VR headset for N23.
 4. **Leave the Windows/GPU box running** for the P1 crash-dump loop and the
