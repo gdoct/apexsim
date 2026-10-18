@@ -263,6 +263,8 @@ private:
 	FApexWheelEffects LastWheelEffects;
 	/** The net subsystem's feedback serial last mixed, so each message's hits fire once. */
 	uint32 LastFeedbackSerial = 0;
+	/** The last feel came from the predicted car (UApexPredictionSubsystem::GetOwnFeel), not the server's messages. */
+	bool bLastFeedbackPredicted = false;
 	/** The driven car's tyre window (its catalog row), read once per car, for the greasy-tyre cue. */
 	FString TyreWindowCarId;
 	float TyreOptimalC = 90.0f;

@@ -44,6 +44,7 @@ struct APEXSIM_API FApexHudData
  * up by a test.
  */
 struct FApexWheelSpec;
+struct FApexPredictedPose;
 
 struct APEXSIM_API FApexHudInputs
 {
@@ -378,6 +379,16 @@ namespace ApexHudData
 	 * without wheels gets a GT car's (2.3 x 1.0).
 	 */
 	APEXSIM_API FVector2f CarHalfSize(const FApexWheelSpec& Wheels);
+
+	/**
+	 * The driver's own car with its dash figures (speed, revs, gear, throttle,
+	 * brake, steering) the predicted car's (docs/game/client.md, "Client
+	 * prediction"): what `car.speed*`, `car.rpm*`, `car.gear*`, `car.throttle`,
+	 * `car.brake` and `car.steering` read while prediction draws it. Its place
+	 * on the lap, position and everything timed stay the server's: they are
+	 * read against the other cars and the lap clock, which are the server's.
+	 */
+	APEXSIM_API void ApplyPredicted(FApexCarTelemetry& Car, const FApexPredictedPose& Pose);
 
 	/** How far round the local car the radar looks, m. */
 	inline constexpr float RadarRangeM = 20.0f;

@@ -5,6 +5,7 @@
 #include "UI/ApexCreateSessionModel.h"
 
 #include "ApexErs.h"
+#include "Race/ApexOwnCarPredictor.h"
 #include "Race/ApexRaceCoordinate.h"
 
 namespace
@@ -424,6 +425,16 @@ FVector2f ApexHudData::CarHalfSize(const FApexWheelSpec& Wheels)
 	const float Axle = FMath::Max(FMath::Abs(Wheels.FrontAxleM), FMath::Abs(Wheels.RearAxleM));
 	const float Tyre = FMath::Max(Wheels.FrontWidthM, Wheels.RearWidthM);
 	return FVector2f(Axle + 2.0f * Radius, 0.5f * (Track + Tyre) + 0.05f);
+}
+
+void ApexHudData::ApplyPredicted(FApexCarTelemetry& Car, const FApexPredictedPose& Pose)
+{
+	Car.SpeedMps = Pose.SpeedMps;
+	Car.EngineRpm = Pose.EngineRpm;
+	Car.Gear = Pose.Gear;
+	Car.Throttle = Pose.Throttle;
+	Car.Brake = Pose.Brake;
+	Car.Steering = Pose.Steering;
 }
 
 void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexHudData& Out)

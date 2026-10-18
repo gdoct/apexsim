@@ -16,8 +16,14 @@ struct FApexPredictedPose
 	float SpeedMps = 0.0f;
 	/** -1..1, the server's sign (positive left), as the car applied it. */
 	float Steering = 0.0f;
+	/** Blended across the sub-tick, as the motion buffer blends the puppet's. */
 	float EngineRpm = 0.0f;
 	int32 Gear = 0;
+	/** 0..1 as the car applied them, the newest tick's (a lift is heard at once). */
+	float Throttle = 0.0f;
+	float Brake = 0.0f;
+	/** The tick the pose is drawn up to (the head). */
+	int64 Tick = -1;
 };
 
 /** What the loop did over a stretch of time (UApexPredictionSubsystem logs a window of it). */
@@ -151,6 +157,19 @@ public:
 	/** The car as predicted now at a tick the ring holds (the library's pose after that tick). */
 	bool GetPoseAtTick(int64 Tick, ApxCarPose& Out) const;
 
+	/**
+	 * What the driver feels over the ticks after `AfterTick` up to `UpToTick`
+	 * (the head): each tick's feedback from the library (the server's own
+	 * collector, apx_car_feedback_take) folded together as the net subsystem
+	 * folds a frame's DriverFeedback messages (FApexDriverFeedback::Absorb).
+	 * Each tick is marked felt at `NowSeconds` the first time, with its torque
+	 * and revs, for GetFelt. Returns how many ticks went in.
+	 */
+	int32 CollectFeel(int64 AfterTick, int64 UpToTick, double NowSeconds, FApexDriverFeedback& Out);
+
+	/** When a tick was first felt (CollectFeel), and its torque (the server's sign) and revs then; false if never. */
+	bool GetFelt(int64 Tick, double& OutSeconds, float& OutTorque, float& OutRpm) const;
+
 	/** The round trip to fall back on while the server drives (no input numbers to measure it by), s. */
 	void SetFallbackRttSeconds(double Seconds) { FallbackRttSeconds = FMath::Max(0.0, Seconds); }
 	/** Only what happens while counting reaches the stats (prediction in use, not the pit lane's puppet). */
@@ -184,6 +203,13 @@ private:
 		bool bHasState = false;
 		/** State is the server's own blob: a replay loads it rather than stepping over it. */
 		bool bExact = false;
+		/** What the step of this tick gave the driver to feel (apx_car_feedback_take); none for a loaded state. */
+		ApxFeedback Feedback = {};
+		bool bHasFeedback = false;
+		/** When this tick was first felt (CollectFeel), and its torque and revs then; -1 never. Kept across replays of the tick. */
+		double FeltSeconds = -1.0;
+		float FeltTorque = 0.0f;
+		float FeltRpm = 0.0f;
 	};
 
 	struct FInputRecord

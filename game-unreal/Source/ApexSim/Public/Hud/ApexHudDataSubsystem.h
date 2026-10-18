@@ -113,6 +113,8 @@ private:
 	 * lap clock), so the HUD shows the lap being replayed.
 	 */
 	FApexTelemetryFrame GhostReplayFrame;
+	/** While prediction draws the driver's car: the latest frame with that car's dash figures the predicted car's. */
+	FApexTelemetryFrame PredictedFrame;
 	/** The gear and revs the watched car showed at each 2 m/s of speed: a streamed ghost carries neither. */
 	TMap<int32, TPair<int32, float>> GearAtSpeed;
 	bool bRaceActive = false;

@@ -7,6 +7,7 @@
 #include "ApexSim.h"
 #include "ApexSpectatorSubsystem.h"
 #include "Input/ApexInputConfig.h"
+#include "Race/ApexPredictionSubsystem.h"
 #include "Race/ApexRaceDirector.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -397,6 +398,21 @@ void UApexHudDataSubsystem::Refresh()
 			if (Live->Gear > 0)
 			{
 				GearAtSpeed.Add(FMath::RoundToInt(Live->SpeedMps / 2.0f), {Live->Gear, Live->EngineRpm});
+			}
+			// While prediction draws the driver's own car, its dash figures
+			// are the drawn car's (ApexHudData::ApplyPredicted), a round trip
+			// sooner; the lap, the place and the radar stay the server's.
+			const UApexPredictionSubsystem* Prediction = GetGameInstance()->GetSubsystem<UApexPredictionSubsystem>();
+			FApexPredictedPose Own;
+			if (!bSpectating && Prediction && Prediction->GetLocalCarIndex() == In.LocalCarIndex && Prediction->GetOwnCar(Own))
+			{
+				PredictedFrame = *In.Frame;
+				if (FApexCarTelemetry* Car = PredictedFrame.Cars.FindByPredicate(
+						[Index = In.LocalCarIndex](const FApexCarTelemetry& C) { return C.CarIndex == Index; }))
+				{
+					ApexHudData::ApplyPredicted(*Car, Own);
+					In.Frame = &PredictedFrame;
+				}
 			}
 		}
 		LastFrame = In.Frame;

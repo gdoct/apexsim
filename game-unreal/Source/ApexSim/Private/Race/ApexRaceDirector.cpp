@@ -42,6 +42,7 @@
 #include "Race/ApexGhostCarActor.h"
 #include "Race/ApexRaceCarActor.h"
 #include "Race/ApexRaceCoordinate.h"
+#include "Race/ApexPredictionSubsystem.h"
 #include "Race/ApexRacingLineActor.h"
 #include "Race/ApexRainActor.h"
 #include "Race/ApexCloudLayer.h"
@@ -3829,29 +3830,44 @@ void AApexRaceDirector::UpdateCarAudio()
 		UpdateWatchedCarRoadSound();
 		return;
 	}
-	// Tracked even while silent, or the first frame back would replay old hits.
-	const uint32 Serial = Net->GetDriverFeedbackSerial();
-	const bool bNewMessage = Serial != LastRoadFeedbackSerial;
+	// The predicted car's feel while prediction draws it (the same the wheel
+	// gets), else the server's DriverFeedback.
+	const FApexDriverFeedback* Feel = &Net->GetDriverFeedback();
+	uint32 Serial = Net->GetDriverFeedbackSerial();
+	double FeelSeconds = Net->GetDriverFeedbackTime();
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexPredictionSubsystem* Prediction = GameInstance ? GameInstance->GetSubsystem<UApexPredictionSubsystem>() : nullptr;
+	const bool bPredicted = Prediction && Prediction->GetOwnFeel(Feel, Serial, FeelSeconds);
+	if (!bPredicted)
+	{
+		Feel = &Net->GetDriverFeedback();
+		Serial = Net->GetDriverFeedbackSerial();
+		FeelSeconds = Net->GetDriverFeedbackTime();
+	}
+	// Tracked even while silent, or the first frame back would replay old
+	// hits; a switch of source is not a new message either.
+	const bool bNewMessage = Serial != LastRoadFeedbackSerial && bPredicted == bLastRoadFeedbackPredicted;
 	LastRoadFeedbackSerial = Serial;
+	bLastRoadFeedbackPredicted = bPredicted;
 
 	// The server only sends feedback for a car that is being simulated, so a
 	// stale message means a garage, a finished session or a dead connection.
 	constexpr double StaleSeconds = 0.5;
-	if (bLocalInGarage || bGhostReplay || FPlatformTime::Seconds() - Net->GetDriverFeedbackTime() > StaleSeconds)
+	if (bLocalInGarage || bGhostReplay || FPlatformTime::Seconds() - FeelSeconds > StaleSeconds)
 	{
 		Local->StopRoadSound();
 		return;
 	}
 
 	const ApexFfb::FSignals Signals = ApexFfb::MakeSignals(
-		Net->GetDriverFeedback(), Local->GetSpeedMps(), Local->GetGear(), bNewMessage);
+		*Feel, Local->GetSpeedMps(), Local->GetGear(), bNewMessage);
 	ApexRoadSynth::FInputs Levels;
 	Levels.SpeedMps = Signals.SpeedMps;
 	// Kerbs, grass and hits are the force feedback's signals as they are. The
 	// tyres are not: the pad's scrub starts before the grip peak, as a hint,
 	// and a howl that early is a car screeching round every bend.
 	using W = FApexDriverFeedback;
-	const FApexWheelFeedback* Wheels = Net->GetDriverFeedback().Wheels;
+	const FApexWheelFeedback* Wheels = Feel->Wheels;
 	// A tyre over its window is greasy: it squeals sooner, lower, smeared.
 	Levels.FrontHeat = FMath::Max(Local->GetTyreOverheat(W::FrontLeft), Local->GetTyreOverheat(W::FrontRight));
 	Levels.RearHeat = FMath::Max(Local->GetTyreOverheat(W::RearLeft), Local->GetTyreOverheat(W::RearRight));

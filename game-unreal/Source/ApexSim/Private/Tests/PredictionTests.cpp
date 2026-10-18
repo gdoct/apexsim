@@ -4,8 +4,10 @@
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Hud/ApexHudData.h"
 #include "Race/ApexOwnCarPredictor.h"
 #include "Race/ApexPhysicsLib.h"
+#include "Race/ApexPredictionSubsystem.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -435,6 +437,30 @@ namespace ApexPredictionTests
 		double AlignTicks = 0.0;
 		bool bSeated = false;
 
+		/**
+		 * The feel and revs as the subsystem gathers them each frame
+		 * (CollectFeel), against the server's of the same tick when that is
+		 * heard: how far ahead the driver had them, and how far off.
+		 */
+		struct FFeltAgainst
+		{
+			double LeadSeconds = 0.0;
+			float TorqueError = 0.0f;
+			float RpmError = 0.0f;
+		};
+		TArray<FFeltAgainst> FeelAgainstServer;
+		TArray<FFeltAgainst> RpmAgainstServer;
+		/** Frames that brought new feel, and the samples in them. */
+		int32 FeelFrames = 0;
+		int32 FeelSamples = 0;
+		/** The predicted dash at each snapshot's tick against the server's there: the largest gaps. */
+		float WorstSpeedMps = 0.0f;
+		float WorstThrottle = 0.0f;
+		/** Snapshots where the drawn throttle was not the server's: an input landing a tick off at a lift. */
+		int32 ThrottleOff = 0;
+		int32 GearMismatches = 0;
+		int32 DashCompared = 0;
+
 		void Run(const FWorld& World, TUniquePtr<ApexPhysics::FCar> Car)
 		{
 			const FFixture& F = World.Fixture;
@@ -452,6 +478,8 @@ namespace ApexPredictionTests
 			int32 NextSent = 0;
 			int32 NextSnapshot = 0;
 			int32 NextAhead = 0;
+			int32 NextFeel = 0;
+			int64 FeltTick = -1;
 			bool bBlobSent = false;
 			// The blob's slices: nine feedback messages after its tick.
 			const double BlobArrives = TickSeconds(F.BlobTick) + DownSeconds + 9.0 / 60.0;
@@ -499,6 +527,42 @@ namespace ApexPredictionTests
 				Predictor.Advance(Now, FrameSeconds);
 				if (Predictor.IsSeated())
 				{
+					// The frame's feel, as UApexPredictionSubsystem::UpdateFeel gathers it.
+					const int64 Head = Predictor.GetHeadTick();
+					if (FeltTick < 0 || FeltTick > Head)
+					{
+						FeltTick = Head - 1;
+					}
+					FApexDriverFeedback Feel;
+					const int32 Ticks = Predictor.CollectFeel(FeltTick, Head, Now, Feel);
+					if (Ticks > 0)
+					{
+						++FeelFrames;
+						FeelSamples += Feel.SteerTorque.Num();
+					}
+					FeltTick = Head;
+					// The server's feel and revs heard this frame, against when this
+					// client felt the same tick.
+					while (NextFeel < F.Feedback.Num() && TickSeconds(F.Feedback[NextFeel].Tick) + DownSeconds <= Now)
+					{
+						const FFixtureFeedback& Server = F.Feedback[NextFeel++];
+						double FeltAt = 0.0;
+						float Torque = 0.0f;
+						float Rpm = 0.0f;
+						if (Server.SteerTorque.Num() > 0 && Predictor.GetFelt(Server.Tick, FeltAt, Torque, Rpm))
+						{
+							FeelAgainstServer.Add({TickSeconds(Server.Tick) + DownSeconds - FeltAt,
+								FMath::Abs(Torque - Server.SteerTorque.Last()), 0.0f});
+						}
+						if (const FFixtureSnapshot* Snap = F.SnapshotAt(Server.Tick))
+						{
+							if (Predictor.GetFelt(Server.Tick, FeltAt, Torque, Rpm))
+							{
+								RpmAgainstServer.Add({TickSeconds(Server.Tick) + DownSeconds - FeltAt, 0.0f,
+									FMath::Abs(Rpm - Snap->Snapshot.engine_rpm)});
+							}
+						}
+					}
 					LeadSum += Predictor.GetClockTick() - (Now - 100.0) * Rate;
 					++LeadFrames;
 					// Each snapshot tick the head has passed, as it was first drawn,
@@ -511,6 +575,12 @@ namespace ApexPredictionTests
 							&& Predictor.GetPoseAtTick(Truth.Tick, Drawn))
 						{
 							AheadErrorsM.Add(DistanceM(Drawn, Truth.Snapshot));
+							// The dash the HUD and the sound read, as first drawn.
+							WorstSpeedMps = FMath::Max(WorstSpeedMps, FMath::Abs(Drawn.speed_mps - Truth.Snapshot.speed_mps));
+							WorstThrottle = FMath::Max(WorstThrottle, FMath::Abs(Drawn.throttle_input - Truth.Snapshot.controls[0]));
+							ThrottleOff += FMath::Abs(Drawn.throttle_input - Truth.Snapshot.controls[0]) > 0.05f ? 1 : 0;
+							GearMismatches += Drawn.gear != Truth.Snapshot.gear ? 1 : 0;
+							++DashCompared;
 						}
 					}
 				}
@@ -822,6 +892,342 @@ bool FApexPredictionRelocationTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("re-seated"), Run.Stats.Reseats >= 1);
 	TestTrue(FString::Printf(TEXT("with no blend across it (%.1f mm left)"), Run.OffsetAtRelocateM * 1000.0f),
 		Run.OffsetAtRelocateM >= 0.0f && Run.OffsetAtRelocateM < 0.5f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPredictionFeelReplayTest, "ApexSim.Prediction.Feel.ReplaysTheServer", ApexTestFlags)
+
+bool FApexPredictionFeelReplayTest::RunTest(const FString& Parameters)
+{
+	if (!LibraryOrWarn(*this))
+	{
+		return true;
+	}
+	FWorld World;
+	if (!World.Load(*this))
+	{
+		return false;
+	}
+	TUniquePtr<ApexPhysics::FCar> Car = World.NewCar(*this);
+	if (!Car || !Car->Load(World.Fixture.Blob))
+	{
+		return false;
+	}
+	// The library from the server's blob with its inputs, each tick's feel
+	// taken and folded into a message per telemetry tick, as the server's
+	// collector is drained: every DriverFeedback the server sent, again.
+	const FFixture& F = World.Fixture;
+	int32 Messages = 0;
+	int32 Samples = 0;
+	float WorstTorque = 0.0f;
+	float WorstSlip = 0.0f;
+	int32 SurfaceMismatches = 0;
+	int32 FlagMismatches = 0;
+	int32 Next = 0;
+	FApexDriverFeedback Folded;
+	int32 InMessage = 0;
+	for (uint32 Tick = F.BlobTick + 1; Tick <= F.Feedback.Last().Tick && Next < F.Feedback.Num(); ++Tick)
+	{
+		if (!Car->Step(*World.Track, F.InputAt(Tick).Input, Tick, F.TickRateHz))
+		{
+			AddError(ApexPhysics::LastError());
+			return false;
+		}
+		ApxFeedback Feel;
+		TestTrue(TEXT("feedback taken"), Car->TakeFeedback(Feel));
+		const FApexDriverFeedback One = ApexPhysics::ToFeedback(Feel, Tick);
+		if (InMessage++ == 0)
+		{
+			Folded = One;
+		}
+		else
+		{
+			Folded.Absorb(One);
+		}
+		while (Next < F.Feedback.Num() && F.Feedback[Next].Tick < Tick)
+		{
+			++Next;
+		}
+		if (Next >= F.Feedback.Num() || F.Feedback[Next].Tick != Tick)
+		{
+			continue;
+		}
+		const FFixtureFeedback& Server = F.Feedback[Next++];
+		InMessage = 0;
+		// The first message after the blob holds fewer of this run's ticks.
+		if (Tick <= F.BlobTick + 7)
+		{
+			continue;
+		}
+		++Messages;
+		TestEqual(TEXT("one torque sample a tick"), Folded.SteerTorque.Num(), Server.SteerTorque.Num());
+		for (int32 i = 0; i < FMath::Min(Folded.SteerTorque.Num(), Server.SteerTorque.Num()); ++i)
+		{
+			WorstTorque = FMath::Max(WorstTorque, FMath::Abs(Folded.SteerTorque[i] - Server.SteerTorque[i]));
+			++Samples;
+		}
+		for (int32 Wheel = 0; Wheel < 4; ++Wheel)
+		{
+			WorstSlip = FMath::Max(WorstSlip, FMath::Abs(Folded.Wheels[Wheel].SlipAngle - Server.SlipAngle[Wheel]));
+			SurfaceMismatches += static_cast<uint8>(Folded.Wheels[Wheel].Surface) != Server.Surface[Wheel] ? 1 : 0;
+		}
+		FlagMismatches += (Folded.bAbsActive != Server.bAbs || Folded.bTcActive != Server.bTc) ? 1 : 0;
+	}
+	AddInfo(FString::Printf(TEXT("%d messages, %d torque samples: torque within %.4f of the server's (1.0 = the front axle at its grip limit), slip angle within %.4f peaks; %d surface and %d ABS/TC differences"),
+		Messages, Samples, WorstTorque, WorstSlip, SurfaceMismatches, FlagMismatches));
+	TestTrue(TEXT("every message of the window compared"), Messages >= F.Feedback.Num() - 2);
+	// The library's road is the YAML's, the server's laid rubber: millimetres
+	// apart (ReplaysTheServer), so the forces are a hair apart too.
+	TestTrue(FString::Printf(TEXT("the torque is the server's (%.4f)"), WorstTorque), WorstTorque < 0.02f);
+	TestTrue(FString::Printf(TEXT("the slip is the server's (%.4f)"), WorstSlip), WorstSlip < 0.05f);
+	TestEqual(TEXT("the surfaces are the server's"), SurfaceMismatches, 0);
+	TestEqual(TEXT("ABS and TC as the server's"), FlagMismatches, 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPredictionFeelAtPingTest, "ApexSim.Prediction.Feel.AtPing", ApexTestFlags)
+
+bool FApexPredictionFeelAtPingTest::RunTest(const FString& Parameters)
+{
+	if (!LibraryOrWarn(*this))
+	{
+		return true;
+	}
+	FWorld World;
+	if (!World.Load(*this))
+	{
+		return false;
+	}
+	// The loop at 80 ms: the force feedback, the revs and the dash the HUD and
+	// the engine sound read are the predicted car's, a round trip ahead of the
+	// server's and the same figures.
+	FLoopRun Run;
+	Run.UpSeconds = Run.DownSeconds = 0.04;
+	Run.Run(World, World.NewCar(*this));
+	auto Mean = [](const TArray<FLoopRun::FFeltAgainst>& Rows, auto Field)
+	{
+		double Sum = 0.0;
+		for (const FLoopRun::FFeltAgainst& Row : Rows)
+		{
+			Sum += Field(Row);
+		}
+		return Rows.Num() > 0 ? Sum / Rows.Num() : 0.0;
+	};
+	auto Worst = [](const TArray<FLoopRun::FFeltAgainst>& Rows, auto Field)
+	{
+		double Max = 0.0;
+		for (const FLoopRun::FFeltAgainst& Row : Rows)
+		{
+			Max = FMath::Max(Max, static_cast<double>(Field(Row)));
+		}
+		return Max;
+	};
+	const double FeelLeadMs = 1000.0 * Mean(Run.FeelAgainstServer, [](const FLoopRun::FFeltAgainst& R) { return R.LeadSeconds; });
+	const double RpmLeadMs = 1000.0 * Mean(Run.RpmAgainstServer, [](const FLoopRun::FFeltAgainst& R) { return R.LeadSeconds; });
+	auto Percentile = [](const TArray<FLoopRun::FFeltAgainst>& Rows, auto Field, float P)
+	{
+		TArray<float> Sorted;
+		for (const FLoopRun::FFeltAgainst& Row : Rows)
+		{
+			Sorted.Add(Field(Row));
+		}
+		Sorted.Sort();
+		return Sorted.Num() > 0 ? Sorted[FMath::Clamp(FMath::CeilToInt(P * Sorted.Num()) - 1, 0, Sorted.Num() - 1)] : 0.0f;
+	};
+	auto TorqueOf = [](const FLoopRun::FFeltAgainst& R) { return R.TorqueError; };
+	auto RpmOf = [](const FLoopRun::FFeltAgainst& R) { return R.RpmError; };
+	const double TorqueWorst = Worst(Run.FeelAgainstServer, TorqueOf);
+	const double TorqueMean = Mean(Run.FeelAgainstServer, TorqueOf);
+	const float TorqueP95 = Percentile(Run.FeelAgainstServer, TorqueOf, 0.95f);
+	const double RpmWorst = Worst(Run.RpmAgainstServer, RpmOf);
+	const float RpmP95 = Percentile(Run.RpmAgainstServer, RpmOf, 0.95f);
+	AddInfo(FString::Printf(TEXT("80 ms: %d frames of feel (%d torque samples); the torque felt %.0f ms before the server's (%d), off it by %.4f mean, %.4f p95, %.4f worst; ")
+		TEXT("the revs %.0f ms before (%d), off by %.0f rpm p95, %.0f worst; the dash at %d snapshots: speed within %.3f m/s, the throttle off at %d (worst %.2f), %d gear differences"),
+		Run.FeelFrames, Run.FeelSamples, FeelLeadMs, Run.FeelAgainstServer.Num(), TorqueMean, TorqueP95, TorqueWorst, RpmLeadMs,
+		Run.RpmAgainstServer.Num(), RpmP95, RpmWorst, Run.DashCompared, Run.WorstSpeedMps, Run.ThrottleOff, Run.WorstThrottle,
+		Run.GearMismatches));
+	TestTrue(TEXT("the feel was gathered every frame"), Run.FeelFrames > 100);
+	TestTrue(TEXT("nearly every server message has its tick felt first"),
+		Run.FeelAgainstServer.Num() > World.Fixture.Feedback.Num() * 3 / 4);
+	// A round trip (80 ms) ahead, give or take the input's wait and the clock's trim.
+	TestTrue(FString::Printf(TEXT("the torque leads the server's by about the round trip (%.0f ms)"), FeelLeadMs),
+		FeelLeadMs > 60.0 && FeelLeadMs < 120.0);
+	TestTrue(FString::Printf(TEXT("the revs lead the server's by about the round trip (%.0f ms)"), RpmLeadMs),
+		RpmLeadMs > 60.0 && RpmLeadMs < 120.0);
+	// What was felt first is a prediction: an input that lands a tick off the
+	// server's at a lift, or an upshift a tick early, is a moment's
+	// difference, put right by the next snapshot. Most ticks are the server's.
+	// The torque follows the steering input: a weave's input a tick off moves
+	// it by a few percent of the reference (the wheel smooths it over 12 ms).
+	TestTrue(FString::Printf(TEXT("the torque felt is the server's (mean %.4f)"), TorqueMean), TorqueMean < 0.01);
+	TestTrue(FString::Printf(TEXT("the torque felt is the server's (p95 %.4f)"), TorqueP95), TorqueP95 < 0.05f);
+	TestTrue(FString::Printf(TEXT("the revs heard are the server's (p95 %.0f rpm)"), RpmP95), RpmP95 < 100.0f);
+	TestTrue(FString::Printf(TEXT("the dash's speed is the server's (worst %.3f m/s)"), Run.WorstSpeedMps), Run.WorstSpeedMps < 0.1f);
+	TestTrue(FString::Printf(TEXT("the dash's throttle is the server's at nearly every snapshot (%d of %d off)"), Run.ThrottleOff, Run.DashCompared),
+		Run.ThrottleOff * 20 <= Run.DashCompared);
+	TestTrue(FString::Printf(TEXT("the dash's gear is the server's at nearly every snapshot (%d of %d off)"), Run.GearMismatches, Run.DashCompared),
+		Run.GearMismatches * 20 <= Run.DashCompared);
+
+	// The HUD reads the predicted dash over the server's car, and nothing else of it.
+	FApexCarTelemetry Car;
+	Car.SpeedMps = 10.0f;
+	Car.EngineRpm = 5000.0f;
+	Car.Gear = 2;
+	Car.TrackProgress = 1234.0f;
+	Car.Position = FVector(1.0, 2.0, 3.0);
+	FApexPredictedPose Pose;
+	Pose.SpeedMps = 50.0f;
+	Pose.EngineRpm = 11000.0f;
+	Pose.Gear = 6;
+	Pose.Throttle = 0.75f;
+	Pose.Brake = 0.25f;
+	Pose.Steering = -0.1f;
+	Pose.PositionM = FVector(100.0, 200.0, 3.0);
+	ApexHudData::ApplyPredicted(Car, Pose);
+	TestEqual(TEXT("HUD speed"), Car.SpeedMps, 50.0f);
+	TestEqual(TEXT("HUD revs"), Car.EngineRpm, 11000.0f);
+	TestEqual(TEXT("HUD gear"), Car.Gear, 6);
+	TestEqual(TEXT("HUD throttle"), Car.Throttle, 0.75f);
+	TestEqual(TEXT("HUD brake"), Car.Brake, 0.25f);
+	TestEqual(TEXT("HUD steering"), Car.Steering, -0.1f);
+	TestEqual(TEXT("the place on the lap stays the server's"), Car.TrackProgress, 1234.0f);
+	TestEqual(TEXT("the position stays the server's"), Car.Position.X, 1.0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPredictionBundleTest, "ApexSim.Prediction.Bundle", ApexTestFlags)
+
+bool FApexPredictionBundleTest::RunTest(const FString& Parameters)
+{
+	if (!LibraryOrWarn(*this))
+	{
+		return true;
+	}
+	FWorld World;
+	if (!World.Load(*this))
+	{
+		return false;
+	}
+	// The fixture's track (the YAML alone in a scratch folder) as the server
+	// would bundle it, through a cache file and back.
+	const FFixture& F = World.Fixture;
+	const FString Scratch = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Automation"), TEXT("Prediction")));
+	const FString Yaml = FPaths::Combine(Scratch, FPaths::GetCleanFilename(F.TrackFile));
+	TArray<uint8> Bundle;
+	uint32 Crc = 0;
+	FString Error;
+	if (!TestTrue(FString::Printf(TEXT("the bundle builds (%s)"), *Error), ApexPhysics::BuildTrackBundle(Yaml, 0, Bundle, Crc, Error)))
+	{
+		return false;
+	}
+	uint32 FilesCrc = 0;
+	TestTrue(TEXT("the files' checksum"), ApexPhysics::TrackFilesCrc(Yaml, 0, FilesCrc, Error));
+	TestEqual(TEXT("is the bundle's"), FilesCrc, Crc);
+	const FString Cache = FPaths::Combine(Scratch, TEXT("cache.apxtrack"));
+	TArray<uint8> Cached;
+	TestTrue(TEXT("cached"), FFileHelper::SaveArrayToFile(Bundle, *Cache) && FFileHelper::LoadFileToArray(Cached, *Cache));
+	TestEqual(TEXT("the cache round-trips"), Cached, Bundle);
+
+	TUniquePtr<ApexPhysics::FTrack> FromBundle = ApexPhysics::FTrack::LoadBundle(Cached, Crc, F.RoadContact, F.Conditions, Error);
+	if (!TestTrue(FString::Printf(TEXT("the bundle loads (%s)"), *Error), FromBundle.IsValid()))
+	{
+		return false;
+	}
+	// A car on it drives as on the files: the same physics, bit for bit.
+	FString CarError;
+	TUniquePtr<ApexPhysics::FCar> OnFiles = ApexPhysics::FCar::Create(*World.Track, World.Toml, F.Clicks, F.GridSlot, CarError);
+	TUniquePtr<ApexPhysics::FCar> OnBundle = ApexPhysics::FCar::Create(*FromBundle, World.Toml, F.Clicks, F.GridSlot, CarError);
+	if (!OnFiles || !OnBundle || !OnFiles->Load(F.Blob) || !OnBundle->Load(F.Blob))
+	{
+		AddError(CarError);
+		return false;
+	}
+	int32 Same = 0;
+	for (uint32 Tick = F.BlobTick + 1; Tick <= F.BlobTick + 420; ++Tick)
+	{
+		const ApxInput& Input = F.InputAt(Tick).Input;
+		OnFiles->Step(*World.Track, Input, Tick, F.TickRateHz);
+		OnBundle->Step(*FromBundle, Input, Tick, F.TickRateHz);
+		ApxCarPose A;
+		ApxCarPose B;
+		OnFiles->Pose(A);
+		OnBundle->Pose(B);
+		Same += FMemory::Memcmp(&A, &B, sizeof(ApxCarPose)) == 0 ? 1 : 0;
+	}
+	TestEqual(TEXT("the car on the bundle is the car on the files, every tick"), Same, 420);
+
+	// Another bundle's checksum, or a damaged one, is refused.
+	TestFalse(TEXT("refused under another checksum"),
+		ApexPhysics::FTrack::LoadBundle(Cached, Crc ^ 1u, F.RoadContact, F.Conditions, Error).IsValid());
+	TestTrue(FString::Printf(TEXT("and says so (%s)"), *Error), Error.Contains(TEXT("checksum")));
+	TArray<uint8> Damaged = Cached;
+	Damaged[Damaged.Num() / 2] ^= 0x55;
+	TestFalse(TEXT("a damaged bundle is refused"),
+		ApexPhysics::FTrack::LoadBundle(Damaged, Crc, F.RoadContact, F.Conditions, Error).IsValid());
+	IFileManager::Get().Delete(*Cache, false, true, true);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPredictionBundleDownloadTest, "ApexSim.Prediction.BundleDownload", ApexTestFlags)
+
+bool FApexPredictionBundleDownloadTest::RunTest(const FString& Parameters)
+{
+	// A bundle of 25 chunks from a server that answers every request at once:
+	// a few in flight, a burst then the paced rate, the chunks back in order.
+	TArray<uint8> Bundle;
+	for (int32 i = 0; i < 25 * 1000 - 300; ++i)
+	{
+		Bundle.Add(static_cast<uint8>(i * 7));
+	}
+	auto ChunkOf = [&Bundle](uint32 Crc, int32 Index, int32 Count)
+	{
+		FApexTrackBundleChunk Chunk;
+		Chunk.Crc = Crc;
+		Chunk.Chunk = Index;
+		Chunk.Chunks = Count;
+		const int32 Start = Index * 1000;
+		Chunk.Bytes.Append(Bundle.GetData() + Start, FMath::Min(1000, Bundle.Num() - Start));
+		return Chunk;
+	};
+	FApexTrackBundleDownload Download;
+	Download.Begin(0xABCDu, 25, Bundle.Num(), 0.0);
+	TArray<int32> Asked;
+	TArray<double> AskedAt;
+	for (double Now = 0.0; Now < 10.0 && !Download.IsDone(); Now += 1.0 / 60.0)
+	{
+		TArray<int32> ThisFrame;
+		Download.Pump(Now, [&](uint32 Crc, int32 Chunk) { ThisFrame.Add(Chunk); TestEqual(TEXT("asks for its bundle"), Crc, 0xABCDu); });
+		TestTrue(TEXT("never more than three in flight"), Download.InFlight <= FApexTrackBundleDownload::MaxInFlight);
+		for (const int32 Chunk : ThisFrame)
+		{
+			Asked.Add(Chunk);
+			AskedAt.Add(Now);
+			// Another bundle's chunk on the way is ignored.
+			Download.OnChunk(ChunkOf(0x1234u, Chunk, 25), Now);
+			Download.OnChunk(ChunkOf(0xABCDu, Chunk, 25), Now);
+		}
+	}
+	TestTrue(TEXT("done"), Download.IsDone());
+	TestEqual(TEXT("each chunk asked for once, in order"), Asked.Num(), 25);
+	TestEqual(TEXT("the bundle put back together"), Download.Join(), Bundle);
+	const double Seconds = AskedAt.Num() > 0 ? AskedAt.Last() : 0.0;
+	AddInfo(FString::Printf(TEXT("25 chunks asked for over %.2f s"), Seconds));
+	// Ten at once, then six a second: the last of 25 about 2.5 s in.
+	TestTrue(FString::Printf(TEXT("paced under the server's control-message rate (%.2f s)"), Seconds), Seconds > 2.0 && Seconds < 3.2);
+
+	// The server no longer has it, or stops answering: the download fails.
+	FApexTrackBundleDownload Gone;
+	Gone.Begin(1u, 4, 4000, 0.0);
+	Gone.Pump(0.0, [](uint32, int32) {});
+	FApexTrackBundleChunk None;
+	None.Crc = 1u;
+	TestFalse(TEXT("no such bundle fails"), Gone.OnChunk(None, 0.1));
+	TestTrue(TEXT("failed"), Gone.HasFailed());
+	FApexTrackBundleDownload Silent;
+	Silent.Begin(2u, 4, 4000, 0.0);
+	Silent.Pump(0.0, [](uint32, int32) {});
+	Silent.Pump(FApexTrackBundleDownload::StallSeconds + 1.0, [](uint32, int32) {});
+	TestTrue(TEXT("a stalled download fails"), Silent.HasFailed());
 	return true;
 }
 

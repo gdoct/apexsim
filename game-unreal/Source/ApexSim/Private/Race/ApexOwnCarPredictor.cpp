@@ -291,6 +291,12 @@ ApxInput FApexOwnCarPredictor::InputForTick(int64 Tick, uint32& OutSeq) const
 
 void FApexOwnCarPredictor::Record(FEntry& Entry, int64 Tick)
 {
+	if (Entry.Tick != Tick)
+	{
+		// A new tick in this slot: nothing of it has been felt yet.
+		Entry.FeltSeconds = -1.0;
+		Entry.bHasFeedback = false;
+	}
 	Entry.Tick = Tick;
 	Car->Pose(Entry.Pose);
 	Entry.bExact = false;
@@ -326,6 +332,10 @@ bool FApexOwnCarPredictor::StepTick(int64 Tick, bool bReplay)
 		{
 			return false;
 		}
+		// The tick's feel, from the server's own collector: taken after every
+		// step, so it is this tick's alone.
+		ApxFeedback Feel;
+		const bool bFeel = Car->TakeFeedback(Feel);
 		if (bHaveSnapshot && Latest.Tick == Tick)
 		{
 			Car->ApplySnapshot(LatestApx);
@@ -333,6 +343,8 @@ bool FApexOwnCarPredictor::StepTick(int64 Tick, bool bReplay)
 		Record(Entry, Tick);
 		Entry.Input = Input;
 		Entry.Seq = Seq;
+		Entry.Feedback = Feel;
+		Entry.bHasFeedback = bFeel;
 	}
 	if (Tick > Head)
 	{
@@ -354,6 +366,8 @@ void FApexOwnCarPredictor::Seat(int64 Tick, TArrayView<const uint8> Blob, bool b
 		Entry.Tick = -1;
 		Entry.bHasState = false;
 		Entry.bExact = false;
+		Entry.bHasFeedback = false;
+		Entry.FeltSeconds = -1.0;
 	}
 	FEntry& Entry = EntryAt(Tick);
 	Entry.Tick = Tick;
@@ -394,6 +408,11 @@ void FApexOwnCarPredictor::OnStateBlob(int64 Tick, TArrayView<const uint8> Blob,
 		return;
 	}
 	FEntry& Entry = EntryAt(Tick);
+	if (Entry.Tick != Tick)
+	{
+		Entry.bHasFeedback = false;
+		Entry.FeltSeconds = -1.0;
+	}
 	Entry.Tick = Tick;
 	Entry.State = TArray<uint8>(Blob);
 	Entry.bHasState = true;
@@ -723,8 +742,58 @@ bool FApexOwnCarPredictor::GetRawPose(FApexPredictedPose& Out) const
 	Out.VelocityMps = FMath::Lerp(FVector(A.vel_x, A.vel_y, A.vel_z), FVector(B.vel_x, B.vel_y, B.vel_z), static_cast<double>(Alpha));
 	Out.SpeedMps = FMath::Lerp(A.speed_mps, B.speed_mps, Alpha);
 	Out.Steering = FMath::Lerp(A.steering_input, B.steering_input, Alpha);
-	Out.EngineRpm = B.engine_rpm;
+	Out.EngineRpm = FMath::Lerp(A.engine_rpm, B.engine_rpm, Alpha);
 	Out.Gear = B.gear;
+	Out.Throttle = B.throttle_input;
+	Out.Brake = B.brake_input;
+	Out.Tick = Head;
+	return true;
+}
+
+int32 FApexOwnCarPredictor::CollectFeel(int64 AfterTick, int64 UpToTick, double NowSeconds, FApexDriverFeedback& Out)
+{
+	int32 Count = 0;
+	if (!bSeated)
+	{
+		return 0;
+	}
+	for (int64 Tick = FMath::Max(AfterTick + 1, OldestTick()); Tick <= FMath::Min(UpToTick, Head); ++Tick)
+	{
+		FEntry& Entry = EntryAt(Tick);
+		if (Entry.Tick != Tick || !Entry.bHasFeedback)
+		{
+			continue;
+		}
+		const FApexDriverFeedback Feel = ApexPhysics::ToFeedback(Entry.Feedback, Tick);
+		if (Count == 0)
+		{
+			Out = Feel;
+		}
+		else
+		{
+			Out.Absorb(Feel);
+		}
+		++Count;
+		if (Entry.FeltSeconds < 0.0)
+		{
+			Entry.FeltSeconds = NowSeconds;
+			Entry.FeltTorque = Feel.SteerTorque.Num() > 0 ? Feel.SteerTorque.Last() : 0.0f;
+			Entry.FeltRpm = Entry.Pose.engine_rpm;
+		}
+	}
+	return Count;
+}
+
+bool FApexOwnCarPredictor::GetFelt(int64 Tick, double& OutSeconds, float& OutTorque, float& OutRpm) const
+{
+	const FEntry* Entry = FindEntry(Tick);
+	if (!Entry || Entry->FeltSeconds < 0.0)
+	{
+		return false;
+	}
+	OutSeconds = Entry->FeltSeconds;
+	OutTorque = Entry->FeltTorque;
+	OutRpm = Entry->FeltRpm;
 	return true;
 }
 

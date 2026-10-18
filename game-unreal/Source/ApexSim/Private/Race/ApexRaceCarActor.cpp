@@ -1067,7 +1067,18 @@ void AApexRaceCarActor::ApplyPrediction(float DeltaSeconds, ApexMotion::FPose& P
 		Pose.Velocity = Velocity;
 		Pose.SpeedMps = Speed;
 		Pose.Steering = SteeringNow;
-		// The revs stay the server's: the engine sound is still its (phase 4).
+		// The dash and the engine sound from the predicted car too: its revs
+		// blended across the sub-tick, its throttle, brake and gear the newest
+		// tick's, as the puppet's newest sample gives them.
+		FApexPredictedPose Own;
+		if (Prediction->GetOwnCar(Own))
+		{
+			Pose.EngineRpm = Own.EngineRpm;
+			Throttle = Own.Throttle;
+			Brake = Own.Brake;
+			Gear = Own.Gear;
+			UpdateBrakeLights();
+		}
 	}
 	if (bPredicted != bDrawnPredicted)
 	{

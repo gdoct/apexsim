@@ -213,7 +213,22 @@ answers its own movement at once and only the car's motion arrives late.
 `UApexNetSubsystem` merges every feedback message since its last tick
 (`FApexDriverFeedback::Absorb`). `ApexFfb::MakeSignals` turns it into
 device-agnostic `FSignals` (screen sign: positive pushes the rim right), which
-two mixers read. `AApexPlayerController::UpdateForceFeedback` runs both every
+two mixers read.
+
+**Predicted.** While client prediction draws the car
+([client.md](client.md#client-prediction-raceapexpredictionsubsystemh)),
+the feedback is the predicted car's instead: the server's own collector
+run in the physics library each step (`apx_car_feedback_take`), the ticks
+the clock reached since the last frame folded by the same `Absorb`
+(`UApexPredictionSubsystem::GetOwnFeel`), with the predicted speed, gear and
+revs. It is the server's force a round trip sooner (at 80 ms the torque led
+the server's by 79 ms in `ApexSim.Prediction.Feel.AtPing`, 0.006 of the
+reference torque apart on average), and it is worked out at the input
+being sent, so the latency correction below has almost nothing left to
+add. The car's condition (heat, damage, the ground under the wheels) and
+the road texture's station stay the telemetry's. A switch between the two
+sources is not a new message (no hit plays twice); with prediction off the
+mixers get the server's message as before. `AApexPlayerController::UpdateForceFeedback` runs both every
 frame: it is the one hook that ticks with no pawn, no race and a pause menu up.
 The caller fills in what the device knows (`RimDegrees`, `LocalSteer`) and the
 station for the road texture.
@@ -395,7 +410,11 @@ hardware.
   `ApexSim.Input.DirectInput.*` (slots, keys, readings, records file,
   `ConstantSchedule`, `Sanitise`), `ApexSim.Input.Wheel.*` (binding rules,
   mapping, menu navigation), `ApexSim.Net.Udp.*` (feedback goldens),
-  `ApexSim.Net.Ers.Modes`.
+  `ApexSim.Net.Ers.Modes`, `ApexSim.Prediction.Feel.*` (the predicted feel
+  against the server's recorded `DriverFeedback`: exact from its state, a
+  round trip ahead at a ping).
+- Server: `lone_car_trace` (`server/ffi`) checks the library's feedback
+  against the session's collector every tick, bit for bit.
 - Server: `column_stiffness_predicts_the_torque_after_the_rim_moves`
   (`physics.rs`); `cargo test --release --test grip_probe_test
   steering_feel_probe -- --ignored --nocapture` (`PROBE_CAR=<folder>`) prints

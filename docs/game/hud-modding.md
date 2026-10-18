@@ -402,6 +402,15 @@ the car is in or, between corners, the next one; all *null* (and
 
 ### The car
 
+While client prediction draws the driver's own car
+([client.md](client.md#client-prediction-raceapexpredictionsubsystemh)),
+its dash figures are the drawn car's, a round trip sooner than the
+server's (`ApexHudData::ApplyPredicted`): `car.speed*`, `car.gear*`,
+`car.rpm*`, `car.throttle`, `car.brake` and `car.steering`. Everything
+else (the place on the lap, the position, the lap clock, places and gaps,
+the radar) stays the server's, as they are read against the other cars,
+which are.
+
 | Name | Meaning |
 |---|---|
 | `car.present` | there is a local car (or a car on screen while watching) |

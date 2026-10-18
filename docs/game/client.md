@@ -431,20 +431,32 @@ by default.
   `apexsim.net.PredictLogSeconds` (5): how often it logs its figures.
   `apexsim.net.PredictServerDriven 1`: draw it while the server drives the
   car too (below), for unattended checks with the debug stand-in.
-- **What it loads** (`UApexPredictionSubsystem`, on the session's join): the
-  track YAML named by the session's `TrackFile` under the repo's `content/`
-  (`-ApexContentDir=` elsewhere) with the sidecars beside it, the
-  session's conditions as `SessionJoined` carried them and the backend it
-  names (`SessionJoined.Physics`), off the game thread; the car.toml from
-  the car folders the game builds cars from, the setup last sent
-  (`GetLastSentCarSetup`, the car made again when a knob moves) and the grid
-  slot. It stays off, and logs why once, without the library, from a server
-  that sends no `Physics`, when the YAML is not there (a packaged game ships
-  none until the server hands tracks out), when the server drives the road
-  mesh and there is no `<Stem>.road.msgpack` beside the YAML, or when the
-  YAML's or the car.toml's content checksum is not the server's. Every
-  `RoadState` slice goes to the library's track (`apx_track_road_rows`;
-  the ones heard while it loads are replayed onto it).
+- **What it loads** (`UApexPredictionSubsystem`, on the session's join),
+  off the game thread: the track's physics, with the session's conditions
+  as `SessionJoined` carried them and the backend it names
+  (`SessionJoined.Physics`); the car.toml from the car folders the game
+  builds cars from, the setup last sent (`GetLastSentCarSetup`, the car
+  made again when a knob moves) and the grid slot. The track, from a server
+  that names its physics bundle (`Physics.bundle_crc`,
+  [server/protocol.md](../server/protocol.md#the-own-car-for-prediction)),
+  in this order: this client's own YAML under the repo's `content/`
+  (`-ApexContentDir=` elsewhere) and the sidecars beside it when their
+  bundle checksum (`apx_track_files_crc`) is the server's; else the bundle
+  cached by that checksum under `Saved/ApexSim/TrackBundles/<CRC>.apxtrack`
+  (a refused one is deleted); else the server's bundle, fetched a chunk at a
+  time (`FApexTrackBundleDownload`: 3 in flight, 6 requests a second after a
+  burst of 10, failed after 10 s without a chunk), cached and loaded
+  (`apx_track_load_bundle`, refused unless its checksum is the one named).
+  The join is never held for it: the puppet is drawn until the track is
+  there. From an older server (no bundle) only the YAML on disk, its
+  content checksum against the lobby's and the road mesh beside it when
+  the server drives one. It stays off, and logs why once, without the
+  library, from a server that sends no `Physics`, when the car.toml is
+  missing or its content checksum is not the server's (a car the client
+  has no folder for it cannot draw either, so the bundle carries no car),
+  or when the bundle does not come. Every `RoadState` slice goes to the
+  library's track (`apx_track_road_rows`; the ones heard while it loads or
+  downloads are replayed onto it).
 - **The loop** (`FApexOwnCarPredictor`, `Race/ApexOwnCarPredictor.h`), on
   the game thread each frame after the net subsystem:
   - The timeline is in server ticks, stepped one at a time at the
@@ -480,9 +492,30 @@ by default.
     the replay then holds the controls the server last applied, and the
     round trip falls back to the heartbeat's ping plus the fake latency.
 - **Drawing.** `AApexRaceCarActor` takes the predicted location, rotation,
-  velocity, speed and steering for the local car; the revs, the engine
-  sound, force feedback and the HUD stay on the server's data (phase 4).
-  The camera and the cockpit follow the actor. The puppet is drawn instead
+  velocity, speed and steering for the local car, and from
+  `GetOwnCar` its revs (blended across the sub-tick), throttle, brake and
+  gear: the dash, the brake lights and the engine sound (own and world)
+  follow them. The camera and the cockpit follow the actor.
+- **Feel.** Each step's feedback comes out of the library from the server's
+  own collector (`apx_car_feedback_take`) and is kept in the ring with its
+  tick. Every frame the subsystem folds the ticks the clock reached since
+  the last (`CollectFeel`, `FApexDriverFeedback::Absorb`, as a frame's
+  messages are folded) into the feel `GetOwnFeel` hands out, with its own
+  serial. While it draws the car, the force feedback
+  (`AApexPlayerController::ReadDrivingSignals`: the feel, the predicted
+  speed, gear and revs) and the tyre and kerb sound
+  (`AApexRaceDirector::UpdateCarAudio`) read it instead of the server's
+  `DriverFeedback`; the HUD's dash (`car.speed*`, `car.rpm*`, `car.gear*`,
+  `car.throttle`, `car.brake`, `car.steering`) reads the predicted car
+  through `ApexHudData::ApplyPredicted`. The torque is worked out at the
+  input being sent, so the wheel's latency correction
+  (`steer_stiffness`) is left with almost nothing to add. What stays the
+  server's: the tyres' heat, damage and the ground under the wheels (they
+  move over laps, from telemetry), the road texture's station, and on the
+  HUD the lap, places, gaps and radar, which are read against the other
+  cars and the lap clock. A switch between the two sources is not a new
+  message, so no hit is played twice. With prediction off, or the puppet
+  drawn, every reader takes the server's figures exactly as before. The puppet is drawn instead
   outside the race proper (the countdown, after the flag), in the pit lane
   (the limiter and the autopilot are the server's), in the garage and a
   recovery, while the server drives (unless `PredictServerDriven`), and
@@ -493,7 +526,11 @@ by default.
   the correction's mean, p50, p95 and largest in mm, re-seats, clock
   jumps, the lead, the share of frames drawn from it (and why not, else),
   how far the puppet trails it (m and ms), the round trip and the
-  alignment trim. Corrections count only while it would draw.
+  alignment trim. Corrections count only while it would draw. A second
+  line: how long before the server's own `DriverFeedback` (and snapshot)
+  of a tick this client felt that tick's torque (and heard its revs), and
+  how far apart the two were (gathered in shadow too). Loading says where
+  the track came from, and a fetched bundle its size, chunks and seconds.
 
 Tests: `ApexSim.Prediction.*` on a recorded server sequence
 (`Tests/ApexPredictionFixture.h`, written by `server/ffi/tests/client_fixture.rs`;
@@ -507,8 +544,17 @@ sequence as a client at a ping hears it: `Loop.AtPing` (0, 80, 160 ms:
 correction p95 under 1 mm, largest 3.5 mm at 80 ms; the replay reaches back
 the round trip), `Loop.Loss` (every third snapshot lost), `Loop.Contact`
 (the server's car pushed 0.3 m: one correction, blended away), and
-`Loop.Relocation` (300 m: a re-seat, no blend). Without the library they
-pass with a warning.
+`Loop.Relocation` (300 m: a re-seat, no blend); `Feel.ReplaysTheServer`
+(each tick's feedback from the library, folded per telemetry tick, against
+every `DriverFeedback` the server sent in the window), `Feel.AtPing` (at
+80 ms the torque and revs lead the server's by about the round trip and
+are its figures; the dash the HUD and the engine read is the server's at
+each snapshot; `ApexHudData::ApplyPredicted` changes only the dash),
+`Bundle` (the fixture's track bundled as the server bundles it, through a
+cache file: a car on it steps as on the files, bit for bit; another
+checksum or a damaged byte is refused) and `BundleDownload` (pacing,
+order, another bundle's chunks ignored, a missing bundle or a stall
+fails). Without the library they pass with a warning.
 
 ## Lap traces (`Race/ApexLapTrace.h`, `UApexLapTraceSubsystem`)
 

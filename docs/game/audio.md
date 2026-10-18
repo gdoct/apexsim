@@ -109,6 +109,14 @@ and gear. The generator reads a lock-free `FApexEngineLiveState` on the audio
 thread and picks up a changed engine spec by serial. The synth state (the
 exhaust delay lines, about 20 KB) lives on the heap.
 
+While client prediction draws the player's car
+([client.md](client.md#client-prediction-raceapexpredictionsubsystemh)) the
+revs are the predicted car's, blended across the sub-tick, with its newest
+throttle and gear (`UApexPredictionSubsystem::GetOwnCar`): a round trip
+sooner than the server's (79 ms at 80 ms in
+`ApexSim.Prediction.Feel.AtPing`). The tyre, kerb and hit voices below read
+the predicted feel too.
+
 ## The mix
 
 - **Other cars** are mono points in the world: full level within 4 m, then
@@ -135,7 +143,8 @@ exhaust delay lines, about 20 KB) lives on the heap.
 
 `ApexRoadSynth` / `UApexRoadSoundWave` play for the **local car only**, on its
 unspatialised `RoadAudio` component, because they come from the server's
-`DriverFeedback` (see [input and force feedback](input-and-ffb.md)). The race
+`DriverFeedback` (see [input and force feedback](input-and-ffb.md)), or the
+predicted car's feel while prediction draws it. The race
 director reduces the feedback with `ApexFfb::MakeSignals`, so kerbs, grass and
 hits are the same signals the pad and wheel get.
 

@@ -19,6 +19,7 @@
 #include "GenericPlatform/IInputInterface.h"
 #include "HAL/IConsoleManager.h"
 #include "Input/ApexInputConfig.h"
+#include "Race/ApexPredictionSubsystem.h"
 #include "InputActionValue.h"
 #include "Misc/App.h"
 #include "Widgets/SViewport.h"
@@ -297,15 +298,32 @@ ApexFfb::FSignals AApexPlayerController::ReadDrivingSignals()
 	const UGameInstance* GameInstance = GetGameInstance();
 	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
 
-	// Tracked while paused too, or resuming would replay the last message's hits.
-	const uint32 Serial = Net ? Net->GetDriverFeedbackSerial() : 0;
-	const bool bNewMessage = Serial != LastFeedbackSerial;
-	LastFeedbackSerial = Serial;
-
-	if (bDriveInputEnabled && Net
-		&& FPlatformTime::Seconds() - Net->GetDriverFeedbackTime() < kFeedbackStaleSeconds)
+	// While prediction draws the car, what it feels is the predicted car's:
+	// the server's own collector run in the library, a round trip sooner.
+	// Otherwise the server's DriverFeedback, as it always was.
+	const UApexPredictionSubsystem* Prediction = GameInstance ? GameInstance->GetSubsystem<UApexPredictionSubsystem>() : nullptr;
+	const FApexDriverFeedback* Feel = Net ? &Net->GetDriverFeedback() : nullptr;
+	uint32 Serial = Net ? Net->GetDriverFeedbackSerial() : 0;
+	double FeelSeconds = Net ? Net->GetDriverFeedbackTime() : 0.0;
+	FApexPredictedPose Own;
+	const bool bPredicted = Prediction && Prediction->GetOwnFeel(Feel, Serial, FeelSeconds) && Prediction->GetOwnCar(Own);
+	if (!bPredicted && Net)
 	{
-		// Speed and gear are telemetry's; the feedback carries only what it adds.
+		Feel = &Net->GetDriverFeedback();
+		Serial = Net->GetDriverFeedbackSerial();
+		FeelSeconds = Net->GetDriverFeedbackTime();
+	}
+
+	// Tracked while paused too, or resuming would replay the last message's
+	// hits; a switch of source is not a new message either.
+	const bool bNewMessage = Serial != LastFeedbackSerial && bPredicted == bLastFeedbackPredicted;
+	LastFeedbackSerial = Serial;
+	bLastFeedbackPredicted = bPredicted;
+
+	if (bDriveInputEnabled && Net && Feel && FPlatformTime::Seconds() - FeelSeconds < kFeedbackStaleSeconds)
+	{
+		// Speed and gear are telemetry's (the predicted car's while it is
+		// drawn); the feedback carries only what it adds.
 		float SpeedMps = 0.0f;
 		int32 Gear = 0;
 		const FApexCarTelemetry* Local = nullptr;
@@ -320,7 +338,12 @@ ApexFfb::FSignals AApexPlayerController::ReadDrivingSignals()
 				break;
 			}
 		}
-		Signals = ApexFfb::MakeSignals(Net->GetDriverFeedback(), SpeedMps, Gear, bNewMessage);
+		if (bPredicted)
+		{
+			SpeedMps = Own.SpeedMps;
+			Gear = Own.Gear;
+		}
+		Signals = ApexFfb::MakeSignals(*Feel, SpeedMps, Gear, bNewMessage);
 		// What is being sent this frame, which the server's torque is a round
 		// trip behind (ApexRaceDirector sends the server -Steer).
 		Signals.bHasLocalSteer = true;
@@ -342,6 +365,12 @@ ApexFfb::FSignals AApexPlayerController::ReadDrivingSignals()
 				}
 			}
 			ApexFfb::ReadCarCondition(Signals, *Local, TyreOptimalC, TyreWindowC);
+			if (bPredicted)
+			{
+				// The heat and damage stay the telemetry's (they move over
+				// laps); the revs a sick engine shakes at are the drawn car's.
+				Signals.EngineRpm = FMath::Max(Own.EngineRpm, 0.0f);
+			}
 		}
 	}
 	return Signals;

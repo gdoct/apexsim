@@ -947,6 +947,7 @@ private:
 	void UpdateCarAudio();
 	/** The feedback message last turned into sound: its hits play once. */
 	uint32 LastRoadFeedbackSerial = 0;
+	bool bLastRoadFeedbackPredicted = false;
 
 	/** The newest frame's state; the net subsystem keeps a demo's state out of its own. */
 	EApexSessionState LatestFrameState = EApexSessionState::Lobby;
