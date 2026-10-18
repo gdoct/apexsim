@@ -198,7 +198,7 @@ stamp.
   keeps everything dressed off the lane, its apron and the garage depth. The
   server side is in [../server/pit-lane.md](../server/pit-lane.md).
 - **Surroundings** (`dress::surroundings`): car-park cars and lamps, camp-site
-  tents, village houses, chapels and pylons, a marshal post at every named
+  tents (pitched over the area on the R2 sequence, `r2_point`), village houses, chapels and pylons, a marshal post at every named
   corner and every 400 m, a `corner_sign` from each corner's `display_name`,
   forest impostors on far slopes, and `floodlight_tower`s only when the
   dossier maps no lighting masts.

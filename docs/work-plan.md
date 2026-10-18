@@ -222,8 +222,6 @@ last box" is a gameplay choice, not realism. Regenerate sidecars (never edit),
 - 🟡 Nordschleife bridges: an `Underpass` in `terrain.rs` for dossier roads
   (as at Suzuka), the road drawn under it, then the AI survey.
 - 🟡 Nordschleife toll lanes' access lanes and car park.
-- 🟢 Camp sites in a row: switch to the R2 sequence (`r2_point`) — goes with a
-  re-dress and AI survey of every affected circuit (tents are walls).
 - 🔴 Nordschleife rock cuttings: needs bare-earth DGM1 data or a surveyed list,
   plus a rock-face kit piece.
 - 🔴 Nordschleife real marshal-post numbers: needs a source list.

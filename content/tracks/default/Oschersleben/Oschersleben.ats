@@ -5399,6 +5399,846 @@
     {
       "id": 10285,
       "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 287.0,
+      "y": 250.35,
+      "z": 5.09,
+      "yaw_rad": -0.14,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10286,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 163.94,
+      "y": 285.41,
+      "z": 5.84,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10287,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 291.9,
+      "y": 320.48,
+      "z": 9.97,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10288,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 230.37,
+      "y": 212.5,
+      "z": 1.74,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10289,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 358.33,
+      "y": 247.56,
+      "z": 7.03,
+      "yaw_rad": -0.51,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10290,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 235.26,
+      "y": 282.62,
+      "z": 6.87,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10291,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 363.23,
+      "y": 317.69,
+      "z": 11.59,
+      "yaw_rad": -0.39,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10292,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 301.69,
+      "y": 209.7,
+      "z": 2.13,
+      "yaw_rad": -0.26,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10293,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 178.63,
+      "y": 244.77,
+      "z": 3.03,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10294,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 306.59,
+      "y": 279.83,
+      "z": 7.88,
+      "yaw_rad": -0.19,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10295,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 183.53,
+      "y": 314.9,
+      "z": 8.04,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10296,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 373.02,
+      "y": 206.91,
+      "z": 4.6,
+      "yaw_rad": -0.75,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10297,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 249.96,
+      "y": 241.98,
+      "z": 3.86,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10298,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 377.92,
+      "y": 277.04,
+      "z": 10.42,
+      "yaw_rad": -0.51,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10299,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 254.85,
+      "y": 312.1,
+      "z": 8.93,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10300,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 321.28,
+      "y": 239.19,
+      "z": 4.9,
+      "yaw_rad": -0.31,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10301,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 198.22,
+      "y": 274.25,
+      "z": 5.6,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10302,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 326.18,
+      "y": 309.31,
+      "z": 10.19,
+      "yaw_rad": -0.26,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10303,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 392.61,
+      "y": 236.4,
+      "z": 8.22,
+      "yaw_rad": -0.7,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10304,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 269.55,
+      "y": 271.46,
+      "z": 6.51,
+      "yaw_rad": -0.12,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10305,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 397.51,
+      "y": 306.52,
+      "z": 12.16,
+      "yaw_rad": -0.56,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10306,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 335.98,
+      "y": 198.54,
+      "z": 2.19,
+      "yaw_rad": -0.56,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10307,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 212.91,
+      "y": 233.6,
+      "z": 2.82,
+      "yaw_rad": -0.12,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10308,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 340.87,
+      "y": 268.67,
+      "z": 8.04,
+      "yaw_rad": -0.39,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10309,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 217.81,
+      "y": 303.73,
+      "z": 7.95,
+      "yaw_rad": -0.12,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10310,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 407.3,
+      "y": 195.75,
+      "z": 6.08,
+      "yaw_rad": -0.94,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10311,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 284.24,
+      "y": 230.81,
+      "z": 3.45,
+      "yaw_rad": -0.14,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10312,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 412.2,
+      "y": 265.88,
+      "z": 11.23,
+      "yaw_rad": -0.7,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10313,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 289.14,
+      "y": 300.94,
+      "z": 8.91,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10314,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 166.07,
+      "y": 336.0,
+      "z": 8.23,
+      "yaw_rad": -1.07,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10315,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 355.57,
+      "y": 228.02,
+      "z": 5.12,
+      "yaw_rad": -0.56,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 10316,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 232.5,
+      "y": 263.09,
+      "z": 5.31,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 49667,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 360.47,
+      "y": 298.15,
+      "z": 10.75,
+      "yaw_rad": -0.43,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 61414,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 237.4,
+      "y": 333.21,
+      "z": 9.66,
+      "yaw_rad": -0.12,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 61415,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 175.87,
+      "y": 225.23,
+      "z": 1.8,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 61416,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 303.83,
+      "y": 260.3,
+      "z": 6.28,
+      "yaw_rad": -0.21,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67295,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 180.77,
+      "y": 295.36,
+      "z": 6.85,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67296,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 370.26,
+      "y": 187.38,
+      "z": 3.08,
+      "yaw_rad": -0.8,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67297,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 308.73,
+      "y": 330.42,
+      "z": 10.74,
+      "yaw_rad": -0.18,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67298,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 247.2,
+      "y": 222.44,
+      "z": 2.45,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67299,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 375.16,
+      "y": 257.5,
+      "z": 8.94,
+      "yaw_rad": -0.56,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67300,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 252.09,
+      "y": 292.57,
+      "z": 7.79,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67301,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 380.06,
+      "y": 327.63,
+      "z": 12.15,
+      "yaw_rad": -0.43,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67302,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 318.52,
+      "y": 219.65,
+      "z": 3.13,
+      "yaw_rad": -0.35,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67303,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 195.46,
+      "y": 254.71,
+      "z": 4.08,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67304,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 323.42,
+      "y": 289.78,
+      "z": 9.03,
+      "yaw_rad": -0.26,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67305,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 200.36,
+      "y": 324.84,
+      "z": 8.71,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67306,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 389.85,
+      "y": 216.86,
+      "z": 6.41,
+      "yaw_rad": -0.75,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67307,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 266.79,
+      "y": 251.92,
+      "z": 4.84,
+      "yaw_rad": -0.12,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67308,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 394.75,
+      "y": 286.99,
+      "z": 11.54,
+      "yaw_rad": -0.56,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67309,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 271.69,
+      "y": 322.05,
+      "z": 9.65,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67310,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 210.15,
+      "y": 214.07,
+      "z": 1.67,
+      "yaw_rad": -0.12,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67311,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 338.12,
+      "y": 249.13,
+      "z": 6.3,
+      "yaw_rad": -0.39,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67312,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 215.05,
+      "y": 284.2,
+      "z": 6.6,
+      "yaw_rad": -0.12,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67313,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 343.01,
+      "y": 319.26,
+      "z": 11.1,
+      "yaw_rad": -0.31,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67314,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 281.48,
+      "y": 211.28,
+      "z": 2.01,
+      "yaw_rad": -0.14,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67315,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 409.44,
+      "y": 246.34,
+      "z": 9.97,
+      "yaw_rad": -0.75,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67316,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 286.38,
+      "y": 281.4,
+      "z": 7.59,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67317,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 163.31,
+      "y": 316.47,
+      "z": 7.64,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67318,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 352.81,
+      "y": 208.49,
+      "z": 3.54,
+      "yaw_rad": -0.6,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67319,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 229.74,
+      "y": 243.55,
+      "z": 3.74,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67320,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 357.71,
+      "y": 278.61,
+      "z": 9.48,
+      "yaw_rad": -0.43,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67321,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 234.64,
+      "y": 313.68,
+      "z": 8.81,
+      "yaw_rad": -0.12,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67322,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 301.07,
+      "y": 240.76,
+      "z": 4.54,
+      "yaw_rad": -0.21,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67323,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 178.01,
+      "y": 275.82,
+      "z": 5.42,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67324,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 305.97,
+      "y": 310.89,
+      "z": 9.79,
+      "yaw_rad": -0.18,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67325,
+      "kind": "vehicle",
+      "asset": "motorhome",
+      "x": 372.4,
+      "y": 237.97,
+      "z": 7.03,
+      "yaw_rad": -0.6,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67326,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 249.34,
+      "y": 273.03,
+      "z": 6.33,
+      "yaw_rad": -0.13,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67327,
+      "kind": "attraction",
+      "asset": "tent_6m",
+      "x": 377.3,
+      "y": 308.1,
+      "z": 11.7,
+      "yaw_rad": -0.47,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67328,
+      "kind": "vehicle",
+      "asset": "camper_van",
+      "x": 315.77,
+      "y": 200.11,
+      "z": 1.78,
+      "yaw_rad": -0.39,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: camp site Zeltplatz Motorsport-Arena"
+    },
+    {
+      "id": 67329,
+      "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -56.65,
       "y": -158.37,
@@ -5409,7 +6249,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 10286,
+      "id": 67330,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -485.62,
@@ -5421,7 +6261,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 10287,
+      "id": 67331,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -490.31,
@@ -5433,7 +6273,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 10288,
+      "id": 67332,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1632.89,
@@ -5445,7 +6285,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 10289,
+      "id": 67333,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1562.54,
@@ -5457,7 +6297,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 10290,
+      "id": 67334,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1598.22,
@@ -5469,7 +6309,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 10291,
+      "id": 67335,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1651.92,
@@ -5481,7 +6321,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 10292,
+      "id": 67336,
       "kind": "tree",
       "asset": "forest_impostor_conifer",
       "x": -1610.92,
@@ -5493,7 +6333,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 10293,
+      "id": 67337,
       "kind": "tree",
       "asset": "forest_impostor_conifer",
       "x": -1676.21,
@@ -5505,7 +6345,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 10294,
+      "id": 67338,
       "kind": "tree",
       "asset": "forest_impostor_conifer",
       "x": -1644.12,
@@ -5517,7 +6357,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 10295,
+      "id": 67339,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 7.63,
@@ -5529,7 +6369,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10296,
+      "id": 67340,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -401.79,
@@ -5541,7 +6381,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10297,
+      "id": 67341,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -511.7,
@@ -5553,7 +6393,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10298,
+      "id": 67342,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -284.51,
@@ -5565,7 +6405,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10299,
+      "id": 67343,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -292.47,
@@ -5577,7 +6417,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10300,
+      "id": 67344,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -563.1,
@@ -5589,7 +6429,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10301,
+      "id": 67345,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -637.67,
@@ -5601,7 +6441,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10302,
+      "id": 67346,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -342.77,
@@ -5613,7 +6453,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10303,
+      "id": 67347,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 35.05,
@@ -5625,7 +6465,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10304,
+      "id": 67348,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 355.66,
@@ -5637,7 +6477,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10305,
+      "id": 67349,
       "kind": "board",
       "asset": "corner_sign",
       "x": -345.37,
@@ -5649,7 +6489,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 10306,
+      "id": 67350,
       "kind": "board",
       "asset": "corner_sign",
       "x": -475.37,
@@ -5661,7 +6501,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 10307,
+      "id": 67351,
       "kind": "board",
       "asset": "corner_sign",
       "x": -660.0,
@@ -5673,7 +6513,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 10308,
+      "id": 67352,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 10.45,
@@ -5685,7 +6525,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 10309,
+      "id": 67353,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -418.08,
@@ -5697,7 +6537,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 10310,
+      "id": 67354,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -199.68,
@@ -5709,7 +6549,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 10311,
+      "id": 67355,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -192.09,
@@ -5721,7 +6561,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 10312,
+      "id": 67356,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -408.48,
@@ -5733,7 +6573,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 10313,
+      "id": 67357,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -614.75,
@@ -5745,7 +6585,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 10314,
+      "id": 67358,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -650.13,
@@ -5757,7 +6597,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 10315,
+      "id": 67359,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -698.8,
@@ -5769,7 +6609,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 10316,
+      "id": 67360,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -530.45,
@@ -5781,7 +6621,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 49667,
+      "id": 67361,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -315.02,
@@ -5793,7 +6633,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 61414,
+      "id": 67362,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -98.75,
@@ -5805,7 +6645,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 61415,
+      "id": 67363,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 43.84,
@@ -5817,7 +6657,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 61416,
+      "id": 67364,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 274.32,
@@ -5829,7 +6669,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 67295,
+      "id": 67365,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -336.54,
@@ -5841,7 +6681,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67296,
+      "id": 67366,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -394.72,
@@ -5853,7 +6693,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67297,
+      "id": 67367,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -426.52,
@@ -5865,7 +6705,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67298,
+      "id": 67368,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -382.66,
@@ -5877,7 +6717,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67299,
+      "id": 67369,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -183.3,
@@ -5889,7 +6729,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67300,
+      "id": 67370,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -173.65,
@@ -5901,7 +6741,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67301,
+      "id": 67371,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -453.97,
@@ -5913,7 +6753,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67302,
+      "id": 67372,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -528.88,
@@ -5925,7 +6765,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67303,
+      "id": 67373,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -542.54,
@@ -5937,7 +6777,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67304,
+      "id": 67374,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -582.08,
@@ -5949,7 +6789,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67305,
+      "id": 67375,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -586.37,
@@ -5961,7 +6801,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67306,
+      "id": 67376,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -576.7,
@@ -5973,7 +6813,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67307,
+      "id": 67377,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -683.18,
@@ -5985,7 +6825,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67308,
+      "id": 67378,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -682.63,
@@ -5997,7 +6837,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67309,
+      "id": 67379,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -671.55,
@@ -6009,7 +6849,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67310,
+      "id": 67380,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -646.3,
@@ -6021,7 +6861,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67311,
+      "id": 67381,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -548.82,
@@ -6033,7 +6873,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67312,
+      "id": 67382,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -505.47,
@@ -6045,7 +6885,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67313,
+      "id": 67383,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 12.67,
@@ -6057,7 +6897,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67314,
+      "id": 67384,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 88.54,
@@ -6069,7 +6909,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67315,
+      "id": 67385,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 317.0,
@@ -6081,7 +6921,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67316,
+      "id": 67386,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 331.48,
@@ -6093,7 +6933,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67317,
+      "id": 67387,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 306.87,
@@ -6105,7 +6945,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67318,
+      "id": 67388,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 264.5,
@@ -6117,7 +6957,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67319,
+      "id": 67389,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -386.63,
@@ -6129,7 +6969,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67320,
+      "id": 67390,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -406.18,
@@ -6141,7 +6981,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67321,
+      "id": 67391,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -148.3,
@@ -6153,7 +6993,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67322,
+      "id": 67392,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -192.06,
@@ -6165,7 +7005,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67323,
+      "id": 67393,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -517.52,
@@ -6177,7 +7017,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67324,
+      "id": 67394,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -554.49,
@@ -6189,7 +7029,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67325,
+      "id": 67395,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -592.02,
@@ -6201,7 +7041,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67326,
+      "id": 67396,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -598.4,
@@ -6213,7 +7053,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67327,
+      "id": 67397,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -599.54,
@@ -6225,7 +7065,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67328,
+      "id": 67398,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -669.89,
@@ -6237,7 +7077,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67329,
+      "id": 67399,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -669.04,
@@ -6249,7 +7089,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67330,
+      "id": 67400,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -645.54,
@@ -6261,7 +7101,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67331,
+      "id": 67401,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -632.88,
@@ -6273,7 +7113,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67332,
+      "id": 67402,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -528.61,
@@ -6285,7 +7125,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67333,
+      "id": 67403,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -37.65,
@@ -6297,7 +7137,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67334,
+      "id": 67404,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 8.59,
@@ -6309,7 +7149,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67335,
+      "id": 67405,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 65.94,
@@ -6321,7 +7161,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67336,
+      "id": 67406,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 109.8,
@@ -6333,7 +7173,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67337,
+      "id": 67407,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 258.59,
@@ -6345,7 +7185,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67338,
+      "id": 67408,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 312.5,
@@ -6357,7 +7197,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67339,
+      "id": 67409,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 348.39,
@@ -6369,7 +7209,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 67340,
+      "id": 67410,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 289.77,
@@ -76917,5 +77757,5 @@
       "source": "groom tree"
     }
   ],
-  "next_id": 67341
+  "next_id": 67411
 }

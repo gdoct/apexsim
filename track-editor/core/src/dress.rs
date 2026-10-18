@@ -2572,20 +2572,10 @@ mod surroundings {
                 if placed >= pitches {
                     break;
                 }
-                // A low-discrepancy walk. Its two coordinates are nearly
-                // the same sequence (0.618 x 1.618 is 1), so the pitches
-                // come out in a row; the fan lap's camps, which are
-                // villages, take the R2 sequence instead, which fills the
-                // area (`r2_point`).
-                let (x, y) = if ctx.fan {
-                    r2_point(cx, cy, span, i, 0.5)
-                } else {
-                    let t = i as f32 * 0.618_034;
-                    (
-                        cx + (t.fract() - 0.5) * span,
-                        cy + ((t * 1.618).fract() - 0.5) * span,
-                    )
-                };
+                // A low-discrepancy walk that fills the area (the R2
+                // sequence, `r2_point`), not one irrational step for both
+                // coordinates, which lined the pitches up in a row.
+                let (x, y) = r2_point(cx, cy, span, i, 0.5);
                 if !area.contains(x, y) {
                     continue;
                 }

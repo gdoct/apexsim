@@ -81,12 +81,6 @@ the same `ApexProps` code.
   GP circuit); a real list goes in a dossier table.
 - Nordschleife: the toll lanes stand on the grass: the entrance's access
   lanes and car park are not drawn (no dossier road is baked).
-- Camp sites off the fan lap pitch their tents in a row: the walk in
-  `dress::surroundings::camp_sites` uses one irrational step for both
-  coordinates (0.618 x 1.618 is 1). The fan lap uses the R2 sequence
-  (`r2_point`); switching every circuit moves their tents, which are walls
-  (`attraction`), so it goes with a re-dress and an AI survey of those
-  circuits.
 - Nordschleife: the OSM extract the dossier was fitted from is gone from
   `.cache/osm/`, so the surveyed layers cannot be refitted; a fresh
   extract (the map API tiles in `.cache/osm/nordschleife_tiles/` are
