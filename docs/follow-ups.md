@@ -32,16 +32,21 @@ Race control's yellows and blues ([server/sessions.md](server/sessions.md#flags)
 reach the HUD (`flags` component, `flag.*`); the rest of the car and the
 circuit do not show them yet.
 
-- The trackside light panels (`light_panel`, `ApexEmissive_*`): each
-  panel's lap station, its sector's yellow flashing on it. The runtime
-  builder shares one glow instance per slot round the circuit (one write
-  switches every panel, as the pit exit light uses it), so a panel needs a
-  dynamic instance of its own.
+- Trackside light panels on every circuit, showing yellow and blue. The
+  kit has the prop (`board/light_panel`), but no circuit's `.ats` places
+  one: `ats-dress` lays them at the marshal posts (one per 250 m marshal
+  sector at least, on the driver's side, facing up the course). Each
+  panel's lap station, its sector's yellow flashing on it, and blue
+  flashing while a car that race control shows the blue passes it. The
+  runtime builder shares one glow instance per slot round the circuit (one
+  write switches every panel, as the pit exit light uses it), so a panel
+  needs a dynamic instance of its own.
 - An audible cue as a yellow or the blue comes up (`game/audio.md`'s
   synthesised UI cues), and the flag on the cockpit dash.
 
 **Check:** a seeded pile-up (R7) and a lapping race on screen, the panels
-seen flashing at the incident's sector.
+seen flashing yellow at the incident's sector and blue as the lapped car
+passes.
 
 ## P2: depth
 
@@ -165,6 +170,20 @@ them yet, and the server leaves a few edges.
 **Check:** a formation lap and a rolling start on screen with a human in
 the field, a jump start and a red-light exit served; `race_start_test`,
 `penalty_test`.
+
+### 21. Create-session screen
+
+The create-session screen is too cluttered (seen testing, 2026-10-18).
+
+- Give the race and conditions settings more room, up to half the screen.
+- The mode list still offers "Sandbox" (Free camera), which no longer
+  exists: drop it from the create screen's list
+  (`UI/ApexSessionCreateWidget.cpp`) and the lobby's
+  (`UI/ApexSessionLobbyWidget.cpp`). Check whether `EApexGameMode` values
+  are saved or passed on the command line before removing the value.
+
+**Check:** `-ApexScreenshotAfter` on the create screen; a person judges the
+new layout.
 
 ## P3: nice to have
 

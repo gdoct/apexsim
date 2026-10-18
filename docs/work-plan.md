@@ -30,6 +30,8 @@ When an item is done, delete it from its backlog and from here.
 |---|---|---|---|---|---|
 | V1 | Verify the newest session screens (R9, R11, R12) | Verification | P1 | 🟡 | S |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
+| B6 | Create-session screen too cluttered; shows a dead Sandbox mode | Bug | P2 | 🟡 | S |
+| F2 | Trackside light panels showing yellow and blue | Feature + content | P2 | 🟡 | M |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
 | D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🔴 | M |
 | R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🔴 | L |
@@ -85,6 +87,16 @@ When an item is done, delete it from its backlog and from here.
 *Source: follow-ups #12.* Seen once on the Bugotti Chiffon. Check the chase
 ladder's offsets against the car's bounds (`game/cameras.md`); reproduce
 with `-ApexScreenshotAfter` on that car.
+
+#### B6. Create-session screen too cluttered; shows a dead Sandbox mode — P2 · 🟡 · S
+*Source: follow-ups #21 (testing, 2026-10-18).* The create-session screen is too crowded.
+Give the race and conditions settings more room, up to half the screen.
+The mode list still offers "Sandbox" (Free camera), which no longer exists:
+drop it from the create screen's mode list
+(`UI/ApexSessionCreateWidget.cpp`) and the lobby's
+(`UI/ApexSessionLobbyWidget.cpp`); check whether `EApexGameMode` values are
+saved or passed on the command line before removing the value. Check with `-ApexScreenshotAfter` on
+the create screen; a person judges the new layout.
 
 ### Platform and stability
 
@@ -249,6 +261,16 @@ pick 2–3 concrete targets (e.g. tyre squeal by slip, exterior engine
 spatialisation) with a check each. Every result has to be judged by ear.
 See `game/audio.md` — the sound is synthesised, so "updating assets" may not
 apply.
+
+#### F2. Trackside light panels showing yellow and blue — P2 · 🟡 · M
+*Source: follow-ups #18.* Race control's yellows and blues only reach the
+HUD. Put marshal light panels on every circuit (`board/light_panel` is in
+the kit, but no `.ats` places one yet: `ats-dress` lays them at the marshal
+posts, at least one per 250 m sector) and drive them from the flags: yellow
+flashing for the panel's sector, blue as a car being shown the blue passes.
+Each panel needs its own dynamic glow instance (the builder shares one per
+slot). Re-dressing changes the sidecars: re-export the tracks. Check with a
+seeded pile-up (R7) and a lapping race on screen; a person judges.
 
 #### F1. Windshield wipers — P3 · 🔴 · M
 *Source: follow-ups P4.* Wiper mesh per cockpit (art), a key binding, an
