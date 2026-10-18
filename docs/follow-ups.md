@@ -170,9 +170,6 @@ the field, a jump start and a red-light exit served; `race_start_test`,
 
 ### 11. Content tooling
 
-- `trace_layout.py` skips Marina Bay: no DEM sidecar, so no georeference
-  (`dem_fetch.py MarinaBay`, or a georeference from the dossier's own fit
-  without a DEM).
 - **(bug, not reproduced)** On 2026-10-14, with most showcases stale, an
   unattended run (`-ApexWatch`, `-ApexWatchSession`) exited silently a few
   seconds after "Demo view ended", with nothing in the log and no crash

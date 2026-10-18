@@ -6,7 +6,9 @@ track's centerline, its station marks and its dossier
 (``<Stem>.layout.json``: stands, buildings, crossings, landmarks, pit lane,
 woods, water, barriers) over aerial imagery, through the same georeference
 the dossier was built from (the DEM sidecar's ``georef``, as
-``osm_layout.py --manual-only`` uses it). Clicking on the imagery traces a
+``osm_layout.py --manual-only`` uses it; a circuit without a DEM sidecar,
+such as Marina Bay, takes the dossier's own fit, ``osm_layout.fit_track``
+over the cached OSM extract). Clicking on the imagery traces a
 run of points; the panel gives each one as longitude/latitude, as track
 ``x``/``y``, and as station, lateral offset and side, and writes the trace
 out as the manual entries ``osm_layout.py`` takes: a ``MANUAL_STANDS`` span
@@ -19,9 +21,9 @@ out as the manual entries ``osm_layout.py`` takes: a ``MANUAL_STANDS`` span
 
 The page loads Leaflet and the imagery tiles (Esri World Imagery, with
 OpenStreetMap as the other base layer) from the web when opened; nothing
-here fetches anything. A circuit without a DEM sidecar has no
-georeference and is skipped: fetch one with ``dem_fetch.py`` first. The
-page reads the dossier, it never writes one: what is traced goes into the
+here fetches anything, except a circuit without a DEM sidecar whose OSM
+extract is not cached yet (``.cache/osm``): its fit fetches the extract.
+The page reads the dossier, it never writes one: what is traced goes into the
 script's manual tables by hand, and ``osm_layout.py <Stem> --manual-only``
 (or a refetch) lays it into the dossier.
 """
@@ -67,10 +69,23 @@ class Georef:
 
 
 def load_georef(stem: str) -> Georef | None:
+    """The DEM sidecar's georeference, else the dossier's own fit (the one
+    ``dem_fetch.py`` would record), else none."""
     dem_path = track_dir(stem) / f"{stem}.dem.msgpack"
-    if not dem_path.exists():
+    if dem_path.exists():
+        return Georef(msgpack.unpackb(dem_path.read_bytes(), raw=False)["georef"])
+    import osm_layout
+
+    if stem not in osm_layout.BBOXES:
         return None
-    return Georef(msgpack.unpackb(dem_path.read_bytes(), raw=False)["georef"])
+    print(f"{stem}: no DEM sidecar; fitting the OSM extract as the dossier did")
+    offline = all((osm_layout.CACHE_DIR / f"{stem}.{i}.json").exists() for i in range(len(osm_layout.BBOXES[stem])))
+    try:
+        _, osm, a, t, _ = osm_layout.fit_track(stem, offline)
+    except SystemExit as e:
+        print(f"{stem}: no fit ({e})")
+        return None
+    return Georef({"a": a.ravel().tolist(), "t": t.tolist(), "lon0": osm.lon0, "lat0": osm.lat0})
 
 
 def latlon_list(geo: Georef, xy) -> list[list[float]]:
@@ -378,7 +393,7 @@ def build_page(stem: str) -> Path | None:
         return None
     geo = load_georef(stem)
     if geo is None:
-        print(f"{stem}: no DEM sidecar, so no georeference; skipped (scripts/dem_fetch.py {stem})")
+        print(f"{stem}: no georeference (no DEM sidecar and no OSM fit); skipped")
         return None
     track = Track(stem)
     layout = json.loads(layout_path.read_text(encoding="utf-8"))
@@ -403,7 +418,7 @@ def build_page(stem: str) -> Path | None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("stems", nargs="*", help="circuit stems (content/tracks/default/<Stem>)")
-    ap.add_argument("--all", action="store_true", help="every circuit with a dossier and a DEM sidecar")
+    ap.add_argument("--all", action="store_true", help="every circuit with a dossier")
     ap.add_argument("--open", action="store_true", help="open each page in the browser")
     args = ap.parse_args()
     stems = list(args.stems)

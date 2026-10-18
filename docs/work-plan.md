@@ -236,7 +236,6 @@ last box" is a gameplay choice, not realism. Regenerate sidecars (never edit),
 
 #### C3. Content tooling — P3 · 🟢 · S each
 *Source: follow-ups #11.*
-- `trace_layout.py` for Marina Bay (DEM sidecar or dossier georeference).
 - DEM crossover handling for Suzuka; bare-earth check for Shanghai/Monza.
 - Silent `-ApexWatch` exit (not reproduced): watch for it; `-abslog` and the
   Windows event log if it returns.

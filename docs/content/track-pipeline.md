@@ -133,7 +133,8 @@ dossier (stands amber, manual ones orange, buildings blue, pit lane
 magenta, crossings, landmarks, woods, water, barriers; each a layer) over
 aerial imagery (Esri World Imagery, OpenStreetMap as the other base), through
 the DEM sidecar's georeference, which is the dossier's own fit; a circuit
-without a sidecar is skipped. Clicking traces a run of points: the panel
+without a sidecar (Marina Bay) runs that fit itself (`osm_layout.fit_track`
+over the cached extract, the same numbers the sidecar would record). Clicking traces a run of points: the panel
 gives each as station, side and distance off the road edge, track `x`/`y`
 and `lon`/`lat`, and writes the run out as the manual entry to paste: one
 point as a `MANUAL_LANDMARKS` / `MANUAL_CROSSINGS` anchor, two or more as
