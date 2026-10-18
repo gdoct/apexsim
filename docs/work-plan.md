@@ -81,11 +81,15 @@ When an item is done, delete it from its backlog and from here.
 
 ## 2. Recommended order
 
-1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting. Fresh features are where the bugs are.
-2. **Visual quality pass** — G4 of rendering work (close-ups can now be held: `apexsim.replay.Hold`). N10's render scale is built; check it with them.
-3. **Built on the decisions of 2026-10-18** — D1 (the real layout), R3 phase 1 (a key per install), N7 (an offline season), N26 phase 1. None of them waits on you any more.
-4. **Online and depth** — N5 (multi-class), N11 (liveries), then R3 and N7 on top of identity.
-5. Everything P3 opportunistically, bundled with whatever touches the same files.
+1. **Fix what testing found on 2026-10-18** — B8 first (overheated tyres, P1: it spoils every long stint). Then the menu batch in one go, since it is the same few widgets and one PadWalk run: B6 (create screen), B9 (menu pages), B10 (car and track select confirm).
+2. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting with B8's fix on the wheel. Fresh features are where the bugs are.
+3. **One content refresh** — B7 (curb kinks), F2 (light panels laid by `ats-dress`) and D1 (the real pit layout) all regenerate every track's sidecars: do them on one branch, re-export once, run the AI survey once against the commit before. S1 (road crown) changes the same files and could join it if there is room. Showcases and guides go stale after it; rebake once at the end.
+4. **HUD** — N24 (tyre graphic) and N25 (rain radar): both new components and data points, one `ApexSim.Hud.Data` run.
+5. **The simulation in the client** — N28, then X1 on top of it. Do it before N26: once guides, showcases and Watch hotlap are made in the game, packs no longer carry them and the build loses its two slowest stages.
+6. **Built on the decisions of 2026-10-18** — N26 phase 1 (pack format, local install), R3 phase 1 (a key per install), N7 (an offline season). None of them waits on you; N26 phase 2 waits on the repository and the signing key.
+7. **Visual quality pass** — G4 (close-ups can be held: `apexsim.replay.Hold`) and N10 (DLSS and FSR beside the built render scale), checked together on the RTX machine.
+8. **Online and depth** — N5 (multi-class), N11 (liveries), then the rest of R3, and N7 online on top of identity.
+9. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
 
 ## 3. Items by type
 

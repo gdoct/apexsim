@@ -112,5 +112,9 @@ The client, the commandlets and the content scripts (`initialize_content.ps1`,
   the game, heard or felt on hardware) or [docs/roadmap.md](docs/roadmap.md)
   (product, UI, content and tooling features not started); delete the row
   when it is done.
+- Working through [docs/work-plan.md](docs/work-plan.md), commit after every
+  item that is solved: its code, its doc, and its row deleted from the work
+  plan and its backlog, in one commit, before the next item starts. Leave
+  edits that are not part of the item out of it.
 - This file holds only rules that bind changes anywhere in the repo. Feature
   detail goes in the topic doc, not here.
