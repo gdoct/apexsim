@@ -295,6 +295,8 @@ clutch, H-shifter, handbrake, front-axle hybrid, peak torques and minimum
 forces, PXN profiles, kerbs, greasy tyres and damage, tread spread, banking
 and crests, gravel and sand, flat spots, puddles, slow punctures. One
 sitting, Nordschleife and Mandarina Bay. Every finding becomes a follow-up.
+Planned block by block, with the agent's prep and follow-up, in
+[wheel-sitting.md](wheel-sitting.md) (also covers H2's wheel rows).
 
 #### H2. Other human sittings — P2 · 🔴 · S each
 - **Racing the AI** (Monza, Zandvoort): room left alongside, defending.

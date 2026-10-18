@@ -358,7 +358,8 @@ in the `flags` component and the radar's RIGHT marker at the start.
 [game/spectator.md](game/spectator.md), [game/audio.md](game/audio.md))
 Everything an unattended run cannot check: one sitting with a real
 wheelbase, pedals, a shifter, a pad and speakers, in this order so each
-step feeds the next. Until it has run, all of this is unverified.
+step feeds the next. Until it has run, all of this is unverified. The
+wheel rows are run as the blocks of [wheel-sitting.md](wheel-sitting.md).
 
 **Client prediction at a ping.** ([game/client.md](game/client.md#client-prediction-raceapexpredictionsubsystemh))
 A checkout's editor build with the physics library built
