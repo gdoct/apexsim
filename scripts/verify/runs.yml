@@ -1973,14 +1973,18 @@ runs:
       - -ApexWeather=sunny
       - -ApexTimeOfDay=13:00
       - -ApexView=chase
-      - -ApexOpenPause=225
+      - -ApexOpenPause=300
     exec:
-      220: ["apexsim.telemetry.Laps"]
-      227: ["apexsim.ui.Texts LAP", "apexsim.ui.Click LAP TRACES"]
+      295: ["apexsim.telemetry.Laps"]
+      302: ["apexsim.ui.Texts LAP", "apexsim.ui.Click LAP TRACES"]
+      308: ["apexsim.ui.Click + #0"]
+      313: ["apexsim.ui.Click + #1"]
     shots:
-      - {at: 222, label: "racing, lap 3", checks: ""}
-      - {at: 226, label: "pause menu", checks: "the LAP TRACES row"}
-      - {at: 231, label: "LAP TRACES", checks: "the last lap against the best: speed, pedals, delta"}
+      - {at: 297, label: "racing, lap 4", checks: ""}
+      - {at: 301, label: "pause menu", checks: "the LAP TRACES row"}
+      - {at: 306, label: "LAP TRACES", checks: "the last lap against the best: speed, pedals, delta; the LAP and AGAINST pickers"}
+      - {at: 311, label: "LAP stepped", checks: "LAP moved to an older lap, the legend and the traces with it"}
+      - {at: 316, label: "AGAINST stepped", checks: "AGAINST moved, the delta redrawn"}
 
   # The Graphics tab's render scale row (N10), in a race.
   - id: n10-graphics

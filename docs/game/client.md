@@ -571,15 +571,21 @@ nothing.
 Each lap is written as CSV to `Saved/Telemetry/<circuit>/<car>/`
 (`<date>_lap<N>_<m-ss-mmm>[_invalid].csv`, a `#` header with the circuit,
 car, lap, time and validity, then a row per sample;
-`ApexLapTrace::ToCsv` / `FromCsv`). The subsystem keeps the last lap and
-the best valid one, this session's or the quickest stored for the circuit
-and car.
+`ApexLapTrace::ToCsv` / `FromCsv`). The subsystem keeps the last lap, the
+best valid one (this session's or the quickest stored for the circuit and
+car) and every lap held for them (`GetLaps`, newest first: this session's
+and the newest `MaxListedLaps` (40) stored, the best kept whatever its
+age). A lap the recorder drops is logged with why (`Lap trace: lap N
+broken at ... m: serviced`, a jump, or not kept at the line).
 
 The pause menu's LAP TRACES row (shown once there is a lap) widens the card
-to `UApexLapTraceWidget`: speed, throttle and brake, and the time the last
-lap loses or gains on the best (`ApexLapTrace::DeltaByDistance`) by
-distance, the best muted and the last in the accent colour, with both
-times, the gap and the folder. `apexsim.telemetry.Laps` logs what is held.
+to `UApexLapTraceWidget`: speed, throttle and brake, and the time one lap
+loses or gains on another (`ApexLapTrace::DeltaByDistance`) by distance.
+Two steppers pick the laps from `GetLaps`: LAP (drawn in the accent
+colour; the last, or the one before when the last is the best) and
+AGAINST (muted; the best), each read out as lap, time and BEST / INV, with
+both laps' times and dates, the gap and the folder above.
+`apexsim.telemetry.Laps` logs what is held and the lap being recorded.
 
 `scripts/motec_export.py <lap.csv>... [-o out.ld] [--rate 20] [--driver
 NAME]` turns one or more of these CSVs, in driving order, into a MoTeC i2

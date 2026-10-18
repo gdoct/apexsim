@@ -111,6 +111,12 @@ private:
 	UFUNCTION()
 	void HandlePitPlanChanged(UApexStepperWidget* Control, int32 Value);
 
+	/** The lap traces' LAP or AGAINST stepper moved: the graph and legend redrawn. */
+	UFUNCTION()
+	void HandleLapTracePicked(UApexStepperWidget* Control, int32 Value);
+	/** The graph and legend for the steppers' two laps (UApexLapTraceSubsystem::GetLaps). */
+	void ShowPickedLapTraces();
+
 	UFUNCTION()
 	void HandleButtonActivated(UApexButtonWidget* Button);
 
@@ -193,6 +199,10 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexLapTraceWidget> LapTraceGraph;
+
+	/** Which held lap is drawn (LAP) and which it is drawn against (AGAINST). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UApexStepperWidget>> LapTraceSteppers;
 
 	/** The two laps' names and times, and where the files are. */
 	UPROPERTY(Transient)

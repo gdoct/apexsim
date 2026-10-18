@@ -43,7 +43,10 @@ namespace
 	const FName ActionLapTracesDone = TEXT("LapTracesDone");
 	/** The card while the traces are up: room for a lap to read. */
 	constexpr float LapTracesCardWidth = 1240.0f;
-	constexpr float LapTraceGraphHeight = 520.0f;
+	constexpr float LapTraceGraphHeight = 460.0f;
+	/** The traces' two pickers: the lap drawn, and the one it is drawn against. */
+	enum ELapTracePick : int32 { PickLap = 0, PickAgainst, PickCount };
+	constexpr float LapTracePickReadoutWidth = 300.0f;
 
 	/** The pit plan's rows, in the order the crew works, then the request. */
 	enum EPitPlanRow : int32 { PlanTyres = 0, PlanFuel, PlanRepair, PlanPads, PlanPadSet, PlanBox, PlanRowCount };
@@ -83,7 +86,7 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	PitPlanRow = AddRow(Actions, TEXT("PIT PLAN"), TEXT("Crew's call"), ActionPitPlan, false);
 	PitPlanRow->SetVisibility(ESlateVisibility::Collapsed);
 	// The last lap against the best, by distance; once a lap is on record.
-	LapTracesRow = AddRow(Actions, TEXT("LAP TRACES"), TEXT("Last against best"), ActionLapTraces, false);
+	LapTracesRow = AddRow(Actions, TEXT("LAP TRACES"), TEXT("Any two laps"), ActionLapTraces, false);
 	LapTracesRow->SetVisibility(ESlateVisibility::Collapsed);
 	// A hotlap's way back in: the car is parked, repaired and out of the way,
 	// with the setup card up. Collapsed in every other mode and in the garage.
@@ -162,6 +165,20 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 		LapTracesLegend = MakeText(*WidgetTree, FString(), Font::Mono(12.0f, 60), Palette::TextPrimary);
 		LapTracesLegend->SetAutoWrapText(true);
 		AddV(Traces, LapTracesLegend, FMargin(6.0f, 0.0f, 6.0f, 12.0f));
+		// Any two held laps: LAP is drawn in the accent, AGAINST muted.
+		UHorizontalBox* Picks = WidgetTree->ConstructWidget<UHorizontalBox>();
+		static const TCHAR* const PickLabels[PickCount] = { TEXT("LAP"), TEXT("AGAINST") };
+		for (int32 Index = 0; Index < PickCount; ++Index)
+		{
+			AddH(Picks, MakeText(*WidgetTree, PickLabels[Index], Font::Display(20.0f), Palette::TextPrimary),
+				FMargin(6.0f, 0.0f, 12.0f, 0.0f), VAlign_Center);
+			UApexStepperWidget* Stepper = WidgetTree->ConstructWidget<UApexStepperWidget>();
+			Stepper->Index = Index;
+			Stepper->OnChanged.AddDynamic(this, &UApexPauseMenuWidget::HandleLapTracePicked);
+			AddH(Picks, Stepper, FMargin(0.0f, 0.0f, 24.0f, 0.0f), VAlign_Center);
+			LapTraceSteppers.Add(Stepper);
+		}
+		AddV(Traces, MakeSized(*WidgetTree, Picks, -1.0f, PitPlanRowHeight), FMargin(0.0f, 0.0f, 0.0f, 10.0f));
 		LapTraceGraph = WidgetTree->ConstructWidget<UApexLapTraceWidget>();
 		AddV(Traces, MakeSized(*WidgetTree, LapTraceGraph, -1.0f, LapTraceGraphHeight), FMargin(6.0f, 0.0f));
 		LapTracesNote = MakeText(*WidgetTree, FString(), Font::Mono(10.0f, 60), Palette::TextMuted);
@@ -284,7 +301,8 @@ void UApexPauseMenuWidget::FocusDefault()
 {
 	if (bLapTracesOpen)
 	{
-		if (!ApexNav::Focus(LapTracesDoneButton))
+		UWidget* First = LapTraceSteppers.Num() > 0 ? ApexNav::FindFirstFocusable(LapTraceSteppers[0]) : nullptr;
+		if (!ApexNav::Focus(First) && !ApexNav::Focus(LapTracesDoneButton))
 		{
 			SetKeyboardFocus();
 		}
@@ -359,38 +377,37 @@ void UApexPauseMenuWidget::ClosePitPlan()
 void UApexPauseMenuWidget::OpenLapTraces()
 {
 	const UApexLapTraceSubsystem* Traces = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexLapTraceSubsystem>() : nullptr;
-	if (!LapTracesPanel || !ActionsPanel || !Traces)
+	if (!LapTracesPanel || !ActionsPanel || !Traces || LapTraceSteppers.Num() != PickCount)
 	{
 		return;
 	}
 	bLapTracesOpen = true;
-	const FApexLapTrace& Best = Traces->GetBest();
-	// The best against itself says nothing: when the last lap is the best,
-	// the lap before it is the one shown against it.
-	const bool bLastIsBest = !Traces->GetLast().IsEmpty() && !Best.IsEmpty()
-		&& Traces->GetLast().RecordedAt == Best.RecordedAt && Traces->GetLast().LapMs == Best.LapMs;
-	const FApexLapTrace& Last = bLastIsBest ? Traces->GetPrevious() : Traces->GetLast();
-	LapTraceGraph->SetTraces(Best, Last);
+	const TArray<FApexLapTrace>& Laps = Traces->GetLaps();
+	const int32 BestIndex = Traces->GetBestIndex();
+	// The last lap against the best; the best against itself says nothing,
+	// so when the last lap is the best, the lap before it is shown.
+	const int32 LapIndex = Laps.Num() > 1 && BestIndex == 0 ? 1 : 0;
+	const int32 AgainstIndex = BestIndex != INDEX_NONE ? BestIndex : FMath::Min(1, Laps.Num() - 1);
 	auto Time = [](int32 Ms) { return FString::Printf(TEXT("%d:%02d.%03d"), Ms / 60000, (Ms / 1000) % 60, Ms % 1000); };
-	TArray<FString> Legend;
-	if (!Last.IsEmpty())
+	for (UApexStepperWidget* Stepper : LapTraceSteppers)
 	{
-		Legend.Add(FString::Printf(TEXT("%s  LAP %d  %s%s"), bLastIsBest ? TEXT("THE LAP BEFORE") : TEXT("LAST"),
-			Last.LapNumber, *Time(Last.LapMs), Last.bValid ? TEXT("") : TEXT("  INVALID")));
+		Stepper->Formatter = [Traces, Time](int32 Value)
+		{
+			const TArray<FApexLapTrace>& Held = Traces->GetLaps();
+			if (!Held.IsValidIndex(Value))
+			{
+				return FString(TEXT("NO LAP"));
+			}
+			const FApexLapTrace& Lap = Held[Value];
+			return FString::Printf(TEXT("LAP %d  %s%s"), Lap.LapNumber, *Time(Lap.LapMs),
+				Value == Traces->GetBestIndex() ? TEXT("  BEST") : (Lap.bValid ? TEXT("") : TEXT("  INV")));
+		};
+		const int32 Max = FMath::Max(Laps.Num() - 1, 0);
+		Stepper->Setup(0, Max, Stepper->Index == PickLap ? LapIndex : FMath::Max(AgainstIndex, 0), LapTracePickReadoutWidth);
 	}
-	if (!Best.IsEmpty())
-	{
-		Legend.Add(FString::Printf(TEXT("BEST  %s%s"), *Time(Best.LapMs),
-			Traces->IsBestStored() ? *FString::Printf(TEXT("  (%s)"), *Best.RecordedAt.ToString(TEXT("%d %b %Y"))) : TEXT("  THIS SESSION")));
-	}
-	if (!Last.IsEmpty() && !Best.IsEmpty())
-	{
-		const int32 Gap = Last.LapMs - Best.LapMs;
-		Legend.Add(FString::Printf(TEXT("%s%.3f"), Gap >= 0 ? TEXT("+") : TEXT("-"), FMath::Abs(Gap) / 1000.0f));
-	}
-	LapTracesLegend->SetText(FText::FromString(Legend.Num() > 0 ? FString::Join(Legend, TEXT("     ")) : FString(TEXT("NO LAP YET"))));
+	ShowPickedLapTraces();
 	LapTracesNote->SetText(FText::FromString(FString::Printf(
-		TEXT("Accent: the lap; grey: the best; red: braking. Every whole lap is saved as CSV in %s"), *Traces->GetFolder())));
+		TEXT("Accent: the lap; grey: the one against it; red: braking. Every whole lap is saved as CSV in %s"), *Traces->GetFolder())));
 	ActionsPanel->SetVisibility(ESlateVisibility::Collapsed);
 	LapTracesPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	if (CardSize)
@@ -402,6 +419,53 @@ void UApexPauseMenuWidget::OpenLapTraces()
 		HeadingText->SetText(FText::FromString(TEXT("LAP TRACES")));
 	}
 	FocusDefault();
+}
+
+void UApexPauseMenuWidget::HandleLapTracePicked(UApexStepperWidget* Control, int32 Value)
+{
+	ShowPickedLapTraces();
+}
+
+void UApexPauseMenuWidget::ShowPickedLapTraces()
+{
+	const UApexLapTraceSubsystem* Traces = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexLapTraceSubsystem>() : nullptr;
+	if (!Traces || LapTraceSteppers.Num() != PickCount || !LapTraceGraph || !LapTracesLegend)
+	{
+		return;
+	}
+	const TArray<FApexLapTrace>& Laps = Traces->GetLaps();
+	static const FApexLapTrace None;
+	const int32 LapIndex = LapTraceSteppers[PickLap]->GetValue();
+	const int32 AgainstIndex = LapTraceSteppers[PickAgainst]->GetValue();
+	const FApexLapTrace& Lap = Laps.IsValidIndex(LapIndex) ? Laps[LapIndex] : None;
+	const FApexLapTrace& Against = Laps.IsValidIndex(AgainstIndex) && AgainstIndex != LapIndex ? Laps[AgainstIndex] : None;
+	LapTraceGraph->SetTraces(Against, Lap);
+	auto Time = [](int32 Ms) { return FString::Printf(TEXT("%d:%02d.%03d"), Ms / 60000, (Ms / 1000) % 60, Ms % 1000); };
+	auto Name = [&](const FApexLapTrace& Trace, int32 Index)
+	{
+		// FDateTime::ToString has no month name: "18 OCT 18:41".
+		static const TCHAR* const Months[] = { TEXT("JAN"), TEXT("FEB"), TEXT("MAR"), TEXT("APR"), TEXT("MAY"), TEXT("JUN"),
+			TEXT("JUL"), TEXT("AUG"), TEXT("SEP"), TEXT("OCT"), TEXT("NOV"), TEXT("DEC") };
+		const FString When = FString::Printf(TEXT("%d %s %s"), Trace.RecordedAt.GetDay(),
+			Months[FMath::Clamp(Trace.RecordedAt.GetMonth(), 1, 12) - 1], *Trace.RecordedAt.ToString(TEXT("%H:%M")));
+		return FString::Printf(TEXT("LAP %d  %s  %s%s%s"), Trace.LapNumber, *Time(Trace.LapMs), *When,
+			Index == Traces->GetBestIndex() ? TEXT("  BEST") : TEXT(""), Trace.bValid ? TEXT("") : TEXT("  INVALID"));
+	};
+	TArray<FString> Legend;
+	if (!Lap.IsEmpty())
+	{
+		Legend.Add(Name(Lap, LapIndex));
+	}
+	if (!Against.IsEmpty())
+	{
+		Legend.Add(FString::Printf(TEXT("AGAINST %s"), *Name(Against, AgainstIndex)));
+	}
+	if (!Lap.IsEmpty() && !Against.IsEmpty())
+	{
+		const int32 Gap = Lap.LapMs - Against.LapMs;
+		Legend.Add(FString::Printf(TEXT("%s%.3f"), Gap >= 0 ? TEXT("+") : TEXT("-"), FMath::Abs(Gap) / 1000.0f));
+	}
+	LapTracesLegend->SetText(FText::FromString(Legend.Num() > 0 ? FString::Join(Legend, TEXT("     ")) : FString(TEXT("NO LAP YET"))));
 }
 
 void UApexPauseMenuWidget::CloseLapTraces()
@@ -697,8 +761,8 @@ bool UApexPauseMenuWidget::HandleNavigation(EUINavigation Direction, UWidget* So
 {
 	if (bLapTracesOpen)
 	{
-		// Done is the page's one control.
-		ApexNav::Focus(LapTracesDoneButton);
+		// The two pickers, then Done: the nearest control that way.
+		ApexNav::MoveToward(this, Direction, Source);
 		return true;
 	}
 	if (bPitPlanOpen)

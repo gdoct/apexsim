@@ -1,5 +1,7 @@
 #include "ApexTestCommon.h"
 #include "Race/ApexLapTrace.h"
+#include "Race/ApexLapTraceSubsystem.h"
+#include "Engine/GameInstance.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -159,6 +161,36 @@ bool FApexLapTraceCsvTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("level at half way"), Delta[50].Y, 0.0f, 0.01f);
 	TestEqual(TEXT("a second down at the line"), Delta.Last().Y, 1.0f, 0.01f);
 	TestEqual(TEXT("in between, half"), Delta[75].Y, 0.5f, 0.01f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexLapTraceHeldLapsTest, "ApexSim.LapTrace.HeldLaps", ApexTestFlags)
+
+bool FApexLapTraceHeldLapsTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexLapTraceTest;
+	// Three whole laps at 50, 55 and 45 m/s: the list is newest first and
+	// knows which is the best (the second, at 55 m/s).
+	UGameInstance* GameInstance = NewObject<UGameInstance>();
+	UApexLapTraceSubsystem* Traces = NewObject<UApexLapTraceSubsystem>(GameInstance);
+	FDrive Drive;
+	const float Speeds[] = { 50.0f, 55.0f, 45.0f, 45.0f };
+	for (int32 Frame = 0; Frame < 60 * 80 && Traces->GetLaps().Num() < 3; ++Frame)
+	{
+		Drive.SpeedMps = Speeds[FMath::Clamp(Drive.Lap - 1, 0, 3)];
+		FApexTelemetryFrame Telemetry;
+		Telemetry.Cars.Add(Drive.Step());
+		Traces->AddFrameForTest(Telemetry, 0, TEXT("Test Ring"), TEXT("Test Car"));
+	}
+	const TArray<FApexLapTrace>& Laps = Traces->GetLaps();
+	TestEqual(TEXT("three laps held"), Laps.Num(), 3);
+	if (Laps.Num() == 3)
+	{
+		TestEqual(TEXT("newest first"), Laps[0].LapNumber, 3);
+		TestEqual(TEXT("then the one before"), Laps[2].LapNumber, 1);
+		TestEqual(TEXT("the best is lap 2"), Traces->GetBestIndex(), 1);
+		TestEqual(TEXT("the last is the newest"), Traces->GetLast().LapNumber, Laps[0].LapNumber);
+	}
 	return true;
 }
 

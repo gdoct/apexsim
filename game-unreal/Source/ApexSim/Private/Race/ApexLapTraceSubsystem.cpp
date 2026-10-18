@@ -34,10 +34,10 @@ namespace
 			{
 				return;
 			}
-			UE_LOG(LogApexSim, Display, TEXT("Lap traces: %d recorded this run; last %d ms (%d samples), best %d ms (%d samples%s); files in %s"),
-				Traces->GetLapsRecorded(), Traces->GetLast().LapMs, Traces->GetLast().Samples.Num(),
+			UE_LOG(LogApexSim, Display, TEXT("Lap traces: %d recorded this run, %d held; last %d ms (%d samples), best %d ms (%d samples%s); recording %s; files in %s"),
+				Traces->GetLapsRecorded(), Traces->GetLaps().Num(), Traces->GetLast().LapMs, Traces->GetLast().Samples.Num(),
 				Traces->GetBest().LapMs, Traces->GetBest().Samples.Num(), Traces->IsBestStored() ? TEXT(", stored") : TEXT(""),
-				*Traces->GetFolder());
+				*Traces->DescribeRecorder(), *Traces->GetFolder());
 		}));
 }
 
@@ -108,6 +108,7 @@ void UApexLapTraceSubsystem::Begin(const FString& TrackName, const FString& CarI
 	Last = FApexLapTrace();
 	Previous = FApexLapTrace();
 	Best = FApexLapTrace();
+	Laps.Reset();
 	bBestStored = false;
 	Folder = FolderFor(TrackName, CarId);
 	if (!bWriteFiles)
@@ -116,29 +117,54 @@ void UApexLapTraceSubsystem::Begin(const FString& TrackName, const FString& CarI
 	}
 	// The quickest valid lap kept from an earlier session: the file names
 	// carry the time, so only the best one is read whole.
+	// Every stored lap is read (the files are a lap each): the newest are
+	// listed for the page, and the quickest valid one is the best.
 	TArray<FString> Files;
 	IFileManager::Get().FindFiles(Files, *FPaths::Combine(Folder, TEXT("*.csv")), true, false);
 	int32 BestMs = MAX_int32;
 	for (const FString& File : Files)
 	{
-		if (File.Contains(TEXT("_invalid")))
+		FString Text;
+		FApexLapTrace Stored;
+		if (!FFileHelper::LoadFileToString(Text, *FPaths::Combine(Folder, File)) || !ApexLapTrace::FromCsv(Text, Stored))
 		{
 			continue;
 		}
-		FString Text;
-		FApexLapTrace Stored;
-		if (FFileHelper::LoadFileToString(Text, *FPaths::Combine(Folder, File)) && ApexLapTrace::FromCsv(Text, Stored)
-			&& Stored.bValid && Stored.LapMs > 0 && Stored.LapMs < BestMs)
+		if (Stored.bValid && Stored.LapMs > 0 && Stored.LapMs < BestMs)
 		{
 			BestMs = Stored.LapMs;
-			Best = MoveTemp(Stored);
+			Best = Stored;
 			bBestStored = true;
+		}
+		Laps.Add(MoveTemp(Stored));
+	}
+	Laps.Sort([](const FApexLapTrace& A, const FApexLapTrace& B) { return A.RecordedAt > B.RecordedAt; });
+	const int32 BestIndex = GetBestIndex();
+	if (Laps.Num() > MaxListedLaps)
+	{
+		FApexLapTrace KeptBest = BestIndex >= MaxListedLaps ? Laps[BestIndex] : FApexLapTrace();
+		Laps.SetNum(MaxListedLaps);
+		if (!KeptBest.IsEmpty())
+		{
+			Laps.Add(MoveTemp(KeptBest));
 		}
 	}
 	if (bBestStored)
 	{
 		UE_LOG(LogApexSim, Log, TEXT("Lap traces: the stored best here is %d ms (%s)"), Best.LapMs, *Folder);
 	}
+}
+
+int32 UApexLapTraceSubsystem::GetBestIndex() const
+{
+	if (Best.IsEmpty())
+	{
+		return INDEX_NONE;
+	}
+	return Laps.IndexOfByPredicate([this](const FApexLapTrace& Lap)
+	{
+		return Lap.LapMs == Best.LapMs && Lap.RecordedAt == Best.RecordedAt && Lap.LapNumber == Best.LapNumber;
+	});
 }
 
 void UApexLapTraceSubsystem::Take(const FApexTelemetryFrame& Frame, int32 LocalCarIndex, const FString& TrackName, const FString& CarId)
@@ -176,6 +202,13 @@ void UApexLapTraceSubsystem::Take(const FApexTelemetryFrame& Frame, int32 LocalC
 				UE_LOG(LogApexSim, Log, TEXT("Lap trace: lap %d, %d ms%s, %d samples -> %s"), Lap.LapNumber, Lap.LapMs,
 					Lap.bValid ? TEXT("") : TEXT(" (invalid)"), Lap.Samples.Num(), *Path);
 			}
+		}
+		Laps.Insert(Lap, 0);
+		// The list keeps its length: the oldest lap that is not the best goes.
+		if (Laps.Num() > MaxListedLaps + 1)
+		{
+			const int32 Keep = GetBestIndex();
+			Laps.RemoveAt(Keep == Laps.Num() - 1 ? Laps.Num() - 2 : Laps.Num() - 1);
 		}
 		Previous = MoveTemp(Last);
 		Last = MoveTemp(Lap);

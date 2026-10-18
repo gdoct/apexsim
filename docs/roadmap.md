@@ -54,13 +54,12 @@ against best by distance ([game/client.md](game/client.md#lap-traces-raceapexlap
 Left:
 
 - Comparing against the ghost or the hotlap record (the server's
-  `GhostLap` traces are 20 Hz positions only), and picking any two stored
-  laps.
+  `GhostLap` traces are 20 Hz positions only).
 
-The MoTeC i2 export is built (`scripts/motec_export.py`).
+Built: the MoTeC i2 export (`scripts/motec_export.py`) and any two held
+laps against each other in the pause menu.
 
-**Check:** the pause menu comparing a lap against the ghost and against
-any stored lap.
+**Check:** the pause menu comparing a lap against the ghost.
 
 ### 7. Championships
 

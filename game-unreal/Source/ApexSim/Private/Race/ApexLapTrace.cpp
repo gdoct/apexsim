@@ -1,5 +1,7 @@
 #include "Race/ApexLapTrace.h"
 
+#include "ApexSim.h"
+
 namespace
 {
 	/** A lap starts here or not at all: within this of the line, and this soon. */
@@ -185,6 +187,11 @@ bool FApexLapRecorder::Add(const FApexCarTelemetry& Car, FApexLapTrace& OutLap)
 			OutLap = MoveTemp(Current);
 			bCompleted = true;
 		}
+		else if (CurrentLap >= 1 && bWhole)
+		{
+			UE_LOG(LogApexSim, Log, TEXT("Lap trace: lap %d not kept at the line: counter %d -> %d, last lap %d ms, %d samples"),
+				CurrentLap, CurrentLap, Car.CurrentLap, Car.LastLapTimeMs, Current.Samples.Num());
+		}
 		Current = FApexLapTrace();
 		CurrentLap = Car.CurrentLap;
 		LastDistanceM = -1.0f;
@@ -198,6 +205,8 @@ bool FApexLapRecorder::Add(const FApexCarTelemetry& Car, FApexLapTrace& OutLap)
 	if (Car.bInGarage || Car.IsRecovering() || (Car.bInPitLane && Car.bPitServicing))
 	{
 		// Parked, towed or serviced: no lap to compare.
+		UE_LOG(LogApexSim, Log, TEXT("Lap trace: lap %d broken at %.0f m: %s"), CurrentLap, Car.TrackProgress,
+			Car.bInGarage ? TEXT("in the garage") : Car.IsRecovering() ? TEXT("recovering") : TEXT("serviced"));
 		bWhole = false;
 		return bCompleted;
 	}
@@ -219,6 +228,7 @@ bool FApexLapRecorder::Add(const FApexCarTelemetry& Car, FApexLapTrace& OutLap)
 		}
 		if (FMath::Abs(Distance - LastDistanceM) > LapTraceHoleM)
 		{
+			UE_LOG(LogApexSim, Log, TEXT("Lap trace: lap %d broken by a jump from %.0f m to %.0f m"), CurrentLap, LastDistanceM, Distance);
 			bWhole = false;
 			return bCompleted;
 		}

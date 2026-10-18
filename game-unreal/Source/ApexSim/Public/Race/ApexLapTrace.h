@@ -93,6 +93,13 @@ public:
 	 */
 	bool Add(const FApexCarTelemetry& Car, FApexLapTrace& OutLap);
 
+	/** The lap being recorded, for the console's report: its counter, whether it is still whole, its samples. */
+	FString Describe() const
+	{
+		return FString::Printf(TEXT("lap %d %s, %d samples to %.0f m"), CurrentLap, bWhole ? TEXT("whole") : TEXT("broken"),
+			Current.Samples.Num(), LastDistanceM);
+	}
+
 private:
 	FApexLapTrace Current;
 	int32 CurrentLap = -1;

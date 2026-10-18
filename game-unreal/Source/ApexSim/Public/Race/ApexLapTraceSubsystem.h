@@ -31,11 +31,22 @@ public:
 	const FApexLapTrace& GetPrevious() const { return Previous; }
 	/** The quickest valid lap on this circuit and car: this session's or a stored one. */
 	const FApexLapTrace& GetBest() const { return Best; }
+	/**
+	 * Every whole lap held for this circuit and car, newest first: this
+	 * session's and the newest MaxListedLaps stored ones, the stored best
+	 * kept whatever its age. What the LAP TRACES page picks two from.
+	 */
+	const TArray<FApexLapTrace>& GetLaps() const { return Laps; }
+	/** Index of the best in GetLaps(); INDEX_NONE without one. */
+	int32 GetBestIndex() const;
+	static constexpr int32 MaxListedLaps = 40;
 	/** Whether Best came from an earlier session's file. */
 	bool IsBestStored() const { return bBestStored; }
 	/** Where this circuit and car's laps are written. */
 	FString GetFolder() const { return Folder; }
 	int32 GetLapsRecorded() const { return LapsRecorded; }
+	/** The recorder's lap in progress (FApexLapRecorder::Describe). */
+	FString DescribeRecorder() const { return Recorder.Describe(); }
 
 	/** The folder for a circuit and car: Saved/Telemetry/<circuit>/<car>. */
 	static FString FolderFor(const FString& TrackName, const FString& CarId);
@@ -54,6 +65,7 @@ private:
 	FApexLapTrace Last;
 	FApexLapTrace Previous;
 	FApexLapTrace Best;
+	TArray<FApexLapTrace> Laps;
 	bool bBestStored = false;
 	FString Key;
 	FString Folder;

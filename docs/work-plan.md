@@ -40,7 +40,7 @@ When an item is done, delete it from its backlog and from here.
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S |
 | N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L |
-| N6 | Lap comparison against the ghost and any two laps (MoTeC export built) | Driver tools | P3 | 🟢 | S |
+| N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S |
 | N7 | Championships and series with points | Game mode | P2 | 🔴 | M |
 | N8 | Public server list (master server) | Online | P2 | 🔴 | M |
 | N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🔴 | M |
@@ -342,11 +342,11 @@ AI that yields to and passes across classes; grid by class.
 stresses A3 (side-by-side); results and records keyed by class.
 
 #### N6. Lap comparison: the ghost, any two laps, MoTeC — P3 · 🟢 · S
-Built: every whole lap recorded and saved as CSV, the pause menu's last
-against best by distance. Left: comparing against the ghost or the hotlap
-record (the server's ghost traces are 20 Hz positions only), picking any
-two stored laps. The MoTeC i2 export is built (`scripts/motec_export.py`,
-not yet opened in i2: verification.md).
+Built: every whole lap recorded and saved as CSV, any two held laps against
+each other by distance in the pause menu (seen on 2026-10-18,
+`n6-lap-traces`), and the MoTeC i2 export (`scripts/motec_export.py`, not
+yet opened in i2: verification.md). Left: comparing against the ghost or
+the hotlap record (the server's ghost traces are 20 Hz positions only).
 
 #### N7. Championships and series with points — P2 · 🔴 · M
 **What:** No points table across races; R3 covers one weekend only.
