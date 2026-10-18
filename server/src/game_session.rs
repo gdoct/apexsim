@@ -5957,9 +5957,15 @@ impl GameSession {
         } else {
             self.pit_plan(player_id).unwrap_or_default()
         };
+        // A stop the server planned (an AI's, or a car it drives for a
+        // driver: a debug stand-in, an away driver) fits the compound it was
+        // planned for, unless the driver ordered one: the setup's pick there
+        // brought the car back in every lap to change off it.
+        let planned_by_server =
+            is_ai || self.debug.stand_in_driver || self.away.contains(player_id);
         let compound = if fuel_only || orders.keep_tyres {
             state.tyre_compound
-        } else if is_ai {
+        } else if planned_by_server && state.pit.wants_stop && orders.compound.is_none() {
             state.pit.next_compound
         } else {
             let tyre = self

@@ -490,6 +490,73 @@ fn an_away_drivers_car_is_brought_in_for_its_stop() {
     );
 }
 
+/// A car the server drives for its driver (away, or a debug stand-in) on a
+/// setup that asks for the wet, in the dry: the planner brings it in for
+/// slicks, and the crew fit the slicks it was brought in for, not the
+/// setup's wet, so it does not come back in every lap to change off them.
+#[test]
+fn a_server_planned_stop_fits_the_compound_it_was_planned_for() {
+    let track = monza();
+    if track.pit_lane.is_none() {
+        return;
+    }
+    let car = CarLoader::load_from_file(Path::new(
+        "../content/cars/default/limbotiti-caravan-gt3/car.toml",
+    ))
+    .expect("car loads");
+    let car_id = car.id;
+    let wet = car
+        .tire_config
+        .compounds()
+        .iter()
+        .position(|c| c.name == "wet")
+        .expect("a wet") as u8;
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car);
+    let session = RaceSession::new(
+        Uuid::from_u128(1),
+        Uuid::nil(),
+        SessionKind::Multiplayer,
+        8,
+        0,
+        6,
+    );
+    let mut gs = GameSession::new(session, track, car_configs);
+    let player = Uuid::from_u128(100);
+    gs.add_player(player, car_id).expect("seat");
+    // One click from the reference slick: the wet.
+    gs.set_car_setup(
+        &player,
+        CarSetup {
+            tyre_compound: -1,
+            ..Default::default()
+        },
+    );
+    gs.start_countdown_mode(1, GameMode::Race);
+    assert_eq!(
+        gs.session.participants[&player].tyre_compound, wet,
+        "starts on the setup's wet"
+    );
+    assert!(gs.hold_seat(&player), "the seat is held");
+
+    let mut first_stop_at = None;
+    for tick in 0..(HZ * 60 * 6) {
+        let inputs: HashMap<PlayerId, PlayerInputData> = [(player, gs.away_input(&player))].into();
+        gs.tick(&inputs);
+        let s = &gs.session.participants[&player];
+        if first_stop_at.is_none() && s.pit.stops == 1 {
+            first_stop_at = Some(tick);
+        }
+        if first_stop_at.is_some_and(|t| tick > t + HZ * 150) {
+            break;
+        }
+    }
+    let s = &gs.session.participants[&player];
+    assert!(first_stop_at.is_some(), "brought in for slicks");
+    assert_ne!(s.tyre_compound, wet, "on the slicks it was brought in for");
+    assert_eq!(s.pit.stops, 1, "and not brought in again");
+}
+
 /// A human's car is handed back no slower than this under what the lane
 /// allows there (its limit, or its bend), m/s: the autopilot does not slow
 /// for the exit taper past the line.

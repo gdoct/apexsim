@@ -151,7 +151,10 @@ Called inside `update_air` before the physics, and in the countdown.
   (`start_service` -> `pit::plan_service`), held still by the physics. The
   crew works in order, unless the driver's plan says otherwise (below): tyres (`F1_TYRE_CHANGE_S` 2.5 s, else
   `TYRE_CHANGE_S` 9 s; the driver's setup compound via
-  `CarSetup::compound_index_for`, the AI's planned one), fuel where the
+  `CarSetup::compound_index_for`, the AI's planned one, and the planned
+  one too for a stop the server planned for a car it drives for its
+  driver, a debug stand-in or an away driver, unless the driver's plan
+  names a compound), fuel where the
   rules allow (not an F1, unless the race outruns its tank:
   `GameSession::refuels`, [ai.md](ai.md); 0.5 L or more at `REFUEL_LPS` 2 L/s; in a race to
   the remaining distance with the race margin; on a circuit with no pit
