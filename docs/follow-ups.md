@@ -146,6 +146,10 @@ them yet, and the server leaves a few edges.
   one and its laps left on the HUD (`penalty.*` data points), PEN with the
   seconds in the standings and tower, and the results' times with them
   (the server's classification already adds them).
+- The yellow comes out the tick a car is off the road, slow or in
+  contact: a quick step off the track raises a yellow, and with it no
+  overtaking, at once. A second or two of confirmation first (work plan
+  R5).
 - The time penalty for a pass under a yellow is given even when the place
   is handed back at once.
 - The formation lap holds the grid's tyre warmth but puts none in (a

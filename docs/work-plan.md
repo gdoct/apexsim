@@ -32,6 +32,7 @@ When an item is done, delete it from its backlog and from here.
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
 | D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🔴 | M |
+| R5 | Yellow flag waits before it stops overtaking (a quick step off is no incident) | Race rules | P2 | 🟢 | S |
 | R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🔴 | L |
 | S1 | Road crown and bumps | Simulation | P2 | 🟡 | M |
 | A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L |
@@ -145,6 +146,24 @@ Saturday, race Sunday, same drivers, results kept.
 **Watch out:** 🔴 because the identity model is a product decision (accounts?
 tokens? trust?) — decide before building. Keep the sim path free of
 persistence reads.
+
+#### R5. A yellow only for a real incident — P2 · 🟢 · S
+*Source: your note, 2026-10-18.*
+
+**What:** The yellow comes out too fast: a car is an incident the tick it
+is off the road, slow, backing up or in contact (`race_control`,
+`INCIDENT_SPEED_MPS`), so a quick step over the white line or a brush
+raises a yellow, and with it no overtaking, at once.
+**Outcome:** A second or two before a flag means no overtaking; a car that
+puts a wheel off and is straight back on raises none.
+**Implementation:** A per-car incident timer: off the road, slow or
+backing up must last `INCIDENT_CONFIRM_S` (about 1.5 s) before the car
+is an incident (a stop on the road or a crash at once is still at once,
+e.g. under 3 m/s or a heavy hit); passes are judged under a yellow only
+from when it is shown, and the HUD's warning follows the same flag.
+**Watch out:** the safety car's and VSC's stranded-car trigger and the
+AI's yellow pace read the same flags; check `race_control` tests,
+`penalty_test`, `safety_car_test` and the survey's pass counts.
 
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
 - Qualifying tyre allowance and starting on the qualifying tyres.
