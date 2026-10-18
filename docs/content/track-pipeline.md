@@ -163,7 +163,10 @@ not place, with the reason, and which entries lost props to the water, a
 city block or the pit zone. Every prop the pass lays carries a **source
 stamp** (`Prop::source` in the `.ats`: `stand Tribune F1`, `building Pit
 building`, `bridge ...`, `landmark ...`, `furniture <asset>`, `street
-lamps`, `surroundings`, `kerb pieces`; the groom pass stamps `groom
+lamps`, `surroundings: <sub-layer>` (`car parks`, `camp sites`,
+`spectator banks`, `village`, `points of interest`, `forest`, `marshal
+posts`, `corner signs`, `floodlights`; a named car park, camp site or
+village as `surroundings: car park P1`), `kerb pieces`; the groom pass stamps `groom
 barrier` / `wall` / `board` / `hoarding` / `rail tag` / `tree`, adopted props
 included). `--explain` prints the scene by stamp and asset after the
 counts, with the skips, and what no pass owns (hand-placed, or laid before

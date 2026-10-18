@@ -1792,7 +1792,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9822,
@@ -1804,7 +1804,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9823,
@@ -1816,7 +1816,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9824,
@@ -1828,7 +1828,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9825,
@@ -1840,7 +1840,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9826,
@@ -1852,7 +1852,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9827,
@@ -1864,7 +1864,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9828,
@@ -1876,7 +1876,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9829,
@@ -1888,7 +1888,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9830,
@@ -1900,7 +1900,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9831,
@@ -1912,7 +1912,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9832,
@@ -1924,7 +1924,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9833,
@@ -1936,7 +1936,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9834,
@@ -1948,7 +1948,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9835,
@@ -1960,7 +1960,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9836,
@@ -1972,7 +1972,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9837,
@@ -1984,7 +1984,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9838,
@@ -1996,7 +1996,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9839,
@@ -2008,7 +2008,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9840,
@@ -2020,7 +2020,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9841,
@@ -2032,7 +2032,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9842,
@@ -2044,7 +2044,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9843,
@@ -2056,7 +2056,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9844,
@@ -2068,7 +2068,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9845,
@@ -2080,7 +2080,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9846,
@@ -2092,7 +2092,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9847,
@@ -2104,7 +2104,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9848,
@@ -2116,7 +2116,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9849,
@@ -2128,7 +2128,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9850,
@@ -2140,7 +2140,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9851,
@@ -2152,7 +2152,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9852,
@@ -2164,7 +2164,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9853,
@@ -2176,7 +2176,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9854,
@@ -2188,7 +2188,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9855,
@@ -2200,7 +2200,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9856,
@@ -2212,7 +2212,7 @@
       "yaw_rad": 1.07,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9857,
@@ -2224,7 +2224,7 @@
       "yaw_rad": 1.12,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9858,
@@ -2236,7 +2236,7 @@
       "yaw_rad": 1.19,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9859,
@@ -2248,7 +2248,7 @@
       "yaw_rad": 1.24,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9860,
@@ -2260,7 +2260,7 @@
       "yaw_rad": 1.29,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9861,
@@ -2272,7 +2272,7 @@
       "yaw_rad": 1.34,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9862,
@@ -2284,7 +2284,7 @@
       "yaw_rad": 1.36,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9863,
@@ -2296,7 +2296,7 @@
       "yaw_rad": 1.36,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9864,
@@ -2308,7 +2308,7 @@
       "yaw_rad": 1.34,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9865,
@@ -2320,7 +2320,7 @@
       "yaw_rad": 1.29,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9866,
@@ -2332,7 +2332,7 @@
       "yaw_rad": 1.24,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9867,
@@ -2344,7 +2344,7 @@
       "yaw_rad": 1.26,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9868,
@@ -2356,7 +2356,7 @@
       "yaw_rad": 1.2,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9869,
@@ -2368,7 +2368,7 @@
       "yaw_rad": 1.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9870,
@@ -2380,7 +2380,7 @@
       "yaw_rad": 1.09,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9871,
@@ -2392,7 +2392,7 @@
       "yaw_rad": 1.07,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9872,
@@ -2404,7 +2404,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9873,
@@ -2416,7 +2416,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9874,
@@ -2428,7 +2428,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 9875,
@@ -2440,7 +2440,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12967,
@@ -2452,7 +2452,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12968,
@@ -2464,7 +2464,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12969,
@@ -2476,7 +2476,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12970,
@@ -2488,7 +2488,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12971,
@@ -2500,7 +2500,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12972,
@@ -2512,7 +2512,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12973,
@@ -2524,7 +2524,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12974,
@@ -2536,7 +2536,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12975,
@@ -2548,7 +2548,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12976,
@@ -2560,7 +2560,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12977,
@@ -2572,7 +2572,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12978,
@@ -2584,7 +2584,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12979,
@@ -2596,7 +2596,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12980,
@@ -2608,7 +2608,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12981,
@@ -2620,7 +2620,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12982,
@@ -2632,7 +2632,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12983,
@@ -2644,7 +2644,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12984,
@@ -2656,7 +2656,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12985,
@@ -2668,7 +2668,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12986,
@@ -2680,7 +2680,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12987,
@@ -2692,7 +2692,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12988,
@@ -2704,7 +2704,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12989,
@@ -2716,7 +2716,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12990,
@@ -2728,7 +2728,7 @@
       "yaw_rad": 1.09,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12991,
@@ -2740,7 +2740,7 @@
       "yaw_rad": 1.05,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12992,
@@ -2752,7 +2752,7 @@
       "yaw_rad": 0.96,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12993,
@@ -2764,7 +2764,7 @@
       "yaw_rad": 0.83,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12994,
@@ -2776,7 +2776,7 @@
       "yaw_rad": 0.77,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12995,
@@ -2788,7 +2788,7 @@
       "yaw_rad": 0.83,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12996,
@@ -2800,7 +2800,7 @@
       "yaw_rad": 0.94,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12997,
@@ -2812,7 +2812,7 @@
       "yaw_rad": 1.02,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12998,
@@ -2824,7 +2824,7 @@
       "yaw_rad": 1.07,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 12999,
@@ -2836,7 +2836,7 @@
       "yaw_rad": 1.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13000,
@@ -2848,7 +2848,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13001,
@@ -2860,7 +2860,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13002,
@@ -2872,7 +2872,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13003,
@@ -2884,7 +2884,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13004,
@@ -2896,7 +2896,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13005,
@@ -2908,7 +2908,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13006,
@@ -2920,7 +2920,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13007,
@@ -2932,7 +2932,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13008,
@@ -2944,7 +2944,7 @@
       "yaw_rad": 1.26,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13009,
@@ -2956,7 +2956,7 @@
       "yaw_rad": 1.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13010,
@@ -2968,7 +2968,7 @@
       "yaw_rad": 1.06,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13011,
@@ -2980,7 +2980,7 @@
       "yaw_rad": 1.06,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13012,
@@ -2992,7 +2992,7 @@
       "yaw_rad": 1.16,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13013,
@@ -3004,7 +3004,7 @@
       "yaw_rad": 1.29,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13014,
@@ -3016,7 +3016,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13015,
@@ -3028,7 +3028,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13016,
@@ -3040,7 +3040,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13017,
@@ -3052,7 +3052,7 @@
       "yaw_rad": 2.57,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13018,
@@ -3064,7 +3064,7 @@
       "yaw_rad": 2.75,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13019,
@@ -3076,7 +3076,7 @@
       "yaw_rad": 2.77,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13020,
@@ -3088,7 +3088,7 @@
       "yaw_rad": 2.77,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13021,
@@ -3100,7 +3100,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13022,
@@ -3112,7 +3112,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13023,
@@ -3124,7 +3124,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13024,
@@ -3136,7 +3136,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13025,
@@ -3148,7 +3148,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13026,
@@ -3160,7 +3160,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13027,
@@ -3172,7 +3172,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13028,
@@ -3184,7 +3184,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13029,
@@ -3196,7 +3196,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13030,
@@ -3208,7 +3208,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13031,
@@ -3220,7 +3220,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13032,
@@ -3232,7 +3232,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13033,
@@ -3244,7 +3244,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13034,
@@ -3256,7 +3256,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13035,
@@ -3268,7 +3268,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13036,
@@ -3280,7 +3280,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13037,
@@ -3292,7 +3292,7 @@
       "yaw_rad": 0.74,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13038,
@@ -3304,7 +3304,7 @@
       "yaw_rad": 0.65,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13039,
@@ -3316,7 +3316,7 @@
       "yaw_rad": 0.57,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13040,
@@ -3328,7 +3328,7 @@
       "yaw_rad": 0.51,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13041,
@@ -3340,7 +3340,7 @@
       "yaw_rad": 0.46,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13042,
@@ -3352,7 +3352,7 @@
       "yaw_rad": 0.45,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13043,
@@ -3364,7 +3364,7 @@
       "yaw_rad": 0.49,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13044,
@@ -3376,7 +3376,7 @@
       "yaw_rad": 0.54,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13045,
@@ -3388,7 +3388,7 @@
       "yaw_rad": 0.62,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13046,
@@ -3400,7 +3400,7 @@
       "yaw_rad": 0.71,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13047,
@@ -3412,7 +3412,7 @@
       "yaw_rad": 0.83,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13048,
@@ -3424,7 +3424,7 @@
       "yaw_rad": 0.89,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13049,
@@ -3436,7 +3436,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13050,
@@ -3448,7 +3448,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13051,
@@ -3460,7 +3460,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13052,
@@ -3472,7 +3472,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13053,
@@ -3484,7 +3484,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13054,
@@ -3496,7 +3496,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13055,
@@ -3508,7 +3508,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13056,
@@ -3520,7 +3520,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13057,
@@ -3532,7 +3532,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13058,
@@ -3544,7 +3544,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13059,
@@ -3556,7 +3556,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13060,
@@ -3568,7 +3568,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13061,
@@ -3580,7 +3580,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13062,
@@ -3592,7 +3592,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13063,
@@ -3604,7 +3604,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13064,
@@ -3616,7 +3616,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13065,
@@ -3628,7 +3628,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13066,
@@ -3640,7 +3640,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13067,
@@ -3652,7 +3652,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13068,
@@ -3664,7 +3664,7 @@
       "yaw_rad": -2.86,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13069,
@@ -3676,7 +3676,7 @@
       "yaw_rad": -2.15,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13070,
@@ -3688,7 +3688,7 @@
       "yaw_rad": -1.91,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13071,
@@ -3700,7 +3700,7 @@
       "yaw_rad": 0.99,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park GP Paddock"
     },
     {
       "id": 13072,
@@ -3712,7 +3712,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13073,
@@ -3724,7 +3724,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13074,
@@ -3736,7 +3736,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13075,
@@ -3748,7 +3748,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13076,
@@ -3760,7 +3760,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13077,
@@ -3772,7 +3772,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13078,
@@ -3784,7 +3784,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13079,
@@ -3796,7 +3796,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13080,
@@ -3808,7 +3808,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13081,
@@ -3820,7 +3820,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13082,
@@ -3832,7 +3832,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13083,
@@ -3844,7 +3844,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13084,
@@ -3856,7 +3856,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13085,
@@ -3868,7 +3868,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13086,
@@ -3880,7 +3880,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13087,
@@ -3892,7 +3892,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13088,
@@ -3904,7 +3904,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13089,
@@ -3916,7 +3916,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13090,
@@ -3928,7 +3928,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13091,
@@ -3940,7 +3940,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13092,
@@ -3952,7 +3952,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13093,
@@ -3964,7 +3964,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13094,
@@ -3976,7 +3976,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13095,
@@ -3988,7 +3988,7 @@
       "yaw_rad": -2.16,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13096,
@@ -4000,7 +4000,7 @@
       "yaw_rad": -2.61,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13097,
@@ -4012,7 +4012,7 @@
       "yaw_rad": -2.68,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13098,
@@ -4024,7 +4024,7 @@
       "yaw_rad": -2.69,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13099,
@@ -4036,7 +4036,7 @@
       "yaw_rad": -2.69,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13100,
@@ -4048,7 +4048,7 @@
       "yaw_rad": -2.73,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13101,
@@ -4060,7 +4060,7 @@
       "yaw_rad": -2.92,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13102,
@@ -4072,7 +4072,7 @@
       "yaw_rad": -2.92,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13103,
@@ -4084,7 +4084,7 @@
       "yaw_rad": 1.61,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13104,
@@ -4096,7 +4096,7 @@
       "yaw_rad": 1.59,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13105,
@@ -4108,7 +4108,7 @@
       "yaw_rad": 1.56,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13106,
@@ -4120,7 +4120,7 @@
       "yaw_rad": 1.56,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13107,
@@ -4132,7 +4132,7 @@
       "yaw_rad": 1.56,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13108,
@@ -4144,7 +4144,7 @@
       "yaw_rad": 1.56,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13109,
@@ -4156,7 +4156,7 @@
       "yaw_rad": -2.91,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13110,
@@ -4168,7 +4168,7 @@
       "yaw_rad": -2.71,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13111,
@@ -4180,7 +4180,7 @@
       "yaw_rad": -2.69,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13112,
@@ -4192,7 +4192,7 @@
       "yaw_rad": -2.69,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13113,
@@ -4204,7 +4204,7 @@
       "yaw_rad": -0.28,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13114,
@@ -4216,7 +4216,7 @@
       "yaw_rad": -0.26,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13115,
@@ -4228,7 +4228,7 @@
       "yaw_rad": -0.34,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13116,
@@ -4240,7 +4240,7 @@
       "yaw_rad": -0.88,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Southbank"
     },
     {
       "id": 13117,
@@ -4252,7 +4252,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13118,
@@ -4264,7 +4264,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13119,
@@ -4276,7 +4276,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13120,
@@ -4288,7 +4288,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13121,
@@ -4300,7 +4300,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13122,
@@ -4312,7 +4312,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13123,
@@ -4324,7 +4324,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13124,
@@ -4336,7 +4336,7 @@
       "yaw_rad": 0.4,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13125,
@@ -4348,7 +4348,7 @@
       "yaw_rad": 0.39,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13126,
@@ -4360,7 +4360,7 @@
       "yaw_rad": 0.31,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13127,
@@ -4372,7 +4372,7 @@
       "yaw_rad": 0.24,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13128,
@@ -4384,7 +4384,7 @@
       "yaw_rad": 0.23,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13129,
@@ -4396,7 +4396,7 @@
       "yaw_rad": 0.3,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13130,
@@ -4408,7 +4408,7 @@
       "yaw_rad": 0.37,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13131,
@@ -4420,7 +4420,7 @@
       "yaw_rad": 0.4,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13132,
@@ -4432,7 +4432,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13133,
@@ -4444,7 +4444,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13134,
@@ -4456,7 +4456,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13135,
@@ -4468,7 +4468,7 @@
       "yaw_rad": 0.25,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13136,
@@ -4480,7 +4480,7 @@
       "yaw_rad": 0.25,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13137,
@@ -4492,7 +4492,7 @@
       "yaw_rad": 0.29,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car parks"
     },
     {
       "id": 13138,
@@ -4504,7 +4504,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13139,
@@ -4516,7 +4516,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13140,
@@ -4528,7 +4528,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13141,
@@ -4540,7 +4540,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13142,
@@ -4552,7 +4552,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13143,
@@ -4564,7 +4564,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13144,
@@ -4576,7 +4576,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13145,
@@ -4588,7 +4588,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13146,
@@ -4600,7 +4600,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13147,
@@ -4612,7 +4612,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13148,
@@ -4624,7 +4624,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13149,
@@ -4636,7 +4636,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13150,
@@ -4648,7 +4648,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13151,
@@ -4660,7 +4660,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13152,
@@ -4672,7 +4672,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13153,
@@ -4684,7 +4684,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13154,
@@ -4696,7 +4696,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13155,
@@ -4708,7 +4708,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13156,
@@ -4720,7 +4720,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13157,
@@ -4732,7 +4732,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13158,
@@ -4744,7 +4744,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13159,
@@ -4756,7 +4756,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13160,
@@ -4768,7 +4768,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13161,
@@ -4780,7 +4780,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13162,
@@ -4792,7 +4792,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13163,
@@ -4804,7 +4804,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13164,
@@ -4816,7 +4816,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13165,
@@ -4828,7 +4828,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13166,
@@ -4840,7 +4840,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13167,
@@ -4852,7 +4852,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13168,
@@ -4864,7 +4864,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13169,
@@ -4876,7 +4876,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13170,
@@ -4888,7 +4888,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13171,
@@ -4900,7 +4900,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13172,
@@ -4912,7 +4912,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13173,
@@ -4924,7 +4924,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13174,
@@ -4936,7 +4936,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13175,
@@ -4948,7 +4948,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13176,
@@ -4960,7 +4960,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13177,
@@ -4972,7 +4972,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13178,
@@ -4984,7 +4984,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13179,
@@ -4996,7 +4996,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13180,
@@ -5008,7 +5008,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13181,
@@ -5020,7 +5020,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13182,
@@ -5032,7 +5032,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13183,
@@ -5044,7 +5044,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13184,
@@ -5056,7 +5056,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13185,
@@ -5068,7 +5068,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13186,
@@ -5080,7 +5080,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13187,
@@ -5092,7 +5092,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13188,
@@ -5104,7 +5104,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13189,
@@ -5116,7 +5116,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13190,
@@ -5128,7 +5128,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13191,
@@ -5140,7 +5140,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13192,
@@ -5152,7 +5152,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13193,
@@ -5164,7 +5164,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13194,
@@ -5176,7 +5176,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13195,
@@ -5188,7 +5188,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13196,
@@ -5200,7 +5200,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13197,
@@ -5212,7 +5212,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13198,
@@ -5224,7 +5224,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13199,
@@ -5236,7 +5236,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13200,
@@ -5248,7 +5248,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13201,
@@ -5260,7 +5260,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13202,
@@ -5272,7 +5272,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13203,
@@ -5284,7 +5284,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13204,
@@ -5296,7 +5296,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13205,
@@ -5308,7 +5308,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13206,
@@ -5320,7 +5320,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13207,
@@ -5332,7 +5332,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13208,
@@ -5344,7 +5344,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13209,
@@ -5356,7 +5356,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13210,
@@ -5368,7 +5368,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13211,
@@ -5380,7 +5380,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13212,
@@ -5392,7 +5392,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13213,
@@ -5404,7 +5404,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13214,
@@ -5416,7 +5416,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13215,
@@ -5428,7 +5428,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13216,
@@ -5440,7 +5440,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13217,
@@ -5452,7 +5452,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13218,
@@ -5464,7 +5464,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13219,
@@ -5476,7 +5476,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13220,
@@ -5488,7 +5488,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13221,
@@ -5500,7 +5500,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13222,
@@ -5512,7 +5512,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13223,
@@ -5524,7 +5524,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13224,
@@ -5536,7 +5536,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13225,
@@ -5548,7 +5548,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13226,
@@ -5560,7 +5560,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13227,
@@ -5572,7 +5572,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13228,
@@ -5584,7 +5584,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13229,
@@ -5596,7 +5596,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13230,
@@ -5608,7 +5608,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13231,
@@ -5620,7 +5620,7 @@
       "yaw_rad": 0.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13232,
@@ -5632,7 +5632,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13233,
@@ -5644,7 +5644,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13234,
@@ -5656,7 +5656,7 @@
       "yaw_rad": -1.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13235,
@@ -5668,7 +5668,7 @@
       "yaw_rad": -0.98,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13236,
@@ -5680,7 +5680,7 @@
       "yaw_rad": -0.98,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13237,
@@ -5692,7 +5692,7 @@
       "yaw_rad": -1.04,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13238,
@@ -5704,7 +5704,7 @@
       "yaw_rad": -1.18,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13239,
@@ -5716,7 +5716,7 @@
       "yaw_rad": -1.28,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13240,
@@ -5728,7 +5728,7 @@
       "yaw_rad": -1.36,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13241,
@@ -5740,7 +5740,7 @@
       "yaw_rad": -1.46,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13242,
@@ -5752,7 +5752,7 @@
       "yaw_rad": -1.52,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13243,
@@ -5764,7 +5764,7 @@
       "yaw_rad": -1.53,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13244,
@@ -5776,7 +5776,7 @@
       "yaw_rad": -1.54,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13245,
@@ -5788,7 +5788,7 @@
       "yaw_rad": -1.58,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13246,
@@ -5800,7 +5800,7 @@
       "yaw_rad": -1.63,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13247,
@@ -5812,7 +5812,7 @@
       "yaw_rad": -1.66,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13248,
@@ -5824,7 +5824,7 @@
       "yaw_rad": -1.66,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13249,
@@ -5836,7 +5836,7 @@
       "yaw_rad": -1.65,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13250,
@@ -5848,7 +5848,7 @@
       "yaw_rad": -1.62,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13251,
@@ -5860,7 +5860,7 @@
       "yaw_rad": -1.59,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13252,
@@ -5872,7 +5872,7 @@
       "yaw_rad": -1.57,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13253,
@@ -5884,7 +5884,7 @@
       "yaw_rad": -1.54,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13254,
@@ -5896,7 +5896,7 @@
       "yaw_rad": -1.53,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13255,
@@ -5908,7 +5908,7 @@
       "yaw_rad": -1.53,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13256,
@@ -5920,7 +5920,7 @@
       "yaw_rad": -1.52,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13257,
@@ -5932,7 +5932,7 @@
       "yaw_rad": -1.42,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13258,
@@ -5944,7 +5944,7 @@
       "yaw_rad": -1.3,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13259,
@@ -5956,7 +5956,7 @@
       "yaw_rad": -1.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: car park Lower Paddock"
     },
     {
       "id": 13260,
@@ -5968,7 +5968,7 @@
       "yaw_rad": 0.51,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13261,
@@ -5980,7 +5980,7 @@
       "yaw_rad": 5.06,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13262,
@@ -5992,7 +5992,7 @@
       "yaw_rad": 2.83,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13263,
@@ -6004,7 +6004,7 @@
       "yaw_rad": 0.26,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13264,
@@ -6016,7 +6016,7 @@
       "yaw_rad": 4.1,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13265,
@@ -6028,7 +6028,7 @@
       "yaw_rad": 1.97,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13266,
@@ -6040,7 +6040,7 @@
       "yaw_rad": 3.15,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13267,
@@ -6052,7 +6052,7 @@
       "yaw_rad": 6.07,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13268,
@@ -6064,7 +6064,7 @@
       "yaw_rad": 2.27,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13269,
@@ -6076,7 +6076,7 @@
       "yaw_rad": 3.51,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13270,
@@ -6088,7 +6088,7 @@
       "yaw_rad": 2.61,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13271,
@@ -6100,7 +6100,7 @@
       "yaw_rad": 6.26,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13272,
@@ -6112,7 +6112,7 @@
       "yaw_rad": 5.7,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13273,
@@ -6124,7 +6124,7 @@
       "yaw_rad": 1.97,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13274,
@@ -6136,7 +6136,7 @@
       "yaw_rad": 5.71,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13275,
@@ -6148,7 +6148,7 @@
       "yaw_rad": 1.57,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13276,
@@ -6160,7 +6160,7 @@
       "yaw_rad": 1.92,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13277,
@@ -6172,7 +6172,7 @@
       "yaw_rad": 6.0,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13278,
@@ -6184,7 +6184,7 @@
       "yaw_rad": 3.79,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13279,
@@ -6196,7 +6196,7 @@
       "yaw_rad": 4.56,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13280,
@@ -6208,7 +6208,7 @@
       "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13281,
@@ -6220,7 +6220,7 @@
       "yaw_rad": 5.85,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: village"
     },
     {
       "id": 13282,
@@ -6232,7 +6232,7 @@
       "yaw_rad": 0.01,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: points of interest"
     },
     {
       "id": 13283,
@@ -6244,7 +6244,7 @@
       "yaw_rad": 5.07,
       "scale": 0.96,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13284,
@@ -6256,7 +6256,7 @@
       "yaw_rad": 3.07,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13285,
@@ -6268,7 +6268,7 @@
       "yaw_rad": 4.79,
       "scale": 0.89,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13286,
@@ -6280,7 +6280,7 @@
       "yaw_rad": 2.99,
       "scale": 1.04,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13287,
@@ -6292,7 +6292,7 @@
       "yaw_rad": 1.51,
       "scale": 0.94,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13288,
@@ -6304,7 +6304,7 @@
       "yaw_rad": 1.03,
       "scale": 1.22,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13289,
@@ -6316,7 +6316,7 @@
       "yaw_rad": 2.4,
       "scale": 0.86,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13290,
@@ -6328,7 +6328,7 @@
       "yaw_rad": 3.72,
       "scale": 1.33,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13291,
@@ -6340,7 +6340,7 @@
       "yaw_rad": 3.78,
       "scale": 0.92,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13292,
@@ -6352,7 +6352,7 @@
       "yaw_rad": 4.76,
       "scale": 1.02,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13293,
@@ -6364,7 +6364,7 @@
       "yaw_rad": 2.99,
       "scale": 1.33,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13294,
@@ -6376,7 +6376,7 @@
       "yaw_rad": 3.23,
       "scale": 1.03,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13295,
@@ -6388,7 +6388,7 @@
       "yaw_rad": 1.62,
       "scale": 1.29,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13296,
@@ -6400,7 +6400,7 @@
       "yaw_rad": 5.54,
       "scale": 0.97,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13297,
@@ -6412,7 +6412,7 @@
       "yaw_rad": 1.85,
       "scale": 1.09,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13298,
@@ -6424,7 +6424,7 @@
       "yaw_rad": 3.1,
       "scale": 0.92,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13299,
@@ -6436,7 +6436,7 @@
       "yaw_rad": 5.34,
       "scale": 1.25,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13300,
@@ -6448,7 +6448,7 @@
       "yaw_rad": 5.42,
       "scale": 0.98,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13301,
@@ -6460,7 +6460,7 @@
       "yaw_rad": 2.51,
       "scale": 1.34,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13302,
@@ -6472,7 +6472,7 @@
       "yaw_rad": 1.36,
       "scale": 0.93,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13303,
@@ -6484,7 +6484,7 @@
       "yaw_rad": 5.72,
       "scale": 0.87,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13304,
@@ -6496,7 +6496,7 @@
       "yaw_rad": 0.45,
       "scale": 1.02,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13305,
@@ -6508,7 +6508,7 @@
       "yaw_rad": 3.31,
       "scale": 1.04,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13306,
@@ -6520,7 +6520,7 @@
       "yaw_rad": 2.58,
       "scale": 0.9,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13307,
@@ -6532,7 +6532,7 @@
       "yaw_rad": 4.87,
       "scale": 1.21,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13308,
@@ -6544,7 +6544,7 @@
       "yaw_rad": 0.23,
       "scale": 1.21,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13309,
@@ -6556,7 +6556,7 @@
       "yaw_rad": 5.69,
       "scale": 1.12,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13310,
@@ -6568,7 +6568,7 @@
       "yaw_rad": 4.46,
       "scale": 0.98,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13311,
@@ -6580,7 +6580,7 @@
       "yaw_rad": 4.78,
       "scale": 1.28,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13312,
@@ -6592,7 +6592,7 @@
       "yaw_rad": 0.69,
       "scale": 1.25,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13313,
@@ -6604,7 +6604,7 @@
       "yaw_rad": 0.5,
       "scale": 1.16,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13314,
@@ -6616,7 +6616,7 @@
       "yaw_rad": 1.88,
       "scale": 1.32,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13315,
@@ -6628,7 +6628,7 @@
       "yaw_rad": 0.32,
       "scale": 1.2,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13316,
@@ -6640,7 +6640,7 @@
       "yaw_rad": 4.32,
       "scale": 1.11,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13317,
@@ -6652,7 +6652,7 @@
       "yaw_rad": 5.22,
       "scale": 0.95,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13318,
@@ -6664,7 +6664,7 @@
       "yaw_rad": 4.58,
       "scale": 1.06,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13319,
@@ -6676,7 +6676,7 @@
       "yaw_rad": 4.07,
       "scale": 0.93,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13320,
@@ -6688,7 +6688,7 @@
       "yaw_rad": 6.0,
       "scale": 1.18,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13321,
@@ -6700,7 +6700,7 @@
       "yaw_rad": 6.13,
       "scale": 0.85,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13322,
@@ -6712,7 +6712,7 @@
       "yaw_rad": 0.79,
       "scale": 0.96,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13323,
@@ -6724,7 +6724,7 @@
       "yaw_rad": 2.69,
       "scale": 1.21,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13324,
@@ -6736,7 +6736,7 @@
       "yaw_rad": 0.49,
       "scale": 1.03,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13325,
@@ -6748,7 +6748,7 @@
       "yaw_rad": 5.97,
       "scale": 0.98,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13326,
@@ -6760,7 +6760,7 @@
       "yaw_rad": 1.82,
       "scale": 1.27,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13327,
@@ -6772,7 +6772,7 @@
       "yaw_rad": 4.3,
       "scale": 0.91,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13328,
@@ -6784,7 +6784,7 @@
       "yaw_rad": 3.75,
       "scale": 1.26,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13329,
@@ -6796,7 +6796,7 @@
       "yaw_rad": 0.06,
       "scale": 1.29,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13330,
@@ -6808,7 +6808,7 @@
       "yaw_rad": 4.04,
       "scale": 0.87,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13331,
@@ -6820,7 +6820,7 @@
       "yaw_rad": 1.69,
       "scale": 1.33,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13332,
@@ -6832,7 +6832,7 @@
       "yaw_rad": 6.11,
       "scale": 0.92,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13333,
@@ -6844,7 +6844,7 @@
       "yaw_rad": 0.96,
       "scale": 1.02,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13334,
@@ -6856,7 +6856,7 @@
       "yaw_rad": 1.31,
       "scale": 1.02,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13335,
@@ -6868,7 +6868,7 @@
       "yaw_rad": 5.2,
       "scale": 1.17,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13336,
@@ -6880,7 +6880,7 @@
       "yaw_rad": 1.75,
       "scale": 1.09,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13337,
@@ -6892,7 +6892,7 @@
       "yaw_rad": 2.8,
       "scale": 0.92,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13338,
@@ -6904,7 +6904,7 @@
       "yaw_rad": 1.73,
       "scale": 1.21,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13339,
@@ -6916,7 +6916,7 @@
       "yaw_rad": 2.14,
       "scale": 1.14,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13340,
@@ -6928,7 +6928,7 @@
       "yaw_rad": 5.8,
       "scale": 1.04,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13341,
@@ -6940,7 +6940,7 @@
       "yaw_rad": 0.2,
       "scale": 0.91,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13342,
@@ -6952,7 +6952,7 @@
       "yaw_rad": 5.89,
       "scale": 0.91,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13343,
@@ -6964,7 +6964,7 @@
       "yaw_rad": 1.89,
       "scale": 1.14,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13344,
@@ -6976,7 +6976,7 @@
       "yaw_rad": 5.24,
       "scale": 1.13,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13345,
@@ -6988,7 +6988,7 @@
       "yaw_rad": 2.95,
       "scale": 0.97,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13346,
@@ -7000,7 +7000,7 @@
       "yaw_rad": 3.03,
       "scale": 0.9,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13347,
@@ -7012,7 +7012,7 @@
       "yaw_rad": 5.42,
       "scale": 0.92,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13348,
@@ -7024,7 +7024,7 @@
       "yaw_rad": 6.13,
       "scale": 1.29,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 13349,
@@ -7036,7 +7036,7 @@
       "yaw_rad": 1.64,
       "scale": 0.91,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 16187,
@@ -7048,7 +7048,7 @@
       "yaw_rad": 1.68,
       "scale": 0.94,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 16188,
@@ -7060,7 +7060,7 @@
       "yaw_rad": 2.58,
       "scale": 0.94,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 16189,
@@ -7072,7 +7072,7 @@
       "yaw_rad": 3.77,
       "scale": 1.13,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 16190,
@@ -7084,7 +7084,7 @@
       "yaw_rad": 0.18,
       "scale": 0.89,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 16191,
@@ -7096,7 +7096,7 @@
       "yaw_rad": 5.85,
       "scale": 0.99,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: forest"
     },
     {
       "id": 16192,
@@ -7108,7 +7108,7 @@
       "yaw_rad": 0.34,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16193,
@@ -7120,7 +7120,7 @@
       "yaw_rad": -0.79,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16194,
@@ -7132,7 +7132,7 @@
       "yaw_rad": -1.66,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16195,
@@ -7144,7 +7144,7 @@
       "yaw_rad": 2.72,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16196,
@@ -7156,7 +7156,7 @@
       "yaw_rad": 2.12,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16197,
@@ -7168,7 +7168,7 @@
       "yaw_rad": -2.77,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16198,
@@ -7180,7 +7180,7 @@
       "yaw_rad": -2.06,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16199,
@@ -7192,7 +7192,7 @@
       "yaw_rad": -0.34,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16200,
@@ -7204,7 +7204,7 @@
       "yaw_rad": -0.49,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16201,
@@ -7216,7 +7216,7 @@
       "yaw_rad": -1.23,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16202,
@@ -7228,7 +7228,7 @@
       "yaw_rad": -1.97,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16203,
@@ -7240,7 +7240,7 @@
       "yaw_rad": -2.76,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16204,
@@ -7252,7 +7252,7 @@
       "yaw_rad": 2.9,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16205,
@@ -7264,7 +7264,7 @@
       "yaw_rad": 2.36,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16206,
@@ -7276,7 +7276,7 @@
       "yaw_rad": 1.53,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16207,
@@ -7288,7 +7288,7 @@
       "yaw_rad": 2.2,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16208,
@@ -7300,7 +7300,7 @@
       "yaw_rad": 2.76,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16209,
@@ -7312,7 +7312,7 @@
       "yaw_rad": 2.75,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16210,
@@ -7324,7 +7324,7 @@
       "yaw_rad": 1.29,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: marshal posts"
     },
     {
       "id": 16211,
@@ -7336,7 +7336,7 @@
       "yaw_rad": 0.56,
       "scale": 1.0,
       "text": "Bramble Straight",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16212,
@@ -7348,7 +7348,7 @@
       "yaw_rad": -0.08,
       "scale": 1.0,
       "text": "Paddock Hill",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16213,
@@ -7360,7 +7360,7 @@
       "yaw_rad": -1.55,
       "scale": 1.0,
       "text": "Hailstones Hill",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16214,
@@ -7372,7 +7372,7 @@
       "yaw_rad": -1.89,
       "scale": 1.0,
       "text": "Druids Bend",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16215,
@@ -7384,7 +7384,7 @@
       "yaw_rad": 1.79,
       "scale": 1.0,
       "text": "Grandma Hill Bend",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16216,
@@ -7396,7 +7396,7 @@
       "yaw_rad": -3.01,
       "scale": 1.0,
       "text": "Scooper Straight",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16217,
@@ -7408,7 +7408,7 @@
       "yaw_rad": -2.58,
       "scale": 1.0,
       "text": "Sure-Tees",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16218,
@@ -7420,7 +7420,7 @@
       "yaw_rad": -0.32,
       "scale": 1.0,
       "text": "Pilgrims Drop",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16219,
@@ -7432,7 +7432,7 @@
       "yaw_rad": -0.49,
       "scale": 1.0,
       "text": "Hawthorn Hill",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16220,
@@ -7444,7 +7444,7 @@
       "yaw_rad": -0.51,
       "scale": 1.0,
       "text": "Hawthorns Bend",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16221,
@@ -7456,7 +7456,7 @@
       "yaw_rad": -1.92,
       "scale": 1.0,
       "text": "Dead Winter Straight",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16222,
@@ -7468,7 +7468,7 @@
       "yaw_rad": -2.0,
       "scale": 1.0,
       "text": "Westfield Bend",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16223,
@@ -7480,7 +7480,7 @@
       "yaw_rad": -3.07,
       "scale": 1.0,
       "text": "Dingle Dell",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16224,
@@ -7492,7 +7492,7 @@
       "yaw_rad": 2.77,
       "scale": 1.0,
       "text": "Dingle Dell Corner",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16225,
@@ -7504,7 +7504,7 @@
       "yaw_rad": 2.15,
       "scale": 1.0,
       "text": "Sheen Curve",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16226,
@@ -7516,7 +7516,7 @@
       "yaw_rad": 1.31,
       "scale": 1.0,
       "text": "Sterling Bend",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16227,
@@ -7528,7 +7528,7 @@
       "yaw_rad": 2.76,
       "scale": 1.0,
       "text": "Clearways",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16228,
@@ -7540,7 +7540,7 @@
       "yaw_rad": 2.59,
       "scale": 1.0,
       "text": "Clerk Curve",
-      "source": "surroundings"
+      "source": "surroundings: corner signs"
     },
     {
       "id": 16229,
@@ -7552,7 +7552,7 @@
       "yaw_rad": 0.42,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16230,
@@ -7564,7 +7564,7 @@
       "yaw_rad": -0.1,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16231,
@@ -7576,7 +7576,7 @@
       "yaw_rad": -1.6,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16232,
@@ -7588,7 +7588,7 @@
       "yaw_rad": 1.67,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16233,
@@ -7600,7 +7600,7 @@
       "yaw_rad": 3.01,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16234,
@@ -7612,7 +7612,7 @@
       "yaw_rad": -2.69,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16235,
@@ -7624,7 +7624,7 @@
       "yaw_rad": -0.36,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16236,
@@ -7636,7 +7636,7 @@
       "yaw_rad": -0.47,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16237,
@@ -7648,7 +7648,7 @@
       "yaw_rad": -0.48,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16238,
@@ -7660,7 +7660,7 @@
       "yaw_rad": -0.66,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16239,
@@ -7672,7 +7672,7 @@
       "yaw_rad": -1.96,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16240,
@@ -7684,7 +7684,7 @@
       "yaw_rad": -3.03,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16241,
@@ -7696,7 +7696,7 @@
       "yaw_rad": 2.42,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16242,
@@ -7708,7 +7708,7 @@
       "yaw_rad": 1.28,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16243,
@@ -7720,7 +7720,7 @@
       "yaw_rad": 2.76,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16244,
@@ -7732,7 +7732,7 @@
       "yaw_rad": 2.76,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16245,
@@ -7744,7 +7744,7 @@
       "yaw_rad": 1.39,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16246,
@@ -7756,7 +7756,7 @@
       "yaw_rad": 0.49,
       "scale": 1.0,
       "text": null,
-      "source": "surroundings"
+      "source": "surroundings: floodlights"
     },
     {
       "id": 16247,

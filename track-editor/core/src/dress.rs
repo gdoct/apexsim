@@ -341,7 +341,8 @@ pub fn dress_scene_with_dem(
         style.fan_dressing,
     );
     report.surroundings = extras.len();
-    laid.extend(stamped(extras, "surroundings".to_string()));
+    // Stamped per sub-layer and area by `surroundings::lay`.
+    laid.extend(extras);
     // The kit's pieces on the track's own edge: a marker post at each
     // end of a curb, and sausage kerbs behind the inside curb of a tight
     // bend (a `kerb` wall in the sim: a jolt, never a stop).
@@ -1977,8 +1978,7 @@ fn runoff_reach(surfaces: &[Surface], total_m: f32, station_m: f32, side: Side) 
     surfaces
         .iter()
         .filter(|s| {
-            s.side == side
-                && matches!(s.kind, SurfaceKind::AsphaltRunoff | SurfaceKind::Concrete)
+            s.side == side && matches!(s.kind, SurfaceKind::AsphaltRunoff | SurfaceKind::Concrete)
         })
         .filter_map(|s| {
             let span = if s.end_m >= s.start_m {
@@ -2442,61 +2442,94 @@ mod surroundings {
             fan,
         };
         let mut out = Vec::new();
-        car_parks(&ctx, &mut out);
-        camp_sites(&ctx, &mut out);
+        // Each sub-layer stamps what it lays (`Prop::source`), an area's
+        // props with the area's own name where the dossier gives one, so
+        // `--explain` says which dossier entry each came from.
+        let part = |name: &str, out: &mut Vec<Prop>, lay: &dyn Fn(&mut Vec<Prop>)| {
+            let start = out.len();
+            lay(out);
+            stamp_from(out, start, &format!("surroundings: {name}"));
+        };
+        part("car parks", &mut out, &|o| car_parks(&ctx, o));
+        part("camp sites", &mut out, &|o| camp_sites(&ctx, o));
         if fan {
-            spectator_banks(&ctx, &mut out);
+            part("spectator banks", &mut out, &|o| spectator_banks(&ctx, o));
         }
-        village(&ctx, &mut out);
-        points_of_interest(&ctx, &mut out);
-        forests(&ctx, dem, &mut out);
-        marshal_posts(&ctx, &mut out);
-        corner_signs(&ctx, &mut out);
+        part("village", &mut out, &|o| village(&ctx, o));
+        part("points of interest", &mut out, &|o| {
+            points_of_interest(&ctx, o)
+        });
+        part("forest", &mut out, &|o| forests(&ctx, dem, o));
+        part("marshal posts", &mut out, &|o| marshal_posts(&ctx, o));
+        part("corner signs", &mut out, &|o| corner_signs(&ctx, o));
         if night_lighting {
-            floodlights(&ctx, &mut out);
+            part("floodlights", &mut out, &|o| floodlights(&ctx, o));
         }
         out
+    }
+
+    /// Stamp the props from `start` on that have no stamp yet.
+    fn stamp_from(out: &mut [Prop], start: usize, source: &str) {
+        for prop in &mut out[start..] {
+            if prop.source.is_none() {
+                prop.source = Some(source.to_string());
+            }
+        }
+    }
+
+    /// Stamp the props an area laid from `start` with its kind and name,
+    /// when the dossier names it.
+    fn stamp_area(out: &mut [Prop], start: usize, what: &str, area: &crate::layout::Area) {
+        if let Some(name) = area.name.as_deref().filter(|n| !n.trim().is_empty()) {
+            stamp_from(out, start, &format!("surroundings: {what} {}", name.trim()));
+        }
     }
 
     /// Cars and lamp posts in every mapped car park.
     fn car_parks(ctx: &Ctx, out: &mut Vec<Prop>) {
         for area in ctx.layout.areas.iter().filter(|a| a.kind == "parking") {
-            let cars =
-                ((area.area_m2() / CAR_PARK_AREA_PER_CAR_M2) as usize).min(MAX_CARS_PER_PARK);
-            if cars == 0 {
+            let start = out.len();
+            car_park(ctx, area, out);
+            stamp_area(out, start, "car park", area);
+        }
+    }
+
+    /// One car park's cars and lamps.
+    fn car_park(ctx: &Ctx, area: &crate::layout::Area, out: &mut Vec<Prop>) {
+        let cars = ((area.area_m2() / CAR_PARK_AREA_PER_CAR_M2) as usize).min(MAX_CARS_PER_PARK);
+        if cars == 0 {
+            return;
+        }
+        // A car park is filled on its own grid rather than at random
+        // points, so the rows read as rows.
+        let (cx, cy) = area.centre();
+        let span = area.area_m2().sqrt();
+        let step = (span / (cars as f32).sqrt().max(1.0)).max(3.0);
+        let per_row = (span / step).max(1.0) as usize;
+        let mut placed = 0;
+        for i in 0..cars * 3 {
+            if placed >= cars {
+                break;
+            }
+            let (row, col) = (i / per_row.max(1), i % per_row.max(1));
+            let x = cx - span * 0.5 + col as f32 * step;
+            let y = cy - span * 0.5 + row as f32 * step;
+            if !area.contains(x, y) {
                 continue;
             }
-            // A car park is filled on its own grid rather than at random
-            // points, so the rows read as rows.
-            let (cx, cy) = area.centre();
-            let span = area.area_m2().sqrt();
-            let step = (span / (cars as f32).sqrt().max(1.0)).max(3.0);
-            let per_row = (span / step).max(1.0) as usize;
-            let mut placed = 0;
-            for i in 0..cars * 3 {
-                if placed >= cars {
-                    break;
-                }
-                let (row, col) = (i / per_row.max(1), i % per_row.max(1));
-                let x = cx - span * 0.5 + col as f32 * step;
-                let y = cy - span * 0.5 + row as f32 * step;
-                if !area.contains(x, y) {
-                    continue;
-                }
-                let asset = match (roll(x, y, 11) * 3.0) as u32 {
-                    0 => "car_a",
-                    1 => "car_b",
-                    _ => "car_c",
-                };
-                // Parked in rows facing across the park, not at the road.
-                let yaw = if roll(x, y, 12) < 0.5 { 0.0 } else { PI };
-                if let Some(prop) = ctx.place(PropKind::Vehicle, asset, x, y, Some(yaw)) {
-                    out.push(prop);
-                    placed += 1;
-                }
+            let asset = match (roll(x, y, 11) * 3.0) as u32 {
+                0 => "car_a",
+                1 => "car_b",
+                _ => "car_c",
+            };
+            // Parked in rows facing across the park, not at the road.
+            let yaw = if roll(x, y, 12) < 0.5 { 0.0 } else { PI };
+            if let Some(prop) = ctx.place(PropKind::Vehicle, asset, x, y, Some(yaw)) {
+                out.push(prop);
+                placed += 1;
             }
-            lamps_around(ctx, area, out);
         }
+        lamps_around(ctx, area, out);
     }
 
     /// Lamp posts along a car park's edge, at a fixed spacing so the
@@ -2524,6 +2557,7 @@ mod surroundings {
     /// around one mapped only as a point.
     fn camp_sites(ctx: &Ctx, out: &mut Vec<Prop>) {
         for area in ctx.layout.areas.iter().filter(|a| a.kind == "camp_site") {
+            let start = out.len();
             let perimeter: f32 = area
                 .ring
                 .windows(2)
@@ -2578,6 +2612,7 @@ mod surroundings {
             if ctx.fan {
                 camp_village(ctx, area, pitches, &mut taken, out);
             }
+            stamp_area(out, start, "camp site", area);
         }
 
         // A camp mapped only as a node gets a small cluster around it.
@@ -2770,6 +2805,7 @@ mod surroundings {
             .iter()
             .filter(|a| matches!(a.kind.as_str(), "residential" | "farmyard"))
         {
+            let start = out.len();
             let (cx, cy) = area.centre();
             let span = area.area_m2().sqrt().max(30.0);
             let steps = ((span / HOUSE_SPACING_M) as i32).clamp(1, 8);
@@ -2804,6 +2840,7 @@ mod surroundings {
                     }
                 }
             }
+            stamp_area(out, start, "village", area);
         }
     }
 

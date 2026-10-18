@@ -170,11 +170,6 @@ the field, a jump start and a red-light exit served; `race_start_test`,
 
 ### 11. Content tooling
 
-- The dressing's `surroundings` stamp is one for the whole layer (car
-  parks, camps, village, marshal posts, corner signs, forest, floodlights,
-  fan dressing): `--explain` tells them apart by asset only. Stamping each
-  sub-layer in `surroundings::lay` would name the dossier area each came
-  from.
 - `trace_layout.py` skips Marina Bay: no DEM sidecar, so no georeference
   (`dem_fetch.py MarinaBay`, or a georeference from the dossier's own fit
   without a DEM).
