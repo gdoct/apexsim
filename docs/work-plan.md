@@ -34,6 +34,7 @@ When an item is done, delete it from its backlog and from here.
 | B6 | Create-session screen too cluttered; shows a dead Sandbox mode | Bug | P2 | 🟡 | S |
 | B7 | Kinks in the inside curb of some corners, all circuits | Bug | P2 | 🟡 | M |
 | F2 | Trackside light panels showing yellow and blue | Feature + content | P2 | 🟡 | M |
+| B11 | Tyre bridge prop too tall, reads as an oval | Content | P2 | 🟡 | S |
 | B9 | Main menu: Replays under Watch a race, Hotlap under Drive | UI | P2 | 🟢 | S |
 | B10 | Car select leaves on the first click; wants a Confirm | UI | P2 | 🟡 | S |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
@@ -83,7 +84,7 @@ When an item is done, delete it from its backlog and from here.
 
 1. **Fix what testing found on 2026-10-18** — B8 first (overheated tyres, P1: it spoils every long stint). Then the menu batch in one go, since it is the same few widgets and one PadWalk run: B6 (create screen), B9 (menu pages), B10 (car and track select confirm).
 2. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting with B8's fix on the wheel. Fresh features are where the bugs are.
-3. **One content refresh** — B7 (curb kinks), F2 (light panels laid by `ats-dress`) and D1 (the real pit layout) all regenerate every track's sidecars: do them on one branch, re-export once, run the AI survey once against the commit before. S1 (road crown) changes the same files and could join it if there is room. Showcases and guides go stale after it; rebake once at the end.
+3. **One content refresh** — B7 (curb kinks), F2 (light panels laid by `ats-dress`), B11 (the tyre bridge's shape) and D1 (the real pit layout) all regenerate every track's sidecars: do them on one branch, re-export once, run the AI survey once against the commit before. S1 (road crown) changes the same files and could join it if there is room. Showcases and guides go stale after it; rebake once at the end.
 4. **HUD** — N24 (tyre graphic) and N25 (rain radar): both new components and data points, one `ApexSim.Hud.Data` run.
 5. **The simulation in the client** — N28, then X1 on top of it. Do it before N26: once guides, showcases and Watch hotlap are made in the game, packs no longer carry them and the build loses its two slowest stages.
 6. **Built on the decisions of 2026-10-18** — N26 phase 1 (pack format, local install), R3 phase 1 (a key per install), N7 (an offline season). None of them waits on you; N26 phase 2 waits on the repository and the signing key.
@@ -126,6 +127,18 @@ radius or uneven samples) and fix it in the generator, not per track. The
 curb sidecar feeds physics too: re-export the tracks, run the full
 `track-editor` tests and the AI survey against the commit before; a person
 judges close-up shots of the worst corners.
+Image: /docs/roadkink.png
+
+#### B11. Tyre bridge prop too tall, reads as an oval — P2 · 🟡 · S
+*Source: follow-ups #6 (testing, 2026-10-18).* `bridge/tyre_bridge` is
+23.7 m wide by 13.6 m high, near a half circle; the real kind is a flat
+arc on two low legs, about two and a half times wider than tall, with a
+wide low brand band. Rebuild it from `tyre_bridge.blend` (headless), keep
+the span and `tyre_bridge_brand`, update its size in `props.rs`, then
+re-import the kit and re-export the eight circuits that lay it. Check
+with a shot from the cockpit at Le Mans beside the photos; a person
+judges.
+Image: /docs/tirebridge.png
 
 #### B9. Main menu: Replays under Watch a race, Hotlap under Drive — P2 · 🟢 · S
 *Source: follow-ups #24 (testing, 2026-10-18).* Replays is on the Garage

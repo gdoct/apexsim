@@ -115,6 +115,18 @@ the same `ApexProps` code.
   `pit_wall` / facade colours with no texture (Spa's Stand Endurance, the
   Norisring's towers in the R11 run of 2026-10-17). Facade textures are
   art.
+- The tyre bridge (`bridge/tyre_bridge`, laid by `ats-dress` on Brands
+  Hatch, Budapest, Le Mans, Montreal, the Nuerburgring, Shanghai,
+  Silverstone and Sochi) is too tall: 23.7 m wide by 13.6 m high, close
+  to a half circle, so it reads as an oval hoop (seen testing,
+  2026-10-18; [tirebridge.png](tirebridge.png) beside photos of the real
+  kind). The real one is a shallow slice of a tyre: a flat arc on two
+  low legs, wider than it is tall by about two and a half times, the
+  brand band wide and low across the top. Rebuild the mesh from
+  `tyre_bridge.blend` (headless, with the user's Blender file left
+  alone), keep the span and the brand slot (`tyre_bridge_brand`), and
+  update its size in `track-editor/core/src/props.rs` so the catalogue
+  matches the mesh.
 
 **Check:** each circuit by hand in the running game; the track-editor tests.
 
