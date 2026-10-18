@@ -58,6 +58,10 @@ Built and checked by tests; each needs a person before it is closed.
   corners), then drive gently: the HUD's tyre temperatures should fall to
   the window within a lap or two, and the car should feel back to normal.
   Best done in H1 on the wheel.
+- **Create-session screen (B6).** The race and conditions settings take
+  half the screen and the mode list has no Sandbox tile. Judge whether it
+  is still too crowded: `python scripts/verify/run_checks.py m1-menu-pages`
+  (shots 4-6 in `out/verify/m1-menu-pages/`).
 
 ## P2: depth
 
@@ -193,20 +197,6 @@ them yet, and the server leaves a few edges.
 **Check:** a formation lap and a rolling start on screen with a human in
 the field, a jump start and a red-light exit served; `race_start_test`,
 `penalty_test`.
-
-### 21. Create-session screen
-
-The create-session screen is too cluttered (seen testing, 2026-10-18).
-
-- Give the race and conditions settings more room, up to half the screen.
-- The mode list still offers "Sandbox" (Free camera), which no longer
-  exists: drop it from the create screen's list
-  (`UI/ApexSessionCreateWidget.cpp`) and the lobby's
-  (`UI/ApexSessionLobbyWidget.cpp`). Check whether `EApexGameMode` values
-  are saved or passed on the command line before removing the value.
-
-**Check:** `-ApexScreenshotAfter` on the create screen; a person judges the
-new layout.
 
 ### 22. Curb shape in corners
 

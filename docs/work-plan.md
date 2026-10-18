@@ -30,7 +30,6 @@ When an item is done, delete it from its backlog and from here.
 |---|---|---|---|---|---|
 | V1 | Verify the newest session screens (R9, R11, R12) | Verification | P1 | 🟡 | S |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
-| B6 | Create-session screen too cluttered; shows a dead Sandbox mode | Bug | P2 | 🟡 | S |
 | B7 | Kinks in the inside curb of some corners, all circuits | Bug | P2 | 🟡 | M |
 | F2 | Trackside light panels showing yellow and blue | Feature + content | P2 | 🟡 | M |
 | B11 | Tyre bridge prop too tall, reads as an oval | Content | P2 | 🟡 | S |
@@ -98,16 +97,6 @@ When an item is done, delete it from its backlog and from here.
 *Source: follow-ups #12.* Seen once on the Bugotti Chiffon. Check the chase
 ladder's offsets against the car's bounds (`game/cameras.md`); reproduce
 with `-ApexScreenshotAfter` on that car.
-
-#### B6. Create-session screen too cluttered; shows a dead Sandbox mode — P2 · 🟡 · S
-*Source: follow-ups #21 (testing, 2026-10-18).* The create-session screen is too crowded.
-Give the race and conditions settings more room, up to half the screen.
-The mode list still offers "Sandbox" (Free camera), which no longer exists:
-drop it from the create screen's mode list
-(`UI/ApexSessionCreateWidget.cpp`) and the lobby's
-(`UI/ApexSessionLobbyWidget.cpp`); check whether `EApexGameMode` values are
-saved or passed on the command line before removing the value. Check with `-ApexScreenshotAfter` on
-the create screen; a person judges the new layout.
 
 #### B7. Kinks in the inside curb of some corners, all circuits — P2 · 🟡 · M
 *Source: follow-ups #22 (testing, 2026-10-18).* In some corners the inside

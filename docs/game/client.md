@@ -98,7 +98,10 @@ and widget factories), so layouts are reviewable as diffs.
   garage card) answers directions itself with `ApexNav::MoveToward`: the
   nearest control that way by its current layout (`ApexNav::LayoutRect`,
   arranged afresh, not the last paint), rows of the same scroll box first,
-  and a row scrolled out of view by list order. `UApexNavigableWidget` sends
+  and a row scrolled out of view by list order. From a row that is itself
+  not laid out yet (focused below the fold, still scrolling in) every move
+  goes by list order within its scroll box, sideways too: measured, it
+  would start from the corner of the screen. `UApexNavigableWidget` sends
   Up/Down on its own slider the same way (`NativeOnPreviewKeyDown`). Every
   screen and overlay is walked by pad in `ApexSim.UI.PadWalk` (below).
 - The pause menu in a race: Close menu, Settings, PIT PLAN (a driver in a

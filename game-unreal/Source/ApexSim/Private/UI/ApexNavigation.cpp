@@ -323,9 +323,9 @@ namespace ApexNav
 		const bool bAlong = Scroll && (Scroll->GetOrientation() == Orient_Vertical
 			? Direction == EUINavigation::Up || Direction == EUINavigation::Down
 			: Direction == EUINavigation::Left || Direction == EUINavigation::Right);
-		if (bAlong)
+		TArray<UWidget*> Inside;
+		if (Scroll)
 		{
-			TArray<UWidget*> Inside;
 			for (UWidget* Candidate : Candidates)
 			{
 				if (Candidate && ScrollBoxOf(Candidate) == Scroll)
@@ -333,6 +333,30 @@ namespace ApexNav
 					Inside.Add(Candidate);
 				}
 			}
+		}
+		// A row focused below the fold and not laid out yet (its scroll box
+		// is still bringing it in) has no place to measure from: every
+		// direction would be measured from the corner of the screen. Step by
+		// the list's own order instead, sideways too.
+		FBox2D SourceRect(ForceInit);
+		if (Scroll && !LaidOut(Source, SourceRect))
+		{
+			const bool bForward = Direction == EUINavigation::Down || Direction == EUINavigation::Right;
+			const int32 At = Inside.IndexOfByKey(Source);
+			if (At != INDEX_NONE)
+			{
+				for (int32 Index = At + (bForward ? 1 : -1); Inside.IsValidIndex(Index); Index += bForward ? 1 : -1)
+				{
+					if (CanFocus(Inside[Index]))
+					{
+						return Inside[Index];
+					}
+				}
+			}
+			return nullptr;
+		}
+		if (bAlong)
+		{
 			if (UWidget* Best = NearestAmong(Direction, Source, Inside))
 			{
 				return Best;

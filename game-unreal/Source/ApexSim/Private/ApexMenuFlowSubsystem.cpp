@@ -111,8 +111,9 @@ void UApexMenuFlowSubsystem::LoadProfile()
 	CreateWeekendQualifyingDamage = FMath::Clamp(Profile->WeekendQualifyingDamage, -1, static_cast<int32>(EApexDamageLevel::VisualOnly));
 
 	// A profile written before demo lap was locked would otherwise start a mode
-	// the server turns into a dead end for the player who asked for it.
-	if (CreateStartingMode == EApexGameMode::DemoLap)
+	// the server turns into a dead end for the player who asked for it; one
+	// from before Sandbox left the mode list, a session of standing cars.
+	if (CreateStartingMode == EApexGameMode::DemoLap || CreateStartingMode == EApexGameMode::Sandbox)
 	{
 		CreateStartingMode = EApexGameMode::FreePractice;
 	}

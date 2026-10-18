@@ -107,8 +107,10 @@ over to `next_mode` at zero. A countdown into `Race` first calls
 times, finish position, damage), out of its garage, with race fuel and grid
 tyres, keeping its aids and damage rule. A countdown is taken from any
 state, a finished session included: a finished qualifying session goes on
-to its race this way. The create screen offers Free practice, Sandbox,
-Hotlap, Qualifying and Race; the client never counts into a hotlap
+to its race this way. The create screen offers Free practice, Hotlap,
+Qualifying, Race and a race weekend (Sandbox is the server's only: the
+client has no free camera for it, and a profile saved on it opens on Free
+practice); the client never counts into a hotlap
 (`UApexNetSubsystem::StartCountdown` sends `SetGameMode` for it).
 `OpenGrid { countdown_seconds }` (host only) puts the race's grid up
 instead of counting at once (see "The race's grid").

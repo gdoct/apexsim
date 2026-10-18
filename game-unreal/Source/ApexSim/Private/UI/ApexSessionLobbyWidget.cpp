@@ -36,13 +36,14 @@ namespace
 	 * DemoLap is deliberately absent: the server removes human players from the
 	 * session when it starts one (game_session.rs:409-425), so the host would
 	 * strand everyone — including themselves — as spectators with no telemetry.
+	 * Sandbox is absent as on the create screen: cars that stand, with no
+	 * free camera on the client to look round them.
 	 */
 	const EApexGameMode StartableModes[] = {
 		EApexGameMode::FreePractice,
 		EApexGameMode::Race,
 		EApexGameMode::Hotlap,
 		EApexGameMode::Qualification,
-		EApexGameMode::Sandbox,
 	};
 
 	const int32 CountdownChoices[] = { 3, 5, 10, 20 };

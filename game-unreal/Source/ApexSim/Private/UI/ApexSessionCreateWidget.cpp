@@ -91,10 +91,10 @@ namespace
 	// laps and the server keeps the classification for a race to grid from),
 	// and Demo lap because the server turns it into a dead end for whoever
 	// asks (it drops the human players to spectators); the hotlap took its
-	// tile.
+	// tile. Sandbox is left out too: the client has no free camera for it, so
+	// it was a session of standing cars.
 	const FModeOption ModeOptions[] = {
 		{ EApexGameMode::FreePractice, TEXT("Free practice"), TEXT("Drive freely") },
-		{ EApexGameMode::Sandbox,      TEXT("Sandbox"),       TEXT("Free camera") },
 		{ EApexGameMode::Hotlap,       TEXT("Hotlap"),        TEXT("Flying laps") },
 		{ EApexGameMode::Qualification, TEXT("Qualifying"),   TEXT("Sets the grid") },
 		{ EApexGameMode::Race,         TEXT("Race"),          TEXT("Grid start") },
@@ -193,7 +193,6 @@ namespace
 	/** The start order's chip for an order edited by hand. */
 	const TCHAR* const CustomOrderId = TEXT("custom");
 
-	constexpr float RightColumnWidth = 760.0f;
 	constexpr int32 GridSlots = 20;
 	constexpr float SlotHeight = 38.0f;
 	constexpr float SlotGap = 6.0f;
@@ -633,7 +632,9 @@ void UApexSessionCreateWidget::BuildLayout()
 	UHorizontalBox* Columns = WidgetTree->ConstructWidget<UHorizontalBox>();
 	ApexUI::AddH(Columns, BuildLeftColumn(), FMargin(), VAlign_Fill, 1.0f);
 	ApexUI::AddH(Columns, ApexUI::MakeDivider(*WidgetTree, true), FMargin(), VAlign_Fill);
-	ApexUI::AddH(Columns, ApexUI::MakeSized(*WidgetTree, BuildRightColumn(), RightColumnWidth, -1.0f), FMargin(), VAlign_Fill);
+	// The settings take half the screen: at a fixed 760 px they were packed
+	// tight beside a preview with room to spare.
+	ApexUI::AddH(Columns, BuildRightColumn(), FMargin(), VAlign_Fill, 1.0f);
 
 	ApexUI::AddV(Page, Columns, FMargin(), HAlign_Fill, 1.0f);
 	ApexUI::AddV(Page, ApexUI::MakeDivider(*WidgetTree));
