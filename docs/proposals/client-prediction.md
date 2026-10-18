@@ -326,6 +326,21 @@ with those inputs on the road as loaded lands within 1.4 mm of the
 server's (which lays rubber as it goes). A physics change or an edit to the
 YAML or the car regenerates it; the tests name the command.
 
+**Live, unattended** (Monza, the F1 car, `-ApexFakeLatencyMs=80`, the
+debug stand-in driving with `apexsim.net.PredictServerDriven 1`, two laps,
+230 s): rewinds on 57 snapshots a second, 47 ticks deep on average (129 at
+most, a whole blob's), the clock 45 ticks (106 ms) ahead of the newest
+snapshot, the car drawn from the prediction on 99% of frames, the puppet
+6.0 m (143 ms) behind it. Corrections: median 1.5 mm, mean 9 mm, the worst
+0.27 m, one re-seat and one clock jump in the run. Those are the stand-in's:
+its inputs reach the client only as the controls it applied, which the
+replay holds, so a lift or a turn-in is a correction; a driver's own inputs
+are replayed as sent. In shadow (`apexsim.net.Predict 2`, the puppet drawn)
+the same run gave the same figures (median 1.5 mm, mean 9 mm, 0.24 m worst,
+the puppet 144 ms behind), so drawing the prediction changes nothing it
+measures. To see a driver's figures needs a driver: until one has, they
+are the automation test's.
+
 **Not predicted** (the puppet is drawn): the countdown and after the flag,
 the pit lane (its limiter and autopilot are session passes), the garage, a
 recovery, a car the server drives (the stand-in, an away driver; drawn with

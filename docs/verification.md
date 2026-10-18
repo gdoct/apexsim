@@ -360,6 +360,30 @@ Everything an unattended run cannot check: one sitting with a real
 wheelbase, pedals, a shifter, a pad and speakers, in this order so each
 step feeds the next. Until it has run, all of this is unverified.
 
+**Client prediction at a ping.** ([game/client.md](game/client.md#client-prediction-raceapexpredictionsubsystemh))
+A checkout's editor build with the physics library built
+(`play_editor.ps1 -Build`), a local server, Monza, `-ApexPredict
+-ApexFakeLatencyMs=80`, a wheel; then the same laps with `apexsim.net.Predict
+0`. Seen unattended only with the stand-in driving
+(`apexsim.net.PredictServerDriven 1`): a two-lap run drew the car from the
+prediction 99% of frames, 57 rewinds a second about 47 ticks deep, the
+puppet 6 m (143 ms) behind it; with the replay guessing the stand-in's
+inputs (held), corrections were 1.5 mm at the median and up to 0.27 m when
+it braked or turned in. A driver's own inputs are what the loop is built
+for and only the automation tests have replayed them (0.7 mm at p95).
+
+- Whether the car answers the wheel at once at 80 ms, against the puppet's
+  90-150 ms.
+- Whether corrections show: a twitch on a brake stab or a kerb, a slide
+  that snaps, the cockpit view shaking as the offset blends out (0.1 s).
+- Car-to-car contact with an AI field (not predicted: one blended
+  correction).
+- The switch to and from the puppet at the pit entry and exit and after the
+  flag (a 0.15 s blend across a gap of the car's speed times the round
+  trip).
+- Force feedback and the engine sound are still the server's, a round trip
+  behind the car drawn: whether that mismatch is felt (phase 4).
+
 **Wheel, pedals and shifter.** Drive a lap of the Nordschleife and one of
 Mandarina Bay.
 
