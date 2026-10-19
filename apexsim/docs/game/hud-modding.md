@@ -58,6 +58,7 @@ Shipped components: `track_info`, `race_state` (with STOPS OWED under a pit
 rule and the BOX badge after a pit request), `status`, `minimap`,
 `standings`, `timing`, `pedals`, `damage`, `car_state`, `mirror`, `pit_stop`,
 `ers` (a hybrid only), `flags` (while race control shows the car a flag),
+`race_phase` (the formation or pace lap, the VSC or the safety car),
 `radar` (while a car is alongside), `chat` (the session's chat, while
 there are recent lines or the chat line is open);
 off until added in the editor: `relative`, `speed_gear`, `conditions`; while
@@ -355,6 +356,8 @@ swap places on screen every frame.
 | `race.timed` | the race runs to a clock rather than a lap count; also true in timed qualifying and a weekend's practice |
 | `race.time_left_s` | a timed race's clock: all of it on the grid, counting from green, 0 once out; timed qualifying's from the start of qualifying, 0 once the flag is out (*null* in any other session) |
 | `race.final_lap` | the lap a timed race ends on, the leader's lap when the clock ran out (*null* until then, and outside a timed race) |
+| `race.phase` | what the race is doing beyond green: `formation`, `pace_lap`, `vsc`, `vsc_ending`, `safety_car` or `sc_in_this_lap` (*null* otherwise) |
+| `race.phase_name` | the same for the screen: `FORMATION LAP`, `PACE LAP`, `VIRTUAL SAFETY CAR`, `VSC ENDING`, `SAFETY CAR`, `SAFETY CAR IN THIS LAP` (*null* otherwise) |
 | `gap.ahead_name`, `gap.behind_name` | the drivers either side (*null* at either end) |
 | `gap.ahead_s`, `gap.behind_s` | the gap to them at the local car's speed (*null* when the circuit's length is unknown) |
 

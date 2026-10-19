@@ -1111,6 +1111,25 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	}
 	Out.Set(TEXT("flag.yellow_sectors"), Frame.YellowSectors.Num());
 
+	// What the race is doing beyond green: the formation and pace laps, the
+	// virtual safety car and the safety car (`race_phase`).
+	{
+		const TCHAR* Key = nullptr;
+		const TCHAR* Name = nullptr;
+		switch (Frame.RacePhase)
+		{
+		case ApexRacePhase::Formation:   Key = TEXT("formation");      Name = TEXT("FORMATION LAP"); break;
+		case ApexRacePhase::PaceLap:     Key = TEXT("pace_lap");       Name = TEXT("PACE LAP"); break;
+		case ApexRacePhase::Vsc:         Key = TEXT("vsc");            Name = TEXT("VIRTUAL SAFETY CAR"); break;
+		case ApexRacePhase::VscEnding:   Key = TEXT("vsc_ending");     Name = TEXT("VSC ENDING"); break;
+		case ApexRacePhase::SafetyCar:   Key = TEXT("safety_car");     Name = TEXT("SAFETY CAR"); break;
+		case ApexRacePhase::ScInThisLap: Key = TEXT("sc_in_this_lap"); Name = TEXT("SAFETY CAR IN THIS LAP"); break;
+		default: break;
+		}
+		Out.Set(TEXT("race.phase"), Key ? FApexHudValue::Of(FString(Key)) : FApexHudValue());
+		Out.Set(TEXT("race.phase_name"), Name ? FApexHudValue::Of(FString(Name)) : FApexHudValue());
+	}
+
 	// --- The radar --------------------------------------------------------------------
 	// Every other car within RadarRangeM of the local one, in its frame
 	// (forward and left, m), and whether one is alongside on either side:

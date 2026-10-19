@@ -160,13 +160,10 @@ them yet, and the server leaves a few edges.
   Start Standing / Rolling, Formation lap, False starts), kept in the
   profile, named in the summary; `SessionJoined.RaceRules` kept on the net
   subsystem.
-- client: show the formation lap and the pace lap (`CompactTelemetry.race_phase`
-  1 / 2, in `Countdown` with no countdown): a FORMATION LAP banner and HUD
-  data point (`race.phase`), no lights until the countdown comes back.
 - client: the create screen's Safety car row (`race_rules.safety_car`:
-  Off / Virtual / On the road); show the virtual safety car (`race_phase` 3
-  VSC, 4 VSC ENDING) and the safety car (5 SAFETY CAR, 6 SAFETY CAR IN THIS
-  LAP) as a banner, a HUD data point and on the dash, with the pace.
+  Off / Virtual / On the road); the phase on the cockpit dash, with the
+  pace (the HUD's `race_phase` banner and `race.phase` data points are
+  built).
 - client: draw the safety car (`FApexTelemetryFrame::SafetyCar`, decoded
   and not drawn): a car model with roof light bars, lit until `race_phase`
   6, interpolated like a car; it drives through a lapped car passing it

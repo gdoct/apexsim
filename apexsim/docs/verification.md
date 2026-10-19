@@ -360,6 +360,10 @@ in the `flags` component and the radar's RIGHT marker at the start.
 - The AI lifting and holding station past an incident.
 - The `radar` component's bars reading at a glance over a chase camera's
   car (widened to 14 px after the first run), red as a car closes.
+- The `race_phase` banner: FORMATION LAP (green) on a session with
+  `formation_lap`, and VIRTUAL SAFETY CAR / SAFETY CAR (yellow, flashing
+  as it ends) under `safety_car`, beside the `flags` component without
+  overlapping it.
 
 ## 2. Needs a human: hands, ears and hardware
 

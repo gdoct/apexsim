@@ -473,7 +473,10 @@ before the green or once the session is `Finished`.
 - Client: `FApexCarTelemetry::bBlueFlag` / `YellowAhead`,
   `FApexTelemetryFrame::YellowSectors` / `YellowAt`; the HUD's `flag.*`
   data points, `item.blue_flag` / `item.yellow`, and the `flags` component
-  ([hud-modding](../game/hud-modding.md)).
+  ([hud-modding](../game/hud-modding.md)). The race's phase
+  (`CompactTelemetry.race_phase`: formation and pace laps, VSC, safety car)
+  is `FApexTelemetryFrame::RacePhase`, the HUD's `race.phase` /
+  `race.phase_name` and the `race_phase` banner.
 
 ## Virtual safety car
 

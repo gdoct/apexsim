@@ -1193,6 +1193,37 @@ bool FApexHudDataRadarTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataRacePhaseTest, "ApexSim.Hud.Data.RacePhase", ApexTestFlags)
+
+bool FApexHudDataRacePhaseTest::RunTest(const FString& Parameters)
+{
+	FApexTelemetryFrame Frame;
+	Frame.Cars.Add(HudCar(0, 1, 100.0f, 30.0f));
+	FApexHudInputs In;
+	In.Frame = &Frame;
+	In.LocalCarIndex = 0;
+	In.GameMode = EApexGameMode::Race;
+	FApexHudMemory Memory;
+	FApexHudData Data;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("green: no phase"), HudValue(Data, TEXT("race.phase")).IsNone());
+	TestTrue(TEXT("green: no name"), HudValue(Data, TEXT("race.phase_name")).IsNone());
+
+	Frame.RacePhase = ApexRacePhase::Formation;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("formation key"), HudValue(Data, TEXT("race.phase")).AsString(), FString(TEXT("formation")));
+	TestEqual(TEXT("formation name"), HudValue(Data, TEXT("race.phase_name")).AsString(), FString(TEXT("FORMATION LAP")));
+	Frame.RacePhase = ApexRacePhase::ScInThisLap;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("safety car in"), HudValue(Data, TEXT("race.phase")).AsString(), FString(TEXT("sc_in_this_lap")));
+	// Watching with no car of one's own, the phase is still the race's.
+	In.LocalCarIndex = -1;
+	Frame.RacePhase = ApexRacePhase::Vsc;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("no local car"), HudValue(Data, TEXT("race.phase_name")).AsString(), FString(TEXT("VIRTUAL SAFETY CAR")));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataStableTest, "ApexSim.Hud.Data.Stable", ApexTestFlags)
 
 bool FApexHudDataStableTest::RunTest(const FString& Parameters)

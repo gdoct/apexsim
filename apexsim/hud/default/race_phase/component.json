@@ -1,0 +1,26 @@
+// What the race is doing beyond green: the formation and pace laps, the
+// virtual safety car and the safety car, as a banner at the top. Hidden
+// while the race is green.
+{
+  "name": "Race phase",
+  "region": "top",
+  "order": 4,
+  "visible": "=has(race.phase_name)",
+  "root": {
+    "type": "panel",
+    "padding": [14, 6, 14, 6],
+    "radius": 3,
+    "direction": "row",
+    // Yellow under the safety cars, as a marshal's SC / VSC board; green
+    // for the formation and pace laps; flashing as either ends.
+    "background": "=race.phase == 'formation' || race.phase == 'pace_lap' ? rgb(20, 130, 70, 0.92) : race.phase == 'vsc_ending' || race.phase == 'sc_in_this_lap' ? alpha(rgb(255, 204, 0), floor(hud.time_s * 2) % 2 == 0 ? 0.95 : 0.6) : rgb(255, 204, 0, 0.92)",
+    "children": [
+      { "type": "text", "font": "mono", "size": 13, "tracking": 80, "bold": true,
+        "color": "=race.phase == 'formation' || race.phase == 'pace_lap' ? rgb(255, 255, 255) : rgb(20, 20, 20)",
+        "text": "=race.phase_name" },
+      { "type": "text", "margin": [12, 0, 0, 0], "font": "mono", "size": 11, "tracking": 40,
+        "color": "=race.phase == 'formation' || race.phase == 'pace_lap' ? rgb(225, 245, 230) : rgb(40, 40, 40)",
+        "text": "=race.phase == 'formation' ? 'HOLD YOUR PLACE · NO OVERTAKING' : race.phase == 'pace_lap' ? 'FOLLOW THE LEADER' : race.phase == 'safety_car' || race.phase == 'sc_in_this_lap' ? 'NO OVERTAKING · FOLLOW THE QUEUE' : 'NO OVERTAKING · HOLD THE PACE'" }
+    ]
+  }
+}
