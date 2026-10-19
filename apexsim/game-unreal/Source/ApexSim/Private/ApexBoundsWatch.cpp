@@ -18,12 +18,16 @@ static TAutoConsoleVariable<int32> CVarBoundsWatch(
 
 namespace ApexBoundsWatch
 {
-	FString Problem(const FBoxSphereBounds& Bounds)
+	FString Problem(const FBoxSphereBounds& Bounds, bool bCastsShadow)
 	{
 		// ContainsNaN is true of an infinity too.
 		if (Bounds.Origin.ContainsNaN() || Bounds.BoxExtent.ContainsNaN() || !FMath::IsFinite(Bounds.SphereRadius))
 		{
 			return TEXT("NaN or infinite bounds");
+		}
+		if (!bCastsShadow)
+		{
+			return FString();
 		}
 		if (Bounds.SphereRadius > MaxRadiusCm)
 		{
@@ -89,7 +93,7 @@ void UApexBoundsWatchSubsystem::HandlePostActorTick(UWorld* World, ELevelTick Ti
 void UApexBoundsWatchSubsystem::Check(const UPrimitiveComponent& Component)
 {
 	const FBoxSphereBounds& Bounds = Component.Bounds;
-	const FString Problem = ApexBoundsWatch::Problem(Bounds);
+	const FString Problem = ApexBoundsWatch::Problem(Bounds, Component.CastShadow);
 	const AActor* Owner = Component.GetOwner();
 	if (!Problem.IsEmpty())
 	{
@@ -110,7 +114,7 @@ void UApexBoundsWatchSubsystem::Check(const UPrimitiveComponent& Component)
 		return;
 	}
 	// A tenth over the last one, so a row of equal horizon tiles is one line.
-	if (Bounds.SphereRadius > LargestRadiusCm * 1.1)
+	if (Component.CastShadow && Bounds.SphereRadius > LargestRadiusCm * 1.1)
 	{
 		LargestRadiusCm = Bounds.SphereRadius;
 		UE_LOG(LogApexSim, Log, TEXT("Bounds watch: largest primitive so far %s.%s (%s), radius %.2f km at %s"),

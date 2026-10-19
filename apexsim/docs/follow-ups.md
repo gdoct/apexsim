@@ -273,10 +273,6 @@ the launcher import with the network off.
   AI survey).
 - The chase-near camera behind the Bugotti Chiffon showed a dark blur
   filling the frame once (snow run, 2026-10-15): the camera inside a body.
-- The bounds watch (`apexsim.debug.BoundsWatch`) reports the rain cloud
-  dome (`ApexCloudLayerActor.Dome`, a 20 km radius on purpose) as out of
-  the world on every rain or cloud start. It should skip primitives that
-  cast no shadow: only casters reach the VSM culling it is there for.
 
 **Check:** the A/B is two screenshots.
 

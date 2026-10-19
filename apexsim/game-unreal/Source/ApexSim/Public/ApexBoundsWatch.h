@@ -25,8 +25,13 @@ namespace ApexBoundsWatch
 	/** From this radius on, a new largest primitive is logged (1 km). */
 	inline constexpr double ReportRadiusCm = 1.0e5;
 
-	/** What is wrong with these bounds, or empty when nothing is. */
-	APEXSIM_API FString Problem(const FBoxSphereBounds& Bounds);
+	/**
+	 * What is wrong with these bounds, or empty when nothing is. Size and
+	 * distance only matter to a shadow caster (only casters reach the VSM
+	 * culling): a primitive that casts none, the rain cloud dome's 20 km
+	 * shell, is checked for NaN alone.
+	 */
+	APEXSIM_API FString Problem(const FBoxSphereBounds& Bounds, bool bCastsShadow = true);
 }
 
 /**

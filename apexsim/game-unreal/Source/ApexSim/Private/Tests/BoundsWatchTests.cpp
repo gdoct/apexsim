@@ -24,6 +24,12 @@ bool FApexBoundsWatchProblemTest::RunTest(const FString& Parameters)
 		FString(TEXT("NaN or infinite bounds")));
 	TestFalse(TEXT("a 30 km radius"), Problem(FBoxSphereBounds(FVector::ZeroVector, FVector(3.0e6), 3.0e6)).IsEmpty());
 	TestFalse(TEXT("a car 100 km out"), Problem(FBoxSphereBounds(FVector(1.0e7, 0.0, 0.0), FVector(280.0), 300.0)).IsEmpty());
+	// The rain cloud dome casts no shadow: its 20 km radius is no VSM risk.
+	const FBoxSphereBounds Dome(FVector::ZeroVector, FVector(2.0e6, 2.0e6, 4.0e5), 2.05e6);
+	TestFalse(TEXT("a dome that casts a shadow"), Problem(Dome).IsEmpty());
+	TestTrue(TEXT("a dome that casts none"), Problem(Dome, false).IsEmpty());
+	TestFalse(TEXT("NaN still matters without a shadow"),
+		Problem(FBoxSphereBounds(FVector(NaN, 0.0, 0.0), FVector(1.0), 1.0), false).IsEmpty());
 	return true;
 }
 

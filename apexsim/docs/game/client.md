@@ -792,7 +792,9 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
   checks every rendered primitive's bounds after each frame's actor ticks
   and logs a NaN, infinite or out-of-world one (`Bounds watch: ...` at
   Error, log flushed) with its owner and transform, plus each new largest
-  primitive past 1 km. About 0.2 ms a frame for a thousand primitives. It
+  primitive past 1 km. Size and distance are checked on shadow casters
+  only (only casters reach the VSM culling), so the rain cloud dome's
+  20 km shell passes; NaN is checked on every primitive. About 0.2 ms a frame for a thousand primitives. It
   is there for `DXGI_ERROR_DEVICE_HUNG`: a hang caught in VSM's non-Nanite
   culling (`CullPerPageDrawCommandsCs`) fits one primitive with NaN or
   absurd bounds. For a soak, `run_checks.py "b1-*" --repeat N
