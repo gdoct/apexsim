@@ -137,12 +137,12 @@ defaults.
 **Work left in phase 0.** Each step is one commit, and every test passes
 after each:
 
-2. **The starter set.** `starter.yml`; `build_release.ps1` copying it; a
+1. **The starter set.** `starter.yml`; `build_release.ps1` copying it; a
    preflight that every showcase and the demo backdrop are on starter
    tracks; and the client's backdrop tests (Austin today) moved onto
    starter tracks. Check: a release package built and raced from the zip,
    with the menu backdrop running.
-3. **The formats crate.** `apexsim-content/formats` holds the track YAML,
+2. **The formats crate.** `apexsim-content/formats` holds the track YAML,
    the five sidecars and `content_crc`. The server and `track-core` use it;
    their copies and `track-core`'s dev-dependency on the server go, and
    the compat tests become the server's own. Determinism and the golden
@@ -150,11 +150,11 @@ after each:
    CLAUDE.md rule about `TrackFileFormat` and `TrackFile` goes with it.
    `tools/ac_car_import/tests` reads `apexsim/server/src/brakes.rs` for
    its brake constants (and skips without it): that edge goes too.
-4. **The direction checked in CI.** CI runs the server, the physics
+3. **The direction checked in CI.** CI runs the server, the physics
    library, the track editor and the site from their roots; what is left is
    path filters per root and a check that nothing under `apexsim-content/`
    names `../apexsim`, `apexsim-server` or the code's scripts.
-5. **Baked output out of the source folders** (optional, before packs).
+4. **Baked output out of the source folders** (optional, before packs).
    `ats-export` writes the sidecars into
    `apexsim-content/build/tracks/<Stem>/`, beside the export and a copy of
    the YAML, instead of gitignored files beside the source, and the
