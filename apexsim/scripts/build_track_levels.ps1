@@ -15,11 +15,10 @@
            commandlets in the ApexTrackEditor module match the C++ source
         2. (optional, -ImportProps) UnrealEditor-Cmd -run=ApexPropImport -all
                                                  -> game-unreal/Content/Props/...
-        3. cargo run --bin ats-dress -- --all    -> tracks/default/*.ats
-        4. cargo run --bin ats-export -- --all   -> build/tracks/<Track>.{uescene.json,uemesh}
-                                                    (+ the server's sidecars beside each YAML)
-        5. python tools/build_track_catalog.py   -> build/tracks/previews/<Track>.png
-           (stages 3 to 5 run in apexsim-content, paths relative to it)
+        3-5. ../apexsim-content/bake.ps1: ats-dress (the scenes), ats-export
+           (build/tracks/<Track>.{uescene.json,uemesh} and the server's
+           sidecars beside each YAML) and tools/build_track_catalog.py (the
+           previews): the content's own bake, cargo and Python only
         6. apexsim-replay render ...              -> build/showcase/<Track>.<class>.<variant>.apxs
            The showcases showcase.yml lists (docs/game/spectator.md): a
            rendered AI race per circuit that the menu plays behind its
@@ -45,9 +44,8 @@
     Both generated stages are regenerated wholesale; nothing under
     build/tracks or Content/Tracks should be hand-edited.
 
-    The exporter resolves its input and output directories relative to the
-    working directory, so this script always runs cargo from the content
-    root (../apexsim-content) rather than from track-editor/.
+    The content stages are ../apexsim-content/bake.ps1, which a content
+    author runs on its own; this script adds the code's stages around it.
 
 .PARAMETER Track
     Track stems (the .yaml file name without extension, e.g. Monza) to process
@@ -207,18 +205,6 @@ function Resolve-TrackFiles {
     return $files
 }
 
-# A path under the content root, relative to it: the ats-* tools run with
-# the content root as their working directory and take tracks that way.
-function ConvertTo-ContentRelative {
-    param([string]$Path)
-    $full = [IO.Path]::GetFullPath($Path)
-    $prefix = $ContentRoot.TrimEnd('\') + '\'
-    if ($full.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
-        return $full.Substring($prefix.Length)
-    }
-    return $full
-}
-
 $stopwatch = [Diagnostics.Stopwatch]::StartNew()
 
 if (-not (Test-Path $Uproject)) {
@@ -265,74 +251,16 @@ if ($ImportProps) {
         -Arguments $propArgs -What 'ApexPropImport'
 }
 
-if ($SkipDress) {
-    Write-Step 'Skipping the dressing pass; using the scenes as they are'
-}
-else {
-    # Only a track with a layout dossier has anything to dress from; one
-    # without (IMS, MexicoCity, ...) is baked from its scene as it is. That is
-    # what `ats-dress --all` does, but a track named to it without a dossier
-    # is a failure, which stopped every fresh-clone run of initialize_content.
-    $dressFiles = @($trackFiles | Where-Object {
-            Test-Path ([IO.Path]::ChangeExtension($_, '.layout.json'))
-        })
-    $undressed = @($trackFiles | Where-Object { $dressFiles -notcontains $_ })
-    if ($undressed.Count -gt 0) {
-        Write-Host ("No layout dossier, scene kept as it is: " +
-            (($undressed | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_) }) -join ', ')) `
-            -ForegroundColor DarkGray
-    }
-
-    if ($Track -and $dressFiles.Count -eq 0) {
-        Write-Step 'Skipping the dressing pass; no named track has a layout dossier'
-    }
-    else {
-        if ($Track) {
-            Write-Step "Dressing $($dressFiles.Count) track(s) from their layout dossiers"
-        }
-        else {
-            Write-Step "Dressing every track (default and custom) that has a layout dossier"
-        }
-
-        $dressArgs = @('run', '--quiet', '--manifest-path',
-            'track-editor\Cargo.toml', '--bin', 'ats-dress')
-        if ($Release) { $dressArgs += '--release' }
-        $dressArgs += '--'
-        if ($DryRun) { $dressArgs += '--dry-run' }
-        if ($Track) { $dressArgs += @($dressFiles | ForEach-Object { ConvertTo-ContentRelative $_ }) } else { $dressArgs += '--all' }
-
-        Invoke-Tool -Exe 'cargo' -Arguments $dressArgs -WorkingDir $ContentRoot -What 'ats-dress'
-    }
-}
-
-if ($SkipExport) {
-    Write-Step 'Skipping the bake; using the existing exports'
-}
-else {
-    if ($Track) {
-        Write-Step "Baking $($trackFiles.Count) track(s) to $ExportDir"
-    }
-    else {
-        Write-Step "Baking every track (default and custom) to $ExportDir"
-    }
-
-    $cargoArgs = @('run', '--quiet', '--manifest-path',
-        'track-editor\Cargo.toml', '--bin', 'ats-export')
-    if ($Release) { $cargoArgs += '--release' }
-    $cargoArgs += '--'
-    if ($trackFiles.Count -gt 0) { $cargoArgs += @($trackFiles | ForEach-Object { ConvertTo-ContentRelative $_ }) } else { $cargoArgs += '--all' }
-
-    Invoke-Tool -Exe 'cargo' -Arguments $cargoArgs -WorkingDir $ContentRoot -What 'ats-export'
-}
-
-if ($SkipPreviews) {
-    Write-Step 'Skipping the catalog previews'
-}
-else {
-    Write-Step 'Drawing the catalog previews'
-    $previewArgs = @('tools\build_track_catalog.py')
-    if ($Track) { $previewArgs += @($Track | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_) }) }
-    Invoke-Tool -Exe 'python' -Arguments $previewArgs -WorkingDir $ContentRoot -What 'build_track_catalog.py'
+# Stages 3 to 5 are the content's own bake (../apexsim-content/bake.ps1):
+# cargo and Python only, run from the content root.
+$bakeStages = @()
+if (-not $SkipDress) { $bakeStages += 'dress' } else { Write-Step 'Skipping the dressing pass; using the scenes as they are' }
+if (-not $SkipExport) { $bakeStages += 'export' } else { Write-Step 'Skipping the bake; using the existing exports' }
+if (-not $SkipPreviews) { $bakeStages += 'previews' } else { Write-Step 'Skipping the catalog previews' }
+if ($bakeStages.Count -gt 0) {
+    $bakeArgs = @{ Stage = $bakeStages; Release = $Release; DryRun = $DryRun }
+    if ($Track) { $bakeArgs.Track = $Track }
+    & (Join-Path $ContentRoot 'bake.ps1') @bakeArgs
 }
 
 if ($SkipShowcase) {

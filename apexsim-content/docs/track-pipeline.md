@@ -14,8 +14,10 @@ game builds at runtime (no cooked track levels). Formats:
   `drs_zones.py`, `track_location.py`, `bridge_elevation.py`,
   `osm_centerline.py`, `seed_scene.py`, `generate_race_line.py`,
   `build_track_catalog.py`, `check_walls.py`, `bake_ground_textures.py`;
-  helpers `track_dirs.py`, `lib/ApexTracks.ps1`. The bake driver is the code
-  root's `apexsim/scripts/build_track_levels.ps1`.
+  helpers `track_dirs.py`, `lib/ApexTracks.ps1`. The bake driver is
+  `bake.ps1` at the content root (cargo and Python only); the code root's
+  `apexsim/scripts/build_track_levels.ps1` runs it and adds the code's
+  stages (showcases, materials).
 - `track-editor/core/src/`: `layout.rs`, `dress.rs`, `groom.rs`,
   `barriers.rs`, `circuit_style.rs`, `pit.rs`, `track_smooth.rs`,
   `track_bank.rs`, `dem.rs`, `terrain.rs`, `strip_layout.rs`, `ue_export.rs`,
@@ -48,12 +50,15 @@ python tools/drs_zones.py --all                                             # DR
 python tools/osm_layout.py --all --offline                                  # dossiers, refitted to the centerline
 python tools/dem_fetch.py --all --offline                                   # DEM sidecar (same fit, same datum)
 python tools/track_location.py --all                                        # altitude and position from the DEM
-../apexsim/scripts/build_track_levels.ps1                                    # dress, export, previews, materials
+./bake.ps1                                                                  # dress, export, previews
 ```
 
 The first seven are data refreshes with checked-in outputs. The last is the
-everyday step: `ats-dress` (idempotent, so always), `ats-export`,
-`build_track_catalog.py`, missing or stale showcases
+everyday step: `ats-dress` (idempotent, so always), `ats-export` and
+`build_track_catalog.py` (`-Stage dress,export,previews`, the default, plus
+`ground` for the ground PNGs when one is missing; `-Track A,B`, `-Release`,
+`-DryRun`). From the code root, `scripts/build_track_levels.ps1` runs the
+same bake and then the code's stages: missing or stale showcases
 ([apexsim/docs/game/spectator.md](../../apexsim/docs/game/spectator.md)) and missing track materials.
 Switches: `-Track A,B`, `-SkipDress` (hand-edited scene), `-SkipExport`,
 `-SkipPreviews`, `-SkipShowcase`, `-SkipMaterials` (no engine), `-Build`,
@@ -543,7 +548,7 @@ draws in flat colours and the log says so.
    `ZONES`, dossier refit, DEM refit, `track_location.py`; a circuit with no
    DEM goes in its `MANUAL`). No `raceline`? `python tools/generate_race_line.py
    --track <yaml>`.
-5. **Build.** `../apexsim/scripts/build_track_levels.ps1 -Track <Stem>`. Read the
+5. **Build.** `./bake.ps1 -Track <Stem>`. Read the
    `ats-dress --explain` output (what each entry became, what was skipped
    and why) and check a doubtful one on the trace page's GO TO; run dress
    twice and confirm the `.ats` does not change; `ats-export --strict

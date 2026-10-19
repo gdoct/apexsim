@@ -455,9 +455,8 @@ Phase 0 splits this repository into two roots, `apexsim/` and
 `apexsim-content/`, laid out as the future repositories, with the code
 depending on the content and never the reverse; the track editor,
 `track-core` and the content tools go with the content. The roots are in
-place (2026-10-19). Left, one commit each: (1) `build_track_levels` and
-`initialize_content` split into a content `bake.ps1` and the code half;
-(2) `starter.yml` and the release copying it; (3) a `formats` crate owning
+place (2026-10-19), with the content's own `bake.ps1`. Left, one commit
+each: (2) `starter.yml` and the release copying it; (3) a `formats` crate owning
 the track YAML, sidecars and `content_crc`; (4) path filters and a
 direction check in CI; (5, optional) the sidecars baked out of the source
 folders. After that come the pack format and a local

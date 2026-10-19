@@ -86,12 +86,12 @@ The two roots are in place. The tree, with what is still to come marked:
     tools/                      osm_*, dem_*, ac_import*, ac_car_import*, build_track_catalog, previews,
                                 drs_zones, race line, check_walls, trace_layout, track_dirs.py,
                                 lib/ApexTracks.ps1, lib/ApexCars.ps1, generators/ (Blender and texture generators)
+    bake.ps1                    ground PNGs, dress, export, previews: cargo and Python only
     build/tracks/               the baked tree: exports, previews, catalog
     docs/                       the content docs
     .cache/                     osm, dem, previews, importer notices
     starter.yml                 (to come) the cars and tracks a release ships
     formats/                    (to come) Rust crate: track YAML, the five sidecars, content_crc
-    bake.ps1                    (to come) dress, export, catalog, previews, ground textures
 ```
 
 One CLAUDE.md at the repository root holds the rules for both roots. Each
@@ -137,12 +137,6 @@ defaults.
 **Work left in phase 0.** Each step is one commit, and every test passes
 after each:
 
-1. **Split the orchestrators.** `build_track_levels.ps1` and
-   `initialize_content.ps1` each do a content half (dress, export,
-   catalog, previews, ground PNGs) and a code half (UE imports, material
-   bake, showcases, guides, physics lib). The content half becomes
-   `apexsim-content/bake.ps1`, which needs only cargo and Python; the code
-   scripts call it when the baked tree is missing.
 2. **The starter set.** `starter.yml`; `build_release.ps1` copying it; a
    preflight that every showcase and the demo backdrop are on starter
    tracks; and the client's backdrop tests (Austin today) moved onto
@@ -508,7 +502,7 @@ against the content working copy.
 
 ## Traps
 
-- **Two repositories, one checksum.** Until phase 0's formats crate (step 3) a track YAML
+- **Two repositories, one checksum.** Until phase 0's formats crate a track YAML
   is modelled in the server and in `track-core`; a key added to one and not
   the other drops out of a pipeline rewrite, and the content's bake then
   carries a different crc than the server computes. Do that step before the

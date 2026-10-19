@@ -17,8 +17,9 @@ by side:
 The code depends on the content and reaches it as the sibling
 `../apexsim-content` from the code root (`../../apexsim-content` from
 `server/` or `game-unreal/`). Nothing under `apexsim-content/` reads, builds or
-links the code; the one exception is track-core's dev-dependency on the
-server crate for its compat tests.
+links the code; the exceptions are two tests, track-core's compat tests
+(a dev-dependency on the server crate) and the AC car importer's test
+reading `server/src/brakes.rs`.
 
 Where each kind of tool runs from:
 
@@ -29,7 +30,10 @@ Where each kind of tool runs from:
   `ats-*` tools and the editor resolve `tracks/...` and `build/tracks`
   against the working directory
   (`cargo run --manifest-path track-editor/Cargo.toml --bin ats-export -- ...`),
-  and the Python tools are `python tools/<tool>.py`.
+  and the Python tools are `python tools/<tool>.py`. `bake.ps1` there runs
+  the content's whole bake (ground PNGs, dress, export, previews) with cargo
+  and Python only; `scripts/build_track_levels.ps1` runs it and adds the
+  code's stages.
 - **Cargo** for the server runs in `apexsim/server` (and `apexsim/server/ffi`).
 
 Paths in this doc are relative to the code root; a path that starts with
@@ -244,8 +248,8 @@ is safe on an existing checkout. Stages, in order:
 1. `Build.bat ApexSimEditor Win64 Development` (incremental; the commandlets
    live in it).
 2. `cargo build --release` in `server/`, if there is no server exe.
-3. `apexsim-content/tools/bake_ground_textures.py` (run from the content
-   root), then `-run=ApexGroundTexImport` ->
+3. `apexsim-content/bake.ps1 -Stage ground` (the ground PNGs), then
+   `-run=ApexGroundTexImport` ->
    `/Game/Ground`.
 4. `-run=ApexMaterialBake` -> the track parents under
    `/Game/Materials/Track` and the car parents under `/Game/Materials/Car`,
@@ -319,8 +323,8 @@ in `DefaultGame.ini` unless `-Version`):
    `track_id`, every file a `car.toml` names is there
 2. server: `cargo build --release`
 3. props: `ApexPropImport`
-4. tracks: `build_track_levels.ps1` (dress, export, previews, showcases,
-   materials)
+4. tracks: `build_track_levels.ps1` (the content's `bake.ps1`: dress,
+   export, previews; then showcases and materials)
 5. client: `build_game_standalone.ps1` (Shipping by default), archived
    straight into the release folder
 6. assemble: `Server\` (`apexsim-server.exe`, `apexsim-replay.exe`, the

@@ -380,7 +380,7 @@ if ($doServer) {
 
 if ($doPngs) {
     Write-Step 'Baking the ground texture PNGs'
-    Invoke-Tool -Exe 'python' -Arguments @('tools/bake_ground_textures.py') -What 'bake_ground_textures.py' -Root $ContentRoot
+    & (Join-Path $ContentRoot 'bake.ps1') -Stage ground -Force
 }
 
 if ($doGround) {

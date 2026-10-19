@@ -249,8 +249,9 @@ files leaves such a track alone:
 
 - `ats-export` refuses it (`UeExportError::Imported`; `--all` walks past).
 - `ats-dress`, `ats-groom`, `ats-smooth`, `ats-bank` skip it.
-- `build_track_levels.ps1 -Track` drops it and prints the rebuild command;
-  the showcase stage does not render it.
+- `bake.ps1 -Track` (and `build_track_levels.ps1 -Track`, which runs it)
+  drops it and prints the rebuild command; the showcase stage does not
+  render it.
 - `initialize_content.ps1` never bakes it, and reports one whose export or
   road mesh is missing with the command from its `import.json`.
 - `build_track_catalog.py` keeps the importer's preview.
