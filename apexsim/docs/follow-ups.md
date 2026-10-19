@@ -190,8 +190,6 @@ them yet, and the server leaves a few edges.
   (+35%, on both seeds), contact +9% and sliding +13% (noise-sized). An AI
   driver could lift for trouble it sees ahead (a car off or crawling
   within its view) on its own, apart from the flag's rules.
-- The time penalty for a pass under a yellow is given even when the place
-  is handed back at once.
 - The formation lap holds the grid's tyre warmth but puts none in (a
   steady 30 m/s): weaving and the warm-up accelerations a driver does would,
   and then `FORMATION_LAP_WARMTH` could go.

@@ -513,8 +513,10 @@ pub struct GameSession {
     /// Every penalty given this race (`crate::race_control::Penalty`), by
     /// car, in the order given. Emptied as the field lines up.
     pub penalties: std::collections::BTreeMap<PlayerId, Vec<crate::race_control::Penalty>>,
-    /// The last tick each pair (passer, passed) was penalised for a pass
-    /// under a yellow: the order swapping back and forth is one pass.
+    /// Each pass under a yellow not yet judged, by pair (passer, passed),
+    /// the tick it was made: penalised if the passer is still ahead
+    /// [`crate::race_control::YELLOW_PASS_HANDBACK_S`] later, forgiven if
+    /// it handed the place back before.
     yellow_passed: std::collections::BTreeMap<(PlayerId, PlayerId), u32>,
     /// How many times a weekend day has baked its own sky
     /// ([`Self::begin_day`]): a racing line planned under an earlier one is
@@ -2994,21 +2996,40 @@ impl GameSession {
         }
         if !passes.is_empty() {
             let ids: Vec<PlayerId> = self.session.participants.keys().copied().collect();
-            let repeat_ticks =
-                (crate::race_control::YELLOW_PASS_REPEAT_S * self.tick_rate_hz as f32) as u32;
             for pass in passes {
                 let (Some(&passer), Some(&passed)) = (ids.get(pass.passer), ids.get(pass.passed))
                 else {
                     continue;
                 };
-                let again = self
-                    .yellow_passed
-                    .get(&(passer, passed))
-                    .is_some_and(|t| pass.tick.saturating_sub(*t) < repeat_ticks);
-                self.yellow_passed.insert((passer, passed), pass.tick);
-                if !again {
-                    self.penalise(passer, Offence::YellowPass);
+                self.yellow_passed
+                    .entry((passer, passed))
+                    .or_insert(pass.tick);
+            }
+        }
+        // Each pass waits for the place to be handed back.
+        if !self.yellow_passed.is_empty() {
+            let total = crate::laps::track_length_m(&self.track_config);
+            let handback_ticks =
+                (crate::race_control::YELLOW_PASS_HANDBACK_S * self.tick_rate_hz as f32) as u32;
+            let now = self.session.current_tick;
+            let participants = &self.session.participants;
+            let mut judged = Vec::new();
+            self.yellow_passed.retain(|&(passer, passed), &mut tick| {
+                let (Some(a), Some(b)) = (participants.get(&passer), participants.get(&passed))
+                else {
+                    return false;
+                };
+                if laps_run(b, total) > laps_run(a, total) {
+                    return false;
                 }
+                if now.saturating_sub(tick) < handback_ticks {
+                    return true;
+                }
+                judged.push(passer);
+                false
+            });
+            for passer in judged {
+                self.penalise(passer, Offence::YellowPass);
             }
         }
         // Too late to serve: added as time.
@@ -8259,6 +8280,51 @@ mod tests {
         assert_eq!(table[1].penalty_s, YELLOW_PASS_PENALTY_S as u32);
         let gap = table[1].gap_ms.unwrap();
         assert!((2_900..=3_100).contains(&gap), "5 s less the 2 s: {gap} ms");
+    }
+
+    /// A pass under a yellow is judged [`YELLOW_PASS_HANDBACK_S`] after it:
+    /// the passer still ahead is penalised, one that handed the place back
+    /// is not.
+    #[test]
+    fn a_yellow_pass_handed_back_is_forgiven() {
+        use crate::race_control::{YELLOW_PASS_HANDBACK_S, YELLOW_PASS_PENALTY_S};
+        let window = (YELLOW_PASS_HANDBACK_S * DEFAULT_TICK_RATE_HZ as f32) as u32 + 2;
+        for handed_back in [false, true] {
+            let (mut gs, passer, passed) = racing_session_with_two_humans();
+            gs.session.race_rules.yellow_penalty = true;
+            gs.session
+                .participants
+                .get_mut(&passer)
+                .unwrap()
+                .current_lap = 2;
+            let tick = gs.session.current_tick;
+            gs.yellow_passed.insert((passer, passed), tick);
+            for _ in 0..window / 2 {
+                gs.tick(&HashMap::new());
+            }
+            assert_eq!(gs.penalty_seconds(&passer), 0, "not judged yet");
+            if handed_back {
+                gs.session
+                    .participants
+                    .get_mut(&passed)
+                    .unwrap()
+                    .current_lap = 3;
+            }
+            for _ in 0..window {
+                gs.tick(&HashMap::new());
+            }
+            let owed = if handed_back {
+                0
+            } else {
+                YELLOW_PASS_PENALTY_S as u32
+            };
+            assert_eq!(
+                gs.penalty_seconds(&passer),
+                owed,
+                "handed back: {handed_back}"
+            );
+            assert!(gs.yellow_passed.is_empty());
+        }
     }
 
     #[test]

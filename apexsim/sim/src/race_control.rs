@@ -72,9 +72,11 @@ pub const SERVE_WITHIN_LAPS: u16 = 3;
 /// there is no pit lane) adds to the race time, s; a stop-go adds this and
 /// its hold.
 pub const DRIVE_THROUGH_TIME_S: u16 = 20;
-/// The same pair passing under a yellow again within this long is the
-/// same pass (side by side, the order swapping back and forth), s.
-pub const YELLOW_PASS_REPEAT_S: f32 = 10.0;
+/// A car that passed another under a yellow has this long to hand the
+/// place back: still ahead of it after this, it is penalised; behind it
+/// again, the pass is forgiven. The order swapping back and forth within
+/// it (side by side) is one pass, s.
+pub const YELLOW_PASS_HANDBACK_S: f32 = 10.0;
 
 /// A car stopped on the road this long brings out the virtual safety car,
 /// s.

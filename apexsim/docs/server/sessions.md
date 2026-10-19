@@ -583,7 +583,7 @@ for an offence the rules leave out.
 | Offence (`Offence`) | Rule | Penalty |
 |---|---|---|
 | Jump start (0), found by the false-start watch, given at the green | `jump_start` | drive-through |
-| Pass under a yellow (1), from the flags; the same pair again within `YELLOW_PASS_REPEAT_S` (10 s) is the same pass | `yellow_penalty` | `YELLOW_PASS_PENALTY_S` (5 s) time |
+| Pass under a yellow (1), from the flags, given `YELLOW_PASS_HANDBACK_S` (10 s) after the pass if the passer is still ahead; handed back within it (the passed car ahead again), it is forgiven, and the order swapping back and forth is one pass | `yellow_penalty` | `YELLOW_PASS_PENALTY_S` (5 s) time |
 | Out of a manual pit lane past the red exit light (2): across the last limit line while `pit::exit_closed`, not on the pit route | `pit_exit_penalty` | stop-go, `PIT_EXIT_STOP_GO_S` (10 s) |
 
 - **Time** penalties are counted at once (`PenaltyStatus::Added`).
