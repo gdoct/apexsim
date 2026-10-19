@@ -30,7 +30,7 @@
     ground runs by itself only when a PNG is missing).
 
 .PARAMETER Track
-    Track stems (Monza, Spa, ...) to dress, export and draw instead of all.
+    Track stems (Monzarella, SpaFrankenchamps, ...) to dress, export and draw instead of all.
 
 .PARAMETER Release
     Build the ats-* tools in release mode: slower to compile, much faster
