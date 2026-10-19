@@ -393,18 +393,18 @@ or a struck lap: [sessions.md](sessions.md)); the track guide's solo runs
 ## Checking it
 
 ```bash
-cd server
-cargo test --manifest-path ../sim/Cargo.toml -- ai_driver:: racecraft::   # the unit tests live in the simulation crate
-cargo test --test racecraft_test     # a quicker driver passes a slower one; a car in a barrier reverses out
-cargo test --test ai_race_start_test # composed off the grid; Le Mans first lap (the yaw seam)
-cargo test --test determinism_test   # also fuel_test an_ai_short_of_fuel_lifts_and_coasts, air_test the_ai_gets_round_in_a_gale
+cd sim
+cargo test --lib -- ai_driver:: racecraft::     # the unit tests
+cargo test --test all racecraft_test::          # a quicker driver passes a slower one; a car in a barrier reverses out
+cargo test --test all ai_race_start_test::      # composed off the grid; Le Mans first lap (the yaw seam)
+cargo test --test all determinism_test::        # also fuel_test an_ai_short_of_fuel_lifts_and_coasts, air_test the_ai_gets_round_in_a_gale
 ```
 
 **The AI survey** is the acceptance test for anything that moves the AI,
-barriers, walls, the centerline, the ground or the car physics:
+barriers, walls, the centerline, the ground or the car physics, run in `sim/`:
 
 ```bash
-cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture
+cargo test --release --test all ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored --nocapture
 ```
 
 Every circuit under `apexsim-content/tracks/{default,custom}`, a mixed field of 10
@@ -447,14 +447,14 @@ Other harnesses (all `#[ignore]`d):
   holds at 20-65 m/s against `grip_coefficient` and against what its plan
   reads (`plan`); `PROBE_LINEAR`, `PROBE_NO_CAMBER`, `PROBE_EVEN_ROLL` take
   the load sensitivity, camber or the bars out to find what costs it.
-- Pit surveys: `cargo test --release --test pit_stop_test pit_lane_survey
-  -- --ignored --nocapture` and `ai_pit_survey` ([pit-lane.md](pit-lane.md);
+- Pit surveys, in `server/`: `cargo test --release --test all
+  pit_stop_test::pit_lane_survey -- --ignored --nocapture` and `ai_pit_survey` ([pit-lane.md](pit-lane.md);
   `PIT_TRACKS`, `PIT_TRACE`).
-- `tests/pad_driver_probe.rs`: the AI's line with a pad's hand error on
+- `sim/tests/all/pad_driver_probe.rs` (run in `sim/`): the AI's line with a pad's hand error on
   top, through the steering aid or raw, to reproduce a player's tyre
   temperatures (`PAD_AID`, `PAD_NOISE`, `PAD_HOLD_S`, `PAD_SKILL`,
   `PAD_CAR`, `PAD_TRACK`, `PAD_LAPS`, `PAD_FULL`):
-  `PAD_AID=0 PAD_NOISE=0.12 cargo test --release --test pad_driver_probe -- --ignored --nocapture`.
+  `PAD_AID=0 PAD_NOISE=0.12 cargo test --release --test all pad_driver_probe:: -- --ignored --nocapture`.
 - `hotlap_watch_test watch_probe` (the lone car's ladder per circuit and
   car, [sessions.md](sessions.md)).
 

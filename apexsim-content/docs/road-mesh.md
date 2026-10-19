@@ -171,12 +171,14 @@ recognises it from the pit sidecar instead (see
 ## Checking it
 
 ```bash
-cd ../apexsim/server
-cargo test --test road_mesh_test                    # the mesh against the centerline on Monza; grid seating
-cargo test --test determinism_test                  # includes ..._on_the_road_mesh (Monza)
-cargo test --manifest-path ../sim/Cargo.toml physics::   # surface tests run under both backends (mesh_from_centerline)
+cd ../apexsim/sim
+cargo test --test all road_mesh_test::              # the mesh against the centerline on Monza; grid seating
+cargo test --test all determinism_test::            # includes ..._on_the_road_mesh (Monza)
+cargo test --lib physics::                          # surface tests run under both backends (mesh_from_centerline)
+SURVEY_ROAD_CONTACT=mesh cargo test --release --test all ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored --nocapture
+
+cd ../server
 cargo bench                                         # physics_step_monza_mesh, session_tick_8cars_monza_mesh
-SURVEY_ROAD_CONTACT=mesh cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture
 
 cd ../../apexsim-content/track-editor
 cargo test -p track-core --test road_mesh           # coverage, curb profile, band classes, byte-identical roundtrip

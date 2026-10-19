@@ -92,7 +92,7 @@ query belongs on that path, not on a full scan.
 
 A seeded session replays bit for bit: `apexsim-replay render`, showcases,
 replays and the AI survey all depend on it, and
-`server/tests/determinism_test.rs` asserts it on the centerline and the road
+`sim/tests/all/determinism_test.rs` asserts it on the centerline and the road
 mesh backends. Inside the sim path:
 
 - No iteration over a `HashMap` where order can reach the result. Session
@@ -146,9 +146,10 @@ is, the sim defines it and `network` re-exports it (`RecordBytes`,
 `config` re-exports `RoadContactMode` the same way. A simulation test that
 reads its result through the wire (`SkyNow`, `lap_flags_of`,
 `RACE_FLAG_YELLOW_SHIFT`, `SessionWire`) lives with the server
-(`server/tests/sim_wire_test.rs`); the simulation's own unit tests run in
-`sim/` (`cargo test` there), the server's integration tests, the
-determinism test among them, in `server/`.
+(`server/tests/all/sim_wire_test.rs`). A test that needs only the simulation
+(the determinism test, the physics, AI and race-rule files) lives in
+`sim/tests/all` and runs with `cargo test` in `sim/`; the ones that start a
+server, speak the wire or read its config run in `server/`.
 
 ## Tick timing on Windows
 
@@ -244,7 +245,7 @@ game loop does that on a blocking task (`game_loop/track_loads.rs`) and holds
 the creating connection's messages in order meanwhile, so running sessions
 never stall. Each sidecar is optional: a missing one is logged and the track
 drives without it (the centerline stands in). Tested by
-`server/tests/track_content_test.rs`.
+`server/tests/all/track_content_test.rs`.
 
 ## Content checksums
 

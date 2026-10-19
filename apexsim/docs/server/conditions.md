@@ -667,14 +667,16 @@ See [protocol.md](protocol.md) for the append-only rules.
 ## Checking it
 
 ```bash
-cd server
-cargo test --test session_conditions_test     # echo, listing, the grip bake
-cargo test --test air_test                     # density, turbo, wind, the AI in a gale
-cargo test --test track_evolution_test         # rubber and marbles, forecast rain and the AI's crossover, 60x clock, determinism
-cargo test --manifest-path ../sim/Cargo.toml -- conditions:: road_state:: wind::
+cd sim
+cargo test --lib -- conditions:: road_state:: wind::
+cargo test --test all air_test::                    # density, turbo, wind, the AI in a gale
+SURVEY_WIND_KPH=25 cargo test --release --test all ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored --nocapture
+
+cd ../server
+cargo test --test all session_conditions_test::     # echo, listing, the grip bake
+cargo test --test all track_evolution_test::        # rubber and marbles, forecast rain and the AI's crossover, 60x clock, determinism
 cargo test --lib -- road_state_wire_format a_render_carries_the_road_state
-cargo test --test sim_wire_test                # the sky ahead as the wire sends it (SkyNow)
-SURVEY_WIND_KPH=25 cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture
+cargo test --test all sim_wire_test::               # the sky ahead as the wire sends it (SkyNow)
 ```
 
 Client: `ApexSim.Sky.*` (incl. `.Site`, `.Live`), `ApexSim.Hud.Data.Sky`,

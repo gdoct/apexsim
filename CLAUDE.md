@@ -70,7 +70,7 @@ Code scripts run from `apexsim/`, content tools (`ats-*`, `tools/*.py`) from
   (`apexsim/sim`, re-exported by the server under the same module paths), and
   no `HashMap` iteration order reaching a result: participants are a
   `BTreeMap`, chance is `wind::hash01` of tick, car, lap or corner.
-  `apexsim/server/tests/determinism_test.rs` must stay bit-identical; showcases, guides,
+  `apexsim/sim/tests/all/determinism_test.rs` must stay bit-identical; showcases, guides,
   replays and site shots all rely on seeded runs replaying exactly.
 - **The wire is append-only.** Named fields get `#[serde(default)]` and are
   left off the wire at their default; positional fields (`TelemetryCompact`,

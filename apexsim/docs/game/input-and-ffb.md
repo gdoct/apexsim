@@ -417,8 +417,9 @@ hardware.
 - Server: `lone_car_trace` (`server/ffi`) checks the library's feedback
   against the session's collector every tick, bit for bit.
 - Server: `column_stiffness_predicts_the_torque_after_the_rim_moves`
-  (`physics.rs`); `cargo test --release --test grip_probe_test
-  steering_feel_probe -- --ignored --nocapture` (`PROBE_CAR=<folder>`) prints
+  (`physics.rs`); in `sim/`, `cargo test --release --test all
+  grip_probe_test::steering_feel_probe -- --ignored --nocapture`
+  (`PROBE_CAR=<folder>`) prints
   torque against lateral g and front slip while a car winds on lock, the harness
   for tuning the torque.
 - Console: `apexsim.input.Devices` (slots, capabilities, HID paths, live

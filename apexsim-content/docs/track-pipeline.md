@@ -578,7 +578,7 @@ Commit the YAML, `.ats`, dossier, DEM sidecar and script table changes.
   before shipping a bake change. Ask before running them.
 - Anything that moves barriers, walls, the centerline or the ground goes
   through the AI survey against a baseline ([apexsim/docs/server/ai.md](../../apexsim/docs/server/ai.md)),
-  in `../apexsim/server`: `cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture`
+  in `../apexsim/sim`: `cargo test --release --test all ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored --nocapture`
   (`SURVEY_TRACKS=A,B`, `SURVEY_DBG=1`).
 - Client: `ApexSim.Track.*` (reader, builder, ground) and `ApexSim.Props.*`.
 

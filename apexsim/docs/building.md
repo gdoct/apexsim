@@ -58,19 +58,23 @@ sidecars, the race and the session tick, with no network, TLS, clock or
 RNG ([architecture.md](architecture.md#simulation-and-runtime-modules)).
 The server re-exports its modules under the same paths
 (`apexsim_server::physics`), and the client's physics library
-(`server/ffi`) links it alone. Its unit tests are the simulation's; the
-integration tests that race sessions over the wire, `determinism_test`
-among them, are the server's.
+(`server/ffi`) links it alone. A test that needs only the simulation lives
+here, `determinism_test` among them; one that starts a server, speaks the
+wire or reads the server's config lives in `server/`.
 
 ```bash
 cd sim
 cargo fmt --check && cargo clippy --all-targets -- -D warnings
-CARGO_PROFILE_TEST_OPT_LEVEL=2 cargo test --no-fail-fast   # the unit tests, as CI runs them
-cargo test physics::                      # one module's
+CARGO_PROFILE_TEST_OPT_LEVEL=2 cargo test --no-fail-fast   # unit and integration tests, as CI runs them
+cargo test --lib physics::                # one module's unit tests
+cargo test --test all fuel_test::         # one integration file
 ```
 
-Its unit tests read the content as `../../apexsim-content` from `sim/`, as
-the server's do from `server/`. The crate has its own `Cargo.lock`, started
+The integration tests are one binary, `tests/all` (`main.rs` declares each
+file as a module), so a change links one test executable, not one per file.
+A new file is added there with a `mod` line; `--test all <file>::<name>`
+picks a file or a test. The tests read the content as
+`../../apexsim-content` from `sim/`, as the server's do from `server/`. The crate has its own `Cargo.lock`, started
 from the server's: keep the shared dependencies on the server's versions.
 
 ## Server (Rust, `server/`)
@@ -86,13 +90,15 @@ cargo bench                    # Criterion, benches/physics_tick.rs
 
 ```bash
 cargo test                                         # the server's unit tests + integration
-cargo test -- --ignored                            # long-running stress, surveys and probes
-cargo test --test integration_test <name> -- --nocapture
+cargo test -- --ignored                            # long-running stress tests and probes
+cargo test --test all integration_test::<name> -- --nocapture
 RUST_LOG=debug cargo test <name>                   # with logging
 ```
 
+- The integration tests are one binary, `tests/all`, as the simulation's
+  are; a file uses the helpers with `use crate::common;`.
 - Integration tests start the server in-process on ephemeral ports through
-  `apexsim_server::server::run_server` (`tests/common/mod.rs`:
+  `apexsim_server::server::run_server` (`tests/all/common/mod.rs`:
   `start_test_server`, `start_test_server_with_tick_rate`,
   `start_test_server_with_records`). No server needs to be running. Test
   servers skip AC-imported tracks in a debug build
@@ -103,10 +109,10 @@ RUST_LOG=debug cargo test <name>                   # with logging
   something can be watched (`-ApexWatchSession`, a stream check, a screenshot
   run). Point the game at a scratch server with `-ApexSettingsDir=`
   ([game/client.md](game/client.md)) instead of the player's `settings.yml`.
-- `tests/determinism_test.rs` asserts bit-identical runs on both road
+- `sim/tests/all/determinism_test.rs` asserts bit-identical runs on both road
   backends; see [architecture.md](architecture.md#determinism) for the rules
   it enforces.
-- `tests/physics_property_tests.rs` holds the `proptest` invariants
+- `tests/all/physics_property_tests.rs` holds the `proptest` invariants
   (physics bounds, serialization round trips).
 - The `#[ignore]`d harnesses (AI survey, grip probe, pit surveys, tyre probe,
   imported content checks) are documented with the feature they measure:
@@ -237,8 +243,8 @@ The serde attributes are the files' bytes: a tool that rewrites a YAML
 writes it through `TrackFile`, so a changed `skip_serializing_if` changes
 every rewritten track's content checksum, and a changed sidecar struct fails
 the goldens. A format change lands in the crate with the simulation's and
-track-core's use of it in one commit. The server's
-`tests/track_file_compat_test.rs` holds every real track to a rewrite
+track-core's use of it in one commit. The simulation's
+`sim/tests/all/track_file_compat_test.rs` holds every real track to a rewrite
 loading to the same physical track.
 
 ## Track editor and pipeline (Rust, `apexsim-content/track-editor/`)

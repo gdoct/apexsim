@@ -111,7 +111,7 @@ Server and pipeline read and write the YAML through the one `TrackFile` in
 `apexsim-lib/formats`, so a key added there is kept by every Rust rewrite;
 its `skip_serializing_if`s are what a rewrite omits
 (`the_location_survives_a_rewrite_as_written`, `core/tests/compat.rs`, and
-the server's `tests/track_file_compat_test.rs`, which loads every real
+the simulation's `apexsim/sim/tests/all/track_file_compat_test.rs`, which loads every real
 track's rewrite to the same physical track).
 Tools that rewrite it: `ats-smooth` (node and raceline positions, length),
 `ats-bank` (banking), `tools/drs_zones.py`, `dem_elevation.py` (node and

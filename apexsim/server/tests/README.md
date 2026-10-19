@@ -31,7 +31,7 @@ Tests the complete client workflow that the CLI game client should follow:
 
 ```bash
 cd /home/guido/apexsim/server
-cargo test --test integration_test test_cli_client_workflow -- --ignored --nocapture
+cargo test --test all integration_test::test_cli_client_workflow -- --ignored --nocapture
 ```
 
 **This test specifically validates the workflow described in the issue where the client times out during lobby creation.**
@@ -40,21 +40,21 @@ cargo test --test integration_test test_cli_client_workflow -- --ignored --nocap
 Tests 4 clients racing together:
 
 ```bash
-cargo test --test integration_test test_multiplayer_race_session -- --ignored --nocapture
+cargo test --test all integration_test::test_multiplayer_race_session -- --ignored --nocapture
 ```
 
 #### 3. Telemetry Broadcast Test
 Verifies that all clients receive telemetry broadcasts:
 
 ```bash
-cargo test --test integration_test test_telemetry_broadcast -- --ignored --nocapture
+cargo test --test all integration_test::test_telemetry_broadcast -- --ignored --nocapture
 ```
 
 #### 4. Tick Rate Stress Test
 Tests server performance at various tick rates (120Hz, 240Hz, 480Hz, 960Hz, 1440Hz):
 
 ```bash
-cargo test --test integration_test test_tick_rate_stress -- --ignored --nocapture
+cargo test --test all integration_test::test_tick_rate_stress -- --ignored --nocapture
 ```
 
 **Note:** This test spawns its own server instances and does not require a pre-running server.
@@ -63,7 +63,7 @@ cargo test --test integration_test test_tick_rate_stress -- --ignored --nocaptur
 Tests 16 concurrent clients at various tick rates:
 
 ```bash
-cargo test --test integration_test test_multi_client_load -- --ignored --nocapture
+cargo test --test all integration_test::test_multi_client_load -- --ignored --nocapture
 ```
 
 **Note:** This test spawns its own server instances and does not require a pre-running server.
@@ -110,7 +110,7 @@ The CLI client should send heartbeats periodically (every 2 seconds is recommend
 Run tests with `RUST_LOG` environment variable:
 
 ```bash
-RUST_LOG=debug cargo test --test integration_test test_cli_client_workflow -- --ignored --nocapture
+RUST_LOG=debug cargo test --test all integration_test::test_cli_client_workflow -- --ignored --nocapture
 ```
 
 ### View Server Logs
@@ -159,7 +159,7 @@ To run these tests in CI/CD:
 - name: Run Integration Tests
   run: |
     cd server
-    cargo test --test integration_test -- --ignored --nocapture
+    cargo test --test all integration_test:: -- --ignored --nocapture
 
 - name: Stop Server
   run: pkill apexsim-server

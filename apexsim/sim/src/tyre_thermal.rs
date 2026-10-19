@@ -1325,7 +1325,7 @@ mod tests {
         }
         assert!(data.temperature_c < peak - 2.0, "{peak} -> {data:?}");
         // (A lap of such corners is pinned on the AI at Monza and Spa in
-        // `tests/tyre_temperature_test.rs`.)
+        // `sim/tests/all/tyre_temperature_test.rs`.)
     }
 
     /// The surface layer against a real tyre, not only the AI's windows: a

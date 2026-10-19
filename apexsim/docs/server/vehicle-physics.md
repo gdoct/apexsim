@@ -4,7 +4,7 @@ The server owns the car model: each tick `physics::update_car_3d` advances a car
 `CarState` from its driver's input, against its `CarConfig` (from `car.toml`) and the
 session's `TrackConfig`. The client has no physics. Everything is a pure function of the
 tick's inputs (no clock, no RNG; chances are `wind::hash01` of tick and car), so
-`tests/determinism_test.rs` holds. A car.toml without a newer table or key simulates exactly
+`sim/tests/all/determinism_test.rs` holds. A car.toml without a newer table or key simulates exactly
 as before that feature: every model defaults to off or to a multiplier of exactly 1.0 at the
 car's reference state.
 
@@ -307,16 +307,18 @@ Monza.
 
 ### Checking tyres
 
-- `tyre_thermal::tests`, `tests/tyre_temperature_test.rs`.
-- `cargo test --release --test tyre_temperature_test tyre_temperature_probe -- --ignored
+In `sim/`:
+
+- `tyre_thermal::tests`, `sim/tests/all/tyre_temperature_test.rs`.
+- `cargo test --release --test all tyre_temperature_test::tyre_temperature_probe -- --ignored
   --nocapture` (`TYRE_PROBE_CARS`, `TYRE_PROBE_LAPS`, `TYRE_PROBE_TRACK`): per lap tyre,
   brake, coolant temperatures and time.
-- `cargo test --release --test tyre_temperature_test overheat_recovery_probe -- --ignored
+- `cargo test --release --test all tyre_temperature_test::overheat_recovery_probe -- --ignored
   --nocapture` (`COOK_TREAD`, `COOK_CORE`, `COOK_THROTTLE`, `COOK_BLIND`, `COOK_SECONDS`,
   `TYRE_PROBE_CARS`, `TYRE_PROBE_TRACK`): a lap at the AI's pace, then the set cooked and
   driven on, the tyres every 5 s. `COOK_BLIND=1` plans as if the tyres kept their grip, as a
   driver who keeps the pace does.
-- `cargo test --release --test pad_driver_probe -- --ignored --nocapture` (`PAD_AID`,
+- `cargo test --release --test all pad_driver_probe:: -- --ignored --nocapture` (`PAD_AID`,
   `PAD_NOISE`, `PAD_HOLD_S`, `PAD_SKILL`, `PAD_CAR`, `PAD_TRACK`, `PAD_LAPS`, `PAD_FULL`):
   the AI's line plus a pad's hand error. A hotlap leaves no log or replay, so reproduce a
   player's hot-tyre report here; without the steering aid a pad runs on sliding fronts,
@@ -352,7 +354,7 @@ Monza.
 - AI fuel plans and lift-and-coast: [AI](ai.md).
 - car.toml `[fuel]`: `capacity_liters`, `idle_consumption_lps`, `thermal_efficiency`,
   `density_kg_per_l`, `tank_front_share`, `load_consumption_scale`, `stint_energy_mj`.
-- Tests: `tests/fuel_test.rs`; `a_full_tank_weighs_on_the_car`,
+- Tests: `sim/tests/all/fuel_test.rs`; `a_full_tank_weighs_on_the_car`,
   `a_dry_tank_stops_the_engine`, `the_engine_burns_by_the_power_it_makes`,
   `a_stint_energy_limit_cuts_the_engine_with_fuel_in_the_tank`.
 
@@ -382,7 +384,7 @@ balance forward per cm of extra rake, induced drag a quarter of the change.
   Lift and drag stay in `[physics]` (`lift_coefficient_front/_rear`, `frontal_area_m2`,
   `drag_coefficient`). Shipped: F1 45/90 mm, 3%/cm, porpoising 0.6; Hypercar/LMP2 50/80 mm,
   2%/cm, 0.3; GT3 70/90 mm, 1%/cm, 0.
-- Tests: `tests/aero_test.rs`, `a_low_floor_porpoises_at_speed_and_a_raised_one_does_not`.
+- Tests: `sim/tests/all/aero_test.rs`, `a_low_floor_porpoises_at_speed_and_a_raised_one_does_not`.
 
 ## Slipstream and dirty air (`slipstream.rs`)
 
@@ -394,7 +396,7 @@ e every 15 m, 1.3x off the front and 0.7x off the rear. Gaussian across a wake t
 cm/m; nothing past 100 m or from a leader under 10 m/s; less for a car not pointing down it;
 scaled by the drag-area ratio. The snapshot makes it order-independent. The wake also slows
 the coolant's and tyres' air; the AI reads it through `aero_load_share`; the racing line is
-planned in clean air. Test: `tests/slipstream_test.rs`.
+planned in clean air. Test: `sim/tests/all/slipstream_test.rs`.
 
 ## Brakes (`brakes.rs`)
 
@@ -419,7 +421,7 @@ planned in clean air. Test: `tests/slipstream_test.rs`.
   carbon is judged `CARBON_STOP_RISE_C` (100 °C) hotter than it is, since it comes in within
   the first moment of a stop; colder and the AI braked early everywhere, much hotter and it
   trusted cold grid carbon into turn 1.
-- Tests: `brakes::tests`, `tests/brake_heat_test.rs` (with
+- Tests: `brakes::tests`, `sim/tests/all/brake_heat_test.rs` (with
   `discs_wear_apart_from_the_pads_and_a_thin_one_runs_hot`), `the_rear_ducts_cool_the_rears_alone`.
 
 ## Engine heat (`engine_heat.rs`)
@@ -464,7 +466,7 @@ Five percentages: front, rear, left, right, engine.
   lane) and out of every collision, wake, DRS and pit pass (`CarState::towed`).
 - **Visible damage** is drawn by the client from the same percentages (dents,
   `[[damage_part]]` pieces, smoke): [cars](../../../apexsim-content/docs/cars.md).
-- Tests: `damage::tests`, `tests/damage_test.rs`,
+- Tests: `damage::tests`, `sim/tests/all/damage_test.rs`,
   `a_landing_costs_the_ends_and_a_drop_is_free`,
   `a_hard_hit_sheds_debris_the_next_car_picks_up`.
 
@@ -490,7 +492,7 @@ Four vertical spring/damper units; roll is computed from lateral load and roll s
   `damper_rebound_*`, `anti_roll_bar_*`, `max_travel_m`, `camber_*_deg`, `camber_gain_*`,
   `toe_*_deg`, `bump_stop_gap_m` (or `_front_m`/`_rear_m`), `bump_stop_rate_n_per_m`,
   `roll_centre_*_m`, `camber_thrust` (`*` = `front`/`rear`).
-- Tests: `geometry::tests`, `tests/geometry_test.rs`.
+- Tests: `geometry::tests`, `sim/tests/all/geometry_test.rs`.
 
 ## Differential (`split_axle_torque`, `[differential]`)
 
@@ -660,9 +662,10 @@ frames); `car_setup_wire_format` -> `ApexGolden::C_SetCarSetup`;
 
 ## Checking it
 
-- `cargo test` in `server/` runs the module tests and the per-area files named above, plus
-  `car_stability_test`, `physics_property_tests`, `air_test` and `determinism_test`.
-- `cargo test --release --test grip_probe_test silverstone_profile_lap_times -- --ignored
+- `cargo test` in `sim/` runs the module tests and the per-area files named above, plus
+  `car_stability_test`, `air_test` and `determinism_test`; `cargo test` in `server/` runs
+  `physics_property_tests`.
+- In `sim/`, `cargo test --release --test all grip_probe_test::silverstone_profile_lap_times -- --ignored
   --nocapture` (`PROBE_CLASS`, `PROBE_CAR`, `PROBE_MU_SCALE`, `PROBE_CLA_SCALE`): every
   car's ideal lap, the class grip calibration. Also `skidpad_sweep`,
   `silverstone_first_corner`, `steering_feel_probe`.

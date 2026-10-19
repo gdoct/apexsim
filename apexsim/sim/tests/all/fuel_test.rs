@@ -1,0 +1,418 @@
+//! Fuel end to end: a race is fuelled for its distance from the session's
+//! own estimate of a lap, the car then burns about what was planned, a
+//! hotlap goes out light, and the fuel knob adds laps only where the car is
+//! fuelled.
+//!
+//! Driven through `GameSession` directly (no network, no real-time waits),
+//! like `lap_timing_test`.
+
+use std::collections::HashMap;
+use std::path::Path;
+
+use apexsim_sim::ai_driver::AiDriverProfile;
+use apexsim_sim::car_loader::CarLoader;
+use apexsim_sim::car_setup::CarSetup;
+use apexsim_sim::data::*;
+use apexsim_sim::game_session::{
+    GameSession, HOTLAP_FUEL_LAPS, MIN_FUEL_LAPS, RACE_FUEL_MARGIN, RACE_FUEL_RESERVE_LAPS,
+};
+use apexsim_sim::racing_line;
+use apexsim_sim::track_loader::TrackLoader;
+use uuid::Uuid;
+
+/// The session ticks at the server default; every duration here is seconds of it.
+const HZ: usize = apexsim_sim::game_session::DEFAULT_TICK_RATE_HZ as usize;
+
+fn monza() -> TrackConfig {
+    TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monza/Monza.yaml")
+        .expect("failed to load Monza")
+}
+
+fn car(folder: &str) -> CarConfig {
+    CarLoader::load_from_file(Path::new(&format!(
+        "../../apexsim-content/cars/default/{folder}/car.toml"
+    )))
+    .expect("car loads")
+}
+
+fn close(a: f32, b: f32, what: &str) {
+    assert!((a - b).abs() < 1e-3 * b.max(1.0), "{what}: {a} vs {b}");
+}
+
+/// A three-lap AI race at Monza in `folder`: the session's estimate of a
+/// lap and what the AI burnt on its second (flying) lap, litres.
+fn race_burn(folder: &str) -> (f32, f32) {
+    let (lap, burn, _) = race_burn_on(folder, None);
+    (lap, burn)
+}
+
+/// [`race_burn`] with the tank set to `fuel` laps of the estimate after
+/// the fill, and the flying lap's time, s.
+fn race_burn_on(folder: &str, fuel_laps: Option<f32>) -> (f32, f32, f32) {
+    let car = car(folder);
+    let car_id = car.id;
+    let capacity = car.fuel.capacity_liters;
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car);
+
+    let mut profile = AiDriverProfile::new("Fuel AI", 95);
+    profile.id = Uuid::from_u128(7000);
+    profile.preferred_car_id = Some(car_id);
+    let driver = profile.id;
+    let laps = 3;
+    let session = RaceSession::new(
+        Uuid::from_u128(1),
+        Uuid::nil(),
+        SessionKind::Multiplayer,
+        8,
+        1,
+        laps,
+    );
+    let mut gs = GameSession::with_ai_profiles(session, monza(), car_configs, vec![profile]);
+    gs.spawn_ai_drivers();
+    gs.start_countdown_mode(1, GameMode::Race);
+
+    let lap = gs.lap_fuel_liters(car_id).expect("a lap estimate");
+    let fuelled = gs.session.participants[&driver].fuel_liters;
+    close(
+        fuelled,
+        ((laps as f32 * (1.0 + RACE_FUEL_MARGIN) + RACE_FUEL_RESERVE_LAPS) * lap).min(capacity),
+        "race fuel",
+    );
+    if let Some(fuel_laps) = fuel_laps {
+        gs.session
+            .participants
+            .get_mut(&driver)
+            .expect("seated")
+            .fuel_liters = fuel_laps * lap;
+    }
+
+    // Fuel at each crossing of the line.
+    let mut at_line = Vec::new();
+    let mut lap_times = Vec::new();
+    for _ in 0..(HZ * 60 * 10) {
+        let inputs: HashMap<PlayerId, PlayerInputData> =
+            [(driver, gs.generate_ai_input(&driver))].into();
+        gs.tick(&inputs);
+        for out in gs.take_lap_events() {
+            if let Some(ms) = out.event.lap_time_ms {
+                at_line.push(gs.session.participants[&driver].fuel_liters);
+                lap_times.push(ms as f32 / 1000.0);
+            }
+        }
+        if at_line.len() >= 2 {
+            break;
+        }
+    }
+    assert_eq!(at_line.len(), 2, "{folder}: the AI completes two laps");
+    assert!(at_line[1] > 0.0, "{folder}: not dry with a lap to go");
+    (lap, at_line[0] - at_line[1], lap_times[1])
+}
+
+/// An AI that cannot reach the flag on what it carries, in a car the rules
+/// do not refuel, lifts and coasts into the braking zones: it burns less a
+/// lap, and gives up some time for it.
+#[test]
+fn an_ai_short_of_fuel_lifts_and_coasts() {
+    let (lap, full_burn, full_time) = race_burn_on("fugazzi-sf26", None);
+    // Three laps to go on 2.5 of the estimate's laps: the estimate is the
+    // ideal lap's, 10% over what the AI burns (traction control's cut costs
+    // no fuel), so about 8% short.
+    let (_, short_burn, short_time) = race_burn_on("fugazzi-sf26", Some(2.5));
+    println!(
+        "lap estimate {lap:.2} L: full {full_burn:.2} L {full_time:.2} s, short {short_burn:.2} L {short_time:.2} s"
+    );
+    assert!(
+        short_burn < 0.95 * full_burn,
+        "saves fuel: {short_burn:.2} against {full_burn:.2}"
+    );
+    assert!(short_time > full_time, "and costs time");
+    assert!(
+        short_time < full_time + 6.0,
+        "but not a crawl: {short_time:.2}"
+    );
+}
+
+/// Further short, coasting is not enough: the driver short-shifts as well
+/// and burns less again, still at a racing pace.
+#[test]
+fn an_ai_far_short_of_fuel_short_shifts_too() {
+    let (lap, full_burn, full_time) = race_burn_on("fugazzi-sf26", None);
+    // 13% short: coasting, a little short-shifting.
+    let (_, coast_burn, _) = race_burn_on("fugazzi-sf26", Some(2.6));
+    // Three laps to go on 2.4 laps: 20% short, more than a driver saves.
+    let (_, short_burn, short_time) = race_burn_on("fugazzi-sf26", Some(2.4));
+    println!(
+        "lap estimate {lap:.2} L: full {full_burn:.2} L {full_time:.2} s, 13% short {coast_burn:.2} L, 20% short {short_burn:.2} L {short_time:.2} s"
+    );
+    assert!(
+        short_burn < coast_burn,
+        "saves more further short: {short_burn:.2} against {coast_burn:.2}"
+    );
+    assert!(
+        short_burn
+            < (1.0 - 0.8 * apexsim_sim::pit::MAX_FUEL_SAVE_SHORT) * full_burn,
+        "saves close to what the refuelling rule credits it with: {short_burn:.2} against {full_burn:.2}"
+    );
+    assert!(
+        short_time < full_time + 12.0,
+        "but not a crawl: {short_time:.2}"
+    );
+}
+
+/// A race seating `folder` for `laps` laps at Monza, counted into: whether
+/// its stops refuel it.
+fn refuels_for(folder: &str, laps: u8) -> bool {
+    let car = car(folder);
+    let car_id = car.id;
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car);
+    let mut profile = AiDriverProfile::new("Fuel AI", 95);
+    profile.id = Uuid::from_u128(7000);
+    profile.preferred_car_id = Some(car_id);
+    let session = RaceSession::new(
+        Uuid::from_u128(1),
+        Uuid::nil(),
+        SessionKind::Multiplayer,
+        8,
+        1,
+        laps,
+    );
+    let mut gs = GameSession::with_ai_profiles(session, monza(), car_configs, vec![profile]);
+    gs.spawn_ai_drivers();
+    gs.start_countdown_mode(1, GameMode::Race);
+    gs.refuels(car_id)
+}
+
+/// An F1 is not refuelled, unless the race runs further than its tank
+/// reaches on all the saving a driver can do: then its stops refuel it, as
+/// a series racing that far would.
+#[test]
+fn an_f1_is_refuelled_only_in_a_race_longer_than_its_tank() {
+    assert!(!refuels_for("fugazzi-sf26", 10), "a short race: no fuel");
+    assert!(refuels_for("fugazzi-sf26", 200), "200 laps of Monza: fuel");
+    assert!(refuels_for("posh-gt3rs", 3), "a GT3 always");
+}
+
+#[test]
+fn a_race_is_fuelled_for_its_distance_and_burns_what_was_planned() {
+    // The estimate is a car at the limit of its plan: the AI, a little
+    // slower, burns less; it must never burn more than the race margin
+    // covers, or a long race runs dry.
+    for (folder, plausible) in [
+        ("fugazzi-sf26", 1.4..3.5),
+        ("panini-zomba-hypercar", 1.8..4.5),
+        ("yotota-lmp2", 1.8..4.5),
+        ("posh-gt3rs", 1.8..4.5),
+    ] {
+        let (lap, burnt) = race_burn(folder);
+        println!(
+            "{folder}: estimated {lap:.2} L a lap of Monza, the AI burnt {burnt:.2} ({:.0}%)",
+            100.0 * burnt / lap
+        );
+        assert!(
+            plausible.contains(&lap),
+            "{folder}: {lap:.2} L a lap of Monza is not a racing car's"
+        );
+        assert!(
+            burnt > lap * 0.7 && burnt < lap * (1.0 + RACE_FUEL_MARGIN),
+            "{folder}: a flying lap burns {burnt:.3} L against an estimate of {lap:.3}"
+        );
+    }
+}
+
+#[test]
+fn a_full_tank_costs_lap_time_on_the_plan() {
+    let track = monza();
+    let car = car("fugazzi-sf26");
+    let lap_time = |fuel: f32| {
+        let profile = racing_line::build_laden(&track, &car, fuel).expect("line");
+        let n = profile.speed_mps.len();
+        (0..n)
+            .map(|i| {
+                let v = 0.5 * (profile.speed_mps[i] + profile.speed_mps[(i + 1) % n]);
+                profile.spacing_m / v.max(1.0)
+            })
+            .sum::<f32>()
+    };
+    let dry = lap_time(0.0);
+    let full = lap_time(car.fuel.capacity_liters);
+    println!("Monza on the plan: {dry:.2} s dry, {full:.2} s full");
+    // Real F1 rule of thumb: about 0.03 s a lap per kilogram.
+    let per_kg = (full - dry) / car.fuel.mass_kg(car.fuel.capacity_liters);
+    assert!(
+        (0.01..0.06).contains(&per_kg),
+        "{per_kg:.3} s a lap per kg of fuel"
+    );
+}
+
+/// One human seated on Monza in the default car, switched to Hotlap.
+fn hotlap_session() -> (GameSession, PlayerId, CarConfigId) {
+    let track = monza();
+    let car = CarConfig::default();
+    let car_id = car.id;
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car);
+    let session = RaceSession::new(
+        Uuid::from_u128(1),
+        track.id,
+        SessionKind::Multiplayer,
+        8,
+        0,
+        0,
+    );
+    let mut gs = GameSession::new(session, track, car_configs);
+    let player = Uuid::from_u128(100);
+    gs.add_player(player, car_id).expect("seat");
+    gs.set_game_mode(GameMode::Hotlap);
+    (gs, player, car_id)
+}
+
+#[test]
+fn a_hotlap_goes_out_light_and_the_knob_adds_laps_in_the_garage() {
+    let (mut gs, player, car_id) = hotlap_session();
+    let lap = gs.lap_fuel_liters(car_id).expect("a lap estimate");
+    let fuel = |gs: &GameSession| gs.session.participants[&player].fuel_liters;
+    close(fuel(&gs), HOTLAP_FUEL_LAPS * lap, "garage fill");
+
+    gs.hotlap_relocate(&player, HotlapDestination::Track, false)
+        .expect("out");
+    close(fuel(&gs), HOTLAP_FUEL_LAPS * lap, "out on three laps");
+
+    // On the track the knob waits for the garage.
+    let two_more = CarSetup {
+        fuel_load: 2,
+        ..Default::default()
+    };
+    gs.set_car_setup(&player, two_more);
+    close(
+        fuel(&gs),
+        HOTLAP_FUEL_LAPS * lap,
+        "no refuelling on the track",
+    );
+    assert!(
+        gs.simulated_config_for(&player).map(|c| c.id) == Some(car_id),
+        "the fuel knob alone makes no tuned car"
+    );
+
+    gs.hotlap_relocate(&player, HotlapDestination::Garage, false)
+        .expect("in");
+    close(
+        fuel(&gs),
+        (HOTLAP_FUEL_LAPS + 2.0) * lap,
+        "the garage adds two laps",
+    );
+
+    // In the garage the knob fills the car at once, and never under a lap.
+    gs.set_car_setup(
+        &player,
+        CarSetup {
+            fuel_load: -5,
+            ..Default::default()
+        },
+    );
+    close(fuel(&gs), MIN_FUEL_LAPS * lap, "never under a lap");
+}
+
+#[test]
+fn practice_starts_full_less_the_knob() {
+    let (mut gs, player, car_id) = hotlap_session();
+    let capacity = gs.car_configs[&car_id].fuel.capacity_liters;
+    let lap = gs.lap_fuel_liters(car_id).expect("a lap estimate");
+    gs.set_game_mode(GameMode::FreePractice);
+    close(
+        gs.session.participants[&player].fuel_liters,
+        capacity,
+        "practice fill",
+    );
+    gs.set_game_mode(GameMode::Lobby);
+    gs.set_car_setup(
+        &player,
+        CarSetup {
+            fuel_load: -3,
+            ..Default::default()
+        },
+    );
+    gs.set_game_mode(GameMode::FreePractice);
+    close(
+        gs.session.participants[&player].fuel_liters,
+        capacity - 3.0 * lap,
+        "three laps short of full",
+    );
+}
+
+/// Without a pit lane nothing could refuel a car the race outruns: a car a
+/// stop would refuel is topped up at the line to what reaches the flag, and
+/// one with a pit lane is left to its stops.
+#[test]
+fn without_a_pit_lane_a_car_is_topped_up_at_the_line() {
+    let fuel_after_first_lap = |pit_lane: bool| {
+        let car = car("posh-gt3rs");
+        let car_id = car.id;
+        let capacity = car.fuel.capacity_liters;
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car.id, car);
+        let mut profile = AiDriverProfile::new("Fuel AI", 95);
+        profile.id = Uuid::from_u128(7000);
+        profile.preferred_car_id = Some(car_id);
+        let driver = profile.id;
+        let session = RaceSession::new(
+            Uuid::from_u128(1),
+            Uuid::nil(),
+            SessionKind::Multiplayer,
+            8,
+            1,
+            40,
+        );
+        let mut track = monza();
+        if !pit_lane {
+            track.pit_lane = None;
+        }
+        let mut gs = GameSession::with_ai_profiles(session, track, car_configs, vec![profile]);
+        gs.spawn_ai_drivers();
+        gs.start_countdown_mode(1, GameMode::Race);
+        let lap = gs.lap_fuel_liters(car_id).expect("a lap estimate");
+        assert!(gs.refuels(car_id), "a GT3 is refuelled");
+        // Two laps in the tank of a 40-lap race.
+        gs.session
+            .participants
+            .get_mut(&driver)
+            .unwrap()
+            .fuel_liters = 2.0 * lap;
+        let mut crossed = None;
+        for i in 0..(HZ * 60 * 4) {
+            let inputs: HashMap<PlayerId, PlayerInputData> =
+                [(driver, gs.generate_ai_input(&driver))].into();
+            gs.tick(&inputs);
+            if gs
+                .take_lap_events()
+                .iter()
+                .any(|out| out.event.lap_time_ms.is_some())
+            {
+                crossed = Some(i);
+            }
+            // A second after the line.
+            if crossed.is_some_and(|c| i == c + HZ) {
+                return (gs.session.participants[&driver].fuel_liters, lap, capacity);
+            }
+        }
+        panic!("the AI completes a lap");
+    };
+    let (topped, lap, capacity) = fuel_after_first_lap(false);
+    println!("no pit lane: {topped:.1} L after the line (lap {lap:.2} L, tank {capacity:.0} L)");
+    assert!(
+        topped > 0.95 * capacity.min(39.0 * lap),
+        "topped up toward the flag: {topped:.1} L"
+    );
+    // The pit lane comes from the baked pit sidecar, which a checkout
+    // without an export (CI) does not have.
+    if monza().pit_lane.is_none() {
+        eprintln!("no pit sidecar for Monza: run ats-export; the pit-lane half is skipped");
+        return;
+    }
+    let (left, ..) = fuel_after_first_lap(true);
+    assert!(
+        left < 1.5 * lap,
+        "a pit lane: the stop refuels it: {left:.1} L"
+    );
+}

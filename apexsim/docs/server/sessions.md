@@ -1344,32 +1344,33 @@ starts one at launch; `apexsim.watch setup|replaylap|ghost` work as the keys do.
 
 ```bash
 cd sim                                        # the unit tests of the simulation crate
-cargo test game_session                       # mode ticks, timed race, grid order, qualifying, timed qualifying, weekend
-cargo test weekend                            # knockout sizes, format clamp, round closing
-cargo test race_control                       # yellows, warnings, hold, own and passed flags, blue, a pass under yellow
-cargo test safety_car                         # the pick-up, the let-by, a pass of the safety car, the restart at the line
-cargo test time_penalty                       # a time penalty reorders the finishers
-cargo test race_start                         # the approach's pace, headway across the line
-cargo test recovery                           # spot choice, traffic release
+cargo test --lib game_session                 # mode ticks, timed race, grid order, qualifying, timed qualifying, weekend
+cargo test --lib weekend                      # knockout sizes, format clamp, round closing
+cargo test --lib race_control                 # yellows, warnings, hold, own and passed flags, blue, a pass under yellow
+cargo test --lib safety_car                   # the pick-up, the let-by, a pass of the safety car, the restart at the line
+cargo test --lib time_penalty                 # a time penalty reorders the finishers
+cargo test --lib race_start                   # the approach's pace, headway across the line
+cargo test --lib recovery                     # spot choice, traffic release
+
+cargo test --test all race_start_test::             # formation lap back to the grid, rolling start, a jump start, a held grid
+cargo test --test all penalty_test::                # the AI's drive-through and stop-go at the Norisring
+cargo test --test all lap_timing_test::             # sectors and track limits round Monza
+cargo test --test all recovery_test::               # back to track, a taken spot, back to pits, refused moving
 
 cd ../server
-cargo test --test sim_wire_test               # the yellows at Monza on telemetry; a weekend day's own sky
-cargo test --test weekend_test                # a weekend from the lobby to the race over the wire
-cargo test --test shootout_test               # a shoot-out run at the Norisring, order and classification; over the wire
-cargo test --test race_flow_test              # incl. test_timed_race_flow_to_the_flag_monza
-cargo test --test session_conditions_test     # rules echoed and enforced end to end
-cargo test --test grid_order_test             # start order, stored results, over the wire
-cargo test --test ready_grid_test             # the race's grid: OpenGrid, SetReady, the countdown
-cargo test --test race_start_test             # formation lap back to the grid, rolling start, a jump start, a held grid
-cargo test --test penalty_test                # the AI's drive-through and stop-go at the Norisring
-cargo test --test safety_car_test             # the VSC out and in; the safety car out of the pit exit, the queue, a lapped car let by, the lane shut and open, the restart
-cargo test --test reconnect_test              # held seat, resume, takeover, grace, Disconnect
-cargo test --test lap_timing_test             # sectors and track limits round Monza
-cargo test --test hotlap_test                 # garage, run-up, queue, cold tyres, qualifying outlap
-cargo test --test recovery_test               # back to track, a taken spot, back to pits, refused moving
-cargo test --test hotlap_watch_test           # hold, laps, determinism, corners, ghost, setup, over the wire, as a stream
-cargo test --release --test hotlap_watch_test watch_probe -- --ignored --nocapture   # WATCH_TRACKS/CARS/LAPS
-cargo test --release --test hotlap_test generate_ghost_fixture -- --ignored          # APEXSIM_GHOST_DIR, APEXSIM_GHOST_PLAYER
+cargo test --test all sim_wire_test::               # the yellows at Monza on telemetry; a weekend day's own sky
+cargo test --test all weekend_test::                # a weekend from the lobby to the race over the wire
+cargo test --test all shootout_test::               # a shoot-out run at the Norisring, order and classification; over the wire
+cargo test --test all race_flow_test::              # incl. test_timed_race_flow_to_the_flag_monza
+cargo test --test all session_conditions_test::     # rules echoed and enforced end to end
+cargo test --test all grid_order_test::             # start order, stored results, over the wire
+cargo test --test all ready_grid_test::             # the race's grid: OpenGrid, SetReady, the countdown
+cargo test --test all safety_car_test::             # the VSC out and in; the safety car out of the pit exit, the queue, a lapped car let by, the lane shut and open, the restart
+cargo test --test all reconnect_test::              # held seat, resume, takeover, grace, Disconnect
+cargo test --test all hotlap_test::                 # garage, run-up, queue, cold tyres, qualifying outlap
+cargo test --test all hotlap_watch_test::           # hold, laps, determinism, corners, ghost, setup, over the wire, as a stream
+cargo test --release --test all hotlap_watch_test::watch_probe -- --ignored --nocapture   # WATCH_TRACKS/CARS/LAPS
+cargo test --release --test all hotlap_test::generate_ghost_fixture -- --ignored          # APEXSIM_GHOST_DIR, APEXSIM_GHOST_PLAYER
 ```
 
 Golden bytes ([protocol](protocol.md)): `cargo test <name> -- --nocapture`

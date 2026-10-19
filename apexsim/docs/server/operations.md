@@ -296,9 +296,9 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   reported in the next `Heartbeat` (`ping_ms`); a client that does not
   report one shows none.
 
-Tests: `server/tests/admin_test.rs` (`a_session_is_run_from_the_dashboard_alone`
-is the end-to-end check). `cargo test --test admin_test
-serve_demo_dashboard -- --ignored --nocapture` serves it on 19003/19004
+Tests: `server/tests/all/admin_test.rs` (`a_session_is_run_from_the_dashboard_alone`
+is the end-to-end check). `cargo test --test all
+admin_test::serve_demo_dashboard -- --ignored --nocapture` serves it on 19003/19004
 (token `demo`) over a live AI race.
 
 ## Docker
@@ -352,7 +352,7 @@ fires `wear=P`, `puncture=FL`, `leak=FL:KPA`, `flatspot=FL:S`,
 several),
 `damage=<zone>:P`, `brakewear=P`, `pit`, `boost=S`, `aids=off` or
 `pitlane=manual` (the pit autopilot off) at a time
-of green. Not applied to demo sessions. Tests: `tests/debug_hooks_test.rs`.
+of green. Not applied to demo sessions. Tests: `sim/tests/all/debug_hooks_test.rs`.
 `tick_jitter_seconds = N` (`APEXSIM_DEBUG_TICK_JITTER_SECONDS`) logs one
 line per N seconds of how evenly the game loop ticked (`tick_jitter.rs`):
 the tick-to-tick interval's median, 99th percentile and longest, and its

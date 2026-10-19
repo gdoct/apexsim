@@ -271,12 +271,12 @@ Called inside `update_air` before the physics, and in the countdown.
 
 ```bash
 cd server
-cargo test --test pit_stop_test     # limiter, service, a driver's pit plan and pad set, a human in and out, aids put back,
-                                    # every car its own box, the red light holds a car, the AI's stop, the lane without the road mesh
-cargo test --manifest-path ../sim/Cargo.toml -- pit::            # the unit tests live in the simulation crate
+cargo test --test all pit_stop_test::   # limiter, service, a driver's pit plan and pad set, a human in and out, aids put back,
+                                        # every car its own box, the red light holds a car, the AI's stop, the lane without the road mesh
+cargo test --manifest-path ../sim/Cargo.toml --lib -- pit::   # the unit tests live in the simulation crate
 # Every circuit (ignored, minutes):
-cargo test --release --test pit_stop_test pit_lane_survey -- --ignored --nocapture
-cargo test --release --test pit_stop_test ai_pit_survey -- --ignored --nocapture
+cargo test --release --test all pit_stop_test::pit_lane_survey -- --ignored --nocapture
+cargo test --release --test all pit_stop_test::ai_pit_survey -- --ignored --nocapture
 ```
 
 `pit_lane_survey` drives a human's car into every circuit's lane (along the

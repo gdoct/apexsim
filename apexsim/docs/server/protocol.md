@@ -350,7 +350,7 @@ connection. Constants at the top of `transport.rs`.
 
 ## Checking it
 
-- `server/tests/protocol_test.rs`: version rejection, the UDP binding info,
+- `server/tests/all/protocol_test.rs`: version rejection, the UDP binding info,
   the handshake, input and telemetry loopback, feedback over UDP, the own
   car (`test_input_sequence_comes_back_with_the_own_car_snapshot`: an
   unnumbered input drives with no snapshot; a numbered one comes back with

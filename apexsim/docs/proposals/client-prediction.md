@@ -50,7 +50,7 @@ is presentation only; any disagreement resolves to the server.
 A simplified client car model would drift forever and every physics feature
 ([vehicle-physics.md](../server/vehicle-physics.md)) would land twice.
 Instead, compile the server's physics into the client: the sim is
-deterministic (fixed dt, no wall clock, no RNG, `tests/determinism_test.rs`),
+deterministic (fixed dt, no wall clock, no RNG, `sim/tests/all/determinism_test.rs`),
 so the crate can be a static library behind a small C FFI, linked as a
 prebuilt third-party lib.
 

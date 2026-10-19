@@ -106,7 +106,7 @@ one session, advanced by the host (see
 
 ## Before picking one up
 
-Every change must keep the sim deterministic (`tests/determinism_test.rs`),
+Every change must keep the sim deterministic (`sim/tests/all/determinism_test.rs`),
 teach the AI and the racing line anything that moves grip over time, append
 (never insert) wire fields with golden bytes on both sides, and stay off
 allocations in the 420 Hz loop. Judge physics changes with the AI survey

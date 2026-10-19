@@ -228,8 +228,9 @@ root, `apexsim-content/`; the scripts and the server from the code root,
    (`cargo run` in `apexsim-content/track-editor/`) from being re-laid.
 5. **Check it.** `python tools/check_walls.py --openings <Stem>` finds holes
    in the barriers; the AI survey (`$env:SURVEY_TRACKS = "<Stem>"`, then
-   `cargo test --release --test ai_race_start_test
-   survey_ai_races_on_every_circuit -- --ignored --nocapture` in `server/`)
+   `cargo test --release --test all
+   ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored
+   --nocapture` in `sim/`)
    drives a field round it and reports contact and off-road time.
 
 ### Installing and updating a track

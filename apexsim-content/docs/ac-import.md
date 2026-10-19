@@ -470,21 +470,25 @@ python -m unittest discover -s tools/ac_import/tests -p "test_ac_import.py"
 python -m unittest discover -s tools/ac_car_import/tests
 ```
 
-Server (opt-in, `#[ignore]`d, because imports are the player's own data), in
+Simulation and server (opt-in, `#[ignore]`d, because imports are the
+player's own data), the first block in `../apexsim/sim`, the pit surveys in
 `../apexsim/server`:
 
 ```bash
-cargo test --release --test imported_track_test -- --ignored        # every import loads with its sidecars
-cargo test --release --test imported_car_test -- --ignored --nocapture
-cargo test --release --test car_stability_test imported -- --ignored
-PROBE_CLASS=GT3 cargo test --release --test grip_probe_test silverstone_profile_lap_times -- --ignored --nocapture
-SURVEY_TRACKS=KsZandvoort cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture
+cargo test --release --test all imported_track_test:: -- --ignored        # every import loads with its sidecars
+cargo test --release --test all imported_car_test:: -- --ignored --nocapture
+cargo test --release --test all car_stability_test::imported -- --ignored
+PROBE_CLASS=GT3 cargo test --release --test all grip_probe_test::silverstone_profile_lap_times -- --ignored --nocapture
+SURVEY_TRACKS=KsZandvoort cargo test --release --test all ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored --nocapture
 # an imported car's AI: a field of it, and one alone against its own plan
-SURVEY_CARS=KsFerrariSf70h,fugazzi-sf26 SURVEY_TRACKS=Monza,Suzuka cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture
-SURVEY_CARS=KsFerrariSf70h SURVEY_TRACKS=Suzuka cargo test --release --test ai_race_start_test lone_car_against_its_plan -- --ignored --nocapture
+SURVEY_CARS=KsFerrariSf70h,fugazzi-sf26 SURVEY_TRACKS=Monza,Suzuka cargo test --release --test all ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored --nocapture
+SURVEY_CARS=KsFerrariSf70h SURVEY_TRACKS=Suzuka cargo test --release --test all ai_race_start_test::lone_car_against_its_plan -- --ignored --nocapture
+```
+
+```bash
 # every import's pit lane: a driven trip (autopilot, box, service, out) and an AI's stop
-PIT_CUSTOM=1 cargo test --release --test pit_stop_test pit_lane_survey -- --ignored --nocapture
-PIT_CUSTOM=1 cargo test --release --test pit_stop_test ai_pit_survey -- --ignored --nocapture
+PIT_CUSTOM=1 cargo test --release --test all pit_stop_test::pit_lane_survey -- --ignored --nocapture
+PIT_CUSTOM=1 cargo test --release --test all pit_stop_test::ai_pit_survey -- --ignored --nocapture
 ```
 
 Debug-build test servers skip imported tracks via `[content]

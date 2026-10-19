@@ -421,9 +421,9 @@ switch reference: the header of `ApexReplaySubsystem.h` and
   picking, convert, cut, poses), `showcase::tests` (one clock for two viewers,
   the loop's epoch, late joiners, divisor, rotate,
   `a_file_that_does_not_match_the_content_is_left_out`),
-  `network.rs` `test_showcase_wire_format`, `tests/showcase_test.rs` (two
+  `network.rs` `test_showcase_wire_format`, `tests/all/showcase_test.rs` (two
   in-process clients on one channel, the implied leave, the HTTP side),
-  `tests/live_spectator_test.rs` (a mid-race spectator gets the roster).
+  `tests/all/live_spectator_test.rs` (a mid-race spectator gets the roster).
 - Client: `ApexSim.Spectator.Codec`, `.File` (the whole file through a
   player), `.Player`, `.Protocol`, `.Writer`, `.PitFlags`;
   `ApexSim.Backdrop.ChooseFile`; `ApexSim.Replay.Clip.Stream`;
