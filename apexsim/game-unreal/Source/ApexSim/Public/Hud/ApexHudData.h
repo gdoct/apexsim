@@ -257,6 +257,11 @@ struct APEXSIM_API FApexHudMemory
 	bool bErsLastLapKnown = false;
 	float ErsLastLapNet = 0.0f;
 
+	/** The local car's penalties counted so far (-1 before its roster row is seen), and the newest as shown (`penalty.latest`) and when it came. */
+	int32 PenaltiesSeen = -1;
+	FString LatestPenalty;
+	double LatestPenaltyAt = -1.0e9;
+
 	float LastDamagePct[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 	double DamageFlashUntil[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
 
@@ -397,6 +402,8 @@ namespace ApexHudData
 
 	/** A chat line stays on the HUD this long, s (every recent one while the chat line is open). */
 	inline constexpr double ChatShowSeconds = 30.0;
+	/** A new penalty is shown (`penalty.latest`) this long, s. */
+	inline constexpr double PenaltyShowSeconds = 8.0;
 	/** The most chat lines the HUD lists. */
 	inline constexpr int32 ChatMaxLines = 6;
 }

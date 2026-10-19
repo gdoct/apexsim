@@ -1224,6 +1224,75 @@ bool FApexHudDataRacePhaseTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataPenaltiesTest, "ApexSim.Hud.Data.Penalties", ApexTestFlags)
+
+bool FApexHudDataPenaltiesTest::RunTest(const FString& Parameters)
+{
+	FApexTelemetryFrame Frame;
+	Frame.Cars.Add(HudCar(0, 2, 100.0f, 30.0f));
+	Frame.Cars.Add(HudCar(1, 2, 90.0f, 30.0f));
+	FApexSessionRoster Roster;
+	for (int32 i = 0; i < 2; ++i)
+	{
+		FApexRosterEntry& Row = Roster.Entries.AddDefaulted_GetRef();
+		Row.CarIndex = i;
+		Row.PlayerName = FString::Printf(TEXT("Driver %d"), i);
+	}
+	FApexHudInputs In;
+	In.Frame = &Frame;
+	In.Roster = &Roster;
+	In.LocalCarIndex = 0;
+	In.GameMode = EApexGameMode::Race;
+	FApexHudMemory Memory;
+	FApexHudData Data;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("none yet"), HudValue(Data, TEXT("penalty.latest")).IsNone());
+	TestFalse(TEXT("none owed"), HudValue(Data, TEXT("penalty.owed")).AsBool());
+
+	// A jump start: shown as it comes, then owed.
+	FApexPenalty Jump;
+	Jump.Reason = ApexPenalty::JumpStart;
+	Jump.Kind = ApexPenalty::DriveThrough;
+	Jump.Lap = 1;
+	Roster.Entries[0].Penalties.Add(Jump);
+	In.TimeSeconds = 10.0;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("the toast"), HudValue(Data, TEXT("penalty.latest")).AsString(), FString(TEXT("DRIVE-THROUGH: JUMP START")));
+	TestTrue(TEXT("owed"), HudValue(Data, TEXT("penalty.owed")).AsBool());
+	TestEqual(TEXT("given on lap 1, on lap 2: laps 2 to 4 left"), HudValue(Data, TEXT("penalty.laps_left")).AsNumber(), 3.0);
+	In.TimeSeconds = 10.0 + ApexHudData::PenaltyShowSeconds + 1.0;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("the toast goes"), HudValue(Data, TEXT("penalty.latest")).IsNone());
+	TestEqual(TEXT("still owed"), HudValue(Data, TEXT("penalty.owed_name")).AsString(), FString(TEXT("DRIVE-THROUGH: JUMP START")));
+
+	// Not served in time: added as 20 s.
+	Roster.Entries[0].Penalties[0].Kind = ApexPenalty::Time;
+	Roster.Entries[0].Penalties[0].Seconds = 20;
+	Roster.Entries[0].Penalties[0].Status = ApexPenalty::Added;
+	ApexHudData::Build(In, Memory, Data);
+	TestFalse(TEXT("no longer owed"), HudValue(Data, TEXT("penalty.owed")).AsBool());
+	TestTrue(TEXT("no new toast"), HudValue(Data, TEXT("penalty.latest")).IsNone());
+	TestEqual(TEXT("20 s added"), HudValue(Data, TEXT("penalty.time_s")).AsNumber(), 20.0);
+	const TArray<FApexHudRecord>* Standings = Data.FindList(TEXT("standings"));
+	bool bSeen = false;
+	for (const FApexHudRecord& Row : Standings ? *Standings : TArray<FApexHudRecord>())
+	{
+		if (FMath::RoundToInt(Row.Find(TEXT("car_index"))->AsNumber()) == 0)
+		{
+			bSeen = true;
+			TestEqual(TEXT("the row's seconds"), Row.Find(TEXT("penalty_s"))->AsNumber(), 20.0);
+			TestFalse(TEXT("the row owes none"), Row.Find(TEXT("penalty_owed"))->AsBool());
+		}
+	}
+	TestTrue(TEXT("the local row"), bSeen);
+
+	// A HUD first opened on a car with a penalty does not toast it.
+	FApexHudMemory Fresh;
+	ApexHudData::Build(In, Fresh, Data);
+	TestTrue(TEXT("an old penalty is no news"), HudValue(Data, TEXT("penalty.latest")).IsNone());
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataStableTest, "ApexSim.Hud.Data.Stable", ApexTestFlags)
 
 bool FApexHudDataStableTest::RunTest(const FString& Parameters)

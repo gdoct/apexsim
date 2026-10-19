@@ -612,6 +612,12 @@ for an offence the rules leave out.
 - On the wire: `RosterEntry.Penalties` (`PenaltyData { Reason, Kind,
   Seconds, Lap, Status }`, in the order given, left off when none); the
   roster goes out again whenever one is given, served or added.
+- Client: `FApexRosterEntry::Penalties` (`FApexPenalty`, `ApexPenalty`);
+  the HUD's `penalty.*` data points and `item.penalty_s` /
+  `item.penalty_owed`, the `penalty` component (the newest for 8 s, then
+  one owed with its laps left), PEN with the added seconds in the
+  standings, tower and results, and the results' times with the seconds
+  in ([hud-modding](../game/hud-modding.md)).
 - Every penalty goes when the field lines up again (`line_up_on_grid`).
 
 ## Timed races

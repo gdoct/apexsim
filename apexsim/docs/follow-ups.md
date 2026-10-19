@@ -176,11 +176,6 @@ them yet, and the server leaves a few edges.
   ballast, power and downforce, so a balanced car's prediction errs until
   the snapshot corrects it; the session browser does not say a server
   balances its cars.
-- client: show penalties (`RosterEntry.Penalties`): a toast as one is given
-  ("DRIVE-THROUGH: JUMP START", "+5 S: OVERTAKING UNDER YELLOW"), the owed
-  one and its laps left on the HUD (`penalty.*` data points), PEN with the
-  seconds in the standings and tower, and the results' times with them
-  (the server's classification already adds them).
 - Since a yellow waits `INCIDENT_CONFIRM_S` (1.5 s), the AI no longer slows
   for a car that is only briefly in trouble ahead: the whole-calendar
   survey (seeds 1-2) went from 485 to 654 car-seconds off the road

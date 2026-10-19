@@ -364,6 +364,9 @@ in the `flags` component and the radar's RIGHT marker at the start.
   `formation_lap`, and VIRTUAL SAFETY CAR / SAFETY CAR (yellow, flashing
   as it ends) under `safety_car`, beside the `flags` component without
   overlapping it.
+- The `penalty` component as a jump start or a pass under a yellow is
+  given (flashing for 8 s), then DRIVE-THROUGH with SERVE WITHIN n LAPS
+  until it is served; PEN +5S in the standings and the results.
 
 ## 2. Needs a human: hands, ears and hardware
 

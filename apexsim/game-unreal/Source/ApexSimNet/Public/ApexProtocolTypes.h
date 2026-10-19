@@ -1681,6 +1681,52 @@ struct APEXSIMNET_API FApexAuthSuccess
  * Compact telemetry identifies cars by a session-scoped index rather than a
  * UUID, and this is the only thing that maps that index back to a player.
  */
+/** `PenaltyData` values (sim/src/race_control.rs). */
+namespace ApexPenalty
+{
+	/** What for (`Offence`). */
+	inline constexpr int32 JumpStart = 0;
+	inline constexpr int32 YellowPass = 1;
+	inline constexpr int32 PitExitRed = 2;
+	/** How it is paid (`PenaltyKind`). */
+	inline constexpr int32 Time = 0;
+	inline constexpr int32 DriveThrough = 1;
+	inline constexpr int32 StopGo = 2;
+	/** Where it stands (`PenaltyStatus`). */
+	inline constexpr int32 Owed = 0;
+	inline constexpr int32 Served = 1;
+	inline constexpr int32 Added = 2;
+	/** A drive-through or stop-go is served by the lap it was given on plus this (`SERVE_WITHIN_LAPS`). */
+	inline constexpr int32 ServeWithinLaps = 3;
+}
+
+/** `PenaltyData` (network.rs): one penalty race control gave a car, PascalCase keys. */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexPenalty
+{
+	GENERATED_BODY()
+
+	/** What for: an ApexPenalty offence. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Reason = 0;
+
+	/** How it is paid: ApexPenalty::Time, DriveThrough or StopGo; an unserved one becomes Time. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Kind = 0;
+
+	/** A time penalty's seconds (what an unserved one added), a stop-go's hold; 0 for a drive-through. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Seconds = 0;
+
+	/** The lap it was given on. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Lap = 0;
+
+	/** ApexPenalty::Owed, Served or Added. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Status = 0;
+};
+
 USTRUCT(BlueprintType)
 struct APEXSIMNET_API FApexRosterEntry
 {
@@ -1744,6 +1790,27 @@ struct APEXSIMNET_API FApexRosterEntry
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	int32 QualifyingLaps = 0;
+
+	/** Race control's penalties to this car this race, in the order given (`Penalties`; empty from an older server). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	TArray<FApexPenalty> Penalties;
+
+	/** The seconds its penalties add to its race time (those Added). */
+	int32 PenaltySeconds() const
+	{
+		int32 Total = 0;
+		for (const FApexPenalty& Penalty : Penalties)
+		{
+			Total += Penalty.Status == ApexPenalty::Added ? Penalty.Seconds : 0;
+		}
+		return Total;
+	}
+
+	/** The first drive-through or stop-go still to serve, or null. */
+	const FApexPenalty* FirstOwed() const
+	{
+		return Penalties.FindByPredicate([](const FApexPenalty& Penalty) { return Penalty.Status == ApexPenalty::Owed; });
+	}
 };
 
 /** `SessionRosterData` (network.rs:470) — PascalCase keys, TCP. */

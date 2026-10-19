@@ -59,6 +59,7 @@ rule and the BOX badge after a pit request), `status`, `minimap`,
 `standings`, `timing`, `pedals`, `damage`, `car_state`, `mirror`, `pit_stop`,
 `ers` (a hybrid only), `flags` (while race control shows the car a flag),
 `race_phase` (the formation or pace lap, the VSC or the safety car),
+`penalty` (a penalty as it is given, then one owed),
 `radar` (while a car is alongside), `chat` (the session's chat, while
 there are recent lines or the chat line is open);
 off until added in the editor: `relative`, `speed_gear`, `conditions`; while
@@ -444,6 +445,11 @@ which are.
 | `flag.blue` | the blue flag: a car a lap or more up is close behind |
 | `flag.name` | `DOUBLE YELLOW`, `YELLOW` or `BLUE FLAG`, the worst out (*null* while none is) |
 | `flag.yellow_sectors` | how many of the lap's 250 m marshal sectors show a yellow now |
+| `penalty.latest` | the newest penalty to the local car for 8 s after it is given, as `DRIVE-THROUGH: JUMP START`, `+5 S: OVERTAKING UNDER YELLOW` or `STOP-GO 10 S: PIT EXIT ON RED` (*null* otherwise; one the car had when the HUD first saw it is not shown) |
+| `penalty.owed` | the local car owes a drive-through or stop-go |
+| `penalty.owed_name` | the first one owed, worded as `penalty.latest` (*null* when none is) |
+| `penalty.laps_left` | laps left to serve it in, the one in progress included; past them it is added as time (*null* when none is owed) |
+| `penalty.time_s` | the seconds the local car's penalties add to its race time |
 | `radar.left`, `radar.right` | a car alongside on that side: overlapping the local car along its length and within 3 m of its flank, edge to edge (car sizes from each car's catalog wheels) |
 | `radar.left_m`, `radar.right_m` | the gap to the nearest car alongside on that side, m, edge to edge (*null* while none is) |
 | `radar.count` | how many cars are in `radar_cars` |
@@ -537,6 +543,8 @@ the furthest round).
 | `item.away` | the driver lost their connection; the server drives the car until they rejoin |
 | `item.dnq` | did not qualify: the session's qualifying cut-off (the 107% rule) left the car out of the race (`RosterEntry.Dnq`) |
 | `item.missed_stops` | took the flag owing a stop or its second compound under the race's pit rule, so classified behind every car that met it (`RosterEntry.MissedStops`): the default components mark it PEN |
+| `item.penalty_s` | the seconds race control's penalties add to the car's race time (`RosterEntry.Penalties` added as time), 0 none; `race_time_s` and `finish_gap_s` carry them |
+| `item.penalty_owed` | the car owes a drive-through or stop-go |
 | `item.blue_flag` | race control shows the car the blue flag (a car a lap up close behind) |
 | `item.yellow` | the yellow ahead of the car, as `flag.yellow` |
 | `item.lap` | lap, as `lap.display` |

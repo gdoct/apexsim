@@ -1,0 +1,23 @@
+// Race control's penalties to the local car: the newest for a few seconds
+// as it is given, then a drive-through or stop-go still owed with the laps
+// left to serve it. Hidden while there is neither.
+{
+  "name": "Penalty",
+  "region": "top",
+  "order": 6,
+  "visible": "=(has(penalty.latest) || penalty.owed) && !spectate.active",
+  "root": {
+    "type": "panel",
+    "padding": [14, 6, 14, 6],
+    "radius": 3,
+    "direction": "row",
+    "background": "=has(penalty.latest) ? alpha('error', floor(hud.time_s * 3) % 2 == 0 ? 0.95 : 0.7) : alpha('error', 0.9)",
+    "children": [
+      { "type": "text", "font": "mono", "size": 13, "tracking": 80, "bold": true, "color": "on_accent",
+        "text": "=has(penalty.latest) ? penalty.latest : penalty.owed_name" },
+      { "type": "text", "margin": [12, 0, 0, 0], "font": "mono", "size": 11, "tracking": 40, "color": "on_accent",
+        "visible": "=penalty.owed && has(penalty.laps_left)",
+        "text": "=penalty.laps_left > 1 ? 'SERVE WITHIN ' + penalty.laps_left + ' LAPS' : 'SERVE THIS LAP'" }
+    ]
+  }
+}

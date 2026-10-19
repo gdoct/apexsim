@@ -47,14 +47,15 @@
               "text": "=upper(item.name)", "bold": "=item.is_local",
               "color": "=item.is_local ? 'on_accent' : item.retired ? 'text_disabled' : 'text'" },
             // In the pit lane, at the box, out of the race, left out by the
-            // qualifying cut-off, past the flag owing the pit rule (PEN), or
-            // driven by the server while its driver is away.
+            // qualifying cut-off, past the flag owing the pit rule or with a
+            // race control penalty (PEN, its added seconds), or driven by
+            // the server while its driver is away.
             { "type": "panel", "valign": "center", "margin": [6, 0, 0, 0], "padding": [6, 0],
-              "visible": "=item.in_pit || item.retired || item.dnq || item.away || item.missed_stops",
-              "background": "=item.retired || item.missed_stops ? 'error' : item.servicing ? 'live' : 'surface_hover'",
+              "visible": "=item.in_pit || item.retired || item.dnq || item.away || item.missed_stops || item.penalty_owed || item.penalty_s > 0",
+              "background": "=item.retired || (!item.in_pit && (item.missed_stops || item.penalty_owed || item.penalty_s > 0)) ? 'error' : item.servicing ? 'live' : 'surface_hover'",
               "children": [{ "type": "text", "font": "body", "size": 11, "bold": true,
-                "text": "=item.retired ? 'OUT' : item.dnq ? 'DNQ' : item.missed_stops ? 'PEN' : item.servicing ? 'BOX' : item.in_pit ? 'PIT' : 'AWAY'",
-                "color": "=item.retired || item.servicing || item.missed_stops ? 'on_accent' : 'text_secondary'" }] },
+                "text": "=item.retired ? 'OUT' : item.dnq ? 'DNQ' : item.servicing ? 'BOX' : item.in_pit ? 'PIT' : item.missed_stops || item.penalty_owed ? 'PEN' : item.penalty_s > 0 ? 'PEN +' + item.penalty_s + 'S' : 'AWAY'",
+                "color": "=item.retired || item.servicing || (!item.in_pit && (item.missed_stops || item.penalty_owed || item.penalty_s > 0)) ? 'on_accent' : 'text_secondary'" }] },
             {
               "type": "text", "width": 104, "margin": [8, 0, 0, 0], "font": "mono", "size": 13, "justify": "right",
               "text": "=item.retired || item.dnq ? '' : item.finished && spectate.tower_mode != 'last' && spectate.tower_mode != 'best' && spectate.tower_mode != 'tyres' ? 'FINISHED' : switch(spectate.tower_mode, 'interval', item.position == 1 ? 'LEADER' : fmt_gap(item.interval_s), 'gap', item.position == 1 ? 'LEADER' : item.laps_down > 0 ? '+' + item.laps_down + (item.laps_down > 1 ? ' LAPS' : ' LAP') : fmt_gap(item.gap_leader_s), 'last', fmt_time(item.last_lap_s), 'best', fmt_time(item.best_lap_s), 'tyres', (has(item.tyre_age_laps) ? item.tyre_age_laps + ' LAPS' : '') + (has(item.tyre_wear_pct) ? '  ' + fmt(item.tyre_wear_pct) + '%' : ''), '')",

@@ -1065,6 +1065,41 @@ namespace
 		return true;
 	}
 
+	/** `PenaltyData` — PascalCase keys. */
+	bool ParsePenalty(FMsgPackReader& Reader, FApexPenalty& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			uint64 Raw = 0;
+			int32* Field = Key == TEXT("Reason") ? &Out.Reason
+				: Key == TEXT("Kind") ? &Out.Kind
+				: Key == TEXT("Seconds") ? &Out.Seconds
+				: Key == TEXT("Lap") ? &Out.Lap
+				: Key == TEXT("Status") ? &Out.Status
+				: nullptr;
+			const bool bOk = Field ? Reader.ReadUInt64(Raw) : Reader.SkipValue();
+			if (!bOk)
+			{
+				return false;
+			}
+			if (Field)
+			{
+				*Field = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16));
+			}
+		}
+		return true;
+	}
+
 	/** `RosterEntry` (network.rs:457) — PascalCase keys. */
 	bool ParseRosterEntry(FMsgPackReader& Reader, FApexRosterEntry& Out)
 	{
@@ -1094,6 +1129,15 @@ namespace
 			else if (Key == TEXT("Dnq"))        { bOk = Reader.ReadBool(Out.bDnq); }
 			else if (Key == TEXT("MissedStops")) { bOk = Reader.ReadBool(Out.bMissedStops); }
 			else if (Key == TEXT("QualifyingLaps")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingLaps = static_cast<int32>(Raw); }
+			else if (Key == TEXT("Penalties"))
+			{
+				int32 Count = 0;
+				bOk = Reader.ReadArrayHeader(Count);
+				for (int32 p = 0; bOk && p < Count; ++p)
+				{
+					bOk = ParsePenalty(Reader, Out.Penalties.AddDefaulted_GetRef());
+				}
+			}
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{

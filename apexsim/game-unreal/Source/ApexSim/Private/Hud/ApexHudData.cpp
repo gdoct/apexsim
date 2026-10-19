@@ -104,7 +104,28 @@ namespace
 		bool bDnq = false;
 		/** Took the flag owing a stop or its second compound under the pit rule. */
 		bool bMissedStops = false;
+		/** Race control's penalties: the seconds added to the race time, and a drive-through or stop-go owed. */
+		int32 PenaltySeconds = 0;
+		bool bPenaltyOwed = false;
 	};
+
+	/** How a penalty is paid, for the screen: DRIVE-THROUGH, STOP-GO 10 S or +5 S. */
+	FString HudPenaltyKind(const FApexPenalty& Penalty)
+	{
+		return Penalty.Kind == ApexPenalty::DriveThrough ? FString(TEXT("DRIVE-THROUGH"))
+			: Penalty.Kind == ApexPenalty::StopGo ? FString::Printf(TEXT("STOP-GO %d S"), Penalty.Seconds)
+			: FString::Printf(TEXT("+%d S"), Penalty.Seconds);
+	}
+
+	/** A penalty as a line on screen: what it is, then what for. */
+	FString HudPenaltyText(const FApexPenalty& Penalty)
+	{
+		const TCHAR* What = Penalty.Reason == ApexPenalty::JumpStart ? TEXT("JUMP START")
+			: Penalty.Reason == ApexPenalty::YellowPass ? TEXT("OVERTAKING UNDER YELLOW")
+			: Penalty.Reason == ApexPenalty::PitExitRed ? TEXT("PIT EXIT ON RED")
+			: TEXT("RACE CONTROL");
+		return FString::Printf(TEXT("%s: %s"), *HudPenaltyKind(Penalty), What);
+	}
 
 	/** Milliseconds as seconds, null when the server has no time. */
 	FApexHudValue HudSeconds(int32 Ms)
@@ -305,7 +326,7 @@ const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
 			TEXT("laps_down"), TEXT("best_lap_s"), TEXT("last_lap_s"), TEXT("last_lap_invalid"), TEXT("is_session_best"),
 			TEXT("speed_kph"), TEXT("in_pit"), TEXT("on_track"), TEXT("servicing"), TEXT("retired"), TEXT("car_name"),
 			TEXT("compound"), TEXT("tyre_age_laps"), TEXT("tyre_wear_pct"), TEXT("pit_stops"), TEXT("away"), TEXT("dnq"),
-			TEXT("missed_stops"), TEXT("blue_flag"), TEXT("yellow"),
+			TEXT("missed_stops"), TEXT("penalty_s"), TEXT("penalty_owed"), TEXT("blue_flag"), TEXT("yellow"),
 			TEXT("race_time_s"), TEXT("finish_gap_s"), TEXT("finish_laps_down")}},
 		{TEXT("radar_cars"), {TEXT("car_index"), TEXT("forward_m"), TEXT("left_m"), TEXT("heading_deg"), TEXT("length_m"),
 			TEXT("width_m"), TEXT("alongside")}},
@@ -746,6 +767,8 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			Entry.bAway = Row->bAway;
 			Entry.bDnq = Row->bDnq;
 			Entry.bMissedStops = Row->bMissedStops;
+			Entry.PenaltySeconds = Row->PenaltySeconds();
+			Entry.bPenaltyOwed = Row->FirstOwed() != nullptr;
 		}
 		if (Entry.Name.IsEmpty())
 		{
@@ -811,11 +834,13 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 
 	// The winner's race, for the gaps at the flag.
 	const FApexHudMemory::FCarHistory* WinnerHistory = nullptr;
+	int32 WinnerPenaltySeconds = 0;
 	for (const FHudStanding& Entry : Order)
 	{
 		if (Entry.Car->FinishPosition == 1)
 		{
 			WinnerHistory = Memory.Cars.Find(Entry.Car->CarIndex);
+			WinnerPenaltySeconds = Entry.PenaltySeconds;
 		}
 	}
 	const bool bWinnerTimed = WinnerHistory && WinnerHistory->bFinished && WinnerHistory->bWholeRace;
@@ -867,6 +892,8 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Row.Add(TEXT("yellow"), FApexHudValue::Of(Car.YellowAhead));
 		Row.Add(TEXT("dnq"), FApexHudValue::Of(Entry.bDnq));
 		Row.Add(TEXT("missed_stops"), FApexHudValue::Of(Entry.bMissedStops));
+		Row.Add(TEXT("penalty_s"), FApexHudValue::Of(Entry.PenaltySeconds));
+		Row.Add(TEXT("penalty_owed"), FApexHudValue::Of(Entry.bPenaltyOwed));
 		const FString* Model = In.CarNames ? In.CarNames->Find(Car.CarIndex) : nullptr;
 		Row.Add(TEXT("car_name"), Model && !Model->IsEmpty() ? FApexHudValue::Of(*Model) : FApexHudValue());
 		// By the car's own list: a car that files "dry, wet" has its wet at 1.
@@ -880,12 +907,15 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Row.Add(TEXT("tyre_wear_pct"), HudWorstWear(Car));
 		Row.Add(TEXT("pit_stops"), FApexHudValue::Of(History ? History->PitStops : 0));
 		// At the flag: the car's race time, and its gap to the winner (time on
-		// the same lap, else laps).
+		// the same lap, else laps), both with the penalties added, as the
+		// server classifies them.
 		const bool bTimedFinish = History && History->bFinished && History->bWholeRace && Car.FinishPosition > 0;
-		Row.Add(TEXT("race_time_s"), bTimedFinish ? FApexHudValue::Of(History->RaceTimeMs / 1000.0) : FApexHudValue());
+		const int64 RaceTimeMs = bTimedFinish ? History->RaceTimeMs + Entry.PenaltySeconds * 1000ll : 0;
+		const int64 WinnerTimeMs = bWinnerTimed ? WinnerHistory->RaceTimeMs + WinnerPenaltySeconds * 1000ll : 0;
+		Row.Add(TEXT("race_time_s"), bTimedFinish ? FApexHudValue::Of(RaceTimeMs / 1000.0) : FApexHudValue());
 		const int32 LapsDown = bTimedFinish && bWinnerTimed ? FMath::Max(0, WinnerHistory->TimedLaps - History->TimedLaps) : 0;
 		Row.Add(TEXT("finish_gap_s"), bTimedFinish && bWinnerTimed && Car.FinishPosition > 1 && LapsDown == 0
-			? FApexHudValue::Of(FMath::Max<int64>(0, History->RaceTimeMs - WinnerHistory->RaceTimeMs) / 1000.0)
+			? FApexHudValue::Of(FMath::Max<int64>(0, RaceTimeMs - WinnerTimeMs) / 1000.0)
 			: FApexHudValue());
 		Row.Add(TEXT("finish_laps_down"), FApexHudValue::Of(LapsDown));
 	}
@@ -1128,6 +1158,32 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		}
 		Out.Set(TEXT("race.phase"), Key ? FApexHudValue::Of(FString(Key)) : FApexHudValue());
 		Out.Set(TEXT("race.phase_name"), Name ? FApexHudValue::Of(FString(Name)) : FApexHudValue());
+	}
+
+	// Race control's penalties to the local car: the one owed and how long
+	// is left to serve it, the time added, and the newest for a few seconds
+	// after it is given.
+	{
+		const FApexRosterEntry* Own = Local ? Roster.Entries.FindByPredicate(
+			[Local](const FApexRosterEntry& Row) { return Row.CarIndex == Local->CarIndex; }) : nullptr;
+		// The first look at a car only counts what it already has.
+		const int32 Given = Own ? Own->Penalties.Num() : -1;
+		if (Own && Memory.PenaltiesSeen >= 0 && Given > Memory.PenaltiesSeen)
+		{
+			Memory.LatestPenalty = HudPenaltyText(Own->Penalties.Last());
+			Memory.LatestPenaltyAt = In.TimeSeconds;
+		}
+		Memory.PenaltiesSeen = Given;
+		const bool bLatest = !Memory.LatestPenalty.IsEmpty()
+			&& In.TimeSeconds - Memory.LatestPenaltyAt < ApexHudData::PenaltyShowSeconds;
+		Out.Set(TEXT("penalty.latest"), bLatest ? FApexHudValue::Of(Memory.LatestPenalty) : FApexHudValue());
+		const FApexPenalty* Owed = Own ? Own->FirstOwed() : nullptr;
+		Out.Set(TEXT("penalty.owed"), Owed != nullptr);
+		Out.Set(TEXT("penalty.owed_name"), Owed ? FApexHudValue::Of(HudPenaltyText(*Owed)) : FApexHudValue());
+		Out.Set(TEXT("penalty.laps_left"), Owed && Local
+			? FApexHudValue::Of(FMath::Max(0, Owed->Lap + ApexPenalty::ServeWithinLaps - Local->CurrentLap + 1))
+			: FApexHudValue());
+		Out.Set(TEXT("penalty.time_s"), Own ? Own->PenaltySeconds() : 0);
 	}
 
 	// --- The radar --------------------------------------------------------------------

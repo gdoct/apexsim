@@ -701,7 +701,25 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			{
 				TestTrue(TEXT("MissedStops"), Roster.Roster.Entries[0].bMissedStops);
 				TestFalse(TEXT("Dnq"), Roster.Roster.Entries[0].bDnq);
+				TestEqual(TEXT("no penalties"), Roster.Roster.Entries[0].Penalties.Num(), 0);
 			}
+		}
+		FApexServerMessage Penalised;
+		if (Decode(TEXT("SessionRoster with penalties"), ApexGolden::S_SessionRosterPenalties, Penalised)
+			&& TestEqual(TEXT("one entry"), Penalised.Roster.Entries.Num(), 1))
+		{
+			const FApexRosterEntry& Entry = Penalised.Roster.Entries[0];
+			if (TestEqual(TEXT("two penalties"), Entry.Penalties.Num(), 2))
+			{
+				TestEqual(TEXT("a jump start"), Entry.Penalties[0].Reason, ApexPenalty::JumpStart);
+				TestEqual(TEXT("a drive-through"), Entry.Penalties[0].Kind, ApexPenalty::DriveThrough);
+				TestEqual(TEXT("served"), Entry.Penalties[0].Status, ApexPenalty::Served);
+				TestEqual(TEXT("a pass under a yellow"), Entry.Penalties[1].Reason, ApexPenalty::YellowPass);
+				TestEqual(TEXT("5 s"), Entry.Penalties[1].Seconds, 5);
+				TestEqual(TEXT("on lap 4"), Entry.Penalties[1].Lap, 4);
+			}
+			TestEqual(TEXT("5 s added"), Entry.PenaltySeconds(), 5);
+			TestNull(TEXT("none owed"), Entry.FirstOwed());
 		}
 	}
 
