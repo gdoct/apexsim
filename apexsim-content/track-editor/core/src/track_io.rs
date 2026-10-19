@@ -18,7 +18,7 @@ pub enum TrackIoError {
 }
 
 /// Load a logical track from `path`. Format (YAML vs JSON) is detected the
-/// same way `apexsim_server::track_loader::TrackLoader` detects it: content
+/// same way the server's `TrackLoader` detects it: content
 /// starting with `{` is parsed as JSON, everything else as YAML.
 pub fn load_track_file<P: AsRef<Path>>(path: P) -> Result<TrackFile, TrackIoError> {
     let content = fs::read_to_string(path.as_ref())?;

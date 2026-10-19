@@ -31,6 +31,8 @@ http-body-util = "0.1"
 bytes = "1"
 webpki-roots = "1"
 rcgen = { version = "0.14.10", default-features = false, features = ["ring", "pem"] }
+# The formats the content writes and the server reads (track YAML, sidecars, content_crc).
+apexsim-formats = { path = "../../apexsim-lib/formats" }
 
 [target.'cfg(windows)'.build-dependencies]
 winresource = "0.1"

@@ -23,6 +23,7 @@ use crate::ai_driver::generate_ai_profiles;
 use crate::car_loader::CarLoader;
 use crate::data::*;
 use crate::game_session::GameSession;
+use crate::ground::GroundQuery as _;
 use crate::network::ServerMessage;
 use crate::replay::{ReplayFrame, ReplayMetadata, ReplayParticipant};
 use crate::track_loader::TrackLoader;

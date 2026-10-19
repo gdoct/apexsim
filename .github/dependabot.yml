@@ -28,3 +28,11 @@ updates:
     labels:
       - "dependencies"
       - "rust"
+
+  - package-ecosystem: "cargo"
+    directory: "/apexsim-lib/formats"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "rust"

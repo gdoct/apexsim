@@ -41,7 +41,6 @@
 //! clock, plain `f32` arithmetic — repeated bakes stay byte-identical.
 
 use crate::dem::{DemFile, DemGrid};
-use serde::{Deserialize, Serialize};
 
 use crate::track_path::{offset_point, CenterlinePath};
 
@@ -152,33 +151,11 @@ pub const GROUND_COLOR: [f32; 4] = [0.11, 0.27, 0.10, 1.0];
 pub const GROUND_SIDECAR_CELL_M: f32 = 4.0;
 /// Margin of the sidecar past the road bounding box, meters.
 pub const GROUND_SIDECAR_MARGIN_M: f32 = 80.0;
-pub const GROUND_SIDECAR_VERSION: u32 = 1;
-
 /// The heightfield the server reads (`<Track>.ground.msgpack`, written
-/// with `rmp_serde::to_vec_named`). Row-major, `index = row * cols + col`,
-/// sample `(col, row)` at `(origin_x + col * cell_m, origin_y + row *
-/// cell_m)`, all in the server's frame (meters, x forward at start/finish,
-/// y left, z up — the YAML's frame, not Unreal's). Each sample is the
-/// surface the client renders at that XY: the road (with banking) inside
-/// the road, the pit lane inside the pit lane, the verge / band / terrain
-/// ground elsewhere. Heights in centimeters, clamped to the `i16` range.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GroundHeightfield {
-    pub version: u32,
-    pub origin_x: f32,
-    pub origin_y: f32,
-    pub cell_m: f32,
-    pub cols: u32,
-    pub rows: u32,
-    pub heights_cm: Vec<i16>,
-}
-
-impl GroundHeightfield {
-    /// Height at sample `(col, row)`, meters.
-    pub fn height_m(&self, col: u32, row: u32) -> f32 {
-        self.heights_cm[(row * self.cols + col) as usize] as f32 / 100.0
-    }
-}
+/// with `rmp_serde::to_vec_named`), modelled in the formats crate
+/// (`apexsim-lib/formats/src/ground.rs`). Each sample is the surface the
+/// client renders at that XY.
+pub use apexsim_formats::ground::{GroundHeightfield, GROUND_SIDECAR_VERSION};
 
 /// One road-like polyline the ground hugs: the track itself, the pit lane.
 struct Road {

@@ -29,6 +29,10 @@ the topic docs under `docs/` go deeper.
 - `apexsim-content/track-editor/` - workspace of `track-core` (`core/`: the `.ats` format,
   dress/groom/smooth/bank, the Unreal bake, the `ats-*` tools) and the Bevy
   editor (`src/`). See [apexsim-content/docs/track-pipeline.md](../../apexsim-content/docs/track-pipeline.md).
+- `apexsim-lib/formats/` - `apexsim-formats`, the files the content writes
+  and the code reads, modelled once: the track YAML, the five sidecars,
+  `content_crc` and the format levels. The server and track-core both depend
+  on it; it depends on neither. See [building.md](building.md#formats-apexsim-libformats).
 - `apexsim-content/tools/` - the Python content tools (OSM, DEM, AC import,
   previews, the Blender generators in `generators/`); `scripts/` - the
   PowerShell build scripts and the code-side Python (site, promo, verify,

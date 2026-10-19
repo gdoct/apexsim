@@ -28,116 +28,16 @@
 
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
-
-pub const ROAD_MESH_VERSION: u32 = 1;
-
-/// Contact classes, as the server's `RoadContact` reads them.
-pub const CONTACT_ROAD: u8 = 0;
-pub const CONTACT_CURB: u8 = 1;
-/// Prepared tarmac past the curb: asphalt to drive on, off the track for
-/// the lap.
-pub const CONTACT_RUNOFF: u8 = 2;
-/// Grass, gravel, sand, astroturf.
-pub const CONTACT_OFF: u8 = 3;
-/// Drives as road; off the track for the lap.
-pub const CONTACT_PIT_LANE: u8 = 4;
+// The file's types and constants are the formats crate's
+// (`apexsim-lib/formats/src/road_mesh.rs`), which the server reads it with.
+pub use apexsim_formats::road_mesh::{
+    RoadMeshFile, RoadSurface, CONTACT_CURB, CONTACT_OFF, CONTACT_PIT_LANE, CONTACT_ROAD,
+    CONTACT_RUNOFF, MIN_FOOTPRINT_M2, ROAD_MESH_VERSION,
+};
 
 /// Coordinates are rounded to this many decimals (0.1 mm) before welding,
 /// which is also what keeps the file small.
 const COORD_DECIMALS: i32 = 4;
-/// A triangle whose footprint in the ground plane is smaller than this is
-/// dropped: it is a curb's vertical outer face, or a sliver nothing can
-/// stand on.
-pub const MIN_FOOTPRINT_M2: f32 = 1e-4;
-
-/// One kind of surface: what the sim does with a wheel on it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RoadSurface {
-    /// `road`, `curb`, `runoff_asphalt`, `off_grass`, `pit_lane`, or an
-    /// importer's own key.
-    pub key: String,
-    /// [`CONTACT_ROAD`] and friends.
-    pub contact: u8,
-    /// Multiplier on the grip the class has on this track (1.0 = the
-    /// track's own figure for that class: the node's friction on the road,
-    /// `curb_grip` on a curb, `off_track_grip` off it). A generated mesh
-    /// writes 1.0 everywhere, so nothing changes against the centerline;
-    /// an importer can scale a surface from its own table.
-    pub friction: f32,
-    /// Inside the track limits: a wheel here is not off the track.
-    pub valid_track: bool,
-    /// The pit lane: the server drives it as one whatever `contact` says.
-    pub pit_lane: bool,
-}
-
-impl RoadSurface {
-    pub fn road() -> Self {
-        Self {
-            key: "road".to_string(),
-            contact: CONTACT_ROAD,
-            friction: 1.0,
-            valid_track: true,
-            pit_lane: false,
-        }
-    }
-
-    pub fn curb() -> Self {
-        Self {
-            key: "curb".to_string(),
-            contact: CONTACT_CURB,
-            friction: 1.0,
-            valid_track: true,
-            pit_lane: false,
-        }
-    }
-
-    pub fn runoff(kind: &str) -> Self {
-        Self {
-            key: format!("runoff_{kind}"),
-            contact: CONTACT_RUNOFF,
-            friction: 1.0,
-            valid_track: false,
-            pit_lane: false,
-        }
-    }
-
-    pub fn off(kind: &str) -> Self {
-        Self {
-            key: format!("off_{kind}"),
-            contact: CONTACT_OFF,
-            friction: 1.0,
-            valid_track: false,
-            pit_lane: false,
-        }
-    }
-
-    pub fn pit_lane() -> Self {
-        Self {
-            key: "pit_lane".to_string(),
-            contact: CONTACT_PIT_LANE,
-            friction: 1.0,
-            valid_track: false,
-            pit_lane: true,
-        }
-    }
-}
-
-/// The sidecar as written (`rmp_serde::to_vec_named`).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RoadMeshFile {
-    pub version: u32,
-    /// Server frame, metres.
-    pub vertices: Vec<[f32; 3]>,
-    /// Counter-clockwise seen from above. Indices into `vertices`.
-    pub triangles: Vec<[u32; 3]>,
-    /// One entry per triangle: an index into `surfaces`.
-    pub triangle_surface: Vec<u16>,
-    pub surfaces: Vec<RoadSurface>,
-    /// Which generator wrote it and from what: `ats-export <crc>`,
-    /// `ac-import ks_zandvoort`. Logged at load; not interpreted.
-    pub source: String,
-}
 
 /// A facet the builder refused: where it was and what it was part of.
 #[derive(Debug, Clone, PartialEq)]

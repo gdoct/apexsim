@@ -15,8 +15,13 @@
 //! The segments are bucketed into a uniform grid at load, so the physics
 //! tick asks only for the few near a car.
 
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+
+/// The sidecar's types, from the formats crate
+/// (`apexsim-lib/formats/src/walls.rs`): one solid face per segment in the
+/// ground plane, track frame (metres, +Y left), with the ground height at
+/// its base, how tall it is and its [`WallKind`] as a byte.
+pub use apexsim_formats::walls::{WallFile, WallSegment, WALLS_VERSION};
 
 /// What a wall is made of, which sets how a car bounces off it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,42 +69,23 @@ impl WallKind {
     }
 }
 
-/// One solid face in the ground plane, track frame (metres, +Y left).
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub struct WallSegment {
-    pub x0: f32,
-    pub y0: f32,
-    pub x1: f32,
-    pub y1: f32,
-    /// Ground height at the base of the wall.
-    pub z: f32,
-    /// How far the wall reaches above its base.
-    pub height_m: f32,
-    /// [`WallKind`] as written by the exporter.
-    pub kind: u8,
+/// What a [`WallSegment`] is made of.
+pub trait WallSegmentKind {
+    /// [`WallKind`] of the byte the exporter wrote; an unknown one is
+    /// concrete.
+    fn kind(&self) -> WallKind;
 }
 
-impl WallSegment {
-    pub fn kind(&self) -> WallKind {
+impl WallSegmentKind for WallSegment {
+    fn kind(&self) -> WallKind {
         WallKind::from_u8(self.kind).unwrap_or(WallKind::Concrete)
     }
-
-    pub fn length(&self) -> f32 {
-        (self.x1 - self.x0).hypot(self.y1 - self.y0)
-    }
-
-    fn is_finite(&self) -> bool {
-        [self.x0, self.y0, self.x1, self.y1, self.z, self.height_m]
-            .iter()
-            .all(|v| v.is_finite())
-    }
 }
 
-/// The sidecar as written (`rmp_serde::to_vec_named`).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct WallFile {
-    pub version: u32,
-    pub segments: Vec<WallSegment>,
+fn is_finite(s: &WallSegment) -> bool {
+    [s.x0, s.y0, s.x1, s.y1, s.z, s.height_m]
+        .iter()
+        .all(|v| v.is_finite())
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -133,11 +119,7 @@ pub struct Walls {
 impl Walls {
     /// Sidecar path for a track file: `Monza.yaml` -> `Monza.walls.msgpack`.
     pub fn sidecar_path(track_file: &Path) -> PathBuf {
-        let stem = track_file
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("track");
-        track_file.with_file_name(format!("{}.walls.msgpack", stem))
+        WallFile::sidecar_path(track_file)
     }
 
     pub fn load(path: &Path) -> Result<Self, WallLoadError> {
@@ -151,13 +133,13 @@ impl Walls {
     }
 
     pub fn from_file(file: WallFile) -> Result<Self, WallLoadError> {
-        if file.version != 1 {
+        if file.version != WALLS_VERSION {
             return Err(WallLoadError::Invalid(format!(
                 "unsupported version {}",
                 file.version
             )));
         }
-        if let Some(bad) = file.segments.iter().find(|s| !s.is_finite()) {
+        if let Some(bad) = file.segments.iter().find(|s| !is_finite(s)) {
             return Err(WallLoadError::Invalid(format!(
                 "non-finite segment {:?}",
                 bad
@@ -170,7 +152,7 @@ impl Walls {
     pub fn from_segments(segments: Vec<WallSegment>) -> Self {
         let segments: Vec<WallSegment> = segments
             .into_iter()
-            .filter(|s| s.is_finite() && s.length() >= MIN_LENGTH_M && s.height_m > 0.0)
+            .filter(|s| is_finite(s) && s.length() >= MIN_LENGTH_M && s.height_m > 0.0)
             .collect();
 
         let (mut min_x, mut min_y, mut max_x, mut max_y) = (

@@ -120,39 +120,36 @@ const MESH_BLOB_SUFFIX: &str = ".uemesh";
 
 /// The CRC-32 (zlib/PNG polynomial; `"123456789"` -> `0xCBF43926`) of a
 /// content file's bytes with every carriage return dropped, so a checkout
-/// with CRLF line endings hashes the same as one without. The same rule as
-/// `server/src/content_crc.rs` and `tools/build_track_catalog.py`.
+/// with CRLF line endings hashes the same as one without: the formats
+/// crate's `content_crc`, which the server sends as `ContentCrc`
+/// (`tools/build_track_catalog.py` has the Python copy).
 pub fn source_crc(bytes: &[u8]) -> u32 {
-    let mut crc = flate2::Crc::new();
-    for run in bytes.split(|&b| b == b'\r') {
-        crc.update(run);
-    }
-    crc.sum()
+    apexsim_formats::content_crc::content_crc(bytes)
 }
 
 /// `Monza.yaml` -> `<same dir>/Monza.ground.msgpack`.
 pub fn ground_sidecar_path_for(track_path: &Path) -> PathBuf {
-    track_path.with_extension("ground.msgpack")
+    apexsim_formats::ground::GroundHeightfield::sidecar_path(track_path)
 }
 
 /// `Monza.yaml` -> `<same dir>/Monza.curbs.msgpack`.
 pub fn curb_sidecar_path_for(track_path: &Path) -> PathBuf {
-    track_path.with_extension("curbs.msgpack")
+    apexsim_formats::curbs::CurbBands::sidecar_path(track_path)
 }
 
 /// `Monza.yaml` -> `<same dir>/Monza.walls.msgpack`.
 pub fn walls_sidecar_path_for(track_path: &Path) -> PathBuf {
-    track_path.with_extension("walls.msgpack")
+    apexsim_formats::walls::WallFile::sidecar_path(track_path)
 }
 
 /// `Monza.yaml` -> `<same dir>/Monza.road.msgpack`.
 pub fn road_sidecar_path_for(track_path: &Path) -> PathBuf {
-    track_path.with_extension("road.msgpack")
+    apexsim_formats::road_mesh::RoadMeshFile::sidecar_path(track_path)
 }
 
 /// `Monza.yaml` -> `<same dir>/Monza.pit.msgpack`.
 pub fn pit_sidecar_path_for(track_path: &Path) -> PathBuf {
-    track_path.with_extension("pit.msgpack")
+    apexsim_formats::pit::PitSidecar::sidecar_path(track_path)
 }
 
 /// What an export writes beyond the bake itself.

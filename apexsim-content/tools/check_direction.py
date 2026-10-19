@@ -7,8 +7,11 @@ root. This walks every text file the content tracks in git and looks for a
 path into the code root (`../apexsim/`, `..\\apexsim\\`, a Python path built
 as `... / "apexsim" / ...`) or a Cargo dependency on the server crate.
 
-The edges in ALLOWED are known and go when the formats crate lands
+The formats crate (`../apexsim-lib`) is not code: the content builds
+against it (`track-core` depends on `../../../apexsim-lib/formats`), and no
+pattern matches a path into it. The edge in ALLOWED is known
 (apexsim/docs/proposals/split-off-content.md); a new one fails the check.
+This file names the patterns and is not checked itself.
 
     python tools/check_direction.py        # from the content root; exit 1 on an edge
 """
@@ -32,12 +35,13 @@ PATTERNS = [
 
 # (file relative to the content root, why it may) - test-only edges.
 ALLOWED = {
-    "track-editor/core/Cargo.toml": "track-core's compat tests run against the server's readers",
     "tools/ac_car_import/tests/test_ac_car_import.py": "reads the server's brake constants, skips without them",
 }
 
 # Prose may name code paths; generated scene data carries the "apexsim" sign text.
 SKIP_SUFFIXES = {".md", ".ats", ".lock"}
+# The check itself spells out the patterns in its docstring.
+SELF = "tools/check_direction.py"
 
 
 def tracked_files() -> list[Path]:
@@ -50,7 +54,8 @@ def main() -> int:
     found = []
     for path in tracked_files():
         rel = path.relative_to(ROOT).as_posix()
-        if path.suffix.lower() in SKIP_SUFFIXES or rel in ALLOWED or not path.is_file():
+        if (path.suffix.lower() in SKIP_SUFFIXES or rel in ALLOWED or rel == SELF
+                or not path.is_file()):
             continue
         try:
             text = path.read_text(encoding="utf-8")

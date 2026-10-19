@@ -1,17 +1,21 @@
 //! The road mesh sidecar: the road the server drives on is the road the
 //! client draws.
 //!
-//! Every probe here goes through the server's own reader and query
-//! (`apexsim_server::road_mesh`), so what is checked is what the sim will
-//! see, not what the exporter meant.
+//! Every probe here reads the file through the bytes on disk and asks it
+//! the server's question (`contact_at` below is the server's
+//! `RoadMesh::contact_at` without its grid: of the triangles under a point,
+//! the highest at or below the reference height plus a step, the later one
+//! of a near tie), so what is checked is what the sim will see, not what
+//! the exporter meant. The file's type is the formats crate's, which the
+//! server decodes it with.
 
 use std::path::{Path, PathBuf};
 
-use apexsim_server::road_mesh::{MeshContact, RoadMesh};
 use track_core::ats::{AtsScene, Curb, PitLane, Side, Surface, SurfaceKind};
 use track_core::project;
 use track_core::road_mesh::{
-    self, RoadMeshFile, CONTACT_CURB, CONTACT_OFF, CONTACT_PIT_LANE, CONTACT_ROAD, CONTACT_RUNOFF,
+    self, RoadMeshFile, RoadSurface, CONTACT_CURB, CONTACT_OFF, CONTACT_PIT_LANE, CONTACT_ROAD,
+    CONTACT_RUNOFF, MIN_FOOTPRINT_M2,
 };
 use track_core::track_data::{TrackFile, TrackNode};
 use track_core::track_path::{curvature_at, offset_point, CenterlinePath};
@@ -138,12 +142,117 @@ fn bake(options: &BakeOptions) -> (Baked, CenterlinePath) {
     (baked, path)
 }
 
-/// The file as the server reads it: through the bytes on the wire, so
-/// the two crates' structs are held to the same layout.
+/// The server's `STEP_UP_M`, `TIE_M` and point-in-triangle slack.
+const STEP_UP_M: f32 = 0.5;
+const TIE_M: f32 = 0.02;
+const EDGE_EPSILON: f32 = 1e-4;
+
+/// What the mesh says is under a point.
+#[derive(Debug, Clone, Copy)]
+struct MeshContact {
+    z: f32,
+    normal: [f32; 3],
+    surface: u16,
+}
+
+/// The file as the server reads it, with its question, by brute force.
+struct RoadMesh {
+    file: RoadMeshFile,
+    /// Triangles kept (with a footprint), wound counter-clockwise, with
+    /// their unit normal and plane offset.
+    kept: Vec<([[f32; 3]; 3], [f32; 3], f32, u16)>,
+    dropped: usize,
+}
+
+impl RoadMesh {
+    fn from_file(file: RoadMeshFile) -> Self {
+        assert_eq!(file.version, road_mesh::ROAD_MESH_VERSION);
+        assert_eq!(file.triangle_surface.len(), file.triangles.len());
+        let mut kept = Vec::new();
+        let mut dropped = 0;
+        for (tri, &surface) in file.triangles.iter().zip(&file.triangle_surface) {
+            let v = tri.map(|i| file.vertices[i as usize]);
+            let (a, mut b, mut c) = (v[0], v[1], v[2]);
+            let twice = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+            if !twice.is_finite() || twice.abs() < 2.0 * MIN_FOOTPRINT_M2 {
+                dropped += 1;
+                continue;
+            }
+            if twice < 0.0 {
+                std::mem::swap(&mut b, &mut c);
+            }
+            let (u, w) = (
+                [b[0] - a[0], b[1] - a[1], b[2] - a[2]],
+                [c[0] - a[0], c[1] - a[1], c[2] - a[2]],
+            );
+            let n = [
+                u[1] * w[2] - u[2] * w[1],
+                u[2] * w[0] - u[0] * w[2],
+                u[0] * w[1] - u[1] * w[0],
+            ];
+            let len = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+            if !(len > 0.0) || n[2] <= 0.0 {
+                dropped += 1;
+                continue;
+            }
+            let n = [n[0] / len, n[1] / len, n[2] / len];
+            let d = n[0] * a[0] + n[1] * a[1] + n[2] * a[2];
+            kept.push(([a, b, c], n, d, surface));
+        }
+        Self {
+            file,
+            kept,
+            dropped,
+        }
+    }
+
+    fn triangle_count(&self) -> usize {
+        self.kept.len()
+    }
+
+    fn dropped_count(&self) -> usize {
+        self.dropped
+    }
+
+    fn surfaces(&self) -> &[RoadSurface] {
+        &self.file.surfaces
+    }
+
+    fn surface(&self, idx: u16) -> &RoadSurface {
+        &self.file.surfaces[idx as usize]
+    }
+
+    fn contact_at(&self, x: f32, y: f32, z_ref: f32) -> Option<MeshContact> {
+        let ceiling = z_ref + STEP_UP_M;
+        let mut best: Option<MeshContact> = None;
+        for &([a, b, c], n, d, surface) in &self.kept {
+            let twice = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+            let w0 = ((b[0] - x) * (c[1] - y) - (b[1] - y) * (c[0] - x)) / twice;
+            let w1 = ((c[0] - x) * (a[1] - y) - (c[1] - y) * (a[0] - x)) / twice;
+            let w2 = 1.0 - w0 - w1;
+            if w0 < -EDGE_EPSILON || w1 < -EDGE_EPSILON || w2 < -EDGE_EPSILON {
+                continue;
+            }
+            let z = (d - n[0] * x - n[1] * y) / n[2];
+            if z > ceiling {
+                continue;
+            }
+            if best.is_none_or(|b| z >= b.z - TIE_M) {
+                best = Some(MeshContact {
+                    z,
+                    normal: n,
+                    surface,
+                });
+            }
+        }
+        best
+    }
+}
+
+/// The file as the server reads it: through the bytes it is written as.
 fn server_mesh(file: &RoadMeshFile) -> RoadMesh {
     let bytes = rmp_serde::to_vec_named(file).unwrap();
-    let file: apexsim_server::road_mesh::RoadMeshFile = rmp_serde::from_slice(&bytes).unwrap();
-    RoadMesh::from_file(file).unwrap()
+    RoadMesh::from_file(rmp_serde::from_slice(&bytes).unwrap())
 }
 
 fn key_of<'a>(mesh: &'a RoadMesh, hit: &MeshContact) -> &'a str {
@@ -385,10 +494,10 @@ fn the_road_sidecar_is_deterministic_and_roundtrips_through_disk() {
     ue_export_io::write_road_sidecar(&path, &first.road).unwrap();
     let back: RoadMeshFile = rmp_serde::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     assert_eq!(back, first.road);
-    // And the server reads the very same bytes.
-    let mesh = RoadMesh::load(&path).unwrap();
+    // And a reader of the very same bytes keeps every triangle.
+    let mesh = RoadMesh::from_file(back);
     assert_eq!(mesh.triangle_count(), first.road.triangles.len());
-    assert_eq!(mesh.source(), "ats-export");
+    assert_eq!(mesh.file.source, "ats-export");
 }
 
 /// Every real circuit's road mesh covers its road, short of the curvature

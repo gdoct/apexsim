@@ -9,21 +9,14 @@
 //! hands over). It is optional: without the sidecar the centerline elevation
 //! is used everywhere, as before.
 
-use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-/// Row-major grid of ground heights in centimetres, in the server frame
-/// (metres, +X forward at the start line, +Y left, +Z up).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct GroundHeightfield {
-    pub version: u32,
-    pub origin_x: f32,
-    pub origin_y: f32,
-    pub cell_m: f32,
-    pub cols: u32,
-    pub rows: u32,
-    pub heights_cm: Vec<i16>,
-}
+/// The sidecar's type, from the formats crate
+/// (`apexsim-lib/formats/src/ground.rs`): a row-major grid of ground
+/// heights in centimetres, in the server frame (metres, +X forward at the
+/// start line, +Y left, +Z up). What the sim asks of it is
+/// [`GroundQuery`].
+pub use apexsim_formats::ground::{GroundHeightfield, GROUND_SIDECAR_VERSION};
 
 #[derive(Debug, thiserror::Error)]
 pub enum GroundLoadError {
@@ -35,29 +28,39 @@ pub enum GroundLoadError {
     Invalid(String),
 }
 
-impl GroundHeightfield {
-    /// Sidecar path for a track file: `Monza.yaml` -> `Monza.ground.msgpack`.
-    pub fn sidecar_path(track_file: &Path) -> PathBuf {
-        let stem = track_file
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("track");
-        track_file.with_file_name(format!("{}.ground.msgpack", stem))
-    }
-
-    pub fn load(path: &Path) -> Result<Self, GroundLoadError> {
-        Self::from_bytes(&std::fs::read(path)?)
-    }
-
+/// The server's reading of a [`GroundHeightfield`]: loading and checking
+/// the sidecar, and the height under a point.
+/// The sidecar's path is the crate's `GroundHeightfield::sidecar_path`.
+pub trait GroundQuery: Sized {
+    fn load(path: &Path) -> Result<Self, GroundLoadError>;
     /// The sidecar's bytes, decoded and checked as [`Self::load`] does.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, GroundLoadError> {
+    fn from_bytes(bytes: &[u8]) -> Result<Self, GroundLoadError>;
+    fn validate(&self) -> Result<(), GroundLoadError>;
+    /// Bilinearly interpolated ground height in metres. Positions outside
+    /// the grid clamp to its edge so the surface is continuous everywhere;
+    /// the exporter pads the grid well past the track so this only matters
+    /// for a car that has left the world entirely.
+    fn sample(&self, x: f32, y: f32) -> f32;
+}
+
+#[inline]
+fn height_at_cell(field: &GroundHeightfield, col: usize, row: usize) -> f32 {
+    field.heights_cm[row * field.cols as usize + col] as f32 * 0.01
+}
+
+impl GroundQuery for GroundHeightfield {
+    fn load(path: &Path) -> Result<Self, GroundLoadError> {
+        <Self as GroundQuery>::from_bytes(&std::fs::read(path)?)
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, GroundLoadError> {
         let field: Self = rmp_serde::from_slice(bytes)?;
         field.validate()?;
         Ok(field)
     }
 
-    pub fn validate(&self) -> Result<(), GroundLoadError> {
-        if self.version != 1 {
+    fn validate(&self) -> Result<(), GroundLoadError> {
+        if self.version != GROUND_SIDECAR_VERSION {
             return Err(GroundLoadError::Invalid(format!(
                 "unsupported version {}",
                 self.version
@@ -83,16 +86,7 @@ impl GroundHeightfield {
         Ok(())
     }
 
-    #[inline]
-    fn height_at_cell(&self, col: usize, row: usize) -> f32 {
-        self.heights_cm[row * self.cols as usize + col] as f32 * 0.01
-    }
-
-    /// Bilinearly interpolated ground height in metres. Positions outside the
-    /// grid clamp to its edge so the surface is continuous everywhere; the
-    /// exporter pads the grid well past the track so this only matters for a
-    /// car that has left the world entirely.
-    pub fn sample(&self, x: f32, y: f32) -> f32 {
+    fn sample(&self, x: f32, y: f32) -> f32 {
         let max_col = (self.cols - 1) as f32;
         let max_row = (self.rows - 1) as f32;
         let fx = ((x - self.origin_x) / self.cell_m).clamp(0.0, max_col);
@@ -101,10 +95,10 @@ impl GroundHeightfield {
         let r0 = fy.floor().min(max_row - 1.0) as usize;
         let tx = fx - c0 as f32;
         let ty = fy - r0 as f32;
-        let h00 = self.height_at_cell(c0, r0);
-        let h10 = self.height_at_cell(c0 + 1, r0);
-        let h01 = self.height_at_cell(c0, r0 + 1);
-        let h11 = self.height_at_cell(c0 + 1, r0 + 1);
+        let h00 = height_at_cell(self, c0, r0);
+        let h10 = height_at_cell(self, c0 + 1, r0);
+        let h01 = height_at_cell(self, c0, r0 + 1);
+        let h11 = height_at_cell(self, c0 + 1, r0 + 1);
         let top = h00 + (h10 - h00) * tx;
         let bottom = h01 + (h11 - h01) * tx;
         top + (bottom - top) * ty

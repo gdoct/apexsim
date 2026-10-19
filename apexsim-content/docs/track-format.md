@@ -10,11 +10,18 @@ there too.
 
 ## Code
 
-- `apexsim/server/src/track_loader.rs`: `TrackFileFormat`, `TrackNode`, the loader and
-  the Catmull-Rom sampler (`SplineInterpolator`); `apexsim/server/src/data.rs`:
-  `TrackMetadata`, `RacelinePoint`, `DrsZone`, `SurfaceType`, `TrackConfig`.
-- `track-editor/core/src/track_data.rs`, `track_io.rs`: the pipeline's copy
-  of the YAML model (`TrackFile`), kept serde-compatible with the server.
+- `apexsim-lib/formats/src/track.rs` (the `apexsim-formats` crate): the
+  YAML model, once for both sides: `TrackFile`, `TrackNode`, `Checkpoint`,
+  `SpawnPoint`, `RacelinePoint`, `DrsZone`, `TrackMetadata`. Its tests
+  (`apexsim-lib/formats/tests/round_trip.rs`) hold a parse and rewrite to
+  the same bytes.
+- `apexsim/server/src/track_loader.rs`: the loader (`TrackLoader`, which
+  re-exports `TrackFile` as `TrackFileFormat`) and the Catmull-Rom sampler
+  (`SplineInterpolator`); `apexsim/server/src/data.rs`: `SurfaceType`,
+  `TrackConfig` (and the crate's `TrackMetadata`, `RacelinePoint`,
+  `DrsZone`, re-exported).
+- `track-editor/core/src/track_data.rs` (re-exports the crate's model),
+  `track_io.rs`: the pipeline's YAML IO.
 - `track-editor/core/src/ats.rs`, `ats_io.rs`: the `.ats` model and IO.
 - `track-editor/core/src/ue_export.rs`, `ue_export_io.rs`: the bake and the
   export's reader/writer; `core/src/bin/ats-export.rs` is the CLI.
@@ -100,9 +107,12 @@ does not drop them from a player's track.
 
 ### Who rewrites the YAML
 
-Server and pipeline must agree on every key, so a key added to one
-`TrackFile` must be added to the other, or a pipeline rewrite drops it
-(`the_location_survives_a_rewrite_as_written`, `core/tests/compat.rs`).
+Server and pipeline read and write the YAML through the one `TrackFile` in
+`apexsim-lib/formats`, so a key added there is kept by every Rust rewrite;
+its `skip_serializing_if`s are what a rewrite omits
+(`the_location_survives_a_rewrite_as_written`, `core/tests/compat.rs`, and
+the server's `tests/track_file_compat_test.rs`, which loads every real
+track's rewrite to the same physical track).
 Tools that rewrite it: `ats-smooth` (node and raceline positions, length),
 `ats-bank` (banking), `tools/drs_zones.py`, `dem_elevation.py` (node and
 raceline z), `bridge_elevation.py` (z), `track_location.py` (metadata),
@@ -275,7 +285,8 @@ sections and merged per (section, material).
 
 - `cargo test -p track-core`: `.ats` round trips and validation, v1
   migration, byte-identical repeat saves, saving never touches the YAML
-  (`core/tests/ats_scene.rs`); every real YAML still reads (`compat.rs`);
+  (`core/tests/ats_scene.rs`); every real YAML still reads and a second
+  save writes the bytes of the first (`compat.rs`);
   export round trip, key order, v1 compatibility, damaged blobs refused,
   `source_crc` check vector, winding (`ue_export.rs`).
 - Golden blob pinned on both sides: `the_mesh_blob_layout_is_pinned` and

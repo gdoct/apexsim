@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-ApexSim is a sim-racing platform in two roots that become two repositories.
+ApexSim is a sim-racing platform in three roots that become three repositories.
 `apexsim/` is the code: an authoritative Rust server (`apexsim/server/`,
 420 Hz physics, TCP+TLS lobby, UDP telemetry and input), an Unreal Engine 5.8
 client (`apexsim/game-unreal/`) that renders what the server says and has no
@@ -8,13 +8,16 @@ physics of its own, the HUD, the site and the build scripts (`apexsim/scripts/`)
 `apexsim-content/` is the content and its tools: the cars, tracks, props and
 textures, the Rust track pipeline and editor (`apexsim-content/track-editor/`)
 and the Python importers and generators (`apexsim-content/tools/`) that turn
-real circuits and cars into what both sides load.
+real circuits and cars into what both sides load. `apexsim-lib/` holds the
+formats the two share: the `apexsim-formats` crate (`apexsim-lib/formats/`)
+with the track YAML, the baked sidecars and `content_crc`.
 
-The code depends on the content, never the other way round: the code reaches
-it as the sibling `../apexsim-content`, and nothing under `apexsim-content/`
-reads, builds or links `apexsim/`. Two test-only edges are left until the
-formats crate: track-core's dev-dependency on the server (its compat tests)
-and the AC car importer's test reading `apexsim/server/src/brakes.rs`.
+`apexsim-lib` depends on nothing; the content depends on `apexsim-lib`; the
+code depends on `apexsim-lib` and the content, never the other way round.
+The code reaches the content as the sibling `../apexsim-content`, both build
+against `../apexsim-lib` by path, and nothing under `apexsim-content/` or
+`apexsim-lib/` reads, builds or links `apexsim/`. One test-only edge is left:
+the AC car importer's test reading `apexsim/server/src/brakes.rs`.
 
 ## Where to read first
 
@@ -46,6 +49,7 @@ checks and the traps.
 ## Commands
 
 ```bash
+cd apexsim-lib/formats && cargo test                    # the shared formats: YAML rewrite, sidecar goldens
 cd apexsim/server && cargo build && cargo test          # integration tests start the server in-process
 cd apexsim/server && cargo fmt && cargo clippy --all-targets   # CI: fmt --check, clippy -D warnings
 cargo test --manifest-path apexsim-content/track-editor/Cargo.toml   # pipeline + Bevy editor (whole-calendar bakes are #[ignore]d)
@@ -92,10 +96,11 @@ Code scripts run from `apexsim/`, content tools (`ats-*`, `tools/*.py`) from
   and showcases and guides built from it go stale.
 - **Track data flows in the refresh order** in
   [apexsim-content/docs/track-pipeline.md](apexsim-content/docs/track-pipeline.md); run
-  `ats-*` tools from `apexsim-content/`. The track YAML is modelled twice
-  (`apexsim/server/src/track_loader.rs` `TrackFileFormat`,
-  `apexsim-content/track-editor/core/src/track_data.rs` `TrackFile`): a key added to one goes in the other, or a pipeline rewrite
-  drops it. A track or car marked `imported` belongs
+  `ats-*` tools from `apexsim-content/`. The track YAML and the sidecars
+  are modelled once, in `apexsim-lib/formats` (`TrackFile`, the sidecar
+  structs, their versions): a key goes there, and the server and track-core
+  re-export it. Its serde attributes are what a rewrite writes, so a change
+  to one moves every rewritten YAML's bytes and checksum. A track or car marked `imported` belongs
   to its importer: tools that rewrite content must leave it alone.
   `apexsim-content/{cars,tracks}/custom` is the player's own and never ships.
 - **No trademarks on screen.** A real circuit, corner, series or car name

@@ -6,20 +6,22 @@ Running a server for other people is in [server/operations.md](server/operations
 
 ## Layout
 
-The repository holds two roots, laid out as two repositories that sit side
-by side:
+The repository holds three roots, laid out as three repositories that sit
+side by side:
 
 | Root | Holds |
 |---|---|
 | `apexsim/` (code) | `server/` (and `server/ffi`), `game-unreal/`, `hud/`, `launcher/`, `deploy/`, `site/`, `scripts/` (build, release, showcase, guide, site, promo and verification scripts), `docs/`, `showcase.yml`, `server.toml`; its artefacts in `build/` (`showcase/`, `guide/`, `benchmark/`...), `out/`, `artifacts/`, `records/`, `replays/` |
 | `apexsim-content/` (content) | `cars/`, `tracks/`, `props/`, `textures/`, `wheels/`, `artwork/`; `track-editor/` (track-core, the `ats-*` tools, the Bevy editor); `tools/` (the Python pipeline, the AC importers, `generators/` for the Blender-built cars, props and wheels, `lib/` for the shared PowerShell); `docs/`; the generated `build/tracks/` (exports, previews, `track_catalog.json`) and `.cache/` (OSM, DEM, previews, import caches) |
+| `apexsim-lib/` (formats) | `formats/`, the `apexsim-formats` crate: the track YAML (`TrackFile`), the ground, curbs, walls, road mesh and pit sidecars, `content_crc` and the format levels |
 
-The code depends on the content and reaches it as the sibling
+`apexsim-lib` depends on nothing, the content depends on `apexsim-lib`, and
+the code depends on both. The code reaches the content as the sibling
 `../apexsim-content` from the code root (`../../apexsim-content` from
-`server/` or `game-unreal/`). Nothing under `apexsim-content/` reads, builds or
-links the code; the exceptions are two tests, track-core's compat tests
-(a dev-dependency on the server crate) and the AC car importer's test
-reading `server/src/brakes.rs`.
+`server/` or `game-unreal/`); the server and track-core depend on
+`apexsim-lib/formats` by path. Nothing under `apexsim-content/` or
+`apexsim-lib/` reads, builds or links the code; the one exception is a test,
+the AC car importer's reading `server/src/brakes.rs`.
 
 Where each kind of tool runs from:
 
@@ -34,7 +36,8 @@ Where each kind of tool runs from:
   the content's whole bake (ground PNGs, dress, export, previews) with cargo
   and Python only; `scripts/build_track_levels.ps1` runs it and adds the
   code's stages.
-- **Cargo** for the server runs in `apexsim/server` (and `apexsim/server/ffi`).
+- **Cargo** for the server runs in `apexsim/server` (and `apexsim/server/ffi`),
+  for the formats in `apexsim-lib/formats`.
 
 Paths in this doc are relative to the code root; a path that starts with
 `apexsim-content/` is in the content root.
@@ -155,11 +158,44 @@ behind ([marketing-site.md](marketing-site.md)); job `client` only checks the
 `.uproject` and the target/module files exist (`ApexPhysics.Build.cs`
 among them). Job `track-editor` runs from `apexsim-content/`: first
 `tools/check_direction.py`, which fails on any path from the content into
-the code beyond the two allowed test-only edges, then `cargo test` of the
-track-core and editor workspace. The Unreal code is not compiled in CI, and
+the code beyond the one allowed test-only edge (a path into `apexsim-lib/`
+is fine), then `cargo test` of the track-core and editor workspace. Job
+`formats` runs `cargo fmt --check`, `cargo clippy --all-targets -- -D
+warnings` and `cargo test` in `apexsim-lib/formats`. The Unreal code is not compiled in CI, and
 nothing builds the client's copy of the physics library there. Every job
 checks out the whole repository and runs on every push: the code jobs read
 the content, so none is filtered by path.
+
+## Formats (`apexsim-lib/formats`)
+
+The `apexsim-formats` crate models every file the content writes and the
+code reads, once: the track YAML (`track::TrackFile` and its nodes,
+checkpoints, spawn points, racing line, DRS zones and metadata), the five
+sidecars `ats-export` bakes beside it (`ground`, `curbs`, `walls`,
+`road_mesh`, `pit`: the serialized structs, their `*_VERSION` constants and
+`sidecar_path`), `content_crc` and the format levels (`TRACK_YAML_LEVEL`,
+`SIDECARS_LEVEL`). Its only dependency is serde. The server re-exports the
+types under its own paths (`track_loader::TrackFileFormat`,
+`data::TrackMetadata`, `ground::GroundHeightfield`, `pit::PitBox`...) and
+keeps its queries on them in traits (`GroundQuery`, `CurbQuery`,
+`WallSegmentKind`) and runtime types (`RoadMesh`, `Walls`, `PitLane`);
+track-core re-exports them from `track_data`, `terrain`, `road_mesh` and
+`ue_export`.
+
+```bash
+cd apexsim-lib/formats
+cargo fmt --check && cargo clippy --all-targets -- -D warnings
+cargo test                                # YAML rewrite fixtures, sidecar golden bytes, content_crc
+cargo test --test round_trip -- --nocapture   # print the sidecar goldens
+```
+
+The serde attributes are the files' bytes: a tool that rewrites a YAML
+writes it through `TrackFile`, so a changed `skip_serializing_if` changes
+every rewritten track's content checksum, and a changed sidecar struct fails
+the goldens. A format change lands in the crate with the server's and
+track-core's use of it in one commit. The server's
+`tests/track_file_compat_test.rs` holds every real track to a rewrite
+loading to the same physical track.
 
 ## Track editor and pipeline (Rust, `apexsim-content/track-editor/`)
 

@@ -1,84 +1,16 @@
 use crate::config::RoadContactMode;
-use crate::data::{
-    GridSlot, RacelinePoint, SurfaceType, TrackConfig, TrackMetadata, TrackPoint, TrackSurface,
-};
+use crate::curbs::CurbQuery as _;
+use crate::data::{GridSlot, SurfaceType, TrackConfig, TrackPoint, TrackSurface};
+use crate::ground::GroundQuery as _;
 use crate::track_bundle::TrackFiles;
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use tracing::{debug, info, warn};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TrackFileFormat {
-    /// The circuit's real name. Source data only: it is often the operator's
-    /// trademark, so nothing a player sees shows it (see `display_name`).
-    pub name: String,
-    /// The name the game shows (a parody such as `Zandervoort`), sent as the
-    /// track's name on the wire. Falls back to `name` when absent.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub display_name: Option<String>,
-    #[serde(default)]
-    pub track_id: Option<String>,
-    pub nodes: Vec<TrackNode>,
-    #[serde(default)]
-    pub checkpoints: Vec<Checkpoint>,
-    /// Node indices of the sector boundaries past the start line, in order.
-    /// Two of them (three sectors); anything else is ignored and the lap is
-    /// split into even thirds instead.
-    #[serde(default)]
-    pub sectors: Vec<usize>,
-    #[serde(default)]
-    pub spawn_points: Vec<SpawnPoint>,
-    #[serde(default)]
-    pub default_width: f32,
-    #[serde(default)]
-    pub closed_loop: bool,
-    /// Optional raceline (optimal racing line) for AI and visualization
-    #[serde(default)]
-    pub raceline: Vec<RacelinePoint>,
-    /// The DRS zones (`apexsim-content/tools/drs_zones.py` writes them), stations along
-    /// the centerline in metres.
-    #[serde(default)]
-    pub drs_zones: Vec<crate::data::DrsZone>,
-    /// Track metadata
-    #[serde(default)]
-    pub metadata: Option<TrackMetadata>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TrackNode {
-    pub x: f32,
-    pub y: f32,
-    #[serde(default)]
-    pub z: f32,
-    #[serde(default)]
-    pub width: Option<f32>,
-    #[serde(default)]
-    pub width_left: Option<f32>,
-    #[serde(default)]
-    pub width_right: Option<f32>,
-    #[serde(default)]
-    pub banking: Option<f32>,
-    #[serde(default)]
-    pub friction: Option<f32>,
-    #[serde(default)]
-    pub surface_type: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Checkpoint {
-    pub index_start: usize,
-    pub index_end: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpawnPoint {
-    pub position: usize,
-    #[serde(default)]
-    pub offset_x: f32,
-    #[serde(default)]
-    pub offset_y: f32,
-}
+/// The track YAML as written, modelled once in the formats crate
+/// (`apexsim-lib/formats/src/track.rs`) for the server and the track
+/// editor both: a key added to the file goes there.
+pub use apexsim_formats::track::{Checkpoint, SpawnPoint, TrackFile as TrackFileFormat, TrackNode};
 
 #[derive(Debug)]
 pub enum TrackLoadError {

@@ -22,6 +22,9 @@ game builds at runtime (no cooked track levels). Formats:
   `barriers.rs`, `circuit_style.rs`, `pit.rs`, `track_smooth.rs`,
   `track_bank.rs`, `dem.rs`, `terrain.rs`, `strip_layout.rs`, `ue_export.rs`,
   `ue_export_io.rs`; binaries `ats-{dress,groom,smooth,bank,export}` in `bin/`.
+- The sidecars' formats: `apexsim-lib/formats/src/` (`ground.rs`,
+  `curbs.rs`, `walls.rs`, `road_mesh.rs`, `pit.rs`: the structs, their
+  versions and paths), which track-core writes and the server reads.
 - Server readers: `apexsim/server/src/track_loader.rs`, `track_content.rs`,
   `ground.rs`, `curbs.rs`, `walls.rs`, `road_mesh.rs`, `pit.rs`.
 - Client: `apexsim/game-unreal/Source/ApexSim/{Public,Private}/Track/`; editor-only
@@ -376,7 +379,7 @@ the track is created; each optional (a missing one is logged).
 | `<Stem>.curbs.msgpack` | Curb and run-off reach, gravel and sand traps per metre, the off-track ground (`curbs.rs`) | The road edge is the track limit; curbs and traps read as grass |
 | `<Stem>.walls.msgpack` | Every barrier, fence and pit wall as segments, every stand, building and garage as its footprint's sides, underpass walls and parapets; base height, height, material (armco, tyres, concrete). Runs with ends under 4.5 m apart are joined (`walls.rs`, `physics::check_wall_collisions`) | Nothing stops a car off the road: barrier collision exists only on the server |
 | `<Stem>.road.msgpack` | The road as tagged triangles: see [road-mesh.md](road-mesh.md) | The centerline backend |
-| `<Stem>.pit.msgpack` | Lane centerline, limit lines, box spots, entry and exit stations (`ue_export::PitSidecar`) | No pit stops |
+| `<Stem>.pit.msgpack` | Lane centerline, limit lines, box spots, entry and exit stations (`apexsim_formats::pit::PitSidecar`) | No pit stops |
 
 ### Terrain and the verge
 

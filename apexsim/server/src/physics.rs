@@ -9,10 +9,12 @@
 //! - Track surface interaction (grip, elevation, banking)
 //! - Engine and drivetrain simulation
 
+use crate::curbs::CurbQuery as _;
 use crate::data::*;
 use crate::feedback::{ContactSurface, FeedbackTick};
+use crate::ground::GroundQuery as _;
 use crate::road_mesh::RoadMesh;
-use crate::walls::{WallKind, Walls};
+use crate::walls::{WallKind, WallSegmentKind as _, Walls};
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use tracing::debug;

@@ -8,10 +8,40 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-# The repository holds two roots: apexsim/ (the code) and apexsim-content/
-# (cars, tracks, the track pipeline). The code reaches the content through
-# ../apexsim-content, so every job checks out the whole repository.
+# The repository holds three roots: apexsim/ (the code), apexsim-content/
+# (cars, tracks, the track pipeline) and apexsim-lib/ (the formats both
+# read). The code reaches the content through ../apexsim-content and both
+# build against ../apexsim-lib, so every job checks out the whole repository.
 jobs:
+  formats:
+    name: Formats (Rust)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apexsim-lib/formats
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apexsim-lib/formats
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      # The YAML rewrite and the sidecars' golden bytes.
+      - name: Test
+        run: cargo test
+
   server:
     name: Server (Rust)
     runs-on: ubuntu-latest
@@ -69,7 +99,8 @@ jobs:
       - uses: actions/checkout@v5
 
       # The code depends on the content, never the reverse: no path from
-      # apexsim-content/ into apexsim/ beyond the allowed test-only edges.
+      # apexsim-content/ into apexsim/ beyond the allowed test-only edge
+      # (paths into apexsim-lib/ are fine: the content builds against it).
       - name: The content does not reach into the code
         run: python3 tools/check_direction.py
 

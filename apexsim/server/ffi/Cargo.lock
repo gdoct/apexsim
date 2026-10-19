@@ -68,6 +68,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "apexsim-formats"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "apexsim-physics"
 version = "0.1.0"
 dependencies = [
@@ -81,6 +88,7 @@ dependencies = [
 name = "apexsim-server"
 version = "0.1.0"
 dependencies = [
+ "apexsim-formats",
  "bytes",
  "clap",
  "flate2",

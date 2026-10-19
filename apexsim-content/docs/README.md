@@ -11,8 +11,11 @@ from it (`python tools/<tool>.py`,
 `cargo run --manifest-path track-editor/Cargo.toml --bin ats-<tool> -- ...`).
 A path that starts with `apexsim/` is in the code root; a command reaches it
 as `../apexsim/...`. Nothing in the content root reads, builds or links the
-code; the one exception is track-core's dev-dependency on the server crate
-for its compat tests.
+code; the one exception is the AC car importer's test reading the server's
+brake constants. The formats the two share (the track YAML, the sidecars,
+`content_crc`) are the `apexsim-formats` crate in the third root,
+`apexsim-lib/formats`, which track-core builds against and which depends on
+neither.
 
 - [track-pipeline.md](track-pipeline.md): how a circuit is generated, from dossier to export and sidecars, and how the client builds it at runtime.
 - [track-format.md](track-format.md): track YAML, `.ats` scenes and the export format.

@@ -26,26 +26,21 @@
 //! point-in-triangle tests; it allocates nothing and iterates nothing in
 //! hash order, which is what keeps the sim deterministic.
 
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-pub const ROAD_MESH_VERSION: u32 = 1;
-
-/// Contact classes as the exporter writes them (`RoadSurface::contact`).
-pub const CONTACT_ROAD: u8 = 0;
-pub const CONTACT_CURB: u8 = 1;
-pub const CONTACT_RUNOFF: u8 = 2;
-pub const CONTACT_OFF: u8 = 3;
-pub const CONTACT_PIT_LANE: u8 = 4;
+/// The sidecar's types and constants, from the formats crate
+/// (`apexsim-lib/formats/src/road_mesh.rs`): the indexed triangles in the
+/// server frame, each tagged with a [`RoadSurface`] (contact class,
+/// friction multiplier, inside the track limits or not).
+pub use apexsim_formats::road_mesh::{
+    RoadMeshFile, RoadSurface, CONTACT_CURB, CONTACT_OFF, CONTACT_PIT_LANE, CONTACT_ROAD,
+    CONTACT_RUNOFF, MIN_FOOTPRINT_M2, ROAD_MESH_VERSION,
+};
 
 /// How far above the reference height a surface may be and still be the
 /// one under the wheel: a curb, a bump, the deck a car is about to land
 /// on, but never the bridge three metres up.
 pub const STEP_UP_M: f32 = 0.5;
-
-/// A triangle with a smaller footprint in the ground plane is nothing a
-/// wheel can stand on (a vertical face, a sliver) and is dropped at load.
-pub const MIN_FOOTPRINT_M2: f32 = 1e-4;
 
 /// Barycentric slack for the point-in-triangle test, so a point on a
 /// shared edge belongs to both neighbours and none falls between them.
@@ -63,42 +58,6 @@ const CELL_M: f32 = 4.0;
 /// A mesh whose bounding box would need more cells than this at
 /// [`CELL_M`] gets coarser cells instead.
 const MAX_CELLS: f32 = 2_000_000.0;
-
-/// One kind of surface: what the sim does with a wheel on it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RoadSurface {
-    /// `road`, `curb`, `runoff_asphalt`, `off_grass`, `off_gravel`,
-    /// `pit_lane`, or an importer's own key. An `off_` key names the
-    /// ground (`RoadMesh::ground`); otherwise it is only logged.
-    pub key: String,
-    /// [`CONTACT_ROAD`] and friends.
-    pub contact: u8,
-    /// Multiplier on the grip the class has on this track (1.0 = the
-    /// track's own figure for that class). A generated mesh writes 1.0
-    /// everywhere.
-    pub friction: f32,
-    /// Inside the track limits: a wheel here is not off the track.
-    pub valid_track: bool,
-    /// The pit lane: drives as it (`RoadContact::PitLane`) whatever
-    /// `contact` says.
-    pub pit_lane: bool,
-}
-
-/// The sidecar as written (`rmp_serde::to_vec_named`).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RoadMeshFile {
-    pub version: u32,
-    /// Server frame: metres, +X along the start line's heading, +Y left,
-    /// +Z up, origin at the start/finish line.
-    pub vertices: Vec<[f32; 3]>,
-    /// Counter-clockwise seen from above. Indices into `vertices`.
-    pub triangles: Vec<[u32; 3]>,
-    /// One entry per triangle: an index into `surfaces`.
-    pub triangle_surface: Vec<u16>,
-    pub surfaces: Vec<RoadSurface>,
-    /// Which generator wrote it and from what.
-    pub source: String,
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum RoadMeshLoadError {
@@ -156,11 +115,7 @@ pub struct RoadMesh {
 impl RoadMesh {
     /// Sidecar path for a track file: `Monza.yaml` -> `Monza.road.msgpack`.
     pub fn sidecar_path(track_file: &Path) -> PathBuf {
-        let stem = track_file
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("track");
-        track_file.with_file_name(format!("{}.road.msgpack", stem))
+        RoadMeshFile::sidecar_path(track_file)
     }
 
     pub fn load(path: &Path) -> Result<Self, RoadMeshLoadError> {

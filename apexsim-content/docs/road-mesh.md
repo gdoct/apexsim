@@ -11,8 +11,10 @@ centerline under either backend.
 
 ## Code
 
-- `track-editor/core/src/road_mesh.rs`: the file format (`RoadMeshFile`,
-  `RoadSurface`, the `CONTACT_*` classes) and the welding builder.
+- `apexsim-lib/formats/src/road_mesh.rs` (the `apexsim-formats` crate): the
+  file format (`RoadMeshFile`, `RoadSurface`, the `CONTACT_*` classes,
+  `ROAD_MESH_VERSION`, `MIN_FOOTPRINT_M2`), which both sides re-export.
+- `track-editor/core/src/road_mesh.rs`: the welding builder.
 - `track-editor/core/src/ue_export.rs`: the physics bake. Every surface strip
   goes through `strip_physics`, which feeds the same triangles to the render
   mesh and the road mesh; `clipped_quad` keeps the pit lane off the road.

@@ -9,6 +9,7 @@
 //! pass, like the `*_mesh` benches.
 
 use apexsim_server::config::RoadContactMode;
+use apexsim_server::curbs::CurbQuery as _;
 use apexsim_server::data::{TrackConfig, TrackPoint};
 use apexsim_server::physics::{probe_surface, seat_height, RoadContact};
 use apexsim_server::track_loader::TrackLoader;

@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::ai_driver::AiDriverProfile;
+use crate::curbs::CurbQuery as _;
 use crate::data::*;
 use crate::game_session::GameSession;
 use crate::replay_tools::{

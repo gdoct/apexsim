@@ -221,7 +221,7 @@ pub struct UeScene {
     pub source_track: String,
     /// CRC-32 of that YAML's bytes with every carriage return dropped: the
     /// same checksum the server sends as `ContentCrc`
-    /// (`server/src/content_crc.rs`), so a client can tell whether the
+    /// (`apexsim_formats::content_crc`), so a client can tell whether the
     /// level it holds was baked from the track the server is running.
     /// Filled by `ue_export_io::export_track`; the bake itself has no file.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -423,44 +423,12 @@ pub struct UeCenterlinePoint {
     pub half_right_cm: f32,
 }
 
-/// The pit lane as the server drives it (`<Stem>.pit.msgpack`): the lane's
-/// own centerline, where it leaves and rejoins the track, the speed-limit
+/// The pit lane as the server drives it (`<Stem>.pit.msgpack`), modelled
+/// in the formats crate (`apexsim-lib/formats/src/pit.rs`): the lane's own
+/// centerline, where it leaves and rejoins the track, the speed-limit
 /// stretch and every box, all from the same geometry the bake paints the
-/// lines and stands the garages on, so a car stops where it sees its box.
-/// Stations along the lane are metres from its first node; along the track,
-/// metres from the start line.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PitSidecar {
-    pub version: u32,
-    pub width_m: f32,
-    pub speed_limit_mps: f32,
-    /// +1 when the lane lies on the track's left, -1 on its right.
-    pub lane_side: i32,
-    /// The lane's centerline every [`PIT_SIDECAR_STEP_M`], `[x, y, z]`.
-    pub nodes: Vec<[f32; 3]>,
-    pub length_m: f32,
-    /// The speed limit holds between these lane stations.
-    pub limit_start_m: f32,
-    pub limit_end_m: f32,
-    /// Track stations nearest the lane's first and last node.
-    pub entry_station_m: f32,
-    pub exit_station_m: f32,
-    pub boxes: Vec<PitBoxSpot>,
-}
-
-/// Where a car stops for service: the middle of the box's working lane, in
-/// front of its garage, facing down the lane.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct PitBoxSpot {
-    pub lane_station_m: f32,
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-    pub yaw_rad: f32,
-}
-
-/// Version of [`PitSidecar`].
-pub const PIT_SIDECAR_VERSION: u32 = 1;
+/// lines and stands the garages on.
+pub use apexsim_formats::pit::{PitBoxSpot, PitSidecar, PIT_SIDECAR_VERSION};
 /// Spacing of the pit sidecar's lane nodes, m.
 pub const PIT_SIDECAR_STEP_M: f32 = 2.0;
 
@@ -596,54 +564,16 @@ struct PhysicsStrip {
 /// Station spacing of the curb sidecar, meters. Curbs run for tens of
 /// meters, so a metre of granularity at their ends costs nothing.
 pub const CURB_BAND_STEP_M: f32 = 1.0;
-pub const CURB_BANDS_VERSION: u32 = 3;
 /// The off-track ground of a desert circuit, as the road mesh's surface
 /// key (`off_desert`) and the curb sidecar's `ground` name it.
 pub const DESERT_GROUND: &str = "desert";
 
 /// The curbs as the *server* needs them (`<Track>.curbs.msgpack`, written
-/// with `rmp_serde::to_vec_named`): not geometry, just how far the curb
-/// reaches out from each road edge, so the sim can count a car on the curb
-/// as on the track instead of off it.
-///
-/// Sample `i` is the cross-section at station `i * step_m` along the
-/// centerline, the value the curb's width outward from that side's road
-/// edge in centimeters (0 where the edge has no curb). Left and right are
-/// the track's own sides — the same `width_left_m` / `width_right_m` the
-/// YAML centerline carries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CurbBands {
-    pub version: u32,
-    pub step_m: f32,
-    pub left_cm: Vec<u16>,
-    pub right_cm: Vec<u16>,
-    /// Version 2: how far the prepared *tarmac* run-off (`asphalt_runoff`,
-    /// `concrete` bands) reaches past each road edge, centimetres, 0 where
-    /// there is none. A car past the curb but within this is on tarmac —
-    /// off the track for the lap, but on a surface with grip and no
-    /// grass drag.
-    #[serde(default)]
-    pub runoff_left_cm: Vec<u16>,
-    #[serde(default)]
-    pub runoff_right_cm: Vec<u16>,
-    /// Version 3: the gravel traps past each road edge, per sample
-    /// `[inner, outer]` in centimetres from the edge (`[0, 0]` where there
-    /// is none; overlapping traps keep their hull), so the centerline
-    /// backend drives a trap as gravel the way the road mesh does.
-    #[serde(default)]
-    pub gravel_left_cm: Vec<[u16; 2]>,
-    #[serde(default)]
-    pub gravel_right_cm: Vec<[u16; 2]>,
-    /// Version 3: the sand traps, as the gravel.
-    #[serde(default)]
-    pub sand_left_cm: Vec<[u16; 2]>,
-    #[serde(default)]
-    pub sand_right_cm: Vec<[u16; 2]>,
-    /// Version 3: what the ground past the bands is to drive on: empty for
-    /// grass, `desert` where the grass is drawn as sand ([`Ground::Sand`]).
-    #[serde(default)]
-    pub ground: String,
-}
+/// with `rmp_serde::to_vec_named`), modelled in the formats crate
+/// (`apexsim-lib/formats/src/curbs.rs`): not geometry, just how far the
+/// curb, the tarmac run-off and the traps reach out from each road edge, so
+/// the sim can count a car on the curb as on the track instead of off it.
+pub use apexsim_formats::curbs::{CurbBands, CURB_BANDS_VERSION};
 
 /// Flatten the scene's curb spans into the per-station bands the server
 /// reads.
@@ -797,15 +727,18 @@ fn bake_curb_bands(
 // Walls for the server
 // ---------------------------------------------------------------------------
 
-pub const WALLS_VERSION: u32 = 1;
-/// Steel armco or a fence: springy.
-pub const WALL_KIND_ARMCO: u8 = 0;
-/// Tires or TecPro: absorbs the hit.
-pub const WALL_KIND_TIRES: u8 = 1;
-/// Concrete, a building, a stand, a parapet: hard.
-pub const WALL_KIND_CONCRETE: u8 = 2;
-/// A sausage kerb: driven over, jolts the car, never stops it.
-pub const WALL_KIND_KERB: u8 = 3;
+/// The walls as the *server* needs them (`<Track>.walls.msgpack`, written
+/// with `rmp_serde::to_vec_named`), modelled in the formats crate
+/// (`apexsim-lib/formats/src/walls.rs`): not meshes, just where the solid
+/// faces are. A barrier, tire wall, fence or pit wall is one segment along
+/// its heading; a grandstand, building, garage or fairground piece is the
+/// four sides of its footprint, laid behind the pivot where the mesh stands
+/// behind it; an underpass contributes the abutment walls beside the lower
+/// road and the deck's parapets.
+pub use apexsim_formats::walls::{
+    WallFile as Walls, WallSegment, WALLS_VERSION, WALL_KIND_ARMCO, WALL_KIND_CONCRETE,
+    WALL_KIND_KERB, WALL_KIND_TIRES,
+};
 
 /// Two thin walls whose ends are this close along the run are joined, so
 /// a run of 4 m armco modules or tire-wall blocks laid a little apart
@@ -827,37 +760,6 @@ const UNDERPASS_WALL_TRIM_M: f32 = 1.0;
 const UNDERPASS_WALL_MIN_M: f32 = 0.3;
 /// Footprint of a building the kit does not know, metres.
 const UNKNOWN_BUILDING_FOOTPRINT: (f32, f32, f32) = (15.0, 10.0, 8.0);
-
-/// One solid face in the ground plane, track frame (metres, +Y left):
-/// the ground height at its base, how tall it is, and what it is made of
-/// (`WALL_KIND_*`).
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct WallSegment {
-    pub x0: f32,
-    pub y0: f32,
-    pub x1: f32,
-    pub y1: f32,
-    pub z: f32,
-    pub height_m: f32,
-    pub kind: u8,
-}
-
-/// The walls as the *server* needs them (`<Track>.walls.msgpack`, written
-/// with `rmp_serde::to_vec_named`): not meshes, just where the solid faces
-/// are, so the sim can stop a car at the armco the player sees instead of
-/// letting it drive through.
-///
-/// A barrier, tire wall, fence or pit wall is one segment along its
-/// heading; a grandstand, building, garage or fairground piece is the four
-/// sides of its footprint, laid behind the pivot where the mesh stands
-/// behind it; an underpass contributes the abutment walls
-/// beside the lower road and the deck's parapets. Heights let the server
-/// tell a wall the car is level with from one on the road above or below.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Walls {
-    pub version: u32,
-    pub segments: Vec<WallSegment>,
-}
 
 /// Unreal centimetres back to the track frame.
 fn from_ue(p: [f32; 3]) -> (f32, f32, f32) {

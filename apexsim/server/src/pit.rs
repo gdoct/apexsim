@@ -83,18 +83,15 @@ pub const HANDBACK_PAST_LINE_M: f32 = 1.0;
 /// The fastest it drives any of the pit route, m/s.
 const LANE_TOP_SPEED_MPS: f32 = 45.0;
 
-/// One box: where a car stops for service.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct PitBox {
-    pub lane_station_m: f32,
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-    pub yaw_rad: f32,
-}
+/// One box: where a car stops for service. The sidecar's type, from the
+/// formats crate (`apexsim-lib/formats/src/pit.rs`).
+pub use apexsim_formats::pit::PitBoxSpot as PitBox;
+/// The pit sidecar as `ats-export` bakes it, from the formats crate.
+pub use apexsim_formats::pit::{PitSidecar, PIT_SIDECAR_VERSION};
 
-/// The pit lane, as `ats-export` bakes it (`PitSidecar` in track-core).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// The pit lane as the sim drives it: the sidecar's figures
+/// ([`PitSidecar`]) and what [`PitLane::finish`] works out from them.
+#[derive(Debug, Clone, PartialEq)]
 pub struct PitLane {
     pub version: u32,
     pub width_m: f32,
@@ -110,11 +107,30 @@ pub struct PitLane {
     pub exit_station_m: f32,
     pub boxes: Vec<PitBox>,
     /// Each node's station along the lane, m (worked out on load).
-    #[serde(skip)]
     pub stations: Vec<f32>,
     /// The lane's bounding box, `[min x, min y, max x, max y]` (on load).
-    #[serde(skip)]
     pub bounds: [f32; 4],
+}
+
+impl From<PitSidecar> for PitLane {
+    /// The sidecar's figures, not yet [`PitLane::finish`]ed.
+    fn from(file: PitSidecar) -> Self {
+        Self {
+            version: file.version,
+            width_m: file.width_m,
+            speed_limit_mps: file.speed_limit_mps,
+            lane_side: file.lane_side,
+            nodes: file.nodes,
+            length_m: file.length_m,
+            limit_start_m: file.limit_start_m,
+            limit_end_m: file.limit_end_m,
+            entry_station_m: file.entry_station_m,
+            exit_station_m: file.exit_station_m,
+            boxes: file.boxes,
+            stations: Vec::new(),
+            bounds: [0.0; 4],
+        }
+    }
 }
 
 /// Where a car is against the lane.
@@ -130,11 +146,7 @@ pub struct LanePoint {
 impl PitLane {
     /// `Monza.yaml` -> `Monza.pit.msgpack`.
     pub fn sidecar_path(track_file: &Path) -> PathBuf {
-        let stem = track_file
-            .file_stem()
-            .map(|s| s.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        track_file.with_file_name(format!("{stem}.pit.msgpack"))
+        PitSidecar::sidecar_path(track_file)
     }
 
     pub fn load(path: &Path) -> Result<PitLane, String> {
@@ -143,7 +155,8 @@ impl PitLane {
 
     /// The sidecar's bytes, decoded and finished as [`Self::load`] does.
     pub fn from_bytes(bytes: &[u8]) -> Result<PitLane, String> {
-        let mut lane: PitLane = rmp_serde::from_slice(bytes).map_err(|e| e.to_string())?;
+        let file: PitSidecar = rmp_serde::from_slice(bytes).map_err(|e| e.to_string())?;
+        let mut lane = PitLane::from(file);
         lane.finish()?;
         Ok(lane)
     }

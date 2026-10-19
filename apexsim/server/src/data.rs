@@ -1094,58 +1094,11 @@ impl DrsSpec {
     };
 }
 
-/// One DRS zone along the centerline, stations in metres from the start
-/// line: the gap to the car ahead is measured as a car crosses
-/// `detection_m`, the flap may open from `start_m` and must be shut by
-/// `end_m`. A zone may wrap through the start line.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct DrsZone {
-    pub detection_m: f32,
-    pub start_m: f32,
-    pub end_m: f32,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct RacelinePoint {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct TrackMetadata {
-    pub country: Option<String>,
-    pub city: Option<String>,
-    pub length_m: Option<f32>,
-    pub description: Option<String>,
-    pub year_built: Option<u32>,
-    pub category: Option<String>, // e.g., "F1", "DTM", "IndyCar"
-
-    // Procedural generation parameters
-    #[serde(default)]
-    pub environment_type: Option<String>, // "desert" | "forest" | "city" | "mountains" | "plains"
-    #[serde(default)]
-    pub terrain_seed: Option<u32>, // Deterministic seed (None = generate from track ID)
-    #[serde(default)]
-    pub terrain_scale: Option<f32>, // Height multiplier (default: 1.0)
-    #[serde(default)]
-    pub terrain_detail: Option<f32>, // Noise frequency multiplier (default: 0.5)
-    #[serde(default)]
-    pub terrain_blend_width: Option<f32>, // Track corridor blend meters (default: 20.0)
-    #[serde(default)]
-    pub object_density: Option<f32>, // 0-1 density multiplier (default: 0.8)
-    #[serde(default)]
-    pub decal_profile: Option<String>, // Decal set identifier (default: "default")
-    /// Where the circuit is: the start line's height above sea level, m,
-    /// and its latitude and longitude (`apexsim-content/tools/track_location.py`, from
-    /// the elevation sidecar's georeference). The height thins the air.
-    #[serde(default)]
-    pub altitude_m: Option<f32>,
-    #[serde(default)]
-    pub latitude_deg: Option<f32>,
-    #[serde(default)]
-    pub longitude_deg: Option<f32>,
-}
+/// The track file's DRS zones, racing line points and metadata are the
+/// file's own types, from the formats crate
+/// (`apexsim-lib/formats/src/track.rs`), carried on the runtime track as
+/// they were read.
+pub use apexsim_formats::track::{DrsZone, RacelinePoint, TrackMetadata};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackSurface {

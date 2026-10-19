@@ -1,6 +1,6 @@
 # Split off the content
 
-Status: phase 0 under way: the two roots are in place (2026-10-19); the rest is a proposal, not built.
+Status: phase 0 under way: the three roots are in place (2026-10-19); the rest is a proposal, not built.
 
 Today one repository holds the simulation (`server/`), the client
 (`game-unreal/`), the pipeline (`track-editor/`, `scripts/`) and every car,
@@ -47,15 +47,21 @@ never the other way round.** The server, the client, the launcher and the
 release build read cars and circuits; nothing that authors, bakes or checks
 content reads, builds or links the code. The tools that make content (the
 track editor and `track-core`, the OSM, DEM and Assetto Corsa importers,
-the Blender generators) therefore go with the content, and the formats the
-two sides share are owned by the content side.
+the Blender generators) therefore go with the content. The formats the two
+sides share (the track YAML, the sidecars, the content checksum) are a third
+repository's, `apexsim-lib`, which depends on neither: the content builds
+against it, and so does the code (decided 2026-10-19).
 
-Two repositories and two kinds of artefact, plus a player's own folder.
+    apexsim-lib  <-  apexsim-content  <-  apexsim
+         ^________________________________|
+
+Three repositories, plus a player's own folder.
 
 | Repository | Holds | Produces |
 |---|---|---|
 | `apexsim` | server, client, launcher, release and deploy scripts, the site, the verify and promo tools, the default HUD, `showcase.yml`, the code docs | `ApexSim-<version>-Win64.zip`: launcher, `Game/`, `Server/`, and the **starter set** copied from the content |
-| `apexsim-content` | cars, tracks, props, textures, wheels, artwork, the `formats` crate, `track-editor/` (editor, `track-core`, `ats-*`), the content tools, `starter.yml`, the content docs | the baked tree (exports, sidecars, previews, catalog), later **content packs** and a signed **pack index** |
+| `apexsim-content` | cars, tracks, props, textures, wheels, artwork, `track-editor/` (editor, `track-core`, `ats-*`), the content tools, `starter.yml`, the content docs | the baked tree (exports, sidecars, previews, catalog), later **content packs** and a signed **pack index** |
+| `apexsim-lib` | `formats/`, the `apexsim-formats` crate: the track YAML, the road, ground, curbs, walls and pit sidecars and `content_crc`, with their format levels and golden files | a crate both others build against (by path in this repository, by git tag after the split) |
 | a player's `custom/` (never ours) | what `content/{cars,tracks}/custom` holds today | nothing published |
 
 The split happens first inside this repository (phase 0). The root holds
@@ -64,9 +70,9 @@ future repository, so the later split is a `git filter-repo
 --subdirectory-filter` per folder and nothing moves twice. Until then, one
 commit can still change both sides (a wire or format change).
 
-### Phase 0: one repository, two roots
+### Phase 0: one repository, three roots
 
-The two roots are in place. The tree, with what is still to come marked:
+The three roots are in place. The tree:
 
 ```
 <repo>/
@@ -91,10 +97,11 @@ The two roots are in place. The tree, with what is still to come marked:
     docs/                       the content docs
     .cache/                     osm, dem, previews, importer notices
     starter.yml                 the cars and tracks a release ships
-    formats/                    (to come) Rust crate: track YAML, the five sidecars, content_crc
+  apexsim-lib/
+    formats/                    Rust crate apexsim-formats: track YAML, the five sidecars, content_crc, format levels
 ```
 
-One CLAUDE.md at the repository root holds the rules for both roots. Each
+One CLAUDE.md at the repository root holds the rules for every root. Each
 root gets its own when the repositories split (phase 2).
 
 **How the code finds the content.** The code reaches the content as
@@ -119,7 +126,7 @@ do not, so the rule places them:
 | track guides | the notes (`<Stem>.guide.yml`) stay with the track; the render (`apexsim-replay guide`) is `apexsim` | same reason. N28 moves both into the game, which removes the bake stage. |
 | the default HUD | `apexsim/hud` | its JSON names data points the client defines ([../game/hud-modding.md](../game/hud-modding.md)); in the content it would depend on the code. A player's `hud/custom` sits beside it. |
 | UE imports (`ApexPropImport`, `ApexCarImport`, `ApexGroundTexImport`, `ApexMaterialBake`, `ApexTrackImport`, `ApexTrackCatalogSync`) | `apexsim` | the client reading content, from the content root. `DT_CarCatalog`, `DT_TrackCatalog` and `UI/TrackPreviews` are generated from it. |
-| the duplicated formats (track YAML, the road, ground, curbs, walls and pit sidecars, `content_crc`) | `apexsim-content/formats`, a crate the server and `track-core` both depend on | today each is written twice and kept in step by `track-core`'s dev-dependency on the server (`core/tests/compat.rs`, `road_mesh.rs`): a content-on-code edge. The C++ readers (`ApexCarToml.h`, `ApexContentCrc.h`, the scene reader) stay code, checked against the crate's golden files. |
+| the duplicated formats (track YAML, the road, ground, curbs, walls and pit sidecars, `content_crc`) | `apexsim-lib/formats`, a crate the server and `track-core` both depend on by path | each is modelled once there (the serialized types, their versions, the sidecar paths, the checksum, the format levels); the server keeps its queries (`GroundQuery`, `CurbQuery`, `RoadMesh`, `Walls`, `PitLane`) and `track-core` its bake on those types. The crate's tests hold the YAML rewrite and the sidecars' bytes to inline goldens; the server's `tests/track_file_compat_test.rs` loads every real track's rewrite to the same track. The C++ readers (`ApexCarToml.h`, `ApexContentCrc.h`, the scene reader) stay code, checked against the crate's golden files. |
 | the AI survey (`survey_ai_races_on_every_circuit`) | `apexsim`, run against a content working copy | the acceptance check for wall, centerline and ground edits needs the sim. It is a check run from the code side, not a build dependency of the content. |
 | the AC importers | `apexsim-content/tools` | pure Python over the content formats; the release copies them in as `Tools/importer`. |
 | the site (`site/`, `scripts/site`, `docs/index.html`) | `apexsim` | it reads both sides (`facts.py` reads `server/src/car_setup.rs`; the shots need the server and the game). `artwork/` and `props/_preview` stay content. GitHub Pages deploys `apexsim/docs` through `.github/workflows/pages.yml`. |
@@ -141,20 +148,18 @@ defaults.
 **Work left in phase 0.** CI already checks the direction (`tools/check_direction.py`). Each step is one commit, and every test passes
 after each:
 
-1. **The formats crate.** `apexsim-content/formats` holds the track YAML,
-   the five sidecars and `content_crc`. The server and `track-core` use it;
-   their copies and `track-core`'s dev-dependency on the server go, and
-   the compat tests become the server's own. Determinism and the golden
-   bytes must not move. The YAML stops being modelled twice, and the
-   CLAUDE.md rule about `TrackFileFormat` and `TrackFile` goes with it.
-   `tools/ac_car_import/tests` reads `apexsim/server/src/brakes.rs` for
-   its brake constants (and skips without it): that edge goes too.
-2. **Baked output out of the source folders** (optional, before packs).
+1. **Baked output out of the source folders** (optional, before packs).
    `ats-export` writes the sidecars into
    `apexsim-content/build/tracks/<Stem>/`, beside the export and a copy of
    the YAML, instead of gitignored files beside the source, and the
    server's tracks dir points at the baked tree. That folder is the
    `server/` half of a pack, so phase 1 only has to zip it.
+
+One test-only edge is left and stays allowed in the direction check:
+`tools/ac_car_import/tests` reads `apexsim/server/src/brakes.rs` for its
+brake constants (and skips without it). They are car physics constants, not
+a file format the two sides write and read, so they are not in the formats
+crate; the edge goes when `car.toml` gets its own module there.
 
 ### A pack
 
@@ -455,9 +460,9 @@ against the content working copy.
 
 ## Phases
 
-0. **One repository, two roots.** The work left above. Check: both
-   roots build and test, a release is built from the starter set, and
-   nothing under `apexsim-content/` refers to `apexsim/`.
+0. **One repository, three roots.** The work left above. Check: every
+   root builds and tests, a release is built from the starter set, and
+   nothing under `apexsim-content/` or `apexsim-lib/` refers to `apexsim/`.
 1. **Pack format and reader, no network.** `pack.json`, `installed.json`,
    `build_packs.ps1`, `apexsim-server content install <file>` and the
    launcher installing a local `.apxpack`. The main repository still holds
@@ -497,11 +502,12 @@ against the content working copy.
 
 ## Traps
 
-- **Two repositories, one checksum.** Until phase 0's formats crate a track YAML
-  is modelled in the server and in `track-core`; a key added to one and not
-  the other drops out of a pipeline rewrite, and the content's bake then
-  carries a different crc than the server computes. Do that step before the
-  real split, so that both sides read through the one `formats` crate.
+- **Two repositories, one checksum.** The track YAML and the sidecars are
+  modelled once, in `apexsim-lib/formats`, and both sides read and write
+  them through it. A serde attribute there is the bytes of every rewritten
+  YAML: changing one changes those tracks' crc, which the server computes
+  and the content's bake carries. After the split both pin the same crate
+  version (a git tag), or the two models drift apart again.
 - **A pack version is not the crc.** Two versions can share a crc (export
   rebuilt, YAML untouched); the server matches on crc, people on version.
   Never make the server compare versions.

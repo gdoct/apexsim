@@ -10,42 +10,14 @@
 //! Without the sidecar the road edge is the track limit, as before: the
 //! curbs then read as grass and a driver who uses them is slowed for it.
 
-use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-/// Curb width outward from each road edge, sampled every [`CurbBands::step_m`]
-/// meters of centerline station. Sample `i` is the cross-section at station
-/// `i * step_m`; the value is in centimetres, 0 where that edge has no curb.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-pub struct CurbBands {
-    pub version: u32,
-    pub step_m: f32,
-    pub left_cm: Vec<u16>,
-    pub right_cm: Vec<u16>,
-    /// Version 2: how far the prepared tarmac run-off reaches past each
-    /// road edge, centimetres, 0 where there is none. Empty in a version 1
-    /// file, which reads as no tarmac anywhere.
-    #[serde(default)]
-    pub runoff_left_cm: Vec<u16>,
-    #[serde(default)]
-    pub runoff_right_cm: Vec<u16>,
-    /// Version 3: the gravel traps past each road edge, per sample
-    /// `[inner, outer]` centimetres from the edge, `[0, 0]` where there is
-    /// none. Empty in an older file, which reads as no gravel anywhere.
-    #[serde(default)]
-    pub gravel_left_cm: Vec<[u16; 2]>,
-    #[serde(default)]
-    pub gravel_right_cm: Vec<[u16; 2]>,
-    /// Version 3: the sand traps, as the gravel.
-    #[serde(default)]
-    pub sand_left_cm: Vec<[u16; 2]>,
-    #[serde(default)]
-    pub sand_right_cm: Vec<[u16; 2]>,
-    /// Version 3: the ground past the bands, as a road mesh surface's
-    /// kind (`desert`); empty is grass.
-    #[serde(default)]
-    pub ground: String,
-}
+/// The sidecar's type, from the formats crate
+/// (`apexsim-lib/formats/src/curbs.rs`): curb width outward from each road
+/// edge, sampled every `step_m` metres of centerline station, with the
+/// tarmac run-off and the gravel and sand traps beside it. What the sim
+/// asks of it is [`CurbQuery`].
+pub use apexsim_formats::curbs::{CurbBands, CURB_BANDS_VERSION};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CurbLoadError {
@@ -57,29 +29,56 @@ pub enum CurbLoadError {
     Invalid(String),
 }
 
-impl CurbBands {
-    /// Sidecar path for a track file: `Monza.yaml` -> `Monza.curbs.msgpack`.
-    pub fn sidecar_path(track_file: &Path) -> PathBuf {
-        let stem = track_file
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("track");
-        track_file.with_file_name(format!("{}.curbs.msgpack", stem))
-    }
-
-    pub fn load(path: &Path) -> Result<Self, CurbLoadError> {
-        Self::from_bytes(&std::fs::read(path)?)
-    }
-
+/// The server's reading of [`CurbBands`]: loading and checking the
+/// sidecar, and what is past the road edge at a station. The sidecar's
+/// path is the crate's `CurbBands::sidecar_path`.
+pub trait CurbQuery: Sized {
+    fn load(path: &Path) -> Result<Self, CurbLoadError>;
     /// The sidecar's bytes, decoded and checked as [`Self::load`] does.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CurbLoadError> {
+    fn from_bytes(bytes: &[u8]) -> Result<Self, CurbLoadError>;
+    fn validate(&self) -> Result<(), CurbLoadError>;
+    /// The trap ground at `overhang_m` past the road edge at `station_m`,
+    /// on the side `lateral_offset` points to: gravel where a gravel trap
+    /// is (laid over a sand one, as the bake draws it), sand where a sand
+    /// trap is, `None` elsewhere.
+    fn trap_at(
+        &self,
+        station_m: f32,
+        lateral_offset: f32,
+        overhang_m: f32,
+    ) -> Option<crate::physics::OffGround>;
+    /// The ground past the bands ([`CurbBands::ground`]).
+    fn base_ground(&self) -> crate::physics::OffGround;
+    /// Number of station samples.
+    fn len(&self) -> usize;
+    fn is_empty(&self) -> bool;
+    /// Curb width in metres reaching outward from the road edge at
+    /// `station_m`, on the side `lateral_offset` points to (positive = right
+    /// of the centerline, the sim's convention). 0 where there is no curb.
+    ///
+    /// The station wraps, so a closed lap reads the same band whichever lap
+    /// the car is on, and a station past the end of an open track folds back
+    /// rather than panicking.
+    fn width_at(&self, station_m: f32, lateral_offset: f32) -> f32;
+    /// How far the tarmac run-off reaches past the road edge at
+    /// `station_m` on the side `lateral_offset` points to, metres; 0 where
+    /// the run-off is grass or gravel (or the sidecar predates the band).
+    fn runoff_at(&self, station_m: f32, lateral_offset: f32) -> f32;
+}
+
+impl CurbQuery for CurbBands {
+    fn load(path: &Path) -> Result<Self, CurbLoadError> {
+        <Self as CurbQuery>::from_bytes(&std::fs::read(path)?)
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, CurbLoadError> {
         let bands: Self = rmp_serde::from_slice(bytes)?;
         bands.validate()?;
         Ok(bands)
     }
 
-    pub fn validate(&self) -> Result<(), CurbLoadError> {
-        if !(1..=3).contains(&self.version) {
+    fn validate(&self) -> Result<(), CurbLoadError> {
+        if !(1..=CURB_BANDS_VERSION).contains(&self.version) {
             return Err(CurbLoadError::Invalid(format!(
                 "unsupported version {}",
                 self.version
@@ -128,11 +127,7 @@ impl CurbBands {
         Ok(())
     }
 
-    /// The trap ground at `overhang_m` past the road edge at `station_m`,
-    /// on the side `lateral_offset` points to: gravel where a gravel trap
-    /// is (laid over a sand one, as the bake draws it), sand where a sand
-    /// trap is, `None` elsewhere.
-    pub fn trap_at(
+    fn trap_at(
         &self,
         station_m: f32,
         lateral_offset: f32,
@@ -165,59 +160,47 @@ impl CurbBands {
         }
     }
 
-    /// The ground past the bands ([`CurbBands::ground`]).
-    pub fn base_ground(&self) -> crate::physics::OffGround {
+    fn base_ground(&self) -> crate::physics::OffGround {
         crate::physics::OffGround::from_kind(&self.ground)
     }
 
-    /// Number of station samples.
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         self.left_cm.len()
     }
 
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.left_cm.is_empty()
     }
 
-    /// Curb width in metres reaching outward from the road edge at
-    /// `station_m`, on the side `lateral_offset` points to (positive = right
-    /// of the centerline, the sim's convention). 0 where there is no curb.
-    ///
-    /// The station wraps, so a closed lap reads the same band whichever lap
-    /// the car is on, and a station past the end of an open track folds back
-    /// rather than panicking.
-    pub fn width_at(&self, station_m: f32, lateral_offset: f32) -> f32 {
+    fn width_at(&self, station_m: f32, lateral_offset: f32) -> f32 {
         let band = if lateral_offset >= 0.0 {
             &self.right_cm
         } else {
             &self.left_cm
         };
-        Self::read(band, self.step_m, station_m)
+        read_band(band, self.step_m, station_m)
     }
 
-    /// How far the tarmac run-off reaches past the road edge at
-    /// `station_m` on the side `lateral_offset` points to, metres; 0 where
-    /// the run-off is grass or gravel (or the sidecar predates the band).
-    pub fn runoff_at(&self, station_m: f32, lateral_offset: f32) -> f32 {
+    fn runoff_at(&self, station_m: f32, lateral_offset: f32) -> f32 {
         let band = if lateral_offset >= 0.0 {
             &self.runoff_right_cm
         } else {
             &self.runoff_left_cm
         };
-        Self::read(band, self.step_m, station_m)
+        read_band(band, self.step_m, station_m)
     }
+}
 
-    fn read(band: &[u16], step_m: f32, station_m: f32) -> f32 {
-        if band.is_empty() {
-            return 0.0;
-        }
-        let sample = (station_m / step_m).round();
-        if !sample.is_finite() {
-            return 0.0;
-        }
-        let idx = (sample as i64).rem_euclid(band.len() as i64) as usize;
-        band[idx] as f32 * 0.01
+fn read_band(band: &[u16], step_m: f32, station_m: f32) -> f32 {
+    if band.is_empty() {
+        return 0.0;
     }
+    let sample = (station_m / step_m).round();
+    if !sample.is_finite() {
+        return 0.0;
+    }
+    let idx = (sample as i64).rem_euclid(band.len() as i64) as usize;
+    band[idx] as f32 * 0.01
 }
 
 #[cfg(test)]
