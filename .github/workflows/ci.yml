@@ -106,6 +106,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       # The Bevy editor links the system's audio, input and window libraries.
       - name: Install system libraries
@@ -117,6 +119,13 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: apexsim-content/track-editor
+
+      - name: Check formatting
+        run: cargo fmt --manifest-path track-editor/Cargo.toml --all --check
+
+      # The libraries and binaries; the tests are not held to clippy.
+      - name: Clippy
+        run: cargo clippy --manifest-path track-editor/Cargo.toml --workspace -- -D warnings
 
       # Plain `cargo test` skips the #[ignore]d whole-calendar bakes (about
       # 20 minutes); run them by hand with -- --ignored.

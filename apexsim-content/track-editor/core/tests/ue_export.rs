@@ -1878,8 +1878,7 @@ fn walls_sidecar_roundtrips_through_msgpack() {
 #[ignore = "bakes every real circuit, minutes of work; run with -- --include-ignored"]
 fn every_real_track_bakes() {
     let dir = real_tracks_dir();
-    let tracks =
-        ue_export_io::track_files_in(&dir).expect("tracks/default must be readable");
+    let tracks = ue_export_io::track_files_in(&dir).expect("tracks/default must be readable");
     assert!(
         tracks.len() >= 20,
         "expected the full track set, found {}",
@@ -2216,8 +2215,7 @@ fn the_verge_meets_the_road_edge_on_every_real_circuit() {
     use track_core::track_path::{offset_point, CenterlinePath};
 
     let dir = real_tracks_dir();
-    let tracks =
-        ue_export_io::track_files_in(&dir).expect("tracks/default must be readable");
+    let tracks = ue_export_io::track_files_in(&dir).expect("tracks/default must be readable");
     assert!(tracks.len() >= 20);
     let mut worst: Vec<(f32, String, f32, i32)> = Vec::new();
     for track_path in tracks {

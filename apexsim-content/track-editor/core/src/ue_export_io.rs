@@ -906,16 +906,20 @@ pub fn decode_mesh_blob(bytes: &[u8]) -> Result<Vec<UeMesh>, UeExportError> {
         let (v, i) = (v as usize, i as usize);
         let floats = |from: usize, n: usize| -> Vec<f32> {
             raw[from..from + 4 * n]
-                .chunks_exact(4)
-                .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|b| f32::from_le_bytes(*b))
                 .collect()
         };
         let positions = floats(0, 3 * v);
         let normals = floats(12 * v, 3 * v);
         let uvs = floats(24 * v, 2 * v);
         let indices: Vec<u32> = raw[32 * v..]
-            .chunks_exact(4)
-            .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|b| u32::from_le_bytes(*b))
             .collect();
         if let Some(&bad_index) = indices.iter().find(|&&x| x as usize >= v) {
             return Err(bad(format!("index {bad_index} past its {v} vertices")));

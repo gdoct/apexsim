@@ -516,12 +516,9 @@ fn on_pit_node_drag(
     };
     let (camera, camera_transform) = *camera;
     let plane_y = transform.translation.y;
-    let Some(point) = pointer_on_horizontal_plane(
-        camera,
-        camera_transform,
-        event.pointer.position,
-        plane_y,
-    ) else {
+    let Some(point) =
+        pointer_on_horizontal_plane(camera, camera_transform, event.pointer.position, plane_y)
+    else {
         return;
     };
 

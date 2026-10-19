@@ -95,8 +95,7 @@ mod tests {
     /// YAML (ats-smooth, ats-bank) must write the same lines back.
     #[test]
     fn the_location_survives_a_rewrite_as_written() {
-        let dir =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tracks/default");
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tracks/default");
         let mut seen = 0;
         for path in crate::ue_export_io::track_files_in(&dir).expect("tracks") {
             let text = std::fs::read_to_string(&path).expect("yaml");

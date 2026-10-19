@@ -2293,9 +2293,9 @@ fn forward_at(sections: &[Option<CrossSection>], i: usize) -> (f32, f32, f32) {
         let b = s.points[s.points.len() - 1];
         ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5, (a.2 + b.2) * 0.5)
     };
-    let here = sections[i].as_ref().map(&mid);
-    let before = (0..i).rev().find_map(|j| sections[j].as_ref().map(&mid));
-    let after = (i + 1..sections.len()).find_map(|j| sections[j].as_ref().map(&mid));
+    let here = sections[i].as_ref().map(mid);
+    let before = (0..i).rev().find_map(|j| sections[j].as_ref().map(mid));
+    let after = (i + 1..sections.len()).find_map(|j| sections[j].as_ref().map(mid));
 
     let (lo, hi) = match (before, after) {
         (Some(lo), Some(hi)) => (lo, hi),

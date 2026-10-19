@@ -507,8 +507,7 @@ fn the_road_sidecar_is_deterministic_and_roundtrips_through_disk() {
 #[ignore]
 fn every_real_track_road_mesh_covers_the_road() {
     let dir = real_tracks_dir();
-    let tracks =
-        ue_export_io::track_files_in(&dir).expect("tracks/default must be readable");
+    let tracks = ue_export_io::track_files_in(&dir).expect("tracks/default must be readable");
     assert!(tracks.len() >= 20);
     let mut report: Vec<(String, usize, usize, f32, usize)> = Vec::new();
     for track_path in tracks {

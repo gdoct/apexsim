@@ -325,7 +325,7 @@ mod tests {
         assert_eq!(r.barrier(BarrierKind::Concrete), BarrierKind::Concrete);
         assert_eq!(CircuitStyle::STREET.ground, Ground::Paved);
         assert_eq!(CircuitStyle::for_stem("MarinaBay"), CircuitStyle::STREET);
-        assert!(!CircuitStyle::STREET.floodlights);
+        const { assert!(!CircuitStyle::STREET.floodlights) };
     }
 
     #[test]
