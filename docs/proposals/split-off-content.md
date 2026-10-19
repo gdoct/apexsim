@@ -149,12 +149,6 @@ after each:
    `apexsim-content/bake.ps1`, which needs only cargo and Python. The code
    half becomes `initialize_game.ps1`, which calls `bake.ps1` when the
    baked tree is missing.
-4. **Housekeeping before the move** (agreed 2026-10-19). Delete
-   `.cache/overpass` (4.7 GB), `.cache/surfaces-v3` and `.cache/survey`,
-   which no script reads; untrack the two `.recording_*.frames` files in the
-   root `replays/`; delete the empty `run_server.sh`; point
-   `generate_track_previews.py`'s default away from the Godot client's
-   folder; and drop `enrich_all_tracks.py`, which is legacy.
 5. **The move** (🟡, with the user there and the editor, server and
    Blender closed). `git mv` into the two roots, then by hand whatever git
    does not track: the `custom/` folders, the baked sidecars,

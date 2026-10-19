@@ -454,12 +454,11 @@ a join that offers to update a mismatched track.
 Phase 0 (revised 2026-10-19) splits this repository into two roots,
 `apexsim/` and `apexsim-content/`, laid out as the future repositories, with
 the code depending on the content and never the reverse; the track editor,
-`track-core` and the content tools go with the content. Its nine steps,
+`track-core` and the content tools go with the content. Its steps,
 one commit each, are: (1) one content root resolver everywhere, no move;
 (2) code things (default HUD, `showcase.yml`) out of the content; (3)
 `build_track_levels` and `initialize_content` split into a content
-`bake.ps1` and a code `initialize_game.ps1`; (4) housekeeping of dead
-caches and scripts (agreed 2026-10-19); (5) the move itself, including untracked
+`bake.ps1` and a code `initialize_game.ps1`; (5) the move itself, including untracked
 content and GitHub Pages; (6) `starter.yml` and the release copying it;
 (7) a `formats` crate owning the track YAML, sidecars and `content_crc`;
 (8) CI per root plus a direction check; (9, optional) the sidecars baked

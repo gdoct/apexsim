@@ -15,7 +15,7 @@ TRACK_DIRS = [
     "content/tracks/custom"
 ]
 
-OUTPUT_DIR = "game-godot/assets/track_previews"
+OUTPUT_DIR = "build/tracks/previews"
 IMAGE_SIZE = (400, 300)  # Width x Height
 BACKGROUND_COLOR = (20, 20, 30)  # Dark background
 TRACK_COLOR = (80, 200, 120)  # Green track

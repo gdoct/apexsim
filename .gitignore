@@ -280,3 +280,6 @@ out/clean_workspace.log
 
 # scripts/verify: the runner's console logs
 out/verify_*_console.txt
+
+# Recordings the server writes when run from the repository root.
+/replays/
