@@ -254,7 +254,10 @@ mod tests {
 
     #[test]
     fn safe_names_keep_plain_names_and_refuse_paths() {
-        assert_eq!(safe_name("SpaFrankenchamps.yaml").as_deref(), Some("SpaFrankenchamps.yaml"));
+        assert_eq!(
+            safe_name("SpaFrankenchamps.yaml").as_deref(),
+            Some("SpaFrankenchamps.yaml")
+        );
         assert_eq!(safe_name("My Car").as_deref(), Some("My Car"));
         assert_eq!(safe_name("../x").as_deref(), Some("_x"));
         assert_eq!(safe_name("a/b\\c").as_deref(), Some("a_b_c"));

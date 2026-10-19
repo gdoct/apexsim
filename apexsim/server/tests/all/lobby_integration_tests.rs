@@ -1240,8 +1240,12 @@ async fn run_all_lobby_tests() {
     println!("  cargo test --test all lobby_integration_tests::test_create_session -- --nocapture");
     println!("  cargo test --test all lobby_integration_tests::test_join_session -- --nocapture");
     println!("  cargo test --test all lobby_integration_tests::test_leave_session -- --nocapture");
-    println!("  cargo test --test all lobby_integration_tests::test_max_players_limit -- --nocapture");
-    println!("  cargo test --test all lobby_integration_tests::test_rapid_join_leave -- --nocapture");
+    println!(
+        "  cargo test --test all lobby_integration_tests::test_max_players_limit -- --nocapture"
+    );
+    println!(
+        "  cargo test --test all lobby_integration_tests::test_rapid_join_leave -- --nocapture"
+    );
     println!();
     println!("This test file contains the following lobby-specific tests:");
     println!("  - test_create_session: Create session and verify lobby state");

@@ -41,9 +41,10 @@ fn race_distance(state: &CarState, track_length: f32) -> f32 {
 /// back of the grid ahead of everyone who had already crossed the line.
 #[test]
 fn test_grid_order_holds_at_the_green_light_monza() {
-    let track =
-        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
-            .expect("failed to load Monza");
+    let track = TrackLoader::load_from_file(
+        "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
+    )
+    .expect("failed to load Monza");
     let track_length = track.centerline.last().unwrap().distance_from_start_m;
 
     let car = CarConfig::default();
@@ -119,9 +120,10 @@ fn test_grid_order_holds_at_the_green_light_monza() {
 
 #[test]
 fn test_race_flow_countdown_to_finish_monza() {
-    let track =
-        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
-            .expect("failed to load Monza");
+    let track = TrackLoader::load_from_file(
+        "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
+    )
+    .expect("failed to load Monza");
 
     let car = CarConfig::default();
     let mut car_configs = HashMap::new();
@@ -287,9 +289,10 @@ fn test_race_flow_countdown_to_finish_monza() {
 /// then names the last lap.
 #[test]
 fn test_timed_race_flow_to_the_flag_monza() {
-    let track =
-        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
-            .expect("failed to load Monza");
+    let track = TrackLoader::load_from_file(
+        "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
+    )
+    .expect("failed to load Monza");
     let car = CarConfig::default();
     let mut car_configs = HashMap::new();
     car_configs.insert(car.id, car.clone());

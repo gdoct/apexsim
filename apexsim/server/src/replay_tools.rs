@@ -67,7 +67,9 @@ pub struct SimulateOptions {
 impl Default for SimulateOptions {
     fn default() -> Self {
         Self {
-            track_path: PathBuf::from("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
+            track_path: PathBuf::from(
+                "../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml",
+            ),
             cars_dir: PathBuf::from("../apexsim-content/cars"),
             host_car: "yotota-lmp2".to_string(),
             same_car: false,
@@ -1600,7 +1602,8 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
         RenderOptions {
             race: SimulateOptions {
-                track_path: root.join("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
+                track_path: root
+                    .join("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
                 cars_dir: root.join("../apexsim-content/cars/default"),
                 host_car: "yotota-lmp2".into(),
                 same_car: false,
@@ -2108,11 +2111,11 @@ mod tests {
 
     #[test]
     fn pose_stands_beside_the_road() {
-        let track = TrackLoader::load_from_file(
-            Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml"),
-        )
-        .expect("Spa loads");
+        let track =
+            TrackLoader::load_from_file(Path::new(env!("CARGO_MANIFEST_DIR")).join(
+                "../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml",
+            ))
+            .expect("Spa loads");
         let on = pose_at(&track, 1056.0, 0.0, 0.0);
         let left = pose_at(&track, 1056.0, 10.0, 3.0);
         let d = ((left.x - on.x).powi(2) + (left.y - on.y).powi(2)).sqrt();
@@ -2122,8 +2125,9 @@ mod tests {
         let wrapped = pose_at(&track, on.lap_length_m + 1056.0, 0.0, 0.0);
         assert!((wrapped.x - on.x).abs() < 1e-2);
         let (name, station) = corner_station(
-            &Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml"),
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join(
+                "../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml",
+            ),
             "eau rouge",
         )
         .unwrap();
@@ -2175,7 +2179,8 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
         let skills = |ai_level: Option<u8>| {
             let opts = SimulateOptions {
-                track_path: root.join("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
+                track_path: root
+                    .join("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
                 cars_dir: root.join("../apexsim-content/cars"),
                 ai_count: 5,
                 seed: Some(1),
