@@ -24,6 +24,12 @@
     The package lands under artifacts/, which .gitignore already excludes, so
     nothing here is ever committed.
 
+    A release ships the starter set (../apexsim-content/starter.yml): its
+    cars and circuits only, with showcases and track guides rendered for the
+    package against those cars alone, so every car in them is installed.
+    -AllContent ships every car and circuit with the showcases and guides
+    under build/.
+
         artifacts/release/ApexSim-<Version>-Win64/
             launcher.exe        the launcher (launcher/): checks the install,
                                 then launches, configures or manages content
@@ -33,10 +39,10 @@
             LICENSE
             release.json        version, commit, configuration, contents
             Game/               the packaged client + settings.sample.yml
-            Game/Tracks/        every circuit as its export (.uescene.json
+            Game/Tracks/        every shipped circuit as its export (.uescene.json
                                 + .uemesh) and preview (.png), built by the
                                 game when it is raced
-            Game/Cars/          every car as its car.toml, GLBs and livery
+            Game/Cars/          every shipped car as its car.toml, GLBs and livery
                                 logos, built by the game when it is drawn
             Game/Wheels/        the class wheels the cars name
             Game/Hud/           the HUD's components (default/, and custom/
@@ -98,6 +104,10 @@
     Every showcase showcase.yml lists still has to be there, or the
     run aborts rather than shipping a menu with nothing behind it.
 
+.PARAMETER AllContent
+    Ship every car and circuit under apexsim-content (default\), not only the
+    starter set, with the showcases and guides already under build/.
+
 .PARAMETER IncludeCustomTracks
     Also ship the tracks in apexsim-content\tracks\custom (server YAML and sidecars,
     client export). Off by default: that folder is the player's own, and may
@@ -141,6 +151,7 @@ param(
     [switch]$SkipProps,
     [switch]$SkipTracks,
     [switch]$SkipShowcase,
+    [switch]$AllContent,
     [switch]$IncludeCustomTracks,
     [switch]$IncludeCustomCars,
     [switch]$SkipClient,
@@ -171,10 +182,14 @@ if (-not $ClientArtifactDirectory) {
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
 . (Join-Path $ToolsDir 'lib\ApexCars.ps1')
 . (Join-Path $ToolsDir 'lib\ApexTracks.ps1')
+. (Join-Path $ToolsDir 'lib\ApexStarter.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexGuide.ps1')
 $ReplayExe    = Get-ApexShowcaseToolPath -RepoRoot $RepoRoot
 $ShowcaseDir  = Get-ApexShowcaseDir -RepoRoot $RepoRoot
+# The starter set this release ships, or $null with -AllContent.
+$Starter      = if ($AllContent) { $null } else { Get-ApexStarterSet -ContentRoot $ContentRoot }
+$StarterCars  = if ($Starter) { $Starter.Cars } else { $null }
 
 function Write-Step {
     param([string]$Message)
@@ -194,13 +209,15 @@ function Invoke-Tool {
         [string]$Exe,
         [string[]]$Arguments,
         [string]$WorkingDir = $RepoRoot,
-        [string]$What
+        [string]$What,
+        # Drop the tool's stdout (a JSON report; its progress is on stderr).
+        [switch]$Quiet
     )
 
     Write-Detail "$Exe $($Arguments -join ' ')"
     Push-Location $WorkingDir
     try {
-        & $Exe @Arguments
+        if ($Quiet) { & $Exe @Arguments | Out-Null } else { & $Exe @Arguments }
         $code = $LASTEXITCODE
     }
     finally {
@@ -229,17 +246,87 @@ function Test-Command {
 
 # Both return an array PowerShell will unroll to $null when empty, so callers
 # wrap the call in @() before touching .Count.
-# The cars this release ships: apexsim-content\cars\default, plus
-# apexsim-content\cars\custom with -IncludeCustomCars.
+# The cars this release ships: the starter set's from apexsim-content\cars\default
+# (all of them with -AllContent), plus apexsim-content\cars\custom with
+# -IncludeCustomCars.
 function Get-CarFiles {
     if (-not (Test-Path $CarsDir)) { return @() }
-    return @(Get-ApexCarTomls -CarsDir $CarsDir -DefaultOnly:(-not $IncludeCustomCars))
+    return @(Get-ApexCarTomls -CarsDir $CarsDir -DefaultOnly:(-not $IncludeCustomCars) -Only $StarterCars)
 }
 
-# The circuits this release ships: apexsim-content\tracks\default, plus
+# The circuits this release ships: the starter set's from
+# apexsim-content\tracks\default (all of them with -AllContent), plus
 # apexsim-content\tracks\custom with -IncludeCustomTracks.
 function Get-TrackFiles {
-    return @(Get-ApexTrackFiles -ContentRoot $ContentRoot -DefaultOnly:(-not $IncludeCustomTracks))
+    $default = [IO.Path]::GetFullPath((Join-Path $ContentRoot 'tracks\default')).TrimEnd('\') + '\'
+    return @(Get-ApexTrackFiles -ContentRoot $ContentRoot -DefaultOnly:(-not $IncludeCustomTracks) | Where-Object {
+            -not $Starter -or
+            -not $_.FullName.StartsWith($default, [StringComparison]::OrdinalIgnoreCase) -or
+            ($Starter.Tracks -contains $_.BaseName)
+        })
+}
+
+# The car classes the shipped default cars cover (a showcase or guide of
+# another class has no car to drive).
+function Get-ShippedClasses {
+    return @(Get-CarFiles | ForEach-Object {
+            $m = Select-String -LiteralPath $_.FullName -Pattern '^\s*class\s*=\s*"([^"]+)"' | Select-Object -First 1
+            if ($m) { $m.Matches[0].Groups[1].Value }
+        } | Sort-Object -Unique)
+}
+
+# The showcase.yml rows a starter package renders: on a starter circuit, of a
+# class a starter car covers.
+function Get-StarterShowcasePlan {
+    $classes = @(Get-ShippedClasses)
+    return @(Get-ApexShowcasePlan -RepoRoot $RepoRoot -Track $Starter.Tracks -NoCheck | Where-Object {
+            $_.Status -notin 'imported', 'no-track' -and $classes -contains $_.Class
+        })
+}
+
+# Renders the starter showcases for this package against its own cars
+# (<cars>\default as the package holds them) into each destination. Returns
+# the number rendered.
+function Build-StarterShowcases {
+    param([string]$PackageCars, [string[]]$Destinations)
+    $work = Join-Path $ReleaseDir '.showcase'
+    if (Test-Path $work) { Remove-Item -LiteralPath $work -Recurse -Force }
+    New-Item -ItemType Directory -Path $work -Force | Out-Null
+    $count = 0
+    foreach ($row in @(Get-StarterShowcasePlan)) {
+        $arguments = @($row.Arguments)
+        for ($i = 0; $i -lt $arguments.Count - 1; $i++) {
+            if ($arguments[$i] -eq '--cars-dir') { $arguments[$i + 1] = $PackageCars }
+            if ($arguments[$i] -eq '--out') { $arguments[$i + 1] = Join-Path $work "$($row.Name).apxs" }
+        }
+        Write-Detail "rendering $($row.Name)"
+        Invoke-Tool -Exe $ReplayExe -Arguments $arguments -What "apexsim-replay render $($row.Name)" -Quiet
+        $count++
+    }
+    foreach ($destination in $Destinations) {
+        if (Test-Path $destination) { Remove-Item -LiteralPath $destination -Recurse -Force }
+        New-Item -ItemType Directory -Path $destination -Force | Out-Null
+        Get-ChildItem -LiteralPath $work -Filter '*.apxs' -File | Copy-Item -Destination $destination -Force
+    }
+    Remove-Item -LiteralPath $work -Recurse -Force
+    return $count
+}
+
+# Builds the starter circuits' guides for this package against its own cars
+# into $Destination. Returns the number of guides.
+function Build-StarterGuides {
+    param([string]$PackageCars, [string]$Destination)
+    if (Test-Path $Destination) { Remove-Item -LiteralPath $Destination -Recurse -Force }
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    $yamls = @(Get-TrackFiles | Where-Object { -not (Test-ApexImportedTrack -TrackFile $_.FullName) } | ForEach-Object { $_.FullName })
+    if ($yamls.Count -gt 0) {
+        try {
+            Invoke-Tool -Exe $ReplayExe -What 'apexsim-replay guide' -Quiet `
+                -Arguments (@('guide') + $yamls + @('--cars-dir', $PackageCars, '--out', $Destination))
+        }
+        catch { Write-Warning "the track guides failed for some circuits: $_" }
+    }
+    return @(Get-ChildItem -LiteralPath $Destination -Filter '*.guide.json' -File).Count
 }
 
 function Get-TrackFolderText {
@@ -309,7 +396,7 @@ function Invoke-Preflight {
     else {
         # The game builds every car from these files; one it cannot find is a
         # car drawn as nothing, or without its wheels.
-        foreach ($problem in @(Test-ApexCars -CarsDir $CarsDir -WheelsDir $WheelsDir -DefaultOnly:(-not $IncludeCustomCars))) {
+        foreach ($problem in @(Test-ApexCars -CarsDir $CarsDir -WheelsDir $WheelsDir -DefaultOnly:(-not $IncludeCustomCars) -Only $StarterCars)) {
             $problems.Add("car data: $problem")
         }
     }
@@ -378,9 +465,16 @@ function Invoke-Preflight {
         }
     }
 
-    # The showcases are rendered by the track stage; a run that skips the
-    # rendering (either switch) has to find every listed one already there.
-    if (($SkipTracks -or $SkipShowcase) -and $tracks.Count -gt 0) {
+    # A starter package renders its own showcases; one with none has a menu
+    # with nothing behind it.
+    if ($Starter -and -not $SkipShowcase -and @(Get-StarterShowcasePlan).Count -eq 0) {
+        $problems.Add("showcase.yml has no showcase on a starter circuit ($($Starter.Tracks -join ', ')) of a starter car's class")
+    }
+
+    # With -AllContent the showcases are rendered by the track stage; a run
+    # that skips the rendering (either switch) has to find every listed one
+    # already there.
+    if (-not $Starter -and ($SkipTracks -or $SkipShowcase) -and $tracks.Count -gt 0) {
         $missingShowcases = @(Get-ApexMissingShowcases -RepoRoot $RepoRoot)
         if ($missingShowcases.Count -gt 0) {
             $switch = if ($SkipShowcase) { '-SkipShowcase' } else { '-SkipTracks' }
@@ -393,6 +487,7 @@ function Invoke-Preflight {
         throw ("cannot build a release package:" + [Environment]::NewLine + $lines)
     }
 
+    if ($Starter) { Write-Detail "the starter set ($($Starter.Path))" }
     Write-Detail "$($cars.Count) car(s) in $CarsDir"
     Write-Detail "$($tracks.Count) track(s) in $(Get-TrackFolderText)"
 }
@@ -602,10 +697,15 @@ if ($SkipTracks) {
     Write-Step 'Skipping the track bake; using the exports already there'
 }
 else {
-    Write-Step 'Baking every circuit for the game to build at runtime'
+    Write-Step 'Baking the shipped circuits for the game to build at runtime'
     $trackArgs = @{ Release = $true }
     if ($BuildEditor) { $trackArgs.Build = $true }
     if ($EngineRoot)  { $trackArgs.EngineRoot = $EngineRoot }
+    # A starter package bakes its circuits and renders its showcases itself, at assembly.
+    if ($Starter) {
+        $trackArgs.Track = @(Get-TrackFiles | ForEach-Object { $_.BaseName })
+        $trackArgs.SkipShowcase = $true
+    }
     if ($SkipShowcase) { $trackArgs.SkipShowcase = $true }
     & (Join-Path $PSScriptRoot 'build_track_levels.ps1') @trackArgs
 }
@@ -613,7 +713,7 @@ $missing = @(Get-MissingExports)
 if ($missing.Count -gt 0) {
     throw "these circuits have no export, so they would race in an empty world: $($missing -join ', ')"
 }
-$missingShowcases = @(Get-ApexMissingShowcases -RepoRoot $RepoRoot)
+$missingShowcases = @(if (-not $Starter) { Get-ApexMissingShowcases -RepoRoot $RepoRoot })
 if ($missingShowcases.Count -gt 0) {
     throw "these showcases have not been rendered, so the menu would have nothing behind it on those circuits: $($missingShowcases -join ', ')"
 }
@@ -678,27 +778,48 @@ Copy-Item -LiteralPath (Join-Path $RepoRoot 'server.toml') -Destination $ServerD
 # How to start the server by hand: its options and environment overrides.
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'server\CMDLINE.md') -Destination (Join-Path $ServerDir 'server.md') -Force
 Copy-ServerContent -Destination (Join-Path $ServerDir 'content')
+# The cars as this package holds them: a starter package's guides and
+# showcases are made against these alone, so every car in them is installed.
+$PackageCars = Join-Path $ServerDir 'content\cars\default'
+
 # The track guides (apexsim-content/docs/track-guide.md): Game\Guide is where the track
-# picker looks. Built here when missing or stale, like the content script.
-if (@(Get-ApexGuideWork -RepoRoot $RepoRoot).Count -gt 0) {
-    Write-Detail 'building the track guides that are missing or stale'
-    $guideCode = Start-ApexGuideBuild -RepoRoot $RepoRoot
-    if ($guideCode -ne 0) { Write-Warning "apexsim-replay guide failed for some circuits (exit $guideCode)" }
+# picker looks.
+if ($Starter) {
+    Write-Detail "building the starter circuits' track guides"
+    $guideCount = Build-StarterGuides -PackageCars $PackageCars -Destination (Join-Path $GameDir 'Guide')
 }
-$guideCount = Copy-ApexGuides -RepoRoot $RepoRoot -Destination (Join-Path $GameDir 'Guide')
+else {
+    # Built here when missing or stale, like the content script.
+    if (@(Get-ApexGuideWork -RepoRoot $RepoRoot).Count -gt 0) {
+        Write-Detail 'building the track guides that are missing or stale'
+        $guideCode = Start-ApexGuideBuild -RepoRoot $RepoRoot
+        if ($guideCode -ne 0) { Write-Warning "apexsim-replay guide failed for some circuits (exit $guideCode)" }
+    }
+    $guideCount = Copy-ApexGuides -RepoRoot $RepoRoot -Destination (Join-Path $GameDir 'Guide')
+}
 Write-Detail "$guideCount track guide(s) in $(Join-Path $GameDir 'Guide')"
 
 # The showcases, twice: Game\Showcase is the menu's local backdrop, and
 # Server\showcase the playlist the server streams (its [showcase] dir
 # defaults to ./showcase beside the exe).
-$showcaseCount = Copy-ApexShowcases -RepoRoot $RepoRoot -Destination (Join-Path $GameDir 'Showcase')
-[void](Copy-ApexShowcases -RepoRoot $RepoRoot -Destination (Join-Path $ServerDir 'showcase'))
+if ($Starter -and $SkipShowcase) {
+    Write-Detail 'no showcases (-SkipShowcase)'
+    $showcaseCount = 0
+}
+elseif ($Starter) {
+    $showcaseCount = Build-StarterShowcases -PackageCars $PackageCars `
+        -Destinations @((Join-Path $GameDir 'Showcase'), (Join-Path $ServerDir 'showcase'))
+}
+else {
+    $showcaseCount = Copy-ApexShowcases -RepoRoot $RepoRoot -Destination (Join-Path $GameDir 'Showcase')
+    [void](Copy-ApexShowcases -RepoRoot $RepoRoot -Destination (Join-Path $ServerDir 'showcase'))
+}
 Write-Detail "$showcaseCount showcase(s) in $(Join-Path $GameDir 'Showcase') and $(Join-Path $ServerDir 'showcase')"
 Copy-RuntimeTracks -Destination (Join-Path $GameDir 'Tracks')
 $runtimeTrackCount = @(Get-ChildItem (Join-Path $GameDir 'Tracks') -Filter '*.uescene.json' -File).Count
 Write-Detail "$runtimeTrackCount track(s) in $(Join-Path $GameDir 'Tracks')"
 $runtimeCarCount = Copy-ApexRuntimeCars -CarsDir $CarsDir -WheelsDir $WheelsDir -Destination $GameDir `
-    -DefaultOnly:(-not $IncludeCustomCars)
+    -DefaultOnly:(-not $IncludeCustomCars) -Only $StarterCars
 Write-Detail "$runtimeCarCount car(s) in $(Join-Path $GameDir 'Cars')"
 # LICENSE sits at the root above the code and content roots.
 $License = Join-Path $RepoRoot 'LICENSE'
@@ -840,12 +961,12 @@ WHAT IS IN HERE
                        (python.org) and sets up the rest itself on first use.
     Game\              The ApexSim client. Run Game\ApexSim.exe to play
                        against a server someone else is hosting.
-    Game\Tracks\       Every circuit, as the data the game builds it from
+    Game\Tracks\       The circuits, as the data the game builds them from
                        when it is raced. A new circuit is its .uescene.json,
                        .uemesh and .png here,
                        with its <Track>\ folder (the YAML and sidecars) in
                        Server\content\tracks\custom.
-    Game\Cars\         Every car, as the car.toml and GLBs the game builds
+    Game\Cars\         The cars, as the car.toml and GLBs the game builds
                        it from; Game\Wheels\ holds the class wheels. A new
                        car is its folder in Game\Cars\custom, with the same
                        car.toml in Server\content\cars\custom.
@@ -948,6 +1069,7 @@ $manifest = [ordered]@{
     configuration = $Configuration
     built_at      = (Get-Date).ToUniversalTime().ToString('o')
     contents      = [ordered]@{
+        content      = $(if ($Starter) { 'starter' } else { 'all' })
         cars         = $carCount
         tracks       = $trackCount
         runtime_tracks = $runtimeTrackCount

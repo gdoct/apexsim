@@ -31,12 +31,15 @@
 #>
 
 # Every car.toml under a cars folder: default\ then custom\ (only default\
-# with -DefaultOnly, what a release ships), sorted within each. A folder with
-# neither subfolder is searched as it is.
+# with -DefaultOnly, what a release ships), sorted within each. -Only keeps
+# the default\ cars whose folder it names (the starter set, starter.yml);
+# custom\ cars are kept either way. A folder with neither subfolder is
+# searched as it is.
 function Get-ApexCarTomls {
     param(
         [Parameter(Mandatory)][string]$CarsDir,
-        [switch]$DefaultOnly
+        [switch]$DefaultOnly,
+        [string[]]$Only
     )
     $subs = @('default')
     if (-not $DefaultOnly) { $subs += 'custom' }
@@ -46,6 +49,13 @@ function Get-ApexCarTomls {
     foreach ($dir in $dirs) {
         $tomls += @(Get-ChildItem -LiteralPath $dir -Filter 'car.toml' -Recurse -File -ErrorAction SilentlyContinue |
             Sort-Object FullName)
+    }
+    if ($Only) {
+        $defaultDir = [IO.Path]::GetFullPath((Join-Path $CarsDir 'default')).TrimEnd('\') + '\'
+        $tomls = @($tomls | Where-Object {
+                -not $_.FullName.StartsWith($defaultDir, [StringComparison]::OrdinalIgnoreCase) -or
+                ($Only -contains $_.Directory.Name)
+            })
     }
     return $tomls
 }
@@ -133,11 +143,12 @@ function Test-ApexCars {
     param(
         [Parameter(Mandatory)][string]$CarsDir,
         [Parameter(Mandatory)][string]$WheelsDir,
-        [switch]$DefaultOnly
+        [switch]$DefaultOnly,
+        [string[]]$Only
     )
     $problems = [Collections.Generic.List[string]]::new()
     $seen = @{}
-    foreach ($toml in @(Get-ApexCarTomls -CarsDir $CarsDir -DefaultOnly:$DefaultOnly)) {
+    foreach ($toml in @(Get-ApexCarTomls -CarsDir $CarsDir -DefaultOnly:$DefaultOnly -Only $Only)) {
         $dir = $toml.DirectoryName
         $folder = Get-ApexCarRelativeDir -CarsDir $CarsDir -CarDir $dir
         $leaf = Split-Path -Leaf $dir
@@ -165,13 +176,15 @@ function Test-ApexCars {
 
 # Copy every car to <Destination>\Cars\<default|custom>\<folder> and the
 # wheels its cars use to <Destination>\Wheels. Both folders are replaced.
-# Only the shipped cars with -DefaultOnly. Returns the number of cars.
+# Only the shipped cars with -DefaultOnly, and of those only -Only's (the
+# starter set). Returns the number of cars.
 function Copy-ApexRuntimeCars {
     param(
         [Parameter(Mandatory)][string]$CarsDir,
         [Parameter(Mandatory)][string]$WheelsDir,
         [Parameter(Mandatory)][string]$Destination,
-        [switch]$DefaultOnly
+        [switch]$DefaultOnly,
+        [string[]]$Only
     )
     $carsOut = Join-Path $Destination 'Cars'
     $wheelsOut = Join-Path $Destination 'Wheels'
@@ -181,7 +194,7 @@ function Copy-ApexRuntimeCars {
     }
     $wheels = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     $count = 0
-    foreach ($toml in @(Get-ApexCarTomls -CarsDir $CarsDir -DefaultOnly:$DefaultOnly)) {
+    foreach ($toml in @(Get-ApexCarTomls -CarsDir $CarsDir -DefaultOnly:$DefaultOnly -Only $Only)) {
         $dir = $toml.DirectoryName
         $target = Join-Path $carsOut (Get-ApexCarRelativeDir -CarsDir $CarsDir -CarDir $dir)
         New-Item -ItemType Directory -Path $target -Force | Out-Null

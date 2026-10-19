@@ -1,0 +1,22 @@
+# The starter set: the cars and circuits a release ships
+# (apexsim/scripts/build_release.ps1; -AllContent ships everything).
+#
+# One car per class and three circuits. A fresh install's menu showcases,
+# track guides and first-run defaults come from this set alone: the release
+# renders its showcases and guides against these cars only, so a showcase
+# field of a class with one car here is that one car, in its liveries.
+# Cars are folder names under cars/default, tracks are stems under
+# tracks/default. Read by tools/lib/ApexStarter.ps1: a flat `key:` line,
+# then `- item` lines, nothing else.
+
+cars:
+  - posh-gt3rs              # GT3
+  - yotota-lmp2             # LMP2
+  - fugazzi-sf26            # F1
+  - fugazzi-994p-hypercar   # Hypercar
+  - pugeot-205-t16          # Rally
+
+tracks:
+  - Spa
+  - Zandvoort
+  - Monza

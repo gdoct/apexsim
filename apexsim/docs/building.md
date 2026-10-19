@@ -322,7 +322,14 @@ runtime. `/Game/Tracks` and `/Game/Cars` are in `DirectoriesToNeverCook`
 
 `scripts/build_release.ps1` runs everything front to back and assembles
 `artifacts/release/ApexSim-<Version>-Win64/` (version from `ProjectVersion`
-in `DefaultGame.ini` unless `-Version`):
+in `DefaultGame.ini` unless `-Version`). A release ships the **starter
+set**, `apexsim-content/starter.yml` (one car per class and three circuits):
+only those cars and circuits are baked and copied, and the package's
+showcases and track guides are rendered at assembly against the package's
+own cars (`Server\content\cars\default`), so every car in them is installed.
+A showcase field of a class with one starter car is that car in its
+liveries. `-AllContent` ships every car and circuit with the showcases and
+guides under `build/`.
 
 1. preflight: the car and track data exist, every track YAML has a
    `track_id`, every file a `car.toml` names is there
@@ -345,6 +352,7 @@ in `DefaultGame.ini` unless `-Version`):
 | `-ClientArtifactDirectory` | Where `-SkipClient` finds a client build |
 | `-BuildEditor` | Build `ApexSimEditor` before the track stage |
 | `-Configuration`, `-EngineRoot`, `-OutputDirectory`, `-Version` | As named |
+| `-AllContent` | Ship every car and circuit, not only the starter set |
 | `-IncludeCustomTracks`, `-IncludeCustomCars` | Ship `custom/` content |
 
 A skipped stage must still find the output it would have produced (a

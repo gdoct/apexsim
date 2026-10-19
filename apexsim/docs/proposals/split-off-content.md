@@ -90,7 +90,7 @@ The two roots are in place. The tree, with what is still to come marked:
     build/tracks/               the baked tree: exports, previews, catalog
     docs/                       the content docs
     .cache/                     osm, dem, previews, importer notices
-    starter.yml                 (to come) the cars and tracks a release ships
+    starter.yml                 the cars and tracks a release ships
     formats/                    (to come) Rust crate: track YAML, the five sidecars, content_crc
 ```
 
@@ -125,9 +125,13 @@ do not, so the rule places them:
 | the site (`site/`, `scripts/site`, `docs/index.html`) | `apexsim` | it reads both sides (`facts.py` reads `server/src/car_setup.rs`; the shots need the server and the game). `artwork/` and `props/_preview` stay content. GitHub Pages deploys `apexsim/docs` through `.github/workflows/pages.yml`. |
 
 **The starter set.** `apexsim-content/starter.yml` lists the cars and
-tracks a release ships (decided 2026-10-18: one car per class, GT3, LMP2,
-F1, Hypercar and Road, and Spa, Zandvoort and Monza). `build_release.ps1`
-copies those from the baked tree; `-AllContent` ships everything, as now.
+tracks a release ships (decided 2026-10-18: one car per class and Spa,
+Zandvoort and Monza; there is no Road car under `cars/default`, so the
+classes are GT3, LMP2, F1, Hypercar and Rally). `build_release.ps1` bakes
+and copies only those and renders the package's showcases and guides
+against the starter cars alone, so every car in them is installed (a
+class's showcase field is its one starter car in its liveries);
+`-AllContent` ships everything.
 Because a code checkout always has the whole content root beside it, the
 tests no longer have to fit a seed: the Norisring, Le Mans and Silverstone
 tests stay as they are. Only what a fresh install shows has to be in the
@@ -137,12 +141,7 @@ defaults.
 **Work left in phase 0.** CI already checks the direction (`tools/check_direction.py`). Each step is one commit, and every test passes
 after each:
 
-1. **The starter set.** `starter.yml`; `build_release.ps1` copying it; a
-   preflight that every showcase and the demo backdrop are on starter
-   tracks; and the client's backdrop tests (Austin today) moved onto
-   starter tracks. Check: a release package built and raced from the zip,
-   with the menu backdrop running.
-2. **The formats crate.** `apexsim-content/formats` holds the track YAML,
+1. **The formats crate.** `apexsim-content/formats` holds the track YAML,
    the five sidecars and `content_crc`. The server and `track-core` use it;
    their copies and `track-core`'s dev-dependency on the server go, and
    the compat tests become the server's own. Determinism and the golden
@@ -150,7 +149,7 @@ after each:
    CLAUDE.md rule about `TrackFileFormat` and `TrackFile` goes with it.
    `tools/ac_car_import/tests` reads `apexsim/server/src/brakes.rs` for
    its brake constants (and skips without it): that edge goes too.
-3. **Baked output out of the source folders** (optional, before packs).
+2. **Baked output out of the source folders** (optional, before packs).
    `ats-export` writes the sidecars into
    `apexsim-content/build/tracks/<Stem>/`, beside the export and a copy of
    the YAML, instead of gitignored files beside the source, and the
