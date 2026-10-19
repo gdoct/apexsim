@@ -161,24 +161,15 @@ on seeds 1-3, totals against the commit before.
 
 The race-start rules and penalties ([server/sessions.md](server/sessions.md#race-start-formation-lap-rolling-start-false-starts),
 [penalties](server/sessions.md#penalties))
-are on the wire and run on the server; the client does not offer or show
-them yet, and the server leaves a few edges.
+are on the wire and run on the server, and the create screen offers them;
+the client does not show all of them yet, and the server leaves a few edges.
 
-- client: the create screen's race rules (`CreateSession.race_rules`:
-  Start Standing / Rolling, Formation lap, False starts), kept in the
-  profile, named in the summary; `SessionJoined.RaceRules` kept on the net
-  subsystem.
-- client: the create screen's Safety car row (`race_rules.safety_car`:
-  Off / Virtual / On the road); the phase on the cockpit dash, with the
-  pace (the HUD's `race_phase` banner and `race.phase` data points are
-  built).
+- client: the safety car phase on the cockpit dash, with the pace (the
+  HUD's `race_phase` banner and `race.phase` data points are built).
 - client: draw the safety car (`FApexTelemetryFrame::SafetyCar`, decoded
   and not drawn): a car model with roof light bars, lit until `race_phase`
   6, interpolated like a car; it drives through a lapped car passing it
   (it is no body on the server), so the pass is seen as an overlap.
-- client: the create screen's penalty rules (`race_rules.yellow_penalty`,
-  `pit_exit_penalty`; False starts is `jump_start`) and its Reverse grid
-  row (`race_rules.reverse_grid`, Off / 6 / 8 / 10 / whole field).
 - Balance of performance (`[[balance]]`, server only): the client's
   predicted car (`apexsim.net.Predict`) steps its own car.toml without the
   ballast, power and downforce, so a balanced car's prediction errs until

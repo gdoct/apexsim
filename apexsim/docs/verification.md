@@ -345,6 +345,12 @@ limits, as in [server/sessions.md](server/sessions.md).
   [server/sessions.md](server/sessions.md#starting-order-and-qualifying)):
   the car drawn in the box, the limiter and the hand-back past the light,
   and OUTLAP held until the line after the lane, not the one crossed in it.
+- The Race tab's Race control rows (`r12-race-control`): on 2026-10-19 the
+  four rows whole beside the pit rule, reached by arrow keys, and the
+  section line and summary naming the picks. Still to see: a session made
+  from them running under them (a rolling start or a formation lap, the
+  reverse grid on the grid, a safety car), and the pad walk
+  (`ApexSim.UI.PadWalk`) over the rows.
 
 ### R13. Race control and the radar, live
 

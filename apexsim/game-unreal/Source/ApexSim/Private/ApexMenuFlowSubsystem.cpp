@@ -104,6 +104,7 @@ void UApexMenuFlowSubsystem::LoadProfile()
 	bCreateQualifyingCutoff = Profile->bQualifyingCutoff;
 	CreateMandatoryStops = ApexMandatoryStops::Clamp(Profile->MandatoryStops);
 	bCreateCompoundChange = Profile->bCompoundChange;
+	CreateRaceRules = Profile->RaceRules.Normalised();
 	CreateAiSkill = ApexAiSkill::Clamp(Profile->AiSkill);
 	CreateQualifyingFormat = Profile->QualifyingFormat == EApexQualifyingFormat::Shootout ? EApexQualifyingFormat::Shootout : EApexQualifyingFormat::Open;
 	CreateQualifyingLapAllowance = ApexQualifyingLapAllowance::Clamp(Profile->QualifyingLapAllowance);
@@ -233,6 +234,7 @@ void UApexMenuFlowSubsystem::SaveProfile()
 	Profile->bQualifyingCutoff = bCreateQualifyingCutoff;
 	Profile->MandatoryStops = CreateMandatoryStops;
 	Profile->bCompoundChange = bCreateCompoundChange;
+	Profile->RaceRules = CreateRaceRules;
 	Profile->AiSkill = CreateAiSkill;
 	Profile->QualifyingFormat = CreateQualifyingFormat;
 	Profile->QualifyingLapAllowance = CreateQualifyingLapAllowance;

@@ -317,6 +317,46 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexGolden::C_CreateSessionShootout);
 	TestEqual(TEXT("a lap allowance is at most thirty"), ApexQualifyingLapAllowance::Clamp(99), 30);
 	{
+		// The race-control rules: the table and each key only when set.
+		auto CreateWithRules = [](const FApexRaceRules& Rules)
+		{
+			return ApexProtocol::EncodeCreateSession(
+				TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+				FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+				TArray<FString>(), 0, FApexWeekendFormat(), nullptr, ApexQualifyingCutoff::None, 0, false,
+				EApexQualifyingFormat::Open, 0, Rules);
+		};
+		FApexRaceRules Start;
+		Start.Start = EApexStartType::Rolling;
+		Start.bFormationLap = true;
+		Start.bJumpStart = true;
+		CheckBytes(TEXT("CreateSession with a rolling start, a formation lap and false starts"), CreateWithRules(Start),
+			ApexGolden::C_CreateSessionRaceRules);
+		FApexRaceRules Penalties;
+		Penalties.bYellowPenalty = true;
+		Penalties.bPitExitPenalty = true;
+		CheckBytes(TEXT("CreateSession penalising yellow passes and the pit exit light"), CreateWithRules(Penalties),
+			ApexGolden::C_CreateSessionPenalties);
+		CheckBytes(TEXT("CreateSession under the default rules has no race_rules"),
+			ApexProtocol::EncodeCreateSession(
+				TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+				FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+				TArray<FString>(), 0, FApexWeekendFormat(), nullptr, ApexQualifyingCutoff::None, 2, true,
+				EApexQualifyingFormat::Open, 0, FApexRaceRules()),
+			ApexGolden::C_CreateSessionPitRule);
+		TestTrue(TEXT("default rules are default"), FApexRaceRules().IsDefault());
+		TestEqual(TEXT("default rules name nothing"), FApexRaceRules().Describe(), FString());
+		FApexRaceRules All;
+		All.Start = EApexStartType::Rolling;
+		All.SafetyCar = EApexSafetyCar::Full;
+		All.ReverseGrid = FApexRaceRules::ReverseWholeField;
+		TestEqual(TEXT("rules described"), All.Describe(), FString(TEXT("rolling start · safety car · reverse grid")));
+		TestEqual(TEXT("a reverse of eight"), FApexRaceRules::DescribeReverse(8), FString(TEXT("reverse 8")));
+		FApexRaceRules One;
+		One.ReverseGrid = 1;
+		TestTrue(TEXT("a reverse of one changes nothing"), One.Normalised().IsDefault());
+	}
+	{
 		// A weekend whose practice and qualifying name their own damage rule.
 		FApexWeekendFormat Weekend;
 		Weekend.PracticeSeconds = 600;
@@ -651,6 +691,23 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("CompoundChange"), Message.bCompoundChange);
 			TestEqual(TEXT("QualifyingFormat (open when absent)"), Message.QualifyingFormat, EApexQualifyingFormat::Open);
 			TestEqual(TEXT("QualifyingLapAllowance (none when absent)"), Message.QualifyingLapAllowance, 0);
+			TestTrue(TEXT("RaceRules (the defaults when absent)"), Message.RaceRules.IsDefault());
+		}
+	}
+
+	{
+		// The race-control rules the server echoes.
+		FApexServerMessage Joined;
+		if (Decode(TEXT("SessionJoined with race rules"), ApexGolden::S_SessionJoinedRaceRules, Joined))
+		{
+			TestEqual(TEXT("SessionJoined type"), Joined.Type, EApexServerMessageType::SessionJoined);
+			TestEqual(TEXT("RaceRules.Start"), Joined.RaceRules.Start, EApexStartType::Rolling);
+			TestTrue(TEXT("RaceRules.bFormationLap"), Joined.RaceRules.bFormationLap);
+			TestTrue(TEXT("RaceRules.bJumpStart"), Joined.RaceRules.bJumpStart);
+			TestFalse(TEXT("RaceRules.bYellowPenalty"), Joined.RaceRules.bYellowPenalty);
+			TestFalse(TEXT("RaceRules.bPitExitPenalty"), Joined.RaceRules.bPitExitPenalty);
+			TestEqual(TEXT("RaceRules.SafetyCar"), Joined.RaceRules.SafetyCar, EApexSafetyCar::Off);
+			TestEqual(TEXT("RaceRules.ReverseGrid"), static_cast<int32>(Joined.RaceRules.ReverseGrid), 0);
 		}
 	}
 

@@ -348,6 +348,10 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 		{
 			AddAll(MandatoryStopsButtons);
 			AddAll(CompoundChangeButtons);
+			AddAll(StartTypeButtons);
+			AddAll(PenaltyButtons);
+			AddAll(SafetyCarButtons);
+			AddAll(ReverseGridButtons);
 		}
 		if (Flow && Flow->IsCreatingWeekend())
 		{
@@ -1213,6 +1217,30 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Two compounds"), { TEXT("Free"), TEXT("Two") }, CompoundChangeButtons),
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		PitRuleSection = Section;
+		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+	}
+
+	// --- Race control ---------------------------------------------------------------
+	// How the race starts and what the server penalises: four chip rows, the
+	// formation lap folded into the start (a rolling start always has its
+	// pace lap) and the three penalties toggles on one row.
+	{
+		UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>();
+		UTextBlock* Info = nullptr;
+		ApexUI::AddV(Section, MakeCaption(TEXT("Race control"), &Info), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		RaceControlInfoText = Info;
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Start"), { TEXT("Standing"), TEXT("Formation lap"), TEXT("Rolling") }, StartTypeButtons));
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Penalise"), { TEXT("False starts"), TEXT("Yellow passes"), TEXT("Pit exit light") }, PenaltyButtons),
+			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Safety car"), { TEXT("Off"), TEXT("Virtual"), TEXT("On the road") }, SafetyCarButtons),
+			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		TArray<FString> Reverse;
+		for (const int32 Slots : ApexCreateSession::ReverseGridChoices)
+		{
+			Reverse.Add(Slots == 0 ? FString(TEXT("Off")) : Slots >= FApexRaceRules::ReverseWholeField ? FString(TEXT("All")) : FString::FromInt(Slots));
+		}
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Reverse grid"), Reverse, ReverseGridButtons), FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		RaceControlSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
 
@@ -2334,6 +2362,65 @@ void UApexSessionCreateWidget::RefreshSettings()
 			: FString::Printf(TEXT("%s · OWED AT THE FLAG IS A PENALTY"), *Rule.ToUpper())));
 	}
 
+	if (RaceControlSection)
+	{
+		RaceControlSection->SetVisibility(Flow->PitRuleApplies() ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	{
+		const FApexRaceRules Rules = Flow->CreateRaceRules.Normalised();
+		const int32 StartChip = Rules.Start == EApexStartType::Rolling ? 2 : Rules.bFormationLap ? 1 : 0;
+		for (int32 Index = 0; Index < StartTypeButtons.Num(); ++Index)
+		{
+			if (StartTypeButtons[Index])
+			{
+				StartTypeButtons[Index]->SetSelected(Index == StartChip);
+			}
+		}
+		const bool Penalised[] = { Rules.bJumpStart, Rules.bYellowPenalty, Rules.bPitExitPenalty };
+		for (int32 Index = 0; Index < PenaltyButtons.Num() && Index < UE_ARRAY_COUNT(Penalised); ++Index)
+		{
+			if (PenaltyButtons[Index])
+			{
+				PenaltyButtons[Index]->SetSelected(Penalised[Index]);
+			}
+		}
+		for (int32 Index = 0; Index < SafetyCarButtons.Num(); ++Index)
+		{
+			if (SafetyCarButtons[Index])
+			{
+				SafetyCarButtons[Index]->SetSelected(Index == static_cast<int32>(Rules.SafetyCar));
+			}
+		}
+		const int32 ReverseChip = ApexCreateSession::ReverseGridChip(Rules.ReverseGrid);
+		for (int32 Index = 0; Index < ReverseGridButtons.Num(); ++Index)
+		{
+			if (ReverseGridButtons[Index])
+			{
+				ReverseGridButtons[Index]->SetSelected(Index == ReverseChip);
+			}
+		}
+		if (RaceControlInfoText)
+		{
+			// The summary's words, with the start and the penalties said at their defaults too.
+			const FApexRaceRules Sent = Flow->RaceRulesToSend();
+			FApexRaceRules Rest = Sent;
+			Rest.Start = EApexStartType::Standing;
+			Rest.bFormationLap = false;
+			Rest.bJumpStart = Rest.bYellowPenalty = Rest.bPitExitPenalty = false;
+			TArray<FString> Parts;
+			Parts.Add(Sent.Start == EApexStartType::Rolling ? TEXT("rolling start")
+				: Sent.bFormationLap ? TEXT("formation lap") : TEXT("standing start"));
+			const int32 Penalties = Sent.CountPenalties();
+			Parts.Add(Penalties == 0 ? FString(TEXT("no penalties"))
+				: FString::Printf(TEXT("%d penalt%s"), Penalties, Penalties == 1 ? TEXT("y") : TEXT("ies")));
+			if (const FString Others = Rest.Describe(); !Others.IsEmpty())
+			{
+				Parts.Add(Others);
+			}
+			RaceControlInfoText->SetText(FText::FromString(FString::Join(Parts, TEXT(" · ")).ToUpper()));
+		}
+	}
+
 	// A hotlap has no field: every driver goes out from their own garage.
 	if (FieldSection)
 	{
@@ -2987,6 +3074,10 @@ void UApexSessionCreateWidget::RefreshFooter()
 		{
 			Parts.Add(PitRule.ToUpper());
 		}
+		if (const FString Rules = Flow->RaceRulesToSend().Describe(); !Rules.IsEmpty())
+		{
+			Parts.Add(Rules.ToUpper());
+		}
 		Parts.Add(DamageOptions[FMath::Clamp(static_cast<int32>(Flow->CreateDamage), 0, static_cast<int32>(UE_ARRAY_COUNT(DamageOptions)) - 1)].Summary);
 		{
 			// A weekend phase's own rule, when it has one.
@@ -3593,7 +3684,8 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Flow->MandatoryStopsToSend(),
 			Flow->CompoundChangeToSend(),
 			Flow->QualifyingFormatToSend(),
-			Flow->QualifyingLapAllowanceToSend());
+			Flow->QualifyingLapAllowanceToSend(),
+			Flow->RaceRulesToSend());
 		return;
 	}
 
@@ -3692,6 +3784,33 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (const int32 Compound = ApexNav::IndexOf(CompoundChangeButtons, Button); Compound != INDEX_NONE)
 	{
 		Flow->bCreateCompoundChange = Compound == 1;
+		Changed();
+		return;
+	}
+	if (const int32 Start = ApexNav::IndexOf(StartTypeButtons, Button); Start != INDEX_NONE)
+	{
+		Flow->CreateRaceRules.Start = Start == 2 ? EApexStartType::Rolling : EApexStartType::Standing;
+		Flow->CreateRaceRules.bFormationLap = Start == 1;
+		Changed();
+		return;
+	}
+	if (const int32 Penalty = ApexNav::IndexOf(PenaltyButtons, Button); Penalty != INDEX_NONE)
+	{
+		bool& Rule = Penalty == 0 ? Flow->CreateRaceRules.bJumpStart
+			: Penalty == 1 ? Flow->CreateRaceRules.bYellowPenalty : Flow->CreateRaceRules.bPitExitPenalty;
+		Rule = !Rule;
+		Changed();
+		return;
+	}
+	if (const int32 SafetyCar = ApexNav::IndexOf(SafetyCarButtons, Button); SafetyCar != INDEX_NONE)
+	{
+		Flow->CreateRaceRules.SafetyCar = static_cast<EApexSafetyCar>(FMath::Clamp(SafetyCar, 0, 2));
+		Changed();
+		return;
+	}
+	if (const int32 Reverse = ApexNav::IndexOf(ReverseGridButtons, Button); Reverse != INDEX_NONE)
+	{
+		Flow->CreateRaceRules.ReverseGrid = static_cast<uint8>(ApexCreateSession::ReverseGridChoices[FMath::Clamp(Reverse, 0, static_cast<int32>(UE_ARRAY_COUNT(ApexCreateSession::ReverseGridChoices)) - 1)]);
 		Changed();
 		return;
 	}

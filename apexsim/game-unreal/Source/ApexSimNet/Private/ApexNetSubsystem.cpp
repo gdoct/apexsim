@@ -534,7 +534,8 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 	int32 MandatoryStops,
 	bool bCompoundChange,
 	EApexQualifyingFormat QualifyingFormat,
-	int32 QualifyingLapAllowance)
+	int32 QualifyingLapAllowance,
+	const FApexRaceRules& RaceRules)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d race_seconds=%d qualifying_seconds=%d locked_assists=%d conditions=%s damage=%d ai_skill=%d"),
 		*TrackConfigId, MaxPlayers, AiCount, LapLimit, RaceSeconds, QualifyingSeconds, AllowedAssists.CountLocked(), *Conditions.Describe(),
@@ -565,7 +566,8 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 		MandatoryStops,
 		bCompoundChange,
 		QualifyingFormat,
-		QualifyingLapAllowance));
+		QualifyingLapAllowance,
+		RaceRules));
 }
 
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
@@ -1415,6 +1417,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			bCurrentCompoundChange = Message.bCompoundChange;
 			CurrentQualifyingFormat = Message.QualifyingFormat;
 			CurrentQualifyingLapAllowance = Message.QualifyingLapAllowance;
+			CurrentRaceRules = Message.RaceRules;
 			CurrentWeekend = Message.Weekend;
 			CurrentPhysics = Message.Physics;
 			CurrentConditionsBytes = Message.ConditionsBytes;
@@ -1472,6 +1475,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		bCurrentCompoundChange = false;
 		CurrentQualifyingFormat = EApexQualifyingFormat::Open;
 		CurrentQualifyingLapAllowance = 0;
+		CurrentRaceRules = FApexRaceRules();
 		CurrentWeekend = FApexWeekendFormat();
 		CurrentWeekendState = FApexWeekendState();
 		CurrentShootoutState = FApexShootoutState();

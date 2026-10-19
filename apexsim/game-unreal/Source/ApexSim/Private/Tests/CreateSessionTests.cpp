@@ -1,5 +1,7 @@
 #include "ApexTestCommon.h"
 #include "UI/ApexCreateSessionModel.h"
+#include "ApexMenuFlowSubsystem.h"
+#include "Engine/GameInstance.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -897,6 +899,54 @@ bool FApexCreateSessionQualifyingFormatTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("no allowance, no count"), ApexQualifyingLapAllowance::LapsLeft(0, 3), -1);
 	TestEqual(TEXT("two of three run"), ApexQualifyingLapAllowance::LapsLeft(3, 2), 1);
 	TestEqual(TEXT("used"), ApexQualifyingLapAllowance::LapsLeft(3, 5), 0);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// The race-control rules: the reverse grid's chips and what a create sends.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCreateSessionRaceControlTest,
+	"ApexSim.UI.CreateSession.RaceControl",
+	ApexTestFlags)
+
+bool FApexCreateSessionRaceControlTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexCreateSession;
+	TestEqual(TEXT("off"), ReverseGridChip(0), 0);
+	TestEqual(TEXT("a reverse of one is off"), ReverseGridChip(1), 0);
+	TestEqual(TEXT("top 8"), ReverseGridChip(8), 2);
+	TestEqual(TEXT("an unoffered 7 shows on 8"), ReverseGridChip(7), 2);
+	TestEqual(TEXT("the whole field"), ReverseGridChip(FApexRaceRules::ReverseWholeField), 4);
+	for (int32 Chip = 0; Chip < UE_ARRAY_COUNT(ReverseGridChoices); ++Chip)
+	{
+		TestEqual(*FString::Printf(TEXT("reverse chip %d round trip"), Chip), ReverseGridChip(ReverseGridChoices[Chip]), Chip);
+	}
+
+	// A subsystem lives within a game instance; not initialised, so no profile is read.
+	UGameInstance* Instance = NewObject<UGameInstance>(GetTransientPackage());
+	UApexMenuFlowSubsystem* Flow = NewObject<UApexMenuFlowSubsystem>(Instance);
+	Flow->CreateRaceRules.Start = EApexStartType::Rolling;
+	Flow->CreateRaceRules.bFormationLap = true;
+	Flow->CreateRaceRules.bYellowPenalty = true;
+	Flow->CreateRaceRules.SafetyCar = EApexSafetyCar::Virtual;
+	Flow->CreateRaceRules.ReverseGrid = 8;
+	Flow->CreateStartingMode = EApexGameMode::Race;
+	const FApexRaceRules Sent = Flow->RaceRulesToSend();
+	TestEqual(TEXT("a race sends its start"), Sent.Start, EApexStartType::Rolling);
+	TestFalse(TEXT("a rolling start sends no formation lap"), Sent.bFormationLap);
+	TestTrue(TEXT("a race sends its penalties"), Sent.bYellowPenalty);
+	TestEqual(TEXT("and its safety car"), Sent.SafetyCar, EApexSafetyCar::Virtual);
+	TestEqual(TEXT("and its reverse grid"), static_cast<int32>(Sent.ReverseGrid), 8);
+	TestEqual(TEXT("named in the summary"), Sent.Describe(),
+		FString(TEXT("rolling start · 1 penalty · VSC · reverse 8")));
+	Flow->CreateStartingMode = EApexGameMode::Qualification;
+	TestFalse(TEXT("qualifying before a race sends them"), Flow->RaceRulesToSend().IsDefault());
+	Flow->CreateStartingMode = EApexGameMode::Hotlap;
+	TestTrue(TEXT("a hotlap sends none"), Flow->RaceRulesToSend().IsDefault());
+	Flow->CreateStartingMode = EApexGameMode::FreePractice;
+	TestTrue(TEXT("practice sends none"), Flow->RaceRulesToSend().IsDefault());
 	return true;
 }
 

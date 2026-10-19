@@ -112,6 +112,10 @@ public:
 	UPROPERTY()
 	bool bCompoundChange = false;
 
+	/** The race-control rules on a session this player creates (start, penalties, safety car, reverse grid). */
+	UPROPERTY()
+	FApexRaceRules RaceRules;
+
 	/** The AI field's level in a session this player creates (ApexAiSkill; -1 mixed). */
 	UPROPERTY()
 	int32 AiSkill = -1;

@@ -60,7 +60,8 @@ namespace ApexProtocol
 		int32 MandatoryStops = ApexMandatoryStops::None,
 		bool bCompoundChange = false,
 		EApexQualifyingFormat QualifyingFormat = EApexQualifyingFormat::Open,
-		int32 QualifyingLapAllowance = ApexQualifyingLapAllowance::None);
+		int32 QualifyingLapAllowance = ApexQualifyingLapAllowance::None,
+		const FApexRaceRules& RaceRules = FApexRaceRules());
 	/** The host moves a race weekend on to its next session (no fields). */
 	APEXSIMNET_API TArray<uint8> EncodeAdvanceWeekend();
 	/** `GiveUpSeat`: turn down the rejoin offer; the held seat's car leaves its session. */

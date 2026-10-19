@@ -1054,6 +1054,28 @@ namespace ApexCreateSession
 	inline int32 PhaseDamageChip(int32 Damage) { return FMath::Clamp(Damage, -1, PhaseDamageChips - 2) + 1; }
 	inline int32 PhaseDamageOfChip(int32 Chip) { return FMath::Clamp(Chip, 0, PhaseDamageChips - 1) - 1; }
 
+	// --- Race control ------------------------------------------------------------
+
+	/** The Reverse grid row's chips: off, the top 6, 8 or 10, or the whole field. */
+	inline constexpr int32 ReverseGridChoices[] = { 0, 6, 8, 10, FApexRaceRules::ReverseWholeField };
+
+	/** The chip a reverse grid shows on; a count the row does not offer shows on the next larger one. */
+	inline int32 ReverseGridChip(int32 Reverse)
+	{
+		if (Reverse <= 1)
+		{
+			return 0;
+		}
+		for (int32 Chip = 1; Chip < UE_ARRAY_COUNT(ReverseGridChoices); ++Chip)
+		{
+			if (Reverse <= ReverseGridChoices[Chip])
+			{
+				return Chip;
+			}
+		}
+		return static_cast<int32>(UE_ARRAY_COUNT(ReverseGridChoices)) - 1;
+	}
+
 	// --- Assists --------------------------------------------------------------
 
 	enum class EAssistPreset : uint8

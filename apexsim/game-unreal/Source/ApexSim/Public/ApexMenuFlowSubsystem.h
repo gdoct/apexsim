@@ -218,6 +218,29 @@ public:
 	int32 MandatoryStopsToSend() const { return PitRuleApplies() ? ApexMandatoryStops::Clamp(CreateMandatoryStops) : 0; }
 	bool CompoundChangeToSend() const { return PitRuleApplies() && bCreateCompoundChange; }
 
+	/**
+	 * The race-control rules (FApexRaceRules): the start, the penalties, the
+	 * safety car and a reverse grid. A session with a race in it sends them,
+	 * as the pit rule (RaceRulesToSend).
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	FApexRaceRules CreateRaceRules;
+
+	/** What CreateSession carries: the defaults in a session without a race; no formation lap flag under a rolling start, which has its pace lap anyway. */
+	FApexRaceRules RaceRulesToSend() const
+	{
+		if (!PitRuleApplies())
+		{
+			return FApexRaceRules();
+		}
+		FApexRaceRules Rules = CreateRaceRules.Normalised();
+		if (Rules.Start == EApexStartType::Rolling)
+		{
+			Rules.bFormationLap = false;
+		}
+		return Rules;
+	}
+
 	/** The weekend CreateSession carries: no rounds unless a weekend is being made. */
 	FApexWeekendFormat WeekendToSend() const;
 	/** "Practice 20 min · Q1-Q3 10 min each · Race 12 laps"; empty for no weekend. */

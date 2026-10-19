@@ -1680,6 +1680,39 @@ runs:
         label: "weekend: one round, a shoot-out: no round length"
         checks: "Each round hidden"
 
+  # The Race tab's Race control rows: reached by keys from the length row
+  # (the scroll box follows the focus), then picked by mouse. The Penalise
+  # chips toggle: run from a profile with nothing penalised (the run saves
+  # its picks to ApexProfile.sav; keep a copy and put it back after).
+  - id: r12-race-control
+    about: "R12. The create screen's Race control rows and the summary naming them"
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=3
+      - -ApexCreateMode=7
+    exec:
+      10: ["apexsim.ui.Texts"]
+      11: ["apexsim.ui.Click Laps"]
+      12: ["apexsim.ui.Key Down Down Down Down Down Down"]
+      16: ["apexsim.ui.Texts"]
+      17: ["apexsim.ui.Click Rolling"]
+      17.5: ["apexsim.ui.Click Yellow passes"]
+      18: ["apexsim.ui.Click Pit exit light"]
+      18.5: ["apexsim.ui.Click Virtual"]
+      19: ["apexsim.ui.Click All"]
+      26: ["apexsim.ui.Click Standing", "apexsim.ui.Click Off #0"]
+      26.5: ["apexsim.ui.Click Formation lap"]
+    shots:
+      - at: 15
+        label: "Race tab scrolled by keys to Race control"
+        checks: "the four rows (Start, Penalise, Safety car, Reverse grid) whole, nothing cut off"
+      - at: 22
+        label: "Rolling start, yellow passes and pit exit penalised, VSC, whole grid reversed"
+        checks: "the chips lit, the section's info line and the summary naming the rules"
+      - at: 29
+        label: "a formation lap, no safety car"
+        checks: "Formation lap lit under a standing start"
+
   # A one-lap shoot-out against two AI: the waiting display, the camera on
   # the car out, the player's turn (the stand-in drives it), the sheet.
   - id: r12-shootout

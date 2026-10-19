@@ -344,6 +344,161 @@ namespace ApexMandatoryStops
 	}
 }
 
+/** How a race is started (data.rs `StartType`): a plain u8 on the wire. */
+UENUM(BlueprintType)
+enum class EApexStartType : uint8
+{
+	/** From the grid, at rest, when the lights go out. */
+	Standing = 0,
+	/** Behind a pace lap, the field in grid order; green as the leader comes back to the line. */
+	Rolling  = 1,
+};
+
+/** What neutralises a race when a car is stranded on the road (data.rs `SafetyCar`). */
+UENUM(BlueprintType)
+enum class EApexSafetyCar : uint8
+{
+	/** Yellow flags only. */
+	Off     = 0,
+	/** A virtual safety car: every car held to a pace, no overtaking. */
+	Virtual = 1,
+	/** A safety car on the road: the field queues behind it. */
+	Full    = 2,
+};
+
+/**
+ * The race-control rules a host sets on create (data.rs `RaceRules`;
+ * CreateSession `race_rules`, echoed in SessionJoined `RaceRules`, inner
+ * keys snake_case). Every field at its default is a race as before and is
+ * left off the wire; so is the whole table when nothing is set.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexRaceRules
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	EApexStartType Start = EApexStartType::Standing;
+
+	/** A standing start is preceded by a formation lap (a rolling start always has its pace lap). */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bFormationLap = false;
+
+	/** False starts: a car off its slot before the lights go out gets a drive-through. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bJumpStart = false;
+
+	/** A pass in a yellow sector is given a time penalty. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bYellowPenalty = false;
+
+	/** A driver leaving the pit lane past its red exit light is given a stop-go. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bPitExitPenalty = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	EApexSafetyCar SafetyCar = EApexSafetyCar::Off;
+
+	/**
+	 * The first this many slots of the starting order start in reverse; 0
+	 * (and 1) change nothing. More than the field turns the whole grid
+	 * round (`GameSession::grid_order_ids` takes the smaller), so
+	 * ReverseWholeField is "the whole field".
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	uint8 ReverseGrid = 0;
+
+	static constexpr uint8 ReverseWholeField = 255;
+
+	/** The fields as the server keeps them: an unknown start or safety car is the default, a reverse of one is none. */
+	FApexRaceRules Normalised() const
+	{
+		FApexRaceRules Out = *this;
+		if (Out.Start != EApexStartType::Rolling)
+		{
+			Out.Start = EApexStartType::Standing;
+		}
+		if (Out.SafetyCar != EApexSafetyCar::Virtual && Out.SafetyCar != EApexSafetyCar::Full)
+		{
+			Out.SafetyCar = EApexSafetyCar::Off;
+		}
+		if (Out.ReverseGrid == 1)
+		{
+			Out.ReverseGrid = 0;
+		}
+		return Out;
+	}
+
+	/** The number of keys the wire's table carries: one per field off its default. */
+	int32 CountSet() const
+	{
+		return (Start != EApexStartType::Standing ? 1 : 0) + (bFormationLap ? 1 : 0) + (bJumpStart ? 1 : 0)
+			+ (bYellowPenalty ? 1 : 0) + (bPitExitPenalty ? 1 : 0) + (SafetyCar != EApexSafetyCar::Off ? 1 : 0)
+			+ (ReverseGrid != 0 ? 1 : 0);
+	}
+
+	bool IsDefault() const { return CountSet() == 0; }
+
+	/** The start drives a lap before the green: a formation lap, or a rolling start's pace lap. */
+	bool HasFormationLap() const { return bFormationLap || Start == EApexStartType::Rolling; }
+
+	/** "reverse 8", "reverse grid" (the whole field); empty for none. */
+	static FString DescribeReverse(int32 Reverse)
+	{
+		if (Reverse <= 1)
+		{
+			return FString();
+		}
+		return Reverse >= ReverseWholeField ? FString(TEXT("reverse grid")) : FString::Printf(TEXT("reverse %d"), Reverse);
+	}
+
+	/** How many of the three offences are penalised. */
+	int32 CountPenalties() const { return (bJumpStart ? 1 : 0) + (bYellowPenalty ? 1 : 0) + (bPitExitPenalty ? 1 : 0); }
+
+	/**
+	 * Short, for a summary line: "rolling start · 2 penalties · VSC ·
+	 * reverse 8"; each part only when off its default, so empty for the
+	 * default rules (a standing start, nothing penalised).
+	 */
+	FString Describe() const
+	{
+		TArray<FString> Parts;
+		if (Start == EApexStartType::Rolling)
+		{
+			Parts.Add(TEXT("rolling start"));
+		}
+		else if (bFormationLap)
+		{
+			Parts.Add(TEXT("formation lap"));
+		}
+		if (const int32 Penalties = CountPenalties(); Penalties > 0)
+		{
+			Parts.Add(FString::Printf(TEXT("%d penalt%s"), Penalties, Penalties == 1 ? TEXT("y") : TEXT("ies")));
+		}
+		if (SafetyCar == EApexSafetyCar::Virtual)
+		{
+			Parts.Add(TEXT("VSC"));
+		}
+		else if (SafetyCar == EApexSafetyCar::Full)
+		{
+			Parts.Add(TEXT("safety car"));
+		}
+		if (const FString Reverse = DescribeReverse(ReverseGrid); !Reverse.IsEmpty())
+		{
+			Parts.Add(Reverse);
+		}
+		return FString::Join(Parts, TEXT(" · "));
+	}
+
+	bool operator==(const FApexRaceRules& Other) const
+	{
+		return Start == Other.Start && bFormationLap == Other.bFormationLap && bJumpStart == Other.bJumpStart
+			&& bYellowPenalty == Other.bYellowPenalty && bPitExitPenalty == Other.bPitExitPenalty
+			&& SafetyCar == Other.SafetyCar && ReverseGrid == Other.ReverseGrid;
+	}
+	bool operator!=(const FApexRaceRules& Other) const { return !(*this == Other); }
+};
+
 /** `CompactCarState::ground`'s values a wheel (network.rs `GROUND_*`). */
 namespace ApexGround
 {
@@ -3697,6 +3852,8 @@ struct APEXSIMNET_API FApexServerMessage
 	EApexQualifyingFormat QualifyingFormat = EApexQualifyingFormat::Open;
 	/** SessionJoined::QualifyingLapAllowance (ApexQualifyingLapAllowance); 0 for none. */
 	int32 QualifyingLapAllowance = 0;
+	/** SessionJoined::RaceRules, the race-control rules; the defaults when absent. */
+	FApexRaceRules RaceRules;
 	/** SessionJoined::Physics: a driver's session's tick rate and road; not bValid when absent. */
 	FApexSessionPhysics Physics;
 	/**

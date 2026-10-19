@@ -126,6 +126,17 @@ and widget factories), so layouts are reviewable as diffs.
   pads' wear fell over the stop) moves the garage setup's `brake_pads` knob
   to that set, as the server moved its own, so the next `SetCarSetup` keeps
   it.
+- The create screen (`UI/ApexSessionCreateWidget.cpp`) has a Race tab and
+  a Conditions tab, each a scroll box of sections. The Race tab's rule
+  sections show for the sessions they apply to: Qualifying, Race weekend,
+  and, in a race or a qualifying session, Pit stops and Race control
+  (Start Standing / Formation lap / Rolling, Penalise False starts /
+  Yellow passes / Pit exit light as toggles, Safety car Off / Virtual / On
+  the road, Reverse grid Off / 6 / 8 / 10 / All;
+  [sessions.md](../server/sessions.md#session-rules-set-on-create)). Each
+  section's caption line and the summary under the screen name what is
+  set. Keys and pad reach every chip through `ApexNav::MoveToward`; a new
+  row only has to be added to `GatherFocusables` while it shows.
 
 ### Session browser (`UI/ApexSessionBrowserWidget.cpp`)
 

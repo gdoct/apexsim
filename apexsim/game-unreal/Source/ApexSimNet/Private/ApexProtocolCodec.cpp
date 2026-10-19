@@ -552,6 +552,40 @@ namespace
 		return true;
 	}
 
+	/** `RaceRules` (data.rs) — snake_case keys, each absent at its default. */
+	bool ParseRaceRules(FMsgPackReader& Reader, FApexRaceRules& Out)
+	{
+		Out = FApexRaceRules();
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("start"))                 { bOk = Reader.ReadUInt64(Raw); Out.Start = Raw == 1 ? EApexStartType::Rolling : EApexStartType::Standing; }
+			else if (Key == TEXT("formation_lap"))    { bOk = Reader.ReadBool(Out.bFormationLap); }
+			else if (Key == TEXT("jump_start"))       { bOk = Reader.ReadBool(Out.bJumpStart); }
+			else if (Key == TEXT("yellow_penalty"))   { bOk = Reader.ReadBool(Out.bYellowPenalty); }
+			else if (Key == TEXT("pit_exit_penalty")) { bOk = Reader.ReadBool(Out.bPitExitPenalty); }
+			else if (Key == TEXT("safety_car"))       { bOk = Reader.ReadUInt64(Raw); Out.SafetyCar = Raw <= 2 ? static_cast<EApexSafetyCar>(Raw) : EApexSafetyCar::Off; }
+			else if (Key == TEXT("reverse_grid"))     { bOk = Reader.ReadUInt64(Raw); Out.ReverseGrid = static_cast<uint8>(FMath::Min<uint64>(Raw, 255)); }
+			else                                      { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/** `WeekendFormat` (network.rs) — snake_case keys. */
 	bool ParseWeekendFormat(FMsgPackReader& Reader, FApexWeekendFormat& Out)
 	{
@@ -773,6 +807,7 @@ namespace
 			else if (Key == TEXT("CompoundChange"))    { bOk = Reader.ReadBool(Out.bCompoundChange); }
 			else if (Key == TEXT("QualifyingFormat"))  { bOk = Reader.ReadUInt64(Raw); Out.QualifyingFormat = Raw == 1 ? EApexQualifyingFormat::Shootout : EApexQualifyingFormat::Open; }
 			else if (Key == TEXT("QualifyingLapAllowance")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingLapAllowance = ApexQualifyingLapAllowance::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
+			else if (Key == TEXT("RaceRules"))         { bOk = ParseRaceRules(Reader, Out.RaceRules); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -3505,7 +3540,8 @@ namespace ApexProtocol
 		int32 MandatoryStops,
 		bool bCompoundChange,
 		EApexQualifyingFormat QualifyingFormat,
-		int32 QualifyingLapAllowance)
+		int32 QualifyingLapAllowance,
+		const FApexRaceRules& RaceRules)
 	{
 		// Full damage, the mixed AI field, a race over laps and open
 		// qualifying are left off, as the server does: an older server's
@@ -3527,10 +3563,12 @@ namespace ApexProtocol
 		const bool bShootout = QualifyingFormat == EApexQualifyingFormat::Shootout;
 		const int32 Allowance = ApexQualifyingLapAllowance::Clamp(QualifyingLapAllowance);
 		const bool bAllowance = Allowance != ApexQualifyingLapAllowance::None;
+		const FApexRaceRules Rules = RaceRules.Normalised();
+		const bool bRules = !Rules.IsDefault();
 		FMsgPackWriter Writer(320);
 		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0) + (bTimed ? 1 : 0) + (bGrid ? 1 : 0)
 			+ (bTimedQualifying ? 1 : 0) + (bWeekend ? 1 : 0) + (Watch ? 1 : 0) + (bCutoff ? 1 : 0)
-			+ (bStops ? 1 : 0) + (bCompoundChange ? 1 : 0) + (bShootout ? 1 : 0) + (bAllowance ? 1 : 0));
+			+ (bStops ? 1 : 0) + (bCompoundChange ? 1 : 0) + (bShootout ? 1 : 0) + (bAllowance ? 1 : 0) + (bRules ? 1 : 0));
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -3662,6 +3700,48 @@ namespace ApexProtocol
 		{
 			Writer.WriteString("qualifying_lap_allowance");
 			Writer.WriteUInt(static_cast<uint32>(Allowance));
+		}
+		if (bRules)
+		{
+			// The race-control rules, each key only when off its default,
+			// in the server's order (data.rs `RaceRules`).
+			Writer.WriteString("race_rules");
+			Writer.WriteMapHeader(Rules.CountSet());
+			if (Rules.Start != EApexStartType::Standing)
+			{
+				Writer.WriteString("start");
+				Writer.WriteUInt(static_cast<uint8>(Rules.Start));
+			}
+			if (Rules.bFormationLap)
+			{
+				Writer.WriteString("formation_lap");
+				Writer.WriteBool(true);
+			}
+			if (Rules.bJumpStart)
+			{
+				Writer.WriteString("jump_start");
+				Writer.WriteBool(true);
+			}
+			if (Rules.bYellowPenalty)
+			{
+				Writer.WriteString("yellow_penalty");
+				Writer.WriteBool(true);
+			}
+			if (Rules.bPitExitPenalty)
+			{
+				Writer.WriteString("pit_exit_penalty");
+				Writer.WriteBool(true);
+			}
+			if (Rules.SafetyCar != EApexSafetyCar::Off)
+			{
+				Writer.WriteString("safety_car");
+				Writer.WriteUInt(static_cast<uint8>(Rules.SafetyCar));
+			}
+			if (Rules.ReverseGrid != 0)
+			{
+				Writer.WriteString("reverse_grid");
+				Writer.WriteUInt(Rules.ReverseGrid);
+			}
 		}
 		return MoveTemp(Writer.GetBuffer());
 	}

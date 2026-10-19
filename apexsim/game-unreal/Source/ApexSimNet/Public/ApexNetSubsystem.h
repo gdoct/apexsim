@@ -307,7 +307,8 @@ public:
 		int32 MandatoryStops = 0,
 		bool bCompoundChange = false,
 		EApexQualifyingFormat QualifyingFormat = EApexQualifyingFormat::Open,
-		int32 QualifyingLapAllowance = 0);
+		int32 QualifyingLapAllowance = 0,
+		const FApexRaceRules& RaceRules = FApexRaceRules());
 
 	/**
 	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
@@ -657,6 +658,9 @@ public:
 
 	/** The qualifying lap allowance, flying laps per car, from its SessionJoined; 0 for none. */
 	int32 GetSessionQualifyingLapAllowance() const { return CurrentQualifyingLapAllowance; }
+
+	/** The race-control rules (start, penalties, safety car, reverse grid), from its SessionJoined; the defaults outside one. */
+	const FApexRaceRules& GetSessionRaceRules() const { return CurrentRaceRules; }
 
 	/** Where the session's qualifying shoot-out stands; bValid false outside one. */
 	const FApexShootoutState& GetShootoutState() const { return CurrentShootoutState; }
@@ -1042,6 +1046,7 @@ private:
 	bool bCurrentCompoundChange = false;
 	EApexQualifyingFormat CurrentQualifyingFormat = EApexQualifyingFormat::Open;
 	int32 CurrentQualifyingLapAllowance = 0;
+	FApexRaceRules CurrentRaceRules;
 	FApexShootoutState CurrentShootoutState;
 	FApexWeekendFormat CurrentWeekend;
 	FApexWeekendState CurrentWeekendState;

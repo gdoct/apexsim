@@ -301,6 +301,21 @@ starts", the penalties in "Penalties", the safety cars in "Virtual safety
 car" and "Safety car". Not listed in the lobby; a hosted
 session does not take them yet.
 
+Client: `FApexRaceRules` (`ApexProtocolTypes.h`) is the table; the
+CreateSession encoder writes it only when a rule is set, each key only off
+its default, and `SessionJoined.RaceRules` is kept on the net subsystem
+(`GetSessionRaceRules`). The create screen's Race tab has a Race control
+section beside the pit rule, in a race or a qualifying session (as the pit
+rule, `UApexMenuFlowSubsystem::RaceRulesToSend`; kept in the profile):
+Start (Standing / Formation lap / Rolling: the formation lap is a standing
+start's, a rolling start always drives its pace lap and sends no
+`formation_lap`), Penalise (False starts, Yellow passes, Pit exit light,
+each a toggle), Safety car (Off / Virtual / On the road) and Reverse grid
+(Off / 6 / 8 / 10 / All, All sending 255, which `grid_order_ids` takes as
+the whole field). The section's line and the create summary name them
+short (`FApexRaceRules::Describe`: "ROLLING START · 2 PENALTIES · VSC ·
+REVERSE GRID").
+
 ## The race's grid
 
 Before a race the cars stand on the grid while each driver sets the car up,

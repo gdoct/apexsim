@@ -238,6 +238,18 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PitRuleInfoText;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> MandatoryStopsButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> CompoundChangeButtons;
+	/**
+	 * The race-control rules (FApexRaceRules), with the pit rule's sessions:
+	 * Start (Standing, Formation lap, Rolling), Penalise (False starts,
+	 * Yellow passes, Pit exit light: each a toggle), Safety car (Off,
+	 * Virtual, On the road) and Reverse grid (Off, 6, 8, 10, All).
+	 */
+	UPROPERTY(Transient) TObjectPtr<UWidget> RaceControlSection;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> RaceControlInfoText;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> StartTypeButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> PenaltyButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> SafetyCarButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ReverseGridButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendCutoffButtons;
 	/** Each weekend day's sky (0 practice, 1 qualifying): a weather stepper, an hour stepper and its forecast. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendDayRows[2];

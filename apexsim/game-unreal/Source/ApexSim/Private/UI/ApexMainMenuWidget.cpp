@@ -1598,7 +1598,8 @@ void UApexMainMenuWidget::StartRememberedSession()
 		Flow->MandatoryStopsToSend(),
 		Flow->CompoundChangeToSend(),
 		Flow->QualifyingFormatToSend(),
-		Flow->QualifyingLapAllowanceToSend());
+		Flow->QualifyingLapAllowanceToSend(),
+		Flow->RaceRulesToSend());
 }
 
 void UApexMainMenuWidget::HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail)
