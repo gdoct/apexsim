@@ -149,11 +149,12 @@ after each:
    `apexsim-content/bake.ps1`, which needs only cargo and Python. The code
    half becomes `initialize_game.ps1`, which calls `bake.ps1` when the
    baked tree is missing.
-4. **Housekeeping before the move.** Nothing here is deleted without the user:
-   `.cache/overpass` (4.7 GB), `.cache/surfaces-v3` and `.cache/survey` are
-   read by no script; the root `replays/` tracks two `.recording_*.frames`
-   files; `run_server.sh` is empty; `generate_track_previews.py` defaults to
-   the Godot client's folder; `enrich_all_tracks.py` is legacy.
+4. **Housekeeping before the move** (agreed 2026-10-19). Delete
+   `.cache/overpass` (4.7 GB), `.cache/surfaces-v3` and `.cache/survey`,
+   which no script reads; untrack the two `.recording_*.frames` files in the
+   root `replays/`; delete the empty `run_server.sh`; point
+   `generate_track_previews.py`'s default away from the Godot client's
+   folder; and drop `enrich_all_tracks.py`, which is legacy.
 5. **The move** (🟡, with the user there and the editor, server and
    Blender closed). `git mv` into the two roots, then by hand whatever git
    does not track: the `custom/` folders, the baked sidecars,
@@ -228,7 +229,8 @@ for whoever rebuilds the pack.
   "display_name": "Spa-Francorchamps",
   "version": "2026.10.3",
   "content_crc": 2374481145,
-  "requires": { "server": ">=0.4", "game": ">=0.4", "scene_format": 3, "props": ">=2026.9" },
+  "formats": { "track_yaml": 1, "sidecars": 1, "scene": 3 },
+  "requires": { "props": ">=2026.9" },
   "built_from": { "repo": "apexsim-content", "commit": "a1b2c3d" },
   "files": { "server/Spa.yaml": "sha256:...", "game/Spa.uemesh": "sha256:..." }
 }
@@ -239,12 +241,18 @@ for whoever rebuilds the pack.
 - `content_crc` is the CRC-32 the server sends as `ContentCrc` and the
   export carries as `SourceCrc`, computed by the same `content_crc` rule. It
   is what the two sides compare at runtime; `version` is what people read.
-- `requires` is the compatibility statement. `server` and `game` are
-  ranges over the code's version (`ProjectVersion` in `DefaultGame.ini`,
-  which the server's `Cargo.toml` is moved to share); `scene_format` is the
-  export's `format` (`docs/content/track-format.md`); `props` is the props
-  pack a track's `.ats` was dressed against. A reader refuses a pack whose
-  requirements it does not meet, with the manifest's words, before touching
+- `formats` is the compatibility statement: the level of each format the
+  pack's files are written in (for a car pack, `car_toml`). A pack never
+  names a code version; the content does not know the code exists. Each
+  level is a number owned by the `formats` crate (`scene` is the export's
+  `format`, [../content/track-format.md](../content/track-format.md)).
+  `requires` is only for content on content: `props` is the props pack a
+  track's `.ats` was dressed against.
+- The code states what it reads: every build of the server and the game
+  carries, from the `formats` crate it was built with, the range of levels
+  it reads of each format (the server `track_yaml`, `sidecars` and
+  `car_toml`; the game `scene` and `car_toml`). A reader refuses a pack
+  whose levels fall outside its ranges, naming the format, before touching
   the install.
 - `files` lets the launcher verify an install and repair one file.
 
@@ -252,7 +260,7 @@ for whoever rebuilds the pack.
 
 `apexsim-content` publishes `index.json` with every pack's `id`, `kind`,
 `stem`, `display_name`, class, latest `version`, `content_crc`, size,
-`requires` and download URL, with older versions listed under `history` so
+`formats`, `requires` and download URL, with older versions listed under `history` so
 a server pinned to an older pack can still be matched. The index is signed
 (Ed25519, the public key in the launcher and the server), the packs are
 named by hash in `files`, and nothing is installed that the index does not
@@ -292,20 +300,26 @@ strings, left off the wire when empty, so an old client sees what it saw.
 - **Code versions** the server and the game: one `ProjectVersion` for both
   (they are built from one commit and ship in one zip). The wire is still
   guarded by `PROTOCOL_VERSION`, which changes only when an old peer cannot
-  survive; the code version is what packs require.
+  survive. No pack names a code version.
+- **A format level** changes only when a reader of the old level cannot
+  read the new files. It belongs to the `formats` crate, and the code that
+  reads the new level lands before (or with) the first pack written in it.
+  The code index lists each code release's read ranges, so a launcher
+  holding a pack it cannot read can name the release that can.
 - **A pack version** is `<year>.<month>.<n>` and changes whenever any
   file in the pack changes. A YAML or `car.toml` edit changes `content_crc`
   as well; an export-only rebuild (new props, a mesh fix, a new preview)
   changes the version and not the crc, and the server does not care.
-- **Compatibility is declared, not discovered.** A pack states what it
-  needs; the code states what it offers (`scene_format` it reads, pack
-  formats it accepts). The launcher and the server refuse by the statement.
+- **Compatibility is declared, not discovered.** A pack states the format
+  levels it is written in; the code states the ranges it reads. The
+  launcher and the server compare the two and refuse by the statement.
   Reading the pack and failing half way is the thing this replaces.
 - **The content side stays append-only too.** A new `car.toml` key is
   neutral on a server that does not know it (CLAUDE.md, "a car feature is
-  neutral without its keys"), so a newer car pack runs on an older server
-  until a pack says otherwise in `requires.server`. A new `.uescene.json`
-  key is ignored by an older reader; a new `format` number is refused.
+  neutral without its keys"), so it does not raise the level, and a newer
+  car pack runs on an older server. A new `.uescene.json` key is ignored by
+  an older reader; only a change an old reader cannot survive raises a
+  level, and that is refused.
 
 ## Upgrading the server
 
@@ -317,7 +331,7 @@ host or a script can do it unattended.
 
 **A new code version.** The operator unzips the new `Server/` over the old
 one, or pulls the new image. On start the server reads `installed.json`,
-checks every pack's `requires.server` against itself and starts with the
+checks every pack's `formats` against the ranges it reads and starts with the
 packs that fit; a pack that does not is switched off the way the dashboard
 switches content off today (`content.rs`), listed on the Content view with
 the reason, and left on disk. Nothing is deleted by a code upgrade. If a
@@ -330,7 +344,8 @@ a newer version than `installed.json` and shows the two crcs. Installing
 one:
 
 1. Download to `Content/packs/`, verify the hashes against the signed index.
-2. Check `requires` against this server; refuse before anything is replaced.
+2. Check `formats` against this server's read ranges, and `requires`
+   against the installed packs; refuse before anything is replaced.
 3. Unpack `server/` into a staging folder beside the live one.
 4. Parse it as the loader would (`track_loader`, `CarConfig`), as the
    dashboard's upload does today; a file the server cannot read is refused
@@ -368,8 +383,8 @@ index (the same signed index, with the code zip as a pack of kind `code`)
 for the latest, and shows "Update to 0.4.1". Installing it:
 
 1. Download, verify, unpack into `<install>/.staging/`.
-2. Check every installed pack's `requires.game` against the new version;
-   list what will stop working, and let the player cancel or go on.
+2. Check every installed pack's `formats` against the new build's read
+   ranges; list what will stop working, and let the player cancel or go on.
 3. Move `Game/` and `Server/` aside (`<install>/.previous/`), move the new
    ones in, keep `Content/`, `settings.yml` (the game's, under its settings
    dir), `server.toml` and `custom/` untouched. A `settings.sample.yml`
@@ -383,7 +398,7 @@ and swapped by the next start).
 
 **A new pack version.** The launcher's Manage content view lists every
 installed pack with its version, the newest in the index, and whether it
-fits this client (`requires.game`, `scene_format`); the track and car
+fits this client (its `formats` against the game's read ranges); the track and car
 pickers in the game get a small "update available" mark from
 `installed.json` the same way, and a button that opens the launcher on that
 pack. Installing a pack is the server's steps 1 to 5 run on `game/` into
@@ -436,17 +451,9 @@ item at a time and then a zip:
 3. Version: `<year>.<month>.<n>` where `n` counts packs of that item built
    that month; the script refuses to build a pack whose files are identical
    to the latest published one.
-4. `requires` from the tool versions that built it: `scene_format` from
-   `ats-export`, `props` from the props pack checked out, `server` and
-   `game` from the `apexsim` tag the content repository's CI built
-   against.
+4. `formats` from the `formats` crate the bake was built with, and
+   `requires.props` from the props pack checked out.
 5. Sign and append to `index.json`.
-
-Open for phase 1: under the direction rule, step 4's `server` and `game`
-ranges are the content naming code versions. The cleaner statement is
-format versions only (`scene_format`, the sidecar and `car.toml` schema
-levels from the `formats` crate), with the code stating which it reads;
-`pack.json`, the version rules and the table at the end change with it.
 
 The content repository's CI bakes the calendar and runs `track-core`'s
 tests and `ats-export --strict`; it never builds the code. The code
@@ -511,8 +518,8 @@ against the content working copy.
 | pack A | pack B (in index) | "update and join"; after it, no toast |
 | pack B | pack A | "update and join" to A (a downgrade is an install) |
 | pack A | a hand edit | toast as today; `require_match` refuses with the crc |
-| code N, pack needing N+1 | any | launcher refused the pack; picker shows it greyed with "needs 0.4.1" |
-| code N+1 | pack needing N (older `scene_format`) | the game refuses the export by `format`; launcher offers the pack's newer version |
+| code N, pack written at a format level N does not read | any | launcher refused the pack; picker shows it greyed with "needs ApexSim 0.4.1" (from the code index's read ranges) |
+| code N+1 that no longer reads an old level | pack written at that old level | launcher refused it; it offers the pack's newer version |
 
 ## Not in this proposal
 

@@ -459,7 +459,7 @@ one commit each, are: (1) one content root resolver everywhere, no move;
 (2) code things (default HUD, `showcase.yml`) out of the content; (3)
 `build_track_levels` and `initialize_content` split into a content
 `bake.ps1` and a code `initialize_game.ps1`; (4) housekeeping of dead
-caches and scripts, with you; (5) the move itself, including untracked
+caches and scripts (agreed 2026-10-19); (5) the move itself, including untracked
 content and GitHub Pages; (6) `starter.yml` and the release copying it;
 (7) a `formats` crate owning the track YAML, sidecars and `content_crc`;
 (8) CI per root plus a direction check; (9, optional) the sidecars baked
@@ -467,6 +467,8 @@ out of the source folders. After that come the pack format and a local
 install, the repository split (`git filter-repo --subdirectory-filter` per
 root), the signed index with server and launcher updates, and
 update-and-join.
+**Decided 2026-10-19:** a pack states only the format levels it is
+written in, never a code version; the code states the levels it reads.
 **Decided 2026-10-18:** packs and the signed index are GitHub release
 assets of `apexsim-content` (the index URL stays a setting); the starter set is one
 car per class (GT3, LMP2, F1, Hypercar, Road) and three circuits (Spa,
