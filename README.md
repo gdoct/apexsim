@@ -62,10 +62,13 @@ Windows. In short:
 
 ```powershell
 cd apexsim/server; cargo run               # in its own terminal: the server (TCP 9000, UDP 9001, HTTP 9002)
-cd apexsim                                 # the scripts run from the code root
+cd apexsim                                 # the code scripts run from the code root
 ./scripts/initialize_content.ps1           # build the generated content a fresh clone lacks
 ./scripts/play_editor.ps1 -Build           # build the client and play it from the editor build
-./scripts/build_release.ps1 -Zip           # a release package
+./scripts/build_release.ps1 -Zip           # a release package: the starter set (apexsim-content/starter.yml)
+
+cd apexsim-content                         # the content tools run from the content root
+./bake.ps1 -Track Spa                      # dress, export and draw a circuit (cargo and Python only)
 ```
 
 [apexsim/docs/building.md](apexsim/docs/building.md) has the details: the content stages,
@@ -80,11 +83,15 @@ one car's physics step takes about 2.4 µs, and a whole 8-car session tick
 
 ## Repository
 
-The repository holds two roots, each to become its own repository. The code
-depends on the content (as the sibling `../apexsim-content`), never the other
-way round.
+The repository holds three roots, each to become its own repository. Every
+dependency points one way: the formats depend on nothing, the content builds
+against the formats, and the code depends on both (it reaches them as the
+siblings `../apexsim-content` and `../apexsim-lib`). CI fails when anything
+under `apexsim-content/` reaches into `apexsim/`.
 
 ```
+apexsim-lib/            the shared file formats
+  formats/              Rust crate apexsim-formats: the track YAML, the baked sidecars, the content checksum
 apexsim/                code
   server/               Rust server: simulation, sessions, networking, admin dashboard
   game-unreal/          Unreal Engine 5.8 client (C++ modules ApexSim, ApexSimNet, ApexSimInput, ApexSimBoot, ApexTrackEditor)
@@ -98,6 +105,8 @@ apexsim-content/        content and its tools
   textures/ wheels/     ground textures and steering wheels
   track-editor/         Rust track pipeline (track-core, the ats-* tools) and the Bevy scene editor
   tools/                the Python content pipeline, importers and generators
+  bake.ps1              the content's own bake: ground textures, dressing, exports, previews
+  starter.yml           the cars and circuits a release ships
   build/tracks/         the track exports the client loads (generated)
   docs/                 documentation of the content and its pipeline
 ```
@@ -116,6 +125,10 @@ Coordinate significant changes in an issue first. Before a pull request:
 cd apexsim/server
 cargo fmt && cargo clippy --all-targets   # CI enforces fmt --check and -D warnings
 cargo test
+
+cd apexsim-lib/formats && cargo test      # a change to a file format
+cd apexsim-content && cargo test --manifest-path track-editor/Cargo.toml -p track-core
+python apexsim-content/tools/check_direction.py   # the content does not reach into the code
 ```
 
 Wire-format changes are made on both sides at once (`apexsim/server/src/network.rs`
