@@ -1,21 +1,24 @@
-# ApexSim server image.  Build context is this folder (server/):
-#   docker build -t apexsim-server server
+# ApexSim server image. The build context is the folder holding the roots
+# (the server builds against ../../apexsim-lib/formats), filtered to the
+# server and the formats crate by Dockerfile.dockerignore:
+#   docker build -f apexsim/server/Dockerfile -t apexsim-server .
 # Content (cars, tracks incl. generated sidecars, showcase) is NOT baked in:
 # it is mostly gitignored build output, so mount it at /content (see
 # docker-compose.yml).
 
 FROM rust:1-bookworm AS build
-WORKDIR /src
+WORKDIR /src/apexsim/server
+COPY apexsim-lib/formats /src/apexsim-lib/formats
 # Dependency layer: build with stub sources so edits to src/ keep the cache.
-COPY Cargo.toml Cargo.lock ./
+COPY apexsim/server/Cargo.toml apexsim/server/Cargo.lock apexsim/server/build.rs ./
 RUN mkdir -p src/bin benches \
  && echo 'fn main() {}' > src/main.rs \
  && echo 'fn main() {}' > src/bin/apexsim_replay.rs \
  && echo 'fn main() {}' > benches/physics_tick.rs \
  && cargo build --release --bins \
  && rm -rf src benches target/release/apexsim* target/release/deps/apexsim*
-COPY src ./src
-COPY benches ./benches
+COPY apexsim/server/src ./src
+COPY apexsim/server/benches ./benches
 RUN cargo build --release --bins
 
 FROM debian:bookworm-slim
@@ -24,9 +27,9 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && useradd --system --uid 10001 --home /data apexsim \
  && mkdir -p /data /content && chown apexsim /data
-COPY --from=build /src/target/release/apexsim-server /src/target/release/apexsim-replay /usr/local/bin/
-COPY server.docker.toml /etc/apexsim/server.toml
-COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY --from=build /src/apexsim/server/target/release/apexsim-server /src/apexsim/server/target/release/apexsim-replay /usr/local/bin/
+COPY apexsim/server/server.docker.toml /etc/apexsim/server.toml
+COPY --chmod=755 apexsim/server/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 # records/, replays/ and showcase/ resolve against the working directory.
 WORKDIR /data

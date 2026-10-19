@@ -305,8 +305,11 @@ serve_demo_dashboard -- --ignored --nocapture` serves it on 19003/19004
 
 `server/Dockerfile` builds both binaries into a slim Debian image running as
 user `apexsim`, working directory and volume `/data`, ports 9000-9004, a
-`HEALTHCHECK` on `/health`. Content is not baked in: `Dockerfile.content`
-(built from the folder that holds both roots, `docker build -f
+`HEALTHCHECK` on `/health`. Both images are built from the folder that holds
+the roots, each filtered by its own `<Dockerfile>.dockerignore`: the server
+builds against `apexsim-lib/formats` (`docker build -f
+apexsim/server/Dockerfile -t apexsim-server .`). Content is not baked in:
+`Dockerfile.content` (`docker build -f
 apexsim/server/Dockerfile.content -t apexsim-content .`) packs
 `apexsim-content/cars`, `apexsim-content/tracks` (with the generated sidecars)
 and `apexsim/build/showcase`, and on start replaces the `/content` volume

@@ -13,7 +13,10 @@ services:
 
   apexsim:
     image: apexsim-server             # or registry/apexsim-server:tag
-    build: .
+    # The folder holding the roots: the server builds against apexsim-lib/formats.
+    build:
+      context: ../..
+      dockerfile: apexsim/server/Dockerfile
     restart: unless-stopped
     depends_on:
       content:

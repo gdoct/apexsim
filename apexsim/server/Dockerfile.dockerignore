@@ -1,0 +1,13 @@
+# The server image's context is the folder holding the roots: only the
+# server's sources and the formats crate it builds against go in.
+*
+!apexsim/server/Cargo.toml
+!apexsim/server/Cargo.lock
+!apexsim/server/build.rs
+!apexsim/server/src/**
+!apexsim/server/benches/**
+!apexsim/server/server.docker.toml
+!apexsim/server/docker-entrypoint.sh
+!apexsim-lib/formats/Cargo.toml
+!apexsim-lib/formats/Cargo.lock
+!apexsim-lib/formats/src/**

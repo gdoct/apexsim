@@ -224,7 +224,13 @@ if ($DryRun) { Write-Host 'Dry run: nothing built, sent or started.'; return }
 if (-not $SkipBuild) {
     if (-not $SkipServer) {
         Step 'Building the server image'
-        & docker build -t $serverImage (Join-Path $repo 'server')
+        # The context is the folder holding the roots: the server builds
+        # against apexsim-lib/formats (Dockerfile.dockerignore filters it).
+        Push-Location (Split-Path -Parent $repo)
+        try {
+            & docker build -f "$(Split-Path -Leaf $repo)/server/Dockerfile" -t $serverImage .
+        }
+        finally { Pop-Location }
         if ($LASTEXITCODE -ne 0) { Fail 'Server image build failed.' }
     }
     if (-not $SkipContent) {
