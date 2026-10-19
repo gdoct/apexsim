@@ -379,7 +379,7 @@ if ($doServer) {
 }
 
 if ($doPngs) {
-    Write-Step 'Baking the ground texture PNGs'
+    # bake.ps1 prints its own step line.
     & (Join-Path $ContentRoot 'bake.ps1') -Stage ground -Force
 }
 
