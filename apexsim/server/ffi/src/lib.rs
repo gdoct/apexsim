@@ -1,5 +1,6 @@
-//! The server's car step behind a C API, for the client's prediction of its
-//! own car (docs/proposals/client-prediction.md).
+//! The car step of the simulation (`apexsim-sim`, the very code the server
+//! runs) behind a C API, for the client's prediction of its own car
+//! (docs/proposals/client-prediction.md).
 //!
 //! One physics: [`apx_car_step`] calls `car_step::step_lone_car`, the very
 //! function a `GameSession` runs for each car, with the session's own `dt`
@@ -20,15 +21,15 @@ use std::cell::RefCell;
 use std::ffi::{c_char, CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-use apexsim_server::car_loader::CarLoader;
-use apexsim_server::car_setup::{CarSetup, KNOB_COUNT};
-use apexsim_server::car_step::{self, StepClock};
-use apexsim_server::config::RoadContactMode;
-use apexsim_server::data::{CarConfig, CarState, PlayerInputData, SessionConditions, TrackConfig};
-use apexsim_server::feedback::{DriverFeedback, MAX_STEER_SAMPLES};
-use apexsim_server::own_car::{self, OwnCarSnapshot};
-use apexsim_server::track_bundle::TrackFiles;
-use apexsim_server::track_loader::TrackLoader;
+use apexsim_sim::car_loader::CarLoader;
+use apexsim_sim::car_setup::{CarSetup, KNOB_COUNT};
+use apexsim_sim::car_step::{self, StepClock};
+use apexsim_sim::data::{CarConfig, CarState, PlayerInputData, SessionConditions, TrackConfig};
+use apexsim_sim::feedback::{DriverFeedback, MAX_STEER_SAMPLES};
+use apexsim_sim::own_car::{self, OwnCarSnapshot};
+use apexsim_sim::track_bundle::TrackFiles;
+use apexsim_sim::track_loader::RoadContactMode;
+use apexsim_sim::track_loader::TrackLoader;
 
 /// The C API's version: [`apx_abi_version`]. Bumped whenever a function's
 /// signature or a `#[repr(C)]` struct changes.
@@ -478,7 +479,7 @@ pub unsafe extern "C" fn apx_track_load(
         let conditions = session_conditions(bytes(conditions, conditions_len, "conditions")?)?;
         let track = TrackLoader::load_from_file_with(path, mode)
             .map_err(|e| Fail::new(APX_ERR_TRACK, format!("{path}: {e:?}")))?;
-        let track = apexsim_server::game_session::session_track(track, &conditions);
+        let track = apexsim_sim::game_session::session_track(track, &conditions);
         *out = Box::into_raw(Box::new(ApxTrack { track }));
         Ok(())
     })
@@ -549,7 +550,7 @@ pub unsafe extern "C" fn apx_track_load_bundle(
         // The files have no place on disk; the name only labels the log.
         let label = std::path::Path::new("bundle").join(format!("{expected_crc:08X}.yaml"));
         TrackLoader::load_sidecars_from(&mut track, &files, &label, mode);
-        let track = apexsim_server::game_session::session_track(track, &conditions);
+        let track = apexsim_sim::game_session::session_track(track, &conditions);
         *out = Box::into_raw(Box::new(ApxTrack { track }));
         Ok(())
     })
@@ -581,7 +582,7 @@ pub unsafe extern "C" fn apx_track_bundle_build(
         let mode = road_contact_mode(road_contact)?;
         let files = TrackFiles::read(std::path::Path::new(path), mode)
             .map_err(|e| Fail::new(APX_ERR_TRACK, format!("{path}: {e}")))?;
-        let bundle = apexsim_server::track_bundle::TrackBundle::of(&files);
+        let bundle = apexsim_sim::track_bundle::TrackBundle::of(&files);
         *written = bundle.bytes.len();
         *crc = bundle.crc;
         if buf.is_null() || capacity < bundle.bytes.len() {
@@ -693,7 +694,7 @@ pub unsafe extern "C" fn apx_car_create(
                 )
             })?;
         let mut state = CarState::new(Default::default(), shared.id, slot);
-        apexsim_server::physics::seed_track_progress(&mut state, track);
+        apexsim_sim::physics::seed_track_progress(&mut state, track);
         *out = Box::into_raw(Box::new(ApxCar {
             shared,
             simulated,

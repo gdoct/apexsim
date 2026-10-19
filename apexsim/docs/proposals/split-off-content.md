@@ -129,7 +129,7 @@ do not, so the rule places them:
 | the duplicated formats (track YAML, the road, ground, curbs, walls and pit sidecars, `content_crc`) | `apexsim-lib/formats`, a crate the server and `track-core` both depend on by path | each is modelled once there (the serialized types, their versions, the sidecar paths, the checksum, the format levels); the server keeps its queries (`GroundQuery`, `CurbQuery`, `RoadMesh`, `Walls`, `PitLane`) and `track-core` its bake on those types. The crate's tests hold the YAML rewrite and the sidecars' bytes to inline goldens; the server's `tests/track_file_compat_test.rs` loads every real track's rewrite to the same track. The C++ readers (`ApexCarToml.h`, `ApexContentCrc.h`, the scene reader) stay code, checked against the crate's golden files. |
 | the AI survey (`survey_ai_races_on_every_circuit`) | `apexsim`, run against a content working copy | the acceptance check for wall, centerline and ground edits needs the sim. It is a check run from the code side, not a build dependency of the content. |
 | the AC importers | `apexsim-content/tools` | pure Python over the content formats; the release copies them in as `Tools/importer`. |
-| the site (`site/`, `scripts/site`, `docs/index.html`) | `apexsim` | it reads both sides (`facts.py` reads `server/src/car_setup.rs`; the shots need the server and the game). `artwork/` and `props/_preview` stay content. GitHub Pages deploys `apexsim/docs` through `.github/workflows/pages.yml`. |
+| the site (`site/`, `scripts/site`, `docs/index.html`) | `apexsim` | it reads both sides (`facts.py` reads `sim/src/car_setup.rs`; the shots need the server and the game). `artwork/` and `props/_preview` stay content. GitHub Pages deploys `apexsim/docs` through `.github/workflows/pages.yml`. |
 
 **The starter set.** `apexsim-content/starter.yml` lists the cars and
 tracks a release ships (decided 2026-10-18: one car per class and Spa,
@@ -156,7 +156,7 @@ after each:
    `server/` half of a pack, so phase 1 only has to zip it.
 
 One test-only edge is left and stays allowed in the direction check:
-`tools/ac_car_import/tests` reads `apexsim/server/src/brakes.rs` for its
+`tools/ac_car_import/tests` reads `apexsim/sim/src/brakes.rs` for its
 brake constants (and skips without it). They are car physics constants, not
 a file format the two sides write and read, so they are not in the formats
 crate; the edge goes when `car.toml` gets its own module there.
@@ -437,7 +437,7 @@ against the content working copy.
 
 ## What changes in the code
 
-- `server/src/content_crc.rs` stays. New `content_pack.rs`: read
+- `sim/src/content_crc.rs` stays. New `content_pack.rs`: read
   `pack.json` and `installed.json`, the `requires` check, the five install
   steps, `content {list,update,install,remove,verify}` on the command
   line, the dashboard's Updates section (`admin/content.rs`).

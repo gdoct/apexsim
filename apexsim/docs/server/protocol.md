@@ -166,7 +166,7 @@ members `ShootoutState` the same way
 
 Client prediction ([../proposals/client-prediction.md](../proposals/client-prediction.md))
 rewinds the driver's own car to the server's and replays the inputs the
-server had not applied yet. The wire for it (`server/src/own_car.rs`):
+server had not applied yet. The wire for it (`sim/src/own_car.rs`):
 
 - **`PlayerInput.seq`** (`Option<u32>`, after `handbrake`, left off when
   `None`): the client's number for the input, one higher with each it sends
@@ -213,7 +213,7 @@ server had not applied yet. The wire for it (`server/src/own_car.rs`):
   (`FApexServerMessage::ConditionsBytes`), which is what the library bakes.
   Golden: `session_joined_physics_wire_format` into
   `ApexGolden::S_SessionJoinedPhysics`.
-- **The track's physics bundle** (`server/src/track_bundle.rs`): the files
+- **The track's physics bundle** (`sim/src/track_bundle.rs`): the files
   the car step reads, the track YAML and the sidecars beside it (ground,
   curbs, walls, pit lane, and the road mesh when the session drives on it),
   as the server read them when it loaded the track (`track_content`, once,

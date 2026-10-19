@@ -2,12 +2,12 @@ using System.IO;
 using UnrealBuildTool;
 
 /// <summary>
-/// The server's car step as a prebuilt static library (server/ffi, crate
-/// apexsim-physics), for the client's prediction of its own car
+/// The simulation's car step as a prebuilt static library (server/ffi, crate
+/// apexsim-physics, linking apexsim-sim alone), for the client's prediction of its own car
 /// (docs/proposals/client-prediction.md, docs/building.md).
 ///
 /// The header is the hand-written server/ffi/apexsim_physics.h, read where it
-/// lives. The library is built from the server's source, never checked in:
+/// lives. The library is built from the simulation's source, never checked in:
 /// scripts/build_physics_lib.ps1 runs `cargo build --release` in server/ffi
 /// and copies the .lib to lib/Win64/ here. Without it the client still
 /// builds and runs, with WITH_APEX_PHYSICS 0 and prediction unavailable.
@@ -32,13 +32,13 @@ public class ApexPhysics : ModuleRules
 		}
 
 		PublicAdditionalLibraries.Add(Library);
-		// What the Rust standard library and the server crate link against
-		// (`cargo rustc --release --lib --crate-type staticlib -- --print
-		// native-static-libs`); the CRT is the dynamic one, as every module's.
+		// What the Rust standard library links against: the simulation crate
+		// (apexsim-sim) needs nothing more (`cargo rustc --release --lib
+		// --crate-type staticlib -- --print native-static-libs` in server/ffi);
+		// the CRT is the dynamic one, as every module's.
 		PublicSystemLibraries.AddRange(new string[]
 		{
-			"kernel32.lib", "winmm.lib", "bcrypt.lib", "advapi32.lib", "ntdll.lib",
-			"userenv.lib", "ws2_32.lib", "dbghelp.lib",
+			"kernel32.lib", "ntdll.lib", "userenv.lib", "ws2_32.lib", "dbghelp.lib",
 		});
 	}
 }

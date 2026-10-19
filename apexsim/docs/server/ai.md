@@ -11,19 +11,19 @@ same ([architecture.md](../architecture.md), determinism).
 
 ## Code
 
-- `server/src/ai_driver.rs` - `AiDriverProfile` (skill and the attributes
+- `sim/src/ai_driver.rs` - `AiDriverProfile` (skill and the attributes
   derived from it), `AiDriverController` (the per-tick driver),
   `field_skills` / `generate_ai_profiles`, `profile_pace`.
-- `server/src/racecraft.rs` - `decide`, `Racecraft` (kept on
+- `sim/src/racecraft.rs` - `decide`, `Racecraft` (kept on
   `CarState::racecraft`), `Tactic`, `next_corner`, the stuck recovery.
-- `server/src/racing_line.rs` - `build` / `build_laden`: the per-car speed
+- `sim/src/racing_line.rs` - `build` / `build_laden`: the per-car speed
   profile the AI drives; `build_driven` is the player's aid planned again
   at a lap's end ([game/client.md](../game/client.md)).
-- `server/src/game_session.rs` - `spawn_ai_drivers`, `class_field`,
+- `sim/src/game_session.rs` - `spawn_ai_drivers`, `class_field`,
   `plan_ai_speeds` / `ai_speed_profile`, `ai_input_for`,
   `update_racecraft`, `plan_ai_stops`, `fuel_save`, `refuels`,
   `ai_ers`.
-- `server/src/pit.rs` - `plan_stop`, `tyres_for_the_track`, `fuel_save_for`,
+- `sim/src/pit.rs` - `plan_stop`, `tyres_for_the_track`, `fuel_save_for`,
   `run_up_input`,
   `drive_input` ([pit-lane.md](pit-lane.md)).
 
@@ -394,7 +394,7 @@ or a struck lap: [sessions.md](sessions.md)); the track guide's solo runs
 
 ```bash
 cd server
-cargo test --lib -- ai_driver:: racecraft::
+cargo test --manifest-path ../sim/Cargo.toml -- ai_driver:: racecraft::   # the unit tests live in the simulation crate
 cargo test --test racecraft_test     # a quicker driver passes a slower one; a car in a barrier reverses out
 cargo test --test ai_race_start_test # composed off the grid; Le Mans first lap (the yaw seam)
 cargo test --test determinism_test   # also fuel_test an_ai_short_of_fuel_lifts_and_coasts, air_test the_ai_gets_round_in_a_gale

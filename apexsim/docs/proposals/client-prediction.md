@@ -3,8 +3,7 @@
 Status: built, phases 1 (the library), 2 (the wire), 3 (the loop, off by
 default) and 4 (the feel, the sound and the HUD on the predicted car; the
 track's physics bundle served on join). Whether it feels right over real
-latency is for a driver on a wheel ([verification.md](../verification.md));
-a physics-only library is a follow-up ([follow-ups.md](../follow-ups.md)).
+latency is for a driver on a wheel ([verification.md](../verification.md)).
 
 ## The problem
 
@@ -23,15 +22,16 @@ knows first, needs prediction.
 
 - `ClientMessage::PlayerInput` carries `server_tick_ack`, the controls and
   the client's number for the input (`seq`, phase 2).
-- `DriverFeedback` (`server/src/feedback.rs`) is per driver and per telemetry
+- `DriverFeedback` (`sim/src/feedback.rs`) is per driver and per telemetry
   tick, carries `server_tick`, torque samples and the column slope, and for
   a client that numbers its inputs the own car's snapshot and slices of its
   full state (phase 2, below).
 - Telemetry is serialized once per session and fanned out
   (`game_loop/broadcast.rs`), so it cannot carry anything per recipient.
-- The server crate is an rlib (`src/lib.rs`) plus two binaries. The car
+- The simulation is its own crate (`apexsim-sim`, `sim/`), which the
+  server crate (an rlib plus two binaries) links and re-exports. The car
   step is also a static library behind a C API, `server/ffi` (phase 1,
-  below), which the client links (phase 3).
+  below), on the simulation crate alone, which the client links (phase 3).
 - The client has every car.toml (it builds cars from them), its own setup
   clicks and `SessionConditions`. A track's YAML and physics sidecars
   (`road`, `curbs`, `walls`, `ground`, `pit`) it has only in a checkout
@@ -122,11 +122,12 @@ relocation, which snaps by design).
 ## Phase 1: the library (built)
 
 `server/ffi` is the crate `apexsim-physics`: a static library (and an rlib
-for its own tests) on the server crate, so the server builds as before. How
+for its own tests) on the simulation crate (`apexsim-sim`), the code the
+server runs, without the server's runtime. How
 to build it for Windows x64 MSVC and what it links against is in
 [building.md](../building.md#the-physics-library-serverffi).
 
-**One step.** `car_step::step_car` (server, `src/car_step.rs`) is one car's
+**One step.** `car_step::step_car` (sim, `src/car_step.rs`) is one car's
 tick as every session mode runs it: `update_car_3d`, a hook (the session
 samples its ghost trace there), `update_track_progress_3d`.
 `car_step::step_lone_car` is that plus what the contact passes do to a car
@@ -197,9 +198,9 @@ replays them bit for bit.
   road's own step, which the client does not run.
 - The tick the client steps is the server's `current_tick` for that tick
   (the wind and the lap timing read it); the rate is the session's.
-- Linking: the `.lib` carries the whole server crate (tokio, rustls ...),
-  about 10 MB in release; the linker drops what the car step does not
-  reach. A physics-only crate split out of the server would shrink it.
+- Linking: the `.lib` carries the simulation crate (`apexsim-sim`) and its
+  few dependencies, no network or TLS code; the linker drops what the car
+  step does not reach.
 
 ## Phase 2: the wire (built)
 
@@ -292,7 +293,7 @@ this is what was decided on the way.
 **Linking.** `game-unreal/Source/ThirdParty/ApexPhysics`, an external
 module: the header where it lives (`server/ffi`), the `.lib` from
 `scripts/build_physics_lib.ps1`, built on demand and never checked in (it
-is generated from the server's source, and 80 MB). It linked into the
+is generated from the simulation's source, and 36 MB). It linked into the
 editor's `UnrealEditor-ApexSim.dll` with no clash. A client without it
 builds with `WITH_APEX_PHYSICS 0`, and `ApexPhysics::IsAvailable` says why.
 
@@ -448,15 +449,13 @@ controls it applied (the replay holds them, so a lift or a turn-in is a
 correction: the largest 0.21 m); a driver's own inputs are replayed as
 sent, which the automation tests measure (0.006, 17 rpm at p95).
 
-**The library's size.** The `.lib` links the whole server crate (tokio,
-rustls, hyper, ring...), 80 MB with thin LTO and the same with fat LTO (a
-staticlib carries every dependency's objects whatever the LTO); the
-client's linker keeps what the C API reaches. A physics-only crate is not a small cut: `data.rs` reaches
-the AI, race control, the safety car and racecraft, `physics.rs` reaches
-`game_session` and `network`, and the library needs
-`game_session::session_track`. Moving them would touch most of the
-server's modules, so it is a follow-up
-([follow-ups.md](../follow-ups.md)).
+**The library's size.** The `.lib` links the simulation crate
+(`apexsim-sim`: the car, the track, the race and the session tick) and not
+the server's runtime (tokio, rustls, hyper, ring): 36 MB with thin LTO
+(a staticlib carries every dependency's objects whatever the LTO, the
+standard library's among them), and beyond the standard library's own
+system libraries it needs none. The client's linker keeps what the C API
+reaches ([architecture.md](../architecture.md#simulation-and-runtime-modules)).
 
 ## Risks
 

@@ -1,5 +1,5 @@
 """The server's four sidecars, written the way `rmp_serde::to_vec_named`
-writes them: MessagePack maps with the field names of `server/src/
+writes them: MessagePack maps with the field names of `sim/src/
 road_mesh.rs`, `walls.rs`, `ground.rs` and `curbs.rs`. Every file goes
 through a temp file and a rename, like the exporter's.
 """

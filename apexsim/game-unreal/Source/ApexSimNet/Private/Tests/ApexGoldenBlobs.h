@@ -4,7 +4,7 @@
 //
 // Byte-for-byte output of `rmp_serde::to_vec_named` for every menu-facing
 // protocol message, produced from the serde definitions in
-// `server/src/network.rs` and `server/src/data.rs` copied verbatim into a
+// `server/src/network.rs` and `sim/src/data.rs` copied verbatim into a
 // standalone crate. These are the contract: if the client's encoder stops
 // producing these bytes, or its decoder stops accepting them, the client and
 // the server have diverged.

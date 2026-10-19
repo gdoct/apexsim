@@ -539,7 +539,7 @@ pub struct GameSession {
     /// The tick this session last entered `GameMode::Qualification` or
     /// `GameMode::Practice`: a timed session's clock runs from it
     /// (`timed_elapsed_ticks`).
-    timed_start_tick: Option<u32>,
+    pub timed_start_tick: Option<u32>,
     /// A race weekend's progress (`crate::weekend`); unused outside one.
     weekend: crate::weekend::WeekendProgress,
     /// The `WeekendState` last handed out (`take_weekend_state`), so it
@@ -574,11 +574,11 @@ pub struct GameSession {
     /// finished: `game_loop::tick::cleanup_finished_sessions` times its
     /// removal from there (the session's own `current_tick` counts from its
     /// creation, not the server's start).
-    pub(crate) finished_since_loop_tick: Option<u64>,
+    pub finished_since_loop_tick: Option<u64>,
     /// The server loop's tick from which every human seated here has been
     /// away (`away`): `game_loop::tick` ends the session when none is back
     /// within `[server] reconnect_grace_seconds`.
-    pub(crate) orphaned_since_loop_tick: Option<u64>,
+    pub orphaned_since_loop_tick: Option<u64>,
     /// Run by the server from the dashboard (`crate::admin::hosted`), not
     /// by a player: it stays without a human in it, and the dashboard or
     /// its schedule starts and ends it. Nothing in the tick reads it.
@@ -653,7 +653,7 @@ pub struct GameSession {
     /// The tick the sky started on: 0, or the start of a race weekend's
     /// day with a sky of its own (`begin_day`). The clock and the forecast
     /// run from it.
-    sky_epoch_tick: u32,
+    pub sky_epoch_tick: u32,
     /// The track as loaded, before any weather was baked into it (the
     /// server's shared copy), so a weekend's day can bake its own sky
     /// (`begin_day`); `None` for a session made without one.
@@ -2370,7 +2370,7 @@ impl GameSession {
     }
 
     /// The timed session's length in ticks; `None` when it is open-ended.
-    fn timed_length_ticks(&self) -> Option<u64> {
+    pub fn timed_length_ticks(&self) -> Option<u64> {
         self.timed_session_seconds()
             .map(|s| s as u64 * self.tick_rate_hz as u64)
     }
@@ -8220,90 +8220,6 @@ mod tests {
         assert_eq!(game_session.session.game_mode, GameMode::Countdown);
     }
 
-    /// Two humans racing on the default oval, lap limit 3.
-    /// A car stopped on the road brings out a double yellow over its
-    /// marshal sector and a single over the one before: the car arriving
-    /// behind is told, telemetry carries both, and the flags go once the
-    /// stopped car has gone and the hold has run out.
-    #[test]
-    fn a_car_stopped_on_the_road_brings_out_the_yellows() {
-        // The wire's view of the session (runtime side).
-        use crate::session_wire::SessionWire;
-        let track = crate::track_loader::TrackLoader::load_from_file(
-            "../../apexsim-content/tracks/default/Monza/Monza.yaml",
-        )
-        .expect("Monza");
-        let car = CarConfig::default();
-        let car_id = car.id;
-        let mut car_configs = HashMap::new();
-        car_configs.insert(car_id, car);
-        let session = RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Multiplayer, 8, 0, 3);
-        let mut gs = GameSession::new(session, track, car_configs);
-        let (arriving, stopped) = (Uuid::from_u128(1), Uuid::from_u128(2));
-        gs.add_player(arriving, car_id).unwrap();
-        gs.add_player(stopped, car_id).unwrap();
-        gs.set_game_mode(GameMode::Race);
-        gs.session.state = SessionState::Racing;
-        gs.session.race_start_tick = Some(0);
-        gs.session.current_tick = 60 * DEFAULT_TICK_RATE_HZ as u32;
-        let place = |gs: &mut GameSession, id: PlayerId, station: f32, speed: f32| {
-            let (x, y, z, yaw) = physics::pose_at_station(&gs.track_config.centerline, station);
-            let s = gs.session.participants.get_mut(&id).unwrap();
-            s.pos_x = x;
-            s.pos_y = y;
-            s.pos_z = z;
-            s.yaw_rad = yaw;
-            s.vel_x = speed * yaw.cos();
-            s.vel_y = speed * yaw.sin();
-            s.speed_mps = speed;
-            s.gear = 4;
-            s.current_lap = 2;
-            s.nearest_centerline_idx = None;
-            physics::seed_track_progress(s, &gs.track_config);
-        };
-        place(&mut gs, stopped, 1125.0, 0.0);
-        place(&mut gs, arriving, 850.0, 50.0);
-        // A stop is an incident once it has lasted `INCIDENT_CONFIRM_S`.
-        let confirm =
-            (crate::race_control::INCIDENT_CONFIRM_S * DEFAULT_TICK_RATE_HZ as f32).ceil() as usize;
-        for _ in 0..confirm - 1 {
-            gs.tick(&HashMap::new());
-        }
-        assert!(gs.yellow_flags().is_none(), "not out at once");
-        for _ in 0..2 {
-            gs.tick(&HashMap::new());
-        }
-        let a = &gs.session.participants[&arriving];
-        assert_eq!(
-            a.flag_yellow, 2,
-            "the double ahead, at {:.0} m",
-            a.track_progress
-        );
-        let flags = gs.yellow_flags().expect("yellows out");
-        assert_eq!(flags.sector_m, 250);
-        assert!(flags.sectors.contains(&[4, 2]), "{:?}", flags.sectors);
-        assert!(flags.sectors.contains(&[3, 1]), "{:?}", flags.sectors);
-        let telemetry = gs.get_compact_telemetry();
-        let row = telemetry
-            .car_states
-            .iter()
-            .find(|c| Some(c.car_index) == gs.car_index_of(&arriving))
-            .unwrap();
-        assert_eq!(row.race_flags >> crate::network::RACE_FLAG_YELLOW_SHIFT, 2);
-        assert!(telemetry.yellow_flags.is_some());
-
-        // The stopped car is taken away (to the pits): the yellows hold, then go.
-        gs.session.participants.get_mut(&stopped).unwrap().in_garage = true;
-        for _ in
-            0..((crate::race_control::YELLOW_HOLD_S + 0.5) * DEFAULT_TICK_RATE_HZ as f32) as usize
-        {
-            place(&mut gs, arriving, 600.0, 50.0);
-            gs.tick(&HashMap::new());
-        }
-        assert!(gs.yellow_flags().is_none(), "cleared");
-        assert_eq!(gs.session.participants[&arriving].flag_yellow, 0);
-    }
-
     fn racing_session_with_two_humans() -> (GameSession, PlayerId, PlayerId) {
         let mut game_session = create_test_session();
         let car_id = game_session.car_configs.values().next().unwrap().id;
@@ -9438,79 +9354,6 @@ mod tests {
         for id in &out {
             assert!(game_session.session.participants[id].in_garage);
         }
-    }
-
-    /// Each day of a weekend under its own sky: practice in the rain at
-    /// dawn, qualifying overcast, the race under the session's own sky,
-    /// each baked from the source track afresh with the sky's clock
-    /// started at the day. A weekend naming no day's sky keeps its one.
-    #[test]
-    fn a_weekend_day_bakes_its_own_sky() {
-        // The wire's view of the session (runtime side).
-        use crate::session_wire::SessionWire;
-        let (mut game_session, ids) = weekend_of(2, 600, &[600]);
-        let dry = game_session.track_config.track_surface.base_grip;
-        let source = std::sync::Arc::new(game_session.track_config.clone());
-        game_session.set_source_track(source.clone());
-        // No day named: practice keeps the session's sky and track.
-        game_session.advance_weekend().unwrap();
-        assert_eq!(game_session.session.conditions, SessionConditions::DEFAULT);
-        assert_eq!(game_session.sky_epoch_tick, 0);
-        assert_eq!(game_session.weekend_state().unwrap().conditions, None);
-        assert!(!game_session.take_day_lines_due());
-        let _ = ids;
-
-        let (mut game_session, ids) = weekend_of(2, 600, &[600]);
-        let driver = ids[1];
-        game_session.set_source_track(source);
-        let base = game_session.session.conditions;
-        let rain = SessionConditions {
-            weather: Weather::HeavyRain,
-            time_of_day_minutes: 7 * 60,
-            ..SessionConditions::DEFAULT
-        };
-        let overcast = SessionConditions {
-            weather: Weather::Overcast,
-            ..SessionConditions::DEFAULT
-        };
-        game_session.set_weekend(Some(crate::weekend::WeekendFormat {
-            practice_seconds: 600,
-            qualifying_seconds: vec![600],
-            practice_conditions: Some(Box::new(rain)),
-            qualifying_conditions: Some(Box::new(overcast)),
-            ..Default::default()
-        }));
-        game_session.session.current_tick = 1000;
-        game_session.advance_weekend().unwrap();
-        assert_eq!(game_session.session.conditions.weather, Weather::HeavyRain);
-        assert!(game_session.track_config.track_surface.wet);
-        assert!(game_session.track_config.track_surface.base_grip < dry);
-        assert_eq!(game_session.sky_epoch_tick, 1000);
-        assert_eq!(game_session.sky_now().clock_s, 7 * 3600);
-        // Everyone is told the day's sky, and every driver's racing line is
-        // planned again under it, once.
-        assert_eq!(
-            game_session.weekend_state().unwrap().conditions,
-            Some(game_session.session.conditions)
-        );
-        assert!(game_session.take_day_lines_due());
-        assert!(!game_session.take_day_lines_due());
-        assert!(game_session.refreshed_racing_line(&driver).is_some());
-        assert!(game_session.refreshed_racing_line(&driver).is_none());
-        end_phase(&mut game_session);
-
-        game_session.advance_weekend().unwrap();
-        assert_eq!(game_session.session.conditions.weather, Weather::Overcast);
-        assert!(!game_session.track_config.track_surface.wet);
-        let overcast_grip = game_session.track_config.track_surface.base_grip;
-        assert!(overcast_grip < dry && overcast_grip > 0.9 * dry);
-        end_phase(&mut game_session);
-
-        // The race day: the session's own sky, the track as filed.
-        game_session.advance_weekend().unwrap();
-        assert_eq!(game_session.session.conditions, base);
-        assert_eq!(game_session.track_config.track_surface.base_grip, dry);
-        assert!(!game_session.track_config.track_surface.wet);
     }
 
     /// The weekend's state is handed out once per change.

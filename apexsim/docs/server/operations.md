@@ -14,7 +14,7 @@ command line and every `APEXSIM_*` environment variable are listed in
   views, `hosted.rs` sessions the server runs, `schedule.rs`, `content.rs`
   switched-off content and uploads, `bans.rs`, `logbuf.rs`, `sampler.rs`,
   the page in `web/`).
-- `server/src/debug_hooks.rs` - `[debug]` stand-in driver and timed events.
+- `sim/src/debug_hooks.rs` - `[debug]` stand-in driver and timed events.
 - `server/Dockerfile`, `Dockerfile.content`, `docker-compose.yml`,
   `docker-entrypoint.sh`, `server.docker.toml`; `scripts/deploy_server.ps1`.
 
@@ -307,7 +307,7 @@ serve_demo_dashboard -- --ignored --nocapture` serves it on 19003/19004
 user `apexsim`, working directory and volume `/data`, ports 9000-9004, a
 `HEALTHCHECK` on `/health`. Both images are built from the folder that holds
 the roots, each filtered by its own `<Dockerfile>.dockerignore`: the server
-builds against `apexsim-lib/formats` (`docker build -f
+builds against `apexsim/sim` and `apexsim-lib/formats` (`docker build -f
 apexsim/server/Dockerfile -t apexsim-server .`). Content is not baked in:
 `Dockerfile.content` (`docker build -f
 apexsim/server/Dockerfile.content -t apexsim-content .`) packs

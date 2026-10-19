@@ -5,7 +5,7 @@ The code (../apexsim) depends on the content and never the other way round:
 nothing under the content root may read, build or link a path in the code
 root. This walks every text file the content tracks in git and looks for a
 path into the code root (`../apexsim/`, `..\\apexsim\\`, a Python path built
-as `... / "apexsim" / ...`) or a Cargo dependency on the server crate.
+as `... / "apexsim" / ...`) or a Cargo dependency on the server or simulation crate.
 
 The formats crate (`../apexsim-lib`) is not code: the content builds
 against it (`track-core` depends on `../../../apexsim-lib/formats`), and no
@@ -30,12 +30,12 @@ PATTERNS = [
     re.compile(r"\.\./apexsim/"),
     re.compile(r"\.\.\\apexsim\\"),
     re.compile(r"/\s*[\"']apexsim[\"']\s*/"),
-    re.compile(r"^\s*apexsim-server\s*=", re.MULTILINE),
+    re.compile(r"^\s*apexsim-(server|sim)\s*=", re.MULTILINE),
 ]
 
 # (file relative to the content root, why it may) - test-only edges.
 ALLOWED = {
-    "tools/ac_car_import/tests/test_ac_car_import.py": "reads the server's brake constants, skips without them",
+    "tools/ac_car_import/tests/test_ac_car_import.py": "reads the simulation's brake constants, skips without them",
 }
 
 # Prose may name code paths; generated scene data carries the "apexsim" sign text.

@@ -25,7 +25,7 @@ game builds at runtime (no cooked track levels). Formats:
 - The sidecars' formats: `apexsim-lib/formats/src/` (`ground.rs`,
   `curbs.rs`, `walls.rs`, `road_mesh.rs`, `pit.rs`: the structs, their
   versions and paths), which track-core writes and the server reads.
-- Server readers: `apexsim/server/src/track_loader.rs`, `track_content.rs`,
+- Server readers: `apexsim/sim/src/track_loader.rs`, `track_content.rs`,
   `ground.rs`, `curbs.rs`, `walls.rs`, `road_mesh.rs`, `pit.rs`.
 - Client: `apexsim/game-unreal/Source/ApexSim/{Public,Private}/Track/`; editor-only
   commandlets in `ApexTrackEditor/` (`ApexMaterialBake`,

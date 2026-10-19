@@ -10,9 +10,9 @@ car's reference state.
 
 ## Code
 
-- `server/src/physics.rs`: `update_car_3d`, tyre force solve, surface queries, collisions,
+- `sim/src/physics.rs`: `update_car_3d`, tyre force solve, surface queries, collisions,
   steering aid, gearbox, track progress.
-- `server/src/data.rs`: `CarConfig` and its sub-configs, `CarState`, `TireData`,
+- `sim/src/data.rs`: `CarConfig` and its sub-configs, `CarState`, `TireData`,
   `DamageState`, `DrsSpec`. `car_loader.rs`: the car.toml schema.
 - Per subsystem: `tyre_thermal.rs`, `aero.rs`, `slipstream.rs`, `brakes.rs`,
   `engine_heat.rs`, `damage.rs`, `geometry.rs`, `hybrid.rs`, `drs.rs`, `car_setup.rs`,

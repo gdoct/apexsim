@@ -12,14 +12,14 @@ use std::ffi::{CStr, CString};
 use std::path::PathBuf;
 
 use apexsim_physics::*;
-use apexsim_server::car_loader::CarLoader;
-use apexsim_server::car_setup::{CarSetup, KNOB_COUNT};
-use apexsim_server::car_step;
-use apexsim_server::config::RoadContactMode;
-use apexsim_server::data::*;
-use apexsim_server::game_session::{GameSession, DEFAULT_TICK_RATE_HZ, PUNCTURE_HIT_PCT};
-use apexsim_server::own_car::OwnCarSnapshot;
-use apexsim_server::track_loader::TrackLoader;
+use apexsim_sim::car_loader::CarLoader;
+use apexsim_sim::car_setup::{CarSetup, KNOB_COUNT};
+use apexsim_sim::car_step;
+use apexsim_sim::data::*;
+use apexsim_sim::game_session::{GameSession, DEFAULT_TICK_RATE_HZ, PUNCTURE_HIT_PCT};
+use apexsim_sim::own_car::OwnCarSnapshot;
+use apexsim_sim::track_loader::RoadContactMode;
+use apexsim_sim::track_loader::TrackLoader;
 use uuid::Uuid;
 
 fn repo(rel: &str) -> PathBuf {
@@ -545,7 +545,7 @@ fn a_snapshot_over_a_stale_state_replays_with_the_server() {
 /// does not.
 #[test]
 fn the_road_from_the_wire_grips_as_the_servers() {
-    use apexsim_server::road_state::ROW_BYTES;
+    use apexsim_sim::road_state::ROW_BYTES;
     let track = TrackLoader::load_from_file(repo(TRACK)).unwrap();
     let conditions = conditions(&track);
     let ffi = Ffi::new(0, &conditions, &setup_clicks());

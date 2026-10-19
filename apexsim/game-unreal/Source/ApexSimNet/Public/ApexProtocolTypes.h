@@ -6,7 +6,7 @@
 #include "ApexProtocolTypes.generated.h"
 
 /**
- * ApexSim wire protocol v2 — mirrors `server/src/network.rs` and `server/src/data.rs`.
+ * ApexSim wire protocol v2 — mirrors `server/src/network.rs` and `sim/src/data.rs`.
  *
  * Framing: [4-byte big-endian length][MessagePack payload], `to_vec_named`.
  *
@@ -3011,7 +3011,7 @@ struct APEXSIMNET_API FApexSkyNow
 };
 
 /**
- * The safety car on the road (`CompactTelemetry.safety_car`, server/src/safety_car.rs):
+ * The safety car on the road (`CompactTelemetry.safety_car`, sim/src/safety_car.rs):
  * `[x, y, z, yaw_rad, speed_mps]` in the server's frame, as a car's pose is
  * sent. Not a participant: it has no roster row.
  */
@@ -3024,7 +3024,7 @@ struct FApexSafetyCarPose
 	float SpeedMps = 0.0f;
 };
 
-/** `CompactTelemetry.race_phase` values (server/src/race_start.rs `RacePhase`). */
+/** `CompactTelemetry.race_phase` values (sim/src/race_start.rs `RacePhase`). */
 namespace ApexRacePhase
 {
 	inline constexpr int32 None = 0;
@@ -3156,7 +3156,7 @@ struct FApexSessionPhysics
 	int32 RoadContact = 0;
 	/**
 	 * The checksum of the track's physics files, the YAML and every sidecar
-	 * (server/src/track_bundle.rs), naming the bundle RequestTrackBundle asks
+	 * (sim/src/track_bundle.rs), naming the bundle RequestTrackBundle asks
 	 * for; its size deflated and its chunks. 0 when the server serves none
 	 * (an older server, a track built in memory).
 	 */
@@ -3166,7 +3166,7 @@ struct FApexSessionPhysics
 };
 
 /**
- * `OwnCarSnapshot` (server/src/own_car.rs): the driver's own car at a tick,
+ * `OwnCarSnapshot` (sim/src/own_car.rs): the driver's own car at a tick,
  * with the newest input sequence the server had applied by then. Sent in
  * `DriverFeedback` to a client that numbers its inputs
  * (docs/proposals/client-prediction.md): what the prediction rewinds to.
@@ -3222,7 +3222,7 @@ struct FApexOwnCarSnapshot
 };
 
 /**
- * `StateChunk` (server/src/own_car.rs): one slice of the own car's full
+ * `StateChunk` (sim/src/own_car.rs): one slice of the own car's full
  * state blob (`car_step::encode_state`, "APXC"), sent a slice a feedback
  * message, a blob every half second. FApexOwnCarStateAssembler puts them
  * back together.
@@ -3290,7 +3290,7 @@ private:
 };
 
 /**
- * `DriverFeedback` (server/src/feedback.rs) - positional encoding, UDP only,
+ * `DriverFeedback` (sim/src/feedback.rs) - positional encoding, UDP only,
  * sent to a car's own driver with every telemetry frame. It carries what the
  * driver should feel, whatever the device: a wheel's constant force comes
  * from SteerTorque, and a pad's rumble from the slip, surface and hits.
@@ -3525,7 +3525,7 @@ enum class EApexServerMessageType : uint8
 
 /**
  * `TrackBundleChunkData` (network.rs): one chunk of a track's physics bundle
- * (server/src/track_bundle.rs), answering RequestTrackBundle. Chunks 0 says
+ * (sim/src/track_bundle.rs), answering RequestTrackBundle. Chunks 0 says
  * the server has no bundle with that checksum, or no such chunk.
  */
 struct FApexTrackBundleChunk

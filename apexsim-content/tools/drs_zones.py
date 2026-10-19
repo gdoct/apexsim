@@ -5,7 +5,7 @@ A zone is three stations along the centerline: the *detection* point
 (where the gap to the car ahead is measured), the *activation* point
 (from where the flap may be opened) and the *end* (the braking point of
 the next corner, where it closes). The server enforces the rule
-(`server/src/drs.rs`), the AI uses it, the racing line profiles it, and
+(`sim/src/drs.rs`), the AI uses it, the racing line profiles it, and
 the bake paints the detection and activation lines and stands a board
 at each (`ue_export::drs`).
 

@@ -1,10 +1,10 @@
-# The client's copy of the server's car step: server/ffi (crate
-# apexsim-physics) built as a static library and dropped where the
+# The client's copy of the simulation's car step: server/ffi (crate
+# apexsim-physics, on apexsim-sim) built as a static library and dropped where the
 # ApexPhysics third-party module links it
 # (game-unreal/Source/ThirdParty/ApexPhysics, docs/building.md).
 #
-# The .lib is built from the server's source on demand and never checked in
-# (*.lib is gitignored): it is 80 MB, it is only right for the server source
+# The .lib is built from the simulation's source on demand and never checked
+# in (*.lib is gitignored): it is 36 MB, it is only right for the source
 # beside it, and cargo rebuilds it in seconds when nothing changed.
 
 function Get-ApexPhysicsLibPath {

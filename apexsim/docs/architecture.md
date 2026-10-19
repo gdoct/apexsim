@@ -15,13 +15,17 @@ the topic docs under `docs/` go deeper.
 
 ## Code
 
+- `sim/` - the deterministic simulation crate (`apexsim-sim`): the car,
+  the track and its sidecars, the race and the session tick
+  ([below](#simulation-and-runtime-modules)). The server and the physics
+  library link it.
 - `server/` - the authoritative server crate (`apexsim-server`, plus the
-  offline tool `apexsim-replay`). Module map in [server/README.md](../server/README.md).
-- `server/ffi/` - `apexsim-physics`, a separate crate on the server crate:
-  the car step (`car_step::step_lone_car`) as a static library behind a C
-  API (`apexsim_physics.h`), for the client's prediction of its own car
-  ([proposals/client-prediction.md](proposals/client-prediction.md)). Not
-  linked into the client yet.
+  offline tool `apexsim-replay`): the runtime around the simulation. Module
+  map in [server/README.md](../server/README.md).
+- `server/ffi/` - `apexsim-physics`, a separate crate on the simulation
+  crate alone: the car step (`car_step::step_lone_car`) as a static library
+  behind a C API (`apexsim_physics.h`), for the client's prediction of its
+  own car ([proposals/client-prediction.md](proposals/client-prediction.md)).
 - `game-unreal/Source/` - client modules: `ApexSim` (game), `ApexSimNet`
   (protocol, MessagePack codec), `ApexSimInput` (DirectInput wheels),
   `ApexSimBoot` (splash hold, loads at `PostConfigInit`), `ApexTrackEditor`
@@ -104,34 +108,47 @@ The game loop's own bookkeeping (rate checks, rate limiting, heartbeats) uses
 
 ### Simulation and runtime modules
 
-The server crate's modules are of two kinds. **Simulation**: the car
-(`physics`, `car_step`, `aero`, `brakes`, `tyre_thermal`, `engine_heat`,
-`damage`, `hybrid`, `geometry`, `feedback`, `car_setup`, `own_car`), the
-track and its sidecars (`ground`, `curbs`, `walls`, `road_mesh`,
-`road_state`, `track_loader`, `track_bundle`, `car_loader`, `content_crc`,
-`data`), the race (`game_session`, `laps`, `wind`, `drs`, `slipstream`,
-`recovery`, `ai_driver`, `racecraft`, `racing_line`, `pit`, `race_control`,
-`race_start`, `safety_car`, `weekend`, `grid_order`, `headlights`,
-`conditions`, `balance`, `debug_hooks`) and the plain data the session
-hands out (`ghost`, `classification`). **Runtime**: everything else - the
-wire (`network`, `transport`, `udp_seal`, `session_wire`), the loop
+The server's code is of two kinds, in two crates. **Simulation** (`sim/`,
+the crate `apexsim-sim`): the car (`physics`, `car_step`, `aero`, `brakes`,
+`tyre_thermal`, `engine_heat`, `damage`, `hybrid`, `geometry`, `feedback`,
+`car_setup`, `own_car`), the track and its sidecars (`ground`, `curbs`,
+`walls`, `road_mesh`, `road_state`, `track_loader`, `track_bundle`,
+`car_loader`, `content_crc`, `data`), the race (`game_session`, `laps`,
+`wind`, `drs`, `slipstream`, `recovery`, `ai_driver`, `racecraft`,
+`racing_line`, `pit`, `race_control`, `race_start`, `safety_car`, `weekend`,
+`grid_order`, `headlights`, `conditions`, `balance`, `debug_hooks`) and the
+plain data the session hands out (`ghost`, `classification`). **Runtime**
+(`server/`, the crate `apexsim-server`): everything else - the wire
+(`network`, `transport`, `udp_seal`, `session_wire`), the loop
 (`game_loop/`, `server`, `lobby`, `chat`, `main`, `config`), operations
 (`health`, `metrics`, `tick_jitter`, `timer_resolution`, `webhook`,
 `admin/`), files (`records`, `results`, `setup_sheet`, `track_content`) and
 spectating and tools (`spectator`, `session_stream`, `stream_recorder`,
 `showcase`, `replay`, `replay_tools`, `track_guide`, `bin/`).
 
-Simulation modules do not use runtime modules: the session hands out sim
+`apexsim-sim` depends on serde, MessagePack, YAML, TOML, JSON, flate2,
+uuid, thiserror, the `tracing` facade and `apexsim-formats`: no tokio,
+TLS, HTTP, clap or RNG. The server depends on it and re-exports each of its
+modules under the same name (`pub use apexsim_sim::physics;` in
+`server/src/lib.rs`), so `crate::physics` in the server and
+`apexsim_server::physics` in its tests, benches, examples and tools resolve
+as before. The physics library (`server/ffi`) depends on `apexsim-sim`
+alone, so the client links no network or TLS code. A simulation item the
+runtime reads is `pub`, not `pub(crate)`.
+
+The simulation does not use the runtime: the session hands out sim
 types (`WeekendState`, `PitService`, `RosterRow`, `TrackCorner`, ...) and
 `session_wire` turns them into messages (`SessionWire` keeps
 `get_compact_telemetry`, `build_roster` and the rest callable on a
 `GameSession`). Where a value is the sim's own and the wire carries it as
 is, the sim defines it and `network` re-exports it (`RecordBytes`,
 `RaceClock`, `ground_byte`, `SLIDE_FLAG_LOCKED_SHIFT`, `DriverFeedback`);
-`config` re-exports `RoadContactMode` the same way. This boundary becomes a
-crate boundary (`apexsim-sim`). A few unit tests inside simulation modules
-still reach the wire (`SkyNow`, `lap_flags_of`, `RACE_FLAG_YELLOW_SHIFT`,
-`SessionWire`).
+`config` re-exports `RoadContactMode` the same way. A simulation test that
+reads its result through the wire (`SkyNow`, `lap_flags_of`,
+`RACE_FLAG_YELLOW_SHIFT`, `SessionWire`) lives with the server
+(`server/tests/sim_wire_test.rs`); the simulation's own unit tests run in
+`sim/` (`cargo test` there), the server's integration tests, the
+determinism test among them, in `server/`.
 
 ## Tick timing on Windows
 

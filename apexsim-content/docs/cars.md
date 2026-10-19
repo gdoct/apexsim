@@ -15,7 +15,7 @@ car from Assetto Corsa: [ac-import.md](ac-import.md).
   `rally_cars.py`, `skin_layout.py`, `rally_skins.py`, `textures.py`, `liveries.py`, `damage_parts.py`, `preview_cars.py`,
   `strip_wheels.py`), `tools/generators/wheels/` (`build_wheels.py`,
   `build_steering_wheels.py`), `tools/lib/ApexCars.ps1` (packaging checks).
-- Server: `apexsim/server/src/car_loader.rs` (`car_toml_paths`, `CarConfig`).
+- Server: `apexsim/sim/src/car_loader.rs` (`car_toml_paths`, `CarConfig`).
 - Client, `apexsim/game-unreal/Source/ApexSim/`: `Cars/` (`UApexCarContentSubsystem`
   and `ApexCarContent::`, `ApexCarToml`, `ApexGlbReader` (`ApexGlb::`),
   `ApexBlockCompress` (`ApexBc::`), `ApexCarMaterials`),

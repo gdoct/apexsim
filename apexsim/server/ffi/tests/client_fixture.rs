@@ -20,15 +20,15 @@ use std::fmt::Write as _;
 use std::path::PathBuf;
 
 use apexsim_physics::*;
-use apexsim_server::car_loader::CarLoader;
-use apexsim_server::car_setup::{CarSetup, KNOB_COUNT};
-use apexsim_server::car_step;
-use apexsim_server::config::RoadContactMode;
-use apexsim_server::content_crc::content_crc;
-use apexsim_server::data::*;
-use apexsim_server::game_session::{GameSession, DEFAULT_TICK_RATE_HZ};
-use apexsim_server::own_car::OwnCarSnapshot;
-use apexsim_server::track_loader::TrackLoader;
+use apexsim_sim::car_loader::CarLoader;
+use apexsim_sim::car_setup::{CarSetup, KNOB_COUNT};
+use apexsim_sim::car_step;
+use apexsim_sim::content_crc::content_crc;
+use apexsim_sim::data::*;
+use apexsim_sim::game_session::{GameSession, DEFAULT_TICK_RATE_HZ};
+use apexsim_sim::own_car::OwnCarSnapshot;
+use apexsim_sim::track_loader::RoadContactMode;
+use apexsim_sim::track_loader::TrackLoader;
 use uuid::Uuid;
 
 fn repo(rel: &str) -> PathBuf {

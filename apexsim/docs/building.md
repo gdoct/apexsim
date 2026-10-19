@@ -11,17 +11,17 @@ side by side:
 
 | Root | Holds |
 |---|---|
-| `apexsim/` (code) | `server/` (and `server/ffi`), `game-unreal/`, `hud/`, `launcher/`, `deploy/`, `site/`, `scripts/` (build, release, showcase, guide, site, promo and verification scripts), `docs/`, `showcase.yml`, `server.toml`; its artefacts in `build/` (`showcase/`, `guide/`, `benchmark/`...), `out/`, `artifacts/`, `records/`, `replays/` |
+| `apexsim/` (code) | `sim/` (the simulation crate), `server/` (and `server/ffi`), `game-unreal/`, `hud/`, `launcher/`, `deploy/`, `site/`, `scripts/` (build, release, showcase, guide, site, promo and verification scripts), `docs/`, `showcase.yml`, `server.toml`; its artefacts in `build/` (`showcase/`, `guide/`, `benchmark/`...), `out/`, `artifacts/`, `records/`, `replays/` |
 | `apexsim-content/` (content) | `cars/`, `tracks/`, `props/`, `textures/`, `wheels/`, `artwork/`; `track-editor/` (track-core, the `ats-*` tools, the Bevy editor); `tools/` (the Python pipeline, the AC importers, `generators/` for the Blender-built cars, props and wheels, `lib/` for the shared PowerShell); `docs/`; the generated `build/tracks/` (exports, previews, `track_catalog.json`) and `.cache/` (OSM, DEM, previews, import caches) |
 | `apexsim-lib/` (formats) | `formats/`, the `apexsim-formats` crate: the track YAML (`TrackFile`), the ground, curbs, walls, road mesh and pit sidecars, `content_crc` and the format levels |
 
 `apexsim-lib` depends on nothing, the content depends on `apexsim-lib`, and
 the code depends on both. The code reaches the content as the sibling
 `../apexsim-content` from the code root (`../../apexsim-content` from
-`server/` or `game-unreal/`); the server and track-core depend on
-`apexsim-lib/formats` by path. Nothing under `apexsim-content/` or
+`sim/`, `server/` or `game-unreal/`); the simulation, the server and
+track-core depend on `apexsim-lib/formats` by path. Nothing under `apexsim-content/` or
 `apexsim-lib/` reads, builds or links the code; the one exception is a test,
-the AC car importer's reading `server/src/brakes.rs`.
+the AC car importer's reading `sim/src/brakes.rs`.
 
 Where each kind of tool runs from:
 
@@ -36,8 +36,9 @@ Where each kind of tool runs from:
   the content's whole bake (ground PNGs, dress, export, previews) with cargo
   and Python only; `scripts/build_track_levels.ps1` runs it and adds the
   code's stages.
-- **Cargo** for the server runs in `apexsim/server` (and `apexsim/server/ffi`),
-  for the formats in `apexsim-lib/formats`.
+- **Cargo** for the simulation runs in `apexsim/sim`, for the server in
+  `apexsim/server` (and `apexsim/server/ffi`), for the formats in
+  `apexsim-lib/formats`.
 
 Paths in this doc are relative to the code root; a path that starts with
 `apexsim-content/` is in the content root.
@@ -49,6 +50,28 @@ Paths in this doc are relative to the code root; a path that starts with
 - Unreal Engine 5.8 (`EngineAssociation` in `game-unreal/ApexSim.uproject`)
   and Visual Studio's C++ toolchain, for the client and the commandlets.
 - PowerShell for the build scripts (Windows; 5.1 works).
+
+## Simulation (Rust, `sim/`)
+
+`apexsim-sim` is the deterministic simulation: the car, the track and its
+sidecars, the race and the session tick, with no network, TLS, clock or
+RNG ([architecture.md](architecture.md#simulation-and-runtime-modules)).
+The server re-exports its modules under the same paths
+(`apexsim_server::physics`), and the client's physics library
+(`server/ffi`) links it alone. Its unit tests are the simulation's; the
+integration tests that race sessions over the wire, `determinism_test`
+among them, are the server's.
+
+```bash
+cd sim
+cargo fmt --check && cargo clippy --all-targets -- -D warnings
+CARGO_PROFILE_TEST_OPT_LEVEL=2 cargo test --no-fail-fast   # the unit tests, as CI runs them
+cargo test physics::                      # one module's
+```
+
+Its unit tests read the content as `../../apexsim-content` from `sim/`, as
+the server's do from `server/`. The crate has its own `Cargo.lock`, started
+from the server's: keep the shared dependencies on the server's versions.
 
 ## Server (Rust, `server/`)
 
@@ -62,7 +85,7 @@ cargo bench                    # Criterion, benches/physics_tick.rs
 ```
 
 ```bash
-cargo test                                         # unit + integration
+cargo test                                         # the server's unit tests + integration
 cargo test -- --ignored                            # long-running stress, surveys and probes
 cargo test --test integration_test <name> -- --nocapture
 RUST_LOG=debug cargo test <name>                   # with logging
@@ -102,10 +125,11 @@ replace `target/*/apexsim-server.exe`; build and test into a scratch
 
 ### The physics library (`server/ffi`)
 
-`apexsim-physics` is the server's car step behind a C API for the client's
-prediction of its own car ([proposals/client-prediction.md](proposals/client-prediction.md)):
-a small crate of its own that depends on the server crate, so the server's
-build is untouched. It builds a static library and an rlib (for its tests);
+`apexsim-physics` is the simulation's car step behind a C API for the
+client's prediction of its own car ([proposals/client-prediction.md](proposals/client-prediction.md)):
+a small crate of its own that depends on the simulation crate
+(`apexsim-sim`) alone, not on the server, so the server's build is
+untouched and the library carries no network or TLS code. It builds a static library and an rlib (for its tests);
 the header is the hand-written `server/ffi/apexsim_physics.h`.
 
 ```bash
@@ -116,10 +140,10 @@ cargo rustc --release --lib --crate-type staticlib -- --print native-static-libs
 ```
 
 On Windows x64 (`x86_64-pc-windows-msvc`, the default host toolchain) the
-release `.lib` is about 80 MB (the whole server crate's objects; the linker
-keeps only what the car step reaches) and links against `kernel32 winmm
-bcrypt advapi32 ntdll userenv ws2_32 dbghelp` and the dynamic CRT (`/MD`, as
-an Unreal module builds); the last command above prints the list for the
+release `.lib` is about 36 MB (the simulation's objects, its dependencies'
+and the standard library's; the linker keeps only what the car step
+reaches) and links against the standard library's `kernel32 ntdll userenv
+ws2_32 dbghelp` and the dynamic CRT (`/MD`, as an Unreal module builds); the last command above prints the list for the
 toolchain at hand. A C or C++ program includes `apexsim_physics.h` (it
 compiles as C89 and C++17) and links the `.lib` and those libraries. The
 crate has its own `Cargo.lock`, started from the server's: keep the shared
@@ -139,8 +163,8 @@ is unavailable ([game/client.md](game/client.md#client-prediction-raceapexpredic
 
 The library is built on demand and never checked in (`*.lib` is
 gitignored), like the server exe and the track sidecars: it is generated
-from the server's source and only right for the source beside it, it is
-80 MB, and cargo rebuilds it in seconds when nothing changed. LFS holds only
+from the simulation's source and only right for the source beside it, it is
+36 MB, and cargo rebuilds it in seconds when nothing changed. LFS holds only
 authored content. `initialize_content.ps1` builds it when it is missing,
 `play_editor.ps1 -Build` and `build_game_standalone.ps1` every time, before
 the client build. The script honours `CARGO_TARGET_DIR`, and touches
@@ -155,6 +179,9 @@ request; a newer push to the same branch or pull request cancels the run
 before it. Every job checks out the whole repository (the code jobs read the
 content), and none is filtered by path.
 
+- `sim` (Ubuntu, in `sim/`): `cargo fmt --check`, `cargo clippy
+  --all-targets -- -D warnings`, then `cargo test --no-fail-fast` at
+  opt-level 2, as the server's.
 - `server` (Ubuntu): `cargo fmt --check`, `cargo clippy --all-targets -- -D
   warnings` (which compiles every target, so there is no build step), then
   `cargo test --no-fail-fast` with the test profile at opt-level 2: the
@@ -191,7 +218,7 @@ checkpoints, spawn points, racing line, DRS zones and metadata), the five
 sidecars `ats-export` bakes beside it (`ground`, `curbs`, `walls`,
 `road_mesh`, `pit`: the serialized structs, their `*_VERSION` constants and
 `sidecar_path`), `content_crc` and the format levels (`TRACK_YAML_LEVEL`,
-`SIDECARS_LEVEL`). Its only dependency is serde. The server re-exports the
+`SIDECARS_LEVEL`). Its only dependency is serde. The simulation re-exports the
 types under its own paths (`track_loader::TrackFileFormat`,
 `data::TrackMetadata`, `ground::GroundHeightfield`, `pit::PitBox`...) and
 keeps its queries on them in traits (`GroundQuery`, `CurbQuery`,
@@ -209,7 +236,7 @@ cargo test --test round_trip -- --nocapture   # print the sidecar goldens
 The serde attributes are the files' bytes: a tool that rewrites a YAML
 writes it through `TrackFile`, so a changed `skip_serializing_if` changes
 every rewritten track's content checksum, and a changed sidecar struct fails
-the goldens. A format change lands in the crate with the server's and
+the goldens. A format change lands in the crate with the simulation's and
 track-core's use of it in one commit. The server's
 `tests/track_file_compat_test.rs` holds every real track to a rewrite
 loading to the same physical track.

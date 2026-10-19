@@ -103,8 +103,8 @@ def newest(folder: Path, pattern: str) -> float:
 def warn_stale() -> None:
     if not SERVER_EXE.is_file():
         raise SystemExit(f"{SERVER_EXE} not found: cargo build --release in server/")
-    if newest(SERVER_DIR / "src", "*.rs") > SERVER_EXE.stat().st_mtime:
-        log("warning: server/target/release is older than server/src")
+    if max(newest(SERVER_DIR / "src", "*.rs"), newest(REPO / "sim" / "src", "*.rs")) > SERVER_EXE.stat().st_mtime:
+        log("warning: server/target/release is older than server/src or sim/src")
     # Each module's source against its own DLL: a change to one module
     # rebuilds that DLL alone.
     for module in (REPO / "game-unreal" / "Source").iterdir():

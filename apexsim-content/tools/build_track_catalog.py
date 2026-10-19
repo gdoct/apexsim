@@ -23,7 +23,7 @@ by that id, and without one the server mints a fresh UUID on every start, so
 no row could ever match it.
 
 Each entry also carries `source_crc`, the checksum of the YAML as the server
-computes it (`server/src/content_crc.rs`: CRC-32 over the bytes with every
+computes it (`sim/src/content_crc.rs`: CRC-32 over the bytes with every
 carriage return dropped). The sync commandlet writes it onto the row, and the
 client compares it with the server's when it loads the track.
 """

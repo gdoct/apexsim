@@ -405,9 +405,9 @@ def main(argv=None) -> int:
                 if not take_ui(shot, game, defaults, False):
                     failed.append(shot["id"])
 
-    newest = max(p.stat().st_mtime for p in (SERVER_DIR / "src").rglob("*.rs"))
+    newest = max(p.stat().st_mtime for d in (SERVER_DIR / "src", REPO / "sim" / "src") for p in d.rglob("*.rs"))
     if not args.dry_run and REPLAY_EXE.is_file() and newest > REPLAY_EXE.stat().st_mtime:
-        log("note: server/target/release is older than server/src: the races were run by the older simulation")
+        log("note: server/target/release is older than server/src or sim/src: the races were run by the older simulation")
     if failed:
         log(f"failed: {', '.join(failed)}")
         return 1

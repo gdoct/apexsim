@@ -10,7 +10,7 @@
  * Pure maths, like `ApexSky`: the grid the server will line up, the air it
  * will resolve for a pick left on auto, the grip the weather leaves on the
  * road, and the colours of the sky preview. The server figures are ports of
- * its own (`SessionConditions` in server/src/data.rs) so the preview says
+ * its own (`SessionConditions` in sim/src/data.rs) so the preview says
  * what the session will be, not a guess; `ApexSim.UI.CreateSession.*` pins
  * them against values worked out from the Rust.
  */
@@ -75,7 +75,7 @@ namespace ApexCreateSession
 	// --- The start order ------------------------------------------------------
 	//
 	// The host's order is a list of driver references the server resolves
-	// when the race counts in (`server/src/grid_order.rs`): `@host`, `@ai:N`
+	// when the race counts in (`sim/src/grid_order.rs`): `@host`, `@ai:N`
 	// (the Nth AI car, 1-based) or a driver's name, which is how a loaded
 	// qualifying result names whoever set a lap. A driver the list leaves out
 	// starts behind the listed ones. The create screen keeps the list

@@ -15,9 +15,9 @@ there too.
   `SpawnPoint`, `RacelinePoint`, `DrsZone`, `TrackMetadata`. Its tests
   (`apexsim-lib/formats/tests/round_trip.rs`) hold a parse and rewrite to
   the same bytes.
-- `apexsim/server/src/track_loader.rs`: the loader (`TrackLoader`, which
+- `apexsim/sim/src/track_loader.rs`: the loader (`TrackLoader`, which
   re-exports `TrackFile` as `TrackFileFormat`) and the Catmull-Rom sampler
-  (`SplineInterpolator`); `apexsim/server/src/data.rs`: `SurfaceType`,
+  (`SplineInterpolator`); `apexsim/sim/src/data.rs`: `SurfaceType`,
   `TrackConfig` (and the crate's `TrackMetadata`, `RacelinePoint`,
   `DrsZone`, re-exported).
 - `track-editor/core/src/track_data.rs` (re-exports the crate's model),
@@ -293,8 +293,8 @@ sections and merged per (section, material).
   `ApexSim.Track.Reader.GoldenBlob`; also `ApexSim.Track.Reader.Rejects`,
   `.Manifest`, `.Version3`, `ApexSim.Track.Dds.Parse`, and on the Rust side
   `a_version_3_manifest_carries_the_imported_extensions`.
-- The server loader's unit tests: `cargo test --lib track_loader` in
-  `../apexsim/server`.
+- The server loader's unit tests: `cargo test track_loader` in
+  `../apexsim/sim` (the simulation crate the server links).
 
 ## Traps
 

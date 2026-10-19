@@ -11,7 +11,7 @@ use std::ffi::{CStr, CString};
 use std::path::PathBuf;
 
 use apexsim_physics::*;
-use apexsim_server::game_session::DEFAULT_TICK_RATE_HZ;
+use apexsim_sim::game_session::DEFAULT_TICK_RATE_HZ;
 
 fn repo(rel: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -235,16 +235,16 @@ fn print_bundle_sizes() {
             eprintln!("{name}: no {}", yaml.display());
             continue;
         }
-        let files = apexsim_server::track_bundle::TrackFiles::read(
+        let files = apexsim_sim::track_bundle::TrackFiles::read(
             &yaml,
-            apexsim_server::config::RoadContactMode::Mesh,
+            apexsim_sim::track_loader::RoadContactMode::Mesh,
         )
         .unwrap();
         let started = std::time::Instant::now();
-        let bundle = apexsim_server::track_bundle::TrackBundle::of(&files);
+        let bundle = apexsim_sim::track_bundle::TrackBundle::of(&files);
         let built_ms = started.elapsed().as_millis();
         let started = std::time::Instant::now();
-        apexsim_server::track_bundle::TrackFiles::decode(&bundle.bytes, Some(bundle.crc)).unwrap();
+        apexsim_sim::track_bundle::TrackFiles::decode(&bundle.bytes, Some(bundle.crc)).unwrap();
         let read_ms = started.elapsed().as_millis();
         let mb = |n: usize| n as f64 / 1e6;
         eprintln!(

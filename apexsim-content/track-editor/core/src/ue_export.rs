@@ -190,7 +190,7 @@ const PIT_GAP_M: f32 = 3.0;
 const PIT_PARALLEL_GAP_M: f32 = 1.5;
 
 // Fallback starting grid, mirroring
-// `server/src/track_loader.rs::generate_start_positions` so the client puts
+// `sim/src/track_loader.rs::generate_start_positions` so the client puts
 // its `PlayerStart`s exactly where the server will put the cars.
 /// The fallback grid, matching the server's: rows of two 8 m apart, the
 /// second car of each row staggered half a row back, the columns 4 m

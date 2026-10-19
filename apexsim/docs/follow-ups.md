@@ -328,16 +328,6 @@ the same files.
   against `git archive HEAD server content` in a scratch folder, with its
   own `CARGO_TARGET_DIR`.
 
-- Client prediction's physics library (`server/ffi`) links the whole
-  server crate (tokio, rustls, hyper...): 80 MB of `.lib`, of which the
-  linker keeps what the C API reaches. A physics-only crate would shrink
-  it and the client's link, but the car step is not separable today:
-  `data.rs` reaches the AI, race control, the safety car and racecraft,
-  `physics.rs` reaches `game_session` and `network`, and the library calls
-  `game_session::session_track`. Split those edges first (the session
-  types out of `data.rs`, the bake out of `game_session`), then move the
-  car step's modules to a crate the server re-exports; the server's tests,
-  `determinism_test` and the AI survey must stay identical.
 - Client prediction's bundle cache (`Saved/ApexSim/TrackBundles`) keeps
   every bundle it was handed, one per track version (2.6 MB for Monza,
   10 MB for the Nordschleife): prune the oldest past a size.

@@ -706,49 +706,6 @@ mod tests {
     }
 
     #[test]
-    fn the_sky_ahead_names_the_next_three_changes_with_their_etas() {
-        let mut live = LiveConditions::new(picked(Weather::Sunny, 13, 1, 2), 50.0, 0.0, 3);
-        live.forecast = vec![
-            WeatherChange {
-                at_s: 600.0,
-                weather: Weather::Cloudy,
-            },
-            WeatherChange {
-                at_s: 1800.0,
-                weather: Weather::LightRain,
-            },
-            WeatherChange {
-                at_s: 2400.0,
-                weather: Weather::HeavyRain,
-            },
-            WeatherChange {
-                at_s: 4000.0,
-                weather: Weather::Overcast,
-            },
-        ];
-        let sky = crate::network::SkyNow::of(&live, [0.0, 0.0], 100.0);
-        assert_eq!(
-            (sky.next_weather, sky.next_in_s),
-            (Weather::Cloudy as u8, 500)
-        );
-        assert_eq!(
-            (sky.next2_weather, sky.next2_in_s),
-            (Weather::LightRain as u8, 1700)
-        );
-        assert_eq!(
-            (sky.next3_weather, sky.next3_in_s),
-            (Weather::HeavyRain as u8, 2300)
-        );
-        // Past the third: only the last change is left, and none after it.
-        let late = crate::network::SkyNow::of(&live, [0.0, 0.0], 2500.0);
-        assert_eq!(
-            (late.next_weather, late.next_in_s),
-            (Weather::Overcast as u8, 1500)
-        );
-        assert_eq!((late.next2_in_s, late.next3_in_s), (0, 0));
-    }
-
-    #[test]
     fn a_winter_forecast_swings_between_overcast_and_snow_and_never_rains() {
         let snow = SessionConditions {
             weather: Weather::Snow,

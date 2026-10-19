@@ -14,6 +14,14 @@ updates:
       - "rust"
 
   - package-ecosystem: "cargo"
+    directory: "/apexsim/sim"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "rust"
+
+  - package-ecosystem: "cargo"
     directory: "/cli-game"
     schedule:
       interval: "weekly"

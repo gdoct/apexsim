@@ -93,7 +93,8 @@ under `apexsim-content/` reaches into `apexsim/`.
 apexsim-lib/            the shared file formats
   formats/              Rust crate apexsim-formats: the track YAML, the baked sidecars, the content checksum
 apexsim/                code
-  server/               Rust server: simulation, sessions, networking, admin dashboard
+  sim/                  the deterministic simulation: car physics, tyres, AI, race control, the session tick; the server and the client's physics library link it
+  server/               Rust server: sessions, networking, admin dashboard, on the simulation
   game-unreal/          Unreal Engine 5.8 client (C++ modules ApexSim, ApexSimNet, ApexSimInput, ApexSimBoot, ApexTrackEditor)
   hud/                  the HUD components and layouts
   scripts/              build, release, showcase, site and verification scripts
@@ -122,8 +123,9 @@ server, the client and the content pipeline (in
 Coordinate significant changes in an issue first. Before a pull request:
 
 ```bash
+cd apexsim/sim && cargo test             # the simulation
 cd apexsim/server
-cargo fmt && cargo clippy --all-targets   # CI enforces fmt --check and -D warnings
+cargo fmt && cargo clippy --all-targets   # CI enforces fmt --check and -D warnings (in sim/ too)
 cargo test
 
 cd apexsim-lib/formats && cargo test      # a change to a file format

@@ -12,11 +12,11 @@ belong to these rules are described briefly beside them.
 
 ## Code
 
-- `server/src/data.rs`: `SessionKind`, `SessionState`, `GameMode`,
+- `sim/src/data.rs`: `SessionKind`, `SessionState`, `GameMode`,
   `RaceSession`, `DamageLevel`, `AllowedAssists`, `DriverAids`,
   `QualifyingFormat`, `clamp_race_seconds`, `clamp_qualifying_seconds`,
   `clamp_qualifying_lap_allowance`
-- `server/src/game_session.rs`: per-mode ticks (`tick_*`), `set_game_mode`,
+- `sim/src/game_session.rs`: per-mode ticks (`tick_*`), `set_game_mode`,
   `start_countdown_mode`, `line_up_on_grid`, `assign_finish_positions`,
   `update_race_clock`, `apply_grid_order`, `note_qualifying_lap`,
   `update_chequered_flag`, `hotlap_relocate`, the shoot-out
@@ -26,7 +26,7 @@ belong to these rules are described briefly beside them.
   (`advance_weekend`, `settle_weekend`, `weekend_state`,
   `begin_phase_damage`), the watched hotlap
   (`start_hotlap_watch`, `update_hotlap_watch`, `hotlap_watch_driver`)
-- `server/src/weekend.rs`: `WeekendFormat`, `knockout_sizes`,
+- `sim/src/weekend.rs`: `WeekendFormat`, `knockout_sizes`,
   `WeekendProgress`
 - `server/src/server.rs`: `ServerState::create_session` (resolves the
   conditions, clamps the rules, seeds the AI, starts a watched hotlap)
@@ -38,14 +38,14 @@ belong to these rules are described briefly beside them.
 - `server/src/game_loop/lifecycle.rs`: disconnects, held seats
   (`hold_seat_for_rejoin`, `give_up_seat`); `GameSession::hold_seat` /
   `resume_seat` / `away_input`
-- `server/src/recovery.rs` and `GameSession::recover_car` /
+- `sim/src/recovery.rs` and `GameSession::recover_car` /
   `update_recoveries`: back to track and back to pits
-- `server/src/race_control.rs` (`RaceControl`, `FlagCar`) and
+- `sim/src/race_control.rs` (`RaceControl`, `FlagCar`) and
   `GameSession::update_flags` / `yellow_flags`: the race's flags
-- `server/src/race_start.rs` (`RaceStart`, `Formation`) and
+- `sim/src/race_start.rs` (`RaceStart`, `Formation`) and
   `GameSession::begin_formation` / `tick_formation` / `hold_cars_on_grid`:
   the formation lap, the rolling start, false starts
-- `server/src/laps.rs`, `records.rs`, `grid_order.rs`,
+- `sim/src/laps.rs`, `records.rs`, `grid_order.rs`,
   `track_guide.rs` (`wire_corners`)
 - Client: `UI/ApexRootWidget.cpp`, `UI/ApexSessionCreateWidget.cpp` (model
   `ApexCreateSessionModel.h`), `UApexMenuFlowSubsystem`, `UApexNetSubsystem`,
@@ -1343,11 +1343,17 @@ starts one at launch; `apexsim.watch setup|replaylap|ghost` work as the keys do.
 ## Checking it
 
 ```bash
-cd server
-cargo test --lib game_session                 # mode ticks, timed race, grid order, qualifying, timed qualifying, weekend
-cargo test --lib weekend                      # knockout sizes, format clamp, round closing
-cargo test --lib race_control                 # yellows, warnings, hold, own and passed flags, blue, a pass under yellow
-cargo test --lib a_car_stopped_on_the_road    # the yellows in a race at Monza, on telemetry, cleared
+cd sim                                        # the unit tests of the simulation crate
+cargo test game_session                       # mode ticks, timed race, grid order, qualifying, timed qualifying, weekend
+cargo test weekend                            # knockout sizes, format clamp, round closing
+cargo test race_control                       # yellows, warnings, hold, own and passed flags, blue, a pass under yellow
+cargo test safety_car                         # the pick-up, the let-by, a pass of the safety car, the restart at the line
+cargo test time_penalty                       # a time penalty reorders the finishers
+cargo test race_start                         # the approach's pace, headway across the line
+cargo test recovery                           # spot choice, traffic release
+
+cd ../server
+cargo test --test sim_wire_test               # the yellows at Monza on telemetry; a weekend day's own sky
 cargo test --test weekend_test                # a weekend from the lobby to the race over the wire
 cargo test --test shootout_test               # a shoot-out run at the Norisring, order and classification; over the wire
 cargo test --test race_flow_test              # incl. test_timed_race_flow_to_the_flag_monza
@@ -1357,14 +1363,10 @@ cargo test --test ready_grid_test             # the race's grid: OpenGrid, SetRe
 cargo test --test race_start_test             # formation lap back to the grid, rolling start, a jump start, a held grid
 cargo test --test penalty_test                # the AI's drive-through and stop-go at the Norisring
 cargo test --test safety_car_test             # the VSC out and in; the safety car out of the pit exit, the queue, a lapped car let by, the lane shut and open, the restart
-cargo test --lib safety_car                   # the pick-up, the let-by, a pass of the safety car, the restart at the line
-cargo test --lib time_penalty                 # a time penalty reorders the finishers
-cargo test --lib race_start                   # the approach's pace, headway across the line
 cargo test --test reconnect_test              # held seat, resume, takeover, grace, Disconnect
 cargo test --test lap_timing_test             # sectors and track limits round Monza
 cargo test --test hotlap_test                 # garage, run-up, queue, cold tyres, qualifying outlap
 cargo test --test recovery_test               # back to track, a taken spot, back to pits, refused moving
-cargo test --lib recovery                     # spot choice, traffic release
 cargo test --test hotlap_watch_test           # hold, laps, determinism, corners, ghost, setup, over the wire, as a stream
 cargo test --release --test hotlap_watch_test watch_probe -- --ignored --nocapture   # WATCH_TRACKS/CARS/LAPS
 cargo test --release --test hotlap_test generate_ghost_fixture -- --ignored          # APEXSIM_GHOST_DIR, APEXSIM_GHOST_PLAYER

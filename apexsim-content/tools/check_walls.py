@@ -2,7 +2,7 @@
 """Sanity-scan a track's baked walls for scenery standing on the road.
 
 `ats-export` writes `<Stem>.walls.msgpack` next to the track YAML
-(`server/src/walls.rs`: `WallFile { version, segments: Vec<WallSegment> }`,
+(`sim/src/walls.rs`: `WallFile { version, segments: Vec<WallSegment> }`,
 MessagePack via `rmp_serde::to_vec_named`, so every segment is a map with
 named fields `x0, y0, x1, y1, z, height_m, kind`) -- one line segment per
 barrier face, stand side, building side and pit wall, in the track's own

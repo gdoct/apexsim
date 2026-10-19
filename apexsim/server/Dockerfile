@@ -1,6 +1,7 @@
 # ApexSim server image. The build context is the folder holding the roots
-# (the server builds against ../../apexsim-lib/formats), filtered to the
-# server and the formats crate by Dockerfile.dockerignore:
+# (the server builds against ../sim and ../../apexsim-lib/formats), filtered
+# to the server, the simulation and the formats crate by
+# Dockerfile.dockerignore:
 #   docker build -f apexsim/server/Dockerfile -t apexsim-server .
 # Content (cars, tracks incl. generated sidecars, showcase) is NOT baked in:
 # it is mostly gitignored build output, so mount it at /content (see
@@ -9,6 +10,7 @@
 FROM rust:1-bookworm AS build
 WORKDIR /src/apexsim/server
 COPY apexsim-lib/formats /src/apexsim-lib/formats
+COPY apexsim/sim /src/apexsim/sim
 # Dependency layer: build with stub sources so edits to src/ keep the cache.
 COPY apexsim/server/Cargo.toml apexsim/server/Cargo.lock apexsim/server/build.rs ./
 RUN mkdir -p src/bin benches \

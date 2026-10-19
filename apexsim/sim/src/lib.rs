@@ -1,0 +1,47 @@
+//! The deterministic simulation: the car, the track and its sidecars, the
+//! race and the session tick. No runtime (network, files, clocks) lives here;
+//! `apexsim_server` re-exports every module under the same name.
+
+pub mod aero;
+pub mod ai_driver;
+pub mod balance;
+pub mod brakes;
+pub mod car_loader;
+pub mod car_setup;
+pub mod car_step;
+pub mod classification;
+pub mod conditions;
+pub mod content_crc;
+pub mod curbs;
+pub mod damage;
+pub mod data;
+pub mod debug_hooks;
+pub mod drs;
+pub mod engine_heat;
+pub mod feedback;
+pub mod game_session;
+pub mod geometry;
+pub mod ghost;
+pub mod grid_order;
+pub mod ground;
+pub mod headlights;
+pub mod hybrid;
+pub mod laps;
+pub mod own_car;
+pub mod physics;
+pub mod pit;
+pub mod race_control;
+pub mod race_start;
+pub mod racecraft;
+pub mod racing_line;
+pub mod recovery;
+pub mod road_mesh;
+pub mod road_state;
+pub mod safety_car;
+pub mod slipstream;
+pub mod track_bundle;
+pub mod track_loader;
+pub mod tyre_thermal;
+pub mod walls;
+pub mod weekend;
+pub mod wind;

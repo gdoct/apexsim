@@ -47,6 +47,38 @@ jobs:
       - name: Test
         run: cargo test
 
+  sim:
+    name: Simulation (Rust)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apexsim/sim
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apexsim/sim
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      # The car, the track, the race and the session tick, tested on their
+      # own; at opt-level 2 as the server's (debug assertions stay on).
+      - name: Test
+        env:
+          CARGO_PROFILE_TEST_OPT_LEVEL: "2"
+        run: cargo test --no-fail-fast
+
   server:
     name: Server (Rust)
     runs-on: ubuntu-latest
@@ -67,6 +99,7 @@ jobs:
           workspaces: |
             apexsim/server
             apexsim/server/ffi
+            apexsim/sim
 
       - name: Check formatting
         run: cargo fmt --check
@@ -85,8 +118,8 @@ jobs:
           CARGO_PROFILE_TEST_OPT_LEVEL: "2"
         run: cargo test --no-fail-fast
 
-      # The physics library for the client's prediction: the server's car
-      # step behind a C API, checked against a session on a recorded trace.
+      # The physics library for the client's prediction: the simulation's
+      # car step behind a C API, checked against a session on a recorded trace.
       - name: Physics library (fmt, clippy, test)
         working-directory: apexsim/server/ffi
         run: |

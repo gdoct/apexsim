@@ -4,7 +4,7 @@
 //! distance in meters along the sampled centerline, plus a lateral offset
 //! (positive = left). [`CenterlinePath`] samples a [`TrackFile`] once — the
 //! same Catmull-Rom spline and adaptive spacing as
-//! `server/src/track_loader.rs::SplineInterpolator` — and then answers
+//! `sim/src/track_loader.rs::SplineInterpolator` — and then answers
 //! `station -> pose` queries by interpolating between samples. Everything
 //! stays in track space (right-handed, `+Z` up, meters).
 

@@ -1,8 +1,10 @@
 # CLAUDE.md
 
 ApexSim is a sim-racing platform in three roots that become three repositories.
-`apexsim/` is the code: an authoritative Rust server (`apexsim/server/`,
-420 Hz physics, TCP+TLS lobby, UDP telemetry and input), an Unreal Engine 5.8
+`apexsim/` is the code: the deterministic simulation (`apexsim/sim/`, the
+`apexsim-sim` crate: the car, the track, the race, the session tick), an
+authoritative Rust server on it (`apexsim/server/`, 420 Hz, TCP+TLS lobby,
+UDP telemetry and input), an Unreal Engine 5.8
 client (`apexsim/game-unreal/`) that renders what the server says and has no
 physics of its own, the HUD, the site and the build scripts (`apexsim/scripts/`).
 `apexsim-content/` is the content and its tools: the cars, tracks, props and
@@ -17,7 +19,7 @@ code depends on `apexsim-lib` and the content, never the other way round.
 The code reaches the content as the sibling `../apexsim-content`, both build
 against `../apexsim-lib` by path, and nothing under `apexsim-content/` or
 `apexsim-lib/` reads, builds or links `apexsim/`. One test-only edge is left:
-the AC car importer's test reading `apexsim/server/src/brakes.rs`.
+the AC car importer's test reading `apexsim/sim/src/brakes.rs`.
 
 ## Where to read first
 
@@ -50,6 +52,7 @@ checks and the traps.
 
 ```bash
 cd apexsim-lib/formats && cargo test                    # the shared formats: YAML rewrite, sidecar goldens
+cd apexsim/sim && cargo test                            # the simulation's unit tests
 cd apexsim/server && cargo build && cargo test          # integration tests start the server in-process
 cd apexsim/server && cargo fmt && cargo clippy --all-targets   # CI: fmt --check, clippy -D warnings
 cargo test --manifest-path apexsim-content/track-editor/Cargo.toml   # pipeline + Bevy editor (whole-calendar bakes are #[ignore]d)
@@ -63,7 +66,8 @@ Code scripts run from `apexsim/`, content tools (`ats-*`, `tools/*.py`) from
 
 ## Rules for every change
 
-- **Deterministic sim.** No RNG, wall clock or env reads in the sim path, and
+- **Deterministic sim.** No RNG, wall clock or env reads in the sim path
+  (`apexsim/sim`, re-exported by the server under the same module paths), and
   no `HashMap` iteration order reaching a result: participants are a
   `BTreeMap`, chance is `wind::hash01` of tick, car, lap or corner.
   `apexsim/server/tests/determinism_test.rs` must stay bit-identical; showcases, guides,
@@ -98,8 +102,8 @@ Code scripts run from `apexsim/`, content tools (`ats-*`, `tools/*.py`) from
   [apexsim-content/docs/track-pipeline.md](apexsim-content/docs/track-pipeline.md); run
   `ats-*` tools from `apexsim-content/`. The track YAML and the sidecars
   are modelled once, in `apexsim-lib/formats` (`TrackFile`, the sidecar
-  structs, their versions): a key goes there, and the server and track-core
-  re-export it. Its serde attributes are what a rewrite writes, so a change
+  structs, their versions): a key goes there, and the simulation and
+  track-core re-export it. Its serde attributes are what a rewrite writes, so a change
   to one moves every rewritten YAML's bytes and checksum. A track or car marked `imported` belongs
   to its importer: tools that rewrite content must leave it alone.
   `apexsim-content/{cars,tracks}/custom` is the player's own and never ships.

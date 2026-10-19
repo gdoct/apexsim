@@ -2835,7 +2835,7 @@ namespace
 		}
 
 		// `safety_car`, appended after the phase: `[x, y, z, yaw_rad,
-		// speed_mps]` (server/src/safety_car.rs), or nil.
+		// speed_mps]` (sim/src/safety_car.rs), or nil.
 		Out.SafetyCar = FApexSafetyCarPose();
 		if (FieldCount > Read)
 		{
@@ -2875,7 +2875,7 @@ namespace
 	}
 
 	/**
-	 * Fields every `DriverFeedback` (server/src/feedback.rs) has. Later fields
+	 * Fields every `DriverFeedback` (sim/src/feedback.rs) has. Later fields
 	 * are appended and read only when present: `steer_kick` is the tenth.
 	 */
 	constexpr int32 DriverFeedbackFieldCount = 9;
@@ -2954,7 +2954,7 @@ namespace
 		return true;
 	}
 
-	/** Fields every `OwnCarSnapshot` (server/src/own_car.rs) has, in order. */
+	/** Fields every `OwnCarSnapshot` (sim/src/own_car.rs) has, in order. */
 	constexpr int32 OwnCarSnapshotFieldCount = 26;
 
 	bool ParseOwnCarSnapshot(FMsgPackReader& Reader, FApexOwnCarSnapshot& Out)

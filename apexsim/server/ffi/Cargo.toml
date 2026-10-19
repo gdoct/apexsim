@@ -2,7 +2,7 @@
 name = "apexsim-physics"
 version = "0.1.0"
 edition = "2021"
-description = "The server's car step behind a C FFI, for the client's prediction of its own car"
+description = "The simulation's car step behind a C FFI, for the client's prediction of its own car"
 publish = false
 
 # A staticlib for the client to link, and an rlib so this crate's own tests
@@ -12,7 +12,7 @@ name = "apexsim_physics"
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
-apexsim-server = { path = ".." }
+apexsim-sim = { path = "../../sim" }
 rmp-serde = "1"
 
 [dev-dependencies]

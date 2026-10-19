@@ -33,6 +33,8 @@ webpki-roots = "1"
 rcgen = { version = "0.14.10", default-features = false, features = ["ring", "pem"] }
 # The formats the content writes and the server reads (track YAML, sidecars, content_crc).
 apexsim-formats = { path = "../../apexsim-lib/formats" }
+# The deterministic simulation (car, track, race, session tick).
+apexsim-sim = { path = "../sim" }
 
 [target.'cfg(windows)'.build-dependencies]
 winresource = "0.1"

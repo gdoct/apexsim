@@ -190,7 +190,7 @@ if (-not $NoServer -and $isLocal) {
     $listener = Get-Listener $serverPort
 
     if ($listener -and -not $RestartServer) {
-        $newest = Get-NewestWrite @((Join-Path $ServerDir 'src'), (Join-Path $RepoRoot '..\apexsim-content\cars'), (Join-Path $RepoRoot '..\apexsim-content\tracks'))
+        $newest = Get-NewestWrite @((Join-Path $ServerDir 'src'), (Join-Path $RepoRoot 'sim\src'), (Join-Path $RepoRoot '..\apexsim-content\cars'), (Join-Path $RepoRoot '..\apexsim-content\tracks'))
         if ($newest -and $listener.StartTime -lt $newest) {
             $message = "The server on port $serverPort was started $($listener.StartTime), before the latest server or content change."
             if ($Interactive) {

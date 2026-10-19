@@ -20,11 +20,11 @@ centerline under either backend.
   mesh and the road mesh; `clipped_quad` keeps the pit lane off the road.
 - `track-editor/core/src/ue_export_io.rs`: `write_road_sidecar`.
 - `track-editor/core/src/bin/ats-export.rs`: `--flat-curbs`.
-- `apexsim/server/src/road_mesh.rs`: `RoadMesh` (load, grid, `contact_at`).
-- `apexsim/server/src/track_loader.rs`: `load_road_mesh`, called by
+- `apexsim/sim/src/road_mesh.rs`: `RoadMesh` (load, grid, `contact_at`).
+- `apexsim/sim/src/track_loader.rs`: `load_road_mesh`, called by
   `TrackLoader::load_from_file_with` / `load_sidecars` with the server's
   `RoadContactMode`.
-- `apexsim/server/src/physics.rs`: `query_track_surface` (the dispatch),
+- `apexsim/sim/src/physics.rs`: `query_track_surface` (the dispatch),
   `slope_and_banking`, `RoadContact::from_surface`, `seat_height`,
   `track_context_of` (grip).
 - `apexsim/server/src/config.rs`: `RoadContactMode`, `[physics] road_contact`.
@@ -174,7 +174,7 @@ recognises it from the pit sidecar instead (see
 cd ../apexsim/server
 cargo test --test road_mesh_test                    # the mesh against the centerline on Monza; grid seating
 cargo test --test determinism_test                  # includes ..._on_the_road_mesh (Monza)
-cargo test physics::                                # surface tests run under both backends (mesh_from_centerline)
+cargo test --manifest-path ../sim/Cargo.toml physics::   # surface tests run under both backends (mesh_from_centerline)
 cargo bench                                         # physics_step_monza_mesh, session_tick_8cars_monza_mesh
 SURVEY_ROAD_CONTACT=mesh cargo test --release --test ai_race_start_test survey_ai_races_on_every_circuit -- --ignored --nocapture
 

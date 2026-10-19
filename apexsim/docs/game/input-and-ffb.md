@@ -19,8 +19,8 @@ Client paths under `game-unreal/Source/`.
 - `ApexSimInput/`: the DirectInput device module (`ApexDirectInputTypes.h`,
   `ApexWheelProfiles.h`, `Windows/ApexDirectInputDevice.cpp`,
   `ApexSimInputModule.cpp`).
-- `server/src/feedback.rs` (`FeedbackTick`, `FeedbackAccumulator`,
-  `DriverFeedback`), `server/src/physics.rs` (`steering_column_torque`,
+- `sim/src/feedback.rs` (`FeedbackTick`, `FeedbackAccumulator`,
+  `DriverFeedback`), `sim/src/physics.rs` (`steering_column_torque`,
   `steering_column_stiffness`, `impact_steer_kick`),
   `server/src/game_loop/broadcast.rs` (sends it).
 
