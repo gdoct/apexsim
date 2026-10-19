@@ -33,9 +33,10 @@ fn on_the_straight(speed: f32) -> (GameSession, PlayerId) {
     let car = f1();
     let mut car_configs = HashMap::new();
     car_configs.insert(car.id, car.clone());
-    let track =
-        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
-            .expect("failed to load Monza");
+    let track = TrackLoader::load_from_file(
+        "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
+    )
+    .expect("failed to load Monza");
     let session = RaceSession::new(
         Uuid::from_u128(1),
         track.id,

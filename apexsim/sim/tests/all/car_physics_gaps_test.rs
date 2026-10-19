@@ -493,8 +493,10 @@ fn the_rain_stands_in_spas_compressions_and_the_cars_dry_a_line_at_monza() {
         weather: Weather::HeavyRain,
         ..SessionConditions::DEFAULT
     };
-    let mut spa = TrackLoader::load_from_file("../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml")
-        .expect("SpaFrankenchamps");
+    let mut spa = TrackLoader::load_from_file(
+        "../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml",
+    )
+    .expect("SpaFrankenchamps");
     wet.apply_to_track(&mut spa);
     let field = RoadState::new(&spa, 0.5);
     println!(

@@ -3,7 +3,9 @@ use apexsim_sim::track_loader::TrackLoader;
 /// Spa loads from its YAML with its centerline, raceline, grid and metadata.
 #[test]
 fn spa_loads_from_its_yaml() -> Result<(), Box<dyn std::error::Error>> {
-    let track = TrackLoader::load_from_file("../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml")?;
+    let track = TrackLoader::load_from_file(
+        "../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml",
+    )?;
 
     println!("✓ Successfully loaded track: {}", track.name);
     println!("  Centerline points: {}", track.centerline.len());

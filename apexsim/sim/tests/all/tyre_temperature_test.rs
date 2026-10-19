@@ -198,8 +198,10 @@ fn tyre_temperature_probe() {
 #[test]
 fn a_lap_of_fast_corners_keeps_the_surface_near_the_bulk() {
     std::env::remove_var("TYRE_PROBE_TRACK");
-    let spa = TrackLoader::load_from_file("../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml")
-        .expect("failed to load Spa");
+    let spa = TrackLoader::load_from_file(
+        "../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml",
+    )
+    .expect("failed to load Spa");
     let car = car("yotota-lmp2");
     let car_id = car.id;
     let mut car_configs = HashMap::new();

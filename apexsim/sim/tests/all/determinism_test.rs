@@ -144,12 +144,14 @@ fn test_simulation_is_bit_identical_across_runs_on_the_road_mesh() {
 
 #[test]
 fn test_simulation_is_bit_identical_across_runs() {
-    let track_a =
-        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
-            .expect("failed to load Monza");
-    let track_b =
-        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
-            .expect("failed to load Monza");
+    let track_a = TrackLoader::load_from_file(
+        "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
+    )
+    .expect("failed to load Monza");
+    let track_b = TrackLoader::load_from_file(
+        "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
+    )
+    .expect("failed to load Monza");
 
     let run1 = run_and_fingerprint(track_a);
     let run2 = run_and_fingerprint(track_b);

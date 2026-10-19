@@ -15,9 +15,10 @@ use uuid::Uuid;
 const HZ: usize = apexsim_sim::game_session::DEFAULT_TICK_RATE_HZ as usize;
 
 fn race_with_events(car_folder: &str, events: &str) -> Option<(GameSession, PlayerId)> {
-    let track =
-        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
-            .ok()?;
+    let track = TrackLoader::load_from_file(
+        "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
+    )
+    .ok()?;
     track.pit_lane.as_ref()?;
     let car = CarLoader::load_from_file(Path::new(&format!(
         "../../apexsim-content/cars/default/{car_folder}/car.toml"
