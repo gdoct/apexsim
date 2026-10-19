@@ -1169,6 +1169,28 @@ bool FApexPredictionBundleTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPredictionBundleCacheTest, "ApexSim.Prediction.BundleCache", ApexTestFlags)
+
+bool FApexPredictionBundleCacheTest::RunTest(const FString& Parameters)
+{
+	// Four bundles of 30 MB in a 64 MB cache: the newest two stay, and the
+	// one just saved stays even when it is the oldest file.
+	const FDateTime Day(2026, 10, 19);
+	TArray<FApexCachedBundle> Files;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		Files.Add({ FString::Printf(TEXT("%d.apxtrack"), i), 30ll * 1024 * 1024, Day + FTimespan::FromHours(i) });
+	}
+	TArray<FString> Gone = ApexTrackBundleCache::ToPrune(Files, TEXT("3.apxtrack"));
+	Gone.Sort();
+	TestEqual(TEXT("the two oldest go"), Gone, TArray<FString>({ TEXT("0.apxtrack"), TEXT("1.apxtrack") }));
+	Gone = ApexTrackBundleCache::ToPrune(Files, TEXT("0.apxtrack"));
+	Gone.Sort();
+	TestEqual(TEXT("the kept one and the newest stay"), Gone, TArray<FString>({ TEXT("1.apxtrack"), TEXT("2.apxtrack") }));
+	TestEqual(TEXT("under the size nothing goes"), ApexTrackBundleCache::ToPrune(Files, TEXT("3.apxtrack"), 200ll * 1024 * 1024).Num(), 0);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPredictionBundleDownloadTest, "ApexSim.Prediction.BundleDownload", ApexTestFlags)
 
 bool FApexPredictionBundleDownloadTest::RunTest(const FString& Parameters)

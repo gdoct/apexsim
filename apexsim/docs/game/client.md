@@ -469,6 +469,9 @@ by default.
   time (`FApexTrackBundleDownload`: 3 in flight, 6 requests a second after a
   burst of 10, failed after 10 s without a chunk), cached and loaded
   (`apx_track_load_bundle`, refused unless its checksum is the one named).
+  The cache is kept under 64 MB (`ApexTrackBundleCache`): after a save the
+  least recently used bundles go (a load from the cache counts as a use),
+  never the one just saved.
   The join is never held for it: the puppet is drawn until the track is
   there. From an older server (no bundle) only the YAML on disk, its
   content checksum against the lobby's and the road mesh beside it when

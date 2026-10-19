@@ -166,6 +166,56 @@ void UApexPredictionSubsystem::Teardown(const FString& Why)
 	}
 }
 
+TArray<FString> ApexTrackBundleCache::ToPrune(TArray<FApexCachedBundle> Files, const FString& Keep, int64 MaxCacheBytes)
+{
+	Files.Sort([](const FApexCachedBundle& A, const FApexCachedBundle& B) { return A.Used > B.Used; });
+	int64 Total = 0;
+	for (const FApexCachedBundle& File : Files)
+	{
+		if (File.Path == Keep)
+		{
+			Total += File.Bytes;
+		}
+	}
+	TArray<FString> Gone;
+	for (const FApexCachedBundle& File : Files)
+	{
+		if (File.Path == Keep)
+		{
+			continue;
+		}
+		if (Total + File.Bytes > MaxCacheBytes)
+		{
+			Gone.Add(File.Path);
+			continue;
+		}
+		Total += File.Bytes;
+	}
+	return Gone;
+}
+
+void ApexTrackBundleCache::Prune(const FString& Keep)
+{
+	IFileManager& Files = IFileManager::Get();
+	const FString Dir = FPaths::GetPath(Keep);
+	TArray<FString> Names;
+	Files.FindFiles(Names, *FPaths::Combine(Dir, TEXT("*.apxtrack")), true, false);
+	TArray<FApexCachedBundle> Cached;
+	for (const FString& Name : Names)
+	{
+		FApexCachedBundle& File = Cached.AddDefaulted_GetRef();
+		File.Path = FPaths::Combine(Dir, Name);
+		File.Bytes = Files.FileSize(*File.Path);
+		File.Used = Files.GetTimeStamp(*File.Path);
+	}
+	for (const FString& Path : ToPrune(MoveTemp(Cached), Keep))
+	{
+		UE_LOG(LogApexSim, Log, TEXT("Prediction: the track bundle cache is over %lld MB; deleting %s"),
+			MaxBytes / (1024 * 1024), *FPaths::GetCleanFilename(Path));
+		Files.Delete(*Path, false, true, true);
+	}
+}
+
 FString UApexPredictionSubsystem::BundleCachePath(uint32 Crc)
 {
 	return FPaths::ConvertRelativePathToFull(
@@ -290,6 +340,8 @@ bool UApexPredictionSubsystem::StartLoad(const FString& Key, const FString& Trac
 			if (TUniquePtr<ApexPhysics::FTrack> Loaded = ApexPhysics::FTrack::LoadBundle(Cached, Crc, Contact, Conditions, Error))
 			{
 				Keep(MoveTemp(Loaded), TEXT("the cached bundle"));
+				// Used now: the cache drops the least recently used first.
+				IFileManager::Get().SetTimeStamp(*CachePath, FDateTime::UtcNow());
 				return Result;
 			}
 			UE_LOG(LogApexSim, Warning, TEXT("Prediction: the cached bundle %s was refused (%s); fetching it again"), *CachePath, *Error);
@@ -352,6 +404,10 @@ void UApexPredictionSubsystem::StartBundleLoad(TArray<uint8> Bundle)
 		if (!FFileHelper::SaveArrayToFile(Bundle, *CachePath))
 		{
 			UE_LOG(LogApexSim, Warning, TEXT("Prediction: could not cache the track bundle at %s"), *CachePath);
+		}
+		else
+		{
+			ApexTrackBundleCache::Prune(CachePath);
 		}
 		Result.Track = TSharedPtr<ApexPhysics::FTrack, ESPMode::ThreadSafe>(Loaded.Release());
 		Result.Source = TEXT("the server's bundle");

@@ -52,6 +52,30 @@ struct APEXSIM_API FApexTrackBundleDownload
 	TArray<uint8> Join() const;
 };
 
+/** One file in the track bundle cache. */
+struct FApexCachedBundle
+{
+	FString Path;
+	int64 Bytes = 0;
+	/** When it was last saved or loaded (its file time). */
+	FDateTime Used;
+};
+
+/**
+ * The track bundle cache (Saved/ApexSim/TrackBundles) kept under a size:
+ * every track version a server handed over is a file (2.6 MB for Monza,
+ * 10 MB for the Nordschleife), so the least recently used go first.
+ */
+namespace ApexTrackBundleCache
+{
+	inline constexpr int64 MaxBytes = 64ll * 1024 * 1024;
+
+	/** The files to delete so the rest fit in MaxCacheBytes: the least recently used first, never Keep. Pure for the tests. */
+	APEXSIM_API TArray<FString> ToPrune(TArray<FApexCachedBundle> Files, const FString& Keep, int64 MaxCacheBytes = MaxBytes);
+	/** Deletes from the cache folder what ToPrune names, keeping Keep (the bundle just saved). */
+	APEXSIM_API void Prune(const FString& Keep);
+}
+
 /**
  * Client prediction of the local car in a session (docs/game/client.md,
  * docs/proposals/client-prediction.md, phase 3): loads the session's track

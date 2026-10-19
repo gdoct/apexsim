@@ -322,10 +322,6 @@ the same files.
   against `git archive HEAD server content` in a scratch folder, with its
   own `CARGO_TARGET_DIR`.
 
-- Client prediction's bundle cache (`Saved/ApexSim/TrackBundles`) keeps
-  every bundle it was handed, one per track version (2.6 MB for Monza,
-  10 MB for the Nordschleife): prune the oldest past a size.
-
 - Tick pacing: the game loop's tokio interval ticks on a 1 ms grid, so
   at 420 Hz single ticks run 1-4.5 ms apart round the 2.38 ms budget
   (verification, platforms). If a client shows it, pace the loop on a
