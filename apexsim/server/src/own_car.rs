@@ -22,7 +22,54 @@
 use serde::{Deserialize, Serialize};
 
 use crate::data::CarState;
-use crate::network::RecordBytes;
+
+/// A run of spectator stream records (`crate::spectator`) in the stream's
+/// own framing, `[u32 big-endian length][body]` each: MessagePack `bin` on
+/// the wire, so records read from a file are forwarded without being
+/// decoded, and a joining viewer's whole preamble is one message.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RecordBytes(pub Vec<u8>);
+
+impl RecordBytes {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl Serialize for RecordBytes {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bytes(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for RecordBytes {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct BytesVisitor;
+        impl<'de> serde::de::Visitor<'de> for BytesVisitor {
+            type Value = RecordBytes;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a record's bytes")
+            }
+            fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<RecordBytes, E> {
+                Ok(RecordBytes(v.to_vec()))
+            }
+            fn visit_byte_buf<E: serde::de::Error>(self, v: Vec<u8>) -> Result<RecordBytes, E> {
+                Ok(RecordBytes(v))
+            }
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut seq: A,
+            ) -> Result<RecordBytes, A::Error> {
+                let mut out = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+                while let Some(byte) = seq.next_element::<u8>()? {
+                    out.push(byte);
+                }
+                Ok(RecordBytes(out))
+            }
+        }
+        deserializer.deserialize_bytes(BytesVisitor)
+    }
+}
 
 /// How often a full state blob starts going out, s.
 pub const STATE_BLOB_SECONDS: f32 = 0.5;

@@ -165,7 +165,7 @@ fn serviced_at_box(
     gs: &mut GameSession,
     player: &PlayerId,
     brake_wear: f32,
-) -> (f32, apexsim_server::network::PitServiceData) {
+) -> (f32, apexsim_server::game_session::PitService) {
     let lane = gs.track_config.pit_lane.clone().unwrap();
     let spot = *lane.box_at(0);
     {

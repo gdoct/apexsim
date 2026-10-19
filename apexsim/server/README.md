@@ -15,9 +15,12 @@ track YAML).
 - **Loop and IO**: `game_loop/` (`mod.rs` tick loop, `dispatch.rs`,
   `tick.rs`, `broadcast.rs`, `lifecycle.rs`, `track_loads.rs`,
   `showcase.rs`), `transport.rs`, `network.rs` (messages),
+  `session_wire.rs` (a session's messages and telemetry),
   `timer_resolution.rs`, `health.rs`, `metrics.rs`, `admin/` (dashboard).
 - **Sessions and rules**: `game_session.rs`, `lobby.rs`, `data.rs` (core
-  types), `laps.rs`, `records.rs`, `grid_order.rs`, `drs.rs`,
+  types), `laps.rs`, `ghost.rs` and `classification.rs` (ghost laps,
+  qualifying and race classifications), `records.rs` and `results.rs`
+  (their files), `grid_order.rs`, `drs.rs`,
   `headlights.rs`, `debug_hooks.rs`.
 - **Vehicle physics**: `car_step.rs` (one car's tick as every session mode
   runs it, the lone-car step the client's prediction shares, the car state

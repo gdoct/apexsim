@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use apexsim_server::ai_driver::AiDriverProfile;
 use apexsim_server::data::*;
 use apexsim_server::game_session::GameSession;
+use apexsim_server::session_wire::SessionWire;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 

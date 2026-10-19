@@ -12,6 +12,7 @@ use apexsim_server::conditions::WeatherChange;
 use apexsim_server::data::*;
 use apexsim_server::game_session::GameSession;
 use apexsim_server::road_state::{CELL_M, RUBBER_REFERENCE};
+use apexsim_server::session_wire::SessionWire;
 use apexsim_server::track_loader::TrackLoader;
 use apexsim_server::tyre_thermal::CompoundKind;
 use uuid::Uuid;

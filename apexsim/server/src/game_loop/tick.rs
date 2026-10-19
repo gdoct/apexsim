@@ -6,6 +6,7 @@
 use super::{GameLoopCtx, HeldInput};
 use crate::data::*;
 use crate::network::ServerMessage;
+use crate::session_wire::SessionWire;
 use bytes::Bytes;
 use std::collections::HashMap;
 use tracing::{debug, error, info, warn};
@@ -497,18 +498,19 @@ pub(crate) async fn tick_sessions(
 
         // Pit stops the crews started this tick: what each one does, for
         // the pit-stop panel. Reliable, like the timing.
-        for (player_id, mut service) in pit_starts {
+        for (player_id, service) in pit_starts {
             if is_demo_session {
                 continue;
             }
             let Some(car_index) = game_session.car_index_of(&player_id) else {
                 continue;
             };
-            service.car_index = car_index;
             lap_timing_out.push(LapTimingOut {
                 session_id: *session_id,
                 player_recipients: player_recipients.clone(),
-                msg: ServerMessage::PitService(service),
+                msg: ServerMessage::PitService(crate::session_wire::pit_service_data(
+                    car_index, &service,
+                )),
                 record: None,
                 qualifying: None,
             });
@@ -523,7 +525,7 @@ pub(crate) async fn tick_sessions(
             lap_timing_out.push(LapTimingOut {
                 session_id: *session_id,
                 player_recipients: vec![player_id],
-                msg: ServerMessage::PitBox(pit_box),
+                msg: ServerMessage::PitBox((&pit_box).into()),
                 record: None,
                 qualifying: None,
             });
@@ -547,14 +549,14 @@ pub(crate) async fn tick_sessions(
             rosters_out.push(SessionRosterOut {
                 session_id: *session_id,
                 player_recipients: player_recipients.clone(),
-                msg: ServerMessage::WeekendState(weekend),
+                msg: ServerMessage::WeekendState((&weekend).into()),
             });
         }
         if let Some(shootout) = game_session.take_shootout_state() {
             rosters_out.push(SessionRosterOut {
                 session_id: *session_id,
                 player_recipients: player_recipients.clone(),
-                msg: ServerMessage::ShootoutState(shootout),
+                msg: ServerMessage::ShootoutState((&shootout).into()),
             });
         }
 

@@ -23,6 +23,7 @@ use apexsim_server::game_session::{
     GameSession, HOTLAP_WATCH_CLIMB_LAPS, HOTLAP_WATCH_HOLD_S, HOTLAP_WATCH_SKILL,
 };
 use apexsim_server::network::{ClientMessage, LobbyStateData, ServerMessage};
+use apexsim_server::session_wire::SessionWire;
 use apexsim_server::track_guide::wire_corners;
 use apexsim_server::track_loader::TrackLoader;
 

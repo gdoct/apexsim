@@ -770,53 +770,7 @@ pub struct SpectatorJoinedData {
     pub showcase_id: String,
 }
 
-/// A run of spectator stream records (`crate::spectator`) in the stream's
-/// own framing, `[u32 big-endian length][body]` each: MessagePack `bin` on
-/// the wire, so records read from a file are forwarded without being
-/// decoded, and a joining viewer's whole preamble is one message.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct RecordBytes(pub Vec<u8>);
-
-impl RecordBytes {
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
-
-impl Serialize for RecordBytes {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_bytes(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for RecordBytes {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct BytesVisitor;
-        impl<'de> serde::de::Visitor<'de> for BytesVisitor {
-            type Value = RecordBytes;
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                f.write_str("a record's bytes")
-            }
-            fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<RecordBytes, E> {
-                Ok(RecordBytes(v.to_vec()))
-            }
-            fn visit_byte_buf<E: serde::de::Error>(self, v: Vec<u8>) -> Result<RecordBytes, E> {
-                Ok(RecordBytes(v))
-            }
-            fn visit_seq<A: serde::de::SeqAccess<'de>>(
-                self,
-                mut seq: A,
-            ) -> Result<RecordBytes, A::Error> {
-                let mut out = Vec::with_capacity(seq.size_hint().unwrap_or(0));
-                while let Some(byte) = seq.next_element::<u8>()? {
-                    out.push(byte);
-                }
-                Ok(RecordBytes(out))
-            }
-        }
-        deserializer.deserialize_bytes(BytesVisitor)
-    }
-}
+pub use crate::own_car::RecordBytes;
 
 /// Stream records wrapped as the TCP message a client receives:
 /// `{"type": "SpectatorRecord", "data": bin}` with the framed records as
@@ -1440,21 +1394,7 @@ fn no_second_dents() -> [i8; 4] {
     [crate::damage::NO_SECOND_DENT; 4]
 }
 
-/// `ground`'s two bits a wheel.
-pub const GROUND_GRAVEL: u8 = 1;
-pub const GROUND_SAND: u8 = 2;
-pub const GROUND_DESERT: u8 = 3;
-
-/// The wire's byte for a soft ground: 0 for grass, which throws no dust.
-pub fn ground_byte(ground: crate::physics::OffGround) -> u8 {
-    use crate::physics::OffGround;
-    match ground {
-        OffGround::Grass => 0,
-        OffGround::Gravel => GROUND_GRAVEL,
-        OffGround::Sand => GROUND_SAND,
-        OffGround::Desert => GROUND_DESERT,
-    }
-}
+pub use crate::physics::{ground_byte, GROUND_DESERT, GROUND_GRAVEL, GROUND_SAND};
 
 /// `CarState::wheel_ground` packed two bits a wheel, FL lowest.
 pub fn pack_ground(wheel_ground: [u8; 4]) -> u8 {
@@ -1468,8 +1408,7 @@ pub fn pack_ground(wheel_ground: [u8; 4]) -> u8 {
 pub const TYRE_STATE_PUNCTURED: u8 = 1;
 pub const TYRE_STATE_LEAKING: u8 = 2;
 
-/// `slide_flags`: a sliding tyre is bit `i`, a locked one bit `i + 4`.
-pub const SLIDE_FLAG_LOCKED_SHIFT: u8 = 4;
+pub use crate::physics::SLIDE_FLAG_LOCKED_SHIFT;
 
 fn no_hybrid() -> u8 {
     255
@@ -1777,16 +1716,7 @@ impl SkyNow {
 
 /// Where a timed race's clock stands, positional like the rest of
 /// `CompactTelemetry`: `[left_ms, final_lap]`.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RaceClock {
-    /// Race time left, ms: the whole length until the green light, 0 once
-    /// it has run out.
-    pub left_ms: u32,
-    /// The lap the race ends on: 0 while the clock runs, then the leader's
-    /// lap when it ran out. The first car to complete it wins, and every
-    /// car after it takes the flag at its next crossing of the line.
-    pub final_lap: u16,
-}
+pub use crate::game_session::RaceClock;
 
 impl CompactCarState {
     pub fn from_car_state(state: &CarState, car_index: u8) -> Self {

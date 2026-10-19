@@ -15,6 +15,7 @@ use apexsim_server::data::*;
 use apexsim_server::game_session::{GameSession, HOTLAP_RUNUP_M, HOTLAP_SPACING_M};
 use apexsim_server::laps;
 use apexsim_server::network::{ClientMessage, LobbyStateData, ServerMessage, LAP_FLAG_IN_GARAGE};
+use apexsim_server::session_wire::SessionWire;
 use apexsim_server::track_loader::TrackLoader;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;

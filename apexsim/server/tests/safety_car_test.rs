@@ -15,6 +15,7 @@ use apexsim_server::game_session::GameSession;
 use apexsim_server::race_control::{Course, VSC_SPEED_MPS};
 use apexsim_server::race_start::RacePhase;
 use apexsim_server::safety_car::{ScStage, SC_GAP_M, SC_QUEUED_M};
+use apexsim_server::session_wire::SessionWire;
 use apexsim_server::track_loader::TrackLoader;
 
 const TICK_RATE: u16 = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ;

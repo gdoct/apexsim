@@ -13,6 +13,7 @@ use crate::network::{
     SessionJoinedData, TrackBundleChunkData, TrackSectorsData,
 };
 use crate::racing_line;
+use crate::session_wire::SessionWire;
 use crate::transport::{ConnectionInfo, TransportEvent};
 use std::collections::HashMap;
 use tracing::{debug, warn};

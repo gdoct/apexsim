@@ -28,8 +28,8 @@ use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
 
-use crate::config::RoadContactMode;
 use crate::content_crc::{content_crc, crc32};
+use crate::track_loader::RoadContactMode;
 
 /// The bundle format's version.
 pub const BUNDLE_VERSION: u8 = 1;

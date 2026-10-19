@@ -14,6 +14,7 @@
 //! the sim ran on ([`pose_at`]), so a station quoted from the dossier lands
 //! where the cars actually are.
 
+use crate::session_wire::SessionWire;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 

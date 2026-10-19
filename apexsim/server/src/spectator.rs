@@ -33,6 +33,7 @@
 //! `cargo test spectator_wire_format -- --nocapture`
 //! (`ApexSpectatorGoldenBlobs.h`).
 
+use crate::session_wire::SessionWire;
 use std::io::{Read, Write};
 
 use crate::data::*;
@@ -2587,7 +2588,7 @@ impl BroadcastEncoder {
     pub fn pit_services(
         &self,
         session: &GameSession,
-        started: &[(PlayerId, crate::network::PitServiceData)],
+        started: &[(PlayerId, crate::game_session::PitService)],
     ) -> Vec<StreamEvent> {
         started
             .iter()
@@ -2596,10 +2597,9 @@ impl BroadcastEncoder {
                 Some(StreamEvent {
                     epoch: self.epoch,
                     tick: session.session.current_tick,
-                    kind: EventKind::PitService(crate::network::PitServiceData {
-                        car_index,
-                        ..data.clone()
-                    }),
+                    kind: EventKind::PitService(crate::session_wire::pit_service_data(
+                        car_index, data,
+                    )),
                 })
             })
             .collect()

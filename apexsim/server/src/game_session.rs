@@ -2,11 +2,10 @@ use crate::ai_driver::{AiDriverController, AiDriverProfile, TrafficCar};
 use crate::car_setup::CarSetup;
 use crate::car_step;
 use crate::data::*;
+use crate::ghost::{GhostLap, GhostSample, GHOST_SAMPLE_HZ};
 use crate::laps::{LapEvent, SECTOR_COUNT};
-use crate::network::*;
 use crate::physics;
 use crate::racing_line::{self, RacingLineProfile};
-use crate::records::{GhostLap, GhostSample, GHOST_SAMPLE_HZ};
 use crate::tyre_thermal;
 use std::collections::HashMap;
 use tracing::{debug, info};
@@ -332,6 +331,157 @@ fn hotlap_watch_driver(base: &AiDriverProfile, level: u8) -> AiDriverProfile {
     driver
 }
 
+/// Where a timed race's clock stands (`GameSession::race_clock`), as
+/// `CompactTelemetry` carries it, positional: `[left_ms, final_lap]`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RaceClock {
+    /// Race time left, ms: the whole length until the green light, 0 once
+    /// it has run out.
+    pub left_ms: u32,
+    /// The lap the race ends on: 0 while the clock runs, then the leader's
+    /// lap when it ran out. The first car to complete it wins, and every
+    /// car after it takes the flag at its next crossing of the line.
+    pub final_lap: u16,
+}
+
+/// Where a race weekend stands (`GameSession::weekend_state`): what the
+/// wire's `WeekendStateData` carries.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WeekendState {
+    /// 0 lobby (not started), 1 practice, 2 qualifying, 3 race.
+    pub phase: u8,
+    /// The qualifying round, 1-based; 0 outside qualifying.
+    pub round: u8,
+    /// How many qualifying rounds the weekend has.
+    pub rounds: u8,
+    /// The current phase has ended (the session is `Finished`).
+    pub finished: bool,
+    /// How many cars go through from this round; 0 in the final round and
+    /// outside qualifying.
+    pub advancing: u8,
+    /// Every car knocked out so far, in grid order.
+    pub eliminated: Vec<KnockedOut>,
+    /// The phase's damage rule.
+    pub damage: DamageLevel,
+    /// The sky the current phase runs under, for a weekend whose practice
+    /// or qualifying has its own; `None` for a weekend raced under one sky.
+    pub conditions: Option<SessionConditions>,
+}
+
+/// A car knocked out of a weekend's qualifying ([`WeekendState`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KnockedOut {
+    /// The car's index, as the roster maps it.
+    pub car_index: u8,
+    /// The round it went out in, 1-based.
+    pub round: u8,
+    /// Its race grid slot, 1-based.
+    pub grid_position: u8,
+    /// Its best legal lap in that round, ms; 0 for none.
+    pub lap_time_ms: u32,
+    /// A late entry that ran no round (`weekend::Eliminated::late`).
+    pub late: bool,
+}
+
+/// Where a qualifying shoot-out stands (`GameSession::shootout_state`):
+/// what the wire's `ShootoutStateData` carries.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ShootoutState {
+    /// The cars' indices (as the roster maps them) in run order.
+    pub order: Vec<u8>,
+    /// The 1-based place in `order` of the car on its run; 0 when none is.
+    pub running: u8,
+    /// How many cars of `order` have had their run.
+    pub done: u8,
+    /// The car on its run has started its flying lap.
+    pub flying: bool,
+}
+
+/// A pit stop the crew started (`GameSession::take_pit_events`): the
+/// wire's `PitServiceData` without the car's roster index. Each part's
+/// seconds are 0 when the stop does not do it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PitService {
+    /// The car's own box, 0-based from the lane's entry end.
+    pub pit_box: u8,
+    /// The tyre change, s, and the compound going on (an index into the
+    /// car's `TireConfig::compounds()`).
+    pub tyres_s: f32,
+    pub compound: u8,
+    /// Refuelling, s, and the litres going in.
+    pub fuel_s: f32,
+    pub fuel_l: f32,
+    /// Repairs, s, and the damage repaired (percent, summed over the zones).
+    pub repair_s: f32,
+    pub repair_pct: f32,
+    /// The whole stop, s.
+    pub total_s: f32,
+}
+
+/// A driver's own pit box (`GameSession::take_pit_box_news`), in the
+/// server's frame: metres, yaw in radians, +Y left. The wire's `PitBoxData`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PitBoxInfo {
+    /// The box, 0-based from the lane's entry end.
+    pub pit_box: u8,
+    /// The stop spot, facing down the lane.
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub yaw_rad: f32,
+    /// How far the spot is off the lane's middle, m, positive to the left.
+    pub lateral_m: f32,
+    pub lane_width_m: f32,
+    /// The car's middle stops within this of the spot, m.
+    pub radius_m: f32,
+    /// The driver drives the pit lane themselves (the autopilot is off).
+    pub manual: bool,
+}
+
+/// One corner of the lap, for a watcher's HUD
+/// (`GameSession::set_track_corners`); the wire's `CornerData`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TrackCorner {
+    /// From 1, in lap order from the start line.
+    pub number: u8,
+    /// The dossier's display name for it; empty when it has none.
+    pub name: String,
+    /// Stations in metres from the line, each in `[0, lap)`.
+    pub entry_m: f32,
+    pub apex_m: f32,
+    pub exit_m: f32,
+    /// The main turn goes left.
+    pub left: bool,
+}
+
+/// One car of the session's roster (`GameSession::roster_rows`), in
+/// `participants` order: the index compact telemetry identifies it by.
+/// The wire's `RosterEntry`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RosterRow {
+    pub car_index: u8,
+    pub player_id: PlayerId,
+    pub player_name: String,
+    pub is_ai: bool,
+    pub car_config_id: CarConfigId,
+    /// The livery it wears, within the car's own list.
+    pub livery: u8,
+    /// The server drives the car until its driver rejoins (a held seat).
+    pub away: bool,
+    /// The car's starting place, 1 = pole; 0 when none is dealt.
+    pub grid_slot: u8,
+    /// On the grid: the driver said they are ready.
+    pub ready: bool,
+    /// Did not qualify (`park_non_qualifiers`).
+    pub dnq: bool,
+    /// Took the flag owing a stop under the pit rule.
+    pub missed_stops: bool,
+    /// The timed laps ended under a qualifying lap allowance.
+    pub qualifying_laps: u8,
+    /// Race control's penalties given to this car this race, in order.
+    pub penalties: Vec<crate::race_control::Penalty>,
+}
+
 pub struct GameSession {
     pub session: RaceSession,
     pub track_config: TrackConfig,
@@ -394,7 +544,7 @@ pub struct GameSession {
     weekend: crate::weekend::WeekendProgress,
     /// The `WeekendState` last handed out (`take_weekend_state`), so it
     /// goes out again only when a field changes.
-    weekend_sent: Option<crate::network::WeekendStateData>,
+    weekend_sent: Option<WeekendState>,
     /// A weekend phase began between ticks (`advance_weekend`): the game
     /// loop starts its replay (`take_phase_started`).
     phase_started: bool,
@@ -406,7 +556,7 @@ pub struct GameSession {
     /// ([`Shootout`]); `None` outside one.
     shootout: Option<Shootout>,
     /// The `ShootoutState` last handed out (`take_shootout_state`).
-    shootout_sent: Option<crate::network::ShootoutStateData>,
+    shootout_sent: Option<ShootoutState>,
     /// The flying laps each car has ended in this qualifying session or
     /// round, against the lap allowance
     /// (`RaceSession::qualifying_lap_allowance`).
@@ -481,7 +631,7 @@ pub struct GameSession {
     /// Timing lines crossed since the game loop last drained them.
     lap_events: Vec<SessionLapEvent>,
     /// Pit stops started since the clients were last told.
-    pit_events: Vec<(PlayerId, crate::network::PitServiceData)>,
+    pit_events: Vec<(PlayerId, PitService)>,
     /// The lap each car was last topped up at the line on, on a circuit
     /// with no pit lane (`update_line_refuel`).
     line_refuel_laps: std::collections::BTreeMap<PlayerId, u16>,
@@ -522,7 +672,7 @@ pub struct GameSession {
     /// The watched hotlap this session is, if it is one.
     hotlap_watch: HotlapWatch,
     /// The track's corners, for the watcher's HUD (`TrackCorners`).
-    track_corners: Vec<crate::network::CornerData>,
+    track_corners: Vec<TrackCorner>,
     /// Each driver's own-car feed for a predicting client
     /// (`crate::own_car`): the input sequence applied, the state blob being
     /// sent. Written by the game loop around the tick; never read by the
@@ -1114,7 +1264,7 @@ impl GameSession {
     }
 
     /// Seconds of the sky's own clock (from `sky_epoch_tick`).
-    fn sky_seconds(&self) -> f32 {
+    pub fn sky_seconds(&self) -> f32 {
         self.session
             .current_tick
             .saturating_sub(self.sky_epoch_tick) as f32
@@ -1130,16 +1280,6 @@ impl GameSession {
     /// The simulation tick rate (Hz) this session runs at.
     pub fn tick_rate_hz(&self) -> u16 {
         self.tick_rate_hz
-    }
-
-    /// What a driver's client steps its own car with (`SessionJoined.Physics`):
-    /// the tick rate, and the road mesh when this session's track drives on one.
-    pub fn session_physics(&self) -> SessionPhysics {
-        SessionPhysics {
-            tick_rate_hz: self.tick_rate_hz,
-            road_contact: u8::from(self.track_config.road_mesh.is_some()),
-            ..Default::default()
-        }
     }
 
     /// Fixed physics timestep in seconds, derived from the tick rate.
@@ -2087,7 +2227,7 @@ impl GameSession {
 
     /// Where the shoot-out stands, for the wire; `None` outside one. A car
     /// that has left the session is dropped from the order.
-    pub fn shootout_state(&self) -> Option<crate::network::ShootoutStateData> {
+    pub fn shootout_state(&self) -> Option<ShootoutState> {
         if self.session.game_mode != GameMode::Qualification {
             return None;
         }
@@ -2110,7 +2250,7 @@ impl GameSession {
         let flying = runner
             .and_then(|id| self.session.participants.get(&id))
             .is_some_and(|s| !s.outlap && s.current_lap > 0);
-        Some(crate::network::ShootoutStateData {
+        Some(ShootoutState {
             order,
             running,
             done,
@@ -2120,24 +2260,13 @@ impl GameSession {
 
     /// The shoot-out's state when it changed since the last call, for the
     /// game loop to send to the whole session.
-    pub fn take_shootout_state(&mut self) -> Option<crate::network::ShootoutStateData> {
+    pub fn take_shootout_state(&mut self) -> Option<ShootoutState> {
         let state = self.shootout_state()?;
         if self.shootout_sent.as_ref() == Some(&state) {
             return None;
         }
         self.shootout_sent = Some(state.clone());
         Some(state)
-    }
-
-    /// What a member joining the session is told after `SessionJoined`
-    /// about the phase it is in: the weekend's state and the shoot-out's,
-    /// where there are such.
-    pub fn phase_state_messages(&self) -> Vec<ServerMessage> {
-        self.weekend_state()
-            .map(ServerMessage::WeekendState)
-            .into_iter()
-            .chain(self.shootout_state().map(ServerMessage::ShootoutState))
-            .collect()
     }
 
     /// A timed qualifying or practice session after its clock: each car
@@ -2558,11 +2687,11 @@ impl GameSession {
 
     /// Where the weekend stands, for the wire; `None` outside a weekend.
     /// A knocked-out car that has left the session is left out.
-    pub fn weekend_state(&self) -> Option<crate::network::WeekendStateData> {
+    pub fn weekend_state(&self) -> Option<WeekendState> {
         use crate::weekend::WeekendPhase;
         let format = self.session.weekend.as_ref()?;
         let phase = self.weekend.phase;
-        Some(crate::network::WeekendStateData {
+        Some(WeekendState {
             phase: phase as u8,
             round: if phase == WeekendPhase::Qualifying {
                 self.weekend.round
@@ -2577,7 +2706,7 @@ impl GameSession {
                 .eliminated
                 .iter()
                 .filter_map(|e| {
-                    Some(crate::network::KnockedOutData {
+                    Some(KnockedOut {
                         car_index: self.car_index_of(&e.player_id)?,
                         round: e.round,
                         grid_position: e.grid_position,
@@ -2595,7 +2724,7 @@ impl GameSession {
 
     /// The weekend's state when it changed since the last call (or was
     /// never handed out), for the game loop to send to the whole session.
-    pub fn take_weekend_state(&mut self) -> Option<crate::network::WeekendStateData> {
+    pub fn take_weekend_state(&mut self) -> Option<WeekendState> {
         let state = self.weekend_state()?;
         if self.weekend_sent.as_ref() == Some(&state) {
             return None;
@@ -3331,23 +3460,13 @@ impl GameSession {
     }
 
     /// Give the watcher's HUD the track's corners.
-    pub fn set_track_corners(&mut self, corners: Vec<crate::network::CornerData>) {
+    pub fn set_track_corners(&mut self, corners: Vec<TrackCorner>) {
         self.track_corners = corners;
     }
 
-    /// The `TrackCorners` message for a joining watcher; `None` when the
-    /// track has no corners.
-    pub fn track_corners_message(&self, session_id: SessionId) -> Option<ServerMessage> {
-        if self.track_corners.is_empty() {
-            return None;
-        }
-        Some(ServerMessage::TrackCorners(
-            crate::network::TrackCornersData {
-                session_id,
-                track_length_m: self.track_length_m(),
-                corners: self.track_corners.clone(),
-            },
-        ))
+    /// The track's corners, as `set_track_corners` gave them.
+    pub fn track_corners(&self) -> &[TrackCorner] {
+        &self.track_corners
     }
 
     /// The AI's inputs while the car is held: the brake on, nothing else.
@@ -4592,7 +4711,7 @@ impl GameSession {
         &mut self,
         player_id: PlayerId,
         lap_time_ms: u32,
-    ) -> Option<crate::records::QualifyingResult> {
+    ) -> Option<crate::classification::QualifyingResult> {
         if self.session.game_mode != GameMode::Qualification || lap_time_ms == 0 {
             return None;
         }
@@ -4656,7 +4775,7 @@ impl GameSession {
 
     /// This session's classification as the store keeps it (a weekend's
     /// combined, `classified_laps`), drivers with a time only.
-    pub fn qualifying_result(&self) -> crate::records::QualifyingResult {
+    pub fn qualifying_result(&self) -> crate::classification::QualifyingResult {
         let class = self
             .session
             .host_car_id
@@ -4669,7 +4788,7 @@ impl GameSession {
             .filter(|(_, ms)| *ms > 0)
             .filter_map(|(id, lap_time_ms)| {
                 let state = self.session.participants.get(&id)?;
-                Some(crate::records::QualifyingEntry {
+                Some(crate::classification::QualifyingEntry {
                     name: self.driver_name(&id),
                     car_config_id: state.car_config_id,
                     lap_time_ms,
@@ -4678,7 +4797,7 @@ impl GameSession {
             })
             .filter(|e| !e.name.is_empty())
             .collect();
-        crate::records::QualifyingResult {
+        crate::classification::QualifyingResult {
             id: self.session.id,
             track_id: self.session.track_config_id,
             class,
@@ -5626,14 +5745,14 @@ impl GameSession {
     }
 
     /// Pit stops started since the last call, for the clients.
-    pub fn take_pit_events(&mut self) -> Vec<(PlayerId, crate::network::PitServiceData)> {
+    pub fn take_pit_events(&mut self) -> Vec<(PlayerId, PitService)> {
         std::mem::take(&mut self.pit_events)
     }
 
     /// Each human whose box has been dealt and who has not been told where
     /// it is (since joining, or rejoining), or whose pit autopilot has been
     /// switched since, with their box.
-    pub fn take_pit_box_news(&mut self) -> Vec<(PlayerId, crate::network::PitBoxData)> {
+    pub fn take_pit_box_news(&mut self) -> Vec<(PlayerId, PitBoxInfo)> {
         let Some(lane) = self.track_config.pit_lane.as_ref() else {
             return Vec::new();
         };
@@ -5650,7 +5769,7 @@ impl GameSession {
             let spot = lane.box_at(index);
             news.push((
                 state.player_id,
-                crate::network::PitBoxData {
+                PitBoxInfo {
                     pit_box: (index as usize % lane.boxes.len()) as u8,
                     x: spot.x,
                     y: spot.y,
@@ -5757,7 +5876,7 @@ impl GameSession {
     pub fn classification(
         &self,
         names: &HashMap<PlayerId, String>,
-    ) -> Vec<crate::results::ClassifiedCar> {
+    ) -> Vec<crate::classification::ClassifiedCar> {
         let rate = self.tick_rate_hz.max(1) as f64;
         let start = self.session.race_start_tick.unwrap_or(0);
         let total = crate::laps::track_length_m(&self.track_config).max(1.0);
@@ -5793,7 +5912,7 @@ impl GameSession {
                     (_, Some(w)) => (None, w.laps.saturating_sub(laps)),
                     _ => (None, 0),
                 };
-                crate::results::ClassifiedCar {
+                crate::classification::ClassifiedCar {
                     position: (i + 1).min(u8::MAX as usize) as u8,
                     player_id: **id,
                     name: self
@@ -5927,8 +6046,7 @@ impl GameSession {
             pit.service_pad_set = None;
             self.pit_events.push((
                 *player_id,
-                crate::network::PitServiceData {
-                    car_index: 0,
+                PitService {
                     pit_box,
                     tyres_s: 0.0,
                     compound,
@@ -6038,8 +6156,7 @@ impl GameSession {
         }
         self.pit_events.push((
             *player_id,
-            crate::network::PitServiceData {
-                car_index: 0,
+            PitService {
                 pit_box,
                 tyres_s: plan.tyres_s,
                 compound,
@@ -6767,92 +6884,6 @@ impl GameSession {
         self.ai_profiles.get(player_id)
     }
 
-    /// Get telemetry for broadcast
-    pub fn get_telemetry(&self) -> ServerMessage {
-        let car_states: Vec<CarStateTelemetry> = self
-            .session
-            .participants
-            .values()
-            .map(CarStateTelemetry::from)
-            .collect();
-
-        let countdown_ms = self
-            .session
-            .countdown_ticks_remaining
-            .map(|ticks| ((ticks as f32 / self.tick_rate_hz as f32) * 1000.0) as u16);
-
-        let telemetry = crate::network::Telemetry {
-            server_tick: self.session.current_tick,
-            session_state: self.session.state,
-            game_mode: self.session.game_mode,
-            countdown_ms,
-            car_states,
-        };
-
-        ServerMessage::Telemetry(telemetry)
-    }
-
-    /// Compact wire telemetry (protocol v2): cars are identified by their
-    /// position in the deterministic `participants` iteration order, matching
-    /// the indices announced in the most recent `SessionRoster`.
-    pub fn get_compact_telemetry(&self) -> CompactTelemetry {
-        let car_states: Vec<CompactCarState> = self
-            .session
-            .participants
-            .values()
-            .enumerate()
-            .map(|(idx, s)| CompactCarState::from_car_state(s, idx as u8))
-            .collect();
-
-        let countdown_ms = self
-            .session
-            .countdown_ticks_remaining
-            .map(|ticks| ((ticks as f32 / self.tick_rate_hz as f32) * 1000.0) as u16);
-
-        CompactTelemetry {
-            server_tick: self.session.current_tick,
-            session_state: self.session.state,
-            game_mode: self.session.game_mode,
-            countdown_ms,
-            car_states,
-            race_clock: self.race_clock(),
-            sky: Some(self.sky_now()),
-            yellow_flags: self.yellow_flags(),
-            race_phase: self.race_phase(),
-            safety_car: self
-                .race_control
-                .safety_car
-                .as_ref()
-                .and_then(|sc| sc.wire_pose())
-                .map(Into::into),
-        }
-    }
-
-    /// The race's yellow sectors for telemetry, `None` while none is out.
-    pub fn yellow_flags(&self) -> Option<crate::network::YellowFlags> {
-        let sectors: Vec<[u16; 2]> = self
-            .race_control
-            .yellows()
-            .map(|(sector, level)| [sector.min(u16::MAX as usize) as u16, level as u16])
-            .collect();
-        if sectors.is_empty() {
-            return None;
-        }
-        Some(crate::network::YellowFlags {
-            sector_m: crate::race_control::MARSHAL_SECTOR_M as u16,
-            sectors,
-        })
-    }
-
-    /// The sky as it is now, as telemetry and the spectator stream carry it.
-    pub fn sky_now(&self) -> crate::network::SkyNow {
-        crate::network::SkyNow::of(
-            &self.sky,
-            self.track_config.track_surface.wind_now_mps,
-            self.sky_seconds(),
-        )
-    }
-
     /// The livery a driver wears, as they picked it. Clamped to the car's
     /// own list when the roster is built, so a stale pick is harmless.
     pub fn set_livery(&mut self, player_id: PlayerId, livery: u8) {
@@ -6880,17 +6911,17 @@ impl GameSession {
         std::mem::take(&mut self.roster_dirty)
     }
 
-    /// Build the car-index → player mapping for compact telemetry. Human
-    /// player names are looked up in `names` (lobby data); AI names come from
+    /// The car-index → player mapping for compact telemetry, a row a car
+    /// in `participants` order (the wire's `SessionRoster`). Human player
+    /// names are looked up in `names` (lobby data); AI names come from
     /// their profiles.
-    pub fn build_roster(&self, names: &HashMap<PlayerId, String>) -> SessionRosterData {
+    pub fn roster_rows(&self, names: &HashMap<PlayerId, String>) -> Vec<RosterRow> {
         // AI drivers are dealt liveries in grid order, each model's cars
         // taking the next one of its list, so a field of the same car is not
         // a row of clones.
         let mut dealt: HashMap<CarConfigId, u8> = HashMap::new();
         let slots = self.starting_slots();
-        let entries = self
-            .session
+        self.session
             .participants
             .iter()
             .enumerate()
@@ -6919,7 +6950,7 @@ impl GameSession {
                         0
                     }
                 };
-                RosterEntry {
+                RosterRow {
                     car_index: idx as u8,
                     player_id: *player_id,
                     player_name,
@@ -6940,19 +6971,10 @@ impl GameSession {
                         .get(player_id)
                         .copied()
                         .unwrap_or(0),
-                    penalties: self
-                        .penalties
-                        .get(player_id)
-                        .map(|list| list.iter().map(crate::network::PenaltyData::from).collect())
-                        .unwrap_or_default(),
+                    penalties: self.penalties.get(player_id).cloned().unwrap_or_default(),
                 }
             })
-            .collect();
-
-        SessionRosterData {
-            session_id: self.session.id,
-            entries,
-        }
+            .collect()
     }
 
     /// Race is complete once every car has been classified with a finish
@@ -7772,15 +7794,8 @@ mod tests {
         game_session.set_livery(picked, 2);
         game_session.set_livery(stale, 7);
 
-        let roster = game_session.build_roster(&HashMap::new());
-        let livery_of = |id: PlayerId| {
-            roster
-                .entries
-                .iter()
-                .find(|e| e.player_id == id)
-                .unwrap()
-                .livery
-        };
+        let roster = game_session.roster_rows(&HashMap::new());
+        let livery_of = |id: PlayerId| roster.iter().find(|e| e.player_id == id).unwrap().livery;
         assert_eq!(livery_of(picked), 2, "a pick inside the car's list is kept");
         assert_eq!(
             livery_of(stale),
@@ -7789,7 +7804,6 @@ mod tests {
         );
         assert_eq!(livery_of(stock), 0);
         let mut ai: Vec<u8> = roster
-            .entries
             .iter()
             .filter(|e| e.is_ai)
             .map(|e| e.livery)
@@ -7803,10 +7817,9 @@ mod tests {
 
         game_session.remove_player(&picked);
         game_session.add_player(picked, car_id);
-        let roster = game_session.build_roster(&HashMap::new());
+        let roster = game_session.roster_rows(&HashMap::new());
         assert_eq!(
             roster
-                .entries
                 .iter()
                 .find(|e| e.player_id == picked)
                 .unwrap()
@@ -8157,15 +8170,8 @@ mod tests {
         assert!(game_session.set_ready(a, true));
         game_session.tick(&none);
         assert_eq!(game_session.session.game_mode, GameMode::Grid);
-        let roster = game_session.build_roster(&HashMap::new());
-        let ready = |id: PlayerId| {
-            roster
-                .entries
-                .iter()
-                .find(|e| e.player_id == id)
-                .unwrap()
-                .ready
-        };
+        let roster = game_session.roster_rows(&HashMap::new());
+        let ready = |id: PlayerId| roster.iter().find(|e| e.player_id == id).unwrap().ready;
         assert!(ready(a) && !ready(b));
 
         // A driver away is not waited for.
@@ -8177,11 +8183,8 @@ mod tests {
             Some(DEFAULT_TICK_RATE_HZ * 3)
         );
         assert_eq!(game_session.session.next_mode, Some(GameMode::Race));
-        let roster = game_session.build_roster(&HashMap::new());
-        assert!(
-            roster.entries.iter().all(|e| !e.ready),
-            "ready ends with the grid"
-        );
+        let roster = game_session.roster_rows(&HashMap::new());
+        assert!(roster.iter().all(|e| !e.ready), "ready ends with the grid");
         for _ in 0..DEFAULT_TICK_RATE_HZ * 4 {
             game_session.tick(&none);
         }
@@ -8224,6 +8227,8 @@ mod tests {
     /// stopped car has gone and the hold has run out.
     #[test]
     fn a_car_stopped_on_the_road_brings_out_the_yellows() {
+        // The wire's view of the session (runtime side).
+        use crate::session_wire::SessionWire;
         let track = crate::track_loader::TrackLoader::load_from_file(
             "../../apexsim-content/tracks/default/Monza/Monza.yaml",
         )
@@ -8567,10 +8572,9 @@ mod tests {
         assert_eq!(place(&game_session, &met), Some(1));
         assert_eq!(place(&game_session, &none), Some(2));
         assert_eq!(place(&game_session, &same), Some(3));
-        let roster = game_session.build_roster(&HashMap::new());
+        let roster = game_session.roster_rows(&HashMap::new());
         let missed = |id: PlayerId| {
             roster
-                .entries
                 .iter()
                 .find(|e| e.player_id == id)
                 .unwrap()
@@ -9125,14 +9129,14 @@ mod tests {
         assert_eq!(
             state.eliminated,
             vec![
-                crate::network::KnockedOutData {
+                KnockedOut {
                     car_index: 1,
                     round: 1,
                     grid_position: 3,
                     lap_time_ms: 82_000,
                     late: false,
                 },
-                crate::network::KnockedOutData {
+                KnockedOut {
                     car_index: 3,
                     round: 1,
                     grid_position: 4,
@@ -9289,9 +9293,8 @@ mod tests {
         assert!(game_session.session.participants[&a].damage.is_drivable);
         // The roster marks it, so a client shows DNQ rather than a retirement.
         assert!(game_session.take_roster_dirty());
-        let roster = game_session.build_roster(&HashMap::new());
+        let roster = game_session.roster_rows(&HashMap::new());
         let dnq: Vec<PlayerId> = roster
-            .entries
             .iter()
             .filter(|e| e.dnq)
             .map(|e| e.player_id)
@@ -9443,6 +9446,8 @@ mod tests {
     /// started at the day. A weekend naming no day's sky keeps its one.
     #[test]
     fn a_weekend_day_bakes_its_own_sky() {
+        // The wire's view of the session (runtime side).
+        use crate::session_wire::SessionWire;
         let (mut game_session, ids) = weekend_of(2, 600, &[600]);
         let dry = game_session.track_config.track_surface.base_grip;
         let source = std::sync::Arc::new(game_session.track_config.clone());
@@ -9527,8 +9532,7 @@ mod tests {
                 .unwrap();
         }
         let laps_in_roster = |gs: &GameSession, id: PlayerId| {
-            gs.build_roster(&HashMap::new())
-                .entries
+            gs.roster_rows(&HashMap::new())
                 .iter()
                 .find(|e| e.player_id == id)
                 .map(|e| e.qualifying_laps)
@@ -10209,8 +10213,8 @@ mod tests {
             );
         }
 
-        let roster = game_session.build_roster(&HashMap::new());
-        for entry in &roster.entries {
+        let roster = game_session.roster_rows(&HashMap::new());
+        for entry in &roster {
             assert_eq!(
                 entry.car_config_id,
                 game_session.session.participants[&entry.player_id].car_config_id

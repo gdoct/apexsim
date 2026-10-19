@@ -1239,7 +1239,7 @@ pub fn update_car_3d(
                     flags |= 1 << i;
                 }
                 if locked {
-                    flags |= 1 << (i + crate::network::SLIDE_FLAG_LOCKED_SHIFT as usize);
+                    flags |= 1 << (i + SLIDE_FLAG_LOCKED_SHIFT as usize);
                 }
             }
         }
@@ -1443,7 +1443,7 @@ pub fn update_car_3d(
     state.wheel_ground = if is_airborne {
         [0; 4]
     } else {
-        wheel_states.map(|w| w.soft_ground.map_or(0, crate::network::ground_byte))
+        wheel_states.map(|w| w.soft_ground.map_or(0, ground_byte))
     };
     state.feedback.record_tick(&FeedbackTick {
         steer_torque: steering_column_torque(front_tyres, config, static_front_weight),
@@ -3509,6 +3509,24 @@ impl RoadContact {
         }
     }
 }
+
+/// `ground`'s two bits a wheel.
+pub const GROUND_GRAVEL: u8 = 1;
+pub const GROUND_SAND: u8 = 2;
+pub const GROUND_DESERT: u8 = 3;
+
+/// The wire's byte for a soft ground: 0 for grass, which throws no dust.
+pub fn ground_byte(ground: OffGround) -> u8 {
+    match ground {
+        OffGround::Grass => 0,
+        OffGround::Gravel => GROUND_GRAVEL,
+        OffGround::Sand => GROUND_SAND,
+        OffGround::Desert => GROUND_DESERT,
+    }
+}
+
+/// `slide_flags`: a sliding tyre is bit `i`, a locked one bit `i + 4`.
+pub const SLIDE_FLAG_LOCKED_SHIFT: u8 = 4;
 
 /// What a tyre off the road and the run-off stands on. Grass is the
 /// track's own off-track figures (`TrackSurface::off_track_grip`,

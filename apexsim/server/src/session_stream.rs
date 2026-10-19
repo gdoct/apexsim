@@ -13,8 +13,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use crate::data::*;
-use crate::game_session::{GameSession, SessionLapEvent};
-use crate::network::PitServiceData;
+use crate::game_session::{GameSession, PitService, SessionLapEvent};
 use crate::spectator::{
     BroadcastEncoder, CarRow, Record, StreamGhost, StreamHeader, StreamPath, StreamRoster,
     EVENT_FINISH, EVENT_LAP_TIMING, EVENT_PIT_SERVICE, EVENT_PIT_STOP, EVENT_RETIRED,
@@ -185,7 +184,7 @@ impl SessionStream {
         &mut self,
         session: &GameSession,
         laps: &[SessionLapEvent],
-        pit_starts: &[(PlayerId, PitServiceData)],
+        pit_starts: &[(PlayerId, PitService)],
         names: &HashMap<PlayerId, String>,
         roster_changed: bool,
     ) -> StreamTick {

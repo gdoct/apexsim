@@ -11,38 +11,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-use crate::data::{CarConfigId, PlayerId};
-
-/// One car's line of the classification.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct ClassifiedCar {
-    /// 1-based place; the finishers first, then the cars still running.
-    pub position: u8,
-    pub player_id: PlayerId,
-    pub name: String,
-    pub is_ai: bool,
-    pub car_config_id: CarConfigId,
-    /// What became of it: `finished`, `running` (still out when the race
-    /// ended) or `retired`.
-    pub status: &'static str,
-    pub laps: u16,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub best_lap_ms: Option<u32>,
-    /// From the green to its flag, ms; a car that did not finish has none.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub race_time_ms: Option<u32>,
-    /// Behind the winner, ms, on the same lap; none for the winner and for
-    /// a car laps down.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub gap_ms: Option<u32>,
-    pub laps_down: u16,
-    /// Took the flag owing a stop or its second compound under the pit
-    /// rule: classified behind every car that met it.
-    pub missed_stops: bool,
-    /// Seconds race control's penalties added to its race time
-    /// (`race_control::Penalty::added_s`); counted in `race_time_ms`.
-    pub penalty_s: u32,
-}
+pub use crate::classification::ClassifiedCar;
 
 /// A finished race, as written.
 #[derive(Debug, Clone, PartialEq, Serialize)]

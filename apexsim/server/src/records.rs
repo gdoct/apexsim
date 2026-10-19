@@ -24,37 +24,7 @@ use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 use tracing::{debug, warn};
 
-/// How often a ghost lap is sampled. 20 Hz is about 3 m at racing speed, and
-/// the client interpolates between samples exactly as it does for a live car.
-pub const GHOST_SAMPLE_HZ: f32 = 20.0;
-
-/// One moment of a recorded lap. Everything the client needs to drive a
-/// puppet car through it; the same fields a telemetry frame carries.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct GhostSample {
-    /// Milliseconds since the lap started.
-    pub t_ms: u32,
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-    pub yaw_rad: f32,
-    pub pitch_rad: f32,
-    pub roll_rad: f32,
-    pub speed_mps: f32,
-    pub steering: f32,
-    pub throttle: f32,
-    pub brake: f32,
-    pub gear: i8,
-    pub engine_rpm: f32,
-}
-
-/// A recorded lap, start line to start line.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GhostLap {
-    pub lap_time_ms: u32,
-    pub sample_hz: f32,
-    pub samples: Vec<GhostSample>,
-}
+pub use crate::ghost::{GhostLap, GhostSample, GHOST_SAMPLE_HZ};
 
 /// The best legal lap one driver has set with one car on one track.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -74,28 +44,7 @@ pub struct LapRecord {
 /// How many qualifying results the store keeps, oldest dropped first.
 pub const MAX_QUALIFYING_RESULTS: usize = 50;
 
-/// One driver's line of a qualifying result.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct QualifyingEntry {
-    pub name: String,
-    pub car_config_id: CarConfigId,
-    pub lap_time_ms: u32,
-    pub is_ai: bool,
-}
-
-/// A qualifying session's classification: its drivers by best legal lap,
-/// fastest first. `id` is the session's, so a session that is still setting
-/// laps keeps replacing its own result.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct QualifyingResult {
-    pub id: uuid::Uuid,
-    pub track_id: TrackConfigId,
-    /// The host car's class (`F1`, `GT3`...), for the picker's label.
-    pub class: String,
-    /// RFC 3339; stamped by the store when empty. Display only.
-    pub recorded_at: String,
-    pub entries: Vec<QualifyingEntry>,
-}
+pub use crate::classification::{QualifyingEntry, QualifyingResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct QualifyingFile {

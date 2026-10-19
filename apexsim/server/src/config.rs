@@ -158,29 +158,7 @@ impl Default for ShowcaseSettings {
     }
 }
 
-/// How the sim finds the surface under a wheel (`apexsim-content/docs/road-mesh.md`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum RoadContactMode {
-    /// The nearest centerline point's height, sheared by the banking, with
-    /// the curb bands for the track limits: every track, as before.
-    Centerline,
-    /// A track's baked `<Track>.road.msgpack` when it has one — the road
-    /// the client draws, as triangles — and the centerline otherwise.
-    Mesh,
-}
-
-impl std::str::FromStr for RoadContactMode {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.trim().to_ascii_lowercase().as_str() {
-            "centerline" => Ok(RoadContactMode::Centerline),
-            "mesh" => Ok(RoadContactMode::Mesh),
-            other => Err(format!("unknown road_contact {other:?} (centerline|mesh)")),
-        }
-    }
-}
+pub use crate::track_loader::RoadContactMode;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PhysicsSettings {

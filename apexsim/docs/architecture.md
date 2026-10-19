@@ -102,6 +102,37 @@ mesh backends. Inside the sim path:
 The game loop's own bookkeeping (rate checks, rate limiting, heartbeats) uses
 `Instant`, which is fine because it never feeds the simulation.
 
+### Simulation and runtime modules
+
+The server crate's modules are of two kinds. **Simulation**: the car
+(`physics`, `car_step`, `aero`, `brakes`, `tyre_thermal`, `engine_heat`,
+`damage`, `hybrid`, `geometry`, `feedback`, `car_setup`, `own_car`), the
+track and its sidecars (`ground`, `curbs`, `walls`, `road_mesh`,
+`road_state`, `track_loader`, `track_bundle`, `car_loader`, `content_crc`,
+`data`), the race (`game_session`, `laps`, `wind`, `drs`, `slipstream`,
+`recovery`, `ai_driver`, `racecraft`, `racing_line`, `pit`, `race_control`,
+`race_start`, `safety_car`, `weekend`, `grid_order`, `headlights`,
+`conditions`, `balance`, `debug_hooks`) and the plain data the session
+hands out (`ghost`, `classification`). **Runtime**: everything else - the
+wire (`network`, `transport`, `udp_seal`, `session_wire`), the loop
+(`game_loop/`, `server`, `lobby`, `chat`, `main`, `config`), operations
+(`health`, `metrics`, `tick_jitter`, `timer_resolution`, `webhook`,
+`admin/`), files (`records`, `results`, `setup_sheet`, `track_content`) and
+spectating and tools (`spectator`, `session_stream`, `stream_recorder`,
+`showcase`, `replay`, `replay_tools`, `track_guide`, `bin/`).
+
+Simulation modules do not use runtime modules: the session hands out sim
+types (`WeekendState`, `PitService`, `RosterRow`, `TrackCorner`, ...) and
+`session_wire` turns them into messages (`SessionWire` keeps
+`get_compact_telemetry`, `build_roster` and the rest callable on a
+`GameSession`). Where a value is the sim's own and the wire carries it as
+is, the sim defines it and `network` re-exports it (`RecordBytes`,
+`RaceClock`, `ground_byte`, `SLIDE_FLAG_LOCKED_SHIFT`, `DriverFeedback`);
+`config` re-exports `RoadContactMode` the same way. This boundary becomes a
+crate boundary (`apexsim-sim`). A few unit tests inside simulation modules
+still reach the wire (`SkyNow`, `lap_flags_of`, `RACE_FLAG_YELLOW_SHIFT`,
+`SessionWire`).
+
 ## Tick timing on Windows
 
 A Windows sleep is only as fine as the process's timer resolution, 15.6 ms

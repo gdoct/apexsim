@@ -1,8 +1,8 @@
-use crate::config::RoadContactMode;
 use crate::curbs::CurbQuery as _;
 use crate::data::{GridSlot, SurfaceType, TrackConfig, TrackPoint, TrackSurface};
 use crate::ground::GroundQuery as _;
 use crate::track_bundle::TrackFiles;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use tracing::{debug, info, warn};
@@ -11,6 +11,30 @@ use tracing::{debug, info, warn};
 /// (`apexsim-lib/formats/src/track.rs`) for the server and the track
 /// editor both: a key added to the file goes there.
 pub use apexsim_formats::track::{Checkpoint, SpawnPoint, TrackFile as TrackFileFormat, TrackNode};
+
+/// How the sim finds the surface under a wheel (`apexsim-content/docs/road-mesh.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RoadContactMode {
+    /// The nearest centerline point's height, sheared by the banking, with
+    /// the curb bands for the track limits: every track, as before.
+    Centerline,
+    /// A track's baked `<Track>.road.msgpack` when it has one — the road
+    /// the client draws, as triangles — and the centerline otherwise.
+    Mesh,
+}
+
+impl std::str::FromStr for RoadContactMode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "centerline" => Ok(RoadContactMode::Centerline),
+            "mesh" => Ok(RoadContactMode::Mesh),
+            other => Err(format!("unknown road_contact {other:?} (centerline|mesh)")),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum TrackLoadError {

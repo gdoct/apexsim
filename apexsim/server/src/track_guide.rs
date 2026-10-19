@@ -580,7 +580,7 @@ pub fn name_corners(corners: &[Corner], named: &[NamedCorner], lap: f32) -> Vec<
 pub fn wire_corners(
     track: &TrackConfig,
     track_path: Option<&Path>,
-) -> Vec<crate::network::CornerData> {
+) -> Vec<crate::game_session::TrackCorner> {
     let lap = lap_length_m(track);
     if lap <= 0.0 {
         return Vec::new();
@@ -593,7 +593,7 @@ pub fn wire_corners(
         .zip(names)
         .take(u8::MAX as usize)
         .enumerate()
-        .map(|(i, (corner, name))| crate::network::CornerData {
+        .map(|(i, (corner, name))| crate::game_session::TrackCorner {
             number: (i + 1) as u8,
             name: name.unwrap_or_default(),
             entry_m: corner.entry_m.rem_euclid(lap),
