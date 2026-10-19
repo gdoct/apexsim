@@ -7,9 +7,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ApexSim — Racing Simulator</title>
-<meta name="description" content="ApexSim is a source-available racing simulator: a 420 Hz authoritative Rust physics server, an Unreal Engine 5 client, 14 cars across 4 classes and 28 real-world circuits, a 20.8 km mountain loop among them.">
+<meta name="description" content="ApexSim is a source-available racing simulator: a 420 Hz authoritative Rust physics server, an Unreal Engine 5 client, 17 cars across 5 classes and 28 real-world circuits, a 20.8 km mountain loop among them.">
 <meta property="og:title" content="ApexSim — Racing Simulator">
-<meta property="og:description" content="420 Hz authoritative physics, Unreal Engine 5, 14 cars, 28 real circuits, tyres, fuel, pit stops and damage simulated on the server.">
+<meta property="og:description" content="420 Hz authoritative physics, Unreal Engine 5, 17 cars, 28 real circuits, tyres, fuel, pit stops and damage simulated on the server.">
 <meta property="og:image" content="https://gdoct.github.io/apexsim/assets/splash.webp">
 <meta property="og:url" content="https://gdoct.github.io/apexsim/">
 <meta name="theme-color" content="#0b0d10">
@@ -46,7 +46,7 @@
     <div>
       <div class="eyebrow">Source-available simracing platform</div>
       <h1 style="margin-top:18px">The server decides <br><em>where every car is.</em></h1>
-      <p class="lede">ApexSim runs a 420&nbsp;Hz authoritative physics simulation in Rust and renders it in Unreal&nbsp;Engine&nbsp;5. Fourteen cars, twenty-eight real circuits, and no second physics model to argue with. Cars, circuits and the HUD are files you can open.</p>
+      <p class="lede">ApexSim runs a 420&nbsp;Hz authoritative physics simulation in Rust and renders it in Unreal&nbsp;Engine&nbsp;5. Seventeen cars, twenty-eight real circuits, and no second physics model to argue with. Cars, circuits and the HUD are files you can open.</p>
       <div class="ctas">
         <a class="btn primary" href="#cars">See the grid</a>
         <a class="btn" href="https://youtu.be/U7uFrgXyT0U" data-trailer="U7uFrgXyT0U"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>Watch the trailer</a>
@@ -69,7 +69,7 @@
 <div class="stats">
   <div class="wrap stagger">
     <div class="stat"><b>420<sup>Hz</sup></b><span>Authoritative physics tick</span></div>
-    <div class="stat"><b>14</b><span>Cars · four classes</span></div>
+    <div class="stat"><b>17</b><span>Cars · five classes</span></div>
     <div class="stat"><b>28</b><span>Real-world circuits</span></div>
     <div class="stat"><b>160<sup>km</sup></b><span>Of surveyed tarmac</span></div>
     <div class="stat"><b>0</b><span>Client-side physics</span></div>
@@ -178,7 +178,7 @@
       <article class="feat wide">
         <div class="num">18 / MODDING</div>
         <h3>Open the files</h3>
-        <p>A car is a <code>car.toml</code> and a GLB. A circuit is an export the game builds as it loads. The HUD is 28 JSON components with an in-game layout editor, and several saved layouts that switch by where you are: watching, hotlap, or your car's class. Nothing is cooked, so a change is a file save and a rescan. Tracks and cars from your own Assetto Corsa install import with one command, or from the launcher, and stay on your machine.</p>
+        <p>A car is a <code>car.toml</code> and a GLB. A circuit is an export the game builds as it loads. The HUD is 29 JSON components with an in-game layout editor, and several saved layouts that switch by where you are: watching, hotlap, or your car's class. Nothing is cooked, so a change is a file save and a rescan. Tracks and cars from your own Assetto Corsa install import with one command, or from the launcher, and stay on your machine.</p>
         <ul><li>car.toml</li><li>Runtime tracks</li><li>JSON HUD</li><li>AC importers</li></ul>
       </article>
     </div>
@@ -193,7 +193,7 @@
 <section id="cars">
   <div class="wrap">
     <div class="sec-head reveal-head">
-      <div><div class="eyebrow">The grid</div><h2>14 cars.<br>Four classes.</h2></div>
+      <div><div class="eyebrow">The grid</div><h2>17 cars.<br>Five classes.</h2></div>
       <p>Every car is a physics definition and a 3D model, read from the same files by the server and the client. The AI fills the field from your car's own class.</p>
     </div>
     <div class="garage" id="garage">
@@ -274,7 +274,7 @@
     </div>
     <div class="eyebrow sub reveal">What the player sees</div>
     <div class="screens stagger">
-      <figure><img src="assets/screen-hud.webp" data-zoom="assets/screen-hud-zoom.webp" tabindex="0" alt="Chase view on the night grid at Mandarina Bay with the HUD" loading="lazy"><figcaption>Race view · a HUD of 28 moddable components</figcaption></figure>
+      <figure><img src="assets/screen-hud.webp" data-zoom="assets/screen-hud-zoom.webp" tabindex="0" alt="Chase view on the night grid at Mandarina Bay with the HUD" loading="lazy"><figcaption>Race view · a HUD of 29 moddable components</figcaption></figure>
       <figure><img src="assets/screen-garage.webp" data-zoom="assets/screen-garage-zoom.webp" tabindex="0" alt="The hotlap garage on its Aero page, wings and ride heights with the downforce, balance and drag they add up to" loading="lazy"><figcaption>Hotlap garage · 31 setup knobs in real units</figcaption></figure>
       <figure><img src="assets/screen-menu.webp" data-zoom="assets/screen-menu-zoom.webp" tabindex="0" alt="Main menu over a recorded AI race" loading="lazy"><figcaption>Main menu · over a recorded AI race</figcaption></figure>
       <figure><img src="assets/screen-hud-editor.webp" data-zoom="assets/screen-hud-editor-zoom.webp" tabindex="0" alt="The in-game HUD layout editor" loading="lazy"><figcaption>HUD layout editor · move, resize and hide panels in game</figcaption></figure>
@@ -341,7 +341,7 @@
   </div>
 </footer>
 
-<script src="assets/data.js?v=60ec13a1"></script>
+<script src="assets/data.js?v=cf65d895"></script>
 <script src="assets/site.js?v=4f158c3b"></script>
 </body>
 </html>

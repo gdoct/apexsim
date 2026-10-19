@@ -297,6 +297,13 @@ cars:
         Open-wheel single-seaters with turbo V6s screaming to 15,000 rpm
         and half their power from the battery. The lightest cars, the most
         sensitive to ride height, and a lap that has to be energy-managed.
+    Rally:
+      title: Rally
+      text: >-
+        The mid-eighties' wildest rally cars on their real figures, not
+        balanced against each other: a supercharged rear-drive coupe and two
+        turbocharged four-wheel-drive monsters, around a tonne and with no
+        downforce to speak of.
   liveries:
     eyebrow: Paint shop
     title: '{{ n.liveries|words|capitalize }} liveries a car'
