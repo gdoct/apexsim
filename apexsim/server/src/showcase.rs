@@ -752,6 +752,7 @@ mod tests {
             race_clock: None,
             cars: vec![],
             yellow_flags: None,
+            race_phase: None,
         }
         .encode();
         TimedRecord {

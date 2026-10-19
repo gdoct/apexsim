@@ -222,7 +222,7 @@ namespace ApexSpectator
 			Car.Write(Cars);
 		}
 		FMsgPackWriter W(64 + Cars.Num() + 4 * S.YellowSectors.Num());
-		BeginRecord(W, 8, RecordState, S.Epoch);
+		BeginRecord(W, 9, RecordState, S.Epoch);
 		W.WriteUInt32Fixed(static_cast<uint32>(S.Tick));
 		if (S.Sky.bValid)
 		{
@@ -275,6 +275,14 @@ namespace ApexSpectator
 				W.WriteUInt(static_cast<uint64>(FMath::Clamp(Yellow.Key, 0, 65535)));
 				W.WriteUInt(static_cast<uint64>(FMath::Clamp(Yellow.Value, 0, 2)));
 			}
+		}
+		else
+		{
+			W.WriteNil();
+		}
+		if (S.RacePhase > 0)
+		{
+			W.WriteUInt(static_cast<uint64>(FMath::Min(S.RacePhase, 255)));
 		}
 		else
 		{

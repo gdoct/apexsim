@@ -1761,12 +1761,17 @@ pub struct StreamState {
     pub race_clock: Option<crate::network::RaceClock>,
     pub cars: Vec<CarExtra>,
     pub yellow_flags: Option<crate::network::YellowFlags>,
+    /// What the race is doing beyond green (`CompactTelemetry.race_phase`,
+    /// `race_start::RacePhase`: the formation or pace lap, the VSC, the
+    /// safety car), appended after the yellows; `None` otherwise and in an
+    /// older stream.
+    pub race_phase: Option<u8>,
 }
 
 impl StreamState {
     pub fn encode(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(48 + self.cars.len() * EXTRA_SIZE);
-        begin(&mut out, 8, RECORD_STATE, self.epoch);
+        begin(&mut out, 9, RECORD_STATE, self.epoch);
         wr::u32_fixed(&mut out, self.tick);
         match &self.sky {
             Some(s) => {
@@ -1818,6 +1823,10 @@ impl StreamState {
                     wr::uint(&mut out, *level as u64);
                 }
             }
+            None => wr::nil(&mut out),
+        }
+        match self.race_phase {
+            Some(phase) => wr::uint(&mut out, phase as u64),
             None => wr::nil(&mut out),
         }
         out
@@ -1917,6 +1926,17 @@ impl StreamState {
                 Some(crate::network::YellowFlags { sector_m, sectors })
             }
         };
+        // The race's phase, appended after the yellows.
+        let race_phase = if len < 9 {
+            None
+        } else {
+            read = 9;
+            if rd.is_nil() {
+                None
+            } else {
+                Some(rd.uint()? as u8)
+            }
+        };
         rd.skip_rest(len, read)?;
         Ok(Self {
             epoch,
@@ -1925,6 +1945,7 @@ impl StreamState {
             race_clock,
             cars,
             yellow_flags,
+            race_phase,
         })
     }
 }
@@ -2580,6 +2601,7 @@ impl BroadcastEncoder {
                 .map(|(i, state)| CarExtra::from_car_state(state, i as u8))
                 .collect(),
             yellow_flags: session.yellow_flags(),
+            race_phase: session.race_phase(),
         }
     }
 
@@ -3213,6 +3235,7 @@ mod tests {
                 sector_m: 250,
                 sectors: vec![[3, 1], [4, 2]],
             }),
+            race_phase: Some(crate::race_start::RacePhase::SafetyCar as u8),
         }
     }
 
@@ -3250,12 +3273,13 @@ mod tests {
             race_clock: None,
             cars: vec![],
             yellow_flags: None,
+            race_phase: None,
             ..state
         };
         assert_eq!(Record::decode(&bare.encode()).unwrap(), Record::State(bare));
         // A newer writer's longer entries and extra fields are skipped.
         let mut body = Vec::new();
-        wr::array(&mut body, 9);
+        wr::array(&mut body, 10);
         wr::uint(&mut body, RECORD_STATE as u64);
         wr::u32_fixed(&mut body, 1);
         wr::u32_fixed(&mut body, 16);
@@ -3268,6 +3292,7 @@ mod tests {
             entries.extend_from_slice(&[7, 7]);
         }
         wr::bin(&mut body, &entries);
+        wr::nil(&mut body);
         wr::nil(&mut body);
         wr::str(&mut body, "from the future");
         let Record::State(read) = Record::decode(&body).unwrap() else {
@@ -3285,10 +3310,16 @@ mod tests {
         assert_eq!(two.damage_at2, [-128, -128, -95, -128]);
         assert_eq!(two.disc_wear, [crate::network::DISC_WEAR_NONE; 4]);
         assert_eq!(two.stint_energy_pct, 255);
-        // A state from before the yellows (seven fields) reads with none.
+        // A state from before the yellows (seven fields) reads with none,
+        // and one from before the race's phase (eight) with no phase.
         let mut old = sample_state();
         old.yellow_flags = None;
-        let mut seven = old.encode();
+        old.race_phase = None;
+        let mut eight = old.encode();
+        eight[0] = 0x98;
+        eight.pop();
+        assert_eq!(Record::decode(&eight).unwrap(), Record::State(old.clone()));
+        let mut seven = eight;
         seven[0] = 0x97;
         seven.pop();
         assert_eq!(Record::decode(&seven).unwrap(), Record::State(old));

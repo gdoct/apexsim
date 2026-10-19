@@ -305,6 +305,7 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 		}
 		TestEqual(TEXT("state yellows: 250 m sectors"), S.YellowSectorM, 250);
 		TestTrue(TEXT("state yellows"), S.YellowSectors.Num() == 2 && S.YellowSectors[1].Key == 4 && S.YellowSectors[1].Value == 2);
+		TestEqual(TEXT("state race phase: the safety car"), S.RacePhase, ApexRacePhase::SafetyCar);
 	}
 
 	TestTrue(TEXT("pit service decodes"), ApexSpectator::DecodeRecord(View(EventPitService, UE_ARRAY_COUNT(EventPitService)), Record, Error));
@@ -473,6 +474,7 @@ bool FApexSpectatorPlayerTest::RunTest(const FString& Parameters)
 			const FApexTelemetryFrame& F = WithState[0];
 			TestTrue(TEXT("frame sky"), F.Sky.bValid && F.Sky.RainPct == 40 && F.Sky.Weather == EApexWeather::LightRain);
 			TestTrue(TEXT("frame race clock"), F.HasRaceClock() && F.RaceLeftMs == 754300);
+			TestEqual(TEXT("frame race phase"), F.RacePhase, ApexRacePhase::SafetyCar);
 			TestTrue(TEXT("frame car extras"), F.Cars.Num() == 2 && FMath::IsNearlyEqual(F.Cars[0].FuelLiters, 41.2f)
 				&& F.Cars[1].FuelLiters < 0.0f);
 		}

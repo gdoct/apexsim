@@ -438,7 +438,12 @@ namespace ApexSpectatorCodec
 				return false;
 			}
 		}
-		return SkipRest(Reader, Count, FMath::Min(Count, 8));
+		// The race's phase, appended after the yellows: nil, or an ApexRacePhase.
+		if (Count > 8 && !Reader.TryReadNil() && !ReadI32(Reader, Out.RacePhase))
+		{
+			return false;
+		}
+		return SkipRest(Reader, Count, FMath::Min(Count, 9));
 	}
 
 	bool ParsePath(FMsgPackReader& Reader, int32 Count, uint32 Epoch, FApexStreamPath& Out)
@@ -1599,6 +1604,7 @@ void FApexSpectatorPlayer::Flush()
 		Out.RaceFinalLap = State.RaceFinalLap;
 		Out.YellowSectorM = State.YellowSectorM;
 		Out.YellowSectors = State.YellowSectors;
+		Out.RacePhase = State.RacePhase;
 	}
 	++AppliedFrames;
 }

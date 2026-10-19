@@ -317,6 +317,8 @@ struct APEXSIMNET_API FApexStreamState
 	/** The race's yellow sectors (`yellow_flags`, appended), as FApexTelemetryFrame carries them; none from an older stream. */
 	int32 YellowSectorM = 0;
 	TArray<TPair<int32, int32>> YellowSectors;
+	/** What the race is doing beyond green (`race_phase`, appended after the yellows): an ApexRacePhase value, 0 none and from an older stream. */
+	int32 RacePhase = 0;
 };
 
 struct APEXSIMNET_API FApexStreamBlock
