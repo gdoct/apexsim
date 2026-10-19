@@ -457,8 +457,7 @@ depending on the content and never the reverse; the track editor,
 `track-core` and the content tools go with the content. The roots are in
 place (2026-10-19), with the content's own `bake.ps1`. Left, one commit
 each: (1) `starter.yml` and the release copying it; (2) a `formats` crate owning
-the track YAML, sidecars and `content_crc`; (3) path filters and a
-direction check in CI; (4, optional) the sidecars baked out of the source
+the track YAML, sidecars and `content_crc`; (3, optional) the sidecars baked out of the source
 folders. After that come the pack format and a local
 install, the repository split (`git filter-repo --subdirectory-filter` per
 root), the signed index with server and launcher updates, and

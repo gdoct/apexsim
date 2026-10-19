@@ -134,7 +134,7 @@ tests stay as they are. Only what a fresh install shows has to be in the
 starter set: the menu showcases, the demo backdrop and the first-run
 defaults.
 
-**Work left in phase 0.** Each step is one commit, and every test passes
+**Work left in phase 0.** CI already checks the direction (`tools/check_direction.py`). Each step is one commit, and every test passes
 after each:
 
 1. **The starter set.** `starter.yml`; `build_release.ps1` copying it; a
@@ -150,11 +150,7 @@ after each:
    CLAUDE.md rule about `TrackFileFormat` and `TrackFile` goes with it.
    `tools/ac_car_import/tests` reads `apexsim/server/src/brakes.rs` for
    its brake constants (and skips without it): that edge goes too.
-3. **The direction checked in CI.** CI runs the server, the physics
-   library, the track editor and the site from their roots; what is left is
-   path filters per root and a check that nothing under `apexsim-content/`
-   names `../apexsim`, `apexsim-server` or the code's scripts.
-4. **Baked output out of the source folders** (optional, before packs).
+3. **Baked output out of the source folders** (optional, before packs).
    `ats-export` writes the sidecars into
    `apexsim-content/build/tracks/<Stem>/`, beside the export and a copy of
    the YAML, instead of gitignored files beside the source, and the

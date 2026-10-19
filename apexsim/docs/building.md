@@ -153,8 +153,13 @@ existed would not link it otherwise.
 the server tree free of formatting drift and clippy warnings. Job `site` rebuilds the marketing page and fails when `docs/` is
 behind ([marketing-site.md](marketing-site.md)); job `client` only checks the
 `.uproject` and the target/module files exist (`ApexPhysics.Build.cs`
-among them). Neither the track editor nor the Unreal code is compiled in
-CI, and nothing builds the client's copy of the physics library there.
+among them). Job `track-editor` runs from `apexsim-content/`: first
+`tools/check_direction.py`, which fails on any path from the content into
+the code beyond the two allowed test-only edges, then `cargo test` of the
+track-core and editor workspace. The Unreal code is not compiled in CI, and
+nothing builds the client's copy of the physics library there. Every job
+checks out the whole repository and runs on every push: the code jobs read
+the content, so none is filtered by path.
 
 ## Track editor and pipeline (Rust, `apexsim-content/track-editor/`)
 

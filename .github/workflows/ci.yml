@@ -65,6 +65,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # The code depends on the content, never the reverse: no path from
+      # apexsim-content/ into apexsim/ beyond the allowed test-only edges.
+      - name: The content does not reach into the code
+        run: python3 tools/check_direction.py
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
