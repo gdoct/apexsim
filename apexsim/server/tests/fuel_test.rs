@@ -404,6 +404,12 @@ fn without_a_pit_lane_a_car_is_topped_up_at_the_line() {
         topped > 0.95 * capacity.min(39.0 * lap),
         "topped up toward the flag: {topped:.1} L"
     );
+    // The pit lane comes from the baked pit sidecar, which a checkout
+    // without an export (CI) does not have.
+    if monza().pit_lane.is_none() {
+        eprintln!("no pit sidecar for Monza: run ats-export; the pit-lane half is skipped");
+        return;
+    }
     let (left, ..) = fuel_after_first_lap(true);
     assert!(
         left < 1.5 * lap,
