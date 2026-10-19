@@ -46,14 +46,14 @@ jobs:
            steps.metadata.outputs.update-type == 'version-update:semver-minor')
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: server
+          workspaces: apexsim/server
 
       - name: Build and test with updated dependencies
         if: |
           steps.metadata.outputs.package-ecosystem == 'cargo' &&
           (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
            steps.metadata.outputs.update-type == 'version-update:semver-minor')
-        working-directory: server
+        working-directory: apexsim/server
         run: |
           cargo build --all-targets
           cargo test

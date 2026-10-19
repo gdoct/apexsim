@@ -1,0 +1,50 @@
+name: Pages
+
+# The marketing page: apexsim/docs/index.html and apexsim/docs/assets/, written
+# by apexsim/scripts/site/build_site.py and committed. Only those are
+# published; the Markdown docs beside them are not part of the site.
+# (Settings > Pages > Source must be "GitHub Actions".)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer push waits rather than cancelling one
+# that is half published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publish the marketing page
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # docs/assets holds plain files (the LFS sources they are cut from are
+      # not needed here).
+      - uses: actions/checkout@v5
+
+      - name: Stage the page
+        run: |
+          mkdir -p _site
+          cp apexsim/docs/index.html _site/
+          cp -r apexsim/docs/assets _site/assets
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

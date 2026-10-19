@@ -3,7 +3,10 @@ description: Bring the marketing page (docs/index.html) up to date with the game
 ---
 
 Refresh the marketing page. Its source is `site/`, its generator
-`scripts/site/build_site.py`; read `site/README.md` first.
+`scripts/site/build_site.py`; read `site/README.md` first. Every path here
+is under `apexsim/` (the code root): run the commands from there. The facts
+and pictures come from `../apexsim-content`, and the content docs the copy is
+also written against are in `../apexsim-content/docs`.
 
 1. Run `python scripts/site/build_site.py --stale`. Each line is a section of
    a feature doc under docs/ that is new or changed since the copy was last

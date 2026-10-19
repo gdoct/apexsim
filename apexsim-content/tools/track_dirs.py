@@ -1,0 +1,61 @@
+"""Where a track's files live: the shipped circuits, then the player's own.
+
+    tracks/default/   the circuits that ship with the game (in git)
+    tracks/custom/    the player's own: imported or hand-made
+                              (gitignored; see its README.md)
+
+A track is a folder of its own, named by its stem: `default/Spa/` holds
+every file of Spa (`Spa.yaml`, `.ats`, `.layout.json`, the sidecars), the
+way a car is `cars/default/<folder>/car.toml`. A stem is unique across both
+folders, because the exports, previews and `-ApexTrack=` switches are keyed
+by the stem alone. The Rust tools read the same two folders
+(`track_core::ue_export_io::TRACK_DIRS`).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+TRACKS = ROOT / "tracks"
+DEFAULT_DIR = TRACKS / "default"
+CUSTOM_DIR = TRACKS / "custom"
+TRACK_DIRS = (DEFAULT_DIR, CUSTOM_DIR)
+
+
+def track_dir(stem: str) -> Path:
+    """The track's own folder, `<root>/<stem>/`, holding `<stem>.yaml`; under
+    the default root for a track that has none yet (a tool writing a new
+    circuit)."""
+    for root in TRACK_DIRS:
+        if (root / stem / f"{stem}.yaml").is_file():
+            return root / stem
+    return DEFAULT_DIR / stem
+
+
+def imported_marker(yaml_path: Path) -> str | None:
+    """What the `.ats` beside a track YAML says imported it (`"ac"` for
+    `tools/ac_import.py`), or None for a generated circuit. Such a track's
+    export, sidecars and preview are the importer's."""
+    ats = Path(yaml_path).with_suffix(".ats")
+    if not ats.is_file():
+        return None
+    import json
+    try:
+        with open(ats, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    value = data.get("imported") if isinstance(data, dict) else None
+    return str(value) if isinstance(value, str) and value.strip() else None
+
+
+def track_glob(pattern: str) -> list[Path]:
+    """`pattern` matched inside every track's folder (`*.yaml` is each track's
+    YAML), default root first, sorted within each."""
+    return [
+        p
+        for root in TRACK_DIRS
+        if root.is_dir()
+        for p in sorted(root.glob(f"*/{pattern}"))
+    ]

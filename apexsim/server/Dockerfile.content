@@ -1,0 +1,12 @@
+# Content image: the cars, tracks (with sidecars) and showcase streams the
+# server reads, built and published separately from the server image.
+# Context is the folder holding both checkouts, apexsim/ (for
+# build/showcase) and apexsim-content/ (cars, and tracks with the generated
+# sidecars), filtered by Dockerfile.content.dockerignore. From that folder:
+#   docker build -f apexsim/server/Dockerfile.content -t apexsim-content .
+# On start it replaces the contents of the /content volume with its own.
+FROM alpine:3
+COPY apexsim-content/cars /payload/cars
+COPY apexsim-content/tracks /payload/tracks
+COPY apexsim/build/showcase /payload/showcase
+CMD ["sh", "-c", "rm -rf /content/* /content/.[!.]* 2>/dev/null; cp -a /payload/. /content/ && echo 'content synced' && du -sh /content"]

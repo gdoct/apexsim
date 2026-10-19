@@ -1,0 +1,233 @@
+#pragma once
+
+#include "CoreMinimal.h"
+
+/**
+ * What the importer knows about the authored prop kit (`apexsim-content/props`,
+ * see apexsim-content/docs/props.md): which kinds are instanced, which get Nanite, which
+ * face the road, what each kind falls back to, the aliases that keep the
+ * pre-kit `.ats` scenes working, where the imported assets live, and the
+ * pure maths of laying a grandstand out of bays.
+ *
+ * Data and arithmetic only — nothing here touches assets — so it is shared
+ * by `ApexPropImport` (which brings the GLBs in) and the track asset
+ * builder (which places them) and is covered by `ApexSim.Props.*` tests.
+ */
+namespace ApexProps
+{
+	/** Content root the kit is imported under. */
+	inline const TCHAR* const DefaultRoot = TEXT("/Game/Props");
+
+	/** Per-kind import and placement behaviour. */
+	struct FKindInfo
+	{
+		const TCHAR* Kind;
+		/** Placed through one instanced component per (kind, asset) instead of an actor each. */
+		bool bInstanced;
+		/** Built with Nanite on import: the big one-offs. */
+		bool bNanite;
+		/** Turned so its local +Y (the authored front) faces the nearest road. */
+		bool bFaceRoad;
+		/** Asset used when the prop's own is not authored; empty for none. */
+		const TCHAR* DefaultAsset;
+	};
+
+	APEXSIM_API const FKindInfo* FindKind(const FString& Kind);
+	APEXSIM_API bool IsInstancedKind(const FString& Kind);
+	APEXSIM_API bool IsNaniteKind(const FString& Kind);
+	/**
+	 * Whether a resolved prop is turned to face the road. Per kind, with the
+	 * odd asset that differs: a video screen is an `attraction` but has a
+	 * front, a ferris wheel does not.
+	 */
+	APEXSIM_API bool FacesRoad(const FString& Kind, const FString& Asset);
+	/**
+	 * Whether a resolved prop is turned to look back up the course instead
+	 * of across it: a braking marker and a marshal light panel are read by
+	 * a driver on the way in, so their authored front (+Y, like every other
+	 * board) has to point against the direction of travel rather than at the
+	 * road. The builder yaws them +90 degrees and never flips them by side.
+	 */
+	APEXSIM_API bool FacesUpCourse(const FString& Kind, const FString& Asset);
+	/** Degrees added to a prop's yaw so its front looks back up the course. */
+	inline constexpr float UpCourseYawDeg = 90.0f;
+	/** Empty when the kind has no default. */
+	APEXSIM_API FString DefaultAssetFor(const FString& Kind);
+	/** Every kind the kit knows, for the importer's folder walk. */
+	APEXSIM_API TArray<FString> AllKinds();
+
+	/**
+	 * Map the asset keys the pre-kit scenes carry onto authored assets, in
+	 * place. May change the kind (`sign/board_200m` is a `board`), and fills
+	 * in `Text` when the alias implies one and the prop has none. Returns
+	 * true when anything changed.
+	 */
+	APEXSIM_API bool ResolveAlias(FString& Kind, FString& Asset, FString& Text);
+
+	/** `/Game/Props/<kind>/SM_<asset>` (package) and `.SM_<asset>` (object) paths. */
+	APEXSIM_API FString MeshPackageName(const FString& Root, const FString& Kind, const FString& Asset);
+	APEXSIM_API FString MeshObjectPath(const FString& Root, const FString& Kind, const FString& Asset);
+	/** `/Game/Props/<kind>/Materials`, where a kind's materials and textures go. */
+	APEXSIM_API FString MaterialsFolder(const FString& Root, const FString& Kind);
+	/** Brand and marker textures, `T_brand_<name>` and `T_marker_<n>` (object paths). */
+	APEXSIM_API FString BrandTextureObjectPath(const FString& Root, const FString& Brand);
+	APEXSIM_API FString MarkerTextureObjectPath(const FString& Root, const FString& Marker);
+	APEXSIM_API FString BrandsFolder(const FString& Root);
+	APEXSIM_API FString MarkersFolder(const FString& Root);
+
+	/** Material slots whose surface is the brand a prop's `text` names. */
+	APEXSIM_API bool IsBrandSlot(FName SlotName);
+	/** The asset carries a blank `board_text` face that the prop's `text` is rendered on (a named-corner board). */
+	APEXSIM_API bool HasTextFace(const FString& Kind, const FString& Asset);
+	/** The braking marker's number panel; `text` is 50/100/150/200. */
+	APEXSIM_API bool IsMarkerSlot(FName SlotName);
+	/** The flag pole's cloth; `text` is a country code (`nl`, `de`, … `chequer`). */
+	APEXSIM_API bool IsFlagSlot(FName SlotName);
+	/** Flag textures, `T_flag_<code>` (object path) and their folder. */
+	APEXSIM_API FString FlagTextureObjectPath(const FString& Root, const FString& Code);
+	APEXSIM_API FString FlagsFolder(const FString& Root);
+
+	// ---- Road decals (`.ats` `decals`, the Nordschleife's graffiti) ----------
+
+	/** The kit folder whose PNG sets are road decals rather than GLBs. */
+	APEXSIM_API extern const TCHAR* const DecalKind;
+	/** The decal sets `ApexPropImport` brings in, `apexsim-content/props/decal/<set>/*.png`. */
+	APEXSIM_API TArray<FString> DecalSets();
+	/** `/Game/Props/decal/<Set>`, e.g. `/Game/Props/decal/Graffiti`. */
+	APEXSIM_API FString DecalFolder(const FString& Root, const FString& Set);
+	/** `T_<set>_<name>` under `DecalFolder` (object path). */
+	APEXSIM_API FString DecalTextureObjectPath(const FString& Root, const FString& Set, const FString& Name);
+	/**
+	 * Split a bake material key `decal_<set>_<name>` (the set has no
+	 * underscore, `track_core::ats::Decal::image_parts`). False for any
+	 * other key.
+	 */
+	APEXSIM_API bool ParseDecalKey(const FString& Key, FString& OutSet, FString& OutName);
+	/** Lamps and screens the runtime may light up. */
+	APEXSIM_API bool IsEmissiveSlot(FName SlotName);
+	/** Masked foliage and fence mesh: must import Masked and two-sided. */
+	APEXSIM_API bool IsMaskedSlot(FName SlotName);
+
+	// ---- Variants the scene's dressing picks --------------------------------
+
+	/**
+	 * `<asset>_crowd` for the stand assets that come with a seated crowd
+	 * (every `bay_10m*`, `scaffold_10m`, `banking_seats`); empty otherwise.
+	 */
+	APEXSIM_API FString CrowdVariant(const FString& Kind, const FString& Asset);
+	/** `<asset>_autumn` for the trees with autumn foliage; empty for the rest. */
+	APEXSIM_API FString AutumnVariant(const FString& Kind, const FString& Asset);
+	/**
+	 * Whether a grandstand asset is a bay family (`bay_10m`, `_roof`,
+	 * `_large`…): laid with end caps and turned into wedges round a bend.
+	 * The other stands (`scaffold_10m`, `banking_seats`) tile plain.
+	 */
+	APEXSIM_API bool IsBayFamily(const FString& Asset);
+	/**
+	 * The Marina Bay street stand's bay (`street_stand_tier_10m`, `_roof`, and
+	 * their `_crowd` twins): a straight-only bay family with `street_stand_tier_end`
+	 * caps at +-(L/2 + 2 m) and no wedges. `street_stand_deck_10m` is not in it:
+	 * a 14 m deck tiled at 10 m with no caps (the 26 m x 17 m end cap does not fit it).
+	 */
+	APEXSIM_API bool IsStreetStandBay(const FString& Asset);
+	inline const TCHAR* const StreetStandCapAsset = TEXT("street_stand_tier_end");
+	/** Half the street stand cap's 4 m width: the cap stands this far past the bays. */
+	inline constexpr float StreetStandCapHalfM = 2.0f;
+
+	/** The ferris wheel, the first asset imported as two meshes: the wheel and its `rotor` node. */
+	inline const TCHAR* const FerrisWheelKind = TEXT("attraction");
+	inline const TCHAR* const FerrisWheelAsset = TEXT("ferris_wheel");
+	inline const TCHAR* const FerrisRotorAsset = TEXT("ferris_wheel_rotor");
+	/** Where the rotor node sits in the wheel's frame: the hub, 35 m up. */
+	inline const FVector FerrisHubOffsetCm(0.0, 0.0, 3500.0);
+
+	/**
+	 * An asset whose GLB has a child node `rotor` (origin at the hub): imported
+	 * as `SM_<asset>` plus `SM_<asset>_rotor`, spawned as an `AApexRotorActor`
+	 * that turns the rotor about its local Y at `Rpm`.
+	 */
+	struct FRotorSpec
+	{
+		const TCHAR* Kind;
+		const TCHAR* Asset;
+		/** `<Asset>_rotor`. */
+		const TCHAR* RotorAsset;
+		/** The `rotor` node's translation in the asset's frame (cm, UE axes). */
+		FVector HubOffsetCm;
+		float Rpm;
+	};
+	/** Null when the asset has no rotor. */
+	APEXSIM_API const FRotorSpec* FindRotorSpec(const FString& Kind, const FString& Asset);
+	/** Every rotor asset, in table order. */
+	APEXSIM_API TArray<FRotorSpec> AllRotorSpecs();
+
+	// ---- Night pass ------------------------------------------------------------
+
+	/** Component tag on a mesh component that has a night-glow material slot. */
+	inline const TCHAR* const NightGlowTag = TEXT("ApexNightGlow");
+
+	/** How a material slot lights after dark. */
+	struct FNightGlow
+	{
+		/**
+		 * Emissive level at full night, in nits, scaled by the sky's
+		 * `WindowGlow` (0 by day, 1 at night): the imported material's
+		 * `EmissiveFactor` colour times it, or an `M_ApexEmissive` instance's
+		 * `EmissiveStrength`.
+		 */
+		float PeakNits = 0.0f;
+		/** The slot is a lit `M_ApexEmissive` instance (the builder's), not the imported glTF material. */
+		bool bEmissiveParent = false;
+	};
+	/**
+	 * Whether the slot is dark by day and lit at night, and how: the lit
+	 * windows (`pit_glass`, `pit_interior`, the Marina Bay `mb_glass_*`,
+	 * `mb_classic`, `mb_colonial`, `mb_deco`), the Ferris-style light strips
+	 * (`ferris_lights*`) and the plain emissive `mb_lit_panel`.
+	 */
+	APEXSIM_API bool NightGlowOf(FName SlotName, FNightGlow& Out);
+
+	/** The authored start gantry's lamp panel, in the gantry's frame (cm). */
+	inline constexpr float GantryLampX = -37.0f;
+	inline constexpr float GantryLampPitchY = 80.0f;
+	inline constexpr float GantryLampZ = 545.0f;
+	inline constexpr float GantryLampRadius = 22.0f;
+	/** The road width a bridge is authored for; local Y scales by span / this. */
+	inline constexpr float BridgeAuthoredSpanM = 15.0f;
+	APEXSIM_API float BridgeSpanScale(float SpanM);
+
+	// ---- Grandstands ---------------------------------------------------------
+
+	/** A stand laid out of bays, in the stand's local frame (cm, UE axes). */
+	struct FStandLayout
+	{
+		FString BayAsset;
+		FString CapAsset;
+		TArray<FTransform> Bays;
+		TArray<FTransform> Caps;
+	};
+
+	/** Bay pitch along the stand and the wedge families' front radii. */
+	inline constexpr float BayPitchM = 10.0f;
+	inline constexpr float Curve6RadiusM = 95.0f;
+	inline constexpr float Curve12RadiusM = 48.0f;
+	/** A bend gentler than this gets straight bays. */
+	inline constexpr float StraightRadiusM = 150.0f;
+
+	/**
+	 * Lay `LengthM` metres of stand from the family `Asset` (`bay_10m`,
+	 * `bay_10m_roof`, `bay_10m_large`, `bay_10m_large_roof`): `round(L / 10)`
+	 * bays, at least one, plus an end cap each side. With a bend radius
+	 * (positive outside the corner) the wedge whose front radius is nearest
+	 * is used — `_curve6` at 95 m, `_curve12` at 48 m, `_curve6_in` on the
+	 * inside — and the bays are turned about the wedges' common centre so
+	 * they share their side edges; the large family is straight only, and
+	 * the stadium family (`bay_10m_stadium_roof`, `end_cap_stadium`) has only
+	 * the outside `_stadium_curve6` wedge.
+	 * `bWedge` reports whether a wedge was chosen. See apexsim-content/docs/props.md.
+	 * A non-bay stand (`scaffold_10m`, `banking_seats`) is the module
+	 * repeated at the same pitch, straight, with no caps.
+	 */
+	APEXSIM_API FStandLayout LayoutGrandstand(
+		const FString& Asset, float LengthM, TOptional<float> RadiusM, bool* bWedge = nullptr);
+}	 // namespace ApexProps

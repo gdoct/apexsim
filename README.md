@@ -4,7 +4,7 @@ ApexSim is a source-available sim-racing platform: a high-frequency
 authoritative server written in Rust and an Unreal Engine 5 client, with a
 content pipeline that builds real-world circuits from public data.
 
-[![ApexSim](game-unreal/apexsim_splash.png)](https://gdoct.github.io/apexsim/)
+[![ApexSim](apexsim/game-unreal/apexsim_splash.png)](https://gdoct.github.io/apexsim/)
 
 The site at **https://gdoct.github.io/apexsim/** shows the cars, the
 circuits and the game in motion.
@@ -28,11 +28,11 @@ circuits and the game in motion.
   and the game builds it at runtime.
 - **Moddable.** Cars are a `car.toml` plus models, the HUD is JSON components,
   and tracks and cars from a player's own Assetto Corsa install can be
-  imported. See [MODDING.md](MODDING.md).
+  imported. See [MODDING.md](apexsim/MODDING.md).
 
 The project is in active development. What is not built yet is listed in
-[docs/simulation-gaps.md](docs/simulation-gaps.md),
-[docs/follow-ups.md](docs/follow-ups.md) and [docs/roadmap.md](docs/roadmap.md).
+[apexsim/docs/simulation-gaps.md](apexsim/docs/simulation-gaps.md),
+[apexsim/docs/follow-ups.md](apexsim/docs/follow-ups.md) and [apexsim/docs/roadmap.md](apexsim/docs/roadmap.md).
 
 ## Playing
 
@@ -40,7 +40,7 @@ Download the latest zip from the
 [releases page](https://github.com/gdoct/apexsim/releases), unzip it and run
 `launcher.exe`. It starts the game, with a local server if you want one, and
 edits the network and graphics settings. To host for others, run
-`Server\apexsim-server.exe` ([docs/server/operations.md](docs/server/operations.md)).
+`Server\apexsim-server.exe` ([apexsim/docs/server/operations.md](apexsim/docs/server/operations.md)).
 
 ### System requirements
 
@@ -61,13 +61,14 @@ You need Rust, Python 3 (numpy, Pillow, PyYAML) and Unreal Engine 5.8 on
 Windows. In short:
 
 ```powershell
-cd server; cargo run                       # the server (TCP 9000, UDP 9001, HTTP 9002)
+cd apexsim/server; cargo run               # in its own terminal: the server (TCP 9000, UDP 9001, HTTP 9002)
+cd apexsim                                 # the scripts run from the code root
 ./scripts/initialize_content.ps1           # build the generated content a fresh clone lacks
 ./scripts/play_editor.ps1 -Build           # build the client and play it from the editor build
 ./scripts/build_release.ps1 -Zip           # a release package
 ```
 
-[docs/building.md](docs/building.md) has the details: the content stages,
+[apexsim/docs/building.md](apexsim/docs/building.md) has the details: the content stages,
 tests, packaging and the engine lookup.
 
 ## Performance
@@ -79,35 +80,47 @@ one car's physics step takes about 2.4 µs, and a whole 8-car session tick
 
 ## Repository
 
+The repository holds two roots, each to become its own repository. The code
+depends on the content (as the sibling `../apexsim-content`), never the other
+way round.
+
 ```
-server/        Rust server: simulation, sessions, networking, admin dashboard
-game-unreal/   Unreal Engine 5.8 client (C++ modules ApexSim, ApexSimNet, ApexSimInput, ApexSimBoot, ApexTrackEditor)
-track-editor/  Rust track pipeline (track-core) and the Bevy scene editor
-scripts/       build scripts, the Python content pipeline and the importers
-content/       cars, tracks and HUD, shared by server, pipeline and client
-launcher/      the Windows launcher shipped with releases
-site/          the marketing site's source (generated into docs/)
-docs/          documentation
+apexsim/                code
+  server/               Rust server: simulation, sessions, networking, admin dashboard
+  game-unreal/          Unreal Engine 5.8 client (C++ modules ApexSim, ApexSimNet, ApexSimInput, ApexSimBoot, ApexTrackEditor)
+  hud/                  the HUD components and layouts
+  scripts/              build, release, showcase, site and verification scripts
+  launcher/             the Windows launcher shipped with releases
+  site/                 the marketing site's source (generated into docs/)
+  docs/                 documentation of the code
+apexsim-content/        content and its tools
+  cars/ tracks/ props/  cars, circuits and props, shared by server, pipeline and client
+  textures/ wheels/     ground textures and steering wheels
+  track-editor/         Rust track pipeline (track-core, the ats-* tools) and the Bevy scene editor
+  tools/                the Python content pipeline, importers and generators
+  build/tracks/         the track exports the client loads (generated)
+  docs/                 documentation of the content and its pipeline
 ```
 
 ## Documentation
 
-[docs/README.md](docs/README.md) indexes it: architecture, building, the
-server, the client and the content pipeline.
+[apexsim/docs/README.md](apexsim/docs/README.md) indexes it: architecture, building, the
+server, the client and the content pipeline (in
+[apexsim-content/docs/](apexsim-content/docs/)).
 
 ## Contributing
 
 Coordinate significant changes in an issue first. Before a pull request:
 
 ```bash
-cd server
+cd apexsim/server
 cargo fmt && cargo clippy --all-targets   # CI enforces fmt --check and -D warnings
 cargo test
 ```
 
-Wire-format changes are made on both sides at once (`server/src/network.rs`
-and `game-unreal/Source/ApexSimNet`) and pinned by golden bytes on both sides;
-see [docs/server/protocol.md](docs/server/protocol.md). Keep the doc for the
+Wire-format changes are made on both sides at once (`apexsim/server/src/network.rs`
+and `apexsim/game-unreal/Source/ApexSimNet`) and pinned by golden bytes on both sides;
+see [apexsim/docs/server/protocol.md](apexsim/docs/server/protocol.md). Keep the doc for the
 area you change up to date.
 
 ## License

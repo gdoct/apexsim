@@ -1,0 +1,479 @@
+"""ApexSim prop-building helpers for Blender (5.x).
+
+Load inside Blender's Python console or an MCP session:
+
+    import importlib.util, sys
+    spec = importlib.util.spec_from_file_location("apex", r"E:\\apexsim\\apexsim-content\\tools\\generators\\props\\apex_props.py")
+    apex = importlib.util.module_from_spec(spec); sys.modules["apex"] = apex; spec.loader.exec_module(apex)
+
+Conventions (see docs/props.md):
+  * metres; pivot on the ground at the footprint centre (sky props: hull centre)
+  * +X along the track, the road is on -Y in Blender (glTF/Unreal import maps this
+    to the importer's +Y "faces road" side), Z up
+  * planar UVs at 1 UV unit = 1 m, except faces made with Builder.quad_uv
+  * one material slot per surface type, named <kind>_<surface>
+  * export: <kind>/<asset>.glb next to the source <kind>/<name>.blend
+"""
+import bpy, bmesh, math, os
+from mathutils import Vector
+
+# The content root (apexsim-content): three folders above this script
+# (tools/generators/<group>/), else $APEXSIM_CONTENT (a script exec'd in Blender
+# has no __file__), else the checkout on E:.
+_SELF = os.path.dirname(os.path.abspath(globals().get("__file__") or "."))
+_ROOT = (os.path.abspath(os.path.join(_SELF, "..", "..", ".."))
+         if os.path.isdir(os.path.join(_SELF, "..", "..", "generators"))
+         else os.environ.get("APEXSIM_CONTENT", r"E:\apexsim\apexsim-content"))
+PROPS_ROOT = os.path.join(_ROOT, "props")
+
+
+def reset_scene():
+    bpy.ops.wm.read_homefile(use_empty=True)
+    sc = bpy.context.scene
+    sc.unit_settings.system = 'METRIC'
+    sc.unit_settings.scale_length = 1.0
+
+
+def material(name, color, metallic=0.0, roughness=0.5, emission=None):
+    m = bpy.data.materials.get(name)
+    if m:
+        return m
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    bsdf = m.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+    bsdf.inputs["Metallic"].default_value = metallic
+    bsdf.inputs["Roughness"].default_value = roughness
+    if emission:
+        bsdf.inputs["Emission Color"].default_value = (*emission, 1.0)
+        bsdf.inputs["Emission Strength"].default_value = 5.0
+    return m
+
+
+def image_material(name, path, roughness=0.6, masked=False):
+    """Base-colour texture material. masked=True wires alpha through a
+    Greater-Than node so the glTF exporter writes alphaMode MASK."""
+    m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    for n in list(nt.nodes):
+        if n.type not in ('BSDF_PRINCIPLED', 'OUTPUT_MATERIAL'):
+            nt.nodes.remove(n)
+    bsdf = nt.nodes["Principled BSDF"]
+    img = bpy.data.images.load(path, check_existing=True)
+    img.pack()
+    ti = nt.nodes.new("ShaderNodeTexImage")
+    ti.image = img
+    nt.links.new(ti.outputs["Color"], bsdf.inputs["Base Color"])
+    if masked:
+        gt = nt.nodes.new("ShaderNodeMath")
+        gt.operation = 'GREATER_THAN'
+        gt.inputs[1].default_value = 0.5
+        nt.links.new(ti.outputs["Alpha"], gt.inputs[0])
+        nt.links.new(gt.outputs[0], bsdf.inputs["Alpha"])
+    bsdf.inputs["Roughness"].default_value = roughness
+    return m
+
+
+class Builder:
+    """Accumulates geometry into one bmesh with material slots."""
+
+    def __init__(self, name):
+        self.name = name
+        self.bm = bmesh.new()
+        self.mats = []
+        self.uv = self.bm.loops.layers.uv.new("UVMap")
+        self.keep = set()  # faces whose UVs are explicit
+
+    def slot(self, mat):
+        if mat not in self.mats:
+            self.mats.append(mat)
+        return self.mats.index(mat)
+
+    def box(self, mat, lo, hi):
+        s = self.slot(mat)
+        lo, hi = Vector(lo), Vector(hi)
+        v = [self.bm.verts.new((x, y, z)) for x in (lo.x, hi.x) for y in (lo.y, hi.y) for z in (lo.z, hi.z)]
+        for q in [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]:
+            f = self.bm.faces.new([v[i] for i in q])
+            f.material_index = s
+        return v
+
+    def cylinder(self, mat, center, radius, height, segs=12, axis='Z', caps=True):
+        s = self.slot(mat)
+        c = Vector(center)
+        rings = []
+        for k in (0, 1):
+            ring = []
+            for i in range(segs):
+                a = 2 * math.pi * i / segs
+                p = Vector((math.cos(a) * radius, math.sin(a) * radius, k * height))
+                if axis == 'X':
+                    p = Vector((p.z, p.x, p.y))
+                elif axis == 'Y':
+                    p = Vector((p.x, p.z, p.y))
+                ring.append(self.bm.verts.new(c + p))
+            rings.append(ring)
+        for i in range(segs):
+            j = (i + 1) % segs
+            f = self.bm.faces.new((rings[0][i], rings[0][j], rings[1][j], rings[1][i]))
+            f.material_index = s
+        if caps:
+            f = self.bm.faces.new(list(reversed(rings[0]))); f.material_index = s
+            f = self.bm.faces.new(rings[1]); f.material_index = s
+
+    def torus(self, mat, center, R, r, segs=12, rings=6):
+        s = self.slot(mat)
+        cx, cy, cz = center
+        grid = []
+        for i in range(segs):
+            a = 2 * math.pi * i / segs
+            row = []
+            for j in range(rings):
+                t = 2 * math.pi * j / rings
+                row.append(self.bm.verts.new((cx + (R + r * math.cos(t)) * math.cos(a),
+                                              cy + (R + r * math.cos(t)) * math.sin(a),
+                                              cz + r * math.sin(t))))
+            grid.append(row)
+        for i in range(segs):
+            for j in range(rings):
+                f = self.bm.faces.new((grid[i][j], grid[(i + 1) % segs][j],
+                                       grid[(i + 1) % segs][(j + 1) % rings], grid[i][(j + 1) % rings]))
+                f.material_index = s
+
+    def bar(self, mat, p0, p1, r, segs=6):
+        """Cylinder from p0 to p1 in any direction (no caps)."""
+        s = self.slot(mat)
+        p0, p1 = Vector(p0), Vector(p1)
+        d = p1 - p0
+        L = d.length
+        if L < 1e-6:
+            return
+        M = d.normalized().to_track_quat('Z', 'Y').to_matrix()
+        rings = []
+        for k in (0.0, L):
+            rings.append([self.bm.verts.new(p0 + M @ Vector((math.cos(2 * math.pi * i / segs) * r,
+                                                              math.sin(2 * math.pi * i / segs) * r, k)))
+                          for i in range(segs)])
+        for i in range(segs):
+            j = (i + 1) % segs
+            f = self.bm.faces.new((rings[0][i], rings[0][j], rings[1][j], rings[1][i]))
+            f.material_index = s
+
+    def truss(self, mat, p0, p1, w, h, pitch=1.5, r_chord=0.05, r_diag=0.025):
+        """Box truss from p0 to p1: four chords, lacing rings every `pitch`, zigzag diagonals."""
+        p0, p1 = Vector(p0), Vector(p1)
+        d = p1 - p0
+        L = d.length
+        u = d.normalized()
+        a = Vector((0, 0, 1)).cross(u)
+        a = a.normalized() if a.length > 1e-6 else Vector((1, 0, 0))
+        b = u.cross(a).normalized()
+        c = [a * (w / 2) + b * (h / 2), -a * (w / 2) + b * (h / 2), -a * (w / 2) - b * (h / 2), a * (w / 2) - b * (h / 2)]
+        for cc in c:
+            self.bar(mat, p0 + cc, p1 + cc, r_chord)
+        n = max(1, round(L / pitch))
+        step = L / n
+        for i in range(n + 1):
+            x = p0 + u * (i * step)
+            for k in range(4):
+                self.bar(mat, x + c[k], x + c[(k + 1) % 4], r_diag)
+        for i in range(n):
+            x0 = p0 + u * (i * step)
+            x1 = p0 + u * ((i + 1) * step)
+            for k in range(4):
+                c0, c1 = c[k], c[(k + 1) % 4]
+                if i % 2 == 0:
+                    self.bar(mat, x0 + c0, x1 + c1, r_diag)
+                else:
+                    self.bar(mat, x0 + c1, x1 + c0, r_diag)
+
+    def extrude_profile(self, mat, profile_yz, x0, x1, closed=False, flip=False):
+        """Sweep a 2D (y, z) polyline along X from x0 to x1."""
+        s = self.slot(mat)
+        a = [self.bm.verts.new((x0, y, z)) for (y, z) in profile_yz]
+        b = [self.bm.verts.new((x1, y, z)) for (y, z) in profile_yz]
+        n = len(profile_yz)
+        for i in range(n if closed else n - 1):
+            j = (i + 1) % n
+            q = (a[i], b[i], b[j], a[j]) if not flip else (a[i], a[j], b[j], b[i])
+            f = self.bm.faces.new(q)
+            f.material_index = s
+        return a, b
+
+    def sheet(self, mat, p0, p1, p2, p3):
+        s = self.slot(mat)
+        f = self.bm.faces.new([self.bm.verts.new(Vector(p)) for p in (p0, p1, p2, p3)])
+        f.material_index = s
+        return f
+
+    def quad_uv(self, mat, pts, uvs):
+        """A face with explicit UVs (skipped by the planar pass)."""
+        s = self.slot(mat)
+        f = self.bm.faces.new([self.bm.verts.new(Vector(p)) for p in pts])
+        f.material_index = s
+        for l, uv in zip(f.loops, uvs):
+            l[self.uv].uv = uv
+        self.keep.add(f)
+        return f
+
+    def front_quad(self, mat, x0, x1, z0, z1, y, repeats=1):
+        """Textured quad facing -Y (the road), UV 0..repeats along X."""
+        return self.quad_uv(mat, [(x0, y, z0), (x1, y, z0), (x1, y, z1), (x0, y, z1)],
+                            [(0, 0), (repeats, 0), (repeats, 1), (0, 1)])
+
+    def finish(self, planar_uv=True, uv_scale=1.0, recalc=True, sharp_angle=math.radians(35)):
+        bm, keep = self.bm, self.keep
+        bmesh.ops.remove_doubles(bm, verts=[v for v in bm.verts if not any(f in keep for f in v.link_faces)], dist=1e-5)
+        if recalc:
+            bmesh.ops.recalc_face_normals(bm, faces=[f for f in bm.faces if f not in keep])
+        if planar_uv:
+            for f in bm.faces:
+                if f in keep:
+                    continue
+                n = f.normal
+                ax = max(range(3), key=lambda i: abs(n[i]))
+                for l in f.loops:
+                    p = l.vert.co
+                    uv = (p.y, p.z) if ax == 0 else (p.x, p.z) if ax == 1 else (p.x, p.y)
+                    l[self.uv].uv = (uv[0] * uv_scale, uv[1] * uv_scale)
+        # smooth shading with edges over `sharp_angle` marked sharp (honoured by
+        # the mesh normals in 4.1+, and by the glTF exporter) -- no operator, so
+        # this works from a timer/MCP context as well as the console
+        for e in bm.edges:
+            if len(e.link_faces) == 2:
+                try:
+                    if e.calc_face_angle() > sharp_angle:
+                        e.smooth = False
+                except ValueError:
+                    pass
+            else:
+                e.smooth = False
+        me = bpy.data.meshes.new(self.name)
+        bm.to_mesh(me)
+        bm.free()
+        for m in self.mats:
+            me.materials.append(m)
+        ob = bpy.data.objects.new(self.name, me)
+        bpy.context.scene.collection.objects.link(ob)
+        me.shade_smooth()
+        return ob
+
+
+def _ui_override(ob=None):
+    """A context override with a window/3D view and an active object, so
+    operators work from a timer (the MCP server) as well as the console."""
+    wm = bpy.context.window_manager
+    kw = {}
+    for win in wm.windows:
+        for area in win.screen.areas:
+            if area.type == 'VIEW_3D':
+                kw = {"window": win, "screen": win.screen, "area": area,
+                      "region": next((r for r in area.regions if r.type == 'WINDOW'), None)}
+                break
+        if kw:
+            break
+    if ob is not None:
+        kw.update(active_object=ob, object=ob, selected_objects=[ob], selected_editable_objects=[ob])
+    return bpy.context.temp_override(**kw)
+
+
+def export_one(kind, asset):
+    """Export the object named `asset` to <PROPS_ROOT>/<kind>/<asset>.glb at the origin."""
+    ob = bpy.data.objects[asset]
+    loc = ob.location.copy()
+    ob.location = (0, 0, 0)
+    d = os.path.join(PROPS_ROOT, kind)
+    os.makedirs(d, exist_ok=True)
+    for o in bpy.context.scene.objects:
+        o.select_set(o is ob)
+    bpy.context.view_layer.objects.active = ob
+    glb = os.path.join(d, asset + ".glb")
+    with _ui_override(ob):
+        bpy.ops.export_scene.gltf(filepath=glb, export_format='GLB', use_selection=True, export_apply=True,
+                                  export_yup=True, export_texcoords=True, export_normals=True,
+                                  export_materials='EXPORT', export_cameras=False, export_lights=False)
+    ob.location = loc
+    return glb, os.path.getsize(glb)
+
+
+def save_blend(kind, name):
+    d = os.path.join(PROPS_ROOT, kind)
+    os.makedirs(d, exist_ok=True)
+    p = os.path.join(d, name + ".blend")
+    bpy.ops.wm.save_as_mainfile(filepath=p)
+    return p
+
+
+def stats():
+    out = {}
+    for o in bpy.context.scene.objects:
+        if o.type == 'MESH':
+            d = o.evaluated_get(bpy.context.evaluated_depsgraph_get()).data
+            out[o.name] = {"verts": len(d.vertices), "tris": sum(len(p.vertices) - 2 for p in d.polygons),
+                           "mats": [m.name for m in o.data.materials],
+                           "bbox_min": [round(min(v.co[i] for v in o.data.vertices), 3) for i in range(3)],
+                           "bbox_max": [round(max(v.co[i] for v in o.data.vertices), 3) for i in range(3)]}
+    return out
+
+
+def preview_ground():
+    if "PreviewGround" not in bpy.data.objects:
+        g = Builder("PreviewGround")
+        g.box(material("preview_ground", (0.25, 0.32, 0.18), roughness=0.9), (-40, -40, -0.05), (40, 40, 0))
+        g.finish()
+
+
+def preview(path, look_from=(6, -7, 3), look_at=(0, 0, 0.6), res=(1280, 720), fov=45, ortho=None):
+    sc = bpy.context.scene
+    cam = bpy.data.objects.get("PreviewCam")
+    if not cam:
+        cd = bpy.data.cameras.new("PreviewCam")
+        cam = bpy.data.objects.new("PreviewCam", cd)
+        sc.collection.objects.link(cam)
+    cam.location = look_from
+    cam.rotation_euler = (Vector(look_at) - Vector(look_from)).to_track_quat('-Z', 'Y').to_euler()
+    cam.data.angle = math.radians(fov)
+    cam.data.type = 'ORTHO' if ortho else 'PERSP'
+    if ortho:
+        cam.data.ortho_scale = ortho
+    sc.camera = cam
+    sun = bpy.data.objects.get("PreviewSun")
+    if not sun:
+        ld = bpy.data.lights.new("PreviewSun", 'SUN')
+        sun = bpy.data.objects.new("PreviewSun", ld)
+        sc.collection.objects.link(sun)
+        ld.energy = 4.0
+        sun.rotation_euler = (math.radians(50), math.radians(10), math.radians(-40))
+    w = sc.world or bpy.data.worlds.new("World")
+    sc.world = w
+    w.use_nodes = True
+    bg = w.node_tree.nodes.get("Background")
+    if bg:
+        bg.inputs[0].default_value = (0.55, 0.65, 0.8, 1)
+        bg.inputs[1].default_value = 1.0
+    sc.render.engine = 'BLENDER_EEVEE'
+    sc.render.resolution_x, sc.render.resolution_y = res
+    sc.render.filepath = path
+    sc.render.image_settings.file_format = 'PNG'
+    bpy.ops.render.render(write_still=True)
+    return path
+
+
+# ----------------------------------------------------------------- v2 helpers
+def _builder_loft(self, mat, sections, closed=True, cap_ends=True, flip=False):
+    """Skin consecutive rings of 3D points (all the same length) into quads.
+    `sections` is a list of point lists; caps use an n-gon on each end."""
+    s = self.slot(mat)
+    rings = [[self.bm.verts.new(Vector(p)) for p in sec] for sec in sections]
+    n = len(sections[0])
+    for a, b in zip(rings, rings[1:]):
+        for i in range(n if closed else n - 1):
+            j = (i + 1) % n
+            q = (a[i], b[i], b[j], a[j]) if not flip else (a[i], a[j], b[j], b[i])
+            f = self.bm.faces.new(q)
+            f.material_index = s
+    if cap_ends and closed:
+        try:
+            f = self.bm.faces.new(list(reversed(rings[0])) if not flip else rings[0]); f.material_index = s
+            f = self.bm.faces.new(rings[-1] if not flip else list(reversed(rings[-1]))); f.material_index = s
+        except ValueError:
+            pass
+    return rings
+
+
+def _builder_ico(self, mat, center, radius, subdiv=1, scale=(1, 1, 1), jitter=0.0, seed=0):
+    """Low-poly icosphere blob (subdiv 1 = 80 tris), optionally jittered."""
+    import random as _r
+    s = self.slot(mat)
+    tmp = bmesh.new()
+    bmesh.ops.create_icosphere(tmp, subdivisions=subdiv, radius=1.0)
+    rng = _r.Random(seed)
+    vm = {}
+    for v in tmp.verts:
+        k = 1.0 + (rng.uniform(-jitter, jitter) if jitter else 0.0)
+        p = Vector((v.co.x * scale[0], v.co.y * scale[1], v.co.z * scale[2])) * radius * k
+        vm[v.index] = self.bm.verts.new(Vector(center) + p)
+    for f in tmp.faces:
+        nf = self.bm.faces.new([vm[v.index] for v in f.verts])
+        nf.material_index = s
+    tmp.free()
+
+
+def _builder_cone(self, mat, center, r0, r1, height, segs=10, cap=True):
+    """Frustum from radius r0 at the base to r1 at the top."""
+    a = [(center[0] + math.cos(2 * math.pi * i / segs) * r0, center[1] + math.sin(2 * math.pi * i / segs) * r0, center[2]) for i in range(segs)]
+    b = [(center[0] + math.cos(2 * math.pi * i / segs) * r1, center[1] + math.sin(2 * math.pi * i / segs) * r1, center[2] + height) for i in range(segs)]
+    return self.loft(mat, [a, b], closed=True, cap_ends=cap)
+
+
+def _builder_card(self, mat, center, w, h, yaw=0.0, tilt=0.0, uv=(0, 0, 1, 1)):
+    """Vertical textured quad centred at the bottom-middle of `center`, facing
+    +Y before `yaw`; `tilt` leans it back. Two-sided is left to the material."""
+    cy, sy = math.cos(yaw), math.sin(yaw)
+    ct, st = math.cos(tilt), math.sin(tilt)
+    pts = []
+    for (u, v) in ((-0.5, 0), (0.5, 0), (0.5, 1), (-0.5, 1)):
+        x, y, z = u * w, -v * h * st, v * h * ct
+        pts.append((center[0] + x * cy - y * sy, center[1] + x * sy + y * cy, center[2] + z))
+    u0, v0, u1, v1 = uv
+    return self.quad_uv(mat, pts, [(u0, v0), (u1, v0), (u1, v1), (u0, v1)])
+
+
+Builder.loft = _builder_loft
+Builder.ico = _builder_ico
+Builder.cone = _builder_cone
+Builder.card = _builder_card
+
+
+def text_mesh(name, text, size=1.0, extrude=0.3, font=None, bold=True):
+    """Render `text` with Blender's text object into a bmesh-able mesh (XZ
+    plane, standing up, reading along +X, extruded along Y). Returns a mesh
+    datablock; the caller merges it into a Builder with `merge_mesh`."""
+    cu = bpy.data.curves.new(name + "_txt", 'FONT')
+    cu.body = text
+    cu.size = size
+    cu.extrude = extrude / 2
+    cu.align_x = 'CENTER'
+    cu.fill_mode = 'BOTH'
+    if font:
+        cu.font = font
+    ob = bpy.data.objects.new(name + "_txt", cu)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.rotation_euler = (math.radians(90), 0, 0)  # XY text -> XZ, extrusion along -Y/+Y
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    me.transform(ob.matrix_world)
+    bpy.data.objects.remove(ob)
+    bpy.data.curves.remove(cu)
+    return me
+
+
+def merge_mesh(builder, mat, me, offset=(0, 0, 0)):
+    """Append the faces of mesh `me` (triangulated) into a Builder under `mat`."""
+    s = builder.slot(mat)
+    tmp = bmesh.new()
+    tmp.from_mesh(me)
+    bmesh.ops.triangulate(tmp, faces=tmp.faces[:])
+    vm = {v.index: builder.bm.verts.new(v.co + Vector(offset)) for v in tmp.verts}
+    for f in tmp.faces:
+        try:
+            nf = builder.bm.faces.new([vm[v.index] for v in f.verts])
+            nf.material_index = s
+        except ValueError:
+            pass
+    tmp.free()
+    bpy.data.meshes.remove(me)
+
+
+def export_all(kind, names):
+    return {n: export_one(kind, n) for n in names}
+
+
+def _builder_translate(self, dx=0.0, dy=0.0, dz=0.0):
+    d = Vector((dx, dy, dz))
+    for v in self.bm.verts:
+        v.co += d
+
+
+Builder.translate = _builder_translate

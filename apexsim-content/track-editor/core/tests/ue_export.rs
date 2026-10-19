@@ -1,0 +1,2446 @@
+//! Tests for the Unreal export bake.
+//!
+//! The expensive properties to get wrong here are the ones you cannot see
+//! from Rust: a level that renders inside-out, geometry that drifts between
+//! exports, or a track that silently bakes to nothing. Those get a test
+//! each.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use track_core::ats::{
+    AtsScene, Curb, Decal, Marking, MarkingKind, PitLane, Prop, PropKind, Side, Surface,
+    SurfaceKind,
+};
+use track_core::project;
+use track_core::track_data::{TrackFile, TrackNode};
+use track_core::ue_export::{
+    self, UeMaterial, UeMesh, UeScene, WallSegment, CURB_BANDS_VERSION, CURB_BAND_STEP_M,
+    UE_SCENE_FORMAT, UE_SCENE_VERSION, WALLS_VERSION, WALL_KIND_ARMCO, WALL_KIND_CONCRETE,
+    WALL_KIND_TIRES,
+};
+use track_core::ue_export_io;
+
+fn real_tracks_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tracks/default")
+}
+
+fn node(x: f32, y: f32, z: f32, banking: f32) -> TrackNode {
+    TrackNode {
+        x,
+        y,
+        z,
+        width: Some(12.0),
+        width_left: None,
+        width_right: None,
+        banking: (banking != 0.0).then_some(banking),
+        friction: None,
+        surface_type: None,
+    }
+}
+
+/// A closed square with a hill on one side and a banked corner, so slope,
+/// heading and banking all vary.
+fn test_track() -> TrackFile {
+    TrackFile {
+        name: "Test Circuit".to_string(),
+        display_name: None,
+        track_id: Some("test".to_string()),
+        nodes: vec![
+            node(0.0, 0.0, 0.0, 0.0),
+            node(200.0, 0.0, 4.0, 0.15),
+            node(200.0, 200.0, 0.0, 0.15),
+            node(0.0, 200.0, -3.0, 0.0),
+        ],
+        checkpoints: vec![],
+        sectors: vec![],
+        spawn_points: vec![],
+        default_width: 12.0,
+        closed_loop: true,
+        raceline: vec![],
+        drs_zones: Vec::new(),
+        metadata: None,
+    }
+}
+
+/// A scene exercising every layer the exporter knows how to bake.
+fn test_scene(track: &TrackFile) -> AtsScene {
+    let mut scene = AtsScene::new_for_track(track, "Test.yaml");
+    // `alloc_id` borrows the scene mutably and so does every `push` below,
+    // so hand out ids from a plain counter and stamp the scene at the end.
+    let mut next = scene.next_id;
+    let mut id = || {
+        next += 1;
+        next - 1
+    };
+    scene.surfaces.push(Surface {
+        id: id(),
+        kind: SurfaceKind::Gravel,
+        side: Side::Right,
+        start_m: 40.0,
+        end_m: 120.0,
+        inner_m: 1.5,
+        width_m: 8.0,
+        end_width_m: Some(20.0),
+        paint: None,
+    });
+    scene.surfaces.push(Surface {
+        id: id(),
+        kind: SurfaceKind::Grass,
+        side: Side::Left,
+        // Full lap: start == end on a closed loop.
+        start_m: 0.0,
+        end_m: 0.0,
+        inner_m: 0.0,
+        width_m: 60.0,
+        end_width_m: None,
+        paint: None,
+    });
+    scene.curbs.push(Curb {
+        id: id(),
+        side: Side::Left,
+        start_m: 30.0,
+        end_m: 90.0,
+        width_m: 1.2,
+        style: "red_white".to_string(),
+    });
+    scene.curbs.push(Curb {
+        id: id(),
+        side: Side::Right,
+        // Wraps through start/finish.
+        start_m: 780.0,
+        end_m: 25.0,
+        width_m: 1.0,
+        style: "yellow_black".to_string(),
+    });
+    scene.markings.push(Marking {
+        id: id(),
+        kind: MarkingKind::EdgeLine,
+        start_m: 10.0,
+        end_m: 60.0,
+        lat_from_m: 5.5,
+        lat_to_m: 6.0,
+        color: [1.0, 1.0, 1.0, 1.0],
+    });
+    scene.decals.push(Decal {
+        id: id(),
+        image: "graffiti/test_tag".to_string(),
+        // On the hill, so the picture has to follow the grade.
+        start_m: 150.0,
+        length_m: 12.0,
+        lat_m: 1.0,
+        width_m: 6.0,
+        reversed: false,
+    });
+    scene.props.push(Prop {
+        id: id(),
+        kind: PropKind::Tree,
+        asset: "tree_oak_large".to_string(),
+        x: 30.0,
+        y: 25.0,
+        z: 0.0,
+        yaw_rad: std::f32::consts::FRAC_PI_2,
+        scale: 1.4,
+        text: None,
+        length_m: None,
+        source: None,
+    });
+    scene.pit_lane = Some(PitLane {
+        nodes: vec![[0.0, -20.0, 0.0], [80.0, -20.0, 0.0], [160.0, -18.0, 1.0]],
+        width_m: 12.0,
+        box_count: 10,
+        speed_limit_kmh: 60.0,
+        authored: false,
+    });
+    scene.next_id = next;
+    scene
+}
+
+fn bake_test_scene() -> UeScene {
+    let track = test_track();
+    let scene = test_scene(&track);
+    ue_export::bake(&track, &scene).expect("test track must bake")
+}
+
+fn vertex(mesh: &UeMesh, i: u32) -> [f64; 3] {
+    let i = i as usize * 3;
+    [
+        mesh.positions[i] as f64,
+        mesh.positions[i + 1] as f64,
+        mesh.positions[i + 2] as f64,
+    ]
+}
+
+fn normal(mesh: &UeMesh, i: u32) -> [f64; 3] {
+    let i = i as usize * 3;
+    [
+        mesh.normals[i] as f64,
+        mesh.normals[i + 1] as f64,
+        mesh.normals[i + 2] as f64,
+    ]
+}
+
+fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+fn length(v: [f64; 3]) -> f64 {
+    dot(v, v).sqrt()
+}
+
+/// The normal Unreal would derive for a triangle, or `None` when the
+/// triangle is too much of a sliver to carry an orientation at all.
+///
+/// `FStaticMeshOperations` takes a triangle's normal as
+/// `-cross(p1 - p0, p2 - p0)` — Unreal's front face is clockwise seen from
+/// the normal. Degeneracy is judged on the *relative* area (the sine of the
+/// angle between the two edges), not the absolute cross product: at track
+/// scale a 3-degree sliver still has a cross product thousands of units
+/// long while being pure numerical noise.
+fn unreal_face_normal(mesh: &UeMesh, a: u32, b: u32, c: u32) -> Option<[f64; 3]> {
+    let e1 = sub(vertex(mesh, b), vertex(mesh, a));
+    let e2 = sub(vertex(mesh, c), vertex(mesh, a));
+    let n = cross(e1, e2);
+    let scale = length(e1) * length(e2);
+    // Slightly below the exporter's own MIN_FACET_QUALITY, so that rounding
+    // positions to a tenth of a centimetre on the way out cannot nudge a
+    // triangle the exporter deliberately kept out of the test's reach.
+    if scale < 1e-9 || length(n) / scale < 0.005 {
+        return None;
+    }
+    Some([-n[0], -n[1], -n[2]])
+}
+
+/// The single most expensive thing to get wrong: winding.
+///
+/// Unreal's front face is clockwise seen from the normal, which is to say
+/// `FStaticMeshOperations` derives a triangle's normal as
+/// `-cross(p1 - p0, p2 - p0)`. Assert that for every triangle in the bake
+/// that derived normal agrees with the normal we shipped alongside it. If it
+/// does not, the level loads with every surface visible only from below.
+#[test]
+fn winding_matches_unreals_front_face_convention() {
+    let baked = bake_test_scene();
+    assert!(!baked.meshes.is_empty());
+
+    let mut checked = 0usize;
+    for mesh in &baked.meshes {
+        assert_eq!(
+            mesh.indices.len() % 3,
+            0,
+            "{}: not a triangle list",
+            mesh.name
+        );
+        for tri in mesh.indices.chunks_exact(3) {
+            let (a, b, c) = (tri[0], tri[1], tri[2]);
+            let Some(unreal_normal) = unreal_face_normal(mesh, a, b, c) else {
+                continue;
+            };
+            assert!(
+                dot(unreal_normal, normal(mesh, a)) > 0.0,
+                "{}: triangle {a},{b},{c} is wound inside-out (Unreal would light it from below)",
+                mesh.name
+            );
+            checked += 1;
+        }
+    }
+    assert!(checked > 1000, "only checked {checked} triangles");
+}
+
+/// Curbs are the one element with a genuine 3D profile; a flat curb means
+/// the profile builder regressed to the viewport's preview strip.
+#[test]
+fn curbs_are_raised_above_the_track() {
+    let baked = bake_test_scene();
+    let curb_meshes: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key.starts_with("curb_"))
+        .collect();
+    assert!(!curb_meshes.is_empty(), "no curb meshes were baked");
+
+    for mesh in curb_meshes {
+        let heights: Vec<f32> = mesh.positions.chunks_exact(3).map(|p| p[2]).collect();
+        let lo = heights.iter().copied().fold(f32::INFINITY, f32::min);
+        let hi = heights.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        assert!(
+            hi - lo > 3.0,
+            "{}: curb spans only {:.2} cm vertically — profile is flat",
+            mesh.name,
+            hi - lo
+        );
+    }
+}
+
+/// Banked and sloped sections must tilt their normals; a bake that hardcodes
+/// "up" (which is what the viewport preview does) would pass every other
+/// test here.
+#[test]
+fn road_normals_follow_the_surface_rather_than_pointing_straight_up() {
+    let baked = bake_test_scene();
+    let road: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key == "road")
+        .collect();
+    assert!(!road.is_empty());
+
+    let mut tilted = 0usize;
+    for mesh in &road {
+        for n in mesh.normals.chunks_exact(3) {
+            let len = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+            assert!((len - 1.0).abs() < 0.01, "normal not unit length: {n:?}");
+            assert!(n[2] > 0.0, "road normal points downward: {n:?}");
+            if n[2] < 0.999 {
+                tilted += 1;
+            }
+        }
+    }
+    assert!(
+        tilted > 0,
+        "no road normal tilts — the hill in the test track was ignored"
+    );
+}
+
+#[test]
+fn every_mesh_is_finite_non_empty_and_indexes_in_range() {
+    let baked = bake_test_scene();
+    for mesh in &baked.meshes {
+        let vertex_count = mesh.positions.len() / 3;
+        assert!(vertex_count > 0, "{}: no vertices", mesh.name);
+        assert_eq!(mesh.positions.len() % 3, 0);
+        assert_eq!(mesh.normals.len(), mesh.positions.len());
+        assert_eq!(mesh.uvs.len(), vertex_count * 2);
+        assert!(!mesh.indices.is_empty(), "{}: no triangles", mesh.name);
+        assert!(
+            mesh.positions.iter().all(|v| v.is_finite()),
+            "{}: non-finite position",
+            mesh.name
+        );
+        assert!(
+            mesh.normals.iter().all(|v| v.is_finite()),
+            "{}: non-finite normal",
+            mesh.name
+        );
+        assert!(
+            mesh.uvs.iter().all(|v| v.is_finite()),
+            "{}: non-finite uv",
+            mesh.name
+        );
+        assert!(
+            mesh.indices.iter().all(|i| (*i as usize) < vertex_count),
+            "{}: index out of range",
+            mesh.name
+        );
+    }
+}
+
+#[test]
+fn every_mesh_references_a_declared_material() {
+    let baked = bake_test_scene();
+    for mesh in &baked.meshes {
+        assert!(
+            baked.materials.iter().any(|m| m.key == mesh.material_key),
+            "{} references undeclared material {}",
+            mesh.name,
+            mesh.material_key
+        );
+    }
+    // Sorted and deduplicated, so the commandlet can bind them in order.
+    let keys: Vec<&str> = baked.materials.iter().map(|m| m.key.as_str()).collect();
+    let mut sorted = keys.clone();
+    sorted.sort_unstable();
+    sorted.dedup();
+    assert_eq!(keys, sorted, "material table is unsorted or has duplicates");
+}
+
+#[test]
+fn mesh_names_are_unique() {
+    let baked = bake_test_scene();
+    let mut names: Vec<&str> = baked.meshes.iter().map(|m| m.name.as_str()).collect();
+    let before = names.len();
+    names.sort_unstable();
+    names.dedup();
+    assert_eq!(
+        before,
+        names.len(),
+        "duplicate mesh names would clash as assets"
+    );
+}
+
+#[test]
+fn scene_header_and_gameplay_anchors_are_populated() {
+    let baked = bake_test_scene();
+    assert_eq!(baked.format, UE_SCENE_FORMAT);
+    assert_eq!(baked.version, UE_SCENE_VERSION);
+    assert_eq!(baked.track_name, "Test Circuit");
+    assert!(baked.closed_loop);
+    assert!(baked.length_cm > 70_000.0, "length {}", baked.length_cm);
+
+    // No authored spawn points: the exporter mirrors the server's 16-slot
+    // fallback grid so client and server agree on where a car starts.
+    assert_eq!(baked.grid.len(), 16);
+    assert_eq!(baked.grid[0].position, 1);
+    assert!(baked.centerline.len() > 100);
+    assert_eq!(baked.centerline[0].s_cm, 0.0);
+    assert!(baked.centerline[0].half_left_cm > 0.0);
+
+    // The scene's own prop; the pit lane adds its generated complex on top.
+    let authored: Vec<_> = baked.props.iter().filter(|p| p.kind != "pit").collect();
+    assert_eq!(authored.len(), 1);
+    let prop = authored[0];
+    assert_eq!(prop.asset, "tree_oak_large");
+    // Track (30, 25) m -> UE (3000, -2500) cm; yaw +90 deg CCW -> -90 deg.
+    assert!((prop.location[0] - 3000.0).abs() < 0.5);
+    assert!((prop.location[1] + 2500.0).abs() < 0.5);
+    assert!((prop.yaw_deg + 90.0).abs() < 0.01);
+
+    let pit = baked.pit_lane.expect("pit lane should export");
+    assert_eq!(pit.box_count, 10);
+    assert!(baked.meshes.iter().any(|m| m.material_key == "pit_lane"));
+
+    // A scene that says nothing is dressed for a summer race day.
+    assert_eq!(baked.dressing.season, "summer");
+    assert!(baked.dressing.spectators);
+}
+
+/// The scene's dressing reaches the importer as words it can key on,
+/// while the props keep their base asset keys: the importer swaps in the
+/// `_autumn` and `_crowd` meshes itself.
+#[test]
+fn dressing_is_exported_without_renaming_the_props() {
+    use track_core::ats::{Dressing, Season};
+    let track = test_track();
+    let mut scene = test_scene(&track);
+    scene.dressing = Dressing {
+        season: Season::Autumn,
+        spectators: false,
+    };
+    let id = scene.alloc_id();
+    scene.props.push(track_core::ats::Prop {
+        id,
+        kind: track_core::ats::PropKind::Tree,
+        asset: "broadleaf_m".to_string(),
+        x: 60.0,
+        y: 30.0,
+        z: 0.0,
+        yaw_rad: 0.0,
+        scale: 1.0,
+        text: None,
+        length_m: None,
+        source: None,
+    });
+    let baked = ue_export::bake(&track, &scene).unwrap();
+    assert_eq!(baked.dressing.season, "autumn");
+    assert!(!baked.dressing.spectators);
+    assert_eq!(props_with(&baked, "tree", "broadleaf_m").len(), 1);
+    assert!(props_with(&baked, "tree", "broadleaf_m_autumn").is_empty());
+}
+
+fn props_with<'a>(scene: &'a UeScene, kind: &str, asset: &str) -> Vec<&'a ue_export::UeProp> {
+    scene
+        .props
+        .iter()
+        .filter(|p| p.kind == kind && p.asset == asset)
+        .collect()
+}
+
+/// A flat stadium, counter-clockwise: an 800 m straight along y = 0, a
+/// 70 m hairpin, the return straight along y = 140 and a hairpin back.
+/// Dense nodes keep the spline straight on the straights, which the
+/// rounded square above is not.
+fn stadium_track() -> TrackFile {
+    const R: f32 = 70.0;
+    let mut nodes = Vec::new();
+    for i in 0..=32 {
+        nodes.push(node(i as f32 * 25.0, 0.0, 0.0, 0.0));
+    }
+    for deg in (-80..=80).step_by(10) {
+        let (sin, cos) = (deg as f32).to_radians().sin_cos();
+        nodes.push(node(800.0 + R * cos, R + R * sin, 0.0, 0.0));
+    }
+    for i in (0..=32).rev() {
+        nodes.push(node(i as f32 * 25.0, 2.0 * R, 0.0, 0.0));
+    }
+    for deg in (100..=260).step_by(10) {
+        let (sin, cos) = (deg as f32).to_radians().sin_cos();
+        nodes.push(node(R * cos, R + R * sin, 0.0, 0.0));
+    }
+    TrackFile {
+        name: "Stadium".to_string(),
+        display_name: None,
+        track_id: Some("stadium".to_string()),
+        nodes,
+        checkpoints: vec![],
+        sectors: vec![],
+        spawn_points: vec![],
+        default_width: 12.0,
+        closed_loop: true,
+        raceline: vec![],
+        drs_zones: vec![],
+        metadata: None,
+    }
+}
+
+/// The stadium with a 10 m pit lane on the right of the start straight:
+/// tapers off the road at both ends, 240 m of pit road parallel to it at
+/// y = -20 in between.
+fn stadium_scene() -> (TrackFile, AtsScene) {
+    let track = stadium_track();
+    let mut scene = AtsScene::new_for_track(&track, "Stadium.yaml");
+    scene.pit_lane = Some(PitLane {
+        nodes: {
+            // Nodes every 30 m along the pit road, as `pit.rs` lays them,
+            // so the spline stays straight rather than sagging between
+            // two far-apart nodes.
+            let mut nodes = vec![[100.0, -3.0, 0.0], [140.0, -12.0, 0.0]];
+            nodes.extend((0..=8).map(|i| [160.0 + 30.0 * i as f32, -20.0, 0.0]));
+            nodes.extend([[420.0, -12.0, 0.0], [460.0, -3.0, 0.0]]);
+            nodes
+        },
+        width_m: 10.0,
+        box_count: 10,
+        speed_limit_kmh: 80.0,
+        authored: false,
+    });
+    (track, scene)
+}
+
+/// The pit lane bakes its own complex: one garage per box on the far side
+/// of the lane with an end block beyond each end of the row, and pit walls
+/// on the road side, every module turned to face the track.
+#[test]
+fn the_pit_lane_bakes_a_garage_row_and_pit_walls() {
+    let (track, scene) = stadium_scene();
+    let baked = ue_export::bake(&track, &scene).unwrap();
+    let garages = props_with(&baked, "pit", "garage_6m");
+    assert_eq!(garages.len(), 10, "one garage per box");
+    assert_eq!(props_with(&baked, "pit", "garage_end").len(), 2);
+    // The crew's kit shares each garage's pivot and heading: authored to
+    // reach out from the door onto the working lane.
+    let kits = props_with(&baked, "pit", "box_kit");
+    assert_eq!(kits.len(), 10, "a box kit per garage");
+    for (garage, kit) in garages.iter().zip(&kits) {
+        assert_eq!(garage.location, kit.location);
+        assert_eq!(garage.yaw_deg, kit.yaw_deg);
+    }
+    let walls = props_with(&baked, "pit", "pit_wall_6m");
+    assert_eq!(walls.len(), 10, "a wall module per box");
+    let plain = props_with(&baked, "pit", "pit_wall_plain_6m");
+    assert!(
+        !plain.is_empty(),
+        "plain walls fill the rest of the pit road"
+    );
+
+    // The lane runs at y = -20 m (UE +2000 cm) on the right of a road
+    // along +X: garages beyond it (UE y 2500), walls between it and the
+    // road (UE y 1400..1500), both looking toward the road, which is on
+    // their left in the server frame — a module's front is its right-hand
+    // side, so they are turned round (UE yaw ±180).
+    for garage in &garages {
+        assert!(
+            (garage.location[1] - 2500.0).abs() < 1.0,
+            "garage y {}",
+            garage.location[1]
+        );
+        assert!(
+            (garage.yaw_deg.abs() - 180.0).abs() < 0.5,
+            "garage yaw {}",
+            garage.yaw_deg
+        );
+        assert!(garage.location[0] > 16000.0 && garage.location[0] < 40000.0);
+    }
+    for wall in walls.iter().chain(&plain) {
+        // The plain walls reach toward the tapers, where the lane already
+        // bends away a little.
+        let box_span = wall.asset == "pit_wall_6m";
+        let range = if box_span {
+            1399.0..=1501.0
+        } else {
+            // Toward the tapers the lane edge closes to 1.5 m off the
+            // road edge, which is where a real pit wall runs.
+            800.0..=1600.0
+        };
+        assert!(
+            range.contains(&wall.location[1]),
+            "wall y {}",
+            wall.location[1]
+        );
+        if box_span {
+            assert!(
+                (wall.yaw_deg.abs() - 180.0).abs() < 0.5,
+                "wall yaw {}",
+                wall.yaw_deg
+            );
+        }
+        // The relation counts the lane as parallel until it is within
+        // 7.5 m of the road, a little way into each taper.
+        let (lo, hi) = if box_span {
+            (16000.0, 40000.0)
+        } else {
+            (14000.0, 42000.0)
+        };
+        assert!(
+            wall.location[0] > lo && wall.location[0] < hi,
+            "wall x {}",
+            wall.location[0]
+        );
+    }
+    // Boxes tile at 6 m along the lane.
+    let mut xs: Vec<f32> = garages.iter().map(|g| g.location[0]).collect();
+    xs.sort_by(|a, b| a.total_cmp(b));
+    for pair in xs.windows(2) {
+        assert!((pair[1] - pair[0] - 600.0).abs() < 1.0, "pitch {:?}", pair);
+    }
+}
+
+/// The server's pit lane: a box in front of every garage, in the working
+/// lane between the lane's middle and the garage, facing down the lane;
+/// the speed limit over the parallel stretch; entry before exit.
+#[test]
+fn the_pit_sidecar_puts_a_box_in_front_of_every_garage() {
+    let (track, scene) = stadium_scene();
+    let all = ue_export::bake_all(&track, &scene).unwrap();
+    let baked = &all.scene;
+    let pit = all.pit.as_ref().expect("a pit sidecar");
+    assert_eq!(pit.version, ue_export::PIT_SIDECAR_VERSION);
+    assert_eq!(pit.lane_side, -1, "the lane is on the track's right");
+    let garages = props_with(baked, "pit", "garage_6m");
+    assert_eq!(pit.boxes.len(), garages.len());
+    for (spot, garage) in pit.boxes.iter().zip(&garages) {
+        assert!(
+            spot.y < -20.0 && spot.y > -25.0,
+            "between the lane's middle and the garage: y {}",
+            spot.y
+        );
+        assert!(
+            (spot.x - garage.location[0] / 100.0).abs() < 0.5,
+            "in front of its garage: {} against {}",
+            spot.x,
+            garage.location[0] / 100.0
+        );
+        assert!(spot.yaw_rad.abs() < 0.05, "down the lane: {}", spot.yaw_rad);
+        assert!((pit.limit_start_m..=pit.limit_end_m).contains(&spot.lane_station_m));
+    }
+    assert!(pit.limit_start_m < pit.limit_end_m && pit.limit_end_m <= pit.length_m);
+    assert!(
+        (pit.speed_limit_mps - scene.pit_lane.as_ref().unwrap().speed_limit_kmh / 3.6).abs() < 1e-3
+    );
+    assert!(pit.nodes.len() as f32 >= pit.length_m / ue_export::PIT_SIDECAR_STEP_M);
+    assert!(
+        pit.entry_station_m < pit.exit_station_m,
+        "a lane beside the straight"
+    );
+}
+
+/// The pre-kit scenes stood pit garages in as `building/pit_garage`; the
+/// generated complex replaces them rather than doubling up.
+#[test]
+fn legacy_pit_garage_stand_ins_give_way_to_the_generated_complex() {
+    let (track, mut scene) = stadium_scene();
+    let id = scene.alloc_id();
+    scene.props.push(Prop {
+        id,
+        kind: PropKind::Building,
+        asset: "pit_garage".to_string(),
+        x: 280.0,
+        y: -34.0,
+        z: 0.0,
+        yaw_rad: 0.0,
+        scale: 1.0,
+        text: None,
+        length_m: None,
+        source: None,
+    });
+    let baked = ue_export::bake(&track, &scene).unwrap();
+    assert!(props_with(&baked, "building", "pit_garage").is_empty());
+    assert!(!props_with(&baked, "pit", "garage_6m").is_empty());
+
+    // Without a pit lane the stand-in is exported as it always was.
+    scene.pit_lane = None;
+    let baked = ue_export::bake(&track, &scene).unwrap();
+    assert_eq!(props_with(&baked, "building", "pit_garage").len(), 1);
+    assert!(props_with(&baked, "pit", "garage_6m").is_empty());
+}
+
+/// Grandstands carry their length and the signed bend radius (positive
+/// outside the corner), bridges the road width their span is scaled to.
+#[test]
+fn stands_and_bridges_carry_their_layout_hints() {
+    let (track, mut scene) = stadium_scene();
+    let mut add = |kind: PropKind, x: f32, y: f32, length_m: Option<f32>| {
+        let id = scene.alloc_id();
+        scene.props.push(Prop {
+            id,
+            kind,
+            asset: "test".to_string(),
+            x,
+            y,
+            z: 0.0,
+            yaw_rad: 0.0,
+            scale: 1.0,
+            text: None,
+            length_m,
+            source: None,
+        });
+    };
+    // The far hairpin turns left around (800, 70): a stand beyond it is on
+    // the outside, one at its centre on the inside; the start straight
+    // has no bend at all.
+    add(PropKind::Grandstand, 900.0, 70.0, Some(50.0));
+    add(PropKind::Grandstand, 830.0, 70.0, None);
+    add(PropKind::Grandstand, 400.0, 40.0, None);
+    add(PropKind::Bridge, 600.0, 0.0, None);
+    let baked = ue_export::bake(&track, &scene).unwrap();
+
+    let stands = props_with(&baked, "grandstand", "test");
+    assert_eq!(stands.len(), 3);
+    let outside = stands.iter().find(|p| p.location[0] > 89000.0).unwrap();
+    let inside = stands
+        .iter()
+        .find(|p| (p.location[0] - 83000.0).abs() < 100.0)
+        .unwrap();
+    let straight = stands.iter().find(|p| p.location[0] < 41000.0).unwrap();
+    assert_eq!(outside.length_m, Some(50.0));
+    assert_eq!(inside.length_m, Some(30.0), "default length");
+    assert!(
+        outside.radius_m.is_some_and(|r| r > 50.0 && r < 90.0),
+        "{:?}",
+        outside.radius_m
+    );
+    assert!(
+        inside.radius_m.is_some_and(|r| r < -50.0 && r > -90.0),
+        "{:?}",
+        inside.radius_m
+    );
+    assert_eq!(straight.radius_m, None);
+    assert_eq!(straight.span_m, None);
+
+    let bridge = props_with(&baked, "bridge", "test")[0];
+    assert!(
+        (bridge.span_m.unwrap() - 12.0).abs() < 0.05,
+        "{:?}",
+        bridge.span_m
+    );
+    assert_eq!(bridge.length_m, None);
+}
+
+/// Authored spawn points win over the fallback grid, resolved exactly the
+/// way `server/src/track_loader.rs` resolves them.
+#[test]
+fn authored_spawn_points_replace_the_fallback_grid() {
+    let mut track = test_track();
+    track.spawn_points = vec![
+        track_core::track_data::SpawnPoint {
+            position: 0,
+            offset_x: 2.0,
+            offset_y: -3.0,
+        },
+        track_core::track_data::SpawnPoint {
+            position: 10,
+            offset_x: 0.0,
+            offset_y: 0.0,
+        },
+    ];
+    let scene = test_scene(&track);
+    let baked = ue_export::bake(&track, &scene).unwrap();
+    assert_eq!(baked.grid.len(), 2);
+    assert_eq!(baked.grid[0].position, 1);
+    // Offsets are world-space in the server, so they land straight on the
+    // sampled centerline point (with Y mirrored for Unreal).
+    assert!((baked.grid[0].location[0] - 200.0).abs() < 1.0);
+    assert!((baked.grid[0].location[1] - 300.0).abs() < 1.0);
+}
+
+/// The world must not be a void: every bake carries a terrain ground that
+/// extends well past the track itself, so nothing in the level floats.
+#[test]
+fn ground_terrain_is_baked_under_the_scene() {
+    let baked = bake_test_scene();
+    let ground: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key == "ground")
+        .collect();
+    assert!(!ground.is_empty(), "no ground meshes baked");
+    assert!(
+        baked
+            .materials
+            .iter()
+            .any(|m| m.key == "ground" && m.family == "surface"),
+        "ground material missing"
+    );
+
+    // The test track spans 0..200 m in X; the ground has to reach beyond
+    // that with its margin (positions are UE centimeters).
+    let xs: Vec<f32> = ground
+        .iter()
+        .flat_map(|m| m.positions.chunks_exact(3).map(|p| p[0]))
+        .collect();
+    let min_x = xs.iter().copied().fold(f32::MAX, f32::min);
+    let max_x = xs.iter().copied().fold(f32::MIN, f32::max);
+    assert!(
+        min_x < -10_000.0 && max_x > 30_000.0,
+        "ground spans only {min_x}..{max_x} cm"
+    );
+}
+
+/// Both road edges carry a painted line for the whole lap — the road
+/// material cannot draw them itself (it does not know where the right edge
+/// is), so they must come out of the bake as marking strips.
+#[test]
+fn edge_lines_run_the_length_of_both_road_edges() {
+    let baked = bake_test_scene();
+    let edge_material = baked
+        .materials
+        .iter()
+        .find(|m| m.key.starts_with("marking_edge_line_"))
+        .expect("edge line material missing");
+    assert_eq!(edge_material.family, "marking");
+
+    let lines: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key == edge_material.key)
+        .collect();
+    assert!(!lines.is_empty(), "no edge line meshes baked");
+
+    // Both sides land in the same (section, material) meshes, so coverage
+    // is checked as u-span for the lap and vertex count for the two sides:
+    // each side emits one ~4-vertex quad per meter of station.
+    let us: Vec<f32> = lines
+        .iter()
+        .flat_map(|m| m.uvs.chunks_exact(2).map(|uv| uv[0]))
+        .collect();
+    let min_u = us.iter().copied().fold(f32::MAX, f32::min);
+    let max_u = us.iter().copied().fold(f32::MIN, f32::max);
+    let lap_m = baked.length_cm / 100.0;
+    assert!(
+        max_u - min_u > 0.9 * lap_m,
+        "edge lines span {min_u}..{max_u} m of a {lap_m} m lap"
+    );
+    let vertices: usize = lines.iter().map(|m| m.positions.len() / 3).sum();
+    assert!(
+        vertices as f32 > 1.6 * lap_m * 4.0,
+        "{vertices} vertices is too few for lines on both edges"
+    );
+}
+
+/// The start-light gantry anchor: on the line, on the road, facing the
+/// direction of travel.
+#[test]
+fn start_finish_anchor_sits_on_the_line() {
+    let baked = bake_test_scene();
+    let sf = baked.start_finish.expect("start/finish anchor");
+    // The seeded marking spans station 0..1 m, so the centre is 0.5 m down
+    // the track from the first node at the origin, along the course — which
+    // on this spline leaves the origin at 45 degrees to the right.
+    let dist_cm = sf.location[0].hypot(sf.location[1]);
+    assert!((dist_cm - 50.0).abs() < 5.0, "{:?}", sf.location);
+    assert!(sf.location[2].abs() < 5.0, "{:?}", sf.location);
+    assert!((sf.yaw_deg - 45.0).abs() < 5.0, "{}", sf.yaw_deg);
+    assert!((sf.width_m - 12.0).abs() < 0.01, "{}", sf.width_m);
+    // And it agrees with where the first centerline point heads.
+    assert!((sf.yaw_deg - baked.centerline[0].yaw_deg).abs() < 5.0);
+}
+
+/// Grid boxes are laid out in station space: slot 16 is row 8's staggered
+/// second car, 60 m before the line, so the outlines run from 62.5 m
+/// behind the line to the pole stub 3.5 m ahead of it — on a closed loop,
+/// wrapped past the lap length.
+#[test]
+fn monza_grid_boxes_end_60_m_before_the_line() {
+    let track_path = real_tracks_dir().join("Monza/Monza.yaml");
+    let opened = project::open_project(&track_path).unwrap();
+    let baked = ue_export::bake(&opened.track, &opened.scene.unwrap()).unwrap();
+    let lap_m = baked.length_cm / 100.0;
+    let us: Vec<f32> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key.starts_with("marking_grid_slot_"))
+        .flat_map(|m| m.uvs.chunks_exact(2).map(|uv| uv[0]))
+        .collect();
+    assert!(!us.is_empty(), "no grid box paint");
+    // Spans behind the line wrap past the lap length; those ahead of it
+    // don't. Fold both onto a signed station around the line.
+    let around = |u: f32| if u > lap_m / 2.0 { u - lap_m } else { u };
+    let rear = us.iter().map(|&u| around(u)).fold(f32::MAX, f32::min);
+    let front = us.iter().map(|&u| around(u)).fold(f32::MIN, f32::max);
+    assert!(
+        (rear + 62.5).abs() < 0.6,
+        "rear of box 16 at {rear} m, lap {lap_m} m"
+    );
+    assert!(
+        (front - 3.5).abs() < 0.6,
+        "front of the pole stub at {front} m"
+    );
+}
+
+/// The verge at Spa: right of the road at station 0 the ground is the
+/// road edge less the verge drop for 6 m, then eases into the terrain.
+#[test]
+fn spa_ground_hugs_the_road_edge_at_the_line() {
+    use track_core::terrain::{TerrainHeightfield, BLEND_END_M, VERGE_DROP_M};
+    use track_core::track_path::{offset_point, CenterlinePath};
+
+    let track_path = real_tracks_dir().join("Spa/Spa.yaml");
+    let opened = project::open_project(&track_path).unwrap();
+    let path = CenterlinePath::from_track(&opened.track).unwrap();
+    let field = TerrainHeightfield::from_path(&path).unwrap();
+    let s = path.sample_at(0.0);
+    let edge_z = offset_point(&s, -s.width_right_m).2;
+    let at = |beyond: f32| {
+        let p = offset_point(&s, -(s.width_right_m + beyond));
+        field.ground_height_at(p.0, p.1)
+    };
+    let terrain_at = |beyond: f32| {
+        let p = offset_point(&s, -(s.width_right_m + beyond));
+        field.height_at(p.0, p.1)
+    };
+    let far = terrain_at(BLEND_END_M + 5.0);
+    let profile: Vec<(f32, f32, f32)> = [1.0, 5.0, 10.0, 20.0, 40.0]
+        .iter()
+        .map(|&b| (b, at(b), terrain_at(b)))
+        .collect();
+    eprintln!(
+        "Spa station 0, right of road: edge {edge_z:.3}; (beyond, ground, terrain) {profile:?}"
+    );
+
+    assert!((at(1.0) - (edge_z - VERGE_DROP_M)).abs() < 0.02);
+    assert!((at(5.0) - (edge_z - VERGE_DROP_M)).abs() < 0.02);
+    // Past the blend the ground *is* the terrain field.
+    assert!(
+        (at(40.0) - terrain_at(40.0)).abs() < 0.02,
+        "40 m out: {} vs terrain {}",
+        at(40.0),
+        terrain_at(40.0)
+    );
+    // Stepless between the verge and the terrain.
+    let mut prev = at(6.0);
+    let span = (prev - far).abs().max(0.05);
+    for b in 7..=40 {
+        let z = at(b as f32);
+        assert!(
+            (z - prev).abs() <= span * 0.12 + 0.01,
+            "step of {} m at {b} m out",
+            z - prev
+        );
+        prev = z;
+    }
+}
+
+#[test]
+fn repeated_bakes_are_byte_identical() {
+    let track = test_track();
+    let scene = test_scene(&track);
+    let first = serde_json::to_vec(&ue_export::bake(&track, &scene).unwrap()).unwrap();
+    let second = serde_json::to_vec(&ue_export::bake(&track, &scene).unwrap()).unwrap();
+    assert_eq!(first, second, "bake is not deterministic");
+}
+
+fn assert_buffers_bit_identical(a: &UeScene, b: &UeScene) {
+    assert_eq!(a.meshes.len(), b.meshes.len());
+    let bits = |v: &[f32]| v.iter().map(|f| f.to_bits()).collect::<Vec<_>>();
+    for (x, y) in a.meshes.iter().zip(&b.meshes) {
+        assert_eq!(x.name, y.name);
+        assert_eq!(x.material_key, y.material_key);
+        assert_eq!(bits(&x.positions), bits(&y.positions), "{}", x.name);
+        assert_eq!(bits(&x.normals), bits(&y.normals), "{}", x.name);
+        assert_eq!(bits(&x.uvs), bits(&y.uvs), "{}", x.name);
+        assert_eq!(x.indices, y.indices, "{}", x.name);
+    }
+}
+
+#[test]
+fn export_roundtrips_through_disk() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Test.uescene.json");
+    let mut baked = bake_test_scene();
+    baked.source_crc = Some(0x1234_5678);
+    ue_export_io::write_scene(&path, &baked).unwrap();
+    assert!(dir.path().join("Test.uemesh").exists(), "no mesh blob");
+    let read_back = ue_export_io::read_scene(&path).unwrap();
+    assert_eq!(baked, read_back);
+    assert_buffers_bit_identical(&baked, &read_back);
+}
+
+#[test]
+fn writing_an_export_twice_produces_the_same_bytes() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Test.uescene.json");
+    let blob = ue_export_io::mesh_blob_path_for(&path);
+    let baked = bake_test_scene();
+    ue_export_io::write_scene(&path, &baked).unwrap();
+    let first = (fs::read(&path).unwrap(), fs::read(&blob).unwrap());
+    ue_export_io::write_scene(&path, &baked).unwrap();
+    let second = (fs::read(&path).unwrap(), fs::read(&blob).unwrap());
+    assert!(first.0 == second.0, "the manifest changed between writes");
+    assert!(first.1 == second.1, "the mesh blob changed between writes");
+}
+
+#[test]
+fn the_mesh_blob_sits_beside_its_manifest() {
+    assert_eq!(
+        ue_export_io::mesh_blob_path_for(Path::new("build/tracks/Spa.uescene.json")),
+        Path::new("build/tracks/Spa.uemesh")
+    );
+    assert_eq!(
+        ue_export_io::mesh_blob_path_for(Path::new("out/Red.Bull.uescene.json")),
+        Path::new("out/Red.Bull.uemesh")
+    );
+    assert_eq!(
+        ue_export_io::mesh_blob_path_for(Path::new("out/Other.json")),
+        Path::new("out/Other.uemesh")
+    );
+}
+
+/// The manifest carries no vertex data, names its blob, and puts every
+/// scalar a catalog scanner reads before the first array, since the Unreal
+/// scanner reads only the head of the file.
+#[test]
+fn the_manifest_is_small_and_its_header_comes_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Test.uescene.json");
+    let mut baked = bake_test_scene();
+    baked.track_id = Some("test-circuit".to_string());
+    baked.source_crc = Some(0xCBF4_3926);
+    ue_export_io::write_scene(&path, &baked).unwrap();
+
+    let text = fs::read_to_string(&path).unwrap();
+    for buffer in ["\"positions\"", "\"normals\"", "\"uvs\"", "\"indices\""] {
+        assert!(!text.contains(buffer), "the manifest carries {buffer}");
+    }
+    let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(json["version"], 2);
+    assert_eq!(json["mesh_blob"], "Test.uemesh");
+    assert_eq!(json["source_crc"], 0xCBF4_3926u32);
+    let headers = json["meshes"].as_array().unwrap();
+    assert_eq!(headers.len(), baked.meshes.len());
+    for (header, mesh) in headers.iter().zip(&baked.meshes) {
+        let keys: Vec<&str> = header
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(keys.len(), 4, "{keys:?}");
+        assert_eq!(header["name"], mesh.name.as_str());
+        assert_eq!(header["material_key"], mesh.material_key.as_str());
+        assert_eq!(header["vertex_count"], mesh.positions.len() / 3);
+        assert_eq!(header["index_count"], mesh.indices.len());
+    }
+
+    let at = |key: &str| {
+        text.find(&format!("\"{key}\":"))
+            .unwrap_or_else(|| panic!("no {key} in the manifest"))
+    };
+    let order = [
+        "format",
+        "version",
+        "track_id",
+        "track_name",
+        "source_track",
+        "source_crc",
+        "closed_loop",
+        "length_cm",
+        "metadata",
+        "dressing",
+        "mesh_blob",
+        "materials",
+        "meshes",
+        "props",
+        "grid",
+        "centerline",
+        "pit_lane",
+        "start_finish",
+    ];
+    for pair in order.windows(2) {
+        assert!(at(pair[0]) < at(pair[1]), "{} after {}", pair[0], pair[1]);
+    }
+    let first_array = text.find('[').unwrap();
+    for key in [
+        "track_id",
+        "track_name",
+        "source_crc",
+        "length_cm",
+        "metadata",
+    ] {
+        assert!(at(key) < first_array, "{key} is past the first array");
+    }
+}
+
+/// A scene with no checksum leaves the key out rather than writing null.
+#[test]
+fn a_scene_without_a_checksum_omits_source_crc() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Test.uescene.json");
+    let baked = bake_test_scene();
+    assert_eq!(baked.source_crc, None, "the bake has no file to hash");
+    ue_export_io::write_scene(&path, &baked).unwrap();
+    assert!(!fs::read_to_string(&path).unwrap().contains("source_crc"));
+    assert_eq!(ue_export_io::read_scene(&path).unwrap().source_crc, None);
+}
+
+/// Exports from before the split carry the buffers inline, and still load.
+#[test]
+fn a_version_1_export_still_reads() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Old.uescene.json");
+    fs::write(
+        &path,
+        r#"{"format":"apex-ue-scene","version":1,"track_id":null,"track_name":"Old",
+            "source_track":"Old.yaml","closed_loop":true,"length_cm":1000.0,
+            "metadata":{"country":"NL"},"dressing":{"season":"summer","spectators":true},
+            "materials":[{"key":"road","family":"road","base_color":[0.1,0.1,0.1,1.0]}],
+            "meshes":[{"name":"road_000","material_key":"road",
+                "positions":[0.0,0.0,0.0,100.0,0.0,0.0,0.0,100.0,0.0],
+                "normals":[0.0,0.0,1.0,0.0,0.0,1.0,0.0,0.0,1.0],
+                "uvs":[0.0,0.0,1.0,0.0,0.0,1.0],
+                "indices":[0,2,1]}],
+            "props":[],"grid":[],"centerline":[]}"#,
+    )
+    .unwrap();
+    let scene = ue_export_io::read_scene(&path).unwrap();
+    assert_eq!(scene.version, 1);
+    assert_eq!(scene.source_crc, None);
+    assert_eq!(scene.metadata.country.as_deref(), Some("NL"));
+    assert_eq!(scene.meshes.len(), 1);
+    assert_eq!(scene.meshes[0].positions[3], 100.0);
+    assert_eq!(scene.meshes[0].indices, vec![0, 2, 1]);
+    assert_eq!(scene.pit_lane, None);
+
+    // A whole baked scene in the old layout reads back as itself.
+    let mut baked = bake_test_scene();
+    baked.version = 1;
+    let old = dir.path().join("Baked.uescene.json");
+    fs::write(&old, serde_json::to_vec(&baked).unwrap()).unwrap();
+    let read_back = ue_export_io::read_scene(&old).unwrap();
+    assert_eq!(read_back, baked);
+    assert_buffers_bit_identical(&read_back, &baked);
+
+    // Rewriting it writes the current layout.
+    ue_export_io::write_scene(&old, &read_back).unwrap();
+    assert_eq!(
+        ue_export_io::read_scene(&old).unwrap().version,
+        UE_SCENE_VERSION
+    );
+}
+
+#[test]
+fn a_newer_manifest_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Future.uescene.json");
+    ue_export_io::write_scene(&path, &bake_test_scene()).unwrap();
+    let text = fs::read_to_string(&path)
+        .unwrap()
+        .replacen("\"version\":2", "\"version\":4", 1);
+    fs::write(&path, text).unwrap();
+    assert!(matches!(
+        ue_export_io::read_scene(&path),
+        Err(ue_export_io::UeExportError::UnsupportedVersion(4))
+    ));
+}
+
+/// Version 3 is version 2 plus what an imported circuit needs: a textured
+/// `scenery` material, a `surface` key that names its ground set, a draw
+/// distance and a collision flag per mesh, and the `imported` marker. A
+/// scene using none of it still writes version 2; one using any of it
+/// writes 3 and reads back whole.
+#[test]
+fn a_version_3_manifest_carries_the_imported_extensions() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut scene = bake_test_scene();
+    assert_eq!(ue_export_io::scene_version(&scene), 2);
+    let plain = dir.path().join("Plain.uescene.json");
+    ue_export_io::write_scene(&plain, &scene).unwrap();
+    assert!(fs::read_to_string(&plain)
+        .unwrap()
+        .contains("\"version\":2"));
+
+    scene.imported = Some("ac".to_string());
+    scene.materials.push(UeMaterial {
+        key: "scenery_fence".to_string(),
+        family: "scenery".to_string(),
+        base_color: [1.0, 1.0, 1.0, 1.0],
+        texture: Some("Plain.textures/fence.dds".to_string()),
+        blend: Some("masked".to_string()),
+        two_sided: true,
+        roughness: Some(0.7),
+        alpha_cutoff: Some(0.4),
+        ..UeMaterial::default()
+    });
+    scene.materials.push(UeMaterial {
+        key: "ac_gravel".to_string(),
+        family: "surface".to_string(),
+        base_color: [0.62, 0.55, 0.4, 1.0],
+        ground_set: Some("gravel".to_string()),
+        ..UeMaterial::default()
+    });
+    scene.materials.sort_by(|a, b| a.key.cmp(&b.key));
+    let mut fence = golden_triangle();
+    fence.name = "scenery_fence_p0_p0".to_string();
+    fence.material_key = "scenery_fence".to_string();
+    fence.draw_distance_m = Some(400.0);
+    fence.collision = Some(false);
+    scene.meshes.push(fence);
+    assert_eq!(ue_export_io::scene_version(&scene), 3);
+
+    let path = dir.path().join("Imported.uescene.json");
+    ue_export_io::write_scene(&path, &scene).unwrap();
+    let text = fs::read_to_string(&path).unwrap();
+    assert!(text.contains("\"version\":3"));
+    assert!(text.contains("\"imported\":\"ac\""));
+    assert!(text.contains("\"draw_distance_m\":400.0"));
+    assert!(text.contains("\"collision\":false"));
+    assert!(text.contains("\"ground_set\":\"gravel\""));
+    // The version 2 keys stay where the catalog scanner expects them: the
+    // marker is a scalar ahead of the first array.
+    assert!(text.find("\"imported\"").unwrap() < text.find("\"materials\"").unwrap());
+
+    let back = ue_export_io::read_scene(&path).unwrap();
+    assert_eq!(back.imported.as_deref(), Some("ac"));
+    let fence = back.meshes.last().unwrap();
+    assert_eq!(fence.draw_distance_m, Some(400.0));
+    assert_eq!(fence.collision, Some(false));
+    assert!(back.meshes[0].draw_distance_m.is_none() && back.meshes[0].collision.is_none());
+    let material = back
+        .materials
+        .iter()
+        .find(|m| m.key == "scenery_fence")
+        .unwrap();
+    assert_eq!(
+        material.texture.as_deref(),
+        Some("Plain.textures/fence.dds")
+    );
+    assert_eq!(material.blend.as_deref(), Some("masked"));
+    assert!(material.two_sided);
+    assert_eq!(material.alpha_cutoff, Some(0.4));
+    let gravel = back
+        .materials
+        .iter()
+        .find(|m| m.key == "ac_gravel")
+        .unwrap();
+    assert_eq!(gravel.ground_set.as_deref(), Some("gravel"));
+}
+
+/// A track whose `.ats` says `imported` is the importer's: the export
+/// refuses to bake over it, and the marker survives a save.
+#[test]
+fn an_imported_track_is_not_baked_over() {
+    let dir = tempfile::tempdir().unwrap();
+    let yaml = dir.path().join("Mini.yaml");
+    fs::write(
+        &yaml,
+        "name: Mini\nnodes:\n  - { x: 0.0, y: 0.0 }\n  - { x: 100.0, y: 0.0 }\n  - { x: 200.0, y: 40.0 }\ndefault_width: 10.0\nclosed_loop: false\n",
+    )
+    .unwrap();
+    let track = track_core::track_io::load_track_file(&yaml).unwrap();
+    let mut scene = AtsScene::new_for_track(&track, "Mini.yaml");
+    assert!(!scene.is_imported());
+    assert_eq!(track_core::ats_io::imported_marker(&yaml).unwrap(), None);
+    scene.imported = Some("ac".to_string());
+    track_core::ats_io::save_ats(dir.path().join("Mini.ats"), &scene).unwrap();
+    assert_eq!(
+        track_core::ats_io::imported_marker(&yaml)
+            .unwrap()
+            .as_deref(),
+        Some("ac")
+    );
+    let loaded = track_core::ats_io::load_ats(dir.path().join("Mini.ats")).unwrap();
+    assert!(loaded.is_imported());
+
+    let out = dir.path().join("export");
+    match ue_export_io::export_track(&yaml, &out) {
+        Err(ue_export_io::UeExportError::Imported { stem, by }) => {
+            assert_eq!((stem.as_str(), by.as_str()), ("Mini", "ac"));
+        }
+        Err(other) => panic!("refused for the wrong reason: {other}"),
+        Ok(_) => panic!("an imported track was baked over"),
+    }
+    assert!(!out.exists(), "nothing was written");
+    assert!(!ue_export_io::road_sidecar_path_for(&yaml).exists());
+}
+
+/// A blob that does not hold what the manifest lists is an error, not a
+/// quietly different level.
+#[test]
+fn a_blob_that_disagrees_with_its_manifest_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Test.uescene.json");
+    let baked = bake_test_scene();
+    ue_export_io::write_scene(&path, &baked).unwrap();
+    let blob = ue_export_io::mesh_blob_path_for(&path);
+
+    let mut fewer = baked.meshes.clone();
+    fewer.pop();
+    fs::write(&blob, ue_export_io::encode_mesh_blob(&fewer).unwrap()).unwrap();
+    assert!(ue_export_io::read_scene(&path).is_err());
+
+    let mut renamed = baked.meshes.clone();
+    renamed[0].name.push('x');
+    fs::write(&blob, ue_export_io::encode_mesh_blob(&renamed).unwrap()).unwrap();
+    assert!(ue_export_io::read_scene(&path).is_err());
+
+    fs::remove_file(&blob).unwrap();
+    assert!(ue_export_io::read_scene(&path).is_err());
+}
+
+/// The one-triangle blob the Unreal reader's test mirrors. Its values are
+/// chosen not to compress, so the payload is stored raw (flag 0).
+fn golden_triangle() -> UeMesh {
+    UeMesh {
+        name: "tri".to_string(),
+        material_key: "road".to_string(),
+        positions: vec![
+            12.345, -67.891, 1.234, 456.789, -23.456, 7.891, 34.567, 289.123, 4.567,
+        ],
+        normals: vec![
+            0.0123, -0.0456, 0.9989, 0.0789, 0.5991, 0.7967, 0.5987, -0.0321, 0.8003,
+        ],
+        uvs: vec![0.123, 0.456, 4.567, 0.891, 0.345, 2.789],
+        indices: vec![0, 2, 1],
+        ..UeMesh::default()
+    }
+}
+
+const GOLDEN_TRIANGLE_BLOB: &str = concat!(
+    "415045584d455348", // "APEXMESH"
+    "01000000",         // blob version 1
+    "01000000",         // one mesh
+    "03000000",         // name_len 3
+    "747269",           // "tri"
+    "04000000",         // key_len 4
+    "726f6164",         // "road"
+    "03000000",         // 3 vertices
+    "03000000",         // 3 indices
+    "00000000",         // flags: stored raw
+    "6c000000",         // 108 bytes = 32 * 3 + 4 * 3
+    // positions
+    "1f85454131c887c2b6f39d3ffe64e443e3a5bbc11283fc409c440a42be8f9043dd249240",
+    // normals
+    "f085493c11c73abde9b77f3f5396a13d9e5e193f88f44b3f6744193f4a7b03bd76e04c3f",
+    // uvs
+    "6de7fb3dd578e93edd2492409318643fd7a3b03efa7e3240",
+    // indices
+    "000000000200000001000000",
+);
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+#[test]
+fn the_mesh_blob_layout_is_pinned() {
+    let blob = ue_export_io::encode_mesh_blob(&[golden_triangle()]).unwrap();
+    println!(
+        "golden triangle blob ({} bytes): {}",
+        blob.len(),
+        hex(&blob)
+    );
+    assert_eq!(&blob[..8], b"APEXMESH");
+    assert_eq!(&blob[8..12], &1u32.to_le_bytes(), "blob version");
+    assert_eq!(&blob[12..16], &1u32.to_le_bytes(), "mesh count");
+    assert_eq!(&blob[16..20], &3u32.to_le_bytes(), "name_len");
+    // Flags sit after the name, the key and the two counts.
+    let flags_at = 16 + 4 + 3 + 4 + 4 + 8;
+    assert_eq!(
+        &blob[flags_at..flags_at + 4],
+        &0u32.to_le_bytes(),
+        "a tiny mesh that does not compress is stored raw"
+    );
+    assert_eq!(hex(&blob), GOLDEN_TRIANGLE_BLOB);
+    assert_eq!(blob.len(), 155);
+
+    let decoded = ue_export_io::decode_mesh_blob(&blob).unwrap();
+    assert_eq!(decoded, vec![golden_triangle()]);
+}
+
+#[test]
+fn a_mesh_that_compresses_is_stored_as_zlib() {
+    // A flat grid: repetitive, so zlib wins by a mile.
+    let n = 40u32;
+    let mut mesh = UeMesh {
+        name: "ground_000".to_string(),
+        material_key: "ground".to_string(),
+        positions: Vec::new(),
+        normals: Vec::new(),
+        uvs: Vec::new(),
+        indices: Vec::new(),
+        ..UeMesh::default()
+    };
+    for j in 0..n {
+        for i in 0..n {
+            mesh.positions
+                .extend([i as f32 * 400.0, j as f32 * 400.0, 0.0]);
+            mesh.normals.extend([0.0, 0.0, 1.0]);
+            mesh.uvs.extend([i as f32 * 4.0, j as f32 * 4.0]);
+        }
+    }
+    for j in 0..n - 1 {
+        for i in 0..n - 1 {
+            let a = j * n + i;
+            mesh.indices
+                .extend([a, a + n, a + 1, a + 1, a + n, a + n + 1]);
+        }
+    }
+    let blob = ue_export_io::encode_mesh_blob(std::slice::from_ref(&mesh)).unwrap();
+    let flags_at = 16 + 4 + mesh.name.len() + 4 + mesh.material_key.len() + 8;
+    assert_eq!(&blob[flags_at..flags_at + 4], &1u32.to_le_bytes());
+    let stored = u32::from_le_bytes(blob[flags_at + 4..flags_at + 8].try_into().unwrap());
+    let raw = 32 * mesh.positions.len() / 3 + 4 * mesh.indices.len();
+    assert!((stored as usize) < raw, "{stored} >= {raw}");
+    assert_eq!(blob.len(), flags_at + 8 + stored as usize);
+    // An RFC 1950 zlib header, not raw deflate or gzip.
+    let payload = &blob[flags_at + 8..];
+    assert_eq!(payload[0] & 0x0f, 8, "CM = deflate");
+    assert_eq!(
+        (u16::from(payload[0]) << 8 | u16::from(payload[1])) % 31,
+        0,
+        "FCHECK"
+    );
+    assert_eq!(ue_export_io::decode_mesh_blob(&blob).unwrap(), vec![mesh]);
+}
+
+#[test]
+fn a_damaged_blob_is_refused() {
+    let good = ue_export_io::encode_mesh_blob(&[golden_triangle()]).unwrap();
+    assert!(ue_export_io::decode_mesh_blob(&good).is_ok());
+
+    let mut magic = good.clone();
+    magic[0] = b'X';
+    assert!(ue_export_io::decode_mesh_blob(&magic).is_err(), "bad magic");
+
+    let mut version = good.clone();
+    version[8] = 2;
+    assert!(
+        ue_export_io::decode_mesh_blob(&version).is_err(),
+        "version 2"
+    );
+
+    for cut in [4, 12, 20, good.len() - 1] {
+        assert!(
+            ue_export_io::decode_mesh_blob(&good[..cut]).is_err(),
+            "truncated at {cut}"
+        );
+    }
+
+    let mut trailing = good.clone();
+    trailing.push(0);
+    assert!(
+        ue_export_io::decode_mesh_blob(&trailing).is_err(),
+        "trailing"
+    );
+
+    let mut index = good.clone();
+    let last = index.len() - 4;
+    index[last] = 3; // indices [0, 2, 3] on three vertices
+    assert!(ue_export_io::decode_mesh_blob(&index).is_err(), "index");
+
+    let mut flags = good.clone();
+    flags[16 + 4 + 3 + 4 + 4 + 8] = 2;
+    assert!(ue_export_io::decode_mesh_blob(&flags).is_err(), "flags");
+
+    let mut count = good.clone();
+    count[12] = 2;
+    assert!(
+        ue_export_io::decode_mesh_blob(&count).is_err(),
+        "mesh count"
+    );
+
+    // A compressed payload whose stream is cut short.
+    let mut mesh = golden_triangle();
+    mesh.positions = vec![0.0; 3 * 64];
+    mesh.normals = vec![0.0; 3 * 64];
+    mesh.uvs = vec![0.0; 2 * 64];
+    let packed = ue_export_io::encode_mesh_blob(&[mesh]).unwrap();
+    let mut short = packed.clone();
+    short.truncate(packed.len() - 3);
+    let size_at = 16 + 4 + 3 + 4 + 4 + 8 + 4;
+    let stored = u32::from_le_bytes(short[size_at..size_at + 4].try_into().unwrap()) - 3;
+    short[size_at..size_at + 4].copy_from_slice(&stored.to_le_bytes());
+    assert!(
+        ue_export_io::decode_mesh_blob(&short).is_err(),
+        "cut stream"
+    );
+
+    // A mesh whose buffers disagree cannot be written.
+    let mut uneven = golden_triangle();
+    uneven.uvs.pop();
+    assert!(ue_export_io::encode_mesh_blob(&[uneven]).is_err());
+}
+
+#[test]
+fn source_crc_matches_zlib_and_ignores_carriage_returns() {
+    assert_eq!(ue_export_io::source_crc(b"123456789"), 0xCBF4_3926);
+    assert_eq!(ue_export_io::source_crc(b""), 0);
+    assert_eq!(
+        ue_export_io::source_crc(b"name: Mini\r\nclosed_loop: true\r\n"),
+        ue_export_io::source_crc(b"name: Mini\nclosed_loop: true\n")
+    );
+    assert_eq!(
+        ue_export_io::source_crc(b"1234\r56789\r"),
+        ue_export_io::source_crc(b"123456789")
+    );
+}
+
+/// Exporting must never touch the files it reads.
+#[test]
+fn exporting_leaves_the_source_track_and_scene_untouched() {
+    let dir = tempfile::tempdir().unwrap();
+    let yaml = dir.path().join("Mini.yaml");
+    fs::write(
+        &yaml,
+        "name: Mini\nnodes:\n  - { x: 0.0, y: 0.0 }\n  - { x: 100.0, y: 0.0 }\n  - { x: 200.0, y: 40.0 }\ndefault_width: 10.0\nclosed_loop: false\n",
+    )
+    .unwrap();
+    let yaml_before = fs::read(&yaml).unwrap();
+
+    let out = dir.path().join("export");
+    let exported = ue_export_io::export_track(&yaml, &out).unwrap();
+
+    assert_eq!(
+        fs::read(&yaml).unwrap(),
+        yaml_before,
+        "the YAML was written to"
+    );
+    assert_eq!(
+        exported.walls_path,
+        dir.path().join("Mini.walls.msgpack"),
+        "the walls sidecar sits beside the YAML"
+    );
+    assert!(exported.walls_path.exists());
+    assert_eq!(exported.scene_path, out.join("Mini.uescene.json"));
+    assert_eq!(exported.mesh_blob_path, out.join("Mini.uemesh"));
+    assert!(exported.mesh_blob_path.exists());
+    let written = ue_export_io::read_scene(&exported.scene_path).unwrap();
+    assert_eq!(
+        written.source_crc,
+        Some(ue_export_io::source_crc(&yaml_before)),
+        "the manifest carries the YAML's checksum"
+    );
+    assert!(
+        !dir.path().join("Mini.ats").exists(),
+        "exporting must not create an .ats"
+    );
+}
+
+/// A sidecar the track's `.ats` declares external (an importer measured
+/// it) survives every export, `--all` included; the ones it does not
+/// declare, and the client export, are still written. The command line
+/// can keep more on top.
+#[test]
+fn external_sidecars_are_left_as_the_importer_wrote_them() {
+    let dir = tempfile::tempdir().unwrap();
+    let yaml = dir.path().join("Mini.yaml");
+    fs::write(
+        &yaml,
+        "name: Mini\nnodes:\n  - { x: 0.0, y: 0.0 }\n  - { x: 100.0, y: 0.0 }\n  - { x: 200.0, y: 40.0 }\ndefault_width: 10.0\nclosed_loop: false\n",
+    )
+    .unwrap();
+    let track = track_core::track_io::load_track_file(&yaml).unwrap();
+    let mut scene = AtsScene::new_for_track(&track, "Mini.yaml");
+    scene.external_sidecars = vec![
+        track_core::ats::Sidecar::Road,
+        track_core::ats::Sidecar::Walls,
+    ];
+    track_core::ats_io::save_ats(dir.path().join("Mini.ats"), &scene).unwrap();
+
+    let road = ue_export_io::road_sidecar_path_for(&yaml);
+    let walls = ue_export_io::walls_sidecar_path_for(&yaml);
+    fs::write(&road, b"imported road").unwrap();
+    let out = dir.path().join("export");
+
+    let exported = ue_export_io::export_track(&yaml, &out).unwrap();
+    assert_eq!(
+        exported.kept,
+        vec![
+            track_core::ats::Sidecar::Walls,
+            track_core::ats::Sidecar::Road
+        ]
+    );
+    assert_eq!(fs::read(&road).unwrap(), b"imported road");
+    assert!(
+        !walls.exists(),
+        "a kept sidecar the importer never wrote stays missing"
+    );
+    assert!(ue_export_io::curb_sidecar_path_for(&yaml).exists());
+    assert!(exported.scene_path.exists() && exported.mesh_blob_path.exists());
+
+    let options = ue_export_io::ExportOptions {
+        keep_sidecars: vec![track_core::ats::Sidecar::Curbs],
+        ..Default::default()
+    };
+    fs::write(
+        ue_export_io::curb_sidecar_path_for(&yaml),
+        b"imported curbs",
+    )
+    .unwrap();
+    let exported = ue_export_io::export_track_with_options(&yaml, &out, &options).unwrap();
+    assert_eq!(exported.kept.len(), 3);
+    assert_eq!(
+        fs::read(ue_export_io::curb_sidecar_path_for(&yaml)).unwrap(),
+        b"imported curbs"
+    );
+    assert_eq!(fs::read(&road).unwrap(), b"imported road");
+}
+
+/// `--all` walks the shipped folder then the player's own, and refuses a
+/// stem found in both rather than baking one export over the other.
+#[test]
+fn batch_runs_walk_both_track_folders_and_refuse_a_shared_stem() {
+    let root = tempfile::tempdir().unwrap();
+    let default = root.path().join("default");
+    let custom = root.path().join("custom");
+    fs::create_dir_all(&default).unwrap();
+    let track = |dir: &Path, stem: &str| {
+        fs::create_dir_all(dir.join(stem)).unwrap();
+        fs::write(dir.join(stem).join(format!("{stem}.yaml")), "").unwrap();
+        dir.join(stem).join(format!("{stem}.yaml"))
+    };
+    track(&default, "B");
+    track(&default, "A");
+    // A stray file and a folder without its YAML are not tracks.
+    fs::write(default.join("README.md"), "").unwrap();
+    fs::create_dir_all(default.join("Empty")).unwrap();
+
+    // A missing custom folder is no error.
+    let found = ue_export_io::track_files_in_dirs(&[&default, &custom]).unwrap();
+    assert_eq!(
+        found,
+        vec![default.join("A/A.yaml"), default.join("B/B.yaml")]
+    );
+
+    fs::create_dir_all(&custom).unwrap();
+    track(&custom, "C");
+    let found = ue_export_io::track_files_in_dirs(&[&default, &custom]).unwrap();
+    assert_eq!(found.last(), Some(&custom.join("C/C.yaml")));
+
+    track(&custom, "A");
+    match ue_export_io::track_files_in_dirs(&[&default, &custom]) {
+        Err(ue_export_io::UeExportError::DuplicateStem { stem, .. }) => assert_eq!(stem, "A"),
+        other => panic!(
+            "expected a duplicate stem, got {:?}",
+            other.map(|f| f.len())
+        ),
+    }
+}
+
+fn wall_prop(
+    id: u64,
+    kind: PropKind,
+    asset: &str,
+    x: f32,
+    y: f32,
+    yaw_rad: f32,
+    scale: f32,
+) -> Prop {
+    Prop {
+        id,
+        kind,
+        asset: asset.to_string(),
+        x,
+        y,
+        z: 0.0,
+        yaw_rad,
+        scale,
+        text: None,
+        length_m: None,
+        source: None,
+    }
+}
+
+fn wall_ends(w: &WallSegment) -> [(f32, f32); 2] {
+    [(w.x0, w.y0), (w.x1, w.y1)]
+}
+
+fn close(a: (f32, f32), b: (f32, f32)) -> bool {
+    (a.0 - b.0).abs() < 1e-3 && (a.1 - b.1).abs() < 1e-3
+}
+
+/// The walls sidecar is the sim's only knowledge of the barriers: a
+/// barrier it misses is one a car drives through, and a gap between two
+/// modules of a run is a hole in the wall.
+#[test]
+fn walls_sidecar_follows_the_barriers_and_footprints() {
+    use std::f32::consts::FRAC_PI_2;
+    let track = test_track();
+    let mut scene = test_scene(&track);
+    let mut id = scene.next_id;
+    let mut next = || {
+        id += 1;
+        id - 1
+    };
+    // Two armco modules laid half a metre apart, a tire wall run segment
+    // at the groomer's scale, and a 40 m stand.
+    scene.props.push(wall_prop(
+        next(),
+        PropKind::Barrier,
+        "armco_generic",
+        50.0,
+        20.0,
+        0.0,
+        1.0,
+    ));
+    scene.props.push(wall_prop(
+        next(),
+        PropKind::Barrier,
+        "armco_generic",
+        54.5,
+        20.0,
+        0.0,
+        1.0,
+    ));
+    scene.props.push(wall_prop(
+        next(),
+        PropKind::TireWall,
+        "tire_wall_generic",
+        80.0,
+        -30.0,
+        FRAC_PI_2,
+        2.2,
+    ));
+    let mut stand = wall_prop(
+        next(),
+        PropKind::Grandstand,
+        "grandstand_main",
+        100.0,
+        60.0,
+        0.0,
+        1.0,
+    );
+    stand.length_m = Some(40.0);
+    scene.props.push(stand);
+    scene.next_id = id;
+
+    let baked = ue_export::bake_all(&track, &scene).expect("test track must bake");
+    let walls = baked.walls;
+    assert_eq!(walls.version, WALLS_VERSION);
+    for w in &walls.segments {
+        assert!(
+            [w.x0, w.y0, w.x1, w.y1, w.z, w.height_m]
+                .iter()
+                .all(|v| v.is_finite()),
+            "non-finite wall {w:?}"
+        );
+        assert!(w.height_m > 0.0, "flat wall {w:?}");
+    }
+
+    // The armco: one 4 m face per module, the gap between them closed.
+    let mut armco: Vec<&WallSegment> = walls
+        .segments
+        .iter()
+        .filter(|w| w.kind == WALL_KIND_ARMCO)
+        .collect();
+    armco.sort_by(|a, b| a.x0.total_cmp(&b.x0));
+    assert_eq!(armco.len(), 2, "{armco:?}");
+    assert!(
+        close(wall_ends(armco[0])[0], (48.0, 20.0)),
+        "{:?}",
+        armco[0]
+    );
+    assert!(
+        close(wall_ends(armco[0])[1], (52.25, 20.0)),
+        "{:?}",
+        armco[0]
+    );
+    assert!(
+        close(wall_ends(armco[1])[0], (52.25, 20.0)),
+        "{:?}",
+        armco[1]
+    );
+    assert!(
+        close(wall_ends(armco[1])[1], (56.5, 20.0)),
+        "{:?}",
+        armco[1]
+    );
+
+    // The tire wall: the kit's 4 m at scale 2.2, along its own heading.
+    let tires: Vec<&WallSegment> = walls
+        .segments
+        .iter()
+        .filter(|w| w.kind == WALL_KIND_TIRES)
+        .collect();
+    assert_eq!(tires.len(), 1, "{tires:?}");
+    let ends = wall_ends(tires[0]);
+    assert!(
+        close(ends[0], (80.0, -34.4)) && close(ends[1], (80.0, -25.6)),
+        "{:?}",
+        tires[0]
+    );
+
+    // The stand: its four sides, 40 m long and the family's depth, its
+    // front through the pivot and the rest behind it.
+    let stand_sides: Vec<&WallSegment> = walls
+        .segments
+        .iter()
+        .filter(|w| w.kind == WALL_KIND_CONCRETE)
+        .filter(|w| {
+            ((w.x0 + w.x1) / 2.0 - 100.0).abs() < 30.0 && ((w.y0 + w.y1) / 2.0 - 60.0).abs() < 30.0
+        })
+        .collect();
+    assert_eq!(stand_sides.len(), 4, "{stand_sides:?}");
+    let xs: Vec<f32> = stand_sides.iter().flat_map(|w| [w.x0, w.x1]).collect();
+    let ys: Vec<f32> = stand_sides.iter().flat_map(|w| [w.y0, w.y1]).collect();
+    let span = |v: &[f32]| {
+        v.iter().cloned().fold(f32::NEG_INFINITY, f32::max)
+            - v.iter().cloned().fold(f32::INFINITY, f32::min)
+    };
+    assert!(
+        (span(&xs) - 40.0).abs() < 1e-3,
+        "stand length {}",
+        span(&xs)
+    );
+    assert!(
+        (5.0..=16.0).contains(&span(&ys)),
+        "stand depth {}",
+        span(&ys)
+    );
+    assert!((xs.iter().sum::<f32>() / xs.len() as f32 - 100.0).abs() < 1e-3);
+    let front = stand_sides
+        .iter()
+        .filter(|w| (w.y0 - 60.0).abs() < 1e-3 && (w.y1 - 60.0).abs() < 1e-3)
+        .count();
+    assert_eq!(front, 1, "one side runs through the pivot: {stand_sides:?}");
+    let mean_y = ys.iter().sum::<f32>() / ys.len() as f32;
+    assert!(
+        ((mean_y - 60.0).abs() - span(&ys) / 2.0).abs() < 1e-3,
+        "the stand reaches back from its front, not across it: mean y {mean_y}"
+    );
+
+    // A tree stops nothing.
+    assert!(
+        walls.segments.iter().all(|w| wall_ends(w)
+            .iter()
+            .all(|e| (e.0 - 30.0).hypot(e.1 - 25.0) > 3.0)),
+        "a wall at the tree"
+    );
+}
+
+/// The pit complex the lane implies is solid too: the pit wall between
+/// the lane and the road as faces, the garages as footprints.
+#[test]
+fn walls_sidecar_carries_the_pit_complex() {
+    let (track, scene) = stadium_scene();
+    let walls = ue_export::bake_all(&track, &scene).unwrap().walls.segments;
+    let concrete: Vec<&WallSegment> = walls
+        .iter()
+        .filter(|w| w.kind == WALL_KIND_CONCRETE)
+        .collect();
+    let length = |w: &WallSegment| (w.x1 - w.x0).hypot(w.y1 - w.y0);
+    // Ten 6 m pit-wall modules plus the plain ones, laid end to end and
+    // joined into a run: every face is at least a module long.
+    let pit_wall_faces = concrete
+        .iter()
+        .filter(|w| length(w) >= 5.9 && length(w) <= 6.5 && (w.y0 - w.y1).abs() < 0.1)
+        .filter(|w| (-16.0..=-13.0).contains(&w.y0))
+        .count();
+    assert!(pit_wall_faces >= 10, "pit wall faces: {pit_wall_faces}");
+    // Ten garages and two end blocks, four sides each, beyond the lane.
+    let garage_sides = concrete
+        .iter()
+        .filter(|w| (w.y0 + w.y1) / 2.0 < -17.0)
+        .count();
+    assert!(garage_sides >= 12 * 4, "garage sides: {garage_sides}");
+    // The crew's kit is not a wall.
+    assert!(
+        !concrete
+            .iter()
+            .any(|w| (2.0..=3.0).contains(&length(w)) && w.height_m < 2.5),
+        "a box kit became a wall"
+    );
+}
+
+/// Written and read back the way the server does it.
+#[test]
+fn walls_sidecar_roundtrips_through_msgpack() {
+    let track = test_track();
+    let scene = test_scene(&track);
+    let baked = ue_export::bake_all(&track, &scene).expect("test track must bake");
+    let bytes = rmp_serde::to_vec_named(&baked.walls).unwrap();
+    let back: ue_export::Walls = rmp_serde::from_slice(&bytes).unwrap();
+    assert_eq!(back, baked.walls);
+}
+
+/// The real payload: every shipped circuit has to bake without a hand-hold.
+#[test]
+#[ignore = "bakes every real circuit, minutes of work; run with -- --include-ignored"]
+fn every_real_track_bakes() {
+    let dir = real_tracks_dir();
+    let tracks =
+        ue_export_io::track_files_in(&dir).expect("tracks/default must be readable");
+    assert!(
+        tracks.len() >= 20,
+        "expected the full track set, found {}",
+        tracks.len()
+    );
+
+    for track_path in tracks {
+        let opened = project::open_project(&track_path)
+            .unwrap_or_else(|e| panic!("{}: {e}", track_path.display()));
+        let scene = opened
+            .scene
+            .unwrap_or_else(|| panic!("{}: scene failed to load", track_path.display()));
+        let baked = ue_export::bake(&opened.track, &scene)
+            .unwrap_or_else(|| panic!("{}: produced no geometry", track_path.display()));
+
+        assert!(
+            baked.meshes.iter().any(|m| m.material_key == "road"),
+            "{}: baked no road surface",
+            track_path.display()
+        );
+        assert!(
+            !baked.grid.is_empty(),
+            "{}: baked no starting grid",
+            track_path.display()
+        );
+        for mesh in &baked.meshes {
+            let vertex_count = mesh.positions.len() / 3;
+            assert!(
+                mesh.positions.iter().all(|v| v.is_finite()),
+                "{} / {}: non-finite geometry",
+                track_path.display(),
+                mesh.name
+            );
+            assert!(
+                mesh.indices.iter().all(|i| (*i as usize) < vertex_count),
+                "{} / {}: index out of range",
+                track_path.display(),
+                mesh.name
+            );
+            // Real circuits are where inversion actually bites: hairpins
+            // make wide runoff patches fold back through the centre of
+            // curvature. Check the winding on the shipped geometry, not
+            // just on the synthetic track.
+            for tri in mesh.indices.chunks_exact(3) {
+                let (a, b, c) = (tri[0], tri[1], tri[2]);
+                let Some(unreal_normal) = unreal_face_normal(mesh, a, b, c) else {
+                    continue;
+                };
+                assert!(
+                    dot(unreal_normal, normal(mesh, a)) > 0.0,
+                    "{} / {}: triangle {a},{b},{c} is wound inside-out",
+                    track_path.display(),
+                    mesh.name
+                );
+            }
+        }
+    }
+}
+
+/// The curb sidecar is the sim's only knowledge of the curbs: get a span
+/// wrong and the server counts a car on the curb as off the track.
+#[test]
+fn curb_sidecar_covers_each_curb_span() {
+    let track = test_track();
+    let scene = test_scene(&track);
+    let baked = ue_export::bake_all(&track, &scene).expect("test track must bake");
+    let curbs = baked.curbs.expect("a track with a length has curb bands");
+
+    assert_eq!(curbs.version, CURB_BANDS_VERSION);
+    assert_eq!(curbs.step_m, CURB_BAND_STEP_M);
+    assert_eq!(curbs.left_cm.len(), curbs.right_cm.len());
+    let at = |band: &[u16], station_m: f32| {
+        band[(station_m / CURB_BAND_STEP_M).round() as usize % band.len()]
+    };
+
+    // Left curb: stations 30..90, 1.2 m wide.
+    assert_eq!(at(&curbs.left_cm, 60.0), 120);
+    assert_eq!(at(&curbs.left_cm, 30.0), 120);
+    assert_eq!(at(&curbs.left_cm, 90.0), 120);
+    assert_eq!(at(&curbs.left_cm, 29.0), 0);
+    assert_eq!(at(&curbs.left_cm, 91.0), 0);
+    // ...and it is a *left* curb, so the right edge stays bare there.
+    assert_eq!(at(&curbs.right_cm, 60.0), 0);
+
+    // Right curb: 780 through start/finish to 25, 1.0 m wide.
+    assert_eq!(at(&curbs.right_cm, 790.0), 100);
+    assert_eq!(at(&curbs.right_cm, 0.0), 100);
+    assert_eq!(at(&curbs.right_cm, 20.0), 100);
+    assert_eq!(at(&curbs.right_cm, 40.0), 0);
+}
+
+/// The gravel trap reaches the centerline backend as its inner and outer
+/// edge from the road edge, wedge and all, on its own side only.
+#[test]
+fn curb_sidecar_carries_the_gravel_trap() {
+    let track = test_track();
+    let scene = test_scene(&track);
+    let baked = ue_export::bake_all(&track, &scene).expect("test track must bake");
+    let curbs = baked.curbs.expect("a track with a length has curb bands");
+    let samples = curbs.left_cm.len();
+    for band in [
+        &curbs.gravel_left_cm,
+        &curbs.gravel_right_cm,
+        &curbs.sand_left_cm,
+        &curbs.sand_right_cm,
+    ] {
+        assert_eq!(band.len(), samples);
+    }
+    let at = |band: &[[u16; 2]], station_m: f32| {
+        band[(station_m / CURB_BAND_STEP_M).round() as usize % band.len()]
+    };
+    // Right, stations 40..120, 1.5 m from the edge, 8 m widening to 20 m.
+    assert_eq!(at(&curbs.gravel_right_cm, 40.0), [150, 950]);
+    assert_eq!(at(&curbs.gravel_right_cm, 80.0), [150, 1550]);
+    assert_eq!(at(&curbs.gravel_right_cm, 120.0), [150, 2150]);
+    assert_eq!(at(&curbs.gravel_right_cm, 39.0), [0, 0]);
+    assert_eq!(at(&curbs.gravel_right_cm, 121.0), [0, 0]);
+    assert_eq!(at(&curbs.gravel_left_cm, 80.0), [0, 0]);
+    assert!(curbs.sand_right_cm.iter().all(|s| *s == [0, 0]));
+    assert_eq!(curbs.ground, "", "a grass circuit's ground is grass");
+}
+
+/// Every shipped circuit must bake curb bands that fit the track and stay
+/// within the widths the editor allows, since the server trusts them as
+/// track limits without re-checking against the `.ats`.
+#[test]
+#[ignore = "bakes every real circuit, minutes of work; run with -- --include-ignored"]
+fn real_tracks_bake_plausible_curb_bands() {
+    for track_path in ue_export_io::track_files_in(&real_tracks_dir()).unwrap() {
+        let opened = project::open_project(&track_path).unwrap();
+        let Some(scene) = opened.scene else { continue };
+        let baked = ue_export::bake_all(&opened.track, &scene).unwrap();
+        let curbs = baked.curbs.expect("a real circuit has a length");
+        let samples = curbs.left_cm.len();
+        assert_eq!(curbs.right_cm.len(), samples);
+        let length_m = opened
+            .track
+            .metadata
+            .as_ref()
+            .and_then(|m| m.length_m)
+            .unwrap_or(0.0);
+        if length_m > 0.0 {
+            let spanned = samples as f32 * CURB_BAND_STEP_M;
+            assert!(
+                (spanned - length_m).abs() < 5.0,
+                "{}: {spanned} m of curb bands for a {length_m} m lap",
+                track_path.display()
+            );
+        }
+        let widest = curbs
+            .left_cm
+            .iter()
+            .chain(&curbs.right_cm)
+            .copied()
+            .max()
+            .unwrap_or(0);
+        assert!(
+            widest <= 600,
+            "{}: a {widest} cm curb is wider than the editor allows",
+            track_path.display()
+        );
+        assert!(
+            curbs.left_cm.iter().chain(&curbs.right_cm).any(|w| *w > 0),
+            "{}: every circuit has curbs somewhere",
+            track_path.display()
+        );
+    }
+}
+
+/// The ground is tessellated by distance from the road: 2 m cells beside
+/// it, 6 m in the ring past that, 12 m out in the coarse field. Terrain
+/// made of 12 m facets is half of why a circuit reads as blocky, and the
+/// cost of the fine band is bounded only by how narrow it is, so both ends
+/// of that trade are worth pinning.
+#[test]
+fn ground_tessellation_is_finest_beside_the_road() {
+    let baked = bake_test_scene();
+
+    // Distance from a point to the test track's square centerline, metres.
+    let corners = [(0.0f64, 0.0f64), (200.0, 0.0), (200.0, 200.0), (0.0, 200.0)];
+    let to_centerline = |x: f64, y: f64| {
+        (0..4)
+            .map(|i| {
+                let (ax, ay) = corners[i];
+                let (bx, by) = corners[(i + 1) % 4];
+                let (dx, dy) = (bx - ax, by - ay);
+                let t = (((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)).clamp(0.0, 1.0);
+                ((x - ax - t * dx).powi(2) + (y - ay - t * dy).powi(2)).sqrt()
+            })
+            .fold(f64::MAX, f64::min)
+    };
+
+    let mut near_cells = 0;
+    let mut ring_cells = 0;
+    for mesh in baked.meshes.iter().filter(|m| m.material_key == "ground") {
+        for tri in mesh.indices.chunks_exact(3) {
+            let p: Vec<[f64; 3]> = tri.iter().map(|&i| vertex(mesh, i)).collect();
+            // Positions are UE centimetres with Y mirrored; the grid is
+            // axis aligned either way, and a quad's two straight edges are
+            // shorter than its diagonal, so the shortest edge is the cell.
+            let plan = |a: &[f64; 3], b: &[f64; 3]| {
+                (((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2)).sqrt()) / 100.0
+            };
+            let cell = plan(&p[0], &p[1])
+                .min(plan(&p[1], &p[2]))
+                .min(plan(&p[2], &p[0]));
+            let cx = (p[0][0] + p[1][0] + p[2][0]) / 300.0;
+            let cy = -(p[0][1] + p[1][1] + p[2][1]) / 300.0;
+            let distance = to_centerline(cx, cy);
+
+            assert!(
+                cell <= 12.1,
+                "a {cell:.1} m ground cell at {distance:.0} m from the road"
+            );
+            if distance < 40.0 {
+                assert!(
+                    (cell - 2.0).abs() < 0.1,
+                    "{cell:.2} m cell {distance:.0} m from the road, expected 2 m"
+                );
+                near_cells += 1;
+            } else if distance > 100.0 {
+                assert!(
+                    cell > 5.9,
+                    "{cell:.2} m cell {distance:.0} m from the road, expected 6 m or coarser"
+                );
+                ring_cells += 1;
+            }
+        }
+    }
+    assert!(near_cells > 0, "no ground beside the road");
+    assert!(ring_cells > 0, "no ground out in the ring");
+}
+
+/// A painted tarmac run-off is striped in its style's two colours, a
+/// stripe per `RUNOFF_STRIPE_M` across the band; bare tarmac and grass are
+/// never painted, and an unknown style is left bare.
+#[test]
+fn painted_runoff_is_striped_in_two_colours() {
+    let track = test_track();
+    let mut scene = AtsScene::new_for_track(&track, "Test.yaml");
+    let band = |id: u64, kind: SurfaceKind, paint: Option<&str>| Surface {
+        id,
+        kind,
+        side: Side::Left,
+        start_m: 20.0,
+        end_m: 120.0,
+        inner_m: 1.0,
+        width_m: 6.0,
+        end_width_m: None,
+        paint: paint.map(str::to_string),
+    };
+    scene.surfaces = vec![
+        band(1, SurfaceKind::AsphaltRunoff, Some("red_yellow")),
+        band(2, SurfaceKind::Grass, Some("red_yellow")),
+        band(3, SurfaceKind::AsphaltRunoff, Some("tartan")),
+    ];
+    let baked = ue_export::bake(&track, &scene).expect("bakes");
+    let stripes: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key.starts_with("marking_runoff_"))
+        .collect();
+    assert!(!stripes.is_empty(), "no stripes painted");
+    let colours: std::collections::BTreeSet<&str> =
+        stripes.iter().map(|m| m.material_key.as_str()).collect();
+    assert_eq!(colours.len(), 2, "two colours: {colours:?}");
+    let paints: Vec<&_> = baked
+        .materials
+        .iter()
+        .filter(|m| m.key.starts_with("marking_runoff_"))
+        .collect();
+    assert!(paints.iter().all(|m| m.family == "marking"));
+}
+
+/// A DRS zone in the track file becomes two painted lines across the road
+/// and a board on each side at each of them.
+#[test]
+fn drs_zones_are_painted_and_signed() {
+    let mut track = test_track();
+    track.drs_zones = vec![track_core::track_data::DrsZone {
+        detection_m: 50.0,
+        start_m: 120.0,
+        end_m: 190.0,
+    }];
+    let scene = AtsScene::new_for_track(&track, "Test.yaml");
+    let baked = ue_export::bake(&track, &scene).expect("bakes");
+    let lines: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key.starts_with("marking_drs_line"))
+        .collect();
+    assert!(!lines.is_empty(), "no DRS lines painted");
+    let boards: Vec<_> = baked
+        .props
+        .iter()
+        .filter(|p| p.kind == "board" && p.asset == "corner_sign")
+        .collect();
+    assert_eq!(
+        boards.len(),
+        4,
+        "a board each side at detection and activation"
+    );
+    assert_eq!(
+        boards
+            .iter()
+            .filter(|p| p.text.as_deref() == Some("DRS"))
+            .count(),
+        2
+    );
+    assert_eq!(
+        boards
+            .iter()
+            .filter(|p| p.text.as_deref() == Some("DRS DETECTION"))
+            .count(),
+        2
+    );
+    // Without zones, nothing.
+    let bare = ue_export::bake(&test_track(), &scene).expect("bakes");
+    assert!(!bare
+        .meshes
+        .iter()
+        .any(|m| m.material_key.starts_with("marking_drs_line")));
+}
+
+/// The ground right beside the road is that road's verge, all the way
+/// round, on both sides — including the high side of a banked corner with
+/// another road (Zandvoort's pit exit under the Hugenholtz banking) a few
+/// metres away. It used to be that road's ceiling instead, five metres
+/// down, and the band, the curb strip and the server's ground sidecar all
+/// read it. Cheap: only the terrain is built, no bake.
+#[test]
+fn the_verge_meets_the_road_edge_on_every_real_circuit() {
+    use track_core::terrain::{TerrainHeightfield, VERGE_DROP_M};
+    use track_core::track_path::{offset_point, CenterlinePath};
+
+    let dir = real_tracks_dir();
+    let tracks =
+        ue_export_io::track_files_in(&dir).expect("tracks/default must be readable");
+    assert!(tracks.len() >= 20);
+    let mut worst: Vec<(f32, String, f32, i32)> = Vec::new();
+    for track_path in tracks {
+        let opened = project::open_project(&track_path)
+            .unwrap_or_else(|e| panic!("{}: {e}", track_path.display()));
+        let path = CenterlinePath::from_track(&opened.track).expect("centerline");
+        let lane = opened
+            .scene
+            .as_ref()
+            .and_then(|s| s.pit_lane.as_ref())
+            .and_then(|pit| CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0));
+        let extra: Vec<&CenterlinePath> = lane.iter().collect();
+        let field = TerrainHeightfield::from_paths(&path, &extra).expect("terrain");
+        let total = path.total_length_m();
+        let mut station = 0.0f32;
+        let mut track_worst = 0.0f32;
+        let mut bad = 0;
+        while station < total {
+            let sample = path.sample_at(station);
+            for (lat, sign) in [(sample.width_left_m, 1.0f32), (-sample.width_right_m, -1.0)] {
+                let edge = offset_point(&sample, lat);
+                let beside = offset_point(&sample, lat + sign * 0.5);
+                let want = edge.2 - VERGE_DROP_M;
+                let got = field.ground_height_at(beside.0, beside.1);
+                let err = (got - want).abs();
+                // An underpass slot is legitimately far below the deck edge,
+                // and where the pit lane's tapers overlap the road the
+                // point is on the lane, not beside the road.
+                if field.wall_relation(beside.0, beside.1).is_some() {
+                    continue;
+                }
+                let on_a_road = field
+                    .nearest_road_point(beside.0, beside.1, 30.0)
+                    .is_some_and(|(_, _, lat, half)| lat.abs() <= half);
+                // The nearest road is the track itself where a taper runs
+                // on over its edge, so the lane is asked directly.
+                let on_the_lane = lane.as_ref().is_some_and(|l| {
+                    l.samples()
+                        .iter()
+                        .any(|s| (s.pos.0 - beside.0).hypot(s.pos.1 - beside.1) <= s.width_left_m)
+                });
+                if on_a_road || on_the_lane {
+                    continue;
+                }
+                track_worst = track_worst.max(err);
+                // What is left over that: the pit lane's flat entry taper
+                // starting on a banked stretch (Austin), under a metre.
+                if err > 0.8 {
+                    bad += 1;
+                    eprintln!(
+                        "  {} station {station:.0} side {sign}: ground {got:.2}, edge verge {want:.2}",
+                        track_path.display()
+                    );
+                }
+            }
+            station += 2.0;
+        }
+        worst.push((
+            track_worst,
+            track_path
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned(),
+            total,
+            bad,
+        ));
+    }
+    worst.sort_by(|a, b| b.0.total_cmp(&a.0));
+    for (err, name, _, bad) in &worst {
+        eprintln!("{name}: worst verge error {err:.2} m, {bad} samples over 0.8 m");
+    }
+    let offenders: Vec<_> = worst.iter().filter(|(_, _, _, bad)| *bad > 0).collect();
+    assert!(
+        offenders.is_empty(),
+        "the verge leaves the road edge: {offenders:?}"
+    );
+}
+
+/// Graffiti is a picture, not a colour: its mesh carries UVs spanning the
+/// picture exactly once, top edge furthest down the road, and it lies on
+/// the road (not over or under it) on a slope.
+#[test]
+fn road_decals_bake_as_pictures_on_the_road() {
+    let baked = bake_test_scene();
+    let material = baked
+        .materials
+        .iter()
+        .find(|m| m.key == "decal_graffiti_test_tag")
+        .expect("the decal registers its own material key");
+    assert_eq!(material.family, "decal");
+    let meshes: Vec<&UeMesh> = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key == "decal_graffiti_test_tag")
+        .collect();
+    assert!(!meshes.is_empty(), "no decal mesh was baked");
+
+    let (mut u_lo, mut u_hi, mut v_lo, mut v_hi) = (f32::MAX, f32::MIN, f32::MAX, f32::MIN);
+    for mesh in &meshes {
+        for uv in mesh.uvs.chunks_exact(2) {
+            u_lo = u_lo.min(uv[0]);
+            u_hi = u_hi.max(uv[0]);
+            v_lo = v_lo.min(uv[1]);
+            v_hi = v_hi.max(uv[1]);
+        }
+    }
+    assert!(
+        u_lo.abs() < 1e-3 && (u_hi - 1.0).abs() < 1e-3,
+        "u {u_lo}..{u_hi}"
+    );
+    assert!(
+        v_lo.abs() < 1e-3 && (v_hi - 1.0).abs() < 1e-3,
+        "v {v_lo}..{v_hi}"
+    );
+
+    // The far end (v = 0) is further along the course than the near end
+    // (v = 1): on this track the first straight runs along +X, which is
+    // +X in Unreal too.
+    let mesh = meshes[0];
+    let far: Vec<f32> = mesh
+        .uvs
+        .chunks_exact(2)
+        .zip(mesh.positions.chunks_exact(3))
+        .filter(|(uv, _)| uv[1] < 0.01)
+        .map(|(_, p)| p[0])
+        .collect();
+    let near: Vec<f32> = mesh
+        .uvs
+        .chunks_exact(2)
+        .zip(mesh.positions.chunks_exact(3))
+        .filter(|(uv, _)| uv[1] > 0.99)
+        .map(|(_, p)| p[0])
+        .collect();
+    assert!(!far.is_empty() && !near.is_empty());
+    assert!(
+        far.iter().sum::<f32>() / far.len() as f32 > near.iter().sum::<f32>() / near.len() as f32
+    );
+
+    // Paint, not a plank: the heights change along the slope.
+    let heights: Vec<f32> = mesh.positions.chunks_exact(3).map(|p| p[2]).collect();
+    let lo = heights.iter().copied().fold(f32::INFINITY, f32::min);
+    let hi = heights.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    assert!(
+        hi - lo > 5.0,
+        "decal spans only {:.1} cm vertically on a hill",
+        hi - lo
+    );
+}
+
+#[test]
+fn a_desert_circuit_draws_its_land_as_sand() {
+    let track = test_track();
+    let mut scene = test_scene(&track);
+    let green = ue_export::bake(&track, &scene).expect("test track must bake");
+    scene.source_track = "Sakhir.yaml".to_string();
+    let sand = ue_export::bake(&track, &scene).expect("test track must bake");
+
+    let find = |s: &UeScene, key: &str| s.materials.iter().find(|m| m.key == key).cloned();
+    for key in ["ground", "surface_grass"] {
+        let before = find(&green, key).unwrap_or_else(|| panic!("{key} missing"));
+        let after = find(&sand, key).unwrap();
+        assert_eq!(before.ground_set, None, "{key}");
+        assert_eq!(after.ground_set.as_deref(), Some("sand"), "{key}");
+        assert_eq!(after.family, before.family);
+    }
+    // Only the look: the gravel trap, the road and every mesh are as they were.
+    assert_eq!(
+        find(&sand, "surface_gravel"),
+        find(&green, "surface_gravel")
+    );
+    assert_eq!(sand.meshes.len(), green.meshes.len());
+}
+
+/// The stadium's pit lane with its parallel stretch bent into a long arc of
+/// `bend_m` radius: right of the road's direction when positive (away from
+/// the track, garages on the inside), left when negative.
+fn bent_pit_scene(bend_m: f32) -> (TrackFile, AtsScene) {
+    let (track, mut scene) = stadium_scene();
+    let lane = scene.pit_lane.as_mut().unwrap();
+    lane.nodes = vec![[100.0, -3.0, 0.0], [140.0, -12.0, 0.0]];
+    for i in 0..=8 {
+        let x = 160.0 + 30.0 * i as f32;
+        let drop = (x - 160.0).powi(2) / (2.0 * bend_m.abs());
+        // A bend away from the track drops; the other way starts further out
+        // and comes back toward it.
+        let y = if bend_m > 0.0 {
+            -20.0 - drop
+        } else {
+            -100.0 + drop
+        };
+        lane.nodes.push([x, y, 0.0]);
+    }
+    lane.nodes.extend([[420.0, -12.0, 0.0], [460.0, -3.0, 0.0]]);
+    (track, scene)
+}
+
+/// On the inside of a bend a garage's back is on a smaller circle, so
+/// modules at the lane's pitch overlap there: they are scaled to touch, and
+/// left alone on a straight and on the outside of a bend.
+#[test]
+fn garages_on_the_inside_of_a_bend_are_scaled_not_overlapped() {
+    let scales = |scene: &(TrackFile, AtsScene)| -> Vec<f32> {
+        let baked = ue_export::bake(&scene.0, &scene.1).unwrap();
+        props_with(&baked, "pit", "garage_6m")
+            .iter()
+            .map(|g| g.scale)
+            .collect()
+    };
+    let straight = scales(&stadium_scene());
+    assert!(straight.iter().all(|s| *s == 1.0), "straight: {straight:?}");
+
+    // The lane is on the track's right and the garages further right: a lane
+    // bending right has them on the inside.
+    let inside = scales(&bent_pit_scene(400.0));
+    assert_eq!(inside.len(), 10);
+    assert!(
+        inside.iter().any(|s| *s < 0.99 && *s > 0.9),
+        "inside of a 400 m bend: {inside:?}"
+    );
+    let outside = scales(&bent_pit_scene(-400.0));
+    assert!(
+        outside[3..8].iter().all(|s| *s == 1.0),
+        "outside: {outside:?}"
+    );
+}

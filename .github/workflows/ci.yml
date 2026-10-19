@@ -8,13 +8,16 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+# The repository holds two roots: apexsim/ (the code) and apexsim-content/
+# (cars, tracks, the track pipeline). The code reaches the content through
+# ../apexsim-content, so every job checks out the whole repository.
 jobs:
   server:
     name: Server (Rust)
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: server
+        working-directory: apexsim/server
     steps:
       - uses: actions/checkout@v5
 
@@ -27,8 +30,8 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            server
-            server/ffi
+            apexsim/server
+            apexsim/server/ffi
 
       - name: Check formatting
         run: cargo fmt --check
@@ -45,15 +48,48 @@ jobs:
       # The physics library for the client's prediction: the server's car
       # step behind a C API, checked against a session on a recorded trace.
       - name: Physics library (fmt, clippy, test)
-        working-directory: server/ffi
+        working-directory: apexsim/server/ffi
         run: |
           cargo fmt --check
           cargo clippy --all-targets -- -D warnings
           cargo test
 
+  track-editor:
+    name: Track pipeline and editor (Rust)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # The ats-* tools and the editor resolve tracks/, build/tracks and
+        # .cache/ against the working directory: the content root.
+        working-directory: apexsim-content
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # The Bevy editor links the system's audio, input and window libraries.
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apexsim-content/track-editor
+
+      # Plain `cargo test` skips the #[ignore]d whole-calendar bakes (about
+      # 20 minutes); run them by hand with -- --ignored.
+      - name: Test
+        run: cargo test --manifest-path track-editor/Cargo.toml --workspace
+
   site:
     name: Marketing page is up to date
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apexsim
     steps:
       # The page's pictures are cut from LFS files (the car renders, the
       # liveries, the splash); manifest.json holds the hash of the real
@@ -69,9 +105,9 @@ jobs:
       - name: Install the build's dependencies
         run: pip install pyyaml jinja2 pillow
 
-      # docs/ is generated from site/ and from content/ (car.toml, track
-      # YAML, the car renders): a change to any of them without a rebuild
-      # leaves the published page behind the game.
+      # apexsim/docs is generated from apexsim/site and from apexsim-content
+      # (car.toml, track YAML, the car renders): a change to any of them
+      # without a rebuild leaves the published page behind the game.
       - name: Check docs/ against a fresh build
         run: python scripts/site/build_site.py --check
 
@@ -83,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: game-unreal
+        working-directory: apexsim/game-unreal
     steps:
       - uses: actions/checkout@v5
 

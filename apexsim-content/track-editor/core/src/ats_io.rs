@@ -1,0 +1,255 @@
+//! Load/save for `.ats` (Apex Track Scene) files.
+//!
+//! The `.ats` sits next to its source `track.yaml` (same stem, `.ats`
+//! extension) and is the only file the editor ever writes. Saves are
+//! write-temp-then-rename so a failed save leaves the previous file
+//! untouched, and serialization is plain `serde_json` pretty output over
+//! `Vec`-backed data — repeated saves of unchanged data are byte-identical.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use crate::ats::{self, AtsScene};
+
+#[derive(Debug, thiserror::Error)]
+pub enum AtsIoError {
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("JSON parse error: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("invalid scene data: {0}")]
+    Invalid(String),
+}
+
+/// The `.ats` path belonging to a source track file:
+/// `tracks/default/Silverstone/Silverstone.yaml` -> `tracks/default/Silverstone/Silverstone.ats`.
+pub fn ats_path_for<P: AsRef<Path>>(track_path: P) -> PathBuf {
+    track_path.as_ref().with_extension("ats")
+}
+
+pub fn load_ats<P: AsRef<Path>>(path: P) -> Result<AtsScene, AtsIoError> {
+    let content = fs::read_to_string(path.as_ref())?;
+    let mut scene: AtsScene = serde_json::from_str(&content)?;
+    scene.validate().map_err(AtsIoError::Invalid)?;
+    // Older files parse as-is (every layer added since v1 is `#[serde(default)]`);
+    // stamp them as current in memory so a later save writes one consistent
+    // version. The file on disk is untouched until that save happens.
+    scene.version = ats::ATS_VERSION;
+    Ok(scene)
+}
+
+/// The `imported` marker of the `.ats` beside a track file, without
+/// loading the scene: `Ok(None)` for a generated circuit or a track with
+/// no scene. The tools that rewrite a track's files ask this first and
+/// skip a track another tool wrote whole (docs/ac-import.md).
+pub fn imported_marker<P: AsRef<Path>>(track_path: P) -> Result<Option<String>, AtsIoError> {
+    #[derive(serde::Deserialize)]
+    struct Head {
+        #[serde(default)]
+        imported: Option<String>,
+    }
+    let ats_path = ats_path_for(track_path);
+    if !ats_path.exists() {
+        return Ok(None);
+    }
+    let content = fs::read_to_string(&ats_path)?;
+    let head: Head = serde_json::from_str(&content)?;
+    Ok(head.imported.filter(|s| !s.trim().is_empty()))
+}
+
+pub fn save_ats<P: AsRef<Path>>(path: P, scene: &AtsScene) -> Result<(), AtsIoError> {
+    scene.validate().map_err(AtsIoError::Invalid)?;
+    let path = path.as_ref();
+    let mut serialized = serde_json::to_string_pretty(scene)?;
+    serialized.push('\n');
+
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+    // Write to a sibling temp file first: if serialization or the write
+    // fails midway, the existing .ats stays intact. `fs::rename` replaces
+    // the destination on both Unix and Windows.
+    let tmp = path.with_extension("ats.tmp");
+    fs::write(&tmp, &serialized)?;
+    fs::rename(&tmp, path)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ats::{Curb, PitLane, Prop, PropKind, Side, Surface, SurfaceKind};
+    use crate::track_data::{TrackFile, TrackNode};
+
+    fn test_track() -> TrackFile {
+        TrackFile {
+            name: "Test".to_string(),
+            display_name: None,
+            track_id: None,
+            nodes: vec![
+                TrackNode {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    width: None,
+                    width_left: None,
+                    width_right: None,
+                    banking: None,
+                    friction: None,
+                    surface_type: None,
+                },
+                TrackNode {
+                    x: 100.0,
+                    y: 0.0,
+                    z: 0.0,
+                    width: None,
+                    width_left: None,
+                    width_right: None,
+                    banking: None,
+                    friction: None,
+                    surface_type: None,
+                },
+            ],
+            checkpoints: vec![],
+            sectors: vec![],
+            spawn_points: vec![],
+            default_width: 10.0,
+            closed_loop: false,
+            raceline: vec![],
+            drs_zones: Vec::new(),
+            metadata: None,
+        }
+    }
+
+    fn populated_scene() -> AtsScene {
+        let mut scene = AtsScene::new_for_track(&test_track(), "Test.yaml");
+        scene.dressing = crate::ats::Dressing {
+            season: crate::ats::Season::Autumn,
+            spectators: false,
+        };
+        let id = scene.alloc_id();
+        scene.surfaces.push(Surface {
+            id,
+            kind: SurfaceKind::Gravel,
+            side: Side::Right,
+            start_m: 10.0,
+            end_m: 70.0,
+            inner_m: 1.5,
+            width_m: 20.0,
+            end_width_m: Some(35.0),
+            paint: None,
+        });
+        let id = scene.alloc_id();
+        scene.curbs.push(Curb {
+            id,
+            side: Side::Left,
+            start_m: 20.0,
+            end_m: 60.0,
+            width_m: 1.2,
+            style: "red_white".to_string(),
+        });
+        let id = scene.alloc_id();
+        scene.props.push(Prop {
+            id,
+            kind: PropKind::Sign,
+            asset: "board_100m".to_string(),
+            x: 50.0,
+            y: 8.0,
+            z: 0.0,
+            yaw_rad: 1.2,
+            scale: 1.0,
+            text: Some("100".to_string()),
+            length_m: None,
+            source: None,
+        });
+        scene.pit_lane = Some(PitLane {
+            nodes: vec![[0.0, -10.0, 0.0], [80.0, -10.0, 0.0]],
+            width_m: 8.0,
+            box_count: 10,
+            speed_limit_kmh: 80.0,
+            authored: false,
+        });
+        scene
+    }
+
+    #[test]
+    fn ats_path_sits_next_to_the_yaml() {
+        assert_eq!(
+            ats_path_for("tracks/default/Silverstone/Silverstone.yaml"),
+            PathBuf::from("tracks/default/Silverstone/Silverstone.ats")
+        );
+    }
+
+    #[test]
+    fn round_trips_through_a_temp_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Test.ats");
+        let scene = populated_scene();
+
+        save_ats(&path, &scene).unwrap();
+        let loaded = load_ats(&path).unwrap();
+        assert_eq!(scene, loaded);
+    }
+
+    #[test]
+    fn repeated_saves_are_byte_identical() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Test.ats");
+        let scene = populated_scene();
+
+        save_ats(&path, &scene).unwrap();
+        let first = fs::read(&path).unwrap();
+        save_ats(&path, &scene).unwrap();
+        let second = fs::read(&path).unwrap();
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn a_v1_file_without_surfaces_still_loads_and_migrates() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Legacy.ats");
+        fs::write(
+            &path,
+            r#"{
+              "format": "apex-track-scene",
+              "version": 1,
+              "source_track": "Test.yaml",
+              "track_name": "Test",
+              "curbs": [],
+              "markings": [],
+              "pit_lane": null,
+              "props": [],
+              "next_id": 1
+            }"#,
+        )
+        .unwrap();
+
+        let loaded = load_ats(&path).unwrap();
+        assert!(loaded.surfaces.is_empty());
+        assert_eq!(loaded.version, ats::ATS_VERSION);
+    }
+
+    #[test]
+    fn load_rejects_foreign_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Test.ats");
+        fs::write(&path, "{\"hello\": 1}").unwrap();
+        assert!(load_ats(&path).is_err());
+    }
+
+    #[test]
+    fn failed_save_leaves_the_previous_file_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Test.ats");
+        let scene = populated_scene();
+        save_ats(&path, &scene).unwrap();
+        let before = fs::read(&path).unwrap();
+
+        let mut broken = scene.clone();
+        broken.curbs[0].width_m = -1.0; // fails validation
+        assert!(save_ats(&path, &broken).is_err());
+        assert_eq!(fs::read(&path).unwrap(), before);
+    }
+}

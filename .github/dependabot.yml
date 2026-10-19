@@ -6,7 +6,7 @@
 version: 2
 updates:
   - package-ecosystem: "cargo"
-    directory: "/server"
+    directory: "/apexsim/server"
     schedule:
       interval: "weekly"
     labels:
@@ -22,7 +22,7 @@ updates:
       - "rust"
 
   - package-ecosystem: "cargo"
-    directory: "/track-editor"
+    directory: "/apexsim-content/track-editor"
     schedule:
       interval: "weekly"
     labels:

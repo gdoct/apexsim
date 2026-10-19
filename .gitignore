@@ -192,52 +192,51 @@ certs/
 
 # Procedural terrain cache files (generated)
 *.terrain.msgpack
-# Everything the content pipeline bakes, at the repo root: the Unreal track
-# exports and previews (build/tracks; cargo run --bin ats-export -- --all)
-# and the showcases (build/showcase; apexsim-replay render, from
-# content/showcase.yml). Anchored: on Windows git matches case-insensitively,
-# and game-unreal/Build is checked in.
-/build/
-/build/showcase/
+# What the pipelines bake: the Unreal track exports and previews
+# (apexsim-content/build/tracks; ats-export --all) and the showcases and
+# guides (apexsim/build; apexsim-replay, from apexsim/showcase.yml).
+# Anchored: on Windows git matches case-insensitively, and
+# apexsim/game-unreal/Build is checked in.
+/apexsim/build/
+/apexsim-content/build/
 # Generated server sidecars — the ground heightfield, the curb bands, the
 # walls and the road mesh — written next to each track YAML by the same
 # ats-export run
-content/tracks/default/*/*.ground.msgpack
-content/tracks/default/*/*.curbs.msgpack
-content/tracks/default/*/*.road.msgpack
-# The player's own tracks (content/tracks/custom, scripts/track_dirs.py):
+apexsim-content/tracks/default/*/*.ground.msgpack
+apexsim-content/tracks/default/*/*.curbs.msgpack
+apexsim-content/tracks/default/*/*.road.msgpack
+# The player's own tracks (apexsim-content/tracks/custom, tools/track_dirs.py):
 # imported or hand-made, and never part of the repo, since an import may be
 # derived from content that must not be redistributed. Only its README is.
-content/tracks/custom/*
-!content/tracks/custom/README.md
-# The player's own cars (content/cars/custom), for the same reason.
-content/cars/custom/*
-!content/cars/custom/README.md
-# The player's own HUD components (content/hud/custom, docs/game/hud-modding.md).
-content/hud/custom/*
-!content/hud/custom/README.md
+apexsim-content/tracks/custom/*
+!apexsim-content/tracks/custom/README.md
+# The player's own cars (apexsim-content/cars/custom), for the same reason.
+apexsim-content/cars/custom/*
+!apexsim-content/cars/custom/README.md
+# The player's own HUD components (apexsim/hud/custom, apexsim/docs/game/hud-modding.md).
+apexsim/hud/custom/*
+!apexsim/hud/custom/README.md
 
 # Recorded session replays (large binary, generated at runtime)
-server/replays/
+apexsim/server/replays/
 
 # Lap records and their ghost traces (written at runtime)
-server/records/
+apexsim/server/records/
 
 # Scratch/working directory, not part of the project
 _claude_tmp/
-content/tracks/default/*/*.walls.msgpack
+apexsim-content/tracks/default/*/*.walls.msgpack
 # The pit lane and its boxes (ats-export, beside the other sidecars).
-content/tracks/default/*/*.pit.msgpack
+apexsim-content/tracks/default/*/*.pit.msgpack
 # Raw OpenStreetMap extracts the layout dossiers are built from
-# (scripts/osm_layout.py). Tens of MB, refetchable, and the dossier that
+# (apexsim-content/tools/osm_layout.py). Tens of MB, refetchable, and the dossier that
 # comes out of them is what is checked in.
-/.cache/osm/
+/apexsim-content/.cache/
 # Raw Copernicus GLO-30 DEM tiles the terrain sidecars are built from
-# (scripts/dem_fetch.py). ~30 MB per 1-degree tile, refetchable from the
+# (apexsim-content/tools/dem_fetch.py). ~30 MB per 1-degree tile, refetchable from the
 # public AWS bucket, and the sidecar that comes out of them is the artefact
 # that matters.
-/.cache/dem/
-# The elevation sidecar itself (content/tracks/default/*/*.dem.msgpack) is NOT
+# The elevation sidecar itself (apexsim-content/tracks/default/*/*.dem.msgpack) is NOT
 # ignored, unlike the ground/curbs/walls sidecars beside it. Those are
 # derived from files in the repo and any build can regenerate them; this
 # one needs a few hundred megabytes off the network, so it is checked in
@@ -247,23 +246,23 @@ content/tracks/default/*/*.pit.msgpack
 artifacts/
 # Startup settings, written by the client on first run. Describes this machine
 # (its display, the server it points at), so it is never shared.
-/game-unreal/settings.yml
-game-unreal/Content/
+/apexsim/game-unreal/settings.yml
+apexsim/game-unreal/Content/
 
 Claude outputs/*
-server/target*/
+apexsim/server/target*/
 artifacts/
 artifacts/*
-# Baked tiling ground textures (python scripts/bake_ground_textures.py).
+# Baked tiling ground textures (python tools/bake_ground_textures.py, from apexsim-content).
 # Deterministic from seeds, ~20 MB of noise that compresses badly, and what
 # the client uses is the /Game/Ground import made from them.
-content/textures/ground/
+apexsim-content/textures/ground/
 
 # Promo video pipeline (scripts/promo): race replays, clip cuts, frames, clips
-out/promo/
+apexsim/out/promo/
 # scripts/site/make_shots.py: races, clips and candidate frames (the picked
 # masters are checked in under site/shots/)
-out/site/
+apexsim/out/site/
 .scratch-target/*
 target-scratch/*
 # Blender auto-backups / temp saves
@@ -271,15 +270,14 @@ target-scratch/*
 *.blend@
 
 # Deployment settings (scripts/deploy_server.ps1)
-deploy/deploy.user.psd1
-build/deploy/
-records/*
-out/verify/
+apexsim/deploy/deploy.user.psd1
+/apexsim/records/*
+apexsim/out/verify/
 # scripts/clean_workspace.ps1: what each run removed
-out/clean_workspace.log
+apexsim/out/clean_workspace.log
 
 # scripts/verify: the runner's console logs
-out/verify_*_console.txt
+apexsim/out/verify_*_console.txt
 
 # Recordings the server writes when run from the repository root.
-/replays/
+/apexsim/replays/

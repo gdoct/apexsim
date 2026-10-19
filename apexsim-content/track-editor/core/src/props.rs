@@ -1,0 +1,479 @@
+//! The authored prop kit as the editor knows it (`props`, catalogued
+//! in `docs/props.md`): which asset keys exist per kind, how big each is,
+//! and which one a kind falls back to. Data only — the GLBs themselves are
+//! never read here; the sizes are the authored footprints, so the editor
+//! can preview a placement at the size it imports and the groomer can push
+//! a prop clear of the road by its real extent.
+//!
+//! Variants the Unreal importer picks on its own are not listed: the
+//! `_crowd` stands and `_autumn` trees are chosen from the scene's
+//! [`crate::ats::Dressing`], and the wedge bays (`bay_10m_curve6` …) from
+//! the bend radius at the stand's station. An `.ats` names the base asset.
+
+use crate::ats::PropKind;
+
+/// One authored asset: its kind, key and footprint at scale 1.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct KitAsset {
+    pub kind: PropKind,
+    pub asset: &'static str,
+    /// Extent along the prop's local X (along the road), metres.
+    pub length_m: f32,
+    /// Extent across the prop (local Y), metres. For everything but a
+    /// bridge or a sky prop the footprint starts at the pivot and reaches
+    /// away from the road.
+    pub depth_m: f32,
+    pub height_m: f32,
+}
+
+impl KitAsset {
+    /// Radius of the circle round the footprint, for a push-off.
+    pub fn footprint_radius_m(&self) -> f32 {
+        (self.length_m / 2.0).hypot(self.depth_m / 2.0)
+    }
+}
+
+macro_rules! kit {
+    ($($kind:ident $asset:literal $l:literal x $d:literal x $h:literal),* $(,)?) => {
+        &[$(KitAsset {
+            kind: PropKind::$kind,
+            asset: $asset,
+            length_m: $l,
+            depth_m: $d,
+            height_m: $h,
+        }),*]
+    };
+}
+
+/// Every authored asset, in `docs/props.md` order. The first entry of a
+/// kind is its default.
+pub const KIT: &[KitAsset] = kit![
+    // Track edge
+    Barrier "armco_4m" 4.0 x 0.2 x 1.0,
+    Barrier "armco_4m_fence" 4.0 x 0.4 x 3.5,
+    Barrier "armco_end" 2.0 x 0.2 x 1.1,
+    Barrier "concrete_4m" 4.0 x 0.6 x 1.0,
+    Barrier "concrete_4m_rail" 4.0 x 0.6 x 1.55,
+    Barrier "tecpro_2m" 2.0 x 1.0 x 1.15,
+    // Sausage kerb: a `kerb` wall for the sim (jolts, never stops a car).
+    Barrier "sausage_kerb_2m" 2.0 x 0.5 x 0.1,
+    // Corner caps tile onto a run at x = -1 like `tires_corner`.
+    Barrier "tecpro_corner" 1.4 x 1.4 x 1.15,
+    Barrier "concrete_end" 2.0 x 0.6 x 1.0,
+    // German guard rail (the Nordschleife's): W-beams on spacer posts.
+    Barrier "vangrail_4m" 4.0 x 0.3 x 1.25,
+    Barrier "vangrail_4m_triple" 4.0 x 0.3 x 1.6,
+    Barrier "vangrail_4m_fence" 4.0 x 0.4 x 3.55,
+    Barrier "vangrail_end" 2.0 x 0.5 x 1.25,
+    // Marina Bay waterfront: galvanised balustrade on a kerb plinth.
+    Barrier "quay_rail_4m" 4.0 x 0.4 x 1.3,
+    Barrier "spectator_handrail_4m" 4.0 x 0.1 x 1.1,
+    TireWall "tires_4m" 4.0 x 1.3 x 0.8,
+    TireWall "tires_corner" 1.7 x 1.7 x 0.8,
+    Board "hoarding_3m" 3.0 x 0.3 x 2.0,
+    Board "hoarding_6m" 6.0 x 0.3 x 2.0,
+    Board "braking_marker" 0.75 x 0.2 x 1.9,
+    Board "light_panel" 1.0 x 0.3 x 2.1,
+    // Named-corner board; the name is the prop's `text` on `board_text`.
+    Board "corner_sign" 2.4 x 0.1 x 2.6,
+    // German roadside signs, read by a driver coming up the course (the
+    // importer turns them like a braking marker). `km_marker`'s number is
+    // its `text` on the marker slot (`km5` -> T_marker_km5).
+    Board "chevron_left" 1.6 x 0.1 x 1.3,
+    Board "chevron_right" 1.6 x 0.1 x 1.3,
+    Board "km_marker" 0.6 x 0.1 x 1.8,
+    Board "de_curve_left" 0.9 x 0.1 x 2.65,
+    Board "de_curve_right" 0.9 x 0.1 x 2.65,
+    Board "de_danger" 0.9 x 0.1 x 2.65,
+    Board "de_overtake_left" 1.5 x 0.1 x 2.4,
+    // Zeichen 108 / 110 with the grade on a plate under the triangle
+    // (`text` on the marker slot: `grade12` -> T_marker_grade12), and
+    // Zeichen 105, the double bend.
+    Board "de_descent" 0.9 x 0.1 x 2.65,
+    Board "de_climb" 0.9 x 0.1 x 2.65,
+    Board "de_double_curve_left" 0.9 x 0.1 x 2.65,
+    Board "de_double_curve_right" 0.9 x 0.1 x 2.65,
+    // The crowd's tags on the double guard rail: a masked sheet on the
+    // W-beams of a `vangrail_4m` module, laid on one by the groomer.
+    Board "rail_tag_kalle" 3.9 x 0.1 x 1.2,
+    Board "rail_tag_eifel" 3.9 x 0.1 x 1.2,
+    Board "rail_tag_vollgas" 3.9 x 0.1 x 1.2,
+    Board "rail_tag_hup" 3.9 x 0.1 x 1.2,
+    Board "rail_tag_moppel" 3.9 x 0.1 x 1.2,
+    Board "rail_tag_hearts" 3.9 x 0.1 x 1.2,
+    Board "roof_wordmark_block" 40.0 x 0.6 x 7.5,
+    Board "led_ribbon_3m" 3.0 x 0.15 x 0.9,
+    Sign "marshal_post" 3.2 x 2.4 x 4.8,
+    // The same post with its number board in front (`text` `post<N>` on
+    // the marker slot); the board stands 0.35 m on the road side.
+    Sign "marshal_post_numbered" 3.2 x 2.8 x 4.8,
+    Sign "pit_speed_limit" 0.9 x 0.3 x 2.8,
+    Sign "pit_exit_light" 0.6 x 0.4 x 4.2,
+    Sign "flag_pole" 1.8 x 0.5 x 8.1,
+    // Standing letters spelling the Nordschleife's display name
+    // ("MORDSCHLEIFE", never a real name: docs/naming.md), laid on
+    // the slope its dossier names; centred on its footprint.
+    Sign "hillside_letters" 43.4 x 0.8 x 4.7,
+    // Marina Bay street furniture; the signal head lamps are the emissive
+    // `signal_red/amber/green` slots (mast arm reaches towards the road on -Y).
+    Sign "traffic_signal_pole" 0.7 x 3.6 x 6.4,
+    Sign "road_sign_post" 2.5 x 0.2 x 3.6,
+    Sign "pit_entry_board" 3.0 x 0.3 x 4.5,
+    Sign "garage_number_board" 1.5 x 0.1 x 0.8,
+    Fence "mesh_4m" 4.0 x 0.1 x 2.5,
+    Fence "mesh_4m_hoarding" 4.0 x 0.1 x 2.5,
+    Fence "wood_4m" 4.0 x 0.1 x 1.2,
+    Fence "hedge_4m" 4.0 x 1.1 x 1.6,
+    // 6 m catch fence for street circuits (`fence_mesh`, outriggers lean to the road).
+    Fence "catch_fence_6m" 4.0 x 1.1 x 6.5,
+    Fence "catch_fence_post_lit_6m" 4.0 x 0.6 x 6.5,
+    // Overhead
+    Bridge "start_gantry" 2.0 x 20.0 x 7.2,
+    Bridge "truss_bridge" 2.7 x 20.4 x 8.7,
+    Bridge "tyre_bridge" 4.0 x 23.7 x 13.6,
+    Bridge "timing_gantry" 2.0 x 20.0 x 10.5,
+    Bridge "span_building" 8.2 x 20.7 x 22.0,
+    // Marina Bay crossings: the road runs ON `bridge_arch_steel` and
+    // `bridge_deck_wide` (arches/parapets either side), UNDER `viaduct_deck`.
+    Bridge "bridge_arch_steel" 30.6 x 21.7 x 12.9,
+    Bridge "bridge_deck_wide" 40.2 x 23.5 x 9.5,
+    Bridge "viaduct_deck" 26.1 x 20.6 x 13.8,
+    // Overhead expressway sign gantry and a covered pedestrian link; both span the road.
+    Bridge "sign_gantry" 1.5 x 19.2 x 7.5,
+    Bridge "linkbridge_covered" 4.2 x 19.8 x 8.6,
+    Bridge "banner_gantry" 3.0 x 20.0 x 7.0,
+    // The Nordschleife's: a 10 m module of the parapets of a bridge
+    // carrying the lap over a road (tiled along the span), and a forest
+    // track's concrete overpass. Authored for a 15 m road like the rest.
+    Bridge "track_bridge_10m" 10.0 x 28.7 x 1.6,
+    Bridge "overpass_concrete" 12.2 x 33.0 x 7.4,
+    Light "floodlight_tower" 4.9 x 3.0 x 30.3,
+    Light "lamp_post" 0.6 x 2.5 x 8.1,
+    // Street lamp with an arm to each side (Marina Bay median/verge lighting).
+    Light "lamp_arm_twin" 0.7 x 6.9 x 9.6,
+    Light "lamp_globe_pole" 0.6 x 0.6 x 6.5,
+    Light "lamp_balloon_tether" 1.6 x 1.6 x 9.0,
+    Light "lamp_balloon_tether_orange" 1.6 x 1.6 x 9.0,
+    Light "pit_light_truss_6m" 6.0 x 1.1 x 1.2,
+    // Pit complex
+    Pit "garage_6m" 6.0 x 14.2 x 9.9,
+    Pit "garage_6m_closed" 6.0 x 14.2 x 9.9,
+    Pit "garage_end" 6.1 x 14.2 x 15.9,
+    Pit "pit_wall_6m" 6.0 x 2.3 x 3.8,
+    Pit "pit_wall_plain_6m" 6.0 x 0.4 x 2.9,
+    Pit "box_kit" 5.5 x 2.6 x 2.4,
+    Pit "pit_wall_gantry_6m" 6.0 x 2.0 x 3.2,
+    Building "clubhouse" 25.6 x 18.9 x 11.5,
+    Building "hospitality_3f" 30.6 x 12.6 x 12.4,
+    Building "media_centre" 40.6 x 15.6 x 21.0,
+    Building "control_tower" 13.2 x 13.2 x 29.0,
+    Building "observation_tower" 8.3 x 8.3 x 60.5,
+    // Skyline: city backdrop for street circuits, set well back.
+    Building "skyline_lowrise" 26.2 x 18.2 x 40.8,
+    Building "skyline_crane" 34.5 x 16.1 x 76.3,
+    // Pit-roof podium: floored at 9.95 m so it sits on a `garage_6m`.
+    Building "podium" 12.0 x 4.5 x 14.0,
+    // Styrian village kit for the residential/farmyard polygons.
+    Building "village_house_a" 13.2 x 9.5 x 8.3,
+    Building "village_house_b" 10.8 x 8.6 x 8.5,
+    Building "village_house_c" 15.2 x 12.6 x 6.9,
+    Building "barn" 19.6 x 10.6 x 8.2,
+    Building "chapel" 8.5 x 22.5 x 23.5,
+    // Burg Nürburg, a landmark centred on its footprint like the tower.
+    Building "castle_ruin" 70.0 x 56.0 x 32.0,
+    // The Hohe Acht's lookout tower (16.3 m), centred.
+    Building "stone_lookout_tower" 6.7 x 6.7 x 16.3,
+    Building "skyline_slab_a" 24.1 x 16.1 x 96.2,
+    Building "skyline_pyramid" 20.1 x 20.1 x 112.0,
+    Building "skyline_podium" 40.2 x 30.2 x 121.2,
+    Building "skyline_slab_b" 18.1 x 18.1 x 135.0,
+    Building "skyline_cylinder" 20.3 x 20.3 x 145.0,
+    Building "skyline_step" 30.1 x 22.1 x 150.0,
+    Building "skyline_twin" 32.1 x 12.1 x 161.2,
+    Building "skyline_needle" 14.1 x 14.1 x 190.0,
+    // Marina Bay ("Mandarina Bay"): landmark and civic buildings, centred on
+    // their footprint, front on -Y. Real sizes; see docs/circuits.md.
+    Building "landmark_twin_domes" 188.0 x 85.2 x 36.2,
+    Building "building_wheel_terminal" 64.5 x 31.0 x 24.0,
+    Building "building_pit_street" 120.8 x 33.5 x 24.6,
+    Building "building_colonnade_hotel" 97.4 x 59.5 x 28.0,
+    Building "building_domed_court" 81.2 x 58.3 x 27.9,
+    Building "building_colonnade_civic" 97.4 x 51.2 x 23.2,
+    Building "building_clock_tower_hall" 63.2 x 45.4 x 56.0,
+    Building "building_five_towers" 144.0 x 73.1 x 164.0,
+    Building "building_club_pavilion" 48.4 x 30.0 x 22.5,
+    Building "building_gothic_church" 40.8 x 53.4 x 61.3,
+    Building "building_deco_theatre" 44.6 x 35.4 x 42.0,
+    Building "pit_building_roofdeck" 200.0 x 34.0 x 26.0,
+    // Spectators: a stand family is one bay; the stand's length lays more.
+    Grandstand "bay_10m" 10.0 x 9.1 x 5.6,
+    Grandstand "bay_10m_roof" 10.0 x 10.4 x 10.6,
+    Grandstand "bay_10m_large" 10.0 x 14.4 x 8.3,
+    Grandstand "bay_10m_large_roof" 10.0 x 15.8 x 13.3,
+    Grandstand "bay_10m_stadium_roof" 10.6 x 35.1 x 28.0,
+    Grandstand "scaffold_10m" 10.1 x 5.1 x 4.1,
+    Grandstand "banking_seats" 10.0 x 6.0 x 2.6,
+    Grandstand "street_stand_tier_10m" 10.0 x 26.0 x 17.0,
+    Grandstand "street_stand_tier_end" 4.0 x 26.0 x 17.0,
+    Grandstand "street_stand_tier_10m_roof" 10.0 x 26.0 x 22.0,
+    Grandstand "street_stand_deck_10m" 10.0 x 14.0 x 9.0,
+    Attraction "tent_6m" 6.5 x 6.5 x 5.2,
+    Attraction "video_screen" 12.1 x 2.0 x 11.1,
+    Attraction "camera_tower" 4.4 x 4.4 x 13.2,
+    Attraction "ferris_wheel" 62.8 x 16.0 x 69.5,
+    Attraction "portaloo_row" 5.4 x 1.2 x 2.4,
+    Attraction "fanzone_stage" 12.7 x 8.0 x 8.5,
+    Attraction "food_stall_6m" 6.2 x 3.0 x 3.9,
+    Attraction "ticket_gate" 7.0 x 1.8 x 4.6,
+    // Marina Bay landmarks: `landmark_big_wheel_xl` has a `rotor` child node
+    // (hub at its origin) like `ferris_wheel`.
+    Attraction "landmark_big_wheel_xl" 149.9 x 36.8 x 164.9,
+    Attraction "landmark_three_towers_skypark" 358.0 x 96.0 x 200.5,
+    Attraction "landmark_lotus_museum" 54.0 x 50.0 x 40.3,
+    Attraction "bridge_double_helix" 118.0 x 9.0 x 8.8,
+    Attraction "marquee_peak_12m" 12.0 x 8.0 x 6.0,
+    Attraction "led_wall_stage_16m" 16.0 x 6.0 x 9.0,
+    // Landscape
+    Tree "broadleaf_m" 8.0 x 7.2 x 10.0,
+    Tree "broadleaf_s" 5.0 x 4.5 x 6.0,
+    Tree "broadleaf_l" 13.0 x 11.7 x 16.0,
+    Tree "conifer_m" 5.0 x 4.3 x 12.0,
+    Tree "conifer_l" 8.0 x 6.9 x 20.0,
+    Tree "poplar" 4.0 x 3.5 x 18.0,
+    Tree "bush_cluster" 4.0 x 3.6 x 3.0,
+    Tree "palm_oil" 4.4 x 4.4 x 8.4,
+    Tree "palm_ornamental" 3.8 x 4.8 x 13.2,
+    // Rain tree: clear trunk, wide umbrella crown (leaf cards), centred.
+    Tree "raintree_l" 25.6 x 23.2 x 19.2,
+    // Near-LOD card trees for the first 60 m (masked `tree_card_*` slots).
+    Tree "broadleaf_m_near" 9.6 x 9.0 x 9.7,
+    Tree "conifer_m_near" 4.3 x 4.7 x 12.1,
+    // Ground scatter for the grass band by the road.
+    Tree "grass_clump" 1.0 x 0.9 x 0.6,
+    Tree "wildflower_clump" 1.0 x 0.9 x 0.6,
+    // A 40 x 40 m patch of wood as one flat-shaded cluster, planted per
+    // forest polygon out to 8 km; centred on its footprint.
+    Tree "forest_impostor" 43.0 x 43.0 x 17.5,
+    Tree "forest_impostor_conifer" 43.0 x 43.0 x 17.5,
+    Vehicle "car_a" 3.9 x 1.7 x 1.4,
+    Vehicle "car_b" 4.7 x 1.7 x 1.4,
+    Vehicle "car_c" 4.5 x 1.7 x 1.8,
+    Vehicle "fire_truck" 5.5 x 2.5 x 3.3,
+    Vehicle "ambulance" 6.0 x 2.2 x 2.9,
+    Vehicle "tractor" 4.6 x 2.3 x 2.9,
+    Vehicle "race_truck" 8.6 x 2.6 x 4.0,
+    Vehicle "motorhome" 10.0 x 4.6 x 3.5,
+    Vehicle "camper_van" 6.0 x 2.2 x 3.1,
+    Vehicle "coach" 12.0 x 2.6 x 4.0,
+    Vehicle "safety_car" 4.8 x 1.9 x 1.6,
+    Vehicle "medical_car" 4.8 x 1.9 x 1.6,
+    Misc "bollard" 0.2 x 0.2 x 0.9,
+    Misc "kerb_marker" 0.1 x 0.1 x 0.7,
+    Misc "generator" 2.2 x 1.2 x 1.9,
+    Misc "photographer_stand" 2.0 x 2.0 x 2.5,
+    Misc "rock_cluster" 0.9 x 0.7 x 0.5,
+    Misc "scrub_clump" 0.7 x 0.6 x 0.3,
+    // The Red Bull Ring's bull at its real size (14.6 m, 17.2 m with the
+    // arch) -- centred on its own footprint like the tower/ferris_wheel
+    // landmarks, not road-facing.
+    Misc "bull_statue" 22.0 x 11.5 x 17.2,
+    Misc "tyre_stack" 1.9 x 1.2 x 0.8,
+    Misc "gate_4m" 4.3 x 0.15 x 1.5,
+    // Marina Bay: ring fountain in a round basin, and the four-column memorial.
+    Misc "fountain_basin" 48.0 x 48.0 x 10.4,
+    Misc "monument_four_columns" 26.0 x 26.0 x 66.0,
+    Misc "bus_shelter" 7.5 x 2.8 x 3.5,
+    Misc "station_entrance" 7.0 x 5.0 x 4.4,
+    Misc "carpark_entrance" 8.3 x 8.6 x 4.6,
+    Misc "monument_obelisk" 7.0 x 7.0 x 15.5,
+    Misc "monument_pagoda" 10.4 x 9.0 x 10.2,
+    Misc "monument_statue_plinth" 6.0 x 6.0 x 8.5,
+    // Lattice pylon, centred; the line runs along local X.
+    Misc "power_pylon" 8.0 x 14.0 x 38.0,
+    Misc "stair_zigzag_scaffold" 14.0 x 5.0 x 8.0,
+    Misc "finish_tower_scaffold" 4.0 x 4.0 x 7.0,
+    Misc "walkway_planter_4m" 4.0 x 1.2 x 1.2,
+    // The Nordschleife's: one lane of the Touristenfahrten toll gate (arm
+    // along local X), an earth bank with a hedge behind the rail, and the
+    // 24-hour camps' scaffold towers, gazebos and flag poles (`flag_cloth`,
+    // the flag code as `text`). All centred.
+    Misc "toll_gate_lane" 5.5 x 1.6 x 2.6,
+    Misc "spectator_bank_10m" 10.6 x 5.6 x 1.4,
+    Misc "camp_scaffold_tower" 3.2 x 2.6 x 6.7,
+    Misc "camp_gazebo" 3.1 x 3.1 x 3.0,
+    Misc "camp_flag_pole" 1.9 x 0.1 x 6.0,
+    // Sky: origin at the hull centre, sized round it.
+    Sky "blimp" 60.0 x 19.5 x 19.7,
+    Sky "balloon" 16.0 x 16.0 x 22.1,
+    Sky "helicopter" 14.6 x 11.0 x 4.2,
+];
+
+/// The authored assets of a kind, default first. Empty for `cone`, which
+/// has no kit asset.
+pub fn assets_for(kind: PropKind) -> impl Iterator<Item = &'static KitAsset> {
+    KIT.iter().filter(move |a| a.kind == kind)
+}
+
+/// The asset a new prop of the kind starts as: the kit's default where
+/// there is one, else the pre-kit `<kind>_generic` key the importer maps
+/// to a stand-in.
+pub fn default_asset(kind: PropKind) -> String {
+    assets_for(kind)
+        .next()
+        .map(|a| a.asset.to_string())
+        .unwrap_or_else(|| format!("{}_generic", kind.label()))
+}
+
+/// The catalogue entry for a prop's key, if the kit has it.
+pub fn find(kind: PropKind, asset: &str) -> Option<&'static KitAsset> {
+    assets_for(kind).find(|a| a.asset == asset)
+}
+
+/// The pre-kit keys the groomer and old scenes carry, mapped onto the
+/// kit entry the Unreal importer resolves them to, so their previews and
+/// footprints match what is built.
+pub fn resolve(kind: PropKind, asset: &str) -> Option<&'static KitAsset> {
+    let (kind, asset) = match (kind, asset) {
+        (PropKind::Tree, "tree_generic") => (PropKind::Tree, "broadleaf_m"),
+        (PropKind::Barrier, "armco_generic") => (PropKind::Barrier, "armco_4m"),
+        (PropKind::TireWall, "tire_wall_generic") => (PropKind::TireWall, "tires_4m"),
+        (PropKind::Sign, "board_200m" | "board_100m" | "board_50m") => {
+            (PropKind::Board, "braking_marker")
+        }
+        (PropKind::Grandstand, "grandstand_main") => (PropKind::Grandstand, "bay_10m_large_roof"),
+        (PropKind::Grandstand, "grandstand_corner") => (PropKind::Grandstand, "bay_10m_roof"),
+        (PropKind::Building, "pit_garage") => (PropKind::Pit, "garage_6m"),
+        other => other,
+    };
+    find(kind, asset)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_kind_but_cone_has_a_default_in_the_kit() {
+        for kind in PropKind::ALL {
+            let default = default_asset(kind);
+            if kind == PropKind::Cone {
+                assert_eq!(default, "cone_generic");
+            } else {
+                assert!(
+                    find(kind, &default).is_some(),
+                    "{} defaults to {default}, which is not in the kit",
+                    kind.label()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn defaults_match_the_importer() {
+        // The Unreal side's per-kind defaults (ApexPropLibrary.cpp); a
+        // prop the editor adds previews as what the importer will build.
+        for (kind, asset) in [
+            (PropKind::Barrier, "armco_4m"),
+            (PropKind::TireWall, "tires_4m"),
+            (PropKind::Board, "hoarding_3m"),
+            (PropKind::Fence, "mesh_4m"),
+            (PropKind::Grandstand, "bay_10m"),
+            (PropKind::Pit, "garage_6m"),
+            (PropKind::Bridge, "start_gantry"),
+            (PropKind::Light, "floodlight_tower"),
+            (PropKind::Tree, "broadleaf_m"),
+            (PropKind::Sky, "blimp"),
+            (PropKind::Sign, "marshal_post"),
+            (PropKind::Vehicle, "car_a"),
+            (PropKind::Attraction, "tent_6m"),
+            (PropKind::Building, "clubhouse"),
+            (PropKind::Misc, "bollard"),
+        ] {
+            assert_eq!(default_asset(kind), asset, "{}", kit_label(kind));
+        }
+    }
+
+    fn kit_label(kind: PropKind) -> &'static str {
+        kind.label()
+    }
+
+    #[test]
+    fn keys_are_unique_and_kit_files_exist() {
+        let mut seen = std::collections::HashSet::new();
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../props");
+        for entry in KIT {
+            assert!(
+                seen.insert((entry.kind.label(), entry.asset)),
+                "duplicate {}/{}",
+                entry.kind.label(),
+                entry.asset
+            );
+            assert!(entry.length_m > 0.0 && entry.depth_m > 0.0 && entry.height_m > 0.0);
+            let glb = root
+                .join(entry.kind.label())
+                .join(format!("{}.glb", entry.asset));
+            if root.exists() {
+                assert!(glb.exists(), "no {}", glb.display());
+            }
+        }
+    }
+
+    #[test]
+    fn every_kit_file_is_catalogued() {
+        // A GLB added to props without a KIT row is invisible to the
+        // inspector's dropdown and gets no footprint. Variants the importer
+        // picks by itself (dressing, bend radius, stand ends) are exempt.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../props");
+        let Ok(kinds) = std::fs::read_dir(&root) else {
+            return;
+        };
+        let mut missing = Vec::new();
+        for kind_dir in kinds.flatten() {
+            let Some(kind) = PropKind::ALL
+                .into_iter()
+                .find(|k| k.label() == kind_dir.file_name().to_string_lossy())
+            else {
+                continue;
+            };
+            for file in std::fs::read_dir(kind_dir.path()).unwrap().flatten() {
+                let name = file.file_name().to_string_lossy().into_owned();
+                let Some(asset) = name.strip_suffix(".glb") else {
+                    continue;
+                };
+                let variant = asset.ends_with("_crowd")
+                    || asset.ends_with("_autumn")
+                    || asset.contains("_curve")
+                    || asset.starts_with("end_cap");
+                if !variant && find(kind, asset).is_none() {
+                    missing.push(format!("{}/{asset}", kind.label()));
+                }
+            }
+        }
+        assert!(missing.is_empty(), "not in props::KIT: {missing:?}");
+    }
+
+    #[test]
+    fn legacy_keys_resolve_to_kit_entries() {
+        assert_eq!(
+            resolve(PropKind::Tree, "tree_generic").map(|a| a.asset),
+            Some("broadleaf_m")
+        );
+        assert_eq!(
+            resolve(PropKind::Sign, "board_100m").map(|a| (a.kind, a.asset)),
+            Some((PropKind::Board, "braking_marker"))
+        );
+        assert_eq!(
+            resolve(PropKind::Building, "pit_garage").map(|a| a.kind),
+            Some(PropKind::Pit)
+        );
+        assert!(resolve(PropKind::Misc, "spaceship").is_none());
+        assert!(
+            (find(PropKind::Attraction, "tent_6m")
+                .unwrap()
+                .footprint_radius_m()
+                - 4.6)
+                .abs()
+                < 0.01
+        );
+    }
+}

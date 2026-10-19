@@ -1,0 +1,215 @@
+//! Batch-groom prop placement in the shipped `.ats` scenes: tire walls and
+//! barriers move to the runoff edge, everything else is seated on the
+//! terrain, and distance boards, armco and tree belts are laid. See
+//! `src/groom.rs` for the rules.
+//!
+//! A track with a layout dossier (`<Stem>.layout.json`) is groomed against
+//! it — the real pit lane and the dressed stands are left alone and the
+//! tree belts stay inside the real woods — so this is safe to run over a
+//! circuit `ats-dress` has already rebuilt.
+//!
+//! ```text
+//! ats-groom --all                          # every track under tracks/{default,custom}
+//! ats-groom tracks/default/Monza/Monza.yaml # one track
+//! ats-groom --all --dry-run                # report without writing
+//! ats-groom --verbose Monza.yaml           # also list braking corners + board stations
+//! ```
+//!
+//! Idempotent: re-running over groomed scenes writes nothing.
+
+use std::path::PathBuf;
+use std::process::ExitCode;
+
+use track_core::track_data::TrackFile;
+use track_core::track_path::CenterlinePath;
+use track_core::{ats_io, groom, layout, project, ue_export_io};
+
+fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let mut all = false;
+    let mut dry_run = false;
+    let mut verbose = false;
+    let mut tracks: Vec<PathBuf> = Vec::new();
+
+    for arg in &args {
+        match arg.as_str() {
+            "--all" | "-a" => all = true,
+            "--dry-run" | "-n" => dry_run = true,
+            "--verbose" | "-v" => verbose = true,
+            "--help" | "-h" => {
+                println!("{USAGE}");
+                return ExitCode::SUCCESS;
+            }
+            other if other.starts_with('-') => {
+                eprintln!("unknown option {other}\n\n{USAGE}");
+                return ExitCode::FAILURE;
+            }
+            path => tracks.push(PathBuf::from(path)),
+        }
+    }
+
+    if !all && tracks.is_empty() {
+        eprintln!("{USAGE}");
+        return ExitCode::FAILURE;
+    }
+    if all {
+        match ue_export_io::all_track_files() {
+            Ok(found) => tracks.extend(found),
+            Err(e) => {
+                eprintln!("failed to list the track folders: {e}");
+                return ExitCode::FAILURE;
+            }
+        }
+    }
+
+    let mut failures = 0usize;
+    let mut written = 0usize;
+    for track_path in &tracks {
+        let name = track_path.display();
+        match ats_io::imported_marker(track_path) {
+            Ok(Some(by)) => {
+                println!("{name}: skipped (imported by {by}; see docs/ac-import.md)");
+                continue;
+            }
+            Ok(None) => {}
+            Err(e) => {
+                eprintln!("{name}: {e}");
+                failures += 1;
+                continue;
+            }
+        }
+        let opened = match project::open_project(track_path) {
+            Ok(opened) => opened,
+            Err(e) => {
+                eprintln!("{name}: {e}");
+                failures += 1;
+                continue;
+            }
+        };
+        let Some(mut scene) = opened.scene else {
+            eprintln!("{name}: scene failed to load, skipping");
+            failures += 1;
+            continue;
+        };
+        // Groom against the circuit's dossier when it has one, so a groom
+        // run never undoes what `ats-dress` laid: the real pit lane stays,
+        // the stands are not pushed off their footprints, and the tree
+        // belts stay inside the woods that are really there.
+        let layout = match layout::load_layout(layout::layout_path_for(track_path)) {
+            Ok(layout) => layout,
+            Err(e) => {
+                eprintln!("{name}: layout dossier unusable: {e}");
+                failures += 1;
+                continue;
+            }
+        };
+        // Seat on the real land when the track has an elevation model, so
+        // what grooming places matches the ground the exporter draws.
+        let dem = track_core::dem::load_dem(track_core::dem::dem_path_for(track_path))
+            .unwrap_or_else(|e| {
+                eprintln!("{}: elevation sidecar unusable ({e})", track_path.display());
+                None
+            });
+        let Some(report) =
+            groom::groom_scene_with_dem(&opened.track, &mut scene, layout.as_ref(), dem.as_ref())
+        else {
+            eprintln!("{name}: degenerate centerline, skipping");
+            failures += 1;
+            continue;
+        };
+
+        if report.changed() && !dry_run {
+            if let Err(e) = ats_io::save_ats(&opened.ats_path, &scene) {
+                eprintln!("{name}: failed to save: {e}");
+                failures += 1;
+                continue;
+            }
+            written += 1;
+        }
+        println!(
+            "{name}: {} wall segment(s){}, {} wall(s) removed from straights, {} board(s){}, {} armco segment(s){}, {} tree(s){}, {} prop(s) pushed clear, {} reseated, {} deleted{} of {}, pit lane {}{}",
+            report.walls,
+            relaid(report.walls_rebuilt),
+            report.removed,
+            report.boards,
+            relaid(report.boards_rebuilt),
+            report.barriers,
+            relaid(report.barriers_rebuilt),
+            report.trees,
+            relaid(report.trees_rebuilt),
+            report.pushed,
+            report.reseated,
+            report.deleted.len(),
+            if report.deleted.is_empty() {
+                String::new()
+            } else {
+                format!(" (ids {:?})", report.deleted)
+            },
+            report.total,
+            if report.pit_rebuilt {
+                "rebuilt"
+            } else {
+                "unchanged"
+            },
+            if dry_run { " (dry run)" } else { "" }
+        );
+        if verbose {
+            print_corners(&opened.track);
+        }
+    }
+
+    println!(
+        "groomed {}/{} track(s), {written} file(s) written",
+        tracks.len() - failures,
+        tracks.len()
+    );
+    if failures > 0 {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+fn relaid(rebuilt: bool) -> &'static str {
+    if rebuilt {
+        " re-laid"
+    } else {
+        " unchanged"
+    }
+}
+
+/// List every braking corner with the stations its boards were laid at.
+fn print_corners(track: &TrackFile) {
+    let Some(path) = CenterlinePath::from_track(track) else {
+        return;
+    };
+    let corners = groom::braking_corners(&path);
+    println!(
+        "  {} braking corner(s) on {:.0} m (entry, end, outside, corner speed, boards):",
+        corners.len(),
+        path.total_length_m()
+    );
+    for corner in &corners {
+        let boards: Vec<String> = corner
+            .boards
+            .iter()
+            .map(|(asset, station)| format!("{asset}@{station:.0}"))
+            .collect();
+        println!(
+            "    entry {:>6.0} m  end {:>6.0} m  {:<5}  {:>3.0} km/h  {}",
+            corner.entry_m(),
+            corner.run.end_m,
+            corner.outside().label(),
+            corner.corner_speed_mps * 3.6,
+            boards.join(" ")
+        );
+    }
+}
+
+const USAGE: &str = "\
+usage: ats-groom [--all] [--dry-run] [--verbose] [TRACK.yaml ...]
+
+  --all, -a      groom every *.yaml under tracks/{default,custom}
+  --dry-run, -n  report what would change without writing .ats files
+  --verbose, -v  also list braking corners and their board stations
+";

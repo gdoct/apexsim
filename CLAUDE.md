@@ -1,56 +1,68 @@
 # CLAUDE.md
 
-ApexSim is a sim-racing platform: an authoritative Rust server (`server/`,
+ApexSim is a sim-racing platform in two roots that become two repositories.
+`apexsim/` is the code: an authoritative Rust server (`apexsim/server/`,
 420 Hz physics, TCP+TLS lobby, UDP telemetry and input), an Unreal Engine 5.8
-client (`game-unreal/`) that renders what the server says and has no physics
-of its own, and a Rust + Python content pipeline (`track-editor/`, `scripts/`)
-that turns real circuits and cars in `content/` into what both sides load.
+client (`apexsim/game-unreal/`) that renders what the server says and has no
+physics of its own, the HUD, the site and the build scripts (`apexsim/scripts/`).
+`apexsim-content/` is the content and its tools: the cars, tracks, props and
+textures, the Rust track pipeline and editor (`apexsim-content/track-editor/`)
+and the Python importers and generators (`apexsim-content/tools/`) that turn
+real circuits and cars into what both sides load.
+
+The code depends on the content, never the other way round: the code reaches
+it as the sibling `../apexsim-content`, and nothing under `apexsim-content/`
+reads, builds or links `apexsim/`. Two test-only edges are left until the
+formats crate: track-core's dev-dependency on the server (its compat tests)
+and the AC car importer's test reading `apexsim/server/src/brakes.rs`.
 
 ## Where to read first
 
-Feature detail lives in `docs/`, one doc per area ([docs/README.md](docs/README.md)
-is the index). Before changing an area, read its doc; it names the code, the
+Feature detail lives in `apexsim/docs/` and `apexsim-content/docs/`, one doc
+per area ([apexsim/docs/README.md](apexsim/docs/README.md) is the index). Before changing an area, read its doc; it names the code, the
 checks and the traps.
 
 | Changing | Read |
 |---|---|
-| anything across server and client, the wire, determinism | [docs/architecture.md](docs/architecture.md), [docs/server/protocol.md](docs/server/protocol.md) |
-| builds, tests, scripts, packaging, a fresh clone | [docs/building.md](docs/building.md) |
-| server config, ports, TLS, dashboard | [docs/server/operations.md](docs/server/operations.md) |
-| sessions, race rules, timing, qualifying, hotlap | [docs/server/sessions.md](docs/server/sessions.md) |
-| car physics, tyres, fuel, aero, damage, setup | [docs/server/vehicle-physics.md](docs/server/vehicle-physics.md) |
-| weather, sky, wind, road state | [docs/server/conditions.md](docs/server/conditions.md) |
-| AI drivers, racecraft, strategy | [docs/server/ai.md](docs/server/ai.md) |
-| pit lane and stops | [docs/server/pit-lane.md](docs/server/pit-lane.md) |
-| client menus, settings, splash, motion, debug switches | [docs/game/client.md](docs/game/client.md) |
-| cameras, TV director, demo backdrop | [docs/game/cameras.md](docs/game/cameras.md) |
-| sound | [docs/game/audio.md](docs/game/audio.md) |
-| input, wheels, force feedback | [docs/game/input-and-ffb.md](docs/game/input-and-ffb.md) |
-| the HUD | [docs/game/hud-modding.md](docs/game/hud-modding.md) |
-| spectating, showcases, replays | [docs/game/spectator.md](docs/game/spectator.md) |
-| track generation, sidecars, runtime tracks | [docs/content/track-pipeline.md](docs/content/track-pipeline.md), [docs/content/track-format.md](docs/content/track-format.md), [docs/content/road-mesh.md](docs/content/road-mesh.md), [docs/content/circuits.md](docs/content/circuits.md) |
-| cars, props | [docs/content/cars.md](docs/content/cars.md), [docs/content/props.md](docs/content/props.md) |
-| Assetto Corsa import | [docs/content/ac-import.md](docs/content/ac-import.md) |
-| track guide, marketing site, promo video | [docs/content/track-guide.md](docs/content/track-guide.md), [docs/marketing-site.md](docs/marketing-site.md) |
+| anything across server and client, the wire, determinism | [apexsim/docs/architecture.md](apexsim/docs/architecture.md), [apexsim/docs/server/protocol.md](apexsim/docs/server/protocol.md) |
+| builds, tests, scripts, packaging, a fresh clone | [apexsim/docs/building.md](apexsim/docs/building.md) |
+| server config, ports, TLS, dashboard | [apexsim/docs/server/operations.md](apexsim/docs/server/operations.md) |
+| sessions, race rules, timing, qualifying, hotlap | [apexsim/docs/server/sessions.md](apexsim/docs/server/sessions.md) |
+| car physics, tyres, fuel, aero, damage, setup | [apexsim/docs/server/vehicle-physics.md](apexsim/docs/server/vehicle-physics.md) |
+| weather, sky, wind, road state | [apexsim/docs/server/conditions.md](apexsim/docs/server/conditions.md) |
+| AI drivers, racecraft, strategy | [apexsim/docs/server/ai.md](apexsim/docs/server/ai.md) |
+| pit lane and stops | [apexsim/docs/server/pit-lane.md](apexsim/docs/server/pit-lane.md) |
+| client menus, settings, splash, motion, debug switches | [apexsim/docs/game/client.md](apexsim/docs/game/client.md) |
+| cameras, TV director, demo backdrop | [apexsim/docs/game/cameras.md](apexsim/docs/game/cameras.md) |
+| sound | [apexsim/docs/game/audio.md](apexsim/docs/game/audio.md) |
+| input, wheels, force feedback | [apexsim/docs/game/input-and-ffb.md](apexsim/docs/game/input-and-ffb.md) |
+| the HUD | [apexsim/docs/game/hud-modding.md](apexsim/docs/game/hud-modding.md) |
+| spectating, showcases, replays | [apexsim/docs/game/spectator.md](apexsim/docs/game/spectator.md) |
+| track generation, sidecars, runtime tracks | [apexsim-content/docs/track-pipeline.md](apexsim-content/docs/track-pipeline.md), [apexsim-content/docs/track-format.md](apexsim-content/docs/track-format.md), [apexsim-content/docs/road-mesh.md](apexsim-content/docs/road-mesh.md), [apexsim-content/docs/circuits.md](apexsim-content/docs/circuits.md) |
+| cars, props | [apexsim-content/docs/cars.md](apexsim-content/docs/cars.md), [apexsim-content/docs/props.md](apexsim-content/docs/props.md) |
+| Assetto Corsa import | [apexsim-content/docs/ac-import.md](apexsim-content/docs/ac-import.md) |
+| track guide, marketing site, promo video | [apexsim-content/docs/track-guide.md](apexsim-content/docs/track-guide.md), [apexsim/docs/marketing-site.md](apexsim/docs/marketing-site.md) |
 
 ## Commands
 
 ```bash
-cd server && cargo build && cargo test          # integration tests start the server in-process
-cd server && cargo fmt && cargo clippy --all-targets   # CI: fmt --check, clippy -D warnings
-cargo test --manifest-path track-editor/Cargo.toml     # pipeline + Bevy editor (whole-calendar bakes are #[ignore]d)
+cd apexsim/server && cargo build && cargo test          # integration tests start the server in-process
+cd apexsim/server && cargo fmt && cargo clippy --all-targets   # CI: fmt --check, clippy -D warnings
+cargo test --manifest-path apexsim-content/track-editor/Cargo.toml   # pipeline + Bevy editor (whole-calendar bakes are #[ignore]d)
 ```
 
-The client, the commandlets and the content scripts (`initialize_content.ps1`,
-`play_editor.ps1`, `build_track_levels.ps1`, `build_release.ps1`) are in
-[docs/building.md](docs/building.md).
+Code scripts run from `apexsim/`, content tools (`ats-*`, `tools/*.py`) from
+`apexsim-content/`. The client, the commandlets and the scripts
+(`initialize_content.ps1`, `play_editor.ps1`, `build_track_levels.ps1`,
+`build_release.ps1` in `apexsim/scripts/`) are in
+[apexsim/docs/building.md](apexsim/docs/building.md).
 
 ## Rules for every change
 
 - **Deterministic sim.** No RNG, wall clock or env reads in the sim path, and
   no `HashMap` iteration order reaching a result: participants are a
   `BTreeMap`, chance is `wind::hash01` of tick, car, lap or corner.
-  `tests/determinism_test.rs` must stay bit-identical; showcases, guides,
+  `apexsim/server/tests/determinism_test.rs` must stay bit-identical; showcases, guides,
   replays and site shots all rely on seeded runs replaying exactly.
 - **The wire is append-only.** Named fields get `#[serde(default)]` and are
   left off the wire at their default; positional fields (`TelemetryCompact`,
@@ -72,24 +84,25 @@ The client, the commandlets and the content scripts (`initialize_content.ps1`,
   (`survey_ai_races_on_every_circuit`) against the commit before, comparing
   totals. The survey and the other offline tools drive the centerline; the
   live server drives the road mesh: a surface change must hold on both.
-- **Generated files are regenerated, not edited**: `docs/index.html` and
-  `docs/assets/` (`scripts/site/build_site.py`), `build/tracks`, the track
-  sidecars, `game-unreal/Content` beyond the menu and catalog tables. A track
+- **Generated files are regenerated, not edited**: `apexsim/docs/index.html`
+  and `apexsim/docs/assets/` (`apexsim/scripts/site/build_site.py`),
+  `apexsim-content/build/tracks`, the track sidecars,
+  `apexsim/game-unreal/Content` beyond the menu and catalog tables. A track
   YAML or car.toml edit changes its content checksum: re-export the track,
   and showcases and guides built from it go stale.
 - **Track data flows in the refresh order** in
-  [docs/content/track-pipeline.md](docs/content/track-pipeline.md); run
-  `ats-*` tools from the repo root. The track YAML is modelled twice
-  (`server/src/track_loader.rs` `TrackFileFormat`, `track-editor/core/src/track_data.rs`
-  `TrackFile`): a key added to one goes in the other, or a pipeline rewrite
+  [apexsim-content/docs/track-pipeline.md](apexsim-content/docs/track-pipeline.md); run
+  `ats-*` tools from `apexsim-content/`. The track YAML is modelled twice
+  (`apexsim/server/src/track_loader.rs` `TrackFileFormat`,
+  `apexsim-content/track-editor/core/src/track_data.rs` `TrackFile`): a key added to one goes in the other, or a pipeline rewrite
   drops it. A track or car marked `imported` belongs
   to its importer: tools that rewrite content must leave it alone.
-  `content/{cars,tracks}/custom` is the player's own and never ships.
+  `apexsim-content/{cars,tracks}/custom` is the player's own and never ships.
 - **No trademarks on screen.** A real circuit, corner, series or car name
   lives in `name`; screens show `display_name`, `CORNER_DISPLAY` or
-  `ApexCatalog::DisplayClass` ([docs/content/naming.md](docs/content/naming.md)).
+  `ApexCatalog::DisplayClass` ([apexsim-content/docs/naming.md](apexsim-content/docs/naming.md)).
 - **HUD data points are the modding API**: a new one is set on every path of
-  `ApexHudData::Build` and listed in `docs/game/hud-modding.md`, or
+  `ApexHudData::Build` and listed in `apexsim/docs/game/hud-modding.md`, or
   `ApexSim.Hud.Data.Stable` / `.Documented` fail.
 - **Client traps.** Index enums that are also command-line values
   (`EApexScreen`, `EApexSettingsTab`) are append-only. While driving, focus
@@ -97,7 +110,7 @@ The client, the commandlets and the content scripts (`initialize_content.ps1`,
   A car's own material comes from `ApexCarContent::OwnMaterialInstance`. Check
   a new `.cpp` with `-DisableAdaptiveUnity`, and check behaviour unattended
   (`-ApexAutoRace`, `-ApexExecAfter`, `-ApexScreenshotAfter`;
-  [docs/game/client.md](docs/game/client.md)).
+  [apexsim/docs/game/client.md](apexsim/docs/game/client.md)).
 - **A running server locks its exe on Windows**: build into a scratch
   `CARGO_TARGET_DIR` rather than stopping it.
 
@@ -105,14 +118,14 @@ The client, the commandlets and the content scripts (`initialize_content.ps1`,
 
 - A change updates its area's doc in the same commit. Write what *is*, in the
   present tense; history belongs in git, not in the doc.
-- Anything left for later goes in [docs/simulation-gaps.md](docs/simulation-gaps.md)
-  (simulation and racing rules), [docs/follow-ups.md](docs/follow-ups.md)
+- Anything left for later goes in [apexsim/docs/simulation-gaps.md](apexsim/docs/simulation-gaps.md)
+  (simulation and racing rules), [apexsim/docs/follow-ups.md](apexsim/docs/follow-ups.md)
   (bugs, edge cases and cleanup left on a built feature),
-  [docs/verification.md](docs/verification.md) (built but not yet seen in
-  the game, heard or felt on hardware) or [docs/roadmap.md](docs/roadmap.md)
+  [apexsim/docs/verification.md](apexsim/docs/verification.md) (built but not yet seen in
+  the game, heard or felt on hardware) or [apexsim/docs/roadmap.md](apexsim/docs/roadmap.md)
   (product, UI, content and tooling features not started); delete the row
   when it is done.
-- Working through [docs/work-plan.md](docs/work-plan.md), commit after every
+- Working through [apexsim/docs/work-plan.md](apexsim/docs/work-plan.md), commit after every
   item that is solved: its code, its doc, and its row deleted from the work
   plan and its backlog, in one commit, before the next item starts. Leave
   edits that are not part of the item out of it.

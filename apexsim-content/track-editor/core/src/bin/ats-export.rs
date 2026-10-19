@@ -1,0 +1,296 @@
+//! Batch-bake tracks into the `.uescene.json` manifest and `.uemesh` mesh
+//! blob the Unreal client builds each circuit from at runtime, plus the
+//! `.ground.msgpack` heightfield, `.curbs.msgpack` track limits,
+//! `.walls.msgpack` barriers, `.road.msgpack` road mesh and `.pit.msgpack`
+//! pit lane the server reads from beside each YAML.
+//!
+//! ```text
+//! ats-export --all                          # every track under tracks/{default,custom}
+//! ats-export tracks/default/Monza/Monza.yaml # one track
+//! ats-export --all --out some/other/dir
+//! ats-export --keep-sidecars road,walls tracks/default/X/X.yaml
+//! ats-export --strict --all                 # a bake that drops a road facet fails
+//! ```
+//!
+//! A track whose `.ats` lists `external_sidecars` (an imported circuit whose
+//! road, walls or ground were measured by its importer) keeps those files
+//! on every run, `--all` included.
+//!
+//! Kept as a separate binary from the editor GUI so exporting can run in CI
+//! and from a build script without opening a window.
+
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
+
+use track_core::ats::Sidecar;
+use track_core::ue_export_io::{self, ExportOptions, DEFAULT_EXPORT_DIR};
+
+/// Dropped facets, one line per surface with the stations they fell at
+/// (runs within 5 m folded into a span), at most 12 spans a surface.
+fn dropped_facet_lines(dropped: &[track_core::road_mesh::DroppedFacet]) -> Vec<String> {
+    use std::collections::BTreeMap;
+    let mut by_surface: BTreeMap<&str, Vec<f32>> = BTreeMap::new();
+    for facet in dropped {
+        by_surface
+            .entry(facet.surface.as_str())
+            .or_default()
+            .push(facet.station_m);
+    }
+    let mut lines = Vec::new();
+    for (surface, mut stations) in by_surface {
+        stations.sort_by(|a, b| a.total_cmp(b));
+        let mut spans: Vec<(f32, f32, usize)> = Vec::new();
+        for s in stations {
+            match spans.last_mut() {
+                Some((_, end, n)) if s - *end <= 5.0 => {
+                    *end = s;
+                    *n += 1;
+                }
+                _ => spans.push((s, s, 1)),
+            }
+        }
+        let shown: Vec<String> = spans
+            .iter()
+            .take(12)
+            .map(|(a, b, n)| {
+                if n == &1 {
+                    format!("{a:.0} m")
+                } else {
+                    format!("{a:.0}-{b:.0} m ({n})")
+                }
+            })
+            .collect();
+        let more = if spans.len() > 12 {
+            format!(" and {} more span(s)", spans.len() - 12)
+        } else {
+            String::new()
+        };
+        lines.push(format!(
+            "  dropped {surface} facets at {}{more}",
+            shown.join(", ")
+        ));
+    }
+    lines
+}
+
+fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let mut all = false;
+    let mut strict = false;
+    let mut strict_failures = 0usize;
+    let mut out_dir: Option<PathBuf> = None;
+    let mut tracks: Vec<PathBuf> = Vec::new();
+    let mut options = ExportOptions::default();
+    let mut iter = args.iter();
+
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--all" | "-a" => all = true,
+            "--strict" => strict = true,
+            "--flat-curbs" => options.bake.flat_curbs = true,
+            "--keep-sidecars" => {
+                let Some(list) = iter.next() else {
+                    eprintln!("--keep-sidecars needs a list (ground,curbs,walls,road,pit or all)");
+                    return ExitCode::FAILURE;
+                };
+                for key in list.split(',').map(str::trim).filter(|k| !k.is_empty()) {
+                    if key == "all" {
+                        options.keep_sidecars.extend(Sidecar::ALL);
+                    } else if let Some(sidecar) = Sidecar::from_key(key) {
+                        options.keep_sidecars.push(sidecar);
+                    } else {
+                        eprintln!("unknown sidecar {key:?} (ground, curbs, walls, road, pit, all)");
+                        return ExitCode::FAILURE;
+                    }
+                }
+            }
+            "--out" | "-o" => match iter.next() {
+                Some(dir) => out_dir = Some(PathBuf::from(dir)),
+                None => {
+                    eprintln!("--out needs a directory");
+                    return ExitCode::FAILURE;
+                }
+            },
+            "--help" | "-h" => {
+                println!("{USAGE}");
+                return ExitCode::SUCCESS;
+            }
+            other if other.starts_with('-') => {
+                eprintln!("unknown option {other}\n\n{USAGE}");
+                return ExitCode::FAILURE;
+            }
+            path => tracks.push(PathBuf::from(path)),
+        }
+    }
+
+    if !all && tracks.is_empty() {
+        eprintln!("{USAGE}");
+        return ExitCode::FAILURE;
+    }
+
+    if all {
+        match ue_export_io::all_track_files() {
+            Ok(found) => tracks.extend(found),
+            Err(e) => {
+                eprintln!("failed to list the track folders: {e}");
+                return ExitCode::FAILURE;
+            }
+        }
+    }
+
+    let out_dir = out_dir.unwrap_or_else(|| PathBuf::from(DEFAULT_EXPORT_DIR));
+    let mut failures = 0usize;
+    for track in &tracks {
+        match ue_export_io::export_track_with_options(track, &out_dir, &options) {
+            Ok(exported) => {
+                let size_kb = |p: &Path| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0) / 1024;
+                println!(
+                    "{} -> {} ({} KB) + {} ({} KB)",
+                    track.display(),
+                    exported.scene_path.display(),
+                    size_kb(&exported.scene_path),
+                    exported
+                        .mesh_blob_path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy(),
+                    size_kb(&exported.mesh_blob_path)
+                );
+                let sidecars = [
+                    (Sidecar::Ground, exported.ground_path.as_ref()),
+                    (Sidecar::Curbs, exported.curb_path.as_ref()),
+                    (Sidecar::Walls, Some(&exported.walls_path)),
+                    (Sidecar::Road, Some(&exported.road_path)),
+                ];
+                for (sidecar, path) in sidecars {
+                    let Some(path) = path else { continue };
+                    if exported.kept.contains(&sidecar) {
+                        // The importer's file, reported as it is on disk.
+                        if path.exists() {
+                            println!(
+                                "{} -> {} ({} KB, kept: written by another tool)",
+                                track.display(),
+                                path.display(),
+                                size_kb(path)
+                            );
+                        } else {
+                            println!(
+                                "{} -> {} MISSING (kept for another tool, which has not written it; the server runs without it)",
+                                track.display(),
+                                path.display()
+                            );
+                        }
+                    } else if sidecar != Sidecar::Road {
+                        println!(
+                            "{} -> {} ({} KB)",
+                            track.display(),
+                            path.display(),
+                            size_kb(path)
+                        );
+                    }
+                }
+                if exported.kept.contains(&Sidecar::Road) {
+                    continue;
+                }
+                println!(
+                    "{} -> {} ({} KB, {} triangles{}{})",
+                    track.display(),
+                    exported.road_path.display(),
+                    size_kb(&exported.road_path),
+                    exported.road_triangles,
+                    if exported.road_dropped > 0 {
+                        format!(
+                            ", {} facets without footprint dropped",
+                            exported.road_dropped
+                        )
+                    } else {
+                        String::new()
+                    },
+                    if options.bake.flat_curbs {
+                        ", flat curbs"
+                    } else {
+                        ""
+                    }
+                );
+                if strict {
+                    // A vertical face (a curb's outer face) is dropped on
+                    // purpose; a sliver is a cross-section that folded or
+                    // crossed its neighbour, named so the strip can be
+                    // found.
+                    let slivers: Vec<_> = exported
+                        .road_dropped_facets
+                        .iter()
+                        .filter(|f| !f.is_vertical())
+                        .cloned()
+                        .collect();
+                    if !slivers.is_empty() {
+                        for line in dropped_facet_lines(&slivers) {
+                            eprintln!("{}: {line}", track.display());
+                        }
+                        eprintln!(
+                            "{}: --strict: {} sliver facet(s) dropped ({} vertical faces, as meant)",
+                            track.display(),
+                            slivers.len(),
+                            exported.road_dropped - slivers.len()
+                        );
+                        strict_failures += 1;
+                    }
+                }
+            }
+            Err(ue_export_io::UeExportError::Imported { stem, by }) if all => {
+                // An imported circuit's export is the importer's; a batch
+                // run walks past it.
+                println!(
+                    "{}: skipped (imported by {by}; its export is the importer's)",
+                    stem
+                );
+            }
+            Err(e) => {
+                eprintln!("{}: {e}", track.display());
+                failures += 1;
+            }
+        }
+    }
+
+    println!(
+        "exported {}/{} track(s) to {}{}",
+        tracks.len() - failures,
+        tracks.len(),
+        out_dir.display(),
+        if strict_failures > 0 {
+            format!("; --strict: {strict_failures} track(s) dropped sliver facets")
+        } else {
+            String::new()
+        }
+    );
+    if failures > 0 || strict_failures > 0 {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+const USAGE: &str = "\
+usage: ats-export [--all] [--strict] [--out DIR] [--flat-curbs] [--keep-sidecars LIST] [TRACK.yaml ...]
+
+  --all, -a      export every *.yaml under tracks/{default,custom}
+                 (a track whose .ats says \"imported\" is skipped: its export and
+                 sidecars are its importer's)
+  --strict       a track whose road bake drops a sliver facet (a footprint under
+                 road_mesh::MIN_FOOTPRINT_M2 but not nil: a cross-section that
+                 folded or crossed its neighbour) is a failure, each named by
+                 surface and station; a vertical face (a curb's outer face,
+                 nil footprint) is dropped on purpose and passes
+  --out, -o DIR  destination for the .uescene.json manifest and the .uemesh mesh blob
+                 beside it (default: build/tracks); the .ground.msgpack,
+                 .curbs.msgpack, .walls.msgpack, .road.msgpack and .pit.msgpack
+                 sidecars always land beside the YAML
+  --flat-curbs   bake the curbs into the road mesh flat at the road edge's height
+                 (the rendered curbs keep their profile), to compare the mesh sim
+                 against the centerline one without the curbs' shape in the way
+  --keep-sidecars LIST
+                 leave these sidecars as they are on disk instead of baking them
+                 (comma list of ground, curbs, walls, road, pit, or all). A track's .ats
+                 can declare the same for itself in \"external_sidecars\", which
+                 every run honours
+";
