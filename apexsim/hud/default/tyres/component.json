@@ -1,0 +1,308 @@
+// The four tyres from above, nose up: each one's tread across it (outer
+// shoulder, middle, inner) coloured by temperature against the car's
+// window (blue cold, green in it, red over), the tread left as a bar under
+// it, and its temperature, or FLAT / LEAK / FS (a flat spot of 10% or more)
+// in its place. The tyre's outline shows the same: red flat, amber leaking,
+// white flat-spotted. Hidden when the server sends no tyre temperatures.
+{
+  "name": "Tyres",
+  "region": "right",
+  "order": 10,
+  "visible": "=tyre.known && !spectate.active",
+  "root": {
+    "type": "panel",
+    "padding": [
+      14,
+      10
+    ],
+    "background": "surface",
+    "children": [
+      {
+        "type": "label",
+        "text": "=has(tyre.compound) ? 'Tyres · ' + tyre.compound : 'Tyres'"
+      },
+      {
+        "type": "row",
+        "margin": [
+          0,
+          8,
+          0,
+          0
+        ],
+        "children": [
+          {
+            "type": "column",
+            "margin": [
+              5,
+              0
+            ],
+            "children": [
+              {
+                "type": "panel",
+                "width": 34,
+                "height": 52,
+                "radius": 5,
+                "padding": 3,
+                "direction": "row",
+                "background": "background",
+                "outline": "=tyre.fl.flat ? 'error' : tyre.fl.leak ? 'accent' : tyre.fl.flat_spot_pct >= 10 ? 'white' : 'border'",
+                "outline_width": 2,
+                "children": [
+                  {
+                    "type": "rect",
+                    "fill": 1,
+                    "color": "=!has(tyre.fl.temp_c) ? 'text_disabled' : ramp(has(tyre.fl.outer_c) ? tyre.fl.outer_c : tyre.fl.temp_c, tyre.optimal_c - 2 * tyre.window_c, 'tyre_cold', tyre.optimal_c - tyre.window_c, '#3BB54A', tyre.optimal_c + tyre.window_c, '#3BB54A', tyre.optimal_c + 2 * tyre.window_c, 'error')"
+                  },
+                  {
+                    "type": "rect",
+                    "fill": 1,
+                    "color": "=!has(tyre.fl.temp_c) ? 'text_disabled' : ramp(tyre.fl.temp_c, tyre.optimal_c - 2 * tyre.window_c, 'tyre_cold', tyre.optimal_c - tyre.window_c, '#3BB54A', tyre.optimal_c + tyre.window_c, '#3BB54A', tyre.optimal_c + 2 * tyre.window_c, 'error')"
+                  },
+                  {
+                    "type": "rect",
+                    "fill": 1,
+                    "color": "=!has(tyre.fl.temp_c) ? 'text_disabled' : ramp(has(tyre.fl.inner_c) ? tyre.fl.inner_c : tyre.fl.temp_c, tyre.optimal_c - 2 * tyre.window_c, 'tyre_cold', tyre.optimal_c - tyre.window_c, '#3BB54A', tyre.optimal_c + tyre.window_c, '#3BB54A', tyre.optimal_c + 2 * tyre.window_c, 'error')"
+                  }
+                ]
+              },
+              {
+                "type": "bar",
+                "width": 34,
+                "height": 4,
+                "margin": [
+                  0,
+                  4,
+                  0,
+                  0
+                ],
+                "background": "border",
+                "value": "=has(tyre.fl.wear_pct) ? clamp(1 - tyre.fl.wear_pct / 100, 0, 1) : 0",
+                "color": "=ramp(tyre.fl.wear_pct, 0, 'live', 50, 'accent', 80, 'error')"
+              },
+              {
+                "type": "text",
+                "halign": "center",
+                "margin": [
+                  0,
+                  3,
+                  0,
+                  0
+                ],
+                "font": "mono",
+                "size": 10,
+                "color": "=tyre.fl.flat || tyre.fl.leak ? 'error' : tyre.fl.flat_spot_pct >= 10 ? 'white' : 'text_secondary'",
+                "text": "=tyre.fl.flat ? 'FLAT' : tyre.fl.leak ? 'LEAK' : tyre.fl.flat_spot_pct >= 10 ? 'FS ' + fmt(tyre.fl.flat_spot_pct) : fmt(tyre.fl.temp_c) + '°'"
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "margin": [
+              5,
+              0
+            ],
+            "children": [
+              {
+                "type": "panel",
+                "width": 34,
+                "height": 52,
+                "radius": 5,
+                "padding": 3,
+                "direction": "row",
+                "background": "background",
+                "outline": "=tyre.fr.flat ? 'error' : tyre.fr.leak ? 'accent' : tyre.fr.flat_spot_pct >= 10 ? 'white' : 'border'",
+                "outline_width": 2,
+                "children": [
+                  {
+                    "type": "rect",
+                    "fill": 1,
+                    "color": "=!has(tyre.fr.temp_c) ? 'text_disabled' : ramp(has(tyre.fr.inner_c) ? tyre.fr.inner_c : tyre.fr.temp_c, tyre.optimal_c - 2 * tyre.window_c, 'tyre_cold', tyre.optimal_c - tyre.window_c, '#3BB54A', tyre.optimal_c + tyre.window_c, '#3BB54A', tyre.optimal_c + 2 * tyre.window_c, 'error')"
+                  },
+                  {
+                    "type": "rect",
+                    "fill": 1,
+                    "color": "=!has(tyre.fr.temp_c) ? 'text_disabled' : ramp(tyre.fr.temp_c, tyre.optimal_c - 2 * tyre.window_c, 'tyre_cold', tyre.optimal_c - tyre.window_c, '#3BB54A', tyre.optimal_c + tyre.window_c, '#3BB54A', tyre.optimal_c + 2 * tyre.window_c, 'error')"
+                  },
+                  {
+                    "type": "rect",
+                    "fill": 1,
+                    "color": "=!has(tyre.fr.temp_c) ? 'text_disabled' : ramp(has(tyre.fr.outer_c) ? tyre.fr.outer_c : tyre.fr.temp_c, tyre.optimal_c - 2 * tyre.window_c, 'tyre_cold', tyre.optimal_c - tyre.window_c, '#3BB54A', tyre.optimal_c + tyre.window_c, '#3BB54A', tyre.optimal_c + 2 * tyre.window_c, 'error')"
+                  }
+                ]
+              },
+              {
+                "type": "bar",
+                "width": 34,
+                "height": 4,
+                "margin": [
+                  0,
+                  4,
+                  0,
+                  0
+                ],
+                "background": "border",
+                "value": "=has(tyre.fr.wear_pct) ? clamp(1 - tyre.fr.wear_pct / 100, 0, 1) : 0",
+                "color": "=ramp(tyre.fr.wear_pct, 0, 'live', 50, 'accent', 80, 'error')"
+              },
+              {
+                "type": "text",
+                "halign": "center",
+                "margin": [
+                  0,
+                  3,
+                  0,
+                  0
+                ],
+                "font": "mono",
+                "size": 10,
+                "color": "=tyre.fr.flat || tyre.fr.leak ? 'error' : tyre.fr.flat_spot_pct >= 10 ? 'white' : 'text_secondary'",
+                "text": "=tyre.fr.flat ? 'FLAT' : tyre.fr.leak ? 'LEAK' : tyre.fr.flat_spot_pct >= 10 ? 'FS ' + fmt(tyre.fr.flat_spot_pct) : fmt(tyre.fr.temp_c) + '°'"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "row",
+        "margin": [
+          0,
+          10,
+          0,
+          0
+        ],
+        "children": [
+          {
+            "type": "column",
+            "margin": [
+              5,
+              0
+            ],
+            "children": [
+              {
+                "type": "panel",
+                "width": 34,
+                "height": 52,
+                "radius": 5,
+                "padding": 3,
+                "direction": "row",
+                "background": "background",
+                "outline": "=tyre.rl.flat ? 'error' : tyre.rl.leak ? 'accent' : tyre.rl.flat_spot_pct >= 10 ? 'white' : 'border'",
+                "outline_width": 2,
+                "children": [
+                  {
+                    "type": "rect",
+                    "fill": 1,
+                    "color": "=!has(tyre.rl.temp_c) ? 'text_disabled' : ramp(has(tyre.rl.outer_c) ? tyre.rl.outer_c : tyre.rl.temp_c, tyre.optimal_c - 2 * tyre.window_c, 'tyre_cold', tyre.optimal_c - tyre.window_c, '#3BB54A', tyre.optimal_c + tyre.window_c, '#3BB54A', tyre.optimal_c + 2 * tyre.window_c, 'error')"
+                  },
+                  {
+                    "type": "rect",
+                    "fill": 1,
+                    "color": "=!has(tyre.rl.temp_c) ? 'text_disabled' : ramp(tyre.rl.temp_c, tyre.optimal_c - 2 * tyre.window_c, 'tyre_cold', tyre.optimal_c - tyre.window_c, '#3BB54A', tyre.optimal_c + tyre.window_c, '#3BB54A', tyre.optimal_c + 2 * tyre.window_c, 'error')"
+                  },
+                  {
+                    "type": "rect",
+                    "fill": 1,
+                    "color": "=!has(tyre.rl.temp_c) ? 'text_disabled' : ramp(has(tyre.rl.inner_c) ? tyre.rl.inner_c : tyre.rl.temp_c, tyre.optimal_c - 2 * tyre.window_c, 'tyre_cold', tyre.optimal_c - tyre.window_c, '#3BB54A', tyre.optimal_c + tyre.window_c, '#3BB54A', tyre.optimal_c + 2 * tyre.window_c, 'error')"
+                  }
+                ]
+              },
+              {
+                "type": "bar",
+                "width": 34,
+                "height": 4,
+                "margin": [
+                  0,
+                  4,
+                  0,
+                  0
+                ],
+                "background": "border",
+                "value": "=has(tyre.rl.wear_pct) ? clamp(1 - tyre.rl.wear_pct / 100, 0, 1) : 0",
+                "color": "=ramp(tyre.rl.wear_pct, 0, 'live', 50, 'accent', 80, 'error')"
+              },
+              {
+                "type": "text",
+                "halign": "center",
+                "margin": [
+                  0,
+                  3,
+                  0,
+                  0
+                ],
+                "font": "mono",
+                "size": 10,
+                "color": "=tyre.rl.flat || tyre.rl.leak ? 'error' : tyre.rl.flat_spot_pct >= 10 ? 'white' : 'text_secondary'",
+                "text": "=tyre.rl.flat ? 'FLAT' : tyre.rl.leak ? 'LEAK' : tyre.rl.flat_spot_pct >= 10 ? 'FS ' + fmt(tyre.rl.flat_spot_pct) : fmt(tyre.rl.temp_c) + '°'"
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "margin": [
+              5,
+              0
+            ],
+            "children": [
+              {
+                "type": "panel",
+                "width": 34,
+                "height": 52,
+                "radius": 5,
+                "padding": 3,
+                "direction": "row",
+                "background": "background",
+                "outline": "=tyre.rr.flat ? 'error' : tyre.rr.leak ? 'accent' : tyre.rr.flat_spot_pct >= 10 ? 'white' : 'border'",
+                "outline_width": 2,
+                "children": [
+                  {
+                    "type": "rect",
+                    "fill": 1,
+                    "color": "=!has(tyre.rr.temp_c) ? 'text_disabled' : ramp(has(tyre.rr.inner_c) ? tyre.rr.inner_c : tyre.rr.temp_c, tyre.optimal_c - 2 * tyre.window_c, 'tyre_cold', tyre.optimal_c - tyre.window_c, '#3BB54A', tyre.optimal_c + tyre.window_c, '#3BB54A', tyre.optimal_c + 2 * tyre.window_c, 'error')"
+                  },
+                  {
+                    "type": "rect",
+                    "fill": 1,
+                    "color": "=!has(tyre.rr.temp_c) ? 'text_disabled' : ramp(tyre.rr.temp_c, tyre.optimal_c - 2 * tyre.window_c, 'tyre_cold', tyre.optimal_c - tyre.window_c, '#3BB54A', tyre.optimal_c + tyre.window_c, '#3BB54A', tyre.optimal_c + 2 * tyre.window_c, 'error')"
+                  },
+                  {
+                    "type": "rect",
+                    "fill": 1,
+                    "color": "=!has(tyre.rr.temp_c) ? 'text_disabled' : ramp(has(tyre.rr.outer_c) ? tyre.rr.outer_c : tyre.rr.temp_c, tyre.optimal_c - 2 * tyre.window_c, 'tyre_cold', tyre.optimal_c - tyre.window_c, '#3BB54A', tyre.optimal_c + tyre.window_c, '#3BB54A', tyre.optimal_c + 2 * tyre.window_c, 'error')"
+                  }
+                ]
+              },
+              {
+                "type": "bar",
+                "width": 34,
+                "height": 4,
+                "margin": [
+                  0,
+                  4,
+                  0,
+                  0
+                ],
+                "background": "border",
+                "value": "=has(tyre.rr.wear_pct) ? clamp(1 - tyre.rr.wear_pct / 100, 0, 1) : 0",
+                "color": "=ramp(tyre.rr.wear_pct, 0, 'live', 50, 'accent', 80, 'error')"
+              },
+              {
+                "type": "text",
+                "halign": "center",
+                "margin": [
+                  0,
+                  3,
+                  0,
+                  0
+                ],
+                "font": "mono",
+                "size": 10,
+                "color": "=tyre.rr.flat || tyre.rr.leak ? 'error' : tyre.rr.flat_spot_pct >= 10 ? 'white' : 'text_secondary'",
+                "text": "=tyre.rr.flat ? 'FLAT' : tyre.rr.leak ? 'LEAK' : tyre.rr.flat_spot_pct >= 10 ? 'FS ' + fmt(tyre.rr.flat_spot_pct) : fmt(tyre.rr.temp_c) + '°'"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -44,7 +44,6 @@ When an item is done, delete it from its backlog and from here.
 | N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L |
 | N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S |
 | N7 | Championships and series with points (offline first) | Game mode | P2 | 🟡 | M |
-| N24 | Tyre graphic on the HUD (temp, wear, damage, flat spots) | HUD | P2 | 🟡 | S–M |
 | N25 | Rain radar over the minimap | HUD | P2 | 🟡 | M |
 | N26 | Content packs and a content repository (proposal) | Platform (epic) | P2 | 🔴 | L |
 | N28 | Guides, showcases and Watch hotlap simulated in the client (roadmap #24) | Platform + tooling | P2 | 🟢 | L |
@@ -80,7 +79,7 @@ When an item is done, delete it from its backlog and from here.
 
 1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting with B8's fix on the wheel. Fresh features are where the bugs are.
 2. **One content refresh** — B7 (curb kinks), F2 (light panels laid by `ats-dress`), B11 (the tyre bridge's shape) and D1 (the real pit layout) all regenerate every track's sidecars: do them on one branch, re-export once, run the AI survey once against the commit before. S1 (road crown) changes the same files and could join it if there is room. Showcases and guides go stale after it; rebake once at the end.
-3. **HUD** — N24 (tyre graphic) and N25 (rain radar): both new components and data points, one `ApexSim.Hud.Data` run.
+3. **HUD** — N25 (rain radar): a new component and data points, one `ApexSim.Hud.Data` run.
 4. **The simulation in the client** — N28, then X1 on top of it. Do it before N26: once guides, showcases and Watch hotlap are made in the game, packs no longer carry them and the build loses its two slowest stages.
 5. **Built on the decisions of 2026-10-18** — N26 phase 0 (the rest after the two roots) and phase 1 (pack format, local install), R3 phase 1 (a key per install), N7 (an offline season). None of them waits on you; N26 phase 2 waits on the repository and the signing key.
 6. **Visual quality pass** — G4 (close-ups can be held: `apexsim.replay.Hold`) and N10 (DLSS and FSR beside the built render scale), checked together on the RTX machine.
@@ -414,19 +413,6 @@ Online: send the livery to other clients (size-capped, cached by hash).
 **Watch out:** `content/cars/custom` is the player's and never ships; the
 car's material comes from `ApexCarContent::OwnMaterialInstance`; no
 trademarks on screen (decals are user content — say so).
-
-#### N24. Tyre graphic on the HUD — P2 · 🟡 · S–M
-*Source: roadmap #25 (testing, 2026-10-18).*
-**What:** The HUD shows tyres only as figures in `car_state`.
-**Outcome:** The four tyres at a glance: colour for temperature and wear,
-damage and flat spots drawn on them.
-**Implementation:** A new `tyres` HUD component from the existing `tyres`
-list data points (`item.state`, `inner_c`/`outer_c`, `wear_pct`, `flat`,
-`leak`), plus a new `item.flat_spot_pct` from the telemetry's `flat_spot`,
-which reaches the client but is not a data point yet.
-**Watch out:** a new data point goes on every path of `ApexHudData::Build`
-and into `game/hud-modding.md`, or `ApexSim.Hud.Data.Stable` /
-`.Documented` fail.
 
 #### N25. Rain radar over the minimap — P2 · 🟡 · M
 *Source: roadmap #26 (testing, 2026-10-18).*

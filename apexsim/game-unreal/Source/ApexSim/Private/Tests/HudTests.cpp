@@ -399,6 +399,7 @@ bool FApexHudDataBuildTest::RunTest(const FString& Parameters)
 	Local.BrakeWearPct[0] = 12.0f;
 	Local.BrakeWearPct[1] = 12.0f;
 	Local.BrakeWearPct[2] = 31.0f;
+	Local.FlatSpot[2] = 0.34f;
 	Local.BrakeWearPct[3] = 100.0f;
 	Local.bTyreSliding[1] = true;
 	Local.bTyreLocked[0] = true;
@@ -513,6 +514,8 @@ bool FApexHudDataBuildTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("FL inner shoulder"), HudValue(Data, TEXT("tyre.fl.inner_c")).AsNumber(), 64.0, 1e-4);
 	TestEqual(TEXT("FL outer shoulder"), HudValue(Data, TEXT("tyre.fl.outer_c")).AsNumber(), 54.0, 1e-4);
 	TestEqual(TEXT("RL brake wear"), HudValue(Data, TEXT("tyre.rl.brake_wear_pct")).AsNumber(), 31.0, 1e-4);
+	TestEqual(TEXT("RL flat spot"), HudValue(Data, TEXT("tyre.rl.flat_spot_pct")).AsNumber(), 34.0, 1e-3);
+	TestEqual(TEXT("FL no flat spot"), HudValue(Data, TEXT("tyre.fl.flat_spot_pct")).AsNumber(), 0.0);
 	TestTrue(TEXT("FR sliding"), HudValue(Data, TEXT("tyre.fr.sliding")).AsBool());
 	TestFalse(TEXT("FL not sliding"), HudValue(Data, TEXT("tyre.fl.sliding")).AsBool());
 	TestTrue(TEXT("FL locked"), HudValue(Data, TEXT("tyre.fl.locked")).AsBool());

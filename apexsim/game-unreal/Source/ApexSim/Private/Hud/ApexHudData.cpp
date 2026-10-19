@@ -334,7 +334,7 @@ const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
 			TEXT("is_current")}},
 		{TEXT("tyres"), {TEXT("key"), TEXT("name"), TEXT("temp_c"), TEXT("pressure_kpa"), TEXT("wear_pct"),
 			TEXT("brake_c"), TEXT("state"), TEXT("brake_state"), TEXT("inner_c"), TEXT("outer_c"), TEXT("brake_wear_pct"),
-			TEXT("disc_wear_pct"), TEXT("sliding"), TEXT("locked"), TEXT("flat"), TEXT("leak"), TEXT("puncture"), TEXT("water_pct")}},
+			TEXT("disc_wear_pct"), TEXT("sliding"), TEXT("locked"), TEXT("flat"), TEXT("leak"), TEXT("puncture"), TEXT("water_pct"), TEXT("flat_spot_pct")}},
 		{TEXT("damage"), {TEXT("key"), TEXT("name"), TEXT("pct"), TEXT("flash")}},
 		{TEXT("chat"), {TEXT("from"), TEXT("text"), TEXT("age_s"), TEXT("is_local")}},
 	};
@@ -1493,6 +1493,8 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			Row.Add(TEXT("leak"), FApexHudValue::Of(bLeak));
 			Row.Add(TEXT("puncture"), bFlat ? FApexHudValue::Of(TEXT("flat")) : bLeak ? FApexHudValue::Of(TEXT("leak")) : FApexHudValue());
 			Row.Add(TEXT("water_pct"), HudKnown(Local && Local->bHasTyreRoad ? Local->TyreWaterPct[Tyre] : -1.0f, Local && Local->bHasTyreRoad));
+			// How deep a flat spot a locked wheel ground into it, % of the worst.
+			Row.Add(TEXT("flat_spot_pct"), Local ? FApexHudValue::Of(FMath::Clamp(Local->FlatSpot[Tyre], 0.0f, 1.0f) * 100.0f) : FApexHudValue());
 
 			// The same figures by name, for a layout that places each tyre itself.
 			for (const TPair<FName, FApexHudValue>& Field : Row)

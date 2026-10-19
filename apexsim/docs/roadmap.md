@@ -174,29 +174,6 @@ open takes; Watch hotlap with no server running, its lap time the server's
 for the same car, setup and sky; a release built without the showcase and
 guide stages.
 
-### 25. Tyre graphic on the HUD
-
-A new HUD component (`content/hud/default/tyres/`) that shows the four tyres
-as a picture of the car's corners, not figures: each tyre coloured by its
-temperature against the window and by its wear, with damage and flat spots
-drawn on it.
-
-- The four tyres laid out FL FR / RL RR, each one coloured by tread
-  temperature (`item.state`: cold, ok, hot, over; the shoulders from
-  `item.inner_c` / `item.outer_c` across the tyre) and showing wear
-  (`item.wear_pct`, as a fill or a second colour).
-- Damage: a flat or a slow leak (`item.flat`, `item.leak`), and a flat spot.
-  The flat spot is already on the wire (`flat_spot` per tyre in the
-  telemetry) but not a HUD data point: add `item.flat_spot_pct` to the
-  `tyres` list on every path of `ApexHudData::Build` and list it in
-  `game/hud-modding.md`.
-- On by default in the race layout, movable in the HUD editor; brakes and
-  pressures stay in `car_state`.
-
-**Check:** `ApexSim.Hud.Data.Stable` / `.Documented`; a shot with a tyre
-cold, one over, one worn and one flat-spotted (debug hooks or a seeded
-run), judged by a person.
-
 ### 26. Rain radar on the HUD
 
 A rain radar laid over the minimap: rain cells drifting in with the wind,

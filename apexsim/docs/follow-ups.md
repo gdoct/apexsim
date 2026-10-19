@@ -52,6 +52,14 @@ passes.
 
 Built and checked by tests; each needs a person before it is closed.
 
+- **Tyre graphic on the HUD (N24).** The `tyres` component (right side of
+  the race HUD) draws the four tyres from above: each tread's outer,
+  middle and inner band coloured by temperature against the car's window
+  (blue cold, green in it, red over), the tread left as a bar, and FLAT /
+  LEAK / FS with an outline colour for damage and flat spots. Judge
+  whether it reads at a glance and sits clear of the other components in
+  a race (cold tyres out of the pits, then a lock-up for a flat spot).
+
 - **Overheated tyres (B8).** A tyre cooked to 140 °C now sheds it in about
   two gentle laps: hot rubber makes less hysteresis heat over the window
   (`tyre_thermal::hysteresis_share`). Overheat a set (slide a GT3 for a few
