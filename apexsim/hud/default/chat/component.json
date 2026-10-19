@@ -16,12 +16,13 @@
         "margin": [0, 1, 0, 0], "padding": [12, 6],
         "background": "=alpha('surface', chat.open ? 0.92 : 0.8 * clamp((30 - item.age_s) / 10, 0, 1))",
         "children": [{
-          "type": "row", "valign": "center",
+          "type": "row", "valign": "top",
           "children": [
             { "type": "text", "font": "body", "size": 13, "bold": true,
               "text": "=upper(item.from)",
               "color": "=alpha(item.is_local ? 'accent' : 'text_secondary', chat.open ? 1 : clamp((30 - item.age_s) / 10, 0, 1))" },
-            { "type": "text", "fill": 1, "margin": [10, 0, 0, 0], "font": "body", "size": 14,
+            // A long line runs onto the next rather than being cut short.
+            { "type": "text", "fill": 1, "margin": [10, 0, 0, 0], "font": "body", "size": 14, "wrap": true,
               "text": "=item.text",
               "color": "=alpha('text', chat.open ? 1 : clamp((30 - item.age_s) / 10, 0, 1))" }
           ]

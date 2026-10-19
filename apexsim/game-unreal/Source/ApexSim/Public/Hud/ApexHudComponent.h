@@ -94,6 +94,8 @@ struct APEXSIM_API FApexHudElementDef
 	int32 Tracking = 0;
 	bool bUpper = false;
 	ETextJustify::Type Justify = ETextJustify::Left;
+	/** Runs onto more lines at the width it is given, rather than ending in an ellipsis. */
+	bool bWrap = false;
 
 	// Panels and rectangles.
 	float Radius = 0.0f;

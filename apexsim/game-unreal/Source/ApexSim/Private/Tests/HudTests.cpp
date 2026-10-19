@@ -230,6 +230,7 @@ bool FApexHudComponentParseTest::RunTest(const FString& Parameters)
 					{ "type": "text", "text": "{fmt(car.speed)} KM/H", "color": "=car.speed > 300 ? 'error' : 'text'", "bold": true },
 					{ "type": "rect", "repeat": 10, "width": 4, "height": 4, "color": "#3FC46B" },
 					{ "type": "label", "repeat": { "list": "standings", "max": 3, "focus": "is_local" }, "text": "{item.name}" },
+					{ "type": "text", "width": 200, "wrap": true, "text": "{session.track_name}" },
 				]
 			}
 		})"), TEXT("C:/hud/speed"), Component, Report);
@@ -240,7 +241,9 @@ bool FApexHudComponentParseTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("region"), Component.Region, FString(TEXT("bottom")));
 		TestEqual(TEXT("order"), Component.Order, 3);
 		TestEqual(TEXT("margin [h, v]"), Component.Margin, FMargin(1.0f, 2.0f));
-		TestEqual(TEXT("children"), Component.Root.Children.Num(), 3);
+		TestEqual(TEXT("children"), Component.Root.Children.Num(), 4);
+		TestFalse(TEXT("a text ends in an ellipsis"), Component.Root.Children[0].bWrap);
+		TestTrue(TEXT("or wraps"), Component.Root.Children[3].bWrap);
 		TestTrue(TEXT("dynamic text"), Component.Root.Children[0].Text.IsDynamic());
 		TestFalse(TEXT("fixed background"), Component.Root.Background.IsDynamic());
 		TestEqual(TEXT("count repeat"), Component.Root.Children[1].Repeat.Slots(), 10);

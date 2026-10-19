@@ -153,7 +153,7 @@ Keys on every element:
 | `column` | children top to bottom | |
 | `stack` | children on top of each other | |
 | `panel` | a filled box around its children | `padding`, `background`, `outline`, `outline_width`, `radius`, `direction` (`column`, `row`, `stack`) |
-| `text` | a line of text | `text`, `font` (`body`, `display`, `mono`), `size`, `tracking`, `bold`, `upper`, `color`, `justify` |
+| `text` | a line of text, ending in an ellipsis when it has less room than it needs, or with `"wrap": true` running onto more lines at the width it is given | `text`, `font` (`body`, `display`, `mono`), `size`, `tracking`, `bold`, `upper`, `color`, `justify`, `wrap` |
 | `label` | a caption: `text` in small muted mono capitals | as `text` |
 | `rect` | a filled rectangle (lights, segments, dots) | `color`, `radius`, `outline`, `outline_width` |
 | `bar` | a progress bar filled to `value` (0 to 1) | `value`, `color`, `background`, `direction` (`right`, `left`, `up`, `down`) |

@@ -86,8 +86,8 @@ Parked 2026-10-18 (not now): players join known hosts by address.
 
 Built: lobby and session chat, the race's chat line and HUD component, the
 dashboard's mute ([server/protocol.md](server/protocol.md)). Left: a chat
-box on the session browser for the lobby's own lines, wrapping long lines
-on the HUD, a profanity filter (a decision), and voice.
+box on the session browser for the lobby's own lines, a profanity filter
+(a decision), and voice. Long lines on the HUD wrap (`"wrap"` on a text).
 
 ### 10. Upscaling and HDR
 

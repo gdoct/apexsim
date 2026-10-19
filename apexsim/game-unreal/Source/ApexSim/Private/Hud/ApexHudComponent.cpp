@@ -59,7 +59,8 @@ namespace
 			return {TEXT("padding"), TEXT("background"), TEXT("outline"), TEXT("outline_width"), TEXT("radius"), TEXT("direction")};
 		case EApexHudElementType::Text:
 		case EApexHudElementType::Label:
-			return {TEXT("text"), TEXT("font"), TEXT("size"), TEXT("tracking"), TEXT("bold"), TEXT("upper"), TEXT("color"), TEXT("justify")};
+			return {TEXT("text"), TEXT("font"), TEXT("size"), TEXT("tracking"), TEXT("bold"), TEXT("upper"), TEXT("color"), TEXT("justify"),
+				TEXT("wrap")};
 		case EApexHudElementType::Rect:
 			return {TEXT("color"), TEXT("radius"), TEXT("outline"), TEXT("outline_width")};
 		case EApexHudElementType::Bar:
@@ -456,7 +457,8 @@ namespace
 					&& ReadProp(Json, TEXT("bold"), EPropKind::Bool, Out.Bold, Path)
 					&& ReadBool(Json, TEXT("upper"), Out.bUpper, Path)
 					&& ReadProp(Json, TEXT("color"), EPropKind::Colour, Out.Colour, Path)
-					&& ReadString(Json, TEXT("justify"), Justify, Path);
+					&& ReadString(Json, TEXT("justify"), Justify, Path)
+					&& ReadBool(Json, TEXT("wrap"), Out.bWrap, Path);
 				Out.Tracking = FMath::RoundToInt(Tracking);
 				if (bOk && Out.FontFace != TEXT("body") && Out.FontFace != TEXT("display") && Out.FontFace != TEXT("mono"))
 				{
