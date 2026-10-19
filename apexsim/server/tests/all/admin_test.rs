@@ -915,8 +915,17 @@ async fn a_session_is_run_from_the_dashboard_alone() {
 async fn a_hosted_session_restarts_with_its_settings() {
     let d = start_dashboard().await;
     let (track, car) = some_track_and_car(&d).await;
-    let spec =
-        serde_json::json!({ "track_id": track, "car_id": car, "ai_count": 3, "lap_limit": 4 });
+    // Its race rules too: a rolling start under the virtual safety car.
+    let spec = serde_json::json!({
+        "track_id": track, "car_id": car, "ai_count": 3, "lap_limit": 4,
+        "race_rules": { "start": 1, "safety_car": 1, "yellow_penalty": true },
+    });
+    let rules = RaceRules {
+        start: StartType::Rolling,
+        safety_car: SafetyCar::Virtual,
+        yellow_penalty: true,
+        ..Default::default()
+    };
     let opened = post(&d, "/api/sessions", &spec).await.json();
     let id = opened["id"].as_str().unwrap().to_string();
     let id = id.as_str();
@@ -934,14 +943,15 @@ async fn a_hosted_session_restarts_with_its_settings() {
             session_id: id.parse().unwrap(),
         })
         .await;
-    let seat = driver
+    let (seat, joined_rules) = driver
         .until(|m| match m {
-            ServerMessage::SessionJoined(j) => Some(j.your_grid_position),
+            ServerMessage::SessionJoined(j) => Some((j.your_grid_position, j.race_rules)),
             _ => None,
         })
         .await
         .expect("the driver joins");
     assert!(seat > 0);
+    assert_eq!(joined_rules, rules, "the hosted spec's race rules");
     let (mut watcher, _) = Racer::connect(d.server.tcp_addr, "Watcher").await.unwrap();
     watcher
         .send(&ClientMessage::JoinAsSpectator {
@@ -975,6 +985,7 @@ async fn a_hosted_session_restarts_with_its_settings() {
     let moved = |m: &ServerMessage| match m {
         ServerMessage::SessionLeft => Some(None),
         ServerMessage::SessionJoined(j) => {
+            assert_eq!(j.race_rules, rules, "the restart keeps the race rules");
             Some(Some((j.session_id.to_string(), j.your_grid_position)))
         }
         _ => None,

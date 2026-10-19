@@ -447,6 +447,9 @@ function specForm(content, spec = {}) {
   const format = spec.weekend ? 'weekend' : spec.race_seconds ? 'timed' : 'laps';
   const wk = spec.weekend || { practice_seconds: 900, qualifying_seconds: [600] };
   const skill = spec.ai_skill ?? '';
+  const pit = spec.pit_rule || {};
+  const rr = spec.race_rules || {};
+  const yesNo = on => opt(0, 'No', !on) + opt(1, 'Yes', !!on);
   return `<div class="form">
     <label class="field"><span class="eyebrow">NAME IN THE LOBBY</span><input class="input" data-f="name" maxlength="40" placeholder="Server" value="${esc(spec.name || '')}"></label>
     <label class="field"><span class="eyebrow">TRACK</span><select class="input" data-f="track_id">${on(content.tracks).map(t => opt(t.id, t.name, t.id === spec.track_id)).join('')}</select></label>
@@ -462,6 +465,15 @@ function specForm(content, spec = {}) {
     <label class="field"><span class="eyebrow">WEATHER</span><select class="input" data-f="weather">${(content.weather || []).map(w => opt(w.id, w.name[0].toUpperCase() + w.name.slice(1), w.id === (c.weather ?? 0))).join('')}</select></label>
     <label class="field"><span class="eyebrow">TIME OF DAY</span><input class="input" type="time" data-f="tod" value="${fmtClock(tod)}"></label>
     <label class="field"><span class="eyebrow">DAMAGE</span><select class="input" data-f="damage">${opt(2, 'Full', (spec.damage ?? 2) === 2)}${opt(1, 'Reduced', spec.damage === 1)}${opt(0, 'Off', spec.damage === 0)}</select></label>
+    <label class="field"><span class="eyebrow">MANDATORY STOPS</span><select class="input" data-f="mandatory_stops">${[0, 1, 2, 3].map(v => opt(v, v ? String(v) : 'None', (pit.mandatory_stops ?? 0) === v)).join('')}</select></label>
+    <label class="field"><span class="eyebrow">SECOND DRY COMPOUND</span><select class="input" data-f="compound_change">${yesNo(pit.compound_change)}</select></label>
+    <label class="field"><span class="eyebrow">START</span><select class="input" data-f="start">${opt(0, 'Standing', (rr.start ?? 0) === 0)}${opt(1, 'Rolling', rr.start === 1)}</select></label>
+    <label class="field"><span class="eyebrow">FORMATION LAP (STANDING)</span><select class="input" data-f="formation_lap">${yesNo(rr.formation_lap)}</select></label>
+    <label class="field"><span class="eyebrow">FALSE STARTS PENALISED</span><select class="input" data-f="jump_start">${yesNo(rr.jump_start)}</select></label>
+    <label class="field"><span class="eyebrow">PASSES UNDER YELLOW PENALISED</span><select class="input" data-f="yellow_penalty">${yesNo(rr.yellow_penalty)}</select></label>
+    <label class="field"><span class="eyebrow">RED-LIGHT PIT EXIT PENALISED</span><select class="input" data-f="pit_exit_penalty">${yesNo(rr.pit_exit_penalty)}</select></label>
+    <label class="field"><span class="eyebrow">SAFETY CAR</span><select class="input" data-f="safety_car">${opt(0, 'Off', (rr.safety_car ?? 0) === 0)}${opt(1, 'Virtual', rr.safety_car === 1)}${opt(2, 'On the road', rr.safety_car === 2)}</select></label>
+    <label class="field"><span class="eyebrow">REVERSE GRID</span><select class="input" data-f="reverse_grid">${[[0, 'Off'], [6, 'Top 6'], [8, 'Top 8'], [10, 'Top 10'], [255, 'Whole field']].map(([v, l]) => opt(v, l, (rr.reverse_grid ?? 0) === v)).join('')}</select></label>
   </div>`;
 }
 
@@ -484,6 +496,12 @@ function readSpec(root) {
     player_slots: n('player_slots'), ai_count: n('ai_count'), ai_skill: v('ai_skill') === '' ? null : n('ai_skill'),
     lap_limit: Math.max(1, n('lap_limit')), race_seconds: null, weekend: null,
     conditions: { weather: n('weather'), time_of_day_minutes: h * 60 + m }, damage: n('damage'),
+    pit_rule: { mandatory_stops: n('mandatory_stops'), compound_change: n('compound_change') === 1 },
+    race_rules: {
+      start: n('start'), formation_lap: n('formation_lap') === 1, jump_start: n('jump_start') === 1,
+      yellow_penalty: n('yellow_penalty') === 1, pit_exit_penalty: n('pit_exit_penalty') === 1,
+      safety_car: n('safety_car'), reverse_grid: n('reverse_grid'),
+    },
   };
   if (format === 'timed') spec.race_seconds = Math.max(1, n('race_min')) * 60;
   if (format === 'weekend') spec.weekend = {

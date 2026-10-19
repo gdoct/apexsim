@@ -221,7 +221,10 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
 - **Hosted sessions** (`hosted.rs`): the Sessions view opens a session the
   server runs, from the same settings a player's create screen has (track,
   the car whose class the AI races in, player slots, AI cars and level,
-  laps, a timed race or a weekend, weather, time of day, damage). Its host is
+  laps, a timed race or a weekend, weather, time of day, damage, the pit
+  rule, and the race rules: the start, a formation lap, the penalties, the
+  safety car and a reverse grid, `HostedSpec.race_rules` as
+  `CreateSession.race_rules`). Its host is
   the server (`hosted::SERVER_HOST_ID`, which no connection has), its lobby
   host name the name given; players find it in the session list and join.
   It stays with nobody in it (`GameSession::hosted`,

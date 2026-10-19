@@ -329,6 +329,7 @@ mod tests {
                 damage: Default::default(),
                 allowed_assists: Default::default(),
                 pit_rule: Default::default(),
+                race_rules: Default::default(),
             },
             start_at,
             open_minutes: 10,

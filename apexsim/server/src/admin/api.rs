@@ -526,6 +526,7 @@ async fn session_detail(ctx: &AdminContext, id: SessionId) -> Resp {
         "qualifying_seconds": s.qualifying_seconds,
         "weekend": s.weekend,
         "pit_rule": s.pit_rule,
+        "race_rules": s.race_rules,
         "time_left_s": clock.map(|c| c.left_ms as f64 / 1000.0),
         "leader_lap": leader_lap,
         "elapsed_s": session_elapsed_s(gs),

@@ -187,8 +187,8 @@ them yet, and the server leaves a few edges.
   and then `FORMATION_LAP_WARMTH` could go.
 - A rolling start runs single file; real ones line up two by two.
 - A car let go of on the grid (`jump_start`) is not collided with the held
-  cars; a hosted session (`HostedSpec`) and the lobby listing do not carry
-  the race rules; the spectator stream has no `race_phase`.
+  cars; the lobby listing does not carry the race rules; the spectator
+  stream has no `race_phase`.
 
 **Check:** a formation lap and a rolling start on screen with a human in
 the field, a jump start and a red-light exit served; `race_start_test`,

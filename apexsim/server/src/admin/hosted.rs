@@ -63,6 +63,10 @@ pub struct HostedSpec {
     /// (`data::PitRule`); none when absent.
     #[serde(default)]
     pub pit_rule: crate::data::PitRule,
+    /// How the race starts and what race control penalises
+    /// (`data::RaceRules`, as `CreateSession.race_rules`); none when absent.
+    #[serde(default)]
+    pub race_rules: crate::data::RaceRules,
 }
 
 fn default_player_slots() -> u8 {
@@ -172,6 +176,7 @@ pub(crate) async fn open(
     gs.set_damage(spec.damage);
     gs.set_weekend(spec.weekend.clone().map(|w| w.clamp()));
     gs.set_pit_rule(spec.pit_rule.mandatory_stops, spec.pit_rule.compound_change);
+    gs.set_race_rules(spec.race_rules);
     let pit_rule = gs.session.pit_rule;
     let (conditions, lap_limit, race_seconds) = (
         gs.session.conditions,
