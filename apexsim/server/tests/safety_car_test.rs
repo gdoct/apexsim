@@ -175,6 +175,12 @@ fn a_stranded_car_brings_out_the_safety_car_on_the_road() {
         },
         5,
     );
+    // The queue is let into the pit lane, which comes from the baked pit
+    // sidecar: a checkout without an export (CI) has none.
+    if race.track_config.pit_lane.is_none() {
+        eprintln!("no pit sidecar for the Norisring: run ats-export; skipped");
+        return;
+    }
     let total = apexsim_server::laps::track_length_m(&race.track_config);
     let broken = break_one_down(&mut race);
     // Once the queue has formed, the second car in it is put a lap down:
