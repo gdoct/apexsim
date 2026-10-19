@@ -856,9 +856,10 @@ $WheelsDir = Join-Path $ImporterDir 'wheels'
 New-Item -ItemType Directory -Force -Path $WheelsDir | Out-Null
 $requirements = Join-Path $ToolsDir 'importer-requirements.txt'
 $wheelsOk = $true
-foreach ($version in '3.11', '3.12', '3.13') {
+# Not $version: PowerShell names ignore case, and $Version is the release's.
+foreach ($pythonVersion in '3.11', '3.12', '3.13') {
     & python -m pip download --disable-pip-version-check -q -r $requirements -d $WheelsDir `
-        --only-binary=:all: --platform win_amd64 --python-version $version --implementation cp
+        --only-binary=:all: --platform win_amd64 --python-version $pythonVersion --implementation cp
     if ($LASTEXITCODE -ne 0) { $wheelsOk = $false }
 }
 if ($wheelsOk) {
