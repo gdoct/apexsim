@@ -61,7 +61,7 @@ bool FApexContentCompareTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("neither is unknown"), ApexContent::Compare(0, 0) == EApexContentMatch::Unknown);
 
 	const FString Message = ApexContent::DescribeMismatch(TEXT("Track"), TEXT("Monzarella"), 0xCBF43926, 0xDEADBEEF);
-	TestTrue(TEXT("message names the content"), Message.Contains(TEXT("Track \"Monza\"")));
+	TestTrue(TEXT("message names the content"), Message.Contains(TEXT("Track \"Monzarella\"")));
 	TestTrue(TEXT("message carries both checksums"), Message.Contains(TEXT("CBF43926")) && Message.Contains(TEXT("DEADBEEF")));
 	return true;
 }
