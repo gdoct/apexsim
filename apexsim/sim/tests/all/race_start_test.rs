@@ -280,6 +280,60 @@ fn a_car_off_its_slot_before_the_lights_jumped_the_start() {
     );
 }
 
+/// A car let go of before the lights meets the held field: the eager car
+/// in slot 3, flat out through a long countdown, runs into the car held in
+/// slot 1 ahead of it and does not drive through it.
+#[test]
+fn a_jumped_car_hits_the_held_car_ahead() {
+    let rules = RaceRules {
+        jump_start: true,
+        ..Default::default()
+    };
+    let (mut race, humans) = grid("Snorisring", 2, 1, rules);
+    race.start_countdown_mode(10, GameMode::Race);
+    let eager = humans[0];
+    let ahead = *race
+        .session
+        .participants
+        .values()
+        .find(|s| s.grid_position == 1)
+        .map(|s| &s.player_id)
+        .expect("a car on pole");
+    assert_eq!(race.session.participants[&eager].grid_position, 3);
+    let mut hit = false;
+    while race.session.state != SessionState::Racing {
+        tick(&mut race, |s| {
+            if s.player_id == eager {
+                PlayerInputData {
+                    throttle: 0.6,
+                    gear: Some(1),
+                    clutch: Some(1.0),
+                    ..Default::default()
+                }
+            } else {
+                PlayerInputData {
+                    brake: 1.0,
+                    gear: Some(1),
+                    ..Default::default()
+                }
+            }
+        });
+        hit |= race.session.participants[&eager].is_colliding;
+        // Along the pole car's heading the eager car stays behind it.
+        let (e, a) = (
+            &race.session.participants[&eager],
+            &race.session.participants[&ahead],
+        );
+        let ahead_m = (e.pos_x - a.pos_x) * a.yaw_rad.cos() + (e.pos_y - a.pos_y) * a.yaw_rad.sin();
+        assert!(
+            ahead_m < 0.0,
+            "drove through the car ahead: {ahead_m} m past it"
+        );
+    }
+    assert!(race.race_start.jumped.contains(&eager));
+    assert!(hit, "the jumped car reached the car ahead");
+}
+
 /// Without the rule the grid is held as ever: nobody moves before the
 /// lights, whatever the pedals say.
 #[test]

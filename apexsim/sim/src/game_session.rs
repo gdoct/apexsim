@@ -1459,6 +1459,19 @@ impl GameSession {
                 self.race_start.released.insert(id);
             }
         }
+        // A car let go of meets the held field and the walls as in the
+        // race: it shunts the car ahead rather than driving through it.
+        if watch && !self.race_start.released.is_empty() {
+            let mut state_refs: Vec<&mut CarState> =
+                self.session.participants.values_mut().collect();
+            physics::check_collisions_refs(&mut state_refs, &self.car_configs);
+            physics::check_wall_collisions(
+                &mut state_refs,
+                &self.car_configs,
+                &self.track_config,
+                dt,
+            );
+        }
     }
 
     /// Whether the countdown running now ends in the green light of a

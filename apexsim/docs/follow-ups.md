@@ -186,9 +186,8 @@ them yet, and the server leaves a few edges.
   steady 30 m/s): weaving and the warm-up accelerations a driver does would,
   and then `FORMATION_LAP_WARMTH` could go.
 - A rolling start runs single file; real ones line up two by two.
-- A car let go of on the grid (`jump_start`) is not collided with the held
-  cars; the lobby listing does not carry the race rules; the spectator
-  stream has no `race_phase`.
+- The lobby listing does not carry the race rules; the spectator stream
+  has no `race_phase`.
 
 **Check:** a formation lap and a rolling start on screen with a human in
 the field, a jump start and a red-light exit served; `race_start_test`,

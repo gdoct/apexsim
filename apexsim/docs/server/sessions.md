@@ -432,8 +432,11 @@ physics instead of being held, so it moves if the driver lets it. One that
 is more than `JUMP_START_M` (0.5 m) off its slot before the lights go out
 has jumped the start (`RaceStart::jumped`, penalised at the green, see
 "Penalties"). A car on the automatic
-box waits in neutral and cannot jump. Released cars are not collided with
-the held grid. Without the rule the grid is held as ever.
+box waits in neutral and cannot jump. Once a car is let go of, the
+collision and wall passes run through the countdown, so it shunts the car
+ahead rather than driving through it (the held car is pushed by the
+contact, then held where it ends up). Without the rule the grid is held as
+ever.
 
 ## Flags
 
