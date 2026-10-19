@@ -42,8 +42,11 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
+      # --no-fail-fast: one failing test binary does not hide the next.
+      # CI has no baked sidecars (they are gitignored), so a test that needs
+      # one skips itself with a note rather than failing.
       - name: Test
-        run: cargo test
+        run: cargo test --no-fail-fast
 
       # The physics library for the client's prediction: the server's car
       # step behind a C API, checked against a session on a recorded trace.
