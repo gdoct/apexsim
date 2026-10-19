@@ -82,7 +82,7 @@ When an item is done, delete it from its backlog and from here.
 2. **One content refresh** — B7 (curb kinks), F2 (light panels laid by `ats-dress`), B11 (the tyre bridge's shape) and D1 (the real pit layout) all regenerate every track's sidecars: do them on one branch, re-export once, run the AI survey once against the commit before. S1 (road crown) changes the same files and could join it if there is room. Showcases and guides go stale after it; rebake once at the end.
 3. **HUD** — N24 (tyre graphic) and N25 (rain radar): both new components and data points, one `ApexSim.Hud.Data` run.
 4. **The simulation in the client** — N28, then X1 on top of it. Do it before N26: once guides, showcases and Watch hotlap are made in the game, packs no longer carry them and the build loses its two slowest stages.
-5. **Built on the decisions of 2026-10-18** — N26 phase 1 (pack format, local install), R3 phase 1 (a key per install), N7 (an offline season). None of them waits on you; N26 phase 2 waits on the repository and the signing key.
+5. **Built on the decisions of 2026-10-18** — N26 phase 0 (two roots, steps 1 to 3 first) and phase 1 (pack format, local install), R3 phase 1 (a key per install), N7 (an offline season). None of them waits on you; N26 phase 2 waits on the repository and the signing key.
 6. **Visual quality pass** — G4 (close-ups can be held: `apexsim.replay.Hold`) and N10 (DLSS and FSR beside the built render scale), checked together on the RTX machine.
 7. **Online and depth** — N5 (multi-class), N11 (liveries), then the rest of R3, and N7 online on top of identity.
 8. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
@@ -448,22 +448,40 @@ sim gap.
 circuit and prop: a clone is a gigabyte of LFS, every fix ships every
 track, and nothing states which content fits which code.
 **Outcome:** Versioned content packs installed and updated apart from the
-code, with a seed left here so the repository builds and tests alone, and
+code, a release that copies a starter set from the content, and
 a join that offers to update a mismatched track.
-**Implementation:** Four phases, each with its own check in the proposal:
-the pack format and a local install; the repository split; the signed index
-with server and launcher updates; update-and-join.
+**Implementation:** Five phases, each with its own check in the proposal.
+Phase 0 (revised 2026-10-19) splits this repository into two roots,
+`apexsim/` and `apexsim-content/`, laid out as the future repositories, with
+the code depending on the content and never the reverse; the track editor,
+`track-core` and the content tools go with the content. Its nine steps,
+one commit each, are: (1) one content root resolver everywhere, no move;
+(2) code things (default HUD, `showcase.yml`) out of the content; (3)
+`build_track_levels` and `initialize_content` split into a content
+`bake.ps1` and a code `initialize_game.ps1`; (4) housekeeping of dead
+caches and scripts, with you; (5) the move itself, including untracked
+content and GitHub Pages; (6) `starter.yml` and the release copying it;
+(7) a `formats` crate owning the track YAML, sidecars and `content_crc`;
+(8) CI per root plus a direction check; (9, optional) the sidecars baked
+out of the source folders. After that come the pack format and a local
+install, the repository split (`git filter-repo --subdirectory-filter` per
+root), the signed index with server and launcher updates, and
+update-and-join.
 **Decided 2026-10-18:** packs and the signed index are GitHub release
-assets of `apexsim-content` (the index URL stays a setting); the seed is one
+assets of `apexsim-content` (the index URL stays a setting); the starter set is one
 car per class (GT3, LMP2, F1, Hypercar, Road) and three circuits (Spa,
-Zandvoort, Monza), larger than the proposal's.
+Zandvoort, Monza).
 **Human:** 🔴 still for creating `apexsim-content` and the signing key. The
 split rewrites history and moves LFS, so it is done once, by hand, with
-you there. Phase 1 needs neither.
-**Watch out:** the seed has to carry every test, the determinism test and
-the menu showcases; the content CI builds against the `apexsim` tag in
-`requires`, not `main`; junctions into a content checkout (remove the
-junction before deleting anything).
+you there. Phase 0 needs neither; its step 5 (the move) is 🟡, done with
+you there and the editor, server and Blender closed; steps 1 to 3 and 6
+to 9 are 🟢.
+**Watch out:** the starter set has to carry a fresh install (the menu
+showcases, the demo backdrop, the first-run defaults), but the tests run on
+the whole content root; ignored content (`custom/`, sidecars, ground PNGs,
+`.cache`, `build/tracks`) does not follow `git mv`; GitHub Pages serves
+`docs/` at the root, so the site needs an Actions deploy when `docs/` moves;
+the Blender scripts name `E:\apexsim` absolutely.
 
 #### N27. Smaller recorded sessions — P3 · 🟢/🟡 · M
 *Source: roadmap #28, [proposals/replay-size.md](proposals/replay-size.md).*

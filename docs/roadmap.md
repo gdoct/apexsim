@@ -223,20 +223,26 @@ so a driver sees rain coming before it reaches the circuit.
 
 ### 27. Content packs and a content repository
 
-Split the cars, circuits and props out of this repository into versioned
-packs that install and update apart from the code
-([proposals/split-off-content.md](proposals/split-off-content.md)): a seed
-(decided 2026-10-18: one car per class and Spa, Zandvoort and Monza,
-larger than the proposal's) stays here so everything builds and tests
-alone, and the launcher, the server and the game get an upgrade path where a
-code release and a content release are separate.
+Split the cars, circuits, props and the tools that make them out of the
+code into versioned packs that install and update apart from it
+([proposals/split-off-content.md](proposals/split-off-content.md)). The code
+depends on the content and never the reverse. A release copies a starter set
+from the content (decided 2026-10-18: one car per class, plus Spa,
+Zandvoort and Monza). The launcher, the server and the game get an upgrade
+path in which a code release and a content release are separate events.
+
+- Phase 0, two roots in this repository: `apexsim/` and
+  `apexsim-content/` (cars, tracks, props, the track editor, `track-core`
+  and the content tools), each laid out as its future repository. It is
+  done in nine steps listed in the proposal, from one content root resolver
+  to a `formats` crate shared by the server and `track-core`.
 
 - Phase 1, no network: `pack.json`, `installed.json`, `build_packs.ps1`,
   `apexsim-server content install <file>`, the launcher installing a local
   `.apxpack`.
-- Phase 2, the split: `apexsim-content` made with its history
-  (`git filter-repo` on `content/`, LFS kept), the seed left behind,
-  `initialize_content.ps1 -Content`, CI on both sides.
+- Phase 2, the split: each root made into its repository with its history
+  (`git filter-repo --subdirectory-filter`, LFS kept), the code pinning a
+  content commit (`content.lock`), CI on both sides.
 - Phase 3, the signed index (GitHub release assets of `apexsim-content`,
   decided 2026-10-18) and updates: the dashboard's Updates section,
   the launcher's pack and code updates, `ContentVersion` on the wire.

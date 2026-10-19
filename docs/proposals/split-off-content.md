@@ -1,6 +1,6 @@
 # Split off the content
 
-Status: proposal, not built.
+Status: proposal, not built. Phase 0 (two roots in this repository) revised 2026-10-19.
 
 Today one repository holds the simulation (`server/`), the client
 (`game-unreal/`), the pipeline (`track-editor/`, `scripts/`) and every car,
@@ -42,22 +42,153 @@ Measured on the checkout this was written on:
 
 ## Shape
 
-Three repositories and three kinds of artefact.
+The rule that shapes everything below: **the code depends on the content,
+never the other way round.** The server, the client, the launcher and the
+release build read cars and circuits; nothing that authors, bakes or checks
+content reads, builds or links the code. The tools that make content (the
+track editor and `track-core`, the OSM, DEM and Assetto Corsa importers,
+the Blender generators) therefore go with the content, and the formats the
+two sides share are owned by the content side.
+
+Two repositories and two kinds of artefact, plus a player's own folder.
 
 | Repository | Holds | Produces |
 |---|---|---|
-| `apexsim` (this one) | server, client, pipeline, launcher, docs, and a **seed**: one GT3 car (`posh-gt3rs`) and two circuits (`Spa`, `Zandvoort`) with their dossiers, DEM sidecars and `.ats`, enough for every test and showcase to run | `ApexSim-<version>-Win64.zip`: launcher, `Game/`, `Server/`, the seed content |
-| `apexsim-content` | `content/cars/default`, `content/tracks/default`, `content/props`, `content/textures`, `content/wheels`, `content/artwork`, `content/showcase.yml`, the car generators' sources (`.blend`) | **content packs**, one per track and one per car, plus a `props` pack and a `wheels` pack, and a signed **pack index** |
-| `apexsim-content-custom` (a player's, never ours) | what `content/{cars,tracks}/custom` holds today | nothing published |
+| `apexsim` | server, client, launcher, release and deploy scripts, the site, the verify and promo tools, the default HUD, `showcase.yml`, the code docs | `ApexSim-<version>-Win64.zip`: launcher, `Game/`, `Server/`, and the **starter set** copied from the content |
+| `apexsim-content` | cars, tracks, props, textures, wheels, artwork, the `formats` crate, `track-editor/` (editor, `track-core`, `ats-*`), the content tools, `starter.yml`, the content docs | the baked tree (exports, sidecars, previews, catalog), later **content packs** and a signed **pack index** |
+| a player's `custom/` (never ours) | what `content/{cars,tracks}/custom` holds today | nothing published |
 
-The main repository's `content/` folder keeps its layout exactly; only the
-set of folders under `default/` shrinks to the seed. Every tool that walks
-`content/tracks/{default,custom}` walks the same paths; a developer who
-wants the whole calendar clones `apexsim-content` beside the checkout and
-points `[content]` and `-ApexTracksDir=` at it, or runs
-`initialize_content.ps1 -Content ../apexsim-content`, which junctions its
-`default/` folders in (a junction, never a copy; see the traps at the end
-for how a junction bites).
+The split happens first inside this repository (phase 0). The root holds
+two folders, `apexsim/` and `apexsim-content/`, each laid out exactly as its
+future repository, so the later split is a `git filter-repo
+--subdirectory-filter` per folder and nothing moves twice. Until then, one
+commit can still change both sides (a wire or format change).
+
+### Phase 0: one repository, two roots
+
+```
+<repo>/
+  CLAUDE.md, README.md, LICENSE, .gitattributes, .gitignore, .github/, .claude/, .vscode/
+  apexsim/
+    server/ game-unreal/ launcher/ deploy/ site/ docs/ server.toml
+    hud/default/                the default HUD (its components name the client's data points)
+    showcase.yml                the menu showcases (rendered by the server's sim)
+    scripts/                    build_*, deploy, play_editor, initialize_game.ps1, verify/, promo/, site/,
+                                benchmark.py, motec_export.py, lib/ApexEngine, ApexPhysicsLib, ApexShowcase, ApexGuide
+    build/                      showcase/, guide/, benchmark/ (code artefacts)
+    artifacts/ out/ records/
+    CLAUDE.md
+  apexsim-content/
+    cars/ tracks/ props/ textures/ wheels/ artwork/
+    starter.yml                 the cars and tracks a release ships
+    formats/                    Rust crate: track YAML, the five sidecars, content_crc
+    track-editor/               Bevy editor, core/ (track-core, ats-*)
+    tools/                      osm_*, dem_*, ac_import*, ac_car_import*, build_track_catalog, previews,
+                                drs_zones, race line, check_walls, trace_layout, track_dirs.py,
+                                lib/ApexTracks.ps1, lib/ApexCars.ps1, blender/ (today's scripts/content)
+    bake.ps1                    dress, export, catalog, previews, ground textures: needs no code
+    build/                      the baked tree: exports, previews, catalog (and the sidecars, step 9)
+    docs/                       today's docs/content/*.md
+    .cache/                     osm, dem
+    CLAUDE.md
+```
+
+**How the code finds the content.** One content root on every side:
+`[content] root` in `server.toml`, `APEXSIM_CONTENT` in the environment,
+`-ApexContentRoot=` on the client, `--content` on the tools. The default is
+`../apexsim-content` beside the code root, the same before and after the
+real split (two clones side by side). `cars_dir`, `tracks_dir`,
+`-ApexTracksDir=` and `-ApexCarsDir=` stay as overrides under it, and a
+release still lays out `Game/` and `Server/` as today.
+
+**Where the mixed things go.** Most tools clearly belong to one side. These
+do not, so the rule places them:
+
+| Thing | Goes to | Why |
+|---|---|---|
+| showcases (`apexsim-replay render`), `showcase.yml` | `apexsim` | a showcase is the server's sim run on a track: a physics change makes it stale, a content change only names the input. Every showcase is on a starter track, or a fresh install's menu has no backdrop. |
+| track guides | the notes (`<Stem>.guide.yml`) stay with the track; the render (`apexsim-replay guide`) is `apexsim` | same reason. N28 moves both into the game, which removes the bake stage. |
+| the default HUD | `apexsim/hud` | its JSON names data points the client defines ([../game/hud-modding.md](../game/hud-modding.md)); in the content it would depend on the code. A player's `hud/custom` sits beside it. |
+| UE imports (`ApexPropImport`, `ApexCarImport`, `ApexGroundTexImport`, `ApexMaterialBake`, `ApexTrackImport`, `ApexTrackCatalogSync`) | `apexsim` | the client reading content, from the content root. `DT_CarCatalog`, `DT_TrackCatalog` and `UI/TrackPreviews` are generated from it. |
+| the duplicated formats (track YAML, the road, ground, curbs, walls and pit sidecars, `content_crc`) | `apexsim-content/formats`, a crate the server and `track-core` both depend on | today each is written twice and kept in step by `track-core`'s dev-dependency on the server (`core/tests/compat.rs`, `road_mesh.rs`): a content-on-code edge. The C++ readers (`ApexCarToml.h`, `ApexContentCrc.h`, the scene reader) stay code, checked against the crate's golden files. |
+| the AI survey (`survey_ai_races_on_every_circuit`) | `apexsim`, run against a content working copy | the acceptance check for wall, centerline and ground edits needs the sim. It is a check run from the code side, not a build dependency of the content. |
+| the AC importers | `apexsim-content/tools` | pure Python over the content formats; the release copies them in as `Tools/importer`. |
+| the site (`site/`, `scripts/site`, `docs/index.html`) | `apexsim` | it reads both sides (`facts.py` reads `server/src/car_setup.rs`; the shots need the server and the game). `artwork/` and `props/_preview` stay content. |
+| `content/cars/damage_parts.py`, `CARDATA.md` | `tools/`, `docs/` | a tool and notes living among the data. |
+
+**The starter set.** `apexsim-content/starter.yml` lists the cars and
+tracks a release ships (decided 2026-10-18: one car per class, GT3, LMP2,
+F1, Hypercar and Road, and Spa, Zandvoort and Monza). `build_release.ps1`
+copies those from the baked tree; `-AllContent` ships everything, as now.
+Because a code checkout always has the whole content root beside it, the
+tests no longer have to fit a seed: the Norisring, Le Mans and Silverstone
+tests stay as they are. Only what a fresh install shows has to be in the
+starter set: the menu showcases, the demo backdrop and the first-run
+defaults.
+
+**Work list for phase 0.** Each step is one commit, and every test passes
+after each:
+
+1. **One content root, no move.** The resolver on every side: the server
+   config and env, `apexsim-replay` (`find_track_yaml`), the test helpers
+   (`tests/common`, `CARGO_MANIFEST_DIR/../content`), `track-core`
+   (`TRACK_DIRS`, `DEFAULT_EXPORT_DIR`), `track_dirs.py`, `ApexTracks.ps1`,
+   `ApexCars.ps1`, the client subsystems (tracks, cars, wheels, HUD,
+   showcase, guide, prediction), the commandlet defaults, and the client
+   tests that read `content/`. The Blender scripts' absolute `E:\apexsim`
+   paths go through `$APEXSIM_CONTENT`. The default stays `content/`, so
+   nothing moves yet. Check: `cargo test` on both crates, the client
+   automation tests, and a run with the root pointed at a copy.
+2. **Code things out of the content.** `hud/` to the code side,
+   `showcase.yml` beside the scripts that render it, `damage_parts.py` to
+   the tools, `CARDATA.md` to the content docs.
+3. **Split the orchestrators.** `build_track_levels.ps1` and
+   `initialize_content.ps1` each do a content half (dress, export,
+   catalog, previews, ground PNGs) and a code half (UE imports, material
+   bake, showcases, guides, physics lib). The content half becomes
+   `apexsim-content/bake.ps1`, which needs only cargo and Python. The code
+   half becomes `initialize_game.ps1`, which calls `bake.ps1` when the
+   baked tree is missing.
+4. **Housekeeping before the move.** Nothing here is deleted without the user:
+   `.cache/overpass` (4.7 GB), `.cache/surfaces-v3` and `.cache/survey` are
+   read by no script; the root `replays/` tracks two `.recording_*.frames`
+   files; `run_server.sh` is empty; `generate_track_previews.py` defaults to
+   the Godot client's folder; `enrich_all_tracks.py` is legacy.
+5. **The move** (🟡, with the user there and the editor, server and
+   Blender closed). `git mv` into the two roots, then by hand whatever git
+   does not track: the `custom/` folders, the baked sidecars,
+   `content/textures/ground`, `.cache`, `build/tracks` (4.1 GB),
+   `game-unreal/Content` (285 MB untracked), `Saved/`, `Intermediate/` and
+   the cargo `target/` dirs. `.gitattributes` and `.gitignore` are re-rooted
+   (LFS pointers move as plain renames). Also updated: the CI paths, the
+   Docker contexts (`Dockerfile.content` copies from the content root),
+   `.vscode`, `.mcp.json`, the `.claude` settings and every doc link.
+   CLAUDE.md splits into a root file (the rules for both) and one per root.
+   **GitHub Pages serves `docs/` at the repository
+   root**: `docs/index.html` and `docs/assets` move to `apexsim/docs`, so
+   Pages switches to an Actions deploy in the same commit or the site goes
+   dark.
+6. **The starter set.** `starter.yml`; `build_release.ps1` copying it
+   (and the importer from the content tools); a preflight that every
+   showcase and the demo backdrop are on starter tracks; and the client's
+   backdrop tests (Austin today) moved onto starter tracks. Check: a release
+   package built and raced from the zip, with the menu backdrop running.
+7. **The formats crate.** `apexsim-content/formats` holds the track YAML,
+   the five sidecars and `content_crc`. The server and `track-core` use it;
+   their copies and `track-core`'s dev-dependency on the server go, and
+   the compat tests become the server's own. Determinism and the golden
+   bytes must not move. The YAML stops being modelled twice, and the
+   CLAUDE.md rule about `TrackFileFormat` and `TrackFile` goes with it.
+8. **CI per root, and the direction checked.** One job per root, path
+   filtered; `track-editor` tested in CI (it is not today); and a check
+   that nothing under `apexsim-content/` names `../apexsim`,
+   `apexsim-server` or the code's scripts.
+9. **Baked output out of the source folders** (optional, before packs).
+   `ats-export` writes the sidecars into
+   `apexsim-content/build/tracks/<Stem>/`, beside the export and a copy of
+   the YAML, instead of gitignored files beside the source, and the
+   server's tracks dir points at the baked tree. That folder is the
+   `server/` half of a pack, so phase 1 only has to zip it.
 
 ### A pack
 
@@ -69,8 +200,6 @@ Spa-2026.10.3.apxpack
   pack.json
   server/Spa.yaml, Spa.ats, Spa.layout.json, Spa.{ground,curbs,walls,road,pit,dem}.msgpack, Spa.guide.yml
   game/Spa.uescene.json, Spa.uemesh, Spa.png
-  showcase/Spa.apxs             (when content/showcase.yml renders one here)
-  guide/Spa/...                 (the track guide, docs/content/track-guide.md)
 ```
 
 ```
@@ -82,7 +211,9 @@ posh-gt3rs-2026.10.3.apxpack
 
 `server/` is what `Server/content/...` holds in a release today and
 `game/` what `Game/Tracks` or `Game/Cars` holds; the pack is the release
-assembly of `build_release.ps1` cut per item. The `.blend` sources and the
+assembly of `build_release.ps1` cut per item. Showcases and rendered
+guides are not in a pack: they are the code's (see the table above). The
+`.blend` sources and the
 raw OSM and DEM caches are not in a pack: they are in the content repository
 for whoever rebuilds the pack.
 
@@ -220,7 +351,7 @@ update lists it and never installs it.
 
 **Docker.** `Dockerfile.content` goes away; the `/content` volume is
 seeded by `apexsim-server content install --all --from <index>` on first
-start and updated the same way. The image carries only the seed.
+start and updated the same way. The image carries no content.
 
 **Rolling back.** The previous pack is still in `Content/packs/`;
 `content install Spa@<old>` is a downgrade through the same five steps.
@@ -286,7 +417,7 @@ Pack downloads come from the index, never from the game server: a game
 server has no business serving a gigabyte of GLBs on its lobby port, and a
 league's custom content goes in the league's own index.
 
-**A fresh install** is the code zip with the seed content; the launcher's
+**A fresh install** is the code zip with the starter set; the launcher's
 first run offers "Install all content (1.1 GB)" or a pick by class and
 circuit. A player who only ever races GT3 at three circuits downloads
 those. The game's menus hide nothing: an uninstalled circuit shows in the
@@ -294,14 +425,13 @@ picker greyed with its size and installs from there.
 
 ## Building a pack
 
-`scripts/build_packs.ps1` in the content repository, which is
-`build_release.ps1`'s stages 3, 4 and 6 for one item at a time:
+`build_packs.ps1` in the content repository, which is `bake.ps1` for one
+item at a time and then a zip:
 
 1. For a track: the refresh order of
    [../content/track-pipeline.md](../content/track-pipeline.md) (dress,
-   export, previews, the showcase named in `showcase.yml`, the guide), then
-   zip `server/` and `game/` with the manifest. `ats-export --strict`
-   gates it.
+   export, previews), then zip `server/` and `game/` with the manifest.
+   `ats-export --strict` gates it.
 2. For a car: check every file `car.toml` names is on disk, zip.
 3. Version: `<year>.<month>.<n>` where `n` counts packs of that item built
    that month; the script refuses to build a pack whose files are identical
@@ -312,13 +442,21 @@ picker greyed with its size and installs from there.
    against.
 5. Sign and append to `index.json`.
 
-The content repository's CI builds the seed-less calendar against the
-latest `apexsim` tag and runs the AI survey
-(`survey_ai_races_on_every_circuit`) and the imported-content checks
-against the packs, so a pipeline change in `apexsim` that breaks a circuit
-shows there, not on a player's machine. The main repository's CI runs the
-server tests on the seed, which it has in full (sidecars included, so the
-skipped Le Mans test becomes a Spa test that runs).
+Open for phase 1: under the direction rule, step 4's `server` and `game`
+ranges are the content naming code versions. The cleaner statement is
+format versions only (`scene_format`, the sidecar and `car.toml` schema
+levels from the `formats` crate), with the code stating which it reads;
+`pack.json`, the version rules and the table at the end change with it.
+
+The content repository's CI bakes the calendar and runs `track-core`'s
+tests and `ats-export --strict`; it never builds the code. The code
+repository's CI checks out the content commit named in `content.lock`,
+bakes it, and runs the server tests, the AI survey
+(`survey_ai_races_on_every_circuit`) and the imported-content checks on
+it, so a content change that breaks a circuit shows when the code moves its
+lock, not on a player's machine. A content author judges a wall or
+centerline edit the same way, by running the survey from a code checkout
+against the content working copy.
 
 ## What changes in the code
 
@@ -336,8 +474,7 @@ skipped Le Mans test becomes a Spa test that runs).
   pipe to the launcher.
 - Launcher: index fetch, signature check, download with resume, the
   install and roll-back of code and packs, the pipe server.
-- `build_release.ps1` ships the seed only; `build_packs.ps1` is new;
-  `initialize_content.ps1 -Content` junctions a content checkout;
+- `build_release.ps1` ships the starter set; `build_packs.ps1` is new;
   `Dockerfile.content` and `docker-compose.yml`'s content job go.
 - Docs: `docs/content/packs.md` (the format and the index),
   `docs/server/operations.md` (updates on the dashboard),
@@ -346,16 +483,20 @@ skipped Le Mans test becomes a Spa test that runs).
 
 ## Phases
 
+0. **One repository, two roots.** The work list above. Check: both
+   roots build and test, a release is built from the starter set, and
+   nothing under `apexsim-content/` refers to `apexsim/`.
 1. **Pack format and reader, no network.** `pack.json`, `installed.json`,
    `build_packs.ps1`, `apexsim-server content install <file>` and the
    launcher installing a local `.apxpack`. The main repository still holds
    all content. Check: a Spa pack built from the checkout installs into a
    release package and the game races it with no mismatch toast.
-2. **The split.** `apexsim-content` created with history
-   (`git filter-repo` on `content/`, keeping LFS), the seed left behind,
-   `initialize_content.ps1 -Content`, CI on both sides. Check: `cargo test`
-   and the client tests pass on a clone of `apexsim` alone; the survey runs
-   from a content checkout and matches the figures before the split.
+2. **The split.** `apexsim` and `apexsim-content` each made with history
+   by `git filter-repo --subdirectory-filter` on its root, keeping LFS; the
+   code repository pins the content commit it was tested with
+   (`content.lock`), and its CI checks that commit out beside it. Check:
+   `cargo test` and the client tests pass on two clones side by side; the
+   survey matches the figures from before the split.
 3. **The index and updates.** Signing, the index, the dashboard's Updates,
    the launcher's update of packs and of the code, `ContentVersion` on the
    wire. Check: upgrade a release install from version N to N+1 and from
@@ -379,31 +520,30 @@ skipped Le Mans test becomes a Spa test that runs).
 - A storefront, paid packs or DRM: the index is a signed list of files.
 - Moving `game-unreal/Content` (menu, catalog tables, splash) anywhere: it
   is the client's, cooked into `Game/`.
-- Splitting the pipeline out: `track-editor/` and `scripts/` stay with the
-  code, since the server's loaders and the exporter share formats and move
-  together ([../content/track-format.md](../content/track-format.md): the
-  YAML is modelled twice already).
 - Linux or macOS launchers; the server's `content` command line covers a
   headless host.
 
 ## Traps
 
-- **Two repositories, one checksum.** A track YAML is modelled in the
-  server and in `track-core`; a key added to one and not the other drops
-  out of a pipeline rewrite, and the pack built by the content repository's
-  CI then carries a different crc than the server computes. The content
-  CI must build with the `apexsim` tag it declares in `requires`, not
-  `main`.
+- **Two repositories, one checksum.** Until phase 0's step 7 a track YAML
+  is modelled in the server and in `track-core`; a key added to one and not
+  the other drops out of a pipeline rewrite, and the content's bake then
+  carries a different crc than the server computes. Do step 7 before the
+  real split, so that both sides read through the one `formats` crate.
 - **A pack version is not the crc.** Two versions can share a crc (export
   rebuilt, YAML untouched); the server matches on crc, people on version.
   Never make the server compare versions.
-- **Junctions.** `initialize_content.ps1 -Content` junctions folders into
-  `content/`; a `git clean`, a worktree removal or an `rm -r` through a
-  junction empties the content checkout. Remove the junction first, always.
-- **The seed must stay sufficient.** Every server test, the determinism
-  test, the client's automation tests and the showcases behind the menu
-  must run on the seed alone; a test that reaches for Monza moves to the
-  content repository's CI or to the seed.
+- **The starter set must carry a fresh install.** The tests run on the
+  whole content root, but the menu showcases, the demo backdrop and the
+  first-run defaults must name only starter tracks and cars; the release
+  preflight checks it.
+- **Untracked content does not follow `git mv`.** The `custom/` folders,
+  the baked sidecars, the ground PNGs, `.cache` and `build/tracks` are
+  ignored; the move carries them by hand, or a checkout loses the player's
+  cars and a day of baking.
+- **Absolute paths.** The Blender generators name `E:\apexsim\...`; a
+  run after the move writes into the old folders unless step 1 has sent
+  them through the content root first.
 - **`custom/` is still the player's.** A pack installs only into
   `default/`; an uploaded custom car on a server stays a dashboard upload,
   not a pack, and never ships.
