@@ -333,10 +333,16 @@ mod tests {
         assert_eq!(CircuitStyle::for_stem("Bahrainless").flora, Flora::Desert);
         assert_eq!(CircuitStyle::for_stem("YasMarinara").flora, Flora::Desert);
         assert_eq!(CircuitStyle::for_stem("Shebang").flora, Flora::Tropical);
-        assert_eq!(CircuitStyle::for_stem("HermanosRodriQueso").flora, Flora::Tropical);
+        assert_eq!(
+            CircuitStyle::for_stem("HermanosRodriQueso").flora,
+            Flora::Tropical
+        );
         assert_eq!(CircuitStyle::for_stem("Bahrainless").ground, Ground::Sand);
         assert_eq!(CircuitStyle::for_stem("YasMarinara").ground, Ground::Grass);
-        assert_eq!(CircuitStyle::for_stem("SpaFrankenchamps").flora, Flora::Temperate);
+        assert_eq!(
+            CircuitStyle::for_stem("SpaFrankenchamps").flora,
+            Flora::Temperate
+        );
         // Only the trees differ.
         assert_eq!(
             CircuitStyle {

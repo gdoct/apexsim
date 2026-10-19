@@ -78,6 +78,8 @@ mod tests {
         assert!(pit::PitSidecar::sidecar_path(track).ends_with("Monzarella.pit.msgpack"));
         assert!(walls::WallFile::sidecar_path(track).ends_with("Monzarella.walls.msgpack"));
         assert!(curbs::CurbBands::sidecar_path(track).ends_with("Monzarella.curbs.msgpack"));
-        assert!(ground::GroundHeightfield::sidecar_path(track).ends_with("Monzarella.ground.msgpack"));
+        assert!(
+            ground::GroundHeightfield::sidecar_path(track).ends_with("Monzarella.ground.msgpack")
+        );
     }
 }
