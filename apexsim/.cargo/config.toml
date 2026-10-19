@@ -1,0 +1,19 @@
+# Build settings for every crate under apexsim/ (sim, server, ffi), picked up
+# when cargo runs from this directory or below (docs/building.md).
+
+# On Windows, link with the LLVM linker that ships with the Rust toolchain:
+# MSVC's link.exe writing the PDBs was most of every test build's time.
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"
+
+# Third-party crates keep line tables only: backtraces still name file and
+# line, and the debug info the linker has to write shrinks. Our own crates
+# keep full debug info.
+[profile.dev.package."*"]
+debug = "line-tables-only"
+
+[profile.dev.package.apexsim-sim]
+debug = true
+
+[profile.dev.package.apexsim-formats]
+debug = true

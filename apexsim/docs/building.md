@@ -125,6 +125,13 @@ RUST_LOG=debug cargo test <name>                   # with logging
   timing a car the bench itself wore out (a car that is out returns from
   `update_car_3d` at once).
 
+`apexsim/.cargo/config.toml` holds the build settings for every crate under
+`apexsim/`: on Windows it links with `rust-lld` (shipped with the Rust
+toolchain) instead of MSVC's `link.exe`, and third-party crates keep line
+tables only in a debug build, so backtraces keep file and line while the
+linker writes less. Cargo reads it when it runs from `apexsim/` or below;
+`--manifest-path` from elsewhere skips it.
+
 **A running server locks its exe on Windows.** `cargo build` then fails to
 replace `target/*/apexsim-server.exe`; build and test into a scratch
 `CARGO_TARGET_DIR` instead of stopping someone's server.
