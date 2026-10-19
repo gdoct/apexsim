@@ -150,21 +150,38 @@ existed would not link it otherwise.
 
 ### CI
 
-`.github/workflows/ci.yml`, job `server` (Ubuntu): `cargo fmt --check`,
-`cargo build --all-targets`, `cargo clippy --all-targets -- -D warnings`,
-`cargo test`, then the same fmt, clippy and test for `server/ffi`. Keep
-the server tree free of formatting drift and clippy warnings. Job `site` rebuilds the marketing page and fails when `docs/` is
-behind ([marketing-site.md](marketing-site.md)); job `client` only checks the
-`.uproject` and the target/module files exist (`ApexPhysics.Build.cs`
-among them). Job `track-editor` runs from `apexsim-content/`: first
-`tools/check_direction.py`, which fails on any path from the content into
-the code beyond the one allowed test-only edge (a path into `apexsim-lib/`
-is fine), then `cargo test` of the track-core and editor workspace. Job
-`formats` runs `cargo fmt --check`, `cargo clippy --all-targets -- -D
-warnings` and `cargo test` in `apexsim-lib/formats`. The Unreal code is not compiled in CI, and
-nothing builds the client's copy of the physics library there. Every job
-checks out the whole repository and runs on every push: the code jobs read
-the content, so none is filtered by path.
+`.github/workflows/ci.yml` runs on every push to `main` and every pull
+request; a newer push to the same branch or pull request cancels the run
+before it. Every job checks out the whole repository (the code jobs read the
+content), and none is filtered by path.
+
+- `server` (Ubuntu): `cargo fmt --check`, `cargo clippy --all-targets -- -D
+  warnings` (which compiles every target, so there is no build step), then
+  `cargo test --no-fail-fast` with the test profile at opt-level 2: the
+  tests race whole sessions, and optimised they take a couple of minutes
+  instead of twelve. Then fmt, clippy and test for `server/ffi`. CI has no
+  baked sidecars (they are gitignored), so a test that needs one skips
+  itself with a note rather than failing.
+- `track-editor` ("Track pipeline", from `apexsim-content/`):
+  `tools/check_direction.py`, which fails on any path from the content
+  into the code beyond the one allowed test-only edge (a path into
+  `apexsim-lib/` is fine); `cargo fmt --check` over the workspace; clippy
+  `-D warnings` and `cargo test` of `track-core` only. The Bevy editor is
+  not compiled in CI (over twenty minutes on a runner).
+- `formats`: fmt, clippy `--all-targets -D warnings` and `cargo test` in
+  `apexsim-lib/formats`.
+- `site` rebuilds the marketing page and fails when `docs/` is behind
+  ([marketing-site.md](marketing-site.md)).
+- `client` only checks the `.uproject` and the target/module files exist
+  (`ApexPhysics.Build.cs` among them). The Unreal code is not compiled in
+  CI, and nothing builds the client's copy of the physics library there.
+
+`.github/workflows/dependabot-auto-merge.yml` runs when CI finishes on a
+Dependabot pull request: if CI passed on the pull request's current commit
+and the title's version change is a patch or minor one (below 1.0, a patch
+only), it approves and squash-merges it. It builds nothing itself, and `main`
+has no required checks, so this ordering is what keeps an untested update
+out.
 
 ## Formats (`apexsim-lib/formats`)
 

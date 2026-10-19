@@ -1,71 +1,54 @@
 name: Dependabot auto-merge
 
+# Merges a Dependabot patch or minor update once CI has passed on it.
+# main has no required checks, so nothing here merges on its own say: it runs
+# only after a CI run on a Dependabot pull request succeeded, and only for
+# the commit that run tested. It builds nothing itself (CI already did).
+
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  dependabot-auto-merge:
+  merge:
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'
     steps:
-      - name: Fetch Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@v2
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-
-      # Never merge unverified code: build and test the PR here, even though
-      # ci.yml also runs, because `gh pr merge --auto` only waits for checks
-      # that branch protection marks as required — and that may not be set up.
-      - uses: actions/checkout@v4
-        if: |
-          steps.metadata.outputs.package-ecosystem == 'cargo' &&
-          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-           steps.metadata.outputs.update-type == 'version-update:semver-minor')
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Install Rust toolchain
-        if: |
-          steps.metadata.outputs.package-ecosystem == 'cargo' &&
-          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-           steps.metadata.outputs.update-type == 'version-update:semver-minor')
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        if: |
-          steps.metadata.outputs.package-ecosystem == 'cargo' &&
-          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-           steps.metadata.outputs.update-type == 'version-update:semver-minor')
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: apexsim/server
-
-      - name: Build and test with updated dependencies
-        if: |
-          steps.metadata.outputs.package-ecosystem == 'cargo' &&
-          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-           steps.metadata.outputs.update-type == 'version-update:semver-minor')
-        working-directory: apexsim/server
-        run: |
-          cargo build --all-targets
-          cargo test
-
-      - name: Approve and enable auto-merge for patch/minor Rust updates
-        if: |
-          steps.metadata.outputs.package-ecosystem == 'cargo' &&
-          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-           steps.metadata.outputs.update-type == 'version-update:semver-minor')
-        run: |
-          gh pr review --approve "$PR_URL"
-          gh pr merge --auto --squash "$PR_URL"
+      - name: Merge a patch or minor update that CI passed
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          pr=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open \
+                 --json number,title,headRefOid,author \
+                 -q '.[] | select(.author.login == "app/dependabot")')
+          if [ -z "$pr" ]; then echo "no open Dependabot pull request on $BRANCH"; exit 0; fi
+          number=$(jq -r .number <<<"$pr")
+          title=$(jq -r .title <<<"$pr")
+          head=$(jq -r .headRefOid <<<"$pr")
+          if [ "$head" != "$TESTED_SHA" ]; then
+            echo "#$number moved on since CI tested $TESTED_SHA; its own run decides"; exit 0
+          fi
+          # "Bump <crate> from <old> to <new> in <dir>": a patch or minor bump
+          # keeps the major version (and, below 1.0, the minor, which cargo
+          # treats as breaking).
+          old=$(sed -nE 's/.* from ([0-9][0-9.]*) to .*/\1/p' <<<"$title")
+          new=$(sed -nE 's/.* to ([0-9][0-9.]*).*/\1/p' <<<"$title")
+          IFS=. read -r om on _ <<<"$old"
+          IFS=. read -r nm nn _ <<<"$new"
+          if [ -z "$old" ] || [ -z "$new" ] || [ "$om" != "$nm" ] || { [ "$om" = 0 ] && [ "$on" != "$nn" ]; }; then
+            echo "#$number ($title) is not a patch or minor bump: left for a person"; exit 0
+          fi
+          gh pr review --repo "$REPO" --approve "$number"
+          gh pr merge --repo "$REPO" --squash "$number"
