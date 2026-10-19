@@ -29,7 +29,7 @@ use apexsim_server::track_loader::TrackLoader;
 
 const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
 
-const MONZA: &str = "../../apexsim-content/tracks/default/Monza/Monza.yaml";
+const MONZA: &str = "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml";
 
 fn car(folder: &str) -> CarConfig {
     let path = format!("../../apexsim-content/cars/default/{folder}/car.toml");
@@ -353,7 +353,7 @@ async fn test_a_watched_hotlap_is_private_and_sent_to_its_creator() {
     let track = lobby
         .track_configs
         .iter()
-        .find(|t| t.name.contains("Monza"))
+        .find(|t| t.name.contains("Monzarella"))
         .or(lobby.track_configs.first())
         .expect("a track")
         .id;
@@ -438,7 +438,7 @@ async fn test_a_watched_hotlap_is_private_and_sent_to_its_creator() {
     assert!(server.state.read().await.sessions.is_empty());
 }
 
-/// The probe: `WATCH_TRACKS=Monza,Spa WATCH_CARS=posh-gt3rs,fugazzi-sf26 WATCH_LAPS=5`
+/// The probe: `WATCH_TRACKS=Monzarella,SpaFrankenchamps WATCH_CARS=posh-gt3rs,fugazzi-sf26 WATCH_LAPS=5`
 /// prints each watched lap, and how far the driver was eased off the exact
 /// line by the time it settled.
 /// `cargo test --release --test all hotlap_watch_test::watch_probe -- --ignored --nocapture`
@@ -456,7 +456,7 @@ fn watch_probe() {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(5);
-    for stem in list("WATCH_TRACKS", "Monza") {
+    for stem in list("WATCH_TRACKS", "Monzarella") {
         for folder in list("WATCH_CARS", "posh-gt3rs") {
             let car = car(&folder);
             let mut car_configs = HashMap::new();
@@ -705,7 +705,7 @@ async fn test_a_hotlap_watched_as_a_stream_goes_with_its_viewer() {
     let track = lobby
         .track_configs
         .iter()
-        .find(|t| t.name.contains("Monza"))
+        .find(|t| t.name.contains("Monzarella"))
         .or(lobby.track_configs.first())
         .expect("a track")
         .id;

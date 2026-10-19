@@ -16,7 +16,7 @@ const HZ: usize = apexsim_sim::game_session::DEFAULT_TICK_RATE_HZ as usize;
 
 fn race_with_events(car_folder: &str, events: &str) -> Option<(GameSession, PlayerId)> {
     let track =
-        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monza/Monza.yaml")
+        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
             .ok()?;
     track.pit_lane.as_ref()?;
     let car = CarLoader::load_from_file(Path::new(&format!(
@@ -139,7 +139,7 @@ fn a_heat_event_cooks_the_fronts() {
 #[test]
 fn the_stand_in_drives_a_qualifying_run() {
     let Ok(track) = TrackLoader::load_from_file(
-        "../../apexsim-content/tracks/default/Norisring/Norisring.yaml",
+        "../../apexsim-content/tracks/default/Snorisring/Snorisring.yaml",
     ) else {
         return;
     };

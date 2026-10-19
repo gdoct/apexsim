@@ -15,7 +15,7 @@ struct FApexTrackScene;
  * `scripts/build_track_levels.ps1 -ImportLevels`.
  *
  * ```
- * ApexSimEditor-Cmd.exe <uproject> -run=ApexTrackImport -track=Monza
+ * ApexSimEditor-Cmd.exe <uproject> -run=ApexTrackImport -track=Monzarella
  * ApexSimEditor-Cmd.exe <uproject> -run=ApexTrackImport -all
  * ```
  *

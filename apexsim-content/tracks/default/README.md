@@ -12,41 +12,41 @@ Netherlands."). The same goes for the corner boards (`display_name` on each
 corner of the `<Stem>.layout.json` dossier, from `CORNER_DISPLAY` in
 `tools/osm_layout.py`) and the categories, which the client shows as
 Formula / Endurance / GT3 / Independent. When adding a track, give it both.
-Each circuit is a folder of its own named by the stem (`Zandvoort/`), holding
-`Zandvoort.yaml` and every other file of the track. The file stem stays the
-place (`Zandvoort.yaml`); it is what scripts, the
-docs and `-ApexTrack=` use.
+Each circuit is a folder of its own named by the stem (`Zandervoort/`), holding
+`Zandervoort.yaml` and every other file of the track. The stem is the parody
+name without spaces or accents (the real place is in the `Modelled on` column);
+it is what scripts, the docs and `-ApexTrack=` use.
 
 | In game | Real name (not shown) | Stem | Modelled on the circuit at | Length | Category shown (data) |
 |---------|------------------------|------|----------------------------|--------|-----------------------|
-| Albert Parkour Circuit | Albert Park Circuit | `Melbourne` | Melbourne, Australia | 5.29 km | Formula (F1) |
-| Autodromo Monzarella | Autodromo Nazionale di Monza | `Monza` | Monza, Italy | 5.78 km | Formula (F1) |
-| Autódromo Hermanos Rodri-Queso | Autódromo Hermanos Rodríguez | `MexicoCity` | Mexico City, Mexico | 4.28 km | Formula (F1) |
-| Autódromo Interlaggos | Autódromo José Carlos Pace | `SaoPaulo` | São Paulo, Brazil | 4.30 km | Formula (F1) |
-| Bahrainless International Circuit | Bahrain International Circuit | `Sakhir` | Sakhir, Bahrain | 5.39 km | Formula (F1) |
-| Brands Scratch | Brands Hatch | `BrandsHatch` | West Kingsdown, United Kingdom | 3.90 km | GT3 (DTM) |
-| Circuit Chilly Villeneuve | Circuit Gilles Villeneuve | `Montreal` | Montreal, Canada | 4.35 km | Formula (F1) |
-| Circuit de Barcelunatic | Circuit de Barcelona-Catalunya | `Catalunya` | Montmeló, Spain | 4.64 km | Formula (F1) |
-| Circuit of the Armadillos | Circuit of The Americas | `Austin` | Austin, United States | 5.49 km | Formula (F1) |
-| Endianapolis Motor Speedway | Indianapolis Motor Speedway | `IMS` | Indianapolis, United States | 4.02 km | Independent (IndyCar) |
-| Gnocchi Autodrom | Sochi Autodrom | `Sochi` | Sochi, Russia | 5.83 km | Formula (F1) |
-| Hockeyheimring | Hockenheimring | `Hockenheim` | Hockenheim, Germany | 4.56 km | Formula (F1) |
-| Hungoverring | Hungaroring | `Budapest` | Budapest, Hungary | 4.37 km | Formula (F1) |
-| Lemons – Circuit du Peuple | Circuit de la Sarthe (Le Mans 24 Hours) | `LeMans` | Le Mans, France | 13.62 km | Endurance (WEC) |
-| Moscow Mule Raceway | Moscow Raceway | `MoscowRaceway` | Volokolamsk, Russia | 4.05 km | GT3 (DTM) |
-| Mandarina Bay | Marina Bay Street Circuit | `MarinaBay` | Singapore | 4.92 km | Formula (F1) |
-| Motorsport Arena Oskarsleben | Motorsport Arena Oschersleben | `Oschersleben` | Oschersleben, Germany | 3.69 km | GT3 (DTM) |
-| Nürburger Mordschleife | Nürburgring Nordschleife | `Nordschleife` | Nürburg, Germany | 20.76 km | Endurance (Endurance) |
-| Nürburgerring | Nürburgring | `Nuerburgring` | Nürburg, Germany | 5.14 km | GT3 (DTM) |
-| Red Pull Ring | Red Bull Ring | `Spielberg` | Spielberg, Austria | 4.31 km | Formula (F1) |
-| Shanghaied International Circuit | Shanghai International Circuit | `Shanghai` | Shanghai, China | 5.43 km | Formula (F1) |
-| Shebang International Circuit | Sepang International Circuit | `Sepang` | Sepang, Malaysia | 5.53 km | Formula (F1) |
-| Shiverstone Circuit | Silverstone Circuit | `Silverstone` | Silverstone, United Kingdom | 5.88 km | Formula (F1) |
-| Snorisring | Norisring | `Norisring` | Nuremberg, Germany | 2.28 km | GT3 (DTM) |
-| Spa-Frankenchamps | Circuit de Spa-Francorchamps | `Spa` | Stavelot, Belgium | 6.99 km | Formula (F1) |
-| Sudoku Circuit | Suzuka Circuit | `Suzuka` | Suzuka, Japan | 5.80 km | Formula (F1) |
-| Yas Marinara Circuit | Yas Marina Circuit | `YasMarina` | Abu Dhabi, United Arab Emirates | 5.52 km | Formula (F1) |
-| Zandervoort | Circuit Zandvoort | `Zandvoort` | Zandvoort, Netherlands | 4.31 km | GT3 (DTM) |
+| Albert Parkour Circuit | Albert Park Circuit | `AlbertParkour` | Melbourne, Australia | 5.29 km | Formula (F1) |
+| Autodromo Monzarella | Autodromo Nazionale di Monza | `Monzarella` | Monza, Italy | 5.78 km | Formula (F1) |
+| Autódromo Hermanos Rodri-Queso | Autódromo Hermanos Rodríguez | `HermanosRodriQueso` | Mexico City, Mexico | 4.28 km | Formula (F1) |
+| Autódromo Interlaggos | Autódromo José Carlos Pace | `Interlaggos` | São Paulo, Brazil | 4.30 km | Formula (F1) |
+| Bahrainless International Circuit | Bahrain International Circuit | `Bahrainless` | Sakhir, Bahrain | 5.39 km | Formula (F1) |
+| Brands Scratch | Brands Hatch | `BrandsScratch` | West Kingsdown, United Kingdom | 3.90 km | GT3 (DTM) |
+| Circuit Chilly Villeneuve | Circuit Gilles Villeneuve | `ChillyVilleneuve` | Montreal, Canada | 4.35 km | Formula (F1) |
+| Circuit de Barcelunatic | Circuit de Barcelona-Catalunya | `Barcelunatic` | Montmeló, Spain | 4.64 km | Formula (F1) |
+| Circuit of the Armadillos | Circuit of The Americas | `Armadillos` | Austin, United States | 5.49 km | Formula (F1) |
+| Endianapolis Motor Speedway | Indianapolis Motor Speedway | `Endianapolis` | Indianapolis, United States | 4.02 km | Independent (IndyCar) |
+| Gnocchi Autodrom | Sochi Autodrom | `Gnocchi` | Sochi, Russia | 5.83 km | Formula (F1) |
+| Hockeyheimring | Hockenheimring | `Hockeyheimring` | Hockenheim, Germany | 4.56 km | Formula (F1) |
+| Hungoverring | Hungaroring | `Hungoverring` | Budapest, Hungary | 4.37 km | Formula (F1) |
+| Lemons – Circuit du Peuple | Circuit de la Sarthe (Le Mans 24 Hours) | `Lemons` | Le Mans, France | 13.62 km | Endurance (WEC) |
+| Moscow Mule Raceway | Moscow Raceway | `MoscowMule` | Volokolamsk, Russia | 4.05 km | GT3 (DTM) |
+| Mandarina Bay | Marina Bay Street Circuit | `MandarinaBay` | Singapore | 4.92 km | Formula (F1) |
+| Motorsport Arena Oskarsleben | Motorsport Arena Oschersleben | `Oskarsleben` | Oschersleben, Germany | 3.69 km | GT3 (DTM) |
+| Nürburger Mordschleife | Nürburgring Nordschleife | `Mordschleife` | Nürburg, Germany | 20.76 km | Endurance (Endurance) |
+| Nürburgerring | Nürburgring | `Nuerburgerring` | Nürburg, Germany | 5.14 km | GT3 (DTM) |
+| Red Pull Ring | Red Bull Ring | `RedPullRing` | Spielberg, Austria | 4.31 km | Formula (F1) |
+| Shanghaied International Circuit | Shanghai International Circuit | `Shanghaied` | Shanghai, China | 5.43 km | Formula (F1) |
+| Shebang International Circuit | Sepang International Circuit | `Shebang` | Sepang, Malaysia | 5.53 km | Formula (F1) |
+| Shiverstone Circuit | Silverstone Circuit | `Shiverstone` | Silverstone, United Kingdom | 5.88 km | Formula (F1) |
+| Snorisring | Norisring | `Snorisring` | Nuremberg, Germany | 2.28 km | GT3 (DTM) |
+| Spa-Frankenchamps | Circuit de Spa-Francorchamps | `SpaFrankenchamps` | Stavelot, Belgium | 6.99 km | Formula (F1) |
+| Sudoku Circuit | Suzuka Circuit | `Sudoku` | Suzuka, Japan | 5.80 km | Formula (F1) |
+| Yas Marinara Circuit | Yas Marina Circuit | `YasMarinara` | Abu Dhabi, United Arab Emirates | 5.52 km | Formula (F1) |
+| Zandervoort | Circuit Zandvoort | `Zandervoort` | Zandvoort, Netherlands | 4.31 km | GT3 (DTM) |
 
 ## Data Quality
 

@@ -6,9 +6,9 @@ racetrack database). The Nordschleife has none, but OpenStreetMap maps it
 end to end as `highway=raceway`, surveyed to a metre or two - so its lap is
 routed over the OSM raceway graph instead:
 
-    python tools/osm_centerline.py Nordschleife            # -> tracks/default/Nordschleife/Nordschleife.yaml
-    python tools/osm_centerline.py Nordschleife --dry-run  # report only
-    python tools/osm_centerline.py Nordschleife --plot out.png
+    python tools/osm_centerline.py Mordschleife            # -> tracks/default/Mordschleife/Mordschleife.yaml
+    python tools/osm_centerline.py Mordschleife --dry-run  # report only
+    python tools/osm_centerline.py Mordschleife --plot out.png
 
 A lap is given in `LAPS` as an ordered list of waypoints (lon, lat) in race
 direction. Consecutive waypoints are joined by the shortest path over the
@@ -64,7 +64,7 @@ LAPS: dict[str, dict] = {
     # touring-car records are set on). The waypoints are OSM's own
     # `place=locality` nodes for each section, which OSM puts beside the
     # stretch they name, in race (clockwise) order.
-    "Nordschleife": {
+    "Mordschleife": {
         "name": "Nürburgring Nordschleife",
         "display_name": "Nürburger Mordschleife",
         "track_id": "7648a87e-a67d-43c2-b92a-84022cc3ca75",
@@ -138,7 +138,7 @@ LAPS: dict[str, dict] = {
     # no waypoints: the loop is walked from the pit straight along the
     # relation's own ways (`relation_loop`). Only the pit straight and a few
     # fragments are highway=raceway. Road width comes from the lane count.
-    "MarinaBay": {
+    "MandarinaBay": {
         "name": "Marina Bay Street Circuit",
         "display_name": "Mandarina Bay",
         "track_id": "618a7f94-5679-4119-bc49-f891af68256c",

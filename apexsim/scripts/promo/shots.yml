@@ -42,38 +42,38 @@ defaults:
 
 races:
   zandvoort:
-    track: Zandvoort
+    track: Zandervoort
     car: yotota-lmp2          # the field is the car's class, dealt round-robin
     laps: 3
     weather: sunny
     time: "19:10"             # golden hour over the dunes
   spa:
-    track: Spa
+    track: SpaFrankenchamps
     car: murcetes-amd-w17
     laps: 2
     weather: sunny
     time: "15:30"
   lemans:
-    track: LeMans
+    track: Lemons
     car: panini-zomba-hypercar
     laps: 2
     max_seconds: 520
     weather: sunny
     time: "20:40"
   monza_rain:
-    track: Monza
+    track: Monzarella
     car: posh-gt3rs
     laps: 2
     weather: heavyrain
     time: "17:30"
   spielberg:
-    track: Spielberg
+    track: RedPullRing
     car: murcetes-amd-gt3
     laps: 2
     weather: sunny
     time: "11:00"
   marina:
-    track: MarinaBay
+    track: MandarinaBay
     car: mclarsen-mcl40
     laps: 2
     weather: sunny

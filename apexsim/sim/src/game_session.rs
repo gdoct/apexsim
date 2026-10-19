@@ -7410,9 +7410,9 @@ mod tests {
     #[test]
     fn a_damaged_engine_is_planned_at_the_power_it_has_left() {
         let track = crate::track_loader::TrackLoader::load_from_file(
-            "../../apexsim-content/tracks/default/Monza/Monza.yaml",
+            "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
         )
-        .expect("Monza");
+        .expect("Monzarella");
         let car = crate::car_loader::CarLoader::load_from_file(std::path::Path::new(
             "../../apexsim-content/cars/default/posh-gt3rs/car.toml",
         ))
@@ -7608,9 +7608,9 @@ mod tests {
     #[test]
     fn the_racing_line_aid_follows_the_fuel_and_the_grip() {
         let track = crate::track_loader::TrackLoader::load_from_file(
-            "../../apexsim-content/tracks/default/Monza/Monza.yaml",
+            "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
         )
-        .expect("Monza");
+        .expect("Monzarella");
         let car = crate::car_loader::CarLoader::load_from_file(std::path::Path::new(
             "../../apexsim-content/cars/default/posh-gt3rs/car.toml",
         ))

@@ -95,7 +95,7 @@ fn a_formation_lap_brings_the_field_back_to_the_grid() {
         formation_lap: true,
         ..Default::default()
     };
-    let (mut race, _) = grid("Norisring", 6, 0, rules);
+    let (mut race, _) = grid("Snorisring", 6, 0, rules);
     let start_temp: f32 = race
         .session
         .participants
@@ -188,7 +188,7 @@ fn a_rolling_start_goes_green_at_the_line() {
         start: StartType::Rolling,
         ..Default::default()
     };
-    let (mut race, _) = grid("Norisring", 4, 0, rules);
+    let (mut race, _) = grid("Snorisring", 4, 0, rules);
     let mut saw_pace_lap = false;
     for _ in 0..(TICK_RATE as u32 * 200) {
         tick(&mut race, |_| PlayerInputData::default());
@@ -240,7 +240,7 @@ fn a_car_off_its_slot_before_the_lights_jumped_the_start() {
         jump_start: true,
         ..Default::default()
     };
-    let (mut race, humans) = grid("Norisring", 2, 2, rules);
+    let (mut race, humans) = grid("Snorisring", 2, 2, rules);
     race.start_countdown_mode(3, GameMode::Race);
     let (eager, patient) = (humans[0], humans[1]);
     for _ in 0..(TICK_RATE as u32 * 4) {
@@ -284,7 +284,7 @@ fn a_car_off_its_slot_before_the_lights_jumped_the_start() {
 /// lights, whatever the pedals say.
 #[test]
 fn without_the_rule_a_car_is_held_on_its_slot() {
-    let (mut race, humans) = grid("Norisring", 0, 1, RaceRules::default());
+    let (mut race, humans) = grid("Snorisring", 0, 1, RaceRules::default());
     race.start_countdown_mode(2, GameMode::Race);
     let id = humans[0];
     let slot = slot_of(&race, &race.session.participants[&id]);

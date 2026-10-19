@@ -1013,7 +1013,7 @@ pub struct SessionSummary {
     )]
     pub id: SessionId,
     pub track_name: String,
-    /// Track file relative to content folder (e.g. "tracks/default/Austin/Austin.yaml")
+    /// Track file relative to content folder (e.g. "tracks/default/Armadillos/Armadillos.yaml")
     pub track_file: String,
     /// The track config the session runs on, so a client can find its
     /// `TrackConfigSummary` (and catalog row) without matching names.
@@ -2954,7 +2954,7 @@ mod tests {
         }
         let list = rmp_serde::to_vec_named(&ClientMessage::ListShowcases).unwrap();
         let spectate = rmp_serde::to_vec_named(&ClientMessage::SpectateShowcase {
-            id: Some("Zandvoort.gt3.day".into()),
+            id: Some("Zandervoort.gt3.day".into()),
         })
         .unwrap();
         let spectate_any =
@@ -2979,7 +2979,7 @@ mod tests {
 
         let showcases = ServerMessage::Showcases(ShowcasesData {
             entries: vec![ShowcaseSummary {
-                id: "Zandvoort.gt3.day".into(),
+                id: "Zandervoort.gt3.day".into(),
                 track_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
                 track_name: "Zandervoort".into(),
                 class: "GT3".into(),
@@ -3006,7 +3006,7 @@ mod tests {
         let joined = ServerMessage::SpectatorJoined(SpectatorJoinedData {
             stream_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
             kind: SpectatorKind::Showcase,
-            showcase_id: "Zandvoort.gt3.day".into(),
+            showcase_id: "Zandervoort.gt3.day".into(),
         });
         // Two tiny records in one message: the stream's own framing inside.
         let bodies: [&[u8]; 2] = [&[0x92, 0x07, 0xC0], &[0x93, 0x08, 0xC0, 0x01]];
@@ -3089,7 +3089,7 @@ mod tests {
     fn test_track_site_wire_format() {
         let track = |site: Option<(f32, f32)>| TrackConfigSummary {
             id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
-            name: "Silverstone".into(),
+            name: "Shiverstone".into(),
             content_crc: 0,
             centerline: vec![],
             latitude_deg: site.map(|s| s.0),
@@ -3134,8 +3134,8 @@ mod tests {
             players_in_lobby: vec![],
             available_sessions: vec![SessionSummary {
                 id: Uuid::nil(),
-                track_name: "Monza".into(),
-                track_file: "tracks/default/Monza/Monza.yaml".into(),
+                track_name: "Monzarella".into(),
+                track_file: "tracks/default/Monzarella/Monzarella.yaml".into(),
                 track_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
                 host_name: "host".into(),
                 session_kind: SessionKind::Multiplayer,
@@ -3160,7 +3160,7 @@ mod tests {
             }],
             track_configs: vec![TrackConfigSummary {
                 id: Uuid::nil(),
-                name: "Monza".into(),
+                name: "Monzarella".into(),
                 content_crc: 0xDEAD_BEEF,
                 centerline: vec![],
                 latitude_deg: None,
@@ -5988,7 +5988,7 @@ mod tests {
             players_in_lobby: vec![],
             available_sessions: vec![SessionSummary {
                 id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
-                track_name: "Monza".into(),
+                track_name: "Monzarella".into(),
                 track_file: String::new(),
                 track_id: Uuid::nil(),
                 host_name: "host".into(),

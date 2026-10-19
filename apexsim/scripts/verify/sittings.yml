@@ -50,7 +50,7 @@ sittings:
       H-shifter). Box this lap from the rim once. From lap 4, race the AI.
     args:
       - -ApexAutoRace
-      - -ApexTrack=Monza
+      - -ApexTrack=Monzarella
       - -ApexCar=Caravan
       - -ApexAiCount=11
       - -ApexLaps=10
@@ -86,7 +86,7 @@ sittings:
       predicted. Drive through the pit lane once, touch an AI car once.
     args:
       - -ApexAutoRace
-      - -ApexTrack=Monza
+      - -ApexTrack=Monzarella
       - -ApexCar=Caravan
       - -ApexAiCount=5
       - -ApexLaps=10
@@ -118,7 +118,7 @@ sittings:
       posts and grade plates from the cockpit.
     args:
       - -ApexAutoRace
-      - -ApexTrack=Nordschleife
+      - -ApexTrack=Mordschleife
       - -ApexCar=037
       - -ApexAiCount=0
       - -ApexLaps=1
@@ -142,7 +142,7 @@ sittings:
       game in Task Manager (the runner then collects the logs).
     args:
       - -ApexAutoRace
-      - -ApexTrack=MarinaBay
+      - -ApexTrack=MandarinaBay
       - -ApexCar=Caravan
       - -ApexAiCount=0
       - -ApexLaps=3
@@ -172,7 +172,7 @@ sittings:
         - "540:host:damage=engine:30"
     args:
       - -ApexAutoRace
-      - -ApexTrack=Sakhir
+      - -ApexTrack=Bahrainless
       - -ApexCar=Caravan
       - -ApexAiCount=0
       - -ApexLaps=8
@@ -194,11 +194,11 @@ sittings:
     minutes: 15
     about: "Spa, heavy rain drying to light: puddles and a dried line."
     setup: >-
-      Puddle spots: python scripts/verify/spots.py Spa --puddles 6 (printed
+      Puddle spots: python scripts/verify/spots.py SpaFrankenchamps --puddles 6 (printed
       by the runner). The rain eases at 6 min.
     args:
       - -ApexAutoRace
-      - -ApexTrack=Spa
+      - -ApexTrack=SpaFrankenchamps
       - -ApexCar=Caravan
       - -ApexAiCount=0
       - -ApexLaps=4
@@ -220,7 +220,7 @@ sittings:
       Source and the Bus Stop. Watch the ERS readout.
     args:
       - -ApexAutoRace
-      - -ApexTrack=Spa
+      - -ApexTrack=SpaFrankenchamps
       - -ApexCar=919
       - -ApexAiCount=0
       - -ApexLaps=2
@@ -248,7 +248,7 @@ sittings:
     args:
       - -ApexAutoRace
       - -ApexMode=8
-      - -ApexTrack=Monza
+      - -ApexTrack=Monzarella
       - -ApexCar=Caravan
       - -ApexAiCount=0
       - -ApexWeather=sunny
@@ -275,7 +275,7 @@ sittings:
         - "300:host:damage=engine:30"
     args:
       - -ApexAutoRace
-      - -ApexTrack=Sakhir
+      - -ApexTrack=Bahrainless
       - -ApexCar=Caravan
       - -ApexAiCount=0
       - -ApexLaps=5

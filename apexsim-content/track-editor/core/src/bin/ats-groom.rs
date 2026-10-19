@@ -10,9 +10,9 @@
 //!
 //! ```text
 //! ats-groom --all                          # every track under tracks/{default,custom}
-//! ats-groom tracks/default/Monza/Monza.yaml # one track
+//! ats-groom tracks/default/Monzarella/Monzarella.yaml # one track
 //! ats-groom --all --dry-run                # report without writing
-//! ats-groom --verbose Monza.yaml           # also list braking corners + board stations
+//! ats-groom --verbose Monzarella.yaml           # also list braking corners + board stations
 //! ```
 //!
 //! Idempotent: re-running over groomed scenes writes nothing.

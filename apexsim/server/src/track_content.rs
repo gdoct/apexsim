@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn a_completed_track_is_the_track_a_full_load_gives() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../apexsim-content/tracks/default/Monza/Monza.yaml");
+            .join("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml");
         if !crate::walls::Walls::sidecar_path(&path).exists() {
             eprintln!("Monza's sidecars are not baked; skipping");
             return;

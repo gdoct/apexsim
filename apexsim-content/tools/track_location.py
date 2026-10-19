@@ -11,7 +11,7 @@ sea level. The server thins the session's air by that height
 sidecar takes its published elevation from `MANUAL`.
 
     python tools/track_location.py --all        # every track with a DEM
-    python tools/track_location.py Spielberg    # or a few, [--dry-run]
+    python tools/track_location.py RedPullRing    # or a few, [--dry-run]
 
 The keys go at the end of the metadata block, in the order and the float
 format (an f32's shortest form) the track editor writes them, so a YAML the
@@ -38,11 +38,11 @@ KEYS = ("altitude_m", "latitude_deg", "longitude_deg")
 #: (approximate; the height is what matters, and to the density a few tens
 #: of metres are well under a percent). None leaves a key out.
 MANUAL: dict[str, tuple[float, float | None, float | None]] = {
-    "MexicoCity": (2240.0, 19.4042, -99.0907),
-    "IMS": (218.0, 39.795, -86.2347),
-    "YasMarina": (3.0, 24.4672, 54.6031),
-    "MarinaBay": (5.0, 1.2905, 103.8630),
-    "MoscowRaceway": (190.0, None, None),
+    "HermanosRodriQueso": (2240.0, 19.4042, -99.0907),
+    "Endianapolis": (218.0, 39.795, -86.2347),
+    "YasMarinara": (3.0, 24.4672, 54.6031),
+    "MandarinaBay": (5.0, 1.2905, 103.8630),
+    "MoscowMule": (190.0, None, None),
 }
 
 

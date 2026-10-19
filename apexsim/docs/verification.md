@@ -38,7 +38,7 @@ circuit it changed (2026-10-15, R1-R8).
 Suzuka's real elevation (2026-10-18, `dem_elevation.py` with the crossover
 held at 7 m) has not: the bridge deck and the road under it from the
 road and from above, Degner-to-hairpin's new grades, and the stands and
-barriers re-seated on it (`spots.py Suzuka`).
+barriers re-seated on it (`spots.py Sudoku`).
 
 ### R1. Spa, heavy rain, stand-in driver
 
@@ -114,7 +114,7 @@ AC-imported circuit is installed; Spa stands in.
 
 ### R5. Mandarina Bay at night, cloudy
 
-`-ApexTrack=MarinaBay -ApexTimeOfDay=21:00 -ApexWeather=cloudy`, a TV lap
+`-ApexTrack=MandarinaBay -ApexTimeOfDay=21:00 -ApexWeather=cloudy`, a TV lap
 plus `LookAt` stops ([apexsim-content/docs/props.md](../../apexsim-content/docs/props.md)).
 
 - The cloud dome at night, from open ground (the pit building's ceiling
@@ -193,7 +193,7 @@ session while driving (notice, then the menu).
 
 - The layout picker switching the HUD in a race; per-circuit and per-class
   bindings and switching by place.
-- The dossier trace page in a browser (`python tools/trace_layout.py Spa --open` in `apexsim-content/`,
+- The dossier trace page in a browser (`python tools/trace_layout.py SpaFrankenchamps --open` in `apexsim-content/`,
   [apexsim-content/docs/track-pipeline.md](../../apexsim-content/docs/track-pipeline.md#layout-dossiers-osm_layoutpy)):
   the centerline and stands over the imagery where they belong (the
   Raidillon stand on its bank), the station marks, a traced span's
@@ -252,7 +252,7 @@ session while driving (notice, then the menu).
 
 ### R10. Spa, sunny, 13:00
 
-`-ApexTrack=Spa -ApexWeather=sunny -ApexTimeOfDay=13:00`, a TV lap.
+`-ApexTrack=SpaFrankenchamps -ApexWeather=sunny -ApexTimeOfDay=13:00`, a TV lap.
 
 - The sun at the circuit's own noon (`SessionJoined.Conditions.solar_noon_min`,
   13:33 at Spa): at 13:00 it stands a little east of due south over the

@@ -137,7 +137,7 @@ pub enum DemError {
     Version(u32),
 }
 
-/// `tracks/default/Monza/Monza.yaml` -> `tracks/default/Monza/Monza.dem.msgpack`.
+/// `tracks/default/Monzarella/Monzarella.yaml` -> `tracks/default/Monzarella/Monzarella.dem.msgpack`.
 pub fn dem_path_for<P: AsRef<Path>>(track_path: P) -> PathBuf {
     let path = track_path.as_ref();
     let stem = path.file_stem().unwrap_or_default().to_string_lossy();
@@ -214,7 +214,7 @@ mod tests {
     #[test]
     fn spas_north_lies_a_little_past_plus_y() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tracks/default/Spa/Spa.dem.msgpack");
+            .join("../../tracks/default/SpaFrankenchamps/SpaFrankenchamps.dem.msgpack");
         let Ok(Some(dem)) = load_dem(&path) else {
             return;
         };

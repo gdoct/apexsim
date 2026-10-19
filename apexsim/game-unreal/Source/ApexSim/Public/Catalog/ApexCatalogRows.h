@@ -18,7 +18,7 @@
  *    the like — so the path never resolves. There is no way to reach a car's
  *    mesh from server data alone.
  *  - `TrackConfigSummary` carries only Id and Name. The name is
- *    "Circuit of The Americas" while the preview image is `Austin.png`; nothing
+ *    "Circuit of The Americas" while the preview image is `Armadillos.png`; nothing
  *    on the wire joins them.
  *
  * The Godot client papered over both by scanning content files at runtime
@@ -656,7 +656,7 @@ struct APEXSIM_API FApexTrackCatalogRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Track")
 	float LengthM = 0.0f;
 
-	/** YAML base name, e.g. "Austin" — this is what the preview PNG is named after. */
+	/** YAML base name, e.g. "Armadillos" — this is what the preview PNG is named after. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Track")
 	FString YamlBaseName;
 

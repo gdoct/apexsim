@@ -50,8 +50,8 @@ fn stop_car(
     let mut car_configs = HashMap::new();
     car_configs.insert(config.id, config.clone());
     let track =
-        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monza/Monza.yaml")
-            .expect("Monza");
+        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
+            .expect("Monzarella");
     let session = RaceSession::new(
         Uuid::from_u128(1),
         track.id,

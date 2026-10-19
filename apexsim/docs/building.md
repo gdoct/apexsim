@@ -119,7 +119,7 @@ RUST_LOG=debug cargo test <name>                   # with logging
   [server/ai.md](server/ai.md), [server/vehicle-physics.md](server/vehicle-physics.md),
   [server/pit-lane.md](server/pit-lane.md), [apexsim-content/docs/ac-import.md](../../apexsim-content/docs/ac-import.md).
 - Benchmarks (`physics_step_monza`, `session_tick_8cars_monza`, ...): the
-  `_mesh` ones are skipped until `Monza.road.msgpack` is baked. A physics
+  `_mesh` ones are skipped until `Monzarella.road.msgpack` is baked. A physics
   step is measured on a fresh clone of a car rolling down the start straight
   and a session tick on a field rebuilt every 30 s of sim, so neither is
   timing a car the bench itself wore out (a car that is out returns from

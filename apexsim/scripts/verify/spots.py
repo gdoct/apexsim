@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Camera poses for the verification runs, worked out from a track YAML.
 
-    python scripts/verify/spots.py Spa --puddles 3      # the lowest cells (where rain stands)
-    python scripts/verify/spots.py Spa --grade 2        # the steepest climbs and drops
-    python scripts/verify/spots.py Spa --bank 2         # the most banked stretches
-    python scripts/verify/spots.py Spa --corners 3      # the tightest bends
-    python scripts/verify/spots.py Spa --at 2950        # a station on the lap, m
-    python scripts/verify/spots.py Spa --near 120.5,-340  # the station nearest a point
-    python scripts/verify/spots.py Nordschleife --prop rail_tag_eifel 2  # props of the .ats, from the road
-    python scripts/verify/spots.py Nordschleife --props   # every prop asset and its count
+    python scripts/verify/spots.py SpaFrankenchamps --puddles 3      # the lowest cells (where rain stands)
+    python scripts/verify/spots.py SpaFrankenchamps --grade 2        # the steepest climbs and drops
+    python scripts/verify/spots.py SpaFrankenchamps --bank 2         # the most banked stretches
+    python scripts/verify/spots.py SpaFrankenchamps --corners 3      # the tightest bends
+    python scripts/verify/spots.py SpaFrankenchamps --at 2950        # a station on the lap, m
+    python scripts/verify/spots.py SpaFrankenchamps --near 120.5,-340  # the station nearest a point
+    python scripts/verify/spots.py Mordschleife --prop rail_tag_eifel 2  # props of the .ats, from the road
+    python scripts/verify/spots.py Mordschleife --props   # every prop asset and its count
 
 Each spot prints its station and an `apexsim.cam.LookAt` command for
 -ApexExecAfter: a camera beside the road, a little back along the lap,
@@ -155,7 +155,7 @@ def spread(picked: list[tuple[float, dict]], count: int, gap_m: float = 200.0) -
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Camera poses from a track YAML.")
-    parser.add_argument("track", help="track stem, e.g. Spa")
+    parser.add_argument("track", help="track stem, e.g. SpaFrankenchamps")
     parser.add_argument("--puddles", type=int, metavar="N", help="the N lowest cells")
     parser.add_argument("--grade", type=int, metavar="N", help="the N steepest stretches")
     parser.add_argument("--bank", type=int, metavar="N", help="the N most banked stretches")

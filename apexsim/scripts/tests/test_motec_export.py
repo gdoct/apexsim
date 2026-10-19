@@ -17,7 +17,7 @@ def lap_csv(folder: Path, lap: int, lap_ms: int) -> Path:
     """A lap of a straight 2 km at a steady 200 km/h, a sample every 2 m,
     in fourth gear for the first half and fifth after."""
     lines = [
-        f"# apexsim lap trace 1; track=Monza; car=posh-gt3rs; lap={lap}; lap_ms={lap_ms}; valid=1; recorded=2026-10-18T12:34:56.000Z",
+        f"# apexsim lap trace 1; track=Monzarella; car=posh-gt3rs; lap={lap}; lap_ms={lap_ms}; valid=1; recorded=2026-10-18T12:34:56.000Z",
         HEADER,
     ]
     seconds = lap_ms / 1000.0
@@ -42,7 +42,7 @@ class MotecExportTest(unittest.TestCase):
             self.assertAlmostEqual(ends[1], 71.0, places=3)
 
             log = motec_export.read_ld(out)
-            self.assertEqual((log["venue"], log["vehicle"], log["driver"]), ("Monza", "posh-gt3rs", "Test Driver"))
+            self.assertEqual((log["venue"], log["vehicle"], log["driver"]), ("Monzarella", "posh-gt3rs", "Test Driver"))
             self.assertEqual((log["date"], log["time"]), ("18/10/2026", "12:34:56"))
             chans = log["channels"]
             self.assertEqual(len(chans), len(motec_export.CHANNELS) + 1)

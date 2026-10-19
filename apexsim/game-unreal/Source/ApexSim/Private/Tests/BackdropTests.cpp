@@ -110,7 +110,7 @@ bool FApexReplayClipStreamTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("clip valid"), Clip.IsValid());
 	TestEqual(TEXT("clip frames"), Clip.NumFrames(), 90);
 	TestEqual(TEXT("clip cars"), Clip.GetCars().Num(), 2);
-	TestEqual(TEXT("clip stem"), Clip.GetTrackStem(), FString(TEXT("Zandvoort")));
+	TestEqual(TEXT("clip stem"), Clip.GetTrackStem(), FString(TEXT("Zandervoort")));
 	TestEqual(TEXT("clip name"), Clip.GetTrackName(), FString(TEXT("Zandervoort")));
 	TestEqual(TEXT("clip centerline"), Clip.GetCenterline().Num(), 2);
 	TestEqual(TEXT("clip weather"), (int32)Clip.GetConditions().Weather, (int32)EApexWeather::LightRain);
@@ -210,40 +210,40 @@ bool FApexBackdropChooseFileTest::RunTest(const FString& Parameters)
 		return F;
 	};
 	TArray<FFile> Files;
-	Files.Add(Make(TEXT("Spa.lmp2.dusk"), TEXT("spa"), 100, TEXT("lmp2"), 10));
-	Files.Add(Make(TEXT("Zandvoort.gt3.day"), TEXT("zandvoort"), 200, TEXT("gt3"), 20));
-	Files.Add(Make(TEXT("Monza.f1.day"), TEXT("monza"), 300, TEXT("f1"), 30));
-	Files.Add(Make(TEXT("Austin.gt3.day"), TEXT("austin"), 400, TEXT("gt3"), 20));
+	Files.Add(Make(TEXT("SpaFrankenchamps.lmp2.dusk"), TEXT("spafrankenchamps"), 100, TEXT("lmp2"), 10));
+	Files.Add(Make(TEXT("Zandervoort.gt3.day"), TEXT("zandervoort"), 200, TEXT("gt3"), 20));
+	Files.Add(Make(TEXT("Monzarella.f1.day"), TEXT("monzarella"), 300, TEXT("f1"), 30));
+	Files.Add(Make(TEXT("Armadillos.gt3.day"), TEXT("armadillos"), 400, TEXT("gt3"), 20));
 	FContent Content;
-	Content.Tracks.Add(TEXT("spa"), TPair<FString, int64>(TEXT("Spa"), 100));
-	Content.Tracks.Add(TEXT("zandvoort"), TPair<FString, int64>(TEXT("Zandvoort"), 200));
+	Content.Tracks.Add(TEXT("spafrankenchamps"), TPair<FString, int64>(TEXT("SpaFrankenchamps"), 100));
+	Content.Tracks.Add(TEXT("zandervoort"), TPair<FString, int64>(TEXT("Zandervoort"), 200));
 	// Monza's track has moved since the render; Austin has no export here.
-	Content.Tracks.Add(TEXT("monza"), TPair<FString, int64>(TEXT("Monza"), 301));
+	Content.Tracks.Add(TEXT("monzarella"), TPair<FString, int64>(TEXT("Monzarella"), 301));
 	Content.Cars.Add(TEXT("lmp2"), 10);
 	Content.Cars.Add(TEXT("gt3"), 20);
 	Content.Cars.Add(TEXT("f1"), 30);
 
 	TArray<FString> Why;
-	TestEqual(TEXT("the pending track's file"), UApexDemoModeSubsystem::ChooseFile(Files, Content, TEXT("ZANDVOORT"), FString(), &Why), 1);
+	TestEqual(TEXT("the pending track's file"), UApexDemoModeSubsystem::ChooseFile(Files, Content, TEXT("ZANDERVOORT"), FString(), &Why), 1);
 	TestEqual(TEXT("two skipped"), Why.Num(), 2);
 	TestEqual(TEXT("no pending: the first playable"), UApexDemoModeSubsystem::ChooseFile(Files, Content, FString(), FString()), 0);
-	TestEqual(TEXT("not the one just played"), UApexDemoModeSubsystem::ChooseFile(Files, Content, FString(), TEXT("Spa.lmp2.dusk")), 1);
-	TestEqual(TEXT("the pending track's file even if just played"), UApexDemoModeSubsystem::ChooseFile(Files, Content, TEXT("spa"), TEXT("Spa.lmp2.dusk")), 0);
-	TestEqual(TEXT("a stale pending track falls back"), UApexDemoModeSubsystem::ChooseFile(Files, Content, TEXT("monza"), FString()), 0);
+	TestEqual(TEXT("not the one just played"), UApexDemoModeSubsystem::ChooseFile(Files, Content, FString(), TEXT("SpaFrankenchamps.lmp2.dusk")), 1);
+	TestEqual(TEXT("the pending track's file even if just played"), UApexDemoModeSubsystem::ChooseFile(Files, Content, TEXT("spafrankenchamps"), TEXT("SpaFrankenchamps.lmp2.dusk")), 0);
+	TestEqual(TEXT("a stale pending track falls back"), UApexDemoModeSubsystem::ChooseFile(Files, Content, TEXT("monzarella"), FString()), 0);
 
 	// With three playable, a run of races goes round all of them, not back
 	// and forth between the first two.
-	Content.Tracks.Add(TEXT("austin"), TPair<FString, int64>(TEXT("Austin"), 400));
-	TestEqual(TEXT("after the second, the third"), UApexDemoModeSubsystem::ChooseFile(Files, Content, FString(), TEXT("Zandvoort.gt3.day")), 3);
-	TestEqual(TEXT("after the last, the first"), UApexDemoModeSubsystem::ChooseFile(Files, Content, FString(), TEXT("Austin.gt3.day")), 0);
-	Content.Tracks.Remove(TEXT("austin"));
+	Content.Tracks.Add(TEXT("armadillos"), TPair<FString, int64>(TEXT("Armadillos"), 400));
+	TestEqual(TEXT("after the second, the third"), UApexDemoModeSubsystem::ChooseFile(Files, Content, FString(), TEXT("Zandervoort.gt3.day")), 3);
+	TestEqual(TEXT("after the last, the first"), UApexDemoModeSubsystem::ChooseFile(Files, Content, FString(), TEXT("Armadillos.gt3.day")), 0);
+	Content.Tracks.Remove(TEXT("armadillos"));
 
 	// A car that changed, or is missing, keeps a file off the screen; a zero
 	// checksum on either side is unknown and passes.
 	Content.Cars[TEXT("gt3")] = 21;
-	TestEqual(TEXT("a changed car skips the file"), UApexDemoModeSubsystem::ChooseFile(Files, Content, TEXT("zandvoort"), FString()), 0);
+	TestEqual(TEXT("a changed car skips the file"), UApexDemoModeSubsystem::ChooseFile(Files, Content, TEXT("zandervoort"), FString()), 0);
 	Files[1].Cars[0].Value = 0;
-	TestEqual(TEXT("an unknown checksum passes"), UApexDemoModeSubsystem::ChooseFile(Files, Content, TEXT("zandvoort"), FString()), 1);
+	TestEqual(TEXT("an unknown checksum passes"), UApexDemoModeSubsystem::ChooseFile(Files, Content, TEXT("zandervoort"), FString()), 1);
 	Content.Cars.Remove(TEXT("lmp2"));
 	Content.Cars.Remove(TEXT("gt3"));
 	TestEqual(TEXT("nothing playable"), UApexDemoModeSubsystem::ChooseFile(Files, Content, FString(), FString()), INDEX_NONE);

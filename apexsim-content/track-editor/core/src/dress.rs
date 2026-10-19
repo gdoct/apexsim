@@ -551,9 +551,9 @@ fn lay_graffiti(
 /// Marina's blue and white, Bahrain's blue and red. Keyed by the scene's
 /// source file stem.
 const RUNOFF_PAINT: [(&str, &str); 3] = [
-    ("Spa", "red_yellow"),
-    ("YasMarina", "blue_white"),
-    ("Sakhir", "blue_red"),
+    ("SpaFrankenchamps", "red_yellow"),
+    ("YasMarinara", "blue_white"),
+    ("Bahrainless", "blue_red"),
 ];
 
 /// Tightest radius over a band's span under which it is a corner's run-off
@@ -3936,7 +3936,7 @@ mod tests {
     fn the_fan_lap_numbers_its_posts_banks_its_car_parks_and_builds_camp_villages() {
         let track = track();
         // The Nordschleife's style is the fan dressing.
-        let mut scene = AtsScene::new_for_track(&track, "Nordschleife.yaml");
+        let mut scene = AtsScene::new_for_track(&track, "Mordschleife.yaml");
         let mut layout = layout();
         let square = |x0: f32, y0: f32, x1: f32, y1: f32| {
             vec![[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]

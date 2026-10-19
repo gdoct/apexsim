@@ -45,7 +45,7 @@ Three kinds of content, refreshed three ways:
   committed. Display names only: `facts.display_class` mirrors
   `ApexCatalog::DisplayClass` (see [naming](../../apexsim-content/docs/naming.md)).
 - **Words** (`site/copy.yml`): hand-written, every string a Jinja template
-  over the facts (`{{ n.cars|words }}`, `{{ name('Spa') }}`,
+  over the facts (`{{ n.cars|words }}`, `{{ name('SpaFrankenchamps') }}`,
   `{{ car('posh-gt3rs') }}`), so no number is typed.
 - **Media** (`site/media.yml`): each picture's source file in the repo and how
   to cut it (`width`, `aspect`, `focus`), encoded to WebP.

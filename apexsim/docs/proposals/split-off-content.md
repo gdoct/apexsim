@@ -169,8 +169,8 @@ generated files the two sides read, plus a manifest:
 ```
 Spa-2026.10.3.apxpack
   pack.json
-  server/Spa.yaml, Spa.ats, Spa.layout.json, Spa.{ground,curbs,walls,road,pit,dem}.msgpack, Spa.guide.yml
-  game/Spa.uescene.json, Spa.uemesh, Spa.png
+  server/SpaFrankenchamps.yaml, SpaFrankenchamps.ats, SpaFrankenchamps.layout.json, Spa.{ground,curbs,walls,road,pit,dem}.msgpack, SpaFrankenchamps.guide.yml
+  game/SpaFrankenchamps.uescene.json, SpaFrankenchamps.uemesh, SpaFrankenchamps.png
 ```
 
 ```
@@ -195,14 +195,14 @@ for whoever rebuilds the pack.
   "pack_format": 1,
   "kind": "track",
   "id": "b8edab00-8392-4765-967e-3c060828f922",
-  "stem": "Spa",
+  "stem": "SpaFrankenchamps",
   "display_name": "Spa-Francorchamps",
   "version": "2026.10.3",
   "content_crc": 2374481145,
   "formats": { "track_yaml": 1, "sidecars": 1, "scene": 3 },
   "requires": { "props": ">=2026.9" },
   "built_from": { "repo": "apexsim-content", "commit": "a1b2c3d" },
-  "files": { "server/Spa.yaml": "sha256:...", "game/Spa.uemesh": "sha256:..." }
+  "files": { "server/SpaFrankenchamps.yaml": "sha256:...", "game/SpaFrankenchamps.uemesh": "sha256:..." }
 }
 ```
 

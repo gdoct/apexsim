@@ -47,7 +47,7 @@
     Dress, export and draw every track (and the ground PNGs if missing).
 
 .EXAMPLE
-    ./bake.ps1 -Track Monza,Spa -Release
+    ./bake.ps1 -Track Monzarella,SpaFrankenchamps -Release
     Redress and rebake two circuits.
 
 .EXAMPLE

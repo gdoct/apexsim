@@ -117,7 +117,7 @@ from the track YAML's centerline. Conversions are in `ApexRaceCoordinate.h`.
 - Command line, applied when the race view begins and held for that race:
   `-ApexCamera=X,Y,Z[,Yaw[,Pitch]]`, `-ApexCameraLookAt=X,Y,Z,TX,TY,TZ` (wins
   over `-ApexCamera`), `-ApexCameraFov=Deg` (default 70). Example:
-  `-game -ApexAutoRace -ApexTrack=Suzuka -ApexCameraLookAt=... -ApexScreenshotAfter=12`.
+  `-game -ApexAutoRace -ApexTrack=Sudoku -ApexCameraLookAt=... -ApexScreenshotAfter=12`.
 
 Tests: `ApexSim.Camera.ParseNumberList`, `ApexSim.Camera.ServerFramePose`.
 

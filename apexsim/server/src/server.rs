@@ -687,8 +687,8 @@ mod tests {
     fn dossiers_and_import_reports_are_not_tracks() {
         let is = |name: &str| ServerState::is_non_track_json(std::path::Path::new(name));
         assert!(is("custom/KsZandvoort.import.json"));
-        assert!(is("default/Spa.layout.json"));
-        assert!(is("default/Spa.Layout.JSON"));
+        assert!(is("default/SpaFrankenchamps.layout.json"));
+        assert!(is("default/SpaFrankenchamps.Layout.JSON"));
         assert!(!is("custom/Mine.json"));
         assert!(!is("custom/Mine.yaml"));
     }

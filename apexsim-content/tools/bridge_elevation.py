@@ -12,7 +12,7 @@ span, with an approach ramp either side, so the road climbs onto the deck
 instead of stepping. The humps are estimates (the real decks stand a few
 metres over the water; no survey is published), kept in `DECK_HEIGHT_M`.
 
-    python tools/bridge_elevation.py MarinaBay [--dry-run]
+    python tools/bridge_elevation.py MandarinaBay [--dry-run]
 
 It rewrites only the `z:` lines of the nodes and the raceline, as text, so
 nothing else in the YAML moves, and it sets z absolutely (flat base 0), so

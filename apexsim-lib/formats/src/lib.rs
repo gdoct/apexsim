@@ -55,7 +55,7 @@ pub const PIT_SIDECAR_VERSION: u32 = pit::PIT_SIDECAR_VERSION;
 
 /// The path of a track's sidecar of `kind` (`ground`, `curbs`, `walls`,
 /// `road`, `pit`): beside the track file, its stem with
-/// `.<kind>.msgpack` (`Monza.yaml` -> `Monza.ground.msgpack`).
+/// `.<kind>.msgpack` (`Monzarella.yaml` -> `Monzarella.ground.msgpack`).
 pub fn sidecar_path(track_file: &Path, kind: &str) -> PathBuf {
     track_file.with_extension(format!("{kind}.msgpack"))
 }
@@ -66,18 +66,18 @@ mod tests {
 
     #[test]
     fn sidecars_sit_beside_the_track_under_its_stem() {
-        let track = Path::new("tracks/default/Monza/Monza.yaml");
+        let track = Path::new("tracks/default/Monzarella/Monzarella.yaml");
         assert_eq!(
             sidecar_path(track, "ground"),
-            Path::new("tracks/default/Monza/Monza.ground.msgpack")
+            Path::new("tracks/default/Monzarella/Monzarella.ground.msgpack")
         );
         assert_eq!(
             road_mesh::RoadMeshFile::sidecar_path(track),
-            Path::new("tracks/default/Monza/Monza.road.msgpack")
+            Path::new("tracks/default/Monzarella/Monzarella.road.msgpack")
         );
-        assert!(pit::PitSidecar::sidecar_path(track).ends_with("Monza.pit.msgpack"));
-        assert!(walls::WallFile::sidecar_path(track).ends_with("Monza.walls.msgpack"));
-        assert!(curbs::CurbBands::sidecar_path(track).ends_with("Monza.curbs.msgpack"));
-        assert!(ground::GroundHeightfield::sidecar_path(track).ends_with("Monza.ground.msgpack"));
+        assert!(pit::PitSidecar::sidecar_path(track).ends_with("Monzarella.pit.msgpack"));
+        assert!(walls::WallFile::sidecar_path(track).ends_with("Monzarella.walls.msgpack"));
+        assert!(curbs::CurbBands::sidecar_path(track).ends_with("Monzarella.curbs.msgpack"));
+        assert!(ground::GroundHeightfield::sidecar_path(track).ends_with("Monzarella.ground.msgpack"));
     }
 }

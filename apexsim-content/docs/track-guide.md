@@ -28,7 +28,7 @@ which reaches the content as `../apexsim-content`:
 
 ```bash
 apexsim-replay guide --all                     # every shipped circuit x every class (a few minutes)
-apexsim-replay guide ../apexsim-content/tracks/default/Spa/Spa.yaml --class GT3
+apexsim-replay guide ../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml --class GT3
 apexsim-replay guide --all --report            # detected corners, to author notes against (no sim)
 apexsim-replay guide --all --missing-only      # only guides older than their YAML, notes, dossier or car.tomls
 ```
@@ -103,12 +103,12 @@ them.
 ```jsonc
 {
   "version": 1, "class": "GT3", "display_class": "GT3",
-  "recording": "Spa.GT3.guide.apxs",   // beside this file
+  "recording": "SpaFrankenchamps.GT3.guide.apxs",   // beside this file
   "source_crc": 1234567890,            // the track YAML's content checksum
   "car": { "id": "uuid", "folder": "posh-gt3rs", "name": "..." },
   "car_gap_s": 2.0,
   "track": {
-    "stem": "Spa", "track_id": "uuid", "display_name": "Spa-Frankenchamps",
+    "stem": "SpaFrankenchamps", "track_id": "uuid", "display_name": "Spa-Frankenchamps",
     "description": "...", "country": "...", "city": "...", "category": "F1", "year_built": 1921,
     "length_m": 7004.0, "altitude_m": 401.0, "latitude_deg": 50.43, "longitude_deg": 5.97,
     "elevation_min_m": 0.0, "elevation_max_m": 102.0,   // relative to the start line

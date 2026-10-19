@@ -293,11 +293,11 @@ impl CircuitStyle {
 
     pub fn for_stem(stem: &str) -> CircuitStyle {
         match stem {
-            "Nordschleife" => Self::NORDSCHLEIFE,
-            "MarinaBay" => Self::STREET,
-            "Sakhir" => Self::SAKHIR,
-            "YasMarina" => Self::DESERT,
-            "Sepang" | "SaoPaulo" | "MexicoCity" => Self::TROPICAL,
+            "Mordschleife" => Self::NORDSCHLEIFE,
+            "MandarinaBay" => Self::STREET,
+            "Bahrainless" => Self::SAKHIR,
+            "YasMarinara" => Self::DESERT,
+            "Shebang" | "Interlaggos" | "HermanosRodriQueso" => Self::TROPICAL,
             _ => Self::DEFAULT,
         }
     }
@@ -309,9 +309,9 @@ mod tests {
 
     #[test]
     fn every_other_circuit_keeps_the_old_rules() {
-        assert_eq!(CircuitStyle::for_stem("Monza"), CircuitStyle::DEFAULT);
+        assert_eq!(CircuitStyle::for_stem("Monzarella"), CircuitStyle::DEFAULT);
         assert_eq!(
-            CircuitStyle::for_stem("Nordschleife"),
+            CircuitStyle::for_stem("Mordschleife"),
             CircuitStyle::NORDSCHLEIFE
         );
     }
@@ -324,19 +324,19 @@ mod tests {
         assert_eq!(r.barrier(BarrierKind::Tyres), BarrierKind::Tecpro);
         assert_eq!(r.barrier(BarrierKind::Concrete), BarrierKind::Concrete);
         assert_eq!(CircuitStyle::STREET.ground, Ground::Paved);
-        assert_eq!(CircuitStyle::for_stem("MarinaBay"), CircuitStyle::STREET);
+        assert_eq!(CircuitStyle::for_stem("MandarinaBay"), CircuitStyle::STREET);
         const { assert!(!CircuitStyle::STREET.floodlights) };
     }
 
     #[test]
     fn the_hot_circuits_grow_palms() {
-        assert_eq!(CircuitStyle::for_stem("Sakhir").flora, Flora::Desert);
-        assert_eq!(CircuitStyle::for_stem("YasMarina").flora, Flora::Desert);
-        assert_eq!(CircuitStyle::for_stem("Sepang").flora, Flora::Tropical);
-        assert_eq!(CircuitStyle::for_stem("MexicoCity").flora, Flora::Tropical);
-        assert_eq!(CircuitStyle::for_stem("Sakhir").ground, Ground::Sand);
-        assert_eq!(CircuitStyle::for_stem("YasMarina").ground, Ground::Grass);
-        assert_eq!(CircuitStyle::for_stem("Spa").flora, Flora::Temperate);
+        assert_eq!(CircuitStyle::for_stem("Bahrainless").flora, Flora::Desert);
+        assert_eq!(CircuitStyle::for_stem("YasMarinara").flora, Flora::Desert);
+        assert_eq!(CircuitStyle::for_stem("Shebang").flora, Flora::Tropical);
+        assert_eq!(CircuitStyle::for_stem("HermanosRodriQueso").flora, Flora::Tropical);
+        assert_eq!(CircuitStyle::for_stem("Bahrainless").ground, Ground::Sand);
+        assert_eq!(CircuitStyle::for_stem("YasMarinara").ground, Ground::Grass);
+        assert_eq!(CircuitStyle::for_stem("SpaFrankenchamps").flora, Flora::Temperate);
         // Only the trees differ.
         assert_eq!(
             CircuitStyle {

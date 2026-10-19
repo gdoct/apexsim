@@ -65,7 +65,7 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("header tick rate"), Record.Header.TickRate, 240);
 	TestEqual(TEXT("header frame rate"), Record.Header.FrameRate, 30);
 	TestEqual(TEXT("header row size"), Record.Header.RowSize, ApexSpectator::RowSize);
-	TestEqual(TEXT("header stem"), Record.Header.Track.Stem, FString(TEXT("Zandvoort")));
+	TestEqual(TEXT("header stem"), Record.Header.Track.Stem, FString(TEXT("Zandervoort")));
 	TestEqual(TEXT("header display name"), Record.Header.Track.DisplayName, FString(TEXT("Zandervoort")));
 	TestTrue(TEXT("header crc"), Record.Header.Track.SourceCrc == 0xCBF43926u);
 	TestTrue(TEXT("header length"), FMath::IsNearlyEqual(Record.Header.Track.LengthM, 4259.0f));
@@ -348,7 +348,7 @@ bool FApexSpectatorFileTest::RunTest(const FString& Parameters)
 		AddError(Error);
 		return false;
 	}
-	TestEqual(TEXT("file header stem"), StreamFile.GetHeader().Track.Stem, FString(TEXT("Zandvoort")));
+	TestEqual(TEXT("file header stem"), StreamFile.GetHeader().Track.Stem, FString(TEXT("Zandervoort")));
 	TestEqual(TEXT("file header epoch"), (int32)StreamFile.GetHeader().Epoch, 0);
 	TestEqual(TEXT("file start"), StreamFile.GetHeader().StartTick, (int64)8);
 	TestEqual(TEXT("file end"), StreamFile.GetHeader().EndTick, (int64)8 + 89 * 8);
@@ -527,7 +527,7 @@ bool FApexSpectatorProtocolTest::RunTest(const FString& Parameters)
 		return Actual.Num() == Num && FMemory::Memcmp(Actual.GetData(), Expected, Num) == 0;
 	};
 	TestTrue(TEXT("ListShowcases bytes"), Same(ApexProtocol::EncodeListShowcases(), C_ListShowcases, UE_ARRAY_COUNT(C_ListShowcases)));
-	TestTrue(TEXT("SpectateShowcase bytes"), Same(ApexProtocol::EncodeSpectateShowcase(TEXT("Zandvoort.gt3.day")), C_SpectateShowcase, UE_ARRAY_COUNT(C_SpectateShowcase)));
+	TestTrue(TEXT("SpectateShowcase bytes"), Same(ApexProtocol::EncodeSpectateShowcase(TEXT("Zandervoort.gt3.day")), C_SpectateShowcase, UE_ARRAY_COUNT(C_SpectateShowcase)));
 	TestTrue(TEXT("SpectateShowcase (any) bytes"), Same(ApexProtocol::EncodeSpectateShowcase(FString()), C_SpectateShowcaseAny, UE_ARRAY_COUNT(C_SpectateShowcaseAny)));
 	TestTrue(TEXT("LeaveSpectate bytes"), Same(ApexProtocol::EncodeLeaveSpectate(), C_LeaveSpectate, UE_ARRAY_COUNT(C_LeaveSpectate)));
 	TestTrue(TEXT("SpectateSession bytes"), Same(ApexProtocol::EncodeSpectateSession(TEXT("01234567-89ab-cdef-0123-456789abcdef")),
@@ -541,7 +541,7 @@ bool FApexSpectatorProtocolTest::RunTest(const FString& Parameters)
 	if (Message.Showcases.Num() == 1)
 	{
 		const FApexShowcaseSummary& S = Message.Showcases[0];
-		TestEqual(TEXT("showcase id"), S.Id, FString(TEXT("Zandvoort.gt3.day")));
+		TestEqual(TEXT("showcase id"), S.Id, FString(TEXT("Zandervoort.gt3.day")));
 		TestEqual(TEXT("showcase track"), S.TrackId, FString(TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")));
 		TestEqual(TEXT("showcase name"), S.TrackName, FString(TEXT("Zandervoort")));
 		TestEqual(TEXT("showcase class"), S.Class, FString(TEXT("GT3")));
@@ -556,7 +556,7 @@ bool FApexSpectatorProtocolTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("SpectatorJoined type"), (int32)Message.Type, (int32)EApexServerMessageType::SpectatorJoined);
 	TestEqual(TEXT("SpectatorJoined stream"), Message.StreamId, FString(TEXT("01234567-89ab-cdef-0123-456789abcdef")));
 	TestEqual(TEXT("SpectatorJoined kind"), (int32)Message.SpectatorKind, (int32)EApexSpectatorKind::Showcase);
-	TestEqual(TEXT("SpectatorJoined id"), Message.ShowcaseId, FString(TEXT("Zandvoort.gt3.day")));
+	TestEqual(TEXT("SpectatorJoined id"), Message.ShowcaseId, FString(TEXT("Zandervoort.gt3.day")));
 
 	TestTrue(TEXT("SpectatorRecord decodes"), ApexProtocol::DecodeServerMessage(View(S_SpectatorRecord, UE_ARRAY_COUNT(S_SpectatorRecord)), Message, Error));
 	TestEqual(TEXT("SpectatorRecord type"), (int32)Message.Type, (int32)EApexServerMessageType::SpectatorRecord);

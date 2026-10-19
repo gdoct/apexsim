@@ -28,7 +28,7 @@ fn repo(rel: &str) -> PathBuf {
         .join(rel)
 }
 
-const TRACK: &str = "../apexsim-content/tracks/default/Monza/Monza.yaml";
+const TRACK: &str = "../apexsim-content/tracks/default/Monzarella/Monzarella.yaml";
 /// A car with DRS, a hybrid and a tuned setup: the most the car model does.
 const CAR: &str = "../apexsim-content/cars/default/fugazzi-sf26/car.toml";
 

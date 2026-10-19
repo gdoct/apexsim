@@ -98,7 +98,7 @@ mod tests {
         let result = RaceResult {
             session_id: "abc".into(),
             track_name: "Monzarella".into(),
-            track_stem: Some("Monza".into()),
+            track_stem: Some("Monzarella".into()),
             finished_at: 1_792_200_000,
             lap_limit: Some(5),
             race_seconds: None,

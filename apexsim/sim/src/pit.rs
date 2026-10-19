@@ -144,7 +144,7 @@ pub struct LanePoint {
 }
 
 impl PitLane {
-    /// `Monza.yaml` -> `Monza.pit.msgpack`.
+    /// `Monzarella.yaml` -> `Monzarella.pit.msgpack`.
     pub fn sidecar_path(track_file: &Path) -> PathBuf {
         PitSidecar::sidecar_path(track_file)
     }

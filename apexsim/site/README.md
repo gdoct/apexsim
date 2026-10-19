@@ -56,5 +56,5 @@ python scripts/site/build_site.py
 ```
 
 Numbers are never typed into `copy.yml`: write `{{ n.cars }}`,
-`{{ n.setup_knobs }}`, `{{ name('Spa') }}` (the header of `copy.yml` lists
+`{{ n.setup_knobs }}`, `{{ name('SpaFrankenchamps') }}` (the header of `copy.yml` lists
 them). Circuits appear by their display names only.

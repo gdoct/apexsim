@@ -37,7 +37,7 @@ use crate::spectator::{
 /// kilobytes at startup.
 #[derive(Debug, Clone)]
 pub struct ShowcaseEntry {
-    /// The file's name without `.apxs`: `Zandvoort.gt3.day`.
+    /// The file's name without `.apxs`: `Zandervoort.gt3.day`.
     pub id: String,
     pub path: PathBuf,
     pub header: StreamHeader,

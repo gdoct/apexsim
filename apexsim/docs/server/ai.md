@@ -417,7 +417,7 @@ Environment:
 
 | Variable | Effect |
 |---|---|
-| `SURVEY_TRACKS=Spa,Monza` | only these stems (a custom import too) |
+| `SURVEY_TRACKS=SpaFrankenchamps,Monzarella` | only these stems (a custom import too) |
 | `SURVEY_CARS=KsFerrariSf70h,posh-gt3rs` | these cars instead of the three (a folder under `apexsim-content/cars/default`, or `custom` for an import) |
 | `AI_TEST_SEED=n` | another seeded field (default 1); run 1-3 for a comparison |
 | `SURVEY_AI_LEVEL=95` | the field at that AI level (spread over 4 points round it), not the mixed field |

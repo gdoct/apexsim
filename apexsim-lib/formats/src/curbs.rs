@@ -51,7 +51,7 @@ pub struct CurbBands {
 }
 
 impl CurbBands {
-    /// `Monza.yaml` -> `Monza.curbs.msgpack`.
+    /// `Monzarella.yaml` -> `Monzarella.curbs.msgpack`.
     pub fn sidecar_path(track_file: &Path) -> PathBuf {
         crate::sidecar_path(track_file, "curbs")
     }

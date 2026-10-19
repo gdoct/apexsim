@@ -26,7 +26,8 @@ marketing page and promo caption made from it.
   into the `DT_TrackCatalog` fallback rows.
 - Both `TrackFile` types (server and track editor) keep `display_name`
   through rewrites.
-- Stems stay the place names (`Zandvoort`), and `-ApexTrack=` takes the stem.
+- Stems are the parody names in file-name form (`Zandervoort`, `SpaFrankenchamps`),
+  never the real ones, and `-ApexTrack=` takes the stem.
 - The table of every shipped circuit, real name and shown name, is in
   [tracks/default/README.md](../tracks/default/README.md).
   A new track needs a row there and both names in its YAML.

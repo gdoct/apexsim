@@ -54,7 +54,7 @@ pub struct WallFile {
 }
 
 impl WallFile {
-    /// `Monza.yaml` -> `Monza.walls.msgpack`.
+    /// `Monzarella.yaml` -> `Monzarella.walls.msgpack`.
     pub fn sidecar_path(track_file: &Path) -> PathBuf {
         crate::sidecar_path(track_file, "walls")
     }

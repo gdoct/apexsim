@@ -15,9 +15,9 @@ reviewable dossier of real-world facts.  Turning a dossier into props is
 ``ats-dress``'s job (Rust, deterministic, tested); nothing here writes a
 ``.ats``.
 
-    python tools/osm_layout.py Zandvoort Spa   # refresh two dossiers
+    python tools/osm_layout.py Zandervoort Spa   # refresh two dossiers
     python tools/osm_layout.py --all           # every circuit with a bbox
-    python tools/osm_layout.py Monza --offline # reuse the cached extract
+    python tools/osm_layout.py Monzarella --offline # reuse the cached extract
 
 Georeferencing is a fit, not an assumption: the OSM raceway ways are
 matched onto the YAML centerline by an FFT rotation/translation search
@@ -53,35 +53,35 @@ LAYOUT_VERSION = 1
 # split into tiles where the OSM API's 50k-node ceiling bites (Le Mans runs
 # through a town and its forests).
 BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
-    "Zandvoort": [(4.528, 52.383, 4.552, 52.396)],
-    "Spa": [(5.955, 50.428, 5.988, 50.448)],
-    "Monza": [(9.275, 45.612, 9.300, 45.635)],
-    "Silverstone": [(-1.035, 52.063, -0.995, 52.083)],
-    "Oschersleben": [(11.265, 52.020, 11.295, 52.035)],
-    "Austin": [(-97.652, 30.122, -97.626, 30.145)],
-    "Hockenheim": [(8.552, 49.318, 8.582, 49.338)],
-    "BrandsHatch": [(0.250, 51.350, 0.275, 51.364)],
-    "Spielberg": [(14.752, 47.212, 14.780, 47.228)],
-    "Suzuka": [(136.525, 34.835, 136.555, 34.855)],
-    "Nuerburgring": [(6.930, 50.325, 6.965, 50.345)],
+    "Zandervoort": [(4.528, 52.383, 4.552, 52.396)],
+    "SpaFrankenchamps": [(5.955, 50.428, 5.988, 50.448)],
+    "Monzarella": [(9.275, 45.612, 9.300, 45.635)],
+    "Shiverstone": [(-1.035, 52.063, -0.995, 52.083)],
+    "Oskarsleben": [(11.265, 52.020, 11.295, 52.035)],
+    "Armadillos": [(-97.652, 30.122, -97.626, 30.145)],
+    "Hockeyheimring": [(8.552, 49.318, 8.582, 49.338)],
+    "BrandsScratch": [(0.250, 51.350, 0.275, 51.364)],
+    "RedPullRing": [(14.752, 47.212, 14.780, 47.228)],
+    "Sudoku": [(136.525, 34.835, 136.555, 34.855)],
+    "Nuerburgerring": [(6.930, 50.325, 6.965, 50.345)],
     # The whole Nordschleife and a few hundred metres round it. Not fetched
     # from the OSM map API (its 50k-node ceiling would need a dozen tiles):
-    # the extract under .cache/osm/Nordschleife.0.json was cut
+    # the extract under .cache/osm/Mordschleife.0.json was cut
     # from the OSM planet file for this box, so run this with --offline.
-    "Nordschleife": [(6.895, 50.315, 7.025, 50.400)],
-    "Catalunya": [(2.246, 41.560, 2.275, 41.580)],
-    "Budapest": [(19.236, 47.572, 19.262, 47.588)],
-    "Sakhir": [(50.495, 26.020, 50.525, 26.045)],
-    "Norisring": [(11.110, 49.428, 11.132, 49.440)],
+    "Mordschleife": [(6.895, 50.315, 7.025, 50.400)],
+    "Barcelunatic": [(2.246, 41.560, 2.275, 41.580)],
+    "Hungoverring": [(19.236, 47.572, 19.262, 47.588)],
+    "Bahrainless": [(50.495, 26.020, 50.525, 26.045)],
+    "Snorisring": [(11.110, 49.428, 11.132, 49.440)],
     # Street circuit on public roads; the lap is OSM relation 421263 (see
     # STREET_CIRCUIT_RELATIONS). The box stops at 1.283 N, south of it is Gardens
     # by the Bay, which is backdrop only.
-    "MarinaBay": [(103.846, 1.283, 103.872, 1.299)],
-    # MoscowRaceway is deliberately NOT registered here (see below): a bbox
+    "MandarinaBay": [(103.846, 1.283, 103.872, 1.299)],
+    # MoscowMule is deliberately NOT registered here (see below): a bbox
     # whose fit fails would abort every `--all` run at this entry (build()
     # raises SystemExit, uncaught in main()'s loop), breaking `--all` for
     # every stem sorted after it. Once the fit is fixed, add:
-    #   "MoscowRaceway": [(36.243, 55.987, 36.283, 56.005)],
+    #   "MoscowMule": [(36.243, 55.987, 36.283, 56.005)],
     # That bbox is already corrected from the task card's seed
     # (36.070, 55.955, 36.105, 55.972), which is ~12 km off: the real
     # circuit (per Wikipedia and OSM Nominatim, "Moscow Raceway"
@@ -97,7 +97,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     # traced a different variant than this YAML's rather than a
     # thin-coverage or public-road case (the full investigation is in git
     # history: docs/ADDITIONAL_TRACKS.md); no dossier was written.
-    # MexicoCity is deliberately NOT registered here either, for the same
+    # HermanosRodriQueso is deliberately NOT registered here either, for the same
     # --all-abort reason: the best achievable fit (using only the OSM ways
     # actually named "Autodromo Hermanos Rodriguez", excluding a duplicate
     # Formula E layer and a stray motocross track sharing the venue)
@@ -109,9 +109,9 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     # through the interior -- a real gap in the source data, not a
     # filtering or fit problem, so no code change can close it. Once OSM
     # gains linework through the stadium, add:
-    #   "MexicoCity": [(-99.102, 19.396, -99.080, 19.413)],
-    "Montreal": [(-73.540, 45.490, -73.510, 45.515)],
-    "LeMans": [
+    #   "HermanosRodriQueso": [(-99.102, 19.396, -99.080, 19.413)],
+    "ChillyVilleneuve": [(-73.540, 45.490, -73.510, 45.515)],
+    "Lemons": [
         (0.180, 47.910, 0.240, 47.945),
         (0.180, 47.940, 0.215, 47.960),
         (0.215, 47.940, 0.240, 47.960),
@@ -131,16 +131,16 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     ],
     # Interlagos sits in dense urban Sao Paulo; the seed bbox alone exceeds
     # the API's 50k-node ceiling, so it is split into quadrants.
-    "SaoPaulo": [
+    "Interlaggos": [
         (-46.712, -23.712, -46.700, -23.703),
         (-46.700, -23.712, -46.688, -23.703),
         (-46.712, -23.703, -46.700, -23.695),
         (-46.700, -23.703, -46.688, -23.695),
     ],
-    "Shanghai": [(121.205, 31.328, 121.235, 31.352)],
-    "Sepang": [(101.725, 2.750, 101.752, 2.772)],
-    "Sochi": [(39.945, 43.398, 39.972, 43.415)],
-    "Melbourne": [(144.955, -37.860, 144.985, -37.838)],
+    "Shanghaied": [(121.205, 31.328, 121.235, 31.352)],
+    "Shebang": [(101.725, 2.750, 101.752, 2.772)],
+    "Gnocchi": [(39.945, 43.398, 39.972, 43.415)],
+    "AlbertParkour": [(144.955, -37.860, 144.985, -37.838)],
 }
 
 # Grandstands OSM does not have, from each circuit's own published
@@ -159,7 +159,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # Connaught and Empress stands, which that layout shares; its Float
     # stand is gone); check them against
     # `ats-dress --verbose` before relying on one.
-    "MarinaBay": [
+    "MandarinaBay": [
         # The pit straight: the stands face the pit building across the road.
         dict(name="Super Pit Grandstand", from_m=4730, to_m=4900, side="right", depth_m=26, gap_m=6, family="street", covered=True),
         dict(name="Pit Grandstand", from_m=20, to_m=200, side="right", depth_m=26, gap_m=6, family="street", covered=True),
@@ -193,7 +193,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # Spa's own grandstand map (https://www.spa-francorchamps.be/) puts
     # seats at Les Combes, Bruxelles, Pouhon and the Bus Stop that OSM has
     # no outline for; each sits on the outside of its bend.
-    "Spa": [
+    "SpaFrankenchamps": [
         dict(name="Tribune Les Combes", from_m=2320, to_m=2470, side="outside", depth_m=14),
         dict(name="Tribune Bruxelles", from_m=2990, to_m=3140, side="outside", depth_m=14),
         dict(name="Tribune Pouhon", from_m=3890, to_m=4060, side="outside", depth_m=14),
@@ -202,14 +202,14 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # The Automobile Club de l'Ouest numbers its tribunes; those along the
     # pit straight are in OSM, the ones out on the public-road section are
     # not (https://www.lemans.org/ spectator map).
-    "LeMans": [
+    "Lemons": [
         dict(name="Tribune Tertre Rouge", from_m=1840, to_m=1990, side="outside", depth_m=14),
         dict(name="Tribune Mulsanne", from_m=7500, to_m=7660, side="outside", depth_m=14),
         dict(name="Tribune Indianapolis", from_m=8950, to_m=9090, side="outside", depth_m=14),
         dict(name="Tribune Arnage", from_m=10060, to_m=10200, side="outside", depth_m=14),
         dict(name="Tribune Virage Porsche", from_m=11500, to_m=11700, side="outside", depth_m=14),
     ],
-    "Zandvoort": [
+    "Zandervoort": [
         dict(name="Pit Grandstand", from_m=70, to_m=230, side="left", depth_m=18),
         dict(name="Hairpin", from_m=3150, to_m=3330, side="right", depth_m=14),
         dict(name="Eastside", from_m=3330, to_m=3800, side="left", depth_m=16),
@@ -225,7 +225,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # length of the T3-T4-T5 sequence and is partly covered (premium upper
     # rows under a roof); the Turn 9 grandstand, between T9 and T10, is tall
     # (37 rows) open bleachers with no roof.
-    "Austin": [
+    "Armadillos": [
         dict(name="Turn 4 Grandstand", from_m=1050, to_m=1400, side="right", depth_m=18, covered=True),
         dict(name="Turn 9 Grandstand", from_m=2017, to_m=2154, side="right", depth_m=22, covered=False),
     ],
@@ -238,7 +238,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # Station span located from the hairpin's own heading reversal (the
     # fit's coverage gap sits exactly there); on the outside of the
     # right-hand hairpin, which the sources' photos agree with.
-    "Hockenheim": [
+    "Hockeyheimring": [
         dict(name="Mercedes-Tribüne", from_m=2000, to_m=2250, side="outside", depth_m=20),
     ],
     # Interlagos letters its stands. OSM already traces the pit-straight
@@ -254,7 +254,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # reprofile. The task brief's placements for M (Bico de Pato) and R
     # (Juncao) do not match these sources or OSM's own traced "M"; this
     # table follows the verified sources instead.
-    "SaoPaulo": [
+    "Interlaggos": [
         dict(name="D", from_m=290.9, to_m=500.0, side="outside", depth_m=14, covered=True),
         dict(name="R", from_m=592.5, to_m=782.2, side="outside", depth_m=14, covered=True),
         dict(name="G", from_m=1150.0, to_m=1368.1, side="outside", depth_m=10, covered=False),
@@ -270,7 +270,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # named OSM way either, so the span is placed from the circuit's own
     # corner order: after the hairpin (`station_m` 2957.7 in `corners`) and
     # before the west straight (4055.9), astride that unnamed building.
-    "Suzuka": [
+    "Sudoku": [
         dict(name="M", from_m=3600, to_m=3760, side="right", depth_m=16, covered=False),
     ],
     # Sepang's own OSM building=grandstand way for the Main Grandstand is
@@ -287,7 +287,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # pit lane on the pit-straight side and will be dropped there
     # (correct)"), and the back-straight face carries the same name and
     # side since it is physically the other side of one stand.
-    "Sepang": [
+    "Shebang": [
         dict(name="Main Grandstand", from_m=20, to_m=560, side="right", depth_m=20, covered=True),
         dict(name="Main Grandstand", from_m=4300, to_m=4950, side="right", depth_m=20, covered=True),
         # K2 Hillstand: an open grass mound at the Turn 1/2 hairpin,
@@ -314,7 +314,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # rather than left to render as a generic building. Span and depth are
     # taken from that same OSM footprint (station 768.2, length 97.4 m,
     # depth 17.7 m, uncovered like its neighbours).
-    "Catalunya": [
+    "Barcelunatic": [
         dict(name="Tribuna F", from_m=719.5, to_m=816.9, side="left", depth_m=17.7, covered=False),
     ],
     # Hungaroring's own ticket map (hungaryticketsgp.com/en/map-of-grandstands,
@@ -331,7 +331,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # separately: sources only place them qualitatively ("near the grid",
     # "near the final corner") with no distinguishing span, and duplicating
     # a station guess with no anchor felt worse than leaving them out.
-    "Budapest": [
+    "Hungoverring": [
         # motorsporttickets.com: "Silver 1 is the closest to the grid" --
         # the grid forms just past the OSM-traced Super Gold stand.
         dict(name="Silver 1", from_m=280, to_m=380, side="left", depth_m=10),
@@ -362,7 +362,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # YAML nodes, matched in order to the published turn descriptions),
     # not GPS-traced outlines, same approach as Budapest's Bronze/T1/T12-14
     # entries above.
-    "Sochi": [
+    "Gnocchi": [
         # "T2 Grandstand (Vitaly Petrov)": the tight ~90 degree right
         # braking zone, described as facing the Olympic Park's Central
         # Square (the Medals Plaza) with two big screens.
@@ -401,7 +401,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # rename; same stand, not duplicated) and its "Sadler" could not be
     # found on any current or archived seating map or ticketing page
     # checked here -- omitted rather than invented.
-    "Melbourne": [
+    "AlbertParkour": [
         # Fangio: main straight, grid/pit-stop/chequered-flag views, so it
         # runs opposite the pit building (pits are the lake side / right;
         # see MANUAL_PIT_LANE) for most of the straight before Turn 1.
@@ -450,7 +450,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # approximate pending a look. Pit lane confirmed on the left (OSM's own
     # "Circuit Gilles Villeneuve pit lane" way), so GS1/2 face it from the
     # right.
-    "Montreal": [
+    "ChillyVilleneuve": [
         dict(name="Grandstand 1", from_m=4300, to_m=30, side="right", depth_m=14),
         dict(name="Grandstand 2", from_m=30, to_m=170, side="right", depth_m=12),
         dict(name="Grandstand 12", from_m=200, to_m=280, side="left", depth_m=12),
@@ -477,7 +477,7 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # man_made=bridge, "Passerelle Goodyear") but only as a footbridge, so it
     # would come out as a plain truss; this entry takes its place and wears
     # the kit's tyre brand, the real sponsor not being in the kit's signage.
-    "LeMans": [dict(name="Tyre bridge", station_m=1043.0, kind="arch", brand="piretti")],
+    "Lemons": [dict(name="Tyre bridge", station_m=1043.0, kind="arch", brand="piretti")],
     # A spectator footbridge crosses the Parabolika partway along its
     # ~800 m length, joining the infield (accessible from the Motodrom
     # side) to the outer paddock roads; OSM has no bridge=yes way on this
@@ -485,7 +485,7 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # authored from the circuit's own general layout rather than traced.
     # Placed at the corner's midpoint, which is also roughly where the old
     # forest-straight/Parabolika transition sits.
-    "Hockenheim": [dict(name="Parabolika footbridge", station_m=1400.0, kind="footbridge")],
+    "Hockeyheimring": [dict(name="Parabolika footbridge", station_m=1400.0, kind="footbridge")],
     # The spectator footbridge on the climb out of Niki Lauda Kurve (T1),
     # carrying fans from the paddock/pit side over to the hillside Red Bull
     # Tribune. Not in OSM (nothing bridge-tagged near the track in this
@@ -494,7 +494,7 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # station is placed by judgement partway up the climb, just before the
     # Red Bull Tribune's OSM-traced footprint begins (station_m 646.7):
     # an approximation rather than a sourced fact.
-    "Spielberg": [dict(name="T1 climb footbridge", station_m=600.0, kind="footbridge", brand="kronos")],
+    "RedPullRing": [dict(name="T1 climb footbridge", station_m=600.0, kind="footbridge", brand="kronos")],
     # The pit building's two cantilevered "wing" roofs (the Press Centre and
     # the Sky Restaurant, ~38 m up) reach out over the front straight from
     # the tower at the west and east ends of the paddock/grandstand-A
@@ -502,7 +502,7 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # (en.wikipedia.org: "wing-like viewing platforms crossing the circuit
     # at either end"). The kit has no cantilever-wing asset, so these are
     # laid as tyre-bridge stand-ins; the real shape is not represented.
-    "Shanghai": [
+    "Shanghaied": [
         dict(name="Press Centre Wing", station_m=15.0, kind="arch", brand="piretti"),
         dict(name="Sky Restaurant Wing", station_m=335.0, kind="arch", brand="piretti"),
     ],
@@ -515,7 +515,7 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # "gantry" a Touristenfahrten lap is timed to; OSM has it as way
     # 1391805026 (`advertising=billboard`, layer 1), its real sponsor's
     # lettering replaced by a kit brand.
-    "Nordschleife": [
+    "Mordschleife": [
         # way 41395673, over the K 73 just past the line.
         dict(name="K 73 bridge", kind="deck_track",
              from_at=(6.9491256, 50.3387732), to_at=(6.9488824, 50.3389832)),
@@ -540,11 +540,11 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
 # bridges are not the kit's default: over a city street a "footbridge" is a
 # covered link, and a "road" is an expressway viaduct.
 CROSSING_KINDS: dict[str, dict[str, str]] = {
-    "MarinaBay": {"footbridge": "link", "road": "viaduct"},
+    "MandarinaBay": {"footbridge": "link", "road": "viaduct"},
     # The Nordschleife's two overhead crossings (stations 3965 and 19702:
     # OSM ways 41795617 and 29898554) are forest tracks (`highway=track`,
     # 3 m) on concrete bridges, not a sponsor's tyre arch.
-    "Nordschleife": {"road": "overpass"},
+    "Mordschleife": {"road": "overpass"},
 }
 
 # A street circuit's bridges that carry the lap itself (`bridge=yes` ways of
@@ -557,7 +557,7 @@ DECK_WIDE_MIN_M = 120.0
 # "-" leaves a footprint out because another prop covers it. Names are the
 # dossier's internal ones; what the player sees never shows a real name.
 MANUAL_STRUCTURE_ASSETS: dict[str, dict[str, str]] = {
-    "MarinaBay": {
+    "MandarinaBay": {
         # authored: the three footprints of the performing-arts centre are
         # one prop, `landmark_twin_domes`, laid on the wrapper's outline.
         "Esplanade Theatres on the Bay": "landmark_twin_domes",
@@ -576,7 +576,7 @@ MANUAL_STRUCTURE_ASSETS: dict[str, dict[str, str]] = {
 
 # Landmark kinds OSM finds that a circuit draws with its own prop.
 LANDMARK_KINDS: dict[str, dict[str, str]] = {
-    "MarinaBay": {"big_wheel": "big_wheel_xl"},
+    "MandarinaBay": {"big_wheel": "big_wheel_xl"},
 }
 
 # Point features OSM does not carry, but that are part of what the place
@@ -594,7 +594,7 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # The skyline across the water that is on every picture of the circuit,
     # at the positions OSM has them (lon, lat). All of them stand 300-500 m
     # from the road, so they are backdrop, not neighbours.
-    "MarinaBay": [
+    "MandarinaBay": [
         dict(kind="skypark", name="Three-tower hotel", at=(103.86085, 1.28390),
              yaw_toward=(103.86102, 1.28459)),
         dict(kind="lotus_museum", name="Lotus museum", at=(103.85923, 1.28611)),
@@ -607,7 +607,7 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # `historic=castle` way (its centroid), not on a station, because it
     # stands half a kilometre from the road. `yaw_rad` turns the gate
     # toward the village.
-    "Nordschleife": [
+    "Mordschleife": [
         dict(kind="castle", name="Burg Nürburg", at=NUERBURG_CASTLE, yaw_rad=0.6),
         # The Kaiser-Wilhelm-Turm, the 16.3 m stone lookout tower (1909) on
         # the Hohe Acht summit, 1.4 km off the Hohe Acht section: OSM way
@@ -636,7 +636,7 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     ],
     # The airship over the pits is as much a part of the 24 Hours as the
     # fairground at the Esses (which OSM does have, as a big wheel).
-    "LeMans": [
+    "Lemons": [
         # The airship loiters over the Dunlop crest, where the pit straight,
         # its tribunes and every car on the grid look straight at it, and it
         # is turned broadside to the start line so it shows its length (and
@@ -654,7 +654,7 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # OSM has none of the poles mapped. A representative spread round the
     # lap (outside of each corner, clear of the stands) stands in for the
     # real 64; exact pole positions are not published.
-    "Sepang": [
+    "Shebang": [
         dict(kind="floodlight", station_m=300.0, side="right", offset_m=40.0),
         dict(kind="floodlight", station_m=650.0, side="right", offset_m=40.0),
         dict(kind="floodlight", station_m=1650.0, side="left", offset_m=40.0),
@@ -671,7 +671,7 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # the OSM outline's own station/side/offset so the dedup above drops
     # the OSM building row and only the control-tower kit asset (a
     # stand-in for the real tower, which the kit does not model) remains.
-    "Sakhir": [
+    "Bahrainless": [
         dict(kind="tower", name="Sakhir Tower", station_m=582.3, side="right", offset_m=73.9),
     ],
     # The 2014 Winter Olympics cauldron still stands in the Medals Plaza,
@@ -683,7 +683,7 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # accepts, at the node's own real position converted through this
     # dossier's own fit (station/offset computed from the OSM node
     # 2660040429 at 43.4051613N 39.9547853E).
-    "Sochi": [
+    "Gnocchi": [
         dict(kind="tower", name="Olympic Cauldron", station_m=2001.7, side="left", offset_m=140.0),
     ],
     # The Casino de Montreal (the former France/Quebec Expo 67 pavilions) is
@@ -693,7 +693,7 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # position beside the Casino Straight. The kit has no casino/exhibition-
     # hall asset, so this reuses the control-tower stand-in, as Austin and
     # Sakhir do for buildings the kit can't represent.
-    "Montreal": [
+    "ChillyVilleneuve": [
         dict(kind="tower", station_m=2350.0, side="left", offset_m=150.0),
     ],
     # The rusted-steel bull statue in the fan zone beside the Mitte/Centre
@@ -705,7 +705,7 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # (3149.7 m, left) just beyond its outer edge (the stand's
     # offset_m 47 + depth_m 43.5 = 90.5 m), in the plaza next to it rather
     # than on top of it.
-    "Spielberg": [
+    "RedPullRing": [
         dict(kind="statue", name="Red Bull Statue", station_m=3149.7, side="left", offset_m=90.0),
     ],
 }
@@ -730,7 +730,7 @@ MANUAL_PIT_LANE: dict[str, dict] = {
     # No OSM way represents the actual lane (cars pit on the same
     # Aughtie Drive pavement the lap uses); this is an estimate, not a
     # trace, and is noted as such in the dossier's own `source` field.
-    "Melbourne": dict(from_m=0.0, to_m=380.0, side="right", gap_m=8.0),
+    "AlbertParkour": dict(from_m=0.0, to_m=380.0, side="right", gap_m=8.0),
 }
 
 # How far from the track a mapped pit lane may run and still be the pit
@@ -741,7 +741,7 @@ MANUAL_PIT_LANE: dict[str, dict] = {
 # from it before running behind the Wing; at 70 m the entry was clipped off
 # and the lane was blended onto the track beside the grid instead.
 PIT_LANE_REACH_M: dict[str, float] = {
-    "Silverstone": 120.0,
+    "Shiverstone": 120.0,
 }
 
 # Buildings OSM maps only as a tagless multipolygon relation (a ring of
@@ -758,7 +758,7 @@ MANUAL_STRUCTURES: dict[str, list[dict]] = {
     # relation's own member-way outline (fence rings) through this
     # dossier's fit transform: centre (-344.0, 1092.3), 256.0 x 229.8 m,
     # yaw 1.7701 rad, 14.5 m off the road at station 1568.9, right.
-    "Melbourne": [
+    "AlbertParkour": [
         dict(
             name="Lakeside Stadium",
             station_m=1568.9,
@@ -795,7 +795,7 @@ MANUAL_WOODS: dict[str, list[dict]] = {
     # MANUAL_STANDS already carries "Tribune Mulsanne" (7500-7660) and
     # "Tribune Indianapolis" (8950-9090) for, for the identical reason.
     # Pine (needleleaved) on both sides, matching the real straight.
-    "LeMans": [
+    "Lemons": [
         dict(from_m=4700, to_m=8950, side="left", leaf="needleleaved",
              near_m=15, depth_m=95),
         dict(from_m=4700, to_m=8950, side="right", leaf="needleleaved",
@@ -820,11 +820,11 @@ MANUAL_WOODS: dict[str, list[dict]] = {
 # that turns up a new corner needs a look at this table. Suzuka's are in
 # Japanese in OSM and the kit's boards only draw Latin text.
 CORNER_DISPLAY: dict[str, dict[str, str | None]] = {
-    "Austin": {
+    "Armadillos": {
         "Short Course 2": None,
         "COTA Short Track": None,
     },
-    "BrandsHatch": {
+    "BrandsScratch": {
         "Brabham Straight": "Bramble Straight",
         "Hailwoods Hill": "Hailstones Hill",
         "Graham Hill Bend": "Grandma Hill Bend",
@@ -835,15 +835,15 @@ CORNER_DISPLAY: dict[str, dict[str, str | None]] = {
         "Stirlings Bend": "Sterling Bend",
         "Clark Curve": "Clerk Curve",
     },
-    "Budapest": {
+    "Hungoverring": {
         "Hungaroring": None,
     },
-    "Catalunya": {
+    "Barcelunatic": {
         "Circuit de Barcelona-Catalunya": None,
         "Rallycross": None,
         "AZ": None,
     },
-    "Hockenheim": {
+    "Hockeyheimring": {
         "Ravenol-Kurve": "Ravioli-Kurve",
         "Bernie-Ecclestone-Kurve": "Birnie-Eggstone-Kurve",
         "Hochgeschwindigkeits-(Parabolika-)Kurve": "Parabolika",
@@ -851,7 +851,7 @@ CORNER_DISPLAY: dict[str, dict[str, str | None]] = {
         "Mobil 1 Kurve": "Möbel-1-Kurve",
         "Sachs-Kurve": "Socken-Kurve",
     },
-    "LeMans": {
+    "Lemons": {
         "Courbe Dunlop": "Courbe Dunflop",
         "Chicane Dunlop": "Chicane Dunflop",
         "Chicane Daytona": "Chicane Daytonic",
@@ -859,25 +859,25 @@ CORNER_DISPLAY: dict[str, dict[str, str | None]] = {
         "Virage Corvette": "Virage Serviette",
         "Chicane Ford": "Chicane Fjord",
     },
-    "MarinaBay": {
+    "MandarinaBay": {
         # OSM's lap relation is one "corner" named for the circuit itself.
         "Marina Bay Street Circuit": None,
     },
-    "Montreal": {
+    "ChillyVilleneuve": {
         "Circuit Gilles-Villeneuve": None,
     },
-    "Monza": {
+    "Monzarella": {
         "Autodromo nazionale di Monza - anello alta velocità": None,
         "Variante Ascari": "Variante Calamari",
         "Curva Alboreto": "Curva Alberello",
     },
-    "Nordschleife": {
+    "Mordschleife": {
         "Sabine-Schmitz-Kurve": "Schnitzel-Kurve",
         "Lauda-Links": "Lauter-Links",
         "Stefan-Bellof-S": "Bello-S",
         "Nürburgring Nordschleife": None,
     },
-    "Nuerburgring": {
+    "Nuerburgerring": {
         "Nürburgring Sprintstrecke": None,
         "Anbindung zur Müllenbachschleife": None,
         "Ford-Kurve": "Furt-Kurve",
@@ -885,25 +885,25 @@ CORNER_DISPLAY: dict[str, dict[str, str | None]] = {
         "Anbindung zur Sprintstrecke": None,
         "NGK-Schikane": "Zündkerzen-Schikane",
     },
-    "Oschersleben": {
+    "Oskarsleben": {
         "Zeppelin-Kurve": "Zappelin-Kurve",
     },
-    "Sakhir": {
+    "Bahrainless": {
         "Grand Prix Circuit": None,
     },
-    "SaoPaulo": {
+    "Interlaggos": {
         "S do Senna": "S do Sonho",
     },
-    "Silverstone": {
+    "Shiverstone": {
         "Hamilton Straight": "Hamlet Straight",
     },
-    "Sochi": {
+    "Gnocchi": {
         "Сириус Автодром": None,
     },
-    "Spa": {
+    "SpaFrankenchamps": {
         "Courbe Paul Frère": "Courbe des Frites",
     },
-    "Spielberg": {
+    "RedPullRing": {
         "Niki Lauda Kurve": "Knicki-Kurve",
         "Remus": "Romulus",
         "Schlossgold": "Schlosssilber",
@@ -912,7 +912,7 @@ CORNER_DISPLAY: dict[str, dict[str, str | None]] = {
         "Rindt": "Rind",
         "Red Bull Mobile": "Red Pull Mobile",
     },
-    "Suzuka": {
+    "Sudoku": {
         "1コーナー": "Turn 1",
         "2コーナー": "Turn 2",
         "S字": "Esses",
@@ -927,7 +927,7 @@ CORNER_DISPLAY: dict[str, dict[str, str | None]] = {
         "日立Astemoシケイン": None,
         "メインストレート": "Main Straight",
     },
-    "Zandvoort": {
+    "Zandervoort": {
         "Tarzanbocht": "Tartanbocht",
         "CM.com Circuit Zandvoort": None,
         "Gerlachbocht": "Gelachbocht",
@@ -967,7 +967,7 @@ def with_display_names(stem: str, corners: list[dict]) -> list[dict]:
 # garages' road-facing edge is 15.6 m off the edge and the building reaches
 # 34 m behind it.
 MANUAL_FURNITURE: dict[str, list[dict]] = {
-    "MarinaBay": [
+    "MandarinaBay": [
         # Overhead, beside the start lights.
         dict(kind="bridge", asset="banner_gantry", from_m=45, side="centre", offset_m=0),
         dict(kind="misc", asset="finish_tower_scaffold", from_m=8, side="right", offset_m=8),
@@ -1006,7 +1006,7 @@ def generated_furniture(stem: str) -> list[dict]:
     of each braking zone, and rows of globe lamps along both verges. Added
     to the hand-authored `MANUAL_FURNITURE` entries (the start straight, the
     Padang), which it leaves alone."""
-    if stem != "MarinaBay":
+    if stem != "MandarinaBay":
         return []
     import drs_zones as dz
 
@@ -1046,7 +1046,7 @@ def generated_furniture(stem: str) -> list[dict]:
 # Decal runs painted on the road beside the start straight: the yellow and
 # blue band at each edge, tiled (`image` in `props/decal/marina/`).
 MANUAL_DECAL_RUNS: dict[str, list[dict]] = {
-    "MarinaBay": [
+    "MandarinaBay": [
         dict(name="Pit straight edge band", image="marina/edge_yellow_blue", from_m=4735, to_m=395,
              every_m=6, length_m=6, width_m=3.0, side="right", beyond_edge_m=-1.5),
         dict(name="Pit straight edge band", image="marina/edge_yellow_blue_r", from_m=4735, to_m=395,
@@ -1061,7 +1061,7 @@ MANUAL_GRAFFITI: dict[str, list[dict]] = {
     # the camps line during the 24 hours), Brünnchen and Pflanzgarten; the
     # rest carry a handful each. Authored from the circuit's spectator
     # guides; the pictures themselves are invented (gen_graffiti.py).
-    "Nordschleife": [
+    "Mordschleife": [
         dict(name="Hatzenbach", at=(6.94162, 50.33820), before_m=150, after_m=150, every_m=55,
              images=["vollgas", "ring_frei", "arrows_right"]),
         dict(name="Flugplatz", at=(6.92595, 50.34659), before_m=250, after_m=80, every_m=45,
@@ -1099,12 +1099,12 @@ MANUAL_GRAFFITI: dict[str, list[dict]] = {
     ],
 }
 
-DAY_RACE_NO_FLOODLIGHTS = frozenset({"Melbourne"})
+DAY_RACE_NO_FLOODLIGHTS = frozenset({"AlbertParkour"})
 
 # Circuits where every OSM `building=grandstand`/`leisure=grandstand` hit in
 # range is confirmed (by hand, against the circuit's own seating map) to
 # belong to a different, co-located venue rather than the circuit itself.
-NO_OSM_STANDS = frozenset({"Melbourne"})
+NO_OSM_STANDS = frozenset({"AlbertParkour"})
 
 # How far from the road a feature still belongs to the circuit.
 STAND_RANGE_M = 260.0
@@ -1395,7 +1395,7 @@ def relation_raceway_roles(osm: Osm) -> dict[int, str]:
     every member way tagged only as the ordinary street it is (Norisring:
     Ben-Gurion-Ring and the Beuthener/Zeppelin/Karl-Steigelmann streets are
     highway=secondary/unclassified/service, and it is relation 1889538,
-    "Norisring", that carries highway=raceway). Folding those members in is
+    "Snorisring", that carries highway=raceway). Folding those members in is
     what lets the fit and the pit-lane search see the lap at all; a
     directly-tagged circuit is unaffected, since none of the others has
     such a relation.
@@ -1896,7 +1896,7 @@ def _first_match(t: dict, table: dict):
 # basins, assembled from natural=water ways and multipolygon relations
 # (outer rings, with the inner ones as holes). Others keep the few small
 # water `areas` they always had, so their dossiers do not move.
-WATER_STEMS = frozenset({"MarinaBay"})
+WATER_STEMS = frozenset({"MandarinaBay"})
 WATER_RANGE_M = 700.0
 
 
@@ -2643,7 +2643,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
 # corner tighter than SKID_RADIUS_M gets one to three streaks
 # (`graffiti/skid_*`, gen_graffiti.py), ending SKID_END_BEFORE_M before the
 # turn-in, SKID_LENGTH_M long, 2.6 m wide (a car's two wheel tracks).
-SKID_MARK_STEMS = frozenset({"Nordschleife"})
+SKID_MARK_STEMS = frozenset({"Mordschleife"})
 SKID_RADIUS_M = 70.0
 SKID_LENGTH_M = 24.0
 SKID_WIDTH_M = 2.6
@@ -3063,7 +3063,7 @@ def reapply_manual(stems: list[str], dry_run: bool) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("tracks", nargs="*", help="track stems, e.g. Monza")
+    ap.add_argument("tracks", nargs="*", help="track stems, e.g. Monzarella")
     ap.add_argument("--all", action="store_true", help="every circuit with a bbox")
     ap.add_argument("--offline", action="store_true", help="use the cache only")
     ap.add_argument("--dry-run", action="store_true", help="report without writing")

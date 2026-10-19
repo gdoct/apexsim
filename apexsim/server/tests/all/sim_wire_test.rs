@@ -206,9 +206,9 @@ fn a_car_stopped_on_the_road_brings_out_the_yellows() {
     // The wire's view of the session (runtime side).
     use apexsim_server::session_wire::SessionWire;
     let track = apexsim_server::track_loader::TrackLoader::load_from_file(
-        "../../apexsim-content/tracks/default/Monza/Monza.yaml",
+        "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
     )
-    .expect("Monza");
+    .expect("Monzarella");
     let car = CarConfig::default();
     let car_id = car.id;
     let mut car_configs = HashMap::new();

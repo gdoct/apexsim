@@ -936,16 +936,16 @@ mod tests {
     fn solar_noon_stands_where_the_circuit_is() {
         use crate::data::{solar_noon_minutes, MODEL_DAY_OF_YEAR};
         let cases = [
-            ("Silverstone", 52.07, -1.02, 13 * 60 + 1),
-            ("Spa", 50.44, 5.98, 13 * 60 + 33),
-            ("Zandvoort", 52.39, 4.54, 13 * 60 + 39),
+            ("Shiverstone", 52.07, -1.02, 13 * 60 + 1),
+            ("SpaFrankenchamps", 50.44, 5.98, 13 * 60 + 33),
+            ("Zandervoort", 52.39, 4.54, 13 * 60 + 39),
             ("Barcelona", 41.57, 2.26, 13 * 60 + 48),
-            ("Monza", 45.62, 9.27, 13 * 60 + 20),
-            ("Suzuka", 34.84, 136.54, 11 * 60 + 51),
-            ("Austin", 30.13, -97.64, 13 * 60 + 28),
+            ("Monzarella", 45.62, 9.27, 13 * 60 + 20),
+            ("Sudoku", 34.84, 136.54, 11 * 60 + 51),
+            ("Armadillos", 30.13, -97.64, 13 * 60 + 28),
             ("Mexico City", 19.40, -99.09, 12 * 60 + 33),
             ("Interlagos", -23.70, -46.70, 12 * 60 + 4),
-            ("Melbourne", -37.85, 144.97, 12 * 60 + 17),
+            ("AlbertParkour", -37.85, 144.97, 12 * 60 + 17),
             ("Marina Bay", 1.29, 103.86, 13 * 60),
             ("Yas Marina", 24.47, 54.60, 12 * 60 + 18),
         ];

@@ -125,7 +125,7 @@ fn render_into(dir: &Path, name: &str) -> std::path::PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let opts = RenderOptions {
         race: SimulateOptions {
-            track_path: root.join("../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml"),
+            track_path: root.join("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
             cars_dir: root.join("../apexsim-content/cars/default"),
             host_car: "yotota-lmp2".into(),
             same_car: false,
@@ -176,7 +176,7 @@ async fn http_get(addr: SocketAddr, path: &str) -> String {
 #[tokio::test]
 async fn a_showcase_is_played_to_everyone_on_one_clock() {
     let dir = tempfile::TempDir::new().unwrap();
-    render_into(dir.path(), "Zandvoort.lmp2.test");
+    render_into(dir.path(), "Zandervoort.lmp2.test");
     let server = start_server_with_showcase(dir.path()).await;
 
     let (mut first, lobby) = Client::connect("First", server.tcp_addr).await;
@@ -191,7 +191,7 @@ async fn a_showcase_is_played_to_everyone_on_one_clock() {
         .await;
     assert_eq!(listed.entries.len(), 1);
     let entry = &listed.entries[0];
-    assert_eq!(entry.id, "Zandvoort.lmp2.test");
+    assert_eq!(entry.id, "Zandervoort.lmp2.test");
     assert_eq!(entry.class, "LMP2");
     assert_eq!(entry.cars, 3);
     assert_eq!(entry.viewers, 0);
@@ -213,14 +213,14 @@ async fn a_showcase_is_played_to_everyone_on_one_clock() {
         })
         .await;
     assert_eq!(joined.kind, SpectatorKind::Showcase);
-    assert_eq!(joined.showcase_id, "Zandvoort.lmp2.test");
+    assert_eq!(joined.showcase_id, "Zandervoort.lmp2.test");
     let preamble = first.recv_records().await;
     let Record::Header(header) = &preamble[0] else {
         panic!("the header comes first, not {:?}", preamble[0]);
     };
     assert_eq!(header.epoch, 1, "the first epoch a server hands out");
     assert_eq!(header.stream_id, joined.stream_id);
-    assert_eq!(header.track.stem, "Zandvoort");
+    assert_eq!(header.track.stem, "Zandervoort");
     assert!(matches!(&preamble[1], Record::Roster(r) if r.entries.len() == 3 && r.epoch == 1));
     assert!(matches!(&preamble[2], Record::Path(_)));
     assert!(matches!(
@@ -244,7 +244,7 @@ async fn a_showcase_is_played_to_everyone_on_one_clock() {
     let (mut second, _) = Client::connect("Second", server.tcp_addr).await;
     second
         .send(&ClientMessage::SpectateShowcase {
-            id: Some("zandvoort.LMP2.test".into()),
+            id: Some("zandervoort.LMP2.test".into()),
         })
         .await;
     second
@@ -363,10 +363,10 @@ async fn a_showcase_is_played_to_everyone_on_one_clock() {
     // The HTTP side lists the channel and counts viewers.
     let body = http_get(server.health_addr, "/showcase").await;
     assert!(body.starts_with("HTTP/1.1 200"), "{body}");
-    assert!(body.contains(r#""id":"Zandvoort.lmp2.test""#), "{body}");
+    assert!(body.contains(r#""id":"Zandervoort.lmp2.test""#), "{body}");
     let metrics = http_get(server.health_addr, "/metrics").await;
     assert!(
-        metrics.contains(r#"apexsim_showcase_viewers{showcase="Zandvoort.lmp2.test"} 0"#),
+        metrics.contains(r#"apexsim_showcase_viewers{showcase="Zandervoort.lmp2.test"} 0"#),
         "{metrics}"
     );
     assert!(metrics.contains("apexsim_showcase_frames_sent"));

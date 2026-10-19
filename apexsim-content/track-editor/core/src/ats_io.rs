@@ -22,7 +22,7 @@ pub enum AtsIoError {
 }
 
 /// The `.ats` path belonging to a source track file:
-/// `tracks/default/Silverstone/Silverstone.yaml` -> `tracks/default/Silverstone/Silverstone.ats`.
+/// `tracks/default/Shiverstone/Shiverstone.yaml` -> `tracks/default/Shiverstone/Shiverstone.ats`.
 pub fn ats_path_for<P: AsRef<Path>>(track_path: P) -> PathBuf {
     track_path.as_ref().with_extension("ats")
 }
@@ -177,8 +177,8 @@ mod tests {
     #[test]
     fn ats_path_sits_next_to_the_yaml() {
         assert_eq!(
-            ats_path_for("tracks/default/Silverstone/Silverstone.yaml"),
-            PathBuf::from("tracks/default/Silverstone/Silverstone.ats")
+            ats_path_for("tracks/default/Shiverstone/Shiverstone.yaml"),
+            PathBuf::from("tracks/default/Shiverstone/Shiverstone.ats")
         );
     }
 

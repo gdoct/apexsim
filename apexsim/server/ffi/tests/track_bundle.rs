@@ -19,7 +19,7 @@ fn repo(rel: &str) -> PathBuf {
         .join(rel)
 }
 
-const TRACK: &str = "../apexsim-content/tracks/default/Monza/Monza.yaml";
+const TRACK: &str = "../apexsim-content/tracks/default/Monzarella/Monzarella.yaml";
 const CAR: &str = "../apexsim-content/cars/default/fugazzi-sf26/car.toml";
 
 fn ok(status: ApxStatus) {
@@ -225,7 +225,7 @@ fn print_bundle_sizes() {
         .map(PathBuf::from)
         .unwrap_or_else(|_| repo("../apexsim-content/tracks/default"));
     let names: Vec<String> = std::env::var("BUNDLE_TRACKS")
-        .unwrap_or_else(|_| "Monza,Spa,Nordschleife,LeMans,Suzuka,Norisring".into())
+        .unwrap_or_else(|_| "Monzarella,SpaFrankenchamps,Mordschleife,Lemons,Sudoku,Snorisring".into())
         .split(',')
         .map(|s| s.trim().to_string())
         .collect();

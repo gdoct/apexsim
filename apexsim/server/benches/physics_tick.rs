@@ -8,7 +8,7 @@
 //! - `session_tick_8cars_monza`: a whole GameSession tick with eight AI in
 //!   practice, the session rebuilt every 30 s of sim so the field stays healthy
 //! - `*_mesh`: the same two on Monza's road mesh (`apexsim-content/docs/road-mesh.md`),
-//!   when `Monza.road.msgpack` has been baked; skipped otherwise
+//!   when `Monzarella.road.msgpack` has been baked; skipped otherwise
 
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use std::collections::HashMap;
@@ -23,7 +23,7 @@ use apexsim_server::physics;
 use apexsim_server::track_loader::TrackLoader;
 use uuid::Uuid;
 
-const MONZA: &str = "../../apexsim-content/tracks/default/Monza/Monza.yaml";
+const MONZA: &str = "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml";
 
 fn load_monza() -> TrackConfig {
     TrackLoader::load_from_file(MONZA).expect("failed to load Monza track")
@@ -34,7 +34,7 @@ fn load_monza_mesh() -> Option<TrackConfig> {
     let track = TrackLoader::load_from_file_with(MONZA, RoadContactMode::Mesh)
         .expect("failed to load Monza track");
     if track.road_mesh.is_none() {
-        eprintln!("no Monza.road.msgpack: the *_mesh benches are skipped");
+        eprintln!("no Monzarella.road.msgpack: the *_mesh benches are skipped");
         return None;
     }
     Some(track)

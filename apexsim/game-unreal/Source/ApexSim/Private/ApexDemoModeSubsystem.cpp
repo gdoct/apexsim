@@ -72,7 +72,7 @@ namespace
 	/** How long a connection under way, or a channel list asked for, is given before a local file plays instead. */
 	constexpr float ServerGraceSeconds = 3.0f;
 
-	/** `Zandvoort.gt3.day.apxs` -> `Zandvoort`. */
+	/** `Zandervoort.gt3.day.apxs` -> `Zandervoort`. */
 	FString StemOfShowcaseFile(const FString& Path)
 	{
 		FString Name = FPaths::GetCleanFilename(Path);

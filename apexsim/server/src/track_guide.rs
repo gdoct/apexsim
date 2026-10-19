@@ -61,7 +61,7 @@ pub struct GuideOptions {
 impl Default for GuideOptions {
     fn default() -> Self {
         Self {
-            track_path: PathBuf::from("../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml"),
+            track_path: PathBuf::from("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
             cars_dir: PathBuf::from("../apexsim-content/cars/default"),
             class: "GT3".to_string(),
             seed: 1,
@@ -1977,7 +1977,7 @@ mod tests {
 
     fn zandvoort() -> Option<PathBuf> {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml");
+            .join("../../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml");
         path.is_file().then_some(path)
     }
 

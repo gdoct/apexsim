@@ -10,7 +10,7 @@
 //!
 //! ```text
 //! ats-smooth --all                              # every real circuit
-//! ats-smooth tracks/default/Spielberg/Spielberg.yaml # one
+//! ats-smooth tracks/default/RedPullRing/RedPullRing.yaml # one
 //! ats-smooth --all --dry-run                    # report, write nothing
 //! ats-smooth --report tracks/default/*.yaml  # what is tight today
 //! ```

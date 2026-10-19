@@ -294,8 +294,8 @@ fn assert_clean_start(track: &str, car: &str) {
 fn ai_field_stays_composed_off_the_grid() {
     // The demo's default circuit and car (the reported screenshot), plus an
     // F1 field, which has the power to spin its rears on the way out.
-    assert_clean_start("LeMans", "yotota-lmp2");
-    assert_clean_start("Spa", "fugazzi-sf26");
+    assert_clean_start("Lemons", "yotota-lmp2");
+    assert_clean_start("SpaFrankenchamps", "fugazzi-sf26");
 }
 
 /// Le Mans has a left-hander at 4.1 km where the road heads due west, across
@@ -309,7 +309,7 @@ fn ai_field_stays_composed_off_the_grid() {
 #[test]
 fn ai_field_makes_the_first_lap_at_le_mans() {
     const SEAM_M: std::ops::Range<f32> = 3800.0..4600.0;
-    let mut race = ai_race("LeMans", "yotota-lmp2", 4);
+    let mut race = ai_race("Lemons", "yotota-lmp2", 4);
     let mut off_ticks: HashMap<u8, u32> = HashMap::new();
     for _ in 0..(TICK_RATE as u32 * 150) {
         tick(&mut race);
@@ -357,7 +357,7 @@ fn survey_ai_races_on_every_circuit() {
     .collect();
     tracks.sort();
     tracks.dedup();
-    // `SURVEY_TRACKS=Spa,Monza` narrows the run to a few circuits.
+    // `SURVEY_TRACKS=SpaFrankenchamps,Monzarella` narrows the run to a few circuits.
     if let Ok(only) = std::env::var("SURVEY_TRACKS") {
         let only: Vec<&str> = only.split(',').map(str::trim).collect();
         tracks.retain(|t| only.contains(&t.as_str()));
@@ -691,7 +691,7 @@ impl Passes {
 /// engine damage, and whether it is out. A car that cannot climb Raidillon
 /// used to sit at the limiter until its engine failed.
 /// `cargo test --release --test all ai_race_start_test::snow_stall_survey -- --ignored --nocapture`
-/// (`SURVEY_CAR=bugotti-chiffon-hypercar`, `SURVEY_TRACKS=Spa`).
+/// (`SURVEY_CAR=bugotti-chiffon-hypercar`, `SURVEY_TRACKS=SpaFrankenchamps`).
 #[test]
 #[ignore]
 fn snow_stall_survey() {
@@ -699,7 +699,7 @@ fn snow_stall_survey() {
         // SAFETY: an ignored survey run by name, before anything reads it.
         unsafe { std::env::set_var("SURVEY_WEATHER", "snow") };
     }
-    let track = std::env::var("SURVEY_TRACKS").unwrap_or_else(|_| "Spa".into());
+    let track = std::env::var("SURVEY_TRACKS").unwrap_or_else(|_| "SpaFrankenchamps".into());
     let car = std::env::var("SURVEY_CAR").unwrap_or_else(|_| "bugotti-chiffon-hypercar".into());
     let seconds: u32 = std::env::var("SNOW_SECONDS")
         .ok()
@@ -814,7 +814,7 @@ fn snow_stall_survey() {
 /// slowest point of a braking run of the car's plan) where it slid or left
 /// the road, with the speed it planned there (times its pace) and the
 /// slowest it went. Where a car cannot hold its own plan.
-/// `SURVEY_CARS=AcFriendsFerrari499pLmh SURVEY_TRACKS=Spa cargo test --release --test all ai_race_start_test::lone_car_against_its_plan -- --ignored --nocapture`
+/// `SURVEY_CARS=AcFriendsFerrari499pLmh SURVEY_TRACKS=SpaFrankenchamps cargo test --release --test all ai_race_start_test::lone_car_against_its_plan -- --ignored --nocapture`
 #[test]
 #[ignore]
 fn lone_car_against_its_plan() {
@@ -827,7 +827,7 @@ fn lone_car_against_its_plan() {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(3);
-    let tracks = std::env::var("SURVEY_TRACKS").unwrap_or_else(|_| "Spa".into());
+    let tracks = std::env::var("SURVEY_TRACKS").unwrap_or_else(|_| "SpaFrankenchamps".into());
     let cars = std::env::var("SURVEY_CARS").unwrap_or_else(|_| "posh-gt3rs".into());
     let (mut all_off, mut all_slide) = (0.0f32, 0.0f32);
     for track in tracks.split(',').map(str::trim) {

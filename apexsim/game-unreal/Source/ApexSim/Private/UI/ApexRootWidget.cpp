@@ -1838,7 +1838,7 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	}
 	// -ApexTrack wins, then the player's remembered track, then the server's
 	// first. Le Mans sorts first and is 13 km, which makes for a long wait.
-	// It matches the YAML stem (`Spielberg`) exactly, else a substring of the
+	// It matches the YAML stem (`RedPullRing`) exactly, else a substring of the
 	// lobby name: the names are parodies (`Red Pull Ring`) and the stems are
 	// what the docs and scripts say.
 	FApexTrackConfigSummary Track = LobbyState.TrackConfigs[0];

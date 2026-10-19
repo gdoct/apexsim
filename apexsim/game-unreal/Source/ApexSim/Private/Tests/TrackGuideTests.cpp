@@ -12,13 +12,13 @@ namespace ApexGuideTest
 		"version": 1,
 		"class": "GT3",
 		"display_class": "GT3",
-		"recording": "Spa.GT3.guide.apxs",
+		"recording": "SpaFrankenchamps.GT3.guide.apxs",
 		"source_crc": 1234567890,
 		"car": { "id": "uuid-car", "folder": "posh-gt3rs", "name": "Posh GT3 RS" },
 		"car_gap_s": 2.0,
 		"some_future_key": { "nested": [1, 2, 3] },
 		"track": {
-			"stem": "Spa", "track_id": "uuid-track", "display_name": "Spa-Frankenchamps",
+			"stem": "SpaFrankenchamps", "track_id": "uuid-track", "display_name": "Spa-Frankenchamps",
 			"description": "Modelled on the circuit in the Ardennes.", "country": "Belgium", "city": "Stavelot",
 			"category": "F1", "year_built": 1921,
 			"length_m": 7004.0, "altitude_m": 401.0,
@@ -76,7 +76,7 @@ bool FApexGuideParseFullTest::RunTest(const FString& Parameters)
 	}
 	TestEqual(TEXT("version"), Guide.Version, 1);
 	TestEqual(TEXT("class"), Guide.Class, FString(TEXT("GT3")));
-	TestEqual(TEXT("recording"), Guide.Recording, FString(TEXT("Spa.GT3.guide.apxs")));
+	TestEqual(TEXT("recording"), Guide.Recording, FString(TEXT("SpaFrankenchamps.GT3.guide.apxs")));
 	TestEqual(TEXT("crc"), Guide.SourceCrc, static_cast<int64>(1234567890));
 	TestEqual(TEXT("car"), Guide.CarName, FString(TEXT("Posh GT3 RS")));
 	TestEqual(TEXT("car folder"), Guide.CarFolder, FString(TEXT("posh-gt3rs")));
@@ -193,14 +193,14 @@ bool FApexGuideFilesTest::RunTest(const FString& Parameters)
 {
 	FString Stem;
 	FString Class;
-	TestTrue(TEXT("a guide"), ApexTrackGuide::ParseFileName(TEXT("C:/x/build/guide/Spa.GT3.guide.json"), Stem, Class));
-	TestEqual(TEXT("stem"), Stem, FString(TEXT("Spa")));
+	TestTrue(TEXT("a guide"), ApexTrackGuide::ParseFileName(TEXT("C:/x/build/guide/SpaFrankenchamps.GT3.guide.json"), Stem, Class));
+	TestEqual(TEXT("stem"), Stem, FString(TEXT("SpaFrankenchamps")));
 	TestEqual(TEXT("class"), Class, FString(TEXT("GT3")));
 	TestTrue(TEXT("any case"), ApexTrackGuide::ParseFileName(TEXT("RedBullRing.Hypercar.GUIDE.JSON"), Stem, Class));
 	TestEqual(TEXT("class 2"), Class, FString(TEXT("Hypercar")));
-	TestFalse(TEXT("the recording"), ApexTrackGuide::ParseFileName(TEXT("Spa.GT3.guide.apxs"), Stem, Class));
-	TestFalse(TEXT("no class"), ApexTrackGuide::ParseFileName(TEXT("Spa.guide.json"), Stem, Class));
-	TestFalse(TEXT("a track export"), ApexTrackGuide::ParseFileName(TEXT("Spa.uescene.json"), Stem, Class));
+	TestFalse(TEXT("the recording"), ApexTrackGuide::ParseFileName(TEXT("SpaFrankenchamps.GT3.guide.apxs"), Stem, Class));
+	TestFalse(TEXT("no class"), ApexTrackGuide::ParseFileName(TEXT("SpaFrankenchamps.guide.json"), Stem, Class));
+	TestFalse(TEXT("a track export"), ApexTrackGuide::ParseFileName(TEXT("SpaFrankenchamps.uescene.json"), Stem, Class));
 
 	const TArray<FString> All = { TEXT("GT3"), TEXT("LMP2"), TEXT("F1"), TEXT("Hypercar") };
 	TestEqual(TEXT("the picked car's class"), ApexTrackGuide::ChooseClass(All, TEXT("lmp2")), FString(TEXT("LMP2")));

@@ -6,7 +6,7 @@
 //!
 //! ```text
 //! ats-export --all                          # every track under tracks/{default,custom}
-//! ats-export tracks/default/Monza/Monza.yaml # one track
+//! ats-export tracks/default/Monzarella/Monzarella.yaml # one track
 //! ats-export --all --out some/other/dir
 //! ats-export --keep-sidecars road,walls tracks/default/X/X.yaml
 //! ats-export --strict --all                 # a bake that drops a road facet fails

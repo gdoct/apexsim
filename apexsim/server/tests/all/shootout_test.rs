@@ -30,7 +30,7 @@ const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
 #[test]
 fn a_shootout_runs_each_car_alone_and_classifies_its_flying_lap() {
     let track = TrackLoader::load_from_file(
-        "../../apexsim-content/tracks/default/Norisring/Norisring.yaml",
+        "../../apexsim-content/tracks/default/Snorisring/Snorisring.yaml",
     )
     .expect("failed to load the Norisring");
     let car = CarConfig::default();

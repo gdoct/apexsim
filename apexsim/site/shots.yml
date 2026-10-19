@@ -43,34 +43,34 @@ defaults:
 
 races:
   zandvoort:
-    track: Zandvoort
+    track: Zandervoort
     car: yotota-lmp2
     laps: 3
     weather: sunny
     time: "19:10"       # golden hour over the dunes
   spa:
-    track: Spa
+    track: SpaFrankenchamps
     car: murcetes-amd-w17
     weather: sunny
     time: "15:30"
   monza_rain:
-    track: Monza
+    track: Monzarella
     car: posh-gt3rs
     weather: heavyrain
     time: "17:30"
   sakhir:
-    track: Sakhir
+    track: Bahrainless
     car: mclarsen-mcl40
     weather: sunny
     time: "21:00"       # the night race, under the floodlights
   marina:
-    track: MarinaBay
+    track: MandarinaBay
     car: posh-gt3rs
     laps: 3
     weather: sunny
     time: "21:00"       # the night race, under the lights
   lemans:
-    track: LeMans
+    track: Lemons
     car: panini-zomba-hypercar
     max_seconds: 520
     weather: sunny
@@ -158,7 +158,7 @@ ui:
   - id: hud-chase
     about: The chase view on the grid during the countdown, HUD on
     pick: 1
-    args: [-ApexAutoRace, -ApexTrack=MarinaBay, -ApexCar=994P, -ApexAiCount=11, -ApexLaps=5,
+    args: [-ApexAutoRace, -ApexTrack=MandarinaBay, -ApexCar=994P, -ApexAiCount=11, -ApexLaps=5,
            -ApexWeather=sunny, -ApexTimeOfDay=21:00,
            -ApexCountdown=30, -ApexView=near, -ApexRacingLine=full]
     at: [14, 20, 26]
@@ -166,7 +166,7 @@ ui:
   - id: garage
     about: The hotlap garage's Aero page (wings, ride heights and what they add up to)
     pick: 1
-    args: [-ApexAutoRace, -ApexMode=8, -ApexAiCount=0, -ApexTrack=Spa, -ApexCar=994P, -ApexGarageTab=3]
+    args: [-ApexAutoRace, -ApexMode=8, -ApexAiCount=0, -ApexTrack=SpaFrankenchamps, -ApexCar=994P, -ApexGarageTab=3]
     at: [16, 22]
 
   - id: menu-demo
@@ -178,7 +178,7 @@ ui:
   - id: hud-editor
     about: The in-game HUD layout editor
     pick: 1
-    args: [-ApexAutoRace, -ApexTrack=Spielberg, -ApexCar=RS, -ApexAiCount=9, -ApexOpenHudEditor=14]
+    args: [-ApexAutoRace, -ApexTrack=RedPullRing, -ApexCar=RS, -ApexAiCount=9, -ApexOpenHudEditor=14]
     at: [22]
 
   # Not on the page yet: take `finish` and `lobby`, look at the sheets, then
@@ -193,7 +193,7 @@ ui:
     about: The results card over the race after the flag, filming a car still racing
     pick: 1
     # One lap, opened once the field is home: the classification filled in.
-    args: [-ApexAutoRace, -ApexTrack=Zandvoort, -ApexCar=LMP2, -ApexAiCount=9, -ApexLaps=1,
+    args: [-ApexAutoRace, -ApexTrack=Zandervoort, -ApexCar=LMP2, -ApexAiCount=9, -ApexLaps=1,
            -ApexWeather=sunny, -ApexTimeOfDay=18:40, -ApexCountdown=8,
            '-ApexExecAfter=130=apexsim.finish view|133=apexsim.finish car 3']
     at: [138, 145, 152, 160, 170]
@@ -202,7 +202,7 @@ ui:
   - id: lobby
     about: The session lobby over its own circuit
     pick: 1
-    args: [-ApexAutoRace, -ApexNoStart, -ApexTrack=Spa, -ApexCar=994P, -ApexAiCount=11,
+    args: [-ApexAutoRace, -ApexNoStart, -ApexTrack=SpaFrankenchamps, -ApexCar=994P, -ApexAiCount=11,
            -ApexWeather=sunny, -ApexTimeOfDay=17:30]
     at: [25, 33, 41, 49]
 
@@ -210,5 +210,5 @@ ui:
   # then add guide.webp to media.yml and a screen to copy.yml.
   - id: guide
     about: The track guide at Raidillon (stop 2), on the first trackside camera
-    args: [-ApexGuide=Spa:GT3, -ApexGuideCorner=2, -ApexGuideCamera=1]
+    args: [-ApexGuide=SpaFrankenchamps:GT3, -ApexGuideCorner=2, -ApexGuideCamera=1]
     at: [20, 26, 32]

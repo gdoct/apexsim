@@ -15,10 +15,10 @@ midpoint against the YAML centerline with the same nearest-point logic as
 `osm_layout.Track.locate` (imported from there, so the two never drift
 apart) and flags any that qualify.
 
-    python tools/check_walls.py Oschersleben       # one track
+    python tools/check_walls.py Oskarsleben       # one track
     python tools/check_walls.py --all              # every track with a
                                                        # walls.msgpack sidecar
-    python tools/check_walls.py Oschersleben --z-tolerance 2.0
+    python tools/check_walls.py Oskarsleben --z-tolerance 2.0
 
 Exits non-zero (and prints a report) if any segment is flagged. A handful of
 flags right at a pit lane's entry/exit taper is a known cosmetic issue --
@@ -241,7 +241,7 @@ def check_openings(stem: str, verbose: bool, reach: float = OPENING_REACH_M) -> 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("tracks", nargs="*", help="track stem(s), e.g. Oschersleben")
+    ap.add_argument("tracks", nargs="*", help="track stem(s), e.g. Oskarsleben")
     ap.add_argument("--all", action="store_true", help="check every track with a walls.msgpack sidecar")
     ap.add_argument("--z-tolerance", type=float, default=Z_TOLERANCE_M, help=f"metres (default {Z_TOLERANCE_M})")
     ap.add_argument("-v", "--verbose", action="store_true")

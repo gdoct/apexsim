@@ -24,7 +24,7 @@ pub struct ReplayMetadata {
     /// The tick the lights went out, when the recording holds a race start.
     #[serde(default)]
     pub race_start_tick: Option<u32>,
-    /// The track file's stem (`Zandvoort` for `Zandvoort.yaml`): what the
+    /// The track file's stem (`Zandervoort` for `Zandervoort.yaml`): what the
     /// client's level and catalog are named by when an id lookup fails.
     #[serde(default)]
     pub track_stem: Option<String>,

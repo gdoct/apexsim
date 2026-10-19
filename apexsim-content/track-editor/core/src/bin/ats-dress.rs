@@ -11,10 +11,10 @@
 //!
 //! ```text
 //! ats-dress --all                           # every track that has a dossier
-//! ats-dress tracks/default/Monza/Monza.yaml  # one circuit
+//! ats-dress tracks/default/Monzarella/Monzarella.yaml  # one circuit
 //! ats-dress --all --dry-run                 # report without writing
-//! ats-dress --no-groom Spa.yaml             # dress only
-//! ats-dress --explain Spa.yaml              # what each dossier entry became
+//! ats-dress --no-groom SpaFrankenchamps.yaml             # dress only
+//! ats-dress --explain SpaFrankenchamps.yaml              # what each dossier entry became
 //! ```
 //!
 //! Idempotent: both passes own what they lay, so a second run over a

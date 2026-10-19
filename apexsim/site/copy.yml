@@ -9,12 +9,12 @@
 #   {{ n.setup_knobs }} {{ n.hud_components }} {{ n.liveries }} {{ n.countries }}
 #   {{ n.longest_km }} {{ n.longest_relief }} {{ n.tick_hz }} {{ n.telemetry_hz }}
 #   {{ n.cars|words }}            fourteen
-#   {{ name('Monza') }}           a circuit's display name, by stem
+#   {{ name('Monzarella') }}           a circuit's display name, by stem
 #   {{ car('posh-gt3rs') }}       a car's name, by folder
 #   {{ car_class('posh-gt3rs') }} its class as the game shows it
 #
 # Circuits and corners appear by their display names only (CLAUDE.md, "No
-# trademarks on screen"): write {{ name('Spa') }}, never the real name.
+# trademarks on screen"): write {{ name('SpaFrankenchamps') }}, never the real name.
 #
 # `python scripts/site/build_site.py --stale` lists what changed in the
 # feature docs since this copy was last reviewed against them.
@@ -139,7 +139,7 @@ features:
         from the Copernicus GLO-30 elevation model out to an eight
         kilometre horizon. Stands, pit lanes, barriers and woodland are
         laid from OpenStreetMap dossiers on {{ n.dossiers }} of the
-        {{ n.tracks }} circuits. {{ name('MarinaBay') }} is a street
+        {{ n.tracks }} circuits. {{ name('MandarinaBay') }} is a street
         circuit: Tecpro the whole way round, water either side of its
         raised bridges, and a start straight lit for the night.
     - tag: Force feedback
@@ -327,12 +327,12 @@ tracks:
   intro: >-
     Centerlines from public GPS traces, smoothed without shrinking the
     circuit, in {{ n.countries }} countries. The longest is the
-    {{ n.longest_km }}&nbsp;km {{ name('Nordschleife') }}, routed over
+    {{ n.longest_km }}&nbsp;km {{ name('Mordschleife') }}, routed over
     OpenStreetMap: {{ n.longest_relief }}&nbsp;m of relief, guard rail
     close to the road, the forest right behind it and the fans' graffiti on
     the asphalt. Banking is laid onto the bends it belongs to, and
     elevation comes from satellite surface models.
-  featured: Spa
+  featured: SpaFrankenchamps
   note: >-
     ● green = real layout dossier (named corners, stands, pit lane,
     woodland from OpenStreetMap). Maps drawn from each circuit's own
@@ -348,26 +348,26 @@ engine:
   # site/shots.yml takes them, site/media.yml cuts them. The first is shown large.
   shots:
     - image: shot-grid.webp
-      alt: 'Prototypes lined up on the grid at {{ name("Zandvoort") }} in low evening sun'
-      caption: '{{ name("Zandvoort") }} · the grid at golden hour'
+      alt: 'Prototypes lined up on the grid at {{ name("Zandervoort") }} in low evening sun'
+      caption: '{{ name("Zandervoort") }} · the grid at golden hour'
     - image: shot-rain.webp
-      alt: 'GT3 cars with headlights on in heavy rain at {{ name("Monza") }}'
-      caption: '{{ name("Monza") }} · heavy rain'
+      alt: 'GT3 cars with headlights on in heavy rain at {{ name("Monzarella") }}'
+      caption: '{{ name("Monzarella") }} · heavy rain'
     - image: shot-sunset.webp
-      alt: 'Formula cars under the palms at sunset at {{ name("Sakhir") }}'
-      caption: '{{ name("Sakhir") }} · sunset'
+      alt: 'Formula cars under the palms at sunset at {{ name("Bahrainless") }}'
+      caption: '{{ name("Bahrainless") }} · sunset'
     - image: shot-climb.webp
-      alt: 'A Formula car over the top of the hill at {{ name("Spa") }}'
-      caption: '{{ name("Spa") }} · Raidillon'
+      alt: 'A Formula car over the top of the hill at {{ name("SpaFrankenchamps") }}'
+      caption: '{{ name("SpaFrankenchamps") }} · Raidillon'
     - image: shot-night.webp
-      alt: 'A hypercar under floodlight towers at night at {{ name("LeMans") }}'
-      caption: '{{ name("LeMans") }} · after dark'
+      alt: 'A hypercar under floodlight towers at night at {{ name("Lemons") }}'
+      caption: '{{ name("Lemons") }} · after dark'
     - image: shot-banking.webp
-      alt: 'A prototype through the banked hairpin at {{ name("Zandvoort") }}'
-      caption: '{{ name("Zandvoort") }} · the banked hairpin'
+      alt: 'A prototype through the banked hairpin at {{ name("Zandervoort") }}'
+      caption: '{{ name("Zandervoort") }} · the banked hairpin'
     - image: shot-pack.webp
-      alt: 'GT3 cars on the grid under the lights at {{ name("MarinaBay") }}'
-      caption: '{{ name("MarinaBay") }} · the grid at night'
+      alt: 'GT3 cars on the grid under the lights at {{ name("MandarinaBay") }}'
+      caption: '{{ name("MandarinaBay") }} · the grid at night'
   screens_eyebrow: What the player sees
   screens:
     - image: screen-hud.webp

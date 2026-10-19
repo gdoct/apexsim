@@ -2853,7 +2853,7 @@ mod tests {
             row_size: ROW_SIZE as u8,
             track: StreamTrack {
                 track_id: uuid::Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
-                stem: "Zandvoort".into(),
+                stem: "Zandervoort".into(),
                 display_name: "Zandervoort".into(),
                 source_crc: 0xCBF4_3926,
                 length_m: 4259.0,

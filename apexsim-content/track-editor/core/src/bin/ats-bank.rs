@@ -4,7 +4,7 @@
 //!
 //! ```text
 //! ats-bank --all                               # every real circuit
-//! ats-bank tracks/default/Zandvoort/Zandvoort.yaml  # one
+//! ats-bank tracks/default/Zandervoort/Zandervoort.yaml  # one
 //! ats-bank --all --dry-run                     # report, write nothing
 //! ```
 //!

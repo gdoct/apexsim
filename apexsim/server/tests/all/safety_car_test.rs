@@ -30,7 +30,7 @@ fn race(rules: RaceRules) -> GameSession {
 
 fn race_of(rules: RaceRules, count: u8) -> GameSession {
     let track = TrackLoader::load_from_file(repo(
-        "../apexsim-content/tracks/default/Norisring/Norisring.yaml",
+        "../apexsim-content/tracks/default/Snorisring/Snorisring.yaml",
     ))
     .expect("track loads");
     let car =

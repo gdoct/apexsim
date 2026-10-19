@@ -862,7 +862,7 @@ fn start_finish_anchor_sits_on_the_line() {
 /// wrapped past the lap length.
 #[test]
 fn monza_grid_boxes_end_60_m_before_the_line() {
-    let track_path = real_tracks_dir().join("Monza/Monza.yaml");
+    let track_path = real_tracks_dir().join("Monzarella/Monzarella.yaml");
     let opened = project::open_project(&track_path).unwrap();
     let baked = ue_export::bake(&opened.track, &opened.scene.unwrap()).unwrap();
     let lap_m = baked.length_cm / 100.0;
@@ -895,7 +895,7 @@ fn spa_ground_hugs_the_road_edge_at_the_line() {
     use track_core::terrain::{TerrainHeightfield, BLEND_END_M, VERGE_DROP_M};
     use track_core::track_path::{offset_point, CenterlinePath};
 
-    let track_path = real_tracks_dir().join("Spa/Spa.yaml");
+    let track_path = real_tracks_dir().join("SpaFrankenchamps/SpaFrankenchamps.yaml");
     let opened = project::open_project(&track_path).unwrap();
     let path = CenterlinePath::from_track(&opened.track).unwrap();
     let field = TerrainHeightfield::from_path(&path).unwrap();
@@ -993,8 +993,8 @@ fn writing_an_export_twice_produces_the_same_bytes() {
 #[test]
 fn the_mesh_blob_sits_beside_its_manifest() {
     assert_eq!(
-        ue_export_io::mesh_blob_path_for(Path::new("build/tracks/Spa.uescene.json")),
-        Path::new("build/tracks/Spa.uemesh")
+        ue_export_io::mesh_blob_path_for(Path::new("build/tracks/SpaFrankenchamps.uescene.json")),
+        Path::new("build/tracks/SpaFrankenchamps.uemesh")
     );
     assert_eq!(
         ue_export_io::mesh_blob_path_for(Path::new("out/Red.Bull.uescene.json")),
@@ -2371,7 +2371,7 @@ fn a_desert_circuit_draws_its_land_as_sand() {
     let track = test_track();
     let mut scene = test_scene(&track);
     let green = ue_export::bake(&track, &scene).expect("test track must bake");
-    scene.source_track = "Sakhir.yaml".to_string();
+    scene.source_track = "Bahrainless.yaml".to_string();
     let sand = ue_export::bake(&track, &scene).expect("test track must bake");
 
     let find = |s: &UeScene, key: &str| s.materials.iter().find(|m| m.key == key).cloned();

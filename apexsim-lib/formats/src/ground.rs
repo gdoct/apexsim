@@ -30,7 +30,7 @@ pub struct GroundHeightfield {
 }
 
 impl GroundHeightfield {
-    /// `Monza.yaml` -> `Monza.ground.msgpack`.
+    /// `Monzarella.yaml` -> `Monzarella.ground.msgpack`.
     pub fn sidecar_path(track_file: &Path) -> PathBuf {
         crate::sidecar_path(track_file, "ground")
     }

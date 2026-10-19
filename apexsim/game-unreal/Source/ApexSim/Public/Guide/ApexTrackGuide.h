@@ -137,7 +137,7 @@ namespace ApexTrackGuide
 	 */
 	APEXSIM_API bool Parse(const FString& Json, FApexTrackGuide& Out, FString& OutError);
 
-	/** `Spa.GT3.guide.json` -> ("Spa", "GT3"); false for any other name. */
+	/** `SpaFrankenchamps.GT3.guide.json` -> ("SpaFrankenchamps", "GT3"); false for any other name. */
 	APEXSIM_API bool ParseFileName(const FString& FileName, FString& OutStem, FString& OutClass);
 
 	/**

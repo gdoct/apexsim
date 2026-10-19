@@ -149,9 +149,9 @@ mod tests {
     #[test]
     fn sidecar_path_uses_the_track_stem() {
         let p = GroundHeightfield::sidecar_path(Path::new(
-            "../apexsim-content/tracks/default/Monza/Monza.yaml",
+            "../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
         ));
-        assert!(p.ends_with("Monza.ground.msgpack"));
+        assert!(p.ends_with("Monzarella.ground.msgpack"));
     }
 
     #[test]

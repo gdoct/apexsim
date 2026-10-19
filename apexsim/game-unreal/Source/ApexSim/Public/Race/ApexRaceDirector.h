@@ -659,7 +659,7 @@ private:
 	 * (`UApexTrackContentSubsystem`).
 	 *
 	 * Resolved by convention from the track file the server names —
-	 * `tracks/default/Monza/Monza.yaml` -> `Monza` — which is exactly how the importer
+	 * `tracks/default/Monzarella/Monzarella.yaml` -> `Monzarella` — which is exactly how the importer
 	 * and `ats-export` name what they generate, so the two cannot drift apart
 	 * without the lookup failing loudly.
 	 */

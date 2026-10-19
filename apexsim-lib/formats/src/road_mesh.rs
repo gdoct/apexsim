@@ -123,7 +123,7 @@ pub struct RoadMeshFile {
 }
 
 impl RoadMeshFile {
-    /// `Monza.yaml` -> `Monza.road.msgpack`.
+    /// `Monzarella.yaml` -> `Monzarella.road.msgpack`.
     pub fn sidecar_path(track_file: &Path) -> PathBuf {
         crate::sidecar_path(track_file, "road")
     }

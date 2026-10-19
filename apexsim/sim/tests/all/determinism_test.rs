@@ -116,14 +116,14 @@ fn run_and_fingerprint(track: TrackConfig) -> Vec<u32> {
 fn test_simulation_is_bit_identical_across_runs_on_the_road_mesh() {
     let load = || {
         TrackLoader::load_from_file_with(
-            "../../apexsim-content/tracks/default/Monza/Monza.yaml",
+            "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
             RoadContactMode::Mesh,
         )
         .expect("failed to load Monza")
     };
     let track_a = load();
     if track_a.road_mesh.is_none() {
-        eprintln!("no Monza.road.msgpack: bake it with ats-export to run this test");
+        eprintln!("no Monzarella.road.msgpack: bake it with ats-export to run this test");
         return;
     }
     let track_b = load();
@@ -145,10 +145,10 @@ fn test_simulation_is_bit_identical_across_runs_on_the_road_mesh() {
 #[test]
 fn test_simulation_is_bit_identical_across_runs() {
     let track_a =
-        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monza/Monza.yaml")
+        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
             .expect("failed to load Monza");
     let track_b =
-        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monza/Monza.yaml")
+        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
             .expect("failed to load Monza");
 
     let run1 = run_and_fingerprint(track_a);

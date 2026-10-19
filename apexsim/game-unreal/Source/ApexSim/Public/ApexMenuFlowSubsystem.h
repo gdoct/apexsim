@@ -398,7 +398,7 @@ public:
 	EApexContentMatch VerifyTrackContent(const FString& TrackId, bool bNotify);
 	EApexContentMatch VerifyCarContent(const FString& CarId, bool bNotify);
 
-	/** Row id of the track whose YAML base name is Stem ("Monza"), or empty. The demo session names its track that way. */
+	/** Row id of the track whose YAML base name is Stem ("Monzarella"), or empty. The demo session names its track that way. */
 	FString FindTrackIdByStem(const FString& Stem) const;
 
 private:

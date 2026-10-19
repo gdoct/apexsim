@@ -1,7 +1,7 @@
 use apexsim_server::track_loader::TrackLoader;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let track = TrackLoader::load_from_file("../../apexsim-content/tracks/default/Spa/Spa.yaml")?;
+    let track = TrackLoader::load_from_file("../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml")?;
 
     println!("✓ Successfully loaded track: {}", track.name);
     println!("  Centerline points: {}", track.centerline.len());

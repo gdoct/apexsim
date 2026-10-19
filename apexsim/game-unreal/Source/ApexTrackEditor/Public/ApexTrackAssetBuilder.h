@@ -29,7 +29,7 @@ class APEXTRACKEDITOR_API FApexTrackAssetBuilder : public IApexTrackAssetFactory
 public:
 	/**
 	 * @param DestRoot   content path to build under, e.g. `/Game/Tracks`
-	 * @param TrackStem  export stem, e.g. `Monza` — names the subfolder and the level
+	 * @param TrackStem  export stem, e.g. `Monzarella` — names the subfolder and the level
 	 */
 	FApexTrackAssetBuilder(const FString& DestRoot, const FString& TrackStem);
 

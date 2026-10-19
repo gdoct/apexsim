@@ -478,7 +478,7 @@ mod tests {
         use crate::replay_tools::{start_race, SimulateOptions};
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
         let opts = SimulateOptions {
-            track_path: root.join("../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml"),
+            track_path: root.join("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
             cars_dir: root.join("../apexsim-content/cars/default"),
             ai_count: 3,
             laps: 1,
@@ -504,7 +504,7 @@ mod tests {
             participants: vec![],
             conditions: race.session.conditions,
             race_start_tick: None,
-            track_stem: Some("Zandvoort".into()),
+            track_stem: Some("Zandervoort".into()),
             track_length_m: race.track_length_m(),
         };
         recorders.start(&race, &stream, meta);
@@ -568,7 +568,7 @@ mod tests {
         // It opens as any stream does, and every record written is in it,
         // in order.
         let file = StreamFile::open(&path).unwrap();
-        assert_eq!(file.header.track.stem, "Zandvoort");
+        assert_eq!(file.header.track.stem, "Zandervoort");
         assert_eq!(file.header.start_tick, kept[0].0);
         assert_eq!(file.header.end_tick, kept.last().unwrap().0);
         assert_eq!(file.roster.entries.len(), 3);
@@ -606,7 +606,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
         let opts = crate::replay_tools::SimulateOptions {
-            track_path: root.join("../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml"),
+            track_path: root.join("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
             cars_dir: root.join("../apexsim-content/cars/default"),
             ai_count: 1,
             seed: Some(1),
@@ -628,7 +628,7 @@ mod tests {
             participants: vec![],
             conditions: race.session.conditions,
             race_start_tick: None,
-            track_stem: Some("Zandvoort".into()),
+            track_stem: Some("Zandervoort".into()),
             track_length_m: 0.0,
         };
         recorders.start(&race, &stream, meta);

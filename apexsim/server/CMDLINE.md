@@ -254,7 +254,7 @@ apexsim-replay simulate --track <YAML> --out <FILE> [OPTIONS]
 | `--ai-level <N>` | mixed | The AI field's level, 70-110: the field spread over 4 points round it, as a host's AI level. Without it the mixed field, novice to ace. |
 
 ```bash
-apexsim-replay simulate --track ../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml --car yotota-lmp2 \
+apexsim-replay simulate --track ../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml --car yotota-lmp2 \
     --ai 12 --laps 3 --weather sunny --time 18:30 --seed 4 --out out/zandvoort.bin
 ```
 
@@ -301,9 +301,9 @@ apexsim-replay render --track <YAML> (--class <CLASS> | --car <CAR>) --out <FILE
 | `--from-tick <T>` / `--to-tick <T>` | whole race | Keep only a window of the race. |
 
 ```bash
-apexsim-replay render --track ../apexsim-content/tracks/default/Spa/Spa.yaml --class GT3 --cars 20 --laps 2 \
+apexsim-replay render --track ../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml --class GT3 --cars 20 --laps 2 \
     --weather sunny --time 13:00 --seed 7 --seeds 4 --cars-dir ../apexsim-content/cars/default \
-    --out build/showcase/Spa.gt3.day.apxs
+    --out build/showcase/SpaFrankenchamps.gt3.day.apxs
 ```
 
 `showcase.yml` (in the code root) lists the showcases the content scripts render; a
@@ -357,7 +357,7 @@ apexsim-replay info <FILE> [--check] [OPTIONS]
 | `--cars-dir <DIR>` | `../apexsim-content/cars` | The cars folder `--check` compares against. |
 
 ```bash
-apexsim-replay info build/showcase/Spa.gt3.day.apxs --check
+apexsim-replay info build/showcase/SpaFrankenchamps.gt3.day.apxs --check
 ```
 
 ## find
@@ -459,7 +459,7 @@ apexsim-replay guide (<YAML>... | --all) [OPTIONS]
 
 ```bash
 apexsim-replay guide --all                          # every shipped circuit x every class (a few minutes)
-apexsim-replay guide ../apexsim-content/tracks/default/Spa/Spa.yaml --class GT3
+apexsim-replay guide ../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml --class GT3
 apexsim-replay guide --all --report                 # detected corners only
 apexsim-replay guide --all --missing-only           # only what is out of date
 ```
@@ -493,7 +493,7 @@ apexsim-replay pose --track <YAML> (--corner <NAME> | --station <M>) [OPTIONS]
 | `--look-landmark <NAME>` | | Look at a dossier landmark, crossing, stand or structure by name or kind (`big_wheel`, `Tyre bridge`) instead of a point on the road; raised by `--look-height`. |
 
 ```bash
-apexsim-replay pose --track ../apexsim-content/tracks/default/Spa/Spa.yaml --corner "Eau Rouge" \
+apexsim-replay pose --track ../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml --corner "Eau Rouge" \
     --offset -60 --side outside --lateral 25 --height 6
 ```
 

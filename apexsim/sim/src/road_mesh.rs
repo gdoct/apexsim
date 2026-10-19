@@ -113,7 +113,7 @@ pub struct RoadMesh {
 }
 
 impl RoadMesh {
-    /// Sidecar path for a track file: `Monza.yaml` -> `Monza.road.msgpack`.
+    /// Sidecar path for a track file: `Monzarella.yaml` -> `Monzarella.road.msgpack`.
     pub fn sidecar_path(track_file: &Path) -> PathBuf {
         RoadMeshFile::sidecar_path(track_file)
     }
@@ -496,9 +496,9 @@ mod tests {
     #[test]
     fn sidecar_sits_next_to_the_track_file() {
         let p = RoadMesh::sidecar_path(Path::new(
-            "../apexsim-content/tracks/default/Monza/Monza.yaml",
+            "../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
         ));
-        assert!(p.ends_with("Monza.road.msgpack"));
+        assert!(p.ends_with("Monzarella.road.msgpack"));
     }
 
     #[test]

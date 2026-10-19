@@ -1472,7 +1472,7 @@ async fn serve_demo_dashboard() {
                 l.car_configs.first().map(|c| c.id),
                 l.track_configs
                     .iter()
-                    .find(|t| t.name.contains("Monza"))
+                    .find(|t| t.name.contains("Monzarella"))
                     .or(l.track_configs.first())
                     .map(|t| t.id),
             )),

@@ -19,11 +19,11 @@ use uuid::Uuid;
 const HZ: usize = apexsim_sim::game_session::DEFAULT_TICK_RATE_HZ as usize;
 
 fn monza() -> TrackConfig {
-    TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monza/Monza.yaml")
+    TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
         .expect("failed to load Monza")
 }
 
-/// The probe's circuit: `TYRE_PROBE_TRACK=<Stem>`, Monza by default.
+/// The probe's circuit: `TYRE_PROBE_TRACK=<Stem>`, Monzarella by default.
 fn probe_track() -> TrackConfig {
     match std::env::var("TYRE_PROBE_TRACK") {
         Ok(stem) => TrackLoader::load_from_file(format!(
@@ -198,7 +198,7 @@ fn tyre_temperature_probe() {
 #[test]
 fn a_lap_of_fast_corners_keeps_the_surface_near_the_bulk() {
     std::env::remove_var("TYRE_PROBE_TRACK");
-    let spa = TrackLoader::load_from_file("../../apexsim-content/tracks/default/Spa/Spa.yaml")
+    let spa = TrackLoader::load_from_file("../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml")
         .expect("failed to load Spa");
     let car = car("yotota-lmp2");
     let car_id = car.id;

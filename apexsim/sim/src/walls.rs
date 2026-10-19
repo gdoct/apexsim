@@ -117,7 +117,7 @@ pub struct Walls {
 }
 
 impl Walls {
-    /// Sidecar path for a track file: `Monza.yaml` -> `Monza.walls.msgpack`.
+    /// Sidecar path for a track file: `Monzarella.yaml` -> `Monzarella.walls.msgpack`.
     pub fn sidecar_path(track_file: &Path) -> PathBuf {
         WallFile::sidecar_path(track_file)
     }
@@ -298,9 +298,9 @@ mod tests {
     #[test]
     fn sidecar_sits_next_to_the_track_file() {
         let path = Walls::sidecar_path(Path::new(
-            "../apexsim-content/tracks/default/Monza/Monza.yaml",
+            "../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
         ));
-        assert!(path.ends_with("Monza.walls.msgpack"));
+        assert!(path.ends_with("Monzarella.walls.msgpack"));
     }
 
     #[test]

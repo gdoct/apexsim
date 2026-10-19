@@ -256,7 +256,7 @@ mod tests {
             .render_prometheus()
             .contains("apexsim_showcase_viewers"));
         metrics.set_showcases(vec![crate::network::ShowcaseSummary {
-            id: "Zandvoort.gt3.day".into(),
+            id: "Zandervoort.gt3.day".into(),
             track_id: uuid::Uuid::nil(),
             track_name: "Zandervoort".into(),
             class: "GT3".into(),
@@ -267,7 +267,7 @@ mod tests {
         }]);
         let rendered = metrics.render_prometheus();
         assert!(
-            rendered.contains("apexsim_showcase_viewers{showcase=\"Zandvoort.gt3.day\"} 3"),
+            rendered.contains("apexsim_showcase_viewers{showcase=\"Zandervoort.gt3.day\"} 3"),
             "{rendered}"
         );
         let json: serde_json::Value =

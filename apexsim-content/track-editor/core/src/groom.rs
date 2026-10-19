@@ -3223,7 +3223,7 @@ mod tests {
             &path,
             &seating_terrain(
                 &path,
-                &AtsScene::new_for_track(&track, "Nordschleife.yaml"),
+                &AtsScene::new_for_track(&track, "Mordschleife.yaml"),
                 None,
             )
             .unwrap(),
@@ -4012,7 +4012,7 @@ mod tests {
     #[test]
     fn the_nordschleife_is_groomed_in_its_own_style() {
         let track = track();
-        let mut scene = AtsScene::new_for_track(&track, "Nordschleife.yaml");
+        let mut scene = AtsScene::new_for_track(&track, "Mordschleife.yaml");
         groom_scene(&track, &mut scene).unwrap();
 
         let rails: Vec<&Prop> = of_kind(&scene, PropKind::Barrier);

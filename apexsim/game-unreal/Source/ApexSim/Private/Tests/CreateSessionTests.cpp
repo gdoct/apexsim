@@ -467,12 +467,12 @@ bool FApexCreateSessionSolarNoonTest::RunTest(const FString& Parameters)
 	struct FCase { const TCHAR* Name; float Lat; float Lon; int32 Almanac; };
 	const FCase Cases[] = {
 		{ TEXT("Barcelona"), 41.57f, 2.26f, 13 * 60 + 48 },
-		{ TEXT("Monza"), 45.62f, 9.27f, 13 * 60 + 20 },
-		{ TEXT("Suzuka"), 34.84f, 136.54f, 11 * 60 + 51 },
-		{ TEXT("Austin"), 30.13f, -97.64f, 13 * 60 + 28 },
+		{ TEXT("Monzarella"), 45.62f, 9.27f, 13 * 60 + 20 },
+		{ TEXT("Sudoku"), 34.84f, 136.54f, 11 * 60 + 51 },
+		{ TEXT("Armadillos"), 30.13f, -97.64f, 13 * 60 + 28 },
 		{ TEXT("Mexico City"), 19.40f, -99.09f, 12 * 60 + 33 },
 		{ TEXT("Interlagos"), -23.70f, -46.70f, 12 * 60 + 4 },
-		{ TEXT("Melbourne"), -37.85f, 144.97f, 12 * 60 + 17 },
+		{ TEXT("AlbertParkour"), -37.85f, 144.97f, 12 * 60 + 17 },
 		{ TEXT("Marina Bay"), 1.29f, 103.86f, 13 * 60 },
 		{ TEXT("Yas Marina"), 24.47f, 54.60f, 12 * 60 + 18 },
 	};

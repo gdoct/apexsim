@@ -43,7 +43,7 @@ public:
 	 */
 	static bool ParseMeshBlob(TConstArrayView<uint8> Blob, TArray<FApexTrackMesh>& OutMeshes, FString& OutError);
 
-	/** `<dir>/Monza.uescene.json` -> `Monza`. */
+	/** `<dir>/Monzarella.uescene.json` -> `Monzarella`. */
 	static FString StemOf(const FString& ScenePath);
 
 	/** Format tag every export carries. */

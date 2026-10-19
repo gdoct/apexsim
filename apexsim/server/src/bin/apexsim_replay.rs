@@ -2,15 +2,15 @@
 //! filming in them, and cut those into clips the client plays back.
 //!
 //! ```text
-//! apexsim-replay simulate --track ../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml --car yotota-lmp2 \
+//! apexsim-replay simulate --track ../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml --car yotota-lmp2 \
 //!     --ai 12 --laps 3 --weather sunny --time 18:30 --out out/zandvoort.bin
 //! apexsim-replay info out/zandvoort.bin
 //! apexsim-replay find out/zandvoort.bin --corner Hugenholtz --before 150 --after 120 --min-cars 3
 //! apexsim-replay cut out/zandvoort.bin --from-tick 24000 --to-tick 26400 --out out/clip.clip.json
-//! apexsim-replay pose --track ../apexsim-content/tracks/default/Spa/Spa.yaml --corner "Eau Rouge" --offset -60 --lateral -25 --height 6
-//! apexsim-replay render --track ../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml --class GT3 --cars 20 --laps 2 \
-//!     --seed 7 --out build/showcase/Zandvoort.gt3.day.apxs
-//! apexsim-replay info build/showcase/Zandvoort.gt3.day.apxs --check
+//! apexsim-replay pose --track ../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml --corner "Eau Rouge" --offset -60 --lateral -25 --height 6
+//! apexsim-replay render --track ../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml --class GT3 --cars 20 --laps 2 \
+//!     --seed 7 --out build/showcase/Zandervoort.gt3.day.apxs
+//! apexsim-replay info build/showcase/Zandervoort.gt3.day.apxs --check
 //! apexsim-replay convert out/zandvoort.bin --rate 30 --out out/zandvoort.apxs
 //! ```
 //!

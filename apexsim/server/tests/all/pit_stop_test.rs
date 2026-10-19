@@ -21,8 +21,8 @@ use uuid::Uuid;
 const HZ: usize = apexsim_server::game_session::DEFAULT_TICK_RATE_HZ as usize;
 
 fn monza() -> TrackConfig {
-    TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monza/Monza.yaml")
-        .expect("Monza")
+    TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
+        .expect("Monzarella")
 }
 
 fn gt3() -> CarConfig {
@@ -979,7 +979,7 @@ fn survey_dir() -> String {
 /// make the whole trip.
 ///
 /// `cargo test --release --test all pit_stop_test::pit_lane_survey -- --ignored --nocapture`
-/// (`PIT_TRACKS=Monza,Spa` for a few).
+/// (`PIT_TRACKS=Monzarella,SpaFrankenchamps` for a few).
 #[test]
 #[ignore]
 fn pit_lane_survey() {
@@ -1113,7 +1113,7 @@ fn ai_stop_on(track: TrackConfig, laps: usize) -> (Vec<f32>, u16, f32) {
 /// drives in, is serviced at its box and races on.
 ///
 /// `cargo test --release --test all pit_stop_test::ai_pit_survey -- --ignored --nocapture`
-/// (`PIT_TRACKS=Monza,Spa` for a few).
+/// (`PIT_TRACKS=Monzarella,SpaFrankenchamps` for a few).
 #[test]
 #[ignore]
 fn ai_pit_survey() {

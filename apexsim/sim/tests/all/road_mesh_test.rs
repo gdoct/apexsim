@@ -4,7 +4,7 @@
 //! The two backends sample two different splines through the same nodes
 //! (the exporter's 2 m Catmull-Rom, the server's adaptive one), so this
 //! is the first measurement of how far apart the road they each describe
-//! is. Needs `Monza.road.msgpack`, which `ats-export` writes and which is
+//! is. Needs `Monzarella.road.msgpack`, which `ats-export` writes and which is
 //! generated rather than checked in: without it these tests say so and
 //! pass, like the `*_mesh` benches.
 
@@ -14,7 +14,7 @@ use apexsim_sim::physics::{probe_surface, seat_height, RoadContact};
 use apexsim_sim::track_loader::RoadContactMode;
 use apexsim_sim::track_loader::TrackLoader;
 
-const MONZA: &str = "../../apexsim-content/tracks/default/Monza/Monza.yaml";
+const MONZA: &str = "../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml";
 
 /// Monza on the centerline and Monza on its mesh, or `None` without the
 /// sidecar.
@@ -22,7 +22,7 @@ fn load_both() -> Option<(TrackConfig, TrackConfig)> {
     let line = TrackLoader::load_from_file(MONZA).expect("Monza loads");
     let mesh = TrackLoader::load_from_file_with(MONZA, RoadContactMode::Mesh).expect("Monza loads");
     if mesh.road_mesh.is_none() {
-        eprintln!("no Monza.road.msgpack: bake it with ats-export to run this test");
+        eprintln!("no Monzarella.road.msgpack: bake it with ats-export to run this test");
         return None;
     }
     assert!(

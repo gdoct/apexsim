@@ -67,7 +67,7 @@ pub struct SimulateOptions {
 impl Default for SimulateOptions {
     fn default() -> Self {
         Self {
-            track_path: PathBuf::from("../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml"),
+            track_path: PathBuf::from("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
             cars_dir: PathBuf::from("../apexsim-content/cars"),
             host_car: "yotota-lmp2".to_string(),
             same_car: false,
@@ -1600,7 +1600,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
         RenderOptions {
             race: SimulateOptions {
-                track_path: root.join("../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml"),
+                track_path: root.join("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
                 cars_dir: root.join("../apexsim-content/cars/default"),
                 host_car: "yotota-lmp2".into(),
                 same_car: false,
@@ -1689,7 +1689,7 @@ mod tests {
 
         let file = StreamFile::from_bytes(bytes).unwrap();
         let h = &file.header;
-        assert_eq!(h.track.stem, "Zandvoort");
+        assert_eq!(h.track.stem, "Zandervoort");
         assert_ne!(h.track.source_crc, 0);
         assert!(h.track.length_m > 4000.0);
         assert_eq!((h.tick_rate, h.frame_rate), (240, 30));
@@ -2110,7 +2110,7 @@ mod tests {
     fn pose_stands_beside_the_road() {
         let track = TrackLoader::load_from_file(
             Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../../apexsim-content/tracks/default/Spa/Spa.yaml"),
+                .join("../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml"),
         )
         .expect("Spa loads");
         let on = pose_at(&track, 1056.0, 0.0, 0.0);
@@ -2123,7 +2123,7 @@ mod tests {
         assert!((wrapped.x - on.x).abs() < 1e-2);
         let (name, station) = corner_station(
             &Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../../apexsim-content/tracks/default/Spa/Spa.yaml"),
+                .join("../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml"),
             "eau rouge",
         )
         .unwrap();
@@ -2134,7 +2134,7 @@ mod tests {
     #[test]
     fn sides_follow_the_bend() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml");
+            .join("../../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml");
         let track = TrackLoader::load_from_file(&path).expect("Zandvoort loads");
         // Tarzanbocht is a right-hander: its outside is on the left.
         let (_, tarzan) = corner_station(&path, "Tarzan").unwrap();
@@ -2154,7 +2154,7 @@ mod tests {
     #[test]
     fn landmarks_are_found_by_kind_or_name() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../apexsim-content/tracks/default/LeMans/LeMans.yaml");
+            .join("../../apexsim-content/tracks/default/Lemons/Lemons.yaml");
         let track = TrackLoader::load_from_file(&path).expect("Le Mans loads");
         let (label, wheel) = landmark_point(&path, &track, "big_wheel", 20.0).unwrap();
         assert_eq!(label, "big_wheel");
@@ -2175,7 +2175,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
         let skills = |ai_level: Option<u8>| {
             let opts = SimulateOptions {
-                track_path: root.join("../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml"),
+                track_path: root.join("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
                 cars_dir: root.join("../apexsim-content/cars"),
                 ai_count: 5,
                 seed: Some(1),
@@ -2202,7 +2202,7 @@ mod tests {
     fn a_short_race_simulates_and_cuts() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
         let opts = SimulateOptions {
-            track_path: root.join("../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml"),
+            track_path: root.join("../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml"),
             cars_dir: root.join("../apexsim-content/cars"),
             host_car: "yotota-lmp2".into(),
             same_car: true,
@@ -2250,7 +2250,7 @@ mod tests {
         );
         assert_eq!(meta.participants.len(), 2);
         assert!(meta.participants.iter().all(|p| p.is_ai));
-        assert_eq!(meta.track_stem.as_deref(), Some("Zandvoort"));
+        assert_eq!(meta.track_stem.as_deref(), Some("Zandervoort"));
         assert_eq!(meta.conditions.weather, Weather::LightRain);
         assert!(meta.race_start_tick.is_some());
         assert!(meta.track_length_m > 4000.0);

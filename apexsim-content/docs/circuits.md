@@ -41,11 +41,11 @@ garages and the fan dressing (`fan_dressing`, below).
 | Style | Circuits (stem) | What differs from `DEFAULT` |
 |---|---|---|
 | `DEFAULT` | every other circuit | Armco 7 m (straights) / 14 m (corners) off the road, hoardings, temperate tree belt 22-90 m, braking boards, floodlight ring, pit lane and garages |
-| `NORDSCHLEIFE` | `Nordschleife` | German guard rail 3 / 4.5 m off, no hoardings, dense forest 8.5-110 m with no clearings, German signs, no floodlight ring, no pit lane, the fan dressing |
-| `STREET` | `MarinaBay` | Tecpro 3 / 5 m off, no tree belt, tropical flora, paved ground, no floodlight ring, city buildings, no ground cover, no generated garages |
-| `DESERT` | `YasMarina` | desert flora (palms and scrub whatever the wood is mapped as) |
-| `SAKHIR` | `Sakhir` | desert flora in sparse clumps (two in three cells empty) on `Ground::Sand` |
-| `TROPICAL` | `Sepang`, `SaoPaulo`, `MexicoCity` | broadleaf and palms (a needle-leaved wood keeps its conifers) |
+| `NORDSCHLEIFE` | `Mordschleife` | German guard rail 3 / 4.5 m off, no hoardings, dense forest 8.5-110 m with no clearings, German signs, no floodlight ring, no pit lane, the fan dressing |
+| `STREET` | `MandarinaBay` | Tecpro 3 / 5 m off, no tree belt, tropical flora, paved ground, no floodlight ring, city buildings, no ground cover, no generated garages |
+| `DESERT` | `YasMarinara` | desert flora (palms and scrub whatever the wood is mapped as) |
+| `SAKHIR` | `Bahrainless` | desert flora in sparse clumps (two in three cells empty) on `Ground::Sand` |
+| `TROPICAL` | `Shebang`, `Interlaggos`, `HermanosRodriQueso` | broadleaf and palms (a needle-leaved wood keeps its conifers) |
 
 How the fields act:
 
@@ -116,26 +116,26 @@ band sits just inside the edge. Art: `tools/generators/props/gen_graffiti.py`
 (the graffiti), `tools/generators/props/gen_marina_decals.py` (the Marina Bay
 set); format in [props.md](props.md).
 
-## Nordschleife (`Nordschleife`)
+## Nordschleife (`Mordschleife`)
 
 The 20.8 km lap on its own, from the T13 start/finish, clockwise. The GP
-circuit is a separate track (`Nuerburgring`).
+circuit is a separate track (`Nuerburgerring`).
 
 **Centerline.** There is no GPS trace, so `tools/osm_centerline.py
-Nordschleife` routes the lap over OSM's `highway=raceway` ways, waypoint by
-waypoint (`LAPS["Nordschleife"]`: OSM's own locality nodes per section, in
+Mordschleife` routes the lap over OSM's `highway=raceway` ways, waypoint by
+waypoint (`LAPS["Mordschleife"]`: OSM's own locality nodes per section, in
 race order), resamples to 5 m nodes, takes widths from the ways' `width`
 tags (9 m elsewhere) and solves a minimum-curvature raceline. The spec also
 holds the start offset, the banking spans (the Karussell and the
 Mini-Karussell, negative: both are left-handers) and the surface spans (the
 Karussell's bowl: `Concrete`, friction 0.95; `osm_centerline.py
-Nordschleife --surfaces` re-applies them to the YAML as it stands). The
+Mordschleife --surfaces` re-applies them to the YAML as it stands). The
 YAML starts flat;
 `dem_fetch.py` and `dem_elevation.py` give it its z. The OSM extract is large
-and was cut from the planet file into `.cache/osm/Nordschleife.0.json`, so
+and was cut from the planet file into `.cache/osm/Mordschleife.0.json`, so
 `osm_layout.py` and `dem_fetch.py` run with `--offline`.
 
-**Scene.** `seed_scene.py Nordschleife` starts the `.ats`, then the usual
+**Scene.** `seed_scene.py Mordschleife` starts the `.ats`, then the usual
 `ats-dress` and `ats-export`. The dossier carries 40-odd named sections as
 corners, the woods, barrier runs, the road crossings and the graffiti runs
 (`MANUAL_GRAFFITI`). The kit pieces it needs are built by
@@ -145,7 +145,7 @@ in Blender, headless (`blender -b --factory-startup --python-expr
 "ASSET='all'; exec(...)"`; Blender's Python has no PIL). The rail tags'
 textures and the skid marks come from `gen_graffiti.py`.
 
-**Dossier tables** (`osm_layout.py`, keyed `"Nordschleife"`), every entry
+**Dossier tables** (`osm_layout.py`, keyed `"Mordschleife"`), every entry
 anchored on an OSM node or way (lon, lat) and named by its id in the
 comment:
 - `MANUAL_LANDMARKS`: Burg Nürburg (`castle`, `building/castle_ruin`), the
@@ -172,8 +172,8 @@ comment:
 
 **Refreshing the dossier.** The OSM extract the dossier was fitted from was
 cut from the planet file and is no longer in `.cache/osm/`, so a full
-`osm_layout.py Nordschleife --offline` cannot run. The hand-authored layers
-are re-applied without it: `python tools/osm_layout.py Nordschleife
+`osm_layout.py Mordschleife --offline` cannot run. The hand-authored layers
+are re-applied without it: `python tools/osm_layout.py Mordschleife
 --manual-only` rebuilds the authored landmarks and crossings, the graffiti,
 decal runs and skid marks and the furniture through the georeference the
 DEM sidecar records (the dossier's own fit), leaving every surveyed layer
@@ -190,8 +190,8 @@ pivot and yaw so the sheet wraps the W-beams.
 start area and its walls stood on the racing line, so the style lays none and
 the circuit has no pit sidecar (no pit stops).
 
-**Checking it.** `python tools/check_walls.py --openings Nordschleife`;
-`SURVEY_TRACKS=Nordschleife` on the AI survey. The rails stand close, so a car
+**Checking it.** `python tools/check_walls.py --openings Mordschleife`;
+`SURVEY_TRACKS=Mordschleife` on the AI survey. The rails stand close, so a car
 that leaves the road is more likely to be pinned against one.
 
 **Traps.**
@@ -203,7 +203,7 @@ that leaves the road is more likely to be pinned against one.
 - Tight rails change what the AI hits: run the survey after touching the
   style's distances.
 
-## Mandarina Bay (`MarinaBay`)
+## Mandarina Bay (`MandarinaBay`)
 
 The Singapore street circuit, current 19-turn layout, counter-clockwise,
 about 4.9 km.
@@ -222,7 +222,7 @@ over ordinary streets plus the pit lane, with no raceway graph, so
 roofs.
 
 **Bridges.** The road is flat but for its two bridges.
-`python tools/bridge_elevation.py MarinaBay [--dry-run]` lifts the
+`python tools/bridge_elevation.py MandarinaBay [--dry-run]` lifts the
 dossier's `deck_arch` / `deck_wide` spans into raised-cosine humps
 (`DECK_HEIGHT_M`: 2.5 m and 4 m, estimates; `RAMP_M` 60 m ramps either side),
 rewriting only the `z:` lines of the nodes and the raceline, absolutely, so a
@@ -237,7 +237,7 @@ the bake draws the surface as a glossy untextured `scenery` material, and
 dress and groom drop anything standing in water that a bridge does not carry
 (`TerrainHeightfield::in_water`).
 
-**Dossier tables in `osm_layout.py`** (all keyed `"MarinaBay"`):
+**Dossier tables in `osm_layout.py`** (all keyed `"MandarinaBay"`):
 - `MANUAL_STANDS` from the organiser's circuit park maps (stations
   approximate). `Stand.family` picks the kit: `"street"` is
   `street_stand_tier_10m` (`_roof` when covered), `"street_deck"`
@@ -275,8 +275,8 @@ family in `ApexProps::LayoutGrandstand` are in
 `apexsim/game-unreal/Source/ApexSim/Private/Track/ApexPropLibrary.cpp`
 (`ApexSim.Props.*` tests).
 
-**Checking it.** `python tools/check_walls.py --openings MarinaBay`;
-`SURVEY_TRACKS=MarinaBay` on the AI survey; `PIT_TRACKS=MarinaBay` on the pit
+**Checking it.** `python tools/check_walls.py --openings MandarinaBay`;
+`SURVEY_TRACKS=MandarinaBay` on the AI survey; `PIT_TRACKS=MandarinaBay` on the pit
 lane survey (every box served).
 
 **Traps.**

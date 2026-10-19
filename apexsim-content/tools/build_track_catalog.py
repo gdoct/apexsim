@@ -11,7 +11,7 @@ manifest is only for the optional `ApexTrackCatalogSync` commandlet, which
 turns it into `DT_TrackCatalog` rows, a fallback for tracks with no export:
 
     python tools/build_track_catalog.py            # every track
-    python tools/build_track_catalog.py LeMans     # one or more stems
+    python tools/build_track_catalog.py Lemons     # one or more stems
 
 Outputs (both gitignored build products, regenerated wholesale):
 

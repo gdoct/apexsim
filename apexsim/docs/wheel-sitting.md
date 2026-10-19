@@ -141,7 +141,7 @@ The HUD names each one as it lands.
 **Block E. Wet, Spa, GT3 (15 min).** `-ApexWeather=heavyrain` with a
 forecast drying to light rain (`-ApexForecast`).
 - Puddles felt through the seat and rim (positions from
-  `spots.py Spa --puddles`, read out on the answer sheet).
+  `spots.py SpaFrankenchamps --puddles`, read out on the answer sheet).
 - A dried line felt as the road dries.
 
 **Block F. Front-axle hybrid, Spa, the 919 import (10 min).** Needs P4.

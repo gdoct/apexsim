@@ -68,7 +68,7 @@ cd apexsim                                 # the code scripts run from the code 
 ./scripts/build_release.ps1 -Zip           # a release package: the starter set (apexsim-content/starter.yml)
 
 cd apexsim-content                         # the content tools run from the content root
-./bake.ps1 -Track Spa                      # dress, export and draw a circuit (cargo and Python only)
+./bake.ps1 -Track SpaFrankenchamps                      # dress, export and draw a circuit (cargo and Python only)
 ```
 
 [apexsim/docs/building.md](apexsim/docs/building.md) has the details: the content stages,

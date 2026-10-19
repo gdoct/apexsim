@@ -17,6 +17,6 @@ cars:
   - pugeot-205-t16          # Rally
 
 tracks:
-  - Spa
-  - Zandvoort
-  - Monza
+  - SpaFrankenchamps
+  - Zandervoort
+  - Monzarella

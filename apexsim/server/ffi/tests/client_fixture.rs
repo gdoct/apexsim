@@ -8,7 +8,7 @@
 //!
 //! The track is the YAML alone (copied to a scratch folder, no sidecars), on
 //! the centerline, so a fresh clone and CI record and replay the same.
-//! Regenerate after a physics change or an edit to Monza.yaml or the car:
+//! Regenerate after a physics change or an edit to Monzarella.yaml or the car:
 //!
 //! ```text
 //! cd server/ffi
@@ -38,7 +38,7 @@ fn repo(rel: &str) -> PathBuf {
 }
 
 /// Relative to the content root, as a session's `TrackFile` names it.
-const TRACK: &str = "tracks/default/Monza/Monza.yaml";
+const TRACK: &str = "tracks/default/Monzarella/Monzarella.yaml";
 const CAR: &str = "fugazzi-sf26";
 const OUT: &str = "game-unreal/Source/ApexSim/Private/Tests/ApexPredictionFixture.h";
 
@@ -180,7 +180,7 @@ fn print_client_prediction_fixture() {
     let scratch = std::env::temp_dir().join(format!("apexsim-fixture-{}", std::process::id()));
     std::fs::create_dir_all(&scratch).unwrap();
     let yaml_bytes = std::fs::read(repo("../apexsim-content").join(TRACK)).unwrap();
-    let yaml = scratch.join("Monza.yaml");
+    let yaml = scratch.join("Monzarella.yaml");
     std::fs::write(&yaml, &yaml_bytes).unwrap();
     let toml_path = repo("../apexsim-content/cars/default")
         .join(CAR)

@@ -267,7 +267,7 @@ fn silverstone_first_corner() {
     let car_name = std::env::var("PROBE_CAR").unwrap_or("murcetes-amd-gt3".into());
     let config = car(&car_name);
     let track = TrackLoader::load_from_file(
-        root().join("../apexsim-content/tracks/default/Silverstone/Silverstone.yaml"),
+        root().join("../apexsim-content/tracks/default/Shiverstone/Shiverstone.yaml"),
     )
     .unwrap();
     let profile = racing_line::build(&track, &config).unwrap();
@@ -304,7 +304,7 @@ fn silverstone_first_corner() {
 #[ignore]
 fn silverstone_profile_lap_times() {
     let track = TrackLoader::load_from_file(
-        root().join("../apexsim-content/tracks/default/Silverstone/Silverstone.yaml"),
+        root().join("../apexsim-content/tracks/default/Shiverstone/Shiverstone.yaml"),
     )
     .unwrap();
     let dir = root().join("../apexsim-content/cars");

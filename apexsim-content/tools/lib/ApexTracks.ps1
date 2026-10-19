@@ -12,7 +12,7 @@
     tracks\default holds the circuits that ship with the game;
     tracks\custom the player's own (imported or hand-made, and
     gitignored). A track is a folder of its own named by its stem
-    (default\Spa\), holding every file of it (Spa.yaml, .ats, .layout.json,
+    (default\SpaFrankenchamps\), holding every file of it (SpaFrankenchamps.yaml, .ats, .layout.json,
     the sidecars), and a stem is unique across both roots, since the exports
     and previews are keyed by the stem alone. The same two roots as
     tools/track_dirs.py and track_core::ue_export_io::TRACK_DIRS.

@@ -381,7 +381,7 @@ namespace ApexSpectator
 
 /**
  * An `.apxs` file: the plain preamble decoded, the blocks still compressed
- * until asked for. `Zandvoort.gt3.day.apxs` of twenty cars for two laps is
+ * until asked for. `Zandervoort.gt3.day.apxs` of twenty cars for two laps is
  * a few megabytes.
  */
 class APEXSIMNET_API FApexStreamFile

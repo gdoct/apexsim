@@ -3,7 +3,7 @@
 camera, timed frame by frame.
 
     python scripts/benchmark.py                      # Spa, 1920x1080, the settings the game has
-    python scripts/benchmark.py --track Monza --res 2560x1440
+    python scripts/benchmark.py --track Monzarella --res 2560x1440
     python scripts/benchmark.py --rerender           # the clip again (after a physics or track change)
 
 The clip is a race `apexsim-replay render` simulates from a fixed seed
@@ -55,7 +55,7 @@ def render_clip(track: str, clip: Path) -> None:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Time the game on a fixed seeded race.")
-    parser.add_argument("--track", default="Spa")
+    parser.add_argument("--track", default="SpaFrankenchamps")
     parser.add_argument("--res", default="1920x1080", help="window size, WxH")
     parser.add_argument("--start", type=float, default=20.0, help="seconds into the clip the timing starts")
     parser.add_argument("--seconds", type=float, default=60.0, help="how long it times")

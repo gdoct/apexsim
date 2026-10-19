@@ -83,6 +83,36 @@ declare -A DISPLAY_NAMES=(
     ["Zandvoort"]="Zandervoort"
 )
 
+# The ApexSim stem each racetrack-database name is written under (the parody
+# name, see apexsim-content/tracks/default/README.md); a name not listed keeps its own.
+declare -A STEMS=(
+    ["Melbourne"]="AlbertParkour"
+    ["Monza"]="Monzarella"
+    ["MexicoCity"]="HermanosRodriQueso"
+    ["SaoPaulo"]="Interlaggos"
+    ["Sakhir"]="Bahrainless"
+    ["BrandsHatch"]="BrandsScratch"
+    ["Montreal"]="ChillyVilleneuve"
+    ["Catalunya"]="Barcelunatic"
+    ["Austin"]="Armadillos"
+    ["IMS"]="Endianapolis"
+    ["Sochi"]="Gnocchi"
+    ["Hockenheim"]="Hockeyheimring"
+    ["Budapest"]="Hungoverring"
+    ["MoscowRaceway"]="MoscowMule"
+    ["Oschersleben"]="Oskarsleben"
+    ["Nuerburgring"]="Nuerburgerring"
+    ["Spielberg"]="RedPullRing"
+    ["Shanghai"]="Shanghaied"
+    ["Sepang"]="Shebang"
+    ["Silverstone"]="Shiverstone"
+    ["Norisring"]="Snorisring"
+    ["Spa"]="SpaFrankenchamps"
+    ["Suzuka"]="Sudoku"
+    ["YasMarina"]="YasMarinara"
+    ["Zandvoort"]="Zandervoort"
+)
+
 echo "======================================"
 echo "ApexSim Track Batch Converter"
 echo "======================================"
@@ -136,7 +166,8 @@ for track_csv in "$TRACKS_DIR"/*.csv; do
     fi
     
     # Output file
-    output_file="$OUTPUT_DIR/${track_name}.yaml"
+    stem="${STEMS[$track_name]:-$track_name}"
+    output_file="$OUTPUT_DIR/${stem}.yaml"
     
     echo "Converting: $display_name"
     echo "  Track CSV: $track_csv"

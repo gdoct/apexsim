@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Start a new circuit's `.ats` scene: the start line, the grass and the curbs.
 
-    python tools/seed_scene.py Nordschleife            # writes tracks/default/Nordschleife/Nordschleife.ats
-    python tools/seed_scene.py Nordschleife --force    # replace an existing scene's curbs and grass
-    python tools/seed_scene.py Zandvoort --from survey.json   # curbs and bands measured elsewhere
+    python tools/seed_scene.py Mordschleife            # writes tracks/default/Mordschleife/Mordschleife.ats
+    python tools/seed_scene.py Mordschleife --force    # replace an existing scene's curbs and grass
+    python tools/seed_scene.py Zandervoort --from survey.json   # curbs and bands measured elsewhere
 
 The shipped circuits' curbs, run-off and grass came from a one-off
 enrichment pass that is no longer in the repo; a circuit added since needs

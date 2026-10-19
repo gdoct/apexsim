@@ -56,7 +56,7 @@ bool FApexHotlapWatchSessionTest::RunTest(const FString& Parameters)
 	FApexSessionConditions Sky;
 	Sky.Weather = EApexWeather::LightRain;
 	Sky.TimeOfDayMinutes = 18 * 60 + 15;
-	Net->CreateHotlapWatch(TEXT("track-id"), TEXT("Zandervoort"), TEXT("Zandvoort"), Sky);
+	Net->CreateHotlapWatch(TEXT("track-id"), TEXT("Zandervoort"), TEXT("Zandervoort"), Sky);
 	TestFalse(TEXT("not a hotlap until the server says so"), Net->IsHotlapWatch());
 
 	const FString SessionId = TEXT("c401cf66-0e18-4c10-8bbd-18cf5e162ddd");
@@ -76,7 +76,7 @@ bool FApexHotlapWatchSessionTest::RunTest(const FString& Parameters)
 	FApexSessionSummary Summary;
 	if (TestTrue(TEXT("found by id"), Net->FindSessionById(SessionId, Summary)))
 	{
-		TestEqual(TEXT("its circuit file"), Summary.TrackFile, FString(TEXT("tracks/default/Zandvoort/Zandvoort.yaml")));
+		TestEqual(TEXT("its circuit file"), Summary.TrackFile, FString(TEXT("tracks/default/Zandervoort/Zandervoort.yaml")));
 		TestEqual(TEXT("its circuit's name"), Summary.TrackName, FString(TEXT("Zandervoort")));
 		TestEqual(TEXT("its kind"), static_cast<int32>(Summary.SessionKind), static_cast<int32>(EApexSessionKind::HotlapWatch));
 	}
@@ -93,7 +93,7 @@ bool FApexHotlapWatchSessionTest::RunTest(const FString& Parameters)
 	// word, and the next join starts from the lobby with no corners yet.
 	FApexServerMessage Again = Joined;
 	Again.SessionId = TEXT("0c6fb2a4-1f8e-4a52-9d3b-2b3c4d5e6f70");
-	Net->CreateHotlapWatch(TEXT("track-id"), TEXT("Zandervoort"), TEXT("Zandvoort"), Sky);
+	Net->CreateHotlapWatch(TEXT("track-id"), TEXT("Zandervoort"), TEXT("Zandervoort"), Sky);
 	Net->HandleMessageForTest(Again);
 	TestTrue(TEXT("still a hotlap"), Net->IsHotlapWatch());
 	TestEqual(TEXT("the old corners went"), Net->GetTrackCorners().Corners.Num(), 0);

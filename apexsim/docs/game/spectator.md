@@ -134,10 +134,10 @@ content is the sibling `../apexsim-content`); every reporting command prints
 JSON on stdout.
 
 ```bash
-apexsim-replay render --track ../apexsim-content/tracks/default/Zandvoort/Zandvoort.yaml --class GT3 \
+apexsim-replay render --track ../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml --class GT3 \
     --cars 20 --laps 2 --weather sunny --time 13:00 --seed 7 [--seeds 10] \
-    --cars-dir ../apexsim-content/cars/default --out build/showcase/Zandvoort.gt3.day.apxs
-apexsim-replay info  build/showcase/Zandvoort.gt3.day.apxs [--check]
+    --cars-dir ../apexsim-content/cars/default --out build/showcase/Zandervoort.gt3.day.apxs
+apexsim-replay info  build/showcase/Zandervoort.gt3.day.apxs [--check]
 apexsim-replay convert out/race.bin --rate 30 --out out/race.apxs
 apexsim-replay simulate --track <yaml> --car yotota-lmp2 --ai 12 --laps 3 --seed 1 --out out/race.bin
 apexsim-replay find out/race.bin --corner Hugenholtz --before 150 --after 120 --min-cars 3

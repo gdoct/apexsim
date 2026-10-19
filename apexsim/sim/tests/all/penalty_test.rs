@@ -23,7 +23,7 @@ fn repo(path: &str) -> PathBuf {
 /// checkout without an export (CI) does not have.
 fn race() -> Option<GameSession> {
     let track = TrackLoader::load_from_file(repo(
-        "../apexsim-content/tracks/default/Norisring/Norisring.yaml",
+        "../apexsim-content/tracks/default/Snorisring/Snorisring.yaml",
     ))
     .expect("track loads");
     if track.pit_lane.is_none() {

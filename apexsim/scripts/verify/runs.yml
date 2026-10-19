@@ -41,7 +41,7 @@ runs:
         - "250:host:puncture=RL"
     args:
       - -ApexAutoRace
-      - -ApexTrack=Spa
+      - -ApexTrack=SpaFrankenchamps
       - -ApexCar=SF-26
       - -ApexAiCount=9
       - -ApexLaps=10
@@ -116,7 +116,7 @@ runs:
         - "520:host:leak=RR:2"
     args:
       - -ApexAutoRace
-      - -ApexTrack=Silverstone
+      - -ApexTrack=Shiverstone
       - -ApexCar=SF-26
       - -ApexAiCount=11
       - -ApexLaps=30
@@ -181,7 +181,7 @@ runs:
     # The field wipes a dry line through the corners over the laps.
     args:
       - -ApexAutoRace
-      - -ApexTrack=Spa
+      - -ApexTrack=SpaFrankenchamps
       - -ApexCar=SF-26
       - -ApexAiCount=11
       - -ApexLaps=10
@@ -237,7 +237,7 @@ runs:
     # forecast may stop the snow: the line freezes once it has.
     args:
       - -ApexAutoRace
-      - -ApexTrack=Spa
+      - -ApexTrack=SpaFrankenchamps
       - -ApexCar=Chiffon
       - -ApexAiCount=7
       - -ApexLaps=12
@@ -311,7 +311,7 @@ runs:
     # camera round a lap with the field on them.
     args:
       - -ApexAutoRace
-      - -ApexTrack=MarinaBay
+      - -ApexTrack=MandarinaBay
       - -ApexCar=SF-26
       - -ApexAiCount=11
       - -ApexLaps=5
@@ -375,7 +375,7 @@ runs:
     # mostly from the road at a driver's eye height; then the TV camera.
     args:
       - -ApexAutoRace
-      - -ApexTrack=Nordschleife
+      - -ApexTrack=Mordschleife
       - -ApexCar=SF-26
       - -ApexAiCount=11
       - -ApexLaps=2
@@ -481,7 +481,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Silverstone
+      - -ApexTrack=Shiverstone
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -514,7 +514,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Austin
+      - -ApexTrack=Armadillos
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -547,7 +547,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=BrandsHatch
+      - -ApexTrack=BrandsScratch
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -580,7 +580,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Budapest
+      - -ApexTrack=Hungoverring
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -613,7 +613,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Catalunya
+      - -ApexTrack=Barcelunatic
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -646,7 +646,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Hockenheim
+      - -ApexTrack=Hockeyheimring
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -679,7 +679,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=IMS
+      - -ApexTrack=Endianapolis
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -716,7 +716,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=LeMans
+      - -ApexTrack=Lemons
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -749,7 +749,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Melbourne
+      - -ApexTrack=AlbertParkour
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -782,7 +782,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=MexicoCity
+      - -ApexTrack=HermanosRodriQueso
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -819,7 +819,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Montreal
+      - -ApexTrack=ChillyVilleneuve
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -852,7 +852,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -885,7 +885,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Nuerburgring
+      - -ApexTrack=Nuerburgerring
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -918,7 +918,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Oschersleben
+      - -ApexTrack=Oskarsleben
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -951,7 +951,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Sakhir
+      - -ApexTrack=Bahrainless
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -984,7 +984,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=SaoPaulo
+      - -ApexTrack=Interlaggos
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -1017,7 +1017,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Sepang
+      - -ApexTrack=Shebang
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -1050,7 +1050,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Sochi
+      - -ApexTrack=Gnocchi
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -1083,7 +1083,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Spielberg
+      - -ApexTrack=RedPullRing
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -1116,7 +1116,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Suzuka
+      - -ApexTrack=Sudoku
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -1149,7 +1149,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Zandvoort
+      - -ApexTrack=Zandervoort
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=3
@@ -1316,7 +1316,7 @@ runs:
     about: "R9. In a race: the HUD layout picker, a broadcast over the HUD, the dashboard ending the session"
     args:
       - -ApexAutoRace
-      - -ApexTrack=Silverstone
+      - -ApexTrack=Shiverstone
       - -ApexCar=SF-26
       - -ApexAiCount=5
       - -ApexLaps=5
@@ -1359,7 +1359,7 @@ runs:
     # every 5 s for the sheet's reader.
     args:
       - -ApexAutoRace
-      - -ApexTrack=Monza
+      - -ApexTrack=Monzarella
       - -ApexCar=Caravan
       - -ApexAiCount=9
       - -ApexLaps=3
@@ -1399,7 +1399,7 @@ runs:
     about: "diagnostic: the helicopter shot at 17:30, a lower sun (shadows that show)"
     args:
       - -ApexAutoRace
-      - -ApexTrack=Nuerburgring
+      - -ApexTrack=Nuerburgerring
       - -ApexCar=SF-26
       - -ApexAiCount=7
       - -ApexLaps=3
@@ -1426,7 +1426,7 @@ runs:
     about: "diagnostic: the helicopter shot, A/B depth of field, LOD, sun"
     args:
       - -ApexAutoRace
-      - -ApexTrack=Nuerburgring
+      - -ApexTrack=Nuerburgerring
       - -ApexCar=SF-26
       - -ApexAiCount=7
       - -ApexLaps=3
@@ -1462,7 +1462,7 @@ runs:
     about: "diagnostic: the starting compound in heavy rain"
     args:
       - -ApexAutoRace
-      - -ApexTrack=Spa
+      - -ApexTrack=SpaFrankenchamps
       - -ApexCar=SF-26
       - -ApexAiCount=3
       - -ApexLaps=3
@@ -1492,7 +1492,7 @@ runs:
         - "40:host:pit"
     args:
       - -ApexAutoRace
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=3
       - -ApexLaps=6
@@ -1551,7 +1551,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=3
       - -ApexLaps=1
@@ -1688,7 +1688,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=2
       - -ApexMode=6
@@ -1724,7 +1724,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=2
       - -ApexMode=6
@@ -1757,7 +1757,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=2
       - -ApexLaps=5
@@ -1781,7 +1781,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=5
       - -ApexLaps=1
@@ -1816,7 +1816,7 @@ runs:
         - "40:host:pit"
     args:
       - -ApexAutoRace
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=3
       - -ApexLaps=6
@@ -1870,7 +1870,7 @@ runs:
         - "5:host:puncture=RL"
     args:
       - -ApexAutoRace
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=4
       - -ApexWeekend=0,1,3
@@ -1911,7 +1911,7 @@ runs:
     args:
       - -ApexAutoRace
       - -ApexNoStart
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=3
       - -ApexLaps=2
@@ -1942,7 +1942,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=5
       - -ApexAiSkill=70
@@ -1975,7 +1975,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Spa
+      - -ApexTrack=SpaFrankenchamps
       - -ApexCar=SF-26
       - -ApexAiCount=3
       - -ApexLaps=10
@@ -1996,7 +1996,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Spa
+      - -ApexTrack=SpaFrankenchamps
       - -ApexCar=SF-26
       - -ApexAiCount=3
       - -ApexLaps=10
@@ -2019,7 +2019,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Silverstone
+      - -ApexTrack=Shiverstone
       - -ApexCar=SF-26
       - -ApexAiCount=1
       - -ApexLaps=5
@@ -2040,7 +2040,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=2
       - -ApexLaps=5
@@ -2068,7 +2068,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=1
       - -ApexLaps=3
@@ -2089,7 +2089,7 @@ runs:
     args:
       - -ApexAutoRace
       - -ApexNoStart
-      - -ApexTrack=Norisring
+      - -ApexTrack=Snorisring
       - -ApexCar=Caravan
       - -ApexAiCount=2
       - -ApexLaps=3
@@ -2126,7 +2126,7 @@ runs:
       stand_in: true
     args:
       - -ApexAutoRace
-      - -ApexTrack=Nordschleife
+      - -ApexTrack=Mordschleife
       - -ApexCar=Caravan
       - -ApexAiCount=1
       - -ApexLaps=1
@@ -2150,7 +2150,7 @@ runs:
   - id: b1-backdrop-silverstone
     about: "B1. Demo backdrop cold start: Silverstone F1 (the hang of 2026-10-17)"
     args:
-      - "-ApexShowcase={repo}/build/showcase/Silverstone.f1.day.apxs"
+      - "-ApexShowcase={repo}/build/showcase/Shiverstone.f1.day.apxs"
     shots:
       - {at: 15, label: "backdrop just built", checks: "GPU soak: no hang"}
       - {at: 30, label: "backdrop", checks: "GPU soak: no hang"}
@@ -2159,7 +2159,7 @@ runs:
   - id: b1-backdrop-sakhir
     about: "B1. Demo backdrop cold start: Sakhir F1 at night (floodlights)"
     args:
-      - "-ApexShowcase={repo}/build/showcase/Sakhir.f1.night.apxs"
+      - "-ApexShowcase={repo}/build/showcase/Bahrainless.f1.night.apxs"
     shots:
       - {at: 15, label: "backdrop just built", checks: "GPU soak: no hang"}
       - {at: 30, label: "backdrop", checks: "GPU soak: no hang"}
@@ -2168,7 +2168,7 @@ runs:
   - id: b1-backdrop-saopaulo
     about: "B1. Demo backdrop cold start: Sao Paulo F1 in the rain"
     args:
-      - "-ApexShowcase={repo}/build/showcase/SaoPaulo.f1.rain.apxs"
+      - "-ApexShowcase={repo}/build/showcase/Interlaggos.f1.rain.apxs"
     shots:
       - {at: 15, label: "backdrop just built", checks: "GPU soak: no hang"}
       - {at: 30, label: "backdrop", checks: "GPU soak: no hang"}

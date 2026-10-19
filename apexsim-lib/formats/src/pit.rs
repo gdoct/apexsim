@@ -43,7 +43,7 @@ pub struct PitBoxSpot {
 }
 
 impl PitSidecar {
-    /// `Monza.yaml` -> `Monza.pit.msgpack`.
+    /// `Monzarella.yaml` -> `Monzarella.pit.msgpack`.
     pub fn sidecar_path(track_file: &Path) -> PathBuf {
         crate::sidecar_path(track_file, "pit")
     }

@@ -47,13 +47,13 @@ fn the_reference_day_is_the_car_as_filed() {
 
 #[test]
 fn altitude_and_heat_thin_the_air() {
-    let mexico = track("MexicoCity");
+    let mexico = track("HermanosRodriQueso");
     let altitude = mexico.metadata.altitude_m.expect("Mexico City's altitude");
     assert!(altitude > 2000.0);
     let thin = SessionConditions::DEFAULT.air_density_ratio(altitude);
     assert!((0.74..0.82).contains(&thin), "Mexico City: {thin}");
 
-    let spielberg = track("Spielberg").metadata.altitude_m.expect("altitude");
+    let spielberg = track("RedPullRing").metadata.altitude_m.expect("altitude");
     let styria = SessionConditions::DEFAULT.air_density_ratio(spielberg);
     assert!((0.9..0.95).contains(&styria), "Spielberg: {styria}");
 
@@ -91,7 +91,7 @@ fn a_turbo_keeps_its_breath_where_an_engine_without_one_loses_it() {
     // the turbo car keeps its power against less drag and is quicker on
     // the straights than at sea level.
     let lap = |car: &CarConfig, altitude: Option<f32>| {
-        let mut t = track("Monza");
+        let mut t = track("Monzarella");
         t.metadata.altitude_m = altitude;
         SessionConditions::DEFAULT.apply_to_track(&mut t);
         let profile = racing_line::build(&t, car).expect("line");
@@ -124,7 +124,7 @@ fn down_the_straight(wind_kph: u8, from_deg: u16) -> f32 {
     let car = car("fugazzi-sf26");
     let mut car_configs = HashMap::new();
     car_configs.insert(car.id, car.clone());
-    let mut t = track("Monza");
+    let mut t = track("Monzarella");
     SessionConditions {
         wind_kph: Some(wind_kph),
         wind_from_deg: Some(from_deg),
@@ -195,7 +195,7 @@ fn the_ai_gets_round_in_a_gale() {
     profile.id = Uuid::from_u128(7200);
     profile.preferred_car_id = Some(car_id);
     let driver = profile.id;
-    let mut t = track("Monza");
+    let mut t = track("Monzarella");
     SessionConditions {
         wind_kph: Some(50),
         wind_from_deg: Some(135),

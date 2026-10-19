@@ -57,7 +57,7 @@ fn report(name: &str, profile: &RacingLineProfile) {
 
 #[test]
 fn monza_has_its_heavy_braking_zones() {
-    let f1 = profile_for("Monza", "fugazzi-sf26");
+    let f1 = profile_for("Monzarella", "fugazzi-sf26");
     report("Monza / SF-26", &f1);
     let zones = braking_zones(&f1);
 
@@ -85,8 +85,8 @@ fn monza_has_its_heavy_braking_zones() {
 
 #[test]
 fn a_gt_car_brakes_earlier_than_an_f1_car() {
-    let f1 = profile_for("Monza", "fugazzi-sf26");
-    let gt = profile_for("Monza", "posh-gt3rs");
+    let f1 = profile_for("Monzarella", "fugazzi-sf26");
+    let gt = profile_for("Monzarella", "posh-gt3rs");
     report("Monza / GT3 RS", &gt);
 
     let slowest = |p: &RacingLineProfile| p.speed_mps.iter().copied().fold(f32::MAX, f32::min);

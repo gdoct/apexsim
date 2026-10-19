@@ -55,7 +55,7 @@ async fn test_the_recordings_are_listed_and_handed_out() {
         participants: vec![],
         conditions: Default::default(),
         race_start_tick: Some(10),
-        track_stem: Some("Monza".into()),
+        track_stem: Some("Monzarella".into()),
         track_length_m: 5793.0,
     };
     std::fs::write(

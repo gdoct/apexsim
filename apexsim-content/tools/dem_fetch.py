@@ -14,9 +14,9 @@ and writes `tracks/default/<Stem>.dem.msgpack` -- two grids of heights,
 a 10 m one over the circuit itself and a 90 m one out to 8 km, which is the
 horizon a driver sees from a valley floor.
 
-    python tools/dem_fetch.py Spielberg        # one circuit
+    python tools/dem_fetch.py RedPullRing        # one circuit
     python tools/dem_fetch.py --all            # every circuit with a dossier
-    python tools/dem_fetch.py Monza --offline  # reuse the cached tiles
+    python tools/dem_fetch.py Monzarella --offline  # reuse the cached tiles
 
 The georeferencing is not re-derived here: `osm_layout.fit_track` returns the
 very fit the layout dossier was built from, and the DEM rides on it.  A second
@@ -597,7 +597,7 @@ def build(stem: str, offline: bool) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("tracks", nargs="*", help="track stems, e.g. Spielberg")
+    ap.add_argument("tracks", nargs="*", help="track stems, e.g. RedPullRing")
     ap.add_argument("--all", action="store_true", help="every circuit with a dossier")
     ap.add_argument("--offline", action="store_true", help="use the cached tiles only")
     ap.add_argument("--dry-run", action="store_true", help="report without writing")

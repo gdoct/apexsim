@@ -34,7 +34,7 @@ The raceline is carried by the change of the road beneath it, as
 (banking) is unchanged.
 
     python tools/dem_elevation.py --report          # every circuit with a sidecar, worst first
-    python tools/dem_elevation.py Spa [--dry-run]   # rewrite Spa.yaml's node and raceline z
+    python tools/dem_elevation.py SpaFrankenchamps [--dry-run]   # rewrite SpaFrankenchamps.yaml's node and raceline z
 
 Only `z` lines are touched; the file is otherwise byte-identical. Run it
 before the rest of the refresh order in CLAUDE.md (`ats-smooth` onward).
@@ -367,7 +367,7 @@ def report(wavelength_m: float, canopy_tol_m: float):
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("tracks", nargs="*", help="track stems to rewrite, e.g. Spa")
+    ap.add_argument("tracks", nargs="*", help="track stems to rewrite, e.g. SpaFrankenchamps")
     ap.add_argument("--report", action="store_true", help="compare every circuit with a sidecar")
     ap.add_argument("--dry-run", action="store_true", help="report without writing")
     ap.add_argument("--wavelength", type=float, default=DEFAULT_WAVELENGTH_M)

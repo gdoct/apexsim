@@ -961,7 +961,7 @@ nodes:
     fn grid_slots_sit_on_the_road_under_them() {
         let path = Path::new(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../apexsim-content/tracks/default/Spa/Spa.yaml"
+            "/../../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml"
         ));
         if !path.exists() {
             eprintln!("skipping: {} not present", path.display());

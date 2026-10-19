@@ -4,8 +4,8 @@
     tracks/custom/    the player's own: imported or hand-made
                               (gitignored; see its README.md)
 
-A track is a folder of its own, named by its stem: `default/Spa/` holds
-every file of Spa (`Spa.yaml`, `.ats`, `.layout.json`, the sidecars), the
+A track is a folder of its own, named by its stem: `default/SpaFrankenchamps/` holds
+every file of SpaFrankenchamps (`SpaFrankenchamps.yaml`, `.ats`, `.layout.json`, the sidecars), the
 way a car is `cars/default/<folder>/car.toml`. A stem is unique across both
 folders, because the exports, previews and `-ApexTrack=` switches are keyed
 by the stem alone. The Rust tools read the same two folders

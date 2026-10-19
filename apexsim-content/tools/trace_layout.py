@@ -15,9 +15,9 @@ out as the manual entries ``osm_layout.py`` takes: a ``MANUAL_STANDS`` span
 (``from_m`` / ``to_m`` / ``side`` / ``gap_m``), a ``(lon, lat)`` anchor for
 ``MANUAL_LANDMARKS`` / ``MANUAL_CROSSINGS``, or a ring in either frame.
 
-    python tools/trace_layout.py Spa            # build/trace/Spa.html
+    python tools/trace_layout.py SpaFrankenchamps            # build/trace/SpaFrankenchamps.html
     python tools/trace_layout.py --all          # every circuit with a georeference
-    python tools/trace_layout.py Spa --open     # and open it in the browser
+    python tools/trace_layout.py SpaFrankenchamps --open     # and open it in the browser
 
 The page loads Leaflet and the imagery tiles (Esri World Imagery, with
 OpenStreetMap as the other base layer) from the web when opened; nothing

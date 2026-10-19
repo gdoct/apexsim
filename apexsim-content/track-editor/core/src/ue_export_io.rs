@@ -84,7 +84,7 @@ pub enum UeExportError {
     },
 }
 
-/// `Monza.yaml` -> `<dir>/Monza.uescene.json`.
+/// `Monzarella.yaml` -> `<dir>/Monzarella.uescene.json`.
 pub fn export_path_for(dir: &Path, track_path: &Path) -> PathBuf {
     let stem = track_path
         .file_stem()
@@ -93,7 +93,7 @@ pub fn export_path_for(dir: &Path, track_path: &Path) -> PathBuf {
     dir.join(format!("{stem}.uescene.json"))
 }
 
-/// `<dir>/Monza.uescene.json` -> `<dir>/Monza.uemesh`: the mesh blob that
+/// `<dir>/Monzarella.uescene.json` -> `<dir>/Monzarella.uemesh`: the mesh blob that
 /// goes with a manifest. A path not ending in `.uescene.json` loses its
 /// last extension instead.
 pub fn mesh_blob_path_for(scene_path: &Path) -> PathBuf {
@@ -127,27 +127,27 @@ pub fn source_crc(bytes: &[u8]) -> u32 {
     apexsim_formats::content_crc::content_crc(bytes)
 }
 
-/// `Monza.yaml` -> `<same dir>/Monza.ground.msgpack`.
+/// `Monzarella.yaml` -> `<same dir>/Monzarella.ground.msgpack`.
 pub fn ground_sidecar_path_for(track_path: &Path) -> PathBuf {
     apexsim_formats::ground::GroundHeightfield::sidecar_path(track_path)
 }
 
-/// `Monza.yaml` -> `<same dir>/Monza.curbs.msgpack`.
+/// `Monzarella.yaml` -> `<same dir>/Monzarella.curbs.msgpack`.
 pub fn curb_sidecar_path_for(track_path: &Path) -> PathBuf {
     apexsim_formats::curbs::CurbBands::sidecar_path(track_path)
 }
 
-/// `Monza.yaml` -> `<same dir>/Monza.walls.msgpack`.
+/// `Monzarella.yaml` -> `<same dir>/Monzarella.walls.msgpack`.
 pub fn walls_sidecar_path_for(track_path: &Path) -> PathBuf {
     apexsim_formats::walls::WallFile::sidecar_path(track_path)
 }
 
-/// `Monza.yaml` -> `<same dir>/Monza.road.msgpack`.
+/// `Monzarella.yaml` -> `<same dir>/Monzarella.road.msgpack`.
 pub fn road_sidecar_path_for(track_path: &Path) -> PathBuf {
     apexsim_formats::road_mesh::RoadMeshFile::sidecar_path(track_path)
 }
 
-/// `Monza.yaml` -> `<same dir>/Monza.pit.msgpack`.
+/// `Monzarella.yaml` -> `<same dir>/Monzarella.pit.msgpack`.
 pub fn pit_sidecar_path_for(track_path: &Path) -> PathBuf {
     apexsim_formats::pit::PitSidecar::sidecar_path(track_path)
 }
@@ -973,7 +973,7 @@ pub fn track_files_in_dirs(dirs: &[&Path]) -> Result<Vec<PathBuf>, UeExportError
 }
 
 /// Every track in `dir`, sorted, so a batch export is reproducible. A
-/// track is a folder holding a YAML of its own name (`dir/Spa/Spa.yaml`)
+/// track is a folder holding a YAML of its own name (`dir/SpaFrankenchamps/SpaFrankenchamps.yaml`)
 /// next to its `.ats`, dossier and sidecars; anything else in `dir` (a
 /// README, a folder without that YAML) is not one.
 pub fn track_files_in(dir: &Path) -> Result<Vec<PathBuf>, UeExportError> {

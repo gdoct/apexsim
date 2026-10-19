@@ -13,7 +13,7 @@ fn fixed_uuid(n: u128) -> Uuid {
 
 fn main() {
     let track =
-        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monza/Monza.yaml")
+        TrackLoader::load_from_file("../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml")
             .unwrap();
     println!(
         "track: centerline={} raceline={} raceline_dist={} checkpoints={:?} length={:.1}",

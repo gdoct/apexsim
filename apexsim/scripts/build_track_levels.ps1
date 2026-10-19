@@ -37,7 +37,7 @@
     Stage 3 is what keeps a circuit's scenery in step with its layout
     dossier. It used to be run by hand, which is exactly how the Red Bull
     Ring shipped for a day without its bull statue: the landmark went into
-    Spielberg.layout.json, nobody re-dressed the scene, and the bake read
+    RedPullRing.layout.json, nobody re-dressed the scene, and the bake read
     the old one. Dressing is idempotent, so running it every time costs a
     few seconds and removes the failure mode.
 
@@ -107,11 +107,11 @@
     Dress and bake every track, with previews and materials.
 
 .EXAMPLE
-    ./scripts/build_track_levels.ps1 -Track Monza,Spa -SkipMaterials
+    ./scripts/build_track_levels.ps1 -Track Monzarella,SpaFrankenchamps -SkipMaterials
     Redress and rebake two circuits; no engine involved.
 
 .EXAMPLE
-    ./scripts/build_track_levels.ps1 -Track Spa -ImportLevels -Build
+    ./scripts/build_track_levels.ps1 -Track SpaFrankenchamps -ImportLevels -Build
     Rebuild the editor target, rebake Spa and import it as a level to inspect.
 #>
 [CmdletBinding()]

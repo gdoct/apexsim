@@ -556,7 +556,7 @@ by default.
 
 Tests: `ApexSim.Prediction.*` on a recorded server sequence
 (`Tests/ApexPredictionFixture.h`, written by `server/ffi/tests/client_fixture.rs`;
-regenerate it after a physics change or an edit to Monza.yaml or the
+regenerate it after a physics change or an edit to Monzarella.yaml or the
 fugazzi-sf26 car.toml: `cd server/ffi && cargo test --test client_fixture -- --ignored --nocapture`):
 `Library` (linked, the ABI, the fixture), `ReplaysTheServer` (the library
 from the server's blob with its inputs lands within 1.4 mm of each
@@ -696,7 +696,7 @@ Hotlap: `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`,
 - `-ApexReplay=<file>.apxs` and the `-ApexReplay*` family (record, fps, camera
   and shot options) play a clip with no server; see [spectator.md](spectator.md)
   and [marketing-site.md](../marketing-site.md).
-- The benchmark: `python scripts/benchmark.py [--track Spa] [--res 1920x1080]`
+- The benchmark: `python scripts/benchmark.py [--track SpaFrankenchamps] [--res 1920x1080]`
   renders one seeded race (12 GT3s, sunny, `apexsim-replay render --seed 7`)
   to `build/benchmark/<Track>.apxs` once, and plays it with
   `-ApexReplayBench[=<file>]`: from `-ApexReplayStart` for

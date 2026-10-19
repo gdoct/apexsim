@@ -71,7 +71,7 @@ fn stick_error(tick: u64, hold_ticks: u64, amplitude: f32) -> f32 {
 #[ignore]
 fn pad_driver_probe() {
     let folder: String = env_or("PAD_CAR", "fugazzi-994p-hypercar".to_string());
-    let stem: String = env_or("PAD_TRACK", "Zandvoort".to_string());
+    let stem: String = env_or("PAD_TRACK", "Zandervoort".to_string());
     let aid: u8 = env_or("PAD_AID", 0);
     let noise: f32 = env_or("PAD_NOISE", 0.12);
     let hold_s: f32 = env_or("PAD_HOLD_S", 0.2);
