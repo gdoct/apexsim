@@ -79,6 +79,12 @@ namespace ApexProps
 	APEXSIM_API bool IsBrandSlot(FName SlotName);
 	/** The asset carries a blank `board_text` face that the prop's `text` is rendered on (a named-corner board). */
 	APEXSIM_API bool HasTextFace(const FString& Kind, const FString& Asset);
+	/**
+	 * A marshal light panel (`board/light_panel`): built as its own actor,
+	 * tagged `FlagPanelTag`, so the race director can light each one from the
+	 * flags in its own marshal sector (`led_panel` slot).
+	 */
+	APEXSIM_API bool IsFlagPanel(const FString& Kind, const FString& Asset);
 	/** The braking marker's number panel; `text` is 50/100/150/200. */
 	APEXSIM_API bool IsMarkerSlot(FName SlotName);
 	/** The flag pole's cloth; `text` is a country code (`nl`, `de`, … `chequer`). */
@@ -165,6 +171,8 @@ namespace ApexProps
 
 	/** Component tag on a mesh component that has a night-glow material slot. */
 	inline const TCHAR* const NightGlowTag = TEXT("ApexNightGlow");
+	/** The component of a marshal light panel (`IsFlagPanel`). */
+	inline const TCHAR* const FlagPanelTag = TEXT("ApexFlagPanel");
 
 	/** How a material slot lights after dark. */
 	struct FNightGlow

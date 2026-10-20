@@ -2119,6 +2119,13 @@ mod surroundings {
     const MARSHAL_SPACING_M: f32 = 400.0;
     /// How far past the barrier line the marshals stand.
     const MARSHAL_BEYOND_BARRIER_M: f32 = 4.0;
+    /// Race control's marshal sectors (the simulation's
+    /// `race_control::MARSHAL_SECTOR_M`, which the content cannot read):
+    /// every one gets a light panel, so a yellow shown in it is seen.
+    const MARSHAL_SECTOR_M: f32 = 250.0;
+    /// A light panel stands this far up the course from its post, beside
+    /// it rather than inside it.
+    const LIGHT_PANEL_UP_COURSE_M: f32 = 3.0;
     /// Floodlight masts along a circuit with none of its own, when a
     /// session after dark would otherwise be lit by headlights alone.
     const FLOODLIGHT_SPACING_M: f32 = 220.0;
@@ -2164,7 +2171,7 @@ mod surroundings {
     /// run, so it has to recognise its own output; and because it shares
     /// kinds with hand-placed props (a `sign` is also a distance board, a
     /// `misc` is also a bollard) ownership is by asset, not by kind.
-    pub const OWNED: [&str; 38] = [
+    pub const OWNED: [&str; 39] = [
         "car_a",
         "car_b",
         "car_c",
@@ -2176,6 +2183,7 @@ mod surroundings {
         "ticket_gate",
         "marshal_post",
         "marshal_post_numbered",
+        "light_panel",
         "corner_sign",
         "power_pylon",
         "lamp_post",
@@ -2461,6 +2469,7 @@ mod surroundings {
         });
         part("forest", &mut out, &|o| forests(&ctx, dem, o));
         part("marshal posts", &mut out, &|o| marshal_posts(&ctx, o));
+        part("light panels", &mut out, &|o| light_panels(&ctx, o));
         part("corner signs", &mut out, &|o| corner_signs(&ctx, o));
         if night_lighting {
             part("floodlights", &mut out, &|o| floodlights(&ctx, o));
@@ -2945,8 +2954,9 @@ mod surroundings {
         }
     }
 
-    /// A marshal post at every named corner and along the straights.
-    fn marshal_posts(ctx: &Ctx, out: &mut Vec<Prop>) {
+    /// Where the marshal posts stand: every named corner, and along the
+    /// straights.
+    fn marshal_stations(ctx: &Ctx) -> Vec<f32> {
         let total = ctx.path.total_length_m();
         let mut stations: Vec<f32> = ctx.layout.corners.iter().map(|c| c.station_m).collect();
         let mut station = 0.0;
@@ -2960,6 +2970,21 @@ mod surroundings {
             station += MARSHAL_SPACING_M;
         }
         stations.sort_by(f32::total_cmp);
+        stations
+    }
+
+    /// The side a post at `station` stands on: the outside of the bend.
+    fn marshal_side(ctx: &Ctx, station: f32) -> Side {
+        if curvature_at(ctx.path, station) < 0.0 {
+            Side::Left
+        } else {
+            Side::Right
+        }
+    }
+
+    /// A marshal post at every named corner and along the straights.
+    fn marshal_posts(ctx: &Ctx, out: &mut Vec<Prop>) {
+        let stations = marshal_stations(ctx);
         // On the fan lap the posts are numbered round the lap from the line.
         let asset = if ctx.fan {
             "marshal_post_numbered"
@@ -2969,12 +2994,7 @@ mod surroundings {
         let mut number = 0;
         for station in stations {
             let sample = ctx.path.sample_at(station);
-            // Outside of the bend, which is where a marshal post stands.
-            let side = if curvature_at(ctx.path, station) < 0.0 {
-                Side::Left
-            } else {
-                Side::Right
-            };
+            let side = marshal_side(ctx, station);
             let lat = signed_lat(&sample, side, MARSHAL_BEYOND_BARRIER_M + 8.0);
             let point = offset_point(&sample, lat);
             if let Some(mut prop) = ctx.place_clear(
@@ -2991,6 +3011,44 @@ mod surroundings {
                         prop.text = Some(format!("post{number}"));
                     }
                 }
+                out.push(prop);
+            }
+        }
+    }
+
+    /// The marshals' light panels (`board/light_panel`), which the client
+    /// lights from race control's flags: one beside every marshal post,
+    /// and one in the middle of any marshal sector that has no post, so
+    /// every sector's yellow shows somewhere. The client finds each
+    /// panel's sector from where it stands.
+    fn light_panels(ctx: &Ctx, out: &mut Vec<Prop>) {
+        let total = ctx.path.total_length_m();
+        let mut stations = marshal_stations(ctx);
+        let sectors = (total / MARSHAL_SECTOR_M).ceil() as usize;
+        for k in 0..sectors {
+            let (from, to) = (
+                k as f32 * MARSHAL_SECTOR_M,
+                (k + 1) as f32 * MARSHAL_SECTOR_M,
+            );
+            if !stations.iter().any(|&s| s >= from && s < to) {
+                stations.push(((from + to) / 2.0).min(total - 1.0));
+            }
+        }
+        stations.sort_by(f32::total_cmp);
+        for station in stations {
+            let at = (station - LIGHT_PANEL_UP_COURSE_M).rem_euclid(total);
+            let sample = ctx.path.sample_at(at);
+            let side = marshal_side(ctx, station);
+            let lat = signed_lat(&sample, side, MARSHAL_BEYOND_BARRIER_M + 8.0);
+            let point = offset_point(&sample, lat);
+            if let Some(prop) = ctx.place_clear(
+                PropKind::Board,
+                "light_panel",
+                point.0,
+                point.1,
+                Some(sample.heading_rad),
+                TRACKSIDE_CLEAR_M,
+            ) {
                 out.push(prop);
             }
         }

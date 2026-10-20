@@ -1738,9 +1738,11 @@ FApexTrackSceneBuilder::FResolvedProp FApexTrackSceneBuilder::ResolveProp(const 
 		Resolved.bFaceRoad = ApexProps::FacesRoad(Resolved.Kind, Resolved.Asset);
 		Resolved.bFaceUpCourse = ApexProps::FacesUpCourse(Resolved.Kind, Resolved.Asset);
 		// A board with a text face gets its own actor so the text component
-		// can hang off it; instances cannot carry one.
+		// can hang off it; instances cannot carry one. Nor can they light
+		// one marshal panel apart from the next.
 		Resolved.bInstanced = ApexProps::IsInstancedKind(Resolved.Kind)
-			&& !(ApexProps::HasTextFace(Resolved.Kind, Resolved.Asset) && !Resolved.Text.IsEmpty());
+			&& !(ApexProps::HasTextFace(Resolved.Kind, Resolved.Asset) && !Resolved.Text.IsEmpty())
+			&& !ApexProps::IsFlagPanel(Resolved.Kind, Resolved.Asset);
 		return Resolved;
 	}
 
@@ -2416,6 +2418,10 @@ void FApexTrackSceneBuilder::SpawnActors(
 				Component->SetStaticMesh(Resolved.Mesh);
 				Actor->SetActorScale3D(Scale);
 				ApplyAuthoredSlots(Component, Resolved.Mesh, Resolved.Text);
+				if (ApexProps::IsFlagPanel(Resolved.Kind, Resolved.Asset))
+				{
+					Component->ComponentTags.AddUnique(FName(ApexProps::FlagPanelTag));
+				}
 				if (ApexProps::HasTextFace(Resolved.Kind, Resolved.Asset) && !Resolved.Text.IsEmpty())
 				{
 					AddBoardText(Actor, Resolved.Text);

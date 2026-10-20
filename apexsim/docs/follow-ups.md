@@ -29,18 +29,9 @@ None open.
 ### 18. Flags on the track and in the car
 
 Race control's yellows and blues ([server/sessions.md](server/sessions.md#flags))
-reach the HUD (`flags` component, `flag.*`); the rest of the car and the
-circuit do not show them yet.
+reach the HUD (`flags` component, `flag.*`) and the marshals' light panels
+round the circuit; the car does not show them yet.
 
-- Trackside light panels on every circuit, showing yellow and blue. The
-  kit has the prop (`board/light_panel`), but no circuit's `.ats` places
-  one: `ats-dress` lays them at the marshal posts (one per 250 m marshal
-  sector at least, on the driver's side, facing up the course). Each
-  panel's lap station, its sector's yellow flashing on it, and blue
-  flashing while a car that race control shows the blue passes it. The
-  runtime builder shares one glow instance per slot round the circuit (one
-  write switches every panel, as the pit exit light uses it), so a panel
-  needs a dynamic instance of its own.
 - An audible cue as a yellow or the blue comes up (`game/audio.md`'s
   synthesised UI cues), and the flag on the cockpit dash.
 
@@ -106,6 +97,12 @@ them again).
   exit line and light stay at the lane's end. Judge the lines (`o1-sudoku`,
   `o1-monza`) and drive a stop: the run in to the line is now yours.
 
+- **Light panels (F2).** Every dressed circuit has a marshal light panel
+  beside each post and in any 250 m sector without one, dark until race
+  control shows a yellow in its sector (flashing yellow) or a blue-flagged
+  car comes up to it (flashing blue). Judge them lit in a race
+  (`r13-race-control`) and dark in `o1-*`.
+
 ## P2: depth
 
 ### 5. Hotlap and lap records
@@ -154,6 +151,10 @@ the same `ApexProps` code.
   `pit_wall` / facade colours with no texture (Spa's Stand Endurance, the
   Norisring's towers in the R11 run of 2026-10-17). Facade textures are
   art.
+- Circuits without a layout dossier (Endianapolis, HermanosRodriQueso,
+  MoscowMule, YasMarinara) are not dressed: no marshal posts, so no light
+  panels either, and race control's yellows show on the HUD alone there.
+
 **Check:** each circuit by hand in the running game; the track-editor tests.
 
 ### 19. AI in imported cars

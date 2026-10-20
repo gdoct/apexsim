@@ -297,6 +297,11 @@ namespace ApexProps
 		return Kind == TEXT("board") && Asset == TEXT("corner_sign");
 	}
 
+	bool IsFlagPanel(const FString& Kind, const FString& Asset)
+	{
+		return Kind == TEXT("board") && Asset == TEXT("light_panel");
+	}
+
 	bool IsMarkerSlot(FName SlotName)
 	{
 		return NameIs(SlotName, TEXT("board_marker"));

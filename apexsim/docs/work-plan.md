@@ -30,7 +30,6 @@ When an item is done, delete it from its backlog and from here.
 |---|---|---|---|---|---|
 | V1 | Verify the newest session screens (R9, R11, R12, R13) | Verification | P1 | 🟡 | S |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
-| F2 | Trackside light panels showing yellow and blue | Feature + content | P2 | 🟡 | M |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
 | R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🟡 | L |
 | S1 | Road crown and bumps | Simulation | P2 | 🟡 | M |
@@ -308,16 +307,6 @@ tunnels); surface layers (gravel, grass, kerb rumble, wet spray). Every
 result has to be judged by ear.
 See `game/audio.md` — the sound is synthesised, so "updating assets" may not
 apply.
-
-#### F2. Trackside light panels showing yellow and blue — P2 · 🟡 · M
-*Source: follow-ups #18.* Race control's yellows and blues only reach the
-HUD. Put marshal light panels on every circuit (`board/light_panel` is in
-the kit, but no `.ats` places one yet: `ats-dress` lays them at the marshal
-posts, at least one per 250 m sector) and drive them from the flags: yellow
-flashing for the panel's sector, blue as a car being shown the blue passes.
-Each panel needs its own dynamic glow instance (the builder shares one per
-slot). Re-dressing changes the sidecars: re-export the tracks. Check with a
-seeded pile-up (R7) and a lapping race on screen; a person judges.
 
 #### F1. Windshield wipers — P3 · 🔴 · M
 *Source: follow-ups P4.* Wiper mesh per cockpit (art), a key binding, an

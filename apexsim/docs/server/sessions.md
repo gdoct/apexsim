@@ -495,6 +495,12 @@ before the green or once the session is `Finished`.
   (`CompactTelemetry.race_phase`: formation and pace laps, VSC, safety car)
   is `FApexTelemetryFrame::RacePhase`, the HUD's `race.phase` /
   `race.phase_name` and the `race_phase` banner.
+- Trackside: every circuit's marshal light panels (`board/light_panel`,
+  laid by `ats-dress` beside each marshal post and in any 250 m sector
+  without one) flash yellow while their sector shows a yellow, and blue
+  while a car shown the blue flag is within 250 m up the course
+  (`AApexRaceDirector::UpdateFlagPanels`: each panel its own actor and
+  lamp instance, its station the nearest centerline point's).
 
 ## Virtual safety car
 

@@ -882,6 +882,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 
 	UpdateStartLights(Frame);
 	UpdatePitExitLights(Frame);
+	UpdateFlagPanels(Frame);
 	UpdateRaceBleeps(Frame, PreviousState);
 	if (Rig)
 	{
@@ -939,6 +940,10 @@ void AApexRaceDirector::ForgetStartLights()
 	PitExitGreenLamps.Reset();
 	PitExitClosedShown = -1;
 	bSearchedPitExitLights = false;
+	FlagPanelLamps.Reset();
+	FlagPanelStations.Reset();
+	FlagPanelShown.Reset();
+	bSearchedFlagPanels = false;
 }
 
 void AApexRaceDirector::FindPitExitLights()
@@ -1041,6 +1046,145 @@ void AApexRaceDirector::UpdatePitExitLights(const FApexTelemetryFrame& Frame)
 		{
 			Mid->SetScalarParameterValue(EmissiveParam, bClosed ? 0.0f : PitExitLampEmissive);
 		}
+	}
+}
+
+void AApexRaceDirector::FindFlagPanels()
+{
+	if (bSearchedFlagPanels || !IsTrackVisible())
+	{
+		return;
+	}
+	bSearchedFlagPanels = true;
+	FlagPanelLamps.Reset();
+	FlagPanelStations.Reset();
+	FlagPanelShown.Reset();
+
+	// The panel's station: the nearest centerline point's distance round the
+	// lap, as the server measures progress (in plan, from the first point).
+	const TArray<FVector>& Line = Track->GetCenterline();
+	if (Line.Num() < 3)
+	{
+		return;
+	}
+	TArray<float> StationM;
+	StationM.SetNumUninitialized(Line.Num());
+	float Run = 0.0f;
+	for (int32 Index = 0; Index < Line.Num(); ++Index)
+	{
+		if (Index > 0)
+		{
+			Run += FVector2D::Distance(FVector2D(Line[Index - 1]), FVector2D(Line[Index])) / ApexRace::MetresToCentimetres;
+		}
+		StationM[Index] = Run;
+	}
+	FlagPanelLapM = Run + FVector2D::Distance(FVector2D(Line.Last()), FVector2D(Line[0])) / ApexRace::MetresToCentimetres;
+
+	static const FName PanelTag(ApexProps::FlagPanelTag);
+	TArray<AActor*> TrackActors;
+	Track->GetActors(TrackActors);
+	for (AActor* Actor : TrackActors)
+	{
+		if (!Actor)
+		{
+			continue;
+		}
+		TArray<UStaticMeshComponent*> Meshes;
+		Actor->GetComponents<UStaticMeshComponent>(Meshes);
+		for (UStaticMeshComponent* Mesh : Meshes)
+		{
+			if (!Mesh->ComponentHasTag(PanelTag))
+			{
+				continue;
+			}
+			const FVector2D At(Mesh->GetComponentLocation());
+			int32 Nearest = 0;
+			double Best = TNumericLimits<double>::Max();
+			for (int32 Index = 0; Index < Line.Num(); ++Index)
+			{
+				const double D = FVector2D::DistSquared(At, FVector2D(Line[Index]));
+				if (D < Best)
+				{
+					Best = D;
+					Nearest = Index;
+				}
+			}
+			for (int32 Slot = 0; Slot < Mesh->GetNumMaterials(); ++Slot)
+			{
+				UMaterialInterface* Shared = Mesh->GetMaterial(Slot);
+				if (!Shared || !Shared->GetName().Contains(TEXT("glow_led_panel")))
+				{
+					continue;
+				}
+				// The builder shares one glow per slot round the circuit; a
+				// panel lit apart from the next needs its own.
+				UMaterialInstanceDynamic* SharedMid = Cast<UMaterialInstanceDynamic>(Shared);
+				UMaterialInstanceDynamic* Own =
+					UMaterialInstanceDynamic::Create(SharedMid && SharedMid->Parent ? SharedMid->Parent.Get() : Shared, Mesh);
+				if (SharedMid)
+				{
+					Own->CopyParameterOverrides(SharedMid);
+				}
+				Own->SetScalarParameterValue(TEXT("EmissiveStrength"), 0.0f);
+				Mesh->SetMaterial(Slot, Own);
+				FlagPanelLamps.Add(Own);
+				FlagPanelStations.Add(StationM[Nearest]);
+				FlagPanelShown.Add(0xFF);
+			}
+		}
+	}
+	if (FlagPanelLamps.Num() > 0)
+	{
+		UE_LOG(LogApexSim, Log, TEXT("Flag panels: %d lamp(s) round a %.0f m lap"), FlagPanelLamps.Num(), FlagPanelLapM);
+	}
+}
+
+void AApexRaceDirector::UpdateFlagPanels(const FApexTelemetryFrame& Frame)
+{
+	FindFlagPanels();
+	if (FlagPanelLamps.Num() == 0 || FlagPanelLapM <= 0.0f)
+	{
+		return;
+	}
+	const UWorld* World = GetWorld();
+	const double Now = World ? World->GetRealTimeSeconds() : 0.0;
+	const bool bLitPhase = FMath::Frac(Now * FlagPanelFlashHz) < 0.5;
+	static const FName EmissiveParam(TEXT("EmissiveStrength"));
+	static const FName ColorParam(TEXT("EmissiveColor"));
+	static const FName BaseParam(TEXT("BaseColor"));
+	const FLinearColor Yellow(1.0f, 0.72f, 0.04f);
+	const FLinearColor Blue(0.08f, 0.32f, 1.0f);
+	for (int32 Index = 0; Index < FlagPanelLamps.Num(); ++Index)
+	{
+		UMaterialInstanceDynamic* Lamp = FlagPanelLamps[Index];
+		if (!Lamp)
+		{
+			continue;
+		}
+		const float Station = FlagPanelStations[Index];
+		uint8 Show = Frame.YellowAt(Station) > 0 ? 1 : 0;
+		if (Show == 0)
+		{
+			for (const FApexCarTelemetry& Car : Frame.Cars)
+			{
+				const float Ahead = FMath::Fmod(Station - Car.TrackProgress + FlagPanelLapM, FlagPanelLapM);
+				if (Car.bBlueFlag && Ahead >= 0.0f && Ahead <= FlagPanelBlueReachM)
+				{
+					Show = 2;
+					break;
+				}
+			}
+		}
+		const uint8 Lit = (Show != 0 && bLitPhase) ? Show : 0;
+		if (Lit == FlagPanelShown[Index])
+		{
+			continue;
+		}
+		FlagPanelShown[Index] = Lit;
+		const FLinearColor Color = Lit == 2 ? Blue : Yellow;
+		Lamp->SetVectorParameterValue(ColorParam, Color);
+		Lamp->SetVectorParameterValue(BaseParam, Color * 0.05f);
+		Lamp->SetScalarParameterValue(EmissiveParam, Lit != 0 ? PitExitLampEmissive : 0.0f);
 	}
 }
 
@@ -4859,6 +5003,7 @@ void AApexRaceDirector::ApplyReplayFrame(const FApexTelemetryFrame& Frame, float
 	}
 	UpdateStartLights(Frame);
 	UpdatePitExitLights(Frame);
+	UpdateFlagPanels(Frame);
 }
 
 void AApexRaceDirector::SeatReplayEye()

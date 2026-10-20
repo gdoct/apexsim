@@ -736,6 +736,30 @@ private:
 	/** A lit lamp, as the builder lights the green one (ApexTrackSceneBuilder, EmissiveMaterialFor). */
 	static constexpr float PitExitLampEmissive = StartLightOnEmissive;
 
+	/**
+	 * Drive the marshals' light panels (`board/light_panel`, `ApexProps::IsFlagPanel`):
+	 * yellow flashing while race control shows a yellow in the panel's marshal
+	 * sector (`YellowAt`), blue flashing while a car shown the blue flag is
+	 * coming up to it (within `FlagPanelBlueReachM`), dark otherwise. Each
+	 * panel gets a lamp instance of its own; written only on a change.
+	 */
+	void UpdateFlagPanels(const FApexTelemetryFrame& Frame);
+	/** Find every panel on the circuit on show, give it its own lamp and its station. */
+	void FindFlagPanels();
+
+	/** One lamp per panel, and the panel's station along the lap in metres. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> FlagPanelLamps;
+	TArray<float> FlagPanelStations;
+	/** What each panel shows as last written: 0 dark, 1 yellow, 2 blue; 0xFF forces a write. */
+	TArray<uint8> FlagPanelShown;
+	float FlagPanelLapM = 0.0f;
+	bool bSearchedFlagPanels = false;
+	/** A blue-flagged car this far up the course from a panel lights it blue. */
+	static constexpr float FlagPanelBlueReachM = 250.0f;
+	/** Panels flash at this rate, half the period lit. */
+	static constexpr float FlagPanelFlashHz = 1.5f;
+
 	/** The session's circuit, built from its export. */
 	UPROPERTY(Transient)
 	TObjectPtr<class UApexTrackInstance> Track;
