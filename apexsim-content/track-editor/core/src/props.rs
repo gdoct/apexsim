@@ -130,7 +130,7 @@ pub const KIT: &[KitAsset] = kit![
     // Overhead
     Bridge "start_gantry" 2.0 x 20.0 x 7.2,
     Bridge "truss_bridge" 2.7 x 20.4 x 8.7,
-    Bridge "tyre_bridge" 4.0 x 23.7 x 13.6,
+    Bridge "tyre_bridge" 4.0 x 23.7 x 9.5,
     Bridge "timing_gantry" 2.0 x 20.0 x 10.5,
     Bridge "span_building" 8.2 x 20.7 x 22.0,
     // Marina Bay crossings: the road runs ON `bridge_arch_steel` and

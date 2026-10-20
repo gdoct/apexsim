@@ -32,7 +32,6 @@ When an item is done, delete it from its backlog and from here.
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
 | B7 | Kinks in the inside curb of some corners, all circuits | Bug | P2 | 🟡 | M |
 | F2 | Trackside light panels showing yellow and blue | Feature + content | P2 | 🟡 | M |
-| B11 | Tyre bridge prop too tall, reads as an oval | Content | P2 | 🟡 | S |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
 | D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🟡 | M |
 | R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🟡 | L |
@@ -150,17 +149,6 @@ curb sidecar feeds physics too: re-export the tracks, run the full
 `track-editor` tests and the AI survey against the commit before; a person
 judges close-up shots of the worst corners.
 Image: /docs/roadkink.png
-
-#### B11. Tyre bridge prop too tall, reads as an oval — P2 · 🟡 · S
-*Source: follow-ups #6 (testing, 2026-10-18).* `bridge/tyre_bridge` is
-23.7 m wide by 13.6 m high, near a half circle; the real kind is a flat
-arc on two low legs, about two and a half times wider than tall, with a
-wide low brand band. Rebuild it from `tyre_bridge.blend` (headless), keep
-the span and `tyre_bridge_brand`, update its size in `props.rs`, then
-re-import the kit and re-export the eight circuits that lay it. Check
-with a shot from the cockpit at Le Mans beside the photos; a person
-judges.
-Image: /docs/tirebridge.png
 
 ### Platform and stability
 

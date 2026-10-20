@@ -22,6 +22,7 @@ buildings the bake turns into `walls.msgpack` (see
   `KIT_SLOTS`, `kit_material`), the batch builders (`build_barriers2.py`,
   `build_trees.py`, `build_near_trees.py`, `card_trees.py`,
   `build_batch_e_kit.py`, `build_batch_f_terrain.py`, `build_bull_statue.py`,
+  `build_tyre_bridge.py` (a flat tyre arc on two low legs over a footbridge),
   `build_nordschleife_kit.py`, `build_marina_bay_{a1,a2,a3,b1,c1,d1}.py` on
   `marina_common.py`), `gen_brands.py`, `gen_graffiti.py`,
   `gen_marina_decals.py`, `retexture_kit.py`, `skyline_night.py`.

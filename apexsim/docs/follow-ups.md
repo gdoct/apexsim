@@ -77,6 +77,20 @@ Built and checked by tests; each needs a person before it is closed.
   picks a car in as few presses as before. `m1-car-mouse` and
   `m1-track-mouse` are the unattended runs.
 
+### 27. Your judgement on the 2026-10-20 content refresh
+
+Built and checked by tests and the AI survey; each needs a person before
+it is closed. Before and after shots from the same poses:
+`out/verify/o1-{sudoku,lemons,monza,silverstone}_before/` and
+`out/verify/o1-*/` (`python scripts/verify/run_checks.py "o1-*"` takes
+them again).
+
+- **Tyre bridge (B11).** `bridge/tyre_bridge` is rebuilt
+  (`tools/generators/props/build_tyre_bridge.py`): a flat tyre arc 23.7 m
+  wide by 9.5 m high on two low concrete legs over a footbridge deck, the
+  brand band across both sidewalls. Judge it from the road at Le Mans
+  (`o1-lemons`) beside [tirebridge.png](tirebridge.png)'s photos.
+
 ## P2: depth
 
 ### 5. Hotlap and lap records
@@ -125,19 +139,6 @@ the same `ApexProps` code.
   `pit_wall` / facade colours with no texture (Spa's Stand Endurance, the
   Norisring's towers in the R11 run of 2026-10-17). Facade textures are
   art.
-- The tyre bridge (`bridge/tyre_bridge`, laid by `ats-dress` on Brands
-  Hatch, Budapest, Le Mans, Montreal, the Nuerburgring, Shanghai,
-  Silverstone and Sochi) is too tall: 23.7 m wide by 13.6 m high, close
-  to a half circle, so it reads as an oval hoop (seen testing,
-  2026-10-18; [tirebridge.png](tirebridge.png) beside photos of the real
-  kind). The real one is a shallow slice of a tyre: a flat arc on two
-  low legs, wider than it is tall by about two and a half times, the
-  brand band wide and low across the top. Rebuild the mesh from
-  `tyre_bridge.blend` (headless, with the user's Blender file left
-  alone), keep the span and the brand slot (`tyre_bridge_brand`), and
-  update its size in `apexsim-content/track-editor/core/src/props.rs` so the catalogue
-  matches the mesh.
-
 **Check:** each circuit by hand in the running game; the track-editor tests.
 
 ### 19. AI in imported cars
