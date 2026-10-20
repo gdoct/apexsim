@@ -135,10 +135,10 @@ fn a_quicker_driver_gets_past_a_slower_one() {
     // And for the rest of the minute, on the road as baked: without the
     // curb sidecar (a fresh checkout, as CI) the ace runs wide past the
     // Lesmos, and only the first two seconds are judged.
-    if race
-        .track_config
-        .has_sidecars(Sidecar::BAKED_ROAD, "keeping the place to the end of the minute")
-    {
+    if race.track_config.has_sidecars(
+        Sidecar::BAKED_ROAD,
+        "keeping the place to the end of the minute",
+    ) {
         assert!(
             lead(&race, 1, 0) > 0.0,
             "the novice is back ahead at the end"

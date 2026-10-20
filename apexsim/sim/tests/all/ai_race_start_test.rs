@@ -309,9 +309,10 @@ fn ai_field_stays_composed_off_the_grid() {
 fn ai_field_makes_the_first_lap_at_le_mans() {
     const SEAM_M: std::ops::Range<f32> = 3800.0..4600.0;
     let mut race = ai_race("Lemons", "yotota-lmp2", 4);
-    let whole_lap = race
-        .track_config
-        .has_sidecars(Sidecar::BAKED_ROAD, "the whole first lap off the road (the seam only)");
+    let whole_lap = race.track_config.has_sidecars(
+        Sidecar::BAKED_ROAD,
+        "the whole first lap off the road (the seam only)",
+    );
     let mut off_ticks: HashMap<u8, u32> = HashMap::new();
     for _ in 0..(TICK_RATE as u32 * 150) {
         tick(&mut race);
