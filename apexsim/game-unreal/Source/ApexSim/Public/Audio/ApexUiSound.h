@@ -32,6 +32,10 @@ enum class EApexUiSound : uint8
 	CountdownGo,
 	/** The player's car crossed the start/finish line and began a new lap. */
 	LapLine,
+	/** A yellow came up ahead of the player's car (or a single turned double). */
+	FlagYellow,
+	/** The blue flag came up for the player's car: a car a lap up is close behind. */
+	FlagBlue,
 
 	Count UMETA(Hidden),
 };

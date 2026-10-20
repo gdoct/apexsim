@@ -1344,6 +1344,8 @@ void AApexRaceDirector::UpdateRaceBleeps(const FApexTelemetryFrame& Frame, EApex
 	{
 		BleepCarIndex = LocalIndex;
 		BleepLap = -1;
+		BleepYellow = 0;
+		bBleepBlue = false;
 	}
 	if (LocalIndex < 0)
 	{
@@ -1362,6 +1364,26 @@ void AApexRaceDirector::UpdateRaceBleeps(const FApexTelemetryFrame& Frame, EApex
 			ApexUiAudio::Play(this, EApexUiSound::LapLine);
 		}
 		BleepLap = Car.CurrentLap;
+		// Race control's flags: a cue as one comes up (a single yellow turning
+		// double counts), and the dash flashes it while it is out.
+		const int32 Yellow = bRaceRunning ? Car.YellowAhead : 0;
+		const bool bBlue = bRaceRunning && Car.bBlueFlag;
+		if (Yellow > BleepYellow)
+		{
+			UE_LOG(LogApexSim, Log, TEXT("Race flags: %s yellow ahead of the player's car"), Yellow > 1 ? TEXT("double") : TEXT("single"));
+			ApexUiAudio::Play(this, EApexUiSound::FlagYellow);
+		}
+		else if (bBlue && !bBleepBlue)
+		{
+			UE_LOG(LogApexSim, Log, TEXT("Race flags: blue for the player's car"));
+			ApexUiAudio::Play(this, EApexUiSound::FlagBlue);
+		}
+		BleepYellow = Yellow;
+		bBleepBlue = bBlue;
+		if (Rig)
+		{
+			Rig->SetRaceFlags(Yellow, bBlue);
+		}
 		break;
 	}
 }

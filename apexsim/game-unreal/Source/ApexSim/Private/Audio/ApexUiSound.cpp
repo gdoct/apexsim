@@ -80,6 +80,16 @@ namespace ApexUiSynth
 		case EApexUiSound::LapLine:
 			return { { 1318.5f, 0.07f, 0.45f }, { 0.0f, 0.04f, 0.0f }, { 1318.5f, 0.1f, 0.45f } };
 
+		// The flags are warnings, not news: the yellow a falling two-tone
+		// repeated (caution, ahead), the blue three soft low pips (someone
+		// behind), so neither is taken for the line or the countdown.
+		case EApexUiSound::FlagYellow:
+			return { { 1174.7f, 0.09f, 0.5f }, { 880.0f, 0.09f, 0.5f }, { 1174.7f, 0.09f, 0.5f }, { 880.0f, 0.14f, 0.5f } };
+
+		case EApexUiSound::FlagBlue:
+			return { { 587.3f, 0.06f, 0.45f }, { 0.0f, 0.04f, 0.0f }, { 587.3f, 0.06f, 0.45f }, { 0.0f, 0.04f, 0.0f },
+				{ 587.3f, 0.08f, 0.45f } };
+
 		default:
 			return {};
 		}

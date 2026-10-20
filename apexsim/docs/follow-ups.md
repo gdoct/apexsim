@@ -26,19 +26,6 @@ None open.
 
 ## P1: core racing experience
 
-### 18. Flags on the track and in the car
-
-Race control's yellows and blues ([server/sessions.md](server/sessions.md#flags))
-reach the HUD (`flags` component, `flag.*`) and the marshals' light panels
-round the circuit; the car does not show them yet.
-
-- An audible cue as a yellow or the blue comes up (`game/audio.md`'s
-  synthesised UI cues), and the flag on the cockpit dash.
-
-**Check:** a seeded pile-up (R7) and a lapping race on screen, the panels
-seen flashing yellow at the incident's sector and blue as the lapped car
-passes.
-
 ## P2: depth
 
 ### 5. Hotlap and lap records

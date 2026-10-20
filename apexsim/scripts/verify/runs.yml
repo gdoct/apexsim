@@ -2786,3 +2786,48 @@ runs:
       - {at: 565, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
       - {at: 580, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
       - {at: 595, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+
+  # R7 (2026-10-21): race control's flags in the car. A car's engine killed
+  # on the road at 20 s of green brings out a yellow ahead of the player's
+  # car (as r13b); the cue plays as it comes up ("Race flags:" in the
+  # client log) and the cockpit dash's light bar flashes yellow across the
+  # whole row while it is out.
+  - id: r7-flags-dash
+    about: "R7. A yellow ahead: the cue and the dash's light bar flashing"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=Caravan
+      - -ApexAiCount=7
+      - -ApexLaps=5
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    server:
+      stand_in: true
+      events:
+        - "20:4:damage=engine:100"
+    exec:
+      30: ["apexsim.hud.Data flag."]
+      40: ["apexsim.hud.Data flag."]
+    shots:
+      # The yellow comes up between about 26 and 36 s (the race's timing
+      # moves from run to run): a shot a second through it.
+      - {at: 25, label: "25 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 26, label: "26 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 27, label: "27 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 28, label: "28 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 29, label: "29 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 30, label: "30 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 31, label: "31 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 32, label: "32 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 33, label: "33 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 34, label: "34 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 35, label: "35 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 36, label: "36 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 37, label: "37 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 38, label: "38 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 39, label: "39 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+      - {at: 40, label: "40 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}

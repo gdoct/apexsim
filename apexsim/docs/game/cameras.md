@@ -43,7 +43,10 @@ director spawns `AApexCockpitRig` and attaches it to the followed car:
   (`SetDriverRimLockDeg`, fed by `AApexRaceDirector::UpdateSteeringLock`; see
   [input-and-ffb.md](input-and-ffb.md)).
 - **Dash** (`UApexCockpitDashWidget`): gear, speed, rev lights, lap time, the
-  countdown on the grid. On a class wheel it sits on the wheel's screen, placed
+  countdown on the grid, race control's phase in place of the lap (`SC`,
+  `VSC`, `FORM`). While a yellow or the blue is out for the car
+  (`race_flags`, `SetFlags`) the whole light bar flashes its colour at 2 Hz,
+  yellow over blue, a double yellow at 4 Hz, as a real wheel's does. On a class wheel it sits on the wheel's screen, placed
   by `<model>.json` beside the GLB.
 - **Mirrors**: `USceneCaptureComponent2D`s into render targets shown on
   `UApexMirrorWidget` faces, drawn flipped. The rig refreshes them

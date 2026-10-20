@@ -24,7 +24,7 @@ All paths under `game-unreal/Source/ApexSim/`.
 ## Menu and race cues
 
 `ApexUiSynth` renders each `EApexUiSound` (Move, Accept, Back, Denied, Adjust,
-Notice, Error, CountdownTick, CountdownGo, LapLine) as a short tone from a note
+Notice, Error, CountdownTick, CountdownGo, LapLine, FlagYellow, FlagBlue) as a short tone from a note
 table. `UApexUiSoundWave::CreateSoundGenerator` renders the cue when the mixer
 asks for it. `UApexUiAudioSubsystem` plays cues with `PlaySound2D` as UI sounds,
 scaled by `UApexSettingsSave::UiVolume` and throttled per cue
@@ -37,7 +37,9 @@ Where cues come from:
   Error), settings sliders and dropdowns (Adjust).
 - Race cues from `AApexRaceDirector::UpdateRaceBleeps`, on telemetry: a tick for
   each of the last five countdown seconds, a higher tone on green, a double pip
-  when the local car completes a lap. The demo backdrop is silent.
+  when the local car completes a lap, a falling two-tone twice as a yellow
+  comes up ahead of it (or a single turns double: `race_flags`), three low
+  pips as its blue flag comes up. The demo backdrop is silent.
 - **Move is never raised by a widget.** `UApexRootWidget` listens to
   `FSlateApplication::OnFocusChanging` and plays Move only for focus the player
   moved: a change with cause `Navigation`, or one made inside an

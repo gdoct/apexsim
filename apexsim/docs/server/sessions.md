@@ -503,6 +503,10 @@ before the green or once the session is `Finished`.
   while a car shown the blue flag is within 250 m up the course
   (`AApexRaceDirector::UpdateFlagPanels`: each panel its own actor and
   lamp instance, its station the nearest centerline point's).
+- In the car: a cue as a yellow comes up ahead of the local car or its
+  blue flag does (`UpdateRaceBleeps`, [audio](../game/audio.md)), and the
+  cockpit dash's light bar flashing the flag's colour while it is out
+  ([cameras](../game/cameras.md)).
 
 ## Virtual safety car
 

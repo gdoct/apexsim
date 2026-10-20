@@ -45,6 +45,14 @@ public:
 	 */
 	void SetPhaseLabel(const FString& Label);
 
+	/**
+	 * Race control's flags for the car (`race_flags`): while one is up the
+	 * light bar flashes its colour across the whole row, as a real wheel's
+	 * does (yellow over blue; a double yellow flashes twice as fast). Takes
+	 * effect with the next SetValues.
+	 */
+	void SetFlags(int32 YellowAhead, bool bBlue);
+
 private:
 	void BuildTree();
 
@@ -62,6 +70,10 @@ private:
 	int32 LastLap = INT32_MIN;
 	FString PhaseLabel;
 	bool bPhaseChanged = false;
+	int32 FlagYellow = 0;
+	bool bFlagBlue = false;
+	/** What the light bar last showed for a flag: 0 none, else the flag and its flash phase. */
+	int32 ShownFlagState = 0;
 	int32 LastTimeTenths = INT32_MIN;
 
 	static constexpr int32 LightCount = 15;

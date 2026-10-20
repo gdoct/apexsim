@@ -113,7 +113,26 @@ void UApexCockpitDashWidget::SetValues(int32 Gear, float SpeedKph, bool bMetric,
 	// Every setter here invalidates the widget component's render target, so
 	// nothing is written unless the number the driver would read has moved.
 	const int32 Lit = FMath::Clamp(FMath::RoundToInt(FMath::Clamp(RpmFraction, 0.0f, 1.0f) * LightCount), 0, LightCount);
-	if (Lit != LitLights)
+	// A flag takes the whole row, flashing; the revs come back when it goes.
+	const int32 FlagKind = FlagYellow > 0 ? (FlagYellow > 1 ? 3 : 1) : (bFlagBlue ? 2 : 0);
+	const double FlashHz = FlagKind == 3 ? 4.0 : 2.0;
+	const bool bFlashOn = FMath::Frac(FPlatformTime::Seconds() * FlashHz) < 0.5;
+	const int32 FlagState = FlagKind == 0 ? 0 : FlagKind * 2 + (bFlashOn ? 1 : 0);
+	if (FlagState != ShownFlagState)
+	{
+		ShownFlagState = FlagState;
+		const FLinearColor FlagColour = FlagKind == 2 ? FLinearColor::FromSRGBColor(FColor(0x2F, 0x6B, 0xFF)) : Palette::Accent;
+		for (int32 Index = 0; Index < RpmLights.Num(); ++Index)
+		{
+			if (RpmLights[Index] && FlagKind != 0)
+			{
+				RpmLights[Index]->SetBrush(MakeBrush(bFlashOn ? FlagColour : Palette::Border, FLinearColor::Transparent, 0.0f, 3.0f));
+			}
+		}
+		// Back to the revs: redraw them below.
+		LitLights = FlagKind == 0 ? -1 : LitLights;
+	}
+	if (Lit != LitLights && FlagKind == 0)
 	{
 		LitLights = Lit;
 		for (int32 Index = 0; Index < RpmLights.Num(); ++Index)
@@ -162,6 +181,12 @@ void UApexCockpitDashWidget::SetValues(int32 Gear, float SpeedKph, bool bMetric,
 				: Lap > 0                                    ? FString::Printf(TEXT("LAP %d"), Lap)
 				                                             : FString(TEXT("LAP -"))));
 	}
+}
+
+void UApexCockpitDashWidget::SetFlags(int32 YellowAhead, bool bBlue)
+{
+	FlagYellow = FMath::Max(0, YellowAhead);
+	bFlagBlue = bBlue;
 }
 
 void UApexCockpitDashWidget::SetPhaseLabel(const FString& Label)

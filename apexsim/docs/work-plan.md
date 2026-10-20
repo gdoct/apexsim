@@ -34,7 +34,6 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | N28 | Guides, showcases and Watch hotlap simulated in the client (steps 1-4 built; the build stages left) | Platform + tooling | P2 | 🟢 | L | 2 |
 | A6 | AI lifts for trouble it sees ahead (tried 2026-10-20, not landed) | AI | P2 | 🟢 | M | 3 |
-| R7 | Flags in the car: a cue and the dash flag (follow-ups #18) | Race rules | P2 | 🟡 | S | 3 |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 4 |
 | R3 | Race events across days (identity, persistence, schedule) | Race rules (epic) | P2 | 🟡 | L | 4, 6 |
 | N7 | Championships and series with points (offline first) | Game mode | P2 | 🟡 | M | 4, 6 |
@@ -84,7 +83,7 @@ takes it up (— : no step, taken opportunistically).
    N26: once guides, showcases and Watch hotlap are made in the game, packs
    no longer carry them.
 3. **Race control, one pass.** A6 again, from the Nordschleife's seed 2
-   (follow-ups #20); R7's cue and dash flag; R8's edges where they touch
+   (follow-ups #20); R8's edges where they touch
    the same files.
 4. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
    local install), R3 phase 1 (a key per install), N7 (an offline season).
@@ -184,12 +183,6 @@ Saturday, race Sunday, same drivers, results kept.
 **Watch out:** the key signs a challenge at join and never leaves the
 machine; keep it beside `ApexProfile.sav` and back it up with it. Keep the
 sim path free of persistence reads.
-
-#### R7. Flags in the car — P2 · 🟡 · S
-*Source: follow-ups #18.* Yellows and blues reach the HUD and the light
-panels; the car does not show them. An audible cue as a yellow or the blue
-comes up (the synthesised UI cues, `game/audio.md`) and the flag on the
-cockpit dash. Checked on a seeded pile-up (R7 run) and a lapping race.
 
 #### R8. Race control's edges — P3 · 🟢/🟡 · S each
 *Source: follow-ups #20* (A6 is its own item). The dash shows no held pace

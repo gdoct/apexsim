@@ -416,6 +416,11 @@ Mandarina Bay.
   `apexsim.car.DamagePreview "0,0,0,0,70"` plays the knock in a race.
   Judged only by the spectra in `ApexSim.Audio.RoadGreasy` / `EngineDamage`.
 - The flat-spot thump in the road sound.
+- The flag cues over an engine (`EApexUiSound::FlagYellow` / `FlagBlue`):
+  the yellow fired in `r7-flags-dash` ("Race flags:" in the client log,
+  the light bar seen flashing yellow at 27 s), never listened to; the blue
+  and the light bar's blue flash in `v-r13-blue`, neither yet seen or
+  heard.
 - A promo clip's sound by ear ([marketing-site.md](marketing-site.md)):
   measured on one 5 s onboard cut at Spa (the note follows the car's rpm
   within two frames, 5.00 s of sound for 5.00 s of frames), never listened

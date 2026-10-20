@@ -698,6 +698,9 @@ private:
 	/** The local car's lap at the last frame and whose it was; -1 until seen. */
 	int32 BleepLap = -1;
 	int32 BleepCarIndex = -1;
+	/** The local car's flags last seen, for the cue as one comes up. */
+	int32 BleepYellow = 0;
+	bool bBleepBlue = false;
 
 	/** Find the gantry in the streamed level and take over its lens materials. */
 	void FindStartLights();

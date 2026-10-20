@@ -731,6 +731,7 @@ void AApexCockpitRig::PushDash()
 	// the engine has been seen to rev, which it reaches by the first shift.
 	ObservedMaxRpm = FMath::Max(ObservedMaxRpm, Car->GetEngineRpm());
 	Widget->SetPhaseLabel(ApexRacePhase::DashLabel(RacePhase));
+	Widget->SetFlags(YellowAhead, bBlueFlag);
 	Widget->SetValues(Car->GetGear(), ApexRace::MpsToKph(Car->GetSpeedMps()), Features.bMetric,
 		Car->GetEngineRpm() / ObservedMaxRpm, Car->GetCurrentLap(), Car->GetCurrentLapTimeMs(), CountdownMs);
 }
