@@ -220,10 +220,12 @@ session while driving (notice, then the menu).
 - A non-qualifier on screen ([server/sessions.md](server/sessions.md#session-rules-set-on-create)):
   seen on 2026-10-17 (`r9-weekend-dnq`, a three-minute Q1 under 107%): DNQ
   in the race's standings and on the finish overlay's results for a car at
-  1:12.5 against a 1:03.9 pole. The grid card listed it as P5 like a
-  starter; it now reads DNQ / DID NOT QUALIFY there (not yet seen). Left:
-  the timing tower's DNQ, the session results screen's (it opens for a
-  watcher, not a driver), and the car parked in its box. A Q1 of one
+  1:12.5 against a 1:03.9 pole. Seen on 2026-10-20: the grid card's
+  STARTING GRID reading DNQ / DID NOT QUALIFY for every car outside 107%
+  (four of five behind a 1:00.3 pole, the mixed field's ace) and the race's
+  standings tagging them. Left: the timing tower's DNQ, the session results
+  screen's (it opens for a watcher, not a driver), and the car parked in its
+  box. A Q1 of one
   minute ended before any lap and so cut nobody.
 - A weekend's day skies in a race ([server/sessions.md](server/sessions.md#race-weekend)):
   practice under its own weather and hour from the create screen's
@@ -289,15 +291,13 @@ the finish overlay's rows after a one-lap race under a one-stop rule.
 - PEN in the timing tower and the watch view's results
   (`item.missed_stops`), and the session results screen's PEN tag (it
   opens for a watcher; a driver's race ends on the finish overlay). Seen on
-  2026-10-17 (`r11-pen-standings`): PEN on every row of the HUD's
-  standings after the flag.
-- The stop on a plan sent again after a rejoin, and a stop on a plan with a
-  chosen pad set moving the garage's Brake pads knob. Seen on 2026-10-17
-  (`r11-rejoin-plan`, `apexsim.net.Drop` on the grid): the client back in
-  a second, rejoining by itself, "Rejoined ...: sending the pit plan again",
-  and BOX lit after the rejoin. The stand-in is an AI and does not act on
-  BOX (it is the driver's own reminder): the recipe sends it in with a
-  debug `pit` event, not yet run.
+  2026-10-17 and 2026-10-20 (`r11-pen-standings`): PEN on every row of the
+  HUD's standings and of the finish overlay after the flag; the results
+  screen shot caught the race view, not the screen.
+- A stop on a plan with a chosen pad set moving the garage's Brake pads
+  knob. The stop on a plan sent again after a rejoin was seen on
+  2026-10-20 (`r11-rejoin-plan`): BOX lit after the rejoin, the autopilot
+  taking the car to its box, BOX off after the stop.
 - The `BoxThisLap` wheel slot on a real wheel, and the second compound owed
   (`pit.compound_owed`, "2ND SET") under a Two compounds rule.
 
@@ -333,9 +333,11 @@ limits, as in [server/sessions.md](server/sessions.md).
   GO OUT disabled in the garage: the session ends as the last car's laps
   are used, and every AI goes out as it starts, so the player has to be
   back first. Two tries on 2026-10-17 (an allowance of one, against a
-  level-70 field) ended the session within seconds of the player's lap;
-  `r12-allowance-used` now runs two laps each with the stand-in out at
-  once. And GO OUT's "2 timed laps left" badge (not up at 12 s, before the
+  level-70 field) ended the session within seconds of the player's lap,
+  and on 2026-10-20 `r12-allowance-used` (two laps each) caught the
+  results sheet instead: the session ended with the player on pole before
+  the garage shots. The garage view needs a field slower to use its laps.
+  And GO OUT's "2 timed laps left" badge (not up at 12 s, before the
   session was in qualifying).
 - A weekend whose final round is a shoot-out, live, and the HUD's
   conditions panel showing the written outlook (the race layout used had no

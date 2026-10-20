@@ -297,6 +297,10 @@ which the runner cannot start yet; the tower's DNQ and PEN and the session
 results screen (a watcher's view); the stop after a rejoin and the lap
 allowance's garage (recipes updated, not yet run); weekend day skies.
 `run_checks.py` rewrites `ApexProfile.sav`: keep an untouched copy.
+Run again on 2026-10-20: the stop after a rejoin and the grid card's DNQ
+seen; PEN on the overlay again; the lap allowance's garage and the
+watcher's results screen still not caught (verification R11, R12, R9);
+R13's safety car and panels confirmed in the log (`r13b-safety-car`).
 
 #### V2. R1, R2, R7 — P2 · 🟡 · S each
 - R1 Spa heavy rain: rain light, LEAK read-out, two flat spots (needs T2).
