@@ -90,6 +90,8 @@ public:
 	void SetCountdownMs(int32 Ms) { CountdownMs = Ms; }
 	/** The race's phase (`ApexRacePhase`), flagged on the dash while it lasts. */
 	void SetRacePhase(int32 Phase) { RacePhase = Phase; }
+	/** The pace race control holds the car to, m/s (0 none): named after the phase on the dash. */
+	void SetSpeedCapMps(float Mps) { SpeedCapMps = Mps; }
 	/** Race control's flags for the car on the wheel, flashed on the dash's light bar. */
 	void SetRaceFlags(int32 InYellowAhead, bool bInBlue)
 	{
@@ -227,6 +229,7 @@ private:
 	int32 RacePhase = 0;
 	int32 YellowAhead = 0;
 	bool bBlueFlag = false;
+	float SpeedCapMps = 0.0f;
 
 	float WheelRollDeg = 0.0f;
 	float DriverRimLockDeg = 0.0f;

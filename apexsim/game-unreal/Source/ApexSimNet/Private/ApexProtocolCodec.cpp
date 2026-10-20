@@ -3221,6 +3221,18 @@ namespace
 			}
 			++Read;
 		}
+		// The pace race control holds the car to; left off at 0.
+		Out.SpeedCapMps = 0.0f;
+		if (FieldCount > Read)
+		{
+			float Cap = 0.0f;
+			if (!Reader.TryReadNil())
+			{
+				if (!Reader.ReadFloat(Cap)) { return false; }
+				Out.SpeedCapMps = FMath::Max(0.0f, Cap);
+			}
+			++Read;
+		}
 
 		for (int32 Extra = Read; Extra < FieldCount; ++Extra)
 		{

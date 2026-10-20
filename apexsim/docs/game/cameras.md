@@ -44,7 +44,9 @@ director spawns `AApexCockpitRig` and attaches it to the followed car:
   [input-and-ffb.md](input-and-ffb.md)).
 - **Dash** (`UApexCockpitDashWidget`): gear, speed, rev lights, lap time, the
   countdown on the grid, race control's phase in place of the lap (`SC`,
-  `VSC`, `FORM`). While a yellow or the blue is out for the car
+  `VSC`, `FORM`) with the pace it holds the car to after it (`SC 80`, in
+  the driver's units: `DriverFeedback.speed_cap_mps`, the player's own
+  car only). While a yellow or the blue is out for the car
   (`race_flags`, `SetFlags`) the whole light bar flashes its colour at 2 Hz,
   yellow over blue, a double yellow at 4 Hz, as a real wheel's does. On a class wheel it sits on the wheel's screen, placed
   by `<model>.json` beside the GLB.

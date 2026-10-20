@@ -587,6 +587,21 @@ bool FApexUdpGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("its bytes"), C.Bytes == TArray<uint8>({ 0x41, 0x50, 0x58, 0x43 }));
 		}
 
+		FApexServerMessage Capped;
+		if (TestTrue(FString::Printf(TEXT("speed-cap DriverFeedback decodes (%s)"), *Error),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_DriverFeedbackSpeedCap, Capped, Error)))
+		{
+			TestEqual(TEXT("the pace held"), Capped.DriverFeedback.SpeedCapMps, 22.5f);
+			TestFalse(TEXT("no snapshot (nil)"), Capped.DriverFeedback.OwnCar.IsSet());
+			TestFalse(TEXT("no slice (nil)"), Capped.DriverFeedback.OwnState.IsSet());
+			TestEqual(TEXT("the fields before it"), Capped.DriverFeedback.SteerInput, 0.25f);
+		}
+		FApexServerMessage Uncapped;
+		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_DriverFeedbackOwnState, Uncapped, Error))
+		{
+			TestEqual(TEXT("no pace held when it is left off"), Uncapped.DriverFeedback.SpeedCapMps, 0.0f);
+		}
+
 		// Truncated inside the snapshot, the datagram is refused rather
 		// than read short.
 		const int32 Len = (int32)UE_ARRAY_COUNT(ApexUdpGolden::S_DriverFeedbackOwnCar);

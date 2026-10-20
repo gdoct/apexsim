@@ -285,6 +285,7 @@ impl Default for ApxFeedback {
             flat_spot: [0; 4],
             own_car: None,
             own_state: None,
+            speed_cap_mps: 0.0,
         })
     }
 }

@@ -607,7 +607,9 @@ call to the green.
   the Murcetes-AMD GT3's body, moved by the field's interpolation, amber
   roof lamps flashing until `race_phase` 6) and the cockpit dash flags the
   phase where the lap count is (`SC`, `SC IN`, `VSC`, `FORM`:
-  `ApexRacePhase::DashLabel`).
+  `ApexRacePhase::DashLabel`), with the pace the driver's car is held to
+  after it: `CarState::speed_cap_mps` rides the driver's own
+  `DriverFeedback` (`speed_cap_mps`, appended, left off at 0).
 
 ## Penalties
 

@@ -3342,6 +3342,7 @@ mod tests {
             flat_spot: [0, 40, 0, 100],
             own_car: None,
             own_state: None,
+            speed_cap_mps: 0.0,
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!("DriverFeedback ({} bytes):", bytes.len());
@@ -3466,6 +3467,7 @@ mod tests {
             flat_spot: [0, 40, 0, 100],
             own_car: None,
             own_state: None,
+            speed_cap_mps: 0.0,
         };
         let old = rmp_serde::to_vec(&ServerMessage::DriverFeedback(base.clone())).unwrap();
 
@@ -3534,6 +3536,59 @@ mod tests {
         }
     }
 
+    /// The pace race control holds the driver's car to
+    /// (`cargo test driver_feedback_speed_cap_wire_format -- --nocapture`):
+    /// `ApexUdpGolden::S_DriverFeedbackSpeedCap`, the fourteen fields, nil
+    /// for the own car and its state, then the pace. At 0 it is left off and
+    /// the message keeps the bytes of `S_DriverFeedbackFlatSpot`.
+    #[test]
+    fn test_driver_feedback_speed_cap_wire_format() {
+        let base = DriverFeedback {
+            server_tick: 1234,
+            steer_torque: vec![0.25, -0.5],
+            slip_ratio: [1.5, -2.0, 0.0, 0.5],
+            slip_angle: [0.0, 0.25, -1.0, 3.0],
+            surface: [0, 1, 2, 0],
+            suspension_mps: [0.5, -0.25, 0.0, 2.0],
+            abs_active: true,
+            tc_active: false,
+            impact_mps: 4.5,
+            steer_kick: -1.5,
+            steer_input: 0.25,
+            steer_stiffness: -4.0,
+            front_load: 1.5,
+            flat_spot: [0, 40, 0, 100],
+            own_car: None,
+            own_state: None,
+            speed_cap_mps: 0.0,
+        };
+        let old = rmp_serde::to_vec(&ServerMessage::DriverFeedback(base.clone())).unwrap();
+        let capped = DriverFeedback {
+            speed_cap_mps: 22.5,
+            ..base.clone()
+        };
+        let bytes = rmp_serde::to_vec(&ServerMessage::DriverFeedback(capped.clone())).unwrap();
+        print_golden("S_DriverFeedbackSpeedCap", &bytes);
+        assert_eq!(old[16], 0x9e, "fourteen fields at 0");
+        assert_eq!(
+            &bytes[16..19],
+            &[0xdc, 0x00, 0x11],
+            "seventeen with the pace (array16)"
+        );
+        assert_eq!(&bytes[19..old.len() + 2], &old[17..]);
+        assert!(
+            bytes.ends_with(&[0xc0, 0xc0, 0xca, 0x41, 0xb4, 0x00, 0x00]),
+            "nil, nil, then 22.5 as a float 32"
+        );
+        for msg in [base, capped] {
+            let bytes = rmp_serde::to_vec(&ServerMessage::DriverFeedback(msg.clone())).unwrap();
+            match rmp_serde::from_slice(&bytes).unwrap() {
+                ServerMessage::DriverFeedback(decoded) => assert_eq!(decoded, msg),
+                other => panic!("Wrong message type: {other:?}"),
+            }
+        }
+    }
+
     /// The datagram a predicting driver gets, at its largest: a full
     /// telemetry interval of steering samples at the default rates, a
     /// snapshot with every number at its widest, and a full slice of the
@@ -3571,6 +3626,7 @@ mod tests {
             flat_spot: [100; 4],
             own_car: None,
             own_state: None,
+            speed_cap_mps: 0.0,
         };
         let size = |f: &DriverFeedback| {
             rmp_serde::to_vec(&ServerMessage::DriverFeedback(f.clone()))

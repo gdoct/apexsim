@@ -45,7 +45,7 @@ takes it up (— : no step, taken opportunistically).
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 7 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 7 |
 | X1 | `SessionKind::Demo` removal (after N28) | Cleanup | P3 | 🟢 | S | 2 |
-| R8 | Race control's edges: pace on the dash, safety-car overlap, BoP prediction, formation warmth, two-by-two rolling start (follow-ups #20) | Race rules | P3 | 🟢/🟡 | S each | 3 |
+| R8 | Race control's edges: safety-car overlap, BoP prediction, formation warmth, two-by-two rolling start (follow-ups #20) | Race rules | P3 | 🟢/🟡 | S each | 3 |
 | N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M | 5 |
 | A7 | AI in imported cars leaves the road in traffic (follow-ups #19) | AI | P3 | 🟢 | M | — |
 | N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S | — |
@@ -185,8 +185,7 @@ machine; keep it beside `ApexProfile.sav` and back it up with it. Keep the
 sim path free of persistence reads.
 
 #### R8. Race control's edges — P3 · 🟢/🟡 · S each
-*Source: follow-ups #20* (A6 is its own item). The dash shows no held pace
-(`speed_cap_mps` not on the wire); the safety car drives through a lapped
+*Source: follow-ups #20* (A6 is its own item). The safety car drives through a lapped
 car passing it; the client's prediction ignores `[[balance]]`; the
 formation lap puts no warmth in (`FORMATION_LAP_WARMTH`); rolling starts
 run single file.

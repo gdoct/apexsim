@@ -3610,6 +3610,13 @@ struct APEXSIMNET_API FApexDriverFeedback
 	TOptional<FApexOwnCarStateChunk> OwnState;
 
 	/**
+	 * The pace race control holds the car to, m/s (`speed_cap_mps`: the
+	 * formation lap, the safety car's queue, the VSC); 0 while none holds,
+	 * and from a server that predates it.
+	 */
+	float SpeedCapMps = 0.0f;
+
+	/**
 	 * Not on the wire: FPlatformTime::Seconds when the UDP worker took the
 	 * datagram in (after any fake latency), which times the prediction's
 	 * clock closer than the game frame that reads it.
@@ -3653,6 +3660,7 @@ struct APEXSIMNET_API FApexDriverFeedback
 			OwnCar = Next.OwnCar;
 		}
 		OwnState = Next.OwnState;
+		SpeedCapMps = Next.SpeedCapMps;
 	}
 };
 

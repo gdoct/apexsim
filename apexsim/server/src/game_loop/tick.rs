@@ -623,6 +623,8 @@ pub(crate) async fn tick_sessions(
                 if !should_broadcast || away {
                     continue;
                 }
+                // The pace race control holds the car to, for the dash.
+                feedback.speed_cap_mps = car.speed_cap_mps;
                 // A driver whose client numbers its inputs predicts its own
                 // car: its feedback carries the car's snapshot and, in
                 // turn, a slice of the full state (`crate::own_car`).

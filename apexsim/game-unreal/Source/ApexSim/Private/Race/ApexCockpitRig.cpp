@@ -730,7 +730,15 @@ void AApexCockpitRig::PushDash()
 	// The wire never states a redline; the bar's full scale is the highest
 	// the engine has been seen to rev, which it reaches by the first shift.
 	ObservedMaxRpm = FMath::Max(ObservedMaxRpm, Car->GetEngineRpm());
-	Widget->SetPhaseLabel(ApexRacePhase::DashLabel(RacePhase));
+	// The phase, and the pace it holds the car to as a real dash shows the
+	// delta's target: `SC 80`, `FORM 108`.
+	FString Phase = ApexRacePhase::DashLabel(RacePhase);
+	if (!Phase.IsEmpty() && SpeedCapMps > 0.0f)
+	{
+		const float Kph = ApexRace::MpsToKph(SpeedCapMps);
+		Phase += FString::Printf(TEXT(" %d"), FMath::RoundToInt(Features.bMetric ? Kph : Kph * 0.621371f));
+	}
+	Widget->SetPhaseLabel(Phase);
 	Widget->SetFlags(YellowAhead, bBlueFlag);
 	Widget->SetValues(Car->GetGear(), ApexRace::MpsToKph(Car->GetSpeedMps()), Features.bMetric,
 		Car->GetEngineRpm() / ObservedMaxRpm, Car->GetCurrentLap(), Car->GetCurrentLapTimeMs(), CountdownMs);

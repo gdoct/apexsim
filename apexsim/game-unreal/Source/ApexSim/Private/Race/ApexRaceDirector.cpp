@@ -887,6 +887,9 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	if (Rig)
 	{
 		Rig->SetRacePhase(Frame.RacePhase);
+		// The pace held comes with the driver's own feedback: the player's car only.
+		const UApexNetSubsystem* CapNet = GetNet();
+		Rig->SetSpeedCapMps(!bSpectatorRig && CapNet && CapNet->GetLocalCarIndex() >= 0 ? CapNet->GetDriverFeedback().SpeedCapMps : 0.0f);
 	}
 	UpdateRaceBleeps(Frame, PreviousState);
 	if (Rig)

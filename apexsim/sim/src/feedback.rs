@@ -192,6 +192,7 @@ impl FeedbackAccumulator {
             flat_spot: self.flat_spot.map(|f| (f * 100.0).round() as u8),
             own_car: None,
             own_state: None,
+            speed_cap_mps: 0.0,
         };
         *self = Self::default();
         message
@@ -276,14 +277,21 @@ pub struct DriverFeedback {
     /// blob is going out (and left off with nothing after it). Appended.
     #[serde(default)]
     pub own_state: Option<StateChunk>,
+    /// The pace race control holds the car to, m/s (`CarState::speed_cap_mps`:
+    /// the formation lap, the safety car's queue, the VSC's delta); 0 while
+    /// none holds. The cockpit dash shows it. Left off at 0 (and the own-car
+    /// fields before it sent as nil when it is not). Appended.
+    #[serde(default)]
+    pub speed_cap_mps: f32,
 }
 
 impl Serialize for DriverFeedback {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
-        let with_state = self.own_state.is_some();
+        let with_cap = self.speed_cap_mps > 0.0;
+        let with_state = self.own_state.is_some() || with_cap;
         let with_car = self.own_car.is_some() || with_state;
-        let len = 14 + with_car as usize + with_state as usize;
+        let len = 14 + with_car as usize + with_state as usize + with_cap as usize;
         let mut s = serializer.serialize_struct("DriverFeedback", len)?;
         s.serialize_field("server_tick", &self.server_tick)?;
         s.serialize_field("steer_torque", &self.steer_torque)?;
@@ -308,6 +316,11 @@ impl Serialize for DriverFeedback {
             s.serialize_field("own_state", &self.own_state)?;
         } else {
             s.skip_field("own_state")?;
+        }
+        if with_cap {
+            s.serialize_field("speed_cap_mps", &self.speed_cap_mps)?;
+        } else {
+            s.skip_field("speed_cap_mps")?;
         }
         s.end()
     }

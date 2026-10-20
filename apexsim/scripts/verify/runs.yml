@@ -2831,3 +2831,31 @@ runs:
       - {at: 38, label: "38 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
       - {at: 39, label: "39 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
       - {at: 40, label: "40 s", checks: "R7 the light bar: yellow (flashing) while a yellow is out, else the revs"}
+
+  # R8 (2026-10-21): the pace race control holds the player's car to, on
+  # the cockpit dash after the phase (DriverFeedback.speed_cap_mps): another
+  # car's engine killed at 20 s of green brings out the safety car, and the
+  # player's car queues behind it held to its pace.
+  - id: r8-pace-dash
+    about: "R8. The dash's SC with the pace held"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=Caravan
+      - -ApexAiCount=7
+      - -ApexLaps=5
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+      - -ApexSafetyCar=on
+    server:
+      stand_in: true
+      events:
+        - "20:2:damage=engine:100"
+    shots:
+      - {at: 50, label: "safety car out", checks: "R8 the dash: SC and a pace (SC 80)"}
+      - {at: 65, label: "", checks: "R8 the dash: SC and a pace"}
+      - {at: 80, label: "", checks: "R8 the dash: SC and a pace"}
+      - {at: 95, label: "", checks: "R8 the dash: SC IN, or the lap again once the pace is off"}

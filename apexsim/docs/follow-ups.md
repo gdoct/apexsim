@@ -104,8 +104,6 @@ The race-start rules and penalties ([server/sessions.md](server/sessions.md#race
 are on the wire and run on the server, and the create screen offers them;
 the client does not show all of them yet, and the server leaves a few edges.
 
-- client: the cockpit dash flags the phase (`SC`, `VSC`, `FORM`) but not
-  the pace a car is held to (`speed_cap_mps` is not on the wire).
 - client: the safety car is a car of its own (the Murcetes-AMD GT3's body,
   amber roof lamps); it drives through a lapped car passing it (it is no
   body on the server), so the pass is seen as an overlap.
